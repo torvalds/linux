@@ -3538,13 +3538,13 @@ static void ar9003_hw_xpa_bias_level_apply(struct ath_hw *ah, bool is2ghz)
 static u16 ar9003_switch_com_spdt_get(struct ath_hw *ah, bool is_2ghz)
 {
 	struct ar9300_eeprom *eep = &ah->eeprom.ar9300_eep;
-	__le32 val;
+	__le16 val;
 
 	if (is_2ghz)
 		val = eep->modalHeader2G.switchcomspdt;
 	else
 		val = eep->modalHeader5G.switchcomspdt;
-	return le32_to_cpu(val);
+	return le16_to_cpu(val);
 }
 
 
