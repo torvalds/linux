@@ -24,7 +24,7 @@
 #include "board-pinmux.h"
 #include "board-trimslice.h"
 
-static __initdata struct tegra_pingroup_config trimslice_pinmux[] = {
+static struct tegra_pingroup_config trimslice_pinmux[] = {
 	{TEGRA_PINGROUP_ATA,   TEGRA_MUX_IDE,           TEGRA_PUPD_NORMAL,	TEGRA_TRI_TRISTATE},
 	{TEGRA_PINGROUP_ATB,   TEGRA_MUX_SDIO4,         TEGRA_PUPD_NORMAL,	TEGRA_TRI_NORMAL},
 	{TEGRA_PINGROUP_ATC,   TEGRA_MUX_NAND,          TEGRA_PUPD_NORMAL,	TEGRA_TRI_TRISTATE},
