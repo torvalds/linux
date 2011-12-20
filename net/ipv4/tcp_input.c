@@ -865,13 +865,13 @@ static void tcp_disable_fack(struct tcp_sock *tp)
 	/* RFC3517 uses different metric in lost marker => reset on change */
 	if (tcp_is_fack(tp))
 		tp->lost_skb_hint = NULL;
-	tp->rx_opt.sack_ok &= ~2;
+	tp->rx_opt.sack_ok &= ~TCP_FACK_ENABLED;
 }
 
 /* Take a notice that peer is sending D-SACKs */
 static void tcp_dsack_seen(struct tcp_sock *tp)
 {
-	tp->rx_opt.sack_ok |= 4;
+	tp->rx_opt.sack_ok |= TCP_DSACK_SEEN;
 }
 
 /* Initialize metrics on socket. */
@@ -3878,7 +3878,7 @@ void tcp_parse_options(const struct sk_buff *skb, struct tcp_options_received *o
 			case TCPOPT_SACK_PERM:
 				if (opsize == TCPOLEN_SACK_PERM && th->syn &&
 				    !estab && sysctl_tcp_sack) {
-					opt_rx->sack_ok = 1;
+					opt_rx->sack_ok = TCP_SACK_SEEN;
 					tcp_sack_reset(opt_rx);
 				}
 				break;

@@ -773,12 +773,12 @@ static inline int tcp_is_reno(const struct tcp_sock *tp)
 
 static inline int tcp_is_fack(const struct tcp_sock *tp)
 {
-	return tp->rx_opt.sack_ok & 2;
+	return tp->rx_opt.sack_ok & TCP_FACK_ENABLED;
 }
 
 static inline void tcp_enable_fack(struct tcp_sock *tp)
 {
-	tp->rx_opt.sack_ok |= 2;
+	tp->rx_opt.sack_ok |= TCP_FACK_ENABLED;
 }
 
 static inline unsigned int tcp_left_out(const struct tcp_sock *tp)
