@@ -380,10 +380,16 @@ interrupt_base:
 	mtspr	SPRN_SPRG_WSCRATCH0, r10 /* Save some working registers */
 	mfspr	r10, SPRN_SPRG_THREAD
 	stw	r11, THREAD_NORMSAVE(0)(r10)
+#ifdef CONFIG_KVM_BOOKE_HV
+BEGIN_FTR_SECTION
+	mfspr	r11, SPRN_SRR1
+END_FTR_SECTION_IFSET(CPU_FTR_EMB_HV)
+#endif
 	stw	r12, THREAD_NORMSAVE(1)(r10)
 	stw	r13, THREAD_NORMSAVE(2)(r10)
 	mfcr	r13
 	stw	r13, THREAD_NORMSAVE(3)(r10)
+	DO_KVM	BOOKE_INTERRUPT_DTLB_MISS SPRN_SRR1
 	mfspr	r10, SPRN_DEAR		/* Get faulting address */
 
 	/* If we are faulting a kernel address, we have to use the
@@ -468,10 +474,16 @@ interrupt_base:
 	mtspr	SPRN_SPRG_WSCRATCH0, r10 /* Save some working registers */
 	mfspr	r10, SPRN_SPRG_THREAD
 	stw	r11, THREAD_NORMSAVE(0)(r10)
+#ifdef CONFIG_KVM_BOOKE_HV
+BEGIN_FTR_SECTION
+	mfspr	r11, SPRN_SRR1
+END_FTR_SECTION_IFSET(CPU_FTR_EMB_HV)
+#endif
 	stw	r12, THREAD_NORMSAVE(1)(r10)
 	stw	r13, THREAD_NORMSAVE(2)(r10)
 	mfcr	r13
 	stw	r13, THREAD_NORMSAVE(3)(r10)
+	DO_KVM	BOOKE_INTERRUPT_ITLB_MISS SPRN_SRR1
 	mfspr	r10, SPRN_SRR0		/* Get faulting address */
 
 	/* If we are faulting a kernel address, we have to use the
@@ -579,6 +591,17 @@ interrupt_base:
 	/* Debug Interrupt */
 	DEBUG_DEBUG_EXCEPTION
 	DEBUG_CRIT_EXCEPTION
+
+	GUEST_DOORBELL_EXCEPTION
+
+	CRITICAL_EXCEPTION(0, GUEST_DBELL_CRIT, CriticalGuestDoorbell, \
+			   unknown_exception)
+
+	/* Hypercall */
+	EXCEPTION(0, HV_SYSCALL, Hypercall, unknown_exception, EXC_XFER_EE)
+
+	/* Embedded Hypervisor Privilege */
+	EXCEPTION(0, HV_PRIV, Ehvpriv, unknown_exception, EXC_XFER_EE)
 
 /*
  * Local functions
@@ -883,8 +906,31 @@ _GLOBAL(__setup_e500mc_ivors)
 	mtspr	SPRN_IVOR36,r3
 	li	r3,CriticalDoorbell@l
 	mtspr	SPRN_IVOR37,r3
+
+	/*
+	 * We only want to touch IVOR38-41 if we're running on hardware
+	 * that supports category E.HV.  The architectural way to determine
+	 * this is MMUCFG[LPIDSIZE].
+	 */
+	mfspr	r3, SPRN_MMUCFG
+	andis.	r3, r3, MMUCFG_LPIDSIZE@h
+	beq	no_hv
+	li	r3,GuestDoorbell@l
+	mtspr	SPRN_IVOR38,r3
+	li	r3,CriticalGuestDoorbell@l
+	mtspr	SPRN_IVOR39,r3
+	li	r3,Hypercall@l
+	mtspr	SPRN_IVOR40,r3
+	li	r3,Ehvpriv@l
+	mtspr	SPRN_IVOR41,r3
+skip_hv_ivors:
 	sync
 	blr
+no_hv:
+	lwz	r3, CPU_SPEC_FEATURES(r5)
+	rlwinm	r3, r3, 0, ~CPU_FTR_EMB_HV
+	stw	r3, CPU_SPEC_FEATURES(r5)
+	b	skip_hv_ivors
 
 /*
  * extern void giveup_altivec(struct task_struct *prev)

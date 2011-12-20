@@ -2,7 +2,9 @@
  * Copyright (C) 2008-2011 Freescale Semiconductor, Inc. All rights reserved.
  *
  * Author: Yu Liu <yu.liu@freescale.com>
+ *         Scott Wood <scottwood@freescale.com>
  *         Ashish Kalra <ashish.kalra@freescale.com>
+ *         Varun Sethi <varun.sethi@freescale.com>
  *
  * Description:
  * This file is based on arch/powerpc/kvm/44x_tlb.h and
@@ -99,6 +101,7 @@ static inline struct kvmppc_vcpu_e500 *to_e500(struct kvm_vcpu *vcpu)
 {
 	return container_of(vcpu, struct kvmppc_vcpu_e500, vcpu);
 }
+
 
 /* This geometry is the legacy default -- can be overridden by userspace */
 #define KVM_E500_TLB0_WAY_SIZE		128
@@ -250,10 +253,12 @@ static inline int tlbe_is_host_safe(const struct kvm_vcpu *vcpu,
 	if (!get_tlb_v(tlbe))
 		return 0;
 
+#ifndef CONFIG_KVM_BOOKE_HV
 	/* Does it match current guest AS? */
 	/* XXX what about IS != DS? */
 	if (get_tlb_ts(tlbe) != !!(vcpu->arch.shared->msr & MSR_IS))
 		return 0;
+#endif
 
 	gpa = get_tlb_raddr(tlbe);
 	if (!gfn_to_memslot(vcpu->kvm, gpa >> PAGE_SHIFT))
@@ -274,7 +279,11 @@ void kvmppc_e500_tlbil_one(struct kvmppc_vcpu_e500 *vcpu_e500,
 			   struct kvm_book3e_206_tlb_entry *gtlbe);
 void kvmppc_e500_tlbil_all(struct kvmppc_vcpu_e500 *vcpu_e500);
 
-#ifdef CONFIG_KVM_E500
+#ifdef CONFIG_KVM_BOOKE_HV
+#define kvmppc_e500_get_tlb_stid(vcpu, gtlbe)       get_tlb_tid(gtlbe)
+#define get_tlbmiss_tid(vcpu)           get_cur_pid(vcpu)
+#define get_tlb_sts(gtlbe)              (gtlbe->mas1 & MAS1_TS)
+#else
 unsigned int kvmppc_e500_get_tlb_stid(struct kvm_vcpu *vcpu,
 				      struct kvm_book3e_206_tlb_entry *gtlbe);
 
@@ -288,6 +297,6 @@ static inline unsigned int get_tlbmiss_tid(struct kvm_vcpu *vcpu)
 
 /* Force TS=1 for all guest mappings. */
 #define get_tlb_sts(gtlbe)              (MAS1_TS)
-#endif /* CONFIG_KVM_E500 */
+#endif /* !BOOKE_HV */
 
 #endif /* KVM_E500_H */

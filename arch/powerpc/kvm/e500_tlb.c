@@ -2,7 +2,9 @@
  * Copyright (C) 2008-2011 Freescale Semiconductor, Inc. All rights reserved.
  *
  * Author: Yu Liu, yu.liu@freescale.com
+ *         Scott Wood, scottwood@freescale.com
  *         Ashish Kalra, ashish.kalra@freescale.com
+ *         Varun Sethi, varun.sethi@freescale.com
  *
  * Description:
  * This file is based on arch/powerpc/kvm/44x_tlb.c,
@@ -64,6 +66,7 @@ static inline u32 e500_shadow_mas3_attrib(u32 mas3, int usermode)
 	/* Mask off reserved bits. */
 	mas3 &= MAS3_ATTRIB_MASK;
 
+#ifndef CONFIG_KVM_BOOKE_HV
 	if (!usermode) {
 		/* Guest is in supervisor mode,
 		 * so we need to translate guest
@@ -71,8 +74,9 @@ static inline u32 e500_shadow_mas3_attrib(u32 mas3, int usermode)
 		mas3 &= ~E500_TLB_USER_PERM_MASK;
 		mas3 |= (mas3 & E500_TLB_SUPER_PERM_MASK) << 1;
 	}
-
-	return mas3 | E500_TLB_SUPER_PERM_MASK;
+	mas3 |= E500_TLB_SUPER_PERM_MASK;
+#endif
+	return mas3;
 }
 
 static inline u32 e500_shadow_mas2_attrib(u32 mas2, int usermode)
@@ -98,7 +102,16 @@ static inline void __write_host_tlbe(struct kvm_book3e_206_tlb_entry *stlbe,
 	mtspr(SPRN_MAS2, (unsigned long)stlbe->mas2);
 	mtspr(SPRN_MAS3, (u32)stlbe->mas7_3);
 	mtspr(SPRN_MAS7, (u32)(stlbe->mas7_3 >> 32));
+#ifdef CONFIG_KVM_BOOKE_HV
+	mtspr(SPRN_MAS8, stlbe->mas8);
+#endif
 	asm volatile("isync; tlbwe" : : : "memory");
+
+#ifdef CONFIG_KVM_BOOKE_HV
+	/* Must clear mas8 for other host tlbwe's */
+	mtspr(SPRN_MAS8, 0);
+	isync();
+#endif
 	local_irq_restore(flags);
 
 	trace_kvm_booke206_stlb_write(mas0, stlbe->mas8, stlbe->mas1,
@@ -384,6 +397,10 @@ static inline void kvmppc_e500_setup_stlbe(
 		      e500_shadow_mas2_attrib(gtlbe->mas2, pr);
 	stlbe->mas7_3 = ((u64)pfn << PAGE_SHIFT) |
 			e500_shadow_mas3_attrib(gtlbe->mas7_3, pr);
+
+#ifdef CONFIG_KVM_BOOKE_HV
+	stlbe->mas8 = MAS8_TGS | vcpu->kvm->arch.lpid;
+#endif
 }
 
 static inline void kvmppc_e500_shadow_map(struct kvmppc_vcpu_e500 *vcpu_e500,

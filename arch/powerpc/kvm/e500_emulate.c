@@ -85,6 +85,7 @@ int kvmppc_core_emulate_mtspr(struct kvm_vcpu *vcpu, int sprn, int rs)
 	ulong spr_val = kvmppc_get_gpr(vcpu, rs);
 
 	switch (sprn) {
+#ifndef CONFIG_KVM_BOOKE_HV
 	case SPRN_PID:
 		kvmppc_set_pid(vcpu, spr_val);
 		break;
@@ -114,6 +115,7 @@ int kvmppc_core_emulate_mtspr(struct kvm_vcpu *vcpu, int sprn, int rs)
 		vcpu->arch.shared->mas7_3 &= (u64)0xffffffff;
 		vcpu->arch.shared->mas7_3 |= (u64)spr_val << 32;
 		break;
+#endif
 	case SPRN_L1CSR0:
 		vcpu_e500->l1csr0 = spr_val;
 		vcpu_e500->l1csr0 &= ~(L1CSR0_DCFI | L1CSR0_CLFC);
@@ -143,7 +145,14 @@ int kvmppc_core_emulate_mtspr(struct kvm_vcpu *vcpu, int sprn, int rs)
 	case SPRN_IVOR35:
 		vcpu->arch.ivor[BOOKE_IRQPRIO_PERFORMANCE_MONITOR] = spr_val;
 		break;
-
+#ifdef CONFIG_KVM_BOOKE_HV
+	case SPRN_IVOR36:
+		vcpu->arch.ivor[BOOKE_IRQPRIO_DBELL] = spr_val;
+		break;
+	case SPRN_IVOR37:
+		vcpu->arch.ivor[BOOKE_IRQPRIO_DBELL_CRIT] = spr_val;
+		break;
+#endif
 	default:
 		emulated = kvmppc_booke_emulate_mtspr(vcpu, sprn, rs);
 	}
@@ -155,9 +164,11 @@ int kvmppc_core_emulate_mfspr(struct kvm_vcpu *vcpu, int sprn, int rt)
 {
 	struct kvmppc_vcpu_e500 *vcpu_e500 = to_e500(vcpu);
 	int emulated = EMULATE_DONE;
-	unsigned long val;
 
 	switch (sprn) {
+#ifndef CONFIG_KVM_BOOKE_HV
+		unsigned long val;
+
 	case SPRN_PID:
 		kvmppc_set_gpr(vcpu, rt, vcpu_e500->pid[0]); break;
 	case SPRN_PID1:
@@ -182,6 +193,7 @@ int kvmppc_core_emulate_mfspr(struct kvm_vcpu *vcpu, int sprn, int rt)
 		val = vcpu->arch.shared->mas7_3 >> 32;
 		kvmppc_set_gpr(vcpu, rt, val);
 		break;
+#endif
 	case SPRN_TLB0CFG:
 		kvmppc_set_gpr(vcpu, rt, vcpu->arch.tlbcfg[0]); break;
 	case SPRN_TLB1CFG:
@@ -216,6 +228,14 @@ int kvmppc_core_emulate_mfspr(struct kvm_vcpu *vcpu, int sprn, int rt)
 	case SPRN_IVOR35:
 		kvmppc_set_gpr(vcpu, rt, vcpu->arch.ivor[BOOKE_IRQPRIO_PERFORMANCE_MONITOR]);
 		break;
+#ifdef CONFIG_KVM_BOOKE_HV
+	case SPRN_IVOR36:
+		kvmppc_set_gpr(vcpu, rt, vcpu->arch.ivor[BOOKE_IRQPRIO_DBELL]);
+		break;
+	case SPRN_IVOR37:
+		kvmppc_set_gpr(vcpu, rt, vcpu->arch.ivor[BOOKE_IRQPRIO_DBELL_CRIT]);
+		break;
+#endif
 	default:
 		emulated = kvmppc_booke_emulate_mfspr(vcpu, sprn, rt);
 	}
