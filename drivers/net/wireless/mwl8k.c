@@ -28,7 +28,7 @@
 
 #define MWL8K_DESC	"Marvell TOPDOG(R) 802.11 Wireless Network Driver"
 #define MWL8K_NAME	KBUILD_MODNAME
-#define MWL8K_VERSION	"0.12"
+#define MWL8K_VERSION	"0.13"
 
 /* Module parameters */
 static unsigned ap_mode_default;
