@@ -301,19 +301,20 @@ _ENTRY(__early_start)
 
 interrupt_base:
 	/* Critical Input Interrupt */
-	CRITICAL_EXCEPTION(0x0100, CriticalInput, unknown_exception)
+	CRITICAL_EXCEPTION(0x0100, CRITICAL, CriticalInput, unknown_exception)
 
 	/* Machine Check Interrupt */
 #ifdef CONFIG_E200
 	/* no RFMCI, MCSRRs on E200 */
-	CRITICAL_EXCEPTION(0x0200, MachineCheck, machine_check_exception)
+	CRITICAL_EXCEPTION(0x0200, MACHINE_CHECK, MachineCheck, \
+			   machine_check_exception)
 #else
 	MCHECK_EXCEPTION(0x0200, MachineCheck, machine_check_exception)
 #endif
 
 	/* Data Storage Interrupt */
 	START_EXCEPTION(DataStorage)
-	NORMAL_EXCEPTION_PROLOG
+	NORMAL_EXCEPTION_PROLOG(DATA_STORAGE)
 	mfspr	r5,SPRN_ESR		/* Grab the ESR, save it, pass arg3 */
 	stw	r5,_ESR(r11)
 	mfspr	r4,SPRN_DEAR		/* Grab the DEAR, save it, pass arg2 */
@@ -328,7 +329,7 @@ interrupt_base:
 	INSTRUCTION_STORAGE_EXCEPTION
 
 	/* External Input Interrupt */
-	EXCEPTION(0x0500, ExternalInput, do_IRQ, EXC_XFER_LITE)
+	EXCEPTION(0x0500, EXTERNAL, ExternalInput, do_IRQ, EXC_XFER_LITE)
 
 	/* Alignment Interrupt */
 	ALIGNMENT_EXCEPTION
@@ -342,32 +343,36 @@ interrupt_base:
 #else
 #ifdef CONFIG_E200
 	/* E200 treats 'normal' floating point instructions as FP Unavail exception */
-	EXCEPTION(0x0800, FloatingPointUnavailable, program_check_exception, EXC_XFER_EE)
+	EXCEPTION(0x0800, FP_UNAVAIL, FloatingPointUnavailable, \
+		  program_check_exception, EXC_XFER_EE)
 #else
-	EXCEPTION(0x0800, FloatingPointUnavailable, unknown_exception, EXC_XFER_EE)
+	EXCEPTION(0x0800, FP_UNAVAIL, FloatingPointUnavailable, \
+		  unknown_exception, EXC_XFER_EE)
 #endif
 #endif
 
 	/* System Call Interrupt */
 	START_EXCEPTION(SystemCall)
-	NORMAL_EXCEPTION_PROLOG
+	NORMAL_EXCEPTION_PROLOG(SYSCALL)
 	EXC_XFER_EE_LITE(0x0c00, DoSyscall)
 
 	/* Auxiliary Processor Unavailable Interrupt */
-	EXCEPTION(0x2900, AuxillaryProcessorUnavailable, unknown_exception, EXC_XFER_EE)
+	EXCEPTION(0x2900, AP_UNAVAIL, AuxillaryProcessorUnavailable, \
+		  unknown_exception, EXC_XFER_EE)
 
 	/* Decrementer Interrupt */
 	DECREMENTER_EXCEPTION
 
 	/* Fixed Internal Timer Interrupt */
 	/* TODO: Add FIT support */
-	EXCEPTION(0x3100, FixedIntervalTimer, unknown_exception, EXC_XFER_EE)
+	EXCEPTION(0x3100, FIT, FixedIntervalTimer, \
+		  unknown_exception, EXC_XFER_EE)
 
 	/* Watchdog Timer Interrupt */
 #ifdef CONFIG_BOOKE_WDT
-	CRITICAL_EXCEPTION(0x3200, WatchdogTimer, WatchdogException)
+	CRITICAL_EXCEPTION(0x3200, WATCHDOG, WatchdogTimer, WatchdogException)
 #else
-	CRITICAL_EXCEPTION(0x3200, WatchdogTimer, unknown_exception)
+	CRITICAL_EXCEPTION(0x3200, WATCHDOG, WatchdogTimer, unknown_exception)
 #endif
 
 	/* Data TLB Error Interrupt */
@@ -538,31 +543,38 @@ interrupt_base:
 #ifdef CONFIG_SPE
 	/* SPE Unavailable */
 	START_EXCEPTION(SPEUnavailable)
-	NORMAL_EXCEPTION_PROLOG
+	NORMAL_EXCEPTION_PROLOG(SPE_UNAVAIL)
 	bne	load_up_spe
 	addi	r3,r1,STACK_FRAME_OVERHEAD
 	EXC_XFER_EE_LITE(0x2010, KernelSPE)
 #else
-	EXCEPTION(0x2020, SPEUnavailable, unknown_exception, EXC_XFER_EE)
+	EXCEPTION(0x2020, SPE_UNAVAIL, SPEUnavailable, \
+		  unknown_exception, EXC_XFER_EE)
 #endif /* CONFIG_SPE */
 
 	/* SPE Floating Point Data */
 #ifdef CONFIG_SPE
-	EXCEPTION(0x2030, SPEFloatingPointData, SPEFloatingPointException, EXC_XFER_EE);
+	EXCEPTION(0x2030, SPE_FP_DATA, SPEFloatingPointData, \
+		  SPEFloatingPointException, EXC_XFER_EE);
 
 	/* SPE Floating Point Round */
-	EXCEPTION(0x2050, SPEFloatingPointRound, SPEFloatingPointRoundException, EXC_XFER_EE)
+	EXCEPTION(0x2050, SPE_FP_ROUND, SPEFloatingPointRound, \
+		  SPEFloatingPointRoundException, EXC_XFER_EE)
 #else
-	EXCEPTION(0x2040, SPEFloatingPointData, unknown_exception, EXC_XFER_EE)
-	EXCEPTION(0x2050, SPEFloatingPointRound, unknown_exception, EXC_XFER_EE)
+	EXCEPTION(0x2040, SPE_FP_DATA, SPEFloatingPointData, \
+		  unknown_exception, EXC_XFER_EE)
+	EXCEPTION(0x2050, SPE_FP_ROUND, SPEFloatingPointRound, \
+		  unknown_exception, EXC_XFER_EE)
 #endif /* CONFIG_SPE */
 
 	/* Performance Monitor */
-	EXCEPTION(0x2060, PerformanceMonitor, performance_monitor_exception, EXC_XFER_STD)
+	EXCEPTION(0x2060, PERFORMANCE_MONITOR, PerformanceMonitor, \
+		  performance_monitor_exception, EXC_XFER_STD)
 
-	EXCEPTION(0x2070, Doorbell, doorbell_exception, EXC_XFER_STD)
+	EXCEPTION(0x2070, DOORBELL, Doorbell, doorbell_exception, EXC_XFER_STD)
 
-	CRITICAL_EXCEPTION(0x2080, CriticalDoorbell, unknown_exception)
+	CRITICAL_EXCEPTION(0x2080, DOORBELL_CRITICAL, \
+			   CriticalDoorbell, unknown_exception)
 
 	/* Debug Interrupt */
 	DEBUG_DEBUG_EXCEPTION
