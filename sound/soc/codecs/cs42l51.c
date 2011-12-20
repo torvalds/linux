@@ -511,7 +511,6 @@ static struct snd_soc_dai_driver cs42l51_dai = {
 static int cs42l51_probe(struct snd_soc_codec *codec)
 {
 	struct cs42l51_private *cs42l51 = snd_soc_codec_get_drvdata(codec);
-	struct snd_soc_dapm_context *dapm = &codec->dapm;
 	int ret, reg;
 
 	ret = cs42l51_fill_cache(codec);
@@ -539,20 +538,20 @@ static int cs42l51_probe(struct snd_soc_codec *codec)
 	if (ret < 0)
 		return ret;
 
-	snd_soc_add_controls(codec, cs42l51_snd_controls,
-		ARRAY_SIZE(cs42l51_snd_controls));
-	snd_soc_dapm_new_controls(dapm, cs42l51_dapm_widgets,
-		ARRAY_SIZE(cs42l51_dapm_widgets));
-	snd_soc_dapm_add_routes(dapm, cs42l51_routes,
-		ARRAY_SIZE(cs42l51_routes));
-
 	return 0;
 }
 
 static struct snd_soc_codec_driver soc_codec_device_cs42l51 = {
-	.probe =	cs42l51_probe,
+	.probe = cs42l51_probe,
 	.reg_cache_size = CS42L51_NUMREGS + 1,
 	.reg_word_size = sizeof(u8),
+
+	.controls = cs42l51_snd_controls,
+	.num_controls = ARRAY_SIZE(cs42l51_snd_controls),
+	.dapm_widgets = cs42l51_dapm_widgets,
+	.num_dapm_widgets = ARRAY_SIZE(cs42l51_dapm_widgets),
+	.dapm_routes = cs42l51_routes,
+	.num_dapm_routes = ARRAY_SIZE(cs42l51_routes),
 };
 
 static int cs42l51_i2c_probe(struct i2c_client *i2c_client,
