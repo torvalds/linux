@@ -2218,7 +2218,7 @@ static void b43_nphy_tx_power_fix(struct b43_wldev *dev)
 		}
 	}
 	if (dev->phy.rev < 7 &&
-	    (txpi[0] < 40 || txpi[0] > 100 || txpi[1] < 40 || txpi[1] > 10))
+	    (txpi[0] < 40 || txpi[0] > 100 || txpi[1] < 40 || txpi[1] > 100))
 		txpi[0] = txpi[1] = 91;
 
 	/*
