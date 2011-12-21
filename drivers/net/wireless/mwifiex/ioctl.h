@@ -62,10 +62,6 @@ enum {
 	BAND_AN = 16,
 };
 
-#define NO_SEC_CHANNEL               0
-#define SEC_CHANNEL_ABOVE            1
-#define SEC_CHANNEL_BELOW            3
-
 enum {
 	ADHOC_IDLE,
 	ADHOC_STARTED,

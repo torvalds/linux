@@ -246,7 +246,7 @@ static void mwifiex_init_adapter(struct mwifiex_adapter *adapter)
 	memset(adapter->event_body, 0, sizeof(adapter->event_body));
 	adapter->hw_dot_11n_dev_cap = 0;
 	adapter->hw_dev_mcs_support = 0;
-	adapter->chan_offset = 0;
+	adapter->sec_chan_offset = 0;
 	adapter->adhoc_11n_enabled = false;
 
 	mwifiex_wmm_init(adapter);

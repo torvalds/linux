@@ -885,12 +885,14 @@ mwifiex_cmd_802_11_ad_hoc_start(struct mwifiex_private *priv,
 		       = mwifiex_band_to_radio_type(priv->curr_bss_params.band);
 		if (adapter->adhoc_start_band & BAND_GN
 		    || adapter->adhoc_start_band & BAND_AN) {
-			if (adapter->chan_offset == SEC_CHANNEL_ABOVE)
+			if (adapter->sec_chan_offset ==
+					    IEEE80211_HT_PARAM_CHA_SEC_ABOVE)
 				chan_tlv->chan_scan_param[0].radio_type |=
-					SECOND_CHANNEL_ABOVE;
-			else if (adapter->chan_offset == SEC_CHANNEL_BELOW)
+					(IEEE80211_HT_PARAM_CHA_SEC_ABOVE << 4);
+			else if (adapter->sec_chan_offset ==
+					    IEEE80211_HT_PARAM_CHA_SEC_ABOVE)
 				chan_tlv->chan_scan_param[0].radio_type |=
-					SECOND_CHANNEL_BELOW;
+					(IEEE80211_HT_PARAM_CHA_SEC_BELOW << 4);
 		}
 		dev_dbg(adapter->dev, "info: ADHOC_S_CMD: TLV Band = %d\n",
 		       chan_tlv->chan_scan_param[0].radio_type);
@@ -936,8 +938,8 @@ mwifiex_cmd_802_11_ad_hoc_start(struct mwifiex_private *priv,
 
 		ht_info->ht_info.control_chan =
 			(u8) priv->curr_bss_params.bss_descriptor.channel;
-		if (adapter->chan_offset) {
-			ht_info->ht_info.ht_param = adapter->chan_offset;
+		if (adapter->sec_chan_offset) {
+			ht_info->ht_info.ht_param = adapter->sec_chan_offset;
 			ht_info->ht_info.ht_param |=
 					IEEE80211_HT_PARAM_CHAN_WIDTH_ANY;
 		}

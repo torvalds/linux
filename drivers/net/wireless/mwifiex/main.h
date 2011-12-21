@@ -640,7 +640,7 @@ struct mwifiex_adapter {
 	u32 hw_dot_11n_dev_cap;
 	u8 hw_dev_mcs_support;
 	u8 adhoc_11n_enabled;
-	u8 chan_offset;
+	u8 sec_chan_offset;
 	struct mwifiex_dbg dbg;
 	u8 arp_filter[ARP_FILTER_MAX_BUF_SIZE];
 	u32 arp_filter_size;

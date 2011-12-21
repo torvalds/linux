@@ -24,26 +24,26 @@
  * This function maps the nl802.11 channel type into driver channel type.
  *
  * The mapping is as follows -
- *      NL80211_CHAN_NO_HT     -> NO_SEC_CHANNEL
- *      NL80211_CHAN_HT20      -> NO_SEC_CHANNEL
- *      NL80211_CHAN_HT40PLUS  -> SEC_CHANNEL_ABOVE
- *      NL80211_CHAN_HT40MINUS -> SEC_CHANNEL_BELOW
- *      Others                 -> NO_SEC_CHANNEL
+ *      NL80211_CHAN_NO_HT     -> IEEE80211_HT_PARAM_CHA_SEC_NONE
+ *      NL80211_CHAN_HT20      -> IEEE80211_HT_PARAM_CHA_SEC_NONE
+ *      NL80211_CHAN_HT40PLUS  -> IEEE80211_HT_PARAM_CHA_SEC_ABOVE
+ *      NL80211_CHAN_HT40MINUS -> IEEE80211_HT_PARAM_CHA_SEC_BELOW
+ *      Others                 -> IEEE80211_HT_PARAM_CHA_SEC_NONE
  */
-static int
-mwifiex_cfg80211_channel_type_to_mwifiex_channels(enum nl80211_channel_type
-						  channel_type)
+static u8
+mwifiex_cfg80211_channel_type_to_sec_chan_offset(enum nl80211_channel_type
+						 channel_type)
 {
 	switch (channel_type) {
 	case NL80211_CHAN_NO_HT:
 	case NL80211_CHAN_HT20:
-		return NO_SEC_CHANNEL;
+		return IEEE80211_HT_PARAM_CHA_SEC_NONE;
 	case NL80211_CHAN_HT40PLUS:
-		return SEC_CHANNEL_ABOVE;
+		return IEEE80211_HT_PARAM_CHA_SEC_ABOVE;
 	case NL80211_CHAN_HT40MINUS:
-		return SEC_CHANNEL_BELOW;
+		return IEEE80211_HT_PARAM_CHA_SEC_BELOW;
 	default:
-		return NO_SEC_CHANNEL;
+		return IEEE80211_HT_PARAM_CHA_SEC_NONE;
 	}
 }
 
@@ -51,20 +51,20 @@ mwifiex_cfg80211_channel_type_to_mwifiex_channels(enum nl80211_channel_type
  * This function maps the driver channel type into nl802.11 channel type.
  *
  * The mapping is as follows -
- *      NO_SEC_CHANNEL      -> NL80211_CHAN_HT20
- *      SEC_CHANNEL_ABOVE   -> NL80211_CHAN_HT40PLUS
- *      SEC_CHANNEL_BELOW   -> NL80211_CHAN_HT40MINUS
- *      Others              -> NL80211_CHAN_HT20
+ *      IEEE80211_HT_PARAM_CHA_SEC_NONE    -> NL80211_CHAN_HT20
+ *      IEEE80211_HT_PARAM_CHA_SEC_ABOVE   -> NL80211_CHAN_HT40PLUS
+ *      IEEE80211_HT_PARAM_CHA_SEC_BELOW   -> NL80211_CHAN_HT40MINUS
+ *      Others                             -> NL80211_CHAN_HT20
  */
 static enum nl80211_channel_type
 mwifiex_channels_to_cfg80211_channel_type(int channel_type)
 {
 	switch (channel_type) {
-	case NO_SEC_CHANNEL:
+	case IEEE80211_HT_PARAM_CHA_SEC_NONE:
 		return NL80211_CHAN_HT20;
-	case SEC_CHANNEL_ABOVE:
+	case IEEE80211_HT_PARAM_CHA_SEC_ABOVE:
 		return NL80211_CHAN_HT40PLUS;
-	case SEC_CHANNEL_BELOW:
+	case IEEE80211_HT_PARAM_CHA_SEC_BELOW:
 		return NL80211_CHAN_HT40MINUS;
 	default:
 		return NL80211_CHAN_HT20;
@@ -354,15 +354,15 @@ mwifiex_set_rf_channel(struct mwifiex_private *priv,
 					adapter->adhoc_11n_enabled = false;
 			}
 		}
-		adapter->chan_offset =
-			mwifiex_cfg80211_channel_type_to_mwifiex_channels
+		adapter->sec_chan_offset =
+			mwifiex_cfg80211_channel_type_to_sec_chan_offset
 			(channel_type);
 
 		mwifiex_send_domain_info_cmd_fw(wiphy);
 	}
 
 	wiphy_dbg(wiphy, "info: setting band %d, channel offset %d and "
-		"mode %d\n", config_bands, adapter->chan_offset,
+		"mode %d\n", config_bands, adapter->sec_chan_offset,
 		priv->bss_mode);
 	if (!chan)
 		return 0;
@@ -729,7 +729,7 @@ static int mwifiex_cfg80211_set_bitrate_mask(struct wiphy *wiphy,
 			adapter->adhoc_11n_enabled = false;
 		}
 	}
-	adapter->chan_offset = NO_SEC_CHANNEL;
+	adapter->sec_chan_offset = IEEE80211_HT_PARAM_CHA_SEC_NONE;
 
 	wiphy_debug(wiphy, "info: device configured in 802.11%s%s mode\n",
 				(mode & BAND_B) ? "b" : "",
@@ -850,7 +850,7 @@ mwifiex_cfg80211_assoc(struct mwifiex_private *priv, size_t ssid_len, u8 *ssid,
 	if (channel)
 		ret = mwifiex_set_rf_channel(priv, channel,
 				mwifiex_channels_to_cfg80211_channel_type
-				(priv->adapter->chan_offset));
+				(priv->adapter->sec_chan_offset));
 
 	ret = mwifiex_set_encode(priv, NULL, 0, 0, 1);	/* Disable keys */
 
