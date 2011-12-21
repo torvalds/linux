@@ -252,11 +252,11 @@ static int btrfs_ioctl_setflags(struct file *file, void __user *arg)
 	trans = btrfs_join_transaction(root);
 	BUG_ON(IS_ERR(trans));
 
+	btrfs_update_iflags(inode);
+	inode->i_ctime = CURRENT_TIME;
 	ret = btrfs_update_inode(trans, root, inode);
 	BUG_ON(ret);
 
-	btrfs_update_iflags(inode);
-	inode->i_ctime = CURRENT_TIME;
 	btrfs_end_transaction(trans, root);
 
 	mnt_drop_write(file->f_path.mnt);
@@ -858,8 +858,10 @@ static int cluster_pages_for_defrag(struct inode *inode,
 		return 0;
 	file_end = (isize - 1) >> PAGE_CACHE_SHIFT;
 
+	mutex_lock(&inode->i_mutex);
 	ret = btrfs_delalloc_reserve_space(inode,
 					   num_pages << PAGE_CACHE_SHIFT);
+	mutex_unlock(&inode->i_mutex);
 	if (ret)
 		return ret;
 again:
@@ -1278,7 +1280,7 @@ static noinline int btrfs_ioctl_resize(struct btrfs_root *root,
 		}
 		ret = btrfs_grow_device(trans, device, new_size);
 		btrfs_commit_transaction(trans, root);
-	} else {
+	} else if (new_size < old_size) {
 		ret = btrfs_shrink_device(device, new_size);
 	}
 

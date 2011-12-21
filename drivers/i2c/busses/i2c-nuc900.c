@@ -593,7 +593,7 @@ static int __devinit nuc900_i2c_probe(struct platform_device *pdev)
 	i2c->adap.algo_data = i2c;
 	i2c->adap.dev.parent = &pdev->dev;
 
-	mfp_set_groupg(&pdev->dev);
+	mfp_set_groupg(&pdev->dev, NULL);
 
 	clk_get_rate(i2c->clk);
 

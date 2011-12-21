@@ -16,7 +16,7 @@
 #include <linux/init.h>
 #include <linux/module.h>
 #include <mach/hardware.h>
-#include <asm/io.h>
+#include <linux/io.h>
 
 static int mx5_cpu_rev = -1;
 
@@ -67,7 +67,8 @@ static int __init mx51_neon_fixup(void)
 	if (!cpu_is_mx51())
 		return 0;
 
-	if (mx51_revision() < IMX_CHIP_REVISION_3_0 && (elf_hwcap & HWCAP_NEON)) {
+	if (mx51_revision() < IMX_CHIP_REVISION_3_0 &&
+			(elf_hwcap & HWCAP_NEON)) {
 		elf_hwcap &= ~HWCAP_NEON;
 		pr_info("Turning off NEON support, detected broken NEON implementation\n");
 	}

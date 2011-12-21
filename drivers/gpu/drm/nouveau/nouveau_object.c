@@ -680,7 +680,7 @@ nouveau_gpuobj_channel_init_pramin(struct nouveau_channel *chan)
 		return ret;
 	}
 
-	ret = drm_mm_init(&chan->ramin_heap, base, size);
+	ret = drm_mm_init(&chan->ramin_heap, base, size - base);
 	if (ret) {
 		NV_ERROR(dev, "Error creating PRAMIN heap: %d\n", ret);
 		nouveau_gpuobj_ref(NULL, &chan->ramin);

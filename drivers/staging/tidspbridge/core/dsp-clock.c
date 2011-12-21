@@ -54,6 +54,7 @@
 
 /* Bridge GPT id (1 - 4), DM Timer id (5 - 8) */
 #define DMT_ID(id) ((id) + 4)
+#define DM_TIMER_CLOCKS		4
 
 /* Bridge MCBSP id (6 - 10), OMAP Mcbsp id (0 - 4) */
 #define MCBSP_ID(id) ((id) - 6)
@@ -114,7 +115,12 @@ static s8 get_clk_type(u8 id)
  */
 void dsp_clk_exit(void)
 {
+	int i;
+
 	dsp_clock_disable_all(dsp_clocks);
+
+	for (i = 0; i < DM_TIMER_CLOCKS; i++)
+		omap_dm_timer_free(timer[i]);
 
 	clk_put(iva2_clk);
 	clk_put(ssi.sst_fck);
@@ -130,8 +136,12 @@ void dsp_clk_exit(void)
 void dsp_clk_init(void)
 {
 	static struct platform_device dspbridge_device;
+	int i, id;
 
 	dspbridge_device.dev.bus = &platform_bus_type;
+
+	for (i = 0, id = 5; i < DM_TIMER_CLOCKS; i++, id++)
+		timer[i] = omap_dm_timer_request_specific(id);
 
 	iva2_clk = clk_get(&dspbridge_device.dev, "iva2_ck");
 	if (IS_ERR(iva2_clk))
@@ -204,8 +214,7 @@ int dsp_clk_enable(enum dsp_clk_id clk_id)
 		clk_enable(iva2_clk);
 		break;
 	case GPT_CLK:
-		timer[clk_id - 1] =
-				omap_dm_timer_request_specific(DMT_ID(clk_id));
+		status = omap_dm_timer_start(timer[clk_id - 1]);
 		break;
 #ifdef CONFIG_OMAP_MCBSP
 	case MCBSP_CLK:
@@ -281,7 +290,7 @@ int dsp_clk_disable(enum dsp_clk_id clk_id)
 		clk_disable(iva2_clk);
 		break;
 	case GPT_CLK:
-		omap_dm_timer_free(timer[clk_id - 1]);
+		status = omap_dm_timer_stop(timer[clk_id - 1]);
 		break;
 #ifdef CONFIG_OMAP_MCBSP
 	case MCBSP_CLK:
