@@ -6,6 +6,7 @@
 #include <linux/module.h>
 #include <linux/capability.h>
 
+#include <xen/xen.h>
 #include <xen/page.h>
 #include <xen/xenbus_dev.h>
 
