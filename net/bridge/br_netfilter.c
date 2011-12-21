@@ -114,12 +114,18 @@ static struct neighbour *fake_neigh_lookup(const struct dst_entry *dst, const vo
 	return NULL;
 }
 
+static unsigned int fake_mtu(const struct dst_entry *dst)
+{
+	return dst->dev->mtu;
+}
+
 static struct dst_ops fake_dst_ops = {
 	.family =		AF_INET,
 	.protocol =		cpu_to_be16(ETH_P_IP),
 	.update_pmtu =		fake_update_pmtu,
 	.cow_metrics =		fake_cow_metrics,
 	.neigh_lookup =		fake_neigh_lookup,
+	.mtu =			fake_mtu,
 };
 
 /*
