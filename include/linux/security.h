@@ -651,6 +651,10 @@ static inline void security_free_mnt_opts(struct security_mnt_opts *opts)
  *	manual page for definitions of the @clone_flags.
  *	@clone_flags contains the flags indicating what should be shared.
  *	Return 0 if permission is granted.
+ * @task_free:
+ *	@task task being freed
+ *	Handle release of task-related resources. (Note that this can be called
+ *	from interrupt context.)
  * @cred_alloc_blank:
  *	@cred points to the credentials.
  *	@gfp indicates the atomicity of any memory allocations.
@@ -1493,6 +1497,7 @@ struct security_operations {
 	int (*dentry_open) (struct file *file, const struct cred *cred);
 
 	int (*task_create) (unsigned long clone_flags);
+	void (*task_free) (struct task_struct *task);
 	int (*cred_alloc_blank) (struct cred *cred, gfp_t gfp);
 	void (*cred_free) (struct cred *cred);
 	int (*cred_prepare)(struct cred *new, const struct cred *old,
@@ -1752,6 +1757,7 @@ int security_file_send_sigiotask(struct task_struct *tsk,
 int security_file_receive(struct file *file);
 int security_dentry_open(struct file *file, const struct cred *cred);
 int security_task_create(unsigned long clone_flags);
+void security_task_free(struct task_struct *task);
 int security_cred_alloc_blank(struct cred *cred, gfp_t gfp);
 void security_cred_free(struct cred *cred);
 int security_prepare_creds(struct cred *new, const struct cred *old, gfp_t gfp);
@@ -2244,6 +2250,9 @@ static inline int security_task_create(unsigned long clone_flags)
 {
 	return 0;
 }
+
+static inline void security_task_free(struct task_struct *task)
+{ }
 
 static inline int security_cred_alloc_blank(struct cred *cred, gfp_t gfp)
 {

@@ -729,6 +729,11 @@ int security_task_create(unsigned long clone_flags)
 	return security_ops->task_create(clone_flags);
 }
 
+void security_task_free(struct task_struct *task)
+{
+	security_ops->task_free(task);
+}
+
 int security_cred_alloc_blank(struct cred *cred, gfp_t gfp)
 {
 	return security_ops->cred_alloc_blank(cred, gfp);
