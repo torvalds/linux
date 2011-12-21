@@ -1087,65 +1087,26 @@ static int xc2028_set_analog_freq(struct dvb_frontend *fe,
 static int xc2028_set_params(struct dvb_frontend *fe,
 			     struct dvb_frontend_parameters *p)
 {
+	struct dtv_frontend_properties *c = &fe->dtv_property_cache;
+	u32 delsys = c->delivery_system;
+	u32 bw = c->bandwidth_hz;
 	struct xc2028_data *priv = fe->tuner_priv;
 	unsigned int       type=0;
-	fe_bandwidth_t     bw = BANDWIDTH_8_MHZ;
 	u16                demod = 0;
 
 	tuner_dbg("%s called\n", __func__);
 
-	switch(fe->ops.info.type) {
-	case FE_OFDM:
-		bw = p->u.ofdm.bandwidth;
+	switch (delsys) {
+	case SYS_DVBT:
+	case SYS_DVBT2:
 		/*
 		 * The only countries with 6MHz seem to be Taiwan/Uruguay.
 		 * Both seem to require QAM firmware for OFDM decoding
 		 * Tested in Taiwan by Terry Wu <terrywu2009@gmail.com>
 		 */
-		if (bw == BANDWIDTH_6_MHZ)
+		if (bw <= 6000000)
 			type |= QAM;
-		break;
-	case FE_ATSC:
-		bw = BANDWIDTH_6_MHZ;
-		/* The only ATSC firmware (at least on v2.7) is D2633 */
-		type |= ATSC | D2633;
-		break;
-	/* DVB-S and pure QAM (FE_QAM) are not supported */
-	default:
-		return -EINVAL;
-	}
 
-	switch (bw) {
-	case BANDWIDTH_8_MHZ:
-		if (p->frequency < 470000000)
-			priv->ctrl.vhfbw7 = 0;
-		else
-			priv->ctrl.uhfbw8 = 1;
-		type |= (priv->ctrl.vhfbw7 && priv->ctrl.uhfbw8) ? DTV78 : DTV8;
-		type |= F8MHZ;
-		break;
-	case BANDWIDTH_7_MHZ:
-		if (p->frequency < 470000000)
-			priv->ctrl.vhfbw7 = 1;
-		else
-			priv->ctrl.uhfbw8 = 0;
-		type |= (priv->ctrl.vhfbw7 && priv->ctrl.uhfbw8) ? DTV78 : DTV7;
-		type |= F8MHZ;
-		break;
-	case BANDWIDTH_6_MHZ:
-		type |= DTV6;
-		priv->ctrl.vhfbw7 = 0;
-		priv->ctrl.uhfbw8 = 0;
-		break;
-	default:
-		tuner_err("error: bandwidth not supported.\n");
-	};
-
-	/*
-	  Selects between D2633 or D2620 firmware.
-	  It doesn't make sense for ATSC, since it should be D2633 on all cases
-	 */
-	if (fe->ops.info.type != FE_ATSC) {
 		switch (priv->ctrl.type) {
 		case XC2028_D2633:
 			type |= D2633;
@@ -1161,6 +1122,34 @@ static int xc2028_set_params(struct dvb_frontend *fe,
 			else
 				type |= D2620;
 		}
+		break;
+	case SYS_ATSC:
+		/* The only ATSC firmware (at least on v2.7) is D2633 */
+		type |= ATSC | D2633;
+		break;
+	/* DVB-S and pure QAM (FE_QAM) are not supported */
+	default:
+		return -EINVAL;
+	}
+
+	if (bw <= 6000000) {
+		type |= DTV6;
+		priv->ctrl.vhfbw7 = 0;
+		priv->ctrl.uhfbw8 = 0;
+	} else if (bw <= 7000000) {
+		if (c->frequency < 470000000)
+			priv->ctrl.vhfbw7 = 1;
+		else
+			priv->ctrl.uhfbw8 = 0;
+		type |= (priv->ctrl.vhfbw7 && priv->ctrl.uhfbw8) ? DTV78 : DTV7;
+		type |= F8MHZ;
+	} else {
+		if (c->frequency < 470000000)
+			priv->ctrl.vhfbw7 = 0;
+		else
+			priv->ctrl.uhfbw8 = 1;
+		type |= (priv->ctrl.vhfbw7 && priv->ctrl.uhfbw8) ? DTV78 : DTV8;
+		type |= F8MHZ;
 	}
 
 	/* All S-code tables need a 200kHz shift */
@@ -1185,7 +1174,7 @@ static int xc2028_set_params(struct dvb_frontend *fe,
 		 */
 	}
 
-	return generic_set_freq(fe, p->frequency,
+	return generic_set_freq(fe, c->frequency,
 				V4L2_TUNER_DIGITAL_TV, type, 0, demod);
 }
 
