@@ -931,56 +931,51 @@ fail:
 static int tda18271_set_params(struct dvb_frontend *fe,
 			       struct dvb_frontend_parameters *params)
 {
+	struct dtv_frontend_properties *c = &fe->dtv_property_cache;
+	u32 delsys = c->delivery_system;
+	u32 bw = c->bandwidth_hz;
+	u32 freq = c->frequency;
+	u32 band = BANDWIDTH_6_MHZ;
 	struct tda18271_priv *priv = fe->tuner_priv;
 	struct tda18271_std_map *std_map = &priv->std;
 	struct tda18271_std_map_item *map;
 	int ret;
-	u32 bw, freq = params->frequency;
 
 	priv->mode = TDA18271_DIGITAL;
 
-	if (fe->ops.info.type == FE_ATSC) {
-		switch (params->u.vsb.modulation) {
-		case VSB_8:
-		case VSB_16:
-			map = &std_map->atsc_6;
-			break;
-		case QAM_64:
-		case QAM_256:
-			map = &std_map->qam_6;
-			break;
-		default:
-			tda_warn("modulation not set!\n");
-			return -EINVAL;
-		}
-#if 0
-		/* userspace request is already center adjusted */
-		freq += 1750000; /* Adjust to center (+1.75MHZ) */
-#endif
+	switch (delsys) {
+	case SYS_ATSC:
+		map = &std_map->atsc_6;
 		bw = 6000000;
-	} else if (fe->ops.info.type == FE_OFDM) {
-		switch (params->u.ofdm.bandwidth) {
-		case BANDWIDTH_6_MHZ:
-			bw = 6000000;
+		break;
+	case SYS_DVBT:
+	case SYS_DVBT2:
+		if (bw <= 6000000) {
 			map = &std_map->dvbt_6;
-			break;
-		case BANDWIDTH_7_MHZ:
-			bw = 7000000;
+		} else if (bw <= 7000000) {
 			map = &std_map->dvbt_7;
-			break;
-		case BANDWIDTH_8_MHZ:
-			bw = 8000000;
+			band = BANDWIDTH_7_MHZ;
+		} else {
 			map = &std_map->dvbt_8;
-			break;
-		default:
-			tda_warn("bandwidth not set!\n");
-			return -EINVAL;
+			band = BANDWIDTH_8_MHZ;
 		}
-	} else if (fe->ops.info.type == FE_QAM) {
-		/* DVB-C */
-		map = &std_map->qam_8;
-		bw = 8000000;
-	} else {
+		break;
+	case SYS_DVBC_ANNEX_B:
+		bw = 6000000;
+		/* falltrough */
+	case SYS_DVBC_ANNEX_A:
+	case SYS_DVBC_ANNEX_C:
+		if (bw <= 6000000) {
+			map = &std_map->qam_6;
+		} else if (bw <= 7000000) {
+			map = &std_map->qam_7;
+			band = BANDWIDTH_7_MHZ;
+		} else {
+			map = &std_map->qam_8;
+			band = BANDWIDTH_8_MHZ;
+		}
+		break;
+	default:
 		tda_warn("modulation type not supported!\n");
 		return -EINVAL;
 	}
@@ -996,8 +991,7 @@ static int tda18271_set_params(struct dvb_frontend *fe,
 
 	priv->if_freq   = map->if_freq;
 	priv->frequency = freq;
-	priv->bandwidth = (fe->ops.info.type == FE_OFDM) ?
-		params->u.ofdm.bandwidth : 0;
+	priv->bandwidth = band;
 fail:
 	return ret;
 }
