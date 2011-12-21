@@ -104,7 +104,7 @@ static struct drm_framebuffer_funcs exynos_drm_fb_funcs = {
 
 static struct drm_framebuffer *
 exynos_drm_fb_init(struct drm_file *file_priv, struct drm_device *dev,
-		    struct drm_mode_fb_cmd *mode_cmd)
+		   struct drm_mode_fb_cmd2 *mode_cmd)
 {
 	struct exynos_drm_fb *exynos_fb;
 	struct drm_framebuffer *fb;
@@ -114,9 +114,6 @@ exynos_drm_fb_init(struct drm_file *file_priv, struct drm_device *dev,
 	int ret;
 
 	DRM_DEBUG_KMS("%s\n", __FILE__);
-
-	mode_cmd->pitch = max(mode_cmd->pitch,
-			mode_cmd->width * (mode_cmd->bpp >> 3));
 
 	DRM_LOG_KMS("drm fb create(%dx%d)\n",
 			mode_cmd->width, mode_cmd->height);
@@ -136,14 +133,14 @@ exynos_drm_fb_init(struct drm_file *file_priv, struct drm_device *dev,
 
 	DRM_LOG_KMS("create: fb id: %d\n", fb->base.id);
 
-	size = mode_cmd->pitch * mode_cmd->height;
+	size = mode_cmd->pitches[0] * mode_cmd->height;
 
 	/*
-	 * mode_cmd->handle could be NULL at booting time or
+	 * mode_cmd->handles[0] could be NULL at booting time or
 	 * with user request. if NULL, a new buffer or a gem object
 	 * would be allocated.
 	 */
-	if (!mode_cmd->handle) {
+	if (!mode_cmd->handles[0]) {
 		if (!file_priv) {
 			struct exynos_drm_gem_buf *buffer;
 
@@ -166,7 +163,7 @@ exynos_drm_fb_init(struct drm_file *file_priv, struct drm_device *dev,
 			goto out;
 		} else {
 			exynos_gem_obj = exynos_drm_gem_create(dev, file_priv,
-							&mode_cmd->handle,
+							&mode_cmd->handles[0],
 							size);
 			if (IS_ERR(exynos_gem_obj)) {
 				ret = PTR_ERR(exynos_gem_obj);
@@ -174,7 +171,8 @@ exynos_drm_fb_init(struct drm_file *file_priv, struct drm_device *dev,
 			}
 		}
 	} else {
-		obj = drm_gem_object_lookup(dev, file_priv, mode_cmd->handle);
+		obj = drm_gem_object_lookup(dev, file_priv,
+				mode_cmd->handles[0]);
 		if (!obj) {
 			DRM_ERROR("failed to lookup gem object.\n");
 			goto err_buffer;
@@ -214,8 +212,8 @@ err_init:
 }
 
 struct drm_framebuffer *exynos_drm_fb_create(struct drm_device *dev,
-					      struct drm_file *file_priv,
-					      struct drm_mode_fb_cmd *mode_cmd)
+					     struct drm_file *file_priv,
+					     struct drm_mode_fb_cmd2 *mode_cmd)
 {
 	DRM_DEBUG_KMS("%s\n", __FILE__);
 
