@@ -30,7 +30,6 @@
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
 
-#include <mach/dm644x.h>
 #include <mach/common.h>
 #include <mach/i2c.h>
 #include <mach/serial.h>
@@ -39,6 +38,8 @@
 #include <mach/mmc.h>
 #include <mach/usb.h>
 #include <mach/aemif.h>
+
+#include "davinci.h"
 
 #define DM644X_EVM_PHY_ID		"0:01"
 #define LXT971_PHY_ID	(0x001378e2)

@@ -18,7 +18,6 @@
 
 #include <asm/mach/map.h>
 
-#include <mach/dm355.h>
 #include <mach/cputype.h>
 #include <mach/edma.h>
 #include <mach/psc.h>
@@ -31,6 +30,7 @@
 #include <mach/spi.h>
 #include <mach/gpio-davinci.h>
 
+#include "davinci.h"
 #include "clock.h"
 #include "mux.h"
 

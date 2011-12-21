@@ -15,7 +15,6 @@
 
 #include <asm/mach/map.h>
 
-#include <mach/dm644x.h>
 #include <mach/cputype.h>
 #include <mach/edma.h>
 #include <mach/irqs.h>
@@ -27,6 +26,7 @@
 #include <mach/asp.h>
 #include <mach/gpio-davinci.h>
 
+#include "davinci.h"
 #include "clock.h"
 #include "mux.h"
 

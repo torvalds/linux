@@ -36,7 +36,6 @@
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
 
-#include <mach/dm646x.h>
 #include <mach/common.h>
 #include <mach/serial.h>
 #include <mach/i2c.h>
@@ -45,6 +44,7 @@
 #include <mach/cdce949.h>
 #include <mach/aemif.h>
 
+#include "davinci.h"
 #include "clock.h"
 
 #define NAND_BLOCK_SIZE		SZ_128K
