@@ -1180,19 +1180,38 @@ static void dtv_property_adv_params_sync(struct dvb_frontend *fe)
 	}
 
 	/*
-	 * On DVB-C, the bandwidth is a function of roll-off and symbol rate.
-	 * The bandwidth is required for DVB-C tuners, in order to avoid
-	 * inter-channel noise. Instead of estimating the minimal required
-	 * bandwidth on every single driver, calculates it here and fills
-	 * it at the cache bandwidth parameter.
+	 * Be sure that the bandwidth will be filled for all
+	 * non-satellite systems, as tuners need to know what
+	 * low pass/Nyquist half filter should be applied, in
+	 * order to avoid inter-channel noise.
+	 *
+	 * ISDB-T and DVB-T/T2 already sets bandwidth.
+	 * ATSC and DVB-C don't set, so, the core should fill it.
+	 *
+	 * On DVB-C Annex A and C, the bandwidth is a function of
+	 * the roll-off and symbol rate. Annex B defines different
+	 * roll-off factors depending on the modulation. Fortunately,
+	 * Annex B is only used with 6MHz, so there's no need to
+	 * calculate it.
+	 *
 	 * While not officially supported, a side effect of handling it at
 	 * the cache level is that a program could retrieve the bandwidth
-	 * via DTV_BANDWIDTH_HZ, wich may be useful for test programs.
+	 * via DTV_BANDWIDTH_HZ, which may be useful for test programs.
 	 */
-	if (c->delivery_system == SYS_DVBC_ANNEX_A)
+	switch (c->delivery_system) {
+	case SYS_ATSC:
+	case SYS_DVBC_ANNEX_B:
+		c->bandwidth_hz = 6000000;
+		break;
+	case SYS_DVBC_ANNEX_A:
 		rolloff = 115;
-	if (c->delivery_system == SYS_DVBC_ANNEX_C)
+		break;
+	case SYS_DVBC_ANNEX_C:
 		rolloff = 113;
+		break;
+	default:
+		break;
+	}
 	if (rolloff)
 		c->bandwidth_hz = (c->symbol_rate * rolloff) / 100;
 }
