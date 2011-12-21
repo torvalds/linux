@@ -954,8 +954,6 @@ int mwifiex_main_process(struct mwifiex_adapter *);
 
 int mwifiex_bss_set_channel(struct mwifiex_private *,
 			    struct mwifiex_chan_freq_power *cfp);
-int mwifiex_set_radio_band_cfg(struct mwifiex_private *,
-			 struct mwifiex_ds_band_cfg *);
 int mwifiex_get_bss_info(struct mwifiex_private *,
 			 struct mwifiex_bss_info *);
 int mwifiex_fill_new_bss_desc(struct mwifiex_private *priv,

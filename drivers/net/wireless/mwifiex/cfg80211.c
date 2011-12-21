@@ -331,37 +331,38 @@ mwifiex_set_rf_channel(struct mwifiex_private *priv,
 		       enum nl80211_channel_type channel_type)
 {
 	struct mwifiex_chan_freq_power cfp;
-	struct mwifiex_ds_band_cfg band_cfg;
 	u32 config_bands = 0;
 	struct wiphy *wiphy = priv->wdev->wiphy;
+	struct mwifiex_adapter *adapter = priv->adapter;
 
 	if (chan) {
-		memset(&band_cfg, 0, sizeof(band_cfg));
 		/* Set appropriate bands */
 		if (chan->band == IEEE80211_BAND_2GHZ)
 			config_bands = BAND_B | BAND_G | BAND_GN;
 		else
 			config_bands = BAND_AN | BAND_A;
-		if (priv->bss_mode == NL80211_IFTYPE_STATION
-		    || priv->bss_mode == NL80211_IFTYPE_UNSPECIFIED) {
-			band_cfg.config_bands = config_bands;
-		} else if (priv->bss_mode == NL80211_IFTYPE_ADHOC) {
-			band_cfg.config_bands = config_bands;
-			band_cfg.adhoc_start_band = config_bands;
-		}
 
-		band_cfg.sec_chan_offset =
+		if (!((config_bands | adapter->fw_bands) &
+						~adapter->fw_bands)) {
+			adapter->config_bands = config_bands;
+			if (priv->bss_mode == NL80211_IFTYPE_ADHOC) {
+				adapter->adhoc_start_band = config_bands;
+				if ((config_bands & BAND_GN) ||
+						(config_bands & BAND_AN))
+					adapter->adhoc_11n_enabled = true;
+				else
+					adapter->adhoc_11n_enabled = false;
+			}
+		}
+		adapter->chan_offset =
 			mwifiex_cfg80211_channel_type_to_mwifiex_channels
 			(channel_type);
-
-		if (mwifiex_set_radio_band_cfg(priv, &band_cfg))
-			return -EFAULT;
 
 		mwifiex_send_domain_info_cmd_fw(wiphy);
 	}
 
 	wiphy_dbg(wiphy, "info: setting band %d, channel offset %d and "
-		"mode %d\n", config_bands, band_cfg.sec_chan_offset,
+		"mode %d\n", config_bands, adapter->chan_offset,
 		priv->bss_mode);
 	if (!chan)
 		return 0;
@@ -697,9 +698,9 @@ static int mwifiex_cfg80211_set_bitrate_mask(struct wiphy *wiphy,
 				const u8 *peer,
 				const struct cfg80211_bitrate_mask *mask)
 {
-	struct mwifiex_ds_band_cfg band_cfg;
 	struct mwifiex_private *priv = mwifiex_netdev_get_priv(dev);
 	int index = 0, mode = 0, i;
+	struct mwifiex_adapter *adapter = priv->adapter;
 
 	/* Currently only 2.4GHz is supported */
 	for (i = 0; i < mwifiex_band_2ghz.n_bitrates; i++) {
@@ -721,16 +722,14 @@ static int mwifiex_cfg80211_set_bitrate_mask(struct wiphy *wiphy,
 			mode |=  BAND_B;
 	}
 
-	memset(&band_cfg, 0, sizeof(band_cfg));
-	band_cfg.config_bands = mode;
-
-	if (priv->bss_mode == NL80211_IFTYPE_ADHOC)
-		band_cfg.adhoc_start_band = mode;
-
-	band_cfg.sec_chan_offset = NO_SEC_CHANNEL;
-
-	if (mwifiex_set_radio_band_cfg(priv, &band_cfg))
-		return -EFAULT;
+	if (!((mode | adapter->fw_bands) & ~adapter->fw_bands)) {
+		adapter->config_bands = mode;
+		if (priv->bss_mode == NL80211_IFTYPE_ADHOC) {
+			adapter->adhoc_start_band = mode;
+			adapter->adhoc_11n_enabled = false;
+		}
+	}
+	adapter->chan_offset = NO_SEC_CHANNEL;
 
 	wiphy_debug(wiphy, "info: device configured in 802.11%s%s mode\n",
 				(mode & BAND_B) ? "b" : "",

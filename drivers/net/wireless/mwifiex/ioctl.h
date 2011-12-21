@@ -66,13 +66,6 @@ enum {
 #define SEC_CHANNEL_ABOVE            1
 #define SEC_CHANNEL_BELOW            3
 
-struct mwifiex_ds_band_cfg {
-	u32 config_bands;
-	u32 adhoc_start_band;
-	u32 adhoc_channel;
-	u32 sec_chan_offset;
-};
-
 enum {
 	ADHOC_IDLE,
 	ADHOC_STARTED,
