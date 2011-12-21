@@ -3475,16 +3475,16 @@ int scan_unevictable_handler(struct ctl_table *table, int write,
  * a specified node's per zone unevictable lists for evictable pages.
  */
 
-static ssize_t read_scan_unevictable_node(struct sys_device *dev,
-					  struct sysdev_attribute *attr,
+static ssize_t read_scan_unevictable_node(struct device *dev,
+					  struct device_attribute *attr,
 					  char *buf)
 {
 	warn_scan_unevictable_pages();
 	return sprintf(buf, "0\n");	/* always zero; should fit... */
 }
 
-static ssize_t write_scan_unevictable_node(struct sys_device *dev,
-					   struct sysdev_attribute *attr,
+static ssize_t write_scan_unevictable_node(struct device *dev,
+					   struct device_attribute *attr,
 					const char *buf, size_t count)
 {
 	warn_scan_unevictable_pages();
@@ -3492,17 +3492,17 @@ static ssize_t write_scan_unevictable_node(struct sys_device *dev,
 }
 
 
-static SYSDEV_ATTR(scan_unevictable_pages, S_IRUGO | S_IWUSR,
+static DEVICE_ATTR(scan_unevictable_pages, S_IRUGO | S_IWUSR,
 			read_scan_unevictable_node,
 			write_scan_unevictable_node);
 
 int scan_unevictable_register_node(struct node *node)
 {
-	return sysdev_create_file(&node->sysdev, &attr_scan_unevictable_pages);
+	return device_create_file(&node->dev, &dev_attr_scan_unevictable_pages);
 }
 
 void scan_unevictable_unregister_node(struct node *node)
 {
-	sysdev_remove_file(&node->sysdev, &attr_scan_unevictable_pages);
+	device_remove_file(&node->dev, &dev_attr_scan_unevictable_pages);
 }
 #endif
