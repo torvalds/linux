@@ -27,8 +27,6 @@ typedef unsigned long irq_hw_number_t;
 
 extern unsigned int nr_irq;
 
-#define NO_IRQ 0
-
 struct pt_regs;
 extern void do_IRQ(struct pt_regs *regs);
 
