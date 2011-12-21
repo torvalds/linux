@@ -2276,8 +2276,6 @@ static void __xfrm_garbage_collect(struct net *net)
 {
 	struct dst_entry *head, *next;
 
-	flow_cache_flush();
-
 	spin_lock_bh(&xfrm_policy_sk_bundle_lock);
 	head = xfrm_policy_sk_bundles;
 	xfrm_policy_sk_bundles = NULL;
@@ -2288,6 +2286,18 @@ static void __xfrm_garbage_collect(struct net *net)
 		dst_free(head);
 		head = next;
 	}
+}
+
+static void xfrm_garbage_collect(struct net *net)
+{
+	flow_cache_flush();
+	__xfrm_garbage_collect(net);
+}
+
+static void xfrm_garbage_collect_deferred(struct net *net)
+{
+	flow_cache_flush_deferred();
+	__xfrm_garbage_collect(net);
 }
 
 static void xfrm_init_pmtu(struct dst_entry *dst)
@@ -2422,7 +2432,7 @@ int xfrm_policy_register_afinfo(struct xfrm_policy_afinfo *afinfo)
 		if (likely(dst_ops->neigh_lookup == NULL))
 			dst_ops->neigh_lookup = xfrm_neigh_lookup;
 		if (likely(afinfo->garbage_collect == NULL))
-			afinfo->garbage_collect = __xfrm_garbage_collect;
+			afinfo->garbage_collect = xfrm_garbage_collect_deferred;
 		xfrm_policy_afinfo[afinfo->family] = afinfo;
 	}
 	write_unlock_bh(&xfrm_policy_afinfo_lock);
@@ -2516,7 +2526,7 @@ static int xfrm_dev_event(struct notifier_block *this, unsigned long event, void
 
 	switch (event) {
 	case NETDEV_DOWN:
-		__xfrm_garbage_collect(dev_net(dev));
+		xfrm_garbage_collect(dev_net(dev));
 	}
 	return NOTIFY_DONE;
 }
