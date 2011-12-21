@@ -167,7 +167,7 @@ static void b43_nphy_rf_control_override(struct b43_wldev *dev, u16 field,
 				b43_phy_mask(dev, val_addr,
 						~(rf_ctrl->val_mask));
 			} else {
-				if (core == 0 || ((1 << core) & i) != 0) {
+				if (core == 0 || ((1 << i) & core)) {
 					b43_phy_set(dev, en_addr, field);
 					b43_phy_maskset(dev, val_addr,
 						~(rf_ctrl->val_mask),
@@ -200,7 +200,7 @@ static void b43_nphy_rf_control_override(struct b43_wldev *dev, u16 field,
 			addr = B43_PHY_N((i == 0) ?
 				rf_ctrl->addr0 : rf_ctrl->addr1);
 
-			if ((core & (1 << i)) != 0)
+			if ((1 << i) & core)
 				b43_phy_maskset(dev, addr, ~(rf_ctrl->bmask),
 						(value << rf_ctrl->shift));
 
