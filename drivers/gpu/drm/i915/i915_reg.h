@@ -3020,6 +3020,10 @@
 #define   ILK_DPFC_DIS1		(1<<8)
 #define   ILK_DPFC_DIS2		(1<<9)
 
+#define IVB_CHICKEN3	0x4200c
+# define CHICKEN3_DGMG_REQ_OUT_FIX_DISABLE	(1 << 5)
+# define CHICKEN3_DGMG_DONE_FIX_DISABLE		(1 << 2)
+
 #define DISP_ARB_CTL	0x45000
 #define  DISP_TILE_SURFACE_SWIZZLING	(1<<13)
 #define  DISP_FBC_WM_DIS		(1<<15)
