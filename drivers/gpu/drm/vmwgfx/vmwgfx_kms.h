@@ -63,8 +63,13 @@ struct vmw_framebuffer {
 int vmw_cursor_update_image(struct vmw_private *dev_priv,
 			    u32 *image, u32 width, u32 height,
 			    u32 hotspotX, u32 hotspotY);
+int vmw_cursor_update_dmabuf(struct vmw_private *dev_priv,
+			     struct vmw_dma_buffer *dmabuf,
+			     u32 width, u32 height,
+			     u32 hotspotX, u32 hotspotY);
 void vmw_cursor_update_position(struct vmw_private *dev_priv,
 				bool show, int x, int y);
+
 
 /**
  * Base class display unit.
