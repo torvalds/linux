@@ -113,6 +113,8 @@ static int tda18218_set_params(struct dvb_frontend *fe,
 	struct dvb_frontend_parameters *params)
 {
 	struct tda18218_priv *priv = fe->tuner_priv;
+	struct dtv_frontend_properties *c = &fe->dtv_property_cache;
+	u32 bw = c->bandwidth_hz;
 	int ret;
 	u8 buf[3], i, BP_Filter, LP_Fc;
 	u32 LO_Frac;
@@ -138,23 +140,18 @@ static int tda18218_set_params(struct dvb_frontend *fe,
 		fe->ops.i2c_gate_ctrl(fe, 1); /* open I2C-gate */
 
 	/* low-pass filter cut-off frequency */
-	switch (params->u.ofdm.bandwidth) {
-	case BANDWIDTH_6_MHZ:
+	if (bw <= 6000000) {
 		LP_Fc = 0;
 		priv->if_frequency = 3000000;
-		break;
-	case BANDWIDTH_7_MHZ:
+	} else if (bw <= 7000000) {
 		LP_Fc = 1;
 		priv->if_frequency = 3500000;
-		break;
-	case BANDWIDTH_8_MHZ:
-	default:
+	} else {
 		LP_Fc = 2;
 		priv->if_frequency = 4000000;
-		break;
 	}
 
-	LO_Frac = params->frequency + priv->if_frequency;
+	LO_Frac = c->frequency + priv->if_frequency;
 
 	/* band-pass filter */
 	if (LO_Frac < 188000000)
