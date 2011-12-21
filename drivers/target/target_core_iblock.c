@@ -129,7 +129,7 @@ static struct se_device *iblock_create_virtdevice(
 	/*
 	 * These settings need to be made tunable..
 	 */
-	ib_dev->ibd_bio_set = bioset_create(32, 64);
+	ib_dev->ibd_bio_set = bioset_create(32, 0);
 	if (!ib_dev->ibd_bio_set) {
 		pr_err("IBLOCK: Unable to create bioset()\n");
 		return ERR_PTR(-ENOMEM);
