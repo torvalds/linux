@@ -179,12 +179,12 @@ static struct kobj_attribute cpm_idle_attr =
 
 static void cpm_idle_config_sysfs(void)
 {
-	struct sys_device *sys_dev;
+	struct device *dev;
 	unsigned long ret;
 
-	sys_dev = get_cpu_sysdev(0);
+	dev = get_cpu_device(0);
 
-	ret = sysfs_create_file(&sys_dev->kobj,
+	ret = sysfs_create_file(&dev->kobj,
 				&cpm_idle_attr.attr);
 	if (ret)
 		printk(KERN_WARNING

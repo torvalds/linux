@@ -1,8 +1,7 @@
 /*
- * drivers/base/cpu.c - basic CPU class support
+ * CPU subsystem support
  */
 
-#include <linux/sysdev.h>
 #include <linux/module.h>
 #include <linux/init.h>
 #include <linux/sched.h>
@@ -14,40 +13,40 @@
 
 #include "base.h"
 
-static struct sysdev_class_attribute *cpu_sysdev_class_attrs[];
-
-struct sysdev_class cpu_sysdev_class = {
+struct bus_type cpu_subsys = {
 	.name = "cpu",
-	.attrs = cpu_sysdev_class_attrs,
+	.dev_name = "cpu",
 };
-EXPORT_SYMBOL(cpu_sysdev_class);
+EXPORT_SYMBOL_GPL(cpu_subsys);
 
-static DEFINE_PER_CPU(struct sys_device *, cpu_sys_devices);
+static DEFINE_PER_CPU(struct device *, cpu_sys_devices);
 
 #ifdef CONFIG_HOTPLUG_CPU
-static ssize_t show_online(struct sys_device *dev, struct sysdev_attribute *attr,
+static ssize_t show_online(struct device *dev,
+			   struct device_attribute *attr,
 			   char *buf)
 {
-	struct cpu *cpu = container_of(dev, struct cpu, sysdev);
+	struct cpu *cpu = container_of(dev, struct cpu, dev);
 
-	return sprintf(buf, "%u\n", !!cpu_online(cpu->sysdev.id));
+	return sprintf(buf, "%u\n", !!cpu_online(cpu->dev.id));
 }
 
-static ssize_t __ref store_online(struct sys_device *dev, struct sysdev_attribute *attr,
-				 const char *buf, size_t count)
+static ssize_t __ref store_online(struct device *dev,
+				  struct device_attribute *attr,
+				  const char *buf, size_t count)
 {
-	struct cpu *cpu = container_of(dev, struct cpu, sysdev);
+	struct cpu *cpu = container_of(dev, struct cpu, dev);
 	ssize_t ret;
 
 	cpu_hotplug_driver_lock();
 	switch (buf[0]) {
 	case '0':
-		ret = cpu_down(cpu->sysdev.id);
+		ret = cpu_down(cpu->dev.id);
 		if (!ret)
 			kobject_uevent(&dev->kobj, KOBJ_OFFLINE);
 		break;
 	case '1':
-		ret = cpu_up(cpu->sysdev.id);
+		ret = cpu_up(cpu->dev.id);
 		if (!ret)
 			kobject_uevent(&dev->kobj, KOBJ_ONLINE);
 		break;
@@ -60,44 +59,44 @@ static ssize_t __ref store_online(struct sys_device *dev, struct sysdev_attribut
 		ret = count;
 	return ret;
 }
-static SYSDEV_ATTR(online, 0644, show_online, store_online);
+static DEVICE_ATTR(online, 0644, show_online, store_online);
 
 static void __cpuinit register_cpu_control(struct cpu *cpu)
 {
-	sysdev_create_file(&cpu->sysdev, &attr_online);
+	device_create_file(&cpu->dev, &dev_attr_online);
 }
 void unregister_cpu(struct cpu *cpu)
 {
-	int logical_cpu = cpu->sysdev.id;
+	int logical_cpu = cpu->dev.id;
 
 	unregister_cpu_under_node(logical_cpu, cpu_to_node(logical_cpu));
 
-	sysdev_remove_file(&cpu->sysdev, &attr_online);
+	device_remove_file(&cpu->dev, &dev_attr_online);
 
-	sysdev_unregister(&cpu->sysdev);
+	device_unregister(&cpu->dev);
 	per_cpu(cpu_sys_devices, logical_cpu) = NULL;
 	return;
 }
 
 #ifdef CONFIG_ARCH_CPU_PROBE_RELEASE
-static ssize_t cpu_probe_store(struct sysdev_class *class,
-			       struct sysdev_class_attribute *attr,
+static ssize_t cpu_probe_store(struct device *dev,
+			       struct device_attribute *attr,
 			       const char *buf,
 			       size_t count)
 {
 	return arch_cpu_probe(buf, count);
 }
 
-static ssize_t cpu_release_store(struct sysdev_class *class,
-				 struct sysdev_class_attribute *attr,
+static ssize_t cpu_release_store(struct device *dev,
+				 struct device_attribute *attr,
 				 const char *buf,
 				 size_t count)
 {
 	return arch_cpu_release(buf, count);
 }
 
-static SYSDEV_CLASS_ATTR(probe, S_IWUSR, NULL, cpu_probe_store);
-static SYSDEV_CLASS_ATTR(release, S_IWUSR, NULL, cpu_release_store);
+static DEVICE_ATTR(probe, S_IWUSR, NULL, cpu_probe_store);
+static DEVICE_ATTR(release, S_IWUSR, NULL, cpu_release_store);
 #endif /* CONFIG_ARCH_CPU_PROBE_RELEASE */
 
 #else /* ... !CONFIG_HOTPLUG_CPU */
@@ -109,15 +108,15 @@ static inline void register_cpu_control(struct cpu *cpu)
 #ifdef CONFIG_KEXEC
 #include <linux/kexec.h>
 
-static ssize_t show_crash_notes(struct sys_device *dev, struct sysdev_attribute *attr,
+static ssize_t show_crash_notes(struct device *dev, struct device_attribute *attr,
 				char *buf)
 {
-	struct cpu *cpu = container_of(dev, struct cpu, sysdev);
+	struct cpu *cpu = container_of(dev, struct cpu, dev);
 	ssize_t rc;
 	unsigned long long addr;
 	int cpunum;
 
-	cpunum = cpu->sysdev.id;
+	cpunum = cpu->dev.id;
 
 	/*
 	 * Might be reading other cpu's data based on which cpu read thread
@@ -129,7 +128,7 @@ static ssize_t show_crash_notes(struct sys_device *dev, struct sysdev_attribute 
 	rc = sprintf(buf, "%Lx\n", addr);
 	return rc;
 }
-static SYSDEV_ATTR(crash_notes, 0400, show_crash_notes, NULL);
+static DEVICE_ATTR(crash_notes, 0400, show_crash_notes, NULL);
 #endif
 
 /*
@@ -137,12 +136,12 @@ static SYSDEV_ATTR(crash_notes, 0400, show_crash_notes, NULL);
  */
 
 struct cpu_attr {
-	struct sysdev_class_attribute attr;
+	struct device_attribute attr;
 	const struct cpumask *const * const map;
 };
 
-static ssize_t show_cpus_attr(struct sysdev_class *class,
-			      struct sysdev_class_attribute *attr,
+static ssize_t show_cpus_attr(struct device *dev,
+			      struct device_attribute *attr,
 			      char *buf)
 {
 	struct cpu_attr *ca = container_of(attr, struct cpu_attr, attr);
@@ -153,10 +152,10 @@ static ssize_t show_cpus_attr(struct sysdev_class *class,
 	return n;
 }
 
-#define _CPU_ATTR(name, map)						\
-	{ _SYSDEV_CLASS_ATTR(name, 0444, show_cpus_attr, NULL), map }
+#define _CPU_ATTR(name, map) \
+	{ __ATTR(name, 0444, show_cpus_attr, NULL), map }
 
-/* Keep in sync with cpu_sysdev_class_attrs */
+/* Keep in sync with cpu_subsys_attrs */
 static struct cpu_attr cpu_attrs[] = {
 	_CPU_ATTR(online, &cpu_online_mask),
 	_CPU_ATTR(possible, &cpu_possible_mask),
@@ -166,19 +165,19 @@ static struct cpu_attr cpu_attrs[] = {
 /*
  * Print values for NR_CPUS and offlined cpus
  */
-static ssize_t print_cpus_kernel_max(struct sysdev_class *class,
-				     struct sysdev_class_attribute *attr, char *buf)
+static ssize_t print_cpus_kernel_max(struct device *dev,
+				     struct device_attribute *attr, char *buf)
 {
 	int n = snprintf(buf, PAGE_SIZE-2, "%d\n", NR_CPUS - 1);
 	return n;
 }
-static SYSDEV_CLASS_ATTR(kernel_max, 0444, print_cpus_kernel_max, NULL);
+static DEVICE_ATTR(kernel_max, 0444, print_cpus_kernel_max, NULL);
 
 /* arch-optional setting to enable display of offline cpus >= nr_cpu_ids */
 unsigned int total_cpus;
 
-static ssize_t print_cpus_offline(struct sysdev_class *class,
-				  struct sysdev_class_attribute *attr, char *buf)
+static ssize_t print_cpus_offline(struct device *dev,
+				  struct device_attribute *attr, char *buf)
 {
 	int n = 0, len = PAGE_SIZE-2;
 	cpumask_var_t offline;
@@ -205,7 +204,7 @@ static ssize_t print_cpus_offline(struct sysdev_class *class,
 	n += snprintf(&buf[n], len - n, "\n");
 	return n;
 }
-static SYSDEV_CLASS_ATTR(offline, 0444, print_cpus_offline, NULL);
+static DEVICE_ATTR(offline, 0444, print_cpus_offline, NULL);
 
 /*
  * register_cpu - Setup a sysfs device for a CPU.
@@ -218,57 +217,66 @@ static SYSDEV_CLASS_ATTR(offline, 0444, print_cpus_offline, NULL);
 int __cpuinit register_cpu(struct cpu *cpu, int num)
 {
 	int error;
+
 	cpu->node_id = cpu_to_node(num);
-	cpu->sysdev.id = num;
-	cpu->sysdev.cls = &cpu_sysdev_class;
-
-	error = sysdev_register(&cpu->sysdev);
-
+	cpu->dev.id = num;
+	cpu->dev.bus = &cpu_subsys;
+	error = device_register(&cpu->dev);
 	if (!error && cpu->hotpluggable)
 		register_cpu_control(cpu);
 	if (!error)
-		per_cpu(cpu_sys_devices, num) = &cpu->sysdev;
+		per_cpu(cpu_sys_devices, num) = &cpu->dev;
 	if (!error)
 		register_cpu_under_node(num, cpu_to_node(num));
 
 #ifdef CONFIG_KEXEC
 	if (!error)
-		error = sysdev_create_file(&cpu->sysdev, &attr_crash_notes);
+		error = device_create_file(&cpu->dev, &dev_attr_crash_notes);
 #endif
 	return error;
 }
 
-struct sys_device *get_cpu_sysdev(unsigned cpu)
+struct device *get_cpu_device(unsigned cpu)
 {
 	if (cpu < nr_cpu_ids && cpu_possible(cpu))
 		return per_cpu(cpu_sys_devices, cpu);
 	else
 		return NULL;
 }
-EXPORT_SYMBOL_GPL(get_cpu_sysdev);
+EXPORT_SYMBOL_GPL(get_cpu_device);
+
+static struct attribute *cpu_root_attrs[] = {
+#ifdef CONFIG_ARCH_CPU_PROBE_RELEASE
+	&dev_attr_probe.attr,
+	&dev_attr_release.attr,
+#endif
+	&cpu_attrs[0].attr.attr,
+	&cpu_attrs[1].attr.attr,
+	&cpu_attrs[2].attr.attr,
+	&dev_attr_kernel_max.attr,
+	&dev_attr_offline.attr,
+	NULL
+};
+
+static struct attribute_group cpu_root_attr_group = {
+	.attrs = cpu_root_attrs,
+};
+
+static const struct attribute_group *cpu_root_attr_groups[] = {
+	&cpu_root_attr_group,
+	NULL,
+};
 
 int __init cpu_dev_init(void)
 {
 	int err;
 
-	err = sysdev_class_register(&cpu_sysdev_class);
-#if defined(CONFIG_SCHED_MC) || defined(CONFIG_SCHED_SMT)
-	if (!err)
-		err = sched_create_sysfs_power_savings_entries(&cpu_sysdev_class);
-#endif
+	err = subsys_system_register(&cpu_subsys, cpu_root_attr_groups);
+	if (err)
+		return err;
 
+#if defined(CONFIG_SCHED_MC) || defined(CONFIG_SCHED_SMT)
+	err = sched_create_sysfs_power_savings_entries(cpu_subsys.dev_root);
+#endif
 	return err;
 }
-
-static struct sysdev_class_attribute *cpu_sysdev_class_attrs[] = {
-#ifdef CONFIG_ARCH_CPU_PROBE_RELEASE
-	&attr_probe,
-	&attr_release,
-#endif
-	&cpu_attrs[0].attr,
-	&cpu_attrs[1].attr,
-	&cpu_attrs[2].attr,
-	&attr_kernel_max,
-	&attr_offline,
-	NULL
-};

@@ -11,7 +11,7 @@
 #include <linux/init.h>
 #include <linux/errno.h>
 #include <linux/cpu.h>
-#include <linux/sysdev.h>
+#include <linux/device.h>
 #include <linux/workqueue.h>
 #include <asm/smp.h>
 
@@ -31,14 +31,14 @@ static struct work_struct sclp_cpu_change_work;
 static void sclp_cpu_capability_notify(struct work_struct *work)
 {
 	int cpu;
-	struct sys_device *sysdev;
+	struct device *dev;
 
 	s390_adjust_jiffies();
 	pr_warning("cpu capability changed.\n");
 	get_online_cpus();
 	for_each_online_cpu(cpu) {
-		sysdev = get_cpu_sysdev(cpu);
-		kobject_uevent(&sysdev->kobj, KOBJ_CHANGE);
+		dev = get_cpu_device(cpu);
+		kobject_uevent(&dev->kobj, KOBJ_CHANGE);
 	}
 	put_online_cpus();
 }

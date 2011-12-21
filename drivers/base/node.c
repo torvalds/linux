@@ -315,12 +315,12 @@ struct node node_devices[MAX_NUMNODES];
 int register_cpu_under_node(unsigned int cpu, unsigned int nid)
 {
 	int ret;
-	struct sys_device *obj;
+	struct device *obj;
 
 	if (!node_online(nid))
 		return 0;
 
-	obj = get_cpu_sysdev(cpu);
+	obj = get_cpu_device(cpu);
 	if (!obj)
 		return 0;
 
@@ -337,12 +337,12 @@ int register_cpu_under_node(unsigned int cpu, unsigned int nid)
 
 int unregister_cpu_under_node(unsigned int cpu, unsigned int nid)
 {
-	struct sys_device *obj;
+	struct device *obj;
 
 	if (!node_online(nid))
 		return 0;
 
-	obj = get_cpu_sysdev(cpu);
+	obj = get_cpu_device(cpu);
 	if (!obj)
 		return 0;
 

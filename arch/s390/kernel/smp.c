@@ -831,8 +831,8 @@ int setup_profiling_timer(unsigned int multiplier)
 }
 
 #ifdef CONFIG_HOTPLUG_CPU
-static ssize_t cpu_configure_show(struct sys_device *dev,
-				struct sysdev_attribute *attr, char *buf)
+static ssize_t cpu_configure_show(struct device *dev,
+				struct device_attribute *attr, char *buf)
 {
 	ssize_t count;
 
@@ -842,8 +842,8 @@ static ssize_t cpu_configure_show(struct sys_device *dev,
 	return count;
 }
 
-static ssize_t cpu_configure_store(struct sys_device *dev,
-				  struct sysdev_attribute *attr,
+static ssize_t cpu_configure_store(struct device *dev,
+				  struct device_attribute *attr,
 				  const char *buf, size_t count)
 {
 	int cpu = dev->id;
@@ -889,11 +889,11 @@ out:
 	put_online_cpus();
 	return rc ? rc : count;
 }
-static SYSDEV_ATTR(configure, 0644, cpu_configure_show, cpu_configure_store);
+static DEVICE_ATTR(configure, 0644, cpu_configure_show, cpu_configure_store);
 #endif /* CONFIG_HOTPLUG_CPU */
 
-static ssize_t cpu_polarization_show(struct sys_device *dev,
-				     struct sysdev_attribute *attr, char *buf)
+static ssize_t cpu_polarization_show(struct device *dev,
+				     struct device_attribute *attr, char *buf)
 {
 	int cpu = dev->id;
 	ssize_t count;
@@ -919,22 +919,22 @@ static ssize_t cpu_polarization_show(struct sys_device *dev,
 	mutex_unlock(&smp_cpu_state_mutex);
 	return count;
 }
-static SYSDEV_ATTR(polarization, 0444, cpu_polarization_show, NULL);
+static DEVICE_ATTR(polarization, 0444, cpu_polarization_show, NULL);
 
-static ssize_t show_cpu_address(struct sys_device *dev,
-				struct sysdev_attribute *attr, char *buf)
+static ssize_t show_cpu_address(struct device *dev,
+				struct device_attribute *attr, char *buf)
 {
 	return sprintf(buf, "%d\n", __cpu_logical_map[dev->id]);
 }
-static SYSDEV_ATTR(address, 0444, show_cpu_address, NULL);
+static DEVICE_ATTR(address, 0444, show_cpu_address, NULL);
 
 
 static struct attribute *cpu_common_attrs[] = {
 #ifdef CONFIG_HOTPLUG_CPU
-	&attr_configure.attr,
+	&dev_attr_configure.attr,
 #endif
-	&attr_address.attr,
-	&attr_polarization.attr,
+	&dev_attr_address.attr,
+	&dev_attr_polarization.attr,
 	NULL,
 };
 
@@ -942,8 +942,8 @@ static struct attribute_group cpu_common_attr_group = {
 	.attrs = cpu_common_attrs,
 };
 
-static ssize_t show_capability(struct sys_device *dev,
-				struct sysdev_attribute *attr, char *buf)
+static ssize_t show_capability(struct device *dev,
+				struct device_attribute *attr, char *buf)
 {
 	unsigned int capability;
 	int rc;
@@ -953,10 +953,10 @@ static ssize_t show_capability(struct sys_device *dev,
 		return rc;
 	return sprintf(buf, "%u\n", capability);
 }
-static SYSDEV_ATTR(capability, 0444, show_capability, NULL);
+static DEVICE_ATTR(capability, 0444, show_capability, NULL);
 
-static ssize_t show_idle_count(struct sys_device *dev,
-				struct sysdev_attribute *attr, char *buf)
+static ssize_t show_idle_count(struct device *dev,
+				struct device_attribute *attr, char *buf)
 {
 	struct s390_idle_data *idle;
 	unsigned long long idle_count;
@@ -976,10 +976,10 @@ repeat:
 		goto repeat;
 	return sprintf(buf, "%llu\n", idle_count);
 }
-static SYSDEV_ATTR(idle_count, 0444, show_idle_count, NULL);
+static DEVICE_ATTR(idle_count, 0444, show_idle_count, NULL);
 
-static ssize_t show_idle_time(struct sys_device *dev,
-				struct sysdev_attribute *attr, char *buf)
+static ssize_t show_idle_time(struct device *dev,
+				struct device_attribute *attr, char *buf)
 {
 	struct s390_idle_data *idle;
 	unsigned long long now, idle_time, idle_enter;
@@ -1001,12 +1001,12 @@ repeat:
 		goto repeat;
 	return sprintf(buf, "%llu\n", idle_time >> 12);
 }
-static SYSDEV_ATTR(idle_time_us, 0444, show_idle_time, NULL);
+static DEVICE_ATTR(idle_time_us, 0444, show_idle_time, NULL);
 
 static struct attribute *cpu_online_attrs[] = {
-	&attr_capability.attr,
-	&attr_idle_count.attr,
-	&attr_idle_time_us.attr,
+	&dev_attr_capability.attr,
+	&dev_attr_idle_count.attr,
+	&dev_attr_idle_time_us.attr,
 	NULL,
 };
 
@@ -1019,7 +1019,7 @@ static int __cpuinit smp_cpu_notify(struct notifier_block *self,
 {
 	unsigned int cpu = (unsigned int)(long)hcpu;
 	struct cpu *c = &per_cpu(cpu_devices, cpu);
-	struct sys_device *s = &c->sysdev;
+	struct device *s = &c->dev;
 	struct s390_idle_data *idle;
 	int err = 0;
 
@@ -1045,7 +1045,7 @@ static struct notifier_block __cpuinitdata smp_cpu_nb = {
 static int __devinit smp_add_present_cpu(int cpu)
 {
 	struct cpu *c = &per_cpu(cpu_devices, cpu);
-	struct sys_device *s = &c->sysdev;
+	struct device *s = &c->dev;
 	int rc;
 
 	c->hotpluggable = 1;
@@ -1098,8 +1098,8 @@ out:
 	return rc;
 }
 
-static ssize_t __ref rescan_store(struct sysdev_class *class,
-				  struct sysdev_class_attribute *attr,
+static ssize_t __ref rescan_store(struct device *dev,
+				  struct device_attribute *attr,
 				  const char *buf,
 				  size_t count)
 {
@@ -1108,11 +1108,11 @@ static ssize_t __ref rescan_store(struct sysdev_class *class,
 	rc = smp_rescan_cpus();
 	return rc ? rc : count;
 }
-static SYSDEV_CLASS_ATTR(rescan, 0200, NULL, rescan_store);
+static DEVICE_ATTR(rescan, 0200, NULL, rescan_store);
 #endif /* CONFIG_HOTPLUG_CPU */
 
-static ssize_t dispatching_show(struct sysdev_class *class,
-				struct sysdev_class_attribute *attr,
+static ssize_t dispatching_show(struct device *dev,
+				struct device_attribute *attr,
 				char *buf)
 {
 	ssize_t count;
@@ -1123,8 +1123,8 @@ static ssize_t dispatching_show(struct sysdev_class *class,
 	return count;
 }
 
-static ssize_t dispatching_store(struct sysdev_class *dev,
-				 struct sysdev_class_attribute *attr,
+static ssize_t dispatching_store(struct device *dev,
+				 struct device_attribute *attr,
 				 const char *buf,
 				 size_t count)
 {
@@ -1148,7 +1148,7 @@ out:
 	put_online_cpus();
 	return rc ? rc : count;
 }
-static SYSDEV_CLASS_ATTR(dispatching, 0644, dispatching_show,
+static DEVICE_ATTR(dispatching, 0644, dispatching_show,
 			 dispatching_store);
 
 static int __init topology_init(void)
@@ -1159,11 +1159,11 @@ static int __init topology_init(void)
 	register_cpu_notifier(&smp_cpu_nb);
 
 #ifdef CONFIG_HOTPLUG_CPU
-	rc = sysdev_class_create_file(&cpu_sysdev_class, &attr_rescan);
+	rc = device_create_file(cpu_subsys.dev_root, &dev_attr_rescan);
 	if (rc)
 		return rc;
 #endif
-	rc = sysdev_class_create_file(&cpu_sysdev_class, &attr_dispatching);
+	rc = device_create_file(cpu_subsys.dev_root, &dev_attr_dispatching);
 	if (rc)
 		return rc;
 	for_each_present_cpu(cpu) {
