@@ -29,6 +29,7 @@ struct mc13xxx_regulator_priv {
 	struct mc13xxx *mc13xxx;
 	u32 powermisc_pwgt_state;
 	struct mc13xxx_regulator *mc13xxx_regulators;
+	int num_regulators;
 	struct regulator_dev *regulators[];
 };
 
@@ -41,6 +42,25 @@ extern int mc13xxx_regulator_list_voltage(struct regulator_dev *rdev,
 extern int mc13xxx_fixed_regulator_set_voltage(struct regulator_dev *rdev,
 		int min_uV, int max_uV, unsigned *selector);
 extern int mc13xxx_fixed_regulator_get_voltage(struct regulator_dev *rdev);
+
+#ifdef CONFIG_OF
+extern int mc13xxx_get_num_regulators_dt(struct platform_device *pdev);
+extern struct mc13xxx_regulator_init_data *mc13xxx_parse_regulators_dt(
+	struct platform_device *pdev, struct mc13xxx_regulator *regulators,
+	int num_regulators);
+#else
+static inline int mc13xxx_get_num_regulators_dt(struct platform_device *pdev)
+{
+	return -ENODEV;
+}
+
+static inline struct mc13xxx_regulator_init_data *mc13xxx_parse_regulators_dt(
+	struct platform_device *pdev, struct mc13xxx_regulator *regulators,
+	int num_regulators)
+{
+	return NULL;
+}
+#endif
 
 extern struct regulator_ops mc13xxx_regulator_ops;
 extern struct regulator_ops mc13xxx_fixed_regulator_ops;
