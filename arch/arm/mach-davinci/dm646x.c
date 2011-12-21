@@ -32,8 +32,6 @@
 #include "mux.h"
 
 #define DAVINCI_VPIF_BASE       (0x01C12000)
-#define VDD3P3V_PWDN_OFFSET	(0x48)
-#define VSCLKDIS_OFFSET		(0x6C)
 
 #define VDD3P3V_VID_MASK	(BIT_MASK(3) | BIT_MASK(2) | BIT_MASK(1) |\
 					BIT_MASK(0))
@@ -880,15 +878,14 @@ void dm646x_setup_vpif(struct vpif_display_config *display_config,
 		       struct vpif_capture_config *capture_config)
 {
 	unsigned int value;
-	void __iomem *base = IO_ADDRESS(DAVINCI_SYSTEM_MODULE_BASE);
 
-	value = __raw_readl(base + VSCLKDIS_OFFSET);
+	value = __raw_readl(DAVINCI_SYSMOD_VIRT(SYSMOD_VSCLKDIS));
 	value &= ~VSCLKDIS_MASK;
-	__raw_writel(value, base + VSCLKDIS_OFFSET);
+	__raw_writel(value, DAVINCI_SYSMOD_VIRT(SYSMOD_VSCLKDIS));
 
-	value = __raw_readl(base + VDD3P3V_PWDN_OFFSET);
+	value = __raw_readl(DAVINCI_SYSMOD_VIRT(SYSMOD_VDD3P3VPWDN));
 	value &= ~VDD3P3V_VID_MASK;
-	__raw_writel(value, base + VDD3P3V_PWDN_OFFSET);
+	__raw_writel(value, DAVINCI_SYSMOD_VIRT(SYSMOD_VDD3P3VPWDN));
 
 	davinci_cfg_reg(DM646X_STSOMUX_DISABLE);
 	davinci_cfg_reg(DM646X_STSIMUX_DISABLE);
@@ -912,6 +909,7 @@ int __init dm646x_init_edma(struct edma_rsv_info *rsv)
 void __init dm646x_init(void)
 {
 	davinci_common_init(&davinci_soc_info_dm646x);
+	davinci_map_sysmod();
 }
 
 static int __init dm646x_init_devices(void)

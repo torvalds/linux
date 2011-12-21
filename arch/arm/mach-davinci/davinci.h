@@ -25,9 +25,20 @@
 
 #include <mach/asp.h>
 #include <mach/keyscan.h>
+#include <mach/hardware.h>
 
 #include <media/davinci/vpfe_capture.h>
 #include <media/davinci/vpif_types.h>
+
+#define DAVINCI_SYSTEM_MODULE_BASE	0x01c40000
+#define SYSMOD_VIDCLKCTL		0x38
+#define SYSMOD_VDD3P3VPWDN		0x48
+#define SYSMOD_VSCLKDIS			0x6c
+#define SYSMOD_PUPDCTL1			0x7c
+
+extern void __iomem *davinci_sysmod_base;
+#define DAVINCI_SYSMOD_VIRT(x)	(davinci_sysmod_base + (x))
+void davinci_map_sysmod(void);
 
 /* DM355 base addresses */
 #define DM355_ASYNC_EMIF_CONTROL_BASE	0x01e10000
