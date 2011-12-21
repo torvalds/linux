@@ -1418,6 +1418,12 @@ int nouveau_crtc_page_flip(struct drm_crtc *crtc, struct drm_framebuffer *fb,
 			   struct drm_pending_vblank_event *event);
 int nouveau_finish_page_flip(struct nouveau_channel *,
 			     struct nouveau_page_flip_state *);
+int nouveau_display_dumb_create(struct drm_file *, struct drm_device *,
+				struct drm_mode_create_dumb *args);
+int nouveau_display_dumb_map_offset(struct drm_file *, struct drm_device *,
+				    uint32_t handle, uint64_t *offset);
+int nouveau_display_dumb_destroy(struct drm_file *, struct drm_device *,
+				 uint32_t handle);
 
 /* nv10_gpio.c */
 int nv10_gpio_get(struct drm_device *dev, enum dcb_gpio_tag tag);

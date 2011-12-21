@@ -1552,6 +1552,8 @@ static void ap_reset(struct ap_device *ap_dev)
 	rc = ap_init_queue(ap_dev->qid);
 	if (rc == -ENODEV)
 		ap_dev->unregistered = 1;
+	else
+		__ap_schedule_poll_timer();
 }
 
 static int __ap_poll_device(struct ap_device *ap_dev, unsigned long *flags)

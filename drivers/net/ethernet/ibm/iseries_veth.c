@@ -1421,7 +1421,7 @@ static void veth_receive(struct veth_lpar_connection *cnx,
 
 		/* FIXME: do we need this? */
 		memset(local_list, 0, sizeof(local_list));
-		memset(remote_list, 0, sizeof(VETH_MAX_FRAMES_PER_MSG));
+		memset(remote_list, 0, sizeof(remote_list));
 
 		/* a 0 address marks the end of the valid entries */
 		if (senddata->addr[startchunk] == 0)

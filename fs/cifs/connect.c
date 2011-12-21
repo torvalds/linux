@@ -441,6 +441,8 @@ cifs_readv_from_socket(struct TCP_Server_Info *server, struct kvec *iov_orig,
 	smb_msg.msg_controllen = 0;
 
 	for (total_read = 0; to_read; total_read += length, to_read -= length) {
+		try_to_freeze();
+
 		if (server_unresponsive(server)) {
 			total_read = -EAGAIN;
 			break;

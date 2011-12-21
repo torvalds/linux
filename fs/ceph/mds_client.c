@@ -732,21 +732,21 @@ static int __choose_mds(struct ceph_mds_client *mdsc,
 		}
 	}
 
-	spin_lock(&inode->i_lock);
+	spin_lock(&ci->i_ceph_lock);
 	cap = NULL;
 	if (mode == USE_AUTH_MDS)
 		cap = ci->i_auth_cap;
 	if (!cap && !RB_EMPTY_ROOT(&ci->i_caps))
 		cap = rb_entry(rb_first(&ci->i_caps), struct ceph_cap, ci_node);
 	if (!cap) {
-		spin_unlock(&inode->i_lock);
+		spin_unlock(&ci->i_ceph_lock);
 		goto random;
 	}
 	mds = cap->session->s_mds;
 	dout("choose_mds %p %llx.%llx mds%d (%scap %p)\n",
 	     inode, ceph_vinop(inode), mds,
 	     cap == ci->i_auth_cap ? "auth " : "", cap);
-	spin_unlock(&inode->i_lock);
+	spin_unlock(&ci->i_ceph_lock);
 	return mds;
 
 random:
@@ -951,7 +951,7 @@ static int remove_session_caps_cb(struct inode *inode, struct ceph_cap *cap,
 
 	dout("removing cap %p, ci is %p, inode is %p\n",
 	     cap, ci, &ci->vfs_inode);
-	spin_lock(&inode->i_lock);
+	spin_lock(&ci->i_ceph_lock);
 	__ceph_remove_cap(cap);
 	if (!__ceph_is_any_real_caps(ci)) {
 		struct ceph_mds_client *mdsc =
@@ -984,7 +984,7 @@ static int remove_session_caps_cb(struct inode *inode, struct ceph_cap *cap,
 		}
 		spin_unlock(&mdsc->cap_dirty_lock);
 	}
-	spin_unlock(&inode->i_lock);
+	spin_unlock(&ci->i_ceph_lock);
 	while (drop--)
 		iput(inode);
 	return 0;
@@ -1015,10 +1015,10 @@ static int wake_up_session_cb(struct inode *inode, struct ceph_cap *cap,
 
 	wake_up_all(&ci->i_cap_wq);
 	if (arg) {
-		spin_lock(&inode->i_lock);
+		spin_lock(&ci->i_ceph_lock);
 		ci->i_wanted_max_size = 0;
 		ci->i_requested_max_size = 0;
-		spin_unlock(&inode->i_lock);
+		spin_unlock(&ci->i_ceph_lock);
 	}
 	return 0;
 }
@@ -1151,7 +1151,7 @@ static int trim_caps_cb(struct inode *inode, struct ceph_cap *cap, void *arg)
 	if (session->s_trim_caps <= 0)
 		return -1;
 
-	spin_lock(&inode->i_lock);
+	spin_lock(&ci->i_ceph_lock);
 	mine = cap->issued | cap->implemented;
 	used = __ceph_caps_used(ci);
 	oissued = __ceph_caps_issued_other(ci, cap);
@@ -1170,7 +1170,7 @@ static int trim_caps_cb(struct inode *inode, struct ceph_cap *cap, void *arg)
 		__ceph_remove_cap(cap);
 	} else {
 		/* try to drop referring dentries */
-		spin_unlock(&inode->i_lock);
+		spin_unlock(&ci->i_ceph_lock);
 		d_prune_aliases(inode);
 		dout("trim_caps_cb %p cap %p  pruned, count now %d\n",
 		     inode, cap, atomic_read(&inode->i_count));
@@ -1178,7 +1178,7 @@ static int trim_caps_cb(struct inode *inode, struct ceph_cap *cap, void *arg)
 	}
 
 out:
-	spin_unlock(&inode->i_lock);
+	spin_unlock(&ci->i_ceph_lock);
 	return 0;
 }
 
@@ -1296,7 +1296,7 @@ static int check_cap_flush(struct ceph_mds_client *mdsc, u64 want_flush_seq)
 					   i_flushing_item);
 			struct inode *inode = &ci->vfs_inode;
 
-			spin_lock(&inode->i_lock);
+			spin_lock(&ci->i_ceph_lock);
 			if (ci->i_cap_flush_seq <= want_flush_seq) {
 				dout("check_cap_flush still flushing %p "
 				     "seq %lld <= %lld to mds%d\n", inode,
@@ -1304,7 +1304,7 @@ static int check_cap_flush(struct ceph_mds_client *mdsc, u64 want_flush_seq)
 				     session->s_mds);
 				ret = 0;
 			}
-			spin_unlock(&inode->i_lock);
+			spin_unlock(&ci->i_ceph_lock);
 		}
 		mutex_unlock(&session->s_mutex);
 		ceph_put_mds_session(session);
@@ -1495,6 +1495,7 @@ retry:
 			     pos, temp);
 		} else if (stop_on_nosnap && inode &&
 			   ceph_snap(inode) == CEPH_NOSNAP) {
+			spin_unlock(&temp->d_lock);
 			break;
 		} else {
 			pos -= temp->d_name.len;
@@ -2011,10 +2012,10 @@ void ceph_invalidate_dir_request(struct ceph_mds_request *req)
 	struct ceph_inode_info *ci = ceph_inode(inode);
 
 	dout("invalidate_dir_request %p (D_COMPLETE, lease(s))\n", inode);
-	spin_lock(&inode->i_lock);
+	spin_lock(&ci->i_ceph_lock);
 	ceph_dir_clear_complete(inode);
 	ci->i_release_count++;
-	spin_unlock(&inode->i_lock);
+	spin_unlock(&ci->i_ceph_lock);
 
 	if (req->r_dentry)
 		ceph_invalidate_dentry_lease(req->r_dentry);
@@ -2422,7 +2423,7 @@ static int encode_caps_cb(struct inode *inode, struct ceph_cap *cap,
 	if (err)
 		goto out_free;
 
-	spin_lock(&inode->i_lock);
+	spin_lock(&ci->i_ceph_lock);
 	cap->seq = 0;        /* reset cap seq */
 	cap->issue_seq = 0;  /* and issue_seq */
 
@@ -2445,7 +2446,7 @@ static int encode_caps_cb(struct inode *inode, struct ceph_cap *cap,
 		rec.v1.pathbase = cpu_to_le64(pathbase);
 		reclen = sizeof(rec.v1);
 	}
-	spin_unlock(&inode->i_lock);
+	spin_unlock(&ci->i_ceph_lock);
 
 	if (recon_state->flock) {
 		int num_fcntl_locks, num_flock_locks;
