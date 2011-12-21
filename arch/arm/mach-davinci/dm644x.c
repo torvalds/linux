@@ -659,11 +659,6 @@ static struct platform_device dm644x_vpfe_dev = {
 	},
 };
 
-void dm644x_set_vpfe_config(struct vpfe_config *cfg)
-{
-	dm644x_vpfe_dev.dev.platform_data = cfg;
-}
-
 /*----------------------------------------------------------------------*/
 
 static struct map_desc dm644x_io_desc[] = {
@@ -791,24 +786,32 @@ void __init dm644x_init(void)
 	davinci_map_sysmod();
 }
 
+int __init dm644x_init_video(struct vpfe_config *vpfe_cfg)
+{
+	dm644x_vpfe_dev.dev.platform_data = vpfe_cfg;
+
+	/* Add ccdc clock aliases */
+	clk_add_alias("master", dm644x_ccdc_dev.name, "vpss_master", NULL);
+	clk_add_alias("slave", dm644x_ccdc_dev.name, "vpss_slave", NULL);
+
+	platform_device_register(&dm644x_vpss_device);
+	platform_device_register(&dm644x_ccdc_dev);
+	platform_device_register(&dm644x_vpfe_dev);
+
+	return 0;
+}
+
 static int __init dm644x_init_devices(void)
 {
 	if (!cpu_is_davinci_dm644x())
 		return 0;
 
-	/* Add ccdc clock aliases */
-	clk_add_alias("master", dm644x_ccdc_dev.name, "vpss_master", NULL);
-	clk_add_alias("slave", dm644x_ccdc_dev.name, "vpss_slave", NULL);
 	platform_device_register(&dm644x_edma_device);
 
 	platform_device_register(&dm644x_mdio_device);
 	platform_device_register(&dm644x_emac_device);
 	clk_add_alias(NULL, dev_name(&dm644x_mdio_device.dev),
 		      NULL, &dm644x_emac_device.dev);
-
-	platform_device_register(&dm644x_vpss_device);
-	platform_device_register(&dm644x_ccdc_dev);
-	platform_device_register(&dm644x_vpfe_dev);
 
 	return 0;
 }

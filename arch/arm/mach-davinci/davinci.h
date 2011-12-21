@@ -83,7 +83,7 @@ void dm365_set_vpfe_config(struct vpfe_config *cfg);
 /* DM644x function declarations */
 void __init dm644x_init(void);
 void __init dm644x_init_asp(struct snd_platform_data *pdata);
-void dm644x_set_vpfe_config(struct vpfe_config *cfg);
+int __init dm644x_init_video(struct vpfe_config *);
 
 /* DM646x function declarations */
 void __init dm646x_init(void);
