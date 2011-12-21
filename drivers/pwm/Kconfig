@@ -9,4 +9,14 @@ menuconfig PWM
 
 if PWM
 
+config PWM_TEGRA
+	tristate "NVIDIA Tegra PWM support"
+	depends on ARCH_TEGRA
+	help
+	  Generic PWM framework driver for the PWFM controller found on NVIDIA
+	  Tegra SoCs.
+
+	  To compile this driver as a module, choose M here: the module
+	  will be called pwm-tegra.
+
 endif
