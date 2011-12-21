@@ -239,9 +239,20 @@ static int __devexit tegra_pwm_remove(struct platform_device *pdev)
 	return 0;
 }
 
+#ifdef CONFIG_OF
+static struct of_device_id tegra_pwm_of_match[] = {
+	{ .compatible = "nvidia,tegra20-pwm" },
+	{ .compatible = "nvidia,tegra30-pwm" },
+	{ }
+};
+
+MODULE_DEVICE_TABLE(of, tegra_pwm_of_match);
+#endif
+
 static struct platform_driver tegra_pwm_driver = {
 	.driver = {
 		.name = "tegra-pwm",
+		.of_match_table = of_match_ptr(tegra_pwm_of_match),
 	},
 	.probe = tegra_pwm_probe,
 	.remove = __devexit_p(tegra_pwm_remove),
