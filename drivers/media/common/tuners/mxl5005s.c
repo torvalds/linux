@@ -4019,7 +4019,8 @@ static int mxl5005s_set_params(struct dvb_frontend *fe,
 	}
 
 	/* Change tuner for new modulation type if reqd */
-	if (req_mode != state->current_mode) {
+	if (req_mode != state->current_mode ||
+	    req_bw != state->Chan_Bandwidth) {
 		state->current_mode = req_mode;
 		ret = mxl5005s_reconfigure(fe, req_mode, req_bw);
 
