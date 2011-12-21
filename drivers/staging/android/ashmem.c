@@ -41,11 +41,11 @@
  * Big Note: Mappings do NOT pin this structure; it dies on close()
  */
 struct ashmem_area {
-	char name[ASHMEM_FULL_NAME_LEN];/* optional name for /proc/pid/maps */
-	struct list_head unpinned_list;	/* list of all ashmem areas */
-	struct file *file;		/* the shmem-based backing file */
-	size_t size;			/* size of the mapping, in bytes */
-	unsigned long prot_mask;	/* allowed prot bits, as vm_flags */
+	char name[ASHMEM_FULL_NAME_LEN]; /* optional name in /proc/pid/maps */
+	struct list_head unpinned_list;	 /* list of all ashmem areas */
+	struct file *file;		 /* the shmem-based backing file */
+	size_t size;			 /* size of the mapping, in bytes */
+	unsigned long prot_mask;	 /* allowed prot bits, as vm_flags */
 };
 
 /*
@@ -79,26 +79,26 @@ static struct kmem_cache *ashmem_area_cachep __read_mostly;
 static struct kmem_cache *ashmem_range_cachep __read_mostly;
 
 #define range_size(range) \
-  ((range)->pgend - (range)->pgstart + 1)
+	((range)->pgend - (range)->pgstart + 1)
 
 #define range_on_lru(range) \
-  ((range)->purged == ASHMEM_NOT_PURGED)
+	((range)->purged == ASHMEM_NOT_PURGED)
 
 #define page_range_subsumes_range(range, start, end) \
-  (((range)->pgstart >= (start)) && ((range)->pgend <= (end)))
+	(((range)->pgstart >= (start)) && ((range)->pgend <= (end)))
 
 #define page_range_subsumed_by_range(range, start, end) \
-  (((range)->pgstart <= (start)) && ((range)->pgend >= (end)))
+	(((range)->pgstart <= (start)) && ((range)->pgend >= (end)))
 
 #define page_in_range(range, page) \
- (((range)->pgstart <= (page)) && ((range)->pgend >= (page)))
+	(((range)->pgstart <= (page)) && ((range)->pgend >= (page)))
 
 #define page_range_in_range(range, start, end) \
-  (page_in_range(range, start) || page_in_range(range, end) || \
-   page_range_subsumes_range(range, start, end))
+	(page_in_range(range, start) || page_in_range(range, end) || \
+		page_range_subsumes_range(range, start, end))
 
 #define range_before_page(range, page) \
-  ((range)->pgend < (page))
+	((range)->pgend < (page))
 
 #define PROT_MASK		(PROT_EXEC | PROT_READ | PROT_WRITE)
 
@@ -220,9 +220,8 @@ static ssize_t ashmem_read(struct file *file, char __user *buf,
 	mutex_lock(&ashmem_mutex);
 
 	/* If size is not set, or set to 0, always return EOF. */
-	if (asma->size == 0) {
+	if (asma->size == 0)
 		goto out;
-        }
 
 	if (!asma->file) {
 		ret = -EBADF;
@@ -230,9 +229,8 @@ static ssize_t ashmem_read(struct file *file, char __user *buf,
 	}
 
 	ret = asma->file->f_op->read(asma->file, buf, len, pos);
-	if (ret < 0) {
+	if (ret < 0)
 		goto out;
-	}
 
 	/** Update backing file pos, since f_ops->read() doesn't */
 	asma->file->f_pos = *pos;
@@ -260,9 +258,8 @@ static loff_t ashmem_llseek(struct file *file, loff_t offset, int origin)
 	}
 
 	ret = asma->file->f_op->llseek(asma->file, offset, origin);
-	if (ret < 0) {
+	if (ret < 0)
 		goto out;
-	}
 
 	/** Copy f_pos from backing file, since f_ops->llseek() sets it */
 	file->f_pos = asma->file->f_pos;
@@ -272,10 +269,9 @@ out:
 	return ret;
 }
 
-static inline unsigned long
-calc_vm_may_flags(unsigned long prot)
+static inline unsigned long calc_vm_may_flags(unsigned long prot)
 {
-	return _calc_vm_trans(prot, PROT_READ,  VM_MAYREAD ) |
+	return _calc_vm_trans(prot, PROT_READ,  VM_MAYREAD) |
 	       _calc_vm_trans(prot, PROT_WRITE, VM_MAYWRITE) |
 	       _calc_vm_trans(prot, PROT_EXEC,  VM_MAYEXEC);
 }
@@ -295,7 +291,7 @@ static int ashmem_mmap(struct file *file, struct vm_area_struct *vma)
 
 	/* requested protection bits must match our allowed protection mask */
 	if (unlikely((vma->vm_flags & ~calc_vm_prot_bits(asma->prot_mask)) &
-						calc_vm_prot_bits(PROT_MASK))) {
+		     calc_vm_prot_bits(PROT_MASK))) {
 		ret = -EPERM;
 		goto out;
 	}
@@ -688,8 +684,8 @@ static struct file_operations ashmem_fops = {
 	.owner = THIS_MODULE,
 	.open = ashmem_open,
 	.release = ashmem_release,
-        .read = ashmem_read,
-        .llseek = ashmem_llseek,
+	.read = ashmem_read,
+	.llseek = ashmem_llseek,
 	.mmap = ashmem_mmap,
 	.unlocked_ioctl = ashmem_ioctl,
 	.compat_ioctl = ashmem_ioctl,
