@@ -48,7 +48,7 @@ extern struct regulator_ops mc13xxx_fixed_regulator_ops;
 #define MC13xxx_DEFINE(prefix, _name, _reg, _vsel_reg, _voltages, _ops)	\
 	[prefix ## _name] = {				\
 		.desc = {						\
-			.name = #prefix "_" #_name,			\
+			.name = #_name,					\
 			.n_voltages = ARRAY_SIZE(_voltages),		\
 			.ops = &_ops,			\
 			.type = REGULATOR_VOLTAGE,			\
@@ -66,7 +66,7 @@ extern struct regulator_ops mc13xxx_fixed_regulator_ops;
 #define MC13xxx_FIXED_DEFINE(prefix, _name, _reg, _voltages, _ops)	\
 	[prefix ## _name] = {				\
 		.desc = {						\
-			.name = #prefix "_" #_name,			\
+			.name = #_name,					\
 			.n_voltages = ARRAY_SIZE(_voltages),		\
 			.ops = &_ops,		\
 			.type = REGULATOR_VOLTAGE,			\
@@ -81,7 +81,7 @@ extern struct regulator_ops mc13xxx_fixed_regulator_ops;
 #define MC13xxx_GPO_DEFINE(prefix, _name, _reg,  _voltages, _ops)	\
 	[prefix ## _name] = {				\
 		.desc = {						\
-			.name = #prefix "_" #_name,			\
+			.name = #_name,					\
 			.n_voltages = ARRAY_SIZE(_voltages),		\
 			.ops = &_ops,		\
 			.type = REGULATOR_VOLTAGE,			\
