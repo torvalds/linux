@@ -125,13 +125,10 @@ static struct platform_driver sdhci_esdhc_driver = {
 		.name = "sdhci-esdhc",
 		.owner = THIS_MODULE,
 		.of_match_table = sdhci_esdhc_of_match,
+		.pm = SDHCI_PLTFM_PMOPS,
 	},
 	.probe = sdhci_esdhc_probe,
 	.remove = __devexit_p(sdhci_esdhc_remove),
-#ifdef CONFIG_PM
-	.suspend = sdhci_pltfm_suspend,
-	.resume = sdhci_pltfm_resume,
-#endif
 };
 
 static int __init sdhci_esdhc_init(void)
