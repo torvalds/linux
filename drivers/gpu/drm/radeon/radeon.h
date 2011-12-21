@@ -243,32 +243,6 @@ void radeon_fence_unref(struct radeon_fence **fence);
 int radeon_fence_count_emitted(struct radeon_device *rdev, int ring);
 
 /*
- * Semaphores.
- */
-struct radeon_ring;
-
-struct radeon_semaphore_driver {
-	rwlock_t		lock;
-	struct list_head	free;
-};
-
-struct radeon_semaphore {
-	struct radeon_bo	*robj;
-	struct list_head	list;
-	uint64_t		gpu_addr;
-};
-
-void radeon_semaphore_driver_fini(struct radeon_device *rdev);
-int radeon_semaphore_create(struct radeon_device *rdev,
-			    struct radeon_semaphore **semaphore);
-void radeon_semaphore_emit_signal(struct radeon_device *rdev, int ring,
-				  struct radeon_semaphore *semaphore);
-void radeon_semaphore_emit_wait(struct radeon_device *rdev, int ring,
-				struct radeon_semaphore *semaphore);
-void radeon_semaphore_free(struct radeon_device *rdev,
-			   struct radeon_semaphore *semaphore);
-
-/*
  * Tiling registers
  */
 struct radeon_surface_reg {
@@ -385,6 +359,46 @@ int radeon_mode_dumb_mmap(struct drm_file *filp,
 int radeon_mode_dumb_destroy(struct drm_file *file_priv,
 			     struct drm_device *dev,
 			     uint32_t handle);
+
+/*
+ * Semaphores.
+ */
+struct radeon_ring;
+
+#define	RADEON_SEMAPHORE_BO_SIZE	256
+
+struct radeon_semaphore_driver {
+	rwlock_t			lock;
+	struct list_head		bo;
+};
+
+struct radeon_semaphore_bo;
+
+/* everything here is constant */
+struct radeon_semaphore {
+	struct list_head		list;
+	uint64_t			gpu_addr;
+	uint32_t			*cpu_ptr;
+	struct radeon_semaphore_bo	*bo;
+};
+
+struct radeon_semaphore_bo {
+	struct list_head		list;
+	struct radeon_ib		*ib;
+	struct list_head		free;
+	struct radeon_semaphore		semaphores[RADEON_SEMAPHORE_BO_SIZE/8];
+	unsigned			nused;
+};
+
+void radeon_semaphore_driver_fini(struct radeon_device *rdev);
+int radeon_semaphore_create(struct radeon_device *rdev,
+			    struct radeon_semaphore **semaphore);
+void radeon_semaphore_emit_signal(struct radeon_device *rdev, int ring,
+				  struct radeon_semaphore *semaphore);
+void radeon_semaphore_emit_wait(struct radeon_device *rdev, int ring,
+				struct radeon_semaphore *semaphore);
+void radeon_semaphore_free(struct radeon_device *rdev,
+			   struct radeon_semaphore *semaphore);
 
 /*
  * GART structures, functions & helpers
@@ -641,6 +655,7 @@ void r600_blit_suspend(struct radeon_device *rdev);
 int radeon_ib_get(struct radeon_device *rdev, int ring,
 		  struct radeon_ib **ib, unsigned size);
 void radeon_ib_free(struct radeon_device *rdev, struct radeon_ib **ib);
+bool radeon_ib_try_free(struct radeon_device *rdev, struct radeon_ib *ib);
 int radeon_ib_schedule(struct radeon_device *rdev, struct radeon_ib *ib);
 int radeon_ib_pool_init(struct radeon_device *rdev);
 void radeon_ib_pool_fini(struct radeon_device *rdev);

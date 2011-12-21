@@ -77,8 +77,7 @@ void radeon_ring_write(struct radeon_ring *ring, uint32_t v)
 /*
  * IB.
  */
-static bool radeon_ib_try_free(struct radeon_device *rdev,
-			       struct radeon_ib *ib)
+bool radeon_ib_try_free(struct radeon_device *rdev, struct radeon_ib *ib)
 {
 	bool done = false;
 
@@ -148,7 +147,7 @@ retry:
 	/* this should be rare event, ie all ib scheduled none signaled yet.
 	 */
 	for (i = 0; i < RADEON_IB_POOL_SIZE; i++) {
-		if (rdev->ib_pool.ibs[idx].fence) {
+		if (rdev->ib_pool.ibs[idx].fence && rdev->ib_pool.ibs[idx].fence->emitted) {
 			r = radeon_fence_wait(rdev->ib_pool.ibs[idx].fence, false);
 			if (!r) {
 				goto retry;
