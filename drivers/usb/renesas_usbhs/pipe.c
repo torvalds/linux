@@ -330,8 +330,7 @@ static u16 usbhsp_setup_pipecfg(struct usbhs_pipe *pipe,
 	if (dir_in)
 		usbhsp_flags_set(pipe, IS_DIR_HOST);
 
-	if ((is_host  && !dir_in) ||
-	    (!is_host && dir_in))
+	if (!!is_host ^ !!dir_in)
 		dir |= DIR_OUT;
 
 	if (!dir)
