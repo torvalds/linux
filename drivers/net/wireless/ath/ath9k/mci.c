@@ -20,7 +20,7 @@
 #include "ath9k.h"
 #include "mci.h"
 
-u8 ath_mci_duty_cycle[] = { 0, 50, 60, 70, 80, 85, 90, 95, 98 };
+static const u8 ath_mci_duty_cycle[] = { 0, 50, 60, 70, 80, 85, 90, 95, 98 };
 
 static struct ath_mci_profile_info*
 ath_mci_find_profile(struct ath_mci_profile *mci,
