@@ -1,8 +1,9 @@
-menu "Remoteproc drivers"
+menu "Remoteproc drivers (EXPERIMENTAL)"
 
 # REMOTEPROC gets selected by whoever wants it
 config REMOTEPROC
 	tristate
+	depends on EXPERIMENTAL
 
 config OMAP_REMOTEPROC
 	tristate "OMAP remoteproc support"
