@@ -1517,8 +1517,7 @@ static void langwell_udc_stop(struct langwell_udc *dev)
 
 
 /* stop all USB activities */
-static void stop_activity(struct langwell_udc *dev,
-		struct usb_gadget_driver *driver)
+static void stop_activity(struct langwell_udc *dev)
 {
 	struct langwell_ep	*ep;
 	dev_dbg(&dev->pdev->dev, "---> %s()\n", __func__);
@@ -1530,9 +1529,9 @@ static void stop_activity(struct langwell_udc *dev,
 	}
 
 	/* report disconnect; the driver is already quiesced */
-	if (driver) {
+	if (dev->driver) {
 		spin_unlock(&dev->lock);
-		driver->disconnect(&dev->gadget);
+		dev->driver->disconnect(&dev->gadget);
 		spin_lock(&dev->lock);
 	}
 
@@ -1920,11 +1919,10 @@ static int langwell_stop(struct usb_gadget *g,
 
 	/* stop all usb activities */
 	dev->gadget.speed = USB_SPEED_UNKNOWN;
-	stop_activity(dev, driver);
-	spin_unlock_irqrestore(&dev->lock, flags);
-
 	dev->gadget.dev.driver = NULL;
 	dev->driver = NULL;
+	stop_activity(dev);
+	spin_unlock_irqrestore(&dev->lock, flags);
 
 	device_remove_file(&dev->pdev->dev, &dev_attr_function);
 
@@ -2724,7 +2722,7 @@ static void handle_usb_reset(struct langwell_udc *dev)
 		dev->bus_reset = 1;
 
 		/* reset all the queues, stop all USB activities */
-		stop_activity(dev, dev->driver);
+		stop_activity(dev);
 		dev->usb_state = USB_STATE_DEFAULT;
 	} else {
 		dev_vdbg(&dev->pdev->dev, "device controller reset\n");
@@ -2732,7 +2730,7 @@ static void handle_usb_reset(struct langwell_udc *dev)
 		langwell_udc_reset(dev);
 
 		/* reset all the queues, stop all USB activities */
-		stop_activity(dev, dev->driver);
+		stop_activity(dev);
 
 		/* reset ep0 dQH and endptctrl */
 		ep0_reset(dev);
@@ -3290,7 +3288,7 @@ static int langwell_udc_suspend(struct pci_dev *pdev, pm_message_t state)
 
 	spin_lock_irq(&dev->lock);
 	/* stop all usb activities */
-	stop_activity(dev, dev->driver);
+	stop_activity(dev);
 	spin_unlock_irq(&dev->lock);
 
 	/* free dTD dma_pool and dQH */
