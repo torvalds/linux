@@ -48,30 +48,6 @@ mwifiex_cfg80211_channel_type_to_sec_chan_offset(enum nl80211_channel_type
 }
 
 /*
- * This function maps the driver channel type into nl802.11 channel type.
- *
- * The mapping is as follows -
- *      IEEE80211_HT_PARAM_CHA_SEC_NONE    -> NL80211_CHAN_HT20
- *      IEEE80211_HT_PARAM_CHA_SEC_ABOVE   -> NL80211_CHAN_HT40PLUS
- *      IEEE80211_HT_PARAM_CHA_SEC_BELOW   -> NL80211_CHAN_HT40MINUS
- *      Others                             -> NL80211_CHAN_HT20
- */
-static enum nl80211_channel_type
-mwifiex_channels_to_cfg80211_channel_type(int channel_type)
-{
-	switch (channel_type) {
-	case IEEE80211_HT_PARAM_CHA_SEC_NONE:
-		return NL80211_CHAN_HT20;
-	case IEEE80211_HT_PARAM_CHA_SEC_ABOVE:
-		return NL80211_CHAN_HT40PLUS;
-	case IEEE80211_HT_PARAM_CHA_SEC_BELOW:
-		return NL80211_CHAN_HT40MINUS;
-	default:
-		return NL80211_CHAN_HT20;
-	}
-}
-
-/*
  * This function checks whether WEP is set.
  */
 static int
@@ -337,10 +313,22 @@ mwifiex_set_rf_channel(struct mwifiex_private *priv,
 
 	if (chan) {
 		/* Set appropriate bands */
-		if (chan->band == IEEE80211_BAND_2GHZ)
-			config_bands = BAND_B | BAND_G | BAND_GN;
-		else
-			config_bands = BAND_AN | BAND_A;
+		if (chan->band == IEEE80211_BAND_2GHZ) {
+			if (channel_type == NL80211_CHAN_NO_HT)
+				if (priv->adapter->config_bands == BAND_B ||
+					  priv->adapter->config_bands == BAND_G)
+					config_bands =
+						priv->adapter->config_bands;
+				else
+					config_bands = BAND_B | BAND_G;
+			else
+				config_bands = BAND_B | BAND_G | BAND_GN;
+		} else {
+			if (channel_type == NL80211_CHAN_NO_HT)
+				config_bands = BAND_A;
+			else
+				config_bands = BAND_AN | BAND_A;
+		}
 
 		if (!((config_bands | adapter->fw_bands) &
 						~adapter->fw_bands)) {
@@ -357,6 +345,7 @@ mwifiex_set_rf_channel(struct mwifiex_private *priv,
 		adapter->sec_chan_offset =
 			mwifiex_cfg80211_channel_type_to_sec_chan_offset
 			(channel_type);
+		adapter->channel_type = channel_type;
 
 		mwifiex_send_domain_info_cmd_fw(wiphy);
 	}
@@ -730,6 +719,7 @@ static int mwifiex_cfg80211_set_bitrate_mask(struct wiphy *wiphy,
 		}
 	}
 	adapter->sec_chan_offset = IEEE80211_HT_PARAM_CHA_SEC_NONE;
+	adapter->channel_type = NL80211_CHAN_NO_HT;
 
 	wiphy_debug(wiphy, "info: device configured in 802.11%s%s mode\n",
 				(mode & BAND_B) ? "b" : "",
@@ -849,8 +839,7 @@ mwifiex_cfg80211_assoc(struct mwifiex_private *priv, size_t ssid_len, u8 *ssid,
 
 	if (channel)
 		ret = mwifiex_set_rf_channel(priv, channel,
-				mwifiex_channels_to_cfg80211_channel_type
-				(priv->adapter->sec_chan_offset));
+						priv->adapter->channel_type);
 
 	ret = mwifiex_set_encode(priv, NULL, 0, 0, 1);	/* Disable keys */
 

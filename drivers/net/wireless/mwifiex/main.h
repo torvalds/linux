@@ -641,6 +641,7 @@ struct mwifiex_adapter {
 	u8 hw_dev_mcs_support;
 	u8 adhoc_11n_enabled;
 	u8 sec_chan_offset;
+	enum nl80211_channel_type channel_type;
 	struct mwifiex_dbg dbg;
 	u8 arp_filter[ARP_FILTER_MAX_BUF_SIZE];
 	u32 arp_filter_size;
