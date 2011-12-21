@@ -1511,7 +1511,8 @@ static void b43_nphy_gain_ctl_workarounds_rev3plus(struct b43_wldev *dev)
 	/* Prepare values */
 	ghz5 = b43_phy_read(dev, B43_NPHY_BANDCTL)
 		& B43_NPHY_BANDCTL_5GHZ;
-	ext_lna = sprom->boardflags_lo & B43_BFL_EXTLNA;
+	ext_lna = ghz5 ? sprom->boardflags_hi & B43_BFH_EXTLNA_5GHZ :
+		sprom->boardflags_lo & B43_BFL_EXTLNA;
 	e = b43_nphy_get_gain_ctl_workaround_ent(dev, ghz5, ext_lna);
 	if (ghz5 && dev->phy.rev >= 5)
 		rssi_gain = 0x90;
@@ -1562,7 +1563,6 @@ static void b43_nphy_gain_ctl_workarounds_rev3plus(struct b43_wldev *dev)
 	b43_phy_write(dev, 0x2A7, e->init_gain);
 	b43_ntab_write_bulk(dev, B43_NTAB16(7, 0x106), 2,
 				e->rfseq_init);
-	b43_phy_write(dev, B43_NPHY_C1_INITGAIN, e->init_gain);
 
 	/* TODO: check defines. Do not match variables names */
 	b43_phy_write(dev, B43_NPHY_C1_CLIP1_MEDGAIN, e->cliphi_gain);
