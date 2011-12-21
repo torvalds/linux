@@ -69,6 +69,7 @@ struct al3006_data {
 	struct delayed_work      dwork; //for l/psensor
 	//struct delayed_work 	 l_work; //for light sensor
 	struct mutex lock;
+	spinlock_t work_lock;
 	int enabled;
 	int irq;
 };
@@ -204,7 +205,7 @@ static void al3006_reschedule_work(struct al3006_data *data,
 {
 	unsigned long flags;
 
-	spin_lock_irqsave(&data->lock, flags);
+	spin_lock_irqsave(&data->work_lock, flags);
 
 	/*
 	 * If work is already scheduled then subsequent schedules will not
@@ -213,7 +214,7 @@ static void al3006_reschedule_work(struct al3006_data *data,
 	__cancel_delayed_work(&data->dwork);
 	schedule_delayed_work(&data->dwork, delay);
 
-	spin_unlock_irqrestore(&data->lock, flags);
+	spin_unlock_irqrestore(&data->work_lock, flags);
 }
 
 static irqreturn_t al3006_irq_handler(int irq, void *data)
