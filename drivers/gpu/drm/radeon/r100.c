@@ -3708,7 +3708,7 @@ int r100_ib_test(struct radeon_device *rdev)
 		return r;
 	}
 	WREG32(scratch, 0xCAFEDEAD);
-	r = radeon_ib_get(rdev, RADEON_RING_TYPE_GFX_INDEX, &ib);
+	r = radeon_ib_get(rdev, RADEON_RING_TYPE_GFX_INDEX, &ib, 256);
 	if (r) {
 		return r;
 	}

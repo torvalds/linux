@@ -619,16 +619,17 @@ void r600_blit_fini(struct radeon_device *rdev)
 	radeon_bo_unref(&rdev->r600_blit.shader_obj);
 }
 
-static int r600_vb_ib_get(struct radeon_device *rdev)
+static int r600_vb_ib_get(struct radeon_device *rdev, unsigned size)
 {
 	int r;
-	r = radeon_ib_get(rdev, RADEON_RING_TYPE_GFX_INDEX, &rdev->r600_blit.vb_ib);
+	r = radeon_ib_get(rdev, RADEON_RING_TYPE_GFX_INDEX,
+			  &rdev->r600_blit.vb_ib, size);
 	if (r) {
 		DRM_ERROR("failed to get IB for vertex buffer\n");
 		return r;
 	}
 
-	rdev->r600_blit.vb_total = 64*1024;
+	rdev->r600_blit.vb_total = size;
 	rdev->r600_blit.vb_used = 0;
 	return 0;
 }
@@ -693,10 +694,6 @@ int r600_blit_prepare_copy(struct radeon_device *rdev, unsigned num_gpu_pages)
 	int num_loops = 0;
 	int dwords_per_loop = rdev->r600_blit.ring_size_per_loop;
 
-	r = r600_vb_ib_get(rdev);
-	if (r)
-		return r;
-
 	/* num loops */
 	while (num_gpu_pages) {
 		num_gpu_pages -=
@@ -704,6 +701,11 @@ int r600_blit_prepare_copy(struct radeon_device *rdev, unsigned num_gpu_pages)
 					      rdev->r600_blit.max_dim);
 		num_loops++;
 	}
+
+	/* 48 bytes for vertex per loop */
+	r = r600_vb_ib_get(rdev, (num_loops*48)+256);
+	if (r)
+		return r;
 
 	/* calculate number of loops correctly */
 	ring_size = num_loops * dwords_per_loop;

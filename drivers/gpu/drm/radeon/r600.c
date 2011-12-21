@@ -2711,7 +2711,7 @@ int r600_ib_test(struct radeon_device *rdev, int ring)
 		return r;
 	}
 	WREG32(scratch, 0xCAFEDEAD);
-	r = radeon_ib_get(rdev, ring, &ib);
+	r = radeon_ib_get(rdev, ring, &ib, 256);
 	if (r) {
 		DRM_ERROR("radeon: failed to get ib (%d).\n", r);
 		return r;

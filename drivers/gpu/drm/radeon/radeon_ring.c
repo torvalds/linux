@@ -93,13 +93,16 @@ static bool radeon_ib_try_free(struct radeon_device *rdev,
 	return done;
 }
 
-int radeon_ib_get(struct radeon_device *rdev, int ring, struct radeon_ib **ib)
+int radeon_ib_get(struct radeon_device *rdev, int ring,
+		  struct radeon_ib **ib, unsigned size)
 {
 	struct radeon_fence *fence;
 	unsigned cretry = 0;
 	int r = 0, i, idx;
 
 	*ib = NULL;
+	/* align size on 256 bytes */
+	size = ALIGN(size, 256);
 
 	r = radeon_fence_create(rdev, &fence, ring);
 	if (r) {
@@ -122,7 +125,7 @@ retry:
 		if (rdev->ib_pool.ibs[idx].fence == NULL) {
 			r = radeon_sa_bo_new(rdev, &rdev->ib_pool.sa_manager,
 					     &rdev->ib_pool.ibs[idx].sa_bo,
-					     64*1024, 64);
+					     size, 256);
 			if (!r) {
 				*ib = &rdev->ib_pool.ibs[idx];
 				(*ib)->ptr = rdev->ib_pool.sa_manager.cpu_ptr;

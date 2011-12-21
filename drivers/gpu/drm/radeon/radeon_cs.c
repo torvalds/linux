@@ -246,7 +246,9 @@ int radeon_cs_ioctl(struct drm_device *dev, void *data, struct drm_file *filp)
 		radeon_mutex_unlock(&rdev->cs_mutex);
 		return r;
 	}
-	r =  radeon_ib_get(rdev, RADEON_RING_TYPE_GFX_INDEX, &parser.ib);
+	ib_chunk = &parser.chunks[parser.chunk_ib_idx];
+	r =  radeon_ib_get(rdev, RADEON_RING_TYPE_GFX_INDEX, &parser.ib,
+			   ib_chunk->length_dw * 4);
 	if (r) {
 		DRM_ERROR("Failed to get ib !\n");
 		radeon_cs_parser_fini(&parser, r);
@@ -264,7 +266,6 @@ int radeon_cs_ioctl(struct drm_device *dev, void *data, struct drm_file *filp)
 	/* Copy the packet into the IB, the parser will read from the
 	 * input memory (cached) and write to the IB (which can be
 	 * uncached). */
-	ib_chunk = &parser.chunks[parser.chunk_ib_idx];
 	parser.ib->length_dw = ib_chunk->length_dw;
 	r = radeon_cs_parse(&parser);
 	if (r || parser.parser_error) {
