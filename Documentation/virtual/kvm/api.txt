@@ -1151,6 +1151,9 @@ following flags are specified:
 /* Depends on KVM_CAP_IOMMU */
 #define KVM_DEV_ASSIGN_ENABLE_IOMMU	(1 << 0)
 
+The KVM_DEV_ASSIGN_ENABLE_IOMMU flag is a mandatory option to ensure
+isolation of the device.  Usages not specifying this flag are deprecated.
+
 4.49 KVM_DEASSIGN_PCI_DEVICE
 
 Capability: KVM_CAP_DEVICE_DEASSIGNMENT
