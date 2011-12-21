@@ -614,7 +614,7 @@ static struct platform_device dm644x_vpss_device = {
 	.resource		= dm644x_vpss_resources,
 };
 
-static struct resource vpfe_resources[] = {
+static struct resource dm644x_vpfe_resources[] = {
 	{
 		.start          = IRQ_VDINT0,
 		.end            = IRQ_VDINT0,
@@ -648,11 +648,11 @@ static struct platform_device dm644x_ccdc_dev = {
 	},
 };
 
-static struct platform_device vpfe_capture_dev = {
+static struct platform_device dm644x_vpfe_dev = {
 	.name		= CAPTURE_DRV_NAME,
 	.id		= -1,
-	.num_resources	= ARRAY_SIZE(vpfe_resources),
-	.resource	= vpfe_resources,
+	.num_resources	= ARRAY_SIZE(dm644x_vpfe_resources),
+	.resource	= dm644x_vpfe_resources,
 	.dev = {
 		.dma_mask		= &vpfe_capture_dma_mask,
 		.coherent_dma_mask	= DMA_BIT_MASK(32),
@@ -661,7 +661,7 @@ static struct platform_device vpfe_capture_dev = {
 
 void dm644x_set_vpfe_config(struct vpfe_config *cfg)
 {
-	vpfe_capture_dev.dev.platform_data = cfg;
+	dm644x_vpfe_dev.dev.platform_data = cfg;
 }
 
 /*----------------------------------------------------------------------*/
@@ -808,7 +808,7 @@ static int __init dm644x_init_devices(void)
 
 	platform_device_register(&dm644x_vpss_device);
 	platform_device_register(&dm644x_ccdc_dev);
-	platform_device_register(&vpfe_capture_dev);
+	platform_device_register(&dm644x_vpfe_dev);
 
 	return 0;
 }

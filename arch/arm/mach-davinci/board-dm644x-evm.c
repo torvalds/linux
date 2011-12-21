@@ -190,7 +190,7 @@ static struct platform_device davinci_fb_device = {
 	.num_resources = 0,
 };
 
-static struct tvp514x_platform_data tvp5146_pdata = {
+static struct tvp514x_platform_data dm644xevm_tvp5146_pdata = {
 	.clk_polarity = 0,
 	.hs_polarity = 1,
 	.vs_polarity = 1
@@ -198,7 +198,7 @@ static struct tvp514x_platform_data tvp5146_pdata = {
 
 #define TVP514X_STD_ALL	(V4L2_STD_NTSC | V4L2_STD_PAL)
 /* Inputs available at the TVP5146 */
-static struct v4l2_input tvp5146_inputs[] = {
+static struct v4l2_input dm644xevm_tvp5146_inputs[] = {
 	{
 		.index = 0,
 		.name = "Composite",
@@ -218,7 +218,7 @@ static struct v4l2_input tvp5146_inputs[] = {
  * ouput that goes to vpfe. There is a one to one correspondence
  * with tvp5146_inputs
  */
-static struct vpfe_route tvp5146_routes[] = {
+static struct vpfe_route dm644xevm_tvp5146_routes[] = {
 	{
 		.input = INPUT_CVBS_VI2B,
 		.output = OUTPUT_10BIT_422_EMBEDDED_SYNC,
@@ -229,13 +229,13 @@ static struct vpfe_route tvp5146_routes[] = {
 	},
 };
 
-static struct vpfe_subdev_info vpfe_sub_devs[] = {
+static struct vpfe_subdev_info dm644xevm_vpfe_sub_devs[] = {
 	{
 		.name = "tvp5146",
 		.grp_id = 0,
-		.num_inputs = ARRAY_SIZE(tvp5146_inputs),
-		.inputs = tvp5146_inputs,
-		.routes = tvp5146_routes,
+		.num_inputs = ARRAY_SIZE(dm644xevm_tvp5146_inputs),
+		.inputs = dm644xevm_tvp5146_inputs,
+		.routes = dm644xevm_tvp5146_routes,
 		.can_route = 1,
 		.ccdc_if_params = {
 			.if_type = VPFE_BT656,
@@ -244,15 +244,15 @@ static struct vpfe_subdev_info vpfe_sub_devs[] = {
 		},
 		.board_info = {
 			I2C_BOARD_INFO("tvp5146", 0x5d),
-			.platform_data = &tvp5146_pdata,
+			.platform_data = &dm644xevm_tvp5146_pdata,
 		},
 	},
 };
 
-static struct vpfe_config vpfe_cfg = {
-	.num_subdevs = ARRAY_SIZE(vpfe_sub_devs),
+static struct vpfe_config dm644xevm_capture_cfg = {
+	.num_subdevs = ARRAY_SIZE(dm644xevm_vpfe_sub_devs),
 	.i2c_adapter_id = 1,
-	.sub_devs = vpfe_sub_devs,
+	.sub_devs = dm644xevm_vpfe_sub_devs,
 	.card_name = "DM6446 EVM",
 	.ccdc = "DM6446 CCDC",
 };
@@ -626,7 +626,7 @@ static void __init
 davinci_evm_map_io(void)
 {
 	/* setup input configuration for VPFE input devices */
-	dm644x_set_vpfe_config(&vpfe_cfg);
+	dm644x_set_vpfe_config(&dm644xevm_capture_cfg);
 	dm644x_init();
 }
 
