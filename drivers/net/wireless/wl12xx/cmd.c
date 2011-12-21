@@ -1835,6 +1835,9 @@ int wl12xx_stop_dev(struct wl1271 *wl, struct wl12xx_vif *wlvif)
 		      wlvif->bss_type == BSS_TYPE_IBSS)))
 		return -EINVAL;
 
+	/* flush all pending packets */
+	wl1271_tx_work_locked(wl);
+
 	if (test_bit(wlvif->dev_role_id, wl->roc_map)) {
 		ret = wl12xx_croc(wl, wlvif->dev_role_id);
 		if (ret < 0)

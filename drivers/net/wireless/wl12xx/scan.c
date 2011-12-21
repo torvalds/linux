@@ -437,18 +437,19 @@ wl1271_scan_get_sched_scan_channels(struct wl1271 *wl,
 
 			if (flags & IEEE80211_CHAN_RADAR) {
 				channels[j].flags |= SCAN_CHANNEL_FLAGS_DFS;
+
 				channels[j].passive_duration =
 					cpu_to_le16(c->dwell_time_dfs);
-			}
-			else if (flags & IEEE80211_CHAN_PASSIVE_SCAN) {
+			} else {
 				channels[j].passive_duration =
 					cpu_to_le16(c->dwell_time_passive);
-			} else {
-				channels[j].min_duration =
-					cpu_to_le16(c->min_dwell_time_active);
-				channels[j].max_duration =
-					cpu_to_le16(c->max_dwell_time_active);
 			}
+
+			channels[j].min_duration =
+				cpu_to_le16(c->min_dwell_time_active);
+			channels[j].max_duration =
+				cpu_to_le16(c->max_dwell_time_active);
+
 			channels[j].tx_power_att = req->channels[i]->max_power;
 			channels[j].channel = req->channels[i]->hw_value;
 
@@ -703,7 +704,7 @@ int wl1271_scan_sched_scan_start(struct wl1271 *wl, struct wl12xx_vif *wlvif)
 	if (wlvif->bss_type != BSS_TYPE_STA_BSS)
 		return -EOPNOTSUPP;
 
-	if (!test_bit(WL1271_FLAG_IDLE, &wl->flags))
+	if (test_bit(WLVIF_FLAG_IN_USE, &wlvif->flags))
 		return -EBUSY;
 
 	start = kzalloc(sizeof(*start), GFP_KERNEL);
@@ -753,7 +754,6 @@ void wl1271_scan_sched_scan_stop(struct wl1271 *wl)
 		wl1271_error("failed to send sched scan stop command");
 		goto out_free;
 	}
-	wl->sched_scanning = false;
 
 out_free:
 	kfree(stop);
