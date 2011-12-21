@@ -4413,13 +4413,10 @@ static void l2cap_recv_frame(struct l2cap_conn *conn, struct sk_buff *skb)
 
 /* ---- L2CAP interface with lower layer (HCI) ---- */
 
-static int l2cap_connect_ind(struct hci_dev *hdev, bdaddr_t *bdaddr, u8 type)
+int l2cap_connect_ind(struct hci_dev *hdev, bdaddr_t *bdaddr)
 {
 	int exact = 0, lm1 = 0, lm2 = 0;
 	struct l2cap_chan *c;
-
-	if (type != ACL_LINK)
-		return -EINVAL;
 
 	BT_DBG("hdev %s, bdaddr %s", hdev->name, batostr(bdaddr));
 
@@ -4447,14 +4444,11 @@ static int l2cap_connect_ind(struct hci_dev *hdev, bdaddr_t *bdaddr, u8 type)
 	return exact ? lm1 : lm2;
 }
 
-static int l2cap_connect_cfm(struct hci_conn *hcon, u8 status)
+int l2cap_connect_cfm(struct hci_conn *hcon, u8 status)
 {
 	struct l2cap_conn *conn;
 
 	BT_DBG("hcon %p bdaddr %s status %d", hcon, batostr(&hcon->dst), status);
-
-	if (!(hcon->type == ACL_LINK || hcon->type == LE_LINK))
-		return -EINVAL;
 
 	if (!status) {
 		conn = l2cap_conn_add(hcon, status);
@@ -4466,27 +4460,22 @@ static int l2cap_connect_cfm(struct hci_conn *hcon, u8 status)
 	return 0;
 }
 
-static int l2cap_disconn_ind(struct hci_conn *hcon)
+int l2cap_disconn_ind(struct hci_conn *hcon)
 {
 	struct l2cap_conn *conn = hcon->l2cap_data;
 
 	BT_DBG("hcon %p", hcon);
 
-	if ((hcon->type != ACL_LINK && hcon->type != LE_LINK) || !conn)
+	if (!conn)
 		return HCI_ERROR_REMOTE_USER_TERM;
-
 	return conn->disc_reason;
 }
 
-static int l2cap_disconn_cfm(struct hci_conn *hcon, u8 reason)
+int l2cap_disconn_cfm(struct hci_conn *hcon, u8 reason)
 {
 	BT_DBG("hcon %p reason %d", hcon, reason);
 
-	if (!(hcon->type == ACL_LINK || hcon->type == LE_LINK))
-		return -EINVAL;
-
 	l2cap_conn_del(hcon, bt_to_errno(reason));
-
 	return 0;
 }
 
@@ -4507,7 +4496,7 @@ static inline void l2cap_check_encryption(struct l2cap_chan *chan, u8 encrypt)
 	}
 }
 
-static int l2cap_security_cfm(struct hci_conn *hcon, u8 status, u8 encrypt)
+int l2cap_security_cfm(struct hci_conn *hcon, u8 status, u8 encrypt)
 {
 	struct l2cap_conn *conn = hcon->l2cap_data;
 	struct l2cap_chan *chan;
@@ -4607,7 +4596,7 @@ static int l2cap_security_cfm(struct hci_conn *hcon, u8 status, u8 encrypt)
 	return 0;
 }
 
-static int l2cap_recv_acldata(struct hci_conn *hcon, struct sk_buff *skb, u16 flags)
+int l2cap_recv_acldata(struct hci_conn *hcon, struct sk_buff *skb, u16 flags)
 {
 	struct l2cap_conn *conn = hcon->l2cap_data;
 
@@ -4754,17 +4743,6 @@ static const struct file_operations l2cap_debugfs_fops = {
 
 static struct dentry *l2cap_debugfs;
 
-static struct hci_proto l2cap_hci_proto = {
-	.name		= "L2CAP",
-	.id		= HCI_PROTO_L2CAP,
-	.connect_ind	= l2cap_connect_ind,
-	.connect_cfm	= l2cap_connect_cfm,
-	.disconn_ind	= l2cap_disconn_ind,
-	.disconn_cfm	= l2cap_disconn_cfm,
-	.security_cfm	= l2cap_security_cfm,
-	.recv_acldata	= l2cap_recv_acldata
-};
-
 int __init l2cap_init(void)
 {
 	int err;
@@ -4772,13 +4750,6 @@ int __init l2cap_init(void)
 	err = l2cap_init_sockets();
 	if (err < 0)
 		return err;
-
-	err = hci_register_proto(&l2cap_hci_proto);
-	if (err < 0) {
-		BT_ERR("L2CAP protocol registration failed");
-		bt_sock_unregister(BTPROTO_L2CAP);
-		goto error;
-	}
 
 	if (bt_debugfs) {
 		l2cap_debugfs = debugfs_create_file("l2cap", 0444,
@@ -4788,19 +4759,11 @@ int __init l2cap_init(void)
 	}
 
 	return 0;
-
-error:
-	l2cap_cleanup_sockets();
-	return err;
 }
 
 void l2cap_exit(void)
 {
 	debugfs_remove(l2cap_debugfs);
-
-	if (hci_unregister_proto(&l2cap_hci_proto) < 0)
-		BT_ERR("L2CAP protocol unregistration failed");
-
 	l2cap_cleanup_sockets();
 }
 

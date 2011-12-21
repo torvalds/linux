@@ -28,10 +28,6 @@
 #include <linux/interrupt.h>
 #include <net/bluetooth/hci.h>
 
-/* HCI upper protocols */
-#define HCI_PROTO_L2CAP	0
-#define HCI_PROTO_SCO	1
-
 /* HCI priority */
 #define HCI_PRIO_MAX	7
 
@@ -330,11 +326,23 @@ struct hci_chan {
 	unsigned int	sent;
 };
 
-extern struct hci_proto *hci_proto[];
 extern struct list_head hci_dev_list;
 extern struct list_head hci_cb_list;
 extern rwlock_t hci_dev_list_lock;
 extern rwlock_t hci_cb_list_lock;
+
+/* ----- HCI interface to upper protocols ----- */
+extern int l2cap_connect_ind(struct hci_dev *hdev, bdaddr_t *bdaddr);
+extern int l2cap_connect_cfm(struct hci_conn *hcon, u8 status);
+extern int l2cap_disconn_ind(struct hci_conn *hcon);
+extern int l2cap_disconn_cfm(struct hci_conn *hcon, u8 reason);
+extern int l2cap_security_cfm(struct hci_conn *hcon, u8 status, u8 encrypt);
+extern int l2cap_recv_acldata(struct hci_conn *hcon, struct sk_buff *skb, u16 flags);
+
+extern int sco_connect_ind(struct hci_dev *hdev, bdaddr_t *bdaddr);
+extern int sco_connect_cfm(struct hci_conn *hcon, __u8 status);
+extern int sco_disconn_cfm(struct hci_conn *hcon, __u8 reason);
+extern int sco_recv_scodata(struct hci_conn *hcon, struct sk_buff *skb);
 
 /* ----- Inquiry cache ----- */
 #define INQUIRY_CACHE_AGE_MAX   (HZ*30)   /* 30 seconds */
@@ -677,53 +685,40 @@ void hci_conn_del_sysfs(struct hci_conn *conn);
 #define lmp_host_le_capable(dev)   ((dev)->extfeatures[0] & LMP_HOST_LE)
 
 /* ----- HCI protocols ----- */
-struct hci_proto {
-	char		*name;
-	unsigned int	id;
-	unsigned long	flags;
-
-	void		*priv;
-
-	int (*connect_ind)	(struct hci_dev *hdev, bdaddr_t *bdaddr,
-								__u8 type);
-	int (*connect_cfm)	(struct hci_conn *conn, __u8 status);
-	int (*disconn_ind)	(struct hci_conn *conn);
-	int (*disconn_cfm)	(struct hci_conn *conn, __u8 reason);
-	int (*recv_acldata)	(struct hci_conn *conn, struct sk_buff *skb,
-								__u16 flags);
-	int (*recv_scodata)	(struct hci_conn *conn, struct sk_buff *skb);
-	int (*security_cfm)	(struct hci_conn *conn, __u8 status,
-								__u8 encrypt);
-};
-
 static inline int hci_proto_connect_ind(struct hci_dev *hdev, bdaddr_t *bdaddr,
 								__u8 type)
 {
-	register struct hci_proto *hp;
-	int mask = 0;
+	switch (type) {
+	case ACL_LINK:
+		return l2cap_connect_ind(hdev, bdaddr);
 
-	hp = hci_proto[HCI_PROTO_L2CAP];
-	if (hp && hp->connect_ind)
-		mask |= hp->connect_ind(hdev, bdaddr, type);
+	case SCO_LINK:
+	case ESCO_LINK:
+		return sco_connect_ind(hdev, bdaddr);
 
-	hp = hci_proto[HCI_PROTO_SCO];
-	if (hp && hp->connect_ind)
-		mask |= hp->connect_ind(hdev, bdaddr, type);
-
-	return mask;
+	default:
+		BT_ERR("unknown link type %d", type);
+		return -EINVAL;
+	}
 }
 
 static inline void hci_proto_connect_cfm(struct hci_conn *conn, __u8 status)
 {
-	register struct hci_proto *hp;
+	switch (conn->type) {
+	case ACL_LINK:
+	case LE_LINK:
+		l2cap_connect_cfm(conn, status);
+		break;
 
-	hp = hci_proto[HCI_PROTO_L2CAP];
-	if (hp && hp->connect_cfm)
-		hp->connect_cfm(conn, status);
+	case SCO_LINK:
+	case ESCO_LINK:
+		sco_connect_cfm(conn, status);
+		break;
 
-	hp = hci_proto[HCI_PROTO_SCO];
-	if (hp && hp->connect_cfm)
-		hp->connect_cfm(conn, status);
+	default:
+		BT_ERR("unknown link type %d", conn->type);
+		break;
+	}
 
 	if (conn->connect_cfm_cb)
 		conn->connect_cfm_cb(conn, status);
@@ -731,31 +726,29 @@ static inline void hci_proto_connect_cfm(struct hci_conn *conn, __u8 status)
 
 static inline int hci_proto_disconn_ind(struct hci_conn *conn)
 {
-	register struct hci_proto *hp;
-	int reason = HCI_ERROR_REMOTE_USER_TERM;
+	if (conn->type != ACL_LINK && conn->type != LE_LINK)
+		return HCI_ERROR_REMOTE_USER_TERM;
 
-	hp = hci_proto[HCI_PROTO_L2CAP];
-	if (hp && hp->disconn_ind)
-		reason = hp->disconn_ind(conn);
-
-	hp = hci_proto[HCI_PROTO_SCO];
-	if (hp && hp->disconn_ind)
-		reason = hp->disconn_ind(conn);
-
-	return reason;
+	return l2cap_disconn_ind(conn);
 }
 
 static inline void hci_proto_disconn_cfm(struct hci_conn *conn, __u8 reason)
 {
-	register struct hci_proto *hp;
+	switch (conn->type) {
+	case ACL_LINK:
+	case LE_LINK:
+		l2cap_disconn_cfm(conn, reason);
+		break;
 
-	hp = hci_proto[HCI_PROTO_L2CAP];
-	if (hp && hp->disconn_cfm)
-		hp->disconn_cfm(conn, reason);
+	case SCO_LINK:
+	case ESCO_LINK:
+		sco_disconn_cfm(conn, reason);
+		break;
 
-	hp = hci_proto[HCI_PROTO_SCO];
-	if (hp && hp->disconn_cfm)
-		hp->disconn_cfm(conn, reason);
+	default:
+		BT_ERR("unknown link type %d", conn->type);
+		break;
+	}
 
 	if (conn->disconn_cfm_cb)
 		conn->disconn_cfm_cb(conn, reason);
@@ -763,21 +756,16 @@ static inline void hci_proto_disconn_cfm(struct hci_conn *conn, __u8 reason)
 
 static inline void hci_proto_auth_cfm(struct hci_conn *conn, __u8 status)
 {
-	register struct hci_proto *hp;
 	__u8 encrypt;
+
+	if (conn->type != ACL_LINK && conn->type != LE_LINK)
+		return;
 
 	if (test_bit(HCI_CONN_ENCRYPT_PEND, &conn->pend))
 		return;
 
 	encrypt = (conn->link_mode & HCI_LM_ENCRYPT) ? 0x01 : 0x00;
-
-	hp = hci_proto[HCI_PROTO_L2CAP];
-	if (hp && hp->security_cfm)
-		hp->security_cfm(conn, status, encrypt);
-
-	hp = hci_proto[HCI_PROTO_SCO];
-	if (hp && hp->security_cfm)
-		hp->security_cfm(conn, status, encrypt);
+	l2cap_security_cfm(conn, status, encrypt);
 
 	if (conn->security_cfm_cb)
 		conn->security_cfm_cb(conn, status);
@@ -786,22 +774,14 @@ static inline void hci_proto_auth_cfm(struct hci_conn *conn, __u8 status)
 static inline void hci_proto_encrypt_cfm(struct hci_conn *conn, __u8 status,
 								__u8 encrypt)
 {
-	register struct hci_proto *hp;
+	if (conn->type != ACL_LINK && conn->type != LE_LINK)
+		return;
 
-	hp = hci_proto[HCI_PROTO_L2CAP];
-	if (hp && hp->security_cfm)
-		hp->security_cfm(conn, status, encrypt);
-
-	hp = hci_proto[HCI_PROTO_SCO];
-	if (hp && hp->security_cfm)
-		hp->security_cfm(conn, status, encrypt);
+	l2cap_security_cfm(conn, status, encrypt);
 
 	if (conn->security_cfm_cb)
 		conn->security_cfm_cb(conn, status);
 }
-
-int hci_register_proto(struct hci_proto *hproto);
-int hci_unregister_proto(struct hci_proto *hproto);
 
 /* ----- HCI callbacks ----- */
 struct hci_cb {

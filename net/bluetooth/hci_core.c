@@ -69,10 +69,6 @@ DEFINE_RWLOCK(hci_dev_list_lock);
 LIST_HEAD(hci_cb_list);
 DEFINE_RWLOCK(hci_cb_list_lock);
 
-/* HCI protocols */
-#define HCI_MAX_PROTO	2
-struct hci_proto *hci_proto[HCI_MAX_PROTO];
-
 /* HCI notifiers list */
 static ATOMIC_NOTIFIER_HEAD(hci_notifier);
 
@@ -1830,43 +1826,6 @@ EXPORT_SYMBOL(hci_recv_stream_fragment);
 
 /* ---- Interface to upper protocols ---- */
 
-/* Register/Unregister protocols. */
-int hci_register_proto(struct hci_proto *hp)
-{
-	int err = 0;
-
-	BT_DBG("%p name %s id %d", hp, hp->name, hp->id);
-
-	if (hp->id >= HCI_MAX_PROTO)
-		return -EINVAL;
-
-	if (!hci_proto[hp->id])
-		hci_proto[hp->id] = hp;
-	else
-		err = -EEXIST;
-
-	return err;
-}
-EXPORT_SYMBOL(hci_register_proto);
-
-int hci_unregister_proto(struct hci_proto *hp)
-{
-	int err = 0;
-
-	BT_DBG("%p name %s id %d", hp, hp->name, hp->id);
-
-	if (hp->id >= HCI_MAX_PROTO)
-		return -EINVAL;
-
-	if (hci_proto[hp->id])
-		hci_proto[hp->id] = NULL;
-	else
-		err = -ENOENT;
-
-	return err;
-}
-EXPORT_SYMBOL(hci_unregister_proto);
-
 int hci_register_cb(struct hci_cb *cb)
 {
 	BT_DBG("%p name %s", cb, cb->name);
@@ -2470,16 +2429,11 @@ static inline void hci_acldata_packet(struct hci_dev *hdev, struct sk_buff *skb)
 	hci_dev_unlock(hdev);
 
 	if (conn) {
-		register struct hci_proto *hp;
-
 		hci_conn_enter_active_mode(conn, BT_POWER_FORCE_ACTIVE_OFF);
 
 		/* Send to upper protocol */
-		hp = hci_proto[HCI_PROTO_L2CAP];
-		if (hp && hp->recv_acldata) {
-			hp->recv_acldata(conn, skb, flags);
-			return;
-		}
+		l2cap_recv_acldata(conn, skb, flags);
+		return;
 	} else {
 		BT_ERR("%s ACL packet for unknown connection handle %d",
 			hdev->name, handle);
@@ -2508,14 +2462,9 @@ static inline void hci_scodata_packet(struct hci_dev *hdev, struct sk_buff *skb)
 	hci_dev_unlock(hdev);
 
 	if (conn) {
-		register struct hci_proto *hp;
-
 		/* Send to upper protocol */
-		hp = hci_proto[HCI_PROTO_SCO];
-		if (hp && hp->recv_scodata) {
-			hp->recv_scodata(conn, skb);
-			return;
-		}
+		sco_recv_scodata(conn, skb);
+		return;
 	} else {
 		BT_ERR("%s SCO packet for unknown connection handle %d",
 			hdev->name, handle);
