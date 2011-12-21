@@ -77,17 +77,6 @@ static int l2cap_ertm_data_rcv(struct sock *sk, struct sk_buff *skb);
 
 /* ---- L2CAP channels ---- */
 
-static inline void chan_hold(struct l2cap_chan *c)
-{
-	atomic_inc(&c->refcnt);
-}
-
-static inline void chan_put(struct l2cap_chan *c)
-{
-	if (atomic_dec_and_test(&c->refcnt))
-		kfree(c);
-}
-
 static struct l2cap_chan *__l2cap_get_chan_by_dcid(struct l2cap_conn *conn, u16 cid)
 {
 	struct l2cap_chan *c, *r = NULL;
@@ -287,7 +276,7 @@ static void l2cap_chan_timeout(struct work_struct *work)
 	release_sock(sk);
 
 	chan->ops->close(chan->data);
-	chan_put(chan);
+	l2cap_chan_put(chan);
 }
 
 struct l2cap_chan *l2cap_chan_create(struct sock *sk)
@@ -321,7 +310,7 @@ void l2cap_chan_destroy(struct l2cap_chan *chan)
 	list_del(&chan->global_l);
 	write_unlock_bh(&chan_list_lock);
 
-	chan_put(chan);
+	l2cap_chan_put(chan);
 }
 
 static void l2cap_chan_add(struct l2cap_conn *conn, struct l2cap_chan *chan)
@@ -363,7 +352,7 @@ static void l2cap_chan_add(struct l2cap_conn *conn, struct l2cap_chan *chan)
 	chan->local_acc_lat	= L2CAP_DEFAULT_ACC_LAT;
 	chan->local_flush_to	= L2CAP_DEFAULT_FLUSH_TO;
 
-	chan_hold(chan);
+	l2cap_chan_hold(chan);
 
 	list_add_rcu(&chan->list, &conn->chan_l);
 }
@@ -385,7 +374,7 @@ static void l2cap_chan_del(struct l2cap_chan *chan, int err)
 		list_del_rcu(&chan->list);
 		synchronize_rcu();
 
-		chan_put(chan);
+		l2cap_chan_put(chan);
 
 		chan->conn = NULL;
 		hci_conn_put(conn->hcon);
@@ -1029,10 +1018,10 @@ static void l2cap_conn_del(struct hci_conn *hcon, int err)
 	hci_chan_del(conn->hchan);
 
 	if (conn->info_state & L2CAP_INFO_FEAT_MASK_REQ_SENT)
-		cancel_delayed_work_sync(&conn->info_timer);
+		__cancel_delayed_work(&conn->info_timer);
 
 	if (test_and_clear_bit(HCI_CONN_LE_SMP_PEND, &hcon->pend)) {
-		cancel_delayed_work_sync(&conn->security_timer);
+		__cancel_delayed_work(&conn->security_timer);
 		smp_chan_destroy(conn);
 	}
 
@@ -2583,7 +2572,7 @@ static inline int l2cap_command_rej(struct l2cap_conn *conn, struct l2cap_cmd_hd
 
 	if ((conn->info_state & L2CAP_INFO_FEAT_MASK_REQ_SENT) &&
 					cmd->ident == conn->info_ident) {
-		cancel_delayed_work_sync(&conn->info_timer);
+		__cancel_delayed_work(&conn->info_timer);
 
 		conn->info_state |= L2CAP_INFO_FEAT_MASK_REQ_DONE;
 		conn->info_ident = 0;
@@ -3129,7 +3118,7 @@ static inline int l2cap_information_rsp(struct l2cap_conn *conn, struct l2cap_cm
 			conn->info_state & L2CAP_INFO_FEAT_MASK_REQ_DONE)
 		return 0;
 
-	cancel_delayed_work_sync(&conn->info_timer);
+	__cancel_delayed_work(&conn->info_timer);
 
 	if (result != L2CAP_IR_SUCCESS) {
 		conn->info_state |= L2CAP_INFO_FEAT_MASK_REQ_DONE;
@@ -4508,7 +4497,7 @@ int l2cap_security_cfm(struct hci_conn *hcon, u8 status, u8 encrypt)
 
 	if (hcon->type == LE_LINK) {
 		smp_distribute_keys(conn, 0);
-		cancel_delayed_work_sync(&conn->security_timer);
+		__cancel_delayed_work(&conn->security_timer);
 	}
 
 	rcu_read_lock();
