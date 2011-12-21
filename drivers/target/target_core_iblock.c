@@ -56,51 +56,25 @@ static void iblock_bio_done(struct bio *, int);
  */
 static int iblock_attach_hba(struct se_hba *hba, u32 host_id)
 {
-	struct iblock_hba *ib_host;
-
-	ib_host = kzalloc(sizeof(struct iblock_hba), GFP_KERNEL);
-	if (!ib_host) {
-		pr_err("Unable to allocate memory for"
-				" struct iblock_hba\n");
-		return -ENOMEM;
-	}
-
-	ib_host->iblock_host_id = host_id;
-
-	hba->hba_ptr = ib_host;
-
 	pr_debug("CORE_HBA[%d] - TCM iBlock HBA Driver %s on"
 		" Generic Target Core Stack %s\n", hba->hba_id,
 		IBLOCK_VERSION, TARGET_CORE_MOD_VERSION);
-
-	pr_debug("CORE_HBA[%d] - Attached iBlock HBA: %u to Generic\n",
-		hba->hba_id, ib_host->iblock_host_id);
-
 	return 0;
 }
 
 static void iblock_detach_hba(struct se_hba *hba)
 {
-	struct iblock_hba *ib_host = hba->hba_ptr;
-
-	pr_debug("CORE_HBA[%d] - Detached iBlock HBA: %u from Generic"
-		" Target Core\n", hba->hba_id, ib_host->iblock_host_id);
-
-	kfree(ib_host);
-	hba->hba_ptr = NULL;
 }
 
 static void *iblock_allocate_virtdevice(struct se_hba *hba, const char *name)
 {
 	struct iblock_dev *ib_dev = NULL;
-	struct iblock_hba *ib_host = hba->hba_ptr;
 
 	ib_dev = kzalloc(sizeof(struct iblock_dev), GFP_KERNEL);
 	if (!ib_dev) {
 		pr_err("Unable to allocate struct iblock_dev\n");
 		return NULL;
 	}
-	ib_dev->ibd_host = ib_host;
 
 	pr_debug( "IBLOCK: Allocated ib_dev for %s\n", name);
 
