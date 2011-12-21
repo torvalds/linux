@@ -1827,7 +1827,12 @@ ieee80211_deliver_skb(struct ieee80211_rx_data *rx)
 	}
 
 	if (xmit_skb) {
-		/* send to wireless media */
+		/*
+		 * Send to wireless media and increase priority by 256 to
+		 * keep the received priority instead of reclassifying
+		 * the frame (see cfg80211_classify8021d).
+		 */
+		xmit_skb->priority += 256;
 		xmit_skb->protocol = htons(ETH_P_802_3);
 		skb_reset_network_header(xmit_skb);
 		skb_reset_mac_header(xmit_skb);
