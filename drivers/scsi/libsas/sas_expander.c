@@ -74,6 +74,11 @@ static int smp_execute_task(struct domain_device *dev, void *req, int req_size,
 
 	mutex_lock(&dev->ex_dev.cmd_mutex);
 	for (retry = 0; retry < 3; retry++) {
+		if (test_bit(SAS_DEV_GONE, &dev->state)) {
+			res = -ECOMM;
+			break;
+		}
+
 		task = sas_alloc_task(GFP_KERNEL);
 		if (!task) {
 			res = -ENOMEM;
