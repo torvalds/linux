@@ -1363,7 +1363,7 @@ static int iscsit_handle_data_out(struct iscsi_conn *conn, unsigned char *buf)
 		 * outstanding_r2ts reaches zero, go ahead and send the delayed
 		 * TASK_ABORTED status.
 		 */
-		if (atomic_read(&se_cmd->t_transport_aborted) != 0) {
+		if (se_cmd->transport_state & CMD_T_ABORTED) {
 			if (hdr->flags & ISCSI_FLAG_CMD_FINAL)
 				if (--cmd->outstanding_r2ts < 1) {
 					iscsit_stop_dataout_timer(cmd);

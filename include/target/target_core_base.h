@@ -555,23 +555,24 @@ struct se_cmd {
 	unsigned char		*t_task_cdb;
 	unsigned char		__t_task_cdb[TCM_MAX_COMMAND_SIZE];
 	unsigned long long	t_task_lba;
-	int			t_tasks_failed;
 	u32			t_tasks_sg_chained_no;
 	atomic_t		t_fe_count;
 	atomic_t		t_se_count;
 	atomic_t		t_task_cdbs_left;
 	atomic_t		t_task_cdbs_ex_left;
 	atomic_t		t_task_cdbs_sent;
-	atomic_t		t_transport_aborted;
-	atomic_t		t_transport_active;
-	atomic_t		t_transport_complete;
-	atomic_t		t_transport_queue_active;
-	atomic_t		t_transport_sent;
-	atomic_t		t_transport_stop;
-	atomic_t		transport_dev_active;
+	unsigned int		transport_state;
+#define CMD_T_ABORTED		(1 << 0)
+#define CMD_T_ACTIVE		(1 << 1)
+#define CMD_T_COMPLETE		(1 << 2)
+#define CMD_T_QUEUED		(1 << 3)
+#define CMD_T_SENT		(1 << 4)
+#define CMD_T_STOP		(1 << 5)
+#define CMD_T_FAILED		(1 << 6)
+#define CMD_T_LUN_STOP		(1 << 7)
+#define CMD_T_LUN_FE_STOP	(1 << 8)
+#define CMD_T_DEV_ACTIVE	(1 << 9)
 	atomic_t		transport_lun_active;
-	atomic_t		transport_lun_fe_stop;
-	atomic_t		transport_lun_stop;
 	spinlock_t		t_state_lock;
 	struct completion	t_transport_stop_comp;
 	struct completion	transport_lun_fe_stop_comp;

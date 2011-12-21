@@ -437,7 +437,7 @@ static void transport_all_task_dev_remove_state(struct se_cmd *cmd)
 
 /*	transport_cmd_check_stop():
  *
- *	'transport_off = 1' determines if t_transport_active should be cleared.
+ *	'transport_off = 1' determines if CMD_T_ACTIVE should be cleared.
  *	'transport_off = 2' determines if task_dev_state should be removed.
  *
  *	A non-zero u8 t_state sets cmd->t_state.
@@ -455,12 +455,11 @@ static int transport_cmd_check_stop(
 	 * Determine if IOCTL context caller in requesting the stopping of this
 	 * command for LUN shutdown purposes.
 	 */
-	if (atomic_read(&cmd->transport_lun_stop)) {
-		pr_debug("%s:%d atomic_read(&cmd->transport_lun_stop)"
-			" == TRUE for ITT: 0x%08x\n", __func__, __LINE__,
-			cmd->se_tfo->get_task_tag(cmd));
+	if (cmd->transport_state & CMD_T_LUN_STOP) {
+		pr_debug("%s:%d CMD_T_LUN_STOP for ITT: 0x%08x\n",
+			__func__, __LINE__, cmd->se_tfo->get_task_tag(cmd));
 
-		atomic_set(&cmd->t_transport_active, 0);
+		cmd->transport_state &= ~CMD_T_ACTIVE;
 		if (transport_off == 2)
 			transport_all_task_dev_remove_state(cmd);
 		spin_unlock_irqrestore(&cmd->t_state_lock, flags);
@@ -472,9 +471,9 @@ static int transport_cmd_check_stop(
 	 * Determine if frontend context caller is requesting the stopping of
 	 * this command for frontend exceptions.
 	 */
-	if (atomic_read(&cmd->t_transport_stop)) {
-		pr_debug("%s:%d atomic_read(&cmd->t_transport_stop) =="
-			" TRUE for ITT: 0x%08x\n", __func__, __LINE__,
+	if (cmd->transport_state & CMD_T_STOP) {
+		pr_debug("%s:%d CMD_T_STOP for ITT: 0x%08x\n",
+			__func__, __LINE__,
 			cmd->se_tfo->get_task_tag(cmd));
 
 		if (transport_off == 2)
@@ -492,7 +491,7 @@ static int transport_cmd_check_stop(
 		return 1;
 	}
 	if (transport_off) {
-		atomic_set(&cmd->t_transport_active, 0);
+		cmd->transport_state &= ~CMD_T_ACTIVE;
 		if (transport_off == 2) {
 			transport_all_task_dev_remove_state(cmd);
 			/*
@@ -540,16 +539,12 @@ static void transport_lun_remove_cmd(struct se_cmd *cmd)
 		return;
 
 	spin_lock_irqsave(&cmd->t_state_lock, flags);
-	if (!atomic_read(&cmd->transport_dev_active)) {
-		spin_unlock_irqrestore(&cmd->t_state_lock, flags);
-		goto check_lun;
+	if (cmd->transport_state & CMD_T_DEV_ACTIVE) {
+		cmd->transport_state &= ~CMD_T_DEV_ACTIVE;
+		transport_all_task_dev_remove_state(cmd);
 	}
-	atomic_set(&cmd->transport_dev_active, 0);
-	transport_all_task_dev_remove_state(cmd);
 	spin_unlock_irqrestore(&cmd->t_state_lock, flags);
 
-
-check_lun:
 	spin_lock_irqsave(&lun->lun_cmd_lock, flags);
 	if (atomic_read(&cmd->transport_lun_active)) {
 		list_del(&cmd->se_lun_node);
@@ -585,7 +580,7 @@ static void transport_add_cmd_to_queue(struct se_cmd *cmd, int t_state,
 	if (t_state) {
 		spin_lock_irqsave(&cmd->t_state_lock, flags);
 		cmd->t_state = t_state;
-		atomic_set(&cmd->t_transport_active, 1);
+		cmd->transport_state |= CMD_T_ACTIVE;
 		spin_unlock_irqrestore(&cmd->t_state_lock, flags);
 	}
 
@@ -601,7 +596,7 @@ static void transport_add_cmd_to_queue(struct se_cmd *cmd, int t_state,
 		list_add(&cmd->se_queue_node, &qobj->qobj_list);
 	else
 		list_add_tail(&cmd->se_queue_node, &qobj->qobj_list);
-	atomic_set(&cmd->t_transport_queue_active, 1);
+	cmd->transport_state |= CMD_T_QUEUED;
 	spin_unlock_irqrestore(&qobj->cmd_queue_lock, flags);
 
 	wake_up_interruptible(&qobj->thread_wq);
@@ -620,8 +615,7 @@ transport_get_cmd_from_queue(struct se_queue_obj *qobj)
 	}
 	cmd = list_first_entry(&qobj->qobj_list, struct se_cmd, se_queue_node);
 
-	atomic_set(&cmd->t_transport_queue_active, 0);
-
+	cmd->transport_state &= ~CMD_T_QUEUED;
 	list_del_init(&cmd->se_queue_node);
 	atomic_dec(&qobj->queue_cnt);
 	spin_unlock_irqrestore(&qobj->cmd_queue_lock, flags);
@@ -635,20 +629,14 @@ static void transport_remove_cmd_from_queue(struct se_cmd *cmd)
 	unsigned long flags;
 
 	spin_lock_irqsave(&qobj->cmd_queue_lock, flags);
-	if (!atomic_read(&cmd->t_transport_queue_active)) {
+	if (!(cmd->transport_state & CMD_T_QUEUED)) {
 		spin_unlock_irqrestore(&qobj->cmd_queue_lock, flags);
 		return;
 	}
-	atomic_set(&cmd->t_transport_queue_active, 0);
+	cmd->transport_state &= ~CMD_T_QUEUED;
 	atomic_dec(&qobj->queue_cnt);
 	list_del_init(&cmd->se_queue_node);
 	spin_unlock_irqrestore(&qobj->cmd_queue_lock, flags);
-
-	if (atomic_read(&cmd->t_transport_queue_active)) {
-		pr_err("ITT: 0x%08x t_transport_queue_active: %d\n",
-			cmd->se_tfo->get_task_tag(cmd),
-			atomic_read(&cmd->t_transport_queue_active));
-	}
 }
 
 /*
@@ -719,7 +707,7 @@ void transport_complete_task(struct se_task *task, int success)
 	}
 
 	if (!success)
-		cmd->t_tasks_failed = 1;
+		cmd->transport_state |= CMD_T_FAILED;
 
 	/*
 	 * Decrement the outstanding t_task_cdbs_left count.  The last
@@ -731,16 +719,16 @@ void transport_complete_task(struct se_task *task, int success)
 		return;
 	}
 
-	if (cmd->t_tasks_failed) {
+	if (cmd->transport_state & CMD_T_FAILED) {
 		cmd->scsi_sense_reason = TCM_LOGICAL_UNIT_COMMUNICATION_FAILURE;
 		INIT_WORK(&cmd->work, target_complete_failure_work);
 	} else {
-		atomic_set(&cmd->t_transport_complete, 1);
+		cmd->transport_state |= CMD_T_COMPLETE;
 		INIT_WORK(&cmd->work, target_complete_ok_work);
 	}
 
 	cmd->t_state = TRANSPORT_COMPLETE;
-	atomic_set(&cmd->t_transport_active, 1);
+	cmd->transport_state |= CMD_T_ACTIVE;
 	spin_unlock_irqrestore(&cmd->t_state_lock, flags);
 
 	queue_work(target_completion_wq, &cmd->work);
@@ -1488,7 +1476,7 @@ void transport_init_se_cmd(
 	init_completion(&cmd->t_transport_stop_comp);
 	init_completion(&cmd->cmd_wait_comp);
 	spin_lock_init(&cmd->t_state_lock);
-	atomic_set(&cmd->transport_dev_active, 1);
+	cmd->transport_state = CMD_T_DEV_ACTIVE;
 
 	cmd->se_tfo = tfo;
 	cmd->se_sess = se_sess;
@@ -1618,7 +1606,7 @@ int transport_handle_cdb_direct(
 		return -EINVAL;
 	}
 	/*
-	 * Set TRANSPORT_NEW_CMD state and cmd->t_transport_active=1 following
+	 * Set TRANSPORT_NEW_CMD state and CMD_T_ACTIVE following
 	 * transport_generic_handle_cdb*() -> transport_add_cmd_to_queue()
 	 * in existing usage to ensure that outstanding descriptors are handled
 	 * correctly during shutdown via transport_wait_for_tasks()
@@ -1627,7 +1615,8 @@ int transport_handle_cdb_direct(
 	 * this to be called for initial descriptor submission.
 	 */
 	cmd->t_state = TRANSPORT_NEW_CMD;
-	atomic_set(&cmd->t_transport_active, 1);
+	cmd->transport_state |= CMD_T_ACTIVE;
+
 	/*
 	 * transport_generic_new_cmd() is already handling QUEUE_FULL,
 	 * so follow TRANSPORT_NEW_CMD processing thread context usage
@@ -1859,14 +1848,14 @@ static void transport_generic_request_failure(struct se_cmd *cmd)
 		cmd->t_state, cmd->scsi_sense_reason);
 	pr_debug("-----[ t_tasks: %d t_task_cdbs_left: %d"
 		" t_task_cdbs_sent: %d t_task_cdbs_ex_left: %d --"
-		" t_transport_active: %d t_transport_stop: %d"
-		" t_transport_sent: %d\n", cmd->t_task_list_num,
+		" CMD_T_ACTIVE: %d CMD_T_STOP: %d CMD_T_SENT: %d\n",
+		cmd->t_task_list_num,
 		atomic_read(&cmd->t_task_cdbs_left),
 		atomic_read(&cmd->t_task_cdbs_sent),
 		atomic_read(&cmd->t_task_cdbs_ex_left),
-		atomic_read(&cmd->t_transport_active),
-		atomic_read(&cmd->t_transport_stop),
-		atomic_read(&cmd->t_transport_sent));
+		(cmd->transport_state & CMD_T_ACTIVE) != 0,
+		(cmd->transport_state & CMD_T_STOP) != 0,
+		(cmd->transport_state & CMD_T_SENT) != 0);
 
 	/*
 	 * For SAM Task Attribute emulation for failed struct se_cmd
@@ -2125,7 +2114,7 @@ check_depth:
 
 	if (atomic_read(&cmd->t_task_cdbs_sent) ==
 	    cmd->t_task_list_num)
-		atomic_set(&cmd->t_transport_sent, 1);
+		cmd->transport_state |= CMD_T_SENT;
 
 	spin_unlock_irqrestore(&cmd->t_state_lock, flags);
 
@@ -2136,8 +2125,9 @@ check_depth:
 	if (error != 0) {
 		spin_lock_irqsave(&cmd->t_state_lock, flags);
 		task->task_flags &= ~TF_ACTIVE;
+		cmd->transport_state &= ~CMD_T_SENT;
 		spin_unlock_irqrestore(&cmd->t_state_lock, flags);
-		atomic_set(&cmd->t_transport_sent, 0);
+
 		transport_stop_tasks_for_cmd(cmd);
 		transport_generic_request_failure(cmd);
 	}
@@ -3420,8 +3410,8 @@ static void transport_put_cmd(struct se_cmd *cmd)
 			goto out_busy;
 	}
 
-	if (atomic_read(&cmd->transport_dev_active)) {
-		atomic_set(&cmd->transport_dev_active, 0);
+	if (cmd->transport_state & CMD_T_DEV_ACTIVE) {
+		cmd->transport_state &= ~CMD_T_DEV_ACTIVE;
 		transport_all_task_dev_remove_state(cmd);
 		free_tasks = 1;
 	}
@@ -3859,8 +3849,10 @@ int transport_generic_new_cmd(struct se_cmd *cmd)
 	if (task_cdbs < 0)
 		goto out_fail;
 	else if (!task_cdbs && (cmd->se_cmd_flags & SCF_SCSI_DATA_SG_IO_CDB)) {
+		spin_lock_irq(&cmd->t_state_lock);
 		cmd->t_state = TRANSPORT_COMPLETE;
-		atomic_set(&cmd->t_transport_active, 1);
+		cmd->transport_state |= CMD_T_ACTIVE;
+		spin_unlock_irq(&cmd->t_state_lock);
 
 		if (cmd->t_task_cdb[0] == REQUEST_SENSE) {
 			u8 ua_asc = 0, ua_ascq = 0;
@@ -3941,9 +3933,9 @@ static int transport_generic_write_pending(struct se_cmd *cmd)
 
 	/*
 	 * Clear the se_cmd for WRITE_PENDING status in order to set
-	 * cmd->t_transport_active=0 so that transport_generic_handle_data
-	 * can be called from HW target mode interrupt code.  This is safe
-	 * to be called with transport_off=1 before the cmd->se_tfo->write_pending
+	 * CMD_T_ACTIVE so that transport_generic_handle_data can be called
+	 * from HW target mode interrupt code.  This is safe to be called
+	 * with transport_off=1 before the cmd->se_tfo->write_pending
 	 * because the se_cmd->se_lun pointer is not being cleared.
 	 */
 	transport_cmd_check_stop(cmd, 1, 0);
@@ -4129,15 +4121,16 @@ static int transport_lun_wait_for_tasks(struct se_cmd *cmd, struct se_lun *lun)
 	 * be stopped, we can safely ignore this struct se_cmd.
 	 */
 	spin_lock_irqsave(&cmd->t_state_lock, flags);
-	if (atomic_read(&cmd->t_transport_stop)) {
-		atomic_set(&cmd->transport_lun_stop, 0);
-		pr_debug("ConfigFS ITT[0x%08x] - t_transport_stop =="
-			" TRUE, skipping\n", cmd->se_tfo->get_task_tag(cmd));
+	if (cmd->transport_state & CMD_T_STOP) {
+		cmd->transport_state &= ~CMD_T_LUN_STOP;
+
+		pr_debug("ConfigFS ITT[0x%08x] - CMD_T_STOP, skipping\n",
+			 cmd->se_tfo->get_task_tag(cmd));
 		spin_unlock_irqrestore(&cmd->t_state_lock, flags);
 		transport_cmd_check_stop(cmd, 1, 0);
 		return -EPERM;
 	}
-	atomic_set(&cmd->transport_lun_fe_stop, 1);
+	cmd->transport_state |= CMD_T_LUN_FE_STOP;
 	spin_unlock_irqrestore(&cmd->t_state_lock, flags);
 
 	wake_up_interruptible(&cmd->se_dev->dev_queue_obj.thread_wq);
@@ -4183,7 +4176,7 @@ static void __transport_clear_lun_from_sessions(struct se_lun *lun)
 			"_lun_stop for  ITT: 0x%08x\n",
 			cmd->se_lun->unpacked_lun,
 			cmd->se_tfo->get_task_tag(cmd));
-		atomic_set(&cmd->transport_lun_stop, 1);
+		cmd->transport_state |= CMD_T_LUN_STOP;
 		spin_unlock(&cmd->t_state_lock);
 
 		spin_unlock_irqrestore(&lun->lun_cmd_lock, lun_flags);
@@ -4213,11 +4206,11 @@ static void __transport_clear_lun_from_sessions(struct se_lun *lun)
 			cmd->se_tfo->get_task_tag(cmd));
 
 		spin_lock_irqsave(&cmd->t_state_lock, cmd_flags);
-		if (!atomic_read(&cmd->transport_dev_active)) {
+		if (!(cmd->transport_state & CMD_T_DEV_ACTIVE)) {
 			spin_unlock_irqrestore(&cmd->t_state_lock, cmd_flags);
 			goto check_cond;
 		}
-		atomic_set(&cmd->transport_dev_active, 0);
+		cmd->transport_state &= ~CMD_T_DEV_ACTIVE;
 		transport_all_task_dev_remove_state(cmd);
 		spin_unlock_irqrestore(&cmd->t_state_lock, cmd_flags);
 
@@ -4237,7 +4230,7 @@ check_cond:
 		 * finished accessing it.
 		 */
 		spin_lock_irqsave(&cmd->t_state_lock, cmd_flags);
-		if (atomic_read(&cmd->transport_lun_fe_stop)) {
+		if (cmd->transport_state & CMD_T_LUN_FE_STOP) {
 			pr_debug("SE_LUN[%d] - Detected FE stop for"
 				" struct se_cmd: %p ITT: 0x%08x\n",
 				lun->unpacked_lun,
@@ -4315,8 +4308,7 @@ bool transport_wait_for_tasks(struct se_cmd *cmd)
 	 * transport_clear_lun_from_sessions() once the ConfigFS context caller
 	 * has completed its operation on the struct se_cmd.
 	 */
-	if (atomic_read(&cmd->transport_lun_stop)) {
-
+	if (cmd->transport_state & CMD_T_LUN_STOP) {
 		pr_debug("wait_for_tasks: Stopping"
 			" wait_for_completion(&cmd->t_tasktransport_lun_fe"
 			"_stop_comp); for ITT: 0x%08x\n",
@@ -4344,18 +4336,19 @@ bool transport_wait_for_tasks(struct se_cmd *cmd)
 			"stop_comp); for ITT: 0x%08x\n",
 			cmd->se_tfo->get_task_tag(cmd));
 
-		atomic_set(&cmd->transport_lun_stop, 0);
+		cmd->transport_state &= ~CMD_T_LUN_STOP;
 	}
-	if (!atomic_read(&cmd->t_transport_active) ||
-	     atomic_read(&cmd->t_transport_aborted)) {
+
+	if (!(cmd->transport_state & CMD_T_ACTIVE) ||
+	     (cmd->transport_state & CMD_T_ABORTED)) {
 		spin_unlock_irqrestore(&cmd->t_state_lock, flags);
 		return false;
 	}
 
-	atomic_set(&cmd->t_transport_stop, 1);
+	cmd->transport_state |= CMD_T_STOP;
 
 	pr_debug("wait_for_tasks: Stopping %p ITT: 0x%08x"
-		" i_state: %d, t_state: %d, t_transport_stop = TRUE\n",
+		" i_state: %d, t_state: %d, CMD_T_STOP\n",
 		cmd, cmd->se_tfo->get_task_tag(cmd),
 		cmd->se_tfo->get_cmd_state(cmd), cmd->t_state);
 
@@ -4366,8 +4359,7 @@ bool transport_wait_for_tasks(struct se_cmd *cmd)
 	wait_for_completion(&cmd->t_transport_stop_comp);
 
 	spin_lock_irqsave(&cmd->t_state_lock, flags);
-	atomic_set(&cmd->t_transport_active, 0);
-	atomic_set(&cmd->t_transport_stop, 0);
+	cmd->transport_state &= ~(CMD_T_ACTIVE | CMD_T_STOP);
 
 	pr_debug("wait_for_tasks: Stopped wait_for_compltion("
 		"&cmd->t_transport_stop_comp) for ITT: 0x%08x\n",
@@ -4596,7 +4588,7 @@ int transport_check_aborted_status(struct se_cmd *cmd, int send_status)
 {
 	int ret = 0;
 
-	if (atomic_read(&cmd->t_transport_aborted) != 0) {
+	if (cmd->transport_state & CMD_T_ABORTED) {
 		if (!send_status ||
 		     (cmd->se_cmd_flags & SCF_SENT_DELAYED_TAS))
 			return 1;
@@ -4633,7 +4625,7 @@ void transport_send_task_abort(struct se_cmd *cmd)
 	 */
 	if (cmd->data_direction == DMA_TO_DEVICE) {
 		if (cmd->se_tfo->write_pending_status(cmd) != 0) {
-			atomic_inc(&cmd->t_transport_aborted);
+			cmd->transport_state |= CMD_T_ABORTED;
 			smp_mb__after_atomic_inc();
 		}
 	}

@@ -150,7 +150,7 @@ static void core_tmr_drain_tmr_list(
 			continue;
 
 		spin_lock(&cmd->t_state_lock);
-		if (!atomic_read(&cmd->t_transport_active)) {
+		if (!(cmd->transport_state & CMD_T_ACTIVE)) {
 			spin_unlock(&cmd->t_state_lock);
 			continue;
 		}
@@ -255,15 +255,15 @@ static void core_tmr_drain_task_list(
 			cmd->t_task_cdb[0]);
 		pr_debug("LUN_RESET: ITT[0x%08x] - pr_res_key: 0x%016Lx"
 			" t_task_cdbs: %d t_task_cdbs_left: %d"
-			" t_task_cdbs_sent: %d -- t_transport_active: %d"
-			" t_transport_stop: %d t_transport_sent: %d\n",
+			" t_task_cdbs_sent: %d -- CMD_T_ACTIVE: %d"
+			" CMD_T_STOP: %d CMD_T_SENT: %d\n",
 			cmd->se_tfo->get_task_tag(cmd), cmd->pr_res_key,
 			cmd->t_task_list_num,
 			atomic_read(&cmd->t_task_cdbs_left),
 			atomic_read(&cmd->t_task_cdbs_sent),
-			atomic_read(&cmd->t_transport_active),
-			atomic_read(&cmd->t_transport_stop),
-			atomic_read(&cmd->t_transport_sent));
+			(cmd->transport_state & CMD_T_ACTIVE) != 0,
+			(cmd->transport_state & CMD_T_STOP) != 0,
+			(cmd->transport_state & CMD_T_SENT) != 0);
 
 		/*
 		 * If the command may be queued onto a workqueue cancel it now.
@@ -287,19 +287,19 @@ static void core_tmr_drain_task_list(
 		}
 		fe_count = atomic_read(&cmd->t_fe_count);
 
-		if (atomic_read(&cmd->t_transport_active)) {
-			pr_debug("LUN_RESET: got t_transport_active = 1 for"
+		if (!(cmd->transport_state & CMD_T_ACTIVE)) {
+			pr_debug("LUN_RESET: got CMD_T_ACTIVE for"
 				" task: %p, t_fe_count: %d dev: %p\n", task,
 				fe_count, dev);
-			atomic_set(&cmd->t_transport_aborted, 1);
+			cmd->transport_state |= CMD_T_ABORTED;
 			spin_unlock_irqrestore(&cmd->t_state_lock, flags);
 
 			core_tmr_handle_tas_abort(tmr_nacl, cmd, tas, fe_count);
 			continue;
 		}
-		pr_debug("LUN_RESET: Got t_transport_active = 0 for task: %p,"
+		pr_debug("LUN_RESET: Got !CMD_T_ACTIVE for task: %p,"
 			" t_fe_count: %d dev: %p\n", task, fe_count, dev);
-		atomic_set(&cmd->t_transport_aborted, 1);
+		cmd->transport_state |= CMD_T_ABORTED;
 		spin_unlock_irqrestore(&cmd->t_state_lock, flags);
 
 		core_tmr_handle_tas_abort(tmr_nacl, cmd, tas, fe_count);
@@ -339,7 +339,7 @@ static void core_tmr_drain_cmd_list(
 		if (prout_cmd == cmd)
 			continue;
 
-		atomic_set(&cmd->t_transport_queue_active, 0);
+		cmd->transport_state &= ~CMD_T_QUEUED;
 		atomic_dec(&qobj->queue_cnt);
 		list_move_tail(&cmd->se_queue_node, &drain_cmd_list);
 	}
