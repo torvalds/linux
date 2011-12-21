@@ -231,6 +231,7 @@ enum snd_soc_bias_level {
 	SND_SOC_BIAS_ON = 3,
 };
 
+struct device_node;
 struct snd_jack;
 struct snd_soc_card;
 struct snd_soc_pcm_stream;
@@ -703,8 +704,11 @@ struct snd_soc_dai_link {
 	const char *name;			/* Codec name */
 	const char *stream_name;		/* Stream name */
 	const char *codec_name;		/* for multi-codec */
+	const struct device_node *codec_of_node;
 	const char *platform_name;	/* for multi-platform */
+	const struct device_node *platform_of_node;
 	const char *cpu_dai_name;
+	const struct device_node *cpu_dai_of_node;
 	const char *codec_dai_name;
 
 	unsigned int dai_fmt;           /* format to set on init */
