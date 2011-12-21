@@ -572,7 +572,6 @@ struct se_cmd {
 #define CMD_T_LUN_STOP		(1 << 7)
 #define CMD_T_LUN_FE_STOP	(1 << 8)
 #define CMD_T_DEV_ACTIVE	(1 << 9)
-	atomic_t		transport_lun_active;
 	spinlock_t		t_state_lock;
 	struct completion	t_transport_stop_comp;
 	struct completion	transport_lun_fe_stop_comp;

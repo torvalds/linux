@@ -546,14 +546,8 @@ static void transport_lun_remove_cmd(struct se_cmd *cmd)
 	spin_unlock_irqrestore(&cmd->t_state_lock, flags);
 
 	spin_lock_irqsave(&lun->lun_cmd_lock, flags);
-	if (atomic_read(&cmd->transport_lun_active)) {
-		list_del(&cmd->se_lun_node);
-		atomic_set(&cmd->transport_lun_active, 0);
-#if 0
-		pr_debug("Removed ITT: 0x%08x from LUN LIST[%d]\n"
-			cmd->se_tfo->get_task_tag(cmd), lun->unpacked_lun);
-#endif
-	}
+	if (!list_empty(&cmd->se_lun_node))
+		list_del_init(&cmd->se_lun_node);
 	spin_unlock_irqrestore(&lun->lun_cmd_lock, flags);
 }
 
@@ -4163,9 +4157,8 @@ static void __transport_clear_lun_from_sessions(struct se_lun *lun)
 	while (!list_empty(&lun->lun_cmd_list)) {
 		cmd = list_first_entry(&lun->lun_cmd_list,
 		       struct se_cmd, se_lun_node);
-		list_del(&cmd->se_lun_node);
+		list_del_init(&cmd->se_lun_node);
 
-		atomic_set(&cmd->transport_lun_active, 0);
 		/*
 		 * This will notify iscsi_target_transport.c:
 		 * transport_cmd_check_stop() that a LUN shutdown is in

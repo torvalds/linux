@@ -159,13 +159,8 @@ int transport_lookup_cmd_lun(struct se_cmd *se_cmd, u32 unpacked_lun)
 		dev->read_bytes += se_cmd->data_length;
 	spin_unlock_irqrestore(&dev->stats_lock, flags);
 
-	/*
-	 * Add the iscsi_cmd_t to the struct se_lun's cmd list.  This list is used
-	 * for tracking state of struct se_cmds during LUN shutdown events.
-	 */
 	spin_lock_irqsave(&se_lun->lun_cmd_lock, flags);
 	list_add_tail(&se_cmd->se_lun_node, &se_lun->lun_cmd_list);
-	atomic_set(&se_cmd->transport_lun_active, 1);
 	spin_unlock_irqrestore(&se_lun->lun_cmd_lock, flags);
 
 	return 0;
