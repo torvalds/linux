@@ -619,44 +619,42 @@ fail:
 static int mxl5007t_set_params(struct dvb_frontend *fe,
 			       struct dvb_frontend_parameters *params)
 {
+	struct dtv_frontend_properties *c = &fe->dtv_property_cache;
+	u32 delsys = c->delivery_system;
 	struct mxl5007t_state *state = fe->tuner_priv;
 	enum mxl5007t_bw_mhz bw;
 	enum mxl5007t_mode mode;
 	int ret;
-	u32 freq = params->frequency;
+	u32 freq = c->frequency;
+	u32 band = BANDWIDTH_6_MHZ;
 
-	if (fe->ops.info.type == FE_ATSC) {
-		switch (params->u.vsb.modulation) {
-		case VSB_8:
-		case VSB_16:
-			mode = MxL_MODE_ATSC;
-			break;
-		case QAM_64:
-		case QAM_256:
-			mode = MxL_MODE_CABLE;
-			break;
-		default:
-			mxl_err("modulation not set!");
-			return -EINVAL;
-		}
+	switch (delsys) {
+	case SYS_ATSC:
+		mode = MxL_MODE_ATSC;
 		bw = MxL_BW_6MHz;
-	} else if (fe->ops.info.type == FE_OFDM) {
-		switch (params->u.ofdm.bandwidth) {
-		case BANDWIDTH_6_MHZ:
+		break;
+	case SYS_DVBC_ANNEX_B:
+		mode = MxL_MODE_CABLE;
+		bw = MxL_BW_6MHz;
+		break;
+	case SYS_DVBT:
+	case SYS_DVBT2:
+		mode = MxL_MODE_DVBT;
+		switch (c->bandwidth_hz) {
+		case 6000000:
 			bw = MxL_BW_6MHz;
 			break;
-		case BANDWIDTH_7_MHZ:
+		case 7000000:
 			bw = MxL_BW_7MHz;
-			break;
-		case BANDWIDTH_8_MHZ:
+			band = BANDWIDTH_7_MHZ;
+		case 8000000:
 			bw = MxL_BW_8MHz;
-			break;
+			band = BANDWIDTH_8_MHZ;
 		default:
-			mxl_err("bandwidth not set!");
 			return -EINVAL;
 		}
-		mode = MxL_MODE_DVBT;
-	} else {
+		break;
+	default:
 		mxl_err("modulation type not supported!");
 		return -EINVAL;
 	}
@@ -675,8 +673,7 @@ static int mxl5007t_set_params(struct dvb_frontend *fe,
 		goto fail;
 
 	state->frequency = freq;
-	state->bandwidth = (fe->ops.info.type == FE_OFDM) ?
-		params->u.ofdm.bandwidth : 0;
+	state->bandwidth = band;
 fail:
 	mutex_unlock(&state->lock);
 
