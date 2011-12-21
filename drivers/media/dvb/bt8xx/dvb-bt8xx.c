@@ -193,11 +193,10 @@ static struct zl10353_config thomson_dtt7579_zl10353_config = {
 
 static int cx24108_tuner_set_params(struct dvb_frontend* fe, struct dvb_frontend_parameters* params)
 {
-	u32 freq = params->frequency;
-
+	struct dtv_frontend_properties *c = &fe->dtv_property_cache;
+	u32 freq = c->frequency;
 	int i, a, n, pump;
 	u32 band, pll;
-
 	u32 osci[]={950000,1019000,1075000,1178000,1296000,1432000,
 		1576000,1718000,1856000,2036000,2150000};
 	u32 bandsel[]={0,0x00020000,0x00040000,0x00100800,0x00101000,
@@ -269,29 +268,30 @@ static struct cx24110_config pctvsat_config = {
 
 static int microtune_mt7202dtf_tuner_set_params(struct dvb_frontend* fe, struct dvb_frontend_parameters* params)
 {
+	struct dtv_frontend_properties *c = &fe->dtv_property_cache;
 	struct dvb_bt8xx_card *card = (struct dvb_bt8xx_card *) fe->dvb->priv;
 	u8 cfg, cpump, band_select;
 	u8 data[4];
 	u32 div;
 	struct i2c_msg msg = { .addr = 0x60, .flags = 0, .buf = data, .len = sizeof(data) };
 
-	div = (36000000 + params->frequency + 83333) / 166666;
+	div = (36000000 + c->frequency + 83333) / 166666;
 	cfg = 0x88;
 
-	if (params->frequency < 175000000)
+	if (c->frequency < 175000000)
 		cpump = 2;
-	else if (params->frequency < 390000000)
+	else if (c->frequency < 390000000)
 		cpump = 1;
-	else if (params->frequency < 470000000)
+	else if (c->frequency < 470000000)
 		cpump = 2;
-	else if (params->frequency < 750000000)
+	else if (c->frequency < 750000000)
 		cpump = 2;
 	else
 		cpump = 3;
 
-	if (params->frequency < 175000000)
+	if (c->frequency < 175000000)
 		band_select = 0x0e;
-	else if (params->frequency < 470000000)
+	else if (c->frequency < 470000000)
 		band_select = 0x05;
 	else
 		band_select = 0x03;
@@ -463,23 +463,24 @@ static struct or51211_config or51211_config = {
 
 static int vp3021_alps_tded4_tuner_set_params(struct dvb_frontend* fe, struct dvb_frontend_parameters* params)
 {
+	struct dtv_frontend_properties *c = &fe->dtv_property_cache;
 	struct dvb_bt8xx_card *card = (struct dvb_bt8xx_card *) fe->dvb->priv;
 	u8 buf[4];
 	u32 div;
 	struct i2c_msg msg = { .addr = 0x60, .flags = 0, .buf = buf, .len = sizeof(buf) };
 
-	div = (params->frequency + 36166667) / 166667;
+	div = (c->frequency + 36166667) / 166667;
 
 	buf[0] = (div >> 8) & 0x7F;
 	buf[1] = div & 0xFF;
 	buf[2] = 0x85;
-	if ((params->frequency >= 47000000) && (params->frequency < 153000000))
+	if ((c->frequency >= 47000000) && (c->frequency < 153000000))
 		buf[3] = 0x01;
-	else if ((params->frequency >= 153000000) && (params->frequency < 430000000))
+	else if ((c->frequency >= 153000000) && (c->frequency < 430000000))
 		buf[3] = 0x02;
-	else if ((params->frequency >= 430000000) && (params->frequency < 824000000))
+	else if ((c->frequency >= 430000000) && (c->frequency < 824000000))
 		buf[3] = 0x0C;
-	else if ((params->frequency >= 824000000) && (params->frequency < 863000000))
+	else if ((c->frequency >= 824000000) && (c->frequency < 863000000))
 		buf[3] = 0x8C;
 	else
 		return -EINVAL;
