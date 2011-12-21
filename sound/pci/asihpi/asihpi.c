@@ -888,8 +888,8 @@ static void snd_card_asihpi_timer_function(unsigned long data)
 							pd, xfer2));
 				}
 			}
-			ds->pcm_buf_host_rw_ofs = ds->pcm_buf_host_rw_ofs + xfercount;
-			ds->pcm_buf_elapsed_dma_ofs = pcm_buf_dma_ofs;
+			ds->pcm_buf_host_rw_ofs += xfercount;
+			ds->pcm_buf_elapsed_dma_ofs += xfercount;
 			snd_pcm_period_elapsed(s);
 		}
 	}
