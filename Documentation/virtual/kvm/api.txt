@@ -1154,6 +1154,10 @@ following flags are specified:
 The KVM_DEV_ASSIGN_ENABLE_IOMMU flag is a mandatory option to ensure
 isolation of the device.  Usages not specifying this flag are deprecated.
 
+Only PCI header type 0 devices with PCI BAR resources are supported by
+device assignment.  The user requesting this ioctl must have read/write
+access to the PCI sysfs resource files associated with the device.
+
 4.49 KVM_DEASSIGN_PCI_DEVICE
 
 Capability: KVM_CAP_DEVICE_DEASSIGNMENT
