@@ -1293,10 +1293,11 @@ again:
 	raw_spin_lock(&logbuf_lock);
 	if (con_start != log_end)
 		retry = 1;
+	raw_spin_unlock_irqrestore(&logbuf_lock, flags);
+
 	if (retry && console_trylock())
 		goto again;
 
-	raw_spin_unlock_irqrestore(&logbuf_lock, flags);
 	if (wake_klogd)
 		wake_up_klogd();
 }

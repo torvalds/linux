@@ -87,13 +87,10 @@ static struct platform_driver sdhci_hlwd_driver = {
 		.name = "sdhci-hlwd",
 		.owner = THIS_MODULE,
 		.of_match_table = sdhci_hlwd_of_match,
+		.pm = SDHCI_PLTFM_PMOPS,
 	},
 	.probe = sdhci_hlwd_probe,
 	.remove = __devexit_p(sdhci_hlwd_remove),
-#ifdef CONFIG_PM
-	.suspend = sdhci_pltfm_suspend,
-	.resume = sdhci_pltfm_resume,
-#endif
 };
 
 static int __init sdhci_hlwd_init(void)

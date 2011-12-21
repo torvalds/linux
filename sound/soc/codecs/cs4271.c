@@ -434,7 +434,8 @@ static int cs4271_soc_suspend(struct snd_soc_codec *codec, pm_message_t mesg)
 {
 	int ret;
 	/* Set power-down bit */
-	ret = snd_soc_update_bits(codec, CS4271_MODE2, 0, CS4271_MODE2_PDN);
+	ret = snd_soc_update_bits(codec, CS4271_MODE2, CS4271_MODE2_PDN,
+				  CS4271_MODE2_PDN);
 	if (ret < 0)
 		return ret;
 	return 0;
@@ -501,8 +502,9 @@ static int cs4271_probe(struct snd_soc_codec *codec)
 		return ret;
 	}
 
-	ret = snd_soc_update_bits(codec, CS4271_MODE2, 0,
-		CS4271_MODE2_PDN | CS4271_MODE2_CPEN);
+	ret = snd_soc_update_bits(codec, CS4271_MODE2,
+				  CS4271_MODE2_PDN | CS4271_MODE2_CPEN,
+				  CS4271_MODE2_PDN | CS4271_MODE2_CPEN);
 	if (ret < 0)
 		return ret;
 	ret = snd_soc_update_bits(codec, CS4271_MODE2, CS4271_MODE2_PDN, 0);

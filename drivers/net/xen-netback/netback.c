@@ -1021,7 +1021,7 @@ static int xen_netbk_tx_check_gop(struct xen_netbk *netbk,
 		pending_idx = *((u16 *)skb->data);
 		xen_netbk_idx_release(netbk, pending_idx);
 		for (j = start; j < i; j++) {
-			pending_idx = frag_get_pending_idx(&shinfo->frags[i]);
+			pending_idx = frag_get_pending_idx(&shinfo->frags[j]);
 			xen_netbk_idx_release(netbk, pending_idx);
 		}
 
@@ -1668,7 +1668,7 @@ static int __init netback_init(void)
 					     "netback/%u", group);
 
 		if (IS_ERR(netbk->task)) {
-			printk(KERN_ALERT "kthread_run() fails at netback\n");
+			printk(KERN_ALERT "kthread_create() fails at netback\n");
 			del_timer(&netbk->net_timer);
 			rc = PTR_ERR(netbk->task);
 			goto failed_init;
