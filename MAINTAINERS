@@ -4132,13 +4132,6 @@ W:	http://ltp.sourceforge.net/
 T:	git git://ltp.git.sourceforge.net/gitroot/ltp/ltp-dev
 S:	Maintained
 
-LTTng (Linux Trace Toolkit Next Generation)
-M:	Mathieu Desnoyers <mathieu.desnoyers@efficios.com>
-L:	lttng-dev@lists.lttng.org (moderated for non-subscribers)
-W:	http://lttng.org
-S:	Maintained
-F:	drivers/staging/lttng/
-
 M32R ARCHITECTURE
 M:	Hirokazu Takata <takata@linux-m32r.org>
 L:	linux-m32r@ml.linux-m32r.org (moderated for non-subscribers)
