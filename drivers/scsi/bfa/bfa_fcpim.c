@@ -2647,7 +2647,8 @@ bfa_fcpim_lunmask_add(struct bfa_s *bfa, u16 vf_id, wwn_t *pwwn,
 	if (port) {
 		*pwwn = port->port_cfg.pwwn;
 		rp_fcs = bfa_fcs_lport_get_rport_by_pwwn(port, rpwwn);
-		rp = rp_fcs->bfa_rport;
+		if (rp_fcs)
+			rp = rp_fcs->bfa_rport;
 	}
 
 	lunm_list = bfa_get_lun_mask_list(bfa);
@@ -2715,7 +2716,8 @@ bfa_fcpim_lunmask_delete(struct bfa_s *bfa, u16 vf_id, wwn_t *pwwn,
 		if (port) {
 			*pwwn = port->port_cfg.pwwn;
 			rp_fcs = bfa_fcs_lport_get_rport_by_pwwn(port, rpwwn);
-			rp = rp_fcs->bfa_rport;
+			if (rp_fcs)
+				rp = rp_fcs->bfa_rport;
 		}
 	}
 
