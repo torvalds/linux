@@ -155,9 +155,11 @@ static int tuner_transfer(struct dvb_frontend *fe,
 static int tda827xo_set_params(struct dvb_frontend *fe,
 			       struct dvb_frontend_parameters *params)
 {
+	struct dtv_frontend_properties *c = &fe->dtv_property_cache;
 	struct tda827x_priv *priv = fe->tuner_priv;
 	u8 buf[14];
 	int rc;
+	u32 band;
 
 	struct i2c_msg msg = { .addr = priv->i2c_addr, .flags = 0,
 			       .buf = buf, .len = sizeof(buf) };
@@ -165,18 +167,20 @@ static int tda827xo_set_params(struct dvb_frontend *fe,
 	u32 N;
 
 	dprintk("%s:\n", __func__);
-	switch (params->u.ofdm.bandwidth) {
-	case BANDWIDTH_6_MHZ:
-		if_freq = 4000000;
-		break;
-	case BANDWIDTH_7_MHZ:
-		if_freq = 4500000;
-		break;
-	default:		   /* 8 MHz or Auto */
+	if (c->bandwidth_hz == 0) {
 		if_freq = 5000000;
-		break;
+		band = BANDWIDTH_8_MHZ;
+	} else if (c->bandwidth_hz <= 6000000) {
+		if_freq = 4000000;
+		band = BANDWIDTH_6_MHZ;
+	} else if (c->bandwidth_hz <= 7000000) {
+		if_freq = 4500000;
+		band = BANDWIDTH_7_MHZ;
+	} else {	/* 8 MHz */
+		if_freq = 5000000;
+		band = BANDWIDTH_8_MHZ;
 	}
-	tuner_freq = params->frequency;
+	tuner_freq = c->frequency;
 
 	i = 0;
 	while (tda827x_table[i].lomax < tuner_freq) {
@@ -220,8 +224,8 @@ static int tda827xo_set_params(struct dvb_frontend *fe,
 	if (rc < 0)
 		goto err;
 
-	priv->frequency = params->frequency;
-	priv->bandwidth = (fe->ops.info.type == FE_OFDM) ? params->u.ofdm.bandwidth : 0;
+	priv->frequency = c->frequency;
+	priv->bandwidth = band;
 
 	return 0;
 
@@ -516,9 +520,11 @@ static void tda827xa_lna_gain(struct dvb_frontend *fe, int high,
 static int tda827xa_set_params(struct dvb_frontend *fe,
 			       struct dvb_frontend_parameters *params)
 {
+	struct dtv_frontend_properties *c = &fe->dtv_property_cache;
 	struct tda827x_priv *priv = fe->tuner_priv;
 	struct tda827xa_data *frequency_map = tda827xa_dvbt;
 	u8 buf[11];
+	u32 band;
 
 	struct i2c_msg msg = { .addr = priv->i2c_addr, .flags = 0,
 			       .buf = buf, .len = sizeof(buf) };
@@ -531,18 +537,20 @@ static int tda827xa_set_params(struct dvb_frontend *fe,
 	tda827xa_lna_gain(fe, 1, NULL);
 	msleep(20);
 
-	switch (params->u.ofdm.bandwidth) {
-	case BANDWIDTH_6_MHZ:
-		if_freq = 4000000;
-		break;
-	case BANDWIDTH_7_MHZ:
-		if_freq = 4500000;
-		break;
-	default:		   /* 8 MHz or Auto */
+	if (c->bandwidth_hz == 0) {
 		if_freq = 5000000;
-		break;
+		band = BANDWIDTH_8_MHZ;
+	} else if (c->bandwidth_hz <= 6000000) {
+		if_freq = 4000000;
+		band = BANDWIDTH_6_MHZ;
+	} else if (c->bandwidth_hz <= 7000000) {
+		if_freq = 4500000;
+		band = BANDWIDTH_7_MHZ;
+	} else {	/* 8 MHz */
+		if_freq = 5000000;
+		band = BANDWIDTH_8_MHZ;
 	}
-	tuner_freq = params->frequency;
+	tuner_freq = c->frequency;
 
 	if (fe->ops.info.type == FE_QAM) {
 		dprintk("%s select tda827xa_dvbc\n", __func__);
@@ -645,9 +653,8 @@ static int tda827xa_set_params(struct dvb_frontend *fe,
 	if (rc < 0)
 		goto err;
 
-	priv->frequency = params->frequency;
-	priv->bandwidth = (fe->ops.info.type == FE_OFDM) ? params->u.ofdm.bandwidth : 0;
-
+	priv->frequency = c->frequency;
+	priv->bandwidth = band;
 
 	return 0;
 
