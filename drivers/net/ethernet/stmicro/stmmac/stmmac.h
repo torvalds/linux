@@ -20,7 +20,8 @@
   Author: Giuseppe Cavallaro <peppe.cavallaro@st.com>
 *******************************************************************************/
 
-#define DRV_MODULE_VERSION	"Oct_2011"
+#define STMMAC_RESOURCE_NAME   "stmmaceth"
+#define DRV_MODULE_VERSION	"Dec_2011"
 #include <linux/stmmac.h>
 #include <linux/phy.h>
 #include "common.h"
@@ -82,8 +83,18 @@ struct stmmac_priv {
 	int hw_cap_support;
 };
 
+extern int phyaddr;
+
 extern int stmmac_mdio_unregister(struct net_device *ndev);
 extern int stmmac_mdio_register(struct net_device *ndev);
 extern void stmmac_set_ethtool_ops(struct net_device *netdev);
 extern const struct stmmac_desc_ops enh_desc_ops;
 extern const struct stmmac_desc_ops ndesc_ops;
+
+int stmmac_freeze(struct net_device *ndev);
+int stmmac_restore(struct net_device *ndev);
+int stmmac_resume(struct net_device *ndev);
+int stmmac_suspend(struct net_device *ndev);
+int stmmac_dvr_remove(struct net_device *ndev);
+struct stmmac_priv *stmmac_dvr_probe(struct device *device,
+				struct plat_stmmacenet_data *plat_dat);
