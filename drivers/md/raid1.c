@@ -391,6 +391,11 @@ static void raid1_end_write_request(struct bio *bio, int error)
 	if (!uptodate) {
 		set_bit(WriteErrorSeen,
 			&conf->mirrors[mirror].rdev->flags);
+		if (!test_and_set_bit(WantReplacement,
+				      &conf->mirrors[mirror].rdev->flags))
+			set_bit(MD_RECOVERY_NEEDED, &
+				conf->mddev->recovery);
+
 		set_bit(R1BIO_WriteError, &r1_bio->state);
 	} else {
 		/*
@@ -1461,6 +1466,10 @@ static void end_sync_write(struct bio *bio, int error)
 		} while (sectors_to_go > 0);
 		set_bit(WriteErrorSeen,
 			&conf->mirrors[mirror].rdev->flags);
+		if (!test_and_set_bit(WantReplacement,
+				      &conf->mirrors[mirror].rdev->flags))
+			set_bit(MD_RECOVERY_NEEDED, &
+				mddev->recovery);
 		set_bit(R1BIO_WriteError, &r1_bio->state);
 	} else if (is_badblock(conf->mirrors[mirror].rdev,
 			       r1_bio->sector,
@@ -1491,8 +1500,13 @@ static int r1_sync_page_io(struct md_rdev *rdev, sector_t sector,
 	if (sync_page_io(rdev, sector, sectors << 9, page, rw, false))
 		/* success */
 		return 1;
-	if (rw == WRITE)
+	if (rw == WRITE) {
 		set_bit(WriteErrorSeen, &rdev->flags);
+		if (!test_and_set_bit(WantReplacement,
+				      &rdev->flags))
+			set_bit(MD_RECOVERY_NEEDED, &
+				rdev->mddev->recovery);
+	}
 	/* need to record an error - either for the block or the device */
 	if (!rdev_set_badblocks(rdev, sector, sectors, 0))
 		md_error(rdev->mddev, rdev);
