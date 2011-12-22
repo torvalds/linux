@@ -17,7 +17,7 @@
 #include <linux/ioport.h>
 #include <linux/cpufreq.h>
 #include <linux/seq_file.h>
-#include <linux/sysdev.h>
+#include <linux/device.h>
 #include <linux/delay.h>
 #include <linux/clk.h>
 #include <linux/err.h>

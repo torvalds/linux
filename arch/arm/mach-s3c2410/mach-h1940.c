@@ -18,7 +18,7 @@
 #include <linux/memblock.h>
 #include <linux/timer.h>
 #include <linux/init.h>
-#include <linux/sysdev.h>
+#include <linux/device.h>
 #include <linux/serial_core.h>
 #include <linux/platform_device.h>
 #include <linux/io.h>

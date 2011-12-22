@@ -26,7 +26,6 @@
 #include <linux/module.h>
 #include <linux/device.h>
 #include <linux/sched.h>
-#include <linux/sysdev.h>
 #include <linux/fs.h>
 #include <linux/types.h>
 #include <linux/string.h>

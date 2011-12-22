@@ -24,7 +24,7 @@
 #include <linux/init.h>
 #include <linux/module.h>
 #include <linux/ioport.h>
-#include <linux/sysdev.h>
+#include <linux/device.h>
 #include <linux/io.h>
 
 #include <asm/mach-types.h>

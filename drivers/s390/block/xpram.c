@@ -36,7 +36,7 @@
 #include <linux/blkdev.h>
 #include <linux/blkpg.h>
 #include <linux/hdreg.h>  /* HDIO_GETGEO */
-#include <linux/sysdev.h>
+#include <linux/device.h>
 #include <linux/bio.h>
 #include <linux/suspend.h>
 #include <linux/platform_device.h>
