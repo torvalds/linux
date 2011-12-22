@@ -25,6 +25,8 @@
 #include "hpi_internal.h"
 #include "hpimsginit.h"
 #include "hpioctl.h"
+#include "hpicmn.h"
+
 
 #include <linux/pci.h>
 #include <linux/init.h>
@@ -119,12 +121,7 @@ struct clk_cache {
 struct snd_card_asihpi {
 	struct snd_card *card;
 	struct pci_dev *pci;
-	u16 adapter_index;
-	u32 serial_number;
-	u16 type;
-	u16 version;
-	u16 num_outstreams;
-	u16 num_instreams;
+	struct hpi_adapter *hpi;
 
 	u32 h_mixer;
 	struct clk_cache cc;
@@ -497,6 +494,7 @@ static int snd_card_asihpi_pcm_hw_params(struct snd_pcm_substream *substream,
 
 		snd_printdd("stream_host_buffer_attach status 0x%x\n",
 				dpcm->hpi_buffer_attached);
+
 	}
 	bytes_per_sec = params_rate(params) * params_channels(params);
 	width = snd_pcm_format_width(params_format(params));
@@ -993,7 +991,7 @@ static int snd_card_asihpi_playback_open(struct snd_pcm_substream *substream)
 		return -ENOMEM;
 
 	err =
-	    hpi_outstream_open(card->adapter_index,
+	    hpi_outstream_open(card->hpi->adapter->index,
 			      substream->number, &dpcm->h_stream);
 	hpi_handle_error(err);
 	if (err)
@@ -1174,10 +1172,10 @@ static int snd_card_asihpi_capture_open(struct snd_pcm_substream *substream)
 		return -ENOMEM;
 
 	snd_printdd("capture open adapter %d stream %d\n",
-		   card->adapter_index, substream->number);
+			card->hpi->adapter->index, substream->number);
 
 	err = hpi_handle_error(
-	    hpi_instream_open(card->adapter_index,
+	    hpi_instream_open(card->hpi->adapter->index,
 			     substream->number, &dpcm->h_stream));
 	if (err)
 		kfree(dpcm);
@@ -1185,7 +1183,6 @@ static int snd_card_asihpi_capture_open(struct snd_pcm_substream *substream)
 		return -EBUSY;
 	if (err)
 		return -EIO;
-
 
 	init_timer(&dpcm->timer);
 	dpcm->timer.data = (unsigned long) dpcm;
@@ -1243,15 +1240,20 @@ static struct snd_pcm_ops snd_card_asihpi_capture_mmap_ops = {
 	.pointer = snd_card_asihpi_capture_pointer,
 };
 
-static int __devinit snd_card_asihpi_pcm_new(struct snd_card_asihpi *asihpi,
-				      int device, int substreams)
+static int __devinit snd_card_asihpi_pcm_new(
+		struct snd_card_asihpi *asihpi, int device)
 {
 	struct snd_pcm *pcm;
 	int err;
+	u16 num_instreams, num_outstreams, x16;
+	u32 x32;
+
+	err = hpi_adapter_get_info(asihpi->hpi->adapter->index,
+			&num_outstreams, &num_instreams,
+			&x16, &x32, &x16);
 
 	err = snd_pcm_new(asihpi->card, "Asihpi PCM", device,
-			 asihpi->num_outstreams, asihpi->num_instreams,
-			 &pcm);
+			num_outstreams,	num_instreams, &pcm);
 	if (err < 0)
 		return err;
 	/* pointer to ops struct is stored, dont change ops afterwards! */
@@ -2561,7 +2563,7 @@ static int __devinit snd_card_asihpi_mixer_new(struct snd_card_asihpi *asihpi)
 	strcpy(card->mixername, "Asihpi Mixer");
 
 	err =
-	    hpi_mixer_open(asihpi->adapter_index,
+	    hpi_mixer_open(asihpi->hpi->adapter->index,
 			  &asihpi->h_mixer);
 	hpi_handle_error(err);
 	if (err)
@@ -2679,24 +2681,33 @@ snd_asihpi_proc_read(struct snd_info_entry *entry,
 			struct snd_info_buffer *buffer)
 {
 	struct snd_card_asihpi *asihpi = entry->private_data;
-	u16 version;
 	u32 h_control;
 	u32 rate = 0;
 	u16 source = 0;
+
+	u16 num_outstreams;
+	u16 num_instreams;
+	u16 version;
+	u32 serial_number;
+	u16 type;
+
 	int err;
 
 	snd_iprintf(buffer, "ASIHPI driver proc file\n");
-	snd_iprintf(buffer,
-		"adapter ID=%4X\n_index=%d\n"
-		"num_outstreams=%d\n_num_instreams=%d\n",
-		asihpi->type, asihpi->adapter_index,
-		asihpi->num_outstreams, asihpi->num_instreams);
 
-	version = asihpi->version;
+	hpi_handle_error(hpi_adapter_get_info(asihpi->hpi->adapter->index,
+			&num_outstreams, &num_instreams,
+			&version, &serial_number, &type));
+
 	snd_iprintf(buffer,
-		"serial#=%d\n_hw version %c%d\nDSP code version %03d\n",
-		asihpi->serial_number, ((version >> 3) & 0xf) + 'A',
-		version & 0x7,
+			"Adapter type ASI%4X\nHardware Index %d\n"
+			"%d outstreams\n%d instreams\n",
+			type, asihpi->hpi->adapter->index,
+			num_outstreams, num_instreams);
+
+	snd_iprintf(buffer,
+		"Serial#%d\nHardware version %c%d\nDSP code version %03d\n",
+		serial_number, ((version >> 3) & 0xf) + 'A', version & 0x7,
 		((version >> 13) * 100) + ((version >> 7) & 0x3f));
 
 	err = hpi_mixer_get_control(asihpi->h_mixer,
@@ -2704,17 +2715,14 @@ snd_asihpi_proc_read(struct snd_info_entry *entry,
 				  HPI_CONTROL_SAMPLECLOCK, &h_control);
 
 	if (!err) {
-		err = hpi_sample_clock_get_sample_rate(
-					h_control, &rate);
+		err = hpi_sample_clock_get_sample_rate(h_control, &rate);
 		err += hpi_sample_clock_get_source(h_control, &source);
 
 		if (!err)
-			snd_iprintf(buffer, "sample_clock=%d_hz, source %s\n",
+			snd_iprintf(buffer, "Sample Clock %dHz, source %s\n",
 			rate, sampleclock_sources[source]);
 	}
-
 }
-
 
 static void __devinit snd_asihpi_proc_init(struct snd_card_asihpi *asihpi)
 {
@@ -2787,35 +2795,34 @@ static int __devinit snd_asihpi_probe(struct pci_dev *pci_dev,
 				       const struct pci_device_id *pci_id)
 {
 	int err;
-
-	u16 version;
-	int pcm_substreams;
-
-	struct hpi_adapter *hpi_card;
+	struct hpi_adapter *hpi;
 	struct snd_card *card;
 	struct snd_card_asihpi *asihpi;
 
 	u32 h_control;
 	u32 h_stream;
+	u32 adapter_index;
 
 	static int dev;
 	if (dev >= SNDRV_CARDS)
 		return -ENODEV;
 
-	/* Should this be enable[hpi_card->index] ? */
+	/* Should this be enable[hpi->index] ? */
 	if (!enable[dev]) {
 		dev++;
 		return -ENOENT;
 	}
 
+	/* Initialise low-level HPI driver */
 	err = asihpi_adapter_probe(pci_dev, pci_id);
 	if (err < 0)
 		return err;
 
-	hpi_card = pci_get_drvdata(pci_dev);
+	hpi = pci_get_drvdata(pci_dev);
+	adapter_index = hpi->adapter->index;
 	/* first try to give the card the same index as its hardware index */
-	err = snd_card_create(hpi_card->index,
-			      id[hpi_card->index], THIS_MODULE,
+	err = snd_card_create(adapter_index,
+			      id[adapter_index], THIS_MODULE,
 			      sizeof(struct snd_card_asihpi),
 			      &card);
 	if (err < 0) {
@@ -2829,50 +2836,32 @@ static int __devinit snd_asihpi_probe(struct pci_dev *pci_dev,
 			return err;
 		snd_printk(KERN_WARNING
 			"**** WARNING **** Adapter index %d->ALSA index %d\n",
-			hpi_card->index, card->number);
+			adapter_index, card->number);
 	}
 
 	snd_card_set_dev(card, &pci_dev->dev);
 
-	asihpi = (struct snd_card_asihpi *) card->private_data;
+	asihpi = card->private_data;
 	asihpi->card = card;
 	asihpi->pci = pci_dev;
-	asihpi->adapter_index = hpi_card->index;
-	hpi_handle_error(hpi_adapter_get_info(
-				 asihpi->adapter_index,
-				 &asihpi->num_outstreams,
-				 &asihpi->num_instreams,
-				 &asihpi->version,
-				 &asihpi->serial_number, &asihpi->type));
+	asihpi->hpi = hpi;
 
-	version = asihpi->version;
-	snd_printk(KERN_INFO "adapter ID=%4X index=%d num_outstreams=%d "
-			"num_instreams=%d S/N=%d\n"
-			"Hw Version %c%d DSP code version %03d\n",
-			asihpi->type, asihpi->adapter_index,
-			asihpi->num_outstreams,
-			asihpi->num_instreams, asihpi->serial_number,
-			((version >> 3) & 0xf) + 'A',
-			version & 0x7,
-			((version >> 13) * 100) + ((version >> 7) & 0x3f));
+	snd_printk(KERN_INFO "adapter ID=%4X index=%d\n",
+			asihpi->hpi->adapter->type, adapter_index);
 
-	pcm_substreams = asihpi->num_outstreams;
-	if (pcm_substreams < asihpi->num_instreams)
-		pcm_substreams = asihpi->num_instreams;
-
-	err = hpi_adapter_get_property(asihpi->adapter_index,
+	err = hpi_adapter_get_property(adapter_index,
 		HPI_ADAPTER_PROPERTY_CAPS1,
 		NULL, &asihpi->support_grouping);
 	if (err)
 		asihpi->support_grouping = 0;
 
-	err = hpi_adapter_get_property(asihpi->adapter_index,
+	err = hpi_adapter_get_property(adapter_index,
 		HPI_ADAPTER_PROPERTY_CAPS2,
 		&asihpi->support_mrx, NULL);
 	if (err)
 		asihpi->support_mrx = 0;
 
-	err = hpi_adapter_get_property(asihpi->adapter_index,
+	err = hpi_adapter_get_property(adapter_index,
 		HPI_ADAPTER_PROPERTY_INTERVAL,
 		NULL, &asihpi->update_interval_frames);
 	if (err)
@@ -2881,7 +2870,7 @@ static int __devinit snd_asihpi_probe(struct pci_dev *pci_dev,
 	if (!asihpi->can_dma)
 		asihpi->update_interval_frames *= 2;
 
-	hpi_handle_error(hpi_instream_open(asihpi->adapter_index,
+	hpi_handle_error(hpi_instream_open(adapter_index,
 			     0, &h_stream));
 
 	err = hpi_instream_host_buffer_free(h_stream);
@@ -2889,7 +2878,7 @@ static int __devinit snd_asihpi_probe(struct pci_dev *pci_dev,
 
 	hpi_handle_error(hpi_instream_close(h_stream));
 
-	err = hpi_adapter_get_property(asihpi->adapter_index,
+	err = hpi_adapter_get_property(adapter_index,
 		HPI_ADAPTER_PROPERTY_CURCHANNELS,
 		&asihpi->in_max_chans, &asihpi->out_max_chans);
 	if (err) {
@@ -2906,13 +2895,13 @@ static int __devinit snd_asihpi_probe(struct pci_dev *pci_dev,
 		asihpi->in_min_chans = 1;
 	}
 
-	snd_printk(KERN_INFO "has dma:%d, grouping:%d, mrx:%d\n",
+	snd_printk(KERN_INFO "Has dma:%d, grouping:%d, mrx:%d\n",
 			asihpi->can_dma,
 			asihpi->support_grouping,
 			asihpi->support_mrx
 	      );
 
-	err = snd_card_asihpi_pcm_new(asihpi, 0, pcm_substreams);
+	err = snd_card_asihpi_pcm_new(asihpi, 0);
 	if (err < 0) {
 		snd_printk(KERN_ERR "pcm_new failed\n");
 		goto __nodev;
@@ -2939,13 +2928,14 @@ static int __devinit snd_asihpi_probe(struct pci_dev *pci_dev,
 
 	strcpy(card->driver, "ASIHPI");
 
-	sprintf(card->shortname, "AudioScience ASI%4X", asihpi->type);
+	sprintf(card->shortname, "AudioScience ASI%4X",
+			asihpi->hpi->adapter->type);
 	sprintf(card->longname, "%s %i",
-			card->shortname, asihpi->adapter_index);
+			card->shortname, adapter_index);
 	err = snd_card_register(card);
 
 	if (!err) {
-		hpi_card->snd_card_asihpi = card;
+		hpi->snd_card = card;
 		dev++;
 		return 0;
 	}
@@ -2958,10 +2948,9 @@ __nodev:
 
 static void __devexit snd_asihpi_remove(struct pci_dev *pci_dev)
 {
-	struct hpi_adapter *hpi_card = pci_get_drvdata(pci_dev);
-
-	snd_card_free(hpi_card->snd_card_asihpi);
-	hpi_card->snd_card_asihpi = NULL;
+	struct hpi_adapter *hpi = pci_get_drvdata(pci_dev);
+	snd_card_free(hpi->snd_card);
+	hpi->snd_card = NULL;
 	asihpi_adapter_remove(pci_dev);
 }
 

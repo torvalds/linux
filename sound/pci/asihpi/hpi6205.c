@@ -488,7 +488,7 @@ static void subsys_create_adapter(struct hpi_message *phm,
 		return;
 	}
 
-	phr->u.s.adapter_type = ao.adapter_type;
+	phr->u.s.adapter_type = ao.type;
 	phr->u.s.adapter_index = ao.index;
 	phr->error = 0;
 }
@@ -503,7 +503,7 @@ static void adapter_delete(struct hpi_adapter_obj *pao,
 		phr->error = HPI_ERROR_INVALID_OBJ_INDEX;
 		return;
 	}
-	phw = (struct hpi_hw_obj *)pao->priv;
+	phw = pao->priv;
 	/* reset adapter h/w */
 	/* Reset C6713 #1 */
 	boot_loader_write_mem32(pao, 0, C6205_BAR0_TIMER1_CTL, 0);
@@ -652,7 +652,7 @@ static u16 create_adapter_obj(struct hpi_adapter_obj *pao,
 		if (hr.error)
 			return hr.error;
 
-		pao->adapter_type = hr.u.ax.info.adapter_type;
+		pao->type = hr.u.ax.info.adapter_type;
 		pao->index = hr.u.ax.info.adapter_index;
 
 		max_streams =
@@ -664,8 +664,6 @@ static u16 create_adapter_obj(struct hpi_adapter_obj *pao,
 			hr.u.ax.info.adapter_type, hr.u.ax.info.adapter_index,
 			hr.u.ax.info.serial_number);
 	}
-
-	pao->open = 0;	/* upon creation the adapter is closed */
 
 	if (phw->p_cache)
 		phw->p_cache->adap_idx = pao->index;
