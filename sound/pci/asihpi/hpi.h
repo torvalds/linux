@@ -195,7 +195,7 @@ enum HPI_SOURCENODES {
 	/** RTP stream input node - This node is a destination for
 	    packets of RTP audio samples from other devices. */
 	HPI_SOURCENODE_RTP_DESTINATION = 112,
-	HPI_SOURCENODE_GP_IN = 113,	     /**< general purpose input. */
+	HPI_SOURCENODE_INTERNAL = 113,	     /**< node internal to the device. */
 	/* !!!Update this  AND hpidebug.h if you add a new sourcenode type!!! */
 	HPI_SOURCENODE_LAST_INDEX = 113	     /**< largest ID */
 		/* AX6 max sourcenode types = 15 */
@@ -224,9 +224,8 @@ enum HPI_DESTNODES {
 	/** RTP stream output node - This node is a source for
 	    packets of RTP audio samples that are sent to other devices. */
 	HPI_DESTNODE_RTP_SOURCE = 208,
-	HPI_DESTNODE_GP_OUT = 209,	     /**< general purpose output node. */
 	/* !!!Update this AND hpidebug.h if you add a new destnode type!!! */
-	HPI_DESTNODE_LAST_INDEX = 209	     /**< largest ID */
+	HPI_DESTNODE_LAST_INDEX = 208	     /**< largest ID */
 		/* AX6 max destnode types = 15 */
 };
 

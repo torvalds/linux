@@ -1317,7 +1317,7 @@ static const char * const asihpi_src_names[] = {
 	"Analog",
 	"Adapter",
 	"RTP",
-	"GPI",
+	"Internal"
 };
 
 compile_time_assert(
@@ -1335,7 +1335,6 @@ static const char * const asihpi_dst_names[] = {
 	"Net",
 	"Analog",
 	"RTP",
-	"GPO",
 };
 
 compile_time_assert(
