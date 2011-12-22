@@ -162,6 +162,9 @@ void ieee80211_offchannel_return(struct ieee80211_local *local,
 
 	mutex_lock(&local->iflist_mtx);
 	list_for_each_entry(sdata, &local->interfaces, list) {
+		if (sdata->vif.type != NL80211_IFTYPE_MONITOR)
+			clear_bit(SDATA_STATE_OFFCHANNEL, &sdata->state);
+
 		if (!ieee80211_sdata_running(sdata))
 			continue;
 
@@ -173,7 +176,6 @@ void ieee80211_offchannel_return(struct ieee80211_local *local,
 		}
 
 		if (sdata->vif.type != NL80211_IFTYPE_MONITOR) {
-			clear_bit(SDATA_STATE_OFFCHANNEL, &sdata->state);
 			/*
 			 * This may wake up queues even though the driver
 			 * currently has them stopped. This is not very
