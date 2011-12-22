@@ -5086,36 +5086,42 @@ static int raid5_remove_disk(struct mddev *mddev, struct md_rdev *rdev)
 	struct r5conf *conf = mddev->private;
 	int err = 0;
 	int number = rdev->raid_disk;
+	struct md_rdev **rdevp;
 	struct disk_info *p = conf->disks + number;
 
 	print_raid5_conf(conf);
-	if (rdev == p->rdev) {
-		if (number >= conf->raid_disks &&
-		    conf->reshape_progress == MaxSector)
-			clear_bit(In_sync, &rdev->flags);
+	if (rdev == p->rdev)
+		rdevp = &p->rdev;
+	else if (rdev == p->replacement)
+		rdevp = &p->replacement;
+	else
+		return 0;
 
-		if (test_bit(In_sync, &rdev->flags) ||
-		    atomic_read(&rdev->nr_pending)) {
-			err = -EBUSY;
-			goto abort;
-		}
-		/* Only remove non-faulty devices if recovery
-		 * isn't possible.
-		 */
-		if (!test_bit(Faulty, &rdev->flags) &&
-		    mddev->recovery_disabled != conf->recovery_disabled &&
-		    !has_failed(conf) &&
-		    number < conf->raid_disks) {
-			err = -EBUSY;
-			goto abort;
-		}
-		p->rdev = NULL;
-		synchronize_rcu();
-		if (atomic_read(&rdev->nr_pending)) {
-			/* lost the race, try later */
-			err = -EBUSY;
-			p->rdev = rdev;
-		}
+	if (number >= conf->raid_disks &&
+	    conf->reshape_progress == MaxSector)
+		clear_bit(In_sync, &rdev->flags);
+
+	if (test_bit(In_sync, &rdev->flags) ||
+	    atomic_read(&rdev->nr_pending)) {
+		err = -EBUSY;
+		goto abort;
+	}
+	/* Only remove non-faulty devices if recovery
+	 * isn't possible.
+	 */
+	if (!test_bit(Faulty, &rdev->flags) &&
+	    mddev->recovery_disabled != conf->recovery_disabled &&
+	    !has_failed(conf) &&
+	    number < conf->raid_disks) {
+		err = -EBUSY;
+		goto abort;
+	}
+	*rdevp = NULL;
+	synchronize_rcu();
+	if (atomic_read(&rdev->nr_pending)) {
+		/* lost the race, try later */
+		err = -EBUSY;
+		*rdevp = rdev;
 	}
 abort:
 
