@@ -93,6 +93,7 @@ static struct snd_soc_dai_link bfin_eval_adav80x_dais[] = {
 
 static struct snd_soc_card bfin_eval_adav80x = {
 	.name = "bfin-eval-adav80x",
+	.owner = THIS_MODULE,
 	.dai_link = bfin_eval_adav80x_dais,
 	.num_links = ARRAY_SIZE(bfin_eval_adav80x_dais),
 

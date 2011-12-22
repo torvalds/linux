@@ -84,6 +84,7 @@ static struct snd_soc_dai_link bfin_eval_adau1701_dai[] = {
 
 static struct snd_soc_card bfin_eval_adau1701 = {
 	.name = "bfin-eval-adau1701",
+	.owner = THIS_MODULE,
 	.dai_link = &bfin_eval_adau1701_dai[CONFIG_SND_BF5XX_SPORT_NUM],
 	.num_links = 1,
 

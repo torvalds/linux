@@ -147,6 +147,7 @@ static struct snd_soc_dai_link bfin_eval_adau1373_dai = {
 
 static struct snd_soc_card bfin_eval_adau1373 = {
 	.name = "bfin-eval-adau1373",
+	.owner = THIS_MODULE,
 	.dai_link = &bfin_eval_adau1373_dai,
 	.num_links = 1,
 
