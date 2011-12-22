@@ -1033,8 +1033,10 @@ static int snd_card_asihpi_playback_open(struct snd_pcm_substream *substream)
 					SNDRV_PCM_INFO_MMAP |
 					SNDRV_PCM_INFO_MMAP_VALID;
 
-	if (card->support_grouping)
+	if (card->support_grouping) {
 		snd_card_asihpi_playback.info |= SNDRV_PCM_INFO_SYNC_START;
+		snd_pcm_set_sync(substream);
+	}
 
 	/* struct is copied, so can create initializer dynamically */
 	runtime->hw = snd_card_asihpi_playback;
@@ -1050,8 +1052,6 @@ static int snd_card_asihpi_playback_open(struct snd_pcm_substream *substream)
 
 	snd_pcm_hw_constraint_minmax(runtime, SNDRV_PCM_HW_PARAM_PERIOD_SIZE,
 		card->update_interval_frames * 2, UINT_MAX);
-
-	snd_pcm_set_sync(substream);
 
 	snd_printdd("playback open\n");
 
