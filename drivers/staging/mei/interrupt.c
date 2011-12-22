@@ -386,24 +386,10 @@ static void mei_client_connect_response(struct mei_device *dev,
 	/* if WD or iamthif client treat specially */
 
 	if (is_treat_specially_client(&(dev->wd_cl), rs)) {
-		dev_dbg(&dev->pdev->dev, "dev->wd_timeout =%d.\n",
-				dev->wd_timeout);
-
-		dev->wd_due_counter = (dev->wd_timeout) ? 1 : 0;
-
 		dev_dbg(&dev->pdev->dev, "successfully connected to WD client.\n");
+		mei_watchdog_register(dev);
 
-		/* Registering watchdog interface device once we got connection
-		   to the WD Client
-		*/
-		if (watchdog_register_device(&amt_wd_dev)) {
-			printk(KERN_ERR "mei: unable to register watchdog device.\n");
-			dev->wd_interface_reg = false;
-		} else {
-			dev_dbg(&dev->pdev->dev, "successfully register watchdog interface.\n");
-			dev->wd_interface_reg = true;
-		}
-
+		/* next step in the state maching */
 		mei_host_init_iamthif(dev);
 		return;
 	}

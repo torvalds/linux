@@ -1082,8 +1082,7 @@ static void __devexit mei_remove(struct pci_dev *pdev)
 	}
 
 	/* Unregistering watchdog device */
-	if (dev->wd_interface_reg)
-		watchdog_unregister_device(&amt_wd_dev);
+	mei_watchdog_unregister(dev);
 
 	/* remove entry if already in list */
 	dev_dbg(&pdev->dev, "list del iamthif and wd file list.\n");

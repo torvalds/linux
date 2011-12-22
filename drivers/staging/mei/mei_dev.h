@@ -35,11 +35,6 @@
  */
 extern struct pci_dev *mei_device;
 
-/*
- * AMT Watchdog Device
- */
-#define INTEL_AMT_WATCHDOG_ID "INTCAMT"
-extern struct watchdog_device amt_wd_dev;
 
 /*
  * AMTHI Client UUID
