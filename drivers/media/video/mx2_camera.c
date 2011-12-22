@@ -258,6 +258,7 @@ struct mx2_camera_dev {
 	dma_addr_t		discard_buffer_dma;
 	size_t			discard_size;
 	struct mx2_fmt_cfg	*emma_prp;
+	u32			frame_count;
 };
 
 /* buffer for one video frame */
@@ -371,6 +372,7 @@ static int mx2_camera_add_device(struct soc_camera_device *icd)
 	writel(pcdev->csicr1, pcdev->base_csi + CSICR1);
 
 	pcdev->icd = icd;
+	pcdev->frame_count = 0;
 
 	dev_info(icd->parent, "Camera driver attached to camera %d\n",
 		 icd->devnum);
@@ -1374,7 +1376,8 @@ static void mx27_camera_frame_done_emma(struct mx2_camera_dev *pcdev,
 		list_del(&vb->queue);
 		vb->state = state;
 		do_gettimeofday(&vb->ts);
-		vb->field_count++;
+		vb->field_count = pcdev->frame_count * 2;
+		pcdev->frame_count++;
 
 		wake_up(&vb->done);
 	}
