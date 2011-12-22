@@ -105,6 +105,11 @@ my $reverse_bisect;
 my $bisect_manual;
 my $bisect_skip;
 my $config_bisect_good;
+my $bisect_ret_good;
+my $bisect_ret_bad;
+my $bisect_ret_skip;
+my $bisect_ret_abort;
+my $bisect_ret_default;
 my $in_patchcheck = 0;
 my $run_test;
 my $redirect;
@@ -1854,6 +1859,43 @@ sub do_run_test {
     waitpid $child_pid, 0;
     $child_exit = $?;
 
+    if (!$bug && $in_bisect) {
+	if (defined($bisect_ret_good)) {
+	    if ($child_exit == $bisect_ret_good) {
+		return 1;
+	    }
+	}
+	if (defined($bisect_ret_skip)) {
+	    if ($child_exit == $bisect_ret_skip) {
+		return -1;
+	    }
+	}
+	if (defined($bisect_ret_abort)) {
+	    if ($child_exit == $bisect_ret_abort) {
+		fail "test abort" and return -2;
+	    }
+	}
+	if (defined($bisect_ret_bad)) {
+	    if ($child_exit == $bisect_ret_skip) {
+		return 0;
+	    }
+	}
+	if (defined($bisect_ret_default)) {
+	    if ($bisect_ret_default eq "good") {
+		return 1;
+	    } elsif ($bisect_ret_default eq "bad") {
+		return 0;
+	    } elsif ($bisect_ret_default eq "skip") {
+		return -1;
+	    } elsif ($bisect_ret_default eq "abort") {
+		return -2;
+	    } else {
+		fail "unknown default action: $bisect_ret_default"
+		    and return -2;
+	    }
+	}
+    }
+
     if ($bug || $child_exit) {
 	return 0 if $in_bisect;
 	fail "test failed" and return 0;
@@ -3284,6 +3326,11 @@ for (my $i = 1; $i <= $opt{"NUM_TESTS"}; $i++) {
     $bisect_manual = set_test_option("BISECT_MANUAL", $i);
     $bisect_skip = set_test_option("BISECT_SKIP", $i);
     $config_bisect_good = set_test_option("CONFIG_BISECT_GOOD", $i);
+    $bisect_ret_good = set_test_option("BISECT_RET_GOOD", $i);
+    $bisect_ret_bad = set_test_option("BISECT_RET_BAD", $i);
+    $bisect_ret_skip = set_test_option("BISECT_RET_SKIP", $i);
+    $bisect_ret_abort = set_test_option("BISECT_RET_ABORT", $i);
+    $bisect_ret_default = set_test_option("BISECT_RET_DEFAULT", $i);
     $store_failures = set_test_option("STORE_FAILURES", $i);
     $store_successes = set_test_option("STORE_SUCCESSES", $i);
     $test_name = set_test_option("TEST_NAME", $i);
