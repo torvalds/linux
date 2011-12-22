@@ -242,7 +242,13 @@ struct stripe_head {
  *     for handle_stripe.
  */
 struct stripe_head_state {
-	int syncing, expanding, expanded;
+	/* 'syncing' means that we need to read all devices, either
+	 * to check/correct parity, or to reconstruct a missing device.
+	 * 'replacing' means we are replacing one or more drives and
+	 * the source is valid at this point so we don't need to
+	 * read all devices, just the replacement targets.
+	 */
+	int syncing, expanding, expanded, replacing;
 	int locked, uptodate, to_read, to_write, failed, written;
 	int to_fill, compute, req_compute, non_overwrite;
 	int failed_num[2];
@@ -284,6 +290,11 @@ enum r5dev_flags {
 	R5_ReadRepl,	/* Will/did read from replacement rather than orig */
 	R5_MadeGoodRepl,/* A bad block on the replacement device has been
 			 * fixed by writing to it */
+	R5_NeedReplace,	/* This device has a replacement which is not
+			 * up-to-date at this stripe. */
+	R5_WantReplace, /* We need to update the replacement, we have read
+			 * data in, and now is a good time to write it out.
+			 */
 };
 
 /*
