@@ -32,8 +32,7 @@
 
 void __init p1010_rdb_pic_init(void)
 {
-	struct mpic *mpic = mpic_alloc(NULL, 0,
-	  MPIC_WANTS_RESET | MPIC_BIG_ENDIAN |
+	struct mpic *mpic = mpic_alloc(NULL, 0, MPIC_BIG_ENDIAN |
 	  MPIC_SINGLE_DEST_CPU,
 	  0, 256, " OpenPIC  ");
 

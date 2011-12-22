@@ -348,8 +348,6 @@ struct mpic
 #define MPIC_U3_HT_IRQS			0x00000004
 /* Broken IPI registers (autodetected) */
 #define MPIC_BROKEN_IPI			0x00000008
-/* MPIC wants a reset */
-#define MPIC_WANTS_RESET		0x00000010
 /* Spurious vector requires EOI */
 #define MPIC_SPV_EOI			0x00000020
 /* No passthrough disable */
@@ -366,9 +364,7 @@ struct mpic
 #define MPIC_SINGLE_DEST_CPU		0x00001000
 /* Enable CoreInt delivery of interrupts */
 #define MPIC_ENABLE_COREINT		0x00002000
-/* Disable resetting of the MPIC.
- * NOTE: This flag trumps MPIC_WANTS_RESET.
- */
+/* Do not reset the MPIC during initialization */
 #define MPIC_NO_RESET			0x00004000
 /* Freescale MPIC (compatible includes "fsl,mpic") */
 #define MPIC_FSL			0x00008000

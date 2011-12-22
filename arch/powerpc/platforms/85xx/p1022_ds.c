@@ -242,9 +242,7 @@ p1022ds_valid_monitor_port(enum fsl_diu_monitor_port port)
 
 void __init p1022_ds_pic_init(void)
 {
-	struct mpic *mpic = mpic_alloc(NULL, 0,
-		MPIC_WANTS_RESET |
-		MPIC_BIG_ENDIAN |
+	struct mpic *mpic = mpic_alloc(NULL, 0, MPIC_BIG_ENDIAN |
 		MPIC_SINGLE_DEST_CPU,
 		0, 256, " OpenPIC  ");
 	BUG_ON(mpic == NULL);

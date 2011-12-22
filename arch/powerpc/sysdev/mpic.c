@@ -1286,7 +1286,7 @@ struct mpic * __init mpic_alloc(struct device_node *node,
 	/* When using a device-node, reset requests are only honored if the MPIC
 	 * is allowed to reset.
 	 */
-	if ((mpic->flags & MPIC_WANTS_RESET) && !(mpic->flags & MPIC_NO_RESET)) {
+	if (!(mpic->flags & MPIC_NO_RESET)) {
 		printk(KERN_DEBUG "mpic: Resetting\n");
 		mpic_write(mpic->gregs, MPIC_INFO(GREG_GLOBAL_CONF_0),
 			   mpic_read(mpic->gregs, MPIC_INFO(GREG_GLOBAL_CONF_0))
