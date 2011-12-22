@@ -15,12 +15,10 @@
 
 #include <mach/map.h>
 #include <mach/idle.h>
-#include <mach/reset.h>
 
 #include <mach/regs-clock.h>
 
 void (*s3c24xx_idle)(void);
-void (*s3c24xx_reset_hook)(void);
 
 void s3c24xx_default_idle(void)
 {
