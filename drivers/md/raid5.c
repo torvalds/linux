@@ -370,12 +370,10 @@ static struct stripe_head *__find_stripe(struct r5conf *conf, sector_t sector,
  * of the two sections, and some non-in_sync devices may
  * be insync in the section most affected by failed devices.
  */
-static int has_failed(struct r5conf *conf)
+static int calc_degraded(struct r5conf *conf)
 {
-	int degraded;
+	int degraded, degraded2;
 	int i;
-	if (conf->mddev->reshape_position == MaxSector)
-		return conf->mddev->degraded > conf->max_degraded;
 
 	rcu_read_lock();
 	degraded = 0;
@@ -399,14 +397,14 @@ static int has_failed(struct r5conf *conf)
 				degraded++;
 	}
 	rcu_read_unlock();
-	if (degraded > conf->max_degraded)
-		return 1;
+	if (conf->raid_disks == conf->previous_raid_disks)
+		return degraded;
 	rcu_read_lock();
-	degraded = 0;
+	degraded2 = 0;
 	for (i = 0; i < conf->raid_disks; i++) {
 		struct md_rdev *rdev = rcu_dereference(conf->disks[i].rdev);
 		if (!rdev || test_bit(Faulty, &rdev->flags))
-			degraded++;
+			degraded2++;
 		else if (test_bit(In_sync, &rdev->flags))
 			;
 		else
@@ -416,9 +414,22 @@ static int has_failed(struct r5conf *conf)
 			 * almost certainly hasn't.
 			 */
 			if (conf->raid_disks <= conf->previous_raid_disks)
-				degraded++;
+				degraded2++;
 	}
 	rcu_read_unlock();
+	if (degraded2 > degraded)
+		return degraded2;
+	return degraded;
+}
+
+static int has_failed(struct r5conf *conf)
+{
+	int degraded;
+
+	if (conf->mddev->reshape_position == MaxSector)
+		return conf->mddev->degraded > conf->max_degraded;
+
+	degraded = calc_degraded(conf);
 	if (degraded > conf->max_degraded)
 		return 1;
 	return 0;
@@ -1724,18 +1735,15 @@ static void error(struct mddev *mddev, struct md_rdev *rdev)
 {
 	char b[BDEVNAME_SIZE];
 	struct r5conf *conf = mddev->private;
+	unsigned long flags;
 	pr_debug("raid456: error called\n");
 
-	if (test_and_clear_bit(In_sync, &rdev->flags)) {
-		unsigned long flags;
-		spin_lock_irqsave(&conf->device_lock, flags);
-		mddev->degraded++;
-		spin_unlock_irqrestore(&conf->device_lock, flags);
-		/*
-		 * if recovery was running, make sure it aborts.
-		 */
-		set_bit(MD_RECOVERY_INTR, &mddev->recovery);
-	}
+	spin_lock_irqsave(&conf->device_lock, flags);
+	clear_bit(In_sync, &rdev->flags);
+	mddev->degraded = calc_degraded(conf);
+	spin_unlock_irqrestore(&conf->device_lock, flags);
+	set_bit(MD_RECOVERY_INTR, &mddev->recovery);
+
 	set_bit(Blocked, &rdev->flags);
 	set_bit(Faulty, &rdev->flags);
 	set_bit(MD_CHANGE_DEVS, &mddev->flags);
@@ -4852,8 +4860,7 @@ static int run(struct mddev *mddev)
 		dirty_parity_disks++;
 	}
 
-	mddev->degraded = (max(conf->raid_disks, conf->previous_raid_disks)
-			   - working_disks);
+	mddev->degraded = calc_degraded(conf);
 
 	if (has_failed(conf)) {
 		printk(KERN_ERR "md/raid:%s: not enough operational devices"
@@ -5025,7 +5032,7 @@ static int raid5_spare_active(struct mddev *mddev)
 		}
 	}
 	spin_lock_irqsave(&conf->device_lock, flags);
-	mddev->degraded -= count;
+	mddev->degraded = calc_degraded(conf);
 	spin_unlock_irqrestore(&conf->device_lock, flags);
 	print_raid5_conf(conf);
 	return count;
@@ -5286,8 +5293,7 @@ static int raid5_start_reshape(struct mddev *mddev)
 		 * pre and post number of devices.
 		 */
 		spin_lock_irqsave(&conf->device_lock, flags);
-		mddev->degraded += (conf->raid_disks - conf->previous_raid_disks)
-			- added_devices;
+		mddev->degraded = calc_degraded(conf);
 		spin_unlock_irqrestore(&conf->device_lock, flags);
 	}
 	mddev->raid_disks = conf->raid_disks;
@@ -5356,12 +5362,9 @@ static void raid5_finish_reshape(struct mddev *mddev)
 			revalidate_disk(mddev->gendisk);
 		} else {
 			int d;
-			mddev->degraded = conf->raid_disks;
-			for (d = 0; d < conf->raid_disks ; d++)
-				if (conf->disks[d].rdev &&
-				    test_bit(In_sync,
-					     &conf->disks[d].rdev->flags))
-					mddev->degraded--;
+			spin_lock_irq(&conf->device_lock);
+			mddev->degraded = calc_degraded(conf);
+			spin_unlock_irq(&conf->device_lock);
 			for (d = conf->raid_disks ;
 			     d < conf->raid_disks - mddev->delta_disks;
 			     d++) {
