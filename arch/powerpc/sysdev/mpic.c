@@ -1149,6 +1149,7 @@ struct mpic * __init mpic_alloc(struct device_node *node,
 	u32 greg_feature;
 	const char *vers;
 	const u32 *psrc;
+	u32 last_irq;
 
 	/* Default MPIC search parameters */
 	static const struct of_device_id __initconst mpic_device_id[] = {
@@ -1220,7 +1221,6 @@ struct mpic * __init mpic_alloc(struct device_node *node,
 	mpic->hc_tm = mpic_tm_chip;
 	mpic->hc_tm.name = name;
 
-	mpic->isu_size = isu_size;
 	mpic->num_sources = 0; /* so far */
 
 	if (mpic->flags & MPIC_LARGE_VECTORS)
@@ -1308,20 +1308,6 @@ struct mpic * __init mpic_alloc(struct device_node *node,
 			   | MPIC_GREG_GCONF_MCK);
 
 	/*
-	 * Read feature register.  For non-ISU MPICs, num sources as well. On
-	 * ISU MPICs, sources are counted as ISUs are added
-	 */
-	greg_feature = mpic_read(mpic->gregs, MPIC_INFO(GREG_FEATURE_0));
-	if (isu_size == 0) {
-		if (irq_count)
-			mpic->num_sources = irq_count;
-		else
-			mpic->num_sources =
-				((greg_feature & MPIC_GREG_FEATURE_LAST_SRC_MASK)
-				 >> MPIC_GREG_FEATURE_LAST_SRC_SHIFT) + 1;
-	}
-
-	/*
 	 * The MPIC driver will crash if there are more cores than we
 	 * can initialize, so we may as well catch that problem here.
 	 */
@@ -1336,18 +1322,38 @@ struct mpic * __init mpic_alloc(struct device_node *node,
 			 0x1000);
 	}
 
+	/*
+	 * Read feature register.  For non-ISU MPICs, num sources as well. On
+	 * ISU MPICs, sources are counted as ISUs are added
+	 */
+	greg_feature = mpic_read(mpic->gregs, MPIC_INFO(GREG_FEATURE_0));
+
+	/*
+	 * By default, the last source number comes from the MPIC, but the
+	 * device-tree and board support code can override it on buggy hw.
+	 */
+	last_irq = (greg_feature & MPIC_GREG_FEATURE_LAST_SRC_MASK)
+				>> MPIC_GREG_FEATURE_LAST_SRC_SHIFT;
+	of_property_read_u32(mpic->node, "last-interrupt-source", &last_irq);
+	if (irq_count)
+		last_irq = irq_count - 1;
+
 	/* Initialize main ISU if none provided */
-	if (mpic->isu_size == 0) {
-		mpic->isu_size = mpic->num_sources;
+	if (!isu_size) {
+		isu_size = last_irq + 1;
+		mpic->num_sources = isu_size;
 		mpic_map(mpic, mpic->paddr, &mpic->isus[0],
-			 MPIC_INFO(IRQ_BASE), MPIC_INFO(IRQ_STRIDE) * mpic->isu_size);
+				MPIC_INFO(IRQ_BASE),
+				MPIC_INFO(IRQ_STRIDE) * isu_size);
 	}
+
+	mpic->isu_size = isu_size;
 	mpic->isu_shift = 1 + __ilog2(mpic->isu_size - 1);
 	mpic->isu_mask = (1 << mpic->isu_shift) - 1;
 
 	mpic->irqhost = irq_alloc_host(mpic->node, IRQ_HOST_MAP_LINEAR,
-				       isu_size ? isu_size : mpic->num_sources,
-				       &mpic_host_ops, intvec_top + 1);
+				       mpic->isu_size, &mpic_host_ops,
+				       intvec_top + 1);
 
 	/*
 	 * FIXME: The code leaks the MPIC object and mappings here; this

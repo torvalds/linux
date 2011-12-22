@@ -41,6 +41,7 @@ mpic: pic@40000 {
 	device_type = "open-pic";
 	big-endian;
 	single-cpu-affinity;
+	last-interrupt-source = <255>;
 };
 
 timer@41100 {
