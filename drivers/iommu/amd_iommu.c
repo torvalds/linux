@@ -3238,6 +3238,8 @@ int __init amd_iommu_init_passthrough(void)
 		attach_device(&dev->dev, pt_domain);
 	}
 
+	amd_iommu_stats_init();
+
 	pr_info("AMD-Vi: Initialized for Passthrough Mode\n");
 
 	return 0;
