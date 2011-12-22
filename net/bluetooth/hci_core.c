@@ -1960,7 +1960,7 @@ static void hci_queue_acl(struct hci_conn *conn, struct sk_buff_head *queue,
 		skb_shinfo(skb)->frag_list = NULL;
 
 		/* Queue all fragments atomically */
-		spin_lock_bh(&queue->lock);
+		spin_lock(&queue->lock);
 
 		__skb_queue_tail(queue, skb);
 
@@ -1978,7 +1978,7 @@ static void hci_queue_acl(struct hci_conn *conn, struct sk_buff_head *queue,
 			__skb_queue_tail(queue, skb);
 		} while (list);
 
-		spin_unlock_bh(&queue->lock);
+		spin_unlock(&queue->lock);
 	}
 }
 
