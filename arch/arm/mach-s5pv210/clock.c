@@ -29,7 +29,8 @@
 #include <plat/pll.h>
 #include <plat/s5p-clock.h>
 #include <plat/clock-clksrc.h>
-#include <plat/s5pv210.h>
+
+#include "common.h"
 
 static unsigned long xtal;
 

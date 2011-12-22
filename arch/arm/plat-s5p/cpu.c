@@ -20,26 +20,16 @@
 #include <mach/regs-clock.h>
 
 #include <plat/cpu.h>
-#include <plat/s5pv210.h>
 #include <plat/exynos4.h>
 
 /* table of supported CPUs */
 
-static const char name_s5pv210[] = "S5PV210/S5PC110";
 static const char name_exynos4210[] = "EXYNOS4210";
 static const char name_exynos4212[] = "EXYNOS4212";
 static const char name_exynos4412[] = "EXYNOS4412";
 
 static struct cpu_table cpu_ids[] __initdata = {
 	{
-		.idcode		= S5PV210_CPU_ID,
-		.idmask		= S5PV210_CPU_MASK,
-		.map_io		= s5pv210_map_io,
-		.init_clocks	= s5pv210_init_clocks,
-		.init_uarts	= s5pv210_init_uarts,
-		.init		= s5pv210_init,
-		.name		= name_s5pv210,
-	}, {
 		.idcode		= EXYNOS4210_CPU_ID,
 		.idmask		= EXYNOS4_CPU_MASK,
 		.map_io		= exynos4_map_io,
