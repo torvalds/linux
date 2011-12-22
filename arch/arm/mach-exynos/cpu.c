@@ -9,7 +9,7 @@
 */
 
 #include <linux/sched.h>
-#include <linux/sysdev.h>
+#include <linux/device.h>
 
 #include <asm/mach/map.h>
 #include <asm/mach/irq.h>
@@ -243,17 +243,18 @@ void __init exynos4_init_irq(void)
 	s5p_init_irq(NULL, 0);
 }
 
-struct sysdev_class exynos4_sysclass = {
-	.name	= "exynos4-core",
+struct bus_type exynos4_subsys = {
+	.name		= "exynos4-core",
+	.dev_name	= "exynos4-core",
 };
 
-static struct sys_device exynos4_sysdev = {
-	.cls	= &exynos4_sysclass,
+static struct device exynos4_dev = {
+	.bus	= &exynos4_subsys,
 };
 
 static int __init exynos4_core_init(void)
 {
-	return sysdev_class_register(&exynos4_sysclass);
+	return subsys_system_register(&exynos4_subsys, NULL);
 }
 core_initcall(exynos4_core_init);
 
@@ -294,5 +295,5 @@ int __init exynos_init(void)
 	if (soc_is_exynos4210() || soc_is_exynos4212() || soc_is_exynos4412())
 		s5p_reset_hook = exynos4_sw_reset;
 
-	return sysdev_register(&exynos4_sysdev);
+	return device_register(&exynos4_dev);
 }

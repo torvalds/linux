@@ -160,7 +160,7 @@ static void s5p64x0_pm_prepare(void)
 
 }
 
-static int s5p64x0_pm_add(struct sys_device *sysdev)
+static int s5p64x0_pm_add(struct device *dev)
 {
 	pm_cpu_prep = s5p64x0_pm_prepare;
 	pm_cpu_sleep = s5p64x0_cpu_suspend;
@@ -169,15 +169,17 @@ static int s5p64x0_pm_add(struct sys_device *sysdev)
 	return 0;
 }
 
-static struct sysdev_driver s5p64x0_pm_driver = {
-	.add		= s5p64x0_pm_add,
+static struct subsys_interface s5p64x0_pm_interface = {
+	.name		= "s5p64x0_pm",
+	.subsys		= &s5p64x0_subsys,
+	.add_dev	= s5p64x0_pm_add,
 };
 
 static __init int s5p64x0_pm_drvinit(void)
 {
 	s3c_pm_init();
 
-	return sysdev_driver_register(&s5p64x0_sysclass, &s5p64x0_pm_driver);
+	return subsys_interface_register(&s5p64x0_pm_interface);
 }
 arch_initcall(s5p64x0_pm_drvinit);
 

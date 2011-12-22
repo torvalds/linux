@@ -18,7 +18,7 @@
 #include <linux/init.h>
 #include <linux/platform_device.h>
 #include <linux/serial_core.h>
-#include <linux/sysdev.h>
+#include <linux/device.h>
 #include <linux/syscore_ops.h>
 #include <linux/gpio.h>
 #include <linux/clk.h>
@@ -40,8 +40,8 @@
 #include <plat/gpio-cfg.h>
 #include <plat/gpio-cfg-helpers.h>
 
-static struct sys_device s3c2440_sysdev = {
-	.cls		= &s3c2440_sysclass,
+static struct device s3c2440_dev = {
+	.bus		= &s3c2440_subsys,
 };
 
 int __init s3c2440_init(void)
@@ -63,7 +63,7 @@ int __init s3c2440_init(void)
 
 	/* register our system device for everything else */
 
-	return sysdev_register(&s3c2440_sysdev);
+	return device_register(&s3c2440_dev);
 }
 
 void __init s3c2440_map_io(void)

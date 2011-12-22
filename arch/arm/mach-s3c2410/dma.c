@@ -14,7 +14,7 @@
 
 #include <linux/kernel.h>
 #include <linux/init.h>
-#include <linux/sysdev.h>
+#include <linux/device.h>
 #include <linux/serial_core.h>
 
 #include <mach/map.h>
@@ -132,7 +132,7 @@ static struct s3c24xx_dma_order __initdata s3c2410_dma_order = {
 	},
 };
 
-static int __init s3c2410_dma_add(struct sys_device *sysdev)
+static int __init s3c2410_dma_add(struct device *dev)
 {
 	s3c2410_dma_init();
 	s3c24xx_dma_order_set(&s3c2410_dma_order);
@@ -140,24 +140,28 @@ static int __init s3c2410_dma_add(struct sys_device *sysdev)
 }
 
 #if defined(CONFIG_CPU_S3C2410)
-static struct sysdev_driver s3c2410_dma_driver = {
-	.add	= s3c2410_dma_add,
+static struct subsys_interface s3c2410_dma_interface = {
+	.name		= "s3c2410_dma",
+	.subsys		= &s3c2410_subsys,
+	.add_dev	= s3c2410_dma_add,
 };
 
 static int __init s3c2410_dma_drvinit(void)
 {
-	return sysdev_driver_register(&s3c2410_sysclass, &s3c2410_dma_driver);
+	return subsys_interface_register(&s3c2410_interface);
 }
 
 arch_initcall(s3c2410_dma_drvinit);
 
-static struct sysdev_driver s3c2410a_dma_driver = {
-	.add	= s3c2410_dma_add,
+static struct subsys_interface s3c2410a_dma_interface = {
+	.name		= "s3c2410a_dma",
+	.subsys		= &s3c2410a_subsys,
+	.add_dev	= s3c2410_dma_add,
 };
 
 static int __init s3c2410a_dma_drvinit(void)
 {
-	return sysdev_driver_register(&s3c2410a_sysclass, &s3c2410a_dma_driver);
+	return subsys_interface_register(&s3c2410a_dma_interface);
 }
 
 arch_initcall(s3c2410a_dma_drvinit);
@@ -165,13 +169,15 @@ arch_initcall(s3c2410a_dma_drvinit);
 
 #if defined(CONFIG_CPU_S3C2442)
 /* S3C2442 DMA contains the same selection table as the S3C2410 */
-static struct sysdev_driver s3c2442_dma_driver = {
-	.add	= s3c2410_dma_add,
+static struct subsys_interface s3c2442_dma_interface = {
+	.name		= "s3c2442_dma",
+	.subsys		= &s3c2442_subsys,
+	.add_dev	= s3c2410_dma_add,
 };
 
 static int __init s3c2442_dma_drvinit(void)
 {
-	return sysdev_driver_register(&s3c2442_sysclass, &s3c2442_dma_driver);
+	return subsys_interface_register(&s3c2442_dma_interface);
 }
 
 arch_initcall(s3c2442_dma_drvinit);
