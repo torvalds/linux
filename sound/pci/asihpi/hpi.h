@@ -1347,6 +1347,9 @@ u16 hpi_volume_auto_fade_profile(u32 h_control,
 	short an_stop_gain0_01dB[HPI_MAX_CHANNELS], u32 duration_ms,
 	u16 profile);
 
+u16 hpi_volume_query_auto_fade_profile(const u32 h_control, const u32 i,
+	u16 *profile);
+
 /*****************/
 /* Level control */
 /*****************/
