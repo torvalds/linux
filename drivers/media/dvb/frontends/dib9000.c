@@ -1867,7 +1867,7 @@ static int dib9000_fe_get_tune_settings(struct dvb_frontend *fe, struct dvb_fron
 	return 0;
 }
 
-static int dib9000_get_frontend(struct dvb_frontend *fe, struct dvb_frontend_parameters *fep)
+static int dib9000_get_frontend(struct dvb_frontend *fe, struct dtv_frontend_properties *c)
 {
 	struct dib9000_state *state = fe->demodulator_priv;
 	u8 index_frontend, sub_index_frontend;
@@ -1883,7 +1883,7 @@ static int dib9000_get_frontend(struct dvb_frontend *fe, struct dvb_frontend_par
 			dprintk("TPS lock on the slave%i", index_frontend);
 
 			/* synchronize the cache with the other frontends */
-			state->fe[index_frontend]->ops.get_frontend_legacy(state->fe[index_frontend], fep);
+			state->fe[index_frontend]->ops.get_frontend(state->fe[index_frontend], c);
 			for (sub_index_frontend = 0; (sub_index_frontend < MAX_NUMBER_OF_FRONTENDS) && (state->fe[sub_index_frontend] != NULL);
 			     sub_index_frontend++) {
 				if (sub_index_frontend != index_frontend) {
@@ -1958,7 +1958,7 @@ static int dib9000_set_channel_status(struct dvb_frontend *fe, struct dvb_fronte
 	return 0;
 }
 
-static int dib9000_set_frontend(struct dvb_frontend *fe, struct dvb_frontend_parameters *fep)
+static int dib9000_set_frontend(struct dvb_frontend *fe)
 {
 	struct dib9000_state *state = fe->demodulator_priv;
 	int sleep_time, sleep_time_slave;
@@ -1983,8 +1983,10 @@ static int dib9000_set_frontend(struct dvb_frontend *fe, struct dvb_frontend_par
 	fe->dtv_property_cache.delivery_system = SYS_DVBT;
 
 	/* set the master status */
-	if (fep->u.ofdm.transmission_mode == TRANSMISSION_MODE_AUTO ||
-	    fep->u.ofdm.guard_interval == GUARD_INTERVAL_AUTO || fep->u.ofdm.constellation == QAM_AUTO || fep->u.ofdm.code_rate_HP == FEC_AUTO) {
+	if (state->fe[0]->dtv_property_cache.transmission_mode == TRANSMISSION_MODE_AUTO ||
+	    state->fe[0]->dtv_property_cache.guard_interval == GUARD_INTERVAL_AUTO ||
+	    state->fe[0]->dtv_property_cache.modulation == QAM_AUTO ||
+	    state->fe[0]->dtv_property_cache.code_rate_HP == FEC_AUTO) {
 		/* no channel specified, autosearch the channel */
 		state->channel_status.status = CHANNEL_STATUS_PARAMETERS_UNKNOWN;
 	} else
@@ -2052,7 +2054,7 @@ static int dib9000_set_frontend(struct dvb_frontend *fe, struct dvb_frontend_par
 
 	/* synchronize all the channel cache */
 	state->get_frontend_internal = 1;
-	dib9000_get_frontend(state->fe[0], fep);
+	dib9000_get_frontend(state->fe[0], &state->fe[0]->dtv_property_cache);
 	state->get_frontend_internal = 0;
 
 	/* retune the other frontends with the found channel */
@@ -2495,6 +2497,7 @@ error:
 EXPORT_SYMBOL(dib9000_attach);
 
 static struct dvb_frontend_ops dib9000_ops = {
+	.delsys = { SYS_DVBT },
 	.info = {
 		 .name = "DiBcom 9000",
 		 .type = FE_OFDM,
@@ -2513,9 +2516,9 @@ static struct dvb_frontend_ops dib9000_ops = {
 	.init = dib9000_wakeup,
 	.sleep = dib9000_sleep,
 
-	.set_frontend_legacy = dib9000_set_frontend,
+	.set_frontend = dib9000_set_frontend,
 	.get_tune_settings = dib9000_fe_get_tune_settings,
-	.get_frontend_legacy = dib9000_get_frontend,
+	.get_frontend = dib9000_get_frontend,
 
 	.read_status = dib9000_read_status,
 	.read_ber = dib9000_read_ber,
