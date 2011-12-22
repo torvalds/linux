@@ -531,25 +531,26 @@ static int cx24110_read_ucblocks(struct dvb_frontend* fe, u32* ucblocks)
 	return 0;
 }
 
-static int cx24110_set_frontend(struct dvb_frontend* fe, struct dvb_frontend_parameters *p)
+static int cx24110_set_frontend(struct dvb_frontend *fe)
 {
 	struct cx24110_state *state = fe->demodulator_priv;
-
+	struct dtv_frontend_properties *p = &fe->dtv_property_cache;
 
 	if (fe->ops.tuner_ops.set_params) {
 		fe->ops.tuner_ops.set_params(fe);
 		if (fe->ops.i2c_gate_ctrl) fe->ops.i2c_gate_ctrl(fe, 0);
 	}
 
-	cx24110_set_inversion (state, p->inversion);
-	cx24110_set_fec (state, p->u.qpsk.fec_inner);
-	cx24110_set_symbolrate (state, p->u.qpsk.symbol_rate);
+	cx24110_set_inversion(state, p->inversion);
+	cx24110_set_fec(state, p->fec_inner);
+	cx24110_set_symbolrate(state, p->symbol_rate);
 	cx24110_writereg(state,0x04,0x05); /* start acquisition */
 
 	return 0;
 }
 
-static int cx24110_get_frontend(struct dvb_frontend* fe, struct dvb_frontend_parameters *p)
+static int cx24110_get_frontend(struct dvb_frontend *fe,
+				struct dtv_frontend_properties *p)
 {
 	struct cx24110_state *state = fe->demodulator_priv;
 	s32 afc; unsigned sclk;
@@ -571,7 +572,7 @@ static int cx24110_get_frontend(struct dvb_frontend* fe, struct dvb_frontend_par
 	p->frequency += afc;
 	p->inversion = (cx24110_readreg (state, 0x22) & 0x10) ?
 				INVERSION_ON : INVERSION_OFF;
-	p->u.qpsk.fec_inner = cx24110_get_fec (state);
+	p->fec_inner = cx24110_get_fec(state);
 
 	return 0;
 }
@@ -623,7 +624,7 @@ error:
 }
 
 static struct dvb_frontend_ops cx24110_ops = {
-
+	.delsys = { SYS_DVBS },
 	.info = {
 		.name = "Conexant CX24110 DVB-S",
 		.type = FE_QPSK,
@@ -643,8 +644,8 @@ static struct dvb_frontend_ops cx24110_ops = {
 
 	.init = cx24110_initfe,
 	.write = _cx24110_pll_write,
-	.set_frontend_legacy = cx24110_set_frontend,
-	.get_frontend_legacy = cx24110_get_frontend,
+	.set_frontend = cx24110_set_frontend,
+	.get_frontend = cx24110_get_frontend,
 	.read_status = cx24110_read_status,
 	.read_ber = cx24110_read_ber,
 	.read_signal_strength = cx24110_read_signal_strength,
