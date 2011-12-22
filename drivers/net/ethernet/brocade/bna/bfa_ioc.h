@@ -27,6 +27,8 @@
 #define BFA_IOC_HWSEM_TOV	500	/* msecs */
 #define BFA_IOC_HB_TOV		500	/* msecs */
 #define BFA_IOC_POLL_TOV	200	/* msecs */
+#define BNA_DBG_FWTRC_LEN      (BFI_IOC_TRC_ENTS * BFI_IOC_TRC_ENT_SZ + \
+				BFI_IOC_TRC_HDR_SZ)
 
 /**
  * PCI device information required by IOC
@@ -306,6 +308,7 @@ void bfa_nw_ioc_disable(struct bfa_ioc *ioc);
 
 void bfa_nw_ioc_error_isr(struct bfa_ioc *ioc);
 bool bfa_nw_ioc_is_disabled(struct bfa_ioc *ioc);
+bool bfa_nw_ioc_is_operational(struct bfa_ioc *ioc);
 void bfa_nw_ioc_get_attr(struct bfa_ioc *ioc, struct bfa_ioc_attr *ioc_attr);
 void bfa_nw_ioc_notify_register(struct bfa_ioc *ioc,
 	struct bfa_ioc_notify *notify);
@@ -317,6 +320,9 @@ void bfa_nw_ioc_fwver_get(struct bfa_ioc *ioc,
 bool bfa_nw_ioc_fwver_cmp(struct bfa_ioc *ioc,
 			struct bfi_ioc_image_hdr *fwhdr);
 mac_t bfa_nw_ioc_get_mac(struct bfa_ioc *ioc);
+void bfa_nw_ioc_debug_memclaim(struct bfa_ioc *ioc, void *dbg_fwsave);
+int bfa_nw_ioc_debug_fwtrc(struct bfa_ioc *ioc, void *trcdata, int *trclen);
+int bfa_nw_ioc_debug_fwsave(struct bfa_ioc *ioc, void *trcdata, int *trclen);
 
 /*
  * Timeout APIs

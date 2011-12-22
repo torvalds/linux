@@ -1727,6 +1727,7 @@ bna_ioceth_init(struct bna_ioceth *ioceth, struct bna *bna,
 	bfa_nw_ioc_mem_claim(&ioceth->ioc, kva, dma);
 
 	kva = res_info[BNA_RES_MEM_T_FWTRC].res_u.mem_info.mdl[0].kva;
+	bfa_nw_ioc_debug_memclaim(&ioceth->ioc, kva);
 
 	/**
 	 * Attach common modules (Diag, SFP, CEE, Port) and claim respective
@@ -1910,8 +1911,8 @@ bna_res_req(struct bna_res_info *res_info)
 	/* Virtual memory for retreiving fw_trc */
 	res_info[BNA_RES_MEM_T_FWTRC].res_type = BNA_RES_T_MEM;
 	res_info[BNA_RES_MEM_T_FWTRC].res_u.mem_info.mem_type = BNA_MEM_T_KVA;
-	res_info[BNA_RES_MEM_T_FWTRC].res_u.mem_info.num = 0;
-	res_info[BNA_RES_MEM_T_FWTRC].res_u.mem_info.len = 0;
+	res_info[BNA_RES_MEM_T_FWTRC].res_u.mem_info.num = 1;
+	res_info[BNA_RES_MEM_T_FWTRC].res_u.mem_info.len = BNA_DBG_FWTRC_LEN;
 
 	/* DMA memory for retreiving stats */
 	res_info[BNA_RES_MEM_T_STATS].res_type = BNA_RES_T_MEM;

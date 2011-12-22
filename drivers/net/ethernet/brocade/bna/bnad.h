@@ -328,6 +328,20 @@ struct bnad {
 	char			adapter_name[BNAD_NAME_LEN];
 	char			port_name[BNAD_NAME_LEN];
 	char			mbox_irq_name[BNAD_NAME_LEN];
+
+	/* debugfs specific data */
+	char	*regdata;
+	u32	reglen;
+	struct dentry *bnad_dentry_files[5];
+	struct dentry *port_debugfs_root;
+};
+
+struct bnad_drvinfo {
+	struct bfa_ioc_attr  ioc_attr;
+	struct bfa_cee_attr  cee_attr;
+	struct bfa_flash_attr flash_attr;
+	u32	cee_status;
+	u32	flash_status;
 };
 
 /*
@@ -367,6 +381,10 @@ extern void bnad_netdev_qstats_fill(struct bnad *bnad,
 		struct rtnl_link_stats64 *stats);
 extern void bnad_netdev_hwstats_fill(struct bnad *bnad,
 		struct rtnl_link_stats64 *stats);
+
+/* Debugfs */
+void	bnad_debugfs_init(struct bnad *bnad);
+void	bnad_debugfs_uninit(struct bnad *bnad);
 
 /**
  * MACROS

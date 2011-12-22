@@ -74,6 +74,7 @@ static void bfa_ioc_check_attr_wwns(struct bfa_ioc *ioc);
 static void bfa_ioc_event_notify(struct bfa_ioc *, enum bfa_ioc_event);
 static void bfa_ioc_disable_comp(struct bfa_ioc *ioc);
 static void bfa_ioc_lpu_stop(struct bfa_ioc *ioc);
+static void bfa_nw_ioc_debug_save_ftrc(struct bfa_ioc *ioc);
 static void bfa_ioc_fail_notify(struct bfa_ioc *ioc);
 static void bfa_ioc_pf_enabled(struct bfa_ioc *ioc);
 static void bfa_ioc_pf_disabled(struct bfa_ioc *ioc);
@@ -997,6 +998,7 @@ bfa_iocpf_sm_disabled(struct bfa_iocpf *iocpf, enum iocpf_event event)
 static void
 bfa_iocpf_sm_initfail_sync_entry(struct bfa_iocpf *iocpf)
 {
+	bfa_nw_ioc_debug_save_ftrc(iocpf->ioc);
 	bfa_ioc_hw_sem_get(iocpf->ioc);
 }
 
@@ -1743,6 +1745,114 @@ bfa_ioc_mbox_flush(struct bfa_ioc *ioc)
 		bfa_q_deq(&mod->cmd_q, &cmd);
 }
 
+/**
+ * Read data from SMEM to host through PCI memmap
+ *
+ * @param[in]  ioc     memory for IOC
+ * @param[in]  tbuf    app memory to store data from smem
+ * @param[in]  soff    smem offset
+ * @param[in]  sz      size of smem in bytes
+ */
+static int
+bfa_nw_ioc_smem_read(struct bfa_ioc *ioc, void *tbuf, u32 soff, u32 sz)
+{
+	u32 pgnum, loff, r32;
+	int i, len;
+	u32 *buf = tbuf;
+
+	pgnum = PSS_SMEM_PGNUM(ioc->ioc_regs.smem_pg0, soff);
+	loff = PSS_SMEM_PGOFF(soff);
+
+	/*
+	 *  Hold semaphore to serialize pll init and fwtrc.
+	*/
+	if (bfa_nw_ioc_sem_get(ioc->ioc_regs.ioc_init_sem_reg) == 0)
+		return 1;
+
+	writel(pgnum, ioc->ioc_regs.host_page_num_fn);
+
+	len = sz/sizeof(u32);
+	for (i = 0; i < len; i++) {
+		r32 = swab32(readl((loff) + (ioc->ioc_regs.smem_page_start)));
+		buf[i] = be32_to_cpu(r32);
+		loff += sizeof(u32);
+
+		/**
+		 * handle page offset wrap around
+		 */
+		loff = PSS_SMEM_PGOFF(loff);
+		if (loff == 0) {
+			pgnum++;
+			writel(pgnum, ioc->ioc_regs.host_page_num_fn);
+		}
+	}
+
+	writel(PSS_SMEM_PGNUM(ioc->ioc_regs.smem_pg0, 0),
+	       ioc->ioc_regs.host_page_num_fn);
+
+	/*
+	 * release semaphore
+	 */
+	readl(ioc->ioc_regs.ioc_init_sem_reg);
+	writel(1, ioc->ioc_regs.ioc_init_sem_reg);
+	return 0;
+}
+
+/**
+ * Retrieve saved firmware trace from a prior IOC failure.
+ */
+int
+bfa_nw_ioc_debug_fwtrc(struct bfa_ioc *ioc, void *trcdata, int *trclen)
+{
+	u32 loff = BFI_IOC_TRC_OFF + BNA_DBG_FWTRC_LEN * ioc->port_id;
+	int tlen, status = 0;
+
+	tlen = *trclen;
+	if (tlen > BNA_DBG_FWTRC_LEN)
+		tlen = BNA_DBG_FWTRC_LEN;
+
+	status = bfa_nw_ioc_smem_read(ioc, trcdata, loff, tlen);
+	*trclen = tlen;
+	return status;
+}
+
+/**
+ * Save firmware trace if configured.
+ */
+static void
+bfa_nw_ioc_debug_save_ftrc(struct bfa_ioc *ioc)
+{
+	int tlen;
+
+	if (ioc->dbg_fwsave_once) {
+		ioc->dbg_fwsave_once = 0;
+		if (ioc->dbg_fwsave_len) {
+			tlen = ioc->dbg_fwsave_len;
+			bfa_nw_ioc_debug_fwtrc(ioc, ioc->dbg_fwsave, &tlen);
+		}
+	}
+}
+
+/**
+ * Retrieve saved firmware trace from a prior IOC failure.
+ */
+int
+bfa_nw_ioc_debug_fwsave(struct bfa_ioc *ioc, void *trcdata, int *trclen)
+{
+	int tlen;
+
+	if (ioc->dbg_fwsave_len == 0)
+		return BFA_STATUS_ENOFSAVE;
+
+	tlen = *trclen;
+	if (tlen > ioc->dbg_fwsave_len)
+		tlen = ioc->dbg_fwsave_len;
+
+	memcpy(trcdata, ioc->dbg_fwsave, tlen);
+	*trclen = tlen;
+	return BFA_STATUS_OK;
+}
+
 static void
 bfa_ioc_fail_notify(struct bfa_ioc *ioc)
 {
@@ -1751,6 +1861,7 @@ bfa_ioc_fail_notify(struct bfa_ioc *ioc)
 	 */
 	ioc->cbfn->hbfail_cbfn(ioc->bfa);
 	bfa_ioc_event_notify(ioc, BFA_IOC_E_FAILED);
+	bfa_nw_ioc_debug_save_ftrc(ioc);
 }
 
 /**
@@ -2056,6 +2167,16 @@ bfa_nw_ioc_disable(struct bfa_ioc *ioc)
 {
 	bfa_ioc_stats(ioc, ioc_disables);
 	bfa_fsm_send_event(ioc, IOC_E_DISABLE);
+}
+
+/**
+ * Initialize memory for saving firmware trace.
+ */
+void
+bfa_nw_ioc_debug_memclaim(struct bfa_ioc *ioc, void *dbg_fwsave)
+{
+	ioc->dbg_fwsave = dbg_fwsave;
+	ioc->dbg_fwsave_len = ioc->iocpf.auto_recover ? BNA_DBG_FWTRC_LEN : 0;
 }
 
 static u32

@@ -44,6 +44,11 @@ static uint bnad_ioc_auto_recover = 1;
 module_param(bnad_ioc_auto_recover, uint, 0444);
 MODULE_PARM_DESC(bnad_ioc_auto_recover, "Enable / Disable auto recovery");
 
+static uint bna_debugfs_enable = 1;
+module_param(bna_debugfs_enable, uint, S_IRUGO | S_IWUSR);
+MODULE_PARM_DESC(bna_debugfs_enable, "Enables debugfs feature, default=1,"
+		 " Range[false:0|true:1]");
+
 /*
  * Global variables
  */
@@ -3312,6 +3317,10 @@ bnad_pci_probe(struct pci_dev *pdev,
 	/* Set link to down state */
 	netif_carrier_off(netdev);
 
+	/* Setup the debugfs node for this bfad */
+	if (bna_debugfs_enable)
+		bnad_debugfs_init(bnad);
+
 	/* Get resource requirement form bna */
 	spin_lock_irqsave(&bnad->bna_lock, flags);
 	bna_res_req(&bnad->res_info[0]);
@@ -3433,6 +3442,9 @@ disable_ioceth:
 res_free:
 	bnad_res_free(bnad, &bnad->res_info[0], BNA_RES_T_MAX);
 drv_uninit:
+	/* Remove the debugfs node for this bnad */
+	kfree(bnad->regdata);
+	bnad_debugfs_uninit(bnad);
 	bnad_uninit(bnad);
 pci_uninit:
 	bnad_pci_uninit(pdev);
@@ -3479,6 +3491,9 @@ bnad_pci_remove(struct pci_dev *pdev)
 	mutex_unlock(&bnad->conf_mutex);
 	bnad_remove_from_list(bnad);
 	bnad_lock_uninit(bnad);
+	/* Remove the debugfs node for this bnad */
+	kfree(bnad->regdata);
+	bnad_debugfs_uninit(bnad);
 	bnad_uninit(bnad);
 	free_netdev(netdev);
 }

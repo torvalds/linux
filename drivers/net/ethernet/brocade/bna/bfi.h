@@ -257,6 +257,8 @@ struct bfi_ioc_getattr_reply {
  */
 #define BFI_IOC_TRC_OFF		(0x4b00)
 #define BFI_IOC_TRC_ENTS	256
+#define BFI_IOC_TRC_ENT_SZ	16
+#define BFI_IOC_TRC_HDR_SZ	32
 
 #define BFI_IOC_FW_SIGNATURE	(0xbfadbfad)
 #define BFI_IOC_MD5SUM_SZ	4

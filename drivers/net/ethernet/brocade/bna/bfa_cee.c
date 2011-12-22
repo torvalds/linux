@@ -185,6 +185,41 @@ bfa_nw_cee_mem_claim(struct bfa_cee *cee, u8 *dma_kva, u64 dma_pa)
 }
 
 /**
+ * bfa_cee_get_attr()
+ *
+ * @brief	Send the request to the f/w to fetch CEE attributes.
+ *
+ * @param[in]	Pointer to the CEE module data structure.
+ *
+ * @return	Status
+ */
+enum bfa_status
+bfa_nw_cee_get_attr(struct bfa_cee *cee, struct bfa_cee_attr *attr,
+		    bfa_cee_get_attr_cbfn_t cbfn, void *cbarg)
+{
+	struct bfi_cee_get_req *cmd;
+
+	BUG_ON(!((cee != NULL) && (cee->ioc != NULL)));
+	if (!bfa_nw_ioc_is_operational(cee->ioc))
+		return BFA_STATUS_IOC_FAILURE;
+
+	if (cee->get_attr_pending == true)
+		return  BFA_STATUS_DEVBUSY;
+
+	cee->get_attr_pending = true;
+	cmd = (struct bfi_cee_get_req *) cee->get_cfg_mb.msg;
+	cee->attr = attr;
+	cee->cbfn.get_attr_cbfn = cbfn;
+	cee->cbfn.get_attr_cbarg = cbarg;
+	bfi_h2i_set(cmd->mh, BFI_MC_CEE, BFI_CEE_H2I_GET_CFG_REQ,
+		    bfa_ioc_portid(cee->ioc));
+	bfa_dma_be_addr_set(cmd->dma_addr, cee->attr_dma.pa);
+	bfa_nw_ioc_mbox_queue(cee->ioc, &cee->get_cfg_mb, NULL, NULL);
+
+	return BFA_STATUS_OK;
+}
+
+/**
  * bfa_cee_isrs()
  *
  * @brief Handles Mail-box interrupts for CEE module.
