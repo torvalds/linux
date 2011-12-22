@@ -37,11 +37,12 @@
 #include <plat/fb.h>
 #include <plat/nand.h>
 
-#include <plat/s3c6410.h>
 #include <plat/clock.h>
 #include <plat/devs.h>
 #include <plat/cpu.h>
 #include <plat/regs-fb-v4.h>
+
+#include "common.h"
 
 #define UCON S3C2410_UCON_DEFAULT
 #define ULCON (S3C2410_LCON_CS8 | S3C2410_LCON_PNONE)

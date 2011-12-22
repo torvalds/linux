@@ -40,6 +40,8 @@
 
 #include <video/platform_lcd.h>
 
+#include "common.h"
+
 #define UCON S3C2410_UCON_DEFAULT
 #define ULCON (S3C2410_LCON_CS8 | S3C2410_LCON_PNONE)
 #define UFCON (S3C2410_UFCON_RXTRIG8 | S3C2410_UFCON_FIFOMODE)
