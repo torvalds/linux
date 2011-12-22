@@ -226,8 +226,11 @@ struct stripe_head {
 		#endif
 	} ops;
 	struct r5dev {
-		struct bio	req;
-		struct bio_vec	vec;
+		/* rreq and rvec are used for the replacement device when
+		 * writing data to both devices.
+		 */
+		struct bio	req, rreq;
+		struct bio_vec	vec, rvec;
 		struct page	*page;
 		struct bio	*toread, *read, *towrite, *written;
 		sector_t	sector;			/* sector of this page */
@@ -252,29 +255,35 @@ struct stripe_head_state {
 	int handle_bad_blocks;
 };
 
-/* Flags */
-#define	R5_UPTODATE	0	/* page contains current data */
-#define	R5_LOCKED	1	/* IO has been submitted on "req" */
-#define	R5_OVERWRITE	2	/* towrite covers whole page */
+/* Flags for struct r5dev.flags */
+enum r5dev_flags {
+	R5_UPTODATE,	/* page contains current data */
+	R5_LOCKED,	/* IO has been submitted on "req" */
+	R5_OVERWRITE,	/* towrite covers whole page */
 /* and some that are internal to handle_stripe */
-#define	R5_Insync	3	/* rdev && rdev->in_sync at start */
-#define	R5_Wantread	4	/* want to schedule a read */
-#define	R5_Wantwrite	5
-#define	R5_Overlap	7	/* There is a pending overlapping request on this block */
-#define	R5_ReadError	8	/* seen a read error here recently */
-#define	R5_ReWrite	9	/* have tried to over-write the readerror */
+	R5_Insync,	/* rdev && rdev->in_sync at start */
+	R5_Wantread,	/* want to schedule a read */
+	R5_Wantwrite,
+	R5_Overlap,	/* There is a pending overlapping request
+			 * on this block */
+	R5_ReadError,	/* seen a read error here recently */
+	R5_ReWrite,	/* have tried to over-write the readerror */
 
-#define	R5_Expanded	10	/* This block now has post-expand data */
-#define	R5_Wantcompute	11	/* compute_block in progress treat as
-				 * uptodate
-				 */
-#define	R5_Wantfill	12	/* dev->toread contains a bio that needs
-				 * filling
-				 */
-#define	R5_Wantdrain	13	/* dev->towrite needs to be drained */
-#define	R5_WantFUA	14	/* Write should be FUA */
-#define	R5_WriteError	15	/* got a write error - need to record it */
-#define	R5_MadeGood	16	/* A bad block has been fixed by writing to it*/
+	R5_Expanded,	/* This block now has post-expand data */
+	R5_Wantcompute,	/* compute_block in progress treat as
+			 * uptodate
+			 */
+	R5_Wantfill,	/* dev->toread contains a bio that needs
+			 * filling
+			 */
+	R5_Wantdrain,	/* dev->towrite needs to be drained */
+	R5_WantFUA,	/* Write should be FUA */
+	R5_WriteError,	/* got a write error - need to record it */
+	R5_MadeGood,	/* A bad block has been fixed by writing to it */
+	R5_ReadRepl,	/* Will/did read from replacement rather than orig */
+	R5_MadeGoodRepl,/* A bad block on the replacement device has been
+			 * fixed by writing to it */
+};
 /*
  * Write method
  */
@@ -344,7 +353,7 @@ enum {
 
 
 struct disk_info {
-	struct md_rdev	*rdev;
+	struct md_rdev	*rdev, *replacement;
 };
 
 struct r5conf {

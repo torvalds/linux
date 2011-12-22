@@ -3594,6 +3594,7 @@ static int chunk_aligned_read(struct mddev *mddev, struct bio * raid_bio)
 	int dd_idx;
 	struct bio* align_bi;
 	struct md_rdev *rdev;
+	sector_t end_sector;
 
 	if (!in_chunk_boundary(mddev, raid_bio)) {
 		pr_debug("chunk_aligned_read : non aligned\n");
@@ -3618,9 +3619,19 @@ static int chunk_aligned_read(struct mddev *mddev, struct bio * raid_bio)
 						    0,
 						    &dd_idx, NULL);
 
+	end_sector = align_bi->bi_sector + (align_bi->bi_size >> 9);
 	rcu_read_lock();
-	rdev = rcu_dereference(conf->disks[dd_idx].rdev);
-	if (rdev && test_bit(In_sync, &rdev->flags)) {
+	rdev = rcu_dereference(conf->disks[dd_idx].replacement);
+	if (!rdev || test_bit(Faulty, &rdev->flags) ||
+	    rdev->recovery_offset < end_sector) {
+		rdev = rcu_dereference(conf->disks[dd_idx].rdev);
+		if (rdev &&
+		    (test_bit(Faulty, &rdev->flags) ||
+		    !(test_bit(In_sync, &rdev->flags) ||
+		      rdev->recovery_offset >= end_sector)))
+			rdev = NULL;
+	}
+	if (rdev) {
 		sector_t first_bad;
 		int bad_sectors;
 
