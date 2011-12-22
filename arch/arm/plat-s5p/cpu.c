@@ -20,16 +20,12 @@
 #include <mach/regs-clock.h>
 
 #include <plat/cpu.h>
-#include <plat/s5p6440.h>
-#include <plat/s5p6450.h>
 #include <plat/s5pc100.h>
 #include <plat/s5pv210.h>
 #include <plat/exynos4.h>
 
 /* table of supported CPUs */
 
-static const char name_s5p6440[] = "S5P6440";
-static const char name_s5p6450[] = "S5P6450";
 static const char name_s5pc100[] = "S5PC100";
 static const char name_s5pv210[] = "S5PV210/S5PC110";
 static const char name_exynos4210[] = "EXYNOS4210";
@@ -38,22 +34,6 @@ static const char name_exynos4412[] = "EXYNOS4412";
 
 static struct cpu_table cpu_ids[] __initdata = {
 	{
-		.idcode		= S5P6440_CPU_ID,
-		.idmask		= S5P64XX_CPU_MASK,
-		.map_io		= s5p6440_map_io,
-		.init_clocks	= s5p6440_init_clocks,
-		.init_uarts	= s5p6440_init_uarts,
-		.init		= s5p64x0_init,
-		.name		= name_s5p6440,
-	}, {
-		.idcode		= S5P6450_CPU_ID,
-		.idmask		= S5P64XX_CPU_MASK,
-		.map_io		= s5p6450_map_io,
-		.init_clocks	= s5p6450_init_clocks,
-		.init_uarts	= s5p6450_init_uarts,
-		.init		= s5p64x0_init,
-		.name		= name_s5p6450,
-	}, {
 		.idcode		= S5PC100_CPU_ID,
 		.idmask		= S5PC100_CPU_MASK,
 		.map_io		= s5pc100_map_io,
