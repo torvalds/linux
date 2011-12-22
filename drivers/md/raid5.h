@@ -259,6 +259,7 @@ struct stripe_head_state {
 enum r5dev_flags {
 	R5_UPTODATE,	/* page contains current data */
 	R5_LOCKED,	/* IO has been submitted on "req" */
+	R5_DOUBLE_LOCKED,/* Cannot clear R5_LOCKED until 2 writes complete */
 	R5_OVERWRITE,	/* towrite covers whole page */
 /* and some that are internal to handle_stripe */
 	R5_Insync,	/* rdev && rdev->in_sync at start */
