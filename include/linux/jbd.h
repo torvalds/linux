@@ -497,7 +497,6 @@ struct transaction_s
  * @j_format_version: Version of the superblock format
  * @j_state_lock: Protect the various scalars in the journal
  * @j_barrier_count:  Number of processes waiting to create a barrier lock
- * @j_barrier: The barrier lock itself
  * @j_running_transaction: The current running transaction..
  * @j_committing_transaction: the transaction we are pushing to disk
  * @j_checkpoint_transactions: a linked circular list of all transactions
@@ -579,9 +578,6 @@ struct journal_s
 	 * Number of processes waiting to create a barrier lock [j_state_lock]
 	 */
 	int			j_barrier_count;
-
-	/* The barrier lock itself */
-	struct mutex		j_barrier;
 
 	/*
 	 * Transactions: The current running transaction...
