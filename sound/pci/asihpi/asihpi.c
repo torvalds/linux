@@ -1410,6 +1410,7 @@ static int snd_asihpi_volume_info(struct snd_kcontrol *kcontrol,
 				  struct snd_ctl_elem_info *uinfo)
 {
 	u32 h_control = kcontrol->private_value;
+	u32 count;
 	u16 err;
 	/* native gains are in millibels */
 	short min_gain_mB;
@@ -1424,8 +1425,12 @@ static int snd_asihpi_volume_info(struct snd_kcontrol *kcontrol,
 		step_gain_mB = VOL_STEP_mB;
 	}
 
+	err = hpi_meter_query_channels(h_control, &count);
+	if (err)
+		count = HPI_MAX_CHANNELS;
+
 	uinfo->type = SNDRV_CTL_ELEM_TYPE_INTEGER;
-	uinfo->count = 2;
+	uinfo->count = count;
 	uinfo->value.integer.min = min_gain_mB / VOL_STEP_mB;
 	uinfo->value.integer.max = max_gain_mB / VOL_STEP_mB;
 	uinfo->value.integer.step = step_gain_mB / VOL_STEP_mB;
@@ -2033,8 +2038,15 @@ static int __devinit snd_asihpi_tuner_add(struct snd_card_asihpi *asihpi,
 static int snd_asihpi_meter_info(struct snd_kcontrol *kcontrol,
 				 struct snd_ctl_elem_info *uinfo)
 {
+	u32 h_control = kcontrol->private_value;
+	u32 count;
+	u16 err;
+	err = hpi_meter_query_channels(h_control, &count);
+	if (err)
+		count = HPI_MAX_CHANNELS;
+
 	uinfo->type = SNDRV_CTL_ELEM_TYPE_INTEGER;
-	uinfo->count = HPI_MAX_CHANNELS;
+	uinfo->count = count;
 	uinfo->value.integer.min = 0;
 	uinfo->value.integer.max = 0x7FFFFFFF;
 	return 0;
