@@ -172,10 +172,10 @@ extern phys_addr_t per_cpu_ptr_to_phys(void *addr);
  * equal char, int or long.  percpu_read() evaluates to a lvalue and
  * all others to void.
  *
- * These operations are guaranteed to be atomic w.r.t. preemption.
- * The generic versions use plain get/put_cpu_var().  Archs are
+ * These operations are guaranteed to be atomic.
+ * The generic versions disable interrupts.  Archs are
  * encouraged to implement single-instruction alternatives which don't
- * require preemption protection.
+ * require protection.
  */
 #ifndef percpu_read
 # define percpu_read(var)						\
@@ -347,9 +347,10 @@ do {									\
 
 #define _this_cpu_generic_to_op(pcp, val, op)				\
 do {									\
-	preempt_disable();						\
+	unsigned long flags;						\
+	local_irq_save(flags);						\
 	*__this_cpu_ptr(&(pcp)) op val;					\
-	preempt_enable();						\
+	local_irq_restore(flags);					\
 } while (0)
 
 #ifndef this_cpu_write
@@ -447,10 +448,11 @@ do {									\
 #define _this_cpu_generic_add_return(pcp, val)				\
 ({									\
 	typeof(pcp) ret__;						\
-	preempt_disable();						\
+	unsigned long flags;						\
+	local_irq_save(flags);						\
 	__this_cpu_add(pcp, val);					\
 	ret__ = __this_cpu_read(pcp);					\
-	preempt_enable();						\
+	local_irq_restore(flags);					\
 	ret__;								\
 })
 
@@ -476,10 +478,11 @@ do {									\
 
 #define _this_cpu_generic_xchg(pcp, nval)				\
 ({	typeof(pcp) ret__;						\
-	preempt_disable();						\
+	unsigned long flags;						\
+	local_irq_save(flags);						\
 	ret__ = __this_cpu_read(pcp);					\
 	__this_cpu_write(pcp, nval);					\
-	preempt_enable();						\
+	local_irq_restore(flags);					\
 	ret__;								\
 })
 
@@ -501,12 +504,14 @@ do {									\
 #endif
 
 #define _this_cpu_generic_cmpxchg(pcp, oval, nval)			\
-({	typeof(pcp) ret__;						\
-	preempt_disable();						\
+({									\
+	typeof(pcp) ret__;						\
+	unsigned long flags;						\
+	local_irq_save(flags);						\
 	ret__ = __this_cpu_read(pcp);					\
 	if (ret__ == (oval))						\
 		__this_cpu_write(pcp, nval);				\
-	preempt_enable();						\
+	local_irq_restore(flags);					\
 	ret__;								\
 })
 
@@ -538,10 +543,11 @@ do {									\
 #define _this_cpu_generic_cmpxchg_double(pcp1, pcp2, oval1, oval2, nval1, nval2)	\
 ({									\
 	int ret__;							\
-	preempt_disable();						\
+	unsigned long flags;						\
+	local_irq_save(flags);						\
 	ret__ = __this_cpu_generic_cmpxchg_double(pcp1, pcp2,		\
 			oval1, oval2, nval1, nval2);			\
-	preempt_enable();						\
+	local_irq_restore(flags);					\
 	ret__;								\
 })
 
@@ -567,9 +573,9 @@ do {									\
 #endif
 
 /*
- * Generic percpu operations that do not require preemption handling.
+ * Generic percpu operations for context that are safe from preemption/interrupts.
  * Either we do not care about races or the caller has the
- * responsibility of handling preemptions issues. Arch code can still
+ * responsibility of handling preemption/interrupt issues. Arch code can still
  * override these instructions since the arch per cpu code may be more
  * efficient and may actually get race freeness for free (that is the
  * case for x86 for example).
@@ -800,158 +806,6 @@ do {									\
 # endif
 # define __this_cpu_cmpxchg_double(pcp1, pcp2, oval1, oval2, nval1, nval2)	\
 	__pcpu_double_call_return_bool(__this_cpu_cmpxchg_double_, (pcp1), (pcp2), (oval1), (oval2), (nval1), (nval2))
-#endif
-
-/*
- * IRQ safe versions of the per cpu RMW operations. Note that these operations
- * are *not* safe against modification of the same variable from another
- * processors (which one gets when using regular atomic operations)
- * They are guaranteed to be atomic vs. local interrupts and
- * preemption only.
- */
-#define irqsafe_cpu_generic_to_op(pcp, val, op)				\
-do {									\
-	unsigned long flags;						\
-	local_irq_save(flags);						\
-	*__this_cpu_ptr(&(pcp)) op val;					\
-	local_irq_restore(flags);					\
-} while (0)
-
-#ifndef irqsafe_cpu_add
-# ifndef irqsafe_cpu_add_1
-#  define irqsafe_cpu_add_1(pcp, val) irqsafe_cpu_generic_to_op((pcp), (val), +=)
-# endif
-# ifndef irqsafe_cpu_add_2
-#  define irqsafe_cpu_add_2(pcp, val) irqsafe_cpu_generic_to_op((pcp), (val), +=)
-# endif
-# ifndef irqsafe_cpu_add_4
-#  define irqsafe_cpu_add_4(pcp, val) irqsafe_cpu_generic_to_op((pcp), (val), +=)
-# endif
-# ifndef irqsafe_cpu_add_8
-#  define irqsafe_cpu_add_8(pcp, val) irqsafe_cpu_generic_to_op((pcp), (val), +=)
-# endif
-# define irqsafe_cpu_add(pcp, val) __pcpu_size_call(irqsafe_cpu_add_, (pcp), (val))
-#endif
-
-#ifndef irqsafe_cpu_sub
-# define irqsafe_cpu_sub(pcp, val)	irqsafe_cpu_add((pcp), -(val))
-#endif
-
-#ifndef irqsafe_cpu_inc
-# define irqsafe_cpu_inc(pcp)	irqsafe_cpu_add((pcp), 1)
-#endif
-
-#ifndef irqsafe_cpu_dec
-# define irqsafe_cpu_dec(pcp)	irqsafe_cpu_sub((pcp), 1)
-#endif
-
-#ifndef irqsafe_cpu_and
-# ifndef irqsafe_cpu_and_1
-#  define irqsafe_cpu_and_1(pcp, val) irqsafe_cpu_generic_to_op((pcp), (val), &=)
-# endif
-# ifndef irqsafe_cpu_and_2
-#  define irqsafe_cpu_and_2(pcp, val) irqsafe_cpu_generic_to_op((pcp), (val), &=)
-# endif
-# ifndef irqsafe_cpu_and_4
-#  define irqsafe_cpu_and_4(pcp, val) irqsafe_cpu_generic_to_op((pcp), (val), &=)
-# endif
-# ifndef irqsafe_cpu_and_8
-#  define irqsafe_cpu_and_8(pcp, val) irqsafe_cpu_generic_to_op((pcp), (val), &=)
-# endif
-# define irqsafe_cpu_and(pcp, val) __pcpu_size_call(irqsafe_cpu_and_, (val))
-#endif
-
-#ifndef irqsafe_cpu_or
-# ifndef irqsafe_cpu_or_1
-#  define irqsafe_cpu_or_1(pcp, val) irqsafe_cpu_generic_to_op((pcp), (val), |=)
-# endif
-# ifndef irqsafe_cpu_or_2
-#  define irqsafe_cpu_or_2(pcp, val) irqsafe_cpu_generic_to_op((pcp), (val), |=)
-# endif
-# ifndef irqsafe_cpu_or_4
-#  define irqsafe_cpu_or_4(pcp, val) irqsafe_cpu_generic_to_op((pcp), (val), |=)
-# endif
-# ifndef irqsafe_cpu_or_8
-#  define irqsafe_cpu_or_8(pcp, val) irqsafe_cpu_generic_to_op((pcp), (val), |=)
-# endif
-# define irqsafe_cpu_or(pcp, val) __pcpu_size_call(irqsafe_cpu_or_, (val))
-#endif
-
-#ifndef irqsafe_cpu_xor
-# ifndef irqsafe_cpu_xor_1
-#  define irqsafe_cpu_xor_1(pcp, val) irqsafe_cpu_generic_to_op((pcp), (val), ^=)
-# endif
-# ifndef irqsafe_cpu_xor_2
-#  define irqsafe_cpu_xor_2(pcp, val) irqsafe_cpu_generic_to_op((pcp), (val), ^=)
-# endif
-# ifndef irqsafe_cpu_xor_4
-#  define irqsafe_cpu_xor_4(pcp, val) irqsafe_cpu_generic_to_op((pcp), (val), ^=)
-# endif
-# ifndef irqsafe_cpu_xor_8
-#  define irqsafe_cpu_xor_8(pcp, val) irqsafe_cpu_generic_to_op((pcp), (val), ^=)
-# endif
-# define irqsafe_cpu_xor(pcp, val) __pcpu_size_call(irqsafe_cpu_xor_, (val))
-#endif
-
-#define irqsafe_cpu_generic_cmpxchg(pcp, oval, nval)			\
-({									\
-	typeof(pcp) ret__;						\
-	unsigned long flags;						\
-	local_irq_save(flags);						\
-	ret__ = __this_cpu_read(pcp);					\
-	if (ret__ == (oval))						\
-		__this_cpu_write(pcp, nval);				\
-	local_irq_restore(flags);					\
-	ret__;								\
-})
-
-#ifndef irqsafe_cpu_cmpxchg
-# ifndef irqsafe_cpu_cmpxchg_1
-#  define irqsafe_cpu_cmpxchg_1(pcp, oval, nval)	irqsafe_cpu_generic_cmpxchg(pcp, oval, nval)
-# endif
-# ifndef irqsafe_cpu_cmpxchg_2
-#  define irqsafe_cpu_cmpxchg_2(pcp, oval, nval)	irqsafe_cpu_generic_cmpxchg(pcp, oval, nval)
-# endif
-# ifndef irqsafe_cpu_cmpxchg_4
-#  define irqsafe_cpu_cmpxchg_4(pcp, oval, nval)	irqsafe_cpu_generic_cmpxchg(pcp, oval, nval)
-# endif
-# ifndef irqsafe_cpu_cmpxchg_8
-#  define irqsafe_cpu_cmpxchg_8(pcp, oval, nval)	irqsafe_cpu_generic_cmpxchg(pcp, oval, nval)
-# endif
-# define irqsafe_cpu_cmpxchg(pcp, oval, nval)		\
-	__pcpu_size_call_return2(irqsafe_cpu_cmpxchg_, (pcp), oval, nval)
-#endif
-
-#define irqsafe_generic_cpu_cmpxchg_double(pcp1, pcp2, oval1, oval2, nval1, nval2)	\
-({									\
-	int ret__;							\
-	unsigned long flags;						\
-	local_irq_save(flags);						\
-	ret__ = __this_cpu_generic_cmpxchg_double(pcp1, pcp2,		\
-			oval1, oval2, nval1, nval2);			\
-	local_irq_restore(flags);					\
-	ret__;								\
-})
-
-#ifndef irqsafe_cpu_cmpxchg_double
-# ifndef irqsafe_cpu_cmpxchg_double_1
-#  define irqsafe_cpu_cmpxchg_double_1(pcp1, pcp2, oval1, oval2, nval1, nval2)	\
-	irqsafe_generic_cpu_cmpxchg_double(pcp1, pcp2, oval1, oval2, nval1, nval2)
-# endif
-# ifndef irqsafe_cpu_cmpxchg_double_2
-#  define irqsafe_cpu_cmpxchg_double_2(pcp1, pcp2, oval1, oval2, nval1, nval2)	\
-	irqsafe_generic_cpu_cmpxchg_double(pcp1, pcp2, oval1, oval2, nval1, nval2)
-# endif
-# ifndef irqsafe_cpu_cmpxchg_double_4
-#  define irqsafe_cpu_cmpxchg_double_4(pcp1, pcp2, oval1, oval2, nval1, nval2)	\
-	irqsafe_generic_cpu_cmpxchg_double(pcp1, pcp2, oval1, oval2, nval1, nval2)
-# endif
-# ifndef irqsafe_cpu_cmpxchg_double_8
-#  define irqsafe_cpu_cmpxchg_double_8(pcp1, pcp2, oval1, oval2, nval1, nval2)	\
-	irqsafe_generic_cpu_cmpxchg_double(pcp1, pcp2, oval1, oval2, nval1, nval2)
-# endif
-# define irqsafe_cpu_cmpxchg_double(pcp1, pcp2, oval1, oval2, nval1, nval2)	\
-	__pcpu_double_call_return_bool(irqsafe_cpu_cmpxchg_double_, (pcp1), (pcp2), (oval1), (oval2), (nval1), (nval2))
 #endif
 
 #endif /* __LINUX_PERCPU_H */
