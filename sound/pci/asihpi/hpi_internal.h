@@ -25,6 +25,7 @@ HPI internal definitions
 #define _HPI_INTERNAL_H_
 
 #include "hpi.h"
+
 /** maximum number of memory regions mapped to an adapter */
 #define HPI_MAX_ADAPTER_MEM_SPACES (2)
 
@@ -220,8 +221,6 @@ enum HPI_CONTROL_ATTRIBUTES {
 
 	HPI_COBRANET_SET = HPI_CTL_ATTR(COBRANET, 1),
 	HPI_COBRANET_GET = HPI_CTL_ATTR(COBRANET, 2),
-	/*HPI_COBRANET_SET_DATA         = HPI_CTL_ATTR(COBRANET, 3), */
-	/*HPI_COBRANET_GET_DATA         = HPI_CTL_ATTR(COBRANET, 4), */
 	HPI_COBRANET_GET_STATUS = HPI_CTL_ATTR(COBRANET, 5),
 	HPI_COBRANET_SEND_PACKET = HPI_CTL_ATTR(COBRANET, 6),
 	HPI_COBRANET_GET_PACKET = HPI_CTL_ATTR(COBRANET, 7),
@@ -393,14 +392,10 @@ enum HPI_FUNCTION_IDS {
 	HPI_SUBSYS_OPEN = HPI_FUNC_ID(SUBSYSTEM, 1),
 	HPI_SUBSYS_GET_VERSION = HPI_FUNC_ID(SUBSYSTEM, 2),
 	HPI_SUBSYS_GET_INFO = HPI_FUNC_ID(SUBSYSTEM, 3),
-	/* HPI_SUBSYS_FIND_ADAPTERS     = HPI_FUNC_ID(SUBSYSTEM, 4), */
 	HPI_SUBSYS_CREATE_ADAPTER = HPI_FUNC_ID(SUBSYSTEM, 5),
 	HPI_SUBSYS_CLOSE = HPI_FUNC_ID(SUBSYSTEM, 6),
-	/* HPI_SUBSYS_DELETE_ADAPTER    = HPI_FUNC_ID(SUBSYSTEM, 7), */
 	HPI_SUBSYS_DRIVER_LOAD = HPI_FUNC_ID(SUBSYSTEM, 8),
 	HPI_SUBSYS_DRIVER_UNLOAD = HPI_FUNC_ID(SUBSYSTEM, 9),
-	/* HPI_SUBSYS_READ_PORT_8               = HPI_FUNC_ID(SUBSYSTEM, 10), */
-	/* HPI_SUBSYS_WRITE_PORT_8              = HPI_FUNC_ID(SUBSYSTEM, 11), */
 	HPI_SUBSYS_GET_NUM_ADAPTERS = HPI_FUNC_ID(SUBSYSTEM, 12),
 	HPI_SUBSYS_GET_ADAPTER = HPI_FUNC_ID(SUBSYSTEM, 13),
 	HPI_SUBSYS_SET_NETWORK_INTERFACE = HPI_FUNC_ID(SUBSYSTEM, 14),
@@ -661,13 +656,6 @@ union hpi_adapterx_msg {
 		u16 index;
 	} module_info;
 	struct {
-		u32 checksum;
-		u16 sequence;
-		u16 length;
-		u16 offset; /**< offset from start of msg to data */
-		u16 unused;
-	} program_flash;
-	struct {
 		u16 index;
 		u16 what;
 		u16 property_index;
@@ -678,18 +666,10 @@ union hpi_adapterx_msg {
 		u16 parameter2;
 	} property_set;
 	struct {
-		u32 offset;
-	} query_flash;
-	struct {
 		u32 pad32;
 		u16 key1;
 		u16 key2;
 	} restart;
-	struct {
-		u32 offset;
-		u32 length;
-		u32 key;
-	} start_flash;
 	struct {
 		u32 pad32;
 		u16 value;
@@ -697,6 +677,7 @@ union hpi_adapterx_msg {
 	struct {
 		u32 yes;
 	} irq_query;
+	u32 pad[3];
 };
 
 struct hpi_adapter_res {
@@ -724,17 +705,9 @@ union hpi_adapterx_res {
 		u32 adapter_mode;
 	} mode;
 	struct {
-		u16 sequence;
-	} program_flash;
-	struct {
 		u16 parameter1;
 		u16 parameter2;
 	} property_get;
-	struct {
-		u32 checksum;
-		u32 length;
-		u32 version;
-	} query_flash;
 	struct {
 		u32 yes;
 	} irq_query;
@@ -1148,71 +1121,6 @@ struct hpi_msg_adapter_get_info {
 struct hpi_res_adapter_get_info {
 	struct hpi_response_header h;	/*v0 */
 	struct hpi_adapter_res p;
-};
-
-/* padding is so these are same size as v0 hpi_message */
-struct hpi_msg_adapter_query_flash {
-	struct hpi_message_header h;
-	u32 offset;
-	u8 pad_to_version0_size[sizeof(struct hpi_message) -	/* V0 res */
-		sizeof(struct hpi_message_header) - 1 * sizeof(u32)];
-};
-
-/* padding is so these are same size as v0 hpi_response */
-struct hpi_res_adapter_query_flash {
-	struct hpi_response_header h;
-	u32 checksum;
-	u32 length;
-	u32 version;
-	u8 pad_to_version0_size[sizeof(struct hpi_response) -	/* V0 res */
-		sizeof(struct hpi_response_header) - 3 * sizeof(u32)];
-};
-
-struct hpi_msg_adapter_start_flash {
-	struct hpi_message_header h;
-	u32 offset;
-	u32 length;
-	u32 key;
-	u8 pad_to_version0_size[sizeof(struct hpi_message) -	/* V0 res */
-		sizeof(struct hpi_message_header) - 3 * sizeof(u32)];
-};
-
-struct hpi_res_adapter_start_flash {
-	struct hpi_response_header h;
-	u8 pad_to_version0_size[sizeof(struct hpi_response) -	/* V0 res */
-		sizeof(struct hpi_response_header)];
-};
-
-struct hpi_msg_adapter_program_flash_payload {
-	u32 checksum;
-	u16 sequence;
-	u16 length;
-	u16 offset; /**< offset from start of msg to data */
-	u16 unused;
-	/* ensure sizeof(header + payload) == sizeof(hpi_message_V0)
-	   because old firmware expects data after message of this size */
-	u8 pad_to_version0_size[sizeof(struct hpi_message) -	/* V0 message */
-		sizeof(struct hpi_message_header) - sizeof(u32) -
-		4 * sizeof(u16)];
-};
-
-struct hpi_msg_adapter_program_flash {
-	struct hpi_message_header h;
-	struct hpi_msg_adapter_program_flash_payload p;
-	u32 data[256];
-};
-
-struct hpi_res_adapter_program_flash {
-	struct hpi_response_header h;
-	u16 sequence;
-	u8 pad_to_version0_size[sizeof(struct hpi_response) -	/* V0 res */
-		sizeof(struct hpi_response_header) - sizeof(u16)];
-};
-
-struct hpi_msg_adapter_debug_read {
-	struct hpi_message_header h;
-	u32 dsp_address;
-	u32 count_bytes;
 };
 
 struct hpi_res_adapter_debug_read {
