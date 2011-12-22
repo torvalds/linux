@@ -1315,8 +1315,9 @@ static int raid1_add_disk(struct mddev *mddev, struct md_rdev *rdev)
 	if (rdev->raid_disk >= 0)
 		first = last = rdev->raid_disk;
 
-	for (mirror = first; mirror <= last; mirror++)
-		if ( !(p=conf->mirrors+mirror)->rdev) {
+	for (mirror = first; mirror <= last; mirror++) {
+		p = conf->mirrors+mirror;
+		if (!p->rdev) {
 
 			disk_stack_limits(mddev->gendisk, rdev->bdev,
 					  rdev->data_offset << 9);
@@ -1343,6 +1344,18 @@ static int raid1_add_disk(struct mddev *mddev, struct md_rdev *rdev)
 			rcu_assign_pointer(p->rdev, rdev);
 			break;
 		}
+		if (test_bit(WantReplacement, &p->rdev->flags) &&
+		    p[conf->raid_disks].rdev == NULL) {
+			/* Add this device as a replacement */
+			clear_bit(In_sync, &rdev->flags);
+			set_bit(Replacement, &rdev->flags);
+			rdev->raid_disk = mirror;
+			err = 0;
+			conf->fullsync = 1;
+			rcu_assign_pointer(p[conf->raid_disks].rdev, rdev);
+			break;
+		}
+	}
 	md_integrity_add_rdev(rdev, mddev);
 	print_conf(conf);
 	return err;
