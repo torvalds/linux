@@ -601,8 +601,7 @@ static int cx24123_pll_calculate(struct dvb_frontend *fe,
  * Tuner cx24109 is written through a dedicated 3wire interface
  * on the demod chip.
  */
-static int cx24123_pll_writereg(struct dvb_frontend *fe,
-	struct dvb_frontend_parameters *p, u32 data)
+static int cx24123_pll_writereg(struct dvb_frontend *fe, u32 data)
 {
 	struct cx24123_state *state = fe->demodulator_priv;
 	unsigned long timeout;
@@ -673,12 +672,12 @@ static int cx24123_pll_tune(struct dvb_frontend *fe,
 	}
 
 	/* Write the new VCO/VGA */
-	cx24123_pll_writereg(fe, p, state->VCAarg);
-	cx24123_pll_writereg(fe, p, state->VGAarg);
+	cx24123_pll_writereg(fe, state->VCAarg);
+	cx24123_pll_writereg(fe, state->VGAarg);
 
 	/* Write the new bandselect and pll args */
-	cx24123_pll_writereg(fe, p, state->bandselectarg);
-	cx24123_pll_writereg(fe, p, state->pllarg);
+	cx24123_pll_writereg(fe, state->bandselectarg);
+	cx24123_pll_writereg(fe, state->pllarg);
 
 	/* set the FILTUNE voltage */
 	val = cx24123_readreg(state, 0x28) & ~0x3;
