@@ -106,6 +106,7 @@ static struct snd_soc_dai_link e800_dai[] = {
 
 static struct snd_soc_card e800 = {
 	.name = "Toshiba e800",
+	.owner = THIS_MODULE,
 	.dai_link = e800_dai,
 	.num_links = ARRAY_SIZE(e800_dai),
 };

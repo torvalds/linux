@@ -60,6 +60,7 @@ static struct snd_soc_dai_link imote2_dai = {
 
 static struct snd_soc_card imote2 = {
 	.name = "Imote2",
+	.owner = THIS_MODULE,
 	.dai_link = &imote2_dai,
 	.num_links = 1,
 };

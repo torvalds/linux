@@ -125,6 +125,7 @@ static struct snd_soc_dai_link evb3_dai[] = {
 
 static struct snd_soc_card snd_soc_card_evb3 = {
 	.name = "Tavor EVB3",
+	.owner = THIS_MODULE,
 	.dai_link = evb3_dai,
 	.num_links = ARRAY_SIZE(evb3_dai),
 };

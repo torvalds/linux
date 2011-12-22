@@ -181,6 +181,7 @@ static struct snd_soc_dai_link mioa701_dai[] = {
 
 static struct snd_soc_card mioa701 = {
 	.name = "MioA701",
+	.owner = THIS_MODULE,
 	.dai_link = mioa701_dai,
 	.num_links = ARRAY_SIZE(mioa701_dai),
 };

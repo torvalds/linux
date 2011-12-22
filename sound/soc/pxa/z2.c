@@ -202,6 +202,7 @@ static struct snd_soc_dai_link z2_dai = {
 /* z2 audio machine driver */
 static struct snd_soc_card snd_soc_z2 = {
 	.name		= "Z2",
+	.owner		= THIS_MODULE,
 	.dai_link	= &z2_dai,
 	.num_links	= 1,
 };

@@ -169,6 +169,7 @@ static struct snd_soc_dai_link hx4700_dai = {
 /* hx4700 audio machine driver */
 static struct snd_soc_card snd_soc_card_hx4700 = {
 	.name			= "iPAQ hx4700",
+	.owner			= THIS_MODULE,
 	.dai_link		= &hx4700_dai,
 	.num_links		= 1,
 	.dapm_widgets		= hx4700_dapm_widgets,

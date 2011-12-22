@@ -125,6 +125,7 @@ static struct snd_soc_dai_link saarb_dai[] = {
 
 static struct snd_soc_card snd_soc_card_saarb = {
 	.name = "Saarb",
+	.owner = THIS_MODULE,
 	.dai_link = saarb_dai,
 	.num_links = ARRAY_SIZE(saarb_dai),
 };

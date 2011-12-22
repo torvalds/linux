@@ -317,6 +317,7 @@ static struct snd_soc_dai_link corgi_dai = {
 /* corgi audio machine driver */
 static struct snd_soc_card snd_soc_corgi = {
 	.name = "Corgi",
+	.owner = THIS_MODULE,
 	.dai_link = &corgi_dai,
 	.num_links = 1,
 };

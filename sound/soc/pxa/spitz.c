@@ -319,6 +319,7 @@ static struct snd_soc_dai_link spitz_dai = {
 /* spitz audio machine driver */
 static struct snd_soc_card snd_soc_spitz = {
 	.name = "Spitz",
+	.owner = THIS_MODULE,
 	.dai_link = &spitz_dai,
 	.num_links = 1,
 };
