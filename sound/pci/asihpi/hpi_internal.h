@@ -1132,7 +1132,7 @@ struct hpi_res_adapter_get_info {
 
 struct hpi_res_adapter_debug_read {
 	struct hpi_response_header h;
-	u8 bytes[256];
+	u8 bytes[1024];
 };
 
 struct hpi_msg_cobranet_hmi {
