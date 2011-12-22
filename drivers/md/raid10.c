@@ -419,6 +419,9 @@ static void raid10_end_write_request(struct bio *bio, int error)
 			md_error(rdev->mddev, rdev);
 		else {
 			set_bit(WriteErrorSeen,	&rdev->flags);
+			if (!test_and_set_bit(WantReplacement, &rdev->flags))
+				set_bit(MD_RECOVERY_NEEDED,
+					&rdev->mddev->recovery);
 			set_bit(R10BIO_WriteError, &r10_bio->state);
 			dec_rdev = 0;
 		}
@@ -1481,8 +1484,25 @@ static int raid10_add_disk(struct mddev *mddev, struct md_rdev *rdev)
 		struct mirror_info *p = &conf->mirrors[mirror];
 		if (p->recovery_disabled == mddev->recovery_disabled)
 			continue;
-		if (p->rdev)
-			continue;
+		if (p->rdev) {
+			if (!test_bit(WantReplacement, &p->rdev->flags) ||
+			    p->replacement != NULL)
+				continue;
+			clear_bit(In_sync, &rdev->flags);
+			set_bit(Replacement, &rdev->flags);
+			rdev->raid_disk = mirror;
+			err = 0;
+			disk_stack_limits(mddev->gendisk, rdev->bdev,
+					  rdev->data_offset << 9);
+			if (rdev->bdev->bd_disk->queue->merge_bvec_fn) {
+				blk_queue_max_segments(mddev->queue, 1);
+				blk_queue_segment_boundary(mddev->queue,
+							   PAGE_CACHE_SIZE - 1);
+			}
+			conf->fullsync = 1;
+			rcu_assign_pointer(p->replacement, rdev);
+			break;
+		}
 
 		disk_stack_limits(mddev->gendisk, rdev->bdev,
 				  rdev->data_offset << 9);
@@ -1658,6 +1678,9 @@ static void end_sync_write(struct bio *bio, int error)
 			md_error(mddev, rdev);
 		else {
 			set_bit(WriteErrorSeen, &rdev->flags);
+			if (!test_and_set_bit(WantReplacement, &rdev->flags))
+				set_bit(MD_RECOVERY_NEEDED,
+					&rdev->mddev->recovery);
 			set_bit(R10BIO_WriteError, &r10_bio->state);
 		}
 	} else if (is_badblock(rdev,
@@ -1852,8 +1875,13 @@ static void fix_recovery_read_error(struct r10bio *r10_bio)
 					  s << 9,
 					  bio->bi_io_vec[idx].bv_page,
 					  WRITE, false);
-			if (!ok)
+			if (!ok) {
 				set_bit(WriteErrorSeen, &rdev->flags);
+				if (!test_and_set_bit(WantReplacement,
+						      &rdev->flags))
+					set_bit(MD_RECOVERY_NEEDED,
+						&rdev->mddev->recovery);
+			}
 		}
 		if (!ok) {
 			/* We don't worry if we cannot set a bad block -
@@ -1971,8 +1999,12 @@ static int r10_sync_page_io(struct md_rdev *rdev, sector_t sector,
 	if (sync_page_io(rdev, sector, sectors << 9, page, rw, false))
 		/* success */
 		return 1;
-	if (rw == WRITE)
+	if (rw == WRITE) {
 		set_bit(WriteErrorSeen, &rdev->flags);
+		if (!test_and_set_bit(WantReplacement, &rdev->flags))
+			set_bit(MD_RECOVERY_NEEDED,
+				&rdev->mddev->recovery);
+	}
 	/* need to record an error - either for the block or the device */
 	if (!rdev_set_badblocks(rdev, sector, sectors, 0))
 		md_error(rdev->mddev, rdev);
