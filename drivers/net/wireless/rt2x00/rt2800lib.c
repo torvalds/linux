@@ -4554,6 +4554,9 @@ int rt2800_get_survey(struct ieee80211_hw *hw, int idx,
 		survey->channel_time_ext_busy = busy_ext / 1000;
 	}
 
+	if (!(hw->conf.flags & IEEE80211_CONF_OFFCHANNEL))
+		survey->filled |= SURVEY_INFO_IN_USE;
+
 	return 0;
 
 }
