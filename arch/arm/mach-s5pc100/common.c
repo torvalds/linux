@@ -1,17 +1,16 @@
-/* linux/arch/arm/mach-s5pc100/cpu.c
- *
- * Copyright (c) 2010 Samsung Electronics Co., Ltd.
+/*
+ * Copyright (c) 2010-2011 Samsung Electronics Co., Ltd.
  *		http://www.samsung.com
  *
  * Copyright 2009 Samsung Electronics Co.
  *	Byungho Min <bhmin@samsung.com>
  *
- * Based on mach-s3c6410/cpu.c
+ * Common Codes for S5PC100
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
  * published by the Free Software Foundation.
-*/
+ */
 
 #include <linux/kernel.h>
 #include <linux/types.h>
@@ -26,35 +25,72 @@
 #include <linux/platform_device.h>
 #include <linux/sched.h>
 
+#include <asm/irq.h>
+#include <asm/proc-fns.h>
 #include <asm/mach/arch.h>
 #include <asm/mach/map.h>
 #include <asm/mach/irq.h>
 
-#include <asm/proc-fns.h>
-
-#include <mach/hardware.h>
 #include <mach/map.h>
-#include <asm/irq.h>
-
-#include <plat/regs-serial.h>
+#include <mach/hardware.h>
 #include <mach/regs-clock.h>
 
 #include <plat/cpu.h>
 #include <plat/devs.h>
 #include <plat/clock.h>
-#include <plat/ata-core.h>
-#include <plat/iic-core.h>
 #include <plat/sdhci.h>
 #include <plat/adc-core.h>
-#include <plat/onenand-core.h>
+#include <plat/ata-core.h>
 #include <plat/fb-core.h>
+#include <plat/iic-core.h>
+#include <plat/onenand-core.h>
+#include <plat/regs-serial.h>
 
-#include <plat/s5pc100.h>
+#include "common.h"
+
+static const char name_s5pc100[] = "S5PC100";
+
+static struct cpu_table cpu_ids[] __initdata = {
+	{
+		.idcode		= S5PC100_CPU_ID,
+		.idmask		= S5PC100_CPU_MASK,
+		.map_io		= s5pc100_map_io,
+		.init_clocks	= s5pc100_init_clocks,
+		.init_uarts	= s5pc100_init_uarts,
+		.init		= s5pc100_init,
+		.name		= name_s5pc100,
+	},
+};
 
 /* Initial IO mappings */
 
 static struct map_desc s5pc100_iodesc[] __initdata = {
 	{
+		.virtual	= (unsigned long)S5P_VA_CHIPID,
+		.pfn		= __phys_to_pfn(S5PC100_PA_CHIPID),
+		.length		= SZ_4K,
+		.type		= MT_DEVICE,
+	}, {
+		.virtual	= (unsigned long)S3C_VA_SYS,
+		.pfn		= __phys_to_pfn(S5PC100_PA_SYSCON),
+		.length		= SZ_64K,
+		.type		= MT_DEVICE,
+	}, {
+		.virtual	= (unsigned long)S3C_VA_TIMER,
+		.pfn		= __phys_to_pfn(S5PC100_PA_TIMER),
+		.length		= SZ_16K,
+		.type		= MT_DEVICE,
+	}, {
+		.virtual	= (unsigned long)S3C_VA_WATCHDOG,
+		.pfn		= __phys_to_pfn(S5PC100_PA_WATCHDOG),
+		.length		= SZ_4K,
+		.type		= MT_DEVICE,
+	}, {
+		.virtual	= (unsigned long)S5P_VA_SROMC,
+		.pfn		= __phys_to_pfn(S5PC100_PA_SROMC),
+		.length		= SZ_4K,
+		.type		= MT_DEVICE,
+	}, {
 		.virtual	= (unsigned long)S5P_VA_SYSTIMER,
 		.pfn		= __phys_to_pfn(S5PC100_PA_SYSTIMER),
 		.length		= SZ_16K,
@@ -100,15 +136,27 @@ static void s5pc100_idle(void)
 	local_irq_enable();
 }
 
-/* s5pc100_map_io
+/*
+ * s5pc100_map_io
  *
- * register the standard cpu IO areas
-*/
+ * register the standard CPU IO areas
+ */
+
+void __init s5pc100_init_io(struct map_desc *mach_desc, int size)
+{
+	/* initialize the io descriptors we need for initialization */
+	iotable_init(s5pc100_iodesc, ARRAY_SIZE(s5pc100_iodesc));
+	if (mach_desc)
+		iotable_init(mach_desc, size);
+
+	/* detect cpu id and rev. */
+	s5p_init_cpu(S5P_VA_CHIPID);
+
+	s3c_init_cpu(samsung_cpu_id, cpu_ids, ARRAY_SIZE(cpu_ids));
+}
 
 void __init s5pc100_map_io(void)
 {
-	iotable_init(s5pc100_iodesc, ARRAY_SIZE(s5pc100_iodesc));
-
 	/* initialise device information early */
 	s5pc100_default_sdhci0();
 	s5pc100_default_sdhci1();
@@ -155,7 +203,6 @@ static int __init s5pc100_core_init(void)
 {
 	return sysdev_class_register(&s5pc100_sysclass);
 }
-
 core_initcall(s5pc100_core_init);
 
 int __init s5pc100_init(void)
@@ -166,4 +213,11 @@ int __init s5pc100_init(void)
 	pm_idle = s5pc100_idle;
 
 	return sysdev_register(&s5pc100_sysdev);
+}
+
+/* uart registration process */
+
+void __init s5pc100_init_uarts(struct s3c2410_uartcfg *cfg, int no)
+{
+	s3c24xx_init_uartdevs("s3c6400-uart", s5p_uart_resources, cfg, no);
 }
