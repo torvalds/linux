@@ -1587,7 +1587,7 @@ static void bitmap_set_memory_bits(struct bitmap *bitmap, sector_t offset, int n
 	}
 	if (!*bmc) {
 		struct page *page;
-		*bmc = 1 | (needed ? NEEDED_MASK : 0);
+		*bmc = 2 | (needed ? NEEDED_MASK : 0);
 		bitmap_count_page(bitmap, offset, 1);
 		page = filemap_get_page(bitmap, offset >> CHUNK_BLOCK_SHIFT(bitmap));
 		set_page_attr(bitmap, page, BITMAP_PAGE_PENDING);
