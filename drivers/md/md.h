@@ -428,7 +428,7 @@ struct md_personality
 	 */
 	void (*error_handler)(struct mddev *mddev, struct md_rdev *rdev);
 	int (*hot_add_disk) (struct mddev *mddev, struct md_rdev *rdev);
-	int (*hot_remove_disk) (struct mddev *mddev, int number);
+	int (*hot_remove_disk) (struct mddev *mddev, struct md_rdev *rdev);
 	int (*spare_active) (struct mddev *mddev);
 	sector_t (*sync_request)(struct mddev *mddev, sector_t sector_nr, int *skipped, int go_faster);
 	int (*resize) (struct mddev *mddev, sector_t sectors);

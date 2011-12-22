@@ -5038,16 +5038,15 @@ static int raid5_spare_active(struct mddev *mddev)
 	return count;
 }
 
-static int raid5_remove_disk(struct mddev *mddev, int number)
+static int raid5_remove_disk(struct mddev *mddev, struct md_rdev *rdev)
 {
 	struct r5conf *conf = mddev->private;
 	int err = 0;
-	struct md_rdev *rdev;
+	int number = rdev->raid_disk;
 	struct disk_info *p = conf->disks + number;
 
 	print_raid5_conf(conf);
-	rdev = p->rdev;
-	if (rdev) {
+	if (rdev == p->rdev) {
 		if (number >= conf->raid_disks &&
 		    conf->reshape_progress == MaxSector)
 			clear_bit(In_sync, &rdev->flags);
@@ -5369,7 +5368,8 @@ static void raid5_finish_reshape(struct mddev *mddev)
 			     d < conf->raid_disks - mddev->delta_disks;
 			     d++) {
 				struct md_rdev *rdev = conf->disks[d].rdev;
-				if (rdev && raid5_remove_disk(mddev, d) == 0) {
+				if (rdev &&
+				    raid5_remove_disk(mddev, rdev) == 0) {
 					sysfs_unlink_rdev(mddev, rdev);
 					rdev->raid_disk = -1;
 				}

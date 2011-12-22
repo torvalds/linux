@@ -1327,16 +1327,15 @@ static int raid1_add_disk(struct mddev *mddev, struct md_rdev *rdev)
 	return err;
 }
 
-static int raid1_remove_disk(struct mddev *mddev, int number)
+static int raid1_remove_disk(struct mddev *mddev, struct md_rdev *rdev)
 {
 	struct r1conf *conf = mddev->private;
 	int err = 0;
-	struct md_rdev *rdev;
+	int number = rdev->raid_disk;
 	struct mirror_info *p = conf->mirrors+ number;
 
 	print_conf(conf);
-	rdev = p->rdev;
-	if (rdev) {
+	if (rdev == p->rdev) {
 		if (test_bit(In_sync, &rdev->flags) ||
 		    atomic_read(&rdev->nr_pending)) {
 			err = -EBUSY;

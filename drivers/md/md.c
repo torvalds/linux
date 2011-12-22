@@ -2689,7 +2689,7 @@ slot_store(struct md_rdev *rdev, const char *buf, size_t len)
 		if (rdev->mddev->pers->hot_remove_disk == NULL)
 			return -EINVAL;
 		err = rdev->mddev->pers->
-			hot_remove_disk(rdev->mddev, rdev->raid_disk);
+			hot_remove_disk(rdev->mddev, rdev);
 		if (err)
 			return err;
 		sysfs_unlink_rdev(rdev->mddev, rdev);
@@ -7340,7 +7340,7 @@ static int remove_and_add_spares(struct mddev *mddev)
 		     ! test_bit(In_sync, &rdev->flags)) &&
 		    atomic_read(&rdev->nr_pending)==0) {
 			if (mddev->pers->hot_remove_disk(
-				    mddev, rdev->raid_disk)==0) {
+				    mddev, rdev) == 0) {
 				sysfs_unlink_rdev(mddev, rdev);
 				rdev->raid_disk = -1;
 			}
@@ -7477,7 +7477,7 @@ void md_check_recovery(struct mddev *mddev)
 				    test_bit(Faulty, &rdev->flags) &&
 				    atomic_read(&rdev->nr_pending)==0) {
 					if (mddev->pers->hot_remove_disk(
-						    mddev, rdev->raid_disk)==0) {
+						    mddev, rdev) == 0) {
 						sysfs_unlink_rdev(mddev, rdev);
 						rdev->raid_disk = -1;
 					}
