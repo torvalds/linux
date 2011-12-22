@@ -1713,6 +1713,9 @@ static void dwc3_gadget_reset_interrupt(struct dwc3 *dwc)
 			dwc3_gadget_disconnect_interrupt(dwc);
 	}
 
+	/* after reset -> Default State */
+	dwc->dev_state = DWC3_DEFAULT_STATE;
+
 	/* Enable PHYs */
 	dwc3_gadget_usb2_phy_power(dwc, true);
 	dwc3_gadget_usb3_phy_power(dwc, true);
