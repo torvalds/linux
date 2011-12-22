@@ -67,6 +67,9 @@ static int nfc_genl_send_target(struct sk_buff *msg, struct nfc_target *target,
 				target->supported_protocols);
 	NLA_PUT_U16(msg, NFC_ATTR_TARGET_SENS_RES, target->sens_res);
 	NLA_PUT_U8(msg, NFC_ATTR_TARGET_SEL_RES, target->sel_res);
+	if (target->nfcid1_len > 0)
+		NLA_PUT(msg, NFC_ATTR_TARGET_NFCID1, target->nfcid1_len,
+				target->nfcid1);
 
 	return genlmsg_end(msg, hdr);
 

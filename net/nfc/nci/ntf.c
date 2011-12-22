@@ -154,6 +154,12 @@ static void nci_target_found(struct nci_dev *ndev,
 
 	nfc_tgt.sens_res = ntf->rf_tech_specific_params.nfca_poll.sens_res;
 	nfc_tgt.sel_res = ntf->rf_tech_specific_params.nfca_poll.sel_res;
+	nfc_tgt.nfcid1_len = ntf->rf_tech_specific_params.nfca_poll.nfcid1_len;
+	if (nfc_tgt.nfcid1_len > 0) {
+		memcpy(nfc_tgt.nfcid1,
+			ntf->rf_tech_specific_params.nfca_poll.nfcid1,
+			nfc_tgt.nfcid1_len);
+	}
 
 	if (!(nfc_tgt.supported_protocols & ndev->poll_prots)) {
 		pr_debug("the target found does not have the desired protocol\n");

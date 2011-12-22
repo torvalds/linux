@@ -65,12 +65,15 @@ struct nfc_ops {
 
 #define NFC_TARGET_IDX_ANY -1
 #define NFC_MAX_GT_LEN 48
+#define NFC_MAX_NFCID1_LEN 10
 
 struct nfc_target {
 	u32 idx;
 	u32 supported_protocols;
 	u16 sens_res;
 	u8 sel_res;
+	u8 nfcid1_len;
+	u8 nfcid1[NFC_MAX_NFCID1_LEN];
 };
 
 struct nfc_genl_data {
