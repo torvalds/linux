@@ -759,8 +759,7 @@ static void snd_card_asihpi_timer_function(unsigned long data)
 		if (s->stream == SNDRV_PCM_STREAM_PLAYBACK) {
 			pcm_buf_dma_ofs = ds->pcm_buf_host_rw_ofs - bytes_avail;
 			if (state == HPI_STATE_STOPPED) {
-				if ((bytes_avail == 0) &&
-				    (on_card_bytes < ds->pcm_buf_host_rw_ofs)) {
+				if (bytes_avail == 0) {
 					hpi_handle_error(hpi_stream_start(ds->h_stream));
 					snd_printdd("P%d start\n", s->number);
 					ds->drained_count = 0;
@@ -769,7 +768,7 @@ static void snd_card_asihpi_timer_function(unsigned long data)
 				snd_printd(KERN_WARNING "P%d drained\n",
 						s->number);
 				ds->drained_count++;
-				if (ds->drained_count > 2) {
+				if (ds->drained_count > 20) {
 					snd_pcm_stop(s, SNDRV_PCM_STATE_XRUN);
 					continue;
 				}
