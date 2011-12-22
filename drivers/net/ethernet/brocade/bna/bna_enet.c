@@ -1740,6 +1740,11 @@ bna_ioceth_init(struct bna_ioceth *ioceth, struct bna *bna,
 	kva += bfa_nw_cee_meminfo();
 	dma += bfa_nw_cee_meminfo();
 
+	bfa_nw_flash_attach(&bna->flash, &ioceth->ioc, bna);
+	bfa_nw_flash_memclaim(&bna->flash, kva, dma);
+	kva += bfa_nw_flash_meminfo();
+	dma += bfa_nw_flash_meminfo();
+
 	bfa_msgq_attach(&bna->msgq, &ioceth->ioc);
 	bfa_msgq_memclaim(&bna->msgq, kva, dma);
 	bfa_msgq_regisr(&bna->msgq, BFI_MC_ENET, bna_msgq_rsp_handler, bna);
@@ -1892,7 +1897,8 @@ bna_res_req(struct bna_res_info *res_info)
 	res_info[BNA_RES_MEM_T_COM].res_u.mem_info.num = 1;
 	res_info[BNA_RES_MEM_T_COM].res_u.mem_info.len = ALIGN(
 				(bfa_nw_cee_meminfo() +
-				bfa_msgq_meminfo()), PAGE_SIZE);
+				 bfa_nw_flash_meminfo() +
+				 bfa_msgq_meminfo()), PAGE_SIZE);
 
 	/* DMA memory for retrieving IOC attributes */
 	res_info[BNA_RES_MEM_T_ATTR].res_type = BNA_RES_T_MEM;

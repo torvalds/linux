@@ -219,41 +219,39 @@ enum {
  * All numerical fields are in big-endian format.
  */
 struct bfa_mfg_block {
-	u8		version;	/*!< manufacturing block version */
-	u8		mfg_sig[3];	/*!< characters 'M', 'F', 'G' */
-	u16	mfgsize;	/*!< mfg block size */
-	u16	u16_chksum;	/*!< old u16 checksum */
-	char		brcd_serialnum[STRSZ(BFA_MFG_SERIALNUM_SIZE)];
-	char		brcd_partnum[STRSZ(BFA_MFG_PARTNUM_SIZE)];
-	u8		mfg_day;	/*!< manufacturing day */
-	u8		mfg_month;	/*!< manufacturing month */
-	u16	mfg_year;	/*!< manufacturing year */
-	u64		mfg_wwn;	/*!< wwn base for this adapter */
-	u8		num_wwn;	/*!< number of wwns assigned */
-	u8		mfg_speeds;	/*!< speeds allowed for this adapter */
-	u8		rsv[2];
-	char		supplier_id[STRSZ(BFA_MFG_SUPPLIER_ID_SIZE)];
-	char		supplier_partnum[STRSZ(BFA_MFG_SUPPLIER_PARTNUM_SIZE)];
-	char
-		supplier_serialnum[STRSZ(BFA_MFG_SUPPLIER_SERIALNUM_SIZE)];
-	char
-		supplier_revision[STRSZ(BFA_MFG_SUPPLIER_REVISION_SIZE)];
-	mac_t		mfg_mac;	/*!< mac address */
-	u8		num_mac;	/*!< number of mac addresses */
-	u8		rsv2;
-	u32		card_type;	/*!< card type */
-	char		cap_nic;	/*!< capability nic */
-	char		cap_cna;	/*!< capability cna */
-	char		cap_hba;	/*!< capability hba */
-	char		cap_fc16g;	/*!< capability fc 16g */
-	char		cap_sriov;	/*!< capability sriov */
-	char		cap_mezz;	/*!< capability mezz */
-	u8		rsv3;
-	u8		mfg_nports;	/*!< number of ports */
-	char		media[8];	/*!< xfi/xaui */
-	char		initial_mode[8];/*!< initial mode: hba/cna/nic */
-	u8		rsv4[84];
-	u8		md5_chksum[BFA_MFG_CHKSUM_SIZE]; /*!< md5 checksum */
+	u8	version;	/* manufacturing block version */
+	u8	mfg_sig[3];	/* characters 'M', 'F', 'G' */
+	u16	mfgsize;	/* mfg block size */
+	u16	u16_chksum;	/* old u16 checksum */
+	char	brcd_serialnum[STRSZ(BFA_MFG_SERIALNUM_SIZE)];
+	char	brcd_partnum[STRSZ(BFA_MFG_PARTNUM_SIZE)];
+	u8	mfg_day;	/* manufacturing day */
+	u8	mfg_month;	/* manufacturing month */
+	u16	mfg_year;	/* manufacturing year */
+	u64	mfg_wwn;	/* wwn base for this adapter */
+	u8	num_wwn;	/* number of wwns assigned */
+	u8	mfg_speeds;	/* speeds allowed for this adapter */
+	u8	rsv[2];
+	char	supplier_id[STRSZ(BFA_MFG_SUPPLIER_ID_SIZE)];
+	char	supplier_partnum[STRSZ(BFA_MFG_SUPPLIER_PARTNUM_SIZE)];
+	char	supplier_serialnum[STRSZ(BFA_MFG_SUPPLIER_SERIALNUM_SIZE)];
+	char	supplier_revision[STRSZ(BFA_MFG_SUPPLIER_REVISION_SIZE)];
+	mac_t	mfg_mac;	/* base mac address */
+	u8	num_mac;	/* number of mac addresses */
+	u8	rsv2;
+	u32	card_type;	/* card type          */
+	char	cap_nic;	/* capability nic     */
+	char	cap_cna;	/* capability cna     */
+	char	cap_hba;	/* capability hba     */
+	char	cap_fc16g;	/* capability fc 16g      */
+	char	cap_sriov;	/* capability sriov       */
+	char	cap_mezz;	/* capability mezz        */
+	u8	rsv3;
+	u8	mfg_nports;	/* number of ports        */
+	char	media[8];	/* xfi/xaui           */
+	char	initial_mode[8]; /* initial mode: hba/cna/nic */
+	u8	rsv4[84];
+	u8	md5_chksum[BFA_MFG_CHKSUM_SIZE]; /* md5 checksum */
 };
 
 #pragma pack()
@@ -291,6 +289,36 @@ enum bfa_mode {
 	BFA_MODE_HBA		= 1,
 	BFA_MODE_CNA		= 2,
 	BFA_MODE_NIC		= 3
+};
+
+/*
+ *	Flash module specific
+ */
+#define BFA_FLASH_PART_ENTRY_SIZE	32	/* partition entry size */
+#define BFA_FLASH_PART_MAX		32	/* maximal # of partitions */
+#define BFA_TOTAL_FLASH_SIZE		0x400000
+#define BFA_FLASH_PART_MFG		7
+
+/*
+ * flash partition attributes
+ */
+struct bfa_flash_part_attr {
+	u32	part_type;	/* partition type */
+	u32	part_instance;	/* partition instance */
+	u32	part_off;	/* partition offset */
+	u32	part_size;	/* partition size */
+	u32	part_len;	/* partition content length */
+	u32	part_status;	/* partition status */
+	char	rsv[BFA_FLASH_PART_ENTRY_SIZE - 24];
+};
+
+/*
+ * flash attributes
+ */
+struct bfa_flash_attr {
+	u32	status;	/* flash overall status */
+	u32	npart;  /* num of partitions */
+	struct bfa_flash_part_attr part[BFA_FLASH_PART_MAX];
 };
 
 #endif /* __BFA_DEFS_H__ */

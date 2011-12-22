@@ -48,7 +48,9 @@ MODULE_PARM_DESC(bnad_ioc_auto_recover, "Enable / Disable auto recovery");
  * Global variables
  */
 u32 bnad_rxqs_per_cq = 2;
-
+u32 bna_id;
+struct mutex bnad_list_mutex;
+LIST_HEAD(bnad_list);
 static const u8 bnad_bcast_addr[] =  {0xff, 0xff, 0xff, 0xff, 0xff, 0xff};
 
 /*
@@ -74,6 +76,23 @@ do {								\
 } while (0)
 
 #define BNAD_TXRX_SYNC_MDELAY	250	/* 250 msecs */
+
+static void
+bnad_add_to_list(struct bnad *bnad)
+{
+	mutex_lock(&bnad_list_mutex);
+	list_add_tail(&bnad->list_entry, &bnad_list);
+	bnad->id = bna_id++;
+	mutex_unlock(&bnad_list_mutex);
+}
+
+static void
+bnad_remove_from_list(struct bnad *bnad)
+{
+	mutex_lock(&bnad_list_mutex);
+	list_del(&bnad->list_entry);
+	mutex_unlock(&bnad_list_mutex);
+}
 
 /*
  * Reinitialize completions in CQ, once Rx is taken down
@@ -1082,6 +1101,16 @@ bnad_cb_enet_mtu_set(struct bnad *bnad)
 {
 	bnad->bnad_completions.mtu_comp_status = BNA_CB_SUCCESS;
 	complete(&bnad->bnad_completions.mtu_comp);
+}
+
+void
+bnad_cb_completion(void *arg, enum bfa_status status)
+{
+	struct bnad_iocmd_comp *iocmd_comp =
+			(struct bnad_iocmd_comp *)arg;
+
+	iocmd_comp->comp_status = (u32) status;
+	complete(&iocmd_comp->comp);
 }
 
 /* Resource allocation, free functions */
@@ -3167,12 +3196,14 @@ bnad_lock_init(struct bnad *bnad)
 {
 	spin_lock_init(&bnad->bna_lock);
 	mutex_init(&bnad->conf_mutex);
+	mutex_init(&bnad_list_mutex);
 }
 
 static void
 bnad_lock_uninit(struct bnad *bnad)
 {
 	mutex_destroy(&bnad->conf_mutex);
+	mutex_destroy(&bnad_list_mutex);
 }
 
 /* PCI Initialization */
@@ -3253,8 +3284,8 @@ bnad_pci_probe(struct pci_dev *pdev,
 		return err;
 	}
 	bnad = netdev_priv(netdev);
-
 	bnad_lock_init(bnad);
+	bnad_add_to_list(bnad);
 
 	mutex_lock(&bnad->conf_mutex);
 	/*
@@ -3407,6 +3438,7 @@ pci_uninit:
 	bnad_pci_uninit(pdev);
 unlock_mutex:
 	mutex_unlock(&bnad->conf_mutex);
+	bnad_remove_from_list(bnad);
 	bnad_lock_uninit(bnad);
 	free_netdev(netdev);
 	return err;
@@ -3445,6 +3477,7 @@ bnad_pci_remove(struct pci_dev *pdev)
 	bnad_disable_msix(bnad);
 	bnad_pci_uninit(pdev);
 	mutex_unlock(&bnad->conf_mutex);
+	bnad_remove_from_list(bnad);
 	bnad_lock_uninit(bnad);
 	bnad_uninit(bnad);
 	free_netdev(netdev);

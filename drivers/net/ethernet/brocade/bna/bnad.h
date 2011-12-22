@@ -124,6 +124,12 @@ enum bnad_link_state {
 	BNAD_LS_UP		= 1
 };
 
+struct bnad_iocmd_comp {
+	struct bnad		*bnad;
+	struct completion	comp;
+	int			comp_status;
+};
+
 struct bnad_completion {
 	struct completion	ioc_comp;
 	struct completion	ucast_comp;
@@ -251,6 +257,8 @@ struct bnad_unmap_q {
 
 struct bnad {
 	struct net_device	*netdev;
+	u32			id;
+	struct list_head	list_entry;
 
 	/* Data path */
 	struct bnad_tx_info tx_info[BNAD_MAX_TX];
@@ -340,6 +348,7 @@ extern int bnad_mac_addr_set_locked(struct bnad *bnad, u8 *mac_addr);
 extern int bnad_enable_default_bcast(struct bnad *bnad);
 extern void bnad_restore_vlans(struct bnad *bnad, u32 rx_id);
 extern void bnad_set_ethtool_ops(struct net_device *netdev);
+extern void bnad_cb_completion(void *arg, enum bfa_status status);
 
 /* Configuration & setup */
 extern void bnad_tx_coalescing_timeo_set(struct bnad *bnad);

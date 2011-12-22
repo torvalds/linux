@@ -966,6 +966,7 @@ struct bna {
 
 	struct bna_ioceth ioceth;
 	struct bfa_cee cee;
+	struct bfa_flash flash;
 	struct bfa_msgq msgq;
 
 	struct bna_ethport ethport;
