@@ -75,6 +75,7 @@ static struct snd_soc_dai_link edb93xx_dai = {
 
 static struct snd_soc_card snd_soc_edb93xx = {
 	.name		= "EDB93XX",
+	.owner		= THIS_MODULE,
 	.dai_link	= &edb93xx_dai,
 	.num_links	= 1,
 };

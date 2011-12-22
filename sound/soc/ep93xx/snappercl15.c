@@ -93,6 +93,7 @@ static struct snd_soc_dai_link snappercl15_dai = {
 
 static struct snd_soc_card snd_soc_snappercl15 = {
 	.name		= "Snapper CL15",
+	.owner		= THIS_MODULE,
 	.dai_link	= &snappercl15_dai,
 	.num_links	= 1,
 };

@@ -34,6 +34,7 @@ static struct snd_soc_dai_link simone_dai = {
 
 static struct snd_soc_card snd_soc_simone = {
 	.name		= "Sim.One",
+	.owner		= THIS_MODULE,
 	.dai_link	= &simone_dai,
 	.num_links	= 1,
 };
