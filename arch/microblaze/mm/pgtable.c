@@ -167,7 +167,7 @@ void __init mapin_ram(void)
 
 	v = CONFIG_KERNEL_START;
 	p = memory_start;
-	for (s = 0; s < CONFIG_LOWMEM_SIZE; s += PAGE_SIZE) {
+	for (s = 0; s < lowmem_size; s += PAGE_SIZE) {
 		f = _PAGE_PRESENT | _PAGE_ACCESSED |
 				_PAGE_SHARED | _PAGE_HWEXEC;
 		if ((char *) v < _stext || (char *) v >= _etext)
