@@ -574,10 +574,7 @@ static void ops_run_io(struct stripe_head *sh, struct stripe_head_state *s)
 			atomic_inc(&sh->count);
 			bi->bi_sector = sh->sector + rdev->data_offset;
 			bi->bi_flags = 1 << BIO_UPTODATE;
-			bi->bi_vcnt = 1;
-			bi->bi_max_vecs = 1;
 			bi->bi_idx = 0;
-			bi->bi_io_vec = &sh->dev[i].vec;
 			bi->bi_io_vec[0].bv_len = STRIPE_SIZE;
 			bi->bi_io_vec[0].bv_offset = 0;
 			bi->bi_size = STRIPE_SIZE;
@@ -1720,12 +1717,8 @@ static void raid5_build_block(struct stripe_head *sh, int i, int previous)
 	dev->req.bi_io_vec = &dev->vec;
 	dev->req.bi_vcnt++;
 	dev->req.bi_max_vecs++;
-	dev->vec.bv_page = dev->page;
-	dev->vec.bv_len = STRIPE_SIZE;
-	dev->vec.bv_offset = 0;
-
-	dev->req.bi_sector = sh->sector;
 	dev->req.bi_private = sh;
+	dev->vec.bv_page = dev->page;
 
 	dev->flags = 0;
 	dev->sector = compute_blocknr(sh, i, previous);
