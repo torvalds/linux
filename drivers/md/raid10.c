@@ -1429,34 +1429,41 @@ static int raid10_remove_disk(struct mddev *mddev, struct md_rdev *rdev)
 	struct r10conf *conf = mddev->private;
 	int err = 0;
 	int number = rdev->raid_disk;
-	struct mirror_info *p = conf->mirrors+ number;
+	struct md_rdev **rdevp;
+	struct mirror_info *p = conf->mirrors + number;
 
 	print_conf(conf);
-	if (rdev == p->rdev) {
-		if (test_bit(In_sync, &rdev->flags) ||
-		    atomic_read(&rdev->nr_pending)) {
-			err = -EBUSY;
-			goto abort;
-		}
-		/* Only remove faulty devices in recovery
-		 * is not possible.
-		 */
-		if (!test_bit(Faulty, &rdev->flags) &&
-		    mddev->recovery_disabled != p->recovery_disabled &&
-		    enough(conf, -1)) {
-			err = -EBUSY;
-			goto abort;
-		}
-		p->rdev = NULL;
-		synchronize_rcu();
-		if (atomic_read(&rdev->nr_pending)) {
-			/* lost the race, try later */
-			err = -EBUSY;
-			p->rdev = rdev;
-			goto abort;
-		}
-		err = md_integrity_register(mddev);
+	if (rdev == p->rdev)
+		rdevp = &p->rdev;
+	else if (rdev == p->replacement)
+		rdevp = &p->replacement;
+	else
+		return 0;
+
+	if (test_bit(In_sync, &rdev->flags) ||
+	    atomic_read(&rdev->nr_pending)) {
+		err = -EBUSY;
+		goto abort;
 	}
+	/* Only remove faulty devices if recovery
+	 * is not possible.
+	 */
+	if (!test_bit(Faulty, &rdev->flags) &&
+	    mddev->recovery_disabled != p->recovery_disabled &&
+	    enough(conf, -1)) {
+		err = -EBUSY;
+		goto abort;
+	}
+	*rdevp = NULL;
+	synchronize_rcu();
+	if (atomic_read(&rdev->nr_pending)) {
+		/* lost the race, try later */
+		err = -EBUSY;
+		*rdevp = rdev;
+		goto abort;
+	}
+	err = md_integrity_register(mddev);
+
 abort:
 
 	print_conf(conf);
