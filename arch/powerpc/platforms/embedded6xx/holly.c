@@ -157,8 +157,7 @@ static void __init holly_init_IRQ(void)
 	mpic = mpic_alloc(NULL, 0,
 			MPIC_BIG_ENDIAN | MPIC_WANTS_RESET |
 			MPIC_SPV_EOI | MPIC_NO_PTHROU_DIS | MPIC_REGSET_TSI108,
-			24,
-			NR_IRQS-4, /* num_sources used */
+			24, 0,
 			"Tsi108_PIC");
 
 	BUG_ON(mpic == NULL);

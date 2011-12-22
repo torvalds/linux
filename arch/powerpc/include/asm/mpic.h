@@ -273,7 +273,6 @@ struct mpic
 	unsigned int		isu_size;
 	unsigned int		isu_shift;
 	unsigned int		isu_mask;
-	unsigned int		irq_count;
 	/* Number of sources */
 	unsigned int		num_sources;
 	/* default senses array */
@@ -363,8 +362,6 @@ struct mpic
 #define MPIC_ENABLE_MCK			0x00000200
 /* Disable bias among target selection, spread interrupts evenly */
 #define MPIC_NO_BIAS			0x00000400
-/* Ignore NIRQS as reported by FRR */
-#define MPIC_BROKEN_FRR_NIRQS		0x00000800
 /* Destination only supports a single CPU at a time */
 #define MPIC_SINGLE_DEST_CPU		0x00001000
 /* Enable CoreInt delivery of interrupts */

@@ -39,7 +39,7 @@ void __init mpc86xx_init_irq(void)
 
 	struct mpic *mpic = mpic_alloc(NULL, 0,
 			MPIC_WANTS_RESET | MPIC_BIG_ENDIAN |
-			MPIC_BROKEN_FRR_NIRQS | MPIC_SINGLE_DEST_CPU,
+			MPIC_SINGLE_DEST_CPU,
 			0, 256, " MPIC     ");
 	BUG_ON(mpic == NULL);
 

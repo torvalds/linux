@@ -873,7 +873,7 @@ int mpic_set_irq_type(struct irq_data *d, unsigned int flow_type)
 	DBG("mpic: set_irq_type(mpic:@%p,virq:%d,src:0x%x,type:0x%x)\n",
 	    mpic, d->irq, src, flow_type);
 
-	if (src >= mpic->irq_count)
+	if (src >= mpic->num_sources)
 		return -EINVAL;
 
 	if (flow_type == IRQ_TYPE_NONE)
@@ -909,7 +909,7 @@ void mpic_set_vector(unsigned int virq, unsigned int vector)
 	DBG("mpic: set_vector(mpic:@%p,virq:%d,src:%d,vector:0x%x)\n",
 	    mpic, virq, src, vector);
 
-	if (src >= mpic->irq_count)
+	if (src >= mpic->num_sources)
 		return;
 
 	vecpri = mpic_irq_read(src, MPIC_INFO(IRQ_VECTOR_PRI));
@@ -926,7 +926,7 @@ void mpic_set_destination(unsigned int virq, unsigned int cpuid)
 	DBG("mpic: set_destination(mpic:@%p,virq:%d,src:%d,cpuid:0x%x)\n",
 	    mpic, virq, src, cpuid);
 
-	if (src >= mpic->irq_count)
+	if (src >= mpic->num_sources)
 		return;
 
 	mpic_irq_write(src, MPIC_INFO(IRQ_DESTINATION), 1 << cpuid);
@@ -1006,7 +1006,7 @@ static int mpic_host_map(struct irq_host *h, unsigned int virq,
 		return 0;
 	}
 
-	if (hw >= mpic->irq_count)
+	if (hw >= mpic->num_sources)
 		return -EINVAL;
 
 	mpic_msi_reserve_hwirq(mpic, hw);
@@ -1221,7 +1221,6 @@ struct mpic * __init mpic_alloc(struct device_node *node,
 	mpic->hc_tm.name = name;
 
 	mpic->isu_size = isu_size;
-	mpic->irq_count = irq_count;
 	mpic->num_sources = 0; /* so far */
 
 	if (mpic->flags & MPIC_LARGE_VECTORS)
@@ -1314,8 +1313,8 @@ struct mpic * __init mpic_alloc(struct device_node *node,
 	 */
 	greg_feature = mpic_read(mpic->gregs, MPIC_INFO(GREG_FEATURE_0));
 	if (isu_size == 0) {
-		if (mpic->flags & MPIC_BROKEN_FRR_NIRQS)
-			mpic->num_sources = mpic->irq_count;
+		if (irq_count)
+			mpic->num_sources = irq_count;
 		else
 			mpic->num_sources =
 				((greg_feature & MPIC_GREG_FEATURE_LAST_SRC_MASK)
@@ -1449,10 +1448,6 @@ void __init mpic_init(struct mpic *mpic)
 			       (10 << MPIC_VECPRI_PRIORITY_SHIFT) |
 			       (mpic->ipi_vecs[0] + i));
 	}
-
-	/* Initialize interrupt sources */
-	if (mpic->irq_count == 0)
-		mpic->irq_count = mpic->num_sources;
 
 	/* Do the HT PIC fixups on U3 broken mpic */
 	DBG("MPIC flags: %x\n", mpic->flags);
