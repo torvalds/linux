@@ -576,19 +576,19 @@ static int au8522_enable_modulation(struct dvb_frontend *fe,
 }
 
 /* Talk to the demod, set the FEC, GUARD, QAM settings etc */
-static int au8522_set_frontend(struct dvb_frontend *fe,
-			       struct dvb_frontend_parameters *p)
+static int au8522_set_frontend(struct dvb_frontend *fe)
 {
+	struct dtv_frontend_properties *c = &fe->dtv_property_cache;
 	struct au8522_state *state = fe->demodulator_priv;
 	int ret = -EINVAL;
 
-	dprintk("%s(frequency=%d)\n", __func__, p->frequency);
+	dprintk("%s(frequency=%d)\n", __func__, c->frequency);
 
-	if ((state->current_frequency == p->frequency) &&
-	    (state->current_modulation == p->u.vsb.modulation))
+	if ((state->current_frequency == c->frequency) &&
+	    (state->current_modulation == c->modulation))
 		return 0;
 
-	au8522_enable_modulation(fe, p->u.vsb.modulation);
+	au8522_enable_modulation(fe, c->modulation);
 
 	/* Allow the demod to settle */
 	msleep(100);
@@ -604,7 +604,7 @@ static int au8522_set_frontend(struct dvb_frontend *fe,
 	if (ret < 0)
 		return ret;
 
-	state->current_frequency = p->frequency;
+	state->current_frequency = c->frequency;
 
 	return 0;
 }
@@ -912,12 +912,12 @@ static int au8522_read_ber(struct dvb_frontend *fe, u32 *ber)
 }
 
 static int au8522_get_frontend(struct dvb_frontend *fe,
-				struct dvb_frontend_parameters *p)
+			       struct dtv_frontend_properties *c)
 {
 	struct au8522_state *state = fe->demodulator_priv;
 
-	p->frequency = state->current_frequency;
-	p->u.vsb.modulation = state->current_modulation;
+	c->frequency = state->current_frequency;
+	c->modulation = state->current_modulation;
 
 	return 0;
 }
@@ -1010,7 +1010,7 @@ error:
 EXPORT_SYMBOL(au8522_attach);
 
 static struct dvb_frontend_ops au8522_ops = {
-
+	.delsys = { SYS_ATSC, SYS_DVBC_ANNEX_B },
 	.info = {
 		.name			= "Auvitek AU8522 QAM/8VSB Frontend",
 		.type			= FE_ATSC,
@@ -1023,8 +1023,8 @@ static struct dvb_frontend_ops au8522_ops = {
 	.init                 = au8522_init,
 	.sleep                = au8522_sleep,
 	.i2c_gate_ctrl        = au8522_i2c_gate_ctrl,
-	.set_frontend_legacy         = au8522_set_frontend,
-	.get_frontend_legacy = au8522_get_frontend,
+	.set_frontend         = au8522_set_frontend,
+	.get_frontend         = au8522_get_frontend,
 	.get_tune_settings    = au8522_get_tune_settings,
 	.read_status          = au8522_read_status,
 	.read_ber             = au8522_read_ber,
