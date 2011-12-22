@@ -1714,6 +1714,8 @@ static int super_1_validate(struct mddev *mddev, struct md_rdev *rdev)
 		}
 		if (sb->devflags & WriteMostly1)
 			set_bit(WriteMostly, &rdev->flags);
+		if (le32_to_cpu(sb->feature_map) & MD_FEATURE_REPLACEMENT)
+			set_bit(Replacement, &rdev->flags);
 	} else /* MULTIPATH are always insync */
 		set_bit(In_sync, &rdev->flags);
 
@@ -1767,6 +1769,9 @@ static void super_1_sync(struct mddev *mddev, struct md_rdev *rdev)
 		sb->recovery_offset =
 			cpu_to_le64(rdev->recovery_offset);
 	}
+	if (test_bit(Replacement, &rdev->flags))
+		sb->feature_map |=
+			cpu_to_le32(MD_FEATURE_REPLACEMENT);
 
 	if (mddev->reshape_position != MaxSector) {
 		sb->feature_map |= cpu_to_le32(MD_FEATURE_RESHAPE_ACTIVE);
@@ -2560,6 +2565,15 @@ state_show(struct md_rdev *rdev, char *page)
 		len += sprintf(page+len, "%swrite_error", sep);
 		sep = ",";
 	}
+	if (test_bit(WantReplacement, &rdev->flags)) {
+		len += sprintf(page+len, "%swant_replacement", sep);
+		sep = ",";
+	}
+	if (test_bit(Replacement, &rdev->flags)) {
+		len += sprintf(page+len, "%sreplacement", sep);
+		sep = ",";
+	}
+
 	return len+sprintf(page+len, "\n");
 }
 
@@ -2628,6 +2642,42 @@ state_store(struct md_rdev *rdev, const char *buf, size_t len)
 	} else if (cmd_match(buf, "-write_error")) {
 		clear_bit(WriteErrorSeen, &rdev->flags);
 		err = 0;
+	} else if (cmd_match(buf, "want_replacement")) {
+		/* Any non-spare device that is not a replacement can
+		 * become want_replacement at any time, but we then need to
+		 * check if recovery is needed.
+		 */
+		if (rdev->raid_disk >= 0 &&
+		    !test_bit(Replacement, &rdev->flags))
+			set_bit(WantReplacement, &rdev->flags);
+		set_bit(MD_RECOVERY_NEEDED, &rdev->mddev->recovery);
+		md_wakeup_thread(rdev->mddev->thread);
+		err = 0;
+	} else if (cmd_match(buf, "-want_replacement")) {
+		/* Clearing 'want_replacement' is always allowed.
+		 * Once replacements starts it is too late though.
+		 */
+		err = 0;
+		clear_bit(WantReplacement, &rdev->flags);
+	} else if (cmd_match(buf, "replacement")) {
+		/* Can only set a device as a replacement when array has not
+		 * yet been started.  Once running, replacement is automatic
+		 * from spares, or by assigning 'slot'.
+		 */
+		if (rdev->mddev->pers)
+			err = -EBUSY;
+		else {
+			set_bit(Replacement, &rdev->flags);
+			err = 0;
+		}
+	} else if (cmd_match(buf, "-replacement")) {
+		/* Similarly, can only clear Replacement before start */
+		if (rdev->mddev->pers)
+			err = -EBUSY;
+		else {
+			clear_bit(Replacement, &rdev->flags);
+			err = 0;
+		}
 	}
 	if (!err)
 		sysfs_notify_dirent_safe(rdev->sysfs_state);
@@ -6717,8 +6767,11 @@ static int md_seq_show(struct seq_file *seq, void *v)
 			if (test_bit(Faulty, &rdev->flags)) {
 				seq_printf(seq, "(F)");
 				continue;
-			} else if (rdev->raid_disk < 0)
+			}
+			if (rdev->raid_disk < 0)
 				seq_printf(seq, "(S)"); /* spare */
+			if (test_bit(Replacement, &rdev->flags))
+				seq_printf(seq, "(R)");
 			sectors += rdev->sectors;
 		}
 
