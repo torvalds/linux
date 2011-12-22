@@ -70,6 +70,7 @@ static struct snd_soc_dai_link omap3evm_dai = {
 /* Audio machine driver */
 static struct snd_soc_card snd_soc_omap3evm = {
 	.name = "omap3evm",
+	.owner = THIS_MODULE,
 	.dai_link = &omap3evm_dai,
 	.num_links = 1,
 };

@@ -597,6 +597,7 @@ static struct snd_soc_dai_link ams_delta_dai_link = {
 /* Audio card driver */
 static struct snd_soc_card ams_delta_audio_card = {
 	.name = "AMS_DELTA",
+	.owner = THIS_MODULE,
 	.dai_link = &ams_delta_dai_link,
 	.num_links = 1,
 	.set_bias_level = ams_delta_set_bias_level,

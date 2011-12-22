@@ -383,6 +383,7 @@ static struct snd_soc_codec_conf rx51_codec_conf[] = {
 /* Audio card */
 static struct snd_soc_card rx51_sound_card = {
 	.name = "RX-51",
+	.owner = THIS_MODULE,
 	.dai_link = rx51_dai,
 	.num_links = ARRAY_SIZE(rx51_dai),
 	.aux_dev = rx51_aux_dev,
