@@ -131,4 +131,5 @@ MACHINE_START(TORBRECK, "TORBRECK")
 	.map_io		= torbreck_map_io,
 	.init_machine	= torbreck_machine_init,
 	.timer		= &s5p_timer,
+	.restart	= s5pv210_restart,
 MACHINE_END

@@ -961,4 +961,5 @@ MACHINE_START(GONI, "GONI")
 	.init_machine	= goni_machine_init,
 	.timer		= &s5p_timer,
 	.reserve	= &goni_reserve,
+	.restart	= s5pv210_restart,
 MACHINE_END

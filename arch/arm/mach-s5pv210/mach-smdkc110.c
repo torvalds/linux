@@ -142,4 +142,5 @@ MACHINE_START(SMDKC110, "SMDKC110")
 	.map_io		= smdkc110_map_io,
 	.init_machine	= smdkc110_machine_init,
 	.timer		= &s5p_timer,
+	.restart	= s5pv210_restart,
 MACHINE_END

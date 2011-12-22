@@ -35,7 +35,6 @@
 #include <plat/cpu.h>
 #include <plat/clock.h>
 #include <plat/devs.h>
-#include <plat/reset.h>
 #include <plat/sdhci.h>
 #include <plat/adc-core.h>
 #include <plat/ata-core.h>
@@ -151,7 +150,7 @@ static void s5pv210_idle(void)
 	local_irq_enable();
 }
 
-static void s5pv210_sw_reset(void)
+void s5pv210_restart(char mode, const char *cmd)
 {
 	__raw_writel(0x1, S5P_SWRESET);
 }
@@ -250,9 +249,6 @@ int __init s5pv210_init(void)
 
 	/* set idle function */
 	pm_idle = s5pv210_idle;
-
-	/* set sw_reset function */
-	s5p_reset_hook = s5pv210_sw_reset;
 
 	return sysdev_register(&s5pv210_sysdev);
 }

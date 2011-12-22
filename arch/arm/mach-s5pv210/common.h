@@ -18,6 +18,8 @@ void s5pv210_init_irq(void);
 void s5pv210_register_clocks(void);
 void s5pv210_setup_clocks(void);
 
+void s5pv210_restart(char mode, const char *cmd);
+
 #ifdef CONFIG_CPU_S5PV210
 
 extern  int s5pv210_init(void);
