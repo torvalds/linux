@@ -113,38 +113,48 @@ static struct snd_soc_jack_pin hs_jack_pins[] = {
 
 /* SDP4430 machine DAPM */
 static const struct snd_soc_dapm_widget twl6040_dapm_widgets[] = {
-	SND_SOC_DAPM_MIC("Ext Mic", NULL),
-	SND_SOC_DAPM_SPK("Ext Spk", NULL),
-	SND_SOC_DAPM_MIC("Headset Mic", NULL),
+	/* Outputs */
 	SND_SOC_DAPM_HP("Headset Stereophone", NULL),
 	SND_SOC_DAPM_SPK("Earphone Spk", NULL),
-	SND_SOC_DAPM_INPUT("FM Stereo In"),
+	SND_SOC_DAPM_SPK("Ext Spk", NULL),
+	SND_SOC_DAPM_LINE("Line Out", NULL),
+	SND_SOC_DAPM_SPK("Vibrator", NULL),
+
+	/* Inputs */
+	SND_SOC_DAPM_MIC("Headset Mic", NULL),
+	SND_SOC_DAPM_MIC("Main Handset Mic", NULL),
+	SND_SOC_DAPM_MIC("Sub Handset Mic", NULL),
+	SND_SOC_DAPM_LINE("Line In", NULL),
 };
 
 static const struct snd_soc_dapm_route audio_map[] = {
-	/* External Mics: MAINMIC, SUBMIC with bias*/
-	{"MAINMIC", NULL, "Ext Mic"},
-	{"SUBMIC", NULL, "Ext Mic"},
-	{"Ext Mic", NULL, "Main Mic Bias"},
-
-	/* External Speakers: HFL, HFR */
-	{"Ext Spk", NULL, "HFL"},
-	{"Ext Spk", NULL, "HFR"},
-
-	/* Headset Mic: HSMIC with bias */
-	{"HSMIC", NULL, "Headset Mic"},
-	{"Headset Mic", NULL, "Headset Mic Bias"},
-
-	/* Headset Stereophone (Headphone): HSOL, HSOR */
+	/* Routings for outputs */
 	{"Headset Stereophone", NULL, "HSOL"},
 	{"Headset Stereophone", NULL, "HSOR"},
 
-	/* Earphone speaker */
 	{"Earphone Spk", NULL, "EP"},
 
-	/* Aux/FM Stereo In: AFML, AFMR */
-	{"AFML", NULL, "FM Stereo In"},
-	{"AFMR", NULL, "FM Stereo In"},
+	{"Ext Spk", NULL, "HFL"},
+	{"Ext Spk", NULL, "HFR"},
+
+	{"Line Out", NULL, "AUXL"},
+	{"Line Out", NULL, "AUXR"},
+
+	{"Vibrator", NULL, "VIBRAL"},
+	{"Vibrator", NULL, "VIBRAR"},
+
+	/* Routings for inputs */
+	{"HSMIC", NULL, "Headset Mic"},
+	{"Headset Mic", NULL, "Headset Mic Bias"},
+
+	{"MAINMIC", NULL, "Main Handset Mic"},
+	{"Main Handset Mic", NULL, "Main Mic Bias"},
+
+	{"SUBMIC", NULL, "Sub Handset Mic"},
+	{"Sub Handset Mic", NULL, "Main Mic Bias"},
+
+	{"AFML", NULL, "Line In"},
+	{"AFMR", NULL, "Line In"},
 };
 
 static int omap_abe_twl6040_init(struct snd_soc_pcm_runtime *rtd)
