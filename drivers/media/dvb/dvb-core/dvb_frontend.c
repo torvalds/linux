@@ -1252,6 +1252,19 @@ static void dtv_set_default_delivery_caps(const struct dvb_frontend *fe, struct 
 	const struct dvb_frontend_info *info = &fe->ops.info;
 	u32 ncaps = 0;
 
+	/*
+	 * If the frontend explicitly sets a list, use it, instead of
+	 * filling based on the info->type
+	 */
+	if (fe->ops.delsys[ncaps]) {
+		while (fe->ops.delsys[ncaps] && ncaps < MAX_DELSYS) {
+			p->u.buffer.data[ncaps] = fe->ops.delsys[ncaps];
+			ncaps++;
+		}
+		p->u.buffer.len = ncaps;
+		return;
+	}
+
 	switch (info->type) {
 	case FE_QPSK:
 		p->u.buffer.data[ncaps++] = SYS_DVBS;

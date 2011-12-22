@@ -42,6 +42,12 @@
 
 #include "dvbdev.h"
 
+/*
+ * Maximum number of Delivery systems per frontend. It
+ * should be smaller or equal to 32
+ */
+#define MAX_DELSYS	8
+
 struct dvb_frontend_tune_settings {
 	int min_delay_ms;
 	int step_size;
@@ -253,6 +259,8 @@ struct analog_demod_ops {
 struct dvb_frontend_ops {
 
 	struct dvb_frontend_info info;
+
+	u8 delsys[MAX_DELSYS];
 
 	void (*release)(struct dvb_frontend* fe);
 	void (*release_sec)(struct dvb_frontend* fe);
