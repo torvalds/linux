@@ -2453,14 +2453,20 @@ static struct r1conf *setup_conf(struct mddev *mddev)
 
 	conf->poolinfo->mddev = mddev;
 
+	err = -EINVAL;
 	spin_lock_init(&conf->device_lock);
 	list_for_each_entry(rdev, &mddev->disks, same_set) {
 		int disk_idx = rdev->raid_disk;
 		if (disk_idx >= mddev->raid_disks
 		    || disk_idx < 0)
 			continue;
-		disk = conf->mirrors + disk_idx;
+		if (test_bit(Replacement, &rdev->flags))
+			disk = conf->mirrors + conf->raid_disks + disk_idx;
+		else
+			disk = conf->mirrors + disk_idx;
 
+		if (disk->rdev)
+			goto abort;
 		disk->rdev = rdev;
 
 		disk->head_position = 0;
@@ -2476,10 +2482,26 @@ static struct r1conf *setup_conf(struct mddev *mddev)
 	conf->pending_count = 0;
 	conf->recovery_disabled = mddev->recovery_disabled - 1;
 
+	err = -EIO;
 	conf->last_used = -1;
 	for (i = 0; i < conf->raid_disks * 2; i++) {
 
 		disk = conf->mirrors + i;
+
+		if (i < conf->raid_disks &&
+		    disk[conf->raid_disks].rdev) {
+			/* This slot has a replacement. */
+			if (!disk->rdev) {
+				/* No original, just make the replacement
+				 * a recovering spare
+				 */
+				disk->rdev =
+					disk[conf->raid_disks].rdev;
+				disk[conf->raid_disks].rdev = NULL;
+			} else if (!test_bit(In_sync, &disk->rdev->flags))
+				/* Original is not in_sync - bad */
+				goto abort;
+		}
 
 		if (!disk->rdev ||
 		    !test_bit(In_sync, &disk->rdev->flags)) {
@@ -2494,7 +2516,6 @@ static struct r1conf *setup_conf(struct mddev *mddev)
 			conf->last_used = i;
 	}
 
-	err = -EIO;
 	if (conf->last_used < 0) {
 		printk(KERN_ERR "md/raid1:%s: no operational mirrors\n",
 		       mdname(mddev));
