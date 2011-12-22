@@ -246,4 +246,5 @@ MACHINE_START(SMDK6440, "SMDK6440")
 	.map_io		= smdk6440_map_io,
 	.init_machine	= smdk6440_machine_init,
 	.timer		= &s5p_timer,
+	.restart	= s5p64x0_restart,
 MACHINE_END

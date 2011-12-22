@@ -22,6 +22,8 @@ void s5p6440_setup_clocks(void);
 void s5p6450_register_clocks(void);
 void s5p6450_setup_clocks(void);
 
+void s5p64x0_restart(char mode, const char *cmd);
+
 #ifdef CONFIG_CPU_S5P6440
 
 extern  int s5p64x0_init(void);

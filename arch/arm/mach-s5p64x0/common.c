@@ -45,6 +45,7 @@
 #include <plat/gpio-cfg.h>
 #include <plat/regs-irqtype.h>
 #include <plat/regs-serial.h>
+#include <plat/watchdog-reset.h>
 
 #include "common.h"
 
@@ -457,3 +458,11 @@ static int __init s5p64x0_init_irq_eint(void)
 	return ret;
 }
 arch_initcall(s5p64x0_init_irq_eint);
+
+void s5p64x0_restart(char mode, const char *cmd)
+{
+	if (mode != 's')
+		arch_wdt_reset();
+
+	soft_restart(0);
+}
