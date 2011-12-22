@@ -1336,6 +1336,9 @@ static int raid1_remove_disk(struct mddev *mddev, struct md_rdev *rdev)
 	int number = rdev->raid_disk;
 	struct mirror_info *p = conf->mirrors+ number;
 
+	if (rdev != p->rdev)
+		p = conf->mirrors + conf->raid_disks + number;
+
 	print_conf(conf);
 	if (rdev == p->rdev) {
 		if (test_bit(In_sync, &rdev->flags) ||
@@ -1359,6 +1362,9 @@ static int raid1_remove_disk(struct mddev *mddev, struct md_rdev *rdev)
 			err = -EBUSY;
 			p->rdev = rdev;
 			goto abort;
+		} else {
+			clear_bit(Replacement, &rdev->flags);
+			clear_bit(WantReplacement, &rdev->flags);
 		}
 		err = md_integrity_register(mddev);
 	}
