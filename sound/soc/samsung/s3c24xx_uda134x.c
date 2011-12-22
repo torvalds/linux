@@ -229,6 +229,7 @@ static struct snd_soc_dai_link s3c24xx_uda134x_dai_link = {
 
 static struct snd_soc_card snd_soc_s3c24xx_uda134x = {
 	.name = "S3C24XX_UDA134X",
+	.owner = THIS_MODULE,
 	.dai_link = &s3c24xx_uda134x_dai_link,
 	.num_links = 1,
 };

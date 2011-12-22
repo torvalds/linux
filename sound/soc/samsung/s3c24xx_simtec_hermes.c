@@ -89,6 +89,7 @@ static struct snd_soc_dai_link simtec_dai_aic33 = {
 /* simtec audio machine driver */
 static struct snd_soc_card snd_soc_machine_simtec_aic33 = {
 	.name		= "Simtec-Hermes",
+	.owner		= THIS_MODULE,
 	.dai_link	= &simtec_dai_aic33,
 	.num_links	= 1,
 

@@ -465,6 +465,7 @@ static const struct gpio neo1973_gta02_gpios[] = {};
 
 static struct snd_soc_card neo1973 = {
 	.name = "neo1973",
+	.owner = THIS_MODULE,
 	.dai_link = neo1973_dai,
 	.num_links = ARRAY_SIZE(neo1973_dai),
 	.aux_dev = neo1973_aux_devs,

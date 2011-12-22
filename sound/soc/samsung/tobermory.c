@@ -196,6 +196,7 @@ static int tobermory_late_probe(struct snd_soc_card *card)
 
 static struct snd_soc_card tobermory = {
 	.name = "Tobermory",
+	.owner = THIS_MODULE,
 	.dai_link = tobermory_dai,
 	.num_links = ARRAY_SIZE(tobermory_dai),
 

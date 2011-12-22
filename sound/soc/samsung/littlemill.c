@@ -194,6 +194,7 @@ static int littlemill_late_probe(struct snd_soc_card *card)
 
 static struct snd_soc_card littlemill = {
 	.name = "Littlemill",
+	.owner = THIS_MODULE,
 	.dai_link = littlemill_dai,
 	.num_links = ARRAY_SIZE(littlemill_dai),
 

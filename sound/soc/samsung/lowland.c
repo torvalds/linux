@@ -177,6 +177,7 @@ static struct snd_soc_dapm_route audio_paths[] = {
 
 static struct snd_soc_card lowland = {
 	.name = "Lowland",
+	.owner = THIS_MODULE,
 	.dai_link = lowland_dai,
 	.num_links = ARRAY_SIZE(lowland_dai),
 	.aux_dev = lowland_aux_dev,

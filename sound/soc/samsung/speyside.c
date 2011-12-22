@@ -291,6 +291,7 @@ static struct snd_soc_dapm_route audio_paths[] = {
 
 static struct snd_soc_card speyside = {
 	.name = "Speyside",
+	.owner = THIS_MODULE,
 	.dai_link = speyside_dai,
 	.num_links = ARRAY_SIZE(speyside_dai),
 	.aux_dev = speyside_aux_dev,

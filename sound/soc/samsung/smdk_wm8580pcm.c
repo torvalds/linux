@@ -143,6 +143,7 @@ static struct snd_soc_dai_link smdk_dai[] = {
 
 static struct snd_soc_card smdk_pcm = {
 	.name = "SMDK-PCM",
+	.owner = THIS_MODULE,
 	.dai_link = smdk_dai,
 	.num_links = 2,
 };
