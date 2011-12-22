@@ -1396,13 +1396,6 @@ static void amd_iommu_resume(void)
 
 	/* re-load the hardware */
 	enable_iommus();
-
-	/*
-	 * we have to flush after the IOMMUs are enabled because a
-	 * disabled IOMMU will never execute the commands we send
-	 */
-	for_each_iommu(iommu)
-		iommu_flush_all_caches(iommu);
 }
 
 static int amd_iommu_suspend(void)
