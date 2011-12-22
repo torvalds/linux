@@ -676,7 +676,7 @@ static struct dvb_frontend_ops zl10353_ops = {
 	.write = zl10353_write,
 
 	.set_frontend_legacy = zl10353_set_parameters,
-	.get_frontend = zl10353_get_parameters,
+	.get_frontend_legacy = zl10353_get_parameters,
 	.get_tune_settings = zl10353_get_tune_settings,
 
 	.read_status = zl10353_read_status,

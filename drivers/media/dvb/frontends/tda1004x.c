@@ -1252,7 +1252,7 @@ static struct dvb_frontend_ops tda10045_ops = {
 	.i2c_gate_ctrl = tda1004x_i2c_gate_ctrl,
 
 	.set_frontend_legacy = tda1004x_set_fe,
-	.get_frontend = tda1004x_get_fe,
+	.get_frontend_legacy = tda1004x_get_fe,
 	.get_tune_settings = tda1004x_get_tune_settings,
 
 	.read_status = tda1004x_read_status,
@@ -1322,7 +1322,7 @@ static struct dvb_frontend_ops tda10046_ops = {
 	.i2c_gate_ctrl = tda1004x_i2c_gate_ctrl,
 
 	.set_frontend_legacy = tda1004x_set_fe,
-	.get_frontend = tda1004x_get_fe,
+	.get_frontend_legacy = tda1004x_get_fe,
 	.get_tune_settings = tda1004x_get_tune_settings,
 
 	.read_status = tda1004x_read_status,

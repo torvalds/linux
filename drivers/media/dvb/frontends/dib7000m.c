@@ -1453,7 +1453,7 @@ static struct dvb_frontend_ops dib7000m_ops = {
 
 	.set_frontend_legacy         = dib7000m_set_frontend,
 	.get_tune_settings    = dib7000m_fe_get_tune_settings,
-	.get_frontend         = dib7000m_get_frontend,
+	.get_frontend_legacy = dib7000m_get_frontend,
 
 	.read_status          = dib7000m_read_status,
 	.read_ber             = dib7000m_read_ber,

@@ -2957,7 +2957,7 @@ static struct dvb_frontend_ops drxd_ops = {
 	.i2c_gate_ctrl = drxd_i2c_gate_ctrl,
 
 	.set_frontend_legacy = drxd_set_frontend,
-	.get_frontend = drxd_get_frontend,
+	.get_frontend_legacy = drxd_get_frontend,
 	.get_tune_settings = drxd_get_tune_settings,
 
 	.read_status = drxd_read_status,

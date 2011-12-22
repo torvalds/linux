@@ -530,7 +530,7 @@ static struct dvb_frontend_ops ves1x93_ops = {
 	.i2c_gate_ctrl = ves1x93_i2c_gate_ctrl,
 
 	.set_frontend_legacy = ves1x93_set_frontend,
-	.get_frontend = ves1x93_get_frontend,
+	.get_frontend_legacy = ves1x93_get_frontend,
 
 	.read_status = ves1x93_read_status,
 	.read_ber = ves1x93_read_ber,

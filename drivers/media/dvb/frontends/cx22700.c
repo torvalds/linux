@@ -420,7 +420,7 @@ static struct dvb_frontend_ops cx22700_ops = {
 	.i2c_gate_ctrl = cx22700_i2c_gate_ctrl,
 
 	.set_frontend_legacy = cx22700_set_frontend,
-	.get_frontend = cx22700_get_frontend,
+	.get_frontend_legacy = cx22700_get_frontend,
 	.get_tune_settings = cx22700_get_tune_settings,
 
 	.read_status = cx22700_read_status,

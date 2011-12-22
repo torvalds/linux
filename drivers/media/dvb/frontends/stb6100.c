@@ -335,9 +335,9 @@ static int stb6100_set_frequency(struct dvb_frontend *fe, u32 frequency)
 
 	dprintk(verbose, FE_DEBUG, 1, "Version 2010-8-14 13:51");
 
-	if (fe->ops.get_frontend) {
+	if (fe->ops.get_frontend_legacy) {
 		dprintk(verbose, FE_DEBUG, 1, "Get frontend parameters");
-		fe->ops.get_frontend(fe, &p);
+		fe->ops.get_frontend_legacy(fe, &p);
 	}
 	srate = p.u.qpsk.symbol_rate;
 

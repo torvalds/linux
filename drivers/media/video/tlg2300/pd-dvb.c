@@ -354,7 +354,7 @@ static struct dvb_frontend_ops poseidon_frontend_ops = {
 	.sleep = poseidon_fe_sleep,
 
 	.set_frontend_legacy = poseidon_set_fe,
-	.get_frontend = poseidon_get_fe,
+	.get_frontend_legacy = poseidon_get_fe,
 	.get_tune_settings = poseidon_fe_get_tune_settings,
 
 	.read_status	= poseidon_read_status,

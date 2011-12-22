@@ -371,7 +371,7 @@ static struct dvb_frontend_ops vp702x_fe_ops = {
 	.sleep = vp702x_fe_sleep,
 
 	.set_frontend_legacy = vp702x_fe_set_frontend,
-	.get_frontend = vp702x_fe_get_frontend,
+	.get_frontend_legacy = vp702x_fe_get_frontend,
 	.get_tune_settings = vp702x_fe_get_tune_settings,
 
 	.read_status = vp702x_fe_read_status,

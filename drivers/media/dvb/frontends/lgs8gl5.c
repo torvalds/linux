@@ -435,7 +435,7 @@ static struct dvb_frontend_ops lgs8gl5_ops = {
 	.init = lgs8gl5_init,
 
 	.set_frontend_legacy = lgs8gl5_set_frontend,
-	.get_frontend = lgs8gl5_get_frontend,
+	.get_frontend_legacy = lgs8gl5_get_frontend,
 	.get_tune_settings = lgs8gl5_get_tune_settings,
 
 	.read_status = lgs8gl5_read_status,

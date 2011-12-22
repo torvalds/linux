@@ -450,7 +450,7 @@ static struct dvb_frontend_ops atbm8830_ops = {
 	.i2c_gate_ctrl = atbm8830_i2c_gate_ctrl,
 
 	.set_frontend_legacy = atbm8830_set_fe,
-	.get_frontend = atbm8830_get_fe,
+	.get_frontend_legacy = atbm8830_get_fe,
 	.get_tune_settings = atbm8830_get_tune_settings,
 
 	.read_status = atbm8830_read_status,

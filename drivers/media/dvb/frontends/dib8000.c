@@ -2824,7 +2824,7 @@ static int dib8000_get_frontend(struct dvb_frontend *fe, struct dvb_frontend_par
 		if (stat&FE_HAS_SYNC) {
 			dprintk("TMCC lock on the slave%i", index_frontend);
 			/* synchronize the cache with the other frontends */
-			state->fe[index_frontend]->ops.get_frontend(state->fe[index_frontend], fep);
+			state->fe[index_frontend]->ops.get_frontend_legacy(state->fe[index_frontend], fep);
 			for (sub_index_frontend = 0; (sub_index_frontend < MAX_NUMBER_OF_FRONTENDS) && (state->fe[sub_index_frontend] != NULL); sub_index_frontend++) {
 				if (sub_index_frontend != index_frontend) {
 					state->fe[sub_index_frontend]->dtv_property_cache.isdbt_sb_mode = state->fe[index_frontend]->dtv_property_cache.isdbt_sb_mode;
@@ -3481,7 +3481,7 @@ static const struct dvb_frontend_ops dib8000_ops = {
 
 	.set_frontend_legacy = dib8000_set_frontend,
 	.get_tune_settings = dib8000_fe_get_tune_settings,
-	.get_frontend = dib8000_get_frontend,
+	.get_frontend_legacy = dib8000_get_frontend,
 
 	.read_status = dib8000_read_status,
 	.read_ber = dib8000_read_ber,

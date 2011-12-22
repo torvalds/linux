@@ -297,7 +297,7 @@ static struct dvb_frontend_ops as102_fe_ops = {
 	},
 
 	.set_frontend_legacy	= as102_fe_set_frontend,
-	.get_frontend		= as102_fe_get_frontend,
+	.get_frontend_legacy	= as102_fe_get_frontend,
 	.get_tune_settings	= as102_fe_get_tune_settings,
 
 	.read_status		= as102_fe_read_status,

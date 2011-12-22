@@ -193,7 +193,7 @@ static struct dvb_frontend_ops dvb_dummy_fe_ofdm_ops = {
 	.sleep = dvb_dummy_fe_sleep,
 
 	.set_frontend_legacy = dvb_dummy_fe_set_frontend,
-	.get_frontend = dvb_dummy_fe_get_frontend,
+	.get_frontend_legacy = dvb_dummy_fe_get_frontend,
 
 	.read_status = dvb_dummy_fe_read_status,
 	.read_ber = dvb_dummy_fe_read_ber,
@@ -223,7 +223,7 @@ static struct dvb_frontend_ops dvb_dummy_fe_qam_ops = {
 	.sleep = dvb_dummy_fe_sleep,
 
 	.set_frontend_legacy = dvb_dummy_fe_set_frontend,
-	.get_frontend = dvb_dummy_fe_get_frontend,
+	.get_frontend_legacy = dvb_dummy_fe_get_frontend,
 
 	.read_status = dvb_dummy_fe_read_status,
 	.read_ber = dvb_dummy_fe_read_ber,
@@ -255,7 +255,7 @@ static struct dvb_frontend_ops dvb_dummy_fe_qpsk_ops = {
 	.sleep = dvb_dummy_fe_sleep,
 
 	.set_frontend_legacy = dvb_dummy_fe_set_frontend,
-	.get_frontend = dvb_dummy_fe_get_frontend,
+	.get_frontend_legacy = dvb_dummy_fe_get_frontend,
 
 	.read_status = dvb_dummy_fe_read_status,
 	.read_ber = dvb_dummy_fe_read_ber,

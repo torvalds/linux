@@ -1239,7 +1239,7 @@ static int af9005_fe_get_frontend(struct dvb_frontend *fe,
 				      &temp);
 	if (ret)
 		return ret;
-	deb_info("===== fe_get_frontend ==============\n");
+	deb_info("===== fe_get_frontend_legacy = =============\n");
 	deb_info("CONSTELLATION ");
 	switch (temp) {
 	case 0:
@@ -1476,7 +1476,7 @@ static struct dvb_frontend_ops af9005_fe_ops = {
 	.ts_bus_ctrl = af9005_ts_bus_ctrl,
 
 	.set_frontend_legacy = af9005_fe_set_frontend,
-	.get_frontend = af9005_fe_get_frontend,
+	.get_frontend_legacy = af9005_fe_get_frontend,
 
 	.read_status = af9005_fe_read_status,
 	.read_ber = af9005_fe_read_ber,

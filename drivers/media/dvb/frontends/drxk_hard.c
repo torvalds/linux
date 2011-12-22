@@ -6407,7 +6407,7 @@ static struct dvb_frontend_ops drxk_c_ops = {
 	.i2c_gate_ctrl = drxk_gate_ctrl,
 
 	.set_frontend_legacy = drxk_set_parameters,
-	.get_frontend = drxk_c_get_frontend,
+	.get_frontend_legacy = drxk_c_get_frontend,
 	.get_property = drxk_c_get_property,
 	.get_tune_settings = drxk_c_get_tune_settings,
 
@@ -6440,7 +6440,7 @@ static struct dvb_frontend_ops drxk_t_ops = {
 	.i2c_gate_ctrl = drxk_gate_ctrl,
 
 	.set_frontend_legacy = drxk_set_parameters,
-	.get_frontend = drxk_t_get_frontend,
+	.get_frontend_legacy = drxk_t_get_frontend,
 	.get_property = drxk_t_get_property,
 
 	.read_status = drxk_read_status,

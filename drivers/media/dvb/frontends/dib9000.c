@@ -1883,7 +1883,7 @@ static int dib9000_get_frontend(struct dvb_frontend *fe, struct dvb_frontend_par
 			dprintk("TPS lock on the slave%i", index_frontend);
 
 			/* synchronize the cache with the other frontends */
-			state->fe[index_frontend]->ops.get_frontend(state->fe[index_frontend], fep);
+			state->fe[index_frontend]->ops.get_frontend_legacy(state->fe[index_frontend], fep);
 			for (sub_index_frontend = 0; (sub_index_frontend < MAX_NUMBER_OF_FRONTENDS) && (state->fe[sub_index_frontend] != NULL);
 			     sub_index_frontend++) {
 				if (sub_index_frontend != index_frontend) {
@@ -2515,7 +2515,7 @@ static struct dvb_frontend_ops dib9000_ops = {
 
 	.set_frontend_legacy = dib9000_set_frontend,
 	.get_tune_settings = dib9000_fe_get_tune_settings,
-	.get_frontend = dib9000_get_frontend,
+	.get_frontend_legacy = dib9000_get_frontend,
 
 	.read_status = dib9000_read_status,
 	.read_ber = dib9000_read_ber,

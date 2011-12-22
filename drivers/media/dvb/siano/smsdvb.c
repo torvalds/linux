@@ -806,7 +806,7 @@ static struct dvb_frontend_ops smsdvb_fe_ops = {
 	.release = smsdvb_release,
 
 	.set_frontend_legacy = smsdvb_set_frontend,
-	.get_frontend = smsdvb_get_frontend,
+	.get_frontend_legacy = smsdvb_get_frontend,
 	.get_tune_settings = smsdvb_get_tune_settings,
 
 	.read_status = smsdvb_read_status,

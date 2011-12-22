@@ -762,7 +762,7 @@ static struct dvb_frontend_ops mt312_ops = {
 	.i2c_gate_ctrl = mt312_i2c_gate_ctrl,
 
 	.set_frontend_legacy = mt312_set_frontend,
-	.get_frontend = mt312_get_frontend,
+	.get_frontend_legacy = mt312_get_frontend,
 	.get_tune_settings = mt312_get_tune_settings,
 
 	.read_status = mt312_read_status,

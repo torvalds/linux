@@ -181,7 +181,7 @@ static struct dvb_frontend_ops vp7045_fe_ops = {
 	.sleep = vp7045_fe_sleep,
 
 	.set_frontend_legacy = vp7045_fe_set_frontend,
-	.get_frontend = vp7045_fe_get_frontend,
+	.get_frontend_legacy = vp7045_fe_get_frontend,
 	.get_tune_settings = vp7045_fe_get_tune_settings,
 
 	.read_status = vp7045_fe_read_status,

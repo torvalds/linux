@@ -1648,7 +1648,7 @@ static struct dvb_frontend_ops stb0899_ops = {
 	.get_frontend_algo		= stb0899_frontend_algo,
 	.search				= stb0899_search,
 	.track				= stb0899_track,
-	.get_frontend			= stb0899_get_frontend,
+	.get_frontend_legacy = stb0899_get_frontend,
 
 
 	.read_status			= stb0899_read_status,

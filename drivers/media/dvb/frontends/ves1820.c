@@ -426,7 +426,7 @@ static struct dvb_frontend_ops ves1820_ops = {
 	.sleep = ves1820_sleep,
 
 	.set_frontend_legacy = ves1820_set_parameters,
-	.get_frontend = ves1820_get_frontend,
+	.get_frontend_legacy = ves1820_get_frontend,
 	.get_tune_settings = ves1820_get_tune_settings,
 
 	.read_status = ves1820_read_status,

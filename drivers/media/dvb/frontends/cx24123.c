@@ -1147,7 +1147,7 @@ static struct dvb_frontend_ops cx24123_ops = {
 
 	.init = cx24123_initfe,
 	.set_frontend_legacy = cx24123_set_frontend,
-	.get_frontend = cx24123_get_frontend,
+	.get_frontend_legacy = cx24123_get_frontend,
 	.read_status = cx24123_read_status,
 	.read_ber = cx24123_read_ber,
 	.read_signal_strength = cx24123_read_signal_strength,

@@ -610,7 +610,7 @@ static struct dvb_frontend_ops tda10023_ops = {
 	.i2c_gate_ctrl = tda10023_i2c_gate_ctrl,
 
 	.set_frontend_legacy = tda10023_set_parameters,
-	.get_frontend = tda10023_get_frontend,
+	.get_frontend_legacy = tda10023_get_frontend,
 	.get_property = tda10023_get_property,
 	.read_status = tda10023_read_status,
 	.read_ber = tda10023_read_ber,

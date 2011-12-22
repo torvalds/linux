@@ -603,7 +603,7 @@ static const struct dvb_frontend_ops cxd2820r_ops = {
 	.get_tune_settings	= cxd2820r_get_tune_settings,
 	.i2c_gate_ctrl		= cxd2820r_i2c_gate_ctrl,
 
-	.get_frontend		= cxd2820r_get_frontend,
+	.get_frontend_legacy	= cxd2820r_get_frontend,
 
 	.get_frontend_algo	= cxd2820r_get_frontend_algo,
 	.search			= cxd2820r_search,
