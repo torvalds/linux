@@ -961,14 +961,12 @@ static void snd_card_asihpi_playback_format(struct snd_card_asihpi *asihpi,
 
 	for (format = HPI_FORMAT_PCM8_UNSIGNED;
 	     format <= HPI_FORMAT_PCM24_SIGNED; format++) {
-		err = hpi_format_create(&hpi_format,
-					2, format, sample_rate, 128000, 0);
+		err = hpi_format_create(&hpi_format, asihpi->out_max_chans,
+					format, sample_rate, 128000, 0);
 		if (!err)
-			err = hpi_outstream_query_format(h_stream,
-							&hpi_format);
+			err = hpi_outstream_query_format(h_stream, &hpi_format);
 		if (!err && (hpi_to_alsa_formats[format] != -1))
-			pcmhw->formats |=
-				(1ULL << hpi_to_alsa_formats[format]);
+			pcmhw->formats |= (1ULL << hpi_to_alsa_formats[format]);
 	}
 }
 
@@ -1141,14 +1139,12 @@ static void snd_card_asihpi_capture_format(struct snd_card_asihpi *asihpi,
 	for (format = HPI_FORMAT_PCM8_UNSIGNED;
 		format <= HPI_FORMAT_PCM24_SIGNED; format++) {
 
-		err = hpi_format_create(&hpi_format, 2, format,
-				sample_rate, 128000, 0);
+		err = hpi_format_create(&hpi_format, asihpi->in_max_chans,
+					format, sample_rate, 128000, 0);
 		if (!err)
-			err = hpi_instream_query_format(h_stream,
-					    &hpi_format);
+			err = hpi_instream_query_format(h_stream, &hpi_format);
 		if (!err)
-			pcmhw->formats |=
-				(1ULL << hpi_to_alsa_formats[format]);
+			pcmhw->formats |= (1ULL << hpi_to_alsa_formats[format]);
 	}
 }
 
