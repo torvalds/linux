@@ -306,6 +306,16 @@ static void iommu_feature_disable(struct amd_iommu *iommu, u8 bit)
 	writel(ctrl, iommu->mmio_base + MMIO_CONTROL_OFFSET);
 }
 
+static void iommu_set_inv_tlb_timeout(struct amd_iommu *iommu, int timeout)
+{
+	u32 ctrl;
+
+	ctrl = readl(iommu->mmio_base + MMIO_CONTROL_OFFSET);
+	ctrl &= ~CTRL_INV_TO_MASK;
+	ctrl |= (timeout << CONTROL_INV_TIMEOUT) & CTRL_INV_TO_MASK;
+	writel(ctrl, iommu->mmio_base + MMIO_CONTROL_OFFSET);
+}
+
 /* Function to enable the hardware */
 static void iommu_enable(struct amd_iommu *iommu)
 {
@@ -1300,6 +1310,9 @@ static void iommu_init_flags(struct amd_iommu *iommu)
 	 * make IOMMU memory accesses cache coherent
 	 */
 	iommu_feature_enable(iommu, CONTROL_COHERENT_EN);
+
+	/* Set IOTLB invalidation timeout to 1s */
+	iommu_set_inv_tlb_timeout(iommu, CTRL_INV_TO_1S);
 }
 
 static void iommu_apply_resume_quirks(struct amd_iommu *iommu)

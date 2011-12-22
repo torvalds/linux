@@ -127,6 +127,7 @@
 #define CONTROL_EVT_LOG_EN      0x02ULL
 #define CONTROL_EVT_INT_EN      0x03ULL
 #define CONTROL_COMWAIT_EN      0x04ULL
+#define CONTROL_INV_TIMEOUT	0x05ULL
 #define CONTROL_PASSPW_EN       0x08ULL
 #define CONTROL_RESPASSPW_EN    0x09ULL
 #define CONTROL_COHERENT_EN     0x0aULL
@@ -136,6 +137,15 @@
 #define CONTROL_PPFINT_EN       0x0eULL
 #define CONTROL_PPR_EN          0x0fULL
 #define CONTROL_GT_EN           0x10ULL
+
+#define CTRL_INV_TO_MASK	(7 << CONTROL_INV_TIMEOUT)
+#define CTRL_INV_TO_NONE	0
+#define CTRL_INV_TO_1MS		1
+#define CTRL_INV_TO_10MS	2
+#define CTRL_INV_TO_100MS	3
+#define CTRL_INV_TO_1S		4
+#define CTRL_INV_TO_10S		5
+#define CTRL_INV_TO_100S	6
 
 /* command specific defines */
 #define CMD_COMPL_WAIT          0x01
