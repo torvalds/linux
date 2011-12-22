@@ -146,14 +146,8 @@ enum dibx000_adc_states {
 	DIBX000_VBG_DISABLE,
 };
 
-#define BANDWIDTH_TO_KHZ(v) ((v) == BANDWIDTH_8_MHZ  ? 8000 : \
-				(v) == BANDWIDTH_7_MHZ  ? 7000 : \
-				(v) == BANDWIDTH_6_MHZ  ? 6000 : 8000)
-
-#define BANDWIDTH_TO_INDEX(v) ( \
-	(v) == 8000 ? BANDWIDTH_8_MHZ : \
-		(v) == 7000 ? BANDWIDTH_7_MHZ : \
-		(v) == 6000 ? BANDWIDTH_6_MHZ : BANDWIDTH_8_MHZ )
+#define BANDWIDTH_TO_KHZ(v)	((v) / 1000)
+#define BANDWIDTH_TO_HZ(v)	((v) * 1000)
 
 /* Chip output mode. */
 #define OUTMODE_HIGH_Z              0
