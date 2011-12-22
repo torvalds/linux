@@ -1212,25 +1212,10 @@ static int cx24116_sleep(struct dvb_frontend *fe)
 	return 0;
 }
 
-static int cx24116_set_property(struct dvb_frontend *fe,
-	struct dtv_property *tvp)
-{
-	dprintk("%s(..)\n", __func__);
-	return 0;
-}
-
-static int cx24116_get_property(struct dvb_frontend *fe,
-	struct dtv_property *tvp)
-{
-	dprintk("%s(..)\n", __func__);
-	return 0;
-}
-
 /* dvb-core told us to tune, the tv property cache will be complete,
  * it's safe for is to pull values and use them for tuning purposes.
  */
-static int cx24116_set_frontend(struct dvb_frontend *fe,
-	struct dvb_frontend_parameters *p)
+static int cx24116_set_frontend(struct dvb_frontend *fe)
 {
 	struct cx24116_state *state = fe->demodulator_priv;
 	struct dtv_frontend_properties *c = &fe->dtv_property_cache;
@@ -1458,9 +1443,17 @@ tuned:  /* Set/Reset B/W */
 static int cx24116_tune(struct dvb_frontend *fe, struct dvb_frontend_parameters *params,
 	unsigned int mode_flags, unsigned int *delay, fe_status_t *status)
 {
+	/*
+	 * It is safe to discard "params" here, as the DVB core will sync
+	 * fe->dtv_property_cache with fepriv->parameters_in, where the
+	 * DVBv3 params are stored. The only practical usage for it indicate
+	 * that re-tuning is needed, e. g. (fepriv->state & FESTATE_RETUNE) is
+	 * true.
+	 */
+
 	*delay = HZ / 5;
 	if (params) {
-		int ret = cx24116_set_frontend(fe, params);
+		int ret = cx24116_set_frontend(fe);
 		if (ret)
 			return ret;
 	}
@@ -1473,7 +1466,7 @@ static int cx24116_get_algo(struct dvb_frontend *fe)
 }
 
 static struct dvb_frontend_ops cx24116_ops = {
-
+	.delsys = { SYS_DVBS, SYS_DVBS2 },
 	.info = {
 		.name = "Conexant CX24116/CX24118",
 		.type = FE_QPSK,
@@ -1507,9 +1500,7 @@ static struct dvb_frontend_ops cx24116_ops = {
 	.get_frontend_algo = cx24116_get_algo,
 	.tune = cx24116_tune,
 
-	.set_property = cx24116_set_property,
-	.get_property = cx24116_get_property,
-	.set_frontend_legacy = cx24116_set_frontend,
+	.set_frontend = cx24116_set_frontend,
 };
 
 MODULE_DESCRIPTION("DVB Frontend module for Conexant cx24116/cx24118 hardware");
