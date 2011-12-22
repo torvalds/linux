@@ -6054,8 +6054,15 @@ static int md_ioctl(struct block_device *bdev, fmode_t mode,
 	struct mddev *mddev = NULL;
 	int ro;
 
-	if (!capable(CAP_SYS_ADMIN))
-		return -EACCES;
+	switch (cmd) {
+	case RAID_VERSION:
+	case GET_ARRAY_INFO:
+	case GET_DISK_INFO:
+		break;
+	default:
+		if (!capable(CAP_SYS_ADMIN))
+			return -EACCES;
+	}
 
 	/*
 	 * Commands dealing with the RAID driver but not any
