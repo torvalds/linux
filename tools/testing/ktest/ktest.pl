@@ -416,10 +416,12 @@ sub process_variables {
 sub set_value {
     my ($lvalue, $rvalue, $override, $overrides, $name) = @_;
 
-    if ($buildonly && $lvalue =~ /^TEST_TYPE(\[.*\])?$/ && $rvalue ne "build") {
+    my $prvalue = process_variables($rvalue);
+
+    if ($buildonly && $lvalue =~ /^TEST_TYPE(\[.*\])?$/ && $prvalue ne "build") {
 	# Note if a test is something other than build, then we
 	# will need other manditory options.
-	if ($rvalue ne "install") {
+	if ($prvalue ne "install") {
 	    $buildonly = 0;
 	} else {
 	    # install still limits some manditory options.
@@ -435,13 +437,12 @@ sub set_value {
 	    }
 	    die "$name: $.: Option $lvalue defined more than once!\n$extra";
 	}
-	${$overrides}{$lvalue} = $rvalue;
+	${$overrides}{$lvalue} = $prvalue;
     }
     if ($rvalue =~ /^\s*$/) {
 	delete $opt{$lvalue};
     } else {
-	$rvalue = process_variables($rvalue);
-	$opt{$lvalue} = $rvalue;
+	$opt{$lvalue} = $prvalue;
     }
 }
 
