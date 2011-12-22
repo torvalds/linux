@@ -1138,14 +1138,14 @@ static const struct snd_soc_dapm_widget twl6040_dapm_widgets[] = {
 			TWL6040_REG_MICRCTL, 2, 0),
 
 	/* Microphone bias */
-	SND_SOC_DAPM_MICBIAS("Headset Mic Bias",
-			TWL6040_REG_AMICBCTL, 0, 0),
-	SND_SOC_DAPM_MICBIAS("Main Mic Bias",
-			TWL6040_REG_AMICBCTL, 4, 0),
-	SND_SOC_DAPM_MICBIAS("Digital Mic1 Bias",
-			TWL6040_REG_DMICBCTL, 0, 0),
-	SND_SOC_DAPM_MICBIAS("Digital Mic2 Bias",
-			TWL6040_REG_DMICBCTL, 4, 0),
+	SND_SOC_DAPM_SUPPLY("Headset Mic Bias",
+			    TWL6040_REG_AMICBCTL, 0, 0, NULL, 0),
+	SND_SOC_DAPM_SUPPLY("Main Mic Bias",
+			    TWL6040_REG_AMICBCTL, 4, 0, NULL, 0),
+	SND_SOC_DAPM_SUPPLY("Digital Mic1 Bias",
+			    TWL6040_REG_DMICBCTL, 0, 0, NULL, 0),
+	SND_SOC_DAPM_SUPPLY("Digital Mic2 Bias",
+			    TWL6040_REG_DMICBCTL, 4, 0, NULL, 0),
 
 	/* DACs */
 	SND_SOC_DAPM_DAC("HSDAC Left", "Headset Playback", SND_SOC_NOPM, 0, 0),

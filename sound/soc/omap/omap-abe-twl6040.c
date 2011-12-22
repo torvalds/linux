@@ -123,17 +123,17 @@ static const struct snd_soc_dapm_widget twl6040_dapm_widgets[] = {
 
 static const struct snd_soc_dapm_route audio_map[] = {
 	/* External Mics: MAINMIC, SUBMIC with bias*/
-	{"MAINMIC", NULL, "Main Mic Bias"},
-	{"SUBMIC", NULL, "Main Mic Bias"},
-	{"Main Mic Bias", NULL, "Ext Mic"},
+	{"MAINMIC", NULL, "Ext Mic"},
+	{"SUBMIC", NULL, "Ext Mic"},
+	{"Ext Mic", NULL, "Main Mic Bias"},
 
 	/* External Speakers: HFL, HFR */
 	{"Ext Spk", NULL, "HFL"},
 	{"Ext Spk", NULL, "HFR"},
 
 	/* Headset Mic: HSMIC with bias */
-	{"HSMIC", NULL, "Headset Mic Bias"},
-	{"Headset Mic Bias", NULL, "Headset Mic"},
+	{"HSMIC", NULL, "Headset Mic"},
+	{"Headset Mic", NULL, "Headset Mic Bias"},
 
 	/* Headset Stereophone (Headphone): HSOL, HSOR */
 	{"Headset Stereophone", NULL, "HSOL"},
@@ -182,8 +182,8 @@ static const struct snd_soc_dapm_widget dmic_dapm_widgets[] = {
 };
 
 static const struct snd_soc_dapm_route dmic_audio_map[] = {
-	{"DMic", NULL, "Digital Mic1 Bias"},
-	{"Digital Mic1 Bias", NULL, "Digital Mic"},
+	{"DMic", NULL, "Digital Mic"},
+	{"Digital Mic", NULL, "Digital Mic1 Bias"},
 };
 
 static int omap_abe_dmic_init(struct snd_soc_pcm_runtime *rtd)
