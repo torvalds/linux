@@ -30,26 +30,8 @@
 
 #ifndef _HPI_H_
 #define _HPI_H_
-/* HPI Version
-If HPI_VER_MINOR is odd then its a development release not intended for the
-public. If HPI_VER_MINOR is even then is a release version
-i.e 3.05.02 is a development version
-*/
-#define HPI_VERSION_CONSTRUCTOR(maj, min, rel) \
-	((maj << 16) + (min << 8) + rel)
-
-#define HPI_VER_MAJOR(v) ((int)(v >> 16))
-#define HPI_VER_MINOR(v) ((int)((v >> 8) & 0xFF))
-#define HPI_VER_RELEASE(v) ((int)(v & 0xFF))
-
-#define HPI_VER HPI_VERSION_CONSTRUCTOR(4L, 8, 0)
-#define HPI_VER_STRING "4.08.00"
-
-/* Library version as documented in hpi-api-versions.txt */
-#define HPI_LIB_VER  HPI_VERSION_CONSTRUCTOR(10, 0, 0)
 
 #include <linux/types.h>
-#define HPI_BUILD_EXCLUDE_DEPRECATED
 #define HPI_BUILD_KERNEL_MODE
 
 /******************************************************************************/

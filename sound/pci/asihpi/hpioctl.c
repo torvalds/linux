@@ -21,6 +21,7 @@ Common Linux HPI ioctl and module probe/remove functions
 #define SOURCEFILE_NAME "hpioctl.c"
 
 #include "hpi_internal.h"
+#include "hpi_version.h"
 #include "hpimsginit.h"
 #include "hpidebug.h"
 #include "hpimsgx.h"
