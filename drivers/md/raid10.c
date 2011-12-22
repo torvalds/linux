@@ -3201,6 +3201,16 @@ static int run(struct mddev *mddev)
 			continue;
 		disk = conf->mirrors + disk_idx;
 
+		if (test_bit(Replacement, &rdev->flags)) {
+			if (disk->replacement)
+				goto out_free_conf;
+			disk->replacement = rdev;
+		} else {
+			if (disk->rdev)
+				goto out_free_conf;
+			disk->rdev = rdev;
+		}
+
 		disk->rdev = rdev;
 		disk_stack_limits(mddev->gendisk, rdev->bdev,
 				  rdev->data_offset << 9);
@@ -3227,6 +3237,13 @@ static int run(struct mddev *mddev)
 	for (i = 0; i < conf->raid_disks; i++) {
 
 		disk = conf->mirrors + i;
+
+		if (!disk->rdev && disk->replacement) {
+			/* The replacement is all we have - use it */
+			disk->rdev = disk->replacement;
+			disk->replacement = NULL;
+			clear_bit(Replacement, &disk->rdev->flags);
+		}
 
 		if (!disk->rdev ||
 		    !test_bit(In_sync, &disk->rdev->flags)) {
