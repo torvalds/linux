@@ -45,18 +45,21 @@
 #define HPI6205_ERROR_MSG_RESP_TIMEOUT          1016
 
 /* initialization/bootload errors */
-#define HPI6205_ERROR_6205_NO_IRQ               1002
-#define HPI6205_ERROR_6205_INIT_FAILED          1003
-#define HPI6205_ERROR_6205_REG                  1006
-#define HPI6205_ERROR_6205_DSPPAGE              1007
-#define HPI6205_ERROR_C6713_HPIC                1009
-#define HPI6205_ERROR_C6713_HPIA                1010
-#define HPI6205_ERROR_C6713_PLL                 1011
-#define HPI6205_ERROR_DSP_INTMEM                1012
-#define HPI6205_ERROR_DSP_EXTMEM                1013
-#define HPI6205_ERROR_DSP_PLD                   1014
-#define HPI6205_ERROR_6205_EEPROM               1017
-#define HPI6205_ERROR_DSP_EMIF                  1018
+#define HPI6205_ERROR_6205_NO_IRQ       1002
+#define HPI6205_ERROR_6205_INIT_FAILED  1003
+#define HPI6205_ERROR_6205_REG          1006
+#define HPI6205_ERROR_6205_DSPPAGE      1007
+#define HPI6205_ERROR_C6713_HPIC        1009
+#define HPI6205_ERROR_C6713_HPIA        1010
+#define HPI6205_ERROR_C6713_PLL         1011
+#define HPI6205_ERROR_DSP_INTMEM        1012
+#define HPI6205_ERROR_DSP_EXTMEM        1013
+#define HPI6205_ERROR_DSP_PLD           1014
+#define HPI6205_ERROR_6205_EEPROM       1017
+#define HPI6205_ERROR_DSP_EMIF1         1018
+#define HPI6205_ERROR_DSP_EMIF2         1019
+#define HPI6205_ERROR_DSP_EMIF3         1020
+#define HPI6205_ERROR_DSP_EMIF4         1021
 
 /*****************************************************************************/
 /* for C6205 PCI i/f */
@@ -1612,7 +1615,7 @@ static u16 boot_loader_config_emif(struct hpi_adapter_obj *pao, int dsp_index)
 		boot_loader_write_mem32(pao, dsp_index, 0x01800008, setting);
 		if (setting != boot_loader_read_mem32(pao, dsp_index,
 				0x01800008))
-			return HPI6205_ERROR_DSP_EMIF;
+			return HPI6205_ERROR_DSP_EMIF1;
 
 		/* EMIF CE1 setup - 32 bit async. This is 6713 #1 HPI, */
 		/* which occupies D15..0. 6713 starts at 27MHz, so need */
@@ -1625,7 +1628,7 @@ static u16 boot_loader_config_emif(struct hpi_adapter_obj *pao, int dsp_index)
 		boot_loader_write_mem32(pao, dsp_index, 0x01800004, setting);
 		if (setting != boot_loader_read_mem32(pao, dsp_index,
 				0x01800004))
-			return HPI6205_ERROR_DSP_EMIF;
+			return HPI6205_ERROR_DSP_EMIF2;
 
 		/* EMIF CE2 setup - 32 bit async. This is 6713 #2 HPI, */
 		/* which occupies D15..0. 6713 starts at 27MHz, so need */
@@ -1637,7 +1640,7 @@ static u16 boot_loader_config_emif(struct hpi_adapter_obj *pao, int dsp_index)
 		boot_loader_write_mem32(pao, dsp_index, 0x01800010, setting);
 		if (setting != boot_loader_read_mem32(pao, dsp_index,
 				0x01800010))
-			return HPI6205_ERROR_DSP_EMIF;
+			return HPI6205_ERROR_DSP_EMIF3;
 
 		/* EMIF CE3 setup - 32 bit async. */
 		/* This is the PLD on the ASI5000 cards only */
@@ -1648,7 +1651,7 @@ static u16 boot_loader_config_emif(struct hpi_adapter_obj *pao, int dsp_index)
 		boot_loader_write_mem32(pao, dsp_index, 0x01800014, setting);
 		if (setting != boot_loader_read_mem32(pao, dsp_index,
 				0x01800014))
-			return HPI6205_ERROR_DSP_EMIF;
+			return HPI6205_ERROR_DSP_EMIF4;
 
 		/* set EMIF SDRAM control for 2Mx32 SDRAM (512x32x4 bank) */
 		/*  need to use this else DSP code crashes? */
