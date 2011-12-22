@@ -130,4 +130,16 @@ config FSL_USB2_OTG
 	help
 	  Enable this to support Freescale USB OTG transceiver.
 
+config USB_MV_OTG
+	tristate "Marvell USB OTG support"
+	depends on USB_MV_UDC
+	select USB_OTG
+	select USB_OTG_UTILS
+	help
+	  Say Y here if you want to build Marvell USB OTG transciever
+	  driver in kernel (including PXA and MMP series). This driver
+	  implements role switch between EHCI host driver and gadget driver.
+
+	  To compile this driver as a module, choose M here.
+
 endif # USB || OTG

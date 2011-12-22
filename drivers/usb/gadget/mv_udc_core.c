@@ -276,11 +276,12 @@ static void done(struct mv_ep *ep, struct mv_req *req, int status)
 
 static int queue_dtd(struct mv_ep *ep, struct mv_req *req)
 {
-	u32 tmp, epstatus, bit_pos, direction;
 	struct mv_udc *udc;
 	struct mv_dqh *dqh;
+	u32 bit_pos, direction;
+	u32 usbcmd, epstatus;
 	unsigned int loops;
-	int readsafe, retval = 0;
+	int retval = 0;
 
 	udc = ep->udc;
 	direction = ep_dir(ep);
@@ -293,30 +294,18 @@ static int queue_dtd(struct mv_ep *ep, struct mv_req *req)
 		lastreq = list_entry(ep->queue.prev, struct mv_req, queue);
 		lastreq->tail->dtd_next =
 			req->head->td_dma & EP_QUEUE_HEAD_NEXT_POINTER_MASK;
-		if (readl(&udc->op_regs->epprime) & bit_pos) {
-			loops = LOOPS(PRIME_TIMEOUT);
-			while (readl(&udc->op_regs->epprime) & bit_pos) {
-				if (loops == 0) {
-					retval = -ETIME;
-					goto done;
-				}
-				udelay(LOOPS_USEC);
-				loops--;
-			}
-			if (readl(&udc->op_regs->epstatus) & bit_pos)
-				goto done;
-		}
-		readsafe = 0;
+
+		wmb();
+
+		if (readl(&udc->op_regs->epprime) & bit_pos)
+			goto done;
+
 		loops = LOOPS(READSAFE_TIMEOUT);
-		while (readsafe == 0) {
-			if (loops == 0) {
-				retval = -ETIME;
-				goto done;
-			}
+		while (1) {
 			/* start with setting the semaphores */
-			tmp = readl(&udc->op_regs->usbcmd);
-			tmp |= USBCMD_ATDTW_TRIPWIRE_SET;
-			writel(tmp, &udc->op_regs->usbcmd);
+			usbcmd = readl(&udc->op_regs->usbcmd);
+			usbcmd |= USBCMD_ATDTW_TRIPWIRE_SET;
+			writel(usbcmd, &udc->op_regs->usbcmd);
 
 			/* read the endpoint status */
 			epstatus = readl(&udc->op_regs->epstatus) & bit_pos;
@@ -329,97 +318,45 @@ static int queue_dtd(struct mv_ep *ep, struct mv_req *req)
 			 * primed.
 			 */
 			if (readl(&udc->op_regs->usbcmd)
-				& USBCMD_ATDTW_TRIPWIRE_SET) {
-				readsafe = 1;
-			}
+				& USBCMD_ATDTW_TRIPWIRE_SET)
+				break;
+
 			loops--;
+			if (loops == 0) {
+				dev_err(&udc->dev->dev,
+					"Timeout for ATDTW_TRIPWIRE...\n");
+				retval = -ETIME;
+				goto done;
+			}
 			udelay(LOOPS_USEC);
 		}
 
 		/* Clear the semaphore */
-		tmp = readl(&udc->op_regs->usbcmd);
-		tmp &= USBCMD_ATDTW_TRIPWIRE_CLEAR;
-		writel(tmp, &udc->op_regs->usbcmd);
+		usbcmd = readl(&udc->op_regs->usbcmd);
+		usbcmd &= USBCMD_ATDTW_TRIPWIRE_CLEAR;
+		writel(usbcmd, &udc->op_regs->usbcmd);
 
-		/* If endpoint is not active, we activate it now. */
-		if (!epstatus) {
-			if (direction == EP_DIR_IN) {
-				struct mv_dtd *curr_dtd = dma_to_virt(
-					&udc->dev->dev, dqh->curr_dtd_ptr);
-
-				loops = LOOPS(DTD_TIMEOUT);
-				while (curr_dtd->size_ioc_sts
-					& DTD_STATUS_ACTIVE) {
-					if (loops == 0) {
-						retval = -ETIME;
-						goto done;
-					}
-					loops--;
-					udelay(LOOPS_USEC);
-				}
-			}
-			/* No other transfers on the queue */
-
-			/* Write dQH next pointer and terminate bit to 0 */
-			dqh->next_dtd_ptr = req->head->td_dma
-				& EP_QUEUE_HEAD_NEXT_POINTER_MASK;
-			dqh->size_ioc_int_sts = 0;
-
-			/*
-			 * Ensure that updates to the QH will
-			 * occur before priming.
-			 */
-			wmb();
-
-			/* Prime the Endpoint */
-			writel(bit_pos, &udc->op_regs->epprime);
-		}
-	} else {
-		/* Write dQH next pointer and terminate bit to 0 */
-		dqh->next_dtd_ptr = req->head->td_dma
-			& EP_QUEUE_HEAD_NEXT_POINTER_MASK;
-		dqh->size_ioc_int_sts = 0;
-
-		/* Ensure that updates to the QH will occur before priming. */
-		wmb();
-
-		/* Prime the Endpoint */
-		writel(bit_pos, &udc->op_regs->epprime);
-
-		if (direction == EP_DIR_IN) {
-			/* FIXME add status check after prime the IN ep */
-			int prime_again;
-			u32 curr_dtd_ptr = dqh->curr_dtd_ptr;
-
-			loops = LOOPS(DTD_TIMEOUT);
-			prime_again = 0;
-			while ((curr_dtd_ptr != req->head->td_dma)) {
-				curr_dtd_ptr = dqh->curr_dtd_ptr;
-				if (loops == 0) {
-					dev_err(&udc->dev->dev,
-						"failed to prime %s\n",
-						ep->name);
-					retval = -ETIME;
-					goto done;
-				}
-				loops--;
-				udelay(LOOPS_USEC);
-
-				if (loops == (LOOPS(DTD_TIMEOUT) >> 2)) {
-					if (prime_again)
-						goto done;
-					dev_info(&udc->dev->dev,
-						"prime again\n");
-					writel(bit_pos,
-						&udc->op_regs->epprime);
-					prime_again = 1;
-				}
-			}
-		}
+		if (epstatus)
+			goto done;
 	}
+
+	/* Write dQH next pointer and terminate bit to 0 */
+	dqh->next_dtd_ptr = req->head->td_dma
+				& EP_QUEUE_HEAD_NEXT_POINTER_MASK;
+
+	/* clear active and halt bit, in case set from a previous error */
+	dqh->size_ioc_int_sts &= ~(DTD_STATUS_ACTIVE | DTD_STATUS_HALTED);
+
+	/* Ensure that updates to the QH will occure before priming. */
+	wmb();
+
+	/* Prime the Endpoint */
+	writel(bit_pos, &udc->op_regs->epprime);
+
 done:
 	return retval;
 }
+
 
 static struct mv_dtd *build_dtd(struct mv_req *req, unsigned *length,
 		dma_addr_t *dma, int *is_last)
@@ -841,6 +778,27 @@ mv_ep_queue(struct usb_ep *_ep, struct usb_request *_req, gfp_t gfp_flags)
 	return 0;
 }
 
+static void mv_prime_ep(struct mv_ep *ep, struct mv_req *req)
+{
+	struct mv_dqh *dqh = ep->dqh;
+	u32 bit_pos;
+
+	/* Write dQH next pointer and terminate bit to 0 */
+	dqh->next_dtd_ptr = req->head->td_dma
+		& EP_QUEUE_HEAD_NEXT_POINTER_MASK;
+
+	/* clear active and halt bit, in case set from a previous error */
+	dqh->size_ioc_int_sts &= ~(DTD_STATUS_ACTIVE | DTD_STATUS_HALTED);
+
+	/* Ensure that updates to the QH will occure before priming. */
+	wmb();
+
+	bit_pos = 1 << (((ep_dir(ep) == EP_DIR_OUT) ? 0 : 16) + ep->ep_num);
+
+	/* Prime the Endpoint */
+	writel(bit_pos, &ep->udc->op_regs->epprime);
+}
+
 /* dequeues (cancels, unlinks) an I/O request from an endpoint */
 static int mv_ep_dequeue(struct usb_ep *_ep, struct usb_request *_req)
 {
@@ -883,15 +841,13 @@ static int mv_ep_dequeue(struct usb_ep *_ep, struct usb_request *_req)
 
 		/* The request isn't the last request in this ep queue */
 		if (req->queue.next != &ep->queue) {
-			struct mv_dqh *qh;
 			struct mv_req *next_req;
 
-			qh = ep->dqh;
-			next_req = list_entry(req->queue.next, struct mv_req,
-					queue);
+			next_req = list_entry(req->queue.next,
+				struct mv_req, queue);
 
 			/* Point the QH to the first TD of next request */
-			writel((u32) next_req->head, &qh->curr_dtd_ptr);
+			mv_prime_ep(ep, next_req);
 		} else {
 			struct mv_dqh *qh;
 
@@ -1196,7 +1152,7 @@ static int mv_udc_get_frame(struct usb_gadget *gadget)
 
 	udc = container_of(gadget, struct mv_udc, gadget);
 
-	retval = readl(udc->op_regs->frindex) & USB_FRINDEX_MASKS;
+	retval = readl(&udc->op_regs->frindex) & USB_FRINDEX_MASKS;
 
 	return retval;
 }
@@ -2172,11 +2128,9 @@ static int __devexit mv_udc_remove(struct platform_device *dev)
 
 	if (udc->cap_regs)
 		iounmap(udc->cap_regs);
-	udc->cap_regs = NULL;
 
 	if (udc->phy_regs)
-		iounmap((void *)udc->phy_regs);
-	udc->phy_regs = 0;
+		iounmap(udc->phy_regs);
 
 	if (udc->status_req) {
 		kfree(udc->status_req->req.buf);
@@ -2261,8 +2215,8 @@ static int __devinit mv_udc_probe(struct platform_device *dev)
 		goto err_iounmap_capreg;
 	}
 
-	udc->phy_regs = (unsigned int)ioremap(r->start, resource_size(r));
-	if (udc->phy_regs == 0) {
+	udc->phy_regs = ioremap(r->start, resource_size(r));
+	if (udc->phy_regs == NULL) {
 		dev_err(&dev->dev, "failed to map phy I/O memory\n");
 		retval = -EBUSY;
 		goto err_iounmap_capreg;
@@ -2273,7 +2227,8 @@ static int __devinit mv_udc_probe(struct platform_device *dev)
 	if (retval)
 		goto err_iounmap_phyreg;
 
-	udc->op_regs = (struct mv_op_regs __iomem *)((u32)udc->cap_regs
+	udc->op_regs =
+		(struct mv_op_regs __iomem *)((unsigned long)udc->cap_regs
 		+ (readl(&udc->cap_regs->caplength_hciversion)
 			& CAPLENGTH_MASK));
 	udc->max_eps = readl(&udc->cap_regs->dccparams) & DCCPARAMS_DEN_MASK;
@@ -2433,7 +2388,7 @@ err_free_dma:
 err_disable_clock:
 	mv_udc_disable_internal(udc);
 err_iounmap_phyreg:
-	iounmap((void *)udc->phy_regs);
+	iounmap(udc->phy_regs);
 err_iounmap_capreg:
 	iounmap(udc->cap_regs);
 err_put_clk:
@@ -2524,7 +2479,7 @@ static struct platform_driver udc_driver = {
 	.shutdown	= mv_udc_shutdown,
 	.driver		= {
 		.owner	= THIS_MODULE,
-		.name	= "pxa-u2o",
+		.name	= "mv-udc",
 #ifdef CONFIG_PM
 		.pm	= &mv_udc_pm_ops,
 #endif
@@ -2532,9 +2487,8 @@ static struct platform_driver udc_driver = {
 };
 
 module_platform_driver(udc_driver);
-
+MODULE_ALIAS("platform:mv-udc");
 MODULE_DESCRIPTION(DRIVER_DESC);
 MODULE_AUTHOR("Chao Xie <chao.xie@marvell.com>");
 MODULE_VERSION(DRIVER_VERSION);
 MODULE_LICENSE("GPL");
-MODULE_ALIAS("platform:pxa-u2o");

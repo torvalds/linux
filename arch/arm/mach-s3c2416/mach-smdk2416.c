@@ -50,6 +50,7 @@
 #include <plat/nand.h>
 #include <plat/sdhci.h>
 #include <plat/udc.h>
+#include <linux/platform_data/s3c-hsudc.h>
 
 #include <plat/regs-fb-v4.h>
 #include <plat/fb.h>

@@ -185,7 +185,7 @@ static int usbhsg_dma_map(struct device *dev,
 	}
 
 	if (dma_mapping_error(dev, pkt->dma)) {
-		dev_err(dev, "dma mapping error %x\n", pkt->dma);
+		dev_err(dev, "dma mapping error %llx\n", (u64)pkt->dma);
 		return -EIO;
 	}
 
