@@ -46,7 +46,7 @@
 #include "common.h"
 #include <plat/mcspi.h>
 #include <video/omapdss.h>
-#include <video/omap-panel-dvi.h>
+#include <video/omap-panel-tfp410.h>
 
 #include "mux.h"
 #include "sdram-micron-mt46h32m32lf-6.h"

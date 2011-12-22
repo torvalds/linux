@@ -24,7 +24,7 @@
 #include <linux/gpio.h>
 #include <drm/drm_edid.h>
 
-#include <video/omap-panel-dvi.h>
+#include <video/omap-panel-tfp410.h>
 
 static const struct omap_video_timings tfp410_default_timings = {
 	.x_res		= 640,

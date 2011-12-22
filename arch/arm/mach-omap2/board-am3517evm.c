@@ -37,7 +37,7 @@
 #include <plat/usb.h>
 #include <video/omapdss.h>
 #include <video/omap-panel-generic-dpi.h>
-#include <video/omap-panel-dvi.h>
+#include <video/omap-panel-tfp410.h>
 
 #include "am35xx-emac.h"
 #include "mux.h"

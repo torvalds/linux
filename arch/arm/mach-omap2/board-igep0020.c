@@ -32,7 +32,7 @@
 #include <plat/gpmc.h>
 #include <plat/usb.h>
 #include <video/omapdss.h>
-#include <video/omap-panel-dvi.h>
+#include <video/omap-panel-tfp410.h>
 #include <plat/onenand.h>
 
 #include "mux.h"
