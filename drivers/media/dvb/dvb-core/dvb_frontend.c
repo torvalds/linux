@@ -1242,7 +1242,7 @@ static void dtv_set_default_delivery_caps(const struct dvb_frontend *fe, struct 
 			p->u.buffer.data[ncaps++] = SYS_TURBO;
 		break;
 	case FE_QAM:
-		p->u.buffer.data[ncaps++] = SYS_DVBC_ANNEX_AC;
+		p->u.buffer.data[ncaps++] = SYS_DVBC_ANNEX_A;
 		break;
 	case FE_OFDM:
 		p->u.buffer.data[ncaps++] = SYS_DVBT;

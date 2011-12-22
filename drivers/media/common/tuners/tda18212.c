@@ -203,7 +203,8 @@ static int tda18212_set_params(struct dvb_frontend *fe,
 			goto error;
 		}
 		break;
-	case SYS_DVBC_ANNEX_AC:
+	case SYS_DVBC_ANNEX_A:
+	case SYS_DVBC_ANNEX_C:
 		if_khz = priv->cfg->if_dvbc;
 		i = DVBC_8;
 		break;

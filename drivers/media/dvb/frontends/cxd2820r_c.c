@@ -59,7 +59,7 @@ int cxd2820r_set_frontend_c(struct dvb_frontend *fe,
 	if (fe->ops.tuner_ops.set_params)
 		fe->ops.tuner_ops.set_params(fe, params);
 
-	if (priv->delivery_system !=  SYS_DVBC_ANNEX_AC) {
+	if (priv->delivery_system !=  SYS_DVBC_ANNEX_A) {
 		for (i = 0; i < ARRAY_SIZE(tab); i++) {
 			ret = cxd2820r_wr_reg_mask(priv, tab[i].reg,
 				tab[i].val, tab[i].mask);
@@ -68,7 +68,7 @@ int cxd2820r_set_frontend_c(struct dvb_frontend *fe,
 		}
 	}
 
-	priv->delivery_system = SYS_DVBC_ANNEX_AC;
+	priv->delivery_system = SYS_DVBC_ANNEX_A;
 	priv->ber_running = 0; /* tune stops BER counter */
 
 	/* program IF frequency */
