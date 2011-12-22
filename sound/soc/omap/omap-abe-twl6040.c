@@ -157,10 +157,32 @@ static const struct snd_soc_dapm_route audio_map[] = {
 	{"AFMR", NULL, "Line In"},
 };
 
+static inline void twl6040_disconnect_pin(struct snd_soc_dapm_context *dapm,
+					  int connected, char *pin)
+{
+	if (!connected)
+		snd_soc_dapm_disable_pin(dapm, pin);
+}
+
 static int omap_abe_twl6040_init(struct snd_soc_pcm_runtime *rtd)
 {
 	struct snd_soc_codec *codec = rtd->codec;
-	int ret, hs_trim;
+	struct snd_soc_card *card = codec->card;
+	struct snd_soc_dapm_context *dapm = &codec->dapm;
+	struct omap_abe_twl6040_data *pdata = dev_get_platdata(card->dev);
+	int hs_trim;
+	int ret = 0;
+
+	/* Disable not connected paths if not used */
+	twl6040_disconnect_pin(dapm, pdata->has_hs, "Headset Stereophone");
+	twl6040_disconnect_pin(dapm, pdata->has_hf, "Ext Spk");
+	twl6040_disconnect_pin(dapm, pdata->has_ep, "Earphone Spk");
+	twl6040_disconnect_pin(dapm, pdata->has_aux, "Line Out");
+	twl6040_disconnect_pin(dapm, pdata->has_vibra, "Vinrator");
+	twl6040_disconnect_pin(dapm, pdata->has_hsmic, "Headset Mic");
+	twl6040_disconnect_pin(dapm, pdata->has_mainmic, "Main Handset Mic");
+	twl6040_disconnect_pin(dapm, pdata->has_submic, "Sub Handset Mic");
+	twl6040_disconnect_pin(dapm, pdata->has_afm, "Line In");
 
 	/*
 	 * Configure McPDM offset cancellation based on the HSOTRIM value from
@@ -170,19 +192,17 @@ static int omap_abe_twl6040_init(struct snd_soc_pcm_runtime *rtd)
 	omap_mcpdm_configure_dn_offsets(rtd, TWL6040_HSF_TRIM_LEFT(hs_trim),
 					TWL6040_HSF_TRIM_RIGHT(hs_trim));
 
-	/* Headset jack detection */
-	ret = snd_soc_jack_new(codec, "Headset Jack",
-				SND_JACK_HEADSET, &hs_jack);
-	if (ret)
-		return ret;
+	/* Headset jack detection only if it is supported */
+	if (pdata->jack_detection) {
+		ret = snd_soc_jack_new(codec, "Headset Jack",
+					SND_JACK_HEADSET, &hs_jack);
+		if (ret)
+			return ret;
 
-	ret = snd_soc_jack_add_pins(&hs_jack, ARRAY_SIZE(hs_jack_pins),
-				hs_jack_pins);
-
-	if (machine_is_omap_4430sdp())
+		ret = snd_soc_jack_add_pins(&hs_jack, ARRAY_SIZE(hs_jack_pins),
+					hs_jack_pins);
 		twl6040_hs_jack_detect(codec, &hs_jack, SND_JACK_HEADSET);
-	else
-		snd_soc_jack_report(&hs_jack, SND_JACK_HEADSET, SND_JACK_HEADSET);
+	}
 
 	return ret;
 }
