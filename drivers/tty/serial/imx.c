@@ -932,6 +932,8 @@ imx_set_termios(struct uart_port *port, struct ktermios *termios,
 			ucr2 |= UCR2_PROE;
 	}
 
+	del_timer_sync(&sport->timer);
+
 	/*
 	 * Ask the core to calculate the divisor for us.
 	 */
@@ -961,8 +963,6 @@ imx_set_termios(struct uart_port *port, struct ktermios *termios,
 		if (termios->c_iflag & IGNPAR)
 			sport->port.ignore_status_mask |= URXD_OVRRUN;
 	}
-
-	del_timer_sync(&sport->timer);
 
 	/*
 	 * Update the per-port timeout.
