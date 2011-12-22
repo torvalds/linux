@@ -682,8 +682,7 @@ nouveau_vma_getmap(struct nouveau_channel *chan, struct nouveau_bo *nvbo,
 	if (mem->mem_type == TTM_PL_VRAM)
 		nouveau_vm_map(vma, node);
 	else
-		nouveau_vm_map_sg(vma, 0, mem->num_pages << PAGE_SHIFT,
-				  node, node->pages);
+		nouveau_vm_map_sg(vma, 0, mem->num_pages << PAGE_SHIFT, node);
 
 	return 0;
 }
@@ -810,7 +809,6 @@ out:
 static void
 nouveau_bo_move_ntfy(struct ttm_buffer_object *bo, struct ttm_mem_reg *new_mem)
 {
-	struct nouveau_mem *node = new_mem->mm_node;
 	struct nouveau_bo *nvbo = nouveau_bo(bo);
 	struct nouveau_vma *vma;
 
@@ -822,7 +820,7 @@ nouveau_bo_move_ntfy(struct ttm_buffer_object *bo, struct ttm_mem_reg *new_mem)
 		    nvbo->page_shift == vma->vm->spg_shift) {
 			nouveau_vm_map_sg(vma, 0, new_mem->
 					  num_pages << PAGE_SHIFT,
-					  node, node->pages);
+					  new_mem->mm_node);
 		} else {
 			nouveau_vm_unmap(vma);
 		}
@@ -1173,7 +1171,7 @@ nouveau_bo_vma_add(struct nouveau_bo *nvbo, struct nouveau_vm *vm,
 		nouveau_vm_map(vma, nvbo->bo.mem.mm_node);
 	else
 	if (nvbo->bo.mem.mem_type == TTM_PL_TT)
-		nouveau_vm_map_sg(vma, 0, size, node, node->pages);
+		nouveau_vm_map_sg(vma, 0, size, node);
 
 	list_add_tail(&vma->head, &nvbo->vma_list);
 	vma->refcount = 1;
