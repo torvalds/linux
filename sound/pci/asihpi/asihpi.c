@@ -135,6 +135,8 @@ struct snd_card_asihpi {
 	u16 update_interval_frames;
 	u16 in_max_chans;
 	u16 out_max_chans;
+	u16 in_min_chans;
+	u16 out_min_chans;
 };
 
 /* Per stream data */
@@ -968,8 +970,6 @@ static void snd_card_asihpi_playback_format(struct snd_card_asihpi *asihpi,
 }
 
 static struct snd_pcm_hardware snd_card_asihpi_playback = {
-	.channels_min = 1,
-	.channels_max = 2,
 	.buffer_bytes_max = BUFFER_BYTES_MAX,
 	.period_bytes_min = PERIOD_BYTES_MIN,
 	.period_bytes_max = BUFFER_BYTES_MAX / PERIODS_MIN,
@@ -1013,6 +1013,7 @@ static int snd_card_asihpi_playback_open(struct snd_pcm_substream *substream)
 	runtime->private_free = snd_card_asihpi_runtime_free;
 
 	snd_card_asihpi_playback.channels_max = card->out_max_chans;
+	snd_card_asihpi_playback.channels_min = card->out_min_chans;
 	/*?snd_card_asihpi_playback.period_bytes_min =
 	card->out_max_chans * 4096; */
 
@@ -1150,8 +1151,6 @@ static void snd_card_asihpi_capture_format(struct snd_card_asihpi *asihpi,
 
 
 static struct snd_pcm_hardware snd_card_asihpi_capture = {
-	.channels_min = 1,
-	.channels_max = 2,
 	.buffer_bytes_max = BUFFER_BYTES_MAX,
 	.period_bytes_min = PERIOD_BYTES_MIN,
 	.period_bytes_max = BUFFER_BYTES_MAX / PERIODS_MIN,
@@ -1193,6 +1192,7 @@ static int snd_card_asihpi_capture_open(struct snd_pcm_substream *substream)
 	runtime->private_free = snd_card_asihpi_runtime_free;
 
 	snd_card_asihpi_capture.channels_max = card->in_max_chans;
+	snd_card_asihpi_capture.channels_min = card->in_min_chans;
 	snd_card_asihpi_capture_format(card, dpcm->h_stream,
 				       &snd_card_asihpi_capture);
 	snd_card_asihpi_pcm_samplerates(card,  &snd_card_asihpi_capture);
@@ -2881,6 +2881,15 @@ static int __devinit snd_asihpi_probe(struct pci_dev *pci_dev,
 	if (err) {
 		asihpi->in_max_chans = 2;
 		asihpi->out_max_chans = 2;
+	}
+
+	if (asihpi->out_max_chans > 2) { /* assume LL mode */
+		asihpi->out_min_chans = asihpi->out_max_chans;
+		asihpi->in_min_chans = asihpi->in_max_chans;
+		asihpi->support_grouping = 0;
+	} else {
+		asihpi->out_min_chans = 1;
+		asihpi->in_min_chans = 1;
 	}
 
 	snd_printk(KERN_INFO "has dma:%d, grouping:%d, mrx:%d\n",
