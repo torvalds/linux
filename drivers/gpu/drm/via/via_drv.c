@@ -30,6 +30,29 @@
 
 #include "drm_pciids.h"
 
+static int via_driver_open(struct drm_device *dev, struct drm_file *file)
+{
+	struct via_file_private *file_priv;
+
+	DRM_DEBUG_DRIVER("\n");
+	file_priv = kmalloc(sizeof(*file_priv), GFP_KERNEL);
+	if (!file_priv)
+		return -ENOMEM;
+
+	file->driver_priv = file_priv;
+
+	INIT_LIST_HEAD(&file_priv->obj_list);
+
+	return 0;
+}
+
+void via_driver_postclose(struct drm_device *dev, struct drm_file *file)
+{
+	struct via_file_private *file_priv = file->driver_priv;
+
+	kfree(file_priv);
+}
+
 static struct pci_device_id pciidlist[] = {
 	viadrv_PCI_IDS
 };
@@ -51,6 +74,8 @@ static struct drm_driver driver = {
 	    DRIVER_IRQ_SHARED,
 	.load = via_driver_load,
 	.unload = via_driver_unload,
+	.open = via_driver_open,
+	.postclose = via_driver_postclose,
 	.context_dtor = via_final_context,
 	.get_vblank_counter = via_get_vblank_counter,
 	.enable_vblank = via_enable_vblank,
