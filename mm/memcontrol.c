@@ -229,10 +229,6 @@ struct mem_cgroup {
 	 */
 	struct res_counter memsw;
 	/*
-	 * the counter to account for kmem usage.
-	 */
-	struct res_counter kmem;
-	/*
 	 * Per cgroup active and inactive list, similar to the
 	 * per zone LRU lists.
 	 */
@@ -282,11 +278,6 @@ struct mem_cgroup {
 	 * mem_cgroup ? And what type of charges should we move ?
 	 */
 	unsigned long 	move_charge_at_immigrate;
-	/*
-	 * Should kernel memory limits be stabilished independently
-	 * from user memory ?
-	 */
-	int		kmem_independent_accounting;
 	/*
 	 * percpu counter.
 	 */
@@ -359,14 +350,9 @@ enum charge_type {
 };
 
 /* for encoding cft->private value on file */
-
-enum mem_type {
-	_MEM = 0,
-	_MEMSWAP,
-	_OOM_TYPE,
-	_KMEM,
-};
-
+#define _MEM			(0)
+#define _MEMSWAP		(1)
+#define _OOM_TYPE		(2)
 #define MEMFILE_PRIVATE(x, val)	(((x) << 16) | (val))
 #define MEMFILE_TYPE(val)	(((val) >> 16) & 0xffff)
 #define MEMFILE_ATTR(val)	((val) & 0xffff)
@@ -3919,17 +3905,10 @@ static inline u64 mem_cgroup_usage(struct mem_cgroup *memcg, bool swap)
 	u64 val;
 
 	if (!mem_cgroup_is_root(memcg)) {
-		val = 0;
-#ifdef CONFIG_CGROUP_MEM_RES_CTLR_KMEM
-		if (!memcg->kmem_independent_accounting)
-			val = res_counter_read_u64(&memcg->kmem, RES_USAGE);
-#endif
 		if (!swap)
-			val += res_counter_read_u64(&memcg->res, RES_USAGE);
+			return res_counter_read_u64(&memcg->res, RES_USAGE);
 		else
-			val += res_counter_read_u64(&memcg->memsw, RES_USAGE);
-
-		return val;
+			return res_counter_read_u64(&memcg->memsw, RES_USAGE);
 	}
 
 	val = mem_cgroup_recursive_stat(memcg, MEM_CGROUP_STAT_CACHE);
@@ -3962,11 +3941,6 @@ static u64 mem_cgroup_read(struct cgroup *cont, struct cftype *cft)
 		else
 			val = res_counter_read_u64(&memcg->memsw, name);
 		break;
-#ifdef CONFIG_CGROUP_MEM_RES_CTLR_KMEM
-	case _KMEM:
-		val = res_counter_read_u64(&memcg->kmem, name);
-		break;
-#endif
 	default:
 		BUG();
 		break;
@@ -4696,59 +4670,8 @@ static int mem_control_numa_stat_open(struct inode *unused, struct file *file)
 #endif /* CONFIG_NUMA */
 
 #ifdef CONFIG_CGROUP_MEM_RES_CTLR_KMEM
-static u64 kmem_limit_independent_read(struct cgroup *cgroup, struct cftype *cft)
-{
-	return mem_cgroup_from_cont(cgroup)->kmem_independent_accounting;
-}
-
-static int kmem_limit_independent_write(struct cgroup *cgroup, struct cftype *cft,
-					u64 val)
-{
-	struct mem_cgroup *memcg = mem_cgroup_from_cont(cgroup);
-	struct mem_cgroup *parent = parent_mem_cgroup(memcg);
-
-	val = !!val;
-
-	/*
-	 * This follows the same hierarchy restrictions than
-	 * mem_cgroup_hierarchy_write()
-	 */
-	if (!parent || !parent->use_hierarchy) {
-		if (list_empty(&cgroup->children))
-			memcg->kmem_independent_accounting = val;
-		else
-			return -EBUSY;
-	}
-	else
-		return -EINVAL;
-
-	return 0;
-}
-static struct cftype kmem_cgroup_files[] = {
-	{
-		.name = "independent_kmem_limit",
-		.read_u64 = kmem_limit_independent_read,
-		.write_u64 = kmem_limit_independent_write,
-	},
-	{
-		.name = "kmem.usage_in_bytes",
-		.private = MEMFILE_PRIVATE(_KMEM, RES_USAGE),
-		.read_u64 = mem_cgroup_read,
-	},
-	{
-		.name = "kmem.limit_in_bytes",
-		.private = MEMFILE_PRIVATE(_KMEM, RES_LIMIT),
-		.read_u64 = mem_cgroup_read,
-	},
-};
-
 static int register_kmem_files(struct cgroup *cont, struct cgroup_subsys *ss)
 {
-	int ret = 0;
-
-	ret = cgroup_add_files(cont, ss, kmem_cgroup_files,
-			       ARRAY_SIZE(kmem_cgroup_files));
-
 	/*
 	 * Part of this would be better living in a separate allocation
 	 * function, leaving us with just the cgroup tree population work.
@@ -4756,9 +4679,7 @@ static int register_kmem_files(struct cgroup *cont, struct cgroup_subsys *ss)
 	 * is only initialized after cgroup creation. I found the less
 	 * cumbersome way to deal with it to defer it all to populate time
 	 */
-	if (!ret)
-		ret = mem_cgroup_sockets_init(cont, ss);
-	return ret;
+	return mem_cgroup_sockets_init(cont, ss);
 };
 
 static void kmem_cgroup_destroy(struct cgroup_subsys *ss,
@@ -5092,7 +5013,6 @@ mem_cgroup_create(struct cgroup_subsys *ss, struct cgroup *cont)
 	if (parent && parent->use_hierarchy) {
 		res_counter_init(&memcg->res, &parent->res);
 		res_counter_init(&memcg->memsw, &parent->memsw);
-		res_counter_init(&memcg->kmem, &parent->kmem);
 		/*
 		 * We increment refcnt of the parent to ensure that we can
 		 * safely access it on res_counter_charge/uncharge.
@@ -5103,7 +5023,6 @@ mem_cgroup_create(struct cgroup_subsys *ss, struct cgroup *cont)
 	} else {
 		res_counter_init(&memcg->res, NULL);
 		res_counter_init(&memcg->memsw, NULL);
-		res_counter_init(&memcg->kmem, NULL);
 	}
 	memcg->last_scanned_child = 0;
 	memcg->last_scanned_node = MAX_NUMNODES;

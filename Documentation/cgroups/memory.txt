@@ -44,9 +44,8 @@ Features:
  - oom-killer disable knob and oom-notifier
  - Root cgroup has no limit controls.
 
- Hugepages is not under control yet. We just manage pages on LRU. To add more
- controls, we have to take care of performance. Kernel memory support is work
- in progress, and the current version provides basically functionality.
+ Kernel memory support is work in progress, and the current version provides
+ basically functionality. (See Section 2.7)
 
 Brief summary of control files.
 
@@ -57,11 +56,8 @@ Brief summary of control files.
 				 (See 5.5 for details)
  memory.memsw.usage_in_bytes	 # show current res_counter usage for memory+Swap
 				 (See 5.5 for details)
- memory.kmem.usage_in_bytes	 # show current res_counter usage for kmem only.
-				 (See 2.7 for details)
  memory.limit_in_bytes		 # set/show limit of memory usage
  memory.memsw.limit_in_bytes	 # set/show limit of memory+Swap usage
- memory.kmem.limit_in_bytes	 # if allowed, set/show limit of kernel memory
  memory.failcnt			 # show the number of memory usage hits limits
  memory.memsw.failcnt		 # show the number of memory+Swap hits limits
  memory.max_usage_in_bytes	 # show max memory usage recorded
@@ -76,8 +72,6 @@ Brief summary of control files.
  memory.oom_control		 # set/show oom controls.
  memory.numa_stat		 # show the number of memory usage per numa node
 
- memory.independent_kmem_limit	 # select whether or not kernel memory limits are
-				   independent of user limits
  memory.kmem.tcp.limit_in_bytes  # set/show hard limit for tcp buf memory
  memory.kmem.tcp.usage_in_bytes  # show current tcp buf memory allocation
 
@@ -271,20 +265,8 @@ the amount of kernel memory used by the system. Kernel memory is fundamentally
 different than user memory, since it can't be swapped out, which makes it
 possible to DoS the system by consuming too much of this precious resource.
 
-Some kernel memory resources may be accounted and limited separately from the
-main "kmem" resource. For instance, a slab cache that is considered important
-enough to be limited separately may have its own knobs.
-
 Kernel memory limits are not imposed for the root cgroup. Usage for the root
 cgroup may or may not be accounted.
-
-Memory limits as specified by the standard Memory Controller may or may not
-take kernel memory into consideration. This is achieved through the file
-memory.independent_kmem_limit. A Value different than 0 will allow for kernel
-memory to be controlled separately.
-
-When kernel memory limits are not independent, the limit values set in
-memory.kmem files are ignored.
 
 Currently no soft limit is implemented for kernel memory. It is future work
 to trigger slab reclaim when those limits are reached.
