@@ -908,9 +908,10 @@ dt3155_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	if (err)
 		goto err_req_region;
 	pd->regs = pci_iomap(pdev, 0, pci_resource_len(pd->pdev, 0));
-	if (!pd->regs)
+	if (!pd->regs) {
 		err = -ENOMEM;
 		goto err_pci_iomap;
+	}
 	err = dt3155_init_board(pdev);
 	if (err)
 		goto err_init_board;
