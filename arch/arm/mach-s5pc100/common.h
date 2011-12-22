@@ -18,6 +18,8 @@ void s5pc100_init_irq(void);
 void s5pc100_register_clocks(void);
 void s5pc100_setup_clocks(void);
 
+void s5pc100_restart(char mode, const char *cmd);
+
 #ifdef CONFIG_CPU_S5PC100
 
 extern  int s5pc100_init(void);

@@ -254,4 +254,5 @@ MACHINE_START(SMDKC100, "SMDKC100")
 	.map_io		= smdkc100_map_io,
 	.init_machine	= smdkc100_machine_init,
 	.timer		= &s3c24xx_timer,
+	.restart	= s5pc100_restart,
 MACHINE_END
