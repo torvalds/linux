@@ -618,7 +618,7 @@ struct hpi_hostbuffer_status {
 	u32 auxiliary_data_available;
 	u32 stream_state;
 	/* DSP index in to the host bus master buffer. */
-	u32 dSP_index;
+	u32 dsp_index;
 	/* Host index in to the host bus master buffer. */
 	u32 host_index;
 	u32 size_in_bytes;
@@ -1461,7 +1461,7 @@ struct hpi_control_cache_pad {
 /* 2^N sized FIFO buffer (internal to HPI<->DSP interaction) */
 struct hpi_fifo_buffer {
 	u32 size;
-	u32 dSP_index;
+	u32 dsp_index;
 	u32 host_index;
 };
 

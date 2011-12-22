@@ -803,8 +803,8 @@ static void outstream_host_buffer_allocate(struct hpi_adapter_obj *pao,
 			obj_index];
 		status->samples_processed = 0;
 		status->stream_state = HPI_STATE_STOPPED;
-		status->dSP_index = 0;
-		status->host_index = status->dSP_index;
+		status->dsp_index = 0;
+		status->host_index = status->dsp_index;
 		status->size_in_bytes = phm->u.d.u.buffer.buffer_size;
 		status->auxiliary_data_available = 0;
 
@@ -878,7 +878,7 @@ static void outstream_host_buffer_free(struct hpi_adapter_obj *pao,
 static u32 outstream_get_space_available(struct hpi_hostbuffer_status *status)
 {
 	return status->size_in_bytes - (status->host_index -
-		status->dSP_index);
+		status->dsp_index);
 }
 
 static void outstream_write(struct hpi_adapter_obj *pao,
@@ -1080,8 +1080,8 @@ static void instream_host_buffer_allocate(struct hpi_adapter_obj *pao,
 			obj_index];
 		status->samples_processed = 0;
 		status->stream_state = HPI_STATE_STOPPED;
-		status->dSP_index = 0;
-		status->host_index = status->dSP_index;
+		status->dsp_index = 0;
+		status->host_index = status->dsp_index;
 		status->size_in_bytes = phm->u.d.u.buffer.buffer_size;
 		status->auxiliary_data_available = 0;
 
@@ -1162,7 +1162,7 @@ static void instream_start(struct hpi_adapter_obj *pao,
 
 static u32 instream_get_bytes_available(struct hpi_hostbuffer_status *status)
 {
-	return status->dSP_index - status->host_index;
+	return status->dsp_index - status->host_index;
 }
 
 static void instream_read(struct hpi_adapter_obj *pao,
