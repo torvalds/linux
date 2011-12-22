@@ -275,32 +275,21 @@ static int balloon(void *_vballoon)
 	return 0;
 }
 
-static int virtballoon_probe(struct virtio_device *vdev)
+static int init_vqs(struct virtio_balloon *vb)
 {
-	struct virtio_balloon *vb;
 	struct virtqueue *vqs[3];
 	vq_callback_t *callbacks[] = { balloon_ack, balloon_ack, stats_request };
 	const char *names[] = { "inflate", "deflate", "stats" };
 	int err, nvqs;
 
-	vdev->priv = vb = kmalloc(sizeof(*vb), GFP_KERNEL);
-	if (!vb) {
-		err = -ENOMEM;
-		goto out;
-	}
-
-	INIT_LIST_HEAD(&vb->pages);
-	vb->num_pages = 0;
-	init_waitqueue_head(&vb->config_change);
-	vb->vdev = vdev;
-	vb->need_stats_update = 0;
-
-	/* We expect two virtqueues: inflate and deflate,
-	 * and optionally stat. */
+	/*
+	 * We expect two virtqueues: inflate and deflate, and
+	 * optionally stat.
+	 */
 	nvqs = virtio_has_feature(vb->vdev, VIRTIO_BALLOON_F_STATS_VQ) ? 3 : 2;
-	err = vdev->config->find_vqs(vdev, nvqs, vqs, callbacks, names);
+	err = vb->vdev->config->find_vqs(vb->vdev, nvqs, vqs, callbacks, names);
 	if (err)
-		goto out_free_vb;
+		return err;
 
 	vb->inflate_vq = vqs[0];
 	vb->deflate_vq = vqs[1];
@@ -318,6 +307,29 @@ static int virtballoon_probe(struct virtio_device *vdev)
 			BUG();
 		virtqueue_kick(vb->stats_vq);
 	}
+	return 0;
+}
+
+static int virtballoon_probe(struct virtio_device *vdev)
+{
+	struct virtio_balloon *vb;
+	int err;
+
+	vdev->priv = vb = kmalloc(sizeof(*vb), GFP_KERNEL);
+	if (!vb) {
+		err = -ENOMEM;
+		goto out;
+	}
+
+	INIT_LIST_HEAD(&vb->pages);
+	vb->num_pages = 0;
+	init_waitqueue_head(&vb->config_change);
+	vb->vdev = vdev;
+	vb->need_stats_update = 0;
+
+	err = init_vqs(vb);
+	if (err)
+		goto out_free_vb;
 
 	vb->thread = kthread_run(balloon, vb, "vballoon");
 	if (IS_ERR(vb->thread)) {
