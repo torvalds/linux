@@ -192,6 +192,7 @@ struct domain_device {
         struct domain_device *parent;
         struct list_head siblings; /* devices on the same level */
         struct asd_sas_port *port;        /* shortcut to root of the tree */
+	struct sas_phy *phy;
 
         struct list_head dev_list_node;
 	struct list_head disco_list_node; /* awaiting probe or destruct */
@@ -243,7 +244,6 @@ struct asd_sas_port {
 	struct list_head destroy_list;
 	enum   sas_linkrate linkrate;
 
-	struct sas_phy *phy;
 	struct work_struct work;
 
 /* public: */
@@ -427,6 +427,11 @@ static inline void sas_phy_disconnected(struct asd_sas_phy *phy)
 static inline unsigned int to_sas_gpio_od(int device, int bit)
 {
 	return 3 * device + bit;
+}
+
+static inline void sas_put_local_phy(struct sas_phy *phy)
+{
+	put_device(&phy->dev);
 }
 
 #ifdef CONFIG_SCSI_SAS_HOST_SMP
@@ -684,7 +689,7 @@ extern int sas_smp_handler(struct Scsi_Host *shost, struct sas_rphy *rphy,
 
 extern void sas_ssp_task_response(struct device *dev, struct sas_task *task,
 				  struct ssp_response_iu *iu);
-struct sas_phy *sas_find_local_phy(struct domain_device *dev);
+struct sas_phy *sas_get_local_phy(struct domain_device *dev);
 
 int sas_request_addr(struct Scsi_Host *shost, u8 *addr);
 

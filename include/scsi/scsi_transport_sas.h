@@ -209,6 +209,12 @@ void sas_port_add_phy(struct sas_port *, struct sas_phy *);
 void sas_port_delete_phy(struct sas_port *, struct sas_phy *);
 void sas_port_mark_backlink(struct sas_port *);
 int scsi_is_sas_port(const struct device *);
+struct sas_phy *sas_port_get_phy(struct sas_port *port);
+static inline void sas_port_put_phy(struct sas_phy *phy)
+{
+	if (phy)
+		put_device(&phy->dev);
+}
 
 extern struct scsi_transport_template *
 sas_attach_transport(struct sas_function_template *);

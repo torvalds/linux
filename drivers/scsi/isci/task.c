@@ -1332,7 +1332,7 @@ isci_task_request_complete(struct isci_host *ihost,
 static int isci_reset_device(struct isci_host *ihost,
 			     struct isci_remote_device *idev)
 {
-	struct sas_phy *phy = sas_find_local_phy(idev->domain_dev);
+	struct sas_phy *phy = sas_get_local_phy(idev->domain_dev);
 	enum sci_status status;
 	unsigned long flags;
 	int rc;
@@ -1347,8 +1347,8 @@ static int isci_reset_device(struct isci_host *ihost,
 		dev_dbg(&ihost->pdev->dev,
 			 "%s: sci_remote_device_reset(%p) returned %d!\n",
 			 __func__, idev, status);
-
-		return TMF_RESP_FUNC_FAILED;
+		rc = TMF_RESP_FUNC_FAILED;
+		goto out;
 	}
 	spin_unlock_irqrestore(&ihost->scic_lock, flags);
 
@@ -1369,7 +1369,8 @@ static int isci_reset_device(struct isci_host *ihost,
 	}
 
 	dev_dbg(&ihost->pdev->dev, "%s: idev %p complete.\n", __func__, idev);
-
+ out:
+	sas_put_local_phy(phy);
 	return rc;
 }
 

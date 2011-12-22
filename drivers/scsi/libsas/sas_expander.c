@@ -723,6 +723,7 @@ static struct domain_device *sas_ex_discover_end_dev(
 		}
 	}
 	sas_ex_get_linkrate(parent, child, phy);
+	sas_device_set_phy(child, phy->port);
 
 #ifdef CONFIG_SCSI_SAS_ATA
 	if ((phy->attached_tproto & SAS_PROTOCOL_STP) || phy->attached_sata_dev) {
@@ -1810,7 +1811,7 @@ static void sas_unregister_devs_sas_addr(struct domain_device *parent,
 {
 	struct expander_device *ex_dev = &parent->ex_dev;
 	struct ex_phy *phy = &ex_dev->ex_phy[phy_id];
-	struct domain_device *child, *n;
+	struct domain_device *child, *n, *found = NULL;
 	if (last) {
 		list_for_each_entry_safe(child, n,
 			&ex_dev->children, siblings) {
@@ -1822,6 +1823,7 @@ static void sas_unregister_devs_sas_addr(struct domain_device *parent,
 					sas_unregister_ex_tree(parent->port, child);
 				else
 					sas_unregister_dev(parent->port, child);
+				found = child;
 				break;
 			}
 		}
@@ -1830,6 +1832,7 @@ static void sas_unregister_devs_sas_addr(struct domain_device *parent,
 	memset(phy->attached_sas_addr, 0, SAS_ADDR_SIZE);
 	if (phy->port) {
 		sas_port_delete_phy(phy->port, phy->phy);
+		sas_device_set_phy(found, phy->port);
 		if (phy->port->num_phys == 0)
 			sas_port_delete(phy->port);
 		phy->port = NULL;

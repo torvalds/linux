@@ -1474,10 +1474,11 @@ static int mvs_debug_issue_ssp_tmf(struct domain_device *dev,
 static int mvs_debug_I_T_nexus_reset(struct domain_device *dev)
 {
 	int rc;
-	struct sas_phy *phy = sas_find_local_phy(dev);
+	struct sas_phy *phy = sas_get_local_phy(dev);
 	int reset_type = (dev->dev_type == SATA_DEV ||
 			(dev->tproto & SAS_PROTOCOL_STP)) ? 0 : 1;
 	rc = sas_phy_reset(phy, reset_type);
+	sas_put_local_phy(phy);
 	msleep(2000);
 	return rc;
 }

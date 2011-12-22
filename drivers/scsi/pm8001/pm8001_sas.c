@@ -967,12 +967,14 @@ int pm8001_I_T_nexus_reset(struct domain_device *dev)
 
 	pm8001_dev = dev->lldd_dev;
 	pm8001_ha = pm8001_find_ha_by_dev(dev);
-	phy = sas_find_local_phy(dev);
+	phy = sas_get_local_phy(dev);
 
 	if (dev_is_sata(dev)) {
 		DECLARE_COMPLETION_ONSTACK(completion_setstate);
-		if (scsi_is_sas_phy_local(phy))
-			return 0;
+		if (scsi_is_sas_phy_local(phy)) {
+			rc = 0;
+			goto out;
+		}
 		rc = sas_phy_reset(phy, 1);
 		msleep(2000);
 		rc = pm8001_exec_internal_task_abort(pm8001_ha, pm8001_dev ,
@@ -981,12 +983,14 @@ int pm8001_I_T_nexus_reset(struct domain_device *dev)
 		rc = PM8001_CHIP_DISP->set_dev_state_req(pm8001_ha,
 			pm8001_dev, 0x01);
 		wait_for_completion(&completion_setstate);
-	} else{
-	rc = sas_phy_reset(phy, 1);
-	msleep(2000);
+	} else {
+		rc = sas_phy_reset(phy, 1);
+		msleep(2000);
 	}
 	PM8001_EH_DBG(pm8001_ha, pm8001_printk(" for device[%x]:rc=%d\n",
 		pm8001_dev->device_id, rc));
+ out:
+	sas_put_local_phy(phy);
 	return rc;
 }
 
@@ -998,10 +1002,11 @@ int pm8001_lu_reset(struct domain_device *dev, u8 *lun)
 	struct pm8001_device *pm8001_dev = dev->lldd_dev;
 	struct pm8001_hba_info *pm8001_ha = pm8001_find_ha_by_dev(dev);
 	if (dev_is_sata(dev)) {
-		struct sas_phy *phy = sas_find_local_phy(dev);
+		struct sas_phy *phy = sas_get_local_phy(dev);
 		rc = pm8001_exec_internal_task_abort(pm8001_ha, pm8001_dev ,
 			dev, 1, 0);
 		rc = sas_phy_reset(phy, 1);
+		sas_put_local_phy(phy);
 		rc = PM8001_CHIP_DISP->set_dev_state_req(pm8001_ha,
 			pm8001_dev, 0x01);
 		msleep(2000);

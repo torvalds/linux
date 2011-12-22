@@ -108,9 +108,6 @@ static void sas_form_port(struct asd_sas_phy *phy)
 	port->num_phys++;
 	port->phy_mask |= (1U << phy->id);
 
-	if (!port->phy)
-		port->phy = phy->phy;
-
 	if (*(u64 *)port->attached_sas_addr == 0) {
 		port->class = phy->class;
 		memcpy(port->attached_sas_addr, phy->attached_sas_addr,
@@ -175,8 +172,10 @@ void sas_deform_port(struct asd_sas_phy *phy, int gone)
 		sas_unregister_domain_devices(port);
 		sas_port_delete(port->port);
 		port->port = NULL;
-	} else
+	} else {
 		sas_port_delete_phy(port->port, phy->phy);
+		sas_device_set_phy(dev, port->port);
+	}
 
 	if (si->dft->lldd_port_deformed)
 		si->dft->lldd_port_deformed(phy);

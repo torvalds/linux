@@ -284,9 +284,10 @@ static int smp_ata_check_ready(struct ata_link *link)
 	struct ata_port *ap = link->ap;
 	struct domain_device *dev = ap->private_data;
 	struct domain_device *ex_dev = dev->parent;
-	struct sas_phy *phy = sas_find_local_phy(dev);
+	struct sas_phy *phy = sas_get_local_phy(dev);
 
 	res = sas_get_phy_attached_sas_addr(ex_dev, phy->number, addr);
+	sas_put_local_phy(phy);
 	/* break the wait early if the expander is unreachable,
 	 * otherwise keep polling
 	 */
@@ -319,10 +320,10 @@ static int sas_ata_hard_reset(struct ata_link *link, unsigned int *class,
 			      unsigned long deadline)
 {
 	int ret = 0, res;
+	struct sas_phy *phy;
 	struct ata_port *ap = link->ap;
 	int (*check_ready)(struct ata_link *link);
 	struct domain_device *dev = ap->private_data;
-	struct sas_phy *phy = sas_find_local_phy(dev);
 	struct sas_internal *i = dev_to_sas_internal(dev);
 
 	res = i->dft->lldd_I_T_nexus_reset(dev);
@@ -330,10 +331,12 @@ static int sas_ata_hard_reset(struct ata_link *link, unsigned int *class,
 	if (res != TMF_RESP_FUNC_COMPLETE)
 		SAS_DPRINTK("%s: Unable to reset ata device?\n", __func__);
 
+	phy = sas_get_local_phy(dev);
 	if (scsi_is_sas_phy_local(phy))
 		check_ready = local_ata_check_ready;
 	else
 		check_ready = smp_ata_check_ready;
+	sas_put_local_phy(phy);
 
 	ret = ata_wait_after_reset(link, deadline, check_ready);
 	if (ret && ret != -EAGAIN)

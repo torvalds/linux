@@ -147,6 +147,7 @@ static int sas_get_port_device(struct asd_sas_port *port)
 	memset(port->disc.eeds_a, 0, SAS_ADDR_SIZE);
 	memset(port->disc.eeds_b, 0, SAS_ADDR_SIZE);
 	port->disc.max_level = 0;
+	sas_device_set_phy(dev, port->port);
 
 	dev->rphy = rphy;
 
@@ -234,6 +235,9 @@ void sas_free_device(struct kref *kref)
 	if (dev->parent)
 		sas_put_device(dev->parent);
 
+	sas_port_put_phy(dev->phy);
+	dev->phy = NULL;
+
 	/* remove the phys and ports, everything else should be gone */
 	if (dev->dev_type == EDGE_DEV || dev->dev_type == FANOUT_DEV)
 		kfree(dev->ex_dev.ex_phy);
@@ -306,6 +310,26 @@ void sas_unregister_domain_devices(struct asd_sas_port *port)
 
 	port->port->rphy = NULL;
 
+}
+
+void sas_device_set_phy(struct domain_device *dev, struct sas_port *port)
+{
+	struct sas_ha_struct *ha;
+	struct sas_phy *new_phy;
+
+	if (!dev)
+		return;
+
+	ha = dev->port->ha;
+	new_phy = sas_port_get_phy(port);
+
+	/* pin and record last seen phy */
+	spin_lock_irq(&ha->phy_port_lock);
+	if (new_phy) {
+		sas_port_put_phy(dev->phy);
+		dev->phy = new_phy;
+	}
+	spin_unlock_irq(&ha->phy_port_lock);
 }
 
 /* ---------- Discovery and Revalidation ---------- */

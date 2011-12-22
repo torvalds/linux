@@ -439,30 +439,26 @@ static int sas_recover_I_T(struct domain_device *dev)
 	return res;
 }
 
-/* Find the sas_phy that's attached to this device */
-struct sas_phy *sas_find_local_phy(struct domain_device *dev)
+/* take a reference on the last known good phy for this device */
+struct sas_phy *sas_get_local_phy(struct domain_device *dev)
 {
-	struct domain_device *pdev = dev->parent;
-	struct ex_phy *exphy = NULL;
-	int i;
+	struct sas_ha_struct *ha = dev->port->ha;
+	struct sas_phy *phy;
+	unsigned long flags;
 
-	/* Directly attached device */
-	if (!pdev)
-		return dev->port->phy;
+	/* a published domain device always has a valid phy, it may be
+	 * stale, but it is never NULL
+	 */
+	BUG_ON(!dev->phy);
 
-	/* Otherwise look in the expander */
-	for (i = 0; i < pdev->ex_dev.num_phys; i++)
-		if (!memcmp(dev->sas_addr,
-			    pdev->ex_dev.ex_phy[i].attached_sas_addr,
-			    SAS_ADDR_SIZE)) {
-			exphy = &pdev->ex_dev.ex_phy[i];
-			break;
-		}
+	spin_lock_irqsave(&ha->phy_port_lock, flags);
+	phy = dev->phy;
+	get_device(&phy->dev);
+	spin_unlock_irqrestore(&ha->phy_port_lock, flags);
 
-	BUG_ON(!exphy);
-	return exphy->phy;
+	return phy;
 }
-EXPORT_SYMBOL_GPL(sas_find_local_phy);
+EXPORT_SYMBOL_GPL(sas_get_local_phy);
 
 /* Attempt to send a LUN reset message to a device */
 int sas_eh_device_reset_handler(struct scsi_cmnd *cmd)
@@ -489,7 +485,7 @@ int sas_eh_device_reset_handler(struct scsi_cmnd *cmd)
 int sas_eh_bus_reset_handler(struct scsi_cmnd *cmd)
 {
 	struct domain_device *dev = cmd_to_domain_dev(cmd);
-	struct sas_phy *phy = sas_find_local_phy(dev);
+	struct sas_phy *phy = sas_get_local_phy(dev);
 	int res;
 
 	res = sas_phy_reset(phy, 1);
@@ -497,6 +493,8 @@ int sas_eh_bus_reset_handler(struct scsi_cmnd *cmd)
 		SAS_DPRINTK("Bus reset of %s failed 0x%x\n",
 			    kobject_name(&phy->dev.kobj),
 			    res);
+	sas_put_local_phy(phy);
+
 	if (res == TMF_RESP_FUNC_SUCC || res == TMF_RESP_FUNC_COMPLETE)
 		return SUCCESS;
 
