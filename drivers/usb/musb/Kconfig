@@ -5,13 +5,13 @@
 
 # (M)HDRC = (Multipoint) Highspeed Dual-Role Controller
 config USB_MUSB_HDRC
+	tristate 'Inventra Highspeed Dual Role Controller (TI, ADI, ...)'
 	depends on USB && USB_GADGET
 	select NOP_USB_XCEIV if (ARCH_DAVINCI || MACH_OMAP3EVM || BLACKFIN)
 	select TWL4030_USB if MACH_OMAP_3430SDP
 	select TWL6030_USB if MACH_OMAP_4430SDP || MACH_OMAP4_PANDA
 	select USB_OTG_UTILS
 	select USB_GADGET_DUALSPEED
-	tristate 'Inventra Highspeed Dual Role Controller (TI, ADI, ...)'
 	help
 	  Say Y here if your system has a dual role high speed USB
 	  controller based on the Mentor Graphics silicon IP.  Then
@@ -30,9 +30,10 @@ config USB_MUSB_HDRC
 	  To compile this driver as a module, choose M here; the
 	  module will be called "musb-hdrc".
 
+if USB_MUSB_HDRC
+
 choice
 	prompt "Platform Glue Layer"
-	depends on USB_MUSB_HDRC
 
 config USB_MUSB_DAVINCI
 	tristate "DaVinci"
@@ -77,28 +78,24 @@ choice
 
 config USB_UX500_DMA
 	bool 'ST Ericsson U8500 and U5500'
-	depends on USB_MUSB_HDRC
 	depends on USB_MUSB_UX500
 	help
 	  Enable DMA transfers on UX500 platforms.
 
 config USB_INVENTRA_DMA
 	bool 'Inventra'
-	depends on USB_MUSB_HDRC
 	depends on USB_MUSB_OMAP2PLUS || USB_MUSB_BLACKFIN
 	help
 	  Enable DMA transfers using Mentor's engine.
 
 config USB_TI_CPPI_DMA
 	bool 'TI CPPI (Davinci)'
-	depends on USB_MUSB_HDRC
 	depends on USB_MUSB_DAVINCI
 	help
 	  Enable DMA transfers when TI CPPI DMA is available.
 
 config USB_TUSB_OMAP_DMA
 	bool 'TUSB 6010'
-	depends on USB_MUSB_HDRC
 	depends on USB_MUSB_TUSB6010
 	depends on ARCH_OMAP
 	help
@@ -106,7 +103,6 @@ config USB_TUSB_OMAP_DMA
 
 config MUSB_PIO_ONLY
 	bool 'Disable DMA (always use PIO)'
-	depends on USB_MUSB_HDRC
 	help
 	  All data is copied between memory and FIFO by the CPU.
 	  DMA controllers are ignored.
@@ -117,3 +113,5 @@ config MUSB_PIO_ONLY
 	  parameter.
 
 endchoice
+
+endif # USB_MUSB_HDRC
