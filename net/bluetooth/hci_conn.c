@@ -487,7 +487,7 @@ struct hci_dev *hci_get_route(bdaddr_t *dst, bdaddr_t *src)
 
 	BT_DBG("%s -> %s", batostr(src), batostr(dst));
 
-	read_lock_bh(&hci_dev_list_lock);
+	read_lock(&hci_dev_list_lock);
 
 	list_for_each_entry(d, &hci_dev_list, list) {
 		if (!test_bit(HCI_UP, &d->flags) || test_bit(HCI_RAW, &d->flags))
@@ -512,7 +512,7 @@ struct hci_dev *hci_get_route(bdaddr_t *dst, bdaddr_t *src)
 	if (hdev)
 		hdev = hci_dev_hold(hdev);
 
-	read_unlock_bh(&hci_dev_list_lock);
+	read_unlock(&hci_dev_list_lock);
 	return hdev;
 }
 EXPORT_SYMBOL(hci_get_route);

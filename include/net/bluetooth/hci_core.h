@@ -801,13 +801,13 @@ static inline void hci_auth_cfm(struct hci_conn *conn, __u8 status)
 
 	encrypt = (conn->link_mode & HCI_LM_ENCRYPT) ? 0x01 : 0x00;
 
-	read_lock_bh(&hci_cb_list_lock);
+	read_lock(&hci_cb_list_lock);
 	list_for_each(p, &hci_cb_list) {
 		struct hci_cb *cb = list_entry(p, struct hci_cb, list);
 		if (cb->security_cfm)
 			cb->security_cfm(conn, status, encrypt);
 	}
-	read_unlock_bh(&hci_cb_list_lock);
+	read_unlock(&hci_cb_list_lock);
 }
 
 static inline void hci_encrypt_cfm(struct hci_conn *conn, __u8 status,
@@ -823,26 +823,26 @@ static inline void hci_encrypt_cfm(struct hci_conn *conn, __u8 status,
 
 	hci_proto_encrypt_cfm(conn, status, encrypt);
 
-	read_lock_bh(&hci_cb_list_lock);
+	read_lock(&hci_cb_list_lock);
 	list_for_each(p, &hci_cb_list) {
 		struct hci_cb *cb = list_entry(p, struct hci_cb, list);
 		if (cb->security_cfm)
 			cb->security_cfm(conn, status, encrypt);
 	}
-	read_unlock_bh(&hci_cb_list_lock);
+	read_unlock(&hci_cb_list_lock);
 }
 
 static inline void hci_key_change_cfm(struct hci_conn *conn, __u8 status)
 {
 	struct list_head *p;
 
-	read_lock_bh(&hci_cb_list_lock);
+	read_lock(&hci_cb_list_lock);
 	list_for_each(p, &hci_cb_list) {
 		struct hci_cb *cb = list_entry(p, struct hci_cb, list);
 		if (cb->key_change_cfm)
 			cb->key_change_cfm(conn, status);
 	}
-	read_unlock_bh(&hci_cb_list_lock);
+	read_unlock(&hci_cb_list_lock);
 }
 
 static inline void hci_role_switch_cfm(struct hci_conn *conn, __u8 status,
@@ -850,13 +850,13 @@ static inline void hci_role_switch_cfm(struct hci_conn *conn, __u8 status,
 {
 	struct list_head *p;
 
-	read_lock_bh(&hci_cb_list_lock);
+	read_lock(&hci_cb_list_lock);
 	list_for_each(p, &hci_cb_list) {
 		struct hci_cb *cb = list_entry(p, struct hci_cb, list);
 		if (cb->role_switch_cfm)
 			cb->role_switch_cfm(conn, status, role);
 	}
-	read_unlock_bh(&hci_cb_list_lock);
+	read_unlock(&hci_cb_list_lock);
 }
 
 int hci_register_cb(struct hci_cb *hcb);

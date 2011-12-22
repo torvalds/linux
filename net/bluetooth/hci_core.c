@@ -844,7 +844,7 @@ int hci_get_dev_list(void __user *arg)
 
 	dr = dl->dev_req;
 
-	read_lock_bh(&hci_dev_list_lock);
+	read_lock(&hci_dev_list_lock);
 	list_for_each_entry(hdev, &hci_dev_list, list) {
 		if (test_and_clear_bit(HCI_AUTO_OFF, &hdev->flags))
 			cancel_delayed_work(&hdev->power_off);
@@ -858,7 +858,7 @@ int hci_get_dev_list(void __user *arg)
 		if (++n >= dev_num)
 			break;
 	}
-	read_unlock_bh(&hci_dev_list_lock);
+	read_unlock(&hci_dev_list_lock);
 
 	dl->dev_num = n;
 	size = sizeof(*dl) + n * sizeof(*dr);
@@ -1458,7 +1458,7 @@ int hci_register_dev(struct hci_dev *hdev)
 	 */
 	id = (hdev->dev_type == HCI_BREDR) ? 0 : 1;
 
-	write_lock_bh(&hci_dev_list_lock);
+	write_lock(&hci_dev_list_lock);
 
 	/* Find first available device id */
 	list_for_each(p, &hci_dev_list) {
@@ -1528,7 +1528,7 @@ int hci_register_dev(struct hci_dev *hdev)
 
 	atomic_set(&hdev->promisc, 0);
 
-	write_unlock_bh(&hci_dev_list_lock);
+	write_unlock(&hci_dev_list_lock);
 
 	hdev->workqueue = alloc_workqueue(hdev->name, WQ_HIGHPRI | WQ_UNBOUND |
 							WQ_MEM_RECLAIM, 1);
@@ -1561,9 +1561,9 @@ int hci_register_dev(struct hci_dev *hdev)
 err_wqueue:
 	destroy_workqueue(hdev->workqueue);
 err:
-	write_lock_bh(&hci_dev_list_lock);
+	write_lock(&hci_dev_list_lock);
 	list_del(&hdev->list);
-	write_unlock_bh(&hci_dev_list_lock);
+	write_unlock(&hci_dev_list_lock);
 
 	return error;
 }
@@ -1576,9 +1576,9 @@ void hci_unregister_dev(struct hci_dev *hdev)
 
 	BT_DBG("%p name %s bus %d", hdev, hdev->name, hdev->bus);
 
-	write_lock_bh(&hci_dev_list_lock);
+	write_lock(&hci_dev_list_lock);
 	list_del(&hdev->list);
-	write_unlock_bh(&hci_dev_list_lock);
+	write_unlock(&hci_dev_list_lock);
 
 	hci_dev_do_close(hdev);
 
@@ -1830,9 +1830,9 @@ int hci_register_cb(struct hci_cb *cb)
 {
 	BT_DBG("%p name %s", cb, cb->name);
 
-	write_lock_bh(&hci_cb_list_lock);
+	write_lock(&hci_cb_list_lock);
 	list_add(&cb->list, &hci_cb_list);
-	write_unlock_bh(&hci_cb_list_lock);
+	write_unlock(&hci_cb_list_lock);
 
 	return 0;
 }
@@ -1842,9 +1842,9 @@ int hci_unregister_cb(struct hci_cb *cb)
 {
 	BT_DBG("%p name %s", cb, cb->name);
 
-	write_lock_bh(&hci_cb_list_lock);
+	write_lock(&hci_cb_list_lock);
 	list_del(&cb->list);
-	write_unlock_bh(&hci_cb_list_lock);
+	write_unlock(&hci_cb_list_lock);
 
 	return 0;
 }
