@@ -9,9 +9,9 @@ nouveau-y := nouveau_drv.o nouveau_state.o nouveau_channel.o nouveau_mem.o \
              nouveau_bo.o nouveau_fence.o nouveau_gem.o nouveau_ttm.o \
              nouveau_hw.o nouveau_calc.o nouveau_bios.o nouveau_i2c.o \
              nouveau_display.o nouveau_connector.o nouveau_fbcon.o \
-             nouveau_dp.o nouveau_ramht.o \
+             nouveau_hdmi.o nouveau_dp.o nouveau_ramht.o \
 	     nouveau_pm.o nouveau_volt.o nouveau_perf.o nouveau_temp.o \
-	     nouveau_mm.o nouveau_vm.o \
+	     nouveau_mm.o nouveau_vm.o nouveau_mxm.o nouveau_gpio.o \
              nv04_timer.o \
              nv04_mc.o nv40_mc.o nv50_mc.o \
              nv04_fb.o nv10_fb.o nv30_fb.o nv40_fb.o nv50_fb.o nvc0_fb.o \
@@ -19,9 +19,12 @@ nouveau-y := nouveau_drv.o nouveau_state.o nouveau_channel.o nouveau_mem.o \
              nv04_graph.o nv10_graph.o nv20_graph.o \
              nv40_graph.o nv50_graph.o nvc0_graph.o \
              nv40_grctx.o nv50_grctx.o nvc0_grctx.o \
-             nv84_crypt.o \
+             nv84_crypt.o nv98_crypt.o \
              nva3_copy.o nvc0_copy.o \
              nv31_mpeg.o nv50_mpeg.o \
+             nv84_bsp.o \
+             nv84_vp.o \
+             nv98_ppp.o \
              nv04_instmem.o nv50_instmem.o nvc0_instmem.o \
              nv04_dac.o nv04_dfp.o nv04_tv.o nv17_tv.o nv17_tv_modes.o \
              nv04_crtc.o nv04_display.o nv04_cursor.o \

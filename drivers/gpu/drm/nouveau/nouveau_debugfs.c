@@ -44,7 +44,7 @@ nouveau_debugfs_channel_info(struct seq_file *m, void *data)
 	seq_printf(m, "channel id    : %d\n", chan->id);
 
 	seq_printf(m, "cpu fifo state:\n");
-	seq_printf(m, "          base: 0x%08x\n", chan->pushbuf_base);
+	seq_printf(m, "          base: 0x%10llx\n", chan->pushbuf_base);
 	seq_printf(m, "           max: 0x%08x\n", chan->dma.max << 2);
 	seq_printf(m, "           cur: 0x%08x\n", chan->dma.cur << 2);
 	seq_printf(m, "           put: 0x%08x\n", chan->dma.put << 2);

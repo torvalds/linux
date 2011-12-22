@@ -723,14 +723,14 @@ nvc0_gpuobj_channel_init(struct nouveau_channel *chan, struct nouveau_vm *vm)
 	nv_wo32(chan->ramin, 0x020c, 0x000000ff);
 
 	/* map display semaphore buffers into channel's vm */
-	if (dev_priv->card_type >= NV_D0)
-		return 0;
+	for (i = 0; i < dev->mode_config.num_crtc; i++) {
+		struct nouveau_bo *bo;
+		if (dev_priv->card_type >= NV_D0)
+			bo = nvd0_display_crtc_sema(dev, i);
+		else
+			bo = nv50_display(dev)->crtc[i].sem.bo;
 
-	for (i = 0; i < 2; i++) {
-		struct nv50_display_crtc *dispc = &nv50_display(dev)->crtc[i];
-
-		ret = nouveau_bo_vma_add(dispc->sem.bo, chan->vm,
-					 &chan->dispc_vma[i]);
+		ret = nouveau_bo_vma_add(bo, chan->vm, &chan->dispc_vma[i]);
 		if (ret)
 			return ret;
 	}
@@ -879,9 +879,14 @@ nouveau_gpuobj_channel_takedown(struct nouveau_channel *chan)
 
 	NV_DEBUG(dev, "ch%d\n", chan->id);
 
-	if (dev_priv->card_type >= NV_50 && dev_priv->card_type <= NV_C0) {
+	if (dev_priv->card_type >= NV_D0) {
+		for (i = 0; i < dev->mode_config.num_crtc; i++) {
+			struct nouveau_bo *bo = nvd0_display_crtc_sema(dev, i);
+			nouveau_bo_vma_del(bo, &chan->dispc_vma[i]);
+		}
+	} else
+	if (dev_priv->card_type >= NV_50) {
 		struct nv50_display *disp = nv50_display(dev);
-
 		for (i = 0; i < dev->mode_config.num_crtc; i++) {
 			struct nv50_display_crtc *dispc = &disp->crtc[i];
 			nouveau_bo_vma_del(dispc->sem.bo, &chan->dispc_vma[i]);

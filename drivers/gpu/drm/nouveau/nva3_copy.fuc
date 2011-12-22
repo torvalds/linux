@@ -31,8 +31,9 @@
  */
 
 ifdef(`NVA3',
-.section nva3_pcopy_data,
-.section nvc0_pcopy_data
+.section #nva3_pcopy_data
+,
+.section #nvc0_pcopy_data
 )
 
 ctx_object:                   .b32 0
@@ -42,7 +43,7 @@ ctx_dma_query:                .b32 0
 ctx_dma_src:                  .b32 0
 ctx_dma_dst:                  .b32 0
 ,)
-.equ ctx_dma_count 3
+.equ #ctx_dma_count 3
 ctx_query_address_high:       .b32 0
 ctx_query_address_low:        .b32 0
 ctx_query_counter:            .b32 0
@@ -78,64 +79,65 @@ ctx_ycnt:                     .b32 0
 dispatch_table:
 // mthd 0x0000, NAME
 .b16 0x000 1
-.b32 ctx_object                     ~0xffffffff
+.b32 #ctx_object                     ~0xffffffff
 // mthd 0x0100, NOP
 .b16 0x040 1
-.b32 0x00010000 + cmd_nop           ~0xffffffff
+.b32 0x00010000 + #cmd_nop           ~0xffffffff
 // mthd 0x0140, PM_TRIGGER
 .b16 0x050 1
-.b32 0x00010000 + cmd_pm_trigger    ~0xffffffff
+.b32 0x00010000 + #cmd_pm_trigger    ~0xffffffff
 ifdef(`NVA3', `
 // mthd 0x0180-0x018c, DMA_
-.b16 0x060 ctx_dma_count
+.b16 0x060 #ctx_dma_count
 dispatch_dma:
-.b32 0x00010000 + cmd_dma           ~0xffffffff
-.b32 0x00010000 + cmd_dma           ~0xffffffff
-.b32 0x00010000 + cmd_dma           ~0xffffffff
+.b32 0x00010000 + #cmd_dma           ~0xffffffff
+.b32 0x00010000 + #cmd_dma           ~0xffffffff
+.b32 0x00010000 + #cmd_dma           ~0xffffffff
 ',)
 // mthd 0x0200-0x0218, SRC_TILE
 .b16 0x80 7
-.b32 ctx_src_tile_mode              ~0x00000fff
-.b32 ctx_src_xsize                  ~0x0007ffff
-.b32 ctx_src_ysize                  ~0x00001fff
-.b32 ctx_src_zsize                  ~0x000007ff
-.b32 ctx_src_zoff                   ~0x00000fff
-.b32 ctx_src_xoff                   ~0x0007ffff
-.b32 ctx_src_yoff                   ~0x00001fff
+.b32 #ctx_src_tile_mode              ~0x00000fff
+.b32 #ctx_src_xsize                  ~0x0007ffff
+.b32 #ctx_src_ysize                  ~0x00001fff
+.b32 #ctx_src_zsize                  ~0x000007ff
+.b32 #ctx_src_zoff                   ~0x00000fff
+.b32 #ctx_src_xoff                   ~0x0007ffff
+.b32 #ctx_src_yoff                   ~0x00001fff
 // mthd 0x0220-0x0238, DST_TILE
 .b16 0x88 7
-.b32 ctx_dst_tile_mode              ~0x00000fff
-.b32 ctx_dst_xsize                  ~0x0007ffff
-.b32 ctx_dst_ysize                  ~0x00001fff
-.b32 ctx_dst_zsize                  ~0x000007ff
-.b32 ctx_dst_zoff                   ~0x00000fff
-.b32 ctx_dst_xoff                   ~0x0007ffff
-.b32 ctx_dst_yoff                   ~0x00001fff
+.b32 #ctx_dst_tile_mode              ~0x00000fff
+.b32 #ctx_dst_xsize                  ~0x0007ffff
+.b32 #ctx_dst_ysize                  ~0x00001fff
+.b32 #ctx_dst_zsize                  ~0x000007ff
+.b32 #ctx_dst_zoff                   ~0x00000fff
+.b32 #ctx_dst_xoff                   ~0x0007ffff
+.b32 #ctx_dst_yoff                   ~0x00001fff
 // mthd 0x0300-0x0304, EXEC, WRCACHE_FLUSH
 .b16 0xc0 2
-.b32 0x00010000 + cmd_exec          ~0xffffffff
-.b32 0x00010000 + cmd_wrcache_flush ~0xffffffff
+.b32 0x00010000 + #cmd_exec          ~0xffffffff
+.b32 0x00010000 + #cmd_wrcache_flush ~0xffffffff
 // mthd 0x030c-0x0340, various stuff
 .b16 0xc3 14
-.b32 ctx_src_address_high           ~0x000000ff
-.b32 ctx_src_address_low            ~0xfffffff0
-.b32 ctx_dst_address_high           ~0x000000ff
-.b32 ctx_dst_address_low            ~0xfffffff0
-.b32 ctx_src_pitch                  ~0x0007ffff
-.b32 ctx_dst_pitch                  ~0x0007ffff
-.b32 ctx_xcnt                       ~0x0000ffff
-.b32 ctx_ycnt                       ~0x00001fff
-.b32 ctx_format                     ~0x0333ffff
-.b32 ctx_swz_const0                 ~0xffffffff
-.b32 ctx_swz_const1                 ~0xffffffff
-.b32 ctx_query_address_high         ~0x000000ff
-.b32 ctx_query_address_low          ~0xffffffff
-.b32 ctx_query_counter              ~0xffffffff
+.b32 #ctx_src_address_high           ~0x000000ff
+.b32 #ctx_src_address_low            ~0xfffffff0
+.b32 #ctx_dst_address_high           ~0x000000ff
+.b32 #ctx_dst_address_low            ~0xfffffff0
+.b32 #ctx_src_pitch                  ~0x0007ffff
+.b32 #ctx_dst_pitch                  ~0x0007ffff
+.b32 #ctx_xcnt                       ~0x0000ffff
+.b32 #ctx_ycnt                       ~0x00001fff
+.b32 #ctx_format                     ~0x0333ffff
+.b32 #ctx_swz_const0                 ~0xffffffff
+.b32 #ctx_swz_const1                 ~0xffffffff
+.b32 #ctx_query_address_high         ~0x000000ff
+.b32 #ctx_query_address_low          ~0xffffffff
+.b32 #ctx_query_counter              ~0xffffffff
 .b16 0x800 0
 
 ifdef(`NVA3',
-.section nva3_pcopy_code,
-.section nvc0_pcopy_code
+.section #nva3_pcopy_code
+,
+.section #nvc0_pcopy_code
 )
 
 main:
@@ -143,12 +145,12 @@ main:
    mov $sp $r0
 
    // setup i0 handler and route fifo and ctxswitch to it
-   mov $r1 ih
+   mov $r1 #ih
    mov $iv0 $r1
    mov $r1 0x400
    movw $r2 0xfff3
    sethi $r2 0
-   iowr I[$r2 + 0x300] $r2
+   iowr I[$r1 + 0x300] $r2
 
    // enable interrupts
    or $r2 0xc
@@ -164,19 +166,19 @@ main:
    bset $flags $p0
    spin:
       sleep $p0
-      bra spin
+      bra #spin
 
 // i0 handler
 ih:
    iord $r1 I[$r0 + 0x200]
 
    and $r2 $r1 0x00000008
-   bra e ih_no_chsw
-      call chsw
+   bra e #ih_no_chsw
+      call #chsw
    ih_no_chsw:
    and $r2 $r1 0x00000004
-   bra e ih_no_cmd
-      call dispatch
+   bra e #ih_no_cmd
+      call #dispatch
 
    ih_no_cmd:
    and $r1 $r1 0x0000000c
@@ -235,9 +237,9 @@ ifdef(`NVA3', `
    sethi $r4 0x60000
 
    // swap!
-   bra $p1 swctx_load
+   bra $p1 #swctx_load
       xdst $r0 $r4
-      bra swctx_done
+      bra #swctx_done
    swctx_load:
       xdld $r0 $r4
    swctx_done:
@@ -251,9 +253,9 @@ chsw:
 
    // if it's active, unload it and return
    xbit $r15 $r3 0x1e
-   bra e chsw_no_unload
+   bra e #chsw_no_unload
       bclr $flags $p1
-      call swctx
+      call #swctx
       bclr $r3 0x1e
       iowr I[$r2] $r3
       mov $r4 1
@@ -266,20 +268,20 @@ chsw:
 
    // is there a channel waiting to be loaded?
    xbit $r13 $r3 0x1e
-   bra e chsw_finish_load
+   bra e #chsw_finish_load
       bset $flags $p1
-      call swctx
+      call #swctx
 ifdef(`NVA3',
       // load dma objects back into TARGET regs
-      mov $r5 ctx_dma
-      mov $r6 ctx_dma_count
+      mov $r5 #ctx_dma
+      mov $r6 #ctx_dma_count
       chsw_load_ctx_dma:
          ld b32 $r7 D[$r5 + $r6 * 4]
          add b32 $r8 $r6 0x180
          shl b32 $r8 8
          iowr I[$r8] $r7
          sub b32 $r6 1
-         bra nc chsw_load_ctx_dma
+         bra nc #chsw_load_ctx_dma
 ,)
 
    chsw_finish_load:
@@ -297,7 +299,7 @@ dispatch:
    shl b32 $r2 0x10
 
    // lookup method in the dispatch table, ILLEGAL_MTHD if not found
-   mov $r5 dispatch_table
+   mov $r5 #dispatch_table
    clear b32 $r6
    clear b32 $r7
    dispatch_loop:
@@ -305,14 +307,14 @@ dispatch:
       ld b16 $r7 D[$r5 + 2]
       add b32 $r5 4
       cmpu b32 $r4 $r6
-      bra c dispatch_illegal_mthd
+      bra c #dispatch_illegal_mthd
       add b32 $r7 $r6
       cmpu b32 $r4 $r7
-      bra c dispatch_valid_mthd
+      bra c #dispatch_valid_mthd
       sub b32 $r7 $r6
       shl b32 $r7 3
       add b32 $r5 $r7
-      bra dispatch_loop
+      bra #dispatch_loop
 
    // ensure no bits set in reserved fields, INVALID_BITFIELD
    dispatch_valid_mthd:
@@ -322,20 +324,20 @@ dispatch:
    ld b32 $r5 D[$r4 + 4]
    and $r5 $r3
    cmpu b32 $r5 0
-   bra ne dispatch_invalid_bitfield
+   bra ne #dispatch_invalid_bitfield
 
    // depending on dispatch flags: execute method, or save data as state
    ld b16 $r5 D[$r4 + 0]
    ld b16 $r6 D[$r4 + 2]
    cmpu b32 $r6 0
-   bra ne dispatch_cmd
+   bra ne #dispatch_cmd
       st b32 D[$r5] $r3
-      bra dispatch_done
+      bra #dispatch_done
    dispatch_cmd:
       bclr $flags $p1
       call $r5
-      bra $p1 dispatch_error
-      bra dispatch_done
+      bra $p1 #dispatch_error
+      bra #dispatch_done
 
    dispatch_invalid_bitfield:
    or $r2 2
@@ -353,7 +355,7 @@ dispatch:
       iord $r2 I[$r0 + 0x200]
       and $r2 0x40
       cmpu b32 $r2 0
-      bra ne hostirq_wait
+      bra ne #hostirq_wait
 
    dispatch_done:
    mov $r2 0x1d00
@@ -409,10 +411,10 @@ ifdef(`NVA3',
 //       $r2: hostirq state
 //       $r3: data
 cmd_dma:
-   sub b32 $r4 dispatch_dma
+   sub b32 $r4 #dispatch_dma
    shr b32 $r4 1
    bset $r3 0x1e
-   st b32 D[$r4 + ctx_dma] $r3
+   st b32 D[$r4 + #ctx_dma] $r3
    add b32 $r4 0x600
    shl b32 $r4 6
    iowr I[$r4] $r3
@@ -430,7 +432,7 @@ cmd_exec_set_format:
    st b32 D[$sp + 0x0c] $r0
 
    // extract cpp, src_ncomp and dst_ncomp from FORMAT
-   ld b32 $r4 D[$r0 + ctx_format]
+   ld b32 $r4 D[$r0 + #ctx_format]
    extr $r5 $r4 16:17
    add b32 $r5 1
    extr $r6 $r4 20:21
@@ -448,22 +450,22 @@ cmd_exec_set_format:
       clear b32 $r11
       bpc_loop:
          cmpu b8 $r10 4
-         bra nc cmp_c0
+         bra nc #cmp_c0
             mulu $r12 $r10 $r5
             add b32 $r12 $r11
             bset $flags $p2
-            bra bpc_next
+            bra #bpc_next
          cmp_c0:
-         bra ne cmp_c1
+         bra ne #cmp_c1
             mov $r12 0x10
             add b32 $r12 $r11
-            bra bpc_next
+            bra #bpc_next
          cmp_c1:
          cmpu b8 $r10 6
-         bra nc cmp_zero
+         bra nc #cmp_zero
             mov $r12 0x14
             add b32 $r12 $r11
-            bra bpc_next
+            bra #bpc_next
          cmp_zero:
             mov $r12 0x80
          bpc_next:
@@ -471,22 +473,22 @@ cmd_exec_set_format:
          add b32 $r8 1
          add b32 $r11 1
          cmpu b32 $r11 $r5
-         bra c bpc_loop
+         bra c #bpc_loop
       add b32 $r9 1
       cmpu b32 $r9 $r7
-      bra c ncomp_loop
+      bra c #ncomp_loop
 
    // SRC_XCNT = (xcnt * src_cpp), or 0 if no src ref in swz (hw will hang)
    mulu $r6 $r5
-   st b32 D[$r0 + ctx_src_cpp] $r6
-   ld b32 $r8 D[$r0 + ctx_xcnt]
+   st b32 D[$r0 + #ctx_src_cpp] $r6
+   ld b32 $r8 D[$r0 + #ctx_xcnt]
    mulu $r6 $r8
-   bra $p2 dst_xcnt
+   bra $p2 #dst_xcnt
    clear b32 $r6
 
    dst_xcnt:
    mulu $r7 $r5
-   st b32 D[$r0 + ctx_dst_cpp] $r7
+   st b32 D[$r0 + #ctx_dst_cpp] $r7
    mulu $r7 $r8
 
    mov $r5 0x810
@@ -494,10 +496,10 @@ cmd_exec_set_format:
    iowr I[$r5 + 0x000] $r6
    iowr I[$r5 + 0x100] $r7
    add b32 $r5 0x800
-   ld b32 $r6 D[$r0 + ctx_dst_cpp]
+   ld b32 $r6 D[$r0 + #ctx_dst_cpp]
    sub b32 $r6 1
    shl b32 $r6 8
-   ld b32 $r7 D[$r0 + ctx_src_cpp]
+   ld b32 $r7 D[$r0 + #ctx_src_cpp]
    sub b32 $r7 1
    or $r6 $r7
    iowr I[$r5 + 0x000] $r6
@@ -511,9 +513,9 @@ cmd_exec_set_format:
    ld b32 $r6 D[$sp + 0x0c]
    iowr I[$r5 + 0x300] $r6
    add b32 $r5 0x400
-   ld b32 $r6 D[$r0 + ctx_swz_const0]
+   ld b32 $r6 D[$r0 + #ctx_swz_const0]
    iowr I[$r5 + 0x000] $r6
-   ld b32 $r6 D[$r0 + ctx_swz_const1]
+   ld b32 $r6 D[$r0 + #ctx_swz_const1]
    iowr I[$r5 + 0x100] $r6
    add $sp 0x10
    ret
@@ -543,7 +545,7 @@ cmd_exec_set_format:
 //
 cmd_exec_set_surface_tiled:
    // translate TILE_MODE into Tp, Th, Td shift values
-   ld b32 $r7 D[$r5 + ctx_src_tile_mode]
+   ld b32 $r7 D[$r5 + #ctx_src_tile_mode]
    extr $r9 $r7 8:11
    extr $r8 $r7 4:7
 ifdef(`NVA3',
@@ -553,9 +555,9 @@ ifdef(`NVA3',
 )
    extr $r7 $r7 0:3
    cmp b32 $r7 0xe
-   bra ne xtile64
+   bra ne #xtile64
    mov $r7 4
-   bra xtileok
+   bra #xtileok
    xtile64:
    xbit $r7 $flags $p2
    add b32 $r7 17
@@ -565,8 +567,8 @@ ifdef(`NVA3',
 
    // Op = (x * cpp) & ((1 << Tp) - 1)
    // Tx = (x * cpp) >> Tp
-   ld b32 $r10 D[$r5 + ctx_src_xoff]
-   ld b32 $r11 D[$r5 + ctx_src_cpp]
+   ld b32 $r10 D[$r5 + #ctx_src_xoff]
+   ld b32 $r11 D[$r5 + #ctx_src_cpp]
    mulu $r10 $r11
    mov $r11 1
    shl b32 $r11 $r7
@@ -576,7 +578,7 @@ ifdef(`NVA3',
 
    // Tyo = y & ((1 << Th) - 1)
    // Ty  = y >> Th
-   ld b32 $r13 D[$r5 + ctx_src_yoff]
+   ld b32 $r13 D[$r5 + #ctx_src_yoff]
    mov $r14 1
    shl b32 $r14 $r8
    sub b32 $r14 1
@@ -598,8 +600,8 @@ ifdef(`NVA3',
    add b32 $r12 $r11
 
    // nTx = ((w * cpp) + ((1 << Tp) - 1) >> Tp)
-   ld b32 $r15 D[$r5 + ctx_src_xsize]
-   ld b32 $r11 D[$r5 + ctx_src_cpp]
+   ld b32 $r15 D[$r5 + #ctx_src_xsize]
+   ld b32 $r11 D[$r5 + #ctx_src_cpp]
    mulu $r15 $r11
    mov $r11 1
    shl b32 $r11 $r7
@@ -609,7 +611,7 @@ ifdef(`NVA3',
    push $r15
 
    // nTy = (h + ((1 << Th) - 1)) >> Th
-   ld b32 $r15 D[$r5 + ctx_src_ysize]
+   ld b32 $r15 D[$r5 + #ctx_src_ysize]
    mov $r11 1
    shl b32 $r11 $r8
    sub b32 $r11 1
@@ -629,7 +631,7 @@ ifdef(`NVA3',
    // Tz  = z >> Td
    // Op += Tzo << Tys
    // Ts  = Tys + Td
-   ld b32 $r8 D[$r5 + ctx_src_zoff]
+   ld b32 $r8 D[$r5 + #ctx_src_zoff]
    mov $r14 1
    shl b32 $r14 $r9
    sub b32 $r14 1
@@ -656,8 +658,8 @@ ifdef(`NVA3',
 
    // SRC_ADDRESS_LOW   = (Ot + Op) & 0xffffffff
    // CFG_ADDRESS_HIGH |= ((Ot + Op) >> 32) << 16
-   ld b32 $r7 D[$r5 + ctx_src_address_low]
-   ld b32 $r8 D[$r5 + ctx_src_address_high]
+   ld b32 $r7 D[$r5 + #ctx_src_address_low]
+   ld b32 $r8 D[$r5 + #ctx_src_address_high]
    add b32 $r10 $r12
    add b32 $r7 $r10
    adc b32 $r8 0
@@ -677,14 +679,14 @@ cmd_exec_set_surface_linear:
    xbit $r6 $flags $p2
    add b32 $r6 0x202
    shl b32 $r6 8
-   ld b32 $r7 D[$r5 + ctx_src_address_low]
+   ld b32 $r7 D[$r5 + #ctx_src_address_low]
    iowr I[$r6 + 0x000] $r7
    add b32 $r6 0x400
-   ld b32 $r7 D[$r5 + ctx_src_address_high]
+   ld b32 $r7 D[$r5 + #ctx_src_address_high]
    shl b32 $r7 16
    iowr I[$r6 + 0x000] $r7
    add b32 $r6 0x400
-   ld b32 $r7 D[$r5 + ctx_src_pitch]
+   ld b32 $r7 D[$r5 + #ctx_src_pitch]
    iowr I[$r6 + 0x000] $r7
    ret
 
@@ -697,7 +699,7 @@ cmd_exec_wait:
    loop:
       iord $r1 I[$r0]
       and $r1 1
-      bra ne loop
+      bra ne #loop
    pop $r1
    pop $r0
    ret
@@ -705,18 +707,18 @@ cmd_exec_wait:
 cmd_exec_query:
    // if QUERY_SHORT not set, write out { -, 0, TIME_LO, TIME_HI }
    xbit $r4 $r3 13
-   bra ne query_counter
-      call cmd_exec_wait
+   bra ne #query_counter
+      call #cmd_exec_wait
       mov $r4 0x80c
       shl b32 $r4 6
-      ld b32 $r5 D[$r0 + ctx_query_address_low]
+      ld b32 $r5 D[$r0 + #ctx_query_address_low]
       add b32 $r5 4
       iowr I[$r4 + 0x000] $r5
       iowr I[$r4 + 0x100] $r0
       mov $r5 0xc
       iowr I[$r4 + 0x200] $r5
       add b32 $r4 0x400
-      ld b32 $r5 D[$r0 + ctx_query_address_high]
+      ld b32 $r5 D[$r0 + #ctx_query_address_high]
       shl b32 $r5 16
       iowr I[$r4 + 0x000] $r5
       add b32 $r4 0x500
@@ -741,16 +743,16 @@ cmd_exec_query:
 
    // write COUNTER
    query_counter:
-   call cmd_exec_wait
+   call #cmd_exec_wait
    mov $r4 0x80c
    shl b32 $r4 6
-   ld b32 $r5 D[$r0 + ctx_query_address_low]
+   ld b32 $r5 D[$r0 + #ctx_query_address_low]
    iowr I[$r4 + 0x000] $r5
    iowr I[$r4 + 0x100] $r0
    mov $r5 0x4
    iowr I[$r4 + 0x200] $r5
    add b32 $r4 0x400
-   ld b32 $r5 D[$r0 + ctx_query_address_high]
+   ld b32 $r5 D[$r0 + #ctx_query_address_high]
    shl b32 $r5 16
    iowr I[$r4 + 0x000] $r5
    add b32 $r4 0x500
@@ -759,7 +761,7 @@ cmd_exec_query:
    mov $r5 0x00001110
    sethi $r5 0x13120000
    iowr I[$r4 + 0x100] $r5
-   ld b32 $r5 D[$r0 + ctx_query_counter]
+   ld b32 $r5 D[$r0 + #ctx_query_counter]
    add b32 $r4 0x500
    iowr I[$r4 + 0x000] $r5
    mov $r5 0x00002601
@@ -787,22 +789,22 @@ cmd_exec_query:
 //       $r2: hostirq state
 //       $r3: data
 cmd_exec:
-   call cmd_exec_wait
+   call #cmd_exec_wait
 
    // if format requested, call function to calculate it, otherwise
    // fill in cpp/xcnt for both surfaces as if (cpp == 1)
    xbit $r15 $r3 0
-   bra e cmd_exec_no_format
-      call cmd_exec_set_format
+   bra e #cmd_exec_no_format
+      call #cmd_exec_set_format
       mov $r4 0x200
-      bra cmd_exec_init_src_surface
+      bra #cmd_exec_init_src_surface
    cmd_exec_no_format:
       mov $r6 0x810
       shl b32 $r6 6
       mov $r7 1
-      st b32 D[$r0 + ctx_src_cpp] $r7
-      st b32 D[$r0 + ctx_dst_cpp] $r7
-      ld b32 $r7 D[$r0 + ctx_xcnt]
+      st b32 D[$r0 + #ctx_src_cpp] $r7
+      st b32 D[$r0 + #ctx_dst_cpp] $r7
+      ld b32 $r7 D[$r0 + #ctx_xcnt]
       iowr I[$r6 + 0x000] $r7
       iowr I[$r6 + 0x100] $r7
       clear b32 $r4
@@ -811,28 +813,28 @@ cmd_exec:
    bclr $flags $p2
    clear b32 $r5
    xbit $r15 $r3 4
-   bra e src_tiled
-      call cmd_exec_set_surface_linear
-      bra cmd_exec_init_dst_surface
+   bra e #src_tiled
+      call #cmd_exec_set_surface_linear
+      bra #cmd_exec_init_dst_surface
    src_tiled:
-      call cmd_exec_set_surface_tiled
+      call #cmd_exec_set_surface_tiled
       bset $r4 7
 
    cmd_exec_init_dst_surface:
    bset $flags $p2
-   mov $r5 ctx_dst_address_high - ctx_src_address_high
+   mov $r5 #ctx_dst_address_high - #ctx_src_address_high
    xbit $r15 $r3 8
-   bra e dst_tiled
-      call cmd_exec_set_surface_linear
-      bra cmd_exec_kick
+   bra e #dst_tiled
+      call #cmd_exec_set_surface_linear
+      bra #cmd_exec_kick
    dst_tiled:
-      call cmd_exec_set_surface_tiled
+      call #cmd_exec_set_surface_tiled
       bset $r4 8
 
    cmd_exec_kick:
    mov $r5 0x800
    shl b32 $r5 6
-   ld b32 $r6 D[$r0 + ctx_ycnt]
+   ld b32 $r6 D[$r0 + #ctx_ycnt]
    iowr I[$r5 + 0x100] $r6
    mov $r6 0x0041
    // SRC_TARGET = 1, DST_TARGET = 2
@@ -842,8 +844,8 @@ cmd_exec:
 
    // if requested, queue up a QUERY write after the copy has completed
    xbit $r15 $r3 12
-   bra e cmd_exec_done
-      call cmd_exec_query
+   bra e #cmd_exec_done
+      call #cmd_exec_query
 
    cmd_exec_done:
    ret
