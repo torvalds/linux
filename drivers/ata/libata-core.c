@@ -3249,10 +3249,10 @@ int ata_do_set_mode(struct ata_link *link, struct ata_device **r_failed_dev)
 		ata_force_xfermask(dev);
 
 		pio_mask = ata_pack_xfermask(dev->pio_mask, 0, 0);
-		dma_mask = ata_pack_xfermask(0, dev->mwdma_mask, dev->udma_mask);
 
 		if (libata_dma_mask & mode_mask)
-			dma_mask = ata_pack_xfermask(0, dev->mwdma_mask, dev->udma_mask);
+			dma_mask = ata_pack_xfermask(0, dev->mwdma_mask,
+						     dev->udma_mask);
 		else
 			dma_mask = 0;
 
