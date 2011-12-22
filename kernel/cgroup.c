@@ -1850,14 +1850,12 @@ static int cgroup_task_migrate(struct cgroup *cgrp, struct cgroup *oldcgrp,
 	struct css_set *newcg;
 
 	/*
-	 * get old css_set. We are synchronized through threadgroup_lock()
-	 * against PF_EXITING setting such that we can't race against
-	 * cgroup_exit() changing the css_set to init_css_set and dropping the
-	 * old one.
+	 * We are synchronized through threadgroup_lock() against PF_EXITING
+	 * setting such that we can't race against cgroup_exit() changing the
+	 * css_set to init_css_set and dropping the old one.
 	 */
 	WARN_ON_ONCE(tsk->flags & PF_EXITING);
 	oldcg = tsk->cgroups;
-	get_css_set(oldcg);
 
 	/* locate or allocate a new css_set for this task. */
 	if (guarantee) {
@@ -1872,12 +1870,9 @@ static int cgroup_task_migrate(struct cgroup *cgrp, struct cgroup *oldcgrp,
 		might_sleep();
 		/* find_css_set will give us newcg already referenced. */
 		newcg = find_css_set(oldcg, cgrp);
-		if (!newcg) {
-			put_css_set(oldcg);
+		if (!newcg)
 			return -ENOMEM;
-		}
 	}
-	put_css_set(oldcg);
 
 	task_lock(tsk);
 	rcu_assign_pointer(tsk->cgroups, newcg);
@@ -2186,18 +2181,11 @@ int cgroup_attach_proc(struct cgroup *cgrp, struct task_struct *leader)
 		 * init_css_set.
 		 */
 		oldcg = tc->task->cgroups;
-		get_css_set(oldcg);
-		/* see if the new one for us is already in the list? */
-		if (css_set_check_fetched(cgrp, tc->task, oldcg, &newcg_list)) {
-			/* was already there, nothing to do. */
-			put_css_set(oldcg);
-		} else {
-			/* we don't already have it. get new one. */
-			retval = css_set_prefetch(cgrp, oldcg, &newcg_list);
-			put_css_set(oldcg);
-			if (retval)
+
+		/* if we don't already have it in the list get a new one */
+		if (!css_set_check_fetched(cgrp, tc->task, oldcg, &newcg_list))
+			if (retval = css_set_prefetch(cgrp, oldcg, &newcg_list))
 				goto out_list_teardown;
-		}
 	}
 
 	/*
