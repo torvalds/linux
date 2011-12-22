@@ -1627,7 +1627,6 @@ static int process_ctrl_td(struct xhci_hcd *xhci, struct xhci_td *td,
 	ep_ctx = xhci_get_ep_ctx(xhci, xdev->out_ctx, ep_index);
 	trb_comp_code = GET_COMP_CODE(le32_to_cpu(event->transfer_len));
 
-	xhci_debug_trb(xhci, xhci->event_ring->dequeue);
 	switch (trb_comp_code) {
 	case COMP_SUCCESS:
 		if (event_trb == ep_ring->dequeue) {
@@ -2895,15 +2894,6 @@ int xhci_queue_bulk_tx(struct xhci_hcd *xhci, gfp_t mem_flags,
 	}
 	/* FIXME: this doesn't deal with URB_ZERO_PACKET - need one more */
 
-	if (!in_interrupt())
-		xhci_dbg(xhci, "ep %#x - urb len = %#x (%d), "
-				"addr = %#llx, num_trbs = %d\n",
-				urb->ep->desc.bEndpointAddress,
-				urb->transfer_buffer_length,
-				urb->transfer_buffer_length,
-				(unsigned long long)urb->transfer_dma,
-				num_trbs);
-
 	ret = prepare_transfer(xhci, xhci->devs[slot_id],
 			ep_index, urb->stream_id,
 			num_trbs, urb, 0, false, mem_flags);
@@ -3024,9 +3014,6 @@ int xhci_queue_ctrl_tx(struct xhci_hcd *xhci, gfp_t mem_flags,
 	if (!urb->setup_packet)
 		return -EINVAL;
 
-	if (!in_interrupt())
-		xhci_dbg(xhci, "Queueing ctrl tx for slot id %d, ep %d\n",
-				slot_id, ep_index);
 	/* 1 TRB for setup, 1 for status */
 	num_trbs = 2;
 	/*
@@ -3217,15 +3204,6 @@ static int xhci_queue_isoc_tx(struct xhci_hcd *xhci, gfp_t mem_flags,
 		xhci_dbg(xhci, "Isoc URB with zero packets?\n");
 		return -EINVAL;
 	}
-
-	if (!in_interrupt())
-		xhci_dbg(xhci, "ep %#x - urb len = %#x (%d),"
-				" addr = %#llx, num_tds = %d\n",
-				urb->ep->desc.bEndpointAddress,
-				urb->transfer_buffer_length,
-				urb->transfer_buffer_length,
-				(unsigned long long)urb->transfer_dma,
-				num_tds);
 
 	start_addr = (u64) urb->transfer_dma;
 	start_trb = &ep_ring->enqueue->generic;
