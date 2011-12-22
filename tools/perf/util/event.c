@@ -261,11 +261,12 @@ int perf_event__synthesize_modules(struct perf_tool *tool,
 
 static int __event__synthesize_thread(union perf_event *comm_event,
 				      union perf_event *mmap_event,
-				      pid_t pid, perf_event__handler_t process,
+				      pid_t pid, int full,
+					  perf_event__handler_t process,
 				      struct perf_tool *tool,
 				      struct machine *machine)
 {
-	pid_t tgid = perf_event__synthesize_comm(tool, comm_event, pid, 1,
+	pid_t tgid = perf_event__synthesize_comm(tool, comm_event, pid, full,
 						 process, machine);
 	if (tgid == -1)
 		return -1;
@@ -279,7 +280,7 @@ int perf_event__synthesize_thread_map(struct perf_tool *tool,
 				      struct machine *machine)
 {
 	union perf_event *comm_event, *mmap_event;
-	int err = -1, thread;
+	int err = -1, thread, j;
 
 	comm_event = malloc(sizeof(comm_event->comm) + machine->id_hdr_size);
 	if (comm_event == NULL)
@@ -292,10 +293,36 @@ int perf_event__synthesize_thread_map(struct perf_tool *tool,
 	err = 0;
 	for (thread = 0; thread < threads->nr; ++thread) {
 		if (__event__synthesize_thread(comm_event, mmap_event,
-					       threads->map[thread],
+					       threads->map[thread], 0,
 					       process, tool, machine)) {
 			err = -1;
 			break;
+		}
+
+		/*
+		 * comm.pid is set to thread group id by
+		 * perf_event__synthesize_comm
+		 */
+		if ((int) comm_event->comm.pid != threads->map[thread]) {
+			bool need_leader = true;
+
+			/* is thread group leader in thread_map? */
+			for (j = 0; j < threads->nr; ++j) {
+				if ((int) comm_event->comm.pid == threads->map[j]) {
+					need_leader = false;
+					break;
+				}
+			}
+
+			/* if not, generate events for it */
+			if (need_leader &&
+			    __event__synthesize_thread(comm_event,
+						      mmap_event,
+						      comm_event->comm.pid, 0,
+						      process, tool, machine)) {
+				err = -1;
+				break;
+			}
 		}
 	}
 	free(mmap_event);
@@ -333,7 +360,7 @@ int perf_event__synthesize_threads(struct perf_tool *tool,
 		if (*end) /* only interested in proper numerical dirents */
 			continue;
 
-		__event__synthesize_thread(comm_event, mmap_event, pid,
+		__event__synthesize_thread(comm_event, mmap_event, pid, 1,
 					   process, tool, machine);
 	}
 
