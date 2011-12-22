@@ -547,11 +547,9 @@ static const struct dvb_tuner_ops cx24113_tuner_ops = {
 	.release       = cx24113_release,
 
 	.init          = cx24113_init,
-	.sleep         = NULL,
 
 	.set_params    = cx24113_set_params,
 	.get_frequency = cx24113_get_frequency,
-	.get_bandwidth = NULL,
 	.get_status    = cx24113_get_status,
 };
 
