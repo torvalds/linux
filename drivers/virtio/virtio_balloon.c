@@ -364,6 +364,48 @@ static void __devexit virtballoon_remove(struct virtio_device *vdev)
 	kfree(vb);
 }
 
+#ifdef CONFIG_PM
+static int virtballoon_freeze(struct virtio_device *vdev)
+{
+	/*
+	 * The kthread is already frozen by the PM core before this
+	 * function is called.
+	 */
+
+	/* Ensure we don't get any more requests from the host */
+	vdev->config->reset(vdev);
+	vdev->config->del_vqs(vdev);
+	return 0;
+}
+
+static int virtballoon_thaw(struct virtio_device *vdev)
+{
+	return init_vqs(vdev->priv);
+}
+
+static int virtballoon_restore(struct virtio_device *vdev)
+{
+	struct virtio_balloon *vb = vdev->priv;
+	struct page *page, *page2;
+
+	/* We're starting from a clean slate */
+	vb->num_pages = 0;
+
+	/*
+	 * If a request wasn't complete at the time of freezing, this
+	 * could have been set.
+	 */
+	vb->need_stats_update = 0;
+
+	/* We don't have these pages in the balloon anymore! */
+	list_for_each_entry_safe(page, page2, &vb->pages, lru) {
+		list_del(&page->lru);
+		totalram_pages++;
+	}
+	return init_vqs(vdev->priv);
+}
+#endif
+
 static unsigned int features[] = {
 	VIRTIO_BALLOON_F_MUST_TELL_HOST,
 	VIRTIO_BALLOON_F_STATS_VQ,
@@ -378,6 +420,11 @@ static struct virtio_driver virtio_balloon_driver = {
 	.probe =	virtballoon_probe,
 	.remove =	__devexit_p(virtballoon_remove),
 	.config_changed = virtballoon_changed,
+#ifdef CONFIG_PM
+	.freeze	=	virtballoon_freeze,
+	.restore =	virtballoon_restore,
+	.thaw =		virtballoon_thaw,
+#endif
 };
 
 static int __init init(void)
