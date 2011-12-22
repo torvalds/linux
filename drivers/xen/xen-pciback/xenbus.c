@@ -707,19 +707,16 @@ static int xen_pcibk_xenbus_remove(struct xenbus_device *dev)
 	return 0;
 }
 
-static const struct xenbus_device_id xenpci_ids[] = {
+static const struct xenbus_device_id xen_pcibk_ids[] = {
 	{"pci"},
 	{""},
 };
 
-static struct xenbus_driver xenbus_xen_pcibk_driver = {
-	.name			= DRV_NAME,
-	.owner			= THIS_MODULE,
-	.ids			= xenpci_ids,
+static DEFINE_XENBUS_DRIVER(xen_pcibk, DRV_NAME,
 	.probe			= xen_pcibk_xenbus_probe,
 	.remove			= xen_pcibk_xenbus_remove,
 	.otherend_changed	= xen_pcibk_frontend_changed,
-};
+);
 
 const struct xen_pcibk_backend *__read_mostly xen_pcibk_backend;
 
@@ -735,11 +732,11 @@ int __init xen_pcibk_xenbus_register(void)
 	if (passthrough)
 		xen_pcibk_backend = &xen_pcibk_passthrough_backend;
 	pr_info(DRV_NAME ": backend is %s\n", xen_pcibk_backend->name);
-	return xenbus_register_backend(&xenbus_xen_pcibk_driver);
+	return xenbus_register_backend(&xen_pcibk_driver);
 }
 
 void __exit xen_pcibk_xenbus_unregister(void)
 {
 	destroy_workqueue(xen_pcibk_wq);
-	xenbus_unregister_driver(&xenbus_xen_pcibk_driver);
+	xenbus_unregister_driver(&xen_pcibk_driver);
 }

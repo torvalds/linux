@@ -1910,7 +1910,7 @@ static void xennet_sysfs_delif(struct net_device *netdev)
 
 #endif /* CONFIG_SYSFS */
 
-static struct xenbus_device_id netfront_ids[] = {
+static const struct xenbus_device_id netfront_ids[] = {
 	{ "vif" },
 	{ "" }
 };
@@ -1937,15 +1937,12 @@ static int __devexit xennet_remove(struct xenbus_device *dev)
 	return 0;
 }
 
-static struct xenbus_driver netfront_driver = {
-	.name = "vif",
-	.owner = THIS_MODULE,
-	.ids = netfront_ids,
+static DEFINE_XENBUS_DRIVER(netfront, ,
 	.probe = netfront_probe,
 	.remove = __devexit_p(xennet_remove),
 	.resume = netfront_resume,
 	.otherend_changed = netback_changed,
-};
+);
 
 static int __init netif_init(void)
 {

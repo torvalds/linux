@@ -53,9 +53,7 @@ extern int xenbus_match(struct device *_dev, struct device_driver *_drv);
 extern int xenbus_dev_probe(struct device *_dev);
 extern int xenbus_dev_remove(struct device *_dev);
 extern int xenbus_register_driver_common(struct xenbus_driver *drv,
-					 struct xen_bus_type *bus,
-					 struct module *owner,
-					 const char *mod_name);
+					 struct xen_bus_type *bus);
 extern int xenbus_probe_node(struct xen_bus_type *bus,
 			     const char *type,
 			     const char *nodename);
