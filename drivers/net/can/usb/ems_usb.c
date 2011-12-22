@@ -607,7 +607,8 @@ static int ems_usb_start(struct ems_usb *dev)
 		if (!urb) {
 			dev_err(netdev->dev.parent,
 				"No memory left for URBs\n");
-			return -ENOMEM;
+			err = -ENOMEM;
+			break;
 		}
 
 		buf = usb_alloc_coherent(dev->udev, RX_BUFFER_SIZE, GFP_KERNEL,
@@ -616,7 +617,8 @@ static int ems_usb_start(struct ems_usb *dev)
 			dev_err(netdev->dev.parent,
 				"No memory left for USB buffer\n");
 			usb_free_urb(urb);
-			return -ENOMEM;
+			err = -ENOMEM;
+			break;
 		}
 
 		usb_fill_bulk_urb(urb, dev->udev, usb_rcvbulkpipe(dev->udev, 2),
