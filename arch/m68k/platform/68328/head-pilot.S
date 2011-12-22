@@ -173,9 +173,6 @@ L3:
 	moveq	#79, %d7
 	movel	%d0, _ramend
 
-	movel	%a3, %d0
-	movel	%d0, rom_length
-
 	pea	0
 	pea	env
 	pea	%sp@(4)
