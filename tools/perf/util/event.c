@@ -43,37 +43,27 @@ static struct perf_sample synth_sample = {
 	.period	   = 1,
 };
 
-static pid_t perf_event__synthesize_comm(struct perf_tool *tool,
-					 union perf_event *event, pid_t pid,
-					 int full, perf_event__handler_t process,
-					 struct machine *machine)
+static pid_t perf_event__get_comm_tgid(pid_t pid, char *comm, size_t len)
 {
 	char filename[PATH_MAX];
 	char bf[BUFSIZ];
 	FILE *fp;
 	size_t size = 0;
-	DIR *tasks;
-	struct dirent dirent, *next;
-	pid_t tgid = 0;
+	pid_t tgid = -1;
 
 	snprintf(filename, sizeof(filename), "/proc/%d/status", pid);
 
 	fp = fopen(filename, "r");
 	if (fp == NULL) {
-out_race:
-		/*
-		 * We raced with a task exiting - just return:
-		 */
 		pr_debug("couldn't open %s\n", filename);
 		return 0;
 	}
 
-	memset(&event->comm, 0, sizeof(event->comm));
-
-	while (!event->comm.comm[0] || !event->comm.pid) {
+	while (!comm[0] || (tgid < 0)) {
 		if (fgets(bf, sizeof(bf), fp) == NULL) {
-			pr_warning("couldn't get COMM and pgid, malformed %s\n", filename);
-			goto out;
+			pr_warning("couldn't get COMM and pgid, malformed %s\n",
+				   filename);
+			break;
 		}
 
 		if (memcmp(bf, "Name:", 5) == 0) {
@@ -81,16 +71,46 @@ out_race:
 			while (*name && isspace(*name))
 				++name;
 			size = strlen(name) - 1;
-			memcpy(event->comm.comm, name, size++);
+			if (size >= len)
+				size = len - 1;
+			memcpy(comm, name, size);
+
 		} else if (memcmp(bf, "Tgid:", 5) == 0) {
 			char *tgids = bf + 5;
 			while (*tgids && isspace(*tgids))
 				++tgids;
-			tgid = event->comm.pid = atoi(tgids);
+			tgid = atoi(tgids);
 		}
 	}
 
+	fclose(fp);
+
+	return tgid;
+}
+
+static pid_t perf_event__synthesize_comm(struct perf_tool *tool,
+					 union perf_event *event, pid_t pid,
+					 int full,
+					 perf_event__handler_t process,
+					 struct machine *machine)
+{
+	char filename[PATH_MAX];
+	size_t size;
+	DIR *tasks;
+	struct dirent dirent, *next;
+	pid_t tgid;
+
+	memset(&event->comm, 0, sizeof(event->comm));
+
+	tgid = perf_event__get_comm_tgid(pid, event->comm.comm,
+					 sizeof(event->comm.comm));
+	if (tgid < 0)
+		goto out;
+
+	event->comm.pid = tgid;
 	event->comm.header.type = PERF_RECORD_COMM;
+
+	size = strlen(event->comm.comm) + 1;
 	size = ALIGN(size, sizeof(u64));
 	memset(event->comm.comm + size, 0, machine->id_hdr_size);
 	event->comm.header.size = (sizeof(event->comm) -
@@ -106,14 +126,27 @@ out_race:
 	snprintf(filename, sizeof(filename), "/proc/%d/task", pid);
 
 	tasks = opendir(filename);
-	if (tasks == NULL)
-		goto out_race;
+	if (tasks == NULL) {
+		pr_debug("couldn't open %s\n", filename);
+		return 0;
+	}
 
 	while (!readdir_r(tasks, &dirent, &next) && next) {
 		char *end;
 		pid = strtol(dirent.d_name, &end, 10);
 		if (*end)
 			continue;
+
+		/* already have tgid; jut want to update the comm */
+		(void) perf_event__get_comm_tgid(pid, event->comm.comm,
+					 sizeof(event->comm.comm));
+
+		size = strlen(event->comm.comm) + 1;
+		size = ALIGN(size, sizeof(u64));
+		memset(event->comm.comm + size, 0, machine->id_hdr_size);
+		event->comm.header.size = (sizeof(event->comm) -
+					  (sizeof(event->comm.comm) - size) +
+					  machine->id_hdr_size);
 
 		event->comm.tid = pid;
 
@@ -122,8 +155,6 @@ out_race:
 
 	closedir(tasks);
 out:
-	fclose(fp);
-
 	return tgid;
 }
 
