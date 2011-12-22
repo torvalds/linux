@@ -1149,12 +1149,12 @@ void bitmap_daemon_work(struct mddev *mddev)
 		return;
 	}
 	if (time_before(jiffies, bitmap->daemon_lastrun
-			+ bitmap->mddev->bitmap_info.daemon_sleep))
+			+ mddev->bitmap_info.daemon_sleep))
 		goto done;
 
 	bitmap->daemon_lastrun = jiffies;
 	if (bitmap->allclean) {
-		bitmap->mddev->thread->timeout = MAX_SCHEDULE_TIMEOUT;
+		mddev->thread->timeout = MAX_SCHEDULE_TIMEOUT;
 		goto done;
 	}
 	bitmap->allclean = 1;
@@ -1206,7 +1206,7 @@ void bitmap_daemon_work(struct mddev *mddev)
 			 * sure that events_cleared is up-to-date.
 			 */
 			if (bitmap->need_sync &&
-			    bitmap->mddev->bitmap_info.external == 0) {
+			    mddev->bitmap_info.external == 0) {
 				bitmap_super_t *sb;
 				bitmap->need_sync = 0;
 				sb = kmap_atomic(bitmap->sb_page, KM_USER0);
@@ -1270,8 +1270,8 @@ void bitmap_daemon_work(struct mddev *mddev)
 
  done:
 	if (bitmap->allclean == 0)
-		bitmap->mddev->thread->timeout =
-			bitmap->mddev->bitmap_info.daemon_sleep;
+		mddev->thread->timeout =
+			mddev->bitmap_info.daemon_sleep;
 	mutex_unlock(&mddev->bitmap_info.mutex);
 }
 
