@@ -277,7 +277,8 @@ static inline void update_head_pos(int disk, struct r1bio *r1_bio)
 static int find_bio_disk(struct r1bio *r1_bio, struct bio *bio)
 {
 	int mirror;
-	int raid_disks = r1_bio->mddev->raid_disks;
+	struct r1conf *conf = r1_bio->mddev->private;
+	int raid_disks = conf->raid_disks;
 
 	for (mirror = 0; mirror < raid_disks; mirror++)
 		if (r1_bio->bios[mirror] == bio)
@@ -609,7 +610,7 @@ int md_raid1_congested(struct mddev *mddev, int bits)
 		return 1;
 
 	rcu_read_lock();
-	for (i = 0; i < mddev->raid_disks; i++) {
+	for (i = 0; i < conf->raid_disks; i++) {
 		struct md_rdev *rdev = rcu_dereference(conf->mirrors[i].rdev);
 		if (rdev && !test_bit(Faulty, &rdev->flags)) {
 			struct request_queue *q = bdev_get_queue(rdev->bdev);
@@ -1286,7 +1287,7 @@ static int raid1_add_disk(struct mddev *mddev, struct md_rdev *rdev)
 	int mirror = 0;
 	struct mirror_info *p;
 	int first = 0;
-	int last = mddev->raid_disks - 1;
+	int last = conf->raid_disks - 1;
 
 	if (mddev->recovery_disabled == conf->recovery_disabled)
 		return -EBUSY;
