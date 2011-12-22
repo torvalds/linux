@@ -792,6 +792,17 @@ ring_add_request(struct intel_ring_buffer *ring,
 }
 
 static bool
+gen7_blt_ring_get_irq(struct intel_ring_buffer *ring)
+{
+	/* The BLT ring on IVB appears to have broken synchronization
+	 * between the seqno write and the interrupt, so that the
+	 * interrupt appears first.  Returning false here makes
+	 * i915_wait_request() do a polling loop, instead.
+	 */
+	return false;
+}
+
+static bool
 gen6_ring_get_irq(struct intel_ring_buffer *ring, u32 gflag, u32 rflag)
 {
 	struct drm_device *dev = ring->dev;
@@ -1556,6 +1567,9 @@ int intel_init_blt_ring_buffer(struct drm_device *dev)
 	struct intel_ring_buffer *ring = &dev_priv->ring[BCS];
 
 	*ring = gen6_blt_ring;
+
+	if (IS_GEN7(dev))
+		ring->irq_get = gen7_blt_ring_get_irq;
 
 	return intel_init_ring_buffer(dev, ring);
 }
