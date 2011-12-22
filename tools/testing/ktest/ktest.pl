@@ -1434,12 +1434,19 @@ sub monitor {
     return 1;
 }
 
+sub eval_kernel_version {
+    my ($option) = @_;
+
+    $option =~ s/\$KERNEL_VERSION/$version/g;
+
+    return $option;
+}
+
 sub do_post_install {
 
     return if (!defined($post_install));
 
-    my $cp_post_install = $post_install;
-    $cp_post_install =~ s/\$KERNEL_VERSION/$version/g;
+    my $cp_post_install = eval_kernel_version $post_install;
     run_command "$cp_post_install" or
 	dodie "Failed to run post install";
 }
@@ -1448,7 +1455,9 @@ sub install {
 
     return if ($no_install);
 
-    run_scp "$outputdir/$build_target", "$target_image" or
+    my $cp_target = eval_kernel_version $target_image;
+
+    run_scp "$outputdir/$build_target", "$cp_target" or
 	dodie "failed to copy image";
 
     my $install_mods = 0;
