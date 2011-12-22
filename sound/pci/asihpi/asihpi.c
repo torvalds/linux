@@ -904,7 +904,9 @@ static void snd_card_asihpi_timer_function(unsigned long data)
 static int snd_card_asihpi_playback_ioctl(struct snd_pcm_substream *substream,
 					  unsigned int cmd, void *arg)
 {
-	snd_printddd(KERN_INFO "P%d ioctl %d\n", substream->number, cmd);
+	char name[16];
+	snd_pcm_debug_name(substream, name, sizeof(name));
+	snd_printddd(KERN_INFO "%s ioctl %d\n", name, cmd);
 	return snd_pcm_lib_ioctl(substream, cmd, arg);
 }
 
@@ -929,9 +931,11 @@ snd_card_asihpi_playback_pointer(struct snd_pcm_substream *substream)
 	struct snd_pcm_runtime *runtime = substream->runtime;
 	struct snd_card_asihpi_pcm *dpcm = runtime->private_data;
 	snd_pcm_uframes_t ptr;
+	char name[16];
+	snd_pcm_debug_name(substream, name, sizeof(name));
 
 	ptr = bytes_to_frames(runtime, dpcm->pcm_buf_dma_ofs  % dpcm->buffer_bytes);
-	snd_printddd("P%d pointer = 0x%04lx\n", substream->number, (unsigned long)ptr);
+	snd_printddd("%s pointer = 0x%04lx\n", name, (unsigned long)ptr);
 	return ptr;
 }
 
