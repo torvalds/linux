@@ -23,6 +23,7 @@
  */
 
 #include "hpi_internal.h"
+#include "hpi_version.h"
 #include "hpimsginit.h"
 #include "hpioctl.h"
 #include "hpicmn.h"
@@ -46,7 +47,8 @@
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("AudioScience inc. <support@audioscience.com>");
-MODULE_DESCRIPTION("AudioScience ALSA ASI5000 ASI6000 ASI87xx ASI89xx");
+MODULE_DESCRIPTION("AudioScience ALSA ASI5000 ASI6000 ASI87xx ASI89xx "
+			HPI_VER_STRING);
 
 #if defined CONFIG_SND_DEBUG_VERBOSE
 /**
