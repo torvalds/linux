@@ -21,6 +21,7 @@
 #include <linux/slab.h>
 #include <video/omapdss.h>
 #include <linux/i2c.h>
+#include <linux/gpio.h>
 #include <drm/drm_edid.h>
 
 #include <video/omap-panel-dvi.h>
@@ -44,6 +45,8 @@ struct panel_drv_data {
 	struct omap_dss_device *dssdev;
 
 	struct mutex lock;
+
+	int pd_gpio;
 };
 
 static inline struct panel_dvi_platform_data
@@ -54,6 +57,7 @@ static inline struct panel_dvi_platform_data
 
 static int panel_dvi_power_on(struct omap_dss_device *dssdev)
 {
+	struct panel_drv_data *ddata = dev_get_drvdata(&dssdev->dev);
 	struct panel_dvi_platform_data *pdata = get_pdata(dssdev);
 	int r;
 
@@ -70,6 +74,9 @@ static int panel_dvi_power_on(struct omap_dss_device *dssdev)
 			goto err1;
 	}
 
+	if (gpio_is_valid(ddata->pd_gpio))
+		gpio_set_value(ddata->pd_gpio, 1);
+
 	return 0;
 err1:
 	omapdss_dpi_display_disable(dssdev);
@@ -79,10 +86,14 @@ err0:
 
 static void panel_dvi_power_off(struct omap_dss_device *dssdev)
 {
+	struct panel_drv_data *ddata = dev_get_drvdata(&dssdev->dev);
 	struct panel_dvi_platform_data *pdata = get_pdata(dssdev);
 
 	if (dssdev->state != OMAP_DSS_DISPLAY_ACTIVE)
 		return;
+
+	if (gpio_is_valid(ddata->pd_gpio))
+		gpio_set_value(ddata->pd_gpio, 0);
 
 	if (pdata->platform_disable)
 		pdata->platform_disable(dssdev);
@@ -92,7 +103,9 @@ static void panel_dvi_power_off(struct omap_dss_device *dssdev)
 
 static int panel_dvi_probe(struct omap_dss_device *dssdev)
 {
+	struct panel_dvi_platform_data *pdata = get_pdata(dssdev);
 	struct panel_drv_data *ddata;
+	int r;
 
 	ddata = kzalloc(sizeof(*ddata), GFP_KERNEL);
 	if (!ddata)
@@ -104,6 +117,21 @@ static int panel_dvi_probe(struct omap_dss_device *dssdev)
 	ddata->dssdev = dssdev;
 	mutex_init(&ddata->lock);
 
+	if (pdata)
+		ddata->pd_gpio = pdata->power_down_gpio;
+	else
+		ddata->pd_gpio = -1;
+
+	if (gpio_is_valid(ddata->pd_gpio)) {
+		r = gpio_request_one(ddata->pd_gpio, GPIOF_OUT_INIT_LOW,
+				"tfp410 pd");
+		if (r) {
+			dev_err(&dssdev->dev, "Failed to request PD GPIO %d\n",
+					ddata->pd_gpio);
+			ddata->pd_gpio = -1;
+		}
+	}
+
 	dev_set_drvdata(&dssdev->dev, ddata);
 
 	return 0;
@@ -114,6 +142,9 @@ static void __exit panel_dvi_remove(struct omap_dss_device *dssdev)
 	struct panel_drv_data *ddata = dev_get_drvdata(&dssdev->dev);
 
 	mutex_lock(&ddata->lock);
+
+	if (gpio_is_valid(ddata->pd_gpio))
+		gpio_free(ddata->pd_gpio);
 
 	dev_set_drvdata(&dssdev->dev, NULL);
 
