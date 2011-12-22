@@ -2044,7 +2044,18 @@ static int ath6kl_set_channel(struct wiphy *wiphy, struct net_device *dev,
 			      struct ieee80211_channel *chan,
 			      enum nl80211_channel_type channel_type)
 {
-	struct ath6kl_vif *vif = netdev_priv(dev);
+	struct ath6kl_vif *vif;
+
+	/*
+	 * 'dev' could be NULL if a channel change is required for the hardware
+	 * device itself, instead of a particular VIF.
+	 *
+	 * FIXME: To be handled properly when monitor mode is supported.
+	 */
+	if (!dev)
+		return -EBUSY;
+
+	vif = netdev_priv(dev);
 
 	if (!ath6kl_cfg80211_ready(vif))
 		return -EIO;
