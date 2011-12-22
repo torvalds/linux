@@ -1309,7 +1309,7 @@ error:
 	return ret;
 }
 
-static int dib9000_fw_set_channel_union(struct dvb_frontend *fe, struct dvb_frontend_parameters *channel)
+static int dib9000_fw_set_channel_union(struct dvb_frontend *fe)
 {
 	struct dib9000_state *state = fe->demodulator_priv;
 	struct dibDVBTChannel {
@@ -1454,7 +1454,7 @@ static int dib9000_fw_set_channel_union(struct dvb_frontend *fe, struct dvb_fron
 	return 0;
 }
 
-static int dib9000_fw_tune(struct dvb_frontend *fe, struct dvb_frontend_parameters *ch)
+static int dib9000_fw_tune(struct dvb_frontend *fe)
 {
 	struct dib9000_state *state = fe->demodulator_priv;
 	int ret = 10, search = state->channel_status.status == CHANNEL_STATUS_PARAMETERS_UNKNOWN;
@@ -1471,7 +1471,7 @@ static int dib9000_fw_tune(struct dvb_frontend *fe, struct dvb_frontend_paramete
 		if (search)
 			dib9000_mbx_send(state, OUT_MSG_FE_CHANNEL_SEARCH, NULL, 0);
 		else {
-			dib9000_fw_set_channel_union(fe, ch);
+			dib9000_fw_set_channel_union(fe);
 			dib9000_mbx_send(state, OUT_MSG_FE_CHANNEL_TUNE, NULL, 0);
 		}
 		state->tune_state = CT_DEMOD_STEP_1;
@@ -2010,9 +2010,9 @@ static int dib9000_set_frontend(struct dvb_frontend *fe)
 	exit_condition = 0;	/* 0: tune pending; 1: tune failed; 2:tune success */
 	index_frontend_success = 0;
 	do {
-		sleep_time = dib9000_fw_tune(state->fe[0], NULL);
+		sleep_time = dib9000_fw_tune(state->fe[0]);
 		for (index_frontend = 1; (index_frontend < MAX_NUMBER_OF_FRONTENDS) && (state->fe[index_frontend] != NULL); index_frontend++) {
-			sleep_time_slave = dib9000_fw_tune(state->fe[index_frontend], NULL);
+			sleep_time_slave = dib9000_fw_tune(state->fe[index_frontend]);
 			if (sleep_time == FE_CALLBACK_TIME_NEVER)
 				sleep_time = sleep_time_slave;
 			else if ((sleep_time_slave != FE_CALLBACK_TIME_NEVER) && (sleep_time_slave > sleep_time))
@@ -2070,7 +2070,7 @@ static int dib9000_set_frontend(struct dvb_frontend *fe)
 		sleep_time = FE_CALLBACK_TIME_NEVER;
 		for (index_frontend = 0; (index_frontend < MAX_NUMBER_OF_FRONTENDS) && (state->fe[index_frontend] != NULL); index_frontend++) {
 			if (index_frontend != index_frontend_success) {
-				sleep_time_slave = dib9000_fw_tune(state->fe[index_frontend], NULL);
+				sleep_time_slave = dib9000_fw_tune(state->fe[index_frontend]);
 				if (sleep_time == FE_CALLBACK_TIME_NEVER)
 					sleep_time = sleep_time_slave;
 				else if ((sleep_time_slave != FE_CALLBACK_TIME_NEVER) && (sleep_time_slave > sleep_time))
