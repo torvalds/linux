@@ -79,6 +79,8 @@ my $reboot_script;
 my $power_cycle;
 my $reboot;
 my $reboot_on_error;
+my $switch_to_good;
+my $switch_to_test;
 my $poweroff_on_error;
 my $die_on_failure;
 my $powercycle_after_reboot;
@@ -964,6 +966,17 @@ sub reboot {
     }
 }
 
+sub reboot_to_good {
+    my ($time) = @_;
+
+    if (defined($switch_to_good)) {
+	run_command $switch_to_good;
+	return;
+    }
+
+    reboot $time;
+}
+
 sub do_not_reboot {
     my $i = $iteration;
 
@@ -980,7 +993,7 @@ sub dodie {
     if ($reboot_on_error && !do_not_reboot) {
 
 	doprint "REBOOTING\n";
-	reboot;
+	reboot_to_good;
 
     } elsif ($poweroff_on_error && defined($power_off)) {
 	doprint "POWERING OFF\n";
@@ -1116,7 +1129,7 @@ sub fail {
 	# no need to reboot for just building.
 	if (!do_not_reboot) {
 	    doprint "REBOOTING\n";
-	    reboot $sleep_time;
+	    reboot_to_good $sleep_time;
 	}
 
 	my $name = "";
@@ -1269,6 +1282,10 @@ sub wait_for_input
 }
 
 sub reboot_to {
+    if (defined($switch_to_test)) {
+	run_command $switch_to_test;
+    }
+
     if ($reboot_type eq "grub") {
 	run_ssh "'(echo \"savedefault --default=$grub_number --once\" | grub --batch)'";
 	reboot;
@@ -1754,7 +1771,7 @@ sub success {
 
     if ($i != $opt{"NUM_TESTS"} && !do_not_reboot) {
 	doprint "Reboot and wait $sleep_time seconds\n";
-	reboot $sleep_time;
+	reboot_to_good $sleep_time;
     }
 }
 
@@ -1935,7 +1952,7 @@ sub run_git_bisect {
 
 sub bisect_reboot {
     doprint "Reboot and sleep $bisect_sleep_time seconds\n";
-    reboot $bisect_sleep_time;
+    reboot_to_good $bisect_sleep_time;
 }
 
 # returns 1 on success, 0 on failure, -1 on skip
@@ -2528,7 +2545,7 @@ sub config_bisect {
 
 sub patchcheck_reboot {
     doprint "Reboot and sleep $patchcheck_sleep_time seconds\n";
-    reboot $patchcheck_sleep_time;
+    reboot_to_good $patchcheck_sleep_time;
 }
 
 sub patchcheck {
@@ -3145,7 +3162,7 @@ sub make_min_config {
 	}
 
 	doprint "Reboot and wait $sleep_time seconds\n";
-	reboot $sleep_time;
+	reboot_to_good $sleep_time;
     }
 
     success $i;
@@ -3314,6 +3331,8 @@ for (my $i = 1; $i <= $opt{"NUM_TESTS"}; $i++) {
     $no_install = set_test_option("NO_INSTALL", $i);
     $reboot_script = set_test_option("REBOOT_SCRIPT", $i);
     $reboot_on_error = set_test_option("REBOOT_ON_ERROR", $i);
+    $switch_to_good = set_test_option("SWITCH_TO_GOOD", $i);
+    $switch_to_test = set_test_option("SWITCH_TO_TEST", $i);
     $poweroff_on_error = set_test_option("POWEROFF_ON_ERROR", $i);
     $die_on_failure = set_test_option("DIE_ON_FAILURE", $i);
     $power_off = set_test_option("POWER_OFF", $i);
@@ -3472,7 +3491,7 @@ for (my $i = 1; $i <= $opt{"NUM_TESTS"}; $i++) {
 if ($opt{"POWEROFF_ON_SUCCESS"}) {
     halt;
 } elsif ($opt{"REBOOT_ON_SUCCESS"} && !do_not_reboot) {
-    reboot;
+    reboot_to_good;
 }
 
 doprint "\n    $successes of $opt{NUM_TESTS} tests were successful\n\n";
