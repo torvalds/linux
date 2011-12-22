@@ -1265,6 +1265,25 @@ static int raid1_spare_active(struct mddev *mddev)
 	 */
 	for (i = 0; i < conf->raid_disks; i++) {
 		struct md_rdev *rdev = conf->mirrors[i].rdev;
+		struct md_rdev *repl = conf->mirrors[conf->raid_disks + i].rdev;
+		if (repl
+		    && repl->recovery_offset == MaxSector
+		    && !test_bit(Faulty, &repl->flags)
+		    && !test_and_set_bit(In_sync, &repl->flags)) {
+			/* replacement has just become active */
+			if (!rdev ||
+			    !test_and_clear_bit(In_sync, &rdev->flags))
+				count++;
+			if (rdev) {
+				/* Replaced device not technically
+				 * faulty, but we need to be sure
+				 * it gets removed and never re-added
+				 */
+				set_bit(Faulty, &rdev->flags);
+				sysfs_notify_dirent_safe(
+					rdev->sysfs_state);
+			}
+		}
 		if (rdev
 		    && !test_bit(Faulty, &rdev->flags)
 		    && !test_and_set_bit(In_sync, &rdev->flags)) {
@@ -1362,10 +1381,21 @@ static int raid1_remove_disk(struct mddev *mddev, struct md_rdev *rdev)
 			err = -EBUSY;
 			p->rdev = rdev;
 			goto abort;
-		} else {
-			clear_bit(Replacement, &rdev->flags);
+		} else if (conf->mirrors[conf->raid_disks + number].rdev) {
+			/* We just removed a device that is being replaced.
+			 * Move down the replacement.  We drain all IO before
+			 * doing this to avoid confusion.
+			 */
+			struct md_rdev *repl =
+				conf->mirrors[conf->raid_disks + number].rdev;
+			raise_barrier(conf);
+			clear_bit(Replacement, &repl->flags);
+			p->rdev = repl;
+			conf->mirrors[conf->raid_disks + number].rdev = NULL;
+			lower_barrier(conf);
 			clear_bit(WantReplacement, &rdev->flags);
-		}
+		} else
+			clear_bit(WantReplacement, &rdev->flags);
 		err = md_integrity_register(mddev);
 	}
 abort:
