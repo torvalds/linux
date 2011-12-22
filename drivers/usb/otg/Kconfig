@@ -82,9 +82,9 @@ config NOP_USB_XCEIV
 	tristate "NOP USB Transceiver Driver"
 	select USB_OTG_UTILS
 	help
-	 this driver is to be used by all the usb transceiver which are either
-	 built-in with usb ip or which are autonomous and doesn't require any
-	 phy programming such as ISP1x04 etc.
+	  This driver is to be used by all the usb transceiver which are either
+	  built-in with usb ip or which are autonomous and doesn't require any
+	  phy programming such as ISP1x04 etc.
 
 config USB_LANGWELL_OTG
 	tristate "Intel Langwell USB OTG dual-role support"
@@ -114,13 +114,13 @@ config USB_MSM_OTG
 	  has an external PHY.
 
 config AB8500_USB
-        tristate "AB8500 USB Transceiver Driver"
-        depends on AB8500_CORE
-        select USB_OTG_UTILS
-        help
-          Enable this to support the USB OTG transceiver in AB8500 chip.
-          This transceiver supports high and full speed devices plus,
-          in host mode, low speed.
+	tristate "AB8500 USB Transceiver Driver"
+	depends on AB8500_CORE
+	select USB_OTG_UTILS
+	help
+	  Enable this to support the USB OTG transceiver in AB8500 chip.
+	  This transceiver supports high and full speed devices plus,
+	  in host mode, low speed.
 
 config FSL_USB2_OTG
 	bool "Freescale USB OTG Transceiver Driver"
