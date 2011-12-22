@@ -333,8 +333,7 @@ config SPI_STMP3XXX
 
 config SPI_TEGRA
 	tristate "Nvidia Tegra SPI controller"
-	depends on ARCH_TEGRA
-	select TEGRA_SYSTEM_DMA
+	depends on ARCH_TEGRA && TEGRA_SYSTEM_DMA
 	help
 	  SPI driver for NVidia Tegra SoCs
 
