@@ -2697,7 +2697,6 @@ slot_store(struct md_rdev *rdev, const char *buf, size_t len)
 		set_bit(MD_RECOVERY_NEEDED, &rdev->mddev->recovery);
 		md_wakeup_thread(rdev->mddev->thread);
 	} else if (rdev->mddev->pers) {
-		struct md_rdev *rdev2;
 		/* Activating a spare .. or possibly reactivating
 		 * if we ever get bitmaps working here.
 		 */
@@ -2710,10 +2709,6 @@ slot_store(struct md_rdev *rdev, const char *buf, size_t len)
 
 		if (rdev->mddev->pers->hot_add_disk == NULL)
 			return -EINVAL;
-
-		list_for_each_entry(rdev2, &rdev->mddev->disks, same_set)
-			if (rdev2->raid_disk == slot)
-				return -EEXIST;
 
 		if (slot >= rdev->mddev->raid_disks &&
 		    slot >= rdev->mddev->raid_disks + rdev->mddev->delta_disks)
