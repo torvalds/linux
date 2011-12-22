@@ -773,7 +773,7 @@ int __init parse_ioapics_under_ir(void)
 	return ir_supported;
 }
 
-int ir_dev_scope_init(void)
+int __init ir_dev_scope_init(void)
 {
 	if (!intr_remapping_enabled)
 		return 0;

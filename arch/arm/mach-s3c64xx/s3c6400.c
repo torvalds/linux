@@ -70,7 +70,7 @@ void __init s3c6400_init_irq(void)
 	s3c64xx_init_irq(~0 & ~(0xf << 5), ~0);
 }
 
-struct sysdev_class s3c6400_sysclass = {
+static struct sysdev_class s3c6400_sysclass = {
 	.name	= "s3c6400-core",
 };
 

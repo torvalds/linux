@@ -101,9 +101,8 @@ static char *tomoyo_get_absolute_path(struct path *path, char * const buffer,
 {
 	char *pos = ERR_PTR(-ENOMEM);
 	if (buflen >= 256) {
-		struct path ns_root = { };
 		/* go to whatever namespace root we are under */
-		pos = __d_path(path, &ns_root, buffer, buflen - 1);
+		pos = d_absolute_path(path, buffer, buflen - 1);
 		if (!IS_ERR(pos) && *pos == '/' && pos[1]) {
 			struct inode *inode = path->dentry->d_inode;
 			if (inode && S_ISDIR(inode->i_mode)) {
@@ -294,8 +293,16 @@ char *tomoyo_realpath_from_path(struct path *path)
 			pos = tomoyo_get_local_path(path->dentry, buf,
 						    buf_len - 1);
 		/* Get absolute name for the rest. */
-		else
+		else {
 			pos = tomoyo_get_absolute_path(path, buf, buf_len - 1);
+			/*
+			 * Fall back to local name if absolute name is not
+			 * available.
+			 */
+			if (pos == ERR_PTR(-EINVAL))
+				pos = tomoyo_get_local_path(path->dentry, buf,
+							    buf_len - 1);
+		}
 encode:
 		if (IS_ERR(pos))
 			continue;
