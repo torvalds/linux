@@ -106,7 +106,7 @@ static struct genl_ops *genl_get_cmd(u8 cmd, struct genl_family *family)
 /* Of course we are going to have problems once we hit
  * 2^16 alive types, but that can only happen by year 2K
 */
-static inline u16 genl_generate_id(void)
+static u16 genl_generate_id(void)
 {
 	static u16 id_gen_idx = GENL_MIN_ID;
 	int i;
