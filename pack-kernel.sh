@@ -29,6 +29,8 @@ arch/arm/mach-rk29/ddr_reconfig.c
 drivers/staging/rk29/vivante/*.c
 drivers/staging/rk29/vivante/*.h
 
+arch/arm/mach-rk29/board-rk29sdk.c
+arch/arm/configs/rk29_sdk_defconfig
 arch/arm/configs/rk29_sdk_yaffs2_defconfig
 
 arch/arm/mach-rk29/board-malata.c
@@ -44,11 +46,28 @@ arch/arm/configs/rk29_a22_defconfig
 arch/arm/mach-rk29/board-rk29-fih*
 arch/arm/configs/rk29_FIH_defconfig
 
+arch/arm/mach-rk29/board-rk29-k97*
+arch/arm/mach-rk29/board-rk29k97*
+arch/arm/configs/rk29_k97_defconfig
+
 arch/arm/mach-rk29/board-rk29-newton*
+arch/arm/mach-rk29/board-newton*
 arch/arm/configs/rk29_newton_defconfig
 
 arch/arm/mach-rk29/board-rk29-p91*
 arch/arm/configs/rk29_p91_defconfig
+
+arch/arm/mach-rk29/board-rk29phonepadsdk*
+arch/arm/configs/rk29_phonepadsdk_defconfig
+
+arch/arm/mach-rk29/board-rk29-phonesdk*
+arch/arm/configs/rk29_phonesdk_defconfig
+
+arch/arm/mach-rk29/board-rk29-td8801*
+arch/arm/configs/rk29_td8801_v2_defconfig
+
+arch/arm/mach-rk29/board-rk29-z5*
+arch/arm/configs/rk29_z5_defconfig
 )
 
 # ---------------------------------------------------------------------------
