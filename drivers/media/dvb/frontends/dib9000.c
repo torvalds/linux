@@ -1136,7 +1136,7 @@ static int dib9000_fw_init(struct dib9000_state *state)
 	return 0;
 }
 
-static void dib9000_fw_set_channel_head(struct dib9000_state *state, struct dvb_frontend_parameters *ch)
+static void dib9000_fw_set_channel_head(struct dib9000_state *state)
 {
 	u8 b[9];
 	u32 freq = state->fe[0]->dtv_property_cache.frequency / 1000;
@@ -1157,7 +1157,7 @@ static void dib9000_fw_set_channel_head(struct dib9000_state *state, struct dvb_
 	dib9000_risc_mem_write(state, FE_MM_W_CHANNEL_HEAD, b);
 }
 
-static int dib9000_fw_get_channel(struct dvb_frontend *fe, struct dvb_frontend_parameters *channel)
+static int dib9000_fw_get_channel(struct dvb_frontend *fe)
 {
 	struct dib9000_state *state = fe->demodulator_priv;
 	struct dibDVBTChannel {
@@ -1462,7 +1462,7 @@ static int dib9000_fw_tune(struct dvb_frontend *fe, struct dvb_frontend_paramete
 
 	switch (state->tune_state) {
 	case CT_DEMOD_START:
-		dib9000_fw_set_channel_head(state, ch);
+		dib9000_fw_set_channel_head(state);
 
 		/* write the channel context - a channel is initialized to 0, so it is OK */
 		dib9000_risc_mem_write(state, FE_MM_W_CHANNEL_CONTEXT, (u8 *) fe_info);
@@ -1911,7 +1911,7 @@ static int dib9000_get_frontend(struct dvb_frontend *fe, struct dvb_frontend_par
 	}
 
 	/* get the channel from master chip */
-	ret = dib9000_fw_get_channel(fe, fep);
+	ret = dib9000_fw_get_channel(fe);
 	if (ret != 0)
 		goto return_value;
 
