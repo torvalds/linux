@@ -590,7 +590,9 @@ static int raid10_mergeable_bvec(struct request_queue *q,
  * FIXME: possibly should rethink readbalancing and do it differently
  * depending on near_copies / far_copies geometry.
  */
-static int read_balance(struct r10conf *conf, struct r10bio *r10_bio, int *max_sectors)
+static struct md_rdev *read_balance(struct r10conf *conf,
+				    struct r10bio *r10_bio,
+				    int *max_sectors)
 {
 	const sector_t this_sector = r10_bio->sector;
 	int disk, slot;
@@ -703,11 +705,11 @@ retry:
 		}
 		r10_bio->read_slot = slot;
 	} else
-		disk = -1;
+		rdev = NULL;
 	rcu_read_unlock();
 	*max_sectors = best_good_sectors;
 
-	return disk;
+	return rdev;
 }
 
 static int raid10_congested(void *data, int bits)
@@ -874,7 +876,6 @@ static void unfreeze_array(struct r10conf *conf)
 static void make_request(struct mddev *mddev, struct bio * bio)
 {
 	struct r10conf *conf = mddev->private;
-	struct mirror_info *mirror;
 	struct r10bio *r10_bio;
 	struct bio *read_bio;
 	int i;
@@ -973,17 +974,16 @@ static void make_request(struct mddev *mddev, struct bio * bio)
 		/*
 		 * read balancing logic:
 		 */
-		int disk;
+		struct md_rdev *rdev;
 		int slot;
 
 read_again:
-		disk = read_balance(conf, r10_bio, &max_sectors);
-		slot = r10_bio->read_slot;
-		if (disk < 0) {
+		rdev = read_balance(conf, r10_bio, &max_sectors);
+		if (!rdev) {
 			raid_end_bio_io(r10_bio);
 			return;
 		}
-		mirror = conf->mirrors + disk;
+		slot = r10_bio->read_slot;
 
 		read_bio = bio_clone_mddev(bio, GFP_NOIO, mddev);
 		md_trim_bio(read_bio, r10_bio->sector - bio->bi_sector,
@@ -992,8 +992,8 @@ read_again:
 		r10_bio->devs[slot].bio = read_bio;
 
 		read_bio->bi_sector = r10_bio->devs[slot].addr +
-			mirror->rdev->data_offset;
-		read_bio->bi_bdev = mirror->rdev->bdev;
+			rdev->data_offset;
+		read_bio->bi_bdev = rdev->bdev;
 		read_bio->bi_end_io = raid10_end_read_request;
 		read_bio->bi_rw = READ | do_sync;
 		read_bio->bi_private = r10_bio;
@@ -2116,8 +2116,8 @@ static void handle_read_error(struct mddev *mddev, struct r10bio *r10_bio)
 	r10_bio->devs[slot].bio =
 		mddev->ro ? IO_BLOCKED : NULL;
 read_more:
-	mirror = read_balance(conf, r10_bio, &max_sectors);
-	if (mirror == -1) {
+	rdev = read_balance(conf, r10_bio, &max_sectors);
+	if (rdev == NULL) {
 		printk(KERN_ALERT "md/raid10:%s: %s: unrecoverable I/O"
 		       " read error for block %llu\n",
 		       mdname(mddev), b,
@@ -2131,7 +2131,6 @@ read_more:
 	if (bio)
 		bio_put(bio);
 	slot = r10_bio->read_slot;
-	rdev = conf->mirrors[mirror].rdev;
 	printk_ratelimited(
 		KERN_ERR
 		"md/raid10:%s: %s: redirecting"
