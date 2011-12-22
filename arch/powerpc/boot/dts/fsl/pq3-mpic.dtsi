@@ -39,6 +39,7 @@ mpic: pic@40000 {
 	reg = <0x40000 0x40000>;
 	compatible = "fsl,mpic";
 	device_type = "open-pic";
+	big-endian;
 };
 
 timer@41100 {
