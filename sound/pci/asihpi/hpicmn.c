@@ -324,6 +324,8 @@ short hpi_check_control_cache(struct hpi_control_cache *p_cache,
 	}
 
 	phr->error = 0;
+	phr->specific_error = 0;
+	phr->version = 0;
 
 	/* set the default response size */
 	response_size =
@@ -531,8 +533,12 @@ short hpi_check_control_cache(struct hpi_control_cache *p_cache,
 		found ? "Cached" : "Uncached", phm->adapter_index,
 		pI->control_index, pI->control_type, phm->u.c.attribute);
 
-	if (found)
+	if (found) {
 		phr->size = (u16)response_size;
+		phr->type = HPI_TYPE_RESPONSE;
+		phr->object = phm->object;
+		phr->function = phm->function;
+	}
 
 	return found;
 }
