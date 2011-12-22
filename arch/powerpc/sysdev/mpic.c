@@ -1187,6 +1187,8 @@ struct mpic * __init mpic_alloc(struct device_node *node,
 		flags |= MPIC_BIG_ENDIAN;
 	if (of_get_property(node, "pic-no-reset", NULL))
 		flags |= MPIC_NO_RESET;
+	if (of_get_property(node, "single-cpu-affinity", NULL))
+		flags |= MPIC_SINGLE_DEST_CPU;
 	if (of_device_is_compatible(node, "fsl,mpic"))
 		flags |= MPIC_FSL;
 
