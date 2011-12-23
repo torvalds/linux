@@ -485,8 +485,6 @@ sub get_ktest_configs {
 
     if ($rtype eq "grub") {
 	get_ktest_config("GRUB_MENU");
-    } else {
-	get_ktest_config("REBOOT_SCRIPT");
     }
 }
 
@@ -1430,11 +1428,10 @@ sub reboot_to {
 
     if ($reboot_type eq "grub") {
 	run_ssh "'(echo \"savedefault --default=$grub_number --once\" | grub --batch)'";
-	reboot;
-	return;
+    } elsif (defined $reboot_script) {
+	run_command "$reboot_script";
     }
-
-    run_command "$reboot_script";
+    reboot;
 }
 
 sub get_sha1 {
@@ -3479,8 +3476,6 @@ for (my $i = 1; $i <= $opt{"NUM_TESTS"}; $i++) {
 	$target = "$ssh_user\@$machine";
 	if ($reboot_type eq "grub") {
 	    dodie "GRUB_MENU not defined" if (!defined($grub_menu));
-	} elsif (!defined($reboot_script)) {
-	    dodie "REBOOT_SCRIPT not defined"
 	}
     }
 
