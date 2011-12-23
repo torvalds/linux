@@ -53,26 +53,17 @@ static struct platform_device *m5307_devices[] __initdata = {
 
 /***************************************************************************/
 
-static void __init m5307_uart_init_line(int line, int irq)
-{
-	if (line == 0) {
-		writeb(MCFSIM_ICR_LEVEL6 | MCFSIM_ICR_PRI1, MCF_MBAR + MCFSIM_UART1ICR);
-		writeb(irq, MCFUART_BASE0 + MCFUART_UIVR);
-		mcf_mapirq2imr(irq, MCFINTC_UART0);
-	} else if (line == 1) {
-		writeb(MCFSIM_ICR_LEVEL6 | MCFSIM_ICR_PRI2, MCF_MBAR + MCFSIM_UART2ICR);
-		writeb(irq, MCFUART_BASE1 + MCFUART_UIVR);
-		mcf_mapirq2imr(irq, MCFINTC_UART1);
-	}
-}
-
 static void __init m5307_uarts_init(void)
 {
-	const int nrlines = ARRAY_SIZE(m5307_uart_platform);
-	int line;
+	/* UART0 interrupt setup */
+	writeb(MCFSIM_ICR_LEVEL6 | MCFSIM_ICR_PRI1, MCF_MBAR + MCFSIM_UART1ICR);
+	writeb(MCF_IRQ_UART0, MCFUART_BASE0 + MCFUART_UIVR);
+	mcf_mapirq2imr(MCF_IRQ_UART0, MCFINTC_UART0);
 
-	for (line = 0; (line < nrlines); line++)
-		m5307_uart_init_line(line, m5307_uart_platform[line].irq);
+	/* UART1 interrupt setup */
+	writeb(MCFSIM_ICR_LEVEL6 | MCFSIM_ICR_PRI2, MCF_MBAR + MCFSIM_UART2ICR);
+	writeb(MCF_IRQ_UART1, MCFUART_BASE1 + MCFUART_UIVR);
+	mcf_mapirq2imr(MCF_IRQ_UART1, MCFINTC_UART1);
 }
 
 /***************************************************************************/
