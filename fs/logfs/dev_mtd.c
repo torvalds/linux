@@ -120,7 +120,7 @@ static void logfs_mtd_sync(struct super_block *sb)
 	struct mtd_info *mtd = logfs_super(sb)->s_mtd;
 
 	if (mtd->sync)
-		mtd->sync(mtd);
+		mtd_sync(mtd);
 }
 
 static int logfs_mtd_readpage(void *_sb, struct page *page)

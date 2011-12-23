@@ -206,14 +206,12 @@ struct mtd_info {
 				   size_t len);
 	int (*writev) (struct mtd_info *mtd, const struct kvec *vecs,
 			unsigned long count, loff_t to, size_t *retlen);
+	void (*sync) (struct mtd_info *mtd);
 
 	/* Backing device capabilities for this device
 	 * - provides mmap capabilities
 	 */
 	struct backing_dev_info *backing_dev_info;
-
-	/* Sync */
-	void (*sync) (struct mtd_info *mtd);
 
 	/* Chip-supported device locking */
 	int (*lock) (struct mtd_info *mtd, loff_t ofs, uint64_t len);
@@ -379,6 +377,11 @@ static inline int mtd_writev(struct mtd_info *mtd, const struct kvec *vecs,
 			     unsigned long count, loff_t to, size_t *retlen)
 {
 	return mtd->writev(mtd, vecs, count, to, retlen);
+}
+
+static inline void mtd_sync(struct mtd_info *mtd)
+{
+	mtd->sync(mtd);
 }
 
 static inline struct mtd_info *dev_to_mtd(struct device *dev)
