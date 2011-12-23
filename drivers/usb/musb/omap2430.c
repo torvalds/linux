@@ -491,11 +491,13 @@ static int omap2430_runtime_suspend(struct device *dev)
 	struct omap2430_glue		*glue = dev_get_drvdata(dev);
 	struct musb			*musb = glue_to_musb(glue);
 
-	musb->context.otg_interfsel = musb_readl(musb->mregs,
-						OTG_INTERFSEL);
+	if (musb) {
+		musb->context.otg_interfsel = musb_readl(musb->mregs,
+				OTG_INTERFSEL);
 
-	omap2430_low_level_exit(musb);
-	usb_phy_set_suspend(musb->xceiv, 1);
+		omap2430_low_level_exit(musb);
+		usb_phy_set_suspend(musb->xceiv, 1);
+	}
 
 	return 0;
 }
@@ -505,11 +507,13 @@ static int omap2430_runtime_resume(struct device *dev)
 	struct omap2430_glue		*glue = dev_get_drvdata(dev);
 	struct musb			*musb = glue_to_musb(glue);
 
-	omap2430_low_level_init(musb);
-	musb_writel(musb->mregs, OTG_INTERFSEL,
-					musb->context.otg_interfsel);
+	if (musb) {
+		omap2430_low_level_init(musb);
+		musb_writel(musb->mregs, OTG_INTERFSEL,
+				musb->context.otg_interfsel);
 
-	usb_phy_set_suspend(musb->xceiv, 0);
+		usb_phy_set_suspend(musb->xceiv, 0);
+	}
 
 	return 0;
 }
