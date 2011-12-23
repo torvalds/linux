@@ -59,32 +59,17 @@ static struct platform_device *m54xx_devices[] __initdata = {
 
 /***************************************************************************/
 
-static void __init m54xx_uart_init_line(int line, int irq)
-{
-	int rts_cts;
-
-	/* enable io pins */
-	switch (line) {
-	case 0:
-		rts_cts = 0; break;
-	case 1:
-		rts_cts = MCF_PAR_PSC_RTS_RTS; break;
-	case 2:
-		rts_cts = MCF_PAR_PSC_RTS_RTS | MCF_PAR_PSC_CTS_CTS; break;
-	case 3:
-		rts_cts = 0; break;
-	}
-	__raw_writeb(MCF_PAR_PSC_TXD | rts_cts | MCF_PAR_PSC_RXD,
-						MCF_MBAR + MCF_PAR_PSC(line));
-}
-
 static void __init m54xx_uarts_init(void)
 {
-	const int nrlines = ARRAY_SIZE(m54xx_uart_platform);
-	int line;
-
-	for (line = 0; (line < nrlines); line++)
-		m54xx_uart_init_line(line, m54xx_uart_platform[line].irq);
+	/* enable io pins */
+	__raw_writeb(MCF_PAR_PSC_TXD | MCF_PAR_PSC_RXD,
+		MCF_MBAR + MCF_PAR_PSC(0));
+	__raw_writeb(MCF_PAR_PSC_TXD | MCF_PAR_PSC_RXD | MCF_PAR_PSC_RTS_RTS,
+		MCF_MBAR + MCF_PAR_PSC(1));
+	__raw_writeb(MCF_PAR_PSC_TXD | MCF_PAR_PSC_RXD | MCF_PAR_PSC_RTS_RTS |
+		MCF_PAR_PSC_CTS_CTS, MCF_MBAR + MCF_PAR_PSC(2));
+	__raw_writeb(MCF_PAR_PSC_TXD | MCF_PAR_PSC_RXD,
+		MCF_MBAR + MCF_PAR_PSC(3));
 }
 
 /***************************************************************************/
