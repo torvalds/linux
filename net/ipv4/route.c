@@ -1367,7 +1367,7 @@ void __ip_select_ident(struct iphdr *iph, struct dst_entry *dst, int more)
 {
 	struct rtable *rt = (struct rtable *) dst;
 
-	if (rt) {
+	if (rt && !(rt->dst.flags & DST_NOPEER)) {
 		if (rt->peer == NULL)
 			rt_bind_peer(rt, rt->rt_dst, 1);
 
@@ -1378,7 +1378,7 @@ void __ip_select_ident(struct iphdr *iph, struct dst_entry *dst, int more)
 			iph->id = htons(inet_getid(rt->peer, more));
 			return;
 		}
-	} else
+	} else if (!rt)
 		printk(KERN_DEBUG "rt_bind_peer(0) @%p\n",
 		       __builtin_return_address(0));
 
