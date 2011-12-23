@@ -32,9 +32,6 @@ struct nf_nat_protocol {
 			     enum nf_nat_manip_type maniptype,
 			     const struct nf_conn *ct);
 
-	int (*range_to_nlattr)(struct sk_buff *skb,
-			       const struct nf_nat_ipv4_range *range);
-
 	int (*nlattr_to_range)(struct nlattr *tb[],
 			       struct nf_nat_ipv4_range *range);
 };
@@ -64,8 +61,6 @@ extern void nf_nat_proto_unique_tuple(struct nf_conntrack_tuple *tuple,
 				      const struct nf_conn *ct,
 				      u_int16_t *rover);
 
-extern int nf_nat_proto_range_to_nlattr(struct sk_buff *skb,
-					const struct nf_nat_ipv4_range *range);
 extern int nf_nat_proto_nlattr_to_range(struct nlattr *tb[],
 					struct nf_nat_ipv4_range *range);
 

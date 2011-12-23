@@ -96,18 +96,6 @@ void nf_nat_proto_unique_tuple(struct nf_conntrack_tuple *tuple,
 EXPORT_SYMBOL_GPL(nf_nat_proto_unique_tuple);
 
 #if defined(CONFIG_NF_CT_NETLINK) || defined(CONFIG_NF_CT_NETLINK_MODULE)
-int nf_nat_proto_range_to_nlattr(struct sk_buff *skb,
-				 const struct nf_nat_ipv4_range *range)
-{
-	NLA_PUT_BE16(skb, CTA_PROTONAT_PORT_MIN, range->min.all);
-	NLA_PUT_BE16(skb, CTA_PROTONAT_PORT_MAX, range->max.all);
-	return 0;
-
-nla_put_failure:
-	return -1;
-}
-EXPORT_SYMBOL_GPL(nf_nat_proto_nlattr_to_range);
-
 int nf_nat_proto_nlattr_to_range(struct nlattr *tb[],
 				 struct nf_nat_ipv4_range *range)
 {
@@ -122,5 +110,5 @@ int nf_nat_proto_nlattr_to_range(struct nlattr *tb[],
 	}
 	return 0;
 }
-EXPORT_SYMBOL_GPL(nf_nat_proto_range_to_nlattr);
+EXPORT_SYMBOL_GPL(nf_nat_proto_nlattr_to_range);
 #endif

@@ -123,7 +123,6 @@ static const struct nf_nat_protocol gre = {
 	.in_range		= nf_nat_proto_in_range,
 	.unique_tuple		= gre_unique_tuple,
 #if defined(CONFIG_NF_CT_NETLINK) || defined(CONFIG_NF_CT_NETLINK_MODULE)
-	.range_to_nlattr	= nf_nat_proto_range_to_nlattr,
 	.nlattr_to_range	= nf_nat_proto_nlattr_to_range,
 #endif
 };
