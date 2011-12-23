@@ -32,6 +32,7 @@ static struct snd_soc_dai_link txx9aclc_generic_dai = {
 
 static struct snd_soc_card txx9aclc_generic_card = {
 	.name		= "Generic TXx9 ACLC Audio",
+	.owner		= THIS_MODULE,
 	.dai_link	= &txx9aclc_generic_dai,
 	.num_links	= 1,
 };
