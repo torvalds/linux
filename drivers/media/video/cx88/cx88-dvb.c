@@ -818,6 +818,7 @@ static const u8 samsung_smt_7020_inittab[] = {
 static int samsung_smt_7020_tuner_set_params(struct dvb_frontend *fe,
 	struct dvb_frontend_parameters *params)
 {
+	struct dtv_frontend_properties *c = &fe->dtv_property_cache;
 	struct cx8802_dev *dev = fe->dvb->priv;
 	u8 buf[4];
 	u32 div;
@@ -827,14 +828,14 @@ static int samsung_smt_7020_tuner_set_params(struct dvb_frontend *fe,
 		.buf = buf,
 		.len = sizeof(buf) };
 
-	div = params->frequency / 125;
+	div = c->frequency / 125;
 
 	buf[0] = (div >> 8) & 0x7f;
 	buf[1] = div & 0xff;
 	buf[2] = 0x84;  /* 0xC4 */
 	buf[3] = 0x00;
 
-	if (params->frequency < 1500000)
+	if (c->frequency < 1500000)
 		buf[3] |= 0x10;
 
 	if (fe->ops.i2c_gate_ctrl)
