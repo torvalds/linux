@@ -234,6 +234,7 @@ static int wm8776_hw_params(struct snd_pcm_substream *substream,
 	switch (snd_pcm_format_width(params_format(params))) {
 	case 16:
 		iface = 0;
+		break;
 	case 20:
 		iface = 0x10;
 		break;
