@@ -202,13 +202,13 @@ struct mtd_info {
 				   size_t len, size_t *retlen, u_char *buf);
 	int (*write_user_prot_reg) (struct mtd_info *mtd, loff_t to, size_t len,
 				    size_t *retlen, u_char *buf);
+	int (*lock_user_prot_reg) (struct mtd_info *mtd, loff_t from,
+				   size_t len);
 
 	/* Backing device capabilities for this device
 	 * - provides mmap capabilities
 	 */
 	struct backing_dev_info *backing_dev_info;
-
-	int (*lock_user_prot_reg) (struct mtd_info *mtd, loff_t from, size_t len);
 
 	/* kvec-based read/write methods.
 	   NB: The 'count' parameter is the number of _vectors_, each of
@@ -367,6 +367,12 @@ static inline int mtd_write_user_prot_reg(struct mtd_info *mtd, loff_t to,
 					  u_char *buf)
 {
 	return mtd->write_user_prot_reg(mtd, to, len, retlen, buf);
+}
+
+static inline int mtd_lock_user_prot_reg(struct mtd_info *mtd, loff_t from,
+					 size_t len)
+{
+	return mtd->lock_user_prot_reg(mtd, from, len);
 }
 
 static inline struct mtd_info *dev_to_mtd(struct device *dev)
