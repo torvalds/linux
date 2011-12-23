@@ -85,29 +85,18 @@ static struct platform_device *m5272_devices[] __initdata = {
 
 /***************************************************************************/
 
-static void __init m5272_uart_init_line(int line, int irq)
+static void __init m5272_uarts_init(void)
 {
 	u32 v;
 
-	if ((line >= 0) && (line < 2)) {
-		/* Enable the output lines for the serial ports */
-		v = readl(MCF_MBAR + MCFSIM_PBCNT);
-		v = (v & ~0x000000ff) | 0x00000055;
-		writel(v, MCF_MBAR + MCFSIM_PBCNT);
+	/* Enable the output lines for the serial ports */
+	v = readl(MCF_MBAR + MCFSIM_PBCNT);
+	v = (v & ~0x000000ff) | 0x00000055;
+	writel(v, MCF_MBAR + MCFSIM_PBCNT);
 
-		v = readl(MCF_MBAR + MCFSIM_PDCNT);
-		v = (v & ~0x000003fc) | 0x000002a8;
-		writel(v, MCF_MBAR + MCFSIM_PDCNT);
-	}
-}
-
-static void __init m5272_uarts_init(void)
-{
-	const int nrlines = ARRAY_SIZE(m5272_uart_platform);
-	int line;
-
-	for (line = 0; (line < nrlines); line++)
-		m5272_uart_init_line(line, m5272_uart_platform[line].irq);
+	v = readl(MCF_MBAR + MCFSIM_PDCNT);
+	v = (v & ~0x000003fc) | 0x000002a8;
+	writel(v, MCF_MBAR + MCFSIM_PDCNT);
 }
 
 /***************************************************************************/
