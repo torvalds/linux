@@ -887,6 +887,16 @@ config NETFILTER_XT_MATCH_MULTIPORT
 
 	  To compile it as a module, choose M here.  If unsure, say N.
 
+config NETFILTER_XT_MATCH_NFACCT
+	tristate '"nfacct" match support'
+	default m if NETFILTER_ADVANCED=n
+	select NETFILTER_NETLINK_ACCT
+	help
+	  This option allows you to use the extended accounting through
+	  nfnetlink_acct.
+
+	  To compile it as a module, choose M here.  If unsure, say N.
+
 config NETFILTER_XT_MATCH_OSF
 	tristate '"osf" Passive OS fingerprint match'
 	depends on NETFILTER_ADVANCED && NETFILTER_NETLINK

@@ -23,6 +23,7 @@ header-y += xt_DSCP.h
 header-y += xt_IDLETIMER.h
 header-y += xt_LED.h
 header-y += xt_MARK.h
+header-y += xt_nfacct.h
 header-y += xt_NFLOG.h
 header-y += xt_NFQUEUE.h
 header-y += xt_RATEEST.h
