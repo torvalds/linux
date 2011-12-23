@@ -112,7 +112,7 @@ static int erase_eraseblock(int ebnum)
 	ei.addr = addr;
 	ei.len  = mtd->erasesize;
 
-	err = mtd->erase(mtd, &ei);
+	err = mtd_erase(mtd, &ei);
 	if (unlikely(err)) {
 		printk(PRINT_PREF "error %d while erasing EB %d\n", err, ebnum);
 		return err;

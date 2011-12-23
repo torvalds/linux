@@ -326,7 +326,7 @@ int NFTL_formatblock(struct NFTLrecord *nftl, int block)
 	instr->mtd = nftl->mbd.mtd;
 	instr->addr = block * nftl->EraseSize;
 	instr->len = nftl->EraseSize;
-	mtd->erase(mtd, instr);
+	mtd_erase(mtd, instr);
 
 	if (instr->state == MTD_ERASE_FAILED) {
 		printk("Error while formatting block %d\n", block);

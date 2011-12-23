@@ -361,7 +361,7 @@ retry:
 	ei.callback = erase_callback;
 	ei.priv     = (unsigned long)&wq;
 
-	err = ubi->mtd->erase(ubi->mtd, &ei);
+	err = mtd_erase(ubi->mtd, &ei);
 	if (err) {
 		if (retries++ < UBI_IO_RETRIES) {
 			dbg_io("error %d while erasing PEB %d, retry",

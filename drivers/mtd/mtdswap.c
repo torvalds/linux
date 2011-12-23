@@ -567,7 +567,7 @@ retry:
 	erase.len	= mtd->erasesize;
 	erase.priv	= (u_long)&wq;
 
-	ret = mtd->erase(mtd, &erase);
+	ret = mtd_erase(mtd, &erase);
 	if (ret) {
 		if (retries++ < MTDSWAP_ERASE_RETRIES) {
 			dev_warn(d->dev,

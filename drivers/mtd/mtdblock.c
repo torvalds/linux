@@ -85,7 +85,7 @@ static int erase_write (struct mtd_info *mtd, unsigned long pos,
 	set_current_state(TASK_INTERRUPTIBLE);
 	add_wait_queue(&wait_q, &wait);
 
-	ret = mtd->erase(mtd, &erase);
+	ret = mtd_erase(mtd, &erase);
 	if (ret) {
 		set_current_state(TASK_RUNNING);
 		remove_wait_queue(&wait_q, &wait);

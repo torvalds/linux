@@ -355,7 +355,7 @@ static int erase_xfer(partition_t *part,
     erase->len = 1 << part->header.EraseUnitSize;
     erase->priv = (u_long)part;
 
-    ret = part->mbd.mtd->erase(part->mbd.mtd, erase);
+    ret = mtd_erase(part->mbd.mtd, erase);
 
     if (!ret)
 	    xfer->EraseCount++;

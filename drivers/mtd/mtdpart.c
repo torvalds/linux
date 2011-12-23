@@ -257,7 +257,7 @@ static int part_erase(struct mtd_info *mtd, struct erase_info *instr)
 	if (instr->addr >= mtd->size)
 		return -EINVAL;
 	instr->addr += part->offset;
-	ret = part->master->erase(part->master, instr);
+	ret = mtd_erase(part->master, instr);
 	if (ret) {
 		if (instr->fail_addr != MTD_FAIL_ADDR_UNKNOWN)
 			instr->fail_addr -= part->offset;

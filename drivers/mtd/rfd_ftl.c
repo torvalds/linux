@@ -342,7 +342,7 @@ static int erase_block(struct partition *part, int block)
 	part->blocks[block].state = BLOCK_ERASING;
 	part->blocks[block].free_sectors = 0;
 
-	rc = part->mbd.mtd->erase(part->mbd.mtd, erase);
+	rc = mtd_erase(part->mbd.mtd, erase);
 
 	if (rc) {
 		printk(KERN_ERR PREFIX "erase of region %llx,%llx on '%s' "

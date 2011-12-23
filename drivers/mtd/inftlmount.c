@@ -220,7 +220,7 @@ static int find_boot_record(struct INFTLrecord *inftl)
 				 */
 				instr->addr = ip->Reserved0 * inftl->EraseSize;
 				instr->len = inftl->EraseSize;
-				mtd->erase(mtd, instr);
+				mtd_erase(mtd, instr);
 			}
 			if ((ip->lastUnit - ip->firstUnit + 1) < ip->virtualUnits) {
 				printk(KERN_WARNING "INFTL: Media Header "
@@ -393,7 +393,7 @@ int INFTL_formatblock(struct INFTLrecord *inftl, int block)
 	   mark only the failed block in the bbt. */
 	for (physblock = 0; physblock < inftl->EraseSize;
 	     physblock += instr->len, instr->addr += instr->len) {
-		mtd->erase(inftl->mbd.mtd, instr);
+		mtd_erase(inftl->mbd.mtd, instr);
 
 		if (instr->state == MTD_ERASE_FAILED) {
 			printk(KERN_WARNING "INFTL: error while formatting block %d\n",

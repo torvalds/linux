@@ -79,7 +79,7 @@ static int erase_eraseblock(int ebnum)
 	ei.addr = addr;
 	ei.len  = mtd->erasesize;
 
-	err = mtd->erase(mtd, &ei);
+	err = mtd_erase(mtd, &ei);
 	if (err) {
 		printk(PRINT_PREF "error %d while erasing EB %d\n", err, ebnum);
 		return err;
@@ -105,7 +105,7 @@ static int multiblock_erase(int ebnum, int blocks)
 	ei.addr = addr;
 	ei.len  = mtd->erasesize * blocks;
 
-	err = mtd->erase(mtd, &ei);
+	err = mtd_erase(mtd, &ei);
 	if (err) {
 		printk(PRINT_PREF "error %d while erasing EB %d, blocks %d\n",
 		       err, ebnum, blocks);

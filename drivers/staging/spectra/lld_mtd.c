@@ -188,7 +188,7 @@ u16 mtd_Erase_Block(u32 block_add)
 	erase.len = spectra_mtd->erasesize;
 	erase.priv = (unsigned long)&comp;
 
-	ret = spectra_mtd->erase(spectra_mtd, &erase);
+	ret = mtd_erase(spectra_mtd, &erase);
 	if (!ret) {
 		wait_for_completion(&comp);
 		if (erase.state != MTD_ERASE_DONE)

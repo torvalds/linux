@@ -479,7 +479,7 @@ static int sm_erase_block(struct sm_ftl *ftl, int zone_num, uint16_t block,
 		return -EIO;
 	}
 
-	if (mtd->erase(mtd, &erase)) {
+	if (mtd_erase(mtd, &erase)) {
 		sm_printk("erase of block %d in zone %d failed",
 							block, zone_num);
 		goto error;

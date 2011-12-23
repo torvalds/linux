@@ -731,7 +731,7 @@ static int mtdchar_ioctl(struct file *file, u_int cmd, u_long arg)
 			  wq_head is no longer there when the
 			  callback routine tries to wake us up.
 			*/
-			ret = mtd->erase(mtd, erase);
+			ret = mtd_erase(mtd, erase);
 			if (!ret) {
 				set_current_state(TASK_UNINTERRUPTIBLE);
 				add_wait_queue(&waitq, &wait);

@@ -105,7 +105,7 @@ static int logfs_mtd_erase(struct super_block *sb, loff_t ofs, size_t len,
 	ei.len = len;
 	ei.callback = logfs_erase_callback;
 	ei.priv = (long)&complete;
-	ret = mtd->erase(mtd, &ei);
+	ret = mtd_erase(mtd, &ei);
 	if (ret)
 		return -EIO;
 

@@ -74,7 +74,7 @@ static void jffs2_erase_block(struct jffs2_sb_info *c,
 	((struct erase_priv_struct *)instr->priv)->jeb = jeb;
 	((struct erase_priv_struct *)instr->priv)->c = c;
 
-	ret = c->mtd->erase(c->mtd, instr);
+	ret = mtd_erase(c->mtd, instr);
 	if (!ret)
 		return;
 

@@ -112,7 +112,7 @@ static int mtdoops_erase_block(struct mtdoops_context *cxt, int offset)
 	set_current_state(TASK_INTERRUPTIBLE);
 	add_wait_queue(&wait_q, &wait);
 
-	ret = mtd->erase(mtd, &erase);
+	ret = mtd_erase(mtd, &erase);
 	if (ret) {
 		set_current_state(TASK_RUNNING);
 		remove_wait_queue(&wait_q, &wait);

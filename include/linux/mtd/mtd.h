@@ -171,11 +171,8 @@ struct mtd_info {
 	struct mtd_erase_region_info *eraseregions;
 
 	/*
-	 * Erase is an asynchronous operation.  Device drivers are supposed
-	 * to call instr->callback() whenever the operation completes, even
-	 * if it completes with a failure.
-	 * Callers are supposed to pass a callback function and wait for it
-	 * to be called before writing to the block.
+	 * Do not call via these pointers, use corresponding mtd_*()
+	 * wrappers instead.
 	 */
 	int (*erase) (struct mtd_info *mtd, struct erase_info *instr);
 
@@ -273,6 +270,18 @@ struct mtd_info {
 	int (*get_device) (struct mtd_info *mtd);
 	void (*put_device) (struct mtd_info *mtd);
 };
+
+/*
+ * Erase is an asynchronous operation.  Device drivers are supposed
+ * to call instr->callback() whenever the operation completes, even
+ * if it completes with a failure.
+ * Callers are supposed to pass a callback function and wait for it
+ * to be called before writing to the block.
+ */
+static inline int mtd_erase(struct mtd_info *mtd, struct erase_info *instr)
+{
+	return mtd->erase(mtd, instr);
+}
 
 static inline struct mtd_info *dev_to_mtd(struct device *dev)
 {
