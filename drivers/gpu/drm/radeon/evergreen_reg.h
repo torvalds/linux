@@ -199,4 +199,9 @@
 #define EVERGREEN_DC_GPIO_HPD_EN                        0x64b8
 #define EVERGREEN_DC_GPIO_HPD_Y                         0x64bc
 
+/* HDMI blocks at 0x7030, 0x7c30, 0x10830, 0x11430, 0x12030, 0x12c30 */
+#define EVERGREEN_HDMI_BASE				0x7030
+
+#define EVERGREEN_HDMI_CONFIG_OFFSET			0xf0
+
 #endif

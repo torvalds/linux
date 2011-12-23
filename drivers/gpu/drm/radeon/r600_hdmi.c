@@ -313,7 +313,7 @@ void r600_hdmi_setmode(struct drm_encoder *encoder, struct drm_display_mode *mod
 	struct radeon_device *rdev = dev->dev_private;
 	uint32_t offset = to_radeon_encoder(encoder)->hdmi_offset;
 
-	if (ASIC_IS_DCE4(rdev))
+	if (ASIC_IS_DCE5(rdev))
 		return;
 
 	if (!offset)
@@ -455,6 +455,15 @@ static void r600_hdmi_assign_block(struct drm_encoder *encoder)
 	struct radeon_encoder *radeon_encoder = to_radeon_encoder(encoder);
 	struct radeon_encoder_atom_dig *dig = radeon_encoder->enc_priv;
 
+	u16 eg_offsets[] = {
+		EVERGREEN_CRTC0_REGISTER_OFFSET,
+		EVERGREEN_CRTC1_REGISTER_OFFSET,
+		EVERGREEN_CRTC2_REGISTER_OFFSET,
+		EVERGREEN_CRTC3_REGISTER_OFFSET,
+		EVERGREEN_CRTC4_REGISTER_OFFSET,
+		EVERGREEN_CRTC5_REGISTER_OFFSET,
+	};
+
 	if (!dig) {
 		dev_err(rdev->dev, "Enabling HDMI on non-dig encoder\n");
 		return;
@@ -463,7 +472,14 @@ static void r600_hdmi_assign_block(struct drm_encoder *encoder)
 	if (ASIC_IS_DCE5(rdev)) {
 		/* TODO */
 	} else if (ASIC_IS_DCE4(rdev)) {
-		/* TODO */
+		if (dig->dig_encoder >= ARRAY_SIZE(eg_offsets)) {
+			dev_err(rdev->dev, "Enabling HDMI on unknown dig\n");
+			return;
+		}
+		radeon_encoder->hdmi_offset = EVERGREEN_HDMI_BASE +
+						eg_offsets[dig->dig_encoder];
+		radeon_encoder->hdmi_config_offset = radeon_encoder->hdmi_offset
+						+ EVERGREEN_HDMI_CONFIG_OFFSET;
 	} else if (ASIC_IS_DCE3(rdev)) {
 		radeon_encoder->hdmi_offset = dig->dig_encoder ?
 			R600_HDMI_BLOCK3 : R600_HDMI_BLOCK1;
@@ -486,7 +502,7 @@ void r600_hdmi_enable(struct drm_encoder *encoder)
 	struct radeon_encoder *radeon_encoder = to_radeon_encoder(encoder);
 	uint32_t offset;
 
-	if (ASIC_IS_DCE4(rdev))
+	if (ASIC_IS_DCE5(rdev))
 		return;
 
 	if (!radeon_encoder->hdmi_offset) {
@@ -502,7 +518,7 @@ void r600_hdmi_enable(struct drm_encoder *encoder)
 	if (ASIC_IS_DCE5(rdev)) {
 		/* TODO */
 	} else if (ASIC_IS_DCE4(rdev)) {
-		/* TODO */
+		WREG32_P(radeon_encoder->hdmi_config_offset + 0xc, 0x1, ~0x1);
 	} else if (ASIC_IS_DCE32(rdev)) {
 		WREG32_P(radeon_encoder->hdmi_config_offset + 0x4, 0x1, ~0x1);
 	} else if (ASIC_IS_DCE3(rdev)) {
@@ -526,8 +542,8 @@ void r600_hdmi_enable(struct drm_encoder *encoder)
 	if (rdev->irq.installed
 	    && rdev->family != CHIP_RS600
 	    && rdev->family != CHIP_RS690
-	    && rdev->family != CHIP_RS740) {
-
+	    && rdev->family != CHIP_RS740
+	    && !ASIC_IS_DCE4(rdev)) {
 		/* if irq is available use it */
 		rdev->irq.hdmi[offset == R600_HDMI_BLOCK1 ? 0 : 1] = true;
 		radeon_irq_set(rdev);
@@ -552,7 +568,7 @@ void r600_hdmi_disable(struct drm_encoder *encoder)
 	struct radeon_encoder *radeon_encoder = to_radeon_encoder(encoder);
 	uint32_t offset;
 
-	if (ASIC_IS_DCE4(rdev))
+	if (ASIC_IS_DCE5(rdev))
 		return;
 
 	offset = radeon_encoder->hdmi_offset;
@@ -571,7 +587,11 @@ void r600_hdmi_disable(struct drm_encoder *encoder)
 	/* disable polling */
 	r600_audio_disable_polling(encoder);
 
-	if (ASIC_IS_DCE32(rdev) && !ASIC_IS_DCE4(rdev)) {
+	if (ASIC_IS_DCE5(rdev)) {
+		/* TODO */
+	} else if (ASIC_IS_DCE4(rdev)) {
+		WREG32_P(radeon_encoder->hdmi_config_offset + 0xc, 0, ~0x1);
+	} else if (ASIC_IS_DCE32(rdev)) {
 		WREG32_P(radeon_encoder->hdmi_config_offset + 0x4, 0, ~0x1);
 	} else if (rdev->family >= CHIP_R600 && !ASIC_IS_DCE3(rdev)) {
 		switch (radeon_encoder->encoder_id) {
