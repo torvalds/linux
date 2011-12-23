@@ -20,7 +20,7 @@ static int logfs_mtd_read(struct super_block *sb, loff_t ofs, size_t len,
 	size_t retlen;
 	int ret;
 
-	ret = mtd->read(mtd, ofs, len, &retlen, buf);
+	ret = mtd_read(mtd, ofs, len, &retlen, buf);
 	BUG_ON(ret == -EINVAL);
 	if (ret)
 		return ret;

@@ -258,8 +258,8 @@ static void find_next_position(struct mtdoops_context *cxt)
 			continue;
 		/* Assume the page is used */
 		mark_page_used(cxt, page);
-		ret = mtd->read(mtd, page * record_size, MTDOOPS_HEADER_SIZE,
-				&retlen, (u_char *) &count[0]);
+		ret = mtd_read(mtd, page * record_size, MTDOOPS_HEADER_SIZE,
+			       &retlen, (u_char *)&count[0]);
 		if (retlen != MTDOOPS_HEADER_SIZE ||
 				(ret < 0 && !mtd_is_bitflip(ret))) {
 			printk(KERN_ERR "mtdoops: read failure at %ld (%td of %d read), err %d\n",

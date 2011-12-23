@@ -201,7 +201,7 @@ static int read_bbt(struct mtd_info *mtd, uint8_t *buf, int page, int num,
 			from += marker_len;
 			marker_len = 0;
 		}
-		res = mtd->read(mtd, from, len, &retlen, buf);
+		res = mtd_read(mtd, from, len, &retlen, buf);
 		if (res < 0) {
 			if (mtd_is_eccerr(res)) {
 				pr_info("nand_bbt: ECC error in BBT at "
@@ -298,7 +298,7 @@ static int scan_read_raw_data(struct mtd_info *mtd, uint8_t *buf, loff_t offs,
 	if (td->options & NAND_BBT_VERSION)
 		len++;
 
-	return mtd->read(mtd, offs, len, &retlen, buf);
+	return mtd_read(mtd, offs, len, &retlen, buf);
 }
 
 /* Scan read raw data from flash */
@@ -756,7 +756,7 @@ static int write_bbt(struct mtd_info *mtd, uint8_t *buf,
 			/* Make it block aligned */
 			to &= ~((loff_t)((1 << this->bbt_erase_shift) - 1));
 			len = 1 << this->bbt_erase_shift;
-			res = mtd->read(mtd, to, len, &retlen, buf);
+			res = mtd_read(mtd, to, len, &retlen, buf);
 			if (res < 0) {
 				if (retlen != len) {
 					pr_info("nand_bbt: error reading block "

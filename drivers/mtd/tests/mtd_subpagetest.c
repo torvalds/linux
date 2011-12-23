@@ -196,7 +196,7 @@ static int verify_eraseblock(int ebnum)
 	set_random_data(writebuf, subpgsize);
 	clear_data(readbuf, subpgsize);
 	read = 0;
-	err = mtd->read(mtd, addr, subpgsize, &read, readbuf);
+	err = mtd_read(mtd, addr, subpgsize, &read, readbuf);
 	if (unlikely(err || read != subpgsize)) {
 		if (mtd_is_bitflip(err) && read == subpgsize) {
 			printk(PRINT_PREF "ECC correction at %#llx\n",
@@ -224,7 +224,7 @@ static int verify_eraseblock(int ebnum)
 	set_random_data(writebuf, subpgsize);
 	clear_data(readbuf, subpgsize);
 	read = 0;
-	err = mtd->read(mtd, addr, subpgsize, &read, readbuf);
+	err = mtd_read(mtd, addr, subpgsize, &read, readbuf);
 	if (unlikely(err || read != subpgsize)) {
 		if (mtd_is_bitflip(err) && read == subpgsize) {
 			printk(PRINT_PREF "ECC correction at %#llx\n",
@@ -262,7 +262,7 @@ static int verify_eraseblock2(int ebnum)
 		set_random_data(writebuf, subpgsize * k);
 		clear_data(readbuf, subpgsize * k);
 		read = 0;
-		err = mtd->read(mtd, addr, subpgsize * k, &read, readbuf);
+		err = mtd_read(mtd, addr, subpgsize * k, &read, readbuf);
 		if (unlikely(err || read != subpgsize * k)) {
 			if (mtd_is_bitflip(err) && read == subpgsize * k) {
 				printk(PRINT_PREF "ECC correction at %#llx\n",
@@ -296,7 +296,7 @@ static int verify_eraseblock_ff(int ebnum)
 	for (j = 0; j < mtd->erasesize / subpgsize; ++j) {
 		clear_data(readbuf, subpgsize);
 		read = 0;
-		err = mtd->read(mtd, addr, subpgsize, &read, readbuf);
+		err = mtd_read(mtd, addr, subpgsize, &read, readbuf);
 		if (unlikely(err || read != subpgsize)) {
 			if (mtd_is_bitflip(err) && read == subpgsize) {
 				printk(PRINT_PREF "ECC correction at %#llx\n",

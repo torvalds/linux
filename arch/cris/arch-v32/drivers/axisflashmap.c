@@ -413,8 +413,8 @@ static int __init init_axis_flash(void)
 		} while (blockstat && ptable_sector);
 #endif
 		if (ptable_sector) {
-			main_mtd->read(main_mtd, ptable_sector, PAGESIZE,
-				&len, page);
+			mtd_read(main_mtd, ptable_sector, PAGESIZE, &len,
+				 page);
 			ptable_head = &((struct partitiontable *) page)->head;
 		}
 

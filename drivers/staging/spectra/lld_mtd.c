@@ -283,9 +283,11 @@ u16 mtd_Read_Page_Main(u8 *read_data, u32 Block,
 
 
 	while (PageCount) {
-		ret = spectra_mtd->read(spectra_mtd,
-					(Block * spectra_mtd->erasesize) + (Page * spectra_mtd->writesize),
-					DeviceInfo.wPageDataSize, &retlen, read_data);
+		ret = mtd_read(spectra_mtd,
+			       (Block * spectra_mtd->erasesize) + (Page * spectra_mtd->writesize),
+			       DeviceInfo.wPageDataSize,
+			       &retlen,
+			       read_data);
 		if (ret) {
 			printk(KERN_ERR "%s failed %d\n", __func__, ret);
 			return FAIL;

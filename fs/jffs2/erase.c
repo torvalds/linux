@@ -381,7 +381,7 @@ static int jffs2_block_check_erase(struct jffs2_sb_info *c, struct jffs2_erasebl
 
 		*bad_offset = ofs;
 
-		ret = c->mtd->read(c->mtd, ofs, readlen, &retlen, ebuf);
+		ret = mtd_read(c->mtd, ofs, readlen, &retlen, ebuf);
 		if (ret) {
 			printk(KERN_WARNING "Read of newly-erased block at 0x%08x failed: %d. Putting on bad_list\n", ofs, ret);
 			ret = -EIO;

@@ -153,7 +153,7 @@ static int do_read(void)
 			len = mtd->erasesize - offs;
 	}
 	addr = eb * mtd->erasesize + offs;
-	err = mtd->read(mtd, addr, len, &read, readbuf);
+	err = mtd_read(mtd, addr, len, &read, readbuf);
 	if (mtd_is_bitflip(err))
 		err = 0;
 	if (unlikely(err || read != len)) {

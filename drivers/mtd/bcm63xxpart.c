@@ -48,8 +48,8 @@ static int bcm63xx_detect_cfe(struct mtd_info *master)
 	int ret;
 	size_t retlen;
 
-	ret = master->read(master, BCM963XX_CFE_VERSION_OFFSET, 5, &retlen,
-			   (void *)buf);
+	ret = mtd_read(master, BCM963XX_CFE_VERSION_OFFSET, 5, &retlen,
+		       (void *)buf);
 	buf[retlen] = 0;
 
 	if (ret)
@@ -59,8 +59,8 @@ static int bcm63xx_detect_cfe(struct mtd_info *master)
 		return 0;
 
 	/* very old CFE's do not have the cfe-v string, so check for magic */
-	ret = master->read(master, BCM63XX_CFE_MAGIC_OFFSET, 8, &retlen,
-			   (void *)buf);
+	ret = mtd_read(master, BCM63XX_CFE_MAGIC_OFFSET, 8, &retlen,
+		       (void *)buf);
 	buf[retlen] = 0;
 
 	return strncmp("CFE1CFE1", buf, 8);
@@ -95,8 +95,8 @@ static int bcm63xx_parse_cfe_partitions(struct mtd_info *master,
 		return -ENOMEM;
 
 	/* Get the tag */
-	ret = master->read(master, cfelen, sizeof(struct bcm_tag), &retlen,
-			   (void *)buf);
+	ret = mtd_read(master, cfelen, sizeof(struct bcm_tag), &retlen,
+		       (void *)buf);
 
 	if (retlen != sizeof(struct bcm_tag)) {
 		vfree(buf);

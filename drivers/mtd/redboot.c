@@ -104,8 +104,8 @@ static int parse_redboot_partitions(struct mtd_info *master,
 	printk(KERN_NOTICE "Searching for RedBoot partition table in %s at offset 0x%lx\n",
 	       master->name, offset);
 
-	ret = master->read(master, offset,
-			   master->erasesize, &retlen, (void *)buf);
+	ret = mtd_read(master, offset, master->erasesize, &retlen,
+		       (void *)buf);
 
 	if (ret)
 		goto out;

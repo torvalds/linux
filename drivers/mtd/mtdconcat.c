@@ -91,7 +91,7 @@ concat_read(struct mtd_info *mtd, loff_t from, size_t len,
 			/* Entire transaction goes into this subdev */
 			size = len;
 
-		err = subdev->read(subdev, from, size, &retsize, buf);
+		err = mtd_read(subdev, from, size, &retsize, buf);
 
 		/* Save information about bitflips! */
 		if (unlikely(err)) {

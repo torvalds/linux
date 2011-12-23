@@ -123,8 +123,8 @@ static int get_valid_cis_sector(struct mtd_info *mtd)
 	 */
 	for (k = 0, offset = 0; k < 4; k++, offset += mtd->erasesize) {
 		if (!mtd->block_isbad(mtd, offset)) {
-			ret = mtd->read(mtd, offset, SECTOR_SIZE, &retlen,
-				sect_buf);
+			ret = mtd_read(mtd, offset, SECTOR_SIZE, &retlen,
+				       sect_buf);
 
 			/* CIS pattern match on the sector buffer */
 			if (ret < 0 || retlen != SECTOR_SIZE) {
@@ -156,7 +156,7 @@ static int read_physical_sector(struct mtd_info *mtd, uint8_t *sect_buf,
 	size_t retlen;
 	loff_t offset = (loff_t)sect_no << SECTOR_SHIFT;
 
-	ret = mtd->read(mtd, offset, SECTOR_SIZE, &retlen, sect_buf);
+	ret = mtd_read(mtd, offset, SECTOR_SIZE, &retlen, sect_buf);
 	if (ret < 0 || retlen != SECTOR_SIZE)
 		return -1;
 

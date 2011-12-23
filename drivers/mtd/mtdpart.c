@@ -70,8 +70,7 @@ static int part_read(struct mtd_info *mtd, loff_t from, size_t len,
 		len = 0;
 	else if (from + len > mtd->size)
 		len = mtd->size - from;
-	res = part->master->read(part->master, from + part->offset,
-				   len, retlen, buf);
+	res = mtd_read(part->master, from + part->offset, len, retlen, buf);
 	if (unlikely(res)) {
 		if (mtd_is_bitflip(res))
 			mtd->ecc_stats.corrected += part->master->ecc_stats.corrected - stats.corrected;

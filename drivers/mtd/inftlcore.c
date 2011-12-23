@@ -343,14 +343,17 @@ static u16 INFTL_foldchain(struct INFTLrecord *inftl, unsigned thisVUC, unsigned
 		if (BlockMap[block] == BLOCK_NIL)
 			continue;
 
-		ret = mtd->read(mtd, (inftl->EraseSize * BlockMap[block]) +
-				(block * SECTORSIZE), SECTORSIZE, &retlen,
-				movebuf);
+		ret = mtd_read(mtd,
+			       (inftl->EraseSize * BlockMap[block]) + (block * SECTORSIZE),
+			       SECTORSIZE,
+			       &retlen,
+			       movebuf);
 		if (ret < 0 && !mtd_is_bitflip(ret)) {
-			ret = mtd->read(mtd,
-					(inftl->EraseSize * BlockMap[block]) +
-					(block * SECTORSIZE), SECTORSIZE,
-					&retlen, movebuf);
+			ret = mtd_read(mtd,
+				       (inftl->EraseSize * BlockMap[block]) + (block * SECTORSIZE),
+				       SECTORSIZE,
+				       &retlen,
+				       movebuf);
 			if (ret != -EIO)
 				pr_debug("INFTL: error went away on retry?\n");
 		}
@@ -914,7 +917,7 @@ foundit:
 	} else {
 		size_t retlen;
 		loff_t ptr = (thisEUN * inftl->EraseSize) + blockofs;
-		int ret = mtd->read(mtd, ptr, SECTORSIZE, &retlen, buffer);
+		int ret = mtd_read(mtd, ptr, SECTORSIZE, &retlen, buffer);
 
 		/* Handle corrected bit flips gracefully */
 		if (ret < 0 && !mtd_is_bitflip(ret))

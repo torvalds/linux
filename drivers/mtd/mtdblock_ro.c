@@ -30,7 +30,7 @@ static int mtdblock_readsect(struct mtd_blktrans_dev *dev,
 {
 	size_t retlen;
 
-	if (dev->mtd->read(dev->mtd, (block * 512), 512, &retlen, buf))
+	if (mtd_read(dev->mtd, (block * 512), 512, &retlen, buf))
 		return 1;
 	return 0;
 }
