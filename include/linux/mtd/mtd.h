@@ -175,11 +175,8 @@ struct mtd_info {
 	 * wrappers instead.
 	 */
 	int (*erase) (struct mtd_info *mtd, struct erase_info *instr);
-
-	/* This stuff for eXecute-In-Place */
-	/* phys is optional and may be set to NULL */
 	int (*point) (struct mtd_info *mtd, loff_t from, size_t len,
-			size_t *retlen, void **virt, resource_size_t *phys);
+		      size_t *retlen, void **virt, resource_size_t *phys);
 
 	/* We probably shouldn't allow XIP if the unpoint isn't a NULL */
 	void (*unpoint) (struct mtd_info *mtd, loff_t from, size_t len);
@@ -281,6 +278,15 @@ struct mtd_info {
 static inline int mtd_erase(struct mtd_info *mtd, struct erase_info *instr)
 {
 	return mtd->erase(mtd, instr);
+}
+
+/*
+ * This stuff for eXecute-In-Place. phys is optional and may be set to NULL.
+ */
+static inline int mtd_point(struct mtd_info *mtd, loff_t from, size_t len,
+			    size_t *retlen, void **virt, resource_size_t *phys)
+{
+	return mtd->point(mtd, from, len, retlen, virt, phys);
 }
 
 static inline struct mtd_info *dev_to_mtd(struct device *dev)

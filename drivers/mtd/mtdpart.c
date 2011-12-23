@@ -89,8 +89,8 @@ static int part_point(struct mtd_info *mtd, loff_t from, size_t len,
 		len = 0;
 	else if (from + len > mtd->size)
 		len = mtd->size - from;
-	return part->master->point (part->master, from + part->offset,
-				    len, retlen, virt, phys);
+	return mtd_point(part->master, from + part->offset, len, retlen,
+			 virt, phys);
 }
 
 static void part_unpoint(struct mtd_info *mtd, loff_t from, size_t len)

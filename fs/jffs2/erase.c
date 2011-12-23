@@ -340,8 +340,8 @@ static int jffs2_block_check_erase(struct jffs2_sb_info *c, struct jffs2_erasebl
 	if (c->mtd->point) {
 		unsigned long *wordebuf;
 
-		ret = c->mtd->point(c->mtd, jeb->offset, c->sector_size,
-				    &retlen, &ebuf, NULL);
+		ret = mtd_point(c->mtd, jeb->offset, c->sector_size, &retlen,
+				&ebuf, NULL);
 		if (ret) {
 			D1(printk(KERN_DEBUG "MTD point failed %d\n", ret));
 			goto do_flash_read;
