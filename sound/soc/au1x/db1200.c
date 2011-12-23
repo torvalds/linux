@@ -45,6 +45,7 @@ static struct snd_soc_dai_link db1200_ac97_dai = {
 
 static struct snd_soc_card db1200_ac97_machine = {
 	.name		= "DB1200_AC97",
+	.owner		= THIS_MODULE,
 	.dai_link	= &db1200_ac97_dai,
 	.num_links	= 1,
 };
@@ -94,6 +95,7 @@ static struct snd_soc_dai_link db1200_i2s_dai = {
 
 static struct snd_soc_card db1200_i2s_machine = {
 	.name		= "DB1200_I2S",
+	.owner		= THIS_MODULE,
 	.dai_link	= &db1200_i2s_dai,
 	.num_links	= 1,
 };

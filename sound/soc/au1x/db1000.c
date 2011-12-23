@@ -29,6 +29,7 @@ static struct snd_soc_dai_link db1000_ac97_dai = {
 
 static struct snd_soc_card db1000_ac97 = {
 	.name		= "DB1000_AC97",
+	.owner		= THIS_MODULE,
 	.dai_link	= &db1000_ac97_dai,
 	.num_links	= 1,
 };
