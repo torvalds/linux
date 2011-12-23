@@ -535,6 +535,7 @@ static struct resource intcs_resources[] __initdata = {
 static struct intc_desc intcs_desc __initdata = {
 	.name = "sh7372-intcs",
 	.force_enable = ENABLED_INTCS,
+	.skip_syscore_suspend = true,
 	.resource = intcs_resources,
 	.num_resources = ARRAY_SIZE(intcs_resources),
 	.hw = INTC_HW_DESC(intcs_vectors, intcs_groups, intcs_mask_registers,
