@@ -121,7 +121,7 @@ static void rbtx4939_flash_shutdown(struct platform_device *dev)
 
 	if (info->mtd->suspend && info->mtd->resume)
 		if (mtd_suspend(info->mtd) == 0)
-			info->mtd->resume(info->mtd);
+			mtd_resume(info->mtd);
 }
 #else
 #define rbtx4939_flash_shutdown NULL

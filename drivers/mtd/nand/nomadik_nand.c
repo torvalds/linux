@@ -209,7 +209,7 @@ static int nomadik_nand_resume(struct device *dev)
 {
 	struct nomadik_nand_host *host = dev_get_drvdata(dev);
 	if (host)
-		host->mtd.resume(&host->mtd);
+		mtd_resume(&host->mtd);
 	return 0;
 }
 

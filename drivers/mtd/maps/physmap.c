@@ -192,7 +192,7 @@ static void physmap_flash_shutdown(struct platform_device *dev)
 	for (i = 0; i < MAX_RESOURCES && info->mtd[i]; i++)
 		if (info->mtd[i]->suspend && info->mtd[i]->resume)
 			if (mtd_suspend(info->mtd[i]) == 0)
-				info->mtd[i]->resume(info->mtd[i]);
+				mtd_resume(info->mtd[i]);
 }
 #else
 #define physmap_flash_shutdown NULL

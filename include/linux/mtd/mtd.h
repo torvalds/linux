@@ -211,14 +211,12 @@ struct mtd_info {
 	int (*unlock) (struct mtd_info *mtd, loff_t ofs, uint64_t len);
 	int (*is_locked) (struct mtd_info *mtd, loff_t ofs, uint64_t len);
 	int (*suspend) (struct mtd_info *mtd);
+	void (*resume) (struct mtd_info *mtd);
 
 	/* Backing device capabilities for this device
 	 * - provides mmap capabilities
 	 */
 	struct backing_dev_info *backing_dev_info;
-
-	/* Power Management functions */
-	void (*resume) (struct mtd_info *mtd);
 
 	/* Bad block management functions */
 	int (*block_isbad) (struct mtd_info *mtd, loff_t ofs);
@@ -401,6 +399,11 @@ static inline int mtd_is_locked(struct mtd_info *mtd, loff_t ofs, uint64_t len)
 static inline int mtd_suspend(struct mtd_info *mtd)
 {
 	return mtd->suspend(mtd);
+}
+
+static inline void mtd_resume(struct mtd_info *mtd)
+{
+	mtd->resume(mtd);
 }
 
 static inline struct mtd_info *dev_to_mtd(struct device *dev)

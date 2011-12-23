@@ -129,7 +129,7 @@ static int mtd_cls_resume(struct device *dev)
 	struct mtd_info *mtd = dev_to_mtd(dev);
 	
 	if (mtd && mtd->resume)
-		mtd->resume(mtd);
+		mtd_resume(mtd);
 	return 0;
 }
 

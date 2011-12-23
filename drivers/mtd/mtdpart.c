@@ -313,7 +313,7 @@ static int part_suspend(struct mtd_info *mtd)
 static void part_resume(struct mtd_info *mtd)
 {
 	struct mtd_part *part = PART(mtd);
-	part->master->resume(part->master);
+	mtd_resume(part->master);
 }
 
 static int part_block_isbad(struct mtd_info *mtd, loff_t ofs)

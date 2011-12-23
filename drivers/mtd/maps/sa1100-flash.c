@@ -378,7 +378,7 @@ static void sa1100_mtd_shutdown(struct platform_device *dev)
 {
 	struct sa_info *info = platform_get_drvdata(dev);
 	if (info && mtd_suspend(info->mtd) == 0)
-		info->mtd->resume(info->mtd);
+		mtd_resume(info->mtd);
 }
 #else
 #define sa1100_mtd_shutdown NULL

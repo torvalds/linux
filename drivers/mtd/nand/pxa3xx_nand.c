@@ -1291,7 +1291,7 @@ static int pxa3xx_nand_resume(struct platform_device *pdev)
 	nand_writel(info, NDSR, NDSR_MASK);
 	for (cs = 0; cs < pdata->num_cs; cs++) {
 		mtd = info->host[cs]->mtd;
-		mtd->resume(mtd);
+		mtd_resume(mtd);
 	}
 
 	return 0;

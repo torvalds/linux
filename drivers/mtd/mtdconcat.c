@@ -644,7 +644,7 @@ static void concat_resume(struct mtd_info *mtd)
 
 	for (i = 0; i < concat->num_subdev; i++) {
 		struct mtd_info *subdev = concat->subdev[i];
-		subdev->resume(subdev);
+		mtd_resume(subdev);
 	}
 }
 
