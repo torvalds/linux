@@ -178,11 +178,6 @@ struct mtd_info {
 	int (*point) (struct mtd_info *mtd, loff_t from, size_t len,
 		      size_t *retlen, void **virt, resource_size_t *phys);
 	void (*unpoint) (struct mtd_info *mtd, loff_t from, size_t len);
-
-	/* Allow NOMMU mmap() to directly map the device (if not NULL)
-	 * - return the address to which the offset maps
-	 * - return -ENOSYS to indicate refusal to do the mapping
-	 */
 	unsigned long (*get_unmapped_area) (struct mtd_info *mtd,
 					    unsigned long len,
 					    unsigned long offset,
@@ -291,6 +286,19 @@ static inline int mtd_point(struct mtd_info *mtd, loff_t from, size_t len,
 static inline void mtd_unpoint(struct mtd_info *mtd, loff_t from, size_t len)
 {
 	return mtd->unpoint(mtd, from, len);
+}
+
+/*
+ * Allow NOMMU mmap() to directly map the device (if not NULL)
+ * - return the address to which the offset maps
+ * - return -ENOSYS to indicate refusal to do the mapping
+ */
+static inline unsigned long mtd_get_unmapped_area(struct mtd_info *mtd,
+						  unsigned long len,
+						  unsigned long offset,
+						  unsigned long flags)
+{
+	return mtd->get_unmapped_area(mtd, len, offset, flags);
 }
 
 static inline struct mtd_info *dev_to_mtd(struct device *dev)

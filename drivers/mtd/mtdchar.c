@@ -1135,7 +1135,7 @@ static unsigned long mtdchar_get_unmapped_area(struct file *file,
 		if (offset > mtd->size - len)
 			return (unsigned long) -EINVAL;
 
-		return mtd->get_unmapped_area(mtd, len, offset, flags);
+		return mtd_get_unmapped_area(mtd, len, offset, flags);
 	}
 
 	/* can't map directly */

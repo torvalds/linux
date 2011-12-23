@@ -53,7 +53,7 @@ static unsigned long romfs_get_unmapped_area(struct file *file,
 		if (offset > mtd->size - len)
 			return (unsigned long) -EINVAL;
 
-		return mtd->get_unmapped_area(mtd, len, offset, flags);
+		return mtd_get_unmapped_area(mtd, len, offset, flags);
 	}
 
 cant_map_directly:

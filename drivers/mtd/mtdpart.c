@@ -108,8 +108,7 @@ static unsigned long part_get_unmapped_area(struct mtd_info *mtd,
 	struct mtd_part *part = PART(mtd);
 
 	offset += part->offset;
-	return part->master->get_unmapped_area(part->master, len, offset,
-					       flags);
+	return mtd_get_unmapped_area(part->master, len, offset, flags);
 }
 
 static int part_read_oob(struct mtd_info *mtd, loff_t from,
