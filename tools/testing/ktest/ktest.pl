@@ -58,6 +58,9 @@ my %default = (
     "SSH_USER"			=> "root",
     "BUILD_TARGET"	 	=> "arch/x86/boot/bzImage",
     "TARGET_IMAGE"		=> "/boot/vmlinuz-test",
+
+    "LOG_FILE"			=> undef,
+    "IGNORE_UNUSED"		=> 0,
 );
 
 my $ktest_config;
@@ -175,6 +178,92 @@ my %force_config;
 
 # do not force reboots on config problems
 my $no_reboot = 1;
+
+my %option_map = (
+    "MACHINE"			=> \$machine,
+    "SSH_USER"			=> \$ssh_user,
+    "TMP_DIR"			=> \$tmpdir,
+    "OUTPUT_DIR"		=> \$outputdir,
+    "BUILD_DIR"			=> \$builddir,
+    "TEST_TYPE"			=> \$test_type,
+    "BUILD_TYPE"		=> \$build_type,
+    "BUILD_OPTIONS"		=> \$build_options,
+    "PRE_BUILD"			=> \$pre_build,
+    "POST_BUILD"		=> \$post_build,
+    "PRE_BUILD_DIE"		=> \$pre_build_die,
+    "POST_BUILD_DIE"		=> \$post_build_die,
+    "POWER_CYCLE"		=> \$power_cycle,
+    "REBOOT"			=> \$reboot,
+    "BUILD_NOCLEAN"		=> \$noclean,
+    "MIN_CONFIG"		=> \$minconfig,
+    "OUTPUT_MIN_CONFIG"		=> \$output_minconfig,
+    "START_MIN_CONFIG"		=> \$start_minconfig,
+    "IGNORE_CONFIG"		=> \$ignore_config,
+    "TEST"			=> \$run_test,
+    "ADD_CONFIG"		=> \$addconfig,
+    "REBOOT_TYPE"		=> \$reboot_type,
+    "GRUB_MENU"			=> \$grub_menu,
+    "POST_INSTALL"		=> \$post_install,
+    "NO_INSTALL"		=> \$no_install,
+    "REBOOT_SCRIPT"		=> \$reboot_script,
+    "REBOOT_ON_ERROR"		=> \$reboot_on_error,
+    "SWITCH_TO_GOOD"		=> \$switch_to_good,
+    "SWITCH_TO_TEST"		=> \$switch_to_test,
+    "POWEROFF_ON_ERROR"		=> \$poweroff_on_error,
+    "DIE_ON_FAILURE"		=> \$die_on_failure,
+    "POWER_OFF"			=> \$power_off,
+    "POWERCYCLE_AFTER_REBOOT"	=> \$powercycle_after_reboot,
+    "POWEROFF_AFTER_HALT"	=> \$poweroff_after_halt,
+    "SLEEP_TIME"		=> \$sleep_time,
+    "BISECT_SLEEP_TIME"		=> \$bisect_sleep_time,
+    "PATCHCHECK_SLEEP_TIME"	=> \$patchcheck_sleep_time,
+    "IGNORE_WARNINGS"		=> \$ignore_warnings,
+    "BISECT_MANUAL"		=> \$bisect_manual,
+    "BISECT_SKIP"		=> \$bisect_skip,
+    "CONFIG_BISECT_GOOD"	=> \$config_bisect_good,
+    "BISECT_RET_GOOD"		=> \$bisect_ret_good,
+    "BISECT_RET_BAD"		=> \$bisect_ret_bad,
+    "BISECT_RET_SKIP"		=> \$bisect_ret_skip,
+    "BISECT_RET_ABORT"		=> \$bisect_ret_abort,
+    "BISECT_RET_DEFAULT"	=> \$bisect_ret_default,
+    "STORE_FAILURES"		=> \$store_failures,
+    "STORE_SUCCESSES"		=> \$store_successes,
+    "TEST_NAME"			=> \$test_name,
+    "TIMEOUT"			=> \$timeout,
+    "BOOTED_TIMEOUT"		=> \$booted_timeout,
+    "CONSOLE"			=> \$console,
+    "DETECT_TRIPLE_FAULT"	=> \$detect_triplefault,
+    "SUCCESS_LINE"		=> \$success_line,
+    "REBOOT_SUCCESS_LINE"	=> \$reboot_success_line,
+    "STOP_AFTER_SUCCESS"	=> \$stop_after_success,
+    "STOP_AFTER_FAILURE"	=> \$stop_after_failure,
+    "STOP_TEST_AFTER"		=> \$stop_test_after,
+    "BUILD_TARGET"		=> \$build_target,
+    "SSH_EXEC"			=> \$ssh_exec,
+    "SCP_TO_TARGET"		=> \$scp_to_target,
+    "CHECKOUT"			=> \$checkout,
+    "TARGET_IMAGE"		=> \$target_image,
+    "LOCALVERSION"		=> \$localversion,
+
+    "BISECT_GOOD"		=> \$bisect_good,
+    "BISECT_BAD"		=> \$bisect_bad,
+    "BISECT_TYPE"		=> \$bisect_type,
+    "BISECT_START"		=> \$bisect_start,
+    "BISECT_REPLAY"		=> \$bisect_replay,
+    "BISECT_FILES"		=> \$bisect_files,
+    "BISECT_REVERSE"		=> \$bisect_reverse,
+    "BISECT_CHECK"		=> \$bisect_check,
+
+    "CONFIG_BISECT"		=> \$config_bisect,
+    "CONFIG_BISECT_TYPE"	=> \$config_bisect_type,
+
+    "PATCHCHECK_TYPE"		=> \$patchcheck_type,
+    "PATCHCHECK_START"		=> \$patchcheck_start,
+    "PATCHCHECK_END"		=> \$patchcheck_end,
+);
+
+# Options may be used by other options, record them.
+my %used_options;
 
 # default variables that can be used
 chomp ($variable{"PWD"} = `pwd`);
@@ -427,6 +516,10 @@ sub process_variables {
 	} else {
 	    # put back the origin piece.
 	    $retval = "$retval\$\{$var\}";
+	    # This could be an option that is used later, save
+	    # it so we don't warn if this option is not one of
+	    # ktests options.
+	    $used_options{$var} = 1;
 	}
 	$value = $end;
     }
@@ -848,6 +941,37 @@ sub read_config {
     foreach my $default (keys %default) {
 	if (!defined($opt{$default})) {
 	    $opt{$default} = $default{$default};
+	}
+    }
+
+    if ($opt{"IGNORE_UNUSED"} == 1) {
+	return;
+    }
+
+    my %not_used;
+
+    # check if there are any stragglers (typos?)
+    foreach my $option (keys %opt) {
+	my $op = $option;
+	# remove per test labels.
+	$op =~ s/\[.*\]//;
+	if (!exists($option_map{$op}) &&
+	    !exists($default{$op}) &&
+	    !exists($used_options{$op})) {
+	    $not_used{$op} = 1;
+	}
+    }
+
+    if (%not_used) {
+	my $s = "s are";
+	$s = " is" if (keys %not_used == 1);
+	print "The following option$s not used; could be a typo:\n";
+	foreach my $option (keys %not_used) {
+	    print "$option\n";
+	}
+	print "Set IGRNORE_UNUSED = 1 to have ktest ignore unused variables\n";
+	if (!read_yn "Do you want to continue?") {
+	    exit -1;
 	}
     }
 }
@@ -3321,86 +3445,10 @@ for (my $i = 1; $i <= $opt{"NUM_TESTS"}; $i++) {
 
     my $makecmd = set_test_option("MAKE_CMD", $i);
 
-    $machine = set_test_option("MACHINE", $i);
-    $ssh_user = set_test_option("SSH_USER", $i);
-    $tmpdir = set_test_option("TMP_DIR", $i);
-    $outputdir = set_test_option("OUTPUT_DIR", $i);
-    $builddir = set_test_option("BUILD_DIR", $i);
-    $test_type = set_test_option("TEST_TYPE", $i);
-    $build_type = set_test_option("BUILD_TYPE", $i);
-    $build_options = set_test_option("BUILD_OPTIONS", $i);
-    $pre_build = set_test_option("PRE_BUILD", $i);
-    $post_build = set_test_option("POST_BUILD", $i);
-    $pre_build_die = set_test_option("PRE_BUILD_DIE", $i);
-    $post_build_die = set_test_option("POST_BUILD_DIE", $i);
-    $power_cycle = set_test_option("POWER_CYCLE", $i);
-    $reboot = set_test_option("REBOOT", $i);
-    $noclean = set_test_option("BUILD_NOCLEAN", $i);
-    $minconfig = set_test_option("MIN_CONFIG", $i);
-    $output_minconfig = set_test_option("OUTPUT_MIN_CONFIG", $i);
-    $start_minconfig = set_test_option("START_MIN_CONFIG", $i);
-    $ignore_config = set_test_option("IGNORE_CONFIG", $i);
-    $run_test = set_test_option("TEST", $i);
-    $addconfig = set_test_option("ADD_CONFIG", $i);
-    $reboot_type = set_test_option("REBOOT_TYPE", $i);
-    $grub_menu = set_test_option("GRUB_MENU", $i);
-    $post_install = set_test_option("POST_INSTALL", $i);
-    $no_install = set_test_option("NO_INSTALL", $i);
-    $reboot_script = set_test_option("REBOOT_SCRIPT", $i);
-    $reboot_on_error = set_test_option("REBOOT_ON_ERROR", $i);
-    $switch_to_good = set_test_option("SWITCH_TO_GOOD", $i);
-    $switch_to_test = set_test_option("SWITCH_TO_TEST", $i);
-    $poweroff_on_error = set_test_option("POWEROFF_ON_ERROR", $i);
-    $die_on_failure = set_test_option("DIE_ON_FAILURE", $i);
-    $power_off = set_test_option("POWER_OFF", $i);
-    $powercycle_after_reboot = set_test_option("POWERCYCLE_AFTER_REBOOT", $i);
-    $poweroff_after_halt = set_test_option("POWEROFF_AFTER_HALT", $i);
-    $sleep_time = set_test_option("SLEEP_TIME", $i);
-    $bisect_sleep_time = set_test_option("BISECT_SLEEP_TIME", $i);
-    $patchcheck_sleep_time = set_test_option("PATCHCHECK_SLEEP_TIME", $i);
-    $ignore_warnings = set_test_option("IGNORE_WARNINGS", $i);
-    $bisect_manual = set_test_option("BISECT_MANUAL", $i);
-    $bisect_skip = set_test_option("BISECT_SKIP", $i);
-    $config_bisect_good = set_test_option("CONFIG_BISECT_GOOD", $i);
-    $bisect_ret_good = set_test_option("BISECT_RET_GOOD", $i);
-    $bisect_ret_bad = set_test_option("BISECT_RET_BAD", $i);
-    $bisect_ret_skip = set_test_option("BISECT_RET_SKIP", $i);
-    $bisect_ret_abort = set_test_option("BISECT_RET_ABORT", $i);
-    $bisect_ret_default = set_test_option("BISECT_RET_DEFAULT", $i);
-    $store_failures = set_test_option("STORE_FAILURES", $i);
-    $store_successes = set_test_option("STORE_SUCCESSES", $i);
-    $test_name = set_test_option("TEST_NAME", $i);
-    $timeout = set_test_option("TIMEOUT", $i);
-    $booted_timeout = set_test_option("BOOTED_TIMEOUT", $i);
-    $console = set_test_option("CONSOLE", $i);
-    $detect_triplefault = set_test_option("DETECT_TRIPLE_FAULT", $i);
-    $success_line = set_test_option("SUCCESS_LINE", $i);
-    $reboot_success_line = set_test_option("REBOOT_SUCCESS_LINE", $i);
-    $stop_after_success = set_test_option("STOP_AFTER_SUCCESS", $i);
-    $stop_after_failure = set_test_option("STOP_AFTER_FAILURE", $i);
-    $stop_test_after = set_test_option("STOP_TEST_AFTER", $i);
-    $build_target = set_test_option("BUILD_TARGET", $i);
-    $ssh_exec = set_test_option("SSH_EXEC", $i);
-    $scp_to_target = set_test_option("SCP_TO_TARGET", $i);
-    $checkout = set_test_option("CHECKOUT", $i);
-    $target_image = set_test_option("TARGET_IMAGE", $i);
-    $localversion = set_test_option("LOCALVERSION", $i);
-
-    $bisect_good = set_test_option("BISECT_GOOD", $i);
-    $bisect_bad = set_test_option("BISECT_BAD", $i);
-    $bisect_type = set_test_option("BISECT_TYPE", $i);
-    $bisect_start = set_test_option("BISECT_START", $i);
-    $bisect_replay = set_test_option("BISECT_REPLAY", $i);
-    $bisect_files = set_test_option("BISECT_FILES", $i);
-    $bisect_reverse = set_test_option("BISECT_REVERSE", $i);
-    $bisect_check = set_test_option("BISECT_CHECK", $i);
-
-    $config_bisect = set_test_option("CONFIG_BISECT", $i);
-    $config_bisect_type = set_test_option("CONFIG_BISECT_TYPE", $i);
-
-    $patchcheck_type = set_test_option("PATCHCHECK_TYPE", $i);
-    $patchcheck_start = set_test_option("PATCHCHECK_START", $i);
-    $patchcheck_end = set_test_option("PATCHCHECK_END", $i);
+    # Load all the options into their mapped variable names
+    foreach my $opt (keys %option_map) {
+	${$option_map{$opt}} = set_test_option($opt, $i);
+    }
 
     $start_minconfig_defined = 1;
 
