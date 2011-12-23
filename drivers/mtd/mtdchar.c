@@ -930,7 +930,7 @@ static int mtdchar_ioctl(struct file *file, u_int cmd, u_long arg)
 			break;
 		case MTD_FILE_MODE_OTP_USER:
 			if (mtd->get_user_prot_info)
-				ret = mtd->get_user_prot_info(mtd, buf, 4096);
+				ret = mtd_get_user_prot_info(mtd, buf, 4096);
 			break;
 		default:
 			break;

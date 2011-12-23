@@ -160,7 +160,7 @@ static int part_get_user_prot_info(struct mtd_info *mtd,
 		struct otp_info *buf, size_t len)
 {
 	struct mtd_part *part = PART(mtd);
-	return part->master->get_user_prot_info(part->master, buf, len);
+	return mtd_get_user_prot_info(part->master, buf, len);
 }
 
 static int part_read_fact_prot_reg(struct mtd_info *mtd, loff_t from,
