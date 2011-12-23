@@ -39,6 +39,7 @@ static struct snd_soc_dai_link fsi_dai_link = {
 };
 
 static struct snd_soc_card fsi_soc_card  = {
+	.owner		= THIS_MODULE,
 	.dai_link	= &fsi_dai_link,
 	.num_links	= 1,
 };
