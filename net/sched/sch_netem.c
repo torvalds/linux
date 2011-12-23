@@ -605,7 +605,7 @@ static int get_loss_clg(struct Qdisc *sch, const struct nlattr *attr)
 		case NETEM_LOSS_GI: {
 			const struct tc_netem_gimodel *gi = nla_data(la);
 
-			if (nla_len(la) != sizeof(struct tc_netem_gimodel)) {
+			if (nla_len(la) < sizeof(struct tc_netem_gimodel)) {
 				pr_info("netem: incorrect gi model size\n");
 				return -EINVAL;
 			}
@@ -624,8 +624,8 @@ static int get_loss_clg(struct Qdisc *sch, const struct nlattr *attr)
 		case NETEM_LOSS_GE: {
 			const struct tc_netem_gemodel *ge = nla_data(la);
 
-			if (nla_len(la) != sizeof(struct tc_netem_gemodel)) {
-				pr_info("netem: incorrect gi model size\n");
+			if (nla_len(la) < sizeof(struct tc_netem_gemodel)) {
+				pr_info("netem: incorrect ge model size\n");
 				return -EINVAL;
 			}
 
