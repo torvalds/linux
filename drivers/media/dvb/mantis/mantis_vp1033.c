@@ -86,6 +86,7 @@ u8 lgtdqcs001f_inittab[] = {
 int lgtdqcs001f_tuner_set(struct dvb_frontend *fe,
 			  struct dvb_frontend_parameters *params)
 {
+	struct dtv_frontend_properties *p = &fe->dtv_property_cache;
 	struct mantis_pci *mantis	= fe->dvb->priv;
 	struct i2c_adapter *adapter	= &mantis->adapter;
 
@@ -95,14 +96,14 @@ int lgtdqcs001f_tuner_set(struct dvb_frontend *fe,
 
 	struct i2c_msg msg = {.addr = 0x61, .flags = 0, .buf = buf, .len = sizeof(buf)};
 
-	div = params->frequency / 250;
+	div = p->frequency / 250;
 
 	buf[0] = (div >> 8) & 0x7f;
 	buf[1] =  div & 0xff;
 	buf[2] =  0x83;
 	buf[3] =  0xc0;
 
-	if (params->frequency < 1531000)
+	if (p->frequency < 1531000)
 		buf[3] |= 0x04;
 	else
 		buf[3] &= ~0x04;
