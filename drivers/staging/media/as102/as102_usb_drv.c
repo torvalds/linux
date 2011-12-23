@@ -353,17 +353,17 @@ static int as102_usb_probe(struct usb_interface *intf,
 
 	ENTER();
 
-	as102_dev = kzalloc(sizeof(struct as102_dev_t), GFP_KERNEL);
-	if (as102_dev == NULL) {
-		err("%s: kzalloc failed", __func__);
-		return -ENOMEM;
-	}
-
 	/* This should never actually happen */
 	if ((sizeof(as102_usb_id_table) / sizeof(struct usb_device_id)) !=
 	    (sizeof(as102_device_names) / sizeof(const char *))) {
 		pr_err("Device names table invalid size");
 		return -EINVAL;
+	}
+
+	as102_dev = kzalloc(sizeof(struct as102_dev_t), GFP_KERNEL);
+	if (as102_dev == NULL) {
+		err("%s: kzalloc failed", __func__);
+		return -ENOMEM;
 	}
 
 	/* Assign the user-friendly device name */
