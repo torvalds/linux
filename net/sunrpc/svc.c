@@ -286,7 +286,6 @@ svc_pool_map_put(void)
 	mutex_lock(&svc_pool_map_mutex);
 
 	if (!--m->count) {
-		m->mode = SVC_POOL_DEFAULT;
 		kfree(m->to_pool);
 		m->to_pool = NULL;
 		kfree(m->pool_to);
