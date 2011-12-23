@@ -414,13 +414,12 @@ static void jffs2_wbuf_recover(struct jffs2_sb_info *c)
 		if (breakme++ == 20) {
 			printk(KERN_NOTICE "Faking write error at 0x%08x\n", ofs);
 			breakme = 0;
-			c->mtd->write(c->mtd, ofs, towrite, &retlen,
-				      brokenbuf);
+			mtd_write(c->mtd, ofs, towrite, &retlen, brokenbuf);
 			ret = -EIO;
 		} else
 #endif
-			ret = c->mtd->write(c->mtd, ofs, towrite, &retlen,
-					    rewrite_buf);
+			ret = mtd_write(c->mtd, ofs, towrite, &retlen,
+					rewrite_buf);
 
 		if (ret || retlen != towrite || jffs2_verify_write(c, rewrite_buf, ofs)) {
 			/* Argh. We tried. Really we did. */
@@ -620,13 +619,14 @@ static int __jffs2_flush_wbuf(struct jffs2_sb_info *c, int pad)
 	if (breakme++ == 20) {
 		printk(KERN_NOTICE "Faking write error at 0x%08x\n", c->wbuf_ofs);
 		breakme = 0;
-		c->mtd->write(c->mtd, c->wbuf_ofs, c->wbuf_pagesize, &retlen,
-			      brokenbuf);
+		mtd_write(c->mtd, c->wbuf_ofs, c->wbuf_pagesize, &retlen,
+			  brokenbuf);
 		ret = -EIO;
 	} else
 #endif
 
-		ret = c->mtd->write(c->mtd, c->wbuf_ofs, c->wbuf_pagesize, &retlen, c->wbuf);
+		ret = mtd_write(c->mtd, c->wbuf_ofs, c->wbuf_pagesize,
+				&retlen, c->wbuf);
 
 	if (ret) {
 		printk(KERN_WARNING "jffs2_flush_wbuf(): Write failed with %d\n", ret);
@@ -862,8 +862,8 @@ int jffs2_flash_writev(struct jffs2_sb_info *c, const struct kvec *invecs,
 		v += wbuf_retlen;
 
 		if (vlen >= c->wbuf_pagesize) {
-			ret = c->mtd->write(c->mtd, outvec_to, PAGE_DIV(vlen),
-					    &wbuf_retlen, v);
+			ret = mtd_write(c->mtd, outvec_to, PAGE_DIV(vlen),
+					&wbuf_retlen, v);
 			if (ret < 0 || wbuf_retlen != PAGE_DIV(vlen))
 				goto outfile;
 

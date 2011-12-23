@@ -289,7 +289,7 @@ int ubi_io_write(struct ubi_device *ubi, const void *buf, int pnum, int offset,
 	}
 
 	addr = (loff_t)pnum * ubi->peb_size + offset;
-	err = ubi->mtd->write(ubi->mtd, addr, len, &written, buf);
+	err = mtd_write(ubi->mtd, addr, len, &written, buf);
 	if (err) {
 		ubi_err("error %d while writing %d bytes to PEB %d:%d, written "
 			"%zd bytes", err, len, pnum, offset, written);
@@ -525,11 +525,10 @@ static int nor_erase_prepare(struct ubi_device *ubi, int pnum)
 	 * the header comment in scan.c for more information).
 	 */
 	addr = (loff_t)pnum * ubi->peb_size;
-	err = ubi->mtd->write(ubi->mtd, addr, 4, &written, (void *)&data);
+	err = mtd_write(ubi->mtd, addr, 4, &written, (void *)&data);
 	if (!err) {
 		addr += ubi->vid_hdr_aloffset;
-		err = ubi->mtd->write(ubi->mtd, addr, 4, &written,
-				      (void *)&data);
+		err = mtd_write(ubi->mtd, addr, 4, &written, (void *)&data);
 		if (!err)
 			return 0;
 	}

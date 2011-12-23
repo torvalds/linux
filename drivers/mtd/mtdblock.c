@@ -102,7 +102,7 @@ static int erase_write (struct mtd_info *mtd, unsigned long pos,
 	 * Next, write the data to flash.
 	 */
 
-	ret = mtd->write(mtd, pos, len, &retlen, buf);
+	ret = mtd_write(mtd, pos, len, &retlen, buf);
 	if (ret)
 		return ret;
 	if (retlen != len)
@@ -152,7 +152,7 @@ static int do_cached_write (struct mtdblk_dev *mtdblk, unsigned long pos,
 		mtd->name, pos, len);
 
 	if (!sect_size)
-		return mtd->write(mtd, pos, len, &retlen, buf);
+		return mtd_write(mtd, pos, len, &retlen, buf);
 
 	while (len > 0) {
 		unsigned long sect_start = (pos/sect_size)*sect_size;

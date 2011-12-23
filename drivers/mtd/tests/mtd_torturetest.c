@@ -189,7 +189,7 @@ static inline int write_pattern(int ebnum, void *buf)
 		addr = (ebnum + 1) * mtd->erasesize - pgcnt * pgsize;
 		len = pgcnt * pgsize;
 	}
-	err = mtd->write(mtd, addr, len, &written, buf);
+	err = mtd_write(mtd, addr, len, &written, buf);
 	if (err) {
 		printk(PRINT_PREF "error %d while writing EB %d, written %zd"
 		      " bytes\n", err, ebnum, written);

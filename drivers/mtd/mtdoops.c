@@ -225,8 +225,8 @@ static void mtdoops_write(struct mtdoops_context *cxt, int panic)
 		ret = mtd->panic_write(mtd, cxt->nextpage * record_size,
 					record_size, &retlen, cxt->oops_buf);
 	else
-		ret = mtd->write(mtd, cxt->nextpage * record_size,
-					record_size, &retlen, cxt->oops_buf);
+		ret = mtd_write(mtd, cxt->nextpage * record_size,
+				record_size, &retlen, cxt->oops_buf);
 
 	if (retlen != record_size || ret < 0)
 		printk(KERN_ERR "mtdoops: write failure at %ld (%td of %ld written), error %d\n",

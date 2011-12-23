@@ -100,7 +100,7 @@ static int write_eraseblock(int ebnum)
 
 	set_random_data(writebuf, mtd->erasesize);
 	cond_resched();
-	err = mtd->write(mtd, addr, mtd->erasesize, &written, writebuf);
+	err = mtd_write(mtd, addr, mtd->erasesize, &written, writebuf);
 	if (err || written != mtd->erasesize)
 		printk(PRINT_PREF "error: write failed at %#llx\n",
 		       (long long)addr);
@@ -335,7 +335,7 @@ static int erasecrosstest(void)
 	printk(PRINT_PREF "writing 1st page of block %d\n", ebnum);
 	set_random_data(writebuf, pgsize);
 	strcpy(writebuf, "There is no data like this!");
-	err = mtd->write(mtd, addr0, pgsize, &written, writebuf);
+	err = mtd_write(mtd, addr0, pgsize, &written, writebuf);
 	if (err || written != pgsize) {
 		printk(PRINT_PREF "error: write failed at %#llx\n",
 		       (long long)addr0);
@@ -368,7 +368,7 @@ static int erasecrosstest(void)
 	printk(PRINT_PREF "writing 1st page of block %d\n", ebnum);
 	set_random_data(writebuf, pgsize);
 	strcpy(writebuf, "There is no data like this!");
-	err = mtd->write(mtd, addr0, pgsize, &written, writebuf);
+	err = mtd_write(mtd, addr0, pgsize, &written, writebuf);
 	if (err || written != pgsize) {
 		printk(PRINT_PREF "error: write failed at %#llx\n",
 		       (long long)addr0);
@@ -425,7 +425,7 @@ static int erasetest(void)
 
 	printk(PRINT_PREF "writing 1st page of block %d\n", ebnum);
 	set_random_data(writebuf, pgsize);
-	err = mtd->write(mtd, addr0, pgsize, &written, writebuf);
+	err = mtd_write(mtd, addr0, pgsize, &written, writebuf);
 	if (err || written != pgsize) {
 		printk(PRINT_PREF "error: write failed at %#llx\n",
 		       (long long)addr0);

@@ -184,6 +184,8 @@ struct mtd_info {
 					    unsigned long flags);
 	int (*read) (struct mtd_info *mtd, loff_t from, size_t len,
 		     size_t *retlen, u_char *buf);
+	int (*write) (struct mtd_info *mtd, loff_t to, size_t len,
+		      size_t *retlen, const u_char *buf);
 
 	/* Backing device capabilities for this device
 	 * - provides mmap capabilities
@@ -191,7 +193,6 @@ struct mtd_info {
 	struct backing_dev_info *backing_dev_info;
 
 
-	int (*write) (struct mtd_info *mtd, loff_t to, size_t len, size_t *retlen, const u_char *buf);
 
 	/* In blackbox flight recorder like scenarios we want to make successful
 	   writes in interrupt context. panic_write() is only intended to be
@@ -306,6 +307,12 @@ static inline int mtd_read(struct mtd_info *mtd, loff_t from, size_t len,
 			   size_t *retlen, u_char *buf)
 {
 	return mtd->read(mtd, from, len, retlen, buf);
+}
+
+static inline int mtd_write(struct mtd_info *mtd, loff_t to, size_t len,
+			    size_t *retlen, const u_char *buf)
+{
+	return mtd->write(mtd, to, len, retlen, buf);
 }
 
 static inline struct mtd_info *dev_to_mtd(struct device *dev)

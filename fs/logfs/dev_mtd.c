@@ -49,7 +49,7 @@ static int loffs_mtd_write(struct super_block *sb, loff_t ofs, size_t len,
 	BUG_ON(len > PAGE_CACHE_SIZE);
 	page_start = ofs & PAGE_CACHE_MASK;
 	page_end = PAGE_CACHE_ALIGN(ofs + len) - 1;
-	ret = mtd->write(mtd, ofs, len, &retlen, buf);
+	ret = mtd_write(mtd, ofs, len, &retlen, buf);
 	if (ret || (retlen != len))
 		return -EIO;
 

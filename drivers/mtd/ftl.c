@@ -422,8 +422,8 @@ static int prepare_xfer(partition_t *part, int i)
     header.LogicalEUN = cpu_to_le16(0xffff);
     header.EraseCount = cpu_to_le32(xfer->EraseCount);
 
-    ret = part->mbd.mtd->write(part->mbd.mtd, xfer->Offset, sizeof(header),
-			   &retlen, (u_char *)&header);
+    ret = mtd_write(part->mbd.mtd, xfer->Offset, sizeof(header), &retlen,
+                    (u_char *)&header);
 
     if (ret) {
 	return ret;
@@ -438,8 +438,8 @@ static int prepare_xfer(partition_t *part, int i)
 
     for (i = 0; i < nbam; i++, offset += sizeof(uint32_t)) {
 
-	ret = part->mbd.mtd->write(part->mbd.mtd, offset, sizeof(uint32_t),
-			       &retlen, (u_char *)&ctl);
+	ret = mtd_write(part->mbd.mtd, offset, sizeof(uint32_t), &retlen,
+                        (u_char *)&ctl);
 
 	if (ret)
 	    return ret;
@@ -503,8 +503,8 @@ static int copy_erase_unit(partition_t *part, uint16_t srcunit,
     offset = xfer->Offset + 20; /* Bad! */
     unit = cpu_to_le16(0x7fff);
 
-    ret = part->mbd.mtd->write(part->mbd.mtd, offset, sizeof(uint16_t),
-			   &retlen, (u_char *) &unit);
+    ret = mtd_write(part->mbd.mtd, offset, sizeof(uint16_t), &retlen,
+                    (u_char *)&unit);
 
     if (ret) {
 	printk( KERN_WARNING "ftl: Failed to write back to BAM cache in copy_erase_unit()!\n");
@@ -531,8 +531,8 @@ static int copy_erase_unit(partition_t *part, uint16_t srcunit,
             }
 
 
-	    ret = part->mbd.mtd->write(part->mbd.mtd, dest, SECTOR_SIZE,
-                        &retlen, (u_char *) buf);
+	    ret = mtd_write(part->mbd.mtd, dest, SECTOR_SIZE, &retlen,
+                            (u_char *)buf);
 	    if (ret)  {
 		printk(KERN_WARNING "ftl: Error writing new xfer unit in copy_erase_unit\n");
 		return ret;
@@ -550,9 +550,11 @@ static int copy_erase_unit(partition_t *part, uint16_t srcunit,
     }
 
     /* Write the BAM to the transfer unit */
-    ret = part->mbd.mtd->write(part->mbd.mtd, xfer->Offset + le32_to_cpu(part->header.BAMOffset),
-                    part->BlocksPerUnit * sizeof(int32_t), &retlen,
-		    (u_char *)part->bam_cache);
+    ret = mtd_write(part->mbd.mtd,
+                    xfer->Offset + le32_to_cpu(part->header.BAMOffset),
+                    part->BlocksPerUnit * sizeof(int32_t),
+                    &retlen,
+                    (u_char *)part->bam_cache);
     if (ret) {
 	printk( KERN_WARNING "ftl: Error writing BAM in copy_erase_unit\n");
 	return ret;
@@ -560,8 +562,8 @@ static int copy_erase_unit(partition_t *part, uint16_t srcunit,
 
 
     /* All clear? Then update the LogicalEUN again */
-    ret = part->mbd.mtd->write(part->mbd.mtd, xfer->Offset + 20, sizeof(uint16_t),
-			   &retlen, (u_char *)&srcunitswap);
+    ret = mtd_write(part->mbd.mtd, xfer->Offset + 20, sizeof(uint16_t),
+                    &retlen, (u_char *)&srcunitswap);
 
     if (ret) {
 	printk(KERN_WARNING "ftl: Error writing new LogicalEUN in copy_erase_unit\n");
@@ -887,8 +889,8 @@ static int set_bam_entry(partition_t *part, uint32_t log_addr,
 #endif
 	part->bam_cache[blk] = le_virt_addr;
     }
-    ret = part->mbd.mtd->write(part->mbd.mtd, offset, sizeof(uint32_t),
-                            &retlen, (u_char *)&le_virt_addr);
+    ret = mtd_write(part->mbd.mtd, offset, sizeof(uint32_t), &retlen,
+                    (u_char *)&le_virt_addr);
 
     if (ret) {
 	printk(KERN_NOTICE "ftl_cs: set_bam_entry() failed!\n");
@@ -947,8 +949,7 @@ static int ftl_write(partition_t *part, caddr_t buffer,
 	part->EUNInfo[part->bam_index].Deleted++;
 	offset = (part->EUNInfo[part->bam_index].Offset +
 		      blk * SECTOR_SIZE);
-	ret = part->mbd.mtd->write(part->mbd.mtd, offset, SECTOR_SIZE, &retlen,
-                                     buffer);
+	ret = mtd_write(part->mbd.mtd, offset, SECTOR_SIZE, &retlen, buffer);
 
 	if (ret) {
 	    printk(KERN_NOTICE "ftl_cs: block write failed!\n");

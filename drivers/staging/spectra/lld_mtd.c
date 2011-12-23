@@ -233,9 +233,11 @@ u16 mtd_Write_Page_Main(u8 *write_data, u32 Block,
 
 
 	while (PageCount) {
-		ret = spectra_mtd->write(spectra_mtd,
-					 (Block * spectra_mtd->erasesize) + (Page * spectra_mtd->writesize),
-					 DeviceInfo.wPageDataSize, &retlen, write_data);
+		ret = mtd_write(spectra_mtd,
+				(Block * spectra_mtd->erasesize) + (Page * spectra_mtd->writesize),
+				DeviceInfo.wPageDataSize,
+				&retlen,
+				write_data);
 		if (ret) {
 			printk(KERN_ERR "%s failed %d\n", __func__, ret);
 			return FAIL;

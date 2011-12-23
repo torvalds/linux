@@ -689,7 +689,7 @@ retry:
 		return ret;
 
 	writepos = (loff_t)*bp << PAGE_SHIFT;
-	ret =  mtd->write(mtd, writepos, PAGE_SIZE, &retlen, buf);
+	ret =  mtd_write(mtd, writepos, PAGE_SIZE, &retlen, buf);
 	if (ret == -EIO || mtd_is_eccerr(ret)) {
 		d->curr_write_pos--;
 		eb->active_count--;

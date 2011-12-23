@@ -331,7 +331,7 @@ static ssize_t mtdchar_write(struct file *file, const char __user *buf, size_t c
 		}
 
 		default:
-			ret = (*(mtd->write))(mtd, *ppos, len, &retlen, kbuf);
+			ret = mtd_write(mtd, *ppos, len, &retlen, kbuf);
 		}
 		if (!ret) {
 			*ppos += retlen;

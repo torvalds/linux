@@ -120,7 +120,7 @@ static int write_eraseblock(int ebnum)
 	loff_t addr = ebnum * mtd->erasesize;
 
 	set_random_data(writebuf, subpgsize);
-	err = mtd->write(mtd, addr, subpgsize, &written, writebuf);
+	err = mtd_write(mtd, addr, subpgsize, &written, writebuf);
 	if (unlikely(err || written != subpgsize)) {
 		printk(PRINT_PREF "error: write failed at %#llx\n",
 		       (long long)addr);
@@ -134,7 +134,7 @@ static int write_eraseblock(int ebnum)
 	addr += subpgsize;
 
 	set_random_data(writebuf, subpgsize);
-	err = mtd->write(mtd, addr, subpgsize, &written, writebuf);
+	err = mtd_write(mtd, addr, subpgsize, &written, writebuf);
 	if (unlikely(err || written != subpgsize)) {
 		printk(PRINT_PREF "error: write failed at %#llx\n",
 		       (long long)addr);
@@ -158,7 +158,7 @@ static int write_eraseblock2(int ebnum)
 		if (addr + (subpgsize * k) > (ebnum + 1) * mtd->erasesize)
 			break;
 		set_random_data(writebuf, subpgsize * k);
-		err = mtd->write(mtd, addr, subpgsize * k, &written, writebuf);
+		err = mtd_write(mtd, addr, subpgsize * k, &written, writebuf);
 		if (unlikely(err || written != subpgsize * k)) {
 			printk(PRINT_PREF "error: write failed at %#llx\n",
 			       (long long)addr);

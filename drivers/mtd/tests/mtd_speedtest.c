@@ -143,7 +143,7 @@ static int write_eraseblock(int ebnum)
 	int err = 0;
 	loff_t addr = ebnum * mtd->erasesize;
 
-	err = mtd->write(mtd, addr, mtd->erasesize, &written, iobuf);
+	err = mtd_write(mtd, addr, mtd->erasesize, &written, iobuf);
 	if (err || written != mtd->erasesize) {
 		printk(PRINT_PREF "error: write failed at %#llx\n", addr);
 		if (!err)
@@ -161,7 +161,7 @@ static int write_eraseblock_by_page(int ebnum)
 	void *buf = iobuf;
 
 	for (i = 0; i < pgcnt; i++) {
-		err = mtd->write(mtd, addr, pgsize, &written, buf);
+		err = mtd_write(mtd, addr, pgsize, &written, buf);
 		if (err || written != pgsize) {
 			printk(PRINT_PREF "error: write failed at %#llx\n",
 			       addr);
@@ -184,7 +184,7 @@ static int write_eraseblock_by_2pages(int ebnum)
 	void *buf = iobuf;
 
 	for (i = 0; i < n; i++) {
-		err = mtd->write(mtd, addr, sz, &written, buf);
+		err = mtd_write(mtd, addr, sz, &written, buf);
 		if (err || written != sz) {
 			printk(PRINT_PREF "error: write failed at %#llx\n",
 			       addr);
@@ -196,7 +196,7 @@ static int write_eraseblock_by_2pages(int ebnum)
 		buf += sz;
 	}
 	if (pgcnt % 2) {
-		err = mtd->write(mtd, addr, pgsize, &written, buf);
+		err = mtd_write(mtd, addr, pgsize, &written, buf);
 		if (err || written != pgsize) {
 			printk(PRINT_PREF "error: write failed at %#llx\n",
 			       addr);

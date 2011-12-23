@@ -192,7 +192,7 @@ static int do_write(void)
 		}
 	}
 	addr = eb * mtd->erasesize + offs;
-	err = mtd->write(mtd, addr, len, &written, writebuf);
+	err = mtd_write(mtd, addr, len, &written, writebuf);
 	if (unlikely(err || written != len)) {
 		printk(PRINT_PREF "error: write failed at 0x%llx\n",
 		       (long long)addr);

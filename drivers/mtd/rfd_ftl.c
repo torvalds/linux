@@ -304,9 +304,8 @@ static void erase_callback(struct erase_info *erase)
 	part->blocks[i].used_sectors = 0;
 	part->blocks[i].erases++;
 
-	rc = part->mbd.mtd->write(part->mbd.mtd,
-		part->blocks[i].offset, sizeof(magic), &retlen,
-		(u_char*)&magic);
+	rc = mtd_write(part->mbd.mtd, part->blocks[i].offset, sizeof(magic),
+		       &retlen, (u_char *)&magic);
 
 	if (!rc && retlen != sizeof(magic))
 		rc = -EIO;
@@ -595,8 +594,8 @@ static int mark_sector_deleted(struct partition *part, u_long old_addr)
 
 	addr = part->blocks[block].offset +
 			(HEADER_MAP_OFFSET + offset) * sizeof(u16);
-	rc = part->mbd.mtd->write(part->mbd.mtd, addr,
-		sizeof(del), &retlen, (u_char*)&del);
+	rc = mtd_write(part->mbd.mtd, addr, sizeof(del), &retlen,
+		       (u_char *)&del);
 
 	if (!rc && retlen != sizeof(del))
 		rc = -EIO;
@@ -668,8 +667,8 @@ static int do_writesect(struct mtd_blktrans_dev *dev, u_long sector, char *buf, 
 
 	addr = (i + part->header_sectors_per_block) * SECTOR_SIZE +
 		block->offset;
-	rc = part->mbd.mtd->write(part->mbd.mtd,
-		addr, SECTOR_SIZE, &retlen, (u_char*)buf);
+	rc = mtd_write(part->mbd.mtd, addr, SECTOR_SIZE, &retlen,
+		       (u_char *)buf);
 
 	if (!rc && retlen != SECTOR_SIZE)
 		rc = -EIO;
@@ -688,8 +687,8 @@ static int do_writesect(struct mtd_blktrans_dev *dev, u_long sector, char *buf, 
 	part->header_cache[i + HEADER_MAP_OFFSET] = entry;
 
 	addr = block->offset + (HEADER_MAP_OFFSET + i) * sizeof(u16);
-	rc = part->mbd.mtd->write(part->mbd.mtd, addr,
-			sizeof(entry), &retlen, (u_char*)&entry);
+	rc = mtd_write(part->mbd.mtd, addr, sizeof(entry), &retlen,
+		       (u_char *)&entry);
 
 	if (!rc && retlen != sizeof(entry))
 		rc = -EIO;

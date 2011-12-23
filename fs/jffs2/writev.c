@@ -26,7 +26,8 @@ static inline int mtd_fake_writev(struct mtd_info *mtd, const struct kvec *vecs,
 	for (i=0; i<count; i++) {
 		if (!vecs[i].iov_len)
 			continue;
-		ret = mtd->write(mtd, to, vecs[i].iov_len, &thislen, vecs[i].iov_base);
+		ret = mtd_write(mtd, to, vecs[i].iov_len, &thislen,
+				vecs[i].iov_base);
 		totlen += thislen;
 		if (ret || thislen != vecs[i].iov_len)
 			break;
@@ -61,7 +62,7 @@ int jffs2_flash_direct_write(struct jffs2_sb_info *c, loff_t ofs, size_t len,
 			size_t *retlen, const u_char *buf)
 {
 	int ret;
-	ret = c->mtd->write(c->mtd, ofs, len, retlen, buf);
+	ret = mtd_write(c->mtd, ofs, len, retlen, buf);
 
 	if (jffs2_sum_active()) {
 		struct kvec vecs[1];

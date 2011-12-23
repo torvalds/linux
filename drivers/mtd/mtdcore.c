@@ -699,7 +699,8 @@ int default_mtd_writev(struct mtd_info *mtd, const struct kvec *vecs,
 		for (i=0; i<count; i++) {
 			if (!vecs[i].iov_len)
 				continue;
-			ret = mtd->write(mtd, to, vecs[i].iov_len, &thislen, vecs[i].iov_base);
+			ret = mtd_write(mtd, to, vecs[i].iov_len, &thislen,
+					vecs[i].iov_base);
 			totlen += thislen;
 			if (ret || thislen != vecs[i].iov_len)
 				break;

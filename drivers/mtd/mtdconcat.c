@@ -148,7 +148,7 @@ concat_write(struct mtd_info *mtd, loff_t to, size_t len,
 		if (!(subdev->flags & MTD_WRITEABLE))
 			err = -EROFS;
 		else
-			err = subdev->write(subdev, to, size, &retsize, buf);
+			err = mtd_write(subdev, to, size, &retsize, buf);
 
 		if (err)
 			break;
