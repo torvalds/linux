@@ -323,6 +323,7 @@ static struct snd_soc_dai_link mfld_msic_dailink[] = {
 /* SoC card */
 static struct snd_soc_card snd_soc_card_mfld = {
 	.name = "medfield_audio",
+	.owner = THIS_MODULE,
 	.dai_link = mfld_msic_dailink,
 	.num_links = ARRAY_SIZE(mfld_msic_dailink),
 };
