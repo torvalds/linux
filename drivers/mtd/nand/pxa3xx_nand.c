@@ -1258,7 +1258,7 @@ static int pxa3xx_nand_suspend(struct platform_device *pdev, pm_message_t state)
 
 	for (cs = 0; cs < pdata->num_cs; cs++) {
 		mtd = info->host[cs]->mtd;
-		mtd->suspend(mtd);
+		mtd_suspend(mtd);
 	}
 
 	return 0;

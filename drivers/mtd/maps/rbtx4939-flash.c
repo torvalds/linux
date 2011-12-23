@@ -120,7 +120,7 @@ static void rbtx4939_flash_shutdown(struct platform_device *dev)
 	struct rbtx4939_flash_info *info = platform_get_drvdata(dev);
 
 	if (info->mtd->suspend && info->mtd->resume)
-		if (info->mtd->suspend(info->mtd) == 0)
+		if (mtd_suspend(info->mtd) == 0)
 			info->mtd->resume(info->mtd);
 }
 #else

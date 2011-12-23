@@ -307,7 +307,7 @@ static void part_sync(struct mtd_info *mtd)
 static int part_suspend(struct mtd_info *mtd)
 {
 	struct mtd_part *part = PART(mtd);
-	return part->master->suspend(part->master);
+	return mtd_suspend(part->master);
 }
 
 static void part_resume(struct mtd_info *mtd)

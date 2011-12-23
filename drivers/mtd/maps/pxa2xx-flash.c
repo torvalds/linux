@@ -125,7 +125,7 @@ static void pxa2xx_flash_shutdown(struct platform_device *dev)
 {
 	struct pxa2xx_flash_info *info = platform_get_drvdata(dev);
 
-	if (info && info->mtd->suspend(info->mtd) == 0)
+	if (info && mtd_suspend(info->mtd) == 0)
 		info->mtd->resume(info->mtd);
 }
 #else

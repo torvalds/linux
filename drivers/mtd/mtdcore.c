@@ -119,7 +119,7 @@ static int mtd_cls_suspend(struct device *dev, pm_message_t state)
 	struct mtd_info *mtd = dev_to_mtd(dev);
 
 	if (mtd && mtd->suspend)
-		return mtd->suspend(mtd);
+		return mtd_suspend(mtd);
 	else
 		return 0;
 }

@@ -631,7 +631,7 @@ static int concat_suspend(struct mtd_info *mtd)
 
 	for (i = 0; i < concat->num_subdev; i++) {
 		struct mtd_info *subdev = concat->subdev[i];
-		if ((rc = subdev->suspend(subdev)) < 0)
+		if ((rc = mtd_suspend(subdev)) < 0)
 			return rc;
 	}
 	return rc;

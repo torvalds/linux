@@ -377,7 +377,7 @@ static int __exit sa1100_mtd_remove(struct platform_device *pdev)
 static void sa1100_mtd_shutdown(struct platform_device *dev)
 {
 	struct sa_info *info = platform_get_drvdata(dev);
-	if (info && info->mtd->suspend(info->mtd) == 0)
+	if (info && mtd_suspend(info->mtd) == 0)
 		info->mtd->resume(info->mtd);
 }
 #else

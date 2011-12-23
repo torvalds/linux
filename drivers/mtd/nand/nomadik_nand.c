@@ -201,7 +201,7 @@ static int nomadik_nand_suspend(struct device *dev)
 	struct nomadik_nand_host *host = dev_get_drvdata(dev);
 	int ret = 0;
 	if (host)
-		ret = host->mtd.suspend(&host->mtd);
+		ret = mtd_suspend(&host->mtd);
 	return ret;
 }
 
