@@ -853,8 +853,10 @@ static __devinit int vpbe_probe(struct platform_device *pdev)
 
 	if (cfg->outputs->num_modes > 0)
 		vpbe_dev->current_timings = vpbe_dev->cfg->outputs[0].modes[0];
-	else
+	else {
+		kfree(vpbe_dev);
 		return -ENODEV;
+	}
 
 	/* set the driver data in platform device */
 	platform_set_drvdata(pdev, vpbe_dev);
