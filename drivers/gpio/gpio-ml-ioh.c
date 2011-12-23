@@ -332,6 +332,34 @@ static void ioh_irq_mask(struct irq_data *d)
 		  &chip->reg->regs[chip->ch].imask);
 }
 
+static void ioh_irq_disable(struct irq_data *d)
+{
+	struct irq_chip_generic *gc = irq_data_get_irq_chip_data(d);
+	struct ioh_gpio *chip = gc->private;
+	unsigned long flags;
+	u32 ien;
+
+	spin_lock_irqsave(&chip->spinlock, flags);
+	ien = ioread32(&chip->reg->regs[chip->ch].ien);
+	ien &= ~(1 << (d->irq - chip->irq_base));
+	iowrite32(ien, &chip->reg->regs[chip->ch].ien);
+	spin_unlock_irqrestore(&chip->spinlock, flags);
+}
+
+static void ioh_irq_enable(struct irq_data *d)
+{
+	struct irq_chip_generic *gc = irq_data_get_irq_chip_data(d);
+	struct ioh_gpio *chip = gc->private;
+	unsigned long flags;
+	u32 ien;
+
+	spin_lock_irqsave(&chip->spinlock, flags);
+	ien = ioread32(&chip->reg->regs[chip->ch].ien);
+	ien |= 1 << (d->irq - chip->irq_base);
+	iowrite32(ien, &chip->reg->regs[chip->ch].ien);
+	spin_unlock_irqrestore(&chip->spinlock, flags);
+}
+
 static irqreturn_t ioh_gpio_handler(int irq, void *dev_id)
 {
 	struct ioh_gpio *chip = dev_id;
@@ -339,7 +367,7 @@ static irqreturn_t ioh_gpio_handler(int irq, void *dev_id)
 	int i, j;
 	int ret = IRQ_NONE;
 
-	for (i = 0; i < 8; i++) {
+	for (i = 0; i < 8; i++, chip++) {
 		reg_val = ioread32(&chip->reg->regs[i].istatus);
 		for (j = 0; j < num_ports[i]; j++) {
 			if (reg_val & BIT(j)) {
@@ -370,6 +398,8 @@ static __devinit void ioh_gpio_alloc_generic_chip(struct ioh_gpio *chip,
 	ct->chip.irq_mask = ioh_irq_mask;
 	ct->chip.irq_unmask = ioh_irq_unmask;
 	ct->chip.irq_set_type = ioh_irq_type;
+	ct->chip.irq_disable = ioh_irq_disable;
+	ct->chip.irq_enable = ioh_irq_enable;
 
 	irq_setup_generic_chip(gc, IRQ_MSK(num), IRQ_GC_INIT_MASK_CACHE,
 			       IRQ_NOREQUEST | IRQ_NOPROBE, 0);

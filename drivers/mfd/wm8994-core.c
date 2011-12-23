@@ -239,6 +239,7 @@ static int wm8994_suspend(struct device *dev)
 
 	switch (wm8994->type) {
 	case WM8958:
+	case WM1811:
 		ret = wm8994_reg_read(wm8994, WM8958_MIC_DETECT_1);
 		if (ret < 0) {
 			dev_err(dev, "Failed to read power status: %d\n", ret);

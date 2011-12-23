@@ -2174,10 +2174,10 @@ static void perf_event_context_sched_in(struct perf_event_context *ctx,
 	 */
 	cpu_ctx_sched_out(cpuctx, EVENT_FLEXIBLE);
 
-	perf_event_sched_in(cpuctx, ctx, task);
-
 	if (ctx->nr_events)
 		cpuctx->task_ctx = ctx;
+
+	perf_event_sched_in(cpuctx, cpuctx->task_ctx, task);
 
 	perf_pmu_enable(ctx->pmu);
 	perf_ctx_unlock(cpuctx, ctx);
@@ -3558,9 +3558,13 @@ static void ring_buffer_wakeup(struct perf_event *event)
 
 	rcu_read_lock();
 	rb = rcu_dereference(event->rb);
-	list_for_each_entry_rcu(event, &rb->event_list, rb_entry) {
+	if (!rb)
+		goto unlock;
+
+	list_for_each_entry_rcu(event, &rb->event_list, rb_entry)
 		wake_up_all(&event->waitq);
-	}
+
+unlock:
 	rcu_read_unlock();
 }
 

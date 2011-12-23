@@ -604,7 +604,7 @@ void ipv6_select_ident(struct frag_hdr *fhdr, struct rt6_info *rt)
 	static atomic_t ipv6_fragmentation_id;
 	int old, new;
 
-	if (rt) {
+	if (rt && !(rt->dst.flags & DST_NOPEER)) {
 		struct inet_peer *peer;
 
 		if (!rt->rt6i_peer)

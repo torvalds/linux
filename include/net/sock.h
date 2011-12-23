@@ -662,12 +662,14 @@ static inline void __sk_add_backlog(struct sock *sk, struct sk_buff *skb)
 
 /*
  * Take into account size of receive queue and backlog queue
+ * Do not take into account this skb truesize,
+ * to allow even a single big packet to come.
  */
 static inline bool sk_rcvqueues_full(const struct sock *sk, const struct sk_buff *skb)
 {
 	unsigned int qsize = sk->sk_backlog.len + atomic_read(&sk->sk_rmem_alloc);
 
-	return qsize + skb->truesize > sk->sk_rcvbuf;
+	return qsize > sk->sk_rcvbuf;
 }
 
 /* The per-socket spinlock must be held here. */

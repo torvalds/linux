@@ -91,6 +91,7 @@
 #include <linux/rcupdate.h>
 #include <linux/times.h>
 #include <linux/slab.h>
+#include <linux/prefetch.h>
 #include <net/dst.h>
 #include <net/net_namespace.h>
 #include <net/protocol.h>
@@ -119,6 +120,7 @@
 
 static int ip_rt_max_size;
 static int ip_rt_gc_timeout __read_mostly	= RT_GC_TIMEOUT;
+static int ip_rt_gc_interval __read_mostly  = 60 * HZ;
 static int ip_rt_gc_min_interval __read_mostly	= HZ / 2;
 static int ip_rt_redirect_number __read_mostly	= 9;
 static int ip_rt_redirect_load __read_mostly	= HZ / 50;
@@ -131,6 +133,9 @@ static int ip_rt_min_pmtu __read_mostly		= 512 + 20 + 20;
 static int ip_rt_min_advmss __read_mostly	= 256;
 static int rt_chain_length_max __read_mostly	= 20;
 static int redirect_genid;
+
+static struct delayed_work expires_work;
+static unsigned long expires_ljiffies;
 
 /*
  *	Interface to generic destination cache.
@@ -829,6 +834,97 @@ static int has_noalias(const struct rtable *head, const struct rtable *rth)
 	return ONE;
 }
 
+static void rt_check_expire(void)
+{
+	static unsigned int rover;
+	unsigned int i = rover, goal;
+	struct rtable *rth;
+	struct rtable __rcu **rthp;
+	unsigned long samples = 0;
+	unsigned long sum = 0, sum2 = 0;
+	unsigned long delta;
+	u64 mult;
+
+	delta = jiffies - expires_ljiffies;
+	expires_ljiffies = jiffies;
+	mult = ((u64)delta) << rt_hash_log;
+	if (ip_rt_gc_timeout > 1)
+		do_div(mult, ip_rt_gc_timeout);
+	goal = (unsigned int)mult;
+	if (goal > rt_hash_mask)
+		goal = rt_hash_mask + 1;
+	for (; goal > 0; goal--) {
+		unsigned long tmo = ip_rt_gc_timeout;
+		unsigned long length;
+
+		i = (i + 1) & rt_hash_mask;
+		rthp = &rt_hash_table[i].chain;
+
+		if (need_resched())
+			cond_resched();
+
+		samples++;
+
+		if (rcu_dereference_raw(*rthp) == NULL)
+			continue;
+		length = 0;
+		spin_lock_bh(rt_hash_lock_addr(i));
+		while ((rth = rcu_dereference_protected(*rthp,
+					lockdep_is_held(rt_hash_lock_addr(i)))) != NULL) {
+			prefetch(rth->dst.rt_next);
+			if (rt_is_expired(rth)) {
+				*rthp = rth->dst.rt_next;
+				rt_free(rth);
+				continue;
+			}
+			if (rth->dst.expires) {
+				/* Entry is expired even if it is in use */
+				if (time_before_eq(jiffies, rth->dst.expires)) {
+nofree:
+					tmo >>= 1;
+					rthp = &rth->dst.rt_next;
+					/*
+					 * We only count entries on
+					 * a chain with equal hash inputs once
+					 * so that entries for different QOS
+					 * levels, and other non-hash input
+					 * attributes don't unfairly skew
+					 * the length computation
+					 */
+					length += has_noalias(rt_hash_table[i].chain, rth);
+					continue;
+				}
+			} else if (!rt_may_expire(rth, tmo, ip_rt_gc_timeout))
+				goto nofree;
+
+			/* Cleanup aged off entries. */
+			*rthp = rth->dst.rt_next;
+			rt_free(rth);
+		}
+		spin_unlock_bh(rt_hash_lock_addr(i));
+		sum += length;
+		sum2 += length*length;
+	}
+	if (samples) {
+		unsigned long avg = sum / samples;
+		unsigned long sd = int_sqrt(sum2 / samples - avg*avg);
+		rt_chain_length_max = max_t(unsigned long,
+					ip_rt_gc_elasticity,
+					(avg + 4*sd) >> FRACT_BITS);
+	}
+	rover = i;
+}
+
+/*
+ * rt_worker_func() is run in process context.
+ * we call rt_check_expire() to scan part of the hash table
+ */
+static void rt_worker_func(struct work_struct *work)
+{
+	rt_check_expire();
+	schedule_delayed_work(&expires_work, ip_rt_gc_interval);
+}
+
 /*
  * Perturbation of rt_genid by a small quantity [1..256]
  * Using 8 bits of shuffling ensure we can call rt_cache_invalidate()
@@ -1265,7 +1361,7 @@ void __ip_select_ident(struct iphdr *iph, struct dst_entry *dst, int more)
 {
 	struct rtable *rt = (struct rtable *) dst;
 
-	if (rt) {
+	if (rt && !(rt->dst.flags & DST_NOPEER)) {
 		if (rt->peer == NULL)
 			rt_bind_peer(rt, rt->rt_dst, 1);
 
@@ -1276,7 +1372,7 @@ void __ip_select_ident(struct iphdr *iph, struct dst_entry *dst, int more)
 			iph->id = htons(inet_getid(rt->peer, more));
 			return;
 		}
-	} else
+	} else if (!rt)
 		printk(KERN_DEBUG "rt_bind_peer(0) @%p\n",
 		       __builtin_return_address(0));
 
@@ -3173,6 +3269,13 @@ static ctl_table ipv4_route_table[] = {
 		.proc_handler	= proc_dointvec_jiffies,
 	},
 	{
+		.procname	= "gc_interval",
+		.data		= &ip_rt_gc_interval,
+		.maxlen		= sizeof(int),
+		.mode		= 0644,
+		.proc_handler	= proc_dointvec_jiffies,
+	},
+	{
 		.procname	= "redirect_load",
 		.data		= &ip_rt_redirect_load,
 		.maxlen		= sizeof(int),
@@ -3381,6 +3484,11 @@ int __init ip_rt_init(void)
 
 	devinet_init();
 	ip_fib_init();
+
+	INIT_DELAYED_WORK_DEFERRABLE(&expires_work, rt_worker_func);
+	expires_ljiffies = jiffies;
+	schedule_delayed_work(&expires_work,
+		net_random() % ip_rt_gc_interval + ip_rt_gc_interval);
 
 	if (ip_rt_proc_init())
 		printk(KERN_ERR "Unable to create route proc files\n");

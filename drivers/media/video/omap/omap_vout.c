@@ -38,6 +38,7 @@
 #include <linux/irq.h>
 #include <linux/videodev2.h>
 #include <linux/dma-mapping.h>
+#include <linux/slab.h>
 
 #include <media/videobuf-dma-contig.h>
 #include <media/v4l2-device.h>
@@ -2169,6 +2170,14 @@ static int __init omap_vout_probe(struct platform_device *pdev)
 	vid_dev->num_displays = 0;
 	for_each_dss_dev(dssdev) {
 		omap_dss_get_device(dssdev);
+
+		if (!dssdev->driver) {
+			dev_warn(&pdev->dev, "no driver for display: %s\n",
+					dssdev->name);
+			omap_dss_put_device(dssdev);
+			continue;
+		}
+
 		vid_dev->displays[vid_dev->num_displays++] = dssdev;
 	}
 
