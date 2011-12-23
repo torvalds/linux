@@ -107,8 +107,6 @@ void il4965_set_wr_ptrs(struct il_priv *il, int txq_id, u32 idx);
 void il4965_tx_queue_set_status(struct il_priv *il, struct il_tx_queue *txq,
 				int tx_fifo_id, int scd_retry);
 
-u8 il4965_toggle_tx_ant(struct il_priv *il, u8 ant_idx, u8 valid);
-
 /* rx */
 void il4965_hdl_missed_beacon(struct il_priv *il, struct il_rx_buf *rxb);
 bool il4965_good_plcp_health(struct il_priv *il, struct il_rx_pkt *pkt);

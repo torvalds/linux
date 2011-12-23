@@ -825,6 +825,21 @@ il4965_ant_idx_to_flags(u8 ant_idx)
 	return BIT(ant_idx) << RATE_MCS_ANT_POS;
 }
 
+static void
+il4965_toggle_tx_ant(struct il_priv *il, u8 *ant, u8 valid)
+{
+	int i;
+	u8 ind = *ant;
+
+	for (i = 0; i < RATE_ANT_NUM - 1; i++) {
+		ind = (ind + 1) < RATE_ANT_NUM ? ind + 1 : 0;
+		if (valid & BIT(ind)) {
+			*ant = ind;
+			return;
+		}
+	}
+}
+
 int
 il4965_request_scan(struct il_priv *il, struct ieee80211_vif *vif)
 {
@@ -960,8 +975,7 @@ il4965_request_scan(struct il_priv *il, struct ieee80211_vif *vif)
 	if (il->cfg->scan_rx_antennas[band])
 		rx_ant = il->cfg->scan_rx_antennas[band];
 
-	il->scan_tx_ant[band] =
-	    il4965_toggle_tx_ant(il, il->scan_tx_ant[band], scan_tx_antennas);
+	il4965_toggle_tx_ant(il, &il->scan_tx_ant[band], scan_tx_antennas);
 	rate_flags |= il4965_ant_idx_to_flags(il->scan_tx_ant[band]);
 	scan->tx_cmd.rate_n_flags =
 	    il4965_hw_set_rate_n_flags(rate, rate_flags);
@@ -1169,20 +1183,6 @@ il4965_set_rxon_chain(struct il_priv *il, struct il_rxon_context *ctx)
 
 	WARN_ON(active_rx_cnt == 0 || idle_rx_cnt == 0 ||
 		active_rx_cnt < idle_rx_cnt);
-}
-
-u8
-il4965_toggle_tx_ant(struct il_priv *il, u8 ant, u8 valid)
-{
-	int i;
-	u8 ind = ant;
-
-	for (i = 0; i < RATE_ANT_NUM - 1; i++) {
-		ind = (ind + 1) < RATE_ANT_NUM ? ind + 1 : 0;
-		if (valid & BIT(ind))
-			return ind;
-	}
-	return ant;
 }
 
 static const char *
@@ -1588,10 +1588,7 @@ il4965_tx_cmd_build_rate(struct il_priv *il, struct il_tx_cmd *tx_cmd,
 		rate_flags |= RATE_MCS_CCK_MSK;
 
 	/* Set up antennas */
-	il->mgmt_tx_ant =
-	    il4965_toggle_tx_ant(il, il->mgmt_tx_ant,
-				 il->hw_params.valid_tx_ant);
-
+	il4965_toggle_tx_ant(il, &il->mgmt_tx_ant, il->hw_params.valid_tx_ant);
 	rate_flags |= il4965_ant_idx_to_flags(il->mgmt_tx_ant);
 
 	/* Set the rate in the TX cmd */
@@ -3540,9 +3537,7 @@ il4965_hw_get_beacon_cmd(struct il_priv *il, struct il_frame *frame)
 
 	/* Set up packet rate and flags */
 	rate = il_get_lowest_plcp(il, il->beacon_ctx);
-	il->mgmt_tx_ant =
-	    il4965_toggle_tx_ant(il, il->mgmt_tx_ant,
-				 il->hw_params.valid_tx_ant);
+	il4965_toggle_tx_ant(il, &il->mgmt_tx_ant, il->hw_params.valid_tx_ant);
 	rate_flags = il4965_ant_idx_to_flags(il->mgmt_tx_ant);
 	if ((rate >= IL_FIRST_CCK_RATE) && (rate <= IL_LAST_CCK_RATE))
 		rate_flags |= RATE_MCS_CCK_MSK;
