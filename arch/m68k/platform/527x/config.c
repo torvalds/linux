@@ -295,33 +295,16 @@ static struct platform_device *m527x_devices[] __initdata = {
 
 /***************************************************************************/
 
-static void __init m527x_uart_init_line(int line, int irq)
+static void __init m527x_uarts_init(void)
 {
 	u16 sepmask;
-
-	if ((line < 0) || (line > 2))
-		return;
 
 	/*
 	 * External Pin Mask Setting & Enable External Pin for Interface
 	 */
 	sepmask = readw(MCF_IPSBAR + MCF_GPIO_PAR_UART);
-	if (line == 0)
-		sepmask |= UART0_ENABLE_MASK;
-	else if (line == 1)
-		sepmask |= UART1_ENABLE_MASK;
-	else if (line == 2)
-		sepmask |= UART2_ENABLE_MASK;
+	sepmask |= UART0_ENABLE_MASK | UART1_ENABLE_MASK | UART2_ENABLE_MASK;
 	writew(sepmask, MCF_IPSBAR + MCF_GPIO_PAR_UART);
-}
-
-static void __init m527x_uarts_init(void)
-{
-	const int nrlines = ARRAY_SIZE(m527x_uart_platform);
-	int line;
-
-	for (line = 0; (line < nrlines); line++)
-		m527x_uart_init_line(line, m527x_uart_platform[line].irq);
 }
 
 /***************************************************************************/
