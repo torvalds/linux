@@ -82,6 +82,11 @@ config EXYNOS4_DEV_DWMCI
 	help
 	  Compile in platform device definitions for DWMCI
 
+config EXYNOS4_DEV_USB_OHCI
+	bool
+	help
+	  Compile in platform device definition for USB OHCI
+
 config EXYNOS4_SETUP_I2C1
 	bool
 	help
