@@ -1081,6 +1081,7 @@ int fsl_rio_setup_rmu(struct rio_mport *mport, struct device_node *node)
 	if (!msg_addr) {
 		pr_err("%s: unable to find 'reg' property of message-unit\n",
 			node->full_name);
+		kfree(rmu);
 		return -ENOMEM;
 	}
 	msg_start = of_read_number(msg_addr, aw);
