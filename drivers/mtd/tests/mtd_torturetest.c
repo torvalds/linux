@@ -292,8 +292,7 @@ static int __init tort_init(void)
 	memset(&bad_ebs[0], 0, sizeof(int) * ebcnt);
 	if (mtd->block_isbad) {
 		for (i = eb; i < eb + ebcnt; i++) {
-			err = mtd->block_isbad(mtd,
-					       (loff_t)i * mtd->erasesize);
+			err = mtd_block_isbad(mtd, (loff_t)i * mtd->erasesize);
 
 			if (err < 0) {
 				printk(PRINT_PREF "block_isbad() returned %d "

@@ -404,8 +404,7 @@ static int __init init_axis_flash(void)
 		 */
 		int blockstat;
 		do {
-			blockstat = main_mtd->block_isbad(main_mtd,
-				ptable_sector);
+			blockstat = mtd_block_isbad(main_mtd, ptable_sector);
 			if (blockstat < 0)
 				ptable_sector = 0; /* read error */
 			else if (blockstat)

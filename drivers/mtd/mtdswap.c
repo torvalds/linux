@@ -343,7 +343,7 @@ static int mtdswap_read_markers(struct mtdswap_dev *d, struct swap_eb *eb)
 	offset = mtdswap_eb_offset(d, eb);
 
 	/* Check first if the block is bad. */
-	if (d->mtd->block_isbad && d->mtd->block_isbad(d->mtd, offset))
+	if (d->mtd->block_isbad && mtd_block_isbad(d->mtd, offset))
 		return MTDSWAP_SCANNED_BAD;
 
 	ops.ooblen = 2 * d->mtd->ecclayout->oobavail;
@@ -1061,7 +1061,7 @@ static unsigned int mtdswap_badblocks(struct mtd_info *mtd, uint64_t size)
 
 	if (mtd->block_isbad)
 		for (offset = 0; offset < size; offset += mtd->erasesize)
-			if (mtd->block_isbad(mtd, offset))
+			if (mtd_block_isbad(mtd, offset))
 				badcnt++;
 
 	return badcnt;

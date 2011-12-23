@@ -170,7 +170,7 @@ static void mtdoops_workfunc_erase(struct work_struct *work)
 	}
 
 	while (mtd->block_isbad) {
-		ret = mtd->block_isbad(mtd, cxt->nextpage * record_size);
+		ret = mtd_block_isbad(mtd, cxt->nextpage * record_size);
 		if (!ret)
 			break;
 		if (ret < 0) {
@@ -254,7 +254,7 @@ static void find_next_position(struct mtdoops_context *cxt)
 
 	for (page = 0; page < cxt->oops_pages; page++) {
 		if (mtd->block_isbad &&
-		    mtd->block_isbad(mtd, page * record_size))
+		    mtd_block_isbad(mtd, page * record_size))
 			continue;
 		/* Assume the page is used */
 		mark_page_used(cxt, page);

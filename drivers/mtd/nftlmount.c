@@ -242,7 +242,8 @@ The new DiskOnChip driver already scanned the bad block table.  Just query it.
 			if (buf[i & (SECTORSIZE - 1)] != 0xff)
 				nftl->ReplUnitTable[i] = BLOCK_RESERVED;
 #endif
-			if (nftl->mbd.mtd->block_isbad(nftl->mbd.mtd, i * nftl->EraseSize))
+			if (mtd_block_isbad(nftl->mbd.mtd,
+					    i * nftl->EraseSize))
 				nftl->ReplUnitTable[i] = BLOCK_RESERVED;
 		}
 

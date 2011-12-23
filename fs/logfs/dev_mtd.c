@@ -157,7 +157,7 @@ static struct page *logfs_mtd_find_first_sb(struct super_block *sb, u64 *ofs)
 		return NULL;
 
 	*ofs = 0;
-	while (mtd->block_isbad(mtd, *ofs)) {
+	while (mtd_block_isbad(mtd, *ofs)) {
 		*ofs += mtd->erasesize;
 		if (*ofs >= mtd->size)
 			return NULL;
@@ -177,7 +177,7 @@ static struct page *logfs_mtd_find_last_sb(struct super_block *sb, u64 *ofs)
 		return NULL;
 
 	*ofs = mtd->size - mtd->erasesize;
-	while (mtd->block_isbad(mtd, *ofs)) {
+	while (mtd_block_isbad(mtd, *ofs)) {
 		*ofs -= mtd->erasesize;
 		if (*ofs <= 0)
 			return NULL;

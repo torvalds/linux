@@ -122,7 +122,7 @@ static int get_valid_cis_sector(struct mtd_info *mtd)
 	 * is not SSFDC formatted
 	 */
 	for (k = 0, offset = 0; k < 4; k++, offset += mtd->erasesize) {
-		if (!mtd->block_isbad(mtd, offset)) {
+		if (mtd_block_isbad(mtd, offset)) {
 			ret = mtd_read(mtd, offset, SECTOR_SIZE, &retlen,
 				       sect_buf);
 
@@ -255,7 +255,7 @@ static int build_logical_block_map(struct ssfdcr_record *ssfdc)
 	for (phys_block = ssfdc->cis_block + 1; phys_block < ssfdc->map_len;
 			phys_block++) {
 		offset = (unsigned long)phys_block * ssfdc->erase_size;
-		if (mtd->block_isbad(mtd, offset))
+		if (mtd_block_isbad(mtd, offset))
 			continue;	/* skip bad blocks */
 
 		ret = read_raw_oob(mtd, offset, oob_buf);

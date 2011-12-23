@@ -306,7 +306,8 @@ static int find_boot_record(struct INFTLrecord *inftl)
 			/* If any of the physical eraseblocks are bad, don't
 			   use the unit. */
 			for (physblock = 0; physblock < inftl->EraseSize; physblock += inftl->mbd.mtd->erasesize) {
-				if (inftl->mbd.mtd->block_isbad(inftl->mbd.mtd, i * inftl->EraseSize + physblock))
+				if (mtd_block_isbad(inftl->mbd.mtd,
+						    i * inftl->EraseSize + physblock))
 					inftl->PUtable[i] = BLOCK_RESERVED;
 			}
 		}

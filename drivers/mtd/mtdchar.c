@@ -886,7 +886,7 @@ static int mtdchar_ioctl(struct file *file, u_int cmd, u_long arg)
 		if (!mtd->block_isbad)
 			ret = -EOPNOTSUPP;
 		else
-			return mtd->block_isbad(mtd, offs);
+			return mtd_block_isbad(mtd, offs);
 		break;
 	}
 

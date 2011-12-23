@@ -667,7 +667,7 @@ static int concat_block_isbad(struct mtd_info *mtd, loff_t ofs)
 			continue;
 		}
 
-		res = subdev->block_isbad(subdev, ofs);
+		res = mtd_block_isbad(subdev, ofs);
 		break;
 	}
 
