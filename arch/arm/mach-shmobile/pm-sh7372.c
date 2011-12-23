@@ -239,7 +239,6 @@ struct sh7372_pm_domain sh7372_d4 = {
 struct sh7372_pm_domain sh7372_a4r = {
 	.genpd.name = "A4R",
 	.bit_shift = 5,
-	.gov = &pm_domain_always_on_gov,
 	.suspend = sh7372_a4r_suspend,
 	.resume = sh7372_intcs_resume,
 };
@@ -535,9 +534,37 @@ static int sh7372_enter_suspend(suspend_state_t suspend_state)
 	return 0;
 }
 
+/**
+ * sh7372_pm_notifier_fn - SH7372 PM notifier routine.
+ * @notifier: Unused.
+ * @pm_event: Event being handled.
+ * @unused: Unused.
+ */
+static int sh7372_pm_notifier_fn(struct notifier_block *notifier,
+				 unsigned long pm_event, void *unused)
+{
+	switch (pm_event) {
+	case PM_SUSPEND_PREPARE:
+		/*
+		 * This is necessary, because the A4R domain has to be "on"
+		 * when suspend_device_irqs() and resume_device_irqs() are
+		 * executed during system suspend and resume, respectively, so
+		 * that those functions don't crash while accessing the INTCS.
+		 */
+		pm_genpd_poweron(&sh7372_a4r.genpd);
+		break;
+	case PM_POST_SUSPEND:
+		pm_genpd_poweroff_unused();
+		break;
+	}
+
+	return NOTIFY_DONE;
+}
+
 static void sh7372_suspend_init(void)
 {
 	shmobile_suspend_ops.enter = sh7372_enter_suspend;
+	pm_notifier(sh7372_pm_notifier_fn, 0);
 }
 #else
 static void sh7372_suspend_init(void) {}
