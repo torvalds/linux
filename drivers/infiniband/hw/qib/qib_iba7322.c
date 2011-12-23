@@ -3603,7 +3603,7 @@ static void qib_7322_config_ctxts(struct qib_devdata *dd)
 	if (qib_rcvhdrcnt)
 		dd->rcvhdrcnt = max(dd->cspec->rcvegrcnt, qib_rcvhdrcnt);
 	else
-		dd->rcvhdrcnt = max(dd->cspec->rcvegrcnt,
+		dd->rcvhdrcnt = 2 * max(dd->cspec->rcvegrcnt,
 				    dd->num_pports > 1 ? 1024U : 2048U);
 }
 
