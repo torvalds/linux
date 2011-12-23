@@ -70,7 +70,6 @@ sctp_manip_pkt(struct sk_buff *skb,
 
 static const struct nf_nat_protocol nf_nat_protocol_sctp = {
 	.protonum		= IPPROTO_SCTP,
-	.me			= THIS_MODULE,
 	.manip_pkt		= sctp_manip_pkt,
 	.in_range		= nf_nat_proto_in_range,
 	.unique_tuple		= sctp_unique_tuple,

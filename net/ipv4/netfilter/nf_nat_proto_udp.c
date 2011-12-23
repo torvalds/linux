@@ -73,7 +73,6 @@ udp_manip_pkt(struct sk_buff *skb,
 
 const struct nf_nat_protocol nf_nat_protocol_udp = {
 	.protonum		= IPPROTO_UDP,
-	.me			= THIS_MODULE,
 	.manip_pkt		= udp_manip_pkt,
 	.in_range		= nf_nat_proto_in_range,
 	.unique_tuple		= udp_unique_tuple,

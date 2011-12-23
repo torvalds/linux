@@ -80,7 +80,6 @@ dccp_manip_pkt(struct sk_buff *skb,
 
 static const struct nf_nat_protocol nf_nat_protocol_dccp = {
 	.protonum		= IPPROTO_DCCP,
-	.me			= THIS_MODULE,
 	.manip_pkt		= dccp_manip_pkt,
 	.in_range		= nf_nat_proto_in_range,
 	.unique_tuple		= dccp_unique_tuple,

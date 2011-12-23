@@ -10,8 +10,6 @@ struct nf_nat_protocol {
 	/* Protocol number. */
 	unsigned int protonum;
 
-	struct module *me;
-
 	/* Translate a packet to the target according to manip type.
 	   Return true if succeeded. */
 	bool (*manip_pkt)(struct sk_buff *skb,
