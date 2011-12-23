@@ -253,12 +253,6 @@ nf_nat_mangle_udp_packet(struct sk_buff *skb,
 	struct udphdr *udph;
 	int datalen, oldlen;
 
-	/* UDP helpers might accidentally mangle the wrong packet */
-	iph = ip_hdr(skb);
-	if (skb->len < iph->ihl*4 + sizeof(*udph) +
-			       match_offset + match_len)
-		return 0;
-
 	if (!skb_make_writable(skb, skb->len))
 		return 0;
 
