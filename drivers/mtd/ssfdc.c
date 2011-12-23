@@ -175,7 +175,7 @@ static int read_raw_oob(struct mtd_info *mtd, loff_t offs, uint8_t *buf)
 	ops.oobbuf = buf;
 	ops.datbuf = NULL;
 
-	ret = mtd->read_oob(mtd, offs, &ops);
+	ret = mtd_read_oob(mtd, offs, &ops);
 	if (ret < 0 || ops.oobretlen != OOB_SIZE)
 		return -1;
 

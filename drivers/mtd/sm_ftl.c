@@ -278,7 +278,7 @@ again:
 
 	/* Unfortunately, oob read will _always_ succeed,
 		despite card removal..... */
-	ret = mtd->read_oob(mtd, sm_mkoffset(ftl, zone, block, boffset), &ops);
+	ret = mtd_read_oob(mtd, sm_mkoffset(ftl, zone, block, boffset), &ops);
 
 	/* Test for unknown errors */
 	if (ret != 0 && !mtd_is_bitflip_or_eccerr(ret)) {

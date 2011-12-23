@@ -273,7 +273,7 @@ concat_read_oob(struct mtd_info *mtd, loff_t from, struct mtd_oob_ops *ops)
 		if (from + devops.len > subdev->size)
 			devops.len = subdev->size - from;
 
-		err = subdev->read_oob(subdev, from, &devops);
+		err = mtd_read_oob(subdev, from, &devops);
 		ops->retlen += devops.retlen;
 		ops->oobretlen += devops.oobretlen;
 

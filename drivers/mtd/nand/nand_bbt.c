@@ -317,7 +317,7 @@ static int scan_read_raw_oob(struct mtd_info *mtd, uint8_t *buf, loff_t offs,
 		ops.len = min(len, (size_t)mtd->writesize);
 		ops.oobbuf = buf + ops.len;
 
-		res = mtd->read_oob(mtd, offs, &ops);
+		res = mtd_read_oob(mtd, offs, &ops);
 
 		if (res)
 			return res;
@@ -434,7 +434,7 @@ static int scan_block_fast(struct mtd_info *mtd, struct nand_bbt_descr *bd,
 		 * Read the full oob until read_oob is fixed to handle single
 		 * byte reads for 16 bit buswidth.
 		 */
-		ret = mtd->read_oob(mtd, offs, &ops);
+		ret = mtd_read_oob(mtd, offs, &ops);
 		/* Ignore ECC errors when checking for BBM */
 		if (ret && !mtd_is_bitflip_or_eccerr(ret))
 			return ret;
@@ -769,7 +769,7 @@ static int write_bbt(struct mtd_info *mtd, uint8_t *buf,
 			/* Read oob data */
 			ops.ooblen = (len >> this->page_shift) * mtd->oobsize;
 			ops.oobbuf = &buf[len];
-			res = mtd->read_oob(mtd, to + mtd->writesize, &ops);
+			res = mtd_read_oob(mtd, to + mtd->writesize, &ops);
 			if (res < 0 || ops.oobretlen != ops.ooblen)
 				goto outerr;
 

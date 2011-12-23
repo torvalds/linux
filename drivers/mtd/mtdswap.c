@@ -312,7 +312,7 @@ static int mtdswap_handle_write_error(struct mtdswap_dev *d, struct swap_eb *eb)
 static int mtdswap_read_oob(struct mtdswap_dev *d, loff_t from,
 			struct mtd_oob_ops *ops)
 {
-	int ret = d->mtd->read_oob(d->mtd, from, ops);
+	int ret = mtd_read_oob(d->mtd, from, ops);
 
 	if (mtd_is_bitflip(ret))
 		return ret;
@@ -955,7 +955,7 @@ static unsigned int mtdswap_eblk_passes(struct mtdswap_dev *d,
 
 		pos = base;
 		for (i = 0; i < mtd_pages; i++) {
-			ret = mtd->read_oob(mtd, pos, &ops);
+			ret = mtd_read_oob(mtd, pos, &ops);
 			if (ret)
 				goto error;
 

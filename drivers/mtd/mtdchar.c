@@ -227,7 +227,7 @@ static ssize_t mtdchar_read(struct file *file, char __user *buf, size_t count,
 			ops.oobbuf = NULL;
 			ops.len = len;
 
-			ret = mtd->read_oob(mtd, *ppos, &ops);
+			ret = mtd_read_oob(mtd, *ppos, &ops);
 			retlen = ops.retlen;
 			break;
 		}
@@ -471,7 +471,7 @@ static int mtdchar_readoob(struct file *file, struct mtd_info *mtd,
 		return -ENOMEM;
 
 	start &= ~((uint64_t)mtd->writesize - 1);
-	ret = mtd->read_oob(mtd, start, &ops);
+	ret = mtd_read_oob(mtd, start, &ops);
 
 	if (put_user(ops.oobretlen, retp))
 		ret = -EFAULT;

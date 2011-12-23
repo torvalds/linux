@@ -158,7 +158,7 @@ int inftl_read_oob(struct mtd_info *mtd, loff_t offs, size_t len,
 	ops.oobbuf = buf;
 	ops.datbuf = NULL;
 
-	res = mtd->read_oob(mtd, offs & ~(mtd->writesize - 1), &ops);
+	res = mtd_read_oob(mtd, offs & ~(mtd->writesize - 1), &ops);
 	*retlen = ops.oobretlen;
 	return res;
 }

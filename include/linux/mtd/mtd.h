@@ -188,6 +188,8 @@ struct mtd_info {
 		      size_t *retlen, const u_char *buf);
 	int (*panic_write) (struct mtd_info *mtd, loff_t to, size_t len,
 			    size_t *retlen, const u_char *buf);
+	int (*read_oob) (struct mtd_info *mtd, loff_t from,
+			 struct mtd_oob_ops *ops);
 
 	/* Backing device capabilities for this device
 	 * - provides mmap capabilities
@@ -195,8 +197,6 @@ struct mtd_info {
 	struct backing_dev_info *backing_dev_info;
 
 
-	int (*read_oob) (struct mtd_info *mtd, loff_t from,
-			 struct mtd_oob_ops *ops);
 	int (*write_oob) (struct mtd_info *mtd, loff_t to,
 			 struct mtd_oob_ops *ops);
 
@@ -318,6 +318,12 @@ static inline int mtd_panic_write(struct mtd_info *mtd, loff_t to, size_t len,
 				  size_t *retlen, const u_char *buf)
 {
 	return mtd->panic_write(mtd, to, len, retlen, buf);
+}
+
+static inline int mtd_read_oob(struct mtd_info *mtd, loff_t from,
+			       struct mtd_oob_ops *ops)
+{
+	return mtd->read_oob(mtd, from, ops);
 }
 
 static inline struct mtd_info *dev_to_mtd(struct device *dev)
