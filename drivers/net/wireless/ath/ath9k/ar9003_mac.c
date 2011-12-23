@@ -583,7 +583,7 @@ void ath9k_hw_reset_txstatus_ring(struct ath_hw *ah)
 
 void ath9k_hw_setup_statusring(struct ath_hw *ah, void *ts_start,
 			       u32 ts_paddr_start,
-			       u8 size)
+			       u16 size)
 {
 
 	ah->ts_paddr_start = ts_paddr_start;
