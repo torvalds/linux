@@ -25,28 +25,6 @@
 
 /***************************************************************************/
 
-static struct mcf_platform_uart m520x_uart_platform[] = {
-	{
-		.mapbase	= MCFUART_BASE0,
-		.irq		= MCF_IRQ_UART0,
-	},
-	{
-		.mapbase 	= MCFUART_BASE1,
-		.irq		= MCF_IRQ_UART1,
-	},
-	{
-		.mapbase 	= MCFUART_BASE2,
-		.irq		= MCF_IRQ_UART2,
-	},
-	{ },
-};
-
-static struct platform_device m520x_uart = {
-	.name			= "mcfuart",
-	.id			= 0,
-	.dev.platform_data	= m520x_uart_platform,
-};
-
 static struct resource m520x_fec_resources[] = {
 	{
 		.start		= MCFFEC_BASE,
@@ -218,7 +196,6 @@ static void __init m520x_qspi_init(void)
 
 
 static struct platform_device *m520x_devices[] __initdata = {
-	&m520x_uart,
 	&m520x_fec,
 #if defined(CONFIG_SPI_COLDFIRE_QSPI) || defined(CONFIG_SPI_COLDFIRE_QSPI_MODULE)
 	&m520x_qspi,

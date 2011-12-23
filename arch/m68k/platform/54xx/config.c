@@ -27,38 +27,6 @@
 
 /***************************************************************************/
 
-static struct mcf_platform_uart m54xx_uart_platform[] = {
-	{
-		.mapbase	= MCFUART_BASE0,
-		.irq		= MCF_IRQ_UART0,
-	},
-	{
-		.mapbase	= MCFUART_BASE1,
-		.irq		= MCF_IRQ_UART1,
-	},
-	{
-		.mapbase	= MCFUART_BASE2,
-		.irq		= MCF_IRQ_UART2,
-	},
-	{
-		.mapbase	= MCFUART_BASE3,
-		.irq		= MCF_IRQ_UART3,
-	},
-};
-
-static struct platform_device m54xx_uart = {
-	.name			= "mcfuart",
-	.id			= 0,
-	.dev.platform_data	= m54xx_uart_platform,
-};
-
-static struct platform_device *m54xx_devices[] __initdata = {
-	&m54xx_uart,
-};
-
-
-/***************************************************************************/
-
 static void __init m54xx_uarts_init(void)
 {
 	/* enable io pins */
@@ -133,16 +101,5 @@ void __init config_BSP(char *commandp, int size)
 	mach_sched_init = hw_timer_init;
 	m54xx_uarts_init();
 }
-
-/***************************************************************************/
-
-static int __init init_BSP(void)
-{
-
-	platform_add_devices(m54xx_devices, ARRAY_SIZE(m54xx_devices));
-	return 0;
-}
-
-arch_initcall(init_BSP);
 
 /***************************************************************************/

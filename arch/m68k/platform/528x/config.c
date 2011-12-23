@@ -27,28 +27,6 @@
 
 /***************************************************************************/
 
-static struct mcf_platform_uart m528x_uart_platform[] = {
-	{
-		.mapbase	= MCFUART_BASE0,
-		.irq		= MCF_IRQ_UART0,
-	},
-	{
-		.mapbase 	= MCFUART_BASE1,
-		.irq		= MCF_IRQ_UART1,
-	},
-	{
-		.mapbase 	= MCFUART_BASE2,
-		.irq		= MCF_IRQ_UART2,
-	},
-	{ },
-};
-
-static struct platform_device m528x_uart = {
-	.name			= "mcfuart",
-	.id			= 0,
-	.dev.platform_data	= m528x_uart_platform,
-};
-
 static struct resource m528x_fec_resources[] = {
 	{
 		.start		= MCFFEC_BASE,
@@ -209,7 +187,6 @@ static void __init m528x_qspi_init(void)
 #endif /* defined(CONFIG_SPI_COLDFIRE_QSPI) || defined(CONFIG_SPI_COLDFIRE_QSPI_MODULE) */
 
 static struct platform_device *m528x_devices[] __initdata = {
-	&m528x_uart,
 	&m528x_fec,
 #if defined(CONFIG_SPI_COLDFIRE_QSPI) || defined(CONFIG_SPI_COLDFIRE_QSPI_MODULE)
 	&m528x_qspi,

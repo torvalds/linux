@@ -30,24 +30,6 @@ unsigned char ledbank = 0xff;
 
 /***************************************************************************/
 
-static struct mcf_platform_uart m5272_uart_platform[] = {
-	{
-		.mapbase	= MCFUART_BASE0,
-		.irq		= MCF_IRQ_UART0,
-	},
-	{
-		.mapbase 	= MCFUART_BASE1,
-		.irq		= MCF_IRQ_UART1,
-	},
-	{ },
-};
-
-static struct platform_device m5272_uart = {
-	.name			= "mcfuart",
-	.id			= 0,
-	.dev.platform_data	= m5272_uart_platform,
-};
-
 static struct resource m5272_fec_resources[] = {
 	{
 		.start		= MCF_MBAR + 0x840,
@@ -79,7 +61,6 @@ static struct platform_device m5272_fec = {
 };
 
 static struct platform_device *m5272_devices[] __initdata = {
-	&m5272_uart,
 	&m5272_fec,
 };
 

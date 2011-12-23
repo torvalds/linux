@@ -20,30 +20,6 @@
 
 /***************************************************************************/
 
-static struct mcf_platform_uart m5206_uart_platform[] = {
-	{
-		.mapbase	= MCFUART_BASE0,
-		.irq		= MCF_IRQ_UART0,
-	},
-	{
-		.mapbase 	= MCFUART_BASE1,
-		.irq		= MCF_IRQ_UART1,
-	},
-	{ },
-};
-
-static struct platform_device m5206_uart = {
-	.name			= "mcfuart",
-	.id			= 0,
-	.dev.platform_data	= m5206_uart_platform,
-};
-
-static struct platform_device *m5206_devices[] __initdata = {
-	&m5206_uart,
-};
-
-/***************************************************************************/
-
 static void __init m5206_uarts_init(void)
 {
 	/* UART0 interrupt setup */
@@ -105,15 +81,5 @@ void __init config_BSP(char *commandp, int size)
 	mcf_mapirq2imr(28, MCFINTC_EINT4);
 	mcf_mapirq2imr(31, MCFINTC_EINT7);
 }
-
-/***************************************************************************/
-
-static int __init init_BSP(void)
-{
-	platform_add_devices(m5206_devices, ARRAY_SIZE(m5206_devices));
-	return 0;
-}
-
-arch_initcall(init_BSP);
 
 /***************************************************************************/

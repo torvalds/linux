@@ -22,24 +22,6 @@
 
 /***************************************************************************/
 
-static struct mcf_platform_uart m5249_uart_platform[] = {
-	{
-		.mapbase	= MCFUART_BASE0,
-		.irq		= MCF_IRQ_UART0,
-	},
-	{
-		.mapbase 	= MCFUART_BASE1,
-		.irq		= MCF_IRQ_UART1,
-	},
-	{ },
-};
-
-static struct platform_device m5249_uart = {
-	.name			= "mcfuart",
-	.id			= 0,
-	.dev.platform_data	= m5249_uart_platform,
-};
-
 #ifdef CONFIG_M5249C3
 
 static struct resource m5249_smc91x_resources[] = {
@@ -223,7 +205,6 @@ static void __init m5249_qspi_init(void)
 
 
 static struct platform_device *m5249_devices[] __initdata = {
-	&m5249_uart,
 #ifdef CONFIG_M5249C3
 	&m5249_smc91x,
 #endif
