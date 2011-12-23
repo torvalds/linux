@@ -134,7 +134,7 @@ err2:
 	pci_disable_device(pci);
 
 err1:
-	kfree(pci);
+	kfree(glue);
 
 err0:
 	return ret;
