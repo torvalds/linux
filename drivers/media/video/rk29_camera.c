@@ -38,7 +38,7 @@
 #endif
 
 #if (PMEM_CAM_FULL_RESOLUTION == 0x500000)
-#define PMEM_CAM_NECESSARY   0x1200000       /* 1280*720*1.5*4(preview) + 7.5M(capture raw) + 4M(jpeg encode output) */
+#define PMEM_CAM_NECESSARY   0x1400000       /* 1280*720*1.5*4(preview) + 7.5M(capture raw) + 4M(jpeg encode output) */
 #define PMEM_CAMIPP_NECESSARY    0x800000
 #elif (PMEM_CAM_FULL_RESOLUTION == 0x300000)
 #define PMEM_CAM_NECESSARY   0xe00000        /* 1280*720*1.5*4(preview) + 4.5M(capture raw) + 3M(jpeg encode output) */
@@ -851,6 +851,7 @@ static int rk29_sensor_iomux(int pin)
              rk29_mux_api_set(GPIO4C6_RMIIRXD1_MIIRXD1_NAME,0);
             break;	
         }
+
         case RK29_PIN4_PC7:
         {
              rk29_mux_api_set(GPIO4C7_RMIIRXD0_MIIRXD0_NAME,0);

@@ -977,6 +977,24 @@ config OV5640_FIXEDFOCUS
 	bool "OV5640 fixed focus"
 endchoice
 
+config SOC_CAMERA_OV5640_FOR_TD8801
+	tristate "ov5640 camera support for td8801"
+	depends on SOC_CAMERA && I2C
+	help
+	  This is a ov5640 camera driver for td8801
+choice
+	prompt "OV5640 Module Focus select"
+	depends on SOC_CAMERA_OV5640_FOR_TD8801
+	default OV5640_AUTOFOCUS_FOR_TD8801
+	---help---
+
+config OV5640_AUTOFOCUS_FOR_TD8801
+	bool "OV5640 auto focus"
+
+config OV5640_FIXEDFOCUS_FOR_TD8801
+	bool "OV5640 fixed focus"
+endchoice
+
 config SOC_CAMERA_S5K6AA
 	tristate "Samsung S5K6AA camera support"
 	depends on SOC_CAMERA && I2C
@@ -1006,6 +1024,11 @@ config SOC_CAMERA_GC0309
 	depends on SOC_CAMERA && I2C
 	help
 	  This is a GC0309 camera driver
+config SOC_CAMERA_GC0309_FOR_TD8801
+	tristate "GC0309 support for td8801"
+	depends on SOC_CAMERA && I2C
+	help
+	  This is a GC0309 camera driver for td8801
 
 config SOC_CAMERA_GC2015
 	tristate "GC2015 support"
