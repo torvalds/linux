@@ -29,20 +29,20 @@
 
 static struct mcf_platform_uart m54xx_uart_platform[] = {
 	{
-		.mapbase	= MCF_MBAR + MCFUART_BASE1,
-		.irq		= 64 + 35,
+		.mapbase	= MCFUART_BASE0,
+		.irq		= MCF_IRQ_UART0,
 	},
 	{
-		.mapbase	= MCF_MBAR + MCFUART_BASE2,
-		.irq		= 64 + 34,
+		.mapbase	= MCFUART_BASE1,
+		.irq		= MCF_IRQ_UART1,
 	},
 	{
-		.mapbase	= MCF_MBAR + MCFUART_BASE3,
-		.irq		= 64 + 33,
+		.mapbase	= MCFUART_BASE2,
+		.irq		= MCF_IRQ_UART2,
 	},
 	{
-		.mapbase	= MCF_MBAR + MCFUART_BASE4,
-		.irq		= 64 + 32,
+		.mapbase	= MCFUART_BASE3,
+		.irq		= MCF_IRQ_UART3,
 	},
 };
 
