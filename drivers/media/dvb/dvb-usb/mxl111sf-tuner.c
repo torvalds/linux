@@ -275,52 +275,50 @@ static int mxl1x1sf_tuner_loop_thru_ctrl(struct mxl111sf_tuner_state *state,
 static int mxl111sf_tuner_set_params(struct dvb_frontend *fe,
 				     struct dvb_frontend_parameters *params)
 {
+	struct dtv_frontend_properties *c = &fe->dtv_property_cache;
+	u32 delsys  = c->delivery_system;
 	struct mxl111sf_tuner_state *state = fe->tuner_priv;
 	int ret;
 	u8 bw;
+	u32 band = BANDWIDTH_6_MHZ;
 
 	mxl_dbg("()");
 
-	if (fe->ops.info.type == FE_ATSC) {
-		switch (params->u.vsb.modulation) {
-		case VSB_8:
-		case VSB_16:
-			bw = 0; /* ATSC */
-			break;
-		case QAM_64:
-		case QAM_256:
-			bw = 1; /* US CABLE */
-			break;
-		default:
-			err("%s: modulation not set!", __func__);
-			return -EINVAL;
-		}
-	} else if (fe->ops.info.type == FE_OFDM) {
-		switch (params->u.ofdm.bandwidth) {
-		case BANDWIDTH_6_MHZ:
+	switch (delsys) {
+	case SYS_ATSC:
+		bw = 0; /* ATSC */
+		break;
+	case SYS_DVBC_ANNEX_B:
+		bw = 1; /* US CABLE */
+		break;
+	case SYS_DVBT:
+		switch (c->bandwidth_hz) {
+		case 6000000:
 			bw = 6;
 			break;
-		case BANDWIDTH_7_MHZ:
+		case 7000000:
 			bw = 7;
+			band = BANDWIDTH_7_MHZ;
 			break;
-		case BANDWIDTH_8_MHZ:
+		case 8000000:
 			bw = 8;
+			band = BANDWIDTH_8_MHZ;
 			break;
 		default:
 			err("%s: bandwidth not set!", __func__);
 			return -EINVAL;
 		}
-	} else {
+		break;
+	default:
 		err("%s: modulation type not supported!", __func__);
 		return -EINVAL;
 	}
-	ret = mxl1x1sf_tune_rf(fe, params->frequency, bw);
+	ret = mxl1x1sf_tune_rf(fe, c->frequency, bw);
 	if (mxl_fail(ret))
 		goto fail;
 
-	state->frequency = params->frequency;
-	state->bandwidth = (fe->ops.info.type == FE_OFDM) ?
-		params->u.ofdm.bandwidth : 0;
+	state->frequency = c->frequency;
+	state->bandwidth = band;
 fail:
 	return ret;
 }
