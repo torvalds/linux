@@ -167,12 +167,6 @@ il4965_hw_get_rate(__le32 rate_n_flags)
 	return le32_to_cpu(rate_n_flags) & 0xFF;
 }
 
-static inline __le32
-il4965_hw_set_rate_n_flags(u8 rate, u32 flags)
-{
-	return cpu_to_le32(flags | (u32) rate);
-}
-
 /* eeprom */
 void il4965_eeprom_get_mac(const struct il_priv *il, u8 * mac);
 int il4965_eeprom_acquire_semaphore(struct il_priv *il);
