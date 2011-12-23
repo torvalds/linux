@@ -103,7 +103,7 @@ my $output_minconfig;
 my $ignore_config;
 my $addconfig;
 my $in_bisect = 0;
-my $bisect_bad = "";
+my $bisect_bad_commit = "";
 my $reverse_bisect;
 my $bisect_manual;
 my $bisect_skip;
@@ -140,9 +140,26 @@ my $stop_after_failure;
 my $stop_test_after;
 my $build_target;
 my $target_image;
+my $checkout;
 my $localversion;
 my $iteration = 0;
 my $successes = 0;
+
+my $bisect_good;
+my $bisect_bad;
+my $bisect_type;
+my $bisect_start;
+my $bisect_replay;
+my $bisect_files;
+my $bisect_reverse;
+my $bisect_check;
+
+my $config_bisect;
+my $config_bisect_type;
+
+my $patchcheck_type;
+my $patchcheck_start;
+my $patchcheck_end;
 
 # set when a test is something other that just building or install
 # which would require more options.
@@ -1940,7 +1957,7 @@ sub run_git_bisect {
     if ($output =~ m/^(Bisecting: .*\(roughly \d+ steps?\))\s+\[([[:xdigit:]]+)\]/) {
 	doprint "$1 [$2]\n";
     } elsif ($output =~ m/^([[:xdigit:]]+) is the first bad commit/) {
-	$bisect_bad = $1;
+	$bisect_bad_commit = $1;
 	doprint "Found bad commit... $1\n";
 	return 0;
     } else {
@@ -2050,16 +2067,16 @@ sub bisect {
 
     my $result;
 
-    die "BISECT_GOOD[$i] not defined\n"	if (!defined($opt{"BISECT_GOOD[$i]"}));
-    die "BISECT_BAD[$i] not defined\n"	if (!defined($opt{"BISECT_BAD[$i]"}));
-    die "BISECT_TYPE[$i] not defined\n"	if (!defined($opt{"BISECT_TYPE[$i]"}));
+    die "BISECT_GOOD[$i] not defined\n"	if (!defined($bisect_good));
+    die "BISECT_BAD[$i] not defined\n"	if (!defined($bisect_bad));
+    die "BISECT_TYPE[$i] not defined\n"	if (!defined($bisect_type));
 
-    my $good = $opt{"BISECT_GOOD[$i]"};
-    my $bad = $opt{"BISECT_BAD[$i]"};
-    my $type = $opt{"BISECT_TYPE[$i]"};
-    my $start = $opt{"BISECT_START[$i]"};
-    my $replay = $opt{"BISECT_REPLAY[$i]"};
-    my $start_files = $opt{"BISECT_FILES[$i]"};
+    my $good = $bisect_good;
+    my $bad = $bisect_bad;
+    my $type = $bisect_type;
+    my $start = $bisect_start;
+    my $replay = $bisect_replay;
+    my $start_files = $bisect_files;
 
     if (defined($start_files)) {
 	$start_files = " -- " . $start_files;
@@ -2071,8 +2088,7 @@ sub bisect {
     $good = get_sha1($good);
     $bad = get_sha1($bad);
 
-    if (defined($opt{"BISECT_REVERSE[$i]"}) &&
-	$opt{"BISECT_REVERSE[$i]"} == 1) {
+    if (defined($bisect_reverse) && $bisect_reverse == 1) {
 	doprint "Performing a reverse bisect (bad is good, good is bad!)\n";
 	$reverse_bisect = 1;
     } else {
@@ -2087,7 +2103,7 @@ sub bisect {
     # Check if a bisect was running
     my $bisect_start_file = "$builddir/.git/BISECT_START";
 
-    my $check = $opt{"BISECT_CHECK[$i]"};
+    my $check = $bisect_check;
     my $do_check = defined($check) && $check ne "0";
 
     if ( -f $bisect_start_file ) {
@@ -2173,7 +2189,7 @@ sub bisect {
     run_command "git bisect reset" or
 	dodie "could not reset git bisect";
 
-    doprint "Bad commit was [$bisect_bad]\n";
+    doprint "Bad commit was [$bisect_bad_commit]\n";
 
     success $i;
 }
@@ -2329,7 +2345,7 @@ sub run_config_bisect {
     }
 
     doprint "***** RUN TEST ***\n";
-    my $type = $opt{"CONFIG_BISECT_TYPE[$iteration]"};
+    my $type = $config_bisect_type;
     my $ret;
     my %current_config;
 
@@ -2433,7 +2449,7 @@ sub run_config_bisect {
 sub config_bisect {
     my ($i) = @_;
 
-    my $start_config = $opt{"CONFIG_BISECT[$i]"};
+    my $start_config = $config_bisect;
 
     my $tmpconfig = "$tmpdir/use_config";
 
@@ -2553,22 +2569,22 @@ sub patchcheck {
     my ($i) = @_;
 
     die "PATCHCHECK_START[$i] not defined\n"
-	if (!defined($opt{"PATCHCHECK_START[$i]"}));
+	if (!defined($patchcheck_start));
     die "PATCHCHECK_TYPE[$i] not defined\n"
-	if (!defined($opt{"PATCHCHECK_TYPE[$i]"}));
+	if (!defined($patchcheck_type));
 
-    my $start = $opt{"PATCHCHECK_START[$i]"};
+    my $start = $patchcheck_start;
 
     my $end = "HEAD";
-    if (defined($opt{"PATCHCHECK_END[$i]"})) {
-	$end = $opt{"PATCHCHECK_END[$i]"};
+    if (defined($patchcheck_end)) {
+	$end = $patchcheck_end;
     }
 
     # Get the true sha1's since we can use things like HEAD~3
     $start = get_sha1($start);
     $end = get_sha1($end);
 
-    my $type = $opt{"PATCHCHECK_TYPE[$i]"};
+    my $type = $patchcheck_type;
 
     # Can't have a test without having a test to run
     if ($type eq "test" && !defined($run_test)) {
@@ -3366,8 +3382,25 @@ for (my $i = 1; $i <= $opt{"NUM_TESTS"}; $i++) {
     $build_target = set_test_option("BUILD_TARGET", $i);
     $ssh_exec = set_test_option("SSH_EXEC", $i);
     $scp_to_target = set_test_option("SCP_TO_TARGET", $i);
+    $checkout = set_test_option("CHECKOUT", $i);
     $target_image = set_test_option("TARGET_IMAGE", $i);
     $localversion = set_test_option("LOCALVERSION", $i);
+
+    $bisect_good = set_test_option("BISECT_GOOD", $i);
+    $bisect_bad = set_test_option("BISECT_BAD", $i);
+    $bisect_type = set_test_option("BISECT_TYPE", $i);
+    $bisect_start = set_test_option("BISECT_START", $i);
+    $bisect_replay = set_test_option("BISECT_REPLAY", $i);
+    $bisect_files = set_test_option("BISECT_FILES", $i);
+    $bisect_reverse = set_test_option("BISECT_REVERSE", $i);
+    $bisect_check = set_test_option("BISECT_CHECK", $i);
+
+    $config_bisect = set_test_option("CONFIG_BISECT", $i);
+    $config_bisect_type = set_test_option("CONFIG_BISECT_TYPE", $i);
+
+    $patchcheck_type = set_test_option("PATCHCHECK_TYPE", $i);
+    $patchcheck_start = set_test_option("PATCHCHECK_START", $i);
+    $patchcheck_end = set_test_option("PATCHCHECK_END", $i);
 
     $start_minconfig_defined = 1;
 
@@ -3405,11 +3438,11 @@ for (my $i = 1; $i <= $opt{"NUM_TESTS"}; $i++) {
 
     my $run_type = $build_type;
     if ($test_type eq "patchcheck") {
-	$run_type = $opt{"PATCHCHECK_TYPE[$i]"};
+	$run_type = $patchcheck_type;
     } elsif ($test_type eq "bisect") {
-	$run_type = $opt{"BISECT_TYPE[$i]"};
+	$run_type = $bisect_type;
     } elsif ($test_type eq "config_bisect") {
-	$run_type = $opt{"CONFIG_BISECT_TYPE[$i]"};
+	$run_type = $config_bisect_type;
     }
 
     if ($test_type eq "make_min_config") {
@@ -3441,7 +3474,6 @@ for (my $i = 1; $i <= $opt{"NUM_TESTS"}; $i++) {
 	$minconfig = "$tmpdir/add_config";
     }
 
-    my $checkout = $opt{"CHECKOUT[$i]"};
     if (defined($checkout)) {
 	run_command "git checkout $checkout" or
 	    die "failed to checkout $checkout";
