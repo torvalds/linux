@@ -499,6 +499,7 @@ extern struct sh7372_pm_domain sh7372_d4;
 extern struct sh7372_pm_domain sh7372_a4r;
 extern struct sh7372_pm_domain sh7372_a3rv;
 extern struct sh7372_pm_domain sh7372_a3ri;
+extern struct sh7372_pm_domain sh7372_a4s;
 extern struct sh7372_pm_domain sh7372_a3sp;
 extern struct sh7372_pm_domain sh7372_a3sg;
 
@@ -515,5 +516,7 @@ extern void sh7372_pm_add_subdomain(struct sh7372_pm_domain *sh7372_pd,
 
 extern void sh7372_intcs_suspend(void);
 extern void sh7372_intcs_resume(void);
+extern void sh7372_intca_suspend(void);
+extern void sh7372_intca_resume(void);
 
 #endif /* __ASM_SH7372_H__ */

@@ -256,6 +256,14 @@ struct sh7372_pm_domain sh7372_a3ri = {
 	.bit_shift = 8,
 };
 
+struct sh7372_pm_domain sh7372_a4s = {
+	.genpd.name = "A4S",
+	.bit_shift = 10,
+	.gov = &pm_domain_always_on_gov,
+	.no_debug = true,
+	.stay_on = true,
+};
+
 struct sh7372_pm_domain sh7372_a3sp = {
 	.genpd.name = "A3SP",
 	.bit_shift = 11,
@@ -289,11 +297,16 @@ static int sh7372_do_idle_core_standby(unsigned long unused)
 	return 0;
 }
 
-static void sh7372_enter_core_standby(void)
+static void sh7372_set_reset_vector(unsigned long address)
 {
 	/* set reset vector, translate 4k */
-	__raw_writel(__pa(sh7372_resume_core_standby_a3sm), SBAR);
+	__raw_writel(address, SBAR);
 	__raw_writel(0, APARMBAREA);
+}
+
+static void sh7372_enter_core_standby(void)
+{
+	sh7372_set_reset_vector(__pa(sh7372_resume_core_standby_sysc));
 
 	/* enter sleep mode with SYSTBCR to 0x10 */
 	__raw_writel(0x10, SYSTBCR);
@@ -306,27 +319,22 @@ static void sh7372_enter_core_standby(void)
 #endif
 
 #ifdef CONFIG_SUSPEND
-static void sh7372_enter_a3sm_common(int pllc0_on)
+static void sh7372_enter_sysc(int pllc0_on, unsigned long sleep_mode)
 {
-	/* set reset vector, translate 4k */
-	__raw_writel(__pa(sh7372_resume_core_standby_a3sm), SBAR);
-	__raw_writel(0, APARMBAREA);
-
 	if (pllc0_on)
 		__raw_writel(0, PLLC01STPCR);
 	else
 		__raw_writel(1 << 28, PLLC01STPCR);
 
-	__raw_writel(0, PDNSEL); /* power-down A3SM only, not A4S */
 	__raw_readl(WUPSFAC); /* read wakeup int. factor before sleep */
-	cpu_suspend(0, sh7372_do_idle_a3sm);
+	cpu_suspend(sleep_mode, sh7372_do_idle_sysc);
 	__raw_readl(WUPSFAC); /* read wakeup int. factor after wakeup */
 
 	 /* disable reset vector translation */
 	__raw_writel(0, SBAR);
 }
 
-static int sh7372_a3sm_valid(unsigned long *mskp, unsigned long *msk2p)
+static int sh7372_sysc_valid(unsigned long *mskp, unsigned long *msk2p)
 {
 	unsigned long mstpsr0, mstpsr1, mstpsr2, mstpsr3, mstpsr4;
 	unsigned long msk, msk2;
@@ -414,7 +422,7 @@ static void sh7372_icr_to_irqcr(unsigned long icr, u16 *irqcr1p, u16 *irqcr2p)
 	*irqcr2p = irqcr2;
 }
 
-static void sh7372_setup_a3sm(unsigned long msk, unsigned long msk2)
+static void sh7372_setup_sysc(unsigned long msk, unsigned long msk2)
 {
 	u16 irqcrx_low, irqcrx_high, irqcry_low, irqcry_high;
 	unsigned long tmp;
@@ -447,6 +455,22 @@ static void sh7372_setup_a3sm(unsigned long msk, unsigned long msk2)
 	__raw_writel((irqcrx_high << 16) | irqcrx_low, IRQCR3);
 	__raw_writel((irqcry_high << 16) | irqcry_low, IRQCR4);
 }
+
+static void sh7372_enter_a3sm_common(int pllc0_on)
+{
+	sh7372_set_reset_vector(__pa(sh7372_resume_core_standby_sysc));
+	sh7372_enter_sysc(pllc0_on, 1 << 12);
+}
+
+static void sh7372_enter_a4s_common(int pllc0_on)
+{
+	sh7372_intca_suspend();
+	memcpy((void *)SMFRAM, sh7372_resume_core_standby_sysc, 0x100);
+	sh7372_set_reset_vector(SMFRAM);
+	sh7372_enter_sysc(pllc0_on, 1 << 10);
+	sh7372_intca_resume();
+}
+
 #endif
 
 #ifdef CONFIG_CPU_IDLE
@@ -480,14 +504,20 @@ static int sh7372_enter_suspend(suspend_state_t suspend_state)
 	unsigned long msk, msk2;
 
 	/* check active clocks to determine potential wakeup sources */
-	if (sh7372_a3sm_valid(&msk, &msk2)) {
-
+	if (sh7372_sysc_valid(&msk, &msk2)) {
 		/* convert INTC mask and sense to SYSC mask and sense */
-		sh7372_setup_a3sm(msk, msk2);
+		sh7372_setup_sysc(msk, msk2);
 
-		/* enter A3SM sleep with PLLC0 off */
-		pr_debug("entering A3SM\n");
-		sh7372_enter_a3sm_common(0);
+		if (!sh7372_a3sp.stay_on &&
+		    sh7372_a4s.genpd.status == GPD_STATE_POWER_OFF) {
+			/* enter A4S sleep with PLLC0 off */
+			pr_debug("entering A4S\n");
+			sh7372_enter_a4s_common(0);
+		} else {
+			/* enter A3SM sleep with PLLC0 off */
+			pr_debug("entering A3SM\n");
+			sh7372_enter_a3sm_common(0);
+		}
 	} else {
 		/* default to Core Standby that supports all wakeup sources */
 		pr_debug("entering Core Standby\n");
