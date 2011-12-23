@@ -16,22 +16,6 @@
 #include <asm/machdep.h>
 #include <asm/coldfire.h>
 #include <asm/mcfsim.h>
-#include <asm/mcfuart.h>
-
-/***************************************************************************/
-
-static void __init m5206_uarts_init(void)
-{
-	/* UART0 interrupt setup */
-	writel(MCFSIM_ICR_LEVEL6 | MCFSIM_ICR_PRI1, MCF_MBAR + MCFSIM_UART1ICR);
-	writeb(MCF_IRQ_UART0, MCFUART_BASE0 + MCFUART_UIVR);
-	mcf_mapirq2imr(MCF_IRQ_UART0, MCFINTC_UART0);
-
-	/* UART1 interrupt setup */
-	writel(MCFSIM_ICR_LEVEL6 | MCFSIM_ICR_PRI2, MCF_MBAR + MCFSIM_UART2ICR);
-	writeb(MCF_IRQ_UART1, MCFUART_BASE1 + MCFUART_UIVR);
-	mcf_mapirq2imr(MCF_IRQ_UART1, MCFINTC_UART1);
-}
 
 /***************************************************************************/
 
@@ -74,7 +58,6 @@ void __init config_BSP(char *commandp, int size)
 	mach_reset = m5206_cpu_reset;
 	mach_sched_init = hw_timer_init;
 	m5206_timers_init();
-	m5206_uarts_init();
 
 	/* Only support the external interrupts on their primary level */
 	mcf_mapirq2imr(25, MCFINTC_EINT1);
