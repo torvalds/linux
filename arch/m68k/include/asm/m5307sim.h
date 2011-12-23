@@ -117,11 +117,11 @@
  *  UART module.
  */
 #if defined(CONFIG_NETtel) || defined(CONFIG_SECUREEDGEMP3)
-#define MCFUART_BASE1		0x200           /* Base address of UART1 */
-#define MCFUART_BASE2		0x1c0           /* Base address of UART2 */
+#define MCFUART_BASE0		(MCF_MBAR + 0x200)	/* Base address UART0 */
+#define MCFUART_BASE1		(MCF_MBAR + 0x1c0)	/* Base address UART1 */
 #else
-#define MCFUART_BASE1		0x1c0           /* Base address of UART1 */
-#define MCFUART_BASE2		0x200           /* Base address of UART2 */
+#define MCFUART_BASE0		(MCF_MBAR + 0x1c0)	/* Base address UART0 */
+#define MCFUART_BASE1		(MCF_MBAR + 0x200)	/* Base address UART1 */
 #endif
 
 /*
@@ -176,6 +176,8 @@
  */
 #define	MCF_IRQ_TIMER		30		/* Timer0, Level 6 */
 #define	MCF_IRQ_PROFILER	31		/* Timer1, Level 7 */
+#define	MCF_IRQ_UART0		73		/* UART0 */
+#define	MCF_IRQ_UART1		74		/* UART1 */
 
 /****************************************************************************/
 #endif	/* m5307sim_h */
