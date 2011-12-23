@@ -75,7 +75,9 @@ extern void s3c64xx_spi2_set_platdata(struct s3c64xx_spi_info *pd,
 /* defined by architecture to configure gpio */
 extern int s3c64xx_spi0_cfg_gpio(struct platform_device *dev);
 extern int s3c64xx_spi1_cfg_gpio(struct platform_device *dev);
+extern int s3c64xx_spi2_cfg_gpio(struct platform_device *dev);
 
 extern struct s3c64xx_spi_info s3c64xx_spi0_pdata;
 extern struct s3c64xx_spi_info s3c64xx_spi1_pdata;
+extern struct s3c64xx_spi_info s3c64xx_spi2_pdata;
 #endif /* __S3C64XX_PLAT_SPI_H */
