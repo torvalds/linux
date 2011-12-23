@@ -218,28 +218,14 @@ static struct platform_device *m528x_devices[] __initdata = {
 
 /***************************************************************************/
 
-static void __init m528x_uart_init_line(int line, int irq)
+static void __init m528x_uarts_init(void)
 {
 	u8 port;
 
-	if ((line < 0) || (line > 2))
-		return;
-
 	/* make sure PUAPAR is set for UART0 and UART1 */
-	if (line < 2) {
-		port = readb(MCF5282_GPIO_PUAPAR);
-		port |= (0x03 << (line * 2));
-		writeb(port, MCF5282_GPIO_PUAPAR);
-	}
-}
-
-static void __init m528x_uarts_init(void)
-{
-	const int nrlines = ARRAY_SIZE(m528x_uart_platform);
-	int line;
-
-	for (line = 0; (line < nrlines); line++)
-		m528x_uart_init_line(line, m528x_uart_platform[line].irq);
+	port = readb(MCF5282_GPIO_PUAPAR);
+	port |= 0x03 | (0x03 << 2);
+	writeb(port, MCF5282_GPIO_PUAPAR);
 }
 
 /***************************************************************************/
