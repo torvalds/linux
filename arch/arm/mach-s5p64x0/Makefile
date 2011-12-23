@@ -29,3 +29,4 @@ obj-y				+= dev-audio.o
 
 obj-$(CONFIG_S5P64X0_SETUP_I2C1)	+= setup-i2c1.o
 obj-$(CONFIG_S5P64X0_SETUP_FB_24BPP)	+= setup-fb-24bpp.o
+obj-$(CONFIG_S5P64X0_SETUP_SPI)		+= setup-spi.o
