@@ -167,8 +167,7 @@ static int part_read_fact_prot_reg(struct mtd_info *mtd, loff_t from,
 		size_t len, size_t *retlen, u_char *buf)
 {
 	struct mtd_part *part = PART(mtd);
-	return part->master->read_fact_prot_reg(part->master, from,
-					len, retlen, buf);
+	return mtd_read_fact_prot_reg(part->master, from, len, retlen, buf);
 }
 
 static int part_get_fact_prot_info(struct mtd_info *mtd, struct otp_info *buf,
