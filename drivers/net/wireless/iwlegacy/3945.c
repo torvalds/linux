@@ -683,7 +683,7 @@ il3945_hw_build_tx_cmd_rate(struct il_priv *il, struct il_device_cmd *cmd,
 			    struct ieee80211_hdr *hdr, int sta_id, int tx_id)
 {
 	u16 hw_value = ieee80211_get_tx_rate(il->hw, info)->hw_value;
-	u16 rate_idx = min(hw_value & 0xffff, RATE_COUNT_3945);
+	u16 rate_idx = min(hw_value & 0xffff, RATE_COUNT_3945 - 1);
 	u16 rate_mask;
 	int rate;
 	u8 rts_retry_limit;
