@@ -2623,12 +2623,12 @@ il3945_request_scan(struct il_priv *il, struct ieee80211_vif *vif)
 	}
 
 	/*
-	 * If active scaning is requested but a certain channel
-	 * is marked passive, we can do active scanning if we
-	 * detect transmissions.
+	 * If active scaning is requested but a certain channel is marked
+	 * passive, we can do active scanning if we detect transmissions. For
+	 * passive only scanning disable switching to active on any channel.
 	 */
 	scan->good_CRC_th =
-	    is_active ? IL_GOOD_CRC_TH_DEFAULT : IL_GOOD_CRC_TH_DISABLED;
+	    is_active ? IL_GOOD_CRC_TH_DEFAULT : IL_GOOD_CRC_TH_NEVER;
 
 	len =
 	    il_fill_probe_req(il, (struct ieee80211_mgmt *)scan->data,
