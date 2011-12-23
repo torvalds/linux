@@ -56,14 +56,18 @@ static int of_isp1760_probe(struct platform_device *dev)
 		return -ENOMEM;
 
 	ret = of_address_to_resource(dp, 0, &memory);
-	if (ret)
-		return -ENXIO;
+	if (ret) {
+		ret = -ENXIO;
+		goto free_data;
+	}
 
 	res_len = resource_size(&memory);
 
 	res = request_mem_region(memory.start, res_len, dev_name(&dev->dev));
-	if (!res)
-		return -EBUSY;
+	if (!res) {
+		ret = -EBUSY;
+		goto free_data;
+	}
 
 	if (of_irq_map_one(dp, 0, &oirq)) {
 		ret = -ENODEV;
@@ -125,6 +129,7 @@ free_gpio:
 		gpio_free(drvdata->rst_gpio);
 release_reg:
 	release_mem_region(memory.start, res_len);
+free_data:
 	kfree(drvdata);
 	return ret;
 }
