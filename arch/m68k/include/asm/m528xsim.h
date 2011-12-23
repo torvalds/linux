@@ -35,8 +35,14 @@
 
 #define	MCFINT_VECBASE		64		/* Vector base number */
 #define	MCFINT_UART0		13		/* Interrupt number for UART0 */
+#define	MCFINT_UART1		14		/* Interrupt number for UART1 */
+#define	MCFINT_UART2		15		/* Interrupt number for UART2 */
 #define	MCFINT_QSPI		18		/* Interrupt number for QSPI */
 #define	MCFINT_PIT1		55		/* Interrupt number for PIT1 */
+
+#define	MCF_IRQ_UART0	        (MCFINT_VECBASE + MCFINT_UART0)
+#define	MCF_IRQ_UART1	        (MCFINT_VECBASE + MCFINT_UART1)
+#define	MCF_IRQ_UART2	        (MCFINT_VECBASE + MCFINT_UART2)
 
 /*
  *	SDRAM configuration registers.
@@ -58,9 +64,9 @@
 /*
  *	UART module.
  */
-#define	MCFUART_BASE1		(MCF_IPSBAR + 0x00000200)
-#define	MCFUART_BASE2		(MCF_IPSBAR + 0x00000240)
-#define	MCFUART_BASE3		(MCF_IPSBAR + 0x00000280)
+#define	MCFUART_BASE0		(MCF_IPSBAR + 0x00000200)
+#define	MCFUART_BASE1		(MCF_IPSBAR + 0x00000240)
+#define	MCFUART_BASE2		(MCF_IPSBAR + 0x00000280)
 
 /*
  *	FEC ethernet module.
