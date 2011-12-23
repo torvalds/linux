@@ -82,11 +82,12 @@ static int pd_power_down(struct generic_pm_domain *genpd)
 	struct sh7372_pm_domain *sh7372_pd = to_sh7372_pd(genpd);
 	unsigned int mask = 1 << sh7372_pd->bit_shift;
 
-	if (sh7372_pd->suspend)
-		sh7372_pd->suspend();
+	if (sh7372_pd->suspend) {
+		int ret = sh7372_pd->suspend();
 
-	if (sh7372_pd->stay_on)
-		return 0;
+		if (ret)
+			return ret;
+	}
 
 	if (__raw_readl(PSTR) & mask) {
 		unsigned int retry_count;
@@ -112,9 +113,6 @@ static int __pd_power_up(struct sh7372_pm_domain *sh7372_pd, bool do_resume)
 	unsigned int mask = 1 << sh7372_pd->bit_shift;
 	unsigned int retry_count;
 	int ret = 0;
-
-	if (sh7372_pd->stay_on)
-		goto out;
 
 	if (__raw_readl(PSTR) & mask)
 		goto out;
@@ -148,10 +146,11 @@ static int pd_power_up(struct generic_pm_domain *genpd)
 	 return __pd_power_up(to_sh7372_pd(genpd), true);
 }
 
-static void sh7372_a4r_suspend(void)
+static int sh7372_a4r_suspend(void)
 {
 	sh7372_intcs_suspend();
 	__raw_writel(0x300fffff, WUPRMSK); /* avoid wakeup */
+	return 0;
 }
 
 static bool pd_active_wakeup(struct device *dev)
@@ -243,7 +242,6 @@ struct sh7372_pm_domain sh7372_a4r = {
 	.gov = &pm_domain_always_on_gov,
 	.suspend = sh7372_a4r_suspend,
 	.resume = sh7372_intcs_resume,
-	.stay_on = true,
 };
 
 struct sh7372_pm_domain sh7372_a3rv = {
@@ -256,28 +254,39 @@ struct sh7372_pm_domain sh7372_a3ri = {
 	.bit_shift = 8,
 };
 
+static int sh7372_a4s_suspend(void)
+{
+	/*
+	 * The A4S domain contains the CPU core and therefore it should
+	 * only be turned off if the CPU is in use.
+	 */
+	return -EBUSY;
+}
+
 struct sh7372_pm_domain sh7372_a4s = {
 	.genpd.name = "A4S",
 	.bit_shift = 10,
 	.gov = &pm_domain_always_on_gov,
 	.no_debug = true,
-	.stay_on = true,
+	.suspend = sh7372_a4s_suspend,
 };
+
+static int sh7372_a3sp_suspend(void)
+{
+	/*
+	 * Serial consoles make use of SCIF hardware located in A3SP,
+	 * keep such power domain on if "no_console_suspend" is set.
+	 */
+	return console_suspend_enabled ? -EBUSY : 0;
+}
 
 struct sh7372_pm_domain sh7372_a3sp = {
 	.genpd.name = "A3SP",
 	.bit_shift = 11,
 	.gov = &pm_domain_always_on_gov,
 	.no_debug = true,
+	.suspend = sh7372_a3sp_suspend,
 };
-
-static void sh7372_a3sp_init(void)
-{
-	/* serial consoles make use of SCIF hardware located in A3SP,
-	 * keep such power domain on if "no_console_suspend" is set.
-	 */
-	sh7372_a3sp.stay_on = !console_suspend_enabled;
-}
 
 struct sh7372_pm_domain sh7372_a3sg = {
 	.genpd.name = "A3SG",
@@ -508,7 +517,7 @@ static int sh7372_enter_suspend(suspend_state_t suspend_state)
 		/* convert INTC mask and sense to SYSC mask and sense */
 		sh7372_setup_sysc(msk, msk2);
 
-		if (!sh7372_a3sp.stay_on &&
+		if (!console_suspend_enabled &&
 		    sh7372_a4s.genpd.status == GPD_STATE_POWER_OFF) {
 			/* enter A4S sleep with PLLC0 off */
 			pr_debug("entering A4S\n");
@@ -543,8 +552,6 @@ void __init sh7372_pm_init(void)
 
 	/* do not convert A3SM, A3SP, A3SG, A4R power down into A4S */
 	__raw_writel(0, PDNSEL);
-
-	sh7372_a3sp_init();
 
 	sh7372_suspend_init();
 	sh7372_cpuidle_init();

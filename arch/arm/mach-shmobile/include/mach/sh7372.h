@@ -480,11 +480,10 @@ struct platform_device;
 struct sh7372_pm_domain {
 	struct generic_pm_domain genpd;
 	struct dev_power_governor *gov;
-	void (*suspend)(void);
+	int (*suspend)(void);
 	void (*resume)(void);
 	unsigned int bit_shift;
 	bool no_debug;
-	bool stay_on;
 };
 
 static inline struct sh7372_pm_domain *to_sh7372_pd(struct generic_pm_domain *d)
