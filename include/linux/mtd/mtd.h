@@ -209,13 +209,12 @@ struct mtd_info {
 	void (*sync) (struct mtd_info *mtd);
 	int (*lock) (struct mtd_info *mtd, loff_t ofs, uint64_t len);
 	int (*unlock) (struct mtd_info *mtd, loff_t ofs, uint64_t len);
+	int (*is_locked) (struct mtd_info *mtd, loff_t ofs, uint64_t len);
 
 	/* Backing device capabilities for this device
 	 * - provides mmap capabilities
 	 */
 	struct backing_dev_info *backing_dev_info;
-
-	int (*is_locked) (struct mtd_info *mtd, loff_t ofs, uint64_t len);
 
 	/* Power Management functions */
 	int (*suspend) (struct mtd_info *mtd);
@@ -392,6 +391,11 @@ static inline int mtd_lock(struct mtd_info *mtd, loff_t ofs, uint64_t len)
 static inline int mtd_unlock(struct mtd_info *mtd, loff_t ofs, uint64_t len)
 {
 	return mtd->unlock(mtd, ofs, len);
+}
+
+static inline int mtd_is_locked(struct mtd_info *mtd, loff_t ofs, uint64_t len)
+{
+	return mtd->is_locked(mtd, ofs, len);
 }
 
 static inline struct mtd_info *dev_to_mtd(struct device *dev)
