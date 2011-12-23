@@ -25,6 +25,10 @@
 #define MCFINT_UART2        28          /* Interrupt number for UART2 */
 #define MCFINT_QSPI         31          /* Interrupt number for QSPI */
 
+#define MCF_IRQ_UART0       (MCFINT_VECBASE + MCFINT_UART0)
+#define MCF_IRQ_UART1       (MCFINT_VECBASE + MCFINT_UART1)
+#define MCF_IRQ_UART2       (MCFINT_VECBASE + MCFINT_UART2)
+
 #define MCF_WTM_WCR	MCF_REG16(0xFC098000)
 
 /*
@@ -82,9 +86,9 @@
 /*
  *  UART module.
  */
-#define MCFUART_BASE1		0xFC060000	/* Base address of UART1 */
-#define MCFUART_BASE2		0xFC064000	/* Base address of UART2 */
-#define MCFUART_BASE3		0xFC068000	/* Base address of UART3 */
+#define MCFUART_BASE0		0xFC060000	/* Base address of UART1 */
+#define MCFUART_BASE1		0xFC064000	/* Base address of UART2 */
+#define MCFUART_BASE2		0xFC068000	/* Base address of UART3 */
 
 /*
  *  Timer module.
