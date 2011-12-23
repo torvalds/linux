@@ -286,6 +286,7 @@ static int __devinit pm860x_probe(struct i2c_client *client,
 		ret = PTR_ERR(chip->regmap);
 		dev_err(&client->dev, "Failed to allocate register map: %d\n",
 				ret);
+		kfree(chip);
 		return ret;
 	}
 	chip->client = client;
