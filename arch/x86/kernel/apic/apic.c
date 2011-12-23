@@ -148,15 +148,24 @@ int x2apic_mode;
 /* x2apic enabled before OS handover */
 int x2apic_preenabled;
 static int x2apic_disabled;
+static int nox2apic;
 static __init int setup_nox2apic(char *str)
 {
 	if (x2apic_enabled()) {
-		pr_warning("Bios already enabled x2apic, "
-			   "can't enforce nox2apic");
-		return 0;
-	}
+		int apicid = native_apic_msr_read(APIC_ID);
 
-	setup_clear_cpu_cap(X86_FEATURE_X2APIC);
+		if (apicid >= 255) {
+			pr_warning("Apicid: %08x, cannot enforce nox2apic\n",
+				   apicid);
+			return 0;
+		}
+
+		pr_warning("x2apic already enabled. will disable it\n");
+	} else
+		setup_clear_cpu_cap(X86_FEATURE_X2APIC);
+
+	nox2apic = 1;
+
 	return 0;
 }
 early_param("nox2apic", setup_nox2apic);
@@ -1443,7 +1452,7 @@ static inline void __disable_x2apic(u64 msr)
 	wrmsrl(MSR_IA32_APICBASE, msr & ~X2APIC_ENABLE);
 }
 
-static void disable_x2apic(void)
+static __init void disable_x2apic(void)
 {
 	u64 msr;
 
@@ -1459,6 +1468,11 @@ static void disable_x2apic(void)
 
 		pr_info("Disabling x2apic\n");
 		__disable_x2apic(msr);
+
+		if (nox2apic) {
+			clear_cpu_cap(&cpu_data(0), X86_FEATURE_X2APIC);
+			setup_clear_cpu_cap(X86_FEATURE_X2APIC);
+		}
 
 		x2apic_disabled = 1;
 		x2apic_mode = 0;
@@ -1534,13 +1548,16 @@ void __init enable_IR_x2apic(void)
 	legacy_pic->mask_all();
 	mask_ioapic_entries();
 
+	if (x2apic_preenabled && nox2apic)
+		disable_x2apic();
+
 	if (dmar_table_init_ret)
 		ret = -1;
 	else
 		ret = enable_IR();
 
 	if (!x2apic_supported())
-		goto nox2apic;
+		goto skip_x2apic;
 
 	if (ret < 0) {
 		/* IR is required if there is APIC ID > 255 even when running
@@ -1550,7 +1567,7 @@ void __init enable_IR_x2apic(void)
 		    !hypervisor_x2apic_available()) {
 			if (x2apic_preenabled)
 				disable_x2apic();
-			goto nox2apic;
+			goto skip_x2apic;
 		}
 		/*
 		 * without IR all CPUs can be addressed by IOAPIC/MSI
@@ -1561,7 +1578,7 @@ void __init enable_IR_x2apic(void)
 
 	if (ret == IRQ_REMAP_XAPIC_MODE) {
 		pr_info("x2apic not enabled, IRQ remapping is in xapic mode\n");
-		goto nox2apic;
+		goto skip_x2apic;
 	}
 
 	x2apic_enabled = 1;
@@ -1572,7 +1589,7 @@ void __init enable_IR_x2apic(void)
 		pr_info("Enabled x2apic\n");
 	}
 
-nox2apic:
+skip_x2apic:
 	if (ret < 0) /* IR enabling failed */
 		restore_ioapic_entries();
 	legacy_pic->restore_mask();

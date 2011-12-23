@@ -216,6 +216,7 @@ static inline void x2apic_force_phys(void)
 {
 }
 
+#define	nox2apic	0
 #define	x2apic_preenabled 0
 #define	x2apic_supported()	0
 #endif
