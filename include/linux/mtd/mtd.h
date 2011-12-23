@@ -198,13 +198,14 @@ struct mtd_info {
 				   size_t len, size_t *retlen, u_char *buf);
 	int (*get_user_prot_info) (struct mtd_info *mtd, struct otp_info *buf,
 				   size_t len);
+	int (*read_user_prot_reg) (struct mtd_info *mtd, loff_t from,
+				   size_t len, size_t *retlen, u_char *buf);
 
 	/* Backing device capabilities for this device
 	 * - provides mmap capabilities
 	 */
 	struct backing_dev_info *backing_dev_info;
 
-	int (*read_user_prot_reg) (struct mtd_info *mtd, loff_t from, size_t len, size_t *retlen, u_char *buf);
 	int (*write_user_prot_reg) (struct mtd_info *mtd, loff_t from, size_t len, size_t *retlen, u_char *buf);
 	int (*lock_user_prot_reg) (struct mtd_info *mtd, loff_t from, size_t len);
 
@@ -351,6 +352,13 @@ static inline int mtd_get_user_prot_info(struct mtd_info *mtd,
 					 size_t len)
 {
 	return mtd->get_user_prot_info(mtd, buf, len);
+}
+
+static inline int mtd_read_user_prot_reg(struct mtd_info *mtd, loff_t from,
+					 size_t len, size_t *retlen,
+					 u_char *buf)
+{
+	return mtd->read_user_prot_reg(mtd, from, len, retlen, buf);
 }
 
 static inline struct mtd_info *dev_to_mtd(struct device *dev)

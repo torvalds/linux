@@ -217,7 +217,8 @@ static ssize_t mtdchar_read(struct file *file, char __user *buf, size_t count,
 						     &retlen, kbuf);
 			break;
 		case MTD_FILE_MODE_OTP_USER:
-			ret = mtd->read_user_prot_reg(mtd, *ppos, len, &retlen, kbuf);
+			ret = mtd_read_user_prot_reg(mtd, *ppos, len,
+						     &retlen, kbuf);
 			break;
 		case MTD_FILE_MODE_RAW:
 		{
