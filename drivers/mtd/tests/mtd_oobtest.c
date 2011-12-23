@@ -139,7 +139,7 @@ static int write_eraseblock(int ebnum)
 		ops.ooboffs   = use_offset;
 		ops.datbuf    = NULL;
 		ops.oobbuf    = writebuf;
-		err = mtd->write_oob(mtd, addr, &ops);
+		err = mtd_write_oob(mtd, addr, &ops);
 		if (err || ops.oobretlen != use_len) {
 			printk(PRINT_PREF "error: writeoob failed at %#llx\n",
 			       (long long)addr);
@@ -524,7 +524,7 @@ static int __init mtd_oobtest_init(void)
 	ops.oobbuf    = writebuf;
 	printk(PRINT_PREF "attempting to start write past end of OOB\n");
 	printk(PRINT_PREF "an error is expected...\n");
-	err = mtd->write_oob(mtd, addr0, &ops);
+	err = mtd_write_oob(mtd, addr0, &ops);
 	if (err) {
 		printk(PRINT_PREF "error occurred as expected\n");
 		err = 0;
@@ -568,7 +568,7 @@ static int __init mtd_oobtest_init(void)
 		ops.oobbuf    = writebuf;
 		printk(PRINT_PREF "attempting to write past end of device\n");
 		printk(PRINT_PREF "an error is expected...\n");
-		err = mtd->write_oob(mtd, mtd->size - mtd->writesize, &ops);
+		err = mtd_write_oob(mtd, mtd->size - mtd->writesize, &ops);
 		if (err) {
 			printk(PRINT_PREF "error occurred as expected\n");
 			err = 0;
@@ -612,7 +612,7 @@ static int __init mtd_oobtest_init(void)
 		ops.oobbuf    = writebuf;
 		printk(PRINT_PREF "attempting to write past end of device\n");
 		printk(PRINT_PREF "an error is expected...\n");
-		err = mtd->write_oob(mtd, mtd->size - mtd->writesize, &ops);
+		err = mtd_write_oob(mtd, mtd->size - mtd->writesize, &ops);
 		if (err) {
 			printk(PRINT_PREF "error occurred as expected\n");
 			err = 0;
@@ -670,7 +670,7 @@ static int __init mtd_oobtest_init(void)
 			ops.ooboffs   = 0;
 			ops.datbuf    = NULL;
 			ops.oobbuf    = writebuf;
-			err = mtd->write_oob(mtd, addr, &ops);
+			err = mtd_write_oob(mtd, addr, &ops);
 			if (err)
 				goto out;
 			if (i % 256 == 0)

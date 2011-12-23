@@ -325,7 +325,7 @@ static ssize_t mtdchar_write(struct file *file, const char __user *buf, size_t c
 			ops.ooboffs = 0;
 			ops.len = len;
 
-			ret = mtd->write_oob(mtd, *ppos, &ops);
+			ret = mtd_write_oob(mtd, *ppos, &ops);
 			retlen = ops.retlen;
 			break;
 		}
@@ -426,7 +426,7 @@ static int mtdchar_writeoob(struct file *file, struct mtd_info *mtd,
 		return PTR_ERR(ops.oobbuf);
 
 	start &= ~((uint64_t)mtd->writesize - 1);
-	ret = mtd->write_oob(mtd, start, &ops);
+	ret = mtd_write_oob(mtd, start, &ops);
 
 	if (ops.oobretlen > 0xFFFFFFFFU)
 		ret = -EOVERFLOW;
@@ -609,7 +609,7 @@ static int mtdchar_write_ioctl(struct mtd_info *mtd,
 		ops.oobbuf = NULL;
 	}
 
-	ret = mtd->write_oob(mtd, (loff_t)req.start, &ops);
+	ret = mtd_write_oob(mtd, (loff_t)req.start, &ops);
 
 	kfree(ops.datbuf);
 	kfree(ops.oobbuf);

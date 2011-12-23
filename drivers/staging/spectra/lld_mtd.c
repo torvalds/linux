@@ -411,9 +411,9 @@ u16 mtd_Write_Page_Main_Spare(u8 *write_data, u32 Block,
 		ops.ooblen = BTSIG_BYTES;
 		ops.ooboffs = 0;
 
-		ret = spectra_mtd->write_oob(spectra_mtd,
-					     (Block * spectra_mtd->erasesize) + (Page * spectra_mtd->writesize),
-					     &ops);
+		ret = mtd_write_oob(spectra_mtd,
+				    (Block * spectra_mtd->erasesize) + (Page * spectra_mtd->writesize),
+				    &ops);
 		if (ret) {
 			printk(KERN_ERR "%s failed %d\n", __func__, ret);
 			return FAIL;

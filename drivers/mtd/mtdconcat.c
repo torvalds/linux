@@ -333,7 +333,7 @@ concat_write_oob(struct mtd_info *mtd, loff_t to, struct mtd_oob_ops *ops)
 		if (to + devops.len > subdev->size)
 			devops.len = subdev->size - to;
 
-		err = subdev->write_oob(subdev, to, &devops);
+		err = mtd_write_oob(subdev, to, &devops);
 		ops->retlen += devops.oobretlen;
 		if (err)
 			return err;

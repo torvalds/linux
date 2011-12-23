@@ -1101,7 +1101,7 @@ int jffs2_write_nand_cleanmarker(struct jffs2_sb_info *c,
 	ops.len = ops.ooboffs = ops.retlen = ops.oobretlen = 0;
 	ops.datbuf = NULL;
 
-	ret = c->mtd->write_oob(c->mtd, jeb->offset, &ops);
+	ret = mtd_write_oob(c->mtd, jeb->offset, &ops);
 	if (ret || ops.oobretlen != ops.ooblen) {
 		printk(KERN_ERR "cannot write OOB for EB at %08x, requested %zd"
 				" bytes, read %zd bytes, error %d\n",

@@ -178,7 +178,7 @@ int inftl_write_oob(struct mtd_info *mtd, loff_t offs, size_t len,
 	ops.oobbuf = buf;
 	ops.datbuf = NULL;
 
-	res = mtd->write_oob(mtd, offs & ~(mtd->writesize - 1), &ops);
+	res = mtd_write_oob(mtd, offs & ~(mtd->writesize - 1), &ops);
 	*retlen = ops.oobretlen;
 	return res;
 }
@@ -199,7 +199,7 @@ static int inftl_write(struct mtd_info *mtd, loff_t offs, size_t len,
 	ops.datbuf = buf;
 	ops.len = len;
 
-	res = mtd->write_oob(mtd, offs & ~(mtd->writesize - 1), &ops);
+	res = mtd_write_oob(mtd, offs & ~(mtd->writesize - 1), &ops);
 	*retlen = ops.retlen;
 	return res;
 }

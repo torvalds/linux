@@ -190,15 +190,13 @@ struct mtd_info {
 			    size_t *retlen, const u_char *buf);
 	int (*read_oob) (struct mtd_info *mtd, loff_t from,
 			 struct mtd_oob_ops *ops);
+	int (*write_oob) (struct mtd_info *mtd, loff_t to,
+			  struct mtd_oob_ops *ops);
 
 	/* Backing device capabilities for this device
 	 * - provides mmap capabilities
 	 */
 	struct backing_dev_info *backing_dev_info;
-
-
-	int (*write_oob) (struct mtd_info *mtd, loff_t to,
-			 struct mtd_oob_ops *ops);
 
 	/*
 	 * Methods to access the protection register area, present in some
@@ -324,6 +322,12 @@ static inline int mtd_read_oob(struct mtd_info *mtd, loff_t from,
 			       struct mtd_oob_ops *ops)
 {
 	return mtd->read_oob(mtd, from, ops);
+}
+
+static inline int mtd_write_oob(struct mtd_info *mtd, loff_t to,
+				struct mtd_oob_ops *ops)
+{
+	return mtd->write_oob(mtd, to, ops);
 }
 
 static inline struct mtd_info *dev_to_mtd(struct device *dev)

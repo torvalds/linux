@@ -403,7 +403,7 @@ static int mtdswap_write_marker(struct mtdswap_dev *d, struct swap_eb *eb,
 		offset = mtdswap_eb_offset(d, eb) + d->mtd->writesize;
 	}
 
-	ret = d->mtd->write_oob(d->mtd, offset , &ops);
+	ret = mtd_write_oob(d->mtd, offset, &ops);
 
 	if (ret) {
 		dev_warn(d->dev, "Write OOB failed for block at %08llx "
@@ -946,7 +946,7 @@ static unsigned int mtdswap_eblk_passes(struct mtdswap_dev *d,
 			patt = mtdswap_test_patt(test + i);
 			memset(d->page_buf, patt, mtd->writesize);
 			memset(d->oob_buf, patt, mtd->ecclayout->oobavail);
-			ret = mtd->write_oob(mtd, pos, &ops);
+			ret = mtd_write_oob(mtd, pos, &ops);
 			if (ret)
 				goto error;
 
