@@ -838,7 +838,7 @@ static int mtdchar_ioctl(struct file *file, u_int cmd, u_long arg)
 		if (!mtd->unlock)
 			ret = -EOPNOTSUPP;
 		else
-			ret = mtd->unlock(mtd, einfo.start, einfo.length);
+			ret = mtd_unlock(mtd, einfo.start, einfo.length);
 		break;
 	}
 

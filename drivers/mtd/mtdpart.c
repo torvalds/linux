@@ -287,7 +287,7 @@ static int part_unlock(struct mtd_info *mtd, loff_t ofs, uint64_t len)
 	struct mtd_part *part = PART(mtd);
 	if ((len + ofs) > mtd->size)
 		return -EINVAL;
-	return part->master->unlock(part->master, ofs + part->offset, len);
+	return mtd_unlock(part->master, ofs + part->offset, len);
 }
 
 static int part_is_locked(struct mtd_info *mtd, loff_t ofs, uint64_t len)

@@ -596,7 +596,7 @@ static int concat_unlock(struct mtd_info *mtd, loff_t ofs, uint64_t len)
 			size = len;
 
 		if (subdev->unlock) {
-			err = subdev->unlock(subdev, ofs, size);
+			err = mtd_unlock(subdev, ofs, size);
 			if (err)
 				break;
 		} else

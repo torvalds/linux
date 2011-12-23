@@ -340,7 +340,7 @@ int add_mtd_device(struct mtd_info *mtd)
 	/* Some chips always power up locked. Unlock them now */
 	if ((mtd->flags & MTD_WRITEABLE)
 	    && (mtd->flags & MTD_POWERUP_LOCK) && mtd->unlock) {
-		if (mtd->unlock(mtd, 0, mtd->size))
+		if (mtd_unlock(mtd, 0, mtd->size))
 			printk(KERN_WARNING
 			       "%s: unlock failed, writes may not work\n",
 			       mtd->name);
