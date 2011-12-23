@@ -39,7 +39,7 @@ MODULE_DESCRIPTION("Netfilter NAT protocol helper module for GRE");
 /* generate unique tuple ... */
 static void
 gre_unique_tuple(struct nf_conntrack_tuple *tuple,
-		 const struct nf_nat_range *range,
+		 const struct nf_nat_ipv4_range *range,
 		 enum nf_nat_manip_type maniptype,
 		 const struct nf_conn *ct)
 {
@@ -52,12 +52,12 @@ gre_unique_tuple(struct nf_conntrack_tuple *tuple,
 	if (!ct->master)
 		return;
 
-	if (maniptype == IP_NAT_MANIP_SRC)
+	if (maniptype == NF_NAT_MANIP_SRC)
 		keyptr = &tuple->src.u.gre.key;
 	else
 		keyptr = &tuple->dst.u.gre.key;
 
-	if (!(range->flags & IP_NAT_RANGE_PROTO_SPECIFIED)) {
+	if (!(range->flags & NF_NAT_RANGE_PROTO_SPECIFIED)) {
 		pr_debug("%p: NATing GRE PPTP\n", ct);
 		min = 1;
 		range_size = 0xffff;
@@ -99,7 +99,7 @@ gre_manip_pkt(struct sk_buff *skb, unsigned int iphdroff,
 
 	/* we only have destination manip of a packet, since 'source key'
 	 * is not present in the packet itself */
-	if (maniptype != IP_NAT_MANIP_DST)
+	if (maniptype != NF_NAT_MANIP_DST)
 		return true;
 	switch (greh->version) {
 	case GRE_VERSION_1701:

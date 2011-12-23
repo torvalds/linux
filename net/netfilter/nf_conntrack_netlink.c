@@ -1102,14 +1102,14 @@ ctnetlink_change_nat(struct nf_conn *ct, const struct nlattr * const cda[])
 
 	if (cda[CTA_NAT_DST]) {
 		ret = ctnetlink_parse_nat_setup(ct,
-						IP_NAT_MANIP_DST,
+						NF_NAT_MANIP_DST,
 						cda[CTA_NAT_DST]);
 		if (ret < 0)
 			return ret;
 	}
 	if (cda[CTA_NAT_SRC]) {
 		ret = ctnetlink_parse_nat_setup(ct,
-						IP_NAT_MANIP_SRC,
+						NF_NAT_MANIP_SRC,
 						cda[CTA_NAT_SRC]);
 		if (ret < 0)
 			return ret;

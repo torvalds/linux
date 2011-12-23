@@ -23,7 +23,7 @@ static u_int16_t tcp_port_rover;
 
 static void
 tcp_unique_tuple(struct nf_conntrack_tuple *tuple,
-		 const struct nf_nat_range *range,
+		 const struct nf_nat_ipv4_range *range,
 		 enum nf_nat_manip_type maniptype,
 		 const struct nf_conn *ct)
 {
@@ -55,7 +55,7 @@ tcp_manip_pkt(struct sk_buff *skb,
 	iph = (struct iphdr *)(skb->data + iphdroff);
 	hdr = (struct tcphdr *)(skb->data + hdroff);
 
-	if (maniptype == IP_NAT_MANIP_SRC) {
+	if (maniptype == NF_NAT_MANIP_SRC) {
 		/* Get rid of src ip and src pt */
 		oldip = iph->saddr;
 		newip = tuple->src.u3.ip;
