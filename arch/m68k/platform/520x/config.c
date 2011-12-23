@@ -227,41 +227,23 @@ static struct platform_device *m520x_devices[] __initdata = {
 
 /***************************************************************************/
 
-static void __init m520x_uart_init_line(int line, int irq)
+static void __init m520x_uarts_init(void)
 {
 	u16 par;
 	u8 par2;
 
-	switch (line) {
-	case 0:
-		par = readw(MCF_GPIO_PAR_UART);
-		par |= MCF_GPIO_PAR_UART_PAR_UTXD0 |
-		       MCF_GPIO_PAR_UART_PAR_URXD0;
-		writew(par, MCF_GPIO_PAR_UART);
-		break;
-	case 1:
-		par = readw(MCF_GPIO_PAR_UART);
-		par |= MCF_GPIO_PAR_UART_PAR_UTXD1 |
-		       MCF_GPIO_PAR_UART_PAR_URXD1;
-		writew(par, MCF_GPIO_PAR_UART);
-		break;
-	case 2:
-		par2 = readb(MCF_GPIO_PAR_FECI2C);
-		par2 &= ~0x0F;
-		par2 |= MCF_GPIO_PAR_FECI2C_PAR_SCL_UTXD2 |
-			MCF_GPIO_PAR_FECI2C_PAR_SDA_URXD2;
-		writeb(par2, MCF_GPIO_PAR_FECI2C);
-		break;
-	}
-}
+	/* UART0 and UART1 GPIO pin setup */
+	par = readw(MCF_GPIO_PAR_UART);
+	par |= MCF_GPIO_PAR_UART_PAR_UTXD0 | MCF_GPIO_PAR_UART_PAR_URXD0;
+	par |= MCF_GPIO_PAR_UART_PAR_UTXD1 | MCF_GPIO_PAR_UART_PAR_URXD1;
+	writew(par, MCF_GPIO_PAR_UART);
 
-static void __init m520x_uarts_init(void)
-{
-	const int nrlines = ARRAY_SIZE(m520x_uart_platform);
-	int line;
-
-	for (line = 0; (line < nrlines); line++)
-		m520x_uart_init_line(line, m520x_uart_platform[line].irq);
+	/* UART1 GPIO pin setup */
+	par2 = readb(MCF_GPIO_PAR_FECI2C);
+	par2 &= ~0x0F;
+	par2 |= MCF_GPIO_PAR_FECI2C_PAR_SCL_UTXD2 |
+		MCF_GPIO_PAR_FECI2C_PAR_SDA_URXD2;
+	writeb(par2, MCF_GPIO_PAR_FECI2C);
 }
 
 /***************************************************************************/
