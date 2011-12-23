@@ -313,7 +313,12 @@ struct wl1271 {
 
 	s8 hw_pg_ver;
 
-	u8 mac_addr[ETH_ALEN];
+	/* address read from the fuse ROM */
+	u32 fuse_oui_addr;
+	u32 fuse_nic_addr;
+
+	/* we have up to 2 MAC addresses */
+	struct mac_address addresses[2];
 	int channel;
 	u8 system_hlid;
 

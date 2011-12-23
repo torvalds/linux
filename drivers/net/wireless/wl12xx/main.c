@@ -2132,7 +2132,7 @@ static int wl1271_op_add_interface(struct ieee80211_hw *hw,
 		 * we still need this in order to configure the fw
 		 * while uploading the nvs
 		 */
-		memcpy(wl->mac_addr, vif->addr, ETH_ALEN);
+		memcpy(wl->addresses[0].addr, vif->addr, ETH_ALEN);
 
 		booted = wl12xx_init_fw(wl);
 		if (!booted) {
@@ -4859,6 +4859,76 @@ static struct bin_attribute fwlog_attr = {
 	.read = wl1271_sysfs_read_fwlog,
 };
 
+static bool wl12xx_mac_in_fuse(struct wl1271 *wl)
+{
+	bool supported = false;
+	u8 major, minor;
+
+	if (wl->chip.id == CHIP_ID_1283_PG20) {
+		major = WL128X_PG_GET_MAJOR(wl->hw_pg_ver);
+		minor = WL128X_PG_GET_MINOR(wl->hw_pg_ver);
+
+		/* in wl128x we have the MAC address if the PG is >= (2, 1) */
+		if (major > 2 || (major == 2 && minor >= 1))
+			supported = true;
+	} else {
+		major = WL127X_PG_GET_MAJOR(wl->hw_pg_ver);
+		minor = WL127X_PG_GET_MINOR(wl->hw_pg_ver);
+
+		/* in wl127x we have the MAC address if the PG is >= (3, 1) */
+		if (major == 3 && minor >= 1)
+			supported = true;
+	}
+
+	wl1271_debug(DEBUG_PROBE,
+		     "PG Ver major = %d minor = %d, MAC %s present",
+		     major, minor, supported ? "is" : "is not");
+
+	return supported;
+}
+
+static void wl12xx_derive_mac_addresses(struct wl1271 *wl,
+					u32 oui, u32 nic, int n)
+{
+	int i;
+
+	wl1271_debug(DEBUG_PROBE, "base address: oui %06x nic %06x, n %d",
+		     oui, nic, n);
+
+	if (nic + n - 1 > 0xffffff)
+		wl1271_warning("NIC part of the MAC address wraps around!");
+
+	for (i = 0; i < n; i++) {
+		wl->addresses[i].addr[0] = (u8)(oui >> 16);
+		wl->addresses[i].addr[1] = (u8)(oui >> 8);
+		wl->addresses[i].addr[2] = (u8) oui;
+		wl->addresses[i].addr[3] = (u8)(nic >> 16);
+		wl->addresses[i].addr[4] = (u8)(nic >> 8);
+		wl->addresses[i].addr[5] = (u8) nic;
+		nic++;
+	}
+
+	wl->hw->wiphy->n_addresses = n;
+	wl->hw->wiphy->addresses = wl->addresses;
+}
+
+static void wl12xx_get_fuse_mac(struct wl1271 *wl)
+{
+	u32 mac1, mac2;
+
+	wl1271_set_partition(wl, &wl12xx_part_table[PART_DRPW]);
+
+	mac1 = wl1271_read32(wl, WL12XX_REG_FUSE_BD_ADDR_1);
+	mac2 = wl1271_read32(wl, WL12XX_REG_FUSE_BD_ADDR_2);
+
+	/* these are the two parts of the BD_ADDR */
+	wl->fuse_oui_addr = ((mac2 & 0xffff) << 8) +
+		((mac1 & 0xff000000) >> 24);
+	wl->fuse_nic_addr = mac1 & 0xffffff;
+
+	wl1271_set_partition(wl, &wl12xx_part_table[PART_DOWN]);
+}
+
 static int wl12xx_get_hw_info(struct wl1271 *wl)
 {
 	int ret;
@@ -4877,6 +4947,13 @@ static int wl12xx_get_hw_info(struct wl1271 *wl)
 
 	wl->hw_pg_ver = (s8) (die_info & PG_VER_MASK) >> PG_VER_OFFSET;
 
+	if (!wl12xx_mac_in_fuse(wl)) {
+		wl->fuse_oui_addr = 0;
+		wl->fuse_nic_addr = 0;
+	} else {
+		wl12xx_get_fuse_mac(wl);
+	}
+
 	wl1271_power_off(wl);
 out:
 	return ret;
@@ -4885,6 +4962,7 @@ out:
 static int wl1271_register_hw(struct wl1271 *wl)
 {
 	int ret;
+	u32 oui_addr = 0, nic_addr = 0;
 
 	if (wl->mac80211_registered)
 		return 0;
@@ -4903,15 +4981,20 @@ static int wl1271_register_hw(struct wl1271 *wl)
 		 */
 		u8 *nvs_ptr = (u8 *)wl->nvs;
 
-		wl->mac_addr[0] = nvs_ptr[11];
-		wl->mac_addr[1] = nvs_ptr[10];
-		wl->mac_addr[2] = nvs_ptr[6];
-		wl->mac_addr[3] = nvs_ptr[5];
-		wl->mac_addr[4] = nvs_ptr[4];
-		wl->mac_addr[5] = nvs_ptr[3];
+		oui_addr =
+			(nvs_ptr[11] << 16) + (nvs_ptr[10] << 8) + nvs_ptr[6];
+		nic_addr =
+			(nvs_ptr[5] << 16) + (nvs_ptr[4] << 8) + nvs_ptr[3];
 	}
 
-	SET_IEEE80211_PERM_ADDR(wl->hw, wl->mac_addr);
+	/* if the MAC address is zeroed in the NVS derive from fuse */
+	if (oui_addr == 0 && nic_addr == 0) {
+		oui_addr = wl->fuse_oui_addr;
+		/* fuse has the BD_ADDR, the WLAN addresses are the next two */
+		nic_addr = wl->fuse_nic_addr + 1;
+	}
+
+	wl12xx_derive_mac_addresses(wl, oui_addr, nic_addr, 2);
 
 	ret = ieee80211_register_hw(wl->hw);
 	if (ret < 0) {
