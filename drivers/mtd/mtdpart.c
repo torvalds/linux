@@ -175,7 +175,7 @@ static int part_get_fact_prot_info(struct mtd_info *mtd, struct otp_info *buf,
 		size_t len)
 {
 	struct mtd_part *part = PART(mtd);
-	return part->master->get_fact_prot_info(part->master, buf, len);
+	return mtd_get_fact_prot_info(part->master, buf, len);
 }
 
 static int part_write(struct mtd_info *mtd, loff_t to, size_t len,

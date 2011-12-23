@@ -192,18 +192,14 @@ struct mtd_info {
 			 struct mtd_oob_ops *ops);
 	int (*write_oob) (struct mtd_info *mtd, loff_t to,
 			  struct mtd_oob_ops *ops);
+	int (*get_fact_prot_info) (struct mtd_info *mtd, struct otp_info *buf,
+				   size_t len);
 
 	/* Backing device capabilities for this device
 	 * - provides mmap capabilities
 	 */
 	struct backing_dev_info *backing_dev_info;
 
-	/*
-	 * Methods to access the protection register area, present in some
-	 * flash devices. The user data is one time programmable but the
-	 * factory data is read only.
-	 */
-	int (*get_fact_prot_info) (struct mtd_info *mtd, struct otp_info *buf, size_t len);
 	int (*read_fact_prot_reg) (struct mtd_info *mtd, loff_t from, size_t len, size_t *retlen, u_char *buf);
 	int (*get_user_prot_info) (struct mtd_info *mtd, struct otp_info *buf, size_t len);
 	int (*read_user_prot_reg) (struct mtd_info *mtd, loff_t from, size_t len, size_t *retlen, u_char *buf);
@@ -328,6 +324,17 @@ static inline int mtd_write_oob(struct mtd_info *mtd, loff_t to,
 				struct mtd_oob_ops *ops)
 {
 	return mtd->write_oob(mtd, to, ops);
+}
+
+/*
+ * Method to access the protection register area, present in some flash
+ * devices. The user data is one time programmable but the factory data is read
+ * only.
+ */
+static inline int mtd_get_fact_prot_info(struct mtd_info *mtd,
+					 struct otp_info *buf, size_t len)
+{
+	return mtd->get_fact_prot_info(mtd, buf, len);
 }
 
 static inline struct mtd_info *dev_to_mtd(struct device *dev)
