@@ -222,8 +222,7 @@ static int part_write_user_prot_reg(struct mtd_info *mtd, loff_t from,
 		size_t len, size_t *retlen, u_char *buf)
 {
 	struct mtd_part *part = PART(mtd);
-	return part->master->write_user_prot_reg(part->master, from,
-					len, retlen, buf);
+	return mtd_write_user_prot_reg(part->master, from, len, retlen, buf);
 }
 
 static int part_lock_user_prot_reg(struct mtd_info *mtd, loff_t from,

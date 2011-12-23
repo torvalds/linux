@@ -314,7 +314,8 @@ static ssize_t mtdchar_write(struct file *file, const char __user *buf, size_t c
 				ret = -EOPNOTSUPP;
 				break;
 			}
-			ret = mtd->write_user_prot_reg(mtd, *ppos, len, &retlen, kbuf);
+			ret = mtd_write_user_prot_reg(mtd, *ppos, len,
+						      &retlen, kbuf);
 			break;
 
 		case MTD_FILE_MODE_RAW:
