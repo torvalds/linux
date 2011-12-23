@@ -57,7 +57,7 @@ hash_by_src(const struct net *net, u16 zone,
 	/* Original src, to ensure we map it consistently if poss. */
 	hash = jhash_3words((__force u32)tuple->src.u3.ip,
 			    (__force u32)tuple->src.u.all ^ zone,
-			    tuple->dst.protonum, 0);
+			    tuple->dst.protonum, nf_conntrack_hash_rnd);
 	return ((u64)hash * net->ipv4.nat_htable_size) >> 32;
 }
 

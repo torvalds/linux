@@ -67,6 +67,7 @@ DEFINE_PER_CPU(struct nf_conn, nf_conntrack_untracked);
 EXPORT_PER_CPU_SYMBOL(nf_conntrack_untracked);
 
 unsigned int nf_conntrack_hash_rnd __read_mostly;
+EXPORT_SYMBOL_GPL(nf_conntrack_hash_rnd);
 
 static u32 hash_conntrack_raw(const struct nf_conntrack_tuple *tuple, u16 zone)
 {
