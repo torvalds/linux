@@ -238,8 +238,8 @@ static int part_writev(struct mtd_info *mtd, const struct kvec *vecs,
 	struct mtd_part *part = PART(mtd);
 	if (!(mtd->flags & MTD_WRITEABLE))
 		return -EROFS;
-	return part->master->writev(part->master, vecs, count,
-					to + part->offset, retlen);
+	return mtd_writev(part->master, vecs, count, to + part->offset,
+			  retlen);
 }
 
 static int part_erase(struct mtd_info *mtd, struct erase_info *instr)

@@ -52,7 +52,7 @@ int jffs2_flash_direct_writev(struct jffs2_sb_info *c, const struct kvec *vecs,
 	}
 
 	if (c->mtd->writev)
-		return c->mtd->writev(c->mtd, vecs, count, to, retlen);
+		return mtd_writev(c->mtd, vecs, count, to, retlen);
 	else {
 		return mtd_fake_writev(c->mtd, vecs, count, to, retlen);
 	}

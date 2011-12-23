@@ -227,8 +227,9 @@ concat_writev(struct mtd_info *mtd, const struct kvec *vecs,
 		if (!(subdev->flags & MTD_WRITEABLE))
 			err = -EROFS;
 		else
-			err = subdev->writev(subdev, &vecs_copy[entry_low],
-				entry_high - entry_low + 1, to, &retsize);
+			err = mtd_writev(subdev, &vecs_copy[entry_low],
+					 entry_high - entry_low + 1, to,
+					 &retsize);
 
 		vecs_copy[entry_high].iov_len = old_iov_len - size;
 		vecs_copy[entry_high].iov_base += size;

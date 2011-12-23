@@ -204,17 +204,13 @@ struct mtd_info {
 				    size_t *retlen, u_char *buf);
 	int (*lock_user_prot_reg) (struct mtd_info *mtd, loff_t from,
 				   size_t len);
+	int (*writev) (struct mtd_info *mtd, const struct kvec *vecs,
+			unsigned long count, loff_t to, size_t *retlen);
 
 	/* Backing device capabilities for this device
 	 * - provides mmap capabilities
 	 */
 	struct backing_dev_info *backing_dev_info;
-
-	/* kvec-based read/write methods.
-	   NB: The 'count' parameter is the number of _vectors_, each of
-	   which contains an (ofs, len) tuple.
-	*/
-	int (*writev) (struct mtd_info *mtd, const struct kvec *vecs, unsigned long count, loff_t to, size_t *retlen);
 
 	/* Sync */
 	void (*sync) (struct mtd_info *mtd);
@@ -373,6 +369,16 @@ static inline int mtd_lock_user_prot_reg(struct mtd_info *mtd, loff_t from,
 					 size_t len)
 {
 	return mtd->lock_user_prot_reg(mtd, from, len);
+}
+
+/*
+ * kvec-based read/write method. NB: The 'count' parameter is the number of
+ * _vectors_, each of which contains an (ofs, len) tuple.
+ */
+static inline int mtd_writev(struct mtd_info *mtd, const struct kvec *vecs,
+			     unsigned long count, loff_t to, size_t *retlen)
+{
+	return mtd->writev(mtd, vecs, count, to, retlen);
 }
 
 static inline struct mtd_info *dev_to_mtd(struct device *dev)
