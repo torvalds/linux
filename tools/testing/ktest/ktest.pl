@@ -18,46 +18,47 @@ $| = 1;
 my %opt;
 my %repeat_tests;
 my %repeats;
-my %default;
 
 #default opts
-$default{"NUM_TESTS"}		= 1;
-$default{"TEST_TYPE"}		= "build";
-$default{"BUILD_TYPE"}		= "randconfig";
-$default{"MAKE_CMD"}		= "make";
-$default{"TIMEOUT"}		= 120;
-$default{"TMP_DIR"}		= "/tmp/ktest/\${MACHINE}";
-$default{"SLEEP_TIME"}		= 60;	# sleep time between tests
-$default{"BUILD_NOCLEAN"}	= 0;
-$default{"REBOOT_ON_ERROR"}	= 0;
-$default{"POWEROFF_ON_ERROR"}	= 0;
-$default{"REBOOT_ON_SUCCESS"}	= 1;
-$default{"POWEROFF_ON_SUCCESS"}	= 0;
-$default{"BUILD_OPTIONS"}	= "";
-$default{"BISECT_SLEEP_TIME"}	= 60;   # sleep time between bisects
-$default{"PATCHCHECK_SLEEP_TIME"} = 60; # sleep time between patch checks
-$default{"CLEAR_LOG"}		= 0;
-$default{"BISECT_MANUAL"}	= 0;
-$default{"BISECT_SKIP"}		= 1;
-$default{"SUCCESS_LINE"}	= "login:";
-$default{"DETECT_TRIPLE_FAULT"} = 1;
-$default{"NO_INSTALL"}		= 0;
-$default{"BOOTED_TIMEOUT"}	= 1;
-$default{"DIE_ON_FAILURE"}	= 1;
-$default{"SSH_EXEC"}		= "ssh \$SSH_USER\@\$MACHINE \$SSH_COMMAND";
-$default{"SCP_TO_TARGET"}	= "scp \$SRC_FILE \$SSH_USER\@\$MACHINE:\$DST_FILE";
-$default{"REBOOT"}		= "ssh \$SSH_USER\@\$MACHINE reboot";
-$default{"STOP_AFTER_SUCCESS"}	= 10;
-$default{"STOP_AFTER_FAILURE"}	= 60;
-$default{"STOP_TEST_AFTER"}	= 600;
+my %default = (
+    "NUM_TESTS"			=> 1,
+    "TEST_TYPE"			=> "build",
+    "BUILD_TYPE"		=> "randconfig",
+    "MAKE_CMD"			=> "make",
+    "TIMEOUT"			=> 120,
+    "TMP_DIR"			=> "/tmp/ktest/\${MACHINE}",
+    "SLEEP_TIME"		=> 60,	# sleep time between tests
+    "BUILD_NOCLEAN"		=> 0,
+    "REBOOT_ON_ERROR"		=> 0,
+    "POWEROFF_ON_ERROR"		=> 0,
+    "REBOOT_ON_SUCCESS"		=> 1,
+    "POWEROFF_ON_SUCCESS"	=> 0,
+    "BUILD_OPTIONS"		=> "",
+    "BISECT_SLEEP_TIME"		=> 60,   # sleep time between bisects
+    "PATCHCHECK_SLEEP_TIME"	=> 60, # sleep time between patch checks
+    "CLEAR_LOG"			=> 0,
+    "BISECT_MANUAL"		=> 0,
+    "BISECT_SKIP"		=> 1,
+    "SUCCESS_LINE"		=> "login:",
+    "DETECT_TRIPLE_FAULT"	=> 1,
+    "NO_INSTALL"		=> 0,
+    "BOOTED_TIMEOUT"		=> 1,
+    "DIE_ON_FAILURE"		=> 1,
+    "SSH_EXEC"			=> "ssh \$SSH_USER\@\$MACHINE \$SSH_COMMAND",
+    "SCP_TO_TARGET"		=> "scp \$SRC_FILE \$SSH_USER\@\$MACHINE:\$DST_FILE",
+    "REBOOT"			=> "ssh \$SSH_USER\@\$MACHINE reboot",
+    "STOP_AFTER_SUCCESS"	=> 10,
+    "STOP_AFTER_FAILURE"	=> 60,
+    "STOP_TEST_AFTER"		=> 600,
 
 # required, and we will ask users if they don't have them but we keep the default
 # value something that is common.
-$default{"REBOOT_TYPE"}		= "grub";
-$default{"LOCALVERSION"}	= "-test";
-$default{"SSH_USER"}		= "root";
-$default{"BUILD_TARGET"} 	= "arch/x86/boot/bzImage";
-$default{"TARGET_IMAGE"}	= "/boot/vmlinuz-test";
+    "REBOOT_TYPE"		=> "grub",
+    "LOCALVERSION"		=> "-test",
+    "SSH_USER"			=> "root",
+    "BUILD_TARGET"	 	=> "arch/x86/boot/bzImage",
+    "TARGET_IMAGE"		=> "/boot/vmlinuz-test",
+);
 
 my $ktest_config;
 my $version;
