@@ -556,7 +556,7 @@ static int concat_lock(struct mtd_info *mtd, loff_t ofs, uint64_t len)
 			size = len;
 
 		if (subdev->lock) {
-			err = subdev->lock(subdev, ofs, size);
+			err = mtd_lock(subdev, ofs, size);
 			if (err)
 				break;
 		} else
