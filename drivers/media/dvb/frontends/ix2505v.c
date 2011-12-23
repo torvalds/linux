@@ -132,9 +132,10 @@ static int ix2505v_release(struct dvb_frontend *fe)
 static int ix2505v_set_params(struct dvb_frontend *fe,
 		struct dvb_frontend_parameters *params)
 {
+	struct dtv_frontend_properties *c = &fe->dtv_property_cache;
 	struct ix2505v_state *state = fe->tuner_priv;
-	u32 frequency = params->frequency;
-	u32 b_w  = (params->u.qpsk.symbol_rate * 27) / 32000;
+	u32 frequency = c->frequency;
+	u32 b_w  = (c->symbol_rate * 27) / 32000;
 	u32 div_factor, N , A, x;
 	int ret = 0, len;
 	u8 gain, cc, ref, psc, local_osc, lpf;
