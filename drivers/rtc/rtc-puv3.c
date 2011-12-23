@@ -164,7 +164,7 @@ static int puv3_rtc_open(struct device *dev)
 	int ret;
 
 	ret = request_irq(puv3_rtc_alarmno, puv3_rtc_alarmirq,
-			  IRQF_DISABLED,  "pkunity-rtc alarm", rtc_dev);
+			0, "pkunity-rtc alarm", rtc_dev);
 
 	if (ret) {
 		dev_err(dev, "IRQ%d error %d\n", puv3_rtc_alarmno, ret);
@@ -172,7 +172,7 @@ static int puv3_rtc_open(struct device *dev)
 	}
 
 	ret = request_irq(puv3_rtc_tickno, puv3_rtc_tickirq,
-			  IRQF_DISABLED,  "pkunity-rtc tick", rtc_dev);
+			0, "pkunity-rtc tick", rtc_dev);
 
 	if (ret) {
 		dev_err(dev, "IRQ%d error %d\n", puv3_rtc_tickno, ret);
