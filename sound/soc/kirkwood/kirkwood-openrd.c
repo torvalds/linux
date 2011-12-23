@@ -76,6 +76,7 @@ static struct snd_soc_dai_link openrd_client_dai[] = {
 
 static struct snd_soc_card openrd_client = {
 	.name = "OpenRD Client",
+	.owner = THIS_MODULE,
 	.dai_link = openrd_client_dai,
 	.num_links = ARRAY_SIZE(openrd_client_dai),
 };

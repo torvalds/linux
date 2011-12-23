@@ -98,6 +98,7 @@ static struct snd_soc_dai_link t5325_dai[] = {
 
 static struct snd_soc_card t5325 = {
 	.name = "t5325",
+	.owner = THIS_MODULE,
 	.dai_link = t5325_dai,
 	.num_links = ARRAY_SIZE(t5325_dai),
 };
