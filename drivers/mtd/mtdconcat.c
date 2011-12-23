@@ -693,7 +693,7 @@ static int concat_block_markbad(struct mtd_info *mtd, loff_t ofs)
 			continue;
 		}
 
-		err = subdev->block_markbad(subdev, ofs);
+		err = mtd_block_markbad(subdev, ofs);
 		if (!err)
 			mtd->ecc_stats.badblocks++;
 		break;

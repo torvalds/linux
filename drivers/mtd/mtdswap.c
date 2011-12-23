@@ -279,7 +279,7 @@ static int mtdswap_handle_badblock(struct mtdswap_dev *d, struct swap_eb *eb)
 
 	offset = mtdswap_eb_offset(d, eb);
 	dev_warn(d->dev, "Marking bad block at %08llx\n", offset);
-	ret = d->mtd->block_markbad(d->mtd, offset);
+	ret = mtd_block_markbad(d->mtd, offset);
 
 	if (ret) {
 		dev_warn(d->dev, "Mark block bad failed for block at %08llx "

@@ -211,6 +211,7 @@ struct mtd_info {
 	int (*unlock) (struct mtd_info *mtd, loff_t ofs, uint64_t len);
 	int (*is_locked) (struct mtd_info *mtd, loff_t ofs, uint64_t len);
 	int (*block_isbad) (struct mtd_info *mtd, loff_t ofs);
+	int (*block_markbad) (struct mtd_info *mtd, loff_t ofs);
 	int (*suspend) (struct mtd_info *mtd);
 	void (*resume) (struct mtd_info *mtd);
 
@@ -218,9 +219,6 @@ struct mtd_info {
 	 * - provides mmap capabilities
 	 */
 	struct backing_dev_info *backing_dev_info;
-
-	/* Bad block management functions */
-	int (*block_markbad) (struct mtd_info *mtd, loff_t ofs);
 
 	struct notifier_block reboot_notifier;  /* default mode before reboot */
 
@@ -409,6 +407,11 @@ static inline void mtd_resume(struct mtd_info *mtd)
 static inline int mtd_block_isbad(struct mtd_info *mtd, loff_t ofs)
 {
 	return mtd->block_isbad(mtd, ofs);
+}
+
+static inline int mtd_block_markbad(struct mtd_info *mtd, loff_t ofs)
+{
+	return mtd->block_markbad(mtd, ofs);
 }
 
 static inline struct mtd_info *dev_to_mtd(struct device *dev)

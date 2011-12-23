@@ -424,7 +424,7 @@ int INFTL_formatblock(struct INFTLrecord *inftl, int block)
 fail:
 	/* could not format, update the bad block table (caller is responsible
 	   for setting the PUtable to BLOCK_RESERVED on failure) */
-	inftl->mbd.mtd->block_markbad(inftl->mbd.mtd, instr->addr);
+	mtd_block_markbad(inftl->mbd.mtd, instr->addr);
 	return -1;
 }
 

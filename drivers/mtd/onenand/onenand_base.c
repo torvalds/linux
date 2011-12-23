@@ -2645,7 +2645,7 @@ static int onenand_block_markbad(struct mtd_info *mtd, loff_t ofs)
 	}
 
 	onenand_get_device(mtd, FL_WRITING);
-	ret = this->block_markbad(mtd, ofs);
+	ret = mtd_block_markbad(mtd, ofs);
 	onenand_release_device(mtd);
 	return ret;
 }

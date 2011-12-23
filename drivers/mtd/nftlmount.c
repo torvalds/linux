@@ -356,7 +356,7 @@ int NFTL_formatblock(struct NFTLrecord *nftl, int block)
 fail:
 	/* could not format, update the bad block table (caller is responsible
 	   for setting the ReplUnitTable to BLOCK_RESERVED on failure) */
-	nftl->mbd.mtd->block_markbad(nftl->mbd.mtd, instr->addr);
+	mtd_block_markbad(nftl->mbd.mtd, instr->addr);
 	return -1;
 }
 

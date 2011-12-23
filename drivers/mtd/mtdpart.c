@@ -335,7 +335,7 @@ static int part_block_markbad(struct mtd_info *mtd, loff_t ofs)
 	if (ofs >= mtd->size)
 		return -EINVAL;
 	ofs += part->offset;
-	res = part->master->block_markbad(part->master, ofs);
+	res = mtd_block_markbad(part->master, ofs);
 	if (!res)
 		mtd->ecc_stats.badblocks++;
 	return res;
