@@ -7,6 +7,7 @@ header-y += nf_conntrack_tcp.h
 header-y += nf_conntrack_tuple_common.h
 header-y += nf_nat.h
 header-y += nfnetlink.h
+header-y += nfnetlink_acct.h
 header-y += nfnetlink_compat.h
 header-y += nfnetlink_conntrack.h
 header-y += nfnetlink_log.h
