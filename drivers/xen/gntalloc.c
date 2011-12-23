@@ -525,6 +525,7 @@ static int gntalloc_mmap(struct file *filp, struct vm_area_struct *vma)
 		rv = -ENOENT;
 		pr_debug("%s: Could not find grant reference",
 				__func__);
+		kfree(vm_priv);
 		goto out_unlock;
 	}
 
