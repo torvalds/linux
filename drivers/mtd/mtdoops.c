@@ -222,8 +222,8 @@ static void mtdoops_write(struct mtdoops_context *cxt, int panic)
 	hdr[1] = MTDOOPS_KERNMSG_MAGIC;
 
 	if (panic)
-		ret = mtd->panic_write(mtd, cxt->nextpage * record_size,
-					record_size, &retlen, cxt->oops_buf);
+		ret = mtd_panic_write(mtd, cxt->nextpage * record_size,
+				      record_size, &retlen, cxt->oops_buf);
 	else
 		ret = mtd_write(mtd, cxt->nextpage * record_size,
 				record_size, &retlen, cxt->oops_buf);

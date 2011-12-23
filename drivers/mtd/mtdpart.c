@@ -201,8 +201,8 @@ static int part_panic_write(struct mtd_info *mtd, loff_t to, size_t len,
 		len = 0;
 	else if (to + len > mtd->size)
 		len = mtd->size - to;
-	return part->master->panic_write(part->master, to + part->offset,
-				    len, retlen, buf);
+	return mtd_panic_write(part->master, to + part->offset, len, retlen,
+			       buf);
 }
 
 static int part_write_oob(struct mtd_info *mtd, loff_t to,
