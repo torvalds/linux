@@ -19,11 +19,13 @@
 #include <linux/err.h>
 #include <linux/platform_device.h>
 
-#include <mach/hardware.h>
 #include <asm/mach/irq.h>
 #include <asm/mach/time.h>
+
 #include <mach/cputype.h>
+#include <mach/hardware.h>
 #include <mach/time.h>
+
 #include "clock.h"
 
 static struct clock_event_device clockevent_davinci;
