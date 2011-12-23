@@ -1985,15 +1985,14 @@ static int av7110_fe_lock_fix(struct av7110* av7110, fe_status_t status)
 	return ret;
 }
 
-static int av7110_fe_set_frontend(struct dvb_frontend* fe, struct dvb_frontend_parameters* params)
+static int av7110_fe_set_frontend(struct dvb_frontend *fe)
 {
 	struct av7110* av7110 = fe->dvb->priv;
 
 	int ret = av7110_fe_lock_fix(av7110, 0);
-	if (!ret) {
-		av7110->saved_fe_params = *params;
-		ret = av7110->fe_set_frontend(fe, params);
-	}
+	if (!ret)
+		ret = av7110->fe_set_frontend(fe);
+
 	return ret;
 }
 
@@ -2102,7 +2101,7 @@ static void dvb_s_recover(struct av7110* av7110)
 	msleep(20);
 	av7110_fe_set_tone(av7110->fe, av7110->saved_tone);
 
-	av7110_fe_set_frontend(av7110->fe, &av7110->saved_fe_params);
+	av7110_fe_set_frontend(av7110->fe);
 }
 
 static u8 read_pwm(struct av7110* av7110)
@@ -2297,7 +2296,7 @@ static int frontend_init(struct av7110 *av7110)
 		FE_FUNC_OVERRIDE(av7110->fe->ops.set_tone, av7110->fe_set_tone, av7110_fe_set_tone);
 		FE_FUNC_OVERRIDE(av7110->fe->ops.set_voltage, av7110->fe_set_voltage, av7110_fe_set_voltage);
 		FE_FUNC_OVERRIDE(av7110->fe->ops.dishnetwork_send_legacy_command, av7110->fe_dishnetwork_send_legacy_command, av7110_fe_dishnetwork_send_legacy_command);
-		FE_FUNC_OVERRIDE(av7110->fe->ops.set_frontend_legacy, av7110->fe_set_frontend, av7110_fe_set_frontend);
+		FE_FUNC_OVERRIDE(av7110->fe->ops.set_frontend, av7110->fe_set_frontend, av7110_fe_set_frontend);
 
 		ret = dvb_register_frontend(&av7110->dvb_adapter, av7110->fe);
 		if (ret < 0) {
