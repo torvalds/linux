@@ -210,25 +210,12 @@ static struct platform_device *m532x_devices[] __initdata = {
 
 /***************************************************************************/
 
-static void __init m532x_uart_init_line(int line, int irq)
-{
-	if (line == 0) {
-		/* GPIO initialization */
-		MCF_GPIO_PAR_UART |= 0x000F;
-	} else if (line == 1) {
-		/* GPIO initialization */
-		MCF_GPIO_PAR_UART |= 0x0FF0;
-	}
-}
-
 static void __init m532x_uarts_init(void)
 {
-	const int nrlines = ARRAY_SIZE(m532x_uart_platform);
-	int line;
-
-	for (line = 0; (line < nrlines); line++)
-		m532x_uart_init_line(line, m532x_uart_platform[line].irq);
+	/* UART GPIO initialization */
+	MCF_GPIO_PAR_UART |= 0x0FFF;
 }
+
 /***************************************************************************/
 
 static void __init m532x_fec_init(void)
