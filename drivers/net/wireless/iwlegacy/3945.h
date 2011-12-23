@@ -476,24 +476,6 @@ struct il3945_shared {
 	__le32 tx_base_ptr[8];
 } __packed;
 
-static inline u8
-il3945_hw_get_rate(__le16 rate_n_flags)
-{
-	return le16_to_cpu(rate_n_flags) & 0xFF;
-}
-
-static inline u16
-il3945_hw_get_rate_n_flags(__le16 rate_n_flags)
-{
-	return le16_to_cpu(rate_n_flags);
-}
-
-static inline __le16
-il3945_hw_set_rate_n_flags(u8 rate, u16 flags)
-{
-	return cpu_to_le16((u16) rate | flags);
-}
-
 /************************************/
 /* iwl3945 Flow Handler Definitions */
 /************************************/

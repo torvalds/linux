@@ -2331,8 +2331,7 @@ il3945_init_hw_rate_table(struct il_priv *il)
 	for (i = 0; i < ARRAY_SIZE(il3945_rates); i++) {
 		idx = il3945_rates[i].table_rs_idx;
 
-		table[idx].rate_n_flags =
-		    il3945_hw_set_rate_n_flags(il3945_rates[i].plcp, 0);
+		table[idx].rate_n_flags = cpu_to_le16(il3945_rates[i].plcp);
 		table[idx].try_cnt = il->retry_rate;
 		prev_idx = il3945_get_prev_ieee_rate(i);
 		table[idx].next_rate_idx = il3945_rates[prev_idx].table_rs_idx;
