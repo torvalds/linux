@@ -68,8 +68,8 @@
 #define	MCFSIM_DCMR1		0x5c		/* DRAM 1 Mask reg (r/w) */
 #define	MCFSIM_DCCR1		0x63		/* DRAM 1 Control reg (r/w) */
 
-#define	MCFUART_BASE1		0x100		/* Base address of UART1 */
-#define	MCFUART_BASE2		0x140		/* Base address of UART2 */
+#define	MCFUART_BASE0		(MCF_MBAR + 0x100) /* Base address UART0 */
+#define	MCFUART_BASE1		(MCF_MBAR + 0x140) /* Base address UART1 */
 
 #define	MCFSIM_PACNT		(MCF_MBAR + 0x80) /* Port A Control (r/w) */
 #define	MCFSIM_PADDR		(MCF_MBAR + 0x84) /* Port A Direction (r/w) */
@@ -101,8 +101,8 @@
 #define	MCF_IRQ_TIMER2		70		/* Timer 2 */
 #define	MCF_IRQ_TIMER3		71		/* Timer 3 */
 #define	MCF_IRQ_TIMER4		72		/* Timer 4 */
-#define	MCF_IRQ_UART1		73		/* UART 1 */
-#define	MCF_IRQ_UART2		74		/* UART 2 */
+#define	MCF_IRQ_UART0		73		/* UART 0 */
+#define	MCF_IRQ_UART1		74		/* UART 1 */
 #define	MCF_IRQ_PLIP		75		/* PLIC 2Khz Periodic */
 #define	MCF_IRQ_PLIA		76		/* PLIC Asynchronous */
 #define	MCF_IRQ_USB0		77		/* USB Endpoint 0 */
