@@ -239,8 +239,7 @@ extern unsigned int il3945_hw_get_beacon_cmd(struct il_priv *il,
 					     u8 rate);
 void il3945_hw_build_tx_cmd_rate(struct il_priv *il, struct il_device_cmd *cmd,
 				 struct ieee80211_tx_info *info,
-				 struct ieee80211_hdr *hdr, int sta_id,
-				 int tx_id);
+				 struct ieee80211_hdr *hdr, int sta_id);
 extern int il3945_hw_reg_send_txpower(struct il_priv *il);
 extern int il3945_hw_reg_set_txpower(struct il_priv *il, s8 power);
 extern void il3945_hdl_stats(struct il_priv *il, struct il_rx_buf *rxb);

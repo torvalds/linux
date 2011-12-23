@@ -570,8 +570,7 @@ il3945_tx_skb(struct il_priv *il, struct sk_buff *skb)
 	/* TODO need this for burst mode later on */
 	il3945_build_tx_cmd_basic(il, out_cmd, info, hdr, sta_id);
 
-	/* set is_hcca to 0; it probably will never be implemented */
-	il3945_hw_build_tx_cmd_rate(il, out_cmd, info, hdr, sta_id, 0);
+	il3945_hw_build_tx_cmd_rate(il, out_cmd, info, hdr, sta_id);
 
 	/* Total # bytes to be transmitted */
 	len = (u16) skb->len;
