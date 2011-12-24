@@ -625,7 +625,7 @@ static void ieee80211_scan_state_resume(struct ieee80211_local *local,
 	local->leave_oper_channel_time = jiffies;
 
 	/* advance to the next channel to be scanned */
-	local->next_scan_state = SCAN_DECISION;
+	local->next_scan_state = SCAN_SET_CHANNEL;
 }
 
 void ieee80211_scan_work(struct work_struct *work)
