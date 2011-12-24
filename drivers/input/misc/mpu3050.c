@@ -148,8 +148,19 @@ static void mpu3050_set_power_mode(struct i2c_client *client, u8 val)
 static int mpu3050_input_open(struct input_dev *input)
 {
 	struct mpu3050_sensor *sensor = input_get_drvdata(input);
+	int error;
 
 	pm_runtime_get(sensor->dev);
+
+	/* Enable interrupts */
+	error = i2c_smbus_write_byte_data(sensor->client, MPU3050_INT_CFG,
+					  MPU3050_LATCH_INT_EN |
+					  MPU3050_RAW_RDY_EN |
+					  MPU3050_MPU_RDY_EN);
+	if (error < 0) {
+		pm_runtime_put(sensor->dev);
+		return error;
+	}
 
 	return 0;
 }
@@ -259,7 +270,7 @@ static int __devinit mpu3050_probe(struct i2c_client *client,
 	error = request_threaded_irq(client->irq,
 				     NULL, mpu3050_interrupt_thread,
 				     IRQF_TRIGGER_RISING,
-				     "mpu_int", sensor);
+				     "mpu3050", sensor);
 	if (error) {
 		dev_err(&client->dev,
 			"can't get IRQ %d, error %d\n", client->irq, error);
