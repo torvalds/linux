@@ -38,11 +38,18 @@
 #define	MCFINT_UART1		14		/* Interrupt number for UART1 */
 #define	MCFINT_UART2		15		/* Interrupt number for UART2 */
 #define	MCFINT_QSPI		18		/* Interrupt number for QSPI */
+#define	MCFINT_FECRX0		23		/* Interrupt number for FEC */
+#define	MCFINT_FECTX0		27		/* Interrupt number for FEC */
+#define	MCFINT_FECENTC0		29		/* Interrupt number for FEC */
 #define	MCFINT_PIT1		55		/* Interrupt number for PIT1 */
 
 #define	MCF_IRQ_UART0	        (MCFINT_VECBASE + MCFINT_UART0)
 #define	MCF_IRQ_UART1	        (MCFINT_VECBASE + MCFINT_UART1)
 #define	MCF_IRQ_UART2	        (MCFINT_VECBASE + MCFINT_UART2)
+
+#define	MCF_IRQ_FECRX0		(MCFINT_VECBASE + MCFINT_FECRX0)
+#define	MCF_IRQ_FECTX0		(MCFINT_VECBASE + MCFINT_FECTX0)
+#define	MCF_IRQ_FECENTC0	(MCFINT_VECBASE + MCFINT_FECENTC0)
 
 /*
  *	SDRAM configuration registers.
@@ -71,8 +78,8 @@
 /*
  *	FEC ethernet module.
  */
-#define	MCFFEC_BASE		(MCF_IPSBAR + 0x00001000)
-#define	MCFFEC_SIZE		0x800
+#define	MCFFEC_BASE0		(MCF_IPSBAR + 0x00001000)
+#define	MCFFEC_SIZE0		0x800
 
 /*
  * 	GPIO registers
