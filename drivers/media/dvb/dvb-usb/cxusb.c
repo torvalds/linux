@@ -1074,11 +1074,12 @@ struct dib0700_adapter_state {
 static int dib7070_set_param_override(struct dvb_frontend *fe,
 				      struct dvb_frontend_parameters *fep)
 {
+	struct dtv_frontend_properties *p = &fe->dtv_property_cache;
 	struct dvb_usb_adapter *adap = fe->dvb->priv;
 	struct dib0700_adapter_state *state = adap->priv;
 
 	u16 offset;
-	u8 band = BAND_OF_FREQUENCY(fep->frequency/1000);
+	u8 band = BAND_OF_FREQUENCY(p->frequency/1000);
 	switch (band) {
 	case BAND_VHF: offset = 950; break;
 	default:
