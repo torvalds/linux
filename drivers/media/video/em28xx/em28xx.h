@@ -124,6 +124,7 @@
 #define EM28174_BOARD_PCTV_460E                   80
 #define EM2884_BOARD_HAUPPAUGE_WINTV_HVR_930C	  81
 #define EM2884_BOARD_CINERGY_HTC_STICK		  82
+#define EM2860_BOARD_HT_VIDBOX_NW03 		  83
 
 /* Limits minimum and default number of buffers */
 #define EM28XX_MIN_BUF 4
