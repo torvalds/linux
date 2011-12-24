@@ -1869,25 +1869,30 @@ ctnetlink_get_expect(struct sock *ctnl, struct sk_buff *skb,
 
 	err = -ENOMEM;
 	skb2 = nlmsg_new(NLMSG_DEFAULT_SIZE, GFP_KERNEL);
-	if (skb2 == NULL)
+	if (skb2 == NULL) {
+		nf_ct_expect_put(exp);
 		goto out;
+	}
 
 	rcu_read_lock();
 	err = ctnetlink_exp_fill_info(skb2, NETLINK_CB(skb).pid,
 				      nlh->nlmsg_seq, IPCTNL_MSG_EXP_NEW, exp);
 	rcu_read_unlock();
+	nf_ct_expect_put(exp);
 	if (err <= 0)
 		goto free;
 
-	nf_ct_expect_put(exp);
+	err = netlink_unicast(ctnl, skb2, NETLINK_CB(skb).pid, MSG_DONTWAIT);
+	if (err < 0)
+		goto out;
 
-	return netlink_unicast(ctnl, skb2, NETLINK_CB(skb).pid, MSG_DONTWAIT);
+	return 0;
 
 free:
 	kfree_skb(skb2);
 out:
-	nf_ct_expect_put(exp);
-	return err;
+	/* this avoids a loop in nfnetlink. */
+	return err == -EAGAIN ? -ENOBUFS : err;
 }
 
 static int
