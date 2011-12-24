@@ -35,6 +35,8 @@
 
 enum s3c_cpu_type {
 	TYPE_S3C2410,
+	TYPE_S3C2416,
+	TYPE_S3C2443,
 	TYPE_S3C64XX,
 };
 
@@ -132,6 +134,7 @@ static int s3c_rtc_setfreq(struct device *dev, int freq)
 	struct platform_device *pdev = to_platform_device(dev);
 	struct rtc_device *rtc_dev = platform_get_drvdata(pdev);
 	unsigned int tmp = 0;
+	int val;
 
 	if (!is_power_of_2(freq))
 		return -EINVAL;
@@ -139,12 +142,22 @@ static int s3c_rtc_setfreq(struct device *dev, int freq)
 	clk_enable(rtc_clk);
 	spin_lock_irq(&s3c_rtc_pie_lock);
 
-	if (s3c_rtc_cpu_type == TYPE_S3C2410) {
+	if (s3c_rtc_cpu_type != TYPE_S3C64XX) {
 		tmp = readb(s3c_rtc_base + S3C2410_TICNT);
 		tmp &= S3C2410_TICNT_ENABLE;
 	}
 
-	tmp |= (rtc_dev->max_user_freq / freq)-1;
+	val = (rtc_dev->max_user_freq / freq) - 1;
+
+	if (s3c_rtc_cpu_type == TYPE_S3C2416 || s3c_rtc_cpu_type == TYPE_S3C2443) {
+		tmp |= S3C2443_TICNT_PART(val);
+		writel(S3C2443_TICNT1_PART(val), s3c_rtc_base + S3C2443_TICNT1);
+
+		if (s3c_rtc_cpu_type == TYPE_S3C2416)
+			writel(S3C2416_TICNT2_PART(val), s3c_rtc_base + S3C2416_TICNT2);
+	} else {
+		tmp |= val;
+	}
 
 	writel(tmp, s3c_rtc_base + S3C2410_TICNT);
 	spin_unlock_irq(&s3c_rtc_pie_lock);
@@ -371,7 +384,7 @@ static void s3c_rtc_enable(struct platform_device *pdev, int en)
 		tmp &= ~S3C2410_RTCCON_RTCEN;
 		writew(tmp, base + S3C2410_RTCCON);
 
-		if (s3c_rtc_cpu_type == TYPE_S3C2410) {
+		if (s3c_rtc_cpu_type != TYPE_S3C64XX) {
 			tmp = readb(base + S3C2410_TICNT);
 			tmp &= ~S3C2410_TICNT_ENABLE;
 			writeb(tmp, base + S3C2410_TICNT);
@@ -448,6 +461,7 @@ static int __devinit s3c_rtc_probe(struct platform_device *pdev)
 	struct rtc_time rtc_tm;
 	struct resource *res;
 	int ret;
+	int tmp;
 
 	pr_debug("%s: probe=%p\n", __func__, pdev);
 
@@ -541,10 +555,16 @@ static int __devinit s3c_rtc_probe(struct platform_device *pdev)
 		dev_warn(&pdev->dev, "warning: invalid RTC value so initializing it\n");
 	}
 
-	if (s3c_rtc_cpu_type == TYPE_S3C64XX)
+	if (s3c_rtc_cpu_type != TYPE_S3C2410)
 		rtc->max_user_freq = 32768;
 	else
 		rtc->max_user_freq = 128;
+
+	if (s3c_rtc_cpu_type == TYPE_S3C2416 || s3c_rtc_cpu_type == TYPE_S3C2443) {
+		tmp = readw(s3c_rtc_base + S3C2410_RTCCON);
+		tmp |= S3C2443_RTCCON_TICSEL;
+		writew(tmp, s3c_rtc_base + S3C2410_RTCCON);
+	}
 
 	platform_set_drvdata(pdev, rtc);
 
@@ -650,6 +670,12 @@ static const struct of_device_id s3c_rtc_dt_match[] = {
 		.compatible = "samsung,s3c2410-rtc"
 		.data = TYPE_S3C2410,
 	}, {
+		.compatible = "samsung,s3c2416-rtc"
+		.data = TYPE_S3C2416,
+	}, {
+		.compatible = "samsung,s3c2443-rtc"
+		.data = TYPE_S3C2443,
+	}, {
 		.compatible = "samsung,s3c6410-rtc"
 		.data = TYPE_S3C64XX,
 	},
@@ -664,6 +690,12 @@ static struct platform_device_id s3c_rtc_driver_ids[] = {
 	{
 		.name		= "s3c2410-rtc",
 		.driver_data	= TYPE_S3C2410,
+	}, {
+		.name		= "s3c2416-rtc",
+		.driver_data	= TYPE_S3C2416,
+	}, {
+		.name		= "s3c2443-rtc",
+		.driver_data	= TYPE_S3C2443,
 	}, {
 		.name		= "s3c64xx-rtc",
 		.driver_data	= TYPE_S3C64XX,
