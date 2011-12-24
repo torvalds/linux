@@ -33,18 +33,18 @@ static struct resource m527x_fec0_resources[] = {
 		.flags		= IORESOURCE_MEM,
 	},
 	{
-		.start		= 64 + 23,
-		.end		= 64 + 23,
+		.start		= MCF_IRQ_FECRX0,
+		.end		= MCF_IRQ_FECRX0,
 		.flags		= IORESOURCE_IRQ,
 	},
 	{
-		.start		= 64 + 27,
-		.end		= 64 + 27,
+		.start		= MCF_IRQ_FECTX0,
+		.end		= MCF_IRQ_FECTX0,
 		.flags		= IORESOURCE_IRQ,
 	},
 	{
-		.start		= 64 + 29,
-		.end		= 64 + 29,
+		.start		= MCF_IRQ_FECENTC0,
+		.end		= MCF_IRQ_FECENTC0,
 		.flags		= IORESOURCE_IRQ,
 	},
 };
@@ -56,18 +56,18 @@ static struct resource m527x_fec1_resources[] = {
 		.flags		= IORESOURCE_MEM,
 	},
 	{
-		.start		= 128 + 23,
-		.end		= 128 + 23,
+		.start		= MCF_IRQ_FECRX1,
+		.end		= MCF_IRQ_FECRX1,
 		.flags		= IORESOURCE_IRQ,
 	},
 	{
-		.start		= 128 + 27,
-		.end		= 128 + 27,
+		.start		= MCF_IRQ_FECTX1,
+		.end		= MCF_IRQ_FECTX1,
 		.flags		= IORESOURCE_IRQ,
 	},
 	{
-		.start		= 128 + 29,
-		.end		= 128 + 29,
+		.start		= MCF_IRQ_FECENTC1,
+		.end		= MCF_IRQ_FECENTC1,
 		.flags		= IORESOURCE_IRQ,
 	},
 };

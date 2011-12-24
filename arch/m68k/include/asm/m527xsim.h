@@ -38,11 +38,26 @@
 #define	MCFINT_UART1		14		/* Interrupt number for UART1 */
 #define	MCFINT_UART2		15		/* Interrupt number for UART2 */
 #define	MCFINT_QSPI		18		/* Interrupt number for QSPI */
+#define	MCFINT_FECRX0		23		/* Interrupt number for FEC0 */
+#define	MCFINT_FECTX0		27		/* Interrupt number for FEC0 */
+#define	MCFINT_FECENTC0		29		/* Interrupt number for FEC0 */
 #define	MCFINT_PIT1		36		/* Interrupt number for PIT1 */
+
+#define	MCFINT2_VECBASE		128		/* Vector base number 2 */
+#define	MCFINT2_FECRX1		23		/* Interrupt number for FEC1 */
+#define	MCFINT2_FECTX1		27		/* Interrupt number for FEC1 */
+#define	MCFINT2_FECENTC1	29		/* Interrupt number for FEC1 */
 
 #define	MCF_IRQ_UART0	        (MCFINT_VECBASE + MCFINT_UART0)
 #define	MCF_IRQ_UART1	        (MCFINT_VECBASE + MCFINT_UART1)
 #define	MCF_IRQ_UART2	        (MCFINT_VECBASE + MCFINT_UART2)
+
+#define	MCF_IRQ_FECRX0		(MCFINT_VECBASE + MCFINT_FECRX0)
+#define	MCF_IRQ_FECTX0		(MCFINT_VECBASE + MCFINT_FECTX0)
+#define	MCF_IRQ_FECENTC0	(MCFINT_VECBASE + MCFINT_FECENTC0)
+#define	MCF_IRQ_FECRX1		(MCFINT2_VECBASE + MCFINT2_FECRX1)
+#define	MCF_IRQ_FECTX1		(MCFINT2_VECBASE + MCFINT2_FECTX1)
+#define	MCF_IRQ_FECENTC1	(MCFINT2_VECBASE + MCFINT2_FECENTC1)
 
 /*
  *	SDRAM configuration registers.
