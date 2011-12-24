@@ -884,7 +884,6 @@ static u32 simple_dvb_configure(struct dvb_frontend *fe, u8 *buf,
 }
 
 static int simple_dvb_calc_regs(struct dvb_frontend *fe,
-				struct dvb_frontend_parameters *params,
 				u8 *buf, int buf_len)
 {
 	struct dtv_frontend_properties *c = &fe->dtv_property_cache;
@@ -896,28 +895,14 @@ static int simple_dvb_calc_regs(struct dvb_frontend *fe,
 	if (buf_len < 5)
 		return -EINVAL;
 
-	switch (delsys) {
-	case SYS_DVBT:
-	case SYS_DVBT2:
-		if (params->u.ofdm.bandwidth == BANDWIDTH_6_MHZ)
-			bw = 6000000;
-		if (params->u.ofdm.bandwidth == BANDWIDTH_7_MHZ)
-			bw = 7000000;
-		if (params->u.ofdm.bandwidth == BANDWIDTH_8_MHZ)
-			bw = 8000000;
-		break;
-	default:
-		break;
-	}
-	frequency = simple_dvb_configure(fe, buf+1, delsys, params->frequency, bw);
+	frequency = simple_dvb_configure(fe, buf+1, delsys, c->frequency, bw);
 	if (frequency == 0)
 		return -EINVAL;
 
 	buf[0] = priv->i2c_props.addr;
 
 	priv->frequency = frequency;
-	priv->bandwidth = (fe->ops.info.type == FE_OFDM) ?
-		params->u.ofdm.bandwidth : 0;
+	priv->bandwidth = c->bandwidth_hz;
 
 	return 5;
 }
@@ -1044,7 +1029,17 @@ static int simple_get_frequency(struct dvb_frontend *fe, u32 *frequency)
 static int simple_get_bandwidth(struct dvb_frontend *fe, u32 *bandwidth)
 {
 	struct tuner_simple_priv *priv = fe->tuner_priv;
-	*bandwidth = priv->bandwidth;
+	switch (priv->bandwidth) {
+	case 6000000:
+		*bandwidth = BANDWIDTH_6_MHZ;
+		break;
+	case 7000000:
+		*bandwidth = BANDWIDTH_7_MHZ;
+		break;
+	case 8000000:
+		*bandwidth = BANDWIDTH_8_MHZ;
+		break;
+	}
 	return 0;
 }
 

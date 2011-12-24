@@ -566,7 +566,7 @@ static int nxt200x_setup_frontend_parameters (struct dvb_frontend* fe,
 
 	if (fe->ops.tuner_ops.calc_regs) {
 		/* get tuning information */
-		fe->ops.tuner_ops.calc_regs(fe, p, buf, 5);
+		fe->ops.tuner_ops.calc_regs(fe, buf, 5);
 
 		/* write frequency information */
 		nxt200x_writetuner(state, buf);

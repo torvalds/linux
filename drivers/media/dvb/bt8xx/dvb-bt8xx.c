@@ -148,8 +148,9 @@ static int thomson_dtt7579_demod_init(struct dvb_frontend* fe)
 	return 0;
 }
 
-static int thomson_dtt7579_tuner_calc_regs(struct dvb_frontend* fe, struct dvb_frontend_parameters* params, u8* pllbuf, int buf_len)
+static int thomson_dtt7579_tuner_calc_regs(struct dvb_frontend *fe, u8* pllbuf, int buf_len)
 {
+	struct dtv_frontend_properties *c = &fe->dtv_property_cache;
 	u32 div;
 	unsigned char bs = 0;
 	unsigned char cp = 0;
@@ -157,18 +158,18 @@ static int thomson_dtt7579_tuner_calc_regs(struct dvb_frontend* fe, struct dvb_f
 	if (buf_len < 5)
 		return -EINVAL;
 
-	div = (((params->frequency + 83333) * 3) / 500000) + IF_FREQUENCYx6;
+	div = (((c->frequency + 83333) * 3) / 500000) + IF_FREQUENCYx6;
 
-	if (params->frequency < 542000000)
+	if (c->frequency < 542000000)
 		cp = 0xb4;
-	else if (params->frequency < 771000000)
+	else if (c->frequency < 771000000)
 		cp = 0xbc;
 	else
 		cp = 0xf4;
 
-	if (params->frequency == 0)
+	if (c->frequency == 0)
 		bs = 0x03;
-	else if (params->frequency < 443250000)
+	else if (c->frequency < 443250000)
 		bs = 0x02;
 	else
 		bs = 0x08;
@@ -342,50 +343,51 @@ static int advbt771_samsung_tdtc9251dh0_demod_init(struct dvb_frontend* fe)
 	return 0;
 }
 
-static int advbt771_samsung_tdtc9251dh0_tuner_calc_regs(struct dvb_frontend* fe, struct dvb_frontend_parameters* params, u8* pllbuf, int buf_len)
+static int advbt771_samsung_tdtc9251dh0_tuner_calc_regs(struct dvb_frontend *fe, u8 *pllbuf, int buf_len)
 {
+	struct dtv_frontend_properties *c = &fe->dtv_property_cache;
 	u32 div;
 	unsigned char bs = 0;
 	unsigned char cp = 0;
 
 	if (buf_len < 5) return -EINVAL;
 
-	div = (((params->frequency + 83333) * 3) / 500000) + IF_FREQUENCYx6;
+	div = (((c->frequency + 83333) * 3) / 500000) + IF_FREQUENCYx6;
 
-	if (params->frequency < 150000000)
+	if (c->frequency < 150000000)
 		cp = 0xB4;
-	else if (params->frequency < 173000000)
+	else if (c->frequency < 173000000)
 		cp = 0xBC;
-	else if (params->frequency < 250000000)
+	else if (c->frequency < 250000000)
 		cp = 0xB4;
-	else if (params->frequency < 400000000)
+	else if (c->frequency < 400000000)
 		cp = 0xBC;
-	else if (params->frequency < 420000000)
+	else if (c->frequency < 420000000)
 		cp = 0xF4;
-	else if (params->frequency < 470000000)
+	else if (c->frequency < 470000000)
 		cp = 0xFC;
-	else if (params->frequency < 600000000)
+	else if (c->frequency < 600000000)
 		cp = 0xBC;
-	else if (params->frequency < 730000000)
+	else if (c->frequency < 730000000)
 		cp = 0xF4;
 	else
 		cp = 0xFC;
 
-	if (params->frequency < 150000000)
+	if (c->frequency < 150000000)
 		bs = 0x01;
-	else if (params->frequency < 173000000)
+	else if (c->frequency < 173000000)
 		bs = 0x01;
-	else if (params->frequency < 250000000)
+	else if (c->frequency < 250000000)
 		bs = 0x02;
-	else if (params->frequency < 400000000)
+	else if (c->frequency < 400000000)
 		bs = 0x02;
-	else if (params->frequency < 420000000)
+	else if (c->frequency < 420000000)
 		bs = 0x02;
-	else if (params->frequency < 470000000)
+	else if (c->frequency < 470000000)
 		bs = 0x02;
-	else if (params->frequency < 600000000)
+	else if (c->frequency < 600000000)
 		bs = 0x08;
-	else if (params->frequency < 730000000)
+	else if (c->frequency < 730000000)
 		bs = 0x08;
 	else
 		bs = 0x08;
@@ -514,31 +516,31 @@ static int digitv_alps_tded4_demod_init(struct dvb_frontend* fe)
 	return 0;
 }
 
-static int digitv_alps_tded4_tuner_calc_regs(struct dvb_frontend* fe, struct dvb_frontend_parameters* params, u8* pllbuf, int buf_len)
+static int digitv_alps_tded4_tuner_calc_regs(struct dvb_frontend *fe,  u8 *pllbuf, int buf_len)
 {
 	u32 div;
-	struct dvb_ofdm_parameters *op = &params->u.ofdm;
+	struct dtv_frontend_properties *c = &fe->dtv_property_cache;
 
 	if (buf_len < 5)
 		return -EINVAL;
 
-	div = (((params->frequency + 83333) * 3) / 500000) + IF_FREQUENCYx6;
+	div = (((c->frequency + 83333) * 3) / 500000) + IF_FREQUENCYx6;
 
 	pllbuf[0] = 0x61;
 	pllbuf[1] = (div >> 8) & 0x7F;
 	pllbuf[2] = div & 0xFF;
 	pllbuf[3] = 0x85;
 
-	dprintk("frequency %u, div %u\n", params->frequency, div);
+	dprintk("frequency %u, div %u\n", c->frequency, div);
 
-	if (params->frequency < 470000000)
+	if (c->frequency < 470000000)
 		pllbuf[4] = 0x02;
-	else if (params->frequency > 823000000)
+	else if (c->frequency > 823000000)
 		pllbuf[4] = 0x88;
 	else
 		pllbuf[4] = 0x08;
 
-	if (op->bandwidth == 8)
+	if (c->bandwidth_hz == 8000000)
 		pllbuf[4] |= 0x04;
 
 	return 5;

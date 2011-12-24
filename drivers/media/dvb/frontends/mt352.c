@@ -302,7 +302,7 @@ static int mt352_set_parameters(struct dvb_frontend* fe,
 		_mt352_write(fe, fsm_go, 2);
 	} else {
 		if (fe->ops.tuner_ops.calc_regs) {
-			fe->ops.tuner_ops.calc_regs(fe, param, buf+8, 5);
+			fe->ops.tuner_ops.calc_regs(fe, buf+8, 5);
 			buf[8] <<= 1;
 			_mt352_write(fe, buf, sizeof(buf));
 			_mt352_write(fe, tuner_go, 2);

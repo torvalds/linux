@@ -647,9 +647,9 @@ static int dvb_pll_set_params(struct dvb_frontend *fe,
 }
 
 static int dvb_pll_calc_regs(struct dvb_frontend *fe,
-			     struct dvb_frontend_parameters *params,
 			     u8 *buf, int buf_len)
 {
+	struct dtv_frontend_properties *c = &fe->dtv_property_cache;
 	struct dvb_pll_priv *priv = fe->tuner_priv;
 	int result;
 	u32 frequency = 0;
@@ -657,7 +657,7 @@ static int dvb_pll_calc_regs(struct dvb_frontend *fe,
 	if (buf_len < 5)
 		return -EINVAL;
 
-	result = dvb_pll_configure(fe, buf + 1, params->frequency);
+	result = dvb_pll_configure(fe, buf + 1, c->frequency);
 	if (result < 0)
 		return result;
 	else
@@ -666,7 +666,7 @@ static int dvb_pll_calc_regs(struct dvb_frontend *fe,
 	buf[0] = priv->pll_i2c_address;
 
 	priv->frequency = frequency;
-	priv->bandwidth = (fe->ops.info.type == FE_OFDM) ? params->u.ofdm.bandwidth : 0;
+	priv->bandwidth = c->bandwidth_hz;
 
 	return 5;
 }

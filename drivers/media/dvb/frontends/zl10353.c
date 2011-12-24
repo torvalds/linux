@@ -367,7 +367,7 @@ static int zl10353_set_parameters(struct dvb_frontend *fe,
 				fe->ops.i2c_gate_ctrl(fe, 0);
 		}
 	} else if (fe->ops.tuner_ops.calc_regs) {
-		fe->ops.tuner_ops.calc_regs(fe, param, pllbuf + 1, 5);
+		fe->ops.tuner_ops.calc_regs(fe, pllbuf + 1, 5);
 		pllbuf[1] <<= 1;
 		zl10353_write(fe, pllbuf, sizeof(pllbuf));
 	}
