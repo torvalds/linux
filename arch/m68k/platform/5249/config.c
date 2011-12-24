@@ -83,23 +83,6 @@ static void __init m5249_smc91x_init(void)
 
 /***************************************************************************/
 
-static void __init m5249_timers_init(void)
-{
-	/* Timer1 is always used as system timer */
-	writeb(MCFSIM_ICR_AUTOVEC | MCFSIM_ICR_LEVEL6 | MCFSIM_ICR_PRI3,
-		MCF_MBAR + MCFSIM_TIMER1ICR);
-	mcf_mapirq2imr(MCF_IRQ_TIMER, MCFINTC_TIMER1);
-
-#ifdef CONFIG_HIGHPROFILE
-	/* Timer2 is to be used as a high speed profile timer  */
-	writeb(MCFSIM_ICR_AUTOVEC | MCFSIM_ICR_LEVEL7 | MCFSIM_ICR_PRI3,
-		MCF_MBAR + MCFSIM_TIMER2ICR);
-	mcf_mapirq2imr(MCF_IRQ_PROFILER, MCFINTC_TIMER2);
-#endif
-}
-
-/***************************************************************************/
-
 void m5249_cpu_reset(void)
 {
 	local_irq_disable();
@@ -115,7 +98,6 @@ void __init config_BSP(char *commandp, int size)
 {
 	mach_reset = m5249_cpu_reset;
 	mach_sched_init = hw_timer_init;
-	m5249_timers_init();
 #ifdef CONFIG_M5249C3
 	m5249_smc91x_init();
 #endif
