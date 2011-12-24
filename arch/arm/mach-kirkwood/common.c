@@ -86,14 +86,14 @@ static struct clk __init *kirkwood_register_gate(const char *name, u8 bit_idx)
 
 void __init kirkwood_clk_init(void)
 {
-	struct clk *runit;
+	struct clk *runit, *ge0, *ge1;
 
 	tclk = clk_register_fixed_rate(NULL, "tclk", NULL,
 				       CLK_IS_ROOT, kirkwood_tclk);
 
 	runit = kirkwood_register_gate("runit",  CGC_BIT_RUNIT);
-	kirkwood_register_gate("ge0",    CGC_BIT_GE0);
-	kirkwood_register_gate("ge1",    CGC_BIT_GE1);
+	ge0 = kirkwood_register_gate("ge0",    CGC_BIT_GE0);
+	ge1 = kirkwood_register_gate("ge1",    CGC_BIT_GE1);
 	kirkwood_register_gate("sata0",  CGC_BIT_SATA0);
 	kirkwood_register_gate("sata1",  CGC_BIT_SATA1);
 	kirkwood_register_gate("usb0",   CGC_BIT_USB0);
@@ -110,6 +110,8 @@ void __init kirkwood_clk_init(void)
 	/* clkdev entries, mapping clks to devices */
 	orion_clkdev_add(NULL, "orion_spi.0", runit);
 	orion_clkdev_add(NULL, "orion_spi.1", runit);
+	orion_clkdev_add(NULL, MV643XX_ETH_NAME ".0", ge0);
+	orion_clkdev_add(NULL, MV643XX_ETH_NAME ".1", ge1);
 }
 
 /*****************************************************************************
@@ -131,7 +133,7 @@ void __init kirkwood_ge00_init(struct mv643xx_eth_platform_data *eth_data)
 
 	orion_ge00_init(eth_data,
 			GE00_PHYS_BASE, IRQ_KIRKWOOD_GE00_SUM,
-			IRQ_KIRKWOOD_GE00_ERR, kirkwood_tclk);
+			IRQ_KIRKWOOD_GE00_ERR);
 }
 
 
@@ -145,7 +147,7 @@ void __init kirkwood_ge01_init(struct mv643xx_eth_platform_data *eth_data)
 
 	orion_ge01_init(eth_data,
 			GE01_PHYS_BASE, IRQ_KIRKWOOD_GE01_SUM,
-			IRQ_KIRKWOOD_GE01_ERR, kirkwood_tclk);
+			IRQ_KIRKWOOD_GE01_ERR);
 }
 
 

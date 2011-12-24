@@ -39,29 +39,26 @@ void __init orion_rtc_init(unsigned long mapbase,
 void __init orion_ge00_init(struct mv643xx_eth_platform_data *eth_data,
 			    unsigned long mapbase,
 			    unsigned long irq,
-			    unsigned long irq_err,
-			    int tclk);
+			    unsigned long irq_err);
 
 void __init orion_ge01_init(struct mv643xx_eth_platform_data *eth_data,
 			    unsigned long mapbase,
 			    unsigned long irq,
-			    unsigned long irq_err,
-			    int tclk);
+			    unsigned long irq_err);
 
 void __init orion_ge10_init(struct mv643xx_eth_platform_data *eth_data,
 			    unsigned long mapbase,
 			    unsigned long irq,
-			    unsigned long irq_err,
-			    int tclk);
+			    unsigned long irq_err);
 
 void __init orion_ge11_init(struct mv643xx_eth_platform_data *eth_data,
 			    unsigned long mapbase,
 			    unsigned long irq,
-			    unsigned long irq_err,
-			    int tclk);
+			    unsigned long irq_err);
 
 void __init orion_ge00_switch_init(struct dsa_platform_data *d,
 				   int irq);
+
 void __init orion_i2c_init(unsigned long mapbase,
 			   unsigned long irq,
 			   unsigned long freq_m);

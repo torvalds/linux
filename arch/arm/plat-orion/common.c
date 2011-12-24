@@ -43,6 +43,10 @@ void __init orion_clkdev_init(struct clk *tclk)
 {
 	orion_clkdev_add(NULL, "orion_spi.0", tclk);
 	orion_clkdev_add(NULL, "orion_spi.1", tclk);
+	orion_clkdev_add(NULL, MV643XX_ETH_NAME ".0", tclk);
+	orion_clkdev_add(NULL, MV643XX_ETH_NAME ".1", tclk);
+	orion_clkdev_add(NULL, MV643XX_ETH_NAME ".2", tclk);
+	orion_clkdev_add(NULL, MV643XX_ETH_NAME ".3", tclk);
 }
 
 /* Fill in the resources structure and link it into the platform
@@ -225,13 +229,11 @@ void __init orion_rtc_init(unsigned long mapbase,
  ****************************************************************************/
 static __init void ge_complete(
 	struct mv643xx_eth_shared_platform_data *orion_ge_shared_data,
-	int tclk,
 	struct resource *orion_ge_resource, unsigned long irq,
 	struct platform_device *orion_ge_shared,
 	struct mv643xx_eth_platform_data *eth_data,
 	struct platform_device *orion_ge)
 {
-	orion_ge_shared_data->t_clk = tclk;
 	orion_ge_resource->start = irq;
 	orion_ge_resource->end = irq;
 	eth_data->shared = orion_ge_shared;
@@ -282,12 +284,11 @@ static struct platform_device orion_ge00 = {
 void __init orion_ge00_init(struct mv643xx_eth_platform_data *eth_data,
 			    unsigned long mapbase,
 			    unsigned long irq,
-			    unsigned long irq_err,
-			    int tclk)
+			    unsigned long irq_err)
 {
 	fill_resources(&orion_ge00_shared, orion_ge00_shared_resources,
 		       mapbase + 0x2000, SZ_16K - 1, irq_err);
-	ge_complete(&orion_ge00_shared_data, tclk,
+	ge_complete(&orion_ge00_shared_data,
 		    orion_ge00_resources, irq, &orion_ge00_shared,
 		    eth_data, &orion_ge00);
 }
@@ -335,12 +336,11 @@ static struct platform_device orion_ge01 = {
 void __init orion_ge01_init(struct mv643xx_eth_platform_data *eth_data,
 			    unsigned long mapbase,
 			    unsigned long irq,
-			    unsigned long irq_err,
-			    int tclk)
+			    unsigned long irq_err)
 {
 	fill_resources(&orion_ge01_shared, orion_ge01_shared_resources,
 		       mapbase + 0x2000, SZ_16K - 1, irq_err);
-	ge_complete(&orion_ge01_shared_data, tclk,
+	ge_complete(&orion_ge01_shared_data,
 		    orion_ge01_resources, irq, &orion_ge01_shared,
 		    eth_data, &orion_ge01);
 }
@@ -388,12 +388,11 @@ static struct platform_device orion_ge10 = {
 void __init orion_ge10_init(struct mv643xx_eth_platform_data *eth_data,
 			    unsigned long mapbase,
 			    unsigned long irq,
-			    unsigned long irq_err,
-			    int tclk)
+			    unsigned long irq_err)
 {
 	fill_resources(&orion_ge10_shared, orion_ge10_shared_resources,
 		       mapbase + 0x2000, SZ_16K - 1, irq_err);
-	ge_complete(&orion_ge10_shared_data, tclk,
+	ge_complete(&orion_ge10_shared_data,
 		    orion_ge10_resources, irq, &orion_ge10_shared,
 		    eth_data, &orion_ge10);
 }
@@ -441,12 +440,11 @@ static struct platform_device orion_ge11 = {
 void __init orion_ge11_init(struct mv643xx_eth_platform_data *eth_data,
 			    unsigned long mapbase,
 			    unsigned long irq,
-			    unsigned long irq_err,
-			    int tclk)
+			    unsigned long irq_err)
 {
 	fill_resources(&orion_ge11_shared, orion_ge11_shared_resources,
 		       mapbase + 0x2000, SZ_16K - 1, irq_err);
-	ge_complete(&orion_ge11_shared_data, tclk,
+	ge_complete(&orion_ge11_shared_data,
 		    orion_ge11_resources, irq, &orion_ge11_shared,
 		    eth_data, &orion_ge11);
 }
