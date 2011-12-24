@@ -806,11 +806,12 @@ static struct dib0070_config dib7770p_dib0070_config = {
 
 static int dib7070_set_param_override(struct dvb_frontend *fe, struct dvb_frontend_parameters *fep)
 {
+	struct dtv_frontend_properties *p = &fe->dtv_property_cache;
 	struct dvb_usb_adapter *adap = fe->dvb->priv;
 	struct dib0700_adapter_state *state = adap->priv;
 
 	u16 offset;
-	u8 band = BAND_OF_FREQUENCY(fep->frequency/1000);
+	u8 band = BAND_OF_FREQUENCY(p->frequency/1000);
 	switch (band) {
 		case BAND_VHF: offset = 950; break;
 		case BAND_UHF:
@@ -824,11 +825,12 @@ static int dib7070_set_param_override(struct dvb_frontend *fe, struct dvb_fronte
 static int dib7770_set_param_override(struct dvb_frontend *fe,
 		struct dvb_frontend_parameters *fep)
 {
-	 struct dvb_usb_adapter *adap = fe->dvb->priv;
-	 struct dib0700_adapter_state *state = adap->priv;
+	struct dtv_frontend_properties *p = &fe->dtv_property_cache;
+	struct dvb_usb_adapter *adap = fe->dvb->priv;
+	struct dib0700_adapter_state *state = adap->priv;
 
 	 u16 offset;
-	 u8 band = BAND_OF_FREQUENCY(fep->frequency/1000);
+	 u8 band = BAND_OF_FREQUENCY(p->frequency/1000);
 	 switch (band) {
 	 case BAND_VHF:
 		  dib7000p_set_gpio(fe, 0, 0, 1);
@@ -1208,11 +1210,12 @@ static struct dib0070_config dib807x_dib0070_config[2] = {
 static int dib807x_set_param_override(struct dvb_frontend *fe,
 		struct dvb_frontend_parameters *fep)
 {
+	struct dtv_frontend_properties *p = &fe->dtv_property_cache;
 	struct dvb_usb_adapter *adap = fe->dvb->priv;
 	struct dib0700_adapter_state *state = adap->priv;
 
 	u16 offset = dib0070_wbd_offset(fe);
-	u8 band = BAND_OF_FREQUENCY(fep->frequency/1000);
+	u8 band = BAND_OF_FREQUENCY(p->frequency/1000);
 	switch (band) {
 	case BAND_VHF:
 		offset += 750;
@@ -1506,9 +1509,10 @@ static struct dib0090_config dib809x_dib0090_config = {
 static int dib8096_set_param_override(struct dvb_frontend *fe,
 		struct dvb_frontend_parameters *fep)
 {
+	struct dtv_frontend_properties *p = &fe->dtv_property_cache;
 	struct dvb_usb_adapter *adap = fe->dvb->priv;
 	struct dib0700_adapter_state *state = adap->priv;
-	u8 band = BAND_OF_FREQUENCY(fep->frequency/1000);
+	u8 band = BAND_OF_FREQUENCY(p->frequency/1000);
 	u16 target;
 	int ret = 0;
 	enum frontend_tune_state tune_state = CT_SHUTDOWN;
@@ -1822,6 +1826,7 @@ struct dibx090p_adc dib8090p_adc_tab[] = {
 static int dib8096p_agc_startup(struct dvb_frontend *fe,
 		struct dvb_frontend_parameters *fep)
 {
+	struct dtv_frontend_properties *p = &fe->dtv_property_cache;
 	struct dvb_usb_adapter *adap = fe->dvb->priv;
 	struct dib0700_adapter_state *state = adap->priv;
 	struct dibx000_bandwidth_config pll;
@@ -1841,7 +1846,7 @@ static int dib8096p_agc_startup(struct dvb_frontend *fe,
 	dib8000_set_wbd_ref(fe, target);
 
 
-	while (fep->frequency / 1000 > adc_table->freq) {
+	while (p->frequency / 1000 > adc_table->freq) {
 		better_sampling_freq = 1;
 		adc_table++;
 	}
