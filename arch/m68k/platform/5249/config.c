@@ -12,12 +12,10 @@
 #include <linux/param.h>
 #include <linux/init.h>
 #include <linux/io.h>
-#include <linux/spi/spi.h>
-#include <linux/gpio.h>
+#include <linux/platform_device.h>
 #include <asm/machdep.h>
 #include <asm/coldfire.h>
 #include <asm/mcfsim.h>
-#include <asm/mcfqspi.h>
 
 /***************************************************************************/
 
@@ -45,148 +43,15 @@ static struct platform_device m5249_smc91x = {
 
 #endif /* CONFIG_M5249C3 */
 
-#if defined(CONFIG_SPI_COLDFIRE_QSPI) || defined(CONFIG_SPI_COLDFIRE_QSPI_MODULE)
-static struct resource m5249_qspi_resources[] = {
-	{
-		.start		= MCFQSPI_BASE,
-		.end		= MCFQSPI_BASE + MCFQSPI_SIZE - 1,
-		.flags		= IORESOURCE_MEM,
-	},
-	{
-		.start		= MCF_IRQ_QSPI,
-		.end		= MCF_IRQ_QSPI,
-		.flags		= IORESOURCE_IRQ,
-	},
+static struct platform_device *m5249_devices[] __initdata = {
+#ifdef CONFIG_M5249C3
+	&m5249_smc91x,
+#endif
 };
 
-static int m5249_cs_setup(struct mcfqspi_cs_control *cs_control)
-{
-	int status;
+/***************************************************************************/
 
-	status = gpio_request(MCFQSPI_CS0, "MCFQSPI_CS0");
-	if (status) {
-		pr_debug("gpio_request for MCFQSPI_CS0 failed\n");
-		goto fail0;
-	}
-	status = gpio_direction_output(MCFQSPI_CS0, 1);
-	if (status) {
-		pr_debug("gpio_direction_output for MCFQSPI_CS0 failed\n");
-		goto fail1;
-	}
-
-	status = gpio_request(MCFQSPI_CS1, "MCFQSPI_CS1");
-	if (status) {
-		pr_debug("gpio_request for MCFQSPI_CS1 failed\n");
-		goto fail1;
-	}
-	status = gpio_direction_output(MCFQSPI_CS1, 1);
-	if (status) {
-		pr_debug("gpio_direction_output for MCFQSPI_CS1 failed\n");
-		goto fail2;
-	}
-
-	status = gpio_request(MCFQSPI_CS2, "MCFQSPI_CS2");
-	if (status) {
-		pr_debug("gpio_request for MCFQSPI_CS2 failed\n");
-		goto fail2;
-	}
-	status = gpio_direction_output(MCFQSPI_CS2, 1);
-	if (status) {
-		pr_debug("gpio_direction_output for MCFQSPI_CS2 failed\n");
-		goto fail3;
-	}
-
-	status = gpio_request(MCFQSPI_CS3, "MCFQSPI_CS3");
-	if (status) {
-		pr_debug("gpio_request for MCFQSPI_CS3 failed\n");
-		goto fail3;
-	}
-	status = gpio_direction_output(MCFQSPI_CS3, 1);
-	if (status) {
-		pr_debug("gpio_direction_output for MCFQSPI_CS3 failed\n");
-		goto fail4;
-	}
-
-	return 0;
-
-fail4:
-	gpio_free(MCFQSPI_CS3);
-fail3:
-	gpio_free(MCFQSPI_CS2);
-fail2:
-	gpio_free(MCFQSPI_CS1);
-fail1:
-	gpio_free(MCFQSPI_CS0);
-fail0:
-	return status;
-}
-
-static void m5249_cs_teardown(struct mcfqspi_cs_control *cs_control)
-{
-	gpio_free(MCFQSPI_CS3);
-	gpio_free(MCFQSPI_CS2);
-	gpio_free(MCFQSPI_CS1);
-	gpio_free(MCFQSPI_CS0);
-}
-
-static void m5249_cs_select(struct mcfqspi_cs_control *cs_control,
-			    u8 chip_select, bool cs_high)
-{
-	switch (chip_select) {
-	case 0:
-		gpio_set_value(MCFQSPI_CS0, cs_high);
-		break;
-	case 1:
-		gpio_set_value(MCFQSPI_CS1, cs_high);
-		break;
-	case 2:
-		gpio_set_value(MCFQSPI_CS2, cs_high);
-		break;
-	case 3:
-		gpio_set_value(MCFQSPI_CS3, cs_high);
-		break;
-	}
-}
-
-static void m5249_cs_deselect(struct mcfqspi_cs_control *cs_control,
-			      u8 chip_select, bool cs_high)
-{
-	switch (chip_select) {
-	case 0:
-		gpio_set_value(MCFQSPI_CS0, !cs_high);
-		break;
-	case 1:
-		gpio_set_value(MCFQSPI_CS1, !cs_high);
-		break;
-	case 2:
-		gpio_set_value(MCFQSPI_CS2, !cs_high);
-		break;
-	case 3:
-		gpio_set_value(MCFQSPI_CS3, !cs_high);
-		break;
-	}
-}
-
-static struct mcfqspi_cs_control m5249_cs_control = {
-	.setup                  = m5249_cs_setup,
-	.teardown               = m5249_cs_teardown,
-	.select                 = m5249_cs_select,
-	.deselect               = m5249_cs_deselect,
-};
-
-static struct mcfqspi_platform_data m5249_qspi_data = {
-	.bus_num		= 0,
-	.num_chipselect		= 4,
-	.cs_control		= &m5249_cs_control,
-};
-
-static struct platform_device m5249_qspi = {
-	.name			= "mcfqspi",
-	.id			= 0,
-	.num_resources		= ARRAY_SIZE(m5249_qspi_resources),
-	.resource		= m5249_qspi_resources,
-	.dev.platform_data	= &m5249_qspi_data,
-};
+#ifdef CONFIG_SPI_COLDFIRE_QSPI
 
 static void __init m5249_qspi_init(void)
 {
@@ -195,17 +60,8 @@ static void __init m5249_qspi_init(void)
 	       MCF_MBAR + MCFSIM_QSPIICR);
 	mcf_mapirq2imr(MCF_IRQ_QSPI, MCFINTC_QSPI);
 }
-#endif /* defined(CONFIG_SPI_COLDFIRE_QSPI) || defined(CONFIG_SPI_COLDFIRE_QSPI_MODULE) */
 
-
-static struct platform_device *m5249_devices[] __initdata = {
-#ifdef CONFIG_M5249C3
-	&m5249_smc91x,
-#endif
-#if defined(CONFIG_SPI_COLDFIRE_QSPI) || defined(CONFIG_SPI_COLDFIRE_QSPI_MODULE)
-	&m5249_qspi,
-#endif
-};
+#endif /* CONFIG_SPI_COLDFIRE_QSPI */
 
 /***************************************************************************/
 
@@ -263,7 +119,7 @@ void __init config_BSP(char *commandp, int size)
 #ifdef CONFIG_M5249C3
 	m5249_smc91x_init();
 #endif
-#if defined(CONFIG_SPI_COLDFIRE_QSPI) || defined(CONFIG_SPI_COLDFIRE_QSPI_MODULE)
+#ifdef CONFIG_SPI_COLDFIRE_QSPI
 	m5249_qspi_init();
 #endif
 }

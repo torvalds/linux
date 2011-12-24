@@ -11,10 +11,13 @@
 #include <linux/kernel.h>
 #include <linux/init.h>
 #include <linux/io.h>
+#include <linux/spi/spi.h>
+#include <linux/gpio.h>
 #include <asm/traps.h>
 #include <asm/coldfire.h>
 #include <asm/mcfsim.h>
 #include <asm/mcfuart.h>
+#include <asm/mcfqspi.h>
 
 /*
  *	All current ColdFire parts contain from 2, 3 or 4 UARTS.
@@ -118,6 +121,161 @@ static struct platform_device mcf_fec1 = {
 #endif /* MCFFEC_BASE1 */
 #endif /* CONFIG_FEC */
 
+#ifdef CONFIG_SPI_COLDFIRE_QSPI
+/*
+ *	The ColdFire QSPI module is an SPI protocol hardware block used
+ *	on a number of different ColdFire CPUs.
+ */
+static struct resource mcf_qspi_resources[] = {
+	{
+		.start		= MCFQSPI_BASE,
+		.end		= MCFQSPI_BASE + MCFQSPI_SIZE - 1,
+		.flags		= IORESOURCE_MEM,
+	},
+	{
+		.start		= MCF_IRQ_QSPI,
+		.end		= MCF_IRQ_QSPI,
+		.flags		= IORESOURCE_IRQ,
+	},
+};
+
+static int mcf_cs_setup(struct mcfqspi_cs_control *cs_control)
+{
+	int status;
+
+	status = gpio_request(MCFQSPI_CS0, "MCFQSPI_CS0");
+	if (status) {
+		pr_debug("gpio_request for MCFQSPI_CS0 failed\n");
+		goto fail0;
+	}
+	status = gpio_direction_output(MCFQSPI_CS0, 1);
+	if (status) {
+		pr_debug("gpio_direction_output for MCFQSPI_CS0 failed\n");
+		goto fail1;
+	}
+
+	status = gpio_request(MCFQSPI_CS1, "MCFQSPI_CS1");
+	if (status) {
+		pr_debug("gpio_request for MCFQSPI_CS1 failed\n");
+		goto fail1;
+	}
+	status = gpio_direction_output(MCFQSPI_CS1, 1);
+	if (status) {
+		pr_debug("gpio_direction_output for MCFQSPI_CS1 failed\n");
+		goto fail2;
+	}
+
+	status = gpio_request(MCFQSPI_CS2, "MCFQSPI_CS2");
+	if (status) {
+		pr_debug("gpio_request for MCFQSPI_CS2 failed\n");
+		goto fail2;
+	}
+	status = gpio_direction_output(MCFQSPI_CS2, 1);
+	if (status) {
+		pr_debug("gpio_direction_output for MCFQSPI_CS2 failed\n");
+		goto fail3;
+	}
+
+#ifdef MCFQSPI_CS3
+	status = gpio_request(MCFQSPI_CS3, "MCFQSPI_CS3");
+	if (status) {
+		pr_debug("gpio_request for MCFQSPI_CS3 failed\n");
+		goto fail3;
+	}
+	status = gpio_direction_output(MCFQSPI_CS3, 1);
+	if (status) {
+		pr_debug("gpio_direction_output for MCFQSPI_CS3 failed\n");
+		gpio_free(MCFQSPI_CS3);
+		goto fail3;
+	}
+#endif
+
+	return 0;
+
+fail3:
+	gpio_free(MCFQSPI_CS2);
+fail2:
+	gpio_free(MCFQSPI_CS1);
+fail1:
+	gpio_free(MCFQSPI_CS0);
+fail0:
+	return status;
+}
+
+static void mcf_cs_teardown(struct mcfqspi_cs_control *cs_control)
+{
+#ifdef MCFQSPI_CS3
+	gpio_free(MCFQSPI_CS3);
+#endif
+	gpio_free(MCFQSPI_CS2);
+	gpio_free(MCFQSPI_CS1);
+	gpio_free(MCFQSPI_CS0);
+}
+
+static void mcf_cs_select(struct mcfqspi_cs_control *cs_control,
+			  u8 chip_select, bool cs_high)
+{
+	switch (chip_select) {
+	case 0:
+		gpio_set_value(MCFQSPI_CS0, cs_high);
+		break;
+	case 1:
+		gpio_set_value(MCFQSPI_CS1, cs_high);
+		break;
+	case 2:
+		gpio_set_value(MCFQSPI_CS2, cs_high);
+		break;
+#ifdef MCFQSPI_CS3
+	case 3:
+		gpio_set_value(MCFQSPI_CS3, cs_high);
+		break;
+#endif
+	}
+}
+
+static void mcf_cs_deselect(struct mcfqspi_cs_control *cs_control,
+			    u8 chip_select, bool cs_high)
+{
+	switch (chip_select) {
+	case 0:
+		gpio_set_value(MCFQSPI_CS0, !cs_high);
+		break;
+	case 1:
+		gpio_set_value(MCFQSPI_CS1, !cs_high);
+		break;
+	case 2:
+		gpio_set_value(MCFQSPI_CS2, !cs_high);
+		break;
+#ifdef MCFQSPI_CS3
+	case 3:
+		gpio_set_value(MCFQSPI_CS3, !cs_high);
+		break;
+#endif
+	}
+}
+
+static struct mcfqspi_cs_control mcf_cs_control = {
+	.setup			= mcf_cs_setup,
+	.teardown		= mcf_cs_teardown,
+	.select			= mcf_cs_select,
+	.deselect		= mcf_cs_deselect,
+};
+
+static struct mcfqspi_platform_data mcf_qspi_data = {
+	.bus_num		= 0,
+	.num_chipselect		= 4,
+	.cs_control		= &mcf_cs_control,
+};
+
+static struct platform_device mcf_qspi = {
+	.name			= "mcfqspi",
+	.id			= 0,
+	.num_resources		= ARRAY_SIZE(mcf_qspi_resources),
+	.resource		= mcf_qspi_resources,
+	.dev.platform_data	= &mcf_qspi_data,
+};
+#endif /* CONFIG_SPI_COLDFIRE_QSPI */
+
 static struct platform_device *mcf_devices[] __initdata = {
 	&mcf_uart,
 #ifdef CONFIG_FEC
@@ -126,8 +284,10 @@ static struct platform_device *mcf_devices[] __initdata = {
 	&mcf_fec1,
 #endif
 #endif
+#ifdef CONFIG_SPI_COLDFIRE_QSPI
+	&mcf_qspi,
+#endif
 };
-
 
 /*
  *	Some ColdFire UARTs let you set the IRQ line to use.
