@@ -32,23 +32,23 @@ unsigned char ledbank = 0xff;
 
 static struct resource m5272_fec_resources[] = {
 	{
-		.start		= MCF_MBAR + 0x840,
-		.end		= MCF_MBAR + 0x840 + 0x1cf,
+		.start		= MCFFEC_BASE0,
+		.end		= MCFFEC_BASE0 + MCFFEC_SIZE0 - 1,
 		.flags		= IORESOURCE_MEM,
 	},
 	{
-		.start		= MCF_IRQ_ERX,
-		.end		= MCF_IRQ_ERX,
+		.start		= MCF_IRQ_FECRX0,
+		.end		= MCF_IRQ_FECRX0,
 		.flags		= IORESOURCE_IRQ,
 	},
 	{
-		.start		= MCF_IRQ_ETX,
-		.end		= MCF_IRQ_ETX,
+		.start		= MCF_IRQ_FECTX0,
+		.end		= MCF_IRQ_FECTX0,
 		.flags		= IORESOURCE_IRQ,
 	},
 	{
-		.start		= MCF_IRQ_ENTC,
-		.end		= MCF_IRQ_ENTC,
+		.start		= MCF_IRQ_FECENTC0,
+		.end		= MCF_IRQ_FECENTC0,
 		.flags		= IORESOURCE_IRQ,
 	},
 };

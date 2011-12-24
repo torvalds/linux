@@ -88,6 +88,9 @@
 #define	MCFTIMER_BASE3		(MCF_MBAR + 0x240) /* Base address TIMER4 */
 #define	MCFTIMER_BASE4		(MCF_MBAR + 0x260) /* Base address TIMER3 */
 
+#define	MCFFEC_BASE0		(MCF_MBAR + 0x840) /* Base FEC ethernet */
+#define	MCFFEC_SIZE0		0x1d0
+
 /*
  *	Define system peripheral IRQ usage.
  */
@@ -114,9 +117,9 @@
 #define	MCF_IRQ_USB6		83		/* USB Endpoint 6 */
 #define	MCF_IRQ_USB7		84		/* USB Endpoint 7 */
 #define	MCF_IRQ_DMA		85		/* DMA Controller */
-#define	MCF_IRQ_ERX		86		/* Ethernet Receiver */
-#define	MCF_IRQ_ETX		87		/* Ethernet Transmitter */
-#define	MCF_IRQ_ENTC		88		/* Ethernet Non-Time Critical */
+#define	MCF_IRQ_FECRX0		86		/* Ethernet Receiver */
+#define	MCF_IRQ_FECTX0		87		/* Ethernet Transmitter */
+#define	MCF_IRQ_FECENTC0	88		/* Ethernet Non-Time Critical */
 #define	MCF_IRQ_QSPI		89		/* Queued Serial Interface */
 #define	MCF_IRQ_EINT5		90		/* External Interrupt 5 */
 #define	MCF_IRQ_EINT6		91		/* External Interrupt 6 */
