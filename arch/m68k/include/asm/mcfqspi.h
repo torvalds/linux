@@ -21,11 +21,6 @@
 #ifndef mcfqspi_h
 #define mcfqspi_h
 
-#if defined(CONFIG_M532x)
-#define MCFQSPI_IOBASE         0xFC058000
-#endif
-#define MCFQSPI_IOSIZE		0x40
-
 /**
  * struct mcfqspi_cs_control - chip select control for the coldfire qspi driver
  * @setup: setup the control; allocate gpio's, etc. May be NULL.

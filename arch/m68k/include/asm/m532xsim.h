@@ -36,6 +36,8 @@
 #define MCF_IRQ_FECTX0	    (MCFINT_VECBASE + MCFINT_FECTX0)
 #define MCF_IRQ_FECENTC0    (MCFINT_VECBASE + MCFINT_FECENTC0)
 
+#define	MCF_IRQ_QSPI	    (MCFINT_VECBASE + MCFINT_QSPI)
+
 #define MCF_WTM_WCR	MCF_REG16(0xFC098000)
 
 /*
@@ -102,6 +104,16 @@
  */
 #define	MCFFEC_BASE0		0xFC030000	/* Base address of FEC0 */
 #define	MCFFEC_SIZE0		0x800		/* Size of FEC0 region */
+
+/*
+ *  QSPI module.
+ */
+#define	MCFQSPI_BASE		0xFC058000	/* Base address of QSPI */
+#define	MCFQSPI_SIZE		0x40		/* Size of QSPI region */
+
+#define	MCFQSPI_CS0		84
+#define	MCFQSPI_CS1		85
+#define	MCFQSPI_CS2		86
 
 /*
  *  Timer module.
