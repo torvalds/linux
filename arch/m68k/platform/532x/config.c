@@ -83,6 +83,12 @@ void __init config_BSP(char *commandp, int size)
 #endif
 
 	mach_sched_init = hw_timer_init;
+	mach_reset = m532x_cpu_reset;
+	m532x_uarts_init();
+	m532x_fec_init();
+#ifdef CONFIG_SPI_COLDFIRE_QSPI
+	m532x_qspi_init();
+#endif
 
 #ifdef CONFIG_BDM_DISABLE
 	/*
@@ -93,20 +99,6 @@ void __init config_BSP(char *commandp, int size)
 	wdebug(MCFDEBUG_CSR, MCFDEBUG_CSR_PSTCLK);
 #endif
 }
-
-/***************************************************************************/
-
-static int __init init_BSP(void)
-{
-	m532x_uarts_init();
-	m532x_fec_init();
-#ifdef CONFIG_SPI_COLDFIRE_QSPI
-	m532x_qspi_init();
-#endif
-	return 0;
-}
-
-arch_initcall(init_BSP);
 
 /***************************************************************************/
 /* Board initialization */
