@@ -22,6 +22,7 @@ obj-$(CONFIG_CPU_S3C6410)	+= s3c6410.o
 # PM
 
 obj-$(CONFIG_PM)		+= pm.o irq-pm.o sleep.o
+obj-$(CONFIG_CPU_IDLE)		+= cpuidle.o
 
 # DMA support
 
