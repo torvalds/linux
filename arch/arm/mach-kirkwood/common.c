@@ -299,7 +299,7 @@ void __init kirkwood_i2c_init(void)
 void __init kirkwood_uart0_init(void)
 {
 	orion_uart0_init(UART0_VIRT_BASE, UART0_PHYS_BASE,
-			 IRQ_KIRKWOOD_UART_0, kirkwood_tclk);
+			 IRQ_KIRKWOOD_UART_0, tclk);
 }
 
 
@@ -309,7 +309,7 @@ void __init kirkwood_uart0_init(void)
 void __init kirkwood_uart1_init(void)
 {
 	orion_uart1_init(UART1_VIRT_BASE, UART1_PHYS_BASE,
-			 IRQ_KIRKWOOD_UART_1, kirkwood_tclk);
+			 IRQ_KIRKWOOD_UART_1, tclk);
 }
 
 /*****************************************************************************

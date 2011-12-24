@@ -128,7 +128,7 @@ void __init dove_sata_init(struct mv_sata_platform_data *sata_data)
 void __init dove_uart0_init(void)
 {
 	orion_uart0_init(DOVE_UART0_VIRT_BASE, DOVE_UART0_PHYS_BASE,
-			 IRQ_DOVE_UART_0, get_tclk());
+			 IRQ_DOVE_UART_0, tclk);
 }
 
 /*****************************************************************************
@@ -137,7 +137,7 @@ void __init dove_uart0_init(void)
 void __init dove_uart1_init(void)
 {
 	orion_uart1_init(DOVE_UART1_VIRT_BASE, DOVE_UART1_PHYS_BASE,
-			 IRQ_DOVE_UART_1, get_tclk());
+			 IRQ_DOVE_UART_1, tclk);
 }
 
 /*****************************************************************************
@@ -146,7 +146,7 @@ void __init dove_uart1_init(void)
 void __init dove_uart2_init(void)
 {
 	orion_uart2_init(DOVE_UART2_VIRT_BASE, DOVE_UART2_PHYS_BASE,
-			 IRQ_DOVE_UART_2, get_tclk());
+			 IRQ_DOVE_UART_2, tclk);
 }
 
 /*****************************************************************************
@@ -155,7 +155,7 @@ void __init dove_uart2_init(void)
 void __init dove_uart3_init(void)
 {
 	orion_uart3_init(DOVE_UART3_VIRT_BASE, DOVE_UART3_PHYS_BASE,
-			 IRQ_DOVE_UART_3, get_tclk());
+			 IRQ_DOVE_UART_3, tclk);
 }
 
 /*****************************************************************************

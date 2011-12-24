@@ -299,7 +299,7 @@ void __init mv78xx0_sata_init(struct mv_sata_platform_data *sata_data)
 void __init mv78xx0_uart0_init(void)
 {
 	orion_uart0_init(UART0_VIRT_BASE, UART0_PHYS_BASE,
-			 IRQ_MV78XX0_UART_0, get_tclk());
+			 IRQ_MV78XX0_UART_0, tclk);
 }
 
 
@@ -309,7 +309,7 @@ void __init mv78xx0_uart0_init(void)
 void __init mv78xx0_uart1_init(void)
 {
 	orion_uart1_init(UART1_VIRT_BASE, UART1_PHYS_BASE,
-			 IRQ_MV78XX0_UART_1, get_tclk());
+			 IRQ_MV78XX0_UART_1, tclk);
 }
 
 
@@ -319,7 +319,7 @@ void __init mv78xx0_uart1_init(void)
 void __init mv78xx0_uart2_init(void)
 {
 	orion_uart2_init(UART2_VIRT_BASE, UART2_PHYS_BASE,
-			 IRQ_MV78XX0_UART_2, get_tclk());
+			 IRQ_MV78XX0_UART_2, tclk);
 }
 
 /*****************************************************************************
@@ -328,7 +328,7 @@ void __init mv78xx0_uart2_init(void)
 void __init mv78xx0_uart3_init(void)
 {
 	orion_uart3_init(UART3_VIRT_BASE, UART3_PHYS_BASE,
-			 IRQ_MV78XX0_UART_3, get_tclk());
+			 IRQ_MV78XX0_UART_3, tclk);
 }
 
 /*****************************************************************************
