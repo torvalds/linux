@@ -622,15 +622,15 @@ static ssize_t show_rps_dev_flow_table_cnt(struct netdev_rx_queue *queue,
 					   char *buf)
 {
 	struct rps_dev_flow_table *flow_table;
-	unsigned int val = 0;
+	unsigned long val = 0;
 
 	rcu_read_lock();
 	flow_table = rcu_dereference(queue->rps_flow_table);
 	if (flow_table)
-		val = flow_table->mask + 1;
+		val = (unsigned long)flow_table->mask + 1;
 	rcu_read_unlock();
 
-	return sprintf(buf, "%u\n", val);
+	return sprintf(buf, "%lu\n", val);
 }
 
 static void rps_dev_flow_table_release_work(struct work_struct *work)
@@ -654,36 +654,46 @@ static ssize_t store_rps_dev_flow_table_cnt(struct netdev_rx_queue *queue,
 				     struct rx_queue_attribute *attr,
 				     const char *buf, size_t len)
 {
-	unsigned int count;
-	char *endp;
+	unsigned long mask, count;
 	struct rps_dev_flow_table *table, *old_table;
 	static DEFINE_SPINLOCK(rps_dev_flow_lock);
+	int rc;
 
 	if (!capable(CAP_NET_ADMIN))
 		return -EPERM;
 
-	count = simple_strtoul(buf, &endp, 0);
-	if (endp == buf)
-		return -EINVAL;
+	rc = kstrtoul(buf, 0, &count);
+	if (rc < 0)
+		return rc;
 
 	if (count) {
-		int i;
-
-		if (count > INT_MAX)
+		mask = count - 1;
+		/* mask = roundup_pow_of_two(count) - 1;
+		 * without overflows...
+		 */
+		while ((mask | (mask >> 1)) != mask)
+			mask |= (mask >> 1);
+		/* On 64 bit arches, must check mask fits in table->mask (u32),
+		 * and on 32bit arches, must check RPS_DEV_FLOW_TABLE_SIZE(mask + 1)
+		 * doesnt overflow.
+		 */
+#if BITS_PER_LONG > 32
+		if (mask > (unsigned long)(u32)mask)
 			return -EINVAL;
-		count = roundup_pow_of_two(count);
-		if (count > (ULONG_MAX - sizeof(struct rps_dev_flow_table))
+#else
+		if (mask > (ULONG_MAX - RPS_DEV_FLOW_TABLE_SIZE(1))
 				/ sizeof(struct rps_dev_flow)) {
 			/* Enforce a limit to prevent overflow */
 			return -EINVAL;
 		}
-		table = vmalloc(RPS_DEV_FLOW_TABLE_SIZE(count));
+#endif
+		table = vmalloc(RPS_DEV_FLOW_TABLE_SIZE(mask + 1));
 		if (!table)
 			return -ENOMEM;
 
-		table->mask = count - 1;
-		for (i = 0; i < count; i++)
-			table->flows[i].cpu = RPS_NO_CPU;
+		table->mask = mask;
+		for (count = 0; count <= mask; count++)
+			table->flows[count].cpu = RPS_NO_CPU;
 	} else
 		table = NULL;
 
