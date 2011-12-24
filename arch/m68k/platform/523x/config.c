@@ -26,36 +26,6 @@
 
 /***************************************************************************/
 
-static struct resource m523x_fec_resources[] = {
-	{
-		.start		= MCFFEC_BASE0,
-		.end		= MCFFEC_BASE0 + MCFFEC_SIZE0 - 1,
-		.flags		= IORESOURCE_MEM,
-	},
-	{
-		.start		= MCF_IRQ_FECRX0,
-		.end		= MCF_IRQ_FECRX0,
-		.flags		= IORESOURCE_IRQ,
-	},
-	{
-		.start		= MCF_IRQ_FECTX0,
-		.end		= MCF_IRQ_FECTX0,
-		.flags		= IORESOURCE_IRQ,
-	},
-	{
-		.start		= MCF_IRQ_FECENTC0,
-		.end		= MCF_IRQ_FECENTC0,
-		.flags		= IORESOURCE_IRQ,
-	},
-};
-
-static struct platform_device m523x_fec = {
-	.name			= "fec",
-	.id			= 0,
-	.num_resources		= ARRAY_SIZE(m523x_fec_resources),
-	.resource		= m523x_fec_resources,
-};
-
 #if defined(CONFIG_SPI_COLDFIRE_QSPI) || defined(CONFIG_SPI_COLDFIRE_QSPI_MODULE)
 static struct resource m523x_qspi_resources[] = {
 	{
@@ -258,7 +228,6 @@ void __init config_BSP(char *commandp, int size)
 
 static int __init init_BSP(void)
 {
-	m523x_fec_init();
 #if defined(CONFIG_SPI_COLDFIRE_QSPI) || defined(CONFIG_SPI_COLDFIRE_QSPI_MODULE)
 	m523x_qspi_init();
 #endif

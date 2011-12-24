@@ -16,6 +16,9 @@
 #include <asm/mcfsim.h>
 #include <asm/mcfuart.h>
 
+/*
+ *	All current ColdFire parts contain from 2, 3 or 4 UARTS.
+ */
 static struct mcf_platform_uart mcf_uart_platform_data[] = {
 	{
 		.mapbase	= MCFUART_BASE0,
@@ -46,8 +49,83 @@ static struct platform_device mcf_uart = {
 	.dev.platform_data	= mcf_uart_platform_data,
 };
 
+#ifdef CONFIG_FEC
+/*
+ *	Some ColdFire cores contain the Fast Ethernet Controller (FEC)
+ *	block. It is Freescale's own hardware block. Some ColdFires
+ *	have 2 of these.
+ */
+static struct resource mcf_fec0_resources[] = {
+	{
+		.start		= MCFFEC_BASE0,
+		.end		= MCFFEC_BASE0 + MCFFEC_SIZE0 - 1,
+		.flags		= IORESOURCE_MEM,
+	},
+	{
+		.start		= MCF_IRQ_FECRX0,
+		.end		= MCF_IRQ_FECRX0,
+		.flags		= IORESOURCE_IRQ,
+	},
+	{
+		.start		= MCF_IRQ_FECTX0,
+		.end		= MCF_IRQ_FECTX0,
+		.flags		= IORESOURCE_IRQ,
+	},
+	{
+		.start		= MCF_IRQ_FECENTC0,
+		.end		= MCF_IRQ_FECENTC0,
+		.flags		= IORESOURCE_IRQ,
+	},
+};
+
+static struct platform_device mcf_fec0 = {
+	.name			= "fec",
+	.id			= 0,
+	.num_resources		= ARRAY_SIZE(mcf_fec0_resources),
+	.resource		= mcf_fec0_resources,
+};
+
+#ifdef MCFFEC_BASE1
+static struct resource mcf_fec1_resources[] = {
+	{
+		.start		= MCFFEC_BASE1,
+		.end		= MCFFEC_BASE1 + MCFFEC_SIZE1 - 1,
+		.flags		= IORESOURCE_MEM,
+	},
+	{
+		.start		= MCF_IRQ_FECRX1,
+		.end		= MCF_IRQ_FECRX1,
+		.flags		= IORESOURCE_IRQ,
+	},
+	{
+		.start		= MCF_IRQ_FECTX1,
+		.end		= MCF_IRQ_FECTX1,
+		.flags		= IORESOURCE_IRQ,
+	},
+	{
+		.start		= MCF_IRQ_FECENTC1,
+		.end		= MCF_IRQ_FECENTC1,
+		.flags		= IORESOURCE_IRQ,
+	},
+};
+
+static struct platform_device mcf_fec1 = {
+	.name			= "fec",
+	.id			= 0,
+	.num_resources		= ARRAY_SIZE(mcf_fec1_resources),
+	.resource		= mcf_fec1_resources,
+};
+#endif /* MCFFEC_BASE1 */
+#endif /* CONFIG_FEC */
+
 static struct platform_device *mcf_devices[] __initdata = {
 	&mcf_uart,
+#ifdef CONFIG_FEC
+	&mcf_fec0,
+#ifdef MCFFEC_BASE1
+	&mcf_fec1,
+#endif
+#endif
 };
 
 

@@ -30,42 +30,6 @@ unsigned char ledbank = 0xff;
 
 /***************************************************************************/
 
-static struct resource m5272_fec_resources[] = {
-	{
-		.start		= MCFFEC_BASE0,
-		.end		= MCFFEC_BASE0 + MCFFEC_SIZE0 - 1,
-		.flags		= IORESOURCE_MEM,
-	},
-	{
-		.start		= MCF_IRQ_FECRX0,
-		.end		= MCF_IRQ_FECRX0,
-		.flags		= IORESOURCE_IRQ,
-	},
-	{
-		.start		= MCF_IRQ_FECTX0,
-		.end		= MCF_IRQ_FECTX0,
-		.flags		= IORESOURCE_IRQ,
-	},
-	{
-		.start		= MCF_IRQ_FECENTC0,
-		.end		= MCF_IRQ_FECENTC0,
-		.flags		= IORESOURCE_IRQ,
-	},
-};
-
-static struct platform_device m5272_fec = {
-	.name			= "fec",
-	.id			= 0,
-	.num_resources		= ARRAY_SIZE(m5272_fec_resources),
-	.resource		= m5272_fec_resources,
-};
-
-static struct platform_device *m5272_devices[] __initdata = {
-	&m5272_fec,
-};
-
-/***************************************************************************/
-
 static void __init m5272_uarts_init(void)
 {
 	u32 v;
@@ -138,7 +102,6 @@ static int __init init_BSP(void)
 {
 	m5272_uarts_init();
 	fixed_phy_add(PHY_POLL, 0, &nettel_fixed_phy_status);
-	platform_add_devices(m5272_devices, ARRAY_SIZE(m5272_devices));
 	return 0;
 }
 
