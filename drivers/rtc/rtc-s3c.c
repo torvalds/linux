@@ -428,6 +428,20 @@ static int __devexit s3c_rtc_remove(struct platform_device *dev)
 	return 0;
 }
 
+static const struct of_device_id s3c_rtc_dt_match[];
+
+static inline int s3c_rtc_get_driver_data(struct platform_device *pdev)
+{
+#ifdef CONFIG_OF
+	if (pdev->dev.of_node) {
+		const struct of_device_id *match;
+		match = of_match_node(s3c_rtc_dt_match, pdev->dev.of_node);
+		return match->data;
+	}
+#endif
+	return platform_get_device_id(pdev)->driver_data;
+}
+
 static int __devinit s3c_rtc_probe(struct platform_device *pdev)
 {
 	struct rtc_device *rtc;
@@ -508,13 +522,7 @@ static int __devinit s3c_rtc_probe(struct platform_device *pdev)
 		goto err_nortc;
 	}
 
-#ifdef CONFIG_OF
-	if (pdev->dev.of_node)
-		s3c_rtc_cpu_type = of_device_is_compatible(pdev->dev.of_node,
-			"samsung,s3c6410-rtc") ? TYPE_S3C64XX : TYPE_S3C2410;
-	else
-#endif
-		s3c_rtc_cpu_type = platform_get_device_id(pdev)->driver_data;
+	s3c_rtc_cpu_type = s3c_rtc_get_driver_data(pdev);
 
 	/* Check RTC Time */
 
@@ -638,8 +646,13 @@ static int s3c_rtc_resume(struct platform_device *pdev)
 
 #ifdef CONFIG_OF
 static const struct of_device_id s3c_rtc_dt_match[] = {
-	{ .compatible = "samsung,s3c2410-rtc" },
-	{ .compatible = "samsung,s3c6410-rtc" },
+	{
+		.compatible = "samsung,s3c2410-rtc"
+		.data = TYPE_S3C2410,
+	}, {
+		.compatible = "samsung,s3c6410-rtc"
+		.data = TYPE_S3C64XX,
+	},
 	{},
 };
 MODULE_DEVICE_TABLE(of, s3c_rtc_dt_match);
