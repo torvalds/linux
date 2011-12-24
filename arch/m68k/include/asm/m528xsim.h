@@ -51,6 +51,8 @@
 #define	MCF_IRQ_FECTX0		(MCFINT_VECBASE + MCFINT_FECTX0)
 #define	MCF_IRQ_FECENTC0	(MCFINT_VECBASE + MCFINT_FECENTC0)
 
+#define	MCF_IRQ_QSPI		(MCFINT_VECBASE + MCFINT_QSPI)
+
 /*
  *	SDRAM configuration registers.
  */
@@ -80,6 +82,17 @@
  */
 #define	MCFFEC_BASE0		(MCF_IPSBAR + 0x00001000)
 #define	MCFFEC_SIZE0		0x800
+
+/*
+ *	QSPI module.
+ */
+#define	MCFQSPI_IOBASE		(MCF_IPSBAR + 0x340)
+#define	MCFQSPI_SIZE		0x40
+
+#define	MCFQSPI_CS0		147
+#define	MCFQSPI_CS1		148
+#define	MCFQSPI_CS2		149
+#define	MCFQSPI_CS3		150
 
 /*
  * 	GPIO registers
