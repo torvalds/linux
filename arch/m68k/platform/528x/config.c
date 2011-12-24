@@ -103,12 +103,6 @@ void __init config_BSP(char *commandp, int size)
 #ifdef CONFIG_WILDFIREMOD
 	mach_halt = wildfiremod_halt;
 #endif
-}
-
-/***************************************************************************/
-
-static int __init init_BSP(void)
-{
 	mach_reset = m528x_cpu_reset;
 	mach_sched_init = hw_timer_init;
 	m528x_uarts_init();
@@ -116,9 +110,6 @@ static int __init init_BSP(void)
 #ifdef CONFIG_SPI_COLDFIRE_QSPI
 	m528x_qspi_init();
 #endif
-	return 0;
 }
-
-arch_initcall(init_BSP);
 
 /***************************************************************************/
