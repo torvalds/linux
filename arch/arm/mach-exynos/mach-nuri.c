@@ -247,13 +247,8 @@ static void nuri_lcd_power_on(struct plat_lcd_data *pd, unsigned int power)
 
 static int nuri_bl_init(struct device *dev)
 {
-	int ret, gpio = EXYNOS4_GPE2(3);
-
-	ret = gpio_request(gpio, "LCD_LDO_EN");
-	if (!ret)
-		gpio_direction_output(gpio, 0);
-
-	return ret;
+	return gpio_request_one(EXYNOS4_GPE2(3), GPIOF_OUT_INIT_LOW,
+				"LCD_LD0_EN");
 }
 
 static int nuri_bl_notify(struct device *dev, int brightness)

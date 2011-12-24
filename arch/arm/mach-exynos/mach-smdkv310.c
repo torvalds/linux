@@ -129,9 +129,7 @@ static void lcd_lte480wv_set_power(struct plat_lcd_data *pd,
 		gpio_free(EXYNOS4_GPD0(1));
 #endif
 		/* fire nRESET on power up */
-		gpio_request(EXYNOS4_GPX0(6), "GPX0");
-
-		gpio_direction_output(EXYNOS4_GPX0(6), 1);
+		gpio_request_one(EXYNOS4_GPX0(6), GPIOF_OUT_INIT_HIGH, "GPX0");
 		mdelay(100);
 
 		gpio_set_value(EXYNOS4_GPX0(6), 0);
