@@ -1093,7 +1093,6 @@ static struct drm_framebuffer *vmw_kms_fb_create(struct drm_device *dev,
 	struct vmw_surface *surface = NULL;
 	struct vmw_dma_buffer *bo = NULL;
 	struct ttm_base_object *user_obj;
-	u64 required_size;
 	int ret;
 
 	/**
@@ -1102,8 +1101,9 @@ static struct drm_framebuffer *vmw_kms_fb_create(struct drm_device *dev,
 	 * requested framebuffer.
 	 */
 
-	required_size = mode_cmd->pitch * mode_cmd->height;
-	if (unlikely(required_size > (u64) dev_priv->vram_size)) {
+	if (!vmw_kms_validate_mode_vram(dev_priv,
+					mode_cmd->pitch,
+					mode_cmd->height)) {
 		DRM_ERROR("VRAM size is too small for requested mode.\n");
 		return ERR_PTR(-ENOMEM);
 	}
