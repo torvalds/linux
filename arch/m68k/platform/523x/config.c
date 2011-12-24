@@ -19,7 +19,6 @@
 #include <asm/machdep.h>
 #include <asm/coldfire.h>
 #include <asm/mcfsim.h>
-#include <asm/mcfuart.h>
 
 /***************************************************************************/
 
@@ -67,18 +66,10 @@ void __init config_BSP(char *commandp, int size)
 {
 	mach_reset = m523x_cpu_reset;
 	mach_sched_init = hw_timer_init;
-}
-
-/***************************************************************************/
-
-static int __init init_BSP(void)
-{
+	m523x_fec_init();
 #ifdef CONFIG_SPI_COLDFIRE_QSPI
 	m523x_qspi_init();
 #endif
-	return 0;
 }
-
-arch_initcall(init_BSP);
 
 /***************************************************************************/
