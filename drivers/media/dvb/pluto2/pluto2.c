@@ -445,8 +445,7 @@ static inline u32 divide(u32 numerator, u32 denominator)
 }
 
 /* LG Innotek TDTE-E001P (Infineon TUA6034) */
-static int lg_tdtpe001p_tuner_set_params(struct dvb_frontend *fe,
-					 struct dvb_frontend_parameters *foo)
+static int lg_tdtpe001p_tuner_set_params(struct dvb_frontend *fe)
 {
 	struct dtv_frontend_properties *p = &fe->dtv_property_cache;
 	struct pluto *pluto = frontend_to_pluto(fe);

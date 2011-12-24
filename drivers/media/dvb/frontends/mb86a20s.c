@@ -496,7 +496,7 @@ static int mb86a20s_set_frontend(struct dvb_frontend *fe,
 	if (fe->ops.i2c_gate_ctrl)
 		fe->ops.i2c_gate_ctrl(fe, 1);
 	dprintk("Calling tuner set parameters\n");
-	fe->ops.tuner_ops.set_params(fe, p);
+	fe->ops.tuner_ops.set_params(fe);
 
 	/*
 	 * Make it more reliable: if, for some reason, the initial

@@ -214,8 +214,7 @@ exit:
 	return err;
 }
 
-static int mc44s803_set_params(struct dvb_frontend *fe,
-			       struct dvb_frontend_parameters *params)
+static int mc44s803_set_params(struct dvb_frontend *fe)
 {
 	struct mc44s803_priv *priv = fe->tuner_priv;
 	struct dtv_frontend_properties *c = &fe->dtv_property_cache;

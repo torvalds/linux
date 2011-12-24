@@ -6240,7 +6240,7 @@ static int drxk_set_parameters(struct dvb_frontend *fe,
 	if (fe->ops.i2c_gate_ctrl)
 		fe->ops.i2c_gate_ctrl(fe, 1);
 	if (fe->ops.tuner_ops.set_params)
-		fe->ops.tuner_ops.set_params(fe, p);
+		fe->ops.tuner_ops.set_params(fe);
 	if (fe->ops.i2c_gate_ctrl)
 		fe->ops.i2c_gate_ctrl(fe, 0);
 	state->param = *p;

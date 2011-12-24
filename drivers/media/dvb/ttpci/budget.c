@@ -200,7 +200,7 @@ static int budget_diseqc_send_burst(struct dvb_frontend* fe, fe_sec_mini_cmd_t m
 	return 0;
 }
 
-static int alps_bsrv2_tuner_set_params(struct dvb_frontend* fe, struct dvb_frontend_parameters* params)
+static int alps_bsrv2_tuner_set_params(struct dvb_frontend *fe)
 {
 	struct dtv_frontend_properties *c = &fe->dtv_property_cache;
 	struct budget* budget = (struct budget*) fe->dvb->priv;
@@ -242,7 +242,7 @@ static struct ves1x93_config alps_bsrv2_config =
 	.invert_pwm = 0,
 };
 
-static int alps_tdbe2_tuner_set_params(struct dvb_frontend* fe, struct dvb_frontend_parameters* params)
+static int alps_tdbe2_tuner_set_params(struct dvb_frontend *fe)
 {
 	struct dtv_frontend_properties *c = &fe->dtv_property_cache;
 	struct budget* budget = (struct budget*) fe->dvb->priv;
@@ -270,7 +270,7 @@ static struct ves1820_config alps_tdbe2_config = {
 	.selagc = VES1820_SELAGC_SIGNAMPERR,
 };
 
-static int grundig_29504_401_tuner_set_params(struct dvb_frontend* fe, struct dvb_frontend_parameters* params)
+static int grundig_29504_401_tuner_set_params(struct dvb_frontend *fe)
 {
 	struct dtv_frontend_properties *c = &fe->dtv_property_cache;
 	struct budget *budget = fe->dvb->priv;
@@ -328,7 +328,7 @@ static struct l64781_config grundig_29504_401_config_activy = {
 
 static u8 tuner_address_grundig_29504_401_activy = 0x60;
 
-static int grundig_29504_451_tuner_set_params(struct dvb_frontend* fe, struct dvb_frontend_parameters* params)
+static int grundig_29504_451_tuner_set_params(struct dvb_frontend *fe)
 {
 	struct dtv_frontend_properties *c = &fe->dtv_property_cache;
 	struct budget* budget = (struct budget*) fe->dvb->priv;
@@ -352,7 +352,7 @@ static struct tda8083_config grundig_29504_451_config = {
 	.demod_address = 0x68,
 };
 
-static int s5h1420_tuner_set_params(struct dvb_frontend* fe, struct dvb_frontend_parameters* params)
+static int s5h1420_tuner_set_params(struct dvb_frontend *fe)
 {
 	struct dtv_frontend_properties *c = &fe->dtv_property_cache;
 	struct budget* budget = (struct budget*) fe->dvb->priv;

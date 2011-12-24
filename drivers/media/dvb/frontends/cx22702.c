@@ -267,7 +267,7 @@ static int cx22702_set_tps(struct dvb_frontend *fe,
 	struct cx22702_state *state = fe->demodulator_priv;
 
 	if (fe->ops.tuner_ops.set_params) {
-		fe->ops.tuner_ops.set_params(fe, p);
+		fe->ops.tuner_ops.set_params(fe);
 		if (fe->ops.i2c_gate_ctrl)
 			fe->ops.i2c_gate_ctrl(fe, 0);
 	}

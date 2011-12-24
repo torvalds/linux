@@ -696,7 +696,7 @@ static int dib3000mc_set_frontend(struct dvb_frontend* fe,
 	state->sfn_workaround_active = buggy_sfn_workaround;
 
 	if (fe->ops.tuner_ops.set_params) {
-		fe->ops.tuner_ops.set_params(fe, fep);
+		fe->ops.tuner_ops.set_params(fe);
 		msleep(100);
 	}
 

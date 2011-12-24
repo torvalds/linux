@@ -67,8 +67,7 @@ static int tua6100_sleep(struct dvb_frontend *fe)
 	return (ret == 1) ? 0 : ret;
 }
 
-static int tua6100_set_params(struct dvb_frontend *fe,
-			      struct dvb_frontend_parameters *params)
+static int tua6100_set_params(struct dvb_frontend *fe)
 {
 	struct dtv_frontend_properties *c = &fe->dtv_property_cache;
 	struct tua6100_priv *priv = fe->tuner_priv;

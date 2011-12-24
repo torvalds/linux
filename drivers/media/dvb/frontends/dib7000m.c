@@ -1217,7 +1217,7 @@ static int dib7000m_set_frontend(struct dvb_frontend* fe,
 	dib7000m_set_bandwidth(state, BANDWIDTH_TO_KHZ(fep->u.ofdm.bandwidth));
 
 	if (fe->ops.tuner_ops.set_params)
-		fe->ops.tuner_ops.set_params(fe, fep);
+		fe->ops.tuner_ops.set_params(fe);
 
 	/* start up the AGC */
 	state->agc_state = 0;

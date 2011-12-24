@@ -118,7 +118,7 @@ static struct mt352_config digitv_mt352_config = {
 	.demod_init = digitv_mt352_demod_init,
 };
 
-static int digitv_nxt6000_tuner_set_params(struct dvb_frontend *fe, struct dvb_frontend_parameters *fep)
+static int digitv_nxt6000_tuner_set_params(struct dvb_frontend *fe)
 {
 	struct dvb_usb_adapter *adap = fe->dvb->priv;
 	u8 b[5];

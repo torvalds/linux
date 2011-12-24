@@ -2986,7 +2986,7 @@ static int dib8000_set_frontend(struct dvb_frontend *fe, struct dvb_frontend_par
 			dib8096p_set_output_mode(state->fe[index_frontend],
 					OUTMODE_HIGH_Z);
 		if (state->fe[index_frontend]->ops.tuner_ops.set_params)
-			state->fe[index_frontend]->ops.tuner_ops.set_params(state->fe[index_frontend], fep);
+			state->fe[index_frontend]->ops.tuner_ops.set_params(state->fe[index_frontend]);
 
 		dib8000_set_tune_state(state->fe[index_frontend], CT_AGC_START);
 	}

@@ -303,7 +303,7 @@ static int mxl111sf_demod_set_frontend(struct dvb_frontend *fe,
 	mxl_dbg("()");
 
 	if (fe->ops.tuner_ops.set_params) {
-		ret = fe->ops.tuner_ops.set_params(fe, param);
+		ret = fe->ops.tuner_ops.set_params(fe);
 		if (mxl_fail(ret))
 			goto fail;
 		msleep(50);

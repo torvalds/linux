@@ -628,8 +628,7 @@ static void xc_debug_dump(struct xc5000_priv *priv)
 	dprintk(1, "*** Quality (0:<8dB, 7:>56dB) = %d\n", quality);
 }
 
-static int xc5000_set_params(struct dvb_frontend *fe,
-			     struct dvb_frontend_parameters *params)
+static int xc5000_set_params(struct dvb_frontend *fe)
 {
 	int ret, b;
 	struct xc5000_priv *priv = fe->tuner_priv;

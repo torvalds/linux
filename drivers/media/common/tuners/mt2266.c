@@ -122,7 +122,7 @@ static u8 mt2266_vhf[] = { 0x1d, 0xfe, 0x00, 0x00, 0xb4, 0x03, 0xa5, 0xa5,
 
 #define FREF 30000       // Quartz oscillator 30 MHz
 
-static int mt2266_set_params(struct dvb_frontend *fe, struct dvb_frontend_parameters *params)
+static int mt2266_set_params(struct dvb_frontend *fe)
 {
 	struct dtv_frontend_properties *c = &fe->dtv_property_cache;
 	struct mt2266_priv *priv;

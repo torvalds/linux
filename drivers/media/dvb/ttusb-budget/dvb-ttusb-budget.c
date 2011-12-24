@@ -1017,7 +1017,7 @@ static u32 functionality(struct i2c_adapter *adapter)
 
 
 
-static int alps_tdmb7_tuner_set_params(struct dvb_frontend* fe, struct dvb_frontend_parameters* params)
+static int alps_tdmb7_tuner_set_params(struct dvb_frontend *fe)
 {
 	struct dtv_frontend_properties *p = &fe->dtv_property_cache;
 	struct ttusb* ttusb = (struct ttusb*) fe->dvb->priv;
@@ -1072,7 +1072,7 @@ static int philips_tdm1316l_tuner_init(struct dvb_frontend* fe)
 	return 0;
 }
 
-static int philips_tdm1316l_tuner_set_params(struct dvb_frontend* fe, struct dvb_frontend_parameters* params)
+static int philips_tdm1316l_tuner_set_params(struct dvb_frontend *fe)
 {
 	struct dtv_frontend_properties *p = &fe->dtv_property_cache;
 	struct ttusb* ttusb = (struct ttusb*) fe->dvb->priv;
@@ -1279,7 +1279,7 @@ static int alps_stv0299_set_symbol_rate(struct dvb_frontend *fe, u32 srate, u32 
 	return 0;
 }
 
-static int philips_tsa5059_tuner_set_params(struct dvb_frontend *fe, struct dvb_frontend_parameters *params)
+static int philips_tsa5059_tuner_set_params(struct dvb_frontend *fe)
 {
 	struct dtv_frontend_properties *p = &fe->dtv_property_cache;
 	struct ttusb* ttusb = (struct ttusb*) fe->dvb->priv;
@@ -1323,7 +1323,7 @@ static struct stv0299_config alps_stv0299_config = {
 	.set_symbol_rate = alps_stv0299_set_symbol_rate,
 };
 
-static int ttusb_novas_grundig_29504_491_tuner_set_params(struct dvb_frontend *fe, struct dvb_frontend_parameters *params)
+static int ttusb_novas_grundig_29504_491_tuner_set_params(struct dvb_frontend *fe)
 {
 	struct dtv_frontend_properties *p = &fe->dtv_property_cache;
 	struct ttusb* ttusb = (struct ttusb*) fe->dvb->priv;
@@ -1351,7 +1351,7 @@ static struct tda8083_config ttusb_novas_grundig_29504_491_config = {
 	.demod_address = 0x68,
 };
 
-static int alps_tdbe2_tuner_set_params(struct dvb_frontend* fe, struct dvb_frontend_parameters* params)
+static int alps_tdbe2_tuner_set_params(struct dvb_frontend *fe)
 {
 	struct dtv_frontend_properties *p = &fe->dtv_property_cache;
 	struct ttusb* ttusb = fe->dvb->priv;
@@ -1396,7 +1396,7 @@ static u8 read_pwm(struct ttusb* ttusb)
 }
 
 
-static int dvbc_philips_tdm1316l_tuner_set_params(struct dvb_frontend *fe, struct dvb_frontend_parameters *params)
+static int dvbc_philips_tdm1316l_tuner_set_params(struct dvb_frontend *fe)
 {
 	struct dtv_frontend_properties *p = &fe->dtv_property_cache;
 	struct ttusb *ttusb = (struct ttusb *) fe->dvb->priv;

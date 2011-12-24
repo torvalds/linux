@@ -1067,12 +1067,10 @@ static struct dib0070_config dib7070p_dib0070_config = {
 };
 
 struct dib0700_adapter_state {
-	int (*set_param_save) (struct dvb_frontend *,
-			       struct dvb_frontend_parameters *);
+	int (*set_param_save) (struct dvb_frontend *);
 };
 
-static int dib7070_set_param_override(struct dvb_frontend *fe,
-				      struct dvb_frontend_parameters *fep)
+static int dib7070_set_param_override(struct dvb_frontend *fe)
 {
 	struct dtv_frontend_properties *p = &fe->dtv_property_cache;
 	struct dvb_usb_adapter *adap = fe->dvb->priv;
@@ -1088,7 +1086,7 @@ static int dib7070_set_param_override(struct dvb_frontend *fe,
 
 	dib7000p_set_wbd_ref(fe, offset + dib0070_wbd_offset(fe));
 
-	return state->set_param_save(fe, fep);
+	return state->set_param_save(fe);
 }
 
 static int cxusb_dualdig4_rev2_tuner_attach(struct dvb_usb_adapter *adap)

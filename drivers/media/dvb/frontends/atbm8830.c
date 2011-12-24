@@ -279,7 +279,7 @@ static int atbm8830_set_fe(struct dvb_frontend *fe,
 	if (fe->ops.tuner_ops.set_params) {
 		if (fe->ops.i2c_gate_ctrl)
 			fe->ops.i2c_gate_ctrl(fe, 1);
-		fe->ops.tuner_ops.set_params(fe, fe_params);
+		fe->ops.tuner_ops.set_params(fe);
 		if (fe->ops.i2c_gate_ctrl)
 			fe->ops.i2c_gate_ctrl(fe, 0);
 	}

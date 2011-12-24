@@ -65,7 +65,7 @@ static u8 read_pwm(struct mantis_pci *mantis)
 	return pwm;
 }
 
-static int tda1002x_cu1216_tuner_set(struct dvb_frontend *fe, struct dvb_frontend_parameters *params)
+static int tda1002x_cu1216_tuner_set(struct dvb_frontend *fe)
 {
 	struct dtv_frontend_properties *p = &fe->dtv_property_cache;
 	struct mantis_pci *mantis = fe->dvb->priv;

@@ -516,7 +516,7 @@ static int dib0070_tune_digital(struct dvb_frontend *fe)
 }
 
 
-static int dib0070_tune(struct dvb_frontend *fe, struct dvb_frontend_parameters *p)
+static int dib0070_tune(struct dvb_frontend *fe)
 {
     struct dib0070_state *state = fe->tuner_priv;
     uint32_t ret;

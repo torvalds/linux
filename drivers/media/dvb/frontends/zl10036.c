@@ -305,8 +305,7 @@ static int zl10036_set_gain_params(struct zl10036_state *state,
 	return zl10036_write(state, buf, sizeof(buf));
 }
 
-static int zl10036_set_params(struct dvb_frontend *fe,
-		struct dvb_frontend_parameters *params)
+static int zl10036_set_params(struct dvb_frontend *fe)
 {
 	struct dtv_frontend_properties *p = &fe->dtv_property_cache;
 	struct zl10036_state *state = fe->tuner_priv;

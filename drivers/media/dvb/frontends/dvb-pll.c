@@ -608,8 +608,7 @@ static int dvb_pll_sleep(struct dvb_frontend *fe)
 	return -EINVAL;
 }
 
-static int dvb_pll_set_params(struct dvb_frontend *fe,
-			      struct dvb_frontend_parameters *params)
+static int dvb_pll_set_params(struct dvb_frontend *fe)
 {
 	struct dtv_frontend_properties *c = &fe->dtv_property_cache;
 	struct dvb_pll_priv *priv = fe->tuner_priv;

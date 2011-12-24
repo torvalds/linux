@@ -1084,8 +1084,7 @@ static int xc2028_set_analog_freq(struct dvb_frontend *fe,
 				V4L2_TUNER_ANALOG_TV, type, p->std, 0);
 }
 
-static int xc2028_set_params(struct dvb_frontend *fe,
-			     struct dvb_frontend_parameters *p)
+static int xc2028_set_params(struct dvb_frontend *fe)
 {
 	struct dtv_frontend_properties *c = &fe->dtv_property_cache;
 	u32 delsys = c->delivery_system;

@@ -188,7 +188,7 @@ static int s5h1432_set_frontend(struct dvb_frontend *fe,
 		/*current_frequency = p->frequency; */
 		/*state->current_frequency = p->frequency; */
 	} else {
-		fe->ops.tuner_ops.set_params(fe, p);
+		fe->ops.tuner_ops.set_params(fe);
 		msleep(300);
 		s5h1432_set_channel_bandwidth(fe, dvb_bandwidth);
 		switch (p->u.ofdm.bandwidth) {
@@ -207,7 +207,7 @@ static int s5h1432_set_frontend(struct dvb_frontend *fe,
 		default:
 			return 0;
 		}
-		/*fe->ops.tuner_ops.set_params(fe, p); */
+		/*fe->ops.tuner_ops.set_params(fe); */
 /*Soft Reset chip*/
 		msleep(30);
 		s5h1432_writereg(state, S5H1432_I2C_TOP_ADDR, 0x09, 0x1a);
@@ -231,7 +231,7 @@ static int s5h1432_set_frontend(struct dvb_frontend *fe,
 		default:
 			return 0;
 		}
-		/*fe->ops.tuner_ops.set_params(fe,p); */
+		/*fe->ops.tuner_ops.set_params(fe); */
 		/*Soft Reset chip*/
 		msleep(30);
 		s5h1432_writereg(state, S5H1432_I2C_TOP_ADDR, 0x09, 0x1a);

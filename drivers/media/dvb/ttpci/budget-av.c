@@ -502,8 +502,7 @@ static int philips_su1278_ty_ci_set_symbol_rate(struct dvb_frontend *fe, u32 sra
 	return 0;
 }
 
-static int philips_su1278_ty_ci_tuner_set_params(struct dvb_frontend *fe,
-						 struct dvb_frontend_parameters *params)
+static int philips_su1278_ty_ci_tuner_set_params(struct dvb_frontend *fe)
 {
 	struct dtv_frontend_properties *c = &fe->dtv_property_cache;
 	u32 div;
@@ -618,7 +617,7 @@ static struct stv0299_config cinergy_1200s_1894_0010_config = {
 	.set_symbol_rate = philips_su1278_ty_ci_set_symbol_rate,
 };
 
-static int philips_cu1216_tuner_set_params(struct dvb_frontend *fe, struct dvb_frontend_parameters *params)
+static int philips_cu1216_tuner_set_params(struct dvb_frontend *fe)
 {
 	struct dtv_frontend_properties *c = &fe->dtv_property_cache;
 	struct budget *budget = (struct budget *) fe->dvb->priv;
@@ -699,7 +698,7 @@ static int philips_tu1216_tuner_init(struct dvb_frontend *fe)
 	return 0;
 }
 
-static int philips_tu1216_tuner_set_params(struct dvb_frontend *fe, struct dvb_frontend_parameters *params)
+static int philips_tu1216_tuner_set_params(struct dvb_frontend *fe)
 {
 	struct dtv_frontend_properties *c = &fe->dtv_property_cache;
 	struct budget *budget = (struct budget *) fe->dvb->priv;

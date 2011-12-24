@@ -1489,7 +1489,7 @@ static int dib7000p_set_frontend(struct dvb_frontend *fe, struct dvb_frontend_pa
 	state->sfn_workaround_active = buggy_sfn_workaround;
 
 	if (fe->ops.tuner_ops.set_params)
-		fe->ops.tuner_ops.set_params(fe, fep);
+		fe->ops.tuner_ops.set_params(fe);
 
 	/* start up the AGC */
 	state->agc_state = 0;

@@ -198,7 +198,7 @@ struct dvb_tuner_ops {
 	int (*sleep)(struct dvb_frontend *fe);
 
 	/** This is for simple PLLs - set all parameters in one go. */
-	int (*set_params)(struct dvb_frontend *fe, struct dvb_frontend_parameters *p);
+	int (*set_params)(struct dvb_frontend *fe);
 	int (*set_analog_params)(struct dvb_frontend *fe, struct analog_parameters *p);
 
 	/** This is support for demods like the mt352 - fills out the supplied buffer with what to write. */

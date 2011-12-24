@@ -1568,7 +1568,7 @@ static int get_firmware(struct av7110* av7110)
 	return ret;
 }
 
-static int alps_bsrv2_tuner_set_params(struct dvb_frontend* fe, struct dvb_frontend_parameters *params)
+static int alps_bsrv2_tuner_set_params(struct dvb_frontend *fe)
 {
 	struct dtv_frontend_properties *p = &fe->dtv_property_cache;
 	struct av7110* av7110 = fe->dvb->priv;
@@ -1611,7 +1611,7 @@ static struct ves1x93_config alps_bsrv2_config = {
 	.invert_pwm = 0,
 };
 
-static int alps_tdbe2_tuner_set_params(struct dvb_frontend* fe, struct dvb_frontend_parameters *params)
+static int alps_tdbe2_tuner_set_params(struct dvb_frontend *fe)
 {
 	struct dtv_frontend_properties *p = &fe->dtv_property_cache;
 	struct av7110* av7110 = fe->dvb->priv;
@@ -1643,7 +1643,7 @@ static struct ves1820_config alps_tdbe2_config = {
 
 
 
-static int grundig_29504_451_tuner_set_params(struct dvb_frontend* fe, struct dvb_frontend_parameters *params)
+static int grundig_29504_451_tuner_set_params(struct dvb_frontend *fe)
 {
 	struct dtv_frontend_properties *p = &fe->dtv_property_cache;
 	struct av7110* av7110 = fe->dvb->priv;
@@ -1670,7 +1670,7 @@ static struct tda8083_config grundig_29504_451_config = {
 
 
 
-static int philips_cd1516_tuner_set_params(struct dvb_frontend* fe, struct dvb_frontend_parameters *params)
+static int philips_cd1516_tuner_set_params(struct dvb_frontend *fe)
 {
 	struct dtv_frontend_properties *p = &fe->dtv_property_cache;
 	struct av7110* av7110 = fe->dvb->priv;
@@ -1702,7 +1702,7 @@ static struct ves1820_config philips_cd1516_config = {
 
 
 
-static int alps_tdlb7_tuner_set_params(struct dvb_frontend* fe, struct dvb_frontend_parameters *params)
+static int alps_tdlb7_tuner_set_params(struct dvb_frontend *fe)
 {
 	struct dtv_frontend_properties *p = &fe->dtv_property_cache;
 	struct av7110* av7110 = fe->dvb->priv;
@@ -1840,7 +1840,7 @@ static u8 nexusca_stv0297_inittab[] = {
 	0xff, 0xff,
 };
 
-static int nexusca_stv0297_tuner_set_params(struct dvb_frontend* fe, struct dvb_frontend_parameters *params)
+static int nexusca_stv0297_tuner_set_params(struct dvb_frontend *fe)
 {
 	struct dtv_frontend_properties *p = &fe->dtv_property_cache;
 	struct av7110* av7110 = fe->dvb->priv;
@@ -1896,7 +1896,7 @@ static struct stv0297_config nexusca_stv0297_config = {
 
 
 
-static int grundig_29504_401_tuner_set_params(struct dvb_frontend* fe, struct dvb_frontend_parameters *params)
+static int grundig_29504_401_tuner_set_params(struct dvb_frontend *fe)
 {
 	struct dtv_frontend_properties *p = &fe->dtv_property_cache;
 	struct av7110* av7110 = fe->dvb->priv;

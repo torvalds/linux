@@ -88,7 +88,7 @@ static int ec100_set_frontend(struct dvb_frontend *fe,
 
 	/* program tuner */
 	if (fe->ops.tuner_ops.set_params)
-		fe->ops.tuner_ops.set_params(fe, params);
+		fe->ops.tuner_ops.set_params(fe);
 
 	ret = ec100_write_reg(state, 0x04, 0x06);
 	if (ret)

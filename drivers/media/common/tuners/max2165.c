@@ -257,8 +257,7 @@ static void max2165_debug_status(struct max2165_priv *priv)
 	dprintk("VCO: %d, VCO Sub-band: %d, ADC: %d\n", vco, vco_sub_band, adc);
 }
 
-static int max2165_set_params(struct dvb_frontend *fe,
-	struct dvb_frontend_parameters *params)
+static int max2165_set_params(struct dvb_frontend *fe)
 {
 	struct max2165_priv *priv = fe->tuner_priv;
 	struct dtv_frontend_properties *c = &fe->dtv_property_cache;

@@ -75,8 +75,7 @@ static int stb6000_sleep(struct dvb_frontend *fe)
 	return (ret == 1) ? 0 : ret;
 }
 
-static int stb6000_set_params(struct dvb_frontend *fe,
-				struct dvb_frontend_parameters *params)
+static int stb6000_set_params(struct dvb_frontend *fe)
 {
 	struct dtv_frontend_properties *p = &fe->dtv_property_cache;
 	struct stb6000_priv *priv = fe->tuner_priv;

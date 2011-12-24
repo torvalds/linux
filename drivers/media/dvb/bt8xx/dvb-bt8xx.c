@@ -192,7 +192,7 @@ static struct zl10353_config thomson_dtt7579_zl10353_config = {
 	.demod_address = 0x0f,
 };
 
-static int cx24108_tuner_set_params(struct dvb_frontend* fe, struct dvb_frontend_parameters* params)
+static int cx24108_tuner_set_params(struct dvb_frontend *fe)
 {
 	struct dtv_frontend_properties *c = &fe->dtv_property_cache;
 	u32 freq = c->frequency;
@@ -267,7 +267,7 @@ static struct cx24110_config pctvsat_config = {
 	.demod_address = 0x55,
 };
 
-static int microtune_mt7202dtf_tuner_set_params(struct dvb_frontend* fe, struct dvb_frontend_parameters* params)
+static int microtune_mt7202dtf_tuner_set_params(struct dvb_frontend *fe)
 {
 	struct dtv_frontend_properties *c = &fe->dtv_property_cache;
 	struct dvb_bt8xx_card *card = (struct dvb_bt8xx_card *) fe->dvb->priv;
@@ -463,7 +463,7 @@ static struct or51211_config or51211_config = {
 	.sleep = or51211_sleep,
 };
 
-static int vp3021_alps_tded4_tuner_set_params(struct dvb_frontend* fe, struct dvb_frontend_parameters* params)
+static int vp3021_alps_tded4_tuner_set_params(struct dvb_frontend *fe)
 {
 	struct dtv_frontend_properties *c = &fe->dtv_property_cache;
 	struct dvb_bt8xx_card *card = (struct dvb_bt8xx_card *) fe->dvb->priv;

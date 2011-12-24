@@ -1189,7 +1189,7 @@ static int af9005_fe_set_frontend(struct dvb_frontend *fe,
 		return ret;
 	/* set tuner */
 	deb_info("set tuner\n");
-	ret = fe->ops.tuner_ops.set_params(fe, fep);
+	ret = fe->ops.tuner_ops.set_params(fe);
 	if (ret)
 		return ret;
 

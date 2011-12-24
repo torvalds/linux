@@ -649,7 +649,7 @@ static int s5h1420_set_frontend(struct dvb_frontend* fe,
 			(state->symbol_rate == p->u.qpsk.symbol_rate)) {
 
 		if (fe->ops.tuner_ops.set_params) {
-			fe->ops.tuner_ops.set_params(fe, p);
+			fe->ops.tuner_ops.set_params(fe);
 			if (fe->ops.i2c_gate_ctrl) fe->ops.i2c_gate_ctrl(fe, 0);
 		}
 		if (fe->ops.tuner_ops.get_frequency) {
@@ -744,7 +744,7 @@ static int s5h1420_set_frontend(struct dvb_frontend* fe,
 
 	/* set tuner PLL */
 	if (fe->ops.tuner_ops.set_params) {
-		fe->ops.tuner_ops.set_params(fe, p);
+		fe->ops.tuner_ops.set_params(fe);
 		if (fe->ops.i2c_gate_ctrl)
 			fe->ops.i2c_gate_ctrl(fe, 0);
 		s5h1420_setfreqoffset(state, 0);

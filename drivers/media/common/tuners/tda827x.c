@@ -152,8 +152,7 @@ static int tuner_transfer(struct dvb_frontend *fe,
 	return rc;
 }
 
-static int tda827xo_set_params(struct dvb_frontend *fe,
-			       struct dvb_frontend_parameters *params)
+static int tda827xo_set_params(struct dvb_frontend *fe)
 {
 	struct dtv_frontend_properties *c = &fe->dtv_property_cache;
 	struct tda827x_priv *priv = fe->tuner_priv;
@@ -517,8 +516,7 @@ static void tda827xa_lna_gain(struct dvb_frontend *fe, int high,
 	}
 }
 
-static int tda827xa_set_params(struct dvb_frontend *fe,
-			       struct dvb_frontend_parameters *params)
+static int tda827xa_set_params(struct dvb_frontend *fe)
 {
 	struct dtv_frontend_properties *c = &fe->dtv_property_cache;
 	struct tda827x_priv *priv = fe->tuner_priv;

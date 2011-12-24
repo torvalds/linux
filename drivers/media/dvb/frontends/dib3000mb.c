@@ -124,7 +124,7 @@ static int dib3000mb_set_frontend(struct dvb_frontend* fe,
 	int search_state, seq;
 
 	if (tuner && fe->ops.tuner_ops.set_params) {
-		fe->ops.tuner_ops.set_params(fe, fep);
+		fe->ops.tuner_ops.set_params(fe);
 		if (fe->ops.i2c_gate_ctrl) fe->ops.i2c_gate_ctrl(fe, 0);
 
 		deb_setf("bandwidth: ");

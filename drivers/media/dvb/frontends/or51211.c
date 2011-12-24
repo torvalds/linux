@@ -226,7 +226,7 @@ static int or51211_set_parameters(struct dvb_frontend* fe,
 	/* Change only if we are actually changing the channel */
 	if (state->current_frequency != param->frequency) {
 		if (fe->ops.tuner_ops.set_params) {
-			fe->ops.tuner_ops.set_params(fe, param);
+			fe->ops.tuner_ops.set_params(fe);
 			if (fe->ops.i2c_gate_ctrl) fe->ops.i2c_gate_ctrl(fe, 0);
 		}
 

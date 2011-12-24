@@ -945,7 +945,7 @@ static int cx24123_set_frontend(struct dvb_frontend *fe,
 	if (!state->config->dont_use_pll)
 		cx24123_pll_tune(fe, p);
 	else if (fe->ops.tuner_ops.set_params)
-		fe->ops.tuner_ops.set_params(fe, p);
+		fe->ops.tuner_ops.set_params(fe);
 	else
 		err("it seems I don't have a tuner...");
 

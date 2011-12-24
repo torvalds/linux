@@ -476,8 +476,7 @@ static int cx24113_init(struct dvb_frontend *fe)
 	return ret;
 }
 
-static int cx24113_set_params(struct dvb_frontend *fe,
-		struct dvb_frontend_parameters *p)
+static int cx24113_set_params(struct dvb_frontend *fe)
 {
 	struct dtv_frontend_properties *c = &fe->dtv_property_cache;
 	struct cx24113_state *state = fe->tuner_priv;

@@ -176,8 +176,7 @@ static int zl10039_sleep(struct dvb_frontend *fe)
 	return 0;
 }
 
-static int zl10039_set_params(struct dvb_frontend *fe,
-			      struct dvb_frontend_parameters *params)
+static int zl10039_set_params(struct dvb_frontend *fe)
 {
 	struct dtv_frontend_properties *c = &fe->dtv_property_cache;
 	struct zl10039_state *state = fe->tuner_priv;

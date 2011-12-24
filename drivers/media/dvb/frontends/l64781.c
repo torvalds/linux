@@ -140,7 +140,7 @@ static int apply_frontend_param (struct dvb_frontend* fe, struct dvb_frontend_pa
 	int bw = p->bandwidth - BANDWIDTH_8_MHZ;
 
 	if (fe->ops.tuner_ops.set_params) {
-		fe->ops.tuner_ops.set_params(fe, param);
+		fe->ops.tuner_ops.set_params(fe);
 		if (fe->ops.i2c_gate_ctrl) fe->ops.i2c_gate_ctrl(fe, 0);
 	}
 

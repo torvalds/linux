@@ -69,7 +69,7 @@ static int alps_bsbe1_set_symbol_rate(struct dvb_frontend* fe, u32 srate, u32 ra
 	return 0;
 }
 
-static int alps_bsbe1_tuner_set_params(struct dvb_frontend* fe, struct dvb_frontend_parameters *params)
+static int alps_bsbe1_tuner_set_params(struct dvb_frontend *fe)
 {
 	struct dtv_frontend_properties *p = &fe->dtv_property_cache;
 	int ret;

@@ -272,8 +272,7 @@ static int mxl1x1sf_tuner_loop_thru_ctrl(struct mxl111sf_tuner_state *state,
 
 /* ------------------------------------------------------------------------ */
 
-static int mxl111sf_tuner_set_params(struct dvb_frontend *fe,
-				     struct dvb_frontend_parameters *params)
+static int mxl111sf_tuner_set_params(struct dvb_frontend *fe)
 {
 	struct dtv_frontend_properties *c = &fe->dtv_property_cache;
 	u32 delsys  = c->delivery_system;

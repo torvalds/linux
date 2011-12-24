@@ -250,7 +250,7 @@ static void itd1000_set_lo(struct itd1000_state *state, u32 freq_khz)
 	itd1000_set_vco(state, freq_khz);
 }
 
-static int itd1000_set_parameters(struct dvb_frontend *fe, struct dvb_frontend_parameters *p)
+static int itd1000_set_parameters(struct dvb_frontend *fe)
 {
 	struct dtv_frontend_properties *c = &fe->dtv_property_cache;
 	struct itd1000_state *state = fe->tuner_priv;

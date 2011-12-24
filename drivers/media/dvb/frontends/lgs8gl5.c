@@ -322,7 +322,7 @@ lgs8gl5_set_frontend(struct dvb_frontend *fe,
 		return -EINVAL;
 
 	if (fe->ops.tuner_ops.set_params) {
-		fe->ops.tuner_ops.set_params(fe, p);
+		fe->ops.tuner_ops.set_params(fe);
 		if (fe->ops.i2c_gate_ctrl)
 			fe->ops.i2c_gate_ctrl(fe, 0);
 	}

@@ -40,7 +40,7 @@ static struct tda1004x_config alps_tdhd1_204a_config = {
 	.request_firmware = alps_tdhd1_204_request_firmware
 };
 
-static int alps_tdhd1_204a_tuner_set_params(struct dvb_frontend *fe, struct dvb_frontend_parameters *params)
+static int alps_tdhd1_204a_tuner_set_params(struct dvb_frontend *fe)
 {
 	struct dtv_frontend_properties *p = &fe->dtv_property_cache;
 	struct i2c_adapter *i2c = fe->tuner_priv;

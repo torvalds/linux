@@ -660,8 +660,7 @@ static int philips_su1278_tt_set_symbol_rate(struct dvb_frontend *fe, u32 srate,
 	return 0;
 }
 
-static int philips_su1278_tt_tuner_set_params(struct dvb_frontend *fe,
-					   struct dvb_frontend_parameters *params)
+static int philips_su1278_tt_tuner_set_params(struct dvb_frontend *fe)
 {
 	struct dtv_frontend_properties *p = &fe->dtv_property_cache;
 	struct budget_ci *budget_ci = (struct budget_ci *) fe->dvb->priv;
@@ -742,7 +741,7 @@ static int philips_tdm1316l_tuner_init(struct dvb_frontend *fe)
 	return 0;
 }
 
-static int philips_tdm1316l_tuner_set_params(struct dvb_frontend *fe, struct dvb_frontend_parameters *params)
+static int philips_tdm1316l_tuner_set_params(struct dvb_frontend *fe)
 {
 	struct dtv_frontend_properties *p = &fe->dtv_property_cache;
 	struct budget_ci *budget_ci = (struct budget_ci *) fe->dvb->priv;
@@ -858,7 +857,7 @@ static struct tda1004x_config philips_tdm1316l_config_invert = {
 	.request_firmware = philips_tdm1316l_request_firmware,
 };
 
-static int dvbc_philips_tdm1316l_tuner_set_params(struct dvb_frontend *fe, struct dvb_frontend_parameters *params)
+static int dvbc_philips_tdm1316l_tuner_set_params(struct dvb_frontend *fe)
 {
 	struct dtv_frontend_properties *p = &fe->dtv_property_cache;
 	struct budget_ci *budget_ci = (struct budget_ci *) fe->dvb->priv;

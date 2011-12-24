@@ -1124,8 +1124,7 @@ static int release(struct dvb_frontend *fe)
 }
 
 
-static int set_params(struct dvb_frontend *fe,
-		      struct dvb_frontend_parameters *params)
+static int set_params(struct dvb_frontend *fe)
 {
 	struct tda_state *state = fe->tuner_priv;
 	int status = 0;

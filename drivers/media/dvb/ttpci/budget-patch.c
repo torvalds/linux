@@ -261,7 +261,7 @@ static int budget_patch_diseqc_send_burst(struct dvb_frontend* fe, fe_sec_mini_c
 	return 0;
 }
 
-static int alps_bsrv2_tuner_set_params(struct dvb_frontend* fe, struct dvb_frontend_parameters* params)
+static int alps_bsrv2_tuner_set_params(struct dvb_frontend *fe)
 {
 	struct dtv_frontend_properties *p = &fe->dtv_property_cache;
 	struct budget_patch* budget = (struct budget_patch*) fe->dvb->priv;
@@ -303,7 +303,7 @@ static struct ves1x93_config alps_bsrv2_config = {
 	.invert_pwm = 0,
 };
 
-static int grundig_29504_451_tuner_set_params(struct dvb_frontend* fe, struct dvb_frontend_parameters* params)
+static int grundig_29504_451_tuner_set_params(struct dvb_frontend *fe)
 {
 	struct dtv_frontend_properties *p = &fe->dtv_property_cache;
 	struct budget_patch* budget = (struct budget_patch*) fe->dvb->priv;

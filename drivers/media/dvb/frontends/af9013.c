@@ -587,7 +587,7 @@ static int af9013_set_frontend(struct dvb_frontend *fe,
 
 	/* program tuner */
 	if (fe->ops.tuner_ops.set_params)
-		fe->ops.tuner_ops.set_params(fe, p);
+		fe->ops.tuner_ops.set_params(fe);
 
 	/* program CFOE coefficients */
 	if (c->bandwidth_hz != state->bandwidth_hz) {

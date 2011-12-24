@@ -153,7 +153,7 @@ static int mt2060_spurcheck(u32 lo1,u32 lo2,u32 if2)
 #define IF2  36150       // IF2 frequency = 36.150 MHz
 #define FREF 16000       // Quartz oscillator 16 MHz
 
-static int mt2060_set_params(struct dvb_frontend *fe, struct dvb_frontend_parameters *params)
+static int mt2060_set_params(struct dvb_frontend *fe)
 {
 	struct dtv_frontend_properties *c = &fe->dtv_property_cache;
 	struct mt2060_priv *priv;

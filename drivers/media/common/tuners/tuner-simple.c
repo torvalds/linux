@@ -907,8 +907,7 @@ static int simple_dvb_calc_regs(struct dvb_frontend *fe,
 	return 5;
 }
 
-static int simple_dvb_set_params(struct dvb_frontend *fe,
-				 struct dvb_frontend_parameters *params)
+static int simple_dvb_set_params(struct dvb_frontend *fe)
 {
 	struct dtv_frontend_properties *c = &fe->dtv_property_cache;
 	u32 delsys = c->delivery_system;

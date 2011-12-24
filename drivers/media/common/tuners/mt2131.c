@@ -92,8 +92,7 @@ static int mt2131_writeregs(struct mt2131_priv *priv,u8 *buf, u8 len)
 	return 0;
 }
 
-static int mt2131_set_params(struct dvb_frontend *fe,
-			     struct dvb_frontend_parameters *params)
+static int mt2131_set_params(struct dvb_frontend *fe)
 {
 	struct dtv_frontend_properties *c = &fe->dtv_property_cache;
 	struct mt2131_priv *priv;

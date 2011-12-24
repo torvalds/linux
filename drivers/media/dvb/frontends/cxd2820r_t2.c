@@ -99,7 +99,7 @@ int cxd2820r_set_frontend_t2(struct dvb_frontend *fe,
 
 	/* program tuner */
 	if (fe->ops.tuner_ops.set_params)
-		fe->ops.tuner_ops.set_params(fe, params);
+		fe->ops.tuner_ops.set_params(fe);
 
 	if (priv->delivery_system != SYS_DVBT2) {
 		for (i = 0; i < ARRAY_SIZE(tab); i++) {

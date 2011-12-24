@@ -3979,8 +3979,7 @@ static int mxl5005s_AssignTunerMode(struct dvb_frontend *fe, u32 mod_type,
 	return 0;
 }
 
-static int mxl5005s_set_params(struct dvb_frontend *fe,
-			       struct dvb_frontend_parameters *params)
+static int mxl5005s_set_params(struct dvb_frontend *fe)
 {
 	struct mxl5005s_state *state = fe->tuner_priv;
 	struct dtv_frontend_properties *c = &fe->dtv_property_cache;

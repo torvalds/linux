@@ -616,8 +616,7 @@ fail:
 
 /* ------------------------------------------------------------------------- */
 
-static int mxl5007t_set_params(struct dvb_frontend *fe,
-			       struct dvb_frontend_parameters *params)
+static int mxl5007t_set_params(struct dvb_frontend *fe)
 {
 	struct dtv_frontend_properties *c = &fe->dtv_property_cache;
 	u32 delsys = c->delivery_system;

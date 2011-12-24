@@ -109,8 +109,7 @@ static int tda18218_rd_reg(struct tda18218_priv *priv, u8 reg, u8 *val)
 	return tda18218_rd_regs(priv, reg, val, 1);
 }
 
-static int tda18218_set_params(struct dvb_frontend *fe,
-	struct dvb_frontend_parameters *params)
+static int tda18218_set_params(struct dvb_frontend *fe)
 {
 	struct tda18218_priv *priv = fe->tuner_priv;
 	struct dtv_frontend_properties *c = &fe->dtv_property_cache;

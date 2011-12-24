@@ -815,8 +815,7 @@ static const u8 samsung_smt_7020_inittab[] = {
 };
 
 
-static int samsung_smt_7020_tuner_set_params(struct dvb_frontend *fe,
-	struct dvb_frontend_parameters *params)
+static int samsung_smt_7020_tuner_set_params(struct dvb_frontend *fe)
 {
 	struct dtv_frontend_properties *c = &fe->dtv_property_cache;
 	struct cx8802_dev *dev = fe->dvb->priv;

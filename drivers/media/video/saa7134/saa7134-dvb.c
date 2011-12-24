@@ -183,8 +183,7 @@ static int mt352_avermedia_xc3028_init(struct dvb_frontend *fe)
 	return 0;
 }
 
-static int mt352_pinnacle_tuner_set_params(struct dvb_frontend* fe,
-					   struct dvb_frontend_parameters* params)
+static int mt352_pinnacle_tuner_set_params(struct dvb_frontend *fe)
 {
 	struct dtv_frontend_properties *c = &fe->dtv_property_cache;
 	u8 off[] = { 0x00, 0xf1};
@@ -288,7 +287,7 @@ static int philips_tda1004x_request_firmware(struct dvb_frontend *fe,
  * these tuners are tu1216, td1316(a)
  */
 
-static int philips_tda6651_pll_set(struct dvb_frontend *fe, struct dvb_frontend_parameters *params)
+static int philips_tda6651_pll_set(struct dvb_frontend *fe)
 {
 	struct dtv_frontend_properties *c = &fe->dtv_property_cache;
 	struct saa7134_dev *dev = fe->dvb->priv;
@@ -438,9 +437,9 @@ static int philips_td1316_tuner_init(struct dvb_frontend *fe)
 	return 0;
 }
 
-static int philips_td1316_tuner_set_params(struct dvb_frontend *fe, struct dvb_frontend_parameters *params)
+static int philips_td1316_tuner_set_params(struct dvb_frontend *fe)
 {
-	return philips_tda6651_pll_set(fe, params);
+	return philips_tda6651_pll_set(fe);
 }
 
 static int philips_td1316_tuner_sleep(struct dvb_frontend *fe)

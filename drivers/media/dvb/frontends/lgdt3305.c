@@ -686,7 +686,7 @@ static int lgdt3304_set_parameters(struct dvb_frontend *fe,
 	lg_dbg("(%d, %d)\n", param->frequency, param->u.vsb.modulation);
 
 	if (fe->ops.tuner_ops.set_params) {
-		ret = fe->ops.tuner_ops.set_params(fe, param);
+		ret = fe->ops.tuner_ops.set_params(fe);
 		if (fe->ops.i2c_gate_ctrl)
 			fe->ops.i2c_gate_ctrl(fe, 0);
 		if (lg_fail(ret))
@@ -756,7 +756,7 @@ static int lgdt3305_set_parameters(struct dvb_frontend *fe,
 	lg_dbg("(%d, %d)\n", param->frequency, param->u.vsb.modulation);
 
 	if (fe->ops.tuner_ops.set_params) {
-		ret = fe->ops.tuner_ops.set_params(fe, param);
+		ret = fe->ops.tuner_ops.set_params(fe);
 		if (fe->ops.i2c_gate_ctrl)
 			fe->ops.i2c_gate_ctrl(fe, 0);
 		if (lg_fail(ret))
