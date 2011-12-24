@@ -115,6 +115,9 @@ struct nla_policy iwl_testmode_gnl_msg_policy[IWL_TM_ATTR_MAX] = {
 
 	[IWL_TM_ATTR_FW_VERSION] = { .type = NLA_U32, },
 	[IWL_TM_ATTR_DEVICE_ID] = { .type = NLA_U32, },
+	[IWL_TM_ATTR_FW_TYPE] = { .type = NLA_U32, },
+	[IWL_TM_ATTR_FW_INST_SIZE] = { .type = NLA_U32, },
+	[IWL_TM_ATTR_FW_DATA_SIZE] = { .type = NLA_U32, },
 };
 
 /*
@@ -422,7 +425,7 @@ static int iwl_testmode_driver(struct ieee80211_hw *hw, struct nlattr **tb)
 	struct sk_buff *skb;
 	unsigned char *rsp_data_ptr = NULL;
 	int status = 0, rsp_data_len = 0;
-	u32 devid;
+	u32 devid, inst_size = 0, data_size = 0;
 
 	switch (nla_get_u32(tb[IWL_TM_ATTR_COMMAND])) {
 	case IWL_TM_CMD_APP2DEV_GET_DEVICENAME:
@@ -542,6 +545,41 @@ static int iwl_testmode_driver(struct ieee80211_hw *hw, struct nlattr **tb)
 			return -ENOMEM;
 		}
 		NLA_PUT_U32(skb, IWL_TM_ATTR_DEVICE_ID, devid);
+		status = cfg80211_testmode_reply(skb);
+		if (status < 0)
+			IWL_DEBUG_INFO(priv,
+					"Error sending msg : %d\n", status);
+		break;
+
+	case IWL_TM_CMD_APP2DEV_GET_FW_INFO:
+		skb = cfg80211_testmode_alloc_reply_skb(hw->wiphy, 20 + 8);
+		if (!skb) {
+			IWL_DEBUG_INFO(priv, "Error allocating memory\n");
+			return -ENOMEM;
+		}
+		switch (priv->shrd->ucode_type) {
+		case IWL_UCODE_REGULAR:
+			inst_size = trans(priv)->ucode_rt.code.len;
+			data_size = trans(priv)->ucode_rt.data.len;
+			break;
+		case IWL_UCODE_INIT:
+			inst_size = trans(priv)->ucode_init.code.len;
+			data_size = trans(priv)->ucode_init.data.len;
+			break;
+		case IWL_UCODE_WOWLAN:
+			inst_size = trans(priv)->ucode_wowlan.code.len;
+			data_size = trans(priv)->ucode_wowlan.data.len;
+			break;
+		case IWL_UCODE_NONE:
+			IWL_DEBUG_INFO(priv, "The uCode has not been loaded\n");
+			break;
+		default:
+			IWL_DEBUG_INFO(priv, "Unsupported uCode type\n");
+			break;
+		}
+		NLA_PUT_U32(skb, IWL_TM_ATTR_FW_TYPE, priv->shrd->ucode_type);
+		NLA_PUT_U32(skb, IWL_TM_ATTR_FW_INST_SIZE, inst_size);
+		NLA_PUT_U32(skb, IWL_TM_ATTR_FW_DATA_SIZE, data_size);
 		status = cfg80211_testmode_reply(skb);
 		if (status < 0)
 			IWL_DEBUG_INFO(priv,
@@ -881,6 +919,7 @@ int iwlagn_mac_testmode_cmd(struct ieee80211_hw *hw, void *data, int len)
 	case IWL_TM_CMD_APP2DEV_LOAD_WOWLAN_FW:
 	case IWL_TM_CMD_APP2DEV_GET_FW_VERSION:
 	case IWL_TM_CMD_APP2DEV_GET_DEVICE_ID:
+	case IWL_TM_CMD_APP2DEV_GET_FW_INFO:
 		IWL_DEBUG_INFO(priv, "testmode cmd to driver\n");
 		result = iwl_testmode_driver(hw, tb);
 		break;
