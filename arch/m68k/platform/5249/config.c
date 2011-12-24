@@ -48,8 +48,8 @@ static struct platform_device m5249_smc91x = {
 #if defined(CONFIG_SPI_COLDFIRE_QSPI) || defined(CONFIG_SPI_COLDFIRE_QSPI_MODULE)
 static struct resource m5249_qspi_resources[] = {
 	{
-		.start		= MCFQSPI_IOBASE,
-		.end		= MCFQSPI_IOBASE + MCFQSPI_IOSIZE - 1,
+		.start		= MCFQSPI_BASE,
+		.end		= MCFQSPI_BASE + MCFQSPI_SIZE - 1,
 		.flags		= IORESOURCE_MEM,
 	},
 	{
@@ -58,11 +58,6 @@ static struct resource m5249_qspi_resources[] = {
 		.flags		= IORESOURCE_IRQ,
 	},
 };
-
-#define MCFQSPI_CS0    29
-#define MCFQSPI_CS1    24
-#define MCFQSPI_CS2    21
-#define MCFQSPI_CS3    22
 
 static int m5249_cs_setup(struct mcfqspi_cs_control *cs_control)
 {

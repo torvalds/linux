@@ -80,6 +80,17 @@
 #define MCFUART_BASE1		(MCF_MBAR + 0x200)	/* Base address UART1 */
 
 /*
+ *	QSPI module.
+ */
+#define	MCFQSPI_BASE		(MCF_MBAR + 0x300)	/* Base address QSPI */
+#define	MCFQSPI_SIZE		0x40			/* Register set size */
+
+#define	MCFQSPI_CS0		29
+#define	MCFQSPI_CS1		24
+#define	MCFQSPI_CS2		21
+#define	MCFQSPI_CS3		22
+
+/*
  *	DMA unit base addresses.
  */
 #define MCFDMA_BASE0		(MCF_MBAR + 0x300)	/* Base address DMA 0 */
