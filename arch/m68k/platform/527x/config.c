@@ -29,28 +29,16 @@
 #if defined(CONFIG_SPI_COLDFIRE_QSPI) || defined(CONFIG_SPI_COLDFIRE_QSPI_MODULE)
 static struct resource m527x_qspi_resources[] = {
 	{
-		.start		= MCFQSPI_IOBASE,
-		.end		= MCFQSPI_IOBASE + MCFQSPI_IOSIZE - 1,
+		.start		= MCFQSPI_BASE,
+		.end		= MCFQSPI_BASE + MCFQSPI_SIZE - 1,
 		.flags		= IORESOURCE_MEM,
 	},
 	{
-		.start		= MCFINT_VECBASE + MCFINT_QSPI,
-		.end		= MCFINT_VECBASE + MCFINT_QSPI,
+		.start		= MCF_IRQ_QSPI,
+		.end		= MCF_IRQ_QSPI,
 		.flags		= IORESOURCE_IRQ,
 	},
 };
-
-#if defined(CONFIG_M5271)
-#define MCFQSPI_CS0    91
-#define MCFQSPI_CS1    92
-#define MCFQSPI_CS2    99
-#define MCFQSPI_CS3    103
-#elif defined(CONFIG_M5275)
-#define MCFQSPI_CS0    59
-#define MCFQSPI_CS1    60
-#define MCFQSPI_CS2    61
-#define MCFQSPI_CS3    62
-#endif
 
 static int m527x_cs_setup(struct mcfqspi_cs_control *cs_control)
 {

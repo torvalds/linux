@@ -21,7 +21,7 @@
 #ifndef mcfqspi_h
 #define mcfqspi_h
 
-#if defined(CONFIG_M527x) || defined(CONFIG_M528x)
+#if defined(CONFIG_M528x)
 #define	MCFQSPI_IOBASE		(MCF_IPSBAR + 0x340)
 #elif defined(CONFIG_M532x)
 #define MCFQSPI_IOBASE         0xFC058000

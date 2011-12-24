@@ -59,6 +59,8 @@
 #define	MCF_IRQ_FECTX1		(MCFINT2_VECBASE + MCFINT2_FECTX1)
 #define	MCF_IRQ_FECENTC1	(MCFINT2_VECBASE + MCFINT2_FECENTC1)
 
+#define	MCF_IRQ_QSPI		(MCFINT_VECBASE + MCFINT_QSPI)
+
 /*
  *	SDRAM configuration registers.
  */
@@ -103,6 +105,28 @@
 #define	MCFFEC_BASE1		(MCF_IPSBAR + 0x1800)
 #define	MCFFEC_SIZE1		0x800
 
+/*
+ *	QSPI module.
+ */
+#define	MCFQSPI_BASE		(MCF_IPSBAR + 0x340)
+#define	MCFQSPI_SIZE		0x40
+
+#ifdef CONFIG_M5271
+#define	MCFQSPI_CS0		91
+#define	MCFQSPI_CS1		92
+#define	MCFQSPI_CS2		99
+#define	MCFQSPI_CS3		103
+#endif
+#ifdef CONFIG_M5275
+#define	MCFQSPI_CS0		59
+#define	MCFQSPI_CS1		60
+#define	MCFQSPI_CS2		61
+#define	MCFQSPI_CS3		62
+#endif
+
+/*
+ *	GPIO module.
+ */
 #ifdef CONFIG_M5271
 #define MCFGPIO_PODR_ADDR	(MCF_IPSBAR + 0x100000)
 #define MCFGPIO_PODR_DATAH	(MCF_IPSBAR + 0x100001)
