@@ -61,6 +61,8 @@
 #define MCF_IRQ_FECTX0	    (MCFINT_VECBASE + MCFINT_FECTX0)
 #define MCF_IRQ_FECENTC0    (MCFINT_VECBASE + MCFINT_FECENTC0)
 
+#define	MCF_IRQ_QSPI	    (MCFINT_VECBASE + MCFINT_QSPI)
+
 /*
  *  SDRAM configuration registers.
  */
@@ -164,6 +166,16 @@
  */
 #define	MCFFEC_BASE0		0xFC030000	/* Base of FEC ethernet */
 #define	MCFFEC_SIZE0		0x800		/* Register set size */
+
+/*
+ *  QSPI module.
+ */
+#define	MCFQSPI_BASE		0xFC05C000	/* Base of QSPI module */
+#define	MCFQSPI_SIZE		0x40		/* Register set size */
+
+#define	MCFQSPI_CS0		46
+#define	MCFQSPI_CS1		47
+#define	MCFQSPI_CS2		27
 
 /*
  *  Reset Control Unit.
