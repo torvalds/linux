@@ -78,6 +78,7 @@ int pm_qos_remove_notifier(int pm_qos_class, struct notifier_block *notifier);
 int pm_qos_request_active(struct pm_qos_request *req);
 s32 pm_qos_read_value(struct pm_qos_constraints *c);
 
+s32 __dev_pm_qos_read_value(struct device *dev);
 s32 dev_pm_qos_read_value(struct device *dev);
 int dev_pm_qos_add_request(struct device *dev, struct dev_pm_qos_request *req,
 			   s32 value);
@@ -119,6 +120,8 @@ static inline int pm_qos_request_active(struct pm_qos_request *req)
 static inline s32 pm_qos_read_value(struct pm_qos_constraints *c)
 			{ return 0; }
 
+static inline s32 __dev_pm_qos_read_value(struct device *dev)
+			{ return 0; }
 static inline s32 dev_pm_qos_read_value(struct device *dev)
 			{ return 0; }
 static inline int dev_pm_qos_add_request(struct device *dev,
