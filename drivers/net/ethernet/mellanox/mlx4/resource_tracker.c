@@ -38,6 +38,7 @@
 #include <linux/errno.h>
 #include <linux/kernel.h>
 #include <linux/io.h>
+#include <linux/slab.h>
 #include <linux/mlx4/cmd.h>
 #include <linux/mlx4/qp.h>
 
