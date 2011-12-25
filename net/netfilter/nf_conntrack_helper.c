@@ -121,6 +121,18 @@ int __nf_ct_try_assign_helper(struct nf_conn *ct, struct nf_conn *tmpl,
 	int ret = 0;
 
 	if (tmpl != NULL) {
+		/* we've got a userspace helper. */
+		if (tmpl->status & IPS_USERSPACE_HELPER) {
+			help = nf_ct_helper_ext_add(ct, flags);
+			if (help == NULL) {
+				ret = -ENOMEM;
+				goto out;
+			}
+			rcu_assign_pointer(help->helper, NULL);
+			__set_bit(IPS_USERSPACE_HELPER_BIT, &ct->status);
+			ret = 0;
+			goto out;
+		}
 		help = nfct_help(tmpl);
 		if (help != NULL)
 			helper = help->helper;

@@ -12,7 +12,6 @@
 
 #include <linux/netfilter/x_tables.h>
 #include <linux/netfilter/nf_conntrack_tuple_common.h>
-#include <linux/netfilter_ipv4/nf_nat.h>
 #include <linux/list_nulls.h>
 
 /* A `tuple' is a structure containing the information to uniquely

@@ -70,6 +70,8 @@ extern void			ip6_route_input(struct sk_buff *skb);
 extern struct dst_entry *	ip6_route_output(struct net *net,
 						 const struct sock *sk,
 						 struct flowi6 *fl6);
+extern struct dst_entry *	ip6_route_lookup(struct net *net,
+						 struct flowi6 *fl6, int flags);
 
 extern int			ip6_route_init(void);
 extern void			ip6_route_cleanup(void);
