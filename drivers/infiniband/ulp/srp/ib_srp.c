@@ -428,17 +428,34 @@ static int srp_send_req(struct srp_target_port *target)
 	return status;
 }
 
+static bool srp_change_conn_state(struct srp_target_port *target,
+				  bool connected)
+{
+	bool changed = false;
+
+	spin_lock_irq(&target->lock);
+	if (target->connected != connected) {
+		target->connected = connected;
+		changed = true;
+	}
+	spin_unlock_irq(&target->lock);
+
+	return changed;
+}
+
 static void srp_disconnect_target(struct srp_target_port *target)
 {
-	/* XXX should send SRP_I_LOGOUT request */
+	if (srp_change_conn_state(target, false)) {
+		/* XXX should send SRP_I_LOGOUT request */
 
-	init_completion(&target->done);
-	if (ib_send_cm_dreq(target->cm_id, NULL, 0)) {
-		shost_printk(KERN_DEBUG, target->scsi_host,
-			     PFX "Sending CM DREQ failed\n");
-		return;
+		init_completion(&target->done);
+		if (ib_send_cm_dreq(target->cm_id, NULL, 0)) {
+			shost_printk(KERN_DEBUG, target->scsi_host,
+				     PFX "Sending CM DREQ failed\n");
+		} else {
+			wait_for_completion(&target->done);
+		}
 	}
-	wait_for_completion(&target->done);
 }
 
 static bool srp_change_state(struct srp_target_port *target,
@@ -515,6 +532,8 @@ static int srp_connect_target(struct srp_target_port *target)
 	int retries = 3;
 	int ret;
 
+	WARN_ON_ONCE(target->connected);
+
 	target->qp_in_error = false;
 
 	ret = srp_lookup_path(target);
@@ -536,6 +555,7 @@ static int srp_connect_target(struct srp_target_port *target)
 		 */
 		switch (target->status) {
 		case 0:
+			srp_change_conn_state(target, true);
 			return 0;
 
 		case SRP_PORT_REDIRECT:
@@ -1274,7 +1294,7 @@ static void srp_handle_qp_err(enum ib_wc_status wc_status,
 			      enum ib_wc_opcode wc_opcode,
 			      struct srp_target_port *target)
 {
-	if (!target->qp_in_error) {
+	if (target->connected && !target->qp_in_error) {
 		shost_printk(KERN_ERR, target->scsi_host,
 			     PFX "failed %s status %d\n",
 			     wc_opcode & IB_WC_RECV ? "receive" : "send",
@@ -1630,6 +1650,7 @@ static int srp_cm_handler(struct ib_cm_id *cm_id, struct ib_cm_event *event)
 	case IB_CM_DREQ_RECEIVED:
 		shost_printk(KERN_WARNING, target->scsi_host,
 			     PFX "DREQ received - connection closed\n");
+		srp_change_conn_state(target, false);
 		if (ib_send_cm_drep(cm_id, NULL, 0))
 			shost_printk(KERN_ERR, target->scsi_host,
 				     PFX "Sending CM DREP failed\n");
@@ -1942,6 +1963,7 @@ static int srp_add_target(struct srp_host *host, struct srp_target_port *target)
 	spin_unlock(&host->target_lock);
 
 	target->state = SRP_TARGET_LIVE;
+	target->connected = false;
 
 	scsi_scan_target(&target->scsi_host->shost_gendev,
 			 0, target->scsi_id, SCAN_WILD_CARD, 0);

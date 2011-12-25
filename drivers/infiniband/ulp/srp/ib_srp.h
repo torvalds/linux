@@ -163,6 +163,7 @@ struct srp_target_port {
 	int			path_query_id;
 
 	u32			rq_tmo_jiffies;
+	bool			connected;
 
 	struct ib_cm_id	       *cm_id;
 
