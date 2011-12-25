@@ -334,7 +334,7 @@ again:
 		if (freezing(current)) {
 			worker->working = 0;
 			spin_unlock_irq(&worker->lock);
-			refrigerator();
+			try_to_freeze();
 		} else {
 			spin_unlock_irq(&worker->lock);
 			if (!kthread_should_stop()) {

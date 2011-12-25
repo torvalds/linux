@@ -937,7 +937,7 @@ int bdi_writeback_thread(void *data)
 
 	trace_writeback_thread_start(bdi);
 
-	while (!kthread_should_stop()) {
+	while (!kthread_freezable_should_stop(NULL)) {
 		/*
 		 * Remove own delayed wake-up timer, since we are already awake
 		 * and we'll take care of the preriodic write-back.
@@ -967,8 +967,6 @@ int bdi_writeback_thread(void *data)
 			 */
 			schedule();
 		}
-
-		try_to_freeze();
 	}
 
 	/* Flush any work that raced with us exiting */

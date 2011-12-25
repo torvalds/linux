@@ -300,19 +300,6 @@ const struct dev_pm_ops name = { \
 	SET_RUNTIME_PM_OPS(suspend_fn, resume_fn, idle_fn) \
 }
 
-/*
- * Use this for subsystems (bus types, device types, device classes) that don't
- * need any special suspend/resume handling in addition to invoking the PM
- * callbacks provided by device drivers supporting both the system sleep PM and
- * runtime PM, make the pm member point to generic_subsys_pm_ops.
- */
-#ifdef CONFIG_PM
-extern struct dev_pm_ops generic_subsys_pm_ops;
-#define GENERIC_SUBSYS_PM_OPS	(&generic_subsys_pm_ops)
-#else
-#define GENERIC_SUBSYS_PM_OPS	NULL
-#endif
-
 /**
  * PM_EVENT_ messages
  *
