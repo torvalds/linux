@@ -506,6 +506,17 @@ static void srp_del_scsi_host_attr(struct Scsi_Host *shost)
 		device_remove_file(&shost->shost_dev, *attr);
 }
 
+static void srp_remove_target(struct srp_target_port *target)
+{
+	srp_del_scsi_host_attr(target->scsi_host);
+	srp_remove_host(target->scsi_host);
+	scsi_remove_host(target->scsi_host);
+	ib_destroy_cm_id(target->cm_id);
+	srp_free_target_ib(target);
+	srp_free_req_data(target);
+	scsi_host_put(target->scsi_host);
+}
+
 static void srp_remove_work(struct work_struct *work)
 {
 	struct srp_target_port *target =
@@ -518,13 +529,7 @@ static void srp_remove_work(struct work_struct *work)
 	list_del(&target->list);
 	spin_unlock(&target->srp_host->target_lock);
 
-	srp_del_scsi_host_attr(target->scsi_host);
-	srp_remove_host(target->scsi_host);
-	scsi_remove_host(target->scsi_host);
-	ib_destroy_cm_id(target->cm_id);
-	srp_free_target_ib(target);
-	srp_free_req_data(target);
-	scsi_host_put(target->scsi_host);
+	srp_remove_target(target);
 }
 
 static int srp_connect_target(struct srp_target_port *target)
