@@ -281,9 +281,16 @@ void create_io_context_slowpath(struct task_struct *task, gfp_t gfp_flags,
 	INIT_HLIST_HEAD(&ioc->icq_list);
 	INIT_WORK(&ioc->release_work, ioc_release_fn);
 
-	/* try to install, somebody might already have beaten us to it */
+	/*
+	 * Try to install.  ioc shouldn't be installed if someone else
+	 * already did or @task, which isn't %current, is exiting.  Note
+	 * that we need to allow ioc creation on exiting %current as exit
+	 * path may issue IOs from e.g. exit_files().  The exit path is
+	 * responsible for not issuing IO after exit_io_context().
+	 */
 	task_lock(task);
-	if (!task->io_context && !(task->flags & PF_EXITING))
+	if (!task->io_context &&
+	    (task == current || !(task->flags & PF_EXITING)))
 		task->io_context = ioc;
 	else
 		kmem_cache_free(iocontext_cachep, ioc);
