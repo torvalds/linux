@@ -704,7 +704,7 @@ static void __init crag6410_machine_init(void)
 
 	regulator_has_full_constraints();
 
-	s3c_pm_init();
+	s3c64xx_pm_init();
 }
 
 MACHINE_START(WLF_CRAGG_6410, "Wolfson Cragganmore 6410")

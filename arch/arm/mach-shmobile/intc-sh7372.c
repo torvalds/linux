@@ -535,6 +535,7 @@ static struct resource intcs_resources[] __initdata = {
 static struct intc_desc intcs_desc __initdata = {
 	.name = "sh7372-intcs",
 	.force_enable = ENABLED_INTCS,
+	.skip_syscore_suspend = true,
 	.resource = intcs_resources,
 	.num_resources = ARRAY_SIZE(intcs_resources),
 	.hw = INTC_HW_DESC(intcs_vectors, intcs_groups, intcs_mask_registers,
@@ -610,4 +611,53 @@ void sh7372_intcs_resume(void)
 
 	for (k = 0x80; k <= 0x9c; k += 4)
 		__raw_writeb(ffd5[k], intcs_ffd5 + k);
+}
+
+static unsigned short e694[0x200];
+static unsigned short e695[0x200];
+
+void sh7372_intca_suspend(void)
+{
+	int k;
+
+	for (k = 0x00; k <= 0x38; k += 4)
+		e694[k] = __raw_readw(0xe6940000 + k);
+
+	for (k = 0x80; k <= 0xb4; k += 4)
+		e694[k] = __raw_readb(0xe6940000 + k);
+
+	for (k = 0x180; k <= 0x1b4; k += 4)
+		e694[k] = __raw_readb(0xe6940000 + k);
+
+	for (k = 0x00; k <= 0x50; k += 4)
+		e695[k] = __raw_readw(0xe6950000 + k);
+
+	for (k = 0x80; k <= 0xa8; k += 4)
+		e695[k] = __raw_readb(0xe6950000 + k);
+
+	for (k = 0x180; k <= 0x1a8; k += 4)
+		e695[k] = __raw_readb(0xe6950000 + k);
+}
+
+void sh7372_intca_resume(void)
+{
+	int k;
+
+	for (k = 0x00; k <= 0x38; k += 4)
+		__raw_writew(e694[k], 0xe6940000 + k);
+
+	for (k = 0x80; k <= 0xb4; k += 4)
+		__raw_writeb(e694[k], 0xe6940000 + k);
+
+	for (k = 0x180; k <= 0x1b4; k += 4)
+		__raw_writeb(e694[k], 0xe6940000 + k);
+
+	for (k = 0x00; k <= 0x50; k += 4)
+		__raw_writew(e695[k], 0xe6950000 + k);
+
+	for (k = 0x80; k <= 0xa8; k += 4)
+		__raw_writeb(e695[k], 0xe6950000 + k);
+
+	for (k = 0x180; k <= 0x1a8; k += 4)
+		__raw_writeb(e695[k], 0xe6950000 + k);
 }

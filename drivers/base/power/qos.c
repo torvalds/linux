@@ -420,3 +420,28 @@ int dev_pm_qos_remove_global_notifier(struct notifier_block *notifier)
 	return blocking_notifier_chain_unregister(&dev_pm_notifiers, notifier);
 }
 EXPORT_SYMBOL_GPL(dev_pm_qos_remove_global_notifier);
+
+/**
+ * dev_pm_qos_add_ancestor_request - Add PM QoS request for device's ancestor.
+ * @dev: Device whose ancestor to add the request for.
+ * @req: Pointer to the preallocated handle.
+ * @value: Constraint latency value.
+ */
+int dev_pm_qos_add_ancestor_request(struct device *dev,
+				    struct dev_pm_qos_request *req, s32 value)
+{
+	struct device *ancestor = dev->parent;
+	int error = -ENODEV;
+
+	while (ancestor && !ancestor->power.ignore_children)
+		ancestor = ancestor->parent;
+
+	if (ancestor)
+		error = dev_pm_qos_add_request(ancestor, req, value);
+
+	if (error)
+		req->dev = NULL;
+
+	return error;
+}
+EXPORT_SYMBOL_GPL(dev_pm_qos_add_ancestor_request);
