@@ -27,7 +27,8 @@ build_tmp = getenv('PYTHON_EXTBUILD_TMP')
 perf = Extension('perf',
 		  sources = ['util/python.c', 'util/ctype.c', 'util/evlist.c',
 			     'util/evsel.c', 'util/cpumap.c', 'util/thread_map.c',
-			     'util/util.c', 'util/xyarray.c', 'util/cgroup.c'],
+			     'util/util.c', 'util/xyarray.c', 'util/cgroup.c',
+			     'util/debugfs.c'],
 		  include_dirs = ['util/include'],
 		  extra_compile_args = cflags,
                  )

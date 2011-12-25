@@ -7,6 +7,7 @@
 #include "util/header.h"
 #include "util/parse-options.h"
 #include "util/session.h"
+#include "util/tool.h"
 #include "util/symbol.h"
 #include "util/thread.h"
 #include "util/trace-event.h"
@@ -315,7 +316,7 @@ static bool sample_addr_correlates_sym(struct perf_event_attr *attr)
 
 static void print_sample_addr(union perf_event *event,
 			  struct perf_sample *sample,
-			  struct perf_session *session,
+			  struct machine *machine,
 			  struct thread *thread,
 			  struct perf_event_attr *attr)
 {
@@ -328,11 +329,11 @@ static void print_sample_addr(union perf_event *event,
 	if (!sample_addr_correlates_sym(attr))
 		return;
 
-	thread__find_addr_map(thread, session, cpumode, MAP__FUNCTION,
-			      event->ip.pid, sample->addr, &al);
+	thread__find_addr_map(thread, machine, cpumode, MAP__FUNCTION,
+			      sample->addr, &al);
 	if (!al.map)
-		thread__find_addr_map(thread, session, cpumode, MAP__VARIABLE,
-				      event->ip.pid, sample->addr, &al);
+		thread__find_addr_map(thread, machine, cpumode, MAP__VARIABLE,
+				      sample->addr, &al);
 
 	al.cpu = sample->cpu;
 	al.sym = NULL;
@@ -362,7 +363,7 @@ static void print_sample_addr(union perf_event *event,
 static void process_event(union perf_event *event __unused,
 			  struct perf_sample *sample,
 			  struct perf_evsel *evsel,
-			  struct perf_session *session,
+			  struct machine *machine,
 			  struct thread *thread)
 {
 	struct perf_event_attr *attr = &evsel->attr;
@@ -377,15 +378,15 @@ static void process_event(union perf_event *event __unused,
 				  sample->raw_size);
 
 	if (PRINT_FIELD(ADDR))
-		print_sample_addr(event, sample, session, thread, attr);
+		print_sample_addr(event, sample, machine, thread, attr);
 
 	if (PRINT_FIELD(IP)) {
 		if (!symbol_conf.use_callchain)
 			printf(" ");
 		else
 			printf("\n");
-		perf_session__print_ip(event, sample, session,
-					      PRINT_FIELD(SYM), PRINT_FIELD(DSO));
+		perf_event__print_ip(event, sample, machine, evsel,
+				     PRINT_FIELD(SYM), PRINT_FIELD(DSO));
 	}
 
 	printf("\n");
@@ -434,12 +435,14 @@ static int cleanup_scripting(void)
 
 static char const		*input_name = "perf.data";
 
-static int process_sample_event(union perf_event *event,
+static int process_sample_event(struct perf_tool *tool __used,
+				union perf_event *event,
 				struct perf_sample *sample,
 				struct perf_evsel *evsel,
-				struct perf_session *session)
+				struct machine *machine)
 {
-	struct thread *thread = perf_session__findnew(session, event->ip.pid);
+	struct addr_location al;
+	struct thread *thread = machine__findnew_thread(machine, event->ip.pid);
 
 	if (thread == NULL) {
 		pr_debug("problem processing %d event, skipping it.\n",
@@ -458,16 +461,25 @@ static int process_sample_event(union perf_event *event,
 		return 0;
 	}
 
+	if (perf_event__preprocess_sample(event, machine, &al, sample, 0) < 0) {
+		pr_err("problem processing %d event, skipping it.\n",
+		       event->header.type);
+		return -1;
+	}
+
+	if (al.filtered)
+		return 0;
+
 	if (cpu_list && !test_bit(sample->cpu, cpu_bitmap))
 		return 0;
 
-	scripting_ops->process_event(event, sample, evsel, session, thread);
+	scripting_ops->process_event(event, sample, evsel, machine, thread);
 
-	session->hists.stats.total_period += sample->period;
+	evsel->hists.stats.total_period += sample->period;
 	return 0;
 }
 
-static struct perf_event_ops event_ops = {
+static struct perf_tool perf_script = {
 	.sample		 = process_sample_event,
 	.mmap		 = perf_event__process_mmap,
 	.comm		 = perf_event__process_comm,
@@ -494,7 +506,7 @@ static int __cmd_script(struct perf_session *session)
 
 	signal(SIGINT, sig_handler);
 
-	ret = perf_session__process_events(session, &event_ops);
+	ret = perf_session__process_events(session, &perf_script);
 
 	if (debug_mode)
 		pr_err("Misordered timestamps: %" PRIu64 "\n", nr_unordered);
@@ -1083,7 +1095,9 @@ static const struct option options[] = {
 	OPT_CALLBACK('f', "fields", NULL, "str",
 		     "comma separated output fields prepend with 'type:'. Valid types: hw,sw,trace,raw. Fields: comm,tid,pid,time,cpu,event,trace,ip,sym,dso,addr",
 		     parse_output_fields),
-	OPT_STRING('c', "cpu", &cpu_list, "cpu", "list of cpus to profile"),
+	OPT_STRING('C', "cpu", &cpu_list, "cpu", "list of cpus to profile"),
+	OPT_STRING('c', "comms", &symbol_conf.comm_list_str, "comm[,comm...]",
+		   "only display events for these comms"),
 	OPT_BOOLEAN('I', "show-info", &show_full_info,
 		    "display extended information from perf.data file"),
 	OPT_END()
@@ -1261,7 +1275,7 @@ int cmd_script(int argc, const char **argv, const char *prefix __used)
 	if (!script_name)
 		setup_pager();
 
-	session = perf_session__new(input_name, O_RDONLY, 0, false, &event_ops);
+	session = perf_session__new(input_name, O_RDONLY, 0, false, &perf_script);
 	if (session == NULL)
 		return -ENOMEM;
 

@@ -63,6 +63,76 @@ struct perf_evsel *perf_evsel__new(struct perf_event_attr *attr, int idx)
 	return evsel;
 }
 
+void perf_evsel__config(struct perf_evsel *evsel, struct perf_record_opts *opts)
+{
+	struct perf_event_attr *attr = &evsel->attr;
+	int track = !evsel->idx; /* only the first counter needs these */
+
+	attr->sample_id_all = opts->sample_id_all_avail ? 1 : 0;
+	attr->inherit	    = !opts->no_inherit;
+	attr->read_format   = PERF_FORMAT_TOTAL_TIME_ENABLED |
+			      PERF_FORMAT_TOTAL_TIME_RUNNING |
+			      PERF_FORMAT_ID;
+
+	attr->sample_type  |= PERF_SAMPLE_IP | PERF_SAMPLE_TID;
+
+	/*
+	 * We default some events to a 1 default interval. But keep
+	 * it a weak assumption overridable by the user.
+	 */
+	if (!attr->sample_period || (opts->user_freq != UINT_MAX &&
+				     opts->user_interval != ULLONG_MAX)) {
+		if (opts->freq) {
+			attr->sample_type	|= PERF_SAMPLE_PERIOD;
+			attr->freq		= 1;
+			attr->sample_freq	= opts->freq;
+		} else {
+			attr->sample_period = opts->default_interval;
+		}
+	}
+
+	if (opts->no_samples)
+		attr->sample_freq = 0;
+
+	if (opts->inherit_stat)
+		attr->inherit_stat = 1;
+
+	if (opts->sample_address) {
+		attr->sample_type	|= PERF_SAMPLE_ADDR;
+		attr->mmap_data = track;
+	}
+
+	if (opts->call_graph)
+		attr->sample_type	|= PERF_SAMPLE_CALLCHAIN;
+
+	if (opts->system_wide)
+		attr->sample_type	|= PERF_SAMPLE_CPU;
+
+	if (opts->sample_id_all_avail &&
+	    (opts->sample_time || opts->system_wide ||
+	     !opts->no_inherit || opts->cpu_list))
+		attr->sample_type	|= PERF_SAMPLE_TIME;
+
+	if (opts->raw_samples) {
+		attr->sample_type	|= PERF_SAMPLE_TIME;
+		attr->sample_type	|= PERF_SAMPLE_RAW;
+		attr->sample_type	|= PERF_SAMPLE_CPU;
+	}
+
+	if (opts->no_delay) {
+		attr->watermark = 0;
+		attr->wakeup_events = 1;
+	}
+
+	attr->mmap = track;
+	attr->comm = track;
+
+	if (opts->target_pid == -1 && opts->target_tid == -1 && !opts->system_wide) {
+		attr->disabled = 1;
+		attr->enable_on_exec = 1;
+	}
+}
+
 int perf_evsel__alloc_fd(struct perf_evsel *evsel, int ncpus, int nthreads)
 {
 	int cpu, thread;

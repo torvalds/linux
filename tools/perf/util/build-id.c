@@ -13,15 +13,18 @@
 #include "symbol.h"
 #include <linux/kernel.h>
 #include "debug.h"
+#include "session.h"
+#include "tool.h"
 
-static int build_id__mark_dso_hit(union perf_event *event,
+static int build_id__mark_dso_hit(struct perf_tool *tool __used,
+				  union perf_event *event,
 				  struct perf_sample *sample __used,
 				  struct perf_evsel *evsel __used,
-				  struct perf_session *session)
+				  struct machine *machine)
 {
 	struct addr_location al;
 	u8 cpumode = event->header.misc & PERF_RECORD_MISC_CPUMODE_MASK;
-	struct thread *thread = perf_session__findnew(session, event->ip.pid);
+	struct thread *thread = machine__findnew_thread(machine, event->ip.pid);
 
 	if (thread == NULL) {
 		pr_err("problem processing %d event, skipping it.\n",
@@ -29,8 +32,8 @@ static int build_id__mark_dso_hit(union perf_event *event,
 		return -1;
 	}
 
-	thread__find_addr_map(thread, session, cpumode, MAP__FUNCTION,
-			      event->ip.pid, event->ip.ip, &al);
+	thread__find_addr_map(thread, machine, cpumode, MAP__FUNCTION,
+			      event->ip.ip, &al);
 
 	if (al.map != NULL)
 		al.map->dso->hit = 1;
@@ -38,25 +41,26 @@ static int build_id__mark_dso_hit(union perf_event *event,
 	return 0;
 }
 
-static int perf_event__exit_del_thread(union perf_event *event,
+static int perf_event__exit_del_thread(struct perf_tool *tool __used,
+				       union perf_event *event,
 				       struct perf_sample *sample __used,
-				       struct perf_session *session)
+				       struct machine *machine)
 {
-	struct thread *thread = perf_session__findnew(session, event->fork.tid);
+	struct thread *thread = machine__findnew_thread(machine, event->fork.tid);
 
 	dump_printf("(%d:%d):(%d:%d)\n", event->fork.pid, event->fork.tid,
 		    event->fork.ppid, event->fork.ptid);
 
 	if (thread) {
-		rb_erase(&thread->rb_node, &session->threads);
-		session->last_match = NULL;
+		rb_erase(&thread->rb_node, &machine->threads);
+		machine->last_match = NULL;
 		thread__delete(thread);
 	}
 
 	return 0;
 }
 
-struct perf_event_ops build_id__mark_dso_hit_ops = {
+struct perf_tool build_id__mark_dso_hit_ops = {
 	.sample	= build_id__mark_dso_hit,
 	.mmap	= perf_event__process_mmap,
 	.fork	= perf_event__process_task,

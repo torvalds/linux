@@ -246,37 +246,31 @@ static int __init oprofile_init(void)
 	int err;
 
 	/* always init architecture to setup backtrace support */
+	timer_mode = 0;
 	err = oprofile_arch_init(&oprofile_ops);
+	if (!err) {
+		if (!timer && !oprofilefs_register())
+			return 0;
+		oprofile_arch_exit();
+	}
 
-	timer_mode = err || timer;	/* fall back to timer mode on errors */
-	if (timer_mode) {
-		if (!err)
-			oprofile_arch_exit();
+	/* setup timer mode: */
+	timer_mode = 1;
+	/* no nmi timer mode if oprofile.timer is set */
+	if (timer || op_nmi_timer_init(&oprofile_ops)) {
 		err = oprofile_timer_init(&oprofile_ops);
 		if (err)
 			return err;
 	}
 
-	err = oprofilefs_register();
-	if (!err)
-		return 0;
-
-	/* failed */
-	if (timer_mode)
-		oprofile_timer_exit();
-	else
-		oprofile_arch_exit();
-
-	return err;
+	return oprofilefs_register();
 }
 
 
 static void __exit oprofile_exit(void)
 {
 	oprofilefs_unregister();
-	if (timer_mode)
-		oprofile_timer_exit();
-	else
+	if (!timer_mode)
 		oprofile_arch_exit();
 }
 
