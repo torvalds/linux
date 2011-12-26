@@ -944,7 +944,8 @@ static int __devinit da7210_i2c_probe(struct i2c_client *i2c,
 	struct da7210_priv *da7210;
 	int ret;
 
-	da7210 = kzalloc(sizeof(struct da7210_priv), GFP_KERNEL);
+	da7210 = devm_kzalloc(&i2c->dev, sizeof(struct da7210_priv),
+			      GFP_KERNEL);
 	if (!da7210)
 		return -ENOMEM;
 
@@ -953,16 +954,12 @@ static int __devinit da7210_i2c_probe(struct i2c_client *i2c,
 
 	ret =  snd_soc_register_codec(&i2c->dev,
 			&soc_codec_dev_da7210, &da7210_dai, 1);
-	if (ret < 0)
-		kfree(da7210);
-
 	return ret;
 }
 
 static int __devexit da7210_i2c_remove(struct i2c_client *client)
 {
 	snd_soc_unregister_codec(&client->dev);
-	kfree(i2c_get_clientdata(client));
 	return 0;
 }
 
