@@ -311,9 +311,9 @@ static int lgdt330x_read_ucblocks(struct dvb_frontend* fe, u32* ucblocks)
 	return 0;
 }
 
-static int lgdt330x_set_parameters(struct dvb_frontend* fe,
-				   struct dvb_frontend_parameters *param)
+static int lgdt330x_set_parameters(struct dvb_frontend *fe)
 {
+	struct dtv_frontend_properties *p = &fe->dtv_property_cache;
 	/*
 	 * Array of byte pairs <address, value>
 	 * to initialize 8VSB for lgdt3303 chip 50 MHz IF
@@ -349,8 +349,8 @@ static int lgdt330x_set_parameters(struct dvb_frontend* fe,
 
 	int err = 0;
 	/* Change only if we are actually changing the modulation */
-	if (state->current_modulation != param->u.vsb.modulation) {
-		switch(param->u.vsb.modulation) {
+	if (state->current_modulation != p->modulation) {
+		switch (p->modulation) {
 		case VSB_8:
 			dprintk("%s: VSB_8 MODE\n", __func__);
 
@@ -399,13 +399,13 @@ static int lgdt330x_set_parameters(struct dvb_frontend* fe,
 			}
 			break;
 		default:
-			printk(KERN_WARNING "lgdt330x: %s: Modulation type(%d) UNSUPPORTED\n", __func__, param->u.vsb.modulation);
+			printk(KERN_WARNING "lgdt330x: %s: Modulation type(%d) UNSUPPORTED\n", __func__, p->modulation);
 			return -1;
 		}
 		if (err < 0)
 			printk(KERN_WARNING "lgdt330x: %s: error blasting "
 			       "bytes to lgdt3303 for modulation type(%d)\n",
-			       __func__, param->u.vsb.modulation);
+			       __func__, p->modulation);
 
 		/*
 		 * select serial or parallel MPEG harware interface
@@ -419,7 +419,7 @@ static int lgdt330x_set_parameters(struct dvb_frontend* fe,
 				      sizeof(top_ctrl_cfg));
 		if (state->config->set_ts_params)
 			state->config->set_ts_params(fe, 0);
-		state->current_modulation = param->u.vsb.modulation;
+		state->current_modulation = p->modulation;
 	}
 
 	/* Tune to the specified frequency */
@@ -431,17 +431,17 @@ static int lgdt330x_set_parameters(struct dvb_frontend* fe,
 	/* Keep track of the new frequency */
 	/* FIXME this is the wrong way to do this...           */
 	/* The tuner is shared with the video4linux analog API */
-	state->current_frequency = param->frequency;
+	state->current_frequency = p->frequency;
 
 	lgdt330x_SwReset(state);
 	return 0;
 }
 
-static int lgdt330x_get_frontend(struct dvb_frontend* fe,
-				 struct dvb_frontend_parameters* param)
+static int lgdt330x_get_frontend(struct dvb_frontend *fe,
+				 struct dtv_frontend_properties *p)
 {
 	struct lgdt330x_state *state = fe->demodulator_priv;
-	param->frequency = state->current_frequency;
+	p->frequency = state->current_frequency;
 	return 0;
 }
 
@@ -771,6 +771,7 @@ error:
 }
 
 static struct dvb_frontend_ops lgdt3302_ops = {
+	.delsys = { SYS_ATSC, SYS_DVBC_ANNEX_B },
 	.info = {
 		.name= "LG Electronics LGDT3302 VSB/QAM Frontend",
 		.type = FE_ATSC,
@@ -782,8 +783,8 @@ static struct dvb_frontend_ops lgdt3302_ops = {
 		.caps = FE_CAN_QAM_64 | FE_CAN_QAM_256 | FE_CAN_8VSB
 	},
 	.init                 = lgdt330x_init,
-	.set_frontend_legacy         = lgdt330x_set_parameters,
-	.get_frontend_legacy = lgdt330x_get_frontend,
+	.set_frontend         = lgdt330x_set_parameters,
+	.get_frontend         = lgdt330x_get_frontend,
 	.get_tune_settings    = lgdt330x_get_tune_settings,
 	.read_status          = lgdt3302_read_status,
 	.read_ber             = lgdt330x_read_ber,
@@ -794,6 +795,7 @@ static struct dvb_frontend_ops lgdt3302_ops = {
 };
 
 static struct dvb_frontend_ops lgdt3303_ops = {
+	.delsys = { SYS_ATSC, SYS_DVBC_ANNEX_B },
 	.info = {
 		.name= "LG Electronics LGDT3303 VSB/QAM Frontend",
 		.type = FE_ATSC,
@@ -805,8 +807,8 @@ static struct dvb_frontend_ops lgdt3303_ops = {
 		.caps = FE_CAN_QAM_64 | FE_CAN_QAM_256 | FE_CAN_8VSB
 	},
 	.init                 = lgdt330x_init,
-	.set_frontend_legacy         = lgdt330x_set_parameters,
-	.get_frontend_legacy = lgdt330x_get_frontend,
+	.set_frontend         = lgdt330x_set_parameters,
+	.get_frontend         = lgdt330x_get_frontend,
 	.get_tune_settings    = lgdt330x_get_tune_settings,
 	.read_status          = lgdt3303_read_status,
 	.read_ber             = lgdt330x_read_ber,
