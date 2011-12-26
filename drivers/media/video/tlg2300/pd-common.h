@@ -140,7 +140,7 @@ struct pd_dvb_adapter {
 	u8			reserved[3];
 
 	/* data for power resume*/
-	struct dvb_frontend_parameters fe_param;
+	struct dtv_frontend_properties fe_param;
 
 	/* for channel scanning */
 	int		prev_freq;
