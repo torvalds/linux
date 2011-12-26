@@ -38,7 +38,7 @@ struct dib7000m_state {
 	u16 wbd_ref;
 
 	u8 current_band;
-	fe_bandwidth_t current_bandwidth;
+	u32 current_bandwidth;
 	struct dibx000_agc_config *current_agc;
 	u32 timf;
 	u32 timf_default;

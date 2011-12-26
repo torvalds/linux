@@ -153,7 +153,7 @@ struct tda10048_state {
 	u32 pll_pfactor;
 	u32 sample_freq;
 
-	enum fe_bandwidth bandwidth;
+	u32 bandwidth;
 };
 
 static struct init_tab {

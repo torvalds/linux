@@ -40,7 +40,7 @@ struct dib3000mc_state {
 
 	u32 timf;
 
-	fe_bandwidth_t current_bandwidth;
+	u32 current_bandwidth;
 
 	u16 dev_id;
 
