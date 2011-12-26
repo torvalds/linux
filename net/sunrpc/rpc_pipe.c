@@ -33,6 +33,10 @@
 #include "netns.h"
 #include "sunrpc.h"
 
+#define RPCDBG_FACILITY RPCDBG_DEBUG
+
+#define NET_NAME(net)	((net == &init_net) ? " (init_net)" : "")
+
 static struct vfsmount *rpc_mnt __read_mostly;
 static int rpc_mount_count;
 
@@ -1082,6 +1086,8 @@ rpc_fill_super(struct super_block *sb, void *data, int silent)
 	}
 	if (rpc_populate(root, files, RPCAUTH_lockd, RPCAUTH_RootEOF, NULL))
 		return -ENOMEM;
+	dprintk("RPC:	sending pipefs MOUNT notification for net %p%s\n", net,
+								NET_NAME(net));
 	err = blocking_notifier_call_chain(&rpc_pipefs_notifier_list,
 					   RPC_PIPEFS_MOUNT,
 					   sb);
@@ -1115,6 +1121,8 @@ void rpc_kill_sb(struct super_block *sb)
 	sn->pipefs_sb = NULL;
 	mutex_unlock(&sn->pipefs_sb_lock);
 	put_net(net);
+	dprintk("RPC:	sending pipefs UMOUNT notification for net %p%s\n", net,
+								NET_NAME(net));
 	blocking_notifier_call_chain(&rpc_pipefs_notifier_list,
 					   RPC_PIPEFS_UMOUNT,
 					   sb);
