@@ -303,10 +303,12 @@ static struct zl10353_config em28xx_zl10353_xc3028_no_i2c_gate = {
 };
 
 static struct drxd_config em28xx_drxd = {
-	.index = 0, .demod_address = 0x70, .demod_revision = 0xa2,
-	.demoda_address = 0x00, .pll_address = 0x00,
-	.pll_type = DRXD_PLL_NONE, .clock = 12000, .insert_rs_byte = 1,
-	.pll_set = NULL, .osc_deviation = NULL, .IF = 42800000,
+	.demod_address = 0x70,
+	.demod_revision = 0xa2,
+	.pll_type = DRXD_PLL_NONE,
+	.clock = 12000,
+	.insert_rs_byte = 1,
+	.IF = 42800000,
 	.disable_i2c_gate_ctrl = 1,
 };
 
