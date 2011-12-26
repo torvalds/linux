@@ -485,11 +485,16 @@ static int mb86a20s_read_status(struct dvb_frontend *fe, fe_status_t *status)
 	return 0;
 }
 
-static int mb86a20s_set_frontend(struct dvb_frontend *fe,
-	struct dvb_frontend_parameters *p)
+static int mb86a20s_set_frontend(struct dvb_frontend *fe)
 {
 	struct mb86a20s_state *state = fe->demodulator_priv;
 	int rc;
+#if 0
+	/*
+	 * FIXME: Properly implement the set frontend properties
+	 */
+	struct dtv_frontend_properties *p = &fe->dtv_property_cache;
+#endif
 
 	dprintk("\n");
 
@@ -521,15 +526,15 @@ static int mb86a20s_set_frontend(struct dvb_frontend *fe,
 }
 
 static int mb86a20s_get_frontend(struct dvb_frontend *fe,
-	struct dvb_frontend_parameters *p)
+				 struct dtv_frontend_properties *p)
 {
 
 	/* FIXME: For now, it does nothing */
 
-	fe->dtv_property_cache.bandwidth_hz = 6000000;
-	fe->dtv_property_cache.transmission_mode = TRANSMISSION_MODE_AUTO;
-	fe->dtv_property_cache.guard_interval = GUARD_INTERVAL_AUTO;
-	fe->dtv_property_cache.isdbt_partial_reception = 0;
+	p->bandwidth_hz = 6000000;
+	p->transmission_mode = TRANSMISSION_MODE_AUTO;
+	p->guard_interval = GUARD_INTERVAL_AUTO;
+	p->isdbt_partial_reception = 0;
 
 	return 0;
 }
@@ -545,7 +550,7 @@ static int mb86a20s_tune(struct dvb_frontend *fe,
 	dprintk("\n");
 
 	if (params != NULL)
-		rc = mb86a20s_set_frontend(fe, params);
+		rc = mb86a20s_set_frontend(fe);
 
 	if (!(mode_flags & FE_TUNE_MODE_ONESHOT))
 		mb86a20s_read_status(fe, status);
@@ -608,6 +613,7 @@ error:
 EXPORT_SYMBOL(mb86a20s_attach);
 
 static struct dvb_frontend_ops mb86a20s_ops = {
+	.delsys = { SYS_ISDBT },
 	/* Use dib8000 values per default */
 	.info = {
 		.name = "Fujitsu mb86A20s",
@@ -627,8 +633,8 @@ static struct dvb_frontend_ops mb86a20s_ops = {
 	.release = mb86a20s_release,
 
 	.init = mb86a20s_initfe,
-	.set_frontend_legacy = mb86a20s_set_frontend,
-	.get_frontend_legacy = mb86a20s_get_frontend,
+	.set_frontend = mb86a20s_set_frontend,
+	.get_frontend = mb86a20s_get_frontend,
 	.read_status = mb86a20s_read_status,
 	.read_signal_strength = mb86a20s_read_signal_strength,
 	.tune = mb86a20s_tune,
