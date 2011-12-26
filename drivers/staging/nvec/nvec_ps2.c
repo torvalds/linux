@@ -92,8 +92,8 @@ static int __devinit nvec_mouse_probe(struct platform_device *pdev)
 
 	ser_dev->id.type = SERIO_8042;
 	ser_dev->write = ps2_sendcommand;
-	ser_dev->open = ps2_startstreaming;
-	ser_dev->close = ps2_stopstreaming;
+	ser_dev->start = ps2_startstreaming;
+	ser_dev->stop = ps2_stopstreaming;
 
 	strlcpy(ser_dev->name, "nvec mouse", sizeof(ser_dev->name));
 	strlcpy(ser_dev->phys, "nvec", sizeof(ser_dev->phys));
