@@ -72,7 +72,8 @@ static int sk_diag_dump_icons(struct sock *sk, struct sk_buff *nlskb)
 
 	if (sk->sk_state == TCP_LISTEN) {
 		spin_lock(&sk->sk_receive_queue.lock);
-		buf = UNIX_DIAG_PUT(nlskb, UNIX_DIAG_ICONS, sk->sk_receive_queue.qlen);
+		buf = UNIX_DIAG_PUT(nlskb, UNIX_DIAG_ICONS,
+				sk->sk_receive_queue.qlen * sizeof(u32));
 		i = 0;
 		skb_queue_walk(&sk->sk_receive_queue, skb) {
 			struct sock *req, *peer;
