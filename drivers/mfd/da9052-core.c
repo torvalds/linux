@@ -383,7 +383,7 @@ static struct resource da9052_tsi_resources[] = {
 	},
 };
 
-static struct mfd_cell __initdata da9052_subdev_info[] = {
+static struct mfd_cell __devinitdata da9052_subdev_info[] = {
 	{
 		.name = "da9052-regulator",
 		.id = 1,
@@ -637,7 +637,7 @@ struct regmap_config da9052_regmap_config = {
 };
 EXPORT_SYMBOL_GPL(da9052_regmap_config);
 
-int da9052_device_init(struct da9052 *da9052, u8 chip_id)
+int __devinit da9052_device_init(struct da9052 *da9052, u8 chip_id)
 {
 	struct da9052_pdata *pdata = da9052->dev->platform_data;
 	struct irq_desc *desc;
