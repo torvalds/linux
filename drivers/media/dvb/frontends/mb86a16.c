@@ -1814,6 +1814,7 @@ static enum dvbfe_algo mb86a16_frontend_algo(struct dvb_frontend *fe)
 }
 
 static struct dvb_frontend_ops mb86a16_ops = {
+	.delsys = { SYS_DVBS },
 	.info = {
 		.name			= "Fujitsu MB86A16 DVB-S",
 		.type			= FE_QPSK,
