@@ -1658,12 +1658,6 @@ static int stv0900_read_status(struct dvb_frontend *fe, enum fe_status *status)
 	return 0;
 }
 
-static int stv0900_track(struct dvb_frontend *fe,
-			struct dvb_frontend_parameters *p)
-{
-	return 0;
-}
-
 static int stv0900_stop_ts(struct dvb_frontend *fe, int stop_ts)
 {
 
@@ -1891,7 +1885,6 @@ static struct dvb_frontend_ops stv0900_ops = {
 	.diseqc_recv_slave_reply	= stv0900_recv_slave_reply,
 	.set_tone			= stv0900_set_tone,
 	.search				= stv0900_search,
-	.track				= stv0900_track,
 	.read_status			= stv0900_read_status,
 	.read_ber			= stv0900_read_ber,
 	.read_signal_strength		= stv0900_read_signal_strength,

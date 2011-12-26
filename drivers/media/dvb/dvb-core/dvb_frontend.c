@@ -637,10 +637,7 @@ restart:
 					}
 				}
 				/* Track the carrier if the search was successful */
-				if (fepriv->algo_status == DVBFE_ALGO_SEARCH_SUCCESS) {
-					if (fe->ops.track)
-						fe->ops.track(fe, &fepriv->parameters_in);
-				} else {
+				if (fepriv->algo_status != DVBFE_ALGO_SEARCH_SUCCESS) {
 					fepriv->algo_status |= DVBFE_ALGO_SEARCH_AGAIN;
 					fepriv->delay = HZ / 2;
 				}

@@ -1568,26 +1568,6 @@ static enum dvbfe_search stb0899_search(struct dvb_frontend *fe)
 
 	return DVBFE_ALGO_SEARCH_ERROR;
 }
-/*
- * stb0899_track
- * periodically check the signal level against a specified
- * threshold level and perform derotator centering.
- * called once we have a lock from a successful search
- * event.
- *
- * Will be called periodically called to maintain the
- * lock.
- *
- * Will be used to get parameters as well as info from
- * the decoded baseband header
- *
- * Once a new lock has established, the internal state
- * frequency (internal->freq) is updated
- */
-static int stb0899_track(struct dvb_frontend *fe, struct dvb_frontend_parameters *p)
-{
-	return 0;
-}
 
 static int stb0899_get_frontend(struct dvb_frontend *fe, struct dtv_frontend_properties *p)
 {
@@ -1647,7 +1627,6 @@ static struct dvb_frontend_ops stb0899_ops = {
 
 	.get_frontend_algo		= stb0899_frontend_algo,
 	.search				= stb0899_search,
-	.track				= stb0899_track,
 	.get_frontend                   = stb0899_get_frontend,
 
 

@@ -307,7 +307,6 @@ struct dvb_frontend_ops {
 	 * tuning algorithms, rather than a simple swzigzag
 	 */
 	enum dvbfe_search (*search)(struct dvb_frontend *fe);
-	int (*track)(struct dvb_frontend *fe, struct dvb_frontend_parameters *p);
 
 	struct dvb_tuner_ops tuner_ops;
 	struct analog_demod_ops analog_ops;
