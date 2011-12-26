@@ -445,7 +445,7 @@ static int s921_get_frontend(struct dvb_frontend *fe,
 }
 
 static int s921_tune(struct dvb_frontend *fe,
-			struct dvb_frontend_parameters *params,
+			bool re_tune,
 			unsigned int mode_flags,
 			unsigned int *delay,
 			fe_status_t *status)
@@ -454,7 +454,7 @@ static int s921_tune(struct dvb_frontend *fe,
 
 	dprintk("\n");
 
-	if (params != NULL)
+	if (re_tune)
 		rc = s921_set_frontend(fe);
 
 	if (!(mode_flags & FE_TUNE_MODE_ONESHOT))

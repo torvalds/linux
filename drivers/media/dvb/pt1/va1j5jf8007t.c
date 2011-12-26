@@ -264,7 +264,7 @@ static int va1j5jf8007t_check_modulation(struct va1j5jf8007t_state *state,
 
 static int
 va1j5jf8007t_tune(struct dvb_frontend *fe,
-		  struct dvb_frontend_parameters *params,
+		  bool re_tune,
 		  unsigned int mode_flags,  unsigned int *delay,
 		  fe_status_t *status)
 {
@@ -274,7 +274,7 @@ va1j5jf8007t_tune(struct dvb_frontend *fe,
 
 	state = fe->demodulator_priv;
 
-	if (params != NULL)
+	if (re_tune)
 		state->tune_state = VA1J5JF8007T_SET_FREQUENCY;
 
 	switch (state->tune_state) {

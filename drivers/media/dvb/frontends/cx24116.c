@@ -1440,7 +1440,7 @@ tuned:  /* Set/Reset B/W */
 	return cx24116_cmd_execute(fe, &cmd);
 }
 
-static int cx24116_tune(struct dvb_frontend *fe, struct dvb_frontend_parameters *params,
+static int cx24116_tune(struct dvb_frontend *fe, bool re_tune,
 	unsigned int mode_flags, unsigned int *delay, fe_status_t *status)
 {
 	/*
@@ -1452,7 +1452,7 @@ static int cx24116_tune(struct dvb_frontend *fe, struct dvb_frontend_parameters 
 	 */
 
 	*delay = HZ / 5;
-	if (params) {
+	if (re_tune) {
 		int ret = cx24116_set_frontend(fe);
 		if (ret)
 			return ret;

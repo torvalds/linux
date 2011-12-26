@@ -547,7 +547,7 @@ static int dvb_frontend_thread(void *data)
 	fe_status_t s;
 	enum dvbfe_algo algo;
 
-	struct dvb_frontend_parameters *params;
+	bool re_tune = false;
 
 	dprintk("%s\n", __func__);
 
@@ -596,18 +596,15 @@ restart:
 			switch (algo) {
 			case DVBFE_ALGO_HW:
 				dprintk("%s: Frontend ALGO = DVBFE_ALGO_HW\n", __func__);
-				params = NULL; /* have we been asked to RETUNE ? */
 
 				if (fepriv->state & FESTATE_RETUNE) {
 					dprintk("%s: Retune requested, FESTATE_RETUNE\n", __func__);
-					params = &fepriv->parameters_in;
+					re_tune = true;
 					fepriv->state = FESTATE_TUNED;
 				}
 
 				if (fe->ops.tune)
-					fe->ops.tune(fe, params, fepriv->tune_mode_flags, &fepriv->delay, &s);
-				if (params)
-					fepriv->parameters_out = *params;
+					fe->ops.tune(fe, re_tune, fepriv->tune_mode_flags, &fepriv->delay, &s);
 
 				if (s != fepriv->status && !(fepriv->tune_mode_flags & FE_TUNE_MODE_ONESHOT)) {
 					dprintk("%s: state changed, adding current state\n", __func__);

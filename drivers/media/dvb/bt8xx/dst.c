@@ -1643,31 +1643,32 @@ static int dst_set_frontend(struct dvb_frontend *fe)
 }
 
 static int dst_tune_frontend(struct dvb_frontend* fe,
-			    struct dvb_frontend_parameters* p,
+			    bool re_tune,
 			    unsigned int mode_flags,
 			    unsigned int *delay,
 			    fe_status_t *status)
 {
 	struct dst_state *state = fe->demodulator_priv;
+	struct dtv_frontend_properties *p = &fe->dtv_property_cache;
 
-	if (p != NULL) {
+	if (re_tune) {
 		dst_set_freq(state, p->frequency);
 		dprintk(verbose, DST_DEBUG, 1, "Set Frequency=[%d]", p->frequency);
 
 		if (state->dst_type == DST_TYPE_IS_SAT) {
 			if (state->type_flags & DST_TYPE_HAS_OBS_REGS)
 				dst_set_inversion(state, p->inversion);
-			dst_set_fec(state, p->u.qpsk.fec_inner);
-			dst_set_symbolrate(state, p->u.qpsk.symbol_rate);
+			dst_set_fec(state, p->fec_inner);
+			dst_set_symbolrate(state, p->symbol_rate);
 			dst_set_polarization(state);
-			dprintk(verbose, DST_DEBUG, 1, "Set Symbolrate=[%d]", p->u.qpsk.symbol_rate);
+			dprintk(verbose, DST_DEBUG, 1, "Set Symbolrate=[%d]", p->symbol_rate);
 
 		} else if (state->dst_type == DST_TYPE_IS_TERR)
-			dst_set_bandwidth(state, p->u.ofdm.bandwidth);
+			dst_set_bandwidth(state, p->bandwidth_hz);
 		else if (state->dst_type == DST_TYPE_IS_CABLE) {
-			dst_set_fec(state, p->u.qam.fec_inner);
-			dst_set_symbolrate(state, p->u.qam.symbol_rate);
-			dst_set_modulation(state, p->u.qam.modulation);
+			dst_set_fec(state, p->fec_inner);
+			dst_set_symbolrate(state, p->symbol_rate);
+			dst_set_modulation(state, p->modulation);
 		}
 		dst_write_tuna(fe);
 	}

@@ -273,7 +273,7 @@ struct dvb_frontend_ops {
 
 	/* if this is set, it overrides the default swzigzag */
 	int (*tune)(struct dvb_frontend* fe,
-		    struct dvb_frontend_parameters* params,
+		    bool re_tune,
 		    unsigned int mode_flags,
 		    unsigned int *delay,
 		    fe_status_t *status);

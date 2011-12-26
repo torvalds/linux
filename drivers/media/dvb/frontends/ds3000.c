@@ -1205,12 +1205,12 @@ static int ds3000_set_frontend(struct dvb_frontend *fe)
 }
 
 static int ds3000_tune(struct dvb_frontend *fe,
-			struct dvb_frontend_parameters *p,
+			bool re_tune,
 			unsigned int mode_flags,
 			unsigned int *delay,
 			fe_status_t *status)
 {
-	if (p) {
+	if (re_tune) {
 		int ret = ds3000_set_frontend(fe);
 		if (ret)
 			return ret;
