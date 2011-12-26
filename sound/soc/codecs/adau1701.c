@@ -496,23 +496,19 @@ static __devinit int adau1701_i2c_probe(struct i2c_client *client,
 	struct adau1701 *adau1701;
 	int ret;
 
-	adau1701 = kzalloc(sizeof(*adau1701), GFP_KERNEL);
+	adau1701 = devm_kzalloc(&client->dev, sizeof(*adau1701), GFP_KERNEL);
 	if (!adau1701)
 		return -ENOMEM;
 
 	i2c_set_clientdata(client, adau1701);
 	ret = snd_soc_register_codec(&client->dev, &adau1701_codec_drv,
 			&adau1701_dai, 1);
-	if (ret < 0)
-		kfree(adau1701);
-
 	return ret;
 }
 
 static __devexit int adau1701_i2c_remove(struct i2c_client *client)
 {
 	snd_soc_unregister_codec(&client->dev);
-	kfree(i2c_get_clientdata(client));
 	return 0;
 }
 
