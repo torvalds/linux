@@ -1007,6 +1007,22 @@ static const struct rpc_filelist files[] = {
 	},
 };
 
+/*
+ * This call can be used only in RPC pipefs mount notification hooks.
+ */
+struct dentry *rpc_d_lookup_sb(const struct super_block *sb,
+			       const unsigned char *dir_name)
+{
+	struct qstr dir = {
+		.name = dir_name,
+		.len = strlen(dir_name),
+		.hash = full_name_hash(dir_name, strlen(dir_name)),
+	};
+
+	return d_lookup(sb->s_root, &dir);
+}
+EXPORT_SYMBOL_GPL(rpc_d_lookup_sb);
+
 static int
 rpc_fill_super(struct super_block *sb, void *data, int silent)
 {

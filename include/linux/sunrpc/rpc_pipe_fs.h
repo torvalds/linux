@@ -51,6 +51,9 @@ enum {
 	RPC_PIPEFS_UMOUNT,
 };
 
+extern struct dentry *rpc_d_lookup_sb(const struct super_block *sb,
+				      const unsigned char *dir_name);
+
 extern ssize_t rpc_pipe_generic_upcall(struct file *, struct rpc_pipe_msg *,
 				       char __user *, size_t);
 extern int rpc_queue_upcall(struct inode *, struct rpc_pipe_msg *);
