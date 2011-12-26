@@ -353,7 +353,8 @@ static int __devinit jz4740_codec_probe(struct platform_device *pdev)
 	struct jz4740_codec *jz4740_codec;
 	struct resource *mem;
 
-	jz4740_codec = kzalloc(sizeof(*jz4740_codec), GFP_KERNEL);
+	jz4740_codec = devm_kzalloc(&pdev->dev, sizeof(*jz4740_codec),
+				    GFP_KERNEL);
 	if (!jz4740_codec)
 		return -ENOMEM;
 
@@ -361,14 +362,14 @@ static int __devinit jz4740_codec_probe(struct platform_device *pdev)
 	if (!mem) {
 		dev_err(&pdev->dev, "Failed to get mmio memory resource\n");
 		ret = -ENOENT;
-		goto err_free_codec;
+		goto err_out;
 	}
 
 	mem = request_mem_region(mem->start, resource_size(mem), pdev->name);
 	if (!mem) {
 		dev_err(&pdev->dev, "Failed to request mmio memory region\n");
 		ret = -EBUSY;
-		goto err_free_codec;
+		goto err_out;
 	}
 
 	jz4740_codec->base = ioremap(mem->start, resource_size(mem));
@@ -394,9 +395,7 @@ err_iounmap:
 	iounmap(jz4740_codec->base);
 err_release_mem_region:
 	release_mem_region(mem->start, resource_size(mem));
-err_free_codec:
-	kfree(jz4740_codec);
-
+err_out:
 	return ret;
 }
 
@@ -411,7 +410,6 @@ static int __devexit jz4740_codec_remove(struct platform_device *pdev)
 	release_mem_region(mem->start, resource_size(mem));
 
 	platform_set_drvdata(pdev, NULL);
-	kfree(jz4740_codec);
 
 	return 0;
 }
