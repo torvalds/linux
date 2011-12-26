@@ -196,6 +196,23 @@ or, for backwards compatibility, the option value.  E.g.,
 
 	The parameters are as follows:
 
+active_slave
+
+	Specifies the new active slave for modes that support it
+	(active-backup, balance-alb and balance-tlb).  Possible values
+	are the name of any currently enslaved interface, or an empty
+	string.  If a name is given, the slave and its link must be up in order
+	to be selected as the new active slave.  If an empty string is
+	specified, the current active slave is cleared, and a new active
+	slave is selected automatically.
+
+	Note that this is only available through the sysfs interface. No module
+	parameter by this name exists.
+
+	The normal value of this option is the name of the currently
+	active slave, or the empty string if there is no active slave or
+	the current mode does not use an active slave.
+
 ad_select
 
 	Specifies the 802.3ad aggregation selection logic to use.  The
