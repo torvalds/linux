@@ -21,7 +21,7 @@
 
 #include "nvec.h"
 
-#define START_STREAMING	{'\x06', '\x03', '\x04'}
+#define START_STREAMING	{'\x06', '\x03', '\x06'}
 #define STOP_STREAMING	{'\x06', '\x04'}
 #define SEND_COMMAND	{'\x06', '\x01', '\xf4', '\x01'}
 
