@@ -342,6 +342,27 @@ static struct panel_config generic_dpi_panels[] = {
 		.power_off_delay	= 0,
 		.name			= "microtips_umsh_8173md",
 	},
+
+	/* OrtusTech COM43H4M10XTC */
+	{
+		{
+			.x_res		= 480,
+			.y_res		= 272,
+
+			.pixel_clock	= 8000,
+
+			.hsw		= 41,
+			.hfp		= 8,
+			.hbp		= 4,
+
+			.vsw		= 10,
+			.vfp		= 4,
+			.vbp		= 2,
+		},
+		.config			= OMAP_DSS_LCD_TFT,
+
+		.name			= "ortustech_com43h4m10xtc",
+	},
 };
 
 struct panel_drv_data {
