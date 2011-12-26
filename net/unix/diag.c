@@ -86,8 +86,7 @@ static int sk_diag_dump_icons(struct sock *sk, struct sk_buff *nlskb)
 			 */
 			unix_state_lock_nested(req);
 			peer = unix_sk(req)->peer;
-			if (peer)
-				buf[i++] = sock_i_ino(peer);
+			buf[i++] = (peer ? sock_i_ino(peer) : 0);
 			unix_state_unlock(req);
 		}
 		spin_unlock(&sk->sk_receive_queue.lock);
