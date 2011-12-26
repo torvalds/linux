@@ -302,8 +302,7 @@ struct qam_params {
 	u8 qam, lockthr, mseth, aref, agcrefnyq, eragnyq_thd;
 };
 
-static int tda10023_set_parameters (struct dvb_frontend *fe,
-			    struct dvb_frontend_parameters *p)
+static int tda10023_set_parameters(struct dvb_frontend *fe)
 {
 	struct dtv_frontend_properties *c = &fe->dtv_property_cache;
 	u32 delsys  = c->delivery_system;
@@ -374,21 +373,6 @@ static int tda10023_set_parameters (struct dvb_frontend *fe,
 
 	tda10023_setup_reg0(state, qam_params[qam].qam);
 
-	return 0;
-}
-
-static int tda10023_get_property(struct dvb_frontend *fe,
-				 struct dtv_property *p)
-{
-	switch (p->cmd) {
-	case DTV_ENUM_DELSYS:
-		p->u.buffer.data[0] = SYS_DVBC_ANNEX_A;
-		p->u.buffer.data[1] = SYS_DVBC_ANNEX_C;
-		p->u.buffer.len = 2;
-		break;
-	default:
-		break;
-	}
 	return 0;
 }
 
@@ -472,7 +456,7 @@ static int tda10023_read_ucblocks(struct dvb_frontend* fe, u32* ucblocks)
 	return 0;
 }
 
-static int tda10023_get_frontend(struct dvb_frontend* fe, struct dvb_frontend_parameters *p)
+static int tda10023_get_frontend(struct dvb_frontend *fe, struct dtv_frontend_properties *p)
 {
 	struct tda10023_state* state = fe->demodulator_priv;
 	int sync,inv;
@@ -487,17 +471,17 @@ static int tda10023_get_frontend(struct dvb_frontend* fe, struct dvb_frontend_pa
 		printk(sync & 2 ? "DVB: TDA10023(%d): AFC (%d) %dHz\n" :
 				  "DVB: TDA10023(%d): [AFC (%d) %dHz]\n",
 			state->frontend.dvb->num, afc,
-		       -((s32)p->u.qam.symbol_rate * afc) >> 10);
+		       -((s32)p->symbol_rate * afc) >> 10);
 	}
 
 	p->inversion = (inv&0x20?0:1);
-	p->u.qam.modulation = ((state->reg0 >> 2) & 7) + QAM_16;
+	p->modulation = ((state->reg0 >> 2) & 7) + QAM_16;
 
-	p->u.qam.fec_inner = FEC_NONE;
+	p->fec_inner = FEC_NONE;
 	p->frequency = ((p->frequency + 31250) / 62500) * 62500;
 
 	if (sync & 2)
-		p->frequency -= ((s32)p->u.qam.symbol_rate * afc) >> 10;
+		p->frequency -= ((s32)p->symbol_rate * afc) >> 10;
 
 	return 0;
 }
@@ -588,7 +572,7 @@ error:
 }
 
 static struct dvb_frontend_ops tda10023_ops = {
-
+	.delsys = { SYS_DVBC_ANNEX_A, SYS_DVBC_ANNEX_C },
 	.info = {
 		.name = "Philips TDA10023 DVB-C",
 		.type = FE_QAM,
@@ -609,9 +593,8 @@ static struct dvb_frontend_ops tda10023_ops = {
 	.sleep = tda10023_sleep,
 	.i2c_gate_ctrl = tda10023_i2c_gate_ctrl,
 
-	.set_frontend_legacy = tda10023_set_parameters,
-	.get_frontend_legacy = tda10023_get_frontend,
-	.get_property = tda10023_get_property,
+	.set_frontend = tda10023_set_parameters,
+	.get_frontend = tda10023_get_frontend,
 	.read_status = tda10023_read_status,
 	.read_ber = tda10023_read_ber,
 	.read_signal_strength = tda10023_read_signal_strength,
