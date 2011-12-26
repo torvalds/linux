@@ -2,6 +2,7 @@
 /*
  * USI wm-bn-bm-01-5(bcm4329) sdio wifi power management API
  * evb gpio define
+ * A10 gpio define:
  * usi_bm01a_wl_pwr        = port:PH12<1><default><default><0>
  * usi_bm01a_wlbt_regon    = port:PI11<1><default><default><0>
  * usi_bm01a_wl_rst        = port:PI10<1><default><default><0>
@@ -9,7 +10,17 @@
  * usi_bm01a_bt_rst        = port:PB05<1><default><default><0>
  * usi_bm01a_bt_wake       = port:PI20<1><default><default><0>
  * usi_bm01a_bt_hostwake   = port:PI21<0><default><default><0>
+ * -----------------------------------------------------------
+ * A12 gpio define:
+ * usi_bm01a_wl_pwr        = LDO3
+ * usi_bm01a_wl_wake       = port:PA01<1><default><default><0>
+ * usi_bm01a_wlbt_regon    = port:PA02<1><default><default><0>
+ * usi_bm01a_wl_rst        = port:PA03<1><default><default><0>
+ * usi_bm01a_bt_rst        = port:PA04<1><default><default><0>
+ * usi_bm01a_bt_wake       = port:PA05<1><default><default><0>
+ * usi_bm01a_bt_hostwake   = 
  */
+ 
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <mach/sys_config.h>
@@ -19,6 +30,34 @@
 #define usi_msg(...)    do {printk("[usi_bm01a]: "__VA_ARGS__);} while(0)
 static int usi_bm01a_wl_on = 0;
 static int usi_bm01a_bt_on = 0;
+
+#if CONFIG_CHIP_ID==1125
+#include <linux/regulator/consumer.h>
+static int usi_bm01a_power_onoff(int onoff)
+{
+	struct regulator* wifi_ldo = NULL;
+	static int first = 1;
+	  
+	usi_msg("usi_bm01a_power_onoff\n");
+	wifi_ldo = regulator_get(NULL, "axp20_pll");
+	if (!wifi_ldo)
+		usi_msg("Get power regulator failed\n");
+	if (first) {
+		usi_msg("first time\n");
+		regulator_force_disable(wifi_ldo);
+		first = 0;
+	}
+	if (onoff) {
+		usi_msg("regulator on\n");
+		regulator_set_voltage(wifi_ldo, 3300000, 3300000);
+		regulator_enable(wifi_ldo);
+	} else {
+		usi_msg("regulator off\n");
+		regulator_disable(wifi_ldo);
+	}
+	return 0;
+}
+#endif
 
 static int usi_bm01a_gpio_ctrl(char* name, int level)
 {
@@ -88,7 +127,13 @@ static int usi_bm01a_gpio_ctrl(char* name, int level)
     return 0;
     
 power_change:
+    #if CONFIG_CHIP_ID==1123
     ret = gpio_write_one_pin_value(ops->pio_hdle, level, "usi_bm01a_wl_pwr");
+    #elif CONFIG_CHIP_ID==1125
+    ret = usi_bm01a_power_onoff(level);
+    #else
+    #error "Found wrong chip id in wifi onoff\n"
+    #endif
     if (ret) {
         usi_msg("Failed to power off USI-BM01A module!\n");
         return -1;

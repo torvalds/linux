@@ -505,7 +505,8 @@ typedef struct __CCMU_CSI_CLK
 typedef struct __CCMU_VE_CLK_REG013C
 {
     __u32   Reset:1;            //bit0,  VE reset, 0-reset valid, 1-reset invalid
-    __u32   reserved0:15;       //bit1,  reserved
+    __u32   reserved0:14;       //bit1,  reserved
+    __u32   PllSwitch:1;        //bit15, PLL4 switch, 0-PLL4 source is PLL4, 1-PLL4 source is PLL6
     __u32   ClkDiv:3;           //bit16, Clock pre-divide ratio, divided by (n+1), 1~8 ex.
     __u32   reserved1:12;       //bit19, reserved
     __u32   SpecClkGate:1;      //bit31, gating special clock for VE, 0-mask, 1-pass

@@ -113,6 +113,7 @@ void    LCDC_open(__u32 sel);
 void    LCDC_close(__u32 sel);
 __s32   LCDC_set_int_line(__u32 sel, __u32 tcon_index,__u32 num);
 __s32   LCDC_clear_int(__u32 sel, __u32 irqsrc);
+__s32   LCDC_get_timing(__u32 sel,__u32 index,__disp_tcon_timing_t* tt);
 __s32   LCDC_enable_int(__u32 sel, __u32 irqsrc);
 __s32   LCDC_disable_int(__u32 sel, __u32 irqsrc);
 __u32    LCDC_query_int(__u32 sel);

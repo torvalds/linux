@@ -7,6 +7,7 @@ menuconfig WLAN
 	depends on !S390
 	depends on NET
 	select WIRELESS
+	select WIRELESS_EXT
 	default y
 	---help---
 	  This section contains all the pre 802.11 and 802.11 wireless

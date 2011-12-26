@@ -176,6 +176,44 @@ __s32 LCDC_clear_int(__u32 sel,__u32 irqsrc)
 	return 0;
 }
 
+__s32 LCDC_get_timing(__u32 sel,__u32 index,__disp_tcon_timing_t* tt)
+{
+    __u32 reg0,reg1,reg2,reg3;
+    __u32 x,y,ht,hbp,vt,vbp,hspw,vspw;
+
+    if(index==0)
+    {
+        reg0 = LCDC_RUINT32(sel, LCDC_BASIC0_OFF);
+        reg1 = LCDC_RUINT32(sel, LCDC_BASIC1_OFF);
+        reg2 = LCDC_RUINT32(sel, LCDC_BASIC2_OFF);
+        reg3 = LCDC_RUINT32(sel, LCDC_BASIC3_OFF);
+    }
+    else
+    {
+        reg0 = LCDC_RUINT32(sel, LCDC_HDTV0_OFF);
+        reg1 = LCDC_RUINT32(sel, LCDC_HDTV3_OFF);
+        reg2 = LCDC_RUINT32(sel, LCDC_HDTV4_OFF);
+        reg3 = LCDC_RUINT32(sel, LCDC_HDTV5_OFF);
+    }
+    x	= (reg0>>16) & 0x7ff;
+    y	= (reg0>>0 ) & 0x7ff;
+    ht	= (reg1>>16) & 0xfff;
+    hbp	= (reg1>>0 ) & 0xfff;
+    vt	= (reg2>>16) & 0xfff;
+    vbp	= (reg2>>0 ) & 0xfff;
+    hspw= (reg3>>16) & 0x3ff;
+    vspw= (reg3>>0 ) & 0x3ff;
+
+    tt->hor_back_porch 	= (hbp+1) - (hspw+1);	//left_margin
+    tt->hor_front_porch	= (ht+1)-(x+1)-(hbp+1); //right_margin
+    tt->ver_back_porch	= (vbp+1) - (vspw+1);	//upper_margin
+    tt->ver_front_porch	= (vt/2)-(y+1)-(vbp+1); //lower_margin
+    tt->hor_sync_time	= (hspw+1);             //hsync_len
+    tt->ver_sync_time	= (vspw+1);             //vsync_len
+
+    return 0;
+}
+
 #define ____SEPARATOR_TCON0____
 
 
@@ -254,8 +292,8 @@ void TCON0_cfg(__u32 sel, __panel_para_t * info)
 
 	if(info->lcd_if == LCDC_LCDIF_HV)
 	{
-	    __u32 hspw_tmp = 0;
-		__u32 vspw_tmp = 0;
+	    __u32 hspw_tmp = info->lcd_hv_hspw;
+		__u32 vspw_tmp = info->lcd_hv_vspw;
 
 		if(info->lcd_hv_hspw != 0)
 			hspw_tmp --;
@@ -517,9 +555,9 @@ __u32 TCON1_set_hdmi_mode(__u32 sel, __u8 mode)
         cfg.out_x       = 720;
         cfg.out_y       = 240;
         cfg.ht       = 858;
-        cfg.hbp      = 118;
+        cfg.hbp      = 119;
         cfg.vt       = 525;
-        cfg.vbp      = 19;
+        cfg.vbp      = 18;
         cfg.vspw     = 3;
         cfg.hspw     = 62;
         cfg.io_pol      = 0x04000000;
@@ -702,6 +740,46 @@ __u32 TCON1_set_hdmi_mode(__u32 sel, __u8 mode)
         cfg.io_pol      = 0x07000000;
         LCDC_WUINT32(sel, LCDC_3DF_A1B,(1125 + 1)<<12);
         LCDC_WUINT32(sel, LCDC_3DF_A1E,(1125 + 45)<<12);
+        LCDC_WUINT32(sel, LCDC_3DF_D1, 0);
+        LCDC_SET_BIT(sel, LCDC_3DF_CTL,1<<31);
+        break;
+    case DISP_TV_MOD_720P_50HZ_3D_FP:
+        cfg.b_interlace   = 0;
+        cfg.src_x      = 1280;
+        cfg.src_y      = 1440;
+        cfg.scl_x      = 1280;
+        cfg.scl_y      = 1440 + 30;
+        cfg.out_x      = 1280;
+        cfg.out_y      = 1440 + 30;
+        cfg.ht       = 1980;
+        cfg.hbp      = 260;
+        cfg.vt       = (750*4);
+        cfg.vbp      = 25;
+        cfg.vspw     = 5;
+        cfg.hspw     = 40;
+        cfg.io_pol      = 0x07000000;
+        LCDC_WUINT32(sel, LCDC_3DF_A1B,(750 + 1)<<12);
+        LCDC_WUINT32(sel, LCDC_3DF_A1E,(750 + 30)<<12);
+        LCDC_WUINT32(sel, LCDC_3DF_D1, 0);
+        LCDC_SET_BIT(sel, LCDC_3DF_CTL,1<<31);
+        break;
+    case DISP_TV_MOD_720P_60HZ_3D_FP:
+        cfg.b_interlace   = 0;
+        cfg.src_x       = 1280;
+        cfg.src_y       = 1440;
+        cfg.scl_x       = 1280;
+        cfg.scl_y       = 1440 + 30;
+        cfg.out_x       = 1280;
+        cfg.out_y       = 1440 + 30;
+        cfg.ht       = 1650;
+        cfg.hbp      = 260;
+        cfg.vt       = (750*4);
+        cfg.vbp      = 25;
+        cfg.vspw     = 5;
+        cfg.hspw     = 40;
+        cfg.io_pol      = 0x07000000;
+        LCDC_WUINT32(sel, LCDC_3DF_A1B,(750 + 1)<<12);
+        LCDC_WUINT32(sel, LCDC_3DF_A1E,(750 + 30)<<12);
         LCDC_WUINT32(sel, LCDC_3DF_D1, 0);
         LCDC_SET_BIT(sel, LCDC_3DF_CTL,1<<31);
         break;

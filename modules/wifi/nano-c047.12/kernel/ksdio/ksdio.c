@@ -106,6 +106,7 @@
 
 
 #if defined WINNER_POWER_ONOFF_CTRL && defined CONFIG_MMC_SUNXI_POWER_CONTROL
+#define SDIOID  (CONFIG_CHIP_ID==1123 ? 3 : 1)
 extern void sunximmc_rescan_card(unsigned id, unsigned insert);
 extern int mmc_pm_get_mod_type(void);
 extern int mmc_pm_gpio_ctrl(char* name, int level);
@@ -1538,7 +1539,7 @@ static int __init sdio_nrx_init(void)
     
 #if defined WINNER_POWER_ONOFF_CTRL && defined CONFIG_MMC_SUNXI_POWER_CONTROL
     nano_sdio_powerup();
-    sunximmc_rescan_card(3, 1);
+    sunximmc_rescan_card(SDIOID, 1);
 #endif
 
     return sdio_register_driver(&sdio_nrx_driver);
@@ -1566,7 +1567,7 @@ static void __exit sdio_nrx_exit(void)
     
 #if defined WINNER_POWER_ONOFF_CTRL && defined CONFIG_MMC_SUNXI_POWER_CONTROL
     nano_sdio_poweroff();
-    sunximmc_rescan_card(3, 0);
+    sunximmc_rescan_card(SDIOID, 0);
 #endif
 }
 

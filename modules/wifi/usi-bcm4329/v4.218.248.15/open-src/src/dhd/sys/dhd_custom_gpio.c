@@ -38,7 +38,8 @@
 #define WL_ERROR(x) printf x
 #define WL_TRACE(x)
 
-#if defined CONFIG_ARCH_SUN4I && defined CONFIG_MMC_SUNXI_POWER_CONTROL
+#if defined CONFIG_MMC_SUNXI_POWER_CONTROL
+#define SDIOID (CONFIG_CHIP_ID==1123 ? 3 : 1)
 extern void sunximmc_rescan_card(unsigned id, unsigned insert);
 extern int mmc_pm_get_mod_type(void);
 extern int mmc_pm_gpio_ctrl(char* name, int level);
@@ -111,7 +112,7 @@ int dhd_customer_oob_irq_map(unsigned long *irq_flags_ptr)
 void
 dhd_customer_gpio_wlan_ctrl(int onoff)
 {
-#if defined CONFIG_ARCH_SUN4I && defined CONFIG_MMC_SUNXI_POWER_CONTROL
+#if defined CONFIG_MMC_SUNXI_POWER_CONTROL
     unsigned int mod_sel = mmc_pm_get_mod_type();
 #endif
 
@@ -120,7 +121,7 @@ dhd_customer_gpio_wlan_ctrl(int onoff)
 			WL_TRACE(("%s: call customer specific GPIO to insert WLAN RESET\n",
 				__FUNCTION__));
 /* winner's power control */
-#if defined CONFIG_ARCH_SUN4I && defined CONFIG_MMC_SUNXI_POWER_CONTROL
+#if defined CONFIG_MMC_SUNXI_POWER_CONTROL
             switch (mod_sel)
             {
                 case 2: /* usi bm01a */
@@ -148,7 +149,7 @@ dhd_customer_gpio_wlan_ctrl(int onoff)
 			WL_TRACE(("%s: callc customer specific GPIO to remove WLAN RESET\n",
 				__FUNCTION__));
 /* winner's power control */
-#if defined CONFIG_ARCH_SUN4I && defined CONFIG_MMC_SUNXI_POWER_CONTROL
+#if defined CONFIG_MMC_SUNXI_POWER_CONTROL
             switch (mod_sel)
             {
                 case 2: /* usi bm01a */
@@ -178,7 +179,7 @@ dhd_customer_gpio_wlan_ctrl(int onoff)
 			WL_TRACE(("%s: call customer specific GPIO to turn off WL_REG_ON\n",
 				__FUNCTION__));
 /* winner's power control */
-#if defined CONFIG_ARCH_SUN4I && defined CONFIG_MMC_SUNXI_POWER_CONTROL
+#if defined CONFIG_MMC_SUNXI_POWER_CONTROL
             switch (mod_sel)
             {
                 case 2: /* usi bm01a */
@@ -191,7 +192,7 @@ dhd_customer_gpio_wlan_ctrl(int onoff)
                 default:
                     printk("[bcm4329]: no wifi module matched !!\n");
             }
-            sunximmc_rescan_card(3, 0);
+            sunximmc_rescan_card(SDIOID, 0);
 #endif
 #ifdef CUSTOMER_HW
 			bcm_wlan_power_off(1);
@@ -202,7 +203,7 @@ dhd_customer_gpio_wlan_ctrl(int onoff)
 			WL_TRACE(("%s: call customer specific GPIO to turn on WL_REG_ON\n",
 				__FUNCTION__));
 /* winner's power control */
-#if defined CONFIG_ARCH_SUN4I && defined CONFIG_MMC_SUNXI_POWER_CONTROL
+#if defined CONFIG_MMC_SUNXI_POWER_CONTROL
             switch (mod_sel)
             {
                 case 2: /* usi bm01a */
@@ -221,8 +222,8 @@ dhd_customer_gpio_wlan_ctrl(int onoff)
 #endif /* CUSTOMER_HW */
 			/* Lets customer power to get stable */
 			OSL_DELAY(200);
-#if defined CONFIG_ARCH_SUN4I && defined CONFIG_MMC_SUNXI_POWER_CONTROL
-            sunximmc_rescan_card(3, 1);
+#if defined CONFIG_MMC_SUNXI_POWER_CONTROL
+            sunximmc_rescan_card(SDIOID, 1);
 #endif
 		break;
 	}

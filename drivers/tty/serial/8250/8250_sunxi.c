@@ -27,8 +27,8 @@
 #include <mach/irqs.h>
 
 #include "8250.h"
-
 #define MAX_PORTS	    8
+
 static int sw_serial[MAX_PORTS];
 
 #define UART_MSG(fmt...)    printk("[uart]: "fmt)
@@ -169,12 +169,6 @@ sw_serial_probe(struct platform_device *dev)
 
     ret = sw_serial_get_config(sport, dev->id);
     if (ret) {
-		printk(KERN_ERR "cannot get serial config\n");
-        goto free_dev;
-    }
-
-    ret = sw_serial_get_config(sport, dev->id);
-    if (ret) {
         printk(KERN_ERR "Failed to get config information\n");
         goto free_dev;
     }
@@ -216,6 +210,8 @@ static int __devexit sw_serial_remove(struct platform_device *dev)
 	sw_serial[sport->port_no] = 0;
 	sw_serial_put_resource(sport);
 
+	kfree(sport);
+	sport = NULL;
 	return 0;
 }
 
@@ -230,35 +226,35 @@ static struct platform_driver sw_serial_driver = {
 
 static struct resource sw_uart_res[8][2] = {
     {/* uart0 resource */
-        {.start = UARTx_BASE(0),      .end = UARTx_BASE(0) + UART_BASE_OS, .flags = IORESOURCE_MEM}, /*base*/
+        {.start = UARTx_BASE(0),      .end = UARTx_BASE(0) + UART_BASE_OS - 1, .flags = IORESOURCE_MEM}, /*base*/
         {.start = SW_INT_IRQNO_UART0, .end = SW_INT_IRQNO_UART0,           .flags = IORESOURCE_IRQ}, /*irq */
     },
     {/* uart1 resource */
-        {.start = UARTx_BASE(1),      .end = UARTx_BASE(1) + UART_BASE_OS, .flags = IORESOURCE_MEM}, /*base*/
+        {.start = UARTx_BASE(1),      .end = UARTx_BASE(1) + UART_BASE_OS - 1, .flags = IORESOURCE_MEM}, /*base*/
         {.start = SW_INT_IRQNO_UART1, .end = SW_INT_IRQNO_UART1,           .flags = IORESOURCE_IRQ}, /*irq */
     },
     {/* uart2 resource */
-        {.start = UARTx_BASE(2),      .end = UARTx_BASE(2) + UART_BASE_OS, .flags = IORESOURCE_MEM}, /*base*/
+        {.start = UARTx_BASE(2),      .end = UARTx_BASE(2) + UART_BASE_OS - 1, .flags = IORESOURCE_MEM}, /*base*/
         {.start = SW_INT_IRQNO_UART2, .end = SW_INT_IRQNO_UART2,           .flags = IORESOURCE_IRQ}, /*irq */
     },
     {/* uart3 resource */
-        {.start = UARTx_BASE(3),      .end = UARTx_BASE(3) + UART_BASE_OS, .flags = IORESOURCE_MEM}, /*base*/
+        {.start = UARTx_BASE(3),      .end = UARTx_BASE(3) + UART_BASE_OS - 1, .flags = IORESOURCE_MEM}, /*base*/
         {.start = SW_INT_IRQNO_UART3, .end = SW_INT_IRQNO_UART3,           .flags = IORESOURCE_IRQ}, /*irq */
     },
     {/* uart4 resource */
-        {.start = UARTx_BASE(4),      .end = UARTx_BASE(4) + UART_BASE_OS, .flags = IORESOURCE_MEM}, /*base*/
+        {.start = UARTx_BASE(4),      .end = UARTx_BASE(4) + UART_BASE_OS - 1, .flags = IORESOURCE_MEM}, /*base*/
         {.start = SW_INT_IRQNO_UART4, .end = SW_INT_IRQNO_UART4,           .flags = IORESOURCE_IRQ}, /*irq */
     },
     {/* uart5 resource */
-        {.start = UARTx_BASE(5),      .end = UARTx_BASE(5) + UART_BASE_OS, .flags = IORESOURCE_MEM}, /*base*/
+        {.start = UARTx_BASE(5),      .end = UARTx_BASE(5) + UART_BASE_OS - 1, .flags = IORESOURCE_MEM}, /*base*/
         {.start = SW_INT_IRQNO_UART5, .end = SW_INT_IRQNO_UART5,           .flags = IORESOURCE_IRQ}, /*irq */
     },
     {/* uart6 resource */
-        {.start = UARTx_BASE(6),      .end = UARTx_BASE(6) + UART_BASE_OS, .flags = IORESOURCE_MEM}, /*base*/
+        {.start = UARTx_BASE(6),      .end = UARTx_BASE(6) + UART_BASE_OS - 1, .flags = IORESOURCE_MEM}, /*base*/
         {.start = SW_INT_IRQNO_UART6, .end = SW_INT_IRQNO_UART6,           .flags = IORESOURCE_IRQ}, /*irq */
     },
     {/* uart7 resource */
-        {.start = UARTx_BASE(7),      .end = UARTx_BASE(7) + UART_BASE_OS, .flags = IORESOURCE_MEM}, /*base*/
+        {.start = UARTx_BASE(7),      .end = UARTx_BASE(7) + UART_BASE_OS - 1, .flags = IORESOURCE_MEM}, /*base*/
         {.start = SW_INT_IRQNO_UART7, .end = SW_INT_IRQNO_UART7,           .flags = IORESOURCE_IRQ}, /*irq */
     },
 };
@@ -284,7 +280,7 @@ static int __init sw_serial_init(void)
 
     memset(sw_serial, 0, sizeof(sw_serial));
     uart_used = 0;
-    for (i=1; i<MAX_PORTS; i++, used=0) {
+    for (i=0; i<MAX_PORTS; i++, used=0) {
         sprintf(uart_para, "uart_para%d", i);
         ret = script_parser_fetch(uart_para, "uart_used", &used, sizeof(int));
         if (ret)
@@ -302,6 +298,13 @@ static int __init sw_serial_init(void)
     }
 
 	return 0;
+}
+
+int init_uart0(struct platform_device *dev)
+{
+	int uart0_ret;
+	uart0_ret=sw_serial_probe(dev);
+	return uart0_ret;
 }
 
 static void __exit sw_serial_exit(void)

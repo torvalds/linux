@@ -404,7 +404,11 @@ struct meminfo {
 static WEI_TQ_HEAD(, meminfo) mfree = WEI_TQ_HEAD_INITIALIZER(mfree);
 static WEI_TQ_HEAD(, meminfo) mactive = WEI_TQ_HEAD_INITIALIZER(mactive);
 
+#if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,38)
 static spinlock_t memlock = SPIN_LOCK_UNLOCKED;
+#else
+DEFINE_SPINLOCK(memlock); 
+#endif
 
 #define MEMSIZE 32
 static uint32_t memsize[MEMSIZE];

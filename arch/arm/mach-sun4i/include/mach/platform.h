@@ -96,11 +96,13 @@
 #define SW_PA_DEBE1_IO_BASE               0x01e40000
 #define SW_PA_MP_IO_BASE                  0x01e80000
 #define SW_PA_AVG_IO_BASE                 0x01ea0000
+#define SW_PA_BROM_BASE                   0xffff0000
 
 
 
 /* Virtual Address */
 #define SW_VA_SRAM_BASE                   0xf0000000	/*16KB*/
+#define SW_VA_BROM_BASE                   0xf0100000	/*64KB*/
 
 #define SW_VA_IO_BASE                     0xf1c00000
 #define SW_VA_SRAM_IO_BASE                0xf1c00000   /* 4KB */

@@ -244,8 +244,23 @@ __v7_setup:
 1:
 #endif
 
-3:	mov	r10, #0
+3:
+#ifdef CONFIG_ARCH_SUN4I
+	mrc	p15, 1, r10, c9, c0, 2 @ config L2 Cache Auxiliary Control Register, data ram latency to 3 cycles
+	bic	r10, r10, #0x000f
+	orr	r10, r10, #0x0002
+	mcr	p15, 1, r10, c9, c0, 2
+#endif
+#ifdef CONFIG_ARCH_SUN5I
+	mrc	p15, 1, r10, c9, c0, 2 @ config L2 Cache Auxiliary Control Register, data ram latency to 4 cycles
+	bic	r10, r10, #0x000f
+	orr	r10, r10, #0x0003
+	mcr	p15, 1, r10, c9, c0, 2
+#endif
+	mov	r10, #0
+#ifdef HARVARD_CACHE
 	mcr	p15, 0, r10, c7, c5, 0		@ I+BTB cache invalidate
+#endif
 	dsb
 #ifdef CONFIG_MMU
 	mcr	p15, 0, r10, c8, c7, 0		@ invalidate I + D TLBs

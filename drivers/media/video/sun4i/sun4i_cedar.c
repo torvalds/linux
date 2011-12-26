@@ -1017,7 +1017,8 @@ static int __init cedardev_init(void)
 		printk("set parent of ve_moduleclk to ve_pll4clk failed!\n");
 		return -EFAULT;
 	}
-	clk_set_rate(ve_moduleclk, pll4clk_rate/3);
+	/*default the ve freq to 160M by lys 2011-12-23 15:25:34*/
+	clk_set_rate(ve_moduleclk, pll4clk_rate/6);
 	/*geting dram clk for ve!*/
 	dram_veclk = clk_get(NULL, "sdram_ve");
 	hosc_clk = clk_get(NULL,"hosc");

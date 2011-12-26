@@ -20,6 +20,7 @@
 
 #include <linux/kernel.h>
 #include <mach/ccmu_regs.h>
+#include <mach/system.h>
 #include <asm/io.h>
 
 extern __ccmu_reg_list_t   *aw_ccu_reg;

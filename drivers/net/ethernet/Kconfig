@@ -170,8 +170,8 @@ source "drivers/net/ethernet/stmicro/Kconfig"
 source "drivers/net/ethernet/sun/Kconfig"
 
 config WEMAC_SUN4I
-        tristate "wemac support(sun4i)"
-        depends on ARCH_SUN4I
+        tristate "wemac support(A1x)"
+        depends on ARCH_SUN4I || ARCH_SUN5I
         ---help---
           Support for Softwinner chipset.
 

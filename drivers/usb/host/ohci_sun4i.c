@@ -501,6 +501,8 @@ void sw_ohci_hcd_shutdown(struct platform_device* pdev)
 
     usb_hcd_platform_shutdown(pdev);
 
+    sw_stop_ohc(sw_ohci);
+
  	DMSG_INFO("[%s]: ohci shutdown end\n", sw_ohci->hci_name);
 
     return;
@@ -573,23 +575,15 @@ static int sw_ohci_hcd_suspend(struct device *dev)
 	 * any locks =P But that will be a different fix.
 	 */
 	spin_lock_irqsave(&ohci->lock, flags);
-/*
-	if (hcd->state != HC_STATE_SUSPENDED) {
- 	    DMSG_PANIC("[%s]: hcd->state is not HC_STATE_SUSPENDED, can't suspend\n",
- 	               sw_ohci->hci_name);
-		rc = -EINVAL;
-		goto fail;
-	}
-*/
+
     ohci_writel(ohci, OHCI_INTR_MIE, &ohci->regs->intrdisable);
     (void)ohci_readl(ohci, &ohci->regs->intrdisable);
 
     clear_bit(HCD_FLAG_HW_ACCESSIBLE, &hcd->flags);
 
-    sw_stop_ohc(sw_ohci);
-
-//fail:
     spin_unlock_irqrestore(&ohci->lock, flags);
+
+    sw_stop_ohc(sw_ohci);
 
     return rc;
 }

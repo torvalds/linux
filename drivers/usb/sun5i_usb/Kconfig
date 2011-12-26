@@ -1,0 +1,63 @@
+#
+# softwinner SUN5I USB2.0 Dual Role Controller Driver.
+#
+
+#---------------------------------------------
+#-
+#- config USB2.0 Dual Role Controller.
+#-
+#---------------------------------------------
+menuconfig USB_SW_SUN5I_USB
+    tristate "SUN5I USB2.0 Dual Role Controller support"
+    depends on ARCH_SUN5I
+    help
+        SUN5I USB2.0 Dual Role Controller
+
+config USB_SW_SUN5I_USB_MANAGER
+    tristate "SUN5I USB2.0 Manager"
+    depends on USB_SW_SUN5I_USB
+    help
+        manager all usb controller.
+
+#---------------------------------------------
+#-
+#- usb0 mode slecet.
+#-
+#---------------------------------------------
+choice
+
+    prompt "USB0 Controller support"
+    depends on (USB_SW_SUN5I_USB && USB_SW_SUN5I_USB_MANAGER)
+    help
+        usb0 Controller mode slecet. choice "device only", then usb0 can only use for device.
+        choice "host only", then usb0 can only use for host. choice "OTG", then usb0 can only
+        use device and host.
+
+config USB_SW_SUN5I_USB0_NULL
+    boolean "usb manager not support"
+    help
+        usb0 do not monitor hardware, then drvier insmod shoud by application.
+
+config USB_SW_SUN5I_USB0_DEVICE_ONLY
+    boolean "device only support"
+    help
+        usb0 can only use for device.
+
+config USB_SW_SUN5I_USB0_HOST_ONLY
+    boolean "host only support"
+    help
+        usb0 can only use for host.
+
+config USB_SW_SUN5I_USB0_OTG
+    boolean "otg support"
+    help
+        usb0 can only use for device and host.
+
+
+endchoice
+
+config USB_SW_SUN5I_USB_DEBUG
+    tristate "SUN5I USB driver debug message"
+    depends on USB_SW_SUN5I_USB
+    help
+        SUN5I USB driver debug message.

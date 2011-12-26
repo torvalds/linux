@@ -44,7 +44,7 @@
 
 #include <asm/io.h>
 #include <asm/irq.h>
-
+#include "8250_sunxi.h"
 #include "8250.h"
 
 /*
@@ -273,7 +273,7 @@ static const struct serial8250_config uart_config[] = {
 		.name		= "U6_16550A",
 		.fifo_size	= 64,
 		.tx_loadsz	= 32,
-		.fcr		= UART_FCR_ENABLE_FIFO | UART_FCR_R_TRIG_10
+		.fcr		= UART_FCR_ENABLE_FIFO | UART_FCR_R_TRIG_11
 		              | UART_FCR_T_TRIG_10,
 		.flags		= UART_CAP_FIFO | UART_CAP_AFE,
 	},
@@ -859,7 +859,7 @@ static int broken_efr(struct uart_8250_port *up)
 	/*
 	 * Exar ST16C2550 "A2" devices incorrectly detect as
 	 * having an EFR, and report an ID of 0x0201.  See
-	 * http://linux.derkeiler.com/Mailing-Lists/Kernel/2004-11/4812.html 
+	 * http://linux.derkeiler.com/Mailing-Lists/Kernel/2004-11/4812.html
 	 */
 	if (autoconfig_read_divisor_id(up) == 0x0201 && size_fifo(up) == 16)
 		return 1;
@@ -1878,6 +1878,7 @@ static void serial8250_set_mctrl(struct uart_port *port, unsigned int mctrl)
 	DEBUG_SERIAL(port, "serial8250_set_mctrl, ncr %02x\n", mcr);
 
 	serial_port_out(port, UART_MCR, mcr);
+
 	DEBUG_SERIAL(port, "serial8250_set_mctrl over mctrl %02x up->mcr %02x: lcr %02x mcr %02x fcr %02x ier %02x\n",
 		     mctrl, up->mcr, serial_inp(up, UART_LCR), serial_inp(up, UART_MCR),
 		     serial_inp(up, UART_FCR), serial_inp(up, UART_IER));
@@ -2227,7 +2228,7 @@ dont_test_tx_en:
 	}
 
 	DEBUG_SERIAL(&up->port, "serial8250_startup over: lcr %02x mcr %02x fcr %02x ier %02x\n",
-                            serial_inp(up, UART_LCR), serial_inp(up, UART_MCR), 
+                            serial_inp(up, UART_LCR), serial_inp(up, UART_MCR),
                             serial_inp(up, UART_FCR), serial_inp(up, UART_IER));
 	return 0;
 }
@@ -3124,6 +3125,14 @@ static int __devinit serial8250_probe(struct platform_device *dev)
 		irqflag = IRQF_SHARED;
 
 	for (i = 0; p && p->flags != 0; p++, i++) {
+
+		/*because there is some trouble to instead uart0 port of different iotype
+		so I probe uart0 use our probe function in it*/
+		if( i == 0 ) {
+			init_uart0(dev);
+			continue;
+		}
+
 		port.iobase		= p->iobase;
 		port.membase		= p->membase;
 		port.irq		= p->irq;
@@ -3174,13 +3183,14 @@ static int serial8250_suspend(struct platform_device *dev, pm_message_t state)
 {
 	int i;
 
+#if 1
 	for (i = 0; i < UART_NR; i++) {
 		struct uart_8250_port *up = &serial8250_ports[i];
 
 		if (up->port.type != PORT_UNKNOWN && up->port.dev == &dev->dev)
 			uart_suspend_port(&serial8250_reg, &up->port);
 	}
-
+#endif
 	return 0;
 }
 
@@ -3384,10 +3394,14 @@ static int __init serial8250_init(void)
 
 	serial8250_register_ports(&serial8250_reg, &serial8250_isa_devs->dev);
 
+//register platform driver or not
+#if 1
 	ret = platform_driver_register(&serial8250_isa_driver);
 	if (ret == 0)
 		goto out;
-
+#else
+	goto out;
+#endif
 	platform_device_del(serial8250_isa_devs);
 put_dev:
 	platform_device_put(serial8250_isa_devs);

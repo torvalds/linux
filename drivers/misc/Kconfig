@@ -59,6 +59,14 @@ config SUN4I_VIBRATOR
 	  To compile this driver as a module, choose M here: the
 	  module will be called sun4i-vibrator.
 
+config SUNXI_DBGREG
+	tristate "Sunxi platform register debug driver"
+	help
+	  Say Y here if you want to read/write registers in userspace.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called sun4i-dbgreg.
+
 config ATMEL_PWM
 	tristate "Atmel AT32/AT91 PWM support"
 	depends on HAVE_CLK

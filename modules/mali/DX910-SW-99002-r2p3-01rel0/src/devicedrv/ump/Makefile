@@ -69,6 +69,14 @@ $(MODULE:.ko=-y) := $(SRC:.c=.o)
 else
 # Outside the kernel build system
 
+# Check that required parameters are supplied.
+ifeq ($(CONFIG),)
+$(error "CONFIG must be specified.")
+endif
+ifeq ($(CPU)$(KDIR),)
+$(error "KDIR or CPU must be specified.")
+endif
+
 # Get any user defined KDIR-<names> or maybe even a hardcoded KDIR
 -include KDIR_CONFIGURATION
 
@@ -78,15 +86,7 @@ KDIR-$(shell uname -m):=/lib/modules/$(shell uname -r)/build
 ifeq ($(ARCH), arm)
 	# when compiling for ARM we're cross compiling
 	export CROSS_COMPILE ?= arm-none-linux-gnueabi-
-	# default to Virtex5
-	CONFIG ?= pb-virtex5
-else
-	# Compiling for the host
-	CONFIG ?= $(shell uname -m)
 endif
-
-# default cpu to select
-CPU ?= ct11mp
 
 # look up KDIR based om CPU selection
 KDIR ?= $(KDIR-$(CPU))

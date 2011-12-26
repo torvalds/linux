@@ -230,7 +230,7 @@ int mem_dump_mmu_page_table_wrapper(struct mali_session_data *session_data, _mal
     if (!access_ok(VERIFY_WRITE, buffer, kargs.size)) goto err_exit;
 
     /* allocate temporary buffer (kernel side) to store mmu page table info */
-    kargs.buffer = _mali_osk_malloc(kargs.size);
+    kargs.buffer = _mali_osk_valloc(kargs.size);
     if (NULL == kargs.buffer)
     {
         rc = -ENOMEM;
@@ -254,7 +254,7 @@ int mem_dump_mmu_page_table_wrapper(struct mali_session_data *session_data, _mal
     rc = 0;
 
 err_exit:
-    if (kargs.buffer) _mali_osk_free(kargs.buffer);
+    if (kargs.buffer) _mali_osk_vfree(kargs.buffer);
     return rc;
 }
 

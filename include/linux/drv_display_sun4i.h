@@ -160,6 +160,8 @@ typedef enum
     DISP_TV_MOD_1080P_50HZ          = 9,
     DISP_TV_MOD_1080P_60HZ          = 0xa,
     DISP_TV_MOD_1080P_24HZ_3D_FP    = 0x17,
+    DISP_TV_MOD_720P_50HZ_3D_FP     = 0x18,
+    DISP_TV_MOD_720P_60HZ_3D_FP     = 0x19,
     DISP_TV_MOD_PAL                 = 0xb,
     DISP_TV_MOD_PAL_SVIDEO          = 0xc,
     DISP_TV_MOD_NTSC                = 0xe,
@@ -168,7 +170,7 @@ typedef enum
     DISP_TV_MOD_PAL_M_SVIDEO        = 0x12,
     DISP_TV_MOD_PAL_NC              = 0x14,
     DISP_TV_MOD_PAL_NC_SVIDEO       = 0x15,
-    DISP_TV_MODE_NUM               = 0x18,
+    DISP_TV_MODE_NUM               = 0x1a,
 }__disp_tv_mode_t;
 
 typedef enum
@@ -451,6 +453,21 @@ typedef struct
 
 typedef struct
 {
+	__u32	pixel_clk;//khz
+	__u32	hor_pixels;
+	__u32	ver_pixels;
+	__u32	hor_total_time;
+	__u32	hor_front_porch;
+	__u32	hor_sync_time;
+	__u32	hor_back_porch;
+	__u32	ver_total_time;
+	__u32	ver_front_porch;
+	__u32	ver_sync_time;
+	__u32	ver_back_porch;
+}__disp_tcon_timing_t;
+
+typedef struct
+{
 	__u32 base_lcdc0;
 	__u32 base_lcdc1;
 	__u32 base_pioc;
@@ -570,9 +587,11 @@ typedef enum tag_DISP_CMD
     DISP_CMD_SET_BRIGHT = 0x12,
     DISP_CMD_SET_CONTRAST = 0x13,
     DISP_CMD_SET_SATURATION = 0x14,
+    DISP_CMD_SET_HUE=0x23,
     DISP_CMD_GET_BRIGHT = 0x16,
     DISP_CMD_GET_CONTRAST = 0x17,
     DISP_CMD_GET_SATURATION = 0x18,
+    DISP_CMD_GET_HUE=0x24,
     DISP_CMD_ENHANCE_ON = 0x1a,
     DISP_CMD_ENHANCE_OFF = 0x1b,
     DISP_CMD_GET_ENHANCE_EN = 0x1c,
