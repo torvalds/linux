@@ -76,3 +76,11 @@ config CSI_OV2655
 	---help---
 	  This is a Video4Linux2 sensor-level driver for the MOmniVision 
 	  OV2655 UXGA camera.	  
+
+config CSI_HI253
+	tristate "Hynix HI253 UXGA sensor support"
+	depends on I2C && VIDEO_V4L2
+	select	CSI_DEV_SEL
+	---help---
+	  This is a Video4Linux2 sensor-level driver for the Hynix 
+	  HI253 UXGA camera.	  

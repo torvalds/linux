@@ -1195,6 +1195,12 @@ static int sensor_power(struct v4l2_subdev *sd, int on)
 			msleep(10);
 			break;
 		case CSI_SUBDEV_PWR_ON:
+			gpio_set_one_pin_io_status(dev->csi_pin_hd,1,csi_stby_str);//set the gpio to output
+			gpio_set_one_pin_io_status(dev->csi_pin_hd,1,csi_reset_str);//set the gpio to output
+			
+			gpio_write_one_pin_value(dev->csi_pin_hd,CSI_STBY_ON,csi_stby_str);
+			msleep(10);
+			
 			gpio_write_one_pin_value(dev->csi_pin_hd,CSI_PWR_ON,csi_power_str);
 			msleep(10);
 			if(dev->dvdd) {
@@ -1209,9 +1215,7 @@ static int sensor_power(struct v4l2_subdev *sd, int on)
 				regulator_enable(dev->iovdd);
 				msleep(10);
 			}
-			
-			gpio_set_one_pin_io_status(dev->csi_pin_hd,1,csi_stby_str);//set the gpio to output
-			gpio_set_one_pin_io_status(dev->csi_pin_hd,1,csi_reset_str);//set the gpio to output
+		
 			break;
 			
 		case CSI_SUBDEV_PWR_OFF:

@@ -41,7 +41,7 @@
 
 #include <asm/io.h>
 #include <asm/irq.h>
-
+#include "8250_sunxi.h"
 #include "8250.h"
 
 #define UART_USR        31
@@ -308,7 +308,7 @@ static const struct serial8250_config uart_config[] = {
 		.name		= "U6_16550A",
 		.fifo_size	= 64,
 		.tx_loadsz	= 32,
-		.fcr		= UART_FCR_ENABLE_FIFO | UART_FCR_R_TRIG_10
+		.fcr		= UART_FCR_ENABLE_FIFO | UART_FCR_R_TRIG_11
 		              | UART_FCR_T_TRIG_10,
 		.flags		= UART_CAP_FIFO | UART_CAP_AFE,
 	},
@@ -3226,6 +3226,14 @@ static int __devinit serial8250_probe(struct platform_device *dev)
 		irqflag = IRQF_SHARED;
 
 	for (i = 0; p && p->flags != 0; p++, i++) {
+
+		/*because there is some trouble to instead uart0 port of different iotype
+		so I probe uart0 use our probe function in it*/
+		if( i == 0 ) {
+			init_uart0(dev);
+			continue;
+		}
+
 		port.iobase		= p->iobase;
 		port.membase		= p->membase;
 		port.irq		= p->irq;
@@ -3276,13 +3284,14 @@ static int serial8250_suspend(struct platform_device *dev, pm_message_t state)
 {
 	int i;
 
+#if 1
 	for (i = 0; i < UART_NR; i++) {
 		struct uart_8250_port *up = &serial8250_ports[i];
 
 		if (up->port.type != PORT_UNKNOWN && up->port.dev == &dev->dev)
 			uart_suspend_port(&serial8250_reg, &up->port);
 	}
-
+#endif
 	return 0;
 }
 
@@ -3484,10 +3493,14 @@ static int __init serial8250_init(void)
 
 	serial8250_register_ports(&serial8250_reg, &serial8250_isa_devs->dev);
 
+//register platform driver or not
+#if 1
 	ret = platform_driver_register(&serial8250_isa_driver);
 	if (ret == 0)
 		goto out;
-
+#else
+	goto out;
+#endif
 	platform_device_del(serial8250_isa_devs);
 put_dev:
 	platform_device_put(serial8250_isa_devs);

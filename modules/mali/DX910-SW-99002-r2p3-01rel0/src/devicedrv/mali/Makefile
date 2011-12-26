@@ -22,9 +22,18 @@ FILES_PREFIX=
 # This conditional makefile exports the global definition ARM_INTERNAL_BUILD. Customer releases will not include arm_internal.mak
 -include ../../../arm_internal.mak
 
+# Check that required parameters are supplied.
+ifeq ($(CONFIG),)
+$(error "CONFIG must be specified.")
+endif
+ifeq ($(CPU)$(KDIR),)
+$(error "KDIR or CPU must be specified.")
+endif
+
 ifeq ($(USING_UMP),1)
-	UMP_SYMVERS_FILE = ../ump/Module.symvers
-	KBUILD_EXTRA_SYMBOLS = $(CURDIR)/$(UMP_SYMVERS_FILE)
+UMP_SYMVERS_FILE ?= ../ump/Module.symvers
+KBUILD_EXTRA_SYMBOLS = $(realpath $(UMP_SYMVERS_FILE))
+$(warning $(KBUILD_EXTRA_SYMBOLS))
 endif
 
 # Get any user defined KDIR-<names> or maybe even a hardcoded KDIR
@@ -36,15 +45,7 @@ KDIR-$(shell uname -m):=/lib/modules/$(shell uname -r)/build
 ifeq ($(ARCH), arm)
 	# when compiling for ARM we're cross compiling
 	export CROSS_COMPILE ?= arm-none-linux-gnueabi-
-	# default to Virtex5
-	CONFIG ?= pb-virtex5-m200
-else
-	# Compiling for the host
-	CONFIG ?= $(shell uname -m)
 endif
-
-# default cpu to select
-CPU ?= pb11mp
 
 # look up KDIR based om CPU selection
 KDIR ?= $(KDIR-$(CPU))

@@ -30,7 +30,7 @@
 #include <linux/io.h>
 
 #include <mach/clock.h>
-
+#include <mach/system.h>
 
 /* we predefine the count here, but it's ugly, maybe malloc is better */
 #define MAX_SYSTEM_CLK_CNT  (32)
@@ -157,27 +157,73 @@ int clk_init(void)
     tmpSclk->clk->onoff = AW_CCU_CLK_ON;
     tmpSclk->set_clk(tmpSclk->clk);
 
-    tmpSclk = &ccu_sys_clk[AW_SYS_CLK_PLL4];
-    tmpSclk->clk->rate  = 960000000;
-    tmpSclk->set_clk(tmpSclk->clk);
-    tmpSclk->clk->onoff = AW_CCU_CLK_ON;
-    tmpSclk->set_clk(tmpSclk->clk);
+    if(MAGIC_VER_C == sw_get_ic_ver()) {
+        /* initiate PLL4 */
+        #if(USE_PLL6M_REPLACE_PLL4)
+        tmpSclk = &ccu_sys_clk[AW_SYS_CLK_PLL4];
+        tmpSclk->clk->onoff = AW_CCU_CLK_OFF;
+        tmpSclk->set_clk(tmpSclk->clk);
+        #else
+        tmpSclk = &ccu_sys_clk[AW_SYS_CLK_PLL4];
+        tmpSclk->clk->rate  = 960000000;
+        tmpSclk->set_clk(tmpSclk->clk);
+        tmpSclk->clk->onoff = AW_CCU_CLK_ON;
+        tmpSclk->set_clk(tmpSclk->clk);
+        #endif
 
-    tmpSclk = &ccu_sys_clk[AW_SYS_CLK_PLL6];
-    tmpSclk->clk->rate  = 600000000;
-    tmpSclk->set_clk(tmpSclk->clk);
-    tmpSclk->clk->onoff = AW_CCU_CLK_ON;
-    tmpSclk->set_clk(tmpSclk->clk);
-    tmpSclk = &ccu_sys_clk[AW_SYS_CLK_PLL6M];
-    tmpSclk->clk->rate  = 100000000;
-    tmpSclk->set_clk(tmpSclk->clk);
-    tmpSclk->clk->onoff = AW_CCU_CLK_ON;
-    tmpSclk->set_clk(tmpSclk->clk);
-    tmpSclk = &ccu_sys_clk[AW_SYS_CLK_PLL62];
-    tmpSclk->clk->rate  = 300000000;
-    tmpSclk->set_clk(tmpSclk->clk);
-    tmpSclk->clk->onoff = AW_CCU_CLK_ON;
-    tmpSclk->set_clk(tmpSclk->clk);
+        /* sata pll set to 960mhz for c ver. */
+        tmpSclk = &ccu_sys_clk[AW_SYS_CLK_PLL6];
+        #if(USE_PLL6M_REPLACE_PLL4)
+        tmpSclk->clk->rate  = 960000000;
+        #else
+        tmpSclk->clk->rate  = 600000000;
+        #endif
+        tmpSclk->set_clk(tmpSclk->clk);
+        tmpSclk->clk->onoff = AW_CCU_CLK_ON;
+        tmpSclk->set_clk(tmpSclk->clk);
+        tmpSclk = &ccu_sys_clk[AW_SYS_CLK_PLL6M];
+        #if(USE_PLL6M_REPLACE_PLL4)
+        tmpSclk->clk->rate  = 960000000;
+        #else
+        tmpSclk->clk->rate  = 100000000;
+        #endif
+        tmpSclk->set_clk(tmpSclk->clk);
+        tmpSclk->clk->onoff = AW_CCU_CLK_ON;
+        tmpSclk->set_clk(tmpSclk->clk);
+        tmpSclk = &ccu_sys_clk[AW_SYS_CLK_PLL62];
+        #if(USE_PLL6M_REPLACE_PLL4)
+        tmpSclk->clk->rate  = 480000000;
+        #else
+        tmpSclk->clk->rate  = 300000000;
+        #endif
+        tmpSclk->set_clk(tmpSclk->clk);
+        tmpSclk->clk->onoff = AW_CCU_CLK_ON;
+        tmpSclk->set_clk(tmpSclk->clk);
+    } else {
+        /* initiate PLL4 */
+        tmpSclk = &ccu_sys_clk[AW_SYS_CLK_PLL4];
+        tmpSclk->clk->rate  = 960000000;
+        tmpSclk->set_clk(tmpSclk->clk);
+        tmpSclk->clk->onoff = AW_CCU_CLK_ON;
+        tmpSclk->set_clk(tmpSclk->clk);
+
+        /* initiate PLL6 */
+        tmpSclk = &ccu_sys_clk[AW_SYS_CLK_PLL6];
+        tmpSclk->clk->rate  = 600000000;
+        tmpSclk->set_clk(tmpSclk->clk);
+        tmpSclk->clk->onoff = AW_CCU_CLK_ON;
+        tmpSclk->set_clk(tmpSclk->clk);
+        tmpSclk = &ccu_sys_clk[AW_SYS_CLK_PLL6M];
+        tmpSclk->clk->rate  = 100000000;
+        tmpSclk->set_clk(tmpSclk->clk);
+        tmpSclk->clk->onoff = AW_CCU_CLK_ON;
+        tmpSclk->set_clk(tmpSclk->clk);
+        tmpSclk = &ccu_sys_clk[AW_SYS_CLK_PLL62];
+        tmpSclk->clk->rate  = 300000000;
+        tmpSclk->set_clk(tmpSclk->clk);
+        tmpSclk->clk->onoff = AW_CCU_CLK_ON;
+        tmpSclk->set_clk(tmpSclk->clk);
+    }
 
     tmpSclk = &ccu_sys_clk[AW_SYS_CLK_PLL7];
     tmpSclk->clk->onoff = AW_CCU_CLK_ON;

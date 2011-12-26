@@ -229,7 +229,6 @@ static __inline void sdxc_sel_access_mode(struct sunxi_mmc_host* smc_host, u32 a
 static __inline u32 sdxc_enable_imask(struct sunxi_mmc_host* smc_host, u32 imask)
 {
 	u32 newmask = readl(SDXC_REG_IMASK) | imask;
-    
 	writel(newmask, SDXC_REG_IMASK);
 	return newmask;
 }
@@ -246,7 +245,6 @@ static __inline u32 sdxc_enable_imask(struct sunxi_mmc_host* smc_host, u32 imask
 static __inline u32 sdxc_disable_imask(struct sunxi_mmc_host* smc_host, u32 imask)
 {
     u32 newmask = readl(SDXC_REG_IMASK) & (~imask);
-    
     writel(newmask, SDXC_REG_IMASK);
 	return newmask;
 }
@@ -262,7 +260,13 @@ static __inline u32 sdxc_disable_imask(struct sunxi_mmc_host* smc_host, u32 imas
  */
 static __inline void sdxc_clear_imask(struct sunxi_mmc_host* smc_host)
 {
-    writel(readl(SDXC_REG_IMASK)&(SDXC_SDIOInt|SDXC_CardInsert|SDXC_CardRemove), SDXC_REG_IMASK);
+	/* use 16bit read/write operation to enable/disable other interrupt bits
+	 * sdio/card-det bits are controlled by it self operation.
+	 * If you want use 32bit operation, you must do an atomic operation on 
+	 * this read and write back operation.
+	 */
+	writew(0, SDXC_REG_IMASK);
+//	writel(readl(SDXC_REG_IMASK)&(SDXC_SDIOInt|SDXC_CardInsert|SDXC_CardRemove), SDXC_REG_IMASK);
 }
 
 
@@ -389,7 +393,7 @@ s32 sdxc_program_clk(struct sunxi_mmc_host* smc_host)
 	}
 	
 	//clear command cone flag
-	rval = readl(SDXC_REG_RINTR);
+	rval = readl(SDXC_REG_RINTR) & (~SDXC_SDIOInt);
 	writel(rval, SDXC_REG_RINTR);
 	
 	//enable command done interrupt
@@ -996,7 +1000,7 @@ void sdxc_check_status(struct sunxi_mmc_host* smc_host)
 	if (msk_int & SDXC_SDIOInt) 
 	{
 		smc_host->sdio_int = 1;
-    	writel(SDXC_SDIOInt, SDXC_REG_RINTR);
+		writel(SDXC_SDIOInt, SDXC_REG_RINTR);
 	}
 	
 	if (smc_host->cd_gpio == CARD_DETECT_BY_DATA3)

@@ -340,7 +340,7 @@ static int __init aw_clkevt_init(void)
 	aw_clock_event.mult = div_sc(AW_HPET_CLOCK_EVENT_HZ, NSEC_PER_SEC, aw_clock_event.shift);
 	aw_clock_event.max_delta_ns = clockevent_delta2ns((0x80000000), &aw_clock_event);
 	/* time value timer must larger than 50 cycles at least, suggested by david 2011-5-25 11:41 */
-	aw_clock_event.min_delta_ns = clockevent_delta2ns(1, &aw_clock_event) + 4000;
+	aw_clock_event.min_delta_ns = clockevent_delta2ns(1, &aw_clock_event) + 100000;
 	aw_clock_event.cpumask = cpumask_of(0);
     clockevents_register_device(&aw_clock_event);
 

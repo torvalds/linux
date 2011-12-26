@@ -160,6 +160,12 @@
 #define	gadget_is_renesas_usbhs(g) 0
 #endif
 
+#if defined(CONFIG_USB_SW_SUN3I_UDC0) || defined(CONFIG_USB_SW_SUN4I_UDC0)
+#define	gadget_is_softwinner_otg(g) (!strcmp("sw_usb_udc", (g)->name))
+#else
+#define	gadget_is_softwinner_otg(g) 0
+#endif
+
 /**
  * usb_gadget_controller_number - support bcdDevice id convention
  * @gadget: the controller being driven
@@ -222,6 +228,8 @@ static inline int usb_gadget_controller_number(struct usb_gadget *gadget)
 	else if (gadget_is_renesas_usbhs(gadget))
 		return 0x29;
 	else if (gadget_is_s3c_hsudc(gadget))
+		return 0x30;
+	else if (gadget_is_softwinner_otg(gadget))
 		return 0x30;
 
 	return -ENOENT;

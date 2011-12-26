@@ -741,6 +741,7 @@ config  TOUCHSCREEN_SUN4I_TS
        tristate  "sun4i-ts touchscreen driver"
        help
            sun4i-ts touchscreen driver
+
 config TOUCHSCREEN_FT5X_TS
        tristate  "ft5x touchscreen driver"
        help

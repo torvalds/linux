@@ -56,7 +56,8 @@
 
 static struct map_desc sw_io_desc[] __initdata = {
 	{ SW_VA_SRAM_BASE, __phys_to_pfn(SW_PA_SRAM_BASE),  (SZ_128K + SZ_64K), MT_MEMORY_ITCM  },
-	{ SW_VA_IO_BASE,   __phys_to_pfn(SW_PA_IO_BASE),    (SZ_1M + SZ_2M),    MT_DEVICE    },
+	{ SW_VA_IO_BASE,   __phys_to_pfn(SW_PA_IO_BASE),    (SZ_1M + SZ_2M),    MT_DEVICE       },
+	{ SW_VA_BROM_BASE, __phys_to_pfn(SW_PA_BROM_BASE),  (SZ_64K),           MT_MEMORY_ITCM  },
 };
 
 void __init sw_core_map_io(void)
@@ -256,7 +257,7 @@ void __init sw_core_init_irq(void)
 	writel(0xffffffff, SW_INT_FIQ_PENDING_REG0);
 	writel(0xffffffff, SW_INT_FIQ_PENDING_REG1);
 	writel(0xffffffff, SW_INT_FIQ_PENDING_REG2);
-	
+
 	/*enable protection mode*/
 	writel(0x01, SW_INT_PROTECTION_REG);
 	/*config the external interrupt source type*/
@@ -402,11 +403,14 @@ enum sw_ic_ver sw_get_ic_ver(void)
 
 	val = (val >> 6) & 0x3;
 
-	if (val == 0x3) {
-		return MAGIC_VER_B;
+	if (val == 0x00) {
+		return MAGIC_VER_A;
+	}
+	else if(val == 0x03) {
+	    return MAGIC_VER_B;
 	}
 
-	return MAGIC_VER_A;
+	return MAGIC_VER_C;
 }
 EXPORT_SYMBOL(sw_get_ic_ver);
 /**
@@ -426,7 +430,7 @@ EXPORT_SYMBOL(sw_get_ic_ver);
 
 
 MACHINE_START(SUN4I, "sun4i")
-	.boot_params    = PLAT_PHYS_OFFSET + 0x400,
+	.boot_params    = PLAT_PHYS_OFFSET + 0x100,
 	.timer          = &sw_sys_timer,
 	.fixup          = sw_core_fixup,
 	.map_io         = sw_core_map_io,

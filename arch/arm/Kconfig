@@ -41,6 +41,7 @@ config CHIP_ID
         int
         default 1120 if ARCH_SUN3I
         default 1123 if ARCH_SUN4I
+	default 1125 if ARCH_SUN5I
 
 config HAVE_PWM
 	bool
@@ -605,7 +606,7 @@ config ARCH_TEGRA
 config ARCH_SUN4I
 	bool "AllWinner SUN4I Platform"
 	select CPU_V7
-    select ARM_AMBA
+	select ARM_AMBA
 	select HAVE_CLK
 	select CLKDEV_LOOKUP
 	select CLKSRC_MMIO
@@ -613,11 +614,27 @@ config ARCH_SUN4I
 	select ARCH_HAS_CPUFREQ
 	select ARM_L1_CACHE_SHIFT_6
 	help
-	  This enables support for Allwinner Technology Co., Ltd A1x SoC based systems
+	  This enables support for Allwinner Technology Co., Ltd A10 SoC based systems
+
+config ARCH_SUN5I
+        bool "AllWinner SUN5I Platform"
+        select CPU_V7
+        select ARM_AMBA
+        select HAVE_CLK
+        select CLKDEV_LOOKUP
+        select CLKSRC_MMIO
+        select GENERIC_CLOCKEVENTS
+        select ARCH_HAS_CPUFREQ
+        select ARM_L1_CACHE_SHIFT_6
+        help
+          This enables support for Allwinner Technology Co., Ltd A12/A13 SoC based systems
 
 #if ARCH_SUN4I
-#source "arch/arm/mach-sun4i/Kconfig
+#source "arch/arm/mach-sun4i/Kconfig"
 #endif
+if ARCH_SUN5I
+source "arch/arm/mach-sun5i/Kconfig"
+endif
 
 config ARCH_PNX4008
 	bool "Philips Nexperia PNX4008 Mobile"

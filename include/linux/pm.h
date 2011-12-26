@@ -28,6 +28,9 @@
 #include <linux/timer.h>
 #include <linux/completion.h>
 
+extern int standby_type; 
+#define NORMAL_STANDY	(1)
+#define SUPER_STANDBY		(3)
 /*
  * Callbacks for platform drivers to implement.
  */

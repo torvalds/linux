@@ -533,4 +533,12 @@ config SUN4I_NANDFLASH
         ---help---
           Nand flash driver for SUN4I
 
+config SUN5I_NANDFLASH
+	depends on BLOCK && ARCH_SUN5I
+	tristate "Nandflash Driver for A12/A13"
+	---help---
+	  Nand flash driver for A12/A13
+
+
+
 endif # BLK_DEV

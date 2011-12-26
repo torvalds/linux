@@ -25,16 +25,6 @@ static int sdc_used;
 unsigned int smc_debug = 0;
 module_param_named(debuglevel, smc_debug, int, 0);
 
-/* Module parameters */
-static unsigned int smc_mclk_source = SMC_MCLK_SRC_DRAMPLL;
-module_param_named(mclk_source, smc_mclk_source, int, 0);
-
-static unsigned int smc_io_clock = SMC_MAX_IO_CLOCK;
-module_param_named(io_clock, smc_io_clock, int, 0);
-
-static unsigned int smc_mod_clock = SMC_MAX_MOD_CLOCK;
-module_param_named(mod_clock, smc_mod_clock, int, 0);
-
 s32 sunximmc_init_controller(struct sunxi_mmc_host* smc_host)
 {
     SMC_INFO("MMC Driver init host %d\n", smc_host->pdev->id);
@@ -654,14 +644,14 @@ static int __devinit sunximmc_probe(struct platform_device *pdev)
     tasklet_init(&smc_host->tasklet, sunximmc_tasklet, (unsigned long) smc_host);
 
     smc_host->cclk  = 400000;
-    smc_host->mod_clk   = pdev->id == 3 ? SMC_3_MAX_MOD_CLOCK : smc_mod_clock;
-    smc_host->clk_source = smc_mclk_source;
+    smc_host->mod_clk = SMC_MAX_MOD_CLOCK(pdev->id);
+    smc_host->clk_source = SMC_MOD_CLK_SRC(pdev->id);
 
     mmc->ops        = &sunximmc_ops;
     mmc->ocr_avail	= MMC_VDD_32_33 | MMC_VDD_33_34;
     mmc->caps	    = MMC_CAP_4_BIT_DATA|MMC_CAP_MMC_HIGHSPEED|MMC_CAP_SD_HIGHSPEED|MMC_CAP_SDIO_IRQ;
     mmc->f_min 	    = 400000;
-    mmc->f_max 	    = pdev->id == 3 ? SMC_3_MAX_IO_CLOCK :  smc_io_clock;
+    mmc->f_max      = SMC_MAX_IO_CLOCK(pdev->id);
     if (pdev->id==3 && !mmc_pm_io_shd_suspend_host())
         mmc->pm_flags = MMC_PM_IGNORE_PM_NOTIFY;
 

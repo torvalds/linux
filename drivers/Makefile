@@ -73,6 +73,7 @@ obj-$(CONFIG_PCI)		+= usb/
 obj-$(CONFIG_USB_GADGET)	+= usb/
 obj-$(CONFIG_USB_SW_SUN3I_USB) += usb/sun3i_usb/
 obj-$(CONFIG_USB_SW_SUN4I_USB) += usb/sun4i_usb/
+obj-$(CONFIG_USB_SW_SUN5I_USB) += usb/sun5i_usb/
 obj-$(CONFIG_SERIO)		+= input/serio/
 obj-$(CONFIG_GAMEPORT)		+= input/gameport/
 obj-$(CONFIG_INPUT)		+= input/

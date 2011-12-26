@@ -111,3 +111,4 @@ obj-$(CONFIG_RTC_DRV_WM831X)	+= rtc-wm831x.o
 obj-$(CONFIG_RTC_DRV_WM8350)	+= rtc-wm8350.o
 obj-$(CONFIG_RTC_DRV_X1205)	+= rtc-x1205.o
 obj-$(CONFIG_RTC_DRV_SUN4I)	+= rtc-sun4i.o
+obj-$(CONFIG_RTC_DRV_SUN5I)	+= rtc-sun5i.o

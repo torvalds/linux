@@ -38,9 +38,9 @@
 #define WL_ERROR(x) printf x
 #define WL_TRACE(x)
 
-#define CUSTOMER_ALLWINNER
-#if defined CUSTOMER_ALLWINNER && defined CONFIG_SW_MMC_POWER_CONTROL
-extern void sw_mmc_rescan_card(unsigned id, unsigned insert);
+#if defined CONFIG_MMC_SUNXI_POWER_CONTROL
+#define SDIOID (CONFIG_CHIP_ID==1123 ? 3 : 1)
+extern void sunximmc_rescan_card(unsigned id, unsigned insert);
 extern int mmc_pm_get_mod_type(void);
 extern int mmc_pm_gpio_ctrl(char* name, int level);
 extern int mmc_pm_get_io_val(char* name);
@@ -134,7 +134,7 @@ int dhd_customer_oob_irq_map(unsigned long *irq_flags_ptr)
 void
 dhd_customer_gpio_wlan_ctrl(int onoff)
 {
-#if defined CUSTOMER_ALLWINNER && defined CONFIG_SW_MMC_POWER_CONTROL
+#if defined CONFIG_MMC_SUNXI_POWER_CONTROL
     unsigned int mod_sel = mmc_pm_get_mod_type();
     if (mod_sel != 6) {
         printk("Config Error: not for huawei mw269x sdio wifi module\n");
@@ -144,7 +144,7 @@ dhd_customer_gpio_wlan_ctrl(int onoff)
 		case WLAN_RESET_OFF:
 			WL_TRACE(("%s: call customer specific GPIO to insert WLAN RESET\n",
 				__FUNCTION__));
-#if defined CUSTOMER_ALLWINNER && defined CONFIG_SW_MMC_POWER_CONTROL
+#if defined CONFIG_MMC_SUNXI_POWER_CONTROL
             mmc_pm_gpio_ctrl("hw_mw269x_wl_enb", 0);
 #endif
 #ifdef CUSTOMER_HW
@@ -159,7 +159,7 @@ dhd_customer_gpio_wlan_ctrl(int onoff)
 		case WLAN_RESET_ON:
 			WL_TRACE(("%s: callc customer specific GPIO to remove WLAN RESET\n",
 				__FUNCTION__));
-#if defined CUSTOMER_ALLWINNER && defined CONFIG_SW_MMC_POWER_CONTROL
+#if defined CONFIG_MMC_SUNXI_POWER_CONTROL
             mmc_pm_gpio_ctrl("hw_mw269x_wl_enb", 1);
 #endif
 #ifdef CUSTOMER_HW
@@ -175,9 +175,9 @@ dhd_customer_gpio_wlan_ctrl(int onoff)
 		case WLAN_POWER_OFF:
 			WL_TRACE(("%s: call customer specific GPIO to turn off WL_REG_ON\n",
 				__FUNCTION__));
-#if defined CUSTOMER_ALLWINNER && defined CONFIG_SW_MMC_POWER_CONTROL
+#if defined CONFIG_MMC_SUNXI_POWER_CONTROL
             mmc_pm_gpio_ctrl("hw_mw269x_wl_enb", 0);
-            sw_mmc_rescan_card(3, 0);
+            sunximmc_rescan_card(SDIOID, 0);
 #endif
 #ifdef CUSTOMER_HW
 			bcm_wlan_power_off(1);
@@ -187,7 +187,7 @@ dhd_customer_gpio_wlan_ctrl(int onoff)
 		case WLAN_POWER_ON:
 			WL_TRACE(("%s: call customer specific GPIO to turn on WL_REG_ON\n",
 				__FUNCTION__));
-#if defined CUSTOMER_ALLWINNER && defined CONFIG_SW_MMC_POWER_CONTROL
+#if defined CONFIG_MMC_SUNXI_POWER_CONTROL
             mmc_pm_gpio_ctrl("hw_mw269x_wl_enb", 1);
 #endif
 #ifdef CUSTOMER_HW
@@ -195,8 +195,8 @@ dhd_customer_gpio_wlan_ctrl(int onoff)
 #endif /* CUSTOMER_HW */
 			/* Lets customer power to get stable */
 			OSL_DELAY(200);
-#if defined CUSTOMER_ALLWINNER && defined CONFIG_SW_MMC_POWER_CONTROL
-            sw_mmc_rescan_card(3, 1);
+#if defined CONFIG_MMC_SUNXI_POWER_CONTROL
+            sunximmc_rescan_card(SDIOID, 1);
 #endif /* CUSTOMER_HW */
 		break;
 	}

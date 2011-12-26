@@ -63,8 +63,8 @@
 
 #define POLL_INTERVAL_MAX	500
 #define POLL_INTERVAL		100
-#define INPUT_FUZZ	4
-#define INPUT_FLAT	4
+#define INPUT_FUZZ	2
+#define INPUT_FLAT	2
 
 #define MK_MMA7660_SR(FILT, AWSR, AMSR)\
 	(FILT<<5 | AWSR<<3 | AMSR)
@@ -96,8 +96,8 @@ static union{
 static __u32 twi_id = 0;
 
 #ifdef CONFIG_HAS_EARLYSUSPEND
-static int mma7660_early_suspend(struct early_suspend *h);
-static int mma7660_late_resume(struct early_suspend *h);
+static void mma7660_early_suspend(struct early_suspend *h);
+static void mma7660_late_resume(struct early_suspend *h);
 #endif
 
 
@@ -338,7 +338,9 @@ static void report_abs(void)
 	x = (((short)xyz[0]) << 8) >> 8;
 	y = (((short)xyz[1]) << 8) >> 8;
 	z = (((short)xyz[2]) << 8) >> 8;
-
+	//pr_info("xyz[0] = 0x%hx, xyz[1] = 0x%hx, xyz[2] = 0x%hx. \n", xyz[0], xyz[1], xyz[2]);
+	//pr_info("x[0] = 0x%hx, y[1] = 0x%hx, z[2] = 0x%hx. \n", x, y, z);
+	
 	input_report_abs(mma7660_idev->input, ABS_X, x);
 	input_report_abs(mma7660_idev->input, ABS_Y, y);
 	input_report_abs(mma7660_idev->input, ABS_Z, z);
@@ -441,7 +443,7 @@ static int __devexit mma7660_remove(struct i2c_client *client)
 }
 
 #ifdef CONFIG_HAS_EARLYSUSPEND
-static int mma7660_early_suspend(struct early_suspend *h)
+static void mma7660_early_suspend(struct early_suspend *h)
 {
 	int result;
 	printk(KERN_INFO "mma7660 early suspend\n");
@@ -449,10 +451,10 @@ static int mma7660_early_suspend(struct early_suspend *h)
 	result = i2c_smbus_write_byte_data(mma7660_i2c_client, 
 		MMA7660_MODE, MK_MMA7660_MODE(0, 0, 0, 0, 0, 0, 0));
 	assert(result==0);
-	return result;
+	return;
 }
 
-static int mma7660_late_resume(struct early_suspend *h)
+static void mma7660_late_resume(struct early_suspend *h)
 {
 	int result;
 	printk(KERN_INFO "mma7660 late resume\n");
@@ -460,7 +462,7 @@ static int mma7660_late_resume(struct early_suspend *h)
 	result = i2c_smbus_write_byte_data(mma7660_i2c_client, 
 		MMA7660_MODE, MK_MMA7660_MODE(0, 1, 0, 0, 0, 0, 1));
 	assert(result==0);
-	return result;
+	return;
 }
 #endif /* CONFIG_HAS_EARLYSUSPEND */
 

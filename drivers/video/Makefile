@@ -30,6 +30,9 @@ obj-$(CONFIG_FB_WMT_GE_ROPS)   += wmt_ge_rops.o
 obj-$(CONFIG_LYCHEE_FB_SUN4I)     += sun4i/disp/
 obj-$(CONFIG_LYCHEE_LCD_SUN4I)    += sun4i/lcd/
 obj-$(CONFIG_LYCHEE_HDMI_SUN4I)   += sun4i/hdmi/
+obj-$(CONFIG_LYCHEE_FB_SUN5I)     += sun5i/disp/
+obj-$(CONFIG_LYCHEE_LCD_SUN5I)    += sun5i/lcd/
+obj-$(CONFIG_LYCHEE_HDMI_SUN5I)   += sun5i/hdmi/
 
 # Hardware specific drivers go first
 obj-$(CONFIG_FB_AMIGA)            += amifb.o c2p_planar.o

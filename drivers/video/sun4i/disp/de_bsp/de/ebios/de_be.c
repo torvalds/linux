@@ -530,69 +530,89 @@ __s32 DE_BE_Sprite_Set_Palette_Table(__u32 sel, __u32 address, __u32 offset, __u
 //brightness -100~100
 //contrast -100~100
 //saturaion -100~100
-__s32 DE_BE_Set_Enhance(__u8 sel,__u32 brightness, __u32 contrast, __u32 saturaion)
+__s32 DE_BE_Set_Enhance(__u8 sel,__u32 brightness, __u32 contrast, __u32 saturaion, __u32 hue)
 {
-	__s32 Rr,Rg,Rb,Rc;
-	__s32 Gr,Gg,Gb,Gc;
-	__s32 Br,Bg,Bb,Bc;
-	__s32 max_rgb = (1<<14) - 1;
-	__s32 min_rgb = 0 - ((2<<14) - 1);
-	__s32 max_c = (1<<15) - 1;
-	__s32 min_c = 0 - ((1<<15) - 1);
+	__s32 i_bright;
+	__s32 i_contrast;
+	__s32 i_saturaion;
+	__s32 i_hue;	//fix
+	__scal_matrix4x4 matrixEn;
+	__scal_matrix4x4 matrixconv, *ptmatrix;
+	__scal_matrix4x4 matrixresult;
+	__s32 *pt;
+	__u32 i;
+	__s32 sinv, cosv;	//sin_tab: 7 bit fractional
+
 
 	brightness = brightness>100?100:(brightness<0?0:brightness);
 	contrast = contrast>100?100:(contrast<0?0:contrast);
 	saturaion = saturaion>100?100:(saturaion<0?0:saturaion);
 	
-	brightness = (brightness-50) * 10;
-	saturaion = saturaion * 10 / 50;
-	contrast = contrast * 10 / 50;
+	i_bright = (__s32)(brightness*64/100);
+	i_saturaion = (__s32)(saturaion*64/100);
+	i_contrast = (__s32)(contrast*64/100);
+	i_hue = (__s32)(hue*64/100);
 
-	Rr=(1164*183*contrast+1793*439*saturaion) / (1000*1000*10/1024);
-	Rg=(1164*614*contrast-1793*399*saturaion) / (1000*1000*10/1024);
-	Rb=(1164*62*contrast-1793*40*saturaion) / (1000*1000*10/1024);
-	Rc=((1164*(16*contrast*10+brightness*contrast-16*10*10))*0x10) / (1000*10*10);
-
-	Gr=(1164*183*contrast-534*439*saturaion+213*101*saturaion) / (1000*1000*10/1024);
-	Gg=(1164*614*contrast+534*399*saturaion+213*338*saturaion) / (1000*1000*10/1024);
-	Gb=(1164*62*contrast+534*40*saturaion-213*439*saturaion) / (1000*1000*10/1024);
-	Gc=((1164*(16*contrast*10+brightness*contrast-16*10*10))*0x10) / (1000*10*10);
-
-	Br=(1164*183*contrast-2115*101*saturaion) / (1000*1000*10/1024);
-	Bg=(1164*614*contrast-2115*338*saturaion) / (1000*1000*10/1024);
-	Bb=(1164*62*contrast+2115*439*saturaion) / (1000*1000*10/1024);
-	Bc=((1164*(16*contrast*10+brightness*contrast-16*10*10))*0x10) / (1000*10*10);
-
-	Rr = (Rr > max_rgb)?max_rgb:((Rr < min_rgb)?min_rgb:Rr);
-	Rg = (Rg > max_rgb)?max_rgb:((Rg < min_rgb)?min_rgb:Rg);
-	Rb = (Rb > max_rgb)?max_rgb:((Rb < min_rgb)?min_rgb:Rb);
-	Rc = (Rc > max_c)?max_c:((Rc < min_c)?min_c:Rc);
+	sinv = image_enhance_tab[8*12 + (i_hue&0x3f)];
+	cosv = image_enhance_tab[8*12 + 8*8 + (i_hue&0x3f)];
 	
-	Gr = (Gr > max_rgb)?max_rgb:((Gr < min_rgb)?min_rgb:Gr);
-	Gg = (Gg > max_rgb)?max_rgb:((Gg < min_rgb)?min_rgb:Gg);
-	Gb = (Gb > max_rgb)?max_rgb:((Gb < min_rgb)?min_rgb:Gb);
-	Gc = (Gc > max_c)?max_c:((Gc < min_c)?min_c:Gc);
+	matrixEn.x00 = i_contrast << 5;
+	matrixEn.x01 = 0;
+	matrixEn.x02 = 0;
+	matrixEn.x03 = (((i_bright - 32) + 16) <<10) - ( i_contrast << 9);
+	matrixEn.x10 = 0;
+	matrixEn.x11 = (i_contrast * i_saturaion * cosv) >> 7;
+	matrixEn.x12 = (i_contrast * i_saturaion * sinv) >> 7;
+	matrixEn.x13 = (1<<17) - ((matrixEn.x11 + matrixEn.x12)<<7);
+	matrixEn.x20 = 0;
+	matrixEn.x21 = (-i_contrast * i_saturaion * sinv)>>7;
+	matrixEn.x22 = (i_contrast * i_saturaion * cosv) >> 7;
+	matrixEn.x23 = (1<<17) - ((matrixEn.x22 + matrixEn.x21)<<7);
+	matrixEn.x30 = 0;
+	matrixEn.x31 = 0;
+	matrixEn.x32 = 0;
+	matrixEn.x33 = 1024;
+
+	ptmatrix = (__scal_matrix4x4 *)((__u32)image_enhance_tab + (1<<7));
+	iDE_SCAL_Matrix_Mul(matrixEn, *ptmatrix, &matrixconv);
+	ptmatrix = (__scal_matrix4x4 *)((__u32)image_enhance_tab + (1<<7) + 0x40);
+	iDE_SCAL_Matrix_Mul(*ptmatrix, matrixconv, &matrixconv);
 	
-	Br = (Br > max_rgb)?max_rgb:((Br < min_rgb)?min_rgb:Br);
-	Bg = (Bg > max_rgb)?max_rgb:((Bg < min_rgb)?min_rgb:Bg);
-	Bb = (Bb > max_rgb)?max_rgb:((Bb < min_rgb)?min_rgb:Bb);
-	Bc = (Bc > max_c)?max_c:((Bc < min_c)?min_c:Bc);
-    
-    DE_BE_WUINT32(sel, DE_BE_OUT_COLOR_R_COEFF_OFF + 0, (__s32)Rr);
-    DE_BE_WUINT32(sel, DE_BE_OUT_COLOR_R_COEFF_OFF + 4, (__s32)Rg);
-    DE_BE_WUINT32(sel, DE_BE_OUT_COLOR_R_COEFF_OFF + 8, (__s32)Rb);
-    DE_BE_WUINT32(sel, DE_BE_OUT_COLOR_R_CONSTANT_OFF, (__s32)Rc);
+	matrixresult.x00 = matrixconv.x01;	matrixresult.x01 = matrixconv.x00;
+	matrixresult.x02 = matrixconv.x02;	matrixresult.x03 = matrixconv.x03;
+	matrixresult.x10 = matrixconv.x11;	matrixresult.x11 = matrixconv.x10;
+	matrixresult.x12 = matrixconv.x12;	matrixresult.x13 = matrixconv.x13;
+	matrixresult.x20 = matrixconv.x21;	matrixresult.x21 = matrixconv.x20;
+	matrixresult.x22 = matrixconv.x22;	matrixresult.x23 = matrixconv.x23;
+	matrixresult.x30 = matrixconv.x31;	matrixresult.x31 = matrixconv.x30;
+	matrixresult.x32 = matrixconv.x32;	matrixresult.x33 = matrixconv.x33;
 
-    DE_BE_WUINT32(sel, DE_BE_OUT_COLOR_G_COEFF_OFF + 0, (__s32)Gr);
-    DE_BE_WUINT32(sel, DE_BE_OUT_COLOR_G_COEFF_OFF + 4, (__s32)Gg);
-    DE_BE_WUINT32(sel, DE_BE_OUT_COLOR_G_COEFF_OFF + 8, (__s32)Gb);
-    DE_BE_WUINT32(sel, DE_BE_OUT_COLOR_G_CONSTANT_OFF, (__s32)Gc);
 
-    DE_BE_WUINT32(sel, DE_BE_OUT_COLOR_B_COEFF_OFF + 0, (__s32)Br);
-    DE_BE_WUINT32(sel, DE_BE_OUT_COLOR_B_COEFF_OFF + 4, (__s32)Bg);
-    DE_BE_WUINT32(sel, DE_BE_OUT_COLOR_B_COEFF_OFF + 8, (__s32)Bb);
-    DE_BE_WUINT32(sel, DE_BE_OUT_COLOR_B_CONSTANT_OFF, (__s32)Bc);
-    
+	//data bit convert, 1 bit  sign, 2 bit integer, 10 bits fractrional for coefficient; 1 bit sign,9 bit integer, 4 bit fractional for constant
+	//range limited
+	iDE_SCAL_Csc_Lmt(&matrixresult.x00, -8191, 8191, 0, 16383);
+	iDE_SCAL_Csc_Lmt(&matrixresult.x01, -8191, 8191, 0, 16383);
+	iDE_SCAL_Csc_Lmt(&matrixresult.x02, -8191, 8191, 0, 16383);
+	iDE_SCAL_Csc_Lmt(&matrixresult.x03, -16383, 16383, 6, 32767);
+	iDE_SCAL_Csc_Lmt(&matrixresult.x10, -8191, 8191, 0, 16383);
+	iDE_SCAL_Csc_Lmt(&matrixresult.x11, -8191, 8191, 0, 16383);
+	iDE_SCAL_Csc_Lmt(&matrixresult.x12, -8191, 8191, 0, 16383);
+	iDE_SCAL_Csc_Lmt(&matrixresult.x13, -16383, 16383, 6, 32767);
+	iDE_SCAL_Csc_Lmt(&matrixresult.x20, -8191, 8191, 0, 16383);
+	iDE_SCAL_Csc_Lmt(&matrixresult.x21, -8191, 8191, 0, 16383);
+	iDE_SCAL_Csc_Lmt(&matrixresult.x22, -8191, 8191, 0, 16383);
+	iDE_SCAL_Csc_Lmt(&matrixresult.x23, -16383, 16383, 6, 32767);
+	
+    //write csc register
+    pt = &(matrixresult.x00);
+
+	for(i=0;i<4;i++)
+	{
+		DE_BE_WUINT32(sel, DE_BE_OUT_COLOR_G_COEFF_OFF+ 4*i, *(pt + i));
+		DE_BE_WUINT32(sel, DE_BE_OUT_COLOR_R_COEFF_OFF+ 4*i, *(pt + 4 + i));
+		DE_BE_WUINT32(sel, DE_BE_OUT_COLOR_B_COEFF_OFF+ 4*i, *(pt + 8 + i));
+	}
+	
     return 0;
 }
 

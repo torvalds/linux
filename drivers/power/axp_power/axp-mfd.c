@@ -21,6 +21,9 @@
 #include "axp19-mfd.h"
 #include "axp20-mfd.h"
 
+#include <mach/sys_config.h>
+
+static int power_start;
 
 static void axp_mfd_irq_work(struct work_struct *work)
 {
@@ -241,17 +244,19 @@ static void axp_power_off(void)
 
     printk("[axp] send power-off command!\n");
     mdelay(20);
-	axp_read(&axp->dev, POWER20_STATUS, &val);
-	if(val & 0xF0){
-	    axp_read(&axp->dev, POWER20_MODE_CHGSTATUS, &val);
-	    if(val & 0x20){
-            printk("[axp] set flag!\n");
-	        axp_write(&axp->dev, POWER20_DATA_BUFFERC, 0x0f);
-            mdelay(20);
-		    printk("[axp] reboot!\n");
-		    arch_reset(0,NULL);
-		    printk("[axp] warning!!! arch can't ,reboot, maybe some error happend!\n");
-	    }
+    if(power_start != 1){
+		axp_read(&axp->dev, POWER20_STATUS, &val);
+		if(val & 0xF0){
+	    	axp_read(&axp->dev, POWER20_MODE_CHGSTATUS, &val);
+	    	if(val & 0x20){
+            	printk("[axp] set flag!\n");
+	        	axp_write(&axp->dev, POWER20_DATA_BUFFERC, 0x0f);
+            	mdelay(20);
+		    	printk("[axp] reboot!\n");
+		    	arch_reset(0,NULL);
+		    	printk("[axp] warning!!! arch can't ,reboot, maybe some error happend!\n");
+	    	}
+		}
 	}
     axp_write(&axp->dev, POWER20_DATA_BUFFERC, 0x00);
     mdelay(20);
@@ -309,7 +314,16 @@ static int __devinit axp_mfd_probe(struct i2c_client *client,
 	if(ret){
 		return ret;
 	}
-
+	
+	/* set ac/usb_in shutdown mean restart */
+  	ret = script_parser_fetch("target", "power_start", &power_start, sizeof(int));
+  	if (ret)
+  	{
+    	printk("[AXP]axp driver uning configuration failed(%d)\n", __LINE__);
+     	power_start = 0;
+     	printk("[AXP]power_start = %d\n",power_start);
+  	}
+  	
 	return 0;
 
 out_free_irq:

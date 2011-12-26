@@ -53,11 +53,14 @@
 */
 void sw_hcd_port_suspend_ex(struct sw_hcd *sw_hcd)
 {
-	/* suspend usb port */
-	USBC_Host_SuspendPort(sw_hcd->sw_hcd_io->usb_bsp_hdle);
+    /* if peripheral connect, suspend the device */
+    if (sw_hcd->is_active) {
+    	/* suspend usb port */
+    	USBC_Host_SuspendPort(sw_hcd->sw_hcd_io->usb_bsp_hdle);
 
-	/* delay for 1000ms */
-	udelay(1000);
+    	/* delay for 1000ms */
+    	mdelay(1000);
+    }
 
 	return;
 }
@@ -84,7 +87,7 @@ void sw_hcd_port_resume_ex(struct sw_hcd *sw_hcd)
 {
 	/* resume port */
 	USBC_Host_RusumePort(sw_hcd->sw_hcd_io->usb_bsp_hdle);
-	udelay(500);
+	mdelay(500);
 	USBC_Host_ClearRusumePortFlag(sw_hcd->sw_hcd_io->usb_bsp_hdle);
 
 	return;
@@ -115,9 +118,9 @@ void sw_hcd_port_reset_ex(struct sw_hcd *sw_hcd)
 
 	/* reset port */
 	USBC_Host_ResetPort(sw_hcd->sw_hcd_io->usb_bsp_hdle);
-	udelay(50);
+	mdelay(50);
 	USBC_Host_ClearResetPortFlag(sw_hcd->sw_hcd_io->usb_bsp_hdle);
-	udelay(500);
+	mdelay(500);
 
 	return;
 }

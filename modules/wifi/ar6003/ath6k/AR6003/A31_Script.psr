@@ -1,0 +1,205 @@
+#  
+#=============================================================================
+# 
+# CSR tracking information, report this in case of problems:
+#   $Revision: #7 $
+#   Built Wed Feb  9 05:41:16 2011 GMT
+#   Checked-in $DateTime: 2011/02/09 06:33:27 $
+#   $File: //depot/bc/gemini-3/dev/patches/6817/pb-90.btcli $
+# 
+# Patch is for build 6817 gem_5hci_rom_bt3.0_gemini-3_1003261729_encr128
+# 
+# Issues patched: B-80744, B-81790, B-82370, B-82487, B-82777, B-83530,
+#                 B-87000, B-88310, B-91207, B-97491
+# 
+# Documentation from pb-90.pb
+# ---------------------------
+# 
+# General purpose patch and PSKEY bundle for CSR8810/CSR8815 A04 CSP Packages.
+# 
+# Documentation from bt_pskeys.pb
+# -------------------------------
+# 
+# Issues patched: B-81790, B-82370, B-82487, B-88310
+# 
+# Non-default PSKEY settings aimed at improving Bluetooth performance.
+# These are recommended for all users of this device regardless of
+# package or application.
+# 
+# Note that some of these settings may depend on the presence of other
+# PSKEYs and/or patches. 
+# 
+# Documentation from patch_lna_bias_c.c
+# -------------------------------------
+# 
+# Issues patched: B-82777
+# 
+# Receiver desensitisation observed on channels that are multiples of the 
+# reference (crystal) frequency on BC8810.
+# 
+# Documentation from patch_lna_bias_asm.xap
+# -----------------------------------------
+# 
+# Issues patched: B-82777
+# 
+# Receiver desensitisation observed on channels that are multiples of the 
+# reference (crystal) frequency on BC8810.
+# 
+# Documentation from patch_lo_injection.xap
+# -----------------------------------------
+# 
+# Issues patched: B-83530
+# 
+# Use High LO injection side for transmit on channel 0.
+# 
+# Documentation from patch_radio_trim.xap
+# ---------------------------------------
+# 
+# Issues patched: B-87000
+# 
+# On BlueCore 7 disabling tx with bccmd caused higher than expected power
+# consumption. This was due to the BlueCore continually attempting to trim the
+# bluetooth radio but not being able to beacuse tx was disabled.
+# 
+# Documentation from patch_xtal.xap
+# ---------------------------------
+# 
+# Issues patched: B-97491
+# 
+# Gemini sometimes fails to detect fast reference cystal
+# 
+# Documentation from patch_pcm_reset.xap
+# --------------------------------------
+# 
+# Issues patched: B-80744
+# 
+# The PCM hardware block was not being properly reset for either PCM port. 
+# 
+# Documentation from patch_hostio_txseq_panic_debug.xap
+# -----------------------------------------------------
+# 
+# Issues patched: B-91207
+# 
+# Prevent retransmission if a corresponding ack is received while waiting
+# for host wakeup after the packet is scheduled
+# 
+# Version information for input files
+# -----------------------------------
+# 
+# Created by patchmaker.pl Revision: #1  Date: 2009/12/07 
+# 
+# Input file: pb-90.pb
+# Depot file: //depot/bc/gemini-3/dev/patches/6817/pb-90.pb
+# File revision: 7
+# 
+# Input file: pb-84-90-csp-common.pb
+# Depot file: //depot/bc/gemini-3/dev/patches/6817/pb-84-90-csp-common.pb
+# File revision: 2
+# 
+# Input file: common.pb
+# Depot file: //depot/bc/gemini-3/dev/patches/6817/common.pb
+# File revision: 3
+# 
+# Input file: bt_pskeys.pb
+# Depot file: //depot/bc/gemini-3/dev/patches/6817/bt_pskeys.pb
+# File revision: 11
+# 
+# Input file: patch_lna_bias_c.c
+# Depot file: //depot/bc/gemini-3/dev/patches/6817/patch_lna_bias_c.c
+# File revision: 2
+# 
+# Input file: patch_lna_bias_asm.xap
+# Depot file: //depot/bc/gemini-3/dev/patches/6817/patch_lna_bias_asm.xap
+# File revision: 4
+# 
+# Input file: ../patch_utils.inc
+# Depot file: //depot/bc/gemini-3/dev/patches/patch_utils.inc
+# File revision: 1
+# 
+# Input file: patch_lo_injection.xap
+# Depot file: //depot/bc/gemini-3/dev/patches/6817/patch_lo_injection.xap
+# File revision: 2
+# 
+# Input file: patch_radio_trim.xap
+# Depot file: //depot/bc/gemini-3/dev/patches/6817/patch_radio_trim.xap
+# File revision: 3
+# 
+# Input file: patch_xtal.xap
+# Depot file: //depot/bc/gemini-3/dev/patches/6817/patch_xtal.xap
+# File revision: 1
+# 
+# Input file: patch_pcm_reset.xap
+# Depot file: //depot/bc/gemini-3/dev/patches/6817/patch_pcm_reset.xap
+# File revision: 5
+# 
+# Input file: patch_hostio_txseq_panic_debug.xap
+# Depot file: //depot/bc/gemini-3/dev/patches/6817/patch_hostio_txseq_panic_debug.xap
+# File revision: 4
+
+# Test only, PSKEY_BD_ADDR
+&0001 = 00ff ffff 00BA A00B
+#PSKEY_UART_BITRATE 115200 - 0001 c200, 921600 - e1000, 3Mbps - 002d c6c0, 1.5M - 0016 e360
+&01ea = 0016 e360
+# explicit, PSKEY_RX_MR_SAMP_CONFIG (0x003c, 60), 1 words 
+&003c = 1426 
+# explicit, PSKEY_TX_OFFSET_HALF_MHZ (0x0217, 535), 1 words 
+&0217 = ffff 
+# explicit, PSKEY_TEMPERATURE_VS_DELTA_TX_BB_MR_PAYLOAD (0x03aa, 938), 4 words 
+&03aa = ffd8 0010 0014 0000 
+# explicit, PSKEY_TEMPERATURE_VS_DELTA_TX_BB_MR_HEADER (0x03ab, 939), 4 words 
+&03ab = ffd8 000b 0014 0000 
+# explicit, PSKEY_TEMPERATURE_VS_DELTA_TX_BB (0x03d8, 984), 4 words 
+&03d8 = ffd8 0017 0014 0000 
+# explicit, PSKEY_TEMPERATURE_VS_DELTA_INTERNAL_PA (0x03da, 986), 4 words 
+&03da = ffd8 fffc 0014 0000 
+# patch_hardware_0, PSKEY_PATCH50 (0x212c, 8492), 39 words 
+&212c = 0000 57dc 0118 ff2b ff0e 2400 b418 009e 011b 2c16 0900 6234 ec00 9e85 0df4 ec00 9f85 0af4 ec00 a085 07f4 ec00 a185 04f4 ec00 a285 06f0 f000 1c15 07b4 f000 1c25 0018 ff2b ff0e 5800 df18 00e2 10f9 
+# patch_hardware_1, PSKEY_PATCH51 (0x212d, 8493), 13 words 
+&212d = 0000 f95f e099 03f4 0214 8f0f 0018 ff2b ff0e f900 6518 00e2 4e7a 
+# patch_hardware_2, PSKEY_PATCH52 (0x212e, 8494), 9 words 
+&212e = 0000 65a0 0018 ff2b ff0e 6600 a418 00e2 abea 
+# patch_hardware_13, PSKEY_PATCH63 (0x2139, 8505), 16 words 
+&2139 = 0000 d296 e000 bf15 ec00 a425 e000 c115 0027 0018 ff2b ff0e d300 9918 00e2 0c89 
+# patch_hardware_14, PSKEY_PATCH64 (0x213a, 8506), 33 words 
+&213a = 0000 d2d0 0017 ec00 a485 12f0 e000 ea15 0ff4 0018 ff2b ff0e 7d00 4818 009e 0014 e000 ea25 ec00 a315 0134 ec00 a325 e000 d815 0134 0018 ff2b ff0e d300 d318 00e2 be3a 
+# patch_hardware_15, PSKEY_PATCH65 (0x213b, 8507), 64 words 
+&213b = 0001 3f38 f200 1718 0214 0226 0100 0114 0326 0114 0010 0218 ff2b ff0e 6000 f918 009e f200 1718 fa00 0211 03b0 fa00 0221 1414 ff34 fff0 0800 0014 0026 1414 ff34 fff0 0026 fcc0 fa00 0221 0226 0326 0010 0218 ff2b ff0e 6000 f918 009e f200 1718 f200 f315 07f0 0110 f200 f321 0026 0126 cce0 0118 ff2b ff0e 3f00 6518 00e2 931f 
+# explicit, PSKEY_BT_TX_MIXER_CTRIM_OFFSET (0x2175, 8565), 5 words 
+&2175 = 0000 0000 0000 0000 0000 
+# explicit, PSKEY_BT_ANA_TX_MIXER_CONFIG (0x218c, 8588), 1 words 
+&218c = 0072 
+# explicit, PSKEY_RX_ADC_CONFIG (0x21ad, 8621), 5 words 
+&21ad = 3150 0040 0725 0f15 0c1b 
+# patch_bc_boot, PSKEY_PATCH101 (0x21f5, 8693), 58 words 
+&21f5 = fe0b e300 8215 0010 0009 6494 f925 5e00 d414 0010 0009 f995 f825 6100 e014 0010 0009 f995 fb25 f815 f991 0534 fa25 f819 ff2b 0010 f821 1ae0 fa15 0010 0009 0a94 e111 f700 9e34 4e84 022c 0ae0 f815 0484 022c 06e0 f819 ec00 9e22 0138 f829 ff13 0130 ff23 fa15 f935 fa25 ff1b fb89 e52c fe0f e266 
+# patch_hal_lo_settings_shared_patchpoint, PSKEY_PATCH146 (0x2222, 8738), 9 words 
+&2222 = 0300 5388 00f2 ef00 1d14 e400 7825 00e2 5a9e 
+# explicit, PSKEY_RSSI_PREFERRED_VALUES (0x22ec, 8940), 5 words 
+&22ec = 0000 0003 0003 03d0 0000 
+# explicit, PSKEY_BT_POWER_TABLE_V0 (0x241a, 9242), 40 words 
+&241a = 2718 0050 2c28 0050 ec00 2918 0040 2e28 0040 f000 2818 0030 2c28 0030 f400 2818 0020 2c28 0020 f800 2918 0010 2d28 0010 fc00 2d1a 0000 302a 0000 0000 365c 0000 386c 0000 0400 3fff 0000 3fff 0000 0800 
+# User configuration 
+#Crystal Frequency Ana_freq 
+&01fe = 6590 
+#PSKEY_ANA_FTRIM 
+&01f6 = 1d 
+# deep_sleep_use_external_clock 
+&03c3 = 0000 
+# LP_XTAL_LVL 
+&2578 = 000f 
+# clock_request_enable 
+&0246 = 0000 
+##PSKEY_BT_TX_MIXER_CTRIM_OFFSET value for ouput power flatness 
+&2175 = 0000 0000 0000 ffff eeee 
+# PSKEY_LC_DEFAULT_TX_POWER 
+&0021 = 0014 
+#Coex line configuration 
+#PSKEY_COEX_SCHEME_UNITY_3 
+&2480 = 0003 
+#PSKEY_COEX_PIO_UNITY_3_BT_ACTIVE_PIO_4 
+&2483 = 0004 0001 
+#PSKEY_COEX_PIO_UNITY_3_BT_STATUS_PIO_9 
+&2484 = 0009 0001 
+#PSKEY_COEX_PIO_UNITY_3_WLAN_DENY_PIO_1 
+&2485 = 0001 0001
+

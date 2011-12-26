@@ -157,6 +157,7 @@ static void option_instat_callback(struct urb *urb);
 #define HUAWEI_PRODUCT_ETS1220			0x1803
 #define HUAWEI_PRODUCT_E353			0x1506
 #define HUAWEI_PRODUCT_E173S			0x1C05
+#define HUAWEI_PRODUCT_ET128			0x1D09
 
 #define QUANTA_VENDOR_ID			0x0408
 #define QUANTA_PRODUCT_Q101			0xEA02
@@ -299,6 +300,7 @@ static void option_instat_callback(struct urb *urb);
 #define BANDRICH_PRODUCT_1012			0x1012
 
 #define QUALCOMM_VENDOR_ID			0x05C6
+#define QUALCOMM_ASB_C820			0x00a0	//ASB use QUALCOMM ic dongle
 
 #define CMOTECH_VENDOR_ID			0x16d8
 #define CMOTECH_PRODUCT_6008			0x6008
@@ -323,6 +325,10 @@ static void option_instat_callback(struct urb *urb);
 #define ZTE_PRODUCT_MC2718			0xffe8
 #define ZTE_PRODUCT_AD3812			0xffeb
 #define ZTE_PRODUCT_MC2716			0xffed
+
+/* ZTE PRODUCTS -- alternate vendor ID */
+#define ZTE_VENDOR_ID2				0x1d6b
+#define ZTE_PRODUCT_MF_330			0x0002
 
 #define BENQ_VENDOR_ID				0x04a5
 #define BENQ_PRODUCT_H10			0x4068
@@ -354,6 +360,7 @@ static void option_instat_callback(struct urb *urb);
 
 /* ALCATEL PRODUCTS */
 #define ALCATEL_VENDOR_ID			0x1bbb
+#define ALCATEL_PRODUCT_X060S			0x0000
 #define ALCATEL_PRODUCT_X060S_X200		0x0000
 
 #define PIRELLI_VENDOR_ID			0x1266
@@ -489,6 +496,32 @@ static void option_instat_callback(struct urb *urb);
 
 /* MediaTek products */
 #define MEDIATEK_VENDOR_ID			0x0e8d
+
+/* Vtion Information Technology (Fujian) */
+#define VTION_VENDOR_ID			0x1E89
+#define VTION_PRODUCT_E1916		0x1E16 //evdo ???
+
+/* PuChuang WCDMA */
+#define PUCHUANG_VENDOR_ID			0x20A6
+#define PUCHUANG_PRODUCT_E003		0x1105 //wcdma
+
+/* JIN YU SHI KONG Communication,evdo */
+#define SRT_VENDOR_ID			0x1D09
+#define SRT_PRODUCT_SRTE800		0xAEF4 // evdo
+
+/* A100 ???,evdo */
+#define AXX_VENDOR_ID			0x21F5
+#define AXXT_PRODUCT_XXX		0x2008 // evdo
+
+/*shangshai ASB products*/
+#define ASB_VENDOR_ID			0x04cc
+#define ASB_PRODUCT_T920		0x226e
+#define ASB_PRODUCT_TU930			0x225a
+
+/*TechFaith products*/
+#define TechFaith_VENDOR_ID		0x1d09
+#define TechFaith_PRODUCT_HSDPA		0x1010
+#define TechFaith_PRODUCT_SRTE800	0xAEF4
 
 /* some devices interfaces need special handling due to a number of reasons */
 enum option_blacklist_reason {
@@ -683,6 +716,8 @@ static const struct usb_device_id option_ids[] = {
 	{ USB_DEVICE_AND_INTERFACE_INFO(HUAWEI_VENDOR_ID, HUAWEI_PRODUCT_E353, 0xff, 0x02, 0x01) },  /* E398 3G Modem */
 	{ USB_DEVICE_AND_INTERFACE_INFO(HUAWEI_VENDOR_ID, HUAWEI_PRODUCT_E353, 0xff, 0x02, 0x02) },  /* E398 3G PC UI Interface */
 	{ USB_DEVICE_AND_INTERFACE_INFO(HUAWEI_VENDOR_ID, HUAWEI_PRODUCT_E353, 0xff, 0x02, 0x03) },  /* E398 3G Application Interface */
+	{ USB_DEVICE(HUAWEI_VENDOR_ID, HUAWEI_PRODUCT_ET128) },//0x12D11DA1->0x12D11D09	GSM,HUAWEI ET128-2,ET128
+	{ USB_DEVICE(HUAWEI_VENDOR_ID, HUAWEI_PRODUCT_E14AC) },
 	{ USB_DEVICE(NOVATELWIRELESS_VENDOR_ID, NOVATELWIRELESS_PRODUCT_V640) },
 	{ USB_DEVICE(NOVATELWIRELESS_VENDOR_ID, NOVATELWIRELESS_PRODUCT_V620) },
 	{ USB_DEVICE(NOVATELWIRELESS_VENDOR_ID, NOVATELWIRELESS_PRODUCT_V740) },
@@ -785,6 +820,7 @@ static const struct usb_device_id option_ids[] = {
 	{ USB_DEVICE_AND_INTERFACE_INFO(ZTE_VENDOR_ID, 0x0004, 0xff, 0xff, 0xff) },
 	{ USB_DEVICE_AND_INTERFACE_INFO(ZTE_VENDOR_ID, 0x0005, 0xff, 0xff, 0xff) },
 	{ USB_DEVICE_AND_INTERFACE_INFO(ZTE_VENDOR_ID, 0x0006, 0xff, 0xff, 0xff) },
+	{ USB_DEVICE_AND_INTERFACE_INFO(ZTE_VENDOR_ID, 0x0007, 0xff, 0xff, 0xff) },
 	{ USB_DEVICE_AND_INTERFACE_INFO(ZTE_VENDOR_ID, 0x0008, 0xff, 0xff, 0xff) },
 	{ USB_DEVICE_AND_INTERFACE_INFO(ZTE_VENDOR_ID, 0x0009, 0xff, 0xff, 0xff) },
 	{ USB_DEVICE_AND_INTERFACE_INFO(ZTE_VENDOR_ID, 0x000a, 0xff, 0xff, 0xff) },
@@ -1133,6 +1169,7 @@ static const struct usb_device_id option_ids[] = {
   	},
 	{ USB_DEVICE(LONGCHEER_VENDOR_ID, ZOOM_PRODUCT_4597) },
 	{ USB_DEVICE(HAIER_VENDOR_ID, HAIER_PRODUCT_CE100) },
+	{ USB_DEVICE(VTION_VENDOR_ID, 0x1a20) },
 	/* Pirelli  */
 	{ USB_DEVICE(PIRELLI_VENDOR_ID, PIRELLI_PRODUCT_C100_1)},
 	{ USB_DEVICE(PIRELLI_VENDOR_ID, PIRELLI_PRODUCT_C100_2)},
@@ -1214,6 +1251,15 @@ static const struct usb_device_id option_ids[] = {
 	{ USB_DEVICE_AND_INTERFACE_INFO(MEDIATEK_VENDOR_ID, 0x00a1, 0xff, 0x02, 0x01) },
 	{ USB_DEVICE_AND_INTERFACE_INFO(MEDIATEK_VENDOR_ID, 0x00a2, 0xff, 0x00, 0x00) },
 	{ USB_DEVICE_AND_INTERFACE_INFO(MEDIATEK_VENDOR_ID, 0x00a2, 0xff, 0x02, 0x01) },        /* MediaTek MT6276M modem & app port */
+	{ USB_DEVICE(AXX_VENDOR_ID,   AXXT_PRODUCT_XXX)   },
+	{ USB_DEVICE(SRT_VENDOR_ID,   SRT_PRODUCT_SRTE800)},
+	{ USB_DEVICE(PUCHUANG_VENDOR_ID,PUCHUANG_PRODUCT_E003)},
+	{ USB_DEVICE(VTION_VENDOR_ID,   VTION_PRODUCT_E1916)   },
+	{ USB_DEVICE(QUALCOMM_VENDOR_ID,   QUALCOMM_ASB_C820)},
+	{ USB_DEVICE(ASB_VENDOR_ID, ASB_PRODUCT_T920) }, /*ASB T920 */
+	{ USB_DEVICE(ASB_VENDOR_ID, ASB_PRODUCT_TU930) }, /*ASB TU930 */
+	{ USB_DEVICE(TechFaith_VENDOR_ID,TechFaith_PRODUCT_HSDPA) },/*TechFaith WCDMA product*/
+	{ USB_DEVICE(TechFaith_VENDOR_ID,TechFaith_PRODUCT_SRTE800) },/*TechFaith WCDMA product*/	
 	{ } /* Terminating entry */
 };
 MODULE_DEVICE_TABLE(usb, option_ids);
@@ -1383,6 +1429,10 @@ static int option_probe(struct usb_serial *serial,
 		serial->dev->descriptor.idProduct == SAMSUNG_PRODUCT_GT_B3730 &&
 		serial->interface->cur_altsetting->desc.bInterfaceClass != USB_CLASS_CDC_DATA)
 		return -ENODEV;
+
+	if (serial->dev->descriptor.idVendor == HUAWEI_VENDOR_ID) {
+		usb_enable_autosuspend(serial->dev);
+	}
 
 	data = serial->private = kzalloc(sizeof(struct usb_wwan_intf_private), GFP_KERNEL);
 	if (!data)

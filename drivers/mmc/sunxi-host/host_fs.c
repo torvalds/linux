@@ -172,10 +172,10 @@ static int sunximmc_proc_card_insert_ctrl(struct file *file, const char __user *
 void sunximmc_procfs_attach(struct sunxi_mmc_host *smc_host)
 {
     struct device *dev = &smc_host->pdev->dev;
-    char sunximmc_proc_rootname[16] = {0};
+    char sunximmc_proc_rootname[32] = {0};
 
     //make mmc dir in proc fs path
-    sprintf(sunximmc_proc_rootname, "driver/%s", dev_name(dev));
+    snprintf(sunximmc_proc_rootname, sizeof(sunximmc_proc_rootname), "driver/%s", dev_name(dev));
     smc_host->proc_root = proc_mkdir(sunximmc_proc_rootname, NULL);
     if (IS_ERR(smc_host->proc_root))
     {
@@ -223,9 +223,9 @@ void sunximmc_procfs_attach(struct sunxi_mmc_host *smc_host)
 void sunximmc_procfs_remove(struct sunxi_mmc_host *smc_host)
 {
     struct device *dev = &smc_host->pdev->dev;
-    char sunximmc_proc_rootname[16] = {0};
-    sprintf(sunximmc_proc_rootname, "driver/%s", dev_name(dev));
+    char sunximmc_proc_rootname[32] = {0};
 
+    snprintf(sunximmc_proc_rootname, sizeof(sunximmc_proc_rootname), "driver/%s", dev_name(dev));
     remove_proc_entry("insert", smc_host->proc_root);
     remove_proc_entry("debug-level", smc_host->proc_root);
     remove_proc_entry("register", smc_host->proc_root);

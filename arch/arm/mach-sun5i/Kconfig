@@ -1,0 +1,7 @@
+if ARCH_SUN5I
+
+config SUN5I_FPGA
+	bool "FPGA Board Support"
+	help
+	  Only for FPGA board. 
+endif

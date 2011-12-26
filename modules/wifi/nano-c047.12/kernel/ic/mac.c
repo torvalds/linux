@@ -87,7 +87,7 @@ static int mac_write_file(void *buf, ssize_t len, const char *filename)
 	loff_t off;
 	ssize_t n;
 
-	if((status = nrx_stream_open_file(filename, O_CREAT, 0600, &fd)) < 0) {
+	if((status = nrx_stream_open_file(filename, O_CREAT|O_RDWR, 0600, &fd)) < 0) {
 		printk("Create file %s failed, please be sure directory %s is exist!\n", filename, nrx_macpath);
 		return status;
 	}

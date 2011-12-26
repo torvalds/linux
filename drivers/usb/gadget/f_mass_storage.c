@@ -764,19 +764,24 @@ static int do_read(struct fsg_common *common)
 		 */
 		if ((common->cmnd[1] & ~0x18) != 0) {
 			curlun->sense_data = SS_INVALID_FIELD_IN_CDB;
+			printk("err: do_read, We allow DPO and FUA, but we don't implement them.\n");
 			return -EINVAL;
 		}
 	}
+
 	if (lba >= curlun->num_sectors) {
 		curlun->sense_data = SS_LOGICAL_BLOCK_ADDRESS_OUT_OF_RANGE;
+        printk("err: do_read, lba is too big. (%d, %d)\n", lba, (u32)curlun->num_sectors);
 		return -EINVAL;
 	}
 	file_offset = ((loff_t) lba) << 9;
 
 	/* Carry out the file reads */
 	amount_left = common->data_size_from_cmnd;
-	if (unlikely(amount_left == 0))
+	if (unlikely(amount_left == 0)) {
+        printk("err: do_read, common->data_size_from_cmnd is zero.\n");
 		return -EIO;		/* No default reply */
+    }
 
 	for (;;) {
 		/*
@@ -801,8 +806,10 @@ static int do_read(struct fsg_common *common)
 		bh = common->next_buffhd_to_fill;
 		while (bh->state != BUF_STATE_EMPTY) {
 			rc = sleep_thread(common);
-			if (rc)
+			if (rc) {
+                printk("err: do_read, sleep_thread failed.\n");
 				return rc;
+			}
 		}
 
 		/*
@@ -826,17 +833,21 @@ static int do_read(struct fsg_common *common)
 				 amount, &file_offset_tmp);
 		VLDBG(curlun, "file read %u @ %llu -> %d\n", amount,
 		      (unsigned long long)file_offset, (int)nread);
-		if (signal_pending(current))
+		if (signal_pending(current)) {
+            printk("err: do_read, signal_pending(current).(0x%x)\n", signal_pending(current));
 			return -EINTR;
+        }
 
 		if (nread < 0) {
-			LDBG(curlun, "error in file read: %d\n", (int)nread);
+			//LDBG(curlun, "error in file read: %d\n", (int)nread);
+			printk("err: do_read, error in file read: %d\n", (int)nread);
 			nread = 0;
 		} else if (nread < amount) {
-			LDBG(curlun, "partial file read: %d/%u\n",
-			     (int)nread, amount);
+			//LDBG(curlun, "partial file read: %d/%u\n", (int)nread, amount);
+			printk("err: do_read, partial file read: %d/%u\n", (int)nread, amount);
 			nread -= (nread & 511);	/* Round down to a block */
 		}
+
 		file_offset  += nread;
 		amount_left  -= nread;
 		common->residue -= nread;
@@ -856,9 +867,12 @@ static int do_read(struct fsg_common *common)
 
 		/* Send this buffer and go read some more */
 		bh->inreq->zero = 0;
-		if (!start_in_transfer(common, bh))
+		if (!start_in_transfer(common, bh)) {
 			/* Don't know what to do if common->fsg is NULL */
+			printk("err: do_read, start_in_transfer failed\n");
 			return -EIO;
+        }
+
 		common->next_buffhd_to_fill = bh->next;
 	}
 
@@ -883,8 +897,10 @@ static int do_write(struct fsg_common *common)
 
 	if (curlun->ro) {
 		curlun->sense_data = SS_WRITE_PROTECTED;
+        printk("err: do_write, file is read only, can not write\n");
 		return -EINVAL;
 	}
+
 	spin_lock(&curlun->filp->f_lock);
 	curlun->filp->f_flags &= ~O_SYNC;	/* Default is not to wait */
 	spin_unlock(&curlun->filp->f_lock);
@@ -906,8 +922,10 @@ static int do_write(struct fsg_common *common)
 		 */
 		if (common->cmnd[1] & ~0x18) {
 			curlun->sense_data = SS_INVALID_FIELD_IN_CDB;
+            printk("err: do_write, We allow DPO and FUA, We don't implement DPO.\n");
 			return -EINVAL;
 		}
+
 		if (!curlun->nofua && (common->cmnd[1] & 0x08)) { /* FUA */
 			spin_lock(&curlun->filp->f_lock);
 			curlun->filp->f_flags |= O_SYNC;
@@ -916,6 +934,7 @@ static int do_write(struct fsg_common *common)
 	}
 	if (lba >= curlun->num_sectors) {
 		curlun->sense_data = SS_LOGICAL_BLOCK_ADDRESS_OUT_OF_RANGE;
+        printk("err: do_write, lba is overwrite. (%d, %d)\n", (u32)lba, (u32)curlun->num_sectors);
 		return -EINVAL;
 	}
 
@@ -983,9 +1002,12 @@ static int do_write(struct fsg_common *common)
 			bh->outreq->length = amount;
 			bh->bulk_out_intended_length = amount;
 			bh->outreq->short_not_ok = 1;
-			if (!start_out_transfer(common, bh))
+			if (!start_out_transfer(common, bh)) {
 				/* Dunno what to do if common->fsg is NULL */
+                printk("err: do_write, start_out_transfer failed\n");
 				return -EIO;
+			}
+
 			common->next_buffhd_to_fill = bh->next;
 			continue;
 		}
@@ -1018,21 +1040,25 @@ static int do_write(struct fsg_common *common)
 
 			/* Perform the write */
 			file_offset_tmp = file_offset;
+
 			nwritten = vfs_write(curlun->filp,
 					     (char __user *)bh->buf,
 					     amount, &file_offset_tmp);
+
 			VLDBG(curlun, "file write %u @ %llu -> %d\n", amount,
 			      (unsigned long long)file_offset, (int)nwritten);
-			if (signal_pending(current))
+			if (signal_pending(current)) {
+                printk("err: do_write, signal_pending(current).(0x%x)\n", signal_pending(current));
 				return -EINTR;		/* Interrupted! */
+            }
 
 			if (nwritten < 0) {
-				LDBG(curlun, "error in file write: %d\n",
-				     (int)nwritten);
+				//LDBG(curlun, "error in file write: %d\n", (int)nwritten);
+				printk("err: do_write, error in file write: %d\n", (int)nwritten);
 				nwritten = 0;
 			} else if (nwritten < amount) {
-				LDBG(curlun, "partial file write: %d/%u\n",
-				     (int)nwritten, amount);
+				//LDBG(curlun, "partial file write: %d/%u\n", (int)nwritten, amount);
+				printk("err: do_write, partial file write: %d/%u\n", (int)nwritten, amount);
 				nwritten -= (nwritten & 511);
 				/* Round down to a block */
 			}
@@ -1058,8 +1084,10 @@ static int do_write(struct fsg_common *common)
 
 		/* Wait for something to happen */
 		rc = sleep_thread(common);
-		if (rc)
+		if (rc) {
+            printk("err: do_write, sleep_thread failed\n");
 			return rc;
+		}
 	}
 
 	return -EIO;		/* No default reply */
@@ -2848,6 +2876,9 @@ buffhds_first_it:
 			i = 0x0399;
 		}
 	}
+
+/* Modified by javen */
+#if 0
 	snprintf(common->inquiry_string, sizeof common->inquiry_string,
 		 "%-8s%-16s%04x", cfg->vendor_name ?: "Linux",
 		 /* Assume product name dependent on the first LUN */
@@ -2855,6 +2886,18 @@ buffhds_first_it:
 				     ? "File-Stor Gadget"
 				     : "File-CD Gadget"),
 		 i);
+#else
+{
+    struct android_usb_config config;
+
+    memset(&config, 0, sizeof(struct android_usb_config));
+    get_android_usb_config(&config);
+
+    snprintf(common->inquiry_string, sizeof common->inquiry_string,
+            "%-8s%-16s%04d",
+            config.msc_vendor_name, config.msc_product_name, config.msc_release);
+}
+#endif
 
 	/*
 	 * Some peripheral controllers are known not to be able to

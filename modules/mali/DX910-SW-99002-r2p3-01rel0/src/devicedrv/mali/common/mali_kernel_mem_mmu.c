@@ -1196,20 +1196,22 @@ static _mali_osk_errcode_t mali_kernel_memory_mmu_interrupt_handler_upper_half(v
 	mmu = (mali_kernel_memory_mmu *)data;
 
 	MALI_DEBUG_ASSERT_POINTER(mmu);
-
+	
+	/* Pointer to core holding this MMU */
 	core = (mali_core_renderunit *)mmu->core;
-	if(core && (CORE_OFF == core->state))
+
+	if(CORE_OFF == core->state)
 	{
 		MALI_SUCCESS;
 	}
-	
+
+
 	/* check if it was our device which caused the interrupt (we could be sharing the IRQ line) */
 	int_stat = mali_mmu_register_read(mmu, MALI_MMU_REGISTER_INT_STATUS);
 	if (0 == int_stat)
 	{
 		MALI_ERROR(_MALI_OSK_ERR_FAULT); /* no bits set, we are sharing the IRQ line and someone else caused the interrupt */
 	}
-
 
 	mali_mmu_register_write(mmu, MALI_MMU_REGISTER_INT_MASK, 0);
 
@@ -1439,10 +1441,11 @@ void mali_kernel_mmu_force_bus_reset(void * input_mmu)
 
 static void mali_kernel_memory_mmu_interrupt_handler_bottom_half(void * data)
 {
-	mali_kernel_memory_mmu * mmu;
+	mali_kernel_memory_mmu *mmu;
 	u32 raw, fault_address, status;
 	mali_core_renderunit *core;
 
+	MALI_DEBUG_PRINT(1, ("mali_kernel_memory_mmu_interrupt_handler_bottom_half\n"));
 	if (NULL == data)
 	{
 		MALI_PRINT_ERROR(("MMU IRQ work queue: NULL argument"));
@@ -1450,18 +1453,19 @@ static void mali_kernel_memory_mmu_interrupt_handler_bottom_half(void * data)
 	}
 	mmu = (mali_kernel_memory_mmu*)data;
 
+
 	MALI_DEBUG_PRINT(4, ("Locking subsystems\n"));
 	/* lock all subsystems */
 	_mali_kernel_core_broadcast_subsystem_message(MMU_KILL_STEP0_LOCK_SUBSYSTEM, (u32)mmu);
 
 	/* Pointer to core holding this MMU */
-	core = (mali_core_renderunit *)mmu->core;
-
+	core = (mali_core_renderunit *)mmu->core;	
+	
 	if(CORE_OFF == core->state)
-	{
-		_mali_kernel_core_broadcast_subsystem_message(MMU_KILL_STEP4_UNLOCK_SUBSYSTEM, (u32)mmu);
-		return;
-	}
+        {
+                _mali_kernel_core_broadcast_subsystem_message(MMU_KILL_STEP4_UNLOCK_SUBSYSTEM, (u32)mmu);
+                return;
+        }
 
 	raw = mali_mmu_register_read(mmu, MALI_MMU_REGISTER_INT_RAWSTAT);
 	status = mali_mmu_register_read(mmu, MALI_MMU_REGISTER_STATUS);
@@ -2206,17 +2210,6 @@ void mali_mmu_release_table_page(u32 pa)
    	_mali_osk_lock_signal(page_table_cache.lock, _MALI_OSK_LOCKMODE_RW);
 }
 
-void mali_memory_core_mmu_owner(void *core, void *mmu_ptr)
-{
-        mali_kernel_memory_mmu *mmu;
-
-        MALI_DEBUG_ASSERT_POINTER(mmu_ptr);
-        MALI_DEBUG_ASSERT_POINTER(core);
-
-        mmu = (mali_kernel_memory_mmu *)mmu_ptr;
-        mmu->core = core;
-}
-
 void* mali_memory_core_mmu_lookup(u32 id)
 {
 	mali_kernel_memory_mmu * mmu, * temp_mmu;
@@ -2229,6 +2222,17 @@ void* mali_memory_core_mmu_lookup(u32 id)
 
 	/* not found */
 	return NULL;
+}
+
+void mali_memory_core_mmu_owner(void *core, void *mmu_ptr)
+{
+        mali_kernel_memory_mmu *mmu;
+
+        MALI_DEBUG_ASSERT_POINTER(mmu_ptr);
+        MALI_DEBUG_ASSERT_POINTER(core);
+
+        mmu = (mali_kernel_memory_mmu *)mmu_ptr;
+        mmu->core = core;
 }
 
 void mali_mmu_activate_address_space(mali_kernel_memory_mmu * mmu, u32 page_directory)

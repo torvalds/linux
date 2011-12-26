@@ -9,6 +9,10 @@
 
 #include <linux/drv_display_sun4i.h>
 
+#elif CONFIG_CHIP_ID == 1125
+
+#include <linux/drv_display_sun5i.h>
+
 #else
 
 #error "no chip id defined"

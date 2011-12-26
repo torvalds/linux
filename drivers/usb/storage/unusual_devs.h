@@ -761,6 +761,12 @@ UNUSUAL_DEV( 0x05ac, 0x120a, 0x0000, 0x9999,
  * Ignore driver CD mode and force into modem mode by default.
  */
 
+UNUSUAL_DEV(  0x05c6, 0x1000, 0x0000, 0x0000,
+		"HUAWEI MOBILE",
+		"Mass Storage",
+		USB_SC_DEVICE, USB_PR_DEVICE, usb_stor_huawei_e220_init,
+		0),
+
 /* Globetrotter HSDPA; mass storage shows up as Qualcomm for vendor */
 UNUSUAL_DEV(  0x05c6, 0x1000, 0x0000, 0x9999,
 		"Option N.V.",
@@ -1838,6 +1844,176 @@ UNUSUAL_DEV(  0x12d1, 0x143F, 0x0000, 0x0000,
 		"HUAWEI MOBILE",
 		"Mass Storage",
 		USB_SC_DEVICE, USB_PR_DEVICE, usb_stor_huawei_e220_init,
+		0),
+UNUSUAL_DEV(  0x12d1, 0x1446, 0x0000, 0x0000,
+		"HUAWEI MOBILE",
+		"Mass Storage",
+		USB_SC_DEVICE, USB_PR_DEVICE, usb_stor_huawei_e220_init,
+		0),
+UNUSUAL_DEV(  0x12d1, 0x14ac, 0x0000, 0x0000,
+		"HUAWEI MOBILE",
+		"Mass Storage",
+		USB_SC_DEVICE, USB_PR_DEVICE, usb_stor_huawei_e220_init,
+		0),
+UNUSUAL_DEV(  0x12d1, 0x1505, 0x0000, 0x0000,
+		"HUAWEI MOBILE",
+		"Mass Storage",
+		USB_SC_DEVICE, USB_PR_DEVICE, usb_stor_huawei_e220_init,
+		0),
+UNUSUAL_DEV(  0x12d1, 0x1506, 0x0000, 0x0000,
+		"HUAWEI MOBILE",
+		"Mass Storage",
+		USB_SC_DEVICE, USB_PR_DEVICE, usb_stor_huawei_e220_init,
+		0),			
+UNUSUAL_DEV(  0x12d1, 0x1d09, 0x0100, 0x0100,
+		"HUAWEI MOBILE",
+		"Mass Storage",
+		USB_SC_DEVICE, USB_PR_DEVICE, usb_stor_huawei_e220_init,
+		0),
+
+UNUSUAL_DEV(  0x12d1, 0x1da1, 0x0100, 0x0100,
+		"HUAWEI MOBILE-TD",
+		"Mass Storage",
+		USB_SC_DEVICE, USB_PR_DEVICE, usb_stor_huawei_e220_init,
+		0),
+
+
+UNUSUAL_DEV(  0x05c6, 0x6000, 0x0000, 0x0000,
+		"HUAWEI MOBILE",
+		"Mass Storage",
+		USB_SC_DEVICE, USB_PR_DEVICE, usb_stor_huawei_e220_init,
+		0),
+//MU350--ZTE--	0x19D20003->0x19D20003	don't report disk device
+UNUSUAL_DEV(0x19D2,0x0003,0x0100,0x0100,
+		"ZTE MOBILE-TD",
+		"Mass Storage",
+		USB_SC_DEVICE, USB_PR_DEVICE, usb_stor_ZTE_AC580_init,
+		0),
+
+		
+//A355--ZTE--	0x19D20120->0x19D20079	don't report disk device	
+UNUSUAL_DEV(0x19D2,0x0120,0x0204  ,0x0204  ,
+		"ZTE MOBILE-TD",
+		"Mass Storage",
+		USB_SC_DEVICE,USB_PR_DEVICE,usb_stor_ZTE_AC580_init,
+		0),	
+		
+//A355--ZTE--	0x19D20120->0x19D20079	don't report disk device	
+UNUSUAL_DEV(0x19D2,0x0079,0x0204  ,0x0204  ,
+		"ZTE MOBILE-TD",
+		"Mass Storage",
+		USB_SC_DEVICE,USB_PR_DEVICE,usb_stor_ZTE_AC580_init,
+		0),	
+		
+//TU930--GaoKeZhongtian--	0x04cc225a->0x04cc225a	don't report disk device	
+UNUSUAL_DEV(0x04cc,0x225a,0x100,0x100,
+		"GaoKeZhongtian MOBILE-TD",
+		"Mass Storage",
+		USB_SC_DEVICE,USB_PR_DEVICE,usb_stor_ZTE_AC580_init,
+		0),	
+
+//AC560--ZTE--	0x19d20026->0x19d20094	don't report disk device
+UNUSUAL_DEV(0x19D2,0x0026,0x0000,0x0000,
+		"ZTE MOBILE",
+		"Mass Storage",
+		USB_SC_DEVICE, USB_PR_DEVICE, usb_stor_ZTE_AC580_init,
+		0),
+
+//MF626/MF633/MF110--ZTE--	0x19d22000->0x19d20031	don't report disk device
+UNUSUAL_DEV(0x19D2,0x0031,0x0000,0x0000,
+		"ZTE MOBILE",
+		"Mass Storage",
+		USB_SC_DEVICE, USB_PR_DEVICE, usb_stor_ZTE_AC580_init2,
+		0),
+
+//AC560--ZTE--	0x19d20026->0x19d20094	don't report disk device
+UNUSUAL_DEV(0x19D2,0x0094,0x0000,0x0000,
+		"ZTE MOBILE",
+		"Mass Storage",
+		USB_SC_DEVICE, USB_PR_DEVICE, usb_stor_ZTE_AC580_init2,
+		0),
+
+//AC560--ZTE--	0x19d20026->0x19d20152	don't report disk device
+UNUSUAL_DEV(0x19D2,0x0152,0x0000,0x0000,
+		"ZTE MOBILE",
+		"Mass Storage",
+		USB_SC_DEVICE, USB_PR_DEVICE, usb_stor_ZTE_AC580_init2,
+		0),
+
+//MF626/MF633/MF110--ZTE--	0x19d22000->0x19d20031	don't report disk device
+UNUSUAL_DEV(0x19D2,0x2000,0x0000,0x0000,
+		"ZTE MOBILE",
+		"Mass Storage",
+		USB_SC_DEVICE, USB_PR_DEVICE, usb_stor_ZTE_AC580_init,
+		0),
+
+//MF637U--ZTE--	don't report disk device
+UNUSUAL_DEV(0x19D2,0xf006,0x0000,0x0000,
+		"ZTE MOBILE",
+		"Mass Storage",
+		USB_SC_DEVICE, USB_PR_DEVICE, usb_stor_ZTE_AC580_init2,
+		0),
+
+//MF637U--ZTE--	 ->0x19d2fff1	don't report disk device
+UNUSUAL_DEV(0x19D2,0xfff1,0x0000,0x0000,
+		"ZTE MOBILE",
+		"Mass Storage",
+		USB_SC_DEVICE, USB_PR_DEVICE, usb_stor_ZTE_AC580_init2,
+		0),
+
+//AC2736/AC2746	don't report disk device
+UNUSUAL_DEV(0x19D2,0xfff5,0x0000,0x0000,
+		"ZTE MOBILE",
+		"Mass Storage",
+		USB_SC_DEVICE, USB_PR_DEVICE, usb_stor_ZTE_AC580_init2,
+		0),
+
+//shanghai ASB T920--ASB--don't report disk device
+UNUSUAL_DEV(0x04cc,0x226e,0x0100,0x0100,
+		"ASB MOBILE",
+		"Mass Storage",
+		USB_SC_DEVICE, USB_PR_DEVICE, usb_stor_ASB_init,
+		0),
+
+//shanghai ASB C820--ASB--don't report disk device
+UNUSUAL_DEV(0x05c6,0x00a0,0x00,0x00,
+		"ASB MOBILE",
+		"Mass Storage",
+		USB_SC_DEVICE,USB_PR_DEVICE,usb_stor_ASB_init,
+		0),
+		
+//TechFaith--don't report disk device
+UNUSUAL_DEV(0x1d09,0x1010,0x0,0x0,
+		"TechFaith MOBILE",
+		"Mass Storage",
+		USB_SC_DEVICE,USB_PR_DEVICE,usb_stor_TechFaith_init,
+		0),
+//TechFaith--don't report disk device
+UNUSUAL_DEV(0x1d09,0x1000,0x0,0x0,
+		"TechFaith MOBILE",
+		"Mass Storage",
+		USB_SC_DEVICE,USB_PR_DEVICE,usb_stor_TechFaith_init,
+		0),
+				
+//wangxun--don't report disk device
+UNUSUAL_DEV(0x1e89,0x1e16,0x0,0x0,
+		"wangxun MOBILE",
+		"Mass Storage",
+		USB_SC_DEVICE,USB_PR_DEVICE,usb_stor_wangxun_init,
+		0),
+		
+//TechFaith--don't report disk device
+UNUSUAL_DEV(0x1e89,0x1a20,0x0,0x0,
+		"Shichuangxing MOBILE",
+		"Mass Storage",
+		USB_SC_DEVICE,USB_PR_DEVICE,usb_stor_TechFaith_init,
+		0),
+				
+//TechFaith--don't report disk device
+UNUSUAL_DEV(0x1e89,0xf000,0x0,0x0,
+		"Shichuangxing MOBILE",
+		"Mass Storage",
+		USB_SC_DEVICE,USB_PR_DEVICE,usb_stor_Shichuangxing_init,
 		0),
 
 /* Reported by Vilius Bilinkevicius <vilisas AT xxx DOT lt) */

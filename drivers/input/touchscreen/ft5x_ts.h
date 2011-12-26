@@ -3,6 +3,12 @@
 
 // gpio base address
 #define CONFIG_FT5X0X_MULTITOUCH     (1)
+#define CALIBRATION  (1)
+#define UPGRADE   (5)
+//#define CALIBRATION _IO(CALIBRATION_FLAG,0)
+//#define UPDRAGE _IO(UPDRAGE_FLAG,0)
+#define I2C_MINORS 	256
+#define I2C_MAJOR 	125
                                 
 #undef  AW_GPIO_INT_API_ENABLE
 //#define AW_FPGA_SIM

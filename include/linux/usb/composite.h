@@ -368,6 +368,27 @@ extern int usb_string_ids_tab(struct usb_composite_dev *c,
 			      struct usb_string *str);
 extern int usb_string_ids_n(struct usb_composite_dev *c, unsigned n);
 
+/* add by javen */
+struct android_usb_config{
+    /* usb feature */
+    u32 vendor_id;
+    u32 mass_storage_id;
+    u32 adb_id;
+
+    char usb_manufacturer_name[64];
+    char usb_product_name[64];
+    char usb_serial_number[64];
+
+    /* usb_mass_storage feature */
+    char msc_vendor_name[64];
+    char msc_product_name[64];
+    u32 msc_release;
+    u32 luns;
+};
+
+s32 parse_android_usb_config(void);
+s32 get_android_usb_config(struct android_usb_config *config);
+
 
 /* messaging utils */
 #define DBG(d, fmt, args...) \

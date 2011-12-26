@@ -330,6 +330,8 @@ int mxc622x_probe(struct i2c_client *client, const struct i2c_device_id *id)
 {
 	int res = 0;
 
+	printk("%s, line is: %d. \n", __func__, __LINE__);
+	
 	if (!i2c_check_functionality(client->adapter, I2C_FUNC_I2C)) {
 		pr_err("%s: functionality check failed\n", __FUNCTION__);
 		res = -ENODEV;

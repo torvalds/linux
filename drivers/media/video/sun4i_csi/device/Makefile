@@ -6,3 +6,4 @@ obj-$(CONFIG_CSI_SP0838)					+= sp0838.o
 obj-$(CONFIG_CSI_MT9M112)					+= mt9m112.o
 obj-$(CONFIG_CSI_MT9M113)					+= mt9m113.o
 obj-$(CONFIG_CSI_OV2655)					+= ov2655.o
+obj-$(CONFIG_CSI_HI253)						+= hi253.o

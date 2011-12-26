@@ -277,6 +277,12 @@ config RTC_DRV_PCF8563
 	  This driver can also be built as a module. If so, the module
 	  will be called rtc-pcf8563.
 
+config RTC_DRV_SUN5I
+	tristate "sun5i rtc driver"
+	depends on ARCH_SUN5I
+	help
+	  sun5i rtc driver,use the Philips PCF8563 RTC chip.
+
 config RTC_DRV_PCF8583
 	tristate "Philips PCF8583"
 	help

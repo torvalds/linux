@@ -779,7 +779,6 @@ static int Fb_pan_display(struct fb_var_screeninfo *var,struct fb_info *info)
             	layer_para.src_win.height = var->yres / buffer_num;
 
             	BSP_disp_layer_set_src_window(sel, layer_hdl, &(layer_para.src_win));
-            	DRV_disp_wait_cmd_finish(sel);
             }
             else
             {
@@ -793,11 +792,9 @@ static int Fb_pan_display(struct fb_var_screeninfo *var,struct fb_info *info)
 
                 BSP_disp_layer_set_src_window(sel, layer_hdl, &(layer_para.src_win));
             	BSP_disp_layer_set_screen_window(sel, layer_hdl, &(layer_para.scn_win));
-            	DRV_disp_wait_cmd_finish(sel);
             }
         }
     }
-    
 	return 0;
 }
 
@@ -959,11 +956,46 @@ static int Fb_cursor(struct fb_info *info, struct fb_cursor *cursor)
     return 0;
 }
 
+static int Fb_wait_for_vsync(struct fb_info *info)
+{
+	unsigned long count;
+	__u32 sel = 0;
+	int ret;
+
+    for(sel = 0; sel < 2; sel++)
+    {
+        if(((sel==0) && (g_fbi.fb_mode[info->node] != FB_MODE_SCREEN1))
+            || ((sel==1) && (g_fbi.fb_mode[info->node] != FB_MODE_SCREEN0)))
+        {
+            if(BSP_disp_get_output_type(sel) == DISP_OUTPUT_TYPE_NONE)
+            {
+                return 0;
+            }
+            
+        	count = g_fbi.wait_count[sel];
+        	ret = wait_event_interruptible_timeout(g_fbi.wait[sel], count != g_fbi.wait_count[sel], msecs_to_jiffies(50));
+        	if (ret == 0)
+        	{
+        	    __inf("timeout\n");
+        		return -ETIMEDOUT;
+        	}
+        }
+    }
+    
+	return 0;
+}
+
+__s32 DRV_disp_int_process(__u32 sel)
+{
+    g_fbi.wait_count[sel]++;
+    wake_up_interruptible(&g_fbi.wait[sel]);
+
+    return 0;
+}
 
 static int Fb_ioctl(struct fb_info *info, unsigned int cmd,unsigned long arg)
 {
 	long ret = 0;
-	__u32 sel = 0;
 	unsigned long layer_hdl = 0;
 
 	switch (cmd) 
@@ -972,7 +1004,7 @@ static int Fb_ioctl(struct fb_info *info, unsigned int cmd,unsigned long arg)
         if(g_fbi.fb_mode[info->node] != FB_MODE_SCREEN1)
         {
             layer_hdl = g_fbi.layer_hdl[info->node][0];
-            copy_to_user((void __user *)arg, &layer_hdl, sizeof(unsigned long));
+            ret = copy_to_user((void __user *)arg, &layer_hdl, sizeof(unsigned long));
         }
         else
         {
@@ -984,7 +1016,7 @@ static int Fb_ioctl(struct fb_info *info, unsigned int cmd,unsigned long arg)
         if(g_fbi.fb_mode[info->node] != FB_MODE_SCREEN0)
         {
             layer_hdl = g_fbi.layer_hdl[info->node][1];
-            copy_to_user((void __user *)arg, &layer_hdl, sizeof(unsigned long));
+            ret = copy_to_user((void __user *)arg, &layer_hdl, sizeof(unsigned long));
         }
         else
         {
@@ -992,31 +1024,42 @@ static int Fb_ioctl(struct fb_info *info, unsigned int cmd,unsigned long arg)
         }
         break; 
 
-    case FBIO_OPEN:
-        if(g_fbi.fb_mode[info->node] != FB_MODE_SCREEN1)
-        {
-            BSP_disp_layer_open(sel, g_fbi.layer_hdl[info->node][0]);
-	        DRV_disp_wait_cmd_finish(sel);
-        }
-	    if(g_fbi.fb_mode[info->node] != FB_MODE_SCREEN0)
-	    {
-            BSP_disp_layer_open(sel, g_fbi.layer_hdl[info->node][1]);
-    	    DRV_disp_wait_cmd_finish(sel);
-	    }
-        break;
+#if 0
+    case FBIOGET_VBLANK:
+    {
+        struct fb_vblank vblank;
+        __disp_tcon_timing_t tt;
+        __u32 line = 0;
+        __u32 sel;
 
-    case FBIO_CLOSE:
-        if(g_fbi.fb_mode[info->node] != FB_MODE_SCREEN1)
+        sel = (g_fbi.fb_mode[info->node] == FB_MODE_SCREEN1)?1:0;
+        line = BSP_disp_get_cur_line(sel);
+        BSP_disp_get_timming(sel, &tt);
+        
+        memset(&vblank, 0, sizeof(struct fb_vblank));
+        vblank.flags |= FB_VBLANK_HAVE_VBLANK;
+        vblank.flags |= FB_VBLANK_HAVE_VSYNC;
+        if(line <= (tt.ver_total_time-tt.ver_pixels))
         {
-            BSP_disp_layer_close(sel, g_fbi.layer_hdl[info->node][0]);
-	        DRV_disp_wait_cmd_finish(sel);
+            vblank.flags |= FB_VBLANK_VBLANKING;
         }
-	    if(g_fbi.fb_mode[info->node] != FB_MODE_SCREEN0)
-	    {
-            BSP_disp_layer_close(sel, g_fbi.layer_hdl[info->node][1]);
-    	    DRV_disp_wait_cmd_finish(sel);
-	    }
+        if((line > tt.ver_front_porch) && (line < (tt.ver_front_porch+tt.ver_sync_time)))
+        {
+            vblank.flags |= FB_VBLANK_VSYNCING;
+        }
+        
+        if (copy_to_user((void __user *)arg, &vblank, sizeof(struct fb_vblank)))
+            ret = -EFAULT;
+
         break;
+    }
+#endif
+
+    case FBIO_WAITFORVSYNC:
+    {
+        ret = Fb_wait_for_vsync(info);
+        break;
+    }
 
    	default:
    	    //__inf("not supported fb io cmd:%x\n", cmd);
@@ -1064,13 +1107,31 @@ __s32 Display_Fb_Request(__u32 fb_id, __disp_fb_create_para_t *fb_para)
     info->fix.line_length   = (fb_para->width * info->var.bits_per_pixel) >> 3;
     info->fix.smem_len      = info->fix.line_length * fb_para->height * fb_para->buffer_num;
     Fb_map_video_memory(info);
-    
+
     for(sel = 0; sel < 2; sel++)
     {
         if(((sel==0) && (fb_para->fb_mode != FB_MODE_SCREEN1))
         || ((sel==1) && (fb_para->fb_mode != FB_MODE_SCREEN0)))
         {
     	    __u32 y_offset = 0, src_width = xres, src_height = yres;
+
+	        if(((sel==0) && (fb_para->fb_mode == FB_MODE_SCREEN0 || fb_para->fb_mode == FB_MODE_DUAL_SAME_SCREEN_TB))
+                || ((sel==1) && (fb_para->fb_mode == FB_MODE_SCREEN1))
+                || ((sel == fb_para->primary_screen_id) && (fb_para->fb_mode == FB_MODE_DUAL_DIFF_SCREEN_SAME_CONTENTS)))
+            {
+                __disp_tcon_timing_t tt;
+
+                if(BSP_disp_get_timming(sel, &tt) >= 0)
+                {
+                    info->var.pixclock = 1000000000 / tt.pixel_clk;
+                    info->var.left_margin = tt.hor_back_porch;
+                    info->var.right_margin = tt.hor_front_porch;
+                    info->var.upper_margin = tt.ver_back_porch;
+                    info->var.lower_margin = tt.ver_front_porch;
+                    info->var.hsync_len = tt.hor_sync_time;
+                    info->var.vsync_len = tt.ver_sync_time;
+                }
+            }
 
             if(fb_para->fb_mode == FB_MODE_DUAL_SAME_SCREEN_TB)
             {
@@ -1132,7 +1193,7 @@ __s32 Display_Fb_Request(__u32 fb_id, __disp_fb_create_para_t *fb_para)
         	g_fbi.layer_hdl[fb_id][sel] = hdl;
     	}
 	}
-
+    
     g_fbi.fb_enable[fb_id] = 1;
 	g_fbi.fb_mode[fb_id] = fb_para->fb_mode;
     memcpy(&g_fbi.fb_para[fb_id], fb_para, sizeof(__disp_fb_create_para_t));
@@ -1200,6 +1261,37 @@ __s32 Display_get_disp_init_para(__disp_init_t * init_para)
     return 0;
 }
 
+__s32 Display_set_fb_timming(__u32 sel)
+{
+	__u8 fb_id=0;
+
+	for(fb_id=0; fb_id<FB_MAX; fb_id++)
+	{
+		if(g_fbi.fb_enable[fb_id])
+		{
+	        if(((sel==0) && (g_fbi.fb_mode[fb_id] == FB_MODE_SCREEN0 || g_fbi.fb_mode[fb_id] == FB_MODE_DUAL_SAME_SCREEN_TB))
+                || ((sel==1) && (g_fbi.fb_mode[fb_id] == FB_MODE_SCREEN1))
+                || ((sel == g_fbi.fb_para[fb_id].primary_screen_id) && (g_fbi.fb_mode[fb_id] == FB_MODE_DUAL_DIFF_SCREEN_SAME_CONTENTS)))
+            {
+                __disp_tcon_timing_t tt;
+
+                if(BSP_disp_get_timming(sel, &tt)>=0)
+                {
+                    g_fbi.fbinfo[fb_id]->var.pixclock = 1000000000 / tt.pixel_clk;
+                    g_fbi.fbinfo[fb_id]->var.left_margin = tt.hor_back_porch;
+                    g_fbi.fbinfo[fb_id]->var.right_margin = tt.hor_front_porch;
+                    g_fbi.fbinfo[fb_id]->var.upper_margin = tt.ver_back_porch;
+                    g_fbi.fbinfo[fb_id]->var.lower_margin = tt.ver_front_porch;
+                    g_fbi.fbinfo[fb_id]->var.hsync_len = tt.hor_sync_time;
+                    g_fbi.fbinfo[fb_id]->var.vsync_len = tt.ver_sync_time;
+                }
+            }
+		}
+	}
+
+    return 0;
+}
+
 extern unsigned long fb_start;
 extern unsigned long fb_size;
 
@@ -1254,7 +1346,6 @@ __s32 Fb_Init(__u32 from)
 
         	register_framebuffer(g_fbi.fbinfo[i]);
         }
-
         parser_disp_init_para(&(g_fbi.disp_init));
     }
 

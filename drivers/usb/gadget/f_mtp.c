@@ -410,6 +410,7 @@ static int mtp_create_bulk_endpoints(struct mtp_dev *dev,
 	ep->driver_data = dev;		/* claim the endpoint */
 	dev->ep_out = ep;
 
+#if 0
 	ep = usb_ep_autoconfig(cdev->gadget, out_desc);
 	if (!ep) {
 		DBG(cdev, "usb_ep_autoconfig for ep_out failed\n");
@@ -418,6 +419,7 @@ static int mtp_create_bulk_endpoints(struct mtp_dev *dev,
 	DBG(cdev, "usb_ep_autoconfig for mtp ep_out got %s\n", ep->name);
 	ep->driver_data = dev;		/* claim the endpoint */
 	dev->ep_out = ep;
+#endif
 
 	ep = usb_ep_autoconfig(cdev->gadget, intr_desc);
 	if (!ep) {
@@ -945,14 +947,18 @@ out:
 static int mtp_open(struct inode *ip, struct file *fp)
 {
 	printk(KERN_INFO "mtp_open\n");
-	if (mtp_lock(&_mtp_dev->open_excl))
+
+	if (mtp_lock(&_mtp_dev->open_excl)){
+	    printk("err: mtp is busy\n");
 		return -EBUSY;
+	}
 
 	/* clear any error condition */
 	if (_mtp_dev->state != STATE_OFFLINE)
 		_mtp_dev->state = STATE_READY;
 
 	fp->private_data = _mtp_dev;
+
 	return 0;
 }
 
@@ -961,6 +967,7 @@ static int mtp_release(struct inode *ip, struct file *fp)
 	printk(KERN_INFO "mtp_release\n");
 
 	mtp_unlock(&_mtp_dev->open_excl);
+
 	return 0;
 }
 

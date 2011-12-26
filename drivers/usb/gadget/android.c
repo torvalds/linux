@@ -216,135 +216,6 @@ static void android_disable(struct android_dev *dev)
 	}
 
 /*-------------------------------------------------------------------------*/
-
-struct g_android_usb_config{
-    /* usb feature */
-    u32 vendor_id;
-    u32 mass_storage_id;
-    u32 adb_id;
-
-    char usb_manufacturer_name[64];
-    char usb_product_name[64];
-    char usb_serial_number[64];
-
-    /* usb_mass_storage feature */
-    char msc_vendor_name[64];
-    char msc_product_name[64];
-    u32 msc_release;
-    u32 luns;
-};
-
-#include <mach/sys_config.h>
-
-static s32 get_msc_config(struct g_android_usb_config *config)
-{
-    s32 ret = 0;
-
-    //----------------------------------------
-    //  usb_feature
-    //----------------------------------------
-
-    /* vendor_id */
-    ret = script_parser_fetch("usb_feature", "vendor_id", (int *)&(config->vendor_id), 64);
-	if(ret != 0){
-	    printk("ERR: get usb_feature vendor_id failed\n");
-	}
-
-    /* mass_storage_id */
-    ret = script_parser_fetch("usb_feature", "mass_storage_id", (int *)&(config->mass_storage_id), 64);
-	if(ret != 0){
-	    printk("ERR: get usb_feature mass_storage_id failed\n");
-	}
-
-    /* adb_id */
-    ret = script_parser_fetch("usb_feature", "adb_id", (int *)&(config->adb_id), 64);
-	if(ret != 0){
-	    printk("ERR: get usb_feature adb_id failed\n");
-	}
-
-	/* manufacturer_name */
-    ret = script_parser_fetch("usb_feature", "manufacturer_name", (int *)config->usb_manufacturer_name, 64);
-	if(ret != 0){
-	    printk("ERR: get usb_feature manufacturer_name failed\n");
-	}
-
-	/* product_name */
-    ret = script_parser_fetch("usb_feature", "product_name", (int *)config->usb_product_name, 64);
-	if(ret != 0){
-	    printk("ERR: get usb_feature product_name failed\n");
-	}
-
-	/* serial_number */
-    ret = script_parser_fetch("usb_feature", "serial_number", (int *)config->usb_serial_number, 64);
-	if(ret != 0){
-	    printk("ERR: get usb_feature serial_number failed\n");
-	}
-
-    //----------------------------------------
-    //  msc_feature
-    //----------------------------------------
-
-	/* vendor_name */
-    ret = script_parser_fetch("msc_feature", "vendor_name", (int *)config->msc_vendor_name, 64);
-	if(ret != 0){
-	    printk("ERR: get msc_feature vendor_name failed\n");
-	}
-
-	/* product_name */
-    ret = script_parser_fetch("msc_feature", "product_name", (int *)config->msc_product_name, 64);
-	if(ret != 0){
-	    printk("ERR: get msc_feature product_name failed\n");
-	}
-
-	/* release */
-    ret = script_parser_fetch("msc_feature", "release", (int *)&(config->msc_release), 64);
-	if(ret != 0){
-	    printk("ERR: get msc_feature release failed\n");
-	}
-
-	/* luns */
-    ret = script_parser_fetch("msc_feature", "luns", (int *)&(config->luns), 64);
-	if(ret != 0){
-	    printk("ERR: get msc_feature luns failed\n");
-	}
-
-    return 0;
-}
-
-static void print_msc_config(struct g_android_usb_config *config)
-{
-    printk("------print_msc_config-----\n");
-    printk("vendor_id             = 0x%x\n", config->vendor_id);
-    printk("mass_storage_id       = 0x%x\n", config->mass_storage_id);
-    printk("adb_id                = 0x%x\n", config->adb_id);
-
-    printk("usb_manufacturer_name = %s\n", config->usb_manufacturer_name);
-    printk("usb_product_name      = %s\n", config->usb_product_name);
-    printk("usb_serial_number     = %s\n", config->usb_serial_number);
-
-    printk("msc_vendor_name       = %s\n", config->msc_vendor_name);
-    printk("msc_product_name      = %s\n", config->msc_product_name);
-    printk("msc_release           = %d\n", config->msc_release);
-    printk("luns                  = %d\n", config->luns);
-    printk("---------------------------\n");
-}
-
-static struct g_android_usb_config g_android_usb_config;
-
-static s32 modify_device_data(void)
-{
-    struct g_android_usb_config *config = &g_android_usb_config;
-
-    memset(config, 0, sizeof(struct g_android_usb_config));
-
-    get_msc_config(config);
-
-    print_msc_config(config);
-
-    return 0;
-}
-
-/*-------------------------------------------------------------------------*/
 /* Supported functions initialization */
 
 struct adb_data {
@@ -1098,11 +969,10 @@ static ssize_t enable_store(struct device *pdev, struct device_attribute *attr,
 		cdev->desc.bDeviceClass = device_desc.bDeviceClass;
 		cdev->desc.bDeviceSubClass = device_desc.bDeviceSubClass;
 		cdev->desc.bDeviceProtocol = device_desc.bDeviceProtocol;
-		list_for_each_entry(f, &dev->enabled_functions, enabled_list) {
-			if (f->enable)
-				f->enable(f);
-		}
-		android_enable(dev);
+
+		usb_add_config(cdev, &android_config_driver,
+					android_bind_config);
+		usb_gadget_connect(cdev->gadget);
 		dev->enabled = true;
 	} else if (!enabled && dev->enabled) {
 		android_disable(dev);
@@ -1260,10 +1130,23 @@ static int android_bind(struct usb_composite_dev *cdev)
 	strings_dev[STRING_PRODUCT_IDX].id = id;
 	device_desc.iProduct = id;
 
+/* Modified by javen */
+#if 0
 	/* Default strings - should be updated by userspace */
 	strncpy(manufacturer_string, "Android", sizeof(manufacturer_string) - 1);
 	strncpy(product_string, "Android", sizeof(product_string) - 1);
 	strncpy(serial_string, "0123456789ABCDEF", sizeof(serial_string) - 1);
+#else
+{
+    struct android_usb_config usb_config;
+
+    get_android_usb_config(&usb_config);
+
+	strncpy(manufacturer_string, usb_config.usb_manufacturer_name, sizeof(manufacturer_string) - 1);
+	strncpy(product_string, usb_config.usb_product_name, sizeof(product_string) - 1);
+	strncpy(serial_string, usb_config.usb_serial_number, sizeof(serial_string) - 1);
+}
+#endif
 
 	id = usb_string_id(cdev);
 	if (id < 0)
@@ -1396,7 +1279,16 @@ static int __init init(void)
 	struct android_dev *dev;
 	int err;
 
-    modify_device_data();
+/* modified by javen */
+{
+    struct android_usb_config usb_config;
+
+    parse_android_usb_config();
+    get_android_usb_config(&usb_config);
+
+    device_desc.idVendor        = usb_config.vendor_id;
+    device_desc.idProduct       = usb_config.mass_storage_id;
+}
 
 	android_class = class_create(THIS_MODULE, "android_usb");
 	if (IS_ERR(android_class))

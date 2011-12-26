@@ -1392,6 +1392,10 @@ static int __init init_blklayer(void)
 	if (ret < 0)
 		return ret;
 
+    ret = PHY_ScanDDRParam();
+    if (ret < 0)
+        return ret;
+    
 	ret = FMT_Init();
 	if (ret < 0)
 		return ret;

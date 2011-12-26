@@ -1374,3 +1374,127 @@ void usb_composite_setup_continue(struct usb_composite_dev *cdev)
 	spin_unlock_irqrestore(&cdev->lock, flags);
 }
 
+
+//-------------------------------------------------------------------------
+//
+//     add by javen
+//
+//-------------------------------------------------------------------------
+
+#include <mach/sys_config.h>
+
+static s32 get_android_config(struct android_usb_config *config)
+{
+    s32 ret = 0;
+
+    //----------------------------------------
+    //  usb_feature
+    //----------------------------------------
+
+    /* vendor_id */
+    ret = script_parser_fetch("usb_feature", "vendor_id", (int *)&(config->vendor_id), 64);
+	if(ret != 0){
+	    printk("ERR: get usb_feature vendor_id failed\n");
+	}
+
+    /* mass_storage_id */
+    ret = script_parser_fetch("usb_feature", "mass_storage_id", (int *)&(config->mass_storage_id), 64);
+	if(ret != 0){
+	    printk("ERR: get usb_feature mass_storage_id failed\n");
+	}
+
+    /* adb_id */
+    ret = script_parser_fetch("usb_feature", "adb_id", (int *)&(config->adb_id), 64);
+	if(ret != 0){
+	    printk("ERR: get usb_feature adb_id failed\n");
+	}
+
+	/* manufacturer_name */
+    ret = script_parser_fetch("usb_feature", "manufacturer_name", (int *)config->usb_manufacturer_name, 64);
+	if(ret != 0){
+	    printk("ERR: get usb_feature manufacturer_name failed\n");
+	}
+
+	/* product_name */
+    ret = script_parser_fetch("usb_feature", "product_name", (int *)config->usb_product_name, 64);
+	if(ret != 0){
+	    printk("ERR: get usb_feature product_name failed\n");
+	}
+
+	/* serial_number */
+    ret = script_parser_fetch("usb_feature", "serial_number", (int *)config->usb_serial_number, 64);
+	if(ret != 0){
+	    printk("ERR: get usb_feature serial_number failed\n");
+	}
+
+    //----------------------------------------
+    //  msc_feature
+    //----------------------------------------
+
+	/* vendor_name */
+    ret = script_parser_fetch("msc_feature", "vendor_name", (int *)config->msc_vendor_name, 64);
+	if(ret != 0){
+	    printk("ERR: get msc_feature vendor_name failed\n");
+	}
+
+	/* product_name */
+    ret = script_parser_fetch("msc_feature", "product_name", (int *)config->msc_product_name, 64);
+	if(ret != 0){
+	    printk("ERR: get msc_feature product_name failed\n");
+	}
+
+	/* release */
+    ret = script_parser_fetch("msc_feature", "release", (int *)&(config->msc_release), 64);
+	if(ret != 0){
+	    printk("ERR: get msc_feature release failed\n");
+	}
+
+	/* luns */
+    ret = script_parser_fetch("msc_feature", "luns", (int *)&(config->luns), 64);
+	if(ret != 0){
+	    printk("ERR: get msc_feature luns failed\n");
+	}
+
+    return 0;
+}
+
+static void print_android_config(struct android_usb_config *config)
+{
+    printk("------print_msc_config-----\n");
+    printk("vendor_id             = 0x%x\n", config->vendor_id);
+    printk("mass_storage_id       = 0x%x\n", config->mass_storage_id);
+    printk("adb_id                = 0x%x\n", config->adb_id);
+
+    printk("usb_manufacturer_name = %s\n", config->usb_manufacturer_name);
+    printk("usb_product_name      = %s\n", config->usb_product_name);
+    printk("usb_serial_number     = %s\n", config->usb_serial_number);
+
+    printk("msc_vendor_name       = %s\n", config->msc_vendor_name);
+    printk("msc_product_name      = %s\n", config->msc_product_name);
+    printk("msc_release           = %d\n", config->msc_release);
+    printk("luns                  = %d\n", config->luns);
+    printk("---------------------------\n");
+}
+
+static struct android_usb_config g_android_usb_config;
+
+s32 parse_android_usb_config(void)
+{
+    struct android_usb_config *config = &g_android_usb_config;
+
+    memset(config, 0, sizeof(struct android_usb_config));
+
+    get_android_config(config);
+
+    print_android_config(config);
+
+    return 0;
+}
+
+s32 get_android_usb_config(struct android_usb_config *config)
+{
+    memcpy(config, &g_android_usb_config, sizeof(struct android_usb_config));
+
+    return 0;
+}
+
