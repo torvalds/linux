@@ -206,7 +206,6 @@ static void
 rpc_i_callback(struct rcu_head *head)
 {
 	struct inode *inode = container_of(head, struct inode, i_rcu);
-	kfree(RPC_I(inode)->pipe);
 	kmem_cache_free(rpc_inode_cachep, RPC_I(inode));
 }
 
@@ -575,34 +574,44 @@ init_pipe(struct rpc_pipe *pipe)
 			    rpc_timeout_upcall_queue);
 	pipe->ops = NULL;
 	spin_lock_init(&pipe->lock);
-
+	pipe->dentry = NULL;
 }
 
-static int __rpc_mkpipe(struct inode *dir, struct dentry *dentry,
-			umode_t mode,
-			const struct file_operations *i_fop,
-			void *private,
-			const struct rpc_pipe_ops *ops,
-			int flags)
+void rpc_destroy_pipe_data(struct rpc_pipe *pipe)
+{
+	kfree(pipe);
+}
+EXPORT_SYMBOL_GPL(rpc_destroy_pipe_data);
+
+struct rpc_pipe *rpc_mkpipe_data(const struct rpc_pipe_ops *ops, int flags)
 {
 	struct rpc_pipe *pipe;
-	struct rpc_inode *rpci;
-	int err;
 
 	pipe = kzalloc(sizeof(struct rpc_pipe), GFP_KERNEL);
 	if (!pipe)
-		return -ENOMEM;
+		return ERR_PTR(-ENOMEM);
 	init_pipe(pipe);
+	pipe->ops = ops;
+	pipe->flags = flags;
+	return pipe;
+}
+EXPORT_SYMBOL_GPL(rpc_mkpipe_data);
+
+static int __rpc_mkpipe_dentry(struct inode *dir, struct dentry *dentry,
+			       umode_t mode,
+			       const struct file_operations *i_fop,
+			       void *private,
+			       struct rpc_pipe *pipe)
+{
+	struct rpc_inode *rpci;
+	int err;
+
 	err = __rpc_create_common(dir, dentry, S_IFIFO | mode, i_fop, private);
-	if (err) {
-		kfree(pipe);
+	if (err)
 		return err;
-	}
 	rpci = RPC_I(dentry->d_inode);
 	rpci->private = private;
 	rpci->pipe = pipe;
-	rpci->pipe->flags = flags;
-	rpci->pipe->ops = ops;
 	fsnotify_create(dir, dentry);
 	return 0;
 }
@@ -819,9 +828,8 @@ static int rpc_rmdir_depopulate(struct dentry *dentry,
  * The @private argument passed here will be available to all these methods
  * from the file pointer, via RPC_I(file->f_dentry->d_inode)->private.
  */
-struct dentry *rpc_mkpipe(struct dentry *parent, const char *name,
-			  void *private, const struct rpc_pipe_ops *ops,
-			  int flags)
+struct dentry *rpc_mkpipe_dentry(struct dentry *parent, const char *name,
+				 void *private, struct rpc_pipe *pipe)
 {
 	struct dentry *dentry;
 	struct inode *dir = parent->d_inode;
@@ -829,9 +837,9 @@ struct dentry *rpc_mkpipe(struct dentry *parent, const char *name,
 	struct qstr q;
 	int err;
 
-	if (ops->upcall == NULL)
+	if (pipe->ops->upcall == NULL)
 		umode &= ~S_IRUGO;
-	if (ops->downcall == NULL)
+	if (pipe->ops->downcall == NULL)
 		umode &= ~S_IWUGO;
 
 	q.name = name;
@@ -842,8 +850,8 @@ struct dentry *rpc_mkpipe(struct dentry *parent, const char *name,
 	dentry = __rpc_lookup_create_exclusive(parent, &q);
 	if (IS_ERR(dentry))
 		goto out;
-	err = __rpc_mkpipe(dir, dentry, umode, &rpc_pipe_fops,
-			   private, ops, flags);
+	err = __rpc_mkpipe_dentry(dir, dentry, umode, &rpc_pipe_fops,
+				  private, pipe);
 	if (err)
 		goto out_err;
 out:
@@ -856,7 +864,7 @@ out_err:
 			err);
 	goto out;
 }
-EXPORT_SYMBOL_GPL(rpc_mkpipe);
+EXPORT_SYMBOL_GPL(rpc_mkpipe_dentry);
 
 /**
  * rpc_unlink - remove a pipe

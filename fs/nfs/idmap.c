@@ -410,7 +410,7 @@ struct idmap_hashtable {
 };
 
 struct idmap {
-	struct dentry		*idmap_dentry;
+	struct rpc_pipe		*idmap_pipe;
 	wait_queue_head_t	idmap_wq;
 	struct idmap_msg	idmap_im;
 	struct mutex		idmap_lock;	/* Serializes upcalls */
@@ -435,6 +435,7 @@ int
 nfs_idmap_new(struct nfs_client *clp)
 {
 	struct idmap *idmap;
+	struct rpc_pipe *pipe;
 	int error;
 
 	BUG_ON(clp->cl_idmap != NULL);
@@ -443,14 +444,23 @@ nfs_idmap_new(struct nfs_client *clp)
 	if (idmap == NULL)
 		return -ENOMEM;
 
-	idmap->idmap_dentry = rpc_mkpipe(clp->cl_rpcclient->cl_path.dentry,
-			"idmap", idmap, &idmap_upcall_ops, 0);
-	if (IS_ERR(idmap->idmap_dentry)) {
-		error = PTR_ERR(idmap->idmap_dentry);
+	pipe = rpc_mkpipe_data(&idmap_upcall_ops, 0);
+	if (IS_ERR(pipe)) {
+		error = PTR_ERR(pipe);
 		kfree(idmap);
 		return error;
 	}
 
+	if (clp->cl_rpcclient->cl_path.dentry)
+		pipe->dentry = rpc_mkpipe_dentry(clp->cl_rpcclient->cl_path.dentry,
+				"idmap", idmap, pipe);
+	if (IS_ERR(pipe->dentry)) {
+		error = PTR_ERR(pipe->dentry);
+		rpc_destroy_pipe_data(pipe);
+		kfree(idmap);
+		return error;
+	}
+	idmap->idmap_pipe = pipe;
 	mutex_init(&idmap->idmap_lock);
 	mutex_init(&idmap->idmap_im_lock);
 	init_waitqueue_head(&idmap->idmap_wq);
@@ -468,7 +478,9 @@ nfs_idmap_delete(struct nfs_client *clp)
 
 	if (!idmap)
 		return;
-	rpc_unlink(idmap->idmap_dentry);
+	if (idmap->idmap_pipe->dentry)
+		rpc_unlink(idmap->idmap_pipe->dentry);
+	rpc_destroy_pipe_data(idmap->idmap_pipe);
 	clp->cl_idmap = NULL;
 	kfree(idmap);
 }
@@ -589,7 +601,7 @@ nfs_idmap_id(struct idmap *idmap, struct idmap_hashtable *h,
 	msg.len = sizeof(*im);
 
 	add_wait_queue(&idmap->idmap_wq, &wq);
-	if (rpc_queue_upcall(RPC_I(idmap->idmap_dentry->d_inode)->pipe, &msg) < 0) {
+	if (rpc_queue_upcall(idmap->idmap_pipe, &msg) < 0) {
 		remove_wait_queue(&idmap->idmap_wq, &wq);
 		goto out;
 	}
@@ -650,7 +662,7 @@ nfs_idmap_name(struct idmap *idmap, struct idmap_hashtable *h,
 
 	add_wait_queue(&idmap->idmap_wq, &wq);
 
-	if (rpc_queue_upcall(RPC_I(idmap->idmap_dentry->d_inode)->pipe, &msg) < 0) {
+	if (rpc_queue_upcall(idmap->idmap_pipe, &msg) < 0) {
 		remove_wait_queue(&idmap->idmap_wq, &wq);
 		goto out;
 	}

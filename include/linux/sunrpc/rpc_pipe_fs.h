@@ -34,6 +34,7 @@ struct rpc_pipe {
 	struct delayed_work queue_timeout;
 	const struct rpc_pipe_ops *ops;
 	spinlock_t lock;
+	struct dentry *dentry;
 };
 
 struct rpc_inode {
@@ -77,8 +78,10 @@ extern struct dentry *rpc_create_cache_dir(struct dentry *,
 					   struct cache_detail *);
 extern void rpc_remove_cache_dir(struct dentry *);
 
-extern struct dentry *rpc_mkpipe(struct dentry *, const char *, void *,
-				 const struct rpc_pipe_ops *, int flags);
+struct rpc_pipe *rpc_mkpipe_data(const struct rpc_pipe_ops *ops, int flags);
+void rpc_destroy_pipe_data(struct rpc_pipe *pipe);
+extern struct dentry *rpc_mkpipe_dentry(struct dentry *, const char *, void *,
+					struct rpc_pipe *);
 extern int rpc_unlink(struct dentry *);
 extern struct vfsmount *rpc_get_mount(void);
 extern void rpc_put_mount(void);

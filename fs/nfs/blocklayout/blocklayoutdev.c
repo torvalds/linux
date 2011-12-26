@@ -146,7 +146,7 @@ nfs4_blk_decode_device(struct nfs_server *server,
 
 	dprintk("%s CALLING USERSPACE DAEMON\n", __func__);
 	add_wait_queue(&bl_wq, &wq);
-	rc = rpc_queue_upcall(RPC_I(bl_device_pipe->d_inode)->pipe, &msg);
+	rc = rpc_queue_upcall(bl_device_pipe, &msg);
 	if (rc < 0) {
 		remove_wait_queue(&bl_wq, &wq);
 		rv = ERR_PTR(rc);

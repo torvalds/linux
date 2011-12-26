@@ -46,7 +46,7 @@ MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Andy Adamson <andros@citi.umich.edu>");
 MODULE_DESCRIPTION("The NFSv4.1 pNFS Block layout driver");
 
-struct dentry *bl_device_pipe;
+struct rpc_pipe *bl_device_pipe;
 wait_queue_head_t bl_wq;
 
 static void print_page(struct page *page)
@@ -1051,16 +1051,23 @@ static int __init nfs4blocklayout_init(void)
 	if (ret)
 		goto out_putrpc;
 
-	bl_device_pipe = rpc_mkpipe(path.dentry, "blocklayout", NULL,
-				    &bl_upcall_ops, 0);
+	bl_device_pipe = rpc_mkpipe_data(&bl_upcall_ops, 0);
 	path_put(&path);
 	if (IS_ERR(bl_device_pipe)) {
 		ret = PTR_ERR(bl_device_pipe);
 		goto out_putrpc;
 	}
+	bl_device_pipe->dentry = rpc_mkpipe_dentry(path.dentry, "blocklayout",
+						   NULL, bl_device_pipe);
+	if (IS_ERR(bl_device_pipe->dentry)) {
+		ret = PTR_ERR(bl_device_pipe->dentry);
+		goto out_destroy_pipe;
+	}
 out:
 	return ret;
 
+out_destroy_pipe:
+	rpc_destroy_pipe_data(bl_device_pipe);
 out_putrpc:
 	rpc_put_mount();
 out_remove:
@@ -1074,7 +1081,8 @@ static void __exit nfs4blocklayout_exit(void)
 	       __func__);
 
 	pnfs_unregister_layoutdriver(&blocklayout_type);
-	rpc_unlink(bl_device_pipe);
+	rpc_unlink(bl_device_pipe->dentry);
+	rpc_destroy_pipe_data(bl_device_pipe);
 	rpc_put_mount();
 }
 

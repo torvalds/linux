@@ -161,7 +161,7 @@ struct bl_msg_hdr {
 	u16 totallen; /* length of entire message, including hdr itself */
 };
 
-extern struct dentry *bl_device_pipe;
+extern struct rpc_pipe *bl_device_pipe;
 extern wait_queue_head_t bl_wq;
 
 #define BL_DEVICE_UMOUNT               0x0 /* Umount--delete devices */
