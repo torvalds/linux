@@ -625,7 +625,6 @@ static int mxl5007t_set_params(struct dvb_frontend *fe)
 	enum mxl5007t_mode mode;
 	int ret;
 	u32 freq = c->frequency;
-	u32 band = BANDWIDTH_6_MHZ;
 
 	switch (delsys) {
 	case SYS_ATSC:
@@ -645,10 +644,8 @@ static int mxl5007t_set_params(struct dvb_frontend *fe)
 			break;
 		case 7000000:
 			bw = MxL_BW_7MHz;
-			band = BANDWIDTH_7_MHZ;
 		case 8000000:
 			bw = MxL_BW_8MHz;
-			band = BANDWIDTH_8_MHZ;
 		default:
 			return -EINVAL;
 		}
@@ -672,7 +669,7 @@ static int mxl5007t_set_params(struct dvb_frontend *fe)
 		goto fail;
 
 	state->frequency = freq;
-	state->bandwidth = band;
+	state->bandwidth = c->bandwidth_hz;
 fail:
 	mutex_unlock(&state->lock);
 

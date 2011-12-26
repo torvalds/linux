@@ -635,12 +635,7 @@ static int dvb_pll_set_params(struct dvb_frontend *fe)
 	}
 
 	priv->frequency = frequency;
-	if (c->bandwidth_hz <= 6000000)
-		priv->bandwidth = BANDWIDTH_6_MHZ;
-	else if (c->bandwidth_hz <= 7000000)
-		priv->bandwidth = BANDWIDTH_7_MHZ;
-	if (c->bandwidth_hz <= 8000000)
-		priv->bandwidth = BANDWIDTH_8_MHZ;
+	priv->bandwidth = c->bandwidth_hz;
 
 	return 0;
 }

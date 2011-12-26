@@ -1028,17 +1028,7 @@ static int simple_get_frequency(struct dvb_frontend *fe, u32 *frequency)
 static int simple_get_bandwidth(struct dvb_frontend *fe, u32 *bandwidth)
 {
 	struct tuner_simple_priv *priv = fe->tuner_priv;
-	switch (priv->bandwidth) {
-	case 6000000:
-		*bandwidth = BANDWIDTH_6_MHZ;
-		break;
-	case 7000000:
-		*bandwidth = BANDWIDTH_7_MHZ;
-		break;
-	case 8000000:
-		*bandwidth = BANDWIDTH_8_MHZ;
-		break;
-	}
+	*bandwidth = priv->bandwidth;
 	return 0;
 }
 

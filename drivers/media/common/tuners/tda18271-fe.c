@@ -934,7 +934,6 @@ static int tda18271_set_params(struct dvb_frontend *fe)
 	u32 delsys = c->delivery_system;
 	u32 bw = c->bandwidth_hz;
 	u32 freq = c->frequency;
-	u32 band = BANDWIDTH_6_MHZ;
 	struct tda18271_priv *priv = fe->tuner_priv;
 	struct tda18271_std_map *std_map = &priv->std;
 	struct tda18271_std_map_item *map;
@@ -953,10 +952,8 @@ static int tda18271_set_params(struct dvb_frontend *fe)
 			map = &std_map->dvbt_6;
 		} else if (bw <= 7000000) {
 			map = &std_map->dvbt_7;
-			band = BANDWIDTH_7_MHZ;
 		} else {
 			map = &std_map->dvbt_8;
-			band = BANDWIDTH_8_MHZ;
 		}
 		break;
 	case SYS_DVBC_ANNEX_B:
@@ -968,10 +965,8 @@ static int tda18271_set_params(struct dvb_frontend *fe)
 			map = &std_map->qam_6;
 		} else if (bw <= 7000000) {
 			map = &std_map->qam_7;
-			band = BANDWIDTH_7_MHZ;
 		} else {
 			map = &std_map->qam_8;
-			band = BANDWIDTH_8_MHZ;
 		}
 		break;
 	default:
@@ -990,7 +985,7 @@ static int tda18271_set_params(struct dvb_frontend *fe)
 
 	priv->if_freq   = map->if_freq;
 	priv->frequency = freq;
-	priv->bandwidth = band;
+	priv->bandwidth = bw;
 fail:
 	return ret;
 }

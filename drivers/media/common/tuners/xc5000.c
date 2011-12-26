@@ -650,14 +650,12 @@ static int xc5000_set_params(struct dvb_frontend *fe)
 		dprintk(1, "%s() VSB modulation\n", __func__);
 		priv->rf_mode = XC_RF_MODE_AIR;
 		priv->freq_hz = freq - 1750000;
-		priv->bandwidth = BANDWIDTH_6_MHZ;
 		priv->video_standard = DTV6;
 		break;
 	case SYS_DVBC_ANNEX_B:
 		dprintk(1, "%s() QAM modulation\n", __func__);
 		priv->rf_mode = XC_RF_MODE_CABLE;
 		priv->freq_hz = freq - 1750000;
-		priv->bandwidth = BANDWIDTH_6_MHZ;
 		priv->video_standard = DTV6;
 		break;
 	case SYS_DVBT:
@@ -665,17 +663,14 @@ static int xc5000_set_params(struct dvb_frontend *fe)
 		dprintk(1, "%s() OFDM\n", __func__);
 		switch (bw) {
 		case 6000000:
-			priv->bandwidth = BANDWIDTH_6_MHZ;
 			priv->video_standard = DTV6;
 			priv->freq_hz = freq - 1750000;
 			break;
 		case 7000000:
-			priv->bandwidth = BANDWIDTH_7_MHZ;
 			priv->video_standard = DTV7;
 			priv->freq_hz = freq - 2250000;
 			break;
 		case 8000000:
-			priv->bandwidth = BANDWIDTH_8_MHZ;
 			priv->video_standard = DTV8;
 			priv->freq_hz = freq - 2750000;
 			break;
@@ -689,17 +684,14 @@ static int xc5000_set_params(struct dvb_frontend *fe)
 		dprintk(1, "%s() QAM modulation\n", __func__);
 		priv->rf_mode = XC_RF_MODE_CABLE;
 		if (bw <= 6000000) {
-			priv->bandwidth = BANDWIDTH_6_MHZ;
 			priv->video_standard = DTV6;
 			priv->freq_hz = freq - 1750000;
 			b = 6;
 		} else if (bw <= 7000000) {
-			priv->bandwidth = BANDWIDTH_7_MHZ;
 			priv->video_standard = DTV7;
 			priv->freq_hz = freq - 2250000;
 			b = 7;
 		} else {
-			priv->bandwidth = BANDWIDTH_8_MHZ;
 			priv->video_standard = DTV7_8;
 			priv->freq_hz = freq - 2750000;
 			b = 8;
@@ -744,6 +736,8 @@ static int xc5000_set_params(struct dvb_frontend *fe)
 
 	if (debug)
 		xc_debug_dump(priv);
+
+	priv->bandwidth = bw;
 
 	return 0;
 }
@@ -1126,7 +1120,7 @@ struct dvb_frontend *xc5000_attach(struct dvb_frontend *fe,
 		break;
 	case 1:
 		/* new tuner instance */
-		priv->bandwidth = BANDWIDTH_6_MHZ;
+		priv->bandwidth = 6000000;
 		fe->tuner_priv = priv;
 		break;
 	default:

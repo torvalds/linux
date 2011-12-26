@@ -279,7 +279,6 @@ static int mxl111sf_tuner_set_params(struct dvb_frontend *fe)
 	struct mxl111sf_tuner_state *state = fe->tuner_priv;
 	int ret;
 	u8 bw;
-	u32 band = BANDWIDTH_6_MHZ;
 
 	mxl_dbg("()");
 
@@ -297,11 +296,9 @@ static int mxl111sf_tuner_set_params(struct dvb_frontend *fe)
 			break;
 		case 7000000:
 			bw = 7;
-			band = BANDWIDTH_7_MHZ;
 			break;
 		case 8000000:
 			bw = 8;
-			band = BANDWIDTH_8_MHZ;
 			break;
 		default:
 			err("%s: bandwidth not set!", __func__);
@@ -317,7 +314,7 @@ static int mxl111sf_tuner_set_params(struct dvb_frontend *fe)
 		goto fail;
 
 	state->frequency = c->frequency;
-	state->bandwidth = band;
+	state->bandwidth = c->bandwidth_hz;
 fail:
 	return ret;
 }

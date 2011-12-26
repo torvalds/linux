@@ -1139,7 +1139,6 @@ static int xc4000_set_params(struct dvb_frontend *fe)
 		dprintk(1, "%s() VSB modulation\n", __func__);
 		priv->rf_mode = XC_RF_MODE_AIR;
 		priv->freq_hz = c->frequency - 1750000;
-		priv->bandwidth = BANDWIDTH_6_MHZ;
 		priv->video_standard = XC4000_DTV6;
 		type = DTV6;
 		break;
@@ -1147,7 +1146,6 @@ static int xc4000_set_params(struct dvb_frontend *fe)
 		dprintk(1, "%s() QAM modulation\n", __func__);
 		priv->rf_mode = XC_RF_MODE_CABLE;
 		priv->freq_hz = c->frequency - 1750000;
-		priv->bandwidth = BANDWIDTH_6_MHZ;
 		priv->video_standard = XC4000_DTV6;
 		type = DTV6;
 		break;
@@ -1156,26 +1154,21 @@ static int xc4000_set_params(struct dvb_frontend *fe)
 		dprintk(1, "%s() OFDM\n", __func__);
 		if (bw == 0) {
 			if (c->frequency < 400000000) {
-				priv->bandwidth = BANDWIDTH_7_MHZ;
 				priv->freq_hz = c->frequency - 2250000;
 			} else {
-				priv->bandwidth = BANDWIDTH_8_MHZ;
 				priv->freq_hz = c->frequency - 2750000;
 			}
 			priv->video_standard = XC4000_DTV7_8;
 			type = DTV78;
 		} else if (bw <= 6000000) {
-			priv->bandwidth = BANDWIDTH_6_MHZ;
 			priv->video_standard = XC4000_DTV6;
 			priv->freq_hz = c->frequency - 1750000;
 			type = DTV6;
 		} else if (bw <= 7000000) {
-			priv->bandwidth = BANDWIDTH_7_MHZ;
 			priv->video_standard = XC4000_DTV7;
 			priv->freq_hz = c->frequency - 2250000;
 			type = DTV7;
 		} else {
-			priv->bandwidth = BANDWIDTH_8_MHZ;
 			priv->video_standard = XC4000_DTV8;
 			priv->freq_hz = c->frequency - 2750000;
 			type = DTV8;
@@ -1194,6 +1187,8 @@ static int xc4000_set_params(struct dvb_frontend *fe)
 	/* Make sure the correct firmware type is loaded */
 	if (check_firmware(fe, type, 0, priv->if_khz) != 0)
 		goto fail;
+
+	priv->bandwidth = c->bandwidth_hz;
 
 	ret = xc_set_signal_source(priv, priv->rf_mode);
 	if (ret != 0) {
@@ -1591,7 +1586,7 @@ struct dvb_frontend *xc4000_attach(struct dvb_frontend *fe,
 		break;
 	case 1:
 		/* new tuner instance */
-		priv->bandwidth = BANDWIDTH_6_MHZ;
+		priv->bandwidth = 6000000;
 		/* set default configuration */
 		priv->if_khz = 4560;
 		priv->default_pm = 0;

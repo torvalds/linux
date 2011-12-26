@@ -150,20 +150,18 @@ static int mt2266_set_params(struct dvb_frontend *fe)
 	case 6000000:
 		mt2266_writeregs(priv, mt2266_init_6mhz,
 				 sizeof(mt2266_init_6mhz));
-		priv->bandwidth = BANDWIDTH_6_MHZ;
 		break;
 	case 8000000:
 		mt2266_writeregs(priv, mt2266_init_8mhz,
 				 sizeof(mt2266_init_8mhz));
-		priv->bandwidth = BANDWIDTH_8_MHZ;
 		break;
 	case 7000000:
 	default:
 		mt2266_writeregs(priv, mt2266_init_7mhz,
 				 sizeof(mt2266_init_7mhz));
-		priv->bandwidth = BANDWIDTH_7_MHZ;
 		break;
 	}
+	priv->bandwidth = c->bandwidth_hz;
 
 	if (band == MT2266_VHF && priv->band == MT2266_UHF) {
 		dprintk("Switch from UHF to VHF");

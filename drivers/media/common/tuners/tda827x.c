@@ -158,7 +158,6 @@ static int tda827xo_set_params(struct dvb_frontend *fe)
 	struct tda827x_priv *priv = fe->tuner_priv;
 	u8 buf[14];
 	int rc;
-	u32 band;
 
 	struct i2c_msg msg = { .addr = priv->i2c_addr, .flags = 0,
 			       .buf = buf, .len = sizeof(buf) };
@@ -168,16 +167,12 @@ static int tda827xo_set_params(struct dvb_frontend *fe)
 	dprintk("%s:\n", __func__);
 	if (c->bandwidth_hz == 0) {
 		if_freq = 5000000;
-		band = BANDWIDTH_8_MHZ;
 	} else if (c->bandwidth_hz <= 6000000) {
 		if_freq = 4000000;
-		band = BANDWIDTH_6_MHZ;
 	} else if (c->bandwidth_hz <= 7000000) {
 		if_freq = 4500000;
-		band = BANDWIDTH_7_MHZ;
 	} else {	/* 8 MHz */
 		if_freq = 5000000;
-		band = BANDWIDTH_8_MHZ;
 	}
 	tuner_freq = c->frequency;
 
@@ -224,7 +219,7 @@ static int tda827xo_set_params(struct dvb_frontend *fe)
 		goto err;
 
 	priv->frequency = c->frequency;
-	priv->bandwidth = band;
+	priv->bandwidth = c->bandwidth_hz;
 
 	return 0;
 
@@ -522,7 +517,6 @@ static int tda827xa_set_params(struct dvb_frontend *fe)
 	struct tda827x_priv *priv = fe->tuner_priv;
 	struct tda827xa_data *frequency_map = tda827xa_dvbt;
 	u8 buf[11];
-	u32 band;
 
 	struct i2c_msg msg = { .addr = priv->i2c_addr, .flags = 0,
 			       .buf = buf, .len = sizeof(buf) };
@@ -537,16 +531,12 @@ static int tda827xa_set_params(struct dvb_frontend *fe)
 
 	if (c->bandwidth_hz == 0) {
 		if_freq = 5000000;
-		band = BANDWIDTH_8_MHZ;
 	} else if (c->bandwidth_hz <= 6000000) {
 		if_freq = 4000000;
-		band = BANDWIDTH_6_MHZ;
 	} else if (c->bandwidth_hz <= 7000000) {
 		if_freq = 4500000;
-		band = BANDWIDTH_7_MHZ;
 	} else {	/* 8 MHz */
 		if_freq = 5000000;
-		band = BANDWIDTH_8_MHZ;
 	}
 	tuner_freq = c->frequency;
 
@@ -652,7 +642,7 @@ static int tda827xa_set_params(struct dvb_frontend *fe)
 		goto err;
 
 	priv->frequency = c->frequency;
-	priv->bandwidth = band;
+	priv->bandwidth = c->bandwidth_hz;
 
 	return 0;
 
