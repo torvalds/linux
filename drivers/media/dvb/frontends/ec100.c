@@ -76,15 +76,15 @@ static int ec100_read_reg(struct ec100_state *state, u8 reg, u8 *val)
 	return 0;
 }
 
-static int ec100_set_frontend(struct dvb_frontend *fe,
-	struct dvb_frontend_parameters *params)
+static int ec100_set_frontend(struct dvb_frontend *fe)
 {
+	struct dtv_frontend_properties *c = &fe->dtv_property_cache;
 	struct ec100_state *state = fe->demodulator_priv;
 	int ret;
 	u8 tmp, tmp2;
 
-	deb_info("%s: freq:%d bw:%d\n", __func__, params->frequency,
-		params->u.ofdm.bandwidth);
+	deb_info("%s: freq:%d bw:%d\n", __func__, c->frequency,
+		c->bandwidth_hz);
 
 	/* program tuner */
 	if (fe->ops.tuner_ops.set_params)
@@ -108,16 +108,16 @@ static int ec100_set_frontend(struct dvb_frontend *fe,
 	   B 0x1b | 0xb7 | 0x00 | 0x49
 	   B 0x1c | 0x55 | 0x64 | 0x72 */
 
-	switch (params->u.ofdm.bandwidth) {
-	case BANDWIDTH_6_MHZ:
+	switch (c->bandwidth_hz) {
+	case 6000000:
 		tmp = 0xb7;
 		tmp2 = 0x55;
 		break;
-	case BANDWIDTH_7_MHZ:
+	case 7000000:
 		tmp = 0x00;
 		tmp2 = 0x64;
 		break;
-	case BANDWIDTH_8_MHZ:
+	case 8000000:
 	default:
 		tmp = 0x49;
 		tmp2 = 0x72;
@@ -306,6 +306,7 @@ error:
 EXPORT_SYMBOL(ec100_attach);
 
 static struct dvb_frontend_ops ec100_ops = {
+	.delsys = { SYS_DVBT },
 	.info = {
 		.name = "E3C EC100 DVB-T",
 		.type = FE_OFDM,
@@ -321,7 +322,7 @@ static struct dvb_frontend_ops ec100_ops = {
 	},
 
 	.release = ec100_release,
-	.set_frontend_legacy = ec100_set_frontend,
+	.set_frontend = ec100_set_frontend,
 	.get_tune_settings = ec100_get_tune_settings,
 	.read_status = ec100_read_status,
 	.read_ber = ec100_read_ber,
