@@ -13,8 +13,6 @@
 
 #include <linux/types.h>
 
-#ifdef __KERNEL__
-
 #include <asm/system.h>
 
 #define ATOMIC_INIT(i)  { (i) }
@@ -57,7 +55,5 @@ extern void atomic_set(atomic_t *, int);
 #define smp_mb__after_atomic_dec()	barrier()
 #define smp_mb__before_atomic_inc()	barrier()
 #define smp_mb__after_atomic_inc()	barrier()
-
-#endif /* !(__KERNEL__) */
 
 #endif /* !(__ARCH_SPARC_ATOMIC__) */
