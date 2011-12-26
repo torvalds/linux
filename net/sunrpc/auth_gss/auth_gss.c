@@ -473,8 +473,7 @@ gss_setup_upcall(struct rpc_clnt *clnt, struct gss_auth *gss_auth, struct rpc_cr
 		return gss_new;
 	gss_msg = gss_add_msg(gss_new);
 	if (gss_msg == gss_new) {
-		struct inode *inode = &gss_new->inode->vfs_inode;
-		int res = rpc_queue_upcall(inode, &gss_new->msg);
+		int res = rpc_queue_upcall(gss_new->inode->pipe, &gss_new->msg);
 		if (res) {
 			gss_unhash_msg(gss_new);
 			gss_msg = ERR_PTR(res);

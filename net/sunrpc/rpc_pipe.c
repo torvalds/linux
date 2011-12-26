@@ -130,9 +130,8 @@ EXPORT_SYMBOL_GPL(rpc_pipe_generic_upcall);
  * initialize the fields of @msg (other than @msg->list) appropriately.
  */
 int
-rpc_queue_upcall(struct inode *inode, struct rpc_pipe_msg *msg)
+rpc_queue_upcall(struct rpc_pipe *pipe, struct rpc_pipe_msg *msg)
 {
-	struct rpc_pipe *pipe = RPC_I(inode)->pipe;
 	int res = -EPIPE;
 
 	spin_lock(&pipe->lock);
