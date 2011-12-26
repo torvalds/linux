@@ -215,7 +215,7 @@ static int __devinit lm4857_i2c_probe(struct i2c_client *i2c,
 	struct lm4857 *lm4857;
 	int ret;
 
-	lm4857 = kzalloc(sizeof(*lm4857), GFP_KERNEL);
+	lm4857 = devm_kzalloc(&i2c->dev, sizeof(*lm4857), GFP_KERNEL);
 	if (!lm4857)
 		return -ENOMEM;
 
@@ -225,21 +225,12 @@ static int __devinit lm4857_i2c_probe(struct i2c_client *i2c,
 
 	ret = snd_soc_register_codec(&i2c->dev, &soc_codec_dev_lm4857, NULL, 0);
 
-	if (ret) {
-		kfree(lm4857);
-		return ret;
-	}
-
-	return 0;
+	return ret;
 }
 
 static int __devexit lm4857_i2c_remove(struct i2c_client *i2c)
 {
-	struct lm4857 *lm4857 = i2c_get_clientdata(i2c);
-
 	snd_soc_unregister_codec(&i2c->dev);
-	kfree(lm4857);
-
 	return 0;
 }
 
