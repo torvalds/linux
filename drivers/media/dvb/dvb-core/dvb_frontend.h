@@ -282,11 +282,9 @@ struct dvb_frontend_ops {
 	enum dvbfe_algo (*get_frontend_algo)(struct dvb_frontend *fe);
 
 	/* these two are only used for the swzigzag code */
-	int (*set_frontend_legacy)(struct dvb_frontend *fe, struct dvb_frontend_parameters* params);
 	int (*set_frontend)(struct dvb_frontend *fe);
 	int (*get_tune_settings)(struct dvb_frontend* fe, struct dvb_frontend_tune_settings* settings);
 
-	int (*get_frontend_legacy)(struct dvb_frontend *fe, struct dvb_frontend_parameters *params);
 	int (*get_frontend)(struct dvb_frontend *fe, struct dtv_frontend_properties *props);
 
 	int (*read_status)(struct dvb_frontend* fe, fe_status_t* status);

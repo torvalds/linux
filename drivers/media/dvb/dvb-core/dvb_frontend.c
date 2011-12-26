@@ -145,7 +145,7 @@ static int dtv_get_frontend(struct dvb_frontend *fe,
 
 static bool has_get_frontend(struct dvb_frontend *fe)
 {
-	return fe->ops.get_frontend || fe->ops.get_frontend_legacy;
+	return fe->ops.get_frontend;
 }
 
 static void dvb_frontend_add_event(struct dvb_frontend *fe, fe_status_t status)
@@ -361,8 +361,6 @@ static int dvb_frontend_swzigzag_autotune(struct dvb_frontend *fe, int check_wra
 		fepriv->parameters_in.inversion = fepriv->inversion;
 	if (fe->ops.set_frontend)
 		fe_set_err = fe->ops.set_frontend(fe);
-	else if (fe->ops.set_frontend_legacy)
-		fe_set_err = fe->ops.set_frontend_legacy(fe, &fepriv->parameters_in);
 	fepriv->parameters_out = fepriv->parameters_in;
 	if (fe_set_err < 0) {
 		fepriv->state = FESTATE_ERROR;
@@ -394,9 +392,6 @@ static void dvb_frontend_swzigzag(struct dvb_frontend *fe)
 		if (fepriv->state & FESTATE_RETUNE) {
 			if (fe->ops.set_frontend)
 				retval = fe->ops.set_frontend(fe);
-			else if (fe->ops.set_frontend_legacy)
-				retval = fe->ops.set_frontend_legacy(fe,
-							&fepriv->parameters_in);
 			fepriv->parameters_out = fepriv->parameters_in;
 			if (retval < 0)
 				fepriv->state = FESTATE_ERROR;
@@ -1271,7 +1266,6 @@ static int dtv_get_frontend(struct dvb_frontend *fe,
 	const struct dtv_frontend_properties *cache = &fe->dtv_property_cache;
 	struct dtv_frontend_properties tmp_cache;
 	struct dvb_frontend_parameters tmp_out;
-	bool fill_cache = (c != NULL);
 	bool fill_params = (p_out != NULL);
 	int r;
 
@@ -1283,7 +1277,6 @@ static int dtv_get_frontend(struct dvb_frontend *fe,
 	else
 		memcpy(c, cache, sizeof(*c));
 
-	/* Then try the DVBv5 one */
 	if (fe->ops.get_frontend) {
 		r = fe->ops.get_frontend(fe, c);
 		if (unlikely(r < 0))
@@ -1293,17 +1286,8 @@ static int dtv_get_frontend(struct dvb_frontend *fe,
 		return 0;
 	}
 
-	/* As no DVBv5 call exists, use the DVBv3 one */
-	if (fe->ops.get_frontend_legacy) {
-		r = fe->ops.get_frontend_legacy(fe, p_out);
-		if (unlikely(r < 0))
-			return r;
-		if (fill_cache)
-			dtv_property_cache_sync(fe, c, p_out);
-		return 0;
-	}
-
-	return -EOPNOTSUPP;
+	/* As everything is in cache, this is always supported */
+	return 0;
 }
 
 static int dvb_frontend_ioctl_legacy(struct file *file,
@@ -1758,7 +1742,7 @@ static int dvb_frontend_ioctl_properties(struct file *file,
 
 		/*
 		 * Fills the cache out struct with the cache contents, plus
-		 * the data retrieved from get_frontend/get_frontend_legacy.
+		 * the data retrieved from get_frontend.
 		 */
 		dtv_get_frontend(fe, &cache_out, NULL);
 		for (i = 0; i < tvps->num; i++) {
