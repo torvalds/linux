@@ -218,13 +218,13 @@ static int or51211_setmode(struct dvb_frontend* fe, int mode)
 	return 0;
 }
 
-static int or51211_set_parameters(struct dvb_frontend* fe,
-				  struct dvb_frontend_parameters *param)
+static int or51211_set_parameters(struct dvb_frontend *fe)
 {
+	struct dtv_frontend_properties *p = &fe->dtv_property_cache;
 	struct or51211_state* state = fe->demodulator_priv;
 
 	/* Change only if we are actually changing the channel */
-	if (state->current_frequency != param->frequency) {
+	if (state->current_frequency != p->frequency) {
 		if (fe->ops.tuner_ops.set_params) {
 			fe->ops.tuner_ops.set_params(fe);
 			if (fe->ops.i2c_gate_ctrl) fe->ops.i2c_gate_ctrl(fe, 0);
@@ -234,7 +234,7 @@ static int or51211_set_parameters(struct dvb_frontend* fe,
 		or51211_setmode(fe,0);
 
 		/* Update current frequency */
-		state->current_frequency = param->frequency;
+		state->current_frequency = p->frequency;
 	}
 	return 0;
 }
@@ -544,7 +544,7 @@ struct dvb_frontend* or51211_attach(const struct or51211_config* config,
 }
 
 static struct dvb_frontend_ops or51211_ops = {
-
+	.delsys = { SYS_ATSC, SYS_DVBC_ANNEX_B },
 	.info = {
 		.name               = "Oren OR51211 VSB Frontend",
 		.type               = FE_ATSC,
@@ -561,7 +561,7 @@ static struct dvb_frontend_ops or51211_ops = {
 	.init = or51211_init,
 	.sleep = or51211_sleep,
 
-	.set_frontend_legacy = or51211_set_parameters,
+	.set_frontend = or51211_set_parameters,
 	.get_tune_settings = or51211_get_tune_settings,
 
 	.read_status = or51211_read_status,
