@@ -24,6 +24,7 @@
 #include <linux/gpio.h>
 #include <linux/pwm_backlight.h>
 #include <linux/fb.h>
+#include <linux/mmc/host.h>
 
 #include <video/platform_lcd.h>
 
@@ -52,6 +53,7 @@
 #include <plat/backlight.h>
 #include <plat/fb.h>
 #include <plat/regs-fb.h>
+#include <plat/sdhci.h>
 
 #define SMDK6440_UCON_DEFAULT	(S3C2410_UCON_TXILEVEL |	\
 				S3C2410_UCON_RXILEVEL |		\
@@ -161,6 +163,25 @@ static struct platform_device *smdk6440_devices[] __initdata = {
 	&s5p6440_device_iis,
 	&s3c_device_fb,
 	&smdk6440_lcd_lte480wv,
+	&s3c_device_hsmmc0,
+	&s3c_device_hsmmc1,
+	&s3c_device_hsmmc2,
+};
+
+static struct s3c_sdhci_platdata smdk6440_hsmmc0_pdata __initdata = {
+	.cd_type	= S3C_SDHCI_CD_NONE,
+};
+
+static struct s3c_sdhci_platdata smdk6440_hsmmc1_pdata __initdata = {
+	.cd_type	= S3C_SDHCI_CD_INTERNAL,
+#if defined(CONFIG_S5P64X0_SD_CH1_8BIT)
+	.max_width	= 8,
+	.host_caps	= MMC_CAP_8_BIT_DATA,
+#endif
+};
+
+static struct s3c_sdhci_platdata smdk6440_hsmmc2_pdata __initdata = {
+	.cd_type	= S3C_SDHCI_CD_NONE,
 };
 
 static struct s3c2410_platform_i2c s5p6440_i2c0_data __initdata = {
@@ -233,6 +254,10 @@ static void __init smdk6440_machine_init(void)
 
 	s5p6440_set_lcd_interface();
 	s3c_fb_set_platdata(&smdk6440_lcd_pdata);
+
+	s3c_sdhci0_set_platdata(&smdk6440_hsmmc0_pdata);
+	s3c_sdhci1_set_platdata(&smdk6440_hsmmc1_pdata);
+	s3c_sdhci2_set_platdata(&smdk6440_hsmmc2_pdata);
 
 	platform_add_devices(smdk6440_devices, ARRAY_SIZE(smdk6440_devices));
 }
