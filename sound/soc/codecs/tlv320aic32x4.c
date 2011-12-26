@@ -709,7 +709,8 @@ static __devinit int aic32x4_i2c_probe(struct i2c_client *i2c,
 	struct aic32x4_priv *aic32x4;
 	int ret;
 
-	aic32x4 = kzalloc(sizeof(struct aic32x4_priv), GFP_KERNEL);
+	aic32x4 = devm_kzalloc(&i2c->dev, sizeof(struct aic32x4_priv),
+			       GFP_KERNEL);
 	if (aic32x4 == NULL)
 		return -ENOMEM;
 
@@ -728,15 +729,12 @@ static __devinit int aic32x4_i2c_probe(struct i2c_client *i2c,
 
 	ret = snd_soc_register_codec(&i2c->dev,
 			&soc_codec_dev_aic32x4, &aic32x4_dai, 1);
-	if (ret < 0)
-		kfree(aic32x4);
 	return ret;
 }
 
 static __devexit int aic32x4_i2c_remove(struct i2c_client *client)
 {
 	snd_soc_unregister_codec(&client->dev);
-	kfree(i2c_get_clientdata(client));
 	return 0;
 }
 
