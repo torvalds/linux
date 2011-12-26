@@ -232,7 +232,7 @@ static int it913x_init_tuner(struct it913x_fe_state *state)
 }
 
 static int it9137_set_tuner(struct it913x_fe_state *state,
-		enum fe_bandwidth bandwidth, u32 frequency_m)
+		u32 bandwidth, u32 frequency_m)
 {
 	struct it913xset *set_tuner = set_it9137_template;
 	int ret, reg;
@@ -286,16 +286,21 @@ static int it9137_set_tuner(struct it913x_fe_state *state,
 		return -EINVAL;
 	set_tuner[0].reg[0] = lna_band;
 
-	if (bandwidth == BANDWIDTH_5_MHZ)
+	switch (bandwidth) {
+	case 5000000:
 		bw = 0;
-	else if (bandwidth == BANDWIDTH_6_MHZ)
+		break;
+	case 6000000:
 		bw = 2;
-	else if (bandwidth == BANDWIDTH_7_MHZ)
+		break;
+	case 7000000:
 		bw = 4;
-	else if (bandwidth == BANDWIDTH_8_MHZ)
+		break;
+	default:
+	case 8000000:
 		bw = 6;
-	else
-		bw = 6;
+		break;
+	}
 
 	set_tuner[1].reg[0] = bw;
 	set_tuner[2].reg[0] = 0xa0 | (l_band << 3);
@@ -374,7 +379,7 @@ static int it9137_set_tuner(struct it913x_fe_state *state,
 }
 
 static int it913x_fe_select_bw(struct it913x_fe_state *state,
-			enum fe_bandwidth bandwidth, u32 adcFrequency)
+			u32 bandwidth, u32 adcFrequency)
 {
 	int ret, i;
 	u8 buffer[256];
@@ -387,17 +392,21 @@ static int it913x_fe_select_bw(struct it913x_fe_state *state,
 
 	deb_info("Bandwidth %d Adc %d", bandwidth, adcFrequency);
 
-	if (bandwidth == BANDWIDTH_5_MHZ)
+	switch (bandwidth) {
+	case 5000000:
 		bw = 3;
-	else if (bandwidth == BANDWIDTH_6_MHZ)
+		break;
+	case 6000000:
 		bw = 0;
-	else if (bandwidth == BANDWIDTH_7_MHZ)
+		break;
+	case 7000000:
 		bw = 1;
-	else if (bandwidth == BANDWIDTH_8_MHZ)
+		break;
+	default:
+	case 8000000:
 		bw = 2;
-	else
-		bw = 2;
-
+		break;
+	}
 	ret = it913x_write_reg(state, PRO_DMOD, REG_BW, bw);
 
 	if (state->table == NULL)
@@ -564,7 +573,7 @@ static int it913x_fe_read_ucblocks(struct dvb_frontend *fe, u32 *ucblocks)
 }
 
 static int it913x_fe_get_frontend(struct dvb_frontend *fe,
-			struct dvb_frontend_parameters *p)
+			struct dtv_frontend_properties *p)
 {
 	struct it913x_fe_state *state = fe->demodulator_priv;
 	int ret;
@@ -573,30 +582,30 @@ static int it913x_fe_get_frontend(struct dvb_frontend *fe,
 	ret = it913x_read_reg(state, REG_TPSD_TX_MODE, reg, sizeof(reg));
 
 	if (reg[3] < 3)
-		p->u.ofdm.constellation = fe_con[reg[3]];
-
-	state->constellation = p->u.ofdm.constellation;
+		p->modulation = fe_con[reg[3]];
 
 	if (reg[0] < 3)
-		p->u.ofdm.transmission_mode = fe_mode[reg[0]];
-
-	state->transmission_mode = p->u.ofdm.transmission_mode;
+		p->transmission_mode = fe_mode[reg[0]];
 
 	if (reg[1] < 4)
-		p->u.ofdm.guard_interval = fe_gi[reg[1]];
+		p->guard_interval = fe_gi[reg[1]];
 
 	if (reg[2] < 4)
-		p->u.ofdm.hierarchy_information = fe_hi[reg[2]];
+		p->hierarchy = fe_hi[reg[2]];
 
-	p->u.ofdm.code_rate_HP = (reg[6] < 6) ? fe_code[reg[6]] : FEC_NONE;
-	p->u.ofdm.code_rate_LP = (reg[7] < 6) ? fe_code[reg[7]] : FEC_NONE;
+	p->code_rate_HP = (reg[6] < 6) ? fe_code[reg[6]] : FEC_NONE;
+	p->code_rate_LP = (reg[7] < 6) ? fe_code[reg[7]] : FEC_NONE;
+
+	/* Update internal state to reflect the autodetected props */
+	state->constellation = p->modulation;
+	state->transmission_mode = p->transmission_mode;
 
 	return 0;
 }
 
-static int it913x_fe_set_frontend(struct dvb_frontend *fe,
-			struct dvb_frontend_parameters *p)
+static int it913x_fe_set_frontend(struct dvb_frontend *fe)
 {
+	struct dtv_frontend_properties *p = &fe->dtv_property_cache;
 	struct it913x_fe_state *state = fe->demodulator_priv;
 	int ret, i;
 	u8 empty_ch, last_ch;
@@ -604,7 +613,7 @@ static int it913x_fe_set_frontend(struct dvb_frontend *fe,
 	state->it913x_status = 0;
 
 	/* Set bw*/
-	ret = it913x_fe_select_bw(state, p->u.ofdm.bandwidth,
+	ret = it913x_fe_select_bw(state, p->bandwidth_hz,
 		state->adcFrequency);
 
 	/* Training Mode Off */
@@ -624,8 +633,8 @@ static int it913x_fe_set_frontend(struct dvb_frontend *fe,
 			i = 1;
 	else if ((p->frequency >= 1450000000) && (p->frequency <= 1680000000))
 			i = 2;
-		else
-			return -EOPNOTSUPP;
+	else
+		return -EOPNOTSUPP;
 
 	ret = it913x_write_reg(state, PRO_DMOD, FREE_BAND, i);
 
@@ -638,7 +647,7 @@ static int it913x_fe_set_frontend(struct dvb_frontend *fe,
 	case IT9135_61:
 	case IT9135_62:
 		ret = it9137_set_tuner(state,
-			p->u.ofdm.bandwidth, p->frequency);
+			p->bandwidth_hz, p->frequency);
 		break;
 	default:
 		if (fe->ops.tuner_ops.set_params) {
@@ -918,7 +927,7 @@ error:
 EXPORT_SYMBOL(it913x_fe_attach);
 
 static struct dvb_frontend_ops it913x_fe_ofdm_ops = {
-
+	.delsys = { SYS_DVBT },
 	.info = {
 		.name			= "it913x-fe DVB-T",
 		.type			= FE_OFDM,
@@ -939,8 +948,8 @@ static struct dvb_frontend_ops it913x_fe_ofdm_ops = {
 	.init = it913x_fe_init,
 	.sleep = it913x_fe_sleep,
 
-	.set_frontend_legacy = it913x_fe_set_frontend,
-	.get_frontend_legacy = it913x_fe_get_frontend,
+	.set_frontend = it913x_fe_set_frontend,
+	.get_frontend = it913x_fe_get_frontend,
 
 	.read_status = it913x_fe_read_status,
 	.read_signal_strength = it913x_fe_read_signal_strength,
