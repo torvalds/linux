@@ -784,11 +784,6 @@ static int __devinit tegra_nvec_probe(struct platform_device *pdev)
 	nvec->i2c_clk = i2c_clk;
 	nvec->rx = &nvec->msg_pool[0];
 
-	/* Set the gpio to low when we've got something to say */
-	err = gpio_request(nvec->gpio, "nvec gpio");
-	if (err < 0)
-		dev_err(nvec->dev, "couldn't request gpio\n");
-
 	ATOMIC_INIT_NOTIFIER_HEAD(&nvec->notifier_list);
 
 	init_completion(&nvec->sync_write);
@@ -802,6 +797,12 @@ static int __devinit tegra_nvec_probe(struct platform_device *pdev)
 	INIT_WORK(&nvec->tx_work, nvec_request_master);
 	nvec->wq = alloc_workqueue("nvec", WQ_NON_REENTRANT, 2);
 
+	err = gpio_request_one(nvec->gpio, GPIOF_OUT_INIT_HIGH, "nvec gpio");
+	if (err < 0) {
+		dev_err(nvec->dev, "couldn't request gpio\n");
+		goto failed;
+	}
+
 	err = request_irq(nvec->irq, nvec_interrupt, 0, "nvec", nvec);
 	if (err) {
 		dev_err(nvec->dev, "couldn't request irq\n");
@@ -813,8 +814,6 @@ static int __devinit tegra_nvec_probe(struct platform_device *pdev)
 
 	clk_enable(i2c_clk);
 
-	gpio_direction_output(nvec->gpio, 1);
-	gpio_set_value(nvec->gpio, 1);
 
 	/* enable event reporting */
 	nvec_write_async(nvec, EC_ENABLE_EVENT_REPORTING,
