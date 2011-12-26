@@ -167,6 +167,11 @@ struct mmc_async_req {
 	int (*err_check) (struct mmc_card *, struct mmc_async_req *);
 };
 
+struct mmc_hotplug {
+	unsigned int irq;
+	void *handler_priv;
+};
+
 struct mmc_host {
 	struct device		*parent;
 	struct device		class_dev;
@@ -300,6 +305,7 @@ struct mmc_host {
 
 	struct delayed_work	detect;
 	int			detect_change;	/* card detect flag */
+	struct mmc_hotplug	hotplug;
 
 	const struct mmc_bus_ops *bus_ops;	/* current bus driver */
 	unsigned int		bus_refs;	/* reference counter */
