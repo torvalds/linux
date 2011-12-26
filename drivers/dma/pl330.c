@@ -1824,52 +1824,6 @@ static int pl330_chan_ctrl(void *ch_id, enum pl330_chan_op op)
 	return ret;
 }
 
-static int pl330_chan_status(void *ch_id, struct pl330_chanstatus *pstatus)
-{
-	struct pl330_thread *thrd = ch_id;
-	struct pl330_dmac *pl330;
-	struct pl330_info *pi;
-	void __iomem *regs;
-	int active;
-	u32 val;
-
-	if (!pstatus || !thrd || thrd->free)
-		return -EINVAL;
-
-	pl330 = thrd->dmac;
-	pi = pl330->pinfo;
-	regs = pi->base;
-
-	/* The client should remove the DMAC and add again */
-	if (pl330->state == DYING)
-		pstatus->dmac_halted = true;
-	else
-		pstatus->dmac_halted = false;
-
-	val = readl(regs + FSC);
-	if (val & (1 << thrd->id))
-		pstatus->faulting = true;
-	else
-		pstatus->faulting = false;
-
-	active = thrd->req_running;
-
-	if (active == -1) {
-		/* Indicate that the thread is not running */
-		pstatus->top_req = NULL;
-		pstatus->wait_req = NULL;
-	} else {
-		pstatus->top_req = thrd->req[active].r;
-		pstatus->wait_req = !IS_FREE(&thrd->req[1 - active])
-					? thrd->req[1 - active].r : NULL;
-	}
-
-	pstatus->src_addr = readl(regs + SA(thrd->id));
-	pstatus->dst_addr = readl(regs + DA(thrd->id));
-
-	return 0;
-}
-
 /* Reserve an event */
 static inline int _alloc_event(struct pl330_thread *thrd)
 {
