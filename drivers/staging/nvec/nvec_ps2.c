@@ -25,6 +25,14 @@
 #define STOP_STREAMING	{'\x06', '\x04'}
 #define SEND_COMMAND	{'\x06', '\x01', '\xf4', '\x01'}
 
+#ifdef NVEC_PS2_DEBUG
+#define NVEC_PHD(str, buf, len) \
+	print_hex_dump(KERN_DEBUG, str, DUMP_PREFIX_NONE, \
+			16, 1, buf, len, false)
+#else
+#define NVEC_PHD(str, buf, len)
+#endif
+
 static const unsigned char MOUSE_RESET[] = {'\x06', '\x01', '\xff', '\x03'};
 
 struct nvec_ps2 {
@@ -67,18 +75,18 @@ static int nvec_ps2_notifier(struct notifier_block *nb,
 	case NVEC_PS2_EVT:
 		for (i = 0; i < msg[1]; i++)
 			serio_interrupt(ps2_dev.ser_dev, msg[2 + i], 0);
+		NVEC_PHD("ps/2 mouse event: ", &msg[2], msg[1]);
 		return NOTIFY_STOP;
 
 	case NVEC_PS2:
-		if (msg[2] == 1)
+		if (msg[2] == 1) {
 			for (i = 0; i < (msg[1] - 2); i++)
 				serio_interrupt(ps2_dev.ser_dev, msg[i + 4], 0);
-		else if (msg[1] != 2) {	/* !ack */
-			print_hex_dump(KERN_WARNING, "unhandled mouse event: ",
-				DUMP_PREFIX_NONE, 16, 1,
-				msg, msg[1] + 2, true);
+			NVEC_PHD("ps/2 mouse reply: ", &msg[4], msg[1] - 2);
 		}
 
+		else if (msg[1] != 2) /* !ack */
+			NVEC_PHD("unhandled mouse event: ", msg, msg[1] + 2);
 		return NOTIFY_STOP;
 	}
 
