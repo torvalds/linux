@@ -315,6 +315,7 @@ struct dvb_frontend_ops {
 	int (*get_property)(struct dvb_frontend* fe, struct dtv_property* tvp);
 };
 
+#ifdef __DVB_CORE__
 #define MAX_EVENT 8
 
 struct dvb_fe_events {
@@ -325,6 +326,7 @@ struct dvb_fe_events {
 	wait_queue_head_t	  wait_queue;
 	struct mutex		  mtx;
 };
+#endif
 
 struct dtv_frontend_properties {
 

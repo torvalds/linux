@@ -25,6 +25,9 @@
  * Or, point your browser to http://www.gnu.org/copyleft/gpl.html
  */
 
+/* Enables DVBv3 compatibility bits at the headers */
+#define __DVB_CORE__
+
 #include <linux/string.h>
 #include <linux/kernel.h>
 #include <linux/sched.h>
