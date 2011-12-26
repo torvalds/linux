@@ -11,6 +11,7 @@ struct sunrpc_net {
 	struct cache_detail *ip_map_cache;
 
 	struct super_block *pipefs_sb;
+	struct mutex pipefs_sb_lock;
 };
 
 extern int sunrpc_net_id;

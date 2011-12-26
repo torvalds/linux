@@ -38,6 +38,7 @@ static __net_init int sunrpc_init_net(struct net *net)
 	if (err)
 		goto err_ipmap;
 
+	rpc_pipefs_init_net(net);
 	return 0;
 
 err_ipmap:
