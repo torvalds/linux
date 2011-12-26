@@ -647,14 +647,15 @@ static int stv0299_i2c_gate_ctrl(struct dvb_frontend* fe, int enable)
 static int stv0299_get_tune_settings(struct dvb_frontend* fe, struct dvb_frontend_tune_settings* fesettings)
 {
 	struct stv0299_state* state = fe->demodulator_priv;
+	struct dtv_frontend_properties *p = &fe->dtv_property_cache;
 
 	fesettings->min_delay_ms = state->config->min_delay_ms;
-	if (fesettings->parameters.u.qpsk.symbol_rate < 10000000) {
-		fesettings->step_size = fesettings->parameters.u.qpsk.symbol_rate / 32000;
+	if (p->symbol_rate < 10000000) {
+		fesettings->step_size = p->symbol_rate / 32000;
 		fesettings->max_drift = 5000;
 	} else {
-		fesettings->step_size = fesettings->parameters.u.qpsk.symbol_rate / 16000;
-		fesettings->max_drift = fesettings->parameters.u.qpsk.symbol_rate / 2000;
+		fesettings->step_size = p->symbol_rate / 16000;
+		fesettings->max_drift = p->symbol_rate / 2000;
 	}
 	return 0;
 }

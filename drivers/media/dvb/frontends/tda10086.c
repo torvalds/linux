@@ -664,29 +664,31 @@ static int tda10086_i2c_gate_ctrl(struct dvb_frontend* fe, int enable)
 
 static int tda10086_get_tune_settings(struct dvb_frontend* fe, struct dvb_frontend_tune_settings* fesettings)
 {
-	if (fesettings->parameters.u.qpsk.symbol_rate > 20000000) {
+	struct dtv_frontend_properties *p = &fe->dtv_property_cache;
+
+	if (p->symbol_rate > 20000000) {
 		fesettings->min_delay_ms = 50;
 		fesettings->step_size = 2000;
 		fesettings->max_drift = 8000;
-	} else if (fesettings->parameters.u.qpsk.symbol_rate > 12000000) {
+	} else if (p->symbol_rate > 12000000) {
 		fesettings->min_delay_ms = 100;
 		fesettings->step_size = 1500;
 		fesettings->max_drift = 9000;
-	} else if (fesettings->parameters.u.qpsk.symbol_rate > 8000000) {
+	} else if (p->symbol_rate > 8000000) {
 		fesettings->min_delay_ms = 100;
 		fesettings->step_size = 1000;
 		fesettings->max_drift = 8000;
-	} else if (fesettings->parameters.u.qpsk.symbol_rate > 4000000) {
+	} else if (p->symbol_rate > 4000000) {
 		fesettings->min_delay_ms = 100;
 		fesettings->step_size = 500;
 		fesettings->max_drift = 7000;
-	} else if (fesettings->parameters.u.qpsk.symbol_rate > 2000000) {
+	} else if (p->symbol_rate > 2000000) {
 		fesettings->min_delay_ms = 200;
-		fesettings->step_size = (fesettings->parameters.u.qpsk.symbol_rate / 8000);
+		fesettings->step_size = p->symbol_rate / 8000;
 		fesettings->max_drift = 14 * fesettings->step_size;
 	} else {
 		fesettings->min_delay_ms = 200;
-		fesettings->step_size = (fesettings->parameters.u.qpsk.symbol_rate / 8000);
+		fesettings->step_size =  p->symbol_rate / 8000;
 		fesettings->max_drift = 18 * fesettings->step_size;
 	}
 

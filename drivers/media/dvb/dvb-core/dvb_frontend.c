@@ -1977,13 +1977,10 @@ static int dvb_frontend_ioctl_legacy(struct file *file,
 		fepriv->parameters_out = fepriv->parameters_in;
 
 		memset(&fetunesettings, 0, sizeof(struct dvb_frontend_tune_settings));
-		memcpy(&fetunesettings.parameters, parg,
-		       sizeof (struct dvb_frontend_parameters));
 
 		/* force auto frequency inversion if requested */
 		if (dvb_force_auto_inversion) {
 			fepriv->parameters_in.inversion = INVERSION_AUTO;
-			fetunesettings.parameters.inversion = INVERSION_AUTO;
 		}
 		if (fe->ops.info.type == FE_OFDM) {
 			/* without hierarchical coding code_rate_LP is irrelevant,
