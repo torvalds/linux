@@ -98,7 +98,7 @@ static int __devinit nvec_mouse_probe(struct platform_device *pdev)
 	struct nvec_chip *nvec = dev_get_drvdata(pdev->dev.parent);
 	struct serio *ser_dev = kzalloc(sizeof(struct serio), GFP_KERNEL);
 
-	ser_dev->id.type = SERIO_8042;
+	ser_dev->id.type = SERIO_PS_PSTHRU;
 	ser_dev->write = ps2_sendcommand;
 	ser_dev->start = ps2_startstreaming;
 	ser_dev->stop = ps2_stopstreaming;
