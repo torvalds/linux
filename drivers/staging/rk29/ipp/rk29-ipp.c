@@ -575,11 +575,11 @@ int ipp_blit(const struct rk29_ipp_req *req)
 	/*Configure Pre_scale*/
 	if((IPP_ROT_90 == rotate) || (IPP_ROT_270 == rotate))
 	{
-		pre_scale = ((req->dst0.w < req->src0.h) ? 1 : 0)||((req->dst0.h < req->src0.w) ? 1 : 0);
+		pre_scale = ((req->dst0.w <= req->src0.h/2) ? 1 : 0)||((req->dst0.h <= req->src0.w/2) ? 1 : 0);
 	}
 	else //other degree
 	{
-		pre_scale = ((req->dst0.w < req->src0.w) ? 1 : 0)||((req->dst0.h < req->src0.h) ? 1 : 0);
+		pre_scale = ((req->dst0.w <= req->src0.w/2) ? 1 : 0)||((req->dst0.h <= req->src0.h/2) ? 1 : 0);
 	}
 
 	if(pre_scale)
@@ -704,7 +704,7 @@ int ipp_blit(const struct rk29_ipp_req *req)
 	if((IPP_ROT_90 == rotate) || (IPP_ROT_270 == rotate))
 	{
 		if (( (req->src0.h%req->dst0.w)!=0)||( (req->src0.w%req->dst0.h)!= 0)//non-interger down-scaling 
-			||((req->src0.h/req->dst0.w)>8)||((req->src0.h%req->dst0.w)>8)	 //down-scaling ratio > 8
+			||((req->src0.h/req->dst0.w)>8)||((req->src0.h/req->dst0.w)>8)	 //down-scaling ratio > 8
 			||(req->dst0.w > req->src0.h)  ||(req->dst0.h > req->src0.w))	 //up-scaling
 							
 		{
@@ -718,7 +718,7 @@ int ipp_blit(const struct rk29_ipp_req *req)
 	else  //0 180 x-flip y-flip
 	{
 		if (( (req->src0.w%req->dst0.w)!=0)||( (req->src0.h%req->dst0.h)!= 0)//non-interger down-scaling 
-			||((req->src0.w/req->dst0.w)>8)||((req->src0.h%req->dst0.h)>8)	 //down-scaling ratio > 8
+			||((req->src0.w/req->dst0.w)>8)||((req->src0.h/req->dst0.h)>8)	 //down-scaling ratio > 8
 			||(req->dst0.w > req->src0.w)  ||(req->dst0.h > req->src0.h))	 //up-scaling
 		{
 			post_scale = 1;
