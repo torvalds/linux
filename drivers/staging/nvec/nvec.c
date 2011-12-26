@@ -49,7 +49,7 @@
 #define I2C_CNFG_DEBOUNCE_CNT_SHIFT	12
 
 #define I2C_SL_CNFG		0x20
-#define I2C_SL_NEWL		(1<<2)
+#define I2C_SL_NEWSL		(1<<2)
 #define I2C_SL_NACK		(1<<1)
 #define I2C_SL_RESP		(1<<0)
 #define I2C_SL_IRQ		(1<<3)
@@ -687,7 +687,7 @@ static void tegra_init_i2c_slave(struct nvec_chip *nvec)
 
 	clk_set_rate(nvec->i2c_clk, 8 * 80000);
 
-	writel(I2C_SL_NEWL, nvec->base + I2C_SL_CNFG);
+	writel(I2C_SL_NEWSL, nvec->base + I2C_SL_CNFG);
 	writel(0x1E, nvec->base + I2C_SL_DELAY_COUNT);
 
 	writel(nvec->i2c_addr>>1, nvec->base + I2C_SL_ADDR1);
@@ -701,7 +701,7 @@ static void tegra_init_i2c_slave(struct nvec_chip *nvec)
 static void nvec_disable_i2c_slave(struct nvec_chip *nvec)
 {
 	disable_irq(nvec->irq);
-	writel(I2C_SL_NEWL | I2C_SL_NACK, nvec->base + I2C_SL_CNFG);
+	writel(I2C_SL_NEWSL | I2C_SL_NACK, nvec->base + I2C_SL_CNFG);
 	clk_disable(nvec->i2c_clk);
 }
 
