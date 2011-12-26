@@ -62,17 +62,6 @@
 #include <linux/sysctl.h>
 #endif
 
-/* Set to 3 to get tracing. */
-#define RT6_DEBUG 2
-
-#if RT6_DEBUG >= 3
-#define RDBG(x) printk x
-#define RT6_TRACE(x...) printk(KERN_DEBUG x)
-#else
-#define RDBG(x)
-#define RT6_TRACE(x...) do { ; } while (0)
-#endif
-
 static struct rt6_info *ip6_rt_copy(const struct rt6_info *ort,
 				    const struct in6_addr *dest);
 static struct dst_entry	*ip6_dst_check(struct dst_entry *dst, u32 cookie);
@@ -518,9 +507,6 @@ static struct rt6_info *rt6_select(struct fib6_node *fn, int oif, int strict)
 	struct rt6_info *match, *rt0;
 	struct net *net;
 
-	RT6_TRACE("%s(fn->leaf=%p, oif=%d)\n",
-		  __func__, fn->leaf, oif);
-
 	rt0 = fn->rr_ptr;
 	if (!rt0)
 		fn->rr_ptr = rt0 = fn->leaf;
@@ -538,9 +524,6 @@ static struct rt6_info *rt6_select(struct fib6_node *fn, int oif, int strict)
 		if (next != rt0)
 			fn->rr_ptr = next;
 	}
-
-	RT6_TRACE("%s() => %p\n",
-		  __func__, match);
 
 	net = dev_net(rt0->rt6i_dev);
 	return match ? match : net->ipv6.ip6_null_entry;
@@ -2173,10 +2156,9 @@ static int fib6_ifdown(struct rt6_info *rt, void *arg)
 	const struct net_device *dev = adn->dev;
 
 	if ((rt->rt6i_dev == dev || !dev) &&
-	    rt != adn->net->ipv6.ip6_null_entry) {
-		RT6_TRACE("deleted by ifdown %p\n", rt);
+	    rt != adn->net->ipv6.ip6_null_entry)
 		return -1;
-	}
+
 	return 0;
 }
 
