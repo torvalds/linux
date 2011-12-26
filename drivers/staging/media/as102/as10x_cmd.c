@@ -141,7 +141,7 @@ int as10x_cmd_set_tune(struct as10x_bus_adapter_t *adap,
 	preq->body.set_tune.req.args.freq = cpu_to_le32(ptune->freq);
 	preq->body.set_tune.req.args.bandwidth = ptune->bandwidth;
 	preq->body.set_tune.req.args.hier_select = ptune->hier_select;
-	preq->body.set_tune.req.args.constellation = ptune->constellation;
+	preq->body.set_tune.req.args.modulation = ptune->modulation;
 	preq->body.set_tune.req.args.hierarchy = ptune->hierarchy;
 	preq->body.set_tune.req.args.interleaving_mode  =
 		ptune->interleaving_mode;
@@ -279,7 +279,7 @@ int as10x_cmd_get_tps(struct as10x_bus_adapter_t *adap, struct as10x_tps *ptps)
 		goto out;
 
 	/* Response OK -> get response data */
-	ptps->constellation = prsp->body.get_tps.rsp.tps.constellation;
+	ptps->modulation = prsp->body.get_tps.rsp.tps.modulation;
 	ptps->hierarchy = prsp->body.get_tps.rsp.tps.hierarchy;
 	ptps->interleaving_mode = prsp->body.get_tps.rsp.tps.interleaving_mode;
 	ptps->code_rate_HP = prsp->body.get_tps.rsp.tps.code_rate_HP;

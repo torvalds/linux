@@ -112,7 +112,7 @@
 #define CFG_MODE_AUTO	2
 
 struct as10x_tps {
-	uint8_t constellation;
+	uint8_t modulation;
 	uint8_t hierarchy;
 	uint8_t interleaving_mode;
 	uint8_t code_rate_HP;
@@ -132,7 +132,7 @@ struct as10x_tune_args {
 	/* hierarchy selection */
 	uint8_t hier_select;
 	/* constellation */
-	uint8_t constellation;
+	uint8_t modulation;
 	/* hierarchy */
 	uint8_t hierarchy;
 	/* interleaving mode */
