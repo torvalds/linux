@@ -111,6 +111,8 @@ static void dvb_buf_release(struct videobuf_queue *q,
 	cx23885_free_buffer(q, (struct cx23885_buffer *)vb);
 }
 
+static int cx23885_dvb_set_frontend(struct dvb_frontend *fe);
+
 static void cx23885_dvb_gate_ctrl(struct cx23885_tsport  *port, int open)
 {
 	struct videobuf_dvb_frontends *f;
@@ -125,6 +127,12 @@ static void cx23885_dvb_gate_ctrl(struct cx23885_tsport  *port, int open)
 
 	if (fe && fe->dvb.frontend && fe->dvb.frontend->ops.i2c_gate_ctrl)
 		fe->dvb.frontend->ops.i2c_gate_ctrl(fe->dvb.frontend, open);
+
+	/*
+	 * FIXME: Improve this path to avoid calling the
+	 * cx23885_dvb_set_frontend() every time it passes here.
+	 */
+	cx23885_dvb_set_frontend(fe->dvb.frontend);
 }
 
 static struct videobuf_queue_ops dvb_qops = {
@@ -479,15 +487,15 @@ static struct xc5000_config mygica_x8506_xc5000_config = {
 	.if_khz = 5380,
 };
 
-static int cx23885_dvb_set_frontend(struct dvb_frontend *fe,
-				    struct dvb_frontend_parameters *param)
+static int cx23885_dvb_set_frontend(struct dvb_frontend *fe)
 {
+	struct dtv_frontend_properties *p = &fe->dtv_property_cache;
 	struct cx23885_tsport *port = fe->dvb->priv;
 	struct cx23885_dev *dev = port->dev;
 
 	switch (dev->board) {
 	case CX23885_BOARD_HAUPPAUGE_HVR1275:
-		switch (param->u.vsb.modulation) {
+		switch (p->modulation) {
 		case VSB_8:
 			cx23885_gpio_clear(dev, GPIO_5);
 			break;
@@ -506,31 +514,6 @@ static int cx23885_dvb_set_frontend(struct dvb_frontend *fe,
 	}
 	return 0;
 }
-
-static int cx23885_dvb_fe_ioctl_override(struct dvb_frontend *fe,
-					 unsigned int cmd, void *parg,
-					 unsigned int stage)
-{
-	int err = 0;
-
-	switch (stage) {
-	case DVB_FE_IOCTL_PRE:
-
-		switch (cmd) {
-		case FE_SET_FRONTEND:
-			err = cx23885_dvb_set_frontend(fe,
-				(struct dvb_frontend_parameters *) parg);
-			break;
-		}
-		break;
-
-	case DVB_FE_IOCTL_POST:
-		/* no post-ioctl handling required */
-		break;
-	}
-	return err;
-};
-
 
 static struct lgs8gxx_config magicpro_prohdtve2_lgs8g75_config = {
 	.prod = LGS8GXX_PROD_LGS8G75,
@@ -1151,7 +1134,7 @@ static int dvb_register(struct cx23885_tsport *port)
 	/* register everything */
 	ret = videobuf_dvb_register_bus(&port->frontends, THIS_MODULE, port,
 					&dev->pci->dev, adapter_nr, mfe_shared,
-					cx23885_dvb_fe_ioctl_override);
+					NULL);
 	if (ret)
 		goto frontend_detach;
 
