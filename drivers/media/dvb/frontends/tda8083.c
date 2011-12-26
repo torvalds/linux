@@ -315,8 +315,9 @@ static int tda8083_read_ucblocks(struct dvb_frontend* fe, u32* ucblocks)
 	return 0;
 }
 
-static int tda8083_set_frontend(struct dvb_frontend* fe, struct dvb_frontend_parameters *p)
+static int tda8083_set_frontend(struct dvb_frontend *fe)
 {
+	struct dtv_frontend_properties *p = &fe->dtv_property_cache;
 	struct tda8083_state* state = fe->demodulator_priv;
 
 	if (fe->ops.tuner_ops.set_params) {
@@ -325,8 +326,8 @@ static int tda8083_set_frontend(struct dvb_frontend* fe, struct dvb_frontend_par
 	}
 
 	tda8083_set_inversion (state, p->inversion);
-	tda8083_set_fec (state, p->u.qpsk.fec_inner);
-	tda8083_set_symbolrate (state, p->u.qpsk.symbol_rate);
+	tda8083_set_fec(state, p->fec_inner);
+	tda8083_set_symbolrate(state, p->symbol_rate);
 
 	tda8083_writereg (state, 0x00, 0x3c);
 	tda8083_writereg (state, 0x00, 0x04);
@@ -334,7 +335,7 @@ static int tda8083_set_frontend(struct dvb_frontend* fe, struct dvb_frontend_par
 	return 0;
 }
 
-static int tda8083_get_frontend(struct dvb_frontend* fe, struct dvb_frontend_parameters *p)
+static int tda8083_get_frontend(struct dvb_frontend *fe, struct dtv_frontend_properties *p)
 {
 	struct tda8083_state* state = fe->demodulator_priv;
 
@@ -342,8 +343,8 @@ static int tda8083_get_frontend(struct dvb_frontend* fe, struct dvb_frontend_par
 	/*p->frequency = ???;*/
 	p->inversion = (tda8083_readreg (state, 0x0e) & 0x80) ?
 			INVERSION_ON : INVERSION_OFF;
-	p->u.qpsk.fec_inner = tda8083_get_fec (state);
-	/*p->u.qpsk.symbol_rate = tda8083_get_symbolrate (state);*/
+	p->fec_inner = tda8083_get_fec(state);
+	/*p->symbol_rate = tda8083_get_symbolrate (state);*/
 
 	return 0;
 }
@@ -438,7 +439,7 @@ error:
 }
 
 static struct dvb_frontend_ops tda8083_ops = {
-
+	.delsys = { SYS_DVBS },
 	.info = {
 		.name			= "Philips TDA8083 DVB-S",
 		.type			= FE_QPSK,
@@ -461,8 +462,8 @@ static struct dvb_frontend_ops tda8083_ops = {
 	.init = tda8083_init,
 	.sleep = tda8083_sleep,
 
-	.set_frontend_legacy = tda8083_set_frontend,
-	.get_frontend_legacy = tda8083_get_frontend,
+	.set_frontend = tda8083_set_frontend,
+	.get_frontend = tda8083_get_frontend,
 
 	.read_status = tda8083_read_status,
 	.read_signal_strength = tda8083_read_signal_strength,
