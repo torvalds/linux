@@ -559,8 +559,9 @@ static int stv0299_read_ucblocks(struct dvb_frontend* fe, u32* ucblocks)
 	return 0;
 }
 
-static int stv0299_set_frontend(struct dvb_frontend* fe, struct dvb_frontend_parameters * p)
+static int stv0299_set_frontend(struct dvb_frontend *fe)
 {
+	struct dtv_frontend_properties *p = &fe->dtv_property_cache;
 	struct stv0299_state* state = fe->demodulator_priv;
 	int invval = 0;
 
@@ -583,19 +584,19 @@ static int stv0299_set_frontend(struct dvb_frontend* fe, struct dvb_frontend_par
 		if (fe->ops.i2c_gate_ctrl) fe->ops.i2c_gate_ctrl(fe, 0);
 	}
 
-	stv0299_set_FEC (state, p->u.qpsk.fec_inner);
-	stv0299_set_symbolrate (fe, p->u.qpsk.symbol_rate);
+	stv0299_set_FEC(state, p->fec_inner);
+	stv0299_set_symbolrate(fe, p->symbol_rate);
 	stv0299_writeregI(state, 0x22, 0x00);
 	stv0299_writeregI(state, 0x23, 0x00);
 
 	state->tuner_frequency = p->frequency;
-	state->fec_inner = p->u.qpsk.fec_inner;
-	state->symbol_rate = p->u.qpsk.symbol_rate;
+	state->fec_inner = p->fec_inner;
+	state->symbol_rate = p->symbol_rate;
 
 	return 0;
 }
 
-static int stv0299_get_frontend(struct dvb_frontend* fe, struct dvb_frontend_parameters * p)
+static int stv0299_get_frontend(struct dvb_frontend *fe, struct dtv_frontend_properties * p)
 {
 	struct stv0299_state* state = fe->demodulator_priv;
 	s32 derot_freq;
@@ -614,8 +615,8 @@ static int stv0299_get_frontend(struct dvb_frontend* fe, struct dvb_frontend_par
 	if (state->config->invert) invval = (~invval) & 1;
 	p->inversion = invval ? INVERSION_ON : INVERSION_OFF;
 
-	p->u.qpsk.fec_inner = stv0299_get_fec (state);
-	p->u.qpsk.symbol_rate = stv0299_get_symbolrate (state);
+	p->fec_inner = stv0299_get_fec(state);
+	p->symbol_rate = stv0299_get_symbolrate(state);
 
 	return 0;
 }
@@ -705,7 +706,7 @@ error:
 }
 
 static struct dvb_frontend_ops stv0299_ops = {
-
+	.delsys = { SYS_DVBS },
 	.info = {
 		.name			= "ST STV0299 DVB-S",
 		.type			= FE_QPSK,
@@ -729,8 +730,8 @@ static struct dvb_frontend_ops stv0299_ops = {
 	.write = stv0299_write,
 	.i2c_gate_ctrl = stv0299_i2c_gate_ctrl,
 
-	.set_frontend_legacy = stv0299_set_frontend,
-	.get_frontend_legacy = stv0299_get_frontend,
+	.set_frontend = stv0299_set_frontend,
+	.get_frontend = stv0299_get_frontend,
 	.get_tune_settings = stv0299_get_tune_settings,
 
 	.read_status = stv0299_read_status,
