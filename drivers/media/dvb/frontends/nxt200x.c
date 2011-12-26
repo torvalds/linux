@@ -528,9 +528,9 @@ static int nxt2004_load_firmware (struct dvb_frontend* fe, const struct firmware
 	return 0;
 };
 
-static int nxt200x_setup_frontend_parameters (struct dvb_frontend* fe,
-					     struct dvb_frontend_parameters *p)
+static int nxt200x_setup_frontend_parameters(struct dvb_frontend *fe)
 {
+	struct dtv_frontend_properties *p = &fe->dtv_property_cache;
 	struct nxt200x_state* state = fe->demodulator_priv;
 	u8 buf[5];
 
@@ -546,7 +546,7 @@ static int nxt200x_setup_frontend_parameters (struct dvb_frontend* fe,
 	}
 
 	/* set additional params */
-	switch (p->u.vsb.modulation) {
+	switch (p->modulation) {
 		case QAM_64:
 		case QAM_256:
 			/* Set punctured clock for QAM */
@@ -576,7 +576,7 @@ static int nxt200x_setup_frontend_parameters (struct dvb_frontend* fe,
 	nxt200x_agc_reset(state);
 
 	/* set target power level */
-	switch (p->u.vsb.modulation) {
+	switch (p->modulation) {
 		case QAM_64:
 		case QAM_256:
 			buf[0] = 0x74;
@@ -620,7 +620,7 @@ static int nxt200x_setup_frontend_parameters (struct dvb_frontend* fe,
 	}
 
 	/* write sdmx input */
-	switch (p->u.vsb.modulation) {
+	switch (p->modulation) {
 		case QAM_64:
 				buf[0] = 0x68;
 				break;
@@ -714,7 +714,7 @@ static int nxt200x_setup_frontend_parameters (struct dvb_frontend* fe,
 	}
 
 	/* write agc ucgp0 */
-	switch (p->u.vsb.modulation) {
+	switch (p->modulation) {
 		case QAM_64:
 				buf[0] = 0x02;
 				break;
@@ -1203,7 +1203,7 @@ error:
 }
 
 static struct dvb_frontend_ops nxt200x_ops = {
-
+	.delsys = { SYS_ATSC, SYS_DVBC_ANNEX_B },
 	.info = {
 		.name = "Nextwave NXT200X VSB/QAM frontend",
 		.type = FE_ATSC,
@@ -1220,7 +1220,7 @@ static struct dvb_frontend_ops nxt200x_ops = {
 	.init = nxt200x_init,
 	.sleep = nxt200x_sleep,
 
-	.set_frontend_legacy = nxt200x_setup_frontend_parameters,
+	.set_frontend = nxt200x_setup_frontend_parameters,
 	.get_tune_settings = nxt200x_get_tune_settings,
 
 	.read_status = nxt200x_read_status,
