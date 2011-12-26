@@ -111,8 +111,27 @@ static int __devinit nvec_mouse_probe(struct platform_device *pdev)
 	return 0;
 }
 
+static int nvec_mouse_suspend(struct platform_device *pdev, pm_message_t state)
+{
+	struct nvec_chip *nvec = dev_get_drvdata(pdev->dev.parent);
+
+	/* send cancel autoreceive */
+	nvec_write_async(nvec, "\x06\x04", 2);
+
+	return 0;
+}
+
+static int nvec_mouse_resume(struct platform_device *pdev)
+{
+	ps2_startstreaming(ps2_dev.ser_dev);
+
+	return 0;
+}
+
 static struct platform_driver nvec_mouse_driver = {
 	.probe  = nvec_mouse_probe,
+	.suspend = nvec_mouse_suspend,
+	.resume = nvec_mouse_resume,
 	.driver = {
 		.name = "nvec-mouse",
 		.owner = THIS_MODULE,
