@@ -80,8 +80,7 @@ enum {
 
 enum srp_target_state {
 	SRP_TARGET_LIVE,
-	SRP_TARGET_DEAD,
-	SRP_TARGET_REMOVED
+	SRP_TARGET_REMOVED,
 };
 
 enum srp_iu_type {
@@ -175,7 +174,7 @@ struct srp_target_port {
 	struct srp_iu	       *rx_ring[SRP_RQ_SIZE];
 	struct srp_request	req_ring[SRP_CMD_SQ_SIZE];
 
-	struct work_struct	work;
+	struct work_struct	remove_work;
 
 	struct list_head	list;
 	struct completion	done;
