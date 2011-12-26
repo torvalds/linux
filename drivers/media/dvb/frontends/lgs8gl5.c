@@ -311,14 +311,14 @@ lgs8gl5_read_ucblocks(struct dvb_frontend *fe, u32 *ucblocks)
 
 
 static int
-lgs8gl5_set_frontend(struct dvb_frontend *fe,
-		struct dvb_frontend_parameters *p)
+lgs8gl5_set_frontend(struct dvb_frontend *fe)
 {
+	struct dtv_frontend_properties *p = &fe->dtv_property_cache;
 	struct lgs8gl5_state *state = fe->demodulator_priv;
 
 	dprintk("%s\n", __func__);
 
-	if (p->u.ofdm.bandwidth != BANDWIDTH_8_MHZ)
+	if (p->bandwidth_hz != 8000000)
 		return -EINVAL;
 
 	if (fe->ops.tuner_ops.set_params) {
@@ -337,21 +337,20 @@ lgs8gl5_set_frontend(struct dvb_frontend *fe,
 
 static int
 lgs8gl5_get_frontend(struct dvb_frontend *fe,
-		struct dvb_frontend_parameters *p)
+		struct dtv_frontend_properties *p)
 {
 	struct lgs8gl5_state *state = fe->demodulator_priv;
 	u8 inv = lgs8gl5_read_reg(state, REG_INVERSION);
-	struct dvb_ofdm_parameters *o = &p->u.ofdm;
 
 	p->inversion = (inv & REG_INVERSION_ON) ? INVERSION_ON : INVERSION_OFF;
 
-	o->code_rate_HP = FEC_1_2;
-	o->code_rate_LP = FEC_7_8;
-	o->guard_interval = GUARD_INTERVAL_1_32;
-	o->transmission_mode = TRANSMISSION_MODE_2K;
-	o->constellation = QAM_64;
-	o->hierarchy_information = HIERARCHY_NONE;
-	o->bandwidth = BANDWIDTH_8_MHZ;
+	p->code_rate_HP = FEC_1_2;
+	p->code_rate_LP = FEC_7_8;
+	p->guard_interval = GUARD_INTERVAL_1_32;
+	p->transmission_mode = TRANSMISSION_MODE_2K;
+	p->modulation = QAM_64;
+	p->hierarchy = HIERARCHY_NONE;
+	p->bandwidth_hz = 8000000;
 
 	return 0;
 }
@@ -413,6 +412,7 @@ EXPORT_SYMBOL(lgs8gl5_attach);
 
 
 static struct dvb_frontend_ops lgs8gl5_ops = {
+	.delsys = { SYS_DMBTH },
 	.info = {
 		.name			= "Legend Silicon LGS-8GL5 DMB-TH",
 		.type			= FE_OFDM,
@@ -434,8 +434,8 @@ static struct dvb_frontend_ops lgs8gl5_ops = {
 
 	.init = lgs8gl5_init,
 
-	.set_frontend_legacy = lgs8gl5_set_frontend,
-	.get_frontend_legacy = lgs8gl5_get_frontend,
+	.set_frontend = lgs8gl5_set_frontend,
+	.get_frontend = lgs8gl5_get_frontend,
 	.get_tune_settings = lgs8gl5_get_tune_settings,
 
 	.read_status = lgs8gl5_read_status,
