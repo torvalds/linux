@@ -13,7 +13,6 @@
 #define	__AMBA_PL330_H_
 
 #include <linux/dmaengine.h>
-#include <asm/hardware/pl330.h>
 
 struct dma_pl330_platdata {
 	/*
