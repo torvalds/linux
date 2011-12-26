@@ -40,6 +40,7 @@
 #include <plat/s5p6450.h>
 #include <plat/adc-core.h>
 #include <plat/fb-core.h>
+#include <plat/sdhci.h>
 
 /* Initial IO mappings */
 
@@ -112,6 +113,10 @@ void __init s5p6440_map_io(void)
 	s3c_adc_setname("s3c64xx-adc");
 	s3c_fb_setname("s5p64x0-fb");
 
+	s5p64x0_default_sdhci0();
+	s5p64x0_default_sdhci1();
+	s5p6440_default_sdhci2();
+
 	iotable_init(s5p64x0_iodesc, ARRAY_SIZE(s5p64x0_iodesc));
 	iotable_init(s5p6440_iodesc, ARRAY_SIZE(s5p6440_iodesc));
 	init_consistent_dma_size(SZ_8M);
@@ -122,6 +127,10 @@ void __init s5p6450_map_io(void)
 	/* initialize any device information early */
 	s3c_adc_setname("s3c64xx-adc");
 	s3c_fb_setname("s5p64x0-fb");
+
+	s5p64x0_default_sdhci0();
+	s5p64x0_default_sdhci1();
+	s5p6450_default_sdhci2();
 
 	iotable_init(s5p64x0_iodesc, ARRAY_SIZE(s5p64x0_iodesc));
 	iotable_init(s5p6450_iodesc, ARRAY_SIZE(s5p6450_iodesc));
