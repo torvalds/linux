@@ -1430,7 +1430,8 @@ static int __devinit pm860x_codec_probe(struct platform_device *pdev)
 	struct resource *res;
 	int i, ret;
 
-	pm860x = kzalloc(sizeof(struct pm860x_priv), GFP_KERNEL);
+	pm860x = devm_kzalloc(&pdev->dev, sizeof(struct pm860x_priv),
+			      GFP_KERNEL);
 	if (pm860x == NULL)
 		return -ENOMEM;
 
@@ -1459,17 +1460,13 @@ static int __devinit pm860x_codec_probe(struct platform_device *pdev)
 
 out:
 	platform_set_drvdata(pdev, NULL);
-	kfree(pm860x);
 	return -EINVAL;
 }
 
 static int __devexit pm860x_codec_remove(struct platform_device *pdev)
 {
-	struct pm860x_priv *pm860x = platform_get_drvdata(pdev);
-
 	snd_soc_unregister_codec(&pdev->dev);
 	platform_set_drvdata(pdev, NULL);
-	kfree(pm860x);
 	return 0;
 }
 
