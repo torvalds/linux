@@ -28,8 +28,10 @@
 #include <linux/sunrpc/rpc_pipe_fs.h>
 #include <linux/sunrpc/cache.h>
 #include <linux/nsproxy.h>
+#include <linux/notifier.h>
 
 #include "netns.h"
+#include "sunrpc.h"
 
 static struct vfsmount *rpc_mnt __read_mostly;
 static int rpc_mount_count;
@@ -40,6 +42,20 @@ static struct file_system_type rpc_pipe_fs_type;
 static struct kmem_cache *rpc_inode_cachep __read_mostly;
 
 #define RPC_UPCALL_TIMEOUT (30*HZ)
+
+static BLOCKING_NOTIFIER_HEAD(rpc_pipefs_notifier_list);
+
+int rpc_pipefs_notifier_register(struct notifier_block *nb)
+{
+	return blocking_notifier_chain_cond_register(&rpc_pipefs_notifier_list, nb);
+}
+EXPORT_SYMBOL_GPL(rpc_pipefs_notifier_register);
+
+void rpc_pipefs_notifier_unregister(struct notifier_block *nb)
+{
+	blocking_notifier_chain_unregister(&rpc_pipefs_notifier_list, nb);
+}
+EXPORT_SYMBOL_GPL(rpc_pipefs_notifier_unregister);
 
 static void rpc_purge_list(struct rpc_inode *rpci, struct list_head *head,
 		void (*destroy_msg)(struct rpc_pipe_msg *), int err)
@@ -997,6 +1013,7 @@ rpc_fill_super(struct super_block *sb, void *data, int silent)
 	struct inode *inode;
 	struct dentry *root;
 	struct net *net = data;
+	int err;
 
 	sb->s_blocksize = PAGE_CACHE_SIZE;
 	sb->s_blocksize_bits = PAGE_CACHE_SHIFT;
@@ -1014,8 +1031,20 @@ rpc_fill_super(struct super_block *sb, void *data, int silent)
 	}
 	if (rpc_populate(root, files, RPCAUTH_lockd, RPCAUTH_RootEOF, NULL))
 		return -ENOMEM;
+	err = blocking_notifier_call_chain(&rpc_pipefs_notifier_list,
+					   RPC_PIPEFS_MOUNT,
+					   sb);
+	if (err)
+		goto err_depopulate;
 	sb->s_fs_info = get_net(net);
 	return 0;
+
+err_depopulate:
+	blocking_notifier_call_chain(&rpc_pipefs_notifier_list,
+					   RPC_PIPEFS_UMOUNT,
+					   sb);
+	__rpc_depopulate(root, files, RPCAUTH_lockd, RPCAUTH_RootEOF);
+	return err;
 }
 
 static struct dentry *
@@ -1030,6 +1059,9 @@ void rpc_kill_sb(struct super_block *sb)
 	struct net *net = sb->s_fs_info;
 
 	put_net(net);
+	blocking_notifier_call_chain(&rpc_pipefs_notifier_list,
+					   RPC_PIPEFS_UMOUNT,
+					   sb);
 	kill_litter_super(sb);
 }
 
