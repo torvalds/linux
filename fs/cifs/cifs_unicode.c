@@ -330,3 +330,64 @@ cifsConvertToUTF16(__le16 *target, const char *source, int srclen,
 ctoUTF16_out:
 	return i;
 }
+
+#ifdef CONFIG_CIFS_SMB2
+/*
+ * cifs_local_to_utf16_bytes - how long will a string be after conversion?
+ * @from - pointer to input string
+ * @maxbytes - don't go past this many bytes of input string
+ * @codepage - source codepage
+ *
+ * Walk a string and return the number of bytes that the string will
+ * be after being converted to the given charset, not including any null
+ * termination required. Don't walk past maxbytes in the source buffer.
+ */
+
+static int
+cifs_local_to_utf16_bytes(const char *from, int len,
+			  const struct nls_table *codepage)
+{
+	int charlen;
+	int i;
+	wchar_t wchar_to;
+
+	for (i = 0; len && *from; i++, from += charlen, len -= charlen) {
+		charlen = codepage->char2uni(from, len, &wchar_to);
+		/* Failed conversion defaults to a question mark */
+		if (charlen < 1)
+			charlen = 1;
+	}
+	return 2 * i; /* UTF16 characters are two bytes */
+}
+
+/*
+ * cifs_strndup_to_utf16 - copy a string to wire format from the local codepage
+ * @src - source string
+ * @maxlen - don't walk past this many bytes in the source string
+ * @utf16_len - the length of the allocated string in bytes (including null)
+ * @cp - source codepage
+ * @remap - map special chars
+ *
+ * Take a string convert it from the local codepage to UTF16 and
+ * put it in a new buffer. Returns a pointer to the new string or NULL on
+ * error.
+ */
+__le16 *
+cifs_strndup_to_utf16(const char *src, const int maxlen, int *utf16_len,
+		      const struct nls_table *cp, int remap)
+{
+	int len;
+	__le16 *dst;
+
+	len = cifs_local_to_utf16_bytes(src, maxlen, cp);
+	len += 2; /* NULL */
+	dst = kmalloc(len, GFP_KERNEL);
+	if (!dst) {
+		*utf16_len = 0;
+		return NULL;
+	}
+	cifsConvertToUTF16(dst, src, strlen(src), cp, remap);
+	*utf16_len = len;
+	return dst;
+}
+#endif /* CONFIG_CIFS_SMB2 */

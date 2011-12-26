@@ -84,6 +84,11 @@ char *cifs_strndup_from_utf16(const char *src, const int maxlen,
 			      const struct nls_table *codepage);
 extern int cifsConvertToUTF16(__le16 *target, const char *source, int maxlen,
 			      const struct nls_table *cp, int mapChars);
+#ifdef CONFIG_CIFS_SMB2
+extern __le16 *cifs_strndup_to_utf16(const char *src, const int maxlen,
+				     int *utf16_len, const struct nls_table *cp,
+				     int remap);
+#endif /* CONFIG_CIFS_SMB2 */
 #endif
 
 /*

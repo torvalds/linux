@@ -36,6 +36,8 @@ extern int map_smb2_to_linux_error(char *buf, bool log_err);
 extern int smb2_check_message(char *buf, unsigned int length);
 extern unsigned int smb2_calc_size(struct smb2_hdr *hdr);
 extern char *smb2_get_data_area_len(int *off, int *len, struct smb2_hdr *hdr);
+extern __le16 *cifs_convert_path_to_utf16(const char *from,
+					  struct cifs_sb_info *cifs_sb);
 
 extern int smb2_check_receive(struct mid_q_entry *mid,
 			      struct TCP_Server_Info *server, bool log_error);
@@ -54,5 +56,11 @@ extern int SMB2_tcon(const unsigned int xid, struct cifs_ses *ses,
 		     const char *tree, struct cifs_tcon *tcon,
 		     const struct nls_table *);
 extern int SMB2_tdis(const unsigned int xid, struct cifs_tcon *tcon);
+extern int SMB2_open(const unsigned int xid, struct cifs_tcon *tcon,
+		     __le16 *path, u64 *persistent_fid, u64 *volatile_fid,
+		     __u32 desired_access, __u32 create_disposition,
+		     __u32 file_attributes, __u32 create_options);
+extern int SMB2_close(const unsigned int xid, struct cifs_tcon *tcon,
+		      u64 persistent_file_id, u64 volatile_file_id);
 
 #endif			/* _SMB2PROTO_H */

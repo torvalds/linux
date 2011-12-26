@@ -829,3 +829,135 @@ SMB2_tdis(const unsigned int xid, struct cifs_tcon *tcon)
 
 	return rc;
 }
+
+int
+SMB2_open(const unsigned int xid, struct cifs_tcon *tcon, __le16 *path,
+	  u64 *persistent_fid, u64 *volatile_fid, __u32 desired_access,
+	  __u32 create_disposition, __u32 file_attributes, __u32 create_options)
+{
+	struct smb2_create_req *req;
+	struct smb2_create_rsp *rsp;
+	struct TCP_Server_Info *server;
+	struct cifs_ses *ses = tcon->ses;
+	struct kvec iov[2];
+	int resp_buftype;
+	int uni_path_len;
+	int rc = 0;
+	int num_iovecs = 2;
+
+	cFYI(1, "create/open");
+
+	if (ses && (ses->server))
+		server = ses->server;
+	else
+		return -EIO;
+
+	rc = small_smb2_init(SMB2_CREATE, tcon, (void **) &req);
+	if (rc)
+		return rc;
+
+	if (enable_oplocks)
+		req->RequestedOplockLevel = SMB2_OPLOCK_LEVEL_BATCH;
+	else
+		req->RequestedOplockLevel = SMB2_OPLOCK_LEVEL_NONE;
+	req->ImpersonationLevel = IL_IMPERSONATION;
+	req->DesiredAccess = cpu_to_le32(desired_access);
+	/* File attributes ignored on open (used in create though) */
+	req->FileAttributes = cpu_to_le32(file_attributes);
+	req->ShareAccess = FILE_SHARE_ALL_LE;
+	req->CreateDisposition = cpu_to_le32(create_disposition);
+	req->CreateOptions = cpu_to_le32(create_options);
+	uni_path_len = (2 * UniStrnlen((wchar_t *)path, PATH_MAX)) + 2;
+	req->NameOffset = cpu_to_le16(sizeof(struct smb2_create_req)
+			- 1 /* pad */ - 4 /* do not count rfc1001 len field */);
+
+	iov[0].iov_base = (char *)req;
+	/* 4 for rfc1002 length field */
+	iov[0].iov_len = get_rfc1002_length(req) + 4;
+
+	/* MUST set path len (NameLength) to 0 opening root of share */
+	if (uni_path_len >= 4) {
+		req->NameLength = cpu_to_le16(uni_path_len - 2);
+		/* -1 since last byte is buf[0] which is sent below (path) */
+		iov[0].iov_len--;
+		iov[1].iov_len = uni_path_len;
+		iov[1].iov_base = path;
+		/*
+		 * -1 since last byte is buf[0] which was counted in
+		 * smb2_buf_len.
+		 */
+		inc_rfc1001_len(req, uni_path_len - 1);
+	} else {
+		num_iovecs = 1;
+		req->NameLength = 0;
+	}
+
+	rc = SendReceive2(xid, ses, iov, num_iovecs, &resp_buftype, 0);
+	rsp = (struct smb2_create_rsp *)iov[0].iov_base;
+
+	if (rc != 0) {
+		cifs_stats_fail_inc(tcon, SMB2_CREATE_HE);
+		goto creat_exit;
+	}
+
+	if (rsp == NULL) {
+		rc = -EIO;
+		goto creat_exit;
+	}
+	*persistent_fid = rsp->PersistentFileId;
+	*volatile_fid = rsp->VolatileFileId;
+creat_exit:
+	free_rsp_buf(resp_buftype, rsp);
+	return rc;
+}
+
+int
+SMB2_close(const unsigned int xid, struct cifs_tcon *tcon,
+	   u64 persistent_fid, u64 volatile_fid)
+{
+	struct smb2_close_req *req;
+	struct smb2_close_rsp *rsp;
+	struct TCP_Server_Info *server;
+	struct cifs_ses *ses = tcon->ses;
+	struct kvec iov[1];
+	int resp_buftype;
+	int rc = 0;
+
+	cFYI(1, "Close");
+
+	if (ses && (ses->server))
+		server = ses->server;
+	else
+		return -EIO;
+
+	rc = small_smb2_init(SMB2_CLOSE, tcon, (void **) &req);
+	if (rc)
+		return rc;
+
+	req->PersistentFileId = persistent_fid;
+	req->VolatileFileId = volatile_fid;
+
+	iov[0].iov_base = (char *)req;
+	/* 4 for rfc1002 length field */
+	iov[0].iov_len = get_rfc1002_length(req) + 4;
+
+	rc = SendReceive2(xid, ses, iov, 1, &resp_buftype, 0);
+	rsp = (struct smb2_close_rsp *)iov[0].iov_base;
+
+	if (rc != 0) {
+		if (tcon)
+			cifs_stats_fail_inc(tcon, SMB2_CLOSE_HE);
+		goto close_exit;
+	}
+
+	if (rsp == NULL) {
+		rc = -EIO;
+		goto close_exit;
+	}
+
+	/* BB FIXME - decode close response, update inode for caching */
+
+close_exit:
+	free_rsp_buf(resp_buftype, rsp);
+	return rc;
+}

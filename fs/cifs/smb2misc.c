@@ -230,6 +230,11 @@ smb2_get_data_area_len(int *off, int *len, struct smb2_hdr *hdr)
 		    ((struct smb2_sess_setup_rsp *)hdr)->SecurityBufferLength);
 		break;
 	case SMB2_CREATE:
+		*off = le32_to_cpu(
+		    ((struct smb2_create_rsp *)hdr)->CreateContextsOffset);
+		*len = le32_to_cpu(
+		    ((struct smb2_create_rsp *)hdr)->CreateContextsLength);
+		break;
 	case SMB2_READ:
 	case SMB2_QUERY_INFO:
 	case SMB2_QUERY_DIRECTORY:
@@ -314,4 +319,24 @@ smb2_calc_size(struct smb2_hdr *hdr)
 calc_size_exit:
 	cFYI(1, "SMB2 len %d", len);
 	return len;
+}
+
+/* Note: caller must free return buffer */
+__le16 *
+cifs_convert_path_to_utf16(const char *from, struct cifs_sb_info *cifs_sb)
+{
+	int len;
+	const char *start_of_path;
+	__le16 *to;
+
+	/* Windows doesn't allow paths beginning with \ */
+	if (from[0] == '\\')
+		start_of_path = from + 1;
+	else
+		start_of_path = from;
+	to = cifs_strndup_to_utf16(start_of_path, PATH_MAX, &len,
+				   cifs_sb->local_nls,
+				   cifs_sb->mnt_cifs_flags &
+					CIFS_MOUNT_MAP_SPECIAL_CHR);
+	return to;
 }

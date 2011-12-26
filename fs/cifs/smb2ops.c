@@ -157,6 +157,30 @@ smb2_negotiate(const unsigned int xid, struct cifs_ses *ses)
 	return rc;
 }
 
+static int
+smb2_is_path_accessible(const unsigned int xid, struct cifs_tcon *tcon,
+			struct cifs_sb_info *cifs_sb, const char *full_path)
+{
+	int rc;
+	__u64 persistent_fid, volatile_fid;
+	__le16 *utf16_path;
+
+	utf16_path = cifs_convert_path_to_utf16(full_path, cifs_sb);
+	if (!utf16_path)
+		return -ENOMEM;
+
+	rc = SMB2_open(xid, tcon, utf16_path, &persistent_fid, &volatile_fid,
+		       FILE_READ_ATTRIBUTES, FILE_OPEN, 0, 0);
+	if (rc) {
+		kfree(utf16_path);
+		return rc;
+	}
+
+	rc = SMB2_close(xid, tcon, persistent_fid, volatile_fid);
+	kfree(utf16_path);
+	return rc;
+}
+
 struct smb_version_operations smb21_operations = {
 	.setup_request = smb2_setup_request,
 	.check_receive = smb2_check_receive,
@@ -174,6 +198,7 @@ struct smb_version_operations smb21_operations = {
 	.logoff = SMB2_logoff,
 	.tree_connect = SMB2_tcon,
 	.tree_disconnect = SMB2_tdis,
+	.is_path_accessible = smb2_is_path_accessible,
 };
 
 struct smb_version_values smb21_values = {
