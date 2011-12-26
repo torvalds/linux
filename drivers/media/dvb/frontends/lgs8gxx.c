@@ -669,9 +669,9 @@ static int lgs8gxx_write(struct dvb_frontend *fe, const u8 buf[], int len)
 	return lgs8gxx_write_reg(priv, buf[0], buf[1]);
 }
 
-static int lgs8gxx_set_fe(struct dvb_frontend *fe,
-			  struct dvb_frontend_parameters *fe_params)
+static int lgs8gxx_set_fe(struct dvb_frontend *fe)
 {
+
 	struct lgs8gxx_state *priv = fe->demodulator_priv;
 
 	dprintk("%s\n", __func__);
@@ -692,7 +692,7 @@ static int lgs8gxx_set_fe(struct dvb_frontend *fe,
 }
 
 static int lgs8gxx_get_fe(struct dvb_frontend *fe,
-			  struct dvb_frontend_parameters *fe_params)
+			  struct dtv_frontend_properties *fe_params)
 {
 	dprintk("%s\n", __func__);
 
@@ -701,21 +701,21 @@ static int lgs8gxx_get_fe(struct dvb_frontend *fe,
 	fe_params->inversion = INVERSION_OFF;
 
 	/* bandwidth */
-	fe_params->u.ofdm.bandwidth = BANDWIDTH_8_MHZ;
+	fe_params->bandwidth_hz = 8000000;
 
-	fe_params->u.ofdm.code_rate_HP = FEC_AUTO;
-	fe_params->u.ofdm.code_rate_LP = FEC_AUTO;
+	fe_params->code_rate_HP = FEC_AUTO;
+	fe_params->code_rate_LP = FEC_AUTO;
 
-	fe_params->u.ofdm.constellation = QAM_AUTO;
+	fe_params->modulation = QAM_AUTO;
 
 	/* transmission mode */
-	fe_params->u.ofdm.transmission_mode = TRANSMISSION_MODE_AUTO;
+	fe_params->transmission_mode = TRANSMISSION_MODE_AUTO;
 
 	/* guard interval */
-	fe_params->u.ofdm.guard_interval = GUARD_INTERVAL_AUTO;
+	fe_params->guard_interval = GUARD_INTERVAL_AUTO;
 
 	/* hierarchy */
-	fe_params->u.ofdm.hierarchy_information = HIERARCHY_NONE;
+	fe_params->hierarchy = HIERARCHY_NONE;
 
 	return 0;
 }
@@ -994,6 +994,7 @@ static int lgs8gxx_i2c_gate_ctrl(struct dvb_frontend *fe, int enable)
 }
 
 static struct dvb_frontend_ops lgs8gxx_ops = {
+	.delsys = { SYS_DMBTH },
 	.info = {
 		.name = "Legend Silicon LGS8913/LGS8GXX DMB-TH",
 		.type = FE_OFDM,
@@ -1013,8 +1014,8 @@ static struct dvb_frontend_ops lgs8gxx_ops = {
 	.write = lgs8gxx_write,
 	.i2c_gate_ctrl = lgs8gxx_i2c_gate_ctrl,
 
-	.set_frontend_legacy = lgs8gxx_set_fe,
-	.get_frontend_legacy = lgs8gxx_get_fe,
+	.set_frontend = lgs8gxx_set_fe,
+	.get_frontend = lgs8gxx_get_fe,
 	.get_tune_settings = lgs8gxx_get_tune_settings,
 
 	.read_status = lgs8gxx_read_status,
