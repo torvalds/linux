@@ -690,20 +690,7 @@ static int si21xx_setacquire(struct dvb_frontend *fe, int symbrate,
 	return status;
 }
 
-static int si21xx_set_property(struct dvb_frontend *fe, struct dtv_property *p)
-{
-	dprintk("%s(..)\n", __func__);
-	return 0;
-}
-
-static int si21xx_get_property(struct dvb_frontend *fe, struct dtv_property *p)
-{
-	dprintk("%s(..)\n", __func__);
-	return 0;
-}
-
-static int si21xx_set_frontend(struct dvb_frontend *fe,
-					struct dvb_frontend_parameters *dfp)
+static int si21xx_set_frontend(struct dvb_frontend *fe)
 {
 	struct si21xx_state *state = fe->demodulator_priv;
 	struct dtv_frontend_properties *c = &fe->dtv_property_cache;
@@ -877,7 +864,7 @@ static void si21xx_release(struct dvb_frontend *fe)
 }
 
 static struct dvb_frontend_ops si21xx_ops = {
-
+	.delsys = { SYS_DVBS },
 	.info = {
 		.name			= "SL SI21XX DVB-S",
 		.type			= FE_QPSK,
@@ -908,9 +895,7 @@ static struct dvb_frontend_ops si21xx_ops = {
 	.set_tone = si21xx_set_tone,
 	.set_voltage = si21xx_set_voltage,
 
-	.set_property = si21xx_set_property,
-	.get_property = si21xx_get_property,
-	.set_frontend_legacy = si21xx_set_frontend,
+	.set_frontend = si21xx_set_frontend,
 };
 
 struct dvb_frontend *si21xx_attach(const struct si21xx_config *config,
