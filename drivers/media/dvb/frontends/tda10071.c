@@ -636,8 +636,7 @@ error:
 	return ret;
 }
 
-static int tda10071_set_frontend(struct dvb_frontend *fe,
-	struct dvb_frontend_parameters *params)
+static int tda10071_set_frontend(struct dvb_frontend *fe)
 {
 	struct tda10071_priv *priv = fe->demodulator_priv;
 	struct tda10071_cmd cmd;
@@ -778,7 +777,7 @@ error:
 }
 
 static int tda10071_get_frontend(struct dvb_frontend *fe,
-	struct dvb_frontend_parameters *p)
+	struct dtv_frontend_properties *p)
 {
 	struct tda10071_priv *priv = fe->demodulator_priv;
 	struct dtv_frontend_properties *c = &fe->dtv_property_cache;
@@ -1217,6 +1216,7 @@ error:
 EXPORT_SYMBOL(tda10071_attach);
 
 static struct dvb_frontend_ops tda10071_ops = {
+	.delsys = { SYS_DVBT, SYS_DVBT2 },
 	.info = {
 		.name = "NXP TDA10071",
 		.type = FE_QPSK,
@@ -1247,8 +1247,8 @@ static struct dvb_frontend_ops tda10071_ops = {
 	.init = tda10071_init,
 	.sleep = tda10071_sleep,
 
-	.set_frontend_legacy = tda10071_set_frontend,
-	.get_frontend_legacy = tda10071_get_frontend,
+	.set_frontend = tda10071_set_frontend,
+	.get_frontend = tda10071_get_frontend,
 
 	.read_status = tda10071_read_status,
 	.read_snr = tda10071_read_snr,
