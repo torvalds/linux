@@ -68,12 +68,13 @@ static int dvb_dummy_fe_read_ucblocks(struct dvb_frontend* fe, u32* ucblocks)
 	return 0;
 }
 
-static int dvb_dummy_fe_get_frontend(struct dvb_frontend* fe, struct dvb_frontend_parameters *p)
+static int dvb_dummy_fe_get_frontend(struct dvb_frontend *fe,
+				     struct dtv_frontend_properties *c)
 {
 	return 0;
 }
 
-static int dvb_dummy_fe_set_frontend(struct dvb_frontend* fe, struct dvb_frontend_parameters *p)
+static int dvb_dummy_fe_set_frontend(struct dvb_frontend *fe)
 {
 	if (fe->ops.tuner_ops.set_params) {
 		fe->ops.tuner_ops.set_params(fe);
@@ -171,7 +172,7 @@ error:
 }
 
 static struct dvb_frontend_ops dvb_dummy_fe_ofdm_ops = {
-
+	.delsys = { SYS_DVBT },
 	.info = {
 		.name			= "Dummy DVB-T",
 		.type			= FE_OFDM,
@@ -192,8 +193,8 @@ static struct dvb_frontend_ops dvb_dummy_fe_ofdm_ops = {
 	.init = dvb_dummy_fe_init,
 	.sleep = dvb_dummy_fe_sleep,
 
-	.set_frontend_legacy = dvb_dummy_fe_set_frontend,
-	.get_frontend_legacy = dvb_dummy_fe_get_frontend,
+	.set_frontend = dvb_dummy_fe_set_frontend,
+	.get_frontend = dvb_dummy_fe_get_frontend,
 
 	.read_status = dvb_dummy_fe_read_status,
 	.read_ber = dvb_dummy_fe_read_ber,
@@ -203,7 +204,7 @@ static struct dvb_frontend_ops dvb_dummy_fe_ofdm_ops = {
 };
 
 static struct dvb_frontend_ops dvb_dummy_fe_qam_ops = {
-
+	.delsys = { SYS_DVBC_ANNEX_A },
 	.info = {
 		.name			= "Dummy DVB-C",
 		.type			= FE_QAM,
@@ -222,8 +223,8 @@ static struct dvb_frontend_ops dvb_dummy_fe_qam_ops = {
 	.init = dvb_dummy_fe_init,
 	.sleep = dvb_dummy_fe_sleep,
 
-	.set_frontend_legacy = dvb_dummy_fe_set_frontend,
-	.get_frontend_legacy = dvb_dummy_fe_get_frontend,
+	.set_frontend = dvb_dummy_fe_set_frontend,
+	.get_frontend = dvb_dummy_fe_get_frontend,
 
 	.read_status = dvb_dummy_fe_read_status,
 	.read_ber = dvb_dummy_fe_read_ber,
@@ -233,7 +234,7 @@ static struct dvb_frontend_ops dvb_dummy_fe_qam_ops = {
 };
 
 static struct dvb_frontend_ops dvb_dummy_fe_qpsk_ops = {
-
+	.delsys = { SYS_DVBS },
 	.info = {
 		.name			= "Dummy DVB-S",
 		.type			= FE_QPSK,
@@ -254,8 +255,8 @@ static struct dvb_frontend_ops dvb_dummy_fe_qpsk_ops = {
 	.init = dvb_dummy_fe_init,
 	.sleep = dvb_dummy_fe_sleep,
 
-	.set_frontend_legacy = dvb_dummy_fe_set_frontend,
-	.get_frontend_legacy = dvb_dummy_fe_get_frontend,
+	.set_frontend = dvb_dummy_fe_set_frontend,
+	.get_frontend = dvb_dummy_fe_get_frontend,
 
 	.read_status = dvb_dummy_fe_read_status,
 	.read_ber = dvb_dummy_fe_read_ber,
