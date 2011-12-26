@@ -21,9 +21,7 @@ struct rpc_pipe_ops {
 	void (*destroy_msg)(struct rpc_pipe_msg *);
 };
 
-struct rpc_inode {
-	struct inode vfs_inode;
-	void *private;
+struct rpc_pipe {
 	struct list_head pipe;
 	struct list_head in_upcall;
 	struct list_head in_downcall;
@@ -36,6 +34,12 @@ struct rpc_inode {
 	struct delayed_work queue_timeout;
 	const struct rpc_pipe_ops *ops;
 	spinlock_t lock;
+};
+
+struct rpc_inode {
+	struct inode vfs_inode;
+	void *private;
+	struct rpc_pipe *pipe;
 };
 
 static inline struct rpc_inode *

@@ -112,7 +112,7 @@ gss_put_ctx(struct gss_cl_ctx *ctx)
 /* gss_cred_set_ctx:
  * called by gss_upcall_callback and gss_create_upcall in order
  * to set the gss context. The actual exchange of an old context
- * and a new one is protected by the rpci->lock.
+ * and a new one is protected by the rpci->pipe->lock.
  */
 static void
 gss_cred_set_ctx(struct rpc_cred *cred, struct gss_cl_ctx *ctx)
@@ -297,7 +297,7 @@ static struct gss_upcall_msg *
 __gss_find_upcall(struct rpc_inode *rpci, uid_t uid)
 {
 	struct gss_upcall_msg *pos;
-	list_for_each_entry(pos, &rpci->in_downcall, list) {
+	list_for_each_entry(pos, &rpci->pipe->in_downcall, list) {
 		if (pos->uid != uid)
 			continue;
 		atomic_inc(&pos->count);
@@ -318,14 +318,14 @@ gss_add_msg(struct gss_upcall_msg *gss_msg)
 	struct rpc_inode *rpci = gss_msg->inode;
 	struct gss_upcall_msg *old;
 
-	spin_lock(&rpci->lock);
+	spin_lock(&rpci->pipe->lock);
 	old = __gss_find_upcall(rpci, gss_msg->uid);
 	if (old == NULL) {
 		atomic_inc(&gss_msg->count);
-		list_add(&gss_msg->list, &rpci->in_downcall);
+		list_add(&gss_msg->list, &rpci->pipe->in_downcall);
 	} else
 		gss_msg = old;
-	spin_unlock(&rpci->lock);
+	spin_unlock(&rpci->pipe->lock);
 	return gss_msg;
 }
 
@@ -345,10 +345,10 @@ gss_unhash_msg(struct gss_upcall_msg *gss_msg)
 
 	if (list_empty(&gss_msg->list))
 		return;
-	spin_lock(&rpci->lock);
+	spin_lock(&rpci->pipe->lock);
 	if (!list_empty(&gss_msg->list))
 		__gss_unhash_msg(gss_msg);
-	spin_unlock(&rpci->lock);
+	spin_unlock(&rpci->pipe->lock);
 }
 
 static void
@@ -377,9 +377,9 @@ gss_upcall_callback(struct rpc_task *task)
 	struct gss_upcall_msg *gss_msg = gss_cred->gc_upcall;
 	struct rpc_inode *rpci = gss_msg->inode;
 
-	spin_lock(&rpci->lock);
+	spin_lock(&rpci->pipe->lock);
 	gss_handle_downcall_result(gss_cred, gss_msg);
-	spin_unlock(&rpci->lock);
+	spin_unlock(&rpci->pipe->lock);
 	task->tk_status = gss_msg->msg.errno;
 	gss_release_msg(gss_msg);
 }
@@ -524,7 +524,7 @@ gss_refresh_upcall(struct rpc_task *task)
 		goto out;
 	}
 	rpci = gss_msg->inode;
-	spin_lock(&rpci->lock);
+	spin_lock(&rpci->pipe->lock);
 	if (gss_cred->gc_upcall != NULL)
 		rpc_sleep_on(&gss_cred->gc_upcall->rpc_waitqueue, task, NULL);
 	else if (gss_msg->ctx == NULL && gss_msg->msg.errno >= 0) {
@@ -537,7 +537,7 @@ gss_refresh_upcall(struct rpc_task *task)
 		gss_handle_downcall_result(gss_cred, gss_msg);
 		err = gss_msg->msg.errno;
 	}
-	spin_unlock(&rpci->lock);
+	spin_unlock(&rpci->pipe->lock);
 	gss_release_msg(gss_msg);
 out:
 	dprintk("RPC: %5u gss_refresh_upcall for uid %u result %d\n",
@@ -575,11 +575,11 @@ retry:
 	rpci = gss_msg->inode;
 	for (;;) {
 		prepare_to_wait(&gss_msg->waitqueue, &wait, TASK_KILLABLE);
-		spin_lock(&rpci->lock);
+		spin_lock(&rpci->pipe->lock);
 		if (gss_msg->ctx != NULL || gss_msg->msg.errno < 0) {
 			break;
 		}
-		spin_unlock(&rpci->lock);
+		spin_unlock(&rpci->pipe->lock);
 		if (fatal_signal_pending(current)) {
 			err = -ERESTARTSYS;
 			goto out_intr;
@@ -590,7 +590,7 @@ retry:
 		gss_cred_set_ctx(cred, gss_msg->ctx);
 	else
 		err = gss_msg->msg.errno;
-	spin_unlock(&rpci->lock);
+	spin_unlock(&rpci->pipe->lock);
 out_intr:
 	finish_wait(&gss_msg->waitqueue, &wait);
 	gss_release_msg(gss_msg);
@@ -638,14 +638,14 @@ gss_pipe_downcall(struct file *filp, const char __user *src, size_t mlen)
 
 	err = -ENOENT;
 	/* Find a matching upcall */
-	spin_lock(&rpci->lock);
+	spin_lock(&rpci->pipe->lock);
 	gss_msg = __gss_find_upcall(rpci, uid);
 	if (gss_msg == NULL) {
-		spin_unlock(&rpci->lock);
+		spin_unlock(&rpci->pipe->lock);
 		goto err_put_ctx;
 	}
 	list_del_init(&gss_msg->list);
-	spin_unlock(&rpci->lock);
+	spin_unlock(&rpci->pipe->lock);
 
 	p = gss_fill_context(p, end, ctx, gss_msg->auth->mech);
 	if (IS_ERR(p)) {
@@ -673,9 +673,9 @@ gss_pipe_downcall(struct file *filp, const char __user *src, size_t mlen)
 	err = mlen;
 
 err_release_msg:
-	spin_lock(&rpci->lock);
+	spin_lock(&rpci->pipe->lock);
 	__gss_unhash_msg(gss_msg);
-	spin_unlock(&rpci->lock);
+	spin_unlock(&rpci->pipe->lock);
 	gss_release_msg(gss_msg);
 err_put_ctx:
 	gss_put_ctx(ctx);
@@ -725,19 +725,19 @@ gss_pipe_release(struct inode *inode)
 	struct gss_upcall_msg *gss_msg;
 
 restart:
-	spin_lock(&rpci->lock);
-	list_for_each_entry(gss_msg, &rpci->in_downcall, list) {
+	spin_lock(&rpci->pipe->lock);
+	list_for_each_entry(gss_msg, &rpci->pipe->in_downcall, list) {
 
 		if (!list_empty(&gss_msg->msg.list))
 			continue;
 		gss_msg->msg.errno = -EPIPE;
 		atomic_inc(&gss_msg->count);
 		__gss_unhash_msg(gss_msg);
-		spin_unlock(&rpci->lock);
+		spin_unlock(&rpci->pipe->lock);
 		gss_release_msg(gss_msg);
 		goto restart;
 	}
-	spin_unlock(&rpci->lock);
+	spin_unlock(&rpci->pipe->lock);
 
 	put_pipe_version();
 }
