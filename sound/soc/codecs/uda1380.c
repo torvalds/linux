@@ -803,7 +803,8 @@ static __devinit int uda1380_i2c_probe(struct i2c_client *i2c,
 	struct uda1380_priv *uda1380;
 	int ret;
 
-	uda1380 = kzalloc(sizeof(struct uda1380_priv), GFP_KERNEL);
+	uda1380 = devm_kzalloc(&i2c->dev, sizeof(struct uda1380_priv),
+			       GFP_KERNEL);
 	if (uda1380 == NULL)
 		return -ENOMEM;
 
@@ -812,15 +813,12 @@ static __devinit int uda1380_i2c_probe(struct i2c_client *i2c,
 
 	ret =  snd_soc_register_codec(&i2c->dev,
 			&soc_codec_dev_uda1380, uda1380_dai, ARRAY_SIZE(uda1380_dai));
-	if (ret < 0)
-		kfree(uda1380);
 	return ret;
 }
 
 static int __devexit uda1380_i2c_remove(struct i2c_client *i2c)
 {
 	snd_soc_unregister_codec(&i2c->dev);
-	kfree(i2c_get_clientdata(i2c));
 	return 0;
 }
 
