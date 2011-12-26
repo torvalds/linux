@@ -178,6 +178,7 @@ config DMA_SHARED_BUFFER
 	bool "Buffer framework to be shared between drivers"
 	default n
 	select ANON_INODES
+	depends on EXPERIMENTAL
 	help
 	  This option enables the framework for buffer-sharing between
 	  multiple drivers. A buffer is associated with a file using driver
