@@ -113,28 +113,12 @@ static int gp8psk_fe_get_tune_settings(struct dvb_frontend* fe, struct dvb_front
 	return 0;
 }
 
-static int gp8psk_fe_set_property(struct dvb_frontend *fe,
-	struct dtv_property *tvp)
-{
-	deb_fe("%s(..)\n", __func__);
-	return 0;
-}
-
-static int gp8psk_fe_get_property(struct dvb_frontend *fe,
-	struct dtv_property *tvp)
-{
-	deb_fe("%s(..)\n", __func__);
-	return 0;
-}
-
-
-static int gp8psk_fe_set_frontend(struct dvb_frontend* fe,
-				  struct dvb_frontend_parameters *fep)
+static int gp8psk_fe_set_frontend(struct dvb_frontend *fe)
 {
 	struct gp8psk_fe_state *state = fe->demodulator_priv;
 	struct dtv_frontend_properties *c = &fe->dtv_property_cache;
 	u8 cmd[10];
-	u32 freq = fep->frequency * 1000;
+	u32 freq = c->frequency * 1000;
 	int gp_product_id = le16_to_cpu(state->d->udev->descriptor.idProduct);
 
 	deb_fe("%s()\n", __func__);
@@ -342,6 +326,7 @@ success:
 
 
 static struct dvb_frontend_ops gp8psk_fe_ops = {
+	.delsys = { SYS_DVBS },
 	.info = {
 		.name			= "Genpix DVB-S",
 		.type			= FE_QPSK,
@@ -366,9 +351,7 @@ static struct dvb_frontend_ops gp8psk_fe_ops = {
 	.init = NULL,
 	.sleep = NULL,
 
-	.set_property = gp8psk_fe_set_property,
-	.get_property = gp8psk_fe_get_property,
-	.set_frontend_legacy = gp8psk_fe_set_frontend,
+	.set_frontend = gp8psk_fe_set_frontend,
 
 	.get_tune_settings = gp8psk_fe_get_tune_settings,
 
