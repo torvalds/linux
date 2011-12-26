@@ -34,4 +34,9 @@ struct statfs;
  */
 extern int map_smb2_to_linux_error(char *buf, bool log_err);
 
+extern int smb2_check_receive(struct mid_q_entry *mid,
+			      struct TCP_Server_Info *server, bool log_error);
+extern int smb2_setup_request(struct cifs_ses *ses, struct kvec *iov,
+			      unsigned int nvec, struct mid_q_entry **ret_mid);
+
 #endif			/* _SMB2PROTO_H */

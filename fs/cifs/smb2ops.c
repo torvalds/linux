@@ -18,10 +18,27 @@
  */
 
 #include "cifsglob.h"
+#include "smb2pdu.h"
+#include "smb2proto.h"
+
+static __u64
+smb2_get_next_mid(struct TCP_Server_Info *server)
+{
+	__u64 mid;
+	/* for SMB2 we need the current value */
+	spin_lock(&GlobalMid_Lock);
+	mid = server->CurrentMid++;
+	spin_unlock(&GlobalMid_Lock);
+	return mid;
+}
 
 struct smb_version_operations smb21_operations = {
+	.setup_request = smb2_setup_request,
+	.check_receive = smb2_check_receive,
+	.get_next_mid = smb2_get_next_mid,
 };
 
 struct smb_version_values smb21_values = {
 	.version_string = SMB21_VERSION_STRING,
+	.lock_cmd = SMB2_LOCK,
 };

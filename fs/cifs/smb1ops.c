@@ -445,4 +445,5 @@ struct smb_version_values smb1_values = {
 	.header_size = sizeof(struct smb_hdr),
 	.max_header_size = MAX_CIFS_HDR_SIZE,
 	.read_rsp_size = sizeof(READ_RSP),
+	.lock_cmd = cpu_to_le16(SMB_COM_LOCKING_ANDX),
 };

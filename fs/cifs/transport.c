@@ -35,10 +35,8 @@
 #include "cifsproto.h"
 #include "cifs_debug.h"
 
-extern mempool_t *cifs_mid_poolp;
-
-static void
-wake_up_task(struct mid_q_entry *mid)
+void
+cifs_wake_up_task(struct mid_q_entry *mid)
 {
 	wake_up_process(mid->callback_data);
 }
@@ -65,12 +63,13 @@ AllocMidQEntry(const struct smb_hdr *smb_buffer, struct TCP_Server_Info *server)
 	/*	do_gettimeofday(&temp->when_sent);*/ /* easier to use jiffies */
 		/* when mid allocated can be before when sent */
 		temp->when_alloc = jiffies;
+		temp->server = server;
 
 		/*
 		 * The default is for the mid to be synchronous, so the
 		 * default callback just wakes up the current task.
 		 */
-		temp->callback = wake_up_task;
+		temp->callback = cifs_wake_up_task;
 		temp->callback_data = current;
 	}
 
@@ -83,6 +82,7 @@ void
 DeleteMidQEntry(struct mid_q_entry *midEntry)
 {
 #ifdef CONFIG_CIFS_STATS2
+	__le16 command = midEntry->server->vals->lock_cmd;
 	unsigned long now;
 #endif
 	midEntry->mid_state = MID_FREE;
@@ -96,8 +96,7 @@ DeleteMidQEntry(struct mid_q_entry *midEntry)
 	/* commands taking longer than one second are indications that
 	   something is wrong, unless it is quite a slow link or server */
 	if ((now - midEntry->when_alloc) > HZ) {
-		if ((cifsFYI & CIFS_TIMER) &&
-		    (midEntry->command != cpu_to_le16(SMB_COM_LOCKING_ANDX))) {
+		if ((cifsFYI & CIFS_TIMER) && (midEntry->command != command)) {
 			printk(KERN_DEBUG " CIFS slow rsp: cmd %d mid %llu",
 			       midEntry->command, midEntry->mid);
 			printk(" A: 0x%lx S: 0x%lx R: 0x%lx\n",

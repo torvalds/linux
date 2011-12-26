@@ -22,6 +22,7 @@
 #include <linux/in.h>
 #include <linux/in6.h>
 #include <linux/slab.h>
+#include <linux/mempool.h>
 #include <linux/workqueue.h>
 #include "cifs_fs_sb.h"
 #include "cifsacl.h"
@@ -218,6 +219,7 @@ struct smb_version_values {
 	size_t		header_size;
 	size_t		max_header_size;
 	size_t		read_rsp_size;
+	__le16		lock_cmd;
 };
 
 #define HEADER_SIZE(server) (server->vals->header_size)
@@ -812,6 +814,7 @@ typedef void (mid_callback_t)(struct mid_q_entry *mid);
 /* one of these for every pending CIFS request to the server */
 struct mid_q_entry {
 	struct list_head qhead;	/* mids waiting on reply from this server */
+	struct TCP_Server_Info *server;	/* server corresponding to this mid */
 	__u64 mid;		/* multiplex id */
 	__u32 pid;		/* process id */
 	__u32 sequence_number;  /* for CIFS signing */
@@ -1152,6 +1155,8 @@ void cifs_oplock_break(struct work_struct *work);
 
 extern const struct slow_work_ops cifs_oplock_break_ops;
 extern struct workqueue_struct *cifsiod_wq;
+
+extern mempool_t *cifs_mid_poolp;
 
 /* Operations for different SMB versions */
 #define SMB1_VERSION_STRING	"1.0"
