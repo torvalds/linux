@@ -1558,8 +1558,7 @@ static int stv0900_status(struct stv0900_internal *intp,
 	return locked;
 }
 
-static enum dvbfe_search stv0900_search(struct dvb_frontend *fe,
-					struct dvb_frontend_parameters *params)
+static enum dvbfe_search stv0900_search(struct dvb_frontend *fe)
 {
 	struct stv0900_state *state = fe->demodulator_priv;
 	struct stv0900_internal *intp = state->internal;

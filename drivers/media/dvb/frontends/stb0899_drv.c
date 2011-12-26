@@ -1431,7 +1431,7 @@ static void stb0899_set_iterations(struct stb0899_state *state)
 	stb0899_write_s2reg(state, STB0899_S2FEC, STB0899_BASE_MAX_ITER, STB0899_OFF0_MAX_ITER, reg);
 }
 
-static enum dvbfe_search stb0899_search(struct dvb_frontend *fe, struct dvb_frontend_parameters *p)
+static enum dvbfe_search stb0899_search(struct dvb_frontend *fe)
 {
 	struct stb0899_state *state = fe->demodulator_priv;
 	struct stb0899_params *i_params = &state->params;
@@ -1441,8 +1441,8 @@ static enum dvbfe_search stb0899_search(struct dvb_frontend *fe, struct dvb_fron
 
 	u32 SearchRange, gain;
 
-	i_params->freq	= p->frequency;
-	i_params->srate = p->u.qpsk.symbol_rate;
+	i_params->freq	= props->frequency;
+	i_params->srate = props->symbol_rate;
 	state->delsys = props->delivery_system;
 	dprintk(state->verbose, FE_DEBUG, 1, "delivery system=%d", state->delsys);
 

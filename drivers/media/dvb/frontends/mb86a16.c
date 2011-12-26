@@ -1621,13 +1621,13 @@ err:
 	return -EREMOTEIO;
 }
 
-static enum dvbfe_search mb86a16_search(struct dvb_frontend *fe,
-					struct dvb_frontend_parameters *p)
+static enum dvbfe_search mb86a16_search(struct dvb_frontend *fe)
 {
+	struct dtv_frontend_properties *p = &fe->dtv_property_cache;
 	struct mb86a16_state *state = fe->demodulator_priv;
 
 	state->frequency = p->frequency / 1000;
-	state->srate = p->u.qpsk.symbol_rate / 1000;
+	state->srate = p->symbol_rate / 1000;
 
 	if (!mb86a16_set_fe(state)) {
 		dprintk(verbose, MB86A16_ERROR, 1, "Successfully acquired LOCK");

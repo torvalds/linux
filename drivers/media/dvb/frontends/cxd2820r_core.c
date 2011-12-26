@@ -468,8 +468,7 @@ static int cxd2820r_get_tune_settings(struct dvb_frontend *fe,
 	return ret;
 }
 
-static enum dvbfe_search cxd2820r_search(struct dvb_frontend *fe,
-					 struct dvb_frontend_parameters *p)
+static enum dvbfe_search cxd2820r_search(struct dvb_frontend *fe)
 {
 	struct cxd2820r_priv *priv = fe->demodulator_priv;
 	struct dtv_frontend_properties *c = &fe->dtv_property_cache;
