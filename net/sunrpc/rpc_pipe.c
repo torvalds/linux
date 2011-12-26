@@ -83,12 +83,11 @@ rpc_timeout_upcall_queue(struct work_struct *work)
 	LIST_HEAD(free_list);
 	struct rpc_inode *rpci =
 		container_of(work, struct rpc_inode, queue_timeout.work);
-	struct inode *inode = &rpci->vfs_inode;
 	void (*destroy_msg)(struct rpc_pipe_msg *);
 
-	spin_lock(&inode->i_lock);
+	spin_lock(&rpci->lock);
 	if (rpci->ops == NULL) {
-		spin_unlock(&inode->i_lock);
+		spin_unlock(&rpci->lock);
 		return;
 	}
 	destroy_msg = rpci->ops->destroy_msg;
@@ -96,7 +95,7 @@ rpc_timeout_upcall_queue(struct work_struct *work)
 		list_splice_init(&rpci->pipe, &free_list);
 		rpci->pipelen = 0;
 	}
-	spin_unlock(&inode->i_lock);
+	spin_unlock(&rpci->lock);
 	rpc_purge_list(rpci, &free_list, destroy_msg, -ETIMEDOUT);
 }
 
@@ -136,7 +135,7 @@ rpc_queue_upcall(struct inode *inode, struct rpc_pipe_msg *msg)
 	struct rpc_inode *rpci = RPC_I(inode);
 	int res = -EPIPE;
 
-	spin_lock(&inode->i_lock);
+	spin_lock(&rpci->lock);
 	if (rpci->ops == NULL)
 		goto out;
 	if (rpci->nreaders) {
@@ -153,7 +152,7 @@ rpc_queue_upcall(struct inode *inode, struct rpc_pipe_msg *msg)
 		res = 0;
 	}
 out:
-	spin_unlock(&inode->i_lock);
+	spin_unlock(&rpci->lock);
 	wake_up(&rpci->waitq);
 	return res;
 }
@@ -176,14 +175,14 @@ rpc_close_pipes(struct inode *inode)
 	ops = rpci->ops;
 	if (ops != NULL) {
 		LIST_HEAD(free_list);
-		spin_lock(&inode->i_lock);
+		spin_lock(&rpci->lock);
 		need_release = rpci->nreaders != 0 || rpci->nwriters != 0;
 		rpci->nreaders = 0;
 		list_splice_init(&rpci->in_upcall, &free_list);
 		list_splice_init(&rpci->pipe, &free_list);
 		rpci->pipelen = 0;
 		rpci->ops = NULL;
-		spin_unlock(&inode->i_lock);
+		spin_unlock(&rpci->lock);
 		rpc_purge_list(rpci, &free_list, ops->destroy_msg, -EPIPE);
 		rpci->nwriters = 0;
 		if (need_release && ops->release_pipe)
@@ -255,10 +254,10 @@ rpc_pipe_release(struct inode *inode, struct file *filp)
 		goto out;
 	msg = filp->private_data;
 	if (msg != NULL) {
-		spin_lock(&inode->i_lock);
+		spin_lock(&rpci->lock);
 		msg->errno = -EAGAIN;
 		list_del_init(&msg->list);
-		spin_unlock(&inode->i_lock);
+		spin_unlock(&rpci->lock);
 		rpci->ops->destroy_msg(msg);
 	}
 	if (filp->f_mode & FMODE_WRITE)
@@ -267,10 +266,10 @@ rpc_pipe_release(struct inode *inode, struct file *filp)
 		rpci->nreaders --;
 		if (rpci->nreaders == 0) {
 			LIST_HEAD(free_list);
-			spin_lock(&inode->i_lock);
+			spin_lock(&rpci->lock);
 			list_splice_init(&rpci->pipe, &free_list);
 			rpci->pipelen = 0;
-			spin_unlock(&inode->i_lock);
+			spin_unlock(&rpci->lock);
 			rpc_purge_list(rpci, &free_list,
 					rpci->ops->destroy_msg, -EAGAIN);
 		}
@@ -298,7 +297,7 @@ rpc_pipe_read(struct file *filp, char __user *buf, size_t len, loff_t *offset)
 	}
 	msg = filp->private_data;
 	if (msg == NULL) {
-		spin_lock(&inode->i_lock);
+		spin_lock(&rpci->lock);
 		if (!list_empty(&rpci->pipe)) {
 			msg = list_entry(rpci->pipe.next,
 					struct rpc_pipe_msg,
@@ -308,7 +307,7 @@ rpc_pipe_read(struct file *filp, char __user *buf, size_t len, loff_t *offset)
 			filp->private_data = msg;
 			msg->copied = 0;
 		}
-		spin_unlock(&inode->i_lock);
+		spin_unlock(&rpci->lock);
 		if (msg == NULL)
 			goto out_unlock;
 	}
@@ -316,9 +315,9 @@ rpc_pipe_read(struct file *filp, char __user *buf, size_t len, loff_t *offset)
 	res = rpci->ops->upcall(filp, msg, buf, len);
 	if (res < 0 || msg->len == msg->copied) {
 		filp->private_data = NULL;
-		spin_lock(&inode->i_lock);
+		spin_lock(&rpci->lock);
 		list_del_init(&msg->list);
-		spin_unlock(&inode->i_lock);
+		spin_unlock(&rpci->lock);
 		rpci->ops->destroy_msg(msg);
 	}
 out_unlock:
@@ -367,9 +366,9 @@ rpc_pipe_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 
 	switch (cmd) {
 	case FIONREAD:
-		spin_lock(&inode->i_lock);
+		spin_lock(&rpci->lock);
 		if (rpci->ops == NULL) {
-			spin_unlock(&inode->i_lock);
+			spin_unlock(&rpci->lock);
 			return -EPIPE;
 		}
 		len = rpci->pipelen;
@@ -378,7 +377,7 @@ rpc_pipe_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 			msg = filp->private_data;
 			len += msg->len - msg->copied;
 		}
-		spin_unlock(&inode->i_lock);
+		spin_unlock(&rpci->lock);
 		return put_user(len, (int __user *)arg);
 	default:
 		return -EINVAL;
@@ -1153,6 +1152,7 @@ init_once(void *foo)
 	INIT_DELAYED_WORK(&rpci->queue_timeout,
 			    rpc_timeout_upcall_queue);
 	rpci->ops = NULL;
+	spin_lock_init(&rpci->lock);
 }
 
 int register_rpc_pipefs(void)

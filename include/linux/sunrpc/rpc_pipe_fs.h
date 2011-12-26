@@ -35,6 +35,7 @@ struct rpc_inode {
 	int flags;
 	struct delayed_work queue_timeout;
 	const struct rpc_pipe_ops *ops;
+	spinlock_t lock;
 };
 
 static inline struct rpc_inode *
