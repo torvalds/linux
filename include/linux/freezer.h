@@ -116,9 +116,11 @@ static inline int freezer_should_skip(struct task_struct *p)
 /* Like schedule_timeout_killable(), but should not block the freezer. */
 #define freezable_schedule_timeout_killable(timeout)			\
 ({									\
+	long __retval;							\
 	freezer_do_not_count();						\
-	schedule_timeout_killable(timeout);				\
+	__retval = schedule_timeout_killable(timeout);			\
 	freezer_count();						\
+	__retval;							\
 })
 
 /*
