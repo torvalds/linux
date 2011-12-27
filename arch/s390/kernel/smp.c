@@ -149,10 +149,10 @@ void smp_switch_to_ipl_cpu(void (*func)(void *), void *data)
 	sp -= sizeof(struct pt_regs);
 	regs = (struct pt_regs *) sp;
 	memcpy(&regs->gprs, &current_lc->gpregs_save_area, sizeof(regs->gprs));
-	regs->psw = lc->psw_save_area;
+	regs->psw = current_lc->psw_save_area;
 	sp -= STACK_FRAME_OVERHEAD;
 	sf = (struct stack_frame *) sp;
-	sf->back_chain = regs->gprs[15];
+	sf->back_chain = 0;
 	smp_switch_to_cpu(func, data, sp, stap(), __cpu_logical_map[0]);
 }
 
