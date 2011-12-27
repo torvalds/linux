@@ -191,18 +191,13 @@ config HOTPLUG_CPU
 	  Say N if you want to disable CPU hotplug.
 
 config SCHED_MC
-	def_bool y
-	prompt "Multi-core scheduler support"
-	depends on SMP
-	help
-	  Multi-core scheduler support improves the CPU scheduler's decision
-	  making when dealing with multi-core CPU chips at a cost of slightly
-	  increased overhead in some places.
+	def_bool n
 
 config SCHED_BOOK
 	def_bool y
 	prompt "Book scheduler support"
-	depends on SMP && SCHED_MC
+	depends on SMP
+	select SCHED_MC
 	help
 	  Book scheduler support improves the CPU scheduler's decision making
 	  when dealing with machines that have several books.

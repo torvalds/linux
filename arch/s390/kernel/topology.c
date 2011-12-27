@@ -6,17 +6,17 @@
 #define KMSG_COMPONENT "cpu"
 #define pr_fmt(fmt) KMSG_COMPONENT ": " fmt
 
-#include <linux/kernel.h>
-#include <linux/mm.h>
-#include <linux/init.h>
-#include <linux/device.h>
-#include <linux/bootmem.h>
-#include <linux/sched.h>
 #include <linux/workqueue.h>
+#include <linux/bootmem.h>
+#include <linux/cpuset.h>
+#include <linux/device.h>
+#include <linux/kernel.h>
+#include <linux/sched.h>
+#include <linux/init.h>
+#include <linux/delay.h>
 #include <linux/cpu.h>
 #include <linux/smp.h>
-#include <linux/cpuset.h>
-#include <asm/delay.h>
+#include <linux/mm.h>
 
 #define PTF_HORIZONTAL	(0UL)
 #define PTF_VERTICAL	(1UL)
@@ -41,11 +41,12 @@ static struct mask_info core_info;
 cpumask_t cpu_core_map[NR_CPUS];
 unsigned char cpu_core_id[NR_CPUS];
 
-#ifdef CONFIG_SCHED_BOOK
 static struct mask_info book_info;
 cpumask_t cpu_book_map[NR_CPUS];
 unsigned char cpu_book_id[NR_CPUS];
-#endif
+
+/* smp_cpu_state_mutex must be held when accessing this array */
+int cpu_polarization[NR_CPUS];
 
 static cpumask_t cpu_group_map(struct mask_info *info, unsigned int cpu)
 {
@@ -85,10 +86,8 @@ static struct mask_info *add_cpus_to_mask(struct topology_cpu *tl_cpu,
 		for_each_present_cpu(lcpu) {
 			if (cpu_logical_map(lcpu) != rcpu)
 				continue;
-#ifdef CONFIG_SCHED_BOOK
 			cpumask_set_cpu(lcpu, &book->mask);
 			cpu_book_id[lcpu] = book->id;
-#endif
 			cpumask_set_cpu(lcpu, &core->mask);
 			if (z10) {
 				cpu_core_id[lcpu] = rcpu;
@@ -96,7 +95,7 @@ static struct mask_info *add_cpus_to_mask(struct topology_cpu *tl_cpu,
 			} else {
 				cpu_core_id[lcpu] = core->id;
 			}
-			smp_cpu_polarization[lcpu] = tl_cpu->pp;
+			cpu_set_polarization(lcpu, tl_cpu->pp);
 		}
 	}
 	return core;
@@ -111,13 +110,11 @@ static void clear_masks(void)
 		cpumask_clear(&info->mask);
 		info = info->next;
 	}
-#ifdef CONFIG_SCHED_BOOK
 	info = &book_info;
 	while (info) {
 		cpumask_clear(&info->mask);
 		info = info->next;
 	}
-#endif
 }
 
 static union topology_entry *next_tle(union topology_entry *tle)
@@ -129,26 +126,19 @@ static union topology_entry *next_tle(union topology_entry *tle)
 
 static void tl_to_cores(struct sysinfo_15_1_x *info)
 {
-#ifdef CONFIG_SCHED_BOOK
-	struct mask_info *book = &book_info;
-	struct cpuid cpu_id;
-#else
-	struct mask_info *book = NULL;
-#endif
 	struct mask_info *core = &core_info;
+	struct mask_info *book = &book_info;
 	union topology_entry *tle, *end;
+	struct cpuid cpu_id;
 	int z10 = 0;
 
-#ifdef CONFIG_SCHED_BOOK
 	get_cpu_id(&cpu_id);
 	z10 = cpu_id.machine == 0x2097 || cpu_id.machine == 0x2098;
-#endif
 	spin_lock_irq(&topology_lock);
 	clear_masks();
 	tle = info->tle;
 	end = (union topology_entry *)((unsigned long)info + info->length);
 	while (tle < end) {
-#ifdef CONFIG_SCHED_BOOK
 		if (z10) {
 			switch (tle->nl) {
 			case 1:
@@ -165,14 +155,11 @@ static void tl_to_cores(struct sysinfo_15_1_x *info)
 			tle = next_tle(tle);
 			continue;
 		}
-#endif
 		switch (tle->nl) {
-#ifdef CONFIG_SCHED_BOOK
 		case 2:
 			book = book->next;
 			book->id = tle->container.id;
 			break;
-#endif
 		case 1:
 			core = core->next;
 			core->id = tle->container.id;
@@ -196,7 +183,7 @@ static void topology_update_polarization_simple(void)
 
 	mutex_lock(&smp_cpu_state_mutex);
 	for_each_possible_cpu(cpu)
-		smp_cpu_polarization[cpu] = POLARIZATION_HRZ;
+		cpu_set_polarization(cpu, POLARIZATION_HRZ);
 	mutex_unlock(&smp_cpu_state_mutex);
 }
 
@@ -215,8 +202,7 @@ static int ptf(unsigned long fc)
 
 int topology_set_cpu_management(int fc)
 {
-	int cpu;
-	int rc;
+	int cpu, rc;
 
 	if (!MACHINE_HAS_TOPOLOGY)
 		return -EOPNOTSUPP;
@@ -227,7 +213,7 @@ int topology_set_cpu_management(int fc)
 	if (rc)
 		return -EBUSY;
 	for_each_possible_cpu(cpu)
-		smp_cpu_polarization[cpu] = POLARIZATION_UNKNWN;
+		cpu_set_polarization(cpu, POLARIZATION_UNKNOWN);
 	return rc;
 }
 
@@ -239,22 +225,18 @@ static void update_cpu_core_map(void)
 	spin_lock_irqsave(&topology_lock, flags);
 	for_each_possible_cpu(cpu) {
 		cpu_core_map[cpu] = cpu_group_map(&core_info, cpu);
-#ifdef CONFIG_SCHED_BOOK
 		cpu_book_map[cpu] = cpu_group_map(&book_info, cpu);
-#endif
 	}
 	spin_unlock_irqrestore(&topology_lock, flags);
 }
 
 void store_topology(struct sysinfo_15_1_x *info)
 {
-#ifdef CONFIG_SCHED_BOOK
 	int rc;
 
 	rc = stsi(info, 15, 1, 3);
 	if (rc != -ENOSYS)
 		return;
-#endif
 	stsi(info, 15, 1, 2);
 }
 
@@ -313,23 +295,6 @@ static int __init early_parse_topology(char *p)
 }
 early_param("topology", early_parse_topology);
 
-static int __init init_topology_update(void)
-{
-	int rc;
-
-	rc = 0;
-	if (!MACHINE_HAS_TOPOLOGY) {
-		topology_update_polarization_simple();
-		goto out;
-	}
-	init_timer_deferrable(&topology_timer);
-	set_topology_timer();
-out:
-	update_cpu_core_map();
-	return rc;
-}
-__initcall(init_topology_update);
-
 static void __init alloc_masks(struct sysinfo_15_1_x *info,
 			       struct mask_info *mask, int offset)
 {
@@ -357,10 +322,107 @@ void __init s390_init_cpu_topology(void)
 	store_topology(info);
 	pr_info("The CPU configuration topology of the machine is:");
 	for (i = 0; i < TOPOLOGY_NR_MAG; i++)
-		printk(" %d", info->mag[i]);
-	printk(" / %d\n", info->mnest);
+		printk(KERN_CONT " %d", info->mag[i]);
+	printk(KERN_CONT " / %d\n", info->mnest);
 	alloc_masks(info, &core_info, 1);
-#ifdef CONFIG_SCHED_BOOK
 	alloc_masks(info, &book_info, 2);
-#endif
 }
+
+static int cpu_management;
+
+static ssize_t dispatching_show(struct sysdev_class *class,
+				struct sysdev_class_attribute *attr,
+				char *buf)
+{
+	ssize_t count;
+
+	mutex_lock(&smp_cpu_state_mutex);
+	count = sprintf(buf, "%d\n", cpu_management);
+	mutex_unlock(&smp_cpu_state_mutex);
+	return count;
+}
+
+static ssize_t dispatching_store(struct sysdev_class *dev,
+				 struct sysdev_class_attribute *attr,
+				 const char *buf,
+				 size_t count)
+{
+	int val, rc;
+	char delim;
+
+	if (sscanf(buf, "%d %c", &val, &delim) != 1)
+		return -EINVAL;
+	if (val != 0 && val != 1)
+		return -EINVAL;
+	rc = 0;
+	get_online_cpus();
+	mutex_lock(&smp_cpu_state_mutex);
+	if (cpu_management == val)
+		goto out;
+	rc = topology_set_cpu_management(val);
+	if (!rc)
+		cpu_management = val;
+out:
+	mutex_unlock(&smp_cpu_state_mutex);
+	put_online_cpus();
+	return rc ? rc : count;
+}
+static SYSDEV_CLASS_ATTR(dispatching, 0644, dispatching_show,
+			 dispatching_store);
+
+static ssize_t cpu_polarization_show(struct sys_device *dev,
+				     struct sysdev_attribute *attr, char *buf)
+{
+	int cpu = dev->id;
+	ssize_t count;
+
+	mutex_lock(&smp_cpu_state_mutex);
+	switch (cpu_read_polarization(cpu)) {
+	case POLARIZATION_HRZ:
+		count = sprintf(buf, "horizontal\n");
+		break;
+	case POLARIZATION_VL:
+		count = sprintf(buf, "vertical:low\n");
+		break;
+	case POLARIZATION_VM:
+		count = sprintf(buf, "vertical:medium\n");
+		break;
+	case POLARIZATION_VH:
+		count = sprintf(buf, "vertical:high\n");
+		break;
+	default:
+		count = sprintf(buf, "unknown\n");
+		break;
+	}
+	mutex_unlock(&smp_cpu_state_mutex);
+	return count;
+}
+static SYSDEV_ATTR(polarization, 0444, cpu_polarization_show, NULL);
+
+static struct attribute *topology_cpu_attrs[] = {
+	&attr_polarization.attr,
+	NULL,
+};
+
+static struct attribute_group topology_cpu_attr_group = {
+	.attrs = topology_cpu_attrs,
+};
+
+int topology_cpu_init(struct cpu *cpu)
+{
+	return sysfs_create_group(&cpu->sysdev.kobj, &topology_cpu_attr_group);
+}
+
+static int __init topology_init(void)
+{
+	if (!MACHINE_HAS_TOPOLOGY) {
+		topology_update_polarization_simple();
+		goto out;
+	}
+	init_timer_deferrable(&topology_timer);
+	set_topology_timer();
+out:
+	update_cpu_core_map();
+	return sysdev_class_create_file(&cpu_sysdev_class, &attr_dispatching);
+}
+device_initcall(topology_init);
