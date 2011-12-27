@@ -528,6 +528,8 @@ struct dentry *debugfs_create_blob(const char *name, mode_t mode,
 }
 EXPORT_SYMBOL_GPL(debugfs_create_blob);
 
+#ifdef CONFIG_HAS_IOMEM
+
 /*
  * The regset32 stuff is used to print 32-bit registers using the
  * seq_file utilities. We offer printing a register set in an already-opened
@@ -616,3 +618,5 @@ struct dentry *debugfs_create_regset32(const char *name, mode_t mode,
 	return debugfs_create_file(name, mode, parent, regset, &fops_regset32);
 }
 EXPORT_SYMBOL_GPL(debugfs_create_regset32);
+
+#endif /* CONFIG_HAS_IOMEM */
