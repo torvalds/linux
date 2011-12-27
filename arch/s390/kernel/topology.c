@@ -1,5 +1,5 @@
 /*
- *    Copyright IBM Corp. 2007
+ *    Copyright IBM Corp. 2007,2011
  *    Author(s): Heiko Carstens <heiko.carstens@de.ibm.com>
  */
 
@@ -72,7 +72,7 @@ static cpumask_t cpu_group_map(struct mask_info *info, unsigned int cpu)
 static struct mask_info *add_cpus_to_mask(struct topology_cpu *tl_cpu,
 					  struct mask_info *book,
 					  struct mask_info *core,
-					  int z10)
+					  int one_core_per_cpu)
 {
 	unsigned int cpu;
 
@@ -89,7 +89,7 @@ static struct mask_info *add_cpus_to_mask(struct topology_cpu *tl_cpu,
 			cpumask_set_cpu(lcpu, &book->mask);
 			cpu_book_id[lcpu] = book->id;
 			cpumask_set_cpu(lcpu, &core->mask);
-			if (z10) {
+			if (one_core_per_cpu) {
 				cpu_core_id[lcpu] = rcpu;
 				core = core->next;
 			} else {
@@ -124,37 +124,15 @@ static union topology_entry *next_tle(union topology_entry *tle)
 	return (union topology_entry *)((struct topology_container *)tle + 1);
 }
 
-static void tl_to_cores(struct sysinfo_15_1_x *info)
+static void __tl_to_cores_generic(struct sysinfo_15_1_x *info)
 {
 	struct mask_info *core = &core_info;
 	struct mask_info *book = &book_info;
 	union topology_entry *tle, *end;
-	struct cpuid cpu_id;
-	int z10 = 0;
 
-	get_cpu_id(&cpu_id);
-	z10 = cpu_id.machine == 0x2097 || cpu_id.machine == 0x2098;
-	spin_lock_irq(&topology_lock);
-	clear_masks();
 	tle = info->tle;
 	end = (union topology_entry *)((unsigned long)info + info->length);
 	while (tle < end) {
-		if (z10) {
-			switch (tle->nl) {
-			case 1:
-				book = book->next;
-				book->id = tle->container.id;
-				break;
-			case 0:
-				core = add_cpus_to_mask(&tle->cpu, book, core, z10);
-				break;
-			default:
-				clear_masks();
-				goto out;
-			}
-			tle = next_tle(tle);
-			continue;
-		}
 		switch (tle->nl) {
 		case 2:
 			book = book->next;
@@ -165,15 +143,56 @@ static void tl_to_cores(struct sysinfo_15_1_x *info)
 			core->id = tle->container.id;
 			break;
 		case 0:
-			add_cpus_to_mask(&tle->cpu, book, core, z10);
+			add_cpus_to_mask(&tle->cpu, book, core, 0);
 			break;
 		default:
 			clear_masks();
-			goto out;
+			return;
 		}
 		tle = next_tle(tle);
 	}
-out:
+}
+
+static void __tl_to_cores_z10(struct sysinfo_15_1_x *info)
+{
+	struct mask_info *core = &core_info;
+	struct mask_info *book = &book_info;
+	union topology_entry *tle, *end;
+
+	tle = info->tle;
+	end = (union topology_entry *)((unsigned long)info + info->length);
+	while (tle < end) {
+		switch (tle->nl) {
+		case 1:
+			book = book->next;
+			book->id = tle->container.id;
+			break;
+		case 0:
+			core = add_cpus_to_mask(&tle->cpu, book, core, 1);
+			break;
+		default:
+			clear_masks();
+			return;
+		}
+		tle = next_tle(tle);
+	}
+}
+
+static void tl_to_cores(struct sysinfo_15_1_x *info)
+{
+	struct cpuid cpu_id;
+
+	get_cpu_id(&cpu_id);
+	spin_lock_irq(&topology_lock);
+	clear_masks();
+	switch (cpu_id.machine) {
+	case 0x2097:
+	case 0x2098:
+		__tl_to_cores_z10(info);
+		break;
+	default:
+		__tl_to_cores_generic(info);
+	}
 	spin_unlock_irq(&topology_lock);
 }
 
