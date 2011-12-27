@@ -257,6 +257,9 @@ static inline u8 wmi_data_hdr_get_if_idx(struct wmi_data_hdr *dhdr)
 #define WMI_META_VERSION_1	0x01
 #define WMI_META_VERSION_2	0x02
 
+/* Flag to signal to FW to calculate TCP checksum */
+#define WMI_META_V2_FLAG_CSUM_OFFLOAD 0x01
+
 struct wmi_tx_meta_v1 {
 	/* packet ID to identify the tx request */
 	u8 pkt_id;

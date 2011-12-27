@@ -1020,11 +1020,44 @@ static struct net_device_stats *ath6kl_get_stats(struct net_device *dev)
 	return &vif->net_stats;
 }
 
+static int ath6kl_set_features(struct net_device *dev, u32 features)
+{
+	struct ath6kl_vif *vif = netdev_priv(dev);
+	struct ath6kl *ar = vif->ar;
+	int err = 0;
+
+	if ((features & NETIF_F_RXCSUM) &&
+	    (ar->rx_meta_ver != WMI_META_VERSION_2)) {
+		ar->rx_meta_ver = WMI_META_VERSION_2;
+		err = ath6kl_wmi_set_rx_frame_format_cmd(ar->wmi,
+							 vif->fw_vif_idx,
+							 ar->rx_meta_ver, 0, 0);
+		if (err) {
+			dev->features = features & ~NETIF_F_RXCSUM;
+			return err;
+		}
+	} else if (!(features & NETIF_F_RXCSUM) &&
+		   (ar->rx_meta_ver == WMI_META_VERSION_2)) {
+		ar->rx_meta_ver = 0;
+		err = ath6kl_wmi_set_rx_frame_format_cmd(ar->wmi,
+							 vif->fw_vif_idx,
+							 ar->rx_meta_ver, 0, 0);
+		if (err) {
+			dev->features = features | NETIF_F_RXCSUM;
+			return err;
+		}
+
+	}
+
+	return err;
+}
+
 static struct net_device_ops ath6kl_netdev_ops = {
 	.ndo_open               = ath6kl_open,
 	.ndo_stop               = ath6kl_close,
 	.ndo_start_xmit         = ath6kl_data_tx,
 	.ndo_get_stats          = ath6kl_get_stats,
+	.ndo_set_features       = ath6kl_set_features,
 };
 
 void init_netdev(struct net_device *dev)

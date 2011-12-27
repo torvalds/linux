@@ -244,6 +244,10 @@ int ath6kl_data_tx(struct sk_buff *skb, struct net_device *dev)
 	u8 ac = 99 ; /* initialize to unmapped ac */
 	bool chk_adhoc_ps_mapping = false, more_data = false;
 	int ret;
+	struct wmi_tx_meta_v2 meta_v2;
+	void *meta;
+	u8 csum_start = 0, csum_dest = 0, csum = skb->ip_summed;
+	u8 meta_ver = 0;
 
 	ath6kl_dbg(ATH6KL_DBG_WLAN_TX,
 		   "%s: skb=0x%p, data=0x%p, len=0x%x\n", __func__,
@@ -265,6 +269,14 @@ int ath6kl_data_tx(struct sk_buff *skb, struct net_device *dev)
 	}
 
 	if (test_bit(WMI_ENABLED, &ar->flag)) {
+		if ((dev->features & NETIF_F_IP_CSUM) &&
+				(csum == CHECKSUM_PARTIAL)) {
+			csum_start = skb->csum_start -
+					(skb_network_header(skb) - skb->head) +
+					sizeof(struct ath6kl_llc_snap_hdr);
+			csum_dest = skb->csum_offset + csum_start;
+		}
+
 		if (skb_headroom(skb) < dev->needed_headroom) {
 			struct sk_buff *tmp_skb = skb;
 
@@ -281,10 +293,28 @@ int ath6kl_data_tx(struct sk_buff *skb, struct net_device *dev)
 			goto fail_tx;
 		}
 
-		if (ath6kl_wmi_data_hdr_add(ar->wmi, skb, DATA_MSGTYPE,
-					    more_data, 0, 0, NULL,
-					    vif->fw_vif_idx)) {
-			ath6kl_err("wmi_data_hdr_add failed\n");
+		if ((dev->features & NETIF_F_IP_CSUM) &&
+				(csum == CHECKSUM_PARTIAL)) {
+			meta_v2.csum_start = csum_start;
+			meta_v2.csum_dest = csum_dest;
+
+			/* instruct target to calculate checksum */
+			meta_v2.csum_flags = WMI_META_V2_FLAG_CSUM_OFFLOAD;
+			meta_ver = WMI_META_VERSION_2;
+			meta = &meta_v2;
+		} else {
+			meta_ver = 0;
+			meta = NULL;
+		}
+
+		ret = ath6kl_wmi_data_hdr_add(ar->wmi, skb,
+				DATA_MSGTYPE, more_data, 0,
+				meta_ver,
+				meta, vif->fw_vif_idx);
+
+		if (ret) {
+			ath6kl_warn("failed to add wmi data header:%d\n"
+				, ret);
 			goto fail_tx;
 		}
 
