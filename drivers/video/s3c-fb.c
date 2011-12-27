@@ -192,6 +192,7 @@ struct s3c_fb_vsync {
  * @regs: The mapped hardware registers.
  * @variant: Variant information for this hardware.
  * @enabled: A bitmask of enabled hardware windows.
+ * @output_on: Flag if the physical output is enabled.
  * @pdata: The platform configuration data passed with the device.
  * @windows: The hardware windows that have been claimed.
  * @irq_no: IRQ line number
@@ -208,6 +209,7 @@ struct s3c_fb {
 	struct s3c_fb_variant	 variant;
 
 	unsigned char		 enabled;
+	bool			 output_on;
 
 	struct s3c_fb_platdata	*pdata;
 	struct s3c_fb_win	*windows[S3C_FB_MAX_WIN];
@@ -449,21 +451,28 @@ static void s3c_fb_enable(struct s3c_fb *sfb, int enable)
 {
 	u32 vidcon0 = readl(sfb->regs + VIDCON0);
 
-	if (enable)
+	if (enable && !sfb->output_on)
+		pm_runtime_get_sync(sfb->dev);
+
+	if (enable) {
 		vidcon0 |= VIDCON0_ENVID | VIDCON0_ENVID_F;
-	else {
+	} else {
 		/* see the note in the framebuffer datasheet about
 		 * why you cannot take both of these bits down at the
 		 * same time. */
 
-		if (!(vidcon0 & VIDCON0_ENVID))
-			return;
-
-		vidcon0 |= VIDCON0_ENVID;
-		vidcon0 &= ~VIDCON0_ENVID_F;
+		if (vidcon0 & VIDCON0_ENVID) {
+			vidcon0 |= VIDCON0_ENVID;
+			vidcon0 &= ~VIDCON0_ENVID_F;
+		}
 	}
 
 	writel(vidcon0, sfb->regs + VIDCON0);
+
+	if (!enable && sfb->output_on)
+		pm_runtime_put_sync(sfb->dev);
+
+	sfb->output_on = enable;
 }
 
 /**
@@ -1539,7 +1548,7 @@ static int __devexit s3c_fb_remove(struct platform_device *pdev)
 	return 0;
 }
 
-#ifdef CONFIG_PM
+#ifdef CONFIG_PM_SLEEP
 static int s3c_fb_suspend(struct device *dev)
 {
 	struct platform_device *pdev = to_platform_device(dev);
@@ -1609,11 +1618,40 @@ static int s3c_fb_resume(struct device *dev)
 
 	return 0;
 }
-#else
-#define s3c_fb_suspend NULL
-#define s3c_fb_resume  NULL
 #endif
 
+#ifdef CONFIG_PM_RUNTIME
+static int s3c_fb_runtime_suspend(struct device *dev)
+{
+	struct platform_device *pdev = to_platform_device(dev);
+	struct s3c_fb *sfb = platform_get_drvdata(pdev);
+
+	if (!sfb->variant.has_clksel)
+		clk_disable(sfb->lcd_clk);
+
+	clk_disable(sfb->bus_clk);
+
+	return 0;
+}
+
+static int s3c_fb_runtime_resume(struct device *dev)
+{
+	struct platform_device *pdev = to_platform_device(dev);
+	struct s3c_fb *sfb = platform_get_drvdata(pdev);
+	struct s3c_fb_platdata *pd = sfb->pdata;
+
+	clk_enable(sfb->bus_clk);
+
+	if (!sfb->variant.has_clksel)
+		clk_enable(sfb->lcd_clk);
+
+	/* setup gpio and output polarity controls */
+	pd->setup_gpio();
+	writel(pd->vidcon1, sfb->regs + VIDCON1);
+
+	return 0;
+}
+#endif
 
 #define VALID_BPP124 (VALID_BPP(1) | VALID_BPP(2) | VALID_BPP(4))
 #define VALID_BPP1248 (VALID_BPP124 | VALID_BPP(8))
@@ -1936,7 +1974,11 @@ static struct platform_device_id s3c_fb_driver_ids[] = {
 };
 MODULE_DEVICE_TABLE(platform, s3c_fb_driver_ids);
 
-static UNIVERSAL_DEV_PM_OPS(s3cfb_pm_ops, s3c_fb_suspend, s3c_fb_resume, NULL);
+static const struct dev_pm_ops s3cfb_pm_ops = {
+	SET_SYSTEM_SLEEP_PM_OPS(s3c_fb_suspend, s3c_fb_resume)
+	SET_RUNTIME_PM_OPS(s3c_fb_runtime_suspend, s3c_fb_runtime_resume,
+			   NULL)
+};
 
 static struct platform_driver s3c_fb_driver = {
 	.probe		= s3c_fb_probe,
