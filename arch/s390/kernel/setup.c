@@ -654,7 +654,6 @@ static int __init verify_crash_base(unsigned long crash_base,
 static void __init reserve_kdump_bootmem(unsigned long addr, unsigned long size,
 					 int type)
 {
-
 	create_mem_hole(memory_chunk, addr, size, type);
 }
 
