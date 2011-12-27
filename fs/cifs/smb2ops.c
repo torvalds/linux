@@ -170,6 +170,8 @@ struct smb_version_operations smb21_operations = {
 	.dump_detail = smb2_dump_detail,
 	.need_neg = smb2_need_neg,
 	.negotiate = smb2_negotiate,
+	.sess_setup = SMB2_sess_setup,
+	.logoff = SMB2_logoff,
 };
 
 struct smb_version_values smb21_values = {

@@ -364,7 +364,7 @@ static int decode_ascii_ssetup(char **pbcc_area, __u16 bleft,
 	return rc;
 }
 
-static int decode_ntlmssp_challenge(char *bcc_ptr, int blob_len,
+int decode_ntlmssp_challenge(char *bcc_ptr, int blob_len,
 				    struct cifs_ses *ses)
 {
 	unsigned int tioffset; /* challenge message target info area */
@@ -415,7 +415,7 @@ static int decode_ntlmssp_challenge(char *bcc_ptr, int blob_len,
 
 /* We do not malloc the blob, it is passed in pbuffer, because
    it is fixed size, and small, making this approach cleaner */
-static void build_ntlmssp_negotiate_blob(unsigned char *pbuffer,
+void build_ntlmssp_negotiate_blob(unsigned char *pbuffer,
 					 struct cifs_ses *ses)
 {
 	NEGOTIATE_MESSAGE *sec_blob = (NEGOTIATE_MESSAGE *)pbuffer;
@@ -451,7 +451,7 @@ static void build_ntlmssp_negotiate_blob(unsigned char *pbuffer,
 /* We do not malloc the blob, it is passed in pbuffer, because its
    maximum possible size is fixed and small, making this approach cleaner.
    This function returns the length of the data in the blob */
-static int build_ntlmssp_auth_blob(unsigned char *pbuffer,
+int build_ntlmssp_auth_blob(unsigned char *pbuffer,
 					u16 *buflen,
 				   struct cifs_ses *ses,
 				   const struct nls_table *nls_cp)

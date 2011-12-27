@@ -47,5 +47,8 @@ extern int smb2_setup_request(struct cifs_ses *ses, struct kvec *iov,
  * are contained within these calls.
  */
 extern int SMB2_negotiate(const unsigned int xid, struct cifs_ses *ses);
+extern int SMB2_sess_setup(const unsigned int xid, struct cifs_ses *ses,
+			   const struct nls_table *nls_cp);
+extern int SMB2_logoff(const unsigned int xid, struct cifs_ses *ses);
 
 #endif			/* _SMB2PROTO_H */

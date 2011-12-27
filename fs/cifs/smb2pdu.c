@@ -328,3 +328,224 @@ neg_exit:
 	free_rsp_buf(resp_buftype, rsp);
 	return rc;
 }
+
+int
+SMB2_sess_setup(const unsigned int xid, struct cifs_ses *ses,
+		const struct nls_table *nls_cp)
+{
+	struct smb2_sess_setup_req *req;
+	struct smb2_sess_setup_rsp *rsp = NULL;
+	struct kvec iov[2];
+	int rc = 0;
+	int resp_buftype;
+	__le32 phase = NtLmNegotiate; /* NTLMSSP, if needed, is multistage */
+	struct TCP_Server_Info *server;
+	unsigned int sec_flags;
+	u8 temp = 0;
+	u16 blob_length = 0;
+	char *security_blob;
+	char *ntlmssp_blob = NULL;
+	bool use_spnego = false; /* else use raw ntlmssp */
+
+	cFYI(1, "Session Setup");
+
+	if (ses->server)
+		server = ses->server;
+	else {
+		rc = -EIO;
+		return rc;
+	}
+
+	/*
+	 * If memory allocation is successful, caller of this function
+	 * frees it.
+	 */
+	ses->ntlmssp = kmalloc(sizeof(struct ntlmssp_auth), GFP_KERNEL);
+	if (!ses->ntlmssp)
+		return -ENOMEM;
+
+	ses->server->secType = RawNTLMSSP;
+
+ssetup_ntlmssp_authenticate:
+	if (phase == NtLmChallenge)
+		phase = NtLmAuthenticate; /* if ntlmssp, now final phase */
+
+	rc = small_smb2_init(SMB2_SESSION_SETUP, NULL, (void **) &req);
+	if (rc)
+		return rc;
+
+	/* if any of auth flags (ie not sign or seal) are overriden use them */
+	if (ses->overrideSecFlg & (~(CIFSSEC_MUST_SIGN | CIFSSEC_MUST_SEAL)))
+		sec_flags = ses->overrideSecFlg;  /* BB FIXME fix sign flags?*/
+	else /* if override flags set only sign/seal OR them with global auth */
+		sec_flags = global_secflags | ses->overrideSecFlg;
+
+	cFYI(1, "sec_flags 0x%x", sec_flags);
+
+	req->hdr.SessionId = 0; /* First session, not a reauthenticate */
+	req->VcNumber = 0; /* MBZ */
+	/* to enable echos and oplocks */
+	req->hdr.CreditRequest = cpu_to_le16(3);
+
+	/* only one of SMB2 signing flags may be set in SMB2 request */
+	if ((sec_flags & CIFSSEC_MUST_SIGN) == CIFSSEC_MUST_SIGN)
+		temp = SMB2_NEGOTIATE_SIGNING_REQUIRED;
+	else if (ses->server->sec_mode & SMB2_NEGOTIATE_SIGNING_REQUIRED)
+		temp = SMB2_NEGOTIATE_SIGNING_REQUIRED;
+	else if (sec_flags & CIFSSEC_MAY_SIGN) /* MAY_SIGN is a single flag */
+		temp = SMB2_NEGOTIATE_SIGNING_ENABLED;
+
+	req->SecurityMode = temp;
+	req->Capabilities = 0;
+	req->Channel = 0; /* MBZ */
+
+	iov[0].iov_base = (char *)req;
+	/* 4 for rfc1002 length field and 1 for pad */
+	iov[0].iov_len = get_rfc1002_length(req) + 4 - 1;
+	if (phase == NtLmNegotiate) {
+		ntlmssp_blob = kmalloc(sizeof(struct _NEGOTIATE_MESSAGE),
+				       GFP_KERNEL);
+		if (ntlmssp_blob == NULL) {
+			rc = -ENOMEM;
+			goto ssetup_exit;
+		}
+		build_ntlmssp_negotiate_blob(ntlmssp_blob, ses);
+		if (use_spnego) {
+			/* blob_length = build_spnego_ntlmssp_blob(
+					&security_blob,
+					sizeof(struct _NEGOTIATE_MESSAGE),
+					ntlmssp_blob); */
+			/* BB eventually need to add this */
+			cERROR(1, "spnego not supported for SMB2 yet");
+			rc = -EOPNOTSUPP;
+			kfree(ntlmssp_blob);
+			goto ssetup_exit;
+		} else {
+			blob_length = sizeof(struct _NEGOTIATE_MESSAGE);
+			/* with raw NTLMSSP we don't encapsulate in SPNEGO */
+			security_blob = ntlmssp_blob;
+		}
+	} else if (phase == NtLmAuthenticate) {
+		req->hdr.SessionId = ses->Suid;
+		ntlmssp_blob = kzalloc(sizeof(struct _NEGOTIATE_MESSAGE) + 500,
+				       GFP_KERNEL);
+		if (ntlmssp_blob == NULL) {
+			cERROR(1, "failed to malloc ntlmssp blob");
+			rc = -ENOMEM;
+			goto ssetup_exit;
+		}
+		rc = build_ntlmssp_auth_blob(ntlmssp_blob, &blob_length, ses,
+					     nls_cp);
+		if (rc) {
+			cFYI(1, "build_ntlmssp_auth_blob failed %d", rc);
+			goto ssetup_exit; /* BB double check error handling */
+		}
+		if (use_spnego) {
+			/* blob_length = build_spnego_ntlmssp_blob(
+							&security_blob,
+							blob_length,
+							ntlmssp_blob); */
+			cERROR(1, "spnego not supported for SMB2 yet");
+			rc = -EOPNOTSUPP;
+			kfree(ntlmssp_blob);
+			goto ssetup_exit;
+		} else {
+			security_blob = ntlmssp_blob;
+		}
+	} else {
+		cERROR(1, "illegal ntlmssp phase");
+		rc = -EIO;
+		goto ssetup_exit;
+	}
+
+	/* Testing shows that buffer offset must be at location of Buffer[0] */
+	req->SecurityBufferOffset =
+				cpu_to_le16(sizeof(struct smb2_sess_setup_req) -
+					    1 /* pad */ - 4 /* rfc1001 len */);
+	req->SecurityBufferLength = cpu_to_le16(blob_length);
+	iov[1].iov_base = security_blob;
+	iov[1].iov_len = blob_length;
+
+	inc_rfc1001_len(req, blob_length - 1 /* pad */);
+
+	/* BB add code to build os and lm fields */
+
+	rc = SendReceive2(xid, ses, iov, 2, &resp_buftype, CIFS_LOG_ERROR);
+
+	kfree(security_blob);
+	rsp = (struct smb2_sess_setup_rsp *)iov[0].iov_base;
+	if (rsp->hdr.Status == STATUS_MORE_PROCESSING_REQUIRED) {
+		if (phase != NtLmNegotiate) {
+			cERROR(1, "Unexpected more processing error");
+			goto ssetup_exit;
+		}
+		if (offsetof(struct smb2_sess_setup_rsp, Buffer) - 4 !=
+			le16_to_cpu(rsp->SecurityBufferOffset)) {
+			cERROR(1, "Invalid security buffer offset %d",
+				  le16_to_cpu(rsp->SecurityBufferOffset));
+			rc = -EIO;
+			goto ssetup_exit;
+		}
+
+		/* NTLMSSP Negotiate sent now processing challenge (response) */
+		phase = NtLmChallenge; /* process ntlmssp challenge */
+		rc = 0; /* MORE_PROCESSING is not an error here but expected */
+		ses->Suid = rsp->hdr.SessionId;
+		rc = decode_ntlmssp_challenge(rsp->Buffer,
+				le16_to_cpu(rsp->SecurityBufferLength), ses);
+	}
+
+	/*
+	 * BB eventually add code for SPNEGO decoding of NtlmChallenge blob,
+	 * but at least the raw NTLMSSP case works.
+	 */
+	/*
+	 * No tcon so can't do
+	 * cifs_stats_inc(&tcon->stats.smb2_stats.smb2_com_fail[SMB2...]);
+	 */
+	if (rc != 0)
+		goto ssetup_exit;
+
+	if (rsp == NULL) {
+		rc = -EIO;
+		goto ssetup_exit;
+	}
+
+	ses->session_flags = le16_to_cpu(rsp->SessionFlags);
+ssetup_exit:
+	free_rsp_buf(resp_buftype, rsp);
+
+	/* if ntlmssp, and negotiate succeeded, proceed to authenticate phase */
+	if ((phase == NtLmChallenge) && (rc == 0))
+		goto ssetup_ntlmssp_authenticate;
+	return rc;
+}
+
+int
+SMB2_logoff(const unsigned int xid, struct cifs_ses *ses)
+{
+	struct smb2_logoff_req *req; /* response is also trivial struct */
+	int rc = 0;
+	struct TCP_Server_Info *server;
+
+	cFYI(1, "disconnect session %p", ses);
+
+	if (ses && (ses->server))
+		server = ses->server;
+	else
+		return -EIO;
+
+	rc = small_smb2_init(SMB2_LOGOFF, NULL, (void **) &req);
+	if (rc)
+		return rc;
+
+	 /* since no tcon, smb2_init can not do this, so do here */
+	req->hdr.SessionId = ses->Suid;
+
+	rc = SendReceiveNoRsp(xid, ses, (char *) &req->hdr, 0);
+	/*
+	 * No tcon so can't do
+	 * cifs_stats_inc(&tcon->stats.smb2_stats.smb2_com_fail[SMB2...]);
+	 */
+	return rc;
+}

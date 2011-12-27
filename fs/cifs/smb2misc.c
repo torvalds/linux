@@ -224,6 +224,11 @@ smb2_get_data_area_len(int *off, int *len, struct smb2_hdr *hdr)
 		    ((struct smb2_negotiate_rsp *)hdr)->SecurityBufferLength);
 		break;
 	case SMB2_SESSION_SETUP:
+		*off = le16_to_cpu(
+		    ((struct smb2_sess_setup_rsp *)hdr)->SecurityBufferOffset);
+		*len = le16_to_cpu(
+		    ((struct smb2_sess_setup_rsp *)hdr)->SecurityBufferLength);
+		break;
 	case SMB2_CREATE:
 	case SMB2_READ:
 	case SMB2_QUERY_INFO:
