@@ -90,8 +90,6 @@ struct sdhci_host {
 
 	unsigned int quirks2;	/* More deviations from spec. */
 
-#define SDHCI_QUIRK2_OWN_CARD_DETECTION			(1<<0)
-
 	int irq;		/* Device IRQ */
 	void __iomem *ioaddr;	/* Mapped address */
 
