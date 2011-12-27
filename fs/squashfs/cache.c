@@ -70,11 +70,15 @@ struct squashfs_cache_entry *squashfs_cache_get(struct super_block *sb,
 	spin_lock(&cache->lock);
 
 	while (1) {
-		for (i = 0; i < cache->entries; i++)
-			if (cache->entry[i].block == block)
+		for (i = cache->curr_blk, n = 0; n < cache->entries; n++) {
+			if (cache->entry[i].block == block) {
+				cache->curr_blk = i;
 				break;
+			}
+			i = (i + 1) % cache->entries;
+		}
 
-		if (i == cache->entries) {
+		if (n == cache->entries) {
 			/*
 			 * Block not in cache, if all cache entries are used
 			 * go to sleep waiting for one to become available.
@@ -245,6 +249,7 @@ struct squashfs_cache *squashfs_cache_init(char *name, int entries,
 		goto cleanup;
 	}
 
+	cache->curr_blk = 0;
 	cache->next_blk = 0;
 	cache->unused = entries;
 	cache->entries = entries;
