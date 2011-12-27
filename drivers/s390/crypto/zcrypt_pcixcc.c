@@ -260,7 +260,7 @@ static int ICACRT_msg_to_type6CRT_msgX(struct zcrypt_device *zdev,
  * @ap_msg: pointer to AP message
  * @xcRB: pointer to user input data
  *
- * Returns 0 on success or -EFAULT.
+ * Returns 0 on success or -EFAULT, -EINVAL.
  */
 struct type86_fmt2_msg {
 	struct type86_hdr hdr;
@@ -290,12 +290,12 @@ static int XCRB_msg_to_type6CPRB_msgX(struct zcrypt_device *zdev,
 		CEIL4(xcRB->request_control_blk_length) +
 		xcRB->request_data_length;
 	if (ap_msg->length > PCIXCC_MAX_XCRB_MESSAGE_SIZE)
-		return -EFAULT;
+		return -EINVAL;
 	replylen = sizeof(struct type86_fmt2_msg) +
 		CEIL4(xcRB->reply_control_blk_length) +
 		xcRB->reply_data_length;
 	if (replylen > PCIXCC_MAX_XCRB_MESSAGE_SIZE)
-		return -EFAULT;
+		return -EINVAL;
 
 	/* prepare type6 header */
 	msg->hdr = static_type6_hdrX;
@@ -314,7 +314,7 @@ static int XCRB_msg_to_type6CPRB_msgX(struct zcrypt_device *zdev,
 		return -EFAULT;
 	if (msg->cprbx.cprb_len + sizeof(msg->hdr.function_code) >
 	    xcRB->request_control_blk_length)
-		return -EFAULT;
+		return -EINVAL;
 	function_code = ((unsigned char *)&msg->cprbx) + msg->cprbx.cprb_len;
 	memcpy(msg->hdr.function_code, function_code, sizeof(msg->hdr.function_code));
 
