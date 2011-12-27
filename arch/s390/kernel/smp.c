@@ -187,7 +187,7 @@ static void do_ext_call_interrupt(unsigned int ext_int_code,
 {
 	unsigned long bits;
 
-	if (ext_int_code == 0x1202)
+	if ((ext_int_code & 0xffff) == 0x1202)
 		kstat_cpu(smp_processor_id()).irqs[EXTINT_EXC]++;
 	else
 		kstat_cpu(smp_processor_id()).irqs[EXTINT_EMS]++;
