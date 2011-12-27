@@ -313,6 +313,12 @@ get_rfc1002_length(void *buf)
 	return be32_to_cpu(*((__be32 *)buf));
 }
 
+static inline void
+inc_rfc1001_len(void *buf, int count)
+{
+	be32_add_cpu((__be32 *)buf, count);
+}
+
 struct TCP_Server_Info {
 	struct list_head tcp_ses_list;
 	struct list_head smb_ses_list;
@@ -393,6 +399,10 @@ struct TCP_Server_Info {
 	atomic_t in_send; /* requests trying to send */
 	atomic_t num_waiters;   /* blocked waiting to get in sendrecv */
 #endif
+#ifdef CONFIG_CIFS_SMB2
+	unsigned int	max_read;
+	unsigned int	max_write;
+#endif /* CONFIG_CIFS_SMB2 */
 };
 
 static inline unsigned int
@@ -986,7 +996,8 @@ static inline void free_dfs_info_array(struct dfs_info3_param *param,
 /* Type of request operation */
 #define   CIFS_ECHO_OP      0x080    /* echo request */
 #define   CIFS_OBREAK_OP   0x0100    /* oplock break request */
-#define   CIFS_OP_MASK     0x0180    /* mask request type */
+#define   CIFS_NEG_OP      0x0200    /* negotiate request */
+#define   CIFS_OP_MASK     0x0380    /* mask request type */
 
 /* Security Flags: indicate type of session setup needed */
 #define   CIFSSEC_MAY_SIGN	0x00001

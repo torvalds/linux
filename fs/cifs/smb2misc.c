@@ -199,7 +199,7 @@ static const bool has_smb2_data_area[NUMBER_OF_SMB2_COMMANDS] = {
  * Returns the pointer to the beginning of the data area. Length of the data
  * area and the offset to it (from the beginning of the smb are also returned.
  */
-static char *
+char *
 smb2_get_data_area_len(int *off, int *len, struct smb2_hdr *hdr)
 {
 	*off = 0;
@@ -218,6 +218,11 @@ smb2_get_data_area_len(int *off, int *len, struct smb2_hdr *hdr)
 	 */
 	switch (hdr->Command) {
 	case SMB2_NEGOTIATE:
+		*off = le16_to_cpu(
+		    ((struct smb2_negotiate_rsp *)hdr)->SecurityBufferOffset);
+		*len = le16_to_cpu(
+		    ((struct smb2_negotiate_rsp *)hdr)->SecurityBufferLength);
+		break;
 	case SMB2_SESSION_SETUP:
 	case SMB2_CREATE:
 	case SMB2_READ:

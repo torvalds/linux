@@ -148,4 +148,43 @@ struct smb2_err_rsp {
 	__u8   ErrorData[1];  /* variable length */
 } __packed;
 
+struct smb2_negotiate_req {
+	struct smb2_hdr hdr;
+	__le16 StructureSize; /* Must be 36 */
+	__le16 DialectCount;
+	__le16 SecurityMode;
+	__le16 Reserved;	/* MBZ */
+	__le32 Capabilities;
+	__u8   ClientGUID[16];	/* MBZ */
+	__le64 ClientStartTime;	/* MBZ */
+	__le16 Dialects[2]; /* variable length */
+} __packed;
+
+/* SecurityMode flags */
+#define	SMB2_NEGOTIATE_SIGNING_ENABLED	0x0001
+#define SMB2_NEGOTIATE_SIGNING_REQUIRED	0x0002
+/* Capabilities flags */
+#define SMB2_GLOBAL_CAP_DFS		0x00000001
+#define SMB2_GLOBAL_CAP_LEASING		0x00000002 /* Resp only New to SMB2.1 */
+#define SMB2_GLOBAL_CAP_LARGE_MTU	0X00000004 /* Resp only New to SMB2.1 */
+
+struct smb2_negotiate_rsp {
+	struct smb2_hdr hdr;
+	__le16 StructureSize;	/* Must be 65 */
+	__le16 SecurityMode;
+	__le16 DialectRevision;
+	__le16 Reserved;	/* MBZ */
+	__u8   ServerGUID[16];
+	__le32 Capabilities;
+	__le32 MaxTransactSize;
+	__le32 MaxReadSize;
+	__le32 MaxWriteSize;
+	__le64 SystemTime;	/* MBZ */
+	__le64 ServerStartTime;
+	__le16 SecurityBufferOffset;
+	__le16 SecurityBufferLength;
+	__le32 Reserved2;	/* may be any value, ignore */
+	__u8   Buffer[1];	/* variable length GSS security buffer */
+} __packed;
+
 #endif				/* _SMB2PDU_H */

@@ -61,7 +61,7 @@ smb2_add_credits(struct TCP_Server_Info *server, const unsigned int add,
 	val = server->ops->get_credits_field(server, optype);
 	*val += add;
 	server->in_flight--;
-	if (server->in_flight == 0)
+	if (server->in_flight == 0 && (optype & CIFS_OP_MASK) != CIFS_NEG_OP)
 		rc = change_conf(server);
 	spin_unlock(&server->req_lock);
 	wake_up(&server->request_q);
@@ -139,6 +139,24 @@ smb2_dump_detail(void *buf)
 #endif
 }
 
+static bool
+smb2_need_neg(struct TCP_Server_Info *server)
+{
+	return server->max_read == 0;
+}
+
+static int
+smb2_negotiate(const unsigned int xid, struct cifs_ses *ses)
+{
+	int rc;
+	ses->server->CurrentMid = 0;
+	rc = SMB2_negotiate(xid, ses);
+	/* BB we probably don't need to retry with modern servers */
+	if (rc == -EAGAIN)
+		rc = -EHOSTDOWN;
+	return rc;
+}
+
 struct smb_version_operations smb21_operations = {
 	.setup_request = smb2_setup_request,
 	.check_receive = smb2_check_receive,
@@ -150,6 +168,8 @@ struct smb_version_operations smb21_operations = {
 	.find_mid = smb2_find_mid,
 	.check_message = smb2_check_message,
 	.dump_detail = smb2_dump_detail,
+	.need_neg = smb2_need_neg,
+	.negotiate = smb2_negotiate,
 };
 
 struct smb_version_values smb21_values = {
