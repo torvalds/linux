@@ -21,13 +21,14 @@
 #include <plat/pll.h>
 #include <plat/s5p-clock.h>
 #include <plat/clock-clksrc.h>
-#include <plat/exynos4.h>
 #include <plat/pm.h>
 
 #include <mach/map.h>
 #include <mach/regs-clock.h>
 #include <mach/sysmmu.h>
 #include <mach/exynos4-clock.h>
+
+#include "common.h"
 
 static struct sleep_save exynos4_clock_save[] = {
 	SAVE_ITEM(S5P_CLKDIV_LEFTBUS),
