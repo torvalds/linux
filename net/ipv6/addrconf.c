@@ -650,16 +650,6 @@ ipv6_add_addr(struct inet6_dev *idev, const struct in6_addr *addr, int pfxlen,
 
 	ifa->rt = rt;
 
-	/*
-	 * part one of RFC 4429, section 3.3
-	 * We should not configure an address as
-	 * optimistic if we do not yet know the link
-	 * layer address of our nexhop router
-	 */
-
-	if (dst_get_neighbour_noref_raw(&rt->dst) == NULL)
-		ifa->flags &= ~IFA_F_OPTIMISTIC;
-
 	ifa->idev = idev;
 	in6_dev_hold(idev);
 	/* For caller */
