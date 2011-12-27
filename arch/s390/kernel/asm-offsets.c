@@ -45,7 +45,8 @@ int main(void)
 	DEFINE(__PT_PSW, offsetof(struct pt_regs, psw));
 	DEFINE(__PT_GPRS, offsetof(struct pt_regs, gprs));
 	DEFINE(__PT_ORIG_GPR2, offsetof(struct pt_regs, orig_gpr2));
-	DEFINE(__PT_SVC_CODE, offsetof(struct pt_regs, svc_code));
+	DEFINE(__PT_INT_CODE, offsetof(struct pt_regs, int_code));
+	DEFINE(__PT_INT_PARM_LONG, offsetof(struct pt_regs, int_parm_long));
 	DEFINE(__PT_SIZE, sizeof(struct pt_regs));
 	BLANK();
 	DEFINE(__SF_BACKCHAIN, offsetof(struct stack_frame, back_chain));

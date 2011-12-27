@@ -501,8 +501,12 @@ static int setup_frame32(int sig, struct k_sigaction *ka,
 
 	/* We forgot to include these in the sigcontext.
 	   To avoid breaking binary compatibility, they are passed as args. */
-	regs->gprs[4] = current->thread.trap_no;
-	regs->gprs[5] = current->thread.prot_addr;
+	if (sig == SIGSEGV || sig == SIGBUS || sig == SIGILL ||
+	    sig == SIGTRAP || sig == SIGFPE) {
+		/* set extra registers only for synchronous signals */
+		regs->gprs[4] = regs->int_code & 127;
+		regs->gprs[5] = regs->int_parm_long;
+	}
 
 	/* Place signal number on stack to allow backtrace from handler.  */
 	if (__put_user(regs->gprs[2], (int __force __user *) &frame->signo))

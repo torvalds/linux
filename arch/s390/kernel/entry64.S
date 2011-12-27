@@ -1,4 +1,3 @@
-
 /*
  *  arch/s390/kernel/entry64.S
  *    S390 low-level entry points.
@@ -200,17 +199,17 @@ sysc_vtime:
 	stmg	%r0,%r7,__PT_R0(%r11)
 	mvc	__PT_R8(64,%r11),__LC_SAVE_AREA_SYNC
 	mvc	__PT_PSW(16,%r11),__LC_SVC_OLD_PSW
-	mvc	__PT_SVC_CODE(4,%r11),__LC_SVC_ILC
+	mvc	__PT_INT_CODE(4,%r11),__LC_SVC_ILC
 sysc_do_svc:
 	oi	__TI_flags+7(%r12),_TIF_SYSCALL
-	llgh	%r8,__PT_SVC_CODE+2(%r11)
+	llgh	%r8,__PT_INT_CODE+2(%r11)
 	slag	%r8,%r8,2			# shift and test for svc 0
 	jnz	sysc_nr_ok
 	# svc 0: system call number in %r1
 	llgfr	%r1,%r1				# clear high word in r1
 	cghi	%r1,NR_syscalls
 	jnl	sysc_nr_ok
-	sth	%r1,__PT_SVC_CODE+2(%r11)
+	sth	%r1,__PT_INT_CODE+2(%r11)
 	slag	%r8,%r1,2
 sysc_nr_ok:
 	larl	%r10,sys_call_table		# 64 bit system call table
@@ -288,7 +287,7 @@ sysc_sigpending:
 	jno	sysc_return
 	lmg	%r2,%r7,__PT_R2(%r11)	# load svc arguments
 	lghi	%r8,0			# svc 0 returns -ENOSYS
-	lh	%r1,__PT_SVC_CODE+2(%r11)	# load new svc number
+	lh	%r1,__PT_INT_CODE+2(%r11)	# load new svc number
 	cghi	%r1,NR_syscalls
 	jnl	sysc_nr_ok		# invalid svc number -> do svc 0
 	slag	%r8,%r1,2
@@ -318,7 +317,7 @@ sysc_singlestep:
 sysc_tracesys:
 	lgr	%r2,%r11		# pass pointer to pt_regs
 	la	%r3,0
-	llgh	%r0,__PT_SVC_CODE+2(%r11)
+	llgh	%r0,__PT_INT_CODE+2(%r11)
 	stg	%r0,__PT_R2(%r11)
 	brasl	%r14,do_syscall_trace_enter
 	lghi	%r0,NR_syscalls
@@ -411,6 +410,8 @@ ENTRY(pgm_check_handler)
 	stmg	%r0,%r7,__PT_R0(%r11)
 	mvc	__PT_R8(64,%r11),__LC_SAVE_AREA_SYNC
 	stmg	%r8,%r9,__PT_PSW(%r11)
+	mvc	__PT_INT_CODE(4,%r11),__LC_PGM_ILC
+	mvc	__PT_INT_PARM_LONG(8,%r11),__LC_TRANS_EXC_CODE
 	stg	%r10,__PT_ARGS(%r11)
 	tm	__LC_PGM_ILC+3,0x80	# check for per exception
 	jz	0f
@@ -421,15 +422,13 @@ ENTRY(pgm_check_handler)
 	mvc	__THREAD_per_address(8,%r1),__LC_PER_ADDRESS
 	mvc	__THREAD_per_cause(2,%r1),__LC_PER_CAUSE
 	mvc	__THREAD_per_paid(1,%r1),__LC_PER_PAID
-0:	lgf	%r3,__LC_PGM_ILC	# load program interruption code
-	lg	%r4,__LC_TRANS_EXC_CODE
-	REENABLE_IRQS
+0:	REENABLE_IRQS
 	xc	__SF_BACKCHAIN(8,%r15),__SF_BACKCHAIN(%r15)
-	lghi	%r10,0x7f
-	ngr	%r10,%r3
-	je	sysc_return
-	sll	%r10,3
 	larl	%r1,pgm_check_table
+	llgh	%r10,__PT_INT_CODE+2(%r11)
+	nill	%r10,0x007f
+	sll	%r10,3
+	je	sysc_return
 	lg	%r1,0(%r10,%r1)		# load address of handler routine
 	lgr	%r2,%r11		# pass pointer to pt_regs
 	basr	%r14,%r1		# branch to interrupt-handler
@@ -877,7 +876,7 @@ cleanup_system_call:
 	mvc	__PT_R8(64,%r15),__LC_SAVE_AREA_SYNC
 	stmg	%r0,%r7,__PT_R0(%r15)
 	mvc	__PT_PSW(16,%r15),__LC_SVC_OLD_PSW
-	mvc	__PT_SVC_CODE(4,%r15),__LC_SVC_ILC
+	mvc	__PT_INT_CODE(4,%r15),__LC_SVC_ILC
 	# setup saved register r15
 	aghi	%r15,-STACK_FRAME_OVERHEAD
 	stg	%r15,56(%r11)		# r15 stack pointer

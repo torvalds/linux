@@ -184,16 +184,16 @@ sysc_vtime:
 	stm	%r0,%r7,__PT_R0(%r11)
 	mvc	__PT_R8(32,%r11),__LC_SAVE_AREA_SYNC
 	mvc	__PT_PSW(8,%r11),__LC_SVC_OLD_PSW
-	mvc	__PT_SVC_CODE(4,%r11),__LC_SVC_ILC
+	mvc	__PT_INT_CODE(4,%r11),__LC_SVC_ILC
 sysc_do_svc:
 	oi	__TI_flags+3(%r12),_TIF_SYSCALL
-	lh	%r8,__PT_SVC_CODE+2(%r11)
+	lh	%r8,__PT_INT_CODE+2(%r11)
 	sla	%r8,2				# shift and test for svc0
 	jnz	sysc_nr_ok
 	# svc 0: system call number in %r1
 	cl	%r1,BASED(.Lnr_syscalls)
 	jnl	sysc_nr_ok
-	sth	%r1,__PT_SVC_CODE+2(%r11)
+	sth	%r1,__PT_INT_CODE+2(%r11)
 	lr	%r8,%r1
 	sla	%r8,2
 sysc_nr_ok:
@@ -266,9 +266,9 @@ sysc_sigpending:
 	jno	sysc_return
 	lm	%r2,%r7,__PT_R2(%r11)	# load svc arguments
 	xr	%r8,%r8			# svc 0 returns -ENOSYS
-	clc	__PT_SVC_CODE+2(2,%r11),BASED(.Lnr_syscalls+2)
+	clc	__PT_INT_CODE+2(2,%r11),BASED(.Lnr_syscalls+2)
 	jnl	sysc_nr_ok		# invalid svc number -> do svc 0
-	lh	%r8,__PT_SVC_CODE+2(%r11)	# load new svc number
+	lh	%r8,__PT_INT_CODE+2(%r11)	# load new svc number
 	sla	%r8,2
 	j	sysc_nr_ok		# restart svc
 
@@ -300,7 +300,7 @@ sysc_tracesys:
 	lr	%r2,%r11		# pass pointer to pt_regs
 	la	%r3,0
 	xr	%r0,%r0
-	icm	%r0,3,__PT_SVC_CODE+2(%r11)
+	icm	%r0,3,__PT_INT_CODE+2(%r11)
 	st	%r0,__PT_R2(%r11)
 	basr	%r14,%r1		# call do_syscall_trace_enter
 	cl	%r2,BASED(.Lnr_syscalls)
@@ -396,6 +396,8 @@ ENTRY(pgm_check_handler)
 	stm	%r0,%r7,__PT_R0(%r11)
 	mvc	__PT_R8(32,%r11),__LC_SAVE_AREA_SYNC
 	stm	%r8,%r9,__PT_PSW(%r11)
+	mvc	__PT_INT_CODE(4,%r11),__LC_PGM_ILC
+	mvc	__PT_INT_PARM_LONG(4,%r11),__LC_TRANS_EXC_CODE
 	tm	__LC_PGM_ILC+3,0x80	# check for per exception
 	jz	0f
 	l	%r1,__TI_task(%r12)
@@ -405,13 +407,11 @@ ENTRY(pgm_check_handler)
 	mvc	__THREAD_per_address(4,%r1),__LC_PER_ADDRESS
 	mvc	__THREAD_per_cause(2,%r1),__LC_PER_CAUSE
 	mvc	__THREAD_per_paid(1,%r1),__LC_PER_PAID
-0:	l	%r3,__LC_PGM_ILC	# load program interruption code
-	l	%r4,__LC_TRANS_EXC_CODE
-	REENABLE_IRQS
+0:	REENABLE_IRQS
 	xc	__SF_BACKCHAIN(4,%r15),__SF_BACKCHAIN(%r15)
 	l	%r1,BASED(.Ljump_table)
 	la	%r10,0x7f
-	nr	%r10,%r3
+	n	%r10,__PT_INT_CODE(%r11)
 	je	sysc_return
 	sll	%r10,2
 	l	%r1,0(%r10,%r1)		# load address of handler routine
@@ -858,7 +858,7 @@ cleanup_system_call:
 	mvc	__PT_R8(32,%r15),__LC_SAVE_AREA_SYNC
 	stm	%r0,%r7,__PT_R0(%r15)
 	mvc	__PT_PSW(8,%r15),__LC_SVC_OLD_PSW
-	mvc	__PT_SVC_CODE(4,%r15),__LC_SVC_ILC
+	mvc	__PT_INT_CODE(4,%r15),__LC_SVC_ILC
 	# setup saved register 15
 	ahi	%r15,-STACK_FRAME_OVERHEAD
 	st	%r15,28(%r11)		# r15 stack pointer
