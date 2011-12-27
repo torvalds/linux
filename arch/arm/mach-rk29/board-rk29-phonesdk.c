@@ -646,7 +646,7 @@ static struct ext_slave_platform_data inv_mpu_kxtf9_data = {
 static struct ext_slave_platform_data inv_mpu_ak8975_data = {
 	.bus         = EXT_SLAVE_BUS_PRIMARY,
 	.adapt_num = 0,
-	.orientation = {-1, 0, 0, 0, -1, 0, 0, 0, 1},
+	.orientation = {0, 1, 0, -1, 0, 0, 0, 0, 1},
 };
 #endif
 
