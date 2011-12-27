@@ -496,6 +496,8 @@ static int s3c_fb_set_par(struct fb_info *info)
 
 	dev_dbg(sfb->dev, "setting framebuffer parameters\n");
 
+	pm_runtime_get_sync(sfb->dev);
+
 	shadow_protect_win(win, 1);
 
 	switch (var->bits_per_pixel) {
@@ -692,6 +694,8 @@ static int s3c_fb_set_par(struct fb_info *info)
 
 	shadow_protect_win(win, 0);
 
+	pm_runtime_put_sync(sfb->dev);
+
 	return 0;
 }
 
@@ -763,6 +767,8 @@ static int s3c_fb_setcolreg(unsigned regno,
 	dev_dbg(sfb->dev, "%s: win %d: %d => rgb=%d/%d/%d\n",
 		__func__, win->index, regno, red, green, blue);
 
+	pm_runtime_get_sync(sfb->dev);
+
 	switch (info->fix.visual) {
 	case FB_VISUAL_TRUECOLOR:
 		/* true-colour, use pseudo-palette */
@@ -790,9 +796,11 @@ static int s3c_fb_setcolreg(unsigned regno,
 		break;
 
 	default:
+		pm_runtime_put_sync(sfb->dev);
 		return 1;	/* unknown type */
 	}
 
+	pm_runtime_put_sync(sfb->dev);
 	return 0;
 }
 
@@ -811,6 +819,8 @@ static int s3c_fb_blank(int blank_mode, struct fb_info *info)
 	u32 wincon;
 
 	dev_dbg(sfb->dev, "blank mode %d\n", blank_mode);
+
+	pm_runtime_get_sync(sfb->dev);
 
 	wincon = readl(sfb->regs + sfb->variant.wincon + (index * 4));
 
@@ -839,6 +849,7 @@ static int s3c_fb_blank(int blank_mode, struct fb_info *info)
 	case FB_BLANK_VSYNC_SUSPEND:
 	case FB_BLANK_HSYNC_SUSPEND:
 	default:
+		pm_runtime_put_sync(sfb->dev);
 		return 1;
 	}
 
@@ -869,6 +880,8 @@ static int s3c_fb_blank(int blank_mode, struct fb_info *info)
 		shadow_protect_win(win, 0);
 	}
 
+	pm_runtime_put_sync(sfb->dev);
+
 	return 0;
 }
 
@@ -891,6 +904,8 @@ static int s3c_fb_pan_display(struct fb_var_screeninfo *var,
 	void __iomem *buf	= sfb->regs + win->index * 8;
 	unsigned int start_boff, end_boff;
 
+	pm_runtime_get_sync(sfb->dev);
+
 	/* Offset in bytes to the start of the displayed area */
 	start_boff = var->yoffset * info->fix.line_length;
 	/* X offset depends on the current bpp */
@@ -909,6 +924,7 @@ static int s3c_fb_pan_display(struct fb_var_screeninfo *var,
 			break;
 		default:
 			dev_err(sfb->dev, "invalid bpp\n");
+			pm_runtime_put_sync(sfb->dev);
 			return -EINVAL;
 		}
 	}
@@ -924,6 +940,7 @@ static int s3c_fb_pan_display(struct fb_var_screeninfo *var,
 
 	shadow_protect_win(win, 0);
 
+	pm_runtime_put_sync(sfb->dev);
 	return 0;
 }
 
@@ -1013,11 +1030,16 @@ static int s3c_fb_wait_for_vsync(struct s3c_fb *sfb, u32 crtc)
 	if (crtc != 0)
 		return -ENODEV;
 
+	pm_runtime_get_sync(sfb->dev);
+
 	count = sfb->vsync_info.count;
 	s3c_fb_enable_irq(sfb);
 	ret = wait_event_interruptible_timeout(sfb->vsync_info.wait,
 				       count != sfb->vsync_info.count,
 				       msecs_to_jiffies(VSYNC_TIMEOUT_MSEC));
+
+	pm_runtime_put_sync(sfb->dev);
+
 	if (ret == 0)
 		return -ETIMEDOUT;
 
