@@ -545,15 +545,16 @@ static int ax25_setsockopt(struct socket *sock, int level, int optname,
 	ax25_cb *ax25;
 	struct net_device *dev;
 	char devname[IFNAMSIZ];
-	int opt, res = 0;
+	unsigned long opt;
+	int res = 0;
 
 	if (level != SOL_AX25)
 		return -ENOPROTOOPT;
 
-	if (optlen < sizeof(int))
+	if (optlen < sizeof(unsigned int))
 		return -EINVAL;
 
-	if (get_user(opt, (int __user *)optval))
+	if (get_user(opt, (unsigned int __user *)optval))
 		return -EFAULT;
 
 	lock_sock(sk);
@@ -609,7 +610,7 @@ static int ax25_setsockopt(struct socket *sock, int level, int optname,
 		break;
 
 	case AX25_IDLE:
-		if (opt < 0 || opt > ULONG_MAX / (60 * HZ)) {
+		if (opt > ULONG_MAX / (60 * HZ)) {
 			res = -EINVAL;
 			break;
 		}
@@ -617,7 +618,7 @@ static int ax25_setsockopt(struct socket *sock, int level, int optname,
 		break;
 
 	case AX25_BACKOFF:
-		if (opt < 0 || opt > 2) {
+		if (opt > 2) {
 			res = -EINVAL;
 			break;
 		}
