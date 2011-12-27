@@ -509,7 +509,7 @@ int pfault_init(void)
 		.reserved = __PF_RES_FIELD };
         int rc;
 
-	if (!MACHINE_IS_VM || pfault_disable)
+	if (pfault_disable)
 		return -1;
 	asm volatile(
 		"	diag	%1,%0,0x258\n"
@@ -530,7 +530,7 @@ void pfault_fini(void)
 		.refversn = 2,
 	};
 
-	if (!MACHINE_IS_VM || pfault_disable)
+	if (pfault_disable)
 		return;
 	asm volatile(
 		"	diag	%0,0,0x258\n"
@@ -643,8 +643,6 @@ static int __init pfault_irq_init(void)
 {
 	int rc;
 
-	if (!MACHINE_IS_VM)
-		return 0;
 	rc = register_external_interrupt(0x2603, pfault_interrupt);
 	if (rc)
 		goto out_extint;
