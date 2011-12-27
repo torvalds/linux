@@ -22,7 +22,6 @@
 
 #include <asm/mach-types.h>
 
-#include <mach/pinmux.h>
 #include "board.h"
 #include "board-harmony.h"
 
@@ -48,10 +47,6 @@ static int __init harmony_pcie_init(void)
 
 	regulator_enable(regulator);
 
-	tegra_pinmux_set_tristate(TEGRA_PINGROUP_GPV, TEGRA_TRI_NORMAL);
-	tegra_pinmux_set_tristate(TEGRA_PINGROUP_SLXA, TEGRA_TRI_NORMAL);
-	tegra_pinmux_set_tristate(TEGRA_PINGROUP_SLXK, TEGRA_TRI_NORMAL);
-
 	err = tegra_pcie_init(true, true);
 	if (err)
 		goto err_pcie;
@@ -59,10 +54,6 @@ static int __init harmony_pcie_init(void)
 	return 0;
 
 err_pcie:
-	tegra_pinmux_set_tristate(TEGRA_PINGROUP_GPV, TEGRA_TRI_TRISTATE);
-	tegra_pinmux_set_tristate(TEGRA_PINGROUP_SLXA, TEGRA_TRI_TRISTATE);
-	tegra_pinmux_set_tristate(TEGRA_PINGROUP_SLXK, TEGRA_TRI_TRISTATE);
-
 	regulator_disable(regulator);
 	regulator_put(regulator);
 err_reg:
