@@ -22,12 +22,9 @@
 static struct kmem_cache *qdio_q_cache;
 static struct kmem_cache *qdio_aob_cache;
 
-struct qaob *qdio_allocate_aob()
+struct qaob *qdio_allocate_aob(void)
 {
-	struct qaob *aob;
-
-	aob = kmem_cache_zalloc(qdio_aob_cache, GFP_ATOMIC);
-	return aob;
+	return kmem_cache_zalloc(qdio_aob_cache, GFP_ATOMIC);
 }
 EXPORT_SYMBOL_GPL(qdio_allocate_aob);
 
