@@ -56,18 +56,28 @@ struct s3c64xx_spi_info {
 };
 
 /**
- * s3c64xx_spi_set_info - SPI Controller configure callback by the board
+ * s3c64xx_spi_set_platdata - SPI Controller configure callback by the board
  *				initialization code.
- * @cntrlr: SPI controller number the configuration is for.
+ * @pd: SPI platform data to set.
  * @src_clk_nr: Clock the SPI controller is to use to generate SPI clocks.
  * @num_cs: Number of elements in the 'cs' array.
  *
  * Call this from machine init code for each SPI Controller that
  * has some chips attached to it.
  */
-extern void s3c64xx_spi_set_info(int cntrlr, int src_clk_nr, int num_cs);
-extern void s5pc100_spi_set_info(int cntrlr, int src_clk_nr, int num_cs);
-extern void s5pv210_spi_set_info(int cntrlr, int src_clk_nr, int num_cs);
-extern void s5p64x0_spi_set_info(int cntrlr, int src_clk_nr, int num_cs);
+extern void s3c64xx_spi0_set_platdata(struct s3c64xx_spi_info *pd,
+				      int src_clk_nr, int num_cs);
+extern void s3c64xx_spi1_set_platdata(struct s3c64xx_spi_info *pd,
+				      int src_clk_nr, int num_cs);
+extern void s3c64xx_spi2_set_platdata(struct s3c64xx_spi_info *pd,
+				      int src_clk_nr, int num_cs);
 
+/* defined by architecture to configure gpio */
+extern int s3c64xx_spi0_cfg_gpio(struct platform_device *dev);
+extern int s3c64xx_spi1_cfg_gpio(struct platform_device *dev);
+extern int s3c64xx_spi2_cfg_gpio(struct platform_device *dev);
+
+extern struct s3c64xx_spi_info s3c64xx_spi0_pdata;
+extern struct s3c64xx_spi_info s3c64xx_spi1_pdata;
+extern struct s3c64xx_spi_info s3c64xx_spi2_pdata;
 #endif /* __S3C64XX_PLAT_SPI_H */
