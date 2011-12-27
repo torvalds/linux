@@ -123,12 +123,18 @@ static struct clk s3c2410_armclk = {
 	.id	= -1,
 };
 
+static struct clk_lookup s3c2410_clk_lookup[] = {
+	CLKDEV_INIT(NULL, "clk_uart_baud0", &clk_p),
+	CLKDEV_INIT(NULL, "clk_uart_baud1", &s3c24xx_uclk),
+};
+
 void __init s3c2410_init_clocks(int xtal)
 {
 	s3c24xx_register_baseclocks(xtal);
 	s3c2410_setup_clocks();
 	s3c2410_baseclk_add();
 	s3c24xx_register_clock(&s3c2410_armclk);
+	clkdev_add_table(s3c2410_clk_lookup, ARRAY_SIZE(s3c2410_clk_lookup));
 }
 
 struct sysdev_class s3c2410_sysclass = {

@@ -809,46 +809,6 @@ static struct clksrc_clk clksrcs[] = {
 		.reg_div = { .reg = S5P_CLK_DIV6, .shift = 12, .size = 3 },
 	}, {
 		.clk	= {
-			.name		= "uclk1",
-			.devname	= "s5pv210-uart.0",
-			.enable		= s5pv210_clk_mask0_ctrl,
-			.ctrlbit	= (1 << 12),
-		},
-		.sources = &clkset_uart,
-		.reg_src = { .reg = S5P_CLK_SRC4, .shift = 16, .size = 4 },
-		.reg_div = { .reg = S5P_CLK_DIV4, .shift = 16, .size = 4 },
-	}, {
-		.clk		= {
-			.name		= "uclk1",
-			.devname	= "s5pv210-uart.1",
-			.enable		= s5pv210_clk_mask0_ctrl,
-			.ctrlbit	= (1 << 13),
-		},
-		.sources = &clkset_uart,
-		.reg_src = { .reg = S5P_CLK_SRC4, .shift = 20, .size = 4 },
-		.reg_div = { .reg = S5P_CLK_DIV4, .shift = 20, .size = 4 },
-	}, {
-		.clk		= {
-			.name		= "uclk1",
-			.devname	= "s5pv210-uart.2",
-			.enable		= s5pv210_clk_mask0_ctrl,
-			.ctrlbit	= (1 << 14),
-		},
-		.sources = &clkset_uart,
-		.reg_src = { .reg = S5P_CLK_SRC4, .shift = 24, .size = 4 },
-		.reg_div = { .reg = S5P_CLK_DIV4, .shift = 24, .size = 4 },
-	}, {
-		.clk		= {
-			.name		= "uclk1",
-			.devname	= "s5pv210-uart.3",
-			.enable		= s5pv210_clk_mask0_ctrl,
-			.ctrlbit	= (1 << 15),
-		},
-		.sources = &clkset_uart,
-		.reg_src = { .reg = S5P_CLK_SRC4, .shift = 28, .size = 4 },
-		.reg_div = { .reg = S5P_CLK_DIV4, .shift = 28, .size = 4 },
-	}, {
-		.clk	= {
 			.name		= "sclk_fimc",
 			.devname	= "s5pv210-fimc.0",
 			.enable		= s5pv210_clk_mask1_ctrl,
@@ -1020,6 +980,61 @@ static struct clksrc_clk clksrcs[] = {
 		.reg_src = { .reg = S5P_CLK_SRC5, .shift = 12, .size = 4 },
 		.reg_div = { .reg = S5P_CLK_DIV5, .shift = 12, .size = 4 },
 	},
+};
+
+static struct clksrc_clk clk_sclk_uart0 = {
+	.clk	= {
+		.name		= "uclk1",
+		.devname	= "s5pv210-uart.0",
+		.enable		= s5pv210_clk_mask0_ctrl,
+		.ctrlbit	= (1 << 12),
+	},
+	.sources = &clkset_uart,
+	.reg_src = { .reg = S5P_CLK_SRC4, .shift = 16, .size = 4 },
+	.reg_div = { .reg = S5P_CLK_DIV4, .shift = 16, .size = 4 },
+};
+
+static struct clksrc_clk clk_sclk_uart1 = {
+	.clk		= {
+		.name		= "uclk1",
+		.devname	= "s5pv210-uart.1",
+		.enable		= s5pv210_clk_mask0_ctrl,
+		.ctrlbit	= (1 << 13),
+	},
+	.sources = &clkset_uart,
+	.reg_src = { .reg = S5P_CLK_SRC4, .shift = 20, .size = 4 },
+	.reg_div = { .reg = S5P_CLK_DIV4, .shift = 20, .size = 4 },
+};
+
+static struct clksrc_clk clk_sclk_uart2 = {
+	.clk		= {
+		.name		= "uclk1",
+		.devname	= "s5pv210-uart.2",
+		.enable		= s5pv210_clk_mask0_ctrl,
+		.ctrlbit	= (1 << 14),
+	},
+	.sources = &clkset_uart,
+	.reg_src = { .reg = S5P_CLK_SRC4, .shift = 24, .size = 4 },
+	.reg_div = { .reg = S5P_CLK_DIV4, .shift = 24, .size = 4 },
+};
+
+static struct clksrc_clk clk_sclk_uart3	= {
+	.clk		= {
+		.name		= "uclk1",
+		.devname	= "s5pv210-uart.3",
+		.enable		= s5pv210_clk_mask0_ctrl,
+		.ctrlbit	= (1 << 15),
+	},
+	.sources = &clkset_uart,
+	.reg_src = { .reg = S5P_CLK_SRC4, .shift = 28, .size = 4 },
+	.reg_div = { .reg = S5P_CLK_DIV4, .shift = 28, .size = 4 },
+};
+
+static struct clksrc_clk *clksrc_cdev[] = {
+	&clk_sclk_uart0,
+	&clk_sclk_uart1,
+	&clk_sclk_uart2,
+	&clk_sclk_uart3,
 };
 
 /* Clock initialisation code */
@@ -1261,6 +1276,14 @@ static struct clk *clks[] __initdata = {
 	&clk_pcmcdclk2,
 };
 
+static struct clk_lookup s5pv210_clk_lookup[] = {
+	CLKDEV_INIT(NULL, "clk_uart_baud0", &clk_p),
+	CLKDEV_INIT("s5pv210-uart.0", "clk_uart_baud1", &clk_sclk_uart0.clk),
+	CLKDEV_INIT("s5pv210-uart.1", "clk_uart_baud1", &clk_sclk_uart1.clk),
+	CLKDEV_INIT("s5pv210-uart.2", "clk_uart_baud1", &clk_sclk_uart2.clk),
+	CLKDEV_INIT("s5pv210-uart.3", "clk_uart_baud1", &clk_sclk_uart3.clk),
+};
+
 void __init s5pv210_register_clocks(void)
 {
 	int ptr;
@@ -1273,11 +1296,15 @@ void __init s5pv210_register_clocks(void)
 	for (ptr = 0; ptr < ARRAY_SIZE(sclk_tv); ptr++)
 		s3c_register_clksrc(sclk_tv[ptr], 1);
 
+	for (ptr = 0; ptr < ARRAY_SIZE(clksrc_cdev); ptr++)
+		s3c_register_clksrc(clksrc_cdev[ptr], 1);
+
 	s3c_register_clksrc(clksrcs, ARRAY_SIZE(clksrcs));
 	s3c_register_clocks(init_clocks, ARRAY_SIZE(init_clocks));
 
 	s3c_register_clocks(init_clocks_off, ARRAY_SIZE(init_clocks_off));
 	s3c_disable_clocks(init_clocks_off, ARRAY_SIZE(init_clocks_off));
+	clkdev_add_table(s5pv210_clk_lookup, ARRAY_SIZE(s5pv210_clk_lookup));
 
 	s3c24xx_register_clock(&dummy_apb_pclk);
 	s3c_pwmclk_init();

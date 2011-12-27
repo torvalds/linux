@@ -1,0 +1,30 @@
+* ARM PrimeCell PL330 DMA Controller
+
+The ARM PrimeCell PL330 DMA controller can move blocks of memory contents
+between memory and peripherals or memory to memory.
+
+Required properties:
+  - compatible: should include both "arm,pl330" and "arm,primecell".
+  - reg: physical base address of the controller and length of memory mapped
+    region.
+  - interrupts: interrupt number to the cpu.
+
+Example:
+
+	pdma0: pdma@12680000 {
+		compatible = "arm,pl330", "arm,primecell";
+		reg = <0x12680000 0x1000>;
+		interrupts = <99>;
+	};
+
+Client drivers (device nodes requiring dma transfers from dev-to-mem or
+mem-to-dev) should specify the DMA channel numbers using a two-value pair
+as shown below.
+
+  [property name]  = <[phandle of the dma controller] [dma request id]>;
+
+      where 'dma request id' is the dma request number which is connected
+      to the client controller. The 'property name' is recommended to be
+      of the form <name>-dma-channel.
+
+  Example:  tx-dma-channel = <&pdma0 12>;

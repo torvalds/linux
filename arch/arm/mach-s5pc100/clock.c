@@ -962,16 +962,6 @@ static struct clksrc_clk clksrcs[] = {
 		.reg_div = { .reg = S5P_CLK_DIV2, .shift = 12, .size = 4 },
 	}, {
 		.clk	= {
-			.name		= "uclk1",
-			.ctrlbit	= (1 << 3),
-			.enable		= s5pc100_sclk0_ctrl,
-
-		},
-		.sources = &clk_src_group2,
-		.reg_src = { .reg = S5P_CLK_SRC1, .shift = 0, .size = 1 },
-		.reg_div = { .reg = S5P_CLK_DIV2, .shift = 0, .size = 4 },
-	}, {
-		.clk	= {
 			.name		= "sclk_mixer",
 			.ctrlbit	= (1 << 6),
 			.enable		= s5pc100_sclk0_ctrl,
@@ -1098,6 +1088,17 @@ static struct clksrc_clk clksrcs[] = {
 	},
 };
 
+static struct clksrc_clk clk_sclk_uart = {
+	.clk	= {
+		.name		= "uclk1",
+		.ctrlbit	= (1 << 3),
+		.enable		= s5pc100_sclk0_ctrl,
+	},
+	.sources = &clk_src_group2,
+	.reg_src = { .reg = S5P_CLK_SRC1, .shift = 0, .size = 1 },
+	.reg_div = { .reg = S5P_CLK_DIV2, .shift = 0, .size = 4 },
+};
+
 /* Clock initialisation code */
 static struct clksrc_clk *sysclks[] = {
 	&clk_mout_apll,
@@ -1125,6 +1126,10 @@ static struct clksrc_clk *sysclks[] = {
 	&clk_sclk_audio1,
 	&clk_sclk_audio2,
 	&clk_sclk_spdif,
+};
+
+static struct clksrc_clk *clksrc_cdev[] = {
+	&clk_sclk_uart,
 };
 
 void __init_or_cpufreq s5pc100_setup_clocks(void)
@@ -1266,6 +1271,11 @@ static struct clk *clks[] __initdata = {
 	&clk_pcmcdclk1,
 };
 
+static struct clk_lookup s5pc100_clk_lookup[] = {
+	CLKDEV_INIT(NULL, "clk_uart_baud2", &clk_p),
+	CLKDEV_INIT(NULL, "clk_uart_baud3", &clk_sclk_uart.clk),
+};
+
 void __init s5pc100_register_clocks(void)
 {
 	int ptr;
@@ -1277,9 +1287,12 @@ void __init s5pc100_register_clocks(void)
 
 	s3c_register_clksrc(clksrcs, ARRAY_SIZE(clksrcs));
 	s3c_register_clocks(init_clocks, ARRAY_SIZE(init_clocks));
+	for (ptr = 0; ptr < ARRAY_SIZE(clksrc_cdev); ptr++)
+		s3c_register_clksrc(clksrc_cdev[ptr], 1);
 
 	s3c_register_clocks(init_clocks_off, ARRAY_SIZE(init_clocks_off));
 	s3c_disable_clocks(init_clocks_off, ARRAY_SIZE(init_clocks_off));
+	clkdev_add_table(s5pc100_clk_lookup, ARRAY_SIZE(s5pc100_clk_lookup));
 
 	s3c24xx_register_clock(&dummy_apb_pclk);
 
