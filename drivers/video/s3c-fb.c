@@ -441,6 +441,32 @@ static void shadow_protect_win(struct s3c_fb_win *win, bool protect)
 }
 
 /**
+ * s3c_fb_enable() - Set the state of the main LCD output
+ * @sfb: The main framebuffer state.
+ * @enable: The state to set.
+ */
+static void s3c_fb_enable(struct s3c_fb *sfb, int enable)
+{
+	u32 vidcon0 = readl(sfb->regs + VIDCON0);
+
+	if (enable)
+		vidcon0 |= VIDCON0_ENVID | VIDCON0_ENVID_F;
+	else {
+		/* see the note in the framebuffer datasheet about
+		 * why you cannot take both of these bits down at the
+		 * same time. */
+
+		if (!(vidcon0 & VIDCON0_ENVID))
+			return;
+
+		vidcon0 |= VIDCON0_ENVID;
+		vidcon0 &= ~VIDCON0_ENVID_F;
+	}
+
+	writel(vidcon0, sfb->regs + VIDCON0);
+}
+
+/**
  * s3c_fb_set_par() - framebuffer request to set new framebuffer state.
  * @info: The framebuffer to change.
  *
@@ -510,8 +536,9 @@ static int s3c_fb_set_par(struct fb_info *info)
 		if (sfb->variant.is_2443)
 			data |= (1 << 5);
 
-		data |= VIDCON0_ENVID | VIDCON0_ENVID_F;
 		writel(data, regs + VIDCON0);
+
+		s3c_fb_enable(sfb, 1);
 
 		data = VIDTCON0_VBPD(var->upper_margin - 1) |
 		       VIDTCON0_VFPD(var->lower_margin - 1) |
@@ -758,32 +785,6 @@ static int s3c_fb_setcolreg(unsigned regno,
 	}
 
 	return 0;
-}
-
-/**
- * s3c_fb_enable() - Set the state of the main LCD output
- * @sfb: The main framebuffer state.
- * @enable: The state to set.
- */
-static void s3c_fb_enable(struct s3c_fb *sfb, int enable)
-{
-	u32 vidcon0 = readl(sfb->regs + VIDCON0);
-
-	if (enable)
-		vidcon0 |= VIDCON0_ENVID | VIDCON0_ENVID_F;
-	else {
-		/* see the note in the framebuffer datasheet about
-		 * why you cannot take both of these bits down at the
-		 * same time. */
-
-		if (!(vidcon0 & VIDCON0_ENVID))
-			return;
-
-		vidcon0 |= VIDCON0_ENVID;
-		vidcon0 &= ~VIDCON0_ENVID_F;
-	}
-
-	writel(vidcon0, sfb->regs + VIDCON0);
 }
 
 /**
