@@ -654,7 +654,7 @@ int __cpuinit __cpu_up(unsigned int cpu)
 				     - sizeof(struct stack_frame));
 	memset(sf, 0, sizeof(struct stack_frame));
 	sf->gprs[9] = (unsigned long) sf;
-	cpu_lowcore->save_area[15] = (unsigned long) sf;
+	cpu_lowcore->gpregs_save_area[15] = (unsigned long) sf;
 	__ctl_store(cpu_lowcore->cregs_save_area, 0, 15);
 	atomic_inc(&init_mm.context.attach_count);
 	asm volatile(
