@@ -36,6 +36,7 @@
 #include <asm/mach/arch.h>
 #include <asm/mach/time.h>
 #include <asm/setup.h>
+#include <asm/hardware/gic.h>
 
 #include <mach/iomap.h>
 #include <mach/irqs.h>
@@ -46,8 +47,21 @@
 #include "devices.h"
 
 void harmony_pinmux_init(void);
+void paz00_pinmux_init(void);
 void seaboard_pinmux_init(void);
+void trimslice_pinmux_init(void);
 void ventana_pinmux_init(void);
+
+static const struct of_device_id tegra_dt_irq_match[] __initconst = {
+	{ .compatible = "arm,cortex-a9-gic", .data = gic_of_init },
+	{ }
+};
+
+void __init tegra_dt_init_irq(void)
+{
+	tegra_init_irq();
+	of_irq_init(tegra_dt_irq_match);
+}
 
 struct of_dev_auxdata tegra20_auxdata_lookup[] __initdata = {
 	OF_DEV_AUXDATA("nvidia,tegra20-sdhci", TEGRA_SDMMC1_BASE, "sdhci-tegra.0", NULL),
@@ -57,16 +71,30 @@ struct of_dev_auxdata tegra20_auxdata_lookup[] __initdata = {
 	OF_DEV_AUXDATA("nvidia,tegra20-i2c", TEGRA_I2C_BASE, "tegra-i2c.0", NULL),
 	OF_DEV_AUXDATA("nvidia,tegra20-i2c", TEGRA_I2C2_BASE, "tegra-i2c.1", NULL),
 	OF_DEV_AUXDATA("nvidia,tegra20-i2c", TEGRA_I2C3_BASE, "tegra-i2c.2", NULL),
-	OF_DEV_AUXDATA("nvidia,tegra20-i2c", TEGRA_DVC_BASE, "tegra-i2c.3", NULL),
+	OF_DEV_AUXDATA("nvidia,tegra20-i2c-dvc", TEGRA_DVC_BASE, "tegra-i2c.3", NULL),
 	OF_DEV_AUXDATA("nvidia,tegra20-i2s", TEGRA_I2S1_BASE, "tegra-i2s.0", NULL),
-	OF_DEV_AUXDATA("nvidia,tegra20-i2s", TEGRA_I2S1_BASE, "tegra-i2s.1", NULL),
+	OF_DEV_AUXDATA("nvidia,tegra20-i2s", TEGRA_I2S2_BASE, "tegra-i2s.1", NULL),
 	OF_DEV_AUXDATA("nvidia,tegra20-das", TEGRA_APB_MISC_DAS_BASE, "tegra-das", NULL),
+	OF_DEV_AUXDATA("nvidia,tegra20-ehci", TEGRA_USB_BASE, "tegra-ehci.0",
+		       &tegra_ehci1_device.dev.platform_data),
+	OF_DEV_AUXDATA("nvidia,tegra20-ehci", TEGRA_USB2_BASE, "tegra-ehci.1",
+		       &tegra_ehci2_device.dev.platform_data),
+	OF_DEV_AUXDATA("nvidia,tegra20-ehci", TEGRA_USB3_BASE, "tegra-ehci.2",
+		       &tegra_ehci3_device.dev.platform_data),
 	{}
 };
 
 static __initdata struct tegra_clk_init_table tegra_dt_clk_init_table[] = {
 	/* name		parent		rate		enabled */
 	{ "uartd",	"pll_p",	216000000,	true },
+	{ "usbd",	"clk_m",	12000000,	false },
+	{ "usb2",	"clk_m",	12000000,	false },
+	{ "usb3",	"clk_m",	12000000,	false },
+	{ "pll_a",      "pll_p_out1",   56448000,       true },
+	{ "pll_a_out0", "pll_a",        11289600,       true },
+	{ "cdev1",      NULL,           0,              true },
+	{ "i2s1",       "pll_a_out0",   11289600,       false},
+	{ "i2s2",       "pll_a_out0",   11289600,       false},
 	{ NULL,		NULL,		0,		0},
 };
 
@@ -75,29 +103,20 @@ static struct of_device_id tegra_dt_match_table[] __initdata = {
 	{}
 };
 
-static struct of_device_id tegra_dt_gic_match[] __initdata = {
-	{ .compatible = "nvidia,tegra20-gic", },
-	{}
-};
-
 static struct {
 	char *machine;
 	void (*init)(void);
 } pinmux_configs[] = {
+	{ "compulab,trimslice", trimslice_pinmux_init },
 	{ "nvidia,harmony", harmony_pinmux_init },
+	{ "compal,paz00", paz00_pinmux_init },
 	{ "nvidia,seaboard", seaboard_pinmux_init },
 	{ "nvidia,ventana", ventana_pinmux_init },
 };
 
 static void __init tegra_dt_init(void)
 {
-	struct device_node *node;
 	int i;
-
-	node = of_find_matching_node_by_address(NULL, tegra_dt_gic_match,
-						TEGRA_ARM_INT_DIST_BASE);
-	if (node)
-		irq_domain_add_simple(node, INT_GIC_BASE);
 
 	tegra_clk_init_from_table(tegra_dt_clk_init_table);
 
@@ -120,7 +139,9 @@ static void __init tegra_dt_init(void)
 }
 
 static const char * tegra_dt_board_compat[] = {
+	"compulab,trimslice",
 	"nvidia,harmony",
+	"compal,paz00",
 	"nvidia,seaboard",
 	"nvidia,ventana",
 	NULL
@@ -129,7 +150,7 @@ static const char * tegra_dt_board_compat[] = {
 DT_MACHINE_START(TEGRA_DT, "nVidia Tegra (Flattened Device Tree)")
 	.map_io		= tegra_map_common_io,
 	.init_early	= tegra_init_early,
-	.init_irq	= tegra_init_irq,
+	.init_irq	= tegra_dt_init_irq,
 	.timer		= &tegra_timer,
 	.init_machine	= tegra_dt_init,
 	.dt_compat	= tegra_dt_board_compat,
