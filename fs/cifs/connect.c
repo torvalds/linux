@@ -317,6 +317,9 @@ cifs_reconnect(struct TCP_Server_Info *server)
 		server->tcpStatus = CifsNeedReconnect;
 	spin_unlock(&GlobalMid_Lock);
 	server->maxBuf = 0;
+#ifdef CONFIG_CIFS_SMB2
+	server->max_read = 0;
+#endif
 
 	cFYI(1, "Reconnecting tcp session");
 

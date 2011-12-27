@@ -112,24 +112,29 @@ cifs_kmap_unlock(void)
 #define cifs_kmap_unlock() do { ; } while(0)
 #endif /* CONFIG_HIGHMEM */
 
-/* Mark as invalid, all open files on tree connections since they
-   were closed when session to server was lost */
-static void mark_open_files_invalid(struct cifs_tcon *pTcon)
+/*
+ * Mark as invalid, all open files on tree connections since they
+ * were closed when session to server was lost.
+ */
+void
+cifs_mark_open_files_invalid(struct cifs_tcon *tcon)
 {
 	struct cifsFileInfo *open_file = NULL;
 	struct list_head *tmp;
 	struct list_head *tmp1;
 
-/* list all files open on tree connection and mark them invalid */
+	/* list all files open on tree connection and mark them invalid */
 	spin_lock(&cifs_file_list_lock);
-	list_for_each_safe(tmp, tmp1, &pTcon->openFileList) {
+	list_for_each_safe(tmp, tmp1, &tcon->openFileList) {
 		open_file = list_entry(tmp, struct cifsFileInfo, tlist);
 		open_file->invalidHandle = true;
 		open_file->oplock_break_cancelled = true;
 	}
 	spin_unlock(&cifs_file_list_lock);
-	/* BB Add call to invalidate_inodes(sb) for all superblocks mounted
-	   to this tcon */
+	/*
+	 * BB Add call to invalidate_inodes(sb) for all superblocks mounted
+	 * to this tcon.
+	 */
 }
 
 /* reconnect the socket, tcon, and smb session if needed */
@@ -209,7 +214,7 @@ cifs_reconnect_tcon(struct cifs_tcon *tcon, int smb_command)
 		goto out;
 	}
 
-	mark_open_files_invalid(tcon);
+	cifs_mark_open_files_invalid(tcon);
 	rc = CIFSTCon(0, ses, tcon->treeName, tcon, nls_codepage);
 	mutex_unlock(&ses->session_mutex);
 	cFYI(1, "reconnect tcon rc = %d", rc);
