@@ -351,7 +351,6 @@ static void perf_top__prompt_symbol(struct perf_top *top, const char *msg)
 	if (!found) {
 		fprintf(stderr, "Sorry, %s is not active.\n", buf);
 		sleep(1);
-		return;
 	} else
 		perf_top__parse_source(top, found);
 
