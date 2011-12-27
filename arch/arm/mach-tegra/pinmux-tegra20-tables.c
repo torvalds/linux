@@ -1,7 +1,7 @@
 /*
- * linux/arch/arm/mach-tegra/pinmux-t2-tables.c
+ * linux/arch/arm/mach-tegra/pinmux-tegra20-tables.c
  *
- * Common pinmux configurations for Tegra 2 SoCs
+ * Common pinmux configurations for Tegra20 SoCs
  *
  * Copyright (C) 2010 NVIDIA Corporation
  *
@@ -29,6 +29,7 @@
 
 #include <mach/iomap.h>
 #include <mach/pinmux.h>
+#include <mach/pinmux-tegra20.h>
 #include <mach/suspend.h>
 
 #define TRISTATE_REG_A		0x14
@@ -43,7 +44,7 @@
 		.reg = ((r) - PINGROUP_REG_A)			\
 	}
 
-const struct tegra_drive_pingroup_desc tegra_soc_drive_pingroups[TEGRA_MAX_DRIVE_PINGROUP] = {
+static const struct tegra_drive_pingroup_desc tegra_soc_drive_pingroups[TEGRA_MAX_DRIVE_PINGROUP] = {
 	DRIVE_PINGROUP(AO1,		0x868),
 	DRIVE_PINGROUP(AO2,		0x86c),
 	DRIVE_PINGROUP(AT1,		0x870),
@@ -105,9 +106,13 @@ const struct tegra_drive_pingroup_desc tegra_soc_drive_pingroups[TEGRA_MAX_DRIVE
 		.pupd_bank = 2,				\
 		.pupd_reg = ((pupd_r) - PULLUPDOWN_REG_A),	\
 		.pupd_bit = pupd_b,				\
+		.lock_bit = -1,					\
+		.od_bit = -1,					\
+		.ioreset_bit = -1,				\
+		.io_default = -1,				\
 	}
 
-const struct tegra_pingroup_desc tegra_soc_pingroups[TEGRA_MAX_PINGROUP] = {
+static const struct tegra_pingroup_desc tegra_soc_pingroups[TEGRA_MAX_PINGROUP] = {
 	PINGROUP(ATA,   NAND,  IDE,       NAND,      GMI,       RSVD,          IDE,       0x14, 0,  0x80, 24, 0xA0, 0),
 	PINGROUP(ATB,   NAND,  IDE,       NAND,      GMI,       SDIO4,         IDE,       0x14, 1,  0x80, 16, 0xA0, 2),
 	PINGROUP(ATC,   NAND,  IDE,       NAND,      GMI,       SDIO4,         IDE,       0x14, 2,  0x80, 22, 0xA0, 4),
@@ -226,3 +231,14 @@ const struct tegra_pingroup_desc tegra_soc_pingroups[TEGRA_MAX_PINGROUP] = {
 	PINGROUP(XM2C,  DDR,   RSVD,      RSVD,      RSVD,      RSVD,          RSVD,      -1,   -1, -1,   -1, 0xA8, 30),
 	PINGROUP(XM2D,  DDR,   RSVD,      RSVD,      RSVD,      RSVD,          RSVD,      -1,   -1, -1,   -1, 0xA8, 28),
 };
+
+void __devinit tegra20_pinmux_init(const struct tegra_pingroup_desc **pg,
+		int *pg_max, const struct tegra_drive_pingroup_desc **pgdrive,
+		int *pgdrive_max)
+{
+	*pg = tegra_soc_pingroups;
+	*pg_max = TEGRA_MAX_PINGROUP;
+	*pgdrive = tegra_soc_drive_pingroups;
+	*pgdrive_max = TEGRA_MAX_DRIVE_PINGROUP;
+}
+
