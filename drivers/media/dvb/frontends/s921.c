@@ -440,6 +440,7 @@ static int s921_get_frontend(struct dvb_frontend *fe,
 
 	/* FIXME: Probably it is possible to get it from regs f1 and f2 */
 	p->frequency = state->currentfreq;
+	p->delivery_system = SYS_ISDBT;
 
 	return 0;
 }

@@ -1309,7 +1309,6 @@ static void dtv_set_default_delivery_caps(const struct dvb_frontend *fe, struct 
 		p->u.buffer.len = ncaps;
 		return;
 	}
-
 	switch (info->type) {
 	case FE_QPSK:
 		p->u.buffer.data[ncaps++] = SYS_DVBS;
