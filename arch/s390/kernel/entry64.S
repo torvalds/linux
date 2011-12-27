@@ -71,7 +71,7 @@ _TIF_EXIT_SIE = (_TIF_SIGPENDING | _TIF_NEED_RESCHED | _TIF_MCCK_PENDING)
 #if defined(CONFIG_KVM) || defined(CONFIG_KVM_MODULE)
 	tm	__TI_flags+6(%r12),_TIF_SIE>>8
 	jz	0f
-	SPP	__LC_CMF_HPP			# set host id
+	SPP	BASED(.Lhost_id)		# set host id
 	clc	SP_PSW+8(8,%r15),BASED(.Lsie_loop)
 	jl	0f
 	clc	SP_PSW+8(8,%r15),BASED(.Lsie_done)
@@ -1054,6 +1054,7 @@ ENTRY(sie64a)
 	stmg	%r6,%r14,__SF_GPRS(%r15)	# save kernel registers
 	stg	%r2,__SF_EMPTY(%r15)		# save control block pointer
 	stg	%r3,__SF_EMPTY+8(%r15)		# save guest register save area
+	xc	__SF_EMPTY+16(8,%r15),__SF_EMPTY+16(%r15) # host id == 0
 	lmg	%r0,%r13,0(%r3)			# load guest gprs 0-13
 	lg	%r14,__LC_THREAD_INFO		# pointer thread_info struct
 	oi	__TI_flags+6(%r14),_TIF_SIE>>8
@@ -1070,7 +1071,7 @@ sie_gmap:
 	SPP	__SF_EMPTY(%r15)		# set guest id
 	sie	0(%r14)
 sie_done:
-	SPP	__LC_CMF_HPP			# set host id
+	SPP	__SF_EMPTY+16(%r15)		# set host id
 	lg	%r14,__LC_THREAD_INFO		# pointer thread_info struct
 sie_exit:
 	lctlg	%c1,%c1,__LC_USER_ASCE		# load primary asce
@@ -1095,6 +1096,8 @@ sie_fault:
 	.quad	sie_loop
 .Lsie_done:
 	.quad	sie_done
+.Lhost_id:
+	.quad	0
 
 	.section __ex_table,"a"
 	.quad	sie_loop,sie_fault

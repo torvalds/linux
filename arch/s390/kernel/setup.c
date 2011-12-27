@@ -400,7 +400,6 @@ setup_lowcore(void)
 		__ctl_set_bit(14, 29);
 	}
 #else
-	lc->cmf_hpp = -1ULL;
 	lc->vdso_per_cpu_data = (unsigned long) &lc->paste[0];
 #endif
 	lc->sync_enter_timer = S390_lowcore.sync_enter_timer;
