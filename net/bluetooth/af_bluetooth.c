@@ -156,17 +156,17 @@ static int bt_sock_create(struct net *net, struct socket *sock, int proto,
 
 void bt_sock_link(struct bt_sock_list *l, struct sock *sk)
 {
-	write_lock_bh(&l->lock);
+	write_lock(&l->lock);
 	sk_add_node(sk, &l->head);
-	write_unlock_bh(&l->lock);
+	write_unlock(&l->lock);
 }
 EXPORT_SYMBOL(bt_sock_link);
 
 void bt_sock_unlink(struct bt_sock_list *l, struct sock *sk)
 {
-	write_lock_bh(&l->lock);
+	write_lock(&l->lock);
 	sk_del_node_init(sk);
-	write_unlock_bh(&l->lock);
+	write_unlock(&l->lock);
 }
 EXPORT_SYMBOL(bt_sock_unlink);
 
