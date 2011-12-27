@@ -230,9 +230,6 @@ void exit_io_context(struct task_struct *task)
 {
 	struct io_context *ioc;
 
-	/* PF_EXITING prevents new io_context from being attached to @task */
-	WARN_ON_ONCE(!(current->flags & PF_EXITING));
-
 	task_lock(task);
 	ioc = task->io_context;
 	task->io_context = NULL;
