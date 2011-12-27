@@ -705,6 +705,16 @@ struct dasd_device *dasd_alias_get_start_dev(struct dasd_device *base_device)
 	if (lcu->pav == NO_PAV ||
 	    lcu->flags & (NEED_UAC_UPDATE | UPDATE_PENDING))
 		return NULL;
+	if (unlikely(!(private->features.feature[8] & 0x01))) {
+		/*
+		 * PAV enabled but prefix not, very unlikely
+		 * seems to be a lost pathgroup
+		 * use base device to do IO
+		 */
+		DBF_DEV_EVENT(DBF_ERR, base_device, "%s",
+			      "Prefix not enabled with PAV enabled\n");
+		return NULL;
+	}
 
 	spin_lock_irqsave(&lcu->lock, flags);
 	alias_device = group->next;

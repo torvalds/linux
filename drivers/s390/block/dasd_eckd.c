@@ -2397,7 +2397,7 @@ static struct dasd_ccw_req *dasd_eckd_build_cp_cmd_single(
 					   sizeof(struct PFX_eckd_data));
 	} else {
 		if (define_extent(ccw++, cqr->data, first_trk,
-				  last_trk, cmd, startdev) == -EAGAIN) {
+				  last_trk, cmd, basedev) == -EAGAIN) {
 			/* Clock not in sync and XRC is enabled.
 			 * Try again later.
 			 */
