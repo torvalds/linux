@@ -25,6 +25,7 @@
 #include <linux/gpio.h>
 #include <linux/sfi.h>
 #include <linux/pm_runtime.h>
+#include <linux/mmc/sdhci-pci-data.h>
 
 #include "sdhci.h"
 
@@ -61,6 +62,7 @@ struct sdhci_pci_fixes {
 struct sdhci_pci_slot {
 	struct sdhci_pci_chip	*chip;
 	struct sdhci_host	*host;
+	struct sdhci_pci_data	*data;
 
 	int			pci_bar;
 	int			rst_n_gpio;
@@ -1188,11 +1190,12 @@ static const struct dev_pm_ops sdhci_pci_pm_ops = {
 \*****************************************************************************/
 
 static struct sdhci_pci_slot * __devinit sdhci_pci_probe_slot(
-	struct pci_dev *pdev, struct sdhci_pci_chip *chip, int bar)
+	struct pci_dev *pdev, struct sdhci_pci_chip *chip, int first_bar,
+	int slotno)
 {
 	struct sdhci_pci_slot *slot;
 	struct sdhci_host *host;
-	int ret;
+	int ret, bar = first_bar + slotno;
 
 	if (!(pci_resource_flags(pdev, bar) & IORESOURCE_MEM)) {
 		dev_err(&pdev->dev, "BAR %d is not iomem. Aborting.\n", bar);
@@ -1227,6 +1230,20 @@ static struct sdhci_pci_slot * __devinit sdhci_pci_probe_slot(
 	slot->pci_bar = bar;
 	slot->rst_n_gpio = -EINVAL;
 
+	/* Retrieve platform data if there is any */
+	if (*sdhci_pci_get_data)
+		slot->data = sdhci_pci_get_data(pdev, slotno);
+
+	if (slot->data) {
+		if (slot->data->setup) {
+			ret = slot->data->setup(slot->data);
+			if (ret) {
+				dev_err(&pdev->dev, "platform setup failed\n");
+				goto free;
+			}
+		}
+	}
+
 	host->hw_name = "PCI";
 	host->ops = &sdhci_pci_ops;
 	host->quirks = chip->quirks;
@@ -1236,7 +1253,7 @@ static struct sdhci_pci_slot * __devinit sdhci_pci_probe_slot(
 	ret = pci_request_region(pdev, bar, mmc_hostname(host->mmc));
 	if (ret) {
 		dev_err(&pdev->dev, "cannot request region\n");
-		goto free;
+		goto cleanup;
 	}
 
 	host->ioaddr = pci_ioremap_bar(pdev, bar);
@@ -1270,6 +1287,10 @@ unmap:
 release:
 	pci_release_region(pdev, bar);
 
+cleanup:
+	if (slot->data && slot->data->cleanup)
+		slot->data->cleanup(slot->data);
+
 free:
 	sdhci_free_host(host);
 
@@ -1290,6 +1311,9 @@ static void sdhci_pci_remove_slot(struct sdhci_pci_slot *slot)
 
 	if (slot->chip->fixes && slot->chip->fixes->remove_slot)
 		slot->chip->fixes->remove_slot(slot, dead);
+
+	if (slot->data && slot->data->cleanup)
+		slot->data->cleanup(slot->data);
 
 	pci_release_region(slot->chip->pdev, slot->pci_bar);
 
@@ -1377,7 +1401,7 @@ static int __devinit sdhci_pci_probe(struct pci_dev *pdev,
 	slots = chip->num_slots;	/* Quirk may have changed this */
 
 	for (i = 0; i < slots; i++) {
-		slot = sdhci_pci_probe_slot(pdev, chip, first_bar + i);
+		slot = sdhci_pci_probe_slot(pdev, chip, first_bar, i);
 		if (IS_ERR(slot)) {
 			for (i--; i >= 0; i--)
 				sdhci_pci_remove_slot(chip->slots[i]);
