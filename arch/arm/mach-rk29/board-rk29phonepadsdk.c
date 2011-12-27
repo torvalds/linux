@@ -20,10 +20,14 @@
 #include <linux/io.h>
 #include <linux/delay.h>
 #include <linux/i2c.h>
+#include <linux/skbuff.h>
 #include <linux/spi/spi.h>
 #include <linux/mmc/host.h>
 #include <linux/android_pmem.h>
+#ifdef CONFIG_USB_ANDROID
 #include <linux/usb/android_composite.h>
+#endif
+#include <linux/ion.h>
 
 #include <mach/hardware.h>
 #include <asm/setup.h>
@@ -45,15 +49,19 @@
 #include <mach/sram.h>
 #include <mach/ddr.h>
 #include <mach/cpufreq.h>
+#include <mach/rk29_smc.h>
 
 #include <linux/regulator/rk29-pwm-regulator.h>
 #include <linux/regulator/machine.h>
 
+
+#include <linux/regulator/fixed.h>
+#include <linux/mfd/wm8994/pdata.h>
+
 #include <linux/mtd/nand.h>
 #include <linux/mtd/partitions.h>
 #include <linux/i2c-gpio.h>
-#include <linux/mfd/wm8994/pdata.h>
-#include <linux/mfd/wm8994/registers.h>
+
 
 #include "devices.h"
 #if defined(CONFIG_MU509)
@@ -71,6 +79,7 @@
 #define CONFIG_SENSOR_0 RK29_CAM_SENSOR_OV5642                      /* back camera sensor */
 #define CONFIG_SENSOR_IIC_ADDR_0 	    0x78
 #define CONFIG_SENSOR_IIC_ADAPTER_ID_0    1
+#define CONFIG_SENSOR_ORIENTATION_0       90
 #define CONFIG_SENSOR_POWER_PIN_0         INVALID_GPIO
 #define CONFIG_SENSOR_RESET_PIN_0         INVALID_GPIO
 #define CONFIG_SENSOR_POWERDN_PIN_0       RK29_PIN5_PD7
@@ -80,9 +89,18 @@
 #define CONFIG_SENSOR_POWERDNACTIVE_LEVEL_0 RK29_CAM_POWERDNACTIVE_H
 #define CONFIG_SENSOR_FLASHACTIVE_LEVEL_0 RK29_CAM_FLASHACTIVE_L
 
+#define CONFIG_SENSOR_QCIF_FPS_FIXED_0      15
+#define CONFIG_SENSOR_QVGA_FPS_FIXED_0      15
+#define CONFIG_SENSOR_CIF_FPS_FIXED_0       15
+#define CONFIG_SENSOR_VGA_FPS_FIXED_0       15
+#define CONFIG_SENSOR_480P_FPS_FIXED_0      15
+#define CONFIG_SENSOR_SVGA_FPS_FIXED_0      15
+#define CONFIG_SENSOR_720P_FPS_FIXED_0      30
+
 #define CONFIG_SENSOR_1 RK29_CAM_SENSOR_OV2659                      /* front camera sensor */
 #define CONFIG_SENSOR_IIC_ADDR_1 	    0x60
 #define CONFIG_SENSOR_IIC_ADAPTER_ID_1    1
+#define CONFIG_SENSOR_ORIENTATION_1       270
 #define CONFIG_SENSOR_POWER_PIN_1         INVALID_GPIO
 #define CONFIG_SENSOR_RESET_PIN_1         INVALID_GPIO
 #define CONFIG_SENSOR_POWERDN_PIN_1       RK29_PIN6_PB7
@@ -91,6 +109,15 @@
 #define CONFIG_SENSOR_RESETACTIVE_LEVEL_1 RK29_CAM_RESETACTIVE_L
 #define CONFIG_SENSOR_POWERDNACTIVE_LEVEL_1 RK29_CAM_POWERDNACTIVE_H
 #define CONFIG_SENSOR_FLASHACTIVE_LEVEL_1 RK29_CAM_FLASHACTIVE_L
+
+#define CONFIG_SENSOR_QCIF_FPS_FIXED_1      15
+#define CONFIG_SENSOR_QVGA_FPS_FIXED_1      15
+#define CONFIG_SENSOR_CIF_FPS_FIXED_1       15
+#define CONFIG_SENSOR_VGA_FPS_FIXED_1       15
+#define CONFIG_SENSOR_480P_FPS_FIXED_1      15
+#define CONFIG_SENSOR_SVGA_FPS_FIXED_1      15
+#define CONFIG_SENSOR_720P_FPS_FIXED_1      30
+
 #endif  //#ifdef CONFIG_VIDEO_RK29
 /*---------------- Camera Sensor Configuration Macro End------------------------*/
 #include "../../../drivers/media/video/rk29_camera.c"
@@ -103,16 +130,17 @@
 #else
 #define SDRAM_SIZE          SZ_512M
 #endif
-#define PMEM_GPU_SIZE       SZ_16M
+#define PMEM_GPU_SIZE       SZ_64M
 #define PMEM_UI_SIZE        SZ_32M
 #define PMEM_VPU_SIZE       SZ_64M
+#define PMEM_SKYPE_SIZE     0
 #define PMEM_CAM_SIZE       PMEM_CAM_NECESSARY
 #ifdef CONFIG_VIDEO_RK29_WORK_IPP
-#define MEM_CAMIPP_SIZE     SZ_4M
+#define MEM_CAMIPP_SIZE     PMEM_CAMIPP_NECESSARY
 #else
 #define MEM_CAMIPP_SIZE     0
 #endif
-#define MEM_FB_SIZE         (3*SZ_2M)
+#define MEM_FB_SIZE         (9*SZ_1M)
 #ifdef CONFIG_FB_WORK_IPP
 #ifdef CONFIG_FB_SCALING_OSD_1080P
 #define MEM_FBIPP_SIZE      SZ_16M   //1920 x 1080 x 2 x 2  //RGB565 = x2;RGB888 = x4
@@ -133,7 +161,8 @@
 #define MEM_CAMIPP_BASE     (PMEM_CAM_BASE - MEM_CAMIPP_SIZE)
 #define MEM_FB_BASE         (MEM_CAMIPP_BASE - MEM_FB_SIZE)
 #define MEM_FBIPP_BASE      (MEM_FB_BASE - MEM_FBIPP_SIZE)
-#define LINUX_SIZE          (MEM_FBIPP_BASE - RK29_SDRAM_PHYS)
+#define PMEM_SKYPE_BASE      (MEM_FBIPP_BASE - PMEM_SKYPE_SIZE)
+#define LINUX_SIZE          (PMEM_SKYPE_BASE - RK29_SDRAM_PHYS)
 
 #define PREALLOC_WLAN_SEC_NUM           4
 #define PREALLOC_WLAN_BUF_NUM           160
@@ -384,6 +413,39 @@ struct platform_device rk29_device_dma_cpy = {
 
 #endif
 
+#if defined(CONFIG_RK29_GPIO_SUSPEND)
+static void key_gpio_pullupdown_enable(void)
+{
+	gpio_pull_updown(RK29_PIN6_PA0, 0);
+	gpio_pull_updown(RK29_PIN6_PA1, 0);
+	gpio_pull_updown(RK29_PIN6_PA2, 0);
+	gpio_pull_updown(RK29_PIN6_PA3, 0);
+	gpio_pull_updown(RK29_PIN6_PA4, 0);
+	gpio_pull_updown(RK29_PIN6_PA5, 0);
+	gpio_pull_updown(RK29_PIN6_PA6, 0);
+}
+
+static void key_gpio_pullupdown_disable(void)
+{
+	gpio_pull_updown(RK29_PIN6_PA0, 1);
+	gpio_pull_updown(RK29_PIN6_PA1, 1);
+	gpio_pull_updown(RK29_PIN6_PA2, 1);
+	gpio_pull_updown(RK29_PIN6_PA3, 1);
+	gpio_pull_updown(RK29_PIN6_PA4, 1);
+	gpio_pull_updown(RK29_PIN6_PA5, 1);
+	gpio_pull_updown(RK29_PIN6_PA6, 1);
+}
+
+void rk29_setgpio_suspend_board(void)
+{
+	key_gpio_pullupdown_enable();
+}
+
+void rk29_setgpio_resume_board(void)
+{
+	key_gpio_pullupdown_disable();
+}
+#endif
 static struct android_pmem_platform_data android_pmem_pdata = {
 	.name		= "pmem",
 	.start		= PMEM_UI_BASE,
@@ -414,6 +476,48 @@ static struct platform_device rk29_vpu_mem_device = {
 	.platform_data = &vpu_mem_pdata,
 	},
 };
+
+#if PMEM_SKYPE_SIZE > 0
+static struct android_pmem_platform_data android_pmem_skype_pdata = {
+	.name		= "pmem_skype",
+	.start		= PMEM_SKYPE_BASE,
+	.size		= PMEM_SKYPE_SIZE,
+	.no_allocator	= 0,
+	.cached		= 0,
+};
+
+static struct platform_device android_pmem_skype_device = {
+	.name		= "android_pmem",
+	.id		= 3,
+	.dev		= {
+		.platform_data = &android_pmem_skype_pdata,
+	},
+};
+#endif
+
+#ifdef CONFIG_ION
+static struct ion_platform_data rk29_ion_pdata = {
+	.nr = 1,
+	.heaps = {
+		{
+			.type = ION_HEAP_TYPE_CARVEOUT,
+			.id = 0,
+			.name = "ui",
+			.base = PMEM_UI_BASE,
+			.size = PMEM_UI_SIZE,
+		}
+	},
+};
+
+static struct platform_device rk29_ion_device = {
+	.name = "ion-rockchip",
+	.id = 0,
+	.dev = {
+		.platform_data = &rk29_ion_pdata,
+	},
+};
+#endif
+
 #ifdef CONFIG_VIDEO_RK29XX_VOUT
 static struct platform_device rk29_v4l2_output_devce = {
 	.name		= "rk29_vout",
@@ -726,28 +830,114 @@ struct bq27510_platform_data bq27510_info = {
  * wm8994  codec
  * author: qjb@rock-chips.com
  *****************************************************************************************/
-struct wm8994_pdata wm8994_platdata = {	
-	.no_earpiece = 1,
-	.sp_hp_same_channel = 1,
-	
-	.BB_input_diff = 1,
-	.BB_class = PCM_BB,
-	
-	.PA_control_pin = RK29_PIN6_PB6,	
-	.Power_EN_Pin = RK29_PIN5_PA1,
-
-	.speaker_incall_vol = 0,
-	.speaker_incall_mic_vol = -9,
-	.speaker_normal_vol = 6,
-	.earpiece_incall_vol = 0,
-	.headset_incall_vol = 6,
-	.headset_incall_mic_vol = -6,
-	.headset_normal_vol = 6,
-	.BT_incall_vol = 0,
-	.BT_incall_mic_vol = 0,
-	.recorder_vol = 50,
-	
+#if defined(CONFIG_MFD_WM8994)
+static struct regulator_consumer_supply wm8994_fixed_voltage0_supplies[] = {
+	REGULATOR_SUPPLY("DBVDD", "5-001a"),
+	REGULATOR_SUPPLY("AVDD2", "5-001a"),
+	REGULATOR_SUPPLY("CPVDD", "5-001a"),
 };
+
+static struct regulator_consumer_supply wm8994_fixed_voltage1_supplies[] = {
+	REGULATOR_SUPPLY("SPKVDD1", "5-001a"),
+	REGULATOR_SUPPLY("SPKVDD2", "5-001a"),
+};
+
+static struct regulator_init_data wm8994_fixed_voltage0_init_data = {
+	.constraints = {
+		.always_on = 1,
+	},
+	.num_consumer_supplies	= ARRAY_SIZE(wm8994_fixed_voltage0_supplies),
+	.consumer_supplies	= wm8994_fixed_voltage0_supplies,
+};
+
+static struct regulator_init_data wm8994_fixed_voltage1_init_data = {
+	.constraints = {
+		.always_on = 1,
+	},
+	.num_consumer_supplies	= ARRAY_SIZE(wm8994_fixed_voltage1_supplies),
+	.consumer_supplies	= wm8994_fixed_voltage1_supplies,
+};
+
+static struct fixed_voltage_config wm8994_fixed_voltage0_config = {
+	.supply_name	= "VCC_1.8V_PDA",
+	.microvolts	= 1800000,
+	.gpio		= -EINVAL,
+	.init_data	= &wm8994_fixed_voltage0_init_data,
+};
+
+static struct fixed_voltage_config wm8994_fixed_voltage1_config = {
+	.supply_name	= "V_BAT",
+	.microvolts	= 3700000,
+	.gpio		= -EINVAL,
+	.init_data	= &wm8994_fixed_voltage1_init_data,
+};
+
+static struct platform_device wm8994_fixed_voltage0 = {
+	.name		= "reg-fixed-voltage",
+	.id		= 0,
+	.dev		= {
+		.platform_data	= &wm8994_fixed_voltage0_config,
+	},
+};
+
+static struct platform_device wm8994_fixed_voltage1 = {
+	.name		= "reg-fixed-voltage",
+	.id		= 1,
+	.dev		= {
+		.platform_data	= &wm8994_fixed_voltage1_config,
+	},
+};
+
+static struct regulator_consumer_supply wm8994_avdd1_supply =
+	REGULATOR_SUPPLY("AVDD1", "5-001a");
+
+static struct regulator_consumer_supply wm8994_dcvdd_supply =
+	REGULATOR_SUPPLY("DCVDD", "5-001a");
+
+
+
+static struct regulator_init_data wm8994_ldo1_data = {
+	.constraints	= {
+		.name		= "AVDD1_3.0V",
+		.valid_ops_mask	= REGULATOR_CHANGE_STATUS,
+	},
+	.num_consumer_supplies	= 1,
+	.consumer_supplies	= &wm8994_avdd1_supply,
+};
+
+static struct regulator_init_data wm8994_ldo2_data = {
+	.constraints	= {
+		.name		= "DCVDD_1.0V",
+	},
+	.num_consumer_supplies	= 1,
+	.consumer_supplies	= &wm8994_dcvdd_supply,
+};
+
+static struct wm8994_pdata wm8994_platform_data = {
+#if defined (CONFIG_GPIO_WM8994)	
+	.gpio_base = WM8994_GPIO_EXPANDER_BASE,
+	//Fill value to initialize the GPIO	
+	.gpio_defaults ={},
+#endif		
+	/* configure gpio1 function: 0x0001(Logic level input/output) */
+//	.gpio_defaults[0] = 0x0001,
+	/* configure gpio3/4/5/7 function for AIF2 voice */
+//	.gpio_defaults[2] = 0x8100,
+//	.gpio_defaults[3] = 0x8100,
+//	.gpio_defaults[4] = 0x8100,
+//	.gpio_defaults[6] = 0x0100,
+	/* configure gpio8/9/10/11 function for AIF3 BT */
+//	.gpio_defaults[7] = 0x8100,
+//	.gpio_defaults[8] = 0x0100,
+//	.gpio_defaults[9] = 0x0100,
+//	.gpio_defaults[10] = 0x0100,
+	.ldo[0]	= { RK29_PIN5_PA1, NULL, &wm8994_ldo1_data },	/* XM0FRNB_2 */
+	.ldo[1]	= { 0, NULL, &wm8994_ldo2_data },
+
+	.micdet_irq = 0,
+	.irq_base = 0,
+};
+#endif 
 
 #ifdef CONFIG_RK_HEADSET_DET
 
@@ -770,6 +960,8 @@ struct platform_device rk_device_headset = {
 #if defined (CONFIG_BATTERY_BQ27541)
 #define	DC_CHECK_PIN	RK29_PIN4_PA1
 #define	LI_LION_BAT_NUM	2
+#define CHG_OK RK29_PIN4_PA3
+#define BAT_LOW	RK29_PIN4_PA2
 static int bq27541_init_dc_check_pin(void){	
 	if(gpio_request(DC_CHECK_PIN,"dc_check") != 0){      
 		gpio_free(DC_CHECK_PIN);      
@@ -784,6 +976,8 @@ struct bq27541_platform_data bq27541_info = {
 	.init_dc_check_pin = bq27541_init_dc_check_pin,	
 	.dc_check_pin =  DC_CHECK_PIN,		
 	.bat_num = LI_LION_BAT_NUM,
+	.chgok_check_pin =  CHG_OK,
+	.bat_check_pin =  BAT_LOW,
 };
 #endif
 
@@ -960,12 +1154,12 @@ static struct i2c_board_info __initdata board_i2c0_devices[] = {
 		.flags			= 0,
 	},
 #endif
-#if defined (CONFIG_SND_SOC_WM8994)
+#if defined (CONFIG_MFD_WM8994)
 	{
 		.type                   = "wm8994",
 		.addr           = 0x1A,
 		.flags                  = 0,
-		.platform_data          = &wm8994_platdata,
+		.platform_data          = &wm8994_platform_data,
 	},
 #endif
 #if defined (CONFIG_BATTERY_STC3100)
@@ -1349,6 +1543,253 @@ static struct platform_device rk29_device_pwm_regulator = {
 
 #endif
 
+#if defined(CONFIG_SDMMC0_RK29_WRITE_PROTECT)
+#define SDMMC0_WRITE_PROTECT_PIN		RK29_PIN6_PB0 //According to your own project to set the value of write-protect-pin.
+#endif
+
+
+#if defined(CONFIG_SDMMC1_RK29_WRITE_PROTECT)
+#define SDMMC1_WRITE_PROTECT_PIN		RK29_PIN6_PB0 //According to your own project to set the value of write-protect-pin.
+#endif
+
+/*****************************************************************************************
+ * SDMMC devices
+*****************************************************************************************/
+#if !defined(CONFIG_SDMMC_RK29_OLD)	
+static void rk29_sdmmc_gpio_open(int device_id, int on)
+{
+    switch(device_id)
+    {
+        case 0://mmc0
+        {
+            #ifdef CONFIG_SDMMC0_RK29
+            if(on)
+            {
+                gpio_direction_output(RK29_PIN1_PD0,GPIO_HIGH);//set mmc0-clk to high
+                gpio_direction_output(RK29_PIN1_PD1,GPIO_HIGH);//set mmc0-cmd to high.
+                gpio_direction_output(RK29_PIN1_PD2,GPIO_HIGH);//set mmc0-data0 to high.
+                gpio_direction_output(RK29_PIN1_PD3,GPIO_HIGH);//set mmc0-data1 to high.
+                gpio_direction_output(RK29_PIN1_PD4,GPIO_HIGH);//set mmc0-data2 to high.
+                gpio_direction_output(RK29_PIN1_PD5,GPIO_HIGH);//set mmc0-data3 to high.
+
+                mdelay(30);
+            }
+            else
+            {
+                rk29_mux_api_set(GPIO1D0_SDMMC0CLKOUT_NAME, GPIO1H_GPIO1_D0);
+                gpio_request(RK29_PIN1_PD0, "mmc0-clk");
+                gpio_direction_output(RK29_PIN1_PD0,GPIO_LOW);//set mmc0-clk to low.
+
+                rk29_mux_api_set(GPIO1D1_SDMMC0CMD_NAME, GPIO1H_GPIO1_D1);
+                gpio_request(RK29_PIN1_PD1, "mmc0-cmd");
+                gpio_direction_output(RK29_PIN1_PD1,GPIO_LOW);//set mmc0-cmd to low.
+
+                rk29_mux_api_set(GPIO1D2_SDMMC0DATA0_NAME, GPIO1H_GPIO1D2);
+                gpio_request(RK29_PIN1_PD2, "mmc0-data0");
+                gpio_direction_output(RK29_PIN1_PD2,GPIO_LOW);//set mmc0-data0 to low.
+
+                rk29_mux_api_set(GPIO1D3_SDMMC0DATA1_NAME, GPIO1H_GPIO1D3);
+                gpio_request(RK29_PIN1_PD3, "mmc0-data1");
+                gpio_direction_output(RK29_PIN1_PD3,GPIO_LOW);//set mmc0-data1 to low.
+
+                rk29_mux_api_set(GPIO1D4_SDMMC0DATA2_NAME, GPIO1H_GPIO1D4);
+                gpio_request(RK29_PIN1_PD4, "mmc0-data2");
+                gpio_direction_output(RK29_PIN1_PD4,GPIO_LOW);//set mmc0-data2 to low.
+
+                rk29_mux_api_set(GPIO1D5_SDMMC0DATA3_NAME, GPIO1H_GPIO1D5);
+                gpio_request(RK29_PIN1_PD5, "mmc0-data3");
+                gpio_direction_output(RK29_PIN1_PD5,GPIO_LOW);//set mmc0-data3 to low.
+
+                mdelay(30);
+            }
+            #endif
+        }
+        break;
+        
+        case 1://mmc1
+        {
+            #ifdef CONFIG_SDMMC1_RK29
+            if(on)
+            {
+                gpio_direction_output(RK29_PIN1_PC7,GPIO_HIGH);//set mmc1-clk to high
+                gpio_direction_output(RK29_PIN1_PC2,GPIO_HIGH);//set mmc1-cmd to high.
+                gpio_direction_output(RK29_PIN1_PC3,GPIO_HIGH);//set mmc1-data0 to high.
+                gpio_direction_output(RK29_PIN1_PC4,GPIO_HIGH);//set mmc1-data1 to high.
+                gpio_direction_output(RK29_PIN1_PC5,GPIO_HIGH);//set mmc1-data2 to high.
+                gpio_direction_output(RK29_PIN1_PC6,GPIO_HIGH);//set mmc1-data3 to high.
+                mdelay(100);
+            }
+            else
+            {
+                rk29_mux_api_set(GPIO1C7_SDMMC1CLKOUT_NAME, GPIO1H_GPIO1C7);
+                gpio_request(RK29_PIN1_PC7, "mmc1-clk");
+                gpio_direction_output(RK29_PIN1_PC7,GPIO_LOW);//set mmc1-clk to low.
+
+                rk29_mux_api_set(GPIO1C2_SDMMC1CMD_NAME, GPIO1H_GPIO1C2);
+                gpio_request(RK29_PIN1_PC2, "mmc1-cmd");
+                gpio_direction_output(RK29_PIN1_PC2,GPIO_LOW);//set mmc1-cmd to low.
+
+                rk29_mux_api_set(GPIO1C3_SDMMC1DATA0_NAME, GPIO1H_GPIO1C3);
+                gpio_request(RK29_PIN1_PC3, "mmc1-data0");
+                gpio_direction_output(RK29_PIN1_PC3,GPIO_LOW);//set mmc1-data0 to low.
+
+                mdelay(100);
+            }
+            #endif
+        }
+        break; 
+        
+        case 2: //mmc2
+        break;
+        
+        default:
+        break;
+    }
+}
+
+static void rk29_sdmmc_set_iomux_mmc0(unsigned int bus_width)
+{
+    switch (bus_width)
+    {
+        
+    	case 1://SDMMC_CTYPE_4BIT:
+    	{
+        	rk29_mux_api_set(GPIO1D3_SDMMC0DATA1_NAME, GPIO1H_SDMMC0_DATA1);
+        	rk29_mux_api_set(GPIO1D4_SDMMC0DATA2_NAME, GPIO1H_SDMMC0_DATA2);
+        	rk29_mux_api_set(GPIO1D5_SDMMC0DATA3_NAME, GPIO1H_SDMMC0_DATA3);
+    	}
+    	break;
+
+    	case 0x10000://SDMMC_CTYPE_8BIT:
+    	    break;
+    	case 0xFFFF: //gpio_reset
+    	{
+            rk29_mux_api_set(GPIO5D5_SDMMC0PWREN_NAME, GPIO5H_GPIO5D5);   
+            gpio_request(RK29_PIN5_PD5,"sdmmc-power");
+            gpio_direction_output(RK29_PIN5_PD5,GPIO_HIGH); //power-off
+
+            rk29_sdmmc_gpio_open(0, 0);
+
+            gpio_direction_output(RK29_PIN5_PD5,GPIO_LOW); //power-on
+
+            rk29_sdmmc_gpio_open(0, 1);
+    	}
+    	break;
+
+    	default: //case 0://SDMMC_CTYPE_1BIT:
+        {
+        	rk29_mux_api_set(GPIO1D1_SDMMC0CMD_NAME, GPIO1H_SDMMC0_CMD);
+        	rk29_mux_api_set(GPIO1D0_SDMMC0CLKOUT_NAME, GPIO1H_SDMMC0_CLKOUT);
+        	rk29_mux_api_set(GPIO1D2_SDMMC0DATA0_NAME, GPIO1H_SDMMC0_DATA0);
+
+        	rk29_mux_api_set(GPIO1D3_SDMMC0DATA1_NAME, GPIO1H_GPIO1D3);
+        	gpio_request(RK29_PIN1_PD3, "mmc0-data1");
+        	gpio_direction_output(RK29_PIN1_PD3,GPIO_HIGH);
+
+        	rk29_mux_api_set(GPIO1D4_SDMMC0DATA2_NAME, GPIO1H_GPIO1D4);
+        	gpio_request(RK29_PIN1_PD4, "mmc0-data2");
+        	gpio_direction_output(RK29_PIN1_PD4,GPIO_HIGH);
+        	
+            rk29_mux_api_set(GPIO1D5_SDMMC0DATA3_NAME, GPIO1H_GPIO1D5);
+            gpio_request(RK29_PIN1_PD5, "mmc0-data3");
+        	gpio_direction_output(RK29_PIN1_PD5,GPIO_HIGH);
+    	}
+    	break;
+	}
+}
+
+static void rk29_sdmmc_set_iomux_mmc1(unsigned int bus_width)
+{
+#if 0
+    switch (bus_width)
+    {
+        
+    	case 1://SDMMC_CTYPE_4BIT:
+    	{
+            rk29_mux_api_set(GPIO1C2_SDMMC1CMD_NAME, GPIO1H_SDMMC1_CMD);
+            rk29_mux_api_set(GPIO1C7_SDMMC1CLKOUT_NAME, GPIO1H_SDMMC1_CLKOUT);
+            rk29_mux_api_set(GPIO1C3_SDMMC1DATA0_NAME, GPIO1H_SDMMC1_DATA0);
+            rk29_mux_api_set(GPIO1C4_SDMMC1DATA1_NAME, GPIO1H_SDMMC1_DATA1);
+            rk29_mux_api_set(GPIO1C5_SDMMC1DATA2_NAME, GPIO1H_SDMMC1_DATA2);
+            rk29_mux_api_set(GPIO1C6_SDMMC1DATA3_NAME, GPIO1H_SDMMC1_DATA3);
+    	}
+    	break;
+
+    	case 0x10000://SDMMC_CTYPE_8BIT:
+    	    break;
+    	case 0xFFFF:
+    	{
+    	   rk29_sdmmc_gpio_open(1, 0); 
+    	   rk29_sdmmc_gpio_open(1, 1);
+    	}
+    	break;
+
+    	default: //case 0://SDMMC_CTYPE_1BIT:
+        {
+            rk29_mux_api_set(GPIO1C2_SDMMC1CMD_NAME, GPIO1H_SDMMC1_CMD);
+        	rk29_mux_api_set(GPIO1C7_SDMMC1CLKOUT_NAME, GPIO1H_SDMMC1_CLKOUT);
+        	rk29_mux_api_set(GPIO1C3_SDMMC1DATA0_NAME, GPIO1H_SDMMC1_DATA0);
+
+            rk29_mux_api_set(GPIO1C4_SDMMC1DATA1_NAME, GPIO1H_GPIO1C4);
+            gpio_request(RK29_PIN1_PC4, "mmc1-data1");
+        	gpio_direction_output(RK29_PIN1_PC4,GPIO_HIGH);
+        	
+            rk29_mux_api_set(GPIO1C5_SDMMC1DATA2_NAME, GPIO1H_GPIO1C5);
+            gpio_request(RK29_PIN1_PC5, "mmc1-data2");
+        	gpio_direction_output(RK29_PIN1_PC5,GPIO_HIGH);
+
+            rk29_mux_api_set(GPIO1C6_SDMMC1DATA3_NAME, GPIO1H_GPIO1C6);
+            gpio_request(RK29_PIN1_PC6, "mmc1-data3");
+        	gpio_direction_output(RK29_PIN1_PC6,GPIO_HIGH);
+
+    	}
+    	break;
+	}
+#else
+    rk29_mux_api_set(GPIO1C2_SDMMC1CMD_NAME, GPIO1H_SDMMC1_CMD);
+    rk29_mux_api_set(GPIO1C7_SDMMC1CLKOUT_NAME, GPIO1H_SDMMC1_CLKOUT);
+    rk29_mux_api_set(GPIO1C3_SDMMC1DATA0_NAME, GPIO1H_SDMMC1_DATA0);
+    rk29_mux_api_set(GPIO1C4_SDMMC1DATA1_NAME, GPIO1H_SDMMC1_DATA1);
+    rk29_mux_api_set(GPIO1C5_SDMMC1DATA2_NAME, GPIO1H_SDMMC1_DATA2);
+    rk29_mux_api_set(GPIO1C6_SDMMC1DATA3_NAME, GPIO1H_SDMMC1_DATA3);
+
+#endif
+}
+
+static void rk29_sdmmc_set_iomux_mmc2(unsigned int bus_width)
+{
+    ;//
+}
+
+
+static void rk29_sdmmc_set_iomux(int device_id, unsigned int bus_width)
+{
+    switch(device_id)
+    {
+        case 0:
+            #ifdef CONFIG_SDMMC0_RK29
+            rk29_sdmmc_set_iomux_mmc0(bus_width);
+            #endif
+            break;
+        case 1:
+            #ifdef CONFIG_SDMMC1_RK29
+            rk29_sdmmc_set_iomux_mmc1(bus_width);
+            #endif
+            break;
+        case 2:
+            rk29_sdmmc_set_iomux_mmc2(bus_width);
+            break;
+        default:
+            break;
+    }    
+}
+
+#endif
+
+#ifdef CONFIG_WIFI_CONTROL_FUNC
+static int rk29sdk_wifi_status(struct device *dev);
+static int rk29sdk_wifi_status_register(void (*callback)(int card_presend, void *dev_id), void *dev_id);
+#endif
 #if defined(CONFIG_MU509)
 static int mu509_io_init(void)
 {
@@ -1386,18 +1827,15 @@ struct platform_device rk29_device_mu509 = {
 #ifdef CONFIG_SDMMC0_RK29
 static int rk29_sdmmc0_cfg_gpio(void)
 {
-	rk29_mux_api_set(GPIO1D1_SDMMC0CMD_NAME, GPIO1H_SDMMC0_CMD);
+#ifdef CONFIG_SDMMC_RK29_OLD	
+    rk29_mux_api_set(GPIO1D1_SDMMC0CMD_NAME, GPIO1H_SDMMC0_CMD);
 	rk29_mux_api_set(GPIO1D0_SDMMC0CLKOUT_NAME, GPIO1H_SDMMC0_CLKOUT);
 	rk29_mux_api_set(GPIO1D2_SDMMC0DATA0_NAME, GPIO1H_SDMMC0_DATA0);
 	rk29_mux_api_set(GPIO1D3_SDMMC0DATA1_NAME, GPIO1H_SDMMC0_DATA1);
 	rk29_mux_api_set(GPIO1D4_SDMMC0DATA2_NAME, GPIO1H_SDMMC0_DATA2);
 	rk29_mux_api_set(GPIO1D5_SDMMC0DATA3_NAME, GPIO1H_SDMMC0_DATA3);
-
-#ifdef CONFIG_SDMMC_RK29_OLD	
+	
 	rk29_mux_api_set(GPIO2A2_SDMMC0DETECTN_NAME, GPIO2L_GPIO2A2);
-#else
-	rk29_mux_api_set(GPIO2A2_SDMMC0DETECTN_NAME, GPIO2L_SDMMC0_DETECT_N);//Modifyed by xbw.
-#endif
 
 	rk29_mux_api_set(GPIO5D5_SDMMC0PWREN_NAME, GPIO5H_GPIO5D5);   ///GPIO5H_SDMMC0_PWR_EN);  ///GPIO5H_GPIO5D5);
 	gpio_request(RK29_PIN5_PD5,"sdmmc");
@@ -1408,6 +1846,19 @@ static int rk29_sdmmc0_cfg_gpio(void)
 #else
 	gpio_direction_output(RK29_PIN5_PD5,GPIO_LOW);
 #endif
+
+#else
+    rk29_sdmmc_set_iomux(0, 0xFFFF);
+    
+	rk29_mux_api_set(GPIO2A2_SDMMC0DETECTN_NAME, GPIO2L_SDMMC0_DETECT_N);//Modifyed by xbw.
+
+	#if defined(CONFIG_SDMMC0_RK29_WRITE_PROTECT)
+    gpio_request(SDMMC0_WRITE_PROTECT_PIN,"sdmmc-wp");
+    gpio_direction_input(SDMMC0_WRITE_PROTECT_PIN);	    
+    #endif
+
+#endif
+
 	return 0;
 }
 
@@ -1418,6 +1869,11 @@ struct rk29_sdmmc_platform_data default_sdmmc0_data = {
 					   MMC_VDD_33_34|MMC_VDD_34_35| MMC_VDD_35_36),
 	.host_caps 	= (MMC_CAP_4_BIT_DATA|MMC_CAP_MMC_HIGHSPEED|MMC_CAP_SD_HIGHSPEED),
 	.io_init = rk29_sdmmc0_cfg_gpio,
+	
+#if !defined(CONFIG_SDMMC_RK29_OLD)		
+	.set_iomux = rk29_sdmmc_set_iomux,
+#endif
+
 	.dma_name = "sd_mmc",
 #ifdef CONFIG_SDMMC0_USE_DMA
 	.use_dma  = 1,
@@ -1426,12 +1882,19 @@ struct rk29_sdmmc_platform_data default_sdmmc0_data = {
 #endif
 	.detect_irq = RK29_PIN2_PA2, // INVALID_GPIO
 	.enable_sd_wakeup = 0,
+
+#if defined(CONFIG_SDMMC0_RK29_WRITE_PROTECT)
+    .write_prt = SDMMC0_WRITE_PROTECT_PIN,
+#else
+    .write_prt = INVALID_GPIO,
+#endif
 };
 #endif
 #ifdef CONFIG_SDMMC1_RK29
 #define CONFIG_SDMMC1_USE_DMA
 static int rk29_sdmmc1_cfg_gpio(void)
 {
+#if defined(CONFIG_SDMMC_RK29_OLD)
 	rk29_mux_api_set(GPIO1C2_SDMMC1CMD_NAME, GPIO1H_SDMMC1_CMD);
 	rk29_mux_api_set(GPIO1C7_SDMMC1CLKOUT_NAME, GPIO1H_SDMMC1_CLKOUT);
 	rk29_mux_api_set(GPIO1C3_SDMMC1DATA0_NAME, GPIO1H_SDMMC1_DATA0);
@@ -1439,13 +1902,20 @@ static int rk29_sdmmc1_cfg_gpio(void)
 	rk29_mux_api_set(GPIO1C5_SDMMC1DATA2_NAME, GPIO1H_SDMMC1_DATA2);
 	rk29_mux_api_set(GPIO1C6_SDMMC1DATA3_NAME, GPIO1H_SDMMC1_DATA3);
 	//rk29_mux_api_set(GPIO1C0_UART0CTSN_SDMMC1DETECTN_NAME, GPIO1H_SDMMC1_DETECT_N);
+
+#else
+
+#if defined(CONFIG_SDMMC1_RK29_WRITE_PROTECT)
+    gpio_request(SDMMC1_WRITE_PROTECT_PIN,"sdio-wp");
+    gpio_direction_input(SDMMC1_WRITE_PROTECT_PIN);	    
+#endif
+
+#endif
+
 	return 0;
 }
 
-#ifdef CONFIG_WIFI_CONTROL_FUNC
-static int rk29sdk_wifi_status(struct device *dev);
-static int rk29sdk_wifi_status_register(void (*callback)(int card_presend, void *dev_id), void *dev_id);
-#endif
+
 
 #define RK29SDK_WIFI_SDIO_CARD_DETECT_N    RK29_PIN1_PD6
 
@@ -1453,15 +1923,28 @@ struct rk29_sdmmc_platform_data default_sdmmc1_data = {
 	.host_ocr_avail = (MMC_VDD_25_26|MMC_VDD_26_27|MMC_VDD_27_28|MMC_VDD_28_29|
 					   MMC_VDD_29_30|MMC_VDD_30_31|MMC_VDD_31_32|
 					   MMC_VDD_32_33|MMC_VDD_33_34),
+
+#if !defined(CONFIG_USE_SDMMC1_FOR_WIFI_DEVELOP_BOARD)					   
 	.host_caps 	= (MMC_CAP_4_BIT_DATA|MMC_CAP_SDIO_IRQ|
 				   MMC_CAP_MMC_HIGHSPEED|MMC_CAP_SD_HIGHSPEED),
+#else
+    .host_caps 	= (MMC_CAP_4_BIT_DATA|MMC_CAP_MMC_HIGHSPEED|MMC_CAP_SD_HIGHSPEED),
+#endif
+
 	.io_init = rk29_sdmmc1_cfg_gpio,
+	
+#if !defined(CONFIG_SDMMC_RK29_OLD)		
+	.set_iomux = rk29_sdmmc_set_iomux,
+#endif	
+
 	.dma_name = "sdio",
 #ifdef CONFIG_SDMMC1_USE_DMA
 	.use_dma  = 1,
 #else
 	.use_dma = 0,
 #endif
+
+#if !defined(CONFIG_USE_SDMMC1_FOR_WIFI_DEVELOP_BOARD)
 #ifdef CONFIG_WIFI_CONTROL_FUNC
         .status = rk29sdk_wifi_status,
         .register_status_notify = rk29sdk_wifi_status_register,
@@ -1469,8 +1952,25 @@ struct rk29_sdmmc_platform_data default_sdmmc1_data = {
 #if 0
         .detect_irq = RK29SDK_WIFI_SDIO_CARD_DETECT_N,
 #endif
-};
+
+#if defined(CONFIG_SDMMC1_RK29_WRITE_PROTECT)
+    .write_prt = SDMMC1_WRITE_PROTECT_PIN,
+#else
+    .write_prt = INVALID_GPIO, 
+#endif  
+
+#else
+//for wifi develop board
+    .detect_irq = INVALID_GPIO,
+    .enable_sd_wakeup = 0,
 #endif
+
+};
+#endif ////endif--#ifdef CONFIG_SDMMC1_RK29
+
+
+int rk29sdk_wifi_power_state = 0;
+int rk29sdk_bt_power_state = 0;
 
 #ifdef CONFIG_WIFI_CONTROL_FUNC
 #define RK29SDK_WIFI_BT_GPIO_POWER_N       RK29_PIN5_PD6
@@ -1480,8 +1980,6 @@ struct rk29_sdmmc_platform_data default_sdmmc1_data = {
 static int rk29sdk_wifi_cd = 0;   /* wifi virtual 'card detect' status */
 static void (*wifi_status_cb)(int card_present, void *dev_id);
 static void *wifi_status_cb_devid;
-int rk29sdk_wifi_power_state = 0;
-int rk29sdk_bt_power_state = 0;
 
 static int rk29sdk_wifi_status(struct device *dev)
 {
@@ -1520,6 +2018,22 @@ static int rk29sdk_wifi_bt_gpio_control_init(void)
     gpio_direction_output(RK29SDK_WIFI_GPIO_RESET_N,    GPIO_LOW);
     gpio_direction_output(RK29SDK_BT_GPIO_RESET_N,      GPIO_LOW);
 
+    #if defined(CONFIG_SDMMC1_RK29) && !defined(CONFIG_SDMMC_RK29_OLD)
+    
+    rk29_mux_api_set(GPIO1C4_SDMMC1DATA1_NAME, GPIO1H_GPIO1C4);
+    gpio_request(RK29_PIN1_PC4, "mmc1-data1");
+    gpio_direction_output(RK29_PIN1_PC4,GPIO_LOW);//set mmc1-data1 to low.
+
+    rk29_mux_api_set(GPIO1C5_SDMMC1DATA2_NAME, GPIO1H_GPIO1C5);
+    gpio_request(RK29_PIN1_PC5, "mmc1-data2");
+    gpio_direction_output(RK29_PIN1_PC5,GPIO_LOW);//set mmc1-data2 to low.
+
+    rk29_mux_api_set(GPIO1C6_SDMMC1DATA3_NAME, GPIO1H_GPIO1C6);
+    gpio_request(RK29_PIN1_PC6, "mmc1-data3");
+    gpio_direction_output(RK29_PIN1_PC6,GPIO_LOW);//set mmc1-data3 to low.
+    
+    rk29_sdmmc_gpio_open(1, 0); //added by xbw at 2011-10-13
+    #endif    
     pr_info("%s: init finished\n",__func__);
 
     return 0;
@@ -1530,12 +2044,22 @@ static int rk29sdk_wifi_power(int on)
         pr_info("%s: %d\n", __func__, on);
         if (on){
                 gpio_set_value(RK29SDK_WIFI_BT_GPIO_POWER_N, GPIO_HIGH);
+
+                #if defined(CONFIG_SDMMC1_RK29) && !defined(CONFIG_SDMMC_RK29_OLD)	
+                rk29_sdmmc_gpio_open(1, 1); //added by xbw at 2011-10-13
+                #endif
+
                 gpio_set_value(RK29SDK_WIFI_GPIO_RESET_N, GPIO_HIGH);
                 mdelay(100);
                 pr_info("wifi turn on power\n");
         }else{
                 if (!rk29sdk_bt_power_state){
                         gpio_set_value(RK29SDK_WIFI_BT_GPIO_POWER_N, GPIO_LOW);
+
+                        #if defined(CONFIG_SDMMC1_RK29) && !defined(CONFIG_SDMMC_RK29_OLD)	
+                        rk29_sdmmc_gpio_open(1, 0); //added by xbw at 2011-10-13
+                        #endif
+                        
                         mdelay(100);
                         pr_info("wifi shut off power\n");
                 }else
@@ -1809,6 +2333,12 @@ static struct platform_device *devices[] __initdata = {
  	&rk29_soc_camera_pdrv_1,
  	&android_pmem_cam_device,
 #endif
+#if PMEM_SKYPE_SIZE > 0
+	&android_pmem_skype_device,
+#endif
+#ifdef CONFIG_ION
+	&rk29_ion_device,
+#endif
 	&android_pmem_device,
 	&rk29_vpu_mem_device,
 #ifdef CONFIG_USB20_OTG
@@ -2073,8 +2603,12 @@ static struct spi_board_info board_spi_devices[] = {
 
 static void __init rk29_gic_init_irq(void)
 {
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 38))
+	gic_init(0, 32, (void __iomem *)RK29_GICPERI_BASE, (void __iomem *)RK29_GICCPU_BASE);
+#else
 	gic_dist_init(0, (void __iomem *)RK29_GICPERI_BASE, 32);
 	gic_cpu_init(0, (void __iomem *)RK29_GICCPU_BASE);
+#endif
 }
 
 static void __init machine_rk29_init_irq(void)
@@ -2150,8 +2684,11 @@ static void __init machine_rk29_mapio(void)
 
 MACHINE_START(RK29, "RK29board")
 	/* UART for LL DEBUG */
+#if (LINUX_VERSION_CODE < KERNEL_VERSION(2, 6, 37))
+	/* UART for LL DEBUG */
 	.phys_io	= RK29_UART1_PHYS & 0xfff00000,
 	.io_pg_offst	= ((RK29_UART1_BASE) >> 18) & 0xfffc,
+#endif
 	.boot_params	= RK29_SDRAM_PHYS + 0x88000,
 	.fixup		= machine_rk29_fixup,
 	.map_io		= machine_rk29_mapio,
