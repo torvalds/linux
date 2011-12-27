@@ -12,8 +12,6 @@
 #ifndef __MACH_MX1_H__
 #define __MACH_MX1_H__
 
-#include <mach/vmalloc.h>
-
 /*
  * Memory map
  */

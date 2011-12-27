@@ -23,6 +23,7 @@
 #include <asm/mach-types.h>
 
 #include <mach/pinmux.h>
+#include <mach/pinmux-tegra20.h>
 #include "board.h"
 #include "board-harmony.h"
 
