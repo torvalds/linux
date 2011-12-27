@@ -230,6 +230,7 @@ config MACH_UNIVERSAL_C210
 	select S5P_DEV_FIMC1
 	select S5P_DEV_FIMC2
 	select S5P_DEV_FIMC3
+	select S5P_DEV_G2D
 	select S5P_DEV_CSIS0
 	select S5P_DEV_FIMD0
 	select S3C_DEV_HSMMC
