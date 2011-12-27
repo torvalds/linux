@@ -50,5 +50,9 @@ extern int SMB2_negotiate(const unsigned int xid, struct cifs_ses *ses);
 extern int SMB2_sess_setup(const unsigned int xid, struct cifs_ses *ses,
 			   const struct nls_table *nls_cp);
 extern int SMB2_logoff(const unsigned int xid, struct cifs_ses *ses);
+extern int SMB2_tcon(const unsigned int xid, struct cifs_ses *ses,
+		     const char *tree, struct cifs_tcon *tcon,
+		     const struct nls_table *);
+extern int SMB2_tdis(const unsigned int xid, struct cifs_tcon *tcon);
 
 #endif			/* _SMB2PROTO_H */

@@ -172,6 +172,8 @@ struct smb_version_operations smb21_operations = {
 	.negotiate = smb2_negotiate,
 	.sess_setup = SMB2_sess_setup,
 	.logoff = SMB2_logoff,
+	.tree_connect = SMB2_tcon,
+	.tree_disconnect = SMB2_tdis,
 };
 
 struct smb_version_values smb21_values = {

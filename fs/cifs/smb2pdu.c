@@ -110,8 +110,8 @@ smb2_hdr_assemble(struct smb2_hdr *hdr, __le16 smb2_cmd /* command */ ,
 		hdr->SessionId = tcon->ses->Suid;
 	/* BB check following DFS flags BB */
 	/* BB do we have to add check for SHI1005_FLAGS_DFS_ROOT too? */
-	/* if (tcon->share_flags & SHI1005_FLAGS_DFS)
-		hdr->Flags |= SMB2_FLAGS_DFS_OPERATIONS; */
+	if (tcon->share_flags & SHI1005_FLAGS_DFS)
+		hdr->Flags |= SMB2_FLAGS_DFS_OPERATIONS;
 	/* BB how does SMB2 do case sensitive? */
 	/* if (tcon->nocase)
 		hdr->Flags |= SMBFLG_CASELESS; */
@@ -547,5 +547,160 @@ SMB2_logoff(const unsigned int xid, struct cifs_ses *ses)
 	 * No tcon so can't do
 	 * cifs_stats_inc(&tcon->stats.smb2_stats.smb2_com_fail[SMB2...]);
 	 */
+	return rc;
+}
+
+static inline void cifs_stats_fail_inc(struct cifs_tcon *tcon, uint16_t code)
+{
+	/* cifs_stats_inc(&tcon->stats.smb2_stats.smb2_com_fail[code]); */
+}
+
+#define MAX_SHARENAME_LENGTH (255 /* server */ + 80 /* share */ + 1 /* NULL */)
+
+int
+SMB2_tcon(const unsigned int xid, struct cifs_ses *ses, const char *tree,
+	  struct cifs_tcon *tcon, const struct nls_table *cp)
+{
+	struct smb2_tree_connect_req *req;
+	struct smb2_tree_connect_rsp *rsp = NULL;
+	struct kvec iov[2];
+	int rc = 0;
+	int resp_buftype;
+	int unc_path_len;
+	struct TCP_Server_Info *server;
+	__le16 *unc_path = NULL;
+
+	cFYI(1, "TCON");
+
+	if ((ses->server) && tree)
+		server = ses->server;
+	else
+		return -EIO;
+
+	if (tcon && tcon->bad_network_name)
+		return -ENOENT;
+
+	unc_path = kmalloc(MAX_SHARENAME_LENGTH * 2, GFP_KERNEL);
+	if (unc_path == NULL)
+		return -ENOMEM;
+
+	unc_path_len = cifs_strtoUTF16(unc_path, tree, strlen(tree), cp) + 1;
+	unc_path_len *= 2;
+	if (unc_path_len < 2) {
+		kfree(unc_path);
+		return -EINVAL;
+	}
+
+	rc = small_smb2_init(SMB2_TREE_CONNECT, tcon, (void **) &req);
+	if (rc) {
+		kfree(unc_path);
+		return rc;
+	}
+
+	if (tcon == NULL) {
+		/* since no tcon, smb2_init can not do this, so do here */
+		req->hdr.SessionId = ses->Suid;
+		/* if (ses->server->sec_mode & SECMODE_SIGN_REQUIRED)
+			req->hdr.Flags |= SMB2_FLAGS_SIGNED; */
+	}
+
+	iov[0].iov_base = (char *)req;
+	/* 4 for rfc1002 length field and 1 for pad */
+	iov[0].iov_len = get_rfc1002_length(req) + 4 - 1;
+
+	/* Testing shows that buffer offset must be at location of Buffer[0] */
+	req->PathOffset = cpu_to_le16(sizeof(struct smb2_tree_connect_req)
+			- 1 /* pad */ - 4 /* do not count rfc1001 len field */);
+	req->PathLength = cpu_to_le16(unc_path_len - 2);
+	iov[1].iov_base = unc_path;
+	iov[1].iov_len = unc_path_len;
+
+	inc_rfc1001_len(req, unc_path_len - 1 /* pad */);
+
+	rc = SendReceive2(xid, ses, iov, 2, &resp_buftype, 0);
+	rsp = (struct smb2_tree_connect_rsp *)iov[0].iov_base;
+
+	if (rc != 0) {
+		if (tcon) {
+			cifs_stats_fail_inc(tcon, SMB2_TREE_CONNECT_HE);
+			tcon->need_reconnect = true;
+		}
+		goto tcon_error_exit;
+	}
+
+	if (rsp == NULL) {
+		rc = -EIO;
+		goto tcon_exit;
+	}
+
+	if (tcon == NULL) {
+		ses->ipc_tid = rsp->hdr.TreeId;
+		goto tcon_exit;
+	}
+
+	if (rsp->ShareType & SMB2_SHARE_TYPE_DISK)
+		cFYI(1, "connection to disk share");
+	else if (rsp->ShareType & SMB2_SHARE_TYPE_PIPE) {
+		tcon->ipc = true;
+		cFYI(1, "connection to pipe share");
+	} else if (rsp->ShareType & SMB2_SHARE_TYPE_PRINT) {
+		tcon->print = true;
+		cFYI(1, "connection to printer");
+	} else {
+		cERROR(1, "unknown share type %d", rsp->ShareType);
+		rc = -EOPNOTSUPP;
+		goto tcon_error_exit;
+	}
+
+	tcon->share_flags = le32_to_cpu(rsp->ShareFlags);
+	tcon->maximal_access = le32_to_cpu(rsp->MaximalAccess);
+	tcon->tidStatus = CifsGood;
+	tcon->need_reconnect = false;
+	tcon->tid = rsp->hdr.TreeId;
+	strncpy(tcon->treeName, tree, MAX_TREE_SIZE);
+
+	if ((rsp->Capabilities & SMB2_SHARE_CAP_DFS) &&
+	    ((tcon->share_flags & SHI1005_FLAGS_DFS) == 0))
+		cERROR(1, "DFS capability contradicts DFS flag");
+
+tcon_exit:
+	free_rsp_buf(resp_buftype, rsp);
+	kfree(unc_path);
+	return rc;
+
+tcon_error_exit:
+	if (rsp->hdr.Status == STATUS_BAD_NETWORK_NAME) {
+		cERROR(1, "BAD_NETWORK_NAME: %s", tree);
+		tcon->bad_network_name = true;
+	}
+	goto tcon_exit;
+}
+
+int
+SMB2_tdis(const unsigned int xid, struct cifs_tcon *tcon)
+{
+	struct smb2_tree_disconnect_req *req; /* response is trivial */
+	int rc = 0;
+	struct TCP_Server_Info *server;
+	struct cifs_ses *ses = tcon->ses;
+
+	cFYI(1, "Tree Disconnect");
+
+	if (ses && (ses->server))
+		server = ses->server;
+	else
+		return -EIO;
+
+	if ((tcon->need_reconnect) || (tcon->ses->need_reconnect))
+		return 0;
+
+	rc = small_smb2_init(SMB2_TREE_DISCONNECT, tcon, (void **) &req);
+	if (rc)
+		return rc;
+
+	rc = SendReceiveNoRsp(xid, ses, (char *)&req->hdr, 0);
+	if (rc)
+		cifs_stats_fail_inc(tcon, SMB2_TREE_DISCONNECT_HE);
+
 	return rc;
 }
