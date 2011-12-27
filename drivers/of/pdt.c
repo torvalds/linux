@@ -229,7 +229,7 @@ static struct device_node * __init of_pdt_build_tree(struct device_node *parent,
 	return ret;
 }
 
-static void *kernel_tree_alloc(u64 size, u64 align)
+static void * __init kernel_tree_alloc(u64 size, u64 align)
 {
 	return prom_early_alloc(size);
 }
