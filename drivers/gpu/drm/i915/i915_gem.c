@@ -2026,8 +2026,13 @@ i915_wait_request(struct intel_ring_buffer *ring,
 	 * to handle this, the waiter on a request often wants an associated
 	 * buffer to have made it to the inactive list, and we would need
 	 * a separate wait queue to handle that.
+	 *
+	 * To avoid a recursion with the ilk VT-d workaround (that calls
+	 * gpu_idle when unbinding objects with interruptible==false) don't
+	 * retire requests in that case (because it might call unbind if the
+	 * active list holds the last reference to the object).
 	 */
-	if (ret == 0)
+	if (ret == 0 && dev_priv->mm.interruptible)
 		i915_gem_retire_requests_ring(ring);
 
 	return ret;

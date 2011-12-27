@@ -691,6 +691,8 @@ early_param("reservelow", parse_reservelow);
 
 void __init setup_arch(char **cmdline_p)
 {
+	unsigned long end_pfn;
+
 #ifdef CONFIG_X86_32
 	memcpy(&boot_cpu_data, &new_cpu_data, sizeof(new_cpu_data));
 	visws_early_detect();
@@ -932,7 +934,24 @@ void __init setup_arch(char **cmdline_p)
 	init_gbpages();
 
 	/* max_pfn_mapped is updated here */
-	max_low_pfn_mapped = init_memory_mapping(0, max_low_pfn<<PAGE_SHIFT);
+	end_pfn = max_low_pfn;
+
+#ifdef CONFIG_X86_64
+	/*
+	 * There may be regions after the last E820_RAM region that we
+	 * want to include in the kernel direct mapping, such as
+	 * EFI_RUNTIME_SERVICES_DATA.
+	 */
+	if (efi_enabled) {
+		unsigned long efi_end;
+
+		efi_end = e820_end_pfn(MAXMEM>>PAGE_SHIFT, E820_RESERVED_EFI);
+		if (efi_end > max_low_pfn)
+			end_pfn = efi_end;
+	}
+#endif
+
+	max_low_pfn_mapped = init_memory_mapping(0, end_pfn << PAGE_SHIFT);
 	max_pfn_mapped = max_low_pfn_mapped;
 
 #ifdef CONFIG_X86_64

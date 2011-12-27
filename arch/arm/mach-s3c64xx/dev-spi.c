@@ -10,6 +10,7 @@
 
 #include <linux/kernel.h>
 #include <linux/string.h>
+#include <linux/export.h>
 #include <linux/platform_device.h>
 #include <linux/dma-mapping.h>
 #include <linux/gpio.h>

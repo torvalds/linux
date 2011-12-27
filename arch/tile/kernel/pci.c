@@ -24,6 +24,7 @@
 #include <linux/irq.h>
 #include <linux/io.h>
 #include <linux/uaccess.h>
+#include <linux/export.h>
 
 #include <asm/processor.h>
 #include <asm/sections.h>
