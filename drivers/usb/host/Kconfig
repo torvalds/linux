@@ -371,6 +371,12 @@ config USB_OHCI_SH
 	  Enables support for the on-chip OHCI controller on the SuperH.
 	  If you use the PCI OHCI controller, this option is not necessary.
 
+config USB_OHCI_EXYNOS
+	boolean "OHCI support for Samsung EXYNOS SoC Series"
+	depends on USB_OHCI_HCD && ARCH_EXYNOS
+	help
+	 Enable support for the Samsung Exynos SOC's on-chip OHCI controller.
+
 config USB_CNS3XXX_OHCI
 	bool "Cavium CNS3XXX OHCI Module"
 	depends on USB_OHCI_HCD && ARCH_CNS3XXX
