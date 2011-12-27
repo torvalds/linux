@@ -1038,8 +1038,30 @@ static int s3c_fb_ioctl(struct fb_info *info, unsigned int cmd,
 	return ret;
 }
 
+static int s3c_fb_open(struct fb_info *info, int user)
+{
+	struct s3c_fb_win *win = info->par;
+	struct s3c_fb *sfb = win->parent;
+
+	pm_runtime_get_sync(sfb->dev);
+
+	return 0;
+}
+
+static int s3c_fb_release(struct fb_info *info, int user)
+{
+	struct s3c_fb_win *win = info->par;
+	struct s3c_fb *sfb = win->parent;
+
+	pm_runtime_put_sync(sfb->dev);
+
+	return 0;
+}
+
 static struct fb_ops s3c_fb_ops = {
 	.owner		= THIS_MODULE,
+	.fb_open	= s3c_fb_open,
+	.fb_release	= s3c_fb_release,
 	.fb_check_var	= s3c_fb_check_var,
 	.fb_set_par	= s3c_fb_set_par,
 	.fb_blank	= s3c_fb_blank,
@@ -1446,6 +1468,7 @@ static int __devinit s3c_fb_probe(struct platform_device *pdev)
 	}
 
 	platform_set_drvdata(pdev, sfb);
+	pm_runtime_put_sync(sfb->dev);
 
 	return 0;
 
@@ -1485,6 +1508,8 @@ static int __devexit s3c_fb_remove(struct platform_device *pdev)
 	struct s3c_fb *sfb = platform_get_drvdata(pdev);
 	int win;
 
+	pm_runtime_get_sync(sfb->dev);
+
 	for (win = 0; win < S3C_FB_MAX_WIN; win++)
 		if (sfb->windows[win])
 			s3c_fb_release_win(sfb, sfb->windows[win]);
@@ -1510,7 +1535,7 @@ static int __devexit s3c_fb_remove(struct platform_device *pdev)
 	return 0;
 }
 
-#ifdef CONFIG_PM_SLEEP
+#ifdef CONFIG_PM
 static int s3c_fb_suspend(struct device *dev)
 {
 	struct platform_device *pdev = to_platform_device(dev);
@@ -1531,8 +1556,6 @@ static int s3c_fb_suspend(struct device *dev)
 		clk_disable(sfb->lcd_clk);
 
 	clk_disable(sfb->bus_clk);
-	pm_runtime_put_sync(sfb->dev);
-
 	return 0;
 }
 
@@ -1544,7 +1567,6 @@ static int s3c_fb_resume(struct device *dev)
 	struct s3c_fb_win *win;
 	int win_no;
 
-	pm_runtime_get_sync(sfb->dev);
 	clk_enable(sfb->bus_clk);
 
 	if (!sfb->variant.has_clksel)
@@ -1583,19 +1605,11 @@ static int s3c_fb_resume(struct device *dev)
 
 	return 0;
 }
+#else
+#define s3c_fb_suspend NULL
+#define s3c_fb_resume  NULL
 #endif
 
-#ifdef CONFIG_PM_RUNTIME
-static int s3c_fb_runtime_suspend(struct device *dev)
-{
-	return 0;
-}
-
-static int s3c_fb_runtime_resume(struct device *dev)
-{
-	return 0;
-}
-#endif
 
 #define VALID_BPP124 (VALID_BPP(1) | VALID_BPP(2) | VALID_BPP(4))
 #define VALID_BPP1248 (VALID_BPP124 | VALID_BPP(8))
@@ -1918,10 +1932,7 @@ static struct platform_device_id s3c_fb_driver_ids[] = {
 };
 MODULE_DEVICE_TABLE(platform, s3c_fb_driver_ids);
 
-static const struct dev_pm_ops s3c_fb_pm_ops = {
-	SET_SYSTEM_SLEEP_PM_OPS(s3c_fb_suspend, s3c_fb_resume)
-	SET_RUNTIME_PM_OPS(s3c_fb_runtime_suspend, s3c_fb_runtime_resume, NULL)
-};
+static UNIVERSAL_DEV_PM_OPS(s3cfb_pm_ops, s3c_fb_suspend, s3c_fb_resume, NULL);
 
 static struct platform_driver s3c_fb_driver = {
 	.probe		= s3c_fb_probe,
@@ -1930,7 +1941,7 @@ static struct platform_driver s3c_fb_driver = {
 	.driver		= {
 		.name	= "s3c-fb",
 		.owner	= THIS_MODULE,
-		.pm	= &s3c_fb_pm_ops,
+		.pm	= &s3cfb_pm_ops,
 	},
 };
 
