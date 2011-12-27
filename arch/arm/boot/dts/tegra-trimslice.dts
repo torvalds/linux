@@ -3,10 +3,10 @@
 /include/ "tegra20.dtsi"
 
 / {
-	model = "NVIDIA Tegra2 Ventana evaluation board";
-	compatible = "nvidia,ventana", "nvidia,tegra20";
+	model = "Compulab TrimSlice board";
+	compatible = "compulab,trimslice", "nvidia,tegra20";
 
-	memory {
+	memory@0 {
 		reg = < 0x00000000 0x40000000 >;
 	};
 
@@ -23,11 +23,11 @@
 	};
 
 	i2c@7000d000 {
-		clock-frequency = <400000>;
+		status = "disable";
 	};
 
 	serial@70006000 {
-		status = "disable";
+		clock-frequency = < 216000000 >;
 	};
 
 	serial@70006040 {
@@ -39,7 +39,7 @@
 	};
 
 	serial@70006300 {
-		clock-frequency = < 216000000 >;
+		status = "disable";
 	};
 
 	serial@70006400 {
@@ -55,12 +55,11 @@
 	};
 
 	sdhci@c8000400 {
-		cd-gpios = <&gpio 69 0>; /* gpio PI5 */
-		wp-gpios = <&gpio 57 0>; /* gpio PH1 */
-		power-gpios = <&gpio 70 0>; /* gpio PI6 */
+		status = "disable";
 	};
 
 	sdhci@c8000600 {
-		support-8bit;
+		cd-gpios = <&gpio 121 0>;
+		wp-gpios = <&gpio 122 0>;
 	};
 };
