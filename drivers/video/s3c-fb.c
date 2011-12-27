@@ -1464,7 +1464,7 @@ static int __devinit s3c_fb_probe(struct platform_device *pdev)
 			dev_err(dev, "failed to create window %d\n", win);
 			for (; win >= 0; win--)
 				s3c_fb_release_win(sfb, sfb->windows[win]);
-			goto err_irq;
+			goto err_pm_runtime;
 		}
 	}
 
@@ -1473,7 +1473,8 @@ static int __devinit s3c_fb_probe(struct platform_device *pdev)
 
 	return 0;
 
-err_irq:
+err_pm_runtime:
+	pm_runtime_put_sync(sfb->dev);
 	free_irq(sfb->irq_no, sfb);
 
 err_ioremap:
@@ -1483,6 +1484,8 @@ err_req_region:
 	release_mem_region(sfb->regs_res->start, resource_size(sfb->regs_res));
 
 err_lcd_clk:
+	pm_runtime_disable(sfb->dev);
+
 	if (!sfb->variant.has_clksel) {
 		clk_disable(sfb->lcd_clk);
 		clk_put(sfb->lcd_clk);
