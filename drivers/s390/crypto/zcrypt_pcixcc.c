@@ -56,11 +56,6 @@
 #define PCIXCC_MAX_ICA_RESPONSE_SIZE 0x77c /* max size type86 v2 reply	    */
 
 #define PCIXCC_MAX_XCRB_MESSAGE_SIZE (12*1024)
-#define PCIXCC_MAX_XCRB_RESPONSE_SIZE PCIXCC_MAX_XCRB_MESSAGE_SIZE
-#define PCIXCC_MAX_XCRB_DATA_SIZE (11*1024)
-#define PCIXCC_MAX_XCRB_REPLY_SIZE (5*1024)
-
-#define PCIXCC_MAX_RESPONSE_SIZE PCIXCC_MAX_XCRB_RESPONSE_SIZE
 
 #define PCIXCC_CLEANUP_TIME	(15*HZ)
 
@@ -296,18 +291,11 @@ static int XCRB_msg_to_type6CPRB_msgX(struct zcrypt_device *zdev,
 		xcRB->request_data_length;
 	if (ap_msg->length > PCIXCC_MAX_XCRB_MESSAGE_SIZE)
 		return -EFAULT;
-	if (CEIL4(xcRB->reply_control_blk_length) > PCIXCC_MAX_XCRB_REPLY_SIZE)
+	replylen = sizeof(struct type86_fmt2_msg) +
+		CEIL4(xcRB->reply_control_blk_length) +
+		xcRB->reply_data_length;
+	if (replylen > PCIXCC_MAX_XCRB_MESSAGE_SIZE)
 		return -EFAULT;
-	if (CEIL4(xcRB->reply_data_length) > PCIXCC_MAX_XCRB_DATA_SIZE)
-		return -EFAULT;
-	replylen = CEIL4(xcRB->reply_control_blk_length) +
-		CEIL4(xcRB->reply_data_length) +
-		sizeof(struct type86_fmt2_msg);
-	if (replylen > PCIXCC_MAX_XCRB_RESPONSE_SIZE) {
-		xcRB->reply_control_blk_length = PCIXCC_MAX_XCRB_RESPONSE_SIZE -
-			(sizeof(struct type86_fmt2_msg) +
-			    CEIL4(xcRB->reply_data_length));
-	}
 
 	/* prepare type6 header */
 	msg->hdr = static_type6_hdrX;
@@ -678,7 +666,7 @@ static void zcrypt_pcixcc_receive(struct ap_device *ap_dev,
 			break;
 		case PCIXCC_RESPONSE_TYPE_XCRB:
 			length = t86r->fmt2.offset2 + t86r->fmt2.count2;
-			length = min(PCIXCC_MAX_XCRB_RESPONSE_SIZE, length);
+			length = min(PCIXCC_MAX_XCRB_MESSAGE_SIZE, length);
 			memcpy(msg->message, reply->message, length);
 			break;
 		default:
@@ -1043,7 +1031,7 @@ static int zcrypt_pcixcc_probe(struct ap_device *ap_dev)
 	struct zcrypt_device *zdev;
 	int rc = 0;
 
-	zdev = zcrypt_device_alloc(PCIXCC_MAX_RESPONSE_SIZE);
+	zdev = zcrypt_device_alloc(PCIXCC_MAX_XCRB_MESSAGE_SIZE);
 	if (!zdev)
 		return -ENOMEM;
 	zdev->ap_dev = ap_dev;
