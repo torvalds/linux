@@ -122,6 +122,32 @@ static bool is_ext_pwr_online(struct charger_manager *cm)
 }
 
 /**
+ * get_batt_uV - Get the voltage level of the battery
+ * @cm: the Charger Manager representing the battery.
+ * @uV: the voltage level returned.
+ *
+ * Returns 0 if there is no error.
+ * Returns a negative value on error.
+ */
+static int get_batt_uV(struct charger_manager *cm, int *uV)
+{
+	union power_supply_propval val;
+	int ret;
+
+	if (cm->fuel_gauge)
+		ret = cm->fuel_gauge->get_property(cm->fuel_gauge,
+				POWER_SUPPLY_PROP_VOLTAGE_NOW, &val);
+	else
+		return -ENODEV;
+
+	if (ret)
+		return ret;
+
+	*uV = val.intval;
+	return 0;
+}
+
+/**
  * is_charging - Returns true if the battery is being charged.
  * @cm: the Charger Manager representing the battery.
  */
@@ -369,6 +395,208 @@ static bool cm_monitor(void)
 	return stop;
 }
 
+static int charger_get_property(struct power_supply *psy,
+		enum power_supply_property psp,
+		union power_supply_propval *val)
+{
+	struct charger_manager *cm = container_of(psy,
+			struct charger_manager, charger_psy);
+	struct charger_desc *desc = cm->desc;
+	int i, ret = 0, uV;
+
+	switch (psp) {
+	case POWER_SUPPLY_PROP_STATUS:
+		if (is_charging(cm))
+			val->intval = POWER_SUPPLY_STATUS_CHARGING;
+		else if (is_ext_pwr_online(cm))
+			val->intval = POWER_SUPPLY_STATUS_NOT_CHARGING;
+		else
+			val->intval = POWER_SUPPLY_STATUS_DISCHARGING;
+		break;
+	case POWER_SUPPLY_PROP_HEALTH:
+		if (cm->emergency_stop > 0)
+			val->intval = POWER_SUPPLY_HEALTH_OVERHEAT;
+		else if (cm->emergency_stop < 0)
+			val->intval = POWER_SUPPLY_HEALTH_COLD;
+		else
+			val->intval = POWER_SUPPLY_HEALTH_GOOD;
+		break;
+	case POWER_SUPPLY_PROP_PRESENT:
+		if (is_batt_present(cm))
+			val->intval = 1;
+		else
+			val->intval = 0;
+		break;
+	case POWER_SUPPLY_PROP_VOLTAGE_NOW:
+		ret = get_batt_uV(cm, &i);
+		val->intval = i;
+		break;
+	case POWER_SUPPLY_PROP_CURRENT_NOW:
+		ret = cm->fuel_gauge->get_property(cm->fuel_gauge,
+				POWER_SUPPLY_PROP_CURRENT_NOW, val);
+		break;
+	case POWER_SUPPLY_PROP_TEMP:
+		/* in thenth of centigrade */
+		if (cm->last_temp_mC == INT_MIN)
+			desc->temperature_out_of_range(&cm->last_temp_mC);
+		val->intval = cm->last_temp_mC / 100;
+		if (!desc->measure_battery_temp)
+			ret = -ENODEV;
+		break;
+	case POWER_SUPPLY_PROP_TEMP_AMBIENT:
+		/* in thenth of centigrade */
+		if (cm->last_temp_mC == INT_MIN)
+			desc->temperature_out_of_range(&cm->last_temp_mC);
+		val->intval = cm->last_temp_mC / 100;
+		if (desc->measure_battery_temp)
+			ret = -ENODEV;
+		break;
+	case POWER_SUPPLY_PROP_CAPACITY:
+		if (!cm->fuel_gauge) {
+			ret = -ENODEV;
+			break;
+		}
+
+		if (!is_batt_present(cm)) {
+			/* There is no battery. Assume 100% */
+			val->intval = 100;
+			break;
+		}
+
+		ret = cm->fuel_gauge->get_property(cm->fuel_gauge,
+					POWER_SUPPLY_PROP_CAPACITY, val);
+		if (ret)
+			break;
+
+		if (val->intval > 100) {
+			val->intval = 100;
+			break;
+		}
+		if (val->intval < 0)
+			val->intval = 0;
+
+		/* Do not adjust SOC when charging: voltage is overrated */
+		if (is_charging(cm))
+			break;
+
+		/*
+		 * If the capacity value is inconsistent, calibrate it base on
+		 * the battery voltage values and the thresholds given as desc
+		 */
+		ret = get_batt_uV(cm, &uV);
+		if (ret) {
+			/* Voltage information not available. No calibration */
+			ret = 0;
+			break;
+		}
+
+		if (desc->fullbatt_uV > 0 && uV >= desc->fullbatt_uV &&
+		    !is_charging(cm)) {
+			val->intval = 100;
+			break;
+		}
+
+		break;
+	case POWER_SUPPLY_PROP_ONLINE:
+		if (is_ext_pwr_online(cm))
+			val->intval = 1;
+		else
+			val->intval = 0;
+		break;
+	case POWER_SUPPLY_PROP_CHARGE_FULL:
+		if (cm->fuel_gauge) {
+			if (cm->fuel_gauge->get_property(cm->fuel_gauge,
+			    POWER_SUPPLY_PROP_CHARGE_FULL, val) == 0)
+				break;
+		}
+
+		if (is_ext_pwr_online(cm)) {
+			/* Not full if it's charging. */
+			if (is_charging(cm)) {
+				val->intval = 0;
+				break;
+			}
+			/*
+			 * Full if it's powered but not charging andi
+			 * not forced stop by emergency
+			 */
+			if (!cm->emergency_stop) {
+				val->intval = 1;
+				break;
+			}
+		}
+
+		/* Full if it's over the fullbatt voltage */
+		ret = get_batt_uV(cm, &uV);
+		if (!ret && desc->fullbatt_uV > 0 && uV >= desc->fullbatt_uV &&
+		    !is_charging(cm)) {
+			val->intval = 1;
+			break;
+		}
+
+		/* Full if the cap is 100 */
+		if (cm->fuel_gauge) {
+			ret = cm->fuel_gauge->get_property(cm->fuel_gauge,
+					POWER_SUPPLY_PROP_CAPACITY, val);
+			if (!ret && val->intval >= 100 && !is_charging(cm)) {
+				val->intval = 1;
+				break;
+			}
+		}
+
+		val->intval = 0;
+		ret = 0;
+		break;
+	case POWER_SUPPLY_PROP_CHARGE_NOW:
+		if (is_charging(cm)) {
+			ret = cm->fuel_gauge->get_property(cm->fuel_gauge,
+						POWER_SUPPLY_PROP_CHARGE_NOW,
+						val);
+			if (ret) {
+				val->intval = 1;
+				ret = 0;
+			} else {
+				/* If CHARGE_NOW is supplied, use it */
+				val->intval = (val->intval > 0) ?
+						val->intval : 1;
+			}
+		} else {
+			val->intval = 0;
+		}
+		break;
+	default:
+		return -EINVAL;
+	}
+	return ret;
+}
+
+#define NUM_CHARGER_PSY_OPTIONAL	(4)
+static enum power_supply_property default_charger_props[] = {
+	/* Guaranteed to provide */
+	POWER_SUPPLY_PROP_STATUS,
+	POWER_SUPPLY_PROP_HEALTH,
+	POWER_SUPPLY_PROP_PRESENT,
+	POWER_SUPPLY_PROP_VOLTAGE_NOW,
+	POWER_SUPPLY_PROP_CAPACITY,
+	POWER_SUPPLY_PROP_ONLINE,
+	POWER_SUPPLY_PROP_CHARGE_FULL,
+	/*
+	 * Optional properties are:
+	 * POWER_SUPPLY_PROP_CHARGE_NOW,
+	 * POWER_SUPPLY_PROP_CURRENT_NOW,
+	 * POWER_SUPPLY_PROP_TEMP, and
+	 * POWER_SUPPLY_PROP_TEMP_AMBIENT,
+	 */
+};
+
+static struct power_supply psy_default = {
+	.name = "battery",
+	.type = POWER_SUPPLY_TYPE_BATTERY,
+	.properties = default_charger_props,
+	.num_properties = ARRAY_SIZE(default_charger_props),
+	.get_property = charger_get_property,
+};
+
 /**
  * cm_setup_timer - For in-suspend monitoring setup wakeup alarm
  *		    for suspend_again.
@@ -532,6 +760,7 @@ static int charger_manager_probe(struct platform_device *pdev)
 	struct charger_desc *desc = dev_get_platdata(&pdev->dev);
 	struct charger_manager *cm;
 	int ret = 0, i = 0;
+	union power_supply_propval val;
 
 	if (g_desc && !rtc_dev && g_desc->rtc_name) {
 		rtc_dev = rtc_class_open(g_desc->rtc_name);
@@ -626,11 +855,68 @@ static int charger_manager_probe(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, cm);
 
+	memcpy(&cm->charger_psy, &psy_default,
+				sizeof(psy_default));
+	if (!desc->psy_name) {
+		strncpy(cm->psy_name_buf, psy_default.name,
+				PSY_NAME_MAX);
+	} else {
+		strncpy(cm->psy_name_buf, desc->psy_name, PSY_NAME_MAX);
+	}
+	cm->charger_psy.name = cm->psy_name_buf;
+
+	/* Allocate for psy properties because they may vary */
+	cm->charger_psy.properties = kzalloc(sizeof(enum power_supply_property)
+				* (ARRAY_SIZE(default_charger_props) +
+				NUM_CHARGER_PSY_OPTIONAL),
+				GFP_KERNEL);
+	if (!cm->charger_psy.properties) {
+		dev_err(&pdev->dev, "Cannot allocate for psy properties.\n");
+		ret = -ENOMEM;
+		goto err_chg_stat;
+	}
+	memcpy(cm->charger_psy.properties, default_charger_props,
+		sizeof(enum power_supply_property) *
+		ARRAY_SIZE(default_charger_props));
+	cm->charger_psy.num_properties = psy_default.num_properties;
+
+	/* Find which optional psy-properties are available */
+	if (!cm->fuel_gauge->get_property(cm->fuel_gauge,
+					  POWER_SUPPLY_PROP_CHARGE_NOW, &val)) {
+		cm->charger_psy.properties[cm->charger_psy.num_properties] =
+				POWER_SUPPLY_PROP_CHARGE_NOW;
+		cm->charger_psy.num_properties++;
+	}
+	if (!cm->fuel_gauge->get_property(cm->fuel_gauge,
+					  POWER_SUPPLY_PROP_CURRENT_NOW,
+					  &val)) {
+		cm->charger_psy.properties[cm->charger_psy.num_properties] =
+				POWER_SUPPLY_PROP_CURRENT_NOW;
+		cm->charger_psy.num_properties++;
+	}
+	if (!desc->measure_battery_temp) {
+		cm->charger_psy.properties[cm->charger_psy.num_properties] =
+				POWER_SUPPLY_PROP_TEMP_AMBIENT;
+		cm->charger_psy.num_properties++;
+	}
+	if (desc->measure_battery_temp) {
+		cm->charger_psy.properties[cm->charger_psy.num_properties] =
+				POWER_SUPPLY_PROP_TEMP;
+		cm->charger_psy.num_properties++;
+	}
+
+	ret = power_supply_register(NULL, &cm->charger_psy);
+	if (ret) {
+		dev_err(&pdev->dev, "Cannot register charger-manager with"
+				" name \"%s\".\n", cm->charger_psy.name);
+		goto err_register;
+	}
+
 	ret = regulator_bulk_get(&pdev->dev, desc->num_charger_regulators,
 				 desc->charger_regulators);
 	if (ret) {
 		dev_err(&pdev->dev, "Cannot get charger regulators.\n");
-		goto err_chg_stat;
+		goto err_bulk_get;
 	}
 
 	ret = try_charger_enable(cm, true);
@@ -650,6 +936,10 @@ err_chg_enable:
 	if (desc->charger_regulators)
 		regulator_bulk_free(desc->num_charger_regulators,
 					desc->charger_regulators);
+err_bulk_get:
+	power_supply_unregister(&cm->charger_psy);
+err_register:
+	kfree(cm->charger_psy.properties);
 err_chg_stat:
 	kfree(cm->charger_stat);
 err_no_charger_stat:
@@ -674,6 +964,9 @@ static int __devexit charger_manager_remove(struct platform_device *pdev)
 	if (desc->charger_regulators)
 		regulator_bulk_free(desc->num_charger_regulators,
 					desc->charger_regulators);
+
+	power_supply_unregister(&cm->charger_psy);
+	kfree(cm->charger_psy.properties);
 	kfree(cm->charger_stat);
 	kfree(cm->desc);
 	kfree(cm);

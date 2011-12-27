@@ -47,8 +47,12 @@ struct charger_global_desc {
 
 /**
  * struct charger_desc
+ * @psy_name: the name of power-supply-class for charger manager
  * @polling_mode:
  *	Determine which polling mode will be used
+ * @fullbatt_uV: voltage in microvolt
+ *	If it is not being charged and VBATT >= fullbatt_uV,
+ *	it is assumed to be full.
  * @polling_interval_ms: interval in millisecond at which
  *	charger manager will monitor battery health
  * @battery_present:
@@ -62,10 +66,17 @@ struct charger_global_desc {
  *	return_value > 0: overheat
  *	return_value == 0: normal
  *	return_value < 0: cold
+ * @measure_battery_temp:
+ *	true: measure battery temperature
+ *	false: measure ambient temperature
  */
 struct charger_desc {
+	char *psy_name;
+
 	enum polling_modes polling_mode;
 	unsigned int polling_interval_ms;
+
+	unsigned int fullbatt_uV;
 
 	enum data_source battery_present;
 
@@ -77,6 +88,7 @@ struct charger_desc {
 	char *psy_fuel_gauge;
 
 	int (*temperature_out_of_range)(int *mC);
+	bool measure_battery_temp;
 };
 
 #define PSY_NAME_MAX	30
@@ -92,6 +104,8 @@ struct charger_desc {
  * @emergency_stop:
  *	When setting true, stop charging
  * @last_temp_mC: the measured temperature in milli-Celsius
+ * @psy_name_buf: the name of power-supply-class for charger manager
+ * @charger_psy: power_supply for charger manager
  * @status_save_ext_pwr_inserted:
  *	saved status of external power before entering suspend-to-RAM
  * @status_save_batt:
@@ -109,6 +123,9 @@ struct charger_manager {
 
 	int emergency_stop;
 	int last_temp_mC;
+
+	char psy_name_buf[PSY_NAME_MAX + 1];
+	struct power_supply charger_psy;
 
 	bool status_save_ext_pwr_inserted;
 	bool status_save_batt;

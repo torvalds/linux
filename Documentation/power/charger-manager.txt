@@ -98,6 +98,11 @@ battery), an instance of Charger Manager is attached to it.
 
 struct charger_desc {
 
+char *psy_name;
+	: The power-supply-class name of the battery. Default is
+	"battery" if psy_name is NULL. Users can access the psy entries
+	at "/sys/class/power_supply/[psy_name]/".
+
 enum polling_modes polling_mode;
 	: CM_POLL_DISABLE: do not poll this battery.
 	  CM_POLL_ALWAYS: always poll this battery.
@@ -105,6 +110,12 @@ enum polling_modes polling_mode;
 				       an external power source is attached.
 	  CM_POLL_CHARGING_ONLY: poll this battery if and only if the
 				 battery is being charged.
+
+unsigned int fullbatt_uV;
+	: If specified with a non-zero value, Charger Manager assumes
+	that the battery is full (capacity = 100) if the battery is not being
+	charged and the battery voltage is equal to or greater than
+	fullbatt_uV.
 
 unsigned int polling_interval_ms;
 	: Required polling interval in ms. Charger Manager will poll
@@ -131,10 +142,13 @@ char *psy_fuel_gauge;
 	: Power-supply-class name of the fuel gauge.
 
 int (*temperature_out_of_range)(int *mC);
+bool measure_battery_temp;
 	: This callback returns 0 if the temperature is safe for charging,
 	a positive number if it is too hot to charge, and a negative number
 	if it is too cold to charge. With the variable mC, the callback returns
 	the temperature in 1/1000 of centigrade.
+	The source of temperature can be battery or ambient one according to
+	the value of measure_battery_temp.
 };
 
 5. Other Considerations
