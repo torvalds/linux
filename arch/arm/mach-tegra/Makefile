@@ -1,3 +1,4 @@
+obj-y                                   += board-pinmux.o
 obj-y                                   += common.o
 obj-y                                   += devices.o
 obj-y                                   += io.o
