@@ -70,7 +70,7 @@ static const struct fb_videomode grvga_modedb[] = {
     }
  };
 
-static struct fb_fix_screeninfo grvga_fix __initdata = {
+static struct fb_fix_screeninfo grvga_fix __devinitdata = {
 	.id =		"AG SVGACTRL",
 	.type =		FB_TYPE_PACKED_PIXELS,
 	.visual =       FB_VISUAL_PSEUDOCOLOR,
@@ -267,7 +267,7 @@ static struct fb_ops grvga_ops = {
 	.fb_imageblit	= cfb_imageblit
 };
 
-static int __init grvga_parse_custom(char *options,
+static int __devinit grvga_parse_custom(char *options,
 				     struct fb_var_screeninfo *screendata)
 {
 	char *this_opt;
