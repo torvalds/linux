@@ -82,6 +82,11 @@ config EXYNOS4_DEV_DWMCI
 	help
 	  Compile in platform device definitions for DWMCI
 
+config EXYNOS4_DEV_USB_OHCI
+	bool
+	help
+	  Compile in platform device definition for USB OHCI
+
 config EXYNOS4_SETUP_I2C1
 	bool
 	help
@@ -179,6 +184,7 @@ config MACH_SMDKV310
 	select SAMSUNG_DEV_KEYPAD
 	select EXYNOS4_DEV_PD
 	select SAMSUNG_DEV_PWM
+	select EXYNOS4_DEV_USB_OHCI
 	select EXYNOS4_DEV_SYSMMU
 	select EXYNOS4_SETUP_FIMD0
 	select EXYNOS4_SETUP_I2C1
@@ -288,6 +294,7 @@ config MACH_ORIGEN
 	select SAMSUNG_DEV_BACKLIGHT
 	select SAMSUNG_DEV_PWM
 	select EXYNOS4_DEV_PD
+	select EXYNOS4_DEV_USB_OHCI
 	select EXYNOS4_SETUP_FIMD0
 	select EXYNOS4_SETUP_SDHCI
 	select EXYNOS4_SETUP_USB_PHY

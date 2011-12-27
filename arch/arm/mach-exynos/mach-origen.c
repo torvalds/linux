@@ -41,6 +41,7 @@
 #include <plat/fb.h>
 #include <plat/mfc.h>
 
+#include <mach/ohci.h>
 #include <mach/map.h>
 
 /* Following are default values for UCON, ULCON and UFCON UART registers */
@@ -483,6 +484,16 @@ static void __init origen_ehci_init(void)
 	s5p_ehci_set_platdata(pdata);
 }
 
+/* USB OHCI */
+static struct exynos4_ohci_platdata origen_ohci_pdata;
+
+static void __init origen_ohci_init(void)
+{
+	struct exynos4_ohci_platdata *pdata = &origen_ohci_pdata;
+
+	exynos4_ohci_set_platdata(pdata);
+}
+
 static struct gpio_keys_button origen_gpio_keys_table[] = {
 	{
 		.code			= KEY_MENU,
@@ -606,6 +617,7 @@ static struct platform_device *origen_devices[] __initdata = {
 	&s5p_device_mfc_l,
 	&s5p_device_mfc_r,
 	&s5p_device_mixer,
+	&exynos4_device_ohci,
 	&exynos4_device_pd[PD_LCD0],
 	&exynos4_device_pd[PD_TV],
 	&exynos4_device_pd[PD_G3D],
@@ -670,6 +682,7 @@ static void __init origen_machine_init(void)
 	s3c_sdhci0_set_platdata(&origen_hsmmc0_pdata);
 
 	origen_ehci_init();
+	origen_ohci_init();
 	clk_xusbxti.rate = 24000000;
 
 	s5p_tv_setup();
