@@ -92,17 +92,23 @@ static int __init hlt_setup(char *__unused)
 __setup("nohlt", nohlt_setup);
 __setup("hlt", hlt_setup);
 
-void soft_restart(unsigned long addr)
-{
-	/* Disable interrupts first */
-	local_irq_disable();
-	local_fiq_disable();
+extern void call_with_stack(void (*fn)(void *), void *arg, void *sp);
+typedef void (*phys_reset_t)(unsigned long);
 
-	/*
-	 * Tell the mm system that we are going to reboot -
-	 * we may need it to insert some 1:1 mappings so that
-	 * soft boot works.
-	 */
+/*
+ * A temporary stack to use for CPU reset. This is static so that we
+ * don't clobber it with the identity mapping. When running with this
+ * stack, any references to the current task *will not work* so you
+ * should really do as little as possible before jumping to your reset
+ * code.
+ */
+static u64 soft_restart_stack[16];
+
+static void __soft_restart(void *addr)
+{
+	phys_reset_t phys_reset;
+
+	/* Take out a flat memory mapping. */
 	setup_mm_for_reboot();
 
 	/* Clean and invalidate caches */
@@ -114,7 +120,31 @@ void soft_restart(unsigned long addr)
 	/* Push out any further dirty data, and ensure cache is empty */
 	flush_cache_all();
 
-	cpu_reset(addr);
+	/* Switch to the identity mapping. */
+	phys_reset = (phys_reset_t)(unsigned long)virt_to_phys(cpu_reset);
+	phys_reset((unsigned long)addr);
+
+	/* Should never get here. */
+	BUG();
+}
+
+void soft_restart(unsigned long addr)
+{
+	u64 *stack = soft_restart_stack + ARRAY_SIZE(soft_restart_stack);
+
+	/* Disable interrupts first */
+	local_irq_disable();
+	local_fiq_disable();
+
+	/* Disable the L2 if we're the last man standing. */
+	if (num_online_cpus() == 1)
+		outer_disable();
+
+	/* Change to the new stack and continue with the reset. */
+	call_with_stack(__soft_restart, (void *)addr, (void *)stack);
+
+	/* Should never get here. */
+	BUG();
 }
 
 void arm_machine_restart(char mode, const char *cmd)
