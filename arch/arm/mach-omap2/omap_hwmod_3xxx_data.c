@@ -3545,12 +3545,6 @@ static __initdata struct omap_hwmod *omap3xxx_hwmods[] = {
 	&omap3xxx_uart2_hwmod,
 	&omap3xxx_uart3_hwmod,
 
-	/* dss class */
-	&omap3xxx_dss_dispc_hwmod,
-	&omap3xxx_dss_dsi1_hwmod,
-	&omap3xxx_dss_rfbi_hwmod,
-	&omap3xxx_dss_venc_hwmod,
-
 	/* i2c class */
 	&omap3xxx_i2c1_hwmod,
 	&omap3xxx_i2c2_hwmod,
@@ -3657,6 +3651,15 @@ static __initdata struct omap_hwmod *am35xx_hwmods[] = {
 	NULL
 };
 
+static __initdata struct omap_hwmod *omap3xxx_dss_hwmods[] = {
+	/* dss class */
+	&omap3xxx_dss_dispc_hwmod,
+	&omap3xxx_dss_dsi1_hwmod,
+	&omap3xxx_dss_rfbi_hwmod,
+	&omap3xxx_dss_venc_hwmod,
+	NULL
+};
+
 int __init omap3xxx_hwmod_init(void)
 {
 	int r;
@@ -3730,6 +3733,21 @@ int __init omap3xxx_hwmod_init(void)
 
 	if (h)
 		r = omap_hwmod_register(h);
+	if (r < 0)
+		return r;
+
+	/*
+	 * DSS code presumes that dss_core hwmod is handled first,
+	 * _before_ any other DSS related hwmods so register common
+	 * DSS hwmods last to ensure that dss_core is already registered.
+	 * Otherwise some change things may happen, for ex. if dispc
+	 * is handled before dss_core and DSS is enabled in bootloader
+	 * DIPSC will be reset with outputs enabled which sometimes leads
+	 * to unrecoverable L3 error.
+	 * XXX The long-term fix to this is to ensure modules are set up
+	 * in dependency order in the hwmod core code.
+	 */
+	r = omap_hwmod_register(omap3xxx_dss_hwmods);
 
 	return r;
 }
