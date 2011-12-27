@@ -21,12 +21,6 @@
 #include <plat/gpio-cfg.h>
 #include <plat/irqs.h>
 
-static char *spi_src_clks[] = {
-	[S5PC100_SPI_SRCCLK_PCLK] = "pclk",
-	[S5PC100_SPI_SRCCLK_48M] = "spi_48m",
-	[S5PC100_SPI_SRCCLK_SPIBUS] = "spi_bus",
-};
-
 /* SPI Controller platform_devices */
 
 /* Since we emulate multi-cs capability, we do not touch the CS.
@@ -223,5 +217,4 @@ void __init s5pc100_spi_set_info(int cntrlr, int src_clk_nr, int num_cs)
 
 	pd->num_cs = num_cs;
 	pd->src_clk_nr = src_clk_nr;
-	pd->src_clk_name = spi_src_clks[src_clk_nr];
 }

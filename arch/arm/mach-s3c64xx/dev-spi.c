@@ -24,12 +24,6 @@
 #include <plat/gpio-cfg.h>
 #include <plat/devs.h>
 
-static char *spi_src_clks[] = {
-	[S3C64XX_SPI_SRCCLK_PCLK] = "pclk",
-	[S3C64XX_SPI_SRCCLK_SPIBUS] = "spi-bus",
-	[S3C64XX_SPI_SRCCLK_48M] = "spi_48m",
-};
-
 /* SPI Controller platform_devices */
 
 /* Since we emulate multi-cs capability, we do not touch the GPC-3,7.
@@ -176,5 +170,4 @@ void __init s3c64xx_spi_set_info(int cntrlr, int src_clk_nr, int num_cs)
 
 	pd->num_cs = num_cs;
 	pd->src_clk_nr = src_clk_nr;
-	pd->src_clk_name = spi_src_clks[src_clk_nr];
 }
