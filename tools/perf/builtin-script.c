@@ -536,12 +536,6 @@ static struct script_spec *script_spec__new(const char *spec,
 	return s;
 }
 
-static void script_spec__delete(struct script_spec *s)
-{
-	free(s->spec);
-	free(s);
-}
-
 static void script_spec__add(struct script_spec *s)
 {
 	list_add_tail(&s->node, &script_specs);
@@ -567,16 +561,11 @@ static struct script_spec *script_spec__findnew(const char *spec,
 
 	s = script_spec__new(spec, ops);
 	if (!s)
-		goto out_delete_spec;
+		return NULL;
 
 	script_spec__add(s);
 
 	return s;
-
-out_delete_spec:
-	script_spec__delete(s);
-
-	return NULL;
 }
 
 int script_spec_register(const char *spec, struct scripting_ops *ops)
