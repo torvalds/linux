@@ -31,7 +31,6 @@ struct mask_info {
 static int topology_enabled = 1;
 static void topology_work_fn(struct work_struct *work);
 static struct sysinfo_15_1_x *tl_info;
-static struct timer_list topology_timer;
 static void set_topology_timer(void);
 static DECLARE_WORK(topology_work, topology_work_fn);
 /* topology_lock protects the core linked list */
@@ -297,12 +296,30 @@ static void topology_timer_fn(unsigned long ignored)
 	set_topology_timer();
 }
 
+static struct timer_list topology_timer =
+	TIMER_DEFERRED_INITIALIZER(topology_timer_fn, 0, 0);
+
+static atomic_t topology_poll = ATOMIC_INIT(0);
+
 static void set_topology_timer(void)
 {
-	topology_timer.function = topology_timer_fn;
-	topology_timer.data = 0;
-	topology_timer.expires = jiffies + 60 * HZ;
-	add_timer(&topology_timer);
+	if (atomic_add_unless(&topology_poll, -1, 0))
+		mod_timer(&topology_timer, jiffies + HZ / 10);
+	else
+		mod_timer(&topology_timer, jiffies + HZ * 60);
+}
+
+void topology_expect_change(void)
+{
+	if (!MACHINE_HAS_TOPOLOGY)
+		return;
+	/* This is racy, but it doesn't matter since it is just a heuristic.
+	 * Worst case is that we poll in a higher frequency for a bit longer.
+	 */
+	if (atomic_read(&topology_poll) > 60)
+		return;
+	atomic_add(60, &topology_poll);
+	set_topology_timer();
 }
 
 static int __init early_parse_topology(char *p)
@@ -379,8 +396,10 @@ static ssize_t dispatching_store(struct sysdev_class *dev,
 	if (cpu_management == val)
 		goto out;
 	rc = topology_set_cpu_management(val);
-	if (!rc)
-		cpu_management = val;
+	if (rc)
+		goto out;
+	cpu_management = val;
+	topology_expect_change();
 out:
 	mutex_unlock(&smp_cpu_state_mutex);
 	put_online_cpus();
@@ -438,7 +457,6 @@ static int __init topology_init(void)
 		topology_update_polarization_simple();
 		goto out;
 	}
-	init_timer_deferrable(&topology_timer);
 	set_topology_timer();
 out:
 	update_cpu_core_map();

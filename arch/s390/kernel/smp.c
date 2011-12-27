@@ -867,6 +867,7 @@ static ssize_t cpu_configure_store(struct sys_device *dev,
 			if (!rc) {
 				smp_cpu_state[cpu] = CPU_STATE_STANDBY;
 				cpu_set_polarization(cpu, POLARIZATION_UNKNOWN);
+				topology_expect_change();
 			}
 		}
 		break;
@@ -876,6 +877,7 @@ static ssize_t cpu_configure_store(struct sys_device *dev,
 			if (!rc) {
 				smp_cpu_state[cpu] = CPU_STATE_CONFIGURED;
 				cpu_set_polarization(cpu, POLARIZATION_UNKNOWN);
+				topology_expect_change();
 			}
 		}
 		break;
