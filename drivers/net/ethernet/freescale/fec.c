@@ -255,7 +255,7 @@ struct fec_enet_private {
 #define FEC_MMFR_TA		(2 << 16)
 #define FEC_MMFR_DATA(v)	(v & 0xffff)
 
-#define FEC_MII_TIMEOUT		1000 /* us */
+#define FEC_MII_TIMEOUT		30000 /* us */
 
 /* Transmitter timeout */
 #define TX_TIMEOUT (2 * HZ)
