@@ -45,7 +45,7 @@
 
 void (*pgm_check_table[128])(struct pt_regs *regs);
 
-int show_unhandled_signals;
+int show_unhandled_signals = 1;
 
 #define stack_pointer ({ void **sp; asm("la %0,0(15)" : "=&d" (sp)); sp; })
 
