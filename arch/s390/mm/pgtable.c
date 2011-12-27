@@ -267,7 +267,10 @@ static int gmap_alloc_table(struct gmap *gmap,
 	struct page *page;
 	unsigned long *new;
 
+	/* since we dont free the gmap table until gmap_free we can unlock */
+	spin_unlock(&gmap->mm->page_table_lock);
 	page = alloc_pages(GFP_KERNEL, ALLOC_ORDER);
+	spin_lock(&gmap->mm->page_table_lock);
 	if (!page)
 		return -ENOMEM;
 	new = (unsigned long *) page_to_phys(page);
