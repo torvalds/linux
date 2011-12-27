@@ -693,6 +693,10 @@ config FSL_LBC
 	  controller.  Also contains some common code used by
 	  drivers for specific local bus peripherals.
 
+config FSL_IFC
+	bool
+        depends on FSL_SOC
+
 config FSL_GTM
 	bool
 	depends on PPC_83xx || QUICC_ENGINE || CPM2
