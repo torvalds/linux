@@ -2300,6 +2300,19 @@ static int ath6kl_del_beacon(struct wiphy *wiphy, struct net_device *dev)
 	return 0;
 }
 
+static const u8 bcast_addr[ETH_ALEN] = { 0xff, 0xff, 0xff, 0xff, 0xff, 0xff };
+
+static int ath6kl_del_station(struct wiphy *wiphy, struct net_device *dev,
+			      u8 *mac)
+{
+	struct ath6kl *ar = ath6kl_priv(dev);
+	struct ath6kl_vif *vif = netdev_priv(dev);
+	const u8 *addr = mac ? mac : bcast_addr;
+
+	return ath6kl_wmi_ap_set_mlme(ar->wmi, vif->fw_vif_idx, WMI_AP_DEAUTH,
+				      addr, WLAN_REASON_PREV_AUTH_NOT_VALID);
+}
+
 static int ath6kl_change_station(struct wiphy *wiphy, struct net_device *dev,
 				 u8 *mac, struct station_parameters *params)
 {
@@ -2603,6 +2616,7 @@ static struct cfg80211_ops ath6kl_cfg80211_ops = {
 	.add_beacon = ath6kl_add_beacon,
 	.set_beacon = ath6kl_set_beacon,
 	.del_beacon = ath6kl_del_beacon,
+	.del_station = ath6kl_del_station,
 	.change_station = ath6kl_change_station,
 	.remain_on_channel = ath6kl_remain_on_channel,
 	.cancel_remain_on_channel = ath6kl_cancel_remain_on_channel,
