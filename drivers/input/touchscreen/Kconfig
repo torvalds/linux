@@ -98,6 +98,19 @@ config TOUCHSCREEN_ATMEL_MXT
 	  To compile this driver as a module, choose M here: the
 	  module will be called atmel_mxt_ts.
 
+config TOUCHSCREEN_AUO_PIXCIR
+	tristate "AUO in-cell touchscreen using Pixcir ICs"
+	depends on I2C
+	depends on GPIOLIB
+	help
+	  Say Y here if you have a AUO display with in-cell touchscreen
+	  using Pixcir ICs.
+
+	  If unsure, say N.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called auo-pixcir-ts.
+
 config TOUCHSCREEN_BITSY
 	tristate "Compaq iPAQ H3600 (Bitsy) touchscreen"
 	depends on SA1100_BITSY
