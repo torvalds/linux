@@ -919,17 +919,15 @@ static int mtdchar_ioctl(struct file *file, u_int cmd, u_long arg)
 		struct otp_info *buf = kmalloc(4096, GFP_KERNEL);
 		if (!buf)
 			return -ENOMEM;
-		ret = -EOPNOTSUPP;
 		switch (mfi->mode) {
 		case MTD_FILE_MODE_OTP_FACTORY:
-			if (mtd->get_fact_prot_info)
-				ret = mtd_get_fact_prot_info(mtd, buf, 4096);
+			ret = mtd_get_fact_prot_info(mtd, buf, 4096);
 			break;
 		case MTD_FILE_MODE_OTP_USER:
-			if (mtd->get_user_prot_info)
-				ret = mtd_get_user_prot_info(mtd, buf, 4096);
+			ret = mtd_get_user_prot_info(mtd, buf, 4096);
 			break;
 		default:
+			ret = -EINVAL;
 			break;
 		}
 		if (ret >= 0) {

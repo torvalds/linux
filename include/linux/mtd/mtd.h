@@ -342,6 +342,8 @@ static inline int mtd_write_oob(struct mtd_info *mtd, loff_t to,
 static inline int mtd_get_fact_prot_info(struct mtd_info *mtd,
 					 struct otp_info *buf, size_t len)
 {
+	if (!mtd->get_fact_prot_info)
+		return -EOPNOTSUPP;
 	return mtd->get_fact_prot_info(mtd, buf, len);
 }
 
@@ -357,6 +359,8 @@ static inline int mtd_get_user_prot_info(struct mtd_info *mtd,
 					 struct otp_info *buf,
 					 size_t len)
 {
+	if (!mtd->get_user_prot_info)
+		return -EOPNOTSUPP;
 	return mtd->get_user_prot_info(mtd, buf, len);
 }
 
