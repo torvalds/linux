@@ -25,18 +25,7 @@ static int t5325_hw_params(struct snd_pcm_substream *substream,
 {
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
 	struct snd_soc_dai *codec_dai = rtd->codec_dai;
-	struct snd_soc_dai *cpu_dai = rtd->cpu_dai;
-	int ret;
-	unsigned int freq, fmt;
-
-	fmt = SND_SOC_DAIFMT_I2S | SND_SOC_DAIFMT_CBS_CFS;
-	ret = snd_soc_dai_set_fmt(cpu_dai, fmt);
-	if (ret < 0)
-		return ret;
-
-	ret = snd_soc_dai_set_fmt(codec_dai, fmt);
-	if (ret < 0)
-		return ret;
+	unsigned int freq;
 
 	freq = params_rate(params) * 256;
 
@@ -90,6 +79,7 @@ static struct snd_soc_dai_link t5325_dai[] = {
 	.platform_name = "kirkwood-pcm-audio",
 	.codec_dai_name = "alc5621-hifi",
 	.codec_name = "alc562x-codec.0-001a",
+	.dai_fmt = SND_SOC_DAIFMT_I2S | SND_SOC_DAIFMT_CBS_CFS,
 	.ops = &t5325_ops,
 	.init = t5325_dai_init,
 },
