@@ -113,10 +113,7 @@ void iwctl_giwrate(struct net_device *dev,
              char *extra);
 
 int iwctl_siwrts(struct net_device *dev,
-             struct iw_request_info *info,
-			 struct iw_param *wrq,
-             char *extra);
-
+		 struct iw_param *wrq);
 
 int iwctl_giwrts(struct net_device *dev,
              struct iw_request_info *info,

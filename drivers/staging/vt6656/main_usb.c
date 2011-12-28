@@ -1704,7 +1704,7 @@ static int  device_ioctl(struct net_device *dev, struct ifreq *rq, int cmd) {
 	// Set the desired RTS threshold
 	case SIOCSIWRTS:
 
-		rc = iwctl_siwrts(dev, NULL, &(wrq->u.rts), NULL);
+		rc = iwctl_siwrts(dev, &(wrq->u.rts));
 		break;
 
 	// Get the current RTS threshold

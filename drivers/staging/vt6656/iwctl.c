@@ -1010,27 +1010,19 @@ void iwctl_giwrate(struct net_device *dev,
 /*
  * Wireless Handler : set rts threshold
  */
-
 int iwctl_siwrts(struct net_device *dev,
-             struct iw_request_info *info,
-			 struct iw_param *wrq,
-             char *extra)
+		 struct iw_param *wrq)
 {
-	PSDevice	        pDevice = (PSDevice)netdev_priv(dev);
-	int rc = 0;
+	PSDevice pDevice = (PSDevice)netdev_priv(dev);
 
-    DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO " SIOCSIWRTS \n");
+	if ((wrq->value < 0 || wrq->value > 2312) && !wrq->disabled)
+		return -EINVAL;
 
-	{
-	    int rthr = wrq->value;
-	    if(wrq->disabled)
-			rthr = 2312;
-	    if((rthr < 0) || (rthr > 2312)) {
-			rc = -EINVAL;
-    	}else {
-		    pDevice->wRTSThreshold = rthr;
-	    }
-    }
+	else if (wrq->disabled)
+		pDevice->wRTSThreshold = 2312;
+
+	else
+		pDevice->wRTSThreshold = wrq->value;
 
 	return 0;
 }
