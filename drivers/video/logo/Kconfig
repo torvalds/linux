@@ -86,5 +86,8 @@ config LOGO_CHARGER_CLUT224
         bool "standard 224-color linux logo for rk2918 phone"
         default n
 
+config LOGO_G3_CLUT224
+	bool "Standard 224-color Linux logo for g3 phone"
+	default n
 
 endif # LOGO
