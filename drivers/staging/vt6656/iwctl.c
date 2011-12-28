@@ -505,7 +505,7 @@ void iwctl_giwmode(struct net_device *dev,
  * Wireless Handler : get capability range
  */
 
-int iwctl_giwrange(struct net_device *dev,
+void iwctl_giwrange(struct net_device *dev,
              struct iw_request_info *info,
              struct iw_point *wrq,
              char *extra)
@@ -600,9 +600,6 @@ int iwctl_giwrange(struct net_device *dev,
 		range->avg_qual.level = 176;	// -80 dBm
 		range->avg_qual.noise = 0;
 	}
-
-
-	return 0;
 }
 
 

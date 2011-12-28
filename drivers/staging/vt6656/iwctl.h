@@ -46,7 +46,7 @@ int iwctl_siwap(struct net_device *dev,
 			 struct sockaddr *wrq,
              char *extra);
 
-int iwctl_giwrange(struct net_device *dev,
+void iwctl_giwrange(struct net_device *dev,
              struct iw_request_info *info,
              struct iw_point *wrq,
              char *extra);
