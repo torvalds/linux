@@ -93,7 +93,7 @@
 
 static u32 ndisc_hash(const void *pkey,
 		      const struct net_device *dev,
-		      __u32 rnd);
+		      __u32 *hash_rnd);
 static int ndisc_constructor(struct neighbour *neigh);
 static void ndisc_solicit(struct neighbour *neigh, struct sk_buff *skb);
 static void ndisc_error_report(struct neighbour *neigh, struct sk_buff *skb);
@@ -349,16 +349,9 @@ EXPORT_SYMBOL(ndisc_mc_map);
 
 static u32 ndisc_hash(const void *pkey,
 		      const struct net_device *dev,
-		      __u32 hash_rnd)
+		      __u32 *hash_rnd)
 {
-	const u32 *p32 = pkey;
-	u32 addr_hash, i;
-
-	addr_hash = 0;
-	for (i = 0; i < (sizeof(struct in6_addr) / sizeof(u32)); i++)
-		addr_hash ^= *p32++;
-
-	return jhash_2words(addr_hash, dev->ifindex, hash_rnd);
+	return ndisc_hashfn(pkey, dev, hash_rnd);
 }
 
 static int ndisc_constructor(struct neighbour *neigh)

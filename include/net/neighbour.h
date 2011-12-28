@@ -139,10 +139,12 @@ struct pneigh_entry {
  *	neighbour table manipulation
  */
 
+#define NEIGH_NUM_HASH_RND	4
+
 struct neigh_hash_table {
 	struct neighbour __rcu	**hash_buckets;
 	unsigned int		hash_shift;
-	__u32			hash_rnd;
+	__u32			hash_rnd[NEIGH_NUM_HASH_RND];
 	struct rcu_head		rcu;
 };
 
@@ -154,7 +156,7 @@ struct neigh_table {
 	int			key_len;
 	__u32			(*hash)(const void *pkey,
 					const struct net_device *dev,
-					__u32 hash_rnd);
+					__u32 *hash_rnd);
 	int			(*constructor)(struct neighbour *);
 	int			(*pconstructor)(struct pneigh_entry *);
 	void			(*pdestructor)(struct pneigh_entry *);

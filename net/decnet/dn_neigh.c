@@ -88,9 +88,9 @@ static const struct neigh_ops dn_phase3_ops = {
 
 static u32 dn_neigh_hash(const void *pkey,
 			 const struct net_device *dev,
-			 __u32 hash_rnd)
+			 __u32 *hash_rnd)
 {
-	return jhash_2words(*(__u16 *)pkey, 0, hash_rnd);
+	return jhash_2words(*(__u16 *)pkey, 0, hash_rnd[0]);
 }
 
 struct neigh_table dn_neigh_table = {

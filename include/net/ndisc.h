@@ -79,6 +79,15 @@ struct nd_opt_hdr {
 	__u8		nd_opt_len;
 } __packed;
 
+static inline u32 ndisc_hashfn(const void *pkey, const struct net_device *dev, __u32 *hash_rnd)
+{
+	const u32 *p32 = pkey;
+
+	return (((p32[0] ^ dev->ifindex) * hash_rnd[0]) +
+		(p32[1] * hash_rnd[1]) +
+		(p32[2] * hash_rnd[2]) +
+		(p32[3] * hash_rnd[3]));
+}
 
 extern int			ndisc_init(void);
 

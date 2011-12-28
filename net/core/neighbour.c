@@ -322,11 +322,18 @@ out_entries:
 	goto out;
 }
 
+static void neigh_get_hash_rnd(u32 *x)
+{
+	get_random_bytes(x, sizeof(*x));
+	*x |= 1;
+}
+
 static struct neigh_hash_table *neigh_hash_alloc(unsigned int shift)
 {
 	size_t size = (1 << shift) * sizeof(struct neighbour *);
 	struct neigh_hash_table *ret;
 	struct neighbour __rcu **buckets;
+	int i;
 
 	ret = kmalloc(sizeof(*ret), GFP_ATOMIC);
 	if (!ret)
@@ -343,8 +350,8 @@ static struct neigh_hash_table *neigh_hash_alloc(unsigned int shift)
 	}
 	ret->hash_buckets = buckets;
 	ret->hash_shift = shift;
-	get_random_bytes(&ret->hash_rnd, sizeof(ret->hash_rnd));
-	ret->hash_rnd |= 1;
+	for (i = 0; i < NEIGH_NUM_HASH_RND; i++)
+		neigh_get_hash_rnd(&ret->hash_rnd[i]);
 	return ret;
 }
 
@@ -1828,7 +1835,7 @@ static int neightbl_fill_info(struct sk_buff *skb, struct neigh_table *tbl,
 
 		rcu_read_lock_bh();
 		nht = rcu_dereference_bh(tbl->nht);
-		ndc.ndtc_hash_rnd = nht->hash_rnd;
+		ndc.ndtc_hash_rnd = nht->hash_rnd[0];
 		ndc.ndtc_hash_mask = ((1 << nht->hash_shift) - 1);
 		rcu_read_unlock_bh();
 
