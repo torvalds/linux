@@ -29,9 +29,12 @@ EXPORT_SYMBOL(at91_soc_initdata);
 void __init at91rm9200_set_type(int type)
 {
 	if (type == ARCH_REVISON_9200_PQFP)
-		at91_soc_initdata.subtype = AT91_SOC_RM9200_BGA;
-	else
 		at91_soc_initdata.subtype = AT91_SOC_RM9200_PQFP;
+	else
+		at91_soc_initdata.subtype = AT91_SOC_RM9200_BGA;
+
+	pr_info("AT91: filled in soc subtype: %s\n",
+		at91_get_soc_subtype(&at91_soc_initdata));
 }
 
 void __init at91_init_irq_default(void)
