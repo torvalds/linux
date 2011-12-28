@@ -598,6 +598,8 @@ struct em28xx {
 	int max_pkt_size;	/* max packet size of isoc transaction */
 	int num_alt;		/* Number of alternative settings */
 	unsigned int *alt_max_pkt_size;	/* array of wMaxPacketSize */
+	int dvb_alt;				/* alternate for DVB */
+	unsigned int dvb_max_pkt_size;		/* wMaxPacketSize for DVB */
 	struct urb *urb[EM28XX_NUM_BUFS];	/* urb for isoc transfers */
 	char *transfer_buffer[EM28XX_NUM_BUFS];	/* transfer buffers for isoc
 						   transfer */

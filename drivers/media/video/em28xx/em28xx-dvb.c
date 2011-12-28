@@ -164,12 +164,12 @@ static int em28xx_start_streaming(struct em28xx_dvb *dvb)
 	struct em28xx *dev = dvb->adapter.priv;
 	int max_dvb_packet_size;
 
-	usb_set_interface(dev->udev, 0, 1);
+	usb_set_interface(dev->udev, 0, dev->dvb_alt);
 	rc = em28xx_set_mode(dev, EM28XX_DIGITAL_MODE);
 	if (rc < 0)
 		return rc;
 
-	max_dvb_packet_size = em28xx_isoc_dvb_max_packetsize(dev);
+	max_dvb_packet_size = dev->dvb_max_pkt_size;
 	if (max_dvb_packet_size < 0)
 		return max_dvb_packet_size;
 	dprintk(1, "Using %d buffers each with %d bytes\n",
