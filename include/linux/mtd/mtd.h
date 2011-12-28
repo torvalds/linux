@@ -320,6 +320,8 @@ static inline int mtd_read_oob(struct mtd_info *mtd, loff_t from,
 			       struct mtd_oob_ops *ops)
 {
 	ops->retlen = ops->oobretlen = 0;
+	if (!mtd->read_oob)
+		return -EOPNOTSUPP;
 	return mtd->read_oob(mtd, from, ops);
 }
 
@@ -327,6 +329,8 @@ static inline int mtd_write_oob(struct mtd_info *mtd, loff_t to,
 				struct mtd_oob_ops *ops)
 {
 	ops->retlen = ops->oobretlen = 0;
+	if (!mtd->write_oob)
+		return -EOPNOTSUPP;
 	return mtd->write_oob(mtd, to, ops);
 }
 

@@ -452,13 +452,8 @@ static int mtdchar_readoob(struct file *file, struct mtd_info *mtd,
 	if (length > 4096)
 		return -EINVAL;
 
-	if (!mtd->read_oob)
-		ret = -EOPNOTSUPP;
-	else
-		ret = access_ok(VERIFY_WRITE, ptr,
-				length) ? 0 : -EFAULT;
-	if (ret)
-		return ret;
+	if (!access_ok(VERIFY_WRITE, ptr, length))
+		return -EFAULT;
 
 	ops.ooblen = length;
 	ops.ooboffs = start & (mtd->writesize - 1);
