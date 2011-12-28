@@ -856,8 +856,7 @@ int iwctl_siwessid(struct net_device *dev,
 /*
  * Wireless Handler : get essid
  */
-
-int iwctl_giwessid(struct net_device *dev,
+void iwctl_giwessid(struct net_device *dev,
              struct iw_request_info *info,
              struct iw_point *wrq,
              char *extra)
@@ -879,8 +878,6 @@ int iwctl_giwessid(struct net_device *dev,
 
         wrq->length = pItemSSID->len;
 	wrq->flags = 1; // active
-
-	return 0;
 }
 
 /*
