@@ -965,8 +965,7 @@ int iwctl_siwrate(struct net_device *dev,
 /*
  * Wireless Handler : get data rate
  */
-
-int iwctl_giwrate(struct net_device *dev,
+void iwctl_giwrate(struct net_device *dev,
              struct iw_request_info *info,
              struct iw_param *wrq,
              char *extra)
@@ -1004,9 +1003,6 @@ int iwctl_giwrate(struct net_device *dev,
 	    if (pDevice->bFixRate == TRUE)
 	        wrq->fixed = TRUE;
     }
-
-
-	return 0;
 }
 
 
