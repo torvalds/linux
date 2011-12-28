@@ -792,6 +792,15 @@ static int ctrl_getfamily(struct sk_buff *skb, struct genl_info *info)
 
 		name = nla_data(info->attrs[CTRL_ATTR_FAMILY_NAME]);
 		res = genl_family_find_byname(name);
+#ifdef CONFIG_MODULES
+		if (res == NULL) {
+			genl_unlock();
+			request_module("net-pf-%d-proto-%d-type-%s",
+				       PF_NETLINK, NETLINK_GENERIC, name);
+			genl_lock();
+			res = genl_family_find_byname(name);
+		}
+#endif
 		err = -ENOENT;
 	}
 
