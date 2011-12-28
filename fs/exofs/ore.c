@@ -266,7 +266,7 @@ int  ore_get_rw_state(struct ore_layout *layout, struct ore_components *oc,
 
 			/* first/last seg is split */
 			num_raid_units += layout->group_width;
-			sgs_per_dev = div_u64(num_raid_units, data_devs);
+			sgs_per_dev = div_u64(num_raid_units, data_devs) + 2;
 		} else {
 			/* For Writes add parity pages array. */
 			max_par_pages = num_raid_units * pages_in_unit *

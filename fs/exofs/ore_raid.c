@@ -551,7 +551,11 @@ int _ore_add_parity_unit(struct ore_io_state *ios,
 			    unsigned cur_len)
 {
 	if (ios->reading) {
-		BUG_ON(per_dev->cur_sg >= ios->sgs_per_dev);
+		if (per_dev->cur_sg >= ios->sgs_per_dev) {
+			ORE_DBGMSG("cur_sg(%d) >= sgs_per_dev(%d)\n" ,
+				per_dev->cur_sg, ios->sgs_per_dev);
+			return -ENOMEM;
+		}
 		_ore_add_sg_seg(per_dev, cur_len, true);
 	} else {
 		struct __stripe_pages_2d *sp2d = ios->sp2d;
