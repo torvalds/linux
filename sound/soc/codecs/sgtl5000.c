@@ -1076,7 +1076,7 @@ static int sgtl5000_set_power_regs(struct snd_soc_codec *codec)
 	/* according to datasheet, maximum voltage of supplies */
 	if (vdda > 3600 || vddio > 3600 || vddd > 1980) {
 		dev_err(codec->dev,
-			"exceed max voltage vdda %dmv vddio %dma vddd %dma\n",
+			"exceed max voltage vdda %dmV vddio %dmV vddd %dmV\n",
 			vdda, vddio, vddd);
 
 		return -EINVAL;
