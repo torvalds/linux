@@ -454,6 +454,11 @@ static inline uint32_t mtd_mod_by_ws(uint64_t sz, struct mtd_info *mtd)
 	return do_div(sz, mtd->writesize);
 }
 
+static inline int mtd_has_oob(const struct mtd_info *mtd)
+{
+	return mtd->read_oob && mtd->write_oob;
+}
+
 	/* Kernel-side ioctl definitions */
 
 struct mtd_partition;

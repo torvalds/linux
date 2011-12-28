@@ -1004,7 +1004,7 @@ static int mtdchar_ioctl(struct file *file, u_int cmd, u_long arg)
 			break;
 
 		case MTD_FILE_MODE_RAW:
-			if (!mtd->read_oob || !mtd->write_oob)
+			if (!mtd_has_oob(mtd))
 				return -EOPNOTSUPP;
 			mfi->mode = arg;
 

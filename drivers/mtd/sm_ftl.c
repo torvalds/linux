@@ -645,8 +645,8 @@ int sm_get_media_info(struct sm_ftl *ftl, struct mtd_info *mtd)
 	if (!ftl->smallpagenand && mtd->oobsize < SM_OOB_SIZE)
 		return -ENODEV;
 
-	/* We use these functions for IO */
-	if (!mtd->read_oob || !mtd->write_oob)
+	/* We use OOB */
+	if (!mtd_has_oob(mtd))
 		return -ENODEV;
 
 	/* Find geometry information */
