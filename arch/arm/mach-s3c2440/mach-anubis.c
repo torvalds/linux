@@ -96,22 +96,6 @@ static struct map_desc anubis_iodesc[] __initdata = {
 #define ULCON S3C2410_LCON_CS8 | S3C2410_LCON_PNONE | S3C2410_LCON_STOPB
 #define UFCON S3C2410_UFCON_RXTRIG8 | S3C2410_UFCON_FIFOMODE
 
-static struct s3c24xx_uart_clksrc anubis_serial_clocks[] = {
-	[0] = {
-		.name		= "uclk",
-		.divisor	= 1,
-		.min_baud	= 0,
-		.max_baud	= 0,
-	},
-	[1] = {
-		.name		= "pclk",
-		.divisor	= 1,
-		.min_baud	= 0,
-		.max_baud	= 0,
-	}
-};
-
-
 static struct s3c2410_uartcfg anubis_uartcfgs[] __initdata = {
 	[0] = {
 		.hwport	     = 0,
@@ -119,8 +103,7 @@ static struct s3c2410_uartcfg anubis_uartcfgs[] __initdata = {
 		.ucon	     = UCON,
 		.ulcon	     = ULCON,
 		.ufcon	     = UFCON,
-		.clocks	     = anubis_serial_clocks,
-		.clocks_size = ARRAY_SIZE(anubis_serial_clocks),
+		.clk_sel	= S3C2410_UCON_CLKSEL1 | S3C2410_UCON_CLKSEL2,
 	},
 	[1] = {
 		.hwport	     = 2,
@@ -128,8 +111,7 @@ static struct s3c2410_uartcfg anubis_uartcfgs[] __initdata = {
 		.ucon	     = UCON,
 		.ulcon	     = ULCON,
 		.ufcon	     = UFCON,
-		.clocks	     = anubis_serial_clocks,
-		.clocks_size = ARRAY_SIZE(anubis_serial_clocks),
+		.clk_sel	= S3C2410_UCON_CLKSEL1 | S3C2410_UCON_CLKSEL2,
 	},
 };
 

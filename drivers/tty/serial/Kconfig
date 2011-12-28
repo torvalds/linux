@@ -457,7 +457,7 @@ config SERIAL_SAMSUNG
 config SERIAL_SAMSUNG_UARTS_4
 	bool
 	depends on ARM && PLAT_SAMSUNG
-	default y if CPU_S3C2443
+	default y if !(CPU_S3C2410 || SERIAL_S3C2412 || CPU_S3C2440 || CPU_S3C2442)
 	help
 	  Internal node for the common case of 4 Samsung compatible UARTs
 
@@ -465,7 +465,7 @@ config SERIAL_SAMSUNG_UARTS
 	int
 	depends on ARM && PLAT_SAMSUNG
 	default 6 if ARCH_S5P6450
-	default 4 if SERIAL_SAMSUNG_UARTS_4
+	default 4 if SERIAL_SAMSUNG_UARTS_4 || CPU_S3C2416
 	default 3
 	help
 	  Select the number of available UART ports for the Samsung S3C
@@ -494,47 +494,6 @@ config SERIAL_SAMSUNG_CONSOLE
 	  "console=ttySACx". (Try "man bootparam" or see the documentation of
 	  your boot loader about how to pass options to the kernel at
 	  boot time.)
-
-config SERIAL_S3C2410
-	tristate "Samsung S3C2410 Serial port support"
-	depends on SERIAL_SAMSUNG && CPU_S3C2410
-	default y if CPU_S3C2410
-	help
-	  Serial port support for the Samsung S3C2410 SoC
-
-config SERIAL_S3C2412
-	tristate "Samsung S3C2412/S3C2413 Serial port support"
-	depends on SERIAL_SAMSUNG && CPU_S3C2412
-	default y if CPU_S3C2412
-	help
-	  Serial port support for the Samsung S3C2412 and S3C2413 SoC
-
-config SERIAL_S3C2440
-	tristate "Samsung S3C2440/S3C2442/S3C2416 Serial port support"
-	depends on SERIAL_SAMSUNG && (CPU_S3C2440 || CPU_S3C2442 || CPU_S3C2416)
-	default y if CPU_S3C2440
-	default y if CPU_S3C2442
-	select SERIAL_SAMSUNG_UARTS_4 if CPU_S3C2416
-	help
-	  Serial port support for the Samsung S3C2440, S3C2416 and S3C2442 SoC
-
-config SERIAL_S3C6400
-	tristate "Samsung S3C6400/S3C6410/S5P6440/S5P6450/S5PC100 Serial port support"
-	depends on SERIAL_SAMSUNG && (CPU_S3C6400 || CPU_S3C6410 || CPU_S5P6440 || CPU_S5P6450 || CPU_S5PC100)
-	select SERIAL_SAMSUNG_UARTS_4
-	default y
-	help
-	  Serial port support for the Samsung S3C6400, S3C6410, S5P6440, S5P6450
-	  and S5PC100 SoCs
-
-config SERIAL_S5PV210
-	tristate "Samsung S5PV210 Serial port support"
-	depends on SERIAL_SAMSUNG && (CPU_S5PV210 || CPU_EXYNOS4210 || SOC_EXYNOS4212)
-	select SERIAL_SAMSUNG_UARTS_4 if (CPU_S5PV210 || CPU_EXYNOS4210 || SOC_EXYNOS4212)
-	default y
-	help
-	  Serial port support for Samsung's S5P Family of SoC's
-
 
 config SERIAL_MAX3100
 	tristate "MAX3100 support"
