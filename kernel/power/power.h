@@ -253,6 +253,11 @@ extern struct wake_lock main_wake_lock;
 extern suspend_state_t requested_suspend_state;
 #endif
 
+#ifdef CONFIG_SUSPEND_SYNC_WORKQUEUE
+extern void suspend_sys_sync_queue(void);
+extern int suspend_sys_sync_wait(void);
+#endif
+
 #ifdef CONFIG_USER_WAKELOCK
 ssize_t wake_lock_show(struct kobject *kobj, struct kobj_attribute *attr,
 			char *buf);
