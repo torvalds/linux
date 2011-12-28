@@ -4647,6 +4647,17 @@ int ext4_change_inode_journal_flag(struct inode *inode, int val)
 		return 0;
 	if (is_journal_aborted(journal))
 		return -EROFS;
+	/* We have to allocate physical blocks for delalloc blocks
+	 * before flushing journal. otherwise delalloc blocks can not
+	 * be allocated any more. even more truncate on delalloc blocks
+	 * could trigger BUG by flushing delalloc blocks in journal.
+	 * There is no delalloc block in non-journal data mode.
+	 */
+	if (val && test_opt(inode->i_sb, DELALLOC)) {
+		err = ext4_alloc_da_blocks(inode);
+		if (err < 0)
+			return err;
+	}
 
 	jbd2_journal_lock_updates(journal);
 	jbd2_journal_flush(journal);
