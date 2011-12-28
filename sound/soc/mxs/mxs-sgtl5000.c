@@ -105,6 +105,7 @@ static struct snd_soc_dai_link mxs_sgtl5000_dai[] = {
 
 static struct snd_soc_card mxs_sgtl5000 = {
 	.name		= "mxs_sgtl5000",
+	.owner		= THIS_MODULE,
 	.dai_link	= mxs_sgtl5000_dai,
 	.num_links	= ARRAY_SIZE(mxs_sgtl5000_dai),
 };
