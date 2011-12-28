@@ -85,16 +85,6 @@ struct iw_statistics *iwctl_get_wireless_stats(struct net_device *dev)
 	return &pDevice->wstats;
 }
 
-static int iwctl_commit(struct net_device *dev,
-			      struct iw_request_info *info,
-			      void *wrq,
-			      char *extra)
-{
-    DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO " SIOCSIWCOMMIT\n");
-
-	return 0;
-}
-
 /*
  * Wireless Handler : get protocol name
  */
@@ -1818,7 +1808,7 @@ int iwctl_siwmlme(struct net_device *dev,
 
 static const iw_handler		iwctl_handler[] =
 {
-	(iw_handler) iwctl_commit,      // SIOCSIWCOMMIT
+	(iw_handler) NULL,      /* SIOCSIWCOMMIT */
 	(iw_handler) NULL,      // SIOCGIWNAME
 	(iw_handler) NULL,				// SIOCSIWNWID
 	(iw_handler) NULL,				// SIOCGIWNWID
