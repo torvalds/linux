@@ -1104,6 +1104,10 @@ static void d40_config_write(struct d40_chan *d40c)
 		/* Set LIDX for lcla */
 		writel(lidx, chanbase + D40_CHAN_REG_SSELT);
 		writel(lidx, chanbase + D40_CHAN_REG_SDELT);
+
+		/* Clear LNK which will be used by d40_chan_has_events() */
+		writel(0, chanbase + D40_CHAN_REG_SSLNK);
+		writel(0, chanbase + D40_CHAN_REG_SDLNK);
 	}
 }
 
