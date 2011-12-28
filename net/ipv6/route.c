@@ -123,7 +123,20 @@ static u32 *ipv6_cow_metrics(struct dst_entry *dst, unsigned long old)
 
 static struct neighbour *ip6_neigh_lookup(const struct dst_entry *dst, const void *daddr)
 {
-	return __neigh_lookup_errno(&nd_tbl, daddr, dst->dev);
+	struct neighbour *n = __ipv6_neigh_lookup(&nd_tbl, dst->dev, daddr);
+	if (n)
+		return n;
+	return neigh_create(&nd_tbl, daddr, dst->dev);
+}
+
+static int rt6_bind_neighbour(struct rt6_info *rt)
+{
+	struct neighbour *n = ip6_neigh_lookup(&rt->dst, &rt->rt6i_gateway);
+	if (IS_ERR(n))
+		return PTR_ERR(n);
+	dst_set_neighbour(&rt->dst, n);
+
+	return 0;
 }
 
 static struct dst_ops ip6_dst_ops_template = {
@@ -714,7 +727,6 @@ static struct rt6_info *rt6_alloc_cow(const struct rt6_info *ort,
 	rt = ip6_rt_copy(ort, daddr);
 
 	if (rt) {
-		struct neighbour *neigh;
 		int attempts = !in_softirq();
 
 		if (!(rt->rt6i_flags & RTF_GATEWAY)) {
@@ -734,9 +746,7 @@ static struct rt6_info *rt6_alloc_cow(const struct rt6_info *ort,
 #endif
 
 	retry:
-		neigh = __neigh_lookup_errno(&nd_tbl, &rt->rt6i_gateway,
-					     rt->rt6i_dev);
-		if (IS_ERR(neigh)) {
+		if (rt6_bind_neighbour(rt)) {
 			struct net *net = dev_net(rt->rt6i_dev);
 			int saved_rt_min_interval =
 				net->ipv6.sysctl.ip6_rt_gc_min_interval;
@@ -762,8 +772,6 @@ static struct rt6_info *rt6_alloc_cow(const struct rt6_info *ort,
 			dst_free(&rt->dst);
 			return NULL;
 		}
-		dst_set_neighbour(&rt->dst, neigh);
-
 	}
 
 	return rt;
@@ -1078,7 +1086,7 @@ struct dst_entry *icmp6_dst_alloc(struct net_device *dev,
 	if (neigh)
 		neigh_hold(neigh);
 	else {
-		neigh = __neigh_lookup_errno(&nd_tbl, &fl6->daddr, dev);
+		neigh = ip6_neigh_lookup(&rt->dst, &fl6->daddr);
 		if (IS_ERR(neigh)) {
 			dst_free(&rt->dst);
 			return ERR_CAST(neigh);
@@ -1389,12 +1397,9 @@ int ip6_route_add(struct fib6_config *cfg)
 		rt->rt6i_prefsrc.plen = 0;
 
 	if (cfg->fc_flags & (RTF_GATEWAY | RTF_NONEXTHOP)) {
-		struct neighbour *n = __neigh_lookup_errno(&nd_tbl, &rt->rt6i_gateway, dev);
-		if (IS_ERR(n)) {
-			err = PTR_ERR(n);
+		err = rt6_bind_neighbour(rt);
+		if (err)
 			goto out;
-		}
-		dst_set_neighbour(&rt->dst, n);
 	}
 
 	rt->rt6i_flags = cfg->fc_flags;
@@ -2057,7 +2062,7 @@ struct rt6_info *addrconf_dst_alloc(struct inet6_dev *idev,
 	struct net *net = dev_net(idev->dev);
 	struct rt6_info *rt = ip6_dst_alloc(&net->ipv6.ip6_dst_ops,
 					    net->loopback_dev, 0);
-	struct neighbour *neigh;
+	int err;
 
 	if (!rt) {
 		if (net_ratelimit())
@@ -2079,13 +2084,11 @@ struct rt6_info *addrconf_dst_alloc(struct inet6_dev *idev,
 		rt->rt6i_flags |= RTF_ANYCAST;
 	else
 		rt->rt6i_flags |= RTF_LOCAL;
-	neigh = __neigh_lookup_errno(&nd_tbl, &rt->rt6i_gateway, rt->rt6i_dev);
-	if (IS_ERR(neigh)) {
+	err = rt6_bind_neighbour(rt);
+	if (err) {
 		dst_free(&rt->dst);
-
-		return ERR_CAST(neigh);
+		return ERR_PTR(err);
 	}
-	dst_set_neighbour(&rt->dst, neigh);
 
 	rt->rt6i_dst.addr = *addr;
 	rt->rt6i_dst.plen = 128;

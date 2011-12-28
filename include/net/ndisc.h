@@ -89,6 +89,33 @@ static inline u32 ndisc_hashfn(const void *pkey, const struct net_device *dev, _
 		(p32[3] * hash_rnd[3]));
 }
 
+static inline struct neighbour *__ipv6_neigh_lookup(struct neigh_table *tbl, struct net_device *dev, const void *pkey)
+{
+	struct neigh_hash_table *nht;
+	const u32 *p32 = pkey;
+	struct neighbour *n;
+	u32 hash_val;
+
+	rcu_read_lock_bh();
+	nht = rcu_dereference_bh(tbl->nht);
+	hash_val = ndisc_hashfn(pkey, dev, nht->hash_rnd) >> (32 - nht->hash_shift);
+	for (n = rcu_dereference_bh(nht->hash_buckets[hash_val]);
+	     n != NULL;
+	     n = rcu_dereference_bh(n->next)) {
+		u32 *n32 = (u32 *) n->primary_key;
+		if (n->dev == dev &&
+		    ((n32[0] ^ p32[0]) | (n32[1] ^ p32[1]) |
+		     (n32[2] ^ p32[2]) | (n32[3] ^ p32[3])) == 0) {
+			if (!atomic_inc_not_zero(&n->refcnt))
+				n = NULL;
+			break;
+		}
+	}
+	rcu_read_unlock_bh();
+
+	return n;
+}
+
 extern int			ndisc_init(void);
 
 extern void			ndisc_cleanup(void);
