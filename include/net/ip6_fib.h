@@ -199,6 +199,10 @@ struct fib6_node		*fib6_locate(struct fib6_node *root,
 					     const struct in6_addr *daddr, int dst_len,
 					     const struct in6_addr *saddr, int src_len);
 
+extern void			fib6_clean_all_ro(struct net *net,
+					       int (*func)(struct rt6_info *, void *arg),
+					       int prune, void *arg);
+
 extern void			fib6_clean_all(struct net *net,
 					       int (*func)(struct rt6_info *, void *arg),
 					       int prune, void *arg);
