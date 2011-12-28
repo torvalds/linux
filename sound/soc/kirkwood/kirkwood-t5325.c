@@ -59,11 +59,6 @@ static int t5325_dai_init(struct snd_soc_pcm_runtime *rtd)
 	struct snd_soc_codec *codec = rtd->codec;
 	struct snd_soc_dapm_context *dapm = &codec->dapm;
 
-	snd_soc_dapm_new_controls(dapm, t5325_dapm_widgets,
-				ARRAY_SIZE(t5325_dapm_widgets));
-
-	snd_soc_dapm_add_routes(dapm, t5325_route, ARRAY_SIZE(t5325_route));
-
 	snd_soc_dapm_enable_pin(dapm, "Mic Jack");
 	snd_soc_dapm_enable_pin(dapm, "Headphone Jack");
 	snd_soc_dapm_enable_pin(dapm, "Speaker");
@@ -91,6 +86,11 @@ static struct snd_soc_card t5325 = {
 	.owner = THIS_MODULE,
 	.dai_link = t5325_dai,
 	.num_links = ARRAY_SIZE(t5325_dai),
+
+	.dapm_widgets = t5325_dapm_widgets,
+	.num_dapm_widgets = ARRAY_SIZE(t5325_dapm_widgets),
+	.dapm_routes = t5325_route,
+	.num_dapm_routes = ARRAY_SIZE(t5325_route),
 };
 
 static struct platform_device *t5325_snd_device;
