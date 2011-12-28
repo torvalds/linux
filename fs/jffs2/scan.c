@@ -105,7 +105,7 @@ int jffs2_scan_medium(struct jffs2_sb_info *c)
 			mtd_unpoint(c->mtd, 0, pointlen);
 			flashbuf = NULL;
 		}
-		if (ret)
+		if (ret && ret != -EOPNOTSUPP)
 			D1(printk(KERN_DEBUG "MTD point failed %d\n", ret));
 	}
 #endif

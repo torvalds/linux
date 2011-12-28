@@ -259,6 +259,8 @@ static inline int mtd_point(struct mtd_info *mtd, loff_t from, size_t len,
 			    size_t *retlen, void **virt, resource_size_t *phys)
 {
 	*retlen = 0;
+	if (!mtd->point)
+		return -EOPNOTSUPP;
 	return mtd->point(mtd, from, len, retlen, virt, phys);
 }
 
