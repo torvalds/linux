@@ -12,10 +12,11 @@
 #include <linux/kernel.h>
 #include <linux/errno.h>
 #include <linux/smp.h>
+#include <mach/common.h>
 
 int platform_cpu_kill(unsigned int cpu)
 {
-	return 1;
+	return shmobile_platform_cpu_kill(cpu);
 }
 
 void platform_cpu_die(unsigned int cpu)
