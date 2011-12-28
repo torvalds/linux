@@ -1787,6 +1787,7 @@ int regulator_is_supported_voltage(struct regulator *regulator,
 
 	return 0;
 }
+EXPORT_SYMBOL_GPL(regulator_is_supported_voltage);
 
 static int _regulator_do_set_voltage(struct regulator_dev *rdev,
 				     int min_uV, int max_uV)
