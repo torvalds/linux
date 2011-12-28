@@ -52,7 +52,7 @@ int iwctl_giwrange(struct net_device *dev,
              char *extra);
 
 
-int iwctl_giwmode(struct net_device *dev,
+void iwctl_giwmode(struct net_device *dev,
              struct iw_request_info *info,
              __u32 *wmode,
              char *extra);

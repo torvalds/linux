@@ -471,7 +471,7 @@ int iwctl_siwmode(struct net_device *dev,
  * Wireless Handler : get operation mode
  */
 
-int iwctl_giwmode(struct net_device *dev,
+void iwctl_giwmode(struct net_device *dev,
              struct iw_request_info *info,
              __u32 *wmode,
              char *extra)
@@ -498,8 +498,6 @@ int iwctl_giwmode(struct net_device *dev,
 	default:
 		*wmode = IW_MODE_ADHOC;
 	}
-
-	return 0;
 }
 
 
