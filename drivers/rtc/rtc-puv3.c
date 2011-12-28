@@ -326,7 +326,7 @@ static int puv3_rtc_resume(struct platform_device *pdev)
 #define puv3_rtc_resume  NULL
 #endif
 
-static struct platform_driver puv3_rtcdrv = {
+static struct platform_driver puv3_rtc_driver = {
 	.probe		= puv3_rtc_probe,
 	.remove		= __devexit_p(puv3_rtc_remove),
 	.suspend	= puv3_rtc_suspend,
@@ -337,7 +337,7 @@ static struct platform_driver puv3_rtcdrv = {
 	}
 };
 
-module_platform_driver(puv3_rtcdrv);
+module_platform_driver(puv3_rtc_driver);
 
 MODULE_DESCRIPTION("RTC Driver for the PKUnity v3 chip");
 MODULE_AUTHOR("Hu Dongliang");
