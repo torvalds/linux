@@ -22,6 +22,7 @@
 #include <linux/kernel.h>
 #include <linux/init.h>
 #include <linux/delay.h>
+#include <linux/gpio.h>
 #include <linux/irq.h>
 #include <linux/interrupt.h>
 #include <linux/io.h>
@@ -192,8 +193,8 @@ static int zylonite_wm97xx_probe(struct platform_device *pdev)
 	else
 		gpio_touch_irq = mfp_to_gpio(MFP_PIN_GPIO26);
 
-	wm->pen_irq = IRQ_GPIO(gpio_touch_irq);
-	irq_set_irq_type(IRQ_GPIO(gpio_touch_irq), IRQ_TYPE_EDGE_BOTH);
+	wm->pen_irq = gpio_to_irq(gpio_touch_irq);
+	irq_set_irq_type(wm->pen_irq, IRQ_TYPE_EDGE_BOTH);
 
 	wm97xx_config_gpio(wm, WM97XX_GPIO_13, WM97XX_GPIO_IN,
 			   WM97XX_GPIO_POL_HIGH,
