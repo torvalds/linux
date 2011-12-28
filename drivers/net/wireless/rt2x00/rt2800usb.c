@@ -400,10 +400,10 @@ static void rt2800usb_write_tx_desc(struct queue_entry *entry,
 	/*
 	 * The size of TXINFO_W0_USB_DMA_TX_PKT_LEN is
 	 * TXWI + 802.11 header + L2 pad + payload + pad,
-	 * so need to decrease size of TXINFO and USB end pad.
+	 * so need to decrease size of TXINFO.
 	 */
 	rt2x00_set_field32(&word, TXINFO_W0_USB_DMA_TX_PKT_LEN,
-			   entry->skb->len - TXINFO_DESC_SIZE - 4);
+			   roundup(entry->skb->len, 4) - TXINFO_DESC_SIZE);
 	rt2x00_set_field32(&word, TXINFO_W0_WIV,
 			   !test_bit(ENTRY_TXD_ENCRYPT_IV, &txdesc->flags));
 	rt2x00_set_field32(&word, TXINFO_W0_QSEL, 2);
@@ -421,37 +421,20 @@ static void rt2800usb_write_tx_desc(struct queue_entry *entry,
 	skbdesc->desc_len = TXINFO_DESC_SIZE + TXWI_DESC_SIZE;
 }
 
-static void rt2800usb_write_tx_data(struct queue_entry *entry,
-					struct txentry_desc *txdesc)
-{
-	unsigned int len;
-	int err;
-
-	rt2800_write_tx_data(entry, txdesc);
-
-	/*
-	 * pad(1~3 bytes) is added after each 802.11 payload.
-	 * USB end pad(4 bytes) is added at each USB bulk out packet end.
-	 * TX frame format is :
-	 * | TXINFO | TXWI | 802.11 header | L2 pad | payload | pad | USB end pad |
-	 *                 |<------------- tx_pkt_len ------------->|
-	 */
-	len = roundup(entry->skb->len, 4) + 4;
-	err = skb_padto(entry->skb, len);
-	if (unlikely(err)) {
-		WARNING(entry->queue->rt2x00dev, "TX SKB padding error, out of memory\n");
-		return;
-	}
-
-	entry->skb->len = len;
-}
-
 /*
  * TX data initialization
  */
 static int rt2800usb_get_tx_data_len(struct queue_entry *entry)
 {
-	return entry->skb->len;
+	/*
+	 * pad(1~3 bytes) is needed after each 802.11 payload.
+	 * USB end pad(4 bytes) is needed at each USB bulk out packet end.
+	 * TX frame format is :
+	 * | TXINFO | TXWI | 802.11 header | L2 pad | payload | pad | USB end pad |
+	 *                 |<------------- tx_pkt_len ------------->|
+	 */
+
+	return roundup(entry->skb->len, 4) + 4;
 }
 
 /*
@@ -807,7 +790,7 @@ static const struct rt2x00lib_ops rt2800usb_rt2x00_ops = {
 	.flush_queue		= rt2x00usb_flush_queue,
 	.tx_dma_done		= rt2800usb_tx_dma_done,
 	.write_tx_desc		= rt2800usb_write_tx_desc,
-	.write_tx_data		= rt2800usb_write_tx_data,
+	.write_tx_data		= rt2800_write_tx_data,
 	.write_beacon		= rt2800_write_beacon,
 	.clear_beacon		= rt2800_clear_beacon,
 	.get_tx_data_len	= rt2800usb_get_tx_data_len,
