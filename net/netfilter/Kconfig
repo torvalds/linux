@@ -908,7 +908,7 @@ config NETFILTER_XT_MATCH_MULTIPORT
 
 config NETFILTER_XT_MATCH_NFACCT
 	tristate '"nfacct" match support'
-	default m if NETFILTER_ADVANCED=n
+	depends on NETFILTER_ADVANCED
 	select NETFILTER_NETLINK_ACCT
 	help
 	  This option allows you to use the extended accounting through
