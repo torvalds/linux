@@ -221,10 +221,14 @@ static void mtdoops_write(struct mtdoops_context *cxt, int panic)
 	hdr[0] = cxt->nextcount;
 	hdr[1] = MTDOOPS_KERNMSG_MAGIC;
 
-	if (panic)
+	if (panic) {
 		ret = mtd_panic_write(mtd, cxt->nextpage * record_size,
 				      record_size, &retlen, cxt->oops_buf);
-	else
+		if (ret == -EOPNOTSUPP) {
+			printk(KERN_ERR "mtdoops: Cannot write from panic without panic_write\n");
+			return;
+		}
+	} else
 		ret = mtd_write(mtd, cxt->nextpage * record_size,
 				record_size, &retlen, cxt->oops_buf);
 
@@ -330,13 +334,8 @@ static void mtdoops_do_dump(struct kmsg_dumper *dumper,
 	memcpy(dst + l1_cpy, s2 + s2_start, l2_cpy);
 
 	/* Panics must be written immediately */
-	if (reason != KMSG_DUMP_OOPS) {
-		if (!cxt->mtd->panic_write)
-			printk(KERN_ERR "mtdoops: Cannot write from panic without panic_write\n");
-		else
-			mtdoops_write(cxt, 1);
-		return;
-	}
+	if (reason != KMSG_DUMP_OOPS)
+		mtdoops_write(cxt, 1);
 
 	/* For other cases, schedule work to write it "nicely" */
 	schedule_work(&cxt->work_write);
