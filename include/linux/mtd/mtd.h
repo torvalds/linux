@@ -214,6 +214,12 @@ struct mtd_info {
 	int (*block_markbad) (struct mtd_info *mtd, loff_t ofs);
 	int (*suspend) (struct mtd_info *mtd);
 	void (*resume) (struct mtd_info *mtd);
+	/*
+	 * If the driver is something smart, like UBI, it may need to maintain
+	 * its own reference counting. The below functions are only for driver.
+	 */
+	int (*get_device) (struct mtd_info *mtd);
+	void (*put_device) (struct mtd_info *mtd);
 
 	/* Backing device capabilities for this device
 	 * - provides mmap capabilities
@@ -232,13 +238,6 @@ struct mtd_info {
 	struct module *owner;
 	struct device dev;
 	int usecount;
-
-	/* If the driver is something smart, like UBI, it may need to maintain
-	 * its own reference counting. The below functions are only for driver.
-	 * The driver may register its callbacks. These callbacks are not
-	 * supposed to be called by MTD users */
-	int (*get_device) (struct mtd_info *mtd);
-	void (*put_device) (struct mtd_info *mtd);
 };
 
 /*
