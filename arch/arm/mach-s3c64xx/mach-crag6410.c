@@ -260,6 +260,7 @@ static struct platform_device crag6410_dm9k_device = {
 
 static struct resource crag6410_mmgpio_resource[] = {
 	[0] = {
+		.name	= "dat",
 		.start	= S3C64XX_PA_XM0CSN4 + 1,
 		.end	= S3C64XX_PA_XM0CSN4 + 1,
 		.flags	= IORESOURCE_MEM,
@@ -272,7 +273,7 @@ static struct platform_device crag6410_mmgpio = {
 	.resource	= crag6410_mmgpio_resource,
 	.num_resources	= ARRAY_SIZE(crag6410_mmgpio_resource),
 	.dev.platform_data = &(struct bgpio_pdata) {
-		.base	= -1,
+		.base	= MMGPIO_GPIO_BASE,
 	},
 };
 
