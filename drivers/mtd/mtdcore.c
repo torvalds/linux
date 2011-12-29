@@ -107,7 +107,8 @@ static LIST_HEAD(mtd_notifiers);
  */
 static void mtd_release(struct device *dev)
 {
-	dev_t index = MTD_DEVT(dev_to_mtd(dev)->index);
+	struct mtd_info *mtd = dev_get_drvdata(dev);
+	dev_t index = MTD_DEVT(mtd->index);
 
 	/* remove /dev/mtdXro node if needed */
 	if (index)
@@ -116,7 +117,7 @@ static void mtd_release(struct device *dev)
 
 static int mtd_cls_suspend(struct device *dev, pm_message_t state)
 {
-	struct mtd_info *mtd = dev_to_mtd(dev);
+	struct mtd_info *mtd = dev_get_drvdata(dev);
 
 	if (mtd && mtd->suspend)
 		return mtd_suspend(mtd);
@@ -126,7 +127,7 @@ static int mtd_cls_suspend(struct device *dev, pm_message_t state)
 
 static int mtd_cls_resume(struct device *dev)
 {
-	struct mtd_info *mtd = dev_to_mtd(dev);
+	struct mtd_info *mtd = dev_get_drvdata(dev);
 	
 	if (mtd && mtd->resume)
 		mtd_resume(mtd);
@@ -136,7 +137,7 @@ static int mtd_cls_resume(struct device *dev)
 static ssize_t mtd_type_show(struct device *dev,
 		struct device_attribute *attr, char *buf)
 {
-	struct mtd_info *mtd = dev_to_mtd(dev);
+	struct mtd_info *mtd = dev_get_drvdata(dev);
 	char *type;
 
 	switch (mtd->type) {
@@ -172,7 +173,7 @@ static DEVICE_ATTR(type, S_IRUGO, mtd_type_show, NULL);
 static ssize_t mtd_flags_show(struct device *dev,
 		struct device_attribute *attr, char *buf)
 {
-	struct mtd_info *mtd = dev_to_mtd(dev);
+	struct mtd_info *mtd = dev_get_drvdata(dev);
 
 	return snprintf(buf, PAGE_SIZE, "0x%lx\n", (unsigned long)mtd->flags);
 
@@ -182,7 +183,7 @@ static DEVICE_ATTR(flags, S_IRUGO, mtd_flags_show, NULL);
 static ssize_t mtd_size_show(struct device *dev,
 		struct device_attribute *attr, char *buf)
 {
-	struct mtd_info *mtd = dev_to_mtd(dev);
+	struct mtd_info *mtd = dev_get_drvdata(dev);
 
 	return snprintf(buf, PAGE_SIZE, "%llu\n",
 		(unsigned long long)mtd->size);
@@ -193,7 +194,7 @@ static DEVICE_ATTR(size, S_IRUGO, mtd_size_show, NULL);
 static ssize_t mtd_erasesize_show(struct device *dev,
 		struct device_attribute *attr, char *buf)
 {
-	struct mtd_info *mtd = dev_to_mtd(dev);
+	struct mtd_info *mtd = dev_get_drvdata(dev);
 
 	return snprintf(buf, PAGE_SIZE, "%lu\n", (unsigned long)mtd->erasesize);
 
@@ -203,7 +204,7 @@ static DEVICE_ATTR(erasesize, S_IRUGO, mtd_erasesize_show, NULL);
 static ssize_t mtd_writesize_show(struct device *dev,
 		struct device_attribute *attr, char *buf)
 {
-	struct mtd_info *mtd = dev_to_mtd(dev);
+	struct mtd_info *mtd = dev_get_drvdata(dev);
 
 	return snprintf(buf, PAGE_SIZE, "%lu\n", (unsigned long)mtd->writesize);
 
@@ -213,7 +214,7 @@ static DEVICE_ATTR(writesize, S_IRUGO, mtd_writesize_show, NULL);
 static ssize_t mtd_subpagesize_show(struct device *dev,
 		struct device_attribute *attr, char *buf)
 {
-	struct mtd_info *mtd = dev_to_mtd(dev);
+	struct mtd_info *mtd = dev_get_drvdata(dev);
 	unsigned int subpagesize = mtd->writesize >> mtd->subpage_sft;
 
 	return snprintf(buf, PAGE_SIZE, "%u\n", subpagesize);
@@ -224,7 +225,7 @@ static DEVICE_ATTR(subpagesize, S_IRUGO, mtd_subpagesize_show, NULL);
 static ssize_t mtd_oobsize_show(struct device *dev,
 		struct device_attribute *attr, char *buf)
 {
-	struct mtd_info *mtd = dev_to_mtd(dev);
+	struct mtd_info *mtd = dev_get_drvdata(dev);
 
 	return snprintf(buf, PAGE_SIZE, "%lu\n", (unsigned long)mtd->oobsize);
 
@@ -234,7 +235,7 @@ static DEVICE_ATTR(oobsize, S_IRUGO, mtd_oobsize_show, NULL);
 static ssize_t mtd_numeraseregions_show(struct device *dev,
 		struct device_attribute *attr, char *buf)
 {
-	struct mtd_info *mtd = dev_to_mtd(dev);
+	struct mtd_info *mtd = dev_get_drvdata(dev);
 
 	return snprintf(buf, PAGE_SIZE, "%u\n", mtd->numeraseregions);
 
@@ -245,7 +246,7 @@ static DEVICE_ATTR(numeraseregions, S_IRUGO, mtd_numeraseregions_show,
 static ssize_t mtd_name_show(struct device *dev,
 		struct device_attribute *attr, char *buf)
 {
-	struct mtd_info *mtd = dev_to_mtd(dev);
+	struct mtd_info *mtd = dev_get_drvdata(dev);
 
 	return snprintf(buf, PAGE_SIZE, "%s\n", mtd->name);
 

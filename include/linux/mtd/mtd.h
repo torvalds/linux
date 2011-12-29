@@ -422,11 +422,6 @@ static inline int mtd_block_markbad(struct mtd_info *mtd, loff_t ofs)
 	return mtd->block_markbad(mtd, ofs);
 }
 
-static inline struct mtd_info *dev_to_mtd(struct device *dev)
-{
-	return dev ? dev_get_drvdata(dev) : NULL;
-}
-
 static inline uint32_t mtd_div_by_eb(uint64_t sz, struct mtd_info *mtd)
 {
 	if (mtd->erasesize_shift)
