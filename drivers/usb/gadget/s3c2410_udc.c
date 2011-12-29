@@ -3,7 +3,7 @@
  *
  * Samsung S3C24xx series on-chip full speed USB device controllers
  *
- * Copyright (C) 2004-2007 Herbert Pötzl - Arnaud Patard
+ * Copyright (C) 2004-2007 Herbert PÃ¶tzl - Arnaud Patard
  *	Additional cleanups by Ben Dooks <ben-linux@fluff.org>
  *
  * This program is free software; you can redistribute it and/or modify
@@ -51,7 +51,7 @@
 
 #define DRIVER_DESC	"S3C2410 USB Device Controller Gadget"
 #define DRIVER_VERSION	"29 Apr 2007"
-#define DRIVER_AUTHOR	"Herbert Pötzl <herbert@13thfloor.at>, " \
+#define DRIVER_AUTHOR	"Herbert PÃ¶tzl <herbert@13thfloor.at>, " \
 			"Arnaud Patard <arnaud.patard@rtp-net.org>"
 
 static const char		gadget_name[] = "s3c2410_udc";
