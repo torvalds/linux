@@ -328,7 +328,6 @@ static struct platform_device wallvdd_device = {
 
 static struct platform_device *crag6410_devices[] __initdata = {
 	&s3c_device_hsmmc0,
-	&s3c_device_hsmmc1,
 	&s3c_device_hsmmc2,
 	&s3c_device_i2c0,
 	&s3c_device_i2c1,
@@ -683,12 +682,6 @@ static struct s3c_sdhci_platdata crag6410_hsmmc2_pdata = {
 	.cd_type		= S3C_SDHCI_CD_PERMANENT,
 };
 
-static struct s3c_sdhci_platdata crag6410_hsmmc1_pdata = {
-	.max_width		= 4,
-	.cd_type		= S3C_SDHCI_CD_GPIO,
-	.ext_cd_gpio		= S3C64XX_GPF(11),
-};
-
 static void crag6410_cfg_sdhci0(struct platform_device *dev, int width)
 {
 	/* Set all the necessary GPG pins to special-function 2 */
@@ -723,7 +716,6 @@ static void __init crag6410_machine_init(void)
 	gpio_direction_output(S3C64XX_GPF(10), 1);
 
 	s3c_sdhci0_set_platdata(&crag6410_hsmmc0_pdata);
-	s3c_sdhci1_set_platdata(&crag6410_hsmmc1_pdata);
 	s3c_sdhci2_set_platdata(&crag6410_hsmmc2_pdata);
 
 	s3c_i2c0_set_platdata(&i2c0_pdata);
