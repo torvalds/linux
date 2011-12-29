@@ -968,28 +968,23 @@ static __devinit int sta32x_i2c_probe(struct i2c_client *i2c,
 	struct sta32x_priv *sta32x;
 	int ret;
 
-	sta32x = kzalloc(sizeof(struct sta32x_priv), GFP_KERNEL);
+	sta32x = devm_kzalloc(&i2c->dev, sizeof(struct sta32x_priv),
+			      GFP_KERNEL);
 	if (!sta32x)
 		return -ENOMEM;
 
 	i2c_set_clientdata(i2c, sta32x);
 
 	ret = snd_soc_register_codec(&i2c->dev, &sta32x_codec, &sta32x_dai, 1);
-	if (ret != 0) {
+	if (ret != 0)
 		dev_err(&i2c->dev, "Failed to register codec (%d)\n", ret);
-		kfree(sta32x);
-		return ret;
-	}
 
-	return 0;
+	return ret;
 }
 
 static __devexit int sta32x_i2c_remove(struct i2c_client *client)
 {
-	struct sta32x_priv *sta32x = i2c_get_clientdata(client);
-
 	snd_soc_unregister_codec(&client->dev);
-	kfree(sta32x);
 	return 0;
 }
 
