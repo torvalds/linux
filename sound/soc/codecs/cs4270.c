@@ -671,7 +671,8 @@ static int cs4270_i2c_probe(struct i2c_client *i2c_client,
 		i2c_client->addr);
 	dev_info(&i2c_client->dev, "hardware revision %X\n", ret & 0xF);
 
-	cs4270 = kzalloc(sizeof(struct cs4270_private), GFP_KERNEL);
+	cs4270 = devm_kzalloc(&i2c_client->dev, sizeof(struct cs4270_private),
+			      GFP_KERNEL);
 	if (!cs4270) {
 		dev_err(&i2c_client->dev, "could not allocate codec\n");
 		return -ENOMEM;
@@ -682,8 +683,6 @@ static int cs4270_i2c_probe(struct i2c_client *i2c_client,
 
 	ret = snd_soc_register_codec(&i2c_client->dev,
 			&soc_codec_device_cs4270, &cs4270_dai, 1);
-	if (ret < 0)
-		kfree(cs4270);
 	return ret;
 }
 
@@ -696,7 +695,6 @@ static int cs4270_i2c_probe(struct i2c_client *i2c_client,
 static int cs4270_i2c_remove(struct i2c_client *i2c_client)
 {
 	snd_soc_unregister_codec(&i2c_client->dev);
-	kfree(i2c_get_clientdata(i2c_client));
 	return 0;
 }
 
