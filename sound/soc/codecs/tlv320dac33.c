@@ -1532,7 +1532,8 @@ static int __devinit dac33_i2c_probe(struct i2c_client *client,
 	}
 	pdata = client->dev.platform_data;
 
-	dac33 = kzalloc(sizeof(struct tlv320dac33_priv), GFP_KERNEL);
+	dac33 = devm_kzalloc(&client->dev, sizeof(struct tlv320dac33_priv),
+			     GFP_KERNEL);
 	if (dac33 == NULL)
 		return -ENOMEM;
 
@@ -1587,7 +1588,6 @@ err_get:
 	if (dac33->power_gpio >= 0)
 		gpio_free(dac33->power_gpio);
 err_gpio:
-	kfree(dac33);
 	return ret;
 }
 
@@ -1604,8 +1604,6 @@ static int __devexit dac33_i2c_remove(struct i2c_client *client)
 	regulator_bulk_free(ARRAY_SIZE(dac33->supplies), dac33->supplies);
 
 	snd_soc_unregister_codec(&client->dev);
-	kfree(dac33);
-
 	return 0;
 }
 
