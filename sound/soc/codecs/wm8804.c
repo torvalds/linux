@@ -482,24 +482,6 @@ static int wm8804_set_clkdiv(struct snd_soc_dai *dai,
 	return 0;
 }
 
-static void wm8804_sync_cache(struct snd_soc_codec *codec)
-{
-	short i;
-	u8 *cache;
-
-	if (!codec->cache_sync)
-		return;
-
-	codec->cache_only = 0;
-	cache = codec->reg_cache;
-	for (i = 0; i < codec->driver->reg_cache_size; i++) {
-		if (i == WM8804_RST_DEVID1 || cache[i] == wm8804_reg_defs[i])
-			continue;
-		snd_soc_write(codec, i, cache[i]);
-	}
-	codec->cache_sync = 0;
-}
-
 static int wm8804_set_bias_level(struct snd_soc_codec *codec,
 				 enum snd_soc_bias_level level)
 {
@@ -524,7 +506,7 @@ static int wm8804_set_bias_level(struct snd_soc_codec *codec,
 					ret);
 				return ret;
 			}
-			wm8804_sync_cache(codec);
+			snd_soc_cache_sync(codec);
 		}
 		/* power down the OSC and the PLL */
 		snd_soc_update_bits(codec, WM8804_PWRDN, 0x9, 0x9);
