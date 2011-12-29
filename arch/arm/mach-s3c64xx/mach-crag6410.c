@@ -19,6 +19,7 @@
 #include <linux/io.h>
 #include <linux/init.h>
 #include <linux/gpio.h>
+#include <linux/leds.h>
 #include <linux/delay.h>
 #include <linux/regulator/machine.h>
 #include <linux/regulator/fixed.h>
@@ -698,6 +699,54 @@ static struct s3c_sdhci_platdata crag6410_hsmmc0_pdata = {
 	.cfg_gpio		= crag6410_cfg_sdhci0,
 };
 
+static const struct gpio_led gpio_leds[] = {
+	{
+		.name = "d13:green:",
+		.gpio = MMGPIO_GPIO_BASE + 0,
+		.default_state = LEDS_GPIO_DEFSTATE_ON,
+	},
+	{
+		.name = "d14:green:",
+		.gpio = MMGPIO_GPIO_BASE + 1,
+		.default_state = LEDS_GPIO_DEFSTATE_ON,
+	},
+	{
+		.name = "d15:green:",
+		.gpio = MMGPIO_GPIO_BASE + 2,
+		.default_state = LEDS_GPIO_DEFSTATE_ON,
+	},
+	{
+		.name = "d16:green:",
+		.gpio = MMGPIO_GPIO_BASE + 3,
+		.default_state = LEDS_GPIO_DEFSTATE_ON,
+	},
+	{
+		.name = "d17:green:",
+		.gpio = MMGPIO_GPIO_BASE + 4,
+		.default_state = LEDS_GPIO_DEFSTATE_ON,
+	},
+	{
+		.name = "d18:green:",
+		.gpio = MMGPIO_GPIO_BASE + 5,
+		.default_state = LEDS_GPIO_DEFSTATE_ON,
+	},
+	{
+		.name = "d19:green:",
+		.gpio = MMGPIO_GPIO_BASE + 6,
+		.default_state = LEDS_GPIO_DEFSTATE_ON,
+	},
+	{
+		.name = "d20:green:",
+		.gpio = MMGPIO_GPIO_BASE + 7,
+		.default_state = LEDS_GPIO_DEFSTATE_ON,
+	},
+};
+
+static const struct gpio_led_platform_data gpio_leds_pdata = {
+	.leds = gpio_leds,
+	.num_leds = ARRAY_SIZE(gpio_leds),
+};
+
 static void __init crag6410_machine_init(void)
 {
 	/* Open drain IRQs need pullups */
@@ -729,6 +778,8 @@ static void __init crag6410_machine_init(void)
 	samsung_keypad_set_platdata(&crag6410_keypad_data);
 
 	platform_add_devices(crag6410_devices, ARRAY_SIZE(crag6410_devices));
+
+	gpio_led_register_device(-1, &gpio_leds_pdata);
 
 	regulator_has_full_constraints();
 
