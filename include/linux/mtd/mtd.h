@@ -352,6 +352,8 @@ static inline int mtd_read_fact_prot_reg(struct mtd_info *mtd, loff_t from,
 					 u_char *buf)
 {
 	*retlen = 0;
+	if (!mtd->read_fact_prot_reg)
+		return -EOPNOTSUPP;
 	return mtd->read_fact_prot_reg(mtd, from, len, retlen, buf);
 }
 
@@ -369,6 +371,8 @@ static inline int mtd_read_user_prot_reg(struct mtd_info *mtd, loff_t from,
 					 u_char *buf)
 {
 	*retlen = 0;
+	if (!mtd->read_user_prot_reg)
+		return -EOPNOTSUPP;
 	return mtd->read_user_prot_reg(mtd, from, len, retlen, buf);
 }
 
