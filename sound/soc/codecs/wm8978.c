@@ -1000,13 +1000,6 @@ static int wm8978_probe(struct snd_soc_codec *codec)
 	for (i = 0; i < ARRAY_SIZE(update_reg); i++)
 		snd_soc_update_bits(codec, update_reg[i], 0x100, 0x100);
 
-	/* Reset the codec */
-	ret = snd_soc_write(codec, WM8978_RESET, 0);
-	if (ret < 0) {
-		dev_err(codec->dev, "Failed to issue reset\n");
-		return ret;
-	}
-
 	wm8978_set_bias_level(codec, SND_SOC_BIAS_STANDBY);
 
 	return 0;
@@ -1066,9 +1059,24 @@ static __devinit int wm8978_i2c_probe(struct i2c_client *i2c,
 
 	i2c_set_clientdata(i2c, wm8978);
 
+	/* Reset the codec */
+	ret = regmap_write(wm8978->regmap, WM8978_RESET, 0);
+	if (ret != 0) {
+		dev_err(&i2c->dev, "Failed to issue reset: %d\n", ret);
+		goto err;
+	}
+
 	ret = snd_soc_register_codec(&i2c->dev,
 			&soc_codec_dev_wm8978, &wm8978_dai, 1);
+	if (ret != 0) {
+		dev_err(&i2c->dev, "Failed to register CODEC: %d\n", ret);
+		goto err;
+	}
 
+	return 0;
+
+err:
+	regmap_exit(wm8978->regmap);
 	return ret;
 }
 
