@@ -2594,17 +2594,57 @@ void btrfs_init_free_cluster(struct btrfs_free_cluster *cluster)
 	cluster->block_group = NULL;
 }
 
-int btrfs_trim_block_group(struct btrfs_block_group_cache *block_group,
-			   u64 *trimmed, u64 start, u64 end, u64 minlen)
+static int do_trimming(struct btrfs_block_group_cache *block_group,
+		       u64 *total_trimmed, u64 start, u64 bytes,
+		       u64 reserved_start, u64 reserved_bytes)
+{
+	struct btrfs_space_info *space_info = block_group->space_info;
+	struct btrfs_fs_info *fs_info = block_group->fs_info;
+	int ret;
+	int update = 0;
+	u64 trimmed = 0;
+
+	spin_lock(&space_info->lock);
+	spin_lock(&block_group->lock);
+	if (!block_group->ro) {
+		block_group->reserved += reserved_bytes;
+		space_info->bytes_reserved += reserved_bytes;
+		update = 1;
+	}
+	spin_unlock(&block_group->lock);
+	spin_unlock(&space_info->lock);
+
+	ret = btrfs_error_discard_extent(fs_info->extent_root,
+					 start, bytes, &trimmed);
+	if (!ret)
+		*total_trimmed += trimmed;
+
+	btrfs_add_free_space(block_group, reserved_start, reserved_bytes);
+
+	if (update) {
+		spin_lock(&space_info->lock);
+		spin_lock(&block_group->lock);
+		if (block_group->ro)
+			space_info->bytes_readonly += reserved_bytes;
+		block_group->reserved -= reserved_bytes;
+		space_info->bytes_reserved -= reserved_bytes;
+		spin_unlock(&space_info->lock);
+		spin_unlock(&block_group->lock);
+	}
+
+	return ret;
+}
+
+static int trim_no_bitmap(struct btrfs_block_group_cache *block_group,
+			  u64 *total_trimmed, u64 start, u64 end, u64 minlen)
 {
 	struct btrfs_free_space_ctl *ctl = block_group->free_space_ctl;
-	struct btrfs_free_space *entry = NULL;
-	struct btrfs_fs_info *fs_info = block_group->fs_info;
-	u64 bytes = 0;
-	u64 actually_trimmed;
+	struct btrfs_free_space *entry;
+	struct rb_node *node;
 	int ret = 0;
-
-	*trimmed = 0;
+	u64 extent_start;
+	u64 extent_bytes;
+	u64 bytes;
 
 	while (start < end) {
 		spin_lock(&ctl->tree_lock);
@@ -2615,81 +2655,47 @@ int btrfs_trim_block_group(struct btrfs_block_group_cache *block_group,
 		}
 
 		entry = tree_search_offset(ctl, start, 0, 1);
-		if (!entry)
-			entry = tree_search_offset(ctl,
-						   offset_to_bitmap(ctl, start),
-						   1, 1);
-
-		if (!entry || entry->offset >= end) {
+		if (!entry) {
 			spin_unlock(&ctl->tree_lock);
 			break;
 		}
 
-		if (entry->bitmap) {
-			ret = search_bitmap(ctl, entry, &start, &bytes);
-			if (!ret) {
-				if (start >= end) {
-					spin_unlock(&ctl->tree_lock);
-					break;
-				}
-				bytes = min(bytes, end - start);
-				bitmap_clear_bits(ctl, entry, start, bytes);
-				if (entry->bytes == 0)
-					free_bitmap(ctl, entry);
-			} else {
-				start = entry->offset + BITS_PER_BITMAP *
-					block_group->sectorsize;
+		/* skip bitmaps */
+		while (entry->bitmap) {
+			node = rb_next(&entry->offset_index);
+			if (!node) {
 				spin_unlock(&ctl->tree_lock);
-				ret = 0;
-				continue;
+				goto out;
 			}
-		} else {
-			start = entry->offset;
-			bytes = min(entry->bytes, end - start);
-			unlink_free_space(ctl, entry);
-			kmem_cache_free(btrfs_free_space_cachep, entry);
+			entry = rb_entry(node, struct btrfs_free_space,
+					 offset_index);
 		}
+
+		if (entry->offset >= end) {
+			spin_unlock(&ctl->tree_lock);
+			break;
+		}
+
+		extent_start = entry->offset;
+		extent_bytes = entry->bytes;
+		start = max(start, extent_start);
+		bytes = min(extent_start + extent_bytes, end) - start;
+		if (bytes < minlen) {
+			spin_unlock(&ctl->tree_lock);
+			goto next;
+		}
+
+		unlink_free_space(ctl, entry);
+		kmem_cache_free(btrfs_free_space_cachep, entry);
 
 		spin_unlock(&ctl->tree_lock);
 
-		if (bytes >= minlen) {
-			struct btrfs_space_info *space_info;
-			int update = 0;
-
-			space_info = block_group->space_info;
-			spin_lock(&space_info->lock);
-			spin_lock(&block_group->lock);
-			if (!block_group->ro) {
-				block_group->reserved += bytes;
-				space_info->bytes_reserved += bytes;
-				update = 1;
-			}
-			spin_unlock(&block_group->lock);
-			spin_unlock(&space_info->lock);
-
-			ret = btrfs_error_discard_extent(fs_info->extent_root,
-							 start,
-							 bytes,
-							 &actually_trimmed);
-
-			btrfs_add_free_space(block_group, start, bytes);
-			if (update) {
-				spin_lock(&space_info->lock);
-				spin_lock(&block_group->lock);
-				if (block_group->ro)
-					space_info->bytes_readonly += bytes;
-				block_group->reserved -= bytes;
-				space_info->bytes_reserved -= bytes;
-				spin_unlock(&space_info->lock);
-				spin_unlock(&block_group->lock);
-			}
-
-			if (ret)
-				break;
-			*trimmed += actually_trimmed;
-		}
+		ret = do_trimming(block_group, total_trimmed, start, bytes,
+				  extent_start, extent_bytes);
+		if (ret)
+			break;
+next:
 		start += bytes;
-		bytes = 0;
 
 		if (fatal_signal_pending(current)) {
 			ret = -ERESTARTSYS;
@@ -2698,6 +2704,93 @@ int btrfs_trim_block_group(struct btrfs_block_group_cache *block_group,
 
 		cond_resched();
 	}
+out:
+	return ret;
+}
+
+static int trim_bitmaps(struct btrfs_block_group_cache *block_group,
+			u64 *total_trimmed, u64 start, u64 end, u64 minlen)
+{
+	struct btrfs_free_space_ctl *ctl = block_group->free_space_ctl;
+	struct btrfs_free_space *entry;
+	int ret = 0;
+	int ret2;
+	u64 bytes;
+	u64 offset = offset_to_bitmap(ctl, start);
+
+	while (offset < end) {
+		bool next_bitmap = false;
+
+		spin_lock(&ctl->tree_lock);
+
+		if (ctl->free_space < minlen) {
+			spin_unlock(&ctl->tree_lock);
+			break;
+		}
+
+		entry = tree_search_offset(ctl, offset, 1, 0);
+		if (!entry) {
+			spin_unlock(&ctl->tree_lock);
+			next_bitmap = true;
+			goto next;
+		}
+
+		bytes = minlen;
+		ret2 = search_bitmap(ctl, entry, &start, &bytes);
+		if (ret2 || start >= end) {
+			spin_unlock(&ctl->tree_lock);
+			next_bitmap = true;
+			goto next;
+		}
+
+		bytes = min(bytes, end - start);
+		if (bytes < minlen) {
+			spin_unlock(&ctl->tree_lock);
+			goto next;
+		}
+
+		bitmap_clear_bits(ctl, entry, start, bytes);
+		if (entry->bytes == 0)
+			free_bitmap(ctl, entry);
+
+		spin_unlock(&ctl->tree_lock);
+
+		ret = do_trimming(block_group, total_trimmed, start, bytes,
+				  start, bytes);
+		if (ret)
+			break;
+next:
+		if (next_bitmap) {
+			offset += BITS_PER_BITMAP * ctl->unit;
+		} else {
+			start += bytes;
+			if (start >= offset + BITS_PER_BITMAP * ctl->unit)
+				offset += BITS_PER_BITMAP * ctl->unit;
+		}
+
+		if (fatal_signal_pending(current)) {
+			ret = -ERESTARTSYS;
+			break;
+		}
+
+		cond_resched();
+	}
+
+	return ret;
+}
+
+int btrfs_trim_block_group(struct btrfs_block_group_cache *block_group,
+			   u64 *trimmed, u64 start, u64 end, u64 minlen)
+{
+	int ret;
+
+	*trimmed = 0;
+
+	ret = trim_no_bitmap(block_group, trimmed, start, end, minlen);
+	if (ret)
+		return ret;
+
+	ret = trim_bitmaps(block_group, trimmed, start, end, minlen);
 
 	return ret;
 }
