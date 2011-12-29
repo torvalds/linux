@@ -48,10 +48,6 @@ static const u16 wm8974_reg[WM8974_CACHEREGNUM] = {
 #define WM8974_POWER1_BIASEN  0x08
 #define WM8974_POWER1_BUFIOEN 0x04
 
-struct wm8974_priv {
-	enum snd_soc_control_type control_type;
-};
-
 #define wm8974_reset(c)	snd_soc_write(c, WM8974_RESET, 0)
 
 static const char *wm8974_companding[] = {"Off", "NC", "u-law", "A-law" };
@@ -632,26 +628,18 @@ static struct snd_soc_codec_driver soc_codec_dev_wm8974 = {
 static __devinit int wm8974_i2c_probe(struct i2c_client *i2c,
 				      const struct i2c_device_id *id)
 {
-	struct wm8974_priv *wm8974;
 	int ret;
-
-	wm8974 = kzalloc(sizeof(struct wm8974_priv), GFP_KERNEL);
-	if (wm8974 == NULL)
-		return -ENOMEM;
-
-	i2c_set_clientdata(i2c, wm8974);
 
 	ret = snd_soc_register_codec(&i2c->dev,
 			&soc_codec_dev_wm8974, &wm8974_dai, 1);
-	if (ret < 0)
-		kfree(wm8974);
+
 	return ret;
 }
 
 static __devexit int wm8974_i2c_remove(struct i2c_client *client)
 {
 	snd_soc_unregister_codec(&client->dev);
-	kfree(i2c_get_clientdata(client));
+
 	return 0;
 }
 
