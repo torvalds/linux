@@ -302,7 +302,7 @@ static const struct snd_soc_dapm_widget wm8978_dapm_widgets[] = {
 	SND_SOC_DAPM_OUTPUT("RSPK"),
 };
 
-static const struct snd_soc_dapm_route audio_map[] = {
+static const struct snd_soc_dapm_route wm8978_dapm_routes[] = {
 	/* Output mixer */
 	{"Right Output Mixer", "PCM Playback Switch", "Right DAC"},
 	{"Right Output Mixer", "Aux Playback Switch", "RAUX"},
@@ -350,18 +350,6 @@ static const struct snd_soc_dapm_route audio_map[] = {
 	{"Left Input Mixer", "MicN Switch", "LMICN"},
 	{"Left Input Mixer", "MicP Switch", "LMICP"},
 };
-
-static int wm8978_add_widgets(struct snd_soc_codec *codec)
-{
-	struct snd_soc_dapm_context *dapm = &codec->dapm;
-
-	snd_soc_dapm_new_controls(dapm, wm8978_dapm_widgets,
-				  ARRAY_SIZE(wm8978_dapm_widgets));
-	/* set up the WM8978 audio map */
-	snd_soc_dapm_add_routes(dapm, audio_map, ARRAY_SIZE(audio_map));
-
-	return 0;
-}
 
 /* PLL divisors */
 struct wm8978_pll_div {
@@ -975,10 +963,6 @@ static int wm8978_probe(struct snd_soc_codec *codec)
 
 	wm8978_set_bias_level(codec, SND_SOC_BIAS_STANDBY);
 
-	snd_soc_add_controls(codec, wm8978_snd_controls,
-			     ARRAY_SIZE(wm8978_snd_controls));
-	wm8978_add_widgets(codec);
-
 	return 0;
 }
 
@@ -998,6 +982,13 @@ static struct snd_soc_codec_driver soc_codec_dev_wm8978 = {
 	.reg_cache_size = ARRAY_SIZE(wm8978_reg),
 	.reg_word_size = sizeof(u16),
 	.reg_cache_default = wm8978_reg,
+
+	.controls = wm8978_snd_controls,
+	.num_controls = ARRAY_SIZE(wm8978_snd_controls),
+	.dapm_widgets = wm8978_dapm_widgets,
+	.num_dapm_widgets = ARRAY_SIZE(wm8978_dapm_widgets),
+	.dapm_routes = wm8978_dapm_routes,
+	.num_dapm_routes = ARRAY_SIZE(wm8978_dapm_routes),
 };
 
 static __devinit int wm8978_i2c_probe(struct i2c_client *i2c,
