@@ -44,6 +44,10 @@ extern int smb2_check_receive(struct mid_q_entry *mid,
 extern int smb2_setup_request(struct cifs_ses *ses, struct kvec *iov,
 			      unsigned int nvec, struct mid_q_entry **ret_mid);
 
+extern int smb2_query_path_info(const unsigned int xid, struct cifs_tcon *tcon,
+				struct cifs_sb_info *cifs_sb,
+				const char *full_path, FILE_ALL_INFO *data,
+				bool *adjust_tz);
 /*
  * SMB2 Worker functions - most of protocol specific implementation details
  * are contained within these calls.
@@ -62,5 +66,8 @@ extern int SMB2_open(const unsigned int xid, struct cifs_tcon *tcon,
 		     __u32 file_attributes, __u32 create_options);
 extern int SMB2_close(const unsigned int xid, struct cifs_tcon *tcon,
 		      u64 persistent_file_id, u64 volatile_file_id);
+extern int SMB2_query_info(const unsigned int xid, struct cifs_tcon *tcon,
+			   u64 persistent_file_id, u64 volatile_file_id,
+			   struct smb2_file_all_info *data);
 
 #endif			/* _SMB2PROTO_H */

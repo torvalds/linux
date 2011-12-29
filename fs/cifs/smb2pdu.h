@@ -448,4 +448,115 @@ struct smb2_close_rsp {
 	__le32 Attributes;
 } __packed;
 
+/* Possible InfoType values */
+#define SMB2_O_INFO_FILE	0x01
+#define SMB2_O_INFO_FILESYSTEM	0x02
+#define SMB2_O_INFO_SECURITY	0x03
+#define SMB2_O_INFO_QUOTA	0x04
+
+struct smb2_query_info_req {
+	struct smb2_hdr hdr;
+	__le16 StructureSize; /* Must be 41 */
+	__u8   InfoType;
+	__u8   FileInfoClass;
+	__le32 OutputBufferLength;
+	__le16 InputBufferOffset;
+	__u16  Reserved;
+	__le32 InputBufferLength;
+	__le32 AdditionalInformation;
+	__le32 Flags;
+	__u64  PersistentFileId; /* opaque endianness */
+	__u64  VolatileFileId; /* opaque endianness */
+	__u8   Buffer[1];
+} __packed;
+
+struct smb2_query_info_rsp {
+	struct smb2_hdr hdr;
+	__le16 StructureSize; /* Must be 9 */
+	__le16 OutputBufferOffset;
+	__le32 OutputBufferLength;
+	__u8   Buffer[1];
+} __packed;
+
+/*
+ *	PDU infolevel structure definitions
+ *	BB consider moving to a different header
+ */
+
+/* partial list of QUERY INFO levels */
+#define FILE_DIRECTORY_INFORMATION	1
+#define FILE_FULL_DIRECTORY_INFORMATION 2
+#define FILE_BOTH_DIRECTORY_INFORMATION 3
+#define FILE_BASIC_INFORMATION		4
+#define FILE_STANDARD_INFORMATION	5
+#define FILE_INTERNAL_INFORMATION	6
+#define FILE_EA_INFORMATION	        7
+#define FILE_ACCESS_INFORMATION		8
+#define FILE_NAME_INFORMATION		9
+#define FILE_RENAME_INFORMATION		10
+#define FILE_LINK_INFORMATION		11
+#define FILE_NAMES_INFORMATION		12
+#define FILE_DISPOSITION_INFORMATION	13
+#define FILE_POSITION_INFORMATION	14
+#define FILE_FULL_EA_INFORMATION	15
+#define FILE_MODE_INFORMATION		16
+#define FILE_ALIGNMENT_INFORMATION	17
+#define FILE_ALL_INFORMATION		18
+#define FILE_ALLOCATION_INFORMATION	19
+#define FILE_END_OF_FILE_INFORMATION	20
+#define FILE_ALTERNATE_NAME_INFORMATION 21
+#define FILE_STREAM_INFORMATION		22
+#define FILE_PIPE_INFORMATION		23
+#define FILE_PIPE_LOCAL_INFORMATION	24
+#define FILE_PIPE_REMOTE_INFORMATION	25
+#define FILE_MAILSLOT_QUERY_INFORMATION 26
+#define FILE_MAILSLOT_SET_INFORMATION	27
+#define FILE_COMPRESSION_INFORMATION	28
+#define FILE_OBJECT_ID_INFORMATION	29
+/* Number 30 not defined in documents */
+#define FILE_MOVE_CLUSTER_INFORMATION	31
+#define FILE_QUOTA_INFORMATION		32
+#define FILE_REPARSE_POINT_INFORMATION	33
+#define FILE_NETWORK_OPEN_INFORMATION	34
+#define FILE_ATTRIBUTE_TAG_INFORMATION	35
+#define FILE_TRACKING_INFORMATION	36
+#define FILEID_BOTH_DIRECTORY_INFORMATION 37
+#define FILEID_FULL_DIRECTORY_INFORMATION 38
+#define FILE_VALID_DATA_LENGTH_INFORMATION 39
+#define FILE_SHORT_NAME_INFORMATION	40
+#define FILE_SFIO_RESERVE_INFORMATION	44
+#define FILE_SFIO_VOLUME_INFORMATION	45
+#define FILE_HARD_LINK_INFORMATION	46
+#define FILE_NORMALIZED_NAME_INFORMATION 48
+#define FILEID_GLOBAL_TX_DIRECTORY_INFORMATION 50
+#define FILE_STANDARD_LINK_INFORMATION	54
+
+/*
+ * This level 18, although with struct with same name is different from cifs
+ * level 0x107. Level 0x107 has an extra u64 between AccessFlags and
+ * CurrentByteOffset.
+ */
+struct smb2_file_all_info { /* data block encoding of response to level 18 */
+	__le64 CreationTime;	/* Beginning of FILE_BASIC_INFO equivalent */
+	__le64 LastAccessTime;
+	__le64 LastWriteTime;
+	__le64 ChangeTime;
+	__le32 Attributes;
+	__u32  Pad1;		/* End of FILE_BASIC_INFO_INFO equivalent */
+	__le64 AllocationSize;	/* Beginning of FILE_STANDARD_INFO equivalent */
+	__le64 EndOfFile;	/* size ie offset to first free byte in file */
+	__le32 NumberOfLinks;	/* hard links */
+	__u8   DeletePending;
+	__u8   Directory;
+	__u16  Pad2;		/* End of FILE_STANDARD_INFO equivalent */
+	__le64 IndexNumber;
+	__le32 EASize;
+	__le32 AccessFlags;
+	__le64 CurrentByteOffset;
+	__le32 Mode;
+	__le32 AlignmentRequirement;
+	__le32 FileNameLength;
+	char   FileName[1];
+} __packed; /* level 18 Query */
+
 #endif				/* _SMB2PDU_H */

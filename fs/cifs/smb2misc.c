@@ -235,8 +235,13 @@ smb2_get_data_area_len(int *off, int *len, struct smb2_hdr *hdr)
 		*len = le32_to_cpu(
 		    ((struct smb2_create_rsp *)hdr)->CreateContextsLength);
 		break;
-	case SMB2_READ:
 	case SMB2_QUERY_INFO:
+		*off = le16_to_cpu(
+		    ((struct smb2_query_info_rsp *)hdr)->OutputBufferOffset);
+		*len = le32_to_cpu(
+		    ((struct smb2_query_info_rsp *)hdr)->OutputBufferLength);
+		break;
+	case SMB2_READ:
 	case SMB2_QUERY_DIRECTORY:
 	case SMB2_IOCTL:
 	case SMB2_CHANGE_NOTIFY:

@@ -181,6 +181,15 @@ smb2_is_path_accessible(const unsigned int xid, struct cifs_tcon *tcon,
 	return rc;
 }
 
+static int
+smb2_get_srv_inum(const unsigned int xid, struct cifs_tcon *tcon,
+		  struct cifs_sb_info *cifs_sb, const char *full_path,
+		  u64 *uniqueid, FILE_ALL_INFO *data)
+{
+	*uniqueid = le64_to_cpu(data->IndexNumber);
+	return 0;
+}
+
 struct smb_version_operations smb21_operations = {
 	.setup_request = smb2_setup_request,
 	.check_receive = smb2_check_receive,
@@ -199,6 +208,8 @@ struct smb_version_operations smb21_operations = {
 	.tree_connect = SMB2_tcon,
 	.tree_disconnect = SMB2_tdis,
 	.is_path_accessible = smb2_is_path_accessible,
+	.query_path_info = smb2_query_path_info,
+	.get_srv_inum = smb2_get_srv_inum,
 };
 
 struct smb_version_values smb21_values = {

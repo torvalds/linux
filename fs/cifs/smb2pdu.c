@@ -961,3 +961,116 @@ close_exit:
 	free_rsp_buf(resp_buftype, rsp);
 	return rc;
 }
+
+static int
+validate_buf(unsigned int offset, unsigned int buffer_length,
+	     struct smb2_hdr *hdr, unsigned int min_buf_size)
+
+{
+	unsigned int smb_len = be32_to_cpu(hdr->smb2_buf_length);
+	char *end_of_smb = smb_len + 4 /* RFC1001 length field */ + (char *)hdr;
+	char *begin_of_buf = 4 /* RFC1001 len field */ + offset + (char *)hdr;
+	char *end_of_buf = begin_of_buf + buffer_length;
+
+
+	if (buffer_length < min_buf_size) {
+		cERROR(1, "buffer length %d smaller than minimum size %d",
+			   buffer_length, min_buf_size);
+		return -EINVAL;
+	}
+
+	/* check if beyond RFC1001 maximum length */
+	if ((smb_len > 0x7FFFFF) || (buffer_length > 0x7FFFFF)) {
+		cERROR(1, "buffer length %d or smb length %d too large",
+			   buffer_length, smb_len);
+		return -EINVAL;
+	}
+
+	if ((begin_of_buf > end_of_smb) || (end_of_buf > end_of_smb)) {
+		cERROR(1, "illegal server response, bad offset to data");
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
+/*
+ * If SMB buffer fields are valid, copy into temporary buffer to hold result.
+ * Caller must free buffer.
+ */
+static int
+validate_and_copy_buf(unsigned int offset, unsigned int buffer_length,
+		      struct smb2_hdr *hdr, unsigned int minbufsize,
+		      char *data)
+
+{
+	char *begin_of_buf = 4 /* RFC1001 len field */ + offset + (char *)hdr;
+	int rc;
+
+	if (!data)
+		return -EINVAL;
+
+	rc = validate_buf(offset, buffer_length, hdr, minbufsize);
+	if (rc)
+		return rc;
+
+	memcpy(data, begin_of_buf, buffer_length);
+
+	return 0;
+}
+
+int
+SMB2_query_info(const unsigned int xid, struct cifs_tcon *tcon,
+		u64 persistent_fid, u64 volatile_fid,
+		struct smb2_file_all_info *data)
+{
+	struct smb2_query_info_req *req;
+	struct smb2_query_info_rsp *rsp = NULL;
+	struct kvec iov[2];
+	int rc = 0;
+	int resp_buftype;
+	struct TCP_Server_Info *server;
+	struct cifs_ses *ses = tcon->ses;
+
+	cFYI(1, "Query Info");
+
+	if (ses && (ses->server))
+		server = ses->server;
+	else
+		return -EIO;
+
+	rc = small_smb2_init(SMB2_QUERY_INFO, tcon, (void **) &req);
+	if (rc)
+		return rc;
+
+	req->InfoType = SMB2_O_INFO_FILE;
+	req->FileInfoClass = FILE_ALL_INFORMATION;
+	req->PersistentFileId = persistent_fid;
+	req->VolatileFileId = volatile_fid;
+	/* 4 for rfc1002 length field and 1 for Buffer */
+	req->InputBufferOffset =
+		cpu_to_le16(sizeof(struct smb2_query_info_req) - 1 - 4);
+	req->OutputBufferLength =
+		cpu_to_le32(sizeof(struct smb2_file_all_info) + MAX_NAME * 2);
+
+	iov[0].iov_base = (char *)req;
+	/* 4 for rfc1002 length field */
+	iov[0].iov_len = get_rfc1002_length(req) + 4;
+
+	rc = SendReceive2(xid, ses, iov, 1, &resp_buftype, 0);
+	if (rc) {
+		cifs_stats_fail_inc(tcon, SMB2_QUERY_INFO_HE);
+		goto qinf_exit;
+	}
+
+	rsp = (struct smb2_query_info_rsp *)iov[0].iov_base;
+
+	rc = validate_and_copy_buf(le16_to_cpu(rsp->OutputBufferOffset),
+				   le32_to_cpu(rsp->OutputBufferLength),
+				   &rsp->hdr, sizeof(struct smb2_file_all_info),
+				   (char *)data);
+
+qinf_exit:
+	free_rsp_buf(resp_buftype, rsp);
+	return rc;
+}
