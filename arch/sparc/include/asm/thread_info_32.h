@@ -95,7 +95,7 @@ BTFIXUPDEF_CALL(void, free_thread_info, struct thread_info *)
  * Observe the order of get_free_pages() in alloc_thread_info_node().
  * The sun4 has 8K stack too, because it's short on memory, and 16K is a waste.
  */
-#define THREAD_SIZE		8192
+#define THREAD_SIZE		(2 * PAGE_SIZE)
 
 /*
  * Offsets in thread_info structure, used in assembly code
