@@ -325,27 +325,19 @@ static struct snd_soc_platform_driver alchemy_pcm_soc_platform = {
 static int __devinit alchemy_pcm_drvprobe(struct platform_device *pdev)
 {
 	struct alchemy_pcm_ctx *ctx;
-	int ret;
 
-	ctx = kzalloc(sizeof(*ctx), GFP_KERNEL);
+	ctx = devm_kzalloc(&pdev->dev, sizeof(*ctx), GFP_KERNEL);
 	if (!ctx)
 		return -ENOMEM;
 
 	platform_set_drvdata(pdev, ctx);
 
-	ret = snd_soc_register_platform(&pdev->dev, &alchemy_pcm_soc_platform);
-	if (ret)
-		kfree(ctx);
-
-	return ret;
+	return snd_soc_register_platform(&pdev->dev, &alchemy_pcm_soc_platform);
 }
 
 static int __devexit alchemy_pcm_drvremove(struct platform_device *pdev)
 {
-	struct alchemy_pcm_ctx *ctx = platform_get_drvdata(pdev);
-
 	snd_soc_unregister_platform(&pdev->dev);
-	kfree(ctx);
 
 	return 0;
 }
