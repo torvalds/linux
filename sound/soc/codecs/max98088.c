@@ -2069,7 +2069,8 @@ static int max98088_i2c_probe(struct i2c_client *i2c,
        struct max98088_priv *max98088;
        int ret;
 
-       max98088 = kzalloc(sizeof(struct max98088_priv), GFP_KERNEL);
+       max98088 = devm_kzalloc(&i2c->dev, sizeof(struct max98088_priv),
+			       GFP_KERNEL);
        if (max98088 == NULL)
                return -ENOMEM;
 
@@ -2080,15 +2081,12 @@ static int max98088_i2c_probe(struct i2c_client *i2c,
 
        ret = snd_soc_register_codec(&i2c->dev,
                        &soc_codec_dev_max98088, &max98088_dai[0], 2);
-       if (ret < 0)
-               kfree(max98088);
        return ret;
 }
 
 static int __devexit max98088_i2c_remove(struct i2c_client *client)
 {
        snd_soc_unregister_codec(&client->dev);
-       kfree(i2c_get_clientdata(client));
        return 0;
 }
 
