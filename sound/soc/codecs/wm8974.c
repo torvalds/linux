@@ -235,7 +235,7 @@ SND_SOC_DAPM_OUTPUT("SPKOUTP"),
 SND_SOC_DAPM_OUTPUT("SPKOUTN"),
 };
 
-static const struct snd_soc_dapm_route audio_map[] = {
+static const struct snd_soc_dapm_route wm8974_dapm_routes[] = {
 	/* Mono output mixer */
 	{"Mono Mixer", "PCM Playback Switch", "DAC"},
 	{"Mono Mixer", "Aux Playback Switch", "Aux Input"},
@@ -268,17 +268,6 @@ static const struct snd_soc_dapm_route audio_map[] = {
 	/* Inputs */
 	{"Aux Input", NULL, "AUX"},
 };
-
-static int wm8974_add_widgets(struct snd_soc_codec *codec)
-{
-	struct snd_soc_dapm_context *dapm = &codec->dapm;
-
-	snd_soc_dapm_new_controls(dapm, wm8974_dapm_widgets,
-				  ARRAY_SIZE(wm8974_dapm_widgets));
-	snd_soc_dapm_add_routes(dapm, audio_map, ARRAY_SIZE(audio_map));
-
-	return 0;
-}
 
 struct pll_ {
 	unsigned int pre_div:1;
@@ -611,9 +600,6 @@ static int wm8974_probe(struct snd_soc_codec *codec)
 	}
 
 	wm8974_set_bias_level(codec, SND_SOC_BIAS_STANDBY);
-	snd_soc_add_controls(codec, wm8974_snd_controls,
-			     ARRAY_SIZE(wm8974_snd_controls));
-	wm8974_add_widgets(codec);
 
 	return ret;
 }
@@ -634,6 +620,13 @@ static struct snd_soc_codec_driver soc_codec_dev_wm8974 = {
 	.reg_cache_size = ARRAY_SIZE(wm8974_reg),
 	.reg_word_size = sizeof(u16),
 	.reg_cache_default = wm8974_reg,
+
+	.controls = wm8974_snd_controls,
+	.num_controls = ARRAY_SIZE(wm8974_snd_controls),
+	.dapm_widgets = wm8974_dapm_widgets,
+	.num_dapm_widgets = ARRAY_SIZE(wm8974_dapm_widgets),
+	.dapm_routes = wm8974_dapm_routes,
+	.num_dapm_routes = ARRAY_SIZE(wm8974_dapm_routes),
 };
 
 static __devinit int wm8974_i2c_probe(struct i2c_client *i2c,
