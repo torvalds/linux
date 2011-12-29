@@ -129,11 +129,14 @@ static struct neighbour *ip6_neigh_lookup(const struct dst_entry *dst, const voi
 	return neigh_create(&nd_tbl, daddr, dst->dev);
 }
 
-static int rt6_bind_neighbour(struct rt6_info *rt)
+static int rt6_bind_neighbour(struct rt6_info *rt, struct net_device *dev)
 {
-	struct neighbour *n = ip6_neigh_lookup(&rt->dst, &rt->rt6i_gateway);
-	if (IS_ERR(n))
-		return PTR_ERR(n);
+	struct neighbour *n = __ipv6_neigh_lookup(&nd_tbl, dev, &rt->rt6i_gateway);
+	if (!n) {
+		n = neigh_create(&nd_tbl, &rt->rt6i_gateway, dev);
+		if (IS_ERR(n))
+			return PTR_ERR(n);
+	}
 	dst_set_neighbour(&rt->dst, n);
 
 	return 0;
@@ -746,7 +749,7 @@ static struct rt6_info *rt6_alloc_cow(const struct rt6_info *ort,
 #endif
 
 	retry:
-		if (rt6_bind_neighbour(rt)) {
+		if (rt6_bind_neighbour(rt, rt->dst.dev)) {
 			struct net *net = dev_net(rt->dst.dev);
 			int saved_rt_min_interval =
 				net->ipv6.sysctl.ip6_rt_gc_min_interval;
@@ -1397,7 +1400,7 @@ int ip6_route_add(struct fib6_config *cfg)
 		rt->rt6i_prefsrc.plen = 0;
 
 	if (cfg->fc_flags & (RTF_GATEWAY | RTF_NONEXTHOP)) {
-		err = rt6_bind_neighbour(rt);
+		err = rt6_bind_neighbour(rt, dev);
 		if (err)
 			goto out;
 	}
@@ -2084,7 +2087,7 @@ struct rt6_info *addrconf_dst_alloc(struct inet6_dev *idev,
 		rt->rt6i_flags |= RTF_ANYCAST;
 	else
 		rt->rt6i_flags |= RTF_LOCAL;
-	err = rt6_bind_neighbour(rt);
+	err = rt6_bind_neighbour(rt, rt->dst.dev);
 	if (err) {
 		dst_free(&rt->dst);
 		return ERR_PTR(err);
