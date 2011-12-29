@@ -34,21 +34,9 @@
 #include <linux/dmaengine.h>
 #include <linux/gpio.h>
 #include <linux/io.h>
+#include <linux/platform_data/atmel.h>
 
-#include <mach/board.h>
 #include <mach/cpu.h>
-
-#ifdef CONFIG_MTD_NAND_ATMEL_ECC_HW
-#define hard_ecc	1
-#else
-#define hard_ecc	0
-#endif
-
-#ifdef CONFIG_MTD_NAND_ATMEL_ECC_NONE
-#define no_ecc		1
-#else
-#define no_ecc		0
-#endif
 
 static int use_dma = 1;
 module_param(use_dma, int, 0);
@@ -532,23 +520,22 @@ static int __init atmel_nand_probe(struct platform_device *pdev)
 	if (gpio_is_valid(host->board->rdy_pin))
 		nand_chip->dev_ready = atmel_nand_device_ready;
 
+	nand_chip->ecc.mode = host->board->ecc_mode;
+
 	regs = platform_get_resource(pdev, IORESOURCE_MEM, 1);
-	if (!regs && hard_ecc) {
+	if (!regs && nand_chip->ecc.mode == NAND_ECC_HW) {
 		printk(KERN_ERR "atmel_nand: can't get I/O resource "
 				"regs\nFalling back on software ECC\n");
+		nand_chip->ecc.mode = NAND_ECC_SOFT;
 	}
 
-	nand_chip->ecc.mode = NAND_ECC_SOFT;	/* enable ECC */
-	if (no_ecc)
-		nand_chip->ecc.mode = NAND_ECC_NONE;
-	if (hard_ecc && regs) {
+	if (nand_chip->ecc.mode == NAND_ECC_HW) {
 		host->ecc = ioremap(regs->start, resource_size(regs));
 		if (host->ecc == NULL) {
 			printk(KERN_ERR "atmel_nand: ioremap failed\n");
 			res = -EIO;
 			goto err_ecc_ioremap;
 		}
-		nand_chip->ecc.mode = NAND_ECC_HW;
 		nand_chip->ecc.calculate = atmel_nand_calculate;
 		nand_chip->ecc.correct = atmel_nand_correct;
 		nand_chip->ecc.hwctl = atmel_nand_hwctl;

@@ -47,6 +47,7 @@ static struct atmel_nand_data __initdata ek_nand_data = {
 	.det_pin	= -EINVAL,
 	.rdy_pin	= AT91_PIN_PC8,
 	.enable_pin	= AT91_PIN_PC14,
+	.ecc_mode	= NAND_ECC_SOFT,
 };
 
 static struct sam9_smc_config __initdata ek_nand_smc_config = {

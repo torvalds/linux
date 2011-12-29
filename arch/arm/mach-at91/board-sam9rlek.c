@@ -94,6 +94,7 @@ static struct atmel_nand_data __initdata ek_nand_data = {
 	.det_pin	= -EINVAL,
 	.rdy_pin	= AT91_PIN_PD17,
 	.enable_pin	= AT91_PIN_PB6,
+	.ecc_mode	= NAND_ECC_SOFT,
 	.parts		= ek_nand_partition,
 	.num_parts	= ARRAY_SIZE(ek_nand_partition),
 };
