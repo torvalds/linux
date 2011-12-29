@@ -17,12 +17,6 @@ config MACH_RK29SDK_DDR3
         help
           Support for the ROCKCHIP Board For Rk29 Sdk.
 
-config MACH_RK29WINACCORD
-	depends on ARCH_RK29
-	bool "ROCKCHIP Board Rk29 For Winaccord"
-        help
-	  Support for the ROCKCHIP Board For Rk29 Winaccord.
-
 config MACH_RK29_K97
         depends on ARCH_RK29
         bool "ROCKCHIP Board Rk29 For K97"
