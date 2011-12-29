@@ -479,9 +479,7 @@ enum htc_send_full_action ath6kl_tx_queue_full(struct htc_target *target,
 		 * WMI queue with too many commands the only exception to
 		 * this is during testing using endpointping.
 		 */
-		spin_lock_bh(&ar->lock);
 		set_bit(WMI_CTRL_EP_FULL, &ar->flag);
-		spin_unlock_bh(&ar->lock);
 		ath6kl_err("wmi ctrl ep is full\n");
 		return action;
 	}
@@ -509,9 +507,7 @@ enum htc_send_full_action ath6kl_tx_queue_full(struct htc_target *target,
 		    action != HTC_SEND_FULL_DROP) {
 			spin_unlock_bh(&ar->list_lock);
 
-			spin_lock_bh(&vif->if_lock);
 			set_bit(NETQ_STOPPED, &vif->flags);
-			spin_unlock_bh(&vif->if_lock);
 			netif_stop_queue(vif->ndev);
 
 			return action;
