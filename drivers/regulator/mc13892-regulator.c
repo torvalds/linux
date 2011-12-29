@@ -538,7 +538,7 @@ static int __devinit mc13892_regulator_probe(struct platform_device *pdev)
 	if (num_regulators <= 0)
 		return -EINVAL;
 
-	priv = kzalloc(sizeof(*priv) +
+	priv = devm_kzalloc(&pdev->dev, sizeof(*priv) +
 		num_regulators * sizeof(priv->regulators[0]),
 		GFP_KERNEL);
 	if (!priv)
@@ -615,7 +615,6 @@ err:
 
 err_free:
 	mc13xxx_unlock(mc13892);
-	kfree(priv);
 
 	return ret;
 }
@@ -630,7 +629,6 @@ static int __devexit mc13892_regulator_remove(struct platform_device *pdev)
 	for (i = 0; i < priv->num_regulators; i++)
 		regulator_unregister(priv->regulators[i]);
 
-	kfree(priv);
 	return 0;
 }
 
