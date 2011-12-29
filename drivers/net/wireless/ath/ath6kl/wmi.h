@@ -649,7 +649,6 @@ enum auth_mode {
 	WPA2_AUTH_CCKM = 0x40,
 };
 
-#define WMI_MIN_KEY_INDEX   0
 #define WMI_MAX_KEY_INDEX   3
 
 #define WMI_MAX_KEY_LEN     32

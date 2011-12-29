@@ -363,7 +363,7 @@ static void ath6kl_install_static_wep_keys(struct ath6kl_vif *vif)
 	u8 index;
 	u8 keyusage;
 
-	for (index = WMI_MIN_KEY_INDEX; index <= WMI_MAX_KEY_INDEX; index++) {
+	for (index = 0; index <= WMI_MAX_KEY_INDEX; index++) {
 		if (vif->wep_key_list[index].key_len) {
 			keyusage = GROUP_USAGE;
 			if (index == vif->def_txkey_index)
