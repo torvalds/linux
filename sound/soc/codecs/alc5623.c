@@ -1022,7 +1022,8 @@ static int alc5623_i2c_probe(struct i2c_client *client,
 
 	dev_dbg(&client->dev, "Found codec id : alc56%02x\n", vid2);
 
-	alc5623 = kzalloc(sizeof(struct alc5623_priv), GFP_KERNEL);
+	alc5623 = devm_kzalloc(&client->dev, sizeof(struct alc5623_priv),
+			       GFP_KERNEL);
 	if (alc5623 == NULL)
 		return -ENOMEM;
 
@@ -1044,7 +1045,6 @@ static int alc5623_i2c_probe(struct i2c_client *client,
 		alc5623_dai.name = "alc5623-hifi";
 		break;
 	default:
-		kfree(alc5623);
 		return -EINVAL;
 	}
 
@@ -1053,20 +1053,15 @@ static int alc5623_i2c_probe(struct i2c_client *client,
 
 	ret =  snd_soc_register_codec(&client->dev,
 		&soc_codec_device_alc5623, &alc5623_dai, 1);
-	if (ret != 0) {
+	if (ret != 0)
 		dev_err(&client->dev, "Failed to register codec: %d\n", ret);
-		kfree(alc5623);
-	}
 
 	return ret;
 }
 
 static int alc5623_i2c_remove(struct i2c_client *client)
 {
-	struct alc5623_priv *alc5623 = i2c_get_clientdata(client);
-
 	snd_soc_unregister_codec(&client->dev);
-	kfree(alc5623);
 	return 0;
 }
 
