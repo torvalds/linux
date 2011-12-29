@@ -332,7 +332,7 @@ static int mlx4_dev_cap(struct mlx4_dev *dev, struct mlx4_dev_cap *dev_cap)
 		 * and perform sense_port FW command to try and set the correct
 		 * port type from beginning
 		 */
-		if (mlx4_priv(dev)->sense.sense_allowed && dev->caps.default_sense[i]) {
+		if (mlx4_priv(dev)->sense.sense_allowed[i] && dev->caps.default_sense[i]) {
 			enum mlx4_port_type sensed_port = MLX4_PORT_TYPE_NONE;
 			dev->caps.possible_type[i] = MLX4_PORT_TYPE_AUTO;
 			mlx4_SENSE_PORT(dev, i, &sensed_port);
