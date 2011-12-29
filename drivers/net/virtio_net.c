@@ -508,7 +508,7 @@ static void refill_work(struct work_struct *work)
 	/* In theory, this can happen: if we don't get any buffers in
 	 * we will *never* try to fill again. */
 	if (still_empty)
-		schedule_delayed_work(&vi->refill, HZ/2);
+		queue_delayed_work(system_nrt_wq, &vi->refill, HZ/2);
 }
 
 static int virtnet_poll(struct napi_struct *napi, int budget)
@@ -527,7 +527,7 @@ again:
 
 	if (vi->num < vi->max / 2) {
 		if (!try_fill_recv(vi, GFP_ATOMIC))
-			schedule_delayed_work(&vi->refill, 0);
+			queue_delayed_work(system_nrt_wq, &vi->refill, 0);
 	}
 
 	/* Out of packets? */
@@ -729,7 +729,7 @@ static int virtnet_open(struct net_device *dev)
 
 	/* Make sure we have some buffers: if oom use wq. */
 	if (!try_fill_recv(vi, GFP_KERNEL))
-		schedule_delayed_work(&vi->refill, 0);
+		queue_delayed_work(system_nrt_wq, &vi->refill, 0);
 
 	virtnet_napi_enable(vi);
 	return 0;
