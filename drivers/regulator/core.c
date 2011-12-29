@@ -985,9 +985,8 @@ static int set_supply(struct regulator_dev *rdev,
 	rdev_info(rdev, "supplied by %s\n", rdev_get_name(supply_rdev));
 
 	rdev->supply = create_regulator(supply_rdev, &rdev->dev, "SUPPLY");
-	if (IS_ERR(rdev->supply)) {
-		err = PTR_ERR(rdev->supply);
-		rdev->supply = NULL;
+	if (rdev->supply == NULL) {
+		err = -ENOMEM;
 		return err;
 	}
 
