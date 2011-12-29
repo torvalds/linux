@@ -310,10 +310,6 @@ static ssize_t mtdchar_write(struct file *file, const char __user *buf, size_t c
 			ret = -EROFS;
 			break;
 		case MTD_FILE_MODE_OTP_USER:
-			if (!mtd->write_user_prot_reg) {
-				ret = -EOPNOTSUPP;
-				break;
-			}
 			ret = mtd_write_user_prot_reg(mtd, *ppos, len,
 						      &retlen, kbuf);
 			break;

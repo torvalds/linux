@@ -381,6 +381,8 @@ static inline int mtd_write_user_prot_reg(struct mtd_info *mtd, loff_t to,
 					  u_char *buf)
 {
 	*retlen = 0;
+	if (!mtd->write_user_prot_reg)
+		return -EOPNOTSUPP;
 	return mtd->write_user_prot_reg(mtd, to, len, retlen, buf);
 }
 
