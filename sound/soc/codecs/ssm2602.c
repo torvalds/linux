@@ -652,7 +652,8 @@ static int __devinit ssm2602_spi_probe(struct spi_device *spi)
 	struct ssm2602_priv *ssm2602;
 	int ret;
 
-	ssm2602 = kzalloc(sizeof(struct ssm2602_priv), GFP_KERNEL);
+	ssm2602 = devm_kzalloc(&spi->dev, sizeof(struct ssm2602_priv),
+			       GFP_KERNEL);
 	if (ssm2602 == NULL)
 		return -ENOMEM;
 
@@ -662,15 +663,12 @@ static int __devinit ssm2602_spi_probe(struct spi_device *spi)
 
 	ret = snd_soc_register_codec(&spi->dev,
 			&soc_codec_dev_ssm2602, &ssm2602_dai, 1);
-	if (ret < 0)
-		kfree(ssm2602);
 	return ret;
 }
 
 static int __devexit ssm2602_spi_remove(struct spi_device *spi)
 {
 	snd_soc_unregister_codec(&spi->dev);
-	kfree(spi_get_drvdata(spi));
 	return 0;
 }
 
@@ -697,7 +695,8 @@ static int __devinit ssm2602_i2c_probe(struct i2c_client *i2c,
 	struct ssm2602_priv *ssm2602;
 	int ret;
 
-	ssm2602 = kzalloc(sizeof(struct ssm2602_priv), GFP_KERNEL);
+	ssm2602 = devm_kzalloc(&i2c->dev, sizeof(struct ssm2602_priv),
+			       GFP_KERNEL);
 	if (ssm2602 == NULL)
 		return -ENOMEM;
 
@@ -707,15 +706,12 @@ static int __devinit ssm2602_i2c_probe(struct i2c_client *i2c,
 
 	ret = snd_soc_register_codec(&i2c->dev,
 			&soc_codec_dev_ssm2602, &ssm2602_dai, 1);
-	if (ret < 0)
-		kfree(ssm2602);
 	return ret;
 }
 
 static int __devexit ssm2602_i2c_remove(struct i2c_client *client)
 {
 	snd_soc_unregister_codec(&client->dev);
-	kfree(i2c_get_clientdata(client));
 	return 0;
 }
 
