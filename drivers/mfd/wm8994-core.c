@@ -25,6 +25,8 @@
 #include <linux/mfd/wm8994/core.h>
 #include <linux/mfd/wm8994/pdata.h>
 #include <linux/mfd/wm8994/registers.h>
+#include <mach/gpio.h>
+#include <mach/iomux.h>
 
 #if 0
 #define DBG(x...) printk(KERN_DEBUG x)
@@ -646,6 +648,20 @@ static int wm8994_i2c_remove(struct i2c_client *i2c)
 	return 0;
 }
 
+static void wm8994_i2c_shutdown(struct i2c_client *i2c)
+{
+	struct wm8994 *wm8994 = i2c_get_clientdata(i2c);
+	struct wm8994_pdata *pdata = wm8994->dev->platform_data;
+
+	DBG("%s----%d\n",__FUNCTION__,__LINE__);
+	
+	//disable PA	
+	gpio_direction_output(pdata->PA_control_pin,GPIO_LOW);
+	if (gpio_is_valid(pdata->PA_control_pin))
+		gpio_free(pdata->PA_control_pin);
+
+}
+
 static const struct i2c_device_id wm8994_i2c_id[] = {
 	{ "wm8994", WM8994 },
 	{ "wm8958", WM8958 },
@@ -664,6 +680,7 @@ static struct i2c_driver wm8994_i2c_driver = {
 	},
 	.probe = wm8994_i2c_probe,
 	.remove = wm8994_i2c_remove,
+	.shutdown = wm8994_i2c_shutdown,
 	.id_table = wm8994_i2c_id,
 };
 
