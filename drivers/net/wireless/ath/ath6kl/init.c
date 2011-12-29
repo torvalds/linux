@@ -28,10 +28,12 @@
 unsigned int debug_mask;
 static unsigned int testmode;
 static bool suspend_cutpower;
+static unsigned int uart_debug;
 
 module_param(debug_mask, uint, 0644);
 module_param(testmode, uint, 0644);
 module_param(suspend_cutpower, bool, 0444);
+module_param(uart_debug, uint, 0644);
 
 static const struct ath6kl_hw hw_list[] = {
 	{
@@ -463,6 +465,13 @@ int ath6kl_configure_target(struct ath6kl *ar)
 	u32 param, ram_reserved_size;
 	u8 fw_iftype, fw_mode = 0, fw_submode = 0;
 	int i, status;
+
+	param = uart_debug;
+	if (ath6kl_bmi_write(ar, ath6kl_get_hi_item_addr(ar,
+			     HI_ITEM(hi_serial_enable)), (u8 *)&param, 4)) {
+		ath6kl_err("bmi_write_memory for uart debug failed\n");
+		return -EIO;
+	}
 
 	/*
 	 * Note: Even though the firmware interface type is
