@@ -139,7 +139,7 @@ static int erase_whole_device(void)
 
 static int write_eraseblock(int ebnum)
 {
-	size_t written = 0;
+	size_t written;
 	int err = 0;
 	loff_t addr = ebnum * mtd->erasesize;
 
@@ -155,7 +155,7 @@ static int write_eraseblock(int ebnum)
 
 static int write_eraseblock_by_page(int ebnum)
 {
-	size_t written = 0;
+	size_t written;
 	int i, err = 0;
 	loff_t addr = ebnum * mtd->erasesize;
 	void *buf = iobuf;
@@ -178,7 +178,7 @@ static int write_eraseblock_by_page(int ebnum)
 
 static int write_eraseblock_by_2pages(int ebnum)
 {
-	size_t written = 0, sz = pgsize * 2;
+	size_t written, sz = pgsize * 2;
 	int i, n = pgcnt / 2, err = 0;
 	loff_t addr = ebnum * mtd->erasesize;
 	void *buf = iobuf;
@@ -210,7 +210,7 @@ static int write_eraseblock_by_2pages(int ebnum)
 
 static int read_eraseblock(int ebnum)
 {
-	size_t read = 0;
+	size_t read;
 	int err = 0;
 	loff_t addr = ebnum * mtd->erasesize;
 
@@ -229,7 +229,7 @@ static int read_eraseblock(int ebnum)
 
 static int read_eraseblock_by_page(int ebnum)
 {
-	size_t read = 0;
+	size_t read;
 	int i, err = 0;
 	loff_t addr = ebnum * mtd->erasesize;
 	void *buf = iobuf;
@@ -255,7 +255,7 @@ static int read_eraseblock_by_page(int ebnum)
 
 static int read_eraseblock_by_2pages(int ebnum)
 {
-	size_t read = 0, sz = pgsize * 2;
+	size_t read, sz = pgsize * 2;
 	int i, n = pgcnt / 2, err = 0;
 	loff_t addr = ebnum * mtd->erasesize;
 	void *buf = iobuf;

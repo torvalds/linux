@@ -189,7 +189,7 @@ static ssize_t mtdchar_read(struct file *file, char __user *buf, size_t count,
 {
 	struct mtd_file_info *mfi = file->private_data;
 	struct mtd_info *mtd = mfi->mtd;
-	size_t retlen=0;
+	size_t retlen;
 	size_t total_retlen=0;
 	int ret=0;
 	int len;

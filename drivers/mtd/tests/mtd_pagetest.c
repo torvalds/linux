@@ -95,7 +95,7 @@ static int erase_eraseblock(int ebnum)
 static int write_eraseblock(int ebnum)
 {
 	int err = 0;
-	size_t written = 0;
+	size_t written;
 	loff_t addr = ebnum * mtd->erasesize;
 
 	set_random_data(writebuf, mtd->erasesize);
@@ -111,7 +111,7 @@ static int write_eraseblock(int ebnum)
 static int verify_eraseblock(int ebnum)
 {
 	uint32_t j;
-	size_t read = 0;
+	size_t read;
 	int err = 0, i;
 	loff_t addr0, addrn;
 	loff_t addr = ebnum * mtd->erasesize;
@@ -144,7 +144,6 @@ static int verify_eraseblock(int ebnum)
 			return err;
 		}
 		memset(twopages, 0, bufsize);
-		read = 0;
 		err = mtd_read(mtd, addr, bufsize, &read, twopages);
 		if (mtd_is_bitflip(err))
 			err = 0;
@@ -180,7 +179,6 @@ static int verify_eraseblock(int ebnum)
 			return err;
 		}
 		memset(twopages, 0, bufsize);
-		read = 0;
 		err = mtd_read(mtd, addr, bufsize, &read, twopages);
 		if (mtd_is_bitflip(err))
 			err = 0;
@@ -203,7 +201,7 @@ static int verify_eraseblock(int ebnum)
 
 static int crosstest(void)
 {
-	size_t read = 0;
+	size_t read;
 	int err = 0, i;
 	loff_t addr, addr0, addrn;
 	unsigned char *pp1, *pp2, *pp3, *pp4;
@@ -228,7 +226,6 @@ static int crosstest(void)
 		addrn -= mtd->erasesize;
 
 	/* Read 2nd-to-last page to pp1 */
-	read = 0;
 	addr = addrn - pgsize - pgsize;
 	err = mtd_read(mtd, addr, pgsize, &read, pp1);
 	if (mtd_is_bitflip(err))
@@ -241,7 +238,6 @@ static int crosstest(void)
 	}
 
 	/* Read 3rd-to-last page to pp1 */
-	read = 0;
 	addr = addrn - pgsize - pgsize - pgsize;
 	err = mtd_read(mtd, addr, pgsize, &read, pp1);
 	if (mtd_is_bitflip(err))
@@ -254,7 +250,6 @@ static int crosstest(void)
 	}
 
 	/* Read first page to pp2 */
-	read = 0;
 	addr = addr0;
 	printk(PRINT_PREF "reading page at %#llx\n", (long long)addr);
 	err = mtd_read(mtd, addr, pgsize, &read, pp2);
@@ -268,7 +263,6 @@ static int crosstest(void)
 	}
 
 	/* Read last page to pp3 */
-	read = 0;
 	addr = addrn - pgsize;
 	printk(PRINT_PREF "reading page at %#llx\n", (long long)addr);
 	err = mtd_read(mtd, addr, pgsize, &read, pp3);
@@ -282,7 +276,6 @@ static int crosstest(void)
 	}
 
 	/* Read first page again to pp4 */
-	read = 0;
 	addr = addr0;
 	printk(PRINT_PREF "reading page at %#llx\n", (long long)addr);
 	err = mtd_read(mtd, addr, pgsize, &read, pp4);
@@ -309,7 +302,7 @@ static int crosstest(void)
 
 static int erasecrosstest(void)
 {
-	size_t read = 0, written = 0;
+	size_t read, written;
 	int err = 0, i, ebnum, ebnum2;
 	loff_t addr0;
 	char *readbuf = twopages;
@@ -405,7 +398,7 @@ static int erasecrosstest(void)
 
 static int erasetest(void)
 {
-	size_t read = 0, written = 0;
+	size_t read, written;
 	int err = 0, i, ebnum, ok = 1;
 	loff_t addr0;
 

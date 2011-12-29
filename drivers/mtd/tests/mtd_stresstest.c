@@ -140,7 +140,7 @@ static int is_block_bad(int ebnum)
 
 static int do_read(void)
 {
-	size_t read = 0;
+	size_t read;
 	int eb = rand_eb();
 	int offs = rand_offs();
 	int len = rand_len(offs), err;
@@ -169,7 +169,7 @@ static int do_read(void)
 static int do_write(void)
 {
 	int eb = rand_eb(), offs, err, len;
-	size_t written = 0;
+	size_t written;
 	loff_t addr;
 
 	offs = offsets[eb];

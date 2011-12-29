@@ -115,7 +115,7 @@ static int erase_whole_device(void)
 
 static int write_eraseblock(int ebnum)
 {
-	size_t written = 0;
+	size_t written;
 	int err = 0;
 	loff_t addr = ebnum * mtd->erasesize;
 
@@ -150,7 +150,7 @@ static int write_eraseblock(int ebnum)
 
 static int write_eraseblock2(int ebnum)
 {
-	size_t written = 0;
+	size_t written;
 	int err = 0, k;
 	loff_t addr = ebnum * mtd->erasesize;
 
@@ -189,13 +189,12 @@ static void print_subpage(unsigned char *p)
 
 static int verify_eraseblock(int ebnum)
 {
-	size_t read = 0;
+	size_t read;
 	int err = 0;
 	loff_t addr = ebnum * mtd->erasesize;
 
 	set_random_data(writebuf, subpgsize);
 	clear_data(readbuf, subpgsize);
-	read = 0;
 	err = mtd_read(mtd, addr, subpgsize, &read, readbuf);
 	if (unlikely(err || read != subpgsize)) {
 		if (mtd_is_bitflip(err) && read == subpgsize) {
@@ -223,7 +222,6 @@ static int verify_eraseblock(int ebnum)
 
 	set_random_data(writebuf, subpgsize);
 	clear_data(readbuf, subpgsize);
-	read = 0;
 	err = mtd_read(mtd, addr, subpgsize, &read, readbuf);
 	if (unlikely(err || read != subpgsize)) {
 		if (mtd_is_bitflip(err) && read == subpgsize) {
@@ -252,7 +250,7 @@ static int verify_eraseblock(int ebnum)
 
 static int verify_eraseblock2(int ebnum)
 {
-	size_t read = 0;
+	size_t read;
 	int err = 0, k;
 	loff_t addr = ebnum * mtd->erasesize;
 
@@ -261,7 +259,6 @@ static int verify_eraseblock2(int ebnum)
 			break;
 		set_random_data(writebuf, subpgsize * k);
 		clear_data(readbuf, subpgsize * k);
-		read = 0;
 		err = mtd_read(mtd, addr, subpgsize * k, &read, readbuf);
 		if (unlikely(err || read != subpgsize * k)) {
 			if (mtd_is_bitflip(err) && read == subpgsize * k) {
@@ -288,14 +285,13 @@ static int verify_eraseblock2(int ebnum)
 static int verify_eraseblock_ff(int ebnum)
 {
 	uint32_t j;
-	size_t read = 0;
+	size_t read;
 	int err = 0;
 	loff_t addr = ebnum * mtd->erasesize;
 
 	memset(writebuf, 0xff, subpgsize);
 	for (j = 0; j < mtd->erasesize / subpgsize; ++j) {
 		clear_data(readbuf, subpgsize);
-		read = 0;
 		err = mtd_read(mtd, addr, subpgsize, &read, readbuf);
 		if (unlikely(err || read != subpgsize)) {
 			if (mtd_is_bitflip(err) && read == subpgsize) {

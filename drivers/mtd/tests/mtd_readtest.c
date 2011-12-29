@@ -44,7 +44,7 @@ static int pgcnt;
 
 static int read_eraseblock_by_page(int ebnum)
 {
-	size_t read = 0;
+	size_t read;
 	int i, ret, err = 0;
 	loff_t addr = ebnum * mtd->erasesize;
 	void *buf = iobuf;

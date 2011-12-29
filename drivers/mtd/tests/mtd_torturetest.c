@@ -127,7 +127,7 @@ static inline int erase_eraseblock(int ebnum)
 static inline int check_eraseblock(int ebnum, unsigned char *buf)
 {
 	int err, retries = 0;
-	size_t read = 0;
+	size_t read;
 	loff_t addr = ebnum * mtd->erasesize;
 	size_t len = mtd->erasesize;
 
@@ -181,7 +181,7 @@ retry:
 static inline int write_pattern(int ebnum, void *buf)
 {
 	int err;
-	size_t written = 0;
+	size_t written;
 	loff_t addr = ebnum * mtd->erasesize;
 	size_t len = mtd->erasesize;
 
