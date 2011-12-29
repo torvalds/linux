@@ -2088,32 +2088,6 @@ static int wm8904_digital_mute(struct snd_soc_dai *codec_dai, int mute)
 	return 0;
 }
 
-static void wm8904_sync_cache(struct snd_soc_codec *codec)
-{
-	u16 *reg_cache = codec->reg_cache;
-	int i;
-
-	if (!codec->cache_sync)
-		return;
-
-	codec->cache_only = 0;
-
-	/* Sync back cached values if they're different from the
-	 * hardware default.
-	 */
-	for (i = 1; i < codec->driver->reg_cache_size; i++) {
-		if (!wm8904_access[i].writable)
-			continue;
-
-		if (reg_cache[i] == wm8904_reg[i])
-			continue;
-
-		snd_soc_write(codec, i, reg_cache[i]);
-	}
-
-	codec->cache_sync = 0;
-}
-
 static int wm8904_set_bias_level(struct snd_soc_codec *codec,
 				 enum snd_soc_bias_level level)
 {
@@ -2146,7 +2120,7 @@ static int wm8904_set_bias_level(struct snd_soc_codec *codec,
 				return ret;
 			}
 
-			wm8904_sync_cache(codec);
+			snd_soc_cache_sync(codec);
 
 			/* Enable bias */
 			snd_soc_update_bits(codec, WM8904_BIAS_CONTROL_0,
