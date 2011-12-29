@@ -389,6 +389,8 @@ static inline int mtd_write_user_prot_reg(struct mtd_info *mtd, loff_t to,
 static inline int mtd_lock_user_prot_reg(struct mtd_info *mtd, loff_t from,
 					 size_t len)
 {
+	if (!mtd->lock_user_prot_reg)
+		return -EOPNOTSUPP;
 	return mtd->lock_user_prot_reg(mtd, from, len);
 }
 
