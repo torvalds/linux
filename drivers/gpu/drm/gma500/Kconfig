@@ -19,8 +19,9 @@ config DRM_GMA600
 	  platforms with LVDS ports. HDMI and MIPI are not currently
 	  supported.
 
-config DRM_CEDARVIEW
-	bool "Intel Cedarview support (Experimental)"
+config DRM_GMA3600
+	bool "Intel GMA3600/3650 support (Experimental)"
 	depends on DRM_GMA500
 	help
-	  Say yes to include support for Intel Cedarview platforms
+	  Say yes to include basic support for Intel GMA3600/3650 (Intel
+	  Cedar Trail) platforms.

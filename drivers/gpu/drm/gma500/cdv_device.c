@@ -327,9 +327,10 @@ static int cdv_chip_setup(struct drm_device *dev)
 /* CDV is much like Poulsbo but has MID like SGX offsets and PM */
 
 const struct psb_ops cdv_chip_ops = {
-	.name = "Cedartrail",
+	.name = "GMA3600/3650",
 	.accel_2d = 0,
 	.pipes = 2,
+	.crtcs = 2,
 	.sgx_offset = MRST_SGX_OFFSET,
 	.chip_setup = cdv_chip_setup,
 
