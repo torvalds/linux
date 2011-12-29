@@ -210,7 +210,9 @@ static int davinci_vcif_probe(struct platform_device *pdev)
 	struct davinci_vcif_dev *davinci_vcif_dev;
 	int ret;
 
-	davinci_vcif_dev = kzalloc(sizeof(struct davinci_vcif_dev), GFP_KERNEL);
+	davinci_vcif_dev = devm_kzalloc(&pdev->dev,
+					sizeof(struct davinci_vcif_dev),
+					GFP_KERNEL);
 	if (!davinci_vcif_dev) {
 		dev_dbg(&pdev->dev,
 			"could not allocate memory for private data\n");
@@ -235,23 +237,15 @@ static int davinci_vcif_probe(struct platform_device *pdev)
 	ret = snd_soc_register_dai(&pdev->dev, &davinci_vcif_dai);
 	if (ret != 0) {
 		dev_err(&pdev->dev, "could not register dai\n");
-		goto fail;
+		return ret;
 	}
 
 	return 0;
-
-fail:
-	kfree(davinci_vcif_dev);
-
-	return ret;
 }
 
 static int davinci_vcif_remove(struct platform_device *pdev)
 {
-	struct davinci_vcif_dev *davinci_vcif_dev = dev_get_drvdata(&pdev->dev);
-
 	snd_soc_unregister_dai(&pdev->dev);
-	kfree(davinci_vcif_dev);
 
 	return 0;
 }
