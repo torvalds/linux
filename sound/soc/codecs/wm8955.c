@@ -795,18 +795,7 @@ static int wm8955_set_bias_level(struct snd_soc_codec *codec,
 				return ret;
 			}
 
-			/* Sync back cached values if they're
-			 * different from the hardware default.
-			 */
-			for (i = 0; i < codec->driver->reg_cache_size; i++) {
-				if (i == WM8955_RESET)
-					continue;
-
-				if (reg_cache[i] == wm8955_reg[i])
-					continue;
-
-				snd_soc_write(codec, i, reg_cache[i]);
-			}
+			snd_soc_cache_sync(codec);
 
 			/* Enable VREF and VMID */
 			snd_soc_update_bits(codec, WM8955_POWER_MANAGEMENT_1,
