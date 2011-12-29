@@ -653,8 +653,8 @@ ip6ip6_err(struct sk_buff *skb, struct inet6_skb_parm *opt,
 		rt = rt6_lookup(dev_net(skb->dev), &ipv6_hdr(skb2)->saddr,
 				NULL, 0, 0);
 
-		if (rt && rt->rt6i_dev)
-			skb2->dev = rt->rt6i_dev;
+		if (rt && rt->dst.dev)
+			skb2->dev = rt->dst.dev;
 
 		icmpv6_send(skb2, rel_type, rel_code, rel_info);
 
@@ -1185,11 +1185,11 @@ static void ip6_tnl_link_config(struct ip6_tnl *t)
 		if (rt == NULL)
 			return;
 
-		if (rt->rt6i_dev) {
-			dev->hard_header_len = rt->rt6i_dev->hard_header_len +
+		if (rt->dst.dev) {
+			dev->hard_header_len = rt->dst.dev->hard_header_len +
 				sizeof (struct ipv6hdr);
 
-			dev->mtu = rt->rt6i_dev->mtu - sizeof (struct ipv6hdr);
+			dev->mtu = rt->dst.dev->mtu - sizeof (struct ipv6hdr);
 			if (!(t->parms.flags & IP6_TNL_F_IGN_ENCAP_LIMIT))
 				dev->mtu-=8;
 

@@ -86,9 +86,6 @@ struct fib6_table;
 struct rt6_info {
 	struct dst_entry		dst;
 
-#define rt6i_dev			dst.dev
-#define rt6i_expires			dst.expires
-
 	/*
 	 * Tail elements of dst_entry (__refcnt etc.)
 	 * and these elements (rarely used in hot path) are in

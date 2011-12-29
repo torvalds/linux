@@ -85,7 +85,7 @@ static int __ip_vs_addr_is_local_v6(struct net *net,
 	};
 
 	rt = (struct rt6_info *)ip6_route_output(net, NULL, &fl6);
-	if (rt && rt->rt6i_dev && (rt->rt6i_dev->flags & IFF_LOOPBACK))
+	if (rt && rt->dst.dev && (rt->dst.dev->flags & IFF_LOOPBACK))
 		return 1;
 
 	return 0;

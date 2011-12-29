@@ -83,7 +83,7 @@ int ipv6_sock_ac_join(struct sock *sk, int ifindex, const struct in6_addr *addr)
 
 		rt = rt6_lookup(net, addr, NULL, 0, 0);
 		if (rt) {
-			dev = rt->rt6i_dev;
+			dev = rt->dst.dev;
 			dst_release(&rt->dst);
 		} else if (ishost) {
 			err = -EADDRNOTAVAIL;

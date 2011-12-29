@@ -162,7 +162,7 @@ int ipv6_sock_mc_join(struct sock *sk, int ifindex, const struct in6_addr *addr)
 		struct rt6_info *rt;
 		rt = rt6_lookup(net, addr, NULL, 0, 0);
 		if (rt) {
-			dev = rt->rt6i_dev;
+			dev = rt->dst.dev;
 			dst_release(&rt->dst);
 		}
 	} else
@@ -256,7 +256,7 @@ static struct inet6_dev *ip6_mc_find_dev_rcu(struct net *net,
 		struct rt6_info *rt = rt6_lookup(net, group, NULL, 0, 0);
 
 		if (rt) {
-			dev = rt->rt6i_dev;
+			dev = rt->dst.dev;
 			dev_hold(dev);
 			dst_release(&rt->dst);
 		}

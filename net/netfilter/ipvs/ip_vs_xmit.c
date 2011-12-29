@@ -207,7 +207,7 @@ __ip_vs_reroute_locally(struct sk_buff *skb)
 
 static inline int __ip_vs_is_local_route6(struct rt6_info *rt)
 {
-	return rt->rt6i_dev && rt->rt6i_dev->flags & IFF_LOOPBACK;
+	return rt->dst.dev && rt->dst.dev->flags & IFF_LOOPBACK;
 }
 
 static struct dst_entry *
