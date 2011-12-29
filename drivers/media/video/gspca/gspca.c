@@ -838,13 +838,13 @@ static int gspca_init_transfer(struct gspca_dev *gspca_dev)
 	gspca_dev->usb_err = 0;
 
 	/* do the specific subdriver stuff before endpoint selection */
-	gspca_dev->alt = 0;
+	intf = usb_ifnum_to_if(gspca_dev->dev, gspca_dev->iface);
+	gspca_dev->alt = gspca_dev->cam.bulk ? intf->num_altsetting : 0;
 	if (gspca_dev->sd_desc->isoc_init) {
 		ret = gspca_dev->sd_desc->isoc_init(gspca_dev);
 		if (ret < 0)
 			goto unlock;
 	}
-	intf = usb_ifnum_to_if(gspca_dev->dev, gspca_dev->iface);
 	xfer = gspca_dev->cam.bulk ? USB_ENDPOINT_XFER_BULK
 				   : USB_ENDPOINT_XFER_ISOC;
 
