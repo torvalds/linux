@@ -2568,6 +2568,13 @@ static int wm5100_remove(struct snd_soc_codec *codec)
 	return 0;
 }
 
+static int wm5100_soc_volatile(struct snd_soc_codec *codec,
+			       unsigned int reg)
+{
+	return true;
+}
+
+
 static struct snd_soc_codec_driver soc_codec_dev_wm5100 = {
 	.probe =	wm5100_probe,
 	.remove =	wm5100_remove,
@@ -2576,6 +2583,8 @@ static struct snd_soc_codec_driver soc_codec_dev_wm5100 = {
 	.set_pll = wm5100_set_fll,
 	.set_bias_level = wm5100_set_bias_level,
 	.idle_bias_off = 1,
+	.reg_cache_size = WM5100_MAX_REGISTER,
+	.volatile_register = wm5100_soc_volatile,
 
 	.seq_notifier = wm5100_seq_notifier,
 	.controls = wm5100_snd_controls,
