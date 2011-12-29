@@ -544,7 +544,7 @@ SND_SOC_DAPM_OUTPUT("MONOOUT"),
 SND_SOC_DAPM_OUTPUT("OUT3"),
 };
 
-static const struct snd_soc_dapm_route wm8955_intercon[] = {
+static const struct snd_soc_dapm_route wm8955_dapm_routes[] = {
 	{ "DACL", NULL, "SYSCLK" },
 	{ "DACR", NULL, "SYSCLK" },
 
@@ -588,21 +588,6 @@ static const struct snd_soc_dapm_route wm8955_intercon[] = {
 	/* OUT3 not currently implemented */
 	{ "OUT3", NULL, "OUT3 PGA" },
 };
-
-static int wm8955_add_widgets(struct snd_soc_codec *codec)
-{
-	struct snd_soc_dapm_context *dapm = &codec->dapm;
-
-	snd_soc_add_controls(codec, wm8955_snd_controls,
-			     ARRAY_SIZE(wm8955_snd_controls));
-
-	snd_soc_dapm_new_controls(dapm, wm8955_dapm_widgets,
-				  ARRAY_SIZE(wm8955_dapm_widgets));
-	snd_soc_dapm_add_routes(dapm, wm8955_intercon,
-				ARRAY_SIZE(wm8955_intercon));
-
-	return 0;
-}
 
 static int wm8955_hw_params(struct snd_pcm_substream *substream,
 			    struct snd_pcm_hw_params *params,
@@ -981,7 +966,6 @@ static int wm8955_probe(struct snd_soc_codec *codec)
 	/* Bias level configuration will have done an extra enable */
 	regulator_bulk_disable(ARRAY_SIZE(wm8955->supplies), wm8955->supplies);
 
-	wm8955_add_widgets(codec);
 	return 0;
 
 err_enable:
@@ -1006,6 +990,13 @@ static struct snd_soc_codec_driver soc_codec_dev_wm8955 = {
 	.suspend =	wm8955_suspend,
 	.resume =	wm8955_resume,
 	.set_bias_level = wm8955_set_bias_level,
+
+	.controls =	wm8955_snd_controls,
+	.num_controls = ARRAY_SIZE(wm8955_snd_controls),
+	.dapm_widgets = wm8955_dapm_widgets,
+	.num_dapm_widgets = ARRAY_SIZE(wm8955_dapm_widgets),
+	.dapm_routes =	wm8955_dapm_routes,
+	.num_dapm_routes = ARRAY_SIZE(wm8955_dapm_routes),
 };
 
 static const struct regmap_config wm8955_regmap = {
