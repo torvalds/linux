@@ -562,7 +562,7 @@ static int __init atmel_nand_probe(struct platform_device *pdev)
 		}
 	}
 
-	if (on_flash_bbt) {
+	if (host->board->on_flash_bbt || on_flash_bbt) {
 		printk(KERN_INFO "atmel_nand: Use On Flash BBT\n");
 		nand_chip->bbt_options |= NAND_BBT_USE_FLASH;
 	}
