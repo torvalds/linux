@@ -409,12 +409,14 @@ config X86_MRST
 	depends on PCI
 	depends on PCI_GOANY
 	depends on X86_IO_APIC
+	select X86_INTEL_MID
+	select SFI
+	select DW_APB_TIMER
 	select APB_TIMER
 	select I2C
 	select SPI
 	select INTEL_SCU_IPC
 	select X86_PLATFORM_DEVICES
-	select X86_INTEL_MID
 	---help---
 	  Moorestown is Intel's Low Power Intel Architecture (LPIA) based Moblin
 	  Internet Device(MID) platform. Moorestown consists of two chips:
@@ -428,12 +430,14 @@ config X86_MDFLD
 	depends on PCI
 	depends on PCI_GOANY
 	depends on X86_IO_APIC
+	select X86_INTEL_MID
+	select SFI
+	select DW_APB_TIMER
 	select APB_TIMER
 	select I2C
 	select SPI
 	select INTEL_SCU_IPC
 	select X86_PLATFORM_DEVICES
-	select X86_INTEL_MID
 	---help---
 	  Medfield is Intel's Low Power Intel Architecture (LPIA) based Moblin
 	  Internet Device(MID) platform. 
