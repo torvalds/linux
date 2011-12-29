@@ -520,6 +520,10 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
 			a hypervisor.
 			Default: yes
 
+	coherent_pool=nn[KMG]	[ARM,KNL]
+			Sets the size of memory pool for coherent, atomic dma
+			allocations if Contiguous Memory Allocator (CMA) is used.
+
 	code_bytes	[X86] How many bytes of object code to print
 			in an oops report.
 			Range: 0 - 8192
