@@ -657,6 +657,8 @@ int mlx4_QUERY_PORT_wrapper(struct mlx4_dev *dev, int slave,
 	u8 port_type;
 	int err;
 
+#define MLX4_VF_PORT_ETH_ONLY_MASK	0xE6
+
 	err = mlx4_cmd_box(dev, 0, outbox->dma, vhcr->in_modifier, 0,
 			   MLX4_CMD_QUERY_PORT, MLX4_CMD_TIME_CLASS_B,
 			   MLX4_CMD_NATIVE);
@@ -671,8 +673,8 @@ int mlx4_QUERY_PORT_wrapper(struct mlx4_dev *dev, int slave,
 		MLX4_GET(port_type, outbox->buf,
 			 QUERY_PORT_SUPPORTED_TYPE_OFFSET);
 
-		/* disable ib */
-		port_type &= 0xFE;
+		/* Allow only Eth port, no link sensing allowed */
+		port_type &= MLX4_VF_PORT_ETH_ONLY_MASK;
 
 		/* check eth is enabled for this port */
 		if (!(port_type & 2))
