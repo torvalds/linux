@@ -577,7 +577,8 @@ static int cs42l51_i2c_probe(struct i2c_client *i2c_client,
 	dev_info(&i2c_client->dev, "found device cs42l51 rev %d\n",
 				ret & 7);
 
-	cs42l51 = kzalloc(sizeof(struct cs42l51_private), GFP_KERNEL);
+	cs42l51 = devm_kzalloc(&i2c_client->dev, sizeof(struct cs42l51_private),
+			       GFP_KERNEL);
 	if (!cs42l51) {
 		dev_err(&i2c_client->dev, "could not allocate codec\n");
 		return -ENOMEM;
@@ -588,18 +589,13 @@ static int cs42l51_i2c_probe(struct i2c_client *i2c_client,
 
 	ret =  snd_soc_register_codec(&i2c_client->dev,
 			&soc_codec_device_cs42l51, &cs42l51_dai, 1);
-	if (ret < 0)
-		kfree(cs42l51);
 error:
 	return ret;
 }
 
 static int cs42l51_i2c_remove(struct i2c_client *client)
 {
-	struct cs42l51_private *cs42l51 = i2c_get_clientdata(client);
-
 	snd_soc_unregister_codec(&client->dev);
-	kfree(cs42l51);
 	return 0;
 }
 
