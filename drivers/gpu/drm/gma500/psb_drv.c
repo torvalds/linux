@@ -39,13 +39,9 @@
 
 static int drm_psb_trap_pagefaults;
 
-int drm_psb_no_fb;
-
 static int psb_probe(struct pci_dev *pdev, const struct pci_device_id *ent);
 
-MODULE_PARM_DESC(no_fb, "Disable FBdev");
 MODULE_PARM_DESC(trap_pagefaults, "Error and reset on MMU pagefaults");
-module_param_named(no_fb, drm_psb_no_fb, int, 0600);
 module_param_named(trap_pagefaults, drm_psb_trap_pagefaults, int, 0600);
 
 
@@ -213,8 +209,7 @@ static int psb_driver_unload(struct drm_device *dev)
 
 	gma_backlight_exit(dev);
 
-	if (drm_psb_no_fb == 0)
-		psb_modeset_cleanup(dev);
+	psb_modeset_cleanup(dev);
 
 	if (dev_priv) {
 		psb_lid_timer_takedown(dev_priv);
@@ -383,11 +378,9 @@ static int psb_driver_load(struct drm_device *dev, unsigned long chipset)
 
 	dev->driver->get_vblank_counter = psb_get_vblank_counter;
 
-	if (drm_psb_no_fb == 0) {
-		psb_modeset_init(dev);
-		psb_fbdev_init(dev);
-		drm_kms_helper_poll_init(dev);
-	}
+	psb_modeset_init(dev);
+	psb_fbdev_init(dev);
+	drm_kms_helper_poll_init(dev);
 
 	/* Only add backlight support if we have LVDS output */
 	list_for_each_entry(connector, &dev->mode_config.connector_list,
