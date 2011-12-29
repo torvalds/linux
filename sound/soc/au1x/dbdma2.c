@@ -350,27 +350,21 @@ static struct snd_soc_platform_driver au1xpsc_soc_platform = {
 static int __devinit au1xpsc_pcm_drvprobe(struct platform_device *pdev)
 {
 	struct au1xpsc_audio_dmadata *dmadata;
-	int ret;
 
-	dmadata = kzalloc(2 * sizeof(struct au1xpsc_audio_dmadata), GFP_KERNEL);
+	dmadata = devm_kzalloc(&pdev->dev,
+			       2 * sizeof(struct au1xpsc_audio_dmadata),
+			       GFP_KERNEL);
 	if (!dmadata)
 		return -ENOMEM;
 
 	platform_set_drvdata(pdev, dmadata);
 
-	ret = snd_soc_register_platform(&pdev->dev, &au1xpsc_soc_platform);
-	if (ret)
-		kfree(dmadata);
-
-	return ret;
+	return snd_soc_register_platform(&pdev->dev, &au1xpsc_soc_platform);
 }
 
 static int __devexit au1xpsc_pcm_drvremove(struct platform_device *pdev)
 {
-	struct au1xpsc_audio_dmadata *dmadata = platform_get_drvdata(pdev);
-
 	snd_soc_unregister_platform(&pdev->dev);
-	kfree(dmadata);
 
 	return 0;
 }
