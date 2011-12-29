@@ -440,7 +440,13 @@ static int add_recvbuf_mergeable(struct virtnet_info *vi, gfp_t gfp)
 	return err;
 }
 
-/* Returns false if we couldn't fill entirely (OOM). */
+/*
+ * Returns false if we couldn't fill entirely (OOM).
+ *
+ * Normally run in the receive path, but can also be run from ndo_open
+ * before we're receiving packets, or from refill_work which is
+ * careful to disable receiving (using napi_disable).
+ */
 static bool try_fill_recv(struct virtnet_info *vi, gfp_t gfp)
 {
 	int err;
@@ -721,6 +727,10 @@ static int virtnet_open(struct net_device *dev)
 {
 	struct virtnet_info *vi = netdev_priv(dev);
 
+	/* Make sure we have some buffers: if oom use wq. */
+	if (!try_fill_recv(vi, GFP_KERNEL))
+		schedule_delayed_work(&vi->refill, 0);
+
 	virtnet_napi_enable(vi);
 	return 0;
 }
@@ -774,6 +784,8 @@ static int virtnet_close(struct net_device *dev)
 {
 	struct virtnet_info *vi = netdev_priv(dev);
 
+	/* Make sure refill_work doesn't re-enable napi! */
+	cancel_delayed_work_sync(&vi->refill);
 	napi_disable(&vi->napi);
 
 	return 0;
@@ -1100,7 +1112,6 @@ static int virtnet_probe(struct virtio_device *vdev)
 
 unregister:
 	unregister_netdev(dev);
-	cancel_delayed_work_sync(&vi->refill);
 free_vqs:
 	vdev->config->del_vqs(vdev);
 free_stats:
@@ -1139,9 +1150,7 @@ static void __devexit virtnet_remove(struct virtio_device *vdev)
 	/* Stop all the virtqueues. */
 	vdev->config->reset(vdev);
 
-
 	unregister_netdev(vi->dev);
-	cancel_delayed_work_sync(&vi->refill);
 
 	/* Free unused buffers in both send and recv, if any. */
 	free_unused_bufs(vi);
