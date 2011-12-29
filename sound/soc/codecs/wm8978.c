@@ -50,7 +50,6 @@ static const u16 wm8978_reg[WM8978_CACHEREGNUM] = {
 
 /* codec private data */
 struct wm8978_priv {
-	enum snd_soc_control_type control_type;
 	unsigned int f_pllout;
 	unsigned int f_mclk;
 	unsigned int f_256fs;
