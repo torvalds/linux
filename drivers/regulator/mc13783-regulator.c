@@ -344,7 +344,7 @@ static int __devinit mc13783_regulator_probe(struct platform_device *pdev)
 
 	dev_dbg(&pdev->dev, "%s id %d\n", __func__, pdev->id);
 
-	priv = kzalloc(sizeof(*priv) +
+	priv = devm_kzalloc(&pdev->dev, sizeof(*priv) +
 			pdata->num_regulators * sizeof(priv->regulators[0]),
 			GFP_KERNEL);
 	if (!priv)
@@ -374,8 +374,6 @@ err:
 	while (--i >= 0)
 		regulator_unregister(priv->regulators[i]);
 
-	kfree(priv);
-
 	return ret;
 }
 
@@ -391,7 +389,6 @@ static int __devexit mc13783_regulator_remove(struct platform_device *pdev)
 	for (i = 0; i < pdata->num_regulators; i++)
 		regulator_unregister(priv->regulators[i]);
 
-	kfree(priv);
 	return 0;
 }
 
