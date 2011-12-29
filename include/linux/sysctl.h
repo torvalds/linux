@@ -938,6 +938,7 @@ struct ctl_table;
 struct nsproxy;
 struct ctl_table_root;
 struct ctl_table_header;
+struct ctl_dir;
 
 typedef struct ctl_table ctl_table;
 
@@ -1040,9 +1041,12 @@ struct ctl_table_header
 	struct ctl_table *ctl_table_arg;
 	struct ctl_table_root *root;
 	struct ctl_table_set *set;
-	struct ctl_table *attached_by;
-	struct ctl_table *attached_to;
-	struct ctl_table_header *parent;
+	struct ctl_dir *parent;
+};
+
+struct ctl_dir {
+	/* Header must be at the start of ctl_dir */
+	struct ctl_table_header header;
 };
 
 struct ctl_table_set {
