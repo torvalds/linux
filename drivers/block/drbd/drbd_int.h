@@ -1310,8 +1310,6 @@ extern int  drbd_bm_read(struct drbd_conf *mdev) __must_hold(local);
 extern void drbd_bm_mark_for_writeout(struct drbd_conf *mdev, int page_nr);
 extern int  drbd_bm_write(struct drbd_conf *mdev) __must_hold(local);
 extern int  drbd_bm_write_hinted(struct drbd_conf *mdev) __must_hold(local);
-extern unsigned long drbd_bm_ALe_set_all(struct drbd_conf *mdev,
-		unsigned long al_enr);
 extern size_t	     drbd_bm_words(struct drbd_conf *mdev);
 extern unsigned long drbd_bm_bits(struct drbd_conf *mdev);
 extern sector_t      drbd_bm_capacity(struct drbd_conf *mdev);
