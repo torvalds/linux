@@ -891,16 +891,9 @@ static int wm8978_suspend(struct snd_soc_codec *codec)
 static int wm8978_resume(struct snd_soc_codec *codec)
 {
 	struct wm8978_priv *wm8978 = snd_soc_codec_get_drvdata(codec);
-	int i;
-	u16 *cache = codec->reg_cache;
 
 	/* Sync reg_cache with the hardware */
-	for (i = 0; i < ARRAY_SIZE(wm8978_reg); i++) {
-		if (i == WM8978_RESET)
-			continue;
-		if (cache[i] != wm8978_reg[i])
-			snd_soc_write(codec, i, cache[i]);
-	}
+	snd_soc_cache_sync(codec);
 
 	wm8978_set_bias_level(codec, SND_SOC_BIAS_STANDBY);
 
