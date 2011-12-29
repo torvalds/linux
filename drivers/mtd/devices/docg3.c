@@ -1821,13 +1821,10 @@ static void __init doc_set_driver_info(int chip_id, struct mtd_info *mtd)
 	mtd->oobsize = DOC_LAYOUT_OOB_SIZE;
 	mtd->owner = THIS_MODULE;
 	mtd->erase = doc_erase;
-	mtd->point = NULL;
-	mtd->unpoint = NULL;
 	mtd->read = doc_read;
 	mtd->write = doc_write;
 	mtd->read_oob = doc_read_oob;
 	mtd->write_oob = doc_write_oob;
-	mtd->sync = NULL;
 	mtd->block_isbad = doc_block_isbad;
 	mtd->ecclayout = &docg3_oobinfo;
 }
