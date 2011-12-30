@@ -657,6 +657,7 @@ struct nas_platform_data nas_info = {
 #if defined (CONFIG_LAIBAO_TS)
 #define TOUCH_RESET_PIN RK29_PIN6_PC3
 #define TOUCH_INT_PIN   RK29_PIN0_PA2
+#define TOUCH_PWR_PIN	RK29_PIN2_PC3
 //TODO,shut down touch for power saving
 #define TOUCH_SHUTDOWN  RK29_PIN4_PD5
 void laibao_reset(void)
@@ -679,16 +680,26 @@ void laibao_hold(void)
  }
 void laibao_request_io(void)
 {
+    if(gpio_request(TOUCH_PWR_PIN,NULL) != 0){
+      gpio_free(TOUCH_PWR_PIN);
+      printk("laibao_request_io TOUCH_PWR_PIN error\n");
+      return ;
+    }
+    gpio_direction_output(TOUCH_PWR_PIN, 0);
+    gpio_set_value(TOUCH_PWR_PIN,GPIO_HIGH);
+
     if(gpio_request(TOUCH_RESET_PIN,NULL) != 0){
       gpio_free(TOUCH_RESET_PIN);
-      printk("laibao_request_io gpio_request error\n");
+      gpio_free(TOUCH_PWR_PIN);
+      printk("laibao_request_io TOUCH_RESET_PIN error\n");
       return ;
     }
 
     if(gpio_request(TOUCH_INT_PIN,NULL) != 0){
       gpio_free(TOUCH_INT_PIN);
 	  gpio_free(TOUCH_RESET_PIN);
-      printk("laibao_request_io gpio_request error\n");
+      gpio_free(TOUCH_PWR_PIN);
+      printk("laibao_request_io TOUCH_INT_PIN error\n");
       return ;
     }
 }
@@ -698,28 +709,19 @@ int laibao_init_platform_hw(void)
 	printk("enter %s()\n", __FUNCTION__);
 	laibao_request_io();
 	laibao_reset();
-	
-    if(gpio_request(RK29_PIN6_PD3,NULL) != 0){
-      gpio_free(RK29_PIN6_PD3);
-      printk("laibao_init_platform_hw gpio_request error\n");
-      return -EIO;
-    }
-	
-    gpio_direction_output(RK29_PIN6_PD3, 0);
-    gpio_set_value(TOUCH_RESET_PIN,GPIO_HIGH);
-
-
-    	return 0;
+		
+	return 0;
 }
 
 
 struct laibao_platform_data laibao_info = {
   .model= 1003,
   .init_platform_hw= laibao_init_platform_hw,
-  .lcd_disp_on_pin = RK29_PIN6_PD0,
-  .disp_on_value = GPIO_HIGH,
-  .lcd_cs_pin = RK29_PIN6_PD1,
-  .lcd_cs_value = GPIO_HIGH,
+  .pwr_pin = TOUCH_PWR_PIN,
+  .pwr_on_value = GPIO_HIGH,
+  .reset_pin = TOUCH_RESET_PIN,
+  .reset_value=GPIO_HIGH,
+
 };
 #endif
 

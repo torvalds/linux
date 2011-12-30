@@ -4,6 +4,8 @@
 //#define CONFIG_SUPPORT_FTS_CTP_UPG
 #define CONFIG_FTS_CUSTOME_ENV
 
+#define FT5X0X_I2C_SPEED 100*1000
+
 #define CFG_DBG_DUMMY_INFO_SUPPORT   1     //output touch point information
 #define CFG_DBG_FUCTION_INFO_SUPPORT 0     //output fouction name
 #define CFG_DBG_INPUT_EVENT                   0     //debug input event
@@ -13,8 +15,11 @@
 #define CFG_NUMOFKEYS                    0x4    //number of touch keys
 
 #ifdef CONFIG_FTS_CUSTOME_ENV  
-#define SCREEN_MAX_X           1044//1024
-#define SCREEN_MAX_Y           620//600
+//当手指从边界划起时,会出现无响应的情况,因此添加一个宏将边界最大值向外拉伸
+#define SCREEN_BOUNDARY_ADJUST_VALUE 10 
+
+#define SCREEN_MAX_X           1024
+#define SCREEN_MAX_Y           600
 #else
 #define SCREEN_MAX_X           800
 #define SCREEN_MAX_Y           480

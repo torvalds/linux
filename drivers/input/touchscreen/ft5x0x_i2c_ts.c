@@ -31,6 +31,7 @@
 #include <mach/gpio.h>
 #include <mach/board.h>
 #include <linux/earlysuspend.h>
+#include <linux/input/mt.h>
 
 struct FTS_TS_DATA_T {
 	struct 	i2c_client *client;
@@ -204,7 +205,7 @@ static void fts_ts_release(void)
 
 		_st_finger_infos[i].u2_pressure = 0;
 
-		input_report_abs(data->input_dev, ABS_MT_POSITION_X, SCREEN_MAX_X - _st_finger_infos[i].i2_x);
+		input_report_abs(data->input_dev, ABS_MT_POSITION_X, _st_finger_infos[i].i2_x);
 		input_report_abs(data->input_dev, ABS_MT_POSITION_Y, _st_finger_infos[i].i2_y);
 		input_report_abs(data->input_dev, ABS_MT_TOUCH_MAJOR, _st_finger_infos[i].u2_pressure);
 		input_report_abs(data->input_dev, ABS_MT_TRACKING_ID, _st_finger_infos[i].ui2_id);
@@ -249,18 +250,32 @@ static int fts_i2c_rxdata(u8 *rxdata, int length)
 	msg.flags = 0;
 	msg.len = 1;
 	msg.buf = rxdata;
+	msg.scl_rate = FT5X0X_I2C_SPEED;
+	
 	ret = i2c_transfer(this_client->adapter, &msg, 1);
 
-	if (ret < 0)
+	if(ret == 0){
 		pr_err("msg %s line:%d i2c write error: %d\n", __func__, __LINE__,ret);
-
+		return -EBUSY;
+	}else if(ret < 0){
+		pr_err("msg %s line:%d i2c write error: %d\n", __func__, __LINE__,ret);
+		return ret;
+	}
+	
 	msg.addr = this_client->addr;
 	msg.flags = I2C_M_RD;
 	msg.len = length;
 	msg.buf = rxdata;
+	msg.scl_rate = FT5X0X_I2C_SPEED;
 	ret = i2c_transfer(this_client->adapter, &msg, 1);
-	if (ret < 0)
-		pr_err("msg %s line:%d i2c write error: %d\n", __func__,__LINE__, ret);
+	
+	if(ret == 0){
+		pr_err("msg %s line:%d i2c write error: %d\n", __func__, __LINE__,ret);
+		return -EBUSY;
+	}else if(ret < 0){
+		pr_err("msg %s line:%d i2c write error: %d\n", __func__, __LINE__,ret);
+		return ret;
+	}
 
 	return ret;
 }
@@ -289,9 +304,17 @@ static int fts_i2c_txdata(u8 *txdata, int length)
 	msg.flags = 0;
 	msg.len = length;
 	msg.buf = txdata;
+	msg.scl_rate = FT5X0X_I2C_SPEED;
+	
 	ret = i2c_transfer(this_client->adapter, &msg, 1);
-	if (ret < 0)
-		pr_err("%s i2c write error: %d\n", __func__, ret);
+	
+	if(ret == 0){
+		pr_err("msg %s line:%d i2c write error: %d\n", __func__, __LINE__,ret);
+		return -EBUSY;
+	}else if(ret < 0){
+		pr_err("msg %s line:%d i2c write error: %d\n", __func__, __LINE__,ret);
+		return ret;
+	}
 
 	return ret;
 }
@@ -346,7 +369,7 @@ int fts_read_data(void)
 				temp = temp<<8;
 				temp = temp | buf[3];
 				y=temp;
-				
+			#if 1	
 				{
 					int swap;
 				
@@ -356,11 +379,11 @@ int fts_read_data(void)
 					swap = x;
 					x = y;
 					y = swap;
-
-					//x = 1024 - x;////////////////////////////
+					
+					x = 1024 - x;////////////////////////////
 					y = 600 - y;
 				}
-
+			#endif
 
 				pressure = buf[4] & 0x3f; 
 				size = buf[5]&0xf0;
@@ -378,8 +401,8 @@ int fts_read_data(void)
 						_st_finger_infos[id].i2_y= (int16_t)y;
 						_st_finger_infos[id].ui2_id  = size;
 						_si_touch_num ++;
-//						printk("\n--report x position  is  %d,pressure=%d----\n",_st_finger_infos[id].i2_x, pressure);
-//						printk("\n--report y position  is  %d,pressure=%d----\n",_st_finger_infos[id].i2_y, pressure);
+						printk("\n--report x position  is  %d,pressure=%d----\n",_st_finger_infos[id].i2_x, pressure);
+						printk("\n--report y position  is  %d,pressure=%d----\n",_st_finger_infos[id].i2_y, pressure);
 					}  
 #if 0
 
@@ -452,11 +475,23 @@ int fts_read_data(void)
 
 				for( i= 0; i<CFG_MAX_POINT_NUM; ++i )
 				{
-					input_report_abs(data->input_dev, ABS_MT_TRACKING_ID, _st_finger_infos[i].ui2_id);
-					input_report_abs(data->input_dev, ABS_MT_TOUCH_MAJOR, _st_finger_infos[i].u2_pressure);
-					input_report_abs(data->input_dev, ABS_MT_POSITION_X,  SCREEN_MAX_X - _st_finger_infos[i].i2_x);
-					input_report_abs(data->input_dev, ABS_MT_POSITION_Y,  _st_finger_infos[i].i2_y);
-					input_mt_sync(data->input_dev);
+					if(_st_finger_infos[i].u2_pressure == 1)//down
+					{
+						input_mt_slot(data->input_dev, i);
+						input_mt_report_slot_state(data->input_dev, MT_TOOL_FINGER, true);					
+						input_report_abs(data->input_dev, ABS_MT_TOUCH_MAJOR, 1);
+						input_report_abs(data->input_dev, ABS_MT_POSITION_X,  _st_finger_infos[i].i2_x);
+						input_report_abs(data->input_dev, ABS_MT_POSITION_Y,  _st_finger_infos[i].i2_y);
+					}
+					else if(_st_finger_infos[i].u2_pressure == 0)//up
+					{
+						input_mt_slot(data->input_dev, i);
+						input_mt_report_slot_state(data->input_dev, MT_TOOL_FINGER, false);
+					}
+//					else
+//						printk("[%s]invalid pressure value %d\n",__FUNCTION__,_st_finger_infos[i].u2_pressure);
+
+					input_sync(data->input_dev);
 
 					if(_st_finger_infos[i].u2_pressure == 0 )
 					{
@@ -813,23 +848,22 @@ unsigned char fts_ctpm_get_upg_ver(void)
 
 void ft5x0x_ts_set_standby(struct i2c_client *client, int enable)
 {
-        struct laibao_platform_data *mach_info = client->dev.platform_data;
-	unsigned display_on = mach_info->lcd_disp_on_pin;
-	unsigned lcd_cs = mach_info->lcd_cs_pin;
+    struct laibao_platform_data *mach_info = client->dev.platform_data;
+	unsigned pwr_pin = mach_info->pwr_pin;
+	unsigned pwr_on_value = mach_info->pwr_on_value;
+	unsigned reset_pin = mach_info->reset_pin;
+	unsigned reset_value = mach_info->reset_value;
 
-	int display_on_pol = mach_info->disp_on_value;
-	int lcd_cs_pol = mach_info->lcd_cs_value;
-
-        printk("%s : %s, enable = %d", __FILE__, __FUNCTION__,enable);
-    if(display_on != INVALID_GPIO)
+    printk("%s : %s, enable = %d\n", __FILE__, __FUNCTION__,enable);
+    if(pwr_pin != INVALID_GPIO)
     {
-        gpio_direction_output(display_on, 0);
-        gpio_set_value(display_on, enable ? display_on_pol : !display_on_pol);				
+        gpio_direction_output(pwr_pin, 0);
+        gpio_set_value(pwr_pin, enable ? pwr_on_value : !pwr_on_value);				
     }
-    if(lcd_cs != INVALID_GPIO)
+    if(reset_pin != INVALID_GPIO)
     {
-		gpio_direction_output(lcd_cs, 0);
-		gpio_set_value(lcd_cs, enable ? lcd_cs_pol : !lcd_cs_pol);			  
+        gpio_direction_output(reset_pin, enable ? reset_value : !reset_value);
+        gpio_set_value(reset_pin, enable ? reset_value : !reset_value);				
     }
 }
 
@@ -841,9 +875,10 @@ static void ft5x0x_ts_early_suspend(struct early_suspend *h)
 
     printk("enter ft5x0x_ts_early_suspend\n");
 	
-	disable_irq_nosync(this_client->irq);
-
 	cancel_work_sync(&data->pen_event_work);
+	
+	disable_irq(this_client->irq);
+
 	
 	ft5x0x_ts_set_standby(this_client,0);
 	
@@ -855,20 +890,15 @@ static void ft5x0x_ts_late_resume(struct early_suspend *h)
 
 	ft5x0x_ts_set_standby(this_client,1);
 
-    if(!work_pending(&data->pen_event_work)){
-		PREPARE_WORK(&data->pen_event_work, fts_work_func);
-    	queue_work(data->ts_workqueue, &data->pen_event_work);
-    }
-	else
-		enable_irq(this_client->irq);
+	enable_irq(this_client->irq);
 
     printk("ft5x0x_ts_late_resume finish\n");
 
 	return ;
 }
 #else
-#define egalax_i2c_suspend       NULL
-#define egalax_i2c_resume        NULL
+#define ft5x0x_ts_early_suspend       NULL
+#define ft5x0x_ts_late_resume        NULL
 #endif
 
 
@@ -980,21 +1010,29 @@ static int fts_ts_probe(struct i2c_client *client, const struct i2c_device_id *i
 	//set_bit(ABS_MT_POSITION_X, input_dev->absbit);
 	//set_bit(ABS_MT_POSITION_Y, input_dev->absbit);
 	//set_bit(ABS_MT_WIDTH_MAJOR, input_dev->absbit);
-	input_dev->evbit[0] = BIT_MASK(EV_SYN) | BIT_MASK(EV_KEY) | BIT_MASK(EV_ABS);
+	
+//	input_dev->evbit[0] = BIT_MASK(EV_SYN) | BIT_MASK(EV_KEY) | BIT_MASK(EV_ABS);
+
+	__set_bit(INPUT_PROP_DIRECT, input_dev->propbit);
+	__set_bit(EV_ABS, input_dev->evbit);
 
 	/****** for multi-touch *******/
 	for (i=0; i<CFG_MAX_POINT_NUM; i++)   
 		_st_finger_infos[i].u2_pressure = -1;
 
 	input_set_abs_params(input_dev,
-			ABS_MT_POSITION_X, 0, SCREEN_MAX_X, 0, 0);
+			ABS_MT_POSITION_X, 0, SCREEN_MAX_X + SCREEN_BOUNDARY_ADJUST_VALUE, 0, 0);
 	input_set_abs_params(input_dev,
-			ABS_MT_POSITION_Y, 0, SCREEN_MAX_Y, 0, 0);
-	input_set_abs_params(input_dev,
-			ABS_MT_TOUCH_MAJOR, 0, 255, 0, 0);
+			ABS_MT_POSITION_Y, 0, SCREEN_MAX_Y + SCREEN_BOUNDARY_ADJUST_VALUE, 0, 0);
+//	input_set_abs_params(input_dev,
+//			ABS_MT_TOUCH_MAJOR, 0, 255, 0, 0);
 	//input_set_abs_params(input_dev,
 	//		ABS_MT_TRACKING_ID, 0, 30, 0, 0);
-	input_set_abs_params(input_dev, ABS_MT_WIDTH_MAJOR, 0, 255, 0, 0);
+//	input_set_abs_params(input_dev, ABS_MT_WIDTH_MAJOR, 0, 255, 0, 0);
+
+	input_mt_init_slots(input_dev, CFG_MAX_POINT_NUM);
+	input_set_abs_params(input_dev, ABS_MT_TOUCH_MAJOR, 0, 255, 0, 0);
+	
 	/*****setup key code area******/
 	//set_bit(EV_SYN, input_dev->evbit);
 	//set_bit(EV_KEY, input_dev->evbit);

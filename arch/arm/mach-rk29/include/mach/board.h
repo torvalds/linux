@@ -324,10 +324,10 @@ struct laibao_platform_data {
     int     (*laibao_platform_sleep)(void);
     int     (*laibao_platform_wakeup)(void);
     void    (*exit_platform_hw)(void);
-    int     lcd_disp_on_pin;
-    int     disp_on_value;
-    int     lcd_cs_pin;
-    int     lcd_cs_value;
+    int     pwr_pin;
+	int		pwr_on_value;
+    int     reset_pin;
+	int		reset_value;
 };
 
 struct akm8975_platform_data {
