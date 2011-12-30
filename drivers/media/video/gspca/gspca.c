@@ -698,12 +698,17 @@ static int build_isoc_ep_tb(struct gspca_dev *gspca_dev,
 				      USB_ENDPOINT_XFER_ISOC);
 			if (ep == NULL)
 				continue;
+			if (ep->desc.bInterval == 0) {
+				pr_err("alt %d iso endp with 0 interval\n", j);
+				continue;
+			}
 			psize = le16_to_cpu(ep->desc.wMaxPacketSize);
 			psize = (psize & 0x07ff) * (1 + ((psize >> 11) & 3));
-			bandwidth = psize * ep->desc.bInterval * 1000;
+			bandwidth = psize * 1000;
 			if (gspca_dev->dev->speed == USB_SPEED_HIGH
 			 || gspca_dev->dev->speed == USB_SPEED_SUPER)
 				bandwidth *= 8;
+			bandwidth /= 1 << (ep->desc.bInterval - 1);
 			if (bandwidth <= last_bw)
 				continue;
 			if (bandwidth < ep_tb->bandwidth) {
