@@ -152,7 +152,7 @@ struct tipc_bearer {
 	struct tipc_node_map nodes;
 };
 
-struct bearer_name {
+struct tipc_bearer_names {
 	char media_name[TIPC_MAX_MEDIA_NAME];
 	char if_name[TIPC_MAX_IF_NAME];
 };

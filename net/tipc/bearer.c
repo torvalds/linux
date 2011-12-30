@@ -185,7 +185,7 @@ struct sk_buff *tipc_media_get_names(void)
  */
 
 static int bearer_name_validate(const char *name,
-				struct bearer_name *name_parts)
+				struct tipc_bearer_names *name_parts)
 {
 	char name_copy[TIPC_MAX_BEARER_NAME];
 	char *media_name;
@@ -428,7 +428,7 @@ int tipc_enable_bearer(const char *name, u32 disc_domain, u32 priority)
 {
 	struct tipc_bearer *b_ptr;
 	struct tipc_media *m_ptr;
-	struct bearer_name b_name;
+	struct tipc_bearer_names b_names;
 	char addr_string[16];
 	u32 bearer_id;
 	u32 with_this_prio;
@@ -440,7 +440,7 @@ int tipc_enable_bearer(const char *name, u32 disc_domain, u32 priority)
 		     name);
 		return -ENOPROTOOPT;
 	}
-	if (!bearer_name_validate(name, &b_name)) {
+	if (!bearer_name_validate(name, &b_names)) {
 		warn("Bearer <%s> rejected, illegal name\n", name);
 		return -EINVAL;
 	}
@@ -465,10 +465,10 @@ int tipc_enable_bearer(const char *name, u32 disc_domain, u32 priority)
 
 	write_lock_bh(&tipc_net_lock);
 
-	m_ptr = tipc_media_find(b_name.media_name);
+	m_ptr = tipc_media_find(b_names.media_name);
 	if (!m_ptr) {
 		warn("Bearer <%s> rejected, media <%s> not registered\n", name,
-		     b_name.media_name);
+		     b_names.media_name);
 		goto exit;
 	}
 
