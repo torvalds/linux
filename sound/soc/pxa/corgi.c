@@ -291,7 +291,7 @@ static struct snd_soc_dai_link corgi_dai = {
 };
 
 /* corgi audio machine driver */
-static struct snd_soc_card snd_soc_corgi = {
+static struct snd_soc_card corgi = {
 	.name = "Corgi",
 	.owner = THIS_MODULE,
 	.dai_link = &corgi_dai,
@@ -305,38 +305,41 @@ static struct snd_soc_card snd_soc_corgi = {
 	.num_dapm_routes = ARRAY_SIZE(corgi_audio_map),
 };
 
-static struct platform_device *corgi_snd_device;
-
-static int __init corgi_init(void)
+static int __devinit corgi_probe(struct platform_device *pdev)
 {
+	struct snd_soc_card *card = &corgi;
 	int ret;
 
-	if (!(machine_is_corgi() || machine_is_shepherd() ||
-	      machine_is_husky()))
-		return -ENODEV;
+	card->dev = &pdev->dev;
 
-	corgi_snd_device = platform_device_alloc("soc-audio", -1);
-	if (!corgi_snd_device)
-		return -ENOMEM;
-
-	platform_set_drvdata(corgi_snd_device, &snd_soc_corgi);
-	ret = platform_device_add(corgi_snd_device);
-
+	ret = snd_soc_register_card(card);
 	if (ret)
-		platform_device_put(corgi_snd_device);
-
+		dev_err(&pdev->dev, "snd_soc_register_card() failed: %d\n",
+			ret);
 	return ret;
 }
 
-static void __exit corgi_exit(void)
+static int __devexit corgi_remove(struct platform_device *pdev)
 {
-	platform_device_unregister(corgi_snd_device);
+	struct snd_soc_card *card = platform_get_drvdata(pdev);
+
+	snd_soc_unregister_card(card);
+	return 0;
 }
 
-module_init(corgi_init);
-module_exit(corgi_exit);
+static struct platform_driver corgi_driver = {
+	.driver		= {
+		.name	= "corgi-audio",
+		.owner	= THIS_MODULE,
+	},
+	.probe		= corgi_probe,
+	.remove		= __devexit_p(corgi_remove),
+};
+
+module_platform_driver(corgi_driver);
 
 /* Module information */
 MODULE_AUTHOR("Richard Purdie");
 MODULE_DESCRIPTION("ALSA SoC Corgi");
 MODULE_LICENSE("GPL");
+MODULE_ALIAS("platform:corgi-audio");
