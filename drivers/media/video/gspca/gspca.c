@@ -726,6 +726,23 @@ static int build_isoc_ep_tb(struct gspca_dev *gspca_dev,
 		ep_tb++;
 	}
 
+	/*
+	 * If the camera:
+	 * has a usb audio class interface (a built in usb mic); and
+	 * is a usb 1 full speed device; and
+	 * uses the max full speed iso bandwidth; and
+	 * and has more than 1 alt setting
+	 * then skip the highest alt setting to spare bandwidth for the mic
+	 */
+	if (gspca_dev->audio &&
+			gspca_dev->dev->speed == USB_SPEED_FULL &&
+			last_bw >= 1000000 &&
+			i > 1) {
+		PDEBUG(D_STREAM, "dev has usb audio, skipping highest alt");
+		i--;
+		ep_tb--;
+	}
+
 	/* get the requested bandwidth and start at the highest atlsetting */
 	bandwidth = which_bandwidth(gspca_dev);
 	ep_tb--;
