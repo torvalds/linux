@@ -281,21 +281,17 @@ static struct snd_soc_dai_link poodle_dai = {
 };
 
 /* poodle audio machine driver */
-static struct snd_soc_card snd_soc_poodle = {
+static struct snd_soc_card poodle = {
 	.name = "Poodle",
 	.dai_link = &poodle_dai,
 	.num_links = 1,
 	.owner = THIS_MODULE,
 };
 
-static struct platform_device *poodle_snd_device;
-
-static int __init poodle_init(void)
+static int __devinit poodle_probe(struct platform_device *pdev)
 {
+	struct snd_soc_card *card = &poodle;
 	int ret;
-
-	if (!machine_is_poodle())
-		return -ENODEV;
 
 	locomo_gpio_set_dir(&poodle_locomo_device.dev,
 		POODLE_LOCOMO_GPIO_AMP_ON, 0);
@@ -305,28 +301,36 @@ static int __init poodle_init(void)
 	locomo_gpio_set_dir(&poodle_locomo_device.dev,
 		POODLE_LOCOMO_GPIO_MUTE_R, 0);
 
-	poodle_snd_device = platform_device_alloc("soc-audio", -1);
-	if (!poodle_snd_device)
-		return -ENOMEM;
+	card->dev = &pdev->dev;
 
-	platform_set_drvdata(poodle_snd_device, &snd_soc_poodle);
-	ret = platform_device_add(poodle_snd_device);
-
+	ret = snd_soc_register_card(card);
 	if (ret)
-		platform_device_put(poodle_snd_device);
-
+		dev_err(&pdev->dev, "snd_soc_register_card() failed: %d\n",
+			ret);
 	return ret;
 }
 
-static void __exit poodle_exit(void)
+static int __devexit poodle_remove(struct platform_device *pdev)
 {
-	platform_device_unregister(poodle_snd_device);
+	struct snd_soc_card *card = platform_get_drvdata(pdev);
+
+	snd_soc_unregister_card(card);
+	return 0;
 }
 
-module_init(poodle_init);
-module_exit(poodle_exit);
+static struct platform_driver poodle_driver = {
+	.driver		= {
+		.name	= "poodle-audio",
+		.owner	= THIS_MODULE,
+	},
+	.probe		= poodle_probe,
+	.remove		= __devexit_p(poodle_remove),
+};
+
+module_platform_driver(poodle_driver);
 
 /* Module information */
 MODULE_AUTHOR("Richard Purdie");
 MODULE_DESCRIPTION("ALSA SoC Poodle");
 MODULE_LICENSE("GPL");
+MODULE_ALIAS("platform:poodle-audio");
