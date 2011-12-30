@@ -280,6 +280,8 @@ static inline unsigned long mtd_get_unmapped_area(struct mtd_info *mtd,
 						  unsigned long offset,
 						  unsigned long flags)
 {
+	if (!mtd->get_unmapped_area)
+		return -EOPNOTSUPP;
 	return mtd->get_unmapped_area(mtd, len, offset, flags);
 }
 

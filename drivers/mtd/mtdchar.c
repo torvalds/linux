@@ -1124,25 +1124,21 @@ static unsigned long mtdchar_get_unmapped_area(struct file *file,
 {
 	struct mtd_file_info *mfi = file->private_data;
 	struct mtd_info *mtd = mfi->mtd;
+	unsigned long offset;
+	int ret;
 
-	if (mtd->get_unmapped_area) {
-		unsigned long offset;
+	if (addr != 0)
+		return (unsigned long) -EINVAL;
 
-		if (addr != 0)
-			return (unsigned long) -EINVAL;
+	if (len > mtd->size || pgoff >= (mtd->size >> PAGE_SHIFT))
+		return (unsigned long) -EINVAL;
 
-		if (len > mtd->size || pgoff >= (mtd->size >> PAGE_SHIFT))
-			return (unsigned long) -EINVAL;
+	offset = pgoff << PAGE_SHIFT;
+	if (offset > mtd->size - len)
+		return (unsigned long) -EINVAL;
 
-		offset = pgoff << PAGE_SHIFT;
-		if (offset > mtd->size - len)
-			return (unsigned long) -EINVAL;
-
-		return mtd_get_unmapped_area(mtd, len, offset, flags);
-	}
-
-	/* can't map directly */
-	return (unsigned long) -ENOSYS;
+	ret = mtd_get_unmapped_area(mtd, len, offset, flags);
+	return ret == -EOPNOTSUPP ? -ENOSYS : ret;
 }
 #endif
 

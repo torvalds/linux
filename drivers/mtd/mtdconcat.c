@@ -726,11 +726,7 @@ static unsigned long concat_get_unmapped_area(struct mtd_info *mtd,
 		if (offset + len > subdev->size)
 			return (unsigned long) -EINVAL;
 
-		if (subdev->get_unmapped_area)
-			return mtd_get_unmapped_area(subdev, len, offset,
-						     flags);
-
-		break;
+		return mtd_get_unmapped_area(subdev, len, offset, flags);
 	}
 
 	return (unsigned long) -ENOSYS;
