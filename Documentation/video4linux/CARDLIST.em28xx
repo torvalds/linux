@@ -40,7 +40,7 @@
  39 -> KWorld PVRTV 300U                        (em2861)        [eb1a:e300]
  40 -> Plextor ConvertX PX-TV100U               (em2861)        [093b:a005]
  41 -> Kworld 350 U DVB-T                       (em2870)        [eb1a:e350]
- 42 -> Kworld 355 U DVB-T                       (em2870)        [eb1a:e355,eb1a:e357]
+ 42 -> Kworld 355 U DVB-T                       (em2870)        [eb1a:e355,eb1a:e357,eb1a:e359]
  43 -> Terratec Cinergy T XS                    (em2870)        [0ccd:0043]
  44 -> Terratec Cinergy T XS (MT2060)           (em2870)
  45 -> Pinnacle PCTV DVB-T                      (em2870)
@@ -78,3 +78,5 @@
  78 -> PCTV nanoStick T2 290e                   (em28174)
  79 -> Terratec Cinergy H5                      (em2884)        [0ccd:10a2,0ccd:10ad]
  80 -> PCTV DVB-S2 Stick (460e)                 (em28174)
+ 81 -> Hauppauge WinTV HVR 930C                 (em2884)        [2040:1605]
+ 82 -> Terratec Cinergy HTC Stick               (em2884)        [0ccd:00b2]
