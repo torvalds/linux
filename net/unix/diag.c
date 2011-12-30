@@ -127,23 +127,27 @@ static int sk_diag_fill(struct sock *sk, struct sk_buff *skb, struct unix_diag_r
 	sock_diag_save_cookie(sk, rep->udiag_cookie);
 
 	if ((req->udiag_show & UDIAG_SHOW_NAME) &&
-			sk_diag_dump_name(sk, skb))
+	    sk_diag_dump_name(sk, skb))
 		goto nlmsg_failure;
 
 	if ((req->udiag_show & UDIAG_SHOW_VFS) &&
-			sk_diag_dump_vfs(sk, skb))
+	    sk_diag_dump_vfs(sk, skb))
 		goto nlmsg_failure;
 
 	if ((req->udiag_show & UDIAG_SHOW_PEER) &&
-			sk_diag_dump_peer(sk, skb))
+	    sk_diag_dump_peer(sk, skb))
 		goto nlmsg_failure;
 
 	if ((req->udiag_show & UDIAG_SHOW_ICONS) &&
-			sk_diag_dump_icons(sk, skb))
+	    sk_diag_dump_icons(sk, skb))
 		goto nlmsg_failure;
 
 	if ((req->udiag_show & UDIAG_SHOW_RQLEN) &&
-			sk_diag_show_rqlen(sk, skb))
+	    sk_diag_show_rqlen(sk, skb))
+		goto nlmsg_failure;
+
+	if ((req->udiag_show & UDIAG_SHOW_MEMINFO) &&
+	    sock_diag_put_meminfo(sk, skb, UNIX_DIAG_MEMINFO))
 		goto nlmsg_failure;
 
 	nlh->nlmsg_len = skb_tail_pointer(skb) - b;
@@ -191,9 +195,9 @@ static int unix_diag_dump(struct sk_buff *skb, struct netlink_callback *cb)
 			if (!(req->udiag_states & (1 << sk->sk_state)))
 				goto next;
 			if (sk_diag_dump(sk, skb, req,
-						NETLINK_CB(cb->skb).pid,
-						cb->nlh->nlmsg_seq,
-						NLM_F_MULTI) < 0)
+					 NETLINK_CB(cb->skb).pid,
+					 cb->nlh->nlmsg_seq,
+					 NLM_F_MULTI) < 0)
 				goto done;
 next:
 			num++;

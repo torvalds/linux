@@ -18,6 +18,7 @@ struct unix_diag_req {
 #define UDIAG_SHOW_PEER		0x00000004	/* show peer socket info */
 #define UDIAG_SHOW_ICONS	0x00000008	/* show pending connections */
 #define UDIAG_SHOW_RQLEN	0x00000010	/* show skb receive queue len */
+#define UDIAG_SHOW_MEMINFO	0x00000020	/* show memory info of a socket */
 
 struct unix_diag_msg {
 	__u8	udiag_family;
@@ -35,6 +36,7 @@ enum {
 	UNIX_DIAG_PEER,
 	UNIX_DIAG_ICONS,
 	UNIX_DIAG_RQLEN,
+	UNIX_DIAG_MEMINFO,
 
 	UNIX_DIAG_MAX,
 };
