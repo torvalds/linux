@@ -817,32 +817,45 @@ static int be_vid_config(struct be_adapter *adapter, bool vf, u32 vf_num)
 static int be_vlan_add_vid(struct net_device *netdev, u16 vid)
 {
 	struct be_adapter *adapter = netdev_priv(netdev);
+	int status = 0;
 
-	adapter->vlans_added++;
-	if (!be_physfn(adapter))
-		return 0;
+	if (!be_physfn(adapter)) {
+		status = -EINVAL;
+		goto ret;
+	}
 
 	adapter->vlan_tag[vid] = 1;
 	if (adapter->vlans_added <= (adapter->max_vlans + 1))
-		be_vid_config(adapter, false, 0);
+		status = be_vid_config(adapter, false, 0);
 
-	return 0;
+	if (!status)
+		adapter->vlans_added++;
+	else
+		adapter->vlan_tag[vid] = 0;
+ret:
+	return status;
 }
 
 static int be_vlan_rem_vid(struct net_device *netdev, u16 vid)
 {
 	struct be_adapter *adapter = netdev_priv(netdev);
+	int status = 0;
 
-	adapter->vlans_added--;
-
-	if (!be_physfn(adapter))
-		return 0;
+	if (!be_physfn(adapter)) {
+		status = -EINVAL;
+		goto ret;
+	}
 
 	adapter->vlan_tag[vid] = 0;
 	if (adapter->vlans_added <= adapter->max_vlans)
-		be_vid_config(adapter, false, 0);
+		status = be_vid_config(adapter, false, 0);
 
-	return 0;
+	if (!status)
+		adapter->vlans_added--;
+	else
+		adapter->vlan_tag[vid] = 1;
+ret:
+	return status;
 }
 
 static void be_set_rx_mode(struct net_device *netdev)
