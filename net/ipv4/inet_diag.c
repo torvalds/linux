@@ -136,6 +136,10 @@ int inet_sk_diag_fill(struct sock *sk, struct inet_connection_sock *icsk,
 		minfo->idiag_tmem = sk_wmem_alloc_get(sk);
 	}
 
+	if (ext & (1 << (INET_DIAG_SKMEMINFO - 1)))
+		if (sock_diag_put_meminfo(sk, skb, INET_DIAG_SKMEMINFO))
+			goto rtattr_failure;
+
 	if (icsk == NULL) {
 		r->idiag_rqueue = r->idiag_wqueue = 0;
 		goto out;
