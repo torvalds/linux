@@ -683,6 +683,7 @@ static void __init crag6410_map_io(void)
 static struct s3c_sdhci_platdata crag6410_hsmmc2_pdata = {
 	.max_width		= 4,
 	.cd_type		= S3C_SDHCI_CD_PERMANENT,
+	.host_caps		= MMC_CAP_POWER_OFF_CARD,
 };
 
 static void crag6410_cfg_sdhci0(struct platform_device *dev, int width)
