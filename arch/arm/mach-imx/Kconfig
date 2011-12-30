@@ -132,7 +132,7 @@ config MACH_MX25_3DS
 	select IMX_HAVE_PLATFORM_MXC_NAND
 	select IMX_HAVE_PLATFORM_SDHCI_ESDHC_IMX
 
-config MACH_EUKREA_CPUIMX25
+config MACH_EUKREA_CPUIMX25SD
 	bool "Support Eukrea CPUIMX25 Platform"
 	select SOC_IMX25
 	select IMX_HAVE_PLATFORM_FLEXCAN
@@ -148,7 +148,7 @@ config MACH_EUKREA_CPUIMX25
 
 choice
 	prompt "Baseboard"
-	depends on MACH_EUKREA_CPUIMX25
+	depends on MACH_EUKREA_CPUIMX25SD
 	default MACH_EUKREA_MBIMXSD25_BASEBOARD
 
 config MACH_EUKREA_MBIMXSD25_BASEBOARD
@@ -542,7 +542,7 @@ config MACH_MX35_3DS
 	  Include support for MX35PDK platform. This includes specific
 	  configurations for the board and its peripherals.
 
-config MACH_EUKREA_CPUIMX35
+config MACH_EUKREA_CPUIMX35SD
 	bool "Support Eukrea CPUIMX35 Platform"
 	select SOC_IMX35
 	select IMX_HAVE_PLATFORM_FLEXCAN
@@ -560,7 +560,7 @@ config MACH_EUKREA_CPUIMX35
 
 choice
 	prompt "Baseboard"
-	depends on MACH_EUKREA_CPUIMX35
+	depends on MACH_EUKREA_CPUIMX35SD
 	default MACH_EUKREA_MBIMXSD35_BASEBOARD
 
 config MACH_EUKREA_MBIMXSD35_BASEBOARD
