@@ -675,9 +675,8 @@ struct ep_tb_s {
  * build the table of the endpoints
  * and compute the minimum bandwidth for the image transfer
  */
-static int build_ep_tb(struct gspca_dev *gspca_dev,
+static int build_isoc_ep_tb(struct gspca_dev *gspca_dev,
 			struct usb_interface *intf,
-			int xfer,
 			struct ep_tb_s *ep_tb)
 {
 	struct usb_host_endpoint *ep;
@@ -695,13 +694,12 @@ static int build_ep_tb(struct gspca_dev *gspca_dev,
 		ep_tb->bandwidth = 2000 * 2000 * 120;
 		found = 0;
 		for (j = 0; j < nbalt; j++) {
-			ep = alt_xfer(&intf->altsetting[j], xfer);
+			ep = alt_xfer(&intf->altsetting[j],
+				      USB_ENDPOINT_XFER_ISOC);
 			if (ep == NULL)
 				continue;
 			psize = le16_to_cpu(ep->desc.wMaxPacketSize);
-			if (!gspca_dev->cam.bulk)		/* isoc */
-				psize = (psize & 0x07ff) *
-						(1 + ((psize >> 11) & 3));
+			psize = (psize & 0x07ff) * (1 + ((psize >> 11) & 3));
 			bandwidth = psize * ep->desc.bInterval * 1000;
 			if (gspca_dev->dev->speed == USB_SPEED_HIGH
 			 || gspca_dev->dev->speed == USB_SPEED_SUPER)
@@ -856,7 +854,7 @@ static int gspca_init_transfer(struct gspca_dev *gspca_dev)
 	xfer = gspca_dev->cam.bulk ? USB_ENDPOINT_XFER_BULK
 				   : USB_ENDPOINT_XFER_ISOC;
 
-	/* if the subdriver forced an altsetting, get the endpoint */
+	/* if bulk or the subdriver forced an altsetting, get the endpoint */
 	if (gspca_dev->alt != 0) {
 		gspca_dev->alt--;	/* (previous version compatibility) */
 		ep = alt_xfer(&intf->altsetting[gspca_dev->alt], xfer);
@@ -871,7 +869,7 @@ static int gspca_init_transfer(struct gspca_dev *gspca_dev)
 
 	/* else, compute the minimum bandwidth
 	 * and build the endpoint table */
-		alt_idx = build_ep_tb(gspca_dev, intf, xfer, ep_tb);
+		alt_idx = build_isoc_ep_tb(gspca_dev, intf, ep_tb);
 		if (alt_idx <= 0) {
 			pr_err("no transfer endpoint found\n");
 			ret = -EIO;
