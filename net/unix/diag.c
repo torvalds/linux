@@ -101,7 +101,18 @@ rtattr_failure:
 
 static int sk_diag_show_rqlen(struct sock *sk, struct sk_buff *nlskb)
 {
-	RTA_PUT_U32(nlskb, UNIX_DIAG_RQLEN, sk->sk_receive_queue.qlen);
+	struct unix_diag_rqlen *rql;
+
+	rql = UNIX_DIAG_PUT(nlskb, UNIX_DIAG_RQLEN, sizeof(*rql));
+
+	if (sk->sk_state == TCP_LISTEN) {
+		rql->udiag_rqueue = sk->sk_receive_queue.qlen;
+		rql->udiag_wqueue = sk->sk_max_ack_backlog;
+	} else {
+		rql->udiag_rqueue = (__u32)unix_inq_len(sk);
+		rql->udiag_wqueue = (__u32)unix_outq_len(sk);
+	}
+
 	return 0;
 
 rtattr_failure:

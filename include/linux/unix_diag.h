@@ -46,4 +46,9 @@ struct unix_diag_vfs {
 	__u32	udiag_vfs_dev;
 };
 
+struct unix_diag_rqlen {
+	__u32	udiag_rqueue;
+	__u32	udiag_wqueue;
+};
+
 #endif
