@@ -39,7 +39,7 @@
 
 #include "node_subscr.h"
 
-struct subscription;
+struct tipc_subscription;
 struct tipc_port_list;
 
 /*
@@ -100,8 +100,8 @@ struct publication *tipc_nametbl_insert_publ(u32 type, u32 lower, u32 upper,
 					u32 scope, u32 node, u32 ref, u32 key);
 struct publication *tipc_nametbl_remove_publ(u32 type, u32 lower,
 					u32 node, u32 ref, u32 key);
-void tipc_nametbl_subscribe(struct subscription *s);
-void tipc_nametbl_unsubscribe(struct subscription *s);
+void tipc_nametbl_subscribe(struct tipc_subscription *s);
+void tipc_nametbl_unsubscribe(struct tipc_subscription *s);
 int tipc_nametbl_init(void);
 void tipc_nametbl_stop(void);
 

@@ -92,7 +92,7 @@ static u32 htohl(u32 in, int swap)
  *       try to take the lock if the message is rejected and returned!
  */
 
-static void subscr_send_event(struct subscription *sub,
+static void subscr_send_event(struct tipc_subscription *sub,
 			      u32 found_lower,
 			      u32 found_upper,
 			      u32 event,
@@ -118,7 +118,7 @@ static void subscr_send_event(struct subscription *sub,
  * Returns 1 if there is overlap, otherwise 0.
  */
 
-int tipc_subscr_overlap(struct subscription *sub,
+int tipc_subscr_overlap(struct tipc_subscription *sub,
 			u32 found_lower,
 			u32 found_upper)
 
@@ -138,7 +138,7 @@ int tipc_subscr_overlap(struct subscription *sub,
  * Protected by nameseq.lock in name_table.c
  */
 
-void tipc_subscr_report_overlap(struct subscription *sub,
+void tipc_subscr_report_overlap(struct tipc_subscription *sub,
 				u32 found_lower,
 				u32 found_upper,
 				u32 event,
@@ -158,7 +158,7 @@ void tipc_subscr_report_overlap(struct subscription *sub,
  * subscr_timeout - subscription timeout has occurred
  */
 
-static void subscr_timeout(struct subscription *sub)
+static void subscr_timeout(struct tipc_subscription *sub)
 {
 	struct tipc_port *server_port;
 
@@ -205,7 +205,7 @@ static void subscr_timeout(struct subscription *sub)
  * Called with subscriber port locked.
  */
 
-static void subscr_del(struct subscription *sub)
+static void subscr_del(struct tipc_subscription *sub)
 {
 	tipc_nametbl_unsubscribe(sub);
 	list_del(&sub->subscription_list);
@@ -227,8 +227,8 @@ static void subscr_del(struct subscription *sub)
 static void subscr_terminate(struct subscriber *subscriber)
 {
 	u32 port_ref;
-	struct subscription *sub;
-	struct subscription *sub_temp;
+	struct tipc_subscription *sub;
+	struct tipc_subscription *sub_temp;
 
 	/* Invalidate subscriber reference */
 
@@ -280,8 +280,8 @@ static void subscr_terminate(struct subscriber *subscriber)
 static void subscr_cancel(struct tipc_subscr *s,
 			  struct subscriber *subscriber)
 {
-	struct subscription *sub;
-	struct subscription *sub_temp;
+	struct tipc_subscription *sub;
+	struct tipc_subscription *sub_temp;
 	int found = 0;
 
 	/* Find first matching subscription, exit if not found */
@@ -314,10 +314,10 @@ static void subscr_cancel(struct tipc_subscr *s,
  * Called with subscriber port locked.
  */
 
-static struct subscription *subscr_subscribe(struct tipc_subscr *s,
+static struct tipc_subscription *subscr_subscribe(struct tipc_subscr *s,
 					     struct subscriber *subscriber)
 {
-	struct subscription *sub;
+	struct tipc_subscription *sub;
 	int swap;
 
 	/* Determine subscriber's endianness */
@@ -418,7 +418,7 @@ static void subscr_conn_msg_event(void *usr_handle,
 {
 	struct subscriber *subscriber = usr_handle;
 	spinlock_t *subscriber_lock;
-	struct subscription *sub;
+	struct tipc_subscription *sub;
 
 	/*
 	 * Lock subscriber's server port (& make a local copy of lock pointer,
