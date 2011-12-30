@@ -41,7 +41,7 @@
 
 #define MAX_ADDR_STR 32
 
-static struct media *media_list[MAX_MEDIA];
+static struct tipc_media *media_list[MAX_MEDIA];
 static u32 media_count;
 
 struct tipc_bearer tipc_bearers[MAX_BEARERS];
@@ -68,7 +68,7 @@ static int media_name_valid(const char *name)
  * tipc_media_find - locates specified media object by name
  */
 
-struct media *tipc_media_find(const char *name)
+struct tipc_media *tipc_media_find(const char *name)
 {
 	u32 i;
 
@@ -83,7 +83,7 @@ struct media *tipc_media_find(const char *name)
  * media_find_id - locates specified media object by type identifier
  */
 
-static struct media *media_find_id(u8 type)
+static struct tipc_media *media_find_id(u8 type)
 {
 	u32 i;
 
@@ -100,7 +100,7 @@ static struct media *media_find_id(u8 type)
  * Bearers for this media type must be activated separately at a later stage.
  */
 
-int  tipc_register_media(struct media *m_ptr)
+int tipc_register_media(struct tipc_media *m_ptr)
 {
 	int res = -EINVAL;
 
@@ -138,7 +138,7 @@ exit:
 void tipc_media_addr_printf(struct print_buf *pb, struct tipc_media_addr *a)
 {
 	char addr_str[MAX_ADDR_STR];
-	struct media *m_ptr;
+	struct tipc_media *m_ptr;
 
 	m_ptr = media_find_id(a->media_id);
 
@@ -425,7 +425,7 @@ int tipc_bearer_congested(struct tipc_bearer *b_ptr, struct link *l_ptr)
 int tipc_enable_bearer(const char *name, u32 disc_domain, u32 priority)
 {
 	struct tipc_bearer *b_ptr;
-	struct media *m_ptr;
+	struct tipc_media *m_ptr;
 	struct bearer_name b_name;
 	char addr_string[16];
 	u32 bearer_id;

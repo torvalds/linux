@@ -76,7 +76,7 @@ struct bcbearer_pair {
 
 struct bcbearer {
 	struct tipc_bearer bearer;
-	struct media media;
+	struct tipc_media media;
 	struct bcbearer_pair bpairs[MAX_BEARERS];
 	struct bcbearer_pair bpairs_temp[TIPC_MAX_LINK_PRI + 1];
 	struct tipc_node_map remains;

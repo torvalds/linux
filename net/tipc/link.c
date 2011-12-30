@@ -2793,7 +2793,7 @@ static int link_cmd_set_value(const char *name, u32 new_value, u16 cmd)
 	struct tipc_node *node;
 	struct link *l_ptr;
 	struct tipc_bearer *b_ptr;
-	struct media *m_ptr;
+	struct tipc_media *m_ptr;
 
 	l_ptr = link_find_link(name, &node);
 	if (l_ptr) {
