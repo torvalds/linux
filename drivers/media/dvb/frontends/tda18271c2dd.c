@@ -1159,6 +1159,7 @@ static int set_params(struct dvb_frontend *fe,
 			Standard = HF_DVBC_7MHZ;
 		else
 			Standard = HF_DVBC_8MHZ;
+		break;
 	default:
 		return -EINVAL;
 	}
