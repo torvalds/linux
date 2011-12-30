@@ -136,9 +136,9 @@ void tipc_node_delete(struct tipc_node *n_ptr)
  * Link becomes active (alone or shared) or standby, depending on its priority.
  */
 
-void tipc_node_link_up(struct tipc_node *n_ptr, struct link *l_ptr)
+void tipc_node_link_up(struct tipc_node *n_ptr, struct tipc_link *l_ptr)
 {
-	struct link **active = &n_ptr->active_links[0];
+	struct tipc_link **active = &n_ptr->active_links[0];
 
 	n_ptr->working_links++;
 
@@ -171,14 +171,14 @@ void tipc_node_link_up(struct tipc_node *n_ptr, struct link *l_ptr)
 
 static void node_select_active_links(struct tipc_node *n_ptr)
 {
-	struct link **active = &n_ptr->active_links[0];
+	struct tipc_link **active = &n_ptr->active_links[0];
 	u32 i;
 	u32 highest_prio = 0;
 
 	active[0] = active[1] = NULL;
 
 	for (i = 0; i < MAX_BEARERS; i++) {
-		struct link *l_ptr = n_ptr->links[i];
+		struct tipc_link *l_ptr = n_ptr->links[i];
 
 		if (!l_ptr || !tipc_link_is_up(l_ptr) ||
 		    (l_ptr->priority < highest_prio))
@@ -197,9 +197,9 @@ static void node_select_active_links(struct tipc_node *n_ptr)
  * tipc_node_link_down - handle loss of link
  */
 
-void tipc_node_link_down(struct tipc_node *n_ptr, struct link *l_ptr)
+void tipc_node_link_down(struct tipc_node *n_ptr, struct tipc_link *l_ptr)
 {
-	struct link **active;
+	struct tipc_link **active;
 
 	n_ptr->working_links--;
 
@@ -239,14 +239,14 @@ int tipc_node_is_up(struct tipc_node *n_ptr)
 	return tipc_node_active_links(n_ptr);
 }
 
-void tipc_node_attach_link(struct tipc_node *n_ptr, struct link *l_ptr)
+void tipc_node_attach_link(struct tipc_node *n_ptr, struct tipc_link *l_ptr)
 {
 	n_ptr->links[l_ptr->b_ptr->identity] = l_ptr;
 	atomic_inc(&tipc_num_links);
 	n_ptr->link_cnt++;
 }
 
-void tipc_node_detach_link(struct tipc_node *n_ptr, struct link *l_ptr)
+void tipc_node_detach_link(struct tipc_node *n_ptr, struct tipc_link *l_ptr)
 {
 	n_ptr->links[l_ptr->b_ptr->identity] = NULL;
 	atomic_dec(&tipc_num_links);
@@ -360,7 +360,7 @@ static void node_lost_contact(struct tipc_node *n_ptr)
 
 	/* Abort link changeover */
 	for (i = 0; i < MAX_BEARERS; i++) {
-		struct link *l_ptr = n_ptr->links[i];
+		struct tipc_link *l_ptr = n_ptr->links[i];
 		if (!l_ptr)
 			continue;
 		l_ptr->reset_checkpoint = l_ptr->next_in_no;

@@ -41,7 +41,7 @@
 
 #define MAX_ADDR_STR 32
 
-static struct media *media_list[MAX_MEDIA];
+static struct tipc_media *media_list[MAX_MEDIA];
 static u32 media_count;
 
 struct tipc_bearer tipc_bearers[MAX_BEARERS];
@@ -68,7 +68,7 @@ static int media_name_valid(const char *name)
  * tipc_media_find - locates specified media object by name
  */
 
-struct media *tipc_media_find(const char *name)
+struct tipc_media *tipc_media_find(const char *name)
 {
 	u32 i;
 
@@ -83,7 +83,7 @@ struct media *tipc_media_find(const char *name)
  * media_find_id - locates specified media object by type identifier
  */
 
-static struct media *media_find_id(u8 type)
+static struct tipc_media *media_find_id(u8 type)
 {
 	u32 i;
 
@@ -100,7 +100,7 @@ static struct media *media_find_id(u8 type)
  * Bearers for this media type must be activated separately at a later stage.
  */
 
-int  tipc_register_media(struct media *m_ptr)
+int tipc_register_media(struct tipc_media *m_ptr)
 {
 	int res = -EINVAL;
 
@@ -138,7 +138,7 @@ exit:
 void tipc_media_addr_printf(struct print_buf *pb, struct tipc_media_addr *a)
 {
 	char addr_str[MAX_ADDR_STR];
-	struct media *m_ptr;
+	struct tipc_media *m_ptr;
 
 	m_ptr = media_find_id(a->media_id);
 
@@ -185,7 +185,7 @@ struct sk_buff *tipc_media_get_names(void)
  */
 
 static int bearer_name_validate(const char *name,
-				struct bearer_name *name_parts)
+				struct tipc_bearer_names *name_parts)
 {
 	char name_copy[TIPC_MAX_BEARER_NAME];
 	char *media_name;
@@ -318,7 +318,7 @@ void tipc_bearer_remove_dest(struct tipc_bearer *b_ptr, u32 dest)
 static int bearer_push(struct tipc_bearer *b_ptr)
 {
 	u32 res = 0;
-	struct link *ln, *tln;
+	struct tipc_link *ln, *tln;
 
 	if (b_ptr->blocked)
 		return 0;
@@ -364,7 +364,8 @@ void tipc_continue(struct tipc_bearer *b_ptr)
  * bearer.lock is busy
  */
 
-static void tipc_bearer_schedule_unlocked(struct tipc_bearer *b_ptr, struct link *l_ptr)
+static void tipc_bearer_schedule_unlocked(struct tipc_bearer *b_ptr,
+						struct tipc_link *l_ptr)
 {
 	list_move_tail(&l_ptr->link_list, &b_ptr->cong_links);
 }
@@ -377,7 +378,7 @@ static void tipc_bearer_schedule_unlocked(struct tipc_bearer *b_ptr, struct link
  * bearer.lock is free
  */
 
-void tipc_bearer_schedule(struct tipc_bearer *b_ptr, struct link *l_ptr)
+void tipc_bearer_schedule(struct tipc_bearer *b_ptr, struct tipc_link *l_ptr)
 {
 	spin_lock_bh(&b_ptr->lock);
 	tipc_bearer_schedule_unlocked(b_ptr, l_ptr);
@@ -390,7 +391,8 @@ void tipc_bearer_schedule(struct tipc_bearer *b_ptr, struct link *l_ptr)
  * and if there is, try to resolve it before returning.
  * 'tipc_net_lock' is read_locked when this function is called
  */
-int tipc_bearer_resolve_congestion(struct tipc_bearer *b_ptr, struct link *l_ptr)
+int tipc_bearer_resolve_congestion(struct tipc_bearer *b_ptr,
+					struct tipc_link *l_ptr)
 {
 	int res = 1;
 
@@ -409,7 +411,7 @@ int tipc_bearer_resolve_congestion(struct tipc_bearer *b_ptr, struct link *l_ptr
  * tipc_bearer_congested - determines if bearer is currently congested
  */
 
-int tipc_bearer_congested(struct tipc_bearer *b_ptr, struct link *l_ptr)
+int tipc_bearer_congested(struct tipc_bearer *b_ptr, struct tipc_link *l_ptr)
 {
 	if (unlikely(b_ptr->blocked))
 		return 1;
@@ -425,8 +427,8 @@ int tipc_bearer_congested(struct tipc_bearer *b_ptr, struct link *l_ptr)
 int tipc_enable_bearer(const char *name, u32 disc_domain, u32 priority)
 {
 	struct tipc_bearer *b_ptr;
-	struct media *m_ptr;
-	struct bearer_name b_name;
+	struct tipc_media *m_ptr;
+	struct tipc_bearer_names b_names;
 	char addr_string[16];
 	u32 bearer_id;
 	u32 with_this_prio;
@@ -438,7 +440,7 @@ int tipc_enable_bearer(const char *name, u32 disc_domain, u32 priority)
 		     name);
 		return -ENOPROTOOPT;
 	}
-	if (!bearer_name_validate(name, &b_name)) {
+	if (!bearer_name_validate(name, &b_names)) {
 		warn("Bearer <%s> rejected, illegal name\n", name);
 		return -EINVAL;
 	}
@@ -463,10 +465,10 @@ int tipc_enable_bearer(const char *name, u32 disc_domain, u32 priority)
 
 	write_lock_bh(&tipc_net_lock);
 
-	m_ptr = tipc_media_find(b_name.media_name);
+	m_ptr = tipc_media_find(b_names.media_name);
 	if (!m_ptr) {
 		warn("Bearer <%s> rejected, media <%s> not registered\n", name,
-		     b_name.media_name);
+		     b_names.media_name);
 		goto exit;
 	}
 
@@ -544,8 +546,8 @@ exit:
 int tipc_block_bearer(const char *name)
 {
 	struct tipc_bearer *b_ptr = NULL;
-	struct link *l_ptr;
-	struct link *temp_l_ptr;
+	struct tipc_link *l_ptr;
+	struct tipc_link *temp_l_ptr;
 
 	read_lock_bh(&tipc_net_lock);
 	b_ptr = tipc_bearer_find(name);
@@ -579,8 +581,8 @@ int tipc_block_bearer(const char *name)
 
 static void bearer_disable(struct tipc_bearer *b_ptr)
 {
-	struct link *l_ptr;
-	struct link *temp_l_ptr;
+	struct tipc_link *l_ptr;
+	struct tipc_link *temp_l_ptr;
 
 	info("Disabling bearer <%s>\n", b_ptr->name);
 	spin_lock_bh(&b_ptr->lock);

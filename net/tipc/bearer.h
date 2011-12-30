@@ -74,7 +74,7 @@ struct tipc_media_addr {
 struct tipc_bearer;
 
 /**
- * struct media - TIPC media information available to internal users
+ * struct tipc_media - TIPC media information available to internal users
  * @send_msg: routine which handles buffer transmission
  * @enable_bearer: routine which enables a bearer
  * @disable_bearer: routine which disables a bearer
@@ -90,7 +90,7 @@ struct tipc_bearer;
  * @name: media name
  */
 
-struct media {
+struct tipc_media {
 	int (*send_msg)(struct sk_buff *buf,
 			struct tipc_bearer *b_ptr,
 			struct tipc_media_addr *dest);
@@ -139,12 +139,12 @@ struct tipc_bearer {
 	struct tipc_media_addr addr;		/* initalized by media */
 	char name[TIPC_MAX_BEARER_NAME];
 	spinlock_t lock;
-	struct media *media;
+	struct tipc_media *media;
 	u32 priority;
 	u32 window;
 	u32 tolerance;
 	u32 identity;
-	struct link_req *link_req;
+	struct tipc_link_req *link_req;
 	struct list_head links;
 	struct list_head cong_links;
 	int active;
@@ -152,19 +152,19 @@ struct tipc_bearer {
 	struct tipc_node_map nodes;
 };
 
-struct bearer_name {
+struct tipc_bearer_names {
 	char media_name[TIPC_MAX_MEDIA_NAME];
 	char if_name[TIPC_MAX_IF_NAME];
 };
 
-struct link;
+struct tipc_link;
 
 extern struct tipc_bearer tipc_bearers[];
 
 /*
  * TIPC routines available to supported media types
  */
-int tipc_register_media(struct media *m_ptr);
+int tipc_register_media(struct tipc_media *m_ptr);
 
 void tipc_recv_msg(struct sk_buff *buf, struct tipc_bearer *tb_ptr);
 
@@ -188,12 +188,13 @@ struct sk_buff *tipc_media_get_names(void);
 struct sk_buff *tipc_bearer_get_names(void);
 void tipc_bearer_add_dest(struct tipc_bearer *b_ptr, u32 dest);
 void tipc_bearer_remove_dest(struct tipc_bearer *b_ptr, u32 dest);
-void tipc_bearer_schedule(struct tipc_bearer *b_ptr, struct link *l_ptr);
+void tipc_bearer_schedule(struct tipc_bearer *b_ptr, struct tipc_link *l_ptr);
 struct tipc_bearer *tipc_bearer_find(const char *name);
 struct tipc_bearer *tipc_bearer_find_interface(const char *if_name);
-struct media *tipc_media_find(const char *name);
-int tipc_bearer_resolve_congestion(struct tipc_bearer *b_ptr, struct link *l_ptr);
-int tipc_bearer_congested(struct tipc_bearer *b_ptr, struct link *l_ptr);
+struct tipc_media *tipc_media_find(const char *name);
+int tipc_bearer_resolve_congestion(struct tipc_bearer *b_ptr,
+				   struct tipc_link *l_ptr);
+int tipc_bearer_congested(struct tipc_bearer *b_ptr, struct tipc_link *l_ptr);
 void tipc_bearer_stop(void);
 void tipc_bearer_lock_push(struct tipc_bearer *b_ptr);
 

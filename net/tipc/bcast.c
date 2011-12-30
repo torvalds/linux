@@ -46,7 +46,7 @@
 #define BCLINK_WIN_DEFAULT 20		/* bcast link window size (default) */
 
 /**
- * struct bcbearer_pair - a pair of bearers used by broadcast link
+ * struct tipc_bcbearer_pair - a pair of bearers used by broadcast link
  * @primary: pointer to primary bearer
  * @secondary: pointer to secondary bearer
  *
@@ -54,13 +54,13 @@
  * to be paired.
  */
 
-struct bcbearer_pair {
+struct tipc_bcbearer_pair {
 	struct tipc_bearer *primary;
 	struct tipc_bearer *secondary;
 };
 
 /**
- * struct bcbearer - bearer used by broadcast link
+ * struct tipc_bcbearer - bearer used by broadcast link
  * @bearer: (non-standard) broadcast bearer structure
  * @media: (non-standard) broadcast media structure
  * @bpairs: array of bearer pairs
@@ -74,17 +74,17 @@ struct bcbearer_pair {
  * prevented through use of the spinlock "bc_lock".
  */
 
-struct bcbearer {
+struct tipc_bcbearer {
 	struct tipc_bearer bearer;
-	struct media media;
-	struct bcbearer_pair bpairs[MAX_BEARERS];
-	struct bcbearer_pair bpairs_temp[TIPC_MAX_LINK_PRI + 1];
+	struct tipc_media media;
+	struct tipc_bcbearer_pair bpairs[MAX_BEARERS];
+	struct tipc_bcbearer_pair bpairs_temp[TIPC_MAX_LINK_PRI + 1];
 	struct tipc_node_map remains;
 	struct tipc_node_map remains_new;
 };
 
 /**
- * struct bclink - link used for broadcast messages
+ * struct tipc_bclink - link used for broadcast messages
  * @link: (non-standard) broadcast link structure
  * @node: (non-standard) node structure representing b'cast link's peer node
  * @bcast_nodes: map of broadcast-capable nodes
@@ -93,19 +93,19 @@ struct bcbearer {
  * Handles sequence numbering, fragmentation, bundling, etc.
  */
 
-struct bclink {
-	struct link link;
+struct tipc_bclink {
+	struct tipc_link link;
 	struct tipc_node node;
 	struct tipc_node_map bcast_nodes;
 	struct tipc_node *retransmit_to;
 };
 
-static struct bcbearer bcast_bearer;
-static struct bclink bcast_link;
+static struct tipc_bcbearer bcast_bearer;
+static struct tipc_bclink bcast_link;
 
-static struct bcbearer *bcbearer = &bcast_bearer;
-static struct bclink *bclink = &bcast_link;
-static struct link *bcl = &bcast_link.link;
+static struct tipc_bcbearer *bcbearer = &bcast_bearer;
+static struct tipc_bclink *bclink = &bcast_link;
+static struct tipc_link *bcl = &bcast_link.link;
 
 static DEFINE_SPINLOCK(bc_lock);
 
@@ -308,7 +308,7 @@ exit:
 
 static void bclink_send_ack(struct tipc_node *n_ptr)
 {
-	struct link *l_ptr = n_ptr->active_links[n_ptr->addr & 1];
+	struct tipc_link *l_ptr = n_ptr->active_links[n_ptr->addr & 1];
 
 	if (l_ptr != NULL)
 		tipc_link_send_proto_msg(l_ptr, STATE_MSG, 0, 0, 0, 0, 0);
@@ -677,8 +677,8 @@ static int tipc_bcbearer_send(struct sk_buff *buf,
 
 void tipc_bcbearer_sort(void)
 {
-	struct bcbearer_pair *bp_temp = bcbearer->bpairs_temp;
-	struct bcbearer_pair *bp_curr;
+	struct tipc_bcbearer_pair *bp_temp = bcbearer->bpairs_temp;
+	struct tipc_bcbearer_pair *bp_curr;
 	int b_index;
 	int pri;
 
@@ -893,9 +893,9 @@ static void tipc_nmap_diff(struct tipc_node_map *nm_a,
  * tipc_port_list_add - add a port to a port list, ensuring no duplicates
  */
 
-void tipc_port_list_add(struct port_list *pl_ptr, u32 port)
+void tipc_port_list_add(struct tipc_port_list *pl_ptr, u32 port)
 {
-	struct port_list *item = pl_ptr;
+	struct tipc_port_list *item = pl_ptr;
 	int i;
 	int item_sz = PLSIZE;
 	int cnt = pl_ptr->count;
@@ -927,10 +927,10 @@ void tipc_port_list_add(struct port_list *pl_ptr, u32 port)
  *
  */
 
-void tipc_port_list_free(struct port_list *pl_ptr)
+void tipc_port_list_free(struct tipc_port_list *pl_ptr)
 {
-	struct port_list *item;
-	struct port_list *next;
+	struct tipc_port_list *item;
+	struct tipc_port_list *next;
 
 	for (item = pl_ptr->next; item; item = next) {
 		next = item->next;

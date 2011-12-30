@@ -54,15 +54,15 @@ struct tipc_node_map {
 #define PLSIZE 32
 
 /**
- * struct port_list - set of node local destination ports
+ * struct tipc_port_list - set of node local destination ports
  * @count: # of ports in set (only valid for first entry in list)
  * @next: pointer to next entry in list
  * @ports: array of port references
  */
 
-struct port_list {
+struct tipc_port_list {
 	int count;
-	struct port_list *next;
+	struct tipc_port_list *next;
 	u32 ports[PLSIZE];
 };
 
@@ -83,8 +83,8 @@ static inline int tipc_nmap_equal(struct tipc_node_map *nm_a, struct tipc_node_m
 	return !memcmp(nm_a, nm_b, sizeof(*nm_a));
 }
 
-void tipc_port_list_add(struct port_list *pl_ptr, u32 port);
-void tipc_port_list_free(struct port_list *pl_ptr);
+void tipc_port_list_add(struct tipc_port_list *pl_ptr, u32 port);
+void tipc_port_list_free(struct tipc_port_list *pl_ptr);
 
 void tipc_bclink_init(void);
 void tipc_bclink_stop(void);

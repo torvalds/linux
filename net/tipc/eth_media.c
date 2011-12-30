@@ -56,7 +56,7 @@ struct eth_bearer {
 	struct work_struct cleanup;
 };
 
-static struct media eth_media_info;
+static struct tipc_media eth_media_info;
 static struct eth_bearer eth_bearers[MAX_ETH_BEARERS];
 static int eth_started;
 static struct notifier_block notifier;
@@ -340,7 +340,7 @@ static int eth_msg2addr(struct tipc_media_addr *a, char *msg_area)
  * Ethernet media registration info
  */
 
-static struct media eth_media_info = {
+static struct tipc_media eth_media_info = {
 	.send_msg	= send_msg,
 	.enable_bearer	= enable_bearer,
 	.disable_bearer	= disable_bearer,
