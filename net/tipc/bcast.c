@@ -84,7 +84,7 @@ struct bcbearer {
 };
 
 /**
- * struct bclink - link used for broadcast messages
+ * struct tipc_bclink - link used for broadcast messages
  * @link: (non-standard) broadcast link structure
  * @node: (non-standard) node structure representing b'cast link's peer node
  * @bcast_nodes: map of broadcast-capable nodes
@@ -93,7 +93,7 @@ struct bcbearer {
  * Handles sequence numbering, fragmentation, bundling, etc.
  */
 
-struct bclink {
+struct tipc_bclink {
 	struct link link;
 	struct tipc_node node;
 	struct tipc_node_map bcast_nodes;
@@ -101,10 +101,10 @@ struct bclink {
 };
 
 static struct bcbearer bcast_bearer;
-static struct bclink bcast_link;
+static struct tipc_bclink bcast_link;
 
 static struct bcbearer *bcbearer = &bcast_bearer;
-static struct bclink *bclink = &bcast_link;
+static struct tipc_bclink *bclink = &bcast_link;
 static struct link *bcl = &bcast_link.link;
 
 static DEFINE_SPINLOCK(bc_lock);
