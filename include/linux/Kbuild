@@ -197,6 +197,7 @@ header-y += in6.h
 header-y += in_route.h
 header-y += sock_diag.h
 header-y += inet_diag.h
+header-y += unix_diag.h
 header-y += inotify.h
 header-y += input.h
 header-y += ioctl.h
