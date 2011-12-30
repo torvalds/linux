@@ -15,6 +15,7 @@
 //#include <mach/gpio_v2.h>
 #include <mach/sys_config.h>
 #include <linux/regulator/consumer.h>
+#include <mach/system.h>
 #include "../include/sun4i_csi_core.h"
 #include "../include/sun4i_dev_csi.h"
 
@@ -23,7 +24,8 @@ MODULE_DESCRIPTION("A low-level driver for GalaxyCore GC0308 sensors");
 MODULE_LICENSE("GPL");
 
 
-#define MCLK (49.5*1000*1000)
+#define MCLK_VER_B (49.5*1000*1000)
+#define MCLK_VER_C (24*1000*1000)
 #define VREF_POL	CSI_HIGH
 #define HREF_POL	CSI_HIGH
 #define CLK_POL		CSI_RISING
@@ -73,7 +75,7 @@ MODULE_LICENSE("GPL");
 #define I2C_ADDR 0x42
 
 /* Registers */
-
+static enum sw_ic_ver magic_ver;
 
 /*
  * Information we maintain about a known sensor.
@@ -81,7 +83,7 @@ MODULE_LICENSE("GPL");
 struct sensor_format_struct;  /* coming later */
 __csi_subdev_info_t ccm_info_con =
 {
-	.mclk 	= MCLK,
+	.mclk 	= MCLK_VER_C,
 	.vref 	= VREF_POL,
 	.href 	= HREF_POL,
 	.clock	= CLK_POL,
@@ -127,9 +129,9 @@ struct regval_list {
  * The default register settings
  *
  */
-static struct regval_list sensor_default_regs[] = {
+static struct regval_list sensor_default_regs_49p5M[] = {
 {{0xfe},{0x00}},
-#if 1 //MCLK=49.5MHz 10fps
+//MCLK=49.5MHz 10fps
 {{0x01},{0xcb}},   //0x28
 {{0x02},{0x60}},   //0x00
 {{0x0f},{0x18}},	 //0x21
@@ -143,7 +145,11 @@ static struct regval_list sensor_default_regs[] = {
 {{0xe9},{0xE8}},
 {{0xea},{0x09}},
 {{0xeb},{0xC4}},
-#else //MCLK=24MHz 10fps
+};
+
+static struct regval_list sensor_default_regs_24M[] = {
+{{0xfe},{0x00}},
+//MCLK=24MHz 10fps
 {{0x0f},{0x05}},	 //0x00
 {{0x01},{0xe1}},   //0x6a
 {{0x02},{0x70}},   //0x70
@@ -157,7 +163,10 @@ static struct regval_list sensor_default_regs[] = {
 {{0xe9},{0x58}},
 {{0xea},{0x0e}},
 {{0xeb},{0xa6}},
-#endif
+};
+
+static struct regval_list sensor_default_regs[] = {
+{{0xfe},{0x00}},
 {{0xec},{0x20}},
 {{0x05},{0x00}},
 {{0x06},{0x00}},
@@ -1060,6 +1069,18 @@ static int sensor_init(struct v4l2_subdev *sd, u32 val)
 		return ret;
 	}
 
+	switch(magic_ver) {
+	case MAGIC_VER_A:
+	case MAGIC_VER_B:
+		sensor_write_array(sd, sensor_default_regs_49p5M , ARRAY_SIZE(sensor_default_regs_49p5M));
+		break;
+	case MAGIC_VER_C:
+		sensor_write_array(sd, sensor_default_regs_24M , ARRAY_SIZE(sensor_default_regs_24M));
+		break;
+	default:
+		sensor_write_array(sd, sensor_default_regs_24M , ARRAY_SIZE(sensor_default_regs_24M));
+		break;
+	}
 	return sensor_write_array(sd, sensor_default_regs , ARRAY_SIZE(sensor_default_regs));
 }
 
@@ -2255,6 +2276,19 @@ static int sensor_probe(struct i2c_client *client,
 
 //	info->clkrc = 1;	/* 30fps */
 
+	magic_ver = sw_get_ic_ver();
+  switch(magic_ver) {
+  case MAGIC_VER_A:
+  case MAGIC_VER_B:
+  	info->ccm_info->mclk = MCLK_VER_B;
+  	break;
+  case MAGIC_VER_C:
+  	info->ccm_info->mclk = MCLK_VER_C;
+  	break;
+  default:
+  	info->ccm_info->mclk = MCLK_VER_C;
+  	break;
+  }
 	return 0;
 }
 

@@ -68,6 +68,8 @@
 #endif
 #endif
 
+//#define CONFIG_SUPPORT_FTS_CTP_UPG
+
 struct i2c_dev{
 struct list_head list;
 struct i2c_adapter *adap;
@@ -108,7 +110,12 @@ static int key_val = 0;
 #endif
 ///////////////////////////////////////////////
 //specific tp related macro: need be configured for specific tp
+#ifdef CONFIG_ARCH_SUN4I
 #define CTP_IRQ_NO			(IRQ_EINT21)
+#else ifdef CONFIG_ARCH_SUN5I
+#define CTP_IRQ_NO			(IRQ_EINT9)
+#endif
+
 #define CTP_IRQ_MODE			(NEGATIVE_EDGE)
 #define CTP_NAME			FT5X_NAME
 #define TS_RESET_LOW_PERIOD		(1)
@@ -521,6 +528,8 @@ static struct ctp_platform_ops ctp_ops = {
 	.ts_detect = ctp_detect,
 };
 
+int fts_ctpm_fw_upgrade_with_i_file(void);
+
 static struct i2c_dev *i2c_dev_get_by_minor(unsigned index)
 {
 	struct i2c_dev *i2c_dev;
@@ -602,10 +611,6 @@ struct ft5x_ts_data {
 *
 *
 ----------------------------------------------------------------------*/
-#define CONFIG_SUPPORT_FTS_CTP_UPG
-
-
-#ifdef CONFIG_SUPPORT_FTS_CTP_UPG
 
 typedef enum
 {
@@ -1135,7 +1140,6 @@ unsigned char fts_ctpm_get_upg_ver(void)
 		return 0xff; //default value
 	}
 }
-#endif
 
 static int ft5x_i2c_rxdata(char *rxdata, int length)
 {
@@ -1670,24 +1674,6 @@ ft5x_ts_probe(struct i2c_client *client, const struct i2c_device_id *id)
 #endif
 
 #ifdef CONFIG_SUPPORT_FTS_CTP_UPG
-#if 0
-#define PROBE_BUFFER_LEN  (1)
-	unsigned char up_flg=0;
-	unsigned char buf[PROBE_BUFFER_LEN] = {0};
-
-	up_flg = fts_ctpm_get_upg_ver();
-	if(FTS_FALSE == fts_register_read(0xa6, buf, PROBE_BUFFER_LEN)){
-		pr_info("ft5x_ts_probe: fts_register_read failed. \n");
-		goto exit_upgrade_failed;
-	}
-
-	pr_info("up_flg == %hu, buf[0] == %hu \n", up_flg, buf[0]);
-	if(FTS_FALSE == fts_register_read(0xa8, buf, PROBE_BUFFER_LEN)){
-		pr_info("ft5x_ts_probe: fts_register_read failed. \n");
-		goto exit_upgrade_failed;
-	}
-	pr_info("buf[0] == %hu \n", buf[0]);
-#endif
 	fts_ctpm_fw_upgrade_with_i_file();
 #endif
 

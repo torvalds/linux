@@ -323,16 +323,11 @@ int codec_rd_control(u32 reg, u32 bit, u32 *val)
 */
 static  int codec_init(void)
 {
-	//int device_lr_change = 0;
-	enum sw_ic_ver  codec_chip_ver = sw_get_ic_ver();
 	//enable dac digital
 	codec_wr_control(SUN5I_DAC_DPC, 0x1, DAC_EN, 0x1);
 
 	codec_wr_control(SUN5I_DAC_FIFOC ,  0x1,28, 0x1);
-	//set digital volume to maximum
-	if(codec_chip_ver == MAGIC_VER_A){
-		codec_wr_control(SUN5I_DAC_DPC, 0x6, DIGITAL_VOL, 0x0);
-	}
+
 	//pa mute
 	codec_wr_control(SUN5I_DAC_ACTL, 0x1, PA_MUTE, 0x0);
 	//enable PA
@@ -341,13 +336,6 @@ static  int codec_init(void)
 
 	codec_wr_control(SUN5I_DAC_ACTL, 0x6, VOLUME, 0x3b);
 
-//	if(SCRIPT_AUDIO_OK != script_parser_fetch("audio_para", "audio_lr_change", &device_lr_change, sizeof(device_lr_change)/sizeof(int))){
-//		printk("audiocodec_adap_awxx_init: script_parser_fetch err. \n");
-//	    return -1;
-//	}
-//
-//	if(device_lr_change)
-//		codec_wr_control(SUN5I_DAC_DEBUG ,  0x1, DAC_CHANNEL, 0x1);
 	return 0;
 }
 
@@ -457,29 +445,8 @@ static int codec_dev_free(struct snd_device *device)
 /*	对sun5i-codec.c各寄存器的各种设定，或读取。主要实现函数有三个.
 * 	.info = snd_codec_info_volsw, .get = snd_codec_get_volsw,\.put = snd_codec_put_volsw,
 */
-static const struct snd_kcontrol_new codec_snd_controls_b[] = {
-	//FOR B VERSION
+static const struct snd_kcontrol_new codec_snd_controls[] = {
 	CODEC_SINGLE("Master Playback Volume", SUN5I_DAC_ACTL,0,0x3f,0),
-	CODEC_SINGLE("Playback Switch", SUN5I_DAC_ACTL,6,1,0),//全局输出开关
-	CODEC_SINGLE("Capture Volume",SUN5I_ADC_ACTL,20,7,0),//录音音量
-	CODEC_SINGLE("Fm Volume",SUN5I_DAC_ACTL,23,7,0),//Fm 音量
-	CODEC_SINGLE("Line Volume",SUN5I_DAC_ACTL,26,1,0),//Line音量
-	CODEC_SINGLE("MicL Volume",SUN5I_ADC_ACTL,25,3,0),//mic左音量
-	CODEC_SINGLE("MicR Volume",SUN5I_ADC_ACTL,23,3,0),//mic右音量
-	CODEC_SINGLE("FmL Switch",SUN5I_DAC_ACTL,17,1,0),//Fm左开关
-	CODEC_SINGLE("FmR Switch",SUN5I_DAC_ACTL,16,1,0),//Fm右开关
-	CODEC_SINGLE("LineL Switch",SUN5I_DAC_ACTL,19,1,0),//Line左开关
-	CODEC_SINGLE("LineR Switch",SUN5I_DAC_ACTL,18,1,0),//Line右开关
-	CODEC_SINGLE("Ldac Left Mixer",SUN5I_DAC_ACTL,15,1,0),
-	CODEC_SINGLE("Rdac Right Mixer",SUN5I_DAC_ACTL,14,1,0),
-	CODEC_SINGLE("Ldac Right Mixer",SUN5I_DAC_ACTL,13,1,0),
-	CODEC_SINGLE("Mic Input Mux",SUN5I_DAC_ACTL,9,15,0),//from bit 9 to bit 12.Mic（麦克风）输入静音
-	CODEC_SINGLE("ADC Input Mux",SUN5I_ADC_ACTL,17,7,0),//ADC输入静音
-};
-
-static const struct snd_kcontrol_new codec_snd_controls_a[] = {
-	//For A VERSION
-	CODEC_SINGLE("Master Playback Volume", SUN5I_DAC_DPC,12,0x3f,0),//62 steps, 3e + 1 = 3f 主音量控制
 	CODEC_SINGLE("Playback Switch", SUN5I_DAC_ACTL,6,1,0),//全局输出开关
 	CODEC_SINGLE("Capture Volume",SUN5I_ADC_ACTL,20,7,0),//录音音量
 	CODEC_SINGLE("Fm Volume",SUN5I_DAC_ACTL,23,7,0),//Fm 音量
@@ -513,25 +480,12 @@ int __init snd_chip_codec_mixer_new(struct snd_card *card)
 	*	snd_ctl_new1函数用于创建一个snd_kcontrol并返回其指针，
 	*	snd_ctl_add函数用于将创建的snd_kcontrol添加到对应的card中。
 	*/
-	enum sw_ic_ver  codec_chip_ver = sw_get_ic_ver();
 
-	if(codec_chip_ver == MAGIC_VER_A){
-		for (idx = 0; idx < ARRAY_SIZE(codec_snd_controls_a); idx++) {
-			if ((err = snd_ctl_add(card, snd_ctl_new1(&codec_snd_controls_a[idx],clnt))) < 0) {
-				return err;
-			}
+	for (idx = 0; idx < ARRAY_SIZE(codec_snd_controls); idx++) {
+		if ((err = snd_ctl_add(card, snd_ctl_new1(&codec_snd_controls[idx],clnt))) < 0) {
+			return err;
 		}
-	}else if(codec_chip_ver == MAGIC_VER_B){
-		for (idx = 0; idx < ARRAY_SIZE(codec_snd_controls_b); idx++) {
-			if ((err = snd_ctl_add(card, snd_ctl_new1(&codec_snd_controls_b[idx],clnt))) < 0) {
-				return err;
-			}
-		}
-	}else{
-		printk("[audio codec] chip version is unknown!\n");
-		return -1;
 	}
-
 	/*
 	*	当card被创建后，设备（组件）能够被创建并关联于该card。第一个参数是snd_card_create
 	*	创建的card指针，第二个参数type指的是device-level即设备类型，形式为SNDRV_DEV_XXX,包括

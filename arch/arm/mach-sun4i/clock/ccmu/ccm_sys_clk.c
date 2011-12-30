@@ -266,7 +266,7 @@ static __s64 sys_clk_get_rate(__aw_ccu_sys_clk_e id)
                     return 24576000;
                 }
             }
-            else if(chip_ver == MAGIC_VER_B){
+            else if((chip_ver == MAGIC_VER_B) || (chip_ver == MAGIC_VER_C)){
                 /* chip is version B:
                     FactorN=79, PreDiv=21, PostDiv=4, output=24*79/21/4=22.571mhz, 44.1k series fs
                     FactorN=86, PreDiv=21, PostDiv=4, output=24*86/21/4=24.571mhz, 48k series fs */
@@ -764,7 +764,7 @@ static __s32 sys_clk_set_rate(__aw_ccu_sys_clk_e id, __s64 rate)
                     aw_ccu_reg->Pll2Ctl.VCOBias = 10;
                     aw_ccu_reg->Pll2Ctl.FactorN = 94;
                 }
-                else if(chip_ver == MAGIC_VER_B){
+                else if((chip_ver == MAGIC_VER_B) || (chip_ver == MAGIC_VER_C)){
                     /* chip is version B, FactorN=79, PreDiv=21, PostDiv=4,
                        output=24*79/21/4=22.571mhz, 44.1k series fs     */
                     __u32   tmpReg;
@@ -786,14 +786,14 @@ static __s32 sys_clk_set_rate(__aw_ccu_sys_clk_e id, __s64 rate)
                     aw_ccu_reg->Pll2Ctl.VCOBias = 9;
                     aw_ccu_reg->Pll2Ctl.FactorN = 83;
                 }
-                else if(chip_ver == MAGIC_VER_B){
+                else if((chip_ver == MAGIC_VER_B) || (chip_ver == MAGIC_VER_C)){
                     /* chip is version B, FactorN=86, PreDiv=21, PostDiv=4,
                        output=24*86/21/4=24.571mhz, 48k series fs       */
                     __u32   tmpReg;
 
                     tmpReg = *(volatile __u32 *)&aw_ccu_reg->Pll2Ctl;
                     tmpReg &= ~((0x1f<<0)|(0x7f<<8)|(0x0f<<26));
-                    tmpReg |= (21<<0)|(86<<8)|(4<<26);
+                   tmpReg |= (21<<0)|(86<<8)|(4<<26);
                     *(volatile __u32 *)&aw_ccu_reg->Pll2Ctl = tmpReg;
                 }
                 else{

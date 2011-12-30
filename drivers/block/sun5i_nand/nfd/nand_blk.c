@@ -1525,7 +1525,7 @@ static struct platform_driver nand_driver = {
 	.suspend = nand_suspend,
 	.resume = nand_resume,
 	.driver = {
-		.name = "nandflash",
+		.name = "sw_nand",
 		.owner = THIS_MODULE,
 	}
 };

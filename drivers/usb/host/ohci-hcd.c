@@ -45,6 +45,9 @@
 #include <asm/unaligned.h>
 #include <asm/byteorder.h>
 
+#ifdef  CONFIG_USB_SW_SUN4I_HCI
+#include <mach/system.h>
+#endif
 
 #define DRIVER_AUTHOR "Roman Weissgaerber, David Brownell"
 #define DRIVER_DESC "USB 1.1 'Open' Host Controller (OHCI) Driver"
@@ -757,7 +760,11 @@ static irqreturn_t ohci_irq (struct usb_hcd *hcd)
 	ints = ohci_readl(ohci, &regs->intrstatus);
 
 #ifdef  CONFIG_USB_SW_SUN4I_HCI
-    if(1){
+{
+    enum sw_ic_ver ic_version = MAGIC_VER_A;
+
+    ic_version = sw_get_ic_ver();
+    if(ic_version == MAGIC_VER_A || ic_version == MAGIC_VER_B){
         __u32 HcRhPortStatus = ohci_readl(ohci, &regs->roothub.portstatus[0]);
 
         if((HcRhPortStatus & RH_PS_CSC) && (ints & OHCI_INTR_RHSC)){
@@ -772,6 +779,7 @@ static irqreturn_t ohci_irq (struct usb_hcd *hcd)
 
         return IRQ_HANDLED;
     }
+}
 #endif
 
 	/* Check for an all 1's result which is a typical consequence
@@ -1125,7 +1133,7 @@ MODULE_LICENSE ("GPL");
 
 #ifdef CONFIG_USB_SW_SUN5I_HCI
 #include "ohci_sun5i.c"
-#define	PLATFORM_DRIVER		sw_ohci_hcd_driver
+#define PLATFORM_DRIVER         sw_ohci_hcd_driver
 #endif
 
 #ifdef CONFIG_USB_OCTEON_OHCI

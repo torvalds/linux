@@ -53,6 +53,13 @@ __s32 csc2coeff[12]=
 	0x1E87,0x1C1,0x1FB8,0x800,	/* VG,VR,VB,VC */
 };
 
+__s32 csc2coeff_VUVU[12]=
+{
+	0x204,0x107,0x64,0x100,		/* YG,YR,YB,YC */
+	0x1E87,0x1C1,0x1FB8,0x800,	/* VG,VR,VB,VC */
+	0x1ED6,0x1F69,0x1C1,0x800,	/* UG,UR,UB,UC */
+};
+
 __s32 scalercoeff[64]=
 {
 	/* Horizontal Filtering Coefficient(0x200-0x27c) */
@@ -631,8 +638,12 @@ __s32 mixer_blt(g2d_blt *para){
 	__u32 reg_val = 0;
 	__u64 addr_val;
 	__s32 result = 0;
+	__u32 i,j;
 
 	mixer_reg_init();/* initial mixer register */
+	if((para->dst_image.format>0x16)&&(para->dst_image.format<0x1A)&&(para->dst_image.pixel_seq == G2D_SEQ_VUVU)){
+		for(i=0, j=0; i<12; i++,j+=4)write_wvalue(G2D_CSC2_ADDR_REG + j, csc2coeff_VUVU[i]&0xFFFF);/* 0x1c0-0x1ec */
+	}
 
 	/* src surface */
 	addr_val = mixer_get_addr(para->src_image.addr[0],para->src_image.format,para->src_image.w,para->src_rect.x,para->src_rect.y);
@@ -680,7 +691,9 @@ __s32 mixer_blt(g2d_blt *para){
 	{
 		if(para->src_image.format == G2D_FMT_PYUV411UVC) bppnum = 4;
 		else bppnum = 8;
-		addr_val = (__u64)para->src_image.addr[1]*8+(__u64)((para->src_image.w*para->src_rect.y+para->src_rect.x)*bppnum);
+		if(para->src_image.format == G2D_FMT_PYUV420UVC)
+			addr_val = (__u64)(para->src_image.addr[1]-0x40000000)*8+(__u64)((para->src_image.w*(para->src_rect.y/2)+para->src_rect.x)*bppnum);
+		else addr_val = (__u64)(para->src_image.addr[1]-0x40000000)*8+(__u64)((para->src_image.w*para->src_rect.y+para->src_rect.x)*bppnum);
 		reg_val = read_wvalue(G2D_DMA_HADDR_REG);
 		reg_val |= ((addr_val>>32)&0xF)<<8;/* high addr in bits */
 		write_wvalue(G2D_DMA_HADDR_REG, reg_val);
@@ -701,7 +714,9 @@ __s32 mixer_blt(g2d_blt *para){
 	{
 		if(para->dst_image.format == G2D_FMT_PYUV411UVC) bppnum = 4;
 		else bppnum = 8;
-		addr_val = (__u64)para->dst_image.addr[1]*8+(__u64)((para->dst_image.w*para->dst_y + para->dst_x)*bppnum);
+		if(para->dst_image.format == G2D_FMT_PYUV420UVC)
+			 addr_val = (__u64)(para->dst_image.addr[1]-0x40000000)*8+(__u64)((para->dst_image.w*(para->dst_y/2)+para->dst_x)*bppnum);
+		else addr_val = (__u64)(para->dst_image.addr[1]-0x40000000)*8+(__u64)((para->dst_image.w*para->dst_y+para->dst_x)*bppnum);
 		reg_val = read_wvalue(G2D_DMA_HADDR_REG);
 		reg_val |= ((addr_val>>32)&0xF)<<16;/* high addr in bits */
 		write_wvalue(G2D_DMA_HADDR_REG, reg_val);
@@ -777,7 +792,9 @@ __s32 mixer_blt(g2d_blt *para){
 	{
 		if(para->dst_image.format == G2D_FMT_PYUV411UVC) bppnum = 4;
 		else bppnum = 8;
-		addr_val = (__u64)para->dst_image.addr[1]*8+(__u64)((para->dst_image.w*para->dst_y + para->dst_x)*bppnum);
+		if(para->dst_image.format == G2D_FMT_PYUV420UVC)
+			 addr_val = (__u64)(para->dst_image.addr[1]-0x40000000)*8+(__u64)((para->dst_image.w*(para->dst_y/2)+para->dst_x)*bppnum);
+		else addr_val = (__u64)(para->dst_image.addr[1]-0x40000000)*8+(__u64)((para->dst_image.w*para->dst_y+para->dst_x)*bppnum);
 		reg_val = read_wvalue(G2D_OUTPUT_HADDR_REG);
 		reg_val |= ((addr_val>>32)&0xF)<<8;/* high addr in bits */
 		write_wvalue(G2D_OUTPUT_HADDR_REG, reg_val);

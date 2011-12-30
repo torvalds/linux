@@ -370,6 +370,10 @@ void TCON0_cfg(__u32 sel, __panel_para_t * info)
 	    TCON1_set_gamma_table(sel, (__u32)(info->lcd_gamma_tbl), 1024);
 	    TCON1_set_gamma_Enable(sel, 1);
 	}
+	else
+	{
+	    TCON1_set_gamma_Enable(sel, 0);
+	}
 
 	LCDC_WUINT32(sel, LCDC_IOCTL0_OFF,info->lcd_io_cfg0);
     LCDC_WUINT32(sel, LCDC_IOCTL1_OFF,info->lcd_io_cfg1);

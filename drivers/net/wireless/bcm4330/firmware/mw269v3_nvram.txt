@@ -1,0 +1,55 @@
+
+manfid=0x2d0
+prodid=0x492
+vendid=0x14e4
+devid=0x4343
+boardtype=0x0598
+
+# Board Revision is P307, same nvram file can be used for P304, P305, P306 and P307 as the tssi pa params used are same
+#Please force the automatic RX PER data to the respective board directory if not using P307 board, for e.g. for P305 boards force the data into the following directory /projects/BCM43362/a1_labdata/boardtests/results/sdg_rev0305
+boardrev=0x1307
+boardnum=777
+xtalfreq=26000
+boardflags=0xa00
+sromrev=3
+wl0id=0x431b
+macaddr=00:90:4c:07:71:12
+aa2g=1
+ag0=2
+maxp2ga0=74
+ofdm2gpo=0x44111111
+mcs2gpo0=0x4444
+mcs2gpo1=0x6444
+pa0maxpwr=80
+
+#P207 PA params
+#pa0b0=5447
+#pa0b1=-658
+#pa0b2=-175
+
+#Same PA params for P304,P305, P306, P307
+pa0b0=5330
+pa0b1=-635
+pa0b2=-161
+pa0itssit=62
+pa1itssit=62
+
+
+cckPwrOffset=5
+ccode=0
+rssismf2g=0xa
+rssismc2g=0x3
+rssisav2g=0x7
+triso2g=0
+noise_cal_enable_2g=0
+noise_cal_po_2g=0
+swctrlmap_2g=0x04040404,0x02020202,0x02020202,0x010101,0x1ff
+temp_add=29767
+temp_mult=425
+temp_q=10
+initxidx2g=45
+tssitime=1
+rfreg033=0x19
+rfreg033_cck=0x1f
+cckPwrIdxCorr=-8
+spuravoid_enable2g=1

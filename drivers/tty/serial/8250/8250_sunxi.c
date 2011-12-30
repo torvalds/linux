@@ -27,7 +27,13 @@
 #include <mach/irqs.h>
 
 #include "8250.h"
+#if CONFIG_CHIP_ID==1123
 #define MAX_PORTS	    8
+#elif CONFIG_CHIP_ID==1125
+#define MAX_PORTS	    4
+#else
+#error "Unknown chip ID for Serial"
+#endif
 
 static int sw_serial[MAX_PORTS];
 
@@ -292,19 +298,12 @@ static int __init sw_serial_init(void)
     }
 
     if (uart_used) {
-        early_printk("used uart info.: 0x%02x\n", uart_used);
+        UART_MSG("used uart info.: 0x%02x\n", uart_used);
         ret = platform_driver_register(&sw_serial_driver);
         return ret;
     }
 
 	return 0;
-}
-
-int init_uart0(struct platform_device *dev)
-{
-	int uart0_ret;
-	uart0_ret=sw_serial_probe(dev);
-	return uart0_ret;
 }
 
 static void __exit sw_serial_exit(void)
