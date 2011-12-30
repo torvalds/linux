@@ -711,7 +711,7 @@ static void hci_cc_read_local_ext_features(struct hci_dev *hdev,
 	if (rp->status)
 		return;
 
-	memcpy(hdev->extfeatures, rp->features, 8);
+	memcpy(hdev->host_features, rp->features, 8);
 
 	hci_req_complete(hdev, HCI_OP_READ_LOCAL_EXT_FEATURES, rp->status);
 }
