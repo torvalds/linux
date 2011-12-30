@@ -978,18 +978,22 @@ static int be_set_vf_tx_rate(struct net_device *netdev,
 	if (!sriov_enabled(adapter))
 		return -EPERM;
 
-	if (vf >= adapter->num_vfs || rate < 0)
+	if (vf >= adapter->num_vfs)
 		return -EINVAL;
 
-	if (rate > 10000)
-		rate = 10000;
+	if (rate < 100 || rate > 10000) {
+		dev_err(&adapter->pdev->dev,
+			"tx rate must be between 100 and 10000 Mbps\n");
+		return -EINVAL;
+	}
 
-	adapter->vf_cfg[vf].tx_rate = rate;
 	status = be_cmd_set_qos(adapter, rate / 10, vf + 1);
 
 	if (status)
-		dev_info(&adapter->pdev->dev,
+		dev_err(&adapter->pdev->dev,
 				"tx rate %d on VF %d failed\n", rate, vf);
+	else
+		adapter->vf_cfg[vf].tx_rate = rate;
 	return status;
 }
 
