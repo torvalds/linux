@@ -1589,7 +1589,7 @@ static int cp_set_mac_address(struct net_device *dev, void *p)
    No extra delay is needed with 33Mhz PCI, but 66Mhz may change this.
  */
 
-#define eeprom_delay()	readl(ee_addr)
+#define eeprom_delay()	readb(ee_addr)
 
 /* The EEPROM commands include the alway-set leading bit. */
 #define EE_EXTEND_CMD	(4)
