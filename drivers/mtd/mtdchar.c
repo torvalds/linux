@@ -814,10 +814,7 @@ static int mtdchar_ioctl(struct file *file, u_int cmd, u_long arg)
 		if (copy_from_user(&einfo, argp, sizeof(einfo)))
 			return -EFAULT;
 
-		if (!mtd->lock)
-			ret = -EOPNOTSUPP;
-		else
-			ret = mtd_lock(mtd, einfo.start, einfo.length);
+		ret = mtd_lock(mtd, einfo.start, einfo.length);
 		break;
 	}
 
@@ -828,10 +825,7 @@ static int mtdchar_ioctl(struct file *file, u_int cmd, u_long arg)
 		if (copy_from_user(&einfo, argp, sizeof(einfo)))
 			return -EFAULT;
 
-		if (!mtd->unlock)
-			ret = -EOPNOTSUPP;
-		else
-			ret = mtd_unlock(mtd, einfo.start, einfo.length);
+		ret = mtd_unlock(mtd, einfo.start, einfo.length);
 		break;
 	}
 
@@ -842,10 +836,7 @@ static int mtdchar_ioctl(struct file *file, u_int cmd, u_long arg)
 		if (copy_from_user(&einfo, argp, sizeof(einfo)))
 			return -EFAULT;
 
-		if (!mtd->is_locked)
-			ret = -EOPNOTSUPP;
-		else
-			ret = mtd_is_locked(mtd, einfo.start, einfo.length);
+		ret = mtd_is_locked(mtd, einfo.start, einfo.length);
 		break;
 	}
 
