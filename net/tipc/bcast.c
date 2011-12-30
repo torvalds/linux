@@ -46,7 +46,7 @@
 #define BCLINK_WIN_DEFAULT 20		/* bcast link window size (default) */
 
 /**
- * struct bcbearer_pair - a pair of bearers used by broadcast link
+ * struct tipc_bcbearer_pair - a pair of bearers used by broadcast link
  * @primary: pointer to primary bearer
  * @secondary: pointer to secondary bearer
  *
@@ -54,13 +54,13 @@
  * to be paired.
  */
 
-struct bcbearer_pair {
+struct tipc_bcbearer_pair {
 	struct tipc_bearer *primary;
 	struct tipc_bearer *secondary;
 };
 
 /**
- * struct bcbearer - bearer used by broadcast link
+ * struct tipc_bcbearer - bearer used by broadcast link
  * @bearer: (non-standard) broadcast bearer structure
  * @media: (non-standard) broadcast media structure
  * @bpairs: array of bearer pairs
@@ -74,11 +74,11 @@ struct bcbearer_pair {
  * prevented through use of the spinlock "bc_lock".
  */
 
-struct bcbearer {
+struct tipc_bcbearer {
 	struct tipc_bearer bearer;
 	struct tipc_media media;
-	struct bcbearer_pair bpairs[MAX_BEARERS];
-	struct bcbearer_pair bpairs_temp[TIPC_MAX_LINK_PRI + 1];
+	struct tipc_bcbearer_pair bpairs[MAX_BEARERS];
+	struct tipc_bcbearer_pair bpairs_temp[TIPC_MAX_LINK_PRI + 1];
 	struct tipc_node_map remains;
 	struct tipc_node_map remains_new;
 };
@@ -100,10 +100,10 @@ struct tipc_bclink {
 	struct tipc_node *retransmit_to;
 };
 
-static struct bcbearer bcast_bearer;
+static struct tipc_bcbearer bcast_bearer;
 static struct tipc_bclink bcast_link;
 
-static struct bcbearer *bcbearer = &bcast_bearer;
+static struct tipc_bcbearer *bcbearer = &bcast_bearer;
 static struct tipc_bclink *bclink = &bcast_link;
 static struct link *bcl = &bcast_link.link;
 
@@ -677,8 +677,8 @@ static int tipc_bcbearer_send(struct sk_buff *buf,
 
 void tipc_bcbearer_sort(void)
 {
-	struct bcbearer_pair *bp_temp = bcbearer->bpairs_temp;
-	struct bcbearer_pair *bp_curr;
+	struct tipc_bcbearer_pair *bp_temp = bcbearer->bpairs_temp;
+	struct tipc_bcbearer_pair *bp_curr;
 	int b_index;
 	int pri;
 
