@@ -492,9 +492,10 @@ static int mxl5007t_write_regs(struct mxl5007t_state *state,
 
 static int mxl5007t_read_reg(struct mxl5007t_state *state, u8 reg, u8 *val)
 {
+	u8 buf[2] = { 0xfb, reg };
 	struct i2c_msg msg[] = {
 		{ .addr = state->i2c_props.addr, .flags = 0,
-		  .buf = &reg, .len = 1 },
+		  .buf = buf, .len = 2 },
 		{ .addr = state->i2c_props.addr, .flags = I2C_M_RD,
 		  .buf = val, .len = 1 },
 	};

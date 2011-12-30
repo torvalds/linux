@@ -93,7 +93,7 @@ int radeon_cs_parser_init(struct radeon_cs_parser *p, void *data)
 {
 	struct drm_radeon_cs *cs = data;
 	uint64_t *chunk_array_ptr;
-	unsigned size, i;
+	unsigned size, i, flags = 0;
 
 	if (!cs->num_chunks) {
 		return 0;
@@ -140,6 +140,10 @@ int radeon_cs_parser_init(struct radeon_cs_parser *p, void *data)
 			if (p->chunks[i].length_dw == 0)
 				return -EINVAL;
 		}
+		if (p->chunks[i].chunk_id == RADEON_CHUNK_ID_FLAGS &&
+		    !p->chunks[i].length_dw) {
+			return -EINVAL;
+		}
 
 		p->chunks[i].length_dw = user_chunk.length_dw;
 		p->chunks[i].user_ptr = (void __user *)(unsigned long)user_chunk.chunk_data;
@@ -154,6 +158,9 @@ int radeon_cs_parser_init(struct radeon_cs_parser *p, void *data)
 			if (DRM_COPY_FROM_USER(p->chunks[i].kdata,
 					       p->chunks[i].user_ptr, size)) {
 				return -EFAULT;
+			}
+			if (p->chunks[i].chunk_id == RADEON_CHUNK_ID_FLAGS) {
+				flags = p->chunks[i].kdata[0];
 			}
 		} else {
 			p->chunks[i].kpage[0] = kmalloc(PAGE_SIZE, GFP_KERNEL);
@@ -174,6 +181,8 @@ int radeon_cs_parser_init(struct radeon_cs_parser *p, void *data)
 			  p->chunks[p->chunk_ib_idx].length_dw);
 		return -EINVAL;
 	}
+
+	p->keep_tiling_flags = (flags & RADEON_CS_KEEP_TILING_FLAGS) != 0;
 	return 0;
 }
 

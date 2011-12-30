@@ -17,7 +17,8 @@
 
 #include <plat/clock.h>
 
-extern int __init omap1_clk_init(void);
+int omap1_clk_init(void);
+void omap1_clk_late_init(void);
 extern int omap1_clk_enable(struct clk *clk);
 extern void omap1_clk_disable(struct clk *clk);
 extern long omap1_clk_round_rate(struct clk *clk, unsigned long rate);

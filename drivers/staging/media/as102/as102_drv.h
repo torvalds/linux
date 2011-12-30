@@ -27,7 +27,8 @@
 #define DRIVER_FULL_NAME "Abilis Systems as10x usb driver"
 #define DRIVER_NAME "as10x_usb"
 
-extern int debug;
+extern int as102_debug;
+#define debug	as102_debug
 extern struct usb_driver as102_usb_driver;
 extern int elna_enable;
 

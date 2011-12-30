@@ -954,6 +954,7 @@ static int mt9m111_probe(struct i2c_client *client,
 	mt9m111->rect.height	= MT9M111_MAX_HEIGHT;
 	mt9m111->fmt		= &mt9m111_colour_fmts[0];
 	mt9m111->lastpage	= -1;
+	mutex_init(&mt9m111->power_lock);
 
 	ret = mt9m111_video_probe(client);
 	if (ret) {

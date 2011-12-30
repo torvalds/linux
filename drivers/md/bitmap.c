@@ -1106,10 +1106,12 @@ void bitmap_write_all(struct bitmap *bitmap)
 	 */
 	int i;
 
+	spin_lock_irq(&bitmap->lock);
 	for (i = 0; i < bitmap->file_pages; i++)
 		set_page_attr(bitmap, bitmap->filemap[i],
 			      BITMAP_PAGE_NEEDWRITE);
 	bitmap->allclean = 0;
+	spin_unlock_irq(&bitmap->lock);
 }
 
 static void bitmap_count_page(struct bitmap *bitmap, sector_t offset, int inc)
@@ -1391,9 +1393,6 @@ void bitmap_endwrite(struct bitmap *bitmap, sector_t offset, unsigned long secto
 			 atomic_read(&bitmap->behind_writes),
 			 bitmap->mddev->bitmap_info.max_write_behind);
 	}
-	if (bitmap->mddev->degraded)
-		/* Never clear bits or update events_cleared when degraded */
-		success = 0;
 
 	while (sectors) {
 		sector_t blocks;
@@ -1407,7 +1406,7 @@ void bitmap_endwrite(struct bitmap *bitmap, sector_t offset, unsigned long secto
 			return;
 		}
 
-		if (success &&
+		if (success && !bitmap->mddev->degraded &&
 		    bitmap->events_cleared < bitmap->mddev->events) {
 			bitmap->events_cleared = bitmap->mddev->events;
 			bitmap->need_sync = 1;
@@ -1605,7 +1604,9 @@ void bitmap_dirty_bits(struct bitmap *bitmap, unsigned long s, unsigned long e)
 	for (chunk = s; chunk <= e; chunk++) {
 		sector_t sec = (sector_t)chunk << CHUNK_BLOCK_SHIFT(bitmap);
 		bitmap_set_memory_bits(bitmap, sec, 1);
+		spin_lock_irq(&bitmap->lock);
 		bitmap_file_set_bit(bitmap, sec);
+		spin_unlock_irq(&bitmap->lock);
 		if (sec < bitmap->mddev->recovery_cp)
 			/* We are asserting that the array is dirty,
 			 * so move the recovery_cp address back so

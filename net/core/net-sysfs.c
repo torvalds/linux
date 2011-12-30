@@ -665,11 +665,14 @@ static ssize_t store_rps_dev_flow_table_cnt(struct netdev_rx_queue *queue,
 	if (count) {
 		int i;
 
-		if (count > 1<<30) {
+		if (count > INT_MAX)
+			return -EINVAL;
+		count = roundup_pow_of_two(count);
+		if (count > (ULONG_MAX - sizeof(struct rps_dev_flow_table))
+				/ sizeof(struct rps_dev_flow)) {
 			/* Enforce a limit to prevent overflow */
 			return -EINVAL;
 		}
-		count = roundup_pow_of_two(count);
 		table = vmalloc(RPS_DEV_FLOW_TABLE_SIZE(count));
 		if (!table)
 			return -ENOMEM;

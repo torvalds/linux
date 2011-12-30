@@ -167,6 +167,7 @@ int pstore_register(struct pstore_info *psi)
 	}
 
 	psinfo = psi;
+	mutex_init(&psinfo->read_mutex);
 	spin_unlock(&pstore_lock);
 
 	if (owner && !try_module_get(owner)) {
@@ -195,30 +196,32 @@ EXPORT_SYMBOL_GPL(pstore_register);
 void pstore_get_records(int quiet)
 {
 	struct pstore_info *psi = psinfo;
+	char			*buf = NULL;
 	ssize_t			size;
 	u64			id;
 	enum pstore_type_id	type;
 	struct timespec		time;
 	int			failed = 0, rc;
-	unsigned long		flags;
 
 	if (!psi)
 		return;
 
-	spin_lock_irqsave(&psinfo->buf_lock, flags);
+	mutex_lock(&psi->read_mutex);
 	rc = psi->open(psi);
 	if (rc)
 		goto out;
 
-	while ((size = psi->read(&id, &type, &time, psi)) > 0) {
-		rc = pstore_mkfile(type, psi->name, id, psi->buf, (size_t)size,
+	while ((size = psi->read(&id, &type, &time, &buf, psi)) > 0) {
+		rc = pstore_mkfile(type, psi->name, id, buf, (size_t)size,
 				  time, psi);
+		kfree(buf);
+		buf = NULL;
 		if (rc && (rc != -EEXIST || !quiet))
 			failed++;
 	}
 	psi->close(psi);
 out:
-	spin_unlock_irqrestore(&psinfo->buf_lock, flags);
+	mutex_unlock(&psi->read_mutex);
 
 	if (failed)
 		printk(KERN_WARNING "pstore: failed to load %d record(s) from '%s'\n",

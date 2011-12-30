@@ -702,6 +702,13 @@ cifs_find_lock_conflict(struct cifsInodeInfo *cinode, struct cifsLockInfo *lock,
 					 lock->type, lock->netfid, conf_lock);
 }
 
+/*
+ * Check if there is another lock that prevents us to set the lock (mandatory
+ * style). If such a lock exists, update the flock structure with its
+ * properties. Otherwise, set the flock type to F_UNLCK if we can cache brlocks
+ * or leave it the same if we can't. Returns 0 if we don't need to request to
+ * the server or 1 otherwise.
+ */
 static int
 cifs_lock_test(struct cifsInodeInfo *cinode, __u64 offset, __u64 length,
 	       __u8 type, __u16 netfid, struct file_lock *flock)
@@ -739,6 +746,12 @@ cifs_lock_add(struct cifsInodeInfo *cinode, struct cifsLockInfo *lock)
 	mutex_unlock(&cinode->lock_mutex);
 }
 
+/*
+ * Set the byte-range lock (mandatory style). Returns:
+ * 1) 0, if we set the lock and don't need to request to the server;
+ * 2) 1, if no locks prevent us but we need to request to the server;
+ * 3) -EACCESS, if there is a lock that prevents us and wait is false.
+ */
 static int
 cifs_lock_add_if(struct cifsInodeInfo *cinode, struct cifsLockInfo *lock,
 		 bool wait)
@@ -778,6 +791,13 @@ try_again:
 	return rc;
 }
 
+/*
+ * Check if there is another lock that prevents us to set the lock (posix
+ * style). If such a lock exists, update the flock structure with its
+ * properties. Otherwise, set the flock type to F_UNLCK if we can cache brlocks
+ * or leave it the same if we can't. Returns 0 if we don't need to request to
+ * the server or 1 otherwise.
+ */
 static int
 cifs_posix_lock_test(struct file *file, struct file_lock *flock)
 {
@@ -800,6 +820,12 @@ cifs_posix_lock_test(struct file *file, struct file_lock *flock)
 	return rc;
 }
 
+/*
+ * Set the byte-range lock (posix style). Returns:
+ * 1) 0, if we set the lock and don't need to request to the server;
+ * 2) 1, if we need to request to the server;
+ * 3) <0, if the error occurs while setting the lock.
+ */
 static int
 cifs_posix_lock_set(struct file *file, struct file_lock *flock)
 {

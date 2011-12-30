@@ -227,10 +227,14 @@ static int platram_probe(struct platform_device *pdev)
 	if (!err)
 		dev_info(&pdev->dev, "registered mtd device\n");
 
-	/* add the whole device. */
-	err = mtd_device_register(info->mtd, NULL, 0);
-	if (err)
-		dev_err(&pdev->dev, "failed to register the entire device\n");
+	if (pdata->nr_partitions) {
+		/* add the whole device. */
+		err = mtd_device_register(info->mtd, NULL, 0);
+		if (err) {
+			dev_err(&pdev->dev,
+				"failed to register the entire device\n");
+		}
+	}
 
 	return err;
 

@@ -132,7 +132,6 @@ static int handle_stop(struct kvm_vcpu *vcpu)
 	int rc = 0;
 
 	vcpu->stat.exit_stop_request++;
-	atomic_clear_mask(CPUSTAT_RUNNING, &vcpu->arch.sie_block->cpuflags);
 	spin_lock_bh(&vcpu->arch.local_int.lock);
 	if (vcpu->arch.local_int.action_bits & ACTION_STORE_ON_STOP) {
 		vcpu->arch.local_int.action_bits &= ~ACTION_STORE_ON_STOP;
@@ -149,6 +148,8 @@ static int handle_stop(struct kvm_vcpu *vcpu)
 	}
 
 	if (vcpu->arch.local_int.action_bits & ACTION_STOP_ON_STOP) {
+		atomic_set_mask(CPUSTAT_STOPPED,
+				&vcpu->arch.sie_block->cpuflags);
 		vcpu->arch.local_int.action_bits &= ~ACTION_STOP_ON_STOP;
 		VCPU_EVENT(vcpu, 3, "%s", "cpu stopped");
 		rc = -EOPNOTSUPP;
