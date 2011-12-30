@@ -657,6 +657,16 @@ static void rhine_poll(struct net_device *dev)
 }
 #endif
 
+static void rhine_kick_tx_threshold(struct rhine_private *rp)
+{
+	if (rp->tx_thresh < 0xe0) {
+		void __iomem *ioaddr = rp->base;
+
+		rp->tx_thresh += 0x20;
+		BYTE_REG_BITS_SET(rp->tx_thresh, 0x80, ioaddr + TxConfig);
+	}
+}
+
 static int rhine_napipoll(struct napi_struct *napi, int budget)
 {
 	struct rhine_private *rp = container_of(napi, struct rhine_private, napi);
@@ -1910,8 +1920,7 @@ static void rhine_error(struct net_device *dev, int intr_status)
 				    intr_status);
 	}
 	if (intr_status & IntrTxUnderrun) {
-		if (rp->tx_thresh < 0xE0)
-			BYTE_REG_BITS_SET((rp->tx_thresh += 0x20), 0x80, ioaddr + TxConfig);
+		rhine_kick_tx_threshold(rp);
 		if (debug > 1)
 			netdev_info(dev, "Transmitter underrun, Tx threshold now %02x\n",
 				    rp->tx_thresh);
@@ -1923,9 +1932,7 @@ static void rhine_error(struct net_device *dev, int intr_status)
 	if ((intr_status & IntrTxError) &&
 	    (intr_status & (IntrTxAborted |
 	     IntrTxUnderrun | IntrTxDescRace)) == 0) {
-		if (rp->tx_thresh < 0xE0) {
-			BYTE_REG_BITS_SET((rp->tx_thresh += 0x20), 0x80, ioaddr + TxConfig);
-		}
+		rhine_kick_tx_threshold(rp);
 		if (debug > 1)
 			netdev_info(dev, "Unspecified error. Tx threshold now %02x\n",
 				    rp->tx_thresh);
