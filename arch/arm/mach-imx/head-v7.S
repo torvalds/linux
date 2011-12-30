@@ -33,6 +33,7 @@
  */
 ENTRY(v7_invalidate_l1)
 	mov	r0, #0
+	mcr	p15, 0, r0, c7, c5, 0	@ invalidate I cache
 	mcr	p15, 2, r0, c0, c0, 0
 	mrc	p15, 1, r0, c0, c0, 0
 
