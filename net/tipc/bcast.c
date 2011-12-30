@@ -94,7 +94,7 @@ struct tipc_bcbearer {
  */
 
 struct tipc_bclink {
-	struct link link;
+	struct tipc_link link;
 	struct tipc_node node;
 	struct tipc_node_map bcast_nodes;
 	struct tipc_node *retransmit_to;
@@ -105,7 +105,7 @@ static struct tipc_bclink bcast_link;
 
 static struct tipc_bcbearer *bcbearer = &bcast_bearer;
 static struct tipc_bclink *bclink = &bcast_link;
-static struct link *bcl = &bcast_link.link;
+static struct tipc_link *bcl = &bcast_link.link;
 
 static DEFINE_SPINLOCK(bc_lock);
 
@@ -308,7 +308,7 @@ exit:
 
 static void bclink_send_ack(struct tipc_node *n_ptr)
 {
-	struct link *l_ptr = n_ptr->active_links[n_ptr->addr & 1];
+	struct tipc_link *l_ptr = n_ptr->active_links[n_ptr->addr & 1];
 
 	if (l_ptr != NULL)
 		tipc_link_send_proto_msg(l_ptr, STATE_MSG, 0, 0, 0, 0, 0);

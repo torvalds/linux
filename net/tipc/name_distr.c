@@ -176,7 +176,7 @@ void tipc_named_withdraw(struct publication *publ)
 void tipc_named_node_up(unsigned long nodearg)
 {
 	struct tipc_node *n_ptr;
-	struct link *l_ptr;
+	struct tipc_link *l_ptr;
 	struct publication *publ;
 	struct distr_item *item = NULL;
 	struct sk_buff *buf = NULL;

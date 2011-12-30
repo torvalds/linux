@@ -144,7 +144,7 @@ struct tipc_bearer {
 	u32 window;
 	u32 tolerance;
 	u32 identity;
-	struct link_req *link_req;
+	struct tipc_link_req *link_req;
 	struct list_head links;
 	struct list_head cong_links;
 	int active;
@@ -157,7 +157,7 @@ struct bearer_name {
 	char if_name[TIPC_MAX_IF_NAME];
 };
 
-struct link;
+struct tipc_link;
 
 extern struct tipc_bearer tipc_bearers[];
 
@@ -188,12 +188,13 @@ struct sk_buff *tipc_media_get_names(void);
 struct sk_buff *tipc_bearer_get_names(void);
 void tipc_bearer_add_dest(struct tipc_bearer *b_ptr, u32 dest);
 void tipc_bearer_remove_dest(struct tipc_bearer *b_ptr, u32 dest);
-void tipc_bearer_schedule(struct tipc_bearer *b_ptr, struct link *l_ptr);
+void tipc_bearer_schedule(struct tipc_bearer *b_ptr, struct tipc_link *l_ptr);
 struct tipc_bearer *tipc_bearer_find(const char *name);
 struct tipc_bearer *tipc_bearer_find_interface(const char *if_name);
 struct tipc_media *tipc_media_find(const char *name);
-int tipc_bearer_resolve_congestion(struct tipc_bearer *b_ptr, struct link *l_ptr);
-int tipc_bearer_congested(struct tipc_bearer *b_ptr, struct link *l_ptr);
+int tipc_bearer_resolve_congestion(struct tipc_bearer *b_ptr,
+				   struct tipc_link *l_ptr);
+int tipc_bearer_congested(struct tipc_bearer *b_ptr, struct tipc_link *l_ptr);
 void tipc_bearer_stop(void);
 void tipc_bearer_lock_push(struct tipc_bearer *b_ptr);
 

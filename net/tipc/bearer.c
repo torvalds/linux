@@ -318,7 +318,7 @@ void tipc_bearer_remove_dest(struct tipc_bearer *b_ptr, u32 dest)
 static int bearer_push(struct tipc_bearer *b_ptr)
 {
 	u32 res = 0;
-	struct link *ln, *tln;
+	struct tipc_link *ln, *tln;
 
 	if (b_ptr->blocked)
 		return 0;
@@ -364,7 +364,8 @@ void tipc_continue(struct tipc_bearer *b_ptr)
  * bearer.lock is busy
  */
 
-static void tipc_bearer_schedule_unlocked(struct tipc_bearer *b_ptr, struct link *l_ptr)
+static void tipc_bearer_schedule_unlocked(struct tipc_bearer *b_ptr,
+						struct tipc_link *l_ptr)
 {
 	list_move_tail(&l_ptr->link_list, &b_ptr->cong_links);
 }
@@ -377,7 +378,7 @@ static void tipc_bearer_schedule_unlocked(struct tipc_bearer *b_ptr, struct link
  * bearer.lock is free
  */
 
-void tipc_bearer_schedule(struct tipc_bearer *b_ptr, struct link *l_ptr)
+void tipc_bearer_schedule(struct tipc_bearer *b_ptr, struct tipc_link *l_ptr)
 {
 	spin_lock_bh(&b_ptr->lock);
 	tipc_bearer_schedule_unlocked(b_ptr, l_ptr);
@@ -390,7 +391,8 @@ void tipc_bearer_schedule(struct tipc_bearer *b_ptr, struct link *l_ptr)
  * and if there is, try to resolve it before returning.
  * 'tipc_net_lock' is read_locked when this function is called
  */
-int tipc_bearer_resolve_congestion(struct tipc_bearer *b_ptr, struct link *l_ptr)
+int tipc_bearer_resolve_congestion(struct tipc_bearer *b_ptr,
+					struct tipc_link *l_ptr)
 {
 	int res = 1;
 
@@ -409,7 +411,7 @@ int tipc_bearer_resolve_congestion(struct tipc_bearer *b_ptr, struct link *l_ptr
  * tipc_bearer_congested - determines if bearer is currently congested
  */
 
-int tipc_bearer_congested(struct tipc_bearer *b_ptr, struct link *l_ptr)
+int tipc_bearer_congested(struct tipc_bearer *b_ptr, struct tipc_link *l_ptr)
 {
 	if (unlikely(b_ptr->blocked))
 		return 1;
@@ -544,8 +546,8 @@ exit:
 int tipc_block_bearer(const char *name)
 {
 	struct tipc_bearer *b_ptr = NULL;
-	struct link *l_ptr;
-	struct link *temp_l_ptr;
+	struct tipc_link *l_ptr;
+	struct tipc_link *temp_l_ptr;
 
 	read_lock_bh(&tipc_net_lock);
 	b_ptr = tipc_bearer_find(name);
@@ -579,8 +581,8 @@ int tipc_block_bearer(const char *name)
 
 static void bearer_disable(struct tipc_bearer *b_ptr)
 {
-	struct link *l_ptr;
-	struct link *temp_l_ptr;
+	struct tipc_link *l_ptr;
+	struct tipc_link *temp_l_ptr;
 
 	info("Disabling bearer <%s>\n", b_ptr->name);
 	spin_lock_bh(&b_ptr->lock);
