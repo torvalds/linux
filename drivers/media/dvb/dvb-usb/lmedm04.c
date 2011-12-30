@@ -388,8 +388,7 @@ static int lme2510_pid_filter(struct dvb_usb_adapter *adap, int index, u16 pid,
 	deb_info(3, "%s PID=%04x Index=%04x onoff=%02x", __func__,
 		pid, index, onoff);
 
-	if (onoff)
-		if (!pid_filter) {
+	if (onoff) {
 			ret = mutex_lock_interruptible(&adap->dev->i2c_mutex);
 			if (ret < 0)
 				return -EAGAIN;
@@ -654,6 +653,9 @@ static int lme2510_identify_state(struct usb_device *udev,
 		struct dvb_usb_device_description **desc,
 		int *cold)
 {
+	if (pid_filter > 0)
+		props->adapter[0].fe[0].caps &=
+			~DVB_USB_ADAP_NEED_PID_FILTERING;
 	*cold = 0;
 	return 0;
 }
@@ -1312,5 +1314,5 @@ module_exit(lme2510_module_exit);
 
 MODULE_AUTHOR("Malcolm Priestley <tvboxspy@gmail.com>");
 MODULE_DESCRIPTION("LME2510(C) DVB-S USB2.0");
-MODULE_VERSION("1.90");
+MODULE_VERSION("1.91");
 MODULE_LICENSE("GPL");
