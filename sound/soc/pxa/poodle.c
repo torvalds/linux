@@ -214,7 +214,7 @@ SND_SOC_DAPM_SPK("Ext Spk", poodle_amp_event),
 };
 
 /* Corgi machine connections to the codec pins */
-static const struct snd_soc_dapm_route audio_map[] = {
+static const struct snd_soc_dapm_route poodle_audio_map[] = {
 
 	/* headphone connected to LHPOUT1, RHPOUT1 */
 	{"Headphone Jack", NULL, "LHPOUT"},
@@ -246,24 +246,10 @@ static int poodle_wm8731_init(struct snd_soc_pcm_runtime *rtd)
 {
 	struct snd_soc_codec *codec = rtd->codec;
 	struct snd_soc_dapm_context *dapm = &codec->dapm;
-	int err;
 
 	snd_soc_dapm_nc_pin(dapm, "LLINEIN");
 	snd_soc_dapm_nc_pin(dapm, "RLINEIN");
 	snd_soc_dapm_enable_pin(dapm, "MICIN");
-
-	/* Add poodle specific controls */
-	err = snd_soc_add_controls(codec, wm8731_poodle_controls,
-				ARRAY_SIZE(wm8731_poodle_controls));
-	if (err < 0)
-		return err;
-
-	/* Add poodle specific widgets */
-	snd_soc_dapm_new_controls(dapm, wm8731_dapm_widgets,
-				  ARRAY_SIZE(wm8731_dapm_widgets));
-
-	/* Set up poodle specific audio path audio_map */
-	snd_soc_dapm_add_routes(dapm, audio_map, ARRAY_SIZE(audio_map));
 
 	return 0;
 }
@@ -286,6 +272,13 @@ static struct snd_soc_card poodle = {
 	.dai_link = &poodle_dai,
 	.num_links = 1,
 	.owner = THIS_MODULE,
+
+	.controls = wm8731_poodle_controls,
+	.num_controls = ARRAY_SIZE(wm8731_poodle_controls),
+	.dapm_widgets = wm8731_dapm_widgets,
+	.num_dapm_widgets = ARRAY_SIZE(wm8731_dapm_widgets),
+	.dapm_routes = poodle_audio_map,
+	.num_dapm_routes = ARRAY_SIZE(poodle_audio_map),
 };
 
 static int __devinit poodle_probe(struct platform_device *pdev)
