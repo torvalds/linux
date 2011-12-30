@@ -24,6 +24,12 @@ static int __init set_use_crs(const struct dmi_system_id *id)
 	return 0;
 }
 
+static int __init set_nouse_crs(const struct dmi_system_id *id)
+{
+	pci_use_crs = false;
+	return 0;
+}
+
 static const struct dmi_system_id pci_use_crs_table[] __initconst = {
 	/* http://bugzilla.kernel.org/show_bug.cgi?id=14183 */
 	{
@@ -54,6 +60,7 @@ static const struct dmi_system_id pci_use_crs_table[] __initconst = {
 			DMI_MATCH(DMI_BIOS_VENDOR, "American Megatrends Inc."),
 		},
 	},
+
 	{}
 };
 
