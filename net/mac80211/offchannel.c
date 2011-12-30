@@ -138,23 +138,6 @@ void ieee80211_offchannel_stop_vifs(struct ieee80211_local *local,
 	mutex_unlock(&local->iflist_mtx);
 }
 
-void ieee80211_offchannel_enable_all_ps(struct ieee80211_local *local,
-					bool tell_ap)
-{
-	struct ieee80211_sub_if_data *sdata;
-
-	mutex_lock(&local->iflist_mtx);
-	list_for_each_entry(sdata, &local->interfaces, list) {
-		if (!ieee80211_sdata_running(sdata))
-			continue;
-
-		if (sdata->vif.type == NL80211_IFTYPE_STATION &&
-		    sdata->u.mgd.associated)
-			ieee80211_offchannel_ps_enable(sdata, tell_ap);
-	}
-	mutex_unlock(&local->iflist_mtx);
-}
-
 void ieee80211_offchannel_return(struct ieee80211_local *local,
 				 bool offchannel_ps_disable)
 {
