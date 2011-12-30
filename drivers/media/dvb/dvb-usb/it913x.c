@@ -280,9 +280,6 @@ static int it913x_pid_filter(struct dvb_usb_adapter *adap,
 	int ret = 0;
 	u8 pro = (adap->id == 0) ? DEV_0_DMOD : DEV_1_DMOD;
 
-	if (pid_filter > 0)
-		return 0;
-
 	if (mutex_lock_interruptible(&adap->dev->i2c_mutex) < 0)
 			return -EAGAIN;
 	deb_info(1, "PID_F  (%02x)", onoff);
@@ -475,17 +472,23 @@ static int it913x_identify_state(struct usb_device *udev,
 	info("Dual mode=%x Remote=%x Tuner Type=%x", it913x_config.dual_mode
 		, remote, it913x_config.tuner_id_0);
 
-	/* Select Stream Buffer Size */
-	if (pid_filter)
+	/* Select Stream Buffer Size and pid filter option*/
+	if (pid_filter) {
 		props->adapter[0].fe[0].stream.u.bulk.buffersize =
 			TS_BUFFER_SIZE_MAX;
-	else
+		props->adapter[0].fe[0].caps &=
+			~DVB_USB_ADAP_NEED_PID_FILTERING;
+	} else
 		props->adapter[0].fe[0].stream.u.bulk.buffersize =
 			TS_BUFFER_SIZE_PID;
+
 	if (it913x_config.dual_mode) {
 		props->adapter[1].fe[0].stream.u.bulk.buffersize =
 			props->adapter[0].fe[0].stream.u.bulk.buffersize;
 		props->num_adapters = 2;
+		if (pid_filter)
+			props->adapter[1].fe[0].caps =
+				props->adapter[0].fe[0].caps;
 	} else
 		props->num_adapters = 1;
 
@@ -836,5 +839,5 @@ module_exit(it913x_module_exit);
 
 MODULE_AUTHOR("Malcolm Priestley <tvboxspy@gmail.com>");
 MODULE_DESCRIPTION("it913x USB 2 Driver");
-MODULE_VERSION("1.17");
+MODULE_VERSION("1.18");
 MODULE_LICENSE("GPL");
