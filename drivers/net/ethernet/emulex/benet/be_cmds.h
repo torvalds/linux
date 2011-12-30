@@ -960,7 +960,8 @@ struct be_cmd_resp_link_status {
 	u8 mgmt_mac_duplex;
 	u8 mgmt_mac_speed;
 	u16 link_speed;
-	u32 rsvd0;
+	u8 logical_link_status;
+	u8 rsvd1[3];
 } __packed;
 
 /******************** Port Identification ***************************/
@@ -1507,8 +1508,8 @@ extern int be_cmd_q_destroy(struct be_adapter *adapter, struct be_queue_info *q,
 			int type);
 extern int be_cmd_rxq_destroy(struct be_adapter *adapter,
 			struct be_queue_info *q);
-extern int be_cmd_link_status_query(struct be_adapter *adapter,
-			u8 *mac_speed, u16 *link_speed, u32 dom);
+extern int be_cmd_link_status_query(struct be_adapter *adapter, u8 *mac_speed,
+				    u16 *link_speed, u8 *link_status, u32 dom);
 extern int be_cmd_reset(struct be_adapter *adapter);
 extern int be_cmd_get_stats(struct be_adapter *adapter,
 			struct be_dma_mem *nonemb_cmd);

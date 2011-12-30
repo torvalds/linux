@@ -125,7 +125,14 @@ done:
 static void be_async_link_state_process(struct be_adapter *adapter,
 		struct be_async_event_link_state *evt)
 {
-	be_link_status_update(adapter, evt->port_link_status);
+	/* When link status changes, link speed must be re-queried from FW */
+	adapter->link_speed = -1;
+
+	/* For the initial link status do not rely on the ASYNC event as
+	 * it may not be received in some cases.
+	 */
+	if (adapter->flags & BE_FLAGS_LINK_STATUS_INIT)
+		be_link_status_update(adapter, evt->port_link_status);
 }
 
 /* Grp5 CoS Priority evt */
@@ -1232,13 +1239,16 @@ err:
 
 /* Uses synchronous mcc */
 int be_cmd_link_status_query(struct be_adapter *adapter, u8 *mac_speed,
-			u16 *link_speed, u32 dom)
+			     u16 *link_speed, u8 *link_status, u32 dom)
 {
 	struct be_mcc_wrb *wrb;
 	struct be_cmd_req_link_status *req;
 	int status;
 
 	spin_lock_bh(&adapter->mcc_lock);
+
+	if (link_status)
+		*link_status = LINK_DOWN;
 
 	wrb = wrb_from_mccq(adapter);
 	if (!wrb) {
@@ -1247,7 +1257,7 @@ int be_cmd_link_status_query(struct be_adapter *adapter, u8 *mac_speed,
 	}
 	req = embedded_payload(wrb);
 
-	if (lancer_chip(adapter))
+	if (adapter->generation == BE_GEN3 || lancer_chip(adapter))
 		req->hdr.version = 1;
 
 	be_wrb_cmd_hdr_prepare(&req->hdr, CMD_SUBSYSTEM_COMMON,
@@ -1257,10 +1267,13 @@ int be_cmd_link_status_query(struct be_adapter *adapter, u8 *mac_speed,
 	if (!status) {
 		struct be_cmd_resp_link_status *resp = embedded_payload(wrb);
 		if (resp->mac_speed != PHY_LINK_SPEED_ZERO) {
-			*link_speed = le16_to_cpu(resp->link_speed);
+			if (link_speed)
+				*link_speed = le16_to_cpu(resp->link_speed);
 			if (mac_speed)
 				*mac_speed = resp->mac_speed;
 		}
+		if (link_status)
+			*link_status = resp->logical_link_status;
 	}
 
 err:
