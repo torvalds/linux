@@ -322,8 +322,7 @@ static int mtdblock_release(struct mtd_blktrans_dev *mbd)
 
 	if (!--mtdblk->count) {
 		/* It was the last usage. Free the cache */
-		if (mbd->mtd->sync)
-			mtd_sync(mbd->mtd);
+		mtd_sync(mbd->mtd);
 		vfree(mtdblk->cache_data);
 	}
 
@@ -341,9 +340,7 @@ static int mtdblock_flush(struct mtd_blktrans_dev *dev)
 	mutex_lock(&mtdblk->cache_mutex);
 	write_cached_data(mtdblk);
 	mutex_unlock(&mtdblk->cache_mutex);
-
-	if (dev->mtd->sync)
-		mtd_sync(dev->mtd);
+	mtd_sync(dev->mtd);
 	return 0;
 }
 

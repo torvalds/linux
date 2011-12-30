@@ -154,7 +154,7 @@ static int mtdchar_close(struct inode *inode, struct file *file)
 	pr_debug("MTD_close\n");
 
 	/* Only sync if opened RW */
-	if ((file->f_mode & FMODE_WRITE) && mtd->sync)
+	if ((file->f_mode & FMODE_WRITE))
 		mtd_sync(mtd);
 
 	iput(mfi->ino);

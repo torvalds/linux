@@ -1047,8 +1047,7 @@ static int mtdswap_flush(struct mtd_blktrans_dev *dev)
 {
 	struct mtdswap_dev *d = MTDSWAP_MBD_TO_MTDSWAP(dev);
 
-	if (d->mtd->sync)
-		mtd_sync(d->mtd);
+	mtd_sync(d->mtd);
 	return 0;
 }
 

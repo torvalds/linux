@@ -448,8 +448,7 @@ static int reclaim_block(struct partition *part, u_long *old_sector)
 	int rc;
 
 	/* we have a race if sync doesn't exist */
-	if (part->mbd.mtd->sync)
-		mtd_sync(part->mbd.mtd);
+	mtd_sync(part->mbd.mtd);
 
 	score = 0x7fffffff; /* MAX_INT */
 	best_block = -1;

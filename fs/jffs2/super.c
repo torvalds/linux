@@ -336,9 +336,7 @@ static void jffs2_put_super (struct super_block *sb)
 	jffs2_flash_cleanup(c);
 	kfree(c->inocache_list);
 	jffs2_clear_xattr_subsystem(c);
-	if (c->mtd->sync)
-		mtd_sync(c->mtd);
-
+	mtd_sync(c->mtd);
 	D1(printk(KERN_DEBUG "jffs2_put_super returning\n"));
 }
 

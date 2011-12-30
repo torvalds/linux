@@ -650,8 +650,7 @@ static int reclaim_block(partition_t *part)
 	    if (queued) {
 		pr_debug("ftl_cs: waiting for transfer "
 		      "unit to be prepared...\n");
-		if (part->mbd.mtd->sync)
-			mtd_sync(part->mbd.mtd);
+		mtd_sync(part->mbd.mtd);
 	    } else {
 		static int ne = 0;
 		if (++ne < 5)

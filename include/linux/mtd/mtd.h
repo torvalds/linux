@@ -399,7 +399,8 @@ int mtd_writev(struct mtd_info *mtd, const struct kvec *vecs,
 
 static inline void mtd_sync(struct mtd_info *mtd)
 {
-	mtd->sync(mtd);
+	if (mtd->sync)
+		mtd->sync(mtd);
 }
 
 /* Chip-supported device locking */
