@@ -92,15 +92,6 @@ static int saarb_i2s_hw_params(struct snd_pcm_substream *substream,
 	if (ret < 0)
 		return ret;
 
-	ret = snd_soc_dai_set_fmt(cpu_dai, SND_SOC_DAIFMT_I2S |
-			SND_SOC_DAIFMT_NB_NF | SND_SOC_DAIFMT_CBM_CFM);
-	if (ret < 0)
-		return ret;
-	ret = snd_soc_dai_set_fmt(codec_dai, SND_SOC_DAIFMT_I2S |
-			SND_SOC_DAIFMT_NB_NF | SND_SOC_DAIFMT_CBM_CFM);
-	if (ret < 0)
-		return ret;
-
 	ret = snd_soc_dai_set_tdm_slot(cpu_dai, 3, 3, 2, width);
 
 	return ret;
@@ -119,6 +110,8 @@ static struct snd_soc_dai_link saarb_dai[] = {
 		.platform_name	= "pxa-pcm-audio",
 		.codec_name	= "88pm860x-codec",
 		.init		= saarb_pm860x_init,
+		.dai_fmt	= SND_SOC_DAIFMT_I2S | SND_SOC_DAIFMT_NB_NF |
+				  SND_SOC_DAIFMT_CBM_CFM,
 		.ops		= &saarb_i2s_ops,
 	},
 };
