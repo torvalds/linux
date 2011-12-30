@@ -646,9 +646,9 @@ static u32 which_bandwidth(struct gspca_dev *gspca_dev)
 	if (gspca_dev->sd_desc->get_streamparm) {
 		struct v4l2_streamparm parm;
 
-		parm.parm.capture.timeperframe.denominator = 15;
 		gspca_dev->sd_desc->get_streamparm(gspca_dev, &parm);
 		bandwidth *= parm.parm.capture.timeperframe.denominator;
+		bandwidth /= parm.parm.capture.timeperframe.numerator;
 	} else {
 
 		/* don't hope more than 15 fps with USB 1.1 and
