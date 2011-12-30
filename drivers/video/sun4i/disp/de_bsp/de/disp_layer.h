@@ -21,6 +21,7 @@ typedef struct layer_man_t
     __u32               status;
     __bool              byuv_ch;
     __u32               scaler_index;//used if scaler mode,  0:scaler0, 1:scaler1
+    __bool              video_enhancement_en;
     __disp_layer_info_t para;
 }__layer_man_t;
 

@@ -39,12 +39,18 @@ enum IOCTL_CMD {
 	IOCTL_GET_IC_VER,
 	
 	IOCTL_ADJUST_AVS2_ABS,
+	IOCTL_FLUSH_CACHE,
 };
 
 struct cedarv_env_infomation{
 	unsigned int phymem_start;
 	int  phymem_total_size;
 	unsigned int  address_macc;
+};
+
+struct cedarv_cache_range{
+	long start;
+	long end;
 };
 
 struct __cedarv_task {

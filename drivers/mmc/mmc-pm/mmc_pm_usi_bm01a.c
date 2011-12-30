@@ -38,6 +38,11 @@ static int usi_bm01a_power_onoff(int onoff)
 	struct regulator* wifi_ldo = NULL;
 	static int first = 1;
 	  
+#ifndef CONFIG_AW_AXP
+	usi_msg("AXP driver is disabled, pls check !!\n");
+	return 0;
+#endif
+
 	usi_msg("usi_bm01a_power_onoff\n");
 	wifi_ldo = regulator_get(NULL, "axp20_pll");
 	if (!wifi_ldo)
@@ -57,6 +62,7 @@ static int usi_bm01a_power_onoff(int onoff)
 	}
 	return 0;
 }
+
 #endif
 
 static int usi_bm01a_gpio_ctrl(char* name, int level)

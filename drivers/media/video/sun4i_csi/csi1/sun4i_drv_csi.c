@@ -328,9 +328,9 @@ static int csi_clk_get(struct csi_dev *dev)
   }
   else
   {
-		dev->csi_clk_src=clk_get(NULL,"video_pll0");
+		dev->csi_clk_src=clk_get(NULL,"video_pll1");
 		if (dev->csi_clk_src == NULL) {
-       	csi_err("get csi1 video pll0 source clk error!\n");	
+       	csi_err("get csi1 video pll1 source clk error!\n");	
 			return -1;
     }
 	}  

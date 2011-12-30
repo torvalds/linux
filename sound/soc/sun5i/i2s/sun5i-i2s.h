@@ -23,9 +23,6 @@
 #define SUN5I_IISBASE 		(0x01C22400)
 
 #define SUN5I_IISCTL 	  (0x00)
-	#define SUN5I_IISCTL_SDO3EN		(1<<11)
-	#define SUN5I_IISCTL_SDO2EN		(1<<10)
-	#define SUN5I_IISCTL_SDO1EN		(1<<9)
 	#define SUN5I_IISCTL_SDO0EN		(1<<8) 
 	#define SUN5I_IISCTL_ASS			(1<<6) 
 	#define SUN5I_IISCTL_MS			(1<<5)
@@ -145,12 +142,6 @@
 	#define SUN5I_TXCHSEL_CHNUM(v)			(((v)-1)<<0)
 
 #define SUN5I_TXCHMAP		(0x34)
-	#define SUN5I_TXCHMAP_CH7(v)			(((v)-1)<<28)
-	#define SUN5I_TXCHMAP_CH6(v)			(((v)-1)<<24)
-	#define SUN5I_TXCHMAP_CH5(v)			(((v)-1)<<20)
-	#define SUN5I_TXCHMAP_CH4(v)			(((v)-1)<<16)
-	#define SUN5I_TXCHMAP_CH3(v)			(((v)-1)<<12)
-	#define SUN5I_TXCHMAP_CH2(v)			(((v)-1)<<8)
 	#define SUN5I_TXCHMAP_CH1(v)			(((v)-1)<<4)
 	#define SUN5I_TXCHMAP_CH0(v)			(((v)-1)<<0)
 
@@ -158,8 +149,6 @@
 	#define SUN5I_RXCHSEL_CHNUM(v)			(((v)-1)<<0)
 
 #define SUN5I_RXCHMAP		(0x3C)
-	#define SUN5I_RXCHMAP_CH3(v)			(((v)-1)<<12)
-	#define SUN5I_RXCHMAP_CH2(v)			(((v)-1)<<8)
 	#define SUN5I_RXCHMAP_CH1(v)			(((v)-1)<<4)
 	#define SUN5I_RXCHMAP_CH0(v)			(((v)-1)<<0)	
 

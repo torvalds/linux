@@ -457,6 +457,8 @@ __u32 TCON1_close(__u32 sel)
 
 	LCDC_WUINT32(sel, LCDC_IOCTL3_OFF, 0xffffffff);//?
 
+    LCDC_CLR_BIT(sel, LCDC_MUX_CTRL, 1<<0);
+
 	return 0;
 }
 
@@ -978,6 +980,7 @@ __u32 TCON1_set_tv_mode(__u32 sel, __u8 mode)
     cfg.b_rgb_remap_io = 0;
     cfg.b_remap_if      = 0;
     TCON1_cfg(sel, &cfg);
+    LCDC_SET_BIT(sel, LCDC_MUX_CTRL, 1<<0);
     
     return 0;
 }

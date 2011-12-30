@@ -21,14 +21,12 @@
 #include <linux/dma-mapping.h>
 #include <linux/pda_power.h>
 #include <linux/io.h>
-#include <linux/gpio.h>
 #include <linux/i2c.h>
 
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
 #include <asm/mach/time.h>
 #include <asm/setup.h>
-#include <mach/io.h>
 #include <mach/hardware.h>
 #include <mach/i2c.h>
 
@@ -36,9 +34,10 @@
 static struct plat_serial8250_port debug_uart_platform_data[] = {
 	{
 		.membase	= (void __iomem *)SW_VA_UART0_IO_BASE,
+		.mapbase	= (resource_size_t)SW_PA_UART0_IO_BASE,
 		.irq		= SW_INT_IRQNO_UART0,
 		.flags		= UPF_BOOT_AUTOCONF,
-		.iotype		= UPIO_MEM32,
+		.iotype		= UPIO_DWAPB32,
 		.regshift	= 2,
 		.uartclk	= 24000000,
 	}, {

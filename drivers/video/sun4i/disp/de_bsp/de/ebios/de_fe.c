@@ -2293,7 +2293,7 @@ __s32 DE_SCAL_Vpp_Set_Luma_Sharpness_Level(__u8 sel, __u32 level)
 	scal_dev[sel]->vpp_lp2.bits.lpf_gain = 31;
 	scal_dev[sel]->vpp_lp2.bits.neggain = 3;
 	scal_dev[sel]->vpp_lp2.bits.delta = 3;
-	scal_dev[sel]->vpp_lp2.bits.limit_thr = 40;
+	scal_dev[sel]->vpp_lp2.bits.limit_thr = 3;
 
 	switch(level)
 	{
@@ -2449,22 +2449,22 @@ __s32 DE_SCAL_Vpp_Set_White_Level_Extension(__u8 sel, __u32 level)
 		break;
 		
 		case	0x1:	
-			scal_dev[sel]->vpp_wle.bits.wle_gain = 112;
+			scal_dev[sel]->vpp_wle.bits.wle_gain = 73;
 			scal_dev[sel]->vpp_wle.bits.wle_en = 0x1;
 		break;
 
 		case	0x2:	
-			scal_dev[sel]->vpp_wle.bits.wle_gain = 160;
+			scal_dev[sel]->vpp_wle.bits.wle_gain = 79;
 			scal_dev[sel]->vpp_wle.bits.wle_en = 0x1;
 		break;
 
 		case	0x3:	
-			scal_dev[sel]->vpp_wle.bits.wle_gain = 208;
+			scal_dev[sel]->vpp_wle.bits.wle_gain = 92;
 			scal_dev[sel]->vpp_wle.bits.wle_en = 0x1;
 		break;
 
 		case	0x4:	
-			scal_dev[sel]->vpp_wle.bits.wle_gain = 255;
+			scal_dev[sel]->vpp_wle.bits.wle_gain = 127;
 			scal_dev[sel]->vpp_wle.bits.wle_en = 0x1;
 		break;
 
@@ -2498,22 +2498,22 @@ __s32 DE_SCAL_Vpp_Set_Black_Level_Extension(__u8 sel, __u32 level)
 		break;
 
 		case	0x1:	
-			scal_dev[sel]->vpp_ble.bits.ble_gain = 64;
+			scal_dev[sel]->vpp_ble.bits.ble_gain = 9;
 			scal_dev[sel]->vpp_ble.bits.ble_en = 0x1;
 		break;
 
 		case	0x2:	
-			scal_dev[sel]->vpp_ble.bits.ble_gain = 128;
+			scal_dev[sel]->vpp_ble.bits.ble_gain = 16;
 			scal_dev[sel]->vpp_ble.bits.ble_en = 0x1;
 		break;
 
 		case	0x3:	
-			scal_dev[sel]->vpp_ble.bits.ble_gain = 192;
+			scal_dev[sel]->vpp_ble.bits.ble_gain = 32;
 			scal_dev[sel]->vpp_ble.bits.ble_en = 0x1;
 		break;
 
 		case	0x4:	
-			scal_dev[sel]->vpp_ble.bits.ble_gain = 255;
+			scal_dev[sel]->vpp_ble.bits.ble_gain = 64;
 			scal_dev[sel]->vpp_ble.bits.ble_en = 0x0;
 		break;
 

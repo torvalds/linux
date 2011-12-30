@@ -240,6 +240,10 @@
 #define SW_UART0_LSR                      (*(volatile unsigned int *)(SW_VA_UART0_IO_BASE + 0x14))
 #define SW_UART0_USR                      (*(volatile unsigned int *)(SW_VA_UART0_IO_BASE + 0x7c))
 
+#define SW_UART1_THR                      (*(volatile unsigned int *)(SW_VA_UART1_IO_BASE + 0x00))
+#define SW_UART1_LSR                      (*(volatile unsigned int *)(SW_VA_UART1_IO_BASE + 0x14))
+#define SW_UART1_USR                      (*(volatile unsigned int *)(SW_VA_UART1_IO_BASE + 0x7c))
+
 #define PA_VIC_BASE                       0x01c20400
 #define VA_VIC_BASE                       IO_ADDRESS(PA_VIC_BASE)
 #define PIO_BASE                          SW_PA_PORTC_IO_BASE

@@ -385,7 +385,7 @@ __s32 TVE_get_dac_status(__u32 index)
         return -1;
     }
 
-    TVE_SET_BIT(sel,TVE_008,0x3<<16);		
+    TVE_SET_BIT(sel,TVE_008,0x2<<16);		
     TVE_SET_BIT(sel,TVE_008,0xf<<18);	
 
     status = TVE_RUINT32(sel,TVE_038)>>(dac*8);

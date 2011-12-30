@@ -78,30 +78,18 @@ void sun5i_snd_txctrl_i2s(struct snd_pcm_substream *substream, int on)
 	reg_val = readl(sun5i_iis.regs + SUN5I_TXCHMAP);
 	reg_val = 0;
 	if(substream->runtime->channels == 1) {
-		reg_val = 0x76543200;
+		reg_val = 0x00000000;
 	} else {
-		reg_val = 0x76543210;
+		reg_val = 0x00000010;
 	}
 	writel(reg_val, sun5i_iis.regs + SUN5I_TXCHMAP);
 
-	reg_val = readl(sun5i_iis.regs + SUN5I_IISCTL);
-	reg_val &= ~SUN5I_IISCTL_SDO3EN;
-	reg_val &= ~SUN5I_IISCTL_SDO2EN;
-	reg_val &= ~SUN5I_IISCTL_SDO1EN;	
+	reg_val = readl(sun5i_iis.regs + SUN5I_IISCTL);	
 	reg_val &= ~SUN5I_IISCTL_SDO0EN;
 	switch(substream->runtime->channels) {
 		case 1:
 		case 2:
-			reg_val |= SUN5I_IISCTL_SDO0EN; break;
-		case 3:
-		case 4:
-			reg_val |= SUN5I_IISCTL_SDO0EN | SUN5I_IISCTL_SDO1EN; break;
-		case 5:
-		case 6:
-			reg_val |= SUN5I_IISCTL_SDO0EN | SUN5I_IISCTL_SDO1EN | SUN5I_IISCTL_SDO2EN; break;
-		case 7:
-		case 8:
-			reg_val |= SUN5I_IISCTL_SDO0EN | SUN5I_IISCTL_SDO1EN | SUN5I_IISCTL_SDO2EN | SUN5I_IISCTL_SDO3EN; break;	
+			reg_val |= SUN5I_IISCTL_SDO0EN; break;	
 		default:
 			reg_val |= SUN5I_IISCTL_SDO0EN; break;
 	}
@@ -207,7 +195,7 @@ static int sun5i_i2s_set_fmt(struct snd_soc_dai *cpu_dai, unsigned int fmt)
 
 	//SDO ON
 	reg_val = readl(sun5i_iis.regs + SUN5I_IISCTL);
-	reg_val |= (SUN5I_IISCTL_SDO0EN | SUN5I_IISCTL_SDO1EN | SUN5I_IISCTL_SDO2EN | SUN5I_IISCTL_SDO3EN); 
+	reg_val |= (SUN5I_IISCTL_SDO0EN); 
 	writel(reg_val, sun5i_iis.regs + SUN5I_IISCTL);
 
 	/* master or slave selection */

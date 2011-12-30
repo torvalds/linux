@@ -341,7 +341,7 @@ static  int codec_init(void)
 	//set volume
 	if(codec_chip_ver == MAGIC_VER_A){
 		codec_wr_control(SUN4I_DAC_ACTL, 0x6, VOLUME, 0x01);
-	}else if(codec_chip_ver == MAGIC_VER_B){
+	}else if(codec_chip_ver == MAGIC_VER_B || codec_chip_ver == MAGIC_VER_C){
 		codec_wr_control(SUN4I_DAC_ACTL, 0x6, VOLUME, 0x3b);
 	}else{
 		printk("[audio codec] chip version is unknown!\n");
@@ -463,8 +463,8 @@ static int codec_dev_free(struct snd_device *device)
 /*	对sun4i-codec.c各寄存器的各种设定，或读取。主要实现函数有三个.
 * 	.info = snd_codec_info_volsw, .get = snd_codec_get_volsw,\.put = snd_codec_put_volsw, 
 */
-static const struct snd_kcontrol_new codec_snd_controls_b[] = {
-	//FOR B VERSION
+static const struct snd_kcontrol_new codec_snd_controls_b_c[] = {
+	//FOR B C VERSION
 	CODEC_SINGLE("Master Playback Volume", SUN4I_DAC_ACTL,0,0x3f,0),
 	CODEC_SINGLE("Playback Switch", SUN4I_DAC_ACTL,6,1,0),//全局输出开关
 	CODEC_SINGLE("Capture Volume",SUN4I_ADC_ACTL,20,7,0),//录音音量
@@ -482,7 +482,7 @@ static const struct snd_kcontrol_new codec_snd_controls_b[] = {
 	CODEC_SINGLE("Mic Input Mux",SUN4I_DAC_ACTL,9,15,0),//from bit 9 to bit 12.Mic（麦克风）输入静音
 	CODEC_SINGLE("ADC Input Mux",SUN4I_ADC_ACTL,17,7,0),//ADC输入静音
 };
-
+ 
 static const struct snd_kcontrol_new codec_snd_controls_a[] = {
 	//For A VERSION
 	CODEC_SINGLE("Master Playback Volume", SUN4I_DAC_DPC,12,0x3f,0),//62 steps, 3e + 1 = 3f 主音量控制
@@ -527,9 +527,9 @@ int __init snd_chip_codec_mixer_new(struct snd_card *card)
 				return err;
 			}
 		}
-	}else if(codec_chip_ver == MAGIC_VER_B){
-		for (idx = 0; idx < ARRAY_SIZE(codec_snd_controls_b); idx++) {
-			if ((err = snd_ctl_add(card, snd_ctl_new1(&codec_snd_controls_b[idx],clnt))) < 0) {
+	}else if(codec_chip_ver == MAGIC_VER_B || codec_chip_ver == MAGIC_VER_C){
+		for (idx = 0; idx < ARRAY_SIZE(codec_snd_controls_b_c); idx++) {
+			if ((err = snd_ctl_add(card, snd_ctl_new1(&codec_snd_controls_b_c[idx],clnt))) < 0) {
 				return err;
 			}
 		}

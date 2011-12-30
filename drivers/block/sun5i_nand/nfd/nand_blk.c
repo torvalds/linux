@@ -1395,7 +1395,7 @@ static int __init init_blklayer(void)
     ret = PHY_ScanDDRParam();
     if (ret < 0)
         return ret;
-    
+
 	ret = FMT_Init();
 	if (ret < 0)
 		return ret;
@@ -1525,7 +1525,7 @@ static struct platform_driver nand_driver = {
 	.suspend = nand_suspend,
 	.resume = nand_resume,
 	.driver = {
-		.name = "nandflash",
+		.name = "sw_nand",
 		.owner = THIS_MODULE,
 	}
 };

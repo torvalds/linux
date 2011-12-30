@@ -1,10 +1,10 @@
 ===========================================
 
-Version: V1_01
+Version: V1_02
 
 Author:  raymonxiu
 
-Date:     2011-12-14 10:37:32
+Date:     2011-12-29 13:32:41
 
 Description:
 
@@ -18,6 +18,9 @@ insmod sun4i_csiX.ko ccm="mt9m112" i2c_addr=0xba
 insmod sun4i_csiX.ko ccm="mt9m113" i2c_addr=0x78
 insmod sun4i_csiX.ko ccm="ov2655" i2c_addr=0x60
 insmod sun4i_csiX.ko ccm="hi253" i2c_addr=0x40
+
+V1_02
+CSI: Change clock source to video pll 1 and add code for C version IC
 
 V1_01
 CSI: Add HI253 support IC version detection and fix HI704 i2c bug
