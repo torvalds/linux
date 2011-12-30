@@ -2271,19 +2271,18 @@ static inline void hci_num_comp_pkts_evt(struct hci_dev *hdev, struct sk_buff *s
 	struct hci_ev_num_comp_pkts *ev = (void *) skb->data;
 	int i;
 
-	skb_pull(skb, sizeof(*ev));
-
-	BT_DBG("%s num_hndl %d", hdev->name, ev->num_hndl);
-
 	if (hdev->flow_ctl_mode != HCI_FLOW_CTL_MODE_PACKET_BASED) {
 		BT_ERR("Wrong event for mode %d", hdev->flow_ctl_mode);
 		return;
 	}
 
-	if (skb->len < ev->num_hndl * 4) {
+	if (skb->len < sizeof(*ev) || skb->len < sizeof(*ev) +
+			ev->num_hndl * sizeof(struct hci_comp_pkts_info)) {
 		BT_DBG("%s bad parameters", hdev->name);
 		return;
 	}
+
+	BT_DBG("%s num_hndl %d", hdev->name, ev->num_hndl);
 
 	for (i = 0; i < ev->num_hndl; i++) {
 		struct hci_comp_pkts_info *info = &ev->handles[i];
