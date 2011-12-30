@@ -696,8 +696,8 @@ EXPORT_SYMBOL_GPL(__put_mtd_device);
  * This function returns zero in case of success and a negative error code in
  * case of failure.
  */
-int default_mtd_writev(struct mtd_info *mtd, const struct kvec *vecs,
-		       unsigned long count, loff_t to, size_t *retlen)
+static int default_mtd_writev(struct mtd_info *mtd, const struct kvec *vecs,
+			      unsigned long count, loff_t to, size_t *retlen)
 {
 	unsigned long i;
 	size_t totlen = 0, thislen;
@@ -716,7 +716,27 @@ int default_mtd_writev(struct mtd_info *mtd, const struct kvec *vecs,
 	*retlen = totlen;
 	return ret;
 }
-EXPORT_SYMBOL_GPL(default_mtd_writev);
+
+/*
+ * mtd_writev - the vector-based MTD write method
+ * @mtd: mtd device description object pointer
+ * @vecs: the vectors to write
+ * @count: count of vectors in @vecs
+ * @to: the MTD device offset to write to
+ * @retlen: on exit contains the count of bytes written to the MTD device.
+ *
+ * This function returns zero in case of success and a negative error code in
+ * case of failure.
+ */
+int mtd_writev(struct mtd_info *mtd, const struct kvec *vecs,
+	       unsigned long count, loff_t to, size_t *retlen)
+{
+	*retlen = 0;
+	if (!mtd->writev)
+		return default_mtd_writev(mtd, vecs, count, to, retlen);
+	return mtd->writev(mtd, vecs, count, to, retlen);
+}
+EXPORT_SYMBOL_GPL(mtd_writev);
 
 /**
  * mtd_kmalloc_up_to - allocate a contiguous buffer up to the specified size

@@ -394,16 +394,8 @@ static inline int mtd_lock_user_prot_reg(struct mtd_info *mtd, loff_t from,
 	return mtd->lock_user_prot_reg(mtd, from, len);
 }
 
-/*
- * kvec-based read/write method. NB: The 'count' parameter is the number of
- * _vectors_, each of which contains an (ofs, len) tuple.
- */
-static inline int mtd_writev(struct mtd_info *mtd, const struct kvec *vecs,
-			     unsigned long count, loff_t to, size_t *retlen)
-{
-	*retlen = 0;
-	return mtd->writev(mtd, vecs, count, to, retlen);
-}
+int mtd_writev(struct mtd_info *mtd, const struct kvec *vecs,
+	       unsigned long count, loff_t to, size_t *retlen);
 
 static inline void mtd_sync(struct mtd_info *mtd)
 {
@@ -510,10 +502,6 @@ struct mtd_notifier {
 
 extern void register_mtd_user (struct mtd_notifier *new);
 extern int unregister_mtd_user (struct mtd_notifier *old);
-
-int default_mtd_writev(struct mtd_info *mtd, const struct kvec *vecs,
-		       unsigned long count, loff_t to, size_t *retlen);
-
 void *mtd_kmalloc_up_to(const struct mtd_info *mtd, size_t *size);
 
 void mtd_erase_callback(struct erase_info *instr);

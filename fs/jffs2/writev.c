@@ -26,11 +26,7 @@ int jffs2_flash_direct_writev(struct jffs2_sb_info *c, const struct kvec *vecs,
 		}
 	}
 
-	if (c->mtd->writev)
-		return mtd_writev(c->mtd, vecs, count, to, retlen);
-	else {
-		return default_mtd_writev(c->mtd, vecs, count, to, retlen);
-	}
+	return mtd_writev(c->mtd, vecs, count, to, retlen);
 }
 
 int jffs2_flash_direct_write(struct jffs2_sb_info *c, loff_t ofs, size_t len,
