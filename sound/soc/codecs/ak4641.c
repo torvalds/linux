@@ -339,6 +339,7 @@ static int ak4641_pcm_set_dai_fmt(struct snd_soc_dai *codec_dai,
 {
 	struct snd_soc_codec *codec = codec_dai->codec;
 	u8 btif;
+	int ret;
 
 	/* interface format */
 	switch (fmt & SND_SOC_DAIFMT_FORMAT_MASK) {
@@ -358,7 +359,11 @@ static int ak4641_pcm_set_dai_fmt(struct snd_soc_dai *codec_dai,
 		return -EINVAL;
 	}
 
-	return snd_soc_update_bits(codec, AK4641_BTIF, (0x3 << 5), btif);
+	ret = snd_soc_update_bits(codec, AK4641_BTIF, (0x3 << 5), btif);
+	if (ret < 0)
+		return ret;
+
+	return 0;
 }
 
 static int ak4641_i2s_set_dai_fmt(struct snd_soc_dai *codec_dai,
