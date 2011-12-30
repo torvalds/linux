@@ -53,6 +53,7 @@
 /* KBC Interrupt Register */
 #define KBC_INT_0	0x4
 #define KBC_INT_FIFO_CNT_INT_STATUS	(1 << 2)
+#define KBC_INT_KEYPRESS_INT_STATUS	(1 << 0)
 
 #define KBC_ROW_CFG0_0	0x8
 #define KBC_COL_CFG0_0	0x18
@@ -75,10 +76,12 @@ struct tegra_kbc {
 	unsigned int cp_to_wkup_dly;
 	bool use_fn_map;
 	bool use_ghost_filter;
+	bool keypress_caused_wake;
 	const struct tegra_kbc_platform_data *pdata;
 	unsigned short keycode[KBC_MAX_KEY * 2];
 	unsigned short current_keys[KBC_MAX_KPENT];
 	unsigned int num_pressed_keys;
+	u32 wakeup_key;
 	struct timer_list timer;
 	struct clk *clk;
 };
@@ -411,6 +414,9 @@ static irqreturn_t tegra_kbc_isr(int irq, void *args)
 		 */
 		tegra_kbc_set_fifo_interrupt(kbc, false);
 		mod_timer(&kbc->timer, jiffies + kbc->cp_dly_jiffies);
+	} else if (val & KBC_INT_KEYPRESS_INT_STATUS) {
+		/* We can be here only through system resume path */
+		kbc->keypress_caused_wake = true;
 	}
 
 	spin_unlock_irqrestore(&kbc->lock, flags);
@@ -733,9 +739,10 @@ static int __devinit tegra_kbc_probe(struct platform_device *pdev)
 	keymap_data = pdata->keymap_data ?: &tegra_kbc_default_keymap_data;
 	matrix_keypad_build_keymap(keymap_data, KBC_ROW_SHIFT,
 				   input_dev->keycode, input_dev->keybit);
+	kbc->wakeup_key = pdata->wakeup_key;
 
-	err = request_irq(kbc->irq, tegra_kbc_isr, IRQF_TRIGGER_HIGH,
-			  pdev->name, kbc);
+	err = request_irq(kbc->irq, tegra_kbc_isr,
+			  IRQF_NO_SUSPEND | IRQF_TRIGGER_HIGH, pdev->name, kbc);
 	if (err) {
 		dev_err(&pdev->dev, "failed to request keyboard IRQ\n");
 		goto err_put_clk;
@@ -823,6 +830,8 @@ static int tegra_kbc_suspend(struct device *dev)
 		tegra_kbc_setup_wakekeys(kbc, true);
 		msleep(30);
 
+		kbc->keypress_caused_wake = false;
+		enable_irq(kbc->irq);
 		enable_irq_wake(kbc->irq);
 	} else {
 		if (kbc->idev->users)
@@ -849,7 +858,19 @@ static int tegra_kbc_resume(struct device *dev)
 
 		tegra_kbc_set_fifo_interrupt(kbc, true);
 
-		enable_irq(kbc->irq);
+		if (kbc->keypress_caused_wake && kbc->wakeup_key) {
+			/*
+			 * We can't report events directly from the ISR
+			 * because timekeeping is stopped when processing
+			 * wakeup request and we get a nasty warning when
+			 * we try to call do_gettimeofday() in evdev
+			 * handler.
+			 */
+			input_report_key(kbc->idev, kbc->wakeup_key, 1);
+			input_sync(kbc->idev);
+			input_report_key(kbc->idev, kbc->wakeup_key, 0);
+			input_sync(kbc->idev);
+		}
 	} else {
 		if (kbc->idev->users)
 			err = tegra_kbc_start(kbc);
