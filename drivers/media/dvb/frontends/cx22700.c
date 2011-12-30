@@ -341,9 +341,9 @@ static int cx22700_set_frontend(struct dvb_frontend *fe)
 	return 0;
 }
 
-static int cx22700_get_frontend(struct dvb_frontend *fe,
-				struct dtv_frontend_properties *c)
+static int cx22700_get_frontend(struct dvb_frontend *fe)
 {
+	struct dtv_frontend_properties *c = &fe->dtv_property_cache;
 	struct cx22700_state* state = fe->demodulator_priv;
 	u8 reg09 = cx22700_readreg (state, 0x09);
 

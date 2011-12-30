@@ -525,9 +525,9 @@ static int mb86a20s_set_frontend(struct dvb_frontend *fe)
 	return rc;
 }
 
-static int mb86a20s_get_frontend(struct dvb_frontend *fe,
-				 struct dtv_frontend_properties *p)
+static int mb86a20s_get_frontend(struct dvb_frontend *fe)
 {
+	struct dtv_frontend_properties *p = &fe->dtv_property_cache;
 
 	/* FIXME: For now, it does nothing */
 

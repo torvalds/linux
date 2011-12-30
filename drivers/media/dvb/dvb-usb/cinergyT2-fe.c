@@ -296,12 +296,6 @@ static int cinergyt2_fe_set_frontend(struct dvb_frontend *fe)
 	return (err < 0) ? err : 0;
 }
 
-static int cinergyt2_fe_get_frontend(struct dvb_frontend *fe,
-				  struct dtv_frontend_properties *fep)
-{
-	return 0;
-}
-
 static void cinergyt2_fe_release(struct dvb_frontend *fe)
 {
 	struct cinergyt2_fe_state *state = fe->demodulator_priv;
@@ -352,7 +346,6 @@ static struct dvb_frontend_ops cinergyt2_fe_ops = {
 	.sleep			= cinergyt2_fe_sleep,
 
 	.set_frontend		= cinergyt2_fe_set_frontend,
-	.get_frontend		= cinergyt2_fe_get_frontend,
 	.get_tune_settings	= cinergyt2_fe_get_tune_settings,
 
 	.read_status		= cinergyt2_fe_read_status,

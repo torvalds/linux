@@ -282,9 +282,9 @@ static int jdvbt90502_set_property(struct dvb_frontend *fe,
 	return r;
 }
 
-static int jdvbt90502_get_frontend(struct dvb_frontend *fe,
-				   struct dtv_frontend_properties *p)
+static int jdvbt90502_get_frontend(struct dvb_frontend *fe)
 {
+	struct dtv_frontend_properties *p = &fe->dtv_property_cache;
 	p->inversion = INVERSION_AUTO;
 	p->bandwidth_hz = 6000000;
 	p->code_rate_HP = FEC_AUTO;

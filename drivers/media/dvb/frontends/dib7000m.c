@@ -1154,9 +1154,9 @@ static int dib7000m_identify(struct dib7000m_state *state)
 }
 
 
-static int dib7000m_get_frontend(struct dvb_frontend* fe,
-				 struct dtv_frontend_properties *fep)
+static int dib7000m_get_frontend(struct dvb_frontend* fe)
 {
+	struct dtv_frontend_properties *fep = &fe->dtv_property_cache;
 	struct dib7000m_state *state = fe->demodulator_priv;
 	u16 tps = dib7000m_read_word(state,480);
 
@@ -1214,7 +1214,7 @@ static int dib7000m_get_frontend(struct dvb_frontend* fe,
 
 static int dib7000m_set_frontend(struct dvb_frontend *fe)
 {
-	struct dtv_frontend_properties *fep = &fe->dtv_property_cache, tmp;
+	struct dtv_frontend_properties *fep = &fe->dtv_property_cache;
 	struct dib7000m_state *state = fe->demodulator_priv;
 	int time, ret;
 
@@ -1239,8 +1239,6 @@ static int dib7000m_set_frontend(struct dvb_frontend *fe)
 		fep->code_rate_HP      == FEC_AUTO) {
 		int i = 800, found;
 
-		tmp = *fep;
-
 		dib7000m_autosearch_start(fe);
 		do {
 			msleep(1);
@@ -1251,7 +1249,7 @@ static int dib7000m_set_frontend(struct dvb_frontend *fe)
 		if (found == 0 || found == 1)
 			return 0; // no channel found
 
-		dib7000m_get_frontend(fe, &tmp);
+		dib7000m_get_frontend(fe);
 	}
 
 	ret = dib7000m_tune(fe);

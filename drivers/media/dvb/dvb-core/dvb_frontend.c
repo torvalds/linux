@@ -143,7 +143,6 @@ struct dvb_frontend_private {
 
 static void dvb_frontend_wakeup(struct dvb_frontend *fe);
 static int dtv_get_frontend(struct dvb_frontend *fe,
-			    struct dtv_frontend_properties *c,
 			    struct dvb_frontend_parameters *p_out);
 
 static bool has_get_frontend(struct dvb_frontend *fe)
@@ -161,7 +160,7 @@ static void dvb_frontend_add_event(struct dvb_frontend *fe, fe_status_t status)
 	dprintk ("%s\n", __func__);
 
 	if ((status & FE_HAS_LOCK) && has_get_frontend(fe))
-		dtv_get_frontend(fe, NULL, &fepriv->parameters_out);
+		dtv_get_frontend(fe, &fepriv->parameters_out);
 
 	mutex_lock(&events->mtx);
 
@@ -1261,33 +1260,20 @@ static void dtv_property_cache_submit(struct dvb_frontend *fe)
  * If p_out is not null, it will update the DVBv3 params pointed by it.
  */
 static int dtv_get_frontend(struct dvb_frontend *fe,
-			    struct dtv_frontend_properties *c,
 			    struct dvb_frontend_parameters *p_out)
 {
-	const struct dtv_frontend_properties *cache = &fe->dtv_property_cache;
-	struct dtv_frontend_properties tmp_cache;
-	struct dvb_frontend_parameters tmp_out;
-	bool fill_params = (p_out != NULL);
 	int r;
 
-	if (!p_out)
-		p_out = &tmp_out;
-
-	if (!c)
-		c = &tmp_cache;
-	else
-		memcpy(c, cache, sizeof(*c));
-
 	if (fe->ops.get_frontend) {
-		r = fe->ops.get_frontend(fe, c);
+		r = fe->ops.get_frontend(fe);
 		if (unlikely(r < 0))
 			return r;
-		if (fill_params)
+		if (p_out)
 			dtv_property_legacy_params_sync(fe, p_out);
 		return 0;
 	}
 
-	/* As everything is in cache, this is always supported */
+	/* As everything is in cache, get_frontend fops are always supported */
 	return 0;
 }
 
@@ -1717,8 +1703,6 @@ static int dvb_frontend_ioctl_properties(struct file *file,
 
 	} else
 	if(cmd == FE_GET_PROPERTY) {
-		struct dtv_frontend_properties cache_out;
-
 		tvps = (struct dtv_properties __user *)parg;
 
 		dprintk("%s() properties.num = %d\n", __func__, tvps->num);
@@ -1744,9 +1728,9 @@ static int dvb_frontend_ioctl_properties(struct file *file,
 		 * Fills the cache out struct with the cache contents, plus
 		 * the data retrieved from get_frontend.
 		 */
-		dtv_get_frontend(fe, &cache_out, NULL);
+		dtv_get_frontend(fe, NULL);
 		for (i = 0; i < tvps->num; i++) {
-			err = dtv_property_process_get(fe, &cache_out, tvp + i, file);
+			err = dtv_property_process_get(fe, c, tvp + i, file);
 			if (err < 0)
 				goto out;
 			(tvp + i)->result = err;
@@ -2043,7 +2027,7 @@ static int dvb_frontend_ioctl_legacy(struct file *file,
 		break;
 
 	case FE_GET_FRONTEND:
-		err = dtv_get_frontend(fe, NULL, &fepriv->parameters_out);
+		err = dtv_get_frontend(fe, &fepriv->parameters_out);
 		if (err >= 0)
 			memcpy(parg, &fepriv->parameters_out,
 			       sizeof(struct dvb_frontend_parameters));

@@ -1867,7 +1867,7 @@ static int dib9000_fe_get_tune_settings(struct dvb_frontend *fe, struct dvb_fron
 	return 0;
 }
 
-static int dib9000_get_frontend(struct dvb_frontend *fe, struct dtv_frontend_properties *c)
+static int dib9000_get_frontend(struct dvb_frontend *fe)
 {
 	struct dib9000_state *state = fe->demodulator_priv;
 	u8 index_frontend, sub_index_frontend;
@@ -1883,7 +1883,7 @@ static int dib9000_get_frontend(struct dvb_frontend *fe, struct dtv_frontend_pro
 			dprintk("TPS lock on the slave%i", index_frontend);
 
 			/* synchronize the cache with the other frontends */
-			state->fe[index_frontend]->ops.get_frontend(state->fe[index_frontend], c);
+			state->fe[index_frontend]->ops.get_frontend(state->fe[index_frontend]);
 			for (sub_index_frontend = 0; (sub_index_frontend < MAX_NUMBER_OF_FRONTENDS) && (state->fe[sub_index_frontend] != NULL);
 			     sub_index_frontend++) {
 				if (sub_index_frontend != index_frontend) {
@@ -2054,7 +2054,7 @@ static int dib9000_set_frontend(struct dvb_frontend *fe)
 
 	/* synchronize all the channel cache */
 	state->get_frontend_internal = 1;
-	dib9000_get_frontend(state->fe[0], &state->fe[0]->dtv_property_cache);
+	dib9000_get_frontend(state->fe[0]);
 	state->get_frontend_internal = 0;
 
 	/* retune the other frontends with the found channel */

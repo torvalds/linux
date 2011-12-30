@@ -596,8 +596,9 @@ static int stv0299_set_frontend(struct dvb_frontend *fe)
 	return 0;
 }
 
-static int stv0299_get_frontend(struct dvb_frontend *fe, struct dtv_frontend_properties * p)
+static int stv0299_get_frontend(struct dvb_frontend *fe)
 {
+	struct dtv_frontend_properties *p = &fe->dtv_property_cache;
 	struct stv0299_state* state = fe->demodulator_priv;
 	s32 derot_freq;
 	int invval;

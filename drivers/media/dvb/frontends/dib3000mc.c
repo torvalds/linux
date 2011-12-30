@@ -632,9 +632,9 @@ struct i2c_adapter * dib3000mc_get_tuner_i2c_master(struct dvb_frontend *demod, 
 
 EXPORT_SYMBOL(dib3000mc_get_tuner_i2c_master);
 
-static int dib3000mc_get_frontend(struct dvb_frontend* fe,
-				  struct dtv_frontend_properties *fep)
+static int dib3000mc_get_frontend(struct dvb_frontend* fe)
 {
+	struct dtv_frontend_properties *fep = &fe->dtv_property_cache;
 	struct dib3000mc_state *state = fe->demodulator_priv;
 	u16 tps = dib3000mc_read_word(state,458);
 
@@ -689,7 +689,7 @@ static int dib3000mc_get_frontend(struct dvb_frontend* fe,
 
 static int dib3000mc_set_frontend(struct dvb_frontend *fe)
 {
-	struct dtv_frontend_properties *fep = &fe->dtv_property_cache, tmp;
+	struct dtv_frontend_properties *fep = &fe->dtv_property_cache;
 	struct dib3000mc_state *state = fe->demodulator_priv;
 	int ret;
 
@@ -712,8 +712,6 @@ static int dib3000mc_set_frontend(struct dvb_frontend *fe)
 	    fep->code_rate_HP   == FEC_AUTO) {
 		int i = 1000, found;
 
-		tmp = *fep;
-
 		dib3000mc_autosearch_start(fe);
 		do {
 			msleep(1);
@@ -724,7 +722,7 @@ static int dib3000mc_set_frontend(struct dvb_frontend *fe)
 		if (found == 0 || found == 1)
 			return 0; // no channel found
 
-		dib3000mc_get_frontend(fe, &tmp);
+		dib3000mc_get_frontend(fe);
 	}
 
 	ret = dib3000mc_tune(fe);

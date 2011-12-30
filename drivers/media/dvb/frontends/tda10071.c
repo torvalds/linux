@@ -776,8 +776,7 @@ error:
 	return ret;
 }
 
-static int tda10071_get_frontend(struct dvb_frontend *fe,
-	struct dtv_frontend_properties *p)
+static int tda10071_get_frontend(struct dvb_frontend *fe)
 {
 	struct tda10071_priv *priv = fe->demodulator_priv;
 	struct dtv_frontend_properties *c = &fe->dtv_property_cache;

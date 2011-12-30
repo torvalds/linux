@@ -572,9 +572,9 @@ static int it913x_fe_read_ucblocks(struct dvb_frontend *fe, u32 *ucblocks)
 	return 0;
 }
 
-static int it913x_fe_get_frontend(struct dvb_frontend *fe,
-			struct dtv_frontend_properties *p)
+static int it913x_fe_get_frontend(struct dvb_frontend *fe)
 {
+	struct dtv_frontend_properties *p = &fe->dtv_property_cache;
 	struct it913x_fe_state *state = fe->demodulator_priv;
 	int ret;
 	u8 reg[8];

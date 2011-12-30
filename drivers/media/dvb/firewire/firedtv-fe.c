@@ -149,22 +149,6 @@ static int fdtv_set_frontend(struct dvb_frontend *fe)
 	return avc_tuner_dsd(fdtv, p);
 }
 
-static int fdtv_get_frontend(struct dvb_frontend *fe,
-			     struct dtv_frontend_properties *params)
-{
-	return -EOPNOTSUPP;
-}
-
-static int fdtv_get_property(struct dvb_frontend *fe, struct dtv_property *tvp)
-{
-	return 0;
-}
-
-static int fdtv_set_property(struct dvb_frontend *fe, struct dtv_property *tvp)
-{
-	return 0;
-}
-
 void fdtv_frontend_init(struct firedtv *fdtv, const char *name)
 {
 	struct dvb_frontend_ops *ops = &fdtv->fe.ops;
@@ -174,10 +158,6 @@ void fdtv_frontend_init(struct firedtv *fdtv, const char *name)
 	ops->sleep			= fdtv_sleep;
 
 	ops->set_frontend		= fdtv_set_frontend;
-	ops->get_frontend		= fdtv_get_frontend;
-
-	ops->get_property		= fdtv_get_property;
-	ops->set_property		= fdtv_set_property;
 
 	ops->read_status		= fdtv_read_status;
 	ops->read_ber			= fdtv_read_ber;

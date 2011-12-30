@@ -284,7 +284,7 @@ struct dvb_frontend_ops {
 	int (*set_frontend)(struct dvb_frontend *fe);
 	int (*get_tune_settings)(struct dvb_frontend* fe, struct dvb_frontend_tune_settings* settings);
 
-	int (*get_frontend)(struct dvb_frontend *fe, struct dtv_frontend_properties *props);
+	int (*get_frontend)(struct dvb_frontend *fe);
 
 	int (*read_status)(struct dvb_frontend* fe, fe_status_t* status);
 	int (*read_ber)(struct dvb_frontend* fe, u32* ber);

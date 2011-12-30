@@ -211,13 +211,6 @@ static int vp702x_fe_sleep(struct dvb_frontend *fe)
 	return 0;
 }
 
-static int vp702x_fe_get_frontend(struct dvb_frontend* fe,
-				  struct dtv_frontend_properties *fep)
-{
-	deb_fe("%s\n",__func__);
-	return 0;
-}
-
 static int vp702x_fe_send_diseqc_msg (struct dvb_frontend* fe,
 				    struct dvb_diseqc_master_cmd *m)
 {
@@ -372,7 +365,6 @@ static struct dvb_frontend_ops vp702x_fe_ops = {
 	.sleep = vp702x_fe_sleep,
 
 	.set_frontend = vp702x_fe_set_frontend,
-	.get_frontend = vp702x_fe_get_frontend,
 	.get_tune_settings = vp702x_fe_get_tune_settings,
 
 	.read_status = vp702x_fe_read_status,

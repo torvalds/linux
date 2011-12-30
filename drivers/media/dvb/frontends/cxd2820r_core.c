@@ -307,8 +307,7 @@ static int cxd2820r_read_status(struct dvb_frontend *fe, fe_status_t *status)
 	return ret;
 }
 
-static int cxd2820r_get_frontend(struct dvb_frontend *fe,
-				 struct dtv_frontend_properties *c)
+static int cxd2820r_get_frontend(struct dvb_frontend *fe)
 {
 	int ret;
 

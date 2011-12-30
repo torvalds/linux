@@ -231,9 +231,9 @@ static s32 poseidon_fe_init(struct dvb_frontend *fe)
 	return 0;
 }
 
-static int poseidon_get_fe(struct dvb_frontend *fe,
-			struct dtv_frontend_properties *fep)
+static int poseidon_get_fe(struct dvb_frontend *fe)
 {
+	struct dtv_frontend_properties *fep = &fe->dtv_property_cache;
 	struct poseidon *pd = fe->demodulator_priv;
 	struct pd_dvb_adapter *pd_dvb = &pd->dvb_data;
 

@@ -739,9 +739,9 @@ static int smsdvb_set_frontend(struct dvb_frontend *fe)
 	}
 }
 
-static int smsdvb_get_frontend(struct dvb_frontend *fe,
-			      struct dtv_frontend_properties *fep)
+static int smsdvb_get_frontend(struct dvb_frontend *fe)
 {
+	struct dtv_frontend_properties *fep = &fe->dtv_property_cache;
 	struct smsdvb_client_t *client =
 		container_of(fe, struct smsdvb_client_t, frontend);
 

@@ -112,8 +112,7 @@ static u16 dib3000_seq[2][2][2] =     /* fft,gua,   inv   */
 		}
 	};
 
-static int dib3000mb_get_frontend(struct dvb_frontend* fe,
-				  struct dtv_frontend_properties *c);
+static int dib3000mb_get_frontend(struct dvb_frontend* fe);
 
 static int dib3000mb_set_frontend(struct dvb_frontend *fe, int tuner)
 {
@@ -360,7 +359,7 @@ static int dib3000mb_set_frontend(struct dvb_frontend *fe, int tuner)
 		deb_setf("search_state after autosearch %d after %d checks\n",search_state,as_count);
 
 		if (search_state == 1) {
-			if (dib3000mb_get_frontend(fe, c) == 0) {
+			if (dib3000mb_get_frontend(fe) == 0) {
 				deb_setf("reading tuning data from frontend succeeded.\n");
 				return dib3000mb_set_frontend(fe, 0);
 			}
@@ -451,9 +450,9 @@ static int dib3000mb_fe_init(struct dvb_frontend* fe, int mobile_mode)
 	return 0;
 }
 
-static int dib3000mb_get_frontend(struct dvb_frontend* fe,
-				  struct dtv_frontend_properties *c)
+static int dib3000mb_get_frontend(struct dvb_frontend* fe)
 {
+	struct dtv_frontend_properties *c = &fe->dtv_property_cache;
 	struct dib3000_state* state = fe->demodulator_priv;
 	fe_code_rate_t *cr;
 	u16 tps_val;

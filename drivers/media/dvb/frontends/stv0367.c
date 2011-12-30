@@ -1926,9 +1926,9 @@ static int stv0367ter_read_ucblocks(struct dvb_frontend *fe, u32 *ucblocks)
 	return 0;
 }
 
-static int stv0367ter_get_frontend(struct dvb_frontend *fe,
-				   struct dtv_frontend_properties *p)
+static int stv0367ter_get_frontend(struct dvb_frontend *fe)
 {
+	struct dtv_frontend_properties *p = &fe->dtv_property_cache;
 	struct stv0367_state *state = fe->demodulator_priv;
 	struct stv0367ter_state *ter_state = state->ter_state;
 
@@ -3136,9 +3136,9 @@ static int stv0367cab_set_frontend(struct dvb_frontend *fe)
 	return 0;
 }
 
-static int stv0367cab_get_frontend(struct dvb_frontend *fe,
-				   struct dtv_frontend_properties *p)
+static int stv0367cab_get_frontend(struct dvb_frontend *fe)
 {
+	struct dtv_frontend_properties *p = &fe->dtv_property_cache;
 	struct stv0367_state *state = fe->demodulator_priv;
 	struct stv0367cab_state *cab_state = state->cab_state;
 

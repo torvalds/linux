@@ -691,9 +691,9 @@ static int lgs8gxx_set_fe(struct dvb_frontend *fe)
 	return 0;
 }
 
-static int lgs8gxx_get_fe(struct dvb_frontend *fe,
-			  struct dtv_frontend_properties *fe_params)
+static int lgs8gxx_get_fe(struct dvb_frontend *fe)
 {
+	struct dtv_frontend_properties *fe_params = &fe->dtv_property_cache;
 	dprintk("%s\n", __func__);
 
 	/* TODO: get real readings from device */
