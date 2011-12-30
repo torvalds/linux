@@ -166,7 +166,7 @@ static int
 nfnl_acct_get(struct sock *nfnl, struct sk_buff *skb,
 	     const struct nlmsghdr *nlh, const struct nlattr * const tb[])
 {
-	int ret = 0;
+	int ret = -ENOENT;
 	struct nf_acct *cur;
 	char *acct_name;
 
@@ -186,17 +186,26 @@ nfnl_acct_get(struct sock *nfnl, struct sk_buff *skb,
 			continue;
 
 		skb2 = nlmsg_new(NLMSG_DEFAULT_SIZE, GFP_KERNEL);
-		if (skb2 == NULL)
+		if (skb2 == NULL) {
+			ret = -ENOMEM;
 			break;
+		}
 
 		ret = nfnl_acct_fill_info(skb2, NETLINK_CB(skb).pid,
 					 nlh->nlmsg_seq,
 					 NFNL_MSG_TYPE(nlh->nlmsg_type),
 					 NFNL_MSG_ACCT_NEW, cur);
-		if (ret <= 0)
+		if (ret <= 0) {
 			kfree_skb(skb2);
+			break;
+		}
+		ret = netlink_unicast(nfnl, skb2, NETLINK_CB(skb).pid,
+					MSG_DONTWAIT);
+		if (ret > 0)
+			ret = 0;
 
-		break;
+		/* this avoids a loop in nfnetlink. */
+		return ret == -EAGAIN ? -ENOBUFS : ret;
 	}
 	return ret;
 }
