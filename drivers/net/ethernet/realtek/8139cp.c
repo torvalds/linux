@@ -859,7 +859,6 @@ static void __cp_set_rx_mode (struct net_device *dev)
 	struct cp_private *cp = netdev_priv(dev);
 	u32 mc_filter[2];	/* Multicast hash filter */
 	int rx_mode;
-	u32 tmp;
 
 	/* Note: do not reorder, GCC is clever about common statements. */
 	if (dev->flags & IFF_PROMISC) {
@@ -886,11 +885,9 @@ static void __cp_set_rx_mode (struct net_device *dev)
 	}
 
 	/* We can safely update without stopping the chip. */
-	tmp = cp_rx_config | rx_mode;
-	if (cp->rx_config != tmp) {
-		cpw32_f (RxConfig, tmp);
-		cp->rx_config = tmp;
-	}
+	cp->rx_config = cp_rx_config | rx_mode;
+	cpw32_f(RxConfig, cp->rx_config);
+
 	cpw32_f (MAR0 + 0, mc_filter[0]);
 	cpw32_f (MAR0 + 4, mc_filter[1]);
 }
