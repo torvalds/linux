@@ -128,7 +128,7 @@ static int mtd_cls_suspend(struct device *dev, pm_message_t state)
 static int mtd_cls_resume(struct device *dev)
 {
 	struct mtd_info *mtd = dev_get_drvdata(dev);
-	
+
 	if (mtd && mtd->resume)
 		mtd_resume(mtd);
 	return 0;
@@ -517,7 +517,6 @@ EXPORT_SYMBOL_GPL(mtd_device_unregister);
  *	or removal of MTD devices. Causes the 'add' callback to be immediately
  *	invoked for each MTD device currently present in the system.
  */
-
 void register_mtd_user (struct mtd_notifier *new)
 {
 	struct mtd_info *mtd;
@@ -533,6 +532,7 @@ void register_mtd_user (struct mtd_notifier *new)
 
 	mutex_unlock(&mtd_table_mutex);
 }
+EXPORT_SYMBOL_GPL(register_mtd_user);
 
 /**
  *	unregister_mtd_user - unregister a 'user' of MTD devices.
@@ -543,7 +543,6 @@ void register_mtd_user (struct mtd_notifier *new)
  *	'remove' callback to be immediately invoked for each MTD device
  *	currently present in the system.
  */
-
 int unregister_mtd_user (struct mtd_notifier *old)
 {
 	struct mtd_info *mtd;
@@ -559,7 +558,7 @@ int unregister_mtd_user (struct mtd_notifier *old)
 	mutex_unlock(&mtd_table_mutex);
 	return 0;
 }
-
+EXPORT_SYMBOL_GPL(unregister_mtd_user);
 
 /**
  *	get_mtd_device - obtain a validated handle for an MTD device
@@ -572,7 +571,6 @@ int unregister_mtd_user (struct mtd_notifier *old)
  *	both, return the num'th driver only if its address matches. Return
  *	error code if not.
  */
-
 struct mtd_info *get_mtd_device(struct mtd_info *mtd, int num)
 {
 	struct mtd_info *ret = NULL, *other;
@@ -605,6 +603,7 @@ out:
 	mutex_unlock(&mtd_table_mutex);
 	return ret;
 }
+EXPORT_SYMBOL_GPL(get_mtd_device);
 
 
 int __get_mtd_device(struct mtd_info *mtd)
@@ -625,6 +624,7 @@ int __get_mtd_device(struct mtd_info *mtd)
 	mtd->usecount++;
 	return 0;
 }
+EXPORT_SYMBOL_GPL(__get_mtd_device);
 
 /**
  *	get_mtd_device_nm - obtain a validated handle for an MTD device by
@@ -634,7 +634,6 @@ int __get_mtd_device(struct mtd_info *mtd)
  * 	This function returns MTD device description structure in case of
  * 	success and an error code in case of failure.
  */
-
 struct mtd_info *get_mtd_device_nm(const char *name)
 {
 	int err = -ENODEV;
@@ -663,6 +662,7 @@ out_unlock:
 	mutex_unlock(&mtd_table_mutex);
 	return ERR_PTR(err);
 }
+EXPORT_SYMBOL_GPL(get_mtd_device_nm);
 
 void put_mtd_device(struct mtd_info *mtd)
 {
@@ -671,6 +671,7 @@ void put_mtd_device(struct mtd_info *mtd)
 	mutex_unlock(&mtd_table_mutex);
 
 }
+EXPORT_SYMBOL_GPL(put_mtd_device);
 
 void __put_mtd_device(struct mtd_info *mtd)
 {
@@ -682,6 +683,7 @@ void __put_mtd_device(struct mtd_info *mtd)
 
 	module_put(mtd->owner);
 }
+EXPORT_SYMBOL_GPL(__put_mtd_device);
 
 /*
  * default_mtd_writev - the default writev method
@@ -714,6 +716,7 @@ int default_mtd_writev(struct mtd_info *mtd, const struct kvec *vecs,
 	*retlen = totlen;
 	return ret;
 }
+EXPORT_SYMBOL_GPL(default_mtd_writev);
 
 /**
  * mtd_kmalloc_up_to - allocate a contiguous buffer up to the specified size
@@ -763,15 +766,6 @@ void *mtd_kmalloc_up_to(const struct mtd_info *mtd, size_t *size)
 	 */
 	return kmalloc(*size, GFP_KERNEL);
 }
-
-EXPORT_SYMBOL_GPL(get_mtd_device);
-EXPORT_SYMBOL_GPL(get_mtd_device_nm);
-EXPORT_SYMBOL_GPL(__get_mtd_device);
-EXPORT_SYMBOL_GPL(put_mtd_device);
-EXPORT_SYMBOL_GPL(__put_mtd_device);
-EXPORT_SYMBOL_GPL(register_mtd_user);
-EXPORT_SYMBOL_GPL(unregister_mtd_user);
-EXPORT_SYMBOL_GPL(default_mtd_writev);
 EXPORT_SYMBOL_GPL(mtd_kmalloc_up_to);
 
 #ifdef CONFIG_PROC_FS
