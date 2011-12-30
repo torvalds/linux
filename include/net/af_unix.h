@@ -66,6 +66,9 @@ struct unix_sock {
 
 #define peer_wait peer_wq.wait
 
+long unix_inq_len(struct sock *sk);
+long unix_outq_len(struct sock *sk);
+
 #ifdef CONFIG_SYSCTL
 extern int unix_sysctl_register(struct net *net);
 extern void unix_sysctl_unregister(struct net *net);
