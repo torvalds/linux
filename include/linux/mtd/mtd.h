@@ -291,6 +291,8 @@ static inline int mtd_write(struct mtd_info *mtd, loff_t to, size_t len,
 			    size_t *retlen, const u_char *buf)
 {
 	*retlen = 0;
+	if (!mtd->write)
+		return -EROFS;
 	return mtd->write(mtd, to, len, retlen, buf);
 }
 

@@ -683,10 +683,17 @@ void __put_mtd_device(struct mtd_info *mtd)
 	module_put(mtd->owner);
 }
 
-/* default_mtd_writev - default mtd writev method for MTD devices that
- *			don't implement their own
+/*
+ * default_mtd_writev - the default writev method
+ * @mtd: mtd device description object pointer
+ * @vecs: the vectors to write
+ * @count: count of vectors in @vecs
+ * @to: the MTD device offset to write to
+ * @retlen: on exit contains the count of bytes written to the MTD device.
+ *
+ * This function returns zero in case of success and a negative error code in
+ * case of failure.
  */
-
 int default_mtd_writev(struct mtd_info *mtd, const struct kvec *vecs,
 		       unsigned long count, loff_t to, size_t *retlen)
 {
@@ -694,28 +701,24 @@ int default_mtd_writev(struct mtd_info *mtd, const struct kvec *vecs,
 	size_t totlen = 0, thislen;
 	int ret = 0;
 
-	if(!mtd->write) {
-		ret = -EROFS;
-	} else {
-		for (i=0; i<count; i++) {
-			if (!vecs[i].iov_len)
-				continue;
-			ret = mtd_write(mtd, to, vecs[i].iov_len, &thislen,
-					vecs[i].iov_base);
-			totlen += thislen;
-			if (ret || thislen != vecs[i].iov_len)
-				break;
-			to += vecs[i].iov_len;
-		}
+	for (i = 0; i < count; i++) {
+		if (!vecs[i].iov_len)
+			continue;
+		ret = mtd_write(mtd, to, vecs[i].iov_len, &thislen,
+				vecs[i].iov_base);
+		totlen += thislen;
+		if (ret || thislen != vecs[i].iov_len)
+			break;
+		to += vecs[i].iov_len;
 	}
-	if (retlen)
-		*retlen = totlen;
+	*retlen = totlen;
 	return ret;
 }
 
 /**
  * mtd_kmalloc_up_to - allocate a contiguous buffer up to the specified size
- * @size: A pointer to the ideal or maximum size of the allocation. Points
+ * @mtd: mtd device description object pointer
+ * @size: a pointer to the ideal or maximum size of the allocation, points
  *        to the actual allocation size on success.
  *
  * This routine attempts to allocate a contiguous kernel buffer up to
