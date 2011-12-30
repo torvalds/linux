@@ -670,7 +670,7 @@ static int wm8580_set_sysclk(struct snd_soc_dai *dai, int clk_id,
 {
 	struct snd_soc_codec *codec = dai->codec;
 	struct wm8580_priv *wm8580 = snd_soc_codec_get_drvdata(codec);
-	int sel, sel_mask, sel_shift;
+	int ret, sel, sel_mask, sel_shift;
 
 	switch (dai->driver->id) {
 	case WM8580_DAI_PAIFRX:
@@ -711,7 +711,11 @@ static int wm8580_set_sysclk(struct snd_soc_dai *dai, int clk_id,
 	/* We really should validate PLL settings but not yet */
 	wm8580->sysclk[dai->driver->id] = freq;
 
-	return snd_soc_update_bits(codec, WM8580_CLKSEL, sel_mask, sel);
+	ret = snd_soc_update_bits(codec, WM8580_CLKSEL, sel_mask, sel);
+	if (ret < 0)
+		return ret;
+
+	return 0;
 }
 
 static int wm8580_digital_mute(struct snd_soc_dai *codec_dai, int mute)
