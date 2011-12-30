@@ -4,6 +4,8 @@
 #include <net/netlink.h>
 #include <net/net_namespace.h>
 #include <linux/module.h>
+#include <linux/rtnetlink.h>
+#include <net/sock.h>
 
 #include <linux/inet_diag.h>
 #include <linux/sock_diag.h>
@@ -30,6 +32,27 @@ void sock_diag_save_cookie(void *sk, __u32 *cookie)
 	cookie[1] = (u32)(((unsigned long)sk >> 31) >> 1);
 }
 EXPORT_SYMBOL_GPL(sock_diag_save_cookie);
+
+int sock_diag_put_meminfo(struct sock *sk, struct sk_buff *skb, int attrtype)
+{
+	__u32 *mem;
+
+	mem = RTA_DATA(__RTA_PUT(skb, attrtype, SK_MEMINFO_VARS * sizeof(__u32)));
+
+	mem[SK_MEMINFO_RMEM_ALLOC] = sk_rmem_alloc_get(sk);
+	mem[SK_MEMINFO_RCVBUF] = sk->sk_rcvbuf;
+	mem[SK_MEMINFO_WMEM_ALLOC] = sk_wmem_alloc_get(sk);
+	mem[SK_MEMINFO_SNDBUF] = sk->sk_sndbuf;
+	mem[SK_MEMINFO_FWD_ALLOC] = sk->sk_forward_alloc;
+	mem[SK_MEMINFO_WMEM_QUEUED] = sk->sk_wmem_queued;
+	mem[SK_MEMINFO_OPTMEM] = atomic_read(&sk->sk_omem_alloc);
+
+	return 0;
+
+rtattr_failure:
+	return -EMSGSIZE;
+}
+EXPORT_SYMBOL_GPL(sock_diag_put_meminfo);
 
 void sock_diag_register_inet_compat(int (*fn)(struct sk_buff *skb, struct nlmsghdr *nlh))
 {
