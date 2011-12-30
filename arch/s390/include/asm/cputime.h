@@ -87,6 +87,8 @@ usecs_to_cputime(const unsigned int m)
 	return (cputime_t) m * 4096;
 }
 
+#define usecs_to_cputime64(m)		usecs_to_cputime(m)
+
 /*
  * Convert cputime to milliseconds and back.
  */

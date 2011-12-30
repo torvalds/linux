@@ -7360,8 +7360,7 @@ static int remove_and_add_spares(struct mddev *mddev)
 					spares++;
 					md_new_event(mddev);
 					set_bit(MD_CHANGE_DEVS, &mddev->flags);
-				} else
-					break;
+				}
 			}
 		}
 	}

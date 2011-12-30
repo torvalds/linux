@@ -532,7 +532,7 @@ static int get_dist_table(struct Qdisc *sch, const struct nlattr *attr)
 		return -EINVAL;
 
 	s = sizeof(struct disttable) + n * sizeof(s16);
-	d = kmalloc(s, GFP_KERNEL);
+	d = kmalloc(s, GFP_KERNEL | __GFP_NOWARN);
 	if (!d)
 		d = vmalloc(s);
 	if (!d)
@@ -545,9 +545,10 @@ static int get_dist_table(struct Qdisc *sch, const struct nlattr *attr)
 	root_lock = qdisc_root_sleeping_lock(sch);
 
 	spin_lock_bh(root_lock);
-	dist_free(q->delay_dist);
-	q->delay_dist = d;
+	swap(q->delay_dist, d);
 	spin_unlock_bh(root_lock);
+
+	dist_free(d);
 	return 0;
 }
 

@@ -1393,9 +1393,6 @@ void bitmap_endwrite(struct bitmap *bitmap, sector_t offset, unsigned long secto
 			 atomic_read(&bitmap->behind_writes),
 			 bitmap->mddev->bitmap_info.max_write_behind);
 	}
-	if (bitmap->mddev->degraded)
-		/* Never clear bits or update events_cleared when degraded */
-		success = 0;
 
 	while (sectors) {
 		sector_t blocks;
@@ -1409,7 +1406,7 @@ void bitmap_endwrite(struct bitmap *bitmap, sector_t offset, unsigned long secto
 			return;
 		}
 
-		if (success &&
+		if (success && !bitmap->mddev->degraded &&
 		    bitmap->events_cleared < bitmap->mddev->events) {
 			bitmap->events_cleared = bitmap->mddev->events;
 			bitmap->need_sync = 1;
