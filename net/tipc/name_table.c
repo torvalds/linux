@@ -625,7 +625,7 @@ not_found:
  */
 
 int tipc_nametbl_mc_translate(u32 type, u32 lower, u32 upper, u32 limit,
-			      struct port_list *dports)
+			      struct tipc_port_list *dports)
 {
 	struct name_seq *seq;
 	struct sub_seq *sseq;

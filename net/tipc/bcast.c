@@ -893,9 +893,9 @@ static void tipc_nmap_diff(struct tipc_node_map *nm_a,
  * tipc_port_list_add - add a port to a port list, ensuring no duplicates
  */
 
-void tipc_port_list_add(struct port_list *pl_ptr, u32 port)
+void tipc_port_list_add(struct tipc_port_list *pl_ptr, u32 port)
 {
-	struct port_list *item = pl_ptr;
+	struct tipc_port_list *item = pl_ptr;
 	int i;
 	int item_sz = PLSIZE;
 	int cnt = pl_ptr->count;
@@ -927,10 +927,10 @@ void tipc_port_list_add(struct port_list *pl_ptr, u32 port)
  *
  */
 
-void tipc_port_list_free(struct port_list *pl_ptr)
+void tipc_port_list_free(struct tipc_port_list *pl_ptr)
 {
-	struct port_list *item;
-	struct port_list *next;
+	struct tipc_port_list *item;
+	struct tipc_port_list *next;
 
 	for (item = pl_ptr->next; item; item = next) {
 		next = item->next;
