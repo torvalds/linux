@@ -63,7 +63,11 @@ static struct mutex set_speed_lock;
 static u64 hispeed_freq;
 
 /* Go to hi speed when CPU load at or above this value. */
+#ifdef CONFIG_ARCH_RK29
+#define DEFAULT_GO_HISPEED_LOAD 80
+#else
 #define DEFAULT_GO_HISPEED_LOAD 95
+#endif
 static unsigned long go_hispeed_load;
 
 /*
@@ -182,6 +186,9 @@ static void cpufreq_interactive_timer(unsigned long data)
 
 	new_freq = pcpu->freq_table[index].frequency;
 
+#ifdef CONFIG_ARCH_RK29
+	pcpu->target_freq = pcpu->policy->cur;
+#endif
 	if (pcpu->target_freq == new_freq)
 		goto rearm_if_notmax;
 
@@ -563,7 +570,11 @@ static int cpufreq_governor_interactive(struct cpufreq_policy *policy,
 		}
 
 		if (!hispeed_freq)
+#ifdef CONFIG_ARCH_RK29
+			hispeed_freq = 816000;
+#else
 			hispeed_freq = policy->max;
+#endif
 
 		/*
 		 * Do not register the idle hook and create sysfs
