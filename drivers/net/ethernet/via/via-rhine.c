@@ -508,9 +508,8 @@ do {								\
 			1024 - i, __func__, __LINE__);		\
 } while (0)
 
-static inline u32 get_intr_status(struct net_device *dev)
+static u32 rhine_get_events(struct rhine_private *rp)
 {
-	struct rhine_private *rp = netdev_priv(dev);
 	void __iomem *ioaddr = rp->base;
 	u32 intr_status;
 
@@ -519,6 +518,16 @@ static inline u32 get_intr_status(struct net_device *dev)
 	if (rp->quirks & rqStatusWBRace)
 		intr_status |= ioread8(ioaddr + IntrStatus2) << 16;
 	return intr_status;
+}
+
+static void rhine_ack_events(struct rhine_private *rp, u32 mask)
+{
+	void __iomem *ioaddr = rp->base;
+
+	if (rp->quirks & rqStatusWBRace)
+		iowrite8(mask >> 16, ioaddr + IntrStatus2);
+	iowrite16(mask, ioaddr + IntrStatus);
+	IOSYNC;
 }
 
 /*
@@ -1580,14 +1589,11 @@ static irqreturn_t rhine_interrupt(int irq, void *dev_instance)
 	int boguscnt = max_interrupt_work;
 	int handled = 0;
 
-	while ((intr_status = get_intr_status(dev))) {
+	while ((intr_status = rhine_get_events(rp))) {
 		handled = 1;
 
 		/* Acknowledge all of the current interrupt sources ASAP. */
-		if (intr_status & IntrTxDescRace)
-			iowrite8(0x08, ioaddr + IntrStatus2);
-		iowrite16(intr_status & 0xffff, ioaddr + IntrStatus);
-		IOSYNC;
+		rhine_ack_events(rp, intr_status);
 
 		if (debug > 4)
 			netdev_dbg(dev, "Interrupt, status %08x\n",
@@ -1872,7 +1878,7 @@ static void rhine_restart_tx(struct net_device *dev) {
 	 * If new errors occurred, we need to sort them out before doing Tx.
 	 * In that case the ISR will be back here RSN anyway.
 	 */
-	intr_status = get_intr_status(dev);
+	intr_status = rhine_get_events(rp);
 
 	if ((intr_status & IntrTxErrSummary) == 0) {
 
