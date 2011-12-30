@@ -355,7 +355,7 @@ static struct platform_device *crag6410_devices[] __initdata = {
 
 static struct pca953x_platform_data crag6410_pca_data = {
 	.gpio_base	= PCA935X_GPIO_BASE,
-	.irq_base	= 0,
+	.irq_base	= -1,
 };
 
 /* VDDARM is controlled by DVS1 connected to GPK(0) */
