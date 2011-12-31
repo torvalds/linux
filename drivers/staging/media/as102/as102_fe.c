@@ -58,9 +58,9 @@ static int as102_fe_set_frontend(struct dvb_frontend *fe)
 	return (ret < 0) ? -EINVAL : 0;
 }
 
-static int as102_fe_get_frontend(struct dvb_frontend *fe,
-				 struct dtv_frontend_properties *p)
+static int as102_fe_get_frontend(struct dvb_frontend *fe)
 {
+	struct dtv_frontend_properties *p = &fe->dtv_property_cache;
 	int ret = 0;
 	struct as102_dev_t *dev;
 	struct as10x_tps tps = { 0 };
