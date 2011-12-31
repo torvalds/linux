@@ -51,7 +51,7 @@ static const struct snd_soc_dapm_widget evb3_dapm_widgets[] = {
 };
 
 /* tavorevb3 machine audio map */
-static const struct snd_soc_dapm_route audio_map[] = {
+static const struct snd_soc_dapm_route evb3_audio_map[] = {
 	{"Headset Stereophone", NULL, "HS1"},
 	{"Headset Stereophone", NULL, "HS2"},
 
@@ -128,17 +128,17 @@ static struct snd_soc_card snd_soc_card_evb3 = {
 	.owner = THIS_MODULE,
 	.dai_link = evb3_dai,
 	.num_links = ARRAY_SIZE(evb3_dai),
+
+	.dapm_widgets = evb3_dapm_widgets,
+	.num_dapm_widgets = ARRAY_SIZE(evb3_dapm_widgets),
+	.dapm_routes = evb3_audio_map,
+	.num_dapm_routes = ARRAY_SIZE(evb3_audio_map),
 };
 
 static int evb3_pm860x_init(struct snd_soc_pcm_runtime *rtd)
 {
 	struct snd_soc_codec *codec = rtd->codec;
 	struct snd_soc_dapm_context *dapm = &codec->dapm;
-	int ret;
-
-	snd_soc_dapm_new_controls(dapm, evb3_dapm_widgets,
-				  ARRAY_SIZE(evb3_dapm_widgets));
-	snd_soc_dapm_add_routes(dapm, audio_map, ARRAY_SIZE(audio_map));
 
 	/* connected pins */
 	snd_soc_dapm_enable_pin(dapm, "Ext Speaker");
