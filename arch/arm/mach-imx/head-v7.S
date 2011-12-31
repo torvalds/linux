@@ -16,7 +16,6 @@
 #include <asm/hardware/cache-l2x0.h>
 
 	.section ".text.head", "ax"
-	__CPUINIT
 
 /*
  * The secondary kernel init calls v7_flush_dcache_all before it enables
