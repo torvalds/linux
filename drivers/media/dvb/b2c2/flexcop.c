@@ -117,11 +117,17 @@ static int flexcop_dvb_init(struct flexcop_device *fc)
 		goto err_connect_frontend;
 	}
 
-	dvb_net_init(&fc->dvb_adapter, &fc->dvbnet, &fc->demux.dmx);
+	ret = dvb_net_init(&fc->dvb_adapter, &fc->dvbnet, &fc->demux.dmx);
+	if (ret < 0) {
+		err("dvb_net_init failed: error %d", ret);
+		goto err_net;
+	}
 
 	fc->init_state |= FC_STATE_DVB_INIT;
 	return 0;
 
+err_net:
+	fc->demux.dmx.disconnect_frontend(&fc->demux.dmx);
 err_connect_frontend:
 	fc->demux.dmx.remove_frontend(&fc->demux.dmx, &fc->mem_frontend);
 err_dmx_add_mem_frontend:
