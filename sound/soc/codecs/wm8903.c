@@ -1777,13 +1777,18 @@ static int wm8903_gpio_direction_in(struct gpio_chip *chip, unsigned offset)
 	struct wm8903_priv *wm8903 = gpio_to_wm8903(chip);
 	struct snd_soc_codec *codec = wm8903->codec;
 	unsigned int mask, val;
+	int ret;
 
 	mask = WM8903_GP1_FN_MASK | WM8903_GP1_DIR_MASK;
 	val = (WM8903_GPn_FN_GPIO_INPUT << WM8903_GP1_FN_SHIFT) |
 		WM8903_GP1_DIR;
 
-	return snd_soc_update_bits(codec, WM8903_GPIO_CONTROL_1 + offset,
-				   mask, val);
+	ret = snd_soc_update_bits(codec, WM8903_GPIO_CONTROL_1 + offset,
+				  mask, val);
+	if (ret < 0)
+		return ret;
+
+	return 0;
 }
 
 static int wm8903_gpio_get(struct gpio_chip *chip, unsigned offset)
@@ -1803,13 +1808,18 @@ static int wm8903_gpio_direction_out(struct gpio_chip *chip,
 	struct wm8903_priv *wm8903 = gpio_to_wm8903(chip);
 	struct snd_soc_codec *codec = wm8903->codec;
 	unsigned int mask, val;
+	int ret;
 
 	mask = WM8903_GP1_FN_MASK | WM8903_GP1_DIR_MASK | WM8903_GP1_LVL_MASK;
 	val = (WM8903_GPn_FN_GPIO_OUTPUT << WM8903_GP1_FN_SHIFT) |
 		(value << WM8903_GP2_LVL_SHIFT);
 
-	return snd_soc_update_bits(codec, WM8903_GPIO_CONTROL_1 + offset,
-				   mask, val);
+	ret = snd_soc_update_bits(codec, WM8903_GPIO_CONTROL_1 + offset,
+				  mask, val);
+	if (ret < 0)
+		return ret;
+
+	return 0;
 }
 
 static void wm8903_gpio_set(struct gpio_chip *chip, unsigned offset, int value)
