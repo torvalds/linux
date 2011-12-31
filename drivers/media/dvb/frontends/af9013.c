@@ -572,8 +572,7 @@ static int af9013_get_tune_settings(struct dvb_frontend *fe,
 	return 0;
 }
 
-static int af9013_set_frontend(struct dvb_frontend *fe,
-	struct dvb_frontend_parameters *p)
+static int af9013_set_frontend(struct dvb_frontend *fe)
 {
 	struct af9013_state *state = fe->demodulator_priv;
 	struct dtv_frontend_properties *c = &fe->dtv_property_cache;
@@ -847,10 +846,9 @@ err:
 }
 
 static int af9013_get_frontend(struct dvb_frontend *fe,
-	struct dvb_frontend_parameters *p)
+			       struct dtv_frontend_properties *c)
 {
 	struct af9013_state *state = fe->demodulator_priv;
-	struct dtv_frontend_properties *c = &fe->dtv_property_cache;
 	int ret;
 	u8 buf[3];
 
@@ -1482,6 +1480,7 @@ err:
 EXPORT_SYMBOL(af9013_attach);
 
 static struct dvb_frontend_ops af9013_ops = {
+	.delsys = { SYS_DVBT },
 	.info = {
 		.name = "Afatech AF9013",
 		.type = FE_OFDM,
@@ -1512,8 +1511,8 @@ static struct dvb_frontend_ops af9013_ops = {
 	.sleep = af9013_sleep,
 
 	.get_tune_settings = af9013_get_tune_settings,
-	.set_frontend_legacy = af9013_set_frontend,
-	.get_frontend_legacy = af9013_get_frontend,
+	.set_frontend = af9013_set_frontend,
+	.get_frontend = af9013_get_frontend,
 
 	.read_status = af9013_read_status,
 	.read_snr = af9013_read_snr,
