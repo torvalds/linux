@@ -246,8 +246,7 @@ u32 cxd2820r_div_u64_round_closest(u64 dividend, u32 divisor)
 	return div_u64(dividend + (divisor / 2), divisor);
 }
 
-static int cxd2820r_set_frontend(struct dvb_frontend *fe,
-				 struct dvb_frontend_parameters *p)
+static int cxd2820r_set_frontend(struct dvb_frontend *fe)
 {
 	struct dtv_frontend_properties *c = &fe->dtv_property_cache;
 	int ret;
@@ -258,7 +257,7 @@ static int cxd2820r_set_frontend(struct dvb_frontend *fe,
 		ret = cxd2820r_init_t(fe);
 		if (ret < 0)
 			goto err;
-		ret = cxd2820r_set_frontend_t(fe, p);
+		ret = cxd2820r_set_frontend_t(fe);
 		if (ret < 0)
 			goto err;
 		break;
@@ -266,15 +265,15 @@ static int cxd2820r_set_frontend(struct dvb_frontend *fe,
 		ret = cxd2820r_init_t(fe);
 		if (ret < 0)
 			goto err;
-		ret = cxd2820r_set_frontend_t2(fe, p);
+		ret = cxd2820r_set_frontend_t2(fe);
 		if (ret < 0)
 			goto err;
 		break;
-	case SYS_DVBC_ANNEX_AC:
+	case SYS_DVBC_ANNEX_A:
 		ret = cxd2820r_init_c(fe);
 		if (ret < 0)
 			goto err;
-		ret = cxd2820r_set_frontend_c(fe, p);
+		ret = cxd2820r_set_frontend_c(fe);
 		if (ret < 0)
 			goto err;
 		break;
@@ -298,7 +297,7 @@ static int cxd2820r_read_status(struct dvb_frontend *fe, fe_status_t *status)
 	case SYS_DVBT2:
 		ret = cxd2820r_read_status_t2(fe, status);
 		break;
-	case SYS_DVBC_ANNEX_AC:
+	case SYS_DVBC_ANNEX_A:
 		ret = cxd2820r_read_status_c(fe, status);
 		break;
 	default:
@@ -309,20 +308,20 @@ static int cxd2820r_read_status(struct dvb_frontend *fe, fe_status_t *status)
 }
 
 static int cxd2820r_get_frontend(struct dvb_frontend *fe,
-				 struct dvb_frontend_parameters *p)
+				 struct dtv_frontend_properties *c)
 {
 	int ret;
 
 	dbg("%s: delsys=%d", __func__, fe->dtv_property_cache.delivery_system);
 	switch (fe->dtv_property_cache.delivery_system) {
 	case SYS_DVBT:
-		ret = cxd2820r_get_frontend_t(fe, p);
+		ret = cxd2820r_get_frontend_t(fe);
 		break;
 	case SYS_DVBT2:
-		ret = cxd2820r_get_frontend_t2(fe, p);
+		ret = cxd2820r_get_frontend_t2(fe);
 		break;
-	case SYS_DVBC_ANNEX_AC:
-		ret = cxd2820r_get_frontend_c(fe, p);
+	case SYS_DVBC_ANNEX_A:
+		ret = cxd2820r_get_frontend_c(fe);
 		break;
 	default:
 		ret = -EINVAL;
@@ -343,7 +342,7 @@ static int cxd2820r_read_ber(struct dvb_frontend *fe, u32 *ber)
 	case SYS_DVBT2:
 		ret = cxd2820r_read_ber_t2(fe, ber);
 		break;
-	case SYS_DVBC_ANNEX_AC:
+	case SYS_DVBC_ANNEX_A:
 		ret = cxd2820r_read_ber_c(fe, ber);
 		break;
 	default:
@@ -365,7 +364,7 @@ static int cxd2820r_read_signal_strength(struct dvb_frontend *fe, u16 *strength)
 	case SYS_DVBT2:
 		ret = cxd2820r_read_signal_strength_t2(fe, strength);
 		break;
-	case SYS_DVBC_ANNEX_AC:
+	case SYS_DVBC_ANNEX_A:
 		ret = cxd2820r_read_signal_strength_c(fe, strength);
 		break;
 	default:
@@ -387,7 +386,7 @@ static int cxd2820r_read_snr(struct dvb_frontend *fe, u16 *snr)
 	case SYS_DVBT2:
 		ret = cxd2820r_read_snr_t2(fe, snr);
 		break;
-	case SYS_DVBC_ANNEX_AC:
+	case SYS_DVBC_ANNEX_A:
 		ret = cxd2820r_read_snr_c(fe, snr);
 		break;
 	default:
@@ -409,7 +408,7 @@ static int cxd2820r_read_ucblocks(struct dvb_frontend *fe, u32 *ucblocks)
 	case SYS_DVBT2:
 		ret = cxd2820r_read_ucblocks_t2(fe, ucblocks);
 		break;
-	case SYS_DVBC_ANNEX_AC:
+	case SYS_DVBC_ANNEX_A:
 		ret = cxd2820r_read_ucblocks_c(fe, ucblocks);
 		break;
 	default:
@@ -436,7 +435,7 @@ static int cxd2820r_sleep(struct dvb_frontend *fe)
 	case SYS_DVBT2:
 		ret = cxd2820r_sleep_t2(fe);
 		break;
-	case SYS_DVBC_ANNEX_AC:
+	case SYS_DVBC_ANNEX_A:
 		ret = cxd2820r_sleep_c(fe);
 		break;
 	default:
@@ -459,7 +458,7 @@ static int cxd2820r_get_tune_settings(struct dvb_frontend *fe,
 	case SYS_DVBT2:
 		ret = cxd2820r_get_tune_settings_t2(fe, s);
 		break;
-	case SYS_DVBC_ANNEX_AC:
+	case SYS_DVBC_ANNEX_A:
 		ret = cxd2820r_get_tune_settings_c(fe, s);
 		break;
 	default:
@@ -479,7 +478,7 @@ static enum dvbfe_search cxd2820r_search(struct dvb_frontend *fe,
 	dbg("%s: delsys=%d", __func__, fe->dtv_property_cache.delivery_system);
 
 	/* switch between DVB-T and DVB-T2 when tune fails */
-	if (priv->last_tune_failed && (priv->delivery_system != SYS_DVBC_ANNEX_AC)) {
+	if (priv->last_tune_failed && (priv->delivery_system != SYS_DVBC_ANNEX_A)) {
 		if (priv->delivery_system == SYS_DVBT)
 			c->delivery_system = SYS_DVBT2;
 		else
@@ -487,7 +486,7 @@ static enum dvbfe_search cxd2820r_search(struct dvb_frontend *fe,
 	}
 
 	/* set frontend */
-	ret = cxd2820r_set_frontend(fe, p);
+	ret = cxd2820r_set_frontend(fe);
 	if (ret)
 		goto error;
 
@@ -555,24 +554,9 @@ static int cxd2820r_i2c_gate_ctrl(struct dvb_frontend *fe, int enable)
 	return cxd2820r_wr_reg_mask(priv, 0xdb, enable ? 1 : 0, 0x1);
 }
 
-static int cxd2820r_get_property(struct dvb_frontend *fe, struct dtv_property *p)
-{
-	dbg("%s()\n", __func__);
-
-	switch (p->cmd) {
-	case DTV_ENUM_DELSYS:
-		p->u.buffer.data[0] = SYS_DVBT;
-		p->u.buffer.data[1] = SYS_DVBT2;
-		p->u.buffer.data[2] = SYS_DVBC_ANNEX_AC;
-		p->u.buffer.len = 3;
-		break;
-	default:
-		break;
-	}
-	return 0;
-}
-
 static const struct dvb_frontend_ops cxd2820r_ops = {
+	.delsys = { SYS_DVBT, SYS_DVBT2, SYS_DVBC_ANNEX_A },
+
 	/* default: DVB-T/T2 */
 	.info = {
 		.name = "Sony CXD2820R (DVB-T/T2)",
@@ -603,7 +587,7 @@ static const struct dvb_frontend_ops cxd2820r_ops = {
 	.get_tune_settings	= cxd2820r_get_tune_settings,
 	.i2c_gate_ctrl		= cxd2820r_i2c_gate_ctrl,
 
-	.get_frontend_legacy	= cxd2820r_get_frontend,
+	.get_frontend		= cxd2820r_get_frontend,
 
 	.get_frontend_algo	= cxd2820r_get_frontend_algo,
 	.search			= cxd2820r_search,
@@ -613,8 +597,6 @@ static const struct dvb_frontend_ops cxd2820r_ops = {
 	.read_ber		= cxd2820r_read_ber,
 	.read_ucblocks		= cxd2820r_read_ucblocks,
 	.read_signal_strength	= cxd2820r_read_signal_strength,
-
-	.get_property		= cxd2820r_get_property,
 };
 
 struct dvb_frontend *cxd2820r_attach(const struct cxd2820r_config *cfg,

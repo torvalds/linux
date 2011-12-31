@@ -21,8 +21,7 @@
 
 #include "cxd2820r_priv.h"
 
-int cxd2820r_set_frontend_t2(struct dvb_frontend *fe,
-			     struct dvb_frontend_parameters *params)
+int cxd2820r_set_frontend_t2(struct dvb_frontend *fe)
 {
 	struct cxd2820r_priv *priv = fe->demodulator_priv;
 	struct dtv_frontend_properties *c = &fe->dtv_property_cache;
@@ -156,8 +155,7 @@ error:
 
 }
 
-int cxd2820r_get_frontend_t2(struct dvb_frontend *fe,
-	struct dvb_frontend_parameters *p)
+int cxd2820r_get_frontend_t2(struct dvb_frontend *fe)
 {
 	struct cxd2820r_priv *priv = fe->demodulator_priv;
 	struct dtv_frontend_properties *c = &fe->dtv_property_cache;

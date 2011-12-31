@@ -86,11 +86,9 @@ int cxd2820r_rd_reg(struct cxd2820r_priv *priv, u32 reg, u8 *val);
 
 /* cxd2820r_c.c */
 
-int cxd2820r_get_frontend_c(struct dvb_frontend *fe,
-	struct dvb_frontend_parameters *p);
+int cxd2820r_get_frontend_c(struct dvb_frontend *fe);
 
-int cxd2820r_set_frontend_c(struct dvb_frontend *fe,
-	struct dvb_frontend_parameters *params);
+int cxd2820r_set_frontend_c(struct dvb_frontend *fe);
 
 int cxd2820r_read_status_c(struct dvb_frontend *fe, fe_status_t *status);
 
@@ -111,11 +109,9 @@ int cxd2820r_get_tune_settings_c(struct dvb_frontend *fe,
 
 /* cxd2820r_t.c */
 
-int cxd2820r_get_frontend_t(struct dvb_frontend *fe,
-	struct dvb_frontend_parameters *p);
+int cxd2820r_get_frontend_t(struct dvb_frontend *fe);
 
-int cxd2820r_set_frontend_t(struct dvb_frontend *fe,
-	struct dvb_frontend_parameters *params);
+int cxd2820r_set_frontend_t(struct dvb_frontend *fe);
 
 int cxd2820r_read_status_t(struct dvb_frontend *fe, fe_status_t *status);
 
@@ -136,11 +132,9 @@ int cxd2820r_get_tune_settings_t(struct dvb_frontend *fe,
 
 /* cxd2820r_t2.c */
 
-int cxd2820r_get_frontend_t2(struct dvb_frontend *fe,
-	struct dvb_frontend_parameters *p);
+int cxd2820r_get_frontend_t2(struct dvb_frontend *fe);
 
-int cxd2820r_set_frontend_t2(struct dvb_frontend *fe,
-	struct dvb_frontend_parameters *params);
+int cxd2820r_set_frontend_t2(struct dvb_frontend *fe);
 
 int cxd2820r_read_status_t2(struct dvb_frontend *fe, fe_status_t *status);
 
