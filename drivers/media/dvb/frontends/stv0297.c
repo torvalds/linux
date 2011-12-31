@@ -690,7 +690,7 @@ error:
 }
 
 static struct dvb_frontend_ops stv0297_ops = {
-
+	.delsys = { SYS_DVBC },
 	.info = {
 		 .name = "ST STV0297 DVB-C",
 		 .type = FE_QAM,

@@ -375,7 +375,7 @@ error:
 EXPORT_SYMBOL(s5h1432_attach);
 
 static struct dvb_frontend_ops s5h1432_ops = {
-
+	.delsys = { SYS_DVBT },
 	.info = {
 		 .name = "Samsung s5h1432 DVB-T Frontend",
 		 .type = FE_OFDM,

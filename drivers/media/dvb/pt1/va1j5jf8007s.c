@@ -579,6 +579,7 @@ static void va1j5jf8007s_release(struct dvb_frontend *fe)
 }
 
 static struct dvb_frontend_ops va1j5jf8007s_ops = {
+	.delsys = { SYS_ISDBS },
 	.info = {
 		.name = "VA1J5JF8007/VA1J5JF8011 ISDB-S",
 		.type = FE_QPSK,

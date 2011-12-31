@@ -428,6 +428,7 @@ static void va1j5jf8007t_release(struct dvb_frontend *fe)
 }
 
 static struct dvb_frontend_ops va1j5jf8007t_ops = {
+	.delsys = { SYS_ISDBT },
 	.info = {
 		.name = "VA1J5JF8007/VA1J5JF8011 ISDB-T",
 		.type = FE_OFDM,

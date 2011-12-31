@@ -1157,7 +1157,7 @@ error:
 EXPORT_SYMBOL(tda10048_attach);
 
 static struct dvb_frontend_ops tda10048_ops = {
-
+	.delsys = { SYS_DVBT },
 	.info = {
 		.name			= "NXP TDA10048HN DVB-T",
 		.type			= FE_OFDM,
