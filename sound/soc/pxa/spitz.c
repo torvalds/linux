@@ -222,7 +222,7 @@ static const struct snd_soc_dapm_widget wm8750_dapm_widgets[] = {
 };
 
 /* Spitz machine audio_map */
-static const struct snd_soc_dapm_route audio_map[] = {
+static const struct snd_soc_dapm_route spitz_audio_map[] = {
 
 	/* headphone connected to LOUT1, ROUT1 */
 	{"Headphone Jack", NULL, "LOUT1"},
@@ -265,7 +265,6 @@ static int spitz_wm8750_init(struct snd_soc_pcm_runtime *rtd)
 {
 	struct snd_soc_codec *codec = rtd->codec;
 	struct snd_soc_dapm_context *dapm = &codec->dapm;
-	int err;
 
 	/* NC codec pins */
 	snd_soc_dapm_nc_pin(dapm, "RINPUT1");
@@ -275,19 +274,6 @@ static int spitz_wm8750_init(struct snd_soc_pcm_runtime *rtd)
 	snd_soc_dapm_nc_pin(dapm, "RINPUT3");
 	snd_soc_dapm_nc_pin(dapm, "OUT3");
 	snd_soc_dapm_nc_pin(dapm, "MONO1");
-
-	/* Add spitz specific controls */
-	err = snd_soc_add_controls(codec, wm8750_spitz_controls,
-				ARRAY_SIZE(wm8750_spitz_controls));
-	if (err < 0)
-		return err;
-
-	/* Add spitz specific widgets */
-	snd_soc_dapm_new_controls(dapm, wm8750_dapm_widgets,
-				  ARRAY_SIZE(wm8750_dapm_widgets));
-
-	/* Set up spitz specific audio paths */
-	snd_soc_dapm_add_routes(dapm, audio_map, ARRAY_SIZE(audio_map));
 
 	return 0;
 }
@@ -312,6 +298,13 @@ static struct snd_soc_card snd_soc_spitz = {
 	.owner = THIS_MODULE,
 	.dai_link = &spitz_dai,
 	.num_links = 1,
+
+	.controls = wm8750_spitz_controls,
+	.num_controls = ARRAY_SIZE(wm8750_spitz_controls),
+	.dapm_widgets = wm8750_dapm_widgets,
+	.num_dapm_widgets = ARRAY_SIZE(wm8750_dapm_widgets),
+	.dapm_routes = spitz_audio_map,
+	.num_dapm_routes = ARRAY_SIZE(spitz_audio_map),
 };
 
 static struct platform_device *spitz_snd_device;
