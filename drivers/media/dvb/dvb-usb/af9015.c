@@ -1096,8 +1096,7 @@ error:
 }
 
 /* override demod callbacks for resource locking */
-static int af9015_af9013_set_frontend(struct dvb_frontend *fe,
-	struct dvb_frontend_parameters *params)
+static int af9015_af9013_set_frontend(struct dvb_frontend *fe)
 {
 	int ret;
 	struct dvb_usb_adapter *adap = fe->dvb->priv;
@@ -1106,7 +1105,7 @@ static int af9015_af9013_set_frontend(struct dvb_frontend *fe,
 	if (mutex_lock_interruptible(&adap->dev->usb_mutex))
 		return -EAGAIN;
 
-	ret = priv->set_frontend[adap->id](fe, params);
+	ret = priv->set_frontend[adap->id](fe);
 
 	mutex_unlock(&adap->dev->usb_mutex);
 
