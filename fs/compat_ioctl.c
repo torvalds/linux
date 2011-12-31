@@ -105,6 +105,7 @@
 
 #include <linux/hiddev.h>
 
+#define __DVB_CORE__
 #include <linux/dvb/audio.h>
 #include <linux/dvb/dmx.h>
 #include <linux/dvb/frontend.h>
