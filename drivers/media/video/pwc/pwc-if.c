@@ -1058,16 +1058,6 @@ static int usb_pwc_probe(struct usb_interface *intf, const struct usb_device_id 
 	pdev->vframes = default_fps;
 	strcpy(pdev->serial, serial_number);
 	pdev->features = features;
-	if (vendor_id == 0x046D && product_id == 0x08B5) {
-		/* Logitech QuickCam Orbit
-		   The ranges have been determined experimentally; they may differ from cam to cam.
-		   Also, the exact ranges left-right and up-down are different for my cam
-		  */
-		pdev->angle_range.pan_min  = -7000;
-		pdev->angle_range.pan_max  =  7000;
-		pdev->angle_range.tilt_min = -3000;
-		pdev->angle_range.tilt_max =  2500;
-	}
 	pwc_construct(pdev); /* set min/max sizes correct */
 
 	mutex_init(&pdev->capt_file_lock);

@@ -460,15 +460,6 @@ Who:	Jean Delvare <khali@linux-fr.org>
 
 ----------------------------
 
-What:	Support for driver specific ioctls in the pwc driver (everything
-	defined in media/pwc-ioctl.h)
-When:	3.3
-Why:	This stems from the v4l1 era, with v4l2 everything can be done with
-	standardized v4l2 API calls
-Who:	Hans de Goede <hdegoede@redhat.com>
-
-----------------------------
-
 What:	Software emulation of arbritary resolutions in the pwc driver
 When:	3.3
 Why:	The pwc driver claims to support any resolution between 160x120

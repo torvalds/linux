@@ -1122,14 +1122,6 @@ static int pwc_log_status(struct file *file, void *priv)
 	return 0;
 }
 
-static long pwc_default(struct file *file, void *fh, bool valid_prio,
-			int cmd, void *arg)
-{
-	struct pwc_device *pdev = video_drvdata(file);
-
-	return pwc_ioctl(pdev, cmd, arg);
-}
-
 const struct v4l2_ioctl_ops pwc_ioctl_ops = {
 	.vidioc_querycap		    = pwc_querycap,
 	.vidioc_enum_input		    = pwc_enum_input,
@@ -1148,8 +1140,4 @@ const struct v4l2_ioctl_ops pwc_ioctl_ops = {
 	.vidioc_log_status		    = pwc_log_status,
 	.vidioc_enum_framesizes		    = pwc_enum_framesizes,
 	.vidioc_enum_frameintervals	    = pwc_enum_frameintervals,
-	.vidioc_default		    = pwc_default,
 };
-
-
-/* vim: set cino= formatoptions=croql cindent shiftwidth=8 tabstop=8: */

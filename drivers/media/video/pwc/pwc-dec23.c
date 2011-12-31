@@ -27,7 +27,6 @@
 #include "pwc-timon.h"
 #include "pwc-kiara.h"
 #include "pwc-dec23.h"
-#include <media/pwc-ioctl.h>
 
 #include <linux/string.h>
 #include <linux/slab.h>

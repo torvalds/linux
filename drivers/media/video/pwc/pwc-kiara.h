@@ -27,7 +27,7 @@
 #ifndef PWC_KIARA_H
 #define PWC_KIARA_H
 
-#include <media/pwc-ioctl.h>
+#include "pwc.h"
 
 #define PWC_FPS_MAX_KIARA 6
 

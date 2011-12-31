@@ -45,8 +45,6 @@
 #include <linux/input.h>
 #endif
 
-#include <media/pwc-ioctl.h>
-
 /* Version block */
 #define PWC_VERSION	"10.0.15"
 #define PWC_NAME 	"pwc"
@@ -189,6 +187,30 @@
 #define PT_RESET_CONTROL_FORMATTER		0x02
 #define PT_STATUS_FORMATTER			0x03
 
+/* Enumeration of image sizes */
+#define PSZ_SQCIF	0x00
+#define PSZ_QSIF	0x01
+#define PSZ_QCIF	0x02
+#define PSZ_SIF		0x03
+#define PSZ_CIF		0x04
+#define PSZ_VGA		0x05
+#define PSZ_MAX		6
+
+struct pwc_raw_frame {
+	__le16 type;		/* type of the webcam */
+	__le16 vbandlength;	/* Size of 4 lines compressed (used by the
+				   decompressor) */
+	__u8   cmd[4];		/* the four byte of the command (in case of
+				   nala, only the first 3 bytes is filled) */
+	__u8   rawframe[0];	/* frame_size = H / 4 * vbandlength */
+} __packed;
+
+/* structure for transferring x & y coordinates */
+struct pwc_coord {
+	int x, y;		/* guess what */
+	int size;		/* size, or offset */
+};
+
 /* intermediate buffers with raw data from the USB cam */
 struct pwc_frame_buf
 {
@@ -268,11 +290,6 @@ struct pwc_device
 	struct pwc_coord abs_max;		/* maximum supported size */
 	struct pwc_coord image, view;		/* image and viewport size */
 	struct pwc_coord offset;		/* offset of the viewport */
-
-	/*** motorized pan/tilt feature */
-	struct pwc_mpt_range angle_range;
-	int pan_angle;			/* in degrees * 100 */
-	int tilt_angle;			/* absolute angle; 0,0 is home */
 
 #ifdef CONFIG_USB_PWC_INPUT_EVDEV
 	struct input_dev *button_dev;	/* webcam snapshot button input */
@@ -357,8 +374,6 @@ void pwc_construct(struct pwc_device *pdev);
 extern int pwc_set_video_mode(struct pwc_device *pdev, int width, int height,
 			      int frames, int compression);
 extern unsigned int pwc_get_fps(struct pwc_device *pdev, unsigned int index, unsigned int size);
-extern int pwc_mpt_reset(struct pwc_device *pdev, int flags);
-extern int pwc_mpt_set_angle(struct pwc_device *pdev, int pan, int tilt);
 extern int pwc_set_leds(struct pwc_device *pdev, int on_value, int off_value);
 extern int pwc_get_cmos_sensor(struct pwc_device *pdev, int *sensor);
 extern int send_control_msg(struct pwc_device *pdev,
@@ -376,9 +391,6 @@ int pwc_init_controls(struct pwc_device *pdev);
 
 /* Power down or up the camera; not supported by all models */
 extern void pwc_camera_power(struct pwc_device *pdev, int power);
-
-/* Private ioctl()s; see pwc-ioctl.h */
-extern long pwc_ioctl(struct pwc_device *pdev, unsigned int cmd, void *arg);
 
 extern const struct v4l2_ioctl_ops pwc_ioctl_ops;
 
