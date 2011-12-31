@@ -744,57 +744,42 @@ static int __devinit dvb_bt8xx_load_card(struct dvb_bt8xx_card *card, u32 type)
 	card->demux.stop_feed = dvb_bt8xx_stop_feed;
 	card->demux.write_to_decoder = NULL;
 
-	if ((result = dvb_dmx_init(&card->demux)) < 0) {
+	result = dvb_dmx_init(&card->demux);
+	if (result < 0) {
 		printk("dvb_bt8xx: dvb_dmx_init failed (errno = %d)\n", result);
-
-		dvb_unregister_adapter(&card->dvb_adapter);
-		return result;
+		goto err_unregister_adaptor;
 	}
 
 	card->dmxdev.filternum = 256;
 	card->dmxdev.demux = &card->demux.dmx;
 	card->dmxdev.capabilities = 0;
 
-	if ((result = dvb_dmxdev_init(&card->dmxdev, &card->dvb_adapter)) < 0) {
+	result = dvb_dmxdev_init(&card->dmxdev, &card->dvb_adapter);
+	if (result < 0) {
 		printk("dvb_bt8xx: dvb_dmxdev_init failed (errno = %d)\n", result);
-
-		dvb_dmx_release(&card->demux);
-		dvb_unregister_adapter(&card->dvb_adapter);
-		return result;
+		goto err_dmx_release;
 	}
 
 	card->fe_hw.source = DMX_FRONTEND_0;
 
-	if ((result = card->demux.dmx.add_frontend(&card->demux.dmx, &card->fe_hw)) < 0) {
+	result = card->demux.dmx.add_frontend(&card->demux.dmx, &card->fe_hw);
+	if (result < 0) {
 		printk("dvb_bt8xx: dvb_dmx_init failed (errno = %d)\n", result);
-
-		dvb_dmxdev_release(&card->dmxdev);
-		dvb_dmx_release(&card->demux);
-		dvb_unregister_adapter(&card->dvb_adapter);
-		return result;
+		goto err_dmxdev_release;
 	}
 
 	card->fe_mem.source = DMX_MEMORY_FE;
 
-	if ((result = card->demux.dmx.add_frontend(&card->demux.dmx, &card->fe_mem)) < 0) {
+	result = card->demux.dmx.add_frontend(&card->demux.dmx, &card->fe_mem);
+	if (result < 0) {
 		printk("dvb_bt8xx: dvb_dmx_init failed (errno = %d)\n", result);
-
-		card->demux.dmx.remove_frontend(&card->demux.dmx, &card->fe_hw);
-		dvb_dmxdev_release(&card->dmxdev);
-		dvb_dmx_release(&card->demux);
-		dvb_unregister_adapter(&card->dvb_adapter);
-		return result;
+		goto err_remove_hw_frontend;
 	}
 
-	if ((result = card->demux.dmx.connect_frontend(&card->demux.dmx, &card->fe_hw)) < 0) {
+	result = card->demux.dmx.connect_frontend(&card->demux.dmx, &card->fe_hw);
+	if (result < 0) {
 		printk("dvb_bt8xx: dvb_dmx_init failed (errno = %d)\n", result);
-
-		card->demux.dmx.remove_frontend(&card->demux.dmx, &card->fe_mem);
-		card->demux.dmx.remove_frontend(&card->demux.dmx, &card->fe_hw);
-		dvb_dmxdev_release(&card->dmxdev);
-		dvb_dmx_release(&card->demux);
-		dvb_unregister_adapter(&card->dvb_adapter);
-		return result;
+		goto err_remove_mem_frontend;
 	}
 
 	dvb_net_init(&card->dvb_adapter, &card->dvbnet, &card->demux.dmx);
@@ -804,6 +789,18 @@ static int __devinit dvb_bt8xx_load_card(struct dvb_bt8xx_card *card, u32 type)
 	frontend_init(card, type);
 
 	return 0;
+
+err_remove_mem_frontend:
+	card->demux.dmx.remove_frontend(&card->demux.dmx, &card->fe_mem);
+err_remove_hw_frontend:
+	card->demux.dmx.remove_frontend(&card->demux.dmx, &card->fe_hw);
+err_dmxdev_release:
+	dvb_dmxdev_release(&card->dmxdev);
+err_dmx_release:
+	dvb_dmx_release(&card->demux);
+err_unregister_adaptor:
+	dvb_unregister_adapter(&card->dvb_adapter);
+	return result;
 }
 
 static int __devinit dvb_bt8xx_probe(struct bttv_sub_device *sub)
