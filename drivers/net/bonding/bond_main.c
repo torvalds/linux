@@ -1822,7 +1822,7 @@ int bond_enslave(struct net_device *bond_dev, struct net_device *slave_dev)
 				 "but new slave device does not support netpoll.\n",
 				 bond_dev->name);
 			res = -EBUSY;
-			goto err_close;
+			goto err_detach;
 		}
 	}
 #endif
@@ -1831,7 +1831,7 @@ int bond_enslave(struct net_device *bond_dev, struct net_device *slave_dev)
 
 	res = bond_create_slave_symlinks(bond_dev, slave_dev);
 	if (res)
-		goto err_close;
+		goto err_detach;
 
 	res = netdev_rx_handler_register(slave_dev, bond_handle_frame,
 					 new_slave);
@@ -1851,6 +1851,11 @@ int bond_enslave(struct net_device *bond_dev, struct net_device *slave_dev)
 /* Undo stages on error */
 err_dest_symlinks:
 	bond_destroy_slave_symlinks(bond_dev, slave_dev);
+
+err_detach:
+	write_lock_bh(&bond->lock);
+	bond_detach_slave(bond, new_slave);
+	write_unlock_bh(&bond->lock);
 
 err_close:
 	dev_close(slave_dev);
