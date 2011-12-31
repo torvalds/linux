@@ -112,7 +112,7 @@ static const struct snd_soc_dapm_widget wm8750_dapm_widgets[] = {
 };
 
 /* Z2 machine audio_map */
-static const struct snd_soc_dapm_route audio_map[] = {
+static const struct snd_soc_dapm_route z2_audio_map[] = {
 
 	/* headphone connected to LOUT1, ROUT1 */
 	{"Headphone Jack", NULL, "LOUT1"},
@@ -141,13 +141,6 @@ static int z2_wm8750_init(struct snd_soc_pcm_runtime *rtd)
 	snd_soc_dapm_disable_pin(dapm, "RINPUT3");
 	snd_soc_dapm_disable_pin(dapm, "OUT3");
 	snd_soc_dapm_disable_pin(dapm, "MONO1");
-
-	/* Add z2 specific widgets */
-	snd_soc_dapm_new_controls(dapm, wm8750_dapm_widgets,
-				 ARRAY_SIZE(wm8750_dapm_widgets));
-
-	/* Set up z2 specific audio paths */
-	snd_soc_dapm_add_routes(dapm, audio_map, ARRAY_SIZE(audio_map));
 
 	/* Jack detection API stuff */
 	ret = snd_soc_jack_new(codec, "Headset Jack", SND_JACK_HEADSET,
@@ -195,6 +188,11 @@ static struct snd_soc_card snd_soc_z2 = {
 	.owner		= THIS_MODULE,
 	.dai_link	= &z2_dai,
 	.num_links	= 1,
+
+	.dapm_widgets = wm8750_dapm_widgets,
+	.num_dapm_widgets = ARRAY_SIZE(wm8750_dapm_widgets),
+	.dapm_routes = z2_audio_map,
+	.num_dapm_routes = ARRAY_SIZE(z2_audio_map),
 };
 
 static struct platform_device *z2_snd_device;
