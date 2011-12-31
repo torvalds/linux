@@ -111,12 +111,6 @@ int pwc_decompress(struct pwc_device *pdev, struct pwc_frame_buf *fbuf)
 	 * the decompressor routines will write the data in planar format
 	 * immediately.
 	 */
-	if (pdev->vsize == PSZ_VGA && pdev->vframes == 5 && pdev->vsnapshot) {
-		PWC_ERROR("Mode Bayer is not supported for now\n");
-		/* flags |= PWCX_FLAG_BAYER; */
-		return -ENXIO; /* No such device or address: missing decompressor */
-	}
-
 	if (DEVICE_USE_CODEC1(pdev->type)) {
 
 		/* TODO & FIXME */
@@ -124,7 +118,7 @@ int pwc_decompress(struct pwc_device *pdev, struct pwc_frame_buf *fbuf)
 		return -ENXIO; /* No such device or address: missing decompressor */
 
 	} else {
-		pwc_dec23_decompress(pdev, yuv, image, PWCX_FLAG_PLANAR);
+		pwc_dec23_decompress(pdev, yuv, image);
 	}
 	return 0;
 }

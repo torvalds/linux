@@ -220,7 +220,6 @@ static int set_video_mode_Nala(struct pwc_device *pdev, int size, int frames)
 
 	/* Set various parameters */
 	pdev->vframes = frames;
-	pdev->vsize = size;
 	pdev->valternate = pEntry->alternate;
 	pdev->image = pwc_image_sizes[size];
 	pdev->frame_size = (pdev->image.x * pdev->image.y * 3) / 2;
@@ -240,7 +239,8 @@ static int set_video_mode_Nala(struct pwc_device *pdev, int size, int frames)
 }
 
 
-static int set_video_mode_Timon(struct pwc_device *pdev, int size, int frames, int compression, int snapshot)
+static int set_video_mode_Timon(struct pwc_device *pdev, int size, int frames,
+	int compression)
 {
 	unsigned char buf[13];
 	const struct Timon_table_entry *pChoose;
@@ -266,8 +266,6 @@ static int set_video_mode_Timon(struct pwc_device *pdev, int size, int frames, i
 		return -ENOENT; /* Not supported. */
 
 	memcpy(buf, pChoose->mode, 13);
-	if (snapshot)
-		buf[0] |= 0x80;
 	ret = send_video_command(pdev, pdev->vendpoint, buf, 13);
 	if (ret < 0)
 		return ret;
@@ -283,8 +281,6 @@ static int set_video_mode_Timon(struct pwc_device *pdev, int size, int frames, i
 
 	/* Set various parameters */
 	pdev->vframes = frames;
-	pdev->vsize = size;
-	pdev->vsnapshot = snapshot;
 	pdev->valternate = pChoose->alternate;
 	pdev->image = pwc_image_sizes[size];
 	pdev->vbandlength = pChoose->bandlength;
@@ -296,12 +292,12 @@ static int set_video_mode_Timon(struct pwc_device *pdev, int size, int frames, i
 }
 
 
-static int set_video_mode_Kiara(struct pwc_device *pdev, int size, int frames, int compression, int snapshot)
+static int set_video_mode_Kiara(struct pwc_device *pdev, int size, int frames,
+	int compression)
 {
 	const struct Kiara_table_entry *pChoose = NULL;
 	int fps, ret;
 	unsigned char buf[12];
-	struct Kiara_table_entry RawEntry = {6, 773, 1272, {0xAD, 0xF4, 0x10, 0x27, 0xB6, 0x24, 0x96, 0x02, 0x30, 0x05, 0x03, 0x80}};
 
 	if (size >= PSZ_MAX || frames < 5 || frames > 30 || compression < 0 || compression > 3)
 		return -EINVAL;
@@ -309,29 +305,15 @@ static int set_video_mode_Kiara(struct pwc_device *pdev, int size, int frames, i
 		return -EINVAL;
 	fps = (frames / 5) - 1;
 
-	/* special case: VGA @ 5 fps and snapshot is raw bayer mode */
-	if (size == PSZ_VGA && frames == 5 && snapshot && pdev->pixfmt != V4L2_PIX_FMT_YUV420)
-	{
-		/* Only available in case the raw palette is selected or
-		   we have the decompressor available. This mode is
-		   only available in compressed form
-		*/
-		PWC_DEBUG_SIZE("Choosing VGA/5 BAYER mode.\n");
-		pChoose = &RawEntry;
-	}
-	else
-	{
-		/* Find a supported framerate with progressively higher compression ratios
-		   if the preferred ratio is not available.
-		   Skip this step when using RAW modes.
-		*/
-		snapshot = 0;
-		while (compression <= 3) {
-			pChoose = &Kiara_table[size][fps][compression];
-			if (pChoose->alternate != 0)
-				break;
-			compression++;
-		}
+	/* Find a supported framerate with progressively higher compression
+	   ratios if the preferred ratio is not available.
+	   Skip this step when using RAW modes.
+	*/
+	while (compression <= 3) {
+		pChoose = &Kiara_table[size][fps][compression];
+		if (pChoose->alternate != 0)
+			break;
+		compression++;
 	}
 	if (pChoose == NULL || pChoose->alternate == 0)
 		return -ENOENT; /* Not supported. */
@@ -340,8 +322,6 @@ static int set_video_mode_Kiara(struct pwc_device *pdev, int size, int frames, i
 
 	/* usb_control_msg won't take staticly allocated arrays as argument?? */
 	memcpy(buf, pChoose->mode, 12);
-	if (snapshot)
-		buf[0] |= 0x80;
 
 	/* Firmware bug: video endpoint is 5, but commands are sent to endpoint 4 */
 	ret = send_video_command(pdev, 4 /* pdev->vendpoint */, buf, 12);
@@ -358,8 +338,6 @@ static int set_video_mode_Kiara(struct pwc_device *pdev, int size, int frames, i
 	memcpy(pdev->cmd_buf, buf, 12);
 	/* All set and go */
 	pdev->vframes = frames;
-	pdev->vsize = size;
-	pdev->vsnapshot = snapshot;
 	pdev->valternate = pChoose->alternate;
 	pdev->image = pwc_image_sizes[size];
 	pdev->vbandlength = pChoose->bandlength;
@@ -367,8 +345,8 @@ static int set_video_mode_Kiara(struct pwc_device *pdev, int size, int frames, i
 		pdev->frame_size = (pdev->vbandlength * pdev->image.y) / 4;
 	else
 		pdev->frame_size = (pdev->image.x * pdev->image.y * 12) / 8;
-	PWC_TRACE("frame_size=%d, vframes=%d, vsize=%d, vsnapshot=%d, vbandlength=%d\n",
-	    pdev->frame_size,pdev->vframes,pdev->vsize,pdev->vsnapshot,pdev->vbandlength);
+	PWC_TRACE("frame_size=%d, vframes=%d, vsize=%d, vbandlength=%d\n",
+	    pdev->frame_size, pdev->vframes, size, pdev->vbandlength);
 	return 0;
 }
 
@@ -380,9 +358,9 @@ static int set_video_mode_Kiara(struct pwc_device *pdev, int size, int frames, i
    @height: viewport height
    @frame: framerate, in fps
    @compression: preferred compression ratio
-   @snapshot: snapshot mode or streaming
  */
-int pwc_set_video_mode(struct pwc_device *pdev, int width, int height, int frames, int compression, int snapshot)
+int pwc_set_video_mode(struct pwc_device *pdev, int width, int height,
+	int frames, int compression)
 {
 	int ret, size;
 
@@ -398,10 +376,10 @@ int pwc_set_video_mode(struct pwc_device *pdev, int width, int height, int frame
 		ret = set_video_mode_Nala(pdev, size, frames);
 
 	} else if (DEVICE_USE_CODEC3(pdev->type)) {
-		ret = set_video_mode_Kiara(pdev, size, frames, compression, snapshot);
+		ret = set_video_mode_Kiara(pdev, size, frames, compression);
 
 	} else {
-		ret = set_video_mode_Timon(pdev, size, frames, compression, snapshot);
+		ret = set_video_mode_Timon(pdev, size, frames, compression);
 	}
 	if (ret < 0) {
 		PWC_ERROR("Failed to set video mode %s@%d fps; return code = %d\n", size2name[size], frames, ret);
@@ -852,7 +830,9 @@ long pwc_ioctl(struct pwc_device *pdev, unsigned int cmd, void *arg)
 		if (ARGR(qual) < 0 || ARGR(qual) > 3)
 			ret = -EINVAL;
 		else
-			ret = pwc_set_video_mode(pdev, pdev->view.x, pdev->view.y, pdev->vframes, ARGR(qual), pdev->vsnapshot);
+			ret = pwc_set_video_mode(pdev,
+						 pdev->view.x, pdev->view.y,
+						 pdev->vframes, ARGR(qual));
 leave:
 		mutex_unlock(&pdev->udevlock);
 		break;

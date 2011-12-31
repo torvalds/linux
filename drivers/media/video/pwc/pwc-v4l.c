@@ -513,7 +513,7 @@ static int pwc_s_fmt_vid_cap(struct file *file, void *fh, struct v4l2_format *f)
 				 f->fmt.pix.width,
 				 f->fmt.pix.height,
 				 pdev->vframes,
-				 pdev->vcompression, 0);
+				 pdev->vcompression);
 
 	PWC_DEBUG_IOCTL("pwc_set_video_mode(), return=%d\n", ret);
 

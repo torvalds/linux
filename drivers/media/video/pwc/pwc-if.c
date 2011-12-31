@@ -743,8 +743,7 @@ static int start_streaming(struct vb2_queue *vq, unsigned int count)
 	if (pdev->power_save) {
 		/* Restore video mode */
 		pwc_set_video_mode(pdev, pdev->view.x, pdev->view.y,
-				   pdev->vframes, pdev->vcompression,
-				   pdev->vsnapshot);
+				   pdev->vframes, pdev->vcompression);
 	}
 	pwc_set_leds(pdev, led_on, led_off);
 
@@ -1131,7 +1130,7 @@ static int usb_pwc_probe(struct usb_interface *intf, const struct usb_device_id 
 
 	/* Setup intial videomode */
 	rc = pwc_set_video_mode(pdev, pdev->view_max.x, pdev->view_max.y,
-				pdev->vframes, pdev->vcompression, 0);
+				pdev->vframes, pdev->vcompression);
 	if (rc)
 		goto err_free_mem;
 
