@@ -1704,10 +1704,8 @@ static int ttusb_probe(struct usb_interface *intf, const struct usb_device_id *i
 	ttusb->i2c_adap.dev.parent	  = &udev->dev;
 
 	result = i2c_add_adapter(&ttusb->i2c_adap);
-	if (result) {
-		dvb_unregister_adapter (&ttusb->adapter);
-		return result;
-	}
+	if (result)
+		goto err_unregister_adapter;
 
 	memset(&ttusb->dvb_demux, 0, sizeof(ttusb->dvb_demux));
 
@@ -1724,33 +1722,29 @@ static int ttusb_probe(struct usb_interface *intf, const struct usb_device_id *i
 	ttusb->dvb_demux.stop_feed = ttusb_stop_feed;
 	ttusb->dvb_demux.write_to_decoder = NULL;
 
-	if ((result = dvb_dmx_init(&ttusb->dvb_demux)) < 0) {
+	result = dvb_dmx_init(&ttusb->dvb_demux);
+	if (result < 0) {
 		printk("ttusb_dvb: dvb_dmx_init failed (errno = %d)\n", result);
-		i2c_del_adapter(&ttusb->i2c_adap);
-		dvb_unregister_adapter (&ttusb->adapter);
-		return -ENODEV;
+		result = -ENODEV;
+		goto err_i2c_del_adapter;
 	}
 //FIXME dmxdev (nur WAS?)
 	ttusb->dmxdev.filternum = ttusb->dvb_demux.filternum;
 	ttusb->dmxdev.demux = &ttusb->dvb_demux.dmx;
 	ttusb->dmxdev.capabilities = 0;
 
-	if ((result = dvb_dmxdev_init(&ttusb->dmxdev, &ttusb->adapter)) < 0) {
+	result = dvb_dmxdev_init(&ttusb->dmxdev, &ttusb->adapter);
+	if (result < 0) {
 		printk("ttusb_dvb: dvb_dmxdev_init failed (errno = %d)\n",
 		       result);
-		dvb_dmx_release(&ttusb->dvb_demux);
-		i2c_del_adapter(&ttusb->i2c_adap);
-		dvb_unregister_adapter (&ttusb->adapter);
-		return -ENODEV;
+		result = -ENODEV;
+		goto err_release_dmx;
 	}
 
 	if (dvb_net_init(&ttusb->adapter, &ttusb->dvbnet, &ttusb->dvb_demux.dmx)) {
 		printk("ttusb_dvb: dvb_net_init failed!\n");
-		dvb_dmxdev_release(&ttusb->dmxdev);
-		dvb_dmx_release(&ttusb->dvb_demux);
-		i2c_del_adapter(&ttusb->i2c_adap);
-		dvb_unregister_adapter (&ttusb->adapter);
-		return -ENODEV;
+		result = -ENODEV;
+		goto err_release_dmxdev;
 	}
 
 	usb_set_intfdata(intf, (void *) ttusb);
@@ -1758,6 +1752,16 @@ static int ttusb_probe(struct usb_interface *intf, const struct usb_device_id *i
 	frontend_init(ttusb);
 
 	return 0;
+
+err_release_dmxdev:
+	dvb_dmxdev_release(&ttusb->dmxdev);
+err_release_dmx:
+	dvb_dmx_release(&ttusb->dvb_demux);
+err_i2c_del_adapter:
+	i2c_del_adapter(&ttusb->i2c_adap);
+err_unregister_adapter:
+	dvb_unregister_adapter (&ttusb->adapter);
+	return result;
 }
 
 static void ttusb_disconnect(struct usb_interface *intf)
