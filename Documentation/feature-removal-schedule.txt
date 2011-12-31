@@ -469,14 +469,6 @@ Who:	Hans de Goede <hdegoede@redhat.com>
 
 ----------------------------
 
-What:	Driver specific use of pixfmt.priv in the pwc driver
-When:	3.3
-Why:	The .priv field never was intended for this, setting a framerate is
-	support using the standardized S_PARM ioctl
-Who:	Hans de Goede <hdegoede@redhat.com>
-
-----------------------------
-
 What:	Software emulation of arbritary resolutions in the pwc driver
 When:	3.3
 Why:	The pwc driver claims to support any resolution between 160x120
