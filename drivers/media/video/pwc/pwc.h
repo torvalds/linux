@@ -275,11 +275,6 @@ struct pwc_device
 	int pan_angle;			/* in degrees * 100 */
 	int tilt_angle;			/* absolute angle; 0,0 is home */
 
-	/*
-	 * Set to 1 when the user push the button, reset to 0
-	 * when this value is read from sysfs.
-	 */
-	int snapshot_button_status;
 #ifdef CONFIG_USB_PWC_INPUT_EVDEV
 	struct input_dev *button_dev;	/* webcam snapshot button input */
 	char button_phys[64];

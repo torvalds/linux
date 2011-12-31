@@ -189,7 +189,6 @@ static void pwc_snapshot_button(struct pwc_device *pdev, int down)
 {
 	if (down) {
 		PWC_TRACE("Snapshot button pressed.\n");
-		pdev->snapshot_button_status = 1;
 	} else {
 		PWC_TRACE("Snapshot button released.\n");
 	}
@@ -529,84 +528,6 @@ static void pwc_cleanup_queued_bufs(struct pwc_device *pdev)
 		vb2_buffer_done(&buf->vb, VB2_BUF_STATE_ERROR);
 	}
 	spin_unlock_irqrestore(&pdev->queued_bufs_lock, flags);
-}
-
-/*********
- * sysfs
- *********/
-static struct pwc_device *cd_to_pwc(struct device *cd)
-{
-	struct video_device *vdev = to_video_device(cd);
-	return video_get_drvdata(vdev);
-}
-
-static ssize_t show_pan_tilt(struct device *class_dev,
-			     struct device_attribute *attr, char *buf)
-{
-	struct pwc_device *pdev = cd_to_pwc(class_dev);
-	return sprintf(buf, "%d %d\n", pdev->pan_angle, pdev->tilt_angle);
-}
-
-static ssize_t store_pan_tilt(struct device *class_dev,
-			      struct device_attribute *attr,
-			      const char *buf, size_t count)
-{
-	struct pwc_device *pdev = cd_to_pwc(class_dev);
-	int pan, tilt;
-	int ret = -EINVAL;
-
-	if (strncmp(buf, "reset", 5) == 0)
-		ret = pwc_mpt_reset(pdev, 0x3);
-
-	else if (sscanf(buf, "%d %d", &pan, &tilt) > 0)
-		ret = pwc_mpt_set_angle(pdev, pan, tilt);
-
-	if (ret < 0)
-		return ret;
-	return strlen(buf);
-}
-static DEVICE_ATTR(pan_tilt, S_IRUGO | S_IWUSR, show_pan_tilt,
-		   store_pan_tilt);
-
-static ssize_t show_snapshot_button_status(struct device *class_dev,
-					   struct device_attribute *attr, char *buf)
-{
-	struct pwc_device *pdev = cd_to_pwc(class_dev);
-	int status = pdev->snapshot_button_status;
-	pdev->snapshot_button_status = 0;
-	return sprintf(buf, "%d\n", status);
-}
-
-static DEVICE_ATTR(button, S_IRUGO | S_IWUSR, show_snapshot_button_status,
-		   NULL);
-
-static int pwc_create_sysfs_files(struct pwc_device *pdev)
-{
-	int rc;
-
-	rc = device_create_file(&pdev->vdev.dev, &dev_attr_button);
-	if (rc)
-		goto err;
-	if (pdev->features & FEATURE_MOTOR_PANTILT) {
-		rc = device_create_file(&pdev->vdev.dev, &dev_attr_pan_tilt);
-		if (rc)
-			goto err_button;
-	}
-
-	return 0;
-
-err_button:
-	device_remove_file(&pdev->vdev.dev, &dev_attr_button);
-err:
-	PWC_ERROR("Could not create sysfs files.\n");
-	return rc;
-}
-
-static void pwc_remove_sysfs_files(struct pwc_device *pdev)
-{
-	if (pdev->features & FEATURE_MOTOR_PANTILT)
-		device_remove_file(&pdev->vdev.dev, &dev_attr_pan_tilt);
-	device_remove_file(&pdev->vdev.dev, &dev_attr_button);
 }
 
 #ifdef CONFIG_USB_PWC_DEBUG
@@ -1240,10 +1161,6 @@ static int usb_pwc_probe(struct usb_interface *intf, const struct usb_device_id 
 		PWC_ERROR("Failed to register as video device (%d).\n", rc);
 		goto err_unregister_v4l2_dev;
 	}
-	rc = pwc_create_sysfs_files(pdev);
-	if (rc)
-		goto err_video_unreg;
-
 	PWC_INFO("Registered as %s.\n", video_device_node_name(&pdev->vdev));
 
 #ifdef CONFIG_USB_PWC_INPUT_EVDEV
@@ -1252,7 +1169,6 @@ static int usb_pwc_probe(struct usb_interface *intf, const struct usb_device_id 
 	if (!pdev->button_dev) {
 		PWC_ERROR("Err, insufficient memory for webcam snapshot button device.");
 		rc = -ENOMEM;
-		pwc_remove_sysfs_files(pdev);
 		goto err_video_unreg;
 	}
 
@@ -1270,7 +1186,6 @@ static int usb_pwc_probe(struct usb_interface *intf, const struct usb_device_id 
 	if (rc) {
 		input_free_device(pdev->button_dev);
 		pdev->button_dev = NULL;
-		pwc_remove_sysfs_files(pdev);
 		goto err_video_unreg;
 	}
 #endif
@@ -1304,7 +1219,6 @@ static void usb_pwc_disconnect(struct usb_interface *intf)
 
 	pwc_cleanup_queued_bufs(pdev);
 
-	pwc_remove_sysfs_files(pdev);
 	video_unregister_device(&pdev->vdev);
 	v4l2_device_unregister(&pdev->v4l2_dev);
 

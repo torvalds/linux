@@ -469,14 +469,6 @@ Who:	Hans de Goede <hdegoede@redhat.com>
 
 ----------------------------
 
-What:	Driver specific sysfs API in the pwc driver
-When:	3.3
-Why:	Setting pan/tilt should be done with v4l2 controls, like with other
-	cams. The button is available as a standard input device
-Who:	Hans de Goede <hdegoede@redhat.com>
-
-----------------------------
-
 What:	Driver specific use of pixfmt.priv in the pwc driver
 When:	3.3
 Why:	The .priv field never was intended for this, setting a framerate is
