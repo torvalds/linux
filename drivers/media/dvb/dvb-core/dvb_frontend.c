@@ -1079,15 +1079,29 @@ static void dtv_property_cache_sync(struct dvb_frontend *fe,
 		c->modulation = p->u.qam.modulation;
 		break;
 	case FE_OFDM:
-		if (p->u.ofdm.bandwidth == BANDWIDTH_6_MHZ)
-			c->bandwidth_hz = 6000000;
-		else if (p->u.ofdm.bandwidth == BANDWIDTH_7_MHZ)
-			c->bandwidth_hz = 7000000;
-		else if (p->u.ofdm.bandwidth == BANDWIDTH_8_MHZ)
+		switch (p->u.ofdm.bandwidth) {
+		case BANDWIDTH_10_MHZ:
+			c->bandwidth_hz = 10000000;
+			break;
+		case BANDWIDTH_8_MHZ:
 			c->bandwidth_hz = 8000000;
-		else
-			/* Including BANDWIDTH_AUTO */
+			break;
+		case BANDWIDTH_7_MHZ:
+			c->bandwidth_hz = 7000000;
+			break;
+		case BANDWIDTH_6_MHZ:
+			c->bandwidth_hz = 6000000;
+			break;
+		case BANDWIDTH_5_MHZ:
+			c->bandwidth_hz = 5000000;
+			break;
+		case BANDWIDTH_1_712_MHZ:
+			c->bandwidth_hz = 1712000;
+			break;
+		case BANDWIDTH_AUTO:
 			c->bandwidth_hz = 0;
+		}
+
 		c->code_rate_HP = p->u.ofdm.code_rate_HP;
 		c->code_rate_LP = p->u.ofdm.code_rate_LP;
 		c->modulation = p->u.ofdm.constellation;
@@ -1130,14 +1144,29 @@ static void dtv_property_legacy_params_sync(struct dvb_frontend *fe,
 		break;
 	case FE_OFDM:
 		dprintk("%s() Preparing OFDM req\n", __func__);
-		if (c->bandwidth_hz == 6000000)
-			p->u.ofdm.bandwidth = BANDWIDTH_6_MHZ;
-		else if (c->bandwidth_hz == 7000000)
-			p->u.ofdm.bandwidth = BANDWIDTH_7_MHZ;
-		else if (c->bandwidth_hz == 8000000)
+		switch (c->bandwidth_hz) {
+		case 10000000:
+			p->u.ofdm.bandwidth = BANDWIDTH_10_MHZ;
+			break;
+		case 8000000:
 			p->u.ofdm.bandwidth = BANDWIDTH_8_MHZ;
-		else
+			break;
+		case 7000000:
+			p->u.ofdm.bandwidth = BANDWIDTH_7_MHZ;
+			break;
+		case 6000000:
+			p->u.ofdm.bandwidth = BANDWIDTH_6_MHZ;
+			break;
+		case 5000000:
+			p->u.ofdm.bandwidth = BANDWIDTH_5_MHZ;
+			break;
+		case 1712000:
+			p->u.ofdm.bandwidth = BANDWIDTH_1_712_MHZ;
+			break;
+		case 0:
+		default:
 			p->u.ofdm.bandwidth = BANDWIDTH_AUTO;
+		}
 		p->u.ofdm.code_rate_HP = c->code_rate_HP;
 		p->u.ofdm.code_rate_LP = c->code_rate_LP;
 		p->u.ofdm.constellation = c->modulation;
