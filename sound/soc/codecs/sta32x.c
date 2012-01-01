@@ -522,6 +522,7 @@ static int sta32x_set_dai_sysclk(struct snd_soc_dai *codec_dai,
 						rate_min = fs;
 					if (fs > rate_max)
 						rate_max = fs;
+					break;
 				}
 			}
 		}
