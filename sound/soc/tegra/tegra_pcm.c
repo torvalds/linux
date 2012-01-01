@@ -336,7 +336,7 @@ static int tegra_pcm_new(struct snd_soc_pcm_runtime *rtd)
 	if (!card->dev->dma_mask)
 		card->dev->dma_mask = &tegra_dma_mask;
 	if (!card->dev->coherent_dma_mask)
-		card->dev->coherent_dma_mask = 0xffffffff;
+		card->dev->coherent_dma_mask = DMA_BIT_MASK(32);
 
 	if (pcm->streams[SNDRV_PCM_STREAM_PLAYBACK].substream) {
 		ret = tegra_pcm_preallocate_dma_buffer(pcm,
