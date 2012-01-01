@@ -69,6 +69,9 @@ struct cam {
 	u8 bulk;		/* image transfer by 0:isoc / 1:bulk */
 	u8 npkt;		/* number of packets in an ISOC message
 				 * 0 is the default value: 32 packets */
+	u8 needs_full_bandwidth;/* Set this flag to notify the bandwidth calc.
+				 * code that the cam fills all image buffers to
+				 * the max, even when using compression. */
 };
 
 struct gspca_dev;

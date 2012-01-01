@@ -638,7 +638,8 @@ static u32 which_bandwidth(struct gspca_dev *gspca_dev)
 	bandwidth = gspca_dev->cam.cam_mode[i].sizeimage;
 
 	/* if the image is compressed, estimate its mean size */
-	if (bandwidth < gspca_dev->cam.cam_mode[i].width *
+	if (!gspca_dev->cam.needs_full_bandwidth &&
+	    bandwidth < gspca_dev->cam.cam_mode[i].width *
 				gspca_dev->cam.cam_mode[i].height)
 		bandwidth = bandwidth * 3 / 8;	/* 0.375 */
 

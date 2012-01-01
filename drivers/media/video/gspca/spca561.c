@@ -451,6 +451,7 @@ static int sd_config(struct gspca_dev *gspca_dev,
 	}
 
 	cam = &gspca_dev->cam;
+	cam->needs_full_bandwidth = 1;
 
 	sd->chip_revision = id->driver_info;
 	if (sd->chip_revision == Rev012A) {

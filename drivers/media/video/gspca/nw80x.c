@@ -1764,6 +1764,7 @@ static int sd_config(struct gspca_dev *gspca_dev,
 		webcam = 0;
 	sd->webcam = webcam;
 	gspca_dev->cam.ctrls = sd->ctrls;
+	gspca_dev->cam.needs_full_bandwidth = 1;
 	sd->ag_cnt = -1;
 
 	/*

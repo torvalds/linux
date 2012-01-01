@@ -2048,6 +2048,7 @@ static int sd_config(struct gspca_dev *gspca_dev,
 	struct cam *cam;
 
 	cam = &gspca_dev->cam;
+	cam->needs_full_bandwidth = 1;
 
 	sd->sensor = (id->driver_info >> 8) & 0xff;
 	sd->i2c_addr = id->driver_info & 0xff;
