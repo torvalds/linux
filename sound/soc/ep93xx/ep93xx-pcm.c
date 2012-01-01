@@ -286,7 +286,6 @@ static u64 ep93xx_pcm_dmamask = 0xffffffff;
 static int ep93xx_pcm_new(struct snd_soc_pcm_runtime *rtd)
 {
 	struct snd_card *card = rtd->card->snd_card;
-	struct snd_soc_dai *dai = rtd->cpu_dai;
 	struct snd_pcm *pcm = rtd->pcm;
 	int ret = 0;
 
@@ -295,14 +294,14 @@ static int ep93xx_pcm_new(struct snd_soc_pcm_runtime *rtd)
 	if (!card->dev->coherent_dma_mask)
 		card->dev->coherent_dma_mask = 0xffffffff;
 
-	if (dai->driver->playback.channels_min) {
+	if (pcm->streams[SNDRV_PCM_STREAM_PLAYBACK].substream) {
 		ret = ep93xx_pcm_preallocate_dma_buffer(pcm,
 					SNDRV_PCM_STREAM_PLAYBACK);
 		if (ret)
 			return ret;
 	}
 
-	if (dai->driver->capture.channels_min) {
+	if (pcm->streams[SNDRV_PCM_STREAM_CAPTURE].substream) {
 		ret = ep93xx_pcm_preallocate_dma_buffer(pcm,
 					SNDRV_PCM_STREAM_CAPTURE);
 		if (ret)
