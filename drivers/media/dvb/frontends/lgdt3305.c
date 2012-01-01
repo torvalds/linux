@@ -1166,9 +1166,9 @@ fail:
 EXPORT_SYMBOL(lgdt3305_attach);
 
 static struct dvb_frontend_ops lgdt3304_ops = {
+	.delsys = { SYS_ATSC, SYS_DVBC_ANNEX_B },
 	.info = {
 		.name = "LG Electronics LGDT3304 VSB/QAM Frontend",
-		.type               = FE_ATSC,
 		.frequency_min      = 54000000,
 		.frequency_max      = 858000000,
 		.frequency_stepsize = 62500,
@@ -1191,7 +1191,6 @@ static struct dvb_frontend_ops lgdt3305_ops = {
 	.delsys = { SYS_ATSC, SYS_DVBC_ANNEX_B },
 	.info = {
 		.name = "LG Electronics LGDT3305 VSB/QAM Frontend",
-		.type               = FE_ATSC,
 		.frequency_min      = 54000000,
 		.frequency_max      = 858000000,
 		.frequency_stepsize = 62500,

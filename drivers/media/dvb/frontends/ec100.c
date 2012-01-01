@@ -309,7 +309,6 @@ static struct dvb_frontend_ops ec100_ops = {
 	.delsys = { SYS_DVBT },
 	.info = {
 		.name = "E3C EC100 DVB-T",
-		.type = FE_OFDM,
 		.caps =
 			FE_CAN_FEC_1_2 | FE_CAN_FEC_2_3 | FE_CAN_FEC_3_4 |
 			FE_CAN_FEC_5_6 | FE_CAN_FEC_7_8 | FE_CAN_FEC_AUTO |

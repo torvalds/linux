@@ -999,7 +999,6 @@ static struct dvb_frontend_ops s5h1409_ops = {
 	.delsys = { SYS_ATSC, SYS_DVBC_ANNEX_B },
 	.info = {
 		.name			= "Samsung S5H1409 QAM/8VSB Frontend",
-		.type			= FE_ATSC,
 		.frequency_min		= 54000000,
 		.frequency_max		= 858000000,
 		.frequency_stepsize	= 62500,

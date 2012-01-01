@@ -378,7 +378,6 @@ static struct dvb_frontend_ops s5h1432_ops = {
 	.delsys = { SYS_DVBT },
 	.info = {
 		 .name = "Samsung s5h1432 DVB-T Frontend",
-		 .type = FE_OFDM,
 		 .frequency_min = 177000000,
 		 .frequency_max = 858000000,
 		 .frequency_stepsize = 166666,

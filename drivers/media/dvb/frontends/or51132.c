@@ -589,7 +589,6 @@ static struct dvb_frontend_ops or51132_ops = {
 	.delsys = { SYS_ATSC, SYS_DVBC_ANNEX_B },
 	.info = {
 		.name			= "Oren OR51132 VSB/QAM Frontend",
-		.type			= FE_ATSC,
 		.frequency_min		= 44000000,
 		.frequency_max		= 958000000,
 		.frequency_stepsize	= 166666,

@@ -1013,7 +1013,6 @@ static struct dvb_frontend_ops au8522_ops = {
 	.delsys = { SYS_ATSC, SYS_DVBC_ANNEX_B },
 	.info = {
 		.name			= "Auvitek AU8522 QAM/8VSB Frontend",
-		.type			= FE_ATSC,
 		.frequency_min		= 54000000,
 		.frequency_max		= 858000000,
 		.frequency_stepsize	= 62500,

@@ -627,7 +627,6 @@ static struct dvb_frontend_ops cx24110_ops = {
 	.delsys = { SYS_DVBS },
 	.info = {
 		.name = "Conexant CX24110 DVB-S",
-		.type = FE_QPSK,
 		.frequency_min = 950000,
 		.frequency_max = 2150000,
 		.frequency_stepsize = 1011,  /* kHz for QPSK frontends */

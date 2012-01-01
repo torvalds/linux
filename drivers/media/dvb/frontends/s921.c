@@ -515,7 +515,6 @@ static struct dvb_frontend_ops s921_ops = {
 	/* Use dib8000 values per default */
 	.info = {
 		.name = "Sharp S921",
-		.type = FE_OFDM,
 		.frequency_min = 470000000,
 		/*
 		 * Max should be 770MHz instead, according with Sharp docs,

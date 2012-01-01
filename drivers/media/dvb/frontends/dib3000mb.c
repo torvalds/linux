@@ -793,7 +793,6 @@ static struct dvb_frontend_ops dib3000mb_ops = {
 	.delsys = { SYS_DVBT },
 	.info = {
 		.name			= "DiBcom 3000M-B DVB-T",
-		.type			= FE_OFDM,
 		.frequency_min		= 44250000,
 		.frequency_max		= 867250000,
 		.frequency_stepsize	= 62500,

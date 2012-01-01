@@ -2500,7 +2500,6 @@ static struct dvb_frontend_ops dib9000_ops = {
 	.delsys = { SYS_DVBT },
 	.info = {
 		 .name = "DiBcom 9000",
-		 .type = FE_OFDM,
 		 .frequency_min = 44250000,
 		 .frequency_max = 867250000,
 		 .frequency_stepsize = 62500,

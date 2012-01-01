@@ -1160,7 +1160,6 @@ static struct dvb_frontend_ops tda10048_ops = {
 	.delsys = { SYS_DVBT },
 	.info = {
 		.name			= "NXP TDA10048HN DVB-T",
-		.type			= FE_OFDM,
 		.frequency_min		= 177000000,
 		.frequency_max		= 858000000,
 		.frequency_stepsize	= 166666,

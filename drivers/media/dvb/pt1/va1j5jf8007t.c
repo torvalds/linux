@@ -431,7 +431,6 @@ static struct dvb_frontend_ops va1j5jf8007t_ops = {
 	.delsys = { SYS_ISDBT },
 	.info = {
 		.name = "VA1J5JF8007/VA1J5JF8011 ISDB-T",
-		.type = FE_OFDM,
 		.frequency_min = 90000000,
 		.frequency_max = 770000000,
 		.frequency_stepsize = 142857,

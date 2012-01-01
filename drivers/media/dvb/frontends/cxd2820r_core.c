@@ -554,11 +554,9 @@ static int cxd2820r_i2c_gate_ctrl(struct dvb_frontend *fe, int enable)
 
 static const struct dvb_frontend_ops cxd2820r_ops = {
 	.delsys = { SYS_DVBT, SYS_DVBT2, SYS_DVBC_ANNEX_A },
-
 	/* default: DVB-T/T2 */
 	.info = {
 		.name = "Sony CXD2820R (DVB-T/T2)",
-		.type = FE_OFDM,
 
 		.caps =	FE_CAN_FEC_1_2			|
 			FE_CAN_FEC_2_3			|

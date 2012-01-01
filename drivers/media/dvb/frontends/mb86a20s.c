@@ -617,7 +617,6 @@ static struct dvb_frontend_ops mb86a20s_ops = {
 	/* Use dib8000 values per default */
 	.info = {
 		.name = "Fujitsu mb86A20s",
-		.type = FE_OFDM,
 		.caps = FE_CAN_INVERSION_AUTO | FE_CAN_RECOVER |
 			FE_CAN_FEC_1_2  | FE_CAN_FEC_2_3 | FE_CAN_FEC_3_4 |
 			FE_CAN_FEC_5_6  | FE_CAN_FEC_7_8 | FE_CAN_FEC_AUTO |

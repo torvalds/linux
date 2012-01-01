@@ -443,7 +443,6 @@ static struct dvb_frontend_ops tda8083_ops = {
 	.delsys = { SYS_DVBS },
 	.info = {
 		.name			= "Philips TDA8083 DVB-S",
-		.type			= FE_QPSK,
 		.frequency_min		= 920000,     /* TDA8060 */
 		.frequency_max		= 2200000,    /* TDA8060 */
 		.frequency_stepsize	= 125,   /* kHz for QPSK frontends */

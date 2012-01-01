@@ -1206,7 +1206,6 @@ static struct dvb_frontend_ops nxt200x_ops = {
 	.delsys = { SYS_ATSC, SYS_DVBC_ANNEX_B },
 	.info = {
 		.name = "Nextwave NXT200X VSB/QAM frontend",
-		.type = FE_ATSC,
 		.frequency_min =  54000000,
 		.frequency_max = 860000000,
 		.frequency_stepsize = 166666,	/* stepsize is just a guess */

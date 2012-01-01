@@ -323,7 +323,6 @@ static struct dvb_frontend_ops cinergyt2_fe_ops = {
 	.delsys = { SYS_DVBT },
 	.info = {
 		.name			= DRIVER_NAME,
-		.type			= FE_OFDM,
 		.frequency_min		= 174000000,
 		.frequency_max		= 862000000,
 		.frequency_stepsize	= 166667,

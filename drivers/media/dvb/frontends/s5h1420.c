@@ -940,7 +940,6 @@ static struct dvb_frontend_ops s5h1420_ops = {
 	.delsys = { SYS_DVBS },
 	.info = {
 		.name     = "Samsung S5H1420/PnpNetwork PN1010 DVB-S",
-		.type     = FE_QPSK,
 		.frequency_min    = 950000,
 		.frequency_max    = 2150000,
 		.frequency_stepsize = 125,     /* kHz for QPSK frontends */

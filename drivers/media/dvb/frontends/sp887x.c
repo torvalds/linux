@@ -595,7 +595,6 @@ static struct dvb_frontend_ops sp887x_ops = {
 	.delsys = { SYS_DVBT },
 	.info = {
 		.name = "Spase SP887x DVB-T",
-		.type = FE_OFDM,
 		.frequency_min =  50500000,
 		.frequency_max = 858000000,
 		.frequency_stepsize = 166666,

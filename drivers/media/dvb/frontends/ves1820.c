@@ -410,7 +410,6 @@ static struct dvb_frontend_ops ves1820_ops = {
 	.delsys = { SYS_DVBC_ANNEX_A },
 	.info = {
 		.name = "VLSI VES1820 DVB-C",
-		.type = FE_QAM,
 		.frequency_stepsize = 62500,
 		.frequency_min = 47000000,
 		.frequency_max = 862000000,

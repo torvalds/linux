@@ -1860,7 +1860,6 @@ static struct dvb_frontend_ops stv0900_ops = {
 	.delsys = { SYS_DVBS, SYS_DVBS2, SYS_DSS },
 	.info = {
 		.name			= "STV0900 frontend",
-		.type			= FE_QPSK,
 		.frequency_min		= 950000,
 		.frequency_max		= 2150000,
 		.frequency_stepsize	= 125,

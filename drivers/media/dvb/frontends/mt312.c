@@ -741,7 +741,6 @@ static struct dvb_frontend_ops mt312_ops = {
 	.delsys = { SYS_DVBS },
 	.info = {
 		.name = "Zarlink ???? DVB-S",
-		.type = FE_QPSK,
 		.frequency_min = 950000,
 		.frequency_max = 2150000,
 		/* FIXME: adjust freq to real used xtal */

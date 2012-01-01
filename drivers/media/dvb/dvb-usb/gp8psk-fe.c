@@ -329,7 +329,6 @@ static struct dvb_frontend_ops gp8psk_fe_ops = {
 	.delsys = { SYS_DVBS },
 	.info = {
 		.name			= "Genpix DVB-S",
-		.type			= FE_QPSK,
 		.frequency_min		= 800000,
 		.frequency_max		= 2250000,
 		.frequency_stepsize	= 100,

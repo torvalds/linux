@@ -584,7 +584,6 @@ static struct dvb_frontend_ops sp8870_ops = {
 	.delsys = { SYS_DVBT },
 	.info = {
 		.name			= "Spase SP8870 DVB-T",
-		.type			= FE_OFDM,
 		.frequency_min		= 470000000,
 		.frequency_max		= 860000000,
 		.frequency_stepsize	= 166666,

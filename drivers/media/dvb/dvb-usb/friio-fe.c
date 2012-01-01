@@ -442,7 +442,6 @@ static struct dvb_frontend_ops jdvbt90502_ops = {
 	.delsys = { SYS_ISDBT },
 	.info = {
 		.name			= "Comtech JDVBT90502 ISDB-T",
-		.type			= FE_OFDM,
 		.frequency_min		= 473000000, /* UHF 13ch, center */
 		.frequency_max		= 767142857, /* UHF 62ch, center */
 		.frequency_stepsize	= JDVBT90502_PLL_CLK / JDVBT90502_PLL_DIVIDER,

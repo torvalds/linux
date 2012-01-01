@@ -576,7 +576,6 @@ static struct dvb_frontend_ops nxt6000_ops = {
 	.delsys = { SYS_DVBT },
 	.info = {
 		.name = "NxtWave NXT6000 DVB-T",
-		.type = FE_OFDM,
 		.frequency_min = 0,
 		.frequency_max = 863250000,
 		.frequency_stepsize = 62500,

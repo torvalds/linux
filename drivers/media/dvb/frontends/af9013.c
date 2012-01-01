@@ -1483,7 +1483,6 @@ static struct dvb_frontend_ops af9013_ops = {
 	.delsys = { SYS_DVBT },
 	.info = {
 		.name = "Afatech AF9013",
-		.type = FE_OFDM,
 		.frequency_min = 174000000,
 		.frequency_max = 862000000,
 		.frequency_stepsize = 250000,

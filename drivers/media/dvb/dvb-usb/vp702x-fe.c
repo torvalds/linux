@@ -346,7 +346,6 @@ static struct dvb_frontend_ops vp702x_fe_ops = {
 	.delsys = { SYS_DVBS },
 	.info = {
 		.name           = "Twinhan DST-like frontend (VP7021/VP7020) DVB-S",
-		.type           = FE_QPSK,
 		.frequency_min       = 950000,
 		.frequency_max       = 2150000,
 		.frequency_stepsize  = 1000,   /* kHz for QPSK frontends */

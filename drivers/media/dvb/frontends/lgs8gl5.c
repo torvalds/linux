@@ -415,7 +415,6 @@ static struct dvb_frontend_ops lgs8gl5_ops = {
 	.delsys = { SYS_DMBTH },
 	.info = {
 		.name			= "Legend Silicon LGS-8GL5 DMB-TH",
-		.type			= FE_OFDM,
 		.frequency_min		= 474000000,
 		.frequency_max		= 858000000,
 		.frequency_stepsize	= 10000,

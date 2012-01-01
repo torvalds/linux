@@ -2924,7 +2924,6 @@ static struct dvb_frontend_ops drxd_ops = {
 	.delsys = { SYS_DVBT},
 	.info = {
 		 .name = "Micronas DRXD DVB-T",
-		 .type = FE_OFDM,
 		 .frequency_min = 47125000,
 		 .frequency_max = 855250000,
 		 .frequency_stepsize = 166667,

@@ -930,7 +930,6 @@ static struct dvb_frontend_ops it913x_fe_ofdm_ops = {
 	.delsys = { SYS_DVBT },
 	.info = {
 		.name			= "it913x-fe DVB-T",
-		.type			= FE_OFDM,
 		.frequency_min		= 51000000,
 		.frequency_max		= 1680000000,
 		.frequency_stepsize	= 62500,

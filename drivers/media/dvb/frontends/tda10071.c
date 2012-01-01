@@ -1218,7 +1218,6 @@ static struct dvb_frontend_ops tda10071_ops = {
 	.delsys = { SYS_DVBT, SYS_DVBT2 },
 	.info = {
 		.name = "NXP TDA10071",
-		.type = FE_QPSK,
 		.frequency_min = 950000,
 		.frequency_max = 2150000,
 		.frequency_tolerance = 5000,

@@ -825,7 +825,6 @@ static struct dvb_frontend_ops bcm3510_ops = {
 	.delsys = { SYS_ATSC, SYS_DVBC_ANNEX_B },
 	.info = {
 		.name = "Broadcom BCM3510 VSB/QAM frontend",
-		.type = FE_ATSC,
 		.frequency_min =  54000000,
 		.frequency_max = 803000000,
 		/* stepsize is just a guess */

@@ -1458,7 +1458,6 @@ static struct dvb_frontend_ops af9005_fe_ops = {
 	.delsys = { SYS_DVBT },
 	.info = {
 		 .name = "AF9005 USB DVB-T",
-		 .type = FE_OFDM,
 		 .frequency_min = 44250000,
 		 .frequency_max = 867250000,
 		 .frequency_stepsize = 250000,

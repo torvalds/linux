@@ -3464,7 +3464,6 @@ static const struct dvb_frontend_ops dib8000_ops = {
 	.delsys = { SYS_ISDBT },
 	.info = {
 		 .name = "DiBcom 8000 ISDB-T",
-		 .type = FE_OFDM,
 		 .frequency_min = 44250000,
 		 .frequency_max = 867250000,
 		 .frequency_stepsize = 62500,

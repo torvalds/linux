@@ -786,7 +786,6 @@ static void smsdvb_release(struct dvb_frontend *fe)
 static struct dvb_frontend_ops smsdvb_fe_ops = {
 	.info = {
 		.name			= "Siano Mobile Digital MDTV Receiver",
-		.type			= FE_OFDM,
 		.frequency_min		= 44250000,
 		.frequency_max		= 867250000,
 		.frequency_stepsize	= 250000,

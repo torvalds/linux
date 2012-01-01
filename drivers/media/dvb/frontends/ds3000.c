@@ -1267,7 +1267,6 @@ static struct dvb_frontend_ops ds3000_ops = {
 	.delsys = { SYS_DVBS, SYS_DVBS2},
 	.info = {
 		.name = "Montage Technology DS3000/TS2020",
-		.type = FE_QPSK,
 		.frequency_min = 950000,
 		.frequency_max = 2150000,
 		.frequency_stepsize = 1011, /* kHz for QPSK frontends */

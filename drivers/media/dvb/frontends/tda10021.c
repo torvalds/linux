@@ -487,7 +487,6 @@ static struct dvb_frontend_ops tda10021_ops = {
 	.delsys = { SYS_DVBC_ANNEX_A, SYS_DVBC_ANNEX_C },
 	.info = {
 		.name = "Philips TDA10021 DVB-C",
-		.type = FE_QAM,
 		.frequency_stepsize = 62500,
 		.frequency_min = 47000000,
 		.frequency_max = 862000000,

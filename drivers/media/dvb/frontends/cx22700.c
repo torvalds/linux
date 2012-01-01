@@ -408,7 +408,6 @@ static struct dvb_frontend_ops cx22700_ops = {
 	.delsys = { SYS_DVBT },
 	.info = {
 		.name			= "Conexant CX22700 DVB-T",
-		.type			= FE_OFDM,
 		.frequency_min		= 470000000,
 		.frequency_max		= 860000000,
 		.frequency_stepsize	= 166667,

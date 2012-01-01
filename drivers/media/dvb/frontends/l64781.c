@@ -575,7 +575,6 @@ static struct dvb_frontend_ops l64781_ops = {
 	.delsys = { SYS_DVBT },
 	.info = {
 		.name = "LSI L64781 DVB-T",
-		.type = FE_OFDM,
 	/*	.frequency_min = ???,*/
 	/*	.frequency_max = ???,*/
 		.frequency_stepsize = 166666,

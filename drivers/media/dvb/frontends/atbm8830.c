@@ -431,7 +431,6 @@ static struct dvb_frontend_ops atbm8830_ops = {
 	.delsys = { SYS_DMBTH },
 	.info = {
 		.name = "AltoBeam ATBM8830/8831 DMB-TH",
-		.type = FE_OFDM,
 		.frequency_min = 474000000,
 		.frequency_max = 858000000,
 		.frequency_stepsize = 10000,
