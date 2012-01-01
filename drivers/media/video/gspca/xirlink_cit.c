@@ -2789,7 +2789,7 @@ static int sd_isoc_init(struct gspca_dev *gspca_dev)
 	}
 
 	/* Start isoc bandwidth "negotiation" at max isoc bandwidth */
-	alt = &gspca_dev->dev->config->intf_cache[0]->altsetting[1];
+	alt = &gspca_dev->dev->actconfig->intf_cache[0]->altsetting[1];
 	alt->endpoint[0].desc.wMaxPacketSize = cpu_to_le16(max_packet_size);
 
 	return 0;
@@ -2812,7 +2812,7 @@ static int sd_isoc_nego(struct gspca_dev *gspca_dev)
 		break;
 	}
 
-	alt = &gspca_dev->dev->config->intf_cache[0]->altsetting[1];
+	alt = &gspca_dev->dev->actconfig->intf_cache[0]->altsetting[1];
 	packet_size = le16_to_cpu(alt->endpoint[0].desc.wMaxPacketSize);
 	if (packet_size <= min_packet_size)
 		return -EIO;

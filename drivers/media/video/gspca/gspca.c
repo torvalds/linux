@@ -2313,12 +2313,12 @@ int gspca_dev_probe2(struct usb_interface *intf,
 	gspca_dev->iface = intf->cur_altsetting->desc.bInterfaceNumber;
 
 	/* check if any audio device */
-	if (dev->config->desc.bNumInterfaces != 1) {
+	if (dev->actconfig->desc.bNumInterfaces != 1) {
 		int i;
 		struct usb_interface *intf2;
 
-		for (i = 0; i < dev->config->desc.bNumInterfaces; i++) {
-			intf2 = dev->config->interface[i];
+		for (i = 0; i < dev->actconfig->desc.bNumInterfaces; i++) {
+			intf2 = dev->actconfig->interface[i];
 			if (intf2 != NULL
 			 && intf2->altsetting != NULL
 			 && intf2->altsetting->desc.bInterfaceClass ==
@@ -2399,7 +2399,7 @@ int gspca_dev_probe(struct usb_interface *intf,
 	}
 
 	/* the USB video interface must be the first one */
-	if (dev->config->desc.bNumInterfaces != 1
+	if (dev->actconfig->desc.bNumInterfaces != 1
 	 && intf->cur_altsetting->desc.bInterfaceNumber != 0)
 		return -ENODEV;
 
