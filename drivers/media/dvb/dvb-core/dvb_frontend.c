@@ -873,17 +873,22 @@ static int dvb_frontend_clear_cache(struct dvb_frontend *fe)
 	memset(c, 0, sizeof(struct dtv_frontend_properties));
 
 	c->state = DTV_CLEAR;
-	c->delivery_system = SYS_UNDEFINED;
-	c->inversion = INVERSION_AUTO;
-	c->fec_inner = FEC_AUTO;
+
+	c->delivery_system = fe->ops.delsys[0];
+
 	c->transmission_mode = TRANSMISSION_MODE_AUTO;
-	c->bandwidth_hz = BANDWIDTH_AUTO;
+	c->bandwidth_hz = 0;	/* AUTO */
 	c->guard_interval = GUARD_INTERVAL_AUTO;
 	c->hierarchy = HIERARCHY_AUTO;
-	c->symbol_rate = QAM_AUTO;
+	c->symbol_rate = 0;
 	c->code_rate_HP = FEC_AUTO;
 	c->code_rate_LP = FEC_AUTO;
+	c->fec_inner = FEC_AUTO;
 	c->rolloff = ROLLOFF_AUTO;
+	c->voltage = SEC_VOLTAGE_OFF;
+	c->modulation = QAM_AUTO;
+	c->sectone = SEC_TONE_OFF;
+	c->pilot = PILOT_AUTO;
 
 	c->isdbt_partial_reception = -1;
 	c->isdbt_sb_mode = -1;
@@ -897,6 +902,9 @@ static int dvb_frontend_clear_cache(struct dvb_frontend *fe)
 		c->layer[i].interleaving = -1;
 		c->layer[i].segment_count = -1;
 	}
+
+	c->isdbs_ts_id = 0;
+	c->dvbt2_plp_id = 0;
 
 	return 0;
 }
