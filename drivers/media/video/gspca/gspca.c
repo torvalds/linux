@@ -818,10 +818,7 @@ static int create_urbs(struct gspca_dev *gspca_dev,
 						    ep->desc.bEndpointAddress);
 			urb->transfer_flags = URB_ISO_ASAP
 					| URB_NO_TRANSFER_DMA_MAP;
-			if (gspca_dev->dev->speed == USB_SPEED_LOW)
-				urb->interval = ep->desc.bInterval;
-			else
-				urb->interval = 1 << (ep->desc.bInterval - 1);
+			urb->interval = 1 << (ep->desc.bInterval - 1);
 			urb->complete = isoc_irq;
 			urb->number_of_packets = npkt;
 			for (i = 0; i < npkt; i++) {
