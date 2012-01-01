@@ -316,16 +316,16 @@ static int psc_dma_new(struct snd_soc_pcm_runtime *rtd)
 	if (!card->dev->coherent_dma_mask)
 		card->dev->coherent_dma_mask = 0xffffffff;
 
-	if (pcm->streams[0].substream) {
+	if (pcm->streams[SNDRV_PCM_STREAM_PLAYBACK].substream) {
 		rc = snd_dma_alloc_pages(SNDRV_DMA_TYPE_DEV, pcm->card->dev,
-				size, &pcm->streams[0].substream->dma_buffer);
+				size, &pcm->streams[SNDRV_PCM_STREAM_PLAYBACK].substream->dma_buffer);
 		if (rc)
 			goto playback_alloc_err;
 	}
 
-	if (pcm->streams[1].substream) {
+	if (pcm->streams[SNDRV_PCM_STREAM_CAPTURE].substream) {
 		rc = snd_dma_alloc_pages(SNDRV_DMA_TYPE_DEV, pcm->card->dev,
-				size, &pcm->streams[1].substream->dma_buffer);
+				size, &pcm->streams[SNDRV_PCM_STREAM_CAPTURE].substream->dma_buffer);
 		if (rc)
 			goto capture_alloc_err;
 	}
@@ -336,8 +336,8 @@ static int psc_dma_new(struct snd_soc_pcm_runtime *rtd)
 	return 0;
 
  capture_alloc_err:
-	if (pcm->streams[0].substream)
-		snd_dma_free_pages(&pcm->streams[0].substream->dma_buffer);
+	if (pcm->streams[SNDRV_PCM_STREAM_PLAYBACK].substream)
+		snd_dma_free_pages(&pcm->streams[SNDRV_PCM_STREAM_PLAYBACK].substream->dma_buffer);
 
  playback_alloc_err:
 	dev_err(card->dev, "Cannot allocate buffer(s)\n");
