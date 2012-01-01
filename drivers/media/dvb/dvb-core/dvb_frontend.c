@@ -951,17 +951,17 @@ static int dvb_frontend_clear_cache(struct dvb_frontend *fe)
 	c->sectone = SEC_TONE_OFF;
 	c->pilot = PILOT_AUTO;
 
-	c->isdbt_partial_reception = -1;
-	c->isdbt_sb_mode = -1;
-	c->isdbt_sb_subchannel = -1;
-	c->isdbt_sb_segment_idx = -1;
-	c->isdbt_sb_segment_count = -1;
-	c->isdbt_layer_enabled = 0x7;
+	c->isdbt_partial_reception = 0;
+	c->isdbt_sb_mode = 0;
+	c->isdbt_sb_subchannel = 0;
+	c->isdbt_sb_segment_idx = 0;
+	c->isdbt_sb_segment_count = 0;
+	c->isdbt_layer_enabled = 0;
 	for (i = 0; i < 3; i++) {
 		c->layer[i].fec = FEC_AUTO;
 		c->layer[i].modulation = QAM_AUTO;
-		c->layer[i].interleaving = -1;
-		c->layer[i].segment_count = -1;
+		c->layer[i].interleaving = 0;
+		c->layer[i].segment_count = 0;
 	}
 
 	c->isdbs_ts_id = 0;
@@ -1528,28 +1528,28 @@ static int set_delivery_system(struct dvb_frontend *fe, u32 desired_system)
 		__func__, delsys, desired_system);
 
 	/*
-	 * For now, uses it for ISDB-T, DMBTH and DVB-T2
-	 * For DVB-S2 and DVB-TURBO, assumes that the DVB-S parameters are enough.
+	 * For now, handles ISDB-T calls. More code may be needed here for the
+	 * other emulated stuff
 	 */
 	if (type == DVBV3_OFDM) {
-		c->modulation = QAM_AUTO;
-		c->code_rate_HP = FEC_AUTO;
-		c->code_rate_LP = FEC_AUTO;
-		c->transmission_mode = TRANSMISSION_MODE_AUTO;
-		c->guard_interval = GUARD_INTERVAL_AUTO;
-		c->hierarchy = HIERARCHY_AUTO;
+		if (c->delivery_system == SYS_ISDBT) {
+			dprintk("%s() Using defaults for SYS_ISDBT\n",
+				__func__);
+			if (!c->bandwidth_hz)
+				c->bandwidth_hz = 6000000;
 
-		c->isdbt_partial_reception = -1;
-		c->isdbt_sb_mode = -1;
-		c->isdbt_sb_subchannel = -1;
-		c->isdbt_sb_segment_idx = -1;
-		c->isdbt_sb_segment_count = -1;
-		c->isdbt_layer_enabled = 0x7;
-		for (i = 0; i < 3; i++) {
-			c->layer[i].fec = FEC_AUTO;
-			c->layer[i].modulation = QAM_AUTO;
-			c->layer[i].interleaving = -1;
-			c->layer[i].segment_count = -1;
+			c->isdbt_partial_reception = 0;
+			c->isdbt_sb_mode = 0;
+			c->isdbt_sb_subchannel = 0;
+			c->isdbt_sb_segment_idx = 0;
+			c->isdbt_sb_segment_count = 0;
+			c->isdbt_layer_enabled = 0;
+			for (i = 0; i < 3; i++) {
+				c->layer[i].fec = FEC_AUTO;
+				c->layer[i].modulation = QAM_AUTO;
+				c->layer[i].interleaving = 0;
+				c->layer[i].segment_count = 0;
+			}
 		}
 	}
 	return 0;
