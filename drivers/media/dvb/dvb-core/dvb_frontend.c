@@ -108,7 +108,6 @@ struct dvb_frontend_private {
 
 	/* thread/frontend values */
 	struct dvb_device *dvbdev;
-	struct dvb_frontend_parameters parameters_in;
 	struct dvb_frontend_parameters parameters_out;
 	struct dvb_fe_events events;
 	struct semaphore sem;
@@ -696,7 +695,6 @@ restart:
 					fepriv->algo_status |= DVBFE_ALGO_SEARCH_AGAIN;
 					fepriv->delay = HZ / 2;
 				}
-				fepriv->parameters_out = fepriv->parameters_in;
 				fe->ops.read_status(fe, &s);
 				if (s != fepriv->status) {
 					dvb_frontend_add_event(fe, s); /* update event list */
@@ -1561,8 +1559,6 @@ static int dtv_property_process_set(struct dvb_frontend *fe,
 {
 	int r = 0;
 	struct dtv_frontend_properties *c = &fe->dtv_property_cache;
-	struct dvb_frontend_private *fepriv = fe->frontend_priv;
-	dtv_property_dump(tvp);
 
 	/* Allow the frontend to validate incoming properties */
 	if (fe->ops.set_property) {
@@ -1586,9 +1582,6 @@ static int dtv_property_process_set(struct dvb_frontend *fe,
 		 */
 		c->state = tvp->cmd;
 		dprintk("%s() Finalised property cache\n", __func__);
-
-		/* Needed, due to status update */
-		dtv_property_legacy_params_sync(fe, &fepriv->parameters_in);
 
 		r = dtv_set_frontend(fe);
 		break;
@@ -1849,15 +1842,6 @@ static int dtv_set_frontend(struct dvb_frontend *fe)
 
 	if (dvb_frontend_check_parameters(fe) < 0)
 		return -EINVAL;
-
-	/*
-	 * Initialize output parameters to match the values given by
-	 * the user. FE_SET_FRONTEND triggers an initial frontend event
-	 * with status = 0, which copies output parameters to userspace.
-	 *
-	 * This is still needed for DVBv5 calls, due to event state update.
-	 */
-	fepriv->parameters_out = fepriv->parameters_in;
 
 	/*
 	 * Be sure that the bandwidth will be filled for all
@@ -2173,15 +2157,11 @@ static int dvb_frontend_ioctl_legacy(struct file *file,
 		break;
 
 	case FE_SET_FRONTEND:
-		/* Synchronise DVBv5 parameters from DVBv3 */
-		memcpy (&fepriv->parameters_in, parg,
-			sizeof (struct dvb_frontend_parameters));
-
 		err = set_delivery_system(fe, SYS_UNDEFINED);
 		if (err)
 			break;
 
-		err = dtv_property_cache_sync(fe, c, &fepriv->parameters_in);
+		err = dtv_property_cache_sync(fe, c, parg);
 		if (err)
 			break;
 		err = dtv_set_frontend(fe);
@@ -2191,10 +2171,7 @@ static int dvb_frontend_ioctl_legacy(struct file *file,
 		break;
 
 	case FE_GET_FRONTEND:
-		err = dtv_get_frontend(fe, &fepriv->parameters_out);
-		if (err >= 0)
-			memcpy(parg, &fepriv->parameters_out,
-			       sizeof(struct dvb_frontend_parameters));
+		err = dtv_get_frontend(fe, parg);
 		break;
 
 	case FE_SET_FRONTEND_TUNE_MODE:
