@@ -152,7 +152,7 @@ static struct page *logfs_mtd_find_first_sb(struct super_block *sb, u64 *ofs)
 	filler_t *filler = logfs_mtd_readpage;
 	struct mtd_info *mtd = super->s_mtd;
 
-	if (!mtd->block_isbad)
+	if (!mtd_can_have_bb(mtd))
 		return NULL;
 
 	*ofs = 0;
@@ -172,7 +172,7 @@ static struct page *logfs_mtd_find_last_sb(struct super_block *sb, u64 *ofs)
 	filler_t *filler = logfs_mtd_readpage;
 	struct mtd_info *mtd = super->s_mtd;
 
-	if (!mtd->block_isbad)
+	if (!mtd_can_have_bb(mtd))
 		return NULL;
 
 	*ofs = mtd->size - mtd->erasesize;
