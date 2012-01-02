@@ -144,8 +144,15 @@ nfsd4_create_clid_dir(struct nfs4_client *clp)
 		status = PTR_ERR(dentry);
 		goto out_unlock;
 	}
-	status = -EEXIST;
 	if (dentry->d_inode)
+		/*
+		 * In the 4.1 case, where we're called from
+		 * reclaim_complete(), records from the previous reboot
+		 * may still be left, so this is OK.
+		 *
+		 * In the 4.0 case, we should never get here; but we may
+		 * as well be forgiving and just succeed silently.
+		 */
 		goto out_put;
 	status = mnt_want_write(rec_file->f_path.mnt);
 	if (status)
