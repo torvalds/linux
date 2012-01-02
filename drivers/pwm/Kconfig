@@ -18,6 +18,15 @@ config PWM_BFIN
 	  To compile this driver as a module, choose M here: the module
 	  will be called pwm-bfin.
 
+config PWM_PXA
+	tristate "PXA PWM support"
+	depends on ARCH_PXA
+	help
+	  Generic PWM framework driver for PXA.
+
+	  To compile this driver as a module, choose M here: the module
+	  will be called pwm-pxa.
+
 config PWM_TEGRA
 	tristate "NVIDIA Tegra PWM support"
 	depends on ARCH_TEGRA
