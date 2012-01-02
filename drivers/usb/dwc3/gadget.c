@@ -117,7 +117,7 @@ int dwc3_gadget_set_link_state(struct dwc3 *dwc, enum dwc3_link_state state)
 		if (DWC3_DSTS_USBLNKST(reg) == state)
 			return 0;
 
-		usleep_range(500, 1500);
+		udelay(500);
 	}
 
 	dev_vdbg(dwc->dev, "link state change request timed out\n");
