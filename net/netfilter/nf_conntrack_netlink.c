@@ -135,7 +135,7 @@ nla_put_failure:
 static inline int
 ctnetlink_dump_timeout(struct sk_buff *skb, const struct nf_conn *ct)
 {
-	long timeout = (ct->timeout.expires - jiffies) / HZ;
+	long timeout = ((long)ct->timeout.expires - (long)jiffies) / HZ;
 
 	if (timeout < 0)
 		timeout = 0;
@@ -1650,7 +1650,7 @@ ctnetlink_exp_dump_expect(struct sk_buff *skb,
 			  const struct nf_conntrack_expect *exp)
 {
 	struct nf_conn *master = exp->master;
-	long timeout = (exp->timeout.expires - jiffies) / HZ;
+	long timeout = ((long)exp->timeout.expires - (long)jiffies) / HZ;
 	struct nf_conn_help *help;
 
 	if (timeout < 0)

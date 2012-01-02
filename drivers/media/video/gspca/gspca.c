@@ -957,7 +957,7 @@ retry:
 				ret = -EIO;
 				goto out;
 			}
-			alt = ep_tb[--alt_idx].alt;
+			gspca_dev->alt = ep_tb[--alt_idx].alt;
 		}
 	}
 out:
