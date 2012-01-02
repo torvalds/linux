@@ -1054,8 +1054,7 @@ static void hci_cc_le_set_scan_enable(struct hci_dev *hdev,
 	case LE_SCANNING_DISABLED:
 		clear_bit(HCI_LE_SCAN, &hdev->dev_flags);
 
-		queue_delayed_work(hdev->workqueue, &hdev->adv_work,
-							ADV_CLEAR_TIMEOUT);
+		schedule_delayed_work(&hdev->adv_work, ADV_CLEAR_TIMEOUT);
 		break;
 
 	default:
