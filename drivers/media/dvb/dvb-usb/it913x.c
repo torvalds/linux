@@ -259,15 +259,15 @@ static u32 it913x_query(struct usb_device *udev, u8 pro)
 
 static int it913x_pid_filter_ctrl(struct dvb_usb_adapter *adap, int onoff)
 {
-	int ret = 0;
+	struct usb_device *udev = adap->dev->udev;
+	int ret;
 	u8 pro = (adap->id == 0) ? DEV_0_DMOD : DEV_1_DMOD;
 
 	if (mutex_lock_interruptible(&adap->dev->i2c_mutex) < 0)
 			return -EAGAIN;
 	deb_info(1, "PID_C  (%02x)", onoff);
 
-	if (!onoff)
-		ret = it913x_wr_reg(adap->dev->udev, pro, PID_RST, 0x1);
+	ret = it913x_wr_reg(udev, pro, PID_EN, onoff);
 
 	mutex_unlock(&adap->dev->i2c_mutex);
 	return ret;
@@ -277,24 +277,20 @@ static int it913x_pid_filter(struct dvb_usb_adapter *adap,
 		int index, u16 pid, int onoff)
 {
 	struct usb_device *udev = adap->dev->udev;
-	int ret = 0;
+	int ret;
 	u8 pro = (adap->id == 0) ? DEV_0_DMOD : DEV_1_DMOD;
 
 	if (mutex_lock_interruptible(&adap->dev->i2c_mutex) < 0)
 			return -EAGAIN;
 	deb_info(1, "PID_F  (%02x)", onoff);
-	if (onoff) {
-		ret = it913x_wr_reg(udev, pro, PID_EN, 0x1);
 
-		ret |= it913x_wr_reg(udev, pro, PID_LSB, (u8)(pid & 0xff));
+	ret = it913x_wr_reg(udev, pro, PID_LSB, (u8)(pid & 0xff));
 
-		ret |= it913x_wr_reg(udev, pro, PID_MSB, (u8)(pid >> 8));
+	ret |= it913x_wr_reg(udev, pro, PID_MSB, (u8)(pid >> 8));
 
-		ret |= it913x_wr_reg(udev, pro, PID_INX_EN, (u8)onoff);
+	ret |= it913x_wr_reg(udev, pro, PID_INX_EN, (u8)onoff);
 
-		ret |= it913x_wr_reg(udev, pro, PID_INX, (u8)(index & 0x1f));
-
-	}
+	ret |= it913x_wr_reg(udev, pro, PID_INX, (u8)(index & 0x1f));
 
 	mutex_unlock(&adap->dev->i2c_mutex);
 	return 0;
@@ -839,5 +835,5 @@ module_exit(it913x_module_exit);
 
 MODULE_AUTHOR("Malcolm Priestley <tvboxspy@gmail.com>");
 MODULE_DESCRIPTION("it913x USB 2 Driver");
-MODULE_VERSION("1.18");
+MODULE_VERSION("1.20");
 MODULE_LICENSE("GPL");
