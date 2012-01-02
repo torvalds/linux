@@ -9,6 +9,15 @@ menuconfig PWM
 
 if PWM
 
+config PWM_BFIN
+	tristate "Blackfin PWM support"
+	depends on BFIN_GPTIMERS
+	help
+	  Generic PWM framework driver for Blackfin.
+
+	  To compile this driver as a module, choose M here: the module
+	  will be called pwm-bfin.
+
 config PWM_TEGRA
 	tristate "NVIDIA Tegra PWM support"
 	depends on ARCH_TEGRA
