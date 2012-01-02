@@ -1079,17 +1079,10 @@ static int usb_suspend_interface(struct usb_device *udev,
 		goto done;
 	driver = to_usb_driver(intf->dev.driver);
 
-	if (driver->suspend) {
-		status = driver->suspend(intf, msg);
-		if (status && !PMSG_IS_AUTO(msg))
-			dev_err(&intf->dev, "%s error %d\n",
-					"suspend", status);
-	} else {
-		/* Later we will unbind the driver and reprobe */
-		intf->needs_binding = 1;
-		dev_warn(&intf->dev, "no %s for driver %s?\n",
-				"suspend", driver->name);
-	}
+	/* at this time we know the driver supports suspend */
+	status = driver->suspend(intf, msg);
+	if (status && !PMSG_IS_AUTO(msg))
+		dev_err(&intf->dev, "suspend error %d\n", status);
 
  done:
 	dev_vdbg(&intf->dev, "%s: status %d\n", __func__, status);
@@ -1138,16 +1131,9 @@ static int usb_resume_interface(struct usb_device *udev,
 					"reset_resume", driver->name);
 		}
 	} else {
-		if (driver->resume) {
-			status = driver->resume(intf);
-			if (status)
-				dev_err(&intf->dev, "%s error %d\n",
-						"resume", status);
-		} else {
-			intf->needs_binding = 1;
-			dev_warn(&intf->dev, "no %s for driver %s?\n",
-					"resume", driver->name);
-		}
+		status = driver->resume(intf);
+		if (status)
+			dev_err(&intf->dev, "resume error %d\n", status);
 	}
 
 done:
