@@ -127,10 +127,11 @@ nfsd4_create_clid_dir(struct nfs4_client *clp)
 
 	dprintk("NFSD: nfsd4_create_clid_dir for \"%s\"\n", dname);
 
-	if (!rec_file || clp->cl_firststate)
+	if (clp->cl_firststate)
 		return 0;
-
 	clp->cl_firststate = 1;
+	if (!rec_file)
+		return -ENOENT;
 	status = nfs4_save_creds(&original_cred);
 	if (status < 0)
 		return status;
