@@ -817,11 +817,11 @@ skip_unblock:
 static void qfq_update_start(struct qfq_sched *q, struct qfq_class *cl)
 {
 	unsigned long mask;
-	uint32_t limit, roundedF;
+	u64 limit, roundedF;
 	int slot_shift = cl->grp->slot_shift;
 
 	roundedF = qfq_round_down(cl->F, slot_shift);
-	limit = qfq_round_down(q->V, slot_shift) + (1UL << slot_shift);
+	limit = qfq_round_down(q->V, slot_shift) + (1ULL << slot_shift);
 
 	if (!qfq_gt(cl->F, q->V) || qfq_gt(roundedF, limit)) {
 		/* timestamp was stale */
