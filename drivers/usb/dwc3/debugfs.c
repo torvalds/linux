@@ -46,6 +46,8 @@
 #include <linux/delay.h>
 #include <linux/uaccess.h>
 
+#include <linux/usb/ch9.h>
+
 #include "core.h"
 #include "gadget.h"
 #include "io.h"
@@ -464,6 +466,89 @@ static const struct file_operations dwc3_mode_fops = {
 	.release		= single_release,
 };
 
+static int dwc3_testmode_show(struct seq_file *s, void *unused)
+{
+	struct dwc3		*dwc = s->private;
+	unsigned long		flags;
+	u32			reg;
+
+	spin_lock_irqsave(&dwc->lock, flags);
+	reg = dwc3_readl(dwc->regs, DWC3_DCTL);
+	reg &= DWC3_DCTL_TSTCTRL_MASK;
+	reg >>= 1;
+	spin_unlock_irqrestore(&dwc->lock, flags);
+
+	switch (reg) {
+	case 0:
+		seq_printf(s, "no test\n");
+		break;
+	case TEST_J:
+		seq_printf(s, "test_j\n");
+		break;
+	case TEST_K:
+		seq_printf(s, "test_k\n");
+		break;
+	case TEST_SE0_NAK:
+		seq_printf(s, "test_se0_nak\n");
+		break;
+	case TEST_PACKET:
+		seq_printf(s, "test_packet\n");
+		break;
+	case TEST_FORCE_EN:
+		seq_printf(s, "test_force_enable\n");
+		break;
+	default:
+		seq_printf(s, "UNKNOWN %d\n", reg);
+	}
+
+	return 0;
+}
+
+static int dwc3_testmode_open(struct inode *inode, struct file *file)
+{
+	return single_open(file, dwc3_testmode_show, inode->i_private);
+}
+
+static ssize_t dwc3_testmode_write(struct file *file,
+		const char __user *ubuf, size_t count, loff_t *ppos)
+{
+	struct seq_file		*s = file->private_data;
+	struct dwc3		*dwc = s->private;
+	unsigned long		flags;
+	u32			testmode = 0;
+	char			buf[32];
+
+	if (copy_from_user(&buf, ubuf, min_t(size_t, sizeof(buf) - 1, count)))
+		return -EFAULT;
+
+	if (!strncmp(buf, "test_j", 6))
+		testmode = TEST_J;
+	else if (!strncmp(buf, "test_k", 6))
+		testmode = TEST_K;
+	else if (!strncmp(buf, "test_se0_nak", 13))
+		testmode = TEST_SE0_NAK;
+	else if (!strncmp(buf, "test_packet", 12))
+		testmode = TEST_PACKET;
+	else if (!strncmp(buf, "test_force_enable", 18))
+		testmode = TEST_FORCE_EN;
+	else
+		testmode = 0;
+
+	spin_lock_irqsave(&dwc->lock, flags);
+	dwc3_gadget_set_test_mode(dwc, testmode);
+	spin_unlock_irqrestore(&dwc->lock, flags);
+
+	return count;
+}
+
+static const struct file_operations dwc3_testmode_fops = {
+	.open			= dwc3_testmode_open,
+	.write			= dwc3_testmode_write,
+	.read			= seq_read,
+	.llseek			= seq_lseek,
+	.release		= single_release,
+};
+
 int __devinit dwc3_debugfs_init(struct dwc3 *dwc)
 {
 	struct dentry		*root;
@@ -487,6 +572,13 @@ int __devinit dwc3_debugfs_init(struct dwc3 *dwc)
 
 	file = debugfs_create_file("mode", S_IRUGO | S_IWUSR, root,
 			dwc, &dwc3_mode_fops);
+	if (IS_ERR(file)) {
+		ret = PTR_ERR(file);
+		goto err1;
+	}
+
+	file = debugfs_create_file("testmode", S_IRUGO | S_IWUSR, root,
+			dwc, &dwc3_testmode_fops);
 	if (IS_ERR(file)) {
 		ret = PTR_ERR(file);
 		goto err1;
