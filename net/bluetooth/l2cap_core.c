@@ -1190,7 +1190,7 @@ inline int l2cap_chan_connect(struct l2cap_chan *chan, __le16 psm, u16 cid, bdad
 	}
 
 	/* Set destination address and psm */
-	bacpy(&bt_sk(sk)->dst, src);
+	bacpy(&bt_sk(sk)->dst, dst);
 	chan->psm = psm;
 	chan->dcid = cid;
 
