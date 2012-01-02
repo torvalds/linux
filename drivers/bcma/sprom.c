@@ -129,8 +129,14 @@ static int bcma_sprom_valid(const u16 *sprom)
 
 static void bcma_sprom_extract_r8(struct bcma_bus *bus, const u16 *sprom)
 {
-	u16 v;
+	u16 v, o;
 	int i;
+	u16 pwr_info_offset[] = {
+		SSB_SROM8_PWR_INFO_CORE0, SSB_SROM8_PWR_INFO_CORE1,
+		SSB_SROM8_PWR_INFO_CORE2, SSB_SROM8_PWR_INFO_CORE3
+	};
+	BUILD_BUG_ON(ARRAY_SIZE(pwr_info_offset) !=
+			ARRAY_SIZE(bus->sprom.core_pwr_info));
 
 	bus->sprom.revision = sprom[SSB_SPROMSIZE_WORDS_R4 - 1] &
 		SSB_SPROM_REVISION_REV;
@@ -184,6 +190,38 @@ static void bcma_sprom_extract_r8(struct bcma_bus *bus, const u16 *sprom)
 	SPEX(boardflags2_hi, SSB_SPROM8_BFL2HI, ~0, 0);
 
 	SPEX(country_code, SSB_SPROM8_CCODE, ~0, 0);
+
+	/* Extract cores power info info */
+	for (i = 0; i < ARRAY_SIZE(pwr_info_offset); i++) {
+		o = pwr_info_offset[i];
+		SPEX(core_pwr_info[i].itssi_2g, o + SSB_SROM8_2G_MAXP_ITSSI,
+			SSB_SPROM8_2G_ITSSI, SSB_SPROM8_2G_ITSSI_SHIFT);
+		SPEX(core_pwr_info[i].maxpwr_2g, o + SSB_SROM8_2G_MAXP_ITSSI,
+			SSB_SPROM8_2G_MAXP, 0);
+
+		SPEX(core_pwr_info[i].pa_2g[0], o + SSB_SROM8_2G_PA_0, ~0, 0);
+		SPEX(core_pwr_info[i].pa_2g[1], o + SSB_SROM8_2G_PA_1, ~0, 0);
+		SPEX(core_pwr_info[i].pa_2g[2], o + SSB_SROM8_2G_PA_2, ~0, 0);
+
+		SPEX(core_pwr_info[i].itssi_5g, o + SSB_SROM8_5G_MAXP_ITSSI,
+			SSB_SPROM8_5G_ITSSI, SSB_SPROM8_5G_ITSSI_SHIFT);
+		SPEX(core_pwr_info[i].maxpwr_5g, o + SSB_SROM8_5G_MAXP_ITSSI,
+			SSB_SPROM8_5G_MAXP, 0);
+		SPEX(core_pwr_info[i].maxpwr_5gh, o + SSB_SPROM8_5GHL_MAXP,
+			SSB_SPROM8_5GH_MAXP, 0);
+		SPEX(core_pwr_info[i].maxpwr_5gl, o + SSB_SPROM8_5GHL_MAXP,
+			SSB_SPROM8_5GL_MAXP, SSB_SPROM8_5GL_MAXP_SHIFT);
+
+		SPEX(core_pwr_info[i].pa_5gl[0], o + SSB_SROM8_5GL_PA_0, ~0, 0);
+		SPEX(core_pwr_info[i].pa_5gl[1], o + SSB_SROM8_5GL_PA_1, ~0, 0);
+		SPEX(core_pwr_info[i].pa_5gl[2], o + SSB_SROM8_5GL_PA_2, ~0, 0);
+		SPEX(core_pwr_info[i].pa_5g[0], o + SSB_SROM8_5G_PA_0, ~0, 0);
+		SPEX(core_pwr_info[i].pa_5g[1], o + SSB_SROM8_5G_PA_1, ~0, 0);
+		SPEX(core_pwr_info[i].pa_5g[2], o + SSB_SROM8_5G_PA_2, ~0, 0);
+		SPEX(core_pwr_info[i].pa_5gh[0], o + SSB_SROM8_5GH_PA_0, ~0, 0);
+		SPEX(core_pwr_info[i].pa_5gh[1], o + SSB_SROM8_5GH_PA_1, ~0, 0);
+		SPEX(core_pwr_info[i].pa_5gh[2], o + SSB_SROM8_5GH_PA_2, ~0, 0);
+	}
 
 	SPEX(fem.ghz2.tssipos, SSB_SPROM8_FEM2G, SSB_SROM8_FEM_TSSIPOS,
 	     SSB_SROM8_FEM_TSSIPOS_SHIFT);
