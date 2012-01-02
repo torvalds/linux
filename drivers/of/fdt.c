@@ -18,6 +18,7 @@
 #include <linux/errno.h>
 #include <linux/slab.h>
 
+#include <asm/setup.h>  /* for COMMAND_LINE_SIZE */
 #ifdef CONFIG_PPC
 #include <asm/machdep.h>
 #endif /* CONFIG_PPC */
