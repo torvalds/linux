@@ -315,7 +315,6 @@ static int dwc3_ep0_handle_feature(struct dwc3 *dwc,
 	u32			recip;
 	u32			wValue;
 	u32			wIndex;
-	u32			reg;
 	int			ret;
 	u32			mode;
 
@@ -357,24 +356,12 @@ static int dwc3_ep0_handle_feature(struct dwc3 *dwc,
 				return -EINVAL;
 
 			mode = wIndex >> 8;
-			reg = dwc3_readl(dwc->regs, DWC3_DCTL);
-			reg &= ~DWC3_DCTL_TSTCTRL_MASK;
-
-			switch (mode) {
-			case TEST_J:
-			case TEST_K:
-			case TEST_SE0_NAK:
-			case TEST_PACKET:
-			case TEST_FORCE_EN:
-				reg |= mode << 1;
-				break;
-			default:
-				return -EINVAL;
+			ret = dwc3_gadget_set_test_mode(dwc, mode);
+			if (ret < 0) {
+				dev_dbg(dwc->dev, "Invalid Test #%d\n",
+						mode);
+				return ret;
 			}
-			dwc3_writel(dwc->regs, DWC3_DCTL, reg);
-			break;
-		default:
-			return -EINVAL;
 		}
 		break;
 

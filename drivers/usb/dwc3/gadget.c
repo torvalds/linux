@@ -56,6 +56,39 @@
 
 #define	DMA_ADDR_INVALID	(~(dma_addr_t)0)
 
+/**
+ * dwc3_gadget_set_test_mode - Enables USB2 Test Modes
+ * @dwc: pointer to our context structure
+ * @mode: the mode to set (J, K SE0 NAK, Force Enable)
+ *
+ * Caller should take care of locking. This function will
+ * return 0 on success or -EINVAL if wrong Test Selector
+ * is passed
+ */
+int dwc3_gadget_set_test_mode(struct dwc3 *dwc, int mode)
+{
+	u32		reg;
+
+	reg = dwc3_readl(dwc->regs, DWC3_DCTL);
+	reg &= ~DWC3_DCTL_TSTCTRL_MASK;
+
+	switch (mode) {
+	case TEST_J:
+	case TEST_K:
+	case TEST_SE0_NAK:
+	case TEST_PACKET:
+	case TEST_FORCE_EN:
+		reg |= mode << 1;
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	dwc3_writel(dwc->regs, DWC3_DCTL, reg);
+
+	return 0;
+}
+
 void dwc3_map_buffer_to_dma(struct dwc3_request *req)
 {
 	struct dwc3			*dwc = req->dep->dwc;
