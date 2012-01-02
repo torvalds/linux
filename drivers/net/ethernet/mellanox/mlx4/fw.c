@@ -657,7 +657,12 @@ int mlx4_QUERY_PORT_wrapper(struct mlx4_dev *dev, int slave,
 	u8 port_type;
 	int err;
 
-#define MLX4_VF_PORT_ETH_ONLY_MASK	0xE6
+#define MLX4_PORT_SUPPORT_IB		(1 << 0)
+#define MLX4_PORT_SUGGEST_TYPE		(1 << 3)
+#define MLX4_PORT_DEFAULT_SENSE		(1 << 4)
+#define MLX4_VF_PORT_ETH_ONLY_MASK	(0xff & ~MLX4_PORT_SUPPORT_IB & \
+					 ~MLX4_PORT_SUGGEST_TYPE & \
+					 ~MLX4_PORT_DEFAULT_SENSE)
 
 	err = mlx4_cmd_box(dev, 0, outbox->dma, vhcr->in_modifier, 0,
 			   MLX4_CMD_QUERY_PORT, MLX4_CMD_TIME_CLASS_B,
