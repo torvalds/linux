@@ -395,9 +395,10 @@ static int ite_firmware_select(struct usb_device *udev,
 			USB_PID_ITETECH_IT9135_9005)
 		sw = IT9135_V1_FW;
 	else if (le16_to_cpu(udev->descriptor.idProduct) ==
-			USB_PID_ITETECH_IT9135_9006)
+			USB_PID_ITETECH_IT9135_9006) {
 		sw = IT9135_V2_FW;
-	else
+		it913x_config.tuner_id_0 = 0x60;
+	} else
 		sw = IT9137_FW;
 
 	/* force switch */
@@ -835,5 +836,5 @@ module_exit(it913x_module_exit);
 
 MODULE_AUTHOR("Malcolm Priestley <tvboxspy@gmail.com>");
 MODULE_DESCRIPTION("it913x USB 2 Driver");
-MODULE_VERSION("1.20");
+MODULE_VERSION("1.21");
 MODULE_LICENSE("GPL");
