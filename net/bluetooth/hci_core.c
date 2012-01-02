@@ -2611,6 +2611,8 @@ int hci_do_inquiry(struct hci_dev *hdev, u8 length)
 	if (test_bit(HCI_INQUIRY, &hdev->flags))
 		return -EINPROGRESS;
 
+	inquiry_cache_flush(hdev);
+
 	memset(&cp, 0, sizeof(cp));
 	memcpy(&cp.lap, lap, sizeof(cp.lap));
 	cp.length  = length;
