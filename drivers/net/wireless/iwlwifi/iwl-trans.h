@@ -139,8 +139,7 @@ struct iwl_host_cmd {
  *                layer.
  * @prepare_card_hw: claim the ownership on the HW. Will be called during
  *                   probe.
- * @tx_start: starts and configures all the Tx fifo - usually done once the fw
- *           is alive.
+ * @fw_alive: called when the fw sends alive notification
  * @wake_any_queue: wake all the queues of a specfic context IWL_RXON_CTX_*
  * @stop_device:stops the whole device (embedded CPU put to reset)
  * @send_cmd:send a host command
@@ -166,9 +165,9 @@ struct iwl_trans_ops {
 	struct iwl_trans *(*alloc)(struct iwl_shared *shrd);
 	int (*request_irq)(struct iwl_trans *iwl_trans);
 	int (*start_device)(struct iwl_trans *trans);
+	void (*fw_alive)(struct iwl_trans *trans);
 	int (*prepare_card_hw)(struct iwl_trans *trans);
 	void (*stop_device)(struct iwl_trans *trans);
-	void (*tx_start)(struct iwl_trans *trans);
 
 	void (*wake_any_queue)(struct iwl_trans *trans,
 			       enum iwl_rxon_context_id ctx,
@@ -264,6 +263,11 @@ static inline int iwl_trans_request_irq(struct iwl_trans *trans)
 	return trans->ops->request_irq(trans);
 }
 
+static inline void iwl_trans_fw_alive(struct iwl_trans *trans)
+{
+	trans->ops->fw_alive(trans);
+}
+
 static inline int iwl_trans_start_device(struct iwl_trans *trans)
 {
 	return trans->ops->start_device(trans);
@@ -277,11 +281,6 @@ static inline int iwl_trans_prepare_card_hw(struct iwl_trans *trans)
 static inline void iwl_trans_stop_device(struct iwl_trans *trans)
 {
 	trans->ops->stop_device(trans);
-}
-
-static inline void iwl_trans_tx_start(struct iwl_trans *trans)
-{
-	trans->ops->tx_start(trans);
 }
 
 static inline void iwl_trans_wake_any_queue(struct iwl_trans *trans,

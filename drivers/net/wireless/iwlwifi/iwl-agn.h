@@ -73,8 +73,6 @@ struct iwlagn_ucode_capabilities {
 
 extern struct ieee80211_ops iwlagn_hw_ops;
 
-int iwl_reset_ict(struct iwl_trans *trans);
-
 static inline void iwl_set_calib_hdr(struct iwl_calib_hdr *hdr, u8 cmd)
 {
 	hdr->op_code = cmd;

@@ -447,7 +447,7 @@ static int iwl_alive_notify(struct iwl_trans *trans)
 	if (!priv->tx_cmd_pool)
 		return -ENOMEM;
 
-	iwl_trans_tx_start(trans);
+	iwl_trans_fw_alive(trans);
 	for_each_context(priv, ctx)
 		ctx->last_tx_rejected = false;
 

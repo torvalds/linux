@@ -1213,7 +1213,7 @@ int iwl_alloc_isr_ict(struct iwl_trans *trans)
 /* Device is going up inform it about using ICT interrupt table,
  * also we need to tell the driver to start using ICT interrupt.
  */
-int iwl_reset_ict(struct iwl_trans *trans)
+void iwl_reset_ict(struct iwl_trans *trans)
 {
 	u32 val;
 	unsigned long flags;
@@ -1221,7 +1221,7 @@ int iwl_reset_ict(struct iwl_trans *trans)
 		IWL_TRANS_GET_PCIE_TRANS(trans);
 
 	if (!trans_pcie->ict_tbl)
-		return 0;
+		return;
 
 	spin_lock_irqsave(&trans->shrd->lock, flags);
 	iwl_disable_interrupts(trans);
@@ -1241,8 +1241,6 @@ int iwl_reset_ict(struct iwl_trans *trans)
 	iwl_write32(bus(trans), CSR_INT, trans_pcie->inta_mask);
 	iwl_enable_interrupts(trans);
 	spin_unlock_irqrestore(&trans->shrd->lock, flags);
-
-	return 0;
 }
 
 /* Device is going down disable ict interrupt usage */

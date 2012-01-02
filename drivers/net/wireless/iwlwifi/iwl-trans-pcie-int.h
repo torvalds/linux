@@ -258,7 +258,7 @@ void iwl_rx_queue_update_write_ptr(struct iwl_trans *trans,
 /*****************************************************
 * ICT
 ******************************************************/
-int iwl_reset_ict(struct iwl_trans *trans);
+void iwl_reset_ict(struct iwl_trans *trans);
 void iwl_disable_ict(struct iwl_trans *trans);
 int iwl_alloc_isr_ict(struct iwl_trans *trans);
 void iwl_free_isr_ict(struct iwl_trans *trans);

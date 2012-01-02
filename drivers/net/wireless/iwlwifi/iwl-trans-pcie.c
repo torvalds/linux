@@ -835,7 +835,7 @@ static void iwl_trans_txq_set_sched(struct iwl_trans *trans, u32 mask)
 	iwl_write_prph(bus(trans), SCD_TXFACT, mask);
 }
 
-static void iwl_trans_pcie_tx_start(struct iwl_trans *trans)
+static void iwl_tx_start(struct iwl_trans *trans)
 {
 	const struct queue_to_fifo_ac *queue_to_fifo;
 	struct iwl_trans_pcie *trans_pcie =
@@ -946,6 +946,12 @@ static void iwl_trans_pcie_tx_start(struct iwl_trans *trans)
 	/* Enable L1-Active */
 	iwl_clear_bits_prph(bus(trans), APMG_PCIDEV_STT_REG,
 			  APMG_PCIDEV_STT_VAL_L1_ACT_DIS);
+}
+
+static void iwl_trans_pcie_fw_alive(struct iwl_trans *trans)
+{
+	iwl_reset_ict(trans);
+	iwl_tx_start(trans);
 }
 
 /**
@@ -1903,11 +1909,11 @@ static int iwl_trans_pcie_dbgfs_register(struct iwl_trans *trans,
 const struct iwl_trans_ops trans_ops_pcie = {
 	.alloc = iwl_trans_pcie_alloc,
 	.request_irq = iwl_trans_pcie_request_irq,
+	.fw_alive = iwl_trans_pcie_fw_alive,
 	.start_device = iwl_trans_pcie_start_device,
 	.prepare_card_hw = iwl_trans_pcie_prepare_card_hw,
 	.stop_device = iwl_trans_pcie_stop_device,
 
-	.tx_start = iwl_trans_pcie_tx_start,
 	.wake_any_queue = iwl_trans_pcie_wake_any_queue,
 
 	.send_cmd = iwl_trans_pcie_send_cmd,
