@@ -877,10 +877,7 @@ static int mtdchar_ioctl(struct file *file, u_int cmd, u_long arg)
 
 		if (copy_from_user(&offs, argp, sizeof(loff_t)))
 			return -EFAULT;
-		if (!mtd->block_markbad)
-			ret = -EOPNOTSUPP;
-		else
-			return mtd_block_markbad(mtd, offs);
+		return mtd_block_markbad(mtd, offs);
 		break;
 	}
 

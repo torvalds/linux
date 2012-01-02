@@ -447,6 +447,8 @@ static inline int mtd_block_isbad(struct mtd_info *mtd, loff_t ofs)
 
 static inline int mtd_block_markbad(struct mtd_info *mtd, loff_t ofs)
 {
+	if (!mtd->block_markbad)
+		return -EOPNOTSUPP;
 	return mtd->block_markbad(mtd, ofs);
 }
 

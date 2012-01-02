@@ -274,7 +274,7 @@ static int mtdswap_handle_badblock(struct mtdswap_dev *d, struct swap_eb *eb)
 	eb->root = NULL;
 
 	/* badblocks not supported */
-	if (!d->mtd->block_markbad)
+	if (!mtd_can_have_bb(d->mtd))
 		return 1;
 
 	offset = mtdswap_eb_offset(d, eb);
