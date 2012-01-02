@@ -556,6 +556,9 @@ static void hci_set_le_support(struct hci_dev *hdev)
 
 static void hci_setup(struct hci_dev *hdev)
 {
+	if (hdev->dev_type != HCI_BREDR)
+		return;
+
 	hci_setup_event_mask(hdev);
 
 	if (hdev->hci_ver > BLUETOOTH_VER_1_1)
@@ -1030,7 +1033,8 @@ static void hci_cc_le_set_scan_enable(struct hci_dev *hdev,
 	if (!cp)
 		return;
 
-	if (cp->enable == 0x01) {
+	switch (cp->enable) {
+	case LE_SCANNING_ENABLED:
 		set_bit(HCI_LE_SCAN, &hdev->dev_flags);
 
 		cancel_delayed_work_sync(&hdev->adv_work);
@@ -1038,12 +1042,19 @@ static void hci_cc_le_set_scan_enable(struct hci_dev *hdev,
 		hci_dev_lock(hdev);
 		hci_adv_entries_clear(hdev);
 		hci_dev_unlock(hdev);
-	} else if (cp->enable == 0x00) {
+		break;
+
+	case LE_SCANNING_DISABLED:
 		clear_bit(HCI_LE_SCAN, &hdev->dev_flags);
 
 		cancel_delayed_work_sync(&hdev->adv_work);
 		queue_delayed_work(hdev->workqueue, &hdev->adv_work,
 						 jiffies + ADV_CLEAR_TIMEOUT);
+		break;
+
+	default:
+		BT_ERR("Used reserved LE_Scan_Enable param %d", cp->enable);
+		break;
 	}
 }
 
@@ -2253,24 +2264,29 @@ static inline void hci_role_change_evt(struct hci_dev *hdev, struct sk_buff *skb
 static inline void hci_num_comp_pkts_evt(struct hci_dev *hdev, struct sk_buff *skb)
 {
 	struct hci_ev_num_comp_pkts *ev = (void *) skb->data;
-	__le16 *ptr;
 	int i;
 
 	skb_pull(skb, sizeof(*ev));
 
 	BT_DBG("%s num_hndl %d", hdev->name, ev->num_hndl);
 
+	if (hdev->flow_ctl_mode != HCI_FLOW_CTL_MODE_PACKET_BASED) {
+		BT_ERR("Wrong event for mode %d", hdev->flow_ctl_mode);
+		return;
+	}
+
 	if (skb->len < ev->num_hndl * 4) {
 		BT_DBG("%s bad parameters", hdev->name);
 		return;
 	}
 
-	for (i = 0, ptr = (__le16 *) skb->data; i < ev->num_hndl; i++) {
+	for (i = 0; i < ev->num_hndl; i++) {
+		struct hci_comp_pkts_info *info = &ev->handles[i];
 		struct hci_conn *conn;
 		__u16  handle, count;
 
-		handle = get_unaligned_le16(ptr++);
-		count  = get_unaligned_le16(ptr++);
+		handle = __le16_to_cpu(info->handle);
+		count  = __le16_to_cpu(info->count);
 
 		conn = hci_conn_hash_lookup_handle(hdev, handle);
 		if (!conn)

@@ -199,15 +199,14 @@ struct sock *bt_accept_dequeue(struct sock *parent, struct socket *newsock)
 
 	BT_DBG("parent %p", parent);
 
-	local_bh_disable();
 	list_for_each_safe(p, n, &bt_sk(parent)->accept_q) {
 		sk = (struct sock *) list_entry(p, struct bt_sock, accept_q);
 
-		bh_lock_sock(sk);
+		lock_sock(sk);
 
 		/* FIXME: Is this check still needed */
 		if (sk->sk_state == BT_CLOSED) {
-			bh_unlock_sock(sk);
+			release_sock(sk);
 			bt_accept_unlink(sk);
 			continue;
 		}
@@ -218,14 +217,12 @@ struct sock *bt_accept_dequeue(struct sock *parent, struct socket *newsock)
 			if (newsock)
 				sock_graft(sk, newsock);
 
-			bh_unlock_sock(sk);
-			local_bh_enable();
+			release_sock(sk);
 			return sk;
 		}
 
-		bh_unlock_sock(sk);
+		release_sock(sk);
 	}
-	local_bh_enable();
 
 	return NULL;
 }

@@ -280,6 +280,10 @@ enum {
 #define HCI_ERROR_LOCAL_HOST_TERM	0x16
 #define HCI_ERROR_PAIRING_NOT_ALLOWED	0x18
 
+/* Flow control modes */
+#define HCI_FLOW_CTL_MODE_PACKET_BASED	0x00
+#define HCI_FLOW_CTL_MODE_BLOCK_BASED	0x01
+
 /* -----  HCI Commands ---- */
 #define HCI_OP_NOP			0x0000
 
@@ -800,6 +804,9 @@ struct hci_cp_le_set_scan_param {
 	__u8    filter_policy;
 } __packed;
 
+#define LE_SCANNING_DISABLED		0x00
+#define LE_SCANNING_ENABLED		0x01
+
 #define HCI_OP_LE_SET_SCAN_ENABLE	0x200c
 struct hci_cp_le_set_scan_enable {
 	__u8     enable;
@@ -975,9 +982,14 @@ struct hci_ev_role_change {
 } __packed;
 
 #define HCI_EV_NUM_COMP_PKTS		0x13
+struct hci_comp_pkts_info {
+	__le16   handle;
+	__le16   count;
+} __packed;
+
 struct hci_ev_num_comp_pkts {
 	__u8     num_hndl;
-	/* variable length part */
+	struct hci_comp_pkts_info handles[0];
 } __packed;
 
 #define HCI_EV_MODE_CHANGE		0x14

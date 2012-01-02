@@ -30,6 +30,7 @@
 #include <net/bluetooth/bluetooth.h>
 #include <net/bluetooth/hci_core.h>
 #include <net/bluetooth/mgmt.h>
+#include <net/bluetooth/smp.h>
 
 #define MGMT_VERSION	0
 #define MGMT_REVISION	1
@@ -1642,8 +1643,15 @@ static int user_pairing_resp(struct sock *sk, u16 index, bdaddr_t *bdaddr,
 		}
 
 		/* Continue with pairing via SMP */
+		err = smp_user_confirm_reply(conn, mgmt_op, passkey);
 
-		err = cmd_status(sk, index, mgmt_op, MGMT_STATUS_SUCCESS);
+		if (!err)
+			err = cmd_status(sk, index, mgmt_op,
+							MGMT_STATUS_SUCCESS);
+		else
+			err = cmd_status(sk, index, mgmt_op,
+							MGMT_STATUS_FAILED);
+
 		goto done;
 	}
 
