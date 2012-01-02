@@ -200,6 +200,10 @@ enum omap_dss_clk_source {
 	OMAP_DSS_CLK_SRC_DSI2_PLL_HSDIV_DSI,	/* OMAP4: PLL2_CLK2 */
 };
 
+enum omap_hdmi_flags {
+	OMAP_HDMI_SDA_SCL_EXTERNAL_PULLUP = 1 << 0,
+};
+
 /* RFBI */
 
 struct rfbi_timings {
@@ -310,7 +314,7 @@ struct omap_dss_board_info {
 /* Init with the board info */
 extern int omap_display_init(struct omap_dss_board_info *board_data);
 /* HDMI mux init*/
-extern int omap_hdmi_init(void);
+extern int omap_hdmi_init(enum omap_hdmi_flags flags);
 
 struct omap_display_platform_data {
 	struct omap_dss_board_info *board_data;

@@ -97,8 +97,11 @@ static const struct omap_dss_hwmod_data omap4_dss_hwmod_data[] __initdata = {
 	{ "dss_hdmi", "omapdss_hdmi", -1 },
 };
 
-static void omap4_hdmi_mux_pads()
+static void omap4_hdmi_mux_pads(enum omap_hdmi_flags flags)
 {
+	u32 reg;
+	u16 control_i2c_1;
+
 	/* PAD0_HDMI_HPD_PAD1_HDMI_CEC */
 	omap_mux_init_signal("hdmi_hpd",
 			OMAP_PIN_INPUT_PULLUP);
@@ -109,6 +112,19 @@ static void omap4_hdmi_mux_pads()
 			OMAP_PIN_INPUT_PULLUP);
 	omap_mux_init_signal("hdmi_ddc_sda",
 			OMAP_PIN_INPUT_PULLUP);
+
+	/*
+	 * CONTROL_I2C_1: HDMI_DDC_SDA_PULLUPRESX (bit 28) and
+	 * HDMI_DDC_SCL_PULLUPRESX (bit 24) are set to disable
+	 * internal pull up resistor.
+	 */
+	if (flags & OMAP_HDMI_SDA_SCL_EXTERNAL_PULLUP) {
+		control_i2c_1 = OMAP4_CTRL_MODULE_PAD_CORE_CONTROL_I2C_1;
+		reg = omap4_ctrl_pad_readl(control_i2c_1);
+		reg |= (OMAP4_HDMI_DDC_SDA_PULLUPRESX_MASK |
+			OMAP4_HDMI_DDC_SCL_PULLUPRESX_MASK);
+			omap4_ctrl_pad_writel(reg, control_i2c_1);
+	}
 }
 
 static int omap4_dsi_mux_pads(int dsi_id, unsigned lanes)
@@ -144,10 +160,10 @@ static int omap4_dsi_mux_pads(int dsi_id, unsigned lanes)
 	return 0;
 }
 
-int omap_hdmi_init(void)
+int omap_hdmi_init(enum omap_hdmi_flags flags)
 {
 	if (cpu_is_omap44xx())
-		omap4_hdmi_mux_pads();
+		omap4_hdmi_mux_pads(flags);
 
 	return 0;
 }

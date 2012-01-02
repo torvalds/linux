@@ -530,7 +530,15 @@ void omap4_panda_display_init(void)
 		pr_err("error initializing panda DVI\n");
 
 	omap_display_init(&omap4_panda_dss_data);
-	omap_hdmi_init();
+
+	/*
+	 * OMAP4460SDP/Blaze and OMAP4430 ES2.3 SDP/Blaze boards and
+	 * later have external pull up on the HDMI I2C lines
+	 */
+	if (cpu_is_omap446x() || omap_rev() > OMAP4430_REV_ES2_2)
+		omap_hdmi_init(OMAP_HDMI_SDA_SCL_EXTERNAL_PULLUP);
+	else
+		omap_hdmi_init(0);
 }
 
 static void __init omap4_panda_init(void)

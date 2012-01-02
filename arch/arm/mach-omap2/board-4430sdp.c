@@ -814,7 +814,14 @@ static void omap_4430sdp_display_init(void)
 	sdp4430_lcd_init();
 	sdp4430_picodlp_init();
 	omap_display_init(&sdp4430_dss_data);
-	omap_hdmi_init();
+	/*
+	 * OMAP4460SDP/Blaze and OMAP4430 ES2.3 SDP/Blaze boards and
+	 * later have external pull up on the HDMI I2C lines
+	 */
+	if (cpu_is_omap446x() || omap_rev() > OMAP4430_REV_ES2_2)
+		omap_hdmi_init(OMAP_HDMI_SDA_SCL_EXTERNAL_PULLUP);
+	else
+		omap_hdmi_init(0);
 }
 
 #ifdef CONFIG_OMAP_MUX
