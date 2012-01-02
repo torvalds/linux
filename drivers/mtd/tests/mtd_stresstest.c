@@ -227,8 +227,7 @@ static int scan_for_bad_eraseblocks(void)
 		return -ENOMEM;
 	}
 
-	/* NOR flash does not implement block_isbad */
-	if (mtd->block_isbad == NULL)
+	if (!mtd_can_have_bb(mtd))
 		return 0;
 
 	printk(PRINT_PREF "scanning for bad eraseblocks\n");

@@ -647,7 +647,7 @@ static int concat_block_isbad(struct mtd_info *mtd, loff_t ofs)
 	struct mtd_concat *concat = CONCAT(mtd);
 	int i, res = 0;
 
-	if (!concat->subdev[0]->block_isbad)
+	if (!mtd_can_have_bb(concat->subdev[0]))
 		return res;
 
 	if (ofs > mtd->size)

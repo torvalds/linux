@@ -78,7 +78,7 @@ static int parse_redboot_partitions(struct mtd_info *master,
 
 	if ( directory < 0 ) {
 		offset = master->size + directory * master->erasesize;
-		while (master->block_isbad && 
+		while (mtd_can_have_bb(master) &&
 		       mtd_block_isbad(master, offset)) {
 			if (!offset) {
 			nogood:
@@ -89,7 +89,7 @@ static int parse_redboot_partitions(struct mtd_info *master,
 		}
 	} else {
 		offset = directory * master->erasesize;
-		while (master->block_isbad && 
+		while (mtd_can_have_bb(master) &&
 		       mtd_block_isbad(master, offset)) {
 			offset += master->erasesize;
 			if (offset == master->size)

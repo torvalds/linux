@@ -290,7 +290,7 @@ static int __init tort_init(void)
 	 * Check if there is a bad eraseblock among those we are going to test.
 	 */
 	memset(&bad_ebs[0], 0, sizeof(int) * ebcnt);
-	if (mtd->block_isbad) {
+	if (mtd_can_have_bb(mtd)) {
 		for (i = eb; i < eb + ebcnt; i++) {
 			err = mtd_block_isbad(mtd, (loff_t)i * mtd->erasesize);
 

@@ -169,7 +169,7 @@ static void mtdoops_workfunc_erase(struct work_struct *work)
 			cxt->nextpage = 0;
 	}
 
-	while (mtd->block_isbad) {
+	while (mtd_can_have_bb(mtd)) {
 		ret = mtd_block_isbad(mtd, cxt->nextpage * record_size);
 		if (!ret)
 			break;
@@ -257,7 +257,7 @@ static void find_next_position(struct mtdoops_context *cxt)
 	size_t retlen;
 
 	for (page = 0; page < cxt->oops_pages; page++) {
-		if (mtd->block_isbad &&
+		if (mtd_can_have_bb(mtd) &&
 		    mtd_block_isbad(mtd, page * record_size))
 			continue;
 		/* Assume the page is used */
