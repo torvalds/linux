@@ -3968,13 +3968,10 @@ static void b43_nphy_superswitch_init(struct b43_wldev *dev, bool init)
 #endif
 		}
 
-		b43_write32(dev, B43_MMIO_MACCTL,
-			b43_read32(dev, B43_MMIO_MACCTL) &
-			~B43_MACCTL_GPOUTSMSK);
-		b43_write16(dev, B43_MMIO_GPIO_MASK,
-			b43_read16(dev, B43_MMIO_GPIO_MASK) | 0xFC00);
-		b43_write16(dev, B43_MMIO_GPIO_CONTROL,
-			b43_read16(dev, B43_MMIO_GPIO_CONTROL) & ~0xFC00);
+		b43_maskset32(dev, B43_MMIO_MACCTL, ~B43_MACCTL_GPOUTSMSK, 0);
+		b43_maskset16(dev, B43_MMIO_GPIO_MASK, ~0, 0xFC00);
+		b43_maskset16(dev, B43_MMIO_GPIO_CONTROL, (~0xFC00 & 0xFFFF),
+			      0);
 
 		if (init) {
 			b43_phy_write(dev, B43_NPHY_RFCTL_LUT_TRSW_LO1, 0x2D8);
@@ -4530,8 +4527,7 @@ static void b43_nphy_op_maskset(struct b43_wldev *dev, u16 reg, u16 mask,
 {
 	check_phyreg(dev, reg);
 	b43_write16(dev, B43_MMIO_PHY_CONTROL, reg);
-	b43_write16(dev, B43_MMIO_PHY_DATA,
-		    (b43_read16(dev, B43_MMIO_PHY_DATA) & mask) | set);
+	b43_maskset16(dev, B43_MMIO_PHY_DATA, mask, set);
 }
 
 static u16 b43_nphy_op_radio_read(struct b43_wldev *dev, u16 reg)
