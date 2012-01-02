@@ -922,16 +922,14 @@ static void cs_automute(struct hda_codec *codec)
 
 	/* mute speakers if spdif or hp jack is plugged in */
 	for (i = 0; i < cfg->speaker_outs; i++) {
+		int pin_ctl = hp_present ? 0 : PIN_OUT;
+		/* detect on spdif is specific to CS421x */
+		if (spdif_present && (spec->vendor_nid == CS421X_VENDOR_NID))
+			pin_ctl = 0;
+
 		nid = cfg->speaker_pins[i];
 		snd_hda_codec_write(codec, nid, 0,
-				    AC_VERB_SET_PIN_WIDGET_CONTROL,
-				    hp_present ? 0 : PIN_OUT);
-		/* detect on spdif is specific to CS421x */
-		if (spec->vendor_nid == CS421X_VENDOR_NID) {
-			snd_hda_codec_write(codec, nid, 0,
-					AC_VERB_SET_PIN_WIDGET_CONTROL,
-					spdif_present ? 0 : PIN_OUT);
-		}
+				    AC_VERB_SET_PIN_WIDGET_CONTROL, pin_ctl);
 	}
 	if (spec->gpio_eapd_hp) {
 		unsigned int gpio = hp_present ?
