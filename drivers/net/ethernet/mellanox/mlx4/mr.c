@@ -239,8 +239,8 @@ void __mlx4_free_mtt_range(struct mlx4_dev *dev, u32 offset, int order)
 	first_seg = offset / (1 << log_mtts_per_seg);
 
 	mlx4_buddy_free(&mr_table->mtt_buddy, first_seg, seg_order);
-	mlx4_table_put_range(dev, &mr_table->mtt_table, first_seg,
-			     first_seg + (1 << seg_order) - 1);
+	mlx4_table_put_range(dev, &mr_table->mtt_table, offset,
+			     offset + (1 << order) - 1);
 }
 
 static void mlx4_free_mtt_range(struct mlx4_dev *dev, u32 offset, int order)
