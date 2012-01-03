@@ -80,29 +80,29 @@ static struct iwl_wimax_coex_event_entry cu_priorities[COEX_NUM_OF_EVENTS] = {
  *
  ******************************************************************************/
 
-static void iwl_free_fw_desc(struct iwl_bus *bus, struct fw_desc *desc)
+static void iwl_free_fw_desc(struct iwl_trans *trans, struct fw_desc *desc)
 {
 	if (desc->v_addr)
-		dma_free_coherent(trans(bus)->dev, desc->len,
+		dma_free_coherent(trans->dev, desc->len,
 				  desc->v_addr, desc->p_addr);
 	desc->v_addr = NULL;
 	desc->len = 0;
 }
 
-static void iwl_free_fw_img(struct iwl_bus *bus, struct fw_img *img)
+static void iwl_free_fw_img(struct iwl_trans *trans, struct fw_img *img)
 {
-	iwl_free_fw_desc(bus, &img->code);
-	iwl_free_fw_desc(bus, &img->data);
+	iwl_free_fw_desc(trans, &img->code);
+	iwl_free_fw_desc(trans, &img->data);
 }
 
 void iwl_dealloc_ucode(struct iwl_trans *trans)
 {
-	iwl_free_fw_img(bus(trans), &trans->ucode_rt);
-	iwl_free_fw_img(bus(trans), &trans->ucode_init);
-	iwl_free_fw_img(bus(trans), &trans->ucode_wowlan);
+	iwl_free_fw_img(trans, &trans->ucode_rt);
+	iwl_free_fw_img(trans, &trans->ucode_init);
+	iwl_free_fw_img(trans, &trans->ucode_wowlan);
 }
 
-int iwl_alloc_fw_desc(struct iwl_bus *bus, struct fw_desc *desc,
+int iwl_alloc_fw_desc(struct iwl_trans *trans, struct fw_desc *desc,
 		      const void *data, size_t len)
 {
 	if (!len) {
@@ -110,7 +110,7 @@ int iwl_alloc_fw_desc(struct iwl_bus *bus, struct fw_desc *desc,
 		return -EINVAL;
 	}
 
-	desc->v_addr = dma_alloc_coherent(trans(bus)->dev, len,
+	desc->v_addr = dma_alloc_coherent(trans->dev, len,
 					  &desc->p_addr, GFP_KERNEL);
 	if (!desc->v_addr)
 		return -ENOMEM;

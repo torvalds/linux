@@ -1023,31 +1023,33 @@ static void iwl_ucode_callback(const struct firmware *ucode_raw, void *context)
 	/* Runtime instructions and 2 copies of data:
 	 * 1) unmodified from disk
 	 * 2) backup cache for save/restore during power-downs */
-	if (iwl_alloc_fw_desc(bus(priv), &trans(priv)->ucode_rt.code,
+	if (iwl_alloc_fw_desc(trans(priv), &trans(priv)->ucode_rt.code,
 			      pieces.inst, pieces.inst_size))
 		goto err_pci_alloc;
-	if (iwl_alloc_fw_desc(bus(priv), &trans(priv)->ucode_rt.data,
+	if (iwl_alloc_fw_desc(trans(priv), &trans(priv)->ucode_rt.data,
 			      pieces.data, pieces.data_size))
 		goto err_pci_alloc;
 
 	/* Initialization instructions and data */
 	if (pieces.init_size && pieces.init_data_size) {
-		if (iwl_alloc_fw_desc(bus(priv), &trans(priv)->ucode_init.code,
+		if (iwl_alloc_fw_desc(trans(priv),
+				      &trans(priv)->ucode_init.code,
 				      pieces.init, pieces.init_size))
 			goto err_pci_alloc;
-		if (iwl_alloc_fw_desc(bus(priv), &trans(priv)->ucode_init.data,
+		if (iwl_alloc_fw_desc(trans(priv),
+				      &trans(priv)->ucode_init.data,
 				      pieces.init_data, pieces.init_data_size))
 			goto err_pci_alloc;
 	}
 
 	/* WoWLAN instructions and data */
 	if (pieces.wowlan_inst_size && pieces.wowlan_data_size) {
-		if (iwl_alloc_fw_desc(bus(priv),
+		if (iwl_alloc_fw_desc(trans(priv),
 				      &trans(priv)->ucode_wowlan.code,
 				      pieces.wowlan_inst,
 				      pieces.wowlan_inst_size))
 			goto err_pci_alloc;
-		if (iwl_alloc_fw_desc(bus(priv),
+		if (iwl_alloc_fw_desc(trans(priv),
 				      &trans(priv)->ucode_wowlan.data,
 				      pieces.wowlan_data,
 				      pieces.wowlan_data_size))

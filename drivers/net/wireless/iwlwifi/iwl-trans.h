@@ -408,7 +408,7 @@ static inline u32 iwl_trans_read32(struct iwl_trans *trans, u32 ofs)
 /*****************************************************
 * Utils functions
 ******************************************************/
-int iwl_alloc_fw_desc(struct iwl_bus *bus, struct fw_desc *desc,
+int iwl_alloc_fw_desc(struct iwl_trans *trans, struct fw_desc *desc,
 		      const void *data, size_t len);
 void iwl_dealloc_ucode(struct iwl_trans *trans);
 
