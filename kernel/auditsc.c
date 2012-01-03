@@ -598,6 +598,18 @@ static int audit_filter_rules(struct task_struct *tsk,
 				}
 			}
 			break;
+		case AUDIT_OBJ_GID:
+			if (name) {
+				result = audit_comparator(name->gid, f->op, f->val);
+			} else if (ctx) {
+				list_for_each_entry(n, &ctx->names_list, list) {
+					if (audit_comparator(n->gid, f->op, f->val)) {
+						++result;
+						break;
+					}
+				}
+			}
+			break;
 		case AUDIT_WATCH:
 			if (name)
 				result = audit_watch_compare(rule->watch, name->ino, name->dev);

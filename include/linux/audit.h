@@ -224,6 +224,7 @@
 #define AUDIT_DIR	107
 #define AUDIT_FILETYPE	108
 #define AUDIT_OBJ_UID	109
+#define AUDIT_OBJ_GID	110
 
 #define AUDIT_ARG0      200
 #define AUDIT_ARG1      (AUDIT_ARG0+1)
