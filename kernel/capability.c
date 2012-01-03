@@ -287,28 +287,7 @@ error:
 }
 
 /**
- * has_capability - Does a task have a capability in init_user_ns
- * @t: The task in question
- * @cap: The capability to be tested for
- *
- * Return true if the specified task has the given superior capability
- * currently in effect to the initial user namespace, false if not.
- *
- * Note that this does not set PF_SUPERPRIV on the task.
- */
-bool has_capability(struct task_struct *t, int cap)
-{
-	int ret;
-
-	rcu_read_lock();
-	ret = security_capable(__task_cred(t), &init_user_ns, cap);
-	rcu_read_unlock();
-
-	return (ret == 0);
-}
-
-/**
- * has_capability - Does a task have a capability in a specific user ns
+ * has_ns_capability - Does a task have a capability in a specific user ns
  * @t: The task in question
  * @ns: target user namespace
  * @cap: The capability to be tested for
@@ -328,6 +307,21 @@ bool has_ns_capability(struct task_struct *t,
 	rcu_read_unlock();
 
 	return (ret == 0);
+}
+
+/**
+ * has_capability - Does a task have a capability in init_user_ns
+ * @t: The task in question
+ * @cap: The capability to be tested for
+ *
+ * Return true if the specified task has the given superior capability
+ * currently in effect to the initial user namespace, false if not.
+ *
+ * Note that this does not set PF_SUPERPRIV on the task.
+ */
+bool has_capability(struct task_struct *t, int cap)
+{
+	return has_ns_capability(t, &init_user_ns, cap);
 }
 
 /**
