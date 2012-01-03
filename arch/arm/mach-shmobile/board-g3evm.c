@@ -261,8 +261,6 @@ static struct map_desc g3evm_io_desc[] __initdata = {
 static void __init g3evm_map_io(void)
 {
 	iotable_init(g3evm_io_desc, ARRAY_SIZE(g3evm_io_desc));
-	/* DMA memory at 0xf6000000 - 0xffdfffff */
-	init_consistent_dma_size(158 << 20);
 
 	/* setup early devices and console here as well */
 	sh7367_add_early_devices();
