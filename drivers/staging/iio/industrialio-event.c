@@ -15,6 +15,7 @@
 #include <linux/kernel.h>
 #include <linux/kfifo.h>
 #include <linux/module.h>
+#include <linux/poll.h>
 #include <linux/sched.h>
 #include <linux/slab.h>
 #include <linux/uaccess.h>
@@ -57,13 +58,32 @@ int iio_push_event(struct iio_dev *indio_dev, u64 ev_code, s64 timestamp)
 
 		copied = kfifo_put(&ev_int->det_events, &ev);
 		if (copied != 0)
-			wake_up_locked(&ev_int->wait);
+			wake_up_locked_poll(&ev_int->wait, POLLIN);
 	}
 	spin_unlock(&ev_int->wait.lock);
 
 	return 0;
 }
 EXPORT_SYMBOL(iio_push_event);
+
+/**
+ * iio_event_poll() - poll the event queue to find out if it has data
+ */
+static unsigned int iio_event_poll(struct file *filep,
+			     struct poll_table_struct *wait)
+{
+	struct iio_event_interface *ev_int = filep->private_data;
+	unsigned int events = 0;
+
+	poll_wait(filep, &ev_int->wait, wait);
+
+	spin_lock(&ev_int->wait.lock);
+	if (!kfifo_is_empty(&ev_int->det_events))
+		events = POLLIN | POLLRDNORM;
+	spin_unlock(&ev_int->wait.lock);
+
+	return events;
+}
 
 static ssize_t iio_event_chrdev_read(struct file *filep,
 				     char __user *buf,
@@ -118,6 +138,7 @@ static int iio_event_chrdev_release(struct inode *inode, struct file *filep)
 
 static const struct file_operations iio_event_chrdev_fileops = {
 	.read =  iio_event_chrdev_read,
+	.poll =  iio_event_poll,
 	.release = iio_event_chrdev_release,
 	.owner = THIS_MODULE,
 	.llseek = noop_llseek,
