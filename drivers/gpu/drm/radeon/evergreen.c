@@ -3190,6 +3190,11 @@ static int evergreen_startup(struct radeon_device *rdev)
 	if (r) {
 		DRM_ERROR("radeon: failed testing IB (%d).\n", r);
 		rdev->accel_working = false;
+	}
+
+	r = r600_audio_init(rdev);
+	if (r) {
+		DRM_ERROR("radeon: audio init failed\n");
 		return r;
 	}
 
@@ -3227,6 +3232,7 @@ int evergreen_suspend(struct radeon_device *rdev)
 {
 	struct radeon_ring *ring = &rdev->ring[RADEON_RING_TYPE_GFX_INDEX];
 
+	r600_audio_fini(rdev);
 	/* FIXME: we should wait for ring to be empty */
 	radeon_ib_pool_suspend(rdev);
 	r600_blit_suspend(rdev);
@@ -3342,6 +3348,7 @@ int evergreen_init(struct radeon_device *rdev)
 
 void evergreen_fini(struct radeon_device *rdev)
 {
+	r600_audio_fini(rdev);
 	r600_blit_fini(rdev);
 	r700_cp_fini(rdev);
 	r600_irq_fini(rdev);
