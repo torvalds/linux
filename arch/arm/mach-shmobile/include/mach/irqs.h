@@ -3,8 +3,6 @@
 
 #include <linux/sh_intc.h>
 
-#define NR_IRQS         1024
-
 /* GIC */
 #define gic_spi(nr)		((nr) + 32)
 
