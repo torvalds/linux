@@ -726,9 +726,6 @@ static int btusb_send_frame(struct sk_buff *skb)
 		usb_fill_bulk_urb(urb, data->udev, pipe,
 				skb->data, skb->len, btusb_tx_complete, skb);
 
-		if (skb->priority >= HCI_PRIO_MAX - 1)
-			urb->transfer_flags  = URB_ISO_ASAP;
-
 		hdev->stat.acl_tx++;
 		break;
 
