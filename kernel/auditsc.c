@@ -805,7 +805,7 @@ static inline struct audit_context *audit_get_context(struct task_struct *tsk,
 {
 	struct audit_context *context = tsk->audit_context;
 
-	if (likely(!context))
+	if (!context)
 		return NULL;
 	context->return_valid = return_valid;
 
@@ -928,7 +928,7 @@ int audit_alloc(struct task_struct *tsk)
 		return 0; /* Return if not auditing. */
 
 	state = audit_filter_task(tsk, &key);
-	if (likely(state == AUDIT_DISABLED))
+	if (state == AUDIT_DISABLED)
 		return 0;
 
 	if (!(context = audit_alloc_context(state))) {
@@ -1599,7 +1599,7 @@ void audit_free(struct task_struct *tsk)
 	struct audit_context *context;
 
 	context = audit_get_context(tsk, 0, 0);
-	if (likely(!context))
+	if (!context)
 		return;
 
 	/* Check for system calls that do not go through the exit
@@ -1640,7 +1640,7 @@ void __audit_syscall_entry(int arch, int major,
 	struct audit_context *context = tsk->audit_context;
 	enum audit_state     state;
 
-	if (unlikely(!context))
+	if (!context)
 		return;
 
 	/*
@@ -1697,7 +1697,7 @@ void __audit_syscall_entry(int arch, int major,
 		context->prio = 0;
 		state = audit_filter_syscall(tsk, context, &audit_filter_list[AUDIT_FILTER_ENTRY]);
 	}
-	if (likely(state == AUDIT_DISABLED))
+	if (state == AUDIT_DISABLED)
 		return;
 
 	context->serial     = 0;
@@ -1748,7 +1748,7 @@ void __audit_syscall_exit(int success, long return_code)
 		success = AUDITSC_FAILURE;
 
 	context = audit_get_context(tsk, success, return_code);
-	if (likely(!context))
+	if (!context)
 		return;
 
 	if (context->in_syscall && context->current_state == AUDIT_RECORD_CONTEXT)
