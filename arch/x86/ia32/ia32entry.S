@@ -192,7 +192,7 @@ sysexit_from_sys_call:
 	movl %ebx,%edx			/* 3rd arg: 1st syscall arg */
 	movl %eax,%esi			/* 2nd arg: syscall number */
 	movl $AUDIT_ARCH_I386,%edi	/* 1st arg: audit arch */
-	call audit_syscall_entry
+	call __audit_syscall_entry
 	movl RAX-ARGOFFSET(%rsp),%eax	/* reload syscall number */
 	cmpq $(IA32_NR_syscalls-1),%rax
 	ja ia32_badsys

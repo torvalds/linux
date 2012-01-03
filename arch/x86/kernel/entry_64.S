@@ -549,7 +549,7 @@ badsys:
 #ifdef CONFIG_AUDITSYSCALL
 	/*
 	 * Fast path for syscall audit without full syscall trace.
-	 * We just call audit_syscall_entry() directly, and then
+	 * We just call __audit_syscall_entry() directly, and then
 	 * jump back to the normal fast path.
 	 */
 auditsys:
@@ -559,7 +559,7 @@ auditsys:
 	movq %rdi,%rdx			/* 3rd arg: 1st syscall arg */
 	movq %rax,%rsi			/* 2nd arg: syscall number */
 	movl $AUDIT_ARCH_X86_64,%edi	/* 1st arg: audit arch */
-	call audit_syscall_entry
+	call __audit_syscall_entry
 	LOAD_ARGS 0		/* reload call-clobbered registers */
 	jmp system_call_fastpath
 

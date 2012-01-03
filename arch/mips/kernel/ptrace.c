@@ -560,10 +560,9 @@ asmlinkage void syscall_trace_enter(struct pt_regs *regs)
 	}
 
 out:
-	if (unlikely(current->audit_context))
-		audit_syscall_entry(audit_arch(), regs->regs[2],
-				    regs->regs[4], regs->regs[5],
-				    regs->regs[6], regs->regs[7]);
+	audit_syscall_entry(audit_arch(), regs->regs[2],
+			    regs->regs[4], regs->regs[5],
+			    regs->regs[6], regs->regs[7]);
 }
 
 /*

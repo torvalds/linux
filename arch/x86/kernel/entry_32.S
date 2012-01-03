@@ -456,7 +456,7 @@ sysenter_audit:
 	movl %ebx,%ecx			/* 3rd arg: 1st syscall arg */
 	movl %eax,%edx			/* 2nd arg: syscall number */
 	movl $AUDIT_ARCH_I386,%eax	/* 1st arg: audit arch */
-	call audit_syscall_entry
+	call __audit_syscall_entry
 	pushl_cfi %ebx
 	movl PT_EAX(%esp),%eax		/* reload syscall number */
 	jmp sysenter_do_call

@@ -740,12 +740,11 @@ asmlinkage long do_syscall_trace_enter(struct pt_regs *regs)
 	if (unlikely(test_thread_flag(TIF_SYSCALL_TRACEPOINT)))
 		trace_sys_enter(regs, regs->gprs[2]);
 
-	if (unlikely(current->audit_context))
-		audit_syscall_entry(is_compat_task() ?
-					AUDIT_ARCH_S390 : AUDIT_ARCH_S390X,
-				    regs->gprs[2], regs->orig_gpr2,
-				    regs->gprs[3], regs->gprs[4],
-				    regs->gprs[5]);
+	audit_syscall_entry(is_compat_task() ?
+				AUDIT_ARCH_S390 : AUDIT_ARCH_S390X,
+			    regs->gprs[2], regs->orig_gpr2,
+			    regs->gprs[3], regs->gprs[4],
+			    regs->gprs[5]);
 	return ret ?: regs->gprs[2];
 }
 

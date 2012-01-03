@@ -536,10 +536,9 @@ asmlinkage long long do_syscall_trace_enter(struct pt_regs *regs)
 	if (unlikely(test_thread_flag(TIF_SYSCALL_TRACEPOINT)))
 		trace_sys_enter(regs, regs->regs[9]);
 
-	if (unlikely(current->audit_context))
-		audit_syscall_entry(audit_arch(), regs->regs[1],
-				    regs->regs[2], regs->regs[3],
-				    regs->regs[4], regs->regs[5]);
+	audit_syscall_entry(audit_arch(), regs->regs[1],
+			    regs->regs[2], regs->regs[3],
+			    regs->regs[4], regs->regs[5]);
 
 	return ret ?: regs->regs[9];
 }
