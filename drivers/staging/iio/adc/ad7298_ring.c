@@ -131,9 +131,6 @@ int ad7298_register_ring_funcs_and_init(struct iio_dev *indio_dev)
 		ret = -ENOMEM;
 		goto error_ret;
 	}
-	/* Effectively select the ring buffer implementation */
-	indio_dev->buffer->access = &ring_sw_access_funcs;
-
 	indio_dev->pollfunc = iio_alloc_pollfunc(NULL,
 						 &ad7298_trigger_handler,
 						 IRQF_ONESHOT,

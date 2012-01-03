@@ -329,6 +329,16 @@ static struct attribute_group iio_ring_attribute_group = {
 	.name = "buffer",
 };
 
+static const struct iio_buffer_access_funcs ring_sw_access_funcs = {
+	.store_to = &iio_store_to_sw_rb,
+	.read_first_n = &iio_read_first_n_sw_rb,
+	.request_update = &iio_request_update_sw_rb,
+	.get_bytes_per_datum = &iio_get_bytes_per_datum_sw_rb,
+	.set_bytes_per_datum = &iio_set_bytes_per_datum_sw_rb,
+	.get_length = &iio_get_length_sw_rb,
+	.set_length = &iio_set_length_sw_rb,
+};
+
 struct iio_buffer *iio_sw_rb_allocate(struct iio_dev *indio_dev)
 {
 	struct iio_buffer *buf;
@@ -341,6 +351,7 @@ struct iio_buffer *iio_sw_rb_allocate(struct iio_dev *indio_dev)
 	buf = &ring->buf;
 	iio_buffer_init(buf);
 	buf->attrs = &iio_ring_attribute_group;
+	buf->access = &ring_sw_access_funcs;
 
 	return buf;
 }
@@ -351,17 +362,6 @@ void iio_sw_rb_free(struct iio_buffer *r)
 	kfree(iio_to_sw_ring(r));
 }
 EXPORT_SYMBOL(iio_sw_rb_free);
-
-const struct iio_buffer_access_funcs ring_sw_access_funcs = {
-	.store_to = &iio_store_to_sw_rb,
-	.read_first_n = &iio_read_first_n_sw_rb,
-	.request_update = &iio_request_update_sw_rb,
-	.get_bytes_per_datum = &iio_get_bytes_per_datum_sw_rb,
-	.set_bytes_per_datum = &iio_set_bytes_per_datum_sw_rb,
-	.get_length = &iio_get_length_sw_rb,
-	.set_length = &iio_set_length_sw_rb,
-};
-EXPORT_SYMBOL(ring_sw_access_funcs);
 
 MODULE_DESCRIPTION("Industrialio I/O software ring buffer");
 MODULE_LICENSE("GPL");
