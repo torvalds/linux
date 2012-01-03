@@ -19,6 +19,7 @@
 
 #include <asm/mach-types.h>
 #include <asm/setup.h>
+#include <asm/page.h>
 
 #include <asm/mach/arch.h>
 #include <asm/mach/flash.h>
