@@ -463,6 +463,32 @@ static int match_tree_refs(struct audit_context *ctx, struct audit_tree *tree)
 	return 0;
 }
 
+static int audit_field_compare(struct task_struct *tsk,
+			       const struct cred *cred,
+			       struct audit_field *f,
+			       struct audit_context *ctx,
+			       struct audit_names *name)
+{
+	struct audit_names *n;
+
+	switch (f->val) {
+	case AUDIT_COMPARE_UID_TO_OBJ_UID:
+		if (name) {
+			return audit_comparator(cred->uid, f->op, name->uid);
+		} else if (ctx) {
+			list_for_each_entry(n, &ctx->names_list, list) {
+				if (audit_comparator(cred->uid, f->op, n->uid))
+					return 1;
+			}
+		}
+		break;
+	default:
+		WARN(1, "Missing AUDIT_COMPARE define.  Report as a bug\n");
+		return 0;
+	}
+	return 0;
+}
+
 /* Determine if any context name data matches a rule's watch data */
 /* Compare a task_struct with an audit_rule.  Return 1 on match, 0
  * otherwise.
@@ -693,8 +719,10 @@ static int audit_filter_rules(struct task_struct *tsk,
 		case AUDIT_FILETYPE:
 			result = audit_match_filetype(ctx, f->val);
 			break;
+		case AUDIT_FIELD_COMPARE:
+			result = audit_field_compare(tsk, cred, f, ctx, name);
+			break;
 		}
-
 		if (!result)
 			return 0;
 	}

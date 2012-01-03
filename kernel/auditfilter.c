@@ -526,7 +526,6 @@ static struct audit_entry *audit_data_to_entry(struct audit_rule_data *data,
 				goto exit_free;
 			break;
 		case AUDIT_FILTERKEY:
-			err = -EINVAL;
 			if (entry->rule.filterkey || f->val > AUDIT_MAX_KEY_LEN)
 				goto exit_free;
 			str = audit_unpack_string(&bufp, &remain, f->val);
@@ -541,6 +540,10 @@ static struct audit_entry *audit_data_to_entry(struct audit_rule_data *data,
 			break;
 		case AUDIT_FILETYPE:
 			if (f->val & ~S_IFMT)
+				goto exit_free;
+			break;
+		case AUDIT_FIELD_COMPARE:
+			if (f->val > AUDIT_MAX_FIELD_COMPARE)
 				goto exit_free;
 			break;
 		default:

@@ -182,7 +182,10 @@
  * AUDIT_UNUSED_BITS is updated if need be. */
 #define AUDIT_UNUSED_BITS	0x07FFFC00
 
+/* AUDIT_FIELD_COMPARE rule list */
+#define AUDIT_COMPARE_UID_TO_OBJ_UID	1
 
+#define AUDIT_MAX_FIELD_COMPARE	AUDIT_COMPARE_UID_TO_OBJ_UID
 /* Rule fields */
 				/* These are useful when checking the
 				 * task structure at task creation time
@@ -225,6 +228,7 @@
 #define AUDIT_FILETYPE	108
 #define AUDIT_OBJ_UID	109
 #define AUDIT_OBJ_GID	110
+#define AUDIT_FIELD_COMPARE	111
 
 #define AUDIT_ARG0      200
 #define AUDIT_ARG1      (AUDIT_ARG0+1)
