@@ -69,7 +69,7 @@ static int __nci_request(struct nci_dev *ndev,
 	__u32 timeout)
 {
 	int rc = 0;
-	unsigned long completion_rc;
+	long completion_rc;
 
 	ndev->req_status = NCI_REQ_PEND;
 

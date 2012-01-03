@@ -1881,7 +1881,7 @@ static int net2280_start(struct usb_gadget *_gadget,
 	 * (dev->usb->xcvrdiag & FORCE_FULL_SPEED_MODE)
 	 * "must not be used in normal operation"
 	 */
-	if (!driver || driver->speed != USB_SPEED_HIGH
+	if (!driver || driver->speed < USB_SPEED_HIGH
 			|| !driver->setup)
 		return -EINVAL;
 

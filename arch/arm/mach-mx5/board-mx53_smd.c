@@ -104,7 +104,7 @@ static inline void mx53_smd_fec_reset(void)
 	gpio_set_value(SMD_FEC_PHY_RST, 1);
 }
 
-static struct fec_platform_data mx53_smd_fec_data = {
+static const struct fec_platform_data mx53_smd_fec_data __initconst = {
 	.phy = PHY_INTERFACE_MODE_RMII,
 };
 

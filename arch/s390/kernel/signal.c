@@ -460,9 +460,9 @@ void do_signal(struct pt_regs *regs)
 						     regs->svc_code >> 16);
 				break;
 			}
-			/* No longer in a system call */
-			clear_thread_flag(TIF_SYSCALL);
 		}
+		/* No longer in a system call */
+		clear_thread_flag(TIF_SYSCALL);
 
 		if ((is_compat_task() ?
 		     handle_signal32(signr, &ka, &info, oldset, regs) :
@@ -486,6 +486,7 @@ void do_signal(struct pt_regs *regs)
 	}
 
 	/* No handlers present - check for system call restart */
+	clear_thread_flag(TIF_SYSCALL);
 	if (current_thread_info()->system_call) {
 		regs->svc_code = current_thread_info()->system_call;
 		switch (regs->gprs[2]) {
@@ -499,9 +500,6 @@ void do_signal(struct pt_regs *regs)
 			/* Restart system call with magic TIF bit. */
 			regs->gprs[2] = regs->orig_gpr2;
 			set_thread_flag(TIF_SYSCALL);
-			break;
-		default:
-			clear_thread_flag(TIF_SYSCALL);
 			break;
 		}
 	}

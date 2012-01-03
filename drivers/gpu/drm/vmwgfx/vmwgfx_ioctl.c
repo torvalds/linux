@@ -58,8 +58,14 @@ int vmw_getparam_ioctl(struct drm_device *dev, void *data,
 	case DRM_VMW_PARAM_FIFO_HW_VERSION:
 	{
 		__le32 __iomem *fifo_mem = dev_priv->mmio_virt;
+		const struct vmw_fifo_state *fifo = &dev_priv->fifo;
 
-		param->value = ioread32(fifo_mem + SVGA_FIFO_3D_HWVERSION);
+		param->value =
+			ioread32(fifo_mem +
+				 ((fifo->capabilities &
+				   SVGA_FIFO_CAP_3D_HWVERSION_REVISED) ?
+				  SVGA_FIFO_3D_HWVERSION_REVISED :
+				  SVGA_FIFO_3D_HWVERSION));
 		break;
 	}
 	default:
@@ -140,7 +146,7 @@ int vmw_present_ioctl(struct drm_device *dev, void *data,
 		goto out_clips;
 	}
 
-	clips = kzalloc(num_clips * sizeof(*clips), GFP_KERNEL);
+	clips = kcalloc(num_clips, sizeof(*clips), GFP_KERNEL);
 	if (clips == NULL) {
 		DRM_ERROR("Failed to allocate clip rect list.\n");
 		ret = -ENOMEM;
@@ -166,13 +172,7 @@ int vmw_present_ioctl(struct drm_device *dev, void *data,
 		ret = -EINVAL;
 		goto out_no_fb;
 	}
-
 	vfb = vmw_framebuffer_to_vfb(obj_to_fb(obj));
-	if (!vfb->dmabuf) {
-		DRM_ERROR("Framebuffer not dmabuf backed.\n");
-		ret = -EINVAL;
-		goto out_no_fb;
-	}
 
 	ret = ttm_read_lock(&vmaster->lock, true);
 	if (unlikely(ret != 0))
@@ -232,7 +232,7 @@ int vmw_present_readback_ioctl(struct drm_device *dev, void *data,
 		goto out_clips;
 	}
 
-	clips = kzalloc(num_clips * sizeof(*clips), GFP_KERNEL);
+	clips = kcalloc(num_clips, sizeof(*clips), GFP_KERNEL);
 	if (clips == NULL) {
 		DRM_ERROR("Failed to allocate clip rect list.\n");
 		ret = -ENOMEM;

@@ -26,11 +26,6 @@
 #include <linux/string.h>
 #include <linux/slab.h>
 
-/* For archs that don't support NO_IRQ (such as x86), provide a dummy value */
-#ifndef NO_IRQ
-#define NO_IRQ 0
-#endif
-
 /**
  * irq_of_parse_and_map - Parse and map an interrupt into linux virq space
  * @device: Device node of the device whose interrupt is to be mapped
@@ -44,7 +39,7 @@ unsigned int irq_of_parse_and_map(struct device_node *dev, int index)
 	struct of_irq oirq;
 
 	if (of_irq_map_one(dev, index, &oirq))
-		return NO_IRQ;
+		return 0;
 
 	return irq_create_of_mapping(oirq.controller, oirq.specifier,
 				     oirq.size);
@@ -345,7 +340,7 @@ int of_irq_to_resource(struct device_node *dev, int index, struct resource *r)
 
 	/* Only dereference the resource if both the
 	 * resource and the irq are valid. */
-	if (r && irq != NO_IRQ) {
+	if (r && irq) {
 		r->start = r->end = irq;
 		r->flags = IORESOURCE_IRQ;
 		r->name = dev->full_name;
@@ -363,7 +358,7 @@ int of_irq_count(struct device_node *dev)
 {
 	int nr = 0;
 
-	while (of_irq_to_resource(dev, nr, NULL) != NO_IRQ)
+	while (of_irq_to_resource(dev, nr, NULL))
 		nr++;
 
 	return nr;
@@ -383,7 +378,7 @@ int of_irq_to_resource_table(struct device_node *dev, struct resource *res,
 	int i;
 
 	for (i = 0; i < nr_irqs; i++, res++)
-		if (of_irq_to_resource(dev, i, res) == NO_IRQ)
+		if (!of_irq_to_resource(dev, i, res))
 			break;
 
 	return i;

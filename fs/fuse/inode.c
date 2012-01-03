@@ -1138,28 +1138,28 @@ static int __init fuse_fs_init(void)
 {
 	int err;
 
-	err = register_filesystem(&fuse_fs_type);
-	if (err)
-		goto out;
-
-	err = register_fuseblk();
-	if (err)
-		goto out_unreg;
-
 	fuse_inode_cachep = kmem_cache_create("fuse_inode",
 					      sizeof(struct fuse_inode),
 					      0, SLAB_HWCACHE_ALIGN,
 					      fuse_inode_init_once);
 	err = -ENOMEM;
 	if (!fuse_inode_cachep)
-		goto out_unreg2;
+		goto out;
+
+	err = register_fuseblk();
+	if (err)
+		goto out2;
+
+	err = register_filesystem(&fuse_fs_type);
+	if (err)
+		goto out3;
 
 	return 0;
 
- out_unreg2:
+ out3:
 	unregister_fuseblk();
- out_unreg:
-	unregister_filesystem(&fuse_fs_type);
+ out2:
+	kmem_cache_destroy(fuse_inode_cachep);
  out:
 	return err;
 }

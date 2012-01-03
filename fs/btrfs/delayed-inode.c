@@ -640,8 +640,8 @@ static int btrfs_delayed_inode_reserve_metadata(
 	 * Now if src_rsv == delalloc_block_rsv we'll let it just steal since
 	 * we're accounted for.
 	 */
-	if (!trans->bytes_reserved &&
-	    src_rsv != &root->fs_info->delalloc_block_rsv) {
+	if (!src_rsv || (!trans->bytes_reserved &&
+	    src_rsv != &root->fs_info->delalloc_block_rsv)) {
 		ret = btrfs_block_rsv_add_noflush(root, dst_rsv, num_bytes);
 		/*
 		 * Since we're under a transaction reserve_metadata_bytes could
