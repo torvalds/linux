@@ -1594,7 +1594,7 @@ static void audit_log_exit(struct audit_context *context, struct task_struct *ts
  *
  * Called from copy_process and do_exit
  */
-void audit_free(struct task_struct *tsk)
+void __audit_free(struct task_struct *tsk)
 {
 	struct audit_context *context;
 
