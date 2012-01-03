@@ -3570,17 +3570,17 @@
 #define G4X_ELD_ACK			(1 << 4)
 #define G4X_HDMIW_HDMIEDID		0x6210C
 
-#define GEN5_HDMIW_HDMIEDID_A		0xE2050
-#define GEN5_AUD_CNTL_ST_A		0xE20B4
-#define GEN5_ELD_BUFFER_SIZE		(0x1f << 10)
-#define GEN5_ELD_ADDRESS		(0x1f << 5)
-#define GEN5_ELD_ACK			(1 << 4)
-#define GEN5_AUD_CNTL_ST2		0xE20C0
-#define GEN5_ELD_VALIDB			(1 << 0)
-#define GEN5_CP_READYB			(1 << 1)
+#define IBX_HDMIW_HDMIEDID_A		0xE2050
+#define IBX_AUD_CNTL_ST_A		0xE20B4
+#define IBX_ELD_BUFFER_SIZE		(0x1f << 10)
+#define IBX_ELD_ADDRESS			(0x1f << 5)
+#define IBX_ELD_ACK			(1 << 4)
+#define IBX_AUD_CNTL_ST2		0xE20C0
+#define IBX_ELD_VALIDB			(1 << 0)
+#define IBX_CP_READYB			(1 << 1)
 
-#define GEN7_HDMIW_HDMIEDID_A		0xE5050
-#define GEN7_AUD_CNTRL_ST_A		0xE50B4
-#define GEN7_AUD_CNTRL_ST2		0xE50C0
+#define CPT_HDMIW_HDMIEDID_A		0xE5050
+#define CPT_AUD_CNTL_ST_A		0xE50B4
+#define CPT_AUD_CNTRL_ST2		0xE50C0
 
 #endif /* _I915_REG_H_ */

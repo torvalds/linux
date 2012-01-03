@@ -5830,6 +5830,35 @@ static int intel_crtc_mode_set(struct drm_crtc *crtc,
 	return ret;
 }
 
+static bool intel_eld_uptodate(struct drm_connector *connector,
+			       int reg_eldv, uint32_t bits_eldv,
+			       int reg_elda, uint32_t bits_elda,
+			       int reg_edid)
+{
+	struct drm_i915_private *dev_priv = connector->dev->dev_private;
+	uint8_t *eld = connector->eld;
+	uint32_t i;
+
+	i = I915_READ(reg_eldv);
+	i &= bits_eldv;
+
+	if (!eld[0])
+		return !i;
+
+	if (!i)
+		return false;
+
+	i = I915_READ(reg_elda);
+	i &= ~bits_elda;
+	I915_WRITE(reg_elda, i);
+
+	for (i = 0; i < eld[2]; i++)
+		if (I915_READ(reg_edid) != *((uint32_t *)eld + i))
+			return false;
+
+	return true;
+}
+
 static void g4x_write_eld(struct drm_connector *connector,
 			  struct drm_crtc *crtc)
 {
@@ -5845,6 +5874,12 @@ static void g4x_write_eld(struct drm_connector *connector,
 		eldv = G4X_ELDV_DEVCL_DEVBLC;
 	else
 		eldv = G4X_ELDV_DEVCTG;
+
+	if (intel_eld_uptodate(connector,
+			       G4X_AUD_CNTL_ST, eldv,
+			       G4X_AUD_CNTL_ST, G4X_ELD_ADDR,
+			       G4X_HDMIW_HDMIEDID))
+		return;
 
 	i = I915_READ(G4X_AUD_CNTL_ST);
 	i &= ~(eldv | G4X_ELD_ADDR);
@@ -5876,14 +5911,14 @@ static void ironlake_write_eld(struct drm_connector *connector,
 	int aud_cntl_st;
 	int aud_cntrl_st2;
 
-	if (IS_IVYBRIDGE(connector->dev)) {
-		hdmiw_hdmiedid = GEN7_HDMIW_HDMIEDID_A;
-		aud_cntl_st = GEN7_AUD_CNTRL_ST_A;
-		aud_cntrl_st2 = GEN7_AUD_CNTRL_ST2;
+	if (HAS_PCH_IBX(connector->dev)) {
+		hdmiw_hdmiedid = IBX_HDMIW_HDMIEDID_A;
+		aud_cntl_st = IBX_AUD_CNTL_ST_A;
+		aud_cntrl_st2 = IBX_AUD_CNTL_ST2;
 	} else {
-		hdmiw_hdmiedid = GEN5_HDMIW_HDMIEDID_A;
-		aud_cntl_st = GEN5_AUD_CNTL_ST_A;
-		aud_cntrl_st2 = GEN5_AUD_CNTL_ST2;
+		hdmiw_hdmiedid = CPT_HDMIW_HDMIEDID_A;
+		aud_cntl_st = CPT_AUD_CNTL_ST_A;
+		aud_cntrl_st2 = CPT_AUD_CNTRL_ST2;
 	}
 
 	i = to_intel_crtc(crtc)->pipe;
@@ -5897,13 +5932,24 @@ static void ironlake_write_eld(struct drm_connector *connector,
 	if (!i) {
 		DRM_DEBUG_DRIVER("Audio directed to unknown port\n");
 		/* operate blindly on all ports */
-		eldv = GEN5_ELD_VALIDB;
-		eldv |= GEN5_ELD_VALIDB << 4;
-		eldv |= GEN5_ELD_VALIDB << 8;
+		eldv = IBX_ELD_VALIDB;
+		eldv |= IBX_ELD_VALIDB << 4;
+		eldv |= IBX_ELD_VALIDB << 8;
 	} else {
 		DRM_DEBUG_DRIVER("ELD on port %c\n", 'A' + i);
-		eldv = GEN5_ELD_VALIDB << ((i - 1) * 4);
+		eldv = IBX_ELD_VALIDB << ((i - 1) * 4);
 	}
+
+	if (intel_pipe_has_type(crtc, INTEL_OUTPUT_DISPLAYPORT)) {
+		DRM_DEBUG_DRIVER("ELD: DisplayPort detected\n");
+		eld[5] |= (1 << 2);	/* Conn_Type, 0x1 = DisplayPort */
+	}
+
+	if (intel_eld_uptodate(connector,
+			       aud_cntrl_st2, eldv,
+			       aud_cntl_st, IBX_ELD_ADDRESS,
+			       hdmiw_hdmiedid))
+		return;
 
 	i = I915_READ(aud_cntrl_st2);
 	i &= ~eldv;
@@ -5912,13 +5958,8 @@ static void ironlake_write_eld(struct drm_connector *connector,
 	if (!eld[0])
 		return;
 
-	if (intel_pipe_has_type(crtc, INTEL_OUTPUT_DISPLAYPORT)) {
-		DRM_DEBUG_DRIVER("ELD: DisplayPort detected\n");
-		eld[5] |= (1 << 2);	/* Conn_Type, 0x1 = DisplayPort */
-	}
-
 	i = I915_READ(aud_cntl_st);
-	i &= ~GEN5_ELD_ADDRESS;
+	i &= ~IBX_ELD_ADDRESS;
 	I915_WRITE(aud_cntl_st, i);
 
 	len = min_t(uint8_t, eld[2], 21);	/* 84 bytes of hw ELD buffer */
