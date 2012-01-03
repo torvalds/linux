@@ -540,12 +540,14 @@ static int audit_filter_rules(struct task_struct *tsk,
 			}
 			break;
 		case AUDIT_DEVMAJOR:
-			if (name)
-				result = audit_comparator(MAJOR(name->dev),
-							  f->op, f->val);
-			else if (ctx) {
+			if (name) {
+				if (audit_comparator(MAJOR(name->dev), f->op, f->val) ||
+				    audit_comparator(MAJOR(name->rdev), f->op, f->val))
+					++result;
+			} else if (ctx) {
 				list_for_each_entry(n, &ctx->names_list, list) {
-					if (audit_comparator(MAJOR(n->dev), f->op, f->val)) {
+					if (audit_comparator(MAJOR(n->dev), f->op, f->val) ||
+					    audit_comparator(MAJOR(n->rdev), f->op, f->val)) {
 						++result;
 						break;
 					}
@@ -553,12 +555,14 @@ static int audit_filter_rules(struct task_struct *tsk,
 			}
 			break;
 		case AUDIT_DEVMINOR:
-			if (name)
-				result = audit_comparator(MINOR(name->dev),
-							  f->op, f->val);
-			else if (ctx) {
+			if (name) {
+				if (audit_comparator(MINOR(name->dev), f->op, f->val) ||
+				    audit_comparator(MINOR(name->rdev), f->op, f->val))
+					++result;
+			} else if (ctx) {
 				list_for_each_entry(n, &ctx->names_list, list) {
-					if (audit_comparator(MINOR(n->dev), f->op, f->val)) {
+					if (audit_comparator(MINOR(n->dev), f->op, f->val) ||
+					    audit_comparator(MINOR(n->rdev), f->op, f->val)) {
 						++result;
 						break;
 					}
