@@ -493,7 +493,6 @@ extern int __audit_bprm(struct linux_binprm *bprm);
 extern void __audit_socketcall(int nargs, unsigned long *args);
 extern int __audit_sockaddr(int len, void *addr);
 extern void __audit_fd_pair(int fd1, int fd2);
-extern int audit_set_macxattr(const char *name);
 extern void __audit_mq_open(int oflag, umode_t mode, struct mq_attr *attr);
 extern void __audit_mq_sendrecv(mqd_t mqdes, size_t msg_len, unsigned int msg_prio, const struct timespec *abs_timeout);
 extern void __audit_mq_notify(mqd_t mqdes, const struct sigevent *notification);
@@ -606,7 +605,6 @@ extern int audit_signals;
 #define audit_socketcall(n,a) ((void)0)
 #define audit_fd_pair(n,a) ((void)0)
 #define audit_sockaddr(len, addr) ({ 0; })
-#define audit_set_macxattr(n) do { ; } while (0)
 #define audit_mq_open(o,m,a) ((void)0)
 #define audit_mq_sendrecv(d,l,p,t) ((void)0)
 #define audit_mq_notify(d,n) ((void)0)
