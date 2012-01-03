@@ -296,9 +296,9 @@ static int iwlagn_rxon_connect(struct iwl_priv *priv,
 	}
 
 	if (ctx->vif && ctx->vif->type == NL80211_IFTYPE_STATION &&
-	    priv->cfg->ht_params && priv->cfg->ht_params->smps_mode)
+	    cfg(priv)->ht_params && cfg(priv)->ht_params->smps_mode)
 		ieee80211_request_smps(ctx->vif,
-				       priv->cfg->ht_params->smps_mode);
+				       cfg(priv)->ht_params->smps_mode);
 
 	return 0;
 }
@@ -445,8 +445,8 @@ int iwlagn_commit_rxon(struct iwl_priv *priv, struct iwl_rxon_context *ctx)
 	 * force CTS-to-self frames protection if RTS-CTS is not preferred
 	 * one aggregation protection method
 	 */
-	if (!(priv->cfg->ht_params &&
-	      priv->cfg->ht_params->use_rts_for_aggregation))
+	if (!(cfg(priv)->ht_params &&
+	      cfg(priv)->ht_params->use_rts_for_aggregation))
 		ctx->staging.flags |= RXON_FLG_SELF_CTS_EN;
 
 	if ((ctx->vif && ctx->vif->bss_conf.use_short_slot) ||

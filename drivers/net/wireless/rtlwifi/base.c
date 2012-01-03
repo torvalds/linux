@@ -449,6 +449,7 @@ int rtl_init_core(struct ieee80211_hw *hw)
 	/* <4> locks */
 	mutex_init(&rtlpriv->locks.conf_mutex);
 	mutex_init(&rtlpriv->locks.ps_mutex);
+	spin_lock_init(&rtlpriv->locks.ips_lock);
 	spin_lock_init(&rtlpriv->locks.irq_th_lock);
 	spin_lock_init(&rtlpriv->locks.h2c_lock);
 	spin_lock_init(&rtlpriv->locks.rf_ps_lock);

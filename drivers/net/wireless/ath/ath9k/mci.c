@@ -43,14 +43,14 @@ static bool ath_mci_add_profile(struct ath_common *common,
 
 	if ((mci->num_sco == ATH_MCI_MAX_SCO_PROFILE) &&
 	    (info->type == MCI_GPM_COEX_PROFILE_VOICE)) {
-		ath_dbg(common, ATH_DBG_MCI,
+		ath_dbg(common, MCI,
 			"Too many SCO profile, failed to add new profile\n");
 		return false;
 	}
 
 	if (((NUM_PROF(mci) - mci->num_sco) == ATH_MCI_MAX_ACL_PROFILE) &&
 	    (info->type != MCI_GPM_COEX_PROFILE_VOICE)) {
-		ath_dbg(common, ATH_DBG_MCI,
+		ath_dbg(common, MCI,
 			"Too many ACL profile, failed to add new profile\n");
 		return false;
 	}
@@ -80,8 +80,7 @@ static void ath_mci_del_profile(struct ath_common *common,
 	entry = ath_mci_find_profile(mci, info);
 
 	if (!entry) {
-		ath_dbg(common, ATH_DBG_MCI,
-			"Profile to be deleted not found\n");
+		ath_dbg(common, MCI, "Profile to be deleted not found\n");
 		return;
 	}
 	DEC_PROF(mci, entry);
@@ -132,30 +131,30 @@ static void ath_mci_update_scheme(struct ath_softc *sc)
 					list);
 		if (mci->num_sco && info->T == 12) {
 			mci->aggr_limit = 8;
-			ath_dbg(common, ATH_DBG_MCI,
+			ath_dbg(common, MCI,
 				"Single SCO, aggregation limit 2 ms\n");
 		} else if ((info->type == MCI_GPM_COEX_PROFILE_BNEP) &&
 			   !info->master) {
 			btcoex->btcoex_period = 60;
-			ath_dbg(common, ATH_DBG_MCI,
+			ath_dbg(common, MCI,
 				"Single slave PAN/FTP, bt period 60 ms\n");
 		} else if ((info->type == MCI_GPM_COEX_PROFILE_HID) &&
 			 (info->T > 0 && info->T < 50) &&
 			 (info->A > 1 || info->W > 1)) {
 			btcoex->duty_cycle = 30;
 			mci->aggr_limit = 8;
-			ath_dbg(common, ATH_DBG_MCI,
+			ath_dbg(common, MCI,
 				"Multiple attempt/timeout single HID "
 				"aggregation limit 2 ms dutycycle 30%%\n");
 		}
 	} else if ((num_profile == 2) && (mci->num_hid == 2)) {
 		btcoex->duty_cycle = 30;
 		mci->aggr_limit = 8;
-		ath_dbg(common, ATH_DBG_MCI,
+		ath_dbg(common, MCI,
 			"Two HIDs aggregation limit 2 ms dutycycle 30%%\n");
 	} else if (num_profile > 3) {
 		mci->aggr_limit = 6;
-		ath_dbg(common, ATH_DBG_MCI,
+		ath_dbg(common, MCI,
 			"Three or more profiles aggregation limit 1.5 ms\n");
 	}
 
@@ -194,42 +193,41 @@ static void ath_mci_cal_msg(struct ath_softc *sc, u8 opcode, u8 *rx_payload)
 	switch (opcode) {
 	case MCI_GPM_BT_CAL_REQ:
 
-		ath_dbg(common, ATH_DBG_MCI, "MCI received BT_CAL_REQ\n");
+		ath_dbg(common, MCI, "MCI received BT_CAL_REQ\n");
 
 		if (ar9003_mci_state(ah, MCI_STATE_BT, NULL) == MCI_BT_AWAKE) {
 			ar9003_mci_state(ah, MCI_STATE_SET_BT_CAL_START, NULL);
 			ieee80211_queue_work(sc->hw, &sc->hw_reset_work);
 		} else
-			ath_dbg(common, ATH_DBG_MCI,
-				"MCI State mismatches: %d\n",
+			ath_dbg(common, MCI, "MCI State mismatches: %d\n",
 				ar9003_mci_state(ah, MCI_STATE_BT, NULL));
 
 		break;
 
 	case MCI_GPM_BT_CAL_DONE:
 
-		ath_dbg(common, ATH_DBG_MCI, "MCI received BT_CAL_DONE\n");
+		ath_dbg(common, MCI, "MCI received BT_CAL_DONE\n");
 
 		if (ar9003_mci_state(ah, MCI_STATE_BT, NULL) == MCI_BT_CAL)
-			ath_dbg(common, ATH_DBG_MCI, "MCI error illegal!\n");
+			ath_dbg(common, MCI, "MCI error illegal!\n");
 		else
-			ath_dbg(common, ATH_DBG_MCI, "MCI BT not in CAL state\n");
+			ath_dbg(common, MCI, "MCI BT not in CAL state\n");
 
 		break;
 
 	case MCI_GPM_BT_CAL_GRANT:
 
-		ath_dbg(common, ATH_DBG_MCI, "MCI received BT_CAL_GRANT\n");
+		ath_dbg(common, MCI, "MCI received BT_CAL_GRANT\n");
 
 		/* Send WLAN_CAL_DONE for now */
-		ath_dbg(common, ATH_DBG_MCI, "MCI send WLAN_CAL_DONE\n");
+		ath_dbg(common, MCI, "MCI send WLAN_CAL_DONE\n");
 		MCI_GPM_SET_CAL_TYPE(payload, MCI_GPM_WLAN_CAL_DONE);
 		ar9003_mci_send_message(sc->sc_ah, MCI_GPM, 0, payload,
 					16, false, true);
 		break;
 
 	default:
-		ath_dbg(common, ATH_DBG_MCI, "MCI Unknown GPM CAL message\n");
+		ath_dbg(common, MCI, "MCI Unknown GPM CAL message\n");
 		break;
 	}
 }
@@ -272,8 +270,7 @@ static void ath_mci_process_status(struct ath_softc *sc,
 
 	/* Link status type are not handled */
 	if (status->is_link) {
-		ath_dbg(common, ATH_DBG_MCI,
-			"Skip link type status update\n");
+		ath_dbg(common, MCI, "Skip link type status update\n");
 		return;
 	}
 
@@ -281,14 +278,13 @@ static void ath_mci_process_status(struct ath_softc *sc,
 
 	info.conn_handle = status->conn_handle;
 	if (ath_mci_find_profile(mci, &info)) {
-		ath_dbg(common, ATH_DBG_MCI,
+		ath_dbg(common, MCI,
 			"Skip non link state update for existing profile %d\n",
 			status->conn_handle);
 		return;
 	}
 	if (status->conn_handle >= ATH_MCI_MAX_PROFILE) {
-		ath_dbg(common, ATH_DBG_MCI,
-			"Ignore too many non-link update\n");
+		ath_dbg(common, MCI, "Ignore too many non-link update\n");
 		return;
 	}
 	if (status->is_critical)
@@ -320,35 +316,32 @@ static void ath_mci_msg(struct ath_softc *sc, u8 opcode, u8 *rx_payload)
 	switch (opcode) {
 
 	case MCI_GPM_COEX_VERSION_QUERY:
-		ath_dbg(common, ATH_DBG_MCI,
-			"MCI Recv GPM COEX Version Query.\n");
+		ath_dbg(common, MCI, "MCI Recv GPM COEX Version Query\n");
 		version = ar9003_mci_state(ah,
 				MCI_STATE_SEND_WLAN_COEX_VERSION, NULL);
 		break;
 
 	case MCI_GPM_COEX_VERSION_RESPONSE:
-		ath_dbg(common, ATH_DBG_MCI,
-			"MCI Recv GPM COEX Version Response.\n");
+		ath_dbg(common, MCI, "MCI Recv GPM COEX Version Response\n");
 		major = *(rx_payload + MCI_GPM_COEX_B_MAJOR_VERSION);
 		minor = *(rx_payload + MCI_GPM_COEX_B_MINOR_VERSION);
-		ath_dbg(common, ATH_DBG_MCI,
-			"MCI BT Coex version: %d.%d\n", major, minor);
+		ath_dbg(common, MCI, "MCI BT Coex version: %d.%d\n",
+			major, minor);
 		version = (major << 8) + minor;
 		version = ar9003_mci_state(ah,
 			  MCI_STATE_SET_BT_COEX_VERSION, &version);
 		break;
 
 	case MCI_GPM_COEX_STATUS_QUERY:
-		ath_dbg(common, ATH_DBG_MCI,
-			"MCI Recv GPM COEX Status Query = 0x%02x.\n",
+		ath_dbg(common, MCI,
+			"MCI Recv GPM COEX Status Query = 0x%02x\n",
 			*(rx_payload + MCI_GPM_COEX_B_WLAN_BITMAP));
 		ar9003_mci_state(ah,
 		MCI_STATE_SEND_WLAN_CHANNELS, NULL);
 		break;
 
 	case MCI_GPM_COEX_BT_PROFILE_INFO:
-		ath_dbg(common, ATH_DBG_MCI,
-			"MCI Recv GPM Coex BT profile info\n");
+		ath_dbg(common, MCI, "MCI Recv GPM Coex BT profile info\n");
 		memcpy(&profile_info,
 		       (rx_payload + MCI_GPM_COEX_B_PROFILE_TYPE), 10);
 
@@ -356,9 +349,9 @@ static void ath_mci_msg(struct ath_softc *sc, u8 opcode, u8 *rx_payload)
 		    || (profile_info.type >=
 					    MCI_GPM_COEX_PROFILE_MAX)) {
 
-			ath_dbg(common, ATH_DBG_MCI,
-				"illegal profile type = %d,"
-				"state = %d\n", profile_info.type,
+			ath_dbg(common, MCI,
+				"illegal profile type = %d, state = %d\n",
+				profile_info.type,
 				profile_info.start);
 			break;
 		}
@@ -375,9 +368,8 @@ static void ath_mci_msg(struct ath_softc *sc, u8 opcode, u8 *rx_payload)
 					       MCI_GPM_COEX_B_STATUS_STATE);
 
 		seq_num = *((u32 *)(rx_payload + 12));
-		ath_dbg(common, ATH_DBG_MCI,
-			"MCI Recv GPM COEX BT_Status_Update: "
-			"is_link=%d, linkId=%d, state=%d, SEQ=%d\n",
+		ath_dbg(common, MCI,
+			"MCI Recv GPM COEX BT_Status_Update: is_link=%d, linkId=%d, state=%d, SEQ=%d\n",
 			profile_status.is_link, profile_status.conn_handle,
 			profile_status.is_critical, seq_num);
 
@@ -385,8 +377,8 @@ static void ath_mci_msg(struct ath_softc *sc, u8 opcode, u8 *rx_payload)
 		break;
 
 	default:
-		ath_dbg(common, ATH_DBG_MCI,
-		"MCI Unknown GPM COEX message = 0x%02x\n", opcode);
+		ath_dbg(common, MCI, "MCI Unknown GPM COEX message = 0x%02x\n",
+			opcode);
 		break;
 	}
 }
@@ -425,10 +417,13 @@ int ath_mci_setup(struct ath_softc *sc)
 	struct ath_mci_coex *mci = &sc->mci_coex;
 	int error = 0;
 
+	if (!ATH9K_HW_CAP_MCI)
+		return 0;
+
 	mci->sched_buf.bf_len = ATH_MCI_SCHED_BUF_SIZE + ATH_MCI_GPM_BUF_SIZE;
 
 	if (ath_mci_buf_alloc(sc, &mci->sched_buf)) {
-		ath_dbg(common, ATH_DBG_FATAL, "MCI buffer alloc failed\n");
+		ath_dbg(common, FATAL, "MCI buffer alloc failed\n");
 		error = -ENOMEM;
 		goto fail;
 	}
@@ -458,6 +453,9 @@ void ath_mci_cleanup(struct ath_softc *sc)
 	struct ath_hw *ah = sc->sc_ah;
 	struct ath_mci_coex *mci = &sc->mci_coex;
 
+	if (!ATH9K_HW_CAP_MCI)
+		return;
+
 	/*
 	 * both schedule and gpm buffers will be released
 	 */
@@ -476,15 +474,17 @@ void ath_mci_intr(struct ath_softc *sc)
 	u32 more_data = MCI_GPM_MORE;
 	bool skip_gpm = false;
 
+	if (!ATH9K_HW_CAP_MCI)
+		return;
+
 	ar9003_mci_get_interrupt(sc->sc_ah, &mci_int, &mci_int_rxmsg);
 
 	if (ar9003_mci_state(ah, MCI_STATE_ENABLE, NULL) == 0) {
 
 		ar9003_mci_state(sc->sc_ah, MCI_STATE_INIT_GPM_OFFSET, NULL);
-		ath_dbg(common, ATH_DBG_MCI,
-			"MCI interrupt but MCI disabled\n");
+		ath_dbg(common, MCI, "MCI interrupt but MCI disabled\n");
 
-		ath_dbg(common, ATH_DBG_MCI,
+		ath_dbg(common, MCI,
 			"MCI interrupt: intr = 0x%x, intr_rxmsg = 0x%x\n",
 			mci_int, mci_int_rxmsg);
 		return;
@@ -499,11 +499,11 @@ void ath_mci_intr(struct ath_softc *sc)
 		 * only when BT wake up. Now they are always sent, as a
 		 * recovery method to reset BT MCI's RX alignment.
 		 */
-		ath_dbg(common, ATH_DBG_MCI, "MCI interrupt send REMOTE_RESET\n");
+		ath_dbg(common, MCI, "MCI interrupt send REMOTE_RESET\n");
 
 		ar9003_mci_send_message(ah, MCI_REMOTE_RESET, 0,
 					payload, 16, true, false);
-		ath_dbg(common, ATH_DBG_MCI, "MCI interrupt send SYS_WAKING\n");
+		ath_dbg(common, MCI, "MCI interrupt send SYS_WAKING\n");
 		ar9003_mci_send_message(ah, MCI_SYS_WAKING, 0,
 					NULL, 0, true, false);
 
@@ -513,7 +513,7 @@ void ath_mci_intr(struct ath_softc *sc)
 		/*
 		 * always do this for recovery and 2G/5G toggling and LNA_TRANS
 		 */
-		ath_dbg(common, ATH_DBG_MCI, "MCI Set BT state to AWAKE.\n");
+		ath_dbg(common, MCI, "MCI Set BT state to AWAKE\n");
 		ar9003_mci_state(ah, MCI_STATE_SET_BT_AWAKE, NULL);
 	}
 
@@ -525,17 +525,16 @@ void ath_mci_intr(struct ath_softc *sc)
 
 			if (ar9003_mci_state(ah, MCI_STATE_REMOTE_SLEEP, NULL)
 					== MCI_BT_SLEEP)
-				ath_dbg(common, ATH_DBG_MCI,
+				ath_dbg(common, MCI,
 					"MCI BT stays in sleep mode\n");
 			else {
-				ath_dbg(common, ATH_DBG_MCI,
-					"MCI Set BT state to AWAKE.\n");
+				ath_dbg(common, MCI,
+					"MCI Set BT state to AWAKE\n");
 				ar9003_mci_state(ah,
 						 MCI_STATE_SET_BT_AWAKE, NULL);
 			}
 		} else
-			ath_dbg(common, ATH_DBG_MCI,
-				"MCI BT stays in AWAKE mode.\n");
+			ath_dbg(common, MCI, "MCI BT stays in AWAKE mode\n");
 	}
 
 	if (mci_int_rxmsg & AR_MCI_INTERRUPT_RX_MSG_SYS_SLEEPING) {
@@ -546,23 +545,22 @@ void ath_mci_intr(struct ath_softc *sc)
 
 			if (ar9003_mci_state(ah, MCI_STATE_REMOTE_SLEEP, NULL)
 					== MCI_BT_AWAKE)
-				ath_dbg(common, ATH_DBG_MCI,
-					"MCI BT stays in AWAKE mode.\n");
+				ath_dbg(common, MCI,
+					"MCI BT stays in AWAKE mode\n");
 			else {
-				ath_dbg(common, ATH_DBG_MCI,
+				ath_dbg(common, MCI,
 					"MCI SetBT state to SLEEP\n");
 				ar9003_mci_state(ah, MCI_STATE_SET_BT_SLEEP,
 						 NULL);
 			}
 		} else
-			ath_dbg(common, ATH_DBG_MCI,
-				"MCI BT stays in SLEEP mode\n");
+			ath_dbg(common, MCI, "MCI BT stays in SLEEP mode\n");
 	}
 
 	if ((mci_int & AR_MCI_INTERRUPT_RX_INVALID_HDR) ||
 	    (mci_int & AR_MCI_INTERRUPT_CONT_INFO_TIMEOUT)) {
 
-		ath_dbg(common, ATH_DBG_MCI, "MCI RX broken, skip GPM msgs\n");
+		ath_dbg(common, MCI, "MCI RX broken, skip GPM msgs\n");
 		ar9003_mci_state(ah, MCI_STATE_RECOVER_RX, NULL);
 		skip_gpm = true;
 	}
@@ -624,7 +622,7 @@ void ath_mci_intr(struct ath_softc *sc)
 
 		if (mci_int_rxmsg & AR_MCI_INTERRUPT_RX_MSG_LNA_INFO) {
 			mci_int_rxmsg &= ~AR_MCI_INTERRUPT_RX_MSG_LNA_INFO;
-			ath_dbg(common, ATH_DBG_MCI, "MCI LNA_INFO\n");
+			ath_dbg(common, MCI, "MCI LNA_INFO\n");
 		}
 
 		if (mci_int_rxmsg & AR_MCI_INTERRUPT_RX_MSG_CONT_INFO) {
@@ -635,16 +633,14 @@ void ath_mci_intr(struct ath_softc *sc)
 			mci_int_rxmsg &= ~AR_MCI_INTERRUPT_RX_MSG_CONT_INFO;
 
 			if (ar9003_mci_state(ah, MCI_STATE_CONT_TXRX, NULL))
-				ath_dbg(common, ATH_DBG_MCI,
-					"MCI CONT_INFO: "
-					"(tx) pri = %d, pwr = %d dBm\n",
+				ath_dbg(common, MCI,
+					"MCI CONT_INFO: (tx) pri = %d, pwr = %d dBm\n",
 					ar9003_mci_state(ah,
 						MCI_STATE_CONT_PRIORITY, NULL),
 					value_dbm);
 			else
-				ath_dbg(common, ATH_DBG_MCI,
-					"MCI CONT_INFO:"
-					"(rx) pri = %d,pwr = %d dBm\n",
+				ath_dbg(common, MCI,
+					"MCI CONT_INFO: (rx) pri = %d,pwr = %d dBm\n",
 					ar9003_mci_state(ah,
 						MCI_STATE_CONT_PRIORITY, NULL),
 					value_dbm);
@@ -652,12 +648,12 @@ void ath_mci_intr(struct ath_softc *sc)
 
 		if (mci_int_rxmsg & AR_MCI_INTERRUPT_RX_MSG_CONT_NACK) {
 			mci_int_rxmsg &= ~AR_MCI_INTERRUPT_RX_MSG_CONT_NACK;
-			ath_dbg(common, ATH_DBG_MCI, "MCI CONT_NACK\n");
+			ath_dbg(common, MCI, "MCI CONT_NACK\n");
 		}
 
 		if (mci_int_rxmsg & AR_MCI_INTERRUPT_RX_MSG_CONT_RST) {
 			mci_int_rxmsg &= ~AR_MCI_INTERRUPT_RX_MSG_CONT_RST;
-			ath_dbg(common, ATH_DBG_MCI, "MCI CONT_RST\n");
+			ath_dbg(common, MCI, "MCI CONT_RST\n");
 		}
 	}
 
@@ -667,7 +663,6 @@ void ath_mci_intr(struct ath_softc *sc)
 			     AR_MCI_INTERRUPT_CONT_INFO_TIMEOUT);
 
 	if (mci_int_rxmsg & 0xfffffffe)
-		ath_dbg(common, ATH_DBG_MCI,
-			"MCI not processed mci_int_rxmsg = 0x%x\n",
+		ath_dbg(common, MCI, "MCI not processed mci_int_rxmsg = 0x%x\n",
 			mci_int_rxmsg);
 }

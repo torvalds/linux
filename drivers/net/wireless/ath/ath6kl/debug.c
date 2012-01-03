@@ -1551,10 +1551,10 @@ static ssize_t ath6kl_listen_int_read(struct file *file,
 						size_t count, loff_t *ppos)
 {
 	struct ath6kl *ar = file->private_data;
-	char buf[16];
+	char buf[32];
 	int len;
 
-	len = snprintf(buf, sizeof(buf), "%u %u\n", ar->listen_intvl_t,
+	len = scnprintf(buf, sizeof(buf), "%u %u\n", ar->listen_intvl_t,
 					ar->listen_intvl_b);
 
 	return simple_read_from_buffer(user_buf, count, ppos, buf, len);

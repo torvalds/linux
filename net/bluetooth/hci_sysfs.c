@@ -89,10 +89,34 @@ static struct device_type bt_link = {
 	.release = bt_link_release,
 };
 
-static void add_conn(struct work_struct *work)
+/*
+ * The rfcomm tty device will possibly retain even when conn
+ * is down, and sysfs doesn't support move zombie device,
+ * so we should move the device before conn device is destroyed.
+ */
+static int __match_tty(struct device *dev, void *data)
 {
-	struct hci_conn *conn = container_of(work, struct hci_conn, work_add);
+	return !strncmp(dev_name(dev), "rfcomm", 6);
+}
+
+void hci_conn_init_sysfs(struct hci_conn *conn)
+{
 	struct hci_dev *hdev = conn->hdev;
+
+	BT_DBG("conn %p", conn);
+
+	conn->dev.type = &bt_link;
+	conn->dev.class = bt_class;
+	conn->dev.parent = &hdev->dev;
+
+	device_initialize(&conn->dev);
+}
+
+void hci_conn_add_sysfs(struct hci_conn *conn)
+{
+	struct hci_dev *hdev = conn->hdev;
+
+	BT_DBG("conn %p", conn);
 
 	dev_set_name(&conn->dev, "%s:%d", hdev->name, conn->handle);
 
@@ -106,19 +130,8 @@ static void add_conn(struct work_struct *work)
 	hci_dev_hold(hdev);
 }
 
-/*
- * The rfcomm tty device will possibly retain even when conn
- * is down, and sysfs doesn't support move zombie device,
- * so we should move the device before conn device is destroyed.
- */
-static int __match_tty(struct device *dev, void *data)
+void hci_conn_del_sysfs(struct hci_conn *conn)
 {
-	return !strncmp(dev_name(dev), "rfcomm", 6);
-}
-
-static void del_conn(struct work_struct *work)
-{
-	struct hci_conn *conn = container_of(work, struct hci_conn, work_del);
 	struct hci_dev *hdev = conn->hdev;
 
 	if (!device_is_registered(&conn->dev))
@@ -138,36 +151,6 @@ static void del_conn(struct work_struct *work)
 	put_device(&conn->dev);
 
 	hci_dev_put(hdev);
-}
-
-void hci_conn_init_sysfs(struct hci_conn *conn)
-{
-	struct hci_dev *hdev = conn->hdev;
-
-	BT_DBG("conn %p", conn);
-
-	conn->dev.type = &bt_link;
-	conn->dev.class = bt_class;
-	conn->dev.parent = &hdev->dev;
-
-	device_initialize(&conn->dev);
-
-	INIT_WORK(&conn->work_add, add_conn);
-	INIT_WORK(&conn->work_del, del_conn);
-}
-
-void hci_conn_add_sysfs(struct hci_conn *conn)
-{
-	BT_DBG("conn %p", conn);
-
-	queue_work(conn->hdev->workqueue, &conn->work_add);
-}
-
-void hci_conn_del_sysfs(struct hci_conn *conn)
-{
-	BT_DBG("conn %p", conn);
-
-	queue_work(conn->hdev->workqueue, &conn->work_del);
 }
 
 static inline char *host_bustostr(int bus)
@@ -403,7 +386,7 @@ static int inquiry_cache_show(struct seq_file *f, void *p)
 	struct inquiry_cache *cache = &hdev->inq_cache;
 	struct inquiry_entry *e;
 
-	hci_dev_lock_bh(hdev);
+	hci_dev_lock(hdev);
 
 	for (e = cache->list; e; e = e->next) {
 		struct inquiry_data *data = &e->data;
@@ -416,7 +399,7 @@ static int inquiry_cache_show(struct seq_file *f, void *p)
 			   data->rssi, data->ssp_mode, e->timestamp);
 	}
 
-	hci_dev_unlock_bh(hdev);
+	hci_dev_unlock(hdev);
 
 	return 0;
 }
@@ -438,12 +421,12 @@ static int blacklist_show(struct seq_file *f, void *p)
 	struct hci_dev *hdev = f->private;
 	struct bdaddr_list *b;
 
-	hci_dev_lock_bh(hdev);
+	hci_dev_lock(hdev);
 
 	list_for_each_entry(b, &hdev->blacklist, list)
 		seq_printf(f, "%s\n", batostr(&b->bdaddr));
 
-	hci_dev_unlock_bh(hdev);
+	hci_dev_unlock(hdev);
 
 	return 0;
 }
@@ -482,12 +465,12 @@ static int uuids_show(struct seq_file *f, void *p)
 	struct hci_dev *hdev = f->private;
 	struct bt_uuid *uuid;
 
-	hci_dev_lock_bh(hdev);
+	hci_dev_lock(hdev);
 
 	list_for_each_entry(uuid, &hdev->uuids, list)
 		print_bt_uuid(f, uuid->uuid);
 
-	hci_dev_unlock_bh(hdev);
+	hci_dev_unlock(hdev);
 
 	return 0;
 }
@@ -508,11 +491,11 @@ static int auto_accept_delay_set(void *data, u64 val)
 {
 	struct hci_dev *hdev = data;
 
-	hci_dev_lock_bh(hdev);
+	hci_dev_lock(hdev);
 
 	hdev->auto_accept_delay = val;
 
-	hci_dev_unlock_bh(hdev);
+	hci_dev_unlock(hdev);
 
 	return 0;
 }
@@ -521,11 +504,11 @@ static int auto_accept_delay_get(void *data, u64 *val)
 {
 	struct hci_dev *hdev = data;
 
-	hci_dev_lock_bh(hdev);
+	hci_dev_lock(hdev);
 
 	*val = hdev->auto_accept_delay;
 
-	hci_dev_unlock_bh(hdev);
+	hci_dev_unlock(hdev);
 
 	return 0;
 }

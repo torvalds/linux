@@ -450,7 +450,16 @@ static int wl1271_dev_notify(struct notifier_block *me, unsigned long what,
 	if (wl->state == WL1271_STATE_OFF)
 		goto out;
 
+	if (dev->operstate != IF_OPER_UP)
+		goto out;
+	/*
+	 * The correct behavior should be just getting the appropriate wlvif
+	 * from the given dev, but currently we don't have a mac80211
+	 * interface for it.
+	 */
 	wl12xx_for_each_wlvif_sta(wl, wlvif) {
+		struct ieee80211_vif *vif = wl12xx_wlvif_to_vif(wlvif);
+
 		if (!test_bit(WLVIF_FLAG_STA_ASSOCIATED, &wlvif->flags))
 			continue;
 
@@ -458,7 +467,8 @@ static int wl1271_dev_notify(struct notifier_block *me, unsigned long what,
 		if (ret < 0)
 			goto out;
 
-		wl1271_check_operstate(wl, wlvif, dev->operstate);
+		wl1271_check_operstate(wl, wlvif,
+				       ieee80211_get_operstate(vif));
 
 		wl1271_ps_elp_sleep(wl);
 	}
@@ -2036,6 +2046,11 @@ out:
 	return booted;
 }
 
+static bool wl12xx_dev_role_started(struct wl12xx_vif *wlvif)
+{
+	return wlvif->dev_hlid != WL12XX_INVALID_LINK_ID;
+}
+
 static int wl1271_op_add_interface(struct ieee80211_hw *hw,
 				   struct ieee80211_vif *vif)
 {
@@ -2184,7 +2199,11 @@ static void __wl1271_op_remove_interface(struct wl1271 *wl,
 		if (ret < 0)
 			goto deinit;
 
-		if (wlvif->bss_type == BSS_TYPE_STA_BSS) {
+		if (wlvif->bss_type == BSS_TYPE_STA_BSS ||
+		    wlvif->bss_type == BSS_TYPE_IBSS) {
+			if (wl12xx_dev_role_started(wlvif))
+				wl12xx_stop_dev(wl, wlvif);
+
 			ret = wl12xx_cmd_role_disable(wl, &wlvif->dev_role_id);
 			if (ret < 0)
 				goto deinit;
@@ -2267,6 +2286,17 @@ static void wl1271_op_remove_interface(struct ieee80211_hw *hw,
 out:
 	mutex_unlock(&wl->mutex);
 	cancel_work_sync(&wl->recovery_work);
+}
+
+static int wl12xx_op_change_interface(struct ieee80211_hw *hw,
+				      struct ieee80211_vif *vif,
+				      enum nl80211_iftype new_type, bool p2p)
+{
+	wl1271_op_remove_interface(hw, vif);
+
+	vif->type = ieee80211_iftype_p2p(new_type, p2p);
+	vif->p2p = p2p;
+	return wl1271_op_add_interface(hw, vif);
 }
 
 static int wl1271_join(struct wl1271 *wl, struct wl12xx_vif *wlvif,
@@ -2358,25 +2388,18 @@ static void wl1271_set_band_rate(struct wl1271 *wl, struct wl12xx_vif *wlvif)
 	wlvif->rate_set = wlvif->basic_rate_set;
 }
 
-static bool wl12xx_is_roc(struct wl1271 *wl)
-{
-	u8 role_id;
-
-	role_id = find_first_bit(wl->roc_map, WL12XX_MAX_ROLES);
-	if (role_id >= WL12XX_MAX_ROLES)
-		return false;
-
-	return true;
-}
-
 static int wl1271_sta_handle_idle(struct wl1271 *wl, struct wl12xx_vif *wlvif,
 				  bool idle)
 {
 	int ret;
+	bool cur_idle = !test_bit(WLVIF_FLAG_IN_USE, &wlvif->flags);
+
+	if (idle == cur_idle)
+		return 0;
 
 	if (idle) {
 		/* no need to croc if we weren't busy (e.g. during boot) */
-		if (wl12xx_is_roc(wl)) {
+		if (wl12xx_dev_role_started(wlvif)) {
 			ret = wl12xx_stop_dev(wl, wlvif);
 			if (ret < 0)
 				goto out;
@@ -2391,7 +2414,7 @@ static int wl1271_sta_handle_idle(struct wl1271 *wl, struct wl12xx_vif *wlvif,
 			ACX_KEEP_ALIVE_TPL_INVALID);
 		if (ret < 0)
 			goto out;
-		set_bit(WL1271_FLAG_IDLE, &wl->flags);
+		clear_bit(WLVIF_FLAG_IN_USE, &wlvif->flags);
 	} else {
 		/* The current firmware only supports sched_scan in idle */
 		if (wl->sched_scanning) {
@@ -2402,7 +2425,7 @@ static int wl1271_sta_handle_idle(struct wl1271 *wl, struct wl12xx_vif *wlvif,
 		ret = wl12xx_start_dev(wl, wlvif);
 		if (ret < 0)
 			goto out;
-		clear_bit(WL1271_FLAG_IDLE, &wl->flags);
+		set_bit(WLVIF_FLAG_IN_USE, &wlvif->flags);
 	}
 
 out:
@@ -2446,7 +2469,7 @@ static int wl12xx_config_vif(struct wl1271 *wl, struct wl12xx_vif *wlvif,
 
 			if (test_bit(WLVIF_FLAG_STA_ASSOCIATED,
 				     &wlvif->flags)) {
-				if (wl12xx_is_roc(wl)) {
+				if (wl12xx_dev_role_started(wlvif)) {
 					/* roaming */
 					ret = wl12xx_croc(wl,
 							  wlvif->dev_role_id);
@@ -2463,7 +2486,7 @@ static int wl12xx_config_vif(struct wl1271 *wl, struct wl12xx_vif *wlvif,
 				 * not idle. otherwise, CROC will be called
 				 * anyway.
 				 */
-				if (wl12xx_is_roc(wl) &&
+				if (wl12xx_dev_role_started(wlvif) &&
 				    !(conf->flags & IEEE80211_CONF_IDLE)) {
 					ret = wl12xx_stop_dev(wl, wlvif);
 					if (ret < 0)
@@ -3010,15 +3033,16 @@ static int wl1271_op_hw_scan(struct ieee80211_hw *hw,
 	if (ret < 0)
 		goto out;
 
-	/* cancel ROC before scanning */
-	if (wl12xx_is_roc(wl)) {
-		if (test_bit(WLVIF_FLAG_STA_ASSOCIATED, &wlvif->flags)) {
-			/* don't allow scanning right now */
-			ret = -EBUSY;
-			goto out_sleep;
-		}
-		wl12xx_stop_dev(wl, wlvif);
+	if (test_bit(WLVIF_FLAG_STA_ASSOCIATED, &wlvif->flags) &&
+	    test_bit(wlvif->role_id, wl->roc_map)) {
+		/* don't allow scanning right now */
+		ret = -EBUSY;
+		goto out_sleep;
 	}
+
+	/* cancel ROC before scanning */
+	if (wl12xx_dev_role_started(wlvif))
+		wl12xx_stop_dev(wl, wlvif);
 
 	ret = wl1271_scan(hw->priv, vif, ssid, len, req);
 out_sleep:
@@ -3829,9 +3853,9 @@ sta_not_found:
 		}
 		/*
 		 * stop device role if started (we might already be in
-		 * STA role). TODO: make it better.
+		 * STA/IBSS role).
 		 */
-		if (wlvif->dev_role_id != WL12XX_INVALID_ROLE_ID) {
+		if (wl12xx_dev_role_started(wlvif)) {
 			ret = wl12xx_stop_dev(wl, wlvif);
 			if (ret < 0)
 				goto out;
@@ -3948,31 +3972,8 @@ static int wl1271_op_conf_tx(struct ieee80211_hw *hw,
 	else
 		ps_scheme = CONF_PS_SCHEME_LEGACY;
 
-	if (wl->state == WL1271_STATE_OFF) {
-		/*
-		 * If the state is off, the parameters will be recorded and
-		 * configured on init. This happens in AP-mode.
-		 */
-		struct conf_tx_ac_category *conf_ac =
-			&wl->conf.tx.ac_conf[wl1271_tx_get_queue(queue)];
-		struct conf_tx_tid *conf_tid =
-			&wl->conf.tx.tid_conf[wl1271_tx_get_queue(queue)];
-
-		conf_ac->ac = wl1271_tx_get_queue(queue);
-		conf_ac->cw_min = (u8)params->cw_min;
-		conf_ac->cw_max = params->cw_max;
-		conf_ac->aifsn = params->aifs;
-		conf_ac->tx_op_limit = params->txop << 5;
-
-		conf_tid->queue_id = wl1271_tx_get_queue(queue);
-		conf_tid->channel_type = CONF_CHANNEL_TYPE_EDCF;
-		conf_tid->tsid = wl1271_tx_get_queue(queue);
-		conf_tid->ps_scheme = ps_scheme;
-		conf_tid->ack_policy = CONF_ACK_POLICY_LEGACY;
-		conf_tid->apsd_conf[0] = 0;
-		conf_tid->apsd_conf[1] = 0;
+	if (!test_bit(WLVIF_FLAG_INITIALIZED, &wlvif->flags))
 		goto out;
-	}
 
 	ret = wl1271_ps_elp_wakeup(wl);
 	if (ret < 0)
@@ -4629,6 +4630,7 @@ static const struct ieee80211_ops wl1271_ops = {
 	.stop = wl1271_op_stop,
 	.add_interface = wl1271_op_add_interface,
 	.remove_interface = wl1271_op_remove_interface,
+	.change_interface = wl12xx_op_change_interface,
 #ifdef CONFIG_PM
 	.suspend = wl1271_op_suspend,
 	.resume = wl1271_op_resume,

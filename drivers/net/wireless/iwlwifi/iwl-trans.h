@@ -178,20 +178,18 @@ struct iwl_trans_ops {
 
 	int (*tx)(struct iwl_trans *trans, struct sk_buff *skb,
 		struct iwl_device_cmd *dev_cmd, enum iwl_rxon_context_id ctx,
-		u8 sta_id);
-	void (*reclaim)(struct iwl_trans *trans, int sta_id, int tid,
+		u8 sta_id, u8 tid);
+	int (*reclaim)(struct iwl_trans *trans, int sta_id, int tid,
 			int txq_id, int ssn, u32 status,
 			struct sk_buff_head *skbs);
 
 	int (*tx_agg_disable)(struct iwl_trans *trans,
-			      enum iwl_rxon_context_id ctx, int sta_id,
-			      int tid);
+			      int sta_id, int tid);
 	int (*tx_agg_alloc)(struct iwl_trans *trans,
-			    enum iwl_rxon_context_id ctx, int sta_id, int tid,
-			    u16 *ssn);
+			    int sta_id, int tid);
 	void (*tx_agg_setup)(struct iwl_trans *trans,
 			     enum iwl_rxon_context_id ctx, int sta_id, int tid,
-			     int frame_limit);
+			     int frame_limit, u16 ssn);
 
 	void (*kick_nic)(struct iwl_trans *trans);
 
@@ -305,39 +303,38 @@ int iwl_trans_send_cmd_pdu(struct iwl_trans *trans, u8 id,
 
 static inline int iwl_trans_tx(struct iwl_trans *trans, struct sk_buff *skb,
 		struct iwl_device_cmd *dev_cmd, enum iwl_rxon_context_id ctx,
-		u8 sta_id)
+		u8 sta_id, u8 tid)
 {
-	return trans->ops->tx(trans, skb, dev_cmd, ctx, sta_id);
+	return trans->ops->tx(trans, skb, dev_cmd, ctx, sta_id, tid);
 }
 
-static inline void iwl_trans_reclaim(struct iwl_trans *trans, int sta_id,
+static inline int iwl_trans_reclaim(struct iwl_trans *trans, int sta_id,
 				 int tid, int txq_id, int ssn, u32 status,
 				 struct sk_buff_head *skbs)
 {
-	trans->ops->reclaim(trans, sta_id, tid, txq_id, ssn, status, skbs);
+	return trans->ops->reclaim(trans, sta_id, tid, txq_id, ssn,
+				   status, skbs);
 }
 
 static inline int iwl_trans_tx_agg_disable(struct iwl_trans *trans,
-					    enum iwl_rxon_context_id ctx,
 					    int sta_id, int tid)
 {
-	return trans->ops->tx_agg_disable(trans, ctx, sta_id, tid);
+	return trans->ops->tx_agg_disable(trans, sta_id, tid);
 }
 
 static inline int iwl_trans_tx_agg_alloc(struct iwl_trans *trans,
-					 enum iwl_rxon_context_id ctx,
-					 int sta_id, int tid, u16 *ssn)
+					 int sta_id, int tid)
 {
-	return trans->ops->tx_agg_alloc(trans, ctx, sta_id, tid, ssn);
+	return trans->ops->tx_agg_alloc(trans, sta_id, tid);
 }
 
 
 static inline void iwl_trans_tx_agg_setup(struct iwl_trans *trans,
 					   enum iwl_rxon_context_id ctx,
 					   int sta_id, int tid,
-					   int frame_limit)
+					   int frame_limit, u16 ssn)
 {
-	trans->ops->tx_agg_setup(trans, ctx, sta_id, tid, frame_limit);
+	trans->ops->tx_agg_setup(trans, ctx, sta_id, tid, frame_limit, ssn);
 }
 
 static inline void iwl_trans_kick_nic(struct iwl_trans *trans)

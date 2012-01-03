@@ -33,6 +33,80 @@ module_param(debug_mask, uint, 0644);
 module_param(testmode, uint, 0644);
 module_param(suspend_cutpower, bool, 0444);
 
+static const struct ath6kl_hw hw_list[] = {
+	{
+		.id				= AR6003_HW_2_0_VERSION,
+		.name				= "ar6003 hw 2.0",
+		.dataset_patch_addr		= 0x57e884,
+		.app_load_addr			= 0x543180,
+		.board_ext_data_addr		= 0x57e500,
+		.reserved_ram_size		= 6912,
+		.refclk_hz			= 26000000,
+		.uarttx_pin			= 8,
+
+		/* hw2.0 needs override address hardcoded */
+		.app_start_override_addr	= 0x944C00,
+
+		.fw_otp			= AR6003_HW_2_0_OTP_FILE,
+		.fw			= AR6003_HW_2_0_FIRMWARE_FILE,
+		.fw_tcmd		= AR6003_HW_2_0_TCMD_FIRMWARE_FILE,
+		.fw_patch		= AR6003_HW_2_0_PATCH_FILE,
+		.fw_api2		= AR6003_HW_2_0_FIRMWARE_2_FILE,
+		.fw_board		= AR6003_HW_2_0_BOARD_DATA_FILE,
+		.fw_default_board	= AR6003_HW_2_0_DEFAULT_BOARD_DATA_FILE,
+	},
+	{
+		.id				= AR6003_HW_2_1_1_VERSION,
+		.name				= "ar6003 hw 2.1.1",
+		.dataset_patch_addr		= 0x57ff74,
+		.app_load_addr			= 0x1234,
+		.board_ext_data_addr		= 0x542330,
+		.reserved_ram_size		= 512,
+		.refclk_hz			= 26000000,
+		.uarttx_pin			= 8,
+
+		.fw_otp			= AR6003_HW_2_1_1_OTP_FILE,
+		.fw			= AR6003_HW_2_1_1_FIRMWARE_FILE,
+		.fw_tcmd		= AR6003_HW_2_1_1_TCMD_FIRMWARE_FILE,
+		.fw_patch		= AR6003_HW_2_1_1_PATCH_FILE,
+		.fw_api2		= AR6003_HW_2_1_1_FIRMWARE_2_FILE,
+		.fw_board		= AR6003_HW_2_1_1_BOARD_DATA_FILE,
+		.fw_default_board	= AR6003_HW_2_1_1_DEFAULT_BOARD_DATA_FILE,
+	},
+	{
+		.id				= AR6004_HW_1_0_VERSION,
+		.name				= "ar6004 hw 1.0",
+		.dataset_patch_addr		= 0x57e884,
+		.app_load_addr			= 0x1234,
+		.board_ext_data_addr		= 0x437000,
+		.reserved_ram_size		= 19456,
+		.board_addr			= 0x433900,
+		.refclk_hz			= 26000000,
+		.uarttx_pin			= 11,
+
+		.fw			= AR6004_HW_1_0_FIRMWARE_FILE,
+		.fw_api2		= AR6004_HW_1_0_FIRMWARE_2_FILE,
+		.fw_board		= AR6004_HW_1_0_BOARD_DATA_FILE,
+		.fw_default_board	= AR6004_HW_1_0_DEFAULT_BOARD_DATA_FILE,
+	},
+	{
+		.id				= AR6004_HW_1_1_VERSION,
+		.name				= "ar6004 hw 1.1",
+		.dataset_patch_addr		= 0x57e884,
+		.app_load_addr			= 0x1234,
+		.board_ext_data_addr		= 0x437000,
+		.reserved_ram_size		= 11264,
+		.board_addr			= 0x43d400,
+		.refclk_hz			= 40000000,
+		.uarttx_pin			= 11,
+
+		.fw			= AR6004_HW_1_1_FIRMWARE_FILE,
+		.fw_api2		= AR6004_HW_1_1_FIRMWARE_2_FILE,
+		.fw_board		= AR6004_HW_1_1_BOARD_DATA_FILE,
+		.fw_default_board	= AR6004_HW_1_1_DEFAULT_BOARD_DATA_FILE,
+	},
+};
+
 /*
  * Include definitions here that can be used to tune the WLAN module
  * behavior. Different customers can tune the behavior as per their needs,
@@ -58,7 +132,6 @@ module_param(suspend_cutpower, bool, 0444);
  */
 #define WLAN_CONFIG_DISCONNECT_TIMEOUT 10
 
-#define CONFIG_AR600x_DEBUG_UART_TX_PIN 8
 
 #define ATH6KL_DATA_OFFSET    64
 struct sk_buff *ath6kl_buf_alloc(int size)
@@ -348,11 +421,7 @@ static int ath6kl_target_config_wlan_params(struct ath6kl *ar, int idx)
 			status = -EIO;
 		}
 
-	/*
-	 * FIXME: Make sure p2p configurations are not applied to
-	 * non-p2p capable interfaces when multivif support is enabled.
-	 */
-	if (ar->p2p) {
+	if (ar->p2p && (ar->vif_max == 1 || idx)) {
 		ret = ath6kl_wmi_info_req_cmd(ar->wmi, idx,
 					      P2P_FLAG_CAPABILITIES_REQ |
 					      P2P_FLAG_MACADDR_REQ |
@@ -365,11 +434,7 @@ static int ath6kl_target_config_wlan_params(struct ath6kl *ar, int idx)
 		}
 	}
 
-	/*
-	 * FIXME: Make sure p2p configurations are not applied to
-	 * non-p2p capable interfaces when multivif support is enabled.
-	 */
-	if (ar->p2p) {
+	if (ar->p2p && (ar->vif_max == 1 || idx)) {
 		/* Enable Probe Request reporting for P2P */
 		ret = ath6kl_wmi_probe_report_req_cmd(ar->wmi, idx, true);
 		if (ret) {
@@ -385,7 +450,7 @@ int ath6kl_configure_target(struct ath6kl *ar)
 {
 	u32 param, ram_reserved_size;
 	u8 fw_iftype, fw_mode = 0, fw_submode = 0;
-	int i;
+	int i, status;
 
 	/*
 	 * Note: Even though the firmware interface type is
@@ -397,7 +462,7 @@ int ath6kl_configure_target(struct ath6kl *ar)
 	 */
 	fw_iftype = HI_OPTION_FW_MODE_BSS_STA;
 
-	for (i = 0; i < MAX_NUM_VIF; i++)
+	for (i = 0; i < ar->vif_max; i++)
 		fw_mode |= fw_iftype << (i * HI_OPTION_FW_MODE_BITS);
 
 	/*
@@ -411,15 +476,11 @@ int ath6kl_configure_target(struct ath6kl *ar)
 		fw_submode |= HI_OPTION_FW_SUBMODE_NONE <<
 			      (i * HI_OPTION_FW_SUBMODE_BITS);
 
-	for (i = ar->max_norm_iface; i < MAX_NUM_VIF; i++)
+	for (i = ar->max_norm_iface; i < ar->vif_max; i++)
 		fw_submode |= HI_OPTION_FW_SUBMODE_P2PDEV <<
 			      (i * HI_OPTION_FW_SUBMODE_BITS);
 
-	/*
-	 * FIXME: This needs to be removed once the multivif
-	 * support is enabled.
-	 */
-	if (ar->p2p)
+	if (ar->p2p && ar->vif_max == 1)
 		fw_submode = HI_OPTION_FW_SUBMODE_P2PDEV;
 
 	param = HTC_PROTOCOL_VERSION;
@@ -442,7 +503,7 @@ int ath6kl_configure_target(struct ath6kl *ar)
 		return -EIO;
 	}
 
-	param |= (MAX_NUM_VIF << HI_OPTION_NUM_DEV_SHIFT);
+	param |= (ar->vif_max << HI_OPTION_NUM_DEV_SHIFT);
 	param |= fw_mode << HI_OPTION_FW_MODE_SHIFT;
 	param |= fw_submode << HI_OPTION_FW_SUBMODE_SHIFT;
 
@@ -490,6 +551,24 @@ int ath6kl_configure_target(struct ath6kl *ar)
 	if (ath6kl_set_htc_params(ar, MBOX_YIELD_LIMIT, 0))
 		/* use default number of control buffers */
 		return -EIO;
+
+	/* Configure GPIO AR600x UART */
+	param = ar->hw.uarttx_pin;
+	status = ath6kl_bmi_write(ar,
+				ath6kl_get_hi_item_addr(ar,
+				HI_ITEM(hi_dbg_uart_txpin)),
+				(u8 *)&param, 4);
+	if (status)
+		return status;
+
+	/* Configure target refclk_hz */
+	param =  ar->hw.refclk_hz;
+	status = ath6kl_bmi_write(ar,
+				ath6kl_get_hi_item_addr(ar,
+				HI_ITEM(hi_refclk_hz)),
+				(u8 *)&param, 4);
+	if (status)
+		return status;
 
 	return 0;
 }
@@ -550,11 +629,11 @@ static int ath6kl_get_fw(struct ath6kl *ar, const char *filename,
 static const char *get_target_ver_dir(const struct ath6kl *ar)
 {
 	switch (ar->version.target_ver) {
-	case AR6003_REV1_VERSION:
+	case AR6003_HW_1_0_VERSION:
 		return "ath6k/AR6003/hw1.0";
-	case AR6003_REV2_VERSION:
+	case AR6003_HW_2_0_VERSION:
 		return "ath6k/AR6003/hw2.0";
-	case AR6003_REV3_VERSION:
+	case AR6003_HW_2_1_1_VERSION:
 		return "ath6k/AR6003/hw2.1.1";
 	}
 	ath6kl_warn("%s: unsupported target version 0x%x.\n", __func__,
@@ -612,17 +691,10 @@ static int ath6kl_fetch_board_file(struct ath6kl *ar)
 	if (ar->fw_board != NULL)
 		return 0;
 
-	switch (ar->version.target_ver) {
-	case AR6003_REV2_VERSION:
-		filename = AR6003_REV2_BOARD_DATA_FILE;
-		break;
-	case AR6004_REV1_VERSION:
-		filename = AR6004_REV1_BOARD_DATA_FILE;
-		break;
-	default:
-		filename = AR6003_REV3_BOARD_DATA_FILE;
-		break;
-	}
+	if (WARN_ON(ar->hw.fw_board == NULL))
+		return -EINVAL;
+
+	filename = ar->hw.fw_board;
 
 	ret = ath6kl_get_fw(ar, filename, &ar->fw_board,
 			    &ar->fw_board_len);
@@ -640,17 +712,7 @@ static int ath6kl_fetch_board_file(struct ath6kl *ar)
 	ath6kl_warn("Failed to get board file %s (%d), trying to find default board file.\n",
 		    filename, ret);
 
-	switch (ar->version.target_ver) {
-	case AR6003_REV2_VERSION:
-		filename = AR6003_REV2_DEFAULT_BOARD_DATA_FILE;
-		break;
-	case AR6004_REV1_VERSION:
-		filename = AR6004_REV1_DEFAULT_BOARD_DATA_FILE;
-		break;
-	default:
-		filename = AR6003_REV3_DEFAULT_BOARD_DATA_FILE;
-		break;
-	}
+	filename = ar->hw.fw_default_board;
 
 	ret = ath6kl_get_fw(ar, filename, &ar->fw_board,
 			    &ar->fw_board_len);
@@ -674,18 +736,13 @@ static int ath6kl_fetch_otp_file(struct ath6kl *ar)
 	if (ar->fw_otp != NULL)
 		return 0;
 
-	switch (ar->version.target_ver) {
-	case AR6003_REV2_VERSION:
-		filename = AR6003_REV2_OTP_FILE;
-		break;
-	case AR6004_REV1_VERSION:
-		ath6kl_dbg(ATH6KL_DBG_TRC, "AR6004 doesn't need OTP file\n");
+	if (ar->hw.fw_otp == NULL) {
+		ath6kl_dbg(ATH6KL_DBG_BOOT,
+			   "no OTP file configured for this hw\n");
 		return 0;
-		break;
-	default:
-		filename = AR6003_REV3_OTP_FILE;
-		break;
 	}
+
+	filename = ar->hw.fw_otp;
 
 	ret = ath6kl_get_fw(ar, filename, &ar->fw_otp,
 			    &ar->fw_otp_len);
@@ -707,38 +764,22 @@ static int ath6kl_fetch_fw_file(struct ath6kl *ar)
 		return 0;
 
 	if (testmode) {
-		switch (ar->version.target_ver) {
-		case AR6003_REV2_VERSION:
-			filename = AR6003_REV2_TCMD_FIRMWARE_FILE;
-			break;
-		case AR6003_REV3_VERSION:
-			filename = AR6003_REV3_TCMD_FIRMWARE_FILE;
-			break;
-		case AR6004_REV1_VERSION:
-			ath6kl_warn("testmode not supported with ar6004\n");
+		if (ar->hw.fw_tcmd == NULL) {
+			ath6kl_warn("testmode not supported\n");
 			return -EOPNOTSUPP;
-		default:
-			ath6kl_warn("unknown target version: 0x%x\n",
-				       ar->version.target_ver);
-			return -EINVAL;
 		}
+
+		filename = ar->hw.fw_tcmd;
 
 		set_bit(TESTMODE, &ar->flag);
 
 		goto get_fw;
 	}
 
-	switch (ar->version.target_ver) {
-	case AR6003_REV2_VERSION:
-		filename = AR6003_REV2_FIRMWARE_FILE;
-		break;
-	case AR6004_REV1_VERSION:
-		filename = AR6004_REV1_FIRMWARE_FILE;
-		break;
-	default:
-		filename = AR6003_REV3_FIRMWARE_FILE;
-		break;
-	}
+	if (WARN_ON(ar->hw.fw == NULL))
+		return -EINVAL;
+
+	filename = ar->hw.fw;
 
 get_fw:
 	ret = ath6kl_get_fw(ar, filename, &ar->fw, &ar->fw_len);
@@ -756,27 +797,20 @@ static int ath6kl_fetch_patch_file(struct ath6kl *ar)
 	const char *filename;
 	int ret;
 
-	switch (ar->version.target_ver) {
-	case AR6003_REV2_VERSION:
-		filename = AR6003_REV2_PATCH_FILE;
-		break;
-	case AR6004_REV1_VERSION:
-		/* FIXME: implement for AR6004 */
+	if (ar->fw_patch != NULL)
 		return 0;
-		break;
-	default:
-		filename = AR6003_REV3_PATCH_FILE;
-		break;
-	}
 
-	if (ar->fw_patch == NULL) {
-		ret = ath6kl_get_fw(ar, filename, &ar->fw_patch,
-				    &ar->fw_patch_len);
-		if (ret) {
-			ath6kl_err("Failed to get patch file %s: %d\n",
-				   filename, ret);
-			return ret;
-		}
+	if (ar->hw.fw_patch == NULL)
+		return 0;
+
+	filename = ar->hw.fw_patch;
+
+	ret = ath6kl_get_fw(ar, filename, &ar->fw_patch,
+			    &ar->fw_patch_len);
+	if (ret) {
+		ath6kl_err("Failed to get patch file %s: %d\n",
+			   filename, ret);
+		return ret;
 	}
 
 	return 0;
@@ -811,19 +845,10 @@ static int ath6kl_fetch_fw_api2(struct ath6kl *ar)
 	int ret, ie_id, i, index, bit;
 	__le32 *val;
 
-	switch (ar->version.target_ver) {
-	case AR6003_REV2_VERSION:
-		filename = AR6003_REV2_FIRMWARE_2_FILE;
-		break;
-	case AR6003_REV3_VERSION:
-		filename = AR6003_REV3_FIRMWARE_2_FILE;
-		break;
-	case AR6004_REV1_VERSION:
-		filename = AR6004_REV1_FIRMWARE_2_FILE;
-		break;
-	default:
+	if (ar->hw.fw_api2 == NULL)
 		return -EOPNOTSUPP;
-	}
+
+	filename = ar->hw.fw_api2;
 
 	ret = request_firmware(&fw, filename, ar->dev);
 	if (ret)
@@ -913,12 +938,15 @@ static int ath6kl_fetch_fw_api2(struct ath6kl *ar)
 				   ar->hw.reserved_ram_size);
 			break;
 		case ATH6KL_FW_IE_CAPABILITIES:
+			if (ie_len < DIV_ROUND_UP(ATH6KL_FW_CAPABILITY_MAX, 8))
+				break;
+
 			ath6kl_dbg(ATH6KL_DBG_BOOT,
 				   "found firmware capabilities ie (%zd B)\n",
 				   ie_len);
 
 			for (i = 0; i < ATH6KL_FW_CAPABILITY_MAX; i++) {
-				index = ALIGN(i, 8) / 8;
+				index = i / 8;
 				bit = i % 8;
 
 				if (data[index] & (1 << bit))
@@ -937,8 +965,33 @@ static int ath6kl_fetch_fw_api2(struct ath6kl *ar)
 			ar->hw.dataset_patch_addr = le32_to_cpup(val);
 
 			ath6kl_dbg(ATH6KL_DBG_BOOT,
-				   "found patch address ie 0x%d\n",
+				   "found patch address ie 0x%x\n",
 				   ar->hw.dataset_patch_addr);
+			break;
+		case ATH6KL_FW_IE_BOARD_ADDR:
+			if (ie_len != sizeof(*val))
+				break;
+
+			val = (__le32 *) data;
+			ar->hw.board_addr = le32_to_cpup(val);
+
+			ath6kl_dbg(ATH6KL_DBG_BOOT,
+				   "found board address ie 0x%x\n",
+				   ar->hw.board_addr);
+			break;
+		case ATH6KL_FW_IE_VIF_MAX:
+			if (ie_len != sizeof(*val))
+				break;
+
+			val = (__le32 *) data;
+			ar->vif_max = min_t(unsigned int, le32_to_cpup(val),
+					    ATH6KL_VIF_MAX);
+
+			if (ar->vif_max > 1 && !ar->p2p)
+				ar->max_norm_iface = 2;
+
+			ath6kl_dbg(ATH6KL_DBG_BOOT,
+				   "found vif max ie %d\n", ar->vif_max);
 			break;
 		default:
 			ath6kl_dbg(ATH6KL_DBG_BOOT, "Unknown fw ie: %u\n",
@@ -994,8 +1047,8 @@ static int ath6kl_upload_board_file(struct ath6kl *ar)
 	 * For AR6004, host determine Target RAM address for
 	 * writing board data.
 	 */
-	if (ar->target_type == TARGET_TYPE_AR6004) {
-		board_address = AR6004_REV1_BOARD_DATA_ADDRESS;
+	if (ar->hw.board_addr != 0) {
+		board_address = ar->hw.board_addr;
 		ath6kl_bmi_write(ar,
 				ath6kl_get_hi_item_addr(ar,
 				HI_ITEM(hi_board_data)),
@@ -1013,7 +1066,8 @@ static int ath6kl_upload_board_file(struct ath6kl *ar)
 			HI_ITEM(hi_board_ext_data)),
 			(u8 *) &board_ext_address, 4);
 
-	if (board_ext_address == 0) {
+	if (ar->target_type == TARGET_TYPE_AR6003 &&
+	    board_ext_address == 0) {
 		ath6kl_err("Failed to get board file target address.\n");
 		return -EINVAL;
 	}
@@ -1033,8 +1087,8 @@ static int ath6kl_upload_board_file(struct ath6kl *ar)
 		break;
 	}
 
-	if (ar->fw_board_len == (board_data_size +
-				 board_ext_data_size)) {
+	if (board_ext_address &&
+	    ar->fw_board_len == (board_data_size + board_ext_data_size)) {
 
 		/* write extended board data */
 		ath6kl_dbg(ATH6KL_DBG_BOOT,
@@ -1092,8 +1146,8 @@ static int ath6kl_upload_otp(struct ath6kl *ar)
 	bool from_hw = false;
 	int ret;
 
-	if (WARN_ON(ar->fw_otp == NULL))
-		return -ENOENT;
+	if (ar->fw_otp == NULL)
+		return 0;
 
 	address = ar->hw.app_load_addr;
 
@@ -1142,7 +1196,7 @@ static int ath6kl_upload_firmware(struct ath6kl *ar)
 	int ret;
 
 	if (WARN_ON(ar->fw == NULL))
-		return -ENOENT;
+		return 0;
 
 	address = ar->hw.app_load_addr;
 
@@ -1172,8 +1226,8 @@ static int ath6kl_upload_patch(struct ath6kl *ar)
 	u32 address, param;
 	int ret;
 
-	if (WARN_ON(ar->fw_patch == NULL))
-		return -ENOENT;
+	if (ar->fw_patch == NULL)
+		return 0;
 
 	address = ar->hw.dataset_patch_addr;
 
@@ -1258,7 +1312,7 @@ static int ath6kl_init_upload(struct ath6kl *ar)
 		return status;
 
 	/* WAR to avoid SDIO CRC err */
-	if (ar->version.target_ver == AR6003_REV2_VERSION) {
+	if (ar->version.target_ver == AR6003_HW_2_0_VERSION) {
 		ath6kl_err("temporary war to avoid sdio crc error\n");
 
 		param = 0x20;
@@ -1315,46 +1369,28 @@ static int ath6kl_init_upload(struct ath6kl *ar)
 	if (status)
 		return status;
 
-	/* Configure GPIO AR6003 UART */
-	param = CONFIG_AR600x_DEBUG_UART_TX_PIN;
-	status = ath6kl_bmi_write(ar,
-				  ath6kl_get_hi_item_addr(ar,
-				  HI_ITEM(hi_dbg_uart_txpin)),
-				  (u8 *)&param, 4);
-
 	return status;
 }
 
 static int ath6kl_init_hw_params(struct ath6kl *ar)
 {
-	switch (ar->version.target_ver) {
-	case AR6003_REV2_VERSION:
-		ar->hw.dataset_patch_addr = AR6003_REV2_DATASET_PATCH_ADDRESS;
-		ar->hw.app_load_addr = AR6003_REV2_APP_LOAD_ADDRESS;
-		ar->hw.board_ext_data_addr = AR6003_REV2_BOARD_EXT_DATA_ADDRESS;
-		ar->hw.reserved_ram_size = AR6003_REV2_RAM_RESERVE_SIZE;
+	const struct ath6kl_hw *hw;
+	int i;
 
-		/* hw2.0 needs override address hardcoded */
-		ar->hw.app_start_override_addr = 0x944C00;
+	for (i = 0; i < ARRAY_SIZE(hw_list); i++) {
+		hw = &hw_list[i];
 
-		break;
-	case AR6003_REV3_VERSION:
-		ar->hw.dataset_patch_addr = AR6003_REV3_DATASET_PATCH_ADDRESS;
-		ar->hw.app_load_addr = 0x1234;
-		ar->hw.board_ext_data_addr = AR6003_REV3_BOARD_EXT_DATA_ADDRESS;
-		ar->hw.reserved_ram_size = AR6003_REV3_RAM_RESERVE_SIZE;
-		break;
-	case AR6004_REV1_VERSION:
-		ar->hw.dataset_patch_addr = AR6003_REV2_DATASET_PATCH_ADDRESS;
-		ar->hw.app_load_addr = AR6003_REV3_APP_LOAD_ADDRESS;
-		ar->hw.board_ext_data_addr = AR6004_REV1_BOARD_EXT_DATA_ADDRESS;
-		ar->hw.reserved_ram_size = AR6004_REV1_RAM_RESERVE_SIZE;
-		break;
-	default:
+		if (hw->id == ar->version.target_ver)
+			break;
+	}
+
+	if (i == ARRAY_SIZE(hw_list)) {
 		ath6kl_err("Unsupported hardware version: 0x%x\n",
 			   ar->version.target_ver);
 		return -EINVAL;
 	}
+
+	ar->hw = *hw;
 
 	ath6kl_dbg(ATH6KL_DBG_BOOT,
 		   "target_ver 0x%x target_type 0x%x dataset_patch 0x%x app_load_addr 0x%x\n",
@@ -1364,8 +1400,23 @@ static int ath6kl_init_hw_params(struct ath6kl *ar)
 		   "app_start_override_addr 0x%x board_ext_data_addr 0x%x reserved_ram_size 0x%x",
 		   ar->hw.app_start_override_addr, ar->hw.board_ext_data_addr,
 		   ar->hw.reserved_ram_size);
+	ath6kl_dbg(ATH6KL_DBG_BOOT,
+		   "refclk_hz %d uarttx_pin %d",
+		   ar->hw.refclk_hz, ar->hw.uarttx_pin);
 
 	return 0;
+}
+
+static const char *ath6kl_init_get_hif_name(enum ath6kl_hif_type type)
+{
+	switch (type) {
+	case ATH6KL_HIF_TYPE_SDIO:
+		return "sdio";
+	case ATH6KL_HIF_TYPE_USB:
+		return "usb";
+	}
+
+	return NULL;
 }
 
 int ath6kl_init_hw_start(struct ath6kl *ar)
@@ -1428,6 +1479,15 @@ int ath6kl_init_hw_start(struct ath6kl *ar)
 
 	ath6kl_dbg(ATH6KL_DBG_BOOT, "firmware booted\n");
 
+
+	if (test_and_clear_bit(FIRST_BOOT, &ar->flag)) {
+		ath6kl_info("%s %s fw %s%s\n",
+			    ar->hw.name,
+			    ath6kl_init_get_hif_name(ar->hif_type),
+			    ar->wiphy->fw_version,
+			    test_bit(TESTMODE, &ar->flag) ? " testmode" : "");
+	}
+
 	if (ar->version.abi_ver != ATH6KL_ABI_VERSION) {
 		ath6kl_err("abi version mismatch: host(0x%x), target(0x%x)\n",
 			   ATH6KL_ABI_VERSION, ar->version.abi_ver);
@@ -1448,7 +1508,7 @@ int ath6kl_init_hw_start(struct ath6kl *ar)
 	if ((ath6kl_set_host_app_area(ar)) != 0)
 		ath6kl_err("unable to set the host app area\n");
 
-	for (i = 0; i < MAX_NUM_VIF; i++) {
+	for (i = 0; i < ar->vif_max; i++) {
 		ret = ath6kl_target_config_wlan_params(ar, i);
 		if (ret)
 			goto err_htc_stop;
@@ -1558,7 +1618,7 @@ int ath6kl_core_init(struct ath6kl *ar)
 		goto err_node_cleanup;
 	}
 
-	for (i = 0; i < MAX_NUM_VIF; i++)
+	for (i = 0; i < ar->vif_max; i++)
 		ar->avail_idx_map |= BIT(i);
 
 	rtnl_lock();
@@ -1603,7 +1663,17 @@ int ath6kl_core_init(struct ath6kl *ar)
 
 	ar->wiphy->flags |= WIPHY_FLAG_SUPPORTS_FW_ROAM |
 			    WIPHY_FLAG_HAVE_AP_SME |
-			    WIPHY_FLAG_HAS_REMAIN_ON_CHANNEL;
+			    WIPHY_FLAG_HAS_REMAIN_ON_CHANNEL |
+			    WIPHY_FLAG_AP_PROBE_RESP_OFFLOAD;
+
+	if (test_bit(ATH6KL_FW_CAPABILITY_SCHED_SCAN, ar->fw_capabilities))
+		ar->wiphy->flags |= WIPHY_FLAG_SUPPORTS_SCHED_SCAN;
+
+	ar->wiphy->probe_resp_offload =
+		NL80211_PROBE_RESP_OFFLOAD_SUPPORT_WPS |
+		NL80211_PROBE_RESP_OFFLOAD_SUPPORT_WPS2 |
+		NL80211_PROBE_RESP_OFFLOAD_SUPPORT_P2P |
+		NL80211_PROBE_RESP_OFFLOAD_SUPPORT_80211U;
 
 	set_bit(FIRST_BOOT, &ar->flag);
 

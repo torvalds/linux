@@ -3,6 +3,7 @@
    Copyright (C) 2000-2001 Qualcomm Incorporated
    Copyright (C) 2009-2010 Gustavo F. Padovan <gustavo@padovan.org>
    Copyright (C) 2010 Google Inc.
+   Copyright (C) 2011 ProFUSION Embedded Systems
 
    Written 2000,2001 by Maxim Krasnyansky <maxk@qualcomm.com>
 
@@ -122,70 +123,15 @@ static int l2cap_sock_connect(struct socket *sock, struct sockaddr *addr, int al
 	if (la.l2_cid && la.l2_psm)
 		return -EINVAL;
 
-	lock_sock(sk);
-
-	if (chan->chan_type == L2CAP_CHAN_CONN_ORIENTED
-			&& !(la.l2_psm || la.l2_cid)) {
-		err = -EINVAL;
-		goto done;
-	}
-
-	switch (chan->mode) {
-	case L2CAP_MODE_BASIC:
-		break;
-	case L2CAP_MODE_ERTM:
-	case L2CAP_MODE_STREAMING:
-		if (!disable_ertm)
-			break;
-		/* fall through */
-	default:
-		err = -ENOTSUPP;
-		goto done;
-	}
-
-	switch (sk->sk_state) {
-	case BT_CONNECT:
-	case BT_CONNECT2:
-	case BT_CONFIG:
-		/* Already connecting */
-		goto wait;
-
-	case BT_CONNECTED:
-		/* Already connected */
-		err = -EISCONN;
-		goto done;
-
-	case BT_OPEN:
-	case BT_BOUND:
-		/* Can connect */
-		break;
-
-	default:
-		err = -EBADFD;
-		goto done;
-	}
-
-	/* PSM must be odd and lsb of upper byte must be 0 */
-	if ((__le16_to_cpu(la.l2_psm) & 0x0101) != 0x0001 && !la.l2_cid &&
-					chan->chan_type != L2CAP_CHAN_RAW) {
-		err = -EINVAL;
-		goto done;
-	}
-
-	/* Set destination address and psm */
-	bacpy(&bt_sk(sk)->dst, &la.l2_bdaddr);
-	chan->psm = la.l2_psm;
-	chan->dcid = la.l2_cid;
-
-	err = l2cap_chan_connect(l2cap_pi(sk)->chan);
+	err = l2cap_chan_connect(chan, la.l2_psm, la.l2_cid, &la.l2_bdaddr);
 	if (err)
 		goto done;
 
-wait:
 	err = bt_sock_wait_state(sk, BT_CONNECTED,
 			sock_sndtimeo(sk, flags & O_NONBLOCK));
 done:
-	release_sock(sk);
+	if (sock_owned_by_user(sk))
+		release_sock(sk);
 	return err;
 }
 

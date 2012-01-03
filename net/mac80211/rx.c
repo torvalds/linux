@@ -28,6 +28,7 @@
 #include "wpa.h"
 #include "tkip.h"
 #include "wme.h"
+#include "rate.h"
 
 /*
  * monitor mode reception
@@ -1826,7 +1827,12 @@ ieee80211_deliver_skb(struct ieee80211_rx_data *rx)
 	}
 
 	if (xmit_skb) {
-		/* send to wireless media */
+		/*
+		 * Send to wireless media and increase priority by 256 to
+		 * keep the received priority instead of reclassifying
+		 * the frame (see cfg80211_classify8021d).
+		 */
+		xmit_skb->priority += 256;
 		xmit_skb->protocol = htons(ETH_P_802_3);
 		skb_reset_network_header(xmit_skb);
 		skb_reset_mac_header(xmit_skb);
@@ -2233,6 +2239,63 @@ ieee80211_rx_h_action(struct ieee80211_rx_data *rx)
 		return RX_DROP_UNUSABLE;
 
 	switch (mgmt->u.action.category) {
+	case WLAN_CATEGORY_HT:
+		/* reject HT action frames from stations not supporting HT */
+		if (!rx->sta->sta.ht_cap.ht_supported)
+			goto invalid;
+
+		if (sdata->vif.type != NL80211_IFTYPE_STATION &&
+		    sdata->vif.type != NL80211_IFTYPE_MESH_POINT &&
+		    sdata->vif.type != NL80211_IFTYPE_AP_VLAN &&
+		    sdata->vif.type != NL80211_IFTYPE_AP &&
+		    sdata->vif.type != NL80211_IFTYPE_ADHOC)
+			break;
+
+		/* verify action & smps_control are present */
+		if (len < IEEE80211_MIN_ACTION_SIZE + 2)
+			goto invalid;
+
+		switch (mgmt->u.action.u.ht_smps.action) {
+		case WLAN_HT_ACTION_SMPS: {
+			struct ieee80211_supported_band *sband;
+			u8 smps;
+
+			/* convert to HT capability */
+			switch (mgmt->u.action.u.ht_smps.smps_control) {
+			case WLAN_HT_SMPS_CONTROL_DISABLED:
+				smps = WLAN_HT_CAP_SM_PS_DISABLED;
+				break;
+			case WLAN_HT_SMPS_CONTROL_STATIC:
+				smps = WLAN_HT_CAP_SM_PS_STATIC;
+				break;
+			case WLAN_HT_SMPS_CONTROL_DYNAMIC:
+				smps = WLAN_HT_CAP_SM_PS_DYNAMIC;
+				break;
+			default:
+				goto invalid;
+			}
+			smps <<= IEEE80211_HT_CAP_SM_PS_SHIFT;
+
+			/* if no change do nothing */
+			if ((rx->sta->sta.ht_cap.cap &
+					IEEE80211_HT_CAP_SM_PS) == smps)
+				goto handled;
+
+			rx->sta->sta.ht_cap.cap &= ~IEEE80211_HT_CAP_SM_PS;
+			rx->sta->sta.ht_cap.cap |= smps;
+
+			sband = rx->local->hw.wiphy->bands[status->band];
+
+			rate_control_rate_update(local, sband, rx->sta,
+						 IEEE80211_RC_SMPS_CHANGED,
+						 local->_oper_channel_type);
+			goto handled;
+		}
+		default:
+			goto invalid;
+		}
+
+		break;
 	case WLAN_CATEGORY_BACK:
 		if (sdata->vif.type != NL80211_IFTYPE_STATION &&
 		    sdata->vif.type != NL80211_IFTYPE_MESH_POINT &&

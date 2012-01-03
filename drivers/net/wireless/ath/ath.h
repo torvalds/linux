@@ -255,7 +255,7 @@ enum ATH_DEBUG {
 
 #define ath_dbg(common, dbg_mask, fmt, ...)				\
 do {									\
-	if ((common)->debug_mask & dbg_mask)				\
+	if ((common)->debug_mask & ATH_DBG_##dbg_mask)			\
 		_ath_printk(KERN_DEBUG, common, fmt, ##__VA_ARGS__);	\
 } while (0)
 
@@ -265,10 +265,13 @@ do {									\
 #else
 
 static inline  __attribute__ ((format (printf, 3, 4)))
-void ath_dbg(struct ath_common *common, enum ATH_DEBUG dbg_mask,
+void _ath_dbg(struct ath_common *common, enum ATH_DEBUG dbg_mask,
 	     const char *fmt, ...)
 {
 }
+#define ath_dbg(common, dbg_mask, fmt, ...)				\
+	_ath_dbg(common, ATH_DBG_##dbg_mask, fmt, ##__VA_ARGS__)
+
 #define ATH_DBG_WARN(foo, arg...) do {} while (0)
 #define ATH_DBG_WARN_ON_ONCE(foo) ({				\
 	int __ret_warn_once = !!(foo);				\

@@ -133,7 +133,7 @@ bool ath9k_hw_wait(struct ath_hw *ah, u32 reg, u32 mask, u32 val, u32 timeout)
 		udelay(AH_TIME_QUANTUM);
 	}
 
-	ath_dbg(ath9k_hw_common(ah), ATH_DBG_ANY,
+	ath_dbg(ath9k_hw_common(ah), ANY,
 		"timeout (%d us) on reg 0x%x: 0x%08x & 0x%08x != 0x%08x\n",
 		timeout, reg, REG_READ(ah, reg), mask, val);
 
@@ -491,8 +491,7 @@ static int ath9k_hw_post_init(struct ath_hw *ah)
 	if (ecode != 0)
 		return ecode;
 
-	ath_dbg(ath9k_hw_common(ah), ATH_DBG_CONFIG,
-		"Eeprom VER: %d, REV: %d\n",
+	ath_dbg(ath9k_hw_common(ah), CONFIG, "Eeprom VER: %d, REV: %d\n",
 		ah->eep_ops->get_eeprom_ver(ah),
 		ah->eep_ops->get_eeprom_rev(ah));
 
@@ -567,7 +566,7 @@ static int __ath9k_hw_init(struct ath_hw *ah)
 		}
 	}
 
-	ath_dbg(common, ATH_DBG_RESET, "serialize_regmode is %d\n",
+	ath_dbg(common, RESET, "serialize_regmode is %d\n",
 		ah->config.serialize_regmode);
 
 	if (AR_SREV_9285(ah) || AR_SREV_9271(ah))
@@ -958,8 +957,8 @@ static void ath9k_hw_set_cts_timeout(struct ath_hw *ah, u32 us)
 static bool ath9k_hw_set_global_txtimeout(struct ath_hw *ah, u32 tu)
 {
 	if (tu > 0xFFFF) {
-		ath_dbg(ath9k_hw_common(ah), ATH_DBG_XMIT,
-			"bad global tx timeout %u\n", tu);
+		ath_dbg(ath9k_hw_common(ah), XMIT, "bad global tx timeout %u\n",
+			tu);
 		ah->globaltxtimeout = (u32) -1;
 		return false;
 	} else {
@@ -980,7 +979,7 @@ void ath9k_hw_init_global_settings(struct ath_hw *ah)
 	int rx_lat = 0, tx_lat = 0, eifs = 0;
 	u32 reg;
 
-	ath_dbg(ath9k_hw_common(ah), ATH_DBG_RESET, "ah->misc_mode 0x%x\n",
+	ath_dbg(ath9k_hw_common(ah), RESET, "ah->misc_mode 0x%x\n",
 		ah->misc_mode);
 
 	if (!chan)
@@ -1275,7 +1274,7 @@ static bool ath9k_hw_set_reset(struct ath_hw *ah, int type)
 		    (npend || type == ATH9K_RESET_COLD)) {
 			int reset_err = 0;
 
-			ath_dbg(ath9k_hw_common(ah), ATH_DBG_RESET,
+			ath_dbg(ath9k_hw_common(ah), RESET,
 				"reset MAC via external reset\n");
 
 			reset_err = ah->external_reset();
@@ -1298,8 +1297,7 @@ static bool ath9k_hw_set_reset(struct ath_hw *ah, int type)
 
 	REG_WRITE(ah, AR_RTC_RC, 0);
 	if (!ath9k_hw_wait(ah, AR_RTC_RC, AR_RTC_RC_M, 0, AH_WAIT_TIMEOUT)) {
-		ath_dbg(ath9k_hw_common(ah), ATH_DBG_RESET,
-			"RTC stuck in MAC reset\n");
+		ath_dbg(ath9k_hw_common(ah), RESET, "RTC stuck in MAC reset\n");
 		return false;
 	}
 
@@ -1344,8 +1342,7 @@ static bool ath9k_hw_set_reset_power_on(struct ath_hw *ah)
 			   AR_RTC_STATUS_M,
 			   AR_RTC_STATUS_ON,
 			   AH_WAIT_TIMEOUT)) {
-		ath_dbg(ath9k_hw_common(ah), ATH_DBG_RESET,
-			"RTC not waking up\n");
+		ath_dbg(ath9k_hw_common(ah), RESET, "RTC not waking up\n");
 		return false;
 	}
 
@@ -1418,7 +1415,7 @@ static bool ath9k_hw_channel_change(struct ath_hw *ah,
 
 	for (qnum = 0; qnum < AR_NUM_QCU; qnum++) {
 		if (ath9k_hw_numtxpending(ah, qnum)) {
-			ath_dbg(common, ATH_DBG_QUEUE,
+			ath_dbg(common, QUEUE,
 				"Transmit frames pending on queue %d\n", qnum);
 			return false;
 		}
@@ -1536,7 +1533,7 @@ int ath9k_hw_reset(struct ath_hw *ah, struct ath9k_channel *chan,
 		if (mci_hw->bt_state == MCI_BT_CAL_START) {
 			u32 payload[4] = {0, 0, 0, 0};
 
-			ath_dbg(common, ATH_DBG_MCI, "MCI stop rx for BT CAL");
+			ath_dbg(common, MCI, "MCI stop rx for BT CAL\n");
 
 			mci_hw->bt_state = MCI_BT_CAL;
 
@@ -1548,23 +1545,22 @@ int ath9k_hw_reset(struct ath_hw *ah, struct ath9k_channel *chan,
 
 			ar9003_mci_disable_interrupt(ah);
 
-			ath_dbg(common, ATH_DBG_MCI, "send WLAN_CAL_GRANT");
+			ath_dbg(common, MCI, "send WLAN_CAL_GRANT\n");
 			MCI_GPM_SET_CAL_TYPE(payload, MCI_GPM_WLAN_CAL_GRANT);
 			ar9003_mci_send_message(ah, MCI_GPM, 0, payload,
 						16, true, false);
 
-			ath_dbg(common, ATH_DBG_MCI, "\nMCI BT is calibrating");
+			ath_dbg(common, MCI, "\nMCI BT is calibrating\n");
 
 			/* Wait BT calibration to be completed for 25ms */
 
 			if (ar9003_mci_wait_for_gpm(ah, MCI_GPM_BT_CAL_DONE,
 								  0, 25000))
-				ath_dbg(common, ATH_DBG_MCI,
+				ath_dbg(common, MCI,
 					"MCI got BT_CAL_DONE\n");
 			else
-				ath_dbg(common, ATH_DBG_MCI,
-					"MCI ### BT cal takes to long, force"
-					"bt_state to be bt_awake\n");
+				ath_dbg(common, MCI,
+					"MCI ### BT cal takes to long, force bt_state to be bt_awake\n");
 			mci_hw->bt_state = MCI_BT_AWAKE;
 			/* MCI FIX: enable mci interrupt here */
 			ar9003_mci_enable_interrupt(ah);
@@ -1825,14 +1821,13 @@ int ath9k_hw_reset(struct ath_hw *ah, struct ath9k_channel *chan,
 				 * message exchanges again and recal.
 				 */
 
-				ath_dbg(common, ATH_DBG_MCI, "MCI BT wakes up"
-					"during WLAN calibration\n");
+				ath_dbg(common, MCI,
+					"MCI BT wakes up during WLAN calibration\n");
 
 				REG_WRITE(ah, AR_MCI_INTERRUPT_RX_MSG_RAW,
 					  AR_MCI_INTERRUPT_RX_MSG_REMOTE_RESET |
 					  AR_MCI_INTERRUPT_RX_MSG_REQ_WAKE);
-				ath_dbg(common, ATH_DBG_MCI, "MCI send"
-					"REMOTE_RESET\n");
+				ath_dbg(common, MCI, "MCI send REMOTE_RESET\n");
 				ar9003_mci_remote_reset(ah, true);
 				ar9003_mci_send_sys_waking(ah, true);
 				udelay(1);
@@ -1841,7 +1836,7 @@ int ath9k_hw_reset(struct ath_hw *ah, struct ath9k_channel *chan,
 
 				mci_hw->bt_state = MCI_BT_AWAKE;
 
-				ath_dbg(common, ATH_DBG_MCI, "MCI re-cal\n");
+				ath_dbg(common, MCI, "MCI re-cal\n");
 
 				if (caldata) {
 					caldata->done_txiqcal_once = false;
@@ -1871,14 +1866,14 @@ int ath9k_hw_reset(struct ath_hw *ah, struct ath9k_channel *chan,
 		u32 mask;
 		mask = REG_READ(ah, AR_CFG);
 		if (mask & (AR_CFG_SWRB | AR_CFG_SWTB | AR_CFG_SWRG)) {
-			ath_dbg(common, ATH_DBG_RESET,
-				"CFG Byte Swap Set 0x%x\n", mask);
+			ath_dbg(common, RESET, "CFG Byte Swap Set 0x%x\n",
+				mask);
 		} else {
 			mask =
 				INIT_CONFIG_STATUS | AR_CFG_SWRB | AR_CFG_SWTB;
 			REG_WRITE(ah, AR_CFG, mask);
-			ath_dbg(common, ATH_DBG_RESET,
-				"Setting CFG 0x%x\n", REG_READ(ah, AR_CFG));
+			ath_dbg(common, RESET, "Setting CFG 0x%x\n",
+				REG_READ(ah, AR_CFG));
 		}
 	} else {
 		if (common->bus_ops->ath_bus_type == ATH_USB) {
@@ -1896,7 +1891,8 @@ int ath9k_hw_reset(struct ath_hw *ah, struct ath9k_channel *chan,
 #endif
 	}
 
-	if (ah->btcoex_hw.enabled)
+	if (ah->btcoex_hw.enabled &&
+	    ath9k_hw_get_btcoex_scheme(ah) != ATH_BTCOEX_CFG_NONE)
 		ath9k_hw_btcoex_enable(ah);
 
 	if (mci && mci_hw->ready) {
@@ -2090,7 +2086,7 @@ bool ath9k_hw_setpower(struct ath_hw *ah, enum ath9k_power_mode mode)
 	if (ah->power_mode == mode)
 		return status;
 
-	ath_dbg(common, ATH_DBG_RESET, "%s -> %s\n",
+	ath_dbg(common, RESET, "%s -> %s\n",
 		modes[ah->power_mode], modes[mode]);
 
 	switch (mode) {
@@ -2107,8 +2103,8 @@ bool ath9k_hw_setpower(struct ath_hw *ah, enum ath9k_power_mode mode)
 			if (ar9003_mci_state(ah, MCI_STATE_ENABLE, NULL) &&
 				(mci->bt_state != MCI_BT_SLEEP) &&
 				!mci->halted_bt_gpm) {
-				ath_dbg(common, ATH_DBG_MCI, "MCI halt BT GPM"
-						"(full_sleep)");
+				ath_dbg(common, MCI,
+					"MCI halt BT GPM (full_sleep)\n");
 				ar9003_mci_send_coex_halt_bt_gpm(ah,
 								 true, true);
 			}
@@ -2174,9 +2170,8 @@ void ath9k_hw_beaconinit(struct ath_hw *ah, u32 next_beacon, u32 beacon_period)
 			AR_TBTT_TIMER_EN | AR_DBA_TIMER_EN | AR_SWBA_TIMER_EN;
 		break;
 	default:
-		ath_dbg(ath9k_hw_common(ah), ATH_DBG_BEACON,
-			"%s: unsupported opmode: %d\n",
-			__func__, ah->opmode);
+		ath_dbg(ath9k_hw_common(ah), BEACON,
+			"%s: unsupported opmode: %d\n", __func__, ah->opmode);
 		return;
 		break;
 	}
@@ -2227,10 +2222,10 @@ void ath9k_hw_set_sta_beacon_timers(struct ath_hw *ah,
 	else
 		nextTbtt = bs->bs_nexttbtt;
 
-	ath_dbg(common, ATH_DBG_BEACON, "next DTIM %d\n", bs->bs_nextdtim);
-	ath_dbg(common, ATH_DBG_BEACON, "next beacon %d\n", nextTbtt);
-	ath_dbg(common, ATH_DBG_BEACON, "beacon period %d\n", beaconintval);
-	ath_dbg(common, ATH_DBG_BEACON, "DTIM period %d\n", dtimperiod);
+	ath_dbg(common, BEACON, "next DTIM %d\n", bs->bs_nextdtim);
+	ath_dbg(common, BEACON, "next beacon %d\n", nextTbtt);
+	ath_dbg(common, BEACON, "beacon period %d\n", beaconintval);
+	ath_dbg(common, BEACON, "DTIM period %d\n", dtimperiod);
 
 	ENABLE_REGWRITE_BUFFER(ah);
 
@@ -2322,8 +2317,8 @@ int ath9k_hw_fill_cap_info(struct ath_hw *ah)
 			regulatory->current_rd += 5;
 		else if (regulatory->current_rd == 0x41)
 			regulatory->current_rd = 0x43;
-		ath_dbg(common, ATH_DBG_REGULATORY,
-			"regdomain mapped to 0x%x\n", regulatory->current_rd);
+		ath_dbg(common, REGULATORY, "regdomain mapped to 0x%x\n",
+			regulatory->current_rd);
 	}
 
 	eeval = ah->eep_ops->get_eeprom(ah, EEP_OP_MODE);
@@ -2848,7 +2843,7 @@ void ath9k_hw_reset_tsf(struct ath_hw *ah)
 {
 	if (!ath9k_hw_wait(ah, AR_SLP32_MODE, AR_SLP32_TSF_WRITE_STATUS, 0,
 			   AH_TSF_WRITE_TIMEOUT))
-		ath_dbg(ath9k_hw_common(ah), ATH_DBG_RESET,
+		ath_dbg(ath9k_hw_common(ah), RESET,
 			"AR_SLP32_TSF_WRITE_STATUS limit exceeded\n");
 
 	REG_WRITE(ah, AR_RESET_TSF, AR_RESET_TSF_ONCE);
@@ -2973,7 +2968,7 @@ void ath9k_hw_gen_timer_start(struct ath_hw *ah,
 
 	timer_next = tsf + trig_timeout;
 
-	ath_dbg(ath9k_hw_common(ah), ATH_DBG_HWTIMER,
+	ath_dbg(ath9k_hw_common(ah), HWTIMER,
 		"current tsf %x period %x timer_next %x\n",
 		tsf, timer_period, timer_next);
 
@@ -3062,8 +3057,8 @@ void ath_gen_timer_isr(struct ath_hw *ah)
 		index = rightmost_index(timer_table, &thresh_mask);
 		timer = timer_table->timers[index];
 		BUG_ON(!timer);
-		ath_dbg(common, ATH_DBG_HWTIMER,
-			"TSF overflow for Gen timer %d\n", index);
+		ath_dbg(common, HWTIMER, "TSF overflow for Gen timer %d\n",
+			index);
 		timer->overflow(timer->arg);
 	}
 
@@ -3071,7 +3066,7 @@ void ath_gen_timer_isr(struct ath_hw *ah)
 		index = rightmost_index(timer_table, &trigger_mask);
 		timer = timer_table->timers[index];
 		BUG_ON(!timer);
-		ath_dbg(common, ATH_DBG_HWTIMER,
+		ath_dbg(common, HWTIMER,
 			"Gen timer[%d] trigger\n", index);
 		timer->trigger(timer->arg);
 	}

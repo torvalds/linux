@@ -339,8 +339,7 @@ static int ath_reset_internal(struct ath_softc *sc, struct ath9k_channel *hchan,
 	if (!ath_prepare_reset(sc, retry_tx, flush))
 		fastcc = false;
 
-	ath_dbg(common, ATH_DBG_CONFIG,
-		"Reset to %u MHz, HT40: %d fastcc: %d\n",
+	ath_dbg(common, CONFIG, "Reset to %u MHz, HT40: %d fastcc: %d\n",
 		hchan->channel, !!(hchan->channelFlags & (CHANNEL_HT40MINUS |
 							  CHANNEL_HT40PLUS)),
 		fastcc);
@@ -429,7 +428,7 @@ static bool ath_paprd_send_frame(struct ath_softc *sc, struct sk_buff *skb, int 
 	txctl.paprd = BIT(chain);
 
 	if (ath_tx_start(hw, skb, &txctl) != 0) {
-		ath_dbg(common, ATH_DBG_CALIBRATE, "PAPRD TX failed\n");
+		ath_dbg(common, CALIBRATE, "PAPRD TX failed\n");
 		dev_kfree_skb_any(skb);
 		return false;
 	}
@@ -438,7 +437,7 @@ static bool ath_paprd_send_frame(struct ath_softc *sc, struct sk_buff *skb, int 
 			msecs_to_jiffies(ATH_PAPRD_TIMEOUT));
 
 	if (!time_left)
-		ath_dbg(common, ATH_DBG_CALIBRATE,
+		ath_dbg(common, CALIBRATE,
 			"Timeout waiting for paprd training on TX chain %d\n",
 			chain);
 
@@ -487,27 +486,27 @@ void ath_paprd_calibrate(struct work_struct *work)
 
 		chain_ok = 0;
 
-		ath_dbg(common, ATH_DBG_CALIBRATE,
-			"Sending PAPRD frame for thermal measurement "
-			"on chain %d\n", chain);
+		ath_dbg(common, CALIBRATE,
+			"Sending PAPRD frame for thermal measurement on chain %d\n",
+			chain);
 		if (!ath_paprd_send_frame(sc, skb, chain))
 			goto fail_paprd;
 
 		ar9003_paprd_setup_gain_table(ah, chain);
 
-		ath_dbg(common, ATH_DBG_CALIBRATE,
+		ath_dbg(common, CALIBRATE,
 			"Sending PAPRD training frame on chain %d\n", chain);
 		if (!ath_paprd_send_frame(sc, skb, chain))
 			goto fail_paprd;
 
 		if (!ar9003_paprd_is_done(ah)) {
-			ath_dbg(common, ATH_DBG_CALIBRATE,
+			ath_dbg(common, CALIBRATE,
 				"PAPRD not yet done on chain %d\n", chain);
 			break;
 		}
 
 		if (ar9003_paprd_create_curve(ah, caldata, chain)) {
-			ath_dbg(common, ATH_DBG_CALIBRATE,
+			ath_dbg(common, CALIBRATE,
 				"PAPRD create curve failed on chain %d\n",
 								   chain);
 			break;
@@ -604,8 +603,9 @@ void ath_ani_calibrate(unsigned long data)
 						ah->rxchainmask, longcal);
 	}
 
-	ath_dbg(common, ATH_DBG_ANI,
-		"Calibration @%lu finished: %s %s %s, caldone: %s\n", jiffies,
+	ath_dbg(common, ANI,
+		"Calibration @%lu finished: %s %s %s, caldone: %s\n",
+		jiffies,
 		longcal ? "long" : "", shortcal ? "short" : "",
 		aniflag ? "ani" : "", common->ani.caldone ? "true" : "false");
 
@@ -715,8 +715,7 @@ void ath9k_tasklet(unsigned long data)
 		 * TSF sync does not look correct; remain awake to sync with
 		 * the next Beacon.
 		 */
-		ath_dbg(common, ATH_DBG_PS,
-			"TSFOOR - Sync with next Beacon\n");
+		ath_dbg(common, PS, "TSFOOR - Sync with next Beacon\n");
 		sc->ps_flags |= PS_WAIT_FOR_BEACON | PS_BEACON_SYNC;
 	}
 
@@ -742,11 +741,11 @@ void ath9k_tasklet(unsigned long data)
 			ath_tx_tasklet(sc);
 	}
 
-	if (ah->btcoex_hw.scheme == ATH_BTCOEX_CFG_3WIRE)
+	if (ath9k_hw_get_btcoex_scheme(ah) == ATH_BTCOEX_CFG_3WIRE)
 		if (status & ATH9K_INT_GENTIMER)
 			ath_gen_timer_isr(sc->sc_ah);
 
-	if (status & ATH9K_INT_MCI)
+	if ((status & ATH9K_INT_MCI) && ATH9K_HW_CAP_MCI)
 		ath_mci_intr(sc);
 
 out:
@@ -936,8 +935,8 @@ void ath_hw_check(struct work_struct *work)
 	busy = ath_update_survey_stats(sc);
 	spin_unlock_irqrestore(&common->cc_lock, flags);
 
-	ath_dbg(common, ATH_DBG_RESET, "Possible baseband hang, "
-		"busy=%d (try %d)\n", busy, sc->hw_busy_count + 1);
+	ath_dbg(common, RESET, "Possible baseband hang, busy=%d (try %d)\n",
+		busy, sc->hw_busy_count + 1);
 	if (busy >= 99) {
 		if (++sc->hw_busy_count >= 3) {
 			RESET_STAT_INC(sc, RESET_TYPE_BB_HANG);
@@ -960,8 +959,7 @@ static void ath_hw_pll_rx_hang_check(struct ath_softc *sc, u32 pll_sqsum)
 		count++;
 		if (count == 3) {
 			/* Rx is hung for more than 500ms. Reset it */
-			ath_dbg(common, ATH_DBG_RESET,
-				"Possible RX hang, resetting");
+			ath_dbg(common, RESET, "Possible RX hang, resetting\n");
 			RESET_STAT_INC(sc, RESET_TYPE_PLL_HANG);
 			ieee80211_queue_work(sc->hw, &sc->hw_reset_work);
 			count = 0;
@@ -1001,7 +999,7 @@ static int ath9k_start(struct ieee80211_hw *hw)
 	struct ath9k_channel *init_channel;
 	int r;
 
-	ath_dbg(common, ATH_DBG_CONFIG,
+	ath_dbg(common, CONFIG,
 		"Starting driver with initial channel: %d MHz\n",
 		curchan->center_freq);
 
@@ -1083,14 +1081,14 @@ static int ath9k_start(struct ieee80211_hw *hw)
 
 	spin_unlock_bh(&sc->sc_pcu_lock);
 
-	if ((ah->btcoex_hw.scheme != ATH_BTCOEX_CFG_NONE) &&
+	if ((ath9k_hw_get_btcoex_scheme(ah) != ATH_BTCOEX_CFG_NONE) &&
 	    !ah->btcoex_hw.enabled) {
 		if (!(sc->sc_ah->caps.hw_caps & ATH9K_HW_CAP_MCI))
 			ath9k_hw_btcoex_set_weight(ah, AR_BT_COEX_WGHT,
 						   AR_STOMP_LOW_WLAN_WGHT);
 		ath9k_hw_btcoex_enable(ah);
 
-		if (ah->btcoex_hw.scheme == ATH_BTCOEX_CFG_3WIRE)
+		if (ath9k_hw_get_btcoex_scheme(ah) == ATH_BTCOEX_CFG_3WIRE)
 			ath9k_btcoex_timer_resume(sc);
 	}
 
@@ -1120,7 +1118,7 @@ static void ath9k_tx(struct ieee80211_hw *hw, struct sk_buff *skb)
 		if (ieee80211_is_data(hdr->frame_control) &&
 		    !ieee80211_is_nullfunc(hdr->frame_control) &&
 		    !ieee80211_has_pm(hdr->frame_control)) {
-			ath_dbg(common, ATH_DBG_PS,
+			ath_dbg(common, PS,
 				"Add PM=1 for a TX frame while in PS mode\n");
 			hdr->frame_control |= cpu_to_le16(IEEE80211_FCTL_PM);
 		}
@@ -1143,12 +1141,11 @@ static void ath9k_tx(struct ieee80211_hw *hw, struct sk_buff *skb)
 		if (!(sc->sc_ah->caps.hw_caps & ATH9K_HW_CAP_AUTOSLEEP))
 			ath9k_hw_setrxabort(sc->sc_ah, 0);
 		if (ieee80211_is_pspoll(hdr->frame_control)) {
-			ath_dbg(common, ATH_DBG_PS,
+			ath_dbg(common, PS,
 				"Sending PS-Poll to pick a buffered frame\n");
 			sc->ps_flags |= PS_WAIT_FOR_PSPOLL_DATA;
 		} else {
-			ath_dbg(common, ATH_DBG_PS,
-				"Wake up to complete TX\n");
+			ath_dbg(common, PS, "Wake up to complete TX\n");
 			sc->ps_flags |= PS_WAIT_FOR_TX_ACK;
 		}
 		/*
@@ -1162,10 +1159,10 @@ static void ath9k_tx(struct ieee80211_hw *hw, struct sk_buff *skb)
 	memset(&txctl, 0, sizeof(struct ath_tx_control));
 	txctl.txq = sc->tx.txq_map[skb_get_queue_mapping(skb)];
 
-	ath_dbg(common, ATH_DBG_XMIT, "transmitting packet, skb: %p\n", skb);
+	ath_dbg(common, XMIT, "transmitting packet, skb: %p\n", skb);
 
 	if (ath_tx_start(hw, skb, &txctl) != 0) {
-		ath_dbg(common, ATH_DBG_XMIT, "TX failed\n");
+		ath_dbg(common, XMIT, "TX failed\n");
 		goto exit;
 	}
 
@@ -1186,7 +1183,7 @@ static void ath9k_stop(struct ieee80211_hw *hw)
 	ath_cancel_work(sc);
 
 	if (sc->sc_flags & SC_OP_INVALID) {
-		ath_dbg(common, ATH_DBG_ANY, "Device not present\n");
+		ath_dbg(common, ANY, "Device not present\n");
 		mutex_unlock(&sc->mutex);
 		return;
 	}
@@ -1194,9 +1191,10 @@ static void ath9k_stop(struct ieee80211_hw *hw)
 	/* Ensure HW is awake when we try to shut it down. */
 	ath9k_ps_wakeup(sc);
 
-	if (ah->btcoex_hw.enabled) {
+	if (ah->btcoex_hw.enabled &&
+	    ath9k_hw_get_btcoex_scheme(ah) != ATH_BTCOEX_CFG_NONE) {
 		ath9k_hw_btcoex_disable(ah);
-		if (ah->btcoex_hw.scheme == ATH_BTCOEX_CFG_3WIRE)
+		if (ath9k_hw_get_btcoex_scheme(ah) == ATH_BTCOEX_CFG_3WIRE)
 			ath9k_btcoex_timer_pause(sc);
 		ath_mci_flush_profile(&sc->btcoex.mci);
 	}
@@ -1252,7 +1250,7 @@ static void ath9k_stop(struct ieee80211_hw *hw)
 
 	mutex_unlock(&sc->mutex);
 
-	ath_dbg(common, ATH_DBG_CONFIG, "Driver halt\n");
+	ath_dbg(common, CONFIG, "Driver halt\n");
 }
 
 bool ath9k_uses_beacons(int type)
@@ -1467,8 +1465,7 @@ static int ath9k_add_interface(struct ieee80211_hw *hw,
 		goto out;
 	}
 
-	ath_dbg(common, ATH_DBG_CONFIG,
-		"Attach a VIF of type: %d\n", vif->type);
+	ath_dbg(common, CONFIG, "Attach a VIF of type: %d\n", vif->type);
 
 	sc->nvifs++;
 
@@ -1488,7 +1485,7 @@ static int ath9k_change_interface(struct ieee80211_hw *hw,
 	struct ath_common *common = ath9k_hw_common(sc->sc_ah);
 	int ret = 0;
 
-	ath_dbg(common, ATH_DBG_CONFIG, "Change Interface\n");
+	ath_dbg(common, CONFIG, "Change Interface\n");
 	mutex_lock(&sc->mutex);
 	ath9k_ps_wakeup(sc);
 
@@ -1531,7 +1528,7 @@ static void ath9k_remove_interface(struct ieee80211_hw *hw,
 	struct ath_softc *sc = hw->priv;
 	struct ath_common *common = ath9k_hw_common(sc->sc_ah);
 
-	ath_dbg(common, ATH_DBG_CONFIG, "Detach Interface\n");
+	ath_dbg(common, CONFIG, "Detach Interface\n");
 
 	ath9k_ps_wakeup(sc);
 	mutex_lock(&sc->mutex);
@@ -1622,12 +1619,10 @@ static int ath9k_config(struct ieee80211_hw *hw, u32 changed)
 
 	if (changed & IEEE80211_CONF_CHANGE_MONITOR) {
 		if (conf->flags & IEEE80211_CONF_MONITOR) {
-			ath_dbg(common, ATH_DBG_CONFIG,
-				"Monitor mode is enabled\n");
+			ath_dbg(common, CONFIG, "Monitor mode is enabled\n");
 			sc->sc_ah->is_monitoring = true;
 		} else {
-			ath_dbg(common, ATH_DBG_CONFIG,
-				"Monitor mode is disabled\n");
+			ath_dbg(common, CONFIG, "Monitor mode is disabled\n");
 			sc->sc_ah->is_monitoring = false;
 		}
 	}
@@ -1647,8 +1642,7 @@ static int ath9k_config(struct ieee80211_hw *hw, u32 changed)
 		else
 			sc->sc_flags &= ~SC_OP_OFFCHANNEL;
 
-		ath_dbg(common, ATH_DBG_CONFIG,
-			"Set channel: %d MHz type: %d\n",
+		ath_dbg(common, CONFIG, "Set channel: %d MHz type: %d\n",
 			curchan->center_freq, conf->channel_type);
 
 		/* update survey stats for the old channel before switching */
@@ -1705,8 +1699,7 @@ static int ath9k_config(struct ieee80211_hw *hw, u32 changed)
 	}
 
 	if (changed & IEEE80211_CONF_CHANGE_POWER) {
-		ath_dbg(common, ATH_DBG_CONFIG,
-			"Set power: %d\n", conf->power_level);
+		ath_dbg(common, CONFIG, "Set power: %d\n", conf->power_level);
 		sc->config.txpowlimit = 2 * conf->power_level;
 		ath9k_cmn_update_txpow(ah, sc->curtxpow,
 				       sc->config.txpowlimit, &sc->curtxpow);
@@ -1746,8 +1739,8 @@ static void ath9k_configure_filter(struct ieee80211_hw *hw,
 	ath9k_hw_setrxfilter(sc->sc_ah, rfilt);
 	ath9k_ps_restore(sc);
 
-	ath_dbg(ath9k_hw_common(sc->sc_ah), ATH_DBG_CONFIG,
-		"Set HW RX filter: 0x%x\n", rfilt);
+	ath_dbg(ath9k_hw_common(sc->sc_ah), CONFIG, "Set HW RX filter: 0x%x\n",
+		rfilt);
 }
 
 static int ath9k_sta_add(struct ieee80211_hw *hw,
@@ -1841,7 +1834,7 @@ static int ath9k_conf_tx(struct ieee80211_hw *hw,
 	qi.tqi_cwmax = params->cw_max;
 	qi.tqi_burstTime = params->txop;
 
-	ath_dbg(common, ATH_DBG_CONFIG,
+	ath_dbg(common, CONFIG,
 		"Configure tx [queue/halq] [%d/%d], aifs: %d, cw_min: %d, cw_max: %d, txop: %d\n",
 		queue, txq->axq_qnum, params->aifs, params->cw_min,
 		params->cw_max, params->txop);
@@ -1890,7 +1883,7 @@ static int ath9k_set_key(struct ieee80211_hw *hw,
 
 	mutex_lock(&sc->mutex);
 	ath9k_ps_wakeup(sc);
-	ath_dbg(common, ATH_DBG_CONFIG, "Set HW Key\n");
+	ath_dbg(common, CONFIG, "Set HW Key\n");
 
 	switch (cmd) {
 	case SET_KEY:
@@ -1942,9 +1935,8 @@ static void ath9k_bss_iter(void *data, u8 *mac, struct ieee80211_vif *vif)
 		memcpy(common->curbssid, bss_conf->bssid, ETH_ALEN);
 		common->curaid = bss_conf->aid;
 		ath9k_hw_write_associd(sc->sc_ah);
-		ath_dbg(common, ATH_DBG_CONFIG,
-				"Bss Info ASSOC %d, bssid: %pM\n",
-				bss_conf->aid, common->curbssid);
+		ath_dbg(common, CONFIG, "Bss Info ASSOC %d, bssid: %pM\n",
+			bss_conf->aid, common->curbssid);
 		ath_beacon_config(sc, vif);
 		/*
 		 * Request a re-configuration of Beacon related timers
@@ -1975,8 +1967,7 @@ static void ath9k_config_bss(struct ath_softc *sc, struct ieee80211_vif *vif)
 
 	/* Reconfigure bss info */
 	if (avp->primary_sta_vif && !bss_conf->assoc) {
-		ath_dbg(common, ATH_DBG_CONFIG,
-			"Bss Info DISASSOC %d, bssid %pM\n",
+		ath_dbg(common, CONFIG, "Bss Info DISASSOC %d, bssid %pM\n",
 			common->curaid, common->curbssid);
 		sc->sc_flags &= ~(SC_OP_PRIM_STA_VIF | SC_OP_BEACONS);
 		avp->primary_sta_vif = false;
@@ -2018,7 +2009,7 @@ static void ath9k_bss_info_changed(struct ieee80211_hw *hw,
 	if (changed & BSS_CHANGED_BSSID) {
 		ath9k_config_bss(sc, vif);
 
-		ath_dbg(common, ATH_DBG_CONFIG, "BSSID: %pM aid: 0x%x\n",
+		ath_dbg(common, CONFIG, "BSSID: %pM aid: 0x%x\n",
 			common->curbssid, common->curaid);
 	}
 
@@ -2096,7 +2087,7 @@ static void ath9k_bss_info_changed(struct ieee80211_hw *hw,
 	}
 
 	if (changed & BSS_CHANGED_ERP_PREAMBLE) {
-		ath_dbg(common, ATH_DBG_CONFIG, "BSS Changed PREAMBLE %d\n",
+		ath_dbg(common, CONFIG, "BSS Changed PREAMBLE %d\n",
 			bss_conf->use_short_preamble);
 		if (bss_conf->use_short_preamble)
 			sc->sc_flags |= SC_OP_PREAMBLE_SHORT;
@@ -2105,7 +2096,7 @@ static void ath9k_bss_info_changed(struct ieee80211_hw *hw,
 	}
 
 	if (changed & BSS_CHANGED_ERP_CTS_PROT) {
-		ath_dbg(common, ATH_DBG_CONFIG, "BSS Changed CTS PROT %d\n",
+		ath_dbg(common, CONFIG, "BSS Changed CTS PROT %d\n",
 			bss_conf->use_cts_prot);
 		if (bss_conf->use_cts_prot &&
 		    hw->conf.channel->band != IEEE80211_BAND_5GHZ)
@@ -2271,13 +2262,13 @@ static void ath9k_flush(struct ieee80211_hw *hw, bool drop)
 	cancel_delayed_work_sync(&sc->tx_complete_work);
 
 	if (ah->ah_flags & AH_UNPLUGGED) {
-		ath_dbg(common, ATH_DBG_ANY, "Device has been unplugged!\n");
+		ath_dbg(common, ANY, "Device has been unplugged!\n");
 		mutex_unlock(&sc->mutex);
 		return;
 	}
 
 	if (sc->sc_flags & SC_OP_INVALID) {
-		ath_dbg(common, ATH_DBG_ANY, "Device not present\n");
+		ath_dbg(common, ANY, "Device not present\n");
 		mutex_unlock(&sc->mutex);
 		return;
 	}

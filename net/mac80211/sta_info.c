@@ -822,10 +822,13 @@ static int __must_check __sta_info_destroy(struct sta_info *sta)
 	 * until the aggregation stop completes. Refer
 	 * http://thread.gmane.org/gmane.linux.kernel.wireless.general/81936
 	 */
+
+	mutex_lock(&sta->ampdu_mlme.mtx);
+
 	for (i = 0; i < STA_TID_NUM; i++) {
-		if (!sta->ampdu_mlme.tid_tx[i])
+		tid_tx = rcu_dereference_protected_tid_tx(sta, i);
+		if (!tid_tx)
 			continue;
-		tid_tx = sta->ampdu_mlme.tid_tx[i];
 		if (skb_queue_len(&tid_tx->pending)) {
 #ifdef CONFIG_MAC80211_HT_DEBUG
 			wiphy_debug(local->hw.wiphy, "TX A-MPDU  purging %d "
@@ -836,6 +839,8 @@ static int __must_check __sta_info_destroy(struct sta_info *sta)
 		}
 		kfree_rcu(tid_tx, rcu_head);
 	}
+
+	mutex_unlock(&sta->ampdu_mlme.mtx);
 
 	sta_info_free(local, sta);
 
@@ -941,6 +946,9 @@ void ieee80211_sta_expire(struct ieee80211_sub_if_data *sdata,
 
 	mutex_lock(&local->sta_mtx);
 	list_for_each_entry_safe(sta, tmp, &local->sta_list, list)
+		if (sdata != sta->sdata)
+			continue;
+
 		if (time_after(jiffies, sta->last_rx + exp_time)) {
 #ifdef CONFIG_MAC80211_IBSS_DEBUG
 			printk(KERN_DEBUG "%s: expiring inactive STA %pM\n",

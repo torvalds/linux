@@ -31,7 +31,6 @@
 #include <brcmu_utils.h>
 #include <brcmu_wifi.h>
 #include <soc.h>
-#include "dhd.h"
 #include "dhd_bus.h"
 #include "dhd_dbg.h"
 #include "sdio_host.h"
@@ -51,12 +50,18 @@ static void brcmf_sdioh_irqhandler(struct sdio_func *func)
 	sdio_claim_host(func);
 }
 
+/* dummy handler for SDIO function 2 interrupt */
+static void brcmf_sdioh_dummy_irq_handler(struct sdio_func *func)
+{
+}
+
 int brcmf_sdcard_intr_reg(struct brcmf_sdio_dev *sdiodev)
 {
 	brcmf_dbg(TRACE, "Entering\n");
 
 	sdio_claim_host(sdiodev->func[1]);
 	sdio_claim_irq(sdiodev->func[1], brcmf_sdioh_irqhandler);
+	sdio_claim_irq(sdiodev->func[2], brcmf_sdioh_dummy_irq_handler);
 	sdio_release_host(sdiodev->func[1]);
 
 	return 0;
@@ -67,6 +72,7 @@ int brcmf_sdcard_intr_dereg(struct brcmf_sdio_dev *sdiodev)
 	brcmf_dbg(TRACE, "Entering\n");
 
 	sdio_claim_host(sdiodev->func[1]);
+	sdio_release_irq(sdiodev->func[2]);
 	sdio_release_irq(sdiodev->func[1]);
 	sdio_release_host(sdiodev->func[1]);
 

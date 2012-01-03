@@ -329,6 +329,10 @@ enum wmi_cmd_id {
 	WMI_SYNCHRONIZE_CMDID,
 	WMI_CREATE_PSTREAM_CMDID,
 	WMI_DELETE_PSTREAM_CMDID,
+	/* WMI_START_SCAN_CMDID is to be deprecated. Use
+	 * WMI_BEGIN_SCAN_CMDID instead. The new cmd supports P2P mgmt
+	 * operations using station interface.
+	 */
 	WMI_START_SCAN_CMDID,
 	WMI_SET_SCAN_PARAMS_CMDID,
 	WMI_SET_BSS_FILTER_CMDID,
@@ -542,12 +546,61 @@ enum wmi_cmd_id {
 	WMI_GTK_OFFLOAD_OP_CMDID,
 	WMI_REMAIN_ON_CHNL_CMDID,
 	WMI_CANCEL_REMAIN_ON_CHNL_CMDID,
+	/* WMI_SEND_ACTION_CMDID is to be deprecated. Use
+	 * WMI_SEND_MGMT_CMDID instead. The new cmd supports P2P mgmt
+	 * operations using station interface.
+	 */
 	WMI_SEND_ACTION_CMDID,
 	WMI_PROBE_REQ_REPORT_CMDID,
 	WMI_DISABLE_11B_RATES_CMDID,
 	WMI_SEND_PROBE_RESPONSE_CMDID,
 	WMI_GET_P2P_INFO_CMDID,
 	WMI_AP_JOIN_BSS_CMDID,
+
+	WMI_SMPS_ENABLE_CMDID,
+	WMI_SMPS_CONFIG_CMDID,
+	WMI_SET_RATECTRL_PARM_CMDID,
+	/*  LPL specific commands*/
+	WMI_LPL_FORCE_ENABLE_CMDID,
+	WMI_LPL_SET_POLICY_CMDID,
+	WMI_LPL_GET_POLICY_CMDID,
+	WMI_LPL_GET_HWSTATE_CMDID,
+	WMI_LPL_SET_PARAMS_CMDID,
+	WMI_LPL_GET_PARAMS_CMDID,
+
+	WMI_SET_BUNDLE_PARAM_CMDID,
+
+	/*GreenTx specific commands*/
+
+	WMI_GREENTX_PARAMS_CMDID,
+
+	WMI_RTT_MEASREQ_CMDID,
+	WMI_RTT_CAPREQ_CMDID,
+	WMI_RTT_STATUSREQ_CMDID,
+
+	/* WPS Commands */
+	WMI_WPS_START_CMDID,
+	WMI_GET_WPS_STATUS_CMDID,
+
+	/* More P2P commands */
+	WMI_SET_NOA_CMDID,
+	WMI_GET_NOA_CMDID,
+	WMI_SET_OPPPS_CMDID,
+	WMI_GET_OPPPS_CMDID,
+	WMI_ADD_PORT_CMDID,
+	WMI_DEL_PORT_CMDID,
+
+	/* 802.11w cmd */
+	WMI_SET_RSN_CAP_CMDID,
+	WMI_GET_RSN_CAP_CMDID,
+	WMI_SET_IGTK_CMDID,
+
+	WMI_RX_FILTER_COALESCE_FILTER_OP_CMDID,
+	WMI_RX_FILTER_SET_FRAME_TEST_LIST_CMDID,
+
+	WMI_SEND_MGMT_CMDID,
+	WMI_BEGIN_SCAN_CMDID,
+
 };
 
 enum wmi_mgmt_frame_type {
@@ -565,6 +618,14 @@ enum network_type {
 	ADHOC_NETWORK = 0x02,
 	ADHOC_CREATOR = 0x04,
 	AP_NETWORK = 0x10,
+};
+
+enum network_subtype {
+	SUBTYPE_NONE,
+	SUBTYPE_BT,
+	SUBTYPE_P2PDEV,
+	SUBTYPE_P2PCLIENT,
+	SUBTYPE_P2PGO,
 };
 
 enum dot11_auth_mode {
@@ -639,6 +700,7 @@ struct wmi_connect_cmd {
 	__le16 ch;
 	u8 bssid[ETH_ALEN];
 	__le32 ctrl_flags;
+	u8 nw_subtype;
 } __packed;
 
 /* WMI_RECONNECT_CMDID */
@@ -726,6 +788,43 @@ enum wmi_scan_type {
 	WMI_SHORT_SCAN = 1,
 };
 
+struct wmi_supp_rates {
+	u8 nrates;
+	u8 rates[ATH6KL_RATE_MAXSIZE];
+};
+
+struct wmi_begin_scan_cmd {
+	__le32 force_fg_scan;
+
+	/* for legacy cisco AP compatibility */
+	__le32 is_legacy;
+
+	/* max duration in the home channel(msec) */
+	__le32 home_dwell_time;
+
+	/* time interval between scans (msec) */
+	__le32 force_scan_intvl;
+
+	/* no CCK rates */
+	__le32 no_cck;
+
+	/* enum wmi_scan_type */
+	u8 scan_type;
+
+	/* Supported rates to advertise in the probe request frames */
+	struct wmi_supp_rates supp_rates[IEEE80211_NUM_BANDS];
+
+	/* how many channels follow */
+	u8 num_ch;
+
+	/* channels in Mhz */
+	__le16 ch_list[1];
+} __packed;
+
+/* wmi_start_scan_cmd is to be deprecated. Use
+ * wmi_begin_scan_cmd instead. The new structure supports P2P mgmt
+ * operations using station interface.
+ */
 struct wmi_start_scan_cmd {
 	__le32 force_fg_scan;
 
@@ -747,9 +846,6 @@ struct wmi_start_scan_cmd {
 	/* channels in Mhz */
 	__le16 ch_list[1];
 } __packed;
-
-/* WMI_SET_SCAN_PARAMS_CMDID */
-#define WMI_SHORTSCANRATIO_DEFAULT      3
 
 /*
  *  Warning: scan control flag value of 0xFF is used to disable
@@ -782,13 +878,6 @@ enum wmi_scan_ctrl_flags_bits {
 	 */
 	ENABLE_SCAN_ABORT_EVENT = 0x40
 };
-
-#define DEFAULT_SCAN_CTRL_FLAGS			\
-	(CONNECT_SCAN_CTRL_FLAGS |		\
-	 SCAN_CONNECTED_CTRL_FLAGS |		\
-	 ACTIVE_SCAN_CTRL_FLAGS |		\
-	 ROAM_SCAN_CTRL_FLAGS |			\
-	 ENABLE_AUTO_CTRL_FLAGS)
 
 struct wmi_scan_params_cmd {
 	  /* sec */
@@ -1818,7 +1907,7 @@ struct wmi_set_ip_cmd {
 } __packed;
 
 enum ath6kl_wow_filters {
-	WOW_FILTER_SSID			= BIT(0),
+	WOW_FILTER_SSID			= BIT(1),
 	WOW_FILTER_OPTION_MAGIC_PACKET  = BIT(2),
 	WOW_FILTER_OPTION_EAP_REQ	= BIT(3),
 	WOW_FILTER_OPTION_PATTERNS	= BIT(4),
@@ -1963,7 +2052,7 @@ struct wmi_tx_complete_event {
  * !!! Warning !!!
  * -Changing the following values needs compilation of both driver and firmware
  */
-#define AP_MAX_NUM_STA          8
+#define AP_MAX_NUM_STA          10
 
 /* Spl. AID used to set DTIM flag in the beacons */
 #define MCAST_AID               0xFF
@@ -2046,10 +2135,23 @@ struct wmi_remain_on_chnl_cmd {
 	__le32 duration;
 } __packed;
 
+/* wmi_send_action_cmd is to be deprecated. Use
+ * wmi_send_mgmt_cmd instead. The new structure supports P2P mgmt
+ * operations using station interface.
+ */
 struct wmi_send_action_cmd {
 	__le32 id;
 	__le32 freq;
 	__le32 wait;
+	__le16 len;
+	u8 data[0];
+} __packed;
+
+struct wmi_send_mgmt_cmd {
+	__le32 id;
+	__le32 freq;
+	__le32 wait;
+	__le32 no_cck;
 	__le16 len;
 	u8 data[0];
 } __packed;
@@ -2242,7 +2344,8 @@ int ath6kl_wmi_connect_cmd(struct wmi *wmi, u8 if_idx,
 			   u8 pairwise_crypto_len,
 			   enum crypto_type group_crypto,
 			   u8 group_crypto_len, int ssid_len, u8 *ssid,
-			   u8 *bssid, u16 channel, u32 ctrl_flags);
+			   u8 *bssid, u16 channel, u32 ctrl_flags,
+			   u8 nw_subtype);
 
 int ath6kl_wmi_reconnect_cmd(struct wmi *wmi, u8 if_idx, u8 *bssid,
 			     u16 channel);
@@ -2252,6 +2355,14 @@ int ath6kl_wmi_startscan_cmd(struct wmi *wmi, u8 if_idx,
 			     u32 force_fgscan, u32 is_legacy,
 			     u32 home_dwell_time, u32 force_scan_interval,
 			     s8 num_chan, u16 *ch_list);
+
+int ath6kl_wmi_beginscan_cmd(struct wmi *wmi, u8 if_idx,
+			     enum wmi_scan_type scan_type,
+			     u32 force_fgscan, u32 is_legacy,
+			     u32 home_dwell_time, u32 force_scan_interval,
+			     s8 num_chan, u16 *ch_list, u32 no_cck,
+			     u32 *rates);
+
 int ath6kl_wmi_scanparams_cmd(struct wmi *wmi, u8 if_idx, u16 fg_start_sec,
 			      u16 fg_end_sec, u16 bg_sec,
 			      u16 minact_chdw_msec, u16 maxact_chdw_msec,
@@ -2346,6 +2457,10 @@ int ath6kl_wmi_remain_on_chnl_cmd(struct wmi *wmi, u8 if_idx, u32 freq,
 int ath6kl_wmi_send_action_cmd(struct wmi *wmi, u8 if_idx, u32 id, u32 freq,
 			       u32 wait, const u8 *data, u16 data_len);
 
+int ath6kl_wmi_send_mgmt_cmd(struct wmi *wmi, u8 if_idx, u32 id, u32 freq,
+			       u32 wait, const u8 *data, u16 data_len,
+			       u32 no_cck);
+
 int ath6kl_wmi_send_probe_response_cmd(struct wmi *wmi, u8 if_idx, u32 freq,
 				       const u8 *dst, const u8 *data,
 				       u16 data_len);
@@ -2358,6 +2473,8 @@ int ath6kl_wmi_cancel_remain_on_chnl_cmd(struct wmi *wmi, u8 if_idx);
 
 int ath6kl_wmi_set_appie_cmd(struct wmi *wmi, u8 if_idx, u8 mgmt_frm_type,
 			     const u8 *ie, u8 ie_len);
+
+void ath6kl_wmi_sscan_timer(unsigned long ptr);
 
 struct ath6kl_vif *ath6kl_get_vif_by_index(struct ath6kl *ar, u8 if_idx);
 void *ath6kl_wmi_init(struct ath6kl *devt);

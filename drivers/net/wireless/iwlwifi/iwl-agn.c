@@ -43,6 +43,7 @@
 #include <asm/div64.h>
 
 #include "iwl-eeprom.h"
+#include "iwl-wifi.h"
 #include "iwl-dev.h"
 #include "iwl-core.h"
 #include "iwl-io.h"
@@ -515,7 +516,7 @@ static void iwl_ucode_callback(const struct firmware *ucode_raw, void *context);
 
 static int __must_check iwl_request_firmware(struct iwl_priv *priv, bool first)
 {
-	const char *name_pre = priv->cfg->fw_name_pre;
+	const char *name_pre = cfg(priv)->fw_name_pre;
 	char tag[8];
 
 	if (first) {
@@ -524,14 +525,14 @@ static int __must_check iwl_request_firmware(struct iwl_priv *priv, bool first)
 		strcpy(tag, UCODE_EXPERIMENTAL_TAG);
 	} else if (priv->fw_index == UCODE_EXPERIMENTAL_INDEX) {
 #endif
-		priv->fw_index = priv->cfg->ucode_api_max;
+		priv->fw_index = cfg(priv)->ucode_api_max;
 		sprintf(tag, "%d", priv->fw_index);
 	} else {
 		priv->fw_index--;
 		sprintf(tag, "%d", priv->fw_index);
 	}
 
-	if (priv->fw_index < priv->cfg->ucode_api_min) {
+	if (priv->fw_index < cfg(priv)->ucode_api_min) {
 		IWL_ERR(priv, "no suitable firmware found!\n");
 		return -ENOENT;
 	}
@@ -836,9 +837,9 @@ static void iwl_ucode_callback(const struct firmware *ucode_raw, void *context)
 	struct iwl_ucode_header *ucode;
 	int err;
 	struct iwlagn_firmware_pieces pieces;
-	const unsigned int api_max = priv->cfg->ucode_api_max;
-	unsigned int api_ok = priv->cfg->ucode_api_ok;
-	const unsigned int api_min = priv->cfg->ucode_api_min;
+	const unsigned int api_max = cfg(priv)->ucode_api_max;
+	unsigned int api_ok = cfg(priv)->ucode_api_ok;
+	const unsigned int api_min = cfg(priv)->ucode_api_min;
 	u32 api_ver;
 	char buildstr[25];
 	u32 build;
@@ -1027,14 +1028,14 @@ static void iwl_ucode_callback(const struct firmware *ucode_raw, void *context)
 		priv->init_evtlog_size = (pieces.init_evtlog_size - 16)/12;
 	else
 		priv->init_evtlog_size =
-			priv->cfg->base_params->max_event_log_size;
+			cfg(priv)->base_params->max_event_log_size;
 	priv->init_errlog_ptr = pieces.init_errlog_ptr;
 	priv->inst_evtlog_ptr = pieces.inst_evtlog_ptr;
 	if (pieces.inst_evtlog_size)
 		priv->inst_evtlog_size = (pieces.inst_evtlog_size - 16)/12;
 	else
 		priv->inst_evtlog_size =
-			priv->cfg->base_params->max_event_log_size;
+			cfg(priv)->base_params->max_event_log_size;
 	priv->inst_errlog_ptr = pieces.inst_errlog_ptr;
 #ifndef CONFIG_IWLWIFI_P2P
 	ucode_capa.flags &= ~IWL_UCODE_TLV_FLAGS_PAN;
@@ -1043,7 +1044,7 @@ static void iwl_ucode_callback(const struct firmware *ucode_raw, void *context)
 	priv->new_scan_threshold_behaviour =
 		!!(ucode_capa.flags & IWL_UCODE_TLV_FLAGS_NEWSCAN);
 
-	if (!(priv->cfg->sku & EEPROM_SKU_CAP_IPAN_ENABLE))
+	if (!(cfg(priv)->sku & EEPROM_SKU_CAP_IPAN_ENABLE))
 		ucode_capa.flags &= ~IWL_UCODE_TLV_FLAGS_PAN;
 
 	/*
@@ -1124,7 +1125,7 @@ static void iwl_rf_kill_ct_config(struct iwl_priv *priv)
 	spin_unlock_irqrestore(&priv->shrd->lock, flags);
 	priv->thermal_throttle.ct_kill_toggle = false;
 
-	if (priv->cfg->base_params->support_ct_kill_exit) {
+	if (cfg(priv)->base_params->support_ct_kill_exit) {
 		adv_cmd.critical_temperature_enter =
 			cpu_to_le32(hw_params(priv).ct_kill_threshold);
 		adv_cmd.critical_temperature_exit =
@@ -1219,10 +1220,10 @@ int iwl_alive_start(struct iwl_priv *priv)
 		return -ERFKILL;
 
 	/* download priority table before any calibration request */
-	if (priv->cfg->bt_params &&
-	    priv->cfg->bt_params->advanced_bt_coexist) {
+	if (cfg(priv)->bt_params &&
+	    cfg(priv)->bt_params->advanced_bt_coexist) {
 		/* Configure Bluetooth device coexistence support */
-		if (priv->cfg->bt_params->bt_sco_disable)
+		if (cfg(priv)->bt_params->bt_sco_disable)
 			priv->bt_enable_pspoll = false;
 		else
 			priv->bt_enable_pspoll = true;
@@ -1252,16 +1253,17 @@ int iwl_alive_start(struct iwl_priv *priv)
 		iwl_send_bt_config(priv);
 	}
 
-	if (hw_params(priv).calib_rt_cfg)
-		iwlagn_send_calib_cfg_rt(priv,
-					 hw_params(priv).calib_rt_cfg);
+	/*
+	 * Perform runtime calibrations, including DC calibration.
+	 */
+	iwlagn_send_calib_cfg_rt(priv, IWL_CALIB_CFG_DC_IDX);
 
 	ieee80211_wake_queues(priv->hw);
 
 	priv->active_rate = IWL_RATES_MASK;
 
 	/* Configure Tx antenna selection based on H/W config */
-	iwlagn_send_tx_ant_config(priv, priv->cfg->valid_tx_ant);
+	iwlagn_send_tx_ant_config(priv, cfg(priv)->valid_tx_ant);
 
 	if (iwl_is_associated_ctx(ctx) && !priv->shrd->wowlan) {
 		struct iwl_rxon_cmd *active_rxon =
@@ -1330,9 +1332,9 @@ void __iwl_down(struct iwl_priv *priv)
 	priv->bt_status = 0;
 	priv->cur_rssi_ctx = NULL;
 	priv->bt_is_sco = 0;
-	if (priv->cfg->bt_params)
+	if (cfg(priv)->bt_params)
 		priv->bt_traffic_load =
-			 priv->cfg->bt_params->bt_init_traffic_load;
+			 cfg(priv)->bt_params->bt_init_traffic_load;
 	else
 		priv->bt_traffic_load = 0;
 	priv->bt_full_concurrent = false;
@@ -1514,8 +1516,8 @@ static void iwl_setup_deferred_work(struct iwl_priv *priv)
 
 	iwl_setup_scan_deferred_work(priv);
 
-	if (priv->cfg->lib->bt_setup_deferred_work)
-		priv->cfg->lib->bt_setup_deferred_work(priv);
+	if (cfg(priv)->lib->bt_setup_deferred_work)
+		cfg(priv)->lib->bt_setup_deferred_work(priv);
 
 	init_timer(&priv->statistics_periodic);
 	priv->statistics_periodic.data = (unsigned long)priv;
@@ -1532,8 +1534,8 @@ static void iwl_setup_deferred_work(struct iwl_priv *priv)
 
 static void iwl_cancel_deferred_work(struct iwl_priv *priv)
 {
-	if (priv->cfg->lib->cancel_deferred_work)
-		priv->cfg->lib->cancel_deferred_work(priv);
+	if (cfg(priv)->lib->cancel_deferred_work)
+		cfg(priv)->lib->cancel_deferred_work(priv);
 
 	cancel_work_sync(&priv->run_time_calib_work);
 	cancel_work_sync(&priv->beacon_update);
@@ -1602,8 +1604,8 @@ static int iwl_init_drv(struct iwl_priv *priv)
 	iwl_init_scan_params(priv);
 
 	/* init bt coex */
-	if (priv->cfg->bt_params &&
-	    priv->cfg->bt_params->advanced_bt_coexist) {
+	if (cfg(priv)->bt_params &&
+	    cfg(priv)->bt_params->advanced_bt_coexist) {
 		priv->kill_ack_mask = IWLAGN_BT_KILL_ACK_MASK_DEFAULT;
 		priv->kill_cts_mask = IWLAGN_BT_KILL_CTS_MASK_DEFAULT;
 		priv->bt_valid = IWLAGN_BT_ALL_VALID_MSK;
@@ -1667,18 +1669,18 @@ static int iwl_set_hw_params(struct iwl_priv *priv)
 		hw_params(priv).rx_page_order =
 			get_order(IWL_RX_BUF_SIZE_4K);
 
-	if (iwlagn_mod_params.disable_11n)
-		priv->cfg->sku &= ~EEPROM_SKU_CAP_11N_ENABLE;
+	if (iwlagn_mod_params.disable_11n & IWL_DISABLE_HT_ALL)
+		cfg(priv)->sku &= ~EEPROM_SKU_CAP_11N_ENABLE;
 
 	hw_params(priv).num_ampdu_queues =
-		priv->cfg->base_params->num_of_ampdu_queues;
+		cfg(priv)->base_params->num_of_ampdu_queues;
 	hw_params(priv).shadow_reg_enable =
-		priv->cfg->base_params->shadow_reg_enable;
-	hw_params(priv).sku = priv->cfg->sku;
-	hw_params(priv).wd_timeout = priv->cfg->base_params->wd_timeout;
+		cfg(priv)->base_params->shadow_reg_enable;
+	hw_params(priv).sku = cfg(priv)->sku;
+	hw_params(priv).wd_timeout = cfg(priv)->base_params->wd_timeout;
 
 	/* Device-specific setup */
-	return priv->cfg->lib->set_hw_params(priv);
+	return cfg(priv)->lib->set_hw_params(priv);
 }
 
 
@@ -1757,7 +1759,7 @@ int iwl_probe(struct iwl_bus *bus, const struct iwl_trans_ops *trans_ops,
 	iwl_debug_config(priv);
 
 	IWL_DEBUG_INFO(priv, "*** LOAD DRIVER ***\n");
-	priv->cfg = cfg;
+	cfg(priv) = cfg;
 
 	/* is antenna coupling more than 35dB ? */
 	priv->bt_ant_couple_ok =
@@ -1791,7 +1793,7 @@ int iwl_probe(struct iwl_bus *bus, const struct iwl_trans_ops *trans_ops,
 	 ***********************/
 	hw_rev = iwl_hw_detect(priv);
 	IWL_INFO(priv, "Detected %s, REV=0x%X\n",
-		priv->cfg->name, hw_rev);
+		cfg(priv)->name, hw_rev);
 
 	err = iwl_trans_request_irq(trans(priv));
 	if (err)
@@ -1915,12 +1917,7 @@ void __devexit iwl_remove(struct iwl_priv * priv)
 	set_bit(STATUS_EXIT_PENDING, &priv->shrd->status);
 
 	iwl_testmode_cleanup(priv);
-	iwl_leds_exit(priv);
-
-	if (priv->mac80211_registered) {
-		ieee80211_unregister_hw(priv->hw);
-		priv->mac80211_registered = 0;
-	}
+	iwlagn_mac_unregister(priv);
 
 	iwl_tt_exit(priv);
 
@@ -1999,8 +1996,9 @@ module_param_named(swcrypto, iwlagn_mod_params.sw_crypto, int, S_IRUGO);
 MODULE_PARM_DESC(swcrypto, "using crypto in software (default 0 [hardware])");
 module_param_named(queues_num, iwlagn_mod_params.num_of_queues, int, S_IRUGO);
 MODULE_PARM_DESC(queues_num, "number of hw queues.");
-module_param_named(11n_disable, iwlagn_mod_params.disable_11n, int, S_IRUGO);
-MODULE_PARM_DESC(11n_disable, "disable 11n functionality");
+module_param_named(11n_disable, iwlagn_mod_params.disable_11n, uint, S_IRUGO);
+MODULE_PARM_DESC(11n_disable,
+	"disable 11n functionality, bitmap: 1: full, 2: agg TX, 4: agg RX");
 module_param_named(amsdu_size_8K, iwlagn_mod_params.amsdu_size_8K,
 		   int, S_IRUGO);
 MODULE_PARM_DESC(amsdu_size_8K, "enable 8K amsdu size");

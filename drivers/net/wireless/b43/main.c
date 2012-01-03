@@ -3378,6 +3378,7 @@ static void b43_tx_work(struct work_struct *work)
 	struct b43_wl *wl = container_of(work, struct b43_wl, tx_work);
 	struct b43_wldev *dev;
 	struct sk_buff *skb;
+	int queue_num;
 	int err = 0;
 
 	mutex_lock(&wl->mutex);
@@ -3387,15 +3388,26 @@ static void b43_tx_work(struct work_struct *work)
 		return;
 	}
 
-	while (skb_queue_len(&wl->tx_queue)) {
-		skb = skb_dequeue(&wl->tx_queue);
+	for (queue_num = 0; queue_num < B43_QOS_QUEUE_NUM; queue_num++) {
+		while (skb_queue_len(&wl->tx_queue[queue_num])) {
+			skb = skb_dequeue(&wl->tx_queue[queue_num]);
+			if (b43_using_pio_transfers(dev))
+				err = b43_pio_tx(dev, skb);
+			else
+				err = b43_dma_tx(dev, skb);
+			if (err == -ENOSPC) {
+				wl->tx_queue_stopped[queue_num] = 1;
+				ieee80211_stop_queue(wl->hw, queue_num);
+				skb_queue_head(&wl->tx_queue[queue_num], skb);
+				break;
+			}
+			if (unlikely(err))
+				dev_kfree_skb(skb); /* Drop it */
+			err = 0;
+		}
 
-		if (b43_using_pio_transfers(dev))
-			err = b43_pio_tx(dev, skb);
-		else
-			err = b43_dma_tx(dev, skb);
-		if (unlikely(err))
-			dev_kfree_skb(skb); /* Drop it */
+		if (!err)
+			wl->tx_queue_stopped[queue_num] = 0;
 	}
 
 #if B43_DEBUG
@@ -3416,8 +3428,12 @@ static void b43_op_tx(struct ieee80211_hw *hw,
 	}
 	B43_WARN_ON(skb_shinfo(skb)->nr_frags);
 
-	skb_queue_tail(&wl->tx_queue, skb);
-	ieee80211_queue_work(wl->hw, &wl->tx_work);
+	skb_queue_tail(&wl->tx_queue[skb->queue_mapping], skb);
+	if (!wl->tx_queue_stopped[skb->queue_mapping]) {
+		ieee80211_queue_work(wl->hw, &wl->tx_work);
+	} else {
+		ieee80211_stop_queue(wl->hw, skb->queue_mapping);
+	}
 }
 
 static void b43_qos_params_upload(struct b43_wldev *dev,
@@ -4147,6 +4163,7 @@ static struct b43_wldev * b43_wireless_core_stop(struct b43_wldev *dev)
 	struct b43_wl *wl;
 	struct b43_wldev *orig_dev;
 	u32 mask;
+	int queue_num;
 
 	if (!dev)
 		return NULL;
@@ -4199,9 +4216,11 @@ redo:
 	mask = b43_read32(dev, B43_MMIO_GEN_IRQ_MASK);
 	B43_WARN_ON(mask != 0xFFFFFFFF && mask);
 
-	/* Drain the TX queue */
-	while (skb_queue_len(&wl->tx_queue))
-		dev_kfree_skb(skb_dequeue(&wl->tx_queue));
+	/* Drain all TX queues. */
+	for (queue_num = 0; queue_num < B43_QOS_QUEUE_NUM; queue_num++) {
+		while (skb_queue_len(&wl->tx_queue[queue_num]))
+			dev_kfree_skb(skb_dequeue(&wl->tx_queue[queue_num]));
+	}
 
 	b43_mac_suspend(dev);
 	b43_leds_exit(dev);
@@ -5245,6 +5264,7 @@ static struct b43_wl *b43_wireless_init(struct b43_bus_dev *dev)
 	struct ieee80211_hw *hw;
 	struct b43_wl *wl;
 	char chip_name[6];
+	int queue_num;
 
 	hw = ieee80211_alloc_hw(sizeof(*wl), &b43_hw_ops);
 	if (!hw) {
@@ -5264,7 +5284,7 @@ static struct b43_wl *b43_wireless_init(struct b43_bus_dev *dev)
 		BIT(NL80211_IFTYPE_WDS) |
 		BIT(NL80211_IFTYPE_ADHOC);
 
-	hw->queues = modparam_qos ? 4 : 1;
+	hw->queues = modparam_qos ? B43_QOS_QUEUE_NUM : 1;
 	wl->mac80211_initially_registered_queues = hw->queues;
 	hw->max_rates = 2;
 	SET_IEEE80211_DEV(hw, dev->dev);
@@ -5281,7 +5301,12 @@ static struct b43_wl *b43_wireless_init(struct b43_bus_dev *dev)
 	INIT_WORK(&wl->beacon_update_trigger, b43_beacon_update_trigger_work);
 	INIT_WORK(&wl->txpower_adjust_work, b43_phy_txpower_adjust_work);
 	INIT_WORK(&wl->tx_work, b43_tx_work);
-	skb_queue_head_init(&wl->tx_queue);
+
+	/* Initialize queues and flags. */
+	for (queue_num = 0; queue_num < B43_QOS_QUEUE_NUM; queue_num++) {
+		skb_queue_head_init(&wl->tx_queue[queue_num]);
+		wl->tx_queue_stopped[queue_num] = 0;
+	}
 
 	snprintf(chip_name, ARRAY_SIZE(chip_name),
 		 (dev->chip_id > 0x9999) ? "%d" : "%04X", dev->chip_id);

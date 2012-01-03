@@ -35,6 +35,7 @@
 #define MAX_SCATTER_REQ_TRANSFER_SIZE    (32 * 1024)
 
 #define MANUFACTURER_ID_AR6003_BASE        0x300
+#define MANUFACTURER_ID_AR6004_BASE        0x400
     /* SDIO manufacturer ID and Codes */
 #define MANUFACTURER_ID_ATH6KL_BASE_MASK     0xFF00
 #define MANUFACTURER_CODE                  0x271	/* Atheros */
@@ -244,6 +245,10 @@ struct ath6kl_hif_ops {
 	void (*cleanup_scatter)(struct ath6kl *ar);
 	int (*suspend)(struct ath6kl *ar, struct cfg80211_wowlan *wow);
 	int (*resume)(struct ath6kl *ar);
+	int (*diag_read32)(struct ath6kl *ar, u32 address, u32 *value);
+	int (*diag_write32)(struct ath6kl *ar, u32 address, __le32 value);
+	int (*bmi_read)(struct ath6kl *ar, u8 *buf, u32 len);
+	int (*bmi_write)(struct ath6kl *ar, u8 *buf, u32 len);
 	int (*power_on)(struct ath6kl *ar);
 	int (*power_off)(struct ath6kl *ar);
 	void (*stop)(struct ath6kl *ar);

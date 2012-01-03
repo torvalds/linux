@@ -219,9 +219,7 @@ struct iwl_trans_pcie {
 
 	/* INT ICT Table */
 	__le32 *ict_tbl;
-	void *ict_tbl_vir;
 	dma_addr_t ict_tbl_dma;
-	dma_addr_t aligned_ict_tbl_dma;
 	int ict_index;
 	u32 inta;
 	bool use_ict;
@@ -236,6 +234,7 @@ struct iwl_trans_pcie {
 	const u8 *ac_to_fifo[NUM_IWL_RXON_CTX];
 	const u8 *ac_to_queue[NUM_IWL_RXON_CTX];
 	u8 mcast_queue[NUM_IWL_RXON_CTX];
+	u8 agg_txq[IWLAGN_STATION_COUNT][IWL_MAX_TID_COUNT];
 
 	struct iwl_tx_queue *txq;
 	unsigned long txq_ctx_active_msk;
@@ -280,20 +279,16 @@ void iwl_tx_cmd_complete(struct iwl_trans *trans,
 void iwl_trans_txq_update_byte_cnt_tbl(struct iwl_trans *trans,
 					   struct iwl_tx_queue *txq,
 					   u16 byte_cnt);
-void iwl_trans_pcie_txq_agg_disable(struct iwl_trans *trans, int txq_id);
 int iwl_trans_pcie_tx_agg_disable(struct iwl_trans *trans,
-				  enum iwl_rxon_context_id ctx, int sta_id,
-				  int tid);
+				  int sta_id, int tid);
 void iwl_trans_set_wr_ptrs(struct iwl_trans *trans, int txq_id, u32 index);
 void iwl_trans_tx_queue_set_status(struct iwl_trans *trans,
 			     struct iwl_tx_queue *txq,
 			     int tx_fifo_id, int scd_retry);
-int iwl_trans_pcie_tx_agg_alloc(struct iwl_trans *trans,
-				enum iwl_rxon_context_id ctx, int sta_id,
-				int tid, u16 *ssn);
+int iwl_trans_pcie_tx_agg_alloc(struct iwl_trans *trans, int sta_id, int tid);
 void iwl_trans_pcie_tx_agg_setup(struct iwl_trans *trans,
 				 enum iwl_rxon_context_id ctx,
-				 int sta_id, int tid, int frame_limit);
+				 int sta_id, int tid, int frame_limit, u16 ssn);
 void iwlagn_txq_free_tfd(struct iwl_trans *trans, struct iwl_tx_queue *txq,
 	int index, enum dma_data_direction dma_dir);
 int iwl_tx_queue_reclaim(struct iwl_trans *trans, int txq_id, int index,

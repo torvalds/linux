@@ -237,11 +237,12 @@ void rtl_ips_nic_on(struct ieee80211_hw *hw)
 	struct rtl_mac *mac = rtl_mac(rtl_priv(hw));
 	struct rtl_ps_ctl *ppsc = rtl_psc(rtl_priv(hw));
 	enum rf_pwrstate rtstate;
+	unsigned long flags;
 
 	if (mac->opmode != NL80211_IFTYPE_STATION)
 		return;
 
-	mutex_lock(&rtlpriv->locks.ps_mutex);
+	spin_lock_irqsave(&rtlpriv->locks.ips_lock, flags);
 
 	if (ppsc->inactiveps) {
 		rtstate = ppsc->rfpwr_state;
@@ -257,7 +258,7 @@ void rtl_ips_nic_on(struct ieee80211_hw *hw)
 		}
 	}
 
-	mutex_unlock(&rtlpriv->locks.ps_mutex);
+	spin_unlock_irqrestore(&rtlpriv->locks.ips_lock, flags);
 }
 
 /*for FW LPS*/

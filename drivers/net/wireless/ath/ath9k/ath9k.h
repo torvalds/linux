@@ -196,6 +196,7 @@ struct ath_txq {
 	u8 txq_headidx;
 	u8 txq_tailidx;
 	int pending_frames;
+	struct sk_buff_head complete_q;
 };
 
 struct ath_atx_ac {

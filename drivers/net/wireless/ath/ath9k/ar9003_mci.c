@@ -68,11 +68,11 @@ static int ar9003_mci_wait_for_interrupt(struct ath_hw *ah, u32 address,
 	}
 
 	if (time_out <= 0) {
-		ath_dbg(common, ATH_DBG_MCI,
-			"MCI Wait for Reg 0x%08x = 0x%08x timeout.\n",
+		ath_dbg(common, MCI,
+			"MCI Wait for Reg 0x%08x = 0x%08x timeout\n",
 			address, bit_position);
-		ath_dbg(common, ATH_DBG_MCI,
-			"MCI INT_RAW = 0x%08x, RX_MSG_RAW = 0x%08x",
+		ath_dbg(common, MCI,
+			"MCI INT_RAW = 0x%08x, RX_MSG_RAW = 0x%08x\n",
 			REG_READ(ah, AR_MCI_INTERRUPT_RAW),
 			REG_READ(ah, AR_MCI_INTERRUPT_RX_MSG_RAW));
 		time_out = 0;
@@ -85,6 +85,9 @@ void ar9003_mci_remote_reset(struct ath_hw *ah, bool wait_done)
 {
 	u32 payload[4] = { 0xffffffff, 0xffffffff, 0xffffffff, 0xffffff00};
 
+	if (!ATH9K_HW_CAP_MCI)
+		return;
+
 	ar9003_mci_send_message(ah, MCI_REMOTE_RESET, 0, payload, 16,
 				wait_done, false);
 	udelay(5);
@@ -93,6 +96,9 @@ void ar9003_mci_remote_reset(struct ath_hw *ah, bool wait_done)
 void ar9003_mci_send_lna_transfer(struct ath_hw *ah, bool wait_done)
 {
 	u32 payload = 0x00000000;
+
+	if (!ATH9K_HW_CAP_MCI)
+		return;
 
 	ar9003_mci_send_message(ah, MCI_LNA_TRANS, 0, &payload, 1,
 				wait_done, false);
@@ -107,6 +113,9 @@ static void ar9003_mci_send_req_wake(struct ath_hw *ah, bool wait_done)
 
 void ar9003_mci_send_sys_waking(struct ath_hw *ah, bool wait_done)
 {
+	if (!ATH9K_HW_CAP_MCI)
+		return;
+
 	ar9003_mci_send_message(ah, MCI_SYS_WAKING, MCI_FLAG_DISABLE_TIMESTAMP,
 				NULL, 0, wait_done, false);
 }
@@ -135,7 +144,7 @@ static void ar9003_mci_send_coex_version_query(struct ath_hw *ah,
 
 	if (!mci->bt_version_known &&
 			(mci->bt_state != MCI_BT_SLEEP)) {
-		ath_dbg(common, ATH_DBG_MCI, "MCI Send Coex version query\n");
+		ath_dbg(common, MCI, "MCI Send Coex version query\n");
 		MCI_GPM_SET_TYPE_OPCODE(payload,
 				MCI_GPM_COEX_AGENT, MCI_GPM_COEX_VERSION_QUERY);
 		ar9003_mci_send_message(ah, MCI_GPM, 0, payload, 16,
@@ -150,7 +159,7 @@ static void ar9003_mci_send_coex_version_response(struct ath_hw *ah,
 	struct ath9k_hw_mci *mci = &ah->btcoex_hw.mci;
 	u32 payload[4] = {0, 0, 0, 0};
 
-	ath_dbg(common, ATH_DBG_MCI, "MCI Send Coex version response\n");
+	ath_dbg(common, MCI, "MCI Send Coex version response\n");
 	MCI_GPM_SET_TYPE_OPCODE(payload, MCI_GPM_COEX_AGENT,
 			MCI_GPM_COEX_VERSION_RESPONSE);
 	*(((u8 *)payload) + MCI_GPM_COEX_B_MAJOR_VERSION) =
@@ -187,8 +196,8 @@ static void ar9003_mci_send_coex_bt_status_query(struct ath_hw *ah,
 
 	if (mci->bt_state != MCI_BT_SLEEP) {
 
-		ath_dbg(common, ATH_DBG_MCI,
-			"MCI Send Coex BT Status Query 0x%02X\n", query_type);
+		ath_dbg(common, MCI, "MCI Send Coex BT Status Query 0x%02X\n",
+			query_type);
 
 		MCI_GPM_SET_TYPE_OPCODE(payload,
 				MCI_GPM_COEX_AGENT, MCI_GPM_COEX_STATUS_QUERY);
@@ -203,9 +212,8 @@ static void ar9003_mci_send_coex_bt_status_query(struct ath_hw *ah,
 			if (query_btinfo) {
 				mci->need_flush_btinfo = true;
 
-				ath_dbg(common, ATH_DBG_MCI,
-					"MCI send bt_status_query fail, "
-					"set flush flag again\n");
+				ath_dbg(common, MCI,
+					"MCI send bt_status_query fail, set flush flag again\n");
 			}
 		}
 
@@ -221,7 +229,10 @@ void ar9003_mci_send_coex_halt_bt_gpm(struct ath_hw *ah, bool halt,
 	struct ath9k_hw_mci *mci = &ah->btcoex_hw.mci;
 	u32 payload[4] = {0, 0, 0, 0};
 
-	ath_dbg(common, ATH_DBG_MCI, "MCI Send Coex %s BT GPM.\n",
+	if (!ATH9K_HW_CAP_MCI)
+		return;
+
+	ath_dbg(common, MCI, "MCI Send Coex %s BT GPM\n",
 		(halt) ? "halt" : "unhalt");
 
 	MCI_GPM_SET_TYPE_OPCODE(payload,
@@ -259,8 +270,8 @@ static void ar9003_mci_prep_interface(struct ath_hw *ah)
 		  REG_READ(ah, AR_MCI_INTERRUPT_RAW));
 
 	/* Remote Reset */
-	ath_dbg(common, ATH_DBG_MCI, "MCI Reset sequence start\n");
-	ath_dbg(common, ATH_DBG_MCI, "MCI send REMOTE_RESET\n");
+	ath_dbg(common, MCI, "MCI Reset sequence start\n");
+	ath_dbg(common, MCI, "MCI send REMOTE_RESET\n");
 	ar9003_mci_remote_reset(ah, true);
 
 	/*
@@ -271,14 +282,13 @@ static void ar9003_mci_prep_interface(struct ath_hw *ah)
 	if (AR_SREV_9462_10(ah))
 		udelay(252);
 
-	ath_dbg(common, ATH_DBG_MCI, "MCI Send REQ_WAKE to remoter(BT)\n");
+	ath_dbg(common, MCI, "MCI Send REQ_WAKE to remoter(BT)\n");
 	ar9003_mci_send_req_wake(ah, true);
 
 	if (ar9003_mci_wait_for_interrupt(ah, AR_MCI_INTERRUPT_RX_MSG_RAW,
 				AR_MCI_INTERRUPT_RX_MSG_SYS_WAKING, 500)) {
 
-		ath_dbg(common, ATH_DBG_MCI,
-				"MCI SYS_WAKING from remote(BT)\n");
+		ath_dbg(common, MCI, "MCI SYS_WAKING from remote(BT)\n");
 		mci->bt_state = MCI_BT_AWAKE;
 
 		if (AR_SREV_9462_10(ah))
@@ -302,8 +312,7 @@ static void ar9003_mci_prep_interface(struct ath_hw *ah)
 
 		/* Send SYS_WAKING to BT */
 
-		ath_dbg(common, ATH_DBG_MCI,
-			"MCI send SW SYS_WAKING to remote BT\n");
+		ath_dbg(common, MCI, "MCI send SW SYS_WAKING to remote BT\n");
 
 		ar9003_mci_send_sys_waking(ah, true);
 		udelay(10);
@@ -332,8 +341,7 @@ static void ar9003_mci_prep_interface(struct ath_hw *ah)
 
 		if (AR_SREV_9462_10(ah) || mci->is_2g) {
 			/* Send LNA_TRANS */
-			ath_dbg(common, ATH_DBG_MCI,
-				"MCI send LNA_TRANS to BT\n");
+			ath_dbg(common, MCI, "MCI send LNA_TRANS to BT\n");
 			ar9003_mci_send_lna_transfer(ah, true);
 			udelay(5);
 		}
@@ -344,20 +352,17 @@ static void ar9003_mci_prep_interface(struct ath_hw *ah)
 				AR_MCI_INTERRUPT_RX_MSG_RAW,
 				AR_MCI_INTERRUPT_RX_MSG_LNA_INFO,
 				mci_timeout))
-				ath_dbg(common, ATH_DBG_MCI,
-					"MCI WLAN has control over the LNA & "
-					"BT obeys it\n");
+				ath_dbg(common, MCI,
+					"MCI WLAN has control over the LNA & BT obeys it\n");
 			else
-				ath_dbg(common, ATH_DBG_MCI,
-					"MCI BT didn't respond to"
-					"LNA_TRANS\n");
+				ath_dbg(common, MCI,
+					"MCI BT didn't respond to LNA_TRANS\n");
 		}
 
 		if (AR_SREV_9462_10(ah)) {
 			/* Send another remote_reset to deassert BT clk_req. */
-			ath_dbg(common, ATH_DBG_MCI,
-				"MCI another remote_reset to "
-				"deassert clk_req\n");
+			ath_dbg(common, MCI,
+				"MCI another remote_reset to deassert clk_req\n");
 			ar9003_mci_remote_reset(ah, true);
 			udelay(252);
 		}
@@ -381,12 +386,17 @@ static void ar9003_mci_prep_interface(struct ath_hw *ah)
 
 void ar9003_mci_disable_interrupt(struct ath_hw *ah)
 {
+	if (!ATH9K_HW_CAP_MCI)
+		return;
+
 	REG_WRITE(ah, AR_MCI_INTERRUPT_EN, 0);
 	REG_WRITE(ah, AR_MCI_INTERRUPT_RX_MSG_EN, 0);
 }
 
 void ar9003_mci_enable_interrupt(struct ath_hw *ah)
 {
+	if (!ATH9K_HW_CAP_MCI)
+		return;
 
 	REG_WRITE(ah, AR_MCI_INTERRUPT_EN, AR_MCI_INTERRUPT_DEFAULT);
 	REG_WRITE(ah, AR_MCI_INTERRUPT_RX_MSG_EN,
@@ -397,6 +407,9 @@ bool ar9003_mci_check_int(struct ath_hw *ah, u32 ints)
 {
 	u32 intr;
 
+	if (!ATH9K_HW_CAP_MCI)
+		return false;
+
 	intr = REG_READ(ah, AR_MCI_INTERRUPT_RX_MSG_RAW);
 	return ((intr & ints) == ints);
 }
@@ -405,6 +418,10 @@ void ar9003_mci_get_interrupt(struct ath_hw *ah, u32 *raw_intr,
 			      u32 *rx_msg_intr)
 {
 	struct ath9k_hw_mci *mci = &ah->btcoex_hw.mci;
+
+	if (!ATH9K_HW_CAP_MCI)
+		return;
+
 	*raw_intr = mci->raw_intr;
 	*rx_msg_intr = mci->rx_msg_intr;
 
@@ -417,6 +434,9 @@ EXPORT_SYMBOL(ar9003_mci_get_interrupt);
 void ar9003_mci_2g5g_changed(struct ath_hw *ah, bool is_2g)
 {
 	struct ath9k_hw_mci *mci = &ah->btcoex_hw.mci;
+
+	if (!ATH9K_HW_CAP_MCI)
+		return;
 
 	if (!mci->update_2g5g &&
 	    (mci->is_2g != is_2g))
@@ -441,7 +461,7 @@ static bool ar9003_mci_is_gpm_valid(struct ath_hw *ah, u32 msg_index)
 	recv_type = MCI_GPM_TYPE(payload);
 
 	if (recv_type == MCI_GPM_RSVD_PATTERN) {
-		ath_dbg(common, ATH_DBG_MCI, "MCI Skip RSVD GPM\n");
+		ath_dbg(common, MCI, "MCI Skip RSVD GPM\n");
 		return false;
 	}
 
@@ -514,11 +534,11 @@ static bool ar9003_mci_send_coex_bt_flags(struct ath_hw *ah, bool wait_done,
 	*(((u8 *)pld) + MCI_GPM_COEX_W_BT_FLAGS + 2) = (bt_flags >> 16) & 0xFF;
 	*(((u8 *)pld) + MCI_GPM_COEX_W_BT_FLAGS + 3) = (bt_flags >> 24) & 0xFF;
 
-	ath_dbg(common, ATH_DBG_MCI,
+	ath_dbg(common, MCI,
 		"MCI BT_MCI_FLAGS: Send Coex BT Update Flags %s 0x%08x\n",
-		(opcode == MCI_GPM_COEX_BT_FLAGS_READ) ? "READ" :
-		((opcode == MCI_GPM_COEX_BT_FLAGS_SET) ? "SET" : "CLEAR"),
-								bt_flags);
+		opcode == MCI_GPM_COEX_BT_FLAGS_READ ? "READ" :
+		opcode == MCI_GPM_COEX_BT_FLAGS_SET ? "SET" : "CLEAR",
+		bt_flags);
 
 	return ar9003_mci_send_message(ah, MCI_GPM, 0, pld, 16,
 							wait_done, true);
@@ -531,7 +551,10 @@ void ar9003_mci_reset(struct ath_hw *ah, bool en_int, bool is_2g,
 	struct ath9k_hw_mci *mci = &ah->btcoex_hw.mci;
 	u32 regval, thresh;
 
-	ath_dbg(common, ATH_DBG_MCI, "MCI full_sleep = %d, is_2g = %d\n",
+	if (!ATH9K_HW_CAP_MCI)
+		return;
+
+	ath_dbg(common, MCI, "MCI full_sleep = %d, is_2g = %d\n",
 		is_full_sleep, is_2g);
 
 	/*
@@ -539,14 +562,13 @@ void ar9003_mci_reset(struct ath_hw *ah, bool en_int, bool is_2g,
 	 */
 
 	if (!mci->gpm_addr && !mci->sched_addr) {
-		ath_dbg(common, ATH_DBG_MCI,
-			"MCI GPM and schedule buffers are not allocated");
+		ath_dbg(common, MCI,
+			"MCI GPM and schedule buffers are not allocated\n");
 		return;
 	}
 
 	if (REG_READ(ah, AR_BTCOEX_CTRL) == 0xdeadbeef) {
-		ath_dbg(common, ATH_DBG_MCI,
-			"MCI it's deadbeef, quit mci_reset\n");
+		ath_dbg(common, MCI, "MCI it's deadbeef, quit mci_reset\n");
 		return;
 	}
 
@@ -574,8 +596,7 @@ void ar9003_mci_reset(struct ath_hw *ah, bool en_int, bool is_2g,
 		!(mci->config & ATH_MCI_CONFIG_DISABLE_OSLA)) {
 
 		regval |= SM(1, AR_BTCOEX_CTRL_ONE_STEP_LOOK_AHEAD_EN);
-		ath_dbg(common, ATH_DBG_MCI,
-				"MCI sched one step look ahead\n");
+		ath_dbg(common, MCI, "MCI sched one step look ahead\n");
 
 		if (!(mci->config &
 		      ATH_MCI_CONFIG_DISABLE_AGGR_THRESH)) {
@@ -593,11 +614,9 @@ void ar9003_mci_reset(struct ath_hw *ah, bool en_int, bool is_2g,
 				      AR_MCI_SCHD_TABLE_2_MEM_BASED, 1);
 
 		} else
-			ath_dbg(common, ATH_DBG_MCI,
-				"MCI sched aggr thresh: off\n");
+			ath_dbg(common, MCI, "MCI sched aggr thresh: off\n");
 	} else
-		ath_dbg(common, ATH_DBG_MCI,
-			"MCI SCHED one step look ahead off\n");
+		ath_dbg(common, MCI, "MCI SCHED one step look ahead off\n");
 
 	if (AR_SREV_9462_10(ah))
 		regval |= SM(1, AR_BTCOEX_CTRL_SPDT_ENABLE_10);
@@ -661,6 +680,9 @@ void ar9003_mci_mute_bt(struct ath_hw *ah)
 {
 	struct ath_common *common = ath9k_hw_common(ah);
 
+	if (!ATH9K_HW_CAP_MCI)
+		return;
+
 	/* disable all MCI messages */
 	REG_WRITE(ah, AR_MCI_MSG_ATTRIBUTES_TABLE, 0xffff0000);
 	REG_WRITE(ah, AR_BTCOEX_WL_WEIGHTS0, 0xffffffff);
@@ -678,12 +700,12 @@ void ar9003_mci_mute_bt(struct ath_hw *ah)
 	 * 2. before reset MCI RX, to quiet BT and avoid MCI RX misalignment
 	 */
 
-	ath_dbg(common, ATH_DBG_MCI, "MCI Send LNA take\n");
+	ath_dbg(common, MCI, "MCI Send LNA take\n");
 	ar9003_mci_send_lna_take(ah, true);
 
 	udelay(5);
 
-	ath_dbg(common, ATH_DBG_MCI, "MCI Send sys sleeping\n");
+	ath_dbg(common, MCI, "MCI Send sys sleeping\n");
 	ar9003_mci_send_sys_sleeping(ah, true);
 }
 
@@ -693,10 +715,13 @@ void ar9003_mci_sync_bt_state(struct ath_hw *ah)
 	struct ath9k_hw_mci *mci = &ah->btcoex_hw.mci;
 	u32 cur_bt_state;
 
+	if (!ATH9K_HW_CAP_MCI)
+		return;
+
 	cur_bt_state = ar9003_mci_state(ah, MCI_STATE_REMOTE_SLEEP, NULL);
 
 	if (mci->bt_state != cur_bt_state) {
-		ath_dbg(common, ATH_DBG_MCI,
+		ath_dbg(common, MCI,
 			"MCI BT state mismatches. old: %d, new: %d\n",
 			mci->bt_state, cur_bt_state);
 		mci->bt_state = cur_bt_state;
@@ -708,7 +733,7 @@ void ar9003_mci_sync_bt_state(struct ath_hw *ah)
 		ar9003_mci_send_coex_wlan_channels(ah, true);
 
 		if (mci->unhalt_bt_gpm == true) {
-			ath_dbg(common, ATH_DBG_MCI, "MCI unhalt BT GPM");
+			ath_dbg(common, MCI, "MCI unhalt BT GPM\n");
 			ar9003_mci_send_coex_halt_bt_gpm(ah, false, true);
 		}
 	}
@@ -734,7 +759,7 @@ static void ar9003_mci_send_2g5g_status(struct ath_hw *ah, bool wait_done)
 			to_set = MCI_5G_FLAGS_SET_MASK;
 		}
 
-		ath_dbg(common, ATH_DBG_MCI,
+		ath_dbg(common, MCI,
 			"MCI BT_MCI_FLAGS: %s 0x%08x clr=0x%08x, set=0x%08x\n",
 		mci->is_2g ? "2G" : "5G", new_flags, to_clear, to_set);
 
@@ -761,15 +786,15 @@ static void ar9003_mci_queue_unsent_gpm(struct ath_hw *ah, u8 header,
 	if (queue) {
 
 		if (payload)
-			ath_dbg(common, ATH_DBG_MCI,
+			ath_dbg(common, MCI,
 				"MCI ERROR: Send fail: %02x: %02x %02x %02x\n",
 				header,
 				*(((u8 *)payload) + 4),
 				*(((u8 *)payload) + 5),
 				*(((u8 *)payload) + 6));
 		else
-			ath_dbg(common, ATH_DBG_MCI,
-				"MCI ERROR: Send fail: %02x\n", header);
+			ath_dbg(common, MCI, "MCI ERROR: Send fail: %02x\n",
+				header);
 	}
 
 	/* check if the message is to be queued */
@@ -795,12 +820,12 @@ static void ar9003_mci_queue_unsent_gpm(struct ath_hw *ah, u8 header,
 		mci->update_2g5g = queue;
 
 		if (queue)
-			ath_dbg(common, ATH_DBG_MCI,
-				"MCI BT_MCI_FLAGS: 2G5G status <queued> %s.\n",
+			ath_dbg(common, MCI,
+				"MCI BT_MCI_FLAGS: 2G5G status <queued> %s\n",
 				mci->is_2g ? "2G" : "5G");
 		else
-			ath_dbg(common, ATH_DBG_MCI,
-				"MCI BT_MCI_FLAGS: 2G5G status <sent> %s.\n",
+			ath_dbg(common, MCI,
+				"MCI BT_MCI_FLAGS: 2G5G status <sent> %s\n",
 				mci->is_2g ? "2G" : "5G");
 
 		break;
@@ -809,11 +834,9 @@ static void ar9003_mci_queue_unsent_gpm(struct ath_hw *ah, u8 header,
 
 		mci->wlan_channels_update = queue;
 		if (queue)
-			ath_dbg(common, ATH_DBG_MCI,
-				"MCI WLAN channel map <queued>\n");
+			ath_dbg(common, MCI, "MCI WLAN channel map <queued>\n");
 		else
-			ath_dbg(common, ATH_DBG_MCI,
-				"MCI WLAN channel map <sent>\n");
+			ath_dbg(common, MCI, "MCI WLAN channel map <sent>\n");
 		break;
 
 	case MCI_GPM_COEX_HALT_BT_GPM:
@@ -824,11 +847,11 @@ static void ar9003_mci_queue_unsent_gpm(struct ath_hw *ah, u8 header,
 			mci->unhalt_bt_gpm = queue;
 
 			if (queue)
-				ath_dbg(common, ATH_DBG_MCI,
+				ath_dbg(common, MCI,
 					"MCI UNHALT BT GPM <queued>\n");
 			else {
 				mci->halted_bt_gpm = false;
-				ath_dbg(common, ATH_DBG_MCI,
+				ath_dbg(common, MCI,
 					"MCI UNHALT BT GPM <sent>\n");
 			}
 		}
@@ -839,10 +862,10 @@ static void ar9003_mci_queue_unsent_gpm(struct ath_hw *ah, u8 header,
 			mci->halted_bt_gpm = !queue;
 
 			if (queue)
-				ath_dbg(common, ATH_DBG_MCI,
+				ath_dbg(common, MCI,
 					"MCI HALT BT GPM <not sent>\n");
 			else
-				ath_dbg(common, ATH_DBG_MCI,
+				ath_dbg(common, MCI,
 					"MCI UNHALT BT GPM <sent>\n");
 		}
 
@@ -857,11 +880,14 @@ void ar9003_mci_2g5g_switch(struct ath_hw *ah, bool wait_done)
 	struct ath_common *common = ath9k_hw_common(ah);
 	struct ath9k_hw_mci *mci = &ah->btcoex_hw.mci;
 
+	if (!ATH9K_HW_CAP_MCI)
+		return;
+
 	if (mci->update_2g5g) {
 		if (mci->is_2g) {
 
 			ar9003_mci_send_2g5g_status(ah, true);
-			ath_dbg(common, ATH_DBG_MCI, "MCI Send LNA trans\n");
+			ath_dbg(common, MCI, "MCI Send LNA trans\n");
 			ar9003_mci_send_lna_transfer(ah, true);
 			udelay(5);
 
@@ -878,7 +904,7 @@ void ar9003_mci_2g5g_switch(struct ath_hw *ah, bool wait_done)
 				}
 			}
 		} else {
-			ath_dbg(common, ATH_DBG_MCI, "MCI Send LNA take\n");
+			ath_dbg(common, MCI, "MCI Send LNA take\n");
 			ar9003_mci_send_lna_take(ah, true);
 			udelay(5);
 
@@ -908,14 +934,17 @@ bool ar9003_mci_send_message(struct ath_hw *ah, u8 header, u32 flag,
 	u32 saved_mci_int_en;
 	int i;
 
+	if (!ATH9K_HW_CAP_MCI)
+		return false;
+
 	saved_mci_int_en = REG_READ(ah, AR_MCI_INTERRUPT_EN);
 	regval = REG_READ(ah, AR_BTCOEX_CTRL);
 
 	if ((regval == 0xdeadbeef) || !(regval & AR_BTCOEX_CTRL_MCI_MODE_EN)) {
 
-		ath_dbg(common, ATH_DBG_MCI,
-			"MCI Not sending 0x%x. MCI is not enabled. "
-			"full_sleep = %d\n", header,
+		ath_dbg(common, MCI,
+			"MCI Not sending 0x%x. MCI is not enabled. full_sleep = %d\n",
+			header,
 			(ah->power_mode == ATH9K_PM_FULL_SLEEP) ? 1 : 0);
 
 		ar9003_mci_queue_unsent_gpm(ah, header, payload, true);
@@ -923,8 +952,9 @@ bool ar9003_mci_send_message(struct ath_hw *ah, u8 header, u32 flag,
 
 	} else if (check_bt && (mci->bt_state == MCI_BT_SLEEP)) {
 
-		ath_dbg(common, ATH_DBG_MCI,
-		"MCI Don't send message 0x%x. BT is in sleep state\n", header);
+		ath_dbg(common, MCI,
+			"MCI Don't send message 0x%x. BT is in sleep state\n",
+			header);
 
 		ar9003_mci_queue_unsent_gpm(ah, header, payload, true);
 		return false;
@@ -973,6 +1003,9 @@ void ar9003_mci_setup(struct ath_hw *ah, u32 gpm_addr, void *gpm_buf,
 	struct ath9k_hw_mci *mci = &ah->btcoex_hw.mci;
 	void *sched_buf = (void *)((char *) gpm_buf + (sched_addr - gpm_addr));
 
+	if (!ATH9K_HW_CAP_MCI)
+		return;
+
 	mci->gpm_addr = gpm_addr;
 	mci->gpm_buf = gpm_buf;
 	mci->gpm_len = len;
@@ -987,9 +1020,12 @@ void ar9003_mci_cleanup(struct ath_hw *ah)
 {
 	struct ath_common *common = ath9k_hw_common(ah);
 
+	if (!ATH9K_HW_CAP_MCI)
+		return;
+
 	/* Turn off MCI and Jupiter mode. */
 	REG_WRITE(ah, AR_BTCOEX_CTRL, 0x00);
-	ath_dbg(common, ATH_DBG_MCI, "MCI ar9003_mci_cleanup\n");
+	ath_dbg(common, MCI, "MCI ar9003_mci_cleanup\n");
 	ar9003_mci_disable_interrupt(ah);
 }
 EXPORT_SYMBOL(ar9003_mci_cleanup);
@@ -1006,40 +1042,35 @@ static void ar9003_mci_process_gpm_extra(struct ath_hw *ah, u8 gpm_type,
 
 	switch (gpm_opcode) {
 	case MCI_GPM_COEX_VERSION_QUERY:
-		ath_dbg(common, ATH_DBG_MCI,
-			"MCI Recv GPM COEX Version Query\n");
+		ath_dbg(common, MCI, "MCI Recv GPM COEX Version Query\n");
 		ar9003_mci_send_coex_version_response(ah, true);
 		break;
 	case MCI_GPM_COEX_VERSION_RESPONSE:
-		ath_dbg(common, ATH_DBG_MCI,
-			"MCI Recv GPM COEX Version Response\n");
+		ath_dbg(common, MCI, "MCI Recv GPM COEX Version Response\n");
 		mci->bt_ver_major =
 			*(p_data + MCI_GPM_COEX_B_MAJOR_VERSION);
 		mci->bt_ver_minor =
 			*(p_data + MCI_GPM_COEX_B_MINOR_VERSION);
 		mci->bt_version_known = true;
-		ath_dbg(common, ATH_DBG_MCI,
-			"MCI BT Coex version: %d.%d\n",
-			mci->bt_ver_major,
-			mci->bt_ver_minor);
+		ath_dbg(common, MCI, "MCI BT Coex version: %d.%d\n",
+			mci->bt_ver_major, mci->bt_ver_minor);
 		break;
 	case MCI_GPM_COEX_STATUS_QUERY:
-		ath_dbg(common, ATH_DBG_MCI,
-			"MCI Recv GPM COEX Status Query = 0x%02X.\n",
+		ath_dbg(common, MCI,
+			"MCI Recv GPM COEX Status Query = 0x%02X\n",
 			*(p_data + MCI_GPM_COEX_B_WLAN_BITMAP));
 		mci->wlan_channels_update = true;
 		ar9003_mci_send_coex_wlan_channels(ah, true);
 		break;
 	case MCI_GPM_COEX_BT_PROFILE_INFO:
 		mci->query_bt = true;
-		ath_dbg(common, ATH_DBG_MCI,
-			"MCI Recv GPM COEX BT_Profile_Info\n");
+		ath_dbg(common, MCI, "MCI Recv GPM COEX BT_Profile_Info\n");
 		break;
 	case MCI_GPM_COEX_BT_STATUS_UPDATE:
 		mci->query_bt = true;
-		ath_dbg(common, ATH_DBG_MCI,
-			"MCI Recv GPM COEX BT_Status_Update "
-			"SEQ=%d (drop&query)\n", *(p_gpm + 3));
+		ath_dbg(common, MCI,
+			"MCI Recv GPM COEX BT_Status_Update SEQ=%d (drop&query)\n",
+			*(p_gpm + 3));
 		break;
 	default:
 		break;
@@ -1055,6 +1086,9 @@ u32 ar9003_mci_wait_for_gpm(struct ath_hw *ah, u8 gpm_type,
 	u32 offset;
 	u8 recv_type = 0, recv_opcode = 0;
 	bool b_is_bt_cal_done = (gpm_type == MCI_GPM_BT_CAL_DONE);
+
+	if (!ATH9K_HW_CAP_MCI)
+		return 0;
 
 	more_data = time_out ? MCI_GPM_NOMORE : MCI_GPM_MORE;
 
@@ -1090,9 +1124,8 @@ u32 ar9003_mci_wait_for_gpm(struct ath_hw *ah, u8 gpm_type,
 				if ((gpm_type == MCI_GPM_BT_CAL_DONE) &&
 				    !b_is_bt_cal_done) {
 					gpm_type = MCI_GPM_BT_CAL_GRANT;
-					ath_dbg(common, ATH_DBG_MCI,
-						"MCI Recv BT_CAL_DONE"
-						"wait BT_CAL_GRANT\n");
+					ath_dbg(common, MCI,
+						"MCI Recv BT_CAL_DONE wait BT_CAL_GRANT\n");
 					continue;
 				}
 
@@ -1123,7 +1156,7 @@ u32 ar9003_mci_wait_for_gpm(struct ath_hw *ah, u8 gpm_type,
 			u32 payload[4] = {0, 0, 0, 0};
 
 			gpm_type = MCI_GPM_BT_CAL_DONE;
-			ath_dbg(common, ATH_DBG_MCI,
+			ath_dbg(common, MCI,
 				"MCI Rcv BT_CAL_REQ, send WLAN_CAL_GRANT\n");
 
 			MCI_GPM_SET_CAL_TYPE(payload,
@@ -1132,13 +1165,12 @@ u32 ar9003_mci_wait_for_gpm(struct ath_hw *ah, u8 gpm_type,
 			ar9003_mci_send_message(ah, MCI_GPM, 0, payload, 16,
 						false, false);
 
-			ath_dbg(common, ATH_DBG_MCI,
-				"MCI now wait for BT_CAL_DONE\n");
+			ath_dbg(common, MCI, "MCI now wait for BT_CAL_DONE\n");
 
 			continue;
 		} else {
-			ath_dbg(common, ATH_DBG_MCI, "MCI GPM subtype"
-					"not match 0x%x\n", *(p_gpm + 1));
+			ath_dbg(common, MCI, "MCI GPM subtype not match 0x%x\n",
+				*(p_gpm + 1));
 			mismatch++;
 			ar9003_mci_process_gpm_extra(ah, recv_type,
 					recv_opcode, p_gpm);
@@ -1151,16 +1183,15 @@ u32 ar9003_mci_wait_for_gpm(struct ath_hw *ah, u8 gpm_type,
 
 	if (time_out <= 0) {
 		time_out = 0;
-		ath_dbg(common, ATH_DBG_MCI,
+		ath_dbg(common, MCI,
 			"MCI GPM received timeout, mismatch = %d\n", mismatch);
 	} else
-		ath_dbg(common, ATH_DBG_MCI,
-			"MCI Receive GPM type=0x%x, code=0x%x\n",
+		ath_dbg(common, MCI, "MCI Receive GPM type=0x%x, code=0x%x\n",
 			gpm_type, gpm_opcode);
 
 	while (more_data == MCI_GPM_MORE) {
 
-		ath_dbg(common, ATH_DBG_MCI, "MCI discard remaining GPM\n");
+		ath_dbg(common, MCI, "MCI discard remaining GPM\n");
 		offset = ar9003_mci_state(ah, MCI_STATE_NEXT_GPM_OFFSET,
 					  &more_data);
 
@@ -1188,6 +1219,9 @@ u32 ar9003_mci_state(struct ath_hw *ah, u32 state_type, u32 *p_data)
 	u32 value = 0, more_gpm = 0, gpm_ptr;
 	u8 query_type;
 
+	if (!ATH9K_HW_CAP_MCI)
+		return 0;
+
 	switch (state_type) {
 	case MCI_STATE_ENABLE:
 		if (mci->ready) {
@@ -1201,8 +1235,7 @@ u32 ar9003_mci_state(struct ath_hw *ah, u32 state_type, u32 *p_data)
 		break;
 	case MCI_STATE_INIT_GPM_OFFSET:
 		value = MS(REG_READ(ah, AR_MCI_GPM_1), AR_MCI_GPM_WRITE_PTR);
-		ath_dbg(common, ATH_DBG_MCI,
-			"MCI GPM initial WRITE_PTR=%d\n", value);
+		ath_dbg(common, MCI, "MCI GPM initial WRITE_PTR=%d\n", value);
 		mci->gpm_idx = value;
 		break;
 	case MCI_STATE_NEXT_GPM_OFFSET:
@@ -1227,8 +1260,8 @@ u32 ar9003_mci_state(struct ath_hw *ah, u32 state_type, u32 *p_data)
 		else if (value >= mci->gpm_len) {
 			if (value != 0xFFFF) {
 				value = 0;
-				ath_dbg(common, ATH_DBG_MCI, "MCI GPM offset"
-					"out of range\n");
+				ath_dbg(common, MCI,
+					"MCI GPM offset out of range\n");
 			}
 		} else
 			value--;
@@ -1236,8 +1269,8 @@ u32 ar9003_mci_state(struct ath_hw *ah, u32 state_type, u32 *p_data)
 		if (value == 0xFFFF) {
 			value = MCI_GPM_INVALID;
 			more_gpm = MCI_GPM_NOMORE;
-			ath_dbg(common, ATH_DBG_MCI, "MCI GPM ptr invalid"
-				"@ptr=%d, offset=%d, more=GPM_NOMORE\n",
+			ath_dbg(common, MCI,
+				"MCI GPM ptr invalid @ptr=%d, offset=%d, more=GPM_NOMORE\n",
 				gpm_ptr, value);
 		} else if (state_type == MCI_STATE_NEXT_GPM_OFFSET) {
 
@@ -1245,9 +1278,9 @@ u32 ar9003_mci_state(struct ath_hw *ah, u32 state_type, u32 *p_data)
 				value = MCI_GPM_INVALID;
 				more_gpm = MCI_GPM_NOMORE;
 
-				ath_dbg(common, ATH_DBG_MCI, "MCI GPM message"
-					"not available @ptr=%d, @offset=%d,"
-					"more=GPM_NOMORE\n", gpm_ptr, value);
+				ath_dbg(common, MCI,
+					"MCI GPM message not available @ptr=%d, @offset=%d, more=GPM_NOMORE\n",
+					gpm_ptr, value);
 			} else {
 				for (;;) {
 
@@ -1267,9 +1300,8 @@ u32 ar9003_mci_state(struct ath_hw *ah, u32 state_type, u32 *p_data)
 					    mci->gpm_len)
 						mci->gpm_idx = 0;
 
-					ath_dbg(common, ATH_DBG_MCI,
-						"MCI GPM message got ptr=%d,"
-						"@offset=%d, more=%d\n",
+					ath_dbg(common, MCI,
+						"MCI GPM message got ptr=%d, @offset=%d, more=%d\n",
 						gpm_ptr, temp_index,
 						(more_gpm == MCI_GPM_MORE));
 
@@ -1333,8 +1365,7 @@ u32 ar9003_mci_state(struct ath_hw *ah, u32 state_type, u32 *p_data)
 
 		if (mci->unhalt_bt_gpm) {
 
-			ath_dbg(common, ATH_DBG_MCI,
-				"MCI unhalt BT GPM\n");
+			ath_dbg(common, MCI, "MCI unhalt BT GPM\n");
 			ar9003_mci_send_coex_halt_bt_gpm(ah, false, true);
 		}
 
@@ -1360,8 +1391,8 @@ u32 ar9003_mci_state(struct ath_hw *ah, u32 state_type, u32 *p_data)
 				      ATH_MCI_CONFIG_MCI_OBS_GPIO) !=
 					ATH_MCI_CONFIG_MCI_OBS_GPIO) {
 
-				ath_dbg(common, ATH_DBG_MCI,
-					"MCI reconfigure observation");
+				ath_dbg(common, MCI,
+					"MCI reconfigure observation\n");
 				ar9003_mci_observation_set_up(ah);
 			}
 		}
@@ -1374,16 +1405,14 @@ u32 ar9003_mci_state(struct ath_hw *ah, u32 state_type, u32 *p_data)
 	case MCI_STATE_SET_BT_COEX_VERSION:
 
 		if (!p_data)
-			ath_dbg(common, ATH_DBG_MCI,
+			ath_dbg(common, MCI,
 				"MCI Set BT Coex version with NULL data!!\n");
 		else {
 			mci->bt_ver_major = (*p_data >> 8) & 0xff;
 			mci->bt_ver_minor = (*p_data) & 0xff;
 			mci->bt_version_known = true;
-			ath_dbg(common, ATH_DBG_MCI,
-				"MCI BT version set: %d.%d\n",
-				mci->bt_ver_major,
-				mci->bt_ver_minor);
+			ath_dbg(common, MCI, "MCI BT version set: %d.%d\n",
+				mci->bt_ver_major, mci->bt_ver_minor);
 		}
 		break;
 
@@ -1438,7 +1467,7 @@ u32 ar9003_mci_state(struct ath_hw *ah, u32 state_type, u32 *p_data)
 
 	case MCI_STATE_RECOVER_RX:
 
-		ath_dbg(common, ATH_DBG_MCI, "MCI hw RECOVER_RX\n");
+		ath_dbg(common, MCI, "MCI hw RECOVER_RX\n");
 		ar9003_mci_prep_interface(ah);
 		mci->query_bt = true;
 		mci->need_flush_btinfo = true;

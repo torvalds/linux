@@ -795,11 +795,11 @@ static struct hci_conn *hidp_get_connection(struct hidp_session *session)
 	if (!hdev)
 		return NULL;
 
-	hci_dev_lock_bh(hdev);
+	hci_dev_lock(hdev);
 	conn = hci_conn_hash_lookup_ba(hdev, ACL_LINK, dst);
 	if (conn)
 		hci_conn_hold_device(conn);
-	hci_dev_unlock_bh(hdev);
+	hci_dev_unlock(hdev);
 
 	hci_dev_put(hdev);
 

@@ -90,6 +90,35 @@ TRACE_EVENT(iwlwifi_dev_iowrite32,
 	TP_printk("[%p] write io[%#x] = %#x)", __entry->priv, __entry->offs, __entry->val)
 );
 
+TRACE_EVENT(iwlwifi_dev_irq,
+	TP_PROTO(void *priv),
+	TP_ARGS(priv),
+	TP_STRUCT__entry(
+		PRIV_ENTRY
+	),
+	TP_fast_assign(
+		PRIV_ASSIGN;
+	),
+	/* TP_printk("") doesn't compile */
+	TP_printk("%d", 0)
+);
+
+TRACE_EVENT(iwlwifi_dev_ict_read,
+	TP_PROTO(void *priv, u32 index, u32 value),
+	TP_ARGS(priv, index, value),
+	TP_STRUCT__entry(
+		PRIV_ENTRY
+		__field(u32, index)
+		__field(u32, value)
+	),
+	TP_fast_assign(
+		PRIV_ASSIGN;
+		__entry->index = index;
+		__entry->value = value;
+	),
+	TP_printk("read ict[%d] = %#.8x", __entry->index, __entry->value)
+);
+
 #undef TRACE_SYSTEM
 #define TRACE_SYSTEM iwlwifi_ucode
 

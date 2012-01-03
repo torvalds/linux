@@ -882,7 +882,7 @@ static bool ar9003_hw_ani_control(struct ath_hw *ah,
 				    AR_PHY_SFCORR_LOW_USE_SELF_CORR_LOW);
 
 		if (!on != aniState->ofdmWeakSigDetectOff) {
-			ath_dbg(common, ATH_DBG_ANI,
+			ath_dbg(common, ANI,
 				"** ch %d: ofdm weak signal: %s=>%s\n",
 				chan->channel,
 				!aniState->ofdmWeakSigDetectOff ?
@@ -900,7 +900,7 @@ static bool ar9003_hw_ani_control(struct ath_hw *ah,
 		u32 level = param;
 
 		if (level >= ARRAY_SIZE(firstep_table)) {
-			ath_dbg(common, ATH_DBG_ANI,
+			ath_dbg(common, ANI,
 				"ATH9K_ANI_FIRSTEP_LEVEL: level out of range (%u > %zu)\n",
 				level, ARRAY_SIZE(firstep_table));
 			return false;
@@ -937,7 +937,7 @@ static bool ar9003_hw_ani_control(struct ath_hw *ah,
 			      AR_PHY_FIND_SIG_LOW_FIRSTEP_LOW, value2);
 
 		if (level != aniState->firstepLevel) {
-			ath_dbg(common, ATH_DBG_ANI,
+			ath_dbg(common, ANI,
 				"** ch %d: level %d=>%d[def:%d] firstep[level]=%d ini=%d\n",
 				chan->channel,
 				aniState->firstepLevel,
@@ -945,7 +945,7 @@ static bool ar9003_hw_ani_control(struct ath_hw *ah,
 				ATH9K_ANI_FIRSTEP_LVL_NEW,
 				value,
 				aniState->iniDef.firstep);
-			ath_dbg(common, ATH_DBG_ANI,
+			ath_dbg(common, ANI,
 				"** ch %d: level %d=>%d[def:%d] firstep_low[level]=%d ini=%d\n",
 				chan->channel,
 				aniState->firstepLevel,
@@ -965,7 +965,7 @@ static bool ar9003_hw_ani_control(struct ath_hw *ah,
 		u32 level = param;
 
 		if (level >= ARRAY_SIZE(cycpwrThr1_table)) {
-			ath_dbg(common, ATH_DBG_ANI,
+			ath_dbg(common, ANI,
 				"ATH9K_ANI_SPUR_IMMUNITY_LEVEL: level out of range (%u > %zu)\n",
 				level, ARRAY_SIZE(cycpwrThr1_table));
 			return false;
@@ -1001,7 +1001,7 @@ static bool ar9003_hw_ani_control(struct ath_hw *ah,
 			      AR_PHY_EXT_CYCPWR_THR1, value2);
 
 		if (level != aniState->spurImmunityLevel) {
-			ath_dbg(common, ATH_DBG_ANI,
+			ath_dbg(common, ANI,
 				"** ch %d: level %d=>%d[def:%d] cycpwrThr1[level]=%d ini=%d\n",
 				chan->channel,
 				aniState->spurImmunityLevel,
@@ -1009,7 +1009,7 @@ static bool ar9003_hw_ani_control(struct ath_hw *ah,
 				ATH9K_ANI_SPUR_IMMUNE_LVL_NEW,
 				value,
 				aniState->iniDef.cycpwrThr1);
-			ath_dbg(common, ATH_DBG_ANI,
+			ath_dbg(common, ANI,
 				"** ch %d: level %d=>%d[def:%d] cycpwrThr1Ext[level]=%d ini=%d\n",
 				chan->channel,
 				aniState->spurImmunityLevel,
@@ -1036,8 +1036,7 @@ static bool ar9003_hw_ani_control(struct ath_hw *ah,
 		REG_RMW_FIELD(ah, AR_PHY_MRC_CCK_CTRL,
 			      AR_PHY_MRC_CCK_MUX_REG, is_on);
 		if (!is_on != aniState->mrcCCKOff) {
-			ath_dbg(common, ATH_DBG_ANI,
-				"** ch %d: MRC CCK: %s=>%s\n",
+			ath_dbg(common, ANI, "** ch %d: MRC CCK: %s=>%s\n",
 				chan->channel,
 				!aniState->mrcCCKOff ? "on" : "off",
 				is_on ? "on" : "off");
@@ -1052,11 +1051,11 @@ static bool ar9003_hw_ani_control(struct ath_hw *ah,
 	case ATH9K_ANI_PRESENT:
 		break;
 	default:
-		ath_dbg(common, ATH_DBG_ANI, "invalid cmd %u\n", cmd);
+		ath_dbg(common, ANI, "invalid cmd %u\n", cmd);
 		return false;
 	}
 
-	ath_dbg(common, ATH_DBG_ANI,
+	ath_dbg(common, ANI,
 		"ANI parameters: SI=%d, ofdmWS=%s FS=%d MRCcck=%s listenTime=%d ofdmErrs=%d cckErrs=%d\n",
 		aniState->spurImmunityLevel,
 		!aniState->ofdmWeakSigDetectOff ? "on" : "off",
@@ -1125,8 +1124,7 @@ static void ar9003_hw_ani_cache_ini_regs(struct ath_hw *ah)
 	aniState = &ah->curchan->ani;
 	iniDef = &aniState->iniDef;
 
-	ath_dbg(common, ATH_DBG_ANI,
-		"ver %d.%d opmode %u chan %d Mhz/0x%x\n",
+	ath_dbg(common, ANI, "ver %d.%d opmode %u chan %d Mhz/0x%x\n",
 		ah->hw_version.macVersion,
 		ah->hw_version.macRev,
 		ah->opmode,
@@ -1388,7 +1386,7 @@ void ar9003_hw_bb_watchdog_config(struct ath_hw *ah)
 			  ~(AR_PHY_WATCHDOG_NON_IDLE_ENABLE |
 			    AR_PHY_WATCHDOG_IDLE_ENABLE));
 
-		ath_dbg(common, ATH_DBG_RESET, "Disabled BB Watchdog\n");
+		ath_dbg(common, RESET, "Disabled BB Watchdog\n");
 		return;
 	}
 
@@ -1424,8 +1422,7 @@ void ar9003_hw_bb_watchdog_config(struct ath_hw *ah)
 		  AR_PHY_WATCHDOG_IDLE_MASK |
 		  (AR_PHY_WATCHDOG_NON_IDLE_MASK & (idle_count << 2)));
 
-	ath_dbg(common, ATH_DBG_RESET,
-		"Enabled BB Watchdog timeout (%u ms)\n",
+	ath_dbg(common, RESET, "Enabled BB Watchdog timeout (%u ms)\n",
 		idle_tmo_ms);
 }
 
@@ -1454,9 +1451,9 @@ void ar9003_hw_bb_watchdog_dbg_info(struct ath_hw *ah)
 		return;
 
 	status = ah->bb_watchdog_last_status;
-	ath_dbg(common, ATH_DBG_RESET,
+	ath_dbg(common, RESET,
 		"\n==== BB update: BB status=0x%08x ====\n", status);
-	ath_dbg(common, ATH_DBG_RESET,
+	ath_dbg(common, RESET,
 		"** BB state: wd=%u det=%u rdar=%u rOFDM=%d rCCK=%u tOFDM=%u tCCK=%u agc=%u src=%u **\n",
 		MS(status, AR_PHY_WATCHDOG_INFO),
 		MS(status, AR_PHY_WATCHDOG_DET_HANG),
@@ -1468,22 +1465,19 @@ void ar9003_hw_bb_watchdog_dbg_info(struct ath_hw *ah)
 		MS(status, AR_PHY_WATCHDOG_AGC_SM),
 		MS(status, AR_PHY_WATCHDOG_SRCH_SM));
 
-	ath_dbg(common, ATH_DBG_RESET,
-		"** BB WD cntl: cntl1=0x%08x cntl2=0x%08x **\n",
+	ath_dbg(common, RESET, "** BB WD cntl: cntl1=0x%08x cntl2=0x%08x **\n",
 		REG_READ(ah, AR_PHY_WATCHDOG_CTL_1),
 		REG_READ(ah, AR_PHY_WATCHDOG_CTL_2));
-	ath_dbg(common, ATH_DBG_RESET,
-		"** BB mode: BB_gen_controls=0x%08x **\n",
+	ath_dbg(common, RESET, "** BB mode: BB_gen_controls=0x%08x **\n",
 		REG_READ(ah, AR_PHY_GEN_CTRL));
 
 #define PCT(_field) (common->cc_survey._field * 100 / common->cc_survey.cycles)
 	if (common->cc_survey.cycles)
-		ath_dbg(common, ATH_DBG_RESET,
+		ath_dbg(common, RESET,
 			"** BB busy times: rx_clear=%d%%, rx_frame=%d%%, tx_frame=%d%% **\n",
 			PCT(rx_busy), PCT(rx_frame), PCT(tx_frame));
 
-	ath_dbg(common, ATH_DBG_RESET,
-		"==== BB update: done ====\n\n");
+	ath_dbg(common, RESET, "==== BB update: done ====\n\n");
 }
 EXPORT_SYMBOL(ar9003_hw_bb_watchdog_dbg_info);
 

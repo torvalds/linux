@@ -376,8 +376,6 @@ enum mwifiex_chan_scan_mode_bitmasks {
 	MWIFIEX_DISABLE_CHAN_FILT = BIT(1),
 };
 
-#define SECOND_CHANNEL_BELOW    0x30
-#define SECOND_CHANNEL_ABOVE    0x10
 struct mwifiex_chan_scan_param_set {
 	u8 radio_type;
 	u8 chan_number;

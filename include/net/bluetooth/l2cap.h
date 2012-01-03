@@ -482,10 +482,11 @@ struct l2cap_chan {
 	__u32		remote_acc_lat;
 	__u32		remote_flush_to;
 
-	struct timer_list	chan_timer;
-	struct timer_list	retrans_timer;
-	struct timer_list	monitor_timer;
-	struct timer_list	ack_timer;
+	struct delayed_work	chan_timer;
+	struct delayed_work	retrans_timer;
+	struct delayed_work	monitor_timer;
+	struct delayed_work	ack_timer;
+
 	struct sk_buff		*tx_send_head;
 	struct sk_buff_head	tx_q;
 	struct sk_buff_head	srej_q;
@@ -521,7 +522,7 @@ struct l2cap_conn {
 	__u8		info_state;
 	__u8		info_ident;
 
-	struct timer_list info_timer;
+	struct delayed_work info_timer;
 
 	spinlock_t	lock;
 
@@ -531,11 +532,11 @@ struct l2cap_conn {
 
 	__u8		disc_reason;
 
-	struct timer_list security_timer;
+	struct delayed_work  security_timer;
 	struct smp_chan *smp_chan;
 
 	struct list_head chan_l;
-	rwlock_t	chan_lock;
+	struct mutex	chan_lock;
 };
 
 #define L2CAP_INFO_CL_MTU_REQ_SENT	0x01
@@ -593,6 +594,34 @@ enum {
 	FLAG_EXT_CTRL,
 	FLAG_EFS_ENABLE,
 };
+
+static inline void l2cap_chan_hold(struct l2cap_chan *c)
+{
+	atomic_inc(&c->refcnt);
+}
+
+static inline void l2cap_chan_put(struct l2cap_chan *c)
+{
+	if (atomic_dec_and_test(&c->refcnt))
+		kfree(c);
+}
+
+static inline void l2cap_set_timer(struct l2cap_chan *chan,
+					struct delayed_work *work, long timeout)
+{
+	BT_DBG("chan %p state %d timeout %ld", chan, chan->state, timeout);
+
+	if (!__cancel_delayed_work(work))
+		l2cap_chan_hold(chan);
+	schedule_delayed_work(work, timeout);
+}
+
+static inline void l2cap_clear_timer(struct l2cap_chan *chan,
+					struct delayed_work *work)
+{
+	if (__cancel_delayed_work(work))
+		l2cap_chan_put(chan);
+}
 
 #define __set_chan_timer(c, t) l2cap_set_timer(c, &c->chan_timer, (t))
 #define __clear_chan_timer(c) l2cap_clear_timer(c, &c->chan_timer)
@@ -805,7 +834,8 @@ int l2cap_add_scid(struct l2cap_chan *chan,  __u16 scid);
 struct l2cap_chan *l2cap_chan_create(struct sock *sk);
 void l2cap_chan_close(struct l2cap_chan *chan, int reason);
 void l2cap_chan_destroy(struct l2cap_chan *chan);
-int l2cap_chan_connect(struct l2cap_chan *chan);
+inline int l2cap_chan_connect(struct l2cap_chan *chan, __le16 psm, u16 cid,
+								bdaddr_t *dst);
 int l2cap_chan_send(struct l2cap_chan *chan, struct msghdr *msg, size_t len,
 								u32 priority);
 void l2cap_chan_busy(struct l2cap_chan *chan, int busy);

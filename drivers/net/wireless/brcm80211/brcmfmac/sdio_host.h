@@ -116,11 +116,19 @@
 #define SUCCESS	0
 #define ERROR	1
 
+/* Packet alignment for most efficient SDIO (can change based on platform) */
+#define BRCMF_SDALIGN	(1 << 6)
+
+/* watchdog polling interval in ms */
+#define BRCMF_WD_POLL_MS	10
+
 struct brcmf_sdreg {
 	int func;
 	int offset;
 	int value;
 };
+
+struct brcmf_sdio;
 
 struct brcmf_sdio_dev {
 	struct sdio_func *func[SDIO_MAX_FUNCS];
@@ -262,4 +270,6 @@ extern void brcmf_sdio_wdtmr_enable(struct brcmf_sdio_dev *sdiodev,
 extern void *brcmf_sdbrcm_probe(u32 regsva, struct brcmf_sdio_dev *sdiodev);
 extern void brcmf_sdbrcm_disconnect(void *ptr);
 extern void brcmf_sdbrcm_isr(void *arg);
+
+extern void brcmf_sdbrcm_wd_timer(struct brcmf_sdio *bus, uint wdtick);
 #endif				/* _BRCM_SDH_H_ */

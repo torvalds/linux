@@ -500,7 +500,6 @@ mwifiex_scan_create_channel_list(struct mwifiex_private *priv,
 	struct ieee80211_channel *ch;
 	struct mwifiex_adapter *adapter = priv->adapter;
 	int chan_idx = 0, i;
-	u8 scan_type;
 
 	for (band = 0; (band < IEEE80211_NUM_BANDS) ; band++) {
 
@@ -514,19 +513,20 @@ mwifiex_scan_create_channel_list(struct mwifiex_private *priv,
 			if (ch->flags & IEEE80211_CHAN_DISABLED)
 				continue;
 			scan_chan_list[chan_idx].radio_type = band;
-			scan_type = ch->flags & IEEE80211_CHAN_PASSIVE_SCAN;
+
 			if (user_scan_in &&
 				user_scan_in->chan_list[0].scan_time)
 				scan_chan_list[chan_idx].max_scan_time =
 					cpu_to_le16((u16) user_scan_in->
 					chan_list[0].scan_time);
-			else if (scan_type == MWIFIEX_SCAN_TYPE_PASSIVE)
+			else if (ch->flags & IEEE80211_CHAN_PASSIVE_SCAN)
 				scan_chan_list[chan_idx].max_scan_time =
 					cpu_to_le16(adapter->passive_scan_time);
 			else
 				scan_chan_list[chan_idx].max_scan_time =
 					cpu_to_le16(adapter->active_scan_time);
-			if (scan_type == MWIFIEX_SCAN_TYPE_PASSIVE)
+
+			if (ch->flags & IEEE80211_CHAN_PASSIVE_SCAN)
 				scan_chan_list[chan_idx].chan_scan_mode_bitmap
 					|= MWIFIEX_PASSIVE_SCAN;
 			else

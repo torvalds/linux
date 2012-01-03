@@ -156,18 +156,6 @@ struct brcmf_event {
 	struct brcmf_event_msg msg;
 } __packed;
 
-struct dngl_stats {
-	unsigned long rx_packets;	/* total packets received */
-	unsigned long tx_packets;	/* total packets transmitted */
-	unsigned long rx_bytes;	/* total bytes received */
-	unsigned long tx_bytes;	/* total bytes transmitted */
-	unsigned long rx_errors;	/* bad packets received */
-	unsigned long tx_errors;	/* packet transmit problems */
-	unsigned long rx_dropped;	/* packets dropped by dongle */
-	unsigned long tx_dropped;	/* packets dropped by dongle */
-	unsigned long multicast;	/* multicast packets received */
-};
-
 /* event codes sent by the dongle to this driver */
 #define BRCMF_E_SET_SSID			0
 #define BRCMF_E_JOIN				1
@@ -316,13 +304,6 @@ struct dngl_stats {
 #define BRCMF_E_LINK_DISASSOC			2
 #define BRCMF_E_LINK_ASSOC_REC			3
 #define BRCMF_E_LINK_BSSCFG_DIS			4
-
-/* The level of bus communication with the dongle */
-enum brcmf_bus_state {
-	BRCMF_BUS_DOWN,		/* Not ready for frame transfers */
-	BRCMF_BUS_LOAD,		/* Download access only (CPU reset) */
-	BRCMF_BUS_DATA		/* Ready for frame transfers */
-};
 
 /* Pattern matching filter. Specifies an offset within received packets to
  * start matching, the pattern to match, the size of the pattern, and a bitmask
@@ -571,33 +552,20 @@ struct brcmf_dcmd {
 	uint needed;		/* bytes needed (optional) */
 };
 
-struct brcmf_bus {
-	u8 type;		/* bus type */
-	void *bus_priv;		/* pointer to bus private structure */
-	enum brcmf_bus_state state;
-};
-
 /* Forward decls for struct brcmf_pub (see below) */
-struct brcmf_sdio;		/* device bus info */
 struct brcmf_proto;	/* device communication protocol info */
-struct brcmf_info;	/* device driver info */
 struct brcmf_cfg80211_dev; /* cfg80211 device info */
 
 /* Common structure for module and instance linkage */
 struct brcmf_pub {
 	/* Linkage ponters */
-	struct brcmf_sdio *bus;
 	struct brcmf_bus *bus_if;
 	struct brcmf_proto *prot;
-	struct brcmf_info *info;
 	struct brcmf_cfg80211_dev *config;
 	struct device *dev;		/* fullmac dongle device pointer */
 
 	/* Internal brcmf items */
-	bool up;		/* Driver up/down (to OS) */
-	bool txoff;		/* Transmit flow-controlled */
 	uint hdrlen;		/* Total BRCMF header length (proto + bus) */
-	uint maxctl;		/* Max size rxctl request from proto to bus */
 	uint rxsz;		/* Rx buffer size bus module should use */
 	u8 wme_dp;		/* wme discard priority */
 
@@ -605,48 +573,21 @@ struct brcmf_pub {
 	bool iswl;		/* Dongle-resident driver is wl */
 	unsigned long drv_version;	/* Version of dongle-resident driver */
 	u8 mac[ETH_ALEN];		/* MAC address obtained from dongle */
-	struct dngl_stats dstats;	/* Stats for dongle-based data */
 
 	/* Additional stats for the bus level */
 
-	/* Data packets sent to dongle */
-	unsigned long tx_packets;
 	/* Multicast data packets sent to dongle */
 	unsigned long tx_multicast;
-	/* Errors in sending data to dongle */
-	unsigned long tx_errors;
-	/* Control packets sent to dongle */
-	unsigned long tx_ctlpkts;
-	/* Errors sending control frames to dongle */
-	unsigned long tx_ctlerrs;
-	/* Packets sent up the network interface */
-	unsigned long rx_packets;
-	/* Multicast packets sent up the network interface */
-	unsigned long rx_multicast;
-	/* Errors processing rx data packets */
-	unsigned long rx_errors;
-	/* Control frames processed from dongle */
-	unsigned long rx_ctlpkts;
-
-	/* Errors in processing rx control frames */
-	unsigned long rx_ctlerrs;
-	/* Packets dropped locally (no memory) */
-	unsigned long rx_dropped;
 	/* Packets flushed due to unscheduled sendup thread */
 	unsigned long rx_flushed;
 	/* Number of times dpc scheduled by watchdog timer */
 	unsigned long wd_dpc_sched;
 
-	/* Number of packets where header read-ahead was used. */
-	unsigned long rx_readahead_cnt;
-	/* Number of tx packets we had to realloc for headroom */
-	unsigned long tx_realloc;
 	/* Number of flow control pkts recvd */
 	unsigned long fc_packets;
 
 	/* Last error return */
 	int bcmerror;
-	uint tickcnt;
 
 	/* Last error from dongle */
 	int dongle_error;
@@ -663,6 +604,15 @@ struct brcmf_pub {
 
 	u8 country_code[BRCM_CNTRY_BUF_SZ];
 	char eventmask[BRCMF_EVENTING_MASK_LEN];
+
+	struct brcmf_if *iflist[BRCMF_MAX_IFS];
+
+	struct mutex proto_block;
+
+	struct work_struct setmacaddr_work;
+	struct work_struct multicast_work;
+	u8 macvalue[ETH_ALEN];
+	atomic_t pend_8021x_cnt;
 };
 
 struct brcmf_if_event {
@@ -682,72 +632,32 @@ extern const struct bcmevent_name bcmevent_names[];
 extern uint brcmf_c_mkiovar(char *name, char *data, uint datalen,
 			  char *buf, uint len);
 
-/* Indication from bus module regarding presence/insertion of dongle.
- * Return struct brcmf_pub pointer, used as handle to OS module in later calls.
- * Returned structure should have bus and prot pointers filled in.
- * bus_hdrlen specifies required headroom for bus module header.
- */
-extern struct brcmf_pub *brcmf_attach(struct brcmf_sdio *bus,
-				      uint bus_hdrlen, struct device *dev);
 extern int brcmf_net_attach(struct brcmf_pub *drvr, int idx);
 extern int brcmf_netdev_wait_pend8021x(struct net_device *ndev);
 
 extern s32 brcmf_exec_dcmd(struct net_device *dev, u32 cmd, void *arg, u32 len);
 
-/* Indication from bus module regarding removal/absence of dongle */
-extern void brcmf_detach(struct brcmf_pub *drvr);
-
-/* Indication from bus module to change flow-control state */
-extern void brcmf_txflowcontrol(struct brcmf_pub *drvr, int ifidx, bool on);
-
-extern bool brcmf_c_prec_enq(struct brcmf_pub *drvr, struct pktq *q,
-			 struct sk_buff *pkt, int prec);
-
-/* Receive frame for delivery to OS.  Callee disposes of rxp. */
-extern void brcmf_rx_frame(struct brcmf_pub *drvr, int ifidx,
-			   struct sk_buff_head *rxlist);
-static inline void brcmf_rx_packet(struct brcmf_pub *drvr, int ifidx,
-				   struct sk_buff *pkt)
-{
-	struct sk_buff_head q;
-
-	skb_queue_head_init(&q);
-	skb_queue_tail(&q, pkt);
-	brcmf_rx_frame(drvr, ifidx, &q);
-}
-
 /* Return pointer to interface name */
 extern char *brcmf_ifname(struct brcmf_pub *drvr, int idx);
-
-/* Notify tx completion */
-extern void brcmf_txcomplete(struct brcmf_pub *drvr, struct sk_buff *txp,
-			     bool success);
 
 /* Query dongle */
 extern int brcmf_proto_cdc_query_dcmd(struct brcmf_pub *drvr, int ifidx,
 				       uint cmd, void *buf, uint len);
 
-/* OS independent layer functions */
-extern int brcmf_os_proto_block(struct brcmf_pub *drvr);
-extern int brcmf_os_proto_unblock(struct brcmf_pub *drvr);
 #ifdef BCMDBG
 extern int brcmf_write_to_file(struct brcmf_pub *drvr, const u8 *buf, int size);
 #endif				/* BCMDBG */
 
-extern int brcmf_ifname2idx(struct brcmf_info *drvr_priv, char *name);
-extern int brcmf_c_host_event(struct brcmf_info *drvr_priv, int *idx,
+extern int brcmf_ifname2idx(struct brcmf_pub *drvr, char *name);
+extern int brcmf_c_host_event(struct brcmf_pub *drvr, int *idx,
 			      void *pktdata, struct brcmf_event_msg *,
 			      void **data_ptr);
 
-extern int brcmf_add_if(struct brcmf_info *drvr_priv, int ifidx,
-			char *name, u8 *mac_addr);
-extern void brcmf_del_if(struct brcmf_info *drvr_priv, int ifidx);
+extern void brcmf_del_if(struct brcmf_pub *drvr, int ifidx);
 
 /* Send packet to dongle via data channel */
 extern int brcmf_sendpkt(struct brcmf_pub *drvr, int ifidx,\
 			 struct sk_buff *pkt);
-
-extern int brcmf_bus_start(struct brcmf_pub *drvr);
 
 extern void brcmf_c_pktfilter_offload_set(struct brcmf_pub *drvr, char *arg);
 extern void brcmf_c_pktfilter_offload_enable(struct brcmf_pub *drvr, char *arg,
@@ -756,26 +666,5 @@ extern void brcmf_c_pktfilter_offload_enable(struct brcmf_pub *drvr, char *arg,
 #define	BRCMF_DCMD_SMLEN	256	/* "small" cmd buffer required */
 #define BRCMF_DCMD_MEDLEN	1536	/* "med" cmd buffer required */
 #define	BRCMF_DCMD_MAXLEN	8192	/* max length cmd buffer required */
-
-/* message levels */
-#define BRCMF_ERROR_VAL	0x0001
-#define BRCMF_TRACE_VAL	0x0002
-#define BRCMF_INFO_VAL	0x0004
-#define BRCMF_DATA_VAL	0x0008
-#define BRCMF_CTL_VAL	0x0010
-#define BRCMF_TIMER_VAL	0x0020
-#define BRCMF_HDRS_VAL	0x0040
-#define BRCMF_BYTES_VAL	0x0080
-#define BRCMF_INTR_VAL	0x0100
-#define BRCMF_GLOM_VAL	0x0400
-#define BRCMF_EVENT_VAL	0x0800
-#define BRCMF_BTA_VAL	0x1000
-#define BRCMF_ISCAN_VAL 0x2000
-
-/* Enter idle immediately (no timeout) */
-#define BRCMF_IDLE_IMMEDIATE	(-1)
-#define BRCMF_IDLE_ACTIVE	0	/* Do not request any SD clock change
-				 when idle */
-#define BRCMF_IDLE_INTERVAL	1
 
 #endif				/* _BRCMF_H_ */

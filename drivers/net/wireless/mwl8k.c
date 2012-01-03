@@ -5044,14 +5044,14 @@ mwl8k_ampdu_action(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 		ieee80211_start_tx_ba_cb_irqsafe(vif, addr, tid);
 		break;
 	case IEEE80211_AMPDU_TX_STOP:
-		if (stream == NULL)
-			break;
-		if (stream->state == AMPDU_STREAM_ACTIVE) {
-			spin_unlock(&priv->stream_lock);
-			mwl8k_destroy_ba(hw, stream);
-			spin_lock(&priv->stream_lock);
+		if (stream) {
+			if (stream->state == AMPDU_STREAM_ACTIVE) {
+				spin_unlock(&priv->stream_lock);
+				mwl8k_destroy_ba(hw, stream);
+				spin_lock(&priv->stream_lock);
+			}
+			mwl8k_remove_stream(hw, stream);
 		}
-		mwl8k_remove_stream(hw, stream);
 		ieee80211_stop_tx_ba_cb_irqsafe(vif, addr, tid);
 		break;
 	case IEEE80211_AMPDU_TX_OPERATIONAL:

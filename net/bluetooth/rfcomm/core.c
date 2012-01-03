@@ -65,8 +65,7 @@ static DEFINE_MUTEX(rfcomm_mutex);
 
 static LIST_HEAD(session_list);
 
-static int rfcomm_send_frame(struct rfcomm_session *s, u8 *data, int len,
-							u32 priority);
+static int rfcomm_send_frame(struct rfcomm_session *s, u8 *data, int len);
 static int rfcomm_send_sabm(struct rfcomm_session *s, u8 dlci);
 static int rfcomm_send_disc(struct rfcomm_session *s, u8 dlci);
 static int rfcomm_queue_disc(struct rfcomm_dlc *d);
@@ -748,32 +747,23 @@ void rfcomm_session_getaddr(struct rfcomm_session *s, bdaddr_t *src, bdaddr_t *d
 }
 
 /* ---- RFCOMM frame sending ---- */
-static int rfcomm_send_frame(struct rfcomm_session *s, u8 *data, int len,
-							u32 priority)
+static int rfcomm_send_frame(struct rfcomm_session *s, u8 *data, int len)
 {
-	struct socket *sock = s->sock;
-	struct sock *sk = sock->sk;
 	struct kvec iv = { data, len };
 	struct msghdr msg;
 
-	BT_DBG("session %p len %d priority %u", s, len, priority);
-
-	if (sk->sk_priority != priority) {
-		lock_sock(sk);
-		sk->sk_priority = priority;
-		release_sock(sk);
-	}
+	BT_DBG("session %p len %d", s, len);
 
 	memset(&msg, 0, sizeof(msg));
 
-	return kernel_sendmsg(sock, &msg, &iv, 1, len);
+	return kernel_sendmsg(s->sock, &msg, &iv, 1, len);
 }
 
 static int rfcomm_send_cmd(struct rfcomm_session *s, struct rfcomm_cmd *cmd)
 {
 	BT_DBG("%p cmd %u", s, cmd->ctrl);
 
-	return rfcomm_send_frame(s, (void *) cmd, sizeof(*cmd), HCI_PRIO_MAX);
+	return rfcomm_send_frame(s, (void *) cmd, sizeof(*cmd));
 }
 
 static int rfcomm_send_sabm(struct rfcomm_session *s, u8 dlci)
@@ -829,8 +819,6 @@ static int rfcomm_queue_disc(struct rfcomm_dlc *d)
 	if (!skb)
 		return -ENOMEM;
 
-	skb->priority = HCI_PRIO_MAX;
-
 	cmd = (void *) __skb_put(skb, sizeof(*cmd));
 	cmd->addr = d->addr;
 	cmd->ctrl = __ctrl(RFCOMM_DISC, 1);
@@ -878,7 +866,7 @@ static int rfcomm_send_nsc(struct rfcomm_session *s, int cr, u8 type)
 
 	*ptr = __fcs(buf); ptr++;
 
-	return rfcomm_send_frame(s, buf, ptr - buf, HCI_PRIO_MAX);
+	return rfcomm_send_frame(s, buf, ptr - buf);
 }
 
 static int rfcomm_send_pn(struct rfcomm_session *s, int cr, struct rfcomm_dlc *d)
@@ -920,7 +908,7 @@ static int rfcomm_send_pn(struct rfcomm_session *s, int cr, struct rfcomm_dlc *d
 
 	*ptr = __fcs(buf); ptr++;
 
-	return rfcomm_send_frame(s, buf, ptr - buf, HCI_PRIO_MAX);
+	return rfcomm_send_frame(s, buf, ptr - buf);
 }
 
 int rfcomm_send_rpn(struct rfcomm_session *s, int cr, u8 dlci,
@@ -958,7 +946,7 @@ int rfcomm_send_rpn(struct rfcomm_session *s, int cr, u8 dlci,
 
 	*ptr = __fcs(buf); ptr++;
 
-	return rfcomm_send_frame(s, buf, ptr - buf, HCI_PRIO_MAX);
+	return rfcomm_send_frame(s, buf, ptr - buf);
 }
 
 static int rfcomm_send_rls(struct rfcomm_session *s, int cr, u8 dlci, u8 status)
@@ -985,7 +973,7 @@ static int rfcomm_send_rls(struct rfcomm_session *s, int cr, u8 dlci, u8 status)
 
 	*ptr = __fcs(buf); ptr++;
 
-	return rfcomm_send_frame(s, buf, ptr - buf, HCI_PRIO_MAX);
+	return rfcomm_send_frame(s, buf, ptr - buf);
 }
 
 static int rfcomm_send_msc(struct rfcomm_session *s, int cr, u8 dlci, u8 v24_sig)
@@ -1012,7 +1000,7 @@ static int rfcomm_send_msc(struct rfcomm_session *s, int cr, u8 dlci, u8 v24_sig
 
 	*ptr = __fcs(buf); ptr++;
 
-	return rfcomm_send_frame(s, buf, ptr - buf, HCI_PRIO_MAX);
+	return rfcomm_send_frame(s, buf, ptr - buf);
 }
 
 static int rfcomm_send_fcoff(struct rfcomm_session *s, int cr)
@@ -1034,7 +1022,7 @@ static int rfcomm_send_fcoff(struct rfcomm_session *s, int cr)
 
 	*ptr = __fcs(buf); ptr++;
 
-	return rfcomm_send_frame(s, buf, ptr - buf, HCI_PRIO_MAX);
+	return rfcomm_send_frame(s, buf, ptr - buf);
 }
 
 static int rfcomm_send_fcon(struct rfcomm_session *s, int cr)
@@ -1056,7 +1044,7 @@ static int rfcomm_send_fcon(struct rfcomm_session *s, int cr)
 
 	*ptr = __fcs(buf); ptr++;
 
-	return rfcomm_send_frame(s, buf, ptr - buf, HCI_PRIO_MAX);
+	return rfcomm_send_frame(s, buf, ptr - buf);
 }
 
 static int rfcomm_send_test(struct rfcomm_session *s, int cr, u8 *pattern, int len)
@@ -1107,7 +1095,7 @@ static int rfcomm_send_credits(struct rfcomm_session *s, u8 addr, u8 credits)
 
 	*ptr = __fcs(buf); ptr++;
 
-	return rfcomm_send_frame(s, buf, ptr - buf, HCI_PRIO_MAX);
+	return rfcomm_send_frame(s, buf, ptr - buf);
 }
 
 static void rfcomm_make_uih(struct sk_buff *skb, u8 addr)
@@ -1786,8 +1774,7 @@ static inline int rfcomm_process_tx(struct rfcomm_dlc *d)
 		return skb_queue_len(&d->tx_queue);
 
 	while (d->tx_credits && (skb = skb_dequeue(&d->tx_queue))) {
-		err = rfcomm_send_frame(d->session, skb->data, skb->len,
-							skb->priority);
+		err = rfcomm_send_frame(d->session, skb->data, skb->len);
 		if (err < 0) {
 			skb_queue_head(&d->tx_queue, skb);
 			break;

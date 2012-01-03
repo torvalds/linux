@@ -378,11 +378,8 @@ static void hci_cc_read_voice_setting(struct hci_dev *hdev, struct sk_buff *skb)
 
 	BT_DBG("%s voice setting 0x%04x", hdev->name, setting);
 
-	if (hdev->notify) {
-		tasklet_disable(&hdev->tx_task);
+	if (hdev->notify)
 		hdev->notify(hdev, HCI_NOTIFY_VOICE_SETTING);
-		tasklet_enable(&hdev->tx_task);
-	}
 }
 
 static void hci_cc_write_voice_setting(struct hci_dev *hdev, struct sk_buff *skb)
@@ -409,11 +406,8 @@ static void hci_cc_write_voice_setting(struct hci_dev *hdev, struct sk_buff *skb
 
 	BT_DBG("%s voice setting 0x%04x", hdev->name, setting);
 
-	if (hdev->notify) {
-		tasklet_disable(&hdev->tx_task);
+	if (hdev->notify)
 		hdev->notify(hdev, HCI_NOTIFY_VOICE_SETTING);
-		tasklet_enable(&hdev->tx_task);
-	}
 }
 
 static void hci_cc_host_buffer_size(struct hci_dev *hdev, struct sk_buff *skb)
@@ -562,6 +556,9 @@ static void hci_set_le_support(struct hci_dev *hdev)
 
 static void hci_setup(struct hci_dev *hdev)
 {
+	if (hdev->dev_type != HCI_BREDR)
+		return;
+
 	hci_setup_event_mask(hdev);
 
 	if (hdev->hci_ver > BLUETOOTH_VER_1_1)
@@ -771,6 +768,28 @@ static void hci_cc_read_bd_addr(struct hci_dev *hdev, struct sk_buff *skb)
 		bacpy(&hdev->bdaddr, &rp->bdaddr);
 
 	hci_req_complete(hdev, HCI_OP_READ_BD_ADDR, rp->status);
+}
+
+static void hci_cc_read_data_block_size(struct hci_dev *hdev,
+							struct sk_buff *skb)
+{
+	struct hci_rp_read_data_block_size *rp = (void *) skb->data;
+
+	BT_DBG("%s status 0x%x", hdev->name, rp->status);
+
+	if (rp->status)
+		return;
+
+	hdev->block_mtu = __le16_to_cpu(rp->max_acl_len);
+	hdev->block_len = __le16_to_cpu(rp->block_len);
+	hdev->num_blocks = __le16_to_cpu(rp->num_blocks);
+
+	hdev->block_cnt = hdev->num_blocks;
+
+	BT_DBG("%s blk mtu %d cnt %d len %d", hdev->name, hdev->block_mtu,
+					hdev->block_cnt, hdev->block_len);
+
+	hci_req_complete(hdev, HCI_OP_READ_DATA_BLOCK_SIZE, rp->status);
 }
 
 static void hci_cc_write_ca_timeout(struct hci_dev *hdev, struct sk_buff *skb)
@@ -1014,18 +1033,28 @@ static void hci_cc_le_set_scan_enable(struct hci_dev *hdev,
 	if (!cp)
 		return;
 
-	if (cp->enable == 0x01) {
+	switch (cp->enable) {
+	case LE_SCANNING_ENABLED:
 		set_bit(HCI_LE_SCAN, &hdev->dev_flags);
 
-		del_timer(&hdev->adv_timer);
+		cancel_delayed_work_sync(&hdev->adv_work);
 
 		hci_dev_lock(hdev);
 		hci_adv_entries_clear(hdev);
 		hci_dev_unlock(hdev);
-	} else if (cp->enable == 0x00) {
+		break;
+
+	case LE_SCANNING_DISABLED:
 		clear_bit(HCI_LE_SCAN, &hdev->dev_flags);
 
-		mod_timer(&hdev->adv_timer, jiffies + ADV_CLEAR_TIMEOUT);
+		cancel_delayed_work_sync(&hdev->adv_work);
+		queue_delayed_work(hdev->workqueue, &hdev->adv_work,
+						 jiffies + ADV_CLEAR_TIMEOUT);
+		break;
+
+	default:
+		BT_ERR("Used reserved LE_Scan_Enable param %d", cp->enable);
+		break;
 	}
 }
 
@@ -2022,6 +2051,10 @@ static inline void hci_cmd_complete_evt(struct hci_dev *hdev, struct sk_buff *sk
 		hci_cc_read_bd_addr(hdev, skb);
 		break;
 
+	case HCI_OP_READ_DATA_BLOCK_SIZE:
+		hci_cc_read_data_block_size(hdev, skb);
+		break;
+
 	case HCI_OP_WRITE_CA_TIMEOUT:
 		hci_cc_write_ca_timeout(hdev, skb);
 		break;
@@ -2116,7 +2149,7 @@ static inline void hci_cmd_complete_evt(struct hci_dev *hdev, struct sk_buff *sk
 	if (ev->ncmd) {
 		atomic_set(&hdev->cmd_cnt, 1);
 		if (!skb_queue_empty(&hdev->cmd_q))
-			tasklet_schedule(&hdev->cmd_task);
+			queue_work(hdev->workqueue, &hdev->cmd_work);
 	}
 }
 
@@ -2198,7 +2231,7 @@ static inline void hci_cmd_status_evt(struct hci_dev *hdev, struct sk_buff *skb)
 	if (ev->ncmd && !test_bit(HCI_RESET, &hdev->flags)) {
 		atomic_set(&hdev->cmd_cnt, 1);
 		if (!skb_queue_empty(&hdev->cmd_q))
-			tasklet_schedule(&hdev->cmd_task);
+			queue_work(hdev->workqueue, &hdev->cmd_work);
 	}
 }
 
@@ -2231,56 +2264,68 @@ static inline void hci_role_change_evt(struct hci_dev *hdev, struct sk_buff *skb
 static inline void hci_num_comp_pkts_evt(struct hci_dev *hdev, struct sk_buff *skb)
 {
 	struct hci_ev_num_comp_pkts *ev = (void *) skb->data;
-	__le16 *ptr;
 	int i;
 
 	skb_pull(skb, sizeof(*ev));
 
 	BT_DBG("%s num_hndl %d", hdev->name, ev->num_hndl);
 
+	if (hdev->flow_ctl_mode != HCI_FLOW_CTL_MODE_PACKET_BASED) {
+		BT_ERR("Wrong event for mode %d", hdev->flow_ctl_mode);
+		return;
+	}
+
 	if (skb->len < ev->num_hndl * 4) {
 		BT_DBG("%s bad parameters", hdev->name);
 		return;
 	}
 
-	tasklet_disable(&hdev->tx_task);
-
-	for (i = 0, ptr = (__le16 *) skb->data; i < ev->num_hndl; i++) {
+	for (i = 0; i < ev->num_hndl; i++) {
+		struct hci_comp_pkts_info *info = &ev->handles[i];
 		struct hci_conn *conn;
 		__u16  handle, count;
 
-		handle = get_unaligned_le16(ptr++);
-		count  = get_unaligned_le16(ptr++);
+		handle = __le16_to_cpu(info->handle);
+		count  = __le16_to_cpu(info->count);
 
 		conn = hci_conn_hash_lookup_handle(hdev, handle);
-		if (conn) {
-			conn->sent -= count;
+		if (!conn)
+			continue;
 
-			if (conn->type == ACL_LINK) {
+		conn->sent -= count;
+
+		switch (conn->type) {
+		case ACL_LINK:
+			hdev->acl_cnt += count;
+			if (hdev->acl_cnt > hdev->acl_pkts)
+				hdev->acl_cnt = hdev->acl_pkts;
+			break;
+
+		case LE_LINK:
+			if (hdev->le_pkts) {
+				hdev->le_cnt += count;
+				if (hdev->le_cnt > hdev->le_pkts)
+					hdev->le_cnt = hdev->le_pkts;
+			} else {
 				hdev->acl_cnt += count;
 				if (hdev->acl_cnt > hdev->acl_pkts)
 					hdev->acl_cnt = hdev->acl_pkts;
-			} else if (conn->type == LE_LINK) {
-				if (hdev->le_pkts) {
-					hdev->le_cnt += count;
-					if (hdev->le_cnt > hdev->le_pkts)
-						hdev->le_cnt = hdev->le_pkts;
-				} else {
-					hdev->acl_cnt += count;
-					if (hdev->acl_cnt > hdev->acl_pkts)
-						hdev->acl_cnt = hdev->acl_pkts;
-				}
-			} else {
-				hdev->sco_cnt += count;
-				if (hdev->sco_cnt > hdev->sco_pkts)
-					hdev->sco_cnt = hdev->sco_pkts;
 			}
+			break;
+
+		case SCO_LINK:
+			hdev->sco_cnt += count;
+			if (hdev->sco_cnt > hdev->sco_pkts)
+				hdev->sco_cnt = hdev->sco_pkts;
+			break;
+
+		default:
+			BT_ERR("Unknown type %d conn %p", conn->type, conn);
+			break;
 		}
 	}
 
-	tasklet_schedule(&hdev->tx_task);
-
-	tasklet_enable(&hdev->tx_task);
+	queue_work(hdev->workqueue, &hdev->tx_work);
 }
 
 static inline void hci_mode_change_evt(struct hci_dev *hdev, struct sk_buff *skb)
