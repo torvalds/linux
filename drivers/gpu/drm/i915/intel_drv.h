@@ -26,6 +26,7 @@
 #define __INTEL_DRV_H__
 
 #include <linux/i2c.h>
+#include "i915_drm.h"
 #include "i915_drv.h"
 #include "drm_crtc.h"
 #include "drm_crtc_helper.h"
@@ -192,6 +193,10 @@ struct intel_plane {
 			     uint32_t x, uint32_t y,
 			     uint32_t src_w, uint32_t src_h);
 	void (*disable_plane)(struct drm_plane *plane);
+	int (*update_colorkey)(struct drm_plane *plane,
+			       struct drm_intel_sprite_colorkey *key);
+	void (*get_colorkey)(struct drm_plane *plane,
+			     struct drm_intel_sprite_colorkey *key);
 };
 
 #define to_intel_crtc(x) container_of(x, struct intel_crtc, base)
@@ -414,4 +419,10 @@ extern void sandybridge_update_wm(struct drm_device *dev);
 extern void intel_update_sprite_watermarks(struct drm_device *dev, int pipe,
 					   uint32_t sprite_width,
 					   int pixel_size);
+
+extern int intel_sprite_set_colorkey(struct drm_device *dev, void *data,
+				     struct drm_file *file_priv);
+extern int intel_sprite_get_colorkey(struct drm_device *dev, void *data,
+				     struct drm_file *file_priv);
+
 #endif /* __INTEL_DRV_H__ */

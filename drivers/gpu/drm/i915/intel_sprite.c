@@ -95,6 +95,7 @@ ivb_update_plane(struct drm_plane *plane, struct drm_framebuffer *fb,
 	/* must disable */
 	sprctl |= SPRITE_TRICKLE_FEED_DISABLE;
 	sprctl |= SPRITE_ENABLE;
+	sprctl |= SPRITE_DEST_KEY;
 
 	/* Sizes are 0 based */
 	src_w--;
@@ -151,6 +152,60 @@ ivb_disable_plane(struct drm_plane *plane)
 	/* Activate double buffered register update */
 	I915_WRITE(SPRSURF(pipe), 0);
 	POSTING_READ(SPRSURF(pipe));
+}
+
+static int
+ivb_update_colorkey(struct drm_plane *plane,
+		    struct drm_intel_sprite_colorkey *key)
+{
+	struct drm_device *dev = plane->dev;
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	struct intel_plane *intel_plane;
+	u32 sprctl;
+	int ret = 0;
+
+	intel_plane = to_intel_plane(plane);
+
+	I915_WRITE(SPRKEYVAL(intel_plane->pipe), key->min_value);
+	I915_WRITE(SPRKEYMAX(intel_plane->pipe), key->max_value);
+	I915_WRITE(SPRKEYMSK(intel_plane->pipe), key->channel_mask);
+
+	sprctl = I915_READ(SPRCTL(intel_plane->pipe));
+	sprctl &= ~(SPRITE_SOURCE_KEY | SPRITE_DEST_KEY);
+	if (key->flags & I915_SET_COLORKEY_DESTINATION)
+		sprctl |= SPRITE_DEST_KEY;
+	else if (key->flags & I915_SET_COLORKEY_SOURCE)
+		sprctl |= SPRITE_SOURCE_KEY;
+	I915_WRITE(SPRCTL(intel_plane->pipe), sprctl);
+
+	POSTING_READ(SPRKEYMSK(intel_plane->pipe));
+
+	return ret;
+}
+
+static void
+ivb_get_colorkey(struct drm_plane *plane, struct drm_intel_sprite_colorkey *key)
+{
+	struct drm_device *dev = plane->dev;
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	struct intel_plane *intel_plane;
+	u32 sprctl;
+
+	intel_plane = to_intel_plane(plane);
+
+	key->min_value = I915_READ(SPRKEYVAL(intel_plane->pipe));
+	key->max_value = I915_READ(SPRKEYMAX(intel_plane->pipe));
+	key->channel_mask = I915_READ(SPRKEYMSK(intel_plane->pipe));
+	key->flags = 0;
+
+	sprctl = I915_READ(SPRCTL(intel_plane->pipe));
+
+	if (sprctl & SPRITE_DEST_KEY)
+		key->flags = I915_SET_COLORKEY_DESTINATION;
+	else if (sprctl & SPRITE_SOURCE_KEY)
+		key->flags = I915_SET_COLORKEY_SOURCE;
+	else
+		key->flags = I915_SET_COLORKEY_NONE;
 }
 
 static void
@@ -276,6 +331,60 @@ intel_disable_primary(struct drm_crtc *crtc)
 	int reg = DSPCNTR(intel_crtc->plane);
 
 	I915_WRITE(reg, I915_READ(reg) & ~DISPLAY_PLANE_ENABLE);
+}
+
+static int
+snb_update_colorkey(struct drm_plane *plane,
+		    struct drm_intel_sprite_colorkey *key)
+{
+	struct drm_device *dev = plane->dev;
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	struct intel_plane *intel_plane;
+	u32 dvscntr;
+	int ret = 0;
+
+	intel_plane = to_intel_plane(plane);
+
+	I915_WRITE(DVSKEYVAL(intel_plane->pipe), key->min_value);
+	I915_WRITE(DVSKEYMAX(intel_plane->pipe), key->max_value);
+	I915_WRITE(DVSKEYMSK(intel_plane->pipe), key->channel_mask);
+
+	dvscntr = I915_READ(DVSCNTR(intel_plane->pipe));
+	dvscntr &= ~(DVS_SOURCE_KEY | DVS_DEST_KEY);
+	if (key->flags & I915_SET_COLORKEY_DESTINATION)
+		dvscntr |= DVS_DEST_KEY;
+	else if (key->flags & I915_SET_COLORKEY_SOURCE)
+		dvscntr |= DVS_SOURCE_KEY;
+	I915_WRITE(DVSCNTR(intel_plane->pipe), dvscntr);
+
+	POSTING_READ(DVSKEYMSK(intel_plane->pipe));
+
+	return ret;
+}
+
+static void
+snb_get_colorkey(struct drm_plane *plane, struct drm_intel_sprite_colorkey *key)
+{
+	struct drm_device *dev = plane->dev;
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	struct intel_plane *intel_plane;
+	u32 dvscntr;
+
+	intel_plane = to_intel_plane(plane);
+
+	key->min_value = I915_READ(DVSKEYVAL(intel_plane->pipe));
+	key->max_value = I915_READ(DVSKEYMAX(intel_plane->pipe));
+	key->channel_mask = I915_READ(DVSKEYMSK(intel_plane->pipe));
+	key->flags = 0;
+
+	dvscntr = I915_READ(DVSCNTR(intel_plane->pipe));
+
+	if (dvscntr & DVS_DEST_KEY)
+		key->flags = I915_SET_COLORKEY_DESTINATION;
+	else if (dvscntr & DVS_SOURCE_KEY)
+		key->flags = I915_SET_COLORKEY_SOURCE;
+	else
+		key->flags = I915_SET_COLORKEY_NONE;
 }
 
 static int
@@ -437,6 +546,70 @@ static void intel_destroy_plane(struct drm_plane *plane)
 	kfree(intel_plane);
 }
 
+int intel_sprite_set_colorkey(struct drm_device *dev, void *data,
+			      struct drm_file *file_priv)
+{
+	struct drm_intel_sprite_colorkey *set = data;
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	struct drm_mode_object *obj;
+	struct drm_plane *plane;
+	struct intel_plane *intel_plane;
+	int ret = 0;
+
+	if (!dev_priv)
+		return -EINVAL;
+
+	/* Make sure we don't try to enable both src & dest simultaneously */
+	if ((set->flags & (I915_SET_COLORKEY_DESTINATION | I915_SET_COLORKEY_SOURCE)) == (I915_SET_COLORKEY_DESTINATION | I915_SET_COLORKEY_SOURCE))
+		return -EINVAL;
+
+	mutex_lock(&dev->mode_config.mutex);
+
+	obj = drm_mode_object_find(dev, set->plane_id, DRM_MODE_OBJECT_PLANE);
+	if (!obj) {
+		ret = -EINVAL;
+		goto out_unlock;
+	}
+
+	plane = obj_to_plane(obj);
+	intel_plane = to_intel_plane(plane);
+	ret = intel_plane->update_colorkey(plane, set);
+
+out_unlock:
+	mutex_unlock(&dev->mode_config.mutex);
+	return ret;
+}
+
+int intel_sprite_get_colorkey(struct drm_device *dev, void *data,
+			      struct drm_file *file_priv)
+{
+	struct drm_intel_sprite_colorkey *get = data;
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	struct drm_mode_object *obj;
+	struct drm_plane *plane;
+	struct intel_plane *intel_plane;
+	int ret = 0;
+
+	if (!dev_priv)
+		return -EINVAL;
+
+	mutex_lock(&dev->mode_config.mutex);
+
+	obj = drm_mode_object_find(dev, get->plane_id, DRM_MODE_OBJECT_PLANE);
+	if (!obj) {
+		ret = -EINVAL;
+		goto out_unlock;
+	}
+
+	plane = obj_to_plane(obj);
+	intel_plane = to_intel_plane(plane);
+	intel_plane->get_colorkey(plane, get);
+
+out_unlock:
+	mutex_unlock(&dev->mode_config.mutex);
+	return ret;
+}
+
 static const struct drm_plane_funcs intel_plane_funcs = {
 	.update_plane = intel_update_plane,
 	.disable_plane = intel_disable_plane,
@@ -472,10 +645,14 @@ intel_plane_init(struct drm_device *dev, enum pipe pipe)
 		intel_plane->max_downscale = 16;
 		intel_plane->update_plane = snb_update_plane;
 		intel_plane->disable_plane = snb_disable_plane;
+		intel_plane->update_colorkey = snb_update_colorkey;
+		intel_plane->get_colorkey = snb_get_colorkey;
 	} else if (IS_GEN7(dev)) {
 		intel_plane->max_downscale = 2;
 		intel_plane->update_plane = ivb_update_plane;
 		intel_plane->disable_plane = ivb_disable_plane;
+		intel_plane->update_colorkey = ivb_update_colorkey;
+		intel_plane->get_colorkey = ivb_get_colorkey;
 	}
 
 	intel_plane->pipe = pipe;
