@@ -224,8 +224,11 @@ int radeon_wb_init(struct radeon_device *rdev)
 	if (radeon_no_wb == 1)
 		rdev->wb.enabled = false;
 	else {
-		/* often unreliable on AGP */
 		if (rdev->flags & RADEON_IS_AGP) {
+			/* often unreliable on AGP */
+			rdev->wb.enabled = false;
+		} else if (rdev->family < CHIP_R300) {
+			/* often unreliable on pre-r300 */
 			rdev->wb.enabled = false;
 		} else {
 			rdev->wb.enabled = true;
