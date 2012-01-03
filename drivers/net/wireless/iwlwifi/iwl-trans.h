@@ -234,6 +234,7 @@ struct iwl_calib_result {
  * @ops - pointer to iwl_trans_ops
  * @shrd - pointer to iwl_shared which holds shared data from the upper layer
  * @hcmd_lock: protects HCMD
+ * @reg_lock - protect hw register access
  * @dev - pointer to struct device * that represents the device
  * @irq - the irq number for the device
  * @ucode_write_complete: indicates that the ucode has been copied.
@@ -247,6 +248,7 @@ struct iwl_trans {
 	const struct iwl_trans_ops *ops;
 	struct iwl_shared *shrd;
 	spinlock_t hcmd_lock;
+	spinlock_t reg_lock;
 
 	struct device *dev;
 	unsigned int irq;

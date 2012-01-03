@@ -71,7 +71,7 @@ static const struct ieee80211_tpt_blink iwl_blink[] = {
 /* Set led register off */
 void iwlagn_led_enable(struct iwl_priv *priv)
 {
-	iwl_write32(bus(priv), CSR_LED_REG, CSR_LED_REG_TRUN_ON);
+	iwl_write32(trans(priv), CSR_LED_REG, CSR_LED_REG_TRUN_ON);
 }
 
 /*
@@ -107,9 +107,10 @@ static int iwl_send_led_cmd(struct iwl_priv *priv, struct iwl_led_cmd *led_cmd)
 	};
 	u32 reg;
 
-	reg = iwl_read32(bus(priv), CSR_LED_REG);
+	reg = iwl_read32(trans(priv), CSR_LED_REG);
 	if (reg != (reg & CSR_LED_BSM_CTRL_MSK))
-		iwl_write32(bus(priv), CSR_LED_REG, reg & CSR_LED_BSM_CTRL_MSK);
+		iwl_write32(trans(priv), CSR_LED_REG,
+			    reg & CSR_LED_BSM_CTRL_MSK);
 
 	return iwl_trans_send_cmd(trans(priv), &cmd);
 }
@@ -206,7 +207,7 @@ void iwl_leds_init(struct iwl_priv *priv)
 		break;
 	}
 
-	ret = led_classdev_register(bus(priv)->dev, &priv->led);
+	ret = led_classdev_register(trans(priv)->dev, &priv->led);
 	if (ret) {
 		kfree(priv->led.name);
 		return;

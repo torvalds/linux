@@ -328,14 +328,14 @@ static void iwl_print_cont_event_trace(struct iwl_priv *priv, u32 base,
 		ptr = base + (4 * sizeof(u32)) + (start_idx * 3 * sizeof(u32));
 
 	/* Make sure device is powered up for SRAM reads */
-	spin_lock_irqsave(&bus(priv)->reg_lock, reg_flags);
-	if (iwl_grab_nic_access(bus(priv))) {
-		spin_unlock_irqrestore(&bus(priv)->reg_lock, reg_flags);
+	spin_lock_irqsave(&trans(priv)->reg_lock, reg_flags);
+	if (iwl_grab_nic_access(trans(priv))) {
+		spin_unlock_irqrestore(&trans(priv)->reg_lock, reg_flags);
 		return;
 	}
 
 	/* Set starting address; reads will auto-increment */
-	iwl_write32(bus(priv), HBUS_TARG_MEM_RADDR, ptr);
+	iwl_write32(trans(priv), HBUS_TARG_MEM_RADDR, ptr);
 	rmb();
 
 	/*
@@ -352,19 +352,19 @@ static void iwl_print_cont_event_trace(struct iwl_priv *priv, u32 base,
 	 * place event id # at far right for easier visual parsing.
 	 */
 	for (i = 0; i < num_events; i++) {
-		ev = iwl_read32(bus(priv), HBUS_TARG_MEM_RDAT);
-		time = iwl_read32(bus(priv), HBUS_TARG_MEM_RDAT);
+		ev = iwl_read32(trans(priv), HBUS_TARG_MEM_RDAT);
+		time = iwl_read32(trans(priv), HBUS_TARG_MEM_RDAT);
 		if (mode == 0) {
 			trace_iwlwifi_dev_ucode_cont_event(priv, 0, time, ev);
 		} else {
-			data = iwl_read32(bus(priv), HBUS_TARG_MEM_RDAT);
+			data = iwl_read32(trans(priv), HBUS_TARG_MEM_RDAT);
 			trace_iwlwifi_dev_ucode_cont_event(priv, time,
 							   data, ev);
 		}
 	}
 	/* Allow device to power down */
-	iwl_release_nic_access(bus(priv));
-	spin_unlock_irqrestore(&bus(priv)->reg_lock, reg_flags);
+	iwl_release_nic_access(trans(priv));
+	spin_unlock_irqrestore(&trans(priv)->reg_lock, reg_flags);
 }
 
 static void iwl_continuous_event_trace(struct iwl_priv *priv)
@@ -383,7 +383,7 @@ static void iwl_continuous_event_trace(struct iwl_priv *priv)
 
 	base = priv->shrd->device_pointers.log_event_table;
 	if (iwlagn_hw_valid_rtc_data_addr(base)) {
-		iwl_read_targ_mem_words(bus(priv), base, &read, sizeof(read));
+		iwl_read_targ_mem_words(trans(priv), base, &read, sizeof(read));
 
 		capacity = read.capacity;
 		mode = read.mode;
@@ -583,7 +583,7 @@ static int __must_check iwl_request_firmware(struct iwl_priv *priv, bool first)
 		       priv->firmware_name);
 
 	return request_firmware_nowait(THIS_MODULE, 1, priv->firmware_name,
-				       bus(priv)->dev,
+				       trans(priv)->dev,
 				       GFP_KERNEL, priv, iwl_ucode_callback);
 }
 
@@ -1158,7 +1158,7 @@ static void iwl_rf_kill_ct_config(struct iwl_priv *priv)
 	int ret = 0;
 
 	spin_lock_irqsave(&priv->shrd->lock, flags);
-	iwl_write32(bus(priv), CSR_UCODE_DRV_GP1_CLR,
+	iwl_write32(trans(priv), CSR_UCODE_DRV_GP1_CLR,
 		    CSR_UCODE_DRV_GP1_REG_BIT_CT_KILL_EXIT);
 	spin_unlock_irqrestore(&priv->shrd->lock, flags);
 	priv->thermal_throttle.ct_kill_toggle = false;
@@ -1693,7 +1693,7 @@ static void iwl_uninit_drv(struct iwl_priv *priv)
 
 static u32 iwl_hw_detect(struct iwl_priv *priv)
 {
-	return iwl_read32(bus(priv), CSR_HW_REV);
+	return iwl_read32(trans(priv), CSR_HW_REV);
 }
 
 /* Size of one Rx buffer in host DRAM */
@@ -1727,32 +1727,32 @@ static int iwl_set_hw_params(struct iwl_priv *priv)
 
 static void iwl_debug_config(struct iwl_priv *priv)
 {
-	dev_printk(KERN_INFO, bus(priv)->dev, "CONFIG_IWLWIFI_DEBUG "
+	dev_printk(KERN_INFO, trans(priv)->dev, "CONFIG_IWLWIFI_DEBUG "
 #ifdef CONFIG_IWLWIFI_DEBUG
 		"enabled\n");
 #else
 		"disabled\n");
 #endif
-	dev_printk(KERN_INFO, bus(priv)->dev, "CONFIG_IWLWIFI_DEBUGFS "
+	dev_printk(KERN_INFO, trans(priv)->dev, "CONFIG_IWLWIFI_DEBUGFS "
 #ifdef CONFIG_IWLWIFI_DEBUGFS
 		"enabled\n");
 #else
 		"disabled\n");
 #endif
-	dev_printk(KERN_INFO, bus(priv)->dev, "CONFIG_IWLWIFI_DEVICE_TRACING "
+	dev_printk(KERN_INFO, trans(priv)->dev, "CONFIG_IWLWIFI_DEVICE_TRACING "
 #ifdef CONFIG_IWLWIFI_DEVICE_TRACING
 		"enabled\n");
 #else
 		"disabled\n");
 #endif
 
-	dev_printk(KERN_INFO, bus(priv)->dev, "CONFIG_IWLWIFI_DEVICE_TESTMODE "
+	dev_printk(KERN_INFO, trans(priv)->dev, "CONFIG_IWLWIFI_DEVICE_TESTMODE "
 #ifdef CONFIG_IWLWIFI_DEVICE_TESTMODE
 		"enabled\n");
 #else
 		"disabled\n");
 #endif
-	dev_printk(KERN_INFO, bus(priv)->dev, "CONFIG_IWLWIFI_P2P "
+	dev_printk(KERN_INFO, trans(priv)->dev, "CONFIG_IWLWIFI_P2P "
 #ifdef CONFIG_IWLWIFI_P2P
 		"enabled\n");
 #else
@@ -1810,7 +1810,7 @@ int iwl_probe(struct iwl_bus *bus, const struct iwl_trans_ops *trans_ops,
 	/* these spin locks will be used in apm_ops.init and EEPROM access
 	 * we should init now
 	 */
-	spin_lock_init(&bus(priv)->reg_lock);
+	spin_lock_init(&trans(priv)->reg_lock);
 	spin_lock_init(&priv->shrd->lock);
 
 	/*
@@ -1818,7 +1818,7 @@ int iwl_probe(struct iwl_bus *bus, const struct iwl_trans_ops *trans_ops,
 	 * strange state ... like being left stranded by a primary kernel
 	 * and this is now the kdump kernel trying to start up
 	 */
-	iwl_write32(bus(priv), CSR_RESET, CSR_RESET_REG_FLAG_NEVO_RESET);
+	iwl_write32(trans(priv), CSR_RESET, CSR_RESET_REG_FLAG_NEVO_RESET);
 
 	/***********************
 	 * 3. Read REV register
@@ -1903,7 +1903,7 @@ int iwl_probe(struct iwl_bus *bus, const struct iwl_trans_ops *trans_ops,
 	iwl_enable_rfkill_int(priv);
 
 	/* If platform's RF_KILL switch is NOT set to KILL */
-	if (iwl_read32(bus(priv),
+	if (iwl_read32(trans(priv),
 			CSR_GP_CNTRL) & CSR_GP_CNTRL_REG_FLAG_HW_RF_KILL_SW)
 		clear_bit(STATUS_RF_KILL_HW, &priv->shrd->status);
 	else

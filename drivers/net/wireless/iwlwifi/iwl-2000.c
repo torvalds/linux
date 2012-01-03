@@ -87,7 +87,7 @@ static void iwl2000_nic_config(struct iwl_priv *priv)
 	iwl_rf_config(priv);
 
 	if (cfg(priv)->iq_invert)
-		iwl_set_bit(bus(priv), CSR_GP_DRIVER_REG,
+		iwl_set_bit(trans(priv), CSR_GP_DRIVER_REG,
 			    CSR_GP_DRIVER_REG_BIT_RADIO_IQ_INVER);
 }
 

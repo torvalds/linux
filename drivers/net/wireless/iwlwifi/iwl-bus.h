@@ -142,14 +142,11 @@ struct iwl_bus_ops {
  * @shrd - pointer to iwl_shared which holds shared data from the upper layer
  *	NB: for the time being this needs to be set by the upper layer since
  *	it allocates the shared data
- * @reg_lock - protect hw register access
  */
 struct iwl_bus {
 	struct device *dev;
 	const struct iwl_bus_ops *ops;
 	struct iwl_shared *shrd;
-
-	spinlock_t reg_lock;
 
 	/* pointer to bus specific struct */
 	/*Ensure that this pointer will always be aligned to sizeof pointer */

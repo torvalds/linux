@@ -263,7 +263,7 @@ static ssize_t iwl_dbgfs_sram_read(struct file *file,
 	sram = priv->dbgfs_sram_offset & ~0x3;
 
 	/* read the first u32 from sram */
-	val = iwl_read_targ_mem(bus(priv), sram);
+	val = iwl_read_targ_mem(trans(priv), sram);
 
 	for (; len; len--) {
 		/* put the address at the start of every line */
@@ -282,7 +282,7 @@ static ssize_t iwl_dbgfs_sram_read(struct file *file,
 		if (++offset == 4) {
 			sram += 4;
 			offset = 0;
-			val = iwl_read_targ_mem(bus(priv), sram);
+			val = iwl_read_targ_mem(trans(priv), sram);
 		}
 
 		/* put in extra spaces and split lines for human readability */
@@ -2055,7 +2055,7 @@ static ssize_t iwl_dbgfs_power_save_status_read(struct file *file,
 	const size_t bufsz = sizeof(buf);
 	u32 pwrsave_status;
 
-	pwrsave_status = iwl_read32(bus(priv), CSR_GP_CNTRL) &
+	pwrsave_status = iwl_read32(trans(priv), CSR_GP_CNTRL) &
 			CSR_GP_REG_POWER_SAVE_STATUS_MSK;
 
 	pos += scnprintf(buf + pos, bufsz - pos, "Power Save Status: ");

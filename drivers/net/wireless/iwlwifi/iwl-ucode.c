@@ -126,42 +126,41 @@ int iwl_alloc_fw_desc(struct iwl_bus *bus, struct fw_desc *desc,
 static int iwl_load_section(struct iwl_trans *trans, const char *name,
 				struct fw_desc *image, u32 dst_addr)
 {
-	struct iwl_bus *bus = bus(trans);
 	dma_addr_t phy_addr = image->p_addr;
 	u32 byte_cnt = image->len;
 	int ret;
 
 	trans->ucode_write_complete = 0;
 
-	iwl_write_direct32(bus,
+	iwl_write_direct32(trans,
 		FH_TCSR_CHNL_TX_CONFIG_REG(FH_SRVC_CHNL),
 		FH_TCSR_TX_CONFIG_REG_VAL_DMA_CHNL_PAUSE);
 
-	iwl_write_direct32(bus,
+	iwl_write_direct32(trans,
 		FH_SRVC_CHNL_SRAM_ADDR_REG(FH_SRVC_CHNL), dst_addr);
 
-	iwl_write_direct32(bus,
+	iwl_write_direct32(trans,
 		FH_TFDIB_CTRL0_REG(FH_SRVC_CHNL),
 		phy_addr & FH_MEM_TFDIB_DRAM_ADDR_LSB_MSK);
 
-	iwl_write_direct32(bus,
+	iwl_write_direct32(trans,
 		FH_TFDIB_CTRL1_REG(FH_SRVC_CHNL),
 		(iwl_get_dma_hi_addr(phy_addr)
 			<< FH_MEM_TFDIB_REG1_ADDR_BITSHIFT) | byte_cnt);
 
-	iwl_write_direct32(bus,
+	iwl_write_direct32(trans,
 		FH_TCSR_CHNL_TX_BUF_STS_REG(FH_SRVC_CHNL),
 		1 << FH_TCSR_CHNL_TX_BUF_STS_REG_POS_TB_NUM |
 		1 << FH_TCSR_CHNL_TX_BUF_STS_REG_POS_TB_IDX |
 		FH_TCSR_CHNL_TX_BUF_STS_REG_VAL_TFDB_VALID);
 
-	iwl_write_direct32(bus,
+	iwl_write_direct32(trans,
 		FH_TCSR_CHNL_TX_CONFIG_REG(FH_SRVC_CHNL),
 		FH_TCSR_TX_CONFIG_REG_VAL_DMA_CHNL_ENABLE	|
 		FH_TCSR_TX_CONFIG_REG_VAL_DMA_CREDIT_DISABLE	|
 		FH_TCSR_TX_CONFIG_REG_VAL_CIRQ_HOST_ENDTFD);
 
-	IWL_DEBUG_FW(bus, "%s uCode section being loaded...\n", name);
+	IWL_DEBUG_FW(trans, "%s uCode section being loaded...\n", name);
 	ret = wait_event_timeout(trans->shrd->wait_command_queue,
 				 trans->ucode_write_complete, 5 * HZ);
 	if (!ret) {
@@ -470,7 +469,7 @@ static int iwl_alive_notify(struct iwl_trans *trans)
  *   using sample data 100 bytes apart.  If these sample points are good,
  *   it's a pretty good bet that everything between them is good, too.
  */
-static int iwl_verify_inst_sparse(struct iwl_bus *bus,
+static int iwl_verify_inst_sparse(struct iwl_trans *trans,
 				      struct fw_desc *fw_desc)
 {
 	__le32 *image = (__le32 *)fw_desc->v_addr;
@@ -478,15 +477,15 @@ static int iwl_verify_inst_sparse(struct iwl_bus *bus,
 	u32 val;
 	u32 i;
 
-	IWL_DEBUG_FW(bus, "ucode inst image size is %u\n", len);
+	IWL_DEBUG_FW(trans, "ucode inst image size is %u\n", len);
 
 	for (i = 0; i < len; i += 100, image += 100/sizeof(u32)) {
 		/* read data comes through single port, auto-incr addr */
 		/* NOTE: Use the debugless read so we don't flood kernel log
 		 * if IWL_DL_IO is set */
-		iwl_write_direct32(bus, HBUS_TARG_MEM_RADDR,
+		iwl_write_direct32(trans, HBUS_TARG_MEM_RADDR,
 			i + IWLAGN_RTC_INST_LOWER_BOUND);
-		val = iwl_read32(bus, HBUS_TARG_MEM_RDAT);
+		val = iwl_read32(trans, HBUS_TARG_MEM_RDAT);
 		if (val != le32_to_cpu(*image))
 			return -EIO;
 	}
@@ -494,7 +493,7 @@ static int iwl_verify_inst_sparse(struct iwl_bus *bus,
 	return 0;
 }
 
-static void iwl_print_mismatch_inst(struct iwl_bus *bus,
+static void iwl_print_mismatch_inst(struct iwl_trans *trans,
 				    struct fw_desc *fw_desc)
 {
 	__le32 *image = (__le32 *)fw_desc->v_addr;
@@ -503,18 +502,18 @@ static void iwl_print_mismatch_inst(struct iwl_bus *bus,
 	u32 offs;
 	int errors = 0;
 
-	IWL_DEBUG_FW(bus, "ucode inst image size is %u\n", len);
+	IWL_DEBUG_FW(trans, "ucode inst image size is %u\n", len);
 
-	iwl_write_direct32(bus, HBUS_TARG_MEM_RADDR,
+	iwl_write_direct32(trans, HBUS_TARG_MEM_RADDR,
 			   IWLAGN_RTC_INST_LOWER_BOUND);
 
 	for (offs = 0;
 	     offs < len && errors < 20;
 	     offs += sizeof(u32), image++) {
 		/* read data comes through single port, auto-incr addr */
-		val = iwl_read32(bus, HBUS_TARG_MEM_RDAT);
+		val = iwl_read32(trans, HBUS_TARG_MEM_RDAT);
 		if (val != le32_to_cpu(*image)) {
-			IWL_ERR(bus, "uCode INST section at "
+			IWL_ERR(trans, "uCode INST section at "
 				"offset 0x%x, is 0x%x, s/b 0x%x\n",
 				offs, val, le32_to_cpu(*image));
 			errors++;
@@ -536,14 +535,14 @@ static int iwl_verify_ucode(struct iwl_trans *trans,
 		return -EINVAL;
 	}
 
-	if (!iwl_verify_inst_sparse(bus(trans), &img->code)) {
+	if (!iwl_verify_inst_sparse(trans, &img->code)) {
 		IWL_DEBUG_FW(trans, "uCode is good in inst SRAM\n");
 		return 0;
 	}
 
 	IWL_ERR(trans, "UCODE IMAGE IN INSTRUCTION SRAM NOT VALID!!\n");
 
-	iwl_print_mismatch_inst(bus(trans), &img->code);
+	iwl_print_mismatch_inst(trans, &img->code);
 	return -EIO;
 }
 
