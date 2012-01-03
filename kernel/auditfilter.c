@@ -461,6 +461,7 @@ static struct audit_entry *audit_data_to_entry(struct audit_rule_data *data,
 		case AUDIT_ARG1:
 		case AUDIT_ARG2:
 		case AUDIT_ARG3:
+		case AUDIT_OBJ_UID:
 			break;
 		case AUDIT_ARCH:
 			entry->rule.arch_f = f;
