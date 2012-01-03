@@ -22,6 +22,8 @@
 #include <linux/syscore_ops.h>
 #include <linux/slab.h>
 
+#include <mach/irqs.h>
+
 /*
  * We handle the GPIOs by banks, each bank covers up to 32 GPIOs with
  * one set of registers. The register offsets are organized below:
