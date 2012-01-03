@@ -10,18 +10,6 @@
  * published by the Free Software Foundation.
 */
 
-#include <mach/hardware.h>
-#include <plat/watchdog-reset.h>
-
-static void
-arch_reset(char mode, const char *cmd)
+static void arch_reset(char mode, const char *cmd)
 {
-	if (mode == 's') {
-		soft_restart(0);
-	}
-
-	arch_wdt_reset();
-
-	/* we'll take a jump through zero as a poor second */
-	soft_restart(0);
 }
