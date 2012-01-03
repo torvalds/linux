@@ -543,6 +543,8 @@ extern bool has_capability(struct task_struct *t, int cap);
 extern bool has_ns_capability(struct task_struct *t,
 			      struct user_namespace *ns, int cap);
 extern bool has_capability_noaudit(struct task_struct *t, int cap);
+extern bool has_ns_capability_noaudit(struct task_struct *t,
+				      struct user_namespace *ns, int cap);
 extern bool capable(int cap);
 extern bool ns_capable(struct user_namespace *ns, int cap);
 extern bool task_ns_capable(struct task_struct *t, int cap);
