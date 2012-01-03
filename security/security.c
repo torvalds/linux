@@ -154,7 +154,7 @@ int security_capset(struct cred *new, const struct cred *old,
 				    effective, inheritable, permitted);
 }
 
-int security_capable(struct user_namespace *ns, const struct cred *cred,
+int security_capable(const struct cred *cred, struct user_namespace *ns,
 		     int cap)
 {
 	return security_ops->capable(cred, ns, cap, SECURITY_CAP_AUDIT);
