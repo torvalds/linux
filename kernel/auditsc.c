@@ -474,6 +474,8 @@ static int audit_compare_id(uid_t uid1,
 	uid_t uid2;
 	int rc;
 
+	BUILD_BUG_ON(sizeof(uid_t) != sizeof(gid_t));
+
 	if (name) {
 		addr = (unsigned long)name;
 		addr += name_offset;
@@ -509,6 +511,10 @@ static int audit_field_compare(struct task_struct *tsk,
 	case AUDIT_COMPARE_UID_TO_OBJ_UID:
 		return audit_compare_id(cred->uid,
 					name, offsetof(struct audit_names, uid),
+					f, ctx);
+	case AUDIT_COMPARE_GID_TO_OBJ_GID:
+		return audit_compare_id(cred->gid,
+					name, offsetof(struct audit_names, gid),
 					f, ctx);
 	default:
 		WARN(1, "Missing AUDIT_COMPARE define.  Report as a bug\n");

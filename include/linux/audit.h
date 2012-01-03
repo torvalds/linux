@@ -184,8 +184,9 @@
 
 /* AUDIT_FIELD_COMPARE rule list */
 #define AUDIT_COMPARE_UID_TO_OBJ_UID	1
+#define AUDIT_COMPARE_GID_TO_OBJ_GID	2
 
-#define AUDIT_MAX_FIELD_COMPARE	AUDIT_COMPARE_UID_TO_OBJ_UID
+#define AUDIT_MAX_FIELD_COMPARE	AUDIT_COMPARE_GID_TO_OBJ_GID
 /* Rule fields */
 				/* These are useful when checking the
 				 * task structure at task creation time
