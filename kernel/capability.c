@@ -409,20 +409,6 @@ bool capable(int cap)
 EXPORT_SYMBOL(capable);
 
 /**
- * task_ns_capable - Determine whether current task has a superior
- * capability targeted at a specific task's user namespace.
- * @t: The task whose user namespace is targeted.
- * @cap: The capability in question.
- *
- *  Return true if it does, false otherwise.
- */
-bool task_ns_capable(struct task_struct *t, int cap)
-{
-	return ns_capable(task_cred_xxx(t, user)->user_ns, cap);
-}
-EXPORT_SYMBOL(task_ns_capable);
-
-/**
  * nsown_capable - Check superior capability to one's own user_ns
  * @cap: The capability in question
  *

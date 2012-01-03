@@ -196,7 +196,7 @@ ok:
 	smp_rmb();
 	if (task->mm)
 		dumpable = get_dumpable(task->mm);
-	if (!dumpable && !task_ns_capable(task, CAP_SYS_PTRACE))
+	if (!dumpable && !ns_capable(task_user_ns(task), CAP_SYS_PTRACE))
 		return -EPERM;
 
 	return security_ptrace_access_check(task, mode);
@@ -266,7 +266,7 @@ static int ptrace_attach(struct task_struct *task, long request,
 	task->ptrace = PT_PTRACED;
 	if (seize)
 		task->ptrace |= PT_SEIZED;
-	if (task_ns_capable(task, CAP_SYS_PTRACE))
+	if (ns_capable(task_user_ns(task), CAP_SYS_PTRACE))
 		task->ptrace |= PT_PTRACE_CAP;
 
 	__ptrace_link(task, current);
