@@ -463,25 +463,53 @@ static int match_tree_refs(struct audit_context *ctx, struct audit_tree *tree)
 	return 0;
 }
 
+static int audit_compare_id(uid_t uid1,
+			    struct audit_names *name,
+			    unsigned long name_offset,
+			    struct audit_field *f,
+			    struct audit_context *ctx)
+{
+	struct audit_names *n;
+	unsigned long addr;
+	uid_t uid2;
+	int rc;
+
+	if (name) {
+		addr = (unsigned long)name;
+		addr += name_offset;
+
+		uid2 = *(uid_t *)addr;
+		rc = audit_comparator(uid1, f->op, uid2);
+		if (rc)
+			return rc;
+	}
+
+	if (ctx) {
+		list_for_each_entry(n, &ctx->names_list, list) {
+			addr = (unsigned long)n;
+			addr += name_offset;
+
+			uid2 = *(uid_t *)addr;
+
+			rc = audit_comparator(uid1, f->op, uid2);
+			if (rc)
+				return rc;
+		}
+	}
+	return 0;
+}
+
 static int audit_field_compare(struct task_struct *tsk,
 			       const struct cred *cred,
 			       struct audit_field *f,
 			       struct audit_context *ctx,
 			       struct audit_names *name)
 {
-	struct audit_names *n;
-
 	switch (f->val) {
 	case AUDIT_COMPARE_UID_TO_OBJ_UID:
-		if (name) {
-			return audit_comparator(cred->uid, f->op, name->uid);
-		} else if (ctx) {
-			list_for_each_entry(n, &ctx->names_list, list) {
-				if (audit_comparator(cred->uid, f->op, n->uid))
-					return 1;
-			}
-		}
-		break;
+		return audit_compare_id(cred->uid,
+					name, offsetof(struct audit_names, uid),
+					f, ctx);
 	default:
 		WARN(1, "Missing AUDIT_COMPARE define.  Report as a bug\n");
 		return 0;
