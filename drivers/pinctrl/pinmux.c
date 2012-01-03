@@ -1063,18 +1063,19 @@ static int pinmux_functions_show(struct seq_file *s, void *what)
 static int pinmux_pins_show(struct seq_file *s, void *what)
 {
 	struct pinctrl_dev *pctldev = s->private;
-	unsigned pin;
+	unsigned i, pin;
 
 	seq_puts(s, "Pinmux settings per pin\n");
 	seq_puts(s, "Format: pin (name): pinmuxfunction\n");
 
-	/* The highest pin number need to be included in the loop, thus <= */
-	for (pin = 0; pin <= pctldev->desc->maxpin; pin++) {
+	/* The pin number can be retrived from the pin controller descriptor */
+	for (i = 0; i < pctldev->desc->npins; i++) {
 
 		struct pin_desc *desc;
 
+		pin = pctldev->desc->pins[i].number;
 		desc = pin_desc_get(pctldev, pin);
-		/* Pin space may be sparse */
+		/* Skip if we cannot search the pin */
 		if (desc == NULL)
 			continue;
 

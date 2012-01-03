@@ -102,12 +102,13 @@ struct pin_desc *pin_desc_get(struct pinctrl_dev *pctldev, unsigned int pin)
  */
 int pin_get_from_name(struct pinctrl_dev *pctldev, const char *name)
 {
-	unsigned pin;
+	unsigned i, pin;
 
-	/* The highest pin number need to be included in the loop, thus <= */
-	for (pin = 0; pin <= pctldev->desc->maxpin; pin++) {
+	/* The pin number can be retrived from the pin controller descriptor */
+	for (i = 0; i < pctldev->desc->npins; i++) {
 		struct pin_desc *desc;
 
+		pin = pctldev->desc->pins[i].number;
 		desc = pin_desc_get(pctldev, pin);
 		/* Pin space may be sparse */
 		if (desc == NULL)
@@ -350,15 +351,16 @@ static int pinctrl_pins_show(struct seq_file *s, void *what)
 {
 	struct pinctrl_dev *pctldev = s->private;
 	const struct pinctrl_ops *ops = pctldev->desc->pctlops;
-	unsigned pin;
+	unsigned i, pin;
 
 	seq_printf(s, "registered pins: %d\n", pctldev->desc->npins);
 	seq_printf(s, "max pin number: %d\n", pctldev->desc->maxpin);
 
-	/* The highest pin number need to be included in the loop, thus <= */
-	for (pin = 0; pin <= pctldev->desc->maxpin; pin++) {
+	/* The pin number can be retrived from the pin controller descriptor */
+	for (i = 0; i < pctldev->desc->npins; i++) {
 		struct pin_desc *desc;
 
+		pin = pctldev->desc->pins[i].number;
 		desc = pin_desc_get(pctldev, pin);
 		/* Pin space may be sparse */
 		if (desc == NULL)
