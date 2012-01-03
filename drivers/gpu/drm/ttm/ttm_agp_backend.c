@@ -31,6 +31,7 @@
 
 #include "ttm/ttm_module.h"
 #include "ttm/ttm_bo_driver.h"
+#include "ttm/ttm_page_alloc.h"
 #ifdef TTM_HAS_AGP
 #include "ttm/ttm_placement.h"
 #include <linux/agp_backend.h>
@@ -97,6 +98,7 @@ static void ttm_agp_destroy(struct ttm_tt *ttm)
 
 	if (agp_be->mem)
 		ttm_agp_unbind(ttm);
+	ttm_tt_fini(ttm);
 	kfree(agp_be);
 }
 
@@ -128,5 +130,20 @@ struct ttm_tt *ttm_agp_tt_create(struct ttm_bo_device *bdev,
 	return &agp_be->ttm;
 }
 EXPORT_SYMBOL(ttm_agp_tt_create);
+
+int ttm_agp_tt_populate(struct ttm_tt *ttm)
+{
+	if (ttm->state != tt_unpopulated)
+		return 0;
+
+	return ttm_pool_populate(ttm);
+}
+EXPORT_SYMBOL(ttm_agp_tt_populate);
+
+void ttm_agp_tt_unpopulate(struct ttm_tt *ttm)
+{
+	ttm_pool_unpopulate(ttm);
+}
+EXPORT_SYMBOL(ttm_agp_tt_unpopulate);
 
 #endif

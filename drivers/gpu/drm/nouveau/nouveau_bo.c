@@ -1066,6 +1066,12 @@ nouveau_ttm_tt_populate(struct ttm_tt *ttm)
 	dev_priv = nouveau_bdev(ttm->bdev);
 	dev = dev_priv->dev;
 
+#if __OS_HAS_AGP
+	if (dev_priv->gart_info.type == NOUVEAU_GART_AGP) {
+		return ttm_agp_tt_populate(ttm);
+	}
+#endif
+
 #ifdef CONFIG_SWIOTLB
 	if (swiotlb_nr_tbl()) {
 		return ttm_dma_populate((void *)ttm, dev->dev);
@@ -1104,6 +1110,13 @@ nouveau_ttm_tt_unpopulate(struct ttm_tt *ttm)
 
 	dev_priv = nouveau_bdev(ttm->bdev);
 	dev = dev_priv->dev;
+
+#if __OS_HAS_AGP
+	if (dev_priv->gart_info.type == NOUVEAU_GART_AGP) {
+		ttm_agp_tt_unpopulate(ttm);
+		return;
+	}
+#endif
 
 #ifdef CONFIG_SWIOTLB
 	if (swiotlb_nr_tbl()) {

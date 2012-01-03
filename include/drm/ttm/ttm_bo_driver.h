@@ -1030,6 +1030,8 @@ extern struct ttm_tt *ttm_agp_tt_create(struct ttm_bo_device *bdev,
 					struct agp_bridge_data *bridge,
 					unsigned long size, uint32_t page_flags,
 					struct page *dummy_read_page);
+int ttm_agp_tt_populate(struct ttm_tt *ttm);
+void ttm_agp_tt_unpopulate(struct ttm_tt *ttm);
 #endif
 
 #endif

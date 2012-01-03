@@ -191,6 +191,7 @@ int ttm_tt_init(struct ttm_tt *ttm, struct ttm_bo_device *bdev,
 	ttm->page_flags = page_flags;
 	ttm->dummy_read_page = dummy_read_page;
 	ttm->state = tt_unpopulated;
+	ttm->swap_storage = NULL;
 
 	ttm_tt_alloc_page_directory(ttm);
 	if (!ttm->pages) {
@@ -222,6 +223,7 @@ int ttm_dma_tt_init(struct ttm_dma_tt *ttm_dma, struct ttm_bo_device *bdev,
 	ttm->page_flags = page_flags;
 	ttm->dummy_read_page = dummy_read_page;
 	ttm->state = tt_unpopulated;
+	ttm->swap_storage = NULL;
 
 	INIT_LIST_HEAD(&ttm_dma->pages_list);
 	ttm_dma_tt_alloc_page_directory(ttm_dma);
