@@ -3068,20 +3068,39 @@ static void addrconf_dad_run(struct inet6_dev *idev)
 struct if6_iter_state {
 	struct seq_net_private p;
 	int bucket;
+	int offset;
 };
 
-static struct inet6_ifaddr *if6_get_first(struct seq_file *seq)
+static struct inet6_ifaddr *if6_get_first(struct seq_file *seq, loff_t pos)
 {
 	struct inet6_ifaddr *ifa = NULL;
 	struct if6_iter_state *state = seq->private;
 	struct net *net = seq_file_net(seq);
+	int p = 0;
 
-	for (state->bucket = 0; state->bucket < IN6_ADDR_HSIZE; ++state->bucket) {
+	/* initial bucket if pos is 0 */
+	if (pos == 0) {
+		state->bucket = 0;
+		state->offset = 0;
+	}
+
+	for (; state->bucket < IN6_ADDR_HSIZE; ++state->bucket) {
 		struct hlist_node *n;
 		hlist_for_each_entry_rcu_bh(ifa, n, &inet6_addr_lst[state->bucket],
-					 addr_lst)
+					 addr_lst) {
+			/* sync with offset */
+			if (p < state->offset) {
+				p++;
+				continue;
+			}
+			state->offset++;
 			if (net_eq(dev_net(ifa->idev->dev), net))
 				return ifa;
+		}
+
+		/* prepare for next bucket */
+		state->offset = 0;
+		p = 0;
 	}
 	return NULL;
 }
@@ -3093,13 +3112,17 @@ static struct inet6_ifaddr *if6_get_next(struct seq_file *seq,
 	struct net *net = seq_file_net(seq);
 	struct hlist_node *n = &ifa->addr_lst;
 
-	hlist_for_each_entry_continue_rcu_bh(ifa, n, addr_lst)
+	hlist_for_each_entry_continue_rcu_bh(ifa, n, addr_lst) {
+		state->offset++;
 		if (net_eq(dev_net(ifa->idev->dev), net))
 			return ifa;
+	}
 
 	while (++state->bucket < IN6_ADDR_HSIZE) {
+		state->offset = 0;
 		hlist_for_each_entry_rcu_bh(ifa, n,
 				     &inet6_addr_lst[state->bucket], addr_lst) {
+			state->offset++;
 			if (net_eq(dev_net(ifa->idev->dev), net))
 				return ifa;
 		}
@@ -3108,21 +3131,11 @@ static struct inet6_ifaddr *if6_get_next(struct seq_file *seq,
 	return NULL;
 }
 
-static struct inet6_ifaddr *if6_get_idx(struct seq_file *seq, loff_t pos)
-{
-	struct inet6_ifaddr *ifa = if6_get_first(seq);
-
-	if (ifa)
-		while (pos && (ifa = if6_get_next(seq, ifa)) != NULL)
-			--pos;
-	return pos ? NULL : ifa;
-}
-
 static void *if6_seq_start(struct seq_file *seq, loff_t *pos)
 	__acquires(rcu_bh)
 {
 	rcu_read_lock_bh();
-	return if6_get_idx(seq, *pos);
+	return if6_get_first(seq, *pos);
 }
 
 static void *if6_seq_next(struct seq_file *seq, void *v, loff_t *pos)
