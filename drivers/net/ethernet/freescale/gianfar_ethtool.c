@@ -1692,8 +1692,9 @@ static int gfar_set_nfc(struct net_device *dev, struct ethtool_rxnfc *cmd)
 		ret = gfar_set_hash_opts(priv, cmd);
 		break;
 	case ETHTOOL_SRXCLSRLINS:
-		if (cmd->fs.ring_cookie != RX_CLS_FLOW_DISC &&
-			cmd->fs.ring_cookie >= priv->num_rx_queues) {
+		if ((cmd->fs.ring_cookie != RX_CLS_FLOW_DISC &&
+		     cmd->fs.ring_cookie >= priv->num_rx_queues) ||
+		    cmd->fs.location >= MAX_FILER_IDX) {
 			ret = -EINVAL;
 			break;
 		}
