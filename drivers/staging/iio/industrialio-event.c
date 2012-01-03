@@ -124,7 +124,7 @@ static int iio_event_chrdev_release(struct inode *inode, struct file *filep)
 	struct iio_event_interface *ev_int = filep->private_data;
 
 	spin_lock(&ev_int->wait.lock);
-	clear_bit(IIO_BUSY_BIT_POS, &ev_int->flags);
+	__clear_bit(IIO_BUSY_BIT_POS, &ev_int->flags);
 	/*
 	 * In order to maintain a clean state for reopening,
 	 * clear out any awaiting events. The mask will prevent
@@ -153,7 +153,7 @@ int iio_event_getfd(struct iio_dev *indio_dev)
 		return -ENODEV;
 
 	spin_lock(&ev_int->wait.lock);
-	if (test_and_set_bit(IIO_BUSY_BIT_POS, &ev_int->flags)) {
+	if (__test_and_set_bit(IIO_BUSY_BIT_POS, &ev_int->flags)) {
 		spin_unlock(&ev_int->wait.lock);
 		return -EBUSY;
 	}
@@ -162,7 +162,7 @@ int iio_event_getfd(struct iio_dev *indio_dev)
 				&iio_event_chrdev_fileops, ev_int, O_RDONLY);
 	if (fd < 0) {
 		spin_lock(&ev_int->wait.lock);
-		clear_bit(IIO_BUSY_BIT_POS, &ev_int->flags);
+		__clear_bit(IIO_BUSY_BIT_POS, &ev_int->flags);
 		spin_unlock(&ev_int->wait.lock);
 	}
 	return fd;
