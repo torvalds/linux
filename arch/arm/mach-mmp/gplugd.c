@@ -191,7 +191,7 @@ static void __init gplugd_init(void)
 
 MACHINE_START(GPLUGD, "PXA168-based GuruPlug Display (gplugD) Platform")
 	.map_io		= mmp_map_io,
-	.nr_irqs	= IRQ_BOARD_START,
+	.nr_irqs	= MMP_NR_IRQS,
 	.init_irq       = pxa168_init_irq,
 	.timer          = &pxa168_timer,
 	.init_machine   = gplugd_init,
