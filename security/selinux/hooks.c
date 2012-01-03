@@ -1414,8 +1414,7 @@ static int current_has_perm(const struct task_struct *tsk,
 #endif
 
 /* Check whether a task is allowed to use a capability. */
-static int task_has_capability(struct task_struct *tsk,
-			       const struct cred *cred,
+static int cred_has_capability(const struct cred *cred,
 			       int cap, int audit)
 {
 	struct common_audit_data ad;
@@ -1426,7 +1425,7 @@ static int task_has_capability(struct task_struct *tsk,
 	int rc;
 
 	COMMON_AUDIT_DATA_INIT(&ad, CAP);
-	ad.tsk = tsk;
+	ad.tsk = current;
 	ad.u.cap = cap;
 
 	switch (CAP_TO_INDEX(cap)) {
@@ -1867,16 +1866,16 @@ static int selinux_capset(struct cred *new, const struct cred *old,
  * the CAP_SETUID and CAP_SETGID capabilities using the capable hook.
  */
 
-static int selinux_capable(struct task_struct *tsk, const struct cred *cred,
-			   struct user_namespace *ns, int cap, int audit)
+static int selinux_capable(const struct cred *cred, struct user_namespace *ns,
+			   int cap, int audit)
 {
 	int rc;
 
-	rc = cap_capable(tsk, cred, ns, cap, audit);
+	rc = cap_capable(cred, ns, cap, audit);
 	if (rc)
 		return rc;
 
-	return task_has_capability(tsk, cred, cap, audit);
+	return cred_has_capability(cred, cap, audit);
 }
 
 static int selinux_quotactl(int cmds, int type, int id, struct super_block *sb)
@@ -1953,8 +1952,7 @@ static int selinux_vm_enough_memory(struct mm_struct *mm, long pages)
 {
 	int rc, cap_sys_admin = 0;
 
-	rc = selinux_capable(current, current_cred(),
-			     &init_user_ns, CAP_SYS_ADMIN,
+	rc = selinux_capable(current_cred(), &init_user_ns, CAP_SYS_ADMIN,
 			     SECURITY_CAP_NOAUDIT);
 	if (rc == 0)
 		cap_sys_admin = 1;
@@ -2858,8 +2856,7 @@ static int selinux_inode_getsecurity(const struct inode *inode, const char *name
 	 * and lack of permission just means that we fall back to the
 	 * in-core context value, not a denial.
 	 */
-	error = selinux_capable(current, current_cred(),
-				&init_user_ns, CAP_MAC_ADMIN,
+	error = selinux_capable(current_cred(), &init_user_ns, CAP_MAC_ADMIN,
 				SECURITY_CAP_NOAUDIT);
 	if (!error)
 		error = security_sid_to_context_force(isec->sid, &context,
@@ -2992,8 +2989,8 @@ static int selinux_file_ioctl(struct file *file, unsigned int cmd,
 
 	case KDSKBENT:
 	case KDSKBSENT:
-		error = task_has_capability(current, cred, CAP_SYS_TTY_CONFIG,
-					SECURITY_CAP_AUDIT);
+		error = cred_has_capability(cred, CAP_SYS_TTY_CONFIG,
+					    SECURITY_CAP_AUDIT);
 		break;
 
 	/* default case assumes that the command will go

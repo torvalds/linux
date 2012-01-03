@@ -53,8 +53,8 @@ struct user_namespace;
  * These functions are in security/capability.c and are used
  * as the default capabilities functions
  */
-extern int cap_capable(struct task_struct *tsk, const struct cred *cred,
-		       struct user_namespace *ns, int cap, int audit);
+extern int cap_capable(const struct cred *cred, struct user_namespace *ns,
+		       int cap, int audit);
 extern int cap_settime(const struct timespec *ts, const struct timezone *tz);
 extern int cap_ptrace_access_check(struct task_struct *child, unsigned int mode);
 extern int cap_ptrace_traceme(struct task_struct *parent);
@@ -1261,7 +1261,6 @@ static inline void security_free_mnt_opts(struct security_mnt_opts *opts)
  * @capable:
  *	Check whether the @tsk process has the @cap capability in the indicated
  *	credentials.
- *	@tsk contains the task_struct for the process.
  *	@cred contains the credentials to use.
  *      @ns contains the user namespace we want the capability in
  *	@cap contains the capability <include/linux/capability.h>.
@@ -1385,8 +1384,8 @@ struct security_operations {
 		       const kernel_cap_t *effective,
 		       const kernel_cap_t *inheritable,
 		       const kernel_cap_t *permitted);
-	int (*capable) (struct task_struct *tsk, const struct cred *cred,
-			struct user_namespace *ns, int cap, int audit);
+	int (*capable) (const struct cred *cred, struct user_namespace *ns,
+			int cap, int audit);
 	int (*quotactl) (int cmds, int type, int id, struct super_block *sb);
 	int (*quota_on) (struct dentry *dentry);
 	int (*syslog) (int type);
@@ -1867,7 +1866,7 @@ static inline int security_capset(struct cred *new,
 static inline int security_capable(struct user_namespace *ns,
 				   const struct cred *cred, int cap)
 {
-	return cap_capable(current, cred, ns, cap, SECURITY_CAP_AUDIT);
+	return cap_capable(cred, ns, cap, SECURITY_CAP_AUDIT);
 }
 
 static inline int security_real_capable(struct task_struct *tsk, struct user_namespace *ns, int cap)
@@ -1875,7 +1874,7 @@ static inline int security_real_capable(struct task_struct *tsk, struct user_nam
 	int ret;
 
 	rcu_read_lock();
-	ret = cap_capable(tsk, __task_cred(tsk), ns, cap, SECURITY_CAP_AUDIT);
+	ret = cap_capable(__task_cred(tsk), ns, cap, SECURITY_CAP_AUDIT);
 	rcu_read_unlock();
 	return ret;
 }
@@ -1886,8 +1885,7 @@ int security_real_capable_noaudit(struct task_struct *tsk, struct user_namespace
 	int ret;
 
 	rcu_read_lock();
-	ret = cap_capable(tsk, __task_cred(tsk), ns, cap,
-			       SECURITY_CAP_NOAUDIT);
+	ret = cap_capable(__task_cred(tsk), ns, cap, SECURITY_CAP_NOAUDIT);
 	rcu_read_unlock();
 	return ret;
 }
