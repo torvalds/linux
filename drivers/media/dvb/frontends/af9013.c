@@ -880,16 +880,16 @@ static int af9013_get_frontend(struct dvb_frontend *fe)
 
 	switch ((buf[0] >> 2) & 3) {
 	case 0:
-		c->transmission_mode = GUARD_INTERVAL_1_32;
+		c->guard_interval = GUARD_INTERVAL_1_32;
 		break;
 	case 1:
-		c->transmission_mode = GUARD_INTERVAL_1_16;
+		c->guard_interval = GUARD_INTERVAL_1_16;
 		break;
 	case 2:
-		c->transmission_mode = GUARD_INTERVAL_1_8;
+		c->guard_interval = GUARD_INTERVAL_1_8;
 		break;
 	case 3:
-		c->transmission_mode = GUARD_INTERVAL_1_4;
+		c->guard_interval = GUARD_INTERVAL_1_4;
 		break;
 	}
 
