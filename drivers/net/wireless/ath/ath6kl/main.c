@@ -347,9 +347,6 @@ void ath6kl_reset_device(struct ath6kl *ar, u32 target_type,
 	case TARGET_TYPE_AR6004:
 		address = AR6004_RESET_CONTROL_ADDRESS;
 		break;
-	default:
-		address = AR6003_RESET_CONTROL_ADDRESS;
-		break;
 	}
 
 	status = ath6kl_diag_write32(ar, address, data);
