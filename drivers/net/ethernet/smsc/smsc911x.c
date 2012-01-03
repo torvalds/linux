@@ -1319,10 +1319,92 @@ static void smsc911x_rx_multicast_update_workaround(struct smsc911x_data *pdata)
 	spin_unlock(&pdata->mac_lock);
 }
 
+static int smsc911x_phy_disable_energy_detect(struct smsc911x_data *pdata)
+{
+	int rc = 0;
+
+	if (!pdata->phy_dev)
+		return rc;
+
+	rc = phy_read(pdata->phy_dev, MII_LAN83C185_CTRL_STATUS);
+
+	if (rc < 0) {
+		SMSC_WARN(pdata, drv, "Failed reading PHY control reg");
+		return rc;
+	}
+
+	/*
+	 * If energy is detected the PHY is already awake so is not necessary
+	 * to disable the energy detect power-down mode.
+	 */
+	if ((rc & MII_LAN83C185_EDPWRDOWN) &&
+	    !(rc & MII_LAN83C185_ENERGYON)) {
+		/* Disable energy detect mode for this SMSC Transceivers */
+		rc = phy_write(pdata->phy_dev, MII_LAN83C185_CTRL_STATUS,
+			       rc & (~MII_LAN83C185_EDPWRDOWN));
+
+		if (rc < 0) {
+			SMSC_WARN(pdata, drv, "Failed writing PHY control reg");
+			return rc;
+		}
+
+		mdelay(1);
+	}
+
+	return 0;
+}
+
+static int smsc911x_phy_enable_energy_detect(struct smsc911x_data *pdata)
+{
+	int rc = 0;
+
+	if (!pdata->phy_dev)
+		return rc;
+
+	rc = phy_read(pdata->phy_dev, MII_LAN83C185_CTRL_STATUS);
+
+	if (rc < 0) {
+		SMSC_WARN(pdata, drv, "Failed reading PHY control reg");
+		return rc;
+	}
+
+	/* Only enable if energy detect mode is already disabled */
+	if (!(rc & MII_LAN83C185_EDPWRDOWN)) {
+		mdelay(100);
+		/* Enable energy detect mode for this SMSC Transceivers */
+		rc = phy_write(pdata->phy_dev, MII_LAN83C185_CTRL_STATUS,
+			       rc | MII_LAN83C185_EDPWRDOWN);
+
+		if (rc < 0) {
+			SMSC_WARN(pdata, drv, "Failed writing PHY control reg");
+			return rc;
+		}
+
+		mdelay(1);
+	}
+	return 0;
+}
+
 static int smsc911x_soft_reset(struct smsc911x_data *pdata)
 {
 	unsigned int timeout;
 	unsigned int temp;
+	int ret;
+
+	/*
+	 * LAN9210/LAN9211/LAN9220/LAN9221 chips have an internal PHY that
+	 * are initialized in a Energy Detect Power-Down mode that prevents
+	 * the MAC chip to be software reseted. So we have to wakeup the PHY
+	 * before.
+	 */
+	if (pdata->generation == 4) {
+		ret = smsc911x_phy_disable_energy_detect(pdata);
+
+		if (ret) {
+			SMSC_WARN(pdata, drv, "Failed to wakeup the PHY chip");
+			return ret;
+		}
+	}
 
 	/* Reset the LAN911x */
 	smsc911x_reg_write(pdata, HW_CFG, HW_CFG_SRST_);
@@ -1336,6 +1418,16 @@ static int smsc911x_soft_reset(struct smsc911x_data *pdata)
 		SMSC_WARN(pdata, drv, "Failed to complete reset");
 		return -EIO;
 	}
+
+	if (pdata->generation == 4) {
+		ret = smsc911x_phy_enable_energy_detect(pdata);
+
+		if (ret) {
+			SMSC_WARN(pdata, drv, "Failed to wakeup the PHY chip");
+			return ret;
+		}
+	}
+
 	return 0;
 }
 
