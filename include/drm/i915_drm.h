@@ -295,6 +295,7 @@ typedef struct drm_i915_irq_wait {
 #define I915_PARAM_HAS_COHERENT_RINGS	 13
 #define I915_PARAM_HAS_EXEC_CONSTANTS	 14
 #define I915_PARAM_HAS_RELAXED_DELTA	 15
+#define I915_PARAM_HAS_GEN7_SOL_RESET	 16
 
 typedef struct drm_i915_getparam {
 	int param;
@@ -656,6 +657,9 @@ struct drm_i915_gem_execbuffer2 {
 	__u64 rsvd1;
 	__u64 rsvd2;
 };
+
+/** Resets the SO write offset registers for transform feedback on gen7. */
+#define I915_EXEC_GEN7_SOL_RESET	(1<<8)
 
 struct drm_i915_gem_pin {
 	/** Handle of the buffer to be pinned. */
