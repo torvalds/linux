@@ -175,8 +175,8 @@ void syscall_trace(struct uml_pt_regs *regs, int entryexit)
 					    UPT_SYSCALL_ARG2(regs),
 					    UPT_SYSCALL_ARG3(regs),
 					    UPT_SYSCALL_ARG4(regs));
-		else audit_syscall_exit(AUDITSC_RESULT(UPT_SYSCALL_RET(regs)),
-					UPT_SYSCALL_RET(regs));
+		else
+			audit_syscall_exit(regs);
 	}
 
 	/* Fake a debug trap */
