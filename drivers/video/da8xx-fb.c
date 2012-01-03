@@ -161,6 +161,7 @@ struct da8xx_fb_par {
 	int			vsync_timeout;
 #ifdef CONFIG_CPU_FREQ
 	struct notifier_block	freq_transition;
+	unsigned int		lcd_fck_rate;
 #endif
 	void (*panel_power_ctrl)(int);
 };
@@ -840,11 +841,13 @@ static int lcd_da8xx_cpufreq_transition(struct notifier_block *nb,
 	struct da8xx_fb_par *par;
 
 	par = container_of(nb, struct da8xx_fb_par, freq_transition);
-	if (val == CPUFREQ_PRECHANGE) {
-		lcd_disable_raster();
-	} else if (val == CPUFREQ_POSTCHANGE) {
-		lcd_calc_clk_divider(par);
-		lcd_enable_raster();
+	if (val == CPUFREQ_POSTCHANGE) {
+		if (par->lcd_fck_rate != clk_get_rate(par->lcdc_clk)) {
+			par->lcd_fck_rate = clk_get_rate(par->lcdc_clk);
+			lcd_disable_raster();
+			lcd_calc_clk_divider(par);
+			lcd_enable_raster();
+		}
 	}
 
 	return 0;
@@ -1137,6 +1140,9 @@ static int __devinit fb_probe(struct platform_device *device)
 
 	par = da8xx_fb_info->par;
 	par->lcdc_clk = fb_clk;
+#ifdef CONFIG_CPU_FREQ
+	par->lcd_fck_rate = clk_get_rate(fb_clk);
+#endif
 	par->pxl_clk = lcdc_info->pxl_clk;
 	if (fb_pdata->panel_power_ctrl) {
 		par->panel_power_ctrl = fb_pdata->panel_power_ctrl;
