@@ -53,7 +53,7 @@ struct ath6kl_sta *ath6kl_find_sta_by_aid(struct ath6kl *ar, u8 aid)
 }
 
 static void ath6kl_add_new_sta(struct ath6kl *ar, u8 *mac, u16 aid, u8 *wpaie,
-			u8 ielen, u8 keymgmt, u8 ucipher, u8 auth)
+			size_t ielen, u8 keymgmt, u8 ucipher, u8 auth)
 {
 	struct ath6kl_sta *sta;
 	u8 free_slot;
