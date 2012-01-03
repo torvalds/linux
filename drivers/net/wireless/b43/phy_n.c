@@ -1220,12 +1220,12 @@ static int b43_nphy_poll_rssi(struct b43_wldev *dev, u8 type, s32 *buf,
 	u16 s[2];
 
 	if (dev->phy.rev >= 3) {
-		save_regs_phy[0] = b43_phy_read(dev,
+		save_regs_phy[0] = b43_phy_read(dev, B43_NPHY_AFECTL_C1);
+		save_regs_phy[1] = b43_phy_read(dev, B43_NPHY_AFECTL_C2);
+		save_regs_phy[2] = b43_phy_read(dev,
 						B43_NPHY_RFCTL_LUT_TRSW_UP1);
-		save_regs_phy[1] = b43_phy_read(dev,
+		save_regs_phy[3] = b43_phy_read(dev,
 						B43_NPHY_RFCTL_LUT_TRSW_UP2);
-		save_regs_phy[2] = b43_phy_read(dev, B43_NPHY_AFECTL_C1);
-		save_regs_phy[3] = b43_phy_read(dev, B43_NPHY_AFECTL_C2);
 		save_regs_phy[4] = b43_phy_read(dev, B43_NPHY_AFECTL_OVER1);
 		save_regs_phy[5] = b43_phy_read(dev, B43_NPHY_AFECTL_OVER);
 		save_regs_phy[6] = b43_phy_read(dev, B43_NPHY_TXF_40CO_B1S0);
@@ -1274,12 +1274,12 @@ static int b43_nphy_poll_rssi(struct b43_wldev *dev, u8 type, s32 *buf,
 		b43_phy_write(dev, B43_NPHY_GPIO_SEL, save_regs_phy[8]);
 
 	if (dev->phy.rev >= 3) {
+		b43_phy_write(dev, B43_NPHY_AFECTL_C1, save_regs_phy[0]);
+		b43_phy_write(dev, B43_NPHY_AFECTL_C2, save_regs_phy[1]);
 		b43_phy_write(dev, B43_NPHY_RFCTL_LUT_TRSW_UP1,
-				save_regs_phy[0]);
+				save_regs_phy[2]);
 		b43_phy_write(dev, B43_NPHY_RFCTL_LUT_TRSW_UP2,
-				save_regs_phy[1]);
-		b43_phy_write(dev, B43_NPHY_AFECTL_C1, save_regs_phy[2]);
-		b43_phy_write(dev, B43_NPHY_AFECTL_C2, save_regs_phy[3]);
+				save_regs_phy[3]);
 		b43_phy_write(dev, B43_NPHY_AFECTL_OVER1, save_regs_phy[4]);
 		b43_phy_write(dev, B43_NPHY_AFECTL_OVER, save_regs_phy[5]);
 		b43_phy_write(dev, B43_NPHY_TXF_40CO_B1S0, save_regs_phy[6]);
