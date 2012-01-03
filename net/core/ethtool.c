@@ -439,6 +439,7 @@ static noinline_for_stack int ethtool_set_rxnfc(struct net_device *dev,
 {
 	struct ethtool_rxnfc info;
 	size_t info_size = sizeof(info);
+	int rc;
 
 	if (!dev->ethtool_ops->set_rxnfc)
 		return -EOPNOTSUPP;
@@ -454,7 +455,15 @@ static noinline_for_stack int ethtool_set_rxnfc(struct net_device *dev,
 	if (copy_from_user(&info, useraddr, info_size))
 		return -EFAULT;
 
-	return dev->ethtool_ops->set_rxnfc(dev, &info);
+	rc = dev->ethtool_ops->set_rxnfc(dev, &info);
+	if (rc)
+		return rc;
+
+	if (cmd == ETHTOOL_SRXCLSRLINS &&
+	    copy_to_user(useraddr, &info, info_size))
+		return -EFAULT;
+
+	return 0;
 }
 
 static noinline_for_stack int ethtool_get_rxnfc(struct net_device *dev,
