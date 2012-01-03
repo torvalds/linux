@@ -21,6 +21,8 @@ void exynos4_setup_clocks(void);
 void exynos4210_register_clocks(void);
 void exynos4212_register_clocks(void);
 
+void exynos4_restart(char mode, const char *cmd);
+
 extern struct sys_timer exynos4_timer;
 
 #ifdef CONFIG_ARCH_EXYNOS

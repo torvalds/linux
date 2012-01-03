@@ -379,6 +379,7 @@ MACHINE_START(SMDKV310, "SMDKV310")
 	.init_machine	= smdkv310_machine_init,
 	.timer		= &exynos4_timer,
 	.reserve	= &smdkv310_reserve,
+	.restart	= exynos4_restart,
 MACHINE_END
 
 MACHINE_START(SMDKC210, "SMDKC210")
@@ -388,4 +389,5 @@ MACHINE_START(SMDKC210, "SMDKC210")
 	.map_io		= smdkv310_map_io,
 	.init_machine	= smdkv310_machine_init,
 	.timer		= &exynos4_timer,
+	.restart	= exynos4_restart,
 MACHINE_END

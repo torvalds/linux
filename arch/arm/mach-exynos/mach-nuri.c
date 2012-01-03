@@ -1337,4 +1337,5 @@ MACHINE_START(NURI, "NURI")
 	.init_machine	= nuri_machine_init,
 	.timer		= &exynos4_timer,
 	.reserve        = &nuri_reserve,
+	.restart	= exynos4_restart,
 MACHINE_END

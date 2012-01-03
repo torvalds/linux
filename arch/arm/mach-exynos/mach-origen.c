@@ -698,4 +698,5 @@ MACHINE_START(ORIGEN, "ORIGEN")
 	.init_machine	= origen_machine_init,
 	.timer		= &exynos4_timer,
 	.reserve	= &origen_reserve,
+	.restart	= exynos4_restart,
 MACHINE_END

@@ -32,7 +32,6 @@
 #include <plat/clock.h>
 #include <plat/devs.h>
 #include <plat/pm.h>
-#include <plat/reset.h>
 #include <plat/sdhci.h>
 #include <plat/gpio-cfg.h>
 #include <plat/adc-core.h>
@@ -214,7 +213,7 @@ static void exynos_idle(void)
 	local_irq_enable();
 }
 
-static void exynos4_sw_reset(void)
+void exynos4_restart(char mode, const char *cmd)
 {
 	__raw_writel(0x1, S5P_SWRESET);
 }
@@ -475,10 +474,6 @@ int __init exynos_init(void)
 
 	/* set idle function */
 	pm_idle = exynos_idle;
-
-	/* set sw_reset function */
-	if (soc_is_exynos4210() || soc_is_exynos4212() || soc_is_exynos4412())
-		s5p_reset_hook = exynos4_sw_reset;
 
 	return sysdev_register(&exynos4_sysdev);
 }

@@ -290,6 +290,7 @@ MACHINE_START(SMDK4212, "SMDK4212")
 	.map_io		= smdk4x12_map_io,
 	.init_machine	= smdk4x12_machine_init,
 	.timer		= &exynos4_timer,
+	.restart	= exynos4_restart,
 MACHINE_END
 
 MACHINE_START(SMDK4412, "SMDK4412")
@@ -300,4 +301,5 @@ MACHINE_START(SMDK4412, "SMDK4412")
 	.map_io		= smdk4x12_map_io,
 	.init_machine	= smdk4x12_machine_init,
 	.timer		= &exynos4_timer,
+	.restart	= exynos4_restart,
 MACHINE_END

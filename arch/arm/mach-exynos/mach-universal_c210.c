@@ -1062,4 +1062,5 @@ MACHINE_START(UNIVERSAL_C210, "UNIVERSAL_C210")
 	.init_machine	= universal_machine_init,
 	.timer		= &exynos4_timer,
 	.reserve        = &universal_reserve,
+	.restart	= exynos4_restart,
 MACHINE_END
