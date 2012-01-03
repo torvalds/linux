@@ -631,58 +631,6 @@ out:
 	return ret;
 }
 
-/*
- * ethtool does not (or did not) set masks for flow parameters that are
- * not specified, so if both value and mask are 0 then this must be
- * treated as equivalent to a mask with all bits set.  Implement that
- * here rather than in drivers.
- */
-static void rx_ntuple_fix_masks(struct ethtool_rx_ntuple_flow_spec *fs)
-{
-	struct ethtool_tcpip4_spec *entry = &fs->h_u.tcp_ip4_spec;
-	struct ethtool_tcpip4_spec *mask = &fs->m_u.tcp_ip4_spec;
-
-	if (fs->flow_type != TCP_V4_FLOW &&
-	    fs->flow_type != UDP_V4_FLOW &&
-	    fs->flow_type != SCTP_V4_FLOW)
-		return;
-
-	if (!(entry->ip4src | mask->ip4src))
-		mask->ip4src = htonl(0xffffffff);
-	if (!(entry->ip4dst | mask->ip4dst))
-		mask->ip4dst = htonl(0xffffffff);
-	if (!(entry->psrc | mask->psrc))
-		mask->psrc = htons(0xffff);
-	if (!(entry->pdst | mask->pdst))
-		mask->pdst = htons(0xffff);
-	if (!(entry->tos | mask->tos))
-		mask->tos = 0xff;
-	if (!(fs->vlan_tag | fs->vlan_tag_mask))
-		fs->vlan_tag_mask = 0xffff;
-	if (!(fs->data | fs->data_mask))
-		fs->data_mask = 0xffffffffffffffffULL;
-}
-
-static noinline_for_stack int ethtool_set_rx_ntuple(struct net_device *dev,
-						    void __user *useraddr)
-{
-	struct ethtool_rx_ntuple cmd;
-	const struct ethtool_ops *ops = dev->ethtool_ops;
-
-	if (!ops->set_rx_ntuple)
-		return -EOPNOTSUPP;
-
-	if (!(dev->features & NETIF_F_NTUPLE))
-		return -EINVAL;
-
-	if (copy_from_user(&cmd, useraddr, sizeof(cmd)))
-		return -EFAULT;
-
-	rx_ntuple_fix_masks(&cmd.fs);
-
-	return ops->set_rx_ntuple(dev, &cmd);
-}
-
 static int ethtool_get_regs(struct net_device *dev, char __user *useraddr)
 {
 	struct ethtool_regs regs;
@@ -1494,9 +1442,6 @@ int dev_ethtool(struct net *net, struct ifreq *ifr)
 		break;
 	case ETHTOOL_RESET:
 		rc = ethtool_reset(dev, useraddr);
-		break;
-	case ETHTOOL_SRXNTUPLE:
-		rc = ethtool_set_rx_ntuple(dev, useraddr);
 		break;
 	case ETHTOOL_GSSET_INFO:
 		rc = ethtool_get_sset_info(dev, useraddr);
