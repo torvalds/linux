@@ -2309,13 +2309,10 @@ void __audit_ipc_set_perm(unsigned long qbytes, uid_t uid, gid_t gid, umode_t mo
 	context->ipc.has_perm = 1;
 }
 
-int audit_bprm(struct linux_binprm *bprm)
+int __audit_bprm(struct linux_binprm *bprm)
 {
 	struct audit_aux_data_execve *ax;
 	struct audit_context *context = current->audit_context;
-
-	if (likely(!audit_enabled || !context || context->dummy))
-		return 0;
 
 	ax = kmalloc(sizeof(*ax), GFP_KERNEL);
 	if (!ax)
@@ -2337,12 +2334,9 @@ int audit_bprm(struct linux_binprm *bprm)
  * @args: args array
  *
  */
-void audit_socketcall(int nargs, unsigned long *args)
+void __audit_socketcall(int nargs, unsigned long *args)
 {
 	struct audit_context *context = current->audit_context;
-
-	if (likely(!context || context->dummy))
-		return;
 
 	context->type = AUDIT_SOCKETCALL;
 	context->socketcall.nargs = nargs;
@@ -2369,12 +2363,9 @@ void __audit_fd_pair(int fd1, int fd2)
  *
  * Returns 0 for success or NULL context or < 0 on error.
  */
-int audit_sockaddr(int len, void *a)
+int __audit_sockaddr(int len, void *a)
 {
 	struct audit_context *context = current->audit_context;
-
-	if (likely(!context || context->dummy))
-		return 0;
 
 	if (!context->sockaddr) {
 		void *p = kmalloc(sizeof(struct sockaddr_storage), GFP_KERNEL);

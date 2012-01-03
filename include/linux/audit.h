@@ -489,9 +489,9 @@ extern int  audit_set_loginuid(struct task_struct *task, uid_t loginuid);
 extern void audit_log_task_context(struct audit_buffer *ab);
 extern void __audit_ipc_obj(struct kern_ipc_perm *ipcp);
 extern void __audit_ipc_set_perm(unsigned long qbytes, uid_t uid, gid_t gid, umode_t mode);
-extern int audit_bprm(struct linux_binprm *bprm);
-extern void audit_socketcall(int nargs, unsigned long *args);
-extern int audit_sockaddr(int len, void *addr);
+extern int __audit_bprm(struct linux_binprm *bprm);
+extern void __audit_socketcall(int nargs, unsigned long *args);
+extern int __audit_sockaddr(int len, void *addr);
 extern void __audit_fd_pair(int fd1, int fd2);
 extern int audit_set_macxattr(const char *name);
 extern void __audit_mq_open(int oflag, umode_t mode, struct mq_attr *attr);
@@ -518,6 +518,23 @@ static inline void audit_ipc_set_perm(unsigned long qbytes, uid_t uid, gid_t gid
 {
 	if (unlikely(!audit_dummy_context()))
 		__audit_ipc_set_perm(qbytes, uid, gid, mode);
+}
+static inline int audit_bprm(struct linux_binprm *bprm)
+{
+	if (unlikely(!audit_dummy_context()))
+		return __audit_bprm(bprm);
+	return 0;
+}
+static inline void audit_socketcall(int nargs, unsigned long *args)
+{
+	if (unlikely(!audit_dummy_context()))
+		__audit_socketcall(nargs, args);
+}
+static inline int audit_sockaddr(int len, void *addr)
+{
+	if (unlikely(!audit_dummy_context()))
+		return __audit_sockaddr(len, addr);
+	return 0;
 }
 static inline void audit_mq_open(int oflag, umode_t mode, struct mq_attr *attr)
 {
