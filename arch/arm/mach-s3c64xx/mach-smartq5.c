@@ -151,4 +151,5 @@ MACHINE_START(SMARTQ5, "SmartQ 5")
 	.map_io		= smartq_map_io,
 	.init_machine	= smartq5_machine_init,
 	.timer		= &s3c24xx_timer,
+	.restart	= s3c64xx_restart,
 MACHINE_END

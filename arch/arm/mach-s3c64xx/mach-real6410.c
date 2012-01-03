@@ -330,4 +330,5 @@ MACHINE_START(REAL6410, "REAL6410")
 	.map_io		= real6410_map_io,
 	.init_machine	= real6410_machine_init,
 	.timer		= &s3c24xx_timer,
+	.restart	= s3c64xx_restart,
 MACHINE_END

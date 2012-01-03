@@ -167,4 +167,5 @@ MACHINE_START(SMARTQ7, "SmartQ 7")
 	.map_io		= smartq_map_io,
 	.init_machine	= smartq7_machine_init,
 	.timer		= &s3c24xx_timer,
+	.restart	= s3c64xx_restart,
 MACHINE_END
