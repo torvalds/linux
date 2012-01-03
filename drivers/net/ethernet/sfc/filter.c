@@ -680,52 +680,6 @@ int efx_filter_get_filter_safe(struct efx_nic *efx,
 	return rc;
 }
 
-/**
- * efx_filter_remove_filter - remove a filter by specification
- * @efx: NIC from which to remove the filter
- * @spec: Specification for the filter
- *
- * On success, return zero.
- * On failure, return a negative error code.
- */
-int efx_filter_remove_filter(struct efx_nic *efx, struct efx_filter_spec *spec)
-{
-	struct efx_filter_state *state = efx->filter_state;
-	struct efx_filter_table *table = efx_filter_spec_table(state, spec);
-	struct efx_filter_spec *saved_spec;
-	efx_oword_t filter;
-	unsigned int filter_idx, depth;
-	u32 key;
-	int rc;
-
-	if (!table)
-		return -EINVAL;
-
-	key = efx_filter_build(&filter, spec);
-
-	spin_lock_bh(&state->lock);
-
-	rc = efx_filter_search(table, spec, key, false, &depth);
-	if (rc < 0)
-		goto out;
-	filter_idx = rc;
-	saved_spec = &table->spec[filter_idx];
-
-	if (spec->priority < saved_spec->priority) {
-		rc = -EPERM;
-		goto out;
-	}
-
-	efx_filter_table_clear_entry(efx, table, filter_idx);
-	if (table->used == 0)
-		efx_filter_table_reset_search_depth(table);
-	rc = 0;
-
-out:
-	spin_unlock_bh(&state->lock);
-	return rc;
-}
-
 static void efx_filter_table_clear(struct efx_nic *efx,
 				   enum efx_filter_table_id table_id,
 				   enum efx_filter_priority priority)

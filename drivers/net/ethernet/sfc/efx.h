@@ -64,8 +64,6 @@ extern void efx_remove_filters(struct efx_nic *efx);
 extern s32 efx_filter_insert_filter(struct efx_nic *efx,
 				    struct efx_filter_spec *spec,
 				    bool replace);
-extern int efx_filter_remove_filter(struct efx_nic *efx,
-				    struct efx_filter_spec *spec);
 extern int efx_filter_remove_id_safe(struct efx_nic *efx,
 				     enum efx_filter_priority priority,
 				     u32 filter_id);
