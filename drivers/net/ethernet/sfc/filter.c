@@ -332,7 +332,7 @@ static bool efx_filter_equal(const struct efx_filter_spec *left,
 
 static int efx_filter_search(struct efx_filter_table *table,
 			     struct efx_filter_spec *spec, u32 key,
-			     bool for_insert, int *depth_required)
+			     bool for_insert, unsigned int *depth_required)
 {
 	unsigned hash, incr, filter_idx, depth, depth_max;
 
@@ -417,14 +417,14 @@ static inline u8 efx_filter_id_flags(u32 id)
  * On success, return the filter ID.
  * On failure, return a negative error code.
  */
-int efx_filter_insert_filter(struct efx_nic *efx, struct efx_filter_spec *spec,
+s32 efx_filter_insert_filter(struct efx_nic *efx, struct efx_filter_spec *spec,
 			     bool replace)
 {
 	struct efx_filter_state *state = efx->filter_state;
 	struct efx_filter_table *table = efx_filter_spec_table(state, spec);
 	struct efx_filter_spec *saved_spec;
 	efx_oword_t filter;
-	int filter_idx, depth;
+	unsigned int filter_idx, depth;
 	u32 key;
 	int rc;
 
@@ -481,7 +481,7 @@ out:
 
 static void efx_filter_table_clear_entry(struct efx_nic *efx,
 					 struct efx_filter_table *table,
-					 int filter_idx)
+					 unsigned int filter_idx)
 {
 	static efx_oword_t filter;
 
@@ -509,7 +509,7 @@ int efx_filter_remove_filter(struct efx_nic *efx, struct efx_filter_spec *spec)
 	struct efx_filter_table *table = efx_filter_spec_table(state, spec);
 	struct efx_filter_spec *saved_spec;
 	efx_oword_t filter;
-	int filter_idx, depth;
+	unsigned int filter_idx, depth;
 	u32 key;
 	int rc;
 
@@ -547,7 +547,7 @@ static void efx_filter_table_clear(struct efx_nic *efx,
 {
 	struct efx_filter_state *state = efx->filter_state;
 	struct efx_filter_table *table = &state->table[table_id];
-	int filter_idx;
+	unsigned int filter_idx;
 
 	spin_lock_bh(&state->lock);
 
@@ -578,7 +578,7 @@ void efx_restore_filters(struct efx_nic *efx)
 	enum efx_filter_table_id table_id;
 	struct efx_filter_table *table;
 	efx_oword_t filter;
-	int filter_idx;
+	unsigned int filter_idx;
 
 	spin_lock_bh(&state->lock);
 

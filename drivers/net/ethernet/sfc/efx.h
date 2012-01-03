@@ -61,7 +61,7 @@ extern void efx_schedule_slow_fill(struct efx_rx_queue *rx_queue);
 extern int efx_probe_filters(struct efx_nic *efx);
 extern void efx_restore_filters(struct efx_nic *efx);
 extern void efx_remove_filters(struct efx_nic *efx);
-extern int efx_filter_insert_filter(struct efx_nic *efx,
+extern s32 efx_filter_insert_filter(struct efx_nic *efx,
 				    struct efx_filter_spec *spec,
 				    bool replace);
 extern int efx_filter_remove_filter(struct efx_nic *efx,
