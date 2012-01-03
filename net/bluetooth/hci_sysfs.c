@@ -388,7 +388,7 @@ static int inquiry_cache_show(struct seq_file *f, void *p)
 
 	hci_dev_lock(hdev);
 
-	for (e = cache->list; e; e = e->next) {
+	list_for_each_entry(e, &cache->list, list) {
 		struct inquiry_data *data = &e->data;
 		seq_printf(f, "%s %d %d %d 0x%.2x%.2x%.2x 0x%.4x %d %d %u\n",
 			   batostr(&data->bdaddr),

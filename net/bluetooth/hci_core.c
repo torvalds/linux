@@ -357,15 +357,11 @@ struct hci_dev *hci_dev_get(int index)
 /* ---- Inquiry support ---- */
 static void inquiry_cache_flush(struct hci_dev *hdev)
 {
-	struct inquiry_cache *cache = &hdev->inq_cache;
-	struct inquiry_entry *next  = cache->list, *e;
+	struct inquiry_entry *p, *n;
 
-	BT_DBG("cache %p", cache);
-
-	cache->list = NULL;
-	while ((e = next)) {
-		next = e->next;
-		kfree(e);
+	list_for_each_entry_safe(p, n, &hdev->inq_cache.list, list) {
+		list_del(&p->list);
+		kfree(p);
 	}
 }
 
@@ -376,10 +372,12 @@ struct inquiry_entry *hci_inquiry_cache_lookup(struct hci_dev *hdev, bdaddr_t *b
 
 	BT_DBG("cache %p, %s", cache, batostr(bdaddr));
 
-	for (e = cache->list; e; e = e->next)
+	list_for_each_entry(e, &cache->list, list) {
 		if (!bacmp(&e->data.bdaddr, bdaddr))
-			break;
-	return e;
+			return e;
+	}
+
+	return NULL;
 }
 
 void hci_inquiry_cache_update(struct hci_dev *hdev, struct inquiry_data *data)
@@ -396,8 +394,7 @@ void hci_inquiry_cache_update(struct hci_dev *hdev, struct inquiry_data *data)
 		if (!ie)
 			return;
 
-		ie->next = cache->list;
-		cache->list = ie;
+		list_add(&ie->list, &cache->list);
 	}
 
 	memcpy(&ie->data, data, sizeof(*data));
@@ -412,15 +409,21 @@ static int inquiry_cache_dump(struct hci_dev *hdev, int num, __u8 *buf)
 	struct inquiry_entry *e;
 	int copied = 0;
 
-	for (e = cache->list; e && copied < num; e = e->next, copied++) {
+	list_for_each_entry(e, &cache->list, list) {
 		struct inquiry_data *data = &e->data;
+
+		if (copied >= num)
+			break;
+
 		bacpy(&info->bdaddr, &data->bdaddr);
 		info->pscan_rep_mode	= data->pscan_rep_mode;
 		info->pscan_period_mode	= data->pscan_period_mode;
 		info->pscan_mode	= data->pscan_mode;
 		memcpy(info->dev_class, data->dev_class, 3);
 		info->clock_offset	= data->clock_offset;
+
 		info++;
+		copied++;
 	}
 
 	BT_DBG("cache %p, copied %d", cache, copied);

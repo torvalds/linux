@@ -44,14 +44,14 @@ struct inquiry_data {
 };
 
 struct inquiry_entry {
-	struct inquiry_entry	*next;
+	struct list_head	list;
 	__u32			timestamp;
 	struct inquiry_data	data;
 };
 
 struct inquiry_cache {
+	struct list_head	list;
 	__u32			timestamp;
-	struct inquiry_entry	*list;
 };
 
 struct hci_conn_hash {
@@ -350,14 +350,12 @@ extern int sco_recv_scodata(struct hci_conn *hcon, struct sk_buff *skb);
 
 static inline void inquiry_cache_init(struct hci_dev *hdev)
 {
-	struct inquiry_cache *c = &hdev->inq_cache;
-	c->list = NULL;
+	INIT_LIST_HEAD(&hdev->inq_cache.list);
 }
 
 static inline int inquiry_cache_empty(struct hci_dev *hdev)
 {
-	struct inquiry_cache *c = &hdev->inq_cache;
-	return c->list == NULL;
+	return list_empty(&hdev->inq_cache.list);
 }
 
 static inline long inquiry_cache_age(struct hci_dev *hdev)
