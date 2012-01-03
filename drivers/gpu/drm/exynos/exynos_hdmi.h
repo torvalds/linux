@@ -1,8 +1,8 @@
 /*
+ *
  * Copyright (c) 2011 Samsung Electronics Co., Ltd.
  * Authors:
  *	Inki Dae <inki.dae@samsung.com>
- *	Joonyoung Shim <jy0922.shim@samsung.com>
  *	Seung-Woo Kim <sw0312.kim@samsung.com>
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
@@ -25,31 +25,63 @@
  * OTHER DEALINGS IN THE SOFTWARE.
  */
 
-#ifndef _EXYNOS_DRM_FB_H_
-#define _EXYNOS_DRM_FB_H
+#ifndef _EXYNOS_HDMI_H_
+#define _EXYNOS_HDMI_H_
 
-static inline int exynos_drm_format_num_buffers(uint32_t format)
-{
-	switch (format) {
-	case DRM_FORMAT_NV12M:
-	case DRM_FORMAT_NV12MT:
-		return 2;
-	case DRM_FORMAT_YUV420M:
-		return 3;
-	default:
-		return 1;
-	}
-}
+struct hdmi_conf {
+	int width;
+	int height;
+	int vrefresh;
+	bool interlace;
+	const u8 *hdmiphy_data;
+	const struct hdmi_preset_conf *conf;
+};
 
-struct drm_framebuffer *
-exynos_drm_framebuffer_init(struct drm_device *dev,
-			    struct drm_mode_fb_cmd2 *mode_cmd,
-			    struct drm_gem_object *obj);
+struct hdmi_resources {
+	struct clk *hdmi;
+	struct clk *sclk_hdmi;
+	struct clk *sclk_pixel;
+	struct clk *sclk_hdmiphy;
+	struct clk *hdmiphy;
+	struct regulator_bulk_data *regul_bulk;
+	int regul_count;
+};
 
-/* get memory information of a drm framebuffer */
-struct exynos_drm_gem_buf *exynos_drm_fb_buffer(struct drm_framebuffer *fb,
-						 int index);
+struct hdmi_context {
+	struct device			*dev;
+	struct drm_device		*drm_dev;
+	struct fb_videomode		*default_timing;
+	unsigned int			default_win;
+	unsigned int			default_bpp;
+	bool				hpd_handle;
+	bool				enabled;
 
-void exynos_drm_mode_config_init(struct drm_device *dev);
+	struct resource			*regs_res;
+	/** base address of HDMI registers */
+	void __iomem *regs;
+	/** HDMI hotplug interrupt */
+	unsigned int irq;
+	/** workqueue for delayed work */
+	struct workqueue_struct *wq;
+	/** hotplug handling work */
+	struct work_struct hotplug_work;
+
+	struct i2c_client *ddc_port;
+	struct i2c_client *hdmiphy_port;
+
+	/** current hdmiphy conf index */
+	int cur_conf;
+	/** other resources */
+	struct hdmi_resources res;
+
+	void *parent_ctx;
+};
+
+
+void hdmi_attach_ddc_client(struct i2c_client *ddc);
+void hdmi_attach_hdmiphy_client(struct i2c_client *hdmiphy);
+
+extern struct i2c_driver hdmiphy_driver;
+extern struct i2c_driver ddc_driver;
 
 #endif

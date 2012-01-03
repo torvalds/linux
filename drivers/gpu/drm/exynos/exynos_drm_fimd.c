@@ -87,6 +87,7 @@ struct fimd_context {
 	u32				vidcon0;
 	u32				vidcon1;
 	bool				suspended;
+	struct mutex			lock;
 
 	struct fb_videomode		*timing;
 };
@@ -137,11 +138,22 @@ static struct exynos_drm_display_ops fimd_display_ops = {
 
 static void fimd_dpms(struct device *subdrv_dev, int mode)
 {
+	struct fimd_context *ctx = get_fimd_context(subdrv_dev);
+
 	DRM_DEBUG_KMS("%s, %d\n", __FILE__, mode);
+
+	mutex_lock(&ctx->lock);
 
 	switch (mode) {
 	case DRM_MODE_DPMS_ON:
-		pm_runtime_get_sync(subdrv_dev);
+		/*
+		 * enable fimd hardware only if suspended status.
+		 *
+		 * P.S. fimd_dpms function would be called at booting time so
+		 * clk_enable could be called double time.
+		 */
+		if (ctx->suspended)
+			pm_runtime_get_sync(subdrv_dev);
 		break;
 	case DRM_MODE_DPMS_STANDBY:
 	case DRM_MODE_DPMS_SUSPEND:
@@ -152,6 +164,8 @@ static void fimd_dpms(struct device *subdrv_dev, int mode)
 		DRM_DEBUG_KMS("unspecified mode %d\n", mode);
 		break;
 	}
+
+	mutex_unlock(&ctx->lock);
 }
 
 static void fimd_apply(struct device *subdrv_dev)
@@ -180,6 +194,9 @@ static void fimd_commit(struct device *dev)
 	struct fimd_context *ctx = get_fimd_context(dev);
 	struct fb_videomode *timing = ctx->timing;
 	u32 val;
+
+	if (ctx->suspended)
+		return;
 
 	DRM_DEBUG_KMS("%s\n", __FILE__);
 
@@ -310,8 +327,8 @@ static void fimd_win_mode_set(struct device *dev,
 	win_data->ovl_height = overlay->crtc_height;
 	win_data->fb_width = overlay->fb_width;
 	win_data->fb_height = overlay->fb_height;
-	win_data->dma_addr = overlay->dma_addr + offset;
-	win_data->vaddr = overlay->vaddr + offset;
+	win_data->dma_addr = overlay->dma_addr[0] + offset;
+	win_data->vaddr = overlay->vaddr[0] + offset;
 	win_data->bpp = overlay->bpp;
 	win_data->buf_offsize = (overlay->fb_width - overlay->crtc_width) *
 				(overlay->bpp >> 3);
@@ -413,6 +430,9 @@ static void fimd_win_commit(struct device *dev, int zpos)
 	unsigned long val, alpha, size;
 
 	DRM_DEBUG_KMS("%s\n", __FILE__);
+
+	if (ctx->suspended)
+		return;
 
 	if (win == DEFAULT_ZPOS)
 		win = ctx->default_win;
@@ -797,13 +817,6 @@ static int __devinit fimd_probe(struct platform_device *pdev)
 		goto err_req_irq;
 	}
 
-	pm_runtime_set_active(dev);
-	pm_runtime_enable(dev);
-	pm_runtime_get_sync(dev);
-
-	for (win = 0; win < WINDOWS_NR; win++)
-		fimd_clear_win(ctx, win);
-
 	ctx->clkdiv = fimd_calc_clkdiv(ctx, timing);
 	ctx->vidcon0 = pdata->vidcon0;
 	ctx->vidcon1 = pdata->vidcon1;
@@ -825,7 +838,17 @@ static int __devinit fimd_probe(struct platform_device *pdev)
 	subdrv->manager.display_ops = &fimd_display_ops;
 	subdrv->manager.dev = dev;
 
+	mutex_init(&ctx->lock);
+
 	platform_set_drvdata(pdev, ctx);
+
+	pm_runtime_set_active(dev);
+	pm_runtime_enable(dev);
+	pm_runtime_get_sync(dev);
+
+	for (win = 0; win < WINDOWS_NR; win++)
+		fimd_clear_win(ctx, win);
+
 	exynos_drm_subdrv_register(subdrv);
 
 	return 0;
@@ -885,6 +908,47 @@ out:
 	return 0;
 }
 
+#ifdef CONFIG_PM_SLEEP
+static int fimd_suspend(struct device *dev)
+{
+	int ret;
+
+	if (pm_runtime_suspended(dev))
+		return 0;
+
+	ret = pm_runtime_suspend(dev);
+	if (ret < 0)
+		return ret;
+
+	return 0;
+}
+
+static int fimd_resume(struct device *dev)
+{
+	int ret;
+
+	ret = pm_runtime_resume(dev);
+	if (ret < 0) {
+		DRM_ERROR("failed to resume runtime pm.\n");
+		return ret;
+	}
+
+	pm_runtime_disable(dev);
+
+	ret = pm_runtime_set_active(dev);
+	if (ret < 0) {
+		DRM_ERROR("failed to active runtime pm.\n");
+		pm_runtime_enable(dev);
+		pm_runtime_suspend(dev);
+		return ret;
+	}
+
+	pm_runtime_enable(dev);
+
+	return 0;
+}
+#endif
+
 #ifdef CONFIG_PM_RUNTIME
 static int fimd_runtime_suspend(struct device *dev)
 {
@@ -917,11 +981,19 @@ static int fimd_runtime_resume(struct device *dev)
 	}
 
 	ctx->suspended = false;
+
+	/* if vblank was enabled status, enable it again. */
+	if (test_and_clear_bit(0, &ctx->irq_flags))
+		fimd_enable_vblank(dev);
+
+	fimd_apply(dev);
+
 	return 0;
 }
 #endif
 
 static const struct dev_pm_ops fimd_pm_ops = {
+	SET_SYSTEM_SLEEP_PM_OPS(fimd_suspend, fimd_resume)
 	SET_RUNTIME_PM_OPS(fimd_runtime_suspend, fimd_runtime_resume, NULL)
 };
 

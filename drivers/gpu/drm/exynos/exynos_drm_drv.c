@@ -38,11 +38,13 @@
 #include "exynos_drm_gem.h"
 #include "exynos_drm_plane.h"
 
-#define DRIVER_NAME	"exynos-drm"
+#define DRIVER_NAME	"exynos"
 #define DRIVER_DESC	"Samsung SoC DRM"
 #define DRIVER_DATE	"20110530"
 #define DRIVER_MAJOR	1
 #define DRIVER_MINOR	0
+
+#define VBLANK_OFF_DELAY	50000
 
 static int exynos_drm_load(struct drm_device *dev, unsigned long flags)
 {
@@ -106,6 +108,8 @@ static int exynos_drm_load(struct drm_device *dev, unsigned long flags)
 		DRM_ERROR("failed to initialize drm fbdev\n");
 		goto err_drm_device;
 	}
+
+	drm_vblank_offdelay = VBLANK_OFF_DELAY;
 
 	return 0;
 

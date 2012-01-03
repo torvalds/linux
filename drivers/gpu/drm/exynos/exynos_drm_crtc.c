@@ -34,7 +34,6 @@
 #include "exynos_drm_fb.h"
 #include "exynos_drm_encoder.h"
 #include "exynos_drm_gem.h"
-#include "exynos_drm_buf.h"
 
 #define to_exynos_crtc(x)	container_of(x, struct exynos_drm_crtc,\
 				drm_crtc)
@@ -80,19 +79,23 @@ int exynos_drm_overlay_update(struct exynos_drm_overlay *overlay,
 	struct exynos_drm_gem_buf *buffer;
 	unsigned int actual_w;
 	unsigned int actual_h;
+	int nr = exynos_drm_format_num_buffers(fb->pixel_format);
+	int i;
 
-	buffer = exynos_drm_fb_get_buf(fb);
-	if (!buffer) {
-		DRM_LOG_KMS("buffer is null.\n");
-		return -EFAULT;
+	for (i = 0; i < nr; i++) {
+		buffer = exynos_drm_fb_buffer(fb, i);
+		if (!buffer) {
+			DRM_LOG_KMS("buffer is null\n");
+			return -EFAULT;
+		}
+
+		overlay->dma_addr[i] = buffer->dma_addr;
+		overlay->vaddr[i] = buffer->kvaddr;
+
+		DRM_DEBUG_KMS("buffer: %d, vaddr = 0x%lx, dma_addr = 0x%lx\n",
+				i, (unsigned long)overlay->vaddr[i],
+				(unsigned long)overlay->dma_addr[i]);
 	}
-
-	overlay->dma_addr = buffer->dma_addr;
-	overlay->vaddr = buffer->kvaddr;
-
-	DRM_DEBUG_KMS("vaddr = 0x%lx, dma_addr = 0x%lx\n",
-			(unsigned long)overlay->vaddr,
-			(unsigned long)overlay->dma_addr);
 
 	actual_w = min((mode->hdisplay - pos->crtc_x), pos->crtc_w);
 	actual_h = min((mode->vdisplay - pos->crtc_y), pos->crtc_h);
@@ -104,6 +107,7 @@ int exynos_drm_overlay_update(struct exynos_drm_overlay *overlay,
 	overlay->fb_height = fb->height;
 	overlay->bpp = fb->bits_per_pixel;
 	overlay->pitch = fb->pitches[0];
+	overlay->pixel_format = fb->pixel_format;
 
 	/* set overlay range to be displayed. */
 	overlay->crtc_x = pos->crtc_x;

@@ -112,4 +112,31 @@ struct exynos_drm_fimd_pdata {
 	unsigned int			bpp;
 };
 
+/**
+ * Platform Specific Structure for DRM based HDMI.
+ *
+ * @hdmi_dev: device point to specific hdmi driver.
+ * @mixer_dev: device point to specific mixer driver.
+ *
+ * this structure is used for common hdmi driver and each device object
+ * would be used to access specific device driver(hdmi or mixer driver)
+ */
+struct exynos_drm_common_hdmi_pd {
+	struct device *hdmi_dev;
+	struct device *mixer_dev;
+};
+
+/**
+ * Platform Specific Structure for DRM based HDMI core.
+ *
+ * @timing: default video mode for initializing
+ * @default_win: default window layer number to be used for UI.
+ * @bpp: default bit per pixel.
+ */
+struct exynos_drm_hdmi_pdata {
+	struct fb_videomode		timing;
+	unsigned int			default_win;
+	unsigned int			bpp;
+};
+
 #endif
