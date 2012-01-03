@@ -78,6 +78,11 @@ enum efx_filter_flags {
  *
  * Use the efx_filter_set_*() functions to initialise the @type and
  * @data fields.
+ *
+ * The @priority field is used by software to determine whether a new
+ * filter may replace an old one.  The hardware priority of a filter
+ * depends on the filter type and %EFX_FILTER_FLAG_RX_OVERRIDE_IP
+ * flag.
  */
 struct efx_filter_spec {
 	u8	type:4;

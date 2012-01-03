@@ -366,12 +366,45 @@ static int efx_filter_search(struct efx_filter_table *table,
 	}
 }
 
-/* Construct/deconstruct external filter IDs */
+/*
+ * Construct/deconstruct external filter IDs.  These must be ordered
+ * by matching priority, for RX NFC semantics.
+ *
+ * Each RX MAC filter entry has a flag for whether it can override an
+ * RX IP filter that also matches.  So we assign locations for MAC
+ * filters with overriding behaviour, then for IP filters, then for
+ * MAC filters without overriding behaviour.
+ */
 
-static inline int
-efx_filter_make_id(enum efx_filter_table_id table_id, unsigned index)
+#define EFX_FILTER_INDEX_WIDTH	13
+#define EFX_FILTER_INDEX_MASK	((1 << EFX_FILTER_INDEX_WIDTH) - 1)
+
+static inline u32 efx_filter_make_id(enum efx_filter_table_id table_id,
+				     unsigned int index, u8 flags)
 {
-	return table_id << 16 | index;
+	return (table_id == EFX_FILTER_TABLE_RX_MAC &&
+		flags & EFX_FILTER_FLAG_RX_OVERRIDE_IP) ?
+		index :
+		(table_id + 1) << EFX_FILTER_INDEX_WIDTH | index;
+}
+
+static inline enum efx_filter_table_id efx_filter_id_table_id(u32 id)
+{
+	return (id <= EFX_FILTER_INDEX_MASK) ?
+		EFX_FILTER_TABLE_RX_MAC :
+		(id >> EFX_FILTER_INDEX_WIDTH) - 1;
+}
+
+static inline unsigned int efx_filter_id_index(u32 id)
+{
+	return id & EFX_FILTER_INDEX_MASK;
+}
+
+static inline u8 efx_filter_id_flags(u32 id)
+{
+	return (id <= EFX_FILTER_INDEX_MASK) ?
+		EFX_FILTER_FLAG_RX | EFX_FILTER_FLAG_RX_OVERRIDE_IP :
+		EFX_FILTER_FLAG_RX;
 }
 
 /**
@@ -439,7 +472,7 @@ int efx_filter_insert_filter(struct efx_nic *efx, struct efx_filter_spec *spec,
 	netif_vdbg(efx, hw, efx->net_dev,
 		   "%s: filter type %d index %d rxq %u set",
 		   __func__, spec->type, filter_idx, spec->dmaq_id);
-	rc = efx_filter_make_id(table->id, filter_idx);
+	rc = efx_filter_make_id(table->id, filter_idx, spec->flags);
 
 out:
 	spin_unlock_bh(&state->lock);
