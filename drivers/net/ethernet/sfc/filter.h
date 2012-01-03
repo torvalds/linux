@@ -105,11 +105,18 @@ static inline void efx_filter_init_rx(struct efx_filter_spec *spec,
 
 extern int efx_filter_set_ipv4_local(struct efx_filter_spec *spec, u8 proto,
 				     __be32 host, __be16 port);
+extern int efx_filter_get_ipv4_local(const struct efx_filter_spec *spec,
+				     u8 *proto, __be32 *host, __be16 *port);
 extern int efx_filter_set_ipv4_full(struct efx_filter_spec *spec, u8 proto,
 				    __be32 host, __be16 port,
 				    __be32 rhost, __be16 rport);
+extern int efx_filter_get_ipv4_full(const struct efx_filter_spec *spec,
+				    u8 *proto, __be32 *host, __be16 *port,
+				    __be32 *rhost, __be16 *rport);
 extern int efx_filter_set_eth_local(struct efx_filter_spec *spec,
 				    u16 vid, const u8 *addr);
+extern int efx_filter_get_eth_local(const struct efx_filter_spec *spec,
+				    u16 *vid, u8 *addr);
 enum {
 	EFX_FILTER_VID_UNSPEC = 0xffff,
 };
