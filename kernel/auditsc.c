@@ -2173,9 +2173,18 @@ static atomic_t session_id = ATOMIC_INIT(0);
 int audit_set_loginuid(uid_t loginuid)
 {
 	struct task_struct *task = current;
-	unsigned int sessionid = atomic_inc_return(&session_id);
 	struct audit_context *context = task->audit_context;
+	unsigned int sessionid;
 
+#ifdef CONFIG_AUDIT_LOGINUID_IMMUTABLE
+	if (task->loginuid != -1)
+		return -EPERM;
+#else /* CONFIG_AUDIT_LOGINUID_IMMUTABLE */
+	if (!capable(CAP_AUDIT_CONTROL))
+		return -EPERM;
+#endif  /* CONFIG_AUDIT_LOGINUID_IMMUTABLE */
+
+	sessionid = atomic_inc_return(&session_id);
 	if (context && context->in_syscall) {
 		struct audit_buffer *ab;
 
