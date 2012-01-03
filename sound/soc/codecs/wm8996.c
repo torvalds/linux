@@ -1968,6 +1968,7 @@ static int wm8996_set_sysclk(struct snd_soc_dai *dai,
 		break;
 	case 24576000:
 		ratediv = WM8996_SYSCLK_DIV;
+		wm8996->sysclk /= 2;
 	case 12288000:
 		snd_soc_update_bits(codec, WM8996_AIF_RATE,
 				    WM8996_SYSCLK_RATE, WM8996_SYSCLK_RATE);

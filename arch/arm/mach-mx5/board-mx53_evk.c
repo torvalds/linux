@@ -106,7 +106,7 @@ static inline void mx53_evk_fec_reset(void)
 	gpio_set_value(MX53_EVK_FEC_PHY_RST, 1);
 }
 
-static struct fec_platform_data mx53_evk_fec_pdata = {
+static const struct fec_platform_data mx53_evk_fec_pdata __initconst = {
 	.phy = PHY_INTERFACE_MODE_RMII,
 };
 

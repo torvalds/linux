@@ -292,7 +292,7 @@ int __init configfs_inode_init(void)
 	return bdi_init(&configfs_backing_dev_info);
 }
 
-void __exit configfs_inode_exit(void)
+void configfs_inode_exit(void)
 {
 	bdi_destroy(&configfs_backing_dev_info);
 }

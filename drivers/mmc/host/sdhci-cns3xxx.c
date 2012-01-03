@@ -15,6 +15,7 @@
 #include <linux/delay.h>
 #include <linux/device.h>
 #include <linux/mmc/host.h>
+#include <linux/module.h>
 #include <mach/cns3xxx.h>
 #include "sdhci-pltfm.h"
 

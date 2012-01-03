@@ -2194,19 +2194,27 @@ struct btrfs_root *open_ctree(struct super_block *sb,
 	fs_info->endio_meta_write_workers.idle_thresh = 2;
 	fs_info->readahead_workers.idle_thresh = 2;
 
-	btrfs_start_workers(&fs_info->workers, 1);
-	btrfs_start_workers(&fs_info->generic_worker, 1);
-	btrfs_start_workers(&fs_info->submit_workers, 1);
-	btrfs_start_workers(&fs_info->delalloc_workers, 1);
-	btrfs_start_workers(&fs_info->fixup_workers, 1);
-	btrfs_start_workers(&fs_info->endio_workers, 1);
-	btrfs_start_workers(&fs_info->endio_meta_workers, 1);
-	btrfs_start_workers(&fs_info->endio_meta_write_workers, 1);
-	btrfs_start_workers(&fs_info->endio_write_workers, 1);
-	btrfs_start_workers(&fs_info->endio_freespace_worker, 1);
-	btrfs_start_workers(&fs_info->delayed_workers, 1);
-	btrfs_start_workers(&fs_info->caching_workers, 1);
-	btrfs_start_workers(&fs_info->readahead_workers, 1);
+	/*
+	 * btrfs_start_workers can really only fail because of ENOMEM so just
+	 * return -ENOMEM if any of these fail.
+	 */
+	ret = btrfs_start_workers(&fs_info->workers);
+	ret |= btrfs_start_workers(&fs_info->generic_worker);
+	ret |= btrfs_start_workers(&fs_info->submit_workers);
+	ret |= btrfs_start_workers(&fs_info->delalloc_workers);
+	ret |= btrfs_start_workers(&fs_info->fixup_workers);
+	ret |= btrfs_start_workers(&fs_info->endio_workers);
+	ret |= btrfs_start_workers(&fs_info->endio_meta_workers);
+	ret |= btrfs_start_workers(&fs_info->endio_meta_write_workers);
+	ret |= btrfs_start_workers(&fs_info->endio_write_workers);
+	ret |= btrfs_start_workers(&fs_info->endio_freespace_worker);
+	ret |= btrfs_start_workers(&fs_info->delayed_workers);
+	ret |= btrfs_start_workers(&fs_info->caching_workers);
+	ret |= btrfs_start_workers(&fs_info->readahead_workers);
+	if (ret) {
+		ret = -ENOMEM;
+		goto fail_sb_buffer;
+	}
 
 	fs_info->bdi.ra_pages *= btrfs_super_num_devices(disk_super);
 	fs_info->bdi.ra_pages = max(fs_info->bdi.ra_pages,
