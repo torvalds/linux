@@ -85,24 +85,6 @@ static inline bool b43_nphy_ipa(struct b43_wldev *dev)
 		(dev->phy.n->ipa5g_on && band == IEEE80211_BAND_5GHZ));
 }
 
-/* http://bcm-v4.sipsolutions.net/802.11/PHY/N/GetIpaGainTbl */
-static const u32 *b43_nphy_get_ipa_gain_table(struct b43_wldev *dev)
-{
-	if (b43_current_band(dev->wl) == IEEE80211_BAND_2GHZ) {
-		if (dev->phy.rev >= 6) {
-			if (dev->dev->chip_id == 47162)
-				return txpwrctrl_tx_gain_ipa_rev5;
-			return txpwrctrl_tx_gain_ipa_rev6;
-		} else if (dev->phy.rev >= 5) {
-			return txpwrctrl_tx_gain_ipa_rev5;
-		} else {
-			return txpwrctrl_tx_gain_ipa;
-		}
-	} else {
-		return txpwrctrl_tx_gain_ipa_5g;
-	}
-}
-
 /**************************************************
  * RF (just without b43_nphy_rf_control_intc_override)
  **************************************************/
@@ -2229,27 +2211,12 @@ static void b43_nphy_tx_power_fix(struct b43_wldev *dev)
 	*/
 
 	for (i = 0; i < 2; i++) {
-		if (dev->phy.rev >= 3) {
-			if (b43_nphy_ipa(dev)) {
-				txgain = *(b43_nphy_get_ipa_gain_table(dev) +
-						txpi[i]);
-			} else if (b43_current_band(dev->wl) ==
-				   IEEE80211_BAND_5GHZ) {
-				/* FIXME: use 5GHz tables */
-				txgain =
-					b43_ntab_tx_gain_rev3plus_2ghz[txpi[i]];
-			} else {
-				if (dev->phy.rev >= 5 &&
-				    sprom->fem.ghz5.extpa_gain == 3)
-					; /* FIXME: 5GHz_txgain_HiPwrEPA */
-				txgain =
-					b43_ntab_tx_gain_rev3plus_2ghz[txpi[i]];
-			}
+		txgain = *(b43_nphy_get_tx_gain_table(dev) + txpi[i]);
+
+		if (dev->phy.rev >= 3)
 			radio_gain = (txgain >> 16) & 0x1FFFF;
-		} else {
-			txgain = b43_ntab_tx_gain_rev0_1_2[txpi[i]];
+		else
 			radio_gain = (txgain >> 16) & 0x1FFF;
-		}
 
 		if (dev->phy.rev >= 7)
 			dac_gain = (txgain >> 8) & 0x7;
@@ -2647,24 +2614,7 @@ static void b43_nphy_tx_gain_table_upload(struct b43_wldev *dev)
 	int i;
 #endif
 
-	if (phy->rev >= 3) {
-		if (b43_nphy_ipa(dev)) {
-			table = b43_nphy_get_ipa_gain_table(dev);
-		} else {
-			if (b43_current_band(dev->wl) == IEEE80211_BAND_5GHZ) {
-				if (phy->rev == 3)
-					table = b43_ntab_tx_gain_rev3_5ghz;
-				if (phy->rev == 4)
-					table = b43_ntab_tx_gain_rev4_5ghz;
-				else
-					table = b43_ntab_tx_gain_rev5plus_5ghz;
-			} else {
-				table = b43_ntab_tx_gain_rev3plus_2ghz;
-			}
-		}
-	} else {
-		table = b43_ntab_tx_gain_rev0_1_2;
-	}
+	table = b43_nphy_get_tx_gain_table(dev);
 	b43_ntab_write_bulk(dev, B43_NTAB32(26, 192), 128, table);
 	b43_ntab_write_bulk(dev, B43_NTAB32(27, 192), 128, table);
 
@@ -3354,32 +3304,13 @@ static struct nphy_txgains b43_nphy_get_tx_gains(struct b43_wldev *dev)
 			B43_NPHY_TXPCTL_STAT_BIDX_SHIFT;
 
 		for (i = 0; i < 2; ++i) {
+			table = b43_nphy_get_tx_gain_table(dev);
 			if (dev->phy.rev >= 3) {
-				enum ieee80211_band band =
-					b43_current_band(dev->wl);
-
-				if (b43_nphy_ipa(dev)) {
-					table = b43_nphy_get_ipa_gain_table(dev);
-				} else {
-					if (band == IEEE80211_BAND_5GHZ) {
-						if (dev->phy.rev == 3)
-							table = b43_ntab_tx_gain_rev3_5ghz;
-						else if (dev->phy.rev == 4)
-							table = b43_ntab_tx_gain_rev4_5ghz;
-						else
-							table = b43_ntab_tx_gain_rev5plus_5ghz;
-					} else {
-						table = b43_ntab_tx_gain_rev3plus_2ghz;
-					}
-				}
-
 				target.ipa[i] = (table[index[i]] >> 16) & 0xF;
 				target.pad[i] = (table[index[i]] >> 20) & 0xF;
 				target.pga[i] = (table[index[i]] >> 24) & 0xF;
 				target.txgm[i] = (table[index[i]] >> 28) & 0xF;
 			} else {
-				table = b43_ntab_tx_gain_rev0_1_2;
-
 				target.ipa[i] = (table[index[i]] >> 16) & 0x3;
 				target.pad[i] = (table[index[i]] >> 18) & 0x3;
 				target.pga[i] = (table[index[i]] >> 20) & 0x7;
