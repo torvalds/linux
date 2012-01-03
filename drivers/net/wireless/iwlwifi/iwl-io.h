@@ -31,23 +31,28 @@
 
 #include "iwl-devtrace.h"
 #include "iwl-shared.h"
+/* TODO: remove when not needed any more */
 #include "iwl-bus.h"
+#include "iwl-trans.h"
 
 static inline void iwl_write8(struct iwl_bus *bus, u32 ofs, u8 val)
 {
+	/* TODO: get trans instead of bus */
 	trace_iwlwifi_dev_iowrite8(priv(bus), ofs, val);
-	bus_write8(bus, ofs, val);
+	iwl_trans_write8(trans(bus), ofs, val);
 }
 
 static inline void iwl_write32(struct iwl_bus *bus, u32 ofs, u32 val)
 {
+	/* TODO: get trans instead of bus */
 	trace_iwlwifi_dev_iowrite32(priv(bus), ofs, val);
-	bus_write32(bus, ofs, val);
+	iwl_trans_write32(trans(bus), ofs, val);
 }
 
 static inline u32 iwl_read32(struct iwl_bus *bus, u32 ofs)
 {
-	u32 val = bus_read32(bus, ofs);
+	/* TODO: get trans instead of bus */
+	u32 val = iwl_trans_read32(trans(bus), ofs);
 	trace_iwlwifi_dev_ioread32(priv(bus), ofs, val);
 	return val;
 }

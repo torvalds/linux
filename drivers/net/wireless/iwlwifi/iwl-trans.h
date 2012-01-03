@@ -158,6 +158,9 @@ struct iwl_host_cmd {
  *	automatically deleted.
  * @suspend: stop the device unless WoWLAN is configured
  * @resume: resume activity of the device
+ * @write8: write a u8 to a register at offset ofs from the BAR
+ * @write32: write a u32 to a register at offset ofs from the BAR
+ * @read32: read a u32 register at offset ofs from the BAR
  */
 struct iwl_trans_ops {
 
@@ -201,6 +204,9 @@ struct iwl_trans_ops {
 	int (*suspend)(struct iwl_trans *trans);
 	int (*resume)(struct iwl_trans *trans);
 #endif
+	void (*write8)(struct iwl_trans *trans, u32 ofs, u8 val);
+	void (*write32)(struct iwl_trans *trans, u32 ofs, u32 val);
+	u32 (*read32)(struct iwl_trans *trans, u32 ofs);
 };
 
 /* one for each uCode image (inst/data, boot/init/runtime) */
@@ -381,6 +387,21 @@ static inline int iwl_trans_resume(struct iwl_trans *trans)
 	return trans->ops->resume(trans);
 }
 #endif
+
+static inline void iwl_trans_write8(struct iwl_trans *trans, u32 ofs, u8 val)
+{
+	trans->ops->write8(trans, ofs, val);
+}
+
+static inline void iwl_trans_write32(struct iwl_trans *trans, u32 ofs, u32 val)
+{
+	trans->ops->write32(trans, ofs, val);
+}
+
+static inline u32 iwl_trans_read32(struct iwl_trans *trans, u32 ofs)
+{
+	return trans->ops->read32(trans, ofs);
+}
 
 /*****************************************************
 * Utils functions

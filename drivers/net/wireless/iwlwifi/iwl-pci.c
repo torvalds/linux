@@ -79,9 +79,6 @@
 struct iwl_pci_bus {
 	/* basic pci-network driver stuff */
 	struct pci_dev *pci_dev;
-
-	/* pci hardware address support */
-	void __iomem *hw_base;
 };
 
 #define IWL_BUS_GET_PCI_BUS(_iwl_bus) \
@@ -151,30 +148,11 @@ static u32 iwl_pci_get_hw_id(struct iwl_bus *bus)
 	return (pci_dev->device << 16) + pci_dev->subsystem_device;
 }
 
-static void iwl_pci_write8(struct iwl_bus *bus, u32 ofs, u8 val)
-{
-	iowrite8(val, IWL_BUS_GET_PCI_BUS(bus)->hw_base + ofs);
-}
-
-static void iwl_pci_write32(struct iwl_bus *bus, u32 ofs, u32 val)
-{
-	iowrite32(val, IWL_BUS_GET_PCI_BUS(bus)->hw_base + ofs);
-}
-
-static u32 iwl_pci_read32(struct iwl_bus *bus, u32 ofs)
-{
-	u32 val = ioread32(IWL_BUS_GET_PCI_BUS(bus)->hw_base + ofs);
-	return val;
-}
-
 static const struct iwl_bus_ops bus_ops_pci = {
 	.get_pm_support = iwl_pci_is_pm_supported,
 	.apm_config = iwl_pci_apm_config,
 	.get_hw_id_string = iwl_pci_get_hw_id_string,
 	.get_hw_id = iwl_pci_get_hw_id,
-	.write8 = iwl_pci_write8,
-	.write32 = iwl_pci_write32,
-	.read32 = iwl_pci_read32,
 };
 
 #define IWL_PCI_DEVICE(dev, subdev, cfg) \

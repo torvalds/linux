@@ -1299,6 +1299,22 @@ static int iwl_trans_pcie_reclaim(struct iwl_trans *trans, int sta_id, int tid,
 	return 0;
 }
 
+static void iwl_trans_pcie_write8(struct iwl_trans *trans, u32 ofs, u8 val)
+{
+	iowrite8(val, IWL_TRANS_GET_PCIE_TRANS(trans)->hw_base + ofs);
+}
+
+static void iwl_trans_pcie_write32(struct iwl_trans *trans, u32 ofs, u32 val)
+{
+	iowrite32(val, IWL_TRANS_GET_PCIE_TRANS(trans)->hw_base + ofs);
+}
+
+static u32 iwl_trans_pcie_read32(struct iwl_trans *trans, u32 ofs)
+{
+	u32 val = ioread32(IWL_TRANS_GET_PCIE_TRANS(trans)->hw_base + ofs);
+	return val;
+}
+
 static void iwl_trans_pcie_free(struct iwl_trans *trans)
 {
 	struct iwl_trans_pcie *trans_pcie =
@@ -1935,21 +1951,10 @@ const struct iwl_trans_ops trans_ops_pcie = {
 	.suspend = iwl_trans_pcie_suspend,
 	.resume = iwl_trans_pcie_resume,
 #endif
+	.write8 = iwl_trans_pcie_write8,
+	.write32 = iwl_trans_pcie_write32,
+	.read32 = iwl_trans_pcie_read32,
 };
-
-/* TODO: remove this hack - will be possible when all the io{write/read} ops
- * will be done through the transport
- */
-struct iwl_pci_bus {
-	/* basic pci-network driver stuff */
-	struct pci_dev *pci_dev;
-
-	/* pci hardware address support */
-	void __iomem *hw_base;
-};
-
-#define IWL_BUS_GET_PCI_BUS(_iwl_bus) \
-			((struct iwl_pci_bus *) ((_iwl_bus)->bus_specific))
 
 /* PCI registers */
 #define PCI_CFG_RETRY_TIMEOUT	0x041
@@ -1958,7 +1963,6 @@ struct iwl_trans *iwl_trans_pcie_alloc(struct iwl_shared *shrd,
 				       struct pci_dev *pdev,
 				       const struct pci_device_id *ent)
 {
-	struct iwl_pci_bus *iwl_pci_bus = IWL_BUS_GET_PCI_BUS(shrd->bus);
 	struct iwl_trans_pcie *trans_pcie;
 	struct iwl_trans *trans;
 	u16 pci_cmd;
@@ -2017,9 +2021,6 @@ struct iwl_trans *iwl_trans_pcie_alloc(struct iwl_shared *shrd,
 		err = -ENODEV;
 		goto out_pci_release_regions;
 	}
-
-	/* TODO: remove this hack */
-	iwl_pci_bus->hw_base = trans_pcie->hw_base;
 
 	dev_printk(KERN_INFO, &pdev->dev,
 		"pci_resource_len = 0x%08llx\n",
