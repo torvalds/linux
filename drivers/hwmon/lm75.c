@@ -111,7 +111,7 @@ static ssize_t set_temp(struct device *dev, struct device_attribute *da,
 	long temp;
 	int error;
 
-	error = strict_strtol(buf, 10, &temp);
+	error = kstrtol(buf, 10, &temp);
 	if (error)
 		return error;
 
