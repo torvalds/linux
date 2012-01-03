@@ -2529,6 +2529,11 @@ static const u32 txpwrctrl_tx_gain_ipa_5g[] = {
 	0x70f70021, 0x70f70020, 0x70f70020, 0x70f7001f,
 };
 
+const s8 b43_ntab_papd_pga_gain_delta_ipa_2g[] = {
+	-114, -108, -98, -91, -84, -78, -70, -62,
+	-54, -46, -39, -31, -23, -15, -8, 0
+};
+
 const u16 tbl_iqcal_gainparams[2][9][8] = {
 	{
 		{ 0x000, 0, 0, 2, 0x69, 0x69, 0x69, 0x69 },

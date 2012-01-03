@@ -179,6 +179,8 @@ void b43_nphy_rev3plus_tables_init(struct b43_wldev *dev);
 
 const u32 *b43_nphy_get_tx_gain_table(struct b43_wldev *dev);
 
+extern const s8 b43_ntab_papd_pga_gain_delta_ipa_2g[];
+
 extern const u16 tbl_iqcal_gainparams[2][9][8];
 extern const struct nphy_txiqcal_ladder ladder_lo[];
 extern const struct nphy_txiqcal_ladder ladder_iq[];
