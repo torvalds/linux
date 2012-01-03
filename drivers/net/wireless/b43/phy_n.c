@@ -211,7 +211,7 @@ static void b43_nphy_rf_control_intc_override(struct b43_wldev *dev, u8 field,
 
 		reg = (i == 0) ?
 			B43_NPHY_RFCTL_INTC1 : B43_NPHY_RFCTL_INTC2;
-		b43_phy_mask(dev, reg, 0xFBFF);
+		b43_phy_set(dev, reg, 0x400);
 
 		switch (field) {
 		case 0:
@@ -227,7 +227,7 @@ static void b43_nphy_rf_control_intc_override(struct b43_wldev *dev, u8 field,
 				b43_phy_set(dev, B43_NPHY_RFCTL_CMD,
 						B43_NPHY_RFCTL_CMD_START);
 				for (j = 0; j < 100; j++) {
-					if (b43_phy_read(dev, B43_NPHY_RFCTL_CMD) & B43_NPHY_RFCTL_CMD_START) {
+					if (!(b43_phy_read(dev, B43_NPHY_RFCTL_CMD) & B43_NPHY_RFCTL_CMD_START)) {
 						j = 0;
 						break;
 					}
@@ -246,7 +246,7 @@ static void b43_nphy_rf_control_intc_override(struct b43_wldev *dev, u8 field,
 				b43_phy_set(dev, B43_NPHY_RFCTL_CMD,
 						B43_NPHY_RFCTL_CMD_RXTX);
 				for (j = 0; j < 100; j++) {
-					if (b43_phy_read(dev, B43_NPHY_RFCTL_CMD) & B43_NPHY_RFCTL_CMD_RXTX) {
+					if (!(b43_phy_read(dev, B43_NPHY_RFCTL_CMD) & B43_NPHY_RFCTL_CMD_RXTX)) {
 						j = 0;
 						break;
 					}
