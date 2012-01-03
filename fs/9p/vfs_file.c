@@ -204,7 +204,8 @@ static int v9fs_file_do_lock(struct file *filp, int cmd, struct file_lock *fl)
 			break;
 		if (status == P9_LOCK_BLOCKED && !IS_SETLKW(cmd))
 			break;
-		schedule_timeout_interruptible(P9_LOCK_TIMEOUT);
+		if (schedule_timeout_interruptible(P9_LOCK_TIMEOUT) != 0)
+			break;
 	}
 
 	/* map 9p status to VFS status */
