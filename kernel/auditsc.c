@@ -305,21 +305,20 @@ static int audit_match_perm(struct audit_context *ctx, int mask)
 	}
 }
 
-static int audit_match_filetype(struct audit_context *ctx, int which)
+static int audit_match_filetype(struct audit_context *ctx, int val)
 {
-	unsigned index = which & ~S_IFMT;
-	umode_t mode = which & S_IFMT;
+	int index;
+	umode_t mode = (umode_t)val;
 
 	if (unlikely(!ctx))
 		return 0;
 
-	if (index >= ctx->name_count)
-		return 0;
-	if (ctx->names[index].ino == -1)
-		return 0;
-	if ((ctx->names[index].mode ^ mode) & S_IFMT)
-		return 0;
-	return 1;
+	for (index = 0; index < ctx->name_count; index++) {
+		if ((ctx->names[index].ino != -1) &&
+		    ((ctx->names[index].mode & S_IFMT) == mode))
+			return 1;
+	}
+	return 0;
 }
 
 /*
