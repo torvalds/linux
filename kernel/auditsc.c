@@ -2163,16 +2163,16 @@ int auditsc_get_stamp(struct audit_context *ctx,
 static atomic_t session_id = ATOMIC_INIT(0);
 
 /**
- * audit_set_loginuid - set a task's audit_context loginuid
- * @task: task whose audit context is being modified
+ * audit_set_loginuid - set current task's audit_context loginuid
  * @loginuid: loginuid value
  *
  * Returns 0.
  *
  * Called (set) from fs/proc/base.c::proc_loginuid_write().
  */
-int audit_set_loginuid(struct task_struct *task, uid_t loginuid)
+int audit_set_loginuid(uid_t loginuid)
 {
+	struct task_struct *task = current;
 	unsigned int sessionid = atomic_inc_return(&session_id);
 	struct audit_context *context = task->audit_context;
 

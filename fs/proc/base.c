@@ -1228,7 +1228,7 @@ static ssize_t proc_loginuid_write(struct file * file, const char __user * buf,
 		goto out_free_page;
 
 	}
-	length = audit_set_loginuid(current, loginuid);
+	length = audit_set_loginuid(loginuid);
 	if (likely(length == 0))
 		length = count;
 
