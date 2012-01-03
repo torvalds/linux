@@ -1700,7 +1700,7 @@ CAN NETWORK LAYER
 M:	Oliver Hartkopp <socketcan@hartkopp.net>
 L:	linux-can@vger.kernel.org
 W:	http://gitorious.org/linux-can
-T:	git://gitorious.org/linux-can/linux-can-next.git
+T:	git git://gitorious.org/linux-can/linux-can-next.git
 S:	Maintained
 F:	net/can/
 F:	include/linux/can.h
@@ -1714,7 +1714,7 @@ M:	Wolfgang Grandegger <wg@grandegger.com>
 M:	Marc Kleine-Budde <mkl@pengutronix.de>
 L:	linux-can@vger.kernel.org
 W:	http://gitorious.org/linux-can
-T:	git://gitorious.org/linux-can/linux-can-next.git
+T:	git git://gitorious.org/linux-can/linux-can-next.git
 S:	Maintained
 F:	drivers/net/can/
 F:	include/linux/can/dev.h
