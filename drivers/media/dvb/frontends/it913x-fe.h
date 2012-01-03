@@ -148,6 +148,16 @@ static inline struct dvb_frontend *it913x_fe_attach(
 #define COEFF_1_2048		0x0001
 #define XTAL_CLK		0x0025
 #define BFS_FCW			0x0029
+
+/* Error Regs */
+#define RSD_ABORT_PKT_LSB	0x0032
+#define RSD_ABORT_PKT_MSB	0x0033
+#define RSD_BIT_ERR_0_7		0x0034
+#define RSD_BIT_ERR_8_15	0x0035
+#define RSD_BIT_ERR_23_16	0x0036
+#define RSD_BIT_COUNT_LSB	0x0037
+#define RSD_BIT_COUNT_MSB	0x0038
+
 #define TPSD_LOCK		0x003c
 #define TRAINING_MODE		0x0040
 #define ADC_X_2			0x0045

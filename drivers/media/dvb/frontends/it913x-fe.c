@@ -66,6 +66,7 @@ struct it913x_fe_state {
 	u8 tun_fdiv;
 	u8 tun_clk_mode;
 	u32 tun_fn_min;
+	u32 ucblocks;
 };
 
 static int it913x_read_reg(struct it913x_fe_state *state,
@@ -562,14 +563,26 @@ static int it913x_fe_read_snr(struct dvb_frontend *fe, u16 *snr)
 
 static int it913x_fe_read_ber(struct dvb_frontend *fe, u32 *ber)
 {
-	*ber = 0;
+	struct it913x_fe_state *state = fe->demodulator_priv;
+	int ret;
+	u8 reg[5];
+	/* Read Aborted Packets and Pre-Viterbi error rate 5 bytes */
+	ret = it913x_read_reg(state, RSD_ABORT_PKT_LSB, reg, sizeof(reg));
+	state->ucblocks += (u32)(reg[1] << 8) | reg[0];
+	*ber = (u32)(reg[4] << 16) | (reg[3] << 8) | reg[2];
 	return 0;
 }
 
 static int it913x_fe_read_ucblocks(struct dvb_frontend *fe, u32 *ucblocks)
 {
-	*ucblocks = 0;
-	return 0;
+	struct it913x_fe_state *state = fe->demodulator_priv;
+	int ret;
+	u8 reg[2];
+	/* Aborted Packets */
+	ret = it913x_read_reg(state, RSD_ABORT_PKT_LSB, reg, sizeof(reg));
+	state->ucblocks += (u32)(reg[1] << 8) | reg[0];
+	*ucblocks = state->ucblocks;
+	return ret;
 }
 
 static int it913x_fe_get_frontend(struct dvb_frontend *fe)
@@ -959,5 +972,5 @@ static struct dvb_frontend_ops it913x_fe_ofdm_ops = {
 
 MODULE_DESCRIPTION("it913x Frontend and it9137 tuner");
 MODULE_AUTHOR("Malcolm Priestley tvboxspy@gmail.com");
-MODULE_VERSION("1.12");
+MODULE_VERSION("1.13");
 MODULE_LICENSE("GPL");
