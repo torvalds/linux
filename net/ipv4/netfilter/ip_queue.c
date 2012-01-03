@@ -430,7 +430,7 @@ __ipq_rcv_skb(struct sk_buff *skb)
 	if (type <= IPQM_BASE)
 		return;
 
-	if (security_netlink_recv(skb, CAP_NET_ADMIN))
+	if (!capable(CAP_NET_ADMIN))
 		RCV_SKB_FAIL(-EPERM);
 
 	spin_lock_bh(&queue_lock);

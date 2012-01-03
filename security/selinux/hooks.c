@@ -4713,24 +4713,6 @@ static int selinux_netlink_send(struct sock *sk, struct sk_buff *skb)
 	return selinux_nlmsg_perm(sk, skb);
 }
 
-static int selinux_netlink_recv(struct sk_buff *skb, int capability)
-{
-	int err;
-	struct common_audit_data ad;
-	u32 sid;
-
-	err = cap_netlink_recv(skb, capability);
-	if (err)
-		return err;
-
-	COMMON_AUDIT_DATA_INIT(&ad, CAP);
-	ad.u.cap = capability;
-
-	security_task_getsecid(current, &sid);
-	return avc_has_perm(sid, sid, SECCLASS_CAPABILITY,
-			    CAP_TO_MASK(capability), &ad);
-}
-
 static int ipc_alloc_security(struct task_struct *task,
 			      struct kern_ipc_perm *perm,
 			      u16 sclass)
@@ -5459,7 +5441,6 @@ static struct security_operations selinux_ops = {
 	.vm_enough_memory =		selinux_vm_enough_memory,
 
 	.netlink_send =			selinux_netlink_send,
-	.netlink_recv =			selinux_netlink_recv,
 
 	.bprm_set_creds =		selinux_bprm_set_creds,
 	.bprm_committing_creds =	selinux_bprm_committing_creds,

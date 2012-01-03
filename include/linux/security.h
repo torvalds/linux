@@ -95,7 +95,6 @@ struct xfrm_user_sec_ctx;
 struct seq_file;
 
 extern int cap_netlink_send(struct sock *sk, struct sk_buff *skb);
-extern int cap_netlink_recv(struct sk_buff *skb, int cap);
 
 void reset_security_ops(void);
 
@@ -792,12 +791,6 @@ static inline void security_free_mnt_opts(struct security_mnt_opts *opts)
  *	@skb contains the sk_buff structure for the netlink message.
  *	Return 0 if the information was successfully saved and message
  *	is allowed to be transmitted.
- * @netlink_recv:
- *	Check permission before processing the received netlink message in
- *	@skb.
- *	@skb contains the sk_buff structure for the netlink message.
- *	@cap indicates the capability required
- *	Return 0 if permission is granted.
  *
  * Security hooks for Unix domain networking.
  *
@@ -1556,7 +1549,6 @@ struct security_operations {
 			  struct sembuf *sops, unsigned nsops, int alter);
 
 	int (*netlink_send) (struct sock *sk, struct sk_buff *skb);
-	int (*netlink_recv) (struct sk_buff *skb, int cap);
 
 	void (*d_instantiate) (struct dentry *dentry, struct inode *inode);
 
@@ -1803,7 +1795,6 @@ void security_d_instantiate(struct dentry *dentry, struct inode *inode);
 int security_getprocattr(struct task_struct *p, char *name, char **value);
 int security_setprocattr(struct task_struct *p, char *name, void *value, size_t size);
 int security_netlink_send(struct sock *sk, struct sk_buff *skb);
-int security_netlink_recv(struct sk_buff *skb, int cap);
 int security_secid_to_secctx(u32 secid, char **secdata, u32 *seclen);
 int security_secctx_to_secid(const char *secdata, u32 seclen, u32 *secid);
 void security_release_secctx(char *secdata, u32 seclen);
@@ -2476,11 +2467,6 @@ static inline int security_setprocattr(struct task_struct *p, char *name, void *
 static inline int security_netlink_send(struct sock *sk, struct sk_buff *skb)
 {
 	return cap_netlink_send(sk, skb);
-}
-
-static inline int security_netlink_recv(struct sk_buff *skb, int cap)
-{
-	return cap_netlink_recv(skb, cap);
 }
 
 static inline int security_secid_to_secctx(u32 secid, char **secdata, u32 *seclen)

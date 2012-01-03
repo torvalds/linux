@@ -56,14 +56,6 @@ int cap_netlink_send(struct sock *sk, struct sk_buff *skb)
 	return 0;
 }
 
-int cap_netlink_recv(struct sk_buff *skb, int cap)
-{
-	if (!cap_raised(current_cap(), cap))
-		return -EPERM;
-	return 0;
-}
-EXPORT_SYMBOL(cap_netlink_recv);
-
 /**
  * cap_capable - Determine whether a task has a particular effective capability
  * @cred: The credentials to use
