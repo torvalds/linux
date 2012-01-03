@@ -6,7 +6,8 @@
  *
  * Zcache provides an in-kernel "host implementation" for transcendent memory
  * and, thus indirectly, for cleancache and frontswap.  Zcache includes two
- * page-accessible memory [1] interfaces, both utilizing lzo1x compression:
+ * page-accessible memory [1] interfaces, both utilizing the crypto compression
+ * API:
  * 1) "compression buddies" ("zbud") is used for ephemeral pages
  * 2) xvmalloc is used for persistent pages.
  * Xvmalloc (based on the TLSF allocator) has very low fragmentation
@@ -23,12 +24,13 @@
 #include <linux/cpu.h>
 #include <linux/highmem.h>
 #include <linux/list.h>
-#include <linux/lzo.h>
 #include <linux/slab.h>
 #include <linux/spinlock.h>
 #include <linux/types.h>
 #include <linux/atomic.h>
 #include <linux/math64.h>
+#include <linux/crypto.h>
+#include <linux/string.h>
 #include "tmem.h"
 
 #include "../zram/xvmalloc.h" /* if built in drivers/staging */
@@ -79,6 +81,38 @@ static inline uint16_t get_client_id_from_client(struct zcache_client *cli)
 static inline bool is_local_client(struct zcache_client *cli)
 {
 	return cli == &zcache_host;
+}
+
+/* crypto API for zcache  */
+#define ZCACHE_COMP_NAME_SZ CRYPTO_MAX_ALG_NAME
+static char zcache_comp_name[ZCACHE_COMP_NAME_SZ];
+static struct crypto_comp * __percpu *zcache_comp_pcpu_tfms;
+
+enum comp_op {
+	ZCACHE_COMPOP_COMPRESS,
+	ZCACHE_COMPOP_DECOMPRESS
+};
+
+static inline int zcache_comp_op(enum comp_op op,
+				const u8 *src, unsigned int slen,
+				u8 *dst, unsigned int *dlen)
+{
+	struct crypto_comp *tfm;
+	int ret;
+
+	BUG_ON(!zcache_comp_pcpu_tfms);
+	tfm = *per_cpu_ptr(zcache_comp_pcpu_tfms, get_cpu());
+	BUG_ON(!tfm);
+	switch (op) {
+	case ZCACHE_COMPOP_COMPRESS:
+		ret = crypto_comp_compress(tfm, src, slen, dst, dlen);
+		break;
+	case ZCACHE_COMPOP_DECOMPRESS:
+		ret = crypto_comp_decompress(tfm, src, slen, dst, dlen);
+		break;
+	}
+	put_cpu();
+	return ret;
 }
 
 /**********
@@ -408,7 +442,7 @@ static int zbud_decompress(struct page *page, struct zbud_hdr *zh)
 {
 	struct zbud_page *zbpg;
 	unsigned budnum = zbud_budnum(zh);
-	size_t out_len = PAGE_SIZE;
+	unsigned int out_len = PAGE_SIZE;
 	char *to_va, *from_va;
 	unsigned size;
 	int ret = 0;
@@ -425,8 +459,9 @@ static int zbud_decompress(struct page *page, struct zbud_hdr *zh)
 	to_va = kmap_atomic(page, KM_USER0);
 	size = zh->size;
 	from_va = zbud_data(zh, size);
-	ret = lzo1x_decompress_safe(from_va, size, to_va, &out_len);
-	BUG_ON(ret != LZO_E_OK);
+	ret = zcache_comp_op(ZCACHE_COMPOP_DECOMPRESS, from_va, size,
+				to_va, &out_len);
+	BUG_ON(ret);
 	BUG_ON(out_len != PAGE_SIZE);
 	kunmap_atomic(to_va, KM_USER0);
 out:
@@ -624,7 +659,7 @@ static int zbud_show_cumul_chunk_counts(char *buf)
 
 /**********
  * This "zv" PAM implementation combines the TLSF-based xvMalloc
- * with lzo1x compression to maximize the amount of data that can
+ * with the crypto compression API to maximize the amount of data that can
  * be packed into a physical page.
  *
  * Zv represents a PAM page with the index and object (plus a "size" value
@@ -711,7 +746,7 @@ static void zv_free(struct xv_pool *xvpool, struct zv_hdr *zv)
 
 static void zv_decompress(struct page *page, struct zv_hdr *zv)
 {
-	size_t clen = PAGE_SIZE;
+	unsigned int clen = PAGE_SIZE;
 	char *to_va;
 	unsigned size;
 	int ret;
@@ -720,10 +755,10 @@ static void zv_decompress(struct page *page, struct zv_hdr *zv)
 	size = xv_get_object_size(zv) - sizeof(*zv);
 	BUG_ON(size == 0);
 	to_va = kmap_atomic(page, KM_USER0);
-	ret = lzo1x_decompress_safe((char *)zv + sizeof(*zv),
-					size, to_va, &clen);
+	ret = zcache_comp_op(ZCACHE_COMPOP_DECOMPRESS, (char *)zv + sizeof(*zv),
+				size, to_va, &clen);
 	kunmap_atomic(to_va, KM_USER0);
-	BUG_ON(ret != LZO_E_OK);
+	BUG_ON(ret);
 	BUG_ON(clen != PAGE_SIZE);
 }
 
@@ -1286,25 +1321,24 @@ static struct tmem_pamops zcache_pamops = {
  * zcache compression/decompression and related per-cpu stuff
  */
 
-#define LZO_WORKMEM_BYTES LZO1X_1_MEM_COMPRESS
-#define LZO_DSTMEM_PAGE_ORDER 1
-static DEFINE_PER_CPU(unsigned char *, zcache_workmem);
 static DEFINE_PER_CPU(unsigned char *, zcache_dstmem);
+#define ZCACHE_DSTMEM_ORDER 1
 
 static int zcache_compress(struct page *from, void **out_va, size_t *out_len)
 {
 	int ret = 0;
 	unsigned char *dmem = __get_cpu_var(zcache_dstmem);
-	unsigned char *wmem = __get_cpu_var(zcache_workmem);
 	char *from_va;
 
 	BUG_ON(!irqs_disabled());
-	if (unlikely(dmem == NULL || wmem == NULL))
-		goto out;  /* no buffer, so can't compress */
+	if (unlikely(dmem == NULL))
+		goto out;  /* no buffer or no compressor so can't compress */
+	*out_len = PAGE_SIZE << ZCACHE_DSTMEM_ORDER;
 	from_va = kmap_atomic(from, KM_USER0);
 	mb();
-	ret = lzo1x_1_compress(from_va, PAGE_SIZE, dmem, out_len, wmem);
-	BUG_ON(ret != LZO_E_OK);
+	ret = zcache_comp_op(ZCACHE_COMPOP_COMPRESS, from_va, PAGE_SIZE, dmem,
+				(unsigned int *)out_len);
+	BUG_ON(ret);
 	*out_va = dmem;
 	kunmap_atomic(from_va, KM_USER0);
 	ret = 1;
@@ -1312,29 +1346,48 @@ out:
 	return ret;
 }
 
+static int zcache_comp_cpu_up(int cpu)
+{
+	struct crypto_comp *tfm;
+
+	tfm = crypto_alloc_comp(zcache_comp_name, 0, 0);
+	if (IS_ERR(tfm))
+		return NOTIFY_BAD;
+	*per_cpu_ptr(zcache_comp_pcpu_tfms, cpu) = tfm;
+	return NOTIFY_OK;
+}
+
+static void zcache_comp_cpu_down(int cpu)
+{
+	struct crypto_comp *tfm;
+
+	tfm = *per_cpu_ptr(zcache_comp_pcpu_tfms, cpu);
+	crypto_free_comp(tfm);
+	*per_cpu_ptr(zcache_comp_pcpu_tfms, cpu) = NULL;
+}
 
 static int zcache_cpu_notifier(struct notifier_block *nb,
 				unsigned long action, void *pcpu)
 {
-	int cpu = (long)pcpu;
+	int ret, cpu = (long)pcpu;
 	struct zcache_preload *kp;
 
 	switch (action) {
 	case CPU_UP_PREPARE:
+		ret = zcache_comp_cpu_up(cpu);
+		if (ret != NOTIFY_OK) {
+			pr_err("zcache: can't allocate compressor transform\n");
+			return ret;
+		}
 		per_cpu(zcache_dstmem, cpu) = (void *)__get_free_pages(
-			GFP_KERNEL | __GFP_REPEAT,
-			LZO_DSTMEM_PAGE_ORDER),
-		per_cpu(zcache_workmem, cpu) =
-			kzalloc(LZO1X_MEM_COMPRESS,
-				GFP_KERNEL | __GFP_REPEAT);
+			GFP_KERNEL | __GFP_REPEAT, ZCACHE_DSTMEM_ORDER);
 		break;
 	case CPU_DEAD:
 	case CPU_UP_CANCELED:
+		zcache_comp_cpu_down(cpu);
 		free_pages((unsigned long)per_cpu(zcache_dstmem, cpu),
-				LZO_DSTMEM_PAGE_ORDER);
+			ZCACHE_DSTMEM_ORDER);
 		per_cpu(zcache_dstmem, cpu) = NULL;
-		kfree(per_cpu(zcache_workmem, cpu));
-		per_cpu(zcache_workmem, cpu) = NULL;
 		kp = &per_cpu(zcache_preloads, cpu);
 		while (kp->nr) {
 			kmem_cache_free(zcache_objnode_cache,
@@ -1919,6 +1972,44 @@ static int __init no_frontswap(char *s)
 
 __setup("nofrontswap", no_frontswap);
 
+static int __init enable_zcache_compressor(char *s)
+{
+	strncpy(zcache_comp_name, s, ZCACHE_COMP_NAME_SZ);
+	zcache_enabled = 1;
+	return 1;
+}
+__setup("zcache=", enable_zcache_compressor);
+
+
+static int zcache_comp_init(void)
+{
+	int ret = 0;
+
+	/* check crypto algorithm */
+	if (*zcache_comp_name != '\0') {
+		ret = crypto_has_comp(zcache_comp_name, 0, 0);
+		if (!ret)
+			pr_info("zcache: %s not supported\n",
+					zcache_comp_name);
+	}
+	if (!ret)
+		strcpy(zcache_comp_name, "lzo");
+	ret = crypto_has_comp(zcache_comp_name, 0, 0);
+	if (!ret) {
+		ret = 1;
+		goto out;
+	}
+	pr_info("zcache: using %s compressor\n", zcache_comp_name);
+
+	/* alloc percpu transforms */
+	ret = 0;
+	zcache_comp_pcpu_tfms = alloc_percpu(struct crypto_comp *);
+	if (!zcache_comp_pcpu_tfms)
+		ret = 1;
+out:
+	return ret;
+}
+
 static int __init zcache_init(void)
 {
 	int ret = 0;
@@ -1939,6 +2030,11 @@ static int __init zcache_init(void)
 		ret = register_cpu_notifier(&zcache_cpu_notifier_block);
 		if (ret) {
 			pr_err("zcache: can't register cpu notifier\n");
+			goto out;
+		}
+		ret = zcache_comp_init();
+		if (ret) {
+			pr_err("zcache: compressor initialization failed\n");
 			goto out;
 		}
 		for_each_online_cpu(cpu) {
