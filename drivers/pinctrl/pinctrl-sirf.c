@@ -1086,7 +1086,6 @@ static struct pinctrl_desc sirfsoc_pinmux_desc = {
 	.name = DRIVER_NAME,
 	.pins = sirfsoc_pads,
 	.npins = ARRAY_SIZE(sirfsoc_pads),
-	.maxpin = SIRFSOC_NUM_PADS - 1,
 	.pctlops = &sirfsoc_pctrl_ops,
 	.pmxops = &sirfsoc_pinmux_ops,
 	.owner = THIS_MODULE,

@@ -92,10 +92,6 @@ struct pinctrl_ops {
  *	this pin controller
  * @npins: number of descriptors in the array, usually just ARRAY_SIZE()
  *	of the pins field above
- * @maxpin: since pin spaces may be sparse, there can he "holes" in the
- *	pin range, this attribute gives the maximum pin number in the
- *	total range. This should not be lower than npins for example,
- *	but may be equal to npins if you have no holes in the pin range.
  * @pctlops: pin control operation vtable, to support global concepts like
  *	grouping of pins, this is optional.
  * @pmxops: pinmux operations vtable, if you support pinmuxing in your driver
@@ -107,7 +103,6 @@ struct pinctrl_desc {
 	const char *name;
 	struct pinctrl_pin_desc const *pins;
 	unsigned int npins;
-	unsigned int maxpin;
 	struct pinctrl_ops *pctlops;
 	struct pinmux_ops *pmxops;
 	struct pinconf_ops *confops;

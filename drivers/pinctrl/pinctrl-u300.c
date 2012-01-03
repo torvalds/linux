@@ -1048,7 +1048,6 @@ static struct pinctrl_desc u300_pmx_desc = {
 	.name = DRIVER_NAME,
 	.pins = u300_pads,
 	.npins = ARRAY_SIZE(u300_pads),
-	.maxpin = U300_NUM_PADS-1,
 	.pctlops = &u300_pctrl_ops,
 	.pmxops = &u300_pmx_ops,
 	.owner = THIS_MODULE,

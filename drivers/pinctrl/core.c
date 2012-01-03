@@ -354,7 +354,6 @@ static int pinctrl_pins_show(struct seq_file *s, void *what)
 	unsigned i, pin;
 
 	seq_printf(s, "registered pins: %d\n", pctldev->desc->npins);
-	seq_printf(s, "max pin number: %d\n", pctldev->desc->maxpin);
 
 	/* The pin number can be retrived from the pin controller descriptor */
 	for (i = 0; i < pctldev->desc->npins; i++) {
