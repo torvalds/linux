@@ -172,6 +172,10 @@ static bool da9052_reg_writeable(struct device *dev, unsigned int reg)
 {
 	switch (reg) {
 	case DA9052_PAGE0_CON_REG:
+	case DA9052_EVENT_A_REG:
+	case DA9052_EVENT_B_REG:
+	case DA9052_EVENT_C_REG:
+	case DA9052_EVENT_D_REG:
 	case DA9052_IRQ_MASK_A_REG:
 	case DA9052_IRQ_MASK_B_REG:
 	case DA9052_IRQ_MASK_C_REG:
