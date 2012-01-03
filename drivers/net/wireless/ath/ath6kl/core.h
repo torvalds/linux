@@ -410,6 +410,13 @@ enum ath6kl_hif_type {
 	ATH6KL_HIF_TYPE_USB,
 };
 
+/* Max number of filters that hw supports */
+#define ATH6K_MAX_MC_FILTERS_PER_LIST 7
+struct ath6kl_mc_filter {
+	struct list_head list;
+	char hw_addr[ATH6KL_MCAST_FILTER_MAC_ADDR_SIZE];
+};
+
 /*
  * Driver's maximum limit, note that some firmwares support only one vif
  * and the runtime (current) limit must be checked from ar->vif_max.
@@ -473,6 +480,8 @@ struct ath6kl_vif {
 	u8 assoc_bss_dtim_period;
 	struct net_device_stats net_stats;
 	struct target_stats target_stats;
+
+	struct list_head mc_filter;
 };
 
 #define WOW_LIST_ID		0

@@ -1052,12 +1052,122 @@ static int ath6kl_set_features(struct net_device *dev, u32 features)
 	return err;
 }
 
+static void ath6kl_set_multicast_list(struct net_device *ndev)
+{
+	struct ath6kl_vif *vif = netdev_priv(ndev);
+	bool mc_all_on = false, mc_all_off = false;
+	int mc_count = netdev_mc_count(ndev);
+	struct netdev_hw_addr *ha;
+	bool found;
+	struct ath6kl_mc_filter *mc_filter, *tmp;
+	struct list_head mc_filter_new;
+	int ret;
+
+	if (!test_bit(WMI_READY, &vif->ar->flag) ||
+	    !test_bit(WLAN_ENABLED, &vif->flags))
+		return;
+
+	mc_all_on = !!(ndev->flags & IFF_PROMISC) ||
+		    !!(ndev->flags & IFF_ALLMULTI) ||
+		    !!(mc_count > ATH6K_MAX_MC_FILTERS_PER_LIST);
+
+	mc_all_off = !(ndev->flags & IFF_MULTICAST) || mc_count == 0;
+
+	if (mc_all_on || mc_all_off) {
+		/* Enable/disable all multicast */
+		ath6kl_dbg(ATH6KL_DBG_TRC, "%s multicast filter\n",
+			  mc_all_on ? "enabling" : "disabling");
+		ret = ath6kl_wmi_mcast_filter_cmd(vif->ar->wmi, vif->fw_vif_idx,
+						  mc_all_on);
+		if (ret)
+			ath6kl_warn("Failed to %s multicast receive\n",
+				    mc_all_on ? "enable" : "disable");
+		return;
+	}
+
+	list_for_each_entry_safe(mc_filter, tmp, &vif->mc_filter, list) {
+		found = false;
+		netdev_for_each_mc_addr(ha, ndev) {
+			if (memcmp(ha->addr, mc_filter->hw_addr,
+			    ATH6KL_MCAST_FILTER_MAC_ADDR_SIZE) == 0) {
+				found = true;
+				break;
+			}
+		}
+
+		if (!found) {
+			/*
+			 * Delete the filter which was previously set
+			 * but not in the new request.
+			 */
+			ath6kl_dbg(ATH6KL_DBG_TRC,
+				   "Removing %pM from multicast filter\n",
+				   mc_filter->hw_addr);
+			ret = ath6kl_wmi_add_del_mcast_filter_cmd(vif->ar->wmi,
+					vif->fw_vif_idx, mc_filter->hw_addr,
+					false);
+			if (ret) {
+				ath6kl_warn("Failed to remove multicast filter:%pM\n",
+					     mc_filter->hw_addr);
+				return;
+			}
+
+			list_del(&mc_filter->list);
+			kfree(mc_filter);
+		}
+	}
+
+	INIT_LIST_HEAD(&mc_filter_new);
+
+	netdev_for_each_mc_addr(ha, ndev) {
+		found = false;
+		list_for_each_entry(mc_filter, &vif->mc_filter, list) {
+			if (memcmp(ha->addr, mc_filter->hw_addr,
+			    ATH6KL_MCAST_FILTER_MAC_ADDR_SIZE) == 0) {
+				found = true;
+				break;
+			}
+		}
+
+		if (!found) {
+			mc_filter = kzalloc(sizeof(struct ath6kl_mc_filter),
+					    GFP_ATOMIC);
+			if (!mc_filter) {
+				WARN_ON(1);
+				goto out;
+			}
+
+			memcpy(mc_filter->hw_addr, ha->addr,
+			       ATH6KL_MCAST_FILTER_MAC_ADDR_SIZE);
+			/* Set the multicast filter */
+			ath6kl_dbg(ATH6KL_DBG_TRC,
+				   "Adding %pM to multicast filter list\n",
+				   mc_filter->hw_addr);
+			ret = ath6kl_wmi_add_del_mcast_filter_cmd(vif->ar->wmi,
+					vif->fw_vif_idx, mc_filter->hw_addr,
+					true);
+			if (ret) {
+				ath6kl_warn("Failed to add multicast filter :%pM\n",
+					     mc_filter->hw_addr);
+				kfree(mc_filter);
+				goto out;
+			}
+
+			list_add_tail(&mc_filter->list, &mc_filter_new);
+		}
+	}
+
+out:
+	list_splice_tail(&mc_filter_new, &vif->mc_filter);
+}
+
 static struct net_device_ops ath6kl_netdev_ops = {
 	.ndo_open               = ath6kl_open,
 	.ndo_stop               = ath6kl_close,
 	.ndo_start_xmit         = ath6kl_data_tx,
 	.ndo_get_stats          = ath6kl_get_stats,
 	.ndo_set_features       = ath6kl_set_features,
+	.ndo_set_rx_mode	= ath6kl_set_multicast_list,
 };
 
 void init_netdev(struct net_device *dev)

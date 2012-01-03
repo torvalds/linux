@@ -2818,12 +2818,15 @@ static int ath6kl_init_if_data(struct ath6kl_vif *vif)
 	set_bit(WMM_ENABLED, &vif->flags);
 	spin_lock_init(&vif->if_lock);
 
+	INIT_LIST_HEAD(&vif->mc_filter);
+
 	return 0;
 }
 
 void ath6kl_deinit_if_data(struct ath6kl_vif *vif)
 {
 	struct ath6kl *ar = vif->ar;
+	struct ath6kl_mc_filter *mc_filter, *tmp;
 
 	aggr_module_destroy(vif->aggr_cntxt);
 
@@ -2831,6 +2834,11 @@ void ath6kl_deinit_if_data(struct ath6kl_vif *vif)
 
 	if (vif->nw_type == ADHOC_NETWORK)
 		ar->ibss_if_active = false;
+
+	list_for_each_entry_safe(mc_filter, tmp, &vif->mc_filter, list) {
+		list_del(&mc_filter->list);
+		kfree(mc_filter);
+	}
 
 	unregister_netdevice(vif->ndev);
 
