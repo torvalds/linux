@@ -1707,26 +1707,6 @@ void __audit_syscall_entry(int arch, int major,
 	context->ppid       = 0;
 }
 
-void audit_finish_fork(struct task_struct *child)
-{
-	struct audit_context *ctx = current->audit_context;
-	struct audit_context *p = child->audit_context;
-	if (!p || !ctx)
-		return;
-	if (!ctx->in_syscall || ctx->current_state != AUDIT_RECORD_CONTEXT)
-		return;
-	p->arch = ctx->arch;
-	p->major = ctx->major;
-	memcpy(p->argv, ctx->argv, sizeof(ctx->argv));
-	p->ctime = ctx->ctime;
-	p->dummy = ctx->dummy;
-	p->in_syscall = ctx->in_syscall;
-	p->filterkey = kstrdup(ctx->filterkey, GFP_KERNEL);
-	p->ppid = current->pid;
-	p->prio = ctx->prio;
-	p->current_state = ctx->current_state;
-}
-
 /**
  * audit_syscall_exit - deallocate audit context after a system call
  * @pt_regs: syscall registers
