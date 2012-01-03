@@ -344,6 +344,7 @@ static void __init palmld_init(void)
 MACHINE_START(PALMLD, "Palm LifeDrive")
 	.atag_offset	= 0x100,
 	.map_io		= palmld_map_io,
+	.nr_irqs	= PXA_NR_IRQS,
 	.init_irq	= pxa27x_init_irq,
 	.handle_irq	= pxa27x_handle_irq,
 	.timer		= &pxa_timer,

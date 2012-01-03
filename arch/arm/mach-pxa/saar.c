@@ -598,6 +598,7 @@ MACHINE_START(SAAR, "PXA930 Handheld Platform (aka SAAR)")
 	/* Maintainer: Eric Miao <eric.miao@marvell.com> */
 	.atag_offset    = 0x100,
 	.map_io         = pxa3xx_map_io,
+	.nr_irqs	= PXA_NR_IRQS,
 	.init_irq       = pxa3xx_init_irq,
 	.handle_irq       = pxa3xx_handle_irq,
 	.timer          = &pxa_timer,

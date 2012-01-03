@@ -22,6 +22,7 @@
 #include <asm/mach/time.h>
 #include <asm/sched_clock.h>
 #include <mach/regs-ost.h>
+#include <mach/irqs.h>
 
 /*
  * This is PXA's sched_clock implementation. This has a resolution

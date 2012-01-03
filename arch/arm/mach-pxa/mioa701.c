@@ -758,6 +758,7 @@ MACHINE_START(MIOA701, "MIO A701")
 	.atag_offset	= 0x100,
 	.restart_mode	= 's',
 	.map_io		= &pxa27x_map_io,
+	.nr_irqs	= PXA_NR_IRQS,
 	.init_irq	= &pxa27x_init_irq,
 	.handle_irq	= &pxa27x_handle_irq,
 	.init_machine	= mioa701_machine_init,
