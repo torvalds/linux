@@ -161,7 +161,7 @@ static inline struct dvb_frontend *it913x_fe_attach(
 /* Build in tuner types */
 #define IT9137 0x38
 #define IT9135_38 0x38
-#define IT9135_51 0x50
+#define IT9135_51 0x51
 #define IT9135_52 0x52
 #define IT9135_60 0x60
 #define IT9135_61 0x61
