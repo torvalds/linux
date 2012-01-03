@@ -27,7 +27,6 @@
 
 #include <linux/dcache.h>
 #include <linux/fs.h>
-#include <linux/types.h>
 
 struct dentry;
 

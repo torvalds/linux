@@ -25,9 +25,6 @@
 
 #ifdef __KERNEL__
 
-#include <linux/path.h>
-#include <linux/aufs_type.h>
-
 struct file;
 struct super_block;
 

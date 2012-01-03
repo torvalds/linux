@@ -22,7 +22,6 @@
  * their file I/O is handled out of aufs.
  */
 
-#include <linux/fs_stack.h>
 #include "aufs.h"
 
 static ssize_t aufs_aio_read_sp(struct kiocb *kio, const struct iovec *iov,

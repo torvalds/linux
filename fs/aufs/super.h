@@ -26,7 +26,6 @@
 #ifdef __KERNEL__
 
 #include <linux/fs.h>
-#include <linux/aufs_type.h>
 #include "rwsem.h"
 #include "spl.h"
 #include "wkq.h"

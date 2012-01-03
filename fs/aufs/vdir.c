@@ -20,7 +20,6 @@
  * virtual or vertical directory
  */
 
-#include <linux/hash.h>
 #include "aufs.h"
 
 static unsigned int calc_size(int nlen)

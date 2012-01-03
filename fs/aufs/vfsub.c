@@ -20,12 +20,10 @@
  * sub-routines for VFS
  */
 
-#include <linux/file.h>
 #include <linux/ima.h>
 #include <linux/namei.h>
 #include <linux/security.h>
 #include <linux/splice.h>
-#include <linux/uaccess.h>
 #include "aufs.h"
 
 int vfsub_update_h_iattr(struct path *h_path, int *did)

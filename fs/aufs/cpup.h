@@ -25,10 +25,6 @@
 
 #ifdef __KERNEL__
 
-#include <linux/path.h>
-#include <linux/time.h>
-#include <linux/aufs_type.h>
-
 struct inode;
 struct file;
 

@@ -25,9 +25,7 @@
 
 #ifdef __KERNEL__
 
-#include <linux/fs.h>
 #include <linux/fsnotify.h>
-#include <linux/aufs_type.h>
 #include "rwsem.h"
 
 struct vfsmount;

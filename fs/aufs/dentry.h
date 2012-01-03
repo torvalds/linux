@@ -26,7 +26,6 @@
 #ifdef __KERNEL__
 
 #include <linux/dcache.h>
-#include <linux/aufs_type.h>
 #include "rwsem.h"
 
 struct au_hdentry {

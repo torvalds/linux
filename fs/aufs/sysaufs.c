@@ -21,9 +21,7 @@
  * they are necessary regardless sysfs is disabled.
  */
 
-#include <linux/fs.h>
 #include <linux/random.h>
-#include <linux/sysfs.h>
 #include "aufs.h"
 
 unsigned long sysaufs_si_mask;

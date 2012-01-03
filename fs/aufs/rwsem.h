@@ -25,7 +25,6 @@
 
 #ifdef __KERNEL__
 
-#include <linux/rwsem.h>
 #include "debug.h"
 
 struct au_rwsem {

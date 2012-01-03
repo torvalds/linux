@@ -25,10 +25,6 @@
 
 #ifdef __KERNEL__
 
-#include <linux/fs.h>
-#include <linux/mm.h>
-#include <linux/rcupdate.h>
-#include <linux/aufs_type.h>
 #include "inode.h"
 
 enum {AuDy_AOP, AuDyLast};

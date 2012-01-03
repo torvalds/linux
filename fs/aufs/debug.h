@@ -26,16 +26,9 @@
 #ifdef __KERNEL__
 
 #include <asm/system.h>
-#include <linux/bug.h>
-/* #include <linux/err.h> */
-#include <linux/init.h>
 #include <linux/module.h>
 #include <linux/kallsyms.h>
-/* #include <linux/kernel.h> */
-#include <linux/delay.h>
-/* #include <linux/kd.h> */
 #include <linux/sysrq.h>
-#include <linux/aufs_type.h>
 
 #ifdef CONFIG_AUFS_DEBUG
 #define AuDebugOn(a)		BUG_ON(a)

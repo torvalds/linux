@@ -20,10 +20,8 @@
  * file and vm operations
  */
 
-#include <linux/file.h>
 #include <linux/fs_stack.h>
 #include <linux/mman.h>
-#include <linux/mm.h>
 #include <linux/security.h>
 #include "aufs.h"
 

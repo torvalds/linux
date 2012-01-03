@@ -26,10 +26,6 @@
 
 #ifdef __KERNEL__
 
-#include <linux/sched.h>
-#include <linux/wait.h>
-#include <linux/aufs_type.h>
-
 struct super_block;
 
 /* ---------------------------------------------------------------------- */

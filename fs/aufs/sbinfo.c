@@ -20,7 +20,6 @@
  * superblock private data
  */
 
-#include <linux/jiffies.h>
 #include "aufs.h"
 
 /*

@@ -20,9 +20,6 @@
  * handling file/dir, and address_space operation
  */
 
-#include <linux/file.h>
-#include <linux/fsnotify.h>
-#include <linux/namei.h>
 #include <linux/pagemap.h>
 #include "aufs.h"
 

@@ -20,9 +20,6 @@
  * magic sysrq hanlder
  */
 
-#include <linux/fs.h>
-#include <linux/module.h>
-#include <linux/moduleparam.h>
 /* #include <linux/sysrq.h> */
 #include <linux/writeback.h>
 #include "aufs.h"

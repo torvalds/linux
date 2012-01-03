@@ -26,7 +26,6 @@
  * and au_h_open_post() after releasing it.
  */
 
-#include <linux/file.h>
 #include "aufs.h"
 
 struct file *au_h_open_pre(struct dentry *dentry, aufs_bindex_t bindex)

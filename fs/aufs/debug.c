@@ -20,7 +20,6 @@
  * debug print functions
  */
 
-#include <linux/module.h>
 #include <linux/vt_kern.h>
 #include "aufs.h"
 

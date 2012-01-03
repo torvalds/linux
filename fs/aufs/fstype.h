@@ -28,7 +28,6 @@
 #include <linux/fs.h>
 #include <linux/magic.h>
 #include <linux/romfs_fs.h>
-#include <linux/aufs_type.h>
 
 static inline int au_test_aufs(struct super_block *sb)
 {

@@ -25,7 +25,6 @@
 
 #ifdef __KERNEL__
 
-#include <linux/aufs_type.h>
 #include "dir.h"
 
 /* whout.c */

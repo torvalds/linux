@@ -22,7 +22,6 @@
  * assist the pathconf(3) wrapper library.
  */
 
-#include <linux/file.h>
 #include "aufs.h"
 
 static int au_wbr_fd(struct path *path, struct aufs_wbr_fd __user *arg)

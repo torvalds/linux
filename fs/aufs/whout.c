@@ -20,7 +20,6 @@
  * whiteout for logical deletion and opaque directory
  */
 
-#include <linux/fs.h>
 #include "aufs.h"
 
 #define WH_MASK			S_IRUGO

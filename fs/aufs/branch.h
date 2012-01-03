@@ -25,9 +25,7 @@
 
 #ifdef __KERNEL__
 
-#include <linux/fs.h>
 #include <linux/mount.h>
-#include <linux/aufs_type.h>
 #include "dynop.h"
 #include "rwsem.h"
 #include "super.h"

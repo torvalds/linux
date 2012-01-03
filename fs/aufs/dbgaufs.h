@@ -25,9 +25,6 @@
 
 #ifdef __KERNEL__
 
-#include <linux/init.h>
-#include <linux/aufs_type.h>
-
 struct super_block;
 struct au_sbinfo;
 

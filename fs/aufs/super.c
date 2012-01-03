@@ -20,8 +20,7 @@
  * mount and super_block operations
  */
 
-#include <linux/buffer_head.h>
-#include <linux/jiffies.h>
+#include <linux/mm.h>
 #include <linux/module.h>
 #include <linux/seq_file.h>
 #include <linux/statfs.h>

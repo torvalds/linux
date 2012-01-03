@@ -21,7 +21,6 @@
  */
 
 #include <linux/exportfs.h>
-#include <linux/file.h>
 #include <linux/mnt_namespace.h>
 #include <linux/namei.h>
 #include <linux/nsproxy.h>
