@@ -45,15 +45,23 @@ static inline void flush(void)
 
 static inline void arch_decomp_setup(void)
 {
+	volatile u32 *apb_misc = (volatile u32 *)TEGRA_APB_MISC_BASE;
+	u32 chip, div;
 	volatile u8 *uart = (volatile u8 *)TEGRA_DEBUG_UART_BASE;
 	int shift = 2;
 
 	if (uart == NULL)
 		return;
 
+	chip = (apb_misc[0x804 / 4] >> 8) & 0xff;
+	if (chip == 0x20)
+		div = 0x0075;
+	else
+		div = 0x00dd;
+
 	uart[UART_LCR << shift] |= UART_LCR_DLAB;
-	uart[UART_DLL << shift] = 0x75;
-	uart[UART_DLM << shift] = 0x0;
+	uart[UART_DLL << shift] = div & 0xff;
+	uart[UART_DLM << shift] = div >> 8;
 	uart[UART_LCR << shift] = 3;
 }
 
