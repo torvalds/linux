@@ -4042,7 +4042,7 @@ static void __devexit skge_remove(struct pci_dev *pdev)
 	pci_set_drvdata(pdev, NULL);
 }
 
-#ifdef CONFIG_PM
+#ifdef CONFIG_PM_SLEEP
 static int skge_suspend(struct device *dev)
 {
 	struct pci_dev *pdev = to_pci_dev(dev);
@@ -4104,7 +4104,7 @@ static SIMPLE_DEV_PM_OPS(skge_pm_ops, skge_suspend, skge_resume);
 #else
 
 #define SKGE_PM_OPS NULL
-#endif
+#endif /* CONFIG_PM_SLEEP */
 
 static void skge_shutdown(struct pci_dev *pdev)
 {
