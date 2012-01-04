@@ -735,9 +735,10 @@ static void r6040_mac_address(struct net_device *dev)
 	void __iomem *ioaddr = lp->base;
 	u16 *adrp;
 
-	/* MAC operation register */
-	iowrite16(MAC_RST, ioaddr + MCR1); /* Reset MAC */
-	iowrite16(MAC_SM_RST, ioaddr + MAC_SM); /* Reset internal state machine */
+	/* Reset MAC */
+	iowrite16(MAC_RST, ioaddr + MCR1);
+	/* Reset internal state machine */
+	iowrite16(MAC_SM_RST, ioaddr + MAC_SM);
 	iowrite16(0, ioaddr + MAC_SM);
 	mdelay(5);
 
