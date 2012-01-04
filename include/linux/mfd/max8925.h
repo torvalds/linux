@@ -206,6 +206,8 @@ struct max8925_chip {
 	int			irq_base;
 	int			core_irq;
 	int			tsc_irq;
+
+	unsigned int            wakeup_flag;
 };
 
 struct max8925_backlight_pdata {
