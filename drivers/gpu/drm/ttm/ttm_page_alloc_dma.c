@@ -384,7 +384,9 @@ static void ttm_dma_pages_put(struct dma_pool *pool, struct list_head *d_pages,
 {
 	struct dma_page *d_page, *tmp;
 
-	if (npages && set_pages_array_wb(pages, npages))
+	/* Don't set WB on WB page pool. */
+	if (npages && !(pool->type & IS_CACHED) &&
+	    set_pages_array_wb(pages, npages))
 		pr_err(TTM_PFX "%s: Failed to set %d pages to wb!\n",
 			pool->dev_name, npages);
 
@@ -396,7 +398,8 @@ static void ttm_dma_pages_put(struct dma_pool *pool, struct list_head *d_pages,
 
 static void ttm_dma_page_put(struct dma_pool *pool, struct dma_page *d_page)
 {
-	if (set_pages_array_wb(&d_page->p, 1))
+	/* Don't set WB on WB page pool. */
+	if (!(pool->type & IS_CACHED) && set_pages_array_wb(&d_page->p, 1))
 		pr_err(TTM_PFX "%s: Failed to set %d pages to wb!\n",
 			pool->dev_name, 1);
 
