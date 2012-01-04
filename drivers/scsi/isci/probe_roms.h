@@ -193,7 +193,8 @@ struct isci_oem_hdr {
 
 #define ISCI_ROM_VER_1_0	0x10
 #define ISCI_ROM_VER_1_1	0x11
-#define ISCI_ROM_VER_LATEST	ISCI_ROM_VER_1_1
+#define ISCI_ROM_VER_1_3	0x13
+#define ISCI_ROM_VER_LATEST	ISCI_ROM_VER_1_3
 
 /* Allowed PORT configuration modes APC Automatic PORT configuration mode is
  * defined by the OEM configuration parameters providing no PHY_MASK parameters
@@ -270,7 +271,40 @@ struct sci_oem_params {
 			};
 			uint8_t do_enable_ssc;
 		};
-		uint8_t reserved;
+		/*
+		 * This field indicates length of the SAS/SATA cable between
+		 * host and device.
+		 * This field is used make relationship between analog
+		 * parameters of the phy in the silicon and length of the cable.
+		 * Supported cable attenuation levels:
+		 * "short"- up to 3m, "medium"-3m to 6m, and "long"- more than
+		 * 6m.
+		 *
+		 * This is bit mask field:
+		 *
+		 * BIT:      (MSB) 7     6     5     4
+		 * ASSIGNMENT:   <phy3><phy2><phy1><phy0>  - Medium cable
+		 *                                           length assignment
+		 * BIT:            3     2     1     0  (LSB)
+		 * ASSIGNMENT:   <phy3><phy2><phy1><phy0>  - Long cable length
+		 *                                           assignment
+		 *
+		 * BITS 7-4 are set when the cable length is assigned to medium
+		 * BITS 3-0 are set when the cable length is assigned to long
+		 *
+		 * The BIT positions are clear when the cable length is
+		 * assigned to short.
+		 *
+		 * Setting the bits for both long and medium cable length is
+		 * undefined.
+		 *
+		 * A value of 0x84 would assign
+		 *    phy3 - medium
+		 *    phy2 - long
+		 *    phy1 - short
+		 *    phy0 - short
+		 */
+		uint8_t cable_selection_mask;
 	} controller;
 
 	struct {

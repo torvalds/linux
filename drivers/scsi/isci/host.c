@@ -1666,6 +1666,9 @@ static void sci_controller_set_default_config_parameters(struct isci_host *ihost
 	/* Default to no SSC operation. */
 	ihost->oem_parameters.controller.do_enable_ssc = false;
 
+	/* Default to short cables on all phys. */
+	ihost->oem_parameters.controller.cable_selection_mask = 0;
+
 	/* Initialize all of the port parameter information to narrow ports. */
 	for (index = 0; index < SCI_MAX_PORTS; index++) {
 		ihost->oem_parameters.ports[index].phy_mask = 0;
@@ -1953,12 +1956,46 @@ void sci_controller_power_control_queue_remove(struct isci_host *ihost,
 
 static int is_long_cable(int phy, unsigned char selection_byte)
 {
-	return 0;
+	return !!(selection_byte & (1 << phy));
 }
 
 static int is_medium_cable(int phy, unsigned char selection_byte)
 {
-	return 0;
+	return !!(selection_byte & (1 << (phy + 4)));
+}
+
+static enum cable_selections decode_selection_byte(
+	int phy,
+	unsigned char selection_byte)
+{
+	return ((selection_byte & (1 << phy)) ? 1 : 0)
+		+ (selection_byte & (1 << (phy + 4)) ? 2 : 0);
+}
+
+static unsigned char *to_cable_select(struct isci_host *ihost)
+{
+	if (is_cable_select_overridden())
+		return ((unsigned char *)&cable_selection_override)
+			+ ihost->id;
+	else
+		return &ihost->oem_parameters.controller.cable_selection_mask;
+}
+
+enum cable_selections decode_cable_selection(struct isci_host *ihost, int phy)
+{
+	return decode_selection_byte(phy, *to_cable_select(ihost));
+}
+
+char *lookup_cable_names(enum cable_selections selection)
+{
+	static char *cable_names[] = {
+		[short_cable]     = "short",
+		[long_cable]      = "long",
+		[medium_cable]    = "medium",
+		[undefined_cable] = "<undefined, assumed long>" /* bit 0==1 */
+	};
+	return (selection <= undefined_cable) ? cable_names[selection]
+					      : cable_names[undefined_cable];
 }
 
 #define AFE_REGISTER_WRITE_DELAY 10
@@ -1967,10 +2004,10 @@ static void sci_controller_afe_initialization(struct isci_host *ihost)
 {
 	struct scu_afe_registers __iomem *afe = &ihost->scu_registers->afe;
 	const struct sci_oem_params *oem = &ihost->oem_parameters;
-	unsigned char cable_selection_mask = 0;
 	struct pci_dev *pdev = ihost->pdev;
 	u32 afe_status;
 	u32 phy_id;
+	unsigned char cable_selection_mask = *to_cable_select(ihost);
 
 	/* Clear DFX Status registers */
 	writel(0x0081000f, &afe->afe_dfx_master_control0);

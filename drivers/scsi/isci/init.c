@@ -122,6 +122,14 @@ unsigned char max_concurr_spinup;
 module_param(max_concurr_spinup, byte, 0);
 MODULE_PARM_DESC(max_concurr_spinup, "Max concurrent device spinup");
 
+uint cable_selection_override = CABLE_OVERRIDE_DISABLED;
+module_param(cable_selection_override, uint, 0);
+
+MODULE_PARM_DESC(cable_selection_override,
+		 "This field indicates length of the SAS/SATA cable between "
+		 "host and device. If any bits > 15 are set (default) "
+		 "indicates \"use platform defaults\"");
+
 static ssize_t isci_show_id(struct device *dev, struct device_attribute *attr, char *buf)
 {
 	struct Scsi_Host *shost = container_of(dev, typeof(*shost), shost_dev);
@@ -411,6 +419,14 @@ static struct isci_host *isci_host_alloc(struct pci_dev *pdev, int id)
 	if (!shost)
 		return NULL;
 	isci_host->shost = shost;
+
+	dev_info(&pdev->dev, "%sSCU controller %d: phy 3-0 cables: "
+		 "{%s, %s, %s, %s}\n",
+		 (is_cable_select_overridden() ? "* " : ""), isci_host->id,
+		 lookup_cable_names(decode_cable_selection(isci_host, 3)),
+		 lookup_cable_names(decode_cable_selection(isci_host, 2)),
+		 lookup_cable_names(decode_cable_selection(isci_host, 1)),
+		 lookup_cable_names(decode_cable_selection(isci_host, 0)));
 
 	err = isci_host_init(isci_host);
 	if (err)
