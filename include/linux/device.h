@@ -510,8 +510,8 @@ ssize_t device_store_int(struct device *dev, struct device_attribute *attr,
 	struct dev_ext_attribute dev_attr_##_name = \
 		{ __ATTR(_name, _mode, device_show_ulong, device_store_ulong), &(_var) }
 
-extern int __must_check device_create_file(struct device *device,
-					const struct device_attribute *entry);
+extern int device_create_file(struct device *device,
+			      const struct device_attribute *entry);
 extern void device_remove_file(struct device *dev,
 			       const struct device_attribute *attr);
 extern int __must_check device_create_bin_file(struct device *dev,
