@@ -595,137 +595,6 @@ out:
 }
 
 /*
- * Set up the block and inode bitmaps, and the inode table for the new group.
- * This doesn't need to be part of the main transaction, since we are only
- * changing blocks outside the actual filesystem.  We still do journaling to
- * ensure the recovery is correct in case of a failure just after resize.
- * If any part of this fails, we simply abort the resize.
- */
-static int setup_new_group_blocks(struct super_block *sb,
-				  struct ext4_new_group_data *input)
-{
-	struct ext4_sb_info *sbi = EXT4_SB(sb);
-	ext4_fsblk_t start = ext4_group_first_block_no(sb, input->group);
-	int reserved_gdb = ext4_bg_has_super(sb, input->group) ?
-		le16_to_cpu(sbi->s_es->s_reserved_gdt_blocks) : 0;
-	unsigned long gdblocks = ext4_bg_num_gdb(sb, input->group);
-	struct buffer_head *bh;
-	handle_t *handle;
-	ext4_fsblk_t block;
-	ext4_grpblk_t bit;
-	int i;
-	int err = 0, err2;
-
-	/* This transaction may be extended/restarted along the way */
-	handle = ext4_journal_start_sb(sb, EXT4_MAX_TRANS_DATA);
-
-	if (IS_ERR(handle))
-		return PTR_ERR(handle);
-
-	BUG_ON(input->group != sbi->s_groups_count);
-
-	/* Copy all of the GDT blocks into the backup in this group */
-	for (i = 0, bit = 1, block = start + 1;
-	     i < gdblocks; i++, block++, bit++) {
-		struct buffer_head *gdb;
-
-		ext4_debug("update backup group %#04llx (+%d)\n", block, bit);
-		err = extend_or_restart_transaction(handle, 1);
-		if (err)
-			goto exit_journal;
-
-		gdb = sb_getblk(sb, block);
-		if (!gdb) {
-			err = -EIO;
-			goto exit_journal;
-		}
-		if ((err = ext4_journal_get_write_access(handle, gdb))) {
-			brelse(gdb);
-			goto exit_journal;
-		}
-		memcpy(gdb->b_data, sbi->s_group_desc[i]->b_data, gdb->b_size);
-		set_buffer_uptodate(gdb);
-		err = ext4_handle_dirty_metadata(handle, NULL, gdb);
-		if (unlikely(err)) {
-			brelse(gdb);
-			goto exit_journal;
-		}
-		brelse(gdb);
-	}
-
-	/* Zero out all of the reserved backup group descriptor table blocks */
-	ext4_debug("clear inode table blocks %#04llx -> %#04lx\n",
-			block, sbi->s_itb_per_group);
-	err = sb_issue_zeroout(sb, gdblocks + start + 1, reserved_gdb,
-			       GFP_NOFS);
-	if (err)
-		goto exit_journal;
-
-	err = extend_or_restart_transaction(handle, 2);
-	if (err)
-		goto exit_journal;
-
-	bh = bclean(handle, sb, input->block_bitmap);
-	if (IS_ERR(bh)) {
-		err = PTR_ERR(bh);
-		goto exit_journal;
-	}
-
-	if (ext4_bg_has_super(sb, input->group)) {
-		ext4_debug("mark backup group tables %#04llx (+0)\n", start);
-		ext4_set_bits(bh->b_data, 0, gdblocks + reserved_gdb + 1);
-	}
-
-	ext4_debug("mark block bitmap %#04llx (+%llu)\n", input->block_bitmap,
-		   input->block_bitmap - start);
-	ext4_set_bit(input->block_bitmap - start, bh->b_data);
-	ext4_debug("mark inode bitmap %#04llx (+%llu)\n", input->inode_bitmap,
-		   input->inode_bitmap - start);
-	ext4_set_bit(input->inode_bitmap - start, bh->b_data);
-
-	/* Zero out all of the inode table blocks */
-	block = input->inode_table;
-	ext4_debug("clear inode table blocks %#04llx -> %#04lx\n",
-			block, sbi->s_itb_per_group);
-	err = sb_issue_zeroout(sb, block, sbi->s_itb_per_group, GFP_NOFS);
-	if (err)
-		goto exit_bh;
-	ext4_set_bits(bh->b_data, input->inode_table - start,
-		      sbi->s_itb_per_group);
-
-
-	ext4_mark_bitmap_end(input->blocks_count, sb->s_blocksize * 8,
-			     bh->b_data);
-	err = ext4_handle_dirty_metadata(handle, NULL, bh);
-	if (unlikely(err)) {
-		ext4_std_error(sb, err);
-		goto exit_bh;
-	}
-	brelse(bh);
-	/* Mark unused entries in inode bitmap used */
-	ext4_debug("clear inode bitmap %#04llx (+%llu)\n",
-		   input->inode_bitmap, input->inode_bitmap - start);
-	if (IS_ERR(bh = bclean(handle, sb, input->inode_bitmap))) {
-		err = PTR_ERR(bh);
-		goto exit_journal;
-	}
-
-	ext4_mark_bitmap_end(EXT4_INODES_PER_GROUP(sb), sb->s_blocksize * 8,
-			     bh->b_data);
-	err = ext4_handle_dirty_metadata(handle, NULL, bh);
-	if (unlikely(err))
-		ext4_std_error(sb, err);
-exit_bh:
-	brelse(bh);
-
-exit_journal:
-	if ((err2 = ext4_journal_stop(handle)) && !err)
-		err = err2;
-
-	return err;
-}
-
-/*
  * Iterate through the groups which hold BACKUP superblock/GDT copies in an
  * ext4 filesystem.  The counters should be initialized to 1, 5, and 7 before
  * calling this for the first time.  In a sparse filesystem it will be the
@@ -1509,16 +1378,15 @@ static int ext4_setup_next_flex_gd(struct super_block *sb,
  */
 int ext4_group_add(struct super_block *sb, struct ext4_new_group_data *input)
 {
+	struct ext4_new_flex_group_data flex_gd;
 	struct ext4_sb_info *sbi = EXT4_SB(sb);
 	struct ext4_super_block *es = sbi->s_es;
 	int reserved_gdb = ext4_bg_has_super(sb, input->group) ?
 		le16_to_cpu(es->s_reserved_gdt_blocks) : 0;
-	struct buffer_head *primary = NULL;
-	struct ext4_group_desc *gdp;
 	struct inode *inode = NULL;
-	handle_t *handle;
 	int gdb_off, gdb_num;
-	int err, err2;
+	int err;
+	__u16 bg_flags = 0;
 
 	gdb_num = input->group / EXT4_DESC_PER_BLOCK(sb);
 	gdb_off = input->group % EXT4_DESC_PER_BLOCK(sb);
@@ -1557,172 +1425,15 @@ int ext4_group_add(struct super_block *sb, struct ext4_new_group_data *input)
 	}
 
 
-	if ((err = verify_group_input(sb, input)))
-		goto exit_put;
-
-	if ((err = setup_new_group_blocks(sb, input)))
-		goto exit_put;
-
-	/*
-	 * We will always be modifying at least the superblock and a GDT
-	 * block.  If we are adding a group past the last current GDT block,
-	 * we will also modify the inode and the dindirect block.  If we
-	 * are adding a group with superblock/GDT backups  we will also
-	 * modify each of the reserved GDT dindirect blocks.
-	 */
-	handle = ext4_journal_start_sb(sb,
-				       ext4_bg_has_super(sb, input->group) ?
-				       3 + reserved_gdb : 4);
-	if (IS_ERR(handle)) {
-		err = PTR_ERR(handle);
-		goto exit_put;
-	}
-
-	if ((err = ext4_journal_get_write_access(handle, sbi->s_sbh)))
-		goto exit_journal;
-
-        /*
-         * We will only either add reserved group blocks to a backup group
-         * or remove reserved blocks for the first group in a new group block.
-         * Doing both would be mean more complex code, and sane people don't
-         * use non-sparse filesystems anymore.  This is already checked above.
-         */
-	if (gdb_off) {
-		primary = sbi->s_group_desc[gdb_num];
-		if ((err = ext4_journal_get_write_access(handle, primary)))
-			goto exit_journal;
-
-		if (reserved_gdb && ext4_bg_num_gdb(sb, input->group)) {
-			err = reserve_backup_gdb(handle, inode, input->group);
-			if (err)
-				goto exit_journal;
-		}
-	} else {
-		/*
-		 * Note that we can access new group descriptor block safely
-		 * only if add_new_gdb() succeeds.
-		 */
-		err = add_new_gdb(handle, inode, input->group);
-		if (err)
-			goto exit_journal;
-		primary = sbi->s_group_desc[gdb_num];
-	}
-
-        /*
-         * OK, now we've set up the new group.  Time to make it active.
-         *
-         * so we have to be safe wrt. concurrent accesses the group
-         * data.  So we need to be careful to set all of the relevant
-         * group descriptor data etc. *before* we enable the group.
-         *
-         * The key field here is sbi->s_groups_count: as long as
-         * that retains its old value, nobody is going to access the new
-         * group.
-         *
-         * So first we update all the descriptor metadata for the new
-         * group; then we update the total disk blocks count; then we
-         * update the groups count to enable the group; then finally we
-         * update the free space counts so that the system can start
-         * using the new disk blocks.
-         */
-
-	/* Update group descriptor block for new group */
-	gdp = (struct ext4_group_desc *)((char *)primary->b_data +
-					 gdb_off * EXT4_DESC_SIZE(sb));
-
-	memset(gdp, 0, EXT4_DESC_SIZE(sb));
-	ext4_block_bitmap_set(sb, gdp, input->block_bitmap); /* LV FIXME */
-	ext4_inode_bitmap_set(sb, gdp, input->inode_bitmap); /* LV FIXME */
-	ext4_inode_table_set(sb, gdp, input->inode_table); /* LV FIXME */
-	ext4_free_group_clusters_set(sb, gdp, input->free_blocks_count);
-	ext4_free_inodes_set(sb, gdp, EXT4_INODES_PER_GROUP(sb));
-	gdp->bg_flags = cpu_to_le16(EXT4_BG_INODE_ZEROED);
-	gdp->bg_checksum = ext4_group_desc_csum(sbi, input->group, gdp);
-
-	/*
-	 * We can allocate memory for mb_alloc based on the new group
-	 * descriptor
-	 */
-	err = ext4_mb_add_groupinfo(sb, input->group, gdp);
+	err = verify_group_input(sb, input);
 	if (err)
-		goto exit_journal;
+		goto out;
 
-	/*
-	 * Make the new blocks and inodes valid next.  We do this before
-	 * increasing the group count so that once the group is enabled,
-	 * all of its blocks and inodes are already valid.
-	 *
-	 * We always allocate group-by-group, then block-by-block or
-	 * inode-by-inode within a group, so enabling these
-	 * blocks/inodes before the group is live won't actually let us
-	 * allocate the new space yet.
-	 */
-	ext4_blocks_count_set(es, ext4_blocks_count(es) +
-		input->blocks_count);
-	le32_add_cpu(&es->s_inodes_count, EXT4_INODES_PER_GROUP(sb));
-
-	/*
-	 * We need to protect s_groups_count against other CPUs seeing
-	 * inconsistent state in the superblock.
-	 *
-	 * The precise rules we use are:
-	 *
-	 * * Writers must perform a smp_wmb() after updating all dependent
-	 *   data and before modifying the groups count
-	 *
-	 * * Readers must perform an smp_rmb() after reading the groups count
-	 *   and before reading any dependent data.
-	 *
-	 * NB. These rules can be relaxed when checking the group count
-	 * while freeing data, as we can only allocate from a block
-	 * group after serialising against the group count, and we can
-	 * only then free after serialising in turn against that
-	 * allocation.
-	 */
-	smp_wmb();
-
-	/* Update the global fs size fields */
-	sbi->s_groups_count++;
-
-	err = ext4_handle_dirty_metadata(handle, NULL, primary);
-	if (unlikely(err)) {
-		ext4_std_error(sb, err);
-		goto exit_journal;
-	}
-
-	/* Update the reserved block counts only once the new group is
-	 * active. */
-	ext4_r_blocks_count_set(es, ext4_r_blocks_count(es) +
-		input->reserved_blocks);
-
-	/* Update the free space counts */
-	percpu_counter_add(&sbi->s_freeclusters_counter,
-			   EXT4_B2C(sbi, input->free_blocks_count));
-	percpu_counter_add(&sbi->s_freeinodes_counter,
-			   EXT4_INODES_PER_GROUP(sb));
-
-	if (EXT4_HAS_INCOMPAT_FEATURE(sb, EXT4_FEATURE_INCOMPAT_FLEX_BG) &&
-	    sbi->s_log_groups_per_flex) {
-		ext4_group_t flex_group;
-		flex_group = ext4_flex_group(sbi, input->group);
-		atomic_add(EXT4_B2C(sbi, input->free_blocks_count),
-			   &sbi->s_flex_groups[flex_group].free_clusters);
-		atomic_add(EXT4_INODES_PER_GROUP(sb),
-			   &sbi->s_flex_groups[flex_group].free_inodes);
-	}
-
-	ext4_handle_dirty_super(handle, sb);
-
-exit_journal:
-	if ((err2 = ext4_journal_stop(handle)) && !err)
-		err = err2;
-	if (!err && primary) {
-		update_backups(sb, sbi->s_sbh->b_blocknr, (char *)es,
-			       sizeof(struct ext4_super_block));
-		update_backups(sb, primary->b_blocknr, primary->b_data,
-			       primary->b_size);
-	}
-exit_put:
+	flex_gd.count = 1;
+	flex_gd.groups = input;
+	flex_gd.bg_flags = &bg_flags;
+	err = ext4_flex_group_add(sb, inode, &flex_gd);
+out:
 	iput(inode);
 	return err;
 } /* ext4_group_add */
