@@ -395,25 +395,16 @@ int pwc_init_controls(struct pwc_device *pdev)
 	return hdl->error;
 }
 
-static void pwc_vidioc_fill_fmt(const struct pwc_device *pdev, struct v4l2_format *f)
+static void pwc_vidioc_fill_fmt(struct v4l2_format *f,
+	int width, int height, u32 pixfmt)
 {
 	memset(&f->fmt.pix, 0, sizeof(struct v4l2_pix_format));
-	f->fmt.pix.width        = pdev->width;
-	f->fmt.pix.height       = pdev->height;
+	f->fmt.pix.width        = width;
+	f->fmt.pix.height       = height;
 	f->fmt.pix.field        = V4L2_FIELD_NONE;
-	if (pdev->pixfmt == V4L2_PIX_FMT_YUV420) {
-		f->fmt.pix.pixelformat  = V4L2_PIX_FMT_YUV420;
-		f->fmt.pix.bytesperline = (f->fmt.pix.width * 3)/2;
-		f->fmt.pix.sizeimage = f->fmt.pix.height * f->fmt.pix.bytesperline;
-	} else {
-		/* vbandlength contains 4 lines ...  */
-		f->fmt.pix.bytesperline = pdev->vbandlength/4;
-		f->fmt.pix.sizeimage = pdev->frame_size + sizeof(struct pwc_raw_frame);
-		if (DEVICE_USE_CODEC1(pdev->type))
-			f->fmt.pix.pixelformat  = V4L2_PIX_FMT_PWC1;
-		else
-			f->fmt.pix.pixelformat  = V4L2_PIX_FMT_PWC2;
-	}
+	f->fmt.pix.pixelformat  = pixfmt;
+	f->fmt.pix.bytesperline = f->fmt.pix.width;
+	f->fmt.pix.sizeimage	= f->fmt.pix.height * f->fmt.pix.width * 3 / 2;
 	PWC_DEBUG_IOCTL("pwc_vidioc_fill_fmt() "
 			"width=%d, height=%d, bytesperline=%d, sizeimage=%d, pixelformat=%c%c%c%c\n",
 			f->fmt.pix.width,
@@ -458,8 +449,10 @@ static int pwc_vidioc_try_fmt(struct pwc_device *pdev, struct v4l2_format *f)
 	}
 
 	size = pwc_get_size(pdev, f->fmt.pix.width, f->fmt.pix.height);
-	f->fmt.pix.width  = pwc_image_sizes[size][0];
-	f->fmt.pix.height = pwc_image_sizes[size][1];
+	pwc_vidioc_fill_fmt(f,
+			    pwc_image_sizes[size][0],
+			    pwc_image_sizes[size][1],
+			    f->fmt.pix.pixelformat);
 
 	return 0;
 }
@@ -479,11 +472,6 @@ static int pwc_s_fmt_vid_cap(struct file *file, void *fh, struct v4l2_format *f)
 		return ret;
 
 	pixelformat = f->fmt.pix.pixelformat;
-
-	if (pixelformat != V4L2_PIX_FMT_YUV420 &&
-	    pixelformat != V4L2_PIX_FMT_PWC1 &&
-	    pixelformat != V4L2_PIX_FMT_PWC2)
-		return -EINVAL;
 
 	mutex_lock(&pdev->udevlock);
 	if (!pdev->udev) {
@@ -511,7 +499,8 @@ static int pwc_s_fmt_vid_cap(struct file *file, void *fh, struct v4l2_format *f)
 
 	if (ret == 0) {
 		pdev->pixfmt = pixelformat;
-		pwc_vidioc_fill_fmt(pdev, f);
+		pwc_vidioc_fill_fmt(f, pdev->width, pdev->height,
+				    pdev->pixfmt);
 	}
 
 leave:
@@ -962,10 +951,13 @@ static int pwc_g_fmt_vid_cap(struct file *file, void *fh, struct v4l2_format *f)
 {
 	struct pwc_device *pdev = video_drvdata(file);
 
+	if (f->type != V4L2_BUF_TYPE_VIDEO_CAPTURE)
+		return -EINVAL;
+
 	mutex_lock(&pdev->udevlock); /* To avoid race with s_fmt */
 	PWC_DEBUG_IOCTL("ioctl(VIDIOC_G_FMT) return size %dx%d\n",
 			pdev->width, pdev->height);
-	pwc_vidioc_fill_fmt(pdev, f);
+	pwc_vidioc_fill_fmt(f, pdev->width, pdev->height, pdev->pixfmt);
 	mutex_unlock(&pdev->udevlock);
 	return 0;
 }
