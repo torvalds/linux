@@ -111,7 +111,7 @@ enum {
 	PCI_NUM_RESOURCES,
 
 	/* preserve this for compatibility */
-	DEVICE_COUNT_RESOURCE
+	DEVICE_COUNT_RESOURCE = PCI_NUM_RESOURCES,
 };
 
 typedef int __bitwise pci_power_t;
