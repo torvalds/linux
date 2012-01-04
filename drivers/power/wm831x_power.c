@@ -104,6 +104,7 @@ struct wm831x_power *g_wm831x_power;
 static int power_test_sysfs_init(void);
 extern void wm831x_batt_vol_level(struct wm831x_power *power, int batt_vol, int *level);
 static DEFINE_MUTEX(charging_mutex);
+static struct wake_lock batt_wake_lock;
 
 int wm831x_read_on_pin_status(void)
 {
@@ -614,7 +615,7 @@ static int wm831x_bat_get_prop(struct power_supply *psy,
 		//val->intval = wm831x_power->batt_info.status;
 		break;
 	case POWER_SUPPLY_PROP_PRESENT:
-	case POWER_SUPPLY_PROP_ONLINE:
+	//case POWER_SUPPLY_PROP_ONLINE:
 		//ret = wm831x_power_check_online(wm831x, WM831X_PWR_SRC_BATT, val);
 		val->intval = wm831x_power->batt_info.online;
 		break;
@@ -710,6 +711,7 @@ static irqreturn_t wm831x_pwr_src_irq(int irq, void *data)
 	struct wm831x_power *wm831x_power = data;
 	struct wm831x *wm831x = wm831x_power->wm831x;
 
+	wake_lock_timeout(&batt_wake_lock, 30 * HZ);
 	dev_dbg(wm831x->dev, "Power source changed\n");
 	WM_BATT_DBG("%s:Power source changed\n", __FUNCTION__); 
 	/* Just notify for everything - little harm in overnotifying. */
@@ -1004,6 +1006,56 @@ static void wm831x_batt_work(struct work_struct *work)
 
 }
 
+#ifdef CONFIG_POWER_ON_CHARGER_DISPLAY
+static void wm831x_batt_check(struct wm831x_power *power)
+{
+	int online, status,health,level, ret; 
+	union power_supply_propval val;
+//	struct wm831x_power *power = container_of(work, struct wm831x_power, batt_work);
+
+	ret = wm831x_power_check_online(power->wm831x, WM831X_PWR_SRC_BATT, &val);
+	if (ret < 0) {
+		printk("%s: check bat online failer...  err = %d\n", __FUNCTION__, ret);
+		return;
+	}
+	online = val.intval;
+
+	ret = wm831x_bat_check_status(power->wm831x, &status);
+	if (ret < 0) {
+		printk("%s: check bat status failer...  err = %d\n", __FUNCTION__, ret);
+		return;
+	}
+
+	ret = wm831x_bat_check_health(power->wm831x, &health);
+	if (ret < 0) {
+		printk("%s: check bat health failer...  err = %d\n", __FUNCTION__, ret);
+		return;
+	}
+
+	ret = wm831x_power_read_voltage(power->wm831x, WM831X_AUX_BATT, &val);
+	if (ret < 0) {
+		printk("%s: read bat voltage failer...err = %d\n", __FUNCTION__, ret);
+		return;
+	}
+	power->batt_info.voltage = val.intval;
+
+	wm831x_batt_vol_level(power, val.intval / 1000, &level);
+	//mod_timer(&power->timer, jiffies + msecs_to_jiffies(power->interval));
+
+	if (online != power->batt_info.online || status != power->batt_info.status
+			|| health != power->batt_info.health || level != power->batt_info.level)
+	{
+		power->batt_info.online = online;
+		power->batt_info.status = status;
+		power->batt_info.health = health;
+		power->batt_info.level  = level;
+
+		power_supply_changed(&power->battery);
+	}
+}
+#endif
+
+
 static __devinit int wm831x_power_probe(struct platform_device *pdev)
 {
 	struct wm831x *wm831x = dev_get_drvdata(pdev->dev.parent);
@@ -1028,6 +1080,7 @@ static __devinit int wm831x_power_probe(struct platform_device *pdev)
 	 * the status without enabling the charger.
 	 */
 	wm831x_config_battery(wm831x);
+	wake_lock_init(&batt_wake_lock, WAKE_LOCK_SUSPEND, "batt_lock");
 
 	wall->name = "wm831x-wall";
 	wall->type = POWER_SUPPLY_TYPE_MAINS;
@@ -1107,6 +1160,10 @@ static __devinit int wm831x_power_probe(struct platform_device *pdev)
 	add_timer(&power->timer);
 
 	g_wm831x_power = power;
+#ifdef CONFIG_POWER_ON_CHARGER_DISPLAY
+	wm831x_batt_check(power);//xsf
+#endif
+	
 	printk("%s:wm831x_power initialized\n",__FUNCTION__);
 	power_test_sysfs_init();
 	return ret;
@@ -1192,7 +1249,11 @@ static int __init wm831x_power_init(void)
 {
 	return platform_driver_register(&wm831x_power_driver);
 }
+#ifndef CONFIG_POWER_ON_CHARGER_DISPLAY
 module_init(wm831x_power_init);
+#else
+subsys_initcall(wm831x_power_init);
+#endif
 
 static void __exit wm831x_power_exit(void)
 {
