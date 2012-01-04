@@ -1918,6 +1918,12 @@ static int start_discovery(struct sock *sk, u16 index,
 		goto failed;
 	}
 
+	if (hdev->discovery.state != DISCOVERY_STOPPED) {
+		err = cmd_status(sk, index, MGMT_OP_START_DISCOVERY,
+						MGMT_STATUS_BUSY);
+		goto failed;
+	}
+
 	cmd = mgmt_pending_add(sk, MGMT_OP_START_DISCOVERY, hdev, NULL, 0);
 	if (!cmd) {
 		err = -ENOMEM;
@@ -1927,6 +1933,8 @@ static int start_discovery(struct sock *sk, u16 index,
 	err = hci_do_inquiry(hdev, INQUIRY_LEN_BREDR);
 	if (err < 0)
 		mgmt_pending_remove(cmd);
+	else
+		hci_discovery_set_state(hdev, DISCOVERY_STARTING);
 
 failed:
 	hci_dev_unlock(hdev);
@@ -1950,6 +1958,12 @@ static int stop_discovery(struct sock *sk, u16 index)
 
 	hci_dev_lock(hdev);
 
+	if (hdev->discovery.state != DISCOVERY_ACTIVE) {
+		err = cmd_status(sk, index, MGMT_OP_STOP_DISCOVERY,
+						MGMT_STATUS_REJECTED);
+		goto failed;
+	}
+
 	cmd = mgmt_pending_add(sk, MGMT_OP_STOP_DISCOVERY, hdev, NULL, 0);
 	if (!cmd) {
 		err = -ENOMEM;
@@ -1959,6 +1973,8 @@ static int stop_discovery(struct sock *sk, u16 index)
 	err = hci_cancel_inquiry(hdev);
 	if (err < 0)
 		mgmt_pending_remove(cmd);
+	else
+		hci_discovery_set_state(hdev, DISCOVERY_STOPPING);
 
 failed:
 	hci_dev_unlock(hdev);

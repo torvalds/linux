@@ -355,6 +355,30 @@ struct hci_dev *hci_dev_get(int index)
 }
 
 /* ---- Inquiry support ---- */
+
+void hci_discovery_set_state(struct hci_dev *hdev, int state)
+{
+	BT_DBG("%s state %u -> %u", hdev->name, hdev->discovery.state, state);
+
+	if (hdev->discovery.state == state)
+		return;
+
+	switch (state) {
+	case DISCOVERY_STOPPED:
+		mgmt_discovering(hdev, 0);
+		break;
+	case DISCOVERY_STARTING:
+		break;
+	case DISCOVERY_ACTIVE:
+		mgmt_discovering(hdev, 1);
+		break;
+	case DISCOVERY_STOPPING:
+		break;
+	}
+
+	hdev->discovery.state = state;
+}
+
 static void inquiry_cache_flush(struct hci_dev *hdev)
 {
 	struct discovery_state *cache = &hdev->discovery;
@@ -367,6 +391,7 @@ static void inquiry_cache_flush(struct hci_dev *hdev)
 
 	INIT_LIST_HEAD(&cache->unknown);
 	INIT_LIST_HEAD(&cache->resolve);
+	cache->state = DISCOVERY_STOPPED;
 }
 
 struct inquiry_entry *hci_inquiry_cache_lookup(struct hci_dev *hdev, bdaddr_t *bdaddr)

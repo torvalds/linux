@@ -65,7 +65,7 @@ static void hci_cc_inquiry_cancel(struct hci_dev *hdev, struct sk_buff *skb)
 	clear_bit(HCI_INQUIRY, &hdev->flags);
 
 	hci_dev_lock(hdev);
-	mgmt_discovering(hdev, 0);
+	hci_discovery_set_state(hdev, DISCOVERY_STOPPED);
 	hci_dev_unlock(hdev);
 
 	hci_req_complete(hdev, HCI_OP_INQUIRY_CANCEL, status);
@@ -1119,7 +1119,7 @@ static inline void hci_cs_inquiry(struct hci_dev *hdev, __u8 status)
 	set_bit(HCI_INQUIRY, &hdev->flags);
 
 	hci_dev_lock(hdev);
-	mgmt_discovering(hdev, 1);
+	hci_discovery_set_state(hdev, DISCOVERY_ACTIVE);
 	hci_dev_unlock(hdev);
 }
 
@@ -1507,7 +1507,7 @@ static inline void hci_inquiry_complete_evt(struct hci_dev *hdev, struct sk_buff
 		return;
 
 	hci_dev_lock(hdev);
-	mgmt_discovering(hdev, 0);
+	hci_discovery_set_state(hdev, DISCOVERY_STOPPED);
 	hci_dev_unlock(hdev);
 }
 

@@ -57,6 +57,12 @@ struct inquiry_entry {
 };
 
 struct discovery_state {
+	enum {
+		DISCOVERY_STOPPED,
+		DISCOVERY_STARTING,
+		DISCOVERY_ACTIVE,
+		DISCOVERY_STOPPING,
+	} state;
 	struct list_head all;		/* All devices found during inquiry */
 	struct list_head unknown;	/* Name state not known */
 	struct list_head resolve;	/* Name needs to be resolved */
@@ -359,10 +365,13 @@ extern int sco_recv_scodata(struct hci_conn *hcon, struct sk_buff *skb);
 
 static inline void discovery_init(struct hci_dev *hdev)
 {
+	hdev->discovery.state = DISCOVERY_STOPPED;
 	INIT_LIST_HEAD(&hdev->discovery.all);
 	INIT_LIST_HEAD(&hdev->discovery.unknown);
 	INIT_LIST_HEAD(&hdev->discovery.resolve);
 }
+
+void hci_discovery_set_state(struct hci_dev *hdev, int state);
 
 static inline int inquiry_cache_empty(struct hci_dev *hdev)
 {
