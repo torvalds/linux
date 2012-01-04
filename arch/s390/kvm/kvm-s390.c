@@ -228,10 +228,13 @@ out_err:
 void kvm_arch_vcpu_destroy(struct kvm_vcpu *vcpu)
 {
 	VCPU_EVENT(vcpu, 3, "%s", "free cpu");
-	clear_bit(63 - vcpu->vcpu_id, (unsigned long *) &vcpu->kvm->arch.sca->mcn);
-	if (vcpu->kvm->arch.sca->cpu[vcpu->vcpu_id].sda ==
-		(__u64) vcpu->arch.sie_block)
-		vcpu->kvm->arch.sca->cpu[vcpu->vcpu_id].sda = 0;
+	if (!kvm_is_ucontrol(vcpu->kvm)) {
+		clear_bit(63 - vcpu->vcpu_id,
+			  (unsigned long *) &vcpu->kvm->arch.sca->mcn);
+		if (vcpu->kvm->arch.sca->cpu[vcpu->vcpu_id].sda ==
+		    (__u64) vcpu->arch.sie_block)
+			vcpu->kvm->arch.sca->cpu[vcpu->vcpu_id].sda = 0;
+	}
 	smp_mb();
 
 	if (kvm_is_ucontrol(vcpu->kvm))
@@ -368,12 +371,19 @@ struct kvm_vcpu *kvm_arch_vcpu_create(struct kvm *kvm,
 		goto out_free_cpu;
 
 	vcpu->arch.sie_block->icpua = id;
-	BUG_ON(!kvm->arch.sca);
-	if (!kvm->arch.sca->cpu[id].sda)
-		kvm->arch.sca->cpu[id].sda = (__u64) vcpu->arch.sie_block;
-	vcpu->arch.sie_block->scaoh = (__u32)(((__u64)kvm->arch.sca) >> 32);
-	vcpu->arch.sie_block->scaol = (__u32)(__u64)kvm->arch.sca;
-	set_bit(63 - id, (unsigned long *) &kvm->arch.sca->mcn);
+	if (!kvm_is_ucontrol(kvm)) {
+		if (!kvm->arch.sca) {
+			WARN_ON_ONCE(1);
+			goto out_free_cpu;
+		}
+		if (!kvm->arch.sca->cpu[id].sda)
+			kvm->arch.sca->cpu[id].sda =
+				(__u64) vcpu->arch.sie_block;
+		vcpu->arch.sie_block->scaoh =
+			(__u32)(((__u64)kvm->arch.sca) >> 32);
+		vcpu->arch.sie_block->scaol = (__u32)(__u64)kvm->arch.sca;
+		set_bit(63 - id, (unsigned long *) &kvm->arch.sca->mcn);
+	}
 
 	spin_lock_init(&vcpu->arch.local_int.lock);
 	INIT_LIST_HEAD(&vcpu->arch.local_int.list);
