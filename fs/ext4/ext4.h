@@ -511,6 +511,14 @@ struct ext4_new_group_data {
 	__u32 free_blocks_count;
 };
 
+/* Indexes used to index group tables in ext4_new_group_data */
+enum {
+	BLOCK_BITMAP = 0,	/* block bitmap */
+	INODE_BITMAP,		/* inode bitmap */
+	INODE_TABLE,		/* inode tables */
+	GROUP_TABLE_COUNT,
+};
+
 /*
  * Flags used by ext4_map_blocks()
  */
