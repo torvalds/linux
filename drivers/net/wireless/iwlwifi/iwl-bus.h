@@ -137,14 +137,12 @@ struct iwl_bus_ops {
  *
  * This data is common to all bus layer implementations.
  *
- * @dev - pointer to struct device * that represents the device
  * @ops - pointer to iwl_bus_ops
  * @shrd - pointer to iwl_shared which holds shared data from the upper layer
  *	NB: for the time being this needs to be set by the upper layer since
  *	it allocates the shared data
  */
 struct iwl_bus {
-	struct device *dev;
 	const struct iwl_bus_ops *ops;
 	struct iwl_shared *shrd;
 

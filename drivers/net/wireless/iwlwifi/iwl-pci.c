@@ -123,12 +123,14 @@ static void iwl_pci_apm_config(struct iwl_bus *bus)
 		/* L1-ASPM enabled; disable(!) L0S */
 		iwl_set_bit(trans(bus), CSR_GIO_REG,
 				CSR_GIO_REG_VAL_L0S_ENABLED);
-		dev_printk(KERN_INFO, bus->dev, "L1 Enabled; Disabling L0S\n");
+		dev_printk(KERN_INFO, trans(bus)->dev,
+			   "L1 Enabled; Disabling L0S\n");
 	} else {
 		/* L1-ASPM disabled; enable(!) L0S */
 		iwl_clear_bit(trans(bus), CSR_GIO_REG,
 				CSR_GIO_REG_VAL_L0S_ENABLED);
-		dev_printk(KERN_INFO, bus->dev, "L1 Disabled; Enabling L0S\n");
+		dev_printk(KERN_INFO, trans(bus)->dev,
+			   "L1 Disabled; Enabling L0S\n");
 	}
 }
 
@@ -368,7 +370,6 @@ static int iwl_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 	pci_set_drvdata(pdev, bus);
 
-	bus->dev = &pdev->dev;
 	bus->ops = &bus_ops_pci;
 
 #ifdef CONFIG_IWLWIFI_IDI

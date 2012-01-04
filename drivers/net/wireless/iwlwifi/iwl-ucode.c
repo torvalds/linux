@@ -83,7 +83,7 @@ static struct iwl_wimax_coex_event_entry cu_priorities[COEX_NUM_OF_EVENTS] = {
 static void iwl_free_fw_desc(struct iwl_bus *bus, struct fw_desc *desc)
 {
 	if (desc->v_addr)
-		dma_free_coherent(bus->dev, desc->len,
+		dma_free_coherent(trans(bus)->dev, desc->len,
 				  desc->v_addr, desc->p_addr);
 	desc->v_addr = NULL;
 	desc->len = 0;
@@ -110,7 +110,7 @@ int iwl_alloc_fw_desc(struct iwl_bus *bus, struct fw_desc *desc,
 		return -EINVAL;
 	}
 
-	desc->v_addr = dma_alloc_coherent(bus->dev, len,
+	desc->v_addr = dma_alloc_coherent(trans(bus)->dev, len,
 					  &desc->p_addr, GFP_KERNEL);
 	if (!desc->v_addr)
 		return -ENOMEM;

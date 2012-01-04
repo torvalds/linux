@@ -1146,7 +1146,7 @@ static void iwl_ucode_callback(const struct firmware *ucode_raw, void *context)
 	iwl_dealloc_ucode(trans(priv));
  out_unbind:
 	complete(&priv->firmware_loading_complete);
-	device_release_driver(bus(priv)->dev);
+	device_release_driver(trans(priv)->dev);
 	release_firmware(ucode_raw);
 }
 
@@ -1785,7 +1785,7 @@ int iwl_probe(struct iwl_bus *bus, const struct iwl_trans_ops *trans_ops,
 
 	/* At this point both hw and priv are allocated. */
 
-	SET_IEEE80211_DEV(hw, bus(priv)->dev);
+	SET_IEEE80211_DEV(hw, trans(priv)->dev);
 
 	/* what debugging capabilities we have */
 	iwl_debug_config(priv);
