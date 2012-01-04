@@ -608,7 +608,7 @@ vmxnet3_set_rss_indir(struct net_device *netdev, const u32 *p)
 }
 #endif
 
-static struct ethtool_ops vmxnet3_ethtool_ops = {
+static const struct ethtool_ops vmxnet3_ethtool_ops = {
 	.get_settings      = vmxnet3_get_settings,
 	.get_drvinfo       = vmxnet3_get_drvinfo,
 	.get_regs_len      = vmxnet3_get_regs_len,
