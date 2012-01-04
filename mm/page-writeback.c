@@ -411,8 +411,13 @@ void global_dirty_limits(unsigned long *pbackground, unsigned long *pdirty)
  *
  * Returns @bdi's dirty limit in pages. The term "dirty" in the context of
  * dirty balancing includes all PG_dirty, PG_writeback and NFS unstable pages.
- * And the "limit" in the name is not seriously taken as hard limit in
- * balance_dirty_pages().
+ *
+ * Note that balance_dirty_pages() will only seriously take it as a hard limit
+ * when sleeping max_pause per page is not enough to keep the dirty pages under
+ * control. For example, when the device is completely stalled due to some error
+ * conditions, or when there are 1000 dd tasks writing to a slow 10MB/s USB key.
+ * In the other normal situations, it acts more gently by throttling the tasks
+ * more (rather than completely block them) when the bdi dirty pages go high.
  *
  * It allocates high/low dirty limits to fast/slow devices, in order to prevent
  * - starving fast devices
@@ -594,6 +599,13 @@ static unsigned long bdi_position_ratio(struct backing_dev_info *bdi,
 	 */
 	if (unlikely(bdi_thresh > thresh))
 		bdi_thresh = thresh;
+	/*
+	 * It's very possible that bdi_thresh is close to 0 not because the
+	 * device is slow, but that it has remained inactive for long time.
+	 * Honour such devices a reasonable good (hopefully IO efficient)
+	 * threshold, so that the occasional writes won't be blocked and active
+	 * writes can rampup the threshold quickly.
+	 */
 	bdi_thresh = max(bdi_thresh, (limit - dirty) / 8);
 	/*
 	 * scale global setpoint to bdi's:
@@ -977,8 +989,7 @@ static unsigned long bdi_max_pause(struct backing_dev_info *bdi,
 	 *
 	 * 8 serves as the safety ratio.
 	 */
-	if (bdi_dirty)
-		t = min(t, bdi_dirty * HZ / (8 * bw + 1));
+	t = min(t, bdi_dirty * HZ / (8 * bw + 1));
 
 	/*
 	 * The pause time will be settled within range (max_pause/4, max_pause).
@@ -1134,6 +1145,19 @@ pause:
 		 * also keep "1000+ dd on a slow USB stick" under control.
 		 */
 		if (task_ratelimit)
+			break;
+
+		/*
+		 * In the case of an unresponding NFS server and the NFS dirty
+		 * pages exceeds dirty_thresh, give the other good bdi's a pipe
+		 * to go through, so that tasks on them still remain responsive.
+		 *
+		 * In theory 1 page is enough to keep the comsumer-producer
+		 * pipe going: the flusher cleans 1 page => the task dirties 1
+		 * more page. However bdi_dirty has accounting errors.  So use
+		 * the larger and more IO friendly bdi_stat_error.
+		 */
+		if (bdi_dirty <= bdi_stat_error(bdi))
 			break;
 
 		if (fatal_signal_pending(current))

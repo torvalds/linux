@@ -1146,6 +1146,7 @@ static int rfcomm_recv_ua(struct rfcomm_session *s, u8 dlci)
 			if (list_empty(&s->dlcs)) {
 				s->state = BT_DISCONN;
 				rfcomm_send_disc(s, 0);
+				rfcomm_session_clear_timer(s);
 			}
 
 			break;

@@ -1339,8 +1339,11 @@ static int mpage_da_submit_io(struct mpage_da_data *mpd,
 					clear_buffer_unwritten(bh);
 				}
 
-				/* skip page if block allocation undone */
-				if (buffer_delay(bh) || buffer_unwritten(bh))
+				/*
+				 * skip page if block allocation undone and
+				 * block is dirty
+				 */
+				if (ext4_bh_delay_or_unwritten(NULL, bh))
 					skip_page = 1;
 				bh = bh->b_this_page;
 				block_start += bh->b_size;
@@ -2387,7 +2390,6 @@ static int ext4_da_write_begin(struct file *file, struct address_space *mapping,
 	pgoff_t index;
 	struct inode *inode = mapping->host;
 	handle_t *handle;
-	loff_t page_len;
 
 	index = pos >> PAGE_CACHE_SHIFT;
 
@@ -2434,13 +2436,6 @@ retry:
 		 */
 		if (pos + len > inode->i_size)
 			ext4_truncate_failed_write(inode);
-	} else {
-		page_len = pos & (PAGE_CACHE_SIZE - 1);
-		if (page_len > 0) {
-			ret = ext4_discard_partial_page_buffers_no_lock(handle,
-				inode, page, pos - page_len, page_len,
-				EXT4_DISCARD_PARTIAL_PG_ZERO_UNMAPPED);
-		}
 	}
 
 	if (ret == -ENOSPC && ext4_should_retry_alloc(inode->i_sb, &retries))
@@ -2483,7 +2478,6 @@ static int ext4_da_write_end(struct file *file,
 	loff_t new_i_size;
 	unsigned long start, end;
 	int write_mode = (int)(unsigned long)fsdata;
-	loff_t page_len;
 
 	if (write_mode == FALL_BACK_TO_NONDELALLOC) {
 		if (ext4_should_order_data(inode)) {
@@ -2508,7 +2502,7 @@ static int ext4_da_write_end(struct file *file,
 	 */
 
 	new_i_size = pos + copied;
-	if (new_i_size > EXT4_I(inode)->i_disksize) {
+	if (copied && new_i_size > EXT4_I(inode)->i_disksize) {
 		if (ext4_da_should_update_i_disksize(page, end)) {
 			down_write(&EXT4_I(inode)->i_data_sem);
 			if (new_i_size > EXT4_I(inode)->i_disksize) {
@@ -2532,16 +2526,6 @@ static int ext4_da_write_end(struct file *file,
 	}
 	ret2 = generic_write_end(file, mapping, pos, len, copied,
 							page, fsdata);
-
-	page_len = PAGE_CACHE_SIZE -
-			((pos + copied - 1) & (PAGE_CACHE_SIZE - 1));
-
-	if (page_len > 0) {
-		ret = ext4_discard_partial_page_buffers_no_lock(handle,
-			inode, page, pos + copied - 1, page_len,
-			EXT4_DISCARD_PARTIAL_PG_ZERO_UNMAPPED);
-	}
-
 	copied = ret2;
 	if (ret2 < 0)
 		ret = ret2;
@@ -2781,10 +2765,11 @@ static void ext4_end_io_dio(struct kiocb *iocb, loff_t offset,
  		  iocb->private, io_end->inode->i_ino, iocb, offset,
 		  size);
 
+	iocb->private = NULL;
+
 	/* if not aio dio with unwritten extents, just free io and return */
 	if (!(io_end->flag & EXT4_IO_END_UNWRITTEN)) {
 		ext4_free_io_end(io_end);
-		iocb->private = NULL;
 out:
 		if (is_async)
 			aio_complete(iocb, ret, 0);
@@ -2807,7 +2792,6 @@ out:
 	spin_unlock_irqrestore(&ei->i_completed_io_lock, flags);
 
 	/* queue the work to convert unwritten extents to written */
-	iocb->private = NULL;
 	queue_work(wq, &io_end->work);
 
 	/* XXX: probably should move into the real I/O completion handler */
@@ -3203,26 +3187,8 @@ int ext4_discard_partial_page_buffers_no_lock(handle_t *handle,
 
 	iblock = index << (PAGE_CACHE_SHIFT - inode->i_sb->s_blocksize_bits);
 
-	if (!page_has_buffers(page)) {
-		/*
-		 * If the range to be discarded covers a partial block
-		 * we need to get the page buffers.  This is because
-		 * partial blocks cannot be released and the page needs
-		 * to be updated with the contents of the block before
-		 * we write the zeros on top of it.
-		 */
-		if ((from & (blocksize - 1)) ||
-		    ((from + length) & (blocksize - 1))) {
-			create_empty_buffers(page, blocksize, 0);
-		} else {
-			/*
-			 * If there are no partial blocks,
-			 * there is nothing to update,
-			 * so we can return now
-			 */
-			return 0;
-		}
-	}
+	if (!page_has_buffers(page))
+		create_empty_buffers(page, blocksize, 0);
 
 	/* Find the buffer that contains "offset" */
 	bh = page_buffers(page);

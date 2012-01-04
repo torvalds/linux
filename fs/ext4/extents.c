@@ -1095,7 +1095,7 @@ static int ext4_ext_grow_indepth(handle_t *handle, struct inode *inode,
 		  le32_to_cpu(EXT_FIRST_INDEX(neh)->ei_block),
 		  ext4_idx_pblock(EXT_FIRST_INDEX(neh)));
 
-	neh->eh_depth = cpu_to_le16(neh->eh_depth + 1);
+	neh->eh_depth = cpu_to_le16(le16_to_cpu(neh->eh_depth) + 1);
 	ext4_mark_inode_dirty(handle, inode);
 out:
 	brelse(bh);
@@ -2955,7 +2955,6 @@ static int ext4_ext_convert_to_initialized(handle_t *handle,
 	/* Pre-conditions */
 	BUG_ON(!ext4_ext_is_uninitialized(ex));
 	BUG_ON(!in_range(map->m_lblk, ee_block, ee_len));
-	BUG_ON(map->m_lblk + map->m_len > ee_block + ee_len);
 
 	/*
 	 * Attempt to transfer newly initialized blocks from the currently

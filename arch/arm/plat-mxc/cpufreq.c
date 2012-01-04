@@ -17,6 +17,7 @@
  * the CPU clock speed on the fly.
  */
 
+#include <linux/module.h>
 #include <linux/cpufreq.h>
 #include <linux/clk.h>
 #include <linux/err.h>

@@ -18,7 +18,7 @@
 
 #include "isp1760-hcd.h"
 
-#ifdef CONFIG_OF
+#if defined(CONFIG_OF) && defined(CONFIG_OF_IRQ)
 #include <linux/slab.h>
 #include <linux/of.h>
 #include <linux/of_platform.h>
@@ -31,7 +31,7 @@
 #include <linux/pci.h>
 #endif
 
-#ifdef CONFIG_OF
+#if defined(CONFIG_OF) && defined(CONFIG_OF_IRQ)
 struct isp1760 {
 	struct usb_hcd *hcd;
 	int rst_gpio;
@@ -437,7 +437,7 @@ static int __init isp1760_init(void)
 	ret = platform_driver_register(&isp1760_plat_driver);
 	if (!ret)
 		any_ret = 0;
-#ifdef CONFIG_OF
+#if defined(CONFIG_OF) && defined(CONFIG_OF_IRQ)
 	ret = platform_driver_register(&isp1760_of_driver);
 	if (!ret)
 		any_ret = 0;
@@ -457,7 +457,7 @@ module_init(isp1760_init);
 static void __exit isp1760_exit(void)
 {
 	platform_driver_unregister(&isp1760_plat_driver);
-#ifdef CONFIG_OF
+#if defined(CONFIG_OF) && defined(CONFIG_OF_IRQ)
 	platform_driver_unregister(&isp1760_of_driver);
 #endif
 #ifdef CONFIG_PCI
