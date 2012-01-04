@@ -588,7 +588,7 @@ static inline void hci_conn_put(struct hci_conn *conn)
 		}
 		cancel_delayed_work_sync(&conn->disc_work);
 		queue_delayed_work(conn->hdev->workqueue,
-					&conn->disc_work, jiffies + timeo);
+					&conn->disc_work, timeo);
 	}
 }
 
