@@ -1697,7 +1697,7 @@ static void sci_controller_set_default_config_parameters(struct isci_host *ihost
 	ihost->user_parameters.ssp_inactivity_timeout = 5;
 	ihost->user_parameters.stp_max_occupancy_timeout = 5;
 	ihost->user_parameters.ssp_max_occupancy_timeout = 20;
-	ihost->user_parameters.no_outbound_task_timeout = 20;
+	ihost->user_parameters.no_outbound_task_timeout = 2;
 }
 
 static void controller_timeout(unsigned long data)

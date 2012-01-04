@@ -94,7 +94,7 @@ MODULE_DEVICE_TABLE(pci, isci_id_table);
 
 /* linux isci specific settings */
 
-unsigned char no_outbound_task_to = 20;
+unsigned char no_outbound_task_to = 2;
 module_param(no_outbound_task_to, byte, 0);
 MODULE_PARM_DESC(no_outbound_task_to, "No Outbound Task Timeout (1us incr)");
 
