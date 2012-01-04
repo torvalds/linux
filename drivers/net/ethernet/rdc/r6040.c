@@ -52,12 +52,6 @@
 #define DRV_VERSION	"0.28"
 #define DRV_RELDATE	"07Oct2011"
 
-/* PHY CHIP Address */
-#define PHY1_ADDR	1	/* For MAC1 */
-#define PHY2_ADDR	3	/* For MAC2 */
-#define PHY_MODE	0x3100	/* PHY CHIP Register 0 */
-#define PHY_CAP		0x01E1	/* PHY CHIP Register 4 */
-
 /* Time in jiffies before concluding the transmitter is hung. */
 #define TX_TIMEOUT	(6000 * HZ / 1000)
 
@@ -154,9 +148,6 @@
 #define DSC_RX_MIDH_HIT	0x0004	/* RX MID table hit (no error) */
 #define DSC_RX_IDX_MID_MASK 3	/* RX mask for the index of matched MIDx */
 
-/* PHY settings */
-#define ICPLUS_PHY_ID	0x0243
-
 MODULE_AUTHOR("Sten Wang <sten.wang@rdc.com.tw>,"
 	"Daniel Gimpelevich <daniel@gimpelevich.san-francisco.ca.us>,"
 	"Florian Fainelli <florian@openwrt.org>");
@@ -191,7 +182,7 @@ struct r6040_private {
 	struct r6040_descriptor *tx_ring;
 	dma_addr_t rx_ring_dma;
 	dma_addr_t tx_ring_dma;
-	u16	tx_free_desc, phy_addr;
+	u16	tx_free_desc;
 	u16	mcr0, mcr1;
 	struct net_device *dev;
 	struct mii_bus *mii_bus;
@@ -205,8 +196,6 @@ struct r6040_private {
 static char version[] __devinitdata = DRV_NAME
 	": RDC R6040 NAPI net driver,"
 	"version "DRV_VERSION " (" DRV_RELDATE ")";
-
-static int phy_table[] = { PHY1_ADDR, PHY2_ADDR };
 
 /* Read a word data from PHY Chip */
 static int r6040_phy_read(void __iomem *ioaddr, int phy_addr, int reg)
@@ -1167,7 +1156,6 @@ static int __devinit r6040_init_one(struct pci_dev *pdev,
 
 	/* Init RDC private data */
 	lp->mcr0 = 0x1002;
-	lp->phy_addr = phy_table[card_idx];
 
 	/* The RDC-specific entries in the device structure. */
 	dev->netdev_ops = &r6040_netdev_ops;
