@@ -400,7 +400,7 @@ struct inquiry_entry *hci_inquiry_cache_lookup_unknown(struct hci_dev *hdev,
 	return NULL;
 }
 
-void hci_inquiry_cache_update(struct hci_dev *hdev, struct inquiry_data *data,
+bool hci_inquiry_cache_update(struct hci_dev *hdev, struct inquiry_data *data,
 							bool name_known)
 {
 	struct inquiry_cache *cache = &hdev->inq_cache;
@@ -415,7 +415,7 @@ void hci_inquiry_cache_update(struct hci_dev *hdev, struct inquiry_data *data,
 	/* Entry not in the cache. Add new one. */
 	ie = kzalloc(sizeof(struct inquiry_entry), GFP_ATOMIC);
 	if (!ie)
-		return;
+		return false;
 
 	list_add(&ie->all, &cache->all);
 
@@ -436,6 +436,11 @@ update:
 	memcpy(&ie->data, data, sizeof(*data));
 	ie->timestamp = jiffies;
 	cache->timestamp = jiffies;
+
+	if (ie->name_state == NAME_NOT_KNOWN)
+		return false;
+
+	return true;
 }
 
 static int inquiry_cache_dump(struct hci_dev *hdev, int num, __u8 *buf)
