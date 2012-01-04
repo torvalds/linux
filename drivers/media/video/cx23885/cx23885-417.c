@@ -900,6 +900,7 @@ static int cx23885_load_firmware(struct cx23885_dev *dev)
 	int i, retval = 0;
 	u32 value = 0;
 	u32 gpio_output = 0;
+	u32 gpio_value;
 	u32 checksum = 0;
 	u32 *dataptr;
 
@@ -907,7 +908,7 @@ static int cx23885_load_firmware(struct cx23885_dev *dev)
 
 	/* Save GPIO settings before reset of APU */
 	retval |= mc417_memory_read(dev, 0x9020, &gpio_output);
-	retval |= mc417_memory_read(dev, 0x900C, &value);
+	retval |= mc417_memory_read(dev, 0x900C, &gpio_value);
 
 	retval  = mc417_register_write(dev,
 		IVTV_REG_VPU, 0xFFFFFFED);
@@ -991,10 +992,17 @@ static int cx23885_load_firmware(struct cx23885_dev *dev)
 
 	/* F/W power up disturbs the GPIOs, restore state */
 	retval |= mc417_register_write(dev, 0x9020, gpio_output);
-	retval |= mc417_register_write(dev, 0x900C, value);
+	retval |= mc417_register_write(dev, 0x900C, gpio_value);
 
 	retval |= mc417_register_read(dev, IVTV_REG_VPU, &value);
 	retval |= mc417_register_write(dev, IVTV_REG_VPU, value & 0xFFFFFFE8);
+
+	/* Hardcoded GPIO's here */
+	retval |= mc417_register_write(dev, 0x9020, 0x4000);
+	retval |= mc417_register_write(dev, 0x900C, 0x4000);
+
+	mc417_register_read(dev, 0x9020, &gpio_output);
+	mc417_register_read(dev, 0x900C, &gpio_value);
 
 	if (retval < 0)
 		printk(KERN_ERR "%s: Error with mc417_register_write\n",
