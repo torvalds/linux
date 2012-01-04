@@ -1361,7 +1361,7 @@ static int cnic_submit_kwqe_16(struct cnic_dev *dev, u32 cmd, u32 cid,
 	if (ret == 1)
 		return 0;
 
-	return -EBUSY;
+	return ret;
 }
 
 static void cnic_reply_bnx2x_kcqes(struct cnic_dev *dev, int ulp_type,
@@ -1849,7 +1849,7 @@ static int cnic_bnx2x_iscsi_ofld1(struct cnic_dev *dev, struct kwqe *wqes[],
 done:
 	cqes[0] = (struct kcqe *) &kcqe;
 	cnic_reply_bnx2x_kcqes(dev, CNIC_ULP_ISCSI, cqes, 1);
-	return ret;
+	return 0;
 }
 
 
@@ -1947,7 +1947,7 @@ destroy_reply:
 	cqes[0] = (struct kcqe *) &kcqe;
 	cnic_reply_bnx2x_kcqes(dev, CNIC_ULP_ISCSI, cqes, 1);
 
-	return ret;
+	return 0;
 }
 
 static void cnic_init_storm_conn_bufs(struct cnic_dev *dev,
@@ -2513,6 +2513,57 @@ static int cnic_bnx2x_fcoe_fw_destroy(struct cnic_dev *dev, struct kwqe *kwqe)
 	return ret;
 }
 
+static void cnic_bnx2x_kwqe_err(struct cnic_dev *dev, struct kwqe *kwqe)
+{
+	struct cnic_local *cp = dev->cnic_priv;
+	struct kcqe kcqe;
+	struct kcqe *cqes[1];
+	u32 cid;
+	u32 opcode = KWQE_OPCODE(kwqe->kwqe_op_flag);
+	u32 layer_code = kwqe->kwqe_op_flag & KWQE_LAYER_MASK;
+	int ulp_type;
+
+	cid = kwqe->kwqe_info0;
+	memset(&kcqe, 0, sizeof(kcqe));
+
+	if (layer_code == KWQE_FLAGS_LAYER_MASK_L5_ISCSI) {
+		ulp_type = CNIC_ULP_ISCSI;
+		if (opcode == ISCSI_KWQE_OPCODE_UPDATE_CONN)
+			cid = kwqe->kwqe_info1;
+
+		kcqe.kcqe_op_flag = (opcode + 0x10) << KCQE_FLAGS_OPCODE_SHIFT;
+		kcqe.kcqe_op_flag |= KCQE_FLAGS_LAYER_MASK_L5_ISCSI;
+		kcqe.kcqe_info1 = ISCSI_KCQE_COMPLETION_STATUS_NIC_ERROR;
+		kcqe.kcqe_info2 = cid;
+		cnic_get_l5_cid(cp, BNX2X_SW_CID(cid), &kcqe.kcqe_info0);
+
+	} else if (layer_code == KWQE_FLAGS_LAYER_MASK_L4) {
+		struct l4_kcq *l4kcqe = (struct l4_kcq *) &kcqe;
+		u32 kcqe_op;
+
+		ulp_type = CNIC_ULP_L4;
+		if (opcode == L4_KWQE_OPCODE_VALUE_CONNECT1)
+			kcqe_op = L4_KCQE_OPCODE_VALUE_CONNECT_COMPLETE;
+		else if (opcode == L4_KWQE_OPCODE_VALUE_RESET)
+			kcqe_op = L4_KCQE_OPCODE_VALUE_RESET_COMP;
+		else if (opcode == L4_KWQE_OPCODE_VALUE_CLOSE)
+			kcqe_op = L4_KCQE_OPCODE_VALUE_CLOSE_COMP;
+		else
+			return;
+
+		kcqe.kcqe_op_flag = (kcqe_op << KCQE_FLAGS_OPCODE_SHIFT) |
+				    KCQE_FLAGS_LAYER_MASK_L4;
+		l4kcqe->status = L4_KCQE_COMPLETION_STATUS_NIC_ERROR;
+		l4kcqe->cid = cid;
+		cnic_get_l5_cid(cp, BNX2X_SW_CID(cid), &l4kcqe->conn_id);
+	} else {
+		return;
+	}
+
+	cqes[0] = (struct kcqe *) &kcqe;
+	cnic_reply_bnx2x_kcqes(dev, ulp_type, cqes, 1);
+}
+
 static int cnic_submit_bnx2x_iscsi_kwqes(struct cnic_dev *dev,
 					 struct kwqe *wqes[], u32 num_wqes)
 {
@@ -2570,9 +2621,17 @@ static int cnic_submit_bnx2x_iscsi_kwqes(struct cnic_dev *dev,
 				   opcode);
 			break;
 		}
-		if (ret < 0)
+		if (ret < 0) {
 			netdev_err(dev->netdev, "KWQE(0x%x) failed\n",
 				   opcode);
+
+			/* Possibly bnx2x parity error, send completion
+			 * to ulp drivers with error code to speed up
+			 * cleanup and reset recovery.
+			 */
+			if (ret == -EIO || ret == -EAGAIN)
+				cnic_bnx2x_kwqe_err(dev, kwqe);
+		}
 		i += work;
 	}
 	return 0;
@@ -3849,6 +3908,9 @@ static void cnic_cm_process_kcqe(struct cnic_dev *dev, struct kcqe *kcqe)
 	case L4_KCQE_OPCODE_VALUE_RESET_COMP:
 	case L5CM_RAMROD_CMD_ID_SEARCHER_DELETE:
 	case L5CM_RAMROD_CMD_ID_TERMINATE_OFFLOAD:
+		if (l4kcqe->status == L4_KCQE_COMPLETION_STATUS_NIC_ERROR)
+			set_bit(SK_F_HW_ERR, &csk->flags);
+
 		cp->close_conn(csk, opcode);
 		break;
 
@@ -3976,7 +4038,9 @@ static void cnic_close_bnx2x_conn(struct cnic_sock *csk, u32 opcode)
 	case L4_KCQE_OPCODE_VALUE_CLOSE_COMP:
 	case L4_KCQE_OPCODE_VALUE_RESET_COMP:
 		if (cnic_ready_to_close(csk, opcode)) {
-			if (test_bit(SK_F_PG_OFFLD_COMPLETE, &csk->flags))
+			if (test_bit(SK_F_HW_ERR, &csk->flags))
+				close_complete = 1;
+			else if (test_bit(SK_F_PG_OFFLD_COMPLETE, &csk->flags))
 				cmd = L5CM_RAMROD_CMD_ID_SEARCHER_DELETE;
 			else
 				close_complete = 1;

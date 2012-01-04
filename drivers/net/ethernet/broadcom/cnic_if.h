@@ -1,6 +1,6 @@
 /* cnic_if.h: Broadcom CNIC core network driver.
  *
- * Copyright (c) 2006-2011 Broadcom Corporation
+ * Copyright (c) 2006-2012 Broadcom Corporation
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -12,8 +12,8 @@
 #ifndef CNIC_IF_H
 #define CNIC_IF_H
 
-#define CNIC_MODULE_VERSION	"2.5.7"
-#define CNIC_MODULE_RELDATE	"July 20, 2011"
+#define CNIC_MODULE_VERSION	"2.5.8"
+#define CNIC_MODULE_RELDATE	"Jan 3, 2012"
 
 #define CNIC_ULP_RDMA		0
 #define CNIC_ULP_ISCSI		1
@@ -261,6 +261,7 @@ struct cnic_sock {
 #define SK_F_CONNECT_START	4
 #define SK_F_IPV6		5
 #define SK_F_CLOSING		7
+#define SK_F_HW_ERR		8
 
 	atomic_t ref_count;
 	u32 state;
