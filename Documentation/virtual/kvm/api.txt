@@ -218,6 +218,11 @@ allocation of vcpu ids.  For example, if userspace wants
 single-threaded guest vcpus, it should make all vcpu ids be a multiple
 of the number of vcpus per vcore.
 
+For virtual cpus that have been created with S390 user controlled virtual
+machines, the resulting vcpu fd can be memory mapped at page offset
+KVM_S390_SIE_PAGE_OFFSET in order to obtain a memory map of the virtual
+cpu's hardware control block.
+
 4.8 KVM_GET_DIRTY_LOG (vm ioctl)
 
 Capability: basic

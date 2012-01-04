@@ -440,6 +440,8 @@ struct kvm_ppc_pvinfo {
 /* machine type bits, to be used as argument to KVM_CREATE_VM */
 #define KVM_VM_S390_UCONTROL	1
 
+#define KVM_S390_SIE_PAGE_OFFSET 1
+
 /*
  * ioctls for /dev/kvm fds:
  */
