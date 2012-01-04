@@ -144,10 +144,59 @@ sci_phy_link_layer_initialization(struct isci_phy *iphy,
 	phy_cap.gen3_no_ssc = 1;
 	phy_cap.gen2_no_ssc = 1;
 	phy_cap.gen1_no_ssc = 1;
-	if (ihost->oem_parameters.controller.do_enable_ssc == true) {
+	if (ihost->oem_parameters.controller.do_enable_ssc) {
+		struct scu_afe_registers __iomem *afe = &ihost->scu_registers->afe;
+		struct scu_afe_transceiver *xcvr = &afe->scu_afe_xcvr[phy_idx];
+		struct isci_pci_info *pci_info = to_pci_info(ihost->pdev);
+		bool en_sas = false;
+		bool en_sata = false;
+		u32 sas_type = 0;
+		u32 sata_spread = 0x2;
+		u32 sas_spread = 0x2;
+
 		phy_cap.gen3_ssc = 1;
 		phy_cap.gen2_ssc = 1;
 		phy_cap.gen1_ssc = 1;
+
+		if (pci_info->orom->hdr.version < ISCI_ROM_VER_1_1)
+			en_sas = en_sata = true;
+		else {
+			sata_spread = ihost->oem_parameters.controller.ssc_sata_tx_spread_level;
+			sas_spread = ihost->oem_parameters.controller.ssc_sas_tx_spread_level;
+
+			if (sata_spread)
+				en_sata = true;
+
+			if (sas_spread) {
+				en_sas = true;
+				sas_type = ihost->oem_parameters.controller.ssc_sas_tx_type;
+			}
+
+		}
+
+		if (en_sas) {
+			u32 reg;
+
+			reg = readl(&xcvr->afe_xcvr_control0);
+			reg |= (0x00100000 | (sas_type << 19));
+			writel(reg, &xcvr->afe_xcvr_control0);
+
+			reg = readl(&xcvr->afe_tx_ssc_control);
+			reg |= sas_spread << 8;
+			writel(reg, &xcvr->afe_tx_ssc_control);
+		}
+
+		if (en_sata) {
+			u32 reg;
+
+			reg = readl(&xcvr->afe_tx_ssc_control);
+			reg |= sata_spread;
+			writel(reg, &xcvr->afe_tx_ssc_control);
+
+			reg = readl(&llr->stp_control);
+			reg |= 1 << 12;
+			writel(reg, &llr->stp_control);
+		}
 	}
 
 	/* The SAS specification indicates that the phy_capabilities that

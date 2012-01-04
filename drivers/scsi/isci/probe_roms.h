@@ -152,7 +152,7 @@ struct sci_user_parameters {
 #define MAX_CONCURRENT_DEVICE_SPIN_UP_COUNT 4
 
 struct sci_oem_params;
-int sci_oem_parameters_validate(struct sci_oem_params *oem);
+int sci_oem_parameters_validate(struct sci_oem_params *oem, u8 version);
 
 struct isci_orom;
 struct isci_orom *isci_request_oprom(struct pci_dev *pdev);
@@ -191,6 +191,10 @@ struct isci_oem_hdr {
 			0x1a, 0x04, 0xc6)
 #define ISCI_EFI_VAR_NAME	"RstScuO"
 
+#define ISCI_ROM_VER_1_0	0x10
+#define ISCI_ROM_VER_1_1	0x11
+#define ISCI_ROM_VER_LATEST	ISCI_ROM_VER_1_1
+
 /* Allowed PORT configuration modes APC Automatic PORT configuration mode is
  * defined by the OEM configuration parameters providing no PHY_MASK parameters
  * for any PORT. i.e. There are no phys assigned to any of the ports at start.
@@ -220,7 +224,52 @@ struct sci_oem_params {
 	struct {
 		uint8_t mode_type;
 		uint8_t max_concurr_spin_up;
-		uint8_t do_enable_ssc;
+		/*
+		 * This bitfield indicates the OEM's desired default Tx
+		 * Spread Spectrum Clocking (SSC) settings for SATA and SAS.
+		 * NOTE: Default SSC Modulation Frequency is 31.5KHz.
+		 */
+		union {
+			struct {
+			/*
+			 * NOTE: Max spread for SATA is +0 / -5000 PPM.
+			 * Down-spreading SSC (only method allowed for SATA):
+			 *  SATA SSC Tx Disabled                    = 0x0
+			 *  SATA SSC Tx at +0 / -1419 PPM Spread    = 0x2
+			 *  SATA SSC Tx at +0 / -2129 PPM Spread    = 0x3
+			 *  SATA SSC Tx at +0 / -4257 PPM Spread    = 0x6
+			 *  SATA SSC Tx at +0 / -4967 PPM Spread    = 0x7
+			 */
+				uint8_t ssc_sata_tx_spread_level:4;
+			/*
+			 * SAS SSC Tx Disabled                     = 0x0
+			 *
+			 * NOTE: Max spread for SAS down-spreading +0 /
+			 *	 -2300 PPM
+			 * Down-spreading SSC:
+			 *  SAS SSC Tx at +0 / -1419 PPM Spread     = 0x2
+			 *  SAS SSC Tx at +0 / -2129 PPM Spread     = 0x3
+			 *
+			 * NOTE: Max spread for SAS center-spreading +2300 /
+			 *	 -2300 PPM
+			 * Center-spreading SSC:
+			 *  SAS SSC Tx at +1064 / -1064 PPM Spread  = 0x3
+			 *  SAS SSC Tx at +2129 / -2129 PPM Spread  = 0x6
+			 */
+				uint8_t ssc_sas_tx_spread_level:3;
+			/*
+			 * NOTE: Refer to the SSC section of the SAS 2.x
+			 * Specification for proper setting of this field.
+			 * For standard SAS Initiator SAS PHY operation it
+			 * should be 0 for Down-spreading.
+			 * SAS SSC Tx spread type:
+			 *  Down-spreading SSC      = 0
+			 *  Center-spreading SSC    = 1
+			 */
+				uint8_t ssc_sas_tx_type:1;
+			};
+			uint8_t do_enable_ssc;
+		};
 		uint8_t reserved;
 	} controller;
 

@@ -1759,7 +1759,7 @@ static enum sci_status sci_controller_construct(struct isci_host *ihost,
 	return sci_controller_reset(ihost);
 }
 
-int sci_oem_parameters_validate(struct sci_oem_params *oem)
+int sci_oem_parameters_validate(struct sci_oem_params *oem, u8 version)
 {
 	int i;
 
@@ -1791,18 +1791,61 @@ int sci_oem_parameters_validate(struct sci_oem_params *oem)
 	    oem->controller.max_concurr_spin_up < 1)
 		return -EINVAL;
 
+	if (oem->controller.do_enable_ssc) {
+		if (version < ISCI_ROM_VER_1_1 && oem->controller.do_enable_ssc != 1)
+			return -EINVAL;
+
+		if (version >= ISCI_ROM_VER_1_1) {
+			u8 test = oem->controller.ssc_sata_tx_spread_level;
+
+			switch (test) {
+			case 0:
+			case 2:
+			case 3:
+			case 6:
+			case 7:
+				break;
+			default:
+				return -EINVAL;
+			}
+
+			test = oem->controller.ssc_sas_tx_spread_level;
+			if (oem->controller.ssc_sas_tx_type == 0) {
+				switch (test) {
+				case 0:
+				case 2:
+				case 3:
+					break;
+				default:
+					return -EINVAL;
+				}
+			} else if (oem->controller.ssc_sas_tx_type == 1) {
+				switch (test) {
+				case 0:
+				case 3:
+				case 6:
+					break;
+				default:
+					return -EINVAL;
+				}
+			}
+		}
+	}
+
 	return 0;
 }
 
 static enum sci_status sci_oem_parameters_set(struct isci_host *ihost)
 {
 	u32 state = ihost->sm.current_state_id;
+	struct isci_pci_info *pci_info = to_pci_info(ihost->pdev);
 
 	if (state == SCIC_RESET ||
 	    state == SCIC_INITIALIZING ||
 	    state == SCIC_INITIALIZED) {
 
-		if (sci_oem_parameters_validate(&ihost->oem_parameters))
+		if (sci_oem_parameters_validate(&ihost->oem_parameters,
+						pci_info->orom->hdr.version))
 			return SCI_FAILURE_INVALID_PARAMETER_VALUE;
 
 		return SCI_SUCCESS;
