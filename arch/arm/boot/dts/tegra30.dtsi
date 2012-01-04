@@ -107,6 +107,8 @@
 			       0 125 0x04 >;
 		#gpio-cells = <2>;
 		gpio-controller;
+		#interrupt-cells = <2>;
+		interrupt-controller;
 	};
 
 	serial@70006000 {

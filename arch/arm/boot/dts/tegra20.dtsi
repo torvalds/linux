@@ -101,6 +101,8 @@
 			       0 89 0x04 >;
 		#gpio-cells = <2>;
 		gpio-controller;
+		#interrupt-cells = <2>;
+		interrupt-controller;
 	};
 
 	pinmux: pinmux@70000000 {

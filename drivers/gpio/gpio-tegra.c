@@ -25,6 +25,7 @@
 #include <linux/of.h>
 #include <linux/platform_device.h>
 #include <linux/module.h>
+#include <linux/irqdomain.h>
 
 #include <asm/mach/irq.h>
 
@@ -74,7 +75,7 @@ struct tegra_gpio_bank {
 #endif
 };
 
-
+static struct irq_domain irq_domain;
 static void __iomem *regs;
 static struct tegra_gpio_bank tegra_gpio_banks[7];
 
@@ -139,7 +140,7 @@ static int tegra_gpio_direction_output(struct gpio_chip *chip, unsigned offset,
 
 static int tegra_gpio_to_irq(struct gpio_chip *chip, unsigned offset)
 {
-	return TEGRA_GPIO_TO_IRQ(offset);
+	return irq_domain_to_irq(&irq_domain, offset);
 }
 
 static struct gpio_chip tegra_gpio_chip = {
@@ -155,28 +156,28 @@ static struct gpio_chip tegra_gpio_chip = {
 
 static void tegra_gpio_irq_ack(struct irq_data *d)
 {
-	int gpio = d->irq - INT_GPIO_BASE;
+	int gpio = d->hwirq;
 
 	tegra_gpio_writel(1 << GPIO_BIT(gpio), GPIO_INT_CLR(gpio));
 }
 
 static void tegra_gpio_irq_mask(struct irq_data *d)
 {
-	int gpio = d->irq - INT_GPIO_BASE;
+	int gpio = d->hwirq;
 
 	tegra_gpio_mask_write(GPIO_MSK_INT_ENB(gpio), gpio, 0);
 }
 
 static void tegra_gpio_irq_unmask(struct irq_data *d)
 {
-	int gpio = d->irq - INT_GPIO_BASE;
+	int gpio = d->hwirq;
 
 	tegra_gpio_mask_write(GPIO_MSK_INT_ENB(gpio), gpio, 1);
 }
 
 static int tegra_gpio_irq_set_type(struct irq_data *d, unsigned int type)
 {
-	int gpio = d->irq - INT_GPIO_BASE;
+	int gpio = d->hwirq;
 	struct tegra_gpio_bank *bank = irq_data_get_irq_chip_data(d);
 	int port = GPIO_PORT(gpio);
 	int lvl_type;
@@ -343,6 +344,16 @@ static int __devinit tegra_gpio_probe(struct platform_device *pdev)
 	int i;
 	int j;
 
+	irq_domain.irq_base = irq_alloc_descs(-1, 0, TEGRA_NR_GPIOS, 0);
+	if (irq_domain.irq_base < 0) {
+		dev_err(&pdev->dev, "Couldn't allocate IRQ numbers\n");
+		return -ENODEV;
+	}
+	irq_domain.nr_irq = TEGRA_NR_GPIOS;
+	irq_domain.ops = &irq_domain_simple_ops;
+	irq_domain.of_node = pdev->dev.of_node;
+	irq_domain_add(&irq_domain);
+
 	for (i = 0; i < ARRAY_SIZE(tegra_gpio_banks); i++) {
 		res = platform_get_resource(pdev, IORESOURCE_IRQ, i);
 		if (!res) {
@@ -381,7 +392,7 @@ static int __devinit tegra_gpio_probe(struct platform_device *pdev)
 	gpiochip_add(&tegra_gpio_chip);
 
 	for (gpio = 0; gpio < TEGRA_NR_GPIOS; gpio++) {
-		int irq = TEGRA_GPIO_TO_IRQ(gpio);
+		int irq = irq_domain_to_irq(&irq_domain, gpio);
 		/* No validity check; all Tegra GPIOs are valid IRQs */
 
 		bank = &tegra_gpio_banks[GPIO_BANK(gpio)];

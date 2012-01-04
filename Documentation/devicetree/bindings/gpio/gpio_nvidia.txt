@@ -8,6 +8,16 @@ Required properties:
   second cell is used to specify optional parameters:
   - bit 0 specifies polarity (0 for normal, 1 for inverted)
 - gpio-controller : Marks the device node as a GPIO controller.
+- #interrupt-cells : Should be 2.
+  The first cell is the GPIO number.
+  The second cell is used to specify flags:
+    bits[3:0] trigger type and level flags:
+      1 = low-to-high edge triggered.
+      2 = high-to-low edge triggered.
+      4 = active high level-sensitive.
+      8 = active low level-sensitive.
+      Valid combinations are 1, 2, 3, 4, 8.
+- interrupt-controller : Marks the device node as an interrupt controller.
 
 Example:
 
@@ -23,4 +33,6 @@ gpio: gpio@6000d000 {
 		       0 89 0x04 >;
 	#gpio-cells = <2>;
 	gpio-controller;
+	#interrupt-cells = <2>;
+	interrupt-controller;
 };
