@@ -156,6 +156,7 @@ static void set_skb_frag(struct sk_buff *skb, struct page *page,
 	*len -= size;
 }
 
+/* Called from bottom half context */
 static struct sk_buff *page_to_skb(struct virtnet_info *vi,
 				   struct page *page, unsigned int len)
 {
@@ -358,7 +359,7 @@ static int add_recvbuf_small(struct virtnet_info *vi, gfp_t gfp)
 	struct skb_vnet_hdr *hdr;
 	int err;
 
-	skb = netdev_alloc_skb_ip_align(vi->dev, MAX_PACKET_LEN);
+	skb = __netdev_alloc_skb_ip_align(vi->dev, MAX_PACKET_LEN, gfp);
 	if (unlikely(!skb))
 		return -ENOMEM;
 
