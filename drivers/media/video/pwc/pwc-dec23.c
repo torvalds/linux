@@ -656,10 +656,6 @@ static void DecompressBand23(struct pwc_dec23_private *pdec,
  *
  * Uncompress a pwc23 buffer.
  *
- * pwc.view: size of the image wanted
- * pwc.image: size of the image returned by the camera
- * pwc.offset: (x,y) to displayer image in the view
- *
  * src: raw data
  * dst: image output
  */
@@ -667,7 +663,7 @@ void pwc_dec23_decompress(const struct pwc_device *pwc,
 			  const void *src,
 			  void *dst)
 {
-	int bandlines_left, stride, bytes_per_block;
+	int bandlines_left, bytes_per_block;
 	struct pwc_dec23_private *pdec = pwc->decompress_data;
 
 	/* YUV420P image format */
@@ -678,28 +674,23 @@ void pwc_dec23_decompress(const struct pwc_device *pwc,
 
 	mutex_lock(&pdec->lock);
 
-	bandlines_left = pwc->image.y / 4;
-	bytes_per_block = pwc->view.x * 4;
-	plane_size = pwc->view.x * pwc->view.y;
+	bandlines_left = pwc->height / 4;
+	bytes_per_block = pwc->width * 4;
+	plane_size = pwc->height * pwc->width;
 
-	/* offset in Y plane */
-	stride = pwc->view.x * pwc->offset.y;
-	pout_planar_y = dst + stride + pwc->offset.x;
-
-	/* offsets in U/V planes */
-	stride = (pwc->view.x * pwc->offset.y) / 4 + pwc->offset.x / 2;
-	pout_planar_u = dst + plane_size + stride;
-	pout_planar_v = dst + plane_size + plane_size / 4 + stride;
+	pout_planar_y = dst;
+	pout_planar_u = dst + plane_size;
+	pout_planar_v = dst + plane_size + plane_size / 4;
 
 	while (bandlines_left--) {
 		DecompressBand23(pwc->decompress_data,
 				 src,
 				 pout_planar_y, pout_planar_u, pout_planar_v,
-				 pwc->image.x, pwc->view.x);
+				 pwc->width, pwc->width);
 		src += pwc->vbandlength;
 		pout_planar_y += bytes_per_block;
-		pout_planar_u += pwc->view.x;
-		pout_planar_v += pwc->view.x;
+		pout_planar_u += pwc->width;
+		pout_planar_v += pwc->width;
 	}
 	mutex_unlock(&pdec->lock);
 }

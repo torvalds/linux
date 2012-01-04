@@ -656,6 +656,7 @@ static int queue_setup(struct vb2_queue *vq, const struct v4l2_format *fmt,
 				unsigned int sizes[], void *alloc_ctxs[])
 {
 	struct pwc_device *pdev = vb2_get_drv_priv(vq);
+	int size;
 
 	if (*nbuffers < MIN_FRAMES)
 		*nbuffers = MIN_FRAMES;
@@ -664,7 +665,9 @@ static int queue_setup(struct vb2_queue *vq, const struct v4l2_format *fmt,
 
 	*nplanes = 1;
 
-	sizes[0] = PAGE_ALIGN((pdev->abs_max.x * pdev->abs_max.y * 3) / 2);
+	size = pwc_get_size(pdev, MAX_WIDTH, MAX_HEIGHT);
+	sizes[0] = PAGE_ALIGN(pwc_image_sizes[size][0] *
+			      pwc_image_sizes[size][1] * 3 / 2);
 
 	return 0;
 }
@@ -742,7 +745,7 @@ static int start_streaming(struct vb2_queue *vq, unsigned int count)
 	pwc_camera_power(pdev, 1);
 	if (pdev->power_save) {
 		/* Restore video mode */
-		pwc_set_video_mode(pdev, pdev->view.x, pdev->view.y,
+		pwc_set_video_mode(pdev, pdev->width, pdev->height,
 				   pdev->vframes, pdev->vcompression);
 	}
 	pwc_set_leds(pdev, led_on, led_off);
@@ -1056,7 +1059,6 @@ static int usb_pwc_probe(struct usb_interface *intf, const struct usb_device_id 
 	}
 	pdev->type = type_id;
 	pdev->vframes = default_fps;
-	strcpy(pdev->serial, serial_number);
 	pdev->features = features;
 	pwc_construct(pdev); /* set min/max sizes correct */
 
@@ -1119,7 +1121,7 @@ static int usb_pwc_probe(struct usb_interface *intf, const struct usb_device_id 
 	pwc_set_leds(pdev, 0, 0);
 
 	/* Setup intial videomode */
-	rc = pwc_set_video_mode(pdev, pdev->view_max.x, pdev->view_max.y,
+	rc = pwc_set_video_mode(pdev, MAX_WIDTH, MAX_HEIGHT,
 				pdev->vframes, pdev->vcompression);
 	if (rc)
 		goto err_free_mem;

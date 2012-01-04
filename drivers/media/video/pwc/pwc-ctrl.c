@@ -102,8 +102,6 @@ static struct Nala_table_entry Nala_table[PSZ_MAX][PWC_FPS_MAX_NALA] =
 #include "pwc-nala.h"
 };
 
-static void pwc_set_image_buffer_size(struct pwc_device *pdev);
-
 /****************************************************************************/
 
 static int _send_control_msg(struct pwc_device *pdev,
@@ -221,8 +219,9 @@ static int set_video_mode_Nala(struct pwc_device *pdev, int size, int frames)
 	/* Set various parameters */
 	pdev->vframes = frames;
 	pdev->valternate = pEntry->alternate;
-	pdev->image = pwc_image_sizes[size];
-	pdev->frame_size = (pdev->image.x * pdev->image.y * 3) / 2;
+	pdev->width  = pwc_image_sizes[size][0];
+	pdev->height = pwc_image_sizes[size][1];
+	pdev->frame_size = (pdev->width * pdev->height * 3) / 2;
 	if (pEntry->compressed) {
 		if (pdev->release < 5) { /* 4 fold compression */
 			pdev->vbandlength = 528;
@@ -282,12 +281,13 @@ static int set_video_mode_Timon(struct pwc_device *pdev, int size, int frames,
 	/* Set various parameters */
 	pdev->vframes = frames;
 	pdev->valternate = pChoose->alternate;
-	pdev->image = pwc_image_sizes[size];
+	pdev->width  = pwc_image_sizes[size][0];
+	pdev->height = pwc_image_sizes[size][1];
 	pdev->vbandlength = pChoose->bandlength;
 	if (pChoose->bandlength > 0)
-		pdev->frame_size = (pChoose->bandlength * pdev->image.y) / 4;
+		pdev->frame_size = (pChoose->bandlength * pdev->height) / 4;
 	else
-		pdev->frame_size = (pdev->image.x * pdev->image.y * 12) / 8;
+		pdev->frame_size = (pdev->width * pdev->height * 12) / 8;
 	return 0;
 }
 
@@ -339,37 +339,25 @@ static int set_video_mode_Kiara(struct pwc_device *pdev, int size, int frames,
 	/* All set and go */
 	pdev->vframes = frames;
 	pdev->valternate = pChoose->alternate;
-	pdev->image = pwc_image_sizes[size];
+	pdev->width  = pwc_image_sizes[size][0];
+	pdev->height = pwc_image_sizes[size][1];
 	pdev->vbandlength = pChoose->bandlength;
 	if (pdev->vbandlength > 0)
-		pdev->frame_size = (pdev->vbandlength * pdev->image.y) / 4;
+		pdev->frame_size = (pdev->vbandlength * pdev->height) / 4;
 	else
-		pdev->frame_size = (pdev->image.x * pdev->image.y * 12) / 8;
+		pdev->frame_size = (pdev->width * pdev->height * 12) / 8;
 	PWC_TRACE("frame_size=%d, vframes=%d, vsize=%d, vbandlength=%d\n",
 	    pdev->frame_size, pdev->vframes, size, pdev->vbandlength);
 	return 0;
 }
 
-
-
-/**
-   @pdev: device structure
-   @width: viewport width
-   @height: viewport height
-   @frame: framerate, in fps
-   @compression: preferred compression ratio
- */
 int pwc_set_video_mode(struct pwc_device *pdev, int width, int height,
 	int frames, int compression)
 {
 	int ret, size;
 
 	PWC_DEBUG_FLOW("set_video_mode(%dx%d @ %d, pixfmt %08x).\n", width, height, frames, pdev->pixfmt);
-	size = pwc_decode_size(pdev, width, height);
-	if (size < 0) {
-		PWC_DEBUG_MODULE("Could not find suitable size.\n");
-		return -ERANGE;
-	}
+	size = pwc_get_size(pdev, width, height);
 	PWC_TRACE("decode_size = %d.\n", size);
 
 	if (DEVICE_USE_CODEC1(pdev->type)) {
@@ -385,12 +373,9 @@ int pwc_set_video_mode(struct pwc_device *pdev, int width, int height,
 		PWC_ERROR("Failed to set video mode %s@%d fps; return code = %d\n", size2name[size], frames, ret);
 		return ret;
 	}
-	pdev->view.x = width;
-	pdev->view.y = height;
 	pdev->vcompression = compression;
 	pdev->frame_total_size = pdev->frame_size + pdev->frame_header_size + pdev->frame_trailer_size;
-	pwc_set_image_buffer_size(pdev);
-	PWC_DEBUG_SIZE("Set viewport to %dx%d, image size is %dx%d.\n", width, height, pwc_image_sizes[size].x, pwc_image_sizes[size].y);
+	PWC_DEBUG_SIZE("Set resolution to %dx%d\n", pdev->width, pdev->height);
 	return 0;
 }
 
@@ -445,34 +430,6 @@ unsigned int pwc_get_fps(struct pwc_device *pdev, unsigned int index, unsigned i
 	}
 
 	return ret;
-}
-
-static void pwc_set_image_buffer_size(struct pwc_device *pdev)
-{
-	int factor = 0;
-
-	/* for V4L2_PIX_FMT_YUV420 */
-	switch (pdev->pixfmt) {
-	case V4L2_PIX_FMT_YUV420:
-		factor = 6;
-		break;
-	case V4L2_PIX_FMT_PWC1:
-	case V4L2_PIX_FMT_PWC2:
-		factor = 6; /* can be uncompressed YUV420P */
-		break;
-	}
-
-	/* Set sizes in bytes */
-	pdev->image.size = pdev->image.x * pdev->image.y * factor / 4;
-	pdev->view.size  = pdev->view.x  * pdev->view.y  * factor / 4;
-
-	/* Align offset, or you'll get some very weird results in
-	   YUV420 mode... x must be multiple of 4 (to get the Y's in
-	   place), and y even (or you'll mixup U & V). This is less of a
-	   problem for YUV420P.
-	 */
-	pdev->offset.x = ((pdev->view.x - pdev->image.x) / 2) & 0xFFFC;
-	pdev->offset.y = ((pdev->view.y - pdev->image.y) / 2) & 0xFFFE;
 }
 
 int pwc_get_u8_ctrl(struct pwc_device *pdev, u8 request, u16 value, int *data)

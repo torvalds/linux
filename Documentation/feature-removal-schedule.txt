@@ -460,16 +460,6 @@ Who:	Jean Delvare <khali@linux-fr.org>
 
 ----------------------------
 
-What:	Software emulation of arbritary resolutions in the pwc driver
-When:	3.3
-Why:	The pwc driver claims to support any resolution between 160x120
-	and 640x480, but emulates this by simply drawing a black border
-	around the image. Userspace can draw its own black border if it
-	really wants one.
-Who:	Hans de Goede <hdegoede@redhat.com>
-
-----------------------------
-
 What:	For VIDIOC_S_FREQUENCY the type field must match the device node's type.
 	If not, return -EINVAL.
 When:	3.2

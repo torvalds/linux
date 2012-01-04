@@ -107,6 +107,9 @@
 #define FEATURE_CODEC1			0x0002
 #define FEATURE_CODEC2			0x0004
 
+#define MAX_WIDTH		640
+#define MAX_HEIGHT		480
+
 /* Ignore errors in the first N frames, to allow for startup delays */
 #define FRAME_LOWMARK 5
 
@@ -205,12 +208,6 @@ struct pwc_raw_frame {
 	__u8   rawframe[0];	/* frame_size = H / 4 * vbandlength */
 } __packed;
 
-/* structure for transferring x & y coordinates */
-struct pwc_coord {
-	int x, y;		/* guess what */
-	int size;		/* size, or offset */
-};
-
 /* intermediate buffers with raw data from the USB cam */
 struct pwc_frame_buf
 {
@@ -233,7 +230,6 @@ struct pwc_device
 	int type;
 	int release;		/* release number */
 	int features;		/* feature bits */
-	char serial[30];	/* serial number (string) */
 
 	/*** Video data ***/
 	struct file *capt_file;	/* file doing video capture */
@@ -286,10 +282,7 @@ struct pwc_device
 	 * a gray or black border. view_min <= image <= view <= view_max;
 	 */
 	int image_mask;				/* supported sizes */
-	struct pwc_coord view_min, view_max;	/* minimum and maximum view */
-	struct pwc_coord abs_max;		/* maximum supported size */
-	struct pwc_coord image, view;		/* image and viewport size */
-	struct pwc_coord offset;		/* offset of the viewport */
+	int width, height;			/* current resolution */
 
 #ifdef CONFIG_USB_PWC_INPUT_EVDEV
 	struct input_dev *button_dev;	/* webcam snapshot button input */
@@ -364,9 +357,9 @@ int pwc_test_n_set_capt_file(struct pwc_device *pdev, struct file *file);
 
 /** Functions in pwc-misc.c */
 /* sizes in pixels */
-extern const struct pwc_coord pwc_image_sizes[PSZ_MAX];
+extern const int pwc_image_sizes[PSZ_MAX][2];
 
-int pwc_decode_size(struct pwc_device *pdev, int width, int height);
+int pwc_get_size(struct pwc_device *pdev, int width, int height);
 void pwc_construct(struct pwc_device *pdev);
 
 /** Functions in pwc-ctrl.c */

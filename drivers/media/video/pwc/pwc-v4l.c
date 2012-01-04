@@ -398,8 +398,8 @@ int pwc_init_controls(struct pwc_device *pdev)
 static void pwc_vidioc_fill_fmt(const struct pwc_device *pdev, struct v4l2_format *f)
 {
 	memset(&f->fmt.pix, 0, sizeof(struct v4l2_pix_format));
-	f->fmt.pix.width        = pdev->view.x;
-	f->fmt.pix.height       = pdev->view.y;
+	f->fmt.pix.width        = pdev->width;
+	f->fmt.pix.height       = pdev->height;
 	f->fmt.pix.field        = V4L2_FIELD_NONE;
 	if (pdev->pixfmt == V4L2_PIX_FMT_YUV420) {
 		f->fmt.pix.pixelformat  = V4L2_PIX_FMT_YUV420;
@@ -429,6 +429,8 @@ static void pwc_vidioc_fill_fmt(const struct pwc_device *pdev, struct v4l2_forma
 /* ioctl(VIDIOC_TRY_FMT) */
 static int pwc_vidioc_try_fmt(struct pwc_device *pdev, struct v4l2_format *f)
 {
+	int size;
+
 	if (f->type != V4L2_BUF_TYPE_VIDEO_CAPTURE) {
 		PWC_DEBUG_IOCTL("Bad video type must be V4L2_BUF_TYPE_VIDEO_CAPTURE\n");
 		return -EINVAL;
@@ -455,15 +457,9 @@ static int pwc_vidioc_try_fmt(struct pwc_device *pdev, struct v4l2_format *f)
 
 	}
 
-	if (f->fmt.pix.width > pdev->view_max.x)
-		f->fmt.pix.width = pdev->view_max.x;
-	else if (f->fmt.pix.width < pdev->view_min.x)
-		f->fmt.pix.width = pdev->view_min.x;
-
-	if (f->fmt.pix.height > pdev->view_max.y)
-		f->fmt.pix.height = pdev->view_max.y;
-	else if (f->fmt.pix.height < pdev->view_min.y)
-		f->fmt.pix.height = pdev->view_min.y;
+	size = pwc_get_size(pdev, f->fmt.pix.width, f->fmt.pix.height);
+	f->fmt.pix.width  = pwc_image_sizes[size][0];
+	f->fmt.pix.height = pwc_image_sizes[size][1];
 
 	return 0;
 }
@@ -972,7 +968,7 @@ static int pwc_g_fmt_vid_cap(struct file *file, void *fh, struct v4l2_format *f)
 
 	mutex_lock(&pdev->udevlock); /* To avoid race with s_fmt */
 	PWC_DEBUG_IOCTL("ioctl(VIDIOC_G_FMT) return size %dx%d\n",
-			pdev->image.x, pdev->image.y);
+			pdev->width, pdev->height);
 	pwc_vidioc_fill_fmt(pdev, f);
 	mutex_unlock(&pdev->udevlock);
 	return 0;
@@ -1061,25 +1057,21 @@ static int pwc_enum_framesizes(struct file *file, void *fh,
 	struct pwc_device *pdev = video_drvdata(file);
 	unsigned int i = 0, index = fsize->index;
 
-	if (fsize->pixel_format == V4L2_PIX_FMT_YUV420) {
+	if (fsize->pixel_format == V4L2_PIX_FMT_YUV420 ||
+	    (fsize->pixel_format == V4L2_PIX_FMT_PWC1 &&
+			DEVICE_USE_CODEC1(pdev->type)) ||
+	    (fsize->pixel_format == V4L2_PIX_FMT_PWC2 &&
+			DEVICE_USE_CODEC23(pdev->type))) {
 		for (i = 0; i < PSZ_MAX; i++) {
-			if (pdev->image_mask & (1UL << i)) {
-				if (!index--) {
-					fsize->type = V4L2_FRMSIZE_TYPE_DISCRETE;
-					fsize->discrete.width = pwc_image_sizes[i].x;
-					fsize->discrete.height = pwc_image_sizes[i].y;
-					return 0;
-				}
+			if (!(pdev->image_mask & (1UL << i)))
+				continue;
+			if (!index--) {
+				fsize->type = V4L2_FRMSIZE_TYPE_DISCRETE;
+				fsize->discrete.width = pwc_image_sizes[i][0];
+				fsize->discrete.height = pwc_image_sizes[i][1];
+				return 0;
 			}
 		}
-	} else if (fsize->index == 0 &&
-			((fsize->pixel_format == V4L2_PIX_FMT_PWC1 && DEVICE_USE_CODEC1(pdev->type)) ||
-			 (fsize->pixel_format == V4L2_PIX_FMT_PWC2 && DEVICE_USE_CODEC23(pdev->type)))) {
-
-		fsize->type = V4L2_FRMSIZE_TYPE_DISCRETE;
-		fsize->discrete.width = pdev->abs_max.x;
-		fsize->discrete.height = pdev->abs_max.y;
-		return 0;
 	}
 	return -EINVAL;
 }
@@ -1092,8 +1084,8 @@ static int pwc_enum_frameintervals(struct file *file, void *fh,
 	unsigned int i;
 
 	for (i = 0; i < PSZ_MAX; i++) {
-		if (pwc_image_sizes[i].x == fival->width &&
-				pwc_image_sizes[i].y == fival->height) {
+		if (pwc_image_sizes[i][0] == fival->width &&
+				pwc_image_sizes[i][1] == fival->height) {
 			size = i;
 			break;
 		}
