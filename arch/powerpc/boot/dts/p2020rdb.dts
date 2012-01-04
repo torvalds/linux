@@ -203,11 +203,15 @@
 			phy0: ethernet-phy@0 {
 				interrupts = <3 1 0 0>;
 				reg = <0x0>;
-				};
+			};
 			phy1: ethernet-phy@1 {
 				interrupts = <3 1 0 0>;
 				reg = <0x1>;
-				};
+			};
+			tbi-phy@2 {
+				device_type = "tbi-phy";
+				reg = <0x2>;
+			};
 		};
 
 		mdio@25520 {

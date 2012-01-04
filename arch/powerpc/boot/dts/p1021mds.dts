@@ -165,6 +165,10 @@
 			phy4: ethernet-phy@4 {
 				reg = <0x4>;
 			};
+			tbi-phy@5 {
+				device_type = "tbi-phy";
+				reg = <0x5>;
+			};
 		};
 
 		mdio@25000 {
