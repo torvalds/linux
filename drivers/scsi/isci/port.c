@@ -114,7 +114,7 @@ static u32 sci_port_get_phys(struct isci_port *iport)
  * value is returned if the specified port is not valid.  When this value is
  * returned, no data is copied to the properties output parameter.
  */
-static enum sci_status sci_port_get_properties(struct isci_port *iport,
+enum sci_status sci_port_get_properties(struct isci_port *iport,
 						struct sci_port_properties *prop)
 {
 	if (!iport || iport->logical_port_index == SCIC_SDS_DUMMY_PORT)

@@ -250,6 +250,10 @@ bool sci_port_link_detected(
 	struct isci_port *iport,
 	struct isci_phy *iphy);
 
+enum sci_status sci_port_get_properties(
+	struct isci_port *iport,
+	struct sci_port_properties *prop);
+
 enum sci_status sci_port_link_up(struct isci_port *iport,
 				      struct isci_phy *iphy);
 enum sci_status sci_port_link_down(struct isci_port *iport,
