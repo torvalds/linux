@@ -505,7 +505,8 @@ static int __vcpu_run(struct kvm_vcpu *vcpu)
 	if (test_thread_flag(TIF_MCCK_PENDING))
 		s390_handle_mcck();
 
-	kvm_s390_deliver_pending_interrupts(vcpu);
+	if (!kvm_is_ucontrol(vcpu->kvm))
+		kvm_s390_deliver_pending_interrupts(vcpu);
 
 	vcpu->arch.sie_block->icptcode = 0;
 	local_irq_disable();
