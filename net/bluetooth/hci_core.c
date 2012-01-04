@@ -357,12 +357,16 @@ struct hci_dev *hci_dev_get(int index)
 /* ---- Inquiry support ---- */
 static void inquiry_cache_flush(struct hci_dev *hdev)
 {
+	struct inquiry_cache *cache = &hdev->inq_cache;
 	struct inquiry_entry *p, *n;
 
-	list_for_each_entry_safe(p, n, &hdev->inq_cache.list, list) {
-		list_del(&p->list);
+	list_for_each_entry_safe(p, n, &cache->all, all) {
+		list_del(&p->all);
 		kfree(p);
 	}
+
+	INIT_LIST_HEAD(&cache->unknown);
+	INIT_LIST_HEAD(&cache->resolve);
 }
 
 struct inquiry_entry *hci_inquiry_cache_lookup(struct hci_dev *hdev, bdaddr_t *bdaddr)
@@ -372,7 +376,7 @@ struct inquiry_entry *hci_inquiry_cache_lookup(struct hci_dev *hdev, bdaddr_t *b
 
 	BT_DBG("cache %p, %s", cache, batostr(bdaddr));
 
-	list_for_each_entry(e, &cache->list, list) {
+	list_for_each_entry(e, &cache->all, all) {
 		if (!bacmp(&e->data.bdaddr, bdaddr))
 			return e;
 	}
@@ -380,7 +384,24 @@ struct inquiry_entry *hci_inquiry_cache_lookup(struct hci_dev *hdev, bdaddr_t *b
 	return NULL;
 }
 
-void hci_inquiry_cache_update(struct hci_dev *hdev, struct inquiry_data *data)
+struct inquiry_entry *hci_inquiry_cache_lookup_unknown(struct hci_dev *hdev,
+							bdaddr_t *bdaddr)
+{
+	struct inquiry_cache *cache = &hdev->inq_cache;
+	struct inquiry_entry *e;
+
+	BT_DBG("cache %p, %s", cache, batostr(bdaddr));
+
+	list_for_each_entry(e, &cache->unknown, list) {
+		if (!bacmp(&e->data.bdaddr, bdaddr))
+			return e;
+	}
+
+	return NULL;
+}
+
+void hci_inquiry_cache_update(struct hci_dev *hdev, struct inquiry_data *data,
+							bool name_known)
 {
 	struct inquiry_cache *cache = &hdev->inq_cache;
 	struct inquiry_entry *ie;
@@ -388,13 +409,28 @@ void hci_inquiry_cache_update(struct hci_dev *hdev, struct inquiry_data *data)
 	BT_DBG("cache %p, %s", cache, batostr(&data->bdaddr));
 
 	ie = hci_inquiry_cache_lookup(hdev, &data->bdaddr);
-	if (!ie) {
-		/* Entry not in the cache. Add new one. */
-		ie = kzalloc(sizeof(struct inquiry_entry), GFP_ATOMIC);
-		if (!ie)
-			return;
+	if (ie)
+		goto update;
 
-		list_add(&ie->list, &cache->list);
+	/* Entry not in the cache. Add new one. */
+	ie = kzalloc(sizeof(struct inquiry_entry), GFP_ATOMIC);
+	if (!ie)
+		return;
+
+	list_add(&ie->all, &cache->all);
+
+	if (name_known) {
+		ie->name_state = NAME_KNOWN;
+	} else {
+		ie->name_state = NAME_NOT_KNOWN;
+		list_add(&ie->list, &cache->unknown);
+	}
+
+update:
+	if (name_known && ie->name_state != NAME_KNOWN &&
+					ie->name_state != NAME_PENDING) {
+		ie->name_state = NAME_KNOWN;
+		list_del(&ie->list);
 	}
 
 	memcpy(&ie->data, data, sizeof(*data));
@@ -409,7 +445,7 @@ static int inquiry_cache_dump(struct hci_dev *hdev, int num, __u8 *buf)
 	struct inquiry_entry *e;
 	int copied = 0;
 
-	list_for_each_entry(e, &cache->list, list) {
+	list_for_each_entry(e, &cache->all, all) {
 		struct inquiry_data *data = &e->data;
 
 		if (copied >= num)

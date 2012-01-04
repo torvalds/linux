@@ -44,14 +44,23 @@ struct inquiry_data {
 };
 
 struct inquiry_entry {
-	struct list_head	list;
+	struct list_head	all;		/* inq_cache.all */
+	struct list_head	list;		/* unknown or resolve */
+	enum {
+		NAME_NOT_KNOWN,
+		NAME_NEEDED,
+		NAME_PENDING,
+		NAME_KNOWN,
+	} name_state;
 	__u32			timestamp;
 	struct inquiry_data	data;
 };
 
 struct inquiry_cache {
-	struct list_head	list;
-	__u32			timestamp;
+	struct list_head all;		/* All devices found during inquiry */
+	struct list_head unknown;	/* Name state not known */
+	struct list_head resolve;	/* Name needs to be resolved */
+	__u32		timestamp;
 };
 
 struct hci_conn_hash {
@@ -350,12 +359,14 @@ extern int sco_recv_scodata(struct hci_conn *hcon, struct sk_buff *skb);
 
 static inline void inquiry_cache_init(struct hci_dev *hdev)
 {
-	INIT_LIST_HEAD(&hdev->inq_cache.list);
+	INIT_LIST_HEAD(&hdev->inq_cache.all);
+	INIT_LIST_HEAD(&hdev->inq_cache.unknown);
+	INIT_LIST_HEAD(&hdev->inq_cache.resolve);
 }
 
 static inline int inquiry_cache_empty(struct hci_dev *hdev)
 {
-	return list_empty(&hdev->inq_cache.list);
+	return list_empty(&hdev->inq_cache.all);
 }
 
 static inline long inquiry_cache_age(struct hci_dev *hdev)
@@ -371,7 +382,10 @@ static inline long inquiry_entry_age(struct inquiry_entry *e)
 
 struct inquiry_entry *hci_inquiry_cache_lookup(struct hci_dev *hdev,
 							bdaddr_t *bdaddr);
-void hci_inquiry_cache_update(struct hci_dev *hdev, struct inquiry_data *data);
+struct inquiry_entry *hci_inquiry_cache_lookup_unknown(struct hci_dev *hdev,
+							bdaddr_t *bdaddr);
+void hci_inquiry_cache_update(struct hci_dev *hdev, struct inquiry_data *data,
+							bool name_known);
 
 /* ----- HCI Connections ----- */
 enum {
@@ -913,7 +927,8 @@ int mgmt_set_local_name_complete(struct hci_dev *hdev, u8 *name, u8 status);
 int mgmt_read_local_oob_data_reply_complete(struct hci_dev *hdev, u8 *hash,
 						u8 *randomizer, u8 status);
 int mgmt_device_found(struct hci_dev *hdev, bdaddr_t *bdaddr, u8 link_type,
-				u8 addr_type, u8 *dev_class, s8 rssi, u8 *eir);
+					u8 addr_type, u8 *dev_class, s8 rssi,
+					u8 cfm_name, u8 *eir);
 int mgmt_remote_name(struct hci_dev *hdev, bdaddr_t *bdaddr, u8 *name);
 int mgmt_start_discovery_failed(struct hci_dev *hdev, u8 status);
 int mgmt_stop_discovery_failed(struct hci_dev *hdev, u8 status);

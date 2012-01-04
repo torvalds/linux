@@ -1967,6 +1967,50 @@ failed:
 	return err;
 }
 
+static int confirm_name(struct sock *sk, u16 index, unsigned char *data,
+								u16 len)
+{
+	struct mgmt_cp_confirm_name *cp = (void *) data;
+	struct inquiry_entry *e;
+	struct hci_dev *hdev;
+	int err;
+
+	BT_DBG("hci%u", index);
+
+	if (len != sizeof(*cp))
+		return cmd_status(sk, index, MGMT_OP_CONFIRM_NAME,
+				MGMT_STATUS_INVALID_PARAMS);
+
+	hdev = hci_dev_get(index);
+	if (!hdev)
+		return cmd_status(sk, index, MGMT_OP_CONFIRM_NAME,
+				MGMT_STATUS_INVALID_PARAMS);
+
+	hci_dev_lock(hdev);
+
+	e = hci_inquiry_cache_lookup_unknown(hdev, &cp->bdaddr);
+	if (!e) {
+		err = cmd_status (sk, index, MGMT_OP_CONFIRM_NAME,
+				MGMT_STATUS_INVALID_PARAMS);
+		goto failed;
+	}
+
+	if (cp->name_known) {
+		e->name_state = NAME_KNOWN;
+		list_del(&e->list);
+	} else {
+		e->name_state = NAME_NEEDED;
+		list_move(&e->list, &hdev->inq_cache.resolve);
+	}
+
+	err = 0;
+
+failed:
+	hci_dev_unlock(hdev);
+
+	return err;
+}
+
 static int block_device(struct sock *sk, u16 index, unsigned char *data,
 								u16 len)
 {
@@ -2214,6 +2258,9 @@ int mgmt_control(struct sock *sk, struct msghdr *msg, size_t msglen)
 		break;
 	case MGMT_OP_STOP_DISCOVERY:
 		err = stop_discovery(sk, index);
+		break;
+	case MGMT_OP_CONFIRM_NAME:
+		err = confirm_name(sk, index, buf + sizeof(*hdr), len);
 		break;
 	case MGMT_OP_BLOCK_DEVICE:
 		err = block_device(sk, index, buf + sizeof(*hdr), len);
@@ -2689,7 +2736,8 @@ int mgmt_read_local_oob_data_reply_complete(struct hci_dev *hdev, u8 *hash,
 }
 
 int mgmt_device_found(struct hci_dev *hdev, bdaddr_t *bdaddr, u8 link_type,
-				u8 addr_type, u8 *dev_class, s8 rssi, u8 *eir)
+				u8 addr_type, u8 *dev_class, s8 rssi,
+				u8 cfm_name, u8 *eir)
 {
 	struct mgmt_ev_device_found ev;
 
@@ -2698,6 +2746,7 @@ int mgmt_device_found(struct hci_dev *hdev, bdaddr_t *bdaddr, u8 link_type,
 	bacpy(&ev.addr.bdaddr, bdaddr);
 	ev.addr.type = link_to_mgmt(link_type, addr_type);
 	ev.rssi = rssi;
+	ev.confirm_name = cfm_name;
 
 	if (eir)
 		memcpy(ev.eir, eir, sizeof(ev.eir));
