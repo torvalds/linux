@@ -1033,7 +1033,6 @@ struct xhci_transfer_event {
 /* Invalid Stream ID Error */
 #define COMP_STRID_ERR	34
 /* Secondary Bandwidth Error - may be returned by a Configure Endpoint cmd */
-/* FIXME - check for this */
 #define COMP_2ND_BW_ERR	35
 /* Split Transaction Error */
 #define	COMP_SPLIT_ERR	36
