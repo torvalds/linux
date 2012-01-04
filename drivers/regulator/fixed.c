@@ -69,6 +69,7 @@ of_get_fixed_voltage_config(struct device *dev)
 		return NULL;
 
 	init_data = config->init_data;
+	init_data->constraints.apply_uV = 0;
 
 	config->supply_name = init_data->constraints.name;
 	if (init_data->constraints.min_uV == init_data->constraints.max_uV) {
