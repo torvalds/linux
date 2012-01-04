@@ -638,12 +638,11 @@ static struct dentry *open_root_dentry(struct ceph_fs_client *fsc,
 	if (err == 0) {
 		dout("open_root_inode success\n");
 		if (ceph_ino(req->r_target_inode) == CEPH_INO_ROOT &&
-		    fsc->sb->s_root == NULL) {
+		    fsc->sb->s_root == NULL)
 			root = d_alloc_root(req->r_target_inode);
-			ceph_init_dentry(root);
-		} else {
+		else
 			root = d_obtain_alias(req->r_target_inode);
-		}
+		ceph_init_dentry(root);
 		req->r_target_inode = NULL;
 		dout("open_root_inode success, root dentry is %p\n", root);
 	} else {
