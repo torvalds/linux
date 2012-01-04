@@ -775,6 +775,27 @@ struct bq27541_platform_data bq27541_info = {
 	.bat_check_pin =  BAT_LOW,
 };
 #endif
+
+#ifdef CONFIG_BATTERY_RK29_ADC
+static struct rk29_adc_battery_platform_data rk29_adc_battery_platdata = {
+	.dc_det_pin      = RK29_PIN4_PA1,
+	.batt_low_pin    = RK29_PIN4_PA2,
+	.charge_set_pin  = INVALID_GPIO,
+	.charge_ok_pin   = RK29_PIN4_PA3,
+
+	.dc_det_level    = GPIO_LOW,
+	.charge_ok_level = GPIO_HIGH,
+};
+
+static struct platform_device rk29_device_adc_battery = {
+	.name   = "rk2918-battery",
+	.id     = -1,
+	.dev = {
+		.platform_data = &rk29_adc_battery_platdata,
+	},
+};
+#endif
+
 static struct android_pmem_platform_data android_pmem_pdata = {
 	.name		= "pmem",
 	.start		= PMEM_UI_BASE,
@@ -2628,6 +2649,9 @@ static struct platform_device *devices[] __initdata = {
 #endif
 #ifdef CONFIG_ADC_RK29
 	&rk29_device_adc,
+#endif
+#ifdef CONFIG_BATTERY_RK29_ADC
+	&rk29_device_adc_battery,
 #endif
 #ifdef CONFIG_I2C0_RK29
 	&rk29_device_i2c0,
