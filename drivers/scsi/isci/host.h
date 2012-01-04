@@ -435,7 +435,14 @@ static inline bool is_b0(struct pci_dev *pdev)
 
 static inline bool is_c0(struct pci_dev *pdev)
 {
-	if (pdev->revision >= 5)
+	if (pdev->revision == 5)
+		return true;
+	return false;
+}
+
+static inline bool is_c1(struct pci_dev *pdev)
+{
+	if (pdev->revision >= 6)
 		return true;
 	return false;
 }

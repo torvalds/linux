@@ -1908,12 +1908,23 @@ void sci_controller_power_control_queue_remove(struct isci_host *ihost,
 	ihost->power_control.requesters[iphy->phy_index] = NULL;
 }
 
+static int is_long_cable(int phy, unsigned char selection_byte)
+{
+	return 0;
+}
+
+static int is_medium_cable(int phy, unsigned char selection_byte)
+{
+	return 0;
+}
+
 #define AFE_REGISTER_WRITE_DELAY 10
 
 static void sci_controller_afe_initialization(struct isci_host *ihost)
 {
 	struct scu_afe_registers __iomem *afe = &ihost->scu_registers->afe;
 	const struct sci_oem_params *oem = &ihost->oem_parameters;
+	unsigned char cable_selection_mask = 0;
 	struct pci_dev *pdev = ihost->pdev;
 	u32 afe_status;
 	u32 phy_id;
@@ -1922,11 +1933,11 @@ static void sci_controller_afe_initialization(struct isci_host *ihost)
 	writel(0x0081000f, &afe->afe_dfx_master_control0);
 	udelay(AFE_REGISTER_WRITE_DELAY);
 
-	if (is_b0(pdev)) {
+	if (is_b0(pdev) || is_c0(pdev) || is_c1(pdev)) {
 		/* PM Rx Equalization Save, PM SPhy Rx Acknowledgement
 		 * Timer, PM Stagger Timer
 		 */
-		writel(0x0007BFFF, &afe->afe_pmsn_master_control2);
+		writel(0x0007FFFF, &afe->afe_pmsn_master_control2);
 		udelay(AFE_REGISTER_WRITE_DELAY);
 	}
 
@@ -1935,14 +1946,23 @@ static void sci_controller_afe_initialization(struct isci_host *ihost)
 		writel(0x00005A00, &afe->afe_bias_control);
 	else if (is_b0(pdev) || is_c0(pdev))
 		writel(0x00005F00, &afe->afe_bias_control);
+	else if (is_c1(pdev))
+		writel(0x00005500, &afe->afe_bias_control);
 
 	udelay(AFE_REGISTER_WRITE_DELAY);
 
 	/* Enable PLL */
-	if (is_b0(pdev) || is_c0(pdev))
-		writel(0x80040A08, &afe->afe_pll_control0);
-	else
+	if (is_a2(pdev))
 		writel(0x80040908, &afe->afe_pll_control0);
+	else if (is_b0(pdev) || is_c0(pdev))
+		writel(0x80040A08, &afe->afe_pll_control0);
+	else if (is_c1(pdev)) {
+		writel(0x80000B08, &afe->afe_pll_control0);
+		udelay(AFE_REGISTER_WRITE_DELAY);
+		writel(0x00000B08, &afe->afe_pll_control0);
+		udelay(AFE_REGISTER_WRITE_DELAY);
+		writel(0x80000B08, &afe->afe_pll_control0);
+	}
 
 	udelay(AFE_REGISTER_WRITE_DELAY);
 
@@ -1963,22 +1983,12 @@ static void sci_controller_afe_initialization(struct isci_host *ihost)
 	for (phy_id = 0; phy_id < SCI_MAX_PHYS; phy_id++) {
 		struct scu_afe_transceiver *xcvr = &afe->scu_afe_xcvr[phy_id];
 		const struct sci_phy_oem_params *oem_phy = &oem->phys[phy_id];
+		int cable_length_long =
+			is_long_cable(phy_id, cable_selection_mask);
+		int cable_length_medium =
+			is_medium_cable(phy_id, cable_selection_mask);
 
-		if (is_b0(pdev)) {
-			 /* Configure transmitter SSC parameters */
-			writel(0x00030000, &xcvr->afe_tx_ssc_control);
-			udelay(AFE_REGISTER_WRITE_DELAY);
-		} else if (is_c0(pdev)) {
-			 /* Configure transmitter SSC parameters */
-			writel(0x0003000, &xcvr->afe_tx_ssc_control);
-			udelay(AFE_REGISTER_WRITE_DELAY);
-
-			/* All defaults, except the Receive Word
-			 * Alignament/Comma Detect Enable....(0xe800)
-			 */
-			writel(0x00004500, &xcvr->afe_xcvr_control0);
-			udelay(AFE_REGISTER_WRITE_DELAY);
-		} else {
+		if (is_a2(pdev)) {
 			/* All defaults, except the Receive Word
 			 * Alignament/Comma Detect Enable....(0xe800)
 			 */
@@ -1987,22 +1997,54 @@ static void sci_controller_afe_initialization(struct isci_host *ihost)
 
 			writel(0x0050100F, &xcvr->afe_xcvr_control1);
 			udelay(AFE_REGISTER_WRITE_DELAY);
+		} else if (is_b0(pdev)) {
+			/* Configure transmitter SSC parameters */
+			writel(0x00030000, &xcvr->afe_tx_ssc_control);
+			udelay(AFE_REGISTER_WRITE_DELAY);
+		} else if (is_c0(pdev)) {
+			/* Configure transmitter SSC parameters */
+			writel(0x00010202, &xcvr->afe_tx_ssc_control);
+			udelay(AFE_REGISTER_WRITE_DELAY);
+
+			/* All defaults, except the Receive Word
+			 * Alignament/Comma Detect Enable....(0xe800)
+			 */
+			writel(0x00014500, &xcvr->afe_xcvr_control0);
+			udelay(AFE_REGISTER_WRITE_DELAY);
+		} else if (is_c1(pdev)) {
+			/* Configure transmitter SSC parameters */
+			writel(0x00010202, &xcvr->afe_tx_ssc_control);
+			udelay(AFE_REGISTER_WRITE_DELAY);
+
+			/* All defaults, except the Receive Word
+			 * Alignament/Comma Detect Enable....(0xe800)
+			 */
+			writel(0x0001C500, &xcvr->afe_xcvr_control0);
+			udelay(AFE_REGISTER_WRITE_DELAY);
 		}
 
-		/* Power up TX and RX out from power down (PWRDNTX and PWRDNRX)
-		 * & increase TX int & ext bias 20%....(0xe85c)
+		/* Power up TX and RX out from power down (PWRDNTX and
+		 * PWRDNRX) & increase TX int & ext bias 20%....(0xe85c)
 		 */
 		if (is_a2(pdev))
 			writel(0x000003F0, &xcvr->afe_channel_control);
 		else if (is_b0(pdev)) {
-			 /* Power down TX and RX (PWRDNTX and PWRDNRX) */
 			writel(0x000003D7, &xcvr->afe_channel_control);
 			udelay(AFE_REGISTER_WRITE_DELAY);
+
 			writel(0x000003D4, &xcvr->afe_channel_control);
-		} else {
+		} else if (is_c0(pdev)) {
 			writel(0x000001E7, &xcvr->afe_channel_control);
 			udelay(AFE_REGISTER_WRITE_DELAY);
+
 			writel(0x000001E4, &xcvr->afe_channel_control);
+		} else if (is_c1(pdev)) {
+			writel(cable_length_long ? 0x000002F7 : 0x000001F7,
+			       &xcvr->afe_channel_control);
+			udelay(AFE_REGISTER_WRITE_DELAY);
+
+			writel(cable_length_long ? 0x000002F4 : 0x000001F4,
+			       &xcvr->afe_channel_control);
 		}
 		udelay(AFE_REGISTER_WRITE_DELAY);
 
@@ -2012,7 +2054,16 @@ static void sci_controller_afe_initialization(struct isci_host *ihost)
 			udelay(AFE_REGISTER_WRITE_DELAY);
 		}
 
-		writel(0x00004100, &xcvr->afe_xcvr_control0);
+		if (is_a2(pdev) || is_b0(pdev))
+			/* RDPI=0x0(RX Power On), RXOOBDETPDNC=0x0,
+			 * TPD=0x0(TX Power On), RDD=0x0(RX Detect
+			 * Enabled) ....(0xe800)
+			 */
+			writel(0x00004100, &xcvr->afe_xcvr_control0);
+		else if (is_c0(pdev))
+			writel(0x00014100, &xcvr->afe_xcvr_control0);
+		else if (is_c1(pdev))
+			writel(0x0001C100, &xcvr->afe_xcvr_control0);
 		udelay(AFE_REGISTER_WRITE_DELAY);
 
 		/* Leave DFE/FFE on */
@@ -2023,11 +2074,27 @@ static void sci_controller_afe_initialization(struct isci_host *ihost)
 			udelay(AFE_REGISTER_WRITE_DELAY);
 			/* Enable TX equalization (0xe824) */
 			writel(0x00040000, &xcvr->afe_tx_control);
-		} else {
-			writel(0x0140DF0F, &xcvr->afe_rx_ssc_control1);
+		} else if (is_c0(pdev)) {
+			writel(0x01400C0F, &xcvr->afe_rx_ssc_control1);
 			udelay(AFE_REGISTER_WRITE_DELAY);
 
 			writel(0x3F6F103F, &xcvr->afe_rx_ssc_control0);
+			udelay(AFE_REGISTER_WRITE_DELAY);
+
+			/* Enable TX equalization (0xe824) */
+			writel(0x00040000, &xcvr->afe_tx_control);
+		} else if (is_c1(pdev)) {
+			writel(cable_length_long ? 0x01500C0C :
+			       cable_length_medium ? 0x01400C0D : 0x02400C0D,
+			       &xcvr->afe_xcvr_control1);
+			udelay(AFE_REGISTER_WRITE_DELAY);
+
+			writel(0x000003E0, &xcvr->afe_dfx_rx_control1);
+			udelay(AFE_REGISTER_WRITE_DELAY);
+
+			writel(cable_length_long ? 0x33091C1F :
+			       cable_length_medium ? 0x3315181F : 0x2B17161F,
+			       &xcvr->afe_rx_ssc_control0);
 			udelay(AFE_REGISTER_WRITE_DELAY);
 
 			/* Enable TX equalization (0xe824) */

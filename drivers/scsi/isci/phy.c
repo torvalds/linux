@@ -186,8 +186,11 @@ sci_phy_link_layer_initialization(struct isci_phy *iphy,
 
 	writel(clksm_value, &llr->clock_skew_management);
 
-	/* @todo Provide a way to write this register correctly */
-	writel(0x02108421, &llr->afe_lookup_table_control);
+	if (is_c0(ihost->pdev) || is_c1(ihost->pdev)) {
+		writel(0x04210400, &llr->afe_lookup_table_control);
+		writel(0x020A7C05, &llr->sas_primitive_timeout);
+	} else
+		writel(0x02108421, &llr->afe_lookup_table_control);
 
 	llctl = SCU_SAS_LLCTL_GEN_VAL(NO_OUTBOUND_TASK_TIMEOUT,
 		(u8)ihost->user_parameters.no_outbound_task_timeout);
