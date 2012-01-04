@@ -1,17 +1,13 @@
+#include <linux/export.h>
 #include <linux/interrupt.h>
-#include <linux/irq.h>
 #include <linux/mutex.h>
-#include <linux/device.h>
 #include <linux/kernel.h>
 #include <linux/spi/spi.h>
 #include <linux/slab.h>
-#include <linux/sysfs.h>
 
 #include "../iio.h"
-#include "../sysfs.h"
 #include "../ring_sw.h"
-#include "accel.h"
-#include "../trigger.h"
+#include "../trigger_consumer.h"
 #include "adis16201.h"
 
 
@@ -38,10 +34,12 @@ static int adis16201_read_ring_data(struct iio_dev *indio_dev, u8 *rx)
 		xfers[i].cs_change = 1;
 		xfers[i].len = 2;
 		xfers[i].delay_usecs = 20;
-		xfers[i].tx_buf = st->tx + 2 * i;
-		st->tx[2 * i] = ADIS16201_READ_REG(ADIS16201_SUPPLY_OUT +
-						   2 * i);
-		st->tx[2 * i + 1] = 0;
+		if (i < ADIS16201_OUTPUTS) {
+			xfers[i].tx_buf = st->tx + 2 * i;
+			st->tx[2 * i] = ADIS16201_READ_REG(ADIS16201_SUPPLY_OUT +
+							   2 * i);
+			st->tx[2 * i + 1] = 0;
+		}
 		if (i >= 1)
 			xfers[i].rx_buf = rx + 2 * (i - 1);
 		spi_message_add_tail(&xfers[i], &msg);
@@ -62,9 +60,9 @@ static int adis16201_read_ring_data(struct iio_dev *indio_dev, u8 *rx)
 static irqreturn_t adis16201_trigger_handler(int irq, void *p)
 {
 	struct iio_poll_func *pf = p;
-	struct iio_dev *indio_dev = pf->private_data;
+	struct iio_dev *indio_dev = pf->indio_dev;
 	struct adis16201_state *st = iio_priv(indio_dev);
-	struct iio_ring_buffer *ring = indio_dev->ring;
+	struct iio_buffer *ring = indio_dev->buffer;
 
 	int i = 0;
 	s16 *data;
@@ -97,41 +95,32 @@ static irqreturn_t adis16201_trigger_handler(int irq, void *p)
 void adis16201_unconfigure_ring(struct iio_dev *indio_dev)
 {
 	iio_dealloc_pollfunc(indio_dev->pollfunc);
-	iio_sw_rb_free(indio_dev->ring);
+	iio_sw_rb_free(indio_dev->buffer);
 }
 
-static const struct iio_ring_setup_ops adis16201_ring_setup_ops = {
-	.preenable = &iio_sw_ring_preenable,
-	.postenable = &iio_triggered_ring_postenable,
-	.predisable = &iio_triggered_ring_predisable,
+static const struct iio_buffer_setup_ops adis16201_ring_setup_ops = {
+	.preenable = &iio_sw_buffer_preenable,
+	.postenable = &iio_triggered_buffer_postenable,
+	.predisable = &iio_triggered_buffer_predisable,
 };
 
 int adis16201_configure_ring(struct iio_dev *indio_dev)
 {
 	int ret = 0;
-	struct iio_ring_buffer *ring;
+	struct iio_buffer *ring;
 
 	ring = iio_sw_rb_allocate(indio_dev);
 	if (!ring) {
 		ret = -ENOMEM;
 		return ret;
 	}
-	indio_dev->ring = ring;
+	indio_dev->buffer = ring;
 	/* Effectively select the ring buffer implementation */
 	ring->bpe = 2;
 	ring->scan_timestamp = true;
 	ring->access = &ring_sw_access_funcs;
 	ring->setup_ops = &adis16201_ring_setup_ops;
 	ring->owner = THIS_MODULE;
-
-	/* Set default scan mode */
-	iio_scan_mask_set(ring,	ADIS16201_SCAN_SUPPLY);
-	iio_scan_mask_set(ring, ADIS16201_SCAN_ACC_X);
-	iio_scan_mask_set(ring, ADIS16201_SCAN_ACC_Y);
-	iio_scan_mask_set(ring, ADIS16201_SCAN_AUX_ADC);
-	iio_scan_mask_set(ring, ADIS16201_SCAN_TEMP);
-	iio_scan_mask_set(ring, ADIS16201_SCAN_INCLI_X);
-	iio_scan_mask_set(ring, ADIS16201_SCAN_INCLI_Y);
 
 	indio_dev->pollfunc = iio_alloc_pollfunc(&iio_pollfunc_store_time,
 						 &adis16201_trigger_handler,
@@ -144,9 +133,9 @@ int adis16201_configure_ring(struct iio_dev *indio_dev)
 		goto error_iio_sw_rb_free;
 	}
 
-	indio_dev->modes |= INDIO_RING_TRIGGERED;
+	indio_dev->modes |= INDIO_BUFFER_TRIGGERED;
 	return 0;
 error_iio_sw_rb_free:
-	iio_sw_rb_free(indio_dev->ring);
+	iio_sw_rb_free(indio_dev->buffer);
 	return ret;
 }

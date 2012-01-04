@@ -3,6 +3,7 @@
 
 #include <linux/types.h>
 #include <asm/byteorder.h>
+#include <linux/socket.h>
 
 /*
  * AppleTalk networking structures
@@ -28,7 +29,7 @@ struct atalk_addr {
 };
 
 struct sockaddr_at {
-	sa_family_t	  sat_family;
+	__kernel_sa_family_t sat_family;
 	__u8		  sat_port;
 	struct atalk_addr sat_addr;
 	char		  sat_zero[8];

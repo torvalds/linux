@@ -430,11 +430,10 @@ static void mt2050_set_antenna(struct dvb_frontend *fe, unsigned char antenna)
 {
 	struct microtune_priv *priv = fe->tuner_priv;
 	unsigned char buf[2];
-	int ret;
 
 	buf[0] = 6;
 	buf[1] = antenna ? 0x11 : 0x10;
-	ret=tuner_i2c_xfer_send(&priv->i2c_props,buf,2);
+	tuner_i2c_xfer_send(&priv->i2c_props, buf, 2);
 	tuner_dbg("mt2050: enabled antenna connector %d\n", antenna);
 }
 
@@ -574,21 +573,20 @@ static int mt2050_init(struct dvb_frontend *fe)
 {
 	struct microtune_priv *priv = fe->tuner_priv;
 	unsigned char buf[2];
-	int ret;
 
-	buf[0]=6;
-	buf[1]=0x10;
-	ret=tuner_i2c_xfer_send(&priv->i2c_props,buf,2); //  power
+	buf[0] = 6;
+	buf[1] = 0x10;
+	tuner_i2c_xfer_send(&priv->i2c_props, buf, 2); /* power */
 
-	buf[0]=0x0f;
-	buf[1]=0x0f;
-	ret=tuner_i2c_xfer_send(&priv->i2c_props,buf,2); // m1lo
+	buf[0] = 0x0f;
+	buf[1] = 0x0f;
+	tuner_i2c_xfer_send(&priv->i2c_props, buf, 2); /* m1lo */
 
-	buf[0]=0x0d;
-	ret=tuner_i2c_xfer_send(&priv->i2c_props,buf,1);
-	tuner_i2c_xfer_recv(&priv->i2c_props,buf,1);
+	buf[0] = 0x0d;
+	tuner_i2c_xfer_send(&priv->i2c_props, buf, 1);
+	tuner_i2c_xfer_recv(&priv->i2c_props, buf, 1);
 
-	tuner_dbg("mt2050: sro is %x\n",buf[0]);
+	tuner_dbg("mt2050: sro is %x\n", buf[0]);
 
 	memcpy(&fe->ops.tuner_ops, &mt2050_tuner_ops, sizeof(struct dvb_tuner_ops));
 

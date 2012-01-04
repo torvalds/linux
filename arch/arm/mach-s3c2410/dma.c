@@ -47,38 +47,26 @@ static struct s3c24xx_dma_map __initdata s3c2410_dma_mappings[] = {
 		.channels[0]	= S3C2410_DCON_CH0_SDI | DMA_CH_VALID,
 		.channels[2]	= S3C2410_DCON_CH2_SDI | DMA_CH_VALID,
 		.channels[3]	= S3C2410_DCON_CH3_SDI | DMA_CH_VALID,
-		.hw_addr.to	= S3C2410_PA_IIS + S3C2410_IISFIFO,
-		.hw_addr.from	= S3C2410_PA_IIS + S3C2410_IISFIFO,
 	},
 	[DMACH_SPI0] = {
 		.name		= "spi0",
 		.channels[1]	= S3C2410_DCON_CH1_SPI | DMA_CH_VALID,
-		.hw_addr.to	= S3C2410_PA_SPI + S3C2410_SPTDAT,
-		.hw_addr.from	= S3C2410_PA_SPI + S3C2410_SPRDAT,
 	},
 	[DMACH_SPI1] = {
 		.name		= "spi1",
 		.channels[3]	= S3C2410_DCON_CH3_SPI | DMA_CH_VALID,
-		.hw_addr.to	= S3C2410_PA_SPI + 0x20 + S3C2410_SPTDAT,
-		.hw_addr.from	= S3C2410_PA_SPI + 0x20 + S3C2410_SPRDAT,
 	},
 	[DMACH_UART0] = {
 		.name		= "uart0",
 		.channels[0]	= S3C2410_DCON_CH0_UART0 | DMA_CH_VALID,
-		.hw_addr.to	= S3C2410_PA_UART0 + S3C2410_UTXH,
-		.hw_addr.from	= S3C2410_PA_UART0 + S3C2410_URXH,
 	},
 	[DMACH_UART1] = {
 		.name		= "uart1",
 		.channels[1]	= S3C2410_DCON_CH1_UART1 | DMA_CH_VALID,
-		.hw_addr.to	= S3C2410_PA_UART1 + S3C2410_UTXH,
-		.hw_addr.from	= S3C2410_PA_UART1 + S3C2410_URXH,
 	},
       	[DMACH_UART2] = {
 		.name		= "uart2",
 		.channels[3]	= S3C2410_DCON_CH3_UART2 | DMA_CH_VALID,
-		.hw_addr.to	= S3C2410_PA_UART2 + S3C2410_UTXH,
-		.hw_addr.from	= S3C2410_PA_UART2 + S3C2410_URXH,
 	},
 	[DMACH_TIMER] = {
 		.name		= "timer",
@@ -90,12 +78,10 @@ static struct s3c24xx_dma_map __initdata s3c2410_dma_mappings[] = {
 		.name		= "i2s-sdi",
 		.channels[1]	= S3C2410_DCON_CH1_I2SSDI | DMA_CH_VALID,
 		.channels[2]	= S3C2410_DCON_CH2_I2SSDI | DMA_CH_VALID,
-		.hw_addr.from	= S3C2410_PA_IIS + S3C2410_IISFIFO,
 	},
 	[DMACH_I2S_OUT] = {
 		.name		= "i2s-sdo",
 		.channels[2]	= S3C2410_DCON_CH2_I2SSDO | DMA_CH_VALID,
-		.hw_addr.to	= S3C2410_PA_IIS + S3C2410_IISFIFO,
 	},
 	[DMACH_USB_EP1] = {
 		.name		= "usb-ep1",

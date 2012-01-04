@@ -33,13 +33,10 @@ static void cfserl_ctrlcmd(struct cflayer *layr, enum caif_ctrlcmd ctrl,
 
 struct cflayer *cfserl_create(int type, int instance, bool use_stx)
 {
-	struct cfserl *this = kmalloc(sizeof(struct cfserl), GFP_ATOMIC);
-	if (!this) {
-		pr_warn("Out of memory\n");
+	struct cfserl *this = kzalloc(sizeof(struct cfserl), GFP_ATOMIC);
+	if (!this)
 		return NULL;
-	}
 	caif_assert(offsetof(struct cfserl, layer) == 0);
-	memset(this, 0, sizeof(struct cfserl));
 	this->layer.receive = cfserl_receive;
 	this->layer.transmit = cfserl_transmit;
 	this->layer.ctrlcmd = cfserl_ctrlcmd;

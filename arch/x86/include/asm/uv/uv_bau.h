@@ -55,6 +55,7 @@
 #define UV_BAU_TUNABLES_DIR		"sgi_uv"
 #define UV_BAU_TUNABLES_FILE		"bau_tunables"
 #define WHITESPACE			" \t\n"
+#define uv_mmask			((1UL << uv_hub_info->m_val) - 1)
 #define uv_physnodeaddr(x)		((__pa((unsigned long)(x)) & uv_mmask))
 #define cpubit_isset(cpu, bau_local_cpumask) \
 	test_bit((cpu), (bau_local_cpumask).bits)
@@ -656,11 +657,7 @@ static inline int atomic_read_short(const struct atomic_short *v)
  */
 static inline int atom_asr(short i, struct atomic_short *v)
 {
-	short __i = i;
-	asm volatile(LOCK_PREFIX "xaddw %0, %1"
-			: "+r" (i), "+m" (v->counter)
-			: : "memory");
-	return i + __i;
+	return i + xadd(&v->counter, i);
 }
 
 /*

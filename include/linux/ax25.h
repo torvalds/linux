@@ -47,7 +47,7 @@ typedef struct {
 } ax25_address;
 
 struct sockaddr_ax25 {
-	sa_family_t	sax25_family;
+	__kernel_sa_family_t sax25_family;
 	ax25_address	sax25_call;
 	int		sax25_ndigis;
 	/* Digipeater ax25_address sets follow */

@@ -1152,10 +1152,9 @@ static int __net_init icmp_sk_init(struct net *net)
 		net->ipv4.icmp_sk[i] = sk;
 
 		/* Enough space for 2 64K ICMP packets, including
-		 * sk_buff struct overhead.
+		 * sk_buff/skb_shared_info struct overhead.
 		 */
-		sk->sk_sndbuf =
-			(2 * ((64 * 1024) + sizeof(struct sk_buff)));
+		sk->sk_sndbuf =	2 * SKB_TRUESIZE(64 * 1024);
 
 		/*
 		 * Speedup sock_wfree()

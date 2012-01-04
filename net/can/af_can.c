@@ -38,8 +38,6 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH
  * DAMAGE.
  *
- * Send feedback to <socketcan-users@lists.berlios.de>
- *
  */
 
 #include <linux/module.h>
@@ -719,7 +717,7 @@ int can_proto_register(const struct can_proto *cp)
 		       proto);
 		err = -EBUSY;
 	} else
-		rcu_assign_pointer(proto_tab[proto], cp);
+		RCU_INIT_POINTER(proto_tab[proto], cp);
 
 	mutex_unlock(&proto_tab_lock);
 
@@ -740,7 +738,7 @@ void can_proto_unregister(const struct can_proto *cp)
 
 	mutex_lock(&proto_tab_lock);
 	BUG_ON(proto_tab[proto] != cp);
-	rcu_assign_pointer(proto_tab[proto], NULL);
+	RCU_INIT_POINTER(proto_tab[proto], NULL);
 	mutex_unlock(&proto_tab_lock);
 
 	synchronize_rcu();

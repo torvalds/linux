@@ -323,7 +323,7 @@ config SWIOTLB
 
 config HOTPLUG_CPU
 	bool "Support for enabling/disabling CPUs"
-	depends on SMP && HOTPLUG && EXPERIMENTAL && (PPC_PSERIES || PPC_PMAC)
+	depends on SMP && HOTPLUG && EXPERIMENTAL && (PPC_PSERIES || PPC_PMAC || PPC_POWERNV)
 	---help---
 	  Say Y here to be able to disable and re-enable individual
 	  CPUs at runtime on SMP machines.
@@ -345,7 +345,7 @@ config ARCH_ENABLE_MEMORY_HOTREMOVE
 
 config KEXEC
 	bool "kexec system call (EXPERIMENTAL)"
-	depends on (PPC_BOOK3S || FSL_BOOKE) && EXPERIMENTAL
+	depends on (PPC_BOOK3S || FSL_BOOKE || (44x && !SMP && !47x)) && EXPERIMENTAL
 	help
 	  kexec is a system call that implements the ability to shutdown your
 	  current kernel, and to start another kernel.  It is like a reboot
@@ -378,10 +378,6 @@ config PHYP_DUMP
 	  hypervisor assistance.
 
 	  If unsure, say "N"
-
-config PPCBUG_NVRAM
-	bool "Enable reading PPCBUG NVRAM during boot" if PPLUS || LOPEC
-	default y if PPC_PREP
 
 config IRQ_ALL_CPUS
 	bool "Distribute interrupts on all CPUs by default"
@@ -429,8 +425,7 @@ config ARCH_POPULATES_NODE_MAP
 	def_bool y
 
 config SYS_SUPPORTS_HUGETLBFS
-       def_bool y
-       depends on PPC_BOOK3S_64
+	bool
 
 source "mm/Kconfig"
 
@@ -656,6 +651,8 @@ config SBUS
 
 config FSL_SOC
 	bool
+	select HAVE_CAN_FLEXCAN if NET && CAN
+	select PPC_CLOCK if CAN_FLEXCAN
 
 config FSL_PCI
  	bool
@@ -743,24 +740,6 @@ config 8260_PCI9
 	bool "Enable workaround for MPC826x erratum PCI 9"
 	depends on PCI_8260 && !8272
 	default y
-
-choice
-	prompt "IDMA channel for PCI 9 workaround"
-	depends on 8260_PCI9
-
-config 8260_PCI9_IDMA1
-	bool "IDMA1"
-
-config 8260_PCI9_IDMA2
-	bool "IDMA2"
-
-config 8260_PCI9_IDMA3
-	bool "IDMA3"
-
-config 8260_PCI9_IDMA4
-	bool "IDMA4"
-
-endchoice
 
 source "drivers/pci/pcie/Kconfig"
 

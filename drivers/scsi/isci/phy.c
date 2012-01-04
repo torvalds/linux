@@ -708,7 +708,7 @@ enum sci_status sci_phy_event_handler(struct isci_phy *iphy, u32 event_code)
 				 __func__,
 				 event_code);
 
-			return SCI_FAILURE;;
+			return SCI_FAILURE;
 		}
 		return SCI_SUCCESS;
 	case SCI_PHY_SUB_AWAIT_SATA_SPEED_EN:
@@ -1313,6 +1313,17 @@ int isci_phy_control(struct asd_sas_phy *sas_phy,
 		ret = isci_port_perform_hard_reset(ihost, iport, iphy);
 
 		break;
+	case PHY_FUNC_GET_EVENTS: {
+		struct scu_link_layer_registers __iomem *r;
+		struct sas_phy *phy = sas_phy->phy;
+
+		r = iphy->link_layer_registers;
+		phy->running_disparity_error_count = readl(&r->running_disparity_error_count);
+		phy->loss_of_dword_sync_count = readl(&r->loss_of_sync_error_count);
+		phy->phy_reset_problem_count = readl(&r->phy_reset_problem_count);
+		phy->invalid_dword_count = readl(&r->invalid_dword_counter);
+		break;
+	}
 
 	default:
 		dev_dbg(&ihost->pdev->dev,

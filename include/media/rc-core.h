@@ -23,8 +23,11 @@
 #include <media/rc-map.h>
 
 extern int rc_core_debug;
-#define IR_dprintk(level, fmt, arg...)	if (rc_core_debug >= level) \
-	printk(KERN_DEBUG "%s: " fmt , __func__, ## arg)
+#define IR_dprintk(level, fmt, ...)				\
+do {								\
+	if (rc_core_debug >= level)				\
+		pr_debug("%s: " fmt, __func__, ##__VA_ARGS__);	\
+} while (0)
 
 enum rc_driver_type {
 	RC_DRIVER_SCANCODE = 0,	/* Driver or hardware generates a scancode */

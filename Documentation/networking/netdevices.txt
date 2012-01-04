@@ -73,7 +73,7 @@ dev->hard_start_xmit:
 	has to lock by itself when needed. It is recommended to use a try lock
 	for this and return NETDEV_TX_LOCKED when the spin lock fails.
 	The locking there should also properly protect against 
-	set_multicast_list. Note that the use of NETIF_F_LLTX is deprecated.
+	set_rx_mode. Note that the use of NETIF_F_LLTX is deprecated.
 	Don't use it for new drivers.
 
 	Context: Process with BHs disabled or BH (timer),
@@ -92,7 +92,7 @@ dev->tx_timeout:
 	Context: BHs disabled
 	Notes: netif_queue_stopped() is guaranteed true
 
-dev->set_multicast_list:
+dev->set_rx_mode:
 	Synchronization: netif_tx_lock spinlock.
 	Context: BHs disabled
 

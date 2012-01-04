@@ -109,10 +109,12 @@ struct mx3_camera_dev {
 
 	unsigned long		platform_flags;
 	unsigned long		mclk;
+	u16			width_flags;	/* max 15 bits */
 
 	struct list_head	capture;
 	spinlock_t		lock;		/* Protects video buffer lists */
 	struct mx3_camera_buffer *active;
+	size_t			buf_total;
 	struct vb2_alloc_ctx	*alloc_ctx;
 	enum v4l2_field		field;
 	int			sequence;
@@ -190,79 +192,53 @@ static void mx3_cam_dma_done(void *arg)
  * Calculate the __buffer__ (not data) size and number of buffers.
  */
 static int mx3_videobuf_setup(struct vb2_queue *vq,
+			const struct v4l2_format *fmt,
 			unsigned int *count, unsigned int *num_planes,
-			unsigned long sizes[], void *alloc_ctxs[])
+			unsigned int sizes[], void *alloc_ctxs[])
 {
 	struct soc_camera_device *icd = soc_camera_from_vb2q(vq);
 	struct soc_camera_host *ici = to_soc_camera_host(icd->parent);
 	struct mx3_camera_dev *mx3_cam = ici->priv;
-	int bytes_per_line = soc_mbus_bytes_per_line(icd->user_width,
-						icd->current_fmt->host_fmt);
-
-	if (bytes_per_line < 0)
-		return bytes_per_line;
+	int bytes_per_line;
+	unsigned int height;
 
 	if (!mx3_cam->idmac_channel[0])
 		return -EINVAL;
 
-	*num_planes = 1;
-
-	mx3_cam->sequence = 0;
-	sizes[0] = bytes_per_line * icd->user_height;
-	alloc_ctxs[0] = mx3_cam->alloc_ctx;
-
-	if (!*count)
-		*count = 32;
-
-	if (sizes[0] * *count > MAX_VIDEO_MEM * 1024 * 1024)
-		*count = MAX_VIDEO_MEM * 1024 * 1024 / sizes[0];
-
-	return 0;
-}
-
-static int mx3_videobuf_prepare(struct vb2_buffer *vb)
-{
-	struct soc_camera_device *icd = soc_camera_from_vb2q(vb->vb2_queue);
-	struct soc_camera_host *ici = to_soc_camera_host(icd->parent);
-	struct mx3_camera_dev *mx3_cam = ici->priv;
-	struct idmac_channel *ichan = mx3_cam->idmac_channel[0];
-	struct scatterlist *sg;
-	struct mx3_camera_buffer *buf;
-	size_t new_size;
-	int bytes_per_line = soc_mbus_bytes_per_line(icd->user_width,
+	if (fmt) {
+		const struct soc_camera_format_xlate *xlate = soc_camera_xlate_by_fourcc(icd,
+								fmt->fmt.pix.pixelformat);
+		if (!xlate)
+			return -EINVAL;
+		bytes_per_line = soc_mbus_bytes_per_line(fmt->fmt.pix.width,
+							 xlate->host_fmt);
+		height = fmt->fmt.pix.height;
+	} else {
+		/* Called from VIDIOC_REQBUFS or in compatibility mode */
+		bytes_per_line = soc_mbus_bytes_per_line(icd->user_width,
 						icd->current_fmt->host_fmt);
-
+		height = icd->user_height;
+	}
 	if (bytes_per_line < 0)
 		return bytes_per_line;
 
-	buf = to_mx3_vb(vb);
-	sg = &buf->sg;
+	sizes[0] = bytes_per_line * height;
 
-	new_size = bytes_per_line * icd->user_height;
+	alloc_ctxs[0] = mx3_cam->alloc_ctx;
 
-	if (vb2_plane_size(vb, 0) < new_size) {
-		dev_err(icd->parent, "Buffer too small (%lu < %zu)\n",
-			vb2_plane_size(vb, 0), new_size);
-		return -ENOBUFS;
-	}
+	if (!vq->num_buffers)
+		mx3_cam->sequence = 0;
 
-	if (buf->state == CSI_BUF_NEEDS_INIT) {
-		sg_dma_address(sg)	= vb2_dma_contig_plane_paddr(vb, 0);
-		sg_dma_len(sg)		= new_size;
+	if (!*count)
+		*count = 2;
 
-		buf->txd = ichan->dma_chan.device->device_prep_slave_sg(
-			&ichan->dma_chan, sg, 1, DMA_FROM_DEVICE,
-			DMA_PREP_INTERRUPT);
-		if (!buf->txd)
-			return -EIO;
+	/* If *num_planes != 0, we have already verified *count. */
+	if (!*num_planes &&
+	    sizes[0] * *count + mx3_cam->buf_total > MAX_VIDEO_MEM * 1024 * 1024)
+		*count = (MAX_VIDEO_MEM * 1024 * 1024 - mx3_cam->buf_total) /
+			sizes[0];
 
-		buf->txd->callback_param	= buf->txd;
-		buf->txd->callback		= mx3_cam_dma_done;
-
-		buf->state = CSI_BUF_PREPARED;
-	}
-
-	vb2_set_plane_payload(vb, 0, new_size);
+	*num_planes = 1;
 
 	return 0;
 }
@@ -286,28 +262,58 @@ static void mx3_videobuf_queue(struct vb2_buffer *vb)
 	struct soc_camera_host *ici = to_soc_camera_host(icd->parent);
 	struct mx3_camera_dev *mx3_cam = ici->priv;
 	struct mx3_camera_buffer *buf = to_mx3_vb(vb);
-	struct dma_async_tx_descriptor *txd = buf->txd;
-	struct idmac_channel *ichan = to_idmac_chan(txd->chan);
+	struct scatterlist *sg = &buf->sg;
+	struct dma_async_tx_descriptor *txd;
+	struct idmac_channel *ichan = mx3_cam->idmac_channel[0];
 	struct idmac_video_param *video = &ichan->params.video;
-	dma_cookie_t cookie;
-	u32 fourcc = icd->current_fmt->host_fmt->fourcc;
+	const struct soc_mbus_pixelfmt *host_fmt = icd->current_fmt->host_fmt;
+	int bytes_per_line = soc_mbus_bytes_per_line(icd->user_width, host_fmt);
 	unsigned long flags;
+	dma_cookie_t cookie;
+	size_t new_size;
+
+	BUG_ON(bytes_per_line <= 0);
+
+	new_size = bytes_per_line * icd->user_height;
+
+	if (vb2_plane_size(vb, 0) < new_size) {
+		dev_err(icd->parent, "Buffer #%d too small (%lu < %zu)\n",
+			vb->v4l2_buf.index, vb2_plane_size(vb, 0), new_size);
+		goto error;
+	}
+
+	if (buf->state == CSI_BUF_NEEDS_INIT) {
+		sg_dma_address(sg)	= vb2_dma_contig_plane_dma_addr(vb, 0);
+		sg_dma_len(sg)		= new_size;
+
+		txd = ichan->dma_chan.device->device_prep_slave_sg(
+			&ichan->dma_chan, sg, 1, DMA_FROM_DEVICE,
+			DMA_PREP_INTERRUPT);
+		if (!txd)
+			goto error;
+
+		txd->callback_param	= txd;
+		txd->callback		= mx3_cam_dma_done;
+
+		buf->state		= CSI_BUF_PREPARED;
+		buf->txd		= txd;
+	} else {
+		txd = buf->txd;
+	}
+
+	vb2_set_plane_payload(vb, 0, new_size);
 
 	/* This is the configuration of one sg-element */
-	video->out_pixel_fmt	= fourcc_to_ipu_pix(fourcc);
+	video->out_pixel_fmt = fourcc_to_ipu_pix(host_fmt->fourcc);
 
 	if (video->out_pixel_fmt == IPU_PIX_FMT_GENERIC) {
 		/*
-		 * If the IPU DMA channel is configured to transport
-		 * generic 8-bit data, we have to set up correctly the
-		 * geometry parameters upon the current pixel format.
-		 * So, since the DMA horizontal parameters are expressed
-		 * in bytes not pixels, convert these in the right unit.
+		 * If the IPU DMA channel is configured to transfer generic
+		 * 8-bit data, we have to set up the geometry parameters
+		 * correctly, according to the current pixel format. The DMA
+		 * horizontal parameters in this case are expressed in bytes,
+		 * not in pixels.
 		 */
-		int bytes_per_line = soc_mbus_bytes_per_line(icd->user_width,
-						icd->current_fmt->host_fmt);
-		BUG_ON(bytes_per_line <= 0);
-
 		video->out_width	= bytes_per_line;
 		video->out_height	= icd->user_height;
 		video->out_stride	= bytes_per_line;
@@ -351,6 +357,7 @@ static void mx3_videobuf_queue(struct vb2_buffer *vb)
 		mx3_cam->active = NULL;
 
 	spin_unlock_irqrestore(&mx3_cam->lock, flags);
+error:
 	vb2_buffer_done(vb, VB2_BUF_STATE_ERROR);
 }
 
@@ -384,17 +391,24 @@ static void mx3_videobuf_release(struct vb2_buffer *vb)
 	}
 
 	spin_unlock_irqrestore(&mx3_cam->lock, flags);
+
+	mx3_cam->buf_total -= vb2_plane_size(vb, 0);
 }
 
 static int mx3_videobuf_init(struct vb2_buffer *vb)
 {
+	struct soc_camera_device *icd = soc_camera_from_vb2q(vb->vb2_queue);
+	struct soc_camera_host *ici = to_soc_camera_host(icd->parent);
+	struct mx3_camera_dev *mx3_cam = ici->priv;
 	struct mx3_camera_buffer *buf = to_mx3_vb(vb);
+
 	/* This is for locking debugging only */
 	INIT_LIST_HEAD(&buf->queue);
 	sg_init_table(&buf->sg, 1);
 
 	buf->state = CSI_BUF_NEEDS_INIT;
-	buf->txd = NULL;
+
+	mx3_cam->buf_total += vb2_plane_size(vb, 0);
 
 	return 0;
 }
@@ -405,13 +419,12 @@ static int mx3_stop_streaming(struct vb2_queue *q)
 	struct soc_camera_host *ici = to_soc_camera_host(icd->parent);
 	struct mx3_camera_dev *mx3_cam = ici->priv;
 	struct idmac_channel *ichan = mx3_cam->idmac_channel[0];
-	struct dma_chan *chan;
 	struct mx3_camera_buffer *buf, *tmp;
 	unsigned long flags;
 
 	if (ichan) {
-		chan = &ichan->dma_chan;
-		chan->device->device_control(chan, DMA_TERMINATE_ALL, 0);
+		struct dma_chan *chan = &ichan->dma_chan;
+		chan->device->device_control(chan, DMA_PAUSE, 0);
 	}
 
 	spin_lock_irqsave(&mx3_cam->lock, flags);
@@ -419,8 +432,8 @@ static int mx3_stop_streaming(struct vb2_queue *q)
 	mx3_cam->active = NULL;
 
 	list_for_each_entry_safe(buf, tmp, &mx3_cam->capture, queue) {
-		buf->state = CSI_BUF_NEEDS_INIT;
 		list_del_init(&buf->queue);
+		vb2_buffer_done(&buf->vb, VB2_BUF_STATE_ERROR);
 	}
 
 	spin_unlock_irqrestore(&mx3_cam->lock, flags);
@@ -430,7 +443,6 @@ static int mx3_stop_streaming(struct vb2_queue *q)
 
 static struct vb2_ops mx3_videobuf_ops = {
 	.queue_setup	= mx3_videobuf_setup,
-	.buf_prepare	= mx3_videobuf_prepare,
 	.buf_queue	= mx3_videobuf_queue,
 	.buf_cleanup	= mx3_videobuf_release,
 	.buf_init	= mx3_videobuf_init,
@@ -514,6 +526,7 @@ static int mx3_camera_add_device(struct soc_camera_device *icd)
 
 	mx3_camera_activate(mx3_cam, icd);
 
+	mx3_cam->buf_total = 0;
 	mx3_cam->icd = icd;
 
 	dev_info(icd->parent, "MX3 Camera driver attached to camera %d\n",
@@ -548,58 +561,27 @@ static int test_platform_param(struct mx3_camera_dev *mx3_cam,
 			       unsigned char buswidth, unsigned long *flags)
 {
 	/*
+	 * If requested data width is supported by the platform, use it or any
+	 * possible lower value - i.MX31 is smart enough to shift bits
+	 */
+	if (buswidth > fls(mx3_cam->width_flags))
+		return -EINVAL;
+
+	/*
 	 * Platform specified synchronization and pixel clock polarities are
 	 * only a recommendation and are only used during probing. MX3x
 	 * camera interface only works in master mode, i.e., uses HSYNC and
 	 * VSYNC signals from the sensor
 	 */
-	*flags = SOCAM_MASTER |
-		SOCAM_HSYNC_ACTIVE_HIGH |
-		SOCAM_HSYNC_ACTIVE_LOW |
-		SOCAM_VSYNC_ACTIVE_HIGH |
-		SOCAM_VSYNC_ACTIVE_LOW |
-		SOCAM_PCLK_SAMPLE_RISING |
-		SOCAM_PCLK_SAMPLE_FALLING |
-		SOCAM_DATA_ACTIVE_HIGH |
-		SOCAM_DATA_ACTIVE_LOW;
-
-	/*
-	 * If requested data width is supported by the platform, use it or any
-	 * possible lower value - i.MX31 is smart enough to schift bits
-	 */
-	if (mx3_cam->platform_flags & MX3_CAMERA_DATAWIDTH_15)
-		*flags |= SOCAM_DATAWIDTH_15 | SOCAM_DATAWIDTH_10 |
-			SOCAM_DATAWIDTH_8 | SOCAM_DATAWIDTH_4;
-	else if (mx3_cam->platform_flags & MX3_CAMERA_DATAWIDTH_10)
-		*flags |= SOCAM_DATAWIDTH_10 | SOCAM_DATAWIDTH_8 |
-			SOCAM_DATAWIDTH_4;
-	else if (mx3_cam->platform_flags & MX3_CAMERA_DATAWIDTH_8)
-		*flags |= SOCAM_DATAWIDTH_8 | SOCAM_DATAWIDTH_4;
-	else if (mx3_cam->platform_flags & MX3_CAMERA_DATAWIDTH_4)
-		*flags |= SOCAM_DATAWIDTH_4;
-
-	switch (buswidth) {
-	case 15:
-		if (!(*flags & SOCAM_DATAWIDTH_15))
-			return -EINVAL;
-		break;
-	case 10:
-		if (!(*flags & SOCAM_DATAWIDTH_10))
-			return -EINVAL;
-		break;
-	case 8:
-		if (!(*flags & SOCAM_DATAWIDTH_8))
-			return -EINVAL;
-		break;
-	case 4:
-		if (!(*flags & SOCAM_DATAWIDTH_4))
-			return -EINVAL;
-		break;
-	default:
-		dev_warn(mx3_cam->soc_host.v4l2_dev.dev,
-			 "Unsupported bus width %d\n", buswidth);
-		return -EINVAL;
-	}
+	*flags = V4L2_MBUS_MASTER |
+		V4L2_MBUS_HSYNC_ACTIVE_HIGH |
+		V4L2_MBUS_HSYNC_ACTIVE_LOW |
+		V4L2_MBUS_VSYNC_ACTIVE_HIGH |
+		V4L2_MBUS_VSYNC_ACTIVE_LOW |
+		V4L2_MBUS_PCLK_SAMPLE_RISING |
+		V4L2_MBUS_PCLK_SAMPLE_FALLING |
+		V4L2_MBUS_DATA_ACTIVE_HIGH |
+		V4L2_MBUS_DATA_ACTIVE_LOW;
 
 	return 0;
 }
@@ -607,9 +589,11 @@ static int test_platform_param(struct mx3_camera_dev *mx3_cam,
 static int mx3_camera_try_bus_param(struct soc_camera_device *icd,
 				    const unsigned int depth)
 {
+	struct v4l2_subdev *sd = soc_camera_to_subdev(icd);
 	struct soc_camera_host *ici = to_soc_camera_host(icd->parent);
 	struct mx3_camera_dev *mx3_cam = ici->priv;
-	unsigned long bus_flags, camera_flags;
+	struct v4l2_mbus_config cfg = {.type = V4L2_MBUS_PARALLEL,};
+	unsigned long bus_flags, common_flags;
 	int ret = test_platform_param(mx3_cam, depth, &bus_flags);
 
 	dev_dbg(icd->parent, "request bus width %d bit: %d\n", depth, ret);
@@ -617,15 +601,21 @@ static int mx3_camera_try_bus_param(struct soc_camera_device *icd,
 	if (ret < 0)
 		return ret;
 
-	camera_flags = icd->ops->query_bus_param(icd);
+	ret = v4l2_subdev_call(sd, video, g_mbus_config, &cfg);
+	if (!ret) {
+		common_flags = soc_mbus_config_compatible(&cfg,
+							  bus_flags);
+		if (!common_flags) {
+			dev_warn(icd->parent,
+				 "Flags incompatible: camera 0x%x, host 0x%lx\n",
+				 cfg.flags, bus_flags);
+			return -EINVAL;
+		}
+	} else if (ret != -ENOIOCTLCMD) {
+		return ret;
+	}
 
-	ret = soc_camera_bus_param_compatible(camera_flags, bus_flags);
-	if (ret < 0)
-		dev_warn(icd->parent,
-			 "Flags incompatible: camera %lx, host %lx\n",
-			 camera_flags, bus_flags);
-
-	return ret;
+	return 0;
 }
 
 static bool chan_filter(struct dma_chan *chan, void *arg)
@@ -994,9 +984,11 @@ static int mx3_camera_querycap(struct soc_camera_host *ici,
 
 static int mx3_camera_set_bus_param(struct soc_camera_device *icd, __u32 pixfmt)
 {
+	struct v4l2_subdev *sd = soc_camera_to_subdev(icd);
 	struct soc_camera_host *ici = to_soc_camera_host(icd->parent);
 	struct mx3_camera_dev *mx3_cam = ici->priv;
-	unsigned long bus_flags, camera_flags, common_flags;
+	struct v4l2_mbus_config cfg = {.type = V4L2_MBUS_PARALLEL,};
+	unsigned long bus_flags, common_flags;
 	u32 dw, sens_conf;
 	const struct soc_mbus_pixelfmt *fmt;
 	int buswidth;
@@ -1008,83 +1000,76 @@ static int mx3_camera_set_bus_param(struct soc_camera_device *icd, __u32 pixfmt)
 	if (!fmt)
 		return -EINVAL;
 
-	buswidth = fmt->bits_per_sample;
-	ret = test_platform_param(mx3_cam, buswidth, &bus_flags);
-
 	xlate = soc_camera_xlate_by_fourcc(icd, pixfmt);
 	if (!xlate) {
 		dev_warn(dev, "Format %x not found\n", pixfmt);
 		return -EINVAL;
 	}
 
+	buswidth = fmt->bits_per_sample;
+	ret = test_platform_param(mx3_cam, buswidth, &bus_flags);
+
 	dev_dbg(dev, "requested bus width %d bit: %d\n", buswidth, ret);
 
 	if (ret < 0)
 		return ret;
 
-	camera_flags = icd->ops->query_bus_param(icd);
-
-	common_flags = soc_camera_bus_param_compatible(camera_flags, bus_flags);
-	dev_dbg(dev, "Flags cam: 0x%lx host: 0x%lx common: 0x%lx\n",
-		camera_flags, bus_flags, common_flags);
-	if (!common_flags) {
-		dev_dbg(dev, "no common flags");
-		return -EINVAL;
+	ret = v4l2_subdev_call(sd, video, g_mbus_config, &cfg);
+	if (!ret) {
+		common_flags = soc_mbus_config_compatible(&cfg,
+							  bus_flags);
+		if (!common_flags) {
+			dev_warn(icd->parent,
+				 "Flags incompatible: camera 0x%x, host 0x%lx\n",
+				 cfg.flags, bus_flags);
+			return -EINVAL;
+		}
+	} else if (ret != -ENOIOCTLCMD) {
+		return ret;
+	} else {
+		common_flags = bus_flags;
 	}
+
+	dev_dbg(dev, "Flags cam: 0x%x host: 0x%lx common: 0x%lx\n",
+		cfg.flags, bus_flags, common_flags);
 
 	/* Make choices, based on platform preferences */
-	if ((common_flags & SOCAM_HSYNC_ACTIVE_HIGH) &&
-	    (common_flags & SOCAM_HSYNC_ACTIVE_LOW)) {
+	if ((common_flags & V4L2_MBUS_HSYNC_ACTIVE_HIGH) &&
+	    (common_flags & V4L2_MBUS_HSYNC_ACTIVE_LOW)) {
 		if (mx3_cam->platform_flags & MX3_CAMERA_HSP)
-			common_flags &= ~SOCAM_HSYNC_ACTIVE_HIGH;
+			common_flags &= ~V4L2_MBUS_HSYNC_ACTIVE_HIGH;
 		else
-			common_flags &= ~SOCAM_HSYNC_ACTIVE_LOW;
+			common_flags &= ~V4L2_MBUS_HSYNC_ACTIVE_LOW;
 	}
 
-	if ((common_flags & SOCAM_VSYNC_ACTIVE_HIGH) &&
-	    (common_flags & SOCAM_VSYNC_ACTIVE_LOW)) {
+	if ((common_flags & V4L2_MBUS_VSYNC_ACTIVE_HIGH) &&
+	    (common_flags & V4L2_MBUS_VSYNC_ACTIVE_LOW)) {
 		if (mx3_cam->platform_flags & MX3_CAMERA_VSP)
-			common_flags &= ~SOCAM_VSYNC_ACTIVE_HIGH;
+			common_flags &= ~V4L2_MBUS_VSYNC_ACTIVE_HIGH;
 		else
-			common_flags &= ~SOCAM_VSYNC_ACTIVE_LOW;
+			common_flags &= ~V4L2_MBUS_VSYNC_ACTIVE_LOW;
 	}
 
-	if ((common_flags & SOCAM_DATA_ACTIVE_HIGH) &&
-	    (common_flags & SOCAM_DATA_ACTIVE_LOW)) {
+	if ((common_flags & V4L2_MBUS_DATA_ACTIVE_HIGH) &&
+	    (common_flags & V4L2_MBUS_DATA_ACTIVE_LOW)) {
 		if (mx3_cam->platform_flags & MX3_CAMERA_DP)
-			common_flags &= ~SOCAM_DATA_ACTIVE_HIGH;
+			common_flags &= ~V4L2_MBUS_DATA_ACTIVE_HIGH;
 		else
-			common_flags &= ~SOCAM_DATA_ACTIVE_LOW;
+			common_flags &= ~V4L2_MBUS_DATA_ACTIVE_LOW;
 	}
 
-	if ((common_flags & SOCAM_PCLK_SAMPLE_RISING) &&
-	    (common_flags & SOCAM_PCLK_SAMPLE_FALLING)) {
+	if ((common_flags & V4L2_MBUS_PCLK_SAMPLE_RISING) &&
+	    (common_flags & V4L2_MBUS_PCLK_SAMPLE_FALLING)) {
 		if (mx3_cam->platform_flags & MX3_CAMERA_PCP)
-			common_flags &= ~SOCAM_PCLK_SAMPLE_RISING;
+			common_flags &= ~V4L2_MBUS_PCLK_SAMPLE_RISING;
 		else
-			common_flags &= ~SOCAM_PCLK_SAMPLE_FALLING;
+			common_flags &= ~V4L2_MBUS_PCLK_SAMPLE_FALLING;
 	}
 
-	/*
-	 * Make the camera work in widest common mode, we'll take care of
-	 * the rest
-	 */
-	if (common_flags & SOCAM_DATAWIDTH_15)
-		common_flags = (common_flags & ~SOCAM_DATAWIDTH_MASK) |
-			SOCAM_DATAWIDTH_15;
-	else if (common_flags & SOCAM_DATAWIDTH_10)
-		common_flags = (common_flags & ~SOCAM_DATAWIDTH_MASK) |
-			SOCAM_DATAWIDTH_10;
-	else if (common_flags & SOCAM_DATAWIDTH_8)
-		common_flags = (common_flags & ~SOCAM_DATAWIDTH_MASK) |
-			SOCAM_DATAWIDTH_8;
-	else
-		common_flags = (common_flags & ~SOCAM_DATAWIDTH_MASK) |
-			SOCAM_DATAWIDTH_4;
-
-	ret = icd->ops->set_bus_param(icd, common_flags);
-	if (ret < 0) {
-		dev_dbg(dev, "camera set_bus_param(%lx) returned %d\n",
+	cfg.flags = common_flags;
+	ret = v4l2_subdev_call(sd, video, s_mbus_config, &cfg);
+	if (ret < 0 && ret != -ENOIOCTLCMD) {
+		dev_dbg(dev, "camera s_mbus_config(0x%lx) returned %d\n",
 			common_flags, ret);
 		return ret;
 	}
@@ -1108,13 +1093,13 @@ static int mx3_camera_set_bus_param(struct soc_camera_device *icd, __u32 pixfmt)
 	/* This has been set in mx3_camera_activate(), but we clear it above */
 	sens_conf |= CSI_SENS_CONF_DATA_FMT_BAYER;
 
-	if (common_flags & SOCAM_PCLK_SAMPLE_FALLING)
+	if (common_flags & V4L2_MBUS_PCLK_SAMPLE_FALLING)
 		sens_conf |= 1 << CSI_SENS_CONF_PIX_CLK_POL_SHIFT;
-	if (common_flags & SOCAM_HSYNC_ACTIVE_LOW)
+	if (common_flags & V4L2_MBUS_HSYNC_ACTIVE_LOW)
 		sens_conf |= 1 << CSI_SENS_CONF_HSYNC_POL_SHIFT;
-	if (common_flags & SOCAM_VSYNC_ACTIVE_LOW)
+	if (common_flags & V4L2_MBUS_VSYNC_ACTIVE_LOW)
 		sens_conf |= 1 << CSI_SENS_CONF_VSYNC_POL_SHIFT;
-	if (common_flags & SOCAM_DATA_ACTIVE_LOW)
+	if (common_flags & V4L2_MBUS_DATA_ACTIVE_LOW)
 		sens_conf |= 1 << CSI_SENS_CONF_DATA_POL_SHIFT;
 
 	/* Just do what we're asked to do */
@@ -1199,6 +1184,14 @@ static int __devinit mx3_camera_probe(struct platform_device *pdev)
 			 "data widths, using default 8 bit\n");
 		mx3_cam->platform_flags |= MX3_CAMERA_DATAWIDTH_8;
 	}
+	if (mx3_cam->platform_flags & MX3_CAMERA_DATAWIDTH_4)
+		mx3_cam->width_flags = 1 << 3;
+	if (mx3_cam->platform_flags & MX3_CAMERA_DATAWIDTH_8)
+		mx3_cam->width_flags |= 1 << 7;
+	if (mx3_cam->platform_flags & MX3_CAMERA_DATAWIDTH_10)
+		mx3_cam->width_flags |= 1 << 9;
+	if (mx3_cam->platform_flags & MX3_CAMERA_DATAWIDTH_15)
+		mx3_cam->width_flags |= 1 << 14;
 
 	mx3_cam->mclk = mx3_cam->pdata->mclk_10khz * 10000;
 	if (!mx3_cam->mclk) {
@@ -1280,8 +1273,6 @@ static int __devexit mx3_camera_remove(struct platform_device *pdev)
 	vfree(mx3_cam);
 
 	dmaengine_put();
-
-	dev_info(&pdev->dev, "i.MX3x Camera driver unloaded\n");
 
 	return 0;
 }

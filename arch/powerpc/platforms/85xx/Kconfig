@@ -80,7 +80,7 @@ config P1010_RDB
 config P1022_DS
 	bool "Freescale P1022 DS"
 	select DEFAULT_UIMAGE
-	select CONFIG_PHYS_64BIT	# The DTS has 36-bit addresses
+	select PHYS_64BIT	# The DTS has 36-bit addresses
 	select SWIOTLB
 	help
 	  This option enables support for the Freescale P1022DS reference board.
@@ -171,17 +171,18 @@ config SBC8560
 	help
 	  This option enables support for the Wind River SBC8560 board
 
-config P2040_RDB
-	bool "Freescale P2040 RDB"
+config P2041_RDB
+	bool "Freescale P2041 RDB"
 	select DEFAULT_UIMAGE
 	select PPC_E500MC
 	select PHYS_64BIT
 	select SWIOTLB
-	select MPC8xxx_GPIO
+	select ARCH_REQUIRE_GPIOLIB
+	select GPIO_MPC8XXX
 	select HAS_RAPIDIO
 	select PPC_EPAPR_HV_PIC
 	help
-	  This option enables support for the P2040 RDB board
+	  This option enables support for the P2041 RDB board
 
 config P3041_DS
 	bool "Freescale P3041 DS"
@@ -189,11 +190,24 @@ config P3041_DS
 	select PPC_E500MC
 	select PHYS_64BIT
 	select SWIOTLB
-	select MPC8xxx_GPIO
+	select ARCH_REQUIRE_GPIOLIB
+	select GPIO_MPC8XXX
 	select HAS_RAPIDIO
 	select PPC_EPAPR_HV_PIC
 	help
 	  This option enables support for the P3041 DS board
+
+config P3060_QDS
+	bool "Freescale P3060 QDS"
+	select DEFAULT_UIMAGE
+	select PPC_E500MC
+	select PHYS_64BIT
+	select SWIOTLB
+	select MPC8xxx_GPIO
+	select HAS_RAPIDIO
+	select PPC_EPAPR_HV_PIC
+	help
+	  This option enables support for the P3060 QDS board
 
 config P4080_DS
 	bool "Freescale P4080 DS"
@@ -201,7 +215,8 @@ config P4080_DS
 	select PPC_E500MC
 	select PHYS_64BIT
 	select SWIOTLB
-	select MPC8xxx_GPIO
+	select ARCH_REQUIRE_GPIOLIB
+	select GPIO_MPC8XXX
 	select HAS_RAPIDIO
 	select PPC_EPAPR_HV_PIC
 	help
@@ -216,7 +231,8 @@ config P5020_DS
 	select PPC_E500MC
 	select PHYS_64BIT
 	select SWIOTLB
-	select MPC8xxx_GPIO
+	select ARCH_REQUIRE_GPIOLIB
+	select GPIO_MPC8XXX
 	select HAS_RAPIDIO
 	select PPC_EPAPR_HV_PIC
 	help

@@ -174,20 +174,20 @@ int lis3l02dq_spi_write_reg_8(struct iio_dev *indio_dev,
 
 int lis3l02dq_disable_all_events(struct iio_dev *indio_dev);
 
-#ifdef CONFIG_IIO_RING_BUFFER
-/* At the moment triggers are only used for ring buffer
+#ifdef CONFIG_IIO_BUFFER
+/* At the moment triggers are only used for buffer
  * filling. This may change!
  */
 void lis3l02dq_remove_trigger(struct iio_dev *indio_dev);
 int lis3l02dq_probe_trigger(struct iio_dev *indio_dev);
 
-ssize_t lis3l02dq_read_accel_from_ring(struct iio_ring_buffer *ring,
+ssize_t lis3l02dq_read_accel_from_buffer(struct iio_buffer *buffer,
 				       int index,
 				       int *val);
 
 
-int lis3l02dq_configure_ring(struct iio_dev *indio_dev);
-void lis3l02dq_unconfigure_ring(struct iio_dev *indio_dev);
+int lis3l02dq_configure_buffer(struct iio_dev *indio_dev);
+void lis3l02dq_unconfigure_buffer(struct iio_dev *indio_dev);
 
 #ifdef CONFIG_LIS3L02DQ_BUF_RING_SW
 #define lis3l02dq_free_buf iio_sw_rb_free
@@ -202,8 +202,8 @@ void lis3l02dq_unconfigure_ring(struct iio_dev *indio_dev);
 irqreturn_t lis3l02dq_data_rdy_trig_poll(int irq, void *private);
 #define lis3l02dq_th lis3l02dq_data_rdy_trig_poll
 
-#else /* CONFIG_IIO_RING_BUFFER */
-#define lis3l02dq_th lis3l02dq_noring
+#else /* CONFIG_IIO_BUFFER */
+#define lis3l02dq_th lis3l02dq_nobuffer
 
 static inline void lis3l02dq_remove_trigger(struct iio_dev *indio_dev)
 {
@@ -213,19 +213,19 @@ static inline int lis3l02dq_probe_trigger(struct iio_dev *indio_dev)
 	return 0;
 }
 static inline ssize_t
-lis3l02dq_read_accel_from_ring(struct iio_ring_buffer *ring,
-			       int index,
-			       int *val)
+lis3l02dq_read_accel_from_buffer(struct iio_buffer *buffer,
+				 int index,
+				 int *val)
 {
 	return 0;
 }
 
-static int lis3l02dq_configure_ring(struct iio_dev *indio_dev)
+static int lis3l02dq_configure_buffer(struct iio_dev *indio_dev)
 {
 	return 0;
 }
-static inline void lis3l02dq_unconfigure_ring(struct iio_dev *indio_dev)
+static inline void lis3l02dq_unconfigure_buffer(struct iio_dev *indio_dev)
 {
 }
-#endif /* CONFIG_IIO_RING_BUFFER */
+#endif /* CONFIG_IIO_BUFFER */
 #endif /* SPI_LIS3L02DQ_H_ */

@@ -3,6 +3,7 @@
  * not configured or static.
  */
 
+#include <linux/export.h>
 #include <net/ipv6.h>
 
 #define IPV6_ADDR_SCOPE_TYPE(scope)	((scope) << 16)

@@ -120,11 +120,12 @@ struct drm_mode_crtc {
 	struct drm_mode_modeinfo mode;
 };
 
-#define DRM_MODE_ENCODER_NONE	0
-#define DRM_MODE_ENCODER_DAC	1
-#define DRM_MODE_ENCODER_TMDS	2
-#define DRM_MODE_ENCODER_LVDS	3
-#define DRM_MODE_ENCODER_TVDAC	4
+#define DRM_MODE_ENCODER_NONE	 0
+#define DRM_MODE_ENCODER_DAC	 1
+#define DRM_MODE_ENCODER_TMDS	 2
+#define DRM_MODE_ENCODER_LVDS	 3
+#define DRM_MODE_ENCODER_TVDAC	 4
+#define DRM_MODE_ENCODER_VIRTUAL 5
 
 struct drm_mode_get_encoder {
 	__u32 encoder_id;
@@ -162,6 +163,7 @@ struct drm_mode_get_encoder {
 #define DRM_MODE_CONNECTOR_HDMIB	12
 #define DRM_MODE_CONNECTOR_TV		13
 #define DRM_MODE_CONNECTOR_eDP		14
+#define DRM_MODE_CONNECTOR_VIRTUAL      15
 
 struct drm_mode_get_connector {
 

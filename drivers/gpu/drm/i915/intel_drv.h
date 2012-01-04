@@ -34,7 +34,7 @@
 #define _wait_for(COND, MS, W) ({ \
 	unsigned long timeout__ = jiffies + msecs_to_jiffies(MS);	\
 	int ret__ = 0;							\
-	while (! (COND)) {						\
+	while (!(COND)) {						\
 		if (time_after(jiffies, timeout__)) {			\
 			ret__ = -ETIMEDOUT;				\
 			break;						\
@@ -49,10 +49,10 @@
 
 #define MSLEEP(x) do { \
 	if (in_dbg_master()) \
-	       	mdelay(x); \
+		mdelay(x); \
 	else \
 		msleep(x); \
-} while(0)
+} while (0)
 
 #define KHz(x) (1000*x)
 #define MHz(x) KHz(1000*x)
@@ -171,6 +171,9 @@ struct intel_crtc {
 	int16_t cursor_width, cursor_height;
 	bool cursor_visible;
 	unsigned int bpp;
+
+	bool no_pll; /* tertiary pipe for IVB */
+	bool use_pll_a;
 };
 
 #define to_intel_crtc(x) container_of(x, struct intel_crtc, base)
@@ -184,7 +187,7 @@ struct intel_crtc {
 #define DIP_VERSION_AVI 0x2
 #define DIP_LEN_AVI     13
 
-#define DIP_TYPE_SPD	0x3
+#define DIP_TYPE_SPD	0x83
 #define DIP_VERSION_SPD	0x1
 #define DIP_LEN_SPD	25
 #define DIP_SPD_UNKNOWN	0
@@ -284,7 +287,7 @@ void
 intel_dp_set_m_n(struct drm_crtc *crtc, struct drm_display_mode *mode,
 		 struct drm_display_mode *adjusted_mode);
 extern bool intel_dpd_is_edp(struct drm_device *dev);
-extern void intel_edp_link_config (struct intel_encoder *, int *, int *);
+extern void intel_edp_link_config(struct intel_encoder *, int *, int *);
 extern bool intel_encoder_is_pch_edp(struct drm_encoder *encoder);
 
 /* intel_panel.c */
@@ -304,8 +307,8 @@ extern void intel_panel_destroy_backlight(struct drm_device *dev);
 extern enum drm_connector_status intel_panel_detect(struct drm_device *dev);
 
 extern void intel_crtc_load_lut(struct drm_crtc *crtc);
-extern void intel_encoder_prepare (struct drm_encoder *encoder);
-extern void intel_encoder_commit (struct drm_encoder *encoder);
+extern void intel_encoder_prepare(struct drm_encoder *encoder);
+extern void intel_encoder_commit(struct drm_encoder *encoder);
 extern void intel_encoder_destroy(struct drm_encoder *encoder);
 
 static inline struct intel_encoder *intel_attached_encoder(struct drm_connector *connector)
@@ -377,4 +380,8 @@ extern void intel_fb_output_poll_changed(struct drm_device *dev);
 extern void intel_fb_restore_mode(struct drm_device *dev);
 
 extern void intel_init_clock_gating(struct drm_device *dev);
+extern void intel_write_eld(struct drm_encoder *encoder,
+			    struct drm_display_mode *mode);
+extern void intel_cpt_verify_modeset(struct drm_device *dev, int pipe);
+
 #endif /* __INTEL_DRV_H__ */

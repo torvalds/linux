@@ -427,6 +427,24 @@ static void get_debugfs_mntpt(void)
 		debugfs_mntpt[0] = '\0';
 }
 
+static void pthread__block_sigwinch(void)
+{
+	sigset_t set;
+
+	sigemptyset(&set);
+	sigaddset(&set, SIGWINCH);
+	pthread_sigmask(SIG_BLOCK, &set, NULL);
+}
+
+void pthread__unblock_sigwinch(void)
+{
+	sigset_t set;
+
+	sigemptyset(&set);
+	sigaddset(&set, SIGWINCH);
+	pthread_sigmask(SIG_UNBLOCK, &set, NULL);
+}
+
 int main(int argc, const char **argv)
 {
 	const char *cmd;
@@ -480,6 +498,12 @@ int main(int argc, const char **argv)
 	 * time.
 	 */
 	setup_path();
+	/*
+	 * Block SIGWINCH notifications so that the thread that wants it can
+	 * unblock and get syscalls like select interrupted instead of waiting
+	 * forever while the signal goes to some other non interested thread.
+	 */
+	pthread__block_sigwinch();
 
 	while (1) {
 		static int done_help;

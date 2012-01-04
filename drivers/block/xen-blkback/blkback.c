@@ -39,6 +39,9 @@
 #include <linux/list.h>
 #include <linux/delay.h>
 #include <linux/freezer.h>
+#include <linux/loop.h>
+#include <linux/falloc.h>
+#include <linux/fs.h>
 
 #include <xen/events.h>
 #include <xen/page.h>
@@ -258,13 +261,16 @@ irqreturn_t xen_blkif_be_int(int irq, void *dev_id)
 
 static void print_stats(struct xen_blkif *blkif)
 {
-	pr_info("xen-blkback (%s): oo %3d  |  rd %4d  |  wr %4d  |  f %4d\n",
+	pr_info("xen-blkback (%s): oo %3d  |  rd %4d  |  wr %4d  |  f %4d"
+		 "  |  ds %4d\n",
 		 current->comm, blkif->st_oo_req,
-		 blkif->st_rd_req, blkif->st_wr_req, blkif->st_f_req);
+		 blkif->st_rd_req, blkif->st_wr_req,
+		 blkif->st_f_req, blkif->st_ds_req);
 	blkif->st_print = jiffies + msecs_to_jiffies(10 * 1000);
 	blkif->st_rd_req = 0;
 	blkif->st_wr_req = 0;
 	blkif->st_oo_req = 0;
+	blkif->st_ds_req = 0;
 }
 
 int xen_blkif_schedule(void *arg)
@@ -396,7 +402,7 @@ static int xen_blkbk_map(struct blkif_request *req,
 			continue;
 
 		ret = m2p_add_override(PFN_DOWN(map[i].dev_bus_addr),
-			blkbk->pending_page(pending_req, i), false);
+			blkbk->pending_page(pending_req, i), NULL);
 		if (ret) {
 			pr_alert(DRV_PFX "Failed to install M2P override for %lx (ret: %d)\n",
 				 (unsigned long)map[i].dev_bus_addr, ret);
@@ -410,6 +416,59 @@ static int xen_blkbk_map(struct blkif_request *req,
 	return ret;
 }
 
+static void xen_blk_discard(struct xen_blkif *blkif, struct blkif_request *req)
+{
+	int err = 0;
+	int status = BLKIF_RSP_OKAY;
+	struct block_device *bdev = blkif->vbd.bdev;
+
+	if (blkif->blk_backend_type == BLKIF_BACKEND_PHY)
+		/* just forward the discard request */
+		err = blkdev_issue_discard(bdev,
+				req->u.discard.sector_number,
+				req->u.discard.nr_sectors,
+				GFP_KERNEL, 0);
+	else if (blkif->blk_backend_type == BLKIF_BACKEND_FILE) {
+		/* punch a hole in the backing file */
+		struct loop_device *lo = bdev->bd_disk->private_data;
+		struct file *file = lo->lo_backing_file;
+
+		if (file->f_op->fallocate)
+			err = file->f_op->fallocate(file,
+				FALLOC_FL_KEEP_SIZE | FALLOC_FL_PUNCH_HOLE,
+				req->u.discard.sector_number << 9,
+				req->u.discard.nr_sectors << 9);
+		else
+			err = -EOPNOTSUPP;
+	} else
+		err = -EOPNOTSUPP;
+
+	if (err == -EOPNOTSUPP) {
+		pr_debug(DRV_PFX "discard op failed, not supported\n");
+		status = BLKIF_RSP_EOPNOTSUPP;
+	} else if (err)
+		status = BLKIF_RSP_ERROR;
+
+	make_response(blkif, req->id, req->operation, status);
+}
+
+static void xen_blk_drain_io(struct xen_blkif *blkif)
+{
+	atomic_set(&blkif->drain, 1);
+	do {
+		/* The initial value is one, and one refcnt taken at the
+		 * start of the xen_blkif_schedule thread. */
+		if (atomic_read(&blkif->refcnt) <= 2)
+			break;
+		wait_for_completion_interruptible_timeout(
+				&blkif->drain_complete, HZ);
+
+		if (!atomic_read(&blkif->drain))
+			break;
+	} while (!kthread_should_stop());
+	atomic_set(&blkif->drain, 0);
+}
+
 /*
  * Completion callback on the bio's. Called as bh->b_end_io()
  */
@@ -421,6 +480,11 @@ static void __end_block_io_op(struct pending_req *pending_req, int error)
 	    (error == -EOPNOTSUPP)) {
 		pr_debug(DRV_PFX "flush diskcache op failed, not supported\n");
 		xen_blkbk_flush_diskcache(XBT_NIL, pending_req->blkif->be, 0);
+		pending_req->status = BLKIF_RSP_EOPNOTSUPP;
+	} else if ((pending_req->operation == BLKIF_OP_WRITE_BARRIER) &&
+		    (error == -EOPNOTSUPP)) {
+		pr_debug(DRV_PFX "write barrier op failed, not supported\n");
+		xen_blkbk_barrier(XBT_NIL, pending_req->blkif->be, 0);
 		pending_req->status = BLKIF_RSP_EOPNOTSUPP;
 	} else if (error) {
 		pr_debug(DRV_PFX "Buffer not up-to-date at end of operation,"
@@ -438,6 +502,10 @@ static void __end_block_io_op(struct pending_req *pending_req, int error)
 		make_response(pending_req->blkif, pending_req->id,
 			      pending_req->operation, pending_req->status);
 		xen_blkif_put(pending_req->blkif);
+		if (atomic_read(&pending_req->blkif->refcnt) <= 2) {
+			if (atomic_read(&pending_req->blkif->drain))
+				complete(&pending_req->blkif->drain_complete);
+		}
 		free_req(pending_req);
 	}
 }
@@ -532,7 +600,6 @@ do_block_io_op(struct xen_blkif *blkif)
 
 	return more_to_do;
 }
-
 /*
  * Transmutation of the 'struct blkif_request' to a proper 'struct bio'
  * and call the 'submit_bio' to pass it to the underlying storage.
@@ -549,6 +616,7 @@ static int dispatch_rw_block_io(struct xen_blkif *blkif,
 	int i, nbio = 0;
 	int operation;
 	struct blk_plug plug;
+	bool drain = false;
 
 	switch (req->operation) {
 	case BLKIF_OP_READ:
@@ -559,11 +627,16 @@ static int dispatch_rw_block_io(struct xen_blkif *blkif,
 		blkif->st_wr_req++;
 		operation = WRITE_ODIRECT;
 		break;
+	case BLKIF_OP_WRITE_BARRIER:
+		drain = true;
 	case BLKIF_OP_FLUSH_DISKCACHE:
 		blkif->st_f_req++;
 		operation = WRITE_FLUSH;
 		break;
-	case BLKIF_OP_WRITE_BARRIER:
+	case BLKIF_OP_DISCARD:
+		blkif->st_ds_req++;
+		operation = REQ_DISCARD;
+		break;
 	default:
 		operation = 0; /* make gcc happy */
 		goto fail_response;
@@ -572,7 +645,8 @@ static int dispatch_rw_block_io(struct xen_blkif *blkif,
 
 	/* Check that the number of segments is sane. */
 	nseg = req->nr_segments;
-	if (unlikely(nseg == 0 && operation != WRITE_FLUSH) ||
+	if (unlikely(nseg == 0 && operation != WRITE_FLUSH &&
+				operation != REQ_DISCARD) ||
 	    unlikely(nseg > BLKIF_MAX_SEGMENTS_PER_REQUEST)) {
 		pr_debug(DRV_PFX "Bad number of segments in request (%d)\n",
 			 nseg);
@@ -621,16 +695,25 @@ static int dispatch_rw_block_io(struct xen_blkif *blkif,
 		}
 	}
 
+	/* Wait on all outstanding I/O's and once that has been completed
+	 * issue the WRITE_FLUSH.
+	 */
+	if (drain)
+		xen_blk_drain_io(pending_req->blkif);
+
 	/*
 	 * If we have failed at this point, we need to undo the M2P override,
 	 * set gnttab_set_unmap_op on all of the grant references and perform
 	 * the hypercall to unmap the grants - that is all done in
 	 * xen_blkbk_unmap.
 	 */
-	if (xen_blkbk_map(req, pending_req, seg))
+	if (operation != REQ_DISCARD && xen_blkbk_map(req, pending_req, seg))
 		goto fail_flush;
 
-	/* This corresponding xen_blkif_put is done in __end_block_io_op */
+	/*
+	 * This corresponding xen_blkif_put is done in __end_block_io_op, or
+	 * below (in "!bio") if we are handling a BLKIF_OP_DISCARD.
+	 */
 	xen_blkif_get(blkif);
 
 	for (i = 0; i < nseg; i++) {
@@ -654,18 +737,25 @@ static int dispatch_rw_block_io(struct xen_blkif *blkif,
 		preq.sector_number += seg[i].nsec;
 	}
 
-	/* This will be hit if the operation was a flush. */
+	/* This will be hit if the operation was a flush or discard. */
 	if (!bio) {
-		BUG_ON(operation != WRITE_FLUSH);
+		BUG_ON(operation != WRITE_FLUSH && operation != REQ_DISCARD);
 
-		bio = bio_alloc(GFP_KERNEL, 0);
-		if (unlikely(bio == NULL))
-			goto fail_put_bio;
+		if (operation == WRITE_FLUSH) {
+			bio = bio_alloc(GFP_KERNEL, 0);
+			if (unlikely(bio == NULL))
+				goto fail_put_bio;
 
-		biolist[nbio++] = bio;
-		bio->bi_bdev    = preq.bdev;
-		bio->bi_private = pending_req;
-		bio->bi_end_io  = end_block_io_op;
+			biolist[nbio++] = bio;
+			bio->bi_bdev    = preq.bdev;
+			bio->bi_private = pending_req;
+			bio->bi_end_io  = end_block_io_op;
+		} else if (operation == REQ_DISCARD) {
+			xen_blk_discard(blkif, req);
+			xen_blkif_put(blkif);
+			free_req(pending_req);
+			return 0;
+		}
 	}
 
 	/*
@@ -685,7 +775,7 @@ static int dispatch_rw_block_io(struct xen_blkif *blkif,
 
 	if (operation == READ)
 		blkif->st_rd_sect += preq.nr_sects;
-	else if (operation == WRITE || operation == WRITE_FLUSH)
+	else if (operation & WRITE)
 		blkif->st_wr_sect += preq.nr_sects;
 
 	return 0;
@@ -765,9 +855,9 @@ static int __init xen_blkif_init(void)
 
 	mmap_pages = xen_blkif_reqs * BLKIF_MAX_SEGMENTS_PER_REQUEST;
 
-	blkbk->pending_reqs          = kmalloc(sizeof(blkbk->pending_reqs[0]) *
+	blkbk->pending_reqs          = kzalloc(sizeof(blkbk->pending_reqs[0]) *
 					xen_blkif_reqs, GFP_KERNEL);
-	blkbk->pending_grant_handles = kzalloc(sizeof(blkbk->pending_grant_handles[0]) *
+	blkbk->pending_grant_handles = kmalloc(sizeof(blkbk->pending_grant_handles[0]) *
 					mmap_pages, GFP_KERNEL);
 	blkbk->pending_pages         = kzalloc(sizeof(blkbk->pending_pages[0]) *
 					mmap_pages, GFP_KERNEL);
@@ -789,8 +879,6 @@ static int __init xen_blkif_init(void)
 	rc = xen_blkif_interface_init();
 	if (rc)
 		goto failed_init;
-
-	memset(blkbk->pending_reqs, 0, sizeof(blkbk->pending_reqs));
 
 	INIT_LIST_HEAD(&blkbk->pending_free);
 	spin_lock_init(&blkbk->pending_free_lock);

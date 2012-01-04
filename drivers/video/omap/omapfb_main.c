@@ -28,6 +28,7 @@
 #include <linux/mm.h>
 #include <linux/slab.h>
 #include <linux/uaccess.h>
+#include <linux/module.h>
 
 #include <plat/dma.h>
 

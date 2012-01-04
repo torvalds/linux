@@ -11,6 +11,7 @@
  */
 #include <net/mac80211.h>
 #include <linux/usb.h>
+#include <linux/module.h>
 
 #include "core.h"
 #include "mds_f.h"
@@ -277,7 +278,7 @@ static int wbsoft_config(struct ieee80211_hw *dev, u32 changed)
 	return 0;
 }
 
-static u64 wbsoft_get_tsf(struct ieee80211_hw *dev)
+static u64 wbsoft_get_tsf(struct ieee80211_hw *dev, struct ieee80211_vif *vif)
 {
 	printk("wbsoft_get_tsf called\n");
 	return 0;

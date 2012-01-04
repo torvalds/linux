@@ -1,5 +1,6 @@
 #include "drmP.h"
 #include <linux/usb.h>
+#include <linux/export.h>
 
 #ifdef CONFIG_USB
 int drm_get_usb_dev(struct usb_interface *interface,

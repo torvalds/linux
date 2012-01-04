@@ -13,30 +13,6 @@
 
 struct idmap;
 
-/*
- * In a seqid-mutating op, this macro controls which error return
- * values trigger incrementation of the seqid.
- *
- * from rfc 3010:
- * The client MUST monotonically increment the sequence number for the
- * CLOSE, LOCK, LOCKU, OPEN, OPEN_CONFIRM, and OPEN_DOWNGRADE
- * operations.  This is true even in the event that the previous
- * operation that used the sequence number received an error.  The only
- * exception to this rule is if the previous operation received one of
- * the following errors: NFSERR_STALE_CLIENTID, NFSERR_STALE_STATEID,
- * NFSERR_BAD_STATEID, NFSERR_BAD_SEQID, NFSERR_BADXDR,
- * NFSERR_RESOURCE, NFSERR_NOFILEHANDLE.
- *
- */
-#define seqid_mutating_err(err)       \
-(((err) != NFSERR_STALE_CLIENTID) &&  \
- ((err) != NFSERR_STALE_STATEID)  &&  \
- ((err) != NFSERR_BAD_STATEID)    &&  \
- ((err) != NFSERR_BAD_SEQID)      &&  \
- ((err) != NFSERR_BAD_XDR)        &&  \
- ((err) != NFSERR_RESOURCE)       &&  \
- ((err) != NFSERR_NOFILEHANDLE))
-
 enum nfs4_client_state {
 	NFS4CLNT_MANAGER_RUNNING  = 0,
 	NFS4CLNT_CHECK_LEASE,

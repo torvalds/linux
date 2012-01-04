@@ -19,7 +19,7 @@ config USB_C67X00_HCD
 
 config USB_XHCI_HCD
 	tristate "xHCI HCD (USB 3.0) support (EXPERIMENTAL)"
-	depends on USB && PCI && EXPERIMENTAL
+	depends on USB && USB_ARCH_HAS_XHCI && EXPERIMENTAL
 	---help---
 	  The eXtensible Host Controller Interface (xHCI) is standard for USB 3.0
 	  "SuperSpeed" host controller hardware.
@@ -515,6 +515,19 @@ config USB_R8A66597_HCD
 	  To compile this driver as a module, choose M here: the
 	  module will be called r8a66597-hcd.
 
+config USB_RENESAS_USBHS_HCD
+	tristate "Renesas USBHS HCD support"
+	depends on USB
+	depends on USB_RENESAS_USBHS
+	help
+	  The Renesas USBHS is a USB 2.0 host and peripheral controller.
+
+	  Enable this option if your board has this chip, and you want
+	  to use it as a host controller.  If unsure, say N.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called renesas-usbhs.
+
 config USB_WHCI_HCD
 	tristate "Wireless USB Host Controller Interface (WHCI) driver (EXPERIMENTAL)"
 	depends on EXPERIMENTAL
@@ -544,11 +557,11 @@ config USB_HWA_HCD
 	  will be called "hwa-hc".
 
 config USB_IMX21_HCD
-       tristate "iMX21 HCD support"
-       depends on USB && ARM && MACH_MX21
+       tristate "i.MX21 HCD support"
+       depends on USB && ARM && ARCH_MXC
        help
          This driver enables support for the on-chip USB host in the
-         iMX21 processor.
+         i.MX21 processor.
 
          To compile this driver as a module, choose M here: the
          module will be called "imx21-hcd".
@@ -578,3 +591,10 @@ config USB_OCTEON_OHCI
 config USB_OCTEON2_COMMON
 	bool
 	default y if USB_OCTEON_EHCI || USB_OCTEON_OHCI
+
+config USB_PXA168_EHCI
+	bool "Marvell PXA168 on-chip EHCI HCD support"
+	depends on USB_EHCI_HCD && ARCH_MMP
+	help
+	  Enable support for Marvell PXA168 SoC's on-chip EHCI
+	  host controller

@@ -21,6 +21,7 @@
 
 #include <linux/kernel.h>
 #include <linux/sched.h>
+#include <linux/module.h>
 #include <linux/errno.h>
 #include <linux/fcntl.h>
 #include <linux/net.h>
@@ -143,19 +144,20 @@ static void svc_set_cmsg_data(struct svc_rqst *rqstp, struct cmsghdr *cmh)
 			cmh->cmsg_level = SOL_IP;
 			cmh->cmsg_type = IP_PKTINFO;
 			pki->ipi_ifindex = 0;
-			pki->ipi_spec_dst.s_addr = rqstp->rq_daddr.addr.s_addr;
+			pki->ipi_spec_dst.s_addr =
+				 svc_daddr_in(rqstp)->sin_addr.s_addr;
 			cmh->cmsg_len = CMSG_LEN(sizeof(*pki));
 		}
 		break;
 
 	case AF_INET6: {
 			struct in6_pktinfo *pki = CMSG_DATA(cmh);
+			struct sockaddr_in6 *daddr = svc_daddr_in6(rqstp);
 
 			cmh->cmsg_level = SOL_IPV6;
 			cmh->cmsg_type = IPV6_PKTINFO;
-			pki->ipi6_ifindex = 0;
-			ipv6_addr_copy(&pki->ipi6_addr,
-					&rqstp->rq_daddr.addr6);
+			pki->ipi6_ifindex = daddr->sin6_scope_id;
+			ipv6_addr_copy(&pki->ipi6_addr,	&daddr->sin6_addr);
 			cmh->cmsg_len = CMSG_LEN(sizeof(*pki));
 		}
 		break;
@@ -498,9 +500,13 @@ static int svc_udp_get_dest_address4(struct svc_rqst *rqstp,
 				     struct cmsghdr *cmh)
 {
 	struct in_pktinfo *pki = CMSG_DATA(cmh);
+	struct sockaddr_in *daddr = svc_daddr_in(rqstp);
+
 	if (cmh->cmsg_type != IP_PKTINFO)
 		return 0;
-	rqstp->rq_daddr.addr.s_addr = pki->ipi_spec_dst.s_addr;
+
+	daddr->sin_family = AF_INET;
+	daddr->sin_addr.s_addr = pki->ipi_spec_dst.s_addr;
 	return 1;
 }
 
@@ -511,9 +517,14 @@ static int svc_udp_get_dest_address6(struct svc_rqst *rqstp,
 				     struct cmsghdr *cmh)
 {
 	struct in6_pktinfo *pki = CMSG_DATA(cmh);
+	struct sockaddr_in6 *daddr = svc_daddr_in6(rqstp);
+
 	if (cmh->cmsg_type != IPV6_PKTINFO)
 		return 0;
-	ipv6_addr_copy(&rqstp->rq_daddr.addr6, &pki->ipi6_addr);
+
+	daddr->sin6_family = AF_INET6;
+	ipv6_addr_copy(&daddr->sin6_addr, &pki->ipi6_addr);
+	daddr->sin6_scope_id = pki->ipi6_ifindex;
 	return 1;
 }
 
@@ -614,6 +625,7 @@ static int svc_udp_recvfrom(struct svc_rqst *rqstp)
 		skb_free_datagram_locked(svsk->sk_sk, skb);
 		return 0;
 	}
+	rqstp->rq_daddrlen = svc_addr_len(svc_daddr(rqstp));
 
 	if (skb_is_nonlinear(skb)) {
 		/* we have to copy */

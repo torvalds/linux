@@ -265,12 +265,6 @@ static struct i2c_board_info smdkv210_i2c_devs2[] __initdata = {
 	/* To Be Updated */
 };
 
-static struct s3c2410_ts_mach_info s3c_ts_platform __initdata = {
-	.delay			= 10000,
-	.presc			= 49,
-	.oversampling_shift	= 2,
-};
-
 /* LCD Backlight data */
 static struct samsung_bl_gpio_info smdkv210_bl_gpio_info = {
 	.no = S5PV210_GPD0(3),
@@ -296,7 +290,7 @@ static void __init smdkv210_machine_init(void)
 	smdkv210_dm9000_init();
 
 	samsung_keypad_set_platdata(&smdkv210_keypad_data);
-	s3c24xx_ts_set_platdata(&s3c_ts_platform);
+	s3c24xx_ts_set_platdata(NULL);
 
 	s3c_i2c0_set_platdata(NULL);
 	s3c_i2c1_set_platdata(NULL);
@@ -319,7 +313,7 @@ static void __init smdkv210_machine_init(void)
 
 MACHINE_START(SMDKV210, "SMDKV210")
 	/* Maintainer: Kukjin Kim <kgene.kim@samsung.com> */
-	.boot_params	= S5P_PA_SDRAM + 0x100,
+	.atag_offset	= 0x100,
 	.init_irq	= s5pv210_init_irq,
 	.map_io		= smdkv210_map_io,
 	.init_machine	= smdkv210_machine_init,

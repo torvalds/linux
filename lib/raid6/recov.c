@@ -18,6 +18,7 @@
  * the syndrome.)
  */
 
+#include <linux/export.h>
 #include <linux/raid/pq.h>
 
 /* Recover two failed data blocks. */

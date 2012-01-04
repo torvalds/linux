@@ -9,7 +9,6 @@
 #include <string.h>
 #include <sys/mman.h>
 #include "init.h"
-#include "kern_constants.h"
 #include "as-layout.h"
 #include "mm_id.h"
 #include "os.h"
@@ -17,7 +16,6 @@
 #include "ptrace_user.h"
 #include "registers.h"
 #include "skas.h"
-#include "user.h"
 #include "sysdep/ptrace.h"
 #include "sysdep/stub.h"
 

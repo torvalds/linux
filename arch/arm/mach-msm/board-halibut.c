@@ -78,8 +78,8 @@ static void __init halibut_init(void)
 	platform_add_devices(devices, ARRAY_SIZE(devices));
 }
 
-static void __init halibut_fixup(struct machine_desc *desc, struct tag *tags,
-				 char **cmdline, struct meminfo *mi)
+static void __init halibut_fixup(struct tag *tags, char **cmdline,
+				 struct meminfo *mi)
 {
 	mi->nr_banks=1;
 	mi->bank[0].start = PHYS_OFFSET;
@@ -93,7 +93,7 @@ static void __init halibut_map_io(void)
 }
 
 MACHINE_START(HALIBUT, "Halibut Board (QCT SURF7200A)")
-	.boot_params	= 0x10000100,
+	.atag_offset	= 0x100,
 	.fixup		= halibut_fixup,
 	.map_io		= halibut_map_io,
 	.init_irq	= halibut_init_irq,

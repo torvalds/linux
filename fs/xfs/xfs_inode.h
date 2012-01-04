@@ -257,7 +257,6 @@ typedef struct xfs_inode {
 
 	xfs_fsize_t		i_size;		/* in-memory size */
 	xfs_fsize_t		i_new_size;	/* size when write completes */
-	atomic_t		i_iocount;	/* outstanding I/O count */
 
 	/* VFS inode */
 	struct inode		i_vnode;	/* embedded VFS inode */

@@ -16,6 +16,8 @@ void regulatory_exit(void);
 
 int set_regdom(const struct ieee80211_regdomain *rd);
 
+void regulatory_update(struct wiphy *wiphy, enum nl80211_reg_initiator setby);
+
 /**
  * regulatory_hint_found_beacon - hints a beacon was found on a channel
  * @wiphy: the wireless device where the beacon was found on

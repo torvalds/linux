@@ -282,7 +282,7 @@ static const struct net_device_ops xl_netdev_ops = {
 	.ndo_stop		= xl_close,
 	.ndo_start_xmit		= xl_xmit,
 	.ndo_change_mtu		= xl_change_mtu,
-	.ndo_set_multicast_list = xl_set_rx_mode,
+	.ndo_set_rx_mode	= xl_set_rx_mode,
 	.ndo_set_mac_address	= xl_set_mac_address,
 };
  

@@ -13,6 +13,7 @@
  */
 
 #include <linux/bitrev.h>
+#include <linux/module.h>
 #include "rc-core-priv.h"
 
 #define JVC_NBITS		16		/* dev(8) + func(8) */

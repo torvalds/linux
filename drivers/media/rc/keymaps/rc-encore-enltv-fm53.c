@@ -11,6 +11,7 @@
  */
 
 #include <media/rc-map.h>
+#include <linux/module.h>
 
 /* Encore ENLTV-FM v5.3
    Mauro Carvalho Chehab <mchehab@infradead.org>

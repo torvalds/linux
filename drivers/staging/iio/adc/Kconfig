@@ -1,28 +1,14 @@
 #
 # ADC drivers
 #
-comment "Analog to digital convertors"
-
-config AD7150
-	tristate "Analog Devices ad7150/1/6 capacitive sensor driver"
-	depends on I2C
-	help
-	  Say yes here to build support for Analog Devices capacitive sensors.
-	  (ad7150, ad7151, ad7156) Provides direct access via sysfs.
-
-config AD7152
-	tristate "Analog Devices ad7152/3 capacitive sensor driver"
-	depends on I2C
-	help
-	  Say yes here to build support for Analog Devices capacitive sensors.
-	  (ad7152, ad7153) Provides direct access via sysfs.
+menu "Analog to digital converters"
 
 config AD7291
-	tristate "Analog Devices AD7291 temperature sensor driver"
+	tristate "Analog Devices AD7291 ADC driver"
 	depends on I2C
 	help
 	  Say yes here to build support for Analog Devices AD7291
-	  temperature sensors.
+	  8 Channel ADC with temperature sensor.
 
 config AD7298
 	tristate "Analog Devices AD7298 ADC driver"
@@ -34,22 +20,15 @@ config AD7298
 	  To compile this driver as a module, choose M here: the
 	  module will be called ad7298.
 
-config AD7314
-	tristate "Analog Devices AD7314 temperature sensor driver"
-	depends on SPI
-	help
-	  Say yes here to build support for Analog Devices AD7314
-	  temperature sensors.
-
 config AD7606
 	tristate "Analog Devices AD7606 ADC driver"
 	depends on GPIOLIB
-	select IIO_RING_BUFFER
+	select IIO_BUFFER
 	select IIO_TRIGGER
 	select IIO_SW_RING
 	help
 	  Say yes here to build support for Analog Devices:
-	  ad7606, ad7606-6, ad7606-4 analog to digital convertors (ADC).
+	  ad7606, ad7606-6, ad7606-4 analog to digital converters (ADC).
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called ad7606.
@@ -72,18 +51,18 @@ config AD7606_IFACE_SPI
 config AD799X
 	tristate "Analog Devices AD799x ADC driver"
 	depends on I2C
-	select IIO_TRIGGER if IIO_RING_BUFFER
+	select IIO_TRIGGER if IIO_BUFFER
 	select AD799X_RING_BUFFER
 	help
 	  Say yes here to build support for Analog Devices:
 	  ad7991, ad7995, ad7999, ad7992, ad7993, ad7994, ad7997, ad7998
-	  i2c analog to digital convertors (ADC). Provides direct access
+	  i2c analog to digital converters (ADC). Provides direct access
 	  via sysfs.
 
 config AD799X_RING_BUFFER
 	bool "Analog Devices AD799x: use ring buffer"
 	depends on AD799X
-	select IIO_RING_BUFFER
+	select IIO_BUFFER
 	select IIO_SW_RING
 	help
 	  Say yes here to include ring buffer support in the AD799X
@@ -92,13 +71,13 @@ config AD799X_RING_BUFFER
 config AD7476
 	tristate "Analog Devices AD7475/6/7/8 AD7466/7/8 and AD7495 ADC driver"
 	depends on SPI
-	select IIO_RING_BUFFER
+	select IIO_BUFFER
 	select IIO_SW_RING
 	select IIO_TRIGGER
 	help
 	  Say yes here to build support for Analog Devices
 	  AD7475, AD7476, AD7477, AD7478, AD7466, AD7467, AD7468, AD7495
-	  SPI analog to digital convertors (ADC).
+	  SPI analog to digital converters (ADC).
 	  If unsure, say N (but it's safe to say "Y").
 
 	  To compile this driver as a module, choose M here: the
@@ -107,12 +86,12 @@ config AD7476
 config AD7887
 	tristate "Analog Devices AD7887 ADC driver"
 	depends on SPI
-	select IIO_RING_BUFFER
+	select IIO_BUFFER
 	select IIO_SW_RING
 	select IIO_TRIGGER
 	help
 	  Say yes here to build support for Analog Devices
-	  AD7887 SPI analog to digital convertor (ADC).
+	  AD7887 SPI analog to digital converter (ADC).
 	  If unsure, say N (but it's safe to say "Y").
 
 	  To compile this driver as a module, choose M here: the
@@ -124,7 +103,7 @@ config AD7780
 	depends on GPIOLIB
 	help
 	  Say yes here to build support for Analog Devices
-	  AD7780 and AD7781 SPI analog to digital convertors (ADC).
+	  AD7780 and AD7781 SPI analog to digital converters (ADC).
 	  If unsure, say N (but it's safe to say "Y").
 
 	  To compile this driver as a module, choose M here: the
@@ -133,40 +112,38 @@ config AD7780
 config AD7793
 	tristate "Analog Devices AD7792 AD7793 ADC driver"
 	depends on SPI
-	select IIO_RING_BUFFER
+	select IIO_BUFFER
 	select IIO_SW_RING
 	select IIO_TRIGGER
 	help
 	  Say yes here to build support for Analog Devices
-	  AD7792 and AD7793 SPI analog to digital convertors (ADC).
+	  AD7792 and AD7793 SPI analog to digital converters (ADC).
 	  If unsure, say N (but it's safe to say "Y").
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called AD7793.
 
-config AD7745
-	tristate "Analog Devices AD7745, AD7746 AD7747 capacitive sensor driver"
-	depends on I2C
-	help
-	  Say yes here to build support for Analog Devices capacitive sensors.
-	  (AD7745, AD7746, AD7747) Provides direct access via sysfs.
-
-	  To compile this driver as a module, choose M here: the
-	  module will be called ad7745.
-
 config AD7816
 	tristate "Analog Devices AD7816/7/8 temperature sensor and ADC driver"
 	depends on SPI
+	depends on GENERIC_GPIO
 	help
 	  Say yes here to build support for Analog Devices AD7816/7/8
 	  temperature sensors and ADC.
 
-config ADT75
-	tristate "Analog Devices ADT75 temperature sensor driver"
-	depends on I2C
+config AD7192
+	tristate "Analog Devices AD7190 AD7192 AD7195 ADC driver"
+	depends on SPI
+	select IIO_BUFFER
+	select IIO_SW_RING
+	select IIO_TRIGGER
 	help
-	  Say yes here to build support for Analog Devices ADT75
-	  temperature sensors.
+	  Say yes here to build support for Analog Devices AD7190,
+	  AD7192 or AD7195 SPI analog to digital converters (ADC).
+	  If unsure, say N (but it's safe to say "Y").
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called ad7192.
 
 config ADT7310
 	tristate "Analog Devices ADT7310 temperature sensor driver"
@@ -182,14 +159,24 @@ config ADT7410
 	  Say yes here to build support for Analog Devices ADT7410
 	  temperature sensors.
 
+config AD7280
+	tristate "Analog Devices AD7280A Lithium Ion Battery Monitoring System"
+	depends on SPI
+	help
+	  Say yes here to build support for Analog Devices AD7280A
+	  Lithium Ion Battery Monitoring System.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called ad7280a
+
 config MAX1363
 	tristate "Maxim max1363 ADC driver"
 	depends on I2C
-	select IIO_TRIGGER if IIO_RING_BUFFER
+	select IIO_TRIGGER if IIO_BUFFER
 	select MAX1363_RING_BUFFER
 	help
 	  Say yes here to build support for many Maxim i2c analog to digital
-	  convertors (ADC). (max1361, max1362, max1363, max1364, max1036,
+	  converters (ADC). (max1361, max1362, max1363, max1364, max1036,
 	  max1037, max1038, max1039, max1136, max1136, max1137, max1138,
 	  max1139, max1236, max1237, max11238, max1239, max11600, max11601,
 	  max11602, max11603, max11604, max11605, max11606, max11607,
@@ -200,8 +187,10 @@ config MAX1363
 config MAX1363_RING_BUFFER
 	bool "Maxim max1363: use ring buffer"
 	depends on MAX1363
-	select IIO_RING_BUFFER
+	select IIO_BUFFER
 	select IIO_SW_RING
 	help
 	  Say yes here to include ring buffer support in the MAX1363
 	  ADC driver.
+
+endmenu

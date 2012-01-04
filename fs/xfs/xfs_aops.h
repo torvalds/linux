@@ -47,6 +47,7 @@ typedef struct xfs_ioend {
 	unsigned int		io_type;	/* delalloc / unwritten */
 	int			io_error;	/* I/O error code */
 	atomic_t		io_remaining;	/* hold count */
+	unsigned int		io_isasync : 1;	/* needs aio_complete */
 	struct inode		*io_inode;	/* file being written to */
 	struct buffer_head	*io_buffer_head;/* buffer linked list head */
 	struct buffer_head	*io_buffer_tail;/* buffer linked list tail */
@@ -59,9 +60,6 @@ typedef struct xfs_ioend {
 
 extern const struct address_space_operations xfs_address_space_operations;
 extern int xfs_get_blocks(struct inode *, sector_t, struct buffer_head *, int);
-
-extern void xfs_ioend_init(void);
-extern void xfs_ioend_wait(struct xfs_inode *);
 
 extern void xfs_count_page_state(struct page *, int *, int *);
 

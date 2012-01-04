@@ -9,6 +9,7 @@
 #define KMSG_COMPONENT "zfcp"
 #define pr_fmt(fmt) KMSG_COMPONENT ": " fmt
 
+#include <linux/module.h>
 #include <linux/ctype.h>
 #include <linux/slab.h>
 #include <asm/debug.h>
@@ -161,6 +162,42 @@ void zfcp_dbf_hba_bit_err(char *tag, struct zfcp_fsf_req *req)
 
 	debug_event(dbf->hba, 1, rec, sizeof(*rec));
 	spin_unlock_irqrestore(&dbf->hba_lock, flags);
+}
+
+/**
+ * zfcp_dbf_hba_def_err - trace event for deferred error messages
+ * @adapter: pointer to struct zfcp_adapter
+ * @req_id: request id which caused the deferred error message
+ * @scount: number of sbals incl. the signaling sbal
+ * @pl: array of all involved sbals
+ */
+void zfcp_dbf_hba_def_err(struct zfcp_adapter *adapter, u64 req_id, u16 scount,
+			  void **pl)
+{
+	struct zfcp_dbf *dbf = adapter->dbf;
+	struct zfcp_dbf_pay *payload = &dbf->pay_buf;
+	unsigned long flags;
+	u16 length;
+
+	if (!pl)
+		return;
+
+	spin_lock_irqsave(&dbf->pay_lock, flags);
+	memset(payload, 0, sizeof(*payload));
+
+	memcpy(payload->area, "def_err", 7);
+	payload->fsf_req_id = req_id;
+	payload->counter = 0;
+	length = min((u16)sizeof(struct qdio_buffer),
+		     (u16)ZFCP_DBF_PAY_MAX_REC);
+
+	while ((char *)pl[payload->counter] && payload->counter < scount) {
+		memcpy(payload->data, (char *)pl[payload->counter], length);
+		debug_event(dbf->pay, 1, payload, zfcp_dbf_plen(length));
+		payload->counter++;
+	}
+
+	spin_unlock_irqrestore(&dbf->pay_lock, flags);
 }
 
 static void zfcp_dbf_set_common(struct zfcp_dbf_rec *rec,

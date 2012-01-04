@@ -52,8 +52,6 @@ struct sst25l_flash {
 	struct spi_device	*spi;
 	struct mutex		lock;
 	struct mtd_info		mtd;
-
-	int 			partitioned;
 };
 
 struct flash_info {
@@ -381,8 +379,6 @@ static int __devinit sst25l_probe(struct spi_device *spi)
 	struct sst25l_flash *flash;
 	struct flash_platform_data *data;
 	int ret, i;
-	struct mtd_partition *parts = NULL;
-	int nr_parts = 0;
 
 	flash_info = sst25l_match_device(spi);
 	if (!flash_info)
@@ -414,8 +410,7 @@ static int __devinit sst25l_probe(struct spi_device *spi)
 	dev_info(&spi->dev, "%s (%lld KiB)\n", flash_info->name,
 		 (long long)flash->mtd.size >> 10);
 
-	DEBUG(MTD_DEBUG_LEVEL2,
-	      "mtd .name = %s, .size = 0x%llx (%lldMiB) "
+	pr_debug("mtd .name = %s, .size = 0x%llx (%lldMiB) "
 	      ".erasesize = 0x%.8x (%uKiB) .numeraseregions = %d\n",
 	      flash->mtd.name,
 	      (long long)flash->mtd.size, (long long)(flash->mtd.size >> 20),
@@ -423,37 +418,10 @@ static int __devinit sst25l_probe(struct spi_device *spi)
 	      flash->mtd.numeraseregions);
 
 
-	if (mtd_has_cmdlinepart()) {
-		static const char *part_probes[] = {"cmdlinepart", NULL};
-
-		nr_parts = parse_mtd_partitions(&flash->mtd,
-						part_probes,
-						&parts, 0);
-	}
-
-	if (nr_parts <= 0 && data && data->parts) {
-		parts = data->parts;
-		nr_parts = data->nr_parts;
-	}
-
-	if (nr_parts > 0) {
-		for (i = 0; i < nr_parts; i++) {
-			DEBUG(MTD_DEBUG_LEVEL2, "partitions[%d] = "
-			      "{.name = %s, .offset = 0x%llx, "
-			      ".size = 0x%llx (%lldKiB) }\n",
-			      i, parts[i].name,
-			      (long long)parts[i].offset,
-			      (long long)parts[i].size,
-			      (long long)(parts[i].size >> 10));
-		}
-
-		flash->partitioned = 1;
-		return mtd_device_register(&flash->mtd, parts,
-					   nr_parts);
-	}
-
-	ret = mtd_device_register(&flash->mtd, NULL, 0);
-	if (ret == 1) {
+	ret = mtd_device_parse_register(&flash->mtd, NULL, 0,
+			data ? data->parts : NULL,
+			data ? data->nr_parts : 0);
+	if (ret) {
 		kfree(flash);
 		dev_set_drvdata(&spi->dev, NULL);
 		return -ENODEV;

@@ -106,7 +106,7 @@ struct ext4_free_data {
 	ext4_group_t group;
 
 	/* free block extent */
-	ext4_grpblk_t start_blk;
+	ext4_grpblk_t start_cluster;
 	ext4_grpblk_t count;
 
 	/* transaction which freed this extent */
@@ -139,9 +139,9 @@ enum {
 
 struct ext4_free_extent {
 	ext4_lblk_t fe_logical;
-	ext4_grpblk_t fe_start;
+	ext4_grpblk_t fe_start;	/* In cluster units */
 	ext4_group_t fe_group;
-	ext4_grpblk_t fe_len;
+	ext4_grpblk_t fe_len;	/* In cluster units */
 };
 
 /*
@@ -175,7 +175,7 @@ struct ext4_allocation_context {
 	/* the best found extent */
 	struct ext4_free_extent ac_b_ex;
 
-	/* copy of the bext found extent taken before preallocation efforts */
+	/* copy of the best found extent taken before preallocation efforts */
 	struct ext4_free_extent ac_f_ex;
 
 	/* number of iterations done. we have to track to limit searching */
@@ -216,6 +216,7 @@ struct ext4_buddy {
 static inline ext4_fsblk_t ext4_grp_offs_to_block(struct super_block *sb,
 					struct ext4_free_extent *fex)
 {
-	return ext4_group_first_block_no(sb, fex->fe_group) + fex->fe_start;
+	return ext4_group_first_block_no(sb, fex->fe_group) +
+		(fex->fe_start << EXT4_SB(sb)->s_cluster_bits);
 }
 #endif

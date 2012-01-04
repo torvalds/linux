@@ -74,7 +74,7 @@ static struct map_desc rpc_io_desc[] __initdata = {
 		.length		= 	IO_SIZE	 ,
 		.type		= MT_DEVICE
 	}, {	/* EASI space	*/
-		.virtual	= EASI_BASE,
+		.virtual	= (unsigned long)EASI_BASE,
 		.pfn		= __phys_to_pfn(EASI_START),
 		.length		= EASI_SIZE,
 		.type		= MT_DEVICE
@@ -218,7 +218,7 @@ extern struct sys_timer ioc_timer;
 
 MACHINE_START(RISCPC, "Acorn-RiscPC")
 	/* Maintainer: Russell King */
-	.boot_params	= 0x10000100,
+	.atag_offset	= 0x100,
 	.reserve_lp0	= 1,
 	.reserve_lp1	= 1,
 	.map_io		= rpc_map_io,

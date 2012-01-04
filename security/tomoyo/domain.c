@@ -39,6 +39,8 @@ int tomoyo_update_policy(struct tomoyo_acl_head *new_entry, const int size,
 	if (mutex_lock_interruptible(&tomoyo_policy_lock))
 		return -ENOMEM;
 	list_for_each_entry_rcu(entry, list, list) {
+		if (entry->is_deleted == TOMOYO_GC_IN_PROGRESS)
+			continue;
 		if (!check_duplicate(entry, new_entry))
 			continue;
 		entry->is_deleted = param->is_delete;
@@ -102,10 +104,21 @@ int tomoyo_update_domain(struct tomoyo_acl_info *new_entry, const int size,
 		new_entry->cond = tomoyo_get_condition(param);
 		if (!new_entry->cond)
 			return -EINVAL;
+		/*
+		 * Domain transition preference is allowed for only
+		 * "file execute" entries.
+		 */
+		if (new_entry->cond->transit &&
+		    !(new_entry->type == TOMOYO_TYPE_PATH_ACL &&
+		      container_of(new_entry, struct tomoyo_path_acl, head)
+		      ->perm == 1 << TOMOYO_TYPE_EXECUTE))
+			goto out;
 	}
 	if (mutex_lock_interruptible(&tomoyo_policy_lock))
 		goto out;
 	list_for_each_entry_rcu(entry, list, list) {
+		if (entry->is_deleted == TOMOYO_GC_IN_PROGRESS)
+			continue;
 		if (!tomoyo_same_acl_head(entry, new_entry) ||
 		    !check_duplicate(entry, new_entry))
 			continue;
@@ -157,6 +170,7 @@ retry:
 			continue;
 		if (!tomoyo_condition(r, ptr->cond))
 			continue;
+		r->matched_acl = ptr;
 		r->granted = true;
 		return;
 	}
@@ -501,7 +515,8 @@ struct tomoyo_domain_info *tomoyo_assign_domain(const char *domainname,
 			 * that domain. Do not perform domain transition if
 			 * profile for that domain is not yet created.
 			 */
-			if (!entry->ns->profile_ptr[entry->profile])
+			if (tomoyo_policy_loaded &&
+			    !entry->ns->profile_ptr[entry->profile])
 				return NULL;
 		}
 		return entry;
@@ -557,9 +572,96 @@ out:
 			tomoyo_write_log(&r, "use_profile %u\n",
 					 entry->profile);
 			tomoyo_write_log(&r, "use_group %u\n", entry->group);
+			tomoyo_update_stat(TOMOYO_STAT_POLICY_UPDATES);
 		}
 	}
 	return entry;
+}
+
+/**
+ * tomoyo_environ - Check permission for environment variable names.
+ *
+ * @ee: Pointer to "struct tomoyo_execve".
+ *
+ * Returns 0 on success, negative value otherwise.
+ */
+static int tomoyo_environ(struct tomoyo_execve *ee)
+{
+	struct tomoyo_request_info *r = &ee->r;
+	struct linux_binprm *bprm = ee->bprm;
+	/* env_page.data is allocated by tomoyo_dump_page(). */
+	struct tomoyo_page_dump env_page = { };
+	char *arg_ptr; /* Size is TOMOYO_EXEC_TMPSIZE bytes */
+	int arg_len = 0;
+	unsigned long pos = bprm->p;
+	int offset = pos % PAGE_SIZE;
+	int argv_count = bprm->argc;
+	int envp_count = bprm->envc;
+	int error = -ENOMEM;
+
+	ee->r.type = TOMOYO_MAC_ENVIRON;
+	ee->r.profile = r->domain->profile;
+	ee->r.mode = tomoyo_get_mode(r->domain->ns, ee->r.profile,
+				     TOMOYO_MAC_ENVIRON);
+	if (!r->mode || !envp_count)
+		return 0;
+	arg_ptr = kzalloc(TOMOYO_EXEC_TMPSIZE, GFP_NOFS);
+	if (!arg_ptr)
+		goto out;
+	while (error == -ENOMEM) {
+		if (!tomoyo_dump_page(bprm, pos, &env_page))
+			goto out;
+		pos += PAGE_SIZE - offset;
+		/* Read. */
+		while (argv_count && offset < PAGE_SIZE) {
+			if (!env_page.data[offset++])
+				argv_count--;
+		}
+		if (argv_count) {
+			offset = 0;
+			continue;
+		}
+		while (offset < PAGE_SIZE) {
+			const unsigned char c = env_page.data[offset++];
+
+			if (c && arg_len < TOMOYO_EXEC_TMPSIZE - 10) {
+				if (c == '=') {
+					arg_ptr[arg_len++] = '\0';
+				} else if (c == '\\') {
+					arg_ptr[arg_len++] = '\\';
+					arg_ptr[arg_len++] = '\\';
+				} else if (c > ' ' && c < 127) {
+					arg_ptr[arg_len++] = c;
+				} else {
+					arg_ptr[arg_len++] = '\\';
+					arg_ptr[arg_len++] = (c >> 6) + '0';
+					arg_ptr[arg_len++]
+						= ((c >> 3) & 7) + '0';
+					arg_ptr[arg_len++] = (c & 7) + '0';
+				}
+			} else {
+				arg_ptr[arg_len] = '\0';
+			}
+			if (c)
+				continue;
+			if (tomoyo_env_perm(r, arg_ptr)) {
+				error = -EPERM;
+				break;
+			}
+			if (!--envp_count) {
+				error = 0;
+				break;
+			}
+			arg_len = 0;
+		}
+		offset = 0;
+	}
+out:
+	if (r->mode != TOMOYO_CONFIG_ENFORCING)
+		error = 0;
+	kfree(env_page.data);
+	kfree(arg_ptr);
+	return error;
 }
 
 /**
@@ -577,10 +679,11 @@ int tomoyo_find_next_domain(struct linux_binprm *bprm)
 	struct tomoyo_domain_info *domain = NULL;
 	const char *original_name = bprm->filename;
 	int retval = -ENOMEM;
-	bool need_kfree = false;
 	bool reject_on_transition_failure = false;
-	struct tomoyo_path_info rn = { }; /* real name */
+	const struct tomoyo_path_info *candidate;
+	struct tomoyo_path_info exename;
 	struct tomoyo_execve *ee = kzalloc(sizeof(*ee), GFP_NOFS);
+
 	if (!ee)
 		return -ENOMEM;
 	ee->tmp = kzalloc(TOMOYO_EXEC_TMPSIZE, GFP_NOFS);
@@ -594,40 +697,32 @@ int tomoyo_find_next_domain(struct linux_binprm *bprm)
 	ee->bprm = bprm;
 	ee->r.obj = &ee->obj;
 	ee->obj.path1 = bprm->file->f_path;
- retry:
-	if (need_kfree) {
-		kfree(rn.name);
-		need_kfree = false;
-	}
 	/* Get symlink's pathname of program. */
 	retval = -ENOENT;
-	rn.name = tomoyo_realpath_nofollow(original_name);
-	if (!rn.name)
+	exename.name = tomoyo_realpath_nofollow(original_name);
+	if (!exename.name)
 		goto out;
-	tomoyo_fill_path_info(&rn);
-	need_kfree = true;
-
+	tomoyo_fill_path_info(&exename);
+retry:
 	/* Check 'aggregator' directive. */
 	{
 		struct tomoyo_aggregator *ptr;
 		struct list_head *list =
 			&old_domain->ns->policy_list[TOMOYO_ID_AGGREGATOR];
 		/* Check 'aggregator' directive. */
+		candidate = &exename;
 		list_for_each_entry_rcu(ptr, list, head.list) {
 			if (ptr->head.is_deleted ||
-			    !tomoyo_path_matches_pattern(&rn,
+			    !tomoyo_path_matches_pattern(&exename,
 							 ptr->original_name))
 				continue;
-			kfree(rn.name);
-			need_kfree = false;
-			/* This is OK because it is read only. */
-			rn = *ptr->aggregated_name;
+			candidate = ptr->aggregated_name;
 			break;
 		}
 	}
 
 	/* Check execute permission. */
-	retval = tomoyo_path_permission(&ee->r, TOMOYO_TYPE_EXECUTE, &rn);
+	retval = tomoyo_execute_permission(&ee->r, candidate);
 	if (retval == TOMOYO_RETRY_REQUEST)
 		goto retry;
 	if (retval < 0)
@@ -638,20 +733,51 @@ int tomoyo_find_next_domain(struct linux_binprm *bprm)
 	 * wildcard) rather than the pathname passed to execve()
 	 * (which never contains wildcard).
 	 */
-	if (ee->r.param.path.matched_path) {
-		if (need_kfree)
-			kfree(rn.name);
-		need_kfree = false;
-		/* This is OK because it is read only. */
-		rn = *ee->r.param.path.matched_path;
-	}
+	if (ee->r.param.path.matched_path)
+		candidate = ee->r.param.path.matched_path;
 
-	/* Calculate domain to transit to. */
+	/*
+	 * Check for domain transition preference if "file execute" matched.
+	 * If preference is given, make do_execve() fail if domain transition
+	 * has failed, for domain transition preference should be used with
+	 * destination domain defined.
+	 */
+	if (ee->transition) {
+		const char *domainname = ee->transition->name;
+		reject_on_transition_failure = true;
+		if (!strcmp(domainname, "keep"))
+			goto force_keep_domain;
+		if (!strcmp(domainname, "child"))
+			goto force_child_domain;
+		if (!strcmp(domainname, "reset"))
+			goto force_reset_domain;
+		if (!strcmp(domainname, "initialize"))
+			goto force_initialize_domain;
+		if (!strcmp(domainname, "parent")) {
+			char *cp;
+			strncpy(ee->tmp, old_domain->domainname->name,
+				TOMOYO_EXEC_TMPSIZE - 1);
+			cp = strrchr(ee->tmp, ' ');
+			if (cp)
+				*cp = '\0';
+		} else if (*domainname == '<')
+			strncpy(ee->tmp, domainname, TOMOYO_EXEC_TMPSIZE - 1);
+		else
+			snprintf(ee->tmp, TOMOYO_EXEC_TMPSIZE - 1, "%s %s",
+				 old_domain->domainname->name, domainname);
+		goto force_jump_domain;
+	}
+	/*
+	 * No domain transition preference specified.
+	 * Calculate domain to transit to.
+	 */
 	switch (tomoyo_transition_type(old_domain->ns, old_domain->domainname,
-				       &rn)) {
+				       candidate)) {
 	case TOMOYO_TRANSITION_CONTROL_RESET:
+force_reset_domain:
 		/* Transit to the root of specified namespace. */
-		snprintf(ee->tmp, TOMOYO_EXEC_TMPSIZE - 1, "<%s>", rn.name);
+		snprintf(ee->tmp, TOMOYO_EXEC_TMPSIZE - 1, "<%s>",
+			 candidate->name);
 		/*
 		 * Make do_execve() fail if domain transition across namespaces
 		 * has failed.
@@ -659,11 +785,13 @@ int tomoyo_find_next_domain(struct linux_binprm *bprm)
 		reject_on_transition_failure = true;
 		break;
 	case TOMOYO_TRANSITION_CONTROL_INITIALIZE:
+force_initialize_domain:
 		/* Transit to the child of current namespace's root. */
 		snprintf(ee->tmp, TOMOYO_EXEC_TMPSIZE - 1, "%s %s",
-			 old_domain->ns->name, rn.name);
+			 old_domain->ns->name, candidate->name);
 		break;
 	case TOMOYO_TRANSITION_CONTROL_KEEP:
+force_keep_domain:
 		/* Keep current domain. */
 		domain = old_domain;
 		break;
@@ -677,13 +805,15 @@ int tomoyo_find_next_domain(struct linux_binprm *bprm)
 			 * before /sbin/init.
 			 */
 			domain = old_domain;
-		} else {
-			/* Normal domain transition. */
-			snprintf(ee->tmp, TOMOYO_EXEC_TMPSIZE - 1, "%s %s",
-				 old_domain->domainname->name, rn.name);
+			break;
 		}
+force_child_domain:
+		/* Normal domain transition. */
+		snprintf(ee->tmp, TOMOYO_EXEC_TMPSIZE - 1, "%s %s",
+			 old_domain->domainname->name, candidate->name);
 		break;
 	}
+force_jump_domain:
 	if (!domain)
 		domain = tomoyo_assign_domain(ee->tmp, true);
 	if (domain)
@@ -711,8 +841,11 @@ int tomoyo_find_next_domain(struct linux_binprm *bprm)
 	/* Update reference count on "struct tomoyo_domain_info". */
 	atomic_inc(&domain->users);
 	bprm->cred->security = domain;
-	if (need_kfree)
-		kfree(rn.name);
+	kfree(exename.name);
+	if (!retval) {
+		ee->r.domain = domain;
+		retval = tomoyo_environ(ee);
+	}
 	kfree(ee->tmp);
 	kfree(ee->dump.data);
 	kfree(ee);
@@ -732,7 +865,8 @@ bool tomoyo_dump_page(struct linux_binprm *bprm, unsigned long pos,
 		      struct tomoyo_page_dump *dump)
 {
 	struct page *page;
-	/* dump->data is released by tomoyo_finish_execve(). */
+
+	/* dump->data is released by tomoyo_find_next_domain(). */
 	if (!dump->data) {
 		dump->data = kzalloc(PAGE_SIZE, GFP_NOFS);
 		if (!dump->data)
@@ -753,6 +887,7 @@ bool tomoyo_dump_page(struct linux_binprm *bprm, unsigned long pos,
 		 * So do I.
 		 */
 		char *kaddr = kmap_atomic(page, KM_USER0);
+
 		dump->page = page;
 		memcpy(dump->data + offset, kaddr + offset,
 		       PAGE_SIZE - offset);

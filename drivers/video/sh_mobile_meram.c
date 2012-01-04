@@ -12,29 +12,103 @@
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/device.h>
+#include <linux/pm_runtime.h>
 #include <linux/io.h>
 #include <linux/slab.h>
 #include <linux/platform_device.h>
-
-#include "sh_mobile_meram.h"
+#include <video/sh_mobile_meram.h>
 
 /* meram registers */
-#define MExxCTL 0x0
-#define MExxBSIZE 0x4
-#define MExxMNCF 0x8
-#define MExxSARA 0x10
-#define MExxSARB 0x14
-#define MExxSBSIZE 0x18
+#define MEVCR1			0x4
+#define MEVCR1_RST		(1 << 31)
+#define MEVCR1_WD		(1 << 30)
+#define MEVCR1_AMD1		(1 << 29)
+#define MEVCR1_AMD0		(1 << 28)
+#define MEQSEL1			0x40
+#define MEQSEL2			0x44
 
-#define MERAM_MExxCTL_VAL(ctl, next_icb, addr)	\
-	((ctl) | (((next_icb) & 0x1f) << 11) | (((addr) & 0x7ff) << 16))
-#define	MERAM_MExxBSIZE_VAL(a, b, c) \
-	(((a) << 28) | ((b) << 16) | (c))
+#define MExxCTL			0x400
+#define MExxCTL_BV		(1 << 31)
+#define MExxCTL_BSZ_SHIFT	28
+#define MExxCTL_MSAR_MASK	(0x7ff << MExxCTL_MSAR_SHIFT)
+#define MExxCTL_MSAR_SHIFT	16
+#define MExxCTL_NXT_MASK	(0x1f << MExxCTL_NXT_SHIFT)
+#define MExxCTL_NXT_SHIFT	11
+#define MExxCTL_WD1		(1 << 10)
+#define MExxCTL_WD0		(1 << 9)
+#define MExxCTL_WS		(1 << 8)
+#define MExxCTL_CB		(1 << 7)
+#define MExxCTL_WBF		(1 << 6)
+#define MExxCTL_WF		(1 << 5)
+#define MExxCTL_RF		(1 << 4)
+#define MExxCTL_CM		(1 << 3)
+#define MExxCTL_MD_READ		(1 << 0)
+#define MExxCTL_MD_WRITE	(2 << 0)
+#define MExxCTL_MD_ICB_WB	(3 << 0)
+#define MExxCTL_MD_ICB		(4 << 0)
+#define MExxCTL_MD_FB		(7 << 0)
+#define MExxCTL_MD_MASK		(7 << 0)
+#define MExxBSIZE		0x404
+#define MExxBSIZE_RCNT_SHIFT	28
+#define MExxBSIZE_YSZM1_SHIFT	16
+#define MExxBSIZE_XSZM1_SHIFT	0
+#define MExxMNCF		0x408
+#define MExxMNCF_KWBNM_SHIFT	28
+#define MExxMNCF_KRBNM_SHIFT	24
+#define MExxMNCF_BNM_SHIFT	16
+#define MExxMNCF_XBV		(1 << 15)
+#define MExxMNCF_CPL_YCBCR444	(1 << 12)
+#define MExxMNCF_CPL_YCBCR420	(2 << 12)
+#define MExxMNCF_CPL_YCBCR422	(3 << 12)
+#define MExxMNCF_CPL_MSK	(3 << 12)
+#define MExxMNCF_BL		(1 << 2)
+#define MExxMNCF_LNM_SHIFT	0
+#define MExxSARA		0x410
+#define MExxSARB		0x414
+#define MExxSBSIZE		0x418
+#define MExxSBSIZE_HDV		(1 << 31)
+#define MExxSBSIZE_HSZ16	(0 << 28)
+#define MExxSBSIZE_HSZ32	(1 << 28)
+#define MExxSBSIZE_HSZ64	(2 << 28)
+#define MExxSBSIZE_HSZ128	(3 << 28)
+#define MExxSBSIZE_SBSIZZ_SHIFT	0
 
-#define MEVCR1 0x4
-#define MEACTS 0x10
-#define MEQSEL1 0x40
-#define MEQSEL2 0x44
+#define MERAM_MExxCTL_VAL(next, addr)	\
+	((((next) << MExxCTL_NXT_SHIFT) & MExxCTL_NXT_MASK) | \
+	 (((addr) << MExxCTL_MSAR_SHIFT) & MExxCTL_MSAR_MASK))
+#define	MERAM_MExxBSIZE_VAL(rcnt, yszm1, xszm1) \
+	(((rcnt) << MExxBSIZE_RCNT_SHIFT) | \
+	 ((yszm1) << MExxBSIZE_YSZM1_SHIFT) | \
+	 ((xszm1) << MExxBSIZE_XSZM1_SHIFT))
+
+#define SH_MOBILE_MERAM_ICB_NUM		32
+
+static unsigned long common_regs[] = {
+	MEVCR1,
+	MEQSEL1,
+	MEQSEL2,
+};
+#define CMN_REGS_SIZE ARRAY_SIZE(common_regs)
+
+static unsigned long icb_regs[] = {
+	MExxCTL,
+	MExxBSIZE,
+	MExxMNCF,
+	MExxSARA,
+	MExxSARB,
+	MExxSBSIZE,
+};
+#define ICB_REGS_SIZE ARRAY_SIZE(icb_regs)
+
+struct sh_mobile_meram_priv {
+	void __iomem	*base;
+	struct mutex	lock;
+	unsigned long	used_icb;
+	int		used_meram_cache_regions;
+	unsigned long	used_meram_cache[SH_MOBILE_MERAM_ICB_NUM];
+	unsigned long	cmn_saved_regs[CMN_REGS_SIZE];
+	unsigned long	icb_saved_regs[ICB_REGS_SIZE * SH_MOBILE_MERAM_ICB_NUM];
+};
 
 /* settings */
 #define MERAM_SEC_LINE 15
@@ -44,8 +118,7 @@
  * MERAM/ICB access functions
  */
 
-#define MERAM_ICB_OFFSET(base, idx, off)	\
-	((base) + (0x400 + ((idx) * 0x20) + (off)))
+#define MERAM_ICB_OFFSET(base, idx, off)	((base) + (off) + (idx) * 0x20)
 
 static inline void meram_write_icb(void __iomem *base, int idx, int off,
 	unsigned long val)
@@ -280,17 +353,18 @@ static int meram_init(struct sh_mobile_meram_priv *priv,
 	/*
 	 * Set MERAM for framebuffer
 	 *
-	 * 0x70f:  WD = 0x3, WS=0x1, CM=0x1, MD=FB mode
 	 * we also chain the cache_icb and the marker_icb.
 	 * we also split the allocated MERAM buffer between two ICBs.
 	 */
 	meram_write_icb(priv->base, icb->cache_icb, MExxCTL,
-			MERAM_MExxCTL_VAL(0x70f, icb->marker_icb,
-					  icb->meram_offset));
+			MERAM_MExxCTL_VAL(icb->marker_icb, icb->meram_offset) |
+			MExxCTL_WD1 | MExxCTL_WD0 | MExxCTL_WS | MExxCTL_CM |
+			MExxCTL_MD_FB);
 	meram_write_icb(priv->base, icb->marker_icb, MExxCTL,
-			MERAM_MExxCTL_VAL(0x70f, icb->cache_icb,
-					  icb->meram_offset +
-					  icb->meram_size / 2));
+			MERAM_MExxCTL_VAL(icb->cache_icb, icb->meram_offset +
+					  icb->meram_size / 2) |
+			MExxCTL_WD1 | MExxCTL_WD0 | MExxCTL_WS | MExxCTL_CM |
+			MExxCTL_MD_FB);
 
 	return 0;
 }
@@ -299,8 +373,10 @@ static void meram_deinit(struct sh_mobile_meram_priv *priv,
 			struct sh_mobile_meram_icb *icb)
 {
 	/* disable ICB */
-	meram_write_icb(priv->base, icb->cache_icb,  MExxCTL, 0);
-	meram_write_icb(priv->base, icb->marker_icb, MExxCTL, 0);
+	meram_write_icb(priv->base, icb->cache_icb,  MExxCTL,
+			MExxCTL_WBF | MExxCTL_WF | MExxCTL_RF);
+	meram_write_icb(priv->base, icb->marker_icb, MExxCTL,
+			MExxCTL_WBF | MExxCTL_WF | MExxCTL_RF);
 	icb->cache_unit = 0;
 }
 
@@ -337,24 +413,22 @@ static int sh_mobile_meram_register(struct sh_mobile_meram_info *pdata,
 		xres, yres, (!pixelformat) ? "yuv" : "rgb",
 		base_addr_y, base_addr_c);
 
-	mutex_lock(&priv->lock);
-
 	/* we can't handle wider than 8192px */
 	if (xres > 8192) {
 		dev_err(&pdev->dev, "width exceeding the limit (> 8192).");
-		error = -EINVAL;
-		goto err;
-	}
-
-	if (priv->used_meram_cache_regions + 2 > SH_MOBILE_MERAM_ICB_NUM) {
-		dev_err(&pdev->dev, "no more ICB available.");
-		error = -EINVAL;
-		goto err;
+		return -EINVAL;
 	}
 
 	/* do we have at least one ICB config? */
 	if (cfg->icb[0].marker_icb < 0 || cfg->icb[0].cache_icb < 0) {
 		dev_err(&pdev->dev, "at least one ICB is required.");
+		return -EINVAL;
+	}
+
+	mutex_lock(&priv->lock);
+
+	if (priv->used_meram_cache_regions + 2 > SH_MOBILE_MERAM_ICB_NUM) {
+		dev_err(&pdev->dev, "no more ICB available.");
 		error = -EINVAL;
 		goto err;
 	}
@@ -460,6 +534,57 @@ static int sh_mobile_meram_update(struct sh_mobile_meram_info *pdata,
 	return 0;
 }
 
+static int sh_mobile_meram_runtime_suspend(struct device *dev)
+{
+	struct platform_device *pdev = to_platform_device(dev);
+	struct sh_mobile_meram_priv *priv = platform_get_drvdata(pdev);
+	int k, j;
+
+	for (k = 0; k < CMN_REGS_SIZE; k++)
+		priv->cmn_saved_regs[k] = meram_read_reg(priv->base,
+			common_regs[k]);
+
+	for (j = 0; j < 32; j++) {
+		if (!test_bit(j, &priv->used_icb))
+			continue;
+		for (k = 0; k < ICB_REGS_SIZE; k++) {
+			priv->icb_saved_regs[j * ICB_REGS_SIZE + k] =
+				meram_read_icb(priv->base, j, icb_regs[k]);
+			/* Reset ICB on resume */
+			if (icb_regs[k] == MExxCTL)
+				priv->icb_saved_regs[j * ICB_REGS_SIZE + k] |=
+					MExxCTL_WBF | MExxCTL_WF | MExxCTL_RF;
+		}
+	}
+	return 0;
+}
+
+static int sh_mobile_meram_runtime_resume(struct device *dev)
+{
+	struct platform_device *pdev = to_platform_device(dev);
+	struct sh_mobile_meram_priv *priv = platform_get_drvdata(pdev);
+	int k, j;
+
+	for (j = 0; j < 32; j++) {
+		if (!test_bit(j, &priv->used_icb))
+			continue;
+		for (k = 0; k < ICB_REGS_SIZE; k++) {
+			meram_write_icb(priv->base, j, icb_regs[k],
+			priv->icb_saved_regs[j * ICB_REGS_SIZE + k]);
+		}
+	}
+
+	for (k = 0; k < CMN_REGS_SIZE; k++)
+		meram_write_reg(priv->base, common_regs[k],
+			priv->cmn_saved_regs[k]);
+	return 0;
+}
+
+static const struct dev_pm_ops sh_mobile_meram_dev_pm_ops = {
+	.runtime_suspend = sh_mobile_meram_runtime_suspend,
+	.runtime_resume = sh_mobile_meram_runtime_resume,
+};
+
 static struct sh_mobile_meram_ops sh_mobile_meram_ops = {
 	.module			= THIS_MODULE,
 	.meram_register		= sh_mobile_meram_register,
@@ -513,7 +638,9 @@ static int __devinit sh_mobile_meram_probe(struct platform_device *pdev)
 
 	/* initialize ICB addressing mode */
 	if (pdata->addr_mode == SH_MOBILE_MERAM_MODE1)
-		meram_write_reg(priv->base, MEVCR1, 1 << 29);
+		meram_write_reg(priv->base, MEVCR1, MEVCR1_AMD1);
+
+	pm_runtime_enable(&pdev->dev);
 
 	dev_info(&pdev->dev, "sh_mobile_meram initialized.");
 
@@ -530,6 +657,8 @@ static int sh_mobile_meram_remove(struct platform_device *pdev)
 {
 	struct sh_mobile_meram_priv *priv = platform_get_drvdata(pdev);
 
+	pm_runtime_disable(&pdev->dev);
+
 	if (priv->base)
 		iounmap(priv->base);
 
@@ -544,6 +673,7 @@ static struct platform_driver sh_mobile_meram_driver = {
 	.driver	= {
 		.name		= "sh_mobile_meram",
 		.owner		= THIS_MODULE,
+		.pm		= &sh_mobile_meram_dev_pm_ops,
 	},
 	.probe		= sh_mobile_meram_probe,
 	.remove		= sh_mobile_meram_remove,

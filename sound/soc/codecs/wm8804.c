@@ -16,6 +16,7 @@
 #include <linux/delay.h>
 #include <linux/pm.h>
 #include <linux/i2c.h>
+#include <linux/of_device.h>
 #include <linux/spi/spi.h>
 #include <linux/regulator/consumer.h>
 #include <linux/slab.h>
@@ -717,6 +718,12 @@ static struct snd_soc_codec_driver soc_codec_dev_wm8804 = {
 	.volatile_register = wm8804_volatile
 };
 
+static const struct of_device_id wm8804_of_match[] = {
+	{ .compatible = "wlf,wm8804", },
+	{ }
+};
+MODULE_DEVICE_TABLE(of, wm8804_of_match);
+
 #if defined(CONFIG_SPI_MASTER)
 static int __devinit wm8804_spi_probe(struct spi_device *spi)
 {
@@ -748,6 +755,7 @@ static struct spi_driver wm8804_spi_driver = {
 	.driver = {
 		.name = "wm8804",
 		.owner = THIS_MODULE,
+		.of_match_table = wm8804_of_match,
 	},
 	.probe = wm8804_spi_probe,
 	.remove = __devexit_p(wm8804_spi_remove)
@@ -792,6 +800,7 @@ static struct i2c_driver wm8804_i2c_driver = {
 	.driver = {
 		.name = "wm8804",
 		.owner = THIS_MODULE,
+		.of_match_table = wm8804_of_match,
 	},
 	.probe = wm8804_i2c_probe,
 	.remove = __devexit_p(wm8804_i2c_remove),

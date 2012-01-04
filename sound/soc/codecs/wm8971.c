@@ -546,6 +546,9 @@ static int wm8971_set_bias_level(struct snd_soc_codec *codec,
 	case SND_SOC_BIAS_PREPARE:
 		break;
 	case SND_SOC_BIAS_STANDBY:
+		if (codec->dapm.bias_level == SND_SOC_BIAS_OFF)
+			snd_soc_cache_sync(codec);
+
 		/* mute dac and set vmid to 500k, enable VREF */
 		snd_soc_write(codec, WM8971_PWR1, pwr_reg | 0x0140);
 		break;
@@ -605,19 +608,7 @@ static int wm8971_suspend(struct snd_soc_codec *codec, pm_message_t state)
 
 static int wm8971_resume(struct snd_soc_codec *codec)
 {
-	int i;
-	u8 data[2];
-	u16 *cache = codec->reg_cache;
 	u16 reg;
-
-	/* Sync reg_cache with the hardware */
-	for (i = 0; i < ARRAY_SIZE(wm8971_reg); i++) {
-		if (i + 1 == WM8971_RESET)
-			continue;
-		data[0] = (i << 1) | ((cache[i] >> 8) & 0x0001);
-		data[1] = cache[i] & 0x00ff;
-		codec->hw_write(codec->control_data, data, 2);
-	}
 
 	wm8971_set_bias_level(codec, SND_SOC_BIAS_STANDBY);
 
@@ -660,25 +651,14 @@ static int wm8971_probe(struct snd_soc_codec *codec)
 		msecs_to_jiffies(1000));
 
 	/* set the update bits */
-	reg = snd_soc_read(codec, WM8971_LDAC);
-	snd_soc_write(codec, WM8971_LDAC, reg | 0x0100);
-	reg = snd_soc_read(codec, WM8971_RDAC);
-	snd_soc_write(codec, WM8971_RDAC, reg | 0x0100);
-
-	reg = snd_soc_read(codec, WM8971_LOUT1V);
-	snd_soc_write(codec, WM8971_LOUT1V, reg | 0x0100);
-	reg = snd_soc_read(codec, WM8971_ROUT1V);
-	snd_soc_write(codec, WM8971_ROUT1V, reg | 0x0100);
-
-	reg = snd_soc_read(codec, WM8971_LOUT2V);
-	snd_soc_write(codec, WM8971_LOUT2V, reg | 0x0100);
-	reg = snd_soc_read(codec, WM8971_ROUT2V);
-	snd_soc_write(codec, WM8971_ROUT2V, reg | 0x0100);
-
-	reg = snd_soc_read(codec, WM8971_LINVOL);
-	snd_soc_write(codec, WM8971_LINVOL, reg | 0x0100);
-	reg = snd_soc_read(codec, WM8971_RINVOL);
-	snd_soc_write(codec, WM8971_RINVOL, reg | 0x0100);
+	snd_soc_update_bits(codec, WM8971_LDAC, 0x0100, 0x0100);
+	snd_soc_update_bits(codec, WM8971_RDAC, 0x0100, 0x0100);
+	snd_soc_update_bits(codec, WM8971_LOUT1V, 0x0100, 0x0100);
+	snd_soc_update_bits(codec, WM8971_ROUT1V, 0x0100, 0x0100);
+	snd_soc_update_bits(codec, WM8971_LOUT2V, 0x0100, 0x0100);
+	snd_soc_update_bits(codec, WM8971_ROUT2V, 0x0100, 0x0100);
+	snd_soc_update_bits(codec, WM8971_LINVOL, 0x0100, 0x0100);
+	snd_soc_update_bits(codec, WM8971_RINVOL, 0x0100, 0x0100);
 
 	snd_soc_add_controls(codec, wm8971_snd_controls,
 				ARRAY_SIZE(wm8971_snd_controls));

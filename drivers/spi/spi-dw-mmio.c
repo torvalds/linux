@@ -15,6 +15,7 @@
 #include <linux/slab.h>
 #include <linux/spi/spi.h>
 #include <linux/scatterlist.h>
+#include <linux/module.h>
 
 #include "spi-dw.h"
 
@@ -127,24 +128,14 @@ static int __devexit dw_spi_mmio_remove(struct platform_device *pdev)
 }
 
 static struct platform_driver dw_spi_mmio_driver = {
+	.probe		= dw_spi_mmio_probe,
 	.remove		= __devexit_p(dw_spi_mmio_remove),
 	.driver		= {
 		.name	= DRIVER_NAME,
 		.owner	= THIS_MODULE,
 	},
 };
-
-static int __init dw_spi_mmio_init(void)
-{
-	return platform_driver_probe(&dw_spi_mmio_driver, dw_spi_mmio_probe);
-}
-module_init(dw_spi_mmio_init);
-
-static void __exit dw_spi_mmio_exit(void)
-{
-	platform_driver_unregister(&dw_spi_mmio_driver);
-}
-module_exit(dw_spi_mmio_exit);
+module_platform_driver(dw_spi_mmio_driver);
 
 MODULE_AUTHOR("Jean-Hugues Deschenes <jean-hugues.deschenes@octasic.com>");
 MODULE_DESCRIPTION("Memory-mapped I/O interface driver for DW SPI Core");

@@ -93,8 +93,8 @@
  * The Area Descriptor is a 32-bit value that determine which bits in each
  * pixel are to be used for each color.
  */
-static unsigned int p1022ds_get_pixel_format(unsigned int bits_per_pixel,
-	int monitor_port)
+static u32 p1022ds_get_pixel_format(enum fsl_diu_monitor_port port,
+				    unsigned int bits_per_pixel)
 {
 	switch (bits_per_pixel) {
 	case 32:
@@ -118,7 +118,8 @@ static unsigned int p1022ds_get_pixel_format(unsigned int bits_per_pixel,
  * On some boards, the gamma table for some ports may need to be modified.
  * This is not the case on the P1022DS, so we do nothing.
 */
-static void p1022ds_set_gamma_table(int monitor_port, char *gamma_table_base)
+static void p1022ds_set_gamma_table(enum fsl_diu_monitor_port port,
+				    char *gamma_table_base)
 {
 }
 
@@ -126,38 +127,43 @@ static void p1022ds_set_gamma_table(int monitor_port, char *gamma_table_base)
  * p1022ds_set_monitor_port: switch the output to a different monitor port
  *
  */
-static void p1022ds_set_monitor_port(int monitor_port)
+static void p1022ds_set_monitor_port(enum fsl_diu_monitor_port port)
 {
-	struct device_node *pixis_node;
+	struct device_node *np;
 	void __iomem *pixis;
 	u8 __iomem *brdcfg1;
 
-	pixis_node = of_find_compatible_node(NULL, NULL, "fsl,p1022ds-pixis");
-	if (!pixis_node) {
+	np = of_find_compatible_node(NULL, NULL, "fsl,p1022ds-fpga");
+	if (!np)
+		/* older device trees used "fsl,p1022ds-pixis" */
+		np = of_find_compatible_node(NULL, NULL, "fsl,p1022ds-pixis");
+	if (!np) {
 		pr_err("p1022ds: missing ngPIXIS node\n");
 		return;
 	}
 
-	pixis = of_iomap(pixis_node, 0);
+	pixis = of_iomap(np, 0);
 	if (!pixis) {
 		pr_err("p1022ds: could not map ngPIXIS registers\n");
 		return;
 	}
 	brdcfg1 = pixis + 9;	/* BRDCFG1 is at offset 9 in the ngPIXIS */
 
-	switch (monitor_port) {
-	case 0: /* DVI */
+	switch (port) {
+	case FSL_DIU_PORT_DVI:
+		printk(KERN_INFO "%s:%u\n", __func__, __LINE__);
 		/* Enable the DVI port, disable the DFP and the backlight */
 		clrsetbits_8(brdcfg1, PX_BRDCFG1_DFPEN | PX_BRDCFG1_BACKLIGHT,
 			     PX_BRDCFG1_DVIEN);
 		break;
-	case 1: /* Single link LVDS */
+	case FSL_DIU_PORT_LVDS:
+		printk(KERN_INFO "%s:%u\n", __func__, __LINE__);
 		/* Enable the DFP port, disable the DVI and the backlight */
 		clrsetbits_8(brdcfg1, PX_BRDCFG1_DVIEN | PX_BRDCFG1_BACKLIGHT,
 			     PX_BRDCFG1_DFPEN);
 		break;
 	default:
-		pr_err("p1022ds: unsupported monitor port %i\n", monitor_port);
+		pr_err("p1022ds: unsupported monitor port %i\n", port);
 	}
 
 	iounmap(pixis);
@@ -214,23 +220,18 @@ void p1022ds_set_pixel_clock(unsigned int pixclock)
 }
 
 /**
- * p1022ds_show_monitor_port: show the current monitor
- *
- * This function returns a string indicating whether the current monitor is
- * set to DVI or LVDS.
+ * p1022ds_valid_monitor_port: set the monitor port for sysfs
  */
-ssize_t p1022ds_show_monitor_port(int monitor_port, char *buf)
+enum fsl_diu_monitor_port
+p1022ds_valid_monitor_port(enum fsl_diu_monitor_port port)
 {
-	return sprintf(buf, "%c0 - DVI\n%c1 - Single link LVDS\n",
-		monitor_port == 0 ? '*' : ' ', monitor_port == 1 ? '*' : ' ');
-}
-
-/**
- * p1022ds_set_sysfs_monitor_port: set the monitor port for sysfs
- */
-int p1022ds_set_sysfs_monitor_port(int val)
-{
-	return val < 2 ? val : 0;
+	switch (port) {
+	case FSL_DIU_PORT_DVI:
+	case FSL_DIU_PORT_LVDS:
+		return port;
+	default:
+		return FSL_DIU_PORT_DVI; /* Dual-link LVDS is not supported */
+	}
 }
 
 #endif
@@ -305,8 +306,7 @@ static void __init p1022_ds_setup_arch(void)
 	diu_ops.set_gamma_table		= p1022ds_set_gamma_table;
 	diu_ops.set_monitor_port	= p1022ds_set_monitor_port;
 	diu_ops.set_pixel_clock		= p1022ds_set_pixel_clock;
-	diu_ops.show_monitor_port	= p1022ds_show_monitor_port;
-	diu_ops.set_sysfs_monitor_port	= p1022ds_set_sysfs_monitor_port;
+	diu_ops.valid_monitor_port	= p1022ds_valid_monitor_port;
 #endif
 
 #ifdef CONFIG_SMP

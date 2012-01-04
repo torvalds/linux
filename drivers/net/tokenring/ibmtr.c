@@ -823,7 +823,7 @@ static const struct net_device_ops trdev_netdev_ops = {
 	.ndo_open		= tok_open,
 	.ndo_stop		= tok_close,
 	.ndo_start_xmit		= tok_send_packet,
-	.ndo_set_multicast_list = tok_set_multicast_list,
+	.ndo_set_rx_mode	= tok_set_multicast_list,
 	.ndo_change_mtu		= ibmtr_change_mtu,
 };
 

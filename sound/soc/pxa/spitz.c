@@ -301,7 +301,6 @@ static int spitz_wm8750_init(struct snd_soc_pcm_runtime *rtd)
 	/* Set up spitz specific audio paths */
 	snd_soc_dapm_add_routes(dapm, audio_map, ARRAY_SIZE(audio_map));
 
-	snd_soc_dapm_sync(dapm);
 	return 0;
 }
 
@@ -312,7 +311,7 @@ static struct snd_soc_dai_link spitz_dai = {
 	.cpu_dai_name = "pxa2xx-i2s",
 	.codec_dai_name = "wm8750-hifi",
 	.platform_name = "pxa-pcm-audio",
-	.codec_name = "wm8750-codec.0-001b",
+	.codec_name = "wm8750.0-001b",
 	.init = spitz_wm8750_init,
 	.ops = &spitz_ops,
 };

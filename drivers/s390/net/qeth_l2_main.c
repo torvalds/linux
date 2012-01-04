@@ -409,7 +409,7 @@ static int qeth_l2_process_inbound_buffer(struct qeth_card *card,
 	BUG_ON(!budget);
 	while (budget) {
 		skb = qeth_core_get_next_skb(card,
-			card->qdio.in_q->bufs[card->rx.b_index].buffer,
+			&card->qdio.in_q->bufs[card->rx.b_index],
 			&card->rx.b_element, &card->rx.e_offset, &hdr);
 		if (!skb) {
 			*done = 1;
@@ -925,7 +925,7 @@ static const struct net_device_ops qeth_l2_netdev_ops = {
 	.ndo_get_stats		= qeth_get_stats,
 	.ndo_start_xmit		= qeth_l2_hard_start_xmit,
 	.ndo_validate_addr	= eth_validate_addr,
-	.ndo_set_multicast_list = qeth_l2_set_multicast_list,
+	.ndo_set_rx_mode	= qeth_l2_set_multicast_list,
 	.ndo_do_ioctl	   	= qeth_l2_do_ioctl,
 	.ndo_set_mac_address    = qeth_l2_set_mac_address,
 	.ndo_change_mtu	   	= qeth_change_mtu,

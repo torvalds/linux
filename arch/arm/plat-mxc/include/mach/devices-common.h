@@ -14,10 +14,22 @@
 extern struct device mxc_aips_bus;
 extern struct device mxc_ahb_bus;
 
-struct platform_device *imx_add_platform_device_dmamask(
+static inline struct platform_device *imx_add_platform_device_dmamask(
 		const char *name, int id,
 		const struct resource *res, unsigned int num_resources,
-		const void *data, size_t size_data, u64 dmamask);
+		const void *data, size_t size_data, u64 dmamask)
+{
+	struct platform_device_info pdevinfo = {
+		.name = name,
+		.id = id,
+		.res = res,
+		.num_res = num_resources,
+		.data = data,
+		.size_data = size_data,
+		.dma_mask = dmamask,
+	};
+	return platform_device_register_full(&pdevinfo);
+}
 
 static inline struct platform_device *imx_add_platform_device(
 		const char *name, int id,
@@ -251,6 +263,14 @@ struct platform_device *__init imx_add_mxc_nand(
 		const struct imx_mxc_nand_data *data,
 		const struct mxc_nand_platform_data *pdata);
 
+struct imx_pata_imx_data {
+	resource_size_t iobase;
+	resource_size_t iosize;
+	resource_size_t irq;
+};
+struct platform_device *__init imx_add_pata_imx(
+		const struct imx_pata_imx_data *data);
+
 struct imx_mxc_pwm_data {
 	int id;
 	resource_size_t iobase;
@@ -301,3 +321,13 @@ struct platform_device *__init imx_add_spi_imx(
 struct platform_device *imx_add_imx_dma(void);
 struct platform_device *imx_add_imx_sdma(char *name,
 	resource_size_t iobase, int irq, struct sdma_platform_data *pdata);
+
+#include <linux/ahci_platform.h>
+struct imx_ahci_imx_data {
+	const char *devid;
+	resource_size_t iobase;
+	resource_size_t irq;
+};
+struct platform_device *__init imx_add_ahci_imx(
+		const struct imx_ahci_imx_data *data,
+		const struct ahci_platform_data *pdata);

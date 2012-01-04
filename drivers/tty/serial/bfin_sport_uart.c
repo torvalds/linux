@@ -294,7 +294,7 @@ static int sport_startup(struct uart_port *port)
 		if (request_irq(gpio_to_irq(up->cts_pin),
 			sport_mctrl_cts_int,
 			IRQF_TRIGGER_RISING | IRQF_TRIGGER_FALLING |
-			IRQF_DISABLED, "BFIN_SPORT_UART_CTS", up)) {
+			0, "BFIN_SPORT_UART_CTS", up)) {
 			up->cts_pin = -1;
 			dev_info(port->dev, "Unable to attach BlackFin UART over SPORT CTS interrupt. So, disable it.\n");
 		}

@@ -60,6 +60,7 @@
 #include <plat/iic-core.h>
 #include <plat/fb-core.h>
 #include <plat/nand-core.h>
+#include <plat/adc-core.h>
 
 static struct map_desc s3c2416_iodesc[] __initdata = {
 	IODESC_ENT(WATCHDOG),
@@ -97,6 +98,8 @@ int __init s3c2416_init(void)
 
 	s3c_fb_setname("s3c2443-fb");
 
+	s3c_adc_setname("s3c2416-adc");
+
 #ifdef CONFIG_PM
 	register_syscore_ops(&s3c2416_pm_syscore_ops);
 #endif
@@ -120,8 +123,8 @@ void __init s3c2416_init_uarts(struct s3c2410_uartcfg *cfg, int no)
 
 void __init s3c2416_map_io(void)
 {
-	s3c24xx_gpiocfg_default.set_pull = s3c_gpio_setpull_updown;
-	s3c24xx_gpiocfg_default.get_pull = s3c_gpio_getpull_updown;
+	s3c24xx_gpiocfg_default.set_pull = samsung_gpio_setpull_updown;
+	s3c24xx_gpiocfg_default.get_pull = samsung_gpio_getpull_updown;
 
 	/* initialize device information early */
 	s3c2416_default_sdhci0();

@@ -269,6 +269,8 @@ void dbg_dump_lprop(const struct ubifs_info *c, const struct ubifs_lprops *lp);
 void dbg_dump_lprops(struct ubifs_info *c);
 void dbg_dump_lpt_info(struct ubifs_info *c);
 void dbg_dump_leb(const struct ubifs_info *c, int lnum);
+void dbg_dump_sleb(const struct ubifs_info *c,
+		   const struct ubifs_scan_leb *sleb, int offs);
 void dbg_dump_znode(const struct ubifs_info *c,
 		    const struct ubifs_znode *znode);
 void dbg_dump_heap(struct ubifs_info *c, struct ubifs_lpt_heap *heap, int cat);
@@ -386,6 +388,9 @@ static inline void dbg_dump_lprops(struct ubifs_info *c)          { return; }
 static inline void dbg_dump_lpt_info(struct ubifs_info *c)        { return; }
 static inline void dbg_dump_leb(const struct ubifs_info *c,
 				int lnum)                         { return; }
+static inline void
+dbg_dump_sleb(const struct ubifs_info *c,
+	      const struct ubifs_scan_leb *sleb, int offs)        { return; }
 static inline void
 dbg_dump_znode(const struct ubifs_info *c,
 	       const struct ubifs_znode *znode)                   { return; }

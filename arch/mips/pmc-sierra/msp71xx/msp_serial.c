@@ -27,6 +27,7 @@
 #include <linux/serial.h>
 #include <linux/serial_core.h>
 #include <linux/serial_reg.h>
+#include <linux/slab.h>
 
 #include <asm/bootinfo.h>
 #include <asm/io.h>
@@ -37,6 +38,55 @@
 #include <msp_prom.h>
 #include <msp_int.h>
 #include <msp_regs.h>
+
+struct msp_uart_data {
+	int	last_lcr;
+};
+
+static void msp_serial_out(struct uart_port *p, int offset, int value)
+{
+	struct msp_uart_data *d = p->private_data;
+
+	if (offset == UART_LCR)
+		d->last_lcr = value;
+
+	offset <<= p->regshift;
+	writeb(value, p->membase + offset);
+}
+
+static unsigned int msp_serial_in(struct uart_port *p, int offset)
+{
+	offset <<= p->regshift;
+
+	return readb(p->membase + offset);
+}
+
+static int msp_serial_handle_irq(struct uart_port *p)
+{
+	struct msp_uart_data *d = p->private_data;
+	unsigned int iir = readb(p->membase + (UART_IIR << p->regshift));
+
+	if (serial8250_handle_irq(p, iir)) {
+		return 1;
+	} else if ((iir & UART_IIR_BUSY) == UART_IIR_BUSY) {
+		/*
+		 * The DesignWare APB UART has an Busy Detect (0x07) interrupt
+		 * meaning an LCR write attempt occurred while the UART was
+		 * busy. The interrupt must be cleared by reading the UART
+		 * status register (USR) and the LCR re-written.
+		 *
+		 * Note: MSP reserves 0x20 bytes of address space for the UART
+		 * and the USR is mapped in a separate block at an offset of
+		 * 0xc0 from the start of the UART.
+		 */
+		(void)readb(p->membase + 0xc0);
+		writeb(d->last_lcr, p->membase + (UART_LCR << p->regshift));
+
+		return 1;
+	}
+
+	return 0;
+}
 
 void __init msp_serial_setup(void)
 {
@@ -59,13 +109,22 @@ void __init msp_serial_setup(void)
 	up.irq          = MSP_INT_UART0;
 	up.uartclk      = uartclk;
 	up.regshift     = 2;
-	up.iotype       = UPIO_DWAPB; /* UPIO_MEM like */
+	up.iotype       = UPIO_MEM;
 	up.flags        = ASYNC_BOOT_AUTOCONF | ASYNC_SKIP_TEST;
 	up.type         = PORT_16550A;
 	up.line         = 0;
-	up.private_data		= (void*)UART0_STATUS_REG;
-	if (early_serial_setup(&up))
-		printk(KERN_ERR "Early serial init of port 0 failed\n");
+	up.serial_out	= msp_serial_out;
+	up.serial_in	= msp_serial_in;
+	up.handle_irq	= msp_serial_handle_irq;
+	up.private_data	= kzalloc(sizeof(struct msp_uart_data), GFP_KERNEL);
+	if (!up.private_data) {
+		pr_err("failed to allocate uart private data\n");
+		return;
+	}
+	if (early_serial_setup(&up)) {
+		kfree(up.private_data);
+		pr_err("Early serial init of port 0 failed\n");
+	}
 
 	/* Initialize the second serial port, if one exists */
 	switch (mips_machtype) {
@@ -88,6 +147,8 @@ void __init msp_serial_setup(void)
 	up.irq          = MSP_INT_UART1;
 	up.line         = 1;
 	up.private_data		= (void*)UART1_STATUS_REG;
-	if (early_serial_setup(&up))
-		printk(KERN_ERR "Early serial init of port 1 failed\n");
+	if (early_serial_setup(&up)) {
+		kfree(up.private_data);
+		pr_err("Early serial init of port 1 failed\n");
+	}
 }

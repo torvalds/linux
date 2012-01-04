@@ -24,7 +24,6 @@
 
 #include <linux/gpio.h>
 #include <linux/interrupt.h>
-#include <linux/irq.h>
 #include <linux/leds.h>
 #include <linux/platform_device.h>
 #include <linux/input.h>
@@ -41,13 +40,12 @@
 #include <mach/audmux.h>
 
 #include "devices-imx51.h"
-#include "devices.h"
 
 static iomux_v3_cfg_t eukrea_mbimxsd_pads[] = {
 	/* LED */
 	MX51_PAD_NANDF_D10__GPIO3_30,
 	/* SWITCH */
-	_MX51_PAD_NANDF_D9__GPIO3_31 | MUX_PAD_CTRL(PAD_CTL_PUS_22K_UP |
+	NEW_PAD_CTRL(MX51_PAD_NANDF_D9__GPIO3_31, PAD_CTL_PUS_22K_UP |
 			PAD_CTL_PKE | PAD_CTL_SRE_FAST |
 			PAD_CTL_DSE_HIGH | PAD_CTL_PUE | PAD_CTL_HYS),
 	/* UART2 */
@@ -66,7 +64,7 @@ static iomux_v3_cfg_t eukrea_mbimxsd_pads[] = {
 	MX51_PAD_SD1_DATA2__SD1_DATA2,
 	MX51_PAD_SD1_DATA3__SD1_DATA3,
 	/* SD1 CD */
-	_MX51_PAD_GPIO1_0__SD1_CD | MUX_PAD_CTRL(PAD_CTL_PUS_22K_UP |
+	NEW_PAD_CTRL(MX51_PAD_GPIO1_0__SD1_CD, PAD_CTL_PUS_22K_UP |
 			PAD_CTL_PKE | PAD_CTL_SRE_FAST |
 			PAD_CTL_DSE_HIGH | PAD_CTL_PUE | PAD_CTL_HYS),
 };

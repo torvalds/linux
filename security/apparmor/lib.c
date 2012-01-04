@@ -18,6 +18,7 @@
 #include <linux/vmalloc.h>
 
 #include "include/audit.h"
+#include "include/apparmor.h"
 
 
 /**

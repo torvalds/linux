@@ -2,23 +2,8 @@
 # Multifunction miscellaneous devices
 #
 
-menuconfig MFD_SUPPORT
-	bool "Multifunction device drivers"
-	depends on HAS_IOMEM
-	default y
-	help
-	  Multifunction devices embed several functions (e.g. GPIOs,
-	  touchscreens, keyboards, current regulators, power management chips,
-	  etc...) in one single integrated circuit. They usually talk to the
-	  main CPU through one or more IRQ lines and low speed data busses (SPI,
-	  I2C, etc..). They appear as one single device to the main system
-	  through the data bus and the MFD framework allows for sub devices
-	  (a.k.a. functions) to appear as discrete platform devices.
-	  MFDs are typically found on embedded platforms.
-
-	  This option alone does not add any kernel code.
-
-if MFD_SUPPORT
+if HAS_IOMEM
+menu "Multifunction device drivers"
 
 config MFD_CORE
 	tristate
@@ -390,6 +375,7 @@ config MFD_WM8400
 	tristate "Support Wolfson Microelectronics WM8400"
 	select MFD_CORE
 	depends on I2C
+	select REGMAP_I2C
 	help
 	  Support for the Wolfson Microelecronics WM8400 PMIC and audio
 	  CODEC.  This driver provides common support for accessing
@@ -404,6 +390,7 @@ config MFD_WM831X_I2C
 	bool "Support Wolfson Microelectronics WM831x/2x PMICs with I2C"
 	select MFD_CORE
 	select MFD_WM831X
+	select REGMAP_I2C
 	depends on I2C=y && GENERIC_HARDIRQS
 	help
 	  Support for the Wolfson Microelecronics WM831x and WM832x PMICs
@@ -415,6 +402,7 @@ config MFD_WM831X_SPI
 	bool "Support Wolfson Microelectronics WM831x/2x PMICs with SPI"
 	select MFD_CORE
 	select MFD_WM831X
+	select REGMAP_SPI
 	depends on SPI_MASTER && GENERIC_HARDIRQS
 	help
 	  Support for the Wolfson Microelecronics WM831x and WM832x PMICs
@@ -488,6 +476,7 @@ config MFD_WM8350_I2C
 config MFD_WM8994
 	bool "Support Wolfson Microelectronics WM8994"
 	select MFD_CORE
+	select REGMAP_I2C
 	depends on I2C=y && GENERIC_HARDIRQS
 	help
 	  The WM8994 is a highly integrated hi-fi CODEC designed for
@@ -500,6 +489,7 @@ config MFD_WM8994
 config MFD_PCF50633
 	tristate "Support for NXP PCF50633"
 	depends on I2C
+	select REGMAP_I2C
 	help
 	  Say yes here if you have NXP PCF50633 chip on your board.
 	  This core driver provides register access and IRQ handling
@@ -576,6 +566,23 @@ config EZX_PCAP
 	  This enables the PCAP ASIC present on EZX Phones. This is
 	  needed for MMC, TouchScreen, Sound, USB, etc..
 
+config AB5500_CORE
+	bool "ST-Ericsson AB5500 Mixed Signal Power Management chip"
+	depends on ABX500_CORE && MFD_DB5500_PRCMU
+	select MFD_CORE
+	help
+	  Select this option to enable access to AB5500 power management
+	  chip. This connects to the db5500 chip via the I2C bus via PRCMU.
+	  This chip embeds various other multimedia funtionalities as well.
+
+config AB5500_DEBUG
+	bool "Enable debug info via debugfs"
+	depends on AB5500_CORE && DEBUG_FS
+	default y if DEBUG_FS
+	help
+	  Select this option if you want debug information from the AB5500
+	  using the debug filesystem, debugfs.
+
 config AB8500_CORE
 	bool "ST-Ericsson AB8500 Mixed Signal Power Management chip"
 	depends on GENERIC_HARDIRQS && ABX500_CORE
@@ -611,20 +618,6 @@ config AB8500_GPADC
 	default y
 	help
 	  AB8500 GPADC driver used to convert Acc and battery/ac/usb voltage
-
-config AB3550_CORE
-        bool "ST-Ericsson AB3550 Mixed Signal Circuit core functions"
-	select MFD_CORE
-	depends on I2C=y && GENERIC_HARDIRQS && ABX500_CORE
-	help
-	  Select this to enable the AB3550 Mixed Signal IC core
-	  functionality. This connects to a AB3550 on the I2C bus
-	  and expose a number of symbols needed for dependent devices
-	  to read and write registers and subscribe to events from
-	  this multi-functional IC. This is needed to use other features
-	  of the AB3550 such as battery-backed RTC, charging control,
-	  LEDs, vibrator, system power and temperature, power management
-	  and ALSA sound.
 
 config MFD_DB8500_PRCMU
 	bool "ST-Ericsson DB8500 Power Reset Control Management Unit"
@@ -770,7 +763,17 @@ config MFD_AAT2870_CORE
 	  additional drivers must be enabled in order to use the
 	  functionality of the device.
 
-endif # MFD_SUPPORT
+config MFD_INTEL_MSIC
+	bool "Support for Intel MSIC"
+	depends on INTEL_SCU_IPC
+	select MFD_CORE
+	help
+	  Select this option to enable access to Intel MSIC (Avatele
+	  Passage) chip. This chip embeds audio, battery, GPIO, etc.
+	  devices used in Intel Medfield platforms.
+
+endmenu
+endif
 
 menu "Multimedia Capabilities Port drivers"
 	depends on ARCH_SA1100

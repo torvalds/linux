@@ -13,8 +13,6 @@
 #ifndef __ASM_ARM_ARCH_IO_H
 #define __ASM_ARM_ARCH_IO_H
 
-#define IO_SPACE_LIMIT 0xffff
-
 u8 __inb8(unsigned int port);
 void __outb8(u8  val, unsigned int port);
 

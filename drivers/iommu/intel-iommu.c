@@ -24,6 +24,7 @@
 #include <linux/init.h>
 #include <linux/bitmap.h>
 #include <linux/debugfs.h>
+#include <linux/export.h>
 #include <linux/slab.h>
 #include <linux/irq.h>
 #include <linux/interrupt.h>
@@ -398,11 +399,11 @@ static long list_size;
 
 static void domain_remove_dev_info(struct dmar_domain *domain);
 
-#ifdef CONFIG_DMAR_DEFAULT_ON
+#ifdef CONFIG_INTEL_IOMMU_DEFAULT_ON
 int dmar_disabled = 0;
 #else
 int dmar_disabled = 1;
-#endif /*CONFIG_DMAR_DEFAULT_ON*/
+#endif /*CONFIG_INTEL_IOMMU_DEFAULT_ON*/
 
 static int dmar_map_gfx = 1;
 static int dmar_forcedac;
@@ -939,7 +940,7 @@ static void iommu_set_root_entry(struct intel_iommu *iommu)
 
 	addr = iommu->root_entry;
 
-	spin_lock_irqsave(&iommu->register_lock, flag);
+	raw_spin_lock_irqsave(&iommu->register_lock, flag);
 	dmar_writeq(iommu->reg + DMAR_RTADDR_REG, virt_to_phys(addr));
 
 	writel(iommu->gcmd | DMA_GCMD_SRTP, iommu->reg + DMAR_GCMD_REG);
@@ -948,7 +949,7 @@ static void iommu_set_root_entry(struct intel_iommu *iommu)
 	IOMMU_WAIT_OP(iommu, DMAR_GSTS_REG,
 		      readl, (sts & DMA_GSTS_RTPS), sts);
 
-	spin_unlock_irqrestore(&iommu->register_lock, flag);
+	raw_spin_unlock_irqrestore(&iommu->register_lock, flag);
 }
 
 static void iommu_flush_write_buffer(struct intel_iommu *iommu)
@@ -959,14 +960,14 @@ static void iommu_flush_write_buffer(struct intel_iommu *iommu)
 	if (!rwbf_quirk && !cap_rwbf(iommu->cap))
 		return;
 
-	spin_lock_irqsave(&iommu->register_lock, flag);
+	raw_spin_lock_irqsave(&iommu->register_lock, flag);
 	writel(iommu->gcmd | DMA_GCMD_WBF, iommu->reg + DMAR_GCMD_REG);
 
 	/* Make sure hardware complete it */
 	IOMMU_WAIT_OP(iommu, DMAR_GSTS_REG,
 		      readl, (!(val & DMA_GSTS_WBFS)), val);
 
-	spin_unlock_irqrestore(&iommu->register_lock, flag);
+	raw_spin_unlock_irqrestore(&iommu->register_lock, flag);
 }
 
 /* return value determine if we need a write buffer flush */
@@ -993,14 +994,14 @@ static void __iommu_flush_context(struct intel_iommu *iommu,
 	}
 	val |= DMA_CCMD_ICC;
 
-	spin_lock_irqsave(&iommu->register_lock, flag);
+	raw_spin_lock_irqsave(&iommu->register_lock, flag);
 	dmar_writeq(iommu->reg + DMAR_CCMD_REG, val);
 
 	/* Make sure hardware complete it */
 	IOMMU_WAIT_OP(iommu, DMAR_CCMD_REG,
 		dmar_readq, (!(val & DMA_CCMD_ICC)), val);
 
-	spin_unlock_irqrestore(&iommu->register_lock, flag);
+	raw_spin_unlock_irqrestore(&iommu->register_lock, flag);
 }
 
 /* return value determine if we need a write buffer flush */
@@ -1039,7 +1040,7 @@ static void __iommu_flush_iotlb(struct intel_iommu *iommu, u16 did,
 	if (cap_write_drain(iommu->cap))
 		val |= DMA_TLB_WRITE_DRAIN;
 
-	spin_lock_irqsave(&iommu->register_lock, flag);
+	raw_spin_lock_irqsave(&iommu->register_lock, flag);
 	/* Note: Only uses first TLB reg currently */
 	if (val_iva)
 		dmar_writeq(iommu->reg + tlb_offset, val_iva);
@@ -1049,7 +1050,7 @@ static void __iommu_flush_iotlb(struct intel_iommu *iommu, u16 did,
 	IOMMU_WAIT_OP(iommu, tlb_offset + 8,
 		dmar_readq, (!(val & DMA_TLB_IVT)), val);
 
-	spin_unlock_irqrestore(&iommu->register_lock, flag);
+	raw_spin_unlock_irqrestore(&iommu->register_lock, flag);
 
 	/* check IOTLB invalidation granularity */
 	if (DMA_TLB_IAIG(val) == 0)
@@ -1165,7 +1166,7 @@ static void iommu_disable_protect_mem_regions(struct intel_iommu *iommu)
 	u32 pmen;
 	unsigned long flags;
 
-	spin_lock_irqsave(&iommu->register_lock, flags);
+	raw_spin_lock_irqsave(&iommu->register_lock, flags);
 	pmen = readl(iommu->reg + DMAR_PMEN_REG);
 	pmen &= ~DMA_PMEN_EPM;
 	writel(pmen, iommu->reg + DMAR_PMEN_REG);
@@ -1174,7 +1175,7 @@ static void iommu_disable_protect_mem_regions(struct intel_iommu *iommu)
 	IOMMU_WAIT_OP(iommu, DMAR_PMEN_REG,
 		readl, !(pmen & DMA_PMEN_PRS), pmen);
 
-	spin_unlock_irqrestore(&iommu->register_lock, flags);
+	raw_spin_unlock_irqrestore(&iommu->register_lock, flags);
 }
 
 static int iommu_enable_translation(struct intel_iommu *iommu)
@@ -1182,7 +1183,7 @@ static int iommu_enable_translation(struct intel_iommu *iommu)
 	u32 sts;
 	unsigned long flags;
 
-	spin_lock_irqsave(&iommu->register_lock, flags);
+	raw_spin_lock_irqsave(&iommu->register_lock, flags);
 	iommu->gcmd |= DMA_GCMD_TE;
 	writel(iommu->gcmd, iommu->reg + DMAR_GCMD_REG);
 
@@ -1190,7 +1191,7 @@ static int iommu_enable_translation(struct intel_iommu *iommu)
 	IOMMU_WAIT_OP(iommu, DMAR_GSTS_REG,
 		      readl, (sts & DMA_GSTS_TES), sts);
 
-	spin_unlock_irqrestore(&iommu->register_lock, flags);
+	raw_spin_unlock_irqrestore(&iommu->register_lock, flags);
 	return 0;
 }
 
@@ -1199,7 +1200,7 @@ static int iommu_disable_translation(struct intel_iommu *iommu)
 	u32 sts;
 	unsigned long flag;
 
-	spin_lock_irqsave(&iommu->register_lock, flag);
+	raw_spin_lock_irqsave(&iommu->register_lock, flag);
 	iommu->gcmd &= ~DMA_GCMD_TE;
 	writel(iommu->gcmd, iommu->reg + DMAR_GCMD_REG);
 
@@ -1207,7 +1208,7 @@ static int iommu_disable_translation(struct intel_iommu *iommu)
 	IOMMU_WAIT_OP(iommu, DMAR_GSTS_REG,
 		      readl, (!(sts & DMA_GSTS_TES)), sts);
 
-	spin_unlock_irqrestore(&iommu->register_lock, flag);
+	raw_spin_unlock_irqrestore(&iommu->register_lock, flag);
 	return 0;
 }
 
@@ -2157,7 +2158,7 @@ static inline int iommu_prepare_rmrr_dev(struct dmar_rmrr_unit *rmrr,
 		rmrr->end_address);
 }
 
-#ifdef CONFIG_DMAR_FLOPPY_WA
+#ifdef CONFIG_INTEL_IOMMU_FLOPPY_WA
 static inline void iommu_prepare_isa(void)
 {
 	struct pci_dev *pdev;
@@ -2180,7 +2181,7 @@ static inline void iommu_prepare_isa(void)
 {
 	return;
 }
-#endif /* !CONFIG_DMAR_FLPY_WA */
+#endif /* !CONFIG_INTEL_IOMMU_FLPY_WA */
 
 static int md_domain_init(struct dmar_domain *domain, int guest_width);
 
@@ -2491,7 +2492,7 @@ static int __init init_dmars(void)
 	if (iommu_pass_through)
 		iommu_identity_mapping |= IDENTMAP_ALL;
 
-#ifdef CONFIG_DMAR_BROKEN_GFX_WA
+#ifdef CONFIG_INTEL_IOMMU_BROKEN_GFX_WA
 	iommu_identity_mapping |= IDENTMAP_GFX;
 #endif
 
@@ -3329,7 +3330,7 @@ static int iommu_suspend(void)
 	for_each_active_iommu(iommu, drhd) {
 		iommu_disable_translation(iommu);
 
-		spin_lock_irqsave(&iommu->register_lock, flag);
+		raw_spin_lock_irqsave(&iommu->register_lock, flag);
 
 		iommu->iommu_state[SR_DMAR_FECTL_REG] =
 			readl(iommu->reg + DMAR_FECTL_REG);
@@ -3340,7 +3341,7 @@ static int iommu_suspend(void)
 		iommu->iommu_state[SR_DMAR_FEUADDR_REG] =
 			readl(iommu->reg + DMAR_FEUADDR_REG);
 
-		spin_unlock_irqrestore(&iommu->register_lock, flag);
+		raw_spin_unlock_irqrestore(&iommu->register_lock, flag);
 	}
 	return 0;
 
@@ -3367,7 +3368,7 @@ static void iommu_resume(void)
 
 	for_each_active_iommu(iommu, drhd) {
 
-		spin_lock_irqsave(&iommu->register_lock, flag);
+		raw_spin_lock_irqsave(&iommu->register_lock, flag);
 
 		writel(iommu->iommu_state[SR_DMAR_FECTL_REG],
 			iommu->reg + DMAR_FECTL_REG);
@@ -3378,7 +3379,7 @@ static void iommu_resume(void)
 		writel(iommu->iommu_state[SR_DMAR_FEUADDR_REG],
 			iommu->reg + DMAR_FEUADDR_REG);
 
-		spin_unlock_irqrestore(&iommu->register_lock, flag);
+		raw_spin_unlock_irqrestore(&iommu->register_lock, flag);
 	}
 
 	for_each_active_iommu(iommu, drhd)
@@ -3398,6 +3399,151 @@ static void __init init_iommu_pm_ops(void)
 #else
 static inline void init_iommu_pm_ops(void) {}
 #endif	/* CONFIG_PM */
+
+LIST_HEAD(dmar_rmrr_units);
+
+static void __init dmar_register_rmrr_unit(struct dmar_rmrr_unit *rmrr)
+{
+	list_add(&rmrr->list, &dmar_rmrr_units);
+}
+
+
+int __init dmar_parse_one_rmrr(struct acpi_dmar_header *header)
+{
+	struct acpi_dmar_reserved_memory *rmrr;
+	struct dmar_rmrr_unit *rmrru;
+
+	rmrru = kzalloc(sizeof(*rmrru), GFP_KERNEL);
+	if (!rmrru)
+		return -ENOMEM;
+
+	rmrru->hdr = header;
+	rmrr = (struct acpi_dmar_reserved_memory *)header;
+	rmrru->base_address = rmrr->base_address;
+	rmrru->end_address = rmrr->end_address;
+
+	dmar_register_rmrr_unit(rmrru);
+	return 0;
+}
+
+static int __init
+rmrr_parse_dev(struct dmar_rmrr_unit *rmrru)
+{
+	struct acpi_dmar_reserved_memory *rmrr;
+	int ret;
+
+	rmrr = (struct acpi_dmar_reserved_memory *) rmrru->hdr;
+	ret = dmar_parse_dev_scope((void *)(rmrr + 1),
+		((void *)rmrr) + rmrr->header.length,
+		&rmrru->devices_cnt, &rmrru->devices, rmrr->segment);
+
+	if (ret || (rmrru->devices_cnt == 0)) {
+		list_del(&rmrru->list);
+		kfree(rmrru);
+	}
+	return ret;
+}
+
+static LIST_HEAD(dmar_atsr_units);
+
+int __init dmar_parse_one_atsr(struct acpi_dmar_header *hdr)
+{
+	struct acpi_dmar_atsr *atsr;
+	struct dmar_atsr_unit *atsru;
+
+	atsr = container_of(hdr, struct acpi_dmar_atsr, header);
+	atsru = kzalloc(sizeof(*atsru), GFP_KERNEL);
+	if (!atsru)
+		return -ENOMEM;
+
+	atsru->hdr = hdr;
+	atsru->include_all = atsr->flags & 0x1;
+
+	list_add(&atsru->list, &dmar_atsr_units);
+
+	return 0;
+}
+
+static int __init atsr_parse_dev(struct dmar_atsr_unit *atsru)
+{
+	int rc;
+	struct acpi_dmar_atsr *atsr;
+
+	if (atsru->include_all)
+		return 0;
+
+	atsr = container_of(atsru->hdr, struct acpi_dmar_atsr, header);
+	rc = dmar_parse_dev_scope((void *)(atsr + 1),
+				(void *)atsr + atsr->header.length,
+				&atsru->devices_cnt, &atsru->devices,
+				atsr->segment);
+	if (rc || !atsru->devices_cnt) {
+		list_del(&atsru->list);
+		kfree(atsru);
+	}
+
+	return rc;
+}
+
+int dmar_find_matched_atsr_unit(struct pci_dev *dev)
+{
+	int i;
+	struct pci_bus *bus;
+	struct acpi_dmar_atsr *atsr;
+	struct dmar_atsr_unit *atsru;
+
+	dev = pci_physfn(dev);
+
+	list_for_each_entry(atsru, &dmar_atsr_units, list) {
+		atsr = container_of(atsru->hdr, struct acpi_dmar_atsr, header);
+		if (atsr->segment == pci_domain_nr(dev->bus))
+			goto found;
+	}
+
+	return 0;
+
+found:
+	for (bus = dev->bus; bus; bus = bus->parent) {
+		struct pci_dev *bridge = bus->self;
+
+		if (!bridge || !pci_is_pcie(bridge) ||
+		    bridge->pcie_type == PCI_EXP_TYPE_PCI_BRIDGE)
+			return 0;
+
+		if (bridge->pcie_type == PCI_EXP_TYPE_ROOT_PORT) {
+			for (i = 0; i < atsru->devices_cnt; i++)
+				if (atsru->devices[i] == bridge)
+					return 1;
+			break;
+		}
+	}
+
+	if (atsru->include_all)
+		return 1;
+
+	return 0;
+}
+
+int dmar_parse_rmrr_atsr_dev(void)
+{
+	struct dmar_rmrr_unit *rmrr, *rmrr_n;
+	struct dmar_atsr_unit *atsr, *atsr_n;
+	int ret = 0;
+
+	list_for_each_entry_safe(rmrr, rmrr_n, &dmar_rmrr_units, list) {
+		ret = rmrr_parse_dev(rmrr);
+		if (ret)
+			return ret;
+	}
+
+	list_for_each_entry_safe(atsr, atsr_n, &dmar_atsr_units, list) {
+		ret = atsr_parse_dev(atsr);
+		if (ret)
+			return ret;
+	}
+
+	return ret;
+}
 
 /*
  * Here we only respond to action of unbound device from driver.
@@ -3448,16 +3594,12 @@ int __init intel_iommu_init(void)
 		return 	-ENODEV;
 	}
 
-	if (dmar_dev_scope_init()) {
+	if (dmar_dev_scope_init() < 0) {
 		if (force_on)
 			panic("tboot: Failed to initialize DMAR device scope\n");
 		return 	-ENODEV;
 	}
 
-	/*
-	 * Check the need for DMA-remapping initialization now.
-	 * Above initialization will also be used by Interrupt-remapping.
-	 */
 	if (no_iommu || dmar_disabled)
 		return -ENODEV;
 
@@ -3466,6 +3608,12 @@ int __init intel_iommu_init(void)
 			panic("tboot: Failed to initialize iommu memory\n");
 		return 	-ENODEV;
 	}
+
+	if (list_empty(&dmar_rmrr_units))
+		printk(KERN_INFO "DMAR: No RMRR found\n");
+
+	if (list_empty(&dmar_atsr_units))
+		printk(KERN_INFO "DMAR: No ATSR found\n");
 
 	if (dmar_init_reserved_ranges()) {
 		if (force_on)
@@ -3495,7 +3643,7 @@ int __init intel_iommu_init(void)
 
 	init_iommu_pm_ops();
 
-	register_iommu(&intel_iommu_ops);
+	bus_set_iommu(&pci_bus_type, &intel_iommu_ops);
 
 	bus_register_notifier(&pci_bus_type, &device_nb);
 

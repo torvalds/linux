@@ -230,4 +230,13 @@ struct edid {
 
 #define EDID_PRODUCT_ID(e) ((e)->prod_code[0] | ((e)->prod_code[1] << 8))
 
+struct drm_encoder;
+struct drm_connector;
+struct drm_display_mode;
+void drm_edid_to_eld(struct drm_connector *connector, struct edid *edid);
+int drm_av_sync_delay(struct drm_connector *connector,
+		      struct drm_display_mode *mode);
+struct drm_connector *drm_select_eld(struct drm_encoder *encoder,
+				     struct drm_display_mode *mode);
+
 #endif /* __DRM_EDID_H__ */

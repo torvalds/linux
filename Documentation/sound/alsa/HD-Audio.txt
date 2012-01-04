@@ -447,7 +447,10 @@ The file needs to have a line `[codec]`.  The next line should contain
 three numbers indicating the codec vendor-id (0x12345678 in the
 example), the codec subsystem-id (0xabcd1234) and the address (2) of
 the codec.  The rest patch entries are applied to this specified codec
-until another codec entry is given.
+until another codec entry is given.  Passing 0 or a negative number to
+the first or the second value will make the check of the corresponding
+field be skipped.  It'll be useful for really broken devices that don't
+initialize SSID properly.
 
 The `[model]` line allows to change the model name of the each codec.
 In the example above, it will be changed to model=auto.
@@ -491,7 +494,7 @@ Also, the codec chip name can be rewritten via `[chip_name]` line.
 The hd-audio driver reads the file via request_firmware().  Thus,
 a patch file has to be located on the appropriate firmware path,
 typically, /lib/firmware.  For example, when you pass the option
-`patch=hda-init.fw`, the file /lib/firmware/hda-init-fw must be
+`patch=hda-init.fw`, the file /lib/firmware/hda-init.fw must be
 present.
 
 The patch module option is specific to each card instance, and you
@@ -522,6 +525,54 @@ openSUSE enables the power-saving feature automatically when the power
 cable is unplugged.  Thus, if you hear noises, suspect first the
 power-saving.  See /sys/module/snd_hda_intel/parameters/power_save to
 check the current value.  If it's non-zero, the feature is turned on.
+
+
+Tracepoints
+~~~~~~~~~~~
+The hd-audio driver gives a few basic tracepoints.
+`hda:hda_send_cmd` traces each CORB write while `hda:hda_get_response`
+traces the response from RIRB (only when read from the codec driver).
+`hda:hda_bus_reset` traces the bus-reset due to fatal error, etc,
+`hda:hda_unsol_event` traces the unsolicited events, and
+`hda:hda_power_down` and `hda:hda_power_up` trace the power down/up
+via power-saving behavior.
+
+Enabling all tracepoints can be done like
+------------------------------------------------------------------------
+  # echo 1 > /sys/kernel/debug/tracing/events/hda/enable
+------------------------------------------------------------------------
+then after some commands, you can traces from
+/sys/kernel/debug/tracing/trace file.  For example, when you want to
+trace what codec command is sent, enable the tracepoint like:
+------------------------------------------------------------------------
+  # cat /sys/kernel/debug/tracing/trace
+  # tracer: nop
+  #
+  #       TASK-PID    CPU#    TIMESTAMP  FUNCTION
+  #          | |       |          |         |
+         <...>-7807  [002] 105147.774889: hda_send_cmd: [0:0] val=e3a019
+         <...>-7807  [002] 105147.774893: hda_send_cmd: [0:0] val=e39019
+         <...>-7807  [002] 105147.999542: hda_send_cmd: [0:0] val=e3a01a
+         <...>-7807  [002] 105147.999543: hda_send_cmd: [0:0] val=e3901a
+         <...>-26764 [001] 349222.837143: hda_send_cmd: [0:0] val=e3a019
+         <...>-26764 [001] 349222.837148: hda_send_cmd: [0:0] val=e39019
+         <...>-26764 [001] 349223.058539: hda_send_cmd: [0:0] val=e3a01a
+         <...>-26764 [001] 349223.058541: hda_send_cmd: [0:0] val=e3901a
+------------------------------------------------------------------------
+Here `[0:0]` indicates the card number and the codec address, and
+`val` shows the value sent to the codec, respectively.  The value is
+a packed value, and you can decode it via hda-decode-verb program
+included in hda-emu package below.  For example, the value e3a019 is
+to set the left output-amp value to 25.
+------------------------------------------------------------------------
+  % hda-decode-verb 0xe3a019
+  raw value = 0x00e3a019
+  cid = 0, nid = 0x0e, verb = 0x3a0, parm = 0x19
+  raw value: verb = 0x3a0, parm = 0x19
+  verbname = set_amp_gain_mute
+  amp raw val = 0xa019
+  output, left, idx=0, mute=0, val=25
+------------------------------------------------------------------------
 
 
 Development Tree

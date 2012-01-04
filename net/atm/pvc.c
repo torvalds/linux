@@ -11,6 +11,7 @@
 #include <linux/init.h>
 #include <linux/skbuff.h>
 #include <linux/bitops.h>
+#include <linux/export.h>
 #include <net/sock.h>		/* for sock_no_* */
 
 #include "resources.h"		/* devs and vccs */

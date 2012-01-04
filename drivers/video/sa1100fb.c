@@ -1457,8 +1457,7 @@ static int __devinit sa1100fb_probe(struct platform_device *pdev)
 	if (ret)
 		goto failed;
 
-	ret = request_irq(irq, sa1100fb_handle_irq, IRQF_DISABLED,
-			  "LCD", fbi);
+	ret = request_irq(irq, sa1100fb_handle_irq, 0, "LCD", fbi);
 	if (ret) {
 		printk(KERN_ERR "sa1100fb: request_irq failed: %d\n", ret);
 		goto failed;

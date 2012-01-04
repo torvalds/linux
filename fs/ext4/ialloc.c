@@ -78,7 +78,7 @@ static unsigned ext4_init_inode_bitmap(struct super_block *sb,
 	 * allocation, essentially implementing a per-group read-only flag. */
 	if (!ext4_group_desc_csum_verify(sbi, block_group, gdp)) {
 		ext4_error(sb, "Checksum bad for group %u", block_group);
-		ext4_free_blks_set(sb, gdp, 0);
+		ext4_free_group_clusters_set(sb, gdp, 0);
 		ext4_free_inodes_set(sb, gdp, 0);
 		ext4_itable_unused_set(sb, gdp, 0);
 		memset(bh->b_data, 0xff, sb->s_blocksize);
@@ -293,121 +293,9 @@ error_return:
 	ext4_std_error(sb, fatal);
 }
 
-/*
- * There are two policies for allocating an inode.  If the new inode is
- * a directory, then a forward search is made for a block group with both
- * free space and a low directory-to-inode ratio; if that fails, then of
- * the groups with above-average free space, that group with the fewest
- * directories already is chosen.
- *
- * For other inodes, search forward from the parent directory\'s block
- * group to find a free inode.
- */
-static int find_group_dir(struct super_block *sb, struct inode *parent,
-				ext4_group_t *best_group)
-{
-	ext4_group_t ngroups = ext4_get_groups_count(sb);
-	unsigned int freei, avefreei;
-	struct ext4_group_desc *desc, *best_desc = NULL;
-	ext4_group_t group;
-	int ret = -1;
-
-	freei = percpu_counter_read_positive(&EXT4_SB(sb)->s_freeinodes_counter);
-	avefreei = freei / ngroups;
-
-	for (group = 0; group < ngroups; group++) {
-		desc = ext4_get_group_desc(sb, group, NULL);
-		if (!desc || !ext4_free_inodes_count(sb, desc))
-			continue;
-		if (ext4_free_inodes_count(sb, desc) < avefreei)
-			continue;
-		if (!best_desc ||
-		    (ext4_free_blks_count(sb, desc) >
-		     ext4_free_blks_count(sb, best_desc))) {
-			*best_group = group;
-			best_desc = desc;
-			ret = 0;
-		}
-	}
-	return ret;
-}
-
-#define free_block_ratio 10
-
-static int find_group_flex(struct super_block *sb, struct inode *parent,
-			   ext4_group_t *best_group)
-{
-	struct ext4_sb_info *sbi = EXT4_SB(sb);
-	struct ext4_group_desc *desc;
-	struct flex_groups *flex_group = sbi->s_flex_groups;
-	ext4_group_t parent_group = EXT4_I(parent)->i_block_group;
-	ext4_group_t parent_fbg_group = ext4_flex_group(sbi, parent_group);
-	ext4_group_t ngroups = ext4_get_groups_count(sb);
-	int flex_size = ext4_flex_bg_size(sbi);
-	ext4_group_t best_flex = parent_fbg_group;
-	int blocks_per_flex = sbi->s_blocks_per_group * flex_size;
-	int flexbg_free_blocks;
-	int flex_freeb_ratio;
-	ext4_group_t n_fbg_groups;
-	ext4_group_t i;
-
-	n_fbg_groups = (ngroups + flex_size - 1) >>
-		sbi->s_log_groups_per_flex;
-
-find_close_to_parent:
-	flexbg_free_blocks = atomic_read(&flex_group[best_flex].free_blocks);
-	flex_freeb_ratio = flexbg_free_blocks * 100 / blocks_per_flex;
-	if (atomic_read(&flex_group[best_flex].free_inodes) &&
-	    flex_freeb_ratio > free_block_ratio)
-		goto found_flexbg;
-
-	if (best_flex && best_flex == parent_fbg_group) {
-		best_flex--;
-		goto find_close_to_parent;
-	}
-
-	for (i = 0; i < n_fbg_groups; i++) {
-		if (i == parent_fbg_group || i == parent_fbg_group - 1)
-			continue;
-
-		flexbg_free_blocks = atomic_read(&flex_group[i].free_blocks);
-		flex_freeb_ratio = flexbg_free_blocks * 100 / blocks_per_flex;
-
-		if (flex_freeb_ratio > free_block_ratio &&
-		    (atomic_read(&flex_group[i].free_inodes))) {
-			best_flex = i;
-			goto found_flexbg;
-		}
-
-		if ((atomic_read(&flex_group[best_flex].free_inodes) == 0) ||
-		    ((atomic_read(&flex_group[i].free_blocks) >
-		      atomic_read(&flex_group[best_flex].free_blocks)) &&
-		     atomic_read(&flex_group[i].free_inodes)))
-			best_flex = i;
-	}
-
-	if (!atomic_read(&flex_group[best_flex].free_inodes) ||
-	    !atomic_read(&flex_group[best_flex].free_blocks))
-		return -1;
-
-found_flexbg:
-	for (i = best_flex * flex_size; i < ngroups &&
-		     i < (best_flex + 1) * flex_size; i++) {
-		desc = ext4_get_group_desc(sb, i, NULL);
-		if (ext4_free_inodes_count(sb, desc)) {
-			*best_group = i;
-			goto out;
-		}
-	}
-
-	return -1;
-out:
-	return 0;
-}
-
 struct orlov_stats {
 	__u32 free_inodes;
-	__u32 free_blocks;
+	__u32 free_clusters;
 	__u32 used_dirs;
 };
 
@@ -424,7 +312,7 @@ static void get_orlov_stats(struct super_block *sb, ext4_group_t g,
 
 	if (flex_size > 1) {
 		stats->free_inodes = atomic_read(&flex_group[g].free_inodes);
-		stats->free_blocks = atomic_read(&flex_group[g].free_blocks);
+		stats->free_clusters = atomic_read(&flex_group[g].free_clusters);
 		stats->used_dirs = atomic_read(&flex_group[g].used_dirs);
 		return;
 	}
@@ -432,11 +320,11 @@ static void get_orlov_stats(struct super_block *sb, ext4_group_t g,
 	desc = ext4_get_group_desc(sb, g, NULL);
 	if (desc) {
 		stats->free_inodes = ext4_free_inodes_count(sb, desc);
-		stats->free_blocks = ext4_free_blks_count(sb, desc);
+		stats->free_clusters = ext4_free_group_clusters(sb, desc);
 		stats->used_dirs = ext4_used_dirs_count(sb, desc);
 	} else {
 		stats->free_inodes = 0;
-		stats->free_blocks = 0;
+		stats->free_clusters = 0;
 		stats->used_dirs = 0;
 	}
 }
@@ -471,10 +359,10 @@ static int find_group_orlov(struct super_block *sb, struct inode *parent,
 	ext4_group_t real_ngroups = ext4_get_groups_count(sb);
 	int inodes_per_group = EXT4_INODES_PER_GROUP(sb);
 	unsigned int freei, avefreei;
-	ext4_fsblk_t freeb, avefreeb;
+	ext4_fsblk_t freeb, avefreec;
 	unsigned int ndirs;
 	int max_dirs, min_inodes;
-	ext4_grpblk_t min_blocks;
+	ext4_grpblk_t min_clusters;
 	ext4_group_t i, grp, g, ngroups;
 	struct ext4_group_desc *desc;
 	struct orlov_stats stats;
@@ -490,9 +378,10 @@ static int find_group_orlov(struct super_block *sb, struct inode *parent,
 
 	freei = percpu_counter_read_positive(&sbi->s_freeinodes_counter);
 	avefreei = freei / ngroups;
-	freeb = percpu_counter_read_positive(&sbi->s_freeblocks_counter);
-	avefreeb = freeb;
-	do_div(avefreeb, ngroups);
+	freeb = EXT4_C2B(sbi,
+		percpu_counter_read_positive(&sbi->s_freeclusters_counter));
+	avefreec = freeb;
+	do_div(avefreec, ngroups);
 	ndirs = percpu_counter_read_positive(&sbi->s_dirs_counter);
 
 	if (S_ISDIR(mode) &&
@@ -518,7 +407,7 @@ static int find_group_orlov(struct super_block *sb, struct inode *parent,
 				continue;
 			if (stats.free_inodes < avefreei)
 				continue;
-			if (stats.free_blocks < avefreeb)
+			if (stats.free_clusters < avefreec)
 				continue;
 			grp = g;
 			ret = 0;
@@ -556,7 +445,7 @@ static int find_group_orlov(struct super_block *sb, struct inode *parent,
 	min_inodes = avefreei - inodes_per_group*flex_size / 4;
 	if (min_inodes < 1)
 		min_inodes = 1;
-	min_blocks = avefreeb - EXT4_BLOCKS_PER_GROUP(sb)*flex_size / 4;
+	min_clusters = avefreec - EXT4_CLUSTERS_PER_GROUP(sb)*flex_size / 4;
 
 	/*
 	 * Start looking in the flex group where we last allocated an
@@ -575,7 +464,7 @@ static int find_group_orlov(struct super_block *sb, struct inode *parent,
 			continue;
 		if (stats.free_inodes < min_inodes)
 			continue;
-		if (stats.free_blocks < min_blocks)
+		if (stats.free_clusters < min_clusters)
 			continue;
 		goto found_flex_bg;
 	}
@@ -659,7 +548,7 @@ static int find_group_other(struct super_block *sb, struct inode *parent,
 	*group = parent_group;
 	desc = ext4_get_group_desc(sb, *group, NULL);
 	if (desc && ext4_free_inodes_count(sb, desc) &&
-			ext4_free_blks_count(sb, desc))
+	    ext4_free_group_clusters(sb, desc))
 		return 0;
 
 	/*
@@ -683,7 +572,7 @@ static int find_group_other(struct super_block *sb, struct inode *parent,
 			*group -= ngroups;
 		desc = ext4_get_group_desc(sb, *group, NULL);
 		if (desc && ext4_free_inodes_count(sb, desc) &&
-				ext4_free_blks_count(sb, desc))
+		    ext4_free_group_clusters(sb, desc))
 			return 0;
 	}
 
@@ -802,7 +691,7 @@ err_ret:
  * group to find a free inode.
  */
 struct inode *ext4_new_inode(handle_t *handle, struct inode *dir, int mode,
-			     const struct qstr *qstr, __u32 goal)
+			     const struct qstr *qstr, __u32 goal, uid_t *owner)
 {
 	struct super_block *sb;
 	struct buffer_head *inode_bitmap_bh = NULL;
@@ -816,8 +705,6 @@ struct inode *ext4_new_inode(handle_t *handle, struct inode *dir, int mode,
 	int ret2, err = 0;
 	struct inode *ret;
 	ext4_group_t i;
-	int free = 0;
-	static int once = 1;
 	ext4_group_t flex_group;
 
 	/* Cannot create files in a deleted directory */
@@ -843,26 +730,9 @@ struct inode *ext4_new_inode(handle_t *handle, struct inode *dir, int mode,
 		goto got_group;
 	}
 
-	if (sbi->s_log_groups_per_flex && test_opt(sb, OLDALLOC)) {
-		ret2 = find_group_flex(sb, dir, &group);
-		if (ret2 == -1) {
-			ret2 = find_group_other(sb, dir, &group, mode);
-			if (ret2 == 0 && once) {
-				once = 0;
-				printk(KERN_NOTICE "ext4: find_group_flex "
-				       "failed, fallback succeeded dir %lu\n",
-				       dir->i_ino);
-			}
-		}
-		goto got_group;
-	}
-
-	if (S_ISDIR(mode)) {
-		if (test_opt(sb, OLDALLOC))
-			ret2 = find_group_dir(sb, dir, &group);
-		else
-			ret2 = find_group_orlov(sb, dir, &group, mode, qstr);
-	} else
+	if (S_ISDIR(mode))
+		ret2 = find_group_orlov(sb, dir, &group, mode, qstr);
+	else
 		ret2 = find_group_other(sb, dir, &group, mode);
 
 got_group:
@@ -950,26 +820,21 @@ got:
 			goto fail;
 		}
 
-		free = 0;
-		ext4_lock_group(sb, group);
+		BUFFER_TRACE(block_bitmap_bh, "dirty block bitmap");
+		err = ext4_handle_dirty_metadata(handle, NULL, block_bitmap_bh);
+		brelse(block_bitmap_bh);
+
 		/* recheck and clear flag under lock if we still need to */
+		ext4_lock_group(sb, group);
 		if (gdp->bg_flags & cpu_to_le16(EXT4_BG_BLOCK_UNINIT)) {
-			free = ext4_free_blocks_after_init(sb, group, gdp);
 			gdp->bg_flags &= cpu_to_le16(~EXT4_BG_BLOCK_UNINIT);
-			ext4_free_blks_set(sb, gdp, free);
+			ext4_free_group_clusters_set(sb, gdp,
+				ext4_free_clusters_after_init(sb, group, gdp));
 			gdp->bg_checksum = ext4_group_desc_csum(sbi, group,
 								gdp);
 		}
 		ext4_unlock_group(sb, group);
 
-		/* Don't need to dirty bitmap block if we didn't change it */
-		if (free) {
-			BUFFER_TRACE(block_bitmap_bh, "dirty block bitmap");
-			err = ext4_handle_dirty_metadata(handle,
-							NULL, block_bitmap_bh);
-		}
-
-		brelse(block_bitmap_bh);
 		if (err)
 			goto fail;
 	}
@@ -987,8 +852,11 @@ got:
 		flex_group = ext4_flex_group(sbi, group);
 		atomic_dec(&sbi->s_flex_groups[flex_group].free_inodes);
 	}
-
-	if (test_opt(sb, GRPID)) {
+	if (owner) {
+		inode->i_mode = mode;
+		inode->i_uid = owner[0];
+		inode->i_gid = owner[1];
+	} else if (test_opt(sb, GRPID)) {
 		inode->i_mode = mode;
 		inode->i_uid = current_fsuid();
 		inode->i_gid = dir->i_gid;
@@ -1005,11 +873,7 @@ got:
 	ei->i_dir_start_lookup = 0;
 	ei->i_disksize = 0;
 
-	/*
-	 * Don't inherit extent flag from directory, amongst others. We set
-	 * extent flag on newly created directory and file only if -o extent
-	 * mount option is specified
-	 */
+	/* Don't inherit extent flag from directory, amongst others. */
 	ei->i_flags =
 		ext4_mask_flags(mode, EXT4_I(dir)->i_flags & EXT4_FL_INHERITED);
 	ei->i_file_acl = 0;
@@ -1084,7 +948,7 @@ fail_free_drop:
 fail_drop:
 	dquot_drop(inode);
 	inode->i_flags |= S_NOQUOTA;
-	inode->i_nlink = 0;
+	clear_nlink(inode);
 	unlock_new_inode(inode);
 	iput(inode);
 	brelse(inode_bitmap_bh);
@@ -1235,7 +1099,7 @@ unsigned long ext4_count_dirs(struct super_block * sb)
  * inode allocation from the current group, so we take alloc_sem lock, to
  * block ext4_claim_inode until we are finished.
  */
-extern int ext4_init_inode_table(struct super_block *sb, ext4_group_t group,
+int ext4_init_inode_table(struct super_block *sb, ext4_group_t group,
 				 int barrier)
 {
 	struct ext4_group_info *grp = ext4_get_group_info(sb, group);

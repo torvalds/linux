@@ -160,7 +160,7 @@ config VT_CONSOLE
 
 config HW_CONSOLE
 	bool
-	depends on VT && !S390 && !UM
+	depends on VT
 	default y
 
 comment "Unix98 PTY support"
@@ -195,7 +195,7 @@ config UNIX98_PTYS
 
 source "drivers/char/pcmcia/Kconfig"
 
-source "drivers/serial/Kconfig"
+source "drivers/tty/serial/Kconfig"
 
 source "drivers/i2c/Kconfig"
 

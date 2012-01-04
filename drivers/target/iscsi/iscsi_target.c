@@ -22,6 +22,7 @@
 #include <linux/kthread.h>
 #include <linux/crypto.h>
 #include <linux/completion.h>
+#include <linux/module.h>
 #include <asm/unaligned.h>
 #include <scsi/scsi_device.h>
 #include <scsi/iscsi_proto.h>
@@ -765,7 +766,7 @@ static int iscsit_allocate_iovecs(struct iscsi_cmd *cmd)
 	u32 iov_count = (cmd->se_cmd.t_data_nents == 0) ? 1 :
 				cmd->se_cmd.t_data_nents;
 
-	iov_count += TRANSPORT_IOV_DATA_BUFFER;
+	iov_count += ISCSI_IOV_DATA_BUFFER;
 
 	cmd->iov_data = kzalloc(iov_count * sizeof(struct kvec), GFP_KERNEL);
 	if (!cmd->iov_data) {
@@ -1079,7 +1080,9 @@ attach_cmd:
 	 */
 	if (!cmd->immediate_data) {
 		cmdsn_ret = iscsit_sequence_cmd(conn, cmd, hdr->cmdsn);
-		if (cmdsn_ret == CMDSN_ERROR_CANNOT_RECOVER)
+		if (cmdsn_ret == CMDSN_LOWER_THAN_EXP)
+			return 0;
+		else if (cmdsn_ret == CMDSN_ERROR_CANNOT_RECOVER)
 			return iscsit_add_reject_from_cmd(
 				ISCSI_REASON_PROTOCOL_ERROR,
 				1, 0, buf, cmd);
@@ -1819,17 +1822,16 @@ attach:
 		int cmdsn_ret = iscsit_sequence_cmd(conn, cmd, hdr->cmdsn);
 		if (cmdsn_ret == CMDSN_HIGHER_THAN_EXP)
 			out_of_order_cmdsn = 1;
-		else if (cmdsn_ret == CMDSN_LOWER_THAN_EXP) {
+		else if (cmdsn_ret == CMDSN_LOWER_THAN_EXP)
 			return 0;
-		} else { /* (cmdsn_ret == CMDSN_ERROR_CANNOT_RECOVER) */
+		else if (cmdsn_ret == CMDSN_ERROR_CANNOT_RECOVER)
 			return iscsit_add_reject_from_cmd(
 					ISCSI_REASON_PROTOCOL_ERROR,
 					1, 0, buf, cmd);
-		}
 	}
 	iscsit_ack_from_expstatsn(conn, hdr->exp_statsn);
 
-	if (out_of_order_cmdsn)
+	if (out_of_order_cmdsn || !(hdr->opcode & ISCSI_OP_IMMEDIATE))
 		return 0;
 	/*
 	 * Found the referenced task, send to transport for processing.
@@ -3538,16 +3540,8 @@ get_immediate:
 				spin_lock_bh(&conn->cmd_lock);
 				list_del(&cmd->i_list);
 				spin_unlock_bh(&conn->cmd_lock);
-				/*
-				 * Determine if a struct se_cmd is assoicated with
-				 * this struct iscsi_cmd.
-				 */
-				if (!(cmd->se_cmd.se_cmd_flags & SCF_SE_LUN_CMD) &&
-				    !(cmd->tmr_req))
-					iscsit_release_cmd(cmd);
-				else
-					transport_generic_free_cmd(&cmd->se_cmd,
-								1, 0);
+
+				iscsit_free_cmd(cmd);
 				goto get_immediate;
 			case ISTATE_SEND_NOPIN_WANT_RESPONSE:
 				spin_unlock_bh(&cmd->istate_lock);
@@ -3940,7 +3934,6 @@ static void iscsit_release_commands_from_conn(struct iscsi_conn *conn)
 {
 	struct iscsi_cmd *cmd = NULL, *cmd_tmp = NULL;
 	struct iscsi_session *sess = conn->sess;
-	struct se_cmd *se_cmd;
 	/*
 	 * We expect this function to only ever be called from either RX or TX
 	 * thread context via iscsit_close_connection() once the other context
@@ -3948,35 +3941,13 @@ static void iscsit_release_commands_from_conn(struct iscsi_conn *conn)
 	 */
 	spin_lock_bh(&conn->cmd_lock);
 	list_for_each_entry_safe(cmd, cmd_tmp, &conn->conn_cmd_list, i_list) {
-		if (!(cmd->se_cmd.se_cmd_flags & SCF_SE_LUN_CMD)) {
 
-			list_del(&cmd->i_list);
-			spin_unlock_bh(&conn->cmd_lock);
-			iscsit_increment_maxcmdsn(cmd, sess);
-			se_cmd = &cmd->se_cmd;
-			/*
-			 * Special cases for active iSCSI TMR, and
-			 * transport_lookup_cmd_lun() failing from
-			 * iscsit_get_lun_for_cmd() in iscsit_handle_scsi_cmd().
-			 */
-			if (cmd->tmr_req && se_cmd->transport_wait_for_tasks)
-				se_cmd->transport_wait_for_tasks(se_cmd, 1, 1);
-			else if (cmd->se_cmd.se_cmd_flags & SCF_SE_LUN_CMD)
-				transport_release_cmd(se_cmd);
-			else
-				iscsit_release_cmd(cmd);
-
-			spin_lock_bh(&conn->cmd_lock);
-			continue;
-		}
 		list_del(&cmd->i_list);
 		spin_unlock_bh(&conn->cmd_lock);
 
 		iscsit_increment_maxcmdsn(cmd, sess);
-		se_cmd = &cmd->se_cmd;
 
-		if (se_cmd->transport_wait_for_tasks)
-			se_cmd->transport_wait_for_tasks(se_cmd, 1, 1);
+		iscsit_free_cmd(cmd);
 
 		spin_lock_bh(&conn->cmd_lock);
 	}

@@ -788,7 +788,7 @@ static int __devexit lm8323_remove(struct i2c_client *client)
 	return 0;
 }
 
-#ifdef CONFIG_PM
+#ifdef CONFIG_PM_SLEEP
 /*
  * We don't need to explicitly suspend the chip, as it already switches off
  * when there's no activity.

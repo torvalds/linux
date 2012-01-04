@@ -35,6 +35,44 @@
 
 int radeon_debugfs_ib_init(struct radeon_device *rdev);
 
+u32 radeon_get_ib_value(struct radeon_cs_parser *p, int idx)
+{
+	struct radeon_cs_chunk *ibc = &p->chunks[p->chunk_ib_idx];
+	u32 pg_idx, pg_offset;
+	u32 idx_value = 0;
+	int new_page;
+
+	pg_idx = (idx * 4) / PAGE_SIZE;
+	pg_offset = (idx * 4) % PAGE_SIZE;
+
+	if (ibc->kpage_idx[0] == pg_idx)
+		return ibc->kpage[0][pg_offset/4];
+	if (ibc->kpage_idx[1] == pg_idx)
+		return ibc->kpage[1][pg_offset/4];
+
+	new_page = radeon_cs_update_pages(p, pg_idx);
+	if (new_page < 0) {
+		p->parser_error = new_page;
+		return 0;
+	}
+
+	idx_value = ibc->kpage[new_page][pg_offset/4];
+	return idx_value;
+}
+
+void radeon_ring_write(struct radeon_device *rdev, uint32_t v)
+{
+#if DRM_DEBUG_CODE
+	if (rdev->cp.count_dw <= 0) {
+		DRM_ERROR("radeon: writting more dword to ring than expected !\n");
+	}
+#endif
+	rdev->cp.ring[rdev->cp.wptr++] = v;
+	rdev->cp.wptr &= rdev->cp.ptr_mask;
+	rdev->cp.count_dw--;
+	rdev->cp.ring_free_dw--;
+}
+
 void radeon_ib_bogus_cleanup(struct radeon_device *rdev)
 {
 	struct radeon_ib *ib, *n;

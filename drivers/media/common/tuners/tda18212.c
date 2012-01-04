@@ -18,7 +18,20 @@
  *    51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
  */
 
-#include "tda18212_priv.h"
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
+#include "tda18212.h"
+
+struct tda18212_priv {
+	struct tda18212_config *cfg;
+	struct i2c_adapter *i2c;
+};
+
+#define dbg(fmt, arg...)					\
+do {								\
+	if (debug)						\
+		pr_info("%s: " fmt, __func__, ##arg);		\
+} while (0)
 
 static int debug;
 module_param(debug, int, 0644);
@@ -46,7 +59,8 @@ static int tda18212_wr_regs(struct tda18212_priv *priv, u8 reg, u8 *val,
 	if (ret == 1) {
 		ret = 0;
 	} else {
-		warn("i2c wr failed ret:%d reg:%02x len:%d", ret, reg, len);
+		pr_warn("i2c wr failed ret:%d reg:%02x len:%d\n",
+			ret, reg, len);
 		ret = -EREMOTEIO;
 	}
 	return ret;
@@ -77,7 +91,8 @@ static int tda18212_rd_regs(struct tda18212_priv *priv, u8 reg, u8 *val,
 		memcpy(val, buf, len);
 		ret = 0;
 	} else {
-		warn("i2c rd failed ret:%d reg:%02x len:%d", ret, reg, len);
+		pr_warn("i2c rd failed ret:%d reg:%02x len:%d\n",
+			ret, reg, len);
 		ret = -EREMOTEIO;
 	}
 
@@ -129,8 +144,8 @@ static int tda18212_set_params(struct dvb_frontend *fe,
 		{ 0x92, 0x53, 0x03 }, /* DVB-C */
 	};
 
-	dbg("%s: delsys=%d RF=%d BW=%d", __func__,
-		c->delivery_system, c->frequency, c->bandwidth_hz);
+	dbg("delsys=%d RF=%d BW=%d\n",
+	    c->delivery_system, c->frequency, c->bandwidth_hz);
 
 	if (fe->ops.i2c_gate_ctrl)
 		fe->ops.i2c_gate_ctrl(fe, 1); /* open I2C-gate */
@@ -196,7 +211,7 @@ exit:
 	return ret;
 
 error:
-	dbg("%s: failed:%d", __func__, ret);
+	dbg("failed:%d\n", ret);
 	goto exit;
 }
 
@@ -245,13 +260,13 @@ struct dvb_frontend *tda18212_attach(struct dvb_frontend *fe,
 	if (fe->ops.i2c_gate_ctrl)
 		fe->ops.i2c_gate_ctrl(fe, 0); /* close I2C-gate */
 
-	dbg("%s: ret:%d chip ID:%02x", __func__, ret, val);
+	dbg("ret:%d chip ID:%02x\n", ret, val);
 	if (ret || val != 0xc7) {
 		kfree(priv);
 		return NULL;
 	}
 
-	info("NXP TDA18212HN successfully identified.");
+	pr_info("NXP TDA18212HN successfully identified\n");
 
 	memcpy(&fe->ops.tuner_ops, &tda18212_tuner_ops,
 		sizeof(struct dvb_tuner_ops));

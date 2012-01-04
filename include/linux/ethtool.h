@@ -117,99 +117,101 @@ struct ethtool_eeprom {
 	__u8	data[0];
 };
 
-/* for configuring coalescing parameters of chip */
+/**
+ * struct ethtool_coalesce - coalescing parameters for IRQs and stats updates
+ * @cmd: ETHTOOL_{G,S}COALESCE
+ * @rx_coalesce_usecs: How many usecs to delay an RX interrupt after
+ *	a packet arrives.
+ * @rx_max_coalesced_frames: Maximum number of packets to receive
+ *	before an RX interrupt.
+ * @rx_coalesce_usecs_irq: Same as @rx_coalesce_usecs, except that
+ *	this value applies while an IRQ is being serviced by the host.
+ * @rx_max_coalesced_frames_irq: Same as @rx_max_coalesced_frames,
+ *	except that this value applies while an IRQ is being serviced
+ *	by the host.
+ * @tx_coalesce_usecs: How many usecs to delay a TX interrupt after
+ *	a packet is sent.
+ * @tx_max_coalesced_frames: Maximum number of packets to be sent
+ *	before a TX interrupt.
+ * @tx_coalesce_usecs_irq: Same as @tx_coalesce_usecs, except that
+ *	this value applies while an IRQ is being serviced by the host.
+ * @tx_max_coalesced_frames_irq: Same as @tx_max_coalesced_frames,
+ *	except that this value applies while an IRQ is being serviced
+ *	by the host.
+ * @stats_block_coalesce_usecs: How many usecs to delay in-memory
+ *	statistics block updates.  Some drivers do not have an
+ *	in-memory statistic block, and in such cases this value is
+ *	ignored.  This value must not be zero.
+ * @use_adaptive_rx_coalesce: Enable adaptive RX coalescing.
+ * @use_adaptive_tx_coalesce: Enable adaptive TX coalescing.
+ * @pkt_rate_low: Threshold for low packet rate (packets per second).
+ * @rx_coalesce_usecs_low: How many usecs to delay an RX interrupt after
+ *	a packet arrives, when the packet rate is below @pkt_rate_low.
+ * @rx_max_coalesced_frames_low: Maximum number of packets to be received
+ *	before an RX interrupt, when the packet rate is below @pkt_rate_low.
+ * @tx_coalesce_usecs_low: How many usecs to delay a TX interrupt after
+ *	a packet is sent, when the packet rate is below @pkt_rate_low.
+ * @tx_max_coalesced_frames_low: Maximum nuumber of packets to be sent before
+ *	a TX interrupt, when the packet rate is below @pkt_rate_low.
+ * @pkt_rate_high: Threshold for high packet rate (packets per second).
+ * @rx_coalesce_usecs_high: How many usecs to delay an RX interrupt after
+ *	a packet arrives, when the packet rate is above @pkt_rate_high.
+ * @rx_max_coalesced_frames_high: Maximum number of packets to be received
+ *	before an RX interrupt, when the packet rate is above @pkt_rate_high.
+ * @tx_coalesce_usecs_high: How many usecs to delay a TX interrupt after
+ *	a packet is sent, when the packet rate is above @pkt_rate_high.
+ * @tx_max_coalesced_frames_high: Maximum number of packets to be sent before
+ *	a TX interrupt, when the packet rate is above @pkt_rate_high.
+ * @rate_sample_interval: How often to do adaptive coalescing packet rate
+ *	sampling, measured in seconds.  Must not be zero.
+ *
+ * Each pair of (usecs, max_frames) fields specifies this exit
+ * condition for interrupt coalescing:
+ *	(usecs > 0 && time_since_first_completion >= usecs) ||
+ *	(max_frames > 0 && completed_frames >= max_frames)
+ * It is illegal to set both usecs and max_frames to zero as this
+ * would cause interrupts to never be generated.  To disable
+ * coalescing, set usecs = 0 and max_frames = 1.
+ *
+ * Some implementations ignore the value of max_frames and use the
+ * condition:
+ *	time_since_first_completion >= usecs
+ * This is deprecated.  Drivers for hardware that does not support
+ * counting completions should validate that max_frames == !rx_usecs.
+ *
+ * Adaptive RX/TX coalescing is an algorithm implemented by some
+ * drivers to improve latency under low packet rates and improve
+ * throughput under high packet rates.  Some drivers only implement
+ * one of RX or TX adaptive coalescing.  Anything not implemented by
+ * the driver causes these values to be silently ignored.
+ *
+ * When the packet rate is below @pkt_rate_high but above
+ * @pkt_rate_low (both measured in packets per second) the
+ * normal {rx,tx}_* coalescing parameters are used.
+ */
 struct ethtool_coalesce {
-	__u32	cmd;	/* ETHTOOL_{G,S}COALESCE */
-
-	/* How many usecs to delay an RX interrupt after
-	 * a packet arrives.  If 0, only rx_max_coalesced_frames
-	 * is used.
-	 */
+	__u32	cmd;
 	__u32	rx_coalesce_usecs;
-
-	/* How many packets to delay an RX interrupt after
-	 * a packet arrives.  If 0, only rx_coalesce_usecs is
-	 * used.  It is illegal to set both usecs and max frames
-	 * to zero as this would cause RX interrupts to never be
-	 * generated.
-	 */
 	__u32	rx_max_coalesced_frames;
-
-	/* Same as above two parameters, except that these values
-	 * apply while an IRQ is being serviced by the host.  Not
-	 * all cards support this feature and the values are ignored
-	 * in that case.
-	 */
 	__u32	rx_coalesce_usecs_irq;
 	__u32	rx_max_coalesced_frames_irq;
-
-	/* How many usecs to delay a TX interrupt after
-	 * a packet is sent.  If 0, only tx_max_coalesced_frames
-	 * is used.
-	 */
 	__u32	tx_coalesce_usecs;
-
-	/* How many packets to delay a TX interrupt after
-	 * a packet is sent.  If 0, only tx_coalesce_usecs is
-	 * used.  It is illegal to set both usecs and max frames
-	 * to zero as this would cause TX interrupts to never be
-	 * generated.
-	 */
 	__u32	tx_max_coalesced_frames;
-
-	/* Same as above two parameters, except that these values
-	 * apply while an IRQ is being serviced by the host.  Not
-	 * all cards support this feature and the values are ignored
-	 * in that case.
-	 */
 	__u32	tx_coalesce_usecs_irq;
 	__u32	tx_max_coalesced_frames_irq;
-
-	/* How many usecs to delay in-memory statistics
-	 * block updates.  Some drivers do not have an in-memory
-	 * statistic block, and in such cases this value is ignored.
-	 * This value must not be zero.
-	 */
 	__u32	stats_block_coalesce_usecs;
-
-	/* Adaptive RX/TX coalescing is an algorithm implemented by
-	 * some drivers to improve latency under low packet rates and
-	 * improve throughput under high packet rates.  Some drivers
-	 * only implement one of RX or TX adaptive coalescing.  Anything
-	 * not implemented by the driver causes these values to be
-	 * silently ignored.
-	 */
 	__u32	use_adaptive_rx_coalesce;
 	__u32	use_adaptive_tx_coalesce;
-
-	/* When the packet rate (measured in packets per second)
-	 * is below pkt_rate_low, the {rx,tx}_*_low parameters are
-	 * used.
-	 */
 	__u32	pkt_rate_low;
 	__u32	rx_coalesce_usecs_low;
 	__u32	rx_max_coalesced_frames_low;
 	__u32	tx_coalesce_usecs_low;
 	__u32	tx_max_coalesced_frames_low;
-
-	/* When the packet rate is below pkt_rate_high but above
-	 * pkt_rate_low (both measured in packets per second) the
-	 * normal {rx,tx}_* coalescing parameters are used.
-	 */
-
-	/* When the packet rate is (measured in packets per second)
-	 * is above pkt_rate_high, the {rx,tx}_*_high parameters are
-	 * used.
-	 */
 	__u32	pkt_rate_high;
 	__u32	rx_coalesce_usecs_high;
 	__u32	rx_max_coalesced_frames_high;
 	__u32	tx_coalesce_usecs_high;
 	__u32	tx_max_coalesced_frames_high;
-
-	/* How often to do adaptive coalescing packet rate sampling,
-	 * measured in seconds.  Must not be zero.
-	 */
 	__u32	rate_sample_interval;
 };
 
@@ -444,7 +446,7 @@ struct ethtool_flow_ext {
 };
 
 /**
- * struct ethtool_rx_flow_spec - specification for RX flow filter
+ * struct ethtool_rx_flow_spec - classification rule for RX flows
  * @flow_type: Type of match to perform, e.g. %TCP_V4_FLOW
  * @h_u: Flow fields to match (dependent on @flow_type)
  * @h_ext: Additional fields to match
@@ -454,7 +456,9 @@ struct ethtool_flow_ext {
  *	includes the %FLOW_EXT flag.
  * @ring_cookie: RX ring/queue index to deliver to, or %RX_CLS_FLOW_DISC
  *	if packets should be discarded
- * @location: Index of filter in hardware table
+ * @location: Location of rule in the table.  Locations must be
+ *	numbered such that a flow matching multiple rules will be
+ *	classified according to the first (lowest numbered) rule.
  */
 struct ethtool_rx_flow_spec {
 	__u32		flow_type;
@@ -473,9 +477,9 @@ struct ethtool_rx_flow_spec {
  *	%ETHTOOL_GRXCLSRLALL, %ETHTOOL_SRXCLSRLDEL or %ETHTOOL_SRXCLSRLINS
  * @flow_type: Type of flow to be affected, e.g. %TCP_V4_FLOW
  * @data: Command-dependent value
- * @fs: Flow filter specification
+ * @fs: Flow classification rule
  * @rule_cnt: Number of rules to be affected
- * @rule_locs: Array of valid rule indices
+ * @rule_locs: Array of used rule locations
  *
  * For %ETHTOOL_GRXFH and %ETHTOOL_SRXFH, @data is a bitmask indicating
  * the fields included in the flow hash, e.g. %RXH_IP_SRC.  The following
@@ -487,23 +491,20 @@ struct ethtool_rx_flow_spec {
  * For %ETHTOOL_GRXCLSRLCNT, @rule_cnt is set to the number of defined
  * rules on return.
  *
- * For %ETHTOOL_GRXCLSRULE, @fs.@location specifies the index of an
- * existing filter rule on entry and @fs contains the rule on return.
+ * For %ETHTOOL_GRXCLSRULE, @fs.@location specifies the location of an
+ * existing rule on entry and @fs contains the rule on return.
  *
  * For %ETHTOOL_GRXCLSRLALL, @rule_cnt specifies the array size of the
  * user buffer for @rule_locs on entry.  On return, @data is the size
- * of the filter table and @rule_locs contains the indices of the
- * defined rules.
+ * of the rule table, @rule_cnt is the number of defined rules, and
+ * @rule_locs contains the locations of the defined rules.  Drivers
+ * must use the second parameter to get_rxnfc() instead of @rule_locs.
  *
- * For %ETHTOOL_SRXCLSRLINS, @fs specifies the filter rule to add or
- * update.  @fs.@location specifies the index to use and must not be
- * ignored.
+ * For %ETHTOOL_SRXCLSRLINS, @fs specifies the rule to add or update.
+ * @fs.@location specifies the location to use and must not be ignored.
  *
- * For %ETHTOOL_SRXCLSRLDEL, @fs.@location specifies the index of an
- * existing filter rule on entry.
- *
- * Implementation of indexed classification rules generally requires a
- * TCAM.
+ * For %ETHTOOL_SRXCLSRLDEL, @fs.@location specifies the location of an
+ * existing rule on entry.
  */
 struct ethtool_rxnfc {
 	__u32				cmd;
@@ -726,6 +727,9 @@ enum ethtool_sfeatures_retval_bits {
 /* needed by dev_disable_lro() */
 extern int __ethtool_set_flags(struct net_device *dev, u32 flags);
 
+extern int __ethtool_get_settings(struct net_device *dev,
+				  struct ethtool_cmd *cmd);
+
 /**
  * enum ethtool_phys_id_state - indicator state for physical identification
  * @ETHTOOL_ID_INACTIVE: Physical ID indicator should be deactivated
@@ -936,7 +940,7 @@ struct ethtool_ops {
 	int	(*set_priv_flags)(struct net_device *, u32);
 	int	(*get_sset_count)(struct net_device *, int);
 	int	(*get_rxnfc)(struct net_device *,
-			     struct ethtool_rxnfc *, void *);
+			     struct ethtool_rxnfc *, u32 *rule_locs);
 	int	(*set_rxnfc)(struct net_device *, struct ethtool_rxnfc *);
 	int	(*flash_device)(struct net_device *, struct ethtool_flash *);
 	int	(*reset)(struct net_device *, u32 *);
@@ -1093,10 +1097,12 @@ struct ethtool_ops {
 #define SPEED_1000		1000
 #define SPEED_2500		2500
 #define SPEED_10000		10000
+#define SPEED_UNKNOWN		-1
 
 /* Duplex, half or full. */
 #define DUPLEX_HALF		0x00
 #define DUPLEX_FULL		0x01
+#define DUPLEX_UNKNOWN		0xff
 
 /* Which connector port. */
 #define PORT_TP			0x00

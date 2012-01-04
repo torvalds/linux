@@ -276,7 +276,7 @@ static int __devinit lpc32xx_ts_probe(struct platform_device *pdev)
 	input_set_drvdata(input, tsc);
 
 	error = request_irq(tsc->irq, lpc32xx_ts_interrupt,
-			    IRQF_DISABLED, pdev->name, tsc);
+			    0, pdev->name, tsc);
 	if (error) {
 		dev_err(&pdev->dev, "failed requesting interrupt\n");
 		goto err_put_clock;

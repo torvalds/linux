@@ -8,11 +8,9 @@
 #include <signal.h>
 #include <time.h>
 #include <sys/time.h>
-#include "kern_constants.h"
 #include "kern_util.h"
 #include "os.h"
-#include "process.h"
-#include "user.h"
+#include "internal.h"
 
 int set_interval(void)
 {

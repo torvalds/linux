@@ -26,7 +26,7 @@
 #include <linux/interrupt.h>
 #include <linux/pci.h>
 #include <linux/firmware.h>
-#include <linux/moduleparam.h>
+#include <linux/module.h>
 #include <linux/math64.h>
 
 #include <sound/core.h>
@@ -151,7 +151,7 @@ MODULE_FIRMWARE("digiface_firmware_rev11.bin");
 #define HDSP_PROGRAM	        0x020
 #define HDSP_CONFIG_MODE_0	0x040
 #define HDSP_CONFIG_MODE_1	0x080
-#define HDSP_VERSION_BIT	0x100
+#define HDSP_VERSION_BIT	(0x100 | HDSP_S_LOAD)
 #define HDSP_BIGENDIAN_MODE     0x200
 #define HDSP_RD_MULTIPLE        0x400
 #define HDSP_9652_ENABLE_MIXER  0x800

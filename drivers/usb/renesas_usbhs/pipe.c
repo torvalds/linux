@@ -29,9 +29,6 @@
 #define usbhsp_flags_has(p, f)	((p)->flags &   USBHS_PIPE_FLAGS_##f)
 #define usbhsp_flags_init(p)	do {(p)->flags = 0; } while (0)
 
-#define usbhsp_type(p)		((p)->pipe_type)
-#define usbhsp_type_is(p, t)	((p)->pipe_type == t)
-
 /*
  * for debug
  */
@@ -42,28 +39,9 @@ static char *usbhsp_pipe_name[] = {
 	[USB_ENDPOINT_XFER_ISOC]	= "ISO",
 };
 
-/*
- *		usb request functions
- */
-void usbhs_usbreq_get_val(struct usbhs_priv *priv, struct usb_ctrlrequest *req)
+char *usbhs_pipe_name(struct usbhs_pipe *pipe)
 {
-	u16 val;
-
-	val = usbhs_read(priv, USBREQ);
-	req->bRequest		= (val >> 8) & 0xFF;
-	req->bRequestType	= (val >> 0) & 0xFF;
-
-	req->wValue	= usbhs_read(priv, USBVAL);
-	req->wIndex	= usbhs_read(priv, USBINDX);
-	req->wLength	= usbhs_read(priv, USBLENG);
-}
-
-void usbhs_usbreq_set_val(struct usbhs_priv *priv, struct usb_ctrlrequest *req)
-{
-	usbhs_write(priv, USBREQ,  (req->bRequest << 8) | req->bRequestType);
-	usbhs_write(priv, USBVAL,  req->wValue);
-	usbhs_write(priv, USBINDX, req->wIndex);
-	usbhs_write(priv, USBLENG, req->wLength);
+	return usbhsp_pipe_name[usbhs_pipe_type(pipe)];
 }
 
 /*
@@ -106,17 +84,6 @@ static void __usbhsp_pipe_xxx_set(struct usbhs_pipe *pipe,
 		usbhs_bset(priv, pipe_reg, mask, val);
 }
 
-static u16 __usbhsp_pipe_xxx_get(struct usbhs_pipe *pipe,
-				 u16 dcp_reg, u16 pipe_reg)
-{
-	struct usbhs_priv *priv = usbhs_pipe_to_priv(pipe);
-
-	if (usbhs_pipe_is_dcp(pipe))
-		return usbhs_read(priv, dcp_reg);
-	else
-		return usbhs_read(priv, pipe_reg);
-}
-
 /*
  *		DCPCFG/PIPECFG functions
  */
@@ -142,11 +109,6 @@ static void usbhsp_pipe_buf_set(struct usbhs_pipe *pipe, u16 mask, u16 val)
 static void usbhsp_pipe_maxp_set(struct usbhs_pipe *pipe, u16 mask, u16 val)
 {
 	__usbhsp_pipe_xxx_set(pipe, DCPMAXP, PIPEMAXP, mask, val);
-}
-
-static u16 usbhsp_pipe_maxp_get(struct usbhs_pipe *pipe)
-{
-	return __usbhsp_pipe_xxx_get(pipe, DCPMAXP, PIPEMAXP);
 }
 
 /*
@@ -303,16 +265,16 @@ static int usbhsp_possible_double_buffer(struct usbhs_pipe *pipe)
 	/*
 	 * only ISO / BULK pipe can use double buffer
 	 */
-	if (usbhsp_type_is(pipe, USB_ENDPOINT_XFER_BULK) ||
-	    usbhsp_type_is(pipe, USB_ENDPOINT_XFER_ISOC))
+	if (usbhs_pipe_type_is(pipe, USB_ENDPOINT_XFER_BULK) ||
+	    usbhs_pipe_type_is(pipe, USB_ENDPOINT_XFER_ISOC))
 		return 1;
 
 	return 0;
 }
 
 static u16 usbhsp_setup_pipecfg(struct usbhs_pipe *pipe,
-				const struct usb_endpoint_descriptor *desc,
-				int is_host)
+				int is_host,
+				int dir_in)
 {
 	u16 type = 0;
 	u16 bfre = 0;
@@ -341,40 +303,40 @@ static u16 usbhsp_setup_pipecfg(struct usbhs_pipe *pipe,
 	 */
 
 	/* TYPE */
-	type = type_array[usbhsp_type(pipe)];
+	type = type_array[usbhs_pipe_type(pipe)];
 
 	/* BFRE */
-	if (usbhsp_type_is(pipe, USB_ENDPOINT_XFER_ISOC) ||
-	    usbhsp_type_is(pipe, USB_ENDPOINT_XFER_BULK))
+	if (usbhs_pipe_type_is(pipe, USB_ENDPOINT_XFER_ISOC) ||
+	    usbhs_pipe_type_is(pipe, USB_ENDPOINT_XFER_BULK))
 		bfre = 0; /* FIXME */
 
 	/* DBLB */
-	if (usbhsp_type_is(pipe, USB_ENDPOINT_XFER_ISOC) ||
-	    usbhsp_type_is(pipe, USB_ENDPOINT_XFER_BULK))
+	if (usbhs_pipe_type_is(pipe, USB_ENDPOINT_XFER_ISOC) ||
+	    usbhs_pipe_type_is(pipe, USB_ENDPOINT_XFER_BULK))
 		dblb = (is_double) ? DBLB : 0;
 
 	/* CNTMD */
-	if (usbhsp_type_is(pipe, USB_ENDPOINT_XFER_BULK))
+	if (usbhs_pipe_type_is(pipe, USB_ENDPOINT_XFER_BULK))
 		cntmd = 0; /* FIXME */
 
 	/* DIR */
-	if (usb_endpoint_dir_in(desc))
+	if (dir_in)
 		usbhsp_flags_set(pipe, IS_DIR_HOST);
 
-	if ((is_host  && usb_endpoint_dir_out(desc)) ||
-	    (!is_host && usb_endpoint_dir_in(desc)))
+	if ((is_host  && !dir_in) ||
+	    (!is_host && dir_in))
 		dir |= DIR_OUT;
 
 	if (!dir)
 		usbhsp_flags_set(pipe, IS_DIR_IN);
 
 	/* SHTNAK */
-	if (usbhsp_type_is(pipe, USB_ENDPOINT_XFER_BULK) &&
+	if (usbhs_pipe_type_is(pipe, USB_ENDPOINT_XFER_BULK) &&
 	    !dir)
 		shtnak = SHTNAK;
 
 	/* EPNUM */
-	epnum = 0xF & usb_endpoint_num(desc);
+	epnum = 0; /* see usbhs_pipe_config_update() */
 
 	return	type	|
 		bfre	|
@@ -385,19 +347,7 @@ static u16 usbhsp_setup_pipecfg(struct usbhs_pipe *pipe,
 		epnum;
 }
 
-static u16 usbhsp_setup_pipemaxp(struct usbhs_pipe *pipe,
-				 const struct usb_endpoint_descriptor *desc,
-				 int is_host)
-{
-	/* host should set DEVSEL */
-
-	/* reutn MXPS */
-	return PIPE_MAXP_MASK & le16_to_cpu(desc->wMaxPacketSize);
-}
-
-static u16 usbhsp_setup_pipebuff(struct usbhs_pipe *pipe,
-				 const struct usb_endpoint_descriptor *desc,
-				 int is_host)
+static u16 usbhsp_setup_pipebuff(struct usbhs_pipe *pipe)
 {
 	struct usbhs_priv *priv = usbhs_pipe_to_priv(pipe);
 	struct usbhs_pipe_info *info = usbhs_priv_to_pipeinfo(priv);
@@ -441,9 +391,9 @@ static u16 usbhsp_setup_pipebuff(struct usbhs_pipe *pipe,
 	 * INT :  64 byte
 	 * ISOC: 512 byte
 	 */
-	if (usbhsp_type_is(pipe, USB_ENDPOINT_XFER_CONTROL))
+	if (usbhs_pipe_type_is(pipe, USB_ENDPOINT_XFER_CONTROL))
 		buff_size = 256;
-	else if (usbhsp_type_is(pipe, USB_ENDPOINT_XFER_INT))
+	else if (usbhs_pipe_type_is(pipe, USB_ENDPOINT_XFER_INT))
 		buff_size = 64;
 	else
 		buff_size = 512;
@@ -453,7 +403,7 @@ static u16 usbhsp_setup_pipebuff(struct usbhs_pipe *pipe,
 
 	/* BUFNMB has been reserved for INT pipe
 	 * see above */
-	if (usbhsp_type_is(pipe, USB_ENDPOINT_XFER_INT)) {
+	if (usbhs_pipe_type_is(pipe, USB_ENDPOINT_XFER_INT)) {
 		bufnmb = pipe_num - 2;
 	} else {
 		bufnmb = info->bufnmb_last;
@@ -473,16 +423,42 @@ static u16 usbhsp_setup_pipebuff(struct usbhs_pipe *pipe,
 		(0xff & bufnmb)		<<  0;
 }
 
+void usbhs_pipe_config_update(struct usbhs_pipe *pipe, u16 devsel,
+			      u16 epnum, u16 maxp)
+{
+	if (devsel > 0xA) {
+		struct usbhs_priv *priv = usbhs_pipe_to_priv(pipe);
+		struct device *dev = usbhs_priv_to_dev(priv);
+
+		dev_err(dev, "devsel error %d\n", devsel);
+
+		devsel = 0;
+	}
+
+	usbhsp_pipe_barrier(pipe);
+
+	pipe->maxp = maxp;
+
+	usbhsp_pipe_select(pipe);
+	usbhsp_pipe_maxp_set(pipe, 0xFFFF,
+			     (devsel << 12) |
+			     maxp);
+
+	if (!usbhs_pipe_is_dcp(pipe))
+		usbhsp_pipe_cfg_set(pipe,  0x000F, epnum);
+}
+
 /*
  *		pipe control
  */
 int usbhs_pipe_get_maxpacket(struct usbhs_pipe *pipe)
 {
-	u16 mask = usbhs_pipe_is_dcp(pipe) ? DCP_MAXP_MASK : PIPE_MAXP_MASK;
-
-	usbhsp_pipe_select(pipe);
-
-	return (int)(usbhsp_pipe_maxp_get(pipe) & mask);
+	/*
+	 * see
+	 *	usbhs_pipe_config_update()
+	 *	usbhs_dcp_malloc()
+	 */
+	return pipe->maxp;
 }
 
 int usbhs_pipe_is_dir_in(struct usbhs_pipe *pipe)
@@ -495,9 +471,12 @@ int usbhs_pipe_is_dir_host(struct usbhs_pipe *pipe)
 	return usbhsp_flags_has(pipe, IS_DIR_HOST);
 }
 
-void usbhs_pipe_clear_sequence(struct usbhs_pipe *pipe)
+void usbhs_pipe_data_sequence(struct usbhs_pipe *pipe, int data)
 {
-	usbhsp_pipectrl_set(pipe, SQCLR, SQCLR);
+	u16 mask = (SQCLR | SQSET);
+	u16 val = (data) ? SQSET : SQCLR;
+
+	usbhsp_pipectrl_set(pipe, mask, val);
 }
 
 void usbhs_pipe_clear(struct usbhs_pipe *pipe)
@@ -516,7 +495,7 @@ static struct usbhs_pipe *usbhsp_get_pipe(struct usbhs_priv *priv, u32 type)
 	 */
 	pipe = NULL;
 	usbhs_for_each_pipe_with_dcp(pos, priv, i) {
-		if (!usbhsp_type_is(pos, type))
+		if (!usbhs_pipe_type_is(pos, type))
 			continue;
 		if (usbhsp_flags_has(pos, IS_USED))
 			continue;
@@ -538,18 +517,11 @@ static struct usbhs_pipe *usbhsp_get_pipe(struct usbhs_priv *priv, u32 type)
 }
 
 void usbhs_pipe_init(struct usbhs_priv *priv,
-		     void (*done)(struct usbhs_pkt *pkt),
 		     int (*dma_map_ctrl)(struct usbhs_pkt *pkt, int map))
 {
 	struct usbhs_pipe_info *info = usbhs_priv_to_pipeinfo(priv);
-	struct device *dev = usbhs_priv_to_dev(priv);
 	struct usbhs_pipe *pipe;
 	int i;
-
-	if (!done) {
-		dev_err(dev, "no done function\n");
-		return;
-	}
 
 	/*
 	 * FIXME
@@ -565,7 +537,7 @@ void usbhs_pipe_init(struct usbhs_priv *priv,
 	 */
 	info->bufnmb_last = 4;
 	usbhs_for_each_pipe_with_dcp(pipe, priv, i) {
-		if (usbhsp_type_is(pipe, USB_ENDPOINT_XFER_INT))
+		if (usbhs_pipe_type_is(pipe, USB_ENDPOINT_XFER_INT))
 			info->bufnmb_last++;
 
 		usbhsp_flags_init(pipe);
@@ -577,24 +549,23 @@ void usbhs_pipe_init(struct usbhs_priv *priv,
 		usbhs_pipe_clear(pipe);
 	}
 
-	info->done = done;
 	info->dma_map_ctrl = dma_map_ctrl;
 }
 
 struct usbhs_pipe *usbhs_pipe_malloc(struct usbhs_priv *priv,
-				     const struct usb_endpoint_descriptor *desc)
+				     int endpoint_type,
+				     int dir_in)
 {
 	struct device *dev = usbhs_priv_to_dev(priv);
-	struct usbhs_mod *mod = usbhs_mod_get_current(priv);
 	struct usbhs_pipe *pipe;
-	int is_host = usbhs_mod_is_host(priv, mod);
+	int is_host = usbhs_mod_is_host(priv);
 	int ret;
-	u16 pipecfg, pipebuf, pipemaxp;
+	u16 pipecfg, pipebuf;
 
-	pipe = usbhsp_get_pipe(priv, usb_endpoint_type(desc));
+	pipe = usbhsp_get_pipe(priv, endpoint_type);
 	if (!pipe) {
 		dev_err(dev, "can't get pipe (%s)\n",
-			usbhsp_pipe_name[usb_endpoint_type(desc)]);
+			usbhsp_pipe_name[endpoint_type]);
 		return NULL;
 	}
 
@@ -609,21 +580,24 @@ struct usbhs_pipe *usbhs_pipe_malloc(struct usbhs_priv *priv,
 		return NULL;
 	}
 
-	pipecfg  = usbhsp_setup_pipecfg(pipe,  desc, is_host);
-	pipebuf  = usbhsp_setup_pipebuff(pipe, desc, is_host);
-	pipemaxp = usbhsp_setup_pipemaxp(pipe, desc, is_host);
+	pipecfg  = usbhsp_setup_pipecfg(pipe, is_host, dir_in);
+	pipebuf  = usbhsp_setup_pipebuff(pipe);
 
 	usbhsp_pipe_select(pipe);
 	usbhsp_pipe_cfg_set(pipe, 0xFFFF, pipecfg);
 	usbhsp_pipe_buf_set(pipe, 0xFFFF, pipebuf);
-	usbhsp_pipe_maxp_set(pipe, 0xFFFF, pipemaxp);
 
-	usbhs_pipe_clear_sequence(pipe);
+	usbhs_pipe_sequence_data0(pipe);
 
 	dev_dbg(dev, "enable pipe %d : %s (%s)\n",
 		usbhs_pipe_number(pipe),
-		usbhsp_pipe_name[usb_endpoint_type(desc)],
+		usbhs_pipe_name(pipe),
 		usbhs_pipe_is_dir_in(pipe) ? "in" : "out");
+
+	/*
+	 * epnum / maxp are still not set to this pipe.
+	 * call usbhs_pipe_config_update() after this function !!
+	 */
 
 	return pipe;
 }
@@ -651,25 +625,31 @@ struct usbhs_pipe *usbhs_dcp_malloc(struct usbhs_priv *priv)
 	if (!pipe)
 		return NULL;
 
-	/*
-	 * dcpcfg  : default
-	 * dcpmaxp : default
-	 * pipebuf : nothing to do
-	 */
-
-	usbhsp_pipe_select(pipe);
-	usbhs_pipe_clear_sequence(pipe);
 	INIT_LIST_HEAD(&pipe->list);
+
+	/*
+	 * call usbhs_pipe_config_update() after this function !!
+	 */
 
 	return pipe;
 }
 
 void usbhs_dcp_control_transfer_done(struct usbhs_pipe *pipe)
 {
+	struct usbhs_priv *priv = usbhs_pipe_to_priv(pipe);
+
 	WARN_ON(!usbhs_pipe_is_dcp(pipe));
 
 	usbhs_pipe_enable(pipe);
-	usbhsp_pipectrl_set(pipe, CCPL, CCPL);
+
+	if (!usbhs_mod_is_host(priv)) /* funconly */
+		usbhsp_pipectrl_set(pipe, CCPL, CCPL);
+}
+
+void usbhs_dcp_dir_for_host(struct usbhs_pipe *pipe, int dir_out)
+{
+	usbhsp_pipe_cfg_set(pipe, DIR_OUT,
+			    dir_out ? DIR_OUT : 0);
 }
 
 /*
@@ -703,7 +683,9 @@ int usbhs_pipe_probe(struct usbhs_priv *priv)
 	 */
 	usbhs_for_each_pipe_with_dcp(pipe, priv, i) {
 		pipe->priv = priv;
-		usbhsp_type(pipe) = pipe_type[i] & USB_ENDPOINT_XFERTYPE_MASK;
+
+		usbhs_pipe_type(pipe) =
+			pipe_type[i] & USB_ENDPOINT_XFERTYPE_MASK;
 
 		dev_dbg(dev, "pipe %x\t: %s\n",
 			i, usbhsp_pipe_name[pipe_type[i]]);

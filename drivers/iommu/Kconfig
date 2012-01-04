@@ -59,10 +59,14 @@ config AMD_IOMMU_STATS
 	  If unsure, say N.
 
 # Intel IOMMU support
-config DMAR
-	bool "Support for DMA Remapping Devices"
+config DMAR_TABLE
+	bool
+
+config INTEL_IOMMU
+	bool "Support for Intel IOMMU using DMA Remapping Devices"
 	depends on PCI_MSI && ACPI && (X86 || IA64_GENERIC)
 	select IOMMU_API
+	select DMAR_TABLE
 	help
 	  DMA remapping (DMAR) devices support enables independent address
 	  translations for Direct Memory Access (DMA) from devices.
@@ -70,18 +74,18 @@ config DMAR
 	  and include PCI device scope covered by these DMA
 	  remapping devices.
 
-config DMAR_DEFAULT_ON
+config INTEL_IOMMU_DEFAULT_ON
 	def_bool y
-	prompt "Enable DMA Remapping Devices by default"
-	depends on DMAR
+	prompt "Enable Intel DMA Remapping Devices by default"
+	depends on INTEL_IOMMU
 	help
 	  Selecting this option will enable a DMAR device at boot time if
 	  one is found. If this option is not selected, DMAR support can
 	  be enabled by passing intel_iommu=on to the kernel.
 
-config DMAR_BROKEN_GFX_WA
+config INTEL_IOMMU_BROKEN_GFX_WA
 	bool "Workaround broken graphics drivers (going away soon)"
-	depends on DMAR && BROKEN && X86
+	depends on INTEL_IOMMU && BROKEN && X86
 	---help---
 	  Current Graphics drivers tend to use physical address
 	  for DMA and avoid using DMA APIs. Setting this config
@@ -90,21 +94,41 @@ config DMAR_BROKEN_GFX_WA
 	  to use physical addresses for DMA, at least until this
 	  option is removed in the 2.6.32 kernel.
 
-config DMAR_FLOPPY_WA
+config INTEL_IOMMU_FLOPPY_WA
 	def_bool y
-	depends on DMAR && X86
+	depends on INTEL_IOMMU && X86
 	---help---
 	  Floppy disk drivers are known to bypass DMA API calls
 	  thereby failing to work when IOMMU is enabled. This
 	  workaround will setup a 1:1 mapping for the first
 	  16MiB to make floppy (an ISA device) work.
 
-config INTR_REMAP
+config IRQ_REMAP
 	bool "Support for Interrupt Remapping (EXPERIMENTAL)"
 	depends on X86_64 && X86_IO_APIC && PCI_MSI && ACPI && EXPERIMENTAL
+	select DMAR_TABLE
 	---help---
 	  Supports Interrupt remapping for IO-APIC and MSI devices.
 	  To use x2apic mode in the CPU's which support x2APIC enhancements or
 	  to support platforms with CPU's having > 8 bit APIC ID, say Y.
+
+# OMAP IOMMU support
+config OMAP_IOMMU
+	bool "OMAP IOMMU Support"
+	depends on ARCH_OMAP
+	select IOMMU_API
+
+config OMAP_IOVMM
+	tristate "OMAP IO Virtual Memory Manager Support"
+	depends on OMAP_IOMMU
+
+config OMAP_IOMMU_DEBUG
+       tristate "Export OMAP IOMMU/IOVMM internals in DebugFS"
+       depends on OMAP_IOVMM && DEBUG_FS
+       help
+         Select this to see extensive information about
+         the internal state of OMAP IOMMU/IOVMM in debugfs.
+
+         Say N unless you know you need this.
 
 endif # IOMMU_SUPPORT

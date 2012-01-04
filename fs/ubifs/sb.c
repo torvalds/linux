@@ -247,7 +247,7 @@ static int create_default_filesystem(struct ubifs_info *c)
 	mst->total_dirty = cpu_to_le64(tmp64);
 
 	/*  The indexing LEB does not contribute to dark space */
-	tmp64 = (c->main_lebs - 1) * c->dark_wm;
+	tmp64 = ((long long)(c->main_lebs - 1) * c->dark_wm);
 	mst->total_dark = cpu_to_le64(tmp64);
 
 	mst->total_used = cpu_to_le64(UBIFS_INO_NODE_SZ);

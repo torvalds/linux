@@ -367,8 +367,6 @@ static int neo1973_wm8753_init(struct snd_soc_pcm_runtime *rtd)
 			return ret;
 	}
 
-	snd_soc_dapm_sync(dapm);
-
 	return 0;
 }
 
@@ -408,8 +406,6 @@ static int neo1973_lm4857_init(struct snd_soc_dapm_context *dapm)
 	snd_soc_dapm_ignore_suspend(dapm, "Stereo Out");
 	snd_soc_dapm_ignore_suspend(dapm, "Handset Spk");
 	snd_soc_dapm_ignore_suspend(dapm, "Headphone");
-
-	snd_soc_dapm_sync(dapm);
 
 	return 0;
 }

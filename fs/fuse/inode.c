@@ -151,7 +151,7 @@ void fuse_change_attributes_common(struct inode *inode, struct fuse_attr *attr,
 
 	inode->i_ino     = attr->ino;
 	inode->i_mode    = (inode->i_mode & S_IFMT) | (attr->mode & 07777);
-	inode->i_nlink   = attr->nlink;
+	set_nlink(inode, attr->nlink);
 	inode->i_uid     = attr->uid;
 	inode->i_gid     = attr->gid;
 	inode->i_blocks  = attr->blocks;

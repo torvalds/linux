@@ -48,6 +48,7 @@
 #include <linux/errno.h>
 #include <linux/aio.h>
 #include <linux/kernel.h>
+#include <linux/export.h>
 #include <linux/spinlock.h>
 #include <linux/sockios.h>
 #include <linux/socket.h>

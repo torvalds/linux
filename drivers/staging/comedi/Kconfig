@@ -1244,11 +1244,10 @@ config COMEDI_DT9812
 	  called dt9812.
 
 config COMEDI_USBDUX
-	tristate "ITL USBDUX support"
+	tristate "ITL USB-DUX-D support"
 	default N
 	---help---
-	  Enable support for the University of Stirling USB DAQ and INCITE
-	  Technology Limited driver
+	  Enable support for the Incite Technology Ltd USB-DUX-D Board
 
 	  To compile this driver as a module, choose M here: the module will be
 	  called usbdux.
@@ -1258,11 +1257,20 @@ config COMEDI_USBDUXFAST
 	select COMEDI_FC
 	default N
 	---help---
-	  Enable support for the University of Stirling USB-DUXfast and INCITE
-	  Technology Limited driver
+	  Enable support for the Incite Technology Ltd USB-DUXfast Board
 
 	  To compile this driver as a module, choose M here: the module will be
 	  called usbduxfast.
+
+config COMEDI_USBDUXSIGMA
+	tristate "ITL USB-DUXsigma support"
+	select COMEDI_FC
+	default N
+	---help---
+	  Enable support for the Incite Technology Ltd USB-DUXsigma Board
+
+	  To compile this driver as a module, choose M here: the module will be
+	  called usbduxsigma.
 
 config COMEDI_VMK80XX
 	tristate "Velleman VM110/VM140 USB Board support"

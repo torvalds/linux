@@ -16,6 +16,7 @@
 #include <linux/net.h>
 #include <linux/netdevice.h>
 #include <linux/mutex.h>
+#include <linux/module.h>
 #include <net/netns/generic.h>
 #include <net/net_namespace.h>
 #include <net/pkt_sched.h>
@@ -212,8 +213,7 @@ static int caif_device_notify(struct notifier_block *me, unsigned long what,
 	enum cfcnfg_phy_preference pref;
 	enum cfcnfg_phy_type phy_type;
 	struct cfcnfg *cfg;
-	struct caif_device_entry_list *caifdevs =
-	    caif_device_list(dev_net(dev));
+	struct caif_device_entry_list *caifdevs;
 
 	if (dev->type != ARPHRD_CAIF)
 		return 0;
@@ -221,6 +221,8 @@ static int caif_device_notify(struct notifier_block *me, unsigned long what,
 	cfg = get_cfcnfg(dev_net(dev));
 	if (cfg == NULL)
 		return 0;
+
+	caifdevs = caif_device_list(dev_net(dev));
 
 	switch (what) {
 	case NETDEV_REGISTER:

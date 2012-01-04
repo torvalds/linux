@@ -182,6 +182,11 @@ config MACH_ECO920
 	help
 	  Select this if you are using the eco920 board
 
+config MACH_RSI_EWS
+	bool "RSI Embedded Webserver"
+	depends on ARCH_AT91RM9200
+	help
+	  Select this if you are using RSIs EWS board.
 endif
 
 # ----------------------------------------------------------
@@ -189,12 +194,6 @@ endif
 if ARCH_AT91SAM9260
 
 comment "AT91SAM9260 Variants"
-
-config ARCH_AT91SAM9260_SAM9XE
-	bool "AT91SAM9XE"
-	help
-	  Select this if you are using Atmel's AT91SAM9XE System-on-Chip.
-	  They are basically AT91SAM9260s with various sizes of embedded Flash.
 
 comment "AT91SAM9260 / AT91SAM9XE Board Type"
 
@@ -381,6 +380,14 @@ config MACH_GSIA18S
 	  This enables support for the GS_IA18_S board
 	  produced by GeoSIG Ltd company. This is an internet accelerograph.
 	  <http://www.geosig.com>
+
+config MACH_USB_A9G20
+	bool "CALAO USB-A9G20"
+	depends on ARCH_AT91SAM9G20
+	help
+	  Select this if you are using a Calao Systems USB-A9G20.
+	  <http://www.calao-systems.com>
+
 endif
 
 if (ARCH_AT91SAM9260 || ARCH_AT91SAM9G20)
@@ -439,6 +446,17 @@ config MACH_AT91EB01
 	  Skyeye simulator.
 
 endif
+
+# ----------------------------------------------------------
+
+comment "Generic Board Type"
+
+config MACH_AT91SAM_DT
+	bool "Atmel AT91SAM Evaluation Kits with device-tree support"
+	select USE_OF
+	help
+	  Select this if you want to experiment device-tree with
+	  an Atmel Evaluation Kit.
 
 # ----------------------------------------------------------
 

@@ -47,12 +47,14 @@ static unsigned short batcap[8] = { 1, 15, 25, 35, 50, 70, 100, 0 };
 
 static enum power_supply_property wacom_battery_props[] = {
 	POWER_SUPPLY_PROP_PRESENT,
-	POWER_SUPPLY_PROP_CAPACITY
+	POWER_SUPPLY_PROP_CAPACITY,
+	POWER_SUPPLY_PROP_SCOPE,
 };
 
 static enum power_supply_property wacom_ac_props[] = {
 	POWER_SUPPLY_PROP_PRESENT,
-	POWER_SUPPLY_PROP_ONLINE
+	POWER_SUPPLY_PROP_ONLINE,
+	POWER_SUPPLY_PROP_SCOPE,
 };
 
 static int wacom_battery_get_property(struct power_supply *psy,
@@ -67,6 +69,9 @@ static int wacom_battery_get_property(struct power_supply *psy,
 	switch (psp) {
 	case POWER_SUPPLY_PROP_PRESENT:
 		val->intval = 1;
+		break;
+	case POWER_SUPPLY_PROP_SCOPE:
+		val->intval = POWER_SUPPLY_SCOPE_DEVICE;
 		break;
 	case POWER_SUPPLY_PROP_CAPACITY:
 		/* show 100% battery capacity when charging */
@@ -98,6 +103,9 @@ static int wacom_ac_get_property(struct power_supply *psy,
 			val->intval = 1;
 		else
 			val->intval = 0;
+		break;
+	case POWER_SUPPLY_PROP_SCOPE:
+		val->intval = POWER_SUPPLY_SCOPE_DEVICE;
 		break;
 	default:
 		ret = -EINVAL;
@@ -304,11 +312,51 @@ static int wacom_raw_event(struct hid_device *hdev, struct hid_report *report,
 	return 1;
 }
 
+static int wacom_input_mapped(struct hid_device *hdev, struct hid_input *hi,
+	struct hid_field *field, struct hid_usage *usage, unsigned long **bit,
+								int *max)
+{
+	struct input_dev *input = hi->input;
+
+	__set_bit(INPUT_PROP_POINTER, input->propbit);
+
+	/* Basics */
+	input->evbit[0] |= BIT(EV_KEY) | BIT(EV_ABS) | BIT(EV_REL);
+
+	__set_bit(REL_WHEEL, input->relbit);
+
+	__set_bit(BTN_TOOL_PEN, input->keybit);
+	__set_bit(BTN_TOUCH, input->keybit);
+	__set_bit(BTN_STYLUS, input->keybit);
+	__set_bit(BTN_STYLUS2, input->keybit);
+	__set_bit(BTN_LEFT, input->keybit);
+	__set_bit(BTN_RIGHT, input->keybit);
+	__set_bit(BTN_MIDDLE, input->keybit);
+
+	/* Pad */
+	input->evbit[0] |= BIT(EV_MSC);
+
+	__set_bit(MSC_SERIAL, input->mscbit);
+
+	__set_bit(BTN_0, input->keybit);
+	__set_bit(BTN_1, input->keybit);
+	__set_bit(BTN_TOOL_FINGER, input->keybit);
+
+	/* Distance, rubber and mouse */
+	__set_bit(BTN_TOOL_RUBBER, input->keybit);
+	__set_bit(BTN_TOOL_MOUSE, input->keybit);
+
+	input_set_abs_params(input, ABS_X, 0, 16704, 4, 0);
+	input_set_abs_params(input, ABS_Y, 0, 12064, 4, 0);
+	input_set_abs_params(input, ABS_PRESSURE, 0, 511, 0, 0);
+	input_set_abs_params(input, ABS_DISTANCE, 0, 32, 0, 0);
+
+	return 0;
+}
+
 static int wacom_probe(struct hid_device *hdev,
 		const struct hid_device_id *id)
 {
-	struct hid_input *hidinput;
-	struct input_dev *input;
 	struct wacom_data *wdata;
 	int ret;
 
@@ -349,6 +397,8 @@ static int wacom_probe(struct hid_device *hdev,
 	wdata->battery.type = POWER_SUPPLY_TYPE_BATTERY;
 	wdata->battery.use_for_apm = 0;
 
+	power_supply_powers(&wdata->battery, &hdev->dev);
+
 	ret = power_supply_register(&hdev->dev, &wdata->battery);
 	if (ret) {
 		hid_warn(hdev, "can't create sysfs battery attribute, err: %d\n",
@@ -363,6 +413,8 @@ static int wacom_probe(struct hid_device *hdev,
 	wdata->ac.type = POWER_SUPPLY_TYPE_MAINS;
 	wdata->ac.use_for_apm = 0;
 
+	power_supply_powers(&wdata->battery, &hdev->dev);
+
 	ret = power_supply_register(&hdev->dev, &wdata->ac);
 	if (ret) {
 		hid_warn(hdev,
@@ -370,42 +422,6 @@ static int wacom_probe(struct hid_device *hdev,
 		goto err_ac;
 	}
 #endif
-	hidinput = list_entry(hdev->inputs.next, struct hid_input, list);
-	input = hidinput->input;
-
-	__set_bit(INPUT_PROP_POINTER, input->propbit);
-
-	/* Basics */
-	input->evbit[0] |= BIT(EV_KEY) | BIT(EV_ABS) | BIT(EV_REL);
-
-	__set_bit(REL_WHEEL, input->relbit);
-
-	__set_bit(BTN_TOOL_PEN, input->keybit);
-	__set_bit(BTN_TOUCH, input->keybit);
-	__set_bit(BTN_STYLUS, input->keybit);
-	__set_bit(BTN_STYLUS2, input->keybit);
-	__set_bit(BTN_LEFT, input->keybit);
-	__set_bit(BTN_RIGHT, input->keybit);
-	__set_bit(BTN_MIDDLE, input->keybit);
-
-	/* Pad */
-	input->evbit[0] |= BIT(EV_MSC);
-
-	__set_bit(MSC_SERIAL, input->mscbit);
-
-	__set_bit(BTN_0, input->keybit);
-	__set_bit(BTN_1, input->keybit);
-	__set_bit(BTN_TOOL_FINGER, input->keybit);
-
-	/* Distance, rubber and mouse */
-	__set_bit(BTN_TOOL_RUBBER, input->keybit);
-	__set_bit(BTN_TOOL_MOUSE, input->keybit);
-
-	input_set_abs_params(input, ABS_X, 0, 16704, 4, 0);
-	input_set_abs_params(input, ABS_Y, 0, 12064, 4, 0);
-	input_set_abs_params(input, ABS_PRESSURE, 0, 511, 0, 0);
-	input_set_abs_params(input, ABS_DISTANCE, 0, 32, 0, 0);
-
 	return 0;
 
 #ifdef CONFIG_HID_WACOM_POWER_SUPPLY
@@ -448,6 +464,7 @@ static struct hid_driver wacom_driver = {
 	.probe = wacom_probe,
 	.remove = wacom_remove,
 	.raw_event = wacom_raw_event,
+	.input_mapped = wacom_input_mapped,
 };
 
 static int __init wacom_init(void)

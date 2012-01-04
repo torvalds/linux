@@ -490,7 +490,7 @@ static int platinum_var_to_par(struct fb_var_screeninfo *var,
 
 
 /* 
- * Parse user speficied options (`video=platinumfb:')
+ * Parse user specified options (`video=platinumfb:')
  */
 static int __init platinumfb_setup(char *options)
 {
@@ -683,7 +683,7 @@ static struct platform_driver platinum_driver =
 		.of_match_table = platinumfb_match,
 	},
 	.probe		= platinumfb_probe,
-	.remove		= platinumfb_remove,
+	.remove		= __devexit_p(platinumfb_remove),
 };
 
 static int __init platinumfb_init(void)

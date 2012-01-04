@@ -14,6 +14,10 @@ Supported chips:
     Prefix: 'w83627dhg'
     Addresses scanned: ISA address retrieved from Super I/O registers
     Datasheet: not available
+  * Winbond W83627UHG
+    Prefix: 'w83627uhg'
+    Addresses scanned: ISA address retrieved from Super I/O registers
+    Datasheet: available from www.nuvoton.com
   * Winbond W83667HG
     Prefix: 'w83667hg'
     Addresses scanned: ISA address retrieved from Super I/O registers
@@ -42,14 +46,13 @@ Description
 -----------
 
 This driver implements support for the Winbond W83627EHF, W83627EHG,
-W83627DHG, W83627DHG-P, W83667HG, W83667HG-B, W83667HG-I (NCT6775F),
-and NCT6776F super I/O chips. We will refer to them collectively as
-Winbond chips.
+W83627DHG, W83627DHG-P, W83627UHG, W83667HG, W83667HG-B, W83667HG-I
+(NCT6775F), and NCT6776F super I/O chips. We will refer to them collectively
+as Winbond chips.
 
-The chips implement three temperature sensors (up to four for 667HG-B, and nine
-for NCT6775F and NCT6776F), five fan rotation speed sensors, ten analog voltage
-sensors (only nine for the 627DHG), one VID (6 pins for the 627EHF/EHG, 8 pins
-for the 627DHG and 667HG), alarms with beep warnings (control unimplemented),
+The chips implement 2 to 4 temperature sensors (9 for NCT6775F and NCT6776F),
+2 to 5 fan rotation speed sensors, 8 to 10 analog voltage sensors, one VID
+(except for 627UHG), alarms with beep warnings (control unimplemented),
 and some automatic fan regulation strategies (plus manual fan control mode).
 
 The temperature sensor sources on W82677HG-B, NCT6775F, and NCT6776F are
@@ -86,17 +89,16 @@ follows:
 
 temp1 -> pwm1
 temp2 -> pwm2
-temp3 -> pwm3
+temp3 -> pwm3 (not on 627UHG)
 prog  -> pwm4 (not on 667HG and 667HG-B; the programmable setting is not
 	       supported by the driver)
 
 /sys files
 ----------
 
-name - this is a standard hwmon device entry. For the W83627EHF and W83627EHG,
-       it is set to "w83627ehf", for the W83627DHG it is set to "w83627dhg",
-       for the W83667HG and W83667HG-B it is set to "w83667hg", for NCT6775F it
-       is set to "nct6775", and for NCT6776F it is set to "nct6776".
+name - this is a standard hwmon device entry, it contains the name of
+       the device (see the prefix in the list of supported devices at
+       the top of this file)
 
 pwm[1-4] - this file stores PWM duty cycle or DC value (fan speed) in range:
 	   0 (stop) to 255 (full)

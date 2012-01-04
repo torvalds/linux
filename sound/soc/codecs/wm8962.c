@@ -63,6 +63,8 @@ struct wm8962_priv {
 	int fll_fref;
 	int fll_fout;
 
+	u16 dsp2_ena;
+
 	struct delayed_work mic_work;
 	struct snd_soc_jack *jack;
 
@@ -837,7 +839,7 @@ static const struct wm8962_reg_access {
 	[40] = { 0x00FF, 0x01FF, 0x0000 }, /* R40    - SPKOUTL volume */
 	[41] = { 0x00FF, 0x01FF, 0x0000 }, /* R41    - SPKOUTR volume */
 
-	[47] = { 0x000F, 0x0000, 0x0000 }, /* R47    - Thermal Shutdown Status */
+	[47] = { 0x000F, 0x0000, 0xFFFF }, /* R47    - Thermal Shutdown Status */
 	[48] = { 0x7EC7, 0x7E07, 0xFFFF }, /* R48    - Additional Control (4) */
 	[49] = { 0x00D3, 0x00D7, 0xFFFF }, /* R49    - Class D Control 1 */
 	[51] = { 0x0047, 0x0047, 0x0000 }, /* R51    - Class D Control 2 */
@@ -965,7 +967,7 @@ static const struct wm8962_reg_access {
 	[584] = { 0x002D, 0x002D, 0x0000 }, /* R584   - IRQ Debounce */
 	[586] = { 0xC000, 0xC000, 0x0000 }, /* R586   -  MICINT Source Pol */
 	[768] = { 0x0001, 0x0001, 0x0000 }, /* R768   - DSP2 Power Management */
-	[1037] = { 0x0000, 0x003F, 0x0000 }, /* R1037  - DSP2_ExecControl */
+	[1037] = { 0x0000, 0x003F, 0xFFFF }, /* R1037  - DSP2_ExecControl */
 	[4096] = { 0x3FFF, 0x3FFF, 0x0000 }, /* R4096  - Write Sequencer 0 */
 	[4097] = { 0x00FF, 0x00FF, 0x0000 }, /* R4097  - Write Sequencer 1 */
 	[4098] = { 0x070F, 0x070F, 0x0000 }, /* R4098  - Write Sequencer 2 */
@@ -1959,7 +1961,13 @@ static int wm8962_readable_register(struct snd_soc_codec *codec, unsigned int re
 
 static int wm8962_reset(struct snd_soc_codec *codec)
 {
-	return snd_soc_write(codec, WM8962_SOFTWARE_RESET, 0x6243);
+	int ret;
+
+	ret = snd_soc_write(codec, WM8962_SOFTWARE_RESET, 0x6243);
+	if (ret != 0)
+		return ret;
+
+	return snd_soc_write(codec, WM8962_PLL_SOFTWARE_RESET, 0);
 }
 
 static const DECLARE_TLV_DB_SCALE(inpga_tlv, -2325, 75, 0);
@@ -1985,6 +1993,122 @@ static const unsigned int classd_tlv[] = {
 	7, 7, TLV_DB_SCALE_ITEM(1200, 0, 0),
 };
 static const DECLARE_TLV_DB_SCALE(eq_tlv, -1200, 100, 0);
+
+static int wm8962_dsp2_write_config(struct snd_soc_codec *codec)
+{
+	return 0;
+}
+
+static int wm8962_dsp2_set_enable(struct snd_soc_codec *codec, u16 val)
+{
+	u16 adcl = snd_soc_read(codec, WM8962_LEFT_ADC_VOLUME);
+	u16 adcr = snd_soc_read(codec, WM8962_RIGHT_ADC_VOLUME);
+	u16 dac = snd_soc_read(codec, WM8962_ADC_DAC_CONTROL_1);
+
+	/* Mute the ADCs and DACs */
+	snd_soc_write(codec, WM8962_LEFT_ADC_VOLUME, 0);
+	snd_soc_write(codec, WM8962_RIGHT_ADC_VOLUME, WM8962_ADC_VU);
+	snd_soc_update_bits(codec, WM8962_ADC_DAC_CONTROL_1,
+			    WM8962_DAC_MUTE, WM8962_DAC_MUTE);
+
+	snd_soc_write(codec, WM8962_SOUNDSTAGE_ENABLES_0, val);
+
+	/* Restore the ADCs and DACs */
+	snd_soc_write(codec, WM8962_LEFT_ADC_VOLUME, adcl);
+	snd_soc_write(codec, WM8962_RIGHT_ADC_VOLUME, adcr);
+	snd_soc_update_bits(codec, WM8962_ADC_DAC_CONTROL_1,
+			    WM8962_DAC_MUTE, dac);
+
+	return 0;
+}
+
+static int wm8962_dsp2_start(struct snd_soc_codec *codec)
+{
+	struct wm8962_priv *wm8962 = snd_soc_codec_get_drvdata(codec);
+
+	wm8962_dsp2_write_config(codec);
+
+	snd_soc_write(codec, WM8962_DSP2_EXECCONTROL, WM8962_DSP2_RUNR);
+
+	wm8962_dsp2_set_enable(codec, wm8962->dsp2_ena);
+
+	return 0;
+}
+
+static int wm8962_dsp2_stop(struct snd_soc_codec *codec)
+{
+	wm8962_dsp2_set_enable(codec, 0);
+
+	snd_soc_write(codec, WM8962_DSP2_EXECCONTROL, WM8962_DSP2_STOP);
+
+	return 0;
+}
+
+#define WM8962_DSP2_ENABLE(xname, xshift) \
+{	.iface = SNDRV_CTL_ELEM_IFACE_MIXER, .name = xname, \
+	.info = wm8962_dsp2_ena_info, \
+	.get = wm8962_dsp2_ena_get, .put = wm8962_dsp2_ena_put, \
+	.private_value = xshift }
+
+static int wm8962_dsp2_ena_info(struct snd_kcontrol *kcontrol,
+				struct snd_ctl_elem_info *uinfo)
+{
+	uinfo->type = SNDRV_CTL_ELEM_TYPE_BOOLEAN;
+
+	uinfo->count = 1;
+	uinfo->value.integer.min = 0;
+	uinfo->value.integer.max = 1;
+
+	return 0;
+}
+
+static int wm8962_dsp2_ena_get(struct snd_kcontrol *kcontrol,
+			       struct snd_ctl_elem_value *ucontrol)
+{
+	int shift = kcontrol->private_value;
+	struct snd_soc_codec *codec = snd_kcontrol_chip(kcontrol);
+	struct wm8962_priv *wm8962 = snd_soc_codec_get_drvdata(codec);
+
+	ucontrol->value.integer.value[0] = !!(wm8962->dsp2_ena & 1 << shift);
+
+	return 0;
+}
+
+static int wm8962_dsp2_ena_put(struct snd_kcontrol *kcontrol,
+			       struct snd_ctl_elem_value *ucontrol)
+{
+	int shift = kcontrol->private_value;
+	struct snd_soc_codec *codec = snd_kcontrol_chip(kcontrol);
+	struct wm8962_priv *wm8962 = snd_soc_codec_get_drvdata(codec);
+	int old = wm8962->dsp2_ena;
+	int ret = 0;
+	int dsp2_running = snd_soc_read(codec, WM8962_DSP2_POWER_MANAGEMENT) &
+		WM8962_DSP2_ENA;
+
+	mutex_lock(&codec->mutex);
+
+	if (ucontrol->value.integer.value[0])
+		wm8962->dsp2_ena |= 1 << shift;
+	else
+		wm8962->dsp2_ena &= ~(1 << shift);
+
+	if (wm8962->dsp2_ena == old)
+		goto out;
+
+	ret = 1;
+
+	if (dsp2_running) {
+		if (wm8962->dsp2_ena)
+			wm8962_dsp2_set_enable(codec, wm8962->dsp2_ena);
+		else
+			wm8962_dsp2_stop(codec);
+	}
+
+out:
+	mutex_unlock(&codec->mutex);
+
+	return ret;
+}
 
 /* The VU bits for the headphones are in a different register to the mute
  * bits and only take effect on the PGA if it is actually powered.
@@ -2021,7 +2145,6 @@ static int wm8962_put_spk_sw(struct snd_kcontrol *kcontrol,
 			    struct snd_ctl_elem_value *ucontrol)
 {
 	struct snd_soc_codec *codec = snd_kcontrol_chip(kcontrol);
-	u16 *reg_cache = codec->reg_cache;
 	int ret;
 
 	/* Apply the update (if any) */
@@ -2030,16 +2153,19 @@ static int wm8962_put_spk_sw(struct snd_kcontrol *kcontrol,
 		return 0;
 
 	/* If the left PGA is enabled hit that VU bit... */
-	if (reg_cache[WM8962_PWR_MGMT_2] & WM8962_SPKOUTL_PGA_ENA)
-		return snd_soc_write(codec, WM8962_SPKOUTL_VOLUME,
-				     reg_cache[WM8962_SPKOUTL_VOLUME]);
+	ret = snd_soc_read(codec, WM8962_PWR_MGMT_2);
+	if (ret & WM8962_SPKOUTL_PGA_ENA) {
+		snd_soc_write(codec, WM8962_SPKOUTL_VOLUME,
+			      snd_soc_read(codec, WM8962_SPKOUTL_VOLUME));
+		return 1;
+	}
 
 	/* ...otherwise the right.  The VU is stereo. */
-	if (reg_cache[WM8962_PWR_MGMT_2] & WM8962_SPKOUTR_PGA_ENA)
-		return snd_soc_write(codec, WM8962_SPKOUTR_VOLUME,
-				     reg_cache[WM8962_SPKOUTR_VOLUME]);
+	if (ret & WM8962_SPKOUTR_PGA_ENA)
+		snd_soc_write(codec, WM8962_SPKOUTR_VOLUME,
+			      snd_soc_read(codec, WM8962_SPKOUTR_VOLUME));
 
-	return 0;
+	return 1;
 }
 
 static const char *cap_hpf_mode_text[] = {
@@ -2048,6 +2174,14 @@ static const char *cap_hpf_mode_text[] = {
 
 static const struct soc_enum cap_hpf_mode =
 	SOC_ENUM_SINGLE(WM8962_ADC_DAC_CONTROL_2, 10, 2, cap_hpf_mode_text);
+
+
+static const char *cap_lhpf_mode_text[] = {
+	"LPF", "HPF"
+};
+
+static const struct soc_enum cap_lhpf_mode =
+	SOC_ENUM_SINGLE(WM8962_LHPF1, 1, 2, cap_lhpf_mode_text);
 
 static const struct snd_kcontrol_new wm8962_snd_controls[] = {
 SOC_DOUBLE("Input Mixer Switch", WM8962_INPUT_MIXER_CONTROL_1, 3, 2, 1, 1),
@@ -2077,6 +2211,8 @@ SOC_DOUBLE_R("Capture ZC Switch", WM8962_LEFT_INPUT_VOLUME,
 SOC_SINGLE("Capture HPF Switch", WM8962_ADC_DAC_CONTROL_1, 0, 1, 1),
 SOC_ENUM("Capture HPF Mode", cap_hpf_mode),
 SOC_SINGLE("Capture HPF Cutoff", WM8962_ADC_DAC_CONTROL_2, 7, 7, 0),
+SOC_SINGLE("Capture LHPF Switch", WM8962_LHPF1, 0, 1, 0),
+SOC_ENUM("Capture LHPF Mode", cap_lhpf_mode),
 
 SOC_DOUBLE_R_TLV("Sidetone Volume", WM8962_DAC_DSP_MIXING_1,
 		 WM8962_DAC_DSP_MIXING_2, 4, 12, 0, st_tlv),
@@ -2134,6 +2270,11 @@ SOC_DOUBLE_R_TLV("EQ4 Volume", WM8962_EQ3, WM8962_EQ23,
 		 WM8962_EQL_B4_GAIN_SHIFT, 31, 0, eq_tlv),
 SOC_DOUBLE_R_TLV("EQ5 Volume", WM8962_EQ3, WM8962_EQ23,
 		 WM8962_EQL_B5_GAIN_SHIFT, 31, 0, eq_tlv),
+
+WM8962_DSP2_ENABLE("VSS Switch", WM8962_VSS_ENA_SHIFT),
+WM8962_DSP2_ENABLE("HPF1 Switch", WM8962_HPF1_ENA_SHIFT),
+WM8962_DSP2_ENABLE("HPF2 Switch", WM8962_HPF2_ENA_SHIFT),
+WM8962_DSP2_ENABLE("HD Bass Switch", WM8962_HDBASS_ENA_SHIFT),
 };
 
 static const struct snd_kcontrol_new wm8962_spk_mono_controls[] = {
@@ -2225,15 +2366,14 @@ static int sysclk_event(struct snd_soc_dapm_widget *w,
 
 			snd_soc_update_bits(codec, WM8962_FLL_CONTROL_1,
 					    WM8962_FLL_ENA, WM8962_FLL_ENA);
-			if (wm8962->irq) {
-				timeout = msecs_to_jiffies(5);
-				timeout = wait_for_completion_timeout(&wm8962->fll_lock,
-								      timeout);
 
-				if (timeout == 0)
-					dev_err(codec->dev,
-						"Timed out starting FLL\n");
-			}
+			timeout = msecs_to_jiffies(5);
+			timeout = wait_for_completion_timeout(&wm8962->fll_lock,
+							      timeout);
+
+			if (wm8962->irq && timeout == 0)
+				dev_err(codec->dev,
+					"Timed out starting FLL\n");
 		}
 		break;
 
@@ -2365,7 +2505,6 @@ static int out_pga_event(struct snd_soc_dapm_widget *w,
 			 struct snd_kcontrol *kcontrol, int event)
 {
 	struct snd_soc_codec *codec = w->codec;
-	u16 *reg_cache = codec->reg_cache;
 	int reg;
 
 	switch (w->shift) {
@@ -2388,11 +2527,36 @@ static int out_pga_event(struct snd_soc_dapm_widget *w,
 
 	switch (event) {
 	case SND_SOC_DAPM_POST_PMU:
-		return snd_soc_write(codec, reg, reg_cache[reg]);
+		return snd_soc_write(codec, reg, snd_soc_read(codec, reg));
 	default:
 		BUG();
 		return -EINVAL;
 	}
+}
+
+static int dsp2_event(struct snd_soc_dapm_widget *w,
+		      struct snd_kcontrol *kcontrol, int event)
+{
+	struct snd_soc_codec *codec = w->codec;
+	struct wm8962_priv *wm8962 = snd_soc_codec_get_drvdata(codec);
+
+	switch (event) {
+	case SND_SOC_DAPM_POST_PMU:
+		if (wm8962->dsp2_ena)
+			wm8962_dsp2_start(codec);
+		break;
+
+	case SND_SOC_DAPM_PRE_PMD:
+		if (wm8962->dsp2_ena)
+			wm8962_dsp2_stop(codec);
+		break;
+
+	default:
+		BUG();
+		return -EINVAL;
+	}
+
+	return 0;
 }
 
 static const char *st_text[] = { "None", "Right", "Left" };
@@ -2509,7 +2673,7 @@ SND_SOC_DAPM_INPUT("IN4R"),
 SND_SOC_DAPM_INPUT("Beep"),
 SND_SOC_DAPM_INPUT("DMICDAT"),
 
-SND_SOC_DAPM_MICBIAS("MICBIAS", WM8962_PWR_MGMT_1, 1, 0),
+SND_SOC_DAPM_SUPPLY("MICBIAS", WM8962_PWR_MGMT_1, 1, 0, NULL, 0),
 
 SND_SOC_DAPM_SUPPLY("Class G", WM8962_CHARGE_PUMP_B, 0, 1, NULL, 0),
 SND_SOC_DAPM_SUPPLY("SYSCLK", WM8962_CLOCKING2, 5, 0, sysclk_event,
@@ -2517,6 +2681,9 @@ SND_SOC_DAPM_SUPPLY("SYSCLK", WM8962_CLOCKING2, 5, 0, sysclk_event,
 SND_SOC_DAPM_SUPPLY("Charge Pump", WM8962_CHARGE_PUMP_1, 0, 0, cp_event,
 		    SND_SOC_DAPM_POST_PMU),
 SND_SOC_DAPM_SUPPLY("TOCLK", WM8962_ADDITIONAL_CONTROL_1, 0, 0, NULL, 0),
+SND_SOC_DAPM_SUPPLY_S("DSP2", 1, WM8962_DSP2_POWER_MANAGEMENT,
+		      WM8962_DSP2_ENA_SHIFT, 0, dsp2_event,
+		      SND_SOC_DAPM_POST_PMU | SND_SOC_DAPM_PRE_PMD),
 
 SND_SOC_DAPM_MIXER("INPGAL", WM8962_LEFT_INPUT_PGA_CONTROL, 4, 0,
 		   inpgal, ARRAY_SIZE(inpgal)),
@@ -2527,7 +2694,7 @@ SND_SOC_DAPM_MIXER("MIXINL", WM8962_PWR_MGMT_1, 5, 0,
 SND_SOC_DAPM_MIXER("MIXINR", WM8962_PWR_MGMT_1, 4, 0,
 		   mixinr, ARRAY_SIZE(mixinr)),
 
-SND_SOC_DAPM_AIF_IN("DMIC", NULL, 0, WM8962_PWR_MGMT_1, 10, 0),
+SND_SOC_DAPM_AIF_IN("DMIC_ENA", NULL, 0, WM8962_PWR_MGMT_1, 10, 0),
 
 SND_SOC_DAPM_ADC("ADCL", "Capture", WM8962_PWR_MGMT_1, 3, 0),
 SND_SOC_DAPM_ADC("ADCR", "Capture", WM8962_PWR_MGMT_1, 2, 0),
@@ -2606,17 +2773,19 @@ static const struct snd_soc_dapm_route wm8962_intercon[] = {
 
 	{ "MICBIAS", NULL, "SYSCLK" },
 
-	{ "DMIC", NULL, "DMICDAT" },
+	{ "DMIC_ENA", NULL, "DMICDAT" },
 
 	{ "ADCL", NULL, "SYSCLK" },
 	{ "ADCL", NULL, "TOCLK" },
 	{ "ADCL", NULL, "MIXINL" },
-	{ "ADCL", NULL, "DMIC" },
+	{ "ADCL", NULL, "DMIC_ENA" },
+	{ "ADCL", NULL, "DSP2" },
 
 	{ "ADCR", NULL, "SYSCLK" },
 	{ "ADCR", NULL, "TOCLK" },
 	{ "ADCR", NULL, "MIXINR" },
-	{ "ADCR", NULL, "DMIC" },
+	{ "ADCR", NULL, "DMIC_ENA" },
+	{ "ADCR", NULL, "DSP2" },
 
 	{ "STL", "Left", "ADCL" },
 	{ "STL", "Right", "ADCR" },
@@ -2628,11 +2797,13 @@ static const struct snd_soc_dapm_route wm8962_intercon[] = {
 	{ "DACL", NULL, "TOCLK" },
 	{ "DACL", NULL, "Beep" },
 	{ "DACL", NULL, "STL" },
+	{ "DACL", NULL, "DSP2" },
 
 	{ "DACR", NULL, "SYSCLK" },
 	{ "DACR", NULL, "TOCLK" },
 	{ "DACR", NULL, "Beep" },
 	{ "DACR", NULL, "STR" },
+	{ "DACR", NULL, "DSP2" },
 
 	{ "HPMIXL", "IN4L Switch", "IN4L" },
 	{ "HPMIXL", "IN4R Switch", "IN4R" },
@@ -3058,9 +3229,9 @@ static int wm8962_set_dai_fmt(struct snd_soc_dai *dai, unsigned int fmt)
 	int aif0 = 0;
 
 	switch (fmt & SND_SOC_DAIFMT_FORMAT_MASK) {
-	case SND_SOC_DAIFMT_DSP_A:
-		aif0 |= WM8962_LRCLK_INV;
 	case SND_SOC_DAIFMT_DSP_B:
+		aif0 |= WM8962_LRCLK_INV | 3;
+	case SND_SOC_DAIFMT_DSP_A:
 		aif0 |= 3;
 
 		switch (fmt & SND_SOC_DAIFMT_INV_MASK) {
@@ -3403,11 +3574,15 @@ static irqreturn_t wm8962_irq(int irq, void *data)
 	struct wm8962_priv *wm8962 = snd_soc_codec_get_drvdata(codec);
 	int mask;
 	int active;
+	int reg;
 
 	mask = snd_soc_read(codec, WM8962_INTERRUPT_STATUS_2_MASK);
 
 	active = snd_soc_read(codec, WM8962_INTERRUPT_STATUS_2);
 	active &= ~mask;
+
+	if (!active)
+		return IRQ_NONE;
 
 	/* Acknowledge the interrupts */
 	snd_soc_write(codec, WM8962_INTERRUPT_STATUS_2, active);
@@ -3420,8 +3595,20 @@ static irqreturn_t wm8962_irq(int irq, void *data)
 	if (active & WM8962_FIFOS_ERR_EINT)
 		dev_err(codec->dev, "FIFO error\n");
 
-	if (active & WM8962_TEMP_SHUT_EINT)
+	if (active & WM8962_TEMP_SHUT_EINT) {
 		dev_crit(codec->dev, "Thermal shutdown\n");
+
+		reg = snd_soc_read(codec, WM8962_THERMAL_SHUTDOWN_STATUS);
+
+		if (reg & WM8962_TEMP_ERR_HP)
+			dev_crit(codec->dev, "Headphone thermal error\n");
+		if (reg & WM8962_TEMP_WARN_HP)
+			dev_crit(codec->dev, "Headphone thermal warning\n");
+		if (reg & WM8962_TEMP_ERR_SPK)
+			dev_crit(codec->dev, "Speaker thermal error\n");
+		if (reg & WM8962_TEMP_WARN_SPK)
+			dev_crit(codec->dev, "Speaker thermal warning\n");
+	}
 
 	if (active & (WM8962_MICSCD_EINT | WM8962_MICD_EINT)) {
 		dev_dbg(codec->dev, "Microphone event detected\n");
@@ -3846,6 +4033,11 @@ static int wm8962_probe(struct snd_soc_codec *codec)
 	/* Ensure we have soft control over all registers */
 	snd_soc_update_bits(codec, WM8962_CLOCKING2,
 			    WM8962_CLKREG_OVD, WM8962_CLKREG_OVD);
+
+	/* Ensure that the oscillator and PLLs are disabled */
+	snd_soc_update_bits(codec, WM8962_PLL2,
+			    WM8962_OSC_ENA | WM8962_PLL2_ENA | WM8962_PLL3_ENA,
+			    0);
 
 	regulator_bulk_disable(ARRAY_SIZE(wm8962->supplies), wm8962->supplies);
 

@@ -12,6 +12,7 @@
 #include <linux/module.h>
 #include <linux/io.h>
 #include <linux/mm.h>
+#include <linux/dma-mapping.h>
 
 #include <plat/omap7xx.h>
 #include <plat/omap1510.h>
@@ -23,11 +24,16 @@
 #define BETWEEN(p,st,sz)	((p) >= (st) && (p) < ((st) + (sz)))
 #define XLATE(p,pst,vst)	((void __iomem *)((p) - (pst) + (vst)))
 
+static int initialized;
+
 /*
  * Intercept ioremap() requests for addresses in our fixed mapping regions.
  */
 void __iomem *omap_ioremap(unsigned long p, size_t size, unsigned int type)
 {
+
+	WARN(!initialized, "Do not use ioremap before init_early\n");
+
 #ifdef CONFIG_ARCH_OMAP1
 	if (cpu_class_is_omap1()) {
 		if (BETWEEN(p, OMAP1_IO_PHYS, OMAP1_IO_SIZE))
@@ -139,3 +145,15 @@ void omap_iounmap(volatile void __iomem *addr)
 		__iounmap(addr);
 }
 EXPORT_SYMBOL(omap_iounmap);
+
+void __init omap_init_consistent_dma_size(void)
+{
+#ifdef CONFIG_FB_OMAP_CONSISTENT_DMA_SIZE
+	init_consistent_dma_size(CONFIG_FB_OMAP_CONSISTENT_DMA_SIZE << 20);
+#endif
+}
+
+void __init omap_ioremap_init(void)
+{
+	initialized++;
+}

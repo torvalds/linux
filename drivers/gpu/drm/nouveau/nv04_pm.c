@@ -68,6 +68,7 @@ void
 nv04_pm_clock_set(struct drm_device *dev, void *pre_state)
 {
 	struct drm_nouveau_private *dev_priv = dev->dev_private;
+	struct nouveau_timer_engine *ptimer = &dev_priv->engine.timer;
 	struct nv04_pm_state *state = pre_state;
 	u32 reg = state->pll.reg;
 
@@ -84,6 +85,9 @@ nv04_pm_clock_set(struct drm_device *dev, void *pre_state)
 		/* Reset the DLLs */
 		nv_mask(dev, 0x1002c0, 0, 1 << 8);
 	}
+
+	if (reg == NV_PRAMDAC_NVPLL_COEFF)
+		ptimer->init(dev);
 
 	kfree(state);
 }

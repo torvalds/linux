@@ -162,7 +162,7 @@ static const struct gpu_formats color_formats_table[] = {
 	[V_038004_FMT_32_AS_32_32_32_32] = { 1, 1, 4, 0, CHIP_CEDAR},
 };
 
-static inline bool fmt_is_valid_color(u32 format)
+static bool fmt_is_valid_color(u32 format)
 {
 	if (format >= ARRAY_SIZE(color_formats_table))
 		return false;
@@ -173,7 +173,7 @@ static inline bool fmt_is_valid_color(u32 format)
 	return false;
 }
 
-static inline bool fmt_is_valid_texture(u32 format, enum radeon_family family)
+static bool fmt_is_valid_texture(u32 format, enum radeon_family family)
 {
 	if (format >= ARRAY_SIZE(color_formats_table))
 		return false;
@@ -187,7 +187,7 @@ static inline bool fmt_is_valid_texture(u32 format, enum radeon_family family)
 	return false;
 }
 
-static inline int fmt_get_blocksize(u32 format)
+static int fmt_get_blocksize(u32 format)
 {
 	if (format >= ARRAY_SIZE(color_formats_table))
 		return 0;
@@ -195,7 +195,7 @@ static inline int fmt_get_blocksize(u32 format)
 	return color_formats_table[format].blocksize;
 }
 
-static inline int fmt_get_nblocksx(u32 format, u32 w)
+static int fmt_get_nblocksx(u32 format, u32 w)
 {
 	unsigned bw;
 
@@ -209,7 +209,7 @@ static inline int fmt_get_nblocksx(u32 format, u32 w)
 	return (w + bw - 1) / bw;
 }
 
-static inline int fmt_get_nblocksy(u32 format, u32 h)
+static int fmt_get_nblocksy(u32 format, u32 h)
 {
 	unsigned bh;
 
@@ -223,25 +223,6 @@ static inline int fmt_get_nblocksy(u32 format, u32 h)
 	return (h + bh - 1) / bh;
 }
 
-static inline int r600_bpe_from_format(u32 *bpe, u32 format)
-{
- 	unsigned res;
-
-	if (format >= ARRAY_SIZE(color_formats_table))
-		goto fail;
-
-	res = color_formats_table[format].blocksize;
-	if (res == 0)
-		goto fail;
-
-	*bpe = res;
-	return 0;
-
-fail:
-	*bpe = 16;
-	return -EINVAL;
-}
-
 struct array_mode_checker {
 	int array_mode;
 	u32 group_size;
@@ -252,7 +233,7 @@ struct array_mode_checker {
 };
 
 /* returns alignment in pixels for pitch/height/depth and bytes for base */
-static inline int r600_get_array_mode_alignment(struct array_mode_checker *values,
+static int r600_get_array_mode_alignment(struct array_mode_checker *values,
 						u32 *pitch_align,
 						u32 *height_align,
 						u32 *depth_align,
@@ -331,7 +312,7 @@ static void r600_cs_track_init(struct r600_cs_track *track)
 	track->db_depth_control = 0xFFFFFFFF;
 }
 
-static inline int r600_cs_track_validate_cb(struct radeon_cs_parser *p, int i)
+static int r600_cs_track_validate_cb(struct radeon_cs_parser *p, int i)
 {
 	struct r600_cs_track *track = p->track;
 	u32 slice_tile_max, size, tmp;
@@ -737,7 +718,7 @@ static int r600_cs_packet_next_reloc_nomm(struct radeon_cs_parser *p,
  * Check next packet is relocation packet3, do bo validation and compute
  * GPU offset using the provided start.
  **/
-static inline int r600_cs_packet_next_is_pkt3_nop(struct radeon_cs_parser *p)
+static int r600_cs_packet_next_is_pkt3_nop(struct radeon_cs_parser *p)
 {
 	struct radeon_cs_packet p3reloc;
 	int r;
@@ -911,7 +892,7 @@ static int r600_cs_parse_packet0(struct radeon_cs_parser *p,
  * if register is safe. If register is not flag as safe this function
  * will test it against a list of register needind special handling.
  */
-static inline int r600_cs_check_reg(struct radeon_cs_parser *p, u32 reg, u32 idx)
+static int r600_cs_check_reg(struct radeon_cs_parser *p, u32 reg, u32 idx)
 {
 	struct r600_cs_track *track = (struct r600_cs_track *)p->track;
 	struct radeon_cs_reloc *reloc;
@@ -1215,7 +1196,7 @@ static inline int r600_cs_check_reg(struct radeon_cs_parser *p, u32 reg, u32 idx
 	return 0;
 }
 
-static inline unsigned mip_minify(unsigned size, unsigned level)
+static unsigned mip_minify(unsigned size, unsigned level)
 {
 	unsigned val;
 
@@ -1285,7 +1266,7 @@ static void r600_texture_size(unsigned nfaces, unsigned blevel, unsigned llevel,
  * This function will check that the resource has valid field and that
  * the texture and mipmap bo object are big enough to cover this resource.
  */
-static inline int r600_check_texture_resource(struct radeon_cs_parser *p,  u32 idx,
+static int r600_check_texture_resource(struct radeon_cs_parser *p,  u32 idx,
 					      struct radeon_bo *texture,
 					      struct radeon_bo *mipmap,
 					      u64 base_offset,

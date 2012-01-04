@@ -442,6 +442,64 @@ static int tomoyo_sb_pivotroot(struct path *old_path, struct path *new_path)
 	return tomoyo_path2_perm(TOMOYO_TYPE_PIVOT_ROOT, new_path, old_path);
 }
 
+/**
+ * tomoyo_socket_listen - Check permission for listen().
+ *
+ * @sock:    Pointer to "struct socket".
+ * @backlog: Backlog parameter.
+ *
+ * Returns 0 on success, negative value otherwise.
+ */
+static int tomoyo_socket_listen(struct socket *sock, int backlog)
+{
+	return tomoyo_socket_listen_permission(sock);
+}
+
+/**
+ * tomoyo_socket_connect - Check permission for connect().
+ *
+ * @sock:     Pointer to "struct socket".
+ * @addr:     Pointer to "struct sockaddr".
+ * @addr_len: Size of @addr.
+ *
+ * Returns 0 on success, negative value otherwise.
+ */
+static int tomoyo_socket_connect(struct socket *sock, struct sockaddr *addr,
+				 int addr_len)
+{
+	return tomoyo_socket_connect_permission(sock, addr, addr_len);
+}
+
+/**
+ * tomoyo_socket_bind - Check permission for bind().
+ *
+ * @sock:     Pointer to "struct socket".
+ * @addr:     Pointer to "struct sockaddr".
+ * @addr_len: Size of @addr.
+ *
+ * Returns 0 on success, negative value otherwise.
+ */
+static int tomoyo_socket_bind(struct socket *sock, struct sockaddr *addr,
+			      int addr_len)
+{
+	return tomoyo_socket_bind_permission(sock, addr, addr_len);
+}
+
+/**
+ * tomoyo_socket_sendmsg - Check permission for sendmsg().
+ *
+ * @sock: Pointer to "struct socket".
+ * @msg:  Pointer to "struct msghdr".
+ * @size: Size of message.
+ *
+ * Returns 0 on success, negative value otherwise.
+ */
+static int tomoyo_socket_sendmsg(struct socket *sock, struct msghdr *msg,
+				 int size)
+{
+	return tomoyo_socket_sendmsg_permission(sock, msg, size);
+}
+
 /*
  * tomoyo_security_ops is a "struct security_operations" which is used for
  * registering TOMOYO.
@@ -472,6 +530,10 @@ static struct security_operations tomoyo_security_ops = {
 	.sb_mount            = tomoyo_sb_mount,
 	.sb_umount           = tomoyo_sb_umount,
 	.sb_pivotroot        = tomoyo_sb_pivotroot,
+	.socket_bind         = tomoyo_socket_bind,
+	.socket_connect      = tomoyo_socket_connect,
+	.socket_listen       = tomoyo_socket_listen,
+	.socket_sendmsg      = tomoyo_socket_sendmsg,
 };
 
 /* Lock for GC. */

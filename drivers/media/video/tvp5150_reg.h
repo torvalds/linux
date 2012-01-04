@@ -45,7 +45,22 @@
 
 /* Reserved 1Fh-27h */
 
-#define TVP5150_VIDEO_STD           0x28 /* Video standard */
+#define VIDEO_STD_MASK			 (0x07 >> 1)
+#define TVP5150_VIDEO_STD                0x28 /* Video standard */
+#define VIDEO_STD_AUTO_SWITCH_BIT	 0x00
+#define VIDEO_STD_NTSC_MJ_BIT		 0x02
+#define VIDEO_STD_PAL_BDGHIN_BIT	 0x04
+#define VIDEO_STD_PAL_M_BIT		 0x06
+#define VIDEO_STD_PAL_COMBINATION_N_BIT	 0x08
+#define VIDEO_STD_NTSC_4_43_BIT		 0x0a
+#define VIDEO_STD_SECAM_BIT		 0x0c
+
+#define VIDEO_STD_NTSC_MJ_BIT_AS                 0x01
+#define VIDEO_STD_PAL_BDGHIN_BIT_AS              0x03
+#define VIDEO_STD_PAL_M_BIT_AS		         0x05
+#define VIDEO_STD_PAL_COMBINATION_N_BIT_AS	 0x07
+#define VIDEO_STD_NTSC_4_43_BIT_AS		 0x09
+#define VIDEO_STD_SECAM_BIT_AS		         0x0b
 
 /* Reserved 29h-2bh */
 

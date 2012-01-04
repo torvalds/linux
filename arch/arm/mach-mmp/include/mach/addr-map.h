@@ -11,6 +11,12 @@
 #ifndef __ASM_MACH_ADDR_MAP_H
 #define __ASM_MACH_ADDR_MAP_H
 
+#ifndef __ASSEMBLER__
+#define IOMEM(x)	((void __iomem *)(x))
+#else
+#define IOMEM(x)	(x)
+#endif
+
 /* APB - Application Subsystem Peripheral Bus
  *
  * NOTE: the DMA controller registers are actually on the AXI fabric #1
@@ -18,11 +24,11 @@
  * peripherals on APB, let's count it into the ABP mapping area.
  */
 #define APB_PHYS_BASE		0xd4000000
-#define APB_VIRT_BASE		0xfe000000
+#define APB_VIRT_BASE		IOMEM(0xfe000000)
 #define APB_PHYS_SIZE		0x00200000
 
 #define AXI_PHYS_BASE		0xd4200000
-#define AXI_VIRT_BASE		0xfe200000
+#define AXI_VIRT_BASE		IOMEM(0xfe200000)
 #define AXI_PHYS_SIZE		0x00200000
 
 /* Static Memory Controller - Chip Select 0 and 1 */

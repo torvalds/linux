@@ -413,50 +413,56 @@ static inline void drv_sta_remove(struct ieee80211_local *local,
 	trace_drv_return_void(local);
 }
 
-static inline int drv_conf_tx(struct ieee80211_local *local, u16 queue,
+static inline int drv_conf_tx(struct ieee80211_local *local,
+			      struct ieee80211_sub_if_data *sdata, u16 queue,
 			      const struct ieee80211_tx_queue_params *params)
 {
 	int ret = -EOPNOTSUPP;
 
 	might_sleep();
 
-	trace_drv_conf_tx(local, queue, params);
+	trace_drv_conf_tx(local, sdata, queue, params);
 	if (local->ops->conf_tx)
-		ret = local->ops->conf_tx(&local->hw, queue, params);
+		ret = local->ops->conf_tx(&local->hw, &sdata->vif,
+					  queue, params);
 	trace_drv_return_int(local, ret);
 	return ret;
 }
 
-static inline u64 drv_get_tsf(struct ieee80211_local *local)
+static inline u64 drv_get_tsf(struct ieee80211_local *local,
+			      struct ieee80211_sub_if_data *sdata)
 {
 	u64 ret = -1ULL;
 
 	might_sleep();
 
-	trace_drv_get_tsf(local);
+	trace_drv_get_tsf(local, sdata);
 	if (local->ops->get_tsf)
-		ret = local->ops->get_tsf(&local->hw);
+		ret = local->ops->get_tsf(&local->hw, &sdata->vif);
 	trace_drv_return_u64(local, ret);
 	return ret;
 }
 
-static inline void drv_set_tsf(struct ieee80211_local *local, u64 tsf)
+static inline void drv_set_tsf(struct ieee80211_local *local,
+			       struct ieee80211_sub_if_data *sdata,
+			       u64 tsf)
 {
 	might_sleep();
 
-	trace_drv_set_tsf(local, tsf);
+	trace_drv_set_tsf(local, sdata, tsf);
 	if (local->ops->set_tsf)
-		local->ops->set_tsf(&local->hw, tsf);
+		local->ops->set_tsf(&local->hw, &sdata->vif, tsf);
 	trace_drv_return_void(local);
 }
 
-static inline void drv_reset_tsf(struct ieee80211_local *local)
+static inline void drv_reset_tsf(struct ieee80211_local *local,
+				 struct ieee80211_sub_if_data *sdata)
 {
 	might_sleep();
 
-	trace_drv_reset_tsf(local);
+	trace_drv_reset_tsf(local, sdata);
 	if (local->ops->reset_tsf)
-		local->ops->reset_tsf(&local->hw);
+		local->ops->reset_tsf(&local->hw, &sdata->vif);
 	trace_drv_return_void(local);
 }
 
@@ -590,37 +596,6 @@ static inline int drv_cancel_remain_on_channel(struct ieee80211_local *local)
 	return ret;
 }
 
-static inline int drv_offchannel_tx(struct ieee80211_local *local,
-				    struct sk_buff *skb,
-				    struct ieee80211_channel *chan,
-				    enum nl80211_channel_type channel_type,
-				    unsigned int wait)
-{
-	int ret;
-
-	might_sleep();
-
-	trace_drv_offchannel_tx(local, skb, chan, channel_type, wait);
-	ret = local->ops->offchannel_tx(&local->hw, skb, chan,
-					channel_type, wait);
-	trace_drv_return_int(local, ret);
-
-	return ret;
-}
-
-static inline int drv_offchannel_tx_cancel_wait(struct ieee80211_local *local)
-{
-	int ret;
-
-	might_sleep();
-
-	trace_drv_offchannel_tx_cancel_wait(local);
-	ret = local->ops->offchannel_tx_cancel_wait(&local->hw);
-	trace_drv_return_int(local, ret);
-
-	return ret;
-}
-
 static inline int drv_set_ringparam(struct ieee80211_local *local,
 				    u32 tx, u32 rx)
 {
@@ -694,6 +669,36 @@ static inline void drv_rssi_callback(struct ieee80211_local *local,
 	trace_drv_rssi_callback(local, event);
 	if (local->ops->rssi_callback)
 		local->ops->rssi_callback(&local->hw, event);
+	trace_drv_return_void(local);
+}
+
+static inline void
+drv_release_buffered_frames(struct ieee80211_local *local,
+			    struct sta_info *sta, u16 tids, int num_frames,
+			    enum ieee80211_frame_release_type reason,
+			    bool more_data)
+{
+	trace_drv_release_buffered_frames(local, &sta->sta, tids, num_frames,
+					  reason, more_data);
+	if (local->ops->release_buffered_frames)
+		local->ops->release_buffered_frames(&local->hw, &sta->sta, tids,
+						    num_frames, reason,
+						    more_data);
+	trace_drv_return_void(local);
+}
+
+static inline void
+drv_allow_buffered_frames(struct ieee80211_local *local,
+			  struct sta_info *sta, u16 tids, int num_frames,
+			  enum ieee80211_frame_release_type reason,
+			  bool more_data)
+{
+	trace_drv_allow_buffered_frames(local, &sta->sta, tids, num_frames,
+					reason, more_data);
+	if (local->ops->allow_buffered_frames)
+		local->ops->allow_buffered_frames(&local->hw, &sta->sta,
+						  tids, num_frames, reason,
+						  more_data);
 	trace_drv_return_void(local);
 }
 #endif /* __MAC80211_DRIVER_OPS */

@@ -23,6 +23,7 @@
 #include <linux/gfp.h>
 #include <linux/mm.h>
 #include <linux/random.h>
+#include <linux/module.h>
 
 #undef pr
 #define pr(fmt, args...) pr_info("raid6test: " fmt, ##args)

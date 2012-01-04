@@ -1412,7 +1412,7 @@ lpfc_register_fcf(struct lpfc_hba *phba)
 		if (phba->pport->port_state != LPFC_FLOGI) {
 			phba->hba_flag |= FCF_RR_INPROG;
 			spin_unlock_irq(&phba->hbalock);
-			lpfc_issue_init_vfi(phba->pport);
+			lpfc_initial_flogi(phba->pport);
 			return;
 		}
 		spin_unlock_irq(&phba->hbalock);
@@ -2646,7 +2646,9 @@ lpfc_init_vfi_cmpl(struct lpfc_hba *phba, LPFC_MBOXQ_t *mboxq)
 {
 	struct lpfc_vport *vport = mboxq->vport;
 
-	if (mboxq->u.mb.mbxStatus && (mboxq->u.mb.mbxStatus != 0x4002)) {
+	/* VFI not supported on interface type 0, just do the flogi */
+	if (mboxq->u.mb.mbxStatus && (bf_get(lpfc_sli_intf_if_type,
+	    &phba->sli4_hba.sli_intf) != LPFC_SLI_INTF_IF_TYPE_0)) {
 		lpfc_printf_vlog(vport, KERN_ERR,
 				LOG_MBOX,
 				"2891 Init VFI mailbox failed 0x%x\n",
@@ -2655,6 +2657,7 @@ lpfc_init_vfi_cmpl(struct lpfc_hba *phba, LPFC_MBOXQ_t *mboxq)
 		lpfc_vport_set_state(vport, FC_VPORT_FAILED);
 		return;
 	}
+
 	lpfc_initial_flogi(vport);
 	mempool_free(mboxq, phba->mbox_mem_pool);
 	return;

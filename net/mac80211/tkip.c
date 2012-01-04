@@ -10,6 +10,7 @@
 #include <linux/bitops.h>
 #include <linux/types.h>
 #include <linux/netdevice.h>
+#include <linux/export.h>
 #include <asm/unaligned.h>
 
 #include <net/mac80211.h>

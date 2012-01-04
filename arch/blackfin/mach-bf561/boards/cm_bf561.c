@@ -277,8 +277,13 @@ static struct resource bfin_uart0_resources[] = {
 		.flags = IORESOURCE_MEM,
 	},
 	{
+		.start = IRQ_UART_TX,
+		.end = IRQ_UART_TX,
+		.flags = IORESOURCE_IRQ,
+	},
+	{
 		.start = IRQ_UART_RX,
-		.end = IRQ_UART_RX+1,
+		.end = IRQ_UART_RX,
 		.flags = IORESOURCE_IRQ,
 	},
 	{
@@ -348,7 +353,7 @@ static struct platform_device bfin_sir0_device = {
 
 static struct pata_platform_info bfin_pata_platform_data = {
 	.ioport_shift = 2,
-	.irq_type = IRQF_TRIGGER_HIGH | IRQF_DISABLED,
+	.irq_type = IRQF_TRIGGER_HIGH,
 };
 
 static struct resource bfin_pata_resources[] = {

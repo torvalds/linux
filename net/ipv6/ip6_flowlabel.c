@@ -21,6 +21,7 @@
 #include <linux/proc_fs.h>
 #include <linux/seq_file.h>
 #include <linux/slab.h>
+#include <linux/export.h>
 
 #include <net/net_namespace.h>
 #include <net/sock.h>

@@ -78,26 +78,19 @@ static void raise_exception(struct mce *m, struct pt_regs *pregs)
 
 static cpumask_var_t mce_inject_cpumask;
 
-static int mce_raise_notify(struct notifier_block *self,
-			    unsigned long val, void *data)
+static int mce_raise_notify(unsigned int cmd, struct pt_regs *regs)
 {
-	struct die_args *args = (struct die_args *)data;
 	int cpu = smp_processor_id();
 	struct mce *m = &__get_cpu_var(injectm);
-	if (val != DIE_NMI || !cpumask_test_cpu(cpu, mce_inject_cpumask))
-		return NOTIFY_DONE;
+	if (!cpumask_test_cpu(cpu, mce_inject_cpumask))
+		return NMI_DONE;
 	cpumask_clear_cpu(cpu, mce_inject_cpumask);
 	if (m->inject_flags & MCJ_EXCEPTION)
-		raise_exception(m, args->regs);
+		raise_exception(m, regs);
 	else if (m->status)
 		raise_poll(m);
-	return NOTIFY_STOP;
+	return NMI_HANDLED;
 }
-
-static struct notifier_block mce_raise_nb = {
-	.notifier_call = mce_raise_notify,
-	.priority = NMI_LOCAL_NORMAL_PRIOR,
-};
 
 /* Inject mce on current CPU */
 static int raise_local(void)
@@ -216,7 +209,8 @@ static int inject_init(void)
 		return -ENOMEM;
 	printk(KERN_INFO "Machine check injector initialized\n");
 	mce_chrdev_ops.write = mce_write;
-	register_die_notifier(&mce_raise_nb);
+	register_nmi_handler(NMI_LOCAL, mce_raise_notify, 0,
+				"mce_notify");
 	return 0;
 }
 

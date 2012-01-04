@@ -1082,7 +1082,7 @@ static int __devinit ps3fb_probe(struct ps3_system_bus_device *dev)
 	}
 
 	retval = request_irq(ps3fb.irq_no, ps3fb_vsync_interrupt,
-			     IRQF_DISABLED, DEVICE_NAME, &dev->core);
+			     0, DEVICE_NAME, &dev->core);
 	if (retval) {
 		dev_err(&dev->core, "%s: request_irq failed %d\n", __func__,
 			retval);

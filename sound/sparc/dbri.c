@@ -70,6 +70,7 @@
 #include <linux/of.h>
 #include <linux/of_device.h>
 #include <linux/atomic.h>
+#include <linux/module.h>
 
 MODULE_AUTHOR("Rudolf Koenig, Brent Baccala and Martin Habets");
 MODULE_DESCRIPTION("Sun DBRI");

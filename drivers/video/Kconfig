@@ -259,6 +259,15 @@ config FB_TILEBLITTING
 comment "Frame buffer hardware drivers"
 	depends on FB
 
+config FB_GRVGA
+	tristate "Aeroflex Gaisler framebuffer support"
+	depends on FB && SPARC
+	select FB_CFB_FILLRECT
+	select FB_CFB_COPYAREA
+	select FB_CFB_IMAGEBLIT
+	---help---
+	This enables support for the SVGACTRL framebuffer in the GRLIB IP library from Aeroflex Gaisler.
+
 config FB_CIRRUS
 	tristate "Cirrus Logic support"
 	depends on FB && (ZORRO || PCI)
@@ -1744,7 +1753,7 @@ endchoice
 
 config FB_AU1100
 	bool "Au1100 LCD Driver"
-	depends on (FB = y) && MIPS && SOC_AU1100
+	depends on (FB = y) && MIPS_ALCHEMY
 	select FB_CFB_FILLRECT
 	select FB_CFB_COPYAREA
 	select FB_CFB_IMAGEBLIT
@@ -1755,10 +1764,11 @@ config FB_AU1100
 
 config FB_AU1200
 	bool "Au1200 LCD Driver"
-	depends on (FB = y) && MIPS && SOC_AU1200
-	select FB_CFB_FILLRECT
-	select FB_CFB_COPYAREA
-	select FB_CFB_IMAGEBLIT
+	depends on (FB = y) && MIPS_ALCHEMY
+	select FB_SYS_FILLRECT
+	select FB_SYS_COPYAREA
+	select FB_SYS_IMAGEBLIT
+	select FB_SYS_FOPS
 	help
 	  This is the framebuffer driver for the AMD Au1200 SOC.  It can drive
 	  various panels and CRTs by passing in kernel cmd line option
@@ -2027,7 +2037,7 @@ config FB_TMIO_ACCELL
 
 config FB_S3C
 	tristate "Samsung S3C framebuffer support"
-	depends on FB && S3C_DEV_FB
+	depends on FB && (S3C_DEV_FB || S5P_DEV_FIMD0)
 	select FB_CFB_FILLRECT
 	select FB_CFB_COPYAREA
 	select FB_CFB_IMAGEBLIT
@@ -2109,6 +2119,22 @@ config FB_SM501
 	  say M here and read <file:Documentation/kbuild/modules.txt>.
 
 	  If unsure, say N.
+
+config FB_SMSCUFX
+	tristate "SMSC UFX6000/7000 USB Framebuffer support"
+	depends on FB && USB
+	select FB_MODE_HELPERS
+	select FB_SYS_FILLRECT
+	select FB_SYS_COPYAREA
+	select FB_SYS_IMAGEBLIT
+	select FB_SYS_FOPS
+	select FB_DEFERRED_IO
+	---help---
+	  This is a kernel framebuffer driver for SMSC UFX USB devices.
+	  Supports fbdev clients like xf86-video-fbdev, kdrive, fbi, and
+	  mplayer -vo fbdev. Supports both UFX6000 (USB 2.0) and UFX7000
+	  (USB 3.0) devices.
+	  To compile as a module, choose M here: the module name is smscufx.
 
 config FB_UDL
 	tristate "Displaylink USB Framebuffer support"

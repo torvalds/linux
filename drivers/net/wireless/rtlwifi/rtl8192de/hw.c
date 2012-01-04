@@ -1608,17 +1608,16 @@ static void _rtl92de_read_txpower_info(struct ieee80211_hw *hw,
 		tempval[0] = hwinfo[EEPROM_IQK_DELTA] & 0x03;
 		tempval[1] = (hwinfo[EEPROM_LCK_DELTA] & 0x0C) >> 2;
 		rtlefuse->txpwr_fromeprom = true;
-		if (IS_92D_D_CUT(rtlpriv->rtlhal.version)) {
+		if (IS_92D_D_CUT(rtlpriv->rtlhal.version) ||
+		    IS_92D_E_CUT(rtlpriv->rtlhal.version)) {
 			rtlefuse->internal_pa_5g[0] =
-				 !((hwinfo[EEPROM_TSSI_A_5G] &
-				 BIT(6)) >> 6);
+				!((hwinfo[EEPROM_TSSI_A_5G] & BIT(6)) >> 6);
 			rtlefuse->internal_pa_5g[1] =
-				 !((hwinfo[EEPROM_TSSI_B_5G] &
-				 BIT(6)) >> 6);
-			RT_TRACE(rtlpriv, COMP_INIT, DBG_LOUD,
+				!((hwinfo[EEPROM_TSSI_B_5G] & BIT(6)) >> 6);
+			RT_TRACE(rtlpriv, COMP_INIT, DBG_DMESG,
 				 ("Is D cut,Internal PA0 %d Internal PA1 %d\n",
-				  rtlefuse->internal_pa_5g[0],
-				  rtlefuse->internal_pa_5g[1]))
+				 rtlefuse->internal_pa_5g[0],
+				 rtlefuse->internal_pa_5g[1]))
 		}
 		rtlefuse->eeprom_c9 = hwinfo[EEPROM_RF_OPT6];
 		rtlefuse->eeprom_cc = hwinfo[EEPROM_RF_OPT7];

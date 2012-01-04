@@ -302,7 +302,7 @@ static void __init badge4_map_io(void)
 }
 
 MACHINE_START(BADGE4, "Hewlett-Packard Laboratories BadgePAD 4")
-	.boot_params	= 0xc0000100,
+	.atag_offset	= 0x100,
 	.map_io		= badge4_map_io,
 	.init_irq	= sa1100_init_irq,
 	.timer		= &sa1100_timer,

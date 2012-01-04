@@ -6,6 +6,7 @@
  * This file is released under the GNU GPL v2.
  */
 #include <linux/kernel.h>
+#include <linux/export.h>
 #include <linux/slab.h>
 #include <linux/uwb/umc.h>
 

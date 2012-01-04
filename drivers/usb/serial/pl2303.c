@@ -92,6 +92,7 @@ static const struct usb_device_id id_table[] = {
 	{ USB_DEVICE(SANWA_VENDOR_ID, SANWA_PRODUCT_ID) },
 	{ USB_DEVICE(ADLINK_VENDOR_ID, ADLINK_ND6530_PRODUCT_ID) },
 	{ USB_DEVICE(WINCHIPHEAD_VENDOR_ID, WINCHIPHEAD_USBSER_PRODUCT_ID) },
+	{ USB_DEVICE(SMART_VENDOR_ID, SMART_PRODUCT_ID) },
 	{ }					/* Terminating entry */
 };
 
@@ -359,9 +360,6 @@ static void pl2303_set_termios(struct tty_struct *tty,
 			while (tmp >= 256) {
 				tmp >>= 2;
 				buf[1] <<= 1;
-			}
-			if (tmp > 256) {
-				tmp %= 256;
 			}
 			buf[0] = tmp;
 		}

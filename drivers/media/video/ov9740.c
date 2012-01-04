@@ -14,8 +14,11 @@
 #include <linux/module.h>
 #include <linux/i2c.h>
 #include <linux/slab.h>
-#include <media/v4l2-chip-ident.h>
+#include <linux/v4l2-mediabus.h>
+
 #include <media/soc_camera.h>
+#include <media/v4l2-chip-ident.h>
+#include <media/v4l2-ctrls.h>
 
 #define to_ov9740(sd)		container_of(sd, struct ov9740_priv, subdev)
 
@@ -192,6 +195,7 @@ struct ov9740_reg {
 
 struct ov9740_priv {
 	struct v4l2_subdev		subdev;
+	struct v4l2_ctrl_handler	hdl;
 
 	int				ident;
 	u16				model;
@@ -392,27 +396,6 @@ static enum v4l2_mbus_pixelcode ov9740_codes[] = {
 	V4L2_MBUS_FMT_YUYV8_2X8,
 };
 
-static const struct v4l2_queryctrl ov9740_controls[] = {
-	{
-		.id		= V4L2_CID_VFLIP,
-		.type		= V4L2_CTRL_TYPE_BOOLEAN,
-		.name		= "Flip Vertically",
-		.minimum	= 0,
-		.maximum	= 1,
-		.step		= 1,
-		.default_value	= 0,
-	},
-	{
-		.id		= V4L2_CID_HFLIP,
-		.type		= V4L2_CTRL_TYPE_BOOLEAN,
-		.name		= "Flip Horizontally",
-		.minimum	= 0,
-		.maximum	= 1,
-		.step		= 1,
-		.default_value	= 0,
-	},
-};
-
 /* read a register */
 static int ov9740_reg_read(struct i2c_client *client, u16 reg, u8 *val)
 {
@@ -558,25 +541,6 @@ static int ov9740_s_stream(struct v4l2_subdev *sd, int enable)
 	priv->current_enable = enable;
 
 	return ret;
-}
-
-/* Alter bus settings on camera side */
-static int ov9740_set_bus_param(struct soc_camera_device *icd,
-				unsigned long flags)
-{
-	return 0;
-}
-
-/* Request bus settings on camera side */
-static unsigned long ov9740_query_bus_param(struct soc_camera_device *icd)
-{
-	struct soc_camera_link *icl = to_soc_camera_link(icd);
-
-	unsigned long flags = SOCAM_PCLK_SAMPLE_RISING | SOCAM_MASTER |
-		SOCAM_VSYNC_ACTIVE_HIGH | SOCAM_HSYNC_ACTIVE_HIGH |
-		SOCAM_DATA_ACTIVE_HIGH | SOCAM_DATAWIDTH_8;
-
-	return soc_camera_apply_sensor_flags(icl, flags);
 }
 
 /* select nearest higher resolution for capture */
@@ -788,36 +752,18 @@ static int ov9740_g_crop(struct v4l2_subdev *sd, struct v4l2_crop *a)
 	return 0;
 }
 
-/* Get status of additional camera capabilities */
-static int ov9740_g_ctrl(struct v4l2_subdev *sd, struct v4l2_control *ctrl)
-{
-	struct ov9740_priv *priv = to_ov9740(sd);
-
-	switch (ctrl->id) {
-	case V4L2_CID_VFLIP:
-		ctrl->value = priv->flag_vflip;
-		break;
-	case V4L2_CID_HFLIP:
-		ctrl->value = priv->flag_hflip;
-		break;
-	default:
-		return -EINVAL;
-	}
-
-	return 0;
-}
-
 /* Set status of additional camera capabilities */
-static int ov9740_s_ctrl(struct v4l2_subdev *sd, struct v4l2_control *ctrl)
+static int ov9740_s_ctrl(struct v4l2_ctrl *ctrl)
 {
-	struct ov9740_priv *priv = to_ov9740(sd);
+	struct ov9740_priv *priv =
+		container_of(ctrl->handler, struct ov9740_priv, hdl);
 
 	switch (ctrl->id) {
 	case V4L2_CID_VFLIP:
-		priv->flag_vflip = ctrl->value;
+		priv->flag_vflip = ctrl->val;
 		break;
 	case V4L2_CID_HFLIP:
-		priv->flag_hflip = ctrl->value;
+		priv->flag_hflip = ctrl->val;
 		break;
 	default:
 		return -EINVAL;
@@ -890,17 +836,12 @@ static int ov9740_set_register(struct v4l2_subdev *sd,
 }
 #endif
 
-static int ov9740_video_probe(struct soc_camera_device *icd,
-			      struct i2c_client *client)
+static int ov9740_video_probe(struct i2c_client *client)
 {
 	struct v4l2_subdev *sd = i2c_get_clientdata(client);
 	struct ov9740_priv *priv = to_ov9740(sd);
 	u8 modelhi, modello;
 	int ret;
-
-	/* We must have a parent by now. And it cannot be a wrong one. */
-	BUG_ON(!icd->parent ||
-	       to_soc_camera_host(icd->parent)->nr != icd->iface);
 
 	/*
 	 * check and show product ID and manufacturer ID
@@ -942,25 +883,33 @@ err:
 	return ret;
 }
 
-static struct soc_camera_ops ov9740_ops = {
-	.set_bus_param		= ov9740_set_bus_param,
-	.query_bus_param	= ov9740_query_bus_param,
-	.controls		= ov9740_controls,
-	.num_controls		= ARRAY_SIZE(ov9740_controls),
-};
+/* Request bus settings on camera side */
+static int ov9740_g_mbus_config(struct v4l2_subdev *sd,
+				struct v4l2_mbus_config *cfg)
+{
+	struct i2c_client *client = v4l2_get_subdevdata(sd);
+	struct soc_camera_link *icl = soc_camera_i2c_to_link(client);
+
+	cfg->flags = V4L2_MBUS_PCLK_SAMPLE_RISING | V4L2_MBUS_MASTER |
+		V4L2_MBUS_VSYNC_ACTIVE_HIGH | V4L2_MBUS_HSYNC_ACTIVE_HIGH |
+		V4L2_MBUS_DATA_ACTIVE_HIGH;
+	cfg->type = V4L2_MBUS_PARALLEL;
+	cfg->flags = soc_camera_apply_board_flags(icl, cfg);
+
+	return 0;
+}
 
 static struct v4l2_subdev_video_ops ov9740_video_ops = {
-	.s_stream		= ov9740_s_stream,
-	.s_mbus_fmt		= ov9740_s_fmt,
-	.try_mbus_fmt		= ov9740_try_fmt,
-	.enum_mbus_fmt		= ov9740_enum_fmt,
-	.cropcap		= ov9740_cropcap,
-	.g_crop			= ov9740_g_crop,
+	.s_stream	= ov9740_s_stream,
+	.s_mbus_fmt	= ov9740_s_fmt,
+	.try_mbus_fmt	= ov9740_try_fmt,
+	.enum_mbus_fmt	= ov9740_enum_fmt,
+	.cropcap	= ov9740_cropcap,
+	.g_crop		= ov9740_g_crop,
+	.g_mbus_config	= ov9740_g_mbus_config,
 };
 
 static struct v4l2_subdev_core_ops ov9740_core_ops = {
-	.g_ctrl			= ov9740_g_ctrl,
-	.s_ctrl			= ov9740_s_ctrl,
 	.g_chip_ident		= ov9740_g_chip_ident,
 	.s_power		= ov9740_s_power,
 #ifdef CONFIG_VIDEO_ADV_DEBUG
@@ -974,6 +923,10 @@ static struct v4l2_subdev_ops ov9740_subdev_ops = {
 	.video			= &ov9740_video_ops,
 };
 
+static const struct v4l2_ctrl_ops ov9740_ctrl_ops = {
+	.s_ctrl = ov9740_s_ctrl,
+};
+
 /*
  * i2c_driver function
  */
@@ -981,16 +934,9 @@ static int ov9740_probe(struct i2c_client *client,
 			const struct i2c_device_id *did)
 {
 	struct ov9740_priv *priv;
-	struct soc_camera_device *icd	= client->dev.platform_data;
-	struct soc_camera_link *icl;
+	struct soc_camera_link *icl = soc_camera_i2c_to_link(client);
 	int ret;
 
-	if (!icd) {
-		dev_err(&client->dev, "Missing soc-camera data!\n");
-		return -EINVAL;
-	}
-
-	icl = to_soc_camera_link(icd);
 	if (!icl) {
 		dev_err(&client->dev, "Missing platform_data for driver\n");
 		return -EINVAL;
@@ -1003,12 +949,24 @@ static int ov9740_probe(struct i2c_client *client,
 	}
 
 	v4l2_i2c_subdev_init(&priv->subdev, client, &ov9740_subdev_ops);
+	v4l2_ctrl_handler_init(&priv->hdl, 13);
+	v4l2_ctrl_new_std(&priv->hdl, &ov9740_ctrl_ops,
+			V4L2_CID_VFLIP, 0, 1, 1, 0);
+	v4l2_ctrl_new_std(&priv->hdl, &ov9740_ctrl_ops,
+			V4L2_CID_HFLIP, 0, 1, 1, 0);
+	priv->subdev.ctrl_handler = &priv->hdl;
+	if (priv->hdl.error) {
+		int err = priv->hdl.error;
 
-	icd->ops = &ov9740_ops;
+		kfree(priv);
+		return err;
+	}
 
-	ret = ov9740_video_probe(icd, client);
+	ret = ov9740_video_probe(client);
+	if (!ret)
+		ret = v4l2_ctrl_handler_setup(&priv->hdl);
 	if (ret < 0) {
-		icd->ops = NULL;
+		v4l2_ctrl_handler_free(&priv->hdl);
 		kfree(priv);
 	}
 
@@ -1019,8 +977,9 @@ static int ov9740_remove(struct i2c_client *client)
 {
 	struct ov9740_priv *priv = i2c_get_clientdata(client);
 
+	v4l2_device_unregister_subdev(&priv->subdev);
+	v4l2_ctrl_handler_free(&priv->hdl);
 	kfree(priv);
-
 	return 0;
 }
 

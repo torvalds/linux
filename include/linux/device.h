@@ -20,7 +20,7 @@
 #include <linux/lockdep.h>
 #include <linux/compiler.h>
 #include <linux/types.h>
-#include <linux/module.h>
+#include <linux/mutex.h>
 #include <linux/pm.h>
 #include <linux/atomic.h>
 #include <asm/device.h>
@@ -29,10 +29,12 @@ struct device;
 struct device_private;
 struct device_driver;
 struct driver_private;
+struct module;
 struct class;
 struct subsys_private;
 struct bus_type;
 struct device_node;
+struct iommu_ops;
 
 struct bus_attribute {
 	struct attribute	attr;
@@ -67,6 +69,9 @@ extern void bus_remove_file(struct bus_type *, struct bus_attribute *);
  * @resume:	Called to bring a device on this bus out of sleep mode.
  * @pm:		Power management operations of this bus, callback the specific
  *		device driver's pm-ops.
+ * @iommu_ops   IOMMU specific operations for this bus, used to attach IOMMU
+ *              driver implementations to a bus and allow the driver to do
+ *              bus-specific setup
  * @p:		The private data of the driver core, only the driver core can
  *		touch this.
  *
@@ -95,6 +100,8 @@ struct bus_type {
 	int (*resume)(struct device *dev);
 
 	const struct dev_pm_ops *pm;
+
+	struct iommu_ops *iommu_ops;
 
 	struct subsys_private *p;
 };
@@ -350,6 +357,8 @@ struct class_attribute {
 			char *buf);
 	ssize_t (*store)(struct class *class, struct class_attribute *attr,
 			const char *buf, size_t count);
+	const void *(*namespace)(struct class *class,
+				 const struct class_attribute *attr);
 };
 
 #define CLASS_ATTR(_name, _mode, _show, _store)			\
@@ -614,8 +623,8 @@ static inline const char *dev_name(const struct device *dev)
 	return kobject_name(&dev->kobj);
 }
 
-extern int dev_set_name(struct device *dev, const char *name, ...)
-			__attribute__((format(printf, 2, 3)));
+extern __printf(2, 3)
+int dev_set_name(struct device *dev, const char *name, ...);
 
 #ifdef CONFIG_NUMA
 static inline int dev_to_node(struct device *dev)
@@ -635,6 +644,11 @@ static inline void set_dev_node(struct device *dev, int node)
 {
 }
 #endif
+
+static inline struct pm_subsys_data *dev_to_psd(struct device *dev)
+{
+	return dev ? dev->power.subsys_data : NULL;
+}
 
 static inline unsigned int dev_get_uevent_suppress(const struct device *dev)
 {
@@ -710,10 +724,14 @@ extern int dev_set_drvdata(struct device *dev, void *data);
  */
 extern struct device *__root_device_register(const char *name,
 					     struct module *owner);
-static inline struct device *root_device_register(const char *name)
-{
-	return __root_device_register(name, THIS_MODULE);
-}
+
+/*
+ * This is a macro to avoid include problems with THIS_MODULE,
+ * just as per what is done for device_schedule_callback() above.
+ */
+#define root_device_register(name) \
+	__root_device_register(name, THIS_MODULE)
+
 extern void root_device_unregister(struct device *root);
 
 static inline void *dev_get_platdata(const struct device *dev)
@@ -740,10 +758,10 @@ extern struct device *device_create_vargs(struct class *cls,
 					  void *drvdata,
 					  const char *fmt,
 					  va_list vargs);
-extern struct device *device_create(struct class *cls, struct device *parent,
-				    dev_t devt, void *drvdata,
-				    const char *fmt, ...)
-				    __attribute__((format(printf, 5, 6)));
+extern __printf(5, 6)
+struct device *device_create(struct class *cls, struct device *parent,
+			     dev_t devt, void *drvdata,
+			     const char *fmt, ...);
 extern void device_destroy(struct class *cls, dev_t devt);
 
 /*
@@ -785,61 +803,58 @@ extern const char *dev_driver_string(const struct device *dev);
 
 #ifdef CONFIG_PRINTK
 
-extern int dev_printk(const char *level, const struct device *dev,
-		      const char *fmt, ...)
-	__attribute__ ((format (printf, 3, 4)));
-extern int dev_emerg(const struct device *dev, const char *fmt, ...)
-	__attribute__ ((format (printf, 2, 3)));
-extern int dev_alert(const struct device *dev, const char *fmt, ...)
-	__attribute__ ((format (printf, 2, 3)));
-extern int dev_crit(const struct device *dev, const char *fmt, ...)
-	__attribute__ ((format (printf, 2, 3)));
-extern int dev_err(const struct device *dev, const char *fmt, ...)
-	__attribute__ ((format (printf, 2, 3)));
-extern int dev_warn(const struct device *dev, const char *fmt, ...)
-	__attribute__ ((format (printf, 2, 3)));
-extern int dev_notice(const struct device *dev, const char *fmt, ...)
-	__attribute__ ((format (printf, 2, 3)));
-extern int _dev_info(const struct device *dev, const char *fmt, ...)
-	__attribute__ ((format (printf, 2, 3)));
+extern int __dev_printk(const char *level, const struct device *dev,
+			struct va_format *vaf);
+extern __printf(3, 4)
+int dev_printk(const char *level, const struct device *dev,
+	       const char *fmt, ...)
+	;
+extern __printf(2, 3)
+int dev_emerg(const struct device *dev, const char *fmt, ...);
+extern __printf(2, 3)
+int dev_alert(const struct device *dev, const char *fmt, ...);
+extern __printf(2, 3)
+int dev_crit(const struct device *dev, const char *fmt, ...);
+extern __printf(2, 3)
+int dev_err(const struct device *dev, const char *fmt, ...);
+extern __printf(2, 3)
+int dev_warn(const struct device *dev, const char *fmt, ...);
+extern __printf(2, 3)
+int dev_notice(const struct device *dev, const char *fmt, ...);
+extern __printf(2, 3)
+int _dev_info(const struct device *dev, const char *fmt, ...);
 
 #else
 
-static inline int dev_printk(const char *level, const struct device *dev,
-		      const char *fmt, ...)
-	__attribute__ ((format (printf, 3, 4)));
-static inline int dev_printk(const char *level, const struct device *dev,
-		      const char *fmt, ...)
-	 { return 0; }
+static inline int __dev_printk(const char *level, const struct device *dev,
+			       struct va_format *vaf)
+{ return 0; }
+static inline __printf(3, 4)
+int dev_printk(const char *level, const struct device *dev,
+	       const char *fmt, ...)
+{ return 0; }
 
-static inline int dev_emerg(const struct device *dev, const char *fmt, ...)
-	__attribute__ ((format (printf, 2, 3)));
-static inline int dev_emerg(const struct device *dev, const char *fmt, ...)
-	{ return 0; }
-static inline int dev_crit(const struct device *dev, const char *fmt, ...)
-	__attribute__ ((format (printf, 2, 3)));
-static inline int dev_crit(const struct device *dev, const char *fmt, ...)
-	{ return 0; }
-static inline int dev_alert(const struct device *dev, const char *fmt, ...)
-	__attribute__ ((format (printf, 2, 3)));
-static inline int dev_alert(const struct device *dev, const char *fmt, ...)
-	{ return 0; }
-static inline int dev_err(const struct device *dev, const char *fmt, ...)
-	__attribute__ ((format (printf, 2, 3)));
-static inline int dev_err(const struct device *dev, const char *fmt, ...)
-	{ return 0; }
-static inline int dev_warn(const struct device *dev, const char *fmt, ...)
-	__attribute__ ((format (printf, 2, 3)));
-static inline int dev_warn(const struct device *dev, const char *fmt, ...)
-	{ return 0; }
-static inline int dev_notice(const struct device *dev, const char *fmt, ...)
-	__attribute__ ((format (printf, 2, 3)));
-static inline int dev_notice(const struct device *dev, const char *fmt, ...)
-	{ return 0; }
-static inline int _dev_info(const struct device *dev, const char *fmt, ...)
-	__attribute__ ((format (printf, 2, 3)));
-static inline int _dev_info(const struct device *dev, const char *fmt, ...)
-	{ return 0; }
+static inline __printf(2, 3)
+int dev_emerg(const struct device *dev, const char *fmt, ...)
+{ return 0; }
+static inline __printf(2, 3)
+int dev_crit(const struct device *dev, const char *fmt, ...)
+{ return 0; }
+static inline __printf(2, 3)
+int dev_alert(const struct device *dev, const char *fmt, ...)
+{ return 0; }
+static inline __printf(2, 3)
+int dev_err(const struct device *dev, const char *fmt, ...)
+{ return 0; }
+static inline __printf(2, 3)
+int dev_warn(const struct device *dev, const char *fmt, ...)
+{ return 0; }
+static inline __printf(2, 3)
+int dev_notice(const struct device *dev, const char *fmt, ...)
+{ return 0; }
+static inline __printf(2, 3)
+int _dev_info(const struct device *dev, const char *fmt, ...)
+{ return 0; }
 
 #endif
 

@@ -50,8 +50,6 @@ struct ad7606_platform_data {
 
 struct ad7606_chip_info {
 	const char			*name;
-	u8				bits;
-	char				sign;
 	u16				int_vref_mv;
 	struct iio_chan_spec		*channels;
 	unsigned			num_channels;
@@ -68,18 +66,10 @@ struct ad7606_state {
 	struct regulator		*reg;
 	struct work_struct		poll_work;
 	wait_queue_head_t		wq_data_avail;
-	size_t				d_size;
 	const struct ad7606_bus_ops	*bops;
-	int				irq;
-	unsigned			id;
 	unsigned			range;
 	unsigned			oversampling;
 	bool				done;
-	bool				have_frstdata;
-	bool				have_os;
-	bool				have_stby;
-	bool				have_reset;
-	bool				have_range;
 	void __iomem			*base_address;
 
 	/*
@@ -100,7 +90,7 @@ void ad7606_resume(struct iio_dev *indio_dev);
 struct iio_dev *ad7606_probe(struct device *dev, int irq,
 			      void __iomem *base_address, unsigned id,
 			      const struct ad7606_bus_ops *bops);
-int ad7606_remove(struct iio_dev *indio_dev);
+int ad7606_remove(struct iio_dev *indio_dev, int irq);
 int ad7606_reset(struct ad7606_state *st);
 
 enum ad7606_supported_device_ids {

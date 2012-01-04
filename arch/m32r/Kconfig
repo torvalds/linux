@@ -10,6 +10,7 @@ config M32R
 	select HAVE_GENERIC_HARDIRQS
 	select GENERIC_IRQ_PROBE
 	select GENERIC_IRQ_SHOW
+	select GENERIC_ATOMIC64
 
 config SBUS
 	bool
@@ -321,13 +322,6 @@ config NODES_SHIFT
 	int
 	default "1"
 	depends on NEED_MULTIPLE_NODES
-
-# turning this on wastes a bunch of space.
-# Summit needs it only when NUMA is on
-config BOOT_IOREMAP
-	bool
-	depends on NUMA
-	default n
 
 endmenu
 

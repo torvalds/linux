@@ -108,9 +108,7 @@ static struct inode *hypfs_make_inode(struct super_block *sb, int mode)
 		ret->i_gid = hypfs_info->gid;
 		ret->i_atime = ret->i_mtime = ret->i_ctime = CURRENT_TIME;
 		if (mode & S_IFDIR)
-			ret->i_nlink = 2;
-		else
-			ret->i_nlink = 1;
+			set_nlink(ret, 2);
 	}
 	return ret;
 }
@@ -361,7 +359,7 @@ static struct dentry *hypfs_create_file(struct super_block *sb,
 	} else if (mode & S_IFDIR) {
 		inode->i_op = &simple_dir_inode_operations;
 		inode->i_fop = &simple_dir_operations;
-		parent->d_inode->i_nlink++;
+		inc_nlink(parent->d_inode);
 	} else
 		BUG();
 	inode->i_private = data;

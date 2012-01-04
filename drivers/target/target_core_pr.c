@@ -25,7 +25,6 @@
  *
  ******************************************************************************/
 
-#include <linux/version.h>
 #include <linux/slab.h>
 #include <linux/spinlock.h>
 #include <linux/list.h>
@@ -117,114 +116,21 @@ static int core_scsi2_reservation_check(struct se_cmd *cmd, u32 *pr_reg_type)
 	return ret;
 }
 
-static int core_scsi2_reservation_release(struct se_cmd *cmd)
-{
-	struct se_device *dev = cmd->se_dev;
-	struct se_session *sess = cmd->se_sess;
-	struct se_portal_group *tpg = sess->se_tpg;
-
-	if (!sess || !tpg)
-		return 0;
-
-	spin_lock(&dev->dev_reservation_lock);
-	if (!dev->dev_reserved_node_acl || !sess) {
-		spin_unlock(&dev->dev_reservation_lock);
-		return 0;
-	}
-
-	if (dev->dev_reserved_node_acl != sess->se_node_acl) {
-		spin_unlock(&dev->dev_reservation_lock);
-		return 0;
-	}
-	dev->dev_reserved_node_acl = NULL;
-	dev->dev_flags &= ~DF_SPC2_RESERVATIONS;
-	if (dev->dev_flags & DF_SPC2_RESERVATIONS_WITH_ISID) {
-		dev->dev_res_bin_isid = 0;
-		dev->dev_flags &= ~DF_SPC2_RESERVATIONS_WITH_ISID;
-	}
-	pr_debug("SCSI-2 Released reservation for %s LUN: %u ->"
-		" MAPPED LUN: %u for %s\n", tpg->se_tpg_tfo->get_fabric_name(),
-		cmd->se_lun->unpacked_lun, cmd->se_deve->mapped_lun,
-		sess->se_node_acl->initiatorname);
-	spin_unlock(&dev->dev_reservation_lock);
-
-	return 0;
-}
-
-static int core_scsi2_reservation_reserve(struct se_cmd *cmd)
-{
-	struct se_device *dev = cmd->se_dev;
-	struct se_session *sess = cmd->se_sess;
-	struct se_portal_group *tpg = sess->se_tpg;
-
-	if ((cmd->t_task_cdb[1] & 0x01) &&
-	    (cmd->t_task_cdb[1] & 0x02)) {
-		pr_err("LongIO and Obselete Bits set, returning"
-				" ILLEGAL_REQUEST\n");
-		return PYX_TRANSPORT_ILLEGAL_REQUEST;
-	}
-	/*
-	 * This is currently the case for target_core_mod passthrough struct se_cmd
-	 * ops
-	 */
-	if (!sess || !tpg)
-		return 0;
-
-	spin_lock(&dev->dev_reservation_lock);
-	if (dev->dev_reserved_node_acl &&
-	   (dev->dev_reserved_node_acl != sess->se_node_acl)) {
-		pr_err("SCSI-2 RESERVATION CONFLIFT for %s fabric\n",
-			tpg->se_tpg_tfo->get_fabric_name());
-		pr_err("Original reserver LUN: %u %s\n",
-			cmd->se_lun->unpacked_lun,
-			dev->dev_reserved_node_acl->initiatorname);
-		pr_err("Current attempt - LUN: %u -> MAPPED LUN: %u"
-			" from %s \n", cmd->se_lun->unpacked_lun,
-			cmd->se_deve->mapped_lun,
-			sess->se_node_acl->initiatorname);
-		spin_unlock(&dev->dev_reservation_lock);
-		return PYX_TRANSPORT_RESERVATION_CONFLICT;
-	}
-
-	dev->dev_reserved_node_acl = sess->se_node_acl;
-	dev->dev_flags |= DF_SPC2_RESERVATIONS;
-	if (sess->sess_bin_isid != 0) {
-		dev->dev_res_bin_isid = sess->sess_bin_isid;
-		dev->dev_flags |= DF_SPC2_RESERVATIONS_WITH_ISID;
-	}
-	pr_debug("SCSI-2 Reserved %s LUN: %u -> MAPPED LUN: %u"
-		" for %s\n", tpg->se_tpg_tfo->get_fabric_name(),
-		cmd->se_lun->unpacked_lun, cmd->se_deve->mapped_lun,
-		sess->se_node_acl->initiatorname);
-	spin_unlock(&dev->dev_reservation_lock);
-
-	return 0;
-}
-
 static struct t10_pr_registration *core_scsi3_locate_pr_reg(struct se_device *,
 					struct se_node_acl *, struct se_session *);
 static void core_scsi3_put_pr_reg(struct t10_pr_registration *);
 
-/*
- * Setup in target_core_transport.c:transport_generic_cmd_sequencer()
- * and called via struct se_cmd->transport_emulate_cdb() in TCM processing
- * thread context.
- */
-int core_scsi2_emulate_crh(struct se_cmd *cmd)
+static int target_check_scsi2_reservation_conflict(struct se_cmd *cmd, int *ret)
 {
 	struct se_session *se_sess = cmd->se_sess;
 	struct se_subsystem_dev *su_dev = cmd->se_dev->se_sub_dev;
 	struct t10_pr_registration *pr_reg;
 	struct t10_reservation *pr_tmpl = &su_dev->t10_pr;
-	unsigned char *cdb = &cmd->t_task_cdb[0];
 	int crh = (su_dev->t10_pr.res_type == SPC3_PERSISTENT_RESERVATIONS);
 	int conflict = 0;
 
-	if (!se_sess)
-		return 0;
-
 	if (!crh)
-		goto after_crh;
+		return false;
 
 	pr_reg = core_scsi3_locate_pr_reg(cmd->se_dev, se_sess->se_node_acl,
 			se_sess);
@@ -252,14 +158,16 @@ int core_scsi2_emulate_crh(struct se_cmd *cmd)
 		 */
 		if (pr_reg->pr_res_holder) {
 			core_scsi3_put_pr_reg(pr_reg);
-			return 0;
+			*ret = 0;
+			return false;
 		}
 		if ((pr_reg->pr_res_type == PR_TYPE_WRITE_EXCLUSIVE_REGONLY) ||
 		    (pr_reg->pr_res_type == PR_TYPE_EXCLUSIVE_ACCESS_REGONLY) ||
 		    (pr_reg->pr_res_type == PR_TYPE_WRITE_EXCLUSIVE_ALLREG) ||
 		    (pr_reg->pr_res_type == PR_TYPE_EXCLUSIVE_ACCESS_ALLREG)) {
 			core_scsi3_put_pr_reg(pr_reg);
-			return 0;
+			*ret = 0;
+			return true;
 		}
 		core_scsi3_put_pr_reg(pr_reg);
 		conflict = 1;
@@ -283,17 +191,117 @@ int core_scsi2_emulate_crh(struct se_cmd *cmd)
 		pr_err("Received legacy SPC-2 RESERVE/RELEASE"
 			" while active SPC-3 registrations exist,"
 			" returning RESERVATION_CONFLICT\n");
-		return PYX_TRANSPORT_RESERVATION_CONFLICT;
+		*ret = PYX_TRANSPORT_RESERVATION_CONFLICT;
+		return true;
 	}
 
-after_crh:
-	if ((cdb[0] == RESERVE) || (cdb[0] == RESERVE_10))
-		return core_scsi2_reservation_reserve(cmd);
-	else if ((cdb[0] == RELEASE) || (cdb[0] == RELEASE_10))
-		return core_scsi2_reservation_release(cmd);
-	else
-		return PYX_TRANSPORT_INVALID_CDB_FIELD;
+	return false;
 }
+
+int target_scsi2_reservation_release(struct se_task *task)
+{
+	struct se_cmd *cmd = task->task_se_cmd;
+	struct se_device *dev = cmd->se_dev;
+	struct se_session *sess = cmd->se_sess;
+	struct se_portal_group *tpg = sess->se_tpg;
+	int ret = 0;
+
+	if (!sess || !tpg)
+		goto out;
+	if (target_check_scsi2_reservation_conflict(cmd, &ret))
+		goto out;
+
+	ret = 0;
+	spin_lock(&dev->dev_reservation_lock);
+	if (!dev->dev_reserved_node_acl || !sess)
+		goto out_unlock;
+
+	if (dev->dev_reserved_node_acl != sess->se_node_acl)
+		goto out_unlock;
+
+	dev->dev_reserved_node_acl = NULL;
+	dev->dev_flags &= ~DF_SPC2_RESERVATIONS;
+	if (dev->dev_flags & DF_SPC2_RESERVATIONS_WITH_ISID) {
+		dev->dev_res_bin_isid = 0;
+		dev->dev_flags &= ~DF_SPC2_RESERVATIONS_WITH_ISID;
+	}
+	pr_debug("SCSI-2 Released reservation for %s LUN: %u ->"
+		" MAPPED LUN: %u for %s\n", tpg->se_tpg_tfo->get_fabric_name(),
+		cmd->se_lun->unpacked_lun, cmd->se_deve->mapped_lun,
+		sess->se_node_acl->initiatorname);
+
+out_unlock:
+	spin_unlock(&dev->dev_reservation_lock);
+out:
+	if (!ret) {
+		task->task_scsi_status = GOOD;
+		transport_complete_task(task, 1);
+	}
+	return ret;
+}
+
+int target_scsi2_reservation_reserve(struct se_task *task)
+{
+	struct se_cmd *cmd = task->task_se_cmd;
+	struct se_device *dev = cmd->se_dev;
+	struct se_session *sess = cmd->se_sess;
+	struct se_portal_group *tpg = sess->se_tpg;
+	int ret = 0;
+
+	if ((cmd->t_task_cdb[1] & 0x01) &&
+	    (cmd->t_task_cdb[1] & 0x02)) {
+		pr_err("LongIO and Obselete Bits set, returning"
+				" ILLEGAL_REQUEST\n");
+		ret = PYX_TRANSPORT_ILLEGAL_REQUEST;
+		goto out;
+	}
+	/*
+	 * This is currently the case for target_core_mod passthrough struct se_cmd
+	 * ops
+	 */
+	if (!sess || !tpg)
+		goto out;
+	if (target_check_scsi2_reservation_conflict(cmd, &ret))
+		goto out;
+
+	ret = 0;
+	spin_lock(&dev->dev_reservation_lock);
+	if (dev->dev_reserved_node_acl &&
+	   (dev->dev_reserved_node_acl != sess->se_node_acl)) {
+		pr_err("SCSI-2 RESERVATION CONFLIFT for %s fabric\n",
+			tpg->se_tpg_tfo->get_fabric_name());
+		pr_err("Original reserver LUN: %u %s\n",
+			cmd->se_lun->unpacked_lun,
+			dev->dev_reserved_node_acl->initiatorname);
+		pr_err("Current attempt - LUN: %u -> MAPPED LUN: %u"
+			" from %s \n", cmd->se_lun->unpacked_lun,
+			cmd->se_deve->mapped_lun,
+			sess->se_node_acl->initiatorname);
+		ret = PYX_TRANSPORT_RESERVATION_CONFLICT;
+		goto out_unlock;
+	}
+
+	dev->dev_reserved_node_acl = sess->se_node_acl;
+	dev->dev_flags |= DF_SPC2_RESERVATIONS;
+	if (sess->sess_bin_isid != 0) {
+		dev->dev_res_bin_isid = sess->sess_bin_isid;
+		dev->dev_flags |= DF_SPC2_RESERVATIONS_WITH_ISID;
+	}
+	pr_debug("SCSI-2 Reserved %s LUN: %u -> MAPPED LUN: %u"
+		" for %s\n", tpg->se_tpg_tfo->get_fabric_name(),
+		cmd->se_lun->unpacked_lun, cmd->se_deve->mapped_lun,
+		sess->se_node_acl->initiatorname);
+
+out_unlock:
+	spin_unlock(&dev->dev_reservation_lock);
+out:
+	if (!ret) {
+		task->task_scsi_status = GOOD;
+		transport_complete_task(task, 1);
+	}
+	return ret;
+}
+
 
 /*
  * Begin SPC-3/SPC-4 Persistent Reservations emulation support
@@ -419,12 +427,12 @@ static int core_scsi3_pr_seq_non_holder(
 		break;
 	case RELEASE:
 	case RELEASE_10:
-		/* Handled by CRH=1 in core_scsi2_emulate_crh() */
+		/* Handled by CRH=1 in target_scsi2_reservation_release() */
 		ret = 0;
 		break;
 	case RESERVE:
 	case RESERVE_10:
-		/* Handled by CRH=1 in core_scsi2_emulate_crh() */
+		/* Handled by CRH=1 in target_scsi2_reservation_reserve() */
 		ret = 0;
 		break;
 	case TEST_UNIT_READY:
@@ -3740,12 +3748,33 @@ static unsigned long long core_scsi3_extract_reservation_key(unsigned char *cdb)
 /*
  * See spc4r17 section 6.14 Table 170
  */
-static int core_scsi3_emulate_pr_out(struct se_cmd *cmd, unsigned char *cdb)
+int target_scsi3_emulate_pr_out(struct se_task *task)
 {
+	struct se_cmd *cmd = task->task_se_cmd;
+	unsigned char *cdb = &cmd->t_task_cdb[0];
 	unsigned char *buf;
 	u64 res_key, sa_res_key;
 	int sa, scope, type, aptpl;
 	int spec_i_pt = 0, all_tg_pt = 0, unreg = 0;
+	int ret;
+
+	/*
+	 * Following spc2r20 5.5.1 Reservations overview:
+	 *
+	 * If a logical unit has been reserved by any RESERVE command and is
+	 * still reserved by any initiator, all PERSISTENT RESERVE IN and all
+	 * PERSISTENT RESERVE OUT commands shall conflict regardless of
+	 * initiator or service action and shall terminate with a RESERVATION
+	 * CONFLICT status.
+	 */
+	if (cmd->se_dev->dev_flags & DF_SPC2_RESERVATIONS) {
+		pr_err("Received PERSISTENT_RESERVE CDB while legacy"
+			" SPC-2 reservation is held, returning"
+			" RESERVATION_CONFLICT\n");
+		ret = PYX_TRANSPORT_RESERVATION_CONFLICT;
+		goto out;
+	}
+
 	/*
 	 * FIXME: A NULL struct se_session pointer means an this is not coming from
 	 * a $FABRIC_MOD's nexus, but from internal passthrough ops.
@@ -3756,7 +3785,8 @@ static int core_scsi3_emulate_pr_out(struct se_cmd *cmd, unsigned char *cdb)
 	if (cmd->data_length < 24) {
 		pr_warn("SPC-PR: Received PR OUT parameter list"
 			" length too small: %u\n", cmd->data_length);
-		return PYX_TRANSPORT_INVALID_PARAMETER_LIST;
+		ret = PYX_TRANSPORT_INVALID_PARAMETER_LIST;
+		goto out;
 	}
 	/*
 	 * From the PERSISTENT_RESERVE_OUT command descriptor block (CDB)
@@ -3789,8 +3819,11 @@ static int core_scsi3_emulate_pr_out(struct se_cmd *cmd, unsigned char *cdb)
 	/*
 	 * SPEC_I_PT=1 is only valid for Service action: REGISTER
 	 */
-	if (spec_i_pt && ((cdb[1] & 0x1f) != PRO_REGISTER))
-		return PYX_TRANSPORT_INVALID_PARAMETER_LIST;
+	if (spec_i_pt && ((cdb[1] & 0x1f) != PRO_REGISTER)) {
+		ret = PYX_TRANSPORT_INVALID_PARAMETER_LIST;
+		goto out;
+	}
+
 	/*
 	 * From spc4r17 section 6.14:
 	 *
@@ -3804,7 +3837,8 @@ static int core_scsi3_emulate_pr_out(struct se_cmd *cmd, unsigned char *cdb)
 	    (cmd->data_length != 24)) {
 		pr_warn("SPC-PR: Received PR OUT illegal parameter"
 			" list length: %u\n", cmd->data_length);
-		return PYX_TRANSPORT_INVALID_PARAMETER_LIST;
+		ret = PYX_TRANSPORT_INVALID_PARAMETER_LIST;
+		goto out;
 	}
 	/*
 	 * (core_scsi3_emulate_pro_* function parameters
@@ -3813,35 +3847,47 @@ static int core_scsi3_emulate_pr_out(struct se_cmd *cmd, unsigned char *cdb)
 	 */
 	switch (sa) {
 	case PRO_REGISTER:
-		return core_scsi3_emulate_pro_register(cmd,
+		ret = core_scsi3_emulate_pro_register(cmd,
 			res_key, sa_res_key, aptpl, all_tg_pt, spec_i_pt, 0);
+		break;
 	case PRO_RESERVE:
-		return core_scsi3_emulate_pro_reserve(cmd,
-			type, scope, res_key);
+		ret = core_scsi3_emulate_pro_reserve(cmd, type, scope, res_key);
+		break;
 	case PRO_RELEASE:
-		return core_scsi3_emulate_pro_release(cmd,
-			type, scope, res_key);
+		ret = core_scsi3_emulate_pro_release(cmd, type, scope, res_key);
+		break;
 	case PRO_CLEAR:
-		return core_scsi3_emulate_pro_clear(cmd, res_key);
+		ret = core_scsi3_emulate_pro_clear(cmd, res_key);
+		break;
 	case PRO_PREEMPT:
-		return core_scsi3_emulate_pro_preempt(cmd, type, scope,
+		ret = core_scsi3_emulate_pro_preempt(cmd, type, scope,
 					res_key, sa_res_key, 0);
+		break;
 	case PRO_PREEMPT_AND_ABORT:
-		return core_scsi3_emulate_pro_preempt(cmd, type, scope,
+		ret = core_scsi3_emulate_pro_preempt(cmd, type, scope,
 					res_key, sa_res_key, 1);
+		break;
 	case PRO_REGISTER_AND_IGNORE_EXISTING_KEY:
-		return core_scsi3_emulate_pro_register(cmd,
+		ret = core_scsi3_emulate_pro_register(cmd,
 			0, sa_res_key, aptpl, all_tg_pt, spec_i_pt, 1);
+		break;
 	case PRO_REGISTER_AND_MOVE:
-		return core_scsi3_emulate_pro_register_and_move(cmd, res_key,
+		ret = core_scsi3_emulate_pro_register_and_move(cmd, res_key,
 				sa_res_key, aptpl, unreg);
+		break;
 	default:
 		pr_err("Unknown PERSISTENT_RESERVE_OUT service"
 			" action: 0x%02x\n", cdb[1] & 0x1f);
-		return PYX_TRANSPORT_INVALID_CDB_FIELD;
+		ret = PYX_TRANSPORT_INVALID_CDB_FIELD;
+		break;
 	}
 
-	return PYX_TRANSPORT_INVALID_CDB_FIELD;
+out:
+	if (!ret) {
+		task->task_scsi_status = GOOD;
+		transport_complete_task(task, 1);
+	}
+	return ret;
 }
 
 /*
@@ -4191,29 +4237,11 @@ static int core_scsi3_pri_read_full_status(struct se_cmd *cmd)
 	return 0;
 }
 
-static int core_scsi3_emulate_pr_in(struct se_cmd *cmd, unsigned char *cdb)
+int target_scsi3_emulate_pr_in(struct se_task *task)
 {
-	switch (cdb[1] & 0x1f) {
-	case PRI_READ_KEYS:
-		return core_scsi3_pri_read_keys(cmd);
-	case PRI_READ_RESERVATION:
-		return core_scsi3_pri_read_reservation(cmd);
-	case PRI_REPORT_CAPABILITIES:
-		return core_scsi3_pri_report_capabilities(cmd);
-	case PRI_READ_FULL_STATUS:
-		return core_scsi3_pri_read_full_status(cmd);
-	default:
-		pr_err("Unknown PERSISTENT_RESERVE_IN service"
-			" action: 0x%02x\n", cdb[1] & 0x1f);
-		return PYX_TRANSPORT_INVALID_CDB_FIELD;
-	}
+	struct se_cmd *cmd = task->task_se_cmd;
+	int ret;
 
-}
-
-int core_scsi3_emulate_pr(struct se_cmd *cmd)
-{
-	unsigned char *cdb = &cmd->t_task_cdb[0];
-	struct se_device *dev = cmd->se_dev;
 	/*
 	 * Following spc2r20 5.5.1 Reservations overview:
 	 *
@@ -4223,16 +4251,38 @@ int core_scsi3_emulate_pr(struct se_cmd *cmd)
 	 * initiator or service action and shall terminate with a RESERVATION
 	 * CONFLICT status.
 	 */
-	if (dev->dev_flags & DF_SPC2_RESERVATIONS) {
+	if (cmd->se_dev->dev_flags & DF_SPC2_RESERVATIONS) {
 		pr_err("Received PERSISTENT_RESERVE CDB while legacy"
 			" SPC-2 reservation is held, returning"
 			" RESERVATION_CONFLICT\n");
 		return PYX_TRANSPORT_RESERVATION_CONFLICT;
 	}
 
-	return (cdb[0] == PERSISTENT_RESERVE_OUT) ?
-	       core_scsi3_emulate_pr_out(cmd, cdb) :
-	       core_scsi3_emulate_pr_in(cmd, cdb);
+	switch (cmd->t_task_cdb[1] & 0x1f) {
+	case PRI_READ_KEYS:
+		ret = core_scsi3_pri_read_keys(cmd);
+		break;
+	case PRI_READ_RESERVATION:
+		ret = core_scsi3_pri_read_reservation(cmd);
+		break;
+	case PRI_REPORT_CAPABILITIES:
+		ret = core_scsi3_pri_report_capabilities(cmd);
+		break;
+	case PRI_READ_FULL_STATUS:
+		ret = core_scsi3_pri_read_full_status(cmd);
+		break;
+	default:
+		pr_err("Unknown PERSISTENT_RESERVE_IN service"
+			" action: 0x%02x\n", cmd->t_task_cdb[1] & 0x1f);
+		ret = PYX_TRANSPORT_INVALID_CDB_FIELD;
+		break;
+	}
+
+	if (!ret) {
+		task->task_scsi_status = GOOD;
+		transport_complete_task(task, 1);
+	}
+	return ret;
 }
 
 static int core_pt_reservation_check(struct se_cmd *cmd, u32 *pr_res_type)

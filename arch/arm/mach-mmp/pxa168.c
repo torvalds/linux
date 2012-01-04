@@ -7,7 +7,6 @@
  * it under the terms of the GNU General Public License version 2 as
  * published by the Free Software Foundation.
  */
-
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/init.h>
@@ -21,10 +20,13 @@
 #include <mach/regs-apbc.h>
 #include <mach/regs-apmu.h>
 #include <mach/irqs.h>
-#include <mach/gpio.h>
+#include <mach/gpio-pxa.h>
 #include <mach/dma.h>
 #include <mach/devices.h>
 #include <mach/mfp.h>
+#include <linux/platform_device.h>
+#include <linux/dma-mapping.h>
+#include <mach/pxa168.h>
 
 #include "common.h"
 #include "clock.h"
@@ -83,6 +85,7 @@ static APBC_CLK(keypad, PXA168_KPC, 0, 32000);
 static APMU_CLK(nand, NAND, 0x19b, 156000000);
 static APMU_CLK(lcd, LCD, 0x7f, 312000000);
 static APMU_CLK(eth, ETH, 0x09, 0);
+static APMU_CLK(usb, USB, 0x12, 0);
 
 /* device and clock bindings */
 static struct clk_lookup pxa168_clkregs[] = {
@@ -104,6 +107,7 @@ static struct clk_lookup pxa168_clkregs[] = {
 	INIT_CLKREG(&clk_lcd, "pxa168-fb", NULL),
 	INIT_CLKREG(&clk_keypad, "pxa27x-keypad", NULL),
 	INIT_CLKREG(&clk_eth, "pxa168-eth", "MFUCLK"),
+	INIT_CLKREG(&clk_usb, "pxa168-ehci", "PXA168-USBCLK"),
 };
 
 static int __init pxa168_init(void)
@@ -169,3 +173,44 @@ PXA168_DEVICE(ssp5, "pxa168-ssp", 4, SSP5, 0xd4021000, 0x40, 60, 61);
 PXA168_DEVICE(fb, "pxa168-fb", -1, LCD, 0xd420b000, 0x1c8);
 PXA168_DEVICE(keypad, "pxa27x-keypad", -1, KEYPAD, 0xd4012000, 0x4c);
 PXA168_DEVICE(eth, "pxa168-eth", -1, MFU, 0xc0800000, 0x0fff);
+
+struct resource pxa168_usb_host_resources[] = {
+	/* USB Host conroller register base */
+	[0] = {
+		.start	= 0xd4209000,
+		.end	= 0xd4209000 + 0x200,
+		.flags	= IORESOURCE_MEM,
+		.name	= "pxa168-usb-host",
+	},
+	/* USB PHY register base */
+	[1] = {
+		.start	= 0xd4206000,
+		.end	= 0xd4206000 + 0xff,
+		.flags	= IORESOURCE_MEM,
+		.name	= "pxa168-usb-phy",
+	},
+	[2] = {
+		.start	= IRQ_PXA168_USB2,
+		.end	= IRQ_PXA168_USB2,
+		.flags	= IORESOURCE_IRQ,
+	},
+};
+
+static u64 pxa168_usb_host_dmamask = DMA_BIT_MASK(32);
+struct platform_device pxa168_device_usb_host = {
+	.name = "pxa168-ehci",
+	.id   = -1,
+	.dev  = {
+		.dma_mask = &pxa168_usb_host_dmamask,
+		.coherent_dma_mask = DMA_BIT_MASK(32),
+	},
+
+	.num_resources = ARRAY_SIZE(pxa168_usb_host_resources),
+	.resource      = pxa168_usb_host_resources,
+};
+
+int __init pxa168_add_usb_host(struct pxa168_usb_pdata *pdata)
+{
+	pxa168_device_usb_host.dev.platform_data = pdata;
+	return platform_device_register(&pxa168_device_usb_host);
+}

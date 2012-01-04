@@ -114,42 +114,12 @@ static struct xen_blkif *xen_blkif_alloc(domid_t domid)
 	spin_lock_init(&blkif->blk_ring_lock);
 	atomic_set(&blkif->refcnt, 1);
 	init_waitqueue_head(&blkif->wq);
+	init_completion(&blkif->drain_complete);
+	atomic_set(&blkif->drain, 0);
 	blkif->st_print = jiffies;
 	init_waitqueue_head(&blkif->waiting_to_free);
 
 	return blkif;
-}
-
-static int map_frontend_page(struct xen_blkif *blkif, unsigned long shared_page)
-{
-	struct gnttab_map_grant_ref op;
-
-	gnttab_set_map_op(&op, (unsigned long)blkif->blk_ring_area->addr,
-			  GNTMAP_host_map, shared_page, blkif->domid);
-
-	if (HYPERVISOR_grant_table_op(GNTTABOP_map_grant_ref, &op, 1))
-		BUG();
-
-	if (op.status) {
-		DPRINTK("Grant table operation failure !\n");
-		return op.status;
-	}
-
-	blkif->shmem_ref = shared_page;
-	blkif->shmem_handle = op.handle;
-
-	return 0;
-}
-
-static void unmap_frontend_page(struct xen_blkif *blkif)
-{
-	struct gnttab_unmap_grant_ref op;
-
-	gnttab_set_unmap_op(&op, (unsigned long)blkif->blk_ring_area->addr,
-			    GNTMAP_host_map, blkif->shmem_handle);
-
-	if (HYPERVISOR_grant_table_op(GNTTABOP_unmap_grant_ref, &op, 1))
-		BUG();
 }
 
 static int xen_blkif_map(struct xen_blkif *blkif, unsigned long shared_page,
@@ -161,35 +131,29 @@ static int xen_blkif_map(struct xen_blkif *blkif, unsigned long shared_page,
 	if (blkif->irq)
 		return 0;
 
-	blkif->blk_ring_area = alloc_vm_area(PAGE_SIZE);
-	if (!blkif->blk_ring_area)
-		return -ENOMEM;
-
-	err = map_frontend_page(blkif, shared_page);
-	if (err) {
-		free_vm_area(blkif->blk_ring_area);
+	err = xenbus_map_ring_valloc(blkif->be->dev, shared_page, &blkif->blk_ring);
+	if (err < 0)
 		return err;
-	}
 
 	switch (blkif->blk_protocol) {
 	case BLKIF_PROTOCOL_NATIVE:
 	{
 		struct blkif_sring *sring;
-		sring = (struct blkif_sring *)blkif->blk_ring_area->addr;
+		sring = (struct blkif_sring *)blkif->blk_ring;
 		BACK_RING_INIT(&blkif->blk_rings.native, sring, PAGE_SIZE);
 		break;
 	}
 	case BLKIF_PROTOCOL_X86_32:
 	{
 		struct blkif_x86_32_sring *sring_x86_32;
-		sring_x86_32 = (struct blkif_x86_32_sring *)blkif->blk_ring_area->addr;
+		sring_x86_32 = (struct blkif_x86_32_sring *)blkif->blk_ring;
 		BACK_RING_INIT(&blkif->blk_rings.x86_32, sring_x86_32, PAGE_SIZE);
 		break;
 	}
 	case BLKIF_PROTOCOL_X86_64:
 	{
 		struct blkif_x86_64_sring *sring_x86_64;
-		sring_x86_64 = (struct blkif_x86_64_sring *)blkif->blk_ring_area->addr;
+		sring_x86_64 = (struct blkif_x86_64_sring *)blkif->blk_ring;
 		BACK_RING_INIT(&blkif->blk_rings.x86_64, sring_x86_64, PAGE_SIZE);
 		break;
 	}
@@ -201,8 +165,7 @@ static int xen_blkif_map(struct xen_blkif *blkif, unsigned long shared_page,
 						    xen_blkif_be_int, 0,
 						    "blkif-backend", blkif);
 	if (err < 0) {
-		unmap_frontend_page(blkif);
-		free_vm_area(blkif->blk_ring_area);
+		xenbus_unmap_ring_vfree(blkif->be->dev, blkif->blk_ring);
 		blkif->blk_rings.common.sring = NULL;
 		return err;
 	}
@@ -228,8 +191,7 @@ static void xen_blkif_disconnect(struct xen_blkif *blkif)
 	}
 
 	if (blkif->blk_rings.common.sring) {
-		unmap_frontend_page(blkif);
-		free_vm_area(blkif->blk_ring_area);
+		xenbus_unmap_ring_vfree(blkif->be->dev, blkif->blk_ring);
 		blkif->blk_rings.common.sring = NULL;
 	}
 }
@@ -272,6 +234,7 @@ VBD_SHOW(oo_req,  "%d\n", be->blkif->st_oo_req);
 VBD_SHOW(rd_req,  "%d\n", be->blkif->st_rd_req);
 VBD_SHOW(wr_req,  "%d\n", be->blkif->st_wr_req);
 VBD_SHOW(f_req,  "%d\n", be->blkif->st_f_req);
+VBD_SHOW(ds_req,  "%d\n", be->blkif->st_ds_req);
 VBD_SHOW(rd_sect, "%d\n", be->blkif->st_rd_sect);
 VBD_SHOW(wr_sect, "%d\n", be->blkif->st_wr_sect);
 
@@ -280,6 +243,7 @@ static struct attribute *xen_vbdstat_attrs[] = {
 	&dev_attr_rd_req.attr,
 	&dev_attr_wr_req.attr,
 	&dev_attr_f_req.attr,
+	&dev_attr_ds_req.attr,
 	&dev_attr_rd_sect.attr,
 	&dev_attr_wr_sect.attr,
 	NULL
@@ -415,6 +379,73 @@ int xen_blkbk_flush_diskcache(struct xenbus_transaction xbt,
 			    "%d", state);
 	if (err)
 		xenbus_dev_fatal(dev, err, "writing feature-flush-cache");
+
+	return err;
+}
+
+int xen_blkbk_discard(struct xenbus_transaction xbt, struct backend_info *be)
+{
+	struct xenbus_device *dev = be->dev;
+	struct xen_blkif *blkif = be->blkif;
+	char *type;
+	int err;
+	int state = 0;
+
+	type = xenbus_read(XBT_NIL, dev->nodename, "type", NULL);
+	if (!IS_ERR(type)) {
+		if (strncmp(type, "file", 4) == 0) {
+			state = 1;
+			blkif->blk_backend_type = BLKIF_BACKEND_FILE;
+		}
+		if (strncmp(type, "phy", 3) == 0) {
+			struct block_device *bdev = be->blkif->vbd.bdev;
+			struct request_queue *q = bdev_get_queue(bdev);
+			if (blk_queue_discard(q)) {
+				err = xenbus_printf(xbt, dev->nodename,
+					"discard-granularity", "%u",
+					q->limits.discard_granularity);
+				if (err) {
+					xenbus_dev_fatal(dev, err,
+						"writing discard-granularity");
+					goto kfree;
+				}
+				err = xenbus_printf(xbt, dev->nodename,
+					"discard-alignment", "%u",
+					q->limits.discard_alignment);
+				if (err) {
+					xenbus_dev_fatal(dev, err,
+						"writing discard-alignment");
+					goto kfree;
+				}
+				state = 1;
+				blkif->blk_backend_type = BLKIF_BACKEND_PHY;
+			}
+		}
+	} else {
+		err = PTR_ERR(type);
+		xenbus_dev_fatal(dev, err, "reading type");
+		goto out;
+	}
+
+	err = xenbus_printf(xbt, dev->nodename, "feature-discard",
+			    "%d", state);
+	if (err)
+		xenbus_dev_fatal(dev, err, "writing feature-discard");
+kfree:
+	kfree(type);
+out:
+	return err;
+}
+int xen_blkbk_barrier(struct xenbus_transaction xbt,
+		      struct backend_info *be, int state)
+{
+	struct xenbus_device *dev = be->dev;
+	int err;
+
+	err = xenbus_printf(xbt, dev->nodename, "feature-barrier",
+			    "%d", state);
+	if (err)
+		xenbus_dev_fatal(dev, err, "writing feature-barrier");
 
 	return err;
 }
@@ -649,6 +680,11 @@ again:
 	err = xen_blkbk_flush_diskcache(xbt, be, be->blkif->vbd.flush_support);
 	if (err)
 		goto abort;
+
+	err = xen_blkbk_discard(xbt, be);
+
+	/* If we can't advertise it is OK. */
+	err = xen_blkbk_barrier(xbt, be, be->blkif->vbd.flush_support);
 
 	err = xenbus_printf(xbt, dev->nodename, "sectors", "%llu",
 			    (unsigned long long)vbd_sz(&be->blkif->vbd));

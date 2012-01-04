@@ -19,6 +19,7 @@
 #include <linux/uwb.h>
 #include <linux/slab.h>
 #include <linux/random.h>
+#include <linux/export.h>
 
 #include "uwb-internal.h"
 

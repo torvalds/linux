@@ -339,8 +339,6 @@ static int tegra_wm8903_init(struct snd_soc_pcm_runtime *rtd)
 		snd_soc_dapm_nc_pin(dapm, "LINEOUTL");
 	}
 
-	snd_soc_dapm_sync(dapm);
-
 	return 0;
 }
 

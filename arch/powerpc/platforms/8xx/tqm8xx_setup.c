@@ -18,7 +18,6 @@
  */
 
 #include <linux/init.h>
-#include <linux/module.h>
 #include <linux/param.h>
 #include <linux/string.h>
 #include <linux/ioport.h>

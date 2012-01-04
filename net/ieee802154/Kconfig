@@ -10,3 +10,9 @@ config IEEE802154
 
 	  Say Y here to compile LR-WPAN support into the kernel or say M to
 	  compile it as modules.
+
+config IEEE802154_6LOWPAN
+	tristate "6lowpan support over IEEE 802.15.4"
+	depends on IEEE802154 && IPV6
+	---help---
+	IPv6 compression over IEEE 802.15.4.

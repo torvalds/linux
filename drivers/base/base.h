@@ -1,3 +1,4 @@
+#include <linux/notifier.h>
 
 /**
  * struct subsys_private - structure to hold the private to the driver core portions of the bus_type/class structure.

@@ -20,6 +20,7 @@
 #include <linux/delay.h>
 #include <linux/irq.h>
 #include <linux/gpio.h>
+#include <linux/export.h>
 #include <linux/io.h>
 #include <linux/slab.h>
 #include <linux/spinlock.h>
@@ -584,7 +585,7 @@ static int asic3_gpio_remove(struct platform_device *pdev)
 	return gpiochip_remove(&asic->gpio);
 }
 
-static int asic3_clk_enable(struct asic3 *asic, struct asic3_clk *clk)
+static void asic3_clk_enable(struct asic3 *asic, struct asic3_clk *clk)
 {
 	unsigned long flags;
 	u32 cdex;
@@ -596,8 +597,6 @@ static int asic3_clk_enable(struct asic3 *asic, struct asic3_clk *clk)
 		asic3_write_register(asic, ASIC3_OFFSET(CLOCK, CDEX), cdex);
 	}
 	spin_unlock_irqrestore(&asic->lock, flags);
-
-	return 0;
 }
 
 static void asic3_clk_disable(struct asic3 *asic, struct asic3_clk *clk)
@@ -779,6 +778,8 @@ static struct mfd_cell asic3_cell_mmc = {
 	.name          = "tmio-mmc",
 	.enable        = asic3_mmc_enable,
 	.disable       = asic3_mmc_disable,
+	.suspend       = asic3_mmc_disable,
+	.resume        = asic3_mmc_enable,
 	.platform_data = &asic3_mmc_data,
 	.pdata_size    = sizeof(asic3_mmc_data),
 	.num_resources = ARRAY_SIZE(asic3_mmc_resources),
@@ -811,24 +812,43 @@ static int asic3_leds_disable(struct platform_device *pdev)
 	return 0;
 }
 
+static int asic3_leds_suspend(struct platform_device *pdev)
+{
+	const struct mfd_cell *cell = mfd_get_cell(pdev);
+	struct asic3 *asic = dev_get_drvdata(pdev->dev.parent);
+
+	while (asic3_gpio_get(&asic->gpio, ASIC3_GPIO(C, cell->id)) != 0)
+		msleep(1);
+
+	asic3_clk_disable(asic, &asic->clocks[clock_ledn[cell->id]]);
+
+	return 0;
+}
+
 static struct mfd_cell asic3_cell_leds[ASIC3_NUM_LEDS] = {
 	[0] = {
 		.name          = "leds-asic3",
 		.id            = 0,
 		.enable        = asic3_leds_enable,
 		.disable       = asic3_leds_disable,
+		.suspend       = asic3_leds_suspend,
+		.resume        = asic3_leds_enable,
 	},
 	[1] = {
 		.name          = "leds-asic3",
 		.id            = 1,
 		.enable        = asic3_leds_enable,
 		.disable       = asic3_leds_disable,
+		.suspend       = asic3_leds_suspend,
+		.resume        = asic3_leds_enable,
 	},
 	[2] = {
 		.name          = "leds-asic3",
 		.id            = 2,
 		.enable        = asic3_leds_enable,
 		.disable       = asic3_leds_disable,
+		.suspend       = asic3_leds_suspend,
+		.resume        = asic3_leds_enable,
 	},
 };
 
@@ -949,6 +969,7 @@ static int __init asic3_probe(struct platform_device *pdev)
 		goto out_unmap;
 	}
 
+	asic->gpio.label = "asic3";
 	asic->gpio.base = pdata->gpio_base;
 	asic->gpio.ngpio = ASIC3_NUM_GPIOS;
 	asic->gpio.get = asic3_gpio_get;

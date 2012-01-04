@@ -13,11 +13,11 @@
 #include <linux/spi/spi.h>
 #include <linux/regulator/consumer.h>
 #include <linux/err.h>
+#include <linux/module.h>
 
 #include "../iio.h"
 #include "../sysfs.h"
-#include "../ring_generic.h"
-#include "adc.h"
+#include "../buffer_generic.h"
 
 #include "ad7476.h"
 
@@ -32,24 +32,24 @@ static int ad7476_scan_direct(struct ad7476_state *st)
 	return (st->data[0] << 8) | st->data[1];
 }
 
-static int ad7476_read_raw(struct iio_dev *dev_info,
+static int ad7476_read_raw(struct iio_dev *indio_dev,
 			   struct iio_chan_spec const *chan,
 			   int *val,
 			   int *val2,
 			   long m)
 {
 	int ret;
-	struct ad7476_state *st = iio_priv(dev_info);
+	struct ad7476_state *st = iio_priv(indio_dev);
 	unsigned int scale_uv;
 
 	switch (m) {
 	case 0:
-		mutex_lock(&dev_info->mlock);
-		if (iio_ring_enabled(dev_info))
-			ret = ad7476_scan_from_ring(dev_info);
+		mutex_lock(&indio_dev->mlock);
+		if (iio_buffer_enabled(indio_dev))
+			ret = ad7476_scan_from_ring(indio_dev);
 		else
 			ret = ad7476_scan_direct(st);
-		mutex_unlock(&dev_info->mlock);
+		mutex_unlock(&indio_dev->mlock);
 
 		if (ret < 0)
 			return ret;
@@ -68,49 +68,49 @@ static int ad7476_read_raw(struct iio_dev *dev_info,
 
 static const struct ad7476_chip_info ad7476_chip_info_tbl[] = {
 	[ID_AD7466] = {
-		.channel[0] = IIO_CHAN(IIO_IN, 0, 1, 0, NULL, 0, 0,
+		.channel[0] = IIO_CHAN(IIO_VOLTAGE, 0, 1, 0, NULL, 0, 0,
 				       (1 << IIO_CHAN_INFO_SCALE_SHARED),
 				       0, 0, IIO_ST('u', 12, 16, 0), 0),
 		.channel[1] = IIO_CHAN_SOFT_TIMESTAMP(1),
 	},
 	[ID_AD7467] = {
-		.channel[0] = IIO_CHAN(IIO_IN, 0, 1, 0, NULL, 0, 0,
+		.channel[0] = IIO_CHAN(IIO_VOLTAGE, 0, 1, 0, NULL, 0, 0,
 				       (1 << IIO_CHAN_INFO_SCALE_SHARED),
 				       0, 0, IIO_ST('u', 10, 16, 2), 0),
 		.channel[1] = IIO_CHAN_SOFT_TIMESTAMP(1),
 	},
 	[ID_AD7468] = {
-		.channel[0] = IIO_CHAN(IIO_IN, 0, 1 , 0, NULL, 0, 0,
+		.channel[0] = IIO_CHAN(IIO_VOLTAGE, 0, 1 , 0, NULL, 0, 0,
 				       (1 << IIO_CHAN_INFO_SCALE_SHARED),
 				       0, 0, IIO_ST('u', 8, 16, 4), 0),
 		.channel[1] = IIO_CHAN_SOFT_TIMESTAMP(1),
 	},
 	[ID_AD7475] = {
-		.channel[0] = IIO_CHAN(IIO_IN, 0, 1, 0, NULL, 0, 0,
+		.channel[0] = IIO_CHAN(IIO_VOLTAGE, 0, 1, 0, NULL, 0, 0,
 				       (1 << IIO_CHAN_INFO_SCALE_SHARED),
 				       0, 0, IIO_ST('u', 12, 16, 0), 0),
 		.channel[1] = IIO_CHAN_SOFT_TIMESTAMP(1),
 	},
 	[ID_AD7476] = {
-		.channel[0] = IIO_CHAN(IIO_IN, 0, 1, 0, NULL, 0, 0,
+		.channel[0] = IIO_CHAN(IIO_VOLTAGE, 0, 1, 0, NULL, 0, 0,
 				       (1 << IIO_CHAN_INFO_SCALE_SHARED),
 				       0, 0, IIO_ST('u', 12, 16, 0), 0),
 		.channel[1] = IIO_CHAN_SOFT_TIMESTAMP(1),
 	},
 	[ID_AD7477] = {
-		.channel[0] = IIO_CHAN(IIO_IN, 0, 1, 0, NULL, 0, 0,
+		.channel[0] = IIO_CHAN(IIO_VOLTAGE, 0, 1, 0, NULL, 0, 0,
 				       (1 << IIO_CHAN_INFO_SCALE_SHARED),
 				       0, 0, IIO_ST('u', 10, 16, 2), 0),
 		.channel[1] = IIO_CHAN_SOFT_TIMESTAMP(1),
 	},
 	[ID_AD7478] = {
-		.channel[0] = IIO_CHAN(IIO_IN, 0, 1, 0, NULL, 0, 0,
+		.channel[0] = IIO_CHAN(IIO_VOLTAGE, 0, 1, 0, NULL, 0, 0,
 				       (1 << IIO_CHAN_INFO_SCALE_SHARED),
 				       0, 0, IIO_ST('u', 8, 16, 4), 0),
 		.channel[1] = IIO_CHAN_SOFT_TIMESTAMP(1),
 	},
 	[ID_AD7495] = {
-		.channel[0] = IIO_CHAN(IIO_IN, 0, 1, 0, NULL, 0, 0,
+		.channel[0] = IIO_CHAN(IIO_VOLTAGE, 0, 1, 0, NULL, 0, 0,
 				       (1 << IIO_CHAN_INFO_SCALE_SHARED),
 				       0, 0, IIO_ST('u', 12, 16, 0), 0),
 		.channel[1] = IIO_CHAN_SOFT_TIMESTAMP(1),
@@ -129,8 +129,6 @@ static int __devinit ad7476_probe(struct spi_device *spi)
 	struct ad7476_state *st;
 	struct iio_dev *indio_dev;
 	int ret, voltage_uv = 0;
-	bool reg_done = false;
-	struct regulator *reg;
 
 	indio_dev = iio_allocate_device(sizeof(*st));
 	if (indio_dev == NULL) {
@@ -138,15 +136,14 @@ static int __devinit ad7476_probe(struct spi_device *spi)
 		goto error_ret;
 	}
 	st = iio_priv(indio_dev);
-	reg = regulator_get(&spi->dev, "vcc");
-	if (!IS_ERR(reg)) {
-		ret = regulator_enable(reg);
+	st->reg = regulator_get(&spi->dev, "vcc");
+	if (!IS_ERR(st->reg)) {
+		ret = regulator_enable(st->reg);
 		if (ret)
 			goto error_put_reg;
 
-		voltage_uv = regulator_get_voltage(reg);
+		voltage_uv = regulator_get_voltage(st->reg);
 	}
-	st->reg = reg;
 	st->chip_info =
 		&ad7476_chip_info_tbl[spi_get_device_id(spi)->driver_data];
 
@@ -182,28 +179,29 @@ static int __devinit ad7476_probe(struct spi_device *spi)
 	if (ret)
 		goto error_disable_reg;
 
-	ret = iio_device_register(indio_dev);
-	if (ret)
-		goto error_disable_reg;
-
-	ret = iio_ring_buffer_register_ex(indio_dev->ring, 0,
-					  st->chip_info->channel,
-					  ARRAY_SIZE(st->chip_info->channel));
+	ret = iio_buffer_register(indio_dev,
+				  st->chip_info->channel,
+				  ARRAY_SIZE(st->chip_info->channel));
 	if (ret)
 		goto error_cleanup_ring;
+
+	ret = iio_device_register(indio_dev);
+	if (ret)
+		goto error_ring_unregister;
 	return 0;
 
+error_ring_unregister:
+	iio_buffer_unregister(indio_dev);
 error_cleanup_ring:
 	ad7476_ring_cleanup(indio_dev);
-	iio_device_unregister(indio_dev);
 error_disable_reg:
-	if (!IS_ERR(reg))
+	if (!IS_ERR(st->reg))
 		regulator_disable(st->reg);
 error_put_reg:
-	if (!IS_ERR(reg))
-		regulator_put(reg);
-	if (!reg_done)
-		iio_free_device(indio_dev);
+	if (!IS_ERR(st->reg))
+		regulator_put(st->reg);
+	iio_free_device(indio_dev);
+
 error_ret:
 	return ret;
 }
@@ -212,16 +210,15 @@ static int ad7476_remove(struct spi_device *spi)
 {
 	struct iio_dev *indio_dev = spi_get_drvdata(spi);
 	struct ad7476_state *st = iio_priv(indio_dev);
-	/* copy needed as st will have been freed */
-	struct regulator *reg = st->reg;
 
-	iio_ring_buffer_unregister(indio_dev->ring);
-	ad7476_ring_cleanup(indio_dev);
 	iio_device_unregister(indio_dev);
-	if (!IS_ERR(reg)) {
-		regulator_disable(reg);
-		regulator_put(reg);
+	iio_buffer_unregister(indio_dev);
+	ad7476_ring_cleanup(indio_dev);
+	if (!IS_ERR(st->reg)) {
+		regulator_disable(st->reg);
+		regulator_put(st->reg);
 	}
+	iio_free_device(indio_dev);
 
 	return 0;
 }

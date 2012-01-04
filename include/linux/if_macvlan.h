@@ -64,6 +64,7 @@ struct macvlan_dev {
 	int (*forward)(struct net_device *dev, struct sk_buff *skb);
 	struct macvtap_queue	*taps[MAX_MACVTAP_QUEUES];
 	int			numvtaps;
+	int			minor;
 };
 
 static inline void macvlan_count_rx(const struct macvlan_dev *vlan,

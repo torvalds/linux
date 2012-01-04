@@ -45,6 +45,10 @@
 		device_type = "memory";
 	};
 
+	dcsr: dcsr@f00000000 {
+		ranges = <0x00000000 0xf 0x00000000 0x01008000>;
+	};
+
 	soc: soc@ffe000000 {
 		spi@110000 {
 			flash@0 {
@@ -108,13 +112,19 @@
 
 	localbus@ffe124000 {
 		reg = <0xf 0xfe124000 0 0x1000>;
-		ranges = <0 0 0xf 0xe8000000 0x08000000>;
+		ranges = <0 0 0xf 0xe8000000 0x08000000
+			  3 0 0xf 0xffdf0000 0x00008000>;
 
 		flash@0,0 {
 			compatible = "cfi-flash";
 			reg = <0 0 0x08000000>;
 			bank-width = <2>;
 			device-width = <2>;
+		};
+
+		board-control@3,0 {
+			compatible = "fsl,p4080ds-fpga", "fsl,fpga-ngpixis";
+			reg = <3 0 0x30>;
 		};
 	};
 

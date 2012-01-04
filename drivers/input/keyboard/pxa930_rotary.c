@@ -148,7 +148,7 @@ static int __devinit pxa930_rotary_probe(struct platform_device *pdev)
 	r->input_dev = input_dev;
 	input_set_drvdata(input_dev, r);
 
-	err = request_irq(irq, rotary_irq, IRQF_DISABLED,
+	err = request_irq(irq, rotary_irq, 0,
 			"enhanced rotary", r);
 	if (err) {
 		dev_err(&pdev->dev, "failed to request IRQ\n");

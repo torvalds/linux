@@ -8,6 +8,7 @@
  * Copyright (C) 2007, 2008 Cavium Networks
  */
 #include <linux/kernel.h>
+#include <linux/export.h>
 #include <linux/mtd/mtd.h>
 #include <linux/mtd/map.h>
 #include <linux/mtd/partitions.h>

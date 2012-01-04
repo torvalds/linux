@@ -398,6 +398,16 @@ static int __devinit mvs_94xx_init(struct mvs_info *mvi)
 	/* init phys */
 	mvs_phy_hacks(mvi);
 
+	/* disable non data frame retry */
+	tmp = mvs_cr32(mvi, CMD_SAS_CTL1);
+	if ((revision == VANIR_A0_REV) ||
+		(revision == VANIR_B0_REV) ||
+		(revision == VANIR_C0_REV)) {
+		tmp &= ~0xffff;
+		tmp |= 0x007f;
+		mvs_cw32(mvi, CMD_SAS_CTL1, tmp);
+	}
+
 	/* set LED blink when IO*/
 	mw32(MVS_PA_VSR_ADDR, VSR_PHY_ACT_LED);
 	tmp = mr32(MVS_PA_VSR_PORT);
@@ -499,6 +509,27 @@ static int __devinit mvs_94xx_init(struct mvs_info *mvi)
 		CINT_DMA_PCIE | CINT_NON_SPEC_NCQ_ERROR);
 	tmp |= CINT_PHY_MASK;
 	mw32(MVS_INT_MASK, tmp);
+
+	tmp = mvs_cr32(mvi, CMD_LINK_TIMER);
+	tmp |= 0xFFFF0000;
+	mvs_cw32(mvi, CMD_LINK_TIMER, tmp);
+
+	/* tune STP performance */
+	tmp = 0x003F003F;
+	mvs_cw32(mvi, CMD_PL_TIMER, tmp);
+
+	/* This can improve expander large block size seq write performance */
+	tmp = mvs_cr32(mvi, CMD_PORT_LAYER_TIMER1);
+	tmp |= 0xFFFF007F;
+	mvs_cw32(mvi, CMD_PORT_LAYER_TIMER1, tmp);
+
+	/* change the connection open-close behavior (bit 9)
+	 * set bit8 to 1 for performance tuning */
+	tmp = mvs_cr32(mvi, CMD_SL_MODE0);
+	tmp |= 0x00000300;
+	/* set bit0 to 0 to enable retry for no_dest reject case */
+	tmp &= 0xFFFFFFFE;
+	mvs_cw32(mvi, CMD_SL_MODE0, tmp);
 
 	/* Enable SRS interrupt */
 	mw32(MVS_INT_MASK_SRS_0, 0xFFFF);
@@ -822,6 +853,10 @@ static void mvs_94xx_fix_phy_info(struct mvs_info *mvi, int i,
 	} else {
 		phy->att_dev_info = PORT_DEV_STP_TRGT | 1;
 	}
+
+	/* enable spin up bit */
+	mvs_write_port_cfg_addr(mvi, i, PHYR_PHY_STAT);
+	mvs_write_port_cfg_data(mvi, i, 0x04);
 
 }
 

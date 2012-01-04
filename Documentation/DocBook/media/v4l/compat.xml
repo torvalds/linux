@@ -2370,6 +2370,14 @@ that used it. It was originally scheduled for removal in 2.6.35.
         </listitem>
       </orderedlist>
     </section>
+    <section>
+      <title>V4L2 in Linux 3.2</title>
+      <orderedlist>
+        <listitem>
+	  <para>V4L2_CTRL_FLAG_VOLATILE was added to signal volatile controls to userspace.</para>
+        </listitem>
+      </orderedlist>
+    </section>
 
     <section id="other">
       <title>Relation of V4L2 to other Linux multimedia APIs</title>
@@ -2477,6 +2485,9 @@ ioctls.</para>
         </listitem>
         <listitem>
 	  <para>Flash API. <xref linkend="flash-controls" /></para>
+        </listitem>
+        <listitem>
+	  <para>&VIDIOC-CREATE-BUFS; and &VIDIOC-PREPARE-BUF; ioctls.</para>
         </listitem>
       </itemizedlist>
     </section>

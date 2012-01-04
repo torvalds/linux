@@ -63,163 +63,289 @@
 #ifndef __iwl_trans_h__
 #define __iwl_trans_h__
 
+#include <linux/debugfs.h>
+#include <linux/skbuff.h>
+
+#include "iwl-shared.h"
+#include "iwl-commands.h"
+
  /*This file includes the declaration that are exported from the transport
  * layer */
 
 struct iwl_priv;
-struct iwl_rxon_context;
-struct iwl_host_cmd;
+struct iwl_shared;
+
+#define SEQ_TO_SN(seq) (((seq) & IEEE80211_SCTL_SEQ) >> 4)
+#define SN_TO_SEQ(ssn) (((ssn) << 4) & IEEE80211_SCTL_SEQ)
+#define MAX_SN ((IEEE80211_SCTL_SEQ) >> 4)
+
+enum {
+	CMD_SYNC = 0,
+	CMD_ASYNC = BIT(0),
+	CMD_WANT_SKB = BIT(1),
+	CMD_ON_DEMAND = BIT(2),
+};
+
+#define DEF_CMD_PAYLOAD_SIZE 320
+
+/**
+ * struct iwl_device_cmd
+ *
+ * For allocation of the command and tx queues, this establishes the overall
+ * size of the largest command we send to uCode, except for commands that
+ * aren't fully copied and use other TFD space.
+ */
+struct iwl_device_cmd {
+	struct iwl_cmd_header hdr;	/* uCode API */
+	u8 payload[DEF_CMD_PAYLOAD_SIZE];
+} __packed;
+
+#define TFD_MAX_PAYLOAD_SIZE (sizeof(struct iwl_device_cmd))
+
+#define IWL_MAX_CMD_TFDS	2
+
+enum iwl_hcmd_dataflag {
+	IWL_HCMD_DFL_NOCOPY	= BIT(0),
+};
+
+/**
+ * struct iwl_host_cmd - Host command to the uCode
+ * @data: array of chunks that composes the data of the host command
+ * @reply_page: pointer to the page that holds the response to the host command
+ * @handler_status: return value of the handler of the command
+ *	(put in setup_rx_handlers) - valid for SYNC mode only
+ * @callback:
+ * @flags: can be CMD_* note CMD_WANT_SKB is incompatible withe CMD_ASYNC
+ * @len: array of the lenths of the chunks in data
+ * @dataflags:
+ * @id: id of the host command
+ */
+struct iwl_host_cmd {
+	const void *data[IWL_MAX_CMD_TFDS];
+	unsigned long reply_page;
+	int handler_status;
+
+	u32 flags;
+	u16 len[IWL_MAX_CMD_TFDS];
+	u8 dataflags[IWL_MAX_CMD_TFDS];
+	u8 id;
+};
 
 /**
  * struct iwl_trans_ops - transport specific operations
+ * @alloc: allocates the meta data (not the queues themselves)
+ * @request_irq: requests IRQ - will be called before the FW load in probe flow
  * @start_device: allocates and inits all the resources for the transport
  *                layer.
  * @prepare_card_hw: claim the ownership on the HW. Will be called during
  *                   probe.
  * @tx_start: starts and configures all the Tx fifo - usually done once the fw
  *           is alive.
+ * @wake_any_queue: wake all the queues of a specfic context IWL_RXON_CTX_*
  * @stop_device:stops the whole device (embedded CPU put to reset)
- * @rx_free: frees the rx memory
- * @tx_free: frees the tx memory
  * @send_cmd:send a host command
- * @send_cmd_pdu:send a host command: flags can be CMD_*
- * @get_tx_cmd: returns a pointer to a new Tx cmd for the upper layer use
  * @tx: send an skb
- * @txq_agg_setup: setup a tx queue for AMPDU - will be called once the HW is
+ * @reclaim: free packet until ssn. Returns a list of freed packets.
+ * @tx_agg_alloc: allocate resources for a TX BA session
+ * @tx_agg_setup: setup a tx queue for AMPDU - will be called once the HW is
  *                 ready and a successful ADDBA response has been received.
- * @txq_agg_disable: de-configure a Tx queue to send AMPDUs
+ * @tx_agg_disable: de-configure a Tx queue to send AMPDUs
  * @kick_nic: remove the RESET from the embedded CPU and let it run
- * @sync_irq: the upper layer will typically disable interrupt and call this
- *            handler. After this handler returns, it is guaranteed that all
- *            the ISR / tasklet etc... have finished running and the transport
- *            layer shall not pass any Rx.
  * @free: release all the ressource for the transport layer itself such as
  *        irq, tasklet etc...
+ * @stop_queue: stop a specific queue
+ * @check_stuck_queue: check if a specific queue is stuck
+ * @wait_tx_queue_empty: wait until all tx queues are empty
+ * @dbgfs_register: add the dbgfs files under this directory. Files will be
+ *	automatically deleted.
+ * @suspend: stop the device unless WoWLAN is configured
+ * @resume: resume activity of the device
  */
 struct iwl_trans_ops {
 
-	int (*start_device)(struct iwl_priv *priv);
-	int (*prepare_card_hw)(struct iwl_priv *priv);
-	void (*stop_device)(struct iwl_priv *priv);
-	void (*tx_start)(struct iwl_priv *priv);
-	void (*tx_free)(struct iwl_priv *priv);
-	void (*rx_free)(struct iwl_priv *priv);
+	struct iwl_trans *(*alloc)(struct iwl_shared *shrd);
+	int (*request_irq)(struct iwl_trans *iwl_trans);
+	int (*start_device)(struct iwl_trans *trans);
+	int (*prepare_card_hw)(struct iwl_trans *trans);
+	void (*stop_device)(struct iwl_trans *trans);
+	void (*tx_start)(struct iwl_trans *trans);
 
-	int (*send_cmd)(struct iwl_priv *priv, struct iwl_host_cmd *cmd);
+	void (*wake_any_queue)(struct iwl_trans *trans,
+			       enum iwl_rxon_context_id ctx);
 
-	int (*send_cmd_pdu)(struct iwl_priv *priv, u8 id, u32 flags, u16 len,
-		     const void *data);
-	struct iwl_tx_cmd * (*get_tx_cmd)(struct iwl_priv *priv, int txq_id);
-	int (*tx)(struct iwl_priv *priv, struct sk_buff *skb,
-		struct iwl_tx_cmd *tx_cmd, int txq_id, __le16 fc, bool ampdu,
-		struct iwl_rxon_context *ctx);
+	int (*send_cmd)(struct iwl_trans *trans, struct iwl_host_cmd *cmd);
 
-	int (*txq_agg_disable)(struct iwl_priv *priv, u16 txq_id,
-				  u16 ssn_idx, u8 tx_fifo);
-	void (*txq_agg_setup)(struct iwl_priv *priv, int sta_id, int tid,
-						int frame_limit);
+	int (*tx)(struct iwl_trans *trans, struct sk_buff *skb,
+		struct iwl_device_cmd *dev_cmd, enum iwl_rxon_context_id ctx,
+		u8 sta_id);
+	void (*reclaim)(struct iwl_trans *trans, int sta_id, int tid,
+			int txq_id, int ssn, u32 status,
+			struct sk_buff_head *skbs);
 
-	void (*kick_nic)(struct iwl_priv *priv);
+	int (*tx_agg_disable)(struct iwl_trans *trans,
+			      enum iwl_rxon_context_id ctx, int sta_id,
+			      int tid);
+	int (*tx_agg_alloc)(struct iwl_trans *trans,
+			    enum iwl_rxon_context_id ctx, int sta_id, int tid,
+			    u16 *ssn);
+	void (*tx_agg_setup)(struct iwl_trans *trans,
+			     enum iwl_rxon_context_id ctx, int sta_id, int tid,
+			     int frame_limit);
 
-	void (*sync_irq)(struct iwl_priv *priv);
-	void (*free)(struct iwl_priv *priv);
+	void (*kick_nic)(struct iwl_trans *trans);
+
+	void (*free)(struct iwl_trans *trans);
+
+	void (*stop_queue)(struct iwl_trans *trans, int q);
+
+	int (*dbgfs_register)(struct iwl_trans *trans, struct dentry* dir);
+	int (*check_stuck_queue)(struct iwl_trans *trans, int q);
+	int (*wait_tx_queue_empty)(struct iwl_trans *trans);
+#ifdef CONFIG_PM_SLEEP
+	int (*suspend)(struct iwl_trans *trans);
+	int (*resume)(struct iwl_trans *trans);
+#endif
 };
 
+/**
+ * struct iwl_trans - transport common data
+ * @ops - pointer to iwl_trans_ops
+ * @shrd - pointer to iwl_shared which holds shared data from the upper layer
+ * @hcmd_lock: protects HCMD
+ */
 struct iwl_trans {
 	const struct iwl_trans_ops *ops;
-	struct iwl_priv *priv;
+	struct iwl_shared *shrd;
+	spinlock_t hcmd_lock;
+
+	/* pointer to trans specific struct */
+	/*Ensure that this pointer will always be aligned to sizeof pointer */
+	char trans_specific[0] __attribute__((__aligned__(sizeof(void *))));
 };
 
-static inline int trans_start_device(struct iwl_trans *trans)
+static inline int iwl_trans_request_irq(struct iwl_trans *trans)
 {
-	return trans->ops->start_device(trans->priv);
+	return trans->ops->request_irq(trans);
 }
 
-static inline int trans_prepare_card_hw(struct iwl_trans *trans)
+static inline int iwl_trans_start_device(struct iwl_trans *trans)
 {
-	return trans->ops->prepare_card_hw(trans->priv);
+	return trans->ops->start_device(trans);
 }
 
-static inline void trans_stop_device(struct iwl_trans *trans)
+static inline int iwl_trans_prepare_card_hw(struct iwl_trans *trans)
 {
-	trans->ops->stop_device(trans->priv);
+	return trans->ops->prepare_card_hw(trans);
 }
 
-static inline void trans_tx_start(struct iwl_trans *trans)
+static inline void iwl_trans_stop_device(struct iwl_trans *trans)
 {
-	trans->ops->tx_start(trans->priv);
+	trans->ops->stop_device(trans);
 }
 
-static inline void trans_rx_free(struct iwl_trans *trans)
+static inline void iwl_trans_tx_start(struct iwl_trans *trans)
 {
-	trans->ops->rx_free(trans->priv);
+	trans->ops->tx_start(trans);
 }
 
-static inline void trans_tx_free(struct iwl_trans *trans)
+static inline void iwl_trans_wake_any_queue(struct iwl_trans *trans,
+					    enum iwl_rxon_context_id ctx)
 {
-	trans->ops->tx_free(trans->priv);
+	trans->ops->wake_any_queue(trans, ctx);
 }
 
-static inline int trans_send_cmd(struct iwl_trans *trans,
+
+static inline int iwl_trans_send_cmd(struct iwl_trans *trans,
 				struct iwl_host_cmd *cmd)
 {
-	return trans->ops->send_cmd(trans->priv, cmd);
+	return trans->ops->send_cmd(trans, cmd);
 }
 
-static inline int trans_send_cmd_pdu(struct iwl_trans *trans, u8 id, u32 flags,
-					u16 len, const void *data)
+int iwl_trans_send_cmd_pdu(struct iwl_trans *trans, u8 id,
+			   u32 flags, u16 len, const void *data);
+
+static inline int iwl_trans_tx(struct iwl_trans *trans, struct sk_buff *skb,
+		struct iwl_device_cmd *dev_cmd, enum iwl_rxon_context_id ctx,
+		u8 sta_id)
 {
-	return trans->ops->send_cmd_pdu(trans->priv, id, flags, len, data);
+	return trans->ops->tx(trans, skb, dev_cmd, ctx, sta_id);
 }
 
-static inline struct iwl_tx_cmd *trans_get_tx_cmd(struct iwl_trans *trans,
-					int txq_id)
+static inline void iwl_trans_reclaim(struct iwl_trans *trans, int sta_id,
+				 int tid, int txq_id, int ssn, u32 status,
+				 struct sk_buff_head *skbs)
 {
-	return trans->ops->get_tx_cmd(trans->priv, txq_id);
+	trans->ops->reclaim(trans, sta_id, tid, txq_id, ssn, status, skbs);
 }
 
-static inline int trans_tx(struct iwl_trans *trans, struct sk_buff *skb,
-		struct iwl_tx_cmd *tx_cmd, int txq_id, __le16 fc, bool ampdu,
-		struct iwl_rxon_context *ctx)
+static inline int iwl_trans_tx_agg_disable(struct iwl_trans *trans,
+					    enum iwl_rxon_context_id ctx,
+					    int sta_id, int tid)
 {
-	return trans->ops->tx(trans->priv, skb, tx_cmd, txq_id, fc, ampdu, ctx);
+	return trans->ops->tx_agg_disable(trans, ctx, sta_id, tid);
 }
 
-static inline int trans_txq_agg_disable(struct iwl_trans *trans, u16 txq_id,
-			  u16 ssn_idx, u8 tx_fifo)
+static inline int iwl_trans_tx_agg_alloc(struct iwl_trans *trans,
+					 enum iwl_rxon_context_id ctx,
+					 int sta_id, int tid, u16 *ssn)
 {
-	return trans->ops->txq_agg_disable(trans->priv, txq_id,
-					   ssn_idx, tx_fifo);
+	return trans->ops->tx_agg_alloc(trans, ctx, sta_id, tid, ssn);
 }
 
-static inline void trans_txq_agg_setup(struct iwl_trans *trans, int sta_id,
-						int tid, int frame_limit)
+
+static inline void iwl_trans_tx_agg_setup(struct iwl_trans *trans,
+					   enum iwl_rxon_context_id ctx,
+					   int sta_id, int tid,
+					   int frame_limit)
 {
-	trans->ops->txq_agg_setup(trans->priv, sta_id, tid, frame_limit);
+	trans->ops->tx_agg_setup(trans, ctx, sta_id, tid, frame_limit);
 }
 
-static inline void trans_kick_nic(struct iwl_trans *trans)
+static inline void iwl_trans_kick_nic(struct iwl_trans *trans)
 {
-	trans->ops->kick_nic(trans->priv);
+	trans->ops->kick_nic(trans);
 }
 
-static inline void trans_sync_irq(struct iwl_trans *trans)
+static inline void iwl_trans_free(struct iwl_trans *trans)
 {
-	trans->ops->sync_irq(trans->priv);
+	trans->ops->free(trans);
 }
 
-static inline void trans_free(struct iwl_trans *trans)
+static inline void iwl_trans_stop_queue(struct iwl_trans *trans, int q)
 {
-	trans->ops->free(trans->priv);
+	trans->ops->stop_queue(trans, q);
 }
 
-int iwl_trans_register(struct iwl_trans *trans, struct iwl_priv *priv);
+static inline int iwl_trans_wait_tx_queue_empty(struct iwl_trans *trans)
+{
+	return trans->ops->wait_tx_queue_empty(trans);
+}
 
-/*TODO: this functions should NOT be exported from trans module - export it
- * until the reclaim flow will be brought to the transport module too */
+static inline int iwl_trans_check_stuck_queue(struct iwl_trans *trans, int q)
+{
+	return trans->ops->check_stuck_queue(trans, q);
+}
+static inline int iwl_trans_dbgfs_register(struct iwl_trans *trans,
+					    struct dentry *dir)
+{
+	return trans->ops->dbgfs_register(trans, dir);
+}
 
-struct iwl_tx_queue;
-void iwlagn_txq_inval_byte_cnt_tbl(struct iwl_priv *priv,
-					  struct iwl_tx_queue *txq);
+#ifdef CONFIG_PM_SLEEP
+static inline int iwl_trans_suspend(struct iwl_trans *trans)
+{
+	return trans->ops->suspend(trans);
+}
+
+static inline int iwl_trans_resume(struct iwl_trans *trans)
+{
+	return trans->ops->resume(trans);
+}
+#endif
+
+/*****************************************************
+* Transport layers implementations
+******************************************************/
+extern const struct iwl_trans_ops trans_ops_pcie;
 
 #endif /* __iwl_trans_h__ */

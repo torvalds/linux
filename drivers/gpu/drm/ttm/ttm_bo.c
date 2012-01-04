@@ -1293,6 +1293,7 @@ int ttm_bo_create(struct ttm_bo_device *bdev,
 
 	return ret;
 }
+EXPORT_SYMBOL(ttm_bo_create);
 
 static int ttm_bo_force_list_clean(struct ttm_bo_device *bdev,
 					unsigned mem_type, bool allow_errors)

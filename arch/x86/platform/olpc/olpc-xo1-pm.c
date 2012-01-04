@@ -14,6 +14,7 @@
 
 #include <linux/cs5535.h>
 #include <linux/platform_device.h>
+#include <linux/export.h>
 #include <linux/pm.h>
 #include <linux/mfd/core.h>
 #include <linux/suspend.h>

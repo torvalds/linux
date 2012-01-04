@@ -4,9 +4,8 @@
  *
  * (C) 2001,2002,2006 by Jan-Benedict Glaw <jbglaw@lug-owl.de>
  *
- * This driver is at all a modified version of Erik Mouw's
- * Documentation/DocBook/procfs_example.c, so: thank
- * you, Erik! He can be reached via email at
+ * This driver is a modified version of Erik Mouw's example proc
+ * interface, so: thank you, Erik! He can be reached via email at
  * <J.A.K.Mouw@its.tudelft.nl>. It is based on an idea
  * provided by DEC^WCompaq^WIntel's "Jumpstart" CD. They
  * included a patch like this as well. Thanks for idea!

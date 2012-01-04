@@ -21,16 +21,17 @@ nouveau-y := nouveau_drv.o nouveau_state.o nouveau_channel.o nouveau_mem.o \
              nv40_grctx.o nv50_grctx.o nvc0_grctx.o \
              nv84_crypt.o \
              nva3_copy.o nvc0_copy.o \
-             nv40_mpeg.o nv50_mpeg.o \
+             nv31_mpeg.o nv50_mpeg.o \
              nv04_instmem.o nv50_instmem.o nvc0_instmem.o \
-             nv50_evo.o nv50_crtc.o nv50_dac.o nv50_sor.o \
-             nv50_cursor.o nv50_display.o \
              nv04_dac.o nv04_dfp.o nv04_tv.o nv17_tv.o nv17_tv_modes.o \
              nv04_crtc.o nv04_display.o nv04_cursor.o \
+             nv50_evo.o nv50_crtc.o nv50_dac.o nv50_sor.o \
+             nv50_cursor.o nv50_display.o \
+             nvd0_display.o \
              nv04_fbcon.o nv50_fbcon.o nvc0_fbcon.o \
              nv10_gpio.o nv50_gpio.o \
 	     nv50_calc.o \
-	     nv04_pm.o nv50_pm.o nva3_pm.o \
+	     nv04_pm.o nv40_pm.o nv50_pm.o nva3_pm.o nvc0_pm.o \
 	     nv50_vram.o nvc0_vram.o \
 	     nv50_vm.o nvc0_vm.o
 

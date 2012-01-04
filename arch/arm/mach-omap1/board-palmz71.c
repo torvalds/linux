@@ -15,6 +15,7 @@
  */
 
 #include <linux/delay.h>
+#include <linux/gpio.h>
 #include <linux/kernel.h>
 #include <linux/init.h>
 #include <linux/platform_device.h>
@@ -32,7 +33,6 @@
 #include <asm/mach/arch.h>
 #include <asm/mach/map.h>
 
-#include <mach/gpio.h>
 #include <plat/flash.h>
 #include <plat/mux.h>
 #include <plat/usb.h>
@@ -42,7 +42,6 @@
 #include <plat/irda.h>
 #include <plat/keypad.h>
 #include <plat/common.h>
-#include <plat/omap-alsa.h>
 
 #include <linux/spi/spi.h>
 #include <linux/spi/ads7846.h>
@@ -56,13 +55,6 @@
 #define PALMZ71_CABLE_GPIO	OMAP_MPUIO(2)
 #define PALMZ71_SLIDER_GPIO	OMAP_MPUIO(3)
 #define PALMZ71_MMC_IN_GPIO	OMAP_MPUIO(4)
-
-static void __init
-omap_palmz71_init_irq(void)
-{
-	omap1_init_common_hw();
-	omap1_init_irq();
-}
 
 static const unsigned int palmz71_keymap[] = {
 	KEY(0, 0, KEY_F1),
@@ -334,17 +326,12 @@ omap_palmz71_init(void)
 	palmz71_gpio_setup(0);
 }
 
-static void __init
-omap_palmz71_map_io(void)
-{
-	omap1_map_common_io();
-}
-
 MACHINE_START(OMAP_PALMZ71, "OMAP310 based Palm Zire71")
-	.boot_params	= 0x10000100,
-	.map_io		= omap_palmz71_map_io,
+	.atag_offset	= 0x100,
+	.map_io		= omap15xx_map_io,
+	.init_early     = omap1_init_early,
 	.reserve	= omap_reserve,
-	.init_irq	= omap_palmz71_init_irq,
+	.init_irq	= omap1_init_irq,
 	.init_machine	= omap_palmz71_init,
 	.timer		= &omap1_timer,
 MACHINE_END

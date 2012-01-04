@@ -10,6 +10,7 @@
 #include <linux/init.h>
 #include <linux/ip.h>
 #include <linux/sctp.h>
+#include <linux/module.h>
 #include <net/sctp/checksum.h>
 
 #include <net/netfilter/nf_nat_protocol.h>

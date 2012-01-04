@@ -215,19 +215,18 @@ static void s3c24xx_pm_restart(char mode, const char *cmd)
 
 void __init s3c24xx_init_io(struct map_desc *mach_desc, int size)
 {
-	unsigned long idcode = 0x0;
-
 	/* initialise the io descriptors we need for initialisation */
 	iotable_init(mach_desc, size);
 	iotable_init(s3c_iodesc, ARRAY_SIZE(s3c_iodesc));
 
 	if (cpu_architecture() >= CPU_ARCH_ARMv5) {
-		idcode = s3c24xx_read_idcode_v5();
+		samsung_cpu_id = s3c24xx_read_idcode_v5();
 	} else {
-		idcode = s3c24xx_read_idcode_v4();
+		samsung_cpu_id = s3c24xx_read_idcode_v4();
 	}
+	s3c24xx_init_cpu();
 
 	arm_pm_restart = s3c24xx_pm_restart;
 
-	s3c_init_cpu(idcode, cpu_ids, ARRAY_SIZE(cpu_ids));
+	s3c_init_cpu(samsung_cpu_id, cpu_ids, ARRAY_SIZE(cpu_ids));
 }

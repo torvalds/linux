@@ -139,7 +139,8 @@ out:
 	return lapb;
 }
 
-int lapb_register(struct net_device *dev, struct lapb_register_struct *callbacks)
+int lapb_register(struct net_device *dev,
+		  const struct lapb_register_struct *callbacks)
 {
 	struct lapb_cb *lapb;
 	int rc = LAPB_BADTOKEN;
@@ -158,7 +159,7 @@ int lapb_register(struct net_device *dev, struct lapb_register_struct *callbacks
 		goto out;
 
 	lapb->dev       = dev;
-	lapb->callbacks = *callbacks;
+	lapb->callbacks = callbacks;
 
 	__lapb_insert_cb(lapb);
 
@@ -380,32 +381,32 @@ int lapb_data_received(struct net_device *dev, struct sk_buff *skb)
 
 void lapb_connect_confirmation(struct lapb_cb *lapb, int reason)
 {
-	if (lapb->callbacks.connect_confirmation)
-		lapb->callbacks.connect_confirmation(lapb->dev, reason);
+	if (lapb->callbacks->connect_confirmation)
+		lapb->callbacks->connect_confirmation(lapb->dev, reason);
 }
 
 void lapb_connect_indication(struct lapb_cb *lapb, int reason)
 {
-	if (lapb->callbacks.connect_indication)
-		lapb->callbacks.connect_indication(lapb->dev, reason);
+	if (lapb->callbacks->connect_indication)
+		lapb->callbacks->connect_indication(lapb->dev, reason);
 }
 
 void lapb_disconnect_confirmation(struct lapb_cb *lapb, int reason)
 {
-	if (lapb->callbacks.disconnect_confirmation)
-		lapb->callbacks.disconnect_confirmation(lapb->dev, reason);
+	if (lapb->callbacks->disconnect_confirmation)
+		lapb->callbacks->disconnect_confirmation(lapb->dev, reason);
 }
 
 void lapb_disconnect_indication(struct lapb_cb *lapb, int reason)
 {
-	if (lapb->callbacks.disconnect_indication)
-		lapb->callbacks.disconnect_indication(lapb->dev, reason);
+	if (lapb->callbacks->disconnect_indication)
+		lapb->callbacks->disconnect_indication(lapb->dev, reason);
 }
 
 int lapb_data_indication(struct lapb_cb *lapb, struct sk_buff *skb)
 {
-	if (lapb->callbacks.data_indication)
-		return lapb->callbacks.data_indication(lapb->dev, skb);
+	if (lapb->callbacks->data_indication)
+		return lapb->callbacks->data_indication(lapb->dev, skb);
 
 	kfree_skb(skb);
 	return NET_RX_SUCCESS; /* For now; must be != NET_RX_DROP */
@@ -415,8 +416,8 @@ int lapb_data_transmit(struct lapb_cb *lapb, struct sk_buff *skb)
 {
 	int used = 0;
 
-	if (lapb->callbacks.data_transmit) {
-		lapb->callbacks.data_transmit(lapb->dev, skb);
+	if (lapb->callbacks->data_transmit) {
+		lapb->callbacks->data_transmit(lapb->dev, skb);
 		used = 1;
 	}
 

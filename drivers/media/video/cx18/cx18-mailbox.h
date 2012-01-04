@@ -69,7 +69,7 @@ struct cx18_mailbox {
     /* Each command can have up to 6 arguments */
     u32       args[MAX_MB_ARGUMENTS];
     /* The return code can be one of the codes in the file cx23418.h. If the
-       command is completed successfuly, the error will be ERR_SYS_SUCCESS.
+       command is completed successfully, the error will be ERR_SYS_SUCCESS.
        If it is pending, the code is ERR_SYS_PENDING. If it failed, the error
        code would indicate the task from which the error originated and will
        be one of the errors in cx23418.h. In that case, the following

@@ -26,6 +26,7 @@
 #include <linux/delay.h>
 #include <linux/etherdevice.h>
 #include <linux/eeprom_93cx6.h>
+#include <linux/module.h>
 #include <net/mac80211.h>
 
 #include "rtl8187.h"
@@ -1241,7 +1242,8 @@ static void rtl8187_configure_filter(struct ieee80211_hw *dev,
 	rtl818x_iowrite32_async(priv, &priv->map->RX_CONF, priv->rx_conf);
 }
 
-static int rtl8187_conf_tx(struct ieee80211_hw *dev, u16 queue,
+static int rtl8187_conf_tx(struct ieee80211_hw *dev,
+			   struct ieee80211_vif *vif, u16 queue,
 			   const struct ieee80211_tx_queue_params *params)
 {
 	struct rtl8187_priv *priv = dev->priv;
@@ -1277,7 +1279,7 @@ static int rtl8187_conf_tx(struct ieee80211_hw *dev, u16 queue,
 	return 0;
 }
 
-static u64 rtl8187_get_tsf(struct ieee80211_hw *dev)
+static u64 rtl8187_get_tsf(struct ieee80211_hw *dev, struct ieee80211_vif *vif)
 {
 	struct rtl8187_priv *priv = dev->priv;
 

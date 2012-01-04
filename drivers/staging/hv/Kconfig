@@ -1,46 +1,17 @@
-config HYPERV
-	tristate "Microsoft Hyper-V client drivers"
-	depends on X86 && ACPI && PCI && m
-	default n
-	help
-	  Select this option to run Linux as a Hyper-V client operating
-	  system.
-
-if HYPERV
-
 config HYPERV_STORAGE
 	tristate "Microsoft Hyper-V virtual storage driver"
-	depends on SCSI
-	default HYPERV
+	depends on HYPERV && SCSI
 	help
 	 Select this option to enable the Hyper-V virtual storage driver.
 
-config HYPERV_BLOCK
-	tristate "Microsoft Hyper-V virtual block driver"
-	depends on BLOCK && SCSI && (LBDAF || 64BIT)
-	default HYPERV
-	help
-	  Select this option to enable the Hyper-V virtual block driver.
-
 config HYPERV_NET
 	tristate "Microsoft Hyper-V virtual network driver"
-	depends on NET
-	default HYPERV
+	depends on HYPERV && NET
 	help
 	  Select this option to enable the Hyper-V virtual network driver.
 
-config HYPERV_UTILS
-	tristate "Microsoft Hyper-V Utilities driver"
-	depends on CONNECTOR && NLS
-	default HYPERV
-	help
-	  Select this option to enable the Hyper-V Utilities.
-
 config HYPERV_MOUSE
 	tristate "Microsoft Hyper-V mouse driver"
-	depends on HID
-	default HYPERV
+	depends on HYPERV && HID
 	help
 	  Select this option to enable the Hyper-V mouse driver.
-
-endif

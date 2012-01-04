@@ -3,7 +3,7 @@
  *
  * Copyright 2007-2010 Wolfson Microelectronics PLC.
  * Author: Graeme Gregory
- *         linux@wolfsonmicro.com
+ *         Graeme.Gregory@wolfsonmicro.com
  *
  *  This program is free software; you can redistribute  it and/or modify it
  *  under  the terms of  the GNU General  Public License as published by the
@@ -393,7 +393,7 @@ static int inmixer_event(struct snd_soc_dapm_widget *w,
 			 (1 << WM8991_AINRMUX_PWR_BIT)))
 		reg |= WM8991_AINR_ENA;
 	else
-		reg &= ~WM8991_AINL_ENA;
+		reg &= ~WM8991_AINR_ENA;
 
 	snd_soc_write(w->codec, WM8991_POWER_MANAGEMENT_2, reg);
 	return 0;
@@ -1264,7 +1264,6 @@ static int wm8991_probe(struct snd_soc_codec *codec)
 {
 	struct wm8991_priv *wm8991;
 	int ret;
-	unsigned int reg;
 
 	wm8991 = snd_soc_codec_get_drvdata(codec);
 
@@ -1282,19 +1281,18 @@ static int wm8991_probe(struct snd_soc_codec *codec)
 
 	wm8991_set_bias_level(codec, SND_SOC_BIAS_STANDBY);
 
-	reg = snd_soc_read(codec, WM8991_AUDIO_INTERFACE_4);
-	snd_soc_write(codec, WM8991_AUDIO_INTERFACE_4, reg | WM8991_ALRCGPIO1);
+	snd_soc_update_bits(codec, WM8991_AUDIO_INTERFACE_4,
+			    WM8991_ALRCGPIO1, WM8991_ALRCGPIO1);
 
-	reg = snd_soc_read(codec, WM8991_GPIO1_GPIO2) &
-	      ~WM8991_GPIO1_SEL_MASK;
-	snd_soc_write(codec, WM8991_GPIO1_GPIO2, reg | 1);
+	snd_soc_update_bits(codec, WM8991_GPIO1_GPIO2,
+			    WM8991_GPIO1_SEL_MASK, 1);
 
-	reg = snd_soc_read(codec, WM8991_POWER_MANAGEMENT_1);
-	snd_soc_write(codec, WM8991_POWER_MANAGEMENT_1, reg | WM8991_VREF_ENA|
-		      WM8991_VMID_MODE_MASK);
+	snd_soc_update_bits(codec, WM8991_POWER_MANAGEMENT_1,
+			    WM8991_VREF_ENA | WM8991_VMID_MODE_MASK,
+			    WM8991_VREF_ENA | WM8991_VMID_MODE_MASK);
 
-	reg = snd_soc_read(codec, WM8991_POWER_MANAGEMENT_2);
-	snd_soc_write(codec, WM8991_POWER_MANAGEMENT_2, reg | WM8991_OPCLK_ENA);
+	snd_soc_update_bits(codec, WM8991_POWER_MANAGEMENT_2,
+			    WM8991_OPCLK_ENA, WM8991_OPCLK_ENA);
 
 	snd_soc_write(codec, WM8991_DAC_CTRL, 0);
 	snd_soc_write(codec, WM8991_LEFT_OUTPUT_VOLUME, 0x50 | (1<<8));

@@ -322,7 +322,7 @@ nvc0_fifo_init(struct drm_device *dev)
 	}
 
 	/* PSUBFIFO[n] */
-	for (i = 0; i < 3; i++) {
+	for (i = 0; i < priv->spoon_nr; i++) {
 		nv_mask(dev, 0x04013c + (i * 0x2000), 0x10000100, 0x00000000);
 		nv_wr32(dev, 0x040108 + (i * 0x2000), 0xffffffff); /* INTR */
 		nv_wr32(dev, 0x04010c + (i * 0x2000), 0xfffffeff); /* INTR_EN */

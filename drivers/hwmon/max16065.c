@@ -137,10 +137,10 @@ static int max16065_read_adc(struct i2c_client *client, int reg)
 {
 	int rv;
 
-	rv = i2c_smbus_read_word_data(client, reg);
+	rv = i2c_smbus_read_word_swapped(client, reg);
 	if (unlikely(rv < 0))
 		return rv;
-	return ((rv & 0xff) << 2) | ((rv >> 14) & 0x03);
+	return rv >> 6;
 }
 
 static struct max16065_data *max16065_update_device(struct device *dev)

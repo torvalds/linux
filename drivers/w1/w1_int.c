@@ -24,6 +24,8 @@
 #include <linux/delay.h>
 #include <linux/kthread.h>
 #include <linux/slab.h>
+#include <linux/export.h>
+#include <linux/moduleparam.h>
 
 #include "w1.h"
 #include "w1_log.h"
@@ -78,6 +80,7 @@ static struct w1_master * w1_alloc_dev(u32 id, int slave_count, int slave_ttl,
 	memcpy(&dev->dev, device, sizeof(struct device));
 	dev_set_name(&dev->dev, "w1_bus_master%u", dev->id);
 	snprintf(dev->name, sizeof(dev->name), "w1_bus_master%u", dev->id);
+	dev->dev.init_name = dev->name;
 
 	dev->driver = driver;
 

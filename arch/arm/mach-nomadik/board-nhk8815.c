@@ -27,6 +27,7 @@
 #include <asm/mach/irq.h>
 #include <asm/mach/flash.h>
 
+#include <plat/gpio-nomadik.h>
 #include <plat/mtu.h>
 
 #include <mach/setup.h>
@@ -276,7 +277,7 @@ static void __init nhk8815_platform_init(void)
 
 MACHINE_START(NOMADIK, "NHK8815")
 	/* Maintainer: ST MicroElectronics */
-	.boot_params	= 0x100,
+	.atag_offset	= 0x100,
 	.map_io		= cpu8815_map_io,
 	.init_irq	= cpu8815_init_irq,
 	.timer		= &nomadik_timer,

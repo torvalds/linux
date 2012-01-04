@@ -14,6 +14,7 @@
 #include <linux/init.h>
 #include <linux/list.h>
 #include <linux/errno.h>
+#include <linux/export.h>
 #include <linux/err.h>
 #include <linux/string.h>
 #include <linux/clk.h>

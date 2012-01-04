@@ -155,6 +155,9 @@ static inline bool virtio_has_feature(const struct virtio_device *vdev,
 #define virtio_config_val(vdev, fbit, offset, v) \
 	virtio_config_buf((vdev), (fbit), (offset), (v), sizeof(*v))
 
+#define virtio_config_val_len(vdev, fbit, offset, v, len) \
+	virtio_config_buf((vdev), (fbit), (offset), (v), (len))
+
 static inline int virtio_config_buf(struct virtio_device *vdev,
 				    unsigned int fbit,
 				    unsigned int offset,

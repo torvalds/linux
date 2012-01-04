@@ -1,5 +1,6 @@
 
 #include <linux/kernel.h>
+#include <linux/export.h>
 #include <linux/ide.h>
 
 #if defined(CONFIG_ARM) || defined(CONFIG_M68K) || defined(CONFIG_MIPS) || \

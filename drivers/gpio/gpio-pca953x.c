@@ -596,9 +596,6 @@ static int __devinit device_pca953x_init(struct pca953x_chip *chip, int invert)
 
 	/* set platform specific polarity inversion */
 	ret = pca953x_write_reg(chip, PCA953X_INVERT, invert);
-	if (ret)
-		goto out;
-	return 0;
 out:
 	return ret;
 }
@@ -640,7 +637,7 @@ static int __devinit pca953x_probe(struct i2c_client *client,
 	struct pca953x_platform_data *pdata;
 	struct pca953x_chip *chip;
 	int irq_base=0, invert=0;
-	int ret = 0;
+	int ret;
 
 	chip = kzalloc(sizeof(struct pca953x_chip), GFP_KERNEL);
 	if (chip == NULL)
@@ -673,10 +670,10 @@ static int __devinit pca953x_probe(struct i2c_client *client,
 	pca953x_setup_gpio(chip, id->driver_data & PCA_GPIO_MASK);
 
 	if (chip->chip_type == PCA953X_TYPE)
-		device_pca953x_init(chip, invert);
-	else if (chip->chip_type == PCA957X_TYPE)
-		device_pca957x_init(chip, invert);
+		ret = device_pca953x_init(chip, invert);
 	else
+		ret = device_pca957x_init(chip, invert);
+	if (ret)
 		goto out_failed;
 
 	ret = pca953x_irq_setup(chip, id, irq_base);

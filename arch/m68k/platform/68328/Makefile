@@ -2,7 +2,10 @@
 # Makefile for arch/m68knommu/platform/68328.
 #
 
-head-y			= head-$(MODEL).o
+model-y			  := ram
+model-$(CONFIG_ROMKERNEL) := rom
+
+head-y			= head-$(model-y).o
 head-$(CONFIG_PILOT)	= head-pilot.o
 head-$(CONFIG_DRAGEN2)	= head-de2.o
 

@@ -39,16 +39,11 @@
 
 struct subscription;
 
-typedef void (*tipc_subscr_event) (struct subscription *sub,
-				   u32 found_lower, u32 found_upper,
-				   u32 event, u32 port_ref, u32 node);
-
 /**
  * struct subscription - TIPC network topology subscription object
  * @seq: name sequence associated with subscription
  * @timeout: duration of subscription (in ms)
  * @filter: event filtering to be done for subscription
- * @event_cb: routine invoked when a subscription event is detected
  * @timer: timer governing subscription duration (optional)
  * @nameseq_list: adjacent subscriptions in name sequence's subscription list
  * @subscription_list: adjacent subscriptions in subscriber's subscription list
@@ -61,7 +56,6 @@ struct subscription {
 	struct tipc_name_seq seq;
 	u32 timeout;
 	u32 filter;
-	tipc_subscr_event event_cb;
 	struct timer_list timer;
 	struct list_head nameseq_list;
 	struct list_head subscription_list;

@@ -22,6 +22,7 @@
 #include <linux/hardirq.h>
 #include <linux/kthread.h>
 #include <linux/uaccess.h>
+#include <linux/module.h>
 #include <linux/ftrace.h>
 #include <linux/sysctl.h>
 #include <linux/slab.h>
@@ -3860,6 +3861,14 @@ void ftrace_kill(void)
 	ftrace_disabled = 1;
 	ftrace_enabled = 0;
 	clear_ftrace_function();
+}
+
+/**
+ * Test if ftrace is dead or not.
+ */
+int ftrace_is_dead(void)
+{
+	return ftrace_disabled;
 }
 
 /**

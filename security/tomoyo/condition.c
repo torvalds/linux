@@ -348,6 +348,7 @@ static inline bool tomoyo_same_condition(const struct tomoyo_condition *a,
 		a->numbers_count == b->numbers_count &&
 		a->names_count == b->names_count &&
 		a->argc == b->argc && a->envc == b->envc &&
+		a->grant_log == b->grant_log && a->transit == b->transit &&
 		!memcmp(a + 1, b + 1, a->size - sizeof(*a));
 }
 
@@ -399,8 +400,9 @@ static struct tomoyo_condition *tomoyo_commit_condition
 		found = true;
 		goto out;
 	}
-	list_for_each_entry_rcu(ptr, &tomoyo_condition_list, head.list) {
-		if (!tomoyo_same_condition(ptr, entry))
+	list_for_each_entry(ptr, &tomoyo_condition_list, head.list) {
+		if (!tomoyo_same_condition(ptr, entry) ||
+		    atomic_read(&ptr->head.users) == TOMOYO_GC_IN_PROGRESS)
 			continue;
 		/* Same entry found. Share this entry. */
 		atomic_inc(&ptr->head.users);
@@ -410,8 +412,7 @@ static struct tomoyo_condition *tomoyo_commit_condition
 	if (!found) {
 		if (tomoyo_memory_ok(entry)) {
 			atomic_set(&entry->head.users, 1);
-			list_add_rcu(&entry->head.list,
-				     &tomoyo_condition_list);
+			list_add(&entry->head.list, &tomoyo_condition_list);
 		} else {
 			found = true;
 			ptr = NULL;
@@ -425,6 +426,46 @@ out:
 		entry = ptr;
 	}
 	return entry;
+}
+
+/**
+ * tomoyo_get_transit_preference - Parse domain transition preference for execve().
+ *
+ * @param: Pointer to "struct tomoyo_acl_param".
+ * @e:     Pointer to "struct tomoyo_condition".
+ *
+ * Returns the condition string part.
+ */
+static char *tomoyo_get_transit_preference(struct tomoyo_acl_param *param,
+					   struct tomoyo_condition *e)
+{
+	char * const pos = param->data;
+	bool flag;
+	if (*pos == '<') {
+		e->transit = tomoyo_get_domainname(param);
+		goto done;
+	}
+	{
+		char *cp = strchr(pos, ' ');
+		if (cp)
+			*cp = '\0';
+		flag = tomoyo_correct_path(pos) || !strcmp(pos, "keep") ||
+			!strcmp(pos, "initialize") || !strcmp(pos, "reset") ||
+			!strcmp(pos, "child") || !strcmp(pos, "parent");
+		if (cp)
+			*cp = ' ';
+	}
+	if (!flag)
+		return pos;
+	e->transit = tomoyo_get_name(tomoyo_read_token(param));
+done:
+	if (e->transit)
+		return param->data;
+	/*
+	 * Return a bad read-only condition string that will let
+	 * tomoyo_get_condition() return NULL.
+	 */
+	return "/";
 }
 
 /**
@@ -443,7 +484,8 @@ struct tomoyo_condition *tomoyo_get_condition(struct tomoyo_acl_param *param)
 	struct tomoyo_argv *argv = NULL;
 	struct tomoyo_envp *envp = NULL;
 	struct tomoyo_condition e = { };
-	char * const start_of_string = param->data;
+	char * const start_of_string =
+		tomoyo_get_transit_preference(param, &e);
 	char * const end_of_string = start_of_string + strlen(start_of_string);
 	char *pos;
 rerun:
@@ -486,6 +528,20 @@ rerun:
 			goto out;
 		dprintk(KERN_WARNING "%u: <%s>%s=<%s>\n", __LINE__, left_word,
 			is_not ? "!" : "", right_word);
+		if (!strcmp(left_word, "grant_log")) {
+			if (entry) {
+				if (is_not ||
+				    entry->grant_log != TOMOYO_GRANTLOG_AUTO)
+					goto out;
+				else if (!strcmp(right_word, "yes"))
+					entry->grant_log = TOMOYO_GRANTLOG_YES;
+				else if (!strcmp(right_word, "no"))
+					entry->grant_log = TOMOYO_GRANTLOG_NO;
+				else
+					goto out;
+			}
+			continue;
+		}
 		if (!strncmp(left_word, "exec.argv[", 10)) {
 			if (!argv) {
 				e.argc++;
@@ -593,8 +649,9 @@ store_value:
 		+ e.envc * sizeof(struct tomoyo_envp);
 	entry = kzalloc(e.size, GFP_NOFS);
 	if (!entry)
-		return NULL;
+		goto out2;
 	*entry = e;
+	e.transit = NULL;
 	condp = (struct tomoyo_condition_element *) (entry + 1);
 	numbers_p = (struct tomoyo_number_union *) (condp + e.condc);
 	names_p = (struct tomoyo_name_union *) (numbers_p + e.numbers_count);
@@ -621,6 +678,8 @@ out:
 		tomoyo_del_condition(&entry->head.list);
 		kfree(entry);
 	}
+out2:
+	tomoyo_put_name(e.transit);
 	return NULL;
 }
 

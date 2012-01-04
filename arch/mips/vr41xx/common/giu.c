@@ -19,6 +19,7 @@
  */
 #include <linux/errno.h>
 #include <linux/init.h>
+#include <linux/smp.h>
 #include <linux/ioport.h>
 #include <linux/platform_device.h>
 

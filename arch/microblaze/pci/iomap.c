@@ -6,6 +6,7 @@
 #include <linux/init.h>
 #include <linux/pci.h>
 #include <linux/mm.h>
+#include <linux/export.h>
 #include <asm/io.h>
 #include <asm/pci-bridge.h>
 

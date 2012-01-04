@@ -157,7 +157,6 @@ static struct {
 
 struct wm9081_priv {
 	enum snd_soc_control_type control_type;
-	void *control_data;
 	int sysclk_source;
 	int mclk_rate;
 	int sysclk_rate;
@@ -174,6 +173,7 @@ static int wm9081_volatile_register(struct snd_soc_codec *codec, unsigned int re
 {
 	switch (reg) {
 	case WM9081_SOFTWARE_RESET:
+	case WM9081_INTERRUPT_STATUS:
 		return 1;
 	default:
 		return 0;
@@ -820,7 +820,7 @@ static int wm9081_set_bias_level(struct snd_soc_codec *codec,
 		/* VMID 2*240k */
 		reg = snd_soc_read(codec, WM9081_BIAS_CONTROL_1);
 		reg &= ~WM9081_VMID_SEL_MASK;
-		reg |= 0x40;
+		reg |= 0x04;
 		snd_soc_write(codec, WM9081_VMID_CONTROL, reg);
 
 		/* Standby bias current on */
@@ -1120,8 +1120,8 @@ static int wm9081_digital_mute(struct snd_soc_dai *codec_dai, int mute)
 	return 0;
 }
 
-static int wm9081_set_sysclk(struct snd_soc_codec *codec,
-			     int clk_id, unsigned int freq, int dir)
+static int wm9081_set_sysclk(struct snd_soc_codec *codec, int clk_id,
+			     int source, unsigned int freq, int dir)
 {
 	struct wm9081_priv *wm9081 = snd_soc_codec_get_drvdata(codec);
 
@@ -1213,7 +1213,6 @@ static int wm9081_probe(struct snd_soc_codec *codec)
 	int ret;
 	u16 reg;
 
-	codec->control_data = wm9081->control_data;
 	ret = snd_soc_codec_set_cache_io(codec, 8, 16, wm9081->control_type);
 	if (ret != 0) {
 		dev_err(codec->dev, "Failed to set cache I/O: %d\n", ret);
@@ -1250,8 +1249,6 @@ static int wm9081_probe(struct snd_soc_codec *codec)
 	snd_soc_write(codec, WM9081_ANALOGUE_SPEAKER_PGA,
 		     reg | WM9081_SPKPGAZC);
 
-	snd_soc_add_controls(codec, wm9081_snd_controls,
-			     ARRAY_SIZE(wm9081_snd_controls));
 	if (!wm9081->pdata.num_retune_configs) {
 		dev_dbg(codec->dev,
 			"No ReTune Mobile data, using normal EQ\n");
@@ -1311,6 +1308,8 @@ static struct snd_soc_codec_driver soc_codec_dev_wm9081 = {
 	.reg_cache_default = wm9081_reg_defaults,
 	.volatile_register = wm9081_volatile_register,
 
+	.controls         = wm9081_snd_controls,
+	.num_controls     = ARRAY_SIZE(wm9081_snd_controls),
 	.dapm_widgets	  = wm9081_dapm_widgets,
 	.num_dapm_widgets = ARRAY_SIZE(wm9081_dapm_widgets),
 	.dapm_routes     = wm9081_audio_paths,
@@ -1330,7 +1329,6 @@ static __devinit int wm9081_i2c_probe(struct i2c_client *i2c,
 
 	i2c_set_clientdata(i2c, wm9081);
 	wm9081->control_type = SND_SOC_I2C;
-	wm9081->control_data = i2c;
 
 	if (dev_get_platdata(&i2c->dev))
 		memcpy(&wm9081->pdata, dev_get_platdata(&i2c->dev),

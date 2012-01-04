@@ -86,6 +86,17 @@ static inline void get_clock_ext(char *clk)
 	asm volatile("stcke %0" : "=Q" (*clk) : : "cc");
 }
 
+static inline unsigned long long get_clock_fast(void)
+{
+	unsigned long long clk;
+
+	if (test_facility(25))
+		asm volatile(".insn	s,0xb27c0000,%0" : "=Q" (clk) : : "cc");
+	else
+		clk = get_clock();
+	return clk;
+}
+
 static inline unsigned long long get_clock_xt(void)
 {
 	unsigned char clk[16];

@@ -4,7 +4,7 @@ sysfs - _The_ filesystem for exporting kernel objects.
 Patrick Mochel	<mochel@osdl.org>
 Mike Murphy <mamurph@cs.clemson.edu>
 
-Revised:    15 July 2010
+Revised:    16 August 2011
 Original:   10 January 2003
 
 
@@ -370,3 +370,11 @@ int driver_create_file(struct device_driver *, const struct driver_attribute *);
 void driver_remove_file(struct device_driver *, const struct driver_attribute *);
 
 
+Documentation
+~~~~~~~~~~~~~
+
+The sysfs directory structure and the attributes in each directory define an
+ABI between the kernel and user space. As for any ABI, it is important that
+this ABI is stable and properly documented. All new sysfs attributes must be
+documented in Documentation/ABI. See also Documentation/ABI/README for more
+information.

@@ -128,7 +128,13 @@ static hva_t kvmppc_mmu_book3s_64_get_pteg(
 	dprintk("MMU: page=0x%x sdr1=0x%llx pteg=0x%llx vsid=0x%llx\n",
 		page, vcpu_book3s->sdr1, pteg, slbe->vsid);
 
-	r = gfn_to_hva(vcpu_book3s->vcpu.kvm, pteg >> PAGE_SHIFT);
+	/* When running a PAPR guest, SDR1 contains a HVA address instead
+           of a GPA */
+	if (vcpu_book3s->vcpu.arch.papr_enabled)
+		r = pteg;
+	else
+		r = gfn_to_hva(vcpu_book3s->vcpu.kvm, pteg >> PAGE_SHIFT);
+
 	if (kvm_is_error_hva(r))
 		return r;
 	return r | (pteg & ~PAGE_MASK);

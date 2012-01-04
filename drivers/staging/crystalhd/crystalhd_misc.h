@@ -205,12 +205,12 @@ enum _chd_log_levels {
 
 #define BCMLOG_ENTER				\
 if (g_linklog_level & BCMLOG_ENTER_LEAVE) {	\
-	printk("Entered %s\n", __func__);	\
+	printk(KERN_DEBUG "Entered %s\n", __func__);	\
 }
 
 #define BCMLOG_LEAVE				\
 if (g_linklog_level & BCMLOG_ENTER_LEAVE) {	\
-	printk("Leaving %s\n", __func__);	\
+	printk(KERN_DEBUG "Leaving %s\n", __func__);	\
 }
 
 #define BCMLOG(trace, fmt, args...)		\
@@ -221,7 +221,7 @@ if (g_linklog_level & trace) {			\
 #define BCMLOG_ERR(fmt, args...)					\
 do {									\
 	if (g_linklog_level & BCMLOG_ERROR) {				\
-		printk("*ERR*:%s:%d: "fmt, __FILE__, __LINE__, ##args);	\
+		printk(KERN_ERR "*ERR*:%s:%d: "fmt, __FILE__, __LINE__, ##args);	\
 	}								\
 } while (0);
 

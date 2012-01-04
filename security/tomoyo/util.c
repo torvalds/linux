@@ -42,6 +42,39 @@ const u8 tomoyo_index2category[TOMOYO_MAX_MAC_INDEX] = {
 	[TOMOYO_MAC_FILE_MOUNT]      = TOMOYO_MAC_CATEGORY_FILE,
 	[TOMOYO_MAC_FILE_UMOUNT]     = TOMOYO_MAC_CATEGORY_FILE,
 	[TOMOYO_MAC_FILE_PIVOT_ROOT] = TOMOYO_MAC_CATEGORY_FILE,
+	/* CONFIG::network group */
+	[TOMOYO_MAC_NETWORK_INET_STREAM_BIND]       =
+	TOMOYO_MAC_CATEGORY_NETWORK,
+	[TOMOYO_MAC_NETWORK_INET_STREAM_LISTEN]     =
+	TOMOYO_MAC_CATEGORY_NETWORK,
+	[TOMOYO_MAC_NETWORK_INET_STREAM_CONNECT]    =
+	TOMOYO_MAC_CATEGORY_NETWORK,
+	[TOMOYO_MAC_NETWORK_INET_DGRAM_BIND]        =
+	TOMOYO_MAC_CATEGORY_NETWORK,
+	[TOMOYO_MAC_NETWORK_INET_DGRAM_SEND]        =
+	TOMOYO_MAC_CATEGORY_NETWORK,
+	[TOMOYO_MAC_NETWORK_INET_RAW_BIND]          =
+	TOMOYO_MAC_CATEGORY_NETWORK,
+	[TOMOYO_MAC_NETWORK_INET_RAW_SEND]          =
+	TOMOYO_MAC_CATEGORY_NETWORK,
+	[TOMOYO_MAC_NETWORK_UNIX_STREAM_BIND]       =
+	TOMOYO_MAC_CATEGORY_NETWORK,
+	[TOMOYO_MAC_NETWORK_UNIX_STREAM_LISTEN]     =
+	TOMOYO_MAC_CATEGORY_NETWORK,
+	[TOMOYO_MAC_NETWORK_UNIX_STREAM_CONNECT]    =
+	TOMOYO_MAC_CATEGORY_NETWORK,
+	[TOMOYO_MAC_NETWORK_UNIX_DGRAM_BIND]        =
+	TOMOYO_MAC_CATEGORY_NETWORK,
+	[TOMOYO_MAC_NETWORK_UNIX_DGRAM_SEND]        =
+	TOMOYO_MAC_CATEGORY_NETWORK,
+	[TOMOYO_MAC_NETWORK_UNIX_SEQPACKET_BIND]    =
+	TOMOYO_MAC_CATEGORY_NETWORK,
+	[TOMOYO_MAC_NETWORK_UNIX_SEQPACKET_LISTEN]  =
+	TOMOYO_MAC_CATEGORY_NETWORK,
+	[TOMOYO_MAC_NETWORK_UNIX_SEQPACKET_CONNECT] =
+	TOMOYO_MAC_CATEGORY_NETWORK,
+	/* CONFIG::misc group */
+	[TOMOYO_MAC_ENVIRON]         = TOMOYO_MAC_CATEGORY_MISC,
 };
 
 /**
@@ -123,6 +156,31 @@ char *tomoyo_read_token(struct tomoyo_acl_param *param)
 		del = pos + strlen(pos);
 	param->data = del;
 	return pos;
+}
+
+/**
+ * tomoyo_get_domainname - Read a domainname from a line.
+ *
+ * @param: Pointer to "struct tomoyo_acl_param".
+ *
+ * Returns a domainname on success, NULL otherwise.
+ */
+const struct tomoyo_path_info *tomoyo_get_domainname
+(struct tomoyo_acl_param *param)
+{
+	char *start = param->data;
+	char *pos = start;
+	while (*pos) {
+		if (*pos++ != ' ' || *pos++ == '/')
+			continue;
+		pos -= 2;
+		*pos++ = '\0';
+		break;
+	}
+	param->data = pos;
+	if (tomoyo_correct_domain(start))
+		return tomoyo_get_name(start);
+	return NULL;
 }
 
 /**
@@ -920,14 +978,17 @@ int tomoyo_get_mode(const struct tomoyo_policy_namespace *ns, const u8 profile,
 		    const u8 index)
 {
 	u8 mode;
-	const u8 category = TOMOYO_MAC_CATEGORY_FILE;
+	struct tomoyo_profile *p;
+
 	if (!tomoyo_policy_loaded)
 		return TOMOYO_CONFIG_DISABLED;
-	mode = tomoyo_profile(ns, profile)->config[index];
+	p = tomoyo_profile(ns, profile);
+	mode = p->config[index];
 	if (mode == TOMOYO_CONFIG_USE_DEFAULT)
-		mode = tomoyo_profile(ns, profile)->config[category];
+		mode = p->config[tomoyo_index2category[index]
+				 + TOMOYO_MAX_MAC_INDEX];
 	if (mode == TOMOYO_CONFIG_USE_DEFAULT)
-		mode = tomoyo_profile(ns, profile)->default_config;
+		mode = p->default_config;
 	return mode & 3;
 }
 
@@ -995,6 +1056,17 @@ bool tomoyo_domain_quota_is_ok(struct tomoyo_request_info *r)
 		case TOMOYO_TYPE_MKDEV_ACL:
 			perm = container_of(ptr, struct tomoyo_mkdev_acl,
 					    head)->perm;
+			break;
+		case TOMOYO_TYPE_INET_ACL:
+			perm = container_of(ptr, struct tomoyo_inet_acl,
+					    head)->perm;
+			break;
+		case TOMOYO_TYPE_UNIX_ACL:
+			perm = container_of(ptr, struct tomoyo_unix_acl,
+					    head)->perm;
+			break;
+		case TOMOYO_TYPE_MANUAL_TASK_ACL:
+			perm = 0;
 			break;
 		default:
 			perm = 1;

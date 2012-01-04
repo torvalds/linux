@@ -23,6 +23,8 @@
  *
  */
 
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
 #define MODULE_NAME "pac207"
 
 #include <linux/input.h>
@@ -178,8 +180,8 @@ static int pac207_write_regs(struct gspca_dev *gspca_dev, u16 index,
 			0x00, index,
 			gspca_dev->usb_buf, length, PAC207_CTRL_TIMEOUT);
 	if (err < 0)
-		err("Failed to write registers to index 0x%04X, error %d)",
-			index, err);
+		pr_err("Failed to write registers to index 0x%04X, error %d\n",
+		       index, err);
 
 	return err;
 }
@@ -194,8 +196,8 @@ static int pac207_write_reg(struct gspca_dev *gspca_dev, u16 index, u16 value)
 			USB_DIR_OUT | USB_TYPE_VENDOR | USB_RECIP_INTERFACE,
 			value, index, NULL, 0, PAC207_CTRL_TIMEOUT);
 	if (err)
-		err("Failed to write a register (index 0x%04X,"
-			" value 0x%02X, error %d)", index, value, err);
+		pr_err("Failed to write a register (index 0x%04X, value 0x%02X, error %d)\n",
+		       index, value, err);
 
 	return err;
 }
@@ -210,8 +212,8 @@ static int pac207_read_reg(struct gspca_dev *gspca_dev, u16 index)
 			0x00, index,
 			gspca_dev->usb_buf, 1, PAC207_CTRL_TIMEOUT);
 	if (res < 0) {
-		err("Failed to read a register (index 0x%04X, error %d)",
-			index, res);
+		pr_err("Failed to read a register (index 0x%04X, error %d)\n",
+		       index, res);
 		return res;
 	}
 

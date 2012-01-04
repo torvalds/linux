@@ -13,12 +13,10 @@
 #include <signal.h>
 #include <string.h>
 #include <sys/mman.h>
-#include <sys/ptrace.h>
 #include <sys/stat.h>
 #include <sys/wait.h>
 #include <asm/unistd.h>
 #include "init.h"
-#include "kern_constants.h"
 #include "os.h"
 #include "mem_user.h"
 #include "ptrace_user.h"
@@ -225,7 +223,7 @@ static void __init check_sysemu(void)
 		goto fail;
 	}
 
-	n = ptrace(PTRACE_POKEUSR, pid, PT_SYSCALL_RET_OFFSET, os_getpid());
+	n = ptrace(PTRACE_POKEUSER, pid, PT_SYSCALL_RET_OFFSET, os_getpid());
 	if (n < 0) {
 		non_fatal("check_sysemu : failed to modify system call "
 			  "return");
@@ -261,7 +259,7 @@ static void __init check_sysemu(void)
 					  "doesn't singlestep");
 				goto fail;
 			}
-			n = ptrace(PTRACE_POKEUSR, pid, PT_SYSCALL_RET_OFFSET,
+			n = ptrace(PTRACE_POKEUSER, pid, PT_SYSCALL_RET_OFFSET,
 				   os_getpid());
 			if (n < 0)
 				fatal_perror("check_sysemu : failed to modify "
@@ -317,10 +315,10 @@ static void __init check_ptrace(void)
 			fatal("check_ptrace : expected (SIGTRAP|0x80), "
 			       "got status = %d", status);
 
-		syscall = ptrace(PTRACE_PEEKUSR, pid, PT_SYSCALL_NR_OFFSET,
+		syscall = ptrace(PTRACE_PEEKUSER, pid, PT_SYSCALL_NR_OFFSET,
 				 0);
 		if (syscall == __NR_getpid) {
-			n = ptrace(PTRACE_POKEUSR, pid, PT_SYSCALL_NR_OFFSET,
+			n = ptrace(PTRACE_POKEUSER, pid, PT_SYSCALL_NR_OFFSET,
 				   __NR_getppid);
 			if (n < 0)
 				fatal_perror("check_ptrace : failed to modify "

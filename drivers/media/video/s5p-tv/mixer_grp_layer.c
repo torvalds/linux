@@ -86,7 +86,7 @@ static void mxr_graph_buffer_set(struct mxr_layer *layer,
 	dma_addr_t addr = 0;
 
 	if (buf)
-		addr = vb2_dma_contig_plane_paddr(&buf->vb, 0);
+		addr = vb2_dma_contig_plane_dma_addr(&buf->vb, 0);
 	mxr_reg_graph_buffer(layer->mdev, layer->idx, addr);
 }
 

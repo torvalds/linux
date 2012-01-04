@@ -17,6 +17,7 @@
 #include <linux/interrupt.h>
 #include <linux/workqueue.h>
 #include <linux/delay.h>
+#include <linux/export.h>
 #include <trace/events/asoc.h>
 
 /**
@@ -187,6 +188,8 @@ int snd_soc_jack_add_pins(struct snd_soc_jack *jack, int count,
 		INIT_LIST_HEAD(&pins[i].list);
 		list_add(&(pins[i].list), &jack->pins);
 	}
+
+	snd_soc_dapm_new_widgets(&jack->codec->card->dapm);
 
 	/* Update to reflect the last reported status; canned jack
 	 * implementations are likely to set their state before the

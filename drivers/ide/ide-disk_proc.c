@@ -1,6 +1,7 @@
 #include <linux/kernel.h>
 #include <linux/ide.h>
 #include <linux/slab.h>
+#include <linux/export.h>
 #include <linux/seq_file.h>
 
 #include "ide-disk.h"

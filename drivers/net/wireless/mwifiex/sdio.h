@@ -169,9 +169,6 @@
 /* Rx unit register */
 #define CARD_RX_UNIT_REG		0x63
 
-/* Event header len w/o 4 bytes of interface header */
-#define MWIFIEX_EVENT_HEADER_LEN           4
-
 /* Max retry number of CMD53 write */
 #define MAX_WRITE_IOMEM_RETRY		2
 
@@ -304,4 +301,25 @@ struct sdio_mmc_card {
 	struct mwifiex_sdio_mpa_tx mpa_tx;
 	struct mwifiex_sdio_mpa_rx mpa_rx;
 };
+
+/*
+ * .cmdrsp_complete handler
+ */
+static inline int mwifiex_sdio_cmdrsp_complete(struct mwifiex_adapter *adapter,
+					       struct sk_buff *skb)
+{
+	dev_kfree_skb_any(skb);
+	return 0;
+}
+
+/*
+ * .event_complete handler
+ */
+static inline int mwifiex_sdio_event_complete(struct mwifiex_adapter *adapter,
+					      struct sk_buff *skb)
+{
+	dev_kfree_skb_any(skb);
+	return 0;
+}
+
 #endif /* _MWIFIEX_SDIO_H */

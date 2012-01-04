@@ -25,6 +25,7 @@
 #include <linux/gfp.h>
 #include <linux/time.h>
 #include <linux/mutex.h>
+#include <linux/export.h>
 
 #include <sound/core.h>
 #include <sound/emu10k1.h>

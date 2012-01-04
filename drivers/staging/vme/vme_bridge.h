@@ -2,7 +2,6 @@
 #define _VME_BRIDGE_H_
 
 #define VME_CRCSR_BUF_SIZE (508*1024)
-#define VME_SLOTS_MAX 32
 /*
  * Resource structures
  */
@@ -98,8 +97,6 @@ struct vme_irq {
 /* This structure stores all the information about one bridge
  * The structure should be dynamically allocated by the driver and one instance
  * of the structure should be present for each VME chip present in the system.
- *
- * Currently we assume that all chips are PCI-based
  */
 struct vme_bridge {
 	char name[VMENAMSIZ];
@@ -110,14 +107,12 @@ struct vme_bridge {
 	struct list_head lm_resources;
 
 	struct list_head vme_errors;	/* List for errors generated on VME */
+	struct list_head devices;	/* List of devices on this bridge */
 
 	/* Bridge Info - XXX Move to private structure? */
-	struct device *parent;	/* Generic device struct (pdev->dev for PCI) */
+	struct device *parent;	/* Parent device (eg. pdev->dev for PCI) */
 	void *driver_priv;	/* Private pointer for the bridge driver */
-
-	struct device dev[VME_SLOTS_MAX];	/* Device registered with
-						 * device model on VME bus
-						 */
+	struct list_head bus_list; /* list of VME buses */
 
 	/* Interrupt callbacks */
 	struct vme_irq irq[7];
@@ -165,6 +160,12 @@ struct vme_bridge {
 
 	/* CR/CSR space functions */
 	int (*slot_get) (struct vme_bridge *);
+
+	/* Bridge parent interface */
+	void *(*alloc_consistent)(struct device *dev, size_t size,
+		dma_addr_t *dma);
+	void (*free_consistent)(struct device *dev, size_t size,
+		void *vaddr, dma_addr_t dma);
 };
 
 void vme_irq_handler(struct vme_bridge *, int, int);

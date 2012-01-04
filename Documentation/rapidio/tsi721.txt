@@ -1,0 +1,49 @@
+RapidIO subsystem mport driver for IDT Tsi721 PCI Express-to-SRIO bridge.
+=========================================================================
+
+I. Overview
+
+This driver implements all currently defined RapidIO mport callback functions.
+It supports maintenance read and write operations, inbound and outbound RapidIO
+doorbells, inbound maintenance port-writes and RapidIO messaging.
+
+To generate SRIO maintenance transactions this driver uses one of Tsi721 DMA
+channels. This mechanism provides access to larger range of hop counts and
+destination IDs without need for changes in outbound window translation.
+
+RapidIO messaging support uses dedicated messaging channels for each mailbox.
+For inbound messages this driver uses destination ID matching to forward messages
+into the corresponding message queue. Messaging callbacks are implemented to be
+fully compatible with RIONET driver (Ethernet over RapidIO messaging services).
+
+II. Known problems
+
+  None.
+
+III. To do
+
+ Add DMA data transfers (non-messaging).
+ Add inbound region (SRIO-to-PCIe) mapping.
+
+IV. Version History
+
+  1.0.0 - Initial driver release.
+
+V.  License
+-----------------------------------------------
+
+  Copyright(c) 2011 Integrated Device Technology, Inc. All rights reserved.
+
+  This program is free software; you can redistribute it and/or modify it
+  under the terms of the GNU General Public License as published by the Free
+  Software Foundation; either version 2 of the License, or (at your option)
+  any later version.
+
+  This program is distributed in the hope that it will be useful, but WITHOUT
+  ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
+  FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
+  more details.
+
+  You should have received a copy of the GNU General Public License along with
+  this program; if not, write to the Free Software Foundation, Inc.,
+  59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.

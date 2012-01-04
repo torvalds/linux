@@ -1856,6 +1856,9 @@ lpfc_decode_firmware_rev(struct lpfc_hba *phba, char *fwrevision, int flag)
 		case 2:
 			c = 'B';
 			break;
+		case 3:
+			c = 'X';
+			break;
 		default:
 			c = 0;
 			break;

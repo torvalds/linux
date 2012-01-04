@@ -35,6 +35,8 @@
 #include <linux/cpufreq.h>
 #include <linux/slab.h>
 #include <linux/io.h>
+#include <linux/of_i2c.h>
+#include <linux/of_gpio.h>
 
 #include <asm/irq.h>
 
@@ -78,6 +80,8 @@ struct s3c24xx_i2c {
 	struct resource		*ioarea;
 	struct i2c_adapter	adap;
 
+	struct s3c2410_platform_i2c	*pdata;
+	int			gpios[2];
 #ifdef CONFIG_CPU_FREQ
 	struct notifier_block	freq_transition;
 #endif
@@ -94,6 +98,12 @@ static inline int s3c24xx_i2c_is2440(struct s3c24xx_i2c *i2c)
 {
 	struct platform_device *pdev = to_platform_device(i2c->dev);
 	enum s3c24xx_i2c_type type;
+
+#ifdef CONFIG_OF
+	if (i2c->dev->of_node)
+		return of_device_is_compatible(i2c->dev->of_node,
+				"samsung,s3c2440-i2c");
+#endif
 
 	type = platform_get_device_id(pdev)->driver_data;
 	return type == TYPE_S3C2440;
@@ -625,7 +635,7 @@ static int s3c24xx_i2c_calcdivisor(unsigned long clkin, unsigned int wanted,
 
 static int s3c24xx_i2c_clockrate(struct s3c24xx_i2c *i2c, unsigned int *got)
 {
-	struct s3c2410_platform_i2c *pdata = i2c->dev->platform_data;
+	struct s3c2410_platform_i2c *pdata = i2c->pdata;
 	unsigned long clkin = clk_get_rate(i2c->clk);
 	unsigned int divs, div1;
 	unsigned long target_frequency;
@@ -741,6 +751,49 @@ static inline void s3c24xx_i2c_deregister_cpufreq(struct s3c24xx_i2c *i2c)
 }
 #endif
 
+#ifdef CONFIG_OF
+static int s3c24xx_i2c_parse_dt_gpio(struct s3c24xx_i2c *i2c)
+{
+	int idx, gpio, ret;
+
+	for (idx = 0; idx < 2; idx++) {
+		gpio = of_get_gpio(i2c->dev->of_node, idx);
+		if (!gpio_is_valid(gpio)) {
+			dev_err(i2c->dev, "invalid gpio[%d]: %d\n", idx, gpio);
+			goto free_gpio;
+		}
+
+		ret = gpio_request(gpio, "i2c-bus");
+		if (ret) {
+			dev_err(i2c->dev, "gpio [%d] request failed\n", gpio);
+			goto free_gpio;
+		}
+	}
+	return 0;
+
+free_gpio:
+	while (--idx >= 0)
+		gpio_free(i2c->gpios[idx]);
+	return -EINVAL;
+}
+
+static void s3c24xx_i2c_dt_gpio_free(struct s3c24xx_i2c *i2c)
+{
+	unsigned int idx;
+	for (idx = 0; idx < 2; idx++)
+		gpio_free(i2c->gpios[idx]);
+}
+#else
+static int s3c24xx_i2c_parse_dt_gpio(struct s3c24xx_i2c *i2c)
+{
+	return -EINVAL;
+}
+
+static void s3c24xx_i2c_dt_gpio_free(struct s3c24xx_i2c *i2c)
+{
+}
+#endif
+
 /* s3c24xx_i2c_init
  *
  * initialise the controller, set the IO lines and frequency
@@ -754,12 +807,15 @@ static int s3c24xx_i2c_init(struct s3c24xx_i2c *i2c)
 
 	/* get the plafrom data */
 
-	pdata = i2c->dev->platform_data;
+	pdata = i2c->pdata;
 
 	/* inititalise the gpio */
 
 	if (pdata->cfg_gpio)
 		pdata->cfg_gpio(to_platform_device(i2c->dev));
+	else
+		if (s3c24xx_i2c_parse_dt_gpio(i2c))
+			return -EINVAL;
 
 	/* write slave address */
 
@@ -785,6 +841,34 @@ static int s3c24xx_i2c_init(struct s3c24xx_i2c *i2c)
 	return 0;
 }
 
+#ifdef CONFIG_OF
+/* s3c24xx_i2c_parse_dt
+ *
+ * Parse the device tree node and retreive the platform data.
+*/
+
+static void
+s3c24xx_i2c_parse_dt(struct device_node *np, struct s3c24xx_i2c *i2c)
+{
+	struct s3c2410_platform_i2c *pdata = i2c->pdata;
+
+	if (!np)
+		return;
+
+	pdata->bus_num = -1; /* i2c bus number is dynamically assigned */
+	of_property_read_u32(np, "samsung,i2c-sda-delay", &pdata->sda_delay);
+	of_property_read_u32(np, "samsung,i2c-slave-addr", &pdata->slave_addr);
+	of_property_read_u32(np, "samsung,i2c-max-bus-freq",
+				(u32 *)&pdata->frequency);
+}
+#else
+static void
+s3c24xx_i2c_parse_dt(struct device_node *np, struct s3c24xx_i2c *i2c)
+{
+	return;
+}
+#endif
+
 /* s3c24xx_i2c_probe
  *
  * called by the bus driver when a suitable device is found
@@ -793,14 +877,16 @@ static int s3c24xx_i2c_init(struct s3c24xx_i2c *i2c)
 static int s3c24xx_i2c_probe(struct platform_device *pdev)
 {
 	struct s3c24xx_i2c *i2c;
-	struct s3c2410_platform_i2c *pdata;
+	struct s3c2410_platform_i2c *pdata = NULL;
 	struct resource *res;
 	int ret;
 
-	pdata = pdev->dev.platform_data;
-	if (!pdata) {
-		dev_err(&pdev->dev, "no platform data\n");
-		return -EINVAL;
+	if (!pdev->dev.of_node) {
+		pdata = pdev->dev.platform_data;
+		if (!pdata) {
+			dev_err(&pdev->dev, "no platform data\n");
+			return -EINVAL;
+		}
 	}
 
 	i2c = kzalloc(sizeof(struct s3c24xx_i2c), GFP_KERNEL);
@@ -808,6 +894,17 @@ static int s3c24xx_i2c_probe(struct platform_device *pdev)
 		dev_err(&pdev->dev, "no memory for state\n");
 		return -ENOMEM;
 	}
+
+	i2c->pdata = devm_kzalloc(&pdev->dev, sizeof(*pdata), GFP_KERNEL);
+	if (!i2c->pdata) {
+		ret = -ENOMEM;
+		goto err_noclk;
+	}
+
+	if (pdata)
+		memcpy(i2c->pdata, pdata, sizeof(*pdata));
+	else
+		s3c24xx_i2c_parse_dt(pdev->dev.of_node, i2c);
 
 	strlcpy(i2c->adap.name, "s3c2410-i2c", sizeof(i2c->adap.name));
 	i2c->adap.owner   = THIS_MODULE;
@@ -883,7 +980,7 @@ static int s3c24xx_i2c_probe(struct platform_device *pdev)
 		goto err_iomap;
 	}
 
-	ret = request_irq(i2c->irq, s3c24xx_i2c_irq, IRQF_DISABLED,
+	ret = request_irq(i2c->irq, s3c24xx_i2c_irq, 0,
 			  dev_name(&pdev->dev), i2c);
 
 	if (ret != 0) {
@@ -903,7 +1000,8 @@ static int s3c24xx_i2c_probe(struct platform_device *pdev)
 	 * being bus 0.
 	 */
 
-	i2c->adap.nr = pdata->bus_num;
+	i2c->adap.nr = i2c->pdata->bus_num;
+	i2c->adap.dev.of_node = pdev->dev.of_node;
 
 	ret = i2c_add_numbered_adapter(&i2c->adap);
 	if (ret < 0) {
@@ -911,6 +1009,7 @@ static int s3c24xx_i2c_probe(struct platform_device *pdev)
 		goto err_cpufreq;
 	}
 
+	of_i2c_register_devices(&i2c->adap);
 	platform_set_drvdata(pdev, i2c);
 
 	dev_info(&pdev->dev, "%s: S3C I2C adapter\n", dev_name(&i2c->adap.dev));
@@ -959,6 +1058,7 @@ static int s3c24xx_i2c_remove(struct platform_device *pdev)
 	iounmap(i2c->regs);
 
 	release_resource(i2c->ioarea);
+	s3c24xx_i2c_dt_gpio_free(i2c);
 	kfree(i2c->ioarea);
 	kfree(i2c);
 
@@ -1012,6 +1112,17 @@ static struct platform_device_id s3c24xx_driver_ids[] = {
 };
 MODULE_DEVICE_TABLE(platform, s3c24xx_driver_ids);
 
+#ifdef CONFIG_OF
+static const struct of_device_id s3c24xx_i2c_match[] = {
+	{ .compatible = "samsung,s3c2410-i2c" },
+	{ .compatible = "samsung,s3c2440-i2c" },
+	{},
+};
+MODULE_DEVICE_TABLE(of, s3c24xx_i2c_match);
+#else
+#define s3c24xx_i2c_match NULL
+#endif
+
 static struct platform_driver s3c24xx_i2c_driver = {
 	.probe		= s3c24xx_i2c_probe,
 	.remove		= s3c24xx_i2c_remove,
@@ -1020,6 +1131,7 @@ static struct platform_driver s3c24xx_i2c_driver = {
 		.owner	= THIS_MODULE,
 		.name	= "s3c-i2c",
 		.pm	= S3C24XX_DEV_PM_OPS,
+		.of_match_table = s3c24xx_i2c_match,
 	},
 };
 

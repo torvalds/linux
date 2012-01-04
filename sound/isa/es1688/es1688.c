@@ -25,7 +25,7 @@
 #include <linux/isapnp.h>
 #include <linux/time.h>
 #include <linux/wait.h>
-#include <linux/moduleparam.h>
+#include <linux/module.h>
 #include <asm/dma.h>
 #include <sound/core.h>
 #include <sound/es1688.h>
@@ -174,7 +174,7 @@ static int __devinit snd_es1688_probe(struct snd_card *card, unsigned int n)
 			chip->mpu_port > 0) {
 		error = snd_mpu401_uart_new(card, 0, MPU401_HW_ES1688,
 				chip->mpu_port, 0,
-				mpu_irq[n], IRQF_DISABLED, NULL);
+				mpu_irq[n], NULL);
 		if (error < 0)
 			return error;
 	}

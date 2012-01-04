@@ -35,6 +35,7 @@
  */
 #include <linux/dma-mapping.h>
 #include <linux/slab.h>
+#include <linux/module.h>
 #include <rdma/ib_cache.h>
 
 #include "mad_priv.h"
@@ -1595,6 +1596,9 @@ find_mad_agent(struct ib_mad_port_private *port_priv,
 			class = port_priv->version[
 					mad->mad_hdr.class_version].class;
 			if (!class)
+				goto out;
+			if (convert_mgmt_class(mad->mad_hdr.mgmt_class) >=
+			    IB_MGMT_MAX_METHODS)
 				goto out;
 			method = class->method_table[convert_mgmt_class(
 							mad->mad_hdr.mgmt_class)];

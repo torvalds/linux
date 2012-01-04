@@ -12,26 +12,16 @@ menuconfig MTD
 
 if MTD
 
-config MTD_DEBUG
-	bool "Debugging"
-	help
-	  This turns on low-level debugging for the entire MTD sub-system.
-	  Normally, you should say 'N'.
-
-config MTD_DEBUG_VERBOSE
-	int "Debugging verbosity (0 = quiet, 3 = noisy)"
-	depends on MTD_DEBUG
-	default "0"
-	help
-	  Determines the verbosity level of the MTD debugging messages.
-
 config MTD_TESTS
-	tristate "MTD tests support"
+	tristate "MTD tests support (DANGEROUS)"
 	depends on m
 	help
 	  This option includes various MTD tests into compilation. The tests
 	  should normally be compiled as kernel modules. The modules perform
 	  various checks and verifications when loaded.
+
+	  WARNING: some of the tests will ERASE entire MTD device which they
+	  test. Do not use these tests unless you really know what you do.
 
 config MTD_REDBOOT_PARTS
 	tristate "RedBoot partition table parsing"
@@ -137,12 +127,13 @@ config MTD_AFS_PARTS
 	  'physmap' map driver (CONFIG_MTD_PHYSMAP) does this, for example.
 
 config MTD_OF_PARTS
-	def_bool y
+	tristate "OpenFirmware partitioning information support"
+	default Y
 	depends on OF
 	help
 	  This provides a partition parsing function which derives
 	  the partition map from the children of the flash node,
-	  as described in Documentation/powerpc/booting-without-of.txt.
+	  as described in Documentation/devicetree/booting-without-of.txt.
 
 config MTD_AR7_PARTS
 	tristate "TI AR7 partitioning support"

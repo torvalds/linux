@@ -70,6 +70,7 @@
  * wusbhc_rh_start_port_reset() ??? unimplemented
  */
 #include <linux/slab.h>
+#include <linux/export.h>
 #include "wusbhc.h"
 
 /*

@@ -14,6 +14,7 @@
 #include <linux/device.h>
 #include <linux/kernel.h>
 #include <linux/delay.h>
+#include <linux/module.h>
 #include <linux/gpio.h>
 #include <linux/lcd.h>
 #include <linux/slab.h>
@@ -52,15 +53,11 @@ static void l4f00242t03_lcd_init(struct spi_device *spi)
 
 	dev_dbg(&spi->dev, "initializing LCD\n");
 
-	if (priv->io_reg) {
-		regulator_set_voltage(priv->io_reg, 1800000, 1800000);
-		regulator_enable(priv->io_reg);
-	}
+	regulator_set_voltage(priv->io_reg, 1800000, 1800000);
+	regulator_enable(priv->io_reg);
 
-	if (priv->core_reg) {
-		regulator_set_voltage(priv->core_reg, 2800000, 2800000);
-		regulator_enable(priv->core_reg);
-	}
+	regulator_set_voltage(priv->core_reg, 2800000, 2800000);
+	regulator_enable(priv->core_reg);
 
 	l4f00242t03_reset(pdata->reset_gpio);
 
@@ -78,11 +75,8 @@ static void l4f00242t03_lcd_powerdown(struct spi_device *spi)
 
 	gpio_set_value(pdata->data_enable_gpio, 0);
 
-	if (priv->io_reg)
-		regulator_disable(priv->io_reg);
-
-	if (priv->core_reg)
-		regulator_disable(priv->core_reg);
+	regulator_disable(priv->io_reg);
+	regulator_disable(priv->core_reg);
 }
 
 static int l4f00242t03_lcd_power_get(struct lcd_device *ld)
@@ -178,47 +172,34 @@ static int __devinit l4f00242t03_probe(struct spi_device *spi)
 
 	priv->spi = spi;
 
-	ret = gpio_request(pdata->reset_gpio, "lcd l4f00242t03 reset");
+	ret = gpio_request_one(pdata->reset_gpio, GPIOF_OUT_INIT_HIGH,
+						"lcd l4f00242t03 reset");
 	if (ret) {
 		dev_err(&spi->dev,
 			"Unable to get the lcd l4f00242t03 reset gpio.\n");
 		goto err;
 	}
 
-	ret = gpio_direction_output(pdata->reset_gpio, 1);
-	if (ret)
-		goto err2;
-
-	ret = gpio_request(pdata->data_enable_gpio,
-				"lcd l4f00242t03 data enable");
+	ret = gpio_request_one(pdata->data_enable_gpio, GPIOF_OUT_INIT_LOW,
+						"lcd l4f00242t03 data enable");
 	if (ret) {
 		dev_err(&spi->dev,
 			"Unable to get the lcd l4f00242t03 data en gpio.\n");
 		goto err2;
 	}
 
-	ret = gpio_direction_output(pdata->data_enable_gpio, 0);
-	if (ret)
+	priv->io_reg = regulator_get(&spi->dev, "vdd");
+	if (IS_ERR(priv->io_reg)) {
+		dev_err(&spi->dev, "%s: Unable to get the IO regulator\n",
+		       __func__);
 		goto err3;
-
-	if (pdata->io_supply) {
-		priv->io_reg = regulator_get(NULL, pdata->io_supply);
-
-		if (IS_ERR(priv->io_reg)) {
-			pr_err("%s: Unable to get the IO regulator\n",
-								__func__);
-			goto err3;
-		}
 	}
 
-	if (pdata->core_supply) {
-		priv->core_reg = regulator_get(NULL, pdata->core_supply);
-
-		if (IS_ERR(priv->core_reg)) {
-			pr_err("%s: Unable to get the core regulator\n",
-								__func__);
-			goto err4;
-		}
+	priv->core_reg = regulator_get(&spi->dev, "vcore");
+	if (IS_ERR(priv->core_reg)) {
+		dev_err(&spi->dev, "%s: Unable to get the core regulator\n",
+		       __func__);
+		goto err4;
 	}
 
 	priv->ld = lcd_device_register("l4f00242t03",
@@ -238,11 +219,9 @@ static int __devinit l4f00242t03_probe(struct spi_device *spi)
 	return 0;
 
 err5:
-	if (priv->core_reg)
-		regulator_put(priv->core_reg);
+	regulator_put(priv->core_reg);
 err4:
-	if (priv->io_reg)
-		regulator_put(priv->io_reg);
+	regulator_put(priv->io_reg);
 err3:
 	gpio_free(pdata->data_enable_gpio);
 err2:
@@ -266,10 +245,8 @@ static int __devexit l4f00242t03_remove(struct spi_device *spi)
 	gpio_free(pdata->data_enable_gpio);
 	gpio_free(pdata->reset_gpio);
 
-	if (priv->io_reg)
-		regulator_put(priv->io_reg);
-	if (priv->core_reg)
-		regulator_put(priv->core_reg);
+	regulator_put(priv->io_reg);
+	regulator_put(priv->core_reg);
 
 	kfree(priv);
 

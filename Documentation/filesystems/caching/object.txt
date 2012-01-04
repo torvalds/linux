@@ -127,9 +127,9 @@ fscache_enqueue_object()).
 PROVISION OF CPU TIME
 ---------------------
 
-The work to be done by the various states is given CPU time by the threads of
-the slow work facility (see Documentation/slow-work.txt).  This is used in
-preference to the workqueue facility because:
+The work to be done by the various states was given CPU time by the threads of
+the slow work facility.  This was used in preference to the workqueue facility
+because:
 
  (1) Threads may be completely occupied for very long periods of time by a
      particular work item.  These state actions may be doing sequences of

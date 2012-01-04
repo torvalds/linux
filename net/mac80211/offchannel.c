@@ -12,6 +12,7 @@
  * it under the terms of the GNU General Public License version 2 as
  * published by the Free Software Foundation.
  */
+#include <linux/export.h>
 #include <net/mac80211.h>
 #include "ieee80211_i.h"
 #include "driver-trace.h"

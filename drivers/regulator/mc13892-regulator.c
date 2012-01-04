@@ -18,6 +18,7 @@
 #include <linux/slab.h>
 #include <linux/init.h>
 #include <linux/err.h>
+#include <linux/module.h>
 #include "mc13xxx.h"
 
 #define MC13892_REVISION			7

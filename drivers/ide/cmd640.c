@@ -105,6 +105,7 @@
 #include <linux/delay.h>
 #include <linux/ide.h>
 #include <linux/init.h>
+#include <linux/module.h>
 
 #include <asm/io.h>
 

@@ -131,7 +131,7 @@ static void vis_data_insert_interface(const uint8_t *interface,
 			return;
 	}
 
-	/* its a new address, add it to the list */
+	/* it's a new address, add it to the list */
 	entry = kmalloc(sizeof(*entry), GFP_ATOMIC);
 	if (!entry)
 		return;
@@ -465,7 +465,7 @@ static struct vis_info *add_packet(struct bat_priv *bat_priv,
 	/* try to add it */
 	hash_added = hash_add(bat_priv->vis_hash, vis_info_cmp, vis_info_choose,
 			      info, &info->hash_entry);
-	if (hash_added < 0) {
+	if (hash_added != 0) {
 		/* did not work (for some reason) */
 		kref_put(&info->refcount, free_info);
 		info = NULL;
@@ -887,10 +887,8 @@ int vis_init(struct bat_priv *bat_priv)
 	}
 
 	bat_priv->my_vis_info = kmalloc(MAX_VIS_PACKET_SIZE, GFP_ATOMIC);
-	if (!bat_priv->my_vis_info) {
-		pr_err("Can't initialize vis packet\n");
+	if (!bat_priv->my_vis_info)
 		goto err;
-	}
 
 	bat_priv->my_vis_info->skb_packet = dev_alloc_skb(sizeof(*packet) +
 							  MAX_VIS_PACKET_SIZE +
@@ -920,7 +918,7 @@ int vis_init(struct bat_priv *bat_priv)
 	hash_added = hash_add(bat_priv->vis_hash, vis_info_cmp, vis_info_choose,
 			      bat_priv->my_vis_info,
 			      &bat_priv->my_vis_info->hash_entry);
-	if (hash_added < 0) {
+	if (hash_added != 0) {
 		pr_err("Can't add own vis packet into hash\n");
 		/* not in hash, need to remove it manually. */
 		kref_put(&bat_priv->my_vis_info->refcount, free_info);

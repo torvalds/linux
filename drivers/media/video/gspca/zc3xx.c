@@ -19,6 +19,8 @@
  * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
 #define MODULE_NAME "zc3xx"
 
 #include <linux/input.h>
@@ -5666,7 +5668,7 @@ static u8 reg_r_i(struct gspca_dev *gspca_dev,
 			index, gspca_dev->usb_buf, 1,
 			500);
 	if (ret < 0) {
-		err("reg_r_i err %d", ret);
+		pr_err("reg_r_i err %d\n", ret);
 		gspca_dev->usb_err = ret;
 		return 0;
 	}
@@ -5698,7 +5700,7 @@ static void reg_w_i(struct gspca_dev *gspca_dev,
 			value, index, NULL, 0,
 			500);
 	if (ret < 0) {
-		err("reg_w_i err %d", ret);
+		pr_err("reg_w_i err %d\n", ret);
 		gspca_dev->usb_err = ret;
 	}
 }
@@ -5724,7 +5726,7 @@ static u16 i2c_read(struct gspca_dev *gspca_dev,
 	msleep(20);
 	retbyte = reg_r_i(gspca_dev, 0x0091);		/* read status */
 	if (retbyte != 0x00)
-		err("i2c_r status error %02x", retbyte);
+		pr_err("i2c_r status error %02x\n", retbyte);
 	retval = reg_r_i(gspca_dev, 0x0095);		/* read Lowbyte */
 	retval |= reg_r_i(gspca_dev, 0x0096) << 8;	/* read Hightbyte */
 	PDEBUG(D_USBI, "i2c r [%02x] -> %04x (%02x)",
@@ -5748,7 +5750,7 @@ static u8 i2c_write(struct gspca_dev *gspca_dev,
 	msleep(1);
 	retbyte = reg_r_i(gspca_dev, 0x0091);		/* read status */
 	if (retbyte != 0x00)
-		err("i2c_w status error %02x", retbyte);
+		pr_err("i2c_w status error %02x\n", retbyte);
 	PDEBUG(D_USBO, "i2c w [%02x] = %02x%02x (%02x)",
 			reg, valH, valL, retbyte);
 	return retbyte;
@@ -6497,7 +6499,7 @@ static int sd_init(struct gspca_dev *gspca_dev)
 				PDEBUG(D_PROBE, "Sensor GC0303");
 				break;
 			default:
-				warn("Unknown sensor - set to TAS5130C");
+				pr_warn("Unknown sensor - set to TAS5130C\n");
 				sd->sensor = SENSOR_TAS5130C;
 			}
 			break;
@@ -6603,7 +6605,7 @@ static int sd_init(struct gspca_dev *gspca_dev)
 			sd->sensor = SENSOR_OV7620;	/* same sensor (?) */
 			break;
 		default:
-			err("Unknown sensor %04x", sensor);
+			pr_err("Unknown sensor %04x\n", sensor);
 			return -EINVAL;
 		}
 	}
@@ -6970,6 +6972,7 @@ static const struct sd_desc sd_desc = {
 };
 
 static const struct usb_device_id device_table[] = {
+	{USB_DEVICE(0x03f0, 0x1b07)},
 	{USB_DEVICE(0x041e, 0x041e)},
 	{USB_DEVICE(0x041e, 0x4017)},
 	{USB_DEVICE(0x041e, 0x401c), .driver_info = SENSOR_PAS106},

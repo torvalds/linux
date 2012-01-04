@@ -31,6 +31,8 @@
 #include <linux/input/tps6507x-ts.h>
 #include <linux/spi/spi.h>
 #include <linux/spi/flash.h>
+#include <linux/delay.h>
+#include <linux/wl12xx.h>
 
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
@@ -48,6 +50,9 @@
 
 #define DA850_MMCSD_CD_PIN		GPIO_TO_PIN(4, 0)
 #define DA850_MMCSD_WP_PIN		GPIO_TO_PIN(4, 1)
+
+#define DA850_WLAN_EN			GPIO_TO_PIN(6, 9)
+#define DA850_WLAN_IRQ			GPIO_TO_PIN(6, 10)
 
 #define DA850_MII_MDIO_CLKEN_PIN	GPIO_TO_PIN(2, 6)
 
@@ -251,7 +256,7 @@ static struct davinci_nand_pdata da850_evm_nandflash_data = {
 	.nr_parts	= ARRAY_SIZE(da850_evm_nandflash_partition),
 	.ecc_mode	= NAND_ECC_HW,
 	.ecc_bits	= 4,
-	.options	= NAND_USE_FLASH_BBT,
+	.bbt_options	= NAND_BBT_USE_FLASH,
 	.timing		= &da850_evm_nandflash_timing,
 };
 
@@ -1143,6 +1148,110 @@ static __init int da850_evm_init_cpufreq(void)
 static __init int da850_evm_init_cpufreq(void) { return 0; }
 #endif
 
+#ifdef CONFIG_DA850_WL12XX
+
+static void wl12xx_set_power(int index, bool power_on)
+{
+	static bool power_state;
+
+	pr_debug("Powering %s wl12xx", power_on ? "on" : "off");
+
+	if (power_on == power_state)
+		return;
+	power_state = power_on;
+
+	if (power_on) {
+		/* Power up sequence required for wl127x devices */
+		gpio_set_value(DA850_WLAN_EN, 1);
+		usleep_range(15000, 15000);
+		gpio_set_value(DA850_WLAN_EN, 0);
+		usleep_range(1000, 1000);
+		gpio_set_value(DA850_WLAN_EN, 1);
+		msleep(70);
+	} else {
+		gpio_set_value(DA850_WLAN_EN, 0);
+	}
+}
+
+static struct davinci_mmc_config da850_wl12xx_mmc_config = {
+	.set_power	= wl12xx_set_power,
+	.wires		= 4,
+	.max_freq	= 25000000,
+	.caps		= MMC_CAP_4_BIT_DATA | MMC_CAP_NONREMOVABLE |
+			  MMC_CAP_POWER_OFF_CARD,
+	.version	= MMC_CTLR_VERSION_2,
+};
+
+static const short da850_wl12xx_pins[] __initconst = {
+	DA850_MMCSD1_DAT_0, DA850_MMCSD1_DAT_1, DA850_MMCSD1_DAT_2,
+	DA850_MMCSD1_DAT_3, DA850_MMCSD1_CLK, DA850_MMCSD1_CMD,
+	DA850_GPIO6_9, DA850_GPIO6_10,
+	-1
+};
+
+static struct wl12xx_platform_data da850_wl12xx_wlan_data __initdata = {
+	.irq			= -1,
+	.board_ref_clock	= WL12XX_REFCLOCK_38,
+	.platform_quirks	= WL12XX_PLATFORM_QUIRK_EDGE_IRQ,
+};
+
+static __init int da850_wl12xx_init(void)
+{
+	int ret;
+
+	ret = davinci_cfg_reg_list(da850_wl12xx_pins);
+	if (ret) {
+		pr_err("wl12xx/mmc mux setup failed: %d\n", ret);
+		goto exit;
+	}
+
+	ret = da850_register_mmcsd1(&da850_wl12xx_mmc_config);
+	if (ret) {
+		pr_err("wl12xx/mmc registration failed: %d\n", ret);
+		goto exit;
+	}
+
+	ret = gpio_request_one(DA850_WLAN_EN, GPIOF_OUT_INIT_LOW, "wl12xx_en");
+	if (ret) {
+		pr_err("Could not request wl12xx enable gpio: %d\n", ret);
+		goto exit;
+	}
+
+	ret = gpio_request_one(DA850_WLAN_IRQ, GPIOF_IN, "wl12xx_irq");
+	if (ret) {
+		pr_err("Could not request wl12xx irq gpio: %d\n", ret);
+		goto free_wlan_en;
+	}
+
+	da850_wl12xx_wlan_data.irq = gpio_to_irq(DA850_WLAN_IRQ);
+
+	ret = wl12xx_set_platform_data(&da850_wl12xx_wlan_data);
+	if (ret) {
+		pr_err("Could not set wl12xx data: %d\n", ret);
+		goto free_wlan_irq;
+	}
+
+	return 0;
+
+free_wlan_irq:
+	gpio_free(DA850_WLAN_IRQ);
+
+free_wlan_en:
+	gpio_free(DA850_WLAN_EN);
+
+exit:
+	return ret;
+}
+
+#else /* CONFIG_DA850_WL12XX */
+
+static __init int da850_wl12xx_init(void)
+{
+	return 0;
+}
+
+#endif /* CONFIG_DA850_WL12XX */
+
 #define DA850EVM_SATA_REFCLKPN_RATE	(100 * 1000 * 1000)
 
 static __init void da850_evm_init(void)
@@ -1197,6 +1306,11 @@ static __init void da850_evm_init(void)
 		if (ret)
 			pr_warning("da850_evm_init: mmcsd0 registration failed:"
 					" %d\n", ret);
+
+		ret = da850_wl12xx_init();
+		if (ret)
+			pr_warning("da850_evm_init: wl12xx initialization"
+				   " failed: %d\n", ret);
 	}
 
 	davinci_serial_init(&da850_evm_uart_config);
@@ -1291,7 +1405,7 @@ static void __init da850_evm_map_io(void)
 }
 
 MACHINE_START(DAVINCI_DA850_EVM, "DaVinci DA850/OMAP-L138/AM18x EVM")
-	.boot_params	= (DA8XX_DDR_BASE + 0x100),
+	.atag_offset	= 0x100,
 	.map_io		= da850_evm_map_io,
 	.init_irq	= cp_intc_init,
 	.timer		= &davinci_timer,

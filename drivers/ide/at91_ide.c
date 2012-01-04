@@ -28,7 +28,7 @@
 #include <linux/platform_device.h>
 
 #include <mach/board.h>
-#include <mach/gpio.h>
+#include <asm/gpio.h>
 #include <mach/at91sam9_smc.h>
 
 #define DRV_NAME "at91_ide"

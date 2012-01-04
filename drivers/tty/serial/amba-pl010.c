@@ -312,12 +312,16 @@ static int pl010_startup(struct uart_port *port)
 	struct uart_amba_port *uap = (struct uart_amba_port *)port;
 	int retval;
 
+	retval = clk_prepare(uap->clk);
+	if (retval)
+		goto out;
+
 	/*
 	 * Try to enable the clock producer.
 	 */
 	retval = clk_enable(uap->clk);
 	if (retval)
-		goto out;
+		goto clk_unprep;
 
 	uap->port.uartclk = clk_get_rate(uap->clk);
 
@@ -343,6 +347,8 @@ static int pl010_startup(struct uart_port *port)
 
  clk_dis:
 	clk_disable(uap->clk);
+ clk_unprep:
+	clk_unprepare(uap->clk);
  out:
 	return retval;
 }
@@ -370,6 +376,7 @@ static void pl010_shutdown(struct uart_port *port)
 	 * Shut down the clock producer
 	 */
 	clk_disable(uap->clk);
+	clk_unprepare(uap->clk);
 }
 
 static void
@@ -626,6 +633,7 @@ static int __init pl010_console_setup(struct console *co, char *options)
 	int bits = 8;
 	int parity = 'n';
 	int flow = 'n';
+	int ret;
 
 	/*
 	 * Check whether an invalid uart number has been specified, and
@@ -637,6 +645,10 @@ static int __init pl010_console_setup(struct console *co, char *options)
 	uap = amba_ports[co->index];
 	if (!uap)
 		return -ENODEV;
+
+	ret = clk_prepare(uap->clk);
+	if (ret)
+		return ret;
 
 	uap->port.uartclk = clk_get_rate(uap->clk);
 

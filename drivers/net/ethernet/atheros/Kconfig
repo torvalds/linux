@@ -1,0 +1,70 @@
+#
+# Atheros device configuration
+#
+
+config NET_VENDOR_ATHEROS
+	bool "Atheros devices"
+	default y
+	depends on PCI
+	---help---
+	  If you have a network (Ethernet) card belonging to this class, say Y
+	  and read the Ethernet-HOWTO, available from
+	  <http://www.tldp.org/docs.html#howto>.
+
+	  Note that the answer to this question doesn't directly affect the
+	  kernel: saying N will just cause the configurator to skip all
+	  the questions about Atheros devices. If you say Y, you will be asked
+	  for your specific card in the following questions.
+
+if NET_VENDOR_ATHEROS
+
+config ATL2
+	tristate "Atheros L2 Fast Ethernet support"
+	depends on PCI
+	select CRC32
+	select NET_CORE
+	select MII
+	---help---
+	  This driver supports the Atheros L2 fast ethernet adapter.
+
+	  To compile this driver as a module, choose M here.  The module
+	  will be called atl2.
+
+config ATL1
+	tristate "Atheros/Attansic L1 Gigabit Ethernet support"
+	depends on PCI
+	select CRC32
+	select NET_CORE
+	select MII
+	---help---
+	  This driver supports the Atheros/Attansic L1 gigabit ethernet
+	  adapter.
+
+	  To compile this driver as a module, choose M here.  The module
+	  will be called atl1.
+
+config ATL1E
+	tristate "Atheros L1E Gigabit Ethernet support (EXPERIMENTAL)"
+	depends on PCI && EXPERIMENTAL
+	select CRC32
+	select NET_CORE
+	select MII
+	---help---
+	  This driver supports the Atheros L1E gigabit ethernet adapter.
+
+	  To compile this driver as a module, choose M here.  The module
+	  will be called atl1e.
+
+config ATL1C
+	tristate "Atheros L1C Gigabit Ethernet support (EXPERIMENTAL)"
+	depends on PCI && EXPERIMENTAL
+	select CRC32
+	select NET_CORE
+	select MII
+	---help---
+	  This driver supports the Atheros L1C gigabit ethernet adapter.
+
+	  To compile this driver as a module, choose M here.  The module
+	  will be called atl1c.
+
+endif # NET_VENDOR_ATHEROS

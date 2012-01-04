@@ -480,7 +480,7 @@ int __init_or_module phonet_proto_register(unsigned int protocol,
 	if (proto_tab[protocol])
 		err = -EBUSY;
 	else
-		rcu_assign_pointer(proto_tab[protocol], pp);
+		RCU_INIT_POINTER(proto_tab[protocol], pp);
 	mutex_unlock(&proto_tab_lock);
 
 	return err;
@@ -491,7 +491,7 @@ void phonet_proto_unregister(unsigned int protocol, struct phonet_protocol *pp)
 {
 	mutex_lock(&proto_tab_lock);
 	BUG_ON(proto_tab[protocol] != pp);
-	rcu_assign_pointer(proto_tab[protocol], NULL);
+	RCU_INIT_POINTER(proto_tab[protocol], NULL);
 	mutex_unlock(&proto_tab_lock);
 	synchronize_rcu();
 	proto_unregister(pp->prot);

@@ -22,7 +22,7 @@
  */
 #include <linux/sched.h>
 #include <linux/mm.h>
-#include <linux/module.h>
+#include <linux/export.h>
 
 #include <asm/spu.h>
 #include <asm/spu_csa.h>

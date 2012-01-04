@@ -63,11 +63,9 @@ static int af9005_write_word_agc(struct dvb_usb_device *d, u16 reghi,
 				 u16 reglo, u8 pos, u8 len, u16 value)
 {
 	int ret;
-	u8 temp;
 
 	if ((ret = af9005_write_ofdm_register(d, reglo, (u8) (value & 0xff))))
 		return ret;
-	temp = (u8) ((value & 0x0300) >> 8);
 	return af9005_write_register_bits(d, reghi, pos, len,
 					  (u8) ((value & 0x300) >> 8));
 }

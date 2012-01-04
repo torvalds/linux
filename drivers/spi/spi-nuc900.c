@@ -484,19 +484,7 @@ static struct platform_driver nuc900_spi_driver = {
 		.owner	= THIS_MODULE,
 	},
 };
-
-static int __init nuc900_spi_init(void)
-{
-	return platform_driver_register(&nuc900_spi_driver);
-}
-
-static void __exit nuc900_spi_exit(void)
-{
-	platform_driver_unregister(&nuc900_spi_driver);
-}
-
-module_init(nuc900_spi_init);
-module_exit(nuc900_spi_exit);
+module_platform_driver(nuc900_spi_driver);
 
 MODULE_AUTHOR("Wan ZongShun <mcuos.com@gmail.com>");
 MODULE_DESCRIPTION("nuc900 spi driver!");

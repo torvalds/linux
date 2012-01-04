@@ -22,6 +22,7 @@
  */
 
 #include <linux/slab.h>
+#include <linux/module.h>
 #include <scsi/scsi_dh.h>
 #include "../scsi_priv.h"
 
@@ -60,6 +61,46 @@ static struct scsi_device_handler *get_device_handler_by_idx(int idx)
 }
 
 /*
+ * device_handler_match_function - Match a device handler to a device
+ * @sdev - SCSI device to be tested
+ *
+ * Tests @sdev against the match function of all registered device_handler.
+ * Returns the found device handler or NULL if not found.
+ */
+static struct scsi_device_handler *
+device_handler_match_function(struct scsi_device *sdev)
+{
+	struct scsi_device_handler *tmp_dh, *found_dh = NULL;
+
+	spin_lock(&list_lock);
+	list_for_each_entry(tmp_dh, &scsi_dh_list, list) {
+		if (tmp_dh->match && tmp_dh->match(sdev)) {
+			found_dh = tmp_dh;
+			break;
+		}
+	}
+	spin_unlock(&list_lock);
+	return found_dh;
+}
+
+/*
+ * device_handler_match_devlist - Match a device handler to a device
+ * @sdev - SCSI device to be tested
+ *
+ * Tests @sdev against all device_handler registered in the devlist.
+ * Returns the found device handler or NULL if not found.
+ */
+static struct scsi_device_handler *
+device_handler_match_devlist(struct scsi_device *sdev)
+{
+	int idx;
+
+	idx = scsi_get_device_flags_keyed(sdev, sdev->vendor, sdev->model,
+					  SCSI_DEVINFO_DH);
+	return get_device_handler_by_idx(idx);
+}
+
+/*
  * device_handler_match - Attach a device handler to a device
  * @scsi_dh - The device handler to match against or NULL
  * @sdev - SCSI device to be tested against @scsi_dh
@@ -72,12 +113,11 @@ static struct scsi_device_handler *
 device_handler_match(struct scsi_device_handler *scsi_dh,
 		     struct scsi_device *sdev)
 {
-	struct scsi_device_handler *found_dh = NULL;
-	int idx;
+	struct scsi_device_handler *found_dh;
 
-	idx = scsi_get_device_flags_keyed(sdev, sdev->vendor, sdev->model,
-					  SCSI_DEVINFO_DH);
-	found_dh = get_device_handler_by_idx(idx);
+	found_dh = device_handler_match_function(sdev);
+	if (!found_dh)
+		found_dh = device_handler_match_devlist(sdev);
 
 	if (scsi_dh && found_dh != scsi_dh)
 		found_dh = NULL;
@@ -150,6 +190,10 @@ store_dh_state(struct device *dev, struct device_attribute *attr,
 	struct scsi_device *sdev = to_scsi_device(dev);
 	struct scsi_device_handler *scsi_dh;
 	int err = -EINVAL;
+
+	if (sdev->sdev_state == SDEV_CANCEL ||
+	    sdev->sdev_state == SDEV_DEL)
+		return -ENODEV;
 
 	if (!sdev->scsi_dh_data) {
 		/*
@@ -327,7 +371,7 @@ int scsi_register_device_handler(struct scsi_device_handler *scsi_dh)
 	list_add(&scsi_dh->list, &scsi_dh_list);
 	spin_unlock(&list_lock);
 
-	for (i = 0; scsi_dh->devlist[i].vendor; i++) {
+	for (i = 0; scsi_dh->devlist && scsi_dh->devlist[i].vendor; i++) {
 		scsi_dev_info_list_add_keyed(0,
 					scsi_dh->devlist[i].vendor,
 					scsi_dh->devlist[i].model,
@@ -360,7 +404,7 @@ int scsi_unregister_device_handler(struct scsi_device_handler *scsi_dh)
 	bus_for_each_dev(&scsi_bus_type, NULL, scsi_dh,
 			 scsi_dh_notifier_remove);
 
-	for (i = 0; scsi_dh->devlist[i].vendor; i++) {
+	for (i = 0; scsi_dh->devlist && scsi_dh->devlist[i].vendor; i++) {
 		scsi_dev_info_list_del_keyed(scsi_dh->devlist[i].vendor,
 					     scsi_dh->devlist[i].model,
 					     SCSI_DEVINFO_DH);
@@ -398,7 +442,15 @@ int scsi_dh_activate(struct request_queue *q, activate_complete fn, void *data)
 
 	spin_lock_irqsave(q->queue_lock, flags);
 	sdev = q->queuedata;
-	if (sdev && sdev->scsi_dh_data)
+	if (!sdev) {
+		spin_unlock_irqrestore(q->queue_lock, flags);
+		err = SCSI_DH_NOSYS;
+		if (fn)
+			fn(data, err);
+		return err;
+	}
+
+	if (sdev->scsi_dh_data)
 		scsi_dh = sdev->scsi_dh_data->scsi_dh;
 	dev = get_device(&sdev->sdev_gendev);
 	if (!scsi_dh || !dev ||
@@ -468,7 +520,7 @@ int scsi_dh_handler_exist(const char *name)
 EXPORT_SYMBOL_GPL(scsi_dh_handler_exist);
 
 /*
- * scsi_dh_handler_attach - Attach device handler
+ * scsi_dh_attach - Attach device handler
  * @sdev - sdev the handler should be attached to
  * @name - name of the handler to attach
  */
@@ -498,7 +550,7 @@ int scsi_dh_attach(struct request_queue *q, const char *name)
 EXPORT_SYMBOL_GPL(scsi_dh_attach);
 
 /*
- * scsi_dh_handler_detach - Detach device handler
+ * scsi_dh_detach - Detach device handler
  * @sdev - sdev the handler should be detached from
  *
  * This function will detach the device handler only

@@ -60,8 +60,7 @@ With PAS16 you can use two audio device files at the same time. /dev/dsp (and
 
 The new stuff for 2.3.99 and later
 ============================================================================
-The following configuration options from Documentation/Configure.help
-are relevant to configuring the PAS16:
+The following configuration options are relevant to configuring the PAS16:
 
 Sound card support
 CONFIG_SOUND

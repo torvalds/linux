@@ -12,6 +12,7 @@
 
 #include <linux/dccp.h>
 #include <linux/skbuff.h>
+#include <linux/export.h>
 
 #include "dccp.h"
 

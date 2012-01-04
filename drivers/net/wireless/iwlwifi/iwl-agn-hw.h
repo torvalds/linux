@@ -78,10 +78,23 @@
 #define IWLAGN_RTC_DATA_SIZE (IWLAGN_RTC_DATA_UPPER_BOUND - \
 				IWLAGN_RTC_DATA_LOWER_BOUND)
 
+#define IWL60_RTC_INST_LOWER_BOUND		(0x000000)
+#define IWL60_RTC_INST_UPPER_BOUND		(0x040000)
+#define IWL60_RTC_DATA_LOWER_BOUND		(0x800000)
+#define IWL60_RTC_DATA_UPPER_BOUND		(0x814000)
+#define IWL60_RTC_INST_SIZE \
+	(IWL60_RTC_INST_UPPER_BOUND - IWL60_RTC_INST_LOWER_BOUND)
+#define IWL60_RTC_DATA_SIZE \
+	(IWL60_RTC_DATA_UPPER_BOUND - IWL60_RTC_DATA_LOWER_BOUND)
+
 /* RSSI to dBm */
 #define IWLAGN_RSSI_OFFSET	44
 
-#define IWLAGN_DEFAULT_TX_RETRY  15
+#define IWLAGN_DEFAULT_TX_RETRY			15
+#define IWLAGN_MGMT_DFAULT_RETRY_LIMIT		3
+#define IWLAGN_RTS_DFAULT_RETRY_LIMIT		60
+#define IWLAGN_BAR_DFAULT_RETRY_LIMIT		60
+#define IWLAGN_LOW_RETRY_LIMIT			7
 
 /* Limit range of txpower output target to be between these values */
 #define IWLAGN_TX_POWER_TARGET_POWER_MIN	(0)	/* 0 dBm: 1 milliwatt */
@@ -92,20 +105,7 @@
 
 #define IWLAGN_CMD_FIFO_NUM		7
 #define IWLAGN_NUM_QUEUES		20
-#define IWLAGN_NUM_AMPDU_QUEUES		10
-#define IWLAGN_FIRST_AMPDU_QUEUE	10
-
-/* Fixed (non-configurable) rx data from phy */
-
-/**
- * struct iwlagn_schedq_bc_tbl scheduler byte count table
- *	base physical address provided by SCD_DRAM_BASE_ADDR
- * @tfd_offset  0-12 - tx command byte count
- *	       12-16 - station index
- */
-struct iwlagn_scd_bc_tbl {
-	__le16 tfd_offset[TFD_QUEUE_BC_SIZE];
-} __packed;
-
+#define IWLAGN_NUM_AMPDU_QUEUES		9
+#define IWLAGN_FIRST_AMPDU_QUEUE	11
 
 #endif /* __iwl_agn_hw_h__ */

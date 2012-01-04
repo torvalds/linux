@@ -17,6 +17,7 @@
 #include <linux/mfd/core.h>
 #include <linux/pm_runtime.h>
 #include <linux/slab.h>
+#include <linux/module.h>
 
 int mfd_cell_enable(struct platform_device *pdev)
 {

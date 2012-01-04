@@ -381,6 +381,9 @@ int snd_soc_dapm_force_enable_pin(struct snd_soc_dapm_context *dapm,
 int snd_soc_dapm_ignore_suspend(struct snd_soc_dapm_context *dapm,
 				const char *pin);
 
+/* Mostly internal - should not normally be used */
+void dapm_mark_dirty(struct snd_soc_dapm_widget *w, const char *reason);
+
 /* dapm widget types */
 enum snd_soc_dapm_type {
 	snd_soc_dapm_input = 0,		/* input pin */
@@ -473,6 +476,8 @@ struct snd_soc_dapm_widget {
 	unsigned char ext:1;			/* has external widgets */
 	unsigned char force:1;			/* force state */
 	unsigned char ignore_suspend:1;         /* kept enabled over suspend */
+	unsigned char new_power:1;		/* power from this run */
+	unsigned char power_checked:1;		/* power checked this run */
 	int subseq;				/* sort within widget type */
 
 	int (*power_check)(struct snd_soc_dapm_widget *w);
@@ -492,6 +497,9 @@ struct snd_soc_dapm_widget {
 
 	/* used during DAPM updates */
 	struct list_head power_list;
+	struct list_head dirty;
+	int inputs;
+	int outputs;
 };
 
 struct snd_soc_dapm_update {
@@ -524,6 +532,8 @@ struct snd_soc_dapm_context {
 	enum snd_soc_bias_level target_bias_level;
 	struct list_head list;
 
+	int (*stream_event)(struct snd_soc_dapm_context *dapm, int event);
+
 #ifdef CONFIG_DEBUG_FS
 	struct dentry *debugfs_dapm;
 #endif
@@ -533,6 +543,12 @@ struct snd_soc_dapm_context {
 struct snd_soc_dapm_widget_list {
 	int num_widgets;
 	struct snd_soc_dapm_widget *widgets[0];
+};
+
+struct snd_soc_dapm_stats {
+	int power_checks;
+	int path_checks;
+	int neighbour_checks;
 };
 
 #endif

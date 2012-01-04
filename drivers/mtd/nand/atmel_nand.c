@@ -161,37 +161,6 @@ static int atmel_nand_device_ready(struct mtd_info *mtd)
                 !!host->board->rdy_pin_active_low;
 }
 
-/*
- * Minimal-overhead PIO for data access.
- */
-static void atmel_read_buf8(struct mtd_info *mtd, u8 *buf, int len)
-{
-	struct nand_chip	*nand_chip = mtd->priv;
-
-	__raw_readsb(nand_chip->IO_ADDR_R, buf, len);
-}
-
-static void atmel_read_buf16(struct mtd_info *mtd, u8 *buf, int len)
-{
-	struct nand_chip	*nand_chip = mtd->priv;
-
-	__raw_readsw(nand_chip->IO_ADDR_R, buf, len / 2);
-}
-
-static void atmel_write_buf8(struct mtd_info *mtd, const u8 *buf, int len)
-{
-	struct nand_chip	*nand_chip = mtd->priv;
-
-	__raw_writesb(nand_chip->IO_ADDR_W, buf, len);
-}
-
-static void atmel_write_buf16(struct mtd_info *mtd, const u8 *buf, int len)
-{
-	struct nand_chip	*nand_chip = mtd->priv;
-
-	__raw_writesw(nand_chip->IO_ADDR_W, buf, len / 2);
-}
-
 static void dma_complete_func(void *completion)
 {
 	complete(completion);
@@ -266,33 +235,27 @@ err_buf:
 static void atmel_read_buf(struct mtd_info *mtd, u8 *buf, int len)
 {
 	struct nand_chip *chip = mtd->priv;
-	struct atmel_nand_host *host = chip->priv;
 
 	if (use_dma && len > mtd->oobsize)
 		/* only use DMA for bigger than oob size: better performances */
 		if (atmel_nand_dma_op(mtd, buf, len, 1) == 0)
 			return;
 
-	if (host->board->bus_width_16)
-		atmel_read_buf16(mtd, buf, len);
-	else
-		atmel_read_buf8(mtd, buf, len);
+	/* if no DMA operation possible, use PIO */
+	memcpy_fromio(buf, chip->IO_ADDR_R, len);
 }
 
 static void atmel_write_buf(struct mtd_info *mtd, const u8 *buf, int len)
 {
 	struct nand_chip *chip = mtd->priv;
-	struct atmel_nand_host *host = chip->priv;
 
 	if (use_dma && len > mtd->oobsize)
 		/* only use DMA for bigger than oob size: better performances */
 		if (atmel_nand_dma_op(mtd, (void *)buf, len, 0) == 0)
 			return;
 
-	if (host->board->bus_width_16)
-		atmel_write_buf16(mtd, buf, len);
-	else
-		atmel_write_buf8(mtd, buf, len);
+	/* if no DMA operation possible, use PIO */
+	memcpy_toio(chip->IO_ADDR_W, buf, len);
 }
 
 /*
@@ -481,10 +444,6 @@ static void atmel_nand_hwctl(struct mtd_info *mtd, int mode)
 	}
 }
 
-#ifdef CONFIG_MTD_CMDLINE_PARTS
-static const char *part_probes[] = { "cmdlinepart", NULL };
-#endif
-
 /*
  * Probe for the NAND device.
  */
@@ -496,8 +455,6 @@ static int __init atmel_nand_probe(struct platform_device *pdev)
 	struct resource *regs;
 	struct resource *mem;
 	int res;
-	struct mtd_partition *partitions = NULL;
-	int num_partitions = 0;
 
 	mem = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (!mem) {
@@ -583,7 +540,7 @@ static int __init atmel_nand_probe(struct platform_device *pdev)
 
 	if (on_flash_bbt) {
 		printk(KERN_INFO "atmel_nand: Use On Flash BBT\n");
-		nand_chip->options |= NAND_USE_FLASH_BBT;
+		nand_chip->bbt_options |= NAND_BBT_USE_FLASH;
 	}
 
 	if (!cpu_has_dma())
@@ -594,7 +551,7 @@ static int __init atmel_nand_probe(struct platform_device *pdev)
 
 		dma_cap_zero(mask);
 		dma_cap_set(DMA_MEMCPY, mask);
-		host->dma_chan = dma_request_channel(mask, 0, NULL);
+		host->dma_chan = dma_request_channel(mask, NULL, NULL);
 		if (!host->dma_chan) {
 			dev_err(host->dev, "Failed to request DMA channel\n");
 			use_dma = 0;
@@ -655,27 +612,12 @@ static int __init atmel_nand_probe(struct platform_device *pdev)
 		goto err_scan_tail;
 	}
 
-#ifdef CONFIG_MTD_CMDLINE_PARTS
 	mtd->name = "atmel_nand";
-	num_partitions = parse_mtd_partitions(mtd, part_probes,
-					      &partitions, 0);
-#endif
-	if (num_partitions <= 0 && host->board->partition_info)
-		partitions = host->board->partition_info(mtd->size,
-							 &num_partitions);
-
-	if ((!partitions) || (num_partitions == 0)) {
-		printk(KERN_ERR "atmel_nand: No partitions defined, or unsupported device.\n");
-		res = -ENXIO;
-		goto err_no_partitions;
-	}
-
-	res = mtd_device_register(mtd, partitions, num_partitions);
+	res = mtd_device_parse_register(mtd, NULL, 0,
+			host->board->parts, host->board->num_parts);
 	if (!res)
 		return res;
 
-err_no_partitions:
-	nand_release(mtd);
 err_scan_tail:
 err_scan_ident:
 err_no_card:

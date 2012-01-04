@@ -21,6 +21,8 @@
 #include <linux/random.h>
 #include <linux/if_arp.h>
 #include <linux/slab.h>
+#include <linux/export.h>
+#include <linux/moduleparam.h>
 
 #include "hostap_wlan.h"
 #include "hostap.h"

@@ -146,6 +146,7 @@ extern int swsusp_swap_in_use(void);
  */
 #define SF_PLATFORM_MODE	1
 #define SF_NOCOMPRESS_MODE	2
+#define SF_CRC32_MODE	        4
 
 /* kernel/power/hibernate.c */
 extern int swsusp_check(void);
@@ -228,7 +229,8 @@ extern int pm_test_level;
 #ifdef CONFIG_SUSPEND_FREEZER
 static inline int suspend_freeze_processes(void)
 {
-	return freeze_processes();
+	int error = freeze_processes();
+	return error ? : freeze_kernel_threads();
 }
 
 static inline void suspend_thaw_processes(void)

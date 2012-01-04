@@ -114,10 +114,22 @@ static int f10_read_dct_pci_cfg(struct amd64_pvt *pvt, int addr, u32 *val,
 	return __amd64_read_pci_cfg_dword(pvt->F2, addr, val, func);
 }
 
+/*
+ * Select DCT to which PCI cfg accesses are routed
+ */
+static void f15h_select_dct(struct amd64_pvt *pvt, u8 dct)
+{
+	u32 reg = 0;
+
+	amd64_read_pci_cfg(pvt->F1, DCT_CFG_SEL, &reg);
+	reg &= 0xfffffffe;
+	reg |= dct;
+	amd64_write_pci_cfg(pvt->F1, DCT_CFG_SEL, reg);
+}
+
 static int f15_read_dct_pci_cfg(struct amd64_pvt *pvt, int addr, u32 *val,
 				 const char *func)
 {
-	u32 reg = 0;
 	u8 dct  = 0;
 
 	if (addr >= 0x140 && addr <= 0x1a0) {
@@ -125,10 +137,7 @@ static int f15_read_dct_pci_cfg(struct amd64_pvt *pvt, int addr, u32 *val,
 		addr -= 0x100;
 	}
 
-	amd64_read_pci_cfg(pvt->F1, DCT_CFG_SEL, &reg);
-	reg &= 0xfffffffe;
-	reg |= dct;
-	amd64_write_pci_cfg(pvt->F1, DCT_CFG_SEL, reg);
+	f15h_select_dct(pvt, dct);
 
 	return __amd64_read_pci_cfg_dword(pvt->F2, addr, val, func);
 }
@@ -198,6 +207,10 @@ static int amd64_set_scrub_rate(struct mem_ctl_info *mci, u32 bw)
 	if (boot_cpu_data.x86 == 0xf)
 		min_scrubrate = 0x0;
 
+	/* F15h Erratum #505 */
+	if (boot_cpu_data.x86 == 0x15)
+		f15h_select_dct(pvt, 0);
+
 	return __amd64_set_scrub_rate(pvt->F3, bw, min_scrubrate);
 }
 
@@ -206,6 +219,10 @@ static int amd64_get_scrub_rate(struct mem_ctl_info *mci)
 	struct amd64_pvt *pvt = mci->pvt_info;
 	u32 scrubval = 0;
 	int i, retval = -EINVAL;
+
+	/* F15h Erratum #505 */
+	if (boot_cpu_data.x86 == 0x15)
+		f15h_select_dct(pvt, 0);
 
 	amd64_read_pci_cfg(pvt->F3, SCRCTRL, &scrubval);
 
@@ -751,10 +768,10 @@ static int get_channel_from_ecc_syndrome(struct mem_ctl_info *, u16);
  * Determine if the DIMMs have ECC enabled. ECC is enabled ONLY if all the DIMMs
  * are ECC capable.
  */
-static enum edac_type amd64_determine_edac_cap(struct amd64_pvt *pvt)
+static unsigned long amd64_determine_edac_cap(struct amd64_pvt *pvt)
 {
 	u8 bit;
-	enum dev_type edac_cap = EDAC_FLAG_NONE;
+	unsigned long edac_cap = EDAC_FLAG_NONE;
 
 	bit = (boot_cpu_data.x86 > 0xf || pvt->ext_model >= K8_REV_F)
 		? 19
@@ -1953,11 +1970,9 @@ static inline void __amd64_decode_bus_error(struct mem_ctl_info *mci,
 		amd64_handle_ue(mci, m);
 }
 
-void amd64_decode_bus_error(int node_id, struct mce *m, u32 nbcfg)
+void amd64_decode_bus_error(int node_id, struct mce *m)
 {
-	struct mem_ctl_info *mci = mcis[node_id];
-
-	__amd64_decode_bus_error(mci, m);
+	__amd64_decode_bus_error(mcis[node_id], m);
 }
 
 /*

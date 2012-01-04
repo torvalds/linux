@@ -476,7 +476,7 @@ static __devexit int kirkwood_i2s_dev_remove(struct platform_device *pdev)
 
 static struct platform_driver kirkwood_i2s_driver = {
 	.probe  = kirkwood_i2s_dev_probe,
-	.remove = kirkwood_i2s_dev_remove,
+	.remove = __devexit_p(kirkwood_i2s_dev_remove),
 	.driver = {
 		.name = DRV_NAME,
 		.owner = THIS_MODULE,

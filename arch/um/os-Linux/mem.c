@@ -14,9 +14,7 @@
 #include <sys/mman.h>
 #include <sys/param.h>
 #include "init.h"
-#include "kern_constants.h"
 #include "os.h"
-#include "user.h"
 
 /* Modified by which_tmpdir, which is called during early boot */
 static char *default_tmpdir = "/tmp";

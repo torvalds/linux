@@ -11,11 +11,13 @@
 #include <linux/mm.h>
 #include <linux/miscdevice.h>
 #include <linux/bootmem.h>
+#include <linux/export.h>
 
 #include <asm/cpudata.h>
 #include <asm/hypervisor.h>
 #include <asm/mdesc.h>
 #include <asm/prom.h>
+#include <asm/uaccess.h>
 #include <asm/oplib.h>
 #include <asm/smp.h>
 

@@ -39,13 +39,13 @@ int wl1271_sta_init_templates_config(struct wl1271 *wl)
 
 	/* send empty templates for fw memory reservation */
 	ret = wl1271_cmd_template_set(wl, CMD_TEMPL_CFG_PROBE_REQ_2_4, NULL,
-				      WL1271_CMD_TEMPL_MAX_SIZE,
+				      WL1271_CMD_TEMPL_DFLT_SIZE,
 				      0, WL1271_RATE_AUTOMATIC);
 	if (ret < 0)
 		return ret;
 
 	ret = wl1271_cmd_template_set(wl, CMD_TEMPL_CFG_PROBE_REQ_5,
-				      NULL, WL1271_CMD_TEMPL_MAX_SIZE, 0,
+				      NULL, WL1271_CMD_TEMPL_DFLT_SIZE, 0,
 				      WL1271_RATE_AUTOMATIC);
 	if (ret < 0)
 		return ret;
@@ -70,15 +70,13 @@ int wl1271_sta_init_templates_config(struct wl1271 *wl)
 		return ret;
 
 	ret = wl1271_cmd_template_set(wl, CMD_TEMPL_PROBE_RESPONSE, NULL,
-				      sizeof
-				      (struct wl12xx_probe_resp_template),
+				      WL1271_CMD_TEMPL_DFLT_SIZE,
 				      0, WL1271_RATE_AUTOMATIC);
 	if (ret < 0)
 		return ret;
 
 	ret = wl1271_cmd_template_set(wl, CMD_TEMPL_BEACON, NULL,
-				      sizeof
-				      (struct wl12xx_beacon_template),
+				      WL1271_CMD_TEMPL_DFLT_SIZE,
 				      0, WL1271_RATE_AUTOMATIC);
 	if (ret < 0)
 		return ret;
@@ -92,7 +90,7 @@ int wl1271_sta_init_templates_config(struct wl1271 *wl)
 
 	for (i = 0; i < CMD_TEMPL_KLV_IDX_MAX; i++) {
 		ret = wl1271_cmd_template_set(wl, CMD_TEMPL_KLV, NULL,
-					      WL1271_CMD_TEMPL_MAX_SIZE, i,
+					      WL1271_CMD_TEMPL_DFLT_SIZE, i,
 					      WL1271_RATE_AUTOMATIC);
 		if (ret < 0)
 			return ret;
@@ -105,6 +103,7 @@ static int wl1271_ap_init_deauth_template(struct wl1271 *wl)
 {
 	struct wl12xx_disconn_template *tmpl;
 	int ret;
+	u32 rate;
 
 	tmpl = kzalloc(sizeof(*tmpl), GFP_KERNEL);
 	if (!tmpl) {
@@ -115,9 +114,9 @@ static int wl1271_ap_init_deauth_template(struct wl1271 *wl)
 	tmpl->header.frame_ctl = cpu_to_le16(IEEE80211_FTYPE_MGMT |
 					     IEEE80211_STYPE_DEAUTH);
 
+	rate = wl1271_tx_min_rate_get(wl, wl->basic_rate_set);
 	ret = wl1271_cmd_template_set(wl, CMD_TEMPL_DEAUTH_AP,
-				      tmpl, sizeof(*tmpl), 0,
-				      wl1271_tx_min_rate_get(wl));
+				      tmpl, sizeof(*tmpl), 0, rate);
 
 out:
 	kfree(tmpl);
@@ -128,6 +127,7 @@ static int wl1271_ap_init_null_template(struct wl1271 *wl)
 {
 	struct ieee80211_hdr_3addr *nullfunc;
 	int ret;
+	u32 rate;
 
 	nullfunc = kzalloc(sizeof(*nullfunc), GFP_KERNEL);
 	if (!nullfunc) {
@@ -144,9 +144,9 @@ static int wl1271_ap_init_null_template(struct wl1271 *wl)
 	memcpy(nullfunc->addr2, wl->mac_addr, ETH_ALEN);
 	memcpy(nullfunc->addr3, wl->mac_addr, ETH_ALEN);
 
+	rate = wl1271_tx_min_rate_get(wl, wl->basic_rate_set);
 	ret = wl1271_cmd_template_set(wl, CMD_TEMPL_NULL_DATA, nullfunc,
-				      sizeof(*nullfunc), 0,
-				      wl1271_tx_min_rate_get(wl));
+				      sizeof(*nullfunc), 0, rate);
 
 out:
 	kfree(nullfunc);
@@ -157,6 +157,7 @@ static int wl1271_ap_init_qos_null_template(struct wl1271 *wl)
 {
 	struct ieee80211_qos_hdr *qosnull;
 	int ret;
+	u32 rate;
 
 	qosnull = kzalloc(sizeof(*qosnull), GFP_KERNEL);
 	if (!qosnull) {
@@ -173,9 +174,9 @@ static int wl1271_ap_init_qos_null_template(struct wl1271 *wl)
 	memcpy(qosnull->addr2, wl->mac_addr, ETH_ALEN);
 	memcpy(qosnull->addr3, wl->mac_addr, ETH_ALEN);
 
+	rate = wl1271_tx_min_rate_get(wl, wl->basic_rate_set);
 	ret = wl1271_cmd_template_set(wl, CMD_TEMPL_QOS_NULL_DATA, qosnull,
-				      sizeof(*qosnull), 0,
-				      wl1271_tx_min_rate_get(wl));
+				      sizeof(*qosnull), 0, rate);
 
 out:
 	kfree(qosnull);
@@ -191,15 +192,13 @@ static int wl1271_ap_init_templates_config(struct wl1271 *wl)
 	 * reserve memory for later.
 	 */
 	ret = wl1271_cmd_template_set(wl, CMD_TEMPL_AP_PROBE_RESPONSE, NULL,
-				      sizeof
-				      (struct wl12xx_probe_resp_template),
+				      WL1271_CMD_TEMPL_MAX_SIZE,
 				      0, WL1271_RATE_AUTOMATIC);
 	if (ret < 0)
 		return ret;
 
 	ret = wl1271_cmd_template_set(wl, CMD_TEMPL_AP_BEACON, NULL,
-				      sizeof
-				      (struct wl12xx_beacon_template),
+				      WL1271_CMD_TEMPL_MAX_SIZE,
 				      0, WL1271_RATE_AUTOMATIC);
 	if (ret < 0)
 		return ret;
@@ -227,15 +226,11 @@ static int wl1271_ap_init_templates_config(struct wl1271 *wl)
 	return 0;
 }
 
-static int wl1271_init_rx_config(struct wl1271 *wl, u32 config, u32 filter)
+static int wl12xx_init_rx_config(struct wl1271 *wl)
 {
 	int ret;
 
 	ret = wl1271_acx_rx_msdu_life_time(wl);
-	if (ret < 0)
-		return ret;
-
-	ret = wl1271_acx_rx_config(wl, config, filter);
 	if (ret < 0)
 		return ret;
 
@@ -285,10 +280,7 @@ int wl1271_init_pta(struct wl1271 *wl)
 {
 	int ret;
 
-	if (wl->bss_type == BSS_TYPE_AP_BSS)
-		ret = wl1271_acx_ap_sg_cfg(wl);
-	else
-		ret = wl1271_acx_sta_sg_cfg(wl);
+	ret = wl12xx_acx_sg_cfg(wl);
 	if (ret < 0)
 		return ret;
 
@@ -392,7 +384,7 @@ static int wl1271_sta_hw_init(struct wl1271 *wl)
 	if (ret < 0)
 		return ret;
 
-	ret = wl1271_acx_sta_mem_cfg(wl);
+	ret = wl12xx_acx_mem_cfg(wl);
 	if (ret < 0)
 		return ret;
 
@@ -407,12 +399,6 @@ static int wl1271_sta_hw_init(struct wl1271 *wl)
 static int wl1271_sta_hw_init_post_mem(struct wl1271 *wl)
 {
 	int ret, i;
-
-	ret = wl1271_cmd_set_sta_default_wep_key(wl, wl->default_key);
-	if (ret < 0) {
-		wl1271_warning("couldn't set default key");
-		return ret;
-	}
 
 	/* disable all keep-alive templates */
 	for (i = 0; i < CMD_TEMPL_KLV_IDX_MAX; i++) {
@@ -451,7 +437,7 @@ static int wl1271_ap_hw_init(struct wl1271 *wl)
 	if (ret < 0)
 		return ret;
 
-	ret = wl1271_acx_ap_mem_cfg(wl);
+	ret = wl12xx_acx_mem_cfg(wl);
 	if (ret < 0)
 		return ret;
 
@@ -483,7 +469,7 @@ int wl1271_ap_init_templates(struct wl1271 *wl)
 	 * when operating as AP we want to receive external beacons for
 	 * configuring ERP protection.
 	 */
-	ret = wl1271_acx_set_ap_beacon_filter(wl, false);
+	ret = wl1271_acx_beacon_filter_opt(wl, false);
 	if (ret < 0)
 		return ret;
 
@@ -515,7 +501,7 @@ int wl1271_init_ap_rates(struct wl1271 *wl)
 		return ret;
 
 	/* use the min basic rate for AP broadcast/multicast */
-	rc.enabled_rates = wl1271_tx_min_rate_get(wl);
+	rc.enabled_rates = wl1271_tx_min_rate_get(wl, wl->basic_rate_set);
 	rc.short_retry_limit = 10;
 	rc.long_retry_limit = 10;
 	rc.aflags = 0;
@@ -532,6 +518,9 @@ int wl1271_init_ap_rates(struct wl1271 *wl)
 	else
 		supported_rates = CONF_TX_AP_ENABLED_RATES;
 
+	/* unconditionally enable HT rates */
+	supported_rates |= CONF_TX_MCS_RATES;
+
 	/* configure unicast TX rate classes */
 	for (i = 0; i < wl->conf.tx.ac_conf_count; i++) {
 		rc.enabled_rates = supported_rates;
@@ -546,41 +535,24 @@ int wl1271_init_ap_rates(struct wl1271 *wl)
 	return 0;
 }
 
-static void wl1271_check_ba_support(struct wl1271 *wl)
-{
-	/* validate FW cose ver x.x.x.50-60.x */
-	if ((wl->chip.fw_ver[3] >= WL12XX_BA_SUPPORT_FW_COST_VER2_START) &&
-	    (wl->chip.fw_ver[3] < WL12XX_BA_SUPPORT_FW_COST_VER2_END)) {
-		wl->ba_support = true;
-		return;
-	}
-
-	wl->ba_support = false;
-}
-
 static int wl1271_set_ba_policies(struct wl1271 *wl)
 {
-	u8 tid_index;
-	int ret = 0;
-
 	/* Reset the BA RX indicators */
 	wl->ba_rx_bitmap = 0;
 	wl->ba_allowed = true;
+	wl->ba_rx_session_count = 0;
 
-	/* validate that FW support BA */
-	wl1271_check_ba_support(wl);
+	/* BA is supported in STA/AP modes */
+	if (wl->bss_type != BSS_TYPE_AP_BSS &&
+	    wl->bss_type != BSS_TYPE_STA_BSS) {
+		wl->ba_support = false;
+		return 0;
+	}
 
-	if (wl->ba_support)
-		/* 802.11n initiator BA session setting */
-		for (tid_index = 0; tid_index < CONF_TX_MAX_TID_COUNT;
-		     ++tid_index) {
-			ret = wl1271_acx_set_ba_session(wl, WLAN_BACK_INITIATOR,
-							tid_index, true);
-			if (ret < 0)
-				break;
-		}
+	wl->ba_support = true;
 
-	return ret;
+	/* 802.11n initiator BA session setting */
+	return wl12xx_acx_set_ba_initiator_policy(wl);
 }
 
 int wl1271_chip_specific_init(struct wl1271 *wl)
@@ -650,11 +622,7 @@ int wl1271_hw_init(struct wl1271 *wl)
 		return ret;
 
 	/* RX config */
-	ret = wl1271_init_rx_config(wl,
-				    RX_CFG_PROMISCUOUS | RX_CFG_TSF,
-				    RX_FILTER_OPTION_DEF);
-	/* RX_CONFIG_OPTION_ANY_DST_ANY_BSS,
-	   RX_FILTER_OPTION_FILTER_ALL); */
+	ret = wl12xx_init_rx_config(wl);
 	if (ret < 0)
 		goto out_free_memmap;
 
@@ -733,8 +701,17 @@ int wl1271_hw_init(struct wl1271 *wl)
 	if (ret < 0)
 		goto out_free_memmap;
 
+	ret = wl12xx_acx_set_rate_mgmt_params(wl);
+	if (ret < 0)
+		goto out_free_memmap;
+
 	/* Configure initiator BA sessions policies */
 	ret = wl1271_set_ba_policies(wl);
+	if (ret < 0)
+		goto out_free_memmap;
+
+	/* configure hangover */
+	ret = wl12xx_acx_config_hangover(wl);
 	if (ret < 0)
 		goto out_free_memmap;
 

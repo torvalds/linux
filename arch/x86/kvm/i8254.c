@@ -713,14 +713,16 @@ struct kvm_pit *kvm_create_pit(struct kvm *kvm, u32 flags)
 	kvm_register_irq_mask_notifier(kvm, 0, &pit->mask_notifier);
 
 	kvm_iodevice_init(&pit->dev, &pit_dev_ops);
-	ret = kvm_io_bus_register_dev(kvm, KVM_PIO_BUS, &pit->dev);
+	ret = kvm_io_bus_register_dev(kvm, KVM_PIO_BUS, KVM_PIT_BASE_ADDRESS,
+				      KVM_PIT_MEM_LENGTH, &pit->dev);
 	if (ret < 0)
 		goto fail;
 
 	if (flags & KVM_PIT_SPEAKER_DUMMY) {
 		kvm_iodevice_init(&pit->speaker_dev, &speaker_dev_ops);
 		ret = kvm_io_bus_register_dev(kvm, KVM_PIO_BUS,
-						&pit->speaker_dev);
+					      KVM_SPEAKER_BASE_ADDRESS, 4,
+					      &pit->speaker_dev);
 		if (ret < 0)
 			goto fail_unregister;
 	}

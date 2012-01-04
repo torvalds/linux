@@ -187,13 +187,12 @@ out:
 
 static int pmbus_remove(struct i2c_client *client)
 {
-	int ret;
 	const struct pmbus_driver_info *info;
 
 	info = pmbus_get_driver_info(client);
-	ret = pmbus_do_remove(client);
+	pmbus_do_remove(client);
 	kfree(info);
-	return ret;
+	return 0;
 }
 
 /*
@@ -205,10 +204,13 @@ static const struct i2c_device_id pmbus_id[] = {
 	{"bmr451", 1},
 	{"bmr453", 1},
 	{"bmr454", 1},
-	{"ltc2978", 8},
 	{"ncp4200", 1},
 	{"ncp4208", 1},
+	{"pdt003", 1},
+	{"pdt006", 1},
+	{"pdt012", 1},
 	{"pmbus", 0},
+	{"udt020", 1},
 	{}
 };
 

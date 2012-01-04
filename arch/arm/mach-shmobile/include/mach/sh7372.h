@@ -479,7 +479,12 @@ struct platform_device;
 
 struct sh7372_pm_domain {
 	struct generic_pm_domain genpd;
+	struct dev_power_governor *gov;
+	void (*suspend)(void);
+	void (*resume)(void);
 	unsigned int bit_shift;
+	bool no_debug;
+	bool stay_on;
 };
 
 static inline struct sh7372_pm_domain *to_sh7372_pd(struct generic_pm_domain *d)
@@ -491,16 +496,24 @@ static inline struct sh7372_pm_domain *to_sh7372_pd(struct generic_pm_domain *d)
 extern struct sh7372_pm_domain sh7372_a4lc;
 extern struct sh7372_pm_domain sh7372_a4mp;
 extern struct sh7372_pm_domain sh7372_d4;
+extern struct sh7372_pm_domain sh7372_a4r;
 extern struct sh7372_pm_domain sh7372_a3rv;
 extern struct sh7372_pm_domain sh7372_a3ri;
+extern struct sh7372_pm_domain sh7372_a3sp;
 extern struct sh7372_pm_domain sh7372_a3sg;
 
 extern void sh7372_init_pm_domain(struct sh7372_pm_domain *sh7372_pd);
 extern void sh7372_add_device_to_domain(struct sh7372_pm_domain *sh7372_pd,
 					struct platform_device *pdev);
+extern void sh7372_pm_add_subdomain(struct sh7372_pm_domain *sh7372_pd,
+				    struct sh7372_pm_domain *sh7372_sd);
 #else
 #define sh7372_init_pm_domain(pd) do { } while(0)
 #define sh7372_add_device_to_domain(pd, pdev) do { } while(0)
+#define sh7372_pm_add_subdomain(pd, sd) do { } while(0)
 #endif /* CONFIG_PM */
+
+extern void sh7372_intcs_suspend(void);
+extern void sh7372_intcs_resume(void);
 
 #endif /* __ASM_SH7372_H__ */

@@ -7,6 +7,7 @@
  */
 
 #include <linux/slab.h>
+#include <linux/export.h>
 #include <asm/sn/types.h>
 #include <asm/sn/addrs.h>
 #include <asm/sn/io.h>

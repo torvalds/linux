@@ -28,7 +28,7 @@
 #include <linux/firmware.h>
 #include <linux/pnp.h>
 #include <linux/spinlock.h>
-#include <linux/moduleparam.h>
+#include <linux/module.h>
 #include <asm/dma.h>
 #include <sound/core.h>
 #include <sound/wss.h>
@@ -825,8 +825,7 @@ static int __devinit create_mpu401(struct snd_card *card, int devnum,
 	int err;
 
 	err = snd_mpu401_uart_new(card, devnum, MPU401_HW_MPU401, port,
-				  MPU401_INFO_INTEGRATED, irq, IRQF_DISABLED,
-				  &rawmidi);
+				  MPU401_INFO_INTEGRATED, irq, &rawmidi);
 	if (err == 0) {
 		struct snd_mpu401 *mpu = rawmidi->private_data;
 		mpu->open_input = mpu401_open;

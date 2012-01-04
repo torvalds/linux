@@ -108,6 +108,9 @@ static int inet_csk_diag_fill(struct sock *sk,
 		       icsk->icsk_ca_ops->name);
 	}
 
+	if ((ext & (1 << (INET_DIAG_TOS - 1))) && (sk->sk_family != AF_INET6))
+		RTA_PUT_U8(skb, INET_DIAG_TOS, inet->tos);
+
 	r->idiag_family = sk->sk_family;
 	r->idiag_state = sk->sk_state;
 	r->idiag_timer = 0;
@@ -130,6 +133,8 @@ static int inet_csk_diag_fill(struct sock *sk,
 			       &np->rcv_saddr);
 		ipv6_addr_copy((struct in6_addr *)r->id.idiag_dst,
 			       &np->daddr);
+		if (ext & (1 << (INET_DIAG_TOS - 1)))
+			RTA_PUT_U8(skb, INET_DIAG_TOS, np->tclass);
 	}
 #endif
 

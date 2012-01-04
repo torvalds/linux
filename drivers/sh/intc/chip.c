@@ -186,7 +186,7 @@ static unsigned char intc_irq_sense_table[IRQ_TYPE_SENSE_MASK + 1] = {
     !defined(CONFIG_CPU_SUBTYPE_SH7709)
 	[IRQ_TYPE_LEVEL_HIGH] = VALID(3),
 #endif
-#if defined(CONFIG_ARCH_SH7372)
+#if defined(CONFIG_ARM) /* all recent SH-Mobile / R-Mobile ARM support this */
 	[IRQ_TYPE_EDGE_BOTH] = VALID(4),
 #endif
 };
@@ -202,11 +202,16 @@ static int intc_set_type(struct irq_data *data, unsigned int type)
 	if (!value)
 		return -EINVAL;
 
+	value &= ~SENSE_VALID_FLAG;
+
 	ihp = intc_find_irq(d->sense, d->nr_sense, irq);
 	if (ihp) {
+		/* PINT has 2-bit sense registers, should fail on EDGE_BOTH */
+		if (value >= (1 << _INTC_WIDTH(ihp->handle)))
+			return -EINVAL;
+
 		addr = INTC_REG(d, _INTC_ADDR_E(ihp->handle), 0);
-		intc_reg_fns[_INTC_FN(ihp->handle)](addr, ihp->handle,
-						    value & ~SENSE_VALID_FLAG);
+		intc_reg_fns[_INTC_FN(ihp->handle)](addr, ihp->handle, value);
 	}
 
 	return 0;

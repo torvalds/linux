@@ -80,6 +80,7 @@
 #include <linux/posix-timers.h>
 #include <linux/syslog.h>
 #include <linux/user_namespace.h>
+#include <linux/export.h>
 
 #include "avc.h"
 #include "objsec.h"
@@ -89,14 +90,14 @@
 #include "xfrm.h"
 #include "netlabel.h"
 #include "audit.h"
+#include "avc_ss.h"
 
 #define NUM_SEL_MNT_OPTS 5
 
-extern int selinux_nlmsg_lookup(u16 sclass, u16 nlmsg_type, u32 *perm);
 extern struct security_operations *security_ops;
 
 /* SECMARK reference count */
-atomic_t selinux_secmark_refcount = ATOMIC_INIT(0);
+static atomic_t selinux_secmark_refcount = ATOMIC_INIT(0);
 
 #ifdef CONFIG_SECURITY_SELINUX_DEVELOP
 int selinux_enforcing;
@@ -278,10 +279,6 @@ static void superblock_free_security(struct super_block *sb)
 	sb->s_security = NULL;
 	kfree(sbsec);
 }
-
-/* The security server must be initialized before
-   any labeling or access decisions can be provided. */
-extern int ss_initialized;
 
 /* The file system's label must be initialized prior to use. */
 
@@ -2096,9 +2093,6 @@ static int selinux_bprm_secureexec(struct linux_binprm *bprm)
 
 	return (atsecure || cap_bprm_secureexec(bprm));
 }
-
-extern struct vfsmount *selinuxfs_mount;
-extern struct dentry *selinux_null;
 
 /* Derived from fs/exec.c:flush_old_files. */
 static inline void flush_unauthorized_files(const struct cred *cred,
@@ -5803,8 +5797,6 @@ static int selinux_disabled;
 
 int selinux_disable(void)
 {
-	extern void exit_sel_fs(void);
-
 	if (ss_initialized) {
 		/* Not permitted after initial policy load. */
 		return -EINVAL;

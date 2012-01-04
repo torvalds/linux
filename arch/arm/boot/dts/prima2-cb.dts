@@ -39,9 +39,12 @@
 		ranges = <0x40000000 0x40000000 0x80000000>;
 
 		l2-cache-controller@80040000 {
-			compatible = "arm,pl310-cache";
+			compatible = "arm,pl310-cache", "sirf,prima2-pl310-cache";
 			reg = <0x80040000 0x1000>;
 			interrupts = <59>;
+			arm,tag-latency = <1 1 1>;
+			arm,data-latency = <1 1 1>;
+			arm,filter-ranges = <0 0x40000000>;
 		};
 
 		intc: interrupt-controller@80020000 {
@@ -66,6 +69,11 @@
 			reset-controller@88010000 {
 				compatible = "sirf,prima2-rstc";
 				reg = <0x88010000 0x1000>;
+			};
+
+			rsc-controller@88020000 {
+				compatible = "sirf,prima2-rsc";
+				reg = <0x88020000 0x1000>;
 			};
 		};
 
@@ -274,7 +282,7 @@
 			gpio: gpio-controller@b0120000 {
 				#gpio-cells = <2>;
 				#interrupt-cells = <2>;
-				compatible = "sirf,prima2-gpio";
+				compatible = "sirf,prima2-gpio-pinmux";
 				reg = <0xb0120000 0x10000>;
 				gpio-controller;
 				interrupt-controller;
@@ -358,7 +366,7 @@
 		};
 
 		rtc-iobg {
-			compatible = "sirf,prima2-rtciobg", "simple-bus";
+			compatible = "sirf,prima2-rtciobg", "sirf-prima2-rtciobg-bus";
 			#address-cells = <1>;
 			#size-cells = <1>;
 			reg = <0x80030000 0x10000>;

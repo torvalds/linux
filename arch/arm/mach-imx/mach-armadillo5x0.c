@@ -314,23 +314,17 @@ static struct mtd_partition armadillo5x0_nor_flash_partitions[] = {
 	},
 };
 
-static struct physmap_flash_data armadillo5x0_nor_flash_pdata = {
+static const struct physmap_flash_data
+		armadillo5x0_nor_flash_pdata __initconst = {
 	.width		= 2,
 	.parts		= armadillo5x0_nor_flash_partitions,
 	.nr_parts	= ARRAY_SIZE(armadillo5x0_nor_flash_partitions),
 };
 
-static struct resource armadillo5x0_nor_flash_resource = {
+static const struct resource armadillo5x0_nor_flash_resource __initconst = {
 	.flags		= IORESOURCE_MEM,
 	.start		= MX31_CS0_BASE_ADDR,
 	.end		= MX31_CS0_BASE_ADDR + SZ_64M - 1,
-};
-
-static struct platform_device armadillo5x0_nor_flash = {
-	.name			= "physmap-flash",
-	.id			= -1,
-	.num_resources		= 1,
-	.resource		= &armadillo5x0_nor_flash_resource,
 };
 
 /*
@@ -514,8 +508,10 @@ static void __init armadillo5x0_init(void)
 	imx31_add_mx3_sdc_fb(&mx3fb_pdata);
 
 	/* Register NOR Flash */
-	mxc_register_device(&armadillo5x0_nor_flash,
-			    &armadillo5x0_nor_flash_pdata);
+	platform_device_register_resndata(NULL, "physmap-flash", -1,
+			&armadillo5x0_nor_flash_resource, 1,
+			&armadillo5x0_nor_flash_pdata,
+			sizeof(armadillo5x0_nor_flash_pdata));
 
 	/* Register NAND Flash */
 	imx31_add_mxc_nand(&armadillo5x0_nand_board_info);
@@ -558,10 +554,11 @@ static struct sys_timer armadillo5x0_timer = {
 
 MACHINE_START(ARMADILLO5X0, "Armadillo-500")
 	/* Maintainer: Alberto Panizzo  */
-	.boot_params = MX3x_PHYS_OFFSET + 0x100,
+	.atag_offset = 0x100,
 	.map_io = mx31_map_io,
 	.init_early = imx31_init_early,
 	.init_irq = mx31_init_irq,
+	.handle_irq = imx31_handle_irq,
 	.timer = &armadillo5x0_timer,
 	.init_machine = armadillo5x0_init,
 MACHINE_END

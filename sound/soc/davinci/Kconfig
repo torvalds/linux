@@ -29,7 +29,6 @@ choice
 	prompt "DM365 codec select"
 	depends on SND_DAVINCI_SOC_EVM
 	depends on MACH_DAVINCI_DM365_EVM
-	default SND_DM365_EXTERNAL_CODEC
 
 config SND_DM365_AIC3X_CODEC
 	bool "Audio Codec - AIC3101"

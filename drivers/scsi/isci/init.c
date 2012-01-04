@@ -118,7 +118,7 @@ unsigned char phy_gen = 3;
 module_param(phy_gen, byte, 0);
 MODULE_PARM_DESC(phy_gen, "PHY generation (1: 1.5Gbps 2: 3.0Gbps 3: 6.0Gbps)");
 
-unsigned char max_concurr_spinup = 1;
+unsigned char max_concurr_spinup;
 module_param(max_concurr_spinup, byte, 0);
 MODULE_PARM_DESC(max_concurr_spinup, "Max concurrent device spinup");
 
@@ -192,6 +192,9 @@ static struct sas_domain_function_template isci_transport_ops  = {
 
 	/* Phy management */
 	.lldd_control_phy	= isci_phy_control,
+
+	/* GPIO support */
+	.lldd_write_gpio	= isci_gpio_write,
 };
 
 

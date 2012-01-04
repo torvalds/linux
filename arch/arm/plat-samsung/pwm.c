@@ -299,6 +299,9 @@ static int s3c_pwm_probe(struct platform_device *pdev)
 		goto err_clk_tin;
 	}
 
+	clk_enable(pwm->clk);
+	clk_enable(pwm->clk_div);
+
 	local_irq_save(flags);
 
 	tcon = __raw_readl(S3C2410_TCON);
@@ -326,6 +329,8 @@ static int s3c_pwm_probe(struct platform_device *pdev)
 	return 0;
 
  err_clk_tdiv:
+	clk_disable(pwm->clk_div);
+	clk_disable(pwm->clk);
 	clk_put(pwm->clk_div);
 
  err_clk_tin:
@@ -340,6 +345,8 @@ static int __devexit s3c_pwm_remove(struct platform_device *pdev)
 {
 	struct pwm_device *pwm = platform_get_drvdata(pdev);
 
+	clk_disable(pwm->clk_div);
+	clk_disable(pwm->clk);
 	clk_put(pwm->clk_div);
 	clk_put(pwm->clk);
 	kfree(pwm);

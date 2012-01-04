@@ -48,6 +48,9 @@ struct r8a66597_platdata {
 
 	/* (external controller only) set one = WR0_N shorted to WR1_N */
 	unsigned	wr0_shorted_to_wr1:1;
+
+	/* set one = using SUDMAC */
+	unsigned	sudmac:1;
 };
 
 /* Register definitions */
@@ -416,6 +419,63 @@ struct r8a66597_platdata {
 #define	HUBPORT		0x0700
 #define	USBSPD		0x00C0
 #define	RTPORT		0x0001
+
+/* SUDMAC registers */
+#define CH0CFG		0x00
+#define CH1CFG		0x04
+#define CH0BA		0x10
+#define CH1BA		0x14
+#define CH0BBC		0x18
+#define CH1BBC		0x1C
+#define CH0CA		0x20
+#define CH1CA		0x24
+#define CH0CBC		0x28
+#define CH1CBC		0x2C
+#define CH0DEN		0x30
+#define CH1DEN		0x34
+#define DSTSCLR		0x38
+#define DBUFCTRL	0x3C
+#define DINTCTRL	0x40
+#define DINTSTS		0x44
+#define DINTSTSCLR	0x48
+#define CH0SHCTRL	0x50
+#define CH1SHCTRL	0x54
+
+/* SUDMAC Configuration Registers */
+#define SENDBUFM	0x1000 /* b12: Transmit Buffer Mode */
+#define RCVENDM		0x0100 /* b8: Receive Data Transfer End Mode */
+#define LBA_WAIT	0x0030 /* b5-4: Local Bus Access Wait */
+
+/* DMA Enable Registers */
+#define DEN		0x0001 /* b1: DMA Transfer Enable */
+
+/* DMA Status Clear Register */
+#define CH1STCLR	0x0002 /* b2: Ch1 DMA Status Clear */
+#define CH0STCLR	0x0001 /* b1: Ch0 DMA Status Clear */
+
+/* DMA Buffer Control Register */
+#define CH1BUFW		0x0200 /* b9: Ch1 DMA Buffer Data Transfer Enable */
+#define CH0BUFW		0x0100 /* b8: Ch0 DMA Buffer Data Transfer Enable */
+#define CH1BUFS		0x0002 /* b2: Ch1 DMA Buffer Data Status */
+#define CH0BUFS		0x0001 /* b1: Ch0 DMA Buffer Data Status */
+
+/* DMA Interrupt Control Register */
+#define CH1ERRE		0x0200 /* b9: Ch1 SHwy Res Err Detect Int Enable */
+#define CH0ERRE		0x0100 /* b8: Ch0 SHwy Res Err Detect Int Enable */
+#define CH1ENDE		0x0002 /* b2: Ch1 DMA Transfer End Int Enable */
+#define CH0ENDE		0x0001 /* b1: Ch0 DMA Transfer End Int Enable */
+
+/* DMA Interrupt Status Register */
+#define CH1ERRS		0x0200 /* b9: Ch1 SHwy Res Err Detect Int Status */
+#define CH0ERRS		0x0100 /* b8: Ch0 SHwy Res Err Detect Int Status */
+#define CH1ENDS		0x0002 /* b2: Ch1 DMA Transfer End Int Status */
+#define CH0ENDS		0x0001 /* b1: Ch0 DMA Transfer End Int Status */
+
+/* DMA Interrupt Status Clear Register */
+#define CH1ERRC		0x0200 /* b9: Ch1 SHwy Res Err Detect Int Stat Clear */
+#define CH0ERRC		0x0100 /* b8: Ch0 SHwy Res Err Detect Int Stat Clear */
+#define CH1ENDC		0x0002 /* b2: Ch1 DMA Transfer End Int Stat Clear */
+#define CH0ENDC		0x0001 /* b1: Ch0 DMA Transfer End Int Stat Clear */
 
 #endif /* __LINUX_USB_R8A66597_H */
 

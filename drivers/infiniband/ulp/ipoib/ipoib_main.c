@@ -998,7 +998,7 @@ static const struct net_device_ops ipoib_netdev_ops = {
 	.ndo_fix_features	 = ipoib_fix_features,
 	.ndo_start_xmit	 	 = ipoib_start_xmit,
 	.ndo_tx_timeout		 = ipoib_timeout,
-	.ndo_set_multicast_list	 = ipoib_set_mcast_list,
+	.ndo_set_rx_mode	 = ipoib_set_mcast_list,
 	.ndo_neigh_setup	 = ipoib_neigh_setup_dev,
 };
 

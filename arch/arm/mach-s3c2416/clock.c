@@ -21,13 +21,20 @@
 #include <plat/cpu.h>
 
 #include <plat/cpu-freq.h>
-#include <plat/pll6553x.h>
 #include <plat/pll.h>
 
 #include <asm/mach/map.h>
 
 #include <mach/regs-clock.h>
 #include <mach/regs-s3c2443-clock.h>
+
+/* armdiv
+ *
+ * this clock is sourced from msysclk and can have a number of
+ * divider values applied to it to then be fed into armclk.
+ * The real clock definition is done in s3c2443-clock.c,
+ * only the armdiv divisor table must be defined here.
+*/
 
 static unsigned int armdiv[8] = {
 	[0] = 1,
@@ -36,6 +43,32 @@ static unsigned int armdiv[8] = {
 	[3] = 4,
 	[5] = 6,
 	[7] = 8,
+};
+
+static struct clksrc_clk hsspi_eplldiv = {
+	.clk = {
+		.name	= "hsspi-eplldiv",
+		.parent	= &clk_esysclk.clk,
+		.ctrlbit = (1 << 14),
+		.enable = s3c2443_clkcon_enable_s,
+	},
+	.reg_div = { .reg = S3C2443_CLKDIV1, .size = 2, .shift = 24 },
+};
+
+static struct clk *hsspi_sources[] = {
+	[0] = &hsspi_eplldiv.clk,
+	[1] = NULL, /* to fix */
+};
+
+static struct clksrc_clk hsspi_mux = {
+	.clk	= {
+		.name	= "hsspi-if",
+	},
+	.sources = &(struct clksrc_sources) {
+		.sources = hsspi_sources,
+		.nr_sources = ARRAY_SIZE(hsspi_sources),
+	},
+	.reg_src = { .reg = S3C2443_CLKSRC, .size = 1, .shift = 18 },
 };
 
 static struct clksrc_clk hsmmc_div[] = {
@@ -100,20 +133,15 @@ static struct clk hsmmc0_clk = {
 	.ctrlbit	= S3C2416_HCLKCON_HSMMC0,
 };
 
-static inline unsigned int s3c2416_fclk_div(unsigned long clkcon0)
-{
-	clkcon0 &= 7 << S3C2443_CLKDIV0_ARMDIV_SHIFT;
-
-	return armdiv[clkcon0 >> S3C2443_CLKDIV0_ARMDIV_SHIFT];
-}
-
 void __init_or_cpufreq s3c2416_setup_clocks(void)
 {
-	s3c2443_common_setup_clocks(s3c2416_get_pll, s3c2416_fclk_div);
+	s3c2443_common_setup_clocks(s3c2416_get_pll);
 }
 
 
 static struct clksrc_clk *clksrcs[] __initdata = {
+	&hsspi_eplldiv,
+	&hsspi_mux,
 	&hsmmc_div[0],
 	&hsmmc_div[1],
 	&hsmmc_mux[0],
@@ -131,7 +159,9 @@ void __init s3c2416_init_clocks(int xtal)
 
 	clk_epll.parent = &clk_epllref.clk;
 
-	s3c2443_common_init_clocks(xtal, s3c2416_get_pll, s3c2416_fclk_div);
+	s3c2443_common_init_clocks(xtal, s3c2416_get_pll,
+				   armdiv, ARRAY_SIZE(armdiv),
+				   S3C2416_CLKDIV0_ARMDIV_MASK);
 
 	for (ptr = 0; ptr < ARRAY_SIZE(clksrcs); ptr++)
 		s3c_register_clksrc(clksrcs[ptr], 1);

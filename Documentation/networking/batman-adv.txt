@@ -1,4 +1,4 @@
-[state: 17-04-2011]
+[state: 21-08-2011]
 
 BATMAN-ADV
 ----------
@@ -68,9 +68,9 @@ All  mesh  wide  settings  can be found in batman's own interface
 folder:
 
 #  ls  /sys/class/net/bat0/mesh/
-#  aggregated_ogms  gw_bandwidth  hop_penalty
-#  bonding          gw_mode       orig_interval
-#  fragmentation    gw_sel_class  vis_mode
+# aggregated_ogms   fragmentation gw_sel_class   vis_mode
+# ap_isolation      gw_bandwidth  hop_penalty
+# bonding           gw_mode       orig_interval
 
 
 There is a special folder for debugging information:

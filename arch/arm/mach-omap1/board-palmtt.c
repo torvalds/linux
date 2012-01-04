@@ -12,6 +12,7 @@
  */
 
 #include <linux/delay.h>
+#include <linux/gpio.h>
 #include <linux/kernel.h>
 #include <linux/init.h>
 #include <linux/platform_device.h>
@@ -30,7 +31,6 @@
 #include <asm/mach/map.h>
 
 #include <plat/led.h>
-#include <mach/gpio.h>
 #include <plat/flash.h>
 #include <plat/mux.h>
 #include <plat/usb.h>
@@ -263,12 +263,6 @@ static struct spi_board_info __initdata palmtt_boardinfo[] = {
 	}
 };
 
-static void __init omap_palmtt_init_irq(void)
-{
-	omap1_init_common_hw();
-	omap1_init_irq();
-}
-
 static struct omap_usb_config palmtt_usb_config __initdata = {
 	.register_dev	= 1,
 	.hmc_mode	= 0,
@@ -315,16 +309,12 @@ static void __init omap_palmtt_init(void)
 	omap_register_i2c_bus(1, 100, NULL, 0);
 }
 
-static void __init omap_palmtt_map_io(void)
-{
-	omap1_map_common_io();
-}
-
 MACHINE_START(OMAP_PALMTT, "OMAP1510 based Palm Tungsten|T")
-	.boot_params	= 0x10000100,
-	.map_io		= omap_palmtt_map_io,
+	.atag_offset	= 0x100,
+	.map_io		= omap15xx_map_io,
+	.init_early     = omap1_init_early,
 	.reserve	= omap_reserve,
-	.init_irq	= omap_palmtt_init_irq,
+	.init_irq	= omap1_init_irq,
 	.init_machine	= omap_palmtt_init,
 	.timer		= &omap1_timer,
 MACHINE_END

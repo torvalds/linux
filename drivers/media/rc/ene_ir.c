@@ -30,6 +30,8 @@
  *
  */
 
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/pnp.h>
@@ -118,31 +120,31 @@ static int ene_hw_detect(struct ene_device *dev)
 			dev->pll_freq == ENE_DEFAULT_PLL_FREQ ? 2 : 4;
 
 	if (hw_revision == 0xFF) {
-		ene_warn("device seems to be disabled");
-		ene_warn("send a mail to lirc-list@lists.sourceforge.net");
-		ene_warn("please attach output of acpidump and dmidecode");
+		pr_warn("device seems to be disabled\n");
+		pr_warn("send a mail to lirc-list@lists.sourceforge.net\n");
+		pr_warn("please attach output of acpidump and dmidecode\n");
 		return -ENODEV;
 	}
 
-	ene_notice("chip is 0x%02x%02x - kbver = 0x%02x, rev = 0x%02x",
-		chip_major, chip_minor, old_ver, hw_revision);
+	pr_notice("chip is 0x%02x%02x - kbver = 0x%02x, rev = 0x%02x\n",
+		  chip_major, chip_minor, old_ver, hw_revision);
 
-	ene_notice("PLL freq = %d", dev->pll_freq);
+	pr_notice("PLL freq = %d\n", dev->pll_freq);
 
 	if (chip_major == 0x33) {
-		ene_warn("chips 0x33xx aren't supported");
+		pr_warn("chips 0x33xx aren't supported\n");
 		return -ENODEV;
 	}
 
 	if (chip_major == 0x39 && chip_minor == 0x26 && hw_revision == 0xC0) {
 		dev->hw_revision = ENE_HW_C;
-		ene_notice("KB3926C detected");
+		pr_notice("KB3926C detected\n");
 	} else if (old_ver == 0x24 && hw_revision == 0xC0) {
 		dev->hw_revision = ENE_HW_B;
-		ene_notice("KB3926B detected");
+		pr_notice("KB3926B detected\n");
 	} else {
 		dev->hw_revision = ENE_HW_D;
-		ene_notice("KB3926D or higher detected");
+		pr_notice("KB3926D or higher detected\n");
 	}
 
 	/* detect features hardware supports */
@@ -152,7 +154,7 @@ static int ene_hw_detect(struct ene_device *dev)
 	fw_reg1 = ene_read_reg(dev, ENE_FW1);
 	fw_reg2 = ene_read_reg(dev, ENE_FW2);
 
-	ene_notice("Firmware regs: %02x %02x", fw_reg1, fw_reg2);
+	pr_notice("Firmware regs: %02x %02x\n", fw_reg1, fw_reg2);
 
 	dev->hw_use_gpio_0a = !!(fw_reg2 & ENE_FW2_GP0A);
 	dev->hw_learning_and_tx_capable = !!(fw_reg2 & ENE_FW2_LEARNING);
@@ -161,30 +163,29 @@ static int ene_hw_detect(struct ene_device *dev)
 	if (dev->hw_learning_and_tx_capable)
 		dev->hw_fan_input = !!(fw_reg2 & ENE_FW2_FAN_INPUT);
 
-	ene_notice("Hardware features:");
+	pr_notice("Hardware features:\n");
 
 	if (dev->hw_learning_and_tx_capable) {
-		ene_notice("* Supports transmitting & learning mode");
-		ene_notice("   This feature is rare and therefore,");
-		ene_notice("   you are welcome to test it,");
-		ene_notice("   and/or contact the author via:");
-		ene_notice("   lirc-list@lists.sourceforge.net");
-		ene_notice("   or maximlevitsky@gmail.com");
+		pr_notice("* Supports transmitting & learning mode\n");
+		pr_notice("   This feature is rare and therefore,\n");
+		pr_notice("   you are welcome to test it,\n");
+		pr_notice("   and/or contact the author via:\n");
+		pr_notice("   lirc-list@lists.sourceforge.net\n");
+		pr_notice("   or maximlevitsky@gmail.com\n");
 
-		ene_notice("* Uses GPIO %s for IR raw input",
-			dev->hw_use_gpio_0a ? "40" : "0A");
+		pr_notice("* Uses GPIO %s for IR raw input\n",
+			  dev->hw_use_gpio_0a ? "40" : "0A");
 
 		if (dev->hw_fan_input)
-			ene_notice("* Uses unused fan feedback input as source"
-					" of demodulated IR data");
+			pr_notice("* Uses unused fan feedback input as source of demodulated IR data\n");
 	}
 
 	if (!dev->hw_fan_input)
-		ene_notice("* Uses GPIO %s for IR demodulated input",
-			dev->hw_use_gpio_0a ? "0A" : "40");
+		pr_notice("* Uses GPIO %s for IR demodulated input\n",
+			  dev->hw_use_gpio_0a ? "0A" : "40");
 
 	if (dev->hw_extra_buffer)
-		ene_notice("* Uses new style input buffer");
+		pr_notice("* Uses new style input buffer\n");
 	return 0;
 }
 
@@ -215,13 +216,13 @@ static void ene_rx_setup_hw_buffer(struct ene_device *dev)
 
 	dev->buffer_len = dev->extra_buf1_len + dev->extra_buf2_len + 8;
 
-	ene_notice("Hardware uses 2 extended buffers:");
-	ene_notice("  0x%04x - len : %d", dev->extra_buf1_address,
-						dev->extra_buf1_len);
-	ene_notice("  0x%04x - len : %d", dev->extra_buf2_address,
-						dev->extra_buf2_len);
+	pr_notice("Hardware uses 2 extended buffers:\n");
+	pr_notice("  0x%04x - len : %d\n",
+		  dev->extra_buf1_address, dev->extra_buf1_len);
+	pr_notice("  0x%04x - len : %d\n",
+		  dev->extra_buf2_address, dev->extra_buf2_len);
 
-	ene_notice("Total buffer len = %d", dev->buffer_len);
+	pr_notice("Total buffer len = %d\n", dev->buffer_len);
 
 	if (dev->buffer_len > 64 || dev->buffer_len < 16)
 		goto error;
@@ -240,7 +241,7 @@ static void ene_rx_setup_hw_buffer(struct ene_device *dev)
 	ene_set_reg_mask(dev, ENE_FW1, ENE_FW1_EXTRA_BUF_HND);
 	return;
 error:
-	ene_warn("Error validating extra buffers, device probably won't work");
+	pr_warn("Error validating extra buffers, device probably won't work\n");
 	dev->hw_extra_buffer = false;
 	ene_clear_reg_mask(dev, ENE_FW1, ENE_FW1_EXTRA_BUF_HND);
 }
@@ -588,7 +589,7 @@ static void ene_tx_enable(struct ene_device *dev)
 		dbg("TX: Transmitter #2 is connected");
 
 	if (!(fwreg2 & (ENE_FW2_EMMITER1_CONN | ENE_FW2_EMMITER2_CONN)))
-		ene_warn("TX: transmitter cable isn't connected!");
+		pr_warn("TX: transmitter cable isn't connected!\n");
 
 	/* disable receive on revc */
 	if (dev->hw_revision == ENE_HW_C)
@@ -615,7 +616,7 @@ static void ene_tx_sample(struct ene_device *dev)
 	bool pulse = dev->tx_sample_pulse;
 
 	if (!dev->tx_buffer) {
-		ene_warn("TX: BUG: attempt to transmit NULL buffer");
+		pr_warn("TX: BUG: attempt to transmit NULL buffer\n");
 		return;
 	}
 
@@ -1049,7 +1050,7 @@ static int ene_probe(struct pnp_dev *pnp_dev, const struct pnp_device_id *id)
 		dev->hw_learning_and_tx_capable = true;
 		setup_timer(&dev->tx_sim_timer, ene_tx_irqsim,
 						(long unsigned int)dev);
-		ene_warn("Simulation of TX activated");
+		pr_warn("Simulation of TX activated\n");
 	}
 
 	if (!dev->hw_learning_and_tx_capable)
@@ -1089,7 +1090,7 @@ static int ene_probe(struct pnp_dev *pnp_dev, const struct pnp_device_id *id)
 	if (error < 0)
 		goto error;
 
-	ene_notice("driver has been successfully loaded");
+	pr_notice("driver has been successfully loaded\n");
 	return 0;
 error:
 	if (dev && dev->irq >= 0)

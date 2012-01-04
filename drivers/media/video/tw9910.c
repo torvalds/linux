@@ -22,11 +22,13 @@
 #include <linux/slab.h>
 #include <linux/kernel.h>
 #include <linux/delay.h>
+#include <linux/v4l2-mediabus.h>
 #include <linux/videodev2.h>
-#include <media/v4l2-chip-ident.h>
-#include <media/v4l2-subdev.h>
+
 #include <media/soc_camera.h>
 #include <media/tw9910.h>
+#include <media/v4l2-chip-ident.h>
+#include <media/v4l2-subdev.h>
 
 #define GET_ID(val)  ((val & 0xF8) >> 3)
 #define GET_REV(val) (val & 0x07)
@@ -203,6 +205,10 @@
 #define RTSEL_FIELD 0x06 /* 0110 = FIELD */
 #define RTSEL_RTCO  0x07 /* 0111 = RTCO ( Real Time Control ) */
 
+/* HSYNC start and end are constant for now */
+#define HSYNC_START	0x0260
+#define HSYNC_END	0x0300
+
 /*
  * structure
  */
@@ -220,22 +226,11 @@ struct tw9910_scale_ctrl {
 	u16             vscale;
 };
 
-struct tw9910_cropping_ctrl {
-	u16 vdelay;
-	u16 vactive;
-	u16 hdelay;
-	u16 hactive;
-};
-
-struct tw9910_hsync_ctrl {
-	u16 start;
-	u16 end;
-};
-
 struct tw9910_priv {
 	struct v4l2_subdev		subdev;
 	struct tw9910_video_info	*info;
 	const struct tw9910_scale_ctrl	*scale;
+	v4l2_std_id			norm;
 	u32				revision;
 };
 
@@ -329,11 +324,6 @@ static const struct tw9910_scale_ctrl tw9910_pal_scales[] = {
 	},
 };
 
-static const struct tw9910_hsync_ctrl tw9910_hsync_ctrl = {
-	.start = 0x0260,
-	.end   = 0x0300,
-};
-
 /*
  * general function
  */
@@ -378,21 +368,20 @@ static int tw9910_set_scale(struct i2c_client *client,
 	return ret;
 }
 
-static int tw9910_set_hsync(struct i2c_client *client,
-			    const struct tw9910_hsync_ctrl *hsync)
+static int tw9910_set_hsync(struct i2c_client *client)
 {
 	struct tw9910_priv *priv = to_tw9910(client);
 	int ret;
 
 	/* bit 10 - 3 */
 	ret = i2c_smbus_write_byte_data(client, HSBEGIN,
-					(hsync->start & 0x07F8) >> 3);
+					(HSYNC_START & 0x07F8) >> 3);
 	if (ret < 0)
 		return ret;
 
 	/* bit 10 - 3 */
 	ret = i2c_smbus_write_byte_data(client, HSEND,
-					(hsync->end & 0x07F8) >> 3);
+					(HSYNC_END & 0x07F8) >> 3);
 	if (ret < 0)
 		return ret;
 
@@ -400,8 +389,8 @@ static int tw9910_set_hsync(struct i2c_client *client,
 	/* bit 2 - 0 */
 	if (1 == priv->revision)
 		ret = tw9910_mask_set(client, HSLOWCTL, 0x77,
-				      (hsync->start & 0x0007) << 4 |
-				      (hsync->end   & 0x0007));
+				      (HSYNC_START & 0x0007) << 4 |
+				      (HSYNC_END   & 0x0007));
 
 	return ret;
 }
@@ -433,12 +422,11 @@ static int tw9910_power(struct i2c_client *client, int enable)
 	return tw9910_mask_set(client, ACNTL2, ACNTL2_PDN_MASK, acntl2);
 }
 
-static const struct tw9910_scale_ctrl*
-tw9910_select_norm(struct soc_camera_device *icd, u32 width, u32 height)
+static const struct tw9910_scale_ctrl *tw9910_select_norm(v4l2_std_id norm,
+							  u32 width, u32 height)
 {
 	const struct tw9910_scale_ctrl *scale;
 	const struct tw9910_scale_ctrl *ret = NULL;
-	v4l2_std_id norm = icd->vdev->current_norm;
 	__u32 diff = 0xffffffff, tmp;
 	int size, i;
 
@@ -465,7 +453,7 @@ tw9910_select_norm(struct soc_camera_device *icd, u32 width, u32 height)
 }
 
 /*
- * soc_camera_ops function
+ * subdevice operations
  */
 static int tw9910_s_stream(struct v4l2_subdev *sd, int enable)
 {
@@ -507,49 +495,27 @@ static int tw9910_s_stream(struct v4l2_subdev *sd, int enable)
 	return tw9910_power(client, enable);
 }
 
-static int tw9910_set_bus_param(struct soc_camera_device *icd,
-				unsigned long flags)
+static int tw9910_g_std(struct v4l2_subdev *sd, v4l2_std_id *norm)
 {
-	struct v4l2_subdev *sd = soc_camera_to_subdev(icd);
 	struct i2c_client *client = v4l2_get_subdevdata(sd);
-	u8 val = VSSL_VVALID | HSSL_DVALID;
-
-	/*
-	 * set OUTCTR1
-	 *
-	 * We use VVALID and DVALID signals to control VSYNC and HSYNC
-	 * outputs, in this mode their polarity is inverted.
-	 */
-	if (flags & SOCAM_HSYNC_ACTIVE_LOW)
-		val |= HSP_HI;
-
-	if (flags & SOCAM_VSYNC_ACTIVE_LOW)
-		val |= VSP_HI;
-
-	return i2c_smbus_write_byte_data(client, OUTCTR1, val);
-}
-
-static unsigned long tw9910_query_bus_param(struct soc_camera_device *icd)
-{
-	struct i2c_client *client = to_i2c_client(to_soc_camera_control(icd));
 	struct tw9910_priv *priv = to_tw9910(client);
-	struct soc_camera_link *icl = to_soc_camera_link(icd);
-	unsigned long flags = SOCAM_PCLK_SAMPLE_RISING | SOCAM_MASTER |
-		SOCAM_VSYNC_ACTIVE_HIGH | SOCAM_HSYNC_ACTIVE_HIGH |
-		SOCAM_VSYNC_ACTIVE_LOW  | SOCAM_HSYNC_ACTIVE_LOW  |
-		SOCAM_DATA_ACTIVE_HIGH | priv->info->buswidth;
 
-	return soc_camera_apply_sensor_flags(icl, flags);
+	*norm = priv->norm;
+
+	return 0;
 }
 
 static int tw9910_s_std(struct v4l2_subdev *sd, v4l2_std_id norm)
 {
-	int ret = -EINVAL;
+	struct i2c_client *client = v4l2_get_subdevdata(sd);
+	struct tw9910_priv *priv = to_tw9910(client);
 
-	if (norm & (V4L2_STD_NTSC | V4L2_STD_PAL))
-		ret = 0;
+	if (!(norm & (V4L2_STD_NTSC | V4L2_STD_PAL)))
+		return -EINVAL;
 
-	return ret;
+	priv->norm = norm;
+
+	return 0;
 }
 
 static int tw9910_g_chip_ident(struct v4l2_subdev *sd,
@@ -600,19 +566,17 @@ static int tw9910_s_register(struct v4l2_subdev *sd,
 }
 #endif
 
-static int tw9910_s_crop(struct v4l2_subdev *sd, struct v4l2_crop *a)
+static int tw9910_set_frame(struct v4l2_subdev *sd, u32 *width, u32 *height)
 {
-	struct v4l2_rect *rect = &a->c;
 	struct i2c_client *client = v4l2_get_subdevdata(sd);
 	struct tw9910_priv *priv = to_tw9910(client);
-	struct soc_camera_device *icd = client->dev.platform_data;
-	int                 ret  = -EINVAL;
-	u8                  val;
+	int ret = -EINVAL;
+	u8 val;
 
 	/*
 	 * select suitable norm
 	 */
-	priv->scale = tw9910_select_norm(icd, rect->width, rect->height);
+	priv->scale = tw9910_select_norm(priv->norm, *width, *height);
 	if (!priv->scale)
 		goto tw9910_set_fmt_error;
 
@@ -670,14 +634,12 @@ static int tw9910_s_crop(struct v4l2_subdev *sd, struct v4l2_crop *a)
 	/*
 	 * set hsync
 	 */
-	ret = tw9910_set_hsync(client, &tw9910_hsync_ctrl);
+	ret = tw9910_set_hsync(client);
 	if (ret < 0)
 		goto tw9910_set_fmt_error;
 
-	rect->width = priv->scale->width;
-	rect->height = priv->scale->height;
-	rect->left = 0;
-	rect->top = 0;
+	*width = priv->scale->width;
+	*height = priv->scale->height;
 
 	return ret;
 
@@ -694,25 +656,15 @@ static int tw9910_g_crop(struct v4l2_subdev *sd, struct v4l2_crop *a)
 	struct i2c_client *client = v4l2_get_subdevdata(sd);
 	struct tw9910_priv *priv = to_tw9910(client);
 
-	if (!priv->scale) {
-		int ret;
-		struct v4l2_crop crop = {
-			.c = {
-				.left	= 0,
-				.top	= 0,
-				.width	= 640,
-				.height	= 480,
-			},
-		};
-		ret = tw9910_s_crop(sd, &crop);
-		if (ret < 0)
-			return ret;
-	}
-
 	a->c.left	= 0;
 	a->c.top	= 0;
-	a->c.width	= priv->scale->width;
-	a->c.height	= priv->scale->height;
+	if (priv->norm & V4L2_STD_NTSC) {
+		a->c.width	= 640;
+		a->c.height	= 480;
+	} else {
+		a->c.width	= 768;
+		a->c.height	= 576;
+	}
 	a->type		= V4L2_BUF_TYPE_VIDEO_CAPTURE;
 
 	return 0;
@@ -720,14 +672,19 @@ static int tw9910_g_crop(struct v4l2_subdev *sd, struct v4l2_crop *a)
 
 static int tw9910_cropcap(struct v4l2_subdev *sd, struct v4l2_cropcap *a)
 {
+	struct i2c_client *client = v4l2_get_subdevdata(sd);
+	struct tw9910_priv *priv = to_tw9910(client);
+
 	a->bounds.left			= 0;
 	a->bounds.top			= 0;
-	a->bounds.width			= 768;
-	a->bounds.height		= 576;
-	a->defrect.left			= 0;
-	a->defrect.top			= 0;
-	a->defrect.width		= 640;
-	a->defrect.height		= 480;
+	if (priv->norm & V4L2_STD_NTSC) {
+		a->bounds.width		= 640;
+		a->bounds.height	= 480;
+	} else {
+		a->bounds.width		= 768;
+		a->bounds.height	= 576;
+	}
+	a->defrect			= a->bounds;
 	a->type				= V4L2_BUF_TYPE_VIDEO_CAPTURE;
 	a->pixelaspect.numerator	= 1;
 	a->pixelaspect.denominator	= 1;
@@ -743,15 +700,8 @@ static int tw9910_g_fmt(struct v4l2_subdev *sd,
 
 	if (!priv->scale) {
 		int ret;
-		struct v4l2_crop crop = {
-			.c = {
-				.left	= 0,
-				.top	= 0,
-				.width	= 640,
-				.height	= 480,
-			},
-		};
-		ret = tw9910_s_crop(sd, &crop);
+		u32 width = 640, height = 480;
+		ret = tw9910_set_frame(sd, &width, &height);
 		if (ret < 0)
 			return ret;
 	}
@@ -768,17 +718,7 @@ static int tw9910_g_fmt(struct v4l2_subdev *sd,
 static int tw9910_s_fmt(struct v4l2_subdev *sd,
 			struct v4l2_mbus_framefmt *mf)
 {
-	struct i2c_client *client = v4l2_get_subdevdata(sd);
-	struct tw9910_priv *priv = to_tw9910(client);
-	/* See tw9910_s_crop() - no proper cropping support */
-	struct v4l2_crop a = {
-		.c = {
-			.left	= 0,
-			.top	= 0,
-			.width	= mf->width,
-			.height	= mf->height,
-		},
-	};
+	u32 width = mf->width, height = mf->height;
 	int ret;
 
 	WARN_ON(mf->field != V4L2_FIELD_ANY &&
@@ -792,10 +732,10 @@ static int tw9910_s_fmt(struct v4l2_subdev *sd,
 
 	mf->colorspace = V4L2_COLORSPACE_JPEG;
 
-	ret = tw9910_s_crop(sd, &a);
+	ret = tw9910_set_frame(sd, &width, &height);
 	if (!ret) {
-		mf->width	= priv->scale->width;
-		mf->height	= priv->scale->height;
+		mf->width	= width;
+		mf->height	= height;
 	}
 	return ret;
 }
@@ -804,7 +744,7 @@ static int tw9910_try_fmt(struct v4l2_subdev *sd,
 			  struct v4l2_mbus_framefmt *mf)
 {
 	struct i2c_client *client = v4l2_get_subdevdata(sd);
-	struct soc_camera_device *icd = client->dev.platform_data;
+	struct tw9910_priv *priv = to_tw9910(client);
 	const struct tw9910_scale_ctrl *scale;
 
 	if (V4L2_FIELD_ANY == mf->field) {
@@ -820,7 +760,7 @@ static int tw9910_try_fmt(struct v4l2_subdev *sd,
 	/*
 	 * select suitable norm
 	 */
-	scale = tw9910_select_norm(icd, mf->width, mf->height);
+	scale = tw9910_select_norm(priv->norm, mf->width, mf->height);
 	if (!scale)
 		return -EINVAL;
 
@@ -830,15 +770,10 @@ static int tw9910_try_fmt(struct v4l2_subdev *sd,
 	return 0;
 }
 
-static int tw9910_video_probe(struct soc_camera_device *icd,
-			      struct i2c_client *client)
+static int tw9910_video_probe(struct i2c_client *client)
 {
 	struct tw9910_priv *priv = to_tw9910(client);
 	s32 id;
-
-	/* We must have a parent by now. And it cannot be a wrong one. */
-	BUG_ON(!icd->parent ||
-	       to_soc_camera_host(icd->parent)->nr != icd->iface);
 
 	/*
 	 * tw9910 only use 8 or 16 bit bus width
@@ -868,20 +803,15 @@ static int tw9910_video_probe(struct soc_camera_device *icd,
 	dev_info(&client->dev,
 		 "tw9910 Product ID %0x:%0x\n", id, priv->revision);
 
-	icd->vdev->tvnorms      = V4L2_STD_NTSC | V4L2_STD_PAL;
-	icd->vdev->current_norm = V4L2_STD_NTSC;
+	priv->norm = V4L2_STD_NTSC;
 
 	return 0;
 }
 
-static struct soc_camera_ops tw9910_ops = {
-	.set_bus_param		= tw9910_set_bus_param,
-	.query_bus_param	= tw9910_query_bus_param,
-};
-
 static struct v4l2_subdev_core_ops tw9910_subdev_core_ops = {
 	.g_chip_ident	= tw9910_g_chip_ident,
 	.s_std		= tw9910_s_std,
+	.g_std		= tw9910_g_std,
 #ifdef CONFIG_VIDEO_ADV_DEBUG
 	.g_register	= tw9910_g_register,
 	.s_register	= tw9910_s_register,
@@ -898,6 +828,45 @@ static int tw9910_enum_fmt(struct v4l2_subdev *sd, unsigned int index,
 	return 0;
 }
 
+static int tw9910_g_mbus_config(struct v4l2_subdev *sd,
+				struct v4l2_mbus_config *cfg)
+{
+	struct i2c_client *client = v4l2_get_subdevdata(sd);
+	struct soc_camera_link *icl = soc_camera_i2c_to_link(client);
+
+	cfg->flags = V4L2_MBUS_PCLK_SAMPLE_RISING | V4L2_MBUS_MASTER |
+		V4L2_MBUS_VSYNC_ACTIVE_HIGH | V4L2_MBUS_VSYNC_ACTIVE_LOW |
+		V4L2_MBUS_HSYNC_ACTIVE_HIGH | V4L2_MBUS_HSYNC_ACTIVE_LOW |
+		V4L2_MBUS_DATA_ACTIVE_HIGH;
+	cfg->type = V4L2_MBUS_PARALLEL;
+	cfg->flags = soc_camera_apply_board_flags(icl, cfg);
+
+	return 0;
+}
+
+static int tw9910_s_mbus_config(struct v4l2_subdev *sd,
+				const struct v4l2_mbus_config *cfg)
+{
+	struct i2c_client *client = v4l2_get_subdevdata(sd);
+	struct soc_camera_link *icl = soc_camera_i2c_to_link(client);
+	u8 val = VSSL_VVALID | HSSL_DVALID;
+	unsigned long flags = soc_camera_apply_board_flags(icl, cfg);
+
+	/*
+	 * set OUTCTR1
+	 *
+	 * We use VVALID and DVALID signals to control VSYNC and HSYNC
+	 * outputs, in this mode their polarity is inverted.
+	 */
+	if (flags & V4L2_MBUS_HSYNC_ACTIVE_LOW)
+		val |= HSP_HI;
+
+	if (flags & V4L2_MBUS_VSYNC_ACTIVE_LOW)
+		val |= VSP_HI;
+
+	return i2c_smbus_write_byte_data(client, OUTCTR1, val);
+}
+
 static struct v4l2_subdev_video_ops tw9910_subdev_video_ops = {
 	.s_stream	= tw9910_s_stream,
 	.g_mbus_fmt	= tw9910_g_fmt,
@@ -905,8 +874,9 @@ static struct v4l2_subdev_video_ops tw9910_subdev_video_ops = {
 	.try_mbus_fmt	= tw9910_try_fmt,
 	.cropcap	= tw9910_cropcap,
 	.g_crop		= tw9910_g_crop,
-	.s_crop		= tw9910_s_crop,
 	.enum_mbus_fmt	= tw9910_enum_fmt,
+	.g_mbus_config	= tw9910_g_mbus_config,
+	.s_mbus_config	= tw9910_s_mbus_config,
 };
 
 static struct v4l2_subdev_ops tw9910_subdev_ops = {
@@ -922,22 +892,17 @@ static int tw9910_probe(struct i2c_client *client,
 			const struct i2c_device_id *did)
 
 {
-	struct tw9910_priv             *priv;
-	struct tw9910_video_info       *info;
-	struct soc_camera_device       *icd = client->dev.platform_data;
-	struct i2c_adapter             *adapter =
+	struct tw9910_priv		*priv;
+	struct tw9910_video_info	*info;
+	struct i2c_adapter		*adapter =
 		to_i2c_adapter(client->dev.parent);
-	struct soc_camera_link         *icl;
-	int                             ret;
+	struct soc_camera_link		*icl = soc_camera_i2c_to_link(client);
+	int				ret;
 
-	if (!icd) {
-		dev_err(&client->dev, "TW9910: missing soc-camera data!\n");
+	if (!icl || !icl->priv) {
+		dev_err(&client->dev, "TW9910: missing platform data!\n");
 		return -EINVAL;
 	}
-
-	icl = to_soc_camera_link(icd);
-	if (!icl || !icl->priv)
-		return -EINVAL;
 
 	info = icl->priv;
 
@@ -956,14 +921,9 @@ static int tw9910_probe(struct i2c_client *client,
 
 	v4l2_i2c_subdev_init(&priv->subdev, client, &tw9910_subdev_ops);
 
-	icd->ops     = &tw9910_ops;
-	icd->iface   = icl->bus_id;
-
-	ret = tw9910_video_probe(icd, client);
-	if (ret) {
-		icd->ops = NULL;
+	ret = tw9910_video_probe(client);
+	if (ret)
 		kfree(priv);
-	}
 
 	return ret;
 }
@@ -971,9 +931,7 @@ static int tw9910_probe(struct i2c_client *client,
 static int tw9910_remove(struct i2c_client *client)
 {
 	struct tw9910_priv *priv = to_tw9910(client);
-	struct soc_camera_device *icd = client->dev.platform_data;
 
-	icd->ops = NULL;
 	kfree(priv);
 	return 0;
 }

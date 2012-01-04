@@ -6,7 +6,7 @@
 
 #include <linux/interrupt.h>
 #include <linux/suspend.h>
-#include <linux/module.h>
+#include <linux/export.h>
 #include <linux/syscalls.h>
 #include <linux/freezer.h>
 

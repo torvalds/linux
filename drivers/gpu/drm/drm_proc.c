@@ -39,6 +39,7 @@
 
 #include <linux/seq_file.h>
 #include <linux/slab.h>
+#include <linux/export.h>
 #include "drmP.h"
 
 /***************************************************
@@ -95,7 +96,6 @@ int drm_proc_create_files(struct drm_info_list *files, int count,
 	struct drm_device *dev = minor->dev;
 	struct proc_dir_entry *ent;
 	struct drm_info_node *tmp;
-	char name[64];
 	int i, ret;
 
 	for (i = 0; i < count; i++) {
@@ -118,7 +118,7 @@ int drm_proc_create_files(struct drm_info_list *files, int count,
 				       &drm_proc_fops, tmp);
 		if (!ent) {
 			DRM_ERROR("Cannot create /proc/dri/%s/%s\n",
-				  name, files[i].name);
+				  root->name, files[i].name);
 			list_del(&tmp->list);
 			kfree(tmp);
 			ret = -1;

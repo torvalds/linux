@@ -10,6 +10,7 @@
  */
 
 #include <linux/kernel.h>
+#include <linux/export.h>
 #include <linux/device.h>
 
 #include <linux/usb/otg.h>

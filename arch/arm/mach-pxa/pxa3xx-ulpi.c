@@ -265,6 +265,7 @@ int pxa3xx_u2d_start_hc(struct usb_bus *host)
 
 	return err;
 }
+EXPORT_SYMBOL_GPL(pxa3xx_u2d_start_hc);
 
 void pxa3xx_u2d_stop_hc(struct usb_bus *host)
 {
@@ -277,6 +278,7 @@ void pxa3xx_u2d_stop_hc(struct usb_bus *host)
 
 	clk_disable(u2d->clk);
 }
+EXPORT_SYMBOL_GPL(pxa3xx_u2d_stop_hc);
 
 static int pxa3xx_u2d_probe(struct platform_device *pdev)
 {

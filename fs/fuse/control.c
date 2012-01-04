@@ -231,7 +231,7 @@ static struct dentry *fuse_ctl_add_dentry(struct dentry *parent,
 	if (iop)
 		inode->i_op = iop;
 	inode->i_fop = fop;
-	inode->i_nlink = nlink;
+	set_nlink(inode, nlink);
 	inode->i_private = fc;
 	d_add(dentry, inode);
 	return dentry;

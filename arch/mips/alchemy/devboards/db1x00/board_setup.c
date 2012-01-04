@@ -40,24 +40,6 @@
 
 #include <prom.h>
 
-#ifdef CONFIG_MIPS_DB1500
-char irq_tab_alchemy[][5] __initdata = {
-	[12] = { -1, AU1500_PCI_INTA, 0xff, 0xff, 0xff }, /* IDSEL 12 - HPT371   */
-	[13] = { -1, AU1500_PCI_INTA, AU1500_PCI_INTB, AU1500_PCI_INTC, AU1500_PCI_INTD }, /* IDSEL 13 - PCI slot */
-};
-
-#endif
-
-
-#ifdef CONFIG_MIPS_DB1550
-char irq_tab_alchemy[][5] __initdata = {
-	[11] = { -1, AU1550_PCI_INTC, 0xff, 0xff, 0xff }, /* IDSEL 11 - on-board HPT371 */
-	[12] = { -1, AU1550_PCI_INTB, AU1550_PCI_INTC, AU1550_PCI_INTD, AU1550_PCI_INTA }, /* IDSEL 12 - PCI slot 2 (left) */
-	[13] = { -1, AU1550_PCI_INTA, AU1550_PCI_INTB, AU1550_PCI_INTC, AU1550_PCI_INTD }, /* IDSEL 13 - PCI slot 1 (right) */
-};
-#endif
-
-
 #ifdef CONFIG_MIPS_BOSPORUS
 char irq_tab_alchemy[][5] __initdata = {
 	[11] = { -1, AU1500_PCI_INTA, AU1500_PCI_INTB, 0xff, 0xff }, /* IDSEL 11 - miniPCI  */
@@ -91,12 +73,6 @@ const char *get_system_type(void)
 
 
 #ifdef CONFIG_MIPS_MIRAGE
-char irq_tab_alchemy[][5] __initdata = {
-	[11] = { -1, AU1500_PCI_INTD, 0xff, 0xff, 0xff }, /* IDSEL 11 - SMI VGX */
-	[12] = { -1, 0xff, 0xff, AU1500_PCI_INTC, 0xff }, /* IDSEL 12 - PNX1300 */
-	[13] = { -1, AU1500_PCI_INTA, AU1500_PCI_INTB, 0xff, 0xff }, /* IDSEL 13 - miniPCI */
-};
-
 static void mirage_power_off(void)
 {
 	alchemy_gpio_direction_output(210, 1);
@@ -158,9 +134,7 @@ void __init board_setup(void)
 	/* initialize board register space */
 	bcsr_init(bcsr1, bcsr2);
 
-	/* Not valid for Au1550 */
-#if defined(CONFIG_IRDA) && \
-   (defined(CONFIG_SOC_AU1000) || defined(CONFIG_SOC_AU1100))
+#if defined(CONFIG_IRDA) && defined(CONFIG_AU1000_FIR)
 	{
 		u32 pin_func;
 

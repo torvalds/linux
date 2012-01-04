@@ -118,6 +118,11 @@
 			};
 		};
 
+		board-control@3,0 {
+			compatible = "fsl,p2020ds-fpga", "fsl,fpga-ngpixis";
+			reg = <0x3 0x0 0x30>;
+		};
+
 		nand@4,0 {
 			compatible = "fsl,elbc-fcm-nand";
 			reg = <0x4 0x0 0x40000>;

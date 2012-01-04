@@ -11,25 +11,35 @@
 
 #include <linux/usb.h>
 #include <linux/io.h>
+#include <linux/module.h>
 #include <linux/platform_device.h>
 #include <linux/usb/isp1760.h>
 #include <linux/usb/hcd.h>
 
 #include "isp1760-hcd.h"
 
-#ifdef CONFIG_PPC_OF
+#ifdef CONFIG_OF
+#include <linux/slab.h>
 #include <linux/of.h>
 #include <linux/of_platform.h>
+#include <linux/of_address.h>
+#include <linux/of_irq.h>
+#include <linux/of_gpio.h>
 #endif
 
 #ifdef CONFIG_PCI
 #include <linux/pci.h>
 #endif
 
-#ifdef CONFIG_PPC_OF
+#ifdef CONFIG_OF
+struct isp1760 {
+	struct usb_hcd *hcd;
+	int rst_gpio;
+};
+
 static int of_isp1760_probe(struct platform_device *dev)
 {
-	struct usb_hcd *hcd;
+	struct isp1760 *drvdata;
 	struct device_node *dp = dev->dev.of_node;
 	struct resource *res;
 	struct resource memory;
@@ -39,6 +49,11 @@ static int of_isp1760_probe(struct platform_device *dev)
 	int ret;
 	const unsigned int *prop;
 	unsigned int devflags = 0;
+	enum of_gpio_flags gpio_flags;
+
+	drvdata = kzalloc(sizeof(*drvdata), GFP_KERNEL);
+	if (!drvdata)
+		return -ENOMEM;
 
 	ret = of_address_to_resource(dp, 0, &memory);
 	if (ret)
@@ -78,32 +93,57 @@ static int of_isp1760_probe(struct platform_device *dev)
 	if (of_get_property(dp, "dreq-polarity", NULL) != NULL)
 		devflags |= ISP1760_FLAG_DREQ_POL_HIGH;
 
-	hcd = isp1760_register(memory.start, res_len, virq,
-		IRQF_SHARED | IRQF_DISABLED, &dev->dev, dev_name(&dev->dev),
-		devflags);
-	if (IS_ERR(hcd)) {
-		ret = PTR_ERR(hcd);
-		goto release_reg;
+	drvdata->rst_gpio = of_get_gpio_flags(dp, 0, &gpio_flags);
+	if (gpio_is_valid(drvdata->rst_gpio)) {
+		ret = gpio_request(drvdata->rst_gpio, dev_name(&dev->dev));
+		if (!ret) {
+			if (!(gpio_flags & OF_GPIO_ACTIVE_LOW)) {
+				devflags |= ISP1760_FLAG_RESET_ACTIVE_HIGH;
+				gpio_direction_output(drvdata->rst_gpio, 0);
+			} else {
+				gpio_direction_output(drvdata->rst_gpio, 1);
+			}
+		} else {
+			drvdata->rst_gpio = ret;
+		}
 	}
 
-	dev_set_drvdata(&dev->dev, hcd);
+	drvdata->hcd = isp1760_register(memory.start, res_len, virq,
+					IRQF_SHARED, drvdata->rst_gpio,
+					&dev->dev, dev_name(&dev->dev),
+					devflags);
+	if (IS_ERR(drvdata->hcd)) {
+		ret = PTR_ERR(drvdata->hcd);
+		goto free_gpio;
+	}
+
+	dev_set_drvdata(&dev->dev, drvdata);
 	return ret;
 
+free_gpio:
+	if (gpio_is_valid(drvdata->rst_gpio))
+		gpio_free(drvdata->rst_gpio);
 release_reg:
 	release_mem_region(memory.start, res_len);
+	kfree(drvdata);
 	return ret;
 }
 
 static int of_isp1760_remove(struct platform_device *dev)
 {
-	struct usb_hcd *hcd = dev_get_drvdata(&dev->dev);
+	struct isp1760 *drvdata = dev_get_drvdata(&dev->dev);
 
 	dev_set_drvdata(&dev->dev, NULL);
 
-	usb_remove_hcd(hcd);
-	iounmap(hcd->regs);
-	release_mem_region(hcd->rsrc_start, hcd->rsrc_len);
-	usb_put_hcd(hcd);
+	usb_remove_hcd(drvdata->hcd);
+	iounmap(drvdata->hcd->regs);
+	release_mem_region(drvdata->hcd->rsrc_start, drvdata->hcd->rsrc_len);
+	usb_put_hcd(drvdata->hcd);
+
+	if (gpio_is_valid(drvdata->rst_gpio))
+		gpio_free(drvdata->rst_gpio);
+
+	kfree(drvdata);
 	return 0;
 }
 
@@ -240,7 +280,7 @@ static int __devinit isp1761_pci_probe(struct pci_dev *dev,
 
 	dev->dev.dma_mask = NULL;
 	hcd = isp1760_register(pci_mem_phy0, memlength, dev->irq,
-		IRQF_SHARED | IRQF_DISABLED, &dev->dev, dev_name(&dev->dev),
+		IRQF_SHARED, -ENOENT, &dev->dev, dev_name(&dev->dev),
 		devflags);
 	if (IS_ERR(hcd)) {
 		ret_status = -ENODEV;
@@ -313,7 +353,7 @@ static int __devinit isp1760_plat_probe(struct platform_device *pdev)
 	resource_size_t mem_size;
 	struct isp1760_platform_data *priv = pdev->dev.platform_data;
 	unsigned int devflags = 0;
-	unsigned long irqflags = IRQF_SHARED | IRQF_DISABLED;
+	unsigned long irqflags = IRQF_SHARED;
 
 	mem_res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (!mem_res) {
@@ -351,7 +391,8 @@ static int __devinit isp1760_plat_probe(struct platform_device *pdev)
 	}
 
 	hcd = isp1760_register(mem_res->start, mem_size, irq_res->start,
-			       irqflags, &pdev->dev, dev_name(&pdev->dev), devflags);
+			       irqflags, -ENOENT,
+			       &pdev->dev, dev_name(&pdev->dev), devflags);
 	if (IS_ERR(hcd)) {
 		pr_warning("isp1760: Failed to register the HCD device\n");
 		ret = -ENODEV;
@@ -396,7 +437,7 @@ static int __init isp1760_init(void)
 	ret = platform_driver_register(&isp1760_plat_driver);
 	if (!ret)
 		any_ret = 0;
-#ifdef CONFIG_PPC_OF
+#ifdef CONFIG_OF
 	ret = platform_driver_register(&isp1760_of_driver);
 	if (!ret)
 		any_ret = 0;
@@ -416,7 +457,7 @@ module_init(isp1760_init);
 static void __exit isp1760_exit(void)
 {
 	platform_driver_unregister(&isp1760_plat_driver);
-#ifdef CONFIG_PPC_OF
+#ifdef CONFIG_OF
 	platform_driver_unregister(&isp1760_of_driver);
 #endif
 #ifdef CONFIG_PCI

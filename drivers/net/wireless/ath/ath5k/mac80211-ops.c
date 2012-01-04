@@ -41,8 +41,10 @@
  *
  */
 
+#include <net/mac80211.h>
 #include <asm/unaligned.h>
 
+#include "ath5k.h"
 #include "base.h"
 #include "reg.h"
 
@@ -137,10 +139,7 @@ ath5k_add_interface(struct ieee80211_hw *hw, struct ieee80211_vif *vif)
 	/* Any MAC address is fine, all others are included through the
 	 * filter.
 	 */
-	memcpy(&ah->lladdr, vif->addr, ETH_ALEN);
 	ath5k_hw_set_lladdr(ah, vif->addr);
-
-	memcpy(&avf->lladdr, vif->addr, ETH_ALEN);
 
 	ath5k_update_bssid_mask_and_opmode(ah, vif);
 	ret = 0;
@@ -564,7 +563,7 @@ ath5k_get_stats(struct ieee80211_hw *hw,
 
 
 static int
-ath5k_conf_tx(struct ieee80211_hw *hw, u16 queue,
+ath5k_conf_tx(struct ieee80211_hw *hw, struct ieee80211_vif *vif, u16 queue,
 	      const struct ieee80211_tx_queue_params *params)
 {
 	struct ath5k_hw *ah = hw->priv;
@@ -603,7 +602,7 @@ ath5k_conf_tx(struct ieee80211_hw *hw, u16 queue,
 
 
 static u64
-ath5k_get_tsf(struct ieee80211_hw *hw)
+ath5k_get_tsf(struct ieee80211_hw *hw, struct ieee80211_vif *vif)
 {
 	struct ath5k_hw *ah = hw->priv;
 
@@ -612,7 +611,7 @@ ath5k_get_tsf(struct ieee80211_hw *hw)
 
 
 static void
-ath5k_set_tsf(struct ieee80211_hw *hw, u64 tsf)
+ath5k_set_tsf(struct ieee80211_hw *hw, struct ieee80211_vif *vif, u64 tsf)
 {
 	struct ath5k_hw *ah = hw->priv;
 
@@ -621,7 +620,7 @@ ath5k_set_tsf(struct ieee80211_hw *hw, u64 tsf)
 
 
 static void
-ath5k_reset_tsf(struct ieee80211_hw *hw)
+ath5k_reset_tsf(struct ieee80211_hw *hw, struct ieee80211_vif *vif)
 {
 	struct ath5k_hw *ah = hw->priv;
 

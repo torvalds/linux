@@ -93,9 +93,6 @@ extern struct dvb_frontend *cxd2820r_attach(
 	struct i2c_adapter *i2c,
 	struct dvb_frontend *fe
 );
-extern struct i2c_adapter *cxd2820r_get_tuner_i2c_adapter(
-	struct dvb_frontend *fe
-);
 #else
 static inline struct dvb_frontend *cxd2820r_attach(
 	const struct cxd2820r_config *config,
@@ -104,12 +101,6 @@ static inline struct dvb_frontend *cxd2820r_attach(
 )
 {
 	printk(KERN_WARNING "%s: driver disabled by Kconfig\n", __func__);
-	return NULL;
-}
-static inline struct i2c_adapter *cxd2820r_get_tuner_i2c_adapter(
-	struct dvb_frontend *fe
-)
-{
 	return NULL;
 }
 

@@ -19,6 +19,8 @@
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
  */
 
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
 #define MODULE_NAME "mars"
 
 #include "gspca.h"
@@ -178,8 +180,8 @@ static void reg_w(struct gspca_dev *gspca_dev,
 			&alen,
 			500);	/* timeout in milliseconds */
 	if (ret < 0) {
-		err("reg write [%02x] error %d",
-			gspca_dev->usb_buf[0], ret);
+		pr_err("reg write [%02x] error %d\n",
+		       gspca_dev->usb_buf[0], ret);
 		gspca_dev->usb_err = ret;
 	}
 }

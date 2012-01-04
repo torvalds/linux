@@ -568,7 +568,7 @@ static int eeepc_led_init(struct eeepc_laptop *eeepc)
 
 static void eeepc_led_exit(struct eeepc_laptop *eeepc)
 {
-	if (eeepc->tpd_led.dev)
+	if (!IS_ERR_OR_NULL(eeepc->tpd_led.dev))
 		led_classdev_unregister(&eeepc->tpd_led);
 	if (eeepc->led_workqueue)
 		destroy_workqueue(eeepc->led_workqueue);

@@ -9,13 +9,13 @@
  * 2 of the License, or (at your option) any later version.
 */
 
+#include <linux/gpio.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/init.h>
 #include <linux/platform_device.h>
 
 #include <mach/board.h>
-#include <mach/gpio.h>
 
 
 /* ------------------------------------------------------------------------- */

@@ -18,6 +18,7 @@
  * of the OMAP PM core code.
  */
 
+#include <linux/module.h>
 #include <linux/platform_device.h>
 #include "cm2xxx_3xxx.h"
 #include "prm2xxx_3xxx.h"

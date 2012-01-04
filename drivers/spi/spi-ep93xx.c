@@ -24,6 +24,7 @@
 #include <linux/dmaengine.h>
 #include <linux/bitops.h>
 #include <linux/interrupt.h>
+#include <linux/module.h>
 #include <linux/platform_device.h>
 #include <linux/workqueue.h>
 #include <linux/sched.h>
@@ -1025,7 +1026,7 @@ static void ep93xx_spi_release_dma(struct ep93xx_spi *espi)
 		free_page((unsigned long)espi->zeropage);
 }
 
-static int __init ep93xx_spi_probe(struct platform_device *pdev)
+static int __devinit ep93xx_spi_probe(struct platform_device *pdev)
 {
 	struct spi_master *master;
 	struct ep93xx_spi_info *info;
@@ -1150,7 +1151,7 @@ fail_release_master:
 	return error;
 }
 
-static int __exit ep93xx_spi_remove(struct platform_device *pdev)
+static int __devexit ep93xx_spi_remove(struct platform_device *pdev)
 {
 	struct spi_master *master = platform_get_drvdata(pdev);
 	struct ep93xx_spi *espi = spi_master_get_devdata(master);
@@ -1196,20 +1197,10 @@ static struct platform_driver ep93xx_spi_driver = {
 		.name	= "ep93xx-spi",
 		.owner	= THIS_MODULE,
 	},
-	.remove		= __exit_p(ep93xx_spi_remove),
+	.probe		= ep93xx_spi_probe,
+	.remove		= __devexit_p(ep93xx_spi_remove),
 };
-
-static int __init ep93xx_spi_init(void)
-{
-	return platform_driver_probe(&ep93xx_spi_driver, ep93xx_spi_probe);
-}
-module_init(ep93xx_spi_init);
-
-static void __exit ep93xx_spi_exit(void)
-{
-	platform_driver_unregister(&ep93xx_spi_driver);
-}
-module_exit(ep93xx_spi_exit);
+module_platform_driver(ep93xx_spi_driver);
 
 MODULE_DESCRIPTION("EP93xx SPI Controller driver");
 MODULE_AUTHOR("Mika Westerberg <mika.westerberg@iki.fi>");

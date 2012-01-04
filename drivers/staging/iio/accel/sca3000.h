@@ -221,7 +221,7 @@ int sca3000_read_data_short(struct sca3000_state *st,
  **/
 int sca3000_write_reg(struct sca3000_state *st, u8 address, u8 val);
 
-#ifdef CONFIG_IIO_RING_BUFFER
+#ifdef CONFIG_IIO_BUFFER
 /**
  * sca3000_register_ring_funcs() setup the ring state change functions
  **/
@@ -248,7 +248,7 @@ void sca3000_unconfigure_ring(struct iio_dev *indio_dev);
  * sca3000_ring_int_process() handles ring related event pushing and escalation
  * @val:	the event code
  **/
-void sca3000_ring_int_process(u8 val, struct iio_ring_buffer *ring);
+void sca3000_ring_int_process(u8 val, struct iio_buffer *ring);
 
 #else
 static inline void sca3000_register_ring_funcs(struct iio_dev *indio_dev)

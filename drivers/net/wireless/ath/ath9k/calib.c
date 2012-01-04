@@ -16,6 +16,7 @@
 
 #include "hw.h"
 #include "hw-ops.h"
+#include <linux/export.h>
 
 /* Common calibration code */
 
@@ -63,13 +64,25 @@ static s16 ath9k_hw_get_default_nf(struct ath_hw *ah,
 	return ath9k_hw_get_nf_limits(ah, chan)->nominal;
 }
 
+s16 ath9k_hw_getchan_noise(struct ath_hw *ah, struct ath9k_channel *chan)
+{
+	s8 noise = ATH_DEFAULT_NOISE_FLOOR;
+
+	if (chan && chan->noisefloor) {
+		s8 delta = chan->noisefloor -
+			   ath9k_hw_get_default_nf(ah, chan);
+		if (delta > 0)
+			noise += delta;
+	}
+	return noise;
+}
+EXPORT_SYMBOL(ath9k_hw_getchan_noise);
 
 static void ath9k_hw_update_nfcal_hist_buffer(struct ath_hw *ah,
 					      struct ath9k_hw_cal_data *cal,
 					      int16_t *nfarray)
 {
 	struct ath_common *common = ath9k_hw_common(ah);
-	struct ieee80211_conf *conf = &common->hw->conf;
 	struct ath_nf_limits *limit;
 	struct ath9k_nfcal_hist *h;
 	bool high_nf_mid = false;
@@ -81,7 +94,7 @@ static void ath9k_hw_update_nfcal_hist_buffer(struct ath_hw *ah,
 
 	for (i = 0; i < NUM_NF_READINGS; i++) {
 		if (!(chainmask & (1 << i)) ||
-		    ((i >= AR5416_MAX_CHAINS) && !conf_is_ht40(conf)))
+		    ((i >= AR5416_MAX_CHAINS) && !IS_CHAN_HT40(ah->curchan)))
 			continue;
 
 		h[i].nfCalBuffer[h[i].currIndex] = nfarray[i];
@@ -378,6 +391,7 @@ bool ath9k_hw_getnf(struct ath_hw *ah, struct ath9k_channel *chan)
 
 	if (!caldata) {
 		chan->noisefloor = nf;
+		ah->noise = ath9k_hw_getchan_noise(ah, chan);
 		return false;
 	}
 
@@ -385,6 +399,7 @@ bool ath9k_hw_getnf(struct ath_hw *ah, struct ath9k_channel *chan)
 	caldata->nfcal_pending = false;
 	ath9k_hw_update_nfcal_hist_buffer(ah, caldata, nfarray);
 	chan->noisefloor = h[0].privNF;
+	ah->noise = ath9k_hw_getchan_noise(ah, chan);
 	return true;
 }
 

@@ -48,6 +48,7 @@ obj-$(CONFIG_FUNCTION_TRACER)	+= $(if $(CONFIG_64BIT),mcount64.o,mcount.o)
 obj-$(CONFIG_DYNAMIC_FTRACE)	+= ftrace.o
 obj-$(CONFIG_FUNCTION_GRAPH_TRACER) += ftrace.o
 obj-$(CONFIG_FTRACE_SYSCALLS)  += ftrace.o
+obj-$(CONFIG_CRASH_DUMP)	+= crash_dump.o
 
 # Kexec part
 S390_KEXEC_OBJS := machine_kexec.o crash.o

@@ -9,6 +9,7 @@
 #include <linux/usb.h>
 #include <linux/slab.h>
 #include <linux/time.h>
+#include <linux/export.h>
 #include <linux/mutex.h>
 #include <linux/debugfs.h>
 #include <linux/scatterlist.h>

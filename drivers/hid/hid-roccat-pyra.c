@@ -298,6 +298,7 @@ static ssize_t pyra_sysfs_write_settings(struct file *fp,
 	struct usb_device *usb_dev = interface_to_usbdev(to_usb_interface(dev));
 	int retval = 0;
 	int difference;
+	struct pyra_roccat_report roccat_report;
 
 	if (off != 0 || count != sizeof(struct pyra_settings))
 		return -EINVAL;
@@ -307,17 +308,23 @@ static ssize_t pyra_sysfs_write_settings(struct file *fp,
 	if (difference) {
 		retval = pyra_set_settings(usb_dev,
 				(struct pyra_settings const *)buf);
-		if (!retval)
-			memcpy(&pyra->settings, buf,
-					sizeof(struct pyra_settings));
+		if (retval) {
+			mutex_unlock(&pyra->pyra_lock);
+			return retval;
+		}
+
+		memcpy(&pyra->settings, buf,
+				sizeof(struct pyra_settings));
+
+		profile_activated(pyra, pyra->settings.startup_profile);
+
+		roccat_report.type = PYRA_MOUSE_EVENT_BUTTON_TYPE_PROFILE_2;
+		roccat_report.value = pyra->settings.startup_profile + 1;
+		roccat_report.key = 0;
+		roccat_report_event(pyra->chrdev_minor,
+				(uint8_t const *)&roccat_report);
 	}
 	mutex_unlock(&pyra->pyra_lock);
-
-	if (retval)
-		return retval;
-
-	profile_activated(pyra, pyra->settings.startup_profile);
-
 	return sizeof(struct pyra_settings);
 }
 

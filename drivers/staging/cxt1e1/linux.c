@@ -16,6 +16,7 @@
 
 #include <linux/types.h>
 #include <linux/netdevice.h>
+#include <linux/module.h>
 #include <linux/hdlc.h>
 #include <linux/if_arp.h>
 #include <linux/init.h>
@@ -1017,13 +1018,7 @@ c4_add_dev (hdw_info_t * hi, int brdno, unsigned long f0, unsigned long f1,
      **************************************************************/
 
     if (request_irq (irq0, &c4_linux_interrupt,
-#if defined(SBE_ISR_TASKLET)
-                     IRQF_DISABLED | IRQF_SHARED,
-#elif defined(SBE_ISR_IMMEDIATE)
-                     IRQF_DISABLED | IRQF_SHARED,
-#elif defined(SBE_ISR_INLINE)
                      IRQF_SHARED,
-#endif
                      ndev->name, ndev))
     {
         pr_warning("%s: MUSYCC could not get irq: %d\n", ndev->name, irq0);

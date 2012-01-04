@@ -18,6 +18,7 @@
 #include <linux/init.h>
 #include <linux/interrupt.h>
 #include <linux/errno.h>
+#include <linux/module.h>
 #include <linux/platform_device.h>
 #include <linux/spi/spi.h>
 #include <linux/spi/spi_bitbang.h>
@@ -406,18 +407,7 @@ static struct platform_driver tiny_spi_driver = {
 		.of_match_table = tiny_spi_match,
 	},
 };
-
-static int __init tiny_spi_init(void)
-{
-	return platform_driver_register(&tiny_spi_driver);
-}
-module_init(tiny_spi_init);
-
-static void __exit tiny_spi_exit(void)
-{
-	platform_driver_unregister(&tiny_spi_driver);
-}
-module_exit(tiny_spi_exit);
+module_platform_driver(tiny_spi_driver);
 
 MODULE_DESCRIPTION("OpenCores tiny SPI driver");
 MODULE_AUTHOR("Thomas Chou <thomas@wytron.com.tw>");

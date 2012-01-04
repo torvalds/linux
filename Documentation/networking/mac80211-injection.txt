@@ -23,6 +23,10 @@ radiotap headers and used to control injection:
    IEEE80211_RADIOTAP_F_FRAG: frame will be fragmented if longer than the
 			      current fragmentation threshold.
 
+ * IEEE80211_RADIOTAP_TX_FLAGS
+
+   IEEE80211_RADIOTAP_F_TX_NOACK: frame should be sent without waiting for
+				  an ACK even if it is a unicast frame
 
 The injection code can also skip all other currently defined radiotap fields
 facilitating replay of captured radiotap headers directly.

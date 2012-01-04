@@ -19,11 +19,6 @@ enum cam_bus_type {
 	FIMC_LCD_WB, /* FIFO link from LCD mixer */
 };
 
-#define FIMC_CLK_INV_PCLK	(1 << 0)
-#define FIMC_CLK_INV_VSYNC	(1 << 1)
-#define FIMC_CLK_INV_HREF	(1 << 2)
-#define FIMC_CLK_INV_HSYNC	(1 << 3)
-
 struct i2c_board_info;
 
 /**
@@ -36,7 +31,8 @@ struct i2c_board_info;
  * @csi_data_align: MIPI-CSI interface data alignment in bits
  * @i2c_bus_num: i2c control bus id the sensor is attached to
  * @mux_id: FIMC camera interface multiplexer index (separate for MIPI and ITU)
- * @flags: flags defining bus signals polarity inversion (High by default)
+ * @clk_id: index of the SoC peripheral clock for sensors
+ * @flags: the parallel bus flags defining signals polarity (V4L2_MBUS_*)
  */
 struct s5p_fimc_isp_info {
 	struct i2c_board_info *board_info;
@@ -46,6 +42,7 @@ struct s5p_fimc_isp_info {
 	u16 i2c_bus_num;
 	u16 mux_id;
 	u16 flags;
+	u8 clk_id;
 };
 
 /**
@@ -58,4 +55,13 @@ struct s5p_platform_fimc {
 	struct s5p_fimc_isp_info *isp_info;
 	int num_clients;
 };
+
+/*
+ * v4l2_device notification id. This is only for internal use in the kernel.
+ * Sensor subdevs should issue S5P_FIMC_TX_END_NOTIFY notification in single
+ * frame capture mode when there is only one VSYNC pulse issued by the sensor
+ * at begining of the frame transmission.
+ */
+#define S5P_FIMC_TX_END_NOTIFY _IO('e', 0)
+
 #endif /* S5P_FIMC_H_ */

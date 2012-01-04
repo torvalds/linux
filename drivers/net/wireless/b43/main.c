@@ -7,6 +7,7 @@
   Copyright (c) 2005-2009 Michael Buesch <m@bues.ch>
   Copyright (c) 2005 Danny van Dyk <kugelfang@gentoo.org>
   Copyright (c) 2005 Andreas Jaggi <andreas.jaggi@waterwave.ch>
+  Copyright (c) 2010-2011 Rafał Miłecki <zajec5@gmail.com>
 
   SDIO support
   Copyright (c) 2009 Albert Herranz <albert_herranz@yahoo.es>
@@ -33,11 +34,10 @@
 
 #include <linux/delay.h>
 #include <linux/init.h>
-#include <linux/moduleparam.h>
+#include <linux/module.h>
 #include <linux/if_arp.h>
 #include <linux/etherdevice.h>
 #include <linux/firmware.h>
-#include <linux/wireless.h>
 #include <linux/workqueue.h>
 #include <linux/skbuff.h>
 #include <linux/io.h>
@@ -65,9 +65,9 @@ MODULE_AUTHOR("Martin Langer");
 MODULE_AUTHOR("Stefano Brivio");
 MODULE_AUTHOR("Michael Buesch");
 MODULE_AUTHOR("Gábor Stefanik");
+MODULE_AUTHOR("Rafał Miłecki");
 MODULE_LICENSE("GPL");
 
-MODULE_FIRMWARE(B43_SUPPORTED_FIRMWARE_ID);
 MODULE_FIRMWARE("b43/ucode11.fw");
 MODULE_FIRMWARE("b43/ucode13.fw");
 MODULE_FIRMWARE("b43/ucode14.fw");
@@ -109,12 +109,13 @@ int b43_modparam_verbose = B43_VERBOSITY_DEFAULT;
 module_param_named(verbose, b43_modparam_verbose, int, 0644);
 MODULE_PARM_DESC(verbose, "Log message verbosity: 0=error, 1=warn, 2=info(default), 3=debug");
 
-static int b43_modparam_pio = B43_PIO_DEFAULT;
+static int b43_modparam_pio = 0;
 module_param_named(pio, b43_modparam_pio, int, 0644);
 MODULE_PARM_DESC(pio, "Use PIO accesses by default: 0=DMA, 1=PIO");
 
 #ifdef CONFIG_B43_BCMA
 static const struct bcma_device_id b43_bcma_tbl[] = {
+	BCMA_CORE(BCMA_MANUF_BCM, BCMA_CORE_80211, 0x11, BCMA_ANY_CLASS),
 	BCMA_CORE(BCMA_MANUF_BCM, BCMA_CORE_80211, 0x17, BCMA_ANY_CLASS),
 	BCMA_CORE(BCMA_MANUF_BCM, BCMA_CORE_80211, 0x18, BCMA_ANY_CLASS),
 	BCMA_CORE(BCMA_MANUF_BCM, BCMA_CORE_80211, 0x1D, BCMA_ANY_CLASS),
@@ -320,6 +321,10 @@ static void b43_wireless_core_exit(struct b43_wldev *dev);
 static int b43_wireless_core_init(struct b43_wldev *dev);
 static struct b43_wldev * b43_wireless_core_stop(struct b43_wldev *dev);
 static int b43_wireless_core_start(struct b43_wldev *dev);
+static void b43_op_bss_info_changed(struct ieee80211_hw *hw,
+				    struct ieee80211_vif *vif,
+				    struct ieee80211_bss_conf *conf,
+				    u32 changed);
 
 static int b43_ratelimit(struct b43_wl *wl)
 {
@@ -724,52 +729,59 @@ void b43_dummy_transmission(struct b43_wldev *dev, bool ofdm, bool pa_on)
 	for (i = 0; i < 5; i++)
 		b43_ram_write(dev, i * 4, buffer[i]);
 
-	b43_write16(dev, 0x0568, 0x0000);
+	b43_write16(dev, B43_MMIO_XMTSEL, 0x0000);
+
 	if (dev->dev->core_rev < 11)
-		b43_write16(dev, 0x07C0, 0x0000);
+		b43_write16(dev, B43_MMIO_WEPCTL, 0x0000);
 	else
-		b43_write16(dev, 0x07C0, 0x0100);
+		b43_write16(dev, B43_MMIO_WEPCTL, 0x0100);
+
 	value = (ofdm ? 0x41 : 0x40);
-	b43_write16(dev, 0x050C, value);
-	if ((phy->type == B43_PHYTYPE_N) || (phy->type == B43_PHYTYPE_LP))
-		b43_write16(dev, 0x0514, 0x1A02);
-	b43_write16(dev, 0x0508, 0x0000);
-	b43_write16(dev, 0x050A, 0x0000);
-	b43_write16(dev, 0x054C, 0x0000);
-	b43_write16(dev, 0x056A, 0x0014);
-	b43_write16(dev, 0x0568, 0x0826);
-	b43_write16(dev, 0x0500, 0x0000);
-	if (!pa_on && (phy->type == B43_PHYTYPE_N)) {
-		//SPEC TODO
-	}
+	b43_write16(dev, B43_MMIO_TXE0_PHYCTL, value);
+	if (phy->type == B43_PHYTYPE_N || phy->type == B43_PHYTYPE_LP ||
+	    phy->type == B43_PHYTYPE_LCN)
+		b43_write16(dev, B43_MMIO_TXE0_PHYCTL1, 0x1A02);
+
+	b43_write16(dev, B43_MMIO_TXE0_WM_0, 0x0000);
+	b43_write16(dev, B43_MMIO_TXE0_WM_1, 0x0000);
+
+	b43_write16(dev, B43_MMIO_XMTTPLATETXPTR, 0x0000);
+	b43_write16(dev, B43_MMIO_XMTTXCNT, 0x0014);
+	b43_write16(dev, B43_MMIO_XMTSEL, 0x0826);
+	b43_write16(dev, B43_MMIO_TXE0_CTL, 0x0000);
+
+	if (!pa_on && phy->type == B43_PHYTYPE_N)
+		; /*b43_nphy_pa_override(dev, false) */
 
 	switch (phy->type) {
 	case B43_PHYTYPE_N:
-		b43_write16(dev, 0x0502, 0x00D0);
+	case B43_PHYTYPE_LCN:
+		b43_write16(dev, B43_MMIO_TXE0_AUX, 0x00D0);
 		break;
 	case B43_PHYTYPE_LP:
-		b43_write16(dev, 0x0502, 0x0050);
+		b43_write16(dev, B43_MMIO_TXE0_AUX, 0x0050);
 		break;
 	default:
-		b43_write16(dev, 0x0502, 0x0030);
+		b43_write16(dev, B43_MMIO_TXE0_AUX, 0x0030);
 	}
+	b43_read16(dev, B43_MMIO_TXE0_AUX);
 
 	if (phy->radio_ver == 0x2050 && phy->radio_rev <= 0x5)
 		b43_radio_write16(dev, 0x0051, 0x0017);
 	for (i = 0x00; i < max_loop; i++) {
-		value = b43_read16(dev, 0x050E);
+		value = b43_read16(dev, B43_MMIO_TXE0_STATUS);
 		if (value & 0x0080)
 			break;
 		udelay(10);
 	}
 	for (i = 0x00; i < 0x0A; i++) {
-		value = b43_read16(dev, 0x050E);
+		value = b43_read16(dev, B43_MMIO_TXE0_STATUS);
 		if (value & 0x0400)
 			break;
 		udelay(10);
 	}
 	for (i = 0x00; i < 0x19; i++) {
-		value = b43_read16(dev, 0x0690);
+		value = b43_read16(dev, B43_MMIO_IFSSTAT);
 		if (!(value & 0x0100))
 			break;
 		udelay(10);
@@ -2511,6 +2523,12 @@ static int b43_upload_microcode(struct b43_wldev *dev)
 	}
 	dev->fw.rev = fwrev;
 	dev->fw.patch = fwpatch;
+	if (dev->fw.rev >= 598)
+		dev->fw.hdr_format = B43_FW_HDR_598;
+	else if (dev->fw.rev >= 410)
+		dev->fw.hdr_format = B43_FW_HDR_410;
+	else
+		dev->fw.hdr_format = B43_FW_HDR_351;
 	dev->fw.opensource = (fwdate == 0xFFFF);
 
 	/* Default to use-all-queues. */
@@ -2558,7 +2576,7 @@ static int b43_upload_microcode(struct b43_wldev *dev)
 			dev->fw.rev, dev->fw.patch);
 	wiphy->hw_version = dev->dev->core_id;
 
-	if (b43_is_old_txhdr_format(dev)) {
+	if (dev->fw.hdr_format == B43_FW_HDR_351) {
 		/* We're over the deadline, but we keep support for old fw
 		 * until it turns out to be in major conflict with something new. */
 		b43warn(dev->wl, "You are using an old firmware image. "
@@ -2944,6 +2962,8 @@ static void b43_rate_memory_init(struct b43_wldev *dev)
 	case B43_PHYTYPE_G:
 	case B43_PHYTYPE_N:
 	case B43_PHYTYPE_LP:
+	case B43_PHYTYPE_HT:
+	case B43_PHYTYPE_LCN:
 		b43_rate_memory_write(dev, B43_OFDM_RATE_6MB, 1);
 		b43_rate_memory_write(dev, B43_OFDM_RATE_12MB, 1);
 		b43_rate_memory_write(dev, B43_OFDM_RATE_18MB, 1);
@@ -3539,7 +3559,8 @@ static void b43_qos_init(struct b43_wldev *dev)
 	b43dbg(dev->wl, "QoS enabled\n");
 }
 
-static int b43_op_conf_tx(struct ieee80211_hw *hw, u16 _queue,
+static int b43_op_conf_tx(struct ieee80211_hw *hw,
+			  struct ieee80211_vif *vif, u16 _queue,
 			  const struct ieee80211_tx_queue_params *params)
 {
 	struct b43_wl *wl = hw_to_b43_wl(hw);
@@ -3586,7 +3607,7 @@ static int b43_op_get_stats(struct ieee80211_hw *hw,
 	return 0;
 }
 
-static u64 b43_op_get_tsf(struct ieee80211_hw *hw)
+static u64 b43_op_get_tsf(struct ieee80211_hw *hw, struct ieee80211_vif *vif)
 {
 	struct b43_wl *wl = hw_to_b43_wl(hw);
 	struct b43_wldev *dev;
@@ -3605,7 +3626,8 @@ static u64 b43_op_get_tsf(struct ieee80211_hw *hw)
 	return tsf;
 }
 
-static void b43_op_set_tsf(struct ieee80211_hw *hw, u64 tsf)
+static void b43_op_set_tsf(struct ieee80211_hw *hw,
+			   struct ieee80211_vif *vif, u64 tsf)
 {
 	struct b43_wl *wl = hw_to_b43_wl(hw);
 	struct b43_wldev *dev;
@@ -3779,14 +3801,24 @@ static int b43_op_config(struct ieee80211_hw *hw, u32 changed)
 	struct ieee80211_conf *conf = &hw->conf;
 	int antenna;
 	int err = 0;
+	bool reload_bss = false;
 
 	mutex_lock(&wl->mutex);
+
+	dev = wl->current_dev;
 
 	/* Switch the band (if necessary). This might change the active core. */
 	err = b43_switch_band(wl, conf->channel);
 	if (err)
 		goto out_unlock_mutex;
-	dev = wl->current_dev;
+
+	/* Need to reload all settings if the core changed */
+	if (dev != wl->current_dev) {
+		dev = wl->current_dev;
+		changed = ~0;
+		reload_bss = true;
+	}
+
 	phy = &dev->phy;
 
 	if (conf_is_ht(conf))
@@ -3846,6 +3878,9 @@ out_mac_enable:
 	b43_mac_enable(dev);
 out_unlock_mutex:
 	mutex_unlock(&wl->mutex);
+
+	if (wl->vif && reload_bss)
+		b43_op_bss_info_changed(hw, wl->vif, &wl->vif->bss_conf, ~0);
 
 	return err;
 }
@@ -3935,7 +3970,8 @@ static void b43_op_bss_info_changed(struct ieee80211_hw *hw,
 	if (changed & BSS_CHANGED_BEACON_INT &&
 	    (b43_is_mode(wl, NL80211_IFTYPE_AP) ||
 	     b43_is_mode(wl, NL80211_IFTYPE_MESH_POINT) ||
-	     b43_is_mode(wl, NL80211_IFTYPE_ADHOC)))
+	     b43_is_mode(wl, NL80211_IFTYPE_ADHOC)) &&
+	    conf->beacon_int)
 		b43_set_beacon_int(dev, conf->beacon_int);
 
 	if (changed & BSS_CHANGED_BASIC_RATES)
@@ -4108,10 +4144,13 @@ out_unlock:
  * because the core might be gone away while we unlocked the mutex. */
 static struct b43_wldev * b43_wireless_core_stop(struct b43_wldev *dev)
 {
-	struct b43_wl *wl = dev->wl;
+	struct b43_wl *wl;
 	struct b43_wldev *orig_dev;
 	u32 mask;
 
+	if (!dev)
+		return NULL;
+	wl = dev->wl;
 redo:
 	if (!dev || b43_status(dev) < B43_STAT_STARTED)
 		return dev;
@@ -4630,8 +4669,13 @@ static int b43_wireless_core_init(struct b43_wldev *dev)
 	b43_shm_write16(dev, B43_SHM_SCRATCH, B43_SHM_SC_MAXCONT, 0x3FF);
 
 	if (b43_bus_host_is_pcmcia(dev->dev) ||
-	    b43_bus_host_is_sdio(dev->dev) ||
-	    dev->use_pio) {
+	    b43_bus_host_is_sdio(dev->dev)) {
+		dev->__using_pio_transfers = 1;
+		err = b43_pio_init(dev);
+	} else if (dev->use_pio) {
+		b43warn(dev->wl, "Forced PIO by use_pio module parameter. "
+			"This should not be needed and will result in lower "
+			"performance.\n");
 		dev->__using_pio_transfers = 1;
 		err = b43_pio_init(dev);
 	} else {
@@ -4703,6 +4747,9 @@ static int b43_op_add_interface(struct ieee80211_hw *hw,
  out_mutex_unlock:
 	mutex_unlock(&wl->mutex);
 
+	if (err == 0)
+		b43_op_bss_info_changed(hw, vif, &vif->bss_conf, ~0);
+
 	return err;
 }
 
@@ -4772,6 +4819,9 @@ static int b43_op_start(struct ieee80211_hw *hw)
 
  out_mutex_unlock:
 	mutex_unlock(&wl->mutex);
+
+	/* reload configuration */
+	b43_op_config(hw, ~0);
 
 	return err;
 }
@@ -4929,10 +4979,18 @@ out:
 	if (err)
 		wl->current_dev = NULL; /* Failed to init the dev. */
 	mutex_unlock(&wl->mutex);
-	if (err)
+
+	if (err) {
 		b43err(wl, "Controller restart FAILED\n");
-	else
-		b43info(wl, "Controller restarted\n");
+		return;
+	}
+
+	/* reload configuration */
+	b43_op_config(wl->hw, ~0);
+	if (wl->vif)
+		b43_op_bss_info_changed(wl->hw, wl->vif, &wl->vif->bss_conf, ~0);
+
+	b43info(wl, "Controller restarted\n");
 }
 
 static int b43_setup_bands(struct b43_wldev *dev,
@@ -5417,8 +5475,7 @@ static void b43_print_driverinfo(void)
 	feat_sdio = "S";
 #endif
 	printk(KERN_INFO "Broadcom 43xx driver loaded "
-	       "[ Features: %s%s%s%s%s, Firmware-ID: "
-	       B43_SUPPORTED_FIRMWARE_ID " ]\n",
+	       "[ Features: %s%s%s%s%s ]\n",
 	       feat_pci, feat_pcmcia, feat_nphy,
 	       feat_leds, feat_sdio);
 }

@@ -65,11 +65,6 @@ config SAMSUNG_IRQ_VIC_TIMER
        help
          Internal configuration to build the VIC timer interrupt code.
 
-config SAMSUNG_IRQ_UART
-       bool
-       help
-         Internal configuration to build the IRQ UART demux code.
-
 # options for gpio configuration support
 
 config SAMSUNG_GPIOLIB_4BIT
@@ -79,38 +74,11 @@ config SAMSUNG_GPIOLIB_4BIT
 	  configuration. GPIOlib shall be compiled only for S3C64XX and S5P
 	  series of processors.
 
-config S3C_GPIO_CFG_S3C24XX
-	bool
-	help
-	  Internal configuration to enable S3C24XX style GPIO configuration
-	  functions.
-
 config S3C_GPIO_CFG_S3C64XX
 	bool
 	help
 	  Internal configuration to enable S3C64XX style GPIO configuration
 	  functions.
-
-config S3C_GPIO_PULL_UPDOWN
-	bool
-	help
-	  Internal configuration to enable the correct GPIO pull helper
-
-config S3C_GPIO_PULL_S3C2443
-	bool
-	select S3C_GPIO_PULL_UPDOWN
-	help
-	  Internal configuration to enable the correct GPIO pull helper for S3C2443-style GPIO
-
-config S3C_GPIO_PULL_DOWN
-	bool
-	help
-	  Internal configuration to enable the correct GPIO pull helper
-
-config S3C_GPIO_PULL_UP
-	bool
-	help
-	  Internal configuration to enable the correct GPIO pull helper
 
 config S5P_GPIO_DRVSTR
 	bool
@@ -300,11 +268,14 @@ config S3C_DMA
 	help
 	  Internal configuration for S3C DMA core
 
-config S3C_PL330_DMA
+config SAMSUNG_DMADEV
 	bool
-	select PL330
+	select DMADEVICES
+	select PL330_DMA if (CPU_EXYNOS4210 || CPU_S5PV210 || CPU_S5PC100 || \
+					CPU_S5P6450 || CPU_S5P6440)
+	select ARM_AMBA
 	help
-	  S3C DMA API Driver for PL330 DMAC.
+	  Use DMA device engine for PL330 DMAC.
 
 comment "Power management"
 
@@ -366,5 +337,12 @@ config SAMSUNG_PD
 	depends on PM_RUNTIME
 	help
 	  Say Y here if you want to control Power Domain by Runtime PM.
+
+config DEBUG_S3C_UART
+	depends on PLAT_SAMSUNG
+	int
+	default "0" if DEBUG_S3C_UART0
+	default "1" if DEBUG_S3C_UART1
+	default "2" if DEBUG_S3C_UART2
 
 endif

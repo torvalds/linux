@@ -309,7 +309,6 @@ static u16 MXL_ControlWrite_Group(struct dvb_frontend *fe, u16 controlNum,
 static u16 MXL_SetGPIO(struct dvb_frontend *fe, u8 GPIO_Num, u8 GPIO_Val);
 static u16 MXL_GetInitRegister(struct dvb_frontend *fe, u8 *RegNum,
 	u8 *RegVal, int *count);
-static u32 MXL_GetXtalInt(u32 Xtal_Freq);
 static u16 MXL_TuneRF(struct dvb_frontend *fe, u32 RF_Freq);
 static void MXL_SynthIFLO_Calc(struct dvb_frontend *fe);
 static void MXL_SynthRFTGLO_Calc(struct dvb_frontend *fe);
@@ -2307,14 +2306,6 @@ static u16 MXL_IFSynthInit(struct dvb_frontend *fe)
 	return status ;
 }
 
-static u32 MXL_GetXtalInt(u32 Xtal_Freq)
-{
-	if ((Xtal_Freq % 1000000) == 0)
-		return (Xtal_Freq / 10000);
-	else
-		return (((Xtal_Freq / 1000000) + 1)*100);
-}
-
 static u16 MXL_TuneRF(struct dvb_frontend *fe, u32 RF_Freq)
 {
 	struct mxl5005s_state *state = fe->tuner_priv;
@@ -2324,12 +2315,9 @@ static u16 MXL_TuneRF(struct dvb_frontend *fe, u32 RF_Freq)
 	u32 Kdbl_RF = 2;
 	u32 tg_divval;
 	u32 tg_lo;
-	u32 Xtal_Int;
 
 	u32 Fref_TG;
 	u32 Fvco;
-
-	Xtal_Int = MXL_GetXtalInt(state->Fxtal);
 
 	state->RF_IN = RF_Freq;
 
@@ -2779,6 +2767,16 @@ static u16 MXL_TuneRF(struct dvb_frontend *fe, u32 RF_Freq)
 	tg_lo = (((Fmax/10 - Fvco)/100)*32) / ((Fmax-Fmin)/1000)+8;
 
 	/* below equation is same as above but much harder to debug.
+	 *
+	 * static u32 MXL_GetXtalInt(u32 Xtal_Freq)
+	 * {
+	 *	if ((Xtal_Freq % 1000000) == 0)
+	 *		return (Xtal_Freq / 10000);
+	 *	else
+	 *		return (((Xtal_Freq / 1000000) + 1)*100);
+	 * }
+	 *
+	 * u32 Xtal_Int = MXL_GetXtalInt(state->Fxtal);
 	 * tg_lo = ( ((Fmax/10000 * Xtal_Int)/100) -
 	 * ((state->TG_LO/10000)*divider_val *
 	 * (state->Fxtal/10000)/100) )*32/((Fmax-Fmin)/10000 *

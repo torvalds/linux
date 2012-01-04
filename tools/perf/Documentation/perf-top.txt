@@ -106,6 +106,51 @@ Default is to monitor all CPUS.
 --zero::
 	Zero history across display updates.
 
+-s::
+--sort::
+	Sort by key(s): pid, comm, dso, symbol, parent
+
+-n::
+--show-nr-samples::
+	Show a column with the number of samples.
+
+--show-total-period::
+	Show a column with the sum of periods.
+
+--dsos::
+	Only consider symbols in these dsos.
+
+--comms::
+	Only consider symbols in these comms.
+
+--symbols::
+	Only consider these symbols.
+
+-M::
+--disassembler-style=:: Set disassembler style for objdump.
+
+--source::
+	Interleave source code with assembly code. Enabled by default,
+	disable with --no-source.
+
+--asm-raw::
+	Show raw instruction encoding of assembly instructions.
+
+-G [type,min,order]::
+--call-graph::
+        Display call chains using type, min percent threshold and order.
+	type can be either:
+	- flat: single column, linear exposure of call chains.
+	- graph: use a graph tree, displaying absolute overhead rates.
+	- fractal: like graph, but displays relative rates. Each branch of
+		 the tree is considered as a new profiled object.
+
+	order can be either:
+	- callee: callee based call graph.
+	- caller: inverted caller based call graph.
+
+	Default: fractal,0.5,callee.
+
 INTERACTIVE PROMPTING KEYS
 --------------------------
 
@@ -129,9 +174,6 @@ INTERACTIVE PROMPTING KEYS
 
 [S]::
 	Stop annotation, return to full profile display.
-
-[w]::
-	Toggle between weighted sum and individual count[E]r profile.
 
 [z]::
 	Toggle event count zeroing across display updates.

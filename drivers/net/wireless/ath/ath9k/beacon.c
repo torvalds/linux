@@ -73,44 +73,39 @@ static void ath_beacon_setup(struct ath_softc *sc, struct ath_vif *avp,
 	struct sk_buff *skb = bf->bf_mpdu;
 	struct ath_hw *ah = sc->sc_ah;
 	struct ath_common *common = ath9k_hw_common(ah);
-	struct ath_desc *ds;
-	struct ath9k_11n_rate_series series[4];
-	int flags, ctsrate = 0, ctsduration = 0;
+	struct ath_tx_info info;
 	struct ieee80211_supported_band *sband;
+	u8 chainmask = ah->txchainmask;
 	u8 rate = 0;
 
 	ath9k_reset_beacon_status(sc);
-
-	ds = bf->bf_desc;
-	flags = ATH9K_TXDESC_NOACK;
-
-	ds->ds_link = 0;
 
 	sband = &sc->sbands[common->hw->conf.channel->band];
 	rate = sband->bitrates[rateidx].hw_value;
 	if (sc->sc_flags & SC_OP_PREAMBLE_SHORT)
 		rate |= sband->bitrates[rateidx].hw_value_short;
 
-	ath9k_hw_set11n_txdesc(ah, ds, skb->len + FCS_LEN,
-			       ATH9K_PKT_TYPE_BEACON,
-			       MAX_RATE_POWER,
-			       ATH9K_TXKEYIX_INVALID,
-			       ATH9K_KEY_TYPE_CLEAR,
-			       flags);
+	memset(&info, 0, sizeof(info));
+	info.pkt_len = skb->len + FCS_LEN;
+	info.type = ATH9K_PKT_TYPE_BEACON;
+	info.txpower = MAX_RATE_POWER;
+	info.keyix = ATH9K_TXKEYIX_INVALID;
+	info.keytype = ATH9K_KEY_TYPE_CLEAR;
+	info.flags = ATH9K_TXDESC_NOACK;
 
-	/* NB: beacon's BufLen must be a multiple of 4 bytes */
-	ath9k_hw_filltxdesc(ah, ds, roundup(skb->len, 4),
-			    true, true, ds, bf->bf_buf_addr,
-			    sc->beacon.beaconq);
+	info.buf_addr[0] = bf->bf_buf_addr;
+	info.buf_len[0] = roundup(skb->len, 4);
 
-	memset(series, 0, sizeof(struct ath9k_11n_rate_series) * 4);
-	series[0].Tries = 1;
-	series[0].Rate = rate;
-	series[0].ChSel = ath_txchainmask_reduction(sc,
-			common->tx_chainmask, series[0].Rate);
-	series[0].RateFlags = (ctsrate) ? ATH9K_RATESERIES_RTS_CTS : 0;
-	ath9k_hw_set11n_ratescenario(ah, ds, ds, 0, ctsrate, ctsduration,
-				     series, 4, 0);
+	info.is_first = true;
+	info.is_last = true;
+
+	info.qcu = sc->beacon.beaconq;
+
+	info.rates[0].Tries = 1;
+	info.rates[0].Rate = rate;
+	info.rates[0].ChSel = ath_txchainmask_reduction(sc, chainmask, rate);
+
+	ath9k_hw_set_txdesc(ah, bf->bf_desc, &info);
 }
 
 static void ath_tx_cabq(struct ieee80211_hw *hw, struct sk_buff *skb)
@@ -386,9 +381,7 @@ void ath_beacon_tasklet(unsigned long data)
 			ath_dbg(common, ATH_DBG_BSTUCK,
 				"beacon is officially stuck\n");
 			sc->sc_flags |= SC_OP_TSF_RESET;
-			spin_lock(&sc->sc_pcu_lock);
-			ath_reset(sc, true);
-			spin_unlock(&sc->sc_pcu_lock);
+			ieee80211_queue_work(sc->hw, &sc->hw_reset_work);
 		}
 
 		return;
@@ -519,9 +512,11 @@ static void ath_beacon_config_ap(struct ath_softc *sc,
 	/* Set the computed AP beacon timers */
 
 	ath9k_hw_disable_interrupts(ah);
+	sc->sc_flags |= SC_OP_TSF_RESET;
 	ath9k_beacon_init(sc, nexttbtt, intval);
 	sc->beacon.bmisscnt = 0;
-	ath9k_hw_set_interrupts(ah, ah->imask);
+	ath9k_hw_set_interrupts(ah);
+	ath9k_hw_enable_interrupts(ah);
 }
 
 /*
@@ -648,12 +643,8 @@ static void ath_beacon_config_sta(struct ath_softc *sc,
 	ath9k_hw_set_sta_beacon_timers(ah, &bs);
 	ah->imask |= ATH9K_INT_BMISS;
 
-	/*
-	 * If the beacon config is called beacause of TSFOOR,
-	 * Interrupts will be enabled back at the end of ath9k_tasklet
-	 */
-	if (!(sc->ps_flags & PS_TSFOOR_SYNC))
-		ath9k_hw_set_interrupts(ah, ah->imask);
+	ath9k_hw_set_interrupts(ah);
+	ath9k_hw_enable_interrupts(ah);
 }
 
 static void ath_beacon_config_adhoc(struct ath_softc *sc,
@@ -687,12 +678,9 @@ static void ath_beacon_config_adhoc(struct ath_softc *sc,
 	ath9k_hw_disable_interrupts(ah);
 	ath9k_beacon_init(sc, nexttbtt, intval);
 	sc->beacon.bmisscnt = 0;
-	/*
-	 * If the beacon config is called beacause of TSFOOR,
-	 * Interrupts will be enabled back at the end of ath9k_tasklet
-	 */
-	if (!(sc->ps_flags & PS_TSFOOR_SYNC))
-		ath9k_hw_set_interrupts(ah, ah->imask);
+
+	ath9k_hw_set_interrupts(ah);
+	ath9k_hw_enable_interrupts(ah);
 }
 
 static bool ath9k_allow_beacon_config(struct ath_softc *sc,
@@ -833,11 +821,11 @@ void ath9k_set_beaconing_status(struct ath_softc *sc, bool status)
 	if (status) {
 		/* Re-enable beaconing */
 		ah->imask |= ATH9K_INT_SWBA;
-		ath9k_hw_set_interrupts(ah, ah->imask);
+		ath9k_hw_set_interrupts(ah);
 	} else {
 		/* Disable SWBA interrupt */
 		ah->imask &= ~ATH9K_INT_SWBA;
-		ath9k_hw_set_interrupts(ah, ah->imask);
+		ath9k_hw_set_interrupts(ah);
 		tasklet_kill(&sc->bcon_tasklet);
 		ath9k_hw_stop_dma_queue(ah, sc->beacon.beaconq);
 	}

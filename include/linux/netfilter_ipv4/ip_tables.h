@@ -81,12 +81,12 @@ struct ipt_ip {
 	unsigned char iniface_mask[IFNAMSIZ], outiface_mask[IFNAMSIZ];
 
 	/* Protocol, 0 = ANY */
-	u_int16_t proto;
+	__u16 proto;
 
 	/* Flags word */
-	u_int8_t flags;
+	__u8 flags;
 	/* Inverse flags */
-	u_int8_t invflags;
+	__u8 invflags;
 };
 
 /* Values for "flag" field in struct ipt_ip (general ip structure). */
@@ -114,9 +114,9 @@ struct ipt_entry {
 	unsigned int nfcache;
 
 	/* Size of ipt_entry + matches */
-	u_int16_t target_offset;
+	__u16 target_offset;
 	/* Size of ipt_entry + matches + target */
-	u_int16_t next_offset;
+	__u16 next_offset;
 
 	/* Back pointer */
 	unsigned int comefrom;
@@ -149,9 +149,9 @@ struct ipt_entry {
 
 /* ICMP matching stuff */
 struct ipt_icmp {
-	u_int8_t type;				/* type to match */
-	u_int8_t code[2];			/* range of code */
-	u_int8_t invflags;			/* Inverse flags */
+	__u8 type;				/* type to match */
+	__u8 code[2];				/* range of code */
+	__u8 invflags;				/* Inverse flags */
 };
 
 /* Values for "inv" field for struct ipt_icmp. */
@@ -288,8 +288,8 @@ extern unsigned int ipt_do_table(struct sk_buff *skb,
 struct compat_ipt_entry {
 	struct ipt_ip ip;
 	compat_uint_t nfcache;
-	u_int16_t target_offset;
-	u_int16_t next_offset;
+	__u16 target_offset;
+	__u16 next_offset;
 	compat_uint_t comefrom;
 	struct compat_xt_counters counters;
 	unsigned char elems[0];

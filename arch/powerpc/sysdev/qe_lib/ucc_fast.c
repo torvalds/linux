@@ -19,7 +19,7 @@
 #include <linux/stddef.h>
 #include <linux/interrupt.h>
 #include <linux/err.h>
-#include <linux/module.h>
+#include <linux/export.h>
 
 #include <asm/io.h>
 #include <asm/immap_qe.h>

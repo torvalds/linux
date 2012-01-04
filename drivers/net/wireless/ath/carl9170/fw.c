@@ -23,6 +23,7 @@
 #include <linux/kernel.h>
 #include <linux/firmware.h>
 #include <linux/crc32.h>
+#include <linux/module.h>
 #include "carl9170.h"
 #include "fwcmd.h"
 #include "version.h"
@@ -265,6 +266,9 @@ static int carl9170_fw(struct ar9170 *ar, const __u8 *data, size_t len)
 			FIF_CONTROL | FIF_PSPOLL | FIF_OTHER_BSS |
 			FIF_PROMISC_IN_BSS;
 	}
+
+	if (SUPP(CARL9170FW_HW_COUNTERS))
+		ar->fw.hw_counters = true;
 
 	if (SUPP(CARL9170FW_WOL))
 		device_set_wakeup_enable(&ar->udev->dev, true);

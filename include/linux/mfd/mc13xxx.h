@@ -37,6 +37,9 @@ int mc13xxx_irq_ack(struct mc13xxx *mc13xxx, int irq);
 
 int mc13xxx_get_flags(struct mc13xxx *mc13xxx);
 
+int mc13xxx_adc_do_conversion(struct mc13xxx *mc13xxx,
+		unsigned int mode, unsigned int channel, unsigned int *sample);
+
 #define MC13XXX_IRQ_ADCDONE	0
 #define MC13XXX_IRQ_ADCBISDONE	1
 #define MC13XXX_IRQ_TS		2
@@ -137,17 +140,48 @@ struct mc13xxx_leds_platform_data {
 	char tc3_period;
 };
 
+struct mc13xxx_buttons_platform_data {
+#define MC13783_BUTTON_DBNC_0MS		0
+#define MC13783_BUTTON_DBNC_30MS	1
+#define MC13783_BUTTON_DBNC_150MS	2
+#define MC13783_BUTTON_DBNC_750MS	3
+#define MC13783_BUTTON_ENABLE		(1 << 2)
+#define MC13783_BUTTON_POL_INVERT	(1 << 3)
+#define MC13783_BUTTON_RESET_EN		(1 << 4)
+	int b1on_flags;
+	unsigned short b1on_key;
+	int b2on_flags;
+	unsigned short b2on_key;
+	int b3on_flags;
+	unsigned short b3on_key;
+};
+
 struct mc13xxx_platform_data {
 #define MC13XXX_USE_TOUCHSCREEN (1 << 0)
 #define MC13XXX_USE_CODEC	(1 << 1)
 #define MC13XXX_USE_ADC		(1 << 2)
 #define MC13XXX_USE_RTC		(1 << 3)
-#define MC13XXX_USE_REGULATOR	(1 << 4)
-#define MC13XXX_USE_LED		(1 << 5)
 	unsigned int flags;
 
 	struct mc13xxx_regulator_platform_data regulators;
 	struct mc13xxx_leds_platform_data *leds;
+	struct mc13xxx_buttons_platform_data *buttons;
 };
+
+#define MC13XXX_ADC_MODE_TS		1
+#define MC13XXX_ADC_MODE_SINGLE_CHAN	2
+#define MC13XXX_ADC_MODE_MULT_CHAN	3
+
+#define MC13XXX_ADC0		43
+#define MC13XXX_ADC0_ADREFEN		(1 << 10)
+#define MC13XXX_ADC0_TSMOD0		(1 << 12)
+#define MC13XXX_ADC0_TSMOD1		(1 << 13)
+#define MC13XXX_ADC0_TSMOD2		(1 << 14)
+#define MC13XXX_ADC0_ADINC1		(1 << 16)
+#define MC13XXX_ADC0_ADINC2		(1 << 17)
+
+#define MC13XXX_ADC0_TSMOD_MASK		(MC13XXX_ADC0_TSMOD0 | \
+					MC13XXX_ADC0_TSMOD1 | \
+					MC13XXX_ADC0_TSMOD2)
 
 #endif /* ifndef __LINUX_MFD_MC13XXX_H */

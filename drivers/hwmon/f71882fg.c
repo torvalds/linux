@@ -605,7 +605,7 @@ static struct sensor_device_attribute_2 fxxxx_fan_beep_attr[] = {
 
 /* PWM attr for the f71862fg, fewer pwms and fewer zones per pwm than the
    standard models */
-static struct sensor_device_attribute_2 f71862fg_auto_pwm_attr[] = {
+static struct sensor_device_attribute_2 f71862fg_auto_pwm_attr[3][7] = { {
 	SENSOR_ATTR_2(pwm1_auto_channels_temp, S_IRUGO|S_IWUSR,
 		      show_pwm_auto_point_channel,
 		      store_pwm_auto_point_channel, 0, 0),
@@ -627,7 +627,7 @@ static struct sensor_device_attribute_2 f71862fg_auto_pwm_attr[] = {
 		      0, 0),
 	SENSOR_ATTR_2(pwm1_auto_point2_temp_hyst, S_IRUGO,
 		      show_pwm_auto_point_temp_hyst, NULL, 3, 0),
-
+}, {
 	SENSOR_ATTR_2(pwm2_auto_channels_temp, S_IRUGO|S_IWUSR,
 		      show_pwm_auto_point_channel,
 		      store_pwm_auto_point_channel, 0, 1),
@@ -649,7 +649,7 @@ static struct sensor_device_attribute_2 f71862fg_auto_pwm_attr[] = {
 		      0, 1),
 	SENSOR_ATTR_2(pwm2_auto_point2_temp_hyst, S_IRUGO,
 		      show_pwm_auto_point_temp_hyst, NULL, 3, 1),
-
+}, {
 	SENSOR_ATTR_2(pwm3_auto_channels_temp, S_IRUGO|S_IWUSR,
 		      show_pwm_auto_point_channel,
 		      store_pwm_auto_point_channel, 0, 2),
@@ -671,12 +671,12 @@ static struct sensor_device_attribute_2 f71862fg_auto_pwm_attr[] = {
 		      0, 2),
 	SENSOR_ATTR_2(pwm3_auto_point2_temp_hyst, S_IRUGO,
 		      show_pwm_auto_point_temp_hyst, NULL, 3, 2),
-};
+} };
 
 /* PWM attr for the f71808e/f71869, almost identical to the f71862fg, but the
    pwm setting when the temperature is above the pwmX_auto_point1_temp can be
    programmed instead of being hardcoded to 0xff */
-static struct sensor_device_attribute_2 f71869_auto_pwm_attr[] = {
+static struct sensor_device_attribute_2 f71869_auto_pwm_attr[3][8] = { {
 	SENSOR_ATTR_2(pwm1_auto_channels_temp, S_IRUGO|S_IWUSR,
 		      show_pwm_auto_point_channel,
 		      store_pwm_auto_point_channel, 0, 0),
@@ -701,7 +701,7 @@ static struct sensor_device_attribute_2 f71869_auto_pwm_attr[] = {
 		      0, 0),
 	SENSOR_ATTR_2(pwm1_auto_point2_temp_hyst, S_IRUGO,
 		      show_pwm_auto_point_temp_hyst, NULL, 3, 0),
-
+}, {
 	SENSOR_ATTR_2(pwm2_auto_channels_temp, S_IRUGO|S_IWUSR,
 		      show_pwm_auto_point_channel,
 		      store_pwm_auto_point_channel, 0, 1),
@@ -726,7 +726,7 @@ static struct sensor_device_attribute_2 f71869_auto_pwm_attr[] = {
 		      0, 1),
 	SENSOR_ATTR_2(pwm2_auto_point2_temp_hyst, S_IRUGO,
 		      show_pwm_auto_point_temp_hyst, NULL, 3, 1),
-
+}, {
 	SENSOR_ATTR_2(pwm3_auto_channels_temp, S_IRUGO|S_IWUSR,
 		      show_pwm_auto_point_channel,
 		      store_pwm_auto_point_channel, 0, 2),
@@ -751,7 +751,7 @@ static struct sensor_device_attribute_2 f71869_auto_pwm_attr[] = {
 		      0, 2),
 	SENSOR_ATTR_2(pwm3_auto_point2_temp_hyst, S_IRUGO,
 		      show_pwm_auto_point_temp_hyst, NULL, 3, 2),
-};
+} };
 
 /* PWM attr for the standard models */
 static struct sensor_device_attribute_2 fxxxx_auto_pwm_attr[4][14] = { {
@@ -928,7 +928,7 @@ static struct sensor_device_attribute_2 f8000_fan_attr[] = {
 /* PWM attr for the f8000, zones mapped to temp instead of to pwm!
    Also the register block at offset A0 maps to TEMP1 (so our temp2, as the
    F8000 starts counting temps at 0), B0 maps the TEMP2 and C0 maps to TEMP0 */
-static struct sensor_device_attribute_2 f8000_auto_pwm_attr[] = {
+static struct sensor_device_attribute_2 f8000_auto_pwm_attr[3][14] = { {
 	SENSOR_ATTR_2(pwm1_auto_channels_temp, S_IRUGO|S_IWUSR,
 		      show_pwm_auto_point_channel,
 		      store_pwm_auto_point_channel, 0, 0),
@@ -969,7 +969,7 @@ static struct sensor_device_attribute_2 f8000_auto_pwm_attr[] = {
 		      show_pwm_auto_point_temp_hyst, NULL, 2, 2),
 	SENSOR_ATTR_2(temp1_auto_point4_temp_hyst, S_IRUGO,
 		      show_pwm_auto_point_temp_hyst, NULL, 3, 2),
-
+}, {
 	SENSOR_ATTR_2(pwm2_auto_channels_temp, S_IRUGO|S_IWUSR,
 		      show_pwm_auto_point_channel,
 		      store_pwm_auto_point_channel, 0, 1),
@@ -1010,7 +1010,7 @@ static struct sensor_device_attribute_2 f8000_auto_pwm_attr[] = {
 		      show_pwm_auto_point_temp_hyst, NULL, 2, 0),
 	SENSOR_ATTR_2(temp2_auto_point4_temp_hyst, S_IRUGO,
 		      show_pwm_auto_point_temp_hyst, NULL, 3, 0),
-
+}, {
 	SENSOR_ATTR_2(pwm3_auto_channels_temp, S_IRUGO|S_IWUSR,
 		      show_pwm_auto_point_channel,
 		      store_pwm_auto_point_channel, 0, 2),
@@ -1051,7 +1051,7 @@ static struct sensor_device_attribute_2 f8000_auto_pwm_attr[] = {
 		      show_pwm_auto_point_temp_hyst, NULL, 2, 1),
 	SENSOR_ATTR_2(temp3_auto_point4_temp_hyst, S_IRUGO,
 		      show_pwm_auto_point_temp_hyst, NULL, 3, 1),
-};
+} };
 
 /* Super I/O functions */
 static inline int superio_inb(int base, int reg)
@@ -2154,6 +2154,104 @@ static void f71882fg_remove_sysfs_files(struct platform_device *pdev,
 		device_remove_file(&pdev->dev, &attr[i].dev_attr);
 }
 
+static int __devinit f71882fg_create_fan_sysfs_files(
+	struct platform_device *pdev, int idx)
+{
+	struct f71882fg_data *data = platform_get_drvdata(pdev);
+	int err;
+
+	/* Sanity check the pwm setting */
+	err = 0;
+	switch (data->type) {
+	case f71858fg:
+		if (((data->pwm_enable >> (idx * 2)) & 3) == 3)
+			err = 1;
+		break;
+	case f71862fg:
+		if (((data->pwm_enable >> (idx * 2)) & 1) != 1)
+			err = 1;
+		break;
+	case f8000:
+		if (idx == 2)
+			err = data->pwm_enable & 0x20;
+		break;
+	default:
+		break;
+	}
+	if (err) {
+		dev_err(&pdev->dev,
+			"Invalid (reserved) pwm settings: 0x%02x, "
+			"skipping fan %d\n",
+			(data->pwm_enable >> (idx * 2)) & 3, idx + 1);
+		return 0; /* This is a non fatal condition */
+	}
+
+	err = f71882fg_create_sysfs_files(pdev, &fxxxx_fan_attr[idx][0],
+					  ARRAY_SIZE(fxxxx_fan_attr[0]));
+	if (err)
+		return err;
+
+	if (f71882fg_fan_has_beep[data->type]) {
+		err = f71882fg_create_sysfs_files(pdev,
+						  &fxxxx_fan_beep_attr[idx],
+						  1);
+		if (err)
+			return err;
+	}
+
+	dev_info(&pdev->dev, "Fan: %d is in %s mode\n", idx + 1,
+		 (data->pwm_enable & (1 << (2 * idx))) ? "duty-cycle" : "RPM");
+
+	/* Check for unsupported auto pwm settings */
+	switch (data->type) {
+	case f71808e:
+	case f71808a:
+	case f71869:
+	case f71869a:
+	case f71889fg:
+	case f71889ed:
+	case f71889a:
+		data->pwm_auto_point_mapping[idx] =
+			f71882fg_read8(data, F71882FG_REG_POINT_MAPPING(idx));
+		if ((data->pwm_auto_point_mapping[idx] & 0x80) ||
+		    (data->pwm_auto_point_mapping[idx] & 3) == 0) {
+			dev_warn(&pdev->dev,
+				 "Auto pwm controlled by raw digital "
+				 "data, disabling pwm auto_point "
+				 "sysfs attributes for fan %d\n", idx + 1);
+			return 0; /* This is a non fatal condition */
+		}
+		break;
+	default:
+		break;
+	}
+
+	switch (data->type) {
+	case f71862fg:
+		err = f71882fg_create_sysfs_files(pdev,
+					&f71862fg_auto_pwm_attr[idx][0],
+					ARRAY_SIZE(f71862fg_auto_pwm_attr[0]));
+		break;
+	case f71808e:
+	case f71869:
+		err = f71882fg_create_sysfs_files(pdev,
+					&f71869_auto_pwm_attr[idx][0],
+					ARRAY_SIZE(f71869_auto_pwm_attr[0]));
+		break;
+	case f8000:
+		err = f71882fg_create_sysfs_files(pdev,
+					&f8000_auto_pwm_attr[idx][0],
+					ARRAY_SIZE(f8000_auto_pwm_attr[0]));
+		break;
+	default:
+		err = f71882fg_create_sysfs_files(pdev,
+					&fxxxx_auto_pwm_attr[idx][0],
+					ARRAY_SIZE(fxxxx_auto_pwm_attr[0]));
+	}
+
+	return err;
+}
+
 static int __devinit f71882fg_probe(struct platform_device *pdev)
 {
 	struct f71882fg_data *data;
@@ -2272,117 +2370,29 @@ static int __devinit f71882fg_probe(struct platform_device *pdev)
 		data->pwm_enable =
 			f71882fg_read8(data, F71882FG_REG_PWM_ENABLE);
 
-		/* Sanity check the pwm settings */
-		switch (data->type) {
-		case f71858fg:
-			err = 0;
-			for (i = 0; i < nr_fans; i++)
-				if (((data->pwm_enable >> (i * 2)) & 3) == 3)
-					err = 1;
-			break;
-		case f71862fg:
-			err = (data->pwm_enable & 0x15) != 0x15;
-			break;
-		case f8000:
-			err = data->pwm_enable & 0x20;
-			break;
-		default:
-			err = 0;
-			break;
-		}
-		if (err) {
-			dev_err(&pdev->dev,
-				"Invalid (reserved) pwm settings: 0x%02x\n",
-				(unsigned int)data->pwm_enable);
-			err = -ENODEV;
-			goto exit_unregister_sysfs;
-		}
-
-		err = f71882fg_create_sysfs_files(pdev, &fxxxx_fan_attr[0][0],
-				ARRAY_SIZE(fxxxx_fan_attr[0]) * nr_fans);
-		if (err)
-			goto exit_unregister_sysfs;
-
-		if (f71882fg_fan_has_beep[data->type]) {
-			err = f71882fg_create_sysfs_files(pdev,
-					fxxxx_fan_beep_attr, nr_fans);
+		for (i = 0; i < nr_fans; i++) {
+			err = f71882fg_create_fan_sysfs_files(pdev, i);
 			if (err)
 				goto exit_unregister_sysfs;
 		}
 
-		switch (data->type) {
-		case f71808e:
-		case f71808a:
-		case f71869:
-		case f71869a:
-		case f71889fg:
-		case f71889ed:
-		case f71889a:
-			for (i = 0; i < nr_fans; i++) {
-				data->pwm_auto_point_mapping[i] =
-					f71882fg_read8(data,
-						F71882FG_REG_POINT_MAPPING(i));
-				if ((data->pwm_auto_point_mapping[i] & 0x80) ||
-				    (data->pwm_auto_point_mapping[i] & 3) == 0)
-					break;
-			}
-			if (i != nr_fans) {
-				dev_warn(&pdev->dev,
-					 "Auto pwm controlled by raw digital "
-					 "data, disabling pwm auto_point "
-					 "sysfs attributes\n");
-				goto no_pwm_auto_point;
-			}
-			break;
-		default:
-			break;
-		}
-
+		/* Some types have 1 extra fan with limited functionality */
 		switch (data->type) {
 		case f71808a:
-			err = f71882fg_create_sysfs_files(pdev,
-				&fxxxx_auto_pwm_attr[0][0],
-				ARRAY_SIZE(fxxxx_auto_pwm_attr[0]) * nr_fans);
-			if (err)
-				goto exit_unregister_sysfs;
 			err = f71882fg_create_sysfs_files(pdev,
 					f71808a_fan3_attr,
 					ARRAY_SIZE(f71808a_fan3_attr));
-			break;
-		case f71862fg:
-			err = f71882fg_create_sysfs_files(pdev,
-					f71862fg_auto_pwm_attr,
-					ARRAY_SIZE(f71862fg_auto_pwm_attr));
-			break;
-		case f71808e:
-		case f71869:
-			err = f71882fg_create_sysfs_files(pdev,
-					f71869_auto_pwm_attr,
-					ARRAY_SIZE(f71869_auto_pwm_attr));
 			break;
 		case f8000:
 			err = f71882fg_create_sysfs_files(pdev,
 					f8000_fan_attr,
 					ARRAY_SIZE(f8000_fan_attr));
-			if (err)
-				goto exit_unregister_sysfs;
-			err = f71882fg_create_sysfs_files(pdev,
-					f8000_auto_pwm_attr,
-					ARRAY_SIZE(f8000_auto_pwm_attr));
 			break;
 		default:
-			err = f71882fg_create_sysfs_files(pdev,
-				&fxxxx_auto_pwm_attr[0][0],
-				ARRAY_SIZE(fxxxx_auto_pwm_attr[0]) * nr_fans);
+			break;
 		}
 		if (err)
 			goto exit_unregister_sysfs;
-
-no_pwm_auto_point:
-		for (i = 0; i < nr_fans; i++)
-			dev_info(&pdev->dev, "Fan: %d is in %s mode\n", i + 1,
-				 (data->pwm_enable & (1 << 2 * i)) ?
-				 "duty-cycle" : "RPM");
 	}
 
 	data->hwmon_dev = hwmon_device_register(&pdev->dev);
@@ -2476,22 +2486,23 @@ static int f71882fg_remove(struct platform_device *pdev)
 			break;
 		case f71862fg:
 			f71882fg_remove_sysfs_files(pdev,
-					f71862fg_auto_pwm_attr,
-					ARRAY_SIZE(f71862fg_auto_pwm_attr));
+				&f71862fg_auto_pwm_attr[0][0],
+				ARRAY_SIZE(f71862fg_auto_pwm_attr[0]) *
+					nr_fans);
 			break;
 		case f71808e:
 		case f71869:
 			f71882fg_remove_sysfs_files(pdev,
-					f71869_auto_pwm_attr,
-					ARRAY_SIZE(f71869_auto_pwm_attr));
+				&f71869_auto_pwm_attr[0][0],
+				ARRAY_SIZE(f71869_auto_pwm_attr[0]) * nr_fans);
 			break;
 		case f8000:
 			f71882fg_remove_sysfs_files(pdev,
 					f8000_fan_attr,
 					ARRAY_SIZE(f8000_fan_attr));
 			f71882fg_remove_sysfs_files(pdev,
-					f8000_auto_pwm_attr,
-					ARRAY_SIZE(f8000_auto_pwm_attr));
+				&f8000_auto_pwm_attr[0][0],
+				ARRAY_SIZE(f8000_auto_pwm_attr[0]) * nr_fans);
 			break;
 		default:
 			f71882fg_remove_sysfs_files(pdev,

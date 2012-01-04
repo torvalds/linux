@@ -35,7 +35,7 @@
 #include <linux/time.h>
 #include <linux/wait.h>
 #include <linux/pnp.h>
-#include <linux/moduleparam.h>
+#include <linux/module.h>
 #include <sound/core.h>
 #include <sound/initval.h>
 #include <sound/wss.h>
@@ -234,8 +234,7 @@ static int __devinit snd_card_azt2320_probe(int dev,
 	if (mpu_port[dev] > 0 && mpu_port[dev] != SNDRV_AUTO_PORT) {
 		if (snd_mpu401_uart_new(card, 0, MPU401_HW_AZT2320,
 				mpu_port[dev], 0,
-				mpu_irq[dev], IRQF_DISABLED,
-				NULL) < 0)
+				mpu_irq[dev], NULL) < 0)
 			snd_printk(KERN_ERR PFX "no MPU-401 device at 0x%lx\n", mpu_port[dev]);
 	}
 

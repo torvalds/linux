@@ -26,6 +26,7 @@
 #include <linux/delay.h>
 #include <linux/log2.h>
 #include <linux/slab.h>
+#include <linux/module.h>
 #include <asm/unaligned.h>
 #include <net/tcp.h>
 #include <scsi/scsi_cmnd.h>
@@ -3163,7 +3164,6 @@ int iscsi_set_param(struct iscsi_cls_conn *cls_conn,
 {
 	struct iscsi_conn *conn = cls_conn->dd_data;
 	struct iscsi_session *session = conn->session;
-	uint32_t value;
 
 	switch(param) {
 	case ISCSI_PARAM_FAST_ABORT:
@@ -3219,14 +3219,6 @@ int iscsi_set_param(struct iscsi_cls_conn *cls_conn,
 		break;
 	case ISCSI_PARAM_ERL:
 		sscanf(buf, "%d", &session->erl);
-		break;
-	case ISCSI_PARAM_IFMARKER_EN:
-		sscanf(buf, "%d", &value);
-		BUG_ON(value);
-		break;
-	case ISCSI_PARAM_OFMARKER_EN:
-		sscanf(buf, "%d", &value);
-		BUG_ON(value);
 		break;
 	case ISCSI_PARAM_EXP_STATSN:
 		sscanf(buf, "%u", &conn->exp_statsn);

@@ -36,6 +36,27 @@
 
 static int ehci_get_frame (struct usb_hcd *hcd);
 
+#ifdef CONFIG_PCI
+
+static unsigned ehci_read_frame_index(struct ehci_hcd *ehci)
+{
+	unsigned uf;
+
+	/*
+	 * The MosChip MCS9990 controller updates its microframe counter
+	 * a little before the frame counter, and occasionally we will read
+	 * the invalid intermediate value.  Avoid problems by checking the
+	 * microframe number (the low-order 3 bits); if they are 0 then
+	 * re-read the register to get the correct value.
+	 */
+	uf = ehci_readl(ehci, &ehci->regs->frame_index);
+	if (unlikely(ehci->frame_index_bug && ((uf & 7) == 0)))
+		uf = ehci_readl(ehci, &ehci->regs->frame_index);
+	return uf;
+}
+
+#endif
+
 /*-------------------------------------------------------------------------*/
 
 /*
@@ -479,10 +500,9 @@ static int enable_periodic (struct ehci_hcd *ehci)
 	cmd = ehci_readl(ehci, &ehci->regs->command) | CMD_PSE;
 	ehci_writel(ehci, cmd, &ehci->regs->command);
 	/* posted write ... PSS happens later */
-	ehci_to_hcd(ehci)->state = HC_STATE_RUNNING;
 
 	/* make sure ehci_work scans these */
-	ehci->next_uframe = ehci_readl(ehci, &ehci->regs->frame_index)
+	ehci->next_uframe = ehci_read_frame_index(ehci)
 		% (ehci->periodic_size << 3);
 	if (unlikely(ehci->broken_periodic))
 		ehci->last_periodic_enable = ktime_get_real();
@@ -677,7 +697,7 @@ static void intr_deschedule (struct ehci_hcd *ehci, struct ehci_qh *qh)
 
 	/* reschedule QH iff another request is queued */
 	if (!list_empty(&qh->qtd_list) &&
-			HC_IS_RUNNING(ehci_to_hcd(ehci)->state)) {
+			ehci->rh_state == EHCI_RH_RUNNING) {
 		rc = qh_schedule(ehci, qh);
 
 		/* An error here likely indicates handshake failure
@@ -1409,7 +1429,7 @@ iso_stream_schedule (
 		goto fail;
 	}
 
-	now = ehci_readl(ehci, &ehci->regs->frame_index) & (mod - 1);
+	now = ehci_read_frame_index(ehci) & (mod - 1);
 
 	/* Typical case: reuse current schedule, stream is still active.
 	 * Hopefully there are no gaps from the host falling behind
@@ -2275,8 +2295,8 @@ scan_periodic (struct ehci_hcd *ehci)
 	 * Touches as few pages as possible:  cache-friendly.
 	 */
 	now_uframe = ehci->next_uframe;
-	if (HC_IS_RUNNING(ehci_to_hcd(ehci)->state)) {
-		clock = ehci_readl(ehci, &ehci->regs->frame_index);
+	if (ehci->rh_state == EHCI_RH_RUNNING) {
+		clock = ehci_read_frame_index(ehci);
 		clock_frame = (clock >> 3) & (ehci->periodic_size - 1);
 	} else  {
 		clock = now_uframe + mod - 1;
@@ -2310,7 +2330,7 @@ restart:
 			union ehci_shadow	temp;
 			int			live;
 
-			live = HC_IS_RUNNING (ehci_to_hcd(ehci)->state);
+			live = (ehci->rh_state == EHCI_RH_RUNNING);
 			switch (hc32_to_cpu(ehci, type)) {
 			case Q_TYPE_QH:
 				/* handle any completions */
@@ -2435,7 +2455,7 @@ restart:
 		 * We can't advance our scan without collecting the ISO
 		 * transfers that are still pending in this frame.
 		 */
-		if (incomplete && HC_IS_RUNNING(ehci_to_hcd(ehci)->state)) {
+		if (incomplete && ehci->rh_state == EHCI_RH_RUNNING) {
 			ehci->next_uframe = now_uframe;
 			break;
 		}
@@ -2451,12 +2471,11 @@ restart:
 		if (now_uframe == clock) {
 			unsigned	now;
 
-			if (!HC_IS_RUNNING (ehci_to_hcd(ehci)->state)
+			if (ehci->rh_state != EHCI_RH_RUNNING
 					|| ehci->periodic_sched == 0)
 				break;
 			ehci->next_uframe = now_uframe;
-			now = ehci_readl(ehci, &ehci->regs->frame_index) &
-					(mod - 1);
+			now = ehci_read_frame_index(ehci) & (mod - 1);
 			if (now_uframe == now)
 				break;
 

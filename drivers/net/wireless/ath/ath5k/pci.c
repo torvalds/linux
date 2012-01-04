@@ -18,6 +18,7 @@
 #include <linux/pci.h>
 #include <linux/pci-aspm.h>
 #include <linux/etherdevice.h>
+#include <linux/module.h>
 #include "../ath.h"
 #include "ath5k.h"
 #include "debug.h"
@@ -261,7 +262,7 @@ ath5k_pci_probe(struct pci_dev *pdev,
 	ah->iobase = mem; /* So we can unmap it on detach */
 
 	/* Initialize */
-	ret = ath5k_init_softc(ah, &ath_pci_bus_ops);
+	ret = ath5k_init_ah(ah, &ath_pci_bus_ops);
 	if (ret)
 		goto err_free;
 
@@ -287,7 +288,7 @@ ath5k_pci_remove(struct pci_dev *pdev)
 	struct ieee80211_hw *hw = pci_get_drvdata(pdev);
 	struct ath5k_hw *ah = hw->priv;
 
-	ath5k_deinit_softc(ah);
+	ath5k_deinit_ah(ah);
 	pci_iounmap(pdev, ah->iobase);
 	pci_release_region(pdev, 0);
 	pci_disable_device(pdev);

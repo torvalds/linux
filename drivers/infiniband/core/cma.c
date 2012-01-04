@@ -41,6 +41,7 @@
 #include <linux/idr.h>
 #include <linux/inetdevice.h>
 #include <linux/slab.h>
+#include <linux/module.h>
 
 #include <net/tcp.h>
 #include <net/ipv6.h>
@@ -81,6 +82,7 @@ static DEFINE_IDR(sdp_ps);
 static DEFINE_IDR(tcp_ps);
 static DEFINE_IDR(udp_ps);
 static DEFINE_IDR(ipoib_ps);
+static DEFINE_IDR(ib_ps);
 
 struct cma_device {
 	struct list_head	list;
@@ -1179,6 +1181,15 @@ static void cma_set_req_event_data(struct rdma_cm_event *event,
 	event->param.conn.qp_num = req_data->remote_qpn;
 }
 
+static int cma_check_req_qp_type(struct rdma_cm_id *id, struct ib_cm_event *ib_event)
+{
+	return (((ib_event->event == IB_CM_REQ_RECEIVED) ||
+		 (ib_event->param.req_rcvd.qp_type == id->qp_type)) ||
+		((ib_event->event == IB_CM_SIDR_REQ_RECEIVED) &&
+		 (id->qp_type == IB_QPT_UD)) ||
+		(!id->qp_type));
+}
+
 static int cma_req_handler(struct ib_cm_id *cm_id, struct ib_cm_event *ib_event)
 {
 	struct rdma_id_private *listen_id, *conn_id;
@@ -1186,13 +1197,16 @@ static int cma_req_handler(struct ib_cm_id *cm_id, struct ib_cm_event *ib_event)
 	int offset, ret;
 
 	listen_id = cm_id->context;
+	if (!cma_check_req_qp_type(&listen_id->id, ib_event))
+		return -EINVAL;
+
 	if (cma_disable_callback(listen_id, RDMA_CM_LISTEN))
 		return -ECONNABORTED;
 
 	memset(&event, 0, sizeof event);
 	offset = cma_user_data_offset(listen_id->id.ps);
 	event.event = RDMA_CM_EVENT_CONNECT_REQUEST;
-	if (listen_id->id.qp_type == IB_QPT_UD) {
+	if (ib_event->event == IB_CM_SIDR_REQ_RECEIVED) {
 		conn_id = cma_new_udp_id(&listen_id->id, ib_event);
 		event.param.ud.private_data = ib_event->private_data + offset;
 		event.param.ud.private_data_len =
@@ -1328,6 +1342,8 @@ static int cma_iw_handler(struct iw_cm_id *iw_id, struct iw_cm_event *iw_event)
 		switch (iw_event->status) {
 		case 0:
 			event.event = RDMA_CM_EVENT_ESTABLISHED;
+			event.param.conn.initiator_depth = iw_event->ird;
+			event.param.conn.responder_resources = iw_event->ord;
 			break;
 		case -ECONNRESET:
 		case -ECONNREFUSED:
@@ -1343,6 +1359,8 @@ static int cma_iw_handler(struct iw_cm_id *iw_id, struct iw_cm_event *iw_event)
 		break;
 	case IW_CM_EVENT_ESTABLISHED:
 		event.event = RDMA_CM_EVENT_ESTABLISHED;
+		event.param.conn.initiator_depth = iw_event->ird;
+		event.param.conn.responder_resources = iw_event->ord;
 		break;
 	default:
 		BUG_ON(1);
@@ -1433,8 +1451,8 @@ static int iw_conn_req_handler(struct iw_cm_id *cm_id,
 	event.event = RDMA_CM_EVENT_CONNECT_REQUEST;
 	event.param.conn.private_data = iw_event->private_data;
 	event.param.conn.private_data_len = iw_event->private_data_len;
-	event.param.conn.initiator_depth = attr.max_qp_init_rd_atom;
-	event.param.conn.responder_resources = attr.max_qp_rd_atom;
+	event.param.conn.initiator_depth = iw_event->ird;
+	event.param.conn.responder_resources = iw_event->ord;
 
 	/*
 	 * Protect against the user destroying conn_id from another thread
@@ -2234,6 +2252,9 @@ static int cma_get_port(struct rdma_id_private *id_priv)
 	case RDMA_PS_IPOIB:
 		ps = &ipoib_ps;
 		break;
+	case RDMA_PS_IB:
+		ps = &ib_ps;
+		break;
 	default:
 		return -EPROTONOSUPPORT;
 	}
@@ -2569,7 +2590,7 @@ static int cma_connect_ib(struct rdma_id_private *id_priv,
 	req.service_id = cma_get_service_id(id_priv->id.ps,
 					    (struct sockaddr *) &route->addr.dst_addr);
 	req.qp_num = id_priv->qp_num;
-	req.qp_type = IB_QPT_RC;
+	req.qp_type = id_priv->id.qp_type;
 	req.starting_psn = id_priv->seq_num;
 	req.responder_resources = conn_param->responder_resources;
 	req.initiator_depth = conn_param->initiator_depth;
@@ -2616,14 +2637,16 @@ static int cma_connect_iw(struct rdma_id_private *id_priv,
 	if (ret)
 		goto out;
 
-	iw_param.ord = conn_param->initiator_depth;
-	iw_param.ird = conn_param->responder_resources;
-	iw_param.private_data = conn_param->private_data;
-	iw_param.private_data_len = conn_param->private_data_len;
-	if (id_priv->id.qp)
+	if (conn_param) {
+		iw_param.ord = conn_param->initiator_depth;
+		iw_param.ird = conn_param->responder_resources;
+		iw_param.private_data = conn_param->private_data;
+		iw_param.private_data_len = conn_param->private_data_len;
+		iw_param.qpn = id_priv->id.qp ? id_priv->qp_num : conn_param->qp_num;
+	} else {
+		memset(&iw_param, 0, sizeof iw_param);
 		iw_param.qpn = id_priv->qp_num;
-	else
-		iw_param.qpn = conn_param->qp_num;
+	}
 	ret = iw_cm_connect(cm_id, &iw_param);
 out:
 	if (ret) {
@@ -2765,14 +2788,20 @@ int rdma_accept(struct rdma_cm_id *id, struct rdma_conn_param *conn_param)
 
 	switch (rdma_node_get_transport(id->device->node_type)) {
 	case RDMA_TRANSPORT_IB:
-		if (id->qp_type == IB_QPT_UD)
-			ret = cma_send_sidr_rep(id_priv, IB_SIDR_SUCCESS,
-						conn_param->private_data,
-						conn_param->private_data_len);
-		else if (conn_param)
-			ret = cma_accept_ib(id_priv, conn_param);
-		else
-			ret = cma_rep_recv(id_priv);
+		if (id->qp_type == IB_QPT_UD) {
+			if (conn_param)
+				ret = cma_send_sidr_rep(id_priv, IB_SIDR_SUCCESS,
+							conn_param->private_data,
+							conn_param->private_data_len);
+			else
+				ret = cma_send_sidr_rep(id_priv, IB_SIDR_SUCCESS,
+							NULL, 0);
+		} else {
+			if (conn_param)
+				ret = cma_accept_ib(id_priv, conn_param);
+			else
+				ret = cma_rep_recv(id_priv);
+		}
 		break;
 	case RDMA_TRANSPORT_IWARP:
 		ret = cma_accept_iw(id_priv, conn_param);
@@ -3460,6 +3489,7 @@ static void __exit cma_cleanup(void)
 	idr_destroy(&tcp_ps);
 	idr_destroy(&udp_ps);
 	idr_destroy(&ipoib_ps);
+	idr_destroy(&ib_ps);
 }
 
 module_init(cma_init);

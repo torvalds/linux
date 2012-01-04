@@ -46,7 +46,24 @@ struct b43_txhdr {
 	__le32 timeout;			/* Timeout */
 
 	union {
-		/* The new r410 format. */
+		/* Tested with 598.314, 644.1001 and 666.2 */
+		struct {
+			__le16 mimo_antenna;            /* MIMO antenna select */
+			__le16 preload_size;            /* Preload size */
+			PAD_BYTES(2);
+			__le16 cookie;                  /* TX frame cookie */
+			__le16 tx_status;               /* TX status */
+			__le16 max_n_mpdus;
+			__le16 max_a_bytes_mrt;
+			__le16 max_a_bytes_fbr;
+			__le16 min_m_bytes;
+			struct b43_plcp_hdr6 rts_plcp;  /* RTS PLCP header */
+			__u8 rts_frame[16];             /* The RTS frame (if used) */
+			PAD_BYTES(2);
+			struct b43_plcp_hdr6 plcp;      /* Main PLCP header */
+		} format_598 __packed;
+
+		/* Tested with 410.2160, 478.104 and 508.* */
 		struct {
 			__le16 mimo_antenna;		/* MIMO antenna select */
 			__le16 preload_size;		/* Preload size */
@@ -57,9 +74,9 @@ struct b43_txhdr {
 			__u8 rts_frame[16];		/* The RTS frame (if used) */
 			PAD_BYTES(2);
 			struct b43_plcp_hdr6 plcp;	/* Main PLCP header */
-		} new_format __packed;
+		} format_410 __packed;
 
-		/* The old r351 format. */
+		/* Tested with 351.126 */
 		struct {
 			PAD_BYTES(2);
 			__le16 cookie;			/* TX frame cookie */
@@ -68,7 +85,7 @@ struct b43_txhdr {
 			__u8 rts_frame[16];		/* The RTS frame (if used) */
 			PAD_BYTES(2);
 			struct b43_plcp_hdr6 plcp;	/* Main PLCP header */
-		} old_format __packed;
+		} format_351 __packed;
 
 	} __packed;
 } __packed;
@@ -166,19 +183,18 @@ struct b43_tx_legacy_rate_phy_ctl_entry {
 #define  B43_TXH_PHY1_MODUL_QAM256	0x2000 /* QAM256 */
 
 
-/* r351 firmware compatibility stuff. */
-static inline
-bool b43_is_old_txhdr_format(struct b43_wldev *dev)
-{
-	return (dev->fw.rev <= 351);
-}
-
 static inline
 size_t b43_txhdr_size(struct b43_wldev *dev)
 {
-	if (b43_is_old_txhdr_format(dev))
+	switch (dev->fw.hdr_format) {
+	case B43_FW_HDR_598:
+		return 112 + sizeof(struct b43_plcp_hdr6);
+	case B43_FW_HDR_410:
+		return 104 + sizeof(struct b43_plcp_hdr6);
+	case B43_FW_HDR_351:
 		return 100 + sizeof(struct b43_plcp_hdr6);
-	return 104 + sizeof(struct b43_plcp_hdr6);
+	}
+	return 0;
 }
 
 
@@ -232,11 +248,33 @@ struct b43_rxhdr_fw4 {
 			__s8 power1;	/* PHY RX Status 1: Power 1 */
 		} __packed;
 	} __packed;
-	__le16 phy_status2;	/* PHY RX Status 2 */
+	union {
+		/* RSSI for N-PHYs */
+		struct {
+			__s8 power2;
+			PAD_BYTES(1);
+		} __packed;
+
+		__le16 phy_status2;	/* PHY RX Status 2 */
+	} __packed;
 	__le16 phy_status3;	/* PHY RX Status 3 */
-	__le32 mac_status;	/* MAC RX status */
-	__le16 mac_time;
-	__le16 channel;
+	union {
+		/* Tested with 598.314, 644.1001 and 666.2 */
+		struct {
+			__le16 phy_status4;	/* PHY RX Status 4 */
+			__le16 phy_status5;	/* PHY RX Status 5 */
+			__le32 mac_status;	/* MAC RX status */
+			__le16 mac_time;
+			__le16 channel;
+		} format_598 __packed;
+
+		/* Tested with 351.126, 410.2160, 478.104 and 508.* */
+		struct {
+			__le32 mac_status;	/* MAC RX status */
+			__le16 mac_time;
+			__le16 channel;
+		} format_351 __packed;
+	} __packed;
 } __packed;
 
 /* PHY RX Status 0 */

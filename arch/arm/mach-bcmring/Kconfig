@@ -17,5 +17,3 @@ config BCM_ZRELADDR
 	hex "Compressed ZREL ADDR"
 
 endmenu
-
-# source "drivers/char/bcmring/Kconfig"

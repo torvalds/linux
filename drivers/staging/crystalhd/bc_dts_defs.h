@@ -84,7 +84,7 @@ enum BC_SW_OPTIONS {
 	BC_OPT_LINK_OUT_ENCRYPT		= BC_BIT(29),
 };
 
-struct BC_REG_CONFIG{
+struct BC_REG_CONFIG {
 	uint32_t		DbgOptions;
 };
 
@@ -391,7 +391,7 @@ struct BC_PIC_INFO_BLOCK {
  *    ProcOut Info					*
  *------------------------------------------------------*/
 /* Optional flags for ProcOut Interface.*/
-enum POUT_OPTIONAL_IN_FLAGS_{
+enum POUT_OPTIONAL_IN_FLAGS_ {
 	/* Flags from App to Device */
 	BC_POUT_FLAGS_YV12	  = 0x01,	/* Copy Data in YV12 format */
 	BC_POUT_FLAGS_STRIDE	  = 0x02,	/* Stride size is valid. */

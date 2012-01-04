@@ -532,14 +532,14 @@ static bool is_type_dhcprequest(struct sk_buff *skb, int header_len)
 	pkt_len -= header_len + DHCP_OPTIONS_OFFSET + 1;
 
 	/* Access the dhcp option lists. Each entry is made up by:
-	 * - octect 1: option type
-	 * - octect 2: option data len (only if type != 255 and 0)
-	 * - octect 3: option data */
+	 * - octet 1: option type
+	 * - octet 2: option data len (only if type != 255 and 0)
+	 * - octet 3: option data */
 	while (*p != 255 && !ret) {
-		/* p now points to the first octect: option type */
+		/* p now points to the first octet: option type */
 		if (*p == 53) {
 			/* type 53 is the message type option.
-			 * Jump the len octect and go to the data octect */
+			 * Jump the len octet and go to the data octet */
 			if (pkt_len < 2)
 				goto out;
 			p += 2;

@@ -27,7 +27,7 @@
 #include <plat/omap_device.h>
 
 static bool off_mode_enabled;
-static u32 dummy_context_loss_counter;
+static int dummy_context_loss_counter;
 
 /*
  * Device-driver-originated constraints (via board-*.c files)
@@ -311,22 +311,32 @@ void omap_pm_disable_off_mode(void)
 
 #ifdef CONFIG_ARCH_OMAP2PLUS
 
-u32 omap_pm_get_dev_context_loss_count(struct device *dev)
+int omap_pm_get_dev_context_loss_count(struct device *dev)
 {
 	struct platform_device *pdev = to_platform_device(dev);
-	u32 count;
+	int count;
 
 	if (WARN_ON(!dev))
-		return 0;
+		return -ENODEV;
 
 	if (dev->parent == &omap_device_parent) {
 		count = omap_device_get_context_loss_count(pdev);
 	} else {
 		WARN_ONCE(off_mode_enabled, "omap_pm: using dummy context loss counter; device %s should be converted to omap_device",
 			  dev_name(dev));
-		if (off_mode_enabled)
-			dummy_context_loss_counter++;
+
 		count = dummy_context_loss_counter;
+
+		if (off_mode_enabled) {
+			count++;
+			/*
+			 * Context loss count has to be a non-negative value.
+			 * Clear the sign bit to get a value range from 0 to
+			 * INT_MAX.
+			 */
+			count &= INT_MAX;
+			dummy_context_loss_counter = count;
+		}
 	}
 
 	pr_debug("OMAP PM: context loss count for dev %s = %d\n",
@@ -337,7 +347,7 @@ u32 omap_pm_get_dev_context_loss_count(struct device *dev)
 
 #else
 
-u32 omap_pm_get_dev_context_loss_count(struct device *dev)
+int omap_pm_get_dev_context_loss_count(struct device *dev)
 {
 	return dummy_context_loss_counter;
 }

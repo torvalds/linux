@@ -11,7 +11,6 @@
 #define KMSG_COMPONENT "dasd"
 #define pr_fmt(fmt) KMSG_COMPONENT ": " fmt
 
-#include <linux/kernel_stat.h>
 #include <linux/kmod.h>
 #include <linux/init.h>
 #include <linux/interrupt.h>
@@ -1594,7 +1593,6 @@ void dasd_int_handler(struct ccw_device *cdev, unsigned long intparm,
 	unsigned long long now;
 	int expires;
 
-	kstat_cpu(smp_processor_id()).irqs[IOINT_DAS]++;
 	if (IS_ERR(irb)) {
 		switch (PTR_ERR(irb)) {
 		case -EIO:
@@ -2061,13 +2059,14 @@ void dasd_add_request_tail(struct dasd_ccw_req *cqr)
 /*
  * Wakeup helper for the 'sleep_on' functions.
  */
-static void dasd_wakeup_cb(struct dasd_ccw_req *cqr, void *data)
+void dasd_wakeup_cb(struct dasd_ccw_req *cqr, void *data)
 {
 	spin_lock_irq(get_ccwdev_lock(cqr->startdev->cdev));
 	cqr->callback_data = DASD_SLEEPON_END_TAG;
 	spin_unlock_irq(get_ccwdev_lock(cqr->startdev->cdev));
 	wake_up(&generic_waitq);
 }
+EXPORT_SYMBOL_GPL(dasd_wakeup_cb);
 
 static inline int _wait_for_wakeup(struct dasd_ccw_req *cqr)
 {
@@ -2167,7 +2166,9 @@ static int _dasd_sleep_on(struct dasd_ccw_req *maincqr, int interruptible)
 		} else
 			wait_event(generic_waitq, !(device->stopped));
 
-		cqr->callback = dasd_wakeup_cb;
+		if (!cqr->callback)
+			cqr->callback = dasd_wakeup_cb;
+
 		cqr->callback_data = DASD_SLEEPON_START_TAG;
 		dasd_add_request_tail(cqr);
 		if (interruptible) {
@@ -2263,7 +2264,11 @@ int dasd_sleep_on_immediatly(struct dasd_ccw_req *cqr)
 	cqr->callback = dasd_wakeup_cb;
 	cqr->callback_data = DASD_SLEEPON_START_TAG;
 	cqr->status = DASD_CQR_QUEUED;
-	list_add(&cqr->devlist, &device->ccw_queue);
+	/*
+	 * add new request as second
+	 * first the terminated cqr needs to be finished
+	 */
+	list_add(&cqr->devlist, device->ccw_queue.next);
 
 	/* let the bh start the request to keep them in order */
 	dasd_schedule_device_bh(device);
@@ -3284,6 +3289,9 @@ int dasd_generic_pm_freeze(struct ccw_device *cdev)
 	if (IS_ERR(device))
 		return PTR_ERR(device);
 
+	/* mark device as suspended */
+	set_bit(DASD_FLAG_SUSPENDED, &device->flags);
+
 	if (device->discipline->freeze)
 		rc = device->discipline->freeze(device);
 
@@ -3358,6 +3366,7 @@ int dasd_generic_restore_device(struct ccw_device *cdev)
 	if (device->block)
 		dasd_schedule_block_bh(device->block);
 
+	clear_bit(DASD_FLAG_SUSPENDED, &device->flags);
 	dasd_put_device(device);
 	return 0;
 }

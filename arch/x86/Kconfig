@@ -64,10 +64,12 @@ config X86
 	select HAVE_TEXT_POKE_SMP
 	select HAVE_GENERIC_HARDIRQS
 	select HAVE_SPARSE_IRQ
+	select SPARSE_IRQ
 	select GENERIC_FIND_FIRST_BIT
 	select GENERIC_IRQ_PROBE
 	select GENERIC_PENDING_IRQ if SMP
 	select GENERIC_IRQ_SHOW
+	select GENERIC_CLOCKEVENTS_MIN_ADJUST
 	select IRQ_FORCED_THREADING
 	select USE_GENERIC_SMP_HELPERS if SMP
 	select HAVE_BPF_JIT if (X86_64 && NET)
@@ -130,7 +132,7 @@ config SBUS
 	bool
 
 config NEED_DMA_MAP_STATE
-       def_bool (X86_64 || DMAR || DMA_API_DEBUG)
+       def_bool (X86_64 || INTEL_IOMMU || DMA_API_DEBUG)
 
 config NEED_SG_DMA_LENGTH
 	def_bool y
@@ -192,9 +194,6 @@ config NEED_PER_CPU_EMBED_FIRST_CHUNK
 config NEED_PER_CPU_PAGE_FIRST_CHUNK
 	def_bool y
 
-config HAVE_CPUMASK_OF_CPU_MAP
-	def_bool X86_64_SMP
-
 config ARCH_HIBERNATION_POSSIBLE
 	def_bool y
 
@@ -220,7 +219,7 @@ config ARCH_SUPPORTS_DEBUG_PAGEALLOC
 
 config HAVE_INTEL_TXT
 	def_bool y
-	depends on EXPERIMENTAL && DMAR && ACPI
+	depends on EXPERIMENTAL && INTEL_IOMMU && ACPI
 
 config X86_32_SMP
 	def_bool y
@@ -279,7 +278,7 @@ config SMP
 	  Y to "Enhanced Real Time Clock Support", below. The "Advanced Power
 	  Management" code will be disabled if you say Y here.
 
-	  See also <file:Documentation/i386/IO-APIC.txt>,
+	  See also <file:Documentation/x86/i386/IO-APIC.txt>,
 	  <file:Documentation/nmi_watchdog.txt> and the SMP-HOWTO available at
 	  <http://www.tldp.org/docs.html#howto>.
 
@@ -287,7 +286,7 @@ config SMP
 
 config X86_X2APIC
 	bool "Support x2apic"
-	depends on X86_LOCAL_APIC && X86_64 && INTR_REMAP
+	depends on X86_LOCAL_APIC && X86_64 && IRQ_REMAP
 	---help---
 	  This enables x2apic support on CPUs that have this feature.
 
@@ -1452,6 +1451,15 @@ config ARCH_USES_PG_UNCACHED
 	def_bool y
 	depends on X86_PAT
 
+config ARCH_RANDOM
+	def_bool y
+	prompt "x86 architectural random number generator" if EXPERT
+	---help---
+	  Enable the x86 architectural RDRAND instruction
+	  (Intel Bull Mountain technology) to generate random numbers.
+	  If supported, this is a high bandwidth, cryptographically
+	  secure hardware random number generator.
+
 config EFI
 	bool "EFI runtime service support"
 	depends on ACPI
@@ -2063,6 +2071,20 @@ config OLPC_XO15_SCI
 	   - EC-driven system wakeups
 	   - AC adapter status updates
 	   - Battery status updates
+
+config ALIX
+	bool "PCEngines ALIX System Support (LED setup)"
+	select GPIOLIB
+	---help---
+	  This option enables system support for the PCEngines ALIX.
+	  At present this just sets up LEDs for GPIO control on
+	  ALIX2/3/6 boards.  However, other system specific setup should
+	  get added here.
+
+	  Note: You must still enable the drivers for GPIO and LED support
+	  (GPIO_CS5535 & LEDS_GPIO) to actually use the LEDs
+
+	  Note: You have to set alix.force=1 for boards with Award BIOS.
 
 endif # X86_32
 

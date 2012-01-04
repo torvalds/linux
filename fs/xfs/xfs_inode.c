@@ -190,12 +190,6 @@ xfs_imap_to_bp(
 	}
 
 	xfs_inobp_check(mp, bp);
-
-	/*
-	 * Mark the buffer as an inode buffer now that it looks good
-	 */
-	XFS_BUF_SET_VTYPE(bp, B_FS_INO);
-
 	*bpp = bp;
 	return 0;
 }
@@ -1152,7 +1146,7 @@ xfs_ialloc(
 	/*
 	 * Log the new values stuffed into the inode.
 	 */
-	xfs_trans_ijoin_ref(tp, ip, XFS_ILOCK_EXCL);
+	xfs_trans_ijoin(tp, ip, XFS_ILOCK_EXCL);
 	xfs_trans_log_inode(tp, ip, flags);
 
 	/* now that we have an i_mode we can setup inode ops and unlock */
@@ -1187,6 +1181,7 @@ xfs_isize_check(
 	xfs_fileoff_t		map_first;
 	int			nimaps;
 	xfs_bmbt_irec_t		imaps[2];
+	int			error;
 
 	if (!S_ISREG(ip->i_d.di_mode))
 		return;
@@ -1203,13 +1198,12 @@ xfs_isize_check(
 	 * The filesystem could be shutting down, so bmapi may return
 	 * an error.
 	 */
-	if (xfs_bmapi(NULL, ip, map_first,
+	error = xfs_bmapi_read(ip, map_first,
 			 (XFS_B_TO_FSB(mp,
-				       (xfs_ufsize_t)XFS_MAXIOFFSET(mp)) -
-			  map_first),
-			 XFS_BMAPI_ENTIRE, NULL, 0, imaps, &nimaps,
-			 NULL))
-	    return;
+			       (xfs_ufsize_t)XFS_MAXIOFFSET(mp)) - map_first),
+			 imaps, &nimaps, XFS_BMAPI_ENTIRE);
+	if (error)
+		return;
 	ASSERT(nimaps == 1);
 	ASSERT(imaps[0].br_startblock == HOLESTARTBLOCK);
 }
@@ -1297,7 +1291,7 @@ xfs_itruncate_extents(
 		 */
 		error = xfs_bmap_finish(&tp, &free_list, &committed);
 		if (committed)
-			xfs_trans_ijoin(tp, ip);
+			xfs_trans_ijoin(tp, ip, 0);
 		if (error)
 			goto out_bmap_cancel;
 
@@ -1313,7 +1307,7 @@ xfs_itruncate_extents(
 		error = xfs_trans_commit(tp, 0);
 		tp = ntp;
 
-		xfs_trans_ijoin(tp, ip);
+		xfs_trans_ijoin(tp, ip, 0);
 
 		if (error)
 			goto out;
@@ -1644,7 +1638,7 @@ xfs_iunlink_remove(
  * inodes that are in memory - they all must be marked stale and attached to
  * the cluster buffer.
  */
-STATIC void
+STATIC int
 xfs_ifree_cluster(
 	xfs_inode_t	*free_ip,
 	xfs_trans_t	*tp,
@@ -1690,6 +1684,8 @@ xfs_ifree_cluster(
 					mp->m_bsize * blks_per_cluster,
 					XBF_LOCK);
 
+		if (!bp)
+			return ENOMEM;
 		/*
 		 * Walk the inodes already attached to the buffer and mark them
 		 * stale. These will all have the flush locks held, so an
@@ -1799,6 +1795,7 @@ retry:
 	}
 
 	xfs_perag_put(pag);
+	return 0;
 }
 
 /*
@@ -1878,10 +1875,10 @@ xfs_ifree(
 	dip->di_mode = 0;
 
 	if (delete) {
-		xfs_ifree_cluster(ip, tp, first_ino);
+		error = xfs_ifree_cluster(ip, tp, first_ino);
 	}
 
-	return 0;
+	return error;
 }
 
 /*
@@ -2472,11 +2469,11 @@ cluster_corrupt_out:
 		 */
 		if (bp->b_iodone) {
 			XFS_BUF_UNDONE(bp);
-			XFS_BUF_STALE(bp);
+			xfs_buf_stale(bp);
 			xfs_buf_ioerror(bp, EIO);
 			xfs_buf_ioend(bp, 0);
 		} else {
-			XFS_BUF_STALE(bp);
+			xfs_buf_stale(bp);
 			xfs_buf_relse(bp);
 		}
 	}
@@ -2597,9 +2594,11 @@ xfs_iflush(
 		goto cluster_corrupt_out;
 
 	if (flags & SYNC_WAIT)
-		error = xfs_bwrite(mp, bp);
+		error = xfs_bwrite(bp);
 	else
-		xfs_bdwrite(mp, bp);
+		xfs_buf_delwri_queue(bp);
+
+	xfs_buf_relse(bp);
 	return error;
 
 corrupt_out:

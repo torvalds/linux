@@ -214,33 +214,26 @@ static int smm665_read_adc(struct smm665_data *data, int adc)
 	 *
 	 * Neither i2c_smbus_read_byte() nor
 	 * i2c_smbus_read_block_data() worked here,
-	 * so use i2c_smbus_read_word_data() instead.
+	 * so use i2c_smbus_read_word_swapped() instead.
 	 * We could also try to use i2c_master_recv(),
 	 * but that is not always supported.
 	 */
-	rv = i2c_smbus_read_word_data(client, 0);
+	rv = i2c_smbus_read_word_swapped(client, 0);
 	if (rv < 0) {
 		dev_dbg(&client->dev, "Failed to read ADC value: error %d", rv);
 		return -1;
 	}
 	/*
 	 * Validate/verify readback adc channel (in bit 11..14).
-	 * High byte is in lower 8 bit of rv, so only shift by 3.
 	 */
-	radc = (rv >> 3) & 0x0f;
+	radc = (rv >> 11) & 0x0f;
 	if (radc != adc) {
 		dev_dbg(&client->dev, "Unexpected RADC: Expected %d got %d",
 			adc, radc);
 		return -EIO;
 	}
-	/*
-	 * Chip replies with H/L, while SMBus expects L/H.
-	 * Thus, byte order is reversed, and we have to swap
-	 * the result.
-	 */
-	rv = swab16(rv) & SMM665_ADC_MASK;
 
-	return rv;
+	return rv & SMM665_ADC_MASK;
 }
 
 static struct smm665_data *smm665_update_device(struct device *dev)

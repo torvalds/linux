@@ -1185,8 +1185,8 @@ static int neofb_pan_display(struct fb_var_screeninfo *var,
 
 	DBG("neofb_update_start");
 
-	Base = (var->yoffset * var->xres_virtual + var->xoffset) >> 2;
-	Base *= (var->bits_per_pixel + 7) / 8;
+	Base = (var->yoffset * info->var.xres_virtual + var->xoffset) >> 2;
+	Base *= (info->var.bits_per_pixel + 7) / 8;
 
 	neoUnlock();
 

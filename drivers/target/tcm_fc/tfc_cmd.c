@@ -19,7 +19,6 @@
 
 #include <linux/module.h>
 #include <linux/moduleparam.h>
-#include <linux/version.h>
 #include <generated/utsrelease.h>
 #include <linux/utsname.h>
 #include <linux/init.h>
@@ -113,9 +112,10 @@ void ft_release_cmd(struct se_cmd *se_cmd)
 	ft_free_cmd(cmd);
 }
 
-void ft_check_stop_free(struct se_cmd *se_cmd)
+int ft_check_stop_free(struct se_cmd *se_cmd)
 {
-	transport_generic_free_cmd(se_cmd, 0, 0);
+	transport_generic_free_cmd(se_cmd, 0);
+	return 1;
 }
 
 /*
@@ -268,9 +268,8 @@ static void ft_recv_seq(struct fc_seq *sp, struct fc_frame *fp, void *arg)
 
 	if (IS_ERR(fp)) {
 		/* XXX need to find cmd if queued */
-		cmd->se_cmd.t_state = TRANSPORT_REMOVE;
 		cmd->seq = NULL;
-		transport_generic_free_cmd(&cmd->se_cmd, 0, 0);
+		transport_generic_free_cmd(&cmd->se_cmd, 0);
 		return;
 	}
 
@@ -288,7 +287,7 @@ static void ft_recv_seq(struct fc_seq *sp, struct fc_frame *fp, void *arg)
 		       __func__, fh->fh_r_ctl);
 		ft_invl_hw_context(cmd);
 		fc_frame_free(fp);
-		transport_generic_free_cmd(&cmd->se_cmd, 0, 0);
+		transport_generic_free_cmd(&cmd->se_cmd, 0);
 		break;
 	}
 }
@@ -397,7 +396,7 @@ static void ft_send_tm(struct ft_cmd *cmd)
 	}
 
 	pr_debug("alloc tm cmd fn %d\n", tm_func);
-	tmr = core_tmr_alloc_req(&cmd->se_cmd, cmd, tm_func);
+	tmr = core_tmr_alloc_req(&cmd->se_cmd, cmd, tm_func, GFP_KERNEL);
 	if (!tmr) {
 		pr_debug("alloc failed\n");
 		ft_send_resp_code_and_free(cmd, FCP_TMF_FAILED);
@@ -421,7 +420,7 @@ static void ft_send_tm(struct ft_cmd *cmd)
 			sess = cmd->sess;
 			transport_send_check_condition_and_sense(&cmd->se_cmd,
 				cmd->se_cmd.scsi_sense_reason, 0);
-			transport_generic_free_cmd(&cmd->se_cmd, 0, 0);
+			transport_generic_free_cmd(&cmd->se_cmd, 0);
 			ft_sess_put(sess);
 			return;
 		}
@@ -628,7 +627,7 @@ static void ft_send_work(struct work_struct *work)
 	if (ret == -ENOMEM) {
 		transport_send_check_condition_and_sense(se_cmd,
 				TCM_LOGICAL_UNIT_COMMUNICATION_FAILURE, 0);
-		transport_generic_free_cmd(se_cmd, 0, 0);
+		transport_generic_free_cmd(se_cmd, 0);
 		return;
 	}
 	if (ret == -EINVAL) {
@@ -637,10 +636,10 @@ static void ft_send_work(struct work_struct *work)
 		else
 			transport_send_check_condition_and_sense(se_cmd,
 					se_cmd->scsi_sense_reason, 0);
-		transport_generic_free_cmd(se_cmd, 0, 0);
+		transport_generic_free_cmd(se_cmd, 0);
 		return;
 	}
-	transport_generic_handle_cdb(se_cmd);
+	transport_handle_cdb_direct(se_cmd);
 	return;
 
 err:

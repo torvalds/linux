@@ -28,6 +28,7 @@
 #include <linux/task_io_accounting_ops.h>
 #include <linux/fault-inject.h>
 #include <linux/list_sort.h>
+#include <linux/delay.h>
 
 #define CREATE_TRACE_POINTS
 #include <trace/events/block.h>
@@ -37,8 +38,6 @@
 EXPORT_TRACEPOINT_SYMBOL_GPL(block_bio_remap);
 EXPORT_TRACEPOINT_SYMBOL_GPL(block_rq_remap);
 EXPORT_TRACEPOINT_SYMBOL_GPL(block_bio_complete);
-
-static int __make_request(struct request_queue *q, struct bio *bio);
 
 /*
  * For the allocated request tables
@@ -347,30 +346,80 @@ void blk_put_queue(struct request_queue *q)
 }
 EXPORT_SYMBOL(blk_put_queue);
 
-/*
- * Note: If a driver supplied the queue lock, it is disconnected
- * by this function. The actual state of the lock doesn't matter
- * here as the request_queue isn't accessible after this point
- * (QUEUE_FLAG_DEAD is set) and no other requests will be queued.
+/**
+ * blk_drain_queue - drain requests from request_queue
+ * @q: queue to drain
+ * @drain_all: whether to drain all requests or only the ones w/ ELVPRIV
+ *
+ * Drain requests from @q.  If @drain_all is set, all requests are drained.
+ * If not, only ELVPRIV requests are drained.  The caller is responsible
+ * for ensuring that no new requests which need to be drained are queued.
+ */
+void blk_drain_queue(struct request_queue *q, bool drain_all)
+{
+	while (true) {
+		int nr_rqs;
+
+		spin_lock_irq(q->queue_lock);
+
+		elv_drain_elevator(q);
+		if (drain_all)
+			blk_throtl_drain(q);
+
+		__blk_run_queue(q);
+
+		if (drain_all)
+			nr_rqs = q->rq.count[0] + q->rq.count[1];
+		else
+			nr_rqs = q->rq.elvpriv;
+
+		spin_unlock_irq(q->queue_lock);
+
+		if (!nr_rqs)
+			break;
+		msleep(10);
+	}
+}
+
+/**
+ * blk_cleanup_queue - shutdown a request queue
+ * @q: request queue to shutdown
+ *
+ * Mark @q DEAD, drain all pending requests, destroy and put it.  All
+ * future requests will be failed immediately with -ENODEV.
  */
 void blk_cleanup_queue(struct request_queue *q)
 {
-	/*
-	 * We know we have process context here, so we can be a little
-	 * cautious and ensure that pending block actions on this device
-	 * are done before moving on. Going into this function, we should
-	 * not have processes doing IO to this device.
-	 */
-	blk_sync_queue(q);
+	spinlock_t *lock = q->queue_lock;
 
-	del_timer_sync(&q->backing_dev_info.laptop_mode_wb_timer);
+	/* mark @q DEAD, no new request or merges will be allowed afterwards */
 	mutex_lock(&q->sysfs_lock);
 	queue_flag_set_unlocked(QUEUE_FLAG_DEAD, q);
-	mutex_unlock(&q->sysfs_lock);
+
+	spin_lock_irq(lock);
+	queue_flag_set(QUEUE_FLAG_NOMERGES, q);
+	queue_flag_set(QUEUE_FLAG_NOXMERGES, q);
+	queue_flag_set(QUEUE_FLAG_DEAD, q);
 
 	if (q->queue_lock != &q->__queue_lock)
 		q->queue_lock = &q->__queue_lock;
 
+	spin_unlock_irq(lock);
+	mutex_unlock(&q->sysfs_lock);
+
+	/*
+	 * Drain all requests queued before DEAD marking.  The caller might
+	 * be trying to tear down @q before its elevator is initialized, in
+	 * which case we don't want to call into draining.
+	 */
+	if (q->elevator)
+		blk_drain_queue(q, true);
+
+	/* @q won't process any more request, flush async actions */
+	del_timer_sync(&q->backing_dev_info.laptop_mode_wb_timer);
+	blk_sync_queue(q);
+
+	/* @q is and will stay empty, shutdown and put */
 	blk_put_queue(q);
 }
 EXPORT_SYMBOL(blk_cleanup_queue);
@@ -541,7 +590,7 @@ blk_init_allocated_queue_node(struct request_queue *q, request_fn_proc *rfn,
 	/*
 	 * This also sets hw/phys segments, boundary and size
 	 */
-	blk_queue_make_request(q, __make_request);
+	blk_queue_make_request(q, blk_queue_bio);
 
 	q->sg_reserved_size = INT_MAX;
 
@@ -576,7 +625,7 @@ static inline void blk_free_request(struct request_queue *q, struct request *rq)
 }
 
 static struct request *
-blk_alloc_request(struct request_queue *q, int flags, int priv, gfp_t gfp_mask)
+blk_alloc_request(struct request_queue *q, unsigned int flags, gfp_t gfp_mask)
 {
 	struct request *rq = mempool_alloc(q->rq.rq_pool, gfp_mask);
 
@@ -587,12 +636,10 @@ blk_alloc_request(struct request_queue *q, int flags, int priv, gfp_t gfp_mask)
 
 	rq->cmd_flags = flags | REQ_ALLOCED;
 
-	if (priv) {
-		if (unlikely(elv_set_request(q, rq, gfp_mask))) {
-			mempool_free(rq, q->rq.rq_pool);
-			return NULL;
-		}
-		rq->cmd_flags |= REQ_ELVPRIV;
+	if ((flags & REQ_ELVPRIV) &&
+	    unlikely(elv_set_request(q, rq, gfp_mask))) {
+		mempool_free(rq, q->rq.rq_pool);
+		return NULL;
 	}
 
 	return rq;
@@ -651,12 +698,13 @@ static void __freed_request(struct request_queue *q, int sync)
  * A request has just been released.  Account for it, update the full and
  * congestion status, wake up any waiters.   Called under q->queue_lock.
  */
-static void freed_request(struct request_queue *q, int sync, int priv)
+static void freed_request(struct request_queue *q, unsigned int flags)
 {
 	struct request_list *rl = &q->rq;
+	int sync = rw_is_sync(flags);
 
 	rl->count[sync]--;
-	if (priv)
+	if (flags & REQ_ELVPRIV)
 		rl->elvpriv--;
 
 	__freed_request(q, sync);
@@ -684,10 +732,19 @@ static bool blk_rq_should_init_elevator(struct bio *bio)
 	return true;
 }
 
-/*
- * Get a free request, queue_lock must be held.
- * Returns NULL on failure, with queue_lock held.
- * Returns !NULL on success, with queue_lock *not held*.
+/**
+ * get_request - get a free request
+ * @q: request_queue to allocate request from
+ * @rw_flags: RW and SYNC flags
+ * @bio: bio to allocate request for (can be %NULL)
+ * @gfp_mask: allocation mask
+ *
+ * Get a free request from @q.  This function may fail under memory
+ * pressure or if @q is dead.
+ *
+ * Must be callled with @q->queue_lock held and,
+ * Returns %NULL on failure, with @q->queue_lock held.
+ * Returns !%NULL on success, with @q->queue_lock *not held*.
  */
 static struct request *get_request(struct request_queue *q, int rw_flags,
 				   struct bio *bio, gfp_t gfp_mask)
@@ -696,7 +753,10 @@ static struct request *get_request(struct request_queue *q, int rw_flags,
 	struct request_list *rl = &q->rq;
 	struct io_context *ioc = NULL;
 	const bool is_sync = rw_is_sync(rw_flags) != 0;
-	int may_queue, priv = 0;
+	int may_queue;
+
+	if (unlikely(test_bit(QUEUE_FLAG_DEAD, &q->queue_flags)))
+		return NULL;
 
 	may_queue = elv_may_queue(q, rw_flags);
 	if (may_queue == ELV_MQUEUE_NO)
@@ -740,17 +800,17 @@ static struct request *get_request(struct request_queue *q, int rw_flags,
 	rl->count[is_sync]++;
 	rl->starved[is_sync] = 0;
 
-	if (blk_rq_should_init_elevator(bio)) {
-		priv = !test_bit(QUEUE_FLAG_ELVSWITCH, &q->queue_flags);
-		if (priv)
-			rl->elvpriv++;
+	if (blk_rq_should_init_elevator(bio) &&
+	    !test_bit(QUEUE_FLAG_ELVSWITCH, &q->queue_flags)) {
+		rw_flags |= REQ_ELVPRIV;
+		rl->elvpriv++;
 	}
 
 	if (blk_queue_io_stat(q))
 		rw_flags |= REQ_IO_STAT;
 	spin_unlock_irq(q->queue_lock);
 
-	rq = blk_alloc_request(q, rw_flags, priv, gfp_mask);
+	rq = blk_alloc_request(q, rw_flags, gfp_mask);
 	if (unlikely(!rq)) {
 		/*
 		 * Allocation failed presumably due to memory. Undo anything
@@ -760,7 +820,7 @@ static struct request *get_request(struct request_queue *q, int rw_flags,
 		 * wait queue, but this is pretty rare.
 		 */
 		spin_lock_irq(q->queue_lock);
-		freed_request(q, is_sync, priv);
+		freed_request(q, rw_flags);
 
 		/*
 		 * in the very unlikely event that allocation failed and no
@@ -790,11 +850,18 @@ out:
 	return rq;
 }
 
-/*
- * No available requests for this queue, wait for some requests to become
- * available.
+/**
+ * get_request_wait - get a free request with retry
+ * @q: request_queue to allocate request from
+ * @rw_flags: RW and SYNC flags
+ * @bio: bio to allocate request for (can be %NULL)
  *
- * Called with q->queue_lock held, and returns with it unlocked.
+ * Get a free request from @q.  This function keeps retrying under memory
+ * pressure and fails iff @q is dead.
+ *
+ * Must be callled with @q->queue_lock held and,
+ * Returns %NULL on failure, with @q->queue_lock held.
+ * Returns !%NULL on success, with @q->queue_lock *not held*.
  */
 static struct request *get_request_wait(struct request_queue *q, int rw_flags,
 					struct bio *bio)
@@ -807,6 +874,9 @@ static struct request *get_request_wait(struct request_queue *q, int rw_flags,
 		DEFINE_WAIT(wait);
 		struct io_context *ioc;
 		struct request_list *rl = &q->rq;
+
+		if (unlikely(test_bit(QUEUE_FLAG_DEAD, &q->queue_flags)))
+			return NULL;
 
 		prepare_to_wait_exclusive(&rl->wait[is_sync], &wait,
 				TASK_UNINTERRUPTIBLE);
@@ -838,19 +908,15 @@ struct request *blk_get_request(struct request_queue *q, int rw, gfp_t gfp_mask)
 {
 	struct request *rq;
 
-	if (unlikely(test_bit(QUEUE_FLAG_DEAD, &q->queue_flags)))
-		return NULL;
-
 	BUG_ON(rw != READ && rw != WRITE);
 
 	spin_lock_irq(q->queue_lock);
-	if (gfp_mask & __GFP_WAIT) {
+	if (gfp_mask & __GFP_WAIT)
 		rq = get_request_wait(q, rw, NULL);
-	} else {
+	else
 		rq = get_request(q, rw, NULL, gfp_mask);
-		if (!rq)
-			spin_unlock_irq(q->queue_lock);
-	}
+	if (!rq)
+		spin_unlock_irq(q->queue_lock);
 	/* q->queue_lock is unlocked at this point */
 
 	return rq;
@@ -1052,14 +1118,13 @@ void __blk_put_request(struct request_queue *q, struct request *req)
 	 * it didn't come out of our reserved rq pools
 	 */
 	if (req->cmd_flags & REQ_ALLOCED) {
-		int is_sync = rq_is_sync(req) != 0;
-		int priv = req->cmd_flags & REQ_ELVPRIV;
+		unsigned int flags = req->cmd_flags;
 
 		BUG_ON(!list_empty(&req->queuelist));
 		BUG_ON(!hlist_unhashed(&req->hash));
 
 		blk_free_request(q, req);
-		freed_request(q, is_sync, priv);
+		freed_request(q, flags);
 	}
 }
 EXPORT_SYMBOL_GPL(__blk_put_request);
@@ -1161,18 +1226,32 @@ static bool bio_attempt_front_merge(struct request_queue *q,
 	return true;
 }
 
-/*
- * Attempts to merge with the plugged list in the current process. Returns
- * true if merge was successful, otherwise false.
+/**
+ * attempt_plug_merge - try to merge with %current's plugged list
+ * @q: request_queue new bio is being queued at
+ * @bio: new bio being queued
+ * @request_count: out parameter for number of traversed plugged requests
+ *
+ * Determine whether @bio being queued on @q can be merged with a request
+ * on %current's plugged list.  Returns %true if merge was successful,
+ * otherwise %false.
+ *
+ * This function is called without @q->queue_lock; however, elevator is
+ * accessed iff there already are requests on the plugged list which in
+ * turn guarantees validity of the elevator.
+ *
+ * Note that, on successful merge, elevator operation
+ * elevator_bio_merged_fn() will be called without queue lock.  Elevator
+ * must be ready for this.
  */
-static bool attempt_plug_merge(struct task_struct *tsk, struct request_queue *q,
-			       struct bio *bio, unsigned int *request_count)
+static bool attempt_plug_merge(struct request_queue *q, struct bio *bio,
+			       unsigned int *request_count)
 {
 	struct blk_plug *plug;
 	struct request *rq;
 	bool ret = false;
 
-	plug = tsk->plug;
+	plug = current->plug;
 	if (!plug)
 		goto out;
 	*request_count = 0;
@@ -1202,7 +1281,6 @@ out:
 
 void init_request_from_bio(struct request *req, struct bio *bio)
 {
-	req->cpu = bio->bi_comp_cpu;
 	req->cmd_type = REQ_TYPE_FS;
 
 	req->cmd_flags |= bio->bi_rw & REQ_COMMON_MASK;
@@ -1215,7 +1293,7 @@ void init_request_from_bio(struct request *req, struct bio *bio)
 	blk_rq_bio_prep(req->q, req, bio);
 }
 
-static int __make_request(struct request_queue *q, struct bio *bio)
+void blk_queue_bio(struct request_queue *q, struct bio *bio)
 {
 	const bool sync = !!(bio->bi_rw & REQ_SYNC);
 	struct blk_plug *plug;
@@ -1240,8 +1318,8 @@ static int __make_request(struct request_queue *q, struct bio *bio)
 	 * Check if we can merge with the plugged list before grabbing
 	 * any locks.
 	 */
-	if (attempt_plug_merge(current, q, bio, &request_count))
-		goto out;
+	if (attempt_plug_merge(q, bio, &request_count))
+		return;
 
 	spin_lock_irq(q->queue_lock);
 
@@ -1275,6 +1353,10 @@ get_rq:
 	 * Returns with the queue unlocked.
 	 */
 	req = get_request_wait(q, rw_flags, bio);
+	if (unlikely(!req)) {
+		bio_endio(bio, -ENODEV);	/* @q is dead */
+		goto out_unlock;
+	}
 
 	/*
 	 * After dropping the lock and possibly sleeping here, our request
@@ -1284,8 +1366,7 @@ get_rq:
 	 */
 	init_request_from_bio(req, bio);
 
-	if (test_bit(QUEUE_FLAG_SAME_COMP, &q->queue_flags) ||
-	    bio_flagged(bio, BIO_CPU_AFFINE))
+	if (test_bit(QUEUE_FLAG_SAME_COMP, &q->queue_flags))
 		req->cpu = raw_smp_processor_id();
 
 	plug = current->plug;
@@ -1316,9 +1397,8 @@ get_rq:
 out_unlock:
 		spin_unlock_irq(q->queue_lock);
 	}
-out:
-	return 0;
 }
+EXPORT_SYMBOL_GPL(blk_queue_bio);	/* for device mapper only */
 
 /*
  * If bio->bi_dev is a partition, remap the location
@@ -1417,6 +1497,89 @@ static inline int bio_check_eod(struct bio *bio, unsigned int nr_sectors)
 	return 0;
 }
 
+static noinline_for_stack bool
+generic_make_request_checks(struct bio *bio)
+{
+	struct request_queue *q;
+	int nr_sectors = bio_sectors(bio);
+	int err = -EIO;
+	char b[BDEVNAME_SIZE];
+	struct hd_struct *part;
+
+	might_sleep();
+
+	if (bio_check_eod(bio, nr_sectors))
+		goto end_io;
+
+	q = bdev_get_queue(bio->bi_bdev);
+	if (unlikely(!q)) {
+		printk(KERN_ERR
+		       "generic_make_request: Trying to access "
+			"nonexistent block-device %s (%Lu)\n",
+			bdevname(bio->bi_bdev, b),
+			(long long) bio->bi_sector);
+		goto end_io;
+	}
+
+	if (unlikely(!(bio->bi_rw & REQ_DISCARD) &&
+		     nr_sectors > queue_max_hw_sectors(q))) {
+		printk(KERN_ERR "bio too big device %s (%u > %u)\n",
+		       bdevname(bio->bi_bdev, b),
+		       bio_sectors(bio),
+		       queue_max_hw_sectors(q));
+		goto end_io;
+	}
+
+	part = bio->bi_bdev->bd_part;
+	if (should_fail_request(part, bio->bi_size) ||
+	    should_fail_request(&part_to_disk(part)->part0,
+				bio->bi_size))
+		goto end_io;
+
+	/*
+	 * If this device has partitions, remap block n
+	 * of partition p to block n+start(p) of the disk.
+	 */
+	blk_partition_remap(bio);
+
+	if (bio_integrity_enabled(bio) && bio_integrity_prep(bio))
+		goto end_io;
+
+	if (bio_check_eod(bio, nr_sectors))
+		goto end_io;
+
+	/*
+	 * Filter flush bio's early so that make_request based
+	 * drivers without flush support don't have to worry
+	 * about them.
+	 */
+	if ((bio->bi_rw & (REQ_FLUSH | REQ_FUA)) && !q->flush_flags) {
+		bio->bi_rw &= ~(REQ_FLUSH | REQ_FUA);
+		if (!nr_sectors) {
+			err = 0;
+			goto end_io;
+		}
+	}
+
+	if ((bio->bi_rw & REQ_DISCARD) &&
+	    (!blk_queue_discard(q) ||
+	     ((bio->bi_rw & REQ_SECURE) &&
+	      !blk_queue_secdiscard(q)))) {
+		err = -EOPNOTSUPP;
+		goto end_io;
+	}
+
+	if (blk_throtl_bio(q, bio))
+		return false;	/* throttled, will be resubmitted later */
+
+	trace_block_bio_queue(q, bio);
+	return true;
+
+end_io:
+	bio_endio(bio, err);
+	return false;
+}
+
 /**
  * generic_make_request - hand a buffer to its device driver for I/O
  * @bio:  The bio describing the location in memory and on the device.
@@ -1437,145 +1600,32 @@ static inline int bio_check_eod(struct bio *bio, unsigned int nr_sectors)
  * completion notification should be signaled.
  *
  * generic_make_request and the drivers it calls may use bi_next if this
- * bio happens to be merged with someone else, and may change bi_dev and
- * bi_sector for remaps as it sees fit.  So the values of these fields
- * should NOT be depended on after the call to generic_make_request.
- */
-static inline void __generic_make_request(struct bio *bio)
-{
-	struct request_queue *q;
-	sector_t old_sector;
-	int ret, nr_sectors = bio_sectors(bio);
-	dev_t old_dev;
-	int err = -EIO;
-
-	might_sleep();
-
-	if (bio_check_eod(bio, nr_sectors))
-		goto end_io;
-
-	/*
-	 * Resolve the mapping until finished. (drivers are
-	 * still free to implement/resolve their own stacking
-	 * by explicitly returning 0)
-	 *
-	 * NOTE: we don't repeat the blk_size check for each new device.
-	 * Stacking drivers are expected to know what they are doing.
-	 */
-	old_sector = -1;
-	old_dev = 0;
-	do {
-		char b[BDEVNAME_SIZE];
-		struct hd_struct *part;
-
-		q = bdev_get_queue(bio->bi_bdev);
-		if (unlikely(!q)) {
-			printk(KERN_ERR
-			       "generic_make_request: Trying to access "
-				"nonexistent block-device %s (%Lu)\n",
-				bdevname(bio->bi_bdev, b),
-				(long long) bio->bi_sector);
-			goto end_io;
-		}
-
-		if (unlikely(!(bio->bi_rw & REQ_DISCARD) &&
-			     nr_sectors > queue_max_hw_sectors(q))) {
-			printk(KERN_ERR "bio too big device %s (%u > %u)\n",
-			       bdevname(bio->bi_bdev, b),
-			       bio_sectors(bio),
-			       queue_max_hw_sectors(q));
-			goto end_io;
-		}
-
-		if (unlikely(test_bit(QUEUE_FLAG_DEAD, &q->queue_flags)))
-			goto end_io;
-
-		part = bio->bi_bdev->bd_part;
-		if (should_fail_request(part, bio->bi_size) ||
-		    should_fail_request(&part_to_disk(part)->part0,
-					bio->bi_size))
-			goto end_io;
-
-		/*
-		 * If this device has partitions, remap block n
-		 * of partition p to block n+start(p) of the disk.
-		 */
-		blk_partition_remap(bio);
-
-		if (bio_integrity_enabled(bio) && bio_integrity_prep(bio))
-			goto end_io;
-
-		if (old_sector != -1)
-			trace_block_bio_remap(q, bio, old_dev, old_sector);
-
-		old_sector = bio->bi_sector;
-		old_dev = bio->bi_bdev->bd_dev;
-
-		if (bio_check_eod(bio, nr_sectors))
-			goto end_io;
-
-		/*
-		 * Filter flush bio's early so that make_request based
-		 * drivers without flush support don't have to worry
-		 * about them.
-		 */
-		if ((bio->bi_rw & (REQ_FLUSH | REQ_FUA)) && !q->flush_flags) {
-			bio->bi_rw &= ~(REQ_FLUSH | REQ_FUA);
-			if (!nr_sectors) {
-				err = 0;
-				goto end_io;
-			}
-		}
-
-		if ((bio->bi_rw & REQ_DISCARD) &&
-		    (!blk_queue_discard(q) ||
-		     ((bio->bi_rw & REQ_SECURE) &&
-		      !blk_queue_secdiscard(q)))) {
-			err = -EOPNOTSUPP;
-			goto end_io;
-		}
-
-		if (blk_throtl_bio(q, &bio))
-			goto end_io;
-
-		/*
-		 * If bio = NULL, bio has been throttled and will be submitted
-		 * later.
-		 */
-		if (!bio)
-			break;
-
-		trace_block_bio_queue(q, bio);
-
-		ret = q->make_request_fn(q, bio);
-	} while (ret);
-
-	return;
-
-end_io:
-	bio_endio(bio, err);
-}
-
-/*
- * We only want one ->make_request_fn to be active at a time,
- * else stack usage with stacked devices could be a problem.
- * So use current->bio_list to keep a list of requests
- * submited by a make_request_fn function.
- * current->bio_list is also used as a flag to say if
- * generic_make_request is currently active in this task or not.
- * If it is NULL, then no make_request is active.  If it is non-NULL,
- * then a make_request is active, and new requests should be added
- * at the tail
+ * bio happens to be merged with someone else, and may resubmit the bio to
+ * a lower device by calling into generic_make_request recursively, which
+ * means the bio should NOT be touched after the call to ->make_request_fn.
  */
 void generic_make_request(struct bio *bio)
 {
 	struct bio_list bio_list_on_stack;
 
+	if (!generic_make_request_checks(bio))
+		return;
+
+	/*
+	 * We only want one ->make_request_fn to be active at a time, else
+	 * stack usage with stacked devices could be a problem.  So use
+	 * current->bio_list to keep a list of requests submited by a
+	 * make_request_fn function.  current->bio_list is also used as a
+	 * flag to say if generic_make_request is currently active in this
+	 * task or not.  If it is NULL, then no make_request is active.  If
+	 * it is non-NULL, then a make_request is active, and new requests
+	 * should be added at the tail
+	 */
 	if (current->bio_list) {
-		/* make_request is active */
 		bio_list_add(current->bio_list, bio);
 		return;
 	}
+
 	/* following loop may be a bit non-obvious, and so deserves some
 	 * explanation.
 	 * Before entering the loop, bio->bi_next is NULL (as all callers
@@ -1583,22 +1633,21 @@ void generic_make_request(struct bio *bio)
 	 * We pretend that we have just taken it off a longer list, so
 	 * we assign bio_list to a pointer to the bio_list_on_stack,
 	 * thus initialising the bio_list of new bios to be
-	 * added.  __generic_make_request may indeed add some more bios
+	 * added.  ->make_request() may indeed add some more bios
 	 * through a recursive call to generic_make_request.  If it
 	 * did, we find a non-NULL value in bio_list and re-enter the loop
 	 * from the top.  In this case we really did just take the bio
 	 * of the top of the list (no pretending) and so remove it from
-	 * bio_list, and call into __generic_make_request again.
-	 *
-	 * The loop was structured like this to make only one call to
-	 * __generic_make_request (which is important as it is large and
-	 * inlined) and to keep the structure simple.
+	 * bio_list, and call into ->make_request() again.
 	 */
 	BUG_ON(bio->bi_next);
 	bio_list_init(&bio_list_on_stack);
 	current->bio_list = &bio_list_on_stack;
 	do {
-		__generic_make_request(bio);
+		struct request_queue *q = bdev_get_queue(bio->bi_bdev);
+
+		q->make_request_fn(q, bio);
+
 		bio = bio_list_pop(current->bio_list);
 	} while (bio);
 	current->bio_list = NULL; /* deactivate */
@@ -1725,6 +1774,8 @@ int blk_insert_cloned_request(struct request_queue *q, struct request *rq)
 		where = ELEVATOR_INSERT_FLUSH;
 
 	add_acct_request(q, rq, where);
+	if (where == ELEVATOR_INSERT_FLUSH)
+		__blk_run_queue(q);
 	spin_unlock_irqrestore(q->queue_lock, flags);
 
 	return 0;
@@ -2628,6 +2679,20 @@ EXPORT_SYMBOL(kblockd_schedule_delayed_work);
 
 #define PLUG_MAGIC	0x91827364
 
+/**
+ * blk_start_plug - initialize blk_plug and track it inside the task_struct
+ * @plug:	The &struct blk_plug that needs to be initialized
+ *
+ * Description:
+ *   Tracking blk_plug inside the task_struct will help with auto-flushing the
+ *   pending I/O should the task end up blocking between blk_start_plug() and
+ *   blk_finish_plug(). This is important from a performance perspective, but
+ *   also ensures that we don't deadlock. For instance, if the task is blocking
+ *   for a memory allocation, memory reclaim could end up wanting to free a
+ *   page belonging to that request that is currently residing in our private
+ *   plug. By flushing the pending I/O when the process goes to sleep, we avoid
+ *   this kind of deadlock.
+ */
 void blk_start_plug(struct blk_plug *plug)
 {
 	struct task_struct *tsk = current;

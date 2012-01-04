@@ -255,12 +255,24 @@ static struct apic apic_bigsmp = {
 	.x86_32_early_logical_apicid	= bigsmp_early_logical_apicid,
 };
 
-struct apic * __init generic_bigsmp_probe(void)
+void __init generic_bigsmp_probe(void)
 {
-	if (probe_bigsmp())
-		return &apic_bigsmp;
+	unsigned int cpu;
 
-	return NULL;
+	if (!probe_bigsmp())
+		return;
+
+	apic = &apic_bigsmp;
+
+	for_each_possible_cpu(cpu) {
+		if (early_per_cpu(x86_cpu_to_logical_apicid,
+				  cpu) == BAD_APICID)
+			continue;
+		early_per_cpu(x86_cpu_to_logical_apicid, cpu) =
+			bigsmp_early_logical_apicid(cpu);
+	}
+
+	pr_info("Overriding APIC driver with %s\n", apic_bigsmp.name);
 }
 
 apic_driver(apic_bigsmp);

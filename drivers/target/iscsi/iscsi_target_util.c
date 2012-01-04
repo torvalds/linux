@@ -289,7 +289,8 @@ struct iscsi_cmd *iscsit_allocate_se_cmd_for_tmr(
 	}
 
 	se_cmd->se_tmr_req = core_tmr_alloc_req(se_cmd,
-				(void *)cmd->tmr_req, tcm_function);
+				(void *)cmd->tmr_req, tcm_function,
+				GFP_KERNEL);
 	if (!se_cmd->se_tmr_req)
 		goto out;
 
@@ -837,6 +838,23 @@ void iscsit_release_cmd(struct iscsi_cmd *cmd)
 	}
 
 	kmem_cache_free(lio_cmd_cache, cmd);
+}
+
+void iscsit_free_cmd(struct iscsi_cmd *cmd)
+{
+	/*
+	 * Determine if a struct se_cmd is assoicated with
+	 * this struct iscsi_cmd.
+	 */
+	switch (cmd->iscsi_opcode) {
+	case ISCSI_OP_SCSI_CMD:
+	case ISCSI_OP_SCSI_TMFUNC:
+		transport_generic_free_cmd(&cmd->se_cmd, 1);
+		break;
+	default:
+		iscsit_release_cmd(cmd);
+		break;
+	}
 }
 
 int iscsit_check_session_usage_count(struct iscsi_session *sess)

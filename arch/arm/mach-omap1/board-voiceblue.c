@@ -13,6 +13,7 @@
  */
 
 #include <linux/delay.h>
+#include <linux/gpio.h>
 #include <linux/platform_device.h>
 #include <linux/interrupt.h>
 #include <linux/irq.h>
@@ -24,6 +25,7 @@
 #include <linux/serial_8250.h>
 #include <linux/serial_reg.h>
 #include <linux/smc91x.h>
+#include <linux/export.h>
 
 #include <mach/hardware.h>
 #include <mach/system.h>
@@ -33,7 +35,6 @@
 
 #include <plat/board-voiceblue.h>
 #include <plat/common.h>
-#include <mach/gpio.h>
 #include <plat/flash.h>
 #include <plat/mux.h>
 #include <plat/tc.h>
@@ -158,17 +159,6 @@ static struct omap_usb_config voiceblue_usb_config __initdata = {
 
 static struct omap_board_config_kernel voiceblue_config[] = {
 };
-
-static void __init voiceblue_init_irq(void)
-{
-	omap1_init_common_hw();
-	omap1_init_irq();
-}
-
-static void __init voiceblue_map_io(void)
-{
-	omap1_map_common_io();
-}
 
 #define MACHINE_PANICED		1
 #define MACHINE_REBOOTING	2
@@ -301,10 +291,11 @@ static void __init voiceblue_init(void)
 
 MACHINE_START(VOICEBLUE, "VoiceBlue OMAP5910")
 	/* Maintainer: Ladislav Michl <michl@2n.cz> */
-	.boot_params	= 0x10000100,
-	.map_io		= voiceblue_map_io,
+	.atag_offset	= 0x100,
+	.map_io		= omap15xx_map_io,
+	.init_early     = omap1_init_early,
 	.reserve	= omap_reserve,
-	.init_irq	= voiceblue_init_irq,
+	.init_irq	= omap1_init_irq,
 	.init_machine	= voiceblue_init,
 	.timer		= &omap1_timer,
 MACHINE_END

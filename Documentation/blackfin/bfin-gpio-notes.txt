@@ -1,5 +1,5 @@
 /*
- * File:         Documentation/blackfin/bfin-gpio-note.txt
+ * File:         Documentation/blackfin/bfin-gpio-notes.txt
  * Based on:
  * Author:
  *

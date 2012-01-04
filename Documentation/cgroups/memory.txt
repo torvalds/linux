@@ -418,7 +418,6 @@ total_unevictable	- sum of all children's "unevictable"
 
 # The following additional stats are dependent on CONFIG_DEBUG_VM.
 
-inactive_ratio		- VM internal parameter. (see mm/page_alloc.c)
 recent_rotated_anon	- VM internal parameter. (see mm/vmscan.c)
 recent_rotated_file	- VM internal parameter. (see mm/vmscan.c)
 recent_scanned_anon	- VM internal parameter. (see mm/vmscan.c)

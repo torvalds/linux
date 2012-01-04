@@ -8,7 +8,6 @@
 
 #include <linux/interrupt.h>
 #include <linux/irq.h>
-#include <linux/gpio.h>
 #include <linux/delay.h>
 #include <linux/mutex.h>
 #include <linux/device.h>
@@ -17,12 +16,11 @@
 #include <linux/slab.h>
 #include <linux/sysfs.h>
 #include <linux/list.h>
+#include <linux/module.h>
 
 #include "../iio.h"
 #include "../sysfs.h"
-#include "../ring_generic.h"
-#include "../adc/adc.h"
-#include "gyro.h"
+#include "../buffer_generic.h"
 
 #include "adis16260.h"
 
@@ -391,7 +389,7 @@ enum adis16260_channel {
 };
 #define ADIS16260_GYRO_CHANNEL_SET(axis, mod)				\
 	struct iio_chan_spec adis16260_channels_##axis[] = {		\
-		IIO_CHAN(IIO_GYRO, 1, 0, 0, NULL, 0, mod,		\
+		IIO_CHAN(IIO_ANGL_VEL, 1, 0, 0, NULL, 0, mod,		\
 			 (1 << IIO_CHAN_INFO_CALIBBIAS_SEPARATE) |	\
 			 (1 << IIO_CHAN_INFO_CALIBSCALE_SEPARATE) |	\
 			 (1 << IIO_CHAN_INFO_SCALE_SEPARATE),		\
@@ -406,11 +404,11 @@ enum adis16260_channel {
 			 (1 << IIO_CHAN_INFO_SCALE_SEPARATE),		\
 			 temp, ADIS16260_SCAN_TEMP,			\
 			 IIO_ST('u', 12, 16, 0), 0),			\
-		IIO_CHAN(IIO_IN, 0, 1, 0, "supply", 0, 0,		\
+		IIO_CHAN(IIO_VOLTAGE, 0, 1, 0, "supply", 0, 0,		\
 			 (1 << IIO_CHAN_INFO_SCALE_SEPARATE),		\
 			 in_supply, ADIS16260_SCAN_SUPPLY,		\
 			 IIO_ST('u', 12, 16, 0), 0),			\
-		IIO_CHAN(IIO_IN, 0, 1, 0, NULL, 1, 0,			\
+		IIO_CHAN(IIO_VOLTAGE, 0, 1, 0, NULL, 1, 0,		\
 			 (1 << IIO_CHAN_INFO_SCALE_SEPARATE),		\
 			 in_aux, ADIS16260_SCAN_AUX_ADC,		\
 			 IIO_ST('u', 12, 16, 0), 0),			\
@@ -469,14 +467,14 @@ static int adis16260_read_raw(struct iio_dev *indio_dev,
 	case (1 << IIO_CHAN_INFO_SCALE_SEPARATE):
 	case (1 << IIO_CHAN_INFO_SCALE_SHARED):
 		switch (chan->type) {
-		case IIO_GYRO:
+		case IIO_ANGL_VEL:
 			*val = 0;
 			if (spi_get_device_id(st->us)->driver_data)
 				*val2 = 320;
 			else
 				*val2 = 1278;
 			return IIO_VAL_INT_PLUS_MICRO;
-		case IIO_IN:
+		case IIO_VOLTAGE:
 			*val = 0;
 			if (chan->channel == 0)
 				*val2 = 18315;
@@ -496,7 +494,7 @@ static int adis16260_read_raw(struct iio_dev *indio_dev,
 		return IIO_VAL_INT;
 	case (1 << IIO_CHAN_INFO_CALIBBIAS_SEPARATE):
 		switch (chan->type) {
-		case IIO_GYRO:
+		case IIO_ANGL_VEL:
 			bits = 12;
 			break;
 		default:
@@ -516,7 +514,7 @@ static int adis16260_read_raw(struct iio_dev *indio_dev,
 		return IIO_VAL_INT;
 	case (1 << IIO_CHAN_INFO_CALIBSCALE_SEPARATE):
 		switch (chan->type) {
-		case IIO_GYRO:
+		case IIO_ANGL_VEL:
 			bits = 12;
 			break;
 		default:
@@ -578,7 +576,7 @@ static const struct iio_info adis16260_info = {
 
 static int __devinit adis16260_probe(struct spi_device *spi)
 {
-	int ret, regdone = 0;
+	int ret;
 	struct adis16260_platform_data *pd = spi->dev.platform_data;
 	struct adis16260_state *st;
 	struct iio_dev *indio_dev;
@@ -626,18 +624,21 @@ static int __devinit adis16260_probe(struct spi_device *spi)
 	if (ret)
 		goto error_free_dev;
 
-	ret = iio_device_register(indio_dev);
-	if (ret)
-		goto error_unreg_ring_funcs;
-	regdone = 1;
-	ret = iio_ring_buffer_register_ex(indio_dev->ring, 0,
-					  indio_dev->channels,
-					  ARRAY_SIZE(adis16260_channels_x));
+	ret = iio_buffer_register(indio_dev,
+				  indio_dev->channels,
+				  ARRAY_SIZE(adis16260_channels_x));
 	if (ret) {
 		printk(KERN_ERR "failed to initialize the ring\n");
 		goto error_unreg_ring_funcs;
 	}
-
+	if (indio_dev->buffer) {
+		/* Set default scan mode */
+		iio_scan_mask_set(indio_dev->buffer, ADIS16260_SCAN_SUPPLY);
+		iio_scan_mask_set(indio_dev->buffer, ADIS16260_SCAN_GYRO);
+		iio_scan_mask_set(indio_dev->buffer, ADIS16260_SCAN_AUX_ADC);
+		iio_scan_mask_set(indio_dev->buffer, ADIS16260_SCAN_TEMP);
+		iio_scan_mask_set(indio_dev->buffer, ADIS16260_SCAN_ANGL);
+	}
 	if (spi->irq) {
 		ret = adis16260_probe_trigger(indio_dev);
 		if (ret)
@@ -648,19 +649,20 @@ static int __devinit adis16260_probe(struct spi_device *spi)
 	ret = adis16260_initial_setup(indio_dev);
 	if (ret)
 		goto error_remove_trigger;
+	ret = iio_device_register(indio_dev);
+	if (ret)
+		goto error_remove_trigger;
+
 	return 0;
 
 error_remove_trigger:
 	adis16260_remove_trigger(indio_dev);
 error_uninitialize_ring:
-	iio_ring_buffer_unregister(indio_dev->ring);
+	iio_buffer_unregister(indio_dev);
 error_unreg_ring_funcs:
 	adis16260_unconfigure_ring(indio_dev);
 error_free_dev:
-	if (regdone)
-		iio_device_unregister(indio_dev);
-	else
-		iio_free_device(indio_dev);
+	iio_free_device(indio_dev);
 error_ret:
 	return ret;
 }
@@ -670,6 +672,8 @@ static int adis16260_remove(struct spi_device *spi)
 	int ret;
 	struct iio_dev *indio_dev = spi_get_drvdata(spi);
 
+	iio_device_unregister(indio_dev);
+
 	ret = adis16260_stop_device(indio_dev);
 	if (ret)
 		goto err_ret;
@@ -677,9 +681,9 @@ static int adis16260_remove(struct spi_device *spi)
 	flush_scheduled_work();
 
 	adis16260_remove_trigger(indio_dev);
-	iio_ring_buffer_unregister(indio_dev->ring);
-	iio_device_unregister(indio_dev);
+	iio_buffer_unregister(indio_dev);
 	adis16260_unconfigure_ring(indio_dev);
+	iio_free_device(indio_dev);
 
 err_ret:
 	return ret;

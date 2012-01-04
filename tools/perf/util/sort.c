@@ -177,7 +177,9 @@ static int hist_entry__sym_snprintf(struct hist_entry *self, char *bf,
 				       BITS_PER_LONG / 4, self->ip, o);
 	}
 
-	ret += repsep_snprintf(bf + ret, size - ret, "[%c] ", self->level);
+	if (!sort_dso.elide)
+		ret += repsep_snprintf(bf + ret, size - ret, "[%c] ", self->level);
+
 	if (self->ms.sym)
 		ret += repsep_snprintf(bf + ret, size - ret, "%s",
 				       self->ms.sym->name);

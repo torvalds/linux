@@ -67,6 +67,61 @@ static unsigned short keycode_kore[] = {
 	KEY_BRL_DOT5
 };
 
+#define MASCHINE_BUTTONS   (42)
+#define MASCHINE_BUTTON(X) ((X) + BTN_MISC)
+#define MASCHINE_PADS      (16)
+#define MASCHINE_PAD(X)    ((X) + ABS_PRESSURE)
+
+static unsigned short keycode_maschine[] = {
+	MASCHINE_BUTTON(40), /* mute       */
+	MASCHINE_BUTTON(39), /* solo       */
+	MASCHINE_BUTTON(38), /* select     */
+	MASCHINE_BUTTON(37), /* duplicate  */
+	MASCHINE_BUTTON(36), /* navigate   */
+	MASCHINE_BUTTON(35), /* pad mode   */
+	MASCHINE_BUTTON(34), /* pattern    */
+	MASCHINE_BUTTON(33), /* scene      */
+	KEY_RESERVED, /* spacer */
+
+	MASCHINE_BUTTON(30), /* rec        */
+	MASCHINE_BUTTON(31), /* erase      */
+	MASCHINE_BUTTON(32), /* shift      */
+	MASCHINE_BUTTON(28), /* grid       */
+	MASCHINE_BUTTON(27), /* >          */
+	MASCHINE_BUTTON(26), /* <          */
+	MASCHINE_BUTTON(25), /* restart    */
+
+	MASCHINE_BUTTON(21), /* E          */
+	MASCHINE_BUTTON(22), /* F          */
+	MASCHINE_BUTTON(23), /* G          */
+	MASCHINE_BUTTON(24), /* H          */
+	MASCHINE_BUTTON(20), /* D          */
+	MASCHINE_BUTTON(19), /* C          */
+	MASCHINE_BUTTON(18), /* B          */
+	MASCHINE_BUTTON(17), /* A          */
+
+	MASCHINE_BUTTON(0),  /* control    */
+	MASCHINE_BUTTON(2),  /* browse     */
+	MASCHINE_BUTTON(4),  /* <          */
+	MASCHINE_BUTTON(6),  /* snap       */
+	MASCHINE_BUTTON(7),  /* autowrite  */
+	MASCHINE_BUTTON(5),  /* >          */
+	MASCHINE_BUTTON(3),  /* sampling   */
+	MASCHINE_BUTTON(1),  /* step       */
+
+	MASCHINE_BUTTON(15), /* 8 softkeys */
+	MASCHINE_BUTTON(14),
+	MASCHINE_BUTTON(13),
+	MASCHINE_BUTTON(12),
+	MASCHINE_BUTTON(11),
+	MASCHINE_BUTTON(10),
+	MASCHINE_BUTTON(9),
+	MASCHINE_BUTTON(8),
+
+	MASCHINE_BUTTON(16), /* note repeat */
+	MASCHINE_BUTTON(29)  /* play        */
+};
+
 #define KONTROLX1_INPUTS	(40)
 #define KONTROLS4_BUTTONS	(12 * 8)
 #define KONTROLS4_AXIS		(46)
@@ -216,6 +271,29 @@ static void snd_caiaq_input_read_erp(struct snd_usb_caiaqdev *dev,
 		input_report_abs(input_dev, ABS_HAT3X, i);
 		i = decode_erp(buf[4], buf[6]);
 		input_report_abs(input_dev, ABS_HAT3Y, i);
+		input_sync(input_dev);
+		break;
+
+	case USB_ID(USB_VID_NATIVEINSTRUMENTS, USB_PID_MASCHINECONTROLLER):
+		/* 4 under the left screen */
+		input_report_abs(input_dev, ABS_HAT0X, decode_erp(buf[21], buf[20]));
+		input_report_abs(input_dev, ABS_HAT0Y, decode_erp(buf[15], buf[14]));
+		input_report_abs(input_dev, ABS_HAT1X, decode_erp(buf[9],  buf[8]));
+		input_report_abs(input_dev, ABS_HAT1Y, decode_erp(buf[3],  buf[2]));
+
+		/* 4 under the right screen */
+		input_report_abs(input_dev, ABS_HAT2X, decode_erp(buf[19], buf[18]));
+		input_report_abs(input_dev, ABS_HAT2Y, decode_erp(buf[13], buf[12]));
+		input_report_abs(input_dev, ABS_HAT3X, decode_erp(buf[7],  buf[6]));
+		input_report_abs(input_dev, ABS_HAT3Y, decode_erp(buf[1],  buf[0]));
+
+		/* volume */
+		input_report_abs(input_dev, ABS_RX, decode_erp(buf[17], buf[16]));
+		/* tempo */
+		input_report_abs(input_dev, ABS_RY, decode_erp(buf[11], buf[10]));
+		/* swing */
+		input_report_abs(input_dev, ABS_RZ, decode_erp(buf[5],  buf[4]));
+
 		input_sync(input_dev);
 		break;
 	}
@@ -400,6 +478,25 @@ static void snd_usb_caiaq_tks4_dispatch(struct snd_usb_caiaqdev *dev,
 	input_sync(dev->input_dev);
 }
 
+#define MASCHINE_MSGBLOCK_SIZE 2
+
+static void snd_usb_caiaq_maschine_dispatch(struct snd_usb_caiaqdev *dev,
+					const unsigned char *buf,
+					unsigned int len)
+{
+	unsigned int i, pad_id;
+	uint16_t pressure;
+
+	for (i = 0; i < MASCHINE_PADS; i++) {
+		pressure = be16_to_cpu(buf[i * 2] << 8 | buf[(i * 2) + 1]);
+		pad_id = pressure >> 12;
+
+		input_report_abs(dev->input_dev, MASCHINE_PAD(pad_id), pressure & 0xfff);
+	}
+
+	input_sync(dev->input_dev);
+}
+
 static void snd_usb_caiaq_ep4_reply_dispatch(struct urb *urb)
 {
 	struct snd_usb_caiaqdev *dev = urb->context;
@@ -425,6 +522,13 @@ static void snd_usb_caiaq_ep4_reply_dispatch(struct urb *urb)
 	case USB_ID(USB_VID_NATIVEINSTRUMENTS, USB_PID_TRAKTORKONTROLS4):
 		snd_usb_caiaq_tks4_dispatch(dev, buf, urb->actual_length);
 		break;
+
+	case USB_ID(USB_VID_NATIVEINSTRUMENTS, USB_PID_MASCHINECONTROLLER):
+		if (urb->actual_length < (MASCHINE_PADS * MASCHINE_MSGBLOCK_SIZE))
+			goto requeue;
+
+		snd_usb_caiaq_maschine_dispatch(dev, buf, urb->actual_length);
+		break;
 	}
 
 requeue:
@@ -444,6 +548,7 @@ static int snd_usb_caiaq_input_open(struct input_dev *idev)
 	switch (dev->chip.usb_id) {
 	case USB_ID(USB_VID_NATIVEINSTRUMENTS, USB_PID_TRAKTORKONTROLX1):
 	case USB_ID(USB_VID_NATIVEINSTRUMENTS, USB_PID_TRAKTORKONTROLS4):
+	case USB_ID(USB_VID_NATIVEINSTRUMENTS, USB_PID_MASCHINECONTROLLER):
 		if (usb_submit_urb(dev->ep4_in_urb, GFP_KERNEL) != 0)
 			return -EIO;
 		break;
@@ -462,6 +567,7 @@ static void snd_usb_caiaq_input_close(struct input_dev *idev)
 	switch (dev->chip.usb_id) {
 	case USB_ID(USB_VID_NATIVEINSTRUMENTS, USB_PID_TRAKTORKONTROLX1):
 	case USB_ID(USB_VID_NATIVEINSTRUMENTS, USB_PID_TRAKTORKONTROLS4):
+	case USB_ID(USB_VID_NATIVEINSTRUMENTS, USB_PID_MASCHINECONTROLLER):
 		usb_kill_urb(dev->ep4_in_urb);
 		break;
 	}
@@ -652,6 +758,50 @@ int snd_usb_caiaq_input_init(struct snd_usb_caiaqdev *dev)
 
 		break;
 
+	case USB_ID(USB_VID_NATIVEINSTRUMENTS, USB_PID_MASCHINECONTROLLER):
+		input->evbit[0] = BIT_MASK(EV_KEY) | BIT_MASK(EV_ABS);
+		input->absbit[0] = BIT_MASK(ABS_HAT0X) | BIT_MASK(ABS_HAT0Y) |
+			BIT_MASK(ABS_HAT1X) | BIT_MASK(ABS_HAT1Y) |
+			BIT_MASK(ABS_HAT2X) | BIT_MASK(ABS_HAT2Y) |
+			BIT_MASK(ABS_HAT3X) | BIT_MASK(ABS_HAT3Y) |
+			BIT_MASK(ABS_RX) | BIT_MASK(ABS_RY) |
+			BIT_MASK(ABS_RZ);
+
+		BUILD_BUG_ON(sizeof(dev->keycode) < sizeof(keycode_maschine));
+		memcpy(dev->keycode, keycode_maschine, sizeof(keycode_maschine));
+		input->keycodemax = ARRAY_SIZE(keycode_maschine);
+
+		for (i = 0; i < MASCHINE_PADS; i++) {
+			input->absbit[0] |= MASCHINE_PAD(i);
+			input_set_abs_params(input, MASCHINE_PAD(i), 0, 0xfff, 5, 10);
+		}
+
+		input_set_abs_params(input, ABS_HAT0X, 0, 999, 0, 10);
+		input_set_abs_params(input, ABS_HAT0Y, 0, 999, 0, 10);
+		input_set_abs_params(input, ABS_HAT1X, 0, 999, 0, 10);
+		input_set_abs_params(input, ABS_HAT1Y, 0, 999, 0, 10);
+		input_set_abs_params(input, ABS_HAT2X, 0, 999, 0, 10);
+		input_set_abs_params(input, ABS_HAT2Y, 0, 999, 0, 10);
+		input_set_abs_params(input, ABS_HAT3X, 0, 999, 0, 10);
+		input_set_abs_params(input, ABS_HAT3Y, 0, 999, 0, 10);
+		input_set_abs_params(input, ABS_RX, 0, 999, 0, 10);
+		input_set_abs_params(input, ABS_RY, 0, 999, 0, 10);
+		input_set_abs_params(input, ABS_RZ, 0, 999, 0, 10);
+
+		dev->ep4_in_urb = usb_alloc_urb(0, GFP_KERNEL);
+		if (!dev->ep4_in_urb) {
+			ret = -ENOMEM;
+			goto exit_free_idev;
+		}
+
+		usb_fill_bulk_urb(dev->ep4_in_urb, usb_dev,
+				  usb_rcvbulkpipe(usb_dev, 0x4),
+				  dev->ep4_in_buf, EP4_BUFSIZE,
+				  snd_usb_caiaq_ep4_reply_dispatch, dev);
+
+		snd_usb_caiaq_set_auto_msg(dev, 1, 10, 5);
+		break;
+
 	default:
 		/* no input methods supported on this device */
 		goto exit_free_idev;
@@ -664,15 +814,17 @@ int snd_usb_caiaq_input_init(struct snd_usb_caiaqdev *dev)
 	for (i = 0; i < input->keycodemax; i++)
 		__set_bit(dev->keycode[i], input->keybit);
 
+	dev->input_dev = input;
+
 	ret = input_register_device(input);
 	if (ret < 0)
 		goto exit_free_idev;
 
-	dev->input_dev = input;
 	return 0;
 
 exit_free_idev:
 	input_free_device(input);
+	dev->input_dev = NULL;
 	return ret;
 }
 
@@ -688,4 +840,3 @@ void snd_usb_caiaq_input_free(struct snd_usb_caiaqdev *dev)
 	input_unregister_device(dev->input_dev);
 	dev->input_dev = NULL;
 }
-

@@ -152,7 +152,9 @@ try to use its wakeup mechanism.  device_set_wakeup_enable() affects this flag;
 for the most part drivers should not change its value.  The initial value of
 should_wakeup is supposed to be false for the majority of devices; the major
 exceptions are power buttons, keyboards, and Ethernet adapters whose WoL
-(wake-on-LAN) feature has been set up with ethtool.
+(wake-on-LAN) feature has been set up with ethtool.  It should also default
+to true for devices that don't generate wakeup requests on their own but merely
+forward wakeup requests from one bus to another (like PCI bridges).
 
 Whether or not a device is capable of issuing wakeup events is a hardware
 matter, and the kernel is responsible for keeping track of it.  By contrast,
@@ -278,10 +280,6 @@ When the system goes into the standby or memory sleep state, the phases are:
 	registered at will.  (By contrast, devices may be unregistered at any
 	time.)  Unlike the other suspend-related phases, during the prepare
 	phase the device tree is traversed top-down.
-
-	In addition to that, if device drivers need to allocate additional
-	memory to be able to hadle device suspend correctly, that should be
-	done in the prepare phase.
 
 	After the prepare callback method returns, no new children may be
 	registered below the device.  The method may also prepare the device or

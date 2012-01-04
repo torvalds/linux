@@ -1,7 +1,7 @@
 #ifndef _VME_USER_H_
 #define _VME_USER_H_
 
-#define USER_BUS_MAX                  1
+#define VME_USER_BUS_MAX	1
 
 /*
  * VMEbus Master Window Configuration Structure

@@ -1,106 +1,16 @@
 #ifndef _USB_VIDEO_H_
 #define _USB_VIDEO_H_
 
+#ifndef __KERNEL__
+#error "The uvcvideo.h header is deprecated, use linux/uvcvideo.h instead."
+#endif /* __KERNEL__ */
+
 #include <linux/kernel.h>
-#include <linux/videodev2.h>
-
-#ifndef __KERNEL__
-/*
- * This header provides binary compatibility with applications using the private
- * uvcvideo API. This API is deprecated and will be removed in 2.6.42.
- * Applications should be recompiled against the public linux/uvcvideo.h header.
- */
-#warn "The uvcvideo.h header is deprecated, use linux/uvcvideo.h instead."
-
-/*
- * Dynamic controls
- */
-
-/* Data types for UVC control data */
-#define UVC_CTRL_DATA_TYPE_RAW		0
-#define UVC_CTRL_DATA_TYPE_SIGNED	1
-#define UVC_CTRL_DATA_TYPE_UNSIGNED	2
-#define UVC_CTRL_DATA_TYPE_BOOLEAN	3
-#define UVC_CTRL_DATA_TYPE_ENUM		4
-#define UVC_CTRL_DATA_TYPE_BITMASK	5
-
-/* Control flags */
-#define UVC_CONTROL_SET_CUR	(1 << 0)
-#define UVC_CONTROL_GET_CUR	(1 << 1)
-#define UVC_CONTROL_GET_MIN	(1 << 2)
-#define UVC_CONTROL_GET_MAX	(1 << 3)
-#define UVC_CONTROL_GET_RES	(1 << 4)
-#define UVC_CONTROL_GET_DEF	(1 << 5)
-#define UVC_CONTROL_RESTORE	(1 << 6)
-#define UVC_CONTROL_AUTO_UPDATE	(1 << 7)
-
-#define UVC_CONTROL_GET_RANGE	(UVC_CONTROL_GET_CUR | UVC_CONTROL_GET_MIN | \
-				 UVC_CONTROL_GET_MAX | UVC_CONTROL_GET_RES | \
-				 UVC_CONTROL_GET_DEF)
-
-struct uvc_menu_info {
-	__u32 value;
-	__u8 name[32];
-};
-
-struct uvc_xu_control_mapping {
-	__u32 id;
-	__u8 name[32];
-	__u8 entity[16];
-	__u8 selector;
-
-	__u8 size;
-	__u8 offset;
-	__u32 v4l2_type;
-	__u32 data_type;
-
-	struct uvc_menu_info __user *menu_info;
-	__u32 menu_count;
-
-	__u32 reserved[4];
-};
-
-#endif
-
-struct uvc_xu_control_info {
-	__u8 entity[16];
-	__u8 index;
-	__u8 selector;
-	__u16 size;
-	__u32 flags;
-};
-
-struct uvc_xu_control_mapping_old {
-	__u8 reserved[64];
-};
-
-struct uvc_xu_control {
-	__u8 unit;
-	__u8 selector;
-	__u16 size;
-	__u8 __user *data;
-};
-
-#ifndef __KERNEL__
-#define UVCIOC_CTRL_ADD		_IOW('U', 1, struct uvc_xu_control_info)
-#define UVCIOC_CTRL_MAP_OLD	_IOWR('U', 2, struct uvc_xu_control_mapping_old)
-#define UVCIOC_CTRL_MAP		_IOWR('U', 2, struct uvc_xu_control_mapping)
-#define UVCIOC_CTRL_GET		_IOWR('U', 3, struct uvc_xu_control)
-#define UVCIOC_CTRL_SET		_IOW('U', 4, struct uvc_xu_control)
-#else
-#define __UVCIOC_CTRL_ADD	_IOW('U', 1, struct uvc_xu_control_info)
-#define __UVCIOC_CTRL_MAP_OLD	_IOWR('U', 2, struct uvc_xu_control_mapping_old)
-#define __UVCIOC_CTRL_MAP	_IOWR('U', 2, struct uvc_xu_control_mapping)
-#define __UVCIOC_CTRL_GET	_IOWR('U', 3, struct uvc_xu_control)
-#define __UVCIOC_CTRL_SET	_IOW('U', 4, struct uvc_xu_control)
-#endif
-
-#ifdef __KERNEL__
-
 #include <linux/poll.h>
 #include <linux/usb.h>
 #include <linux/usb/video.h>
 #include <linux/uvcvideo.h>
+#include <linux/videodev2.h>
 #include <media/media-device.h>
 #include <media/v4l2-device.h>
 
@@ -177,6 +87,10 @@ struct uvc_xu_control {
 	 0x80, 0x00, 0x00, 0xaa, 0x00, 0x38, 0x9b, 0x71}
 #define UVC_GUID_FORMAT_M420 \
 	{ 'M',  '4',  '2',  '0', 0x00, 0x00, 0x10, 0x00, \
+	 0x80, 0x00, 0x00, 0xaa, 0x00, 0x38, 0x9b, 0x71}
+
+#define UVC_GUID_FORMAT_H264 \
+	{ 'H',  '2',  '6',  '4', 0x00, 0x00, 0x10, 0x00, \
 	 0x80, 0x00, 0x00, 0xaa, 0x00, 0x38, 0x9b, 0x71}
 
 /* ------------------------------------------------------------------------
@@ -697,7 +611,5 @@ extern struct usb_host_endpoint *uvc_find_endpoint(
 /* Quirks support */
 void uvc_video_decode_isight(struct urb *urb, struct uvc_streaming *stream,
 		struct uvc_buffer *buf);
-
-#endif /* __KERNEL__ */
 
 #endif

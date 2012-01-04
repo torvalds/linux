@@ -19,6 +19,7 @@
 #include "decl.h"
 #include "cfg.h"
 #include "cmd.h"
+#include "mesh.h"
 
 
 #define CHAN2G(_channel, _freq, _flags) {        \
@@ -442,13 +443,16 @@ static int lbs_cfg_set_channel(struct wiphy *wiphy,
 	struct lbs_private *priv = wiphy_priv(wiphy);
 	int ret = -ENOTSUPP;
 
-	lbs_deb_enter_args(LBS_DEB_CFG80211, "freq %d, type %d",
-			   channel->center_freq, channel_type);
+	lbs_deb_enter_args(LBS_DEB_CFG80211, "iface %s freq %d, type %d",
+			   netdev_name(netdev), channel->center_freq, channel_type);
 
 	if (channel_type != NL80211_CHAN_NO_HT)
 		goto out;
 
-	ret = lbs_set_channel(priv, channel->hw_value);
+	if (netdev == priv->mesh_dev)
+		ret = lbs_mesh_set_channel(priv, channel->hw_value);
+	else
+		ret = lbs_set_channel(priv, channel->hw_value);
 
  out:
 	lbs_deb_leave_args(LBS_DEB_CFG80211, "ret %d", ret);
@@ -691,7 +695,7 @@ static void lbs_scan_worker(struct work_struct *work)
 	tlv = scan_cmd->tlvbuffer;
 
 	/* add SSID TLV */
-	if (priv->scan_req->n_ssids)
+	if (priv->scan_req->n_ssids && priv->scan_req->ssids[0].ssid_len > 0)
 		tlv += lbs_add_ssid_tlv(tlv,
 					priv->scan_req->ssids[0].ssid,
 					priv->scan_req->ssids[0].ssid_len);
@@ -708,7 +712,7 @@ static void lbs_scan_worker(struct work_struct *work)
 
 	if (priv->scan_channel < priv->scan_req->n_channels) {
 		cancel_delayed_work(&priv->scan_work);
-		if (!priv->stopping)
+		if (netif_running(priv->dev))
 			queue_delayed_work(priv->work_thread, &priv->scan_work,
 				msecs_to_jiffies(300));
 	}
@@ -724,16 +728,9 @@ static void lbs_scan_worker(struct work_struct *work)
 		le16_to_cpu(scan_cmd->hdr.size),
 		lbs_ret_scan, 0);
 
-	if (priv->scan_channel >= priv->scan_req->n_channels) {
+	if (priv->scan_channel >= priv->scan_req->n_channels)
 		/* Mark scan done */
-		if (priv->internal_scan)
-			kfree(priv->scan_req);
-		else
-			cfg80211_scan_done(priv->scan_req, false);
-
-		priv->scan_req = NULL;
-		priv->last_scan = jiffies;
-	}
+		lbs_scan_done(priv);
 
 	/* Restart network */
 	if (carrier)
@@ -769,6 +766,21 @@ static void _internal_start_scan(struct lbs_private *priv, bool internal,
 	priv->internal_scan = internal;
 
 	lbs_deb_leave(LBS_DEB_CFG80211);
+}
+
+/*
+ * Clean up priv->scan_req.  Should be used to handle the allocation details.
+ */
+void lbs_scan_done(struct lbs_private *priv)
+{
+	WARN_ON(!priv->scan_req);
+
+	if (priv->internal_scan)
+		kfree(priv->scan_req);
+	else
+		cfg80211_scan_done(priv->scan_req, false);
+
+	priv->scan_req = NULL;
 }
 
 static int lbs_cfg_scan(struct wiphy *wiphy,
@@ -1292,27 +1304,32 @@ static int lbs_cfg_connect(struct wiphy *wiphy, struct net_device *dev,
 	int ret = 0;
 	u8 preamble = RADIO_PREAMBLE_SHORT;
 
+	if (dev == priv->mesh_dev)
+		return -EOPNOTSUPP;
+
 	lbs_deb_enter(LBS_DEB_CFG80211);
 
 	if (!sme->bssid) {
-		/* Run a scan if one isn't in-progress already and if the last
-		 * scan was done more than 2 seconds ago.
+		struct cfg80211_scan_request *creq;
+
+		/*
+		 * Scan for the requested network after waiting for existing
+		 * scans to finish.
 		 */
-		if (priv->scan_req == NULL &&
-		    time_after(jiffies, priv->last_scan + (2 * HZ))) {
-			struct cfg80211_scan_request *creq;
+		lbs_deb_assoc("assoc: waiting for existing scans\n");
+		wait_event_interruptible_timeout(priv->scan_q,
+						 (priv->scan_req == NULL),
+						 (15 * HZ));
 
-			creq = _new_connect_scan_req(wiphy, sme);
-			if (!creq) {
-				ret = -EINVAL;
-				goto done;
-			}
-
-			lbs_deb_assoc("assoc: scanning for compatible AP\n");
-			_internal_start_scan(priv, true, creq);
+		creq = _new_connect_scan_req(wiphy, sme);
+		if (!creq) {
+			ret = -EINVAL;
+			goto done;
 		}
 
-		/* Wait for any in-progress scan to complete */
+		lbs_deb_assoc("assoc: scanning for compatible AP\n");
+		_internal_start_scan(priv, true, creq);
+
 		lbs_deb_assoc("assoc: waiting for scan to complete\n");
 		wait_event_interruptible_timeout(priv->scan_q,
 						 (priv->scan_req == NULL),
@@ -1402,28 +1419,23 @@ static int lbs_cfg_connect(struct wiphy *wiphy, struct net_device *dev,
 	return ret;
 }
 
-static int lbs_cfg_disconnect(struct wiphy *wiphy, struct net_device *dev,
-	u16 reason_code)
+int lbs_disconnect(struct lbs_private *priv, u16 reason)
 {
-	struct lbs_private *priv = wiphy_priv(wiphy);
 	struct cmd_ds_802_11_deauthenticate cmd;
-
-	lbs_deb_enter_args(LBS_DEB_CFG80211, "reason_code %d", reason_code);
-
-	/* store for lbs_cfg_ret_disconnect() */
-	priv->disassoc_reason = reason_code;
+	int ret;
 
 	memset(&cmd, 0, sizeof(cmd));
 	cmd.hdr.size = cpu_to_le16(sizeof(cmd));
 	/* Mildly ugly to use a locally store my own BSSID ... */
 	memcpy(cmd.macaddr, &priv->assoc_bss, ETH_ALEN);
-	cmd.reasoncode = cpu_to_le16(reason_code);
+	cmd.reasoncode = cpu_to_le16(reason);
 
-	if (lbs_cmd_with_response(priv, CMD_802_11_DEAUTHENTICATE, &cmd))
-		return -EFAULT;
+	ret = lbs_cmd_with_response(priv, CMD_802_11_DEAUTHENTICATE, &cmd);
+	if (ret)
+		return ret;
 
 	cfg80211_disconnected(priv->dev,
-			priv->disassoc_reason,
+			reason,
 			NULL, 0,
 			GFP_KERNEL);
 	priv->connect_status = LBS_DISCONNECTED;
@@ -1431,6 +1443,21 @@ static int lbs_cfg_disconnect(struct wiphy *wiphy, struct net_device *dev,
 	return 0;
 }
 
+static int lbs_cfg_disconnect(struct wiphy *wiphy, struct net_device *dev,
+	u16 reason_code)
+{
+	struct lbs_private *priv = wiphy_priv(wiphy);
+
+	if (dev == priv->mesh_dev)
+		return -EOPNOTSUPP;
+
+	lbs_deb_enter_args(LBS_DEB_CFG80211, "reason_code %d", reason_code);
+
+	/* store for lbs_cfg_ret_disconnect() */
+	priv->disassoc_reason = reason_code;
+
+	return lbs_disconnect(priv, reason_code);
+}
 
 static int lbs_cfg_set_default_key(struct wiphy *wiphy,
 				   struct net_device *netdev,
@@ -1438,6 +1465,9 @@ static int lbs_cfg_set_default_key(struct wiphy *wiphy,
 				   bool multicast)
 {
 	struct lbs_private *priv = wiphy_priv(wiphy);
+
+	if (netdev == priv->mesh_dev)
+		return -EOPNOTSUPP;
 
 	lbs_deb_enter(LBS_DEB_CFG80211);
 
@@ -1459,6 +1489,9 @@ static int lbs_cfg_add_key(struct wiphy *wiphy, struct net_device *netdev,
 	u16 key_info;
 	u16 key_type;
 	int ret = 0;
+
+	if (netdev == priv->mesh_dev)
+		return -EOPNOTSUPP;
 
 	lbs_deb_enter(LBS_DEB_CFG80211);
 
@@ -1603,6 +1636,9 @@ static int lbs_get_survey(struct wiphy *wiphy, struct net_device *dev,
 	s8 signal, noise;
 	int ret;
 
+	if (dev == priv->mesh_dev)
+		return -EOPNOTSUPP;
+
 	if (idx != 0)
 		ret = -ENOENT;
 
@@ -1636,27 +1672,22 @@ static int lbs_change_intf(struct wiphy *wiphy, struct net_device *dev,
 	struct lbs_private *priv = wiphy_priv(wiphy);
 	int ret = 0;
 
-	lbs_deb_enter(LBS_DEB_CFG80211);
+	if (dev == priv->mesh_dev)
+		return -EOPNOTSUPP;
 
 	switch (type) {
 	case NL80211_IFTYPE_MONITOR:
-		ret = lbs_set_monitor_mode(priv, 1);
-		break;
 	case NL80211_IFTYPE_STATION:
-		if (priv->wdev->iftype == NL80211_IFTYPE_MONITOR)
-			ret = lbs_set_monitor_mode(priv, 0);
-		if (!ret)
-			ret = lbs_set_snmp_mib(priv, SNMP_MIB_OID_BSS_TYPE, 1);
-		break;
 	case NL80211_IFTYPE_ADHOC:
-		if (priv->wdev->iftype == NL80211_IFTYPE_MONITOR)
-			ret = lbs_set_monitor_mode(priv, 0);
-		if (!ret)
-			ret = lbs_set_snmp_mib(priv, SNMP_MIB_OID_BSS_TYPE, 2);
 		break;
 	default:
-		ret = -ENOTSUPP;
+		return -EOPNOTSUPP;
 	}
+
+	lbs_deb_enter(LBS_DEB_CFG80211);
+
+	if (priv->iface_running)
+		ret = lbs_set_iface_type(priv, type);
 
 	if (!ret)
 		priv->wdev->iftype = type;
@@ -1959,6 +1990,9 @@ static int lbs_join_ibss(struct wiphy *wiphy, struct net_device *dev,
 	struct cfg80211_bss *bss;
 	DECLARE_SSID_BUF(ssid_buf);
 
+	if (dev == priv->mesh_dev)
+		return -EOPNOTSUPP;
+
 	lbs_deb_enter(LBS_DEB_CFG80211);
 
 	if (!params->channel) {
@@ -1994,6 +2028,9 @@ static int lbs_leave_ibss(struct wiphy *wiphy, struct net_device *dev)
 	struct lbs_private *priv = wiphy_priv(wiphy);
 	struct cmd_ds_802_11_ad_hoc_stop cmd;
 	int ret = 0;
+
+	if (dev == priv->mesh_dev)
+		return -EOPNOTSUPP;
 
 	lbs_deb_enter(LBS_DEB_CFG80211);
 
@@ -2117,6 +2154,8 @@ int lbs_cfg_register(struct lbs_private *priv)
 			BIT(NL80211_IFTYPE_ADHOC);
 	if (lbs_rtap_supported(priv))
 		wdev->wiphy->interface_modes |= BIT(NL80211_IFTYPE_MONITOR);
+	if (lbs_mesh_activated(priv))
+		wdev->wiphy->interface_modes |= BIT(NL80211_IFTYPE_MESH_POINT);
 
 	wdev->wiphy->bands[IEEE80211_BAND_2GHZ] = &lbs_band_2ghz;
 

@@ -147,6 +147,12 @@ struct power_supply *power_supply_get_by_name(char *name)
 }
 EXPORT_SYMBOL_GPL(power_supply_get_by_name);
 
+int power_supply_powers(struct power_supply *psy, struct device *dev)
+{
+	return sysfs_create_link_nowarn(&psy->dev->kobj, &dev->kobj, "powers");
+}
+EXPORT_SYMBOL_GPL(power_supply_powers);
+
 static void power_supply_dev_release(struct device *dev)
 {
 	pr_debug("device: '%s': %s\n", dev_name(dev), __func__);
@@ -202,6 +208,7 @@ EXPORT_SYMBOL_GPL(power_supply_register);
 void power_supply_unregister(struct power_supply *psy)
 {
 	cancel_work_sync(&psy->changed_work);
+	sysfs_remove_link(&psy->dev->kobj, "powers");
 	power_supply_remove_triggers(psy);
 	device_unregister(psy->dev);
 }

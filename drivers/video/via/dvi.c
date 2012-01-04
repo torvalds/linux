@@ -172,30 +172,20 @@ static int tmds_register_read_bytes(int index, u8 *buff, int buff_len)
 }
 
 /* DVI Set Mode */
-void viafb_dvi_set_mode(struct VideoModeTable *mode, int mode_bpp,
-	int set_iga)
+void viafb_dvi_set_mode(const struct fb_var_screeninfo *var, int iga)
 {
-	struct VideoModeTable *rb_mode;
-	struct crt_mode_table *pDviTiming;
-	unsigned long desirePixelClock, maxPixelClock;
-	pDviTiming = mode->crtc;
-	desirePixelClock = pDviTiming->refresh_rate
-		* pDviTiming->crtc.hor_total * pDviTiming->crtc.ver_total
-		/ 1000000;
-	maxPixelClock = (unsigned long)viaparinfo->
-		tmds_setting_info->max_pixel_clock;
+	struct fb_var_screeninfo dvi_var = *var;
+	struct crt_mode_table *rb_mode;
+	int maxPixelClock;
 
-	DEBUG_MSG(KERN_INFO "\nDVI_set_mode!!\n");
-
-	if ((maxPixelClock != 0) && (desirePixelClock > maxPixelClock)) {
-		rb_mode = viafb_get_rb_mode(mode->crtc[0].crtc.hor_addr,
-			mode->crtc[0].crtc.ver_addr);
-		if (rb_mode) {
-			mode = rb_mode;
-			pDviTiming = rb_mode->crtc;
-		}
+	maxPixelClock = viaparinfo->shared->tmds_setting_info.max_pixel_clock;
+	if (maxPixelClock && PICOS2KHZ(var->pixclock) / 1000 > maxPixelClock) {
+		rb_mode = viafb_get_best_rb_mode(var->xres, var->yres, 60);
+		if (rb_mode)
+			viafb_fill_var_timing_info(&dvi_var, rb_mode);
 	}
-	viafb_fill_crtc_timing(pDviTiming, mode, mode_bpp / 8, set_iga);
+
+	viafb_fill_crtc_timing(&dvi_var, iga);
 }
 
 /* Sense DVI Connector */

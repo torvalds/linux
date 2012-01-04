@@ -281,7 +281,7 @@ static struct crt_mode_table CRTM640x480[] = {
 	/*r_rate,hsp,vsp */
 	/*HT,  HA,  HBS, HBE, HSS, HSE, VT,  VA,  VBS, VBE, VSS, VSE */
 	{REFRESH_60, M640X480_R60_HSP, M640X480_R60_VSP,
-	 {800, 640, 648, 144, 656, 96, 525, 480, 480, 45, 490, 2} },
+	 {800, 640, 640, 160, 656, 96, 525, 480, 480, 45, 490, 2} },
 	{REFRESH_75, M640X480_R75_HSP, M640X480_R75_VSP,
 	 {840, 640, 640, 200, 656, 64, 500, 480, 480, 20, 481, 3} },
 	{REFRESH_85, M640X480_R85_HSP, M640X480_R85_VSP,
@@ -863,26 +863,56 @@ int NUM_TOTAL_CLE266_ModeXregs = ARRAY_SIZE(CLE266_ModeXregs);
 int NUM_TOTAL_PATCH_MODE = ARRAY_SIZE(res_patch_table);
 
 
-struct VideoModeTable *viafb_get_mode(int hres, int vres)
+static struct VideoModeTable *get_modes(struct VideoModeTable *vmt, int n,
+	int hres, int vres)
 {
-	u32 i;
-	for (i = 0; i < ARRAY_SIZE(viafb_modes); i++)
-		if (viafb_modes[i].mode_array &&
-			viafb_modes[i].crtc[0].crtc.hor_addr == hres &&
-			viafb_modes[i].crtc[0].crtc.ver_addr == vres)
+	int i;
+
+	for (i = 0; i < n; i++)
+		if (vmt[i].mode_array &&
+			vmt[i].crtc[0].crtc.hor_addr == hres &&
+			vmt[i].crtc[0].crtc.ver_addr == vres)
 			return &viafb_modes[i];
 
 	return NULL;
 }
 
-struct VideoModeTable *viafb_get_rb_mode(int hres, int vres)
+static struct crt_mode_table *get_best_mode(struct VideoModeTable *vmt,
+	int refresh)
 {
-	u32 i;
-	for (i = 0; i < ARRAY_SIZE(viafb_rb_modes); i++)
-		if (viafb_rb_modes[i].mode_array &&
-			viafb_rb_modes[i].crtc[0].crtc.hor_addr == hres &&
-			viafb_rb_modes[i].crtc[0].crtc.ver_addr == vres)
-			return &viafb_rb_modes[i];
+	struct crt_mode_table *best;
+	int i;
 
-	return NULL;
+	if (!vmt)
+		return NULL;
+
+	best = &vmt->crtc[0];
+	for (i = 1; i < vmt->mode_array; i++) {
+		if (abs(vmt->crtc[i].refresh_rate - refresh)
+			< abs(best->refresh_rate - refresh))
+			best = &vmt->crtc[i];
+	}
+
+	return best;
+}
+
+static struct VideoModeTable *viafb_get_mode(int hres, int vres)
+{
+	return get_modes(viafb_modes, ARRAY_SIZE(viafb_modes), hres, vres);
+}
+
+struct crt_mode_table *viafb_get_best_mode(int hres, int vres, int refresh)
+{
+	return get_best_mode(viafb_get_mode(hres, vres), refresh);
+}
+
+static struct VideoModeTable *viafb_get_rb_mode(int hres, int vres)
+{
+	return get_modes(viafb_rb_modes, ARRAY_SIZE(viafb_rb_modes), hres,
+		vres);
+}
+
+struct crt_mode_table *viafb_get_best_rb_mode(int hres, int vres, int refresh)
+{
+	return get_best_mode(viafb_get_rb_mode(hres, vres), refresh);
 }

@@ -129,7 +129,7 @@ static int __devinit jornada720_kbd_probe(struct platform_device *pdev)
 
 	err = request_irq(IRQ_GPIO0,
 			  jornada720_kbd_interrupt,
-			  IRQF_DISABLED | IRQF_TRIGGER_FALLING,
+			  IRQF_TRIGGER_FALLING,
 			  "jornadakbd", pdev);
 	if (err) {
 		printk(KERN_INFO "jornadakbd720_kbd: Unable to grab IRQ\n");

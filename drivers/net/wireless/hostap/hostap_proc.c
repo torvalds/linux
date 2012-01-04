@@ -2,6 +2,7 @@
 
 #include <linux/types.h>
 #include <linux/proc_fs.h>
+#include <linux/export.h>
 #include <net/lib80211.h>
 
 #include "hostap_wlan.h"

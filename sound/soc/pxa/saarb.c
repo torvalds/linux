@@ -146,10 +146,6 @@ static int saarb_pm860x_init(struct snd_soc_pcm_runtime *rtd)
 	snd_soc_dapm_disable_pin(dapm, "Headset Mic 2");
 	snd_soc_dapm_disable_pin(dapm, "Headset Stereophone");
 
-	ret = snd_soc_dapm_sync(dapm);
-	if (ret)
-		return ret;
-
 	/* Headset jack detection */
 	snd_soc_jack_new(codec, "Headphone Jack", SND_JACK_HEADPHONE
 			| SND_JACK_BTN_0 | SND_JACK_BTN_1 | SND_JACK_BTN_2,

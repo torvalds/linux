@@ -57,19 +57,19 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
  * THE POSSIBILITY OF SUCH DAMAGES.
  */
+#include <linux/export.h>
+#include <linux/moduleparam.h>
 
-#include "base.h"
+#include <linux/seq_file.h>
+#include <linux/list.h>
 #include "debug.h"
+#include "ath5k.h"
+#include "reg.h"
+#include "base.h"
 
 static unsigned int ath5k_debug;
 module_param_named(debug, ath5k_debug, uint, 0);
 
-
-#ifdef CONFIG_ATH5K_DEBUG
-
-#include <linux/seq_file.h>
-#include "reg.h"
-#include "ani.h"
 
 static int ath5k_debugfs_open(struct inode *inode, struct file *file)
 {
@@ -1031,5 +1031,3 @@ ath5k_debug_printtxbuf(struct ath5k_hw *ah, struct ath5k_buf *bf)
 		td->tx_stat.tx_status_0, td->tx_stat.tx_status_1,
 		done ? ' ' : (ts.ts_status == 0) ? '*' : '!');
 }
-
-#endif /* ifdef CONFIG_ATH5K_DEBUG */

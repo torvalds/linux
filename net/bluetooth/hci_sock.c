@@ -183,21 +183,35 @@ static int hci_sock_release(struct socket *sock)
 static int hci_sock_blacklist_add(struct hci_dev *hdev, void __user *arg)
 {
 	bdaddr_t bdaddr;
+	int err;
 
 	if (copy_from_user(&bdaddr, arg, sizeof(bdaddr)))
 		return -EFAULT;
 
-	return hci_blacklist_add(hdev, &bdaddr);
+	hci_dev_lock_bh(hdev);
+
+	err = hci_blacklist_add(hdev, &bdaddr);
+
+	hci_dev_unlock_bh(hdev);
+
+	return err;
 }
 
 static int hci_sock_blacklist_del(struct hci_dev *hdev, void __user *arg)
 {
 	bdaddr_t bdaddr;
+	int err;
 
 	if (copy_from_user(&bdaddr, arg, sizeof(bdaddr)))
 		return -EFAULT;
 
-	return hci_blacklist_del(hdev, &bdaddr);
+	hci_dev_lock_bh(hdev);
+
+	err = hci_blacklist_del(hdev, &bdaddr);
+
+	hci_dev_unlock_bh(hdev);
+
+	return err;
 }
 
 /* Ioctls that require bound socket */

@@ -14,7 +14,7 @@
 
 #include <linux/kernel.h>
 #include <linux/spinlock.h>
-#include <linux/module.h>
+#include <linux/export.h>
 #include <linux/stringify.h>
 #include <linux/smp.h>
 

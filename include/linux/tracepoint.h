@@ -54,8 +54,18 @@ extern int tracepoint_probe_unregister_noupdate(const char *name, void *probe,
 						void *data);
 extern void tracepoint_probe_update_all(void);
 
+#ifdef CONFIG_MODULES
+struct tp_module {
+	struct list_head list;
+	unsigned int num_tracepoints;
+	struct tracepoint * const *tracepoints_ptrs;
+};
+#endif /* CONFIG_MODULES */
+
 struct tracepoint_iter {
-	struct module *module;
+#ifdef CONFIG_MODULES
+	struct tp_module *module;
+#endif /* CONFIG_MODULES */
 	struct tracepoint * const *tracepoint;
 };
 
@@ -63,8 +73,6 @@ extern void tracepoint_iter_start(struct tracepoint_iter *iter);
 extern void tracepoint_iter_next(struct tracepoint_iter *iter);
 extern void tracepoint_iter_stop(struct tracepoint_iter *iter);
 extern void tracepoint_iter_reset(struct tracepoint_iter *iter);
-extern int tracepoint_get_iter_range(struct tracepoint * const **tracepoint,
-	struct tracepoint * const *begin, struct tracepoint * const *end);
 
 /*
  * tracepoint_synchronize_unregister must be called between the last tracepoint
@@ -77,17 +85,6 @@ static inline void tracepoint_synchronize_unregister(void)
 }
 
 #define PARAMS(args...) args
-
-#ifdef CONFIG_TRACEPOINTS
-extern
-void tracepoint_update_probe_range(struct tracepoint * const *begin,
-	struct tracepoint * const *end);
-#else
-static inline
-void tracepoint_update_probe_range(struct tracepoint * const *begin,
-	struct tracepoint * const *end)
-{ }
-#endif /* CONFIG_TRACEPOINTS */
 
 #endif /* _LINUX_TRACEPOINT_H */
 

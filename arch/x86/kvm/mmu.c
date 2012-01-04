@@ -2770,7 +2770,7 @@ static int mmu_alloc_shadow_roots(struct kvm_vcpu *vcpu)
 
 		ASSERT(!VALID_PAGE(root));
 		if (vcpu->arch.mmu.root_level == PT32E_ROOT_LEVEL) {
-			pdptr = kvm_pdptr_read_mmu(vcpu, &vcpu->arch.mmu, i);
+			pdptr = vcpu->arch.mmu.get_pdptr(vcpu, i);
 			if (!is_present_gpte(pdptr)) {
 				vcpu->arch.mmu.pae_root[i] = 0;
 				continue;
@@ -3318,6 +3318,7 @@ static int init_kvm_tdp_mmu(struct kvm_vcpu *vcpu)
 	context->direct_map = true;
 	context->set_cr3 = kvm_x86_ops->set_tdp_cr3;
 	context->get_cr3 = get_cr3;
+	context->get_pdptr = kvm_pdptr_read;
 	context->inject_page_fault = kvm_inject_page_fault;
 	context->nx = is_nx(vcpu);
 
@@ -3376,6 +3377,7 @@ static int init_kvm_softmmu(struct kvm_vcpu *vcpu)
 
 	vcpu->arch.walk_mmu->set_cr3           = kvm_x86_ops->set_cr3;
 	vcpu->arch.walk_mmu->get_cr3           = get_cr3;
+	vcpu->arch.walk_mmu->get_pdptr         = kvm_pdptr_read;
 	vcpu->arch.walk_mmu->inject_page_fault = kvm_inject_page_fault;
 
 	return r;
@@ -3386,6 +3388,7 @@ static int init_kvm_nested_mmu(struct kvm_vcpu *vcpu)
 	struct kvm_mmu *g_context = &vcpu->arch.nested_mmu;
 
 	g_context->get_cr3           = get_cr3;
+	g_context->get_pdptr         = kvm_pdptr_read;
 	g_context->inject_page_fault = kvm_inject_page_fault;
 
 	/*

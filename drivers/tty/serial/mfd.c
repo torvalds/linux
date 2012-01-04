@@ -38,6 +38,7 @@
 #include <linux/pci.h>
 #include <linux/io.h>
 #include <linux/debugfs.h>
+#include <linux/pm_runtime.h>
 
 #define HSU_DMA_BUF_SIZE	2048
 
@@ -764,6 +765,8 @@ static int serial_hsu_startup(struct uart_port *port)
 		container_of(port, struct uart_hsu_port, port);
 	unsigned long flags;
 
+	pm_runtime_get_sync(up->dev);
+
 	/*
 	 * Clear the FIFO buffers and disable them.
 	 * (they will be reenabled in set_termios())
@@ -871,6 +874,8 @@ static void serial_hsu_shutdown(struct uart_port *port)
 				  UART_FCR_CLEAR_RCVR |
 				  UART_FCR_CLEAR_XMIT);
 	serial_out(up, UART_FCR, 0);
+
+	pm_runtime_put(up->dev);
 }
 
 static void
@@ -1249,6 +1254,39 @@ static int serial_hsu_resume(struct pci_dev *pdev)
 #define serial_hsu_resume	NULL
 #endif
 
+#ifdef CONFIG_PM_RUNTIME
+static int serial_hsu_runtime_idle(struct device *dev)
+{
+	int err;
+
+	err = pm_schedule_suspend(dev, 500);
+	if (err)
+		return -EBUSY;
+
+	return 0;
+}
+
+static int serial_hsu_runtime_suspend(struct device *dev)
+{
+	return 0;
+}
+
+static int serial_hsu_runtime_resume(struct device *dev)
+{
+	return 0;
+}
+#else
+#define serial_hsu_runtime_idle		NULL
+#define serial_hsu_runtime_suspend	NULL
+#define serial_hsu_runtime_resume	NULL
+#endif
+
+static const struct dev_pm_ops serial_hsu_pm_ops = {
+	.runtime_suspend = serial_hsu_runtime_suspend,
+	.runtime_resume = serial_hsu_runtime_resume,
+	.runtime_idle = serial_hsu_runtime_idle,
+};
+
 /* temp global pointer before we settle down on using one or four PCI dev */
 static struct hsu_port *phsu;
 
@@ -1314,6 +1352,9 @@ static int serial_hsu_probe(struct pci_dev *pdev,
 #endif
 		pci_set_drvdata(pdev, uport);
 	}
+
+	pm_runtime_put_noidle(&pdev->dev);
+	pm_runtime_allow(&pdev->dev);
 
 	return 0;
 
@@ -1411,6 +1452,9 @@ static void serial_hsu_remove(struct pci_dev *pdev)
 	if (!priv)
 		return;
 
+	pm_runtime_forbid(&pdev->dev);
+	pm_runtime_get_noresume(&pdev->dev);
+
 	/* For port 0/1/2, priv is the address of uart_hsu_port */
 	if (pdev->device != 0x081E) {
 		up = priv;
@@ -1423,7 +1467,7 @@ static void serial_hsu_remove(struct pci_dev *pdev)
 }
 
 /* First 3 are UART ports, and the 4th is the DMA */
-static const struct pci_device_id pci_ids[] __devinitdata = {
+static const struct pci_device_id pci_ids[] __devinitconst = {
 	{ PCI_DEVICE(PCI_VENDOR_ID_INTEL, 0x081B) },
 	{ PCI_DEVICE(PCI_VENDOR_ID_INTEL, 0x081C) },
 	{ PCI_DEVICE(PCI_VENDOR_ID_INTEL, 0x081D) },
@@ -1438,6 +1482,9 @@ static struct pci_driver hsu_pci_driver = {
 	.remove =	__devexit_p(serial_hsu_remove),
 	.suspend =	serial_hsu_suspend,
 	.resume	=	serial_hsu_resume,
+	.driver = {
+		.pm = &serial_hsu_pm_ops,
+	},
 };
 
 static int __init hsu_pci_init(void)

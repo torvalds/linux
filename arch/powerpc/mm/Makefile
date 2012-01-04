@@ -29,6 +29,7 @@ obj-$(CONFIG_PPC_MM_SLICES)	+= slice.o
 ifeq ($(CONFIG_HUGETLB_PAGE),y)
 obj-y				+= hugetlbpage.o
 obj-$(CONFIG_PPC_STD_MMU_64)	+= hugetlbpage-hash64.o
+obj-$(CONFIG_PPC_BOOK3E_MMU)	+= hugetlbpage-book3e.o
 endif
 obj-$(CONFIG_PPC_SUBPAGE_PROT)	+= subpage-prot.o
 obj-$(CONFIG_NOT_COHERENT_CACHE) += dma-noncoherent.o

@@ -129,7 +129,7 @@ start_sys_seg:	.word	SYSSEG		# obsolete and meaningless, but just
 
 type_of_loader:	.byte	0		# 0 means ancient bootloader, newer
 					# bootloaders know to change this.
-					# See Documentation/i386/boot.txt for
+					# See Documentation/x86/boot.txt for
 					# assigned ids
 
 # flags, unused bits must be zero (RFU) bit within loadflags

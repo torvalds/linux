@@ -54,6 +54,7 @@
 #include <linux/delay.h>
 #include <linux/nfs_fs.h>
 #include <linux/slab.h>
+#include <linux/export.h>
 #include <net/net_namespace.h>
 #include <net/arp.h>
 #include <net/ip.h>

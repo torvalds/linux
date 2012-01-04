@@ -341,7 +341,7 @@ cg_found:
 
 fail_remove_inode:
 	unlock_super(sb);
-	inode->i_nlink = 0;
+	clear_nlink(inode);
 	iput(inode);
 	UFSD("EXIT (FAILED): err %d\n", err);
 	return ERR_PTR(err);

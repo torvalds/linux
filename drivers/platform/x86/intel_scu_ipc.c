@@ -24,6 +24,7 @@
 #include <linux/pci.h>
 #include <linux/interrupt.h>
 #include <linux/sfi.h>
+#include <linux/module.h>
 #include <asm/mrst.h>
 #include <asm/intel_scu_ipc.h>
 

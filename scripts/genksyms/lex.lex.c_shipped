@@ -660,7 +660,7 @@ static int input (void );
 /* This used to be an fputs(), but since the string might contain NUL's,
  * we now use fwrite().
  */
-#define ECHO do { if (fwrite( yytext, yyleng, 1, yyout )) {} } while (0)
+#define ECHO fwrite( yytext, yyleng, 1, yyout )
 #endif
 
 /* Gets input and stuffs it into "buf".  number of characters read, or YY_NULL,
@@ -671,7 +671,7 @@ static int input (void );
 	if ( YY_CURRENT_BUFFER_LVALUE->yy_is_interactive ) \
 		{ \
 		int c = '*'; \
-		unsigned n; \
+		int n; \
 		for ( n = 0; n < max_size && \
 			     (c = getc( yyin )) != EOF && c != '\n'; ++n ) \
 			buf[n] = (char) c; \
@@ -1926,6 +1926,7 @@ void yyfree (void * ptr )
 			  cur_node->tag =				   \
 			    find_symbol(cur_node->string, SYM_ENUM_CONST, 1)?\
 			    SYM_ENUM_CONST : SYM_NORMAL ;		   \
+			  cur_node->in_source_file = in_source_file;       \
 			} while (0)
 
 #define APP		_APP(yytext, yyleng)
@@ -1974,6 +1975,13 @@ repeat:
       *e = '\0';
       cur_filename = memcpy(xmalloc(e-file+1), file, e-file+1);
       cur_line = atoi(yytext+2);
+
+      if (!source_file) {
+        source_file = xstrdup(cur_filename);
+        in_source_file = 1;
+      } else {
+        in_source_file = (strcmp(cur_filename, source_file) == 0);
+      }
 
       goto repeat;
     }

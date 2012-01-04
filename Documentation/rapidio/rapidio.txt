@@ -144,7 +144,7 @@ and the default device ID in order to access the device on the active port.
 
 After the host has completed enumeration of the entire network it releases
 devices by clearing device ID locks (calls rio_clear_locks()). For each endpoint
-in the system, it sets the Master Enable bit in the Port General Control CSR
+in the system, it sets the Discovered bit in the Port General Control CSR
 to indicate that enumeration is completed and agents are allowed to execute
 passive discovery of the network.
 

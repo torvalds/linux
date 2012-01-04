@@ -9,6 +9,7 @@ config RDS
 
 config RDS_RDMA
 	tristate "RDS over Infiniband and iWARP"
+	select LLIST
 	depends on RDS && INFINIBAND && INFINIBAND_ADDR_TRANS
 	---help---
 	  Allow RDS to use Infiniband and iWARP as a transport.

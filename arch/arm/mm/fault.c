@@ -20,6 +20,7 @@
 #include <linux/highmem.h>
 #include <linux/perf_event.h>
 
+#include <asm/exception.h>
 #include <asm/system.h>
 #include <asm/pgtable.h>
 #include <asm/tlbflush.h>

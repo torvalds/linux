@@ -9,28 +9,26 @@
  */
 
 #include <linux/interrupt.h>
-#include <linux/device.h>
 #include <linux/slab.h>
 #include <linux/kernel.h>
-#include <linux/sysfs.h>
-#include <linux/list.h>
 #include <linux/i2c.h>
 #include <linux/bitops.h>
 
 #include "../iio.h"
-#include "../ring_generic.h"
+#include "../buffer_generic.h"
 #include "../ring_sw.h"
-#include "../trigger.h"
-#include "../sysfs.h"
+#include "../trigger_consumer.h"
 
 #include "max1363.h"
 
-int max1363_single_channel_from_ring(long mask, struct max1363_state *st)
+int max1363_single_channel_from_ring(const long *mask, struct max1363_state *st)
 {
-	struct iio_ring_buffer *ring = iio_priv_to_dev(st)->ring;
-	int count = 0, ret;
+	struct iio_buffer *ring = iio_priv_to_dev(st)->buffer;
+	int count = 0, ret, index;
 	u8 *ring_data;
-	if (!(st->current_mode->modemask & mask)) {
+	index = find_first_bit(mask, MAX1363_MAX_CHANNELS);
+
+	if (!(test_bit(index, st->current_mode->modemask))) {
 		ret = -EBUSY;
 		goto error_ret;
 	}
@@ -45,12 +43,8 @@ int max1363_single_channel_from_ring(long mask, struct max1363_state *st)
 	if (ret)
 		goto error_free_ring_data;
 	/* Need a count of channels prior to this one */
-	mask >>= 1;
-	while (mask) {
-		if (mask & st->current_mode->modemask)
-			count++;
-		mask >>= 1;
-	}
+
+	count = bitmap_weight(mask, index - 1);
 	if (st->chip_info->bits != 8)
 		ret = ((int)(ring_data[count*2 + 0] & 0x0F) << 8)
 			+ (int)(ring_data[count*2 + 1]);
@@ -74,7 +68,7 @@ error_ret:
 static int max1363_ring_preenable(struct iio_dev *indio_dev)
 {
 	struct max1363_state *st = iio_priv(indio_dev);
-	struct iio_ring_buffer *ring = indio_dev->ring;
+	struct iio_buffer *ring = indio_dev->buffer;
 	size_t d_size = 0;
 	unsigned long numvals;
 
@@ -89,7 +83,8 @@ static int max1363_ring_preenable(struct iio_dev *indio_dev)
 
 	max1363_set_scan_mode(st);
 
-	numvals = hweight_long(st->current_mode->modemask);
+	numvals = bitmap_weight(st->current_mode->modemask,
+				indio_dev->masklength);
 	if (ring->access->set_bytes_per_datum) {
 		if (ring->scan_timestamp)
 			d_size += sizeof(s64);
@@ -108,13 +103,14 @@ static int max1363_ring_preenable(struct iio_dev *indio_dev)
 static irqreturn_t max1363_trigger_handler(int irq, void *p)
 {
 	struct iio_poll_func *pf = p;
-	struct iio_dev *indio_dev = pf->private_data;
+	struct iio_dev *indio_dev = pf->indio_dev;
 	struct max1363_state *st = iio_priv(indio_dev);
 	s64 time_ns;
 	__u8 *rxbuf;
 	int b_sent;
 	size_t d_size;
-	unsigned long numvals = hweight_long(st->current_mode->modemask);
+	unsigned long numvals = bitmap_weight(st->current_mode->modemask,
+					      MAX1363_MAX_CHANNELS);
 
 	/* Ensure the timestamp is 8 byte aligned */
 	if (st->chip_info->bits != 8)
@@ -145,7 +141,7 @@ static irqreturn_t max1363_trigger_handler(int irq, void *p)
 
 	memcpy(rxbuf + d_size - sizeof(s64), &time_ns, sizeof(time_ns));
 
-	indio_dev->ring->access->store_to(indio_dev->ring, rxbuf, time_ns);
+	indio_dev->buffer->access->store_to(indio_dev->buffer, rxbuf, time_ns);
 done:
 	iio_trigger_notify_done(indio_dev->trig);
 	kfree(rxbuf);
@@ -153,10 +149,10 @@ done:
 	return IRQ_HANDLED;
 }
 
-static const struct iio_ring_setup_ops max1363_ring_setup_ops = {
-	.postenable = &iio_triggered_ring_postenable,
+static const struct iio_buffer_setup_ops max1363_ring_setup_ops = {
+	.postenable = &iio_triggered_buffer_postenable,
 	.preenable = &max1363_ring_preenable,
-	.predisable = &iio_triggered_ring_predisable,
+	.predisable = &iio_triggered_buffer_predisable,
 };
 
 int max1363_register_ring_funcs_and_init(struct iio_dev *indio_dev)
@@ -164,8 +160,8 @@ int max1363_register_ring_funcs_and_init(struct iio_dev *indio_dev)
 	struct max1363_state *st = iio_priv(indio_dev);
 	int ret = 0;
 
-	indio_dev->ring = iio_sw_rb_allocate(indio_dev);
-	if (!indio_dev->ring) {
+	indio_dev->buffer = iio_sw_rb_allocate(indio_dev);
+	if (!indio_dev->buffer) {
 		ret = -ENOMEM;
 		goto error_ret;
 	}
@@ -181,17 +177,17 @@ int max1363_register_ring_funcs_and_init(struct iio_dev *indio_dev)
 		goto error_deallocate_sw_rb;
 	}
 	/* Effectively select the ring buffer implementation */
-	indio_dev->ring->access = &ring_sw_access_funcs;
+	indio_dev->buffer->access = &ring_sw_access_funcs;
 	/* Ring buffer functions - here trigger setup related */
-	indio_dev->ring->setup_ops = &max1363_ring_setup_ops;
+	indio_dev->buffer->setup_ops = &max1363_ring_setup_ops;
 
 	/* Flag that polled ring buffering is possible */
-	indio_dev->modes |= INDIO_RING_TRIGGERED;
+	indio_dev->modes |= INDIO_BUFFER_TRIGGERED;
 
 	return 0;
 
 error_deallocate_sw_rb:
-	iio_sw_rb_free(indio_dev->ring);
+	iio_sw_rb_free(indio_dev->buffer);
 error_ret:
 	return ret;
 }
@@ -199,11 +195,6 @@ error_ret:
 void max1363_ring_cleanup(struct iio_dev *indio_dev)
 {
 	/* ensure that the trigger has been detached */
-	if (indio_dev->trig) {
-		iio_put_trigger(indio_dev->trig);
-		iio_trigger_dettach_poll_func(indio_dev->trig,
-					      indio_dev->pollfunc);
-	}
 	iio_dealloc_pollfunc(indio_dev->pollfunc);
-	iio_sw_rb_free(indio_dev->ring);
+	iio_sw_rb_free(indio_dev->buffer);
 }

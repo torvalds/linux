@@ -41,8 +41,8 @@
 #include <plat/adc-core.h>
 #include <plat/iic-core.h>
 #include <plat/onenand-core.h>
-#include <mach/s3c6400.h>
-#include <mach/s3c6410.h>
+#include <plat/s3c6400.h>
+#include <plat/s3c6410.h>
 
 void __init s3c6410_map_io(void)
 {

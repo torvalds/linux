@@ -57,6 +57,7 @@
 #define MAX1363_SCAN_MASK			0x60
 #define MAX1363_SE_DE_MASK			0x01
 
+#define MAX1363_MAX_CHANNELS 25
 /**
  * struct max1363_mode - scan mode information
  * @conf:	The corresponding value of the configuration register
@@ -64,7 +65,7 @@
  */
 struct max1363_mode {
 	int8_t		conf;
-	long		modemask;
+	DECLARE_BITMAP(modemask, MAX1363_MAX_CHANNELS);
 };
 
 /* This must be maintained along side the max1363_mode_table in max1363_core */
@@ -145,13 +146,14 @@ struct max1363_state {
 };
 
 const struct max1363_mode
-*max1363_match_mode(u32 mask, const struct max1363_chip_info *ci);
+*max1363_match_mode(unsigned long *mask, const struct max1363_chip_info *ci);
 
 int max1363_set_scan_mode(struct max1363_state *st);
 
 #ifdef CONFIG_MAX1363_RING_BUFFER
 
-int max1363_single_channel_from_ring(long mask, struct max1363_state *st);
+int max1363_single_channel_from_ring(const long *mask,
+				     struct max1363_state *st);
 int max1363_register_ring_funcs_and_init(struct iio_dev *indio_dev);
 void max1363_ring_cleanup(struct iio_dev *indio_dev);
 

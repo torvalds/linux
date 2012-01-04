@@ -133,41 +133,6 @@ Who:	Pavel Machek <pavel@ucw.cz>
 
 ---------------------------
 
-What:	sys_sysctl
-When:	September 2010
-Option: CONFIG_SYSCTL_SYSCALL
-Why:	The same information is available in a more convenient from
-	/proc/sys, and none of the sysctl variables appear to be
-	important performance wise.
-
-	Binary sysctls are a long standing source of subtle kernel
-	bugs and security issues.
-
-	When I looked several months ago all I could find after
-	searching several distributions were 5 user space programs and
-	glibc (which falls back to /proc/sys) using this syscall.
-
-	The man page for sysctl(2) documents it as unusable for user
-	space programs.
-
-	sysctl(2) is not generally ABI compatible to a 32bit user
-	space application on a 64bit and a 32bit kernel.
-
-	For the last several months the policy has been no new binary
-	sysctls and no one has put forward an argument to use them.
-
-	Binary sysctls issues seem to keep happening appearing so
-	properly deprecating them (with a warning to user space) and a
-	2 year grace warning period will mean eventually we can kill
-	them and end the pain.
-
-	In the mean time individual binary sysctls can be dealt with
-	in a piecewise fashion.
-
-Who:	Eric Biederman <ebiederm@xmission.com>
-
----------------------------
-
 What:	/proc/<pid>/oom_adj
 When:	August 2012
 Why:	/proc/<pid>/oom_adj allows userspace to influence the oom killer's
@@ -495,29 +460,6 @@ Who:	Jean Delvare <khali@linux-fr.org>
 
 ----------------------------
 
-What:	Support for UVCIOC_CTRL_ADD in the uvcvideo driver
-When:	3.2
-Why:	The information passed to the driver by this ioctl is now queried
-	dynamically from the device.
-Who:	Laurent Pinchart <laurent.pinchart@ideasonboard.com>
-
-----------------------------
-
-What:	Support for UVCIOC_CTRL_MAP_OLD in the uvcvideo driver
-When:	3.2
-Why:	Used only by applications compiled against older driver versions.
-	Superseded by UVCIOC_CTRL_MAP which supports V4L2 menu controls.
-Who:	Laurent Pinchart <laurent.pinchart@ideasonboard.com>
-
-----------------------------
-
-What:	Support for UVCIOC_CTRL_GET and UVCIOC_CTRL_SET in the uvcvideo driver
-When:	3.2
-Why:	Superseded by the UVCIOC_CTRL_QUERY ioctl.
-Who:	Laurent Pinchart <laurent.pinchart@ideasonboard.com>
-
-----------------------------
-
 What:	Support for driver specific ioctls in the pwc driver (everything
 	defined in media/pwc-ioctl.h)
 When:	3.3
@@ -594,9 +536,18 @@ Why:    In 3.0, we can now autodetect internal 3G device and already have
 Who:    Lee, Chun-Yi <jlee@novell.com>
 
 ----------------------------
+
 What:	The XFS nodelaylog mount option
 When:	3.3
 Why:	The delaylog mode that has been the default since 2.6.39 has proven
 	stable, and the old code is in the way of additional improvements in
 	the log code.
 Who:	Christoph Hellwig <hch@lst.de>
+
+----------------------------
+
+What:	iwlagn alias support
+When:	3.5
+Why:	The iwlagn module has been renamed iwlwifi.  The alias will be around
+	for backward compatibility for several cycles and then dropped.
+Who:	Don Fry <donald.h.fry@intel.com>

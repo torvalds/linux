@@ -18,6 +18,7 @@
 
 #include <linux/delay.h>
 #include <linux/suspend.h>
+#include <linux/stat.h>
 #include <asm/firmware.h>
 #include <asm/hvcall.h>
 #include <asm/machdep.h>

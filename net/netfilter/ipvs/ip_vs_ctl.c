@@ -856,15 +856,12 @@ ip_vs_new_dest(struct ip_vs_service *svc, struct ip_vs_dest_user_kern *udest,
 	}
 
 	dest = kzalloc(sizeof(struct ip_vs_dest), GFP_KERNEL);
-	if (dest == NULL) {
-		pr_err("%s(): no memory.\n", __func__);
+	if (dest == NULL)
 		return -ENOMEM;
-	}
+
 	dest->stats.cpustats = alloc_percpu(struct ip_vs_cpu_stats);
-	if (!dest->stats.cpustats) {
-		pr_err("%s() alloc_percpu failed\n", __func__);
+	if (!dest->stats.cpustats)
 		goto err_alloc;
-	}
 
 	dest->af = svc->af;
 	dest->protocol = svc->protocol;
@@ -1168,10 +1165,8 @@ ip_vs_add_service(struct net *net, struct ip_vs_service_user_kern *u,
 		goto out_err;
 	}
 	svc->stats.cpustats = alloc_percpu(struct ip_vs_cpu_stats);
-	if (!svc->stats.cpustats) {
-		pr_err("%s() alloc_percpu failed\n", __func__);
+	if (!svc->stats.cpustats)
 		goto out_err;
-	}
 
 	/* I'm the first user of the service */
 	atomic_set(&svc->usecnt, 0);
@@ -3326,10 +3321,8 @@ static int ip_vs_genl_set_cmd(struct sk_buff *skb, struct genl_info *info)
 	int ret = 0, cmd;
 	int need_full_svc = 0, need_full_dest = 0;
 	struct net *net;
-	struct netns_ipvs *ipvs;
 
 	net = skb_sknet(skb);
-	ipvs = net_ipvs(net);
 	cmd = info->genlhdr->cmd;
 
 	mutex_lock(&__ip_vs_mutex);
@@ -3421,10 +3414,8 @@ static int ip_vs_genl_get_cmd(struct sk_buff *skb, struct genl_info *info)
 	void *reply;
 	int ret, cmd, reply_cmd;
 	struct net *net;
-	struct netns_ipvs *ipvs;
 
 	net = skb_sknet(skb);
-	ipvs = net_ipvs(net);
 	cmd = info->genlhdr->cmd;
 
 	if (cmd == IPVS_CMD_GET_SERVICE)
@@ -3720,10 +3711,9 @@ int __net_init ip_vs_control_net_init(struct net *net)
 
 	/* procfs stats */
 	ipvs->tot_stats.cpustats = alloc_percpu(struct ip_vs_cpu_stats);
-	if (!ipvs->tot_stats.cpustats) {
-		pr_err("%s(): alloc_percpu.\n", __func__);
+	if (!ipvs->tot_stats.cpustats)
 		return -ENOMEM;
-	}
+
 	spin_lock_init(&ipvs->tot_stats.lock);
 
 	proc_net_fops_create(net, "ip_vs", 0, &ip_vs_info_fops);

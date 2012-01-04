@@ -30,7 +30,6 @@
 #define VGA_SR_INDEX		0x3c4
 #define VGA_SR_DATA		0x3c5
 
-/* FIXME: should check if we are the active VGA device ?? */
 static void cdv_disable_vga(struct drm_device *dev)
 {
 	u8 sr1;

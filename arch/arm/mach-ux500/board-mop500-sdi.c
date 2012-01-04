@@ -216,30 +216,48 @@ void __init mop500_sdi_init(void)
 	/* PoP:ed eMMC on top of DB8500 v1.0 has problems with high speed */
 	if (!cpu_is_u8500v10())
 		mop500_sdi2_data.capabilities |= MMC_CAP_MMC_HIGHSPEED;
-	/* sdi2 on snowball is in ATL_B mode for FSMC (LAN) */
-	if (!machine_is_snowball())
-		db8500_add_sdi2(&mop500_sdi2_data, periphid);
+
+	db8500_add_sdi2(&mop500_sdi2_data, periphid);
 
 	/* On-board eMMC */
 	db8500_add_sdi4(&mop500_sdi4_data, periphid);
-
-	if (machine_is_hrefv60() || machine_is_snowball()) {
-		if (machine_is_hrefv60()) {
-			mop500_sdi0_data.gpio_cd = HREFV60_SDMMC_CD_GPIO;
-			sdi0_en = HREFV60_SDMMC_EN_GPIO;
-			sdi0_vsel = HREFV60_SDMMC_1V8_3V_GPIO;
-		} else if (machine_is_snowball()) {
-			mop500_sdi0_data.gpio_cd = SNOWBALL_SDMMC_CD_GPIO;
-			mop500_sdi0_data.cd_invert = true;
-			sdi0_en = SNOWBALL_SDMMC_EN_GPIO;
-			sdi0_vsel = SNOWBALL_SDMMC_1V8_3V_GPIO;
-		}
-		sdi0_configure();
-	}
 
 	/*
 	 * On boards with the TC35892 GPIO expander, sdi0 will finally
 	 * be added when the TC35892 initializes and calls
 	 * mop500_sdi_tc35892_init() above.
 	 */
+}
+
+void __init snowball_sdi_init(void)
+{
+	u32 periphid = 0x10480180;
+
+	mop500_sdi2_data.capabilities |= MMC_CAP_MMC_HIGHSPEED;
+
+	/* On-board eMMC */
+	db8500_add_sdi4(&mop500_sdi4_data, periphid);
+
+	mop500_sdi0_data.gpio_cd = SNOWBALL_SDMMC_CD_GPIO;
+	mop500_sdi0_data.cd_invert = true;
+	sdi0_en = SNOWBALL_SDMMC_EN_GPIO;
+	sdi0_vsel = SNOWBALL_SDMMC_1V8_3V_GPIO;
+	sdi0_configure();
+}
+
+void __init hrefv60_sdi_init(void)
+{
+	u32 periphid = 0x10480180;
+
+	mop500_sdi2_data.capabilities |= MMC_CAP_MMC_HIGHSPEED;
+
+	db8500_add_sdi2(&mop500_sdi2_data, periphid);
+
+	/* On-board eMMC */
+	db8500_add_sdi4(&mop500_sdi4_data, periphid);
+
+	mop500_sdi0_data.gpio_cd = HREFV60_SDMMC_CD_GPIO;
+	sdi0_en = HREFV60_SDMMC_EN_GPIO;
+	sdi0_vsel = HREFV60_SDMMC_1V8_3V_GPIO;
+	sdi0_configure();
 }

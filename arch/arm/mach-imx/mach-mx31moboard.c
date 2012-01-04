@@ -18,6 +18,7 @@
 #include <linux/gpio.h>
 #include <linux/init.h>
 #include <linux/interrupt.h>
+#include <linux/moduleparam.h>
 #include <linux/leds.h>
 #include <linux/memory.h>
 #include <linux/mtd/physmap.h>
@@ -28,6 +29,10 @@
 #include <linux/spi/spi.h>
 #include <linux/types.h>
 #include <linux/memblock.h>
+#include <linux/clk.h>
+#include <linux/io.h>
+#include <linux/err.h>
+#include <linux/input.h>
 
 #include <linux/usb/otg.h>
 #include <linux/usb/ulpi.h>
@@ -222,7 +227,7 @@ static struct mc13xxx_regulator_init_data moboard_regulators[] = {
 	},
 };
 
-static struct mc13783_led_platform_data moboard_led[] = {
+static struct mc13xxx_led_platform_data moboard_led[] = {
 	{
 		.id = MC13783_LED_R1,
 		.name = "coreboard-led-4:red",
@@ -255,7 +260,7 @@ static struct mc13783_led_platform_data moboard_led[] = {
 	},
 };
 
-static struct mc13783_leds_platform_data moboard_leds = {
+static struct mc13xxx_leds_platform_data moboard_leds = {
 	.num_leds = ARRAY_SIZE(moboard_led),
 	.led = moboard_led,
 	.flags = MC13783_LED_SLEWLIMTC,
@@ -264,14 +269,20 @@ static struct mc13783_leds_platform_data moboard_leds = {
 	.tc2_period = MC13783_LED_PERIOD_10MS,
 };
 
+static struct mc13xxx_buttons_platform_data moboard_buttons = {
+	.b1on_flags = MC13783_BUTTON_DBNC_750MS | MC13783_BUTTON_ENABLE |
+			MC13783_BUTTON_POL_INVERT,
+	.b1on_key = KEY_POWER,
+};
+
 static struct mc13xxx_platform_data moboard_pmic = {
 	.regulators = {
 		.regulators = moboard_regulators,
 		.num_regulators = ARRAY_SIZE(moboard_regulators),
 	},
 	.leds = &moboard_leds,
-	.flags = MC13XXX_USE_REGULATOR | MC13XXX_USE_RTC |
-		MC13XXX_USE_ADC | MC13XXX_USE_LED,
+	.buttons = &moboard_buttons,
+	.flags = MC13XXX_USE_RTC | MC13XXX_USE_ADC,
 };
 
 static struct spi_board_info moboard_spi_board_info[] __initdata = {
@@ -490,6 +501,18 @@ err:
 
 }
 
+static void mx31moboard_poweroff(void)
+{
+	struct clk *clk = clk_get_sys("imx2-wdt.0", NULL);
+
+	if (!IS_ERR(clk))
+		clk_enable(clk);
+
+	mxc_iomux_mode(MX31_PIN_WATCHDOG_RST__WATCHDOG_RST);
+
+	__raw_writew(1 << 6 | 1 << 2, MX31_IO_ADDRESS(MX31_WDOG_BASE_ADDR));
+}
+
 static int mx31moboard_baseboard;
 core_param(mx31moboard_baseboard, mx31moboard_baseboard, int, 0444);
 
@@ -527,6 +550,8 @@ static void __init mx31moboard_init(void)
 	usb_xcvr_reset();
 
 	moboard_usbh2_init();
+
+	pm_power_off = mx31moboard_poweroff;
 
 	switch (mx31moboard_baseboard) {
 	case MX31NOBOARD:
@@ -567,11 +592,12 @@ static void __init mx31moboard_reserve(void)
 
 MACHINE_START(MX31MOBOARD, "EPFL Mobots mx31moboard")
 	/* Maintainer: Valentin Longchamp, EPFL Mobots group */
-	.boot_params = MX3x_PHYS_OFFSET + 0x100,
+	.atag_offset = 0x100,
 	.reserve = mx31moboard_reserve,
 	.map_io = mx31_map_io,
 	.init_early = imx31_init_early,
 	.init_irq = mx31_init_irq,
+	.handle_irq = imx31_handle_irq,
 	.timer = &mx31moboard_timer,
 	.init_machine = mx31moboard_init,
 MACHINE_END

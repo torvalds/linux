@@ -279,7 +279,7 @@ static int __devinit w90x900ts_probe(struct platform_device *pdev)
 
 	w90p910_ts->irq_num = platform_get_irq(pdev, 0);
 	if (request_irq(w90p910_ts->irq_num, w90p910_ts_interrupt,
-			IRQF_DISABLED, "w90p910ts", w90p910_ts)) {
+			0, "w90p910ts", w90p910_ts)) {
 		err = -EBUSY;
 		goto fail4;
 	}

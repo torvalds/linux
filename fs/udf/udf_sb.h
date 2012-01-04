@@ -54,13 +54,16 @@
 
 #pragma pack(1) /* XXX(hch): Why?  This file just defines in-core structures */
 
+#define MF_DUPLICATE_MD		0x01
+#define MF_MIRROR_FE_LOADED	0x02
+
 struct udf_meta_data {
 	__u32	s_meta_file_loc;
 	__u32	s_mirror_file_loc;
 	__u32	s_bitmap_file_loc;
 	__u32	s_alloc_unit_size;
 	__u16	s_align_unit_size;
-	__u8 	s_dup_md_flag;
+	int	s_flags;
 	struct inode *s_metadata_fe;
 	struct inode *s_mirror_fe;
 	struct inode *s_bitmap_fe;

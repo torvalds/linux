@@ -21,6 +21,7 @@
  */
 #include <linux/gfp.h>
 #include <linux/kernel.h>
+#include <linux/export.h>
 #include <linux/ioprio.h>
 #include <linux/blkdev.h>
 #include <linux/capability.h>

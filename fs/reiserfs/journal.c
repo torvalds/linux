@@ -291,14 +291,13 @@ int reiserfs_allocate_list_bitmaps(struct super_block *sb,
 	for (i = 0; i < JOURNAL_NUM_BITMAPS; i++) {
 		jb = jb_array + i;
 		jb->journal_list = NULL;
-		jb->bitmaps = vmalloc(mem);
+		jb->bitmaps = vzalloc(mem);
 		if (!jb->bitmaps) {
 			reiserfs_warning(sb, "clm-2000", "unable to "
 					 "allocate bitmaps for journal lists");
 			failed = 1;
 			break;
 		}
-		memset(jb->bitmaps, 0, mem);
 	}
 	if (failed) {
 		free_list_bitmaps(sb, jb_array);
@@ -353,11 +352,10 @@ static struct reiserfs_journal_cnode *allocate_cnodes(int num_cnodes)
 	if (num_cnodes <= 0) {
 		return NULL;
 	}
-	head = vmalloc(num_cnodes * sizeof(struct reiserfs_journal_cnode));
+	head = vzalloc(num_cnodes * sizeof(struct reiserfs_journal_cnode));
 	if (!head) {
 		return NULL;
 	}
-	memset(head, 0, num_cnodes * sizeof(struct reiserfs_journal_cnode));
 	head[0].prev = NULL;
 	head[0].next = head + 1;
 	for (i = 1; i < num_cnodes; i++) {
@@ -2685,14 +2683,13 @@ int journal_init(struct super_block *sb, const char *j_dev_name,
 	 * dependency inversion warnings.
 	 */
 	reiserfs_write_unlock(sb);
-	journal = SB_JOURNAL(sb) = vmalloc(sizeof(struct reiserfs_journal));
+	journal = SB_JOURNAL(sb) = vzalloc(sizeof(struct reiserfs_journal));
 	if (!journal) {
 		reiserfs_warning(sb, "journal-1256",
 				 "unable to get memory for journal structure");
 		reiserfs_write_lock(sb);
 		return 1;
 	}
-	memset(journal, 0, sizeof(struct reiserfs_journal));
 	INIT_LIST_HEAD(&journal->j_bitmap_nodes);
 	INIT_LIST_HEAD(&journal->j_prealloc_list);
 	INIT_LIST_HEAD(&journal->j_working_list);

@@ -1578,9 +1578,8 @@ xfs_da_grow_inode_int(
 	 */
 	nmap = 1;
 	ASSERT(args->firstblock != NULL);
-	error = xfs_bmapi(tp, dp, *bno, count,
-			xfs_bmapi_aflag(w)|XFS_BMAPI_WRITE|XFS_BMAPI_METADATA|
-			XFS_BMAPI_CONTIG,
+	error = xfs_bmapi_write(tp, dp, *bno, count,
+			xfs_bmapi_aflag(w)|XFS_BMAPI_METADATA|XFS_BMAPI_CONTIG,
 			args->firstblock, args->total, &map, &nmap,
 			args->flist);
 	if (error)
@@ -1602,9 +1601,8 @@ xfs_da_grow_inode_int(
 		for (b = *bno, mapi = 0; b < *bno + count; ) {
 			nmap = MIN(XFS_BMAP_MAX_NMAP, count);
 			c = (int)(*bno + count - b);
-			error = xfs_bmapi(tp, dp, b, c,
-					xfs_bmapi_aflag(w)|XFS_BMAPI_WRITE|
-					XFS_BMAPI_METADATA,
+			error = xfs_bmapi_write(tp, dp, b, c,
+					xfs_bmapi_aflag(w)|XFS_BMAPI_METADATA,
 					args->firstblock, args->total,
 					&mapp[mapi], &nmap, args->flist);
 			if (error)
@@ -1975,33 +1973,16 @@ xfs_da_do_buf(
 		/*
 		 * Optimize the one-block case.
 		 */
-		if (nfsb == 1) {
-			xfs_fsblock_t	fsb;
-
-			if ((error =
-			    xfs_bmapi_single(trans, dp, whichfork, &fsb,
-				    (xfs_fileoff_t)bno))) {
-				return error;
-			}
+		if (nfsb == 1)
 			mapp = &map;
-			if (fsb == NULLFSBLOCK) {
-				nmap = 0;
-			} else {
-				map.br_startblock = fsb;
-				map.br_startoff = (xfs_fileoff_t)bno;
-				map.br_blockcount = 1;
-				nmap = 1;
-			}
-		} else {
+		else
 			mapp = kmem_alloc(sizeof(*mapp) * nfsb, KM_SLEEP);
-			nmap = nfsb;
-			if ((error = xfs_bmapi(trans, dp, (xfs_fileoff_t)bno,
-					nfsb,
-					XFS_BMAPI_METADATA |
-						xfs_bmapi_aflag(whichfork),
-					NULL, 0, mapp, &nmap, NULL)))
-				goto exit0;
-		}
+
+		nmap = nfsb;
+		error = xfs_bmapi_read(dp, (xfs_fileoff_t)bno, nfsb, mapp,
+				       &nmap, xfs_bmapi_aflag(whichfork));
+		if (error)
+			goto exit0;
 	} else {
 		map.br_startblock = XFS_DADDR_TO_FSB(mp, mappedbno);
 		map.br_startoff = (xfs_fileoff_t)bno;
@@ -2072,13 +2053,10 @@ xfs_da_do_buf(
 		if (!bp)
 			continue;
 		if (caller == 1) {
-			if (whichfork == XFS_ATTR_FORK) {
-				XFS_BUF_SET_VTYPE_REF(bp, B_FS_ATTR_BTREE,
-						XFS_ATTR_BTREE_REF);
-			} else {
-				XFS_BUF_SET_VTYPE_REF(bp, B_FS_DIR_BTREE,
-						XFS_DIR_BTREE_REF);
-			}
+			if (whichfork == XFS_ATTR_FORK)
+				xfs_buf_set_ref(bp, XFS_ATTR_BTREE_REF);
+			else
+				xfs_buf_set_ref(bp, XFS_DIR_BTREE_REF);
 		}
 		if (bplist) {
 			bplist[nbplist++] = bp;

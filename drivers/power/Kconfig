@@ -70,6 +70,7 @@ config BATTERY_DS2760
 
 config BATTERY_DS2780
 	tristate "DS2780 battery driver"
+	depends on HAS_IOMEM
 	select W1
 	select W1_SLAVE_DS2780
 	help

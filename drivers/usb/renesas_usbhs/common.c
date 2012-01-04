@@ -61,8 +61,8 @@
  */
 #define usbhs_platform_call(priv, func, args...)\
 	(!(priv) ? -ENODEV :			\
-	 !((priv)->pfunc->func) ? 0 :		\
-	 (priv)->pfunc->func(args))
+	 !((priv)->pfunc.func) ? 0 :		\
+	 (priv)->pfunc.func(args))
 
 /*
  *		common functions
@@ -114,6 +114,10 @@ void usbhs_sys_host_ctrl(struct usbhs_priv *priv, int enable)
 {
 	u16 mask = DCFM | DRPD | DPRPU;
 	u16 val  = DCFM | DRPD;
+	int has_otg = usbhs_get_dparam(priv, has_otg);
+
+	if (has_otg)
+		usbhs_bset(priv, DVSTCTR, (EXTLP | PWEN), (EXTLP | PWEN));
 
 	/*
 	 * if enable
@@ -147,19 +151,133 @@ int usbhs_frame_get_num(struct usbhs_priv *priv)
 }
 
 /*
+ *		usb request functions
+ */
+void usbhs_usbreq_get_val(struct usbhs_priv *priv, struct usb_ctrlrequest *req)
+{
+	u16 val;
+
+	val = usbhs_read(priv, USBREQ);
+	req->bRequest		= (val >> 8) & 0xFF;
+	req->bRequestType	= (val >> 0) & 0xFF;
+
+	req->wValue	= usbhs_read(priv, USBVAL);
+	req->wIndex	= usbhs_read(priv, USBINDX);
+	req->wLength	= usbhs_read(priv, USBLENG);
+}
+
+void usbhs_usbreq_set_val(struct usbhs_priv *priv, struct usb_ctrlrequest *req)
+{
+	usbhs_write(priv, USBREQ,  (req->bRequest << 8) | req->bRequestType);
+	usbhs_write(priv, USBVAL,  req->wValue);
+	usbhs_write(priv, USBINDX, req->wIndex);
+	usbhs_write(priv, USBLENG, req->wLength);
+
+	usbhs_bset(priv, DCPCTR, SUREQ, SUREQ);
+}
+
+/*
+ *		bus/vbus functions
+ */
+void usbhs_bus_send_sof_enable(struct usbhs_priv *priv)
+{
+	u16 status = usbhs_read(priv, DVSTCTR) & (USBRST | UACT);
+
+	if (status != USBRST) {
+		struct device *dev = usbhs_priv_to_dev(priv);
+		dev_err(dev, "usbhs should be reset\n");
+	}
+
+	usbhs_bset(priv, DVSTCTR, (USBRST | UACT), UACT);
+}
+
+void usbhs_bus_send_reset(struct usbhs_priv *priv)
+{
+	usbhs_bset(priv, DVSTCTR, (USBRST | UACT), USBRST);
+}
+
+int usbhs_bus_get_speed(struct usbhs_priv *priv)
+{
+	u16 dvstctr = usbhs_read(priv, DVSTCTR);
+
+	switch (RHST & dvstctr) {
+	case RHST_LOW_SPEED:
+		return USB_SPEED_LOW;
+	case RHST_FULL_SPEED:
+		return USB_SPEED_FULL;
+	case RHST_HIGH_SPEED:
+		return USB_SPEED_HIGH;
+	}
+
+	return USB_SPEED_UNKNOWN;
+}
+
+int usbhs_vbus_ctrl(struct usbhs_priv *priv, int enable)
+{
+	struct platform_device *pdev = usbhs_priv_to_pdev(priv);
+
+	return usbhs_platform_call(priv, set_vbus, pdev, enable);
+}
+
+static void usbhsc_bus_init(struct usbhs_priv *priv)
+{
+	usbhs_write(priv, DVSTCTR, 0);
+
+	usbhs_vbus_ctrl(priv, 0);
+}
+
+/*
+ *		device configuration
+ */
+int usbhs_set_device_speed(struct usbhs_priv *priv, int devnum,
+			   u16 upphub, u16 hubport, u16 speed)
+{
+	struct device *dev = usbhs_priv_to_dev(priv);
+	u16 usbspd = 0;
+	u32 reg = DEVADD0 + (2 * devnum);
+
+	if (devnum > 10) {
+		dev_err(dev, "cannot set speed to unknown device %d\n", devnum);
+		return -EIO;
+	}
+
+	if (upphub > 0xA) {
+		dev_err(dev, "unsupported hub number %d\n", upphub);
+		return -EIO;
+	}
+
+	switch (speed) {
+	case USB_SPEED_LOW:
+		usbspd = USBSPD_SPEED_LOW;
+		break;
+	case USB_SPEED_FULL:
+		usbspd = USBSPD_SPEED_FULL;
+		break;
+	case USB_SPEED_HIGH:
+		usbspd = USBSPD_SPEED_HIGH;
+		break;
+	default:
+		dev_err(dev, "unsupported speed %d\n", speed);
+		return -EIO;
+	}
+
+	usbhs_write(priv, reg,	UPPHUB(upphub)	|
+				HUBPORT(hubport)|
+				USBSPD(usbspd));
+
+	return 0;
+}
+
+/*
  *		local functions
  */
-static void usbhsc_bus_ctrl(struct usbhs_priv *priv, int enable)
+static void usbhsc_set_buswait(struct usbhs_priv *priv)
 {
 	int wait = usbhs_get_dparam(priv, buswait_bwait);
-	u16 data = 0;
 
-	if (enable) {
-		/* set bus wait if platform have */
-		if (wait)
-			usbhs_bset(priv, BUSWAIT, 0x000F, wait);
-	}
-	usbhs_write(priv, DVSTCTR, data);
+	/* set bus wait if platform have */
+	if (wait)
+		usbhs_bset(priv, BUSWAIT, 0x000F, wait);
 }
 
 /*
@@ -191,10 +309,8 @@ static void usbhsc_power_ctrl(struct usbhs_priv *priv, int enable)
 
 		/* USB on */
 		usbhs_sys_clock_ctrl(priv, enable);
-		usbhsc_bus_ctrl(priv, enable);
 	} else {
 		/* USB off */
-		usbhsc_bus_ctrl(priv, enable);
 		usbhs_sys_clock_ctrl(priv, enable);
 
 		/* disable PM */
@@ -203,13 +319,10 @@ static void usbhsc_power_ctrl(struct usbhs_priv *priv, int enable)
 }
 
 /*
- *		notify hotplug
+ *		hotplug
  */
-static void usbhsc_notify_hotplug(struct work_struct *work)
+static void usbhsc_hotplug(struct usbhs_priv *priv)
 {
-	struct usbhs_priv *priv = container_of(work,
-					       struct usbhs_priv,
-					       notify_hotplug_work.work);
 	struct platform_device *pdev = usbhs_priv_to_pdev(priv);
 	struct usbhs_mod *mod = usbhs_mod_get_current(priv);
 	int id;
@@ -237,6 +350,10 @@ static void usbhsc_notify_hotplug(struct work_struct *work)
 		if (usbhsc_flags_has(priv, USBHSF_RUNTIME_PWCTRL))
 			usbhsc_power_ctrl(priv, enable);
 
+		/* bus init */
+		usbhsc_set_buswait(priv);
+		usbhsc_bus_init(priv);
+
 		/* module start */
 		usbhs_mod_call(priv, start, priv);
 
@@ -245,6 +362,9 @@ static void usbhsc_notify_hotplug(struct work_struct *work)
 
 		/* module stop */
 		usbhs_mod_call(priv, stop, priv);
+
+		/* bus init */
+		usbhsc_bus_init(priv);
 
 		/* power off */
 		if (usbhsc_flags_has(priv, USBHSF_RUNTIME_PWCTRL))
@@ -255,6 +375,17 @@ static void usbhsc_notify_hotplug(struct work_struct *work)
 		/* reset phy for next connection */
 		usbhs_platform_call(priv, phy_reset, pdev);
 	}
+}
+
+/*
+ *		notify hotplug
+ */
+static void usbhsc_notify_hotplug(struct work_struct *work)
+{
+	struct usbhs_priv *priv = container_of(work,
+					       struct usbhs_priv,
+					       notify_hotplug_work.work);
+	usbhsc_hotplug(priv);
 }
 
 int usbhsc_drvcllbck_notify_hotplug(struct platform_device *pdev)
@@ -315,24 +446,28 @@ static int __devinit usbhs_probe(struct platform_device *pdev)
 	/*
 	 * care platform info
 	 */
-	priv->pfunc	= &info->platform_callback;
-	priv->dparam	= &info->driver_param;
+	memcpy(&priv->pfunc,
+	       &info->platform_callback,
+	       sizeof(struct renesas_usbhs_platform_callback));
+	memcpy(&priv->dparam,
+	       &info->driver_param,
+	       sizeof(struct renesas_usbhs_driver_param));
 
 	/* set driver callback functions for platform */
 	dfunc			= &info->driver_callback;
 	dfunc->notify_hotplug	= usbhsc_drvcllbck_notify_hotplug;
 
 	/* set default param if platform doesn't have */
-	if (!priv->dparam->pipe_type) {
-		priv->dparam->pipe_type = usbhsc_default_pipe_type;
-		priv->dparam->pipe_size = ARRAY_SIZE(usbhsc_default_pipe_type);
+	if (!priv->dparam.pipe_type) {
+		priv->dparam.pipe_type = usbhsc_default_pipe_type;
+		priv->dparam.pipe_size = ARRAY_SIZE(usbhsc_default_pipe_type);
 	}
-	if (!priv->dparam->pio_dma_border)
-		priv->dparam->pio_dma_border = 64; /* 64byte */
+	if (!priv->dparam.pio_dma_border)
+		priv->dparam.pio_dma_border = 64; /* 64byte */
 
 	/* FIXME */
 	/* runtime power control ? */
-	if (priv->pfunc->get_vbus)
+	if (priv->pfunc.get_vbus)
 		usbhsc_flags_set(priv, USBHSF_RUNTIME_PWCTRL);
 
 	/*
@@ -443,9 +578,60 @@ static int __devexit usbhs_remove(struct platform_device *pdev)
 	return 0;
 }
 
+static int usbhsc_suspend(struct device *dev)
+{
+	struct usbhs_priv *priv = dev_get_drvdata(dev);
+	struct usbhs_mod *mod = usbhs_mod_get_current(priv);
+
+	if (mod) {
+		usbhs_mod_call(priv, stop, priv);
+		usbhs_mod_change(priv, -1);
+	}
+
+	if (mod || !usbhsc_flags_has(priv, USBHSF_RUNTIME_PWCTRL))
+		usbhsc_power_ctrl(priv, 0);
+
+	return 0;
+}
+
+static int usbhsc_resume(struct device *dev)
+{
+	struct usbhs_priv *priv = dev_get_drvdata(dev);
+	struct platform_device *pdev = usbhs_priv_to_pdev(priv);
+
+	usbhs_platform_call(priv, phy_reset, pdev);
+
+	if (!usbhsc_flags_has(priv, USBHSF_RUNTIME_PWCTRL))
+		usbhsc_power_ctrl(priv, 1);
+
+	usbhsc_hotplug(priv);
+
+	return 0;
+}
+
+static int usbhsc_runtime_nop(struct device *dev)
+{
+	/* Runtime PM callback shared between ->runtime_suspend()
+	 * and ->runtime_resume(). Simply returns success.
+	 *
+	 * This driver re-initializes all registers after
+	 * pm_runtime_get_sync() anyway so there is no need
+	 * to save and restore registers here.
+	 */
+	return 0;
+}
+
+static const struct dev_pm_ops usbhsc_pm_ops = {
+	.suspend		= usbhsc_suspend,
+	.resume			= usbhsc_resume,
+	.runtime_suspend	= usbhsc_runtime_nop,
+	.runtime_resume		= usbhsc_runtime_nop,
+};
+
 static struct platform_driver renesas_usbhs_driver = {
 	.driver		= {
 		.name	= "renesas_usbhs",
+		.pm	= &usbhsc_pm_ops,
 	},
 	.probe		= usbhs_probe,
 	.remove		= __devexit_p(usbhs_remove),

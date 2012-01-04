@@ -321,7 +321,7 @@ void __init tx4939_sio_init(unsigned int sclk, unsigned int cts_mask)
 static u32 tx4939_get_eth_speed(struct net_device *dev)
 {
 	struct ethtool_cmd cmd;
-	if (dev_ethtool_get_settings(dev, &cmd))
+	if (__ethtool_get_settings(dev, &cmd))
 		return 100;	/* default 100Mbps */
 
 	return ethtool_cmd_speed(&cmd);

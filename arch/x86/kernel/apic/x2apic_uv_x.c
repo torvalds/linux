@@ -672,17 +672,10 @@ void __cpuinit uv_cpu_init(void)
 /*
  * When NMI is received, print a stack trace.
  */
-int uv_handle_nmi(struct notifier_block *self, unsigned long reason, void *data)
+int uv_handle_nmi(unsigned int reason, struct pt_regs *regs)
 {
 	unsigned long real_uv_nmi;
 	int bid;
-
-	if (reason != DIE_NMIUNKNOWN)
-		return NOTIFY_OK;
-
-	if (in_crash_kexec)
-		/* do nothing if entering the crash kernel */
-		return NOTIFY_OK;
 
 	/*
 	 * Each blade has an MMR that indicates when an NMI has been sent
@@ -704,7 +697,7 @@ int uv_handle_nmi(struct notifier_block *self, unsigned long reason, void *data)
 	}
 
 	if (likely(__get_cpu_var(cpu_last_nmi_count) == uv_blade_info[bid].nmi_count))
-		return NOTIFY_DONE;
+		return NMI_DONE;
 
 	__get_cpu_var(cpu_last_nmi_count) = uv_blade_info[bid].nmi_count;
 
@@ -717,17 +710,12 @@ int uv_handle_nmi(struct notifier_block *self, unsigned long reason, void *data)
 	dump_stack();
 	spin_unlock(&uv_nmi_lock);
 
-	return NOTIFY_STOP;
+	return NMI_HANDLED;
 }
-
-static struct notifier_block uv_dump_stack_nmi_nb = {
-	.notifier_call	= uv_handle_nmi,
-	.priority = NMI_LOCAL_LOW_PRIOR - 1,
-};
 
 void uv_register_nmi_notifier(void)
 {
-	if (register_die_notifier(&uv_dump_stack_nmi_nb))
+	if (register_nmi_handler(NMI_UNKNOWN, uv_handle_nmi, 0, "uv"))
 		printk(KERN_WARNING "UV NMI handler failed to register\n");
 }
 
@@ -832,6 +820,10 @@ void __init uv_system_init(void)
 		uv_cpu_hub_info(cpu)->apic_pnode_shift = uvh_apicid.s.pnode_shift;
 		uv_cpu_hub_info(cpu)->hub_revision = uv_hub_info->hub_revision;
 
+		uv_cpu_hub_info(cpu)->m_shift = 64 - m_val;
+		uv_cpu_hub_info(cpu)->n_lshift = is_uv2_1_hub() ?
+				(m_val == 40 ? 40 : 39) : m_val;
+
 		pnode = uv_apicid_to_pnode(apicid);
 		blade = boot_pnode_to_blade(pnode);
 		lcpu = uv_blade_info[blade].nr_possible_cpus;
@@ -862,8 +854,7 @@ void __init uv_system_init(void)
 		if (uv_node_to_blade[nid] >= 0)
 			continue;
 		paddr = node_start_pfn(nid) << PAGE_SHIFT;
-		paddr = uv_soc_phys_ram_to_gpa(paddr);
-		pnode = (paddr >> m_val) & pnode_mask;
+		pnode = uv_gpa_to_pnode(uv_soc_phys_ram_to_gpa(paddr));
 		blade = boot_pnode_to_blade(pnode);
 		uv_node_to_blade[nid] = blade;
 	}

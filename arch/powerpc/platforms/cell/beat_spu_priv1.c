@@ -18,8 +18,6 @@
  * 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
  */
 
-#include <linux/module.h>
-
 #include <asm/types.h>
 #include <asm/spu.h>
 #include <asm/spu_priv1.h>

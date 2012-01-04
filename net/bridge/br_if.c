@@ -13,6 +13,7 @@
 
 #include <linux/kernel.h>
 #include <linux/netdevice.h>
+#include <linux/etherdevice.h>
 #include <linux/netpoll.h>
 #include <linux/ethtool.h>
 #include <linux/if_arp.h>
@@ -33,20 +34,18 @@
  */
 static int port_cost(struct net_device *dev)
 {
-	if (dev->ethtool_ops && dev->ethtool_ops->get_settings) {
-		struct ethtool_cmd ecmd = { .cmd = ETHTOOL_GSET, };
+	struct ethtool_cmd ecmd;
 
-		if (!dev_ethtool_get_settings(dev, &ecmd)) {
-			switch (ethtool_cmd_speed(&ecmd)) {
-			case SPEED_10000:
-				return 2;
-			case SPEED_1000:
-				return 4;
-			case SPEED_100:
-				return 19;
-			case SPEED_10:
-				return 100;
-			}
+	if (!__ethtool_get_settings(dev, &ecmd)) {
+		switch (ethtool_cmd_speed(&ecmd)) {
+		case SPEED_10000:
+			return 2;
+		case SPEED_1000:
+			return 4;
+		case SPEED_100:
+			return 19;
+		case SPEED_10:
+			return 100;
 		}
 	}
 
@@ -325,7 +324,8 @@ int br_add_if(struct net_bridge *br, struct net_device *dev)
 
 	/* Don't allow bridging non-ethernet like devices */
 	if ((dev->flags & IFF_LOOPBACK) ||
-	    dev->type != ARPHRD_ETHER || dev->addr_len != ETH_ALEN)
+	    dev->type != ARPHRD_ETHER || dev->addr_len != ETH_ALEN ||
+	    !is_valid_ether_addr(dev->dev_addr))
 		return -EINVAL;
 
 	/* No bridging of bridges */
@@ -352,10 +352,6 @@ int br_add_if(struct net_bridge *br, struct net_device *dev)
 
 	err = kobject_init_and_add(&p->kobj, &brport_ktype, &(dev->dev.kobj),
 				   SYSFS_BRIDGE_PORT_ATTR);
-	if (err)
-		goto err0;
-
-	err = br_fdb_insert(br, p, dev->dev_addr);
 	if (err)
 		goto err1;
 
@@ -397,6 +393,9 @@ int br_add_if(struct net_bridge *br, struct net_device *dev)
 
 	dev_set_mtu(br->dev, br_min_mtu(br));
 
+	if (br_fdb_insert(br, p, dev->dev_addr))
+		netdev_err(dev, "failed insert local address bridge forwarding table\n");
+
 	kobject_uevent(&p->kobj, KOBJ_ADD);
 
 	return 0;
@@ -406,11 +405,9 @@ err4:
 err3:
 	sysfs_remove_link(br->ifobj, p->dev->name);
 err2:
-	br_fdb_delete_by_port(br, p, 1);
-err1:
 	kobject_put(&p->kobj);
 	p = NULL; /* kobject_put frees */
-err0:
+err1:
 	dev_set_promiscuity(dev, -1);
 put_back:
 	dev_put(dev);

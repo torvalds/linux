@@ -187,13 +187,17 @@ static int iwm_cfg80211_get_key(struct wiphy *wiphy, struct net_device *ndev,
 						 struct key_params*))
 {
 	struct iwm_priv *iwm = ndev_to_iwm(ndev);
-	struct iwm_key *key = &iwm->keys[key_index];
+	struct iwm_key *key;
 	struct key_params params;
 
 	IWM_DBG_WEXT(iwm, DBG, "Getting key %d\n", key_index);
 
+	if (key_index >= IWM_NUM_KEYS)
+		return -ENOENT;
+
 	memset(&params, 0, sizeof(params));
 
+	key = &iwm->keys[key_index];
 	params.cipher = key->cipher;
 	params.key_len = key->key_len;
 	params.seq_len = key->seq_len;

@@ -664,6 +664,9 @@
 
 /*
  * LED_CFG: LED control
+ * ON_PERIOD: LED active time (ms) during TX (only used for LED mode 1)
+ * OFF_PERIOD: LED inactive time (ms) during TX (only used for LED mode 1)
+ * SLOW_BLINK_PERIOD: LED blink interval in seconds (only used for LED mode 2)
  * color LED's:
  *   0: off
  *   1: blinking upon TX2

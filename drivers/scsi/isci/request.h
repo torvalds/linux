@@ -77,11 +77,6 @@ enum isci_request_status {
 	dead        = 0x07
 };
 
-enum task_type {
-	io_task  = 0,
-	tmf_task = 1
-};
-
 enum sci_request_protocol {
 	SCIC_NO_PROTOCOL,
 	SCIC_SMP_PROTOCOL,
@@ -96,7 +91,6 @@ enum sci_request_protocol {
  *	     to wait for another fis or if the transfer is complete.  Upon
  *           receipt of a d2h fis this will be the status field of that fis.
  * @sgl - track pio transfer progress as we iterate through the sgl
- * @device_cdb_len - atapi device advertises it's transfer constraints at setup
  */
 struct isci_stp_request {
 	u32 pio_len;
@@ -107,7 +101,6 @@ struct isci_stp_request {
 		u8 set;
 		u32 offset;
 	} sgl;
-	u32 device_cdb_len;
 };
 
 struct isci_request {
@@ -118,7 +111,6 @@ struct isci_request {
 	#define IREQ_ACTIVE 3
 	unsigned long flags;
 	/* XXX kill ttype and ttype_ptr, allocate full sas_task */
-	enum task_type ttype;
 	union ttype_ptr_union {
 		struct sas_task *io_task_ptr;   /* When ttype==io_task  */
 		struct isci_tmf *tmf_task_ptr;  /* When ttype==tmf_task */
@@ -173,9 +165,6 @@ struct isci_request {
 				u8 rsp_buf[SSP_RESP_IU_MAX_SIZE];
 			};
 		} ssp;
-		struct {
-			struct smp_resp rsp;
-		} smp;
 		struct {
 			struct isci_stp_request req;
 			struct host_to_dev_fis cmd;
@@ -250,6 +239,32 @@ enum sci_base_request_states {
 	 * the next data frame to the device.
 	 */
 	SCI_REQ_STP_PIO_DATA_OUT,
+
+	/*
+	 * While in this state the IO request object is waiting for the TC
+	 * completion notification for the H2D Register FIS
+	 */
+	SCI_REQ_ATAPI_WAIT_H2D,
+
+	/*
+	 * While in this state the IO request object is waiting for either a
+	 * PIO Setup.
+	 */
+	SCI_REQ_ATAPI_WAIT_PIO_SETUP,
+
+	/*
+	 * The non-data IO transit to this state in this state after receiving
+	 * TC completion. While in this state IO request object is waiting for
+	 * D2H status frame as UF.
+	 */
+	SCI_REQ_ATAPI_WAIT_D2H,
+
+	/*
+	 * When transmitting raw frames hardware reports task context completion
+	 * after every frame submission, so in the non-accelerated case we need
+	 * to expect the completion for the "cdb" frame.
+	 */
+	SCI_REQ_ATAPI_WAIT_TC_COMP,
 
 	/*
 	 * The AWAIT_TC_COMPLETION sub-state indicates that the started raw

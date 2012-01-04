@@ -248,10 +248,6 @@ config HOTPLUG_CPU
 	depends on SMP && HOTPLUG
 	default y
 
-config HAVE_LEGACY_PER_CPU_AREA
-	def_bool y
-	depends on SMP
-
 config BF_REV_MIN
 	int
 	default 0 if (BF51x || BF52x || (BF54x && !BF54xM))

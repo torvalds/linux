@@ -56,6 +56,8 @@ source "drivers/pps/Kconfig"
 
 source "drivers/ptp/Kconfig"
 
+source "drivers/pinctrl/Kconfig"
+
 source "drivers/gpio/Kconfig"
 
 source "drivers/w1/Kconfig"
@@ -129,5 +131,9 @@ source "drivers/clocksource/Kconfig"
 source "drivers/iommu/Kconfig"
 
 source "drivers/virt/Kconfig"
+
+source "drivers/hv/Kconfig"
+
+source "drivers/devfreq/Kconfig"
 
 endmenu

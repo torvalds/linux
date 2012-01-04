@@ -22,6 +22,7 @@
 
 #include <linux/cpufreq.h>
 #include <linux/sched.h>
+#include <linux/module.h>
 #include <linux/timer.h>
 #include <linux/workqueue.h>
 #include <linux/atomic.h>

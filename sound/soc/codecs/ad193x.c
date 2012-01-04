@@ -23,7 +23,7 @@
 
 /* codec private data */
 struct ad193x_priv {
-	enum snd_soc_control_type control_type;
+	struct regmap *regmap;
 	int sysclk;
 };
 
@@ -103,12 +103,14 @@ static const struct snd_soc_dapm_route audio_paths[] = {
 static int ad193x_mute(struct snd_soc_dai *dai, int mute)
 {
 	struct snd_soc_codec *codec = dai->codec;
-	int reg;
 
-	reg = snd_soc_read(codec, AD193X_DAC_CTRL2);
-	reg = (mute > 0) ? reg | AD193X_DAC_MASTER_MUTE : reg &
-		(~AD193X_DAC_MASTER_MUTE);
-	snd_soc_write(codec, AD193X_DAC_CTRL2, reg);
+	if (mute)
+		snd_soc_update_bits(codec, AD193X_DAC_CTRL2,
+				    AD193X_DAC_MASTER_MUTE,
+				    AD193X_DAC_MASTER_MUTE);
+	else
+		snd_soc_update_bits(codec, AD193X_DAC_CTRL2,
+				    AD193X_DAC_MASTER_MUTE, 0);
 
 	return 0;
 }
@@ -262,7 +264,7 @@ static int ad193x_hw_params(struct snd_pcm_substream *substream,
 		struct snd_pcm_hw_params *params,
 		struct snd_soc_dai *dai)
 {
-	int word_len = 0, reg = 0, master_rate = 0;
+	int word_len = 0, master_rate = 0;
 
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
 	struct snd_soc_codec *codec = rtd->codec;
@@ -297,18 +299,15 @@ static int ad193x_hw_params(struct snd_pcm_substream *substream,
 		break;
 	}
 
-	reg = snd_soc_read(codec, AD193X_PLL_CLK_CTRL0);
-	reg = (reg & AD193X_PLL_INPUT_MASK) | master_rate;
-	snd_soc_write(codec, AD193X_PLL_CLK_CTRL0, reg);
+	snd_soc_update_bits(codec, AD193X_PLL_CLK_CTRL0,
+			    AD193X_PLL_INPUT_MASK, master_rate);
 
-	reg = snd_soc_read(codec, AD193X_DAC_CTRL2);
-	reg = (reg & (~AD193X_DAC_WORD_LEN_MASK))
-		| (word_len << AD193X_DAC_WORD_LEN_SHFT);
-	snd_soc_write(codec, AD193X_DAC_CTRL2, reg);
+	snd_soc_update_bits(codec, AD193X_DAC_CTRL2,
+			    AD193X_DAC_WORD_LEN_MASK,
+			    word_len << AD193X_DAC_WORD_LEN_SHFT);
 
-	reg = snd_soc_read(codec, AD193X_ADC_CTRL1);
-	reg = (reg & (~AD193X_ADC_WORD_LEN_MASK)) | word_len;
-	snd_soc_write(codec, AD193X_ADC_CTRL1, reg);
+	snd_soc_update_bits(codec, AD193X_ADC_CTRL1,
+			    AD193X_ADC_WORD_LEN_MASK, word_len);
 
 	return 0;
 }
@@ -349,10 +348,8 @@ static int ad193x_probe(struct snd_soc_codec *codec)
 	struct snd_soc_dapm_context *dapm = &codec->dapm;
 	int ret;
 
-	if (ad193x->control_type == SND_SOC_I2C)
-		ret = snd_soc_codec_set_cache_io(codec, 8, 8, ad193x->control_type);
-	else
-		ret = snd_soc_codec_set_cache_io(codec, 16, 8, ad193x->control_type);
+	codec->control_data = ad193x->regmap;
+	ret = snd_soc_codec_set_cache_io(codec, 0, 0, SND_SOC_REGMAP);
 	if (ret < 0) {
 		dev_err(codec->dev, "failed to set cache I/O: %d\n", ret);
 		return ret;
@@ -388,6 +385,14 @@ static struct snd_soc_codec_driver soc_codec_dev_ad193x = {
 };
 
 #if defined(CONFIG_SPI_MASTER)
+
+static const struct regmap_config ad193x_spi_regmap_config = {
+	.val_bits = 8,
+	.reg_bits = 16,
+	.read_flag_mask = 0x09,
+	.write_flag_mask = 0x08,
+};
+
 static int __devinit ad193x_spi_probe(struct spi_device *spi)
 {
 	struct ad193x_priv *ad193x;
@@ -397,20 +402,36 @@ static int __devinit ad193x_spi_probe(struct spi_device *spi)
 	if (ad193x == NULL)
 		return -ENOMEM;
 
+	ad193x->regmap = regmap_init_spi(spi, &ad193x_spi_regmap_config);
+	if (IS_ERR(ad193x->regmap)) {
+		ret = PTR_ERR(ad193x->regmap);
+		goto err_free;
+	}
+
 	spi_set_drvdata(spi, ad193x);
-	ad193x->control_type = SND_SOC_SPI;
 
 	ret = snd_soc_register_codec(&spi->dev,
 			&soc_codec_dev_ad193x, &ad193x_dai, 1);
 	if (ret < 0)
-		kfree(ad193x);
+		goto err_regmap_exit;
+
+	return 0;
+
+err_regmap_exit:
+	regmap_exit(ad193x->regmap);
+err_free:
+	kfree(ad193x);
+
 	return ret;
 }
 
 static int __devexit ad193x_spi_remove(struct spi_device *spi)
 {
+	struct ad193x_priv *ad193x = spi_get_drvdata(spi);
+
 	snd_soc_unregister_codec(&spi->dev);
-	kfree(spi_get_drvdata(spi));
+	regmap_exit(ad193x->regmap);
+	kfree(ad193x);
 	return 0;
 }
 
@@ -425,6 +446,12 @@ static struct spi_driver ad193x_spi_driver = {
 #endif
 
 #if defined(CONFIG_I2C) || defined(CONFIG_I2C_MODULE)
+
+static const struct regmap_config ad193x_i2c_regmap_config = {
+	.val_bits = 8,
+	.reg_bits = 8,
+};
+
 static const struct i2c_device_id ad193x_id[] = {
 	{ "ad1936", 0 },
 	{ "ad1937", 0 },
@@ -442,20 +469,35 @@ static int __devinit ad193x_i2c_probe(struct i2c_client *client,
 	if (ad193x == NULL)
 		return -ENOMEM;
 
+	ad193x->regmap = regmap_init_i2c(client, &ad193x_i2c_regmap_config);
+	if (IS_ERR(ad193x->regmap)) {
+		ret = PTR_ERR(ad193x->regmap);
+		goto err_free;
+	}
+
 	i2c_set_clientdata(client, ad193x);
-	ad193x->control_type = SND_SOC_I2C;
 
 	ret =  snd_soc_register_codec(&client->dev,
 			&soc_codec_dev_ad193x, &ad193x_dai, 1);
 	if (ret < 0)
-		kfree(ad193x);
+		goto err_regmap_exit;
+
+	return 0;
+
+err_regmap_exit:
+	regmap_exit(ad193x->regmap);
+err_free:
+	kfree(ad193x);
 	return ret;
 }
 
 static int __devexit ad193x_i2c_remove(struct i2c_client *client)
 {
+	struct ad193x_priv *ad193x = i2c_get_clientdata(client);
+
 	snd_soc_unregister_codec(&client->dev);
-	kfree(i2c_get_clientdata(client));
+	regmap_exit(ad193x->regmap);
+	kfree(ad193x);
 	return 0;
 }
 

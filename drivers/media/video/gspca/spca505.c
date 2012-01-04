@@ -19,6 +19,8 @@
  *
  */
 
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
 #define MODULE_NAME "spca505"
 
 #include "gspca.h"
@@ -578,7 +580,7 @@ static int reg_write(struct usb_device *dev,
 	PDEBUG(D_USBO, "reg write: 0x%02x,0x%02x:0x%02x, %d",
 		req, index, value, ret);
 	if (ret < 0)
-		err("reg write: error %d", ret);
+		pr_err("reg write: error %d\n", ret);
 	return ret;
 }
 
@@ -685,8 +687,8 @@ static int sd_start(struct gspca_dev *gspca_dev)
 		return ret;
 	}
 	if (ret != 0x0101) {
-		err("After vector read returns 0x%04x should be 0x0101",
-			ret);
+		pr_err("After vector read returns 0x%04x should be 0x0101\n",
+		       ret);
 	}
 
 	ret = reg_write(gspca_dev->dev, 0x06, 0x16, 0x0a);

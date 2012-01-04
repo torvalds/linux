@@ -659,19 +659,8 @@ static struct platform_driver stmp_spi_driver = {
 	.suspend = stmp_spi_suspend,
 	.resume  = stmp_spi_resume,
 };
+module_platform_driver(stmp_spi_driver);
 
-static int __init stmp_spi_init(void)
-{
-	return platform_driver_register(&stmp_spi_driver);
-}
-
-static void __exit stmp_spi_exit(void)
-{
-	platform_driver_unregister(&stmp_spi_driver);
-}
-
-module_init(stmp_spi_init);
-module_exit(stmp_spi_exit);
 module_param(pio, int, S_IRUGO);
 module_param(clock, int, S_IRUGO);
 MODULE_AUTHOR("dmitry pervushin <dpervushin@embeddedalley.com>");

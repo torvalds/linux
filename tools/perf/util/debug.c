@@ -47,19 +47,20 @@ int dump_printf(const char *fmt, ...)
 }
 
 #ifdef NO_NEWT_SUPPORT
-void ui__warning(const char *format, ...)
+int ui__warning(const char *format, ...)
 {
 	va_list args;
 
 	va_start(args, format);
 	vfprintf(stderr, format, args);
 	va_end(args);
+	return 0;
 }
 #endif
 
-void ui__warning_paranoid(void)
+int ui__error_paranoid(void)
 {
-	ui__warning("Permission error - are you root?\n"
+	return ui__error("Permission error - are you root?\n"
 		    "Consider tweaking /proc/sys/kernel/perf_event_paranoid:\n"
 		    " -1 - Not paranoid at all\n"
 		    "  0 - Disallow raw tracepoint access for unpriv\n"

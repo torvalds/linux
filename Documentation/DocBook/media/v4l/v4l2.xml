@@ -128,6 +128,13 @@ structs, ioctls) must be noted in more detail in the history chapter
 applications. -->
 
       <revision>
+	<revnumber>3.2</revnumber>
+	<date>2011-08-26</date>
+	<authorinitials>hv</authorinitials>
+	<revremark>Added V4L2_CTRL_FLAG_VOLATILE.</revremark>
+      </revision>
+
+      <revision>
 	<revnumber>3.1</revnumber>
 	<date>2011-06-27</date>
 	<authorinitials>mcc, po, hv</authorinitials>
@@ -410,7 +417,7 @@ and discussions on the V4L mailing list.</revremark>
 </partinfo>
 
 <title>Video for Linux Two API Specification</title>
- <subtitle>Revision 3.1</subtitle>
+ <subtitle>Revision 3.2</subtitle>
 
   <chapter id="common">
     &sub-common;
@@ -462,6 +469,7 @@ and discussions on the V4L mailing list.</revremark>
     &sub-close;
     &sub-ioctl;
     <!-- All ioctls go here. -->
+    &sub-create-bufs;
     &sub-cropcap;
     &sub-dbg-g-chip-ident;
     &sub-dbg-g-register;
@@ -504,6 +512,7 @@ and discussions on the V4L mailing list.</revremark>
     &sub-queryctrl;
     &sub-query-dv-preset;
     &sub-querystd;
+    &sub-prepare-buf;
     &sub-reqbufs;
     &sub-s-hw-freq-seek;
     &sub-streamon;

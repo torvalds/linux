@@ -18,6 +18,8 @@
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
  */
 
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
 #define MODULE_NAME "benq"
 
 #include "gspca.h"
@@ -62,7 +64,7 @@ static void reg_w(struct gspca_dev *gspca_dev,
 			0,
 			500);
 	if (ret < 0) {
-		err("reg_w err %d", ret);
+		pr_err("reg_w err %d\n", ret);
 		gspca_dev->usb_err = ret;
 	}
 }
@@ -84,20 +86,6 @@ static int sd_init(struct gspca_dev *gspca_dev)
 	return 0;
 }
 
-static int sd_isoc_init(struct gspca_dev *gspca_dev)
-{
-	int ret;
-
-	ret = usb_set_interface(gspca_dev->dev, gspca_dev->iface,
-		gspca_dev->nbalt - 1);
-	if (ret < 0) {
-		err("usb_set_interface failed");
-		return ret;
-	}
-/*	reg_w(gspca_dev, 0x0003, 0x0002); */
-	return 0;
-}
-
 /* -- start the camera -- */
 static int sd_start(struct gspca_dev *gspca_dev)
 {
@@ -113,7 +101,7 @@ static int sd_start(struct gspca_dev *gspca_dev)
 	for (n = 0; n < 4; n++) {
 		urb = usb_alloc_urb(SD_NPKT, GFP_KERNEL);
 		if (!urb) {
-			err("usb_alloc_urb failed");
+			pr_err("usb_alloc_urb failed\n");
 			return -ENOMEM;
 		}
 		gspca_dev->urb[n] = urb;
@@ -123,7 +111,7 @@ static int sd_start(struct gspca_dev *gspca_dev)
 						&urb->transfer_dma);
 
 		if (urb->transfer_buffer == NULL) {
-			err("usb_alloc_coherent failed");
+			pr_err("usb_alloc_coherent failed\n");
 			return -ENOMEM;
 		}
 		urb->dev = gspca_dev->dev;
@@ -181,7 +169,7 @@ static void sd_isoc_irq(struct urb *urb)
 		if (gspca_dev->frozen)
 			return;
 #endif
-		err("urb status: %d", urb->status);
+		pr_err("urb status: %d\n", urb->status);
 		return;
 	}
 
@@ -209,7 +197,7 @@ static void sd_isoc_irq(struct urb *urb)
 		if (st == 0)
 			st = urb->iso_frame_desc[i].status;
 		if (st) {
-			err("ISOC data error: [%d] status=%d",
+			pr_err("ISOC data error: [%d] status=%d\n",
 				i, st);
 			gspca_dev->last_packet_type = DISCARD_PACKET;
 			continue;
@@ -256,10 +244,10 @@ static void sd_isoc_irq(struct urb *urb)
 	/* resubmit the URBs */
 	st = usb_submit_urb(urb0, GFP_ATOMIC);
 	if (st < 0)
-		err("usb_submit_urb(0) ret %d", st);
+		pr_err("usb_submit_urb(0) ret %d\n", st);
 	st = usb_submit_urb(urb, GFP_ATOMIC);
 	if (st < 0)
-		err("usb_submit_urb() ret %d", st);
+		pr_err("usb_submit_urb() ret %d\n", st);
 }
 
 /* sub-driver description */
@@ -269,7 +257,6 @@ static const struct sd_desc sd_desc = {
 	.nctrls = ARRAY_SIZE(sd_ctrls),
 	.config = sd_config,
 	.init = sd_init,
-	.isoc_init = sd_isoc_init,
 	.start = sd_start,
 	.stopN = sd_stopN,
 	.pkt_scan = sd_pkt_scan,

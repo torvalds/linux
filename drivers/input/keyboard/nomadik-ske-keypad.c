@@ -18,6 +18,7 @@
 #include <linux/input.h>
 #include <linux/slab.h>
 #include <linux/clk.h>
+#include <linux/module.h>
 
 #include <plat/ske.h>
 

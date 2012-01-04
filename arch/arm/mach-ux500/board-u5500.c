@@ -8,15 +8,16 @@
 #include <linux/init.h>
 #include <linux/platform_device.h>
 #include <linux/amba/bus.h>
-#include <linux/gpio.h>
 #include <linux/irq.h>
 #include <linux/i2c.h>
+#include <linux/mfd/ab5500/ab5500.h>
 
 #include <asm/mach/arch.h>
 #include <asm/mach-types.h>
 
 #include <plat/pincfg.h>
 #include <plat/i2c.h>
+#include <plat/gpio-nomadik.h>
 
 #include <mach/hardware.h>
 #include <mach/devices.h>
@@ -87,7 +88,6 @@ static struct lm3530_platform_data u5500_als_platform_data = {
 	.brt_val = 0x7F,	/* Max brightness */
 };
 
-
 static struct i2c_board_info __initdata u5500_i2c2_devices[] = {
 	{
 		/* Backlight */
@@ -101,6 +101,30 @@ static void __init u5500_i2c_init(void)
 	db5500_add_i2c2(&u5500_i2c2_data);
 	i2c_register_board_info(2, ARRAY_AND_SIZE(u5500_i2c2_devices));
 }
+
+static struct ab5500_platform_data ab5500_plf_data = {
+	.irq = {
+		.base = 0,
+		.count = 0,
+	},
+	.init_settings = NULL,
+	.init_settings_sz = 0,
+	.pm_power_off = false,
+};
+
+static struct platform_device ab5500_device = {
+	.name = "ab5500-core",
+	.id = 0,
+	.dev = {
+		.platform_data = &ab5500_plf_data,
+	},
+	.num_resources = 0,
+};
+
+static struct platform_device *u5500_platform_devices[] __initdata = {
+	&ab5500_device,
+};
+
 static void __init u5500_uart_init(void)
 {
 	db5500_add_uart0(NULL);
@@ -115,10 +139,13 @@ static void __init u5500_init_machine(void)
 	u5500_i2c_init();
 	u5500_sdi_init();
 	u5500_uart_init();
+
+	platform_add_devices(u5500_platform_devices,
+		ARRAY_SIZE(u5500_platform_devices));
 }
 
 MACHINE_START(U5500, "ST-Ericsson U5500 Platform")
-	.boot_params	= 0x00000100,
+	.atag_offset	= 0x100,
 	.map_io		= u5500_map_io,
 	.init_irq	= ux500_init_irq,
 	.timer		= &ux500_timer,

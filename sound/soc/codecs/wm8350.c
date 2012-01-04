@@ -355,7 +355,7 @@ static int wm8350_put_volsw_2r_vu(struct snd_kcontrol *kcontrol,
 			return 1;
 	}
 
-	ret = snd_soc_put_volsw_2r(kcontrol, ucontrol);
+	ret = snd_soc_put_volsw(kcontrol, ucontrol);
 	if (ret < 0)
 		return ret;
 
@@ -392,22 +392,8 @@ static int wm8350_get_volsw_2r(struct snd_kcontrol *kcontrol,
 		break;
 	}
 
-	return snd_soc_get_volsw_2r(kcontrol, ucontrol);
+	return snd_soc_get_volsw(kcontrol, ucontrol);
 }
-
-/* double control with volume update */
-#define SOC_WM8350_DOUBLE_R_TLV(xname, reg_left, reg_right, xshift, xmax, \
-				xinvert, tlv_array) \
-{	.iface = SNDRV_CTL_ELEM_IFACE_MIXER, .name = (xname), \
-	.access = SNDRV_CTL_ELEM_ACCESS_TLV_READ | \
-		SNDRV_CTL_ELEM_ACCESS_READWRITE | \
-		SNDRV_CTL_ELEM_ACCESS_VOLATILE, \
-	.tlv.p = (tlv_array), \
-	.info = snd_soc_info_volsw_2r, \
-	.get = wm8350_get_volsw_2r, .put = wm8350_put_volsw_2r_vu, \
-	.private_value = (unsigned long)&(struct soc_mixer_control) \
-		{.reg = reg_left, .rreg = reg_right, .shift = xshift, \
-		 .rshift = xshift, .max = xmax, .invert = xinvert}, }
 
 static const char *wm8350_deemp[] = { "None", "32kHz", "44.1kHz", "48kHz" };
 static const char *wm8350_pol[] = { "Normal", "Inv R", "Inv L", "Inv L & R" };
@@ -443,26 +429,29 @@ static const unsigned int capture_sd_tlv[] = {
 static const struct snd_kcontrol_new wm8350_snd_controls[] = {
 	SOC_ENUM("Playback Deemphasis", wm8350_enum[0]),
 	SOC_ENUM("Playback DAC Inversion", wm8350_enum[1]),
-	SOC_WM8350_DOUBLE_R_TLV("Playback PCM Volume",
+	SOC_DOUBLE_R_EXT_TLV("Playback PCM Volume",
 				WM8350_DAC_DIGITAL_VOLUME_L,
 				WM8350_DAC_DIGITAL_VOLUME_R,
-				0, 255, 0, dac_pcm_tlv),
+				0, 255, 0, wm8350_get_volsw_2r,
+				wm8350_put_volsw_2r_vu, dac_pcm_tlv),
 	SOC_ENUM("Playback PCM Mute Function", wm8350_enum[2]),
 	SOC_ENUM("Playback PCM Mute Speed", wm8350_enum[3]),
 	SOC_ENUM("Capture PCM Filter", wm8350_enum[4]),
 	SOC_ENUM("Capture PCM HP Filter", wm8350_enum[5]),
 	SOC_ENUM("Capture ADC Inversion", wm8350_enum[6]),
-	SOC_WM8350_DOUBLE_R_TLV("Capture PCM Volume",
+	SOC_DOUBLE_R_EXT_TLV("Capture PCM Volume",
 				WM8350_ADC_DIGITAL_VOLUME_L,
 				WM8350_ADC_DIGITAL_VOLUME_R,
-				0, 255, 0, adc_pcm_tlv),
+				0, 255, 0, wm8350_get_volsw_2r,
+				wm8350_put_volsw_2r_vu, adc_pcm_tlv),
 	SOC_DOUBLE_TLV("Capture Sidetone Volume",
 		       WM8350_ADC_DIVIDER,
 		       8, 4, 15, 1, capture_sd_tlv),
-	SOC_WM8350_DOUBLE_R_TLV("Capture Volume",
+	SOC_DOUBLE_R_EXT_TLV("Capture Volume",
 				WM8350_LEFT_INPUT_VOLUME,
 				WM8350_RIGHT_INPUT_VOLUME,
-				2, 63, 0, pre_amp_tlv),
+				2, 63, 0, wm8350_get_volsw_2r,
+				wm8350_put_volsw_2r_vu, pre_amp_tlv),
 	SOC_DOUBLE_R("Capture ZC Switch",
 		     WM8350_LEFT_INPUT_VOLUME,
 		     WM8350_RIGHT_INPUT_VOLUME, 13, 1, 0),
@@ -490,17 +479,19 @@ static const struct snd_kcontrol_new wm8350_snd_controls[] = {
 	SOC_SINGLE_TLV("Out4 Capture Volume",
 		       WM8350_INPUT_MIXER_VOLUME,
 		       1, 7, 0, out_mix_tlv),
-	SOC_WM8350_DOUBLE_R_TLV("Out1 Playback Volume",
+	SOC_DOUBLE_R_EXT_TLV("Out1 Playback Volume",
 				WM8350_LOUT1_VOLUME,
 				WM8350_ROUT1_VOLUME,
-				2, 63, 0, out_pga_tlv),
+				2, 63, 0, wm8350_get_volsw_2r,
+				wm8350_put_volsw_2r_vu, out_pga_tlv),
 	SOC_DOUBLE_R("Out1 Playback ZC Switch",
 		     WM8350_LOUT1_VOLUME,
 		     WM8350_ROUT1_VOLUME, 13, 1, 0),
-	SOC_WM8350_DOUBLE_R_TLV("Out2 Playback Volume",
+	SOC_DOUBLE_R_EXT_TLV("Out2 Playback Volume",
 				WM8350_LOUT2_VOLUME,
 				WM8350_ROUT2_VOLUME,
-				2, 63, 0, out_pga_tlv),
+				2, 63, 0, wm8350_get_volsw_2r,
+				wm8350_put_volsw_2r_vu, out_pga_tlv),
 	SOC_DOUBLE_R("Out2 Playback ZC Switch", WM8350_LOUT2_VOLUME,
 		     WM8350_ROUT2_VOLUME, 13, 1, 0),
 	SOC_SINGLE("Out2 Right Invert Switch", WM8350_ROUT2_VOLUME, 10, 1, 0),

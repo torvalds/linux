@@ -77,7 +77,7 @@ static void __init storcenter_setup_arch(void)
 }
 
 /*
- * Interrupt setup and service.  Interrrupts on the turbostation come
+ * Interrupt setup and service.  Interrupts on the turbostation come
  * from the four PCI slots plus onboard 8241 devices: I2C, DUART.
  */
 static void __init storcenter_init_IRQ(void)

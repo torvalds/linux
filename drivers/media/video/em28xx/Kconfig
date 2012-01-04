@@ -41,6 +41,8 @@ config VIDEO_EM28XX_DVB
 	select DVB_CXD2820R if !DVB_FE_CUSTOMISE
 	select DVB_DRXK if !DVB_FE_CUSTOMISE
 	select DVB_TDA18271C2DD if !DVB_FE_CUSTOMISE
+	select DVB_TDA10071 if !DVB_FE_CUSTOMISE
+	select DVB_A8293 if !DVB_FE_CUSTOMISE
 	select VIDEOBUF_DVB
 	---help---
 	  This adds support for DVB cards based on the

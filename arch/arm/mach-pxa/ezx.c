@@ -797,7 +797,7 @@ static void __init a780_init(void)
 }
 
 MACHINE_START(EZX_A780, "Motorola EZX A780")
-	.boot_params    = 0xa0000100,
+	.atag_offset    = 0x100,
 	.map_io         = pxa27x_map_io,
 	.nr_irqs	= EZX_NR_IRQS,
 	.init_irq       = pxa27x_init_irq,
@@ -863,7 +863,7 @@ static void __init e680_init(void)
 }
 
 MACHINE_START(EZX_E680, "Motorola EZX E680")
-	.boot_params    = 0xa0000100,
+	.atag_offset    = 0x100,
 	.map_io         = pxa27x_map_io,
 	.nr_irqs	= EZX_NR_IRQS,
 	.init_irq       = pxa27x_init_irq,
@@ -929,7 +929,7 @@ static void __init a1200_init(void)
 }
 
 MACHINE_START(EZX_A1200, "Motorola EZX A1200")
-	.boot_params    = 0xa0000100,
+	.atag_offset    = 0x100,
 	.map_io         = pxa27x_map_io,
 	.nr_irqs	= EZX_NR_IRQS,
 	.init_irq       = pxa27x_init_irq,
@@ -1120,7 +1120,7 @@ static void __init a910_init(void)
 }
 
 MACHINE_START(EZX_A910, "Motorola EZX A910")
-	.boot_params    = 0xa0000100,
+	.atag_offset    = 0x100,
 	.map_io         = pxa27x_map_io,
 	.nr_irqs	= EZX_NR_IRQS,
 	.init_irq       = pxa27x_init_irq,
@@ -1186,7 +1186,7 @@ static void __init e6_init(void)
 }
 
 MACHINE_START(EZX_E6, "Motorola EZX E6")
-	.boot_params    = 0xa0000100,
+	.atag_offset    = 0x100,
 	.map_io         = pxa27x_map_io,
 	.nr_irqs	= EZX_NR_IRQS,
 	.init_irq       = pxa27x_init_irq,
@@ -1226,7 +1226,7 @@ static void __init e2_init(void)
 }
 
 MACHINE_START(EZX_E2, "Motorola EZX E2")
-	.boot_params    = 0xa0000100,
+	.atag_offset    = 0x100,
 	.map_io         = pxa27x_map_io,
 	.nr_irqs	= EZX_NR_IRQS,
 	.init_irq       = pxa27x_init_irq,

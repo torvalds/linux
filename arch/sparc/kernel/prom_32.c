@@ -20,7 +20,6 @@
 #include <linux/string.h>
 #include <linux/mm.h>
 #include <linux/bootmem.h>
-#include <linux/module.h>
 
 #include <asm/prom.h>
 #include <asm/oplib.h>

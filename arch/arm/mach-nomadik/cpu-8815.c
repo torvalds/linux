@@ -21,8 +21,8 @@
 #include <linux/device.h>
 #include <linux/amba/bus.h>
 #include <linux/platform_device.h>
-#include <linux/gpio.h>
 
+#include <plat/gpio-nomadik.h>
 #include <mach/hardware.h>
 #include <mach/irqs.h>
 #include <asm/mach/map.h>

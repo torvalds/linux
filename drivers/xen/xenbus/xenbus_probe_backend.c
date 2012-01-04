@@ -42,6 +42,7 @@
 #include <linux/fcntl.h>
 #include <linux/mm.h>
 #include <linux/notifier.h>
+#include <linux/export.h>
 
 #include <asm/page.h>
 #include <asm/pgtable.h>
@@ -104,8 +105,6 @@ static int xenbus_uevent_backend(struct device *dev,
 
 	xdev = to_xenbus_device(dev);
 	bus = container_of(xdev->dev.bus, struct xen_bus_type, bus);
-	if (xdev == NULL)
-		return -ENODEV;
 
 	if (add_uevent_var(env, "MODALIAS=xen-backend:%s", xdev->devicetype))
 		return -ENOMEM;

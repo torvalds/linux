@@ -1951,30 +1951,26 @@ static void s3c_hsotg_irq_enumdone(struct s3c_hsotg *hsotg)
 	case S3C_DSTS_EnumSpd_FS:
 	case S3C_DSTS_EnumSpd_FS48:
 		hsotg->gadget.speed = USB_SPEED_FULL;
-		dev_info(hsotg->dev, "new device is full-speed\n");
-
 		ep0_mps = EP0_MPS_LIMIT;
 		ep_mps = 64;
 		break;
 
 	case S3C_DSTS_EnumSpd_HS:
-		dev_info(hsotg->dev, "new device is high-speed\n");
 		hsotg->gadget.speed = USB_SPEED_HIGH;
-
 		ep0_mps = EP0_MPS_LIMIT;
 		ep_mps = 512;
 		break;
 
 	case S3C_DSTS_EnumSpd_LS:
 		hsotg->gadget.speed = USB_SPEED_LOW;
-		dev_info(hsotg->dev, "new device is low-speed\n");
-
 		/* note, we don't actually support LS in this driver at the
 		 * moment, and the documentation seems to imply that it isn't
 		 * supported by the PHYs on some of the devices.
 		 */
 		break;
 	}
+	dev_info(hsotg->dev, "new device is %s\n",
+		 usb_speed_string(hsotg->gadget.speed));
 
 	/* we should now know the maximum packet size for an
 	 * endpoint, so set the endpoints to a default value. */
@@ -2297,7 +2293,7 @@ static int s3c_hsotg_ep_enable(struct usb_ep *ep,
 		return -EINVAL;
 	}
 
-	mps = le16_to_cpu(desc->wMaxPacketSize);
+	mps = usb_endpoint_maxp(desc);
 
 	/* note, we handle this here instead of s3c_hsotg_set_ep_maxpacket */
 

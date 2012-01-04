@@ -13,6 +13,7 @@
  */
 
 #include <linux/linkage.h>
+#include <asm/unwind.h>
 
 #ifdef __ARMEB__
 #define xh r0
@@ -44,6 +45,7 @@
  */
 
 ENTRY(__do_div64)
+UNWIND(.fnstart)
 
 	@ Test for easy paths first.
 	subs	ip, r4, #1
@@ -189,7 +191,12 @@ ENTRY(__do_div64)
 	moveq	yh, xh
 	moveq	xh, #0
 	moveq	pc, lr
+UNWIND(.fnend)
 
+UNWIND(.fnstart)
+UNWIND(.pad #4)
+UNWIND(.save {lr})
+Ldiv0_64:
 	@ Division by 0:
 	str	lr, [sp, #-8]!
 	bl	__div0
@@ -200,4 +207,5 @@ ENTRY(__do_div64)
 	mov	xh, #0
 	ldr	pc, [sp], #8
 
+UNWIND(.fnend)
 ENDPROC(__do_div64)

@@ -15,7 +15,7 @@
  * it under the terms of the GNU General Public License version 2 as
  * published by the Free Software Foundation.
  */
-
+#include <linux/gpio.h>
 #include <linux/kernel.h>
 #include <linux/init.h>
 #include <linux/platform_device.h>
@@ -34,7 +34,6 @@
 #include <plat/mux.h>
 #include <plat/flash.h>
 #include <plat/fpga.h>
-#include <mach/gpio.h>
 #include <plat/tc.h>
 #include <plat/usb.h>
 #include <plat/keypad.h>
@@ -289,12 +288,6 @@ static void __init innovator_init_smc91x(void)
 	}
 }
 
-static void __init innovator_init_irq(void)
-{
-	omap1_init_common_hw();
-	omap1_init_irq();
-}
-
 #ifdef CONFIG_ARCH_OMAP15XX
 static struct omap_usb_config innovator1510_usb_config __initdata = {
 	/* for bundled non-standard host and peripheral cables */
@@ -439,30 +432,32 @@ static void __init innovator_init(void)
 	innovator_mmc_init();
 }
 
+/*
+ * REVISIT: Assume 15xx for now, we don't want to do revision check
+ * until later on. The right way to fix this is to set up a different
+ * machine_id for 16xx Innovator, or use device tree.
+ */
 static void __init innovator_map_io(void)
 {
-	omap1_map_common_io();
+	omap15xx_map_io();
 
-#ifdef CONFIG_ARCH_OMAP15XX
-	if (cpu_is_omap1510()) {
-		iotable_init(innovator1510_io_desc, ARRAY_SIZE(innovator1510_io_desc));
-		udelay(10);	/* Delay needed for FPGA */
+	iotable_init(innovator1510_io_desc, ARRAY_SIZE(innovator1510_io_desc));
+	udelay(10);	/* Delay needed for FPGA */
 
-		/* Dump the Innovator FPGA rev early - useful info for support. */
-		printk("Innovator FPGA Rev %d.%d Board Rev %d\n",
-		       fpga_read(OMAP1510_FPGA_REV_HIGH),
-		       fpga_read(OMAP1510_FPGA_REV_LOW),
-		       fpga_read(OMAP1510_FPGA_BOARD_REV));
-	}
-#endif
+	/* Dump the Innovator FPGA rev early - useful info for support. */
+	pr_debug("Innovator FPGA Rev %d.%d Board Rev %d\n",
+			fpga_read(OMAP1510_FPGA_REV_HIGH),
+			fpga_read(OMAP1510_FPGA_REV_LOW),
+			fpga_read(OMAP1510_FPGA_BOARD_REV));
 }
 
 MACHINE_START(OMAP_INNOVATOR, "TI-Innovator")
 	/* Maintainer: MontaVista Software, Inc. */
-	.boot_params	= 0x10000100,
+	.atag_offset	= 0x100,
 	.map_io		= innovator_map_io,
+	.init_early     = omap1_init_early,
 	.reserve	= omap_reserve,
-	.init_irq	= innovator_init_irq,
+	.init_irq	= omap1_init_irq,
 	.init_machine	= innovator_init,
 	.timer		= &omap1_timer,
 MACHINE_END

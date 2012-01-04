@@ -1,0 +1,17 @@
+* Calxeda SATA Controller
+
+SATA nodes are defined to describe on-chip Serial ATA controllers.
+Each SATA controller should have its own node.
+
+Required properties:
+- compatible        : compatible list, contains "calxeda,hb-ahci"
+- interrupts        : <interrupt mapping for SATA IRQ>
+- reg               : <registers mapping>
+
+Example:
+        sata@ffe08000 {
+		compatible = "calxeda,hb-ahci";
+                reg = <0xffe08000 0x1000>;
+                interrupts = <115>;
+        };
+

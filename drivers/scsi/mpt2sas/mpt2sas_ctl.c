@@ -42,7 +42,6 @@
  * USA.
  */
 
-#include <linux/version.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/errno.h>
@@ -1208,6 +1207,9 @@ _ctl_do_reset(void __user *arg)
 	if (_ctl_verify_adapter(karg.hdr.ioc_number, &ioc) == -1 || !ioc)
 		return -ENODEV;
 
+	if (ioc->shost_recovery || ioc->pci_error_recovery ||
+		ioc->is_driver_loading)
+		return -EAGAIN;
 	dctlprintk(ioc, printk(MPT2SAS_INFO_FMT "%s: enter\n", ioc->name,
 	    __func__));
 
@@ -2179,7 +2181,8 @@ _ctl_ioctl_main(struct file *file, unsigned int cmd, void __user *arg)
 		    !ioc)
 			return -ENODEV;
 
-		if (ioc->shost_recovery || ioc->pci_error_recovery)
+		if (ioc->shost_recovery || ioc->pci_error_recovery ||
+				ioc->is_driver_loading)
 			return -EAGAIN;
 
 		if (_IOC_SIZE(cmd) == sizeof(struct mpt2_ioctl_command)) {
@@ -2298,7 +2301,8 @@ _ctl_compat_mpt_command(struct file *file, unsigned cmd, unsigned long arg)
 	if (_ctl_verify_adapter(karg32.hdr.ioc_number, &ioc) == -1 || !ioc)
 		return -ENODEV;
 
-	if (ioc->shost_recovery || ioc->pci_error_recovery)
+	if (ioc->shost_recovery || ioc->pci_error_recovery ||
+			ioc->is_driver_loading)
 		return -EAGAIN;
 
 	memset(&karg, 0, sizeof(struct mpt2_ioctl_command));
@@ -2705,6 +2709,33 @@ _ctl_ioc_reset_count_show(struct device *cdev, struct device_attribute *attr,
 static DEVICE_ATTR(ioc_reset_count, S_IRUGO,
     _ctl_ioc_reset_count_show, NULL);
 
+/**
+ * _ctl_ioc_reply_queue_count_show - number of reply queues
+ * @cdev - pointer to embedded class device
+ * @buf - the buffer returned
+ *
+ * This is number of reply queues
+ *
+ * A sysfs 'read-only' shost attribute.
+ */
+static ssize_t
+_ctl_ioc_reply_queue_count_show(struct device *cdev,
+	 struct device_attribute *attr, char *buf)
+{
+	u8 reply_queue_count;
+	struct Scsi_Host *shost = class_to_shost(cdev);
+	struct MPT2SAS_ADAPTER *ioc = shost_priv(shost);
+
+	if ((ioc->facts.IOCCapabilities &
+	    MPI2_IOCFACTS_CAPABILITY_MSI_X_INDEX) && ioc->msix_enable)
+		reply_queue_count = ioc->reply_queue_count;
+	else
+		reply_queue_count = 1;
+	return snprintf(buf, PAGE_SIZE, "%d\n", reply_queue_count);
+}
+static DEVICE_ATTR(reply_queue_count, S_IRUGO,
+	 _ctl_ioc_reply_queue_count_show, NULL);
+
 struct DIAG_BUFFER_START {
 	__le32 Size;
 	__le32 DiagVersion;
@@ -2915,6 +2946,7 @@ struct device_attribute *mpt2sas_host_attrs[] = {
 	&dev_attr_host_trace_buffer_size,
 	&dev_attr_host_trace_buffer,
 	&dev_attr_host_trace_buffer_enable,
+	&dev_attr_reply_queue_count,
 	NULL,
 };
 

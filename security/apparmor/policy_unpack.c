@@ -381,11 +381,11 @@ static bool unpack_trans_table(struct aa_ext *e, struct aa_profile *profile)
 		profile->file.trans.size = size;
 		for (i = 0; i < size; i++) {
 			char *str;
-			int c, j, size = unpack_strdup(e, &str, NULL);
+			int c, j, size2 = unpack_strdup(e, &str, NULL);
 			/* unpack_strdup verifies that the last character is
 			 * null termination byte.
 			 */
-			if (!size)
+			if (!size2)
 				goto fail;
 			profile->file.trans.table[i] = str;
 			/* verify that name doesn't start with space */
@@ -393,7 +393,7 @@ static bool unpack_trans_table(struct aa_ext *e, struct aa_profile *profile)
 				goto fail;
 
 			/* count internal #  of internal \0 */
-			for (c = j = 0; j < size - 2; j++) {
+			for (c = j = 0; j < size2 - 2; j++) {
 				if (!str[j])
 					c++;
 			}
@@ -440,11 +440,11 @@ static bool unpack_rlimits(struct aa_ext *e, struct aa_profile *profile)
 		if (size > RLIM_NLIMITS)
 			goto fail;
 		for (i = 0; i < size; i++) {
-			u64 tmp = 0;
+			u64 tmp2 = 0;
 			int a = aa_map_resource(i);
-			if (!unpack_u64(e, &tmp, NULL))
+			if (!unpack_u64(e, &tmp2, NULL))
 				goto fail;
-			profile->rlimits.limits[a].rlim_max = tmp;
+			profile->rlimits.limits[a].rlim_max = tmp2;
 		}
 		if (!unpack_nameX(e, AA_ARRAYEND, NULL))
 			goto fail;

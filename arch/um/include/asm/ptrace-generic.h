@@ -23,16 +23,9 @@ struct pt_regs {
 #define PT_REGS_IP(r) UPT_IP(&(r)->regs)
 #define PT_REGS_SP(r) UPT_SP(&(r)->regs)
 
-#define PT_REG(r, reg) UPT_REG(&(r)->regs, reg)
-#define PT_REGS_SET(r, reg, val) UPT_SET(&(r)->regs, reg, val)
-
-#define PT_REGS_SET_SYSCALL_RETURN(r, res) \
-	UPT_SET_SYSCALL_RETURN(&(r)->regs, res)
 #define PT_REGS_RESTART_SYSCALL(r) UPT_RESTART_SYSCALL(&(r)->regs)
 
 #define PT_REGS_SYSCALL_NR(r) UPT_SYSCALL_NR(&(r)->regs)
-
-#define PT_REGS_SC(r) UPT_SC(&(r)->regs)
 
 #define instruction_pointer(regs) PT_REGS_IP(regs)
 

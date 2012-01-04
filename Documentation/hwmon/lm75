@@ -12,26 +12,46 @@ Supported chips:
     Addresses scanned: I2C 0x48 - 0x4f
     Datasheet: Publicly available at the National Semiconductor website
                http://www.national.com/
-  * Dallas Semiconductor DS75
-    Prefix: 'lm75'
-    Addresses scanned: I2C 0x48 - 0x4f
-    Datasheet: Publicly available at the Dallas Semiconductor website
-               http://www.maxim-ic.com/
-  * Dallas Semiconductor DS1775
-    Prefix: 'lm75'
-    Addresses scanned: I2C 0x48 - 0x4f
+  * Dallas Semiconductor DS75, DS1775
+    Prefixes: 'ds75', 'ds1775'
+    Addresses scanned: none
     Datasheet: Publicly available at the Dallas Semiconductor website
                http://www.maxim-ic.com/
   * Maxim MAX6625, MAX6626
-    Prefix: 'lm75'
-    Addresses scanned: I2C 0x48 - 0x4b
+    Prefixes: 'max6625', 'max6626'
+    Addresses scanned: none
     Datasheet: Publicly available at the Maxim website
                http://www.maxim-ic.com/
   * Microchip (TelCom) TCN75
     Prefix: 'lm75'
-    Addresses scanned: I2C 0x48 - 0x4f
+    Addresses scanned: none
     Datasheet: Publicly available at the Microchip website
                http://www.microchip.com/
+  * Microchip MCP9800, MCP9801, MCP9802, MCP9803
+    Prefix: 'mcp980x'
+    Addresses scanned: none
+    Datasheet: Publicly available at the Microchip website
+               http://www.microchip.com/
+  * Analog Devices ADT75
+    Prefix: 'adt75'
+    Addresses scanned: none
+    Datasheet: Publicly available at the Analog Devices website
+               http://www.analog.com/adt75
+  * ST Microelectronics STDS75
+    Prefix: 'stds75'
+    Addresses scanned: none
+    Datasheet: Publicly available at the ST website
+               http://www.st.com/internet/analog/product/121769.jsp
+  * Texas Instruments TMP100, TMP101, TMP105, TMP75, TMP175, TMP275
+    Prefixes: 'tmp100', 'tmp101', 'tmp105', 'tmp175', 'tmp75', 'tmp275'
+    Addresses scanned: none
+    Datasheet: Publicly available at the Texas Instruments website
+               http://www.ti.com/product/tmp100
+               http://www.ti.com/product/tmp101
+               http://www.ti.com/product/tmp105
+               http://www.ti.com/product/tmp75
+               http://www.ti.com/product/tmp175
+               http://www.ti.com/product/tmp275
 
 Author: Frodo Looijaard <frodol@dds.nl>
 
@@ -50,21 +70,16 @@ range of -55 to +125 degrees.
 The LM75 only updates its values each 1.5 seconds; reading it more often
 will do no harm, but will return 'old' values.
 
-The LM75 is usually used in combination with LM78-like chips, to measure
-the temperature of the processor(s).
-
-The DS75, DS1775, MAX6625, and MAX6626 are supported as well.
-They are not distinguished from an LM75. While most of these chips
-have three additional bits of accuracy (12 vs. 9 for the LM75),
-the additional bits are not supported. Not only that, but these chips will
-not be detected if not in 9-bit precision mode (use the force parameter if
-needed).
-
-The TCN75 is supported as well, and is not distinguished from an LM75.
+The original LM75 was typically used in combination with LM78-like chips
+on PC motherboards, to measure the temperature of the processor(s). Clones
+are now used in various embedded designs.
 
 The LM75 is essentially an industry standard; there may be other
 LM75 clones not listed here, with or without various enhancements,
-that are supported.
+that are supported. The clones are not detected by the driver, unless
+they reproduce the exact register tricks of the original LM75, and must
+therefore be instantiated explicitly. The specific enhancements (such as
+higher resolution) are not currently supported by the driver.
 
 The LM77 is not supported, contrary to what we pretended for a long time.
 Both chips are simply not compatible, value encoding differs.

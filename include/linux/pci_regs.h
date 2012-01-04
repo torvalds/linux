@@ -663,6 +663,26 @@
 #define  PCI_ATS_CTRL_STU(x)	((x) & 0x1f)	/* Smallest Translation Unit */
 #define  PCI_ATS_MIN_STU	12	/* shift of minimum STU block */
 
+/* Page Request Interface */
+#define PCI_PRI_CAP		0x13    /* PRI capability ID */
+#define PCI_PRI_CONTROL_OFF	0x04	/* Offset of control register */
+#define PCI_PRI_STATUS_OFF	0x06	/* Offset of status register */
+#define PCI_PRI_ENABLE		0x0001	/* Enable mask */
+#define PCI_PRI_RESET		0x0002	/* Reset bit mask */
+#define PCI_PRI_STATUS_RF	0x0001  /* Request Failure */
+#define PCI_PRI_STATUS_UPRGI	0x0002  /* Unexpected PRG index */
+#define PCI_PRI_STATUS_STOPPED	0x0100  /* PRI Stopped */
+#define PCI_PRI_MAX_REQ_OFF	0x08	/* Cap offset for max reqs supported */
+#define PCI_PRI_ALLOC_REQ_OFF	0x0c	/* Cap offset for max reqs allowed */
+
+/* PASID capability */
+#define PCI_PASID_CAP		0x1b    /* PASID capability ID */
+#define PCI_PASID_CAP_OFF	0x04    /* PASID feature register */
+#define PCI_PASID_CONTROL_OFF   0x06    /* PASID control register */
+#define PCI_PASID_ENABLE	0x01	/* Enable/Supported bit */
+#define PCI_PASID_EXEC		0x02	/* Exec permissions Enable/Supported */
+#define PCI_PASID_PRIV		0x04	/* Priviledge Mode Enable/Support */
+
 /* Single Root I/O Virtualization */
 #define PCI_SRIOV_CAP		0x04	/* SR-IOV Capabilities */
 #define  PCI_SRIOV_CAP_VFM	0x01	/* VF Migration Capable */

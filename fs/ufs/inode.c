@@ -589,7 +589,7 @@ static int ufs1_read_inode(struct inode *inode, struct ufs_inode *ufs_inode)
 	 * Copy data to the in-core inode.
 	 */
 	inode->i_mode = mode = fs16_to_cpu(sb, ufs_inode->ui_mode);
-	inode->i_nlink = fs16_to_cpu(sb, ufs_inode->ui_nlink);
+	set_nlink(inode, fs16_to_cpu(sb, ufs_inode->ui_nlink));
 	if (inode->i_nlink == 0) {
 		ufs_error (sb, "ufs_read_inode", "inode %lu has zero nlink\n", inode->i_ino);
 		return -1;
@@ -637,7 +637,7 @@ static int ufs2_read_inode(struct inode *inode, struct ufs2_inode *ufs2_inode)
 	 * Copy data to the in-core inode.
 	 */
 	inode->i_mode = mode = fs16_to_cpu(sb, ufs2_inode->ui_mode);
-	inode->i_nlink = fs16_to_cpu(sb, ufs2_inode->ui_nlink);
+	set_nlink(inode, fs16_to_cpu(sb, ufs2_inode->ui_nlink));
 	if (inode->i_nlink == 0) {
 		ufs_error (sb, "ufs_read_inode", "inode %lu has zero nlink\n", inode->i_ino);
 		return -1;

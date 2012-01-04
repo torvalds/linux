@@ -26,6 +26,7 @@
 #include <sound/opl3.h>
 #include <asm/io.h>
 #include <linux/delay.h>
+#include <linux/module.h>
 #include <linux/init.h>
 #include <linux/slab.h>
 #include <linux/ioport.h>

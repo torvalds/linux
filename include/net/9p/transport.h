@@ -26,13 +26,6 @@
 #ifndef NET_9P_TRANSPORT_H
 #define NET_9P_TRANSPORT_H
 
-#define P9_TRANS_PREF_PAYLOAD_MASK 0x1
-
-/* Default. Add Payload to PDU before sending it down to transport layer */
-#define P9_TRANS_PREF_PAYLOAD_DEF  0x0
-/* Send pay load separately to transport layer along with PDU.*/
-#define P9_TRANS_PREF_PAYLOAD_SEP  0x1
-
 /**
  * struct p9_trans_module - transport module interface
  * @list: used to maintain a list of currently available transports
@@ -56,13 +49,14 @@ struct p9_trans_module {
 	struct list_head list;
 	char *name;		/* name of transport */
 	int maxsize;		/* max message size of transport */
-	int pref;               /* Preferences of this transport */
 	int def;		/* this transport should be default */
 	struct module *owner;
 	int (*create)(struct p9_client *, const char *, char *);
 	void (*close) (struct p9_client *);
 	int (*request) (struct p9_client *, struct p9_req_t *req);
 	int (*cancel) (struct p9_client *, struct p9_req_t *req);
+	int (*zc_request)(struct p9_client *, struct p9_req_t *,
+			  char *, char *, int , int, int, int);
 };
 
 void v9fs_register_trans(struct p9_trans_module *m);

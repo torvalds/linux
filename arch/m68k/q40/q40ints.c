@@ -15,10 +15,10 @@
 #include <linux/kernel.h>
 #include <linux/errno.h>
 #include <linux/interrupt.h>
+#include <linux/irq.h>
 
 #include <asm/ptrace.h>
 #include <asm/system.h>
-#include <asm/irq.h>
 #include <asm/traps.h>
 
 #include <asm/q40_master.h>
@@ -35,35 +35,36 @@
 */
 
 static void q40_irq_handler(unsigned int, struct pt_regs *fp);
-static void q40_enable_irq(unsigned int);
-static void q40_disable_irq(unsigned int);
+static void q40_irq_enable(struct irq_data *data);
+static void q40_irq_disable(struct irq_data *data);
 
 unsigned short q40_ablecount[35];
 unsigned short q40_state[35];
 
-static int q40_irq_startup(unsigned int irq)
+static unsigned int q40_irq_startup(struct irq_data *data)
 {
+	unsigned int irq = data->irq;
+
 	/* test for ISA ints not implemented by HW */
 	switch (irq) {
 	case 1: case 2: case 8: case 9:
 	case 11: case 12: case 13:
 		printk("%s: ISA IRQ %d not implemented by HW\n", __func__, irq);
-		return -ENXIO;
+		/* FIXME return -ENXIO; */
 	}
 	return 0;
 }
 
-static void q40_irq_shutdown(unsigned int irq)
+static void q40_irq_shutdown(struct irq_data *data)
 {
 }
 
-static struct irq_controller q40_irq_controller = {
+static struct irq_chip q40_irq_chip = {
 	.name		= "q40",
-	.lock		= __SPIN_LOCK_UNLOCKED(q40_irq_controller.lock),
-	.startup	= q40_irq_startup,
-	.shutdown	= q40_irq_shutdown,
-	.enable		= q40_enable_irq,
-	.disable	= q40_disable_irq,
+	.irq_startup	= q40_irq_startup,
+	.irq_shutdown	= q40_irq_shutdown,
+	.irq_enable	= q40_irq_enable,
+	.irq_disable	= q40_irq_disable,
 };
 
 /*
@@ -81,13 +82,14 @@ static int disabled;
 
 void __init q40_init_IRQ(void)
 {
-	m68k_setup_irq_controller(&q40_irq_controller, 1, Q40_IRQ_MAX);
+	m68k_setup_irq_controller(&q40_irq_chip, handle_simple_irq, 1,
+				  Q40_IRQ_MAX);
 
 	/* setup handler for ISA ints */
 	m68k_setup_auto_interrupt(q40_irq_handler);
 
-	m68k_irq_startup(IRQ_AUTO_2);
-	m68k_irq_startup(IRQ_AUTO_4);
+	m68k_irq_startup_irq(IRQ_AUTO_2);
+	m68k_irq_startup_irq(IRQ_AUTO_4);
 
 	/* now enable some ints.. */
 	master_outb(1, EXT_ENABLE_REG);  /* ISA IRQ 5-15 */
@@ -218,11 +220,11 @@ static void q40_irq_handler(unsigned int irq, struct pt_regs *fp)
 	switch (irq) {
 	case 4:
 	case 6:
-		__m68k_handle_int(Q40_IRQ_SAMPLE, fp);
+		do_IRQ(Q40_IRQ_SAMPLE, fp);
 		return;
 	}
 	if (mir & Q40_IRQ_FRAME_MASK) {
-		__m68k_handle_int(Q40_IRQ_FRAME, fp);
+		do_IRQ(Q40_IRQ_FRAME, fp);
 		master_outb(-1, FRAME_CLEAR_REG);
 	}
 	if ((mir & Q40_IRQ_SER_MASK) || (mir & Q40_IRQ_EXT_MASK)) {
@@ -257,7 +259,7 @@ static void q40_irq_handler(unsigned int irq, struct pt_regs *fp)
 					goto iirq;
 				}
 				q40_state[irq] |= IRQ_INPROGRESS;
-				__m68k_handle_int(irq, fp);
+				do_IRQ(irq, fp);
 				q40_state[irq] &= ~IRQ_INPROGRESS;
 
 				/* naively enable everything, if that fails than    */
@@ -288,25 +290,29 @@ static void q40_irq_handler(unsigned int irq, struct pt_regs *fp)
 	mir = master_inb(IIRQ_REG);
 	/* should test whether keyboard irq is really enabled, doing it in defhand */
 	if (mir & Q40_IRQ_KEYB_MASK)
-		__m68k_handle_int(Q40_IRQ_KEYBOARD, fp);
+		do_IRQ(Q40_IRQ_KEYBOARD, fp);
 
 	return;
 }
 
-void q40_enable_irq(unsigned int irq)
+void q40_irq_enable(struct irq_data *data)
 {
+	unsigned int irq = data->irq;
+
 	if (irq >= 5 && irq <= 15) {
 		mext_disabled--;
 		if (mext_disabled > 0)
-			printk("q40_enable_irq : nested disable/enable\n");
+			printk("q40_irq_enable : nested disable/enable\n");
 		if (mext_disabled == 0)
 			master_outb(1, EXT_ENABLE_REG);
 	}
 }
 
 
-void q40_disable_irq(unsigned int irq)
+void q40_irq_disable(struct irq_data *data)
 {
+	unsigned int irq = data->irq;
+
 	/* disable ISA iqs : only do something if the driver has been
 	 * verified to be Q40 "compatible" - right now IDE, NE2K
 	 * Any driver should not attempt to sleep across disable_irq !!
@@ -318,14 +324,4 @@ void q40_disable_irq(unsigned int irq)
 		if (mext_disabled > 1)
 			printk("disable_irq nesting count %d\n",mext_disabled);
 	}
-}
-
-unsigned long q40_probe_irq_on(void)
-{
-	printk("irq probing not working - reconfigure the driver to avoid this\n");
-	return -1;
-}
-int q40_probe_irq_off(unsigned long irqs)
-{
-	return -1;
 }

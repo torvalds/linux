@@ -994,7 +994,7 @@ allocate_error:
  *
  * Returns 0 on success, !0 on failure.
  */
-int hwsampler_deallocate()
+int hwsampler_deallocate(void)
 {
 	int rc;
 
@@ -1035,7 +1035,7 @@ unsigned long hwsampler_get_sample_overflow_count(unsigned int cpu)
 	return cb->sample_overflow;
 }
 
-int hwsampler_setup()
+int hwsampler_setup(void)
 {
 	int rc;
 	int cpu;
@@ -1102,7 +1102,7 @@ setup_exit:
 	return rc;
 }
 
-int hwsampler_shutdown()
+int hwsampler_shutdown(void)
 {
 	int rc;
 
@@ -1203,7 +1203,7 @@ start_all_exit:
  *
  * Returns 0 on success, !0 on failure.
  */
-int hwsampler_stop_all()
+int hwsampler_stop_all(void)
 {
 	int tmp_rc, rc, cpu;
 	struct hws_cpu_buffer *cb;

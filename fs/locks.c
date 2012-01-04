@@ -60,7 +60,7 @@
  *
  *  Initial implementation of mandatory locks. SunOS turned out to be
  *  a rotten model, so I implemented the "obvious" semantics.
- *  See 'Documentation/mandatory.txt' for details.
+ *  See 'Documentation/filesystems/mandatory-locking.txt' for details.
  *  Andy Walker (andy@lysaker.kvaerner.no), April 06, 1996.
  *
  *  Don't allow mandatory locks on mmap()'ed files. Added simple functions to
@@ -132,6 +132,20 @@
 #define IS_POSIX(fl)	(fl->fl_flags & FL_POSIX)
 #define IS_FLOCK(fl)	(fl->fl_flags & FL_FLOCK)
 #define IS_LEASE(fl)	(fl->fl_flags & FL_LEASE)
+
+static bool lease_breaking(struct file_lock *fl)
+{
+	return fl->fl_flags & (FL_UNLOCK_PENDING | FL_DOWNGRADE_PENDING);
+}
+
+static int target_leasetype(struct file_lock *fl)
+{
+	if (fl->fl_flags & FL_UNLOCK_PENDING)
+		return F_UNLCK;
+	if (fl->fl_flags & FL_DOWNGRADE_PENDING)
+		return F_RDLCK;
+	return fl->fl_type;
+}
 
 int leases_enable = 1;
 int lease_break_time = 45;
@@ -1119,6 +1133,17 @@ int locks_mandatory_area(int read_write, struct inode *inode,
 
 EXPORT_SYMBOL(locks_mandatory_area);
 
+static void lease_clear_pending(struct file_lock *fl, int arg)
+{
+	switch (arg) {
+	case F_UNLCK:
+		fl->fl_flags &= ~FL_UNLOCK_PENDING;
+		/* fall through: */
+	case F_RDLCK:
+		fl->fl_flags &= ~FL_DOWNGRADE_PENDING;
+	}
+}
+
 /* We already had a lease on this file; just change its type */
 int lease_modify(struct file_lock **before, int arg)
 {
@@ -1127,6 +1152,7 @@ int lease_modify(struct file_lock **before, int arg)
 
 	if (error)
 		return error;
+	lease_clear_pending(fl, arg);
 	locks_wake_up_blocks(fl);
 	if (arg == F_UNLCK)
 		locks_delete_lock(before);
@@ -1135,19 +1161,25 @@ int lease_modify(struct file_lock **before, int arg)
 
 EXPORT_SYMBOL(lease_modify);
 
+static bool past_time(unsigned long then)
+{
+	if (!then)
+		/* 0 is a special value meaning "this never expires": */
+		return false;
+	return time_after(jiffies, then);
+}
+
 static void time_out_leases(struct inode *inode)
 {
 	struct file_lock **before;
 	struct file_lock *fl;
 
 	before = &inode->i_flock;
-	while ((fl = *before) && IS_LEASE(fl) && (fl->fl_type & F_INPROGRESS)) {
-		if ((fl->fl_break_time == 0)
-				|| time_before(jiffies, fl->fl_break_time)) {
-			before = &fl->fl_next;
-			continue;
-		}
-		lease_modify(before, fl->fl_type & ~F_INPROGRESS);
+	while ((fl = *before) && IS_LEASE(fl) && lease_breaking(fl)) {
+		if (past_time(fl->fl_downgrade_time))
+			lease_modify(before, F_RDLCK);
+		if (past_time(fl->fl_break_time))
+			lease_modify(before, F_UNLCK);
 		if (fl == *before)	/* lease_modify may have freed fl */
 			before = &fl->fl_next;
 	}
@@ -1165,7 +1197,7 @@ static void time_out_leases(struct inode *inode)
  */
 int __break_lease(struct inode *inode, unsigned int mode)
 {
-	int error = 0, future;
+	int error = 0;
 	struct file_lock *new_fl, *flock;
 	struct file_lock *fl;
 	unsigned long break_time;
@@ -1182,23 +1214,12 @@ int __break_lease(struct inode *inode, unsigned int mode)
 	if ((flock == NULL) || !IS_LEASE(flock))
 		goto out;
 
+	if (!locks_conflict(flock, new_fl))
+		goto out;
+
 	for (fl = flock; fl && IS_LEASE(fl); fl = fl->fl_next)
 		if (fl->fl_owner == current->files)
 			i_have_this_lease = 1;
-
-	if (want_write) {
-		/* If we want write access, we have to revoke any lease. */
-		future = F_UNLCK | F_INPROGRESS;
-	} else if (flock->fl_type & F_INPROGRESS) {
-		/* If the lease is already being broken, we just leave it */
-		future = flock->fl_type;
-	} else if (flock->fl_type & F_WRLCK) {
-		/* Downgrade the exclusive lease to a read-only lease. */
-		future = F_RDLCK | F_INPROGRESS;
-	} else {
-		/* the existing lease was read-only, so we can read too. */
-		goto out;
-	}
 
 	if (IS_ERR(new_fl) && !i_have_this_lease
 			&& ((mode & O_NONBLOCK) == 0)) {
@@ -1214,12 +1235,18 @@ int __break_lease(struct inode *inode, unsigned int mode)
 	}
 
 	for (fl = flock; fl && IS_LEASE(fl); fl = fl->fl_next) {
-		if (fl->fl_type != future) {
-			fl->fl_type = future;
+		if (want_write) {
+			if (fl->fl_flags & FL_UNLOCK_PENDING)
+				continue;
+			fl->fl_flags |= FL_UNLOCK_PENDING;
 			fl->fl_break_time = break_time;
-			/* lease must have lmops break callback */
-			fl->fl_lmops->lm_break(fl);
+		} else {
+			if (lease_breaking(flock))
+				continue;
+			fl->fl_flags |= FL_DOWNGRADE_PENDING;
+			fl->fl_downgrade_time = break_time;
 		}
+		fl->fl_lmops->lm_break(fl);
 	}
 
 	if (i_have_this_lease || (mode & O_NONBLOCK)) {
@@ -1243,10 +1270,13 @@ restart:
 	if (error >= 0) {
 		if (error == 0)
 			time_out_leases(inode);
-		/* Wait for the next lease that has not been broken yet */
+		/*
+		 * Wait for the next conflicting lease that has not been
+		 * broken yet
+		 */
 		for (flock = inode->i_flock; flock && IS_LEASE(flock);
 				flock = flock->fl_next) {
-			if (flock->fl_type & F_INPROGRESS)
+			if (locks_conflict(new_fl, flock))
 				goto restart;
 		}
 		error = 0;
@@ -1314,12 +1344,93 @@ int fcntl_getlease(struct file *filp)
 	for (fl = filp->f_path.dentry->d_inode->i_flock; fl && IS_LEASE(fl);
 			fl = fl->fl_next) {
 		if (fl->fl_file == filp) {
-			type = fl->fl_type & ~F_INPROGRESS;
+			type = target_leasetype(fl);
 			break;
 		}
 	}
 	unlock_flocks();
 	return type;
+}
+
+int generic_add_lease(struct file *filp, long arg, struct file_lock **flp)
+{
+	struct file_lock *fl, **before, **my_before = NULL, *lease;
+	struct dentry *dentry = filp->f_path.dentry;
+	struct inode *inode = dentry->d_inode;
+	int error;
+
+	lease = *flp;
+
+	error = -EAGAIN;
+	if ((arg == F_RDLCK) && (atomic_read(&inode->i_writecount) > 0))
+		goto out;
+	if ((arg == F_WRLCK)
+	    && ((dentry->d_count > 1)
+		|| (atomic_read(&inode->i_count) > 1)))
+		goto out;
+
+	/*
+	 * At this point, we know that if there is an exclusive
+	 * lease on this file, then we hold it on this filp
+	 * (otherwise our open of this file would have blocked).
+	 * And if we are trying to acquire an exclusive lease,
+	 * then the file is not open by anyone (including us)
+	 * except for this filp.
+	 */
+	error = -EAGAIN;
+	for (before = &inode->i_flock;
+			((fl = *before) != NULL) && IS_LEASE(fl);
+			before = &fl->fl_next) {
+		if (fl->fl_file == filp) {
+			my_before = before;
+			continue;
+		}
+		/*
+		 * No exclusive leases if someone else has a lease on
+		 * this file:
+		 */
+		if (arg == F_WRLCK)
+			goto out;
+		/*
+		 * Modifying our existing lease is OK, but no getting a
+		 * new lease if someone else is opening for write:
+		 */
+		if (fl->fl_flags & FL_UNLOCK_PENDING)
+			goto out;
+	}
+
+	if (my_before != NULL) {
+		error = lease->fl_lmops->lm_change(my_before, arg);
+		if (!error)
+			*flp = *my_before;
+		goto out;
+	}
+
+	error = -EINVAL;
+	if (!leases_enable)
+		goto out;
+
+	locks_insert_lock(before, lease);
+	return 0;
+
+out:
+	return error;
+}
+
+int generic_delete_lease(struct file *filp, struct file_lock **flp)
+{
+	struct file_lock *fl, **before;
+	struct dentry *dentry = filp->f_path.dentry;
+	struct inode *inode = dentry->d_inode;
+
+	for (before = &inode->i_flock;
+			((fl = *before) != NULL) && IS_LEASE(fl);
+			before = &fl->fl_next) {
+		if (fl->fl_file != filp)
+			continue;
+		return (*flp)->fl_lmops->lm_change(before, F_UNLCK);
+	}
+	return -EAGAIN;
 }
 
 /**
@@ -1335,85 +1446,31 @@ int fcntl_getlease(struct file *filp)
  */
 int generic_setlease(struct file *filp, long arg, struct file_lock **flp)
 {
-	struct file_lock *fl, **before, **my_before = NULL, *lease;
 	struct dentry *dentry = filp->f_path.dentry;
 	struct inode *inode = dentry->d_inode;
-	int error, rdlease_count = 0, wrlease_count = 0;
+	int error;
 
-	lease = *flp;
-
-	error = -EACCES;
 	if ((current_fsuid() != inode->i_uid) && !capable(CAP_LEASE))
-		goto out;
-	error = -EINVAL;
+		return -EACCES;
 	if (!S_ISREG(inode->i_mode))
-		goto out;
+		return -EINVAL;
 	error = security_file_lock(filp, arg);
 	if (error)
-		goto out;
+		return error;
 
 	time_out_leases(inode);
 
 	BUG_ON(!(*flp)->fl_lmops->lm_break);
 
-	if (arg != F_UNLCK) {
-		error = -EAGAIN;
-		if ((arg == F_RDLCK) && (atomic_read(&inode->i_writecount) > 0))
-			goto out;
-		if ((arg == F_WRLCK)
-		    && ((dentry->d_count > 1)
-			|| (atomic_read(&inode->i_count) > 1)))
-			goto out;
+	switch (arg) {
+	case F_UNLCK:
+		return generic_delete_lease(filp, flp);
+	case F_RDLCK:
+	case F_WRLCK:
+		return generic_add_lease(filp, arg, flp);
+	default:
+		BUG();
 	}
-
-	/*
-	 * At this point, we know that if there is an exclusive
-	 * lease on this file, then we hold it on this filp
-	 * (otherwise our open of this file would have blocked).
-	 * And if we are trying to acquire an exclusive lease,
-	 * then the file is not open by anyone (including us)
-	 * except for this filp.
-	 */
-	for (before = &inode->i_flock;
-			((fl = *before) != NULL) && IS_LEASE(fl);
-			before = &fl->fl_next) {
-		if (fl->fl_file == filp)
-			my_before = before;
-		else if (fl->fl_type == (F_INPROGRESS | F_UNLCK))
-			/*
-			 * Someone is in the process of opening this
-			 * file for writing so we may not take an
-			 * exclusive lease on it.
-			 */
-			wrlease_count++;
-		else
-			rdlease_count++;
-	}
-
-	error = -EAGAIN;
-	if ((arg == F_RDLCK && (wrlease_count > 0)) ||
-	    (arg == F_WRLCK && ((rdlease_count + wrlease_count) > 0)))
-		goto out;
-
-	if (my_before != NULL) {
-		error = lease->fl_lmops->lm_change(my_before, arg);
-		if (!error)
-			*flp = *my_before;
-		goto out;
-	}
-
-	if (arg == F_UNLCK)
-		goto out;
-
-	error = -EINVAL;
-	if (!leases_enable)
-		goto out;
-
-	locks_insert_lock(before, lease);
-	return 0;
-
-out:
-	return error;
 }
 EXPORT_SYMBOL(generic_setlease);
 
@@ -2126,7 +2183,7 @@ static void lock_get_status(struct seq_file *f, struct file_lock *fl,
 		}
 	} else if (IS_LEASE(fl)) {
 		seq_printf(f, "LEASE  ");
-		if (fl->fl_type & F_INPROGRESS)
+		if (lease_breaking(fl))
 			seq_printf(f, "BREAKING  ");
 		else if (fl->fl_file)
 			seq_printf(f, "ACTIVE    ");
@@ -2142,7 +2199,7 @@ static void lock_get_status(struct seq_file *f, struct file_lock *fl,
 			       : (fl->fl_type & LOCK_WRITE) ? "WRITE" : "NONE ");
 	} else {
 		seq_printf(f, "%s ",
-			       (fl->fl_type & F_INPROGRESS)
+			       (lease_breaking(fl))
 			       ? (fl->fl_type & F_UNLCK) ? "UNLCK" : "READ "
 			       : (fl->fl_type & F_WRLCK) ? "WRITE" : "READ ");
 	}

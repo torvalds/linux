@@ -86,6 +86,7 @@
 #define CX23885_BOARD_GOTVIEW_X5_3D_HYBRID     29
 #define CX23885_BOARD_NETUP_DUAL_DVB_T_C_CI_RF 30
 #define CX23885_BOARD_LEADTEK_WINFAST_PXDVR3200_H_XC4000 31
+#define CX23885_BOARD_MPX885                   32
 
 #define GPIO_0 0x00000001
 #define GPIO_1 0x00000002
@@ -192,6 +193,7 @@ struct cx23885_buffer {
 struct cx23885_input {
 	enum cx23885_itype type;
 	unsigned int    vmux;
+	unsigned int    amux;
 	u32             gpio0, gpio1, gpio2, gpio3;
 };
 
@@ -318,6 +320,34 @@ struct cx23885_kernel_ir {
 	struct rc_dev		*rc;
 };
 
+struct cx23885_audio_buffer {
+	unsigned int		bpl;
+	struct btcx_riscmem	risc;
+	struct videobuf_dmabuf	dma;
+};
+
+struct cx23885_audio_dev {
+	struct cx23885_dev	*dev;
+
+	struct pci_dev		*pci;
+
+	struct snd_card		*card;
+
+	spinlock_t		lock;
+
+	atomic_t		count;
+
+	unsigned int		dma_size;
+	unsigned int		period_size;
+	unsigned int		num_periods;
+
+	struct videobuf_dmabuf	*dma_risc;
+
+	struct cx23885_audio_buffer   *buf;
+
+	struct snd_pcm_substream *substream;
+};
+
 struct cx23885_dev {
 	atomic_t                   refcount;
 	struct v4l2_device 	   v4l2_dev;
@@ -362,6 +392,7 @@ struct cx23885_dev {
 	/* Analog video */
 	u32                        resources;
 	unsigned int               input;
+	unsigned int               audinput; /* Selectable audio input */
 	u32                        tvaudio;
 	v4l2_std_id                tvnorm;
 	unsigned int               tuner_type;
@@ -399,6 +430,9 @@ struct cx23885_dev {
 	struct video_device        *v4l_device;
 	atomic_t                   v4l_reader_count;
 	struct cx23885_tvnorm      encodernorm;
+
+	/* Analog raw audio */
+	struct cx23885_audio_dev   *audio_dev;
 
 };
 
@@ -478,6 +512,11 @@ extern int cx23885_risc_buffer(struct pci_dev *pci, struct btcx_riscmem *risc,
 	unsigned int top_offset, unsigned int bottom_offset,
 	unsigned int bpl, unsigned int padding, unsigned int lines);
 
+extern int cx23885_risc_vbibuffer(struct pci_dev *pci,
+	struct btcx_riscmem *risc, struct scatterlist *sglist,
+	unsigned int top_offset, unsigned int bottom_offset,
+	unsigned int bpl, unsigned int padding, unsigned int lines);
+
 void cx23885_cancel_buffers(struct cx23885_tsport *port);
 
 extern int cx23885_restart_queue(struct cx23885_tsport *port,
@@ -533,6 +572,8 @@ extern void cx23885_free_buffer(struct videobuf_queue *q,
 extern int cx23885_video_register(struct cx23885_dev *dev);
 extern void cx23885_video_unregister(struct cx23885_dev *dev);
 extern int cx23885_video_irq(struct cx23885_dev *dev, u32 status);
+extern void cx23885_video_wakeup(struct cx23885_dev *dev,
+	struct cx23885_dmaqueue *q, u32 count);
 
 /* ----------------------------------------------------------- */
 /* cx23885-vbi.c                                               */
@@ -540,6 +581,9 @@ extern int cx23885_vbi_fmt(struct file *file, void *priv,
 	struct v4l2_format *f);
 extern void cx23885_vbi_timeout(unsigned long data);
 extern struct videobuf_queue_ops cx23885_vbi_qops;
+extern int cx23885_restart_vbi_queue(struct cx23885_dev *dev,
+	struct cx23885_dmaqueue *q);
+extern int cx23885_vbi_irq(struct cx23885_dev *dev, u32 status);
 
 /* cx23885-i2c.c                                                */
 extern int cx23885_i2c_register(struct cx23885_i2c *bus);
@@ -563,6 +607,18 @@ extern void mc417_gpio_set(struct cx23885_dev *dev, u32 mask);
 extern void mc417_gpio_clear(struct cx23885_dev *dev, u32 mask);
 extern void mc417_gpio_enable(struct cx23885_dev *dev, u32 mask, int asoutput);
 
+/* ----------------------------------------------------------- */
+/* cx23885-alsa.c                                             */
+extern struct cx23885_audio_dev *cx23885_audio_register(
+					struct cx23885_dev *dev);
+extern void cx23885_audio_unregister(struct cx23885_dev *dev);
+extern int cx23885_audio_irq(struct cx23885_dev *dev, u32 status, u32 mask);
+extern int cx23885_risc_databuffer(struct pci_dev *pci,
+				   struct btcx_riscmem *risc,
+				   struct scatterlist *sglist,
+				   unsigned int bpl,
+				   unsigned int lines,
+				   unsigned int lpi);
 
 /* ----------------------------------------------------------- */
 /* tv norms                                                    */

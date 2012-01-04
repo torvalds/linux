@@ -9,7 +9,6 @@
 #include <linux/namei.h>
 #include <linux/writeback.h>
 #include <linux/vmalloc.h>
-#include <linux/pagevec.h>
 
 #include "super.h"
 #include "mds_client.h"
@@ -619,7 +618,7 @@ static int fill_inode(struct inode *inode,
 	}
 
 	if ((issued & CEPH_CAP_LINK_EXCL) == 0)
-		inode->i_nlink = le32_to_cpu(info->nlink);
+		set_nlink(inode, le32_to_cpu(info->nlink));
 
 	/* be careful with mtime, atime, size */
 	ceph_decode_timespec(&atime, &info->atime);
@@ -772,9 +771,9 @@ no_change:
 	    ceph_snap(inode) == CEPH_NOSNAP &&
 	    (le32_to_cpu(info->cap.caps) & CEPH_CAP_FILE_SHARED) &&
 	    (issued & CEPH_CAP_FILE_EXCL) == 0 &&
-	    (ci->i_ceph_flags & CEPH_I_COMPLETE) == 0) {
+	    !ceph_dir_test_complete(inode)) {
 		dout(" marking %p complete (empty)\n", inode);
-		/* ci->i_ceph_flags |= CEPH_I_COMPLETE; */
+		ceph_dir_set_complete(inode);
 		ci->i_max_offset = 2;
 	}
 
@@ -857,7 +856,7 @@ static void ceph_set_dentry_offset(struct dentry *dn)
 	di = ceph_dentry(dn);
 
 	spin_lock(&inode->i_lock);
-	if ((ceph_inode(inode)->i_ceph_flags & CEPH_I_COMPLETE) == 0) {
+	if (!ceph_dir_test_complete(inode)) {
 		spin_unlock(&inode->i_lock);
 		return;
 	}
@@ -1057,7 +1056,7 @@ int ceph_fill_trace(struct super_block *sb, struct ceph_mds_request *req,
 			 * d_move() puts the renamed dentry at the end of
 			 * d_subdirs.  We need to assign it an appropriate
 			 * directory offset so we can behave when holding
-			 * I_COMPLETE.
+			 * D_COMPLETE.
 			 */
 			ceph_set_dentry_offset(req->r_old_dentry);
 			dout("dn %p gets new offset %lld\n", req->r_old_dentry, 
@@ -1364,49 +1363,6 @@ void ceph_queue_invalidate(struct inode *inode)
 }
 
 /*
- * invalidate any pages that are not dirty or under writeback.  this
- * includes pages that are clean and mapped.
- */
-static void ceph_invalidate_nondirty_pages(struct address_space *mapping)
-{
-	struct pagevec pvec;
-	pgoff_t next = 0;
-	int i;
-
-	pagevec_init(&pvec, 0);
-	while (pagevec_lookup(&pvec, mapping, next, PAGEVEC_SIZE)) {
-		for (i = 0; i < pagevec_count(&pvec); i++) {
-			struct page *page = pvec.pages[i];
-			pgoff_t index;
-			int skip_page =
-				(PageDirty(page) || PageWriteback(page));
-
-			if (!skip_page)
-				skip_page = !trylock_page(page);
-
-			/*
-			 * We really shouldn't be looking at the ->index of an
-			 * unlocked page.  But we're not allowed to lock these
-			 * pages.  So we rely upon nobody altering the ->index
-			 * of this (pinned-by-us) page.
-			 */
-			index = page->index;
-			if (index > next)
-				next = index;
-			next++;
-
-			if (skip_page)
-				continue;
-
-			generic_error_remove_page(mapping, page);
-			unlock_page(page);
-		}
-		pagevec_release(&pvec);
-		cond_resched();
-	}
-}
-
-/*
  * Invalidate inode pages in a worker thread.  (This can't be done
  * in the message handler context.)
  */
@@ -1429,7 +1385,7 @@ static void ceph_invalidate_work(struct work_struct *work)
 	orig_gen = ci->i_rdcache_gen;
 	spin_unlock(&inode->i_lock);
 
-	ceph_invalidate_nondirty_pages(inode->i_mapping);
+	truncate_inode_pages(&inode->i_data, 0);
 
 	spin_lock(&inode->i_lock);
 	if (orig_gen == ci->i_rdcache_gen &&

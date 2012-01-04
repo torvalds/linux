@@ -1,0 +1,77 @@
+#
+# TI device configuration
+#
+
+config NET_VENDOR_TI
+	bool "Texas Instruments (TI) devices"
+	default y
+	depends on PCI || EISA || AR7 || (ARM && (ARCH_DAVINCI || ARCH_OMAP3))
+	---help---
+	  If you have a network (Ethernet) card belonging to this class, say Y
+	  and read the Ethernet-HOWTO, available from
+	  <http://www.tldp.org/docs.html#howto>.
+
+	  Note that the answer to this question doesn't directly affect the
+	  kernel: saying N will just cause the configurator to skip all
+	  the questions about TI devices. If you say Y, you will be asked for
+	  your specific card in the following questions.
+
+if NET_VENDOR_TI
+
+config TI_DAVINCI_EMAC
+	tristate "TI DaVinci EMAC Support"
+	depends on ARM && ( ARCH_DAVINCI || ARCH_OMAP3 )
+	select TI_DAVINCI_MDIO
+	select TI_DAVINCI_CPDMA
+	select PHYLIB
+	---help---
+	  This driver supports TI's DaVinci Ethernet .
+
+	  To compile this driver as a module, choose M here: the module
+	  will be called davinci_emac_driver.  This is recommended.
+
+config TI_DAVINCI_MDIO
+	tristate "TI DaVinci MDIO Support"
+	depends on ARM && ( ARCH_DAVINCI || ARCH_OMAP3 )
+	select PHYLIB
+	---help---
+	  This driver supports TI's DaVinci MDIO module.
+
+	  To compile this driver as a module, choose M here: the module
+	  will be called davinci_mdio.  This is recommended.
+
+config TI_DAVINCI_CPDMA
+	tristate "TI DaVinci CPDMA Support"
+	depends on ARM && ( ARCH_DAVINCI || ARCH_OMAP3 )
+	---help---
+	  This driver supports TI's DaVinci CPDMA dma engine.
+
+	  To compile this driver as a module, choose M here: the module
+	  will be called davinci_cpdma.  This is recommended.
+
+config TLAN
+	tristate "TI ThunderLAN support"
+	depends on (PCI || EISA)
+	---help---
+	  If you have a PCI Ethernet network card based on the ThunderLAN chip
+	  which is supported by this driver, say Y and read the
+	  Ethernet-HOWTO, available from
+	  <http://www.tldp.org/docs.html#howto>.
+
+	  Devices currently supported by this driver are Compaq Netelligent,
+	  Compaq NetFlex and Olicom cards.  Please read the file
+	  <file:Documentation/networking/tlan.txt> for more details.
+
+	  To compile this driver as a module, choose M here. The module
+	  will be called tlan.
+
+	  Please email feedback to <torben.mathiasen@compaq.com>.
+
+config CPMAC
+	tristate "TI AR7 CPMAC Ethernet support (EXPERIMENTAL)"
+	depends on EXPERIMENTAL && AR7
+	select PHYLIB
+	---help---
+	  TI AR7 CPMAC Ethernet support
+
+endif # NET_VENDOR_TI

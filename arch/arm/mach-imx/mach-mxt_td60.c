@@ -267,10 +267,11 @@ static struct sys_timer mxt_td60_timer = {
 
 MACHINE_START(MXT_TD60, "Maxtrack i-MXT TD60")
 	/* maintainer: Maxtrack Industrial */
-	.boot_params = MX27_PHYS_OFFSET + 0x100,
+	.atag_offset = 0x100,
 	.map_io = mx27_map_io,
 	.init_early = imx27_init_early,
 	.init_irq = mx27_init_irq,
+	.handle_irq = imx27_handle_irq,
 	.timer = &mxt_td60_timer,
 	.init_machine = mxt_td60_board_init,
 MACHINE_END

@@ -30,9 +30,16 @@
 #include <asm/irq.h>
 #include <asm/uaccess.h>
 
-MODULE_DESCRIPTION("ICPlus IP175C/IC1001 PHY drivers");
+MODULE_DESCRIPTION("ICPlus IP175C/IP101A/IC1001 PHY drivers");
 MODULE_AUTHOR("Michael Barkowski");
 MODULE_LICENSE("GPL");
+
+/* IP101A/IP1001 */
+#define IP10XX_SPEC_CTRL_STATUS		16  /* Spec. Control Register */
+#define IP1001_SPEC_CTRL_STATUS_2	20  /* IP1001 Spec. Control Reg 2 */
+#define IP1001_PHASE_SEL_MASK		3 /* IP1001 RX/TXPHASE_SEL */
+#define IP1001_APS_ON			11  /* IP1001 APS Mode  bit */
+#define IP101A_APS_ON			2   /* IP101A APS Mode bit */
 
 static int ip175c_config_init(struct phy_device *phydev)
 {
@@ -42,36 +49,36 @@ static int ip175c_config_init(struct phy_device *phydev)
 	if (full_reset_performed == 0) {
 
 		/* master reset */
-		err = phydev->bus->write(phydev->bus, 30, 0, 0x175c);
+		err = mdiobus_write(phydev->bus, 30, 0, 0x175c);
 		if (err < 0)
 			return err;
 
 		/* ensure no bus delays overlap reset period */
-		err = phydev->bus->read(phydev->bus, 30, 0);
+		err = mdiobus_read(phydev->bus, 30, 0);
 
 		/* data sheet specifies reset period is 2 msec */
 		mdelay(2);
 
 		/* enable IP175C mode */
-		err = phydev->bus->write(phydev->bus, 29, 31, 0x175c);
+		err = mdiobus_write(phydev->bus, 29, 31, 0x175c);
 		if (err < 0)
 			return err;
 
 		/* Set MII0 speed and duplex (in PHY mode) */
-		err = phydev->bus->write(phydev->bus, 29, 22, 0x420);
+		err = mdiobus_write(phydev->bus, 29, 22, 0x420);
 		if (err < 0)
 			return err;
 
 		/* reset switch ports */
 		for (i = 0; i < 5; i++) {
-			err = phydev->bus->write(phydev->bus, i,
-						 MII_BMCR, BMCR_RESET);
+			err = mdiobus_write(phydev->bus, i,
+					    MII_BMCR, BMCR_RESET);
 			if (err < 0)
 				return err;
 		}
 
 		for (i = 0; i < 5; i++)
-			err = phydev->bus->read(phydev->bus, i, MII_BMCR);
+			err = mdiobus_read(phydev->bus, i, MII_BMCR);
 
 		mdelay(2);
 
@@ -89,27 +96,61 @@ static int ip175c_config_init(struct phy_device *phydev)
 	return 0;
 }
 
-static int ip1001_config_init(struct phy_device *phydev)
+static int ip1xx_reset(struct phy_device *phydev)
 {
-	int err, value;
+	int err, bmcr;
 
 	/* Software Reset PHY */
-	value = phy_read(phydev, MII_BMCR);
-	value |= BMCR_RESET;
-	err = phy_write(phydev, MII_BMCR, value);
+	bmcr = phy_read(phydev, MII_BMCR);
+	bmcr |= BMCR_RESET;
+	err = phy_write(phydev, MII_BMCR, bmcr);
 	if (err < 0)
 		return err;
 
 	do {
-		value = phy_read(phydev, MII_BMCR);
-	} while (value & BMCR_RESET);
+		bmcr = phy_read(phydev, MII_BMCR);
+	} while (bmcr & BMCR_RESET);
 
-	/* Additional delay (2ns) used to adjust RX clock phase
-	 * at GMII/ RGMII interface */
-	value = phy_read(phydev, 16);
-	value |= 0x3;
+	return err;
+}
 
-	return phy_write(phydev, 16, value);
+static int ip1001_config_init(struct phy_device *phydev)
+{
+	int c;
+
+	c = ip1xx_reset(phydev);
+	if (c < 0)
+		return c;
+
+	/* Enable Auto Power Saving mode */
+	c = phy_read(phydev, IP1001_SPEC_CTRL_STATUS_2);
+	c |= IP1001_APS_ON;
+	if (c < 0)
+		return c;
+
+	if (phydev->interface == PHY_INTERFACE_MODE_RGMII) {
+		/* Additional delay (2ns) used to adjust RX clock phase
+		 * at RGMII interface */
+		c = phy_read(phydev, IP10XX_SPEC_CTRL_STATUS);
+		c |= IP1001_PHASE_SEL_MASK;
+		c = phy_write(phydev, IP10XX_SPEC_CTRL_STATUS, c);
+	}
+
+	return c;
+}
+
+static int ip101a_config_init(struct phy_device *phydev)
+{
+	int c;
+
+	c = ip1xx_reset(phydev);
+	if (c < 0)
+		return c;
+
+	/* Enable Auto Power Saving mode */
+	c = phy_read(phydev, IP10XX_SPEC_CTRL_STATUS);
+	c |= IP101A_APS_ON;
+	return c;
 }
 
 static int ip175c_read_status(struct phy_device *phydev)
@@ -158,11 +199,29 @@ static struct phy_driver ip1001_driver = {
 	.driver		= { .owner = THIS_MODULE,},
 };
 
+static struct phy_driver ip101a_driver = {
+	.phy_id		= 0x02430c54,
+	.name		= "ICPlus IP101A",
+	.phy_id_mask	= 0x0ffffff0,
+	.features	= PHY_BASIC_FEATURES | SUPPORTED_Pause |
+			  SUPPORTED_Asym_Pause,
+	.config_init	= &ip101a_config_init,
+	.config_aneg	= &genphy_config_aneg,
+	.read_status	= &genphy_read_status,
+	.suspend	= genphy_suspend,
+	.resume		= genphy_resume,
+	.driver		= { .owner = THIS_MODULE,},
+};
+
 static int __init icplus_init(void)
 {
 	int ret = 0;
 
 	ret = phy_driver_register(&ip1001_driver);
+	if (ret < 0)
+		return -ENODEV;
+
+	ret = phy_driver_register(&ip101a_driver);
 	if (ret < 0)
 		return -ENODEV;
 
@@ -172,6 +231,7 @@ static int __init icplus_init(void)
 static void __exit icplus_exit(void)
 {
 	phy_driver_unregister(&ip1001_driver);
+	phy_driver_unregister(&ip101a_driver);
 	phy_driver_unregister(&ip175c_driver);
 }
 

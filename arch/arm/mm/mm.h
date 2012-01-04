@@ -12,8 +12,8 @@ static inline pmd_t *pmd_off_k(unsigned long virt)
 
 struct mem_type {
 	pteval_t prot_pte;
-	unsigned int prot_l1;
-	unsigned int prot_sect;
+	pmdval_t prot_l1;
+	pmdval_t prot_sect;
 	unsigned int domain;
 };
 

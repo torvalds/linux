@@ -15,10 +15,16 @@ if PLAT_NOMADIK
 
 config HAS_MTU
 	bool
-	select HAVE_SCHED_CLOCK
 	help
 	  Support for Multi Timer Unit. MTU provides access
 	  to multiple interrupt generating programmable
 	  32-bit free running decrementing counters.
+
+config NOMADIK_MTU_SCHED_CLOCK
+	bool
+	depends on HAS_MTU
+	select HAVE_SCHED_CLOCK
+	help
+	  Use the Multi Timer Unit as the sched_clock.
 
 endif

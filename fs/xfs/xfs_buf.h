@@ -105,8 +105,8 @@ typedef struct xfs_buftarg {
 
 	/* per device delwri queue */
 	struct task_struct	*bt_task;
-	struct list_head	bt_delwrite_queue;
-	spinlock_t		bt_delwrite_lock;
+	struct list_head	bt_delwri_queue;
+	spinlock_t		bt_delwri_lock;
 	unsigned long		bt_flags;
 
 	/* LRU control structures */
@@ -175,7 +175,8 @@ extern xfs_buf_t *xfs_buf_get(xfs_buftarg_t *, xfs_off_t, size_t,
 extern xfs_buf_t *xfs_buf_read(xfs_buftarg_t *, xfs_off_t, size_t,
 				xfs_buf_flags_t);
 
-extern xfs_buf_t *xfs_buf_get_empty(size_t, xfs_buftarg_t *);
+struct xfs_buf *xfs_buf_alloc(struct xfs_buftarg *, xfs_off_t, size_t,
+			      xfs_buf_flags_t);
 extern void xfs_buf_set_empty(struct xfs_buf *bp, size_t len);
 extern xfs_buf_t *xfs_buf_get_uncached(struct xfs_buftarg *, size_t, int);
 extern int xfs_buf_associate_memory(xfs_buf_t *, void *, size_t);
@@ -197,14 +198,14 @@ extern void xfs_buf_unlock(xfs_buf_t *);
 	((bp)->b_sema.count <= 0)
 
 /* Buffer Read and Write Routines */
-extern int xfs_bwrite(struct xfs_mount *mp, struct xfs_buf *bp);
-extern void xfs_bdwrite(void *mp, xfs_buf_t *bp);
+extern int xfs_bwrite(struct xfs_buf *bp);
 
 extern void xfsbdstrat(struct xfs_mount *, struct xfs_buf *);
 extern int xfs_bdstrat_cb(struct xfs_buf *);
 
 extern void xfs_buf_ioend(xfs_buf_t *,	int);
 extern void xfs_buf_ioerror(xfs_buf_t *, int);
+extern void xfs_buf_ioerror_alert(struct xfs_buf *, const char *func);
 extern int xfs_buf_iorequest(xfs_buf_t *);
 extern int xfs_buf_iowait(xfs_buf_t *);
 extern void xfs_buf_iomove(xfs_buf_t *, size_t, size_t, void *,
@@ -221,38 +222,22 @@ static inline int xfs_buf_geterror(xfs_buf_t *bp)
 extern xfs_caddr_t xfs_buf_offset(xfs_buf_t *, size_t);
 
 /* Delayed Write Buffer Routines */
-extern void xfs_buf_delwri_dequeue(xfs_buf_t *);
-extern void xfs_buf_delwri_promote(xfs_buf_t *);
+extern void xfs_buf_delwri_queue(struct xfs_buf *);
+extern void xfs_buf_delwri_dequeue(struct xfs_buf *);
+extern void xfs_buf_delwri_promote(struct xfs_buf *);
 
 /* Buffer Daemon Setup Routines */
 extern int xfs_buf_init(void);
 extern void xfs_buf_terminate(void);
-
-static inline const char *
-xfs_buf_target_name(struct xfs_buftarg *target)
-{
-	static char __b[BDEVNAME_SIZE];
-
-	return bdevname(target->bt_bdev, __b);
-}
-
 
 #define XFS_BUF_ZEROFLAGS(bp) \
 	((bp)->b_flags &= ~(XBF_READ|XBF_WRITE|XBF_ASYNC|XBF_DELWRI| \
 			    XBF_SYNCIO|XBF_FUA|XBF_FLUSH))
 
 void xfs_buf_stale(struct xfs_buf *bp);
-#define XFS_BUF_STALE(bp)	xfs_buf_stale(bp);
 #define XFS_BUF_UNSTALE(bp)	((bp)->b_flags &= ~XBF_STALE)
 #define XFS_BUF_ISSTALE(bp)	((bp)->b_flags & XBF_STALE)
-#define XFS_BUF_SUPER_STALE(bp)	do {				\
-					XFS_BUF_STALE(bp);	\
-					xfs_buf_delwri_dequeue(bp);	\
-					XFS_BUF_DONE(bp);	\
-				} while (0)
 
-#define XFS_BUF_DELAYWRITE(bp)		((bp)->b_flags |= XBF_DELWRI)
-#define XFS_BUF_UNDELAYWRITE(bp)	xfs_buf_delwri_dequeue(bp)
 #define XFS_BUF_ISDELAYWRITE(bp)	((bp)->b_flags & XBF_DELWRI)
 
 #define XFS_BUF_DONE(bp)	((bp)->b_flags |= XBF_DONE)
@@ -280,22 +265,15 @@ void xfs_buf_stale(struct xfs_buf *bp);
 #define XFS_BUF_SIZE(bp)		((bp)->b_buffer_length)
 #define XFS_BUF_SET_SIZE(bp, cnt)	((bp)->b_buffer_length = (cnt))
 
-static inline void
-xfs_buf_set_ref(
-	struct xfs_buf	*bp,
-	int		lru_ref)
+static inline void xfs_buf_set_ref(struct xfs_buf *bp, int lru_ref)
 {
 	atomic_set(&bp->b_lru_ref, lru_ref);
 }
-#define XFS_BUF_SET_VTYPE_REF(bp, type, ref)	xfs_buf_set_ref(bp, ref)
-#define XFS_BUF_SET_VTYPE(bp, type)		do { } while (0)
 
 static inline int xfs_buf_ispinned(struct xfs_buf *bp)
 {
 	return atomic_read(&bp->b_pin_count);
 }
-
-#define XFS_BUF_FINISH_IOWAIT(bp)	complete(&bp->b_iowait);
 
 static inline void xfs_buf_relse(xfs_buf_t *bp)
 {
@@ -313,14 +291,7 @@ extern void xfs_wait_buftarg(xfs_buftarg_t *);
 extern int xfs_setsize_buftarg(xfs_buftarg_t *, unsigned int, unsigned int);
 extern int xfs_flush_buftarg(xfs_buftarg_t *, int);
 
-#ifdef CONFIG_KDB_MODULES
-extern struct list_head *xfs_get_buftarg_list(void);
-#endif
-
 #define xfs_getsize_buftarg(buftarg)	block_size((buftarg)->bt_bdev)
 #define xfs_readonly_buftarg(buftarg)	bdev_read_only((buftarg)->bt_bdev)
-
-#define xfs_binval(buftarg)		xfs_flush_buftarg(buftarg, 1)
-#define XFS_bflush(buftarg)		xfs_flush_buftarg(buftarg, 1)
 
 #endif	/* __XFS_BUF_H__ */

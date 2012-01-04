@@ -48,7 +48,7 @@ kernel and userspace, 'connector' is used as the interface for
 communication.
 
 There are currently two userspace log implementations that leverage this
-framework - "clustered_disk" and "clustered_core".  These implementations
+framework - "clustered-disk" and "clustered-core".  These implementations
 provide a cluster-coherent log for shared-storage.  Device-mapper mirroring
 can be used in a shared-storage environment when the cluster log implementations
 are employed.

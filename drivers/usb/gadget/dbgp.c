@@ -4,12 +4,12 @@
  * Copyright (C) 2010 Stephane Duverger
  *
  * Released under the GPLv2.
- *
  */
 
 /* verbose messages */
 #include <linux/kernel.h>
 #include <linux/device.h>
+#include <linux/module.h>
 #include <linux/usb/ch9.h>
 #include <linux/usb/gadget.h>
 

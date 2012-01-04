@@ -356,6 +356,16 @@ config USB_GSPCA_T613
 	  To compile this driver as a module, choose M here: the
 	  module will be called gspca_t613.
 
+config USB_GSPCA_TOPRO
+	tristate "TOPRO USB Camera Driver"
+	depends on VIDEO_V4L2 && USB_GSPCA
+	help
+	  Say Y here if you want support for cameras based on the
+	  TP6800 and TP6810 Topro chips.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called gspca_topro.
+
 config USB_GSPCA_TV8532
 	tristate "TV8532 USB Camera Driver"
 	depends on VIDEO_V4L2 && USB_GSPCA

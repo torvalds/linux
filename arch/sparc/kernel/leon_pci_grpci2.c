@@ -9,7 +9,7 @@
 #include <linux/kernel.h>
 #include <linux/pci.h>
 #include <linux/delay.h>
-#include <linux/module.h>
+#include <linux/export.h>
 #include <asm/io.h>
 #include <asm/leon.h>
 #include <asm/vaddrs.h>

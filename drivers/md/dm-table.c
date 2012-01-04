@@ -54,7 +54,9 @@ struct dm_table {
 	sector_t *highs;
 	struct dm_target *targets;
 
+	struct target_type *immutable_target_type;
 	unsigned integrity_supported:1;
+	unsigned singleton:1;
 
 	/*
 	 * Indicates the rw permissions for the new logical
@@ -740,6 +742,12 @@ int dm_table_add_target(struct dm_table *t, const char *type,
 	char **argv;
 	struct dm_target *tgt;
 
+	if (t->singleton) {
+		DMERR("%s: target type %s must appear alone in table",
+		      dm_device_name(t->md), t->targets->type->name);
+		return -EINVAL;
+	}
+
 	if ((r = check_space(t)))
 		return r;
 
@@ -756,6 +764,36 @@ int dm_table_add_target(struct dm_table *t, const char *type,
 		DMERR("%s: %s: unknown target type", dm_device_name(t->md),
 		      type);
 		return -EINVAL;
+	}
+
+	if (dm_target_needs_singleton(tgt->type)) {
+		if (t->num_targets) {
+			DMERR("%s: target type %s must appear alone in table",
+			      dm_device_name(t->md), type);
+			return -EINVAL;
+		}
+		t->singleton = 1;
+	}
+
+	if (dm_target_always_writeable(tgt->type) && !(t->mode & FMODE_WRITE)) {
+		DMERR("%s: target type %s may not be included in read-only tables",
+		      dm_device_name(t->md), type);
+		return -EINVAL;
+	}
+
+	if (t->immutable_target_type) {
+		if (t->immutable_target_type != tgt->type) {
+			DMERR("%s: immutable target type %s cannot be mixed with other target types",
+			      dm_device_name(t->md), t->immutable_target_type->name);
+			return -EINVAL;
+		}
+	} else if (dm_target_is_immutable(tgt->type)) {
+		if (t->num_targets) {
+			DMERR("%s: immutable target type %s cannot be mixed with other target types",
+			      dm_device_name(t->md), tgt->type->name);
+			return -EINVAL;
+		}
+		t->immutable_target_type = tgt->type;
 	}
 
 	tgt->table = t;
@@ -913,6 +951,11 @@ static int dm_table_set_type(struct dm_table *t)
 unsigned dm_table_get_type(struct dm_table *t)
 {
 	return t->type;
+}
+
+struct target_type *dm_table_get_immutable_target_type(struct dm_table *t)
+{
+	return t->immutable_target_type;
 }
 
 bool dm_table_request_based(struct dm_table *t)
@@ -1299,6 +1342,31 @@ static bool dm_table_discard_zeroes_data(struct dm_table *t)
 	return 1;
 }
 
+static int device_is_nonrot(struct dm_target *ti, struct dm_dev *dev,
+			    sector_t start, sector_t len, void *data)
+{
+	struct request_queue *q = bdev_get_queue(dev->bdev);
+
+	return q && blk_queue_nonrot(q);
+}
+
+static bool dm_table_is_nonrot(struct dm_table *t)
+{
+	struct dm_target *ti;
+	unsigned i = 0;
+
+	/* Ensure that all underlying device are non-rotational. */
+	while (i < dm_table_get_num_targets(t)) {
+		ti = dm_table_get_target(t, i++);
+
+		if (!ti->type->iterate_devices ||
+		    !ti->type->iterate_devices(ti, device_is_nonrot, NULL))
+			return 0;
+	}
+
+	return 1;
+}
+
 void dm_table_set_restrictions(struct dm_table *t, struct request_queue *q,
 			       struct queue_limits *limits)
 {
@@ -1323,6 +1391,11 @@ void dm_table_set_restrictions(struct dm_table *t, struct request_queue *q,
 
 	if (!dm_table_discard_zeroes_data(t))
 		q->limits.discard_zeroes_data = 0;
+
+	if (dm_table_is_nonrot(t))
+		queue_flag_set_unlocked(QUEUE_FLAG_NONROT, q);
+	else
+		queue_flag_clear_unlocked(QUEUE_FLAG_NONROT, q);
 
 	dm_table_set_integrity(t);
 

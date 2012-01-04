@@ -33,4 +33,6 @@
 
 #define ATMEL_PDC_PTSR		0x124	/* Transfer Status Register */
 
+#define ATMEL_PDC_SCND_BUF_OFF	0x10	/* Offset between first and second buffer registers */
+
 #endif

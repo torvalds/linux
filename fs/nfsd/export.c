@@ -16,7 +16,6 @@
 #include <linux/module.h>
 #include <linux/exportfs.h>
 
-#include <linux/nfsd/syscall.h>
 #include <net/ipv6.h>
 
 #include "nfsd.h"
@@ -318,7 +317,6 @@ static void svc_export_put(struct kref *ref)
 	struct svc_export *exp = container_of(ref, struct svc_export, h.ref);
 	path_put(&exp->ex_path);
 	auth_domain_put(exp->ex_client);
-	kfree(exp->ex_pathname);
 	nfsd4_fslocs_free(&exp->ex_fslocs);
 	kfree(exp);
 }
@@ -528,11 +526,6 @@ static int svc_export_parse(struct cache_detail *cd, char *mesg, int mlen)
 
 	exp.ex_client = dom;
 
-	err = -ENOMEM;
-	exp.ex_pathname = kstrdup(buf, GFP_KERNEL);
-	if (!exp.ex_pathname)
-		goto out2;
-
 	/* expiry */
 	err = -EINVAL;
 	exp.h.expiry_time = get_expiry(&mesg);
@@ -613,8 +606,6 @@ out4:
 	nfsd4_fslocs_free(&exp.ex_fslocs);
 	kfree(exp.ex_uuid);
 out3:
-	kfree(exp.ex_pathname);
-out2:
 	path_put(&exp.ex_path);
 out1:
 	auth_domain_put(dom);
@@ -678,7 +669,6 @@ static void svc_export_init(struct cache_head *cnew, struct cache_head *citem)
 	new->ex_client = item->ex_client;
 	new->ex_path.dentry = dget(item->ex_path.dentry);
 	new->ex_path.mnt = mntget(item->ex_path.mnt);
-	new->ex_pathname = NULL;
 	new->ex_fslocs.locations = NULL;
 	new->ex_fslocs.locations_count = 0;
 	new->ex_fslocs.migrated = 0;
@@ -696,8 +686,6 @@ static void export_update(struct cache_head *cnew, struct cache_head *citem)
 	new->ex_fsid = item->ex_fsid;
 	new->ex_uuid = item->ex_uuid;
 	item->ex_uuid = NULL;
-	new->ex_pathname = item->ex_pathname;
-	item->ex_pathname = NULL;
 	new->ex_fslocs.locations = item->ex_fslocs.locations;
 	item->ex_fslocs.locations = NULL;
 	new->ex_fslocs.locations_count = item->ex_fslocs.locations_count;
@@ -1010,7 +998,7 @@ rqst_exp_parent(struct svc_rqst *rqstp, struct path *path)
 	return exp;
 }
 
-static struct svc_export *find_fsidzero_export(struct svc_rqst *rqstp)
+struct svc_export *rqst_find_fsidzero_export(struct svc_rqst *rqstp)
 {
 	u32 fsidv[2];
 
@@ -1030,7 +1018,7 @@ exp_pseudoroot(struct svc_rqst *rqstp, struct svc_fh *fhp)
 	struct svc_export *exp;
 	__be32 rv;
 
-	exp = find_fsidzero_export(rqstp);
+	exp = rqst_find_fsidzero_export(rqstp);
 	if (IS_ERR(exp))
 		return nfserrno(PTR_ERR(exp));
 	rv = fh_compose(fhp, exp, exp->ex_path.dentry, NULL);

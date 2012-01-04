@@ -77,6 +77,11 @@ chipsets:
 .b16 nvc0_gpc_mmio_tail
 .b16 nvc0_tpc_mmio_head
 .b16 nvc3_tpc_mmio_tail
+.b8  0xcf 0 0 0
+.b16 nvc0_gpc_mmio_head
+.b16 nvc0_gpc_mmio_tail
+.b16 nvc0_tpc_mmio_head
+.b16 nvcf_tpc_mmio_tail
 .b8  0 0 0 0
 
 // GPC mmio lists
@@ -134,8 +139,9 @@ mmctx_data(0x000750, 2)
 nvc0_tpc_mmio_tail:
 mmctx_data(0x000758, 1)
 mmctx_data(0x0002c4, 1)
-mmctx_data(0x0004bc, 1)
 mmctx_data(0x0006e0, 1)
+nvcf_tpc_mmio_tail:
+mmctx_data(0x0004bc, 1)
 nvc3_tpc_mmio_tail:
 mmctx_data(0x000544, 1)
 nvc1_tpc_mmio_tail:

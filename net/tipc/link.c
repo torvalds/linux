@@ -332,15 +332,16 @@ struct link *tipc_link_create(struct tipc_node *n_ptr,
 
 	l_ptr->addr = peer;
 	if_name = strchr(b_ptr->name, ':') + 1;
-	sprintf(l_ptr->name, "%u.%u.%u:%s-%u.%u.%u:",
+	sprintf(l_ptr->name, "%u.%u.%u:%s-%u.%u.%u:unknown",
 		tipc_zone(tipc_own_addr), tipc_cluster(tipc_own_addr),
 		tipc_node(tipc_own_addr),
 		if_name,
 		tipc_zone(peer), tipc_cluster(peer), tipc_node(peer));
-		/* note: peer i/f is appended to link name by reset/activate */
+		/* note: peer i/f name is updated by reset/activate message */
 	memcpy(&l_ptr->media_addr, media_addr, sizeof(*media_addr));
 	l_ptr->owner = n_ptr;
 	l_ptr->checkpoint = 1;
+	l_ptr->peer_session = INVALID_SESSION;
 	l_ptr->b_ptr = b_ptr;
 	link_set_supervision_props(l_ptr, b_ptr->media->tolerance);
 	l_ptr->state = RESET_UNKNOWN;
@@ -536,9 +537,6 @@ void tipc_link_stop(struct link *l_ptr)
 	l_ptr->proto_msg_queue = NULL;
 }
 
-/* LINK EVENT CODE IS NOT SUPPORTED AT PRESENT */
-#define link_send_event(fcn, l_ptr, up) do { } while (0)
-
 void tipc_link_reset(struct link *l_ptr)
 {
 	struct sk_buff *buf;
@@ -596,10 +594,6 @@ void tipc_link_reset(struct link *l_ptr)
 	l_ptr->fsm_msg_cnt = 0;
 	l_ptr->stale_count = 0;
 	link_reset_statistics(l_ptr);
-
-	link_send_event(tipc_cfg_link_event, l_ptr, 0);
-	if (!in_own_cluster(l_ptr->addr))
-		link_send_event(tipc_disc_link_event, l_ptr, 0);
 }
 
 
@@ -608,9 +602,6 @@ static void link_activate(struct link *l_ptr)
 	l_ptr->next_in_no = l_ptr->stats.recv_info = 1;
 	tipc_node_link_up(l_ptr->owner, l_ptr);
 	tipc_bearer_add_dest(l_ptr->b_ptr, l_ptr->addr);
-	link_send_event(tipc_cfg_link_event, l_ptr, 1);
-	if (!in_own_cluster(l_ptr->addr))
-		link_send_event(tipc_disc_link_event, l_ptr, 1);
 }
 
 /**
@@ -985,6 +976,51 @@ int tipc_link_send(struct sk_buff *buf, u32 dest, u32 selector)
 }
 
 /*
+ * tipc_link_send_names - send name table entries to new neighbor
+ *
+ * Send routine for bulk delivery of name table messages when contact
+ * with a new neighbor occurs. No link congestion checking is performed
+ * because name table messages *must* be delivered. The messages must be
+ * small enough not to require fragmentation.
+ * Called without any locks held.
+ */
+
+void tipc_link_send_names(struct list_head *message_list, u32 dest)
+{
+	struct tipc_node *n_ptr;
+	struct link *l_ptr;
+	struct sk_buff *buf;
+	struct sk_buff *temp_buf;
+
+	if (list_empty(message_list))
+		return;
+
+	read_lock_bh(&tipc_net_lock);
+	n_ptr = tipc_node_find(dest);
+	if (n_ptr) {
+		tipc_node_lock(n_ptr);
+		l_ptr = n_ptr->active_links[0];
+		if (l_ptr) {
+			/* convert circular list to linear list */
+			((struct sk_buff *)message_list->prev)->next = NULL;
+			link_add_chain_to_outqueue(l_ptr,
+				(struct sk_buff *)message_list->next, 0);
+			tipc_link_push_queue(l_ptr);
+			INIT_LIST_HEAD(message_list);
+		}
+		tipc_node_unlock(n_ptr);
+	}
+	read_unlock_bh(&tipc_net_lock);
+
+	/* discard the messages if they couldn't be sent */
+
+	list_for_each_safe(buf, temp_buf, ((struct sk_buff *)message_list)) {
+		list_del((struct list_head *)buf);
+		buf_discard(buf);
+	}
+}
+
+/*
  * link_send_buf_fast: Entry for data messages where the
  * destination link is known and the header is complete,
  * inclusive total message length. Very time critical.
@@ -1030,9 +1066,6 @@ int tipc_send_buf_fast(struct sk_buff *buf, u32 destnode)
 	int res;
 	u32 selector = msg_origport(buf_msg(buf)) & 1;
 	u32 dummy;
-
-	if (destnode == tipc_own_addr)
-		return tipc_port_recv_msg(buf);
 
 	read_lock_bh(&tipc_net_lock);
 	n_ptr = tipc_node_find(destnode);
@@ -1658,18 +1691,11 @@ void tipc_recv_msg(struct sk_buff *head, struct tipc_bearer *b_ptr)
 			continue;
 		}
 
+		/* Discard unicast link messages destined for another node */
+
 		if (unlikely(!msg_short(msg) &&
 			     (msg_destnode(msg) != tipc_own_addr)))
 			goto cont;
-
-		/* Discard non-routeable messages destined for another node */
-
-		if (unlikely(!msg_isdata(msg) &&
-			     (msg_destnode(msg) != tipc_own_addr))) {
-			if ((msg_user(msg) != CONN_MANAGER) &&
-			    (msg_user(msg) != MSG_FRAGMENTER))
-				goto cont;
-		}
 
 		/* Locate neighboring node that sent message */
 
@@ -1678,17 +1704,24 @@ void tipc_recv_msg(struct sk_buff *head, struct tipc_bearer *b_ptr)
 			goto cont;
 		tipc_node_lock(n_ptr);
 
-		/* Don't talk to neighbor during cleanup after last session */
-
-		if (n_ptr->cleanup_required) {
-			tipc_node_unlock(n_ptr);
-			goto cont;
-		}
-
 		/* Locate unicast link endpoint that should handle message */
 
 		l_ptr = n_ptr->links[b_ptr->identity];
 		if (unlikely(!l_ptr)) {
+			tipc_node_unlock(n_ptr);
+			goto cont;
+		}
+
+		/* Verify that communication with node is currently allowed */
+
+		if ((n_ptr->block_setup & WAIT_PEER_DOWN) &&
+			msg_user(msg) == LINK_PROTOCOL &&
+			(msg_type(msg) == RESET_MSG ||
+					msg_type(msg) == ACTIVATE_MSG) &&
+			!msg_redundant_link(msg))
+			n_ptr->block_setup &= ~WAIT_PEER_DOWN;
+
+		if (n_ptr->block_setup) {
 			tipc_node_unlock(n_ptr);
 			goto cont;
 		}
@@ -1923,6 +1956,12 @@ void tipc_link_send_proto_msg(struct link *l_ptr, u32 msg_typ, int probe_msg,
 
 	if (link_blocked(l_ptr))
 		return;
+
+	/* Abort non-RESET send if communication with node is prohibited */
+
+	if ((l_ptr->owner->block_setup) && (msg_typ != RESET_MSG))
+		return;
+
 	msg_set_type(msg, msg_typ);
 	msg_set_net_plane(msg, l_ptr->b_ptr->net_plane);
 	msg_set_bcast_ack(msg, mod(l_ptr->owner->bclink.last_in));
@@ -2051,9 +2090,19 @@ static void link_recv_proto_msg(struct link *l_ptr, struct sk_buff *buf)
 	case RESET_MSG:
 		if (!link_working_unknown(l_ptr) &&
 		    (l_ptr->peer_session != INVALID_SESSION)) {
-			if (msg_session(msg) == l_ptr->peer_session)
-				break; /* duplicate: ignore */
+			if (less_eq(msg_session(msg), l_ptr->peer_session))
+				break; /* duplicate or old reset: ignore */
 		}
+
+		if (!msg_redundant_link(msg) && (link_working_working(l_ptr) ||
+				link_working_unknown(l_ptr))) {
+			/*
+			 * peer has lost contact -- don't allow peer's links
+			 * to reactivate before we recognize loss & clean up
+			 */
+			l_ptr->owner->block_setup = WAIT_NODE_DOWN;
+		}
+
 		/* fall thru' */
 	case ACTIVATE_MSG:
 		/* Update link settings according other endpoint's values */

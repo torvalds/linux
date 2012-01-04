@@ -3,16 +3,16 @@
 #
 
 snd-usb-audio-objs := 	card.o \
+			clock.o \
+			endpoint.o \
+			format.o \
+			helper.o \
 			mixer.o \
 			mixer_quirks.o \
+			pcm.o \
 			proc.o \
 			quirks.o \
-			format.o \
-			endpoint.o \
-			urb.o \
-			pcm.o \
-			helper.o \
-			clock.o
+			stream.o
 
 snd-usbmidi-lib-objs := midi.o
 

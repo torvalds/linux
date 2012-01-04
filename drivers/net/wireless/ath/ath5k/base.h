@@ -38,19 +38,27 @@
 /*
  * Definitions for the Atheros Wireless LAN controller driver.
  */
-#ifndef _DEV_ATH_ATHVAR_H
-#define _DEV_ATH_ATHVAR_H
+#ifndef _DEV_ATH5K_BASE_H
+#define _DEV_ATH5K_BASE_H
 
-#include <linux/interrupt.h>
-#include <linux/list.h>
-#include <linux/wireless.h>
-#include <linux/if_ether.h>
-#include <linux/rfkill.h>
-#include <linux/workqueue.h>
+struct ieee80211_vif;
+struct ieee80211_hw;
+struct ath5k_hw;
+struct ath5k_txq;
+struct ieee80211_channel;
+struct ath_bus_ops;
+enum nl80211_iftype;
 
-#include "ath5k.h"
-#include "../regd.h"
-#include "../ath.h"
+enum ath5k_srev_type {
+	AR5K_VERSION_MAC,
+	AR5K_VERSION_RAD,
+};
+
+struct ath5k_srev_name {
+	const char		*sr_name;
+	enum ath5k_srev_type	sr_type;
+	u_int			sr_val;
+};
 
 struct ath5k_buf {
 	struct list_head	list;
@@ -65,7 +73,6 @@ struct ath5k_vif {
 	enum nl80211_iftype	opmode;
 	int			bslot;
 	struct ath5k_buf	*bbuf; /* beacon buffer */
-	u8			lladdr[ETH_ALEN];
 };
 
 struct ath5k_vif_iter_data {
@@ -78,8 +85,30 @@ struct ath5k_vif_iter_data {
 	enum nl80211_iftype opmode;
 	int n_stas;
 };
-void ath5k_vif_iter(void *data, u8 *mac, struct ieee80211_vif *vif);
 
+void ath5k_vif_iter(void *data, u8 *mac, struct ieee80211_vif *vif);
+bool ath5k_any_vif_assoc(struct ath5k_hw *ah);
+
+int ath5k_start(struct ieee80211_hw *hw);
+void ath5k_stop(struct ieee80211_hw *hw);
+
+void ath5k_beacon_update_timers(struct ath5k_hw *ah, u64 bc_tsf);
+int ath5k_beacon_update(struct ieee80211_hw *hw, struct ieee80211_vif *vif);
+void ath5k_beacon_config(struct ath5k_hw *ah);
+void ath5k_set_beacon_filter(struct ieee80211_hw *hw, bool enable);
+
+void ath5k_update_bssid_mask_and_opmode(struct ath5k_hw *ah,
+					struct ieee80211_vif *vif);
+int ath5k_chan_set(struct ath5k_hw *ah, struct ieee80211_channel *chan);
+void ath5k_txbuf_free_skb(struct ath5k_hw *ah, struct ath5k_buf *bf);
+void ath5k_rxbuf_free_skb(struct ath5k_hw *ah, struct ath5k_buf *bf);
+void ath5k_tx_queue(struct ieee80211_hw *hw, struct sk_buff *skb,
+		    struct ath5k_txq *txq);
+
+const char *ath5k_chip_name(enum ath5k_srev_type type, u_int16_t val);
+
+int ath5k_init_ah(struct ath5k_hw *ah, const struct ath_bus_ops *bus_ops);
+void ath5k_deinit_ah(struct ath5k_hw *ah);
 
 /* Check whether BSSID mask is supported */
 #define ath5k_hw_hasbssidmask(_ah) (ah->ah_version == AR5K_AR5212)
@@ -87,4 +116,4 @@ void ath5k_vif_iter(void *data, u8 *mac, struct ieee80211_vif *vif);
 /* Check whether virtual EOL is supported */
 #define ath5k_hw_hasveol(_ah) (ah->ah_version != AR5K_AR5210)
 
-#endif
+#endif	/* _DEV_ATH5K_BASE_H */

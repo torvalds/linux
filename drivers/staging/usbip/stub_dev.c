@@ -19,6 +19,7 @@
 
 #include <linux/device.h>
 #include <linux/kthread.h>
+#include <linux/module.h>
 
 #include "usbip_common.h"
 #include "stub.h"
@@ -524,11 +525,11 @@ static void stub_disconnect(struct usb_interface *interface)
 	}
 }
 
-/* 
+/*
  * Presence of pre_reset and post_reset prevents the driver from being unbound
  * when the device is being reset
  */
- 
+
 int stub_pre_reset(struct usb_interface *interface)
 {
 	dev_dbg(&interface->dev, "pre_reset\n");
@@ -548,4 +549,4 @@ struct usb_driver stub_driver = {
 	.id_table	= stub_table,
 	.pre_reset	= stub_pre_reset,
 	.post_reset	= stub_post_reset,
- };
+};

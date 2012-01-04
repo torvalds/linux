@@ -9,7 +9,7 @@
  *
  */
 
-		.macro	addruart, rp, rv
+		.macro	addruart, rp, rv, tmp
 		moveq	\rp, #0x90000000	@ physical base address
 		movne	\rv, #0xF1000000	@ virtual base
 		orr	\rp, \rp, #0x00007000	@ UART0

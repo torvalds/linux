@@ -14,7 +14,7 @@
  * Maintainers: http://www.nslu2-linux.org/
  *
  */
-
+#include <linux/gpio.h>
 #include <linux/if_ether.h>
 #include <linux/irq.h>
 #include <linux/serial.h>
@@ -27,7 +27,6 @@
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
 #include <asm/mach/flash.h>
-#include <asm/gpio.h>
 
 #define FSG_SDA_PIN		12
 #define FSG_SCL_PIN		13
@@ -273,7 +272,7 @@ MACHINE_START(FSG, "Freecom FSG-3")
 	.map_io		= ixp4xx_map_io,
 	.init_irq	= ixp4xx_init_irq,
 	.timer		= &ixp4xx_timer,
-	.boot_params	= 0x0100,
+	.atag_offset	= 0x100,
 	.init_machine	= fsg_init,
 #if defined(CONFIG_PCI)
 	.dma_zone_size	= SZ_64M,

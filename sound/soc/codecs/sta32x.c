@@ -524,13 +524,17 @@ static int sta32x_hw_params(struct snd_pcm_substream *substream,
 	rate = params_rate(params);
 	pr_debug("rate: %u\n", rate);
 	for (i = 0; i < ARRAY_SIZE(interpolation_ratios); i++)
-		if (interpolation_ratios[i].fs == rate)
+		if (interpolation_ratios[i].fs == rate) {
 			ir = interpolation_ratios[i].ir;
+			break;
+		}
 	if (ir < 0)
 		return -EINVAL;
 	for (i = 0; mclk_ratios[ir][i].ratio; i++)
-		if (mclk_ratios[ir][i].ratio * rate == sta32x->mclk)
+		if (mclk_ratios[ir][i].ratio * rate == sta32x->mclk) {
 			mcs = mclk_ratios[ir][i].mcs;
+			break;
+		}
 	if (mcs < 0)
 		return -EINVAL;
 
@@ -752,25 +756,19 @@ static int sta32x_probe(struct snd_soc_codec *codec)
 		return ret;
 	}
 
-	/* read reg reset values into cache */
-	for (i = 0; i < STA32X_REGISTER_COUNT; i++)
-		snd_soc_cache_write(codec, i, sta32x_regs[i]);
-
-	/* preserve reset values of reserved register bits */
-	snd_soc_cache_write(codec, STA32X_CONFC,
-			    codec->hw_read(codec, STA32X_CONFC));
-	snd_soc_cache_write(codec, STA32X_CONFE,
-			    codec->hw_read(codec, STA32X_CONFE));
-	snd_soc_cache_write(codec, STA32X_CONFF,
-			    codec->hw_read(codec, STA32X_CONFF));
-	snd_soc_cache_write(codec, STA32X_MMUTE,
-			    codec->hw_read(codec, STA32X_MMUTE));
-	snd_soc_cache_write(codec, STA32X_AUTO1,
-			    codec->hw_read(codec, STA32X_AUTO1));
-	snd_soc_cache_write(codec, STA32X_AUTO3,
-			    codec->hw_read(codec, STA32X_AUTO3));
-	snd_soc_cache_write(codec, STA32X_C3CFG,
-			    codec->hw_read(codec, STA32X_C3CFG));
+	/* Chip documentation explicitly requires that the reset values
+	 * of reserved register bits are left untouched.
+	 * Write the register default value to cache for reserved registers,
+	 * so the write to the these registers are suppressed by the cache
+	 * restore code when it skips writes of default registers.
+	 */
+	snd_soc_cache_write(codec, STA32X_CONFC, 0xc2);
+	snd_soc_cache_write(codec, STA32X_CONFE, 0xc2);
+	snd_soc_cache_write(codec, STA32X_CONFF, 0x5c);
+	snd_soc_cache_write(codec, STA32X_MMUTE, 0x10);
+	snd_soc_cache_write(codec, STA32X_AUTO1, 0x60);
+	snd_soc_cache_write(codec, STA32X_AUTO3, 0x00);
+	snd_soc_cache_write(codec, STA32X_C3CFG, 0x40);
 
 	/* FIXME enable thermal warning adjustment and recovery  */
 	snd_soc_update_bits(codec, STA32X_CONFA,
@@ -808,6 +806,7 @@ static int sta32x_remove(struct snd_soc_codec *codec)
 {
 	struct sta32x_priv *sta32x = snd_soc_codec_get_drvdata(codec);
 
+	sta32x_set_bias_level(codec, SND_SOC_BIAS_OFF);
 	regulator_bulk_disable(ARRAY_SIZE(sta32x->supplies), sta32x->supplies);
 	regulator_bulk_free(ARRAY_SIZE(sta32x->supplies), sta32x->supplies);
 
@@ -832,6 +831,7 @@ static const struct snd_soc_codec_driver sta32x_codec = {
 	.resume =		sta32x_resume,
 	.reg_cache_size =	STA32X_REGISTER_COUNT,
 	.reg_word_size =	sizeof(u8),
+	.reg_cache_default =	sta32x_regs,
 	.volatile_register =	sta32x_reg_is_volatile,
 	.set_bias_level =	sta32x_set_bias_level,
 	.controls =		sta32x_snd_controls,
@@ -867,18 +867,8 @@ static __devinit int sta32x_i2c_probe(struct i2c_client *i2c,
 static __devexit int sta32x_i2c_remove(struct i2c_client *client)
 {
 	struct sta32x_priv *sta32x = i2c_get_clientdata(client);
-	struct snd_soc_codec *codec = sta32x->codec;
 
-	if (codec)
-		sta32x_set_bias_level(codec, SND_SOC_BIAS_OFF);
-
-	regulator_bulk_free(ARRAY_SIZE(sta32x->supplies), sta32x->supplies);
-
-	if (codec) {
-		snd_soc_unregister_codec(&client->dev);
-		snd_soc_codec_set_drvdata(codec, NULL);
-	}
-
+	snd_soc_unregister_codec(&client->dev);
 	kfree(sta32x);
 	return 0;
 }

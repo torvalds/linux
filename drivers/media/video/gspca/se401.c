@@ -23,6 +23,8 @@
  *
  */
 
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
 #define MODULE_NAME "se401"
 
 #define BULK_SIZE 4096
@@ -144,8 +146,8 @@ static void se401_write_req(struct gspca_dev *gspca_dev, u16 req, u16 value,
 			      value, 0, NULL, 0, 1000);
 	if (err < 0) {
 		if (!silent)
-			err("write req failed req %#04x val %#04x error %d",
-			    req, value, err);
+			pr_err("write req failed req %#04x val %#04x error %d\n",
+			       req, value, err);
 		gspca_dev->usb_err = err;
 	}
 }
@@ -158,7 +160,7 @@ static void se401_read_req(struct gspca_dev *gspca_dev, u16 req, int silent)
 		return;
 
 	if (USB_BUF_SZ < READ_REQ_SIZE) {
-		err("USB_BUF_SZ too small!!");
+		pr_err("USB_BUF_SZ too small!!\n");
 		gspca_dev->usb_err = -ENOBUFS;
 		return;
 	}
@@ -169,7 +171,8 @@ static void se401_read_req(struct gspca_dev *gspca_dev, u16 req, int silent)
 			      0, 0, gspca_dev->usb_buf, READ_REQ_SIZE, 1000);
 	if (err < 0) {
 		if (!silent)
-			err("read req failed req %#04x error %d", req, err);
+			pr_err("read req failed req %#04x error %d\n",
+			       req, err);
 		gspca_dev->usb_err = err;
 	}
 }
@@ -188,8 +191,8 @@ static void se401_set_feature(struct gspca_dev *gspca_dev,
 			      USB_DIR_OUT | USB_TYPE_VENDOR | USB_RECIP_DEVICE,
 			      param, selector, NULL, 0, 1000);
 	if (err < 0) {
-		err("set feature failed sel %#04x param %#04x error %d",
-		    selector, param, err);
+		pr_err("set feature failed sel %#04x param %#04x error %d\n",
+		       selector, param, err);
 		gspca_dev->usb_err = err;
 	}
 }
@@ -202,7 +205,7 @@ static int se401_get_feature(struct gspca_dev *gspca_dev, u16 selector)
 		return gspca_dev->usb_err;
 
 	if (USB_BUF_SZ < 2) {
-		err("USB_BUF_SZ too small!!");
+		pr_err("USB_BUF_SZ too small!!\n");
 		gspca_dev->usb_err = -ENOBUFS;
 		return gspca_dev->usb_err;
 	}
@@ -213,7 +216,8 @@ static int se401_get_feature(struct gspca_dev *gspca_dev, u16 selector)
 			      USB_DIR_IN | USB_TYPE_VENDOR | USB_RECIP_DEVICE,
 			      0, selector, gspca_dev->usb_buf, 2, 1000);
 	if (err < 0) {
-		err("get feature failed sel %#04x error %d", selector, err);
+		pr_err("get feature failed sel %#04x error %d\n",
+		       selector, err);
 		gspca_dev->usb_err = err;
 		return err;
 	}
@@ -300,21 +304,21 @@ static int sd_config(struct gspca_dev *gspca_dev,
 		return gspca_dev->usb_err;
 
 	if (cd[1] != 0x41) {
-		err("Wrong descriptor type");
+		pr_err("Wrong descriptor type\n");
 		return -ENODEV;
 	}
 
 	if (!(cd[2] & SE401_FORMAT_BAYER)) {
-		err("Bayer format not supported!");
+		pr_err("Bayer format not supported!\n");
 		return -ENODEV;
 	}
 
 	if (cd[3])
-		info("ExtraFeatures: %d", cd[3]);
+		pr_info("ExtraFeatures: %d\n", cd[3]);
 
 	n = cd[4] | (cd[5] << 8);
 	if (n > MAX_MODES) {
-		err("Too many frame sizes");
+		pr_err("Too many frame sizes\n");
 		return -ENODEV;
 	}
 
@@ -353,15 +357,16 @@ static int sd_config(struct gspca_dev *gspca_dev,
 			sd->fmts[i].pixelformat = V4L2_PIX_FMT_SBGGR8;
 			sd->fmts[i].bytesperline = widths[i];
 			sd->fmts[i].sizeimage = widths[i] * heights[i];
-			info("Frame size: %dx%d bayer", widths[i], heights[i]);
+			pr_info("Frame size: %dx%d bayer\n",
+				widths[i], heights[i]);
 		} else {
 			/* Found a match use janggu compression */
 			sd->fmts[i].pixelformat = V4L2_PIX_FMT_SE401;
 			sd->fmts[i].bytesperline = 0;
 			sd->fmts[i].sizeimage = widths[i] * heights[i] * 3;
-			info("Frame size: %dx%d 1/%dth janggu",
-			     widths[i], heights[i],
-			     sd->fmts[i].priv * sd->fmts[i].priv);
+			pr_info("Frame size: %dx%d 1/%dth janggu\n",
+				widths[i], heights[i],
+				sd->fmts[i].priv * sd->fmts[i].priv);
 		}
 	}
 
@@ -571,11 +576,12 @@ static void sd_pkt_scan_janggu(struct gspca_dev *gspca_dev, u8 *data, int len)
 		plen   = ((bits + 47) >> 4) << 1;
 		/* Sanity checks */
 		if (plen > 1024) {
-			err("invalid packet len %d restarting stream", plen);
+			pr_err("invalid packet len %d restarting stream\n",
+			       plen);
 			goto error;
 		}
 		if (info == 3) {
-			err("unknown frame info value restarting stream");
+			pr_err("unknown frame info value restarting stream\n");
 			goto error;
 		}
 
@@ -599,8 +605,8 @@ static void sd_pkt_scan_janggu(struct gspca_dev *gspca_dev, u8 *data, int len)
 			break;
 		case 1: /* EOF */
 			if (sd->pixels_read != imagesize) {
-				err("frame size %d expected %d",
-				    sd->pixels_read, imagesize);
+				pr_err("frame size %d expected %d\n",
+				       sd->pixels_read, imagesize);
 				goto error;
 			}
 			sd_complete_frame(gspca_dev, sd->packet, plen);

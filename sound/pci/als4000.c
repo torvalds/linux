@@ -69,7 +69,7 @@
 #include <linux/init.h>
 #include <linux/pci.h>
 #include <linux/gameport.h>
-#include <linux/moduleparam.h>
+#include <linux/module.h>
 #include <linux/dma-mapping.h>
 #include <sound/core.h>
 #include <sound/pcm.h>
@@ -931,8 +931,9 @@ static int __devinit snd_card_als4000_probe(struct pci_dev *pci,
 
 	if ((err = snd_mpu401_uart_new( card, 0, MPU401_HW_ALS4000,
 					iobase + ALS4K_IOB_30_MIDI_DATA,
-					MPU401_INFO_INTEGRATED,
-					pci->irq, 0, &chip->rmidi)) < 0) {
+					MPU401_INFO_INTEGRATED |
+					MPU401_INFO_IRQ_HOOK,
+					-1, &chip->rmidi)) < 0) {
 		printk(KERN_ERR "als4000: no MPU-401 device at 0x%lx?\n",
 				iobase + ALS4K_IOB_30_MIDI_DATA);
 		goto out_err;

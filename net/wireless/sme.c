@@ -10,6 +10,7 @@
 #include <linux/slab.h>
 #include <linux/workqueue.h>
 #include <linux/wireless.h>
+#include <linux/export.h>
 #include <net/iw_handler.h>
 #include <net/cfg80211.h>
 #include <net/rtnetlink.h>
@@ -110,17 +111,22 @@ static int cfg80211_conn_scan(struct wireless_dev *wdev)
 	else {
 		int i = 0, j;
 		enum ieee80211_band band;
+		struct ieee80211_supported_band *bands;
+		struct ieee80211_channel *channel;
 
 		for (band = 0; band < IEEE80211_NUM_BANDS; band++) {
-			if (!wdev->wiphy->bands[band])
+			bands = wdev->wiphy->bands[band];
+			if (!bands)
 				continue;
-			for (j = 0; j < wdev->wiphy->bands[band]->n_channels;
-			     i++, j++)
-				request->channels[i] =
-					&wdev->wiphy->bands[band]->channels[j];
-			request->rates[band] =
-				(1 << wdev->wiphy->bands[band]->n_bitrates) - 1;
+			for (j = 0; j < bands->n_channels; j++) {
+				channel = &bands->channels[j];
+				if (channel->flags & IEEE80211_CHAN_DISABLED)
+					continue;
+				request->channels[i++] = channel;
+			}
+			request->rates[band] = (1 << bands->n_bitrates) - 1;
 		}
+		n_channels = i;
 	}
 	request->n_channels = n_channels;
 	request->ssids = (void *)&request->channels[n_channels];

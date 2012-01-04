@@ -868,9 +868,6 @@ static bool ar9002_hw_init_cal(struct ath_hw *ah, struct ath9k_channel *chan)
 	/* Do PA Calibration */
 	ar9002_hw_pa_cal(ah, true);
 
-	/* Do NF Calibration after DC offset and other calibrations */
-	ath9k_hw_start_nfcal(ah, true);
-
 	if (ah->caldata)
 		ah->caldata->nfcal_pending = true;
 

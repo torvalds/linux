@@ -448,9 +448,7 @@ static struct i2c_board_info migor_i2c_camera[] = {
 	},
 };
 
-static struct ov772x_camera_info ov7725_info = {
-	.flags		= OV772X_FLAG_8BIT,
-};
+static struct ov772x_camera_info ov7725_info;
 
 static struct soc_camera_link ov7725_link = {
 	.power		= ov7725_power,

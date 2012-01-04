@@ -8,6 +8,9 @@
  *
  */
 
+#ifndef __USBIP_VHCI_H
+#define __USBIP_VHCI_H
+
 #include <linux/device.h>
 #include <linux/list.h>
 #include <linux/spinlock.h>
@@ -129,3 +132,5 @@ static inline struct device *vhci_dev(struct vhci_hcd *vhci)
 {
 	return vhci_to_hcd(vhci)->self.controller;
 }
+
+#endif /* __USBIP_VHCI_H */

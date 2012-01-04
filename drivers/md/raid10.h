@@ -1,10 +1,8 @@
 #ifndef _RAID10_H
 #define _RAID10_H
 
-typedef struct mirror_info mirror_info_t;
-
 struct mirror_info {
-	mdk_rdev_t	*rdev;
+	struct md_rdev	*rdev;
 	sector_t	head_position;
 	int		recovery_disabled;	/* matches
 						 * mddev->recovery_disabled
@@ -13,11 +11,9 @@ struct mirror_info {
 						 */
 };
 
-typedef struct r10bio_s r10bio_t;
-
-struct r10_private_data_s {
-	mddev_t			*mddev;
-	mirror_info_t		*mirrors;
+struct r10conf {
+	struct mddev		*mddev;
+	struct mirror_info	*mirrors;
 	int			raid_disks;
 	spinlock_t		device_lock;
 
@@ -46,7 +42,7 @@ struct r10_private_data_s {
 	struct list_head	retry_list;
 	/* queue pending writes and submit them on unplug */
 	struct bio_list		pending_bio_list;
-
+	int			pending_count;
 
 	spinlock_t		resync_lock;
 	int nr_pending;
@@ -68,10 +64,8 @@ struct r10_private_data_s {
 	/* When taking over an array from a different personality, we store
 	 * the new thread here until we fully activate the array.
 	 */
-	struct mdk_thread_s	*thread;
+	struct md_thread	*thread;
 };
-
-typedef struct r10_private_data_s conf_t;
 
 /*
  * this is our 'private' RAID10 bio.
@@ -80,14 +74,14 @@ typedef struct r10_private_data_s conf_t;
  * for this RAID10 operation, and about their status:
  */
 
-struct r10bio_s {
+struct r10bio {
 	atomic_t		remaining; /* 'have we finished' count,
 					    * used from IRQ handlers
 					    */
 	sector_t		sector;	/* virtual sector number */
 	int			sectors;
 	unsigned long		state;
-	mddev_t			*mddev;
+	struct mddev		*mddev;
 	/*
 	 * original bio going to /dev/mdx
 	 */

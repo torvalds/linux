@@ -5,6 +5,7 @@
 #include <linux/module.h>
 #include <linux/mm.h>
 #include <linux/hugetlb.h>
+#include <asm/cacheflush.h>
 #include <asm/pgtable.h>
 
 static void change_page_attr(unsigned long addr, int numpages,

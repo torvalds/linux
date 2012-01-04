@@ -439,10 +439,10 @@ cause autosuspends to fail with -EBUSY if the driver needs to use the
 device.
 
 External suspend calls should never be allowed to fail in this way,
-only autosuspend calls.  The driver can tell them apart by checking
-the PM_EVENT_AUTO bit in the message.event argument to the suspend
-method; this bit will be set for internal PM events (autosuspend) and
-clear for external PM events.
+only autosuspend calls.  The driver can tell them apart by applying
+the PMSG_IS_AUTO() macro to the message argument to the suspend
+method; it will return True for internal PM events (autosuspend) and
+False for external PM events.
 
 
 	Mutual exclusion
@@ -487,3 +487,29 @@ succeed, it may still remain active and thus cause the system to
 resume as soon as the system suspend is complete.  Or the remote
 wakeup may fail and get lost.  Which outcome occurs depends on timing
 and on the hardware and firmware design.
+
+
+	xHCI hardware link PM
+	---------------------
+
+xHCI host controller provides hardware link power management to usb2.0
+(xHCI 1.0 feature) and usb3.0 devices which support link PM. By
+enabling hardware LPM, the host can automatically put the device into
+lower power state(L1 for usb2.0 devices, or U1/U2 for usb3.0 devices),
+which state device can enter and resume very quickly.
+
+The user interface for controlling USB2 hardware LPM is located in the
+power/ subdirectory of each USB device's sysfs directory, that is, in
+/sys/bus/usb/devices/.../power/ where "..." is the device's ID. The
+relevant attribute files is usb2_hardware_lpm.
+
+	power/usb2_hardware_lpm
+
+		When a USB2 device which support LPM is plugged to a
+		xHCI host root hub which support software LPM, the
+		host will run a software LPM test for it; if the device
+		enters L1 state and resume successfully and the host
+		supports USB2 hardware LPM, this file will show up and
+		driver will enable hardware LPM	for the device. You
+		can write y/Y/1 or n/N/0 to the file to	enable/disable
+		USB2 hardware LPM manually. This is for	test purpose mainly.

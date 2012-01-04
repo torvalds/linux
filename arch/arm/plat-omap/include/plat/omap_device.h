@@ -68,7 +68,7 @@ extern struct device omap_device_parent;
  *
  */
 struct omap_device {
-	struct platform_device		pdev;
+	struct platform_device		*pdev;
 	struct omap_hwmod		**hwmods;
 	struct omap_device_pm_latency	*pm_lats;
 	u32				dev_wakeup_lat;
@@ -88,31 +88,26 @@ int omap_device_shutdown(struct platform_device *pdev);
 
 /* Core code interface */
 
-int omap_device_count_resources(struct omap_device *od);
-int omap_device_fill_resources(struct omap_device *od, struct resource *res);
-
-struct omap_device *omap_device_build(const char *pdev_name, int pdev_id,
+struct platform_device *omap_device_build(const char *pdev_name, int pdev_id,
 				      struct omap_hwmod *oh, void *pdata,
 				      int pdata_len,
 				      struct omap_device_pm_latency *pm_lats,
 				      int pm_lats_cnt, int is_early_device);
 
-struct omap_device *omap_device_build_ss(const char *pdev_name, int pdev_id,
+struct platform_device *omap_device_build_ss(const char *pdev_name, int pdev_id,
 					 struct omap_hwmod **oh, int oh_cnt,
 					 void *pdata, int pdata_len,
 					 struct omap_device_pm_latency *pm_lats,
 					 int pm_lats_cnt, int is_early_device);
 
-int omap_device_register(struct omap_device *od);
-int omap_early_device_register(struct omap_device *od);
-
 void __iomem *omap_device_get_rt_va(struct omap_device *od);
+struct device *omap_device_get_by_hwmod_name(const char *oh_name);
 
 /* OMAP PM interface */
 int omap_device_align_pm_lat(struct platform_device *pdev,
 			     u32 new_wakeup_lat_limit);
 struct powerdomain *omap_device_get_pwrdm(struct omap_device *od);
-u32 omap_device_get_context_loss_count(struct platform_device *pdev);
+int omap_device_get_context_loss_count(struct platform_device *pdev);
 
 /* Other */
 
@@ -121,11 +116,6 @@ int omap_device_enable_hwmods(struct omap_device *od);
 
 int omap_device_disable_clocks(struct omap_device *od);
 int omap_device_enable_clocks(struct omap_device *od);
-
-static inline void omap_device_disable_idle_on_suspend(struct omap_device *od)
-{
-	od->flags |= OMAP_DEVICE_NO_IDLE_ON_SUSPEND;
-}
 
 /*
  * Entries should be kept in latency order ascending
@@ -157,6 +147,17 @@ struct omap_device_pm_latency {
 #define OMAP_DEVICE_LATENCY_AUTO_ADJUST BIT(1)
 
 /* Get omap_device pointer from platform_device pointer */
-#define to_omap_device(x) container_of((x), struct omap_device, pdev)
+static inline struct omap_device *to_omap_device(struct platform_device *pdev)
+{
+	return pdev ? pdev->archdata.od : NULL;
+}
+
+static inline
+void omap_device_disable_idle_on_suspend(struct platform_device *pdev)
+{
+	struct omap_device *od = to_omap_device(pdev);
+
+	od->flags |= OMAP_DEVICE_NO_IDLE_ON_SUSPEND;
+}
 
 #endif

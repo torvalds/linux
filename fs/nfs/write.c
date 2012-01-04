@@ -20,6 +20,7 @@
 #include <linux/nfs_mount.h>
 #include <linux/nfs_page.h>
 #include <linux/backing-dev.h>
+#include <linux/export.h>
 
 #include <asm/uaccess.h>
 
@@ -390,7 +391,7 @@ static int nfs_inode_add_request(struct inode *inode, struct nfs_page *req)
 	error = radix_tree_insert(&nfsi->nfs_page_tree, req->wb_index, req);
 	BUG_ON(error);
 	if (!nfsi->npages && nfs_have_delegation(inode, FMODE_WRITE))
-		nfsi->change_attr++;
+		inode->i_version++;
 	set_bit(PG_MAPPED, &req->wb_flags);
 	SetPagePrivate(req->wb_page);
 	set_page_private(req->wb_page, (unsigned long)req);
@@ -428,7 +429,6 @@ static void
 nfs_mark_request_dirty(struct nfs_page *req)
 {
 	__set_page_dirty_nobuffers(req->wb_page);
-	__mark_inode_dirty(req->wb_page->mapping->host, I_DIRTY_DATASYNC);
 }
 
 #if defined(CONFIG_NFS_V3) || defined(CONFIG_NFS_V4)
@@ -762,6 +762,8 @@ int nfs_updatepage(struct file *file, struct page *page,
 	status = nfs_writepage_setup(ctx, page, offset, count);
 	if (status < 0)
 		nfs_set_pageerror(page);
+	else
+		__set_page_dirty_nobuffers(page);
 
 	dprintk("NFS:       nfs_updatepage returns %d (isize %lld)\n",
 			status, (long long)i_size_read(inode));
@@ -1010,7 +1012,6 @@ static int nfs_flush_one(struct nfs_pageio_descriptor *desc, struct list_head *r
 		req = nfs_list_entry(head->next);
 		nfs_list_remove_request(req);
 		nfs_list_add_request(req, &data->pages);
-		ClearPageError(req->wb_page);
 		*pages++ = req->wb_page;
 	}
 	req = nfs_list_entry(data->pages.next);
@@ -1165,7 +1166,13 @@ static void nfs_writeback_done_full(struct rpc_task *task, void *calldata)
 static void nfs_writeback_release_full(void *calldata)
 {
 	struct nfs_write_data	*data = calldata;
-	int status = data->task.tk_status;
+	int ret, status = data->task.tk_status;
+	struct nfs_pageio_descriptor pgio;
+
+	if (data->pnfs_error) {
+		nfs_pageio_init_write_mds(&pgio, data->inode, FLUSH_STABLE);
+		pgio.pg_recoalesce = 1;
+	}
 
 	/* Update attributes as result of writeback. */
 	while (!list_empty(&data->pages)) {
@@ -1180,6 +1187,11 @@ static void nfs_writeback_release_full(void *calldata)
 			(long long)NFS_FILEID(req->wb_context->dentry->d_inode),
 			req->wb_bytes,
 			(long long)req_offset(req));
+
+		if (data->pnfs_error) {
+			dprintk(", pnfs error = %d\n", data->pnfs_error);
+			goto next;
+		}
 
 		if (status < 0) {
 			nfs_set_pageerror(page);
@@ -1200,7 +1212,19 @@ remove_request:
 	next:
 		nfs_clear_page_tag_locked(req);
 		nfs_end_page_writeback(page);
+		if (data->pnfs_error) {
+			lock_page(page);
+			nfs_pageio_cond_complete(&pgio, page->index);
+			ret = nfs_page_async_flush(&pgio, page, 0);
+			if (ret) {
+				nfs_set_pageerror(page);
+				dprintk("rewrite to MDS error = %d\n", ret);
+			}
+			unlock_page(page);
+		}
 	}
+	if (data->pnfs_error)
+		nfs_pageio_complete(&pgio);
 	nfs_writedata_release(calldata);
 }
 
@@ -1220,7 +1244,6 @@ void nfs_writeback_done(struct rpc_task *task, struct nfs_write_data *data)
 {
 	struct nfs_writeargs	*argp = &data->args;
 	struct nfs_writeres	*resp = &data->res;
-	struct nfs_server	*server = NFS_SERVER(data->inode);
 	int status;
 
 	dprintk("NFS: %5u nfs_writeback_done (status %d)\n",
@@ -1254,7 +1277,7 @@ void nfs_writeback_done(struct rpc_task *task, struct nfs_write_data *data)
 		if (time_before(complain, jiffies)) {
 			dprintk("NFS:       faulty NFS server %s:"
 				" (committed = %d) != (stable = %d)\n",
-				server->nfs_client->cl_hostname,
+				NFS_SERVER(data->inode)->nfs_client->cl_hostname,
 				resp->verf->committed, argp->stable);
 			complain = jiffies + 300 * HZ;
 		}
@@ -1281,7 +1304,7 @@ void nfs_writeback_done(struct rpc_task *task, struct nfs_write_data *data)
 				 */
 				argp->stable = NFS_FILE_SYNC;
 			}
-			nfs_restart_rpc(task, server->nfs_client);
+			rpc_restart_call_prepare(task);
 			return;
 		}
 		if (time_before(complain, jiffies)) {
@@ -1553,6 +1576,10 @@ static int nfs_commit_unstable_pages(struct inode *inode, struct writeback_contr
 	int flags = FLUSH_SYNC;
 	int ret = 0;
 
+	/* no commits means nothing needs to be done */
+	if (!nfsi->ncommit)
+		return ret;
+
 	if (wbc->sync_mode == WB_SYNC_NONE) {
 		/* Don't commit yet if this is a non-blocking flush and there
 		 * are a lot of outstanding writes for this mapping.
@@ -1686,34 +1713,20 @@ out_error:
 int nfs_migrate_page(struct address_space *mapping, struct page *newpage,
 		struct page *page)
 {
-	struct nfs_page *req;
-	int ret;
+	/*
+	 * If PagePrivate is set, then the page is currently associated with
+	 * an in-progress read or write request. Don't try to migrate it.
+	 *
+	 * FIXME: we could do this in principle, but we'll need a way to ensure
+	 *        that we can safely release the inode reference while holding
+	 *        the page lock.
+	 */
+	if (PagePrivate(page))
+		return -EBUSY;
 
 	nfs_fscache_release_page(page, GFP_KERNEL);
 
-	req = nfs_find_and_lock_request(page, false);
-	ret = PTR_ERR(req);
-	if (IS_ERR(req))
-		goto out;
-
-	ret = migrate_page(mapping, newpage, page);
-	if (!req)
-		goto out;
-	if (ret)
-		goto out_unlock;
-	page_cache_get(newpage);
-	spin_lock(&mapping->host->i_lock);
-	req->wb_page = newpage;
-	SetPagePrivate(newpage);
-	set_page_private(newpage, (unsigned long)req);
-	ClearPagePrivate(page);
-	set_page_private(page, 0);
-	spin_unlock(&mapping->host->i_lock);
-	page_cache_release(page);
-out_unlock:
-	nfs_clear_page_tag_locked(req);
-out:
-	return ret;
+	return migrate_page(mapping, newpage, page);
 }
 #endif
 

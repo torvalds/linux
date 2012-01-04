@@ -14,7 +14,7 @@
 * it under the terms of the GNU General Public License version 2 as
 * published by the Free Software Foundation.
 */
-
+#include <linux/gpio.h>
 #include <linux/kernel.h>
 #include <linux/init.h>
 #include <linux/input.h>
@@ -26,13 +26,13 @@
 #include <linux/types.h>
 #include <linux/i2c.h>
 #include <linux/errno.h>
+#include <linux/export.h>
 
 #include <mach/hardware.h>
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
 #include <asm/mach/map.h>
 
-#include <mach/gpio.h>
 #include <plat/flash.h>
 #include <plat/mux.h>
 #include <plat/dma.h>
@@ -407,24 +407,13 @@ static void __init omap_sx1_init(void)
 	gpio_direction_output(11, 0);	/*A_SWITCH = 0 */
 	gpio_direction_output(15, 0);	/*A_USB_ON = 0 */
 }
-/*----------------------------------------*/
-static void __init omap_sx1_init_irq(void)
-{
-	omap1_init_common_hw();
-	omap1_init_irq();
-}
-/*----------------------------------------*/
-
-static void __init omap_sx1_map_io(void)
-{
-	omap1_map_common_io();
-}
 
 MACHINE_START(SX1, "OMAP310 based Siemens SX1")
-	.boot_params	= 0x10000100,
-	.map_io		= omap_sx1_map_io,
+	.atag_offset	= 0x100,
+	.map_io		= omap15xx_map_io,
+	.init_early     = omap1_init_early,
 	.reserve	= omap_reserve,
-	.init_irq	= omap_sx1_init_irq,
+	.init_irq	= omap1_init_irq,
 	.init_machine	= omap_sx1_init,
 	.timer		= &omap1_timer,
 MACHINE_END

@@ -23,6 +23,7 @@
 
 #define GET_SHADOW_VCPU(reg)    \
 	mr	reg, r13
+#define MTMSR_EERI(reg)		mtmsrd	(reg),1
 
 #elif defined(CONFIG_PPC_BOOK3S_32)
 
@@ -30,6 +31,7 @@
 	tophys(reg, r2);       			\
 	lwz     reg, (THREAD + THREAD_KVM_SVCPU)(reg);	\
 	tophys(reg, reg)
+#define MTMSR_EERI(reg)		mtmsr	(reg)
 
 #endif
 
@@ -57,10 +59,12 @@ kvmppc_handler_trampoline_enter:
 	/* Required state:
 	 *
 	 * MSR = ~IR|DR
-	 * R13 = PACA
 	 * R1 = host R1
 	 * R2 = host R2
-	 * R10 = guest MSR
+	 * R4 = guest shadow MSR
+	 * R5 = normal host MSR
+	 * R6 = current host MSR (EE, IR, DR off)
+	 * LR = highmem guest exit code
 	 * all other volatile GPRS = free
 	 * SVCPU[CR] = guest CR
 	 * SVCPU[XER] = guest XER
@@ -71,14 +75,14 @@ kvmppc_handler_trampoline_enter:
 	/* r3 = shadow vcpu */
 	GET_SHADOW_VCPU(r3)
 
+	/* Save guest exit handler address and MSR */
+	mflr	r0
+	PPC_STL	r0, HSTATE_VMHANDLER(r3)
+	PPC_STL	r5, HSTATE_HOST_MSR(r3)
+
 	/* Save R1/R2 in the PACA (64-bit) or shadow_vcpu (32-bit) */
 	PPC_STL	r1, HSTATE_HOST_R1(r3)
 	PPC_STL	r2, HSTATE_HOST_R2(r3)
-
-	/* Move SRR0 and SRR1 into the respective regs */
-	PPC_LL  r9, SVCPU_PC(r3)
-	mtsrr0	r9
-	mtsrr1	r10
 
 	/* Activate guest mode, so faults get handled by KVM */
 	li	r11, KVM_GUEST_MODE_GUEST
@@ -87,17 +91,46 @@ kvmppc_handler_trampoline_enter:
 	/* Switch to guest segment. This is subarch specific. */
 	LOAD_GUEST_SEGMENTS
 
+#ifdef CONFIG_PPC_BOOK3S_64
+	/* Some guests may need to have dcbz set to 32 byte length.
+	 *
+	 * Usually we ensure that by patching the guest's instructions
+	 * to trap on dcbz and emulate it in the hypervisor.
+	 *
+	 * If we can, we should tell the CPU to use 32 byte dcbz though,
+	 * because that's a lot faster.
+	 */
+	lbz	r0, HSTATE_RESTORE_HID5(r3)
+	cmpwi	r0, 0
+	beq	no_dcbz32_on
+
+	mfspr   r0,SPRN_HID5
+	ori     r0, r0, 0x80		/* XXX HID5_dcbz32 = 0x80 */
+	mtspr   SPRN_HID5,r0
+no_dcbz32_on:
+
+#endif /* CONFIG_PPC_BOOK3S_64 */
+
 	/* Enter guest */
 
-	PPC_LL	r4, SVCPU_CTR(r3)
-	PPC_LL	r5, SVCPU_LR(r3)
-	lwz	r6, SVCPU_CR(r3)
-	lwz	r7, SVCPU_XER(r3)
+	PPC_LL	r8, SVCPU_CTR(r3)
+	PPC_LL	r9, SVCPU_LR(r3)
+	lwz	r10, SVCPU_CR(r3)
+	lwz	r11, SVCPU_XER(r3)
 
-	mtctr	r4
-	mtlr	r5
-	mtcr	r6
-	mtxer	r7
+	mtctr	r8
+	mtlr	r9
+	mtcr	r10
+	mtxer	r11
+
+	/* Move SRR0 and SRR1 into the respective regs */
+	PPC_LL  r9, SVCPU_PC(r3)
+	/* First clear RI in our current MSR value */
+	li	r0, MSR_RI
+	andc	r6, r6, r0
+	MTMSR_EERI(r6)
+	mtsrr0	r9
+	mtsrr1	r4
 
 	PPC_LL	r0, SVCPU_R0(r3)
 	PPC_LL	r1, SVCPU_R1(r3)
@@ -213,10 +246,15 @@ END_FTR_SECTION_IFSET(CPU_FTR_HVMODE)
 	beq	ld_last_inst
 	cmpwi	r12, BOOK3S_INTERRUPT_PROGRAM
 	beq	ld_last_inst
+	cmpwi	r12, BOOK3S_INTERRUPT_SYSCALL
+	beq	ld_last_prev_inst
 	cmpwi	r12, BOOK3S_INTERRUPT_ALIGNMENT
 	beq-	ld_last_inst
 
 	b	no_ld_last_inst
+
+ld_last_prev_inst:
+	addi	r3, r3, -4
 
 ld_last_inst:
 	/* Save off the guest instruction we're at */
@@ -254,6 +292,43 @@ no_ld_last_inst:
 	/* Switch back to host MMU */
 	LOAD_HOST_SEGMENTS
 
+#ifdef CONFIG_PPC_BOOK3S_64
+
+	lbz	r5, HSTATE_RESTORE_HID5(r13)
+	cmpwi	r5, 0
+	beq	no_dcbz32_off
+
+	li	r4, 0
+	mfspr   r5,SPRN_HID5
+	rldimi  r5,r4,6,56
+	mtspr   SPRN_HID5,r5
+
+no_dcbz32_off:
+
+#endif /* CONFIG_PPC_BOOK3S_64 */
+
+	/*
+	 * For some interrupts, we need to call the real Linux
+	 * handler, so it can do work for us. This has to happen
+	 * as if the interrupt arrived from the kernel though,
+	 * so let's fake it here where most state is restored.
+	 *
+	 * Having set up SRR0/1 with the address where we want
+	 * to continue with relocation on (potentially in module
+	 * space), we either just go straight there with rfi[d],
+	 * or we jump to an interrupt handler with bctr if there
+	 * is an interrupt to be handled first.  In the latter
+	 * case, the rfi[d] at the end of the interrupt handler
+	 * will get us back to where we want to continue.
+	 */
+
+	cmpwi	r12, BOOK3S_INTERRUPT_EXTERNAL
+	beq	1f
+	cmpwi	r12, BOOK3S_INTERRUPT_DECREMENTER
+	beq	1f
+	cmpwi	r12, BOOK3S_INTERRUPT_PERFMON
+1:	mtctr	r12
+
 	/* Register usage at this point:
 	 *
 	 * R1       = host R1
@@ -264,13 +339,15 @@ no_ld_last_inst:
 	 *
 	 */
 
-	/* RFI into the highmem handler */
-	mfmsr	r7
-	ori	r7, r7, MSR_IR|MSR_DR|MSR_RI|MSR_ME	/* Enable paging */
-	mtsrr1	r7
-	/* Load highmem handler address */
+	PPC_LL	r6, HSTATE_HOST_MSR(r13)
 	PPC_LL	r8, HSTATE_VMHANDLER(r13)
+
+	/* Restore host msr -> SRR1 */
+	mtsrr1	r6
+	/* Load highmem handler address */
 	mtsrr0	r8
 
+	/* RFI into the highmem handler, or jump to interrupt handler */
+	beqctr
 	RFI
 kvmppc_handler_trampoline_exit_end:

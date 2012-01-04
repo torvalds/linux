@@ -42,6 +42,10 @@ static uint32_t sys_placement_flags = TTM_PL_FLAG_SYSTEM |
 static uint32_t gmr_placement_flags = VMW_PL_FLAG_GMR |
 	TTM_PL_FLAG_CACHED;
 
+static uint32_t gmr_ne_placement_flags = VMW_PL_FLAG_GMR |
+	TTM_PL_FLAG_CACHED |
+	TTM_PL_FLAG_NO_EVICT;
+
 struct ttm_placement vmw_vram_placement = {
 	.fpfn = 0,
 	.lpfn = 0,
@@ -56,6 +60,11 @@ static uint32_t vram_gmr_placement_flags[] = {
 	VMW_PL_FLAG_GMR | TTM_PL_FLAG_CACHED
 };
 
+static uint32_t gmr_vram_placement_flags[] = {
+	VMW_PL_FLAG_GMR | TTM_PL_FLAG_CACHED,
+	TTM_PL_FLAG_VRAM | TTM_PL_FLAG_CACHED
+};
+
 struct ttm_placement vmw_vram_gmr_placement = {
 	.fpfn = 0,
 	.lpfn = 0,
@@ -63,6 +72,20 @@ struct ttm_placement vmw_vram_gmr_placement = {
 	.placement = vram_gmr_placement_flags,
 	.num_busy_placement = 1,
 	.busy_placement = &gmr_placement_flags
+};
+
+static uint32_t vram_gmr_ne_placement_flags[] = {
+	TTM_PL_FLAG_VRAM | TTM_PL_FLAG_CACHED | TTM_PL_FLAG_NO_EVICT,
+	VMW_PL_FLAG_GMR | TTM_PL_FLAG_CACHED | TTM_PL_FLAG_NO_EVICT
+};
+
+struct ttm_placement vmw_vram_gmr_ne_placement = {
+	.fpfn = 0,
+	.lpfn = 0,
+	.num_placement = 2,
+	.placement = vram_gmr_ne_placement_flags,
+	.num_busy_placement = 1,
+	.busy_placement = &gmr_ne_placement_flags
 };
 
 struct ttm_placement vmw_vram_sys_placement = {
@@ -90,6 +113,30 @@ struct ttm_placement vmw_sys_placement = {
 	.placement = &sys_placement_flags,
 	.num_busy_placement = 1,
 	.busy_placement = &sys_placement_flags
+};
+
+static uint32_t evictable_placement_flags[] = {
+	TTM_PL_FLAG_SYSTEM | TTM_PL_FLAG_CACHED,
+	TTM_PL_FLAG_VRAM | TTM_PL_FLAG_CACHED,
+	VMW_PL_FLAG_GMR | TTM_PL_FLAG_CACHED
+};
+
+struct ttm_placement vmw_evictable_placement = {
+	.fpfn = 0,
+	.lpfn = 0,
+	.num_placement = 3,
+	.placement = evictable_placement_flags,
+	.num_busy_placement = 1,
+	.busy_placement = &sys_placement_flags
+};
+
+struct ttm_placement vmw_srf_placement = {
+	.fpfn = 0,
+	.lpfn = 0,
+	.num_placement = 1,
+	.num_busy_placement = 2,
+	.placement = &gmr_placement_flags,
+	.busy_placement = gmr_vram_placement_flags
 };
 
 struct vmw_ttm_backend {
@@ -274,39 +321,39 @@ static int vmw_ttm_fault_reserve_notify(struct ttm_buffer_object *bo)
 
 static void *vmw_sync_obj_ref(void *sync_obj)
 {
-	return sync_obj;
+
+	return (void *)
+		vmw_fence_obj_reference((struct vmw_fence_obj *) sync_obj);
 }
 
 static void vmw_sync_obj_unref(void **sync_obj)
 {
-	*sync_obj = NULL;
+	vmw_fence_obj_unreference((struct vmw_fence_obj **) sync_obj);
 }
 
 static int vmw_sync_obj_flush(void *sync_obj, void *sync_arg)
 {
-	struct vmw_private *dev_priv = (struct vmw_private *)sync_arg;
-
-	mutex_lock(&dev_priv->hw_mutex);
-	vmw_write(dev_priv, SVGA_REG_SYNC, SVGA_SYNC_GENERIC);
-	mutex_unlock(&dev_priv->hw_mutex);
+	vmw_fence_obj_flush((struct vmw_fence_obj *) sync_obj);
 	return 0;
 }
 
 static bool vmw_sync_obj_signaled(void *sync_obj, void *sync_arg)
 {
-	struct vmw_private *dev_priv = (struct vmw_private *)sync_arg;
-	uint32_t sequence = (unsigned long) sync_obj;
+	unsigned long flags = (unsigned long) sync_arg;
+	return	vmw_fence_obj_signaled((struct vmw_fence_obj *) sync_obj,
+				       (uint32_t) flags);
 
-	return vmw_fence_signaled(dev_priv, sequence);
 }
 
 static int vmw_sync_obj_wait(void *sync_obj, void *sync_arg,
 			     bool lazy, bool interruptible)
 {
-	struct vmw_private *dev_priv = (struct vmw_private *)sync_arg;
-	uint32_t sequence = (unsigned long) sync_obj;
+	unsigned long flags = (unsigned long) sync_arg;
 
-	return vmw_wait_fence(dev_priv, false, sequence, false, 3*HZ);
+	return vmw_fence_obj_wait((struct vmw_fence_obj *) sync_obj,
+				  (uint32_t) flags,
+				  lazy, interruptible,
+				  VMW_FENCE_WAIT_TIMEOUT);
 }
 
 struct ttm_bo_driver vmw_bo_driver = {

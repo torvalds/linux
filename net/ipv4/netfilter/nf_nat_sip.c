@@ -528,13 +528,13 @@ err1:
 
 static void __exit nf_nat_sip_fini(void)
 {
-	rcu_assign_pointer(nf_nat_sip_hook, NULL);
-	rcu_assign_pointer(nf_nat_sip_seq_adjust_hook, NULL);
-	rcu_assign_pointer(nf_nat_sip_expect_hook, NULL);
-	rcu_assign_pointer(nf_nat_sdp_addr_hook, NULL);
-	rcu_assign_pointer(nf_nat_sdp_port_hook, NULL);
-	rcu_assign_pointer(nf_nat_sdp_session_hook, NULL);
-	rcu_assign_pointer(nf_nat_sdp_media_hook, NULL);
+	RCU_INIT_POINTER(nf_nat_sip_hook, NULL);
+	RCU_INIT_POINTER(nf_nat_sip_seq_adjust_hook, NULL);
+	RCU_INIT_POINTER(nf_nat_sip_expect_hook, NULL);
+	RCU_INIT_POINTER(nf_nat_sdp_addr_hook, NULL);
+	RCU_INIT_POINTER(nf_nat_sdp_port_hook, NULL);
+	RCU_INIT_POINTER(nf_nat_sdp_session_hook, NULL);
+	RCU_INIT_POINTER(nf_nat_sdp_media_hook, NULL);
 	synchronize_rcu();
 }
 
@@ -547,13 +547,13 @@ static int __init nf_nat_sip_init(void)
 	BUG_ON(nf_nat_sdp_port_hook != NULL);
 	BUG_ON(nf_nat_sdp_session_hook != NULL);
 	BUG_ON(nf_nat_sdp_media_hook != NULL);
-	rcu_assign_pointer(nf_nat_sip_hook, ip_nat_sip);
-	rcu_assign_pointer(nf_nat_sip_seq_adjust_hook, ip_nat_sip_seq_adjust);
-	rcu_assign_pointer(nf_nat_sip_expect_hook, ip_nat_sip_expect);
-	rcu_assign_pointer(nf_nat_sdp_addr_hook, ip_nat_sdp_addr);
-	rcu_assign_pointer(nf_nat_sdp_port_hook, ip_nat_sdp_port);
-	rcu_assign_pointer(nf_nat_sdp_session_hook, ip_nat_sdp_session);
-	rcu_assign_pointer(nf_nat_sdp_media_hook, ip_nat_sdp_media);
+	RCU_INIT_POINTER(nf_nat_sip_hook, ip_nat_sip);
+	RCU_INIT_POINTER(nf_nat_sip_seq_adjust_hook, ip_nat_sip_seq_adjust);
+	RCU_INIT_POINTER(nf_nat_sip_expect_hook, ip_nat_sip_expect);
+	RCU_INIT_POINTER(nf_nat_sdp_addr_hook, ip_nat_sdp_addr);
+	RCU_INIT_POINTER(nf_nat_sdp_port_hook, ip_nat_sdp_port);
+	RCU_INIT_POINTER(nf_nat_sdp_session_hook, ip_nat_sdp_session);
+	RCU_INIT_POINTER(nf_nat_sdp_media_hook, ip_nat_sdp_media);
 	return 0;
 }
 

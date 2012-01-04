@@ -8,6 +8,7 @@
 #include <linux/kernel.h>
 #include <linux/mm.h>
 #include <linux/swap.h>
+#include <linux/export.h>
 #include <linux/pagemap.h>
 
 #include <asm/pgalloc.h>

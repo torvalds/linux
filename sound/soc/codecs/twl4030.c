@@ -863,34 +863,6 @@ static int digimic_event(struct snd_soc_dapm_widget *w,
  * Inverting not going to help with these.
  * Custom volsw and volsw_2r get/put functions to handle these gain bits.
  */
-#define SOC_DOUBLE_TLV_TWL4030(xname, xreg, shift_left, shift_right, xmax,\
-			       xinvert, tlv_array) \
-{	.iface = SNDRV_CTL_ELEM_IFACE_MIXER, .name = (xname),\
-	.access = SNDRV_CTL_ELEM_ACCESS_TLV_READ |\
-		 SNDRV_CTL_ELEM_ACCESS_READWRITE,\
-	.tlv.p = (tlv_array), \
-	.info = snd_soc_info_volsw, \
-	.get = snd_soc_get_volsw_twl4030, \
-	.put = snd_soc_put_volsw_twl4030, \
-	.private_value = (unsigned long)&(struct soc_mixer_control) \
-		{.reg = xreg, .shift = shift_left, .rshift = shift_right,\
-		 .max = xmax, .invert = xinvert} }
-#define SOC_DOUBLE_R_TLV_TWL4030(xname, reg_left, reg_right, xshift, xmax,\
-				 xinvert, tlv_array) \
-{	.iface = SNDRV_CTL_ELEM_IFACE_MIXER, .name = (xname),\
-	.access = SNDRV_CTL_ELEM_ACCESS_TLV_READ |\
-		 SNDRV_CTL_ELEM_ACCESS_READWRITE,\
-	.tlv.p = (tlv_array), \
-	.info = snd_soc_info_volsw_2r, \
-	.get = snd_soc_get_volsw_r2_twl4030,\
-	.put = snd_soc_put_volsw_r2_twl4030, \
-	.private_value = (unsigned long)&(struct soc_mixer_control) \
-		{.reg = reg_left, .rreg = reg_right, .shift = xshift, \
-		 .rshift = xshift, .max = xmax, .invert = xinvert} }
-#define SOC_SINGLE_TLV_TWL4030(xname, xreg, xshift, xmax, xinvert, tlv_array) \
-	SOC_DOUBLE_TLV_TWL4030(xname, xreg, xshift, xshift, xmax, \
-			       xinvert, tlv_array)
-
 static int snd_soc_get_volsw_twl4030(struct snd_kcontrol *kcontrol,
 	struct snd_ctl_elem_value *ucontrol)
 {
@@ -1197,19 +1169,23 @@ static const struct snd_kcontrol_new twl4030_snd_controls[] = {
 		TWL4030_REG_VDL_APGA_CTL, 1, 1, 0),
 
 	/* Separate output gain controls */
-	SOC_DOUBLE_R_TLV_TWL4030("PreDriv Playback Volume",
+	SOC_DOUBLE_R_EXT_TLV("PreDriv Playback Volume",
 		TWL4030_REG_PREDL_CTL, TWL4030_REG_PREDR_CTL,
-		4, 3, 0, output_tvl),
+		4, 3, 0, snd_soc_get_volsw_r2_twl4030,
+		snd_soc_put_volsw_r2_twl4030, output_tvl),
 
-	SOC_DOUBLE_TLV_TWL4030("Headset Playback Volume",
-		TWL4030_REG_HS_GAIN_SET, 0, 2, 3, 0, output_tvl),
+	SOC_DOUBLE_EXT_TLV("Headset Playback Volume",
+		TWL4030_REG_HS_GAIN_SET, 0, 2, 3, 0, snd_soc_get_volsw_twl4030,
+		snd_soc_put_volsw_twl4030, output_tvl),
 
-	SOC_DOUBLE_R_TLV_TWL4030("Carkit Playback Volume",
+	SOC_DOUBLE_R_EXT_TLV("Carkit Playback Volume",
 		TWL4030_REG_PRECKL_CTL, TWL4030_REG_PRECKR_CTL,
-		4, 3, 0, output_tvl),
+		4, 3, 0, snd_soc_get_volsw_r2_twl4030,
+		snd_soc_put_volsw_r2_twl4030, output_tvl),
 
-	SOC_SINGLE_TLV_TWL4030("Earpiece Playback Volume",
-		TWL4030_REG_EAR_CTL, 4, 3, 0, output_ear_tvl),
+	SOC_SINGLE_EXT_TLV("Earpiece Playback Volume",
+		TWL4030_REG_EAR_CTL, 4, 3, 0, snd_soc_get_volsw_twl4030,
+		snd_soc_put_volsw_twl4030, output_ear_tvl),
 
 	/* Common capture gain controls */
 	SOC_DOUBLE_R_TLV("TX1 Digital Capture Volume",
@@ -1632,17 +1608,6 @@ static const struct snd_soc_dapm_route intercon[] = {
 	{"Digital Voice Playback Mixer", NULL, "Voice Digital Loopback"},
 
 };
-
-static int twl4030_add_widgets(struct snd_soc_codec *codec)
-{
-	struct snd_soc_dapm_context *dapm = &codec->dapm;
-
-	snd_soc_dapm_new_controls(dapm, twl4030_dapm_widgets,
-				 ARRAY_SIZE(twl4030_dapm_widgets));
-	snd_soc_dapm_add_routes(dapm, intercon, ARRAY_SIZE(intercon));
-
-	return 0;
-}
 
 static int twl4030_set_bias_level(struct snd_soc_codec *codec,
 				  enum snd_soc_bias_level level)
@@ -2265,9 +2230,6 @@ static int twl4030_soc_probe(struct snd_soc_codec *codec)
 
 	twl4030_init_chip(codec);
 
-	snd_soc_add_controls(codec, twl4030_snd_controls,
-				ARRAY_SIZE(twl4030_snd_controls));
-	twl4030_add_widgets(codec);
 	return 0;
 }
 
@@ -2293,6 +2255,13 @@ static struct snd_soc_codec_driver soc_codec_dev_twl4030 = {
 	.reg_cache_size = sizeof(twl4030_reg),
 	.reg_word_size = sizeof(u8),
 	.reg_cache_default = twl4030_reg,
+
+	.controls = twl4030_snd_controls,
+	.num_controls = ARRAY_SIZE(twl4030_snd_controls),
+	.dapm_widgets = twl4030_dapm_widgets,
+	.num_dapm_widgets = ARRAY_SIZE(twl4030_dapm_widgets),
+	.dapm_routes = intercon,
+	.num_dapm_routes = ARRAY_SIZE(intercon),
 };
 
 static int __devinit twl4030_codec_probe(struct platform_device *pdev)

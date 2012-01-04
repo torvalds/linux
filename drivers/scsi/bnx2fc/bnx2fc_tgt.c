@@ -76,7 +76,7 @@ static void bnx2fc_offload_session(struct fcoe_port *port,
 	if (rval) {
 		printk(KERN_ERR PFX "Failed to allocate conn id for "
 			"port_id (%6x)\n", rport->port_id);
-		goto ofld_err;
+		goto tgt_init_err;
 	}
 
 	/* Allocate session resources */
@@ -134,18 +134,17 @@ retry_ofld:
 		/* upload will take care of cleaning up sess resc */
 		lport->tt.rport_logoff(rdata);
 	}
-	/* Arm CQ */
-	bnx2fc_arm_cq(tgt);
 	return;
 
 ofld_err:
 	/* couldn't offload the session. log off from this rport */
 	BNX2FC_TGT_DBG(tgt, "bnx2fc_offload_session - offload error\n");
-	lport->tt.rport_logoff(rdata);
 	/* Free session resources */
 	bnx2fc_free_session_resc(hba, tgt);
+tgt_init_err:
 	if (tgt->fcoe_conn_id != -1)
 		bnx2fc_free_conn_id(hba, tgt->fcoe_conn_id);
+	lport->tt.rport_logoff(rdata);
 }
 
 void bnx2fc_flush_active_ios(struct bnx2fc_rport *tgt)
@@ -624,7 +623,6 @@ static void bnx2fc_free_conn_id(struct bnx2fc_hba *hba, u32 conn_id)
 	/* called with hba mutex held */
 	spin_lock_bh(&hba->hba_lock);
 	hba->tgt_ofld_list[conn_id] = NULL;
-	hba->next_conn_id = conn_id;
 	spin_unlock_bh(&hba->hba_lock);
 }
 
@@ -791,8 +789,6 @@ static int bnx2fc_alloc_session_resc(struct bnx2fc_hba *hba,
 	return 0;
 
 mem_alloc_failure:
-	bnx2fc_free_session_resc(hba, tgt);
-	bnx2fc_free_conn_id(hba, tgt->fcoe_conn_id);
 	return -ENOMEM;
 }
 
@@ -807,14 +803,14 @@ mem_alloc_failure:
 static void bnx2fc_free_session_resc(struct bnx2fc_hba *hba,
 						struct bnx2fc_rport *tgt)
 {
+	void __iomem *ctx_base_ptr;
+
 	BNX2FC_TGT_DBG(tgt, "Freeing up session resources\n");
 
-	if (tgt->ctx_base) {
-		iounmap(tgt->ctx_base);
-		tgt->ctx_base = NULL;
-	}
-
 	spin_lock_bh(&tgt->cq_lock);
+	ctx_base_ptr = tgt->ctx_base;
+	tgt->ctx_base = NULL;
+
 	/* Free LCQ */
 	if (tgt->lcq) {
 		dma_free_coherent(&hba->pcidev->dev, tgt->lcq_mem_size,
@@ -868,4 +864,7 @@ static void bnx2fc_free_session_resc(struct bnx2fc_hba *hba,
 		tgt->sq = NULL;
 	}
 	spin_unlock_bh(&tgt->cq_lock);
+
+	if (ctx_base_ptr)
+		iounmap(ctx_base_ptr);
 }

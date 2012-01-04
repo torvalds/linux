@@ -70,10 +70,11 @@ Events
 The OMAP 3 ISP driver does support the V4L2 event interface on CCDC and
 statistics (AEWB, AF and histogram) subdevs.
 
-The CCDC subdev produces V4L2_EVENT_OMAP3ISP_HS_VS type event on HS_VS
-interrupt which is used to signal frame start. The event is triggered exactly
-when the reception of the first line of the frame starts in the CCDC module.
-The event can be subscribed on the CCDC subdev.
+The CCDC subdev produces V4L2_EVENT_FRAME_SYNC type event on HS_VS
+interrupt which is used to signal frame start. Earlier version of this
+driver used V4L2_EVENT_OMAP3ISP_HS_VS for this purpose. The event is
+triggered exactly when the reception of the first line of the frame starts
+in the CCDC module. The event can be subscribed on the CCDC subdev.
 
 (When using parallel interface one must pay account to correct configuration
 of the VS signal polarity. This is automatically correct when using the serial

@@ -9,7 +9,7 @@
 
 #ifndef __ASM_HARDWARE_IT8152_H
 #define __ASM_HARDWARE_IT8152_H
-extern unsigned long it8152_base_address;
+extern void __iomem *it8152_base_address;
 
 #define IT8152_IO_BASE			(it8152_base_address + 0x03e00000)
 #define IT8152_CFGREG_BASE		(it8152_base_address + 0x03f00000)

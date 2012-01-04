@@ -105,9 +105,12 @@ nouveau_framebuffer_init(struct drm_device *dev,
 		if (dev_priv->chipset == 0x50)
 			nv_fb->r_format |= (tile_flags << 8);
 
-		if (!tile_flags)
-			nv_fb->r_pitch = 0x00100000 | fb->pitch;
-		else {
+		if (!tile_flags) {
+			if (dev_priv->card_type < NV_D0)
+				nv_fb->r_pitch = 0x00100000 | fb->pitch;
+			else
+				nv_fb->r_pitch = 0x01000000 | fb->pitch;
+		} else {
 			u32 mode = nvbo->tile_mode;
 			if (dev_priv->card_type >= NV_C0)
 				mode >>= 4;

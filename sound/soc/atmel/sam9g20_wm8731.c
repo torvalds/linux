@@ -173,8 +173,6 @@ static int at91sam9g20ek_wm8731_init(struct snd_soc_pcm_runtime *rtd)
 	/* always connected */
 	snd_soc_dapm_enable_pin(dapm, "Ext Spk");
 
-	snd_soc_dapm_sync(dapm);
-
 	return 0;
 }
 

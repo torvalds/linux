@@ -286,7 +286,8 @@ struct iwl_cfg {
  ***************************/
 
 struct ieee80211_hw *iwl_legacy_alloc_all(struct iwl_cfg *cfg);
-int iwl_legacy_mac_conf_tx(struct ieee80211_hw *hw, u16 queue,
+int iwl_legacy_mac_conf_tx(struct ieee80211_hw *hw,
+		    struct ieee80211_vif *vif, u16 queue,
 		    const struct ieee80211_tx_queue_params *params);
 int iwl_legacy_mac_tx_last_beacon(struct ieee80211_hw *hw);
 void iwl_legacy_set_rxon_hwcrypto(struct iwl_priv *priv,
@@ -620,7 +621,8 @@ static inline const struct ieee80211_supported_band *iwl_get_hw_mode(
 
 /* mac80211 handlers */
 int iwl_legacy_mac_config(struct ieee80211_hw *hw, u32 changed);
-void iwl_legacy_mac_reset_tsf(struct ieee80211_hw *hw);
+void iwl_legacy_mac_reset_tsf(struct ieee80211_hw *hw,
+			      struct ieee80211_vif *vif);
 void iwl_legacy_mac_bss_info_changed(struct ieee80211_hw *hw,
 				     struct ieee80211_vif *vif,
 				     struct ieee80211_bss_conf *bss_conf,

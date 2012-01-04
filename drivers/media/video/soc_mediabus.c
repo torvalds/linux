@@ -383,6 +383,39 @@ const struct soc_mbus_pixelfmt *soc_mbus_get_fmtdesc(
 }
 EXPORT_SYMBOL(soc_mbus_get_fmtdesc);
 
+unsigned int soc_mbus_config_compatible(const struct v4l2_mbus_config *cfg,
+					unsigned int flags)
+{
+	unsigned long common_flags;
+	bool hsync = true, vsync = true, pclk, data, mode;
+	bool mipi_lanes, mipi_clock;
+
+	common_flags = cfg->flags & flags;
+
+	switch (cfg->type) {
+	case V4L2_MBUS_PARALLEL:
+		hsync = common_flags & (V4L2_MBUS_HSYNC_ACTIVE_HIGH |
+					V4L2_MBUS_HSYNC_ACTIVE_LOW);
+		vsync = common_flags & (V4L2_MBUS_VSYNC_ACTIVE_HIGH |
+					V4L2_MBUS_VSYNC_ACTIVE_LOW);
+	case V4L2_MBUS_BT656:
+		pclk = common_flags & (V4L2_MBUS_PCLK_SAMPLE_RISING |
+				       V4L2_MBUS_PCLK_SAMPLE_FALLING);
+		data = common_flags & (V4L2_MBUS_DATA_ACTIVE_HIGH |
+				       V4L2_MBUS_DATA_ACTIVE_LOW);
+		mode = common_flags & (V4L2_MBUS_MASTER | V4L2_MBUS_SLAVE);
+		return (!hsync || !vsync || !pclk || !data || !mode) ?
+			0 : common_flags;
+	case V4L2_MBUS_CSI2:
+		mipi_lanes = common_flags & V4L2_MBUS_CSI2_LANES;
+		mipi_clock = common_flags & (V4L2_MBUS_CSI2_NONCONTINUOUS_CLOCK |
+					     V4L2_MBUS_CSI2_CONTINUOUS_CLOCK);
+		return (!mipi_lanes || !mipi_clock) ? 0 : common_flags;
+	}
+	return 0;
+}
+EXPORT_SYMBOL(soc_mbus_config_compatible);
+
 static int __init soc_mbus_init(void)
 {
 	return 0;

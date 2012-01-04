@@ -23,91 +23,8 @@
 
 #include <asm/mach-au1x00/au1000.h>
 
-#ifndef	CONFIG_SOC_AU1200
-
-#define USBH_ENABLE_BE (1<<0)
-#define USBH_ENABLE_C  (1<<1)
-#define USBH_ENABLE_E  (1<<2)
-#define USBH_ENABLE_CE (1<<3)
-#define USBH_ENABLE_RD (1<<4)
-
-#ifdef __LITTLE_ENDIAN
-#define USBH_ENABLE_INIT (USBH_ENABLE_CE | USBH_ENABLE_E | USBH_ENABLE_C)
-#elif defined(__BIG_ENDIAN)
-#define USBH_ENABLE_INIT (USBH_ENABLE_CE | USBH_ENABLE_E | USBH_ENABLE_C | \
-			  USBH_ENABLE_BE)
-#else
-#error not byte order defined
-#endif
-
-#else   /* Au1200 */
-
-#define USB_HOST_CONFIG    (USB_MSR_BASE + USB_MSR_MCFG)
-#define USB_MCFG_PFEN     (1<<31)
-#define USB_MCFG_RDCOMB   (1<<30)
-#define USB_MCFG_SSDEN    (1<<23)
-#define USB_MCFG_OHCCLKEN (1<<16)
-#ifdef CONFIG_DMA_COHERENT
-#define USB_MCFG_UCAM     (1<<7)
-#else
-#define USB_MCFG_UCAM     (0)
-#endif
-#define USB_MCFG_OBMEN    (1<<1)
-#define USB_MCFG_OMEMEN   (1<<0)
-
-#define USBH_ENABLE_CE    USB_MCFG_OHCCLKEN
-
-#define USBH_ENABLE_INIT  (USB_MCFG_PFEN  | USB_MCFG_RDCOMB 	|	\
-			   USBH_ENABLE_CE | USB_MCFG_SSDEN	|	\
-			   USB_MCFG_UCAM  |				\
-			   USB_MCFG_OBMEN | USB_MCFG_OMEMEN)
-
-#define USBH_DISABLE      (USB_MCFG_OBMEN | USB_MCFG_OMEMEN)
-
-#endif  /* Au1200 */
 
 extern int usb_disabled(void);
-
-static void au1xxx_start_ohc(void)
-{
-	/* enable host controller */
-#ifndef CONFIG_SOC_AU1200
-	au_writel(USBH_ENABLE_CE, USB_HOST_CONFIG);
-	au_sync();
-	udelay(1000);
-
-	au_writel(au_readl(USB_HOST_CONFIG) | USBH_ENABLE_INIT, USB_HOST_CONFIG);
-	au_sync();
-	udelay(1000);
-
-	/* wait for reset complete (read register twice; see au1500 errata) */
-	while (au_readl(USB_HOST_CONFIG),
-		!(au_readl(USB_HOST_CONFIG) & USBH_ENABLE_RD))
-		udelay(1000);
-
-#else   /* Au1200 */
-	au_writel(au_readl(USB_HOST_CONFIG) | USBH_ENABLE_CE, USB_HOST_CONFIG);
-	au_sync();
-	udelay(1000);
-
-	au_writel(au_readl(USB_HOST_CONFIG) | USBH_ENABLE_INIT, USB_HOST_CONFIG);
-	au_sync();
-	udelay(2000);
-#endif  /* Au1200 */
-}
-
-static void au1xxx_stop_ohc(void)
-{
-#ifdef CONFIG_SOC_AU1200
-	/* Disable mem */
-	au_writel(au_readl(USB_HOST_CONFIG) & ~USBH_DISABLE, USB_HOST_CONFIG);
-	au_sync();
-	udelay(1000);
-#endif
-	/* Disable clock */
-	au_writel(au_readl(USB_HOST_CONFIG) & ~USBH_ENABLE_CE, USB_HOST_CONFIG);
-	au_sync();
-}
 
 static int __devinit ohci_au1xxx_start(struct usb_hcd *hcd)
 {
@@ -178,17 +95,6 @@ static int ohci_hcd_au1xxx_drv_probe(struct platform_device *pdev)
 	if (usb_disabled())
 		return -ENODEV;
 
-#if defined(CONFIG_SOC_AU1200) && defined(CONFIG_DMA_COHERENT)
-	/* Au1200 AB USB does not support coherent memory */
-	if (!(read_c0_prid() & 0xff)) {
-		printk(KERN_INFO "%s: this is chip revision AB !!\n",
-			pdev->name);
-		printk(KERN_INFO "%s: update your board or re-configure "
-				 "the kernel\n", pdev->name);
-		return -ENODEV;
-	}
-#endif
-
 	if (pdev->resource[1].flags != IORESOURCE_IRQ) {
 		pr_debug("resource[1] is not IORESOURCE_IRQ\n");
 		return -ENOMEM;
@@ -214,17 +120,23 @@ static int ohci_hcd_au1xxx_drv_probe(struct platform_device *pdev)
 		goto err2;
 	}
 
-	au1xxx_start_ohc();
+	if (alchemy_usb_control(ALCHEMY_USB_OHCI0, 1)) {
+		printk(KERN_INFO "%s: controller init failed!\n", pdev->name);
+		ret = -ENODEV;
+		goto err3;
+	}
+
 	ohci_hcd_init(hcd_to_ohci(hcd));
 
 	ret = usb_add_hcd(hcd, pdev->resource[1].start,
-			  IRQF_DISABLED | IRQF_SHARED);
+			  IRQF_SHARED);
 	if (ret == 0) {
 		platform_set_drvdata(pdev, hcd);
 		return ret;
 	}
 
-	au1xxx_stop_ohc();
+	alchemy_usb_control(ALCHEMY_USB_OHCI0, 0);
+err3:
 	iounmap(hcd->regs);
 err2:
 	release_mem_region(hcd->rsrc_start, hcd->rsrc_len);
@@ -238,7 +150,7 @@ static int ohci_hcd_au1xxx_drv_remove(struct platform_device *pdev)
 	struct usb_hcd *hcd = platform_get_drvdata(pdev);
 
 	usb_remove_hcd(hcd);
-	au1xxx_stop_ohc();
+	alchemy_usb_control(ALCHEMY_USB_OHCI0, 0);
 	iounmap(hcd->regs);
 	release_mem_region(hcd->rsrc_start, hcd->rsrc_len);
 	usb_put_hcd(hcd);
@@ -275,7 +187,7 @@ static int ohci_hcd_au1xxx_drv_suspend(struct device *dev)
 
 	clear_bit(HCD_FLAG_HW_ACCESSIBLE, &hcd->flags);
 
-	au1xxx_stop_ohc();
+	alchemy_usb_control(ALCHEMY_USB_OHCI0, 0);
 bail:
 	spin_unlock_irqrestore(&ohci->lock, flags);
 
@@ -286,7 +198,7 @@ static int ohci_hcd_au1xxx_drv_resume(struct device *dev)
 {
 	struct usb_hcd *hcd = dev_get_drvdata(dev);
 
-	au1xxx_start_ohc();
+	alchemy_usb_control(ALCHEMY_USB_OHCI0, 1);
 
 	set_bit(HCD_FLAG_HW_ACCESSIBLE, &hcd->flags);
 	ohci_finish_controller_resume(hcd);

@@ -18,6 +18,7 @@
 #include <linux/completion.h>
 #include <linux/interrupt.h>
 #include <linux/list.h>
+#include <linux/regmap.h>
 
 /*
  * Register values.
@@ -361,18 +362,16 @@ struct wm831x {
 	struct mutex io_lock;
 
 	struct device *dev;
-	int (*read_dev)(struct wm831x *wm831x, unsigned short reg,
-			int bytes, void *dest);
-	int (*write_dev)(struct wm831x *wm831x, unsigned short reg,
-			 int bytes, void *src);
 
-	void *control_data;
+	struct regmap *regmap;
 
 	int irq;  /* Our chip IRQ */
 	struct mutex irq_lock;
 	int irq_base;
 	int irq_masks_cur[WM831X_NUM_IRQ_REGS];   /* Currently active value */
 	int irq_masks_cache[WM831X_NUM_IRQ_REGS]; /* Cached hardware value */
+
+	bool soft_shutdown;
 
 	/* Chip revision based flags */
 	unsigned has_gpio_ena:1;         /* Has GPIO enable bit */
@@ -383,6 +382,7 @@ struct wm831x {
 
 	/* Used by the interrupt controller code to post writes */
 	int gpio_update[WM831X_NUM_GPIO_REGS];
+	bool gpio_level[WM831X_NUM_GPIO_REGS];
 
 	struct mutex auxadc_lock;
 	struct list_head auxadc_pending;
@@ -412,8 +412,11 @@ int wm831x_bulk_read(struct wm831x *wm831x, unsigned short reg,
 int wm831x_device_init(struct wm831x *wm831x, unsigned long id, int irq);
 void wm831x_device_exit(struct wm831x *wm831x);
 int wm831x_device_suspend(struct wm831x *wm831x);
+void wm831x_device_shutdown(struct wm831x *wm831x);
 int wm831x_irq_init(struct wm831x *wm831x, int irq);
 void wm831x_irq_exit(struct wm831x *wm831x);
 void wm831x_auxadc_init(struct wm831x *wm831x);
+
+extern struct regmap_config wm831x_regmap_config;
 
 #endif

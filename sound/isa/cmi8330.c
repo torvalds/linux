@@ -47,7 +47,7 @@
 #include <linux/err.h>
 #include <linux/isa.h>
 #include <linux/pnp.h>
-#include <linux/moduleparam.h>
+#include <linux/module.h>
 #include <sound/core.h>
 #include <sound/wss.h>
 #include <sound/opl3.h>
@@ -597,7 +597,7 @@ static int __devinit snd_cmi8330_probe(struct snd_card *card, int dev)
 	if (mpuport[dev] != SNDRV_AUTO_PORT) {
 		if (snd_mpu401_uart_new(card, 0, MPU401_HW_MPU401,
 					mpuport[dev], 0, mpuirq[dev],
-					IRQF_DISABLED, NULL) < 0)
+					NULL) < 0)
 			printk(KERN_ERR PFX "no MPU-401 device at 0x%lx.\n",
 				mpuport[dev]);
 	}

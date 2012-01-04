@@ -13,7 +13,8 @@
 #
 
 # ore module library
-obj-$(CONFIG_ORE) += ore.o
+libore-y := ore.o ore_raid.o
+obj-$(CONFIG_ORE) += libore.o
 
 exofs-y := inode.o file.o symlink.o namei.o dir.o super.o
 obj-$(CONFIG_EXOFS_FS) += exofs.o

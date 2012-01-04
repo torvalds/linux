@@ -47,6 +47,8 @@ config MIPS_ALCHEMY
 	select GENERIC_GPIO
 	select ARCH_WANT_OPTIONAL_GPIOLIB
 	select SYS_SUPPORTS_ZBOOT
+	select USB_ARCH_HAS_OHCI
+	select USB_ARCH_HAS_EHCI
 
 config AR7
 	bool "Texas Instruments AR7"
@@ -92,15 +94,8 @@ config BCM47XX
 	select DMA_NONCOHERENT
 	select HW_HAS_PCI
 	select IRQ_CPU
-	select SYS_HAS_CPU_MIPS32_R1
 	select SYS_SUPPORTS_32BIT_KERNEL
 	select SYS_SUPPORTS_LITTLE_ENDIAN
-	select SSB
-	select SSB_DRIVER_MIPS
-	select SSB_DRIVER_EXTIF
-	select SSB_EMBEDDED
-	select SSB_B43_PCI_BRIDGE if PCI
-	select SSB_PCICORE_HOSTMODE if PCI
 	select GENERIC_GPIO
 	select SYS_HAS_EARLY_PRINTK
 	select CFE
@@ -213,6 +208,7 @@ config MACH_JZ4740
 	select SYS_HAS_EARLY_PRINTK
 	select HAVE_PWM
 	select HAVE_CLK
+	select GENERIC_IRQ_CHIP
 
 config LANTIQ
 	bool "Lantiq based platforms"
@@ -791,6 +787,7 @@ endchoice
 
 source "arch/mips/alchemy/Kconfig"
 source "arch/mips/ath79/Kconfig"
+source "arch/mips/bcm47xx/Kconfig"
 source "arch/mips/bcm63xx/Kconfig"
 source "arch/mips/jazz/Kconfig"
 source "arch/mips/jz4740/Kconfig"
@@ -822,10 +819,6 @@ config ARCH_HAS_ILOG2_U32
 config ARCH_HAS_ILOG2_U64
 	bool
 	default n
-
-config ARCH_SUPPORTS_OPROFILE
-	bool
-	default y if !MIPS_MT_SMTC
 
 config GENERIC_HWEIGHT
 	bool
@@ -2098,7 +2091,7 @@ config NODES_SHIFT
 
 config HW_PERF_EVENTS
 	bool "Enable hardware performance counter support for perf events"
-	depends on PERF_EVENTS && !MIPS_MT_SMTC && OPROFILE=n && CPU_MIPS32
+	depends on PERF_EVENTS && !MIPS_MT_SMTC && OPROFILE=n && (CPU_MIPS32 || CPU_MIPS64 || CPU_R10000 || CPU_SB1 || CPU_CAVIUM_OCTEON)
 	default y
 	help
 	  Enable hardware performance counter support for perf events. If
@@ -2257,16 +2250,6 @@ config HZ
 	default 1024 if HZ_1024
 
 source "kernel/Kconfig.preempt"
-
-config MIPS_INSANE_LARGE
-	bool "Support for large 64-bit configurations"
-	depends on CPU_R10000 && 64BIT
-	help
-	  MIPS R10000 does support a 44 bit / 16TB address space as opposed to
-	  previous 64-bit processors which only supported 40 bit / 1TB. If you
-	  need processes of more than 1TB virtual address space, say Y here.
-	  This will result in additional memory usage, so it is not
-	  recommended for normal users.
 
 config KEXEC
 	bool "Kexec system call (EXPERIMENTAL)"

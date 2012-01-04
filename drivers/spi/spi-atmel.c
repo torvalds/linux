@@ -22,7 +22,7 @@
 
 #include <asm/io.h>
 #include <mach/board.h>
-#include <mach/gpio.h>
+#include <asm/gpio.h>
 #include <mach/cpu.h>
 
 /* SPI register offsets */
@@ -907,7 +907,7 @@ static void atmel_spi_cleanup(struct spi_device *spi)
 
 /*-------------------------------------------------------------------------*/
 
-static int __init atmel_spi_probe(struct platform_device *pdev)
+static int __devinit atmel_spi_probe(struct platform_device *pdev)
 {
 	struct resource		*regs;
 	int			irq;
@@ -1003,7 +1003,7 @@ out_free:
 	return ret;
 }
 
-static int __exit atmel_spi_remove(struct platform_device *pdev)
+static int __devexit atmel_spi_remove(struct platform_device *pdev)
 {
 	struct spi_master	*master = platform_get_drvdata(pdev);
 	struct atmel_spi	*as = spi_master_get_devdata(master);
@@ -1072,20 +1072,10 @@ static struct platform_driver atmel_spi_driver = {
 	},
 	.suspend	= atmel_spi_suspend,
 	.resume		= atmel_spi_resume,
+	.probe		= atmel_spi_probe,
 	.remove		= __exit_p(atmel_spi_remove),
 };
-
-static int __init atmel_spi_init(void)
-{
-	return platform_driver_probe(&atmel_spi_driver, atmel_spi_probe);
-}
-module_init(atmel_spi_init);
-
-static void __exit atmel_spi_exit(void)
-{
-	platform_driver_unregister(&atmel_spi_driver);
-}
-module_exit(atmel_spi_exit);
+module_platform_driver(atmel_spi_driver);
 
 MODULE_DESCRIPTION("Atmel AT32/AT91 SPI Controller driver");
 MODULE_AUTHOR("Haavard Skinnemoen (Atmel)");

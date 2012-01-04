@@ -331,6 +331,6 @@ MACHINE_START(IXDP2351, "Intel IXDP2351 Development Platform")
 	.map_io		= ixdp2351_map_io,
 	.init_irq	= ixdp2351_init_irq,
 	.timer		= &ixp23xx_timer,
-	.boot_params	= 0x00000100,
+	.atag_offset	= 0x100,
 	.init_machine	= ixdp2351_init,
 MACHINE_END

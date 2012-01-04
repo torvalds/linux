@@ -32,8 +32,8 @@
 extern char modprobe_path[]; /* for sysctl */
 /* modprobe exit status on success, -ve on error.  Return value
  * usually useless though. */
-extern int __request_module(bool wait, const char *name, ...) \
-	__attribute__((format(printf, 2, 3)));
+extern __printf(2, 3)
+int __request_module(bool wait, const char *name, ...);
 #define request_module(mod...) __request_module(true, mod)
 #define request_module_nowait(mod...) __request_module(false, mod)
 #define try_then_request_module(x, mod...) \

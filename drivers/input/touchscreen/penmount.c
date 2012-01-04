@@ -2,6 +2,7 @@
  * Penmount serial touchscreen driver
  *
  * Copyright (c) 2006 Rick Koch <n1gp@hotmail.com>
+ * Copyright (c) 2011 John Sung <penmount.touch@gmail.com>
  *
  * Based on ELO driver (drivers/input/touchscreen/elo.c)
  * Copyright (c) 2004 Vojtech Pavlik
@@ -18,12 +19,14 @@
 #include <linux/module.h>
 #include <linux/slab.h>
 #include <linux/input.h>
+#include <linux/input/mt.h>
 #include <linux/serio.h>
 #include <linux/init.h>
 
-#define DRIVER_DESC	"Penmount serial touchscreen driver"
+#define DRIVER_DESC	"PenMount serial touchscreen driver"
 
 MODULE_AUTHOR("Rick Koch <n1gp@hotmail.com>");
+MODULE_AUTHOR("John Sung <penmount.touch@gmail.com>");
 MODULE_DESCRIPTION(DRIVER_DESC);
 MODULE_LICENSE("GPL");
 
@@ -31,7 +34,19 @@ MODULE_LICENSE("GPL");
  * Definitions & global arrays.
  */
 
-#define	PM_MAX_LENGTH	5
+#define	PM_MAX_LENGTH	6
+#define	PM_MAX_MTSLOT	16
+#define	PM_3000_MTSLOT	2
+#define	PM_6250_MTSLOT	12
+
+/*
+ * Multi-touch slot
+ */
+
+struct mt_slot {
+	unsigned short x, y;
+	bool active; /* is the touch valid? */
+};
 
 /*
  * Per-touchscreen data.
@@ -43,25 +58,119 @@ struct pm {
 	int idx;
 	unsigned char data[PM_MAX_LENGTH];
 	char phys[32];
+	unsigned char packetsize;
+	unsigned char maxcontacts;
+	struct mt_slot slots[PM_MAX_MTSLOT];
+	void (*parse_packet)(struct pm *);
 };
+
+/*
+ * pm_mtevent() sends mt events and also emulates pointer movement
+ */
+
+static void pm_mtevent(struct pm *pm, struct input_dev *input)
+{
+	int i;
+
+	for (i = 0; i < pm->maxcontacts; ++i) {
+		input_mt_slot(input, i);
+		input_mt_report_slot_state(input, MT_TOOL_FINGER,
+				pm->slots[i].active);
+		if (pm->slots[i].active) {
+			input_event(input, EV_ABS, ABS_MT_POSITION_X, pm->slots[i].x);
+			input_event(input, EV_ABS, ABS_MT_POSITION_Y, pm->slots[i].y);
+		}
+	}
+
+	input_mt_report_pointer_emulation(input, true);
+	input_sync(input);
+}
+
+/*
+ * pm_checkpacket() checks if data packet is valid
+ */
+
+static bool pm_checkpacket(unsigned char *packet)
+{
+	int total = 0;
+	int i;
+
+	for (i = 0; i < 5; i++)
+		total += packet[i];
+
+	return packet[5] == (unsigned char)~(total & 0xff);
+}
+
+static void pm_parse_9000(struct pm *pm)
+{
+	struct input_dev *dev = pm->dev;
+
+	if ((pm->data[0] & 0x80) && pm->packetsize == ++pm->idx) {
+		input_report_abs(dev, ABS_X, pm->data[1] * 128 + pm->data[2]);
+		input_report_abs(dev, ABS_Y, pm->data[3] * 128 + pm->data[4]);
+		input_report_key(dev, BTN_TOUCH, !!(pm->data[0] & 0x40));
+		input_sync(dev);
+		pm->idx = 0;
+	}
+}
+
+static void pm_parse_6000(struct pm *pm)
+{
+	struct input_dev *dev = pm->dev;
+
+	if ((pm->data[0] & 0xbf) == 0x30 && pm->packetsize == ++pm->idx) {
+		if (pm_checkpacket(pm->data)) {
+			input_report_abs(dev, ABS_X,
+					pm->data[2] * 256 + pm->data[1]);
+			input_report_abs(dev, ABS_Y,
+					pm->data[4] * 256 + pm->data[3]);
+			input_report_key(dev, BTN_TOUCH, pm->data[0] & 0x40);
+			input_sync(dev);
+		}
+		pm->idx = 0;
+	}
+}
+
+static void pm_parse_3000(struct pm *pm)
+{
+	struct input_dev *dev = pm->dev;
+
+	if ((pm->data[0] & 0xce) == 0x40 && pm->packetsize == ++pm->idx) {
+		if (pm_checkpacket(pm->data)) {
+			int slotnum = pm->data[0] & 0x0f;
+			pm->slots[slotnum].active = pm->data[0] & 0x30;
+			pm->slots[slotnum].x = pm->data[2] * 256 + pm->data[1];
+			pm->slots[slotnum].y = pm->data[4] * 256 + pm->data[3];
+			pm_mtevent(pm, dev);
+		}
+		pm->idx = 0;
+	}
+}
+
+static void pm_parse_6250(struct pm *pm)
+{
+	struct input_dev *dev = pm->dev;
+
+	if ((pm->data[0] & 0xb0) == 0x30 && pm->packetsize == ++pm->idx) {
+		if (pm_checkpacket(pm->data)) {
+			int slotnum = pm->data[0] & 0x0f;
+			pm->slots[slotnum].active = pm->data[0] & 0x40;
+			pm->slots[slotnum].x = pm->data[2] * 256 + pm->data[1];
+			pm->slots[slotnum].y = pm->data[4] * 256 + pm->data[3];
+			pm_mtevent(pm, dev);
+		}
+		pm->idx = 0;
+	}
+}
 
 static irqreturn_t pm_interrupt(struct serio *serio,
 		unsigned char data, unsigned int flags)
 {
 	struct pm *pm = serio_get_drvdata(serio);
-	struct input_dev *dev = pm->dev;
 
 	pm->data[pm->idx] = data;
 
-	if (pm->data[0] & 0x80) {
-		if (PM_MAX_LENGTH == ++pm->idx) {
-			input_report_abs(dev, ABS_X, pm->data[2] * 128 + pm->data[1]);
-			input_report_abs(dev, ABS_Y, pm->data[4] * 128 + pm->data[3]);
-			input_report_key(dev, BTN_TOUCH, !!(pm->data[0] & 0x40));
-			input_sync(dev);
-			pm->idx = 0;
-		}
-	}
+	pm->parse_packet(pm);
 
 	return IRQ_HANDLED;
 }
@@ -74,17 +183,17 @@ static void pm_disconnect(struct serio *serio)
 {
 	struct pm *pm = serio_get_drvdata(serio);
 
-	input_get_device(pm->dev);
-	input_unregister_device(pm->dev);
 	serio_close(serio);
-	serio_set_drvdata(serio, NULL);
-	input_put_device(pm->dev);
+
+	input_unregister_device(pm->dev);
 	kfree(pm);
+
+	serio_set_drvdata(serio, NULL);
 }
 
 /*
  * pm_connect() is the routine that is called when someone adds a
- * new serio device that supports Gunze protocol and registers it as
+ * new serio device that supports PenMount protocol and registers it as
  * an input device.
  */
 
@@ -92,6 +201,7 @@ static int pm_connect(struct serio *serio, struct serio_driver *drv)
 {
 	struct pm *pm;
 	struct input_dev *input_dev;
+	int max_x, max_y;
 	int err;
 
 	pm = kzalloc(sizeof(struct pm), GFP_KERNEL);
@@ -104,8 +214,9 @@ static int pm_connect(struct serio *serio, struct serio_driver *drv)
 	pm->serio = serio;
 	pm->dev = input_dev;
 	snprintf(pm->phys, sizeof(pm->phys), "%s/input0", serio->phys);
+	pm->maxcontacts = 1;
 
-	input_dev->name = "Penmount Serial TouchScreen";
+	input_dev->name = "PenMount Serial TouchScreen";
 	input_dev->phys = pm->phys;
 	input_dev->id.bustype = BUS_RS232;
 	input_dev->id.vendor = SERIO_PENMOUNT;
@@ -113,10 +224,52 @@ static int pm_connect(struct serio *serio, struct serio_driver *drv)
 	input_dev->id.version = 0x0100;
 	input_dev->dev.parent = &serio->dev;
 
-        input_dev->evbit[0] = BIT_MASK(EV_KEY) | BIT_MASK(EV_ABS);
-        input_dev->keybit[BIT_WORD(BTN_TOUCH)] = BIT_MASK(BTN_TOUCH);
-        input_set_abs_params(pm->dev, ABS_X, 0, 0x3ff, 0, 0);
-        input_set_abs_params(pm->dev, ABS_Y, 0, 0x3ff, 0, 0);
+	input_dev->evbit[0] = BIT_MASK(EV_KEY) | BIT_MASK(EV_ABS);
+	input_dev->keybit[BIT_WORD(BTN_TOUCH)] = BIT_MASK(BTN_TOUCH);
+
+	switch (serio->id.id) {
+	default:
+	case 0:
+		pm->packetsize = 5;
+		pm->parse_packet = pm_parse_9000;
+		input_dev->id.product = 0x9000;
+		max_x = max_y = 0x3ff;
+		break;
+
+	case 1:
+		pm->packetsize = 6;
+		pm->parse_packet = pm_parse_6000;
+		input_dev->id.product = 0x6000;
+		max_x = max_y = 0x3ff;
+		break;
+
+	case 2:
+		pm->packetsize = 6;
+		pm->parse_packet = pm_parse_3000;
+		input_dev->id.product = 0x3000;
+		max_x = max_y = 0x7ff;
+		pm->maxcontacts = PM_3000_MTSLOT;
+		break;
+
+	case 3:
+		pm->packetsize = 6;
+		pm->parse_packet = pm_parse_6250;
+		input_dev->id.product = 0x6250;
+		max_x = max_y = 0x3ff;
+		pm->maxcontacts = PM_6250_MTSLOT;
+		break;
+	}
+
+	input_set_abs_params(pm->dev, ABS_X, 0, max_x, 0, 0);
+	input_set_abs_params(pm->dev, ABS_Y, 0, max_y, 0, 0);
+
+	if (pm->maxcontacts > 1) {
+		input_mt_init_slots(pm->dev, pm->maxcontacts);
+		input_set_abs_params(pm->dev,
+				     ABS_MT_POSITION_X, 0, max_x, 0, 0);
+		input_set_abs_params(pm->dev,
+				     ABS_MT_POSITION_Y, 0, max_y, 0, 0);
+	}
 
 	serio_set_drvdata(serio, pm);
 
@@ -155,7 +308,7 @@ MODULE_DEVICE_TABLE(serio, pm_serio_ids);
 
 static struct serio_driver pm_drv = {
 	.driver		= {
-		.name	= "penmountlpc",
+		.name	= "serio-penmount",
 	},
 	.description	= DRIVER_DESC,
 	.id_table	= pm_serio_ids,

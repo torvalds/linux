@@ -3,7 +3,7 @@ config ARM
 	default y
 	select HAVE_AOUT
 	select HAVE_DMA_API_DEBUG
-	select HAVE_IDE
+	select HAVE_IDE if PCI || ISA || PCMCIA
 	select HAVE_MEMBLOCK
 	select RTC_LIB
 	select SYS_SUPPORTS_APM_EMULATION
@@ -29,6 +29,7 @@ config ARM
 	select HAVE_GENERIC_HARDIRQS
 	select HAVE_SPARSE_IRQ
 	select GENERIC_IRQ_SHOW
+	select CPU_PM if (SUSPEND || CPU_IDLE)
 	help
 	  The ARM series is a line of low-power-consumption RISC chip designs
 	  licensed by ARM Ltd and targeted at embedded applications and
@@ -195,7 +196,8 @@ config VECTORS_BASE
 	  The base address of exception vectors.
 
 config ARM_PATCH_PHYS_VIRT
-	bool "Patch physical to virtual translations at runtime"
+	bool "Patch physical to virtual translations at runtime" if EMBEDDED
+	default y
 	depends on !XIP_KERNEL && MMU
 	depends on !ARCH_REALVIEW || !SPARSEMEM
 	help
@@ -204,16 +206,29 @@ config ARM_PATCH_PHYS_VIRT
 	  kernel in system memory.
 
 	  This can only be used with non-XIP MMU kernels where the base
-	  of physical memory is at a 16MB boundary, or theoretically 64K
-	  for the MSM machine class.
+	  of physical memory is at a 16MB boundary.
 
-config ARM_PATCH_PHYS_VIRT_16BIT
-	def_bool y
-	depends on ARM_PATCH_PHYS_VIRT && ARCH_MSM
+	  Only disable this option if you know that you do not require
+	  this feature (eg, building a kernel for a single machine) and
+	  you need to shrink the kernel to the minimal size.
+
+config NEED_MACH_MEMORY_H
+	bool
 	help
-	  This option extends the physical to virtual translation patching
-	  to allow physical memory down to a theoretical minimum of 64K
-	  boundaries.
+	  Select this when mach/memory.h is required to provide special
+	  definitions for this platform.  The need for mach/memory.h should
+	  be avoided when possible.
+
+config PHYS_OFFSET
+	hex "Physical address of main memory"
+	depends on !ARM_PATCH_PHYS_VIRT && !NEED_MACH_MEMORY_H
+	help
+	  Please provide the physical address corresponding to the
+	  location of main memory in your system.
+
+config GENERIC_BUG
+	def_bool y
+	depends on BUG
 
 source "init/Kconfig"
 
@@ -246,6 +261,7 @@ config ARCH_INTEGRATOR
 	select GENERIC_CLOCKEVENTS
 	select PLAT_VERSATILE
 	select PLAT_VERSATILE_FPGA_IRQ
+	select NEED_MACH_MEMORY_H
 	help
 	  Support for ARM's Integrator platform.
 
@@ -261,6 +277,7 @@ config ARCH_REALVIEW
 	select PLAT_VERSATILE_CLCD
 	select ARM_TIMER_SP804
 	select GPIO_PL061 if GPIOLIB
+	select NEED_MACH_MEMORY_H
 	help
 	  This enables support for ARM Ltd RealView boards.
 
@@ -301,7 +318,6 @@ config ARCH_AT91
 	select ARCH_REQUIRE_GPIOLIB
 	select HAVE_CLK
 	select CLKDEV_LOOKUP
-	select ARM_PATCH_PHYS_VIRT if MMU
 	help
 	  This enables support for systems based on the Atmel AT91RM9200,
 	  AT91SAM9 and AT91CAP9 processors.
@@ -318,10 +334,25 @@ config ARCH_BCMRING
 	help
 	  Support for Broadcom's BCMRing platform.
 
+config ARCH_HIGHBANK
+	bool "Calxeda Highbank-based"
+	select ARCH_WANT_OPTIONAL_GPIOLIB
+	select ARM_AMBA
+	select ARM_GIC
+	select ARM_TIMER_SP804
+	select CLKDEV_LOOKUP
+	select CPU_V7
+	select GENERIC_CLOCKEVENTS
+	select HAVE_ARM_SCU
+	select USE_OF
+	help
+	  Support for the Calxeda Highbank SoC based boards.
+
 config ARCH_CLPS711X
 	bool "Cirrus Logic CLPS711x/EP721x-based"
 	select CPU_ARM720T
 	select ARCH_USES_GETTIMEOFFSET
+	select NEED_MACH_MEMORY_H
 	help
 	  Support for Cirrus Logic 711x/721x based boards.
 
@@ -346,7 +377,6 @@ config ARCH_GEMINI
 config ARCH_PRIMA2
 	bool "CSR SiRFSoC PRIMA2 ARM Cortex A9 Platform"
 	select CPU_V7
-	select GENERIC_TIME
 	select NO_IOPORT
 	select GENERIC_CLOCKEVENTS
 	select CLKDEV_LOOKUP
@@ -362,6 +392,7 @@ config ARCH_EBSA110
 	select ISA
 	select NO_IOPORT
 	select ARCH_USES_GETTIMEOFFSET
+	select NEED_MACH_MEMORY_H
 	help
 	  This is an evaluation board for the StrongARM processor available
 	  from Digital. It has limited hardware on-board, including an
@@ -377,6 +408,7 @@ config ARCH_EP93XX
 	select ARCH_REQUIRE_GPIOLIB
 	select ARCH_HAS_HOLES_MEMORYMODEL
 	select ARCH_USES_GETTIMEOFFSET
+	select NEED_MACH_MEMORY_H
 	help
 	  This enables support for the Cirrus EP93xx series of CPUs.
 
@@ -385,6 +417,8 @@ config ARCH_FOOTBRIDGE
 	select CPU_SA110
 	select FOOTBRIDGE
 	select GENERIC_CLOCKEVENTS
+	select HAVE_IDE
+	select NEED_MACH_MEMORY_H
 	help
 	  Support for systems based on the DC21285 companion chip
 	  ("FootBridge"), such as the Simtec CATS and the Rebel NetWinder.
@@ -397,6 +431,7 @@ config ARCH_MXC
 	select CLKSRC_MMIO
 	select GENERIC_IRQ_CHIP
 	select HAVE_SCHED_CLOCK
+	select MULTI_IRQ_HANDLER
 	help
 	  Support for Freescale MXC/iMX-based family of processors
 
@@ -434,6 +469,7 @@ config ARCH_IOP13XX
 	select PCI
 	select ARCH_SUPPORTS_MSI
 	select VMSPLIT_1G
+	select NEED_MACH_MEMORY_H
 	help
 	  Support for Intel's IOP13XX (XScale) family of processors.
 
@@ -464,6 +500,7 @@ config ARCH_IXP23XX
 	select CPU_XSC3
  	select PCI
 	select ARCH_USES_GETTIMEOFFSET
+	select NEED_MACH_MEMORY_H
 	help
 	  Support for Intel's IXP23xx (XScale) family of processors.
 
@@ -473,6 +510,7 @@ config ARCH_IXP2000
 	select CPU_XSCALE
 	select PCI
 	select ARCH_USES_GETTIMEOFFSET
+	select NEED_MACH_MEMORY_H
 	help
 	  Support for Intel's IXP2400/2800 (XScale) family of processors.
 
@@ -519,7 +557,6 @@ config ARCH_LPC32XX
 	select ARM_AMBA
 	select USB_ARCH_HAS_OHCI
 	select CLKDEV_LOOKUP
-	select GENERIC_TIME
 	select GENERIC_CLOCKEVENTS
 	help
 	  Support for the NXP LPC32XX family of processors
@@ -558,6 +595,7 @@ config ARCH_MMP
 	select TICK_ONESHOT
 	select PLAT_PXA
 	select SPARSE_IRQ
+	select GENERIC_ALLOCATOR
 	help
 	  Support for Marvell's PXA168/PXA910(MMP) and MMP2 processor line.
 
@@ -566,6 +604,7 @@ config ARCH_KS8695
 	select CPU_ARM922T
 	select ARCH_REQUIRE_GPIOLIB
 	select ARCH_USES_GETTIMEOFFSET
+	select NEED_MACH_MEMORY_H
 	help
 	  Support for Micrel/Kendin KS8695 "Centaur" (ARM922T) based
 	  System-on-Chip devices.
@@ -586,19 +625,10 @@ config ARCH_W90X900
 	  <http://www.nuvoton.com/hq/enu/ProductAndSales/ProductLines/
 		ConsumerElectronicsIC/ARMMicrocontroller/ARMMicrocontroller>
 
-config ARCH_NUC93X
-	bool "Nuvoton NUC93X CPU"
-	select CPU_ARM926T
-	select CLKDEV_LOOKUP
-	help
-	  Support for Nuvoton (Winbond logic dept.) NUC93X MCU,The NUC93X is a
-	  low-power and high performance MPEG-4/JPEG multimedia controller chip.
-
 config ARCH_TEGRA
 	bool "NVIDIA Tegra"
 	select CLKDEV_LOOKUP
 	select CLKSRC_MMIO
-	select GENERIC_TIME
 	select GENERIC_CLOCKEVENTS
 	select GENERIC_GPIO
 	select HAVE_CLK
@@ -607,6 +637,24 @@ config ARCH_TEGRA
 	help
 	  This enables support for NVIDIA Tegra based systems (Tegra APX,
 	  Tegra 6xx and Tegra 2 series).
+
+config ARCH_PICOXCELL
+	bool "Picochip picoXcell"
+	select ARCH_REQUIRE_GPIOLIB
+	select ARM_PATCH_PHYS_VIRT
+	select ARM_VIC
+	select CPU_V6K
+	select DW_APB_TIMER
+	select GENERIC_CLOCKEVENTS
+	select GENERIC_GPIO
+	select HAVE_SCHED_CLOCK
+	select HAVE_TCM
+	select NO_IOPORT
+	select USE_OF
+	help
+	  This enables support for systems based on the Picochip picoXcell
+	  family of Femtocell devices.  The picoxcell support requires device tree
+	  for all boards.
 
 config ARCH_PNX4008
 	bool "Philips Nexperia PNX4008 Mobile"
@@ -631,6 +679,8 @@ config ARCH_PXA
 	select SPARSE_IRQ
 	select AUTO_ZRELADDR
 	select MULTI_IRQ_HANDLER
+	select ARM_CPU_SUSPEND if PM
+	select HAVE_IDE
 	help
 	  Support for Intel/Marvell's PXA2xx/PXA3xx processor line.
 
@@ -657,6 +707,7 @@ config ARCH_SHMOBILE
 	select SPARSE_IRQ
 	select MULTI_IRQ_HANDLER
 	select PM_GENERIC_DOMAINS if PM
+	select NEED_MACH_MEMORY_H
 	help
 	  Support for Renesas's SH-Mobile and R-Mobile ARM platforms.
 
@@ -671,6 +722,8 @@ config ARCH_RPC
 	select NO_IOPORT
 	select ARCH_SPARSEMEM_ENABLE
 	select ARCH_USES_GETTIMEOFFSET
+	select HAVE_IDE
+	select NEED_MACH_MEMORY_H
 	help
 	  On the Acorn Risc-PC, Linux can support the internal IDE disk and
 	  CD-ROM interface, serial and parallel port, and the floppy drive.
@@ -689,6 +742,8 @@ config ARCH_SA1100
 	select HAVE_SCHED_CLOCK
 	select TICK_ONESHOT
 	select ARCH_REQUIRE_GPIOLIB
+	select HAVE_IDE
+	select NEED_MACH_MEMORY_H
 	help
 	  Support for StrongARM 11x0 based boards.
 
@@ -715,6 +770,7 @@ config ARCH_S3C64XX
 	select CPU_V6
 	select ARM_VIC
 	select HAVE_CLK
+	select HAVE_TCM
 	select CLKDEV_LOOKUP
 	select NO_IOPORT
 	select ARCH_USES_GETTIMEOFFSET
@@ -722,11 +778,7 @@ config ARCH_S3C64XX
 	select ARCH_REQUIRE_GPIOLIB
 	select SAMSUNG_CLKSRC
 	select SAMSUNG_IRQ_VIC_TIMER
-	select SAMSUNG_IRQ_UART
 	select S3C_GPIO_TRACK
-	select S3C_GPIO_PULL_UPDOWN
-	select S3C_GPIO_CFG_S3C24XX
-	select S3C_GPIO_CFG_S3C64XX
 	select S3C_DEV_NAND
 	select USB_ARCH_HAS_OHCI
 	select SAMSUNG_GPIOLIB_4BIT
@@ -781,11 +833,12 @@ config ARCH_S5PV210
 	select HAVE_S3C2410_I2C if I2C
 	select HAVE_S3C_RTC if RTC_CLASS
 	select HAVE_S3C2410_WATCHDOG if WATCHDOG
+	select NEED_MACH_MEMORY_H
 	help
 	  Samsung S5PV210/S5PC110 series based systems
 
-config ARCH_EXYNOS4
-	bool "Samsung EXYNOS4"
+config ARCH_EXYNOS
+	bool "SAMSUNG EXYNOS"
 	select CPU_V7
 	select ARCH_SPARSEMEM_ENABLE
 	select ARCH_HAS_HOLES_MEMORYMODEL
@@ -797,8 +850,9 @@ config ARCH_EXYNOS4
 	select HAVE_S3C_RTC if RTC_CLASS
 	select HAVE_S3C2410_I2C if I2C
 	select HAVE_S3C2410_WATCHDOG if WATCHDOG
+	select NEED_MACH_MEMORY_H
 	help
-	  Samsung EXYNOS4 series based systems
+	  Support for SAMSUNG's EXYNOS SoCs (EXYNOS4/5)
 
 config ARCH_SHARK
 	bool "Shark"
@@ -808,6 +862,7 @@ config ARCH_SHARK
 	select ZONE_DMA
 	select PCI
 	select ARCH_USES_GETTIMEOFFSET
+	select NEED_MACH_MEMORY_H
 	help
 	  Support for the StrongARM based Digital DNARD machine, also known
 	  as "Shark" (<http://www.shark-linux.de/shark.html>).
@@ -830,11 +885,14 @@ config ARCH_U300
 	select HAVE_SCHED_CLOCK
 	select HAVE_TCM
 	select ARM_AMBA
+	select ARM_PATCH_PHYS_VIRT
 	select ARM_VIC
 	select GENERIC_CLOCKEVENTS
 	select CLKDEV_LOOKUP
 	select HAVE_MACH_CLKDEV
 	select GENERIC_GPIO
+	select ARCH_REQUIRE_GPIOLIB
+	select NEED_MACH_MEMORY_H
 	help
 	  Support for ST-Ericsson U300 series mobile platforms.
 
@@ -910,7 +968,6 @@ config ARCH_VT8500
 config ARCH_ZYNQ
 	bool "Xilinx Zynq ARM Cortex A9 Platform"
 	select CPU_V7
-	select GENERIC_TIME
 	select GENERIC_CLOCKEVENTS
 	select CLKDEV_LOOKUP
 	select ARM_GIC
@@ -979,8 +1036,6 @@ source "arch/arm/mach-netx/Kconfig"
 source "arch/arm/mach-nomadik/Kconfig"
 source "arch/arm/plat-nomadik/Kconfig"
 
-source "arch/arm/mach-nuc93x/Kconfig"
-
 source "arch/arm/plat-omap/Kconfig"
 
 source "arch/arm/mach-omap1/Kconfig"
@@ -1024,7 +1079,7 @@ source "arch/arm/mach-s5pc100/Kconfig"
 
 source "arch/arm/mach-s5pv210/Kconfig"
 
-source "arch/arm/mach-exynos4/Kconfig"
+source "arch/arm/mach-exynos/Kconfig"
 
 source "arch/arm/mach-shmobile/Kconfig"
 
@@ -1374,7 +1429,8 @@ config SMP
 	depends on REALVIEW_EB_ARM11MP || REALVIEW_EB_A9MP || \
 		 MACH_REALVIEW_PB11MP || MACH_REALVIEW_PBX || ARCH_OMAP4 || \
 		 ARCH_EXYNOS4 || ARCH_TEGRA || ARCH_U8500 || ARCH_VEXPRESS_CA9X4 || \
-		 ARCH_MSM_SCORPIONMP || ARCH_SHMOBILE
+		 ARCH_MSM_SCORPIONMP || ARCH_SHMOBILE || ARCH_HIGHBANK || SOC_IMX6Q
+	depends on MMU
 	select USE_GENERIC_SMP_HELPERS
 	select HAVE_ARM_SCU if !ARCH_MSM_SCORPIONMP
 	help
@@ -1388,7 +1444,7 @@ config SMP
 	  processor machines. On a single processor machine, the kernel will
 	  run faster if you say N here.
 
-	  See also <file:Documentation/i386/IO-APIC.txt>,
+	  See also <file:Documentation/x86/i386/IO-APIC.txt>,
 	  <file:Documentation/nmi_watchdog.txt> and the SMP-HOWTO available at
 	  <http://tldp.org/HOWTO/SMP-HOWTO.html>.
 
@@ -1406,6 +1462,31 @@ config SMP_ON_UP
 	  savings.
 
 	  If you don't know what to do here, say Y.
+
+config ARM_CPU_TOPOLOGY
+	bool "Support cpu topology definition"
+	depends on SMP && CPU_V7
+	default y
+	help
+	  Support ARM cpu topology definition. The MPIDR register defines
+	  affinity between processors which is then used to describe the cpu
+	  topology of an ARM System.
+
+config SCHED_MC
+	bool "Multi-core scheduler support"
+	depends on ARM_CPU_TOPOLOGY
+	help
+	  Multi-core scheduler support improves the CPU scheduler's decision
+	  making when dealing with multi-core CPU chips at a cost of slightly
+	  increased overhead in some places. If unsure say N here.
+
+config SCHED_SMT
+	bool "SMT scheduler support"
+	depends on ARM_CPU_TOPOLOGY
+	help
+	  Improves the CPU scheduler's decision making when dealing with
+	  MultiThreading at a cost of slightly increased overhead in some
+	  places. If unsure say N here.
 
 config HAVE_ARM_SCU
 	bool
@@ -1482,6 +1563,7 @@ config THUMB2_KERNEL
 	depends on CPU_V7 && !CPU_V6 && !CPU_V6K && EXPERIMENTAL
 	select AEABI
 	select ARM_ASM_UNIFIED
+	select ARM_UNWIND
 	help
 	  By enabling this option, the kernel will be compiled in
 	  Thumb-2 mode. A compiler/assembler that understand the unified
@@ -1807,6 +1889,38 @@ config ZBOOT_ROM_SH_MOBILE_SDHI
 
 endchoice
 
+config ARM_APPENDED_DTB
+	bool "Use appended device tree blob to zImage (EXPERIMENTAL)"
+	depends on OF && !ZBOOT_ROM && EXPERIMENTAL
+	help
+	  With this option, the boot code will look for a device tree binary
+	  (DTB) appended to zImage
+	  (e.g. cat zImage <filename>.dtb > zImage_w_dtb).
+
+	  This is meant as a backward compatibility convenience for those
+	  systems with a bootloader that can't be upgraded to accommodate
+	  the documented boot protocol using a device tree.
+
+	  Beware that there is very little in terms of protection against
+	  this option being confused by leftover garbage in memory that might
+	  look like a DTB header after a reboot if no actual DTB is appended
+	  to zImage.  Do not leave this option active in a production kernel
+	  if you don't intend to always append a DTB.  Proper passing of the
+	  location into r2 of a bootloader provided DTB is always preferable
+	  to this option.
+
+config ARM_ATAG_DTB_COMPAT
+	bool "Supplement the appended DTB with traditional ATAG information"
+	depends on ARM_APPENDED_DTB
+	help
+	  Some old bootloaders can't be updated to a DTB capable one, yet
+	  they provide ATAGs with memory configuration, the ramdisk address,
+	  the kernel cmdline string, etc.  Such information is dynamically
+	  provided by the bootloader and can't always be stored in a static
+	  DTB.  To allow a device tree enabled kernel to be used with such
+	  bootloaders, this option allows zImage to extract the information
+	  from the ATAG list and store it at run time into the appended DTB.
+
 config CMDLINE
 	string "Default kernel command string"
 	default ""
@@ -1953,6 +2067,7 @@ config CPU_FREQ_PXA
 	bool
 	depends on CPU_FREQ && ARCH_PXA && PXA25x
 	default y
+	select CPU_FREQ_TABLE
 	select CPU_FREQ_DEFAULT_GOV_USERSPACE
 
 config CPU_FREQ_S3C
@@ -2096,10 +2211,13 @@ menu "Power management options"
 source "kernel/power/Kconfig"
 
 config ARCH_SUSPEND_POSSIBLE
-	depends on !ARCH_S5P64X0 && !ARCH_S5PC100
+	depends on !ARCH_S5PC100
 	depends on CPU_ARM920T || CPU_ARM926T || CPU_SA1100 || \
 		CPU_V6 || CPU_V6K || CPU_V7 || CPU_XSC3 || CPU_XSCALE
 	def_bool y
+
+config ARM_CPU_SUSPEND
+	def_bool PM_SLEEP
 
 endmenu
 

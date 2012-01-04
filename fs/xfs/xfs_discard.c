@@ -38,7 +38,7 @@ xfs_trim_extents(
 	struct xfs_mount	*mp,
 	xfs_agnumber_t		agno,
 	xfs_fsblock_t		start,
-	xfs_fsblock_t		len,
+	xfs_fsblock_t		end,
 	xfs_fsblock_t		minlen,
 	__uint64_t		*blocks_trimmed)
 {
@@ -100,7 +100,7 @@ xfs_trim_extents(
 		 * down partially overlapping ranges for now.
 		 */
 		if (XFS_AGB_TO_FSB(mp, agno, fbno) + flen < start ||
-		    XFS_AGB_TO_FSB(mp, agno, fbno) >= start + len) {
+		    XFS_AGB_TO_FSB(mp, agno, fbno) > end) {
 			trace_xfs_discard_exclude(mp, agno, fbno, flen);
 			goto next_extent;
 		}
@@ -145,7 +145,7 @@ xfs_ioc_trim(
 	struct request_queue	*q = mp->m_ddev_targp->bt_bdev->bd_disk->queue;
 	unsigned int		granularity = q->limits.discard_granularity;
 	struct fstrim_range	range;
-	xfs_fsblock_t		start, len, minlen;
+	xfs_fsblock_t		start, end, minlen;
 	xfs_agnumber_t		start_agno, end_agno, agno;
 	__uint64_t		blocks_trimmed = 0;
 	int			error, last_error = 0;
@@ -165,19 +165,19 @@ xfs_ioc_trim(
 	 * matter as trimming blocks is an advisory interface.
 	 */
 	start = XFS_B_TO_FSBT(mp, range.start);
-	len = XFS_B_TO_FSBT(mp, range.len);
+	end = start + XFS_B_TO_FSBT(mp, range.len) - 1;
 	minlen = XFS_B_TO_FSB(mp, max_t(u64, granularity, range.minlen));
 
-	start_agno = XFS_FSB_TO_AGNO(mp, start);
-	if (start_agno >= mp->m_sb.sb_agcount)
+	if (start >= mp->m_sb.sb_dblocks)
 		return -XFS_ERROR(EINVAL);
+	if (end > mp->m_sb.sb_dblocks - 1)
+		end = mp->m_sb.sb_dblocks - 1;
 
-	end_agno = XFS_FSB_TO_AGNO(mp, start + len);
-	if (end_agno >= mp->m_sb.sb_agcount)
-		end_agno = mp->m_sb.sb_agcount - 1;
+	start_agno = XFS_FSB_TO_AGNO(mp, start);
+	end_agno = XFS_FSB_TO_AGNO(mp, end);
 
 	for (agno = start_agno; agno <= end_agno; agno++) {
-		error = -xfs_trim_extents(mp, agno, start, len, minlen,
+		error = -xfs_trim_extents(mp, agno, start, end, minlen,
 					  &blocks_trimmed);
 		if (error)
 			last_error = error;

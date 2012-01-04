@@ -1,4 +1,5 @@
 config ARM_GIC
+	select IRQ_DOMAIN
 	bool
 
 config ARM_VIC

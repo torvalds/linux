@@ -21,9 +21,11 @@
 #include <asm/mach-types.h>
 #include <mach/common.h>
 
+#define is_sh73a0() (machine_is_ag5evm() || machine_is_kota2())
+
 static unsigned int __init shmobile_smp_get_core_count(void)
 {
-	if (machine_is_ag5evm())
+	if (is_sh73a0())
 		return sh73a0_get_core_count();
 
 	return 1;
@@ -31,7 +33,7 @@ static unsigned int __init shmobile_smp_get_core_count(void)
 
 static void __init shmobile_smp_prepare_cpus(void)
 {
-	if (machine_is_ag5evm())
+	if (is_sh73a0())
 		sh73a0_smp_prepare_cpus();
 }
 
@@ -39,13 +41,13 @@ void __cpuinit platform_secondary_init(unsigned int cpu)
 {
 	trace_hardirqs_off();
 
-	if (machine_is_ag5evm())
+	if (is_sh73a0())
 		sh73a0_secondary_init(cpu);
 }
 
 int __cpuinit boot_secondary(unsigned int cpu, struct task_struct *idle)
 {
-	if (machine_is_ag5evm())
+	if (is_sh73a0())
 		return sh73a0_boot_secondary(cpu);
 
 	return -ENOSYS;
@@ -55,6 +57,12 @@ void __init smp_init_cpus(void)
 {
 	unsigned int ncores = shmobile_smp_get_core_count();
 	unsigned int i;
+
+	if (ncores > nr_cpu_ids) {
+		pr_warn("SMP: %u cores greater than maximum (%u), clipping\n",
+			ncores, nr_cpu_ids);
+		ncores = nr_cpu_ids;
+	}
 
 	for (i = 0; i < ncores; i++)
 		set_cpu_possible(i, true);

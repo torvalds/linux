@@ -1004,7 +1004,7 @@ MACHINE_START(INTELMOTE2, "IMOTE 2")
 	.handle_irq	= pxa27x_handle_irq,
 	.timer		= &pxa_timer,
 	.init_machine	= imote2_init,
-	.boot_params	= 0xA0000100,
+	.atag_offset	= 0x100,
 MACHINE_END
 #endif
 
@@ -1016,6 +1016,6 @@ MACHINE_START(STARGATE2, "Stargate 2")
 	.handle_irq = pxa27x_handle_irq,
 	.timer = &pxa_timer,
 	.init_machine = stargate2_init,
-	.boot_params = 0xA0000100,
+	.atag_offset = 0x100,
 MACHINE_END
 #endif

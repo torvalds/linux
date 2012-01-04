@@ -677,19 +677,19 @@ config BLK_DEV_IDE_PMAC_ATA100FIRST
 
 config BLK_DEV_IDE_AU1XXX
        bool "IDE for AMD Alchemy Au1200"
-       depends on SOC_AU1200
+       depends on MIPS_ALCHEMY
        select IDE_XFER_MODE
 choice
        prompt "IDE Mode for AMD Alchemy Au1200"
-       default CONFIG_BLK_DEV_IDE_AU1XXX_PIO_DBDMA
-       depends on SOC_AU1200 && BLK_DEV_IDE_AU1XXX
+       default BLK_DEV_IDE_AU1XXX_PIO_DBDMA
+       depends on BLK_DEV_IDE_AU1XXX
 
 config BLK_DEV_IDE_AU1XXX_PIO_DBDMA
        bool "PIO+DbDMA IDE for AMD Alchemy Au1200"
 
 config BLK_DEV_IDE_AU1XXX_MDMA2_DBDMA
        bool "MDMA2+DbDMA IDE for AMD Alchemy Au1200"
-       depends on SOC_AU1200 && BLK_DEV_IDE_AU1XXX
+       depends on BLK_DEV_IDE_AU1XXX
 endchoice
 
 config BLK_DEV_IDE_TX4938

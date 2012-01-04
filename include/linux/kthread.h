@@ -4,11 +4,11 @@
 #include <linux/err.h>
 #include <linux/sched.h>
 
+__printf(4, 5)
 struct task_struct *kthread_create_on_node(int (*threadfn)(void *data),
 					   void *data,
 					   int node,
-					   const char namefmt[], ...)
-	__attribute__((format(printf, 4, 5)));
+					   const char namefmt[], ...);
 
 #define kthread_create(threadfn, data, namefmt, arg...) \
 	kthread_create_on_node(threadfn, data, -1, namefmt, ##arg)

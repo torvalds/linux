@@ -34,7 +34,7 @@ static int bcm_char_open(struct inode *inode, struct file * filp)
 	/* Store the Adapter structure */
 	filp->private_data = pTarang;
 
-	/*Start Queuing the control response Packets*/
+	/* Start Queuing the control response Packets */
 	atomic_inc(&Adapter->ApplicationRunning);
 
 	nonseekable_open(inode, filp);
@@ -84,7 +84,7 @@ static int bcm_char_release(struct inode *inode, struct file *filp)
 
 	up(&Adapter->RxAppControlQueuelock);
 
-	/*Stop Queuing the control response Packets*/
+	/* Stop Queuing the control response Packets */
 	atomic_dec(&Adapter->ApplicationRunning);
 
 	kfree(pTarang);
@@ -100,8 +100,8 @@ static ssize_t bcm_char_read(struct file *filp, char __user *buf, size_t size,
 	PPER_TARANG_DATA pTarang = filp->private_data;
 	PMINI_ADAPTER	Adapter = pTarang->Adapter;
 	struct sk_buff *Packet = NULL;
-	ssize_t         PktLen = 0;
-	int             wait_ret_val = 0;
+	ssize_t PktLen = 0;
+	int wait_ret_val = 0;
 	unsigned long ret = 0;
 
 	wait_ret_val = wait_event_interruptible(Adapter->process_read_wait_queue,
@@ -157,1942 +157,1824 @@ static long bcm_char_ioctl(struct file *filp, UINT cmd, ULONG arg)
 {
 	PPER_TARANG_DATA  pTarang = filp->private_data;
 	void __user *argp = (void __user *)arg;
-	PMINI_ADAPTER 	Adapter = pTarang->Adapter;
-	INT  			Status = STATUS_FAILURE;
+	PMINI_ADAPTER Adapter = pTarang->Adapter;
+	INT Status = STATUS_FAILURE;
 	int timeout = 0;
-	IOCTL_BUFFER 	IoBuffer;
+	IOCTL_BUFFER IoBuffer;
 
-	BCM_DEBUG_PRINT(Adapter,DBG_TYPE_OTHERS, OSAL_DBG, DBG_LVL_ALL, "Parameters Passed to control IOCTL cmd=0x%X arg=0x%lX", cmd, arg);
+	BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, OSAL_DBG, DBG_LVL_ALL, "Parameters Passed to control IOCTL cmd=0x%X arg=0x%lX", cmd, arg);
 
-	if(_IOC_TYPE(cmd) != BCM_IOCTL)
+	if (_IOC_TYPE(cmd) != BCM_IOCTL)
 		return -EFAULT;
-	if(_IOC_DIR(cmd) & _IOC_READ)
+	if (_IOC_DIR(cmd) & _IOC_READ)
 		Status = !access_ok(VERIFY_WRITE, argp, _IOC_SIZE(cmd));
 	else if (_IOC_DIR(cmd) & _IOC_WRITE)
-	    Status = !access_ok(VERIFY_READ, argp, _IOC_SIZE(cmd));
+		Status = !access_ok(VERIFY_READ, argp, _IOC_SIZE(cmd));
 	else if (_IOC_NONE == (_IOC_DIR(cmd) & _IOC_NONE))
-	    Status = STATUS_SUCCESS;
+		Status = STATUS_SUCCESS;
 
-	if(Status)
+	if (Status)
 		return -EFAULT;
 
-	if(Adapter->device_removed)
-	{
+	if (Adapter->device_removed)
 		return -EFAULT;
-	}
 
-	if(FALSE == Adapter->fw_download_done)
-	{
-		switch (cmd)
-		{
-			case IOCTL_MAC_ADDR_REQ:
-			case IOCTL_LINK_REQ:
-			case IOCTL_CM_REQUEST:
-			case IOCTL_SS_INFO_REQ:
-			case IOCTL_SEND_CONTROL_MESSAGE:
-			case IOCTL_IDLE_REQ:
-			case IOCTL_BCM_GPIO_SET_REQUEST:
-			case IOCTL_BCM_GPIO_STATUS_REQUEST:
-				return -EACCES;
-			default:
-				break;
-		}
-	}
-
-	Status = vendorextnIoctl(Adapter, cmd, arg);
-	if(Status != CONTINUE_COMMON_PATH )
-		 return Status;
-
-	switch(cmd){
-		// Rdms for Swin Idle...
-		case IOCTL_BCM_REGISTER_READ_PRIVATE:
-		{
-			RDM_BUFFER  sRdmBuffer = {0};
-			PCHAR temp_buff;
-			UINT Bufflen;
-
-			/* Copy Ioctl Buffer structure */
-			if(copy_from_user(&IoBuffer, argp, sizeof(IOCTL_BUFFER)))
-				return -EFAULT;
-
-			if (IoBuffer.InputLength > sizeof(sRdmBuffer))
-				return -EINVAL;
-
-			if(copy_from_user(&sRdmBuffer, IoBuffer.InputBuffer, IoBuffer.InputLength))
-				return -EFAULT;
-
-			/* FIXME: need to restrict BuffLen */
-			Bufflen = IoBuffer.OutputLength + (4 - IoBuffer.OutputLength%4)%4;
-			temp_buff = kmalloc(Bufflen, GFP_KERNEL);
-			if(!temp_buff)
-				return -ENOMEM;
-
-			Status = rdmalt(Adapter, (UINT)sRdmBuffer.Register,
-					(PUINT)temp_buff, Bufflen);
-			if(Status == STATUS_SUCCESS)
-			{
-				if(copy_to_user(IoBuffer.OutputBuffer, temp_buff, IoBuffer.OutputLength))
-					Status = -EFAULT;
-			}
-
-			kfree(temp_buff);
-			break;
-		}
-		case IOCTL_BCM_REGISTER_WRITE_PRIVATE:
-		{
-			WRM_BUFFER  sWrmBuffer = {0};
-			UINT uiTempVar=0;
-			/* Copy Ioctl Buffer structure */
-
-			if(copy_from_user(&IoBuffer, argp, sizeof(IOCTL_BUFFER)))
-				return -EFAULT;
-
-			if (IoBuffer.InputLength > sizeof(sWrmBuffer))
-				return -EINVAL;
-
-			/* Get WrmBuffer structure */
-			if(copy_from_user(&sWrmBuffer, IoBuffer.InputBuffer, IoBuffer.InputLength))
-				return -EFAULT;
-
-			uiTempVar = sWrmBuffer.Register & EEPROM_REJECT_MASK;
-			if(!((Adapter->pstargetparams->m_u32Customize) & VSG_MODE) &&
-			 	((uiTempVar == EEPROM_REJECT_REG_1)||
-				(uiTempVar == EEPROM_REJECT_REG_2) ||
-				(uiTempVar == EEPROM_REJECT_REG_3) ||
-				(uiTempVar == EEPROM_REJECT_REG_4)))
-			{
-				BCM_DEBUG_PRINT(Adapter,DBG_TYPE_PRINTK, 0, 0, "EEPROM Access Denied, not in VSG Mode\n");
-				return -EFAULT;
-			}
-			Status = wrmalt(Adapter, (UINT)sWrmBuffer.Register,
-						(PUINT)sWrmBuffer.Data, sizeof(ULONG));
-			if(Status == STATUS_SUCCESS)
-			{
-				BCM_DEBUG_PRINT(Adapter,DBG_TYPE_OTHERS, OSAL_DBG, DBG_LVL_ALL,"WRM Done\n");
-			}
-			else
-			{
-				BCM_DEBUG_PRINT(Adapter,DBG_TYPE_OTHERS, OSAL_DBG, DBG_LVL_ALL, "WRM Failed\n");
-				Status = -EFAULT;
-			}
-			break;
-		}
-
-		case IOCTL_BCM_REGISTER_READ:
-		case IOCTL_BCM_EEPROM_REGISTER_READ:
-		{
-			RDM_BUFFER  sRdmBuffer = {0};
-			PCHAR temp_buff = NULL;
-			UINT uiTempVar = 0;
-			if((Adapter->IdleMode == TRUE) ||
-				(Adapter->bShutStatus ==TRUE) ||
-				(Adapter->bPreparingForLowPowerMode ==TRUE))
-			{
-				BCM_DEBUG_PRINT(Adapter,DBG_TYPE_PRINTK, 0, 0, "Device in Idle Mode, Blocking Rdms\n");
-				return -EACCES;
-			}
-			/* Copy Ioctl Buffer structure */
-			if(copy_from_user(&IoBuffer, argp, sizeof(IOCTL_BUFFER)))
-				return -EFAULT;
-
-			if (IoBuffer.InputLength > sizeof(sRdmBuffer))
-				return -EINVAL;
-
-			if(copy_from_user(&sRdmBuffer, IoBuffer.InputBuffer, IoBuffer.InputLength))
-				return -EFAULT;
-
-			/* FIXME: don't trust user supplied length */
-			temp_buff = kmalloc(IoBuffer.OutputLength, GFP_KERNEL);
-			if(!temp_buff)
-				return STATUS_FAILURE;
-
-			if((((ULONG)sRdmBuffer.Register & 0x0F000000) != 0x0F000000) ||
-			   ((ULONG)sRdmBuffer.Register & 0x3))
-			{
-				BCM_DEBUG_PRINT(Adapter,DBG_TYPE_PRINTK, 0, 0, "RDM Done On invalid Address : %x Access Denied.\n",
-					(int)sRdmBuffer.Register);
-				return -EINVAL;
-			}
-
-			uiTempVar = sRdmBuffer.Register & EEPROM_REJECT_MASK;
-			Status = rdmaltWithLock(Adapter, (UINT)sRdmBuffer.Register,
-						(PUINT)temp_buff, IoBuffer.OutputLength);
-			if(Status == STATUS_SUCCESS)
-				if(copy_to_user(IoBuffer.OutputBuffer, temp_buff, IoBuffer.OutputLength))
-					Status = -EFAULT;
-
-			kfree(temp_buff);
-			break;
-		}
-		case IOCTL_BCM_REGISTER_WRITE:
-		case IOCTL_BCM_EEPROM_REGISTER_WRITE:
-		{
-			WRM_BUFFER  sWrmBuffer = {0};
-			UINT uiTempVar=0;
-			if((Adapter->IdleMode == TRUE) ||
-				(Adapter->bShutStatus ==TRUE) ||
-				(Adapter->bPreparingForLowPowerMode ==TRUE))
-			{
-				BCM_DEBUG_PRINT(Adapter,DBG_TYPE_PRINTK, 0, 0, "Device in Idle Mode, Blocking Wrms\n");
-				return -EACCES;
-			}
-
-			/* Copy Ioctl Buffer structure */
-			if(copy_from_user(&IoBuffer, argp, sizeof(IOCTL_BUFFER)))
-				return -EFAULT;
-
-			if (IoBuffer.InputLength > sizeof(sWrmBuffer))
-				return -EINVAL;
-
-			/* Get WrmBuffer structure */
-			if(copy_from_user(&sWrmBuffer, IoBuffer.InputBuffer, IoBuffer.InputLength))
-				return -EFAULT;
-
-			if( (((ULONG)sWrmBuffer.Register & 0x0F000000) != 0x0F000000) ||
-					((ULONG)sWrmBuffer.Register & 0x3) )
-			{
-				BCM_DEBUG_PRINT(Adapter,DBG_TYPE_PRINTK, 0, 0, "WRM Done On invalid Address : %x Access Denied.\n",
-						(int)sWrmBuffer.Register);
-				return -EINVAL;
-			}
-
-			uiTempVar = sWrmBuffer.Register & EEPROM_REJECT_MASK;
-			if(!((Adapter->pstargetparams->m_u32Customize) & VSG_MODE) &&
-				((uiTempVar == EEPROM_REJECT_REG_1)||
-				(uiTempVar == EEPROM_REJECT_REG_2) ||
-				(uiTempVar == EEPROM_REJECT_REG_3) ||
-				(uiTempVar == EEPROM_REJECT_REG_4)) &&
-				(cmd == IOCTL_BCM_REGISTER_WRITE))
-			{
-				BCM_DEBUG_PRINT(Adapter,DBG_TYPE_PRINTK, 0, 0, "EEPROM Access Denied, not in VSG Mode\n");
-				return -EFAULT;
-			}
-
-			Status = wrmaltWithLock(Adapter, (UINT)sWrmBuffer.Register,
-							(PUINT)sWrmBuffer.Data, sWrmBuffer.Length);
-			if(Status == STATUS_SUCCESS)
-			{
-				BCM_DEBUG_PRINT(Adapter,DBG_TYPE_PRINTK, OSAL_DBG, DBG_LVL_ALL, "WRM Done\n");
-			}
-			else
-			{
-				BCM_DEBUG_PRINT(Adapter,DBG_TYPE_OTHERS, OSAL_DBG, DBG_LVL_ALL, "WRM Failed\n");
-				Status = -EFAULT;
-			}
-			break;
-		}
-		case IOCTL_BCM_GPIO_SET_REQUEST:
-		{
-			UCHAR ucResetValue[4];
-			UINT value =0;
-			UINT uiBit = 0;
-	        UINT uiOperation = 0;
-
-			GPIO_INFO   gpio_info = {0};
-			if((Adapter->IdleMode == TRUE) ||
-				(Adapter->bShutStatus ==TRUE) ||
-				(Adapter->bPreparingForLowPowerMode ==TRUE))
-			{
-				BCM_DEBUG_PRINT(Adapter,DBG_TYPE_OTHERS, OSAL_DBG, DBG_LVL_ALL,"GPIO Can't be set/clear in Low power Mode");
-				return -EACCES;
-			}
-			if(copy_from_user(&IoBuffer, argp, sizeof(IOCTL_BUFFER)))
-				return -EFAULT;
-			if (IoBuffer.InputLength > sizeof(gpio_info))
-				return -EINVAL;
-			if(copy_from_user(&gpio_info, IoBuffer.InputBuffer, IoBuffer.InputLength))
-				return -EFAULT;
-			uiBit  = gpio_info.uiGpioNumber;
-			uiOperation = gpio_info.uiGpioValue;
-
-			value= (1<<uiBit);
-
-			if(IsReqGpioIsLedInNVM(Adapter,value) ==FALSE)
-			{
-				BCM_DEBUG_PRINT(Adapter,DBG_TYPE_OTHERS, OSAL_DBG, DBG_LVL_ALL, "Sorry, Requested GPIO<0x%X> is not correspond to LED !!!",value);
-				Status = -EINVAL;
-				break;
-			}
-
-
-			if(uiOperation)//Set - setting 1
-			{
-				//Set the gpio output register
-				Status = wrmaltWithLock(Adapter,BCM_GPIO_OUTPUT_SET_REG ,
-						(PUINT)(&value), sizeof(UINT));
-				if(Status == STATUS_SUCCESS)
-				{
-               	    BCM_DEBUG_PRINT(Adapter,DBG_TYPE_OTHERS, OSAL_DBG, DBG_LVL_ALL, "Set the GPIO bit\n");
-				}
-        	    else
-		        {
-                   	BCM_DEBUG_PRINT(Adapter,DBG_TYPE_OTHERS, OSAL_DBG, DBG_LVL_ALL,"Failed to set the %dth GPIO \n",uiBit);
-                   	break;
-               	}
-			}
-			else//Unset - setting 0
-			{
-				//Set the gpio output register
-				Status = wrmaltWithLock(Adapter,BCM_GPIO_OUTPUT_CLR_REG ,
-						(PUINT)(&value), sizeof(UINT));
-				if(Status == STATUS_SUCCESS)
-				{
-               	    BCM_DEBUG_PRINT(Adapter,DBG_TYPE_OTHERS, OSAL_DBG, DBG_LVL_ALL,"Set the GPIO bit\n");
-				}
-        	    else
-		        {
-                   	BCM_DEBUG_PRINT(Adapter,DBG_TYPE_OTHERS, OSAL_DBG, DBG_LVL_ALL,"Failed to clear the %dth GPIO \n",uiBit);
-                   	break;
-               	}
-			}
-
-			Status = rdmaltWithLock(Adapter, (UINT)GPIO_MODE_REGISTER,
-					(PUINT)ucResetValue, sizeof(UINT));
-			if (STATUS_SUCCESS != Status)
-            {
-				BCM_DEBUG_PRINT(Adapter,DBG_TYPE_OTHERS, OSAL_DBG, DBG_LVL_ALL,"GPIO_MODE_REGISTER read failed");
-				break;
-			}
-			//Set the gpio mode register to output
-			*(UINT*)ucResetValue |= (1<<uiBit);
-			Status = wrmaltWithLock(Adapter,GPIO_MODE_REGISTER ,
-					(PUINT)ucResetValue, sizeof(UINT));
-			if(Status == STATUS_SUCCESS)
-			{
-            	BCM_DEBUG_PRINT(Adapter,DBG_TYPE_OTHERS, OSAL_DBG, DBG_LVL_ALL,"Set the GPIO to output Mode\n");
-			}
-            else
-            {
-            	BCM_DEBUG_PRINT(Adapter,DBG_TYPE_OTHERS, OSAL_DBG, DBG_LVL_ALL, "Failed to put GPIO in Output Mode\n");
-                break;
-            }
-		}
-		break;
-		case BCM_LED_THREAD_STATE_CHANGE_REQ:
-		{
-			USER_THREAD_REQ threadReq = { 0 };
-			BCM_DEBUG_PRINT(Adapter,DBG_TYPE_OTHERS, OSAL_DBG, DBG_LVL_ALL,"User made LED thread InActive");
-
-			if((Adapter->IdleMode == TRUE) ||
-				(Adapter->bShutStatus ==TRUE) ||
-				(Adapter->bPreparingForLowPowerMode ==TRUE))
-			{
-				BCM_DEBUG_PRINT(Adapter,DBG_TYPE_OTHERS, OSAL_DBG, DBG_LVL_ALL,"GPIO Can't be set/clear in Low power Mode");
-				Status = -EACCES;
-				break;
-			}
-
-			if (copy_from_user(&IoBuffer, argp, sizeof(IOCTL_BUFFER)))
-				return -EFAULT;
-
-			if (IoBuffer.InputLength > sizeof(threadReq))
-				return -EINVAL;
-
-			if (copy_from_user(&threadReq, IoBuffer.InputBuffer, IoBuffer.InputLength))
-				return -EFAULT;
-
-			//if LED thread is running(Actively or Inactively) set it state to make inactive
-			if(Adapter->LEDInfo.led_thread_running)
-			{
-				if(threadReq.ThreadState == LED_THREAD_ACTIVATION_REQ)
-				{
-					BCM_DEBUG_PRINT(Adapter,DBG_TYPE_OTHERS, OSAL_DBG, DBG_LVL_ALL,"Activating thread req");
-					Adapter->DriverState = LED_THREAD_ACTIVE;
-				}
-				else
-				{
-					BCM_DEBUG_PRINT(Adapter,DBG_TYPE_OTHERS, OSAL_DBG, DBG_LVL_ALL,"DeActivating Thread req.....");
-					Adapter->DriverState = LED_THREAD_INACTIVE;
-				}
-
-				//signal thread.
-				wake_up(&Adapter->LEDInfo.notify_led_event);
-
-			}
-		}
-		break;
-		case IOCTL_BCM_GPIO_STATUS_REQUEST:
-		{
-			ULONG uiBit = 0;
-			UCHAR ucRead[4];
-			GPIO_INFO   gpio_info = {0};
-			if((Adapter->IdleMode == TRUE) ||
-				(Adapter->bShutStatus ==TRUE) ||
-				(Adapter->bPreparingForLowPowerMode ==TRUE))
-				return -EACCES;
-			if(copy_from_user(&IoBuffer, argp, sizeof(IOCTL_BUFFER)))
-				return -EFAULT;
-			if (IoBuffer.InputLength > sizeof(gpio_info))
-				return -EINVAL;
-			if(copy_from_user(&gpio_info, IoBuffer.InputBuffer, IoBuffer.InputLength))
-				return -EFAULT;
-                uiBit  = gpio_info.uiGpioNumber;
-				  //Set the gpio output register
-				Status = rdmaltWithLock(Adapter, (UINT)GPIO_PIN_STATE_REGISTER,
-                	(PUINT)ucRead, sizeof(UINT));
-                if(Status != STATUS_SUCCESS)
-                {
-                    BCM_DEBUG_PRINT(Adapter,DBG_TYPE_PRINTK, 0, 0, "RDM Failed\n");
-					return Status;
-                }
-
-			}
-			break;
-			case IOCTL_BCM_GPIO_MULTI_REQUEST:
-			{
-				UCHAR ucResetValue[4];
-				GPIO_MULTI_INFO gpio_multi_info[MAX_IDX];
-				PGPIO_MULTI_INFO pgpio_multi_info = (PGPIO_MULTI_INFO)gpio_multi_info;
-
-				memset( pgpio_multi_info, 0, MAX_IDX * sizeof( GPIO_MULTI_INFO));
-
-				if((Adapter->IdleMode == TRUE) ||
-				(Adapter->bShutStatus ==TRUE) ||
-				(Adapter->bPreparingForLowPowerMode ==TRUE))
-					return -EINVAL;
-				if (copy_from_user(&IoBuffer, argp, sizeof(IOCTL_BUFFER)))
-					return -EFAULT;
-				if (IoBuffer.InputLength > sizeof(gpio_multi_info))
-					return -EINVAL;
-				if (copy_from_user(&gpio_multi_info, IoBuffer.InputBuffer, IoBuffer.InputLength))
-					return -EFAULT;
-
-				if(IsReqGpioIsLedInNVM(Adapter,pgpio_multi_info[WIMAX_IDX].uiGPIOMask)== FALSE)
-				{
-					BCM_DEBUG_PRINT(Adapter,DBG_TYPE_OTHERS, OSAL_DBG, DBG_LVL_ALL, "Sorry, Requested GPIO<0x%X> is not correspond to NVM LED bit map<0x%X>!!!",pgpio_multi_info[WIMAX_IDX].uiGPIOMask,Adapter->gpioBitMap);
-					Status = -EINVAL;
-					break;
-				}
-
-				/* Set the gpio output register */
-
-				if( ( pgpio_multi_info[WIMAX_IDX].uiGPIOMask) &
-					( pgpio_multi_info[WIMAX_IDX].uiGPIOCommand))
-				{
-					/* Set 1's in GPIO OUTPUT REGISTER */
-					*(UINT*) ucResetValue =  pgpio_multi_info[WIMAX_IDX].uiGPIOMask &
-					        				 pgpio_multi_info[WIMAX_IDX].uiGPIOCommand &
-											 pgpio_multi_info[WIMAX_IDX].uiGPIOValue;
-
-					if( *(UINT*) ucResetValue)
-						Status = wrmaltWithLock( Adapter, BCM_GPIO_OUTPUT_SET_REG , (PUINT) ucResetValue, sizeof(ULONG));
-
-					if( Status != STATUS_SUCCESS)
-					{
-						BCM_DEBUG_PRINT( Adapter,DBG_TYPE_PRINTK, 0, 0,"WRM to BCM_GPIO_OUTPUT_SET_REG Failed.");
-						return Status;
-					}
-
-					/* Clear to 0's in GPIO OUTPUT REGISTER */
-					*(UINT*) ucResetValue = (pgpio_multi_info[WIMAX_IDX].uiGPIOMask &
-							pgpio_multi_info[WIMAX_IDX].uiGPIOCommand &
-							( ~( pgpio_multi_info[WIMAX_IDX].uiGPIOValue)));
-
-					if( *(UINT*) ucResetValue)
-						Status = wrmaltWithLock( Adapter, BCM_GPIO_OUTPUT_CLR_REG , (PUINT) ucResetValue, sizeof(ULONG));
-
-					if( Status != STATUS_SUCCESS)
-					{
-						BCM_DEBUG_PRINT( Adapter,DBG_TYPE_PRINTK, 0, 0,"WRM to BCM_GPIO_OUTPUT_CLR_REG Failed." );
-						return Status;
-					}
-				}
-
-				if( pgpio_multi_info[WIMAX_IDX].uiGPIOMask)
-				{
-					Status = rdmaltWithLock(Adapter, (UINT)GPIO_PIN_STATE_REGISTER, (PUINT)ucResetValue, sizeof(UINT));
-
-					if(Status != STATUS_SUCCESS)
-					{
-						BCM_DEBUG_PRINT( Adapter,DBG_TYPE_PRINTK, 0, 0,"RDM to GPIO_PIN_STATE_REGISTER Failed.");
-						return Status;
-					}
-
-					pgpio_multi_info[WIMAX_IDX].uiGPIOValue = ( *(UINT*)ucResetValue &
-											pgpio_multi_info[WIMAX_IDX].uiGPIOMask);
-				}
-
-				Status = copy_to_user(IoBuffer.OutputBuffer, &gpio_multi_info, IoBuffer.OutputLength);
-				if(Status)
-				{
-					BCM_DEBUG_PRINT(Adapter,DBG_TYPE_PRINTK, 0, 0,"Failed while copying Content to IOBufer for user space err:%d",Status);
-					break;
-				}
-			}
-			break;
-		case IOCTL_BCM_GPIO_MODE_REQUEST:
-		{
-			UCHAR ucResetValue[4];
-			GPIO_MULTI_MODE gpio_multi_mode[MAX_IDX];
-			PGPIO_MULTI_MODE pgpio_multi_mode = ( PGPIO_MULTI_MODE) gpio_multi_mode;
-
-			if((Adapter->IdleMode == TRUE) ||
-				(Adapter->bShutStatus ==TRUE) ||
-				(Adapter->bPreparingForLowPowerMode ==TRUE))
-					return -EINVAL;
-
-			if (copy_from_user(&IoBuffer, argp, sizeof(IOCTL_BUFFER)))
-				return -EFAULT;
-			if (IoBuffer.InputLength > sizeof(gpio_multi_mode))
-				return -EINVAL;
-			if (copy_from_user(&gpio_multi_mode, IoBuffer.InputBuffer, IoBuffer.InputLength))
-				return -EFAULT;
-
-			Status = rdmaltWithLock( Adapter, ( UINT) GPIO_MODE_REGISTER, ( PUINT) ucResetValue, sizeof( UINT));
-			if( STATUS_SUCCESS != Status)
-			{
-				BCM_DEBUG_PRINT(Adapter,DBG_TYPE_PRINTK, 0, 0,"Read of GPIO_MODE_REGISTER failed");
-				return Status;
-			}
-
-			//Validating the request
-			if(IsReqGpioIsLedInNVM(Adapter,pgpio_multi_mode[WIMAX_IDX].uiGPIOMask)== FALSE)
-			{
-				BCM_DEBUG_PRINT(Adapter,DBG_TYPE_OTHERS, OSAL_DBG, DBG_LVL_ALL, "Sorry, Requested GPIO<0x%X> is not correspond to NVM LED bit map<0x%X>!!!",pgpio_multi_mode[WIMAX_IDX].uiGPIOMask,Adapter->gpioBitMap);
-				Status = -EINVAL;
-				break;
-			}
-
-			if( pgpio_multi_mode[WIMAX_IDX].uiGPIOMask)
-			{
-				/* write all OUT's (1's) */
-				*( UINT*) ucResetValue |= ( pgpio_multi_mode[WIMAX_IDX].uiGPIOMode &
-								pgpio_multi_mode[WIMAX_IDX].uiGPIOMask);
-				/* write all IN's (0's) */
-				*( UINT*) ucResetValue &= ~( ( ~pgpio_multi_mode[WIMAX_IDX].uiGPIOMode) &
-								pgpio_multi_mode[WIMAX_IDX].uiGPIOMask);
-
-				/* Currently implemented return the modes of all GPIO's
-				 * else needs to bit AND with  mask
-				 * */
-				pgpio_multi_mode[WIMAX_IDX].uiGPIOMode = *(UINT*)ucResetValue;
-
-				Status = wrmaltWithLock( Adapter, GPIO_MODE_REGISTER , ( PUINT) ucResetValue, sizeof( ULONG));
-				if( Status == STATUS_SUCCESS)
-				{
-					BCM_DEBUG_PRINT( Adapter,DBG_TYPE_OTHERS, OSAL_DBG, DBG_LVL_ALL, "WRM to GPIO_MODE_REGISTER Done");
-				}
-				else
-				{
-					BCM_DEBUG_PRINT( Adapter,DBG_TYPE_PRINTK, 0, 0,"WRM to GPIO_MODE_REGISTER Failed");
-					Status = -EFAULT;
-					break;
-				}
-			}
-			else /* if uiGPIOMask is 0 then return mode register configuration */
-			{
-				pgpio_multi_mode[WIMAX_IDX].uiGPIOMode = *( UINT*) ucResetValue;
-			}
-			Status = copy_to_user(IoBuffer.OutputBuffer, &gpio_multi_mode, IoBuffer.OutputLength);
-			if(Status)
-			{
-				BCM_DEBUG_PRINT(Adapter,DBG_TYPE_PRINTK, 0, 0,"Failed while copying Content to IOBufer for user space err:%d",Status);
-				break;
-			}
-		}
-		break;
-
+	if (FALSE == Adapter->fw_download_done) {
+		switch (cmd) {
 		case IOCTL_MAC_ADDR_REQ:
 		case IOCTL_LINK_REQ:
 		case IOCTL_CM_REQUEST:
 		case IOCTL_SS_INFO_REQ:
 		case IOCTL_SEND_CONTROL_MESSAGE:
 		case IOCTL_IDLE_REQ:
-		{
-			PVOID pvBuffer=NULL;
+		case IOCTL_BCM_GPIO_SET_REQUEST:
+		case IOCTL_BCM_GPIO_STATUS_REQUEST:
+			return -EACCES;
+		default:
+			break;
+		}
+	}
 
-			/* Copy Ioctl Buffer structure */
-			if(copy_from_user(&IoBuffer, argp, sizeof(IOCTL_BUFFER)))
-				return -EFAULT;
+	Status = vendorextnIoctl(Adapter, cmd, arg);
+	if (Status != CONTINUE_COMMON_PATH)
+		return Status;
 
-			/* FIXME: don't accept any length from user */
-			pvBuffer = kmalloc(IoBuffer.InputLength, GFP_KERNEL);
-			if(!pvBuffer)
-				return -ENOMEM;
+	switch (cmd) {
+	/* Rdms for Swin Idle... */
+	case IOCTL_BCM_REGISTER_READ_PRIVATE: {
+		RDM_BUFFER  sRdmBuffer = {0};
+		PCHAR temp_buff;
+		UINT Bufflen;
+		u16 temp_value;
 
-			if(copy_from_user(pvBuffer, IoBuffer.InputBuffer, IoBuffer.InputLength))
-			{
+		/* Copy Ioctl Buffer structure */
+		if (copy_from_user(&IoBuffer, argp, sizeof(IOCTL_BUFFER)))
+			return -EFAULT;
+
+		if (IoBuffer.InputLength > sizeof(sRdmBuffer))
+			return -EINVAL;
+
+		if (copy_from_user(&sRdmBuffer, IoBuffer.InputBuffer, IoBuffer.InputLength))
+			return -EFAULT;
+
+		if (IoBuffer.OutputLength > USHRT_MAX ||
+			IoBuffer.OutputLength == 0) {
+			return -EINVAL;
+		}
+
+		Bufflen = IoBuffer.OutputLength;
+		temp_value = 4 - (Bufflen % 4);
+		Bufflen += temp_value % 4;
+
+		temp_buff = kmalloc(Bufflen, GFP_KERNEL);
+		if (!temp_buff)
+			return -ENOMEM;
+
+		Status = rdmalt(Adapter, (UINT)sRdmBuffer.Register,
+				(PUINT)temp_buff, Bufflen);
+		if (Status == STATUS_SUCCESS) {
+			if (copy_to_user(IoBuffer.OutputBuffer, temp_buff, IoBuffer.OutputLength))
 				Status = -EFAULT;
-				kfree(pvBuffer);
+		}
+
+		kfree(temp_buff);
+		break;
+	}
+
+	case IOCTL_BCM_REGISTER_WRITE_PRIVATE: {
+		WRM_BUFFER  sWrmBuffer = {0};
+		UINT uiTempVar = 0;
+		/* Copy Ioctl Buffer structure */
+
+		if (copy_from_user(&IoBuffer, argp, sizeof(IOCTL_BUFFER)))
+			return -EFAULT;
+
+		if (IoBuffer.InputLength > sizeof(sWrmBuffer))
+			return -EINVAL;
+
+		/* Get WrmBuffer structure */
+		if (copy_from_user(&sWrmBuffer, IoBuffer.InputBuffer, IoBuffer.InputLength))
+			return -EFAULT;
+
+		uiTempVar = sWrmBuffer.Register & EEPROM_REJECT_MASK;
+		if (!((Adapter->pstargetparams->m_u32Customize) & VSG_MODE) &&
+			((uiTempVar == EEPROM_REJECT_REG_1) ||
+				(uiTempVar == EEPROM_REJECT_REG_2) ||
+				(uiTempVar == EEPROM_REJECT_REG_3) ||
+				(uiTempVar == EEPROM_REJECT_REG_4))) {
+
+			BCM_DEBUG_PRINT(Adapter, DBG_TYPE_PRINTK, 0, 0, "EEPROM Access Denied, not in VSG Mode\n");
+			return -EFAULT;
+		}
+
+		Status = wrmalt(Adapter, (UINT)sWrmBuffer.Register,
+				(PUINT)sWrmBuffer.Data, sizeof(ULONG));
+
+		if (Status == STATUS_SUCCESS) {
+			BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, OSAL_DBG, DBG_LVL_ALL, "WRM Done\n");
+		} else {
+			BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, OSAL_DBG, DBG_LVL_ALL, "WRM Failed\n");
+			Status = -EFAULT;
+		}
+		break;
+	}
+
+	case IOCTL_BCM_REGISTER_READ:
+	case IOCTL_BCM_EEPROM_REGISTER_READ: {
+		RDM_BUFFER  sRdmBuffer = {0};
+		PCHAR temp_buff = NULL;
+		UINT uiTempVar = 0;
+		if ((Adapter->IdleMode == TRUE) ||
+			(Adapter->bShutStatus == TRUE) ||
+			(Adapter->bPreparingForLowPowerMode == TRUE)) {
+
+			BCM_DEBUG_PRINT(Adapter, DBG_TYPE_PRINTK, 0, 0, "Device in Idle Mode, Blocking Rdms\n");
+			return -EACCES;
+		}
+
+		/* Copy Ioctl Buffer structure */
+		if (copy_from_user(&IoBuffer, argp, sizeof(IOCTL_BUFFER)))
+			return -EFAULT;
+
+		if (IoBuffer.InputLength > sizeof(sRdmBuffer))
+			return -EINVAL;
+
+		if (copy_from_user(&sRdmBuffer, IoBuffer.InputBuffer, IoBuffer.InputLength))
+			return -EFAULT;
+
+		/* FIXME: don't trust user supplied length */
+		temp_buff = kmalloc(IoBuffer.OutputLength, GFP_KERNEL);
+		if (!temp_buff)
+			return STATUS_FAILURE;
+
+		if ((((ULONG)sRdmBuffer.Register & 0x0F000000) != 0x0F000000) ||
+			((ULONG)sRdmBuffer.Register & 0x3)) {
+
+			BCM_DEBUG_PRINT(Adapter, DBG_TYPE_PRINTK, 0, 0, "RDM Done On invalid Address : %x Access Denied.\n",
+					(int)sRdmBuffer.Register);
+
+			kfree(temp_buff);
+			return -EINVAL;
+		}
+
+		uiTempVar = sRdmBuffer.Register & EEPROM_REJECT_MASK;
+		Status = rdmaltWithLock(Adapter, (UINT)sRdmBuffer.Register, (PUINT)temp_buff, IoBuffer.OutputLength);
+
+		if (Status == STATUS_SUCCESS)
+			if (copy_to_user(IoBuffer.OutputBuffer, temp_buff, IoBuffer.OutputLength))
+				Status = -EFAULT;
+
+		kfree(temp_buff);
+		break;
+	}
+	case IOCTL_BCM_REGISTER_WRITE:
+	case IOCTL_BCM_EEPROM_REGISTER_WRITE: {
+		WRM_BUFFER  sWrmBuffer = {0};
+		UINT uiTempVar = 0;
+		if ((Adapter->IdleMode == TRUE) ||
+			(Adapter->bShutStatus == TRUE) ||
+			(Adapter->bPreparingForLowPowerMode == TRUE)) {
+
+			BCM_DEBUG_PRINT(Adapter, DBG_TYPE_PRINTK, 0, 0, "Device in Idle Mode, Blocking Wrms\n");
+			return -EACCES;
+		}
+
+		/* Copy Ioctl Buffer structure */
+		if (copy_from_user(&IoBuffer, argp, sizeof(IOCTL_BUFFER)))
+			return -EFAULT;
+
+		if (IoBuffer.InputLength > sizeof(sWrmBuffer))
+			return -EINVAL;
+
+		/* Get WrmBuffer structure */
+		if (copy_from_user(&sWrmBuffer, IoBuffer.InputBuffer, IoBuffer.InputLength))
+			return -EFAULT;
+
+		if ((((ULONG)sWrmBuffer.Register & 0x0F000000) != 0x0F000000) ||
+			((ULONG)sWrmBuffer.Register & 0x3)) {
+
+			BCM_DEBUG_PRINT(Adapter, DBG_TYPE_PRINTK, 0, 0, "WRM Done On invalid Address : %x Access Denied.\n", (int)sWrmBuffer.Register);
+			return -EINVAL;
+		}
+
+		uiTempVar = sWrmBuffer.Register & EEPROM_REJECT_MASK;
+		if (!((Adapter->pstargetparams->m_u32Customize) & VSG_MODE) &&
+				((uiTempVar == EEPROM_REJECT_REG_1) ||
+				(uiTempVar == EEPROM_REJECT_REG_2) ||
+				(uiTempVar == EEPROM_REJECT_REG_3) ||
+				(uiTempVar == EEPROM_REJECT_REG_4)) &&
+				(cmd == IOCTL_BCM_REGISTER_WRITE)) {
+
+				BCM_DEBUG_PRINT(Adapter, DBG_TYPE_PRINTK, 0, 0, "EEPROM Access Denied, not in VSG Mode\n");
+				return -EFAULT;
+		}
+
+		Status = wrmaltWithLock(Adapter, (UINT)sWrmBuffer.Register,
+					(PUINT)sWrmBuffer.Data, sWrmBuffer.Length);
+
+		if (Status == STATUS_SUCCESS) {
+			BCM_DEBUG_PRINT(Adapter, DBG_TYPE_PRINTK, OSAL_DBG, DBG_LVL_ALL, "WRM Done\n");
+		} else {
+			BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, OSAL_DBG, DBG_LVL_ALL, "WRM Failed\n");
+			Status = -EFAULT;
+		}
+		break;
+	}
+	case IOCTL_BCM_GPIO_SET_REQUEST: {
+		UCHAR ucResetValue[4];
+		UINT value = 0;
+		UINT uiBit = 0;
+		UINT uiOperation = 0;
+
+		GPIO_INFO   gpio_info = {0};
+		if ((Adapter->IdleMode == TRUE) ||
+			(Adapter->bShutStatus == TRUE) ||
+			(Adapter->bPreparingForLowPowerMode == TRUE)) {
+
+			BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, OSAL_DBG, DBG_LVL_ALL, "GPIO Can't be set/clear in Low power Mode");
+			return -EACCES;
+		}
+
+		if (copy_from_user(&IoBuffer, argp, sizeof(IOCTL_BUFFER)))
+			return -EFAULT;
+
+		if (IoBuffer.InputLength > sizeof(gpio_info))
+			return -EINVAL;
+
+		if (copy_from_user(&gpio_info, IoBuffer.InputBuffer, IoBuffer.InputLength))
+			return -EFAULT;
+
+		uiBit  = gpio_info.uiGpioNumber;
+		uiOperation = gpio_info.uiGpioValue;
+		value = (1<<uiBit);
+
+		if (IsReqGpioIsLedInNVM(Adapter, value) == FALSE) {
+			BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, OSAL_DBG, DBG_LVL_ALL, "Sorry, Requested GPIO<0x%X> is not correspond to LED !!!", value);
+			Status = -EINVAL;
+			break;
+		}
+
+		/* Set - setting 1 */
+		if (uiOperation) {
+			/* Set the gpio output register */
+			Status = wrmaltWithLock(Adapter, BCM_GPIO_OUTPUT_SET_REG, (PUINT)(&value), sizeof(UINT));
+
+			if (Status == STATUS_SUCCESS) {
+				BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, OSAL_DBG, DBG_LVL_ALL, "Set the GPIO bit\n");
+			} else {
+				BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, OSAL_DBG, DBG_LVL_ALL, "Failed to set the %dth GPIO\n", uiBit);
 				break;
 			}
+		} else {
+			/* Set the gpio output register */
+			Status = wrmaltWithLock(Adapter, BCM_GPIO_OUTPUT_CLR_REG, (PUINT)(&value), sizeof(UINT));
 
-			down(&Adapter->LowPowerModeSync);
-			Status = wait_event_interruptible_timeout(Adapter->lowpower_mode_wait_queue,
-													!Adapter->bPreparingForLowPowerMode,
-													(1 * HZ));
-			if(Status == -ERESTARTSYS)
-					goto cntrlEnd;
-
-			if(Adapter->bPreparingForLowPowerMode)
-			{
-				BCM_DEBUG_PRINT(Adapter,DBG_TYPE_OTHERS, OSAL_DBG, DBG_LVL_ALL, "Preparing Idle Mode is still True - Hence Rejecting control message\n");
-				Status = STATUS_FAILURE ;
-				goto cntrlEnd ;
+			if (Status == STATUS_SUCCESS) {
+				BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, OSAL_DBG, DBG_LVL_ALL, "Set the GPIO bit\n");
+			} else {
+				BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, OSAL_DBG, DBG_LVL_ALL, "Failed to clear the %dth GPIO\n", uiBit);
+				break;
 			}
-			Status = CopyBufferToControlPacket(Adapter, (PVOID)pvBuffer);
-		cntrlEnd:
-			up(&Adapter->LowPowerModeSync);
+		}
+
+		Status = rdmaltWithLock(Adapter, (UINT)GPIO_MODE_REGISTER, (PUINT)ucResetValue, sizeof(UINT));
+
+		if (STATUS_SUCCESS != Status) {
+			BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, OSAL_DBG, DBG_LVL_ALL,
+					"GPIO_MODE_REGISTER read failed");
+			break;
+		}
+
+		/* Set the gpio mode register to output */
+		*(UINT *)ucResetValue |= (1<<uiBit);
+		Status = wrmaltWithLock(Adapter, GPIO_MODE_REGISTER,
+					(PUINT)ucResetValue, sizeof(UINT));
+
+		if (Status == STATUS_SUCCESS) {
+			BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, OSAL_DBG, DBG_LVL_ALL, "Set the GPIO to output Mode\n");
+		} else {
+			BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, OSAL_DBG, DBG_LVL_ALL, "Failed to put GPIO in Output Mode\n");
+			break;
+		}
+	}
+	break;
+
+	case BCM_LED_THREAD_STATE_CHANGE_REQ: {
+		USER_THREAD_REQ threadReq = {0};
+		BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, OSAL_DBG, DBG_LVL_ALL, "User made LED thread InActive");
+
+		if ((Adapter->IdleMode == TRUE) ||
+			(Adapter->bShutStatus == TRUE) ||
+			(Adapter->bPreparingForLowPowerMode == TRUE)) {
+
+			BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, OSAL_DBG, DBG_LVL_ALL, "GPIO Can't be set/clear in Low power Mode");
+			Status = -EACCES;
+			break;
+		}
+
+		if (copy_from_user(&IoBuffer, argp, sizeof(IOCTL_BUFFER)))
+			return -EFAULT;
+
+		if (IoBuffer.InputLength > sizeof(threadReq))
+			return -EINVAL;
+
+		if (copy_from_user(&threadReq, IoBuffer.InputBuffer, IoBuffer.InputLength))
+			return -EFAULT;
+
+		/* if LED thread is running(Actively or Inactively) set it state to make inactive */
+		if (Adapter->LEDInfo.led_thread_running) {
+			if (threadReq.ThreadState == LED_THREAD_ACTIVATION_REQ) {
+				BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, OSAL_DBG, DBG_LVL_ALL, "Activating thread req");
+				Adapter->DriverState = LED_THREAD_ACTIVE;
+			} else {
+				BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, OSAL_DBG, DBG_LVL_ALL, "DeActivating Thread req.....");
+				Adapter->DriverState = LED_THREAD_INACTIVE;
+			}
+
+			/* signal thread. */
+			wake_up(&Adapter->LEDInfo.notify_led_event);
+		}
+	}
+	break;
+
+	case IOCTL_BCM_GPIO_STATUS_REQUEST: {
+		ULONG uiBit = 0;
+		UCHAR ucRead[4];
+		GPIO_INFO   gpio_info = {0};
+
+		if ((Adapter->IdleMode == TRUE) ||
+			(Adapter->bShutStatus == TRUE) ||
+			(Adapter->bPreparingForLowPowerMode == TRUE))
+			return -EACCES;
+
+		if (copy_from_user(&IoBuffer, argp, sizeof(IOCTL_BUFFER)))
+			return -EFAULT;
+
+		if (IoBuffer.InputLength > sizeof(gpio_info))
+			return -EINVAL;
+
+		if (copy_from_user(&gpio_info, IoBuffer.InputBuffer, IoBuffer.InputLength))
+			return -EFAULT;
+
+		uiBit = gpio_info.uiGpioNumber;
+
+		/* Set the gpio output register */
+		Status = rdmaltWithLock(Adapter, (UINT)GPIO_PIN_STATE_REGISTER,
+					(PUINT)ucRead, sizeof(UINT));
+
+		if (Status != STATUS_SUCCESS) {
+			BCM_DEBUG_PRINT(Adapter, DBG_TYPE_PRINTK, 0, 0, "RDM Failed\n");
+			return Status;
+		}
+	}
+	break;
+
+	case IOCTL_BCM_GPIO_MULTI_REQUEST: {
+		UCHAR ucResetValue[4];
+		GPIO_MULTI_INFO gpio_multi_info[MAX_IDX];
+		PGPIO_MULTI_INFO pgpio_multi_info = (PGPIO_MULTI_INFO)gpio_multi_info;
+
+		memset(pgpio_multi_info, 0, MAX_IDX * sizeof(GPIO_MULTI_INFO));
+
+		if ((Adapter->IdleMode == TRUE) ||
+			(Adapter->bShutStatus == TRUE) ||
+			(Adapter->bPreparingForLowPowerMode == TRUE))
+			return -EINVAL;
+
+		if (copy_from_user(&IoBuffer, argp, sizeof(IOCTL_BUFFER)))
+			return -EFAULT;
+
+		if (IoBuffer.InputLength > sizeof(gpio_multi_info))
+			return -EINVAL;
+
+		if (copy_from_user(&gpio_multi_info, IoBuffer.InputBuffer, IoBuffer.InputLength))
+			return -EFAULT;
+
+		if (IsReqGpioIsLedInNVM(Adapter, pgpio_multi_info[WIMAX_IDX].uiGPIOMask) == FALSE) {
+			BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, OSAL_DBG, DBG_LVL_ALL,
+					"Sorry, Requested GPIO<0x%X> is not correspond to NVM LED bit map<0x%X>!!!",
+					pgpio_multi_info[WIMAX_IDX].uiGPIOMask, Adapter->gpioBitMap);
+			Status = -EINVAL;
+			break;
+		}
+
+		/* Set the gpio output register */
+		if ((pgpio_multi_info[WIMAX_IDX].uiGPIOMask) &
+			(pgpio_multi_info[WIMAX_IDX].uiGPIOCommand)) {
+			/* Set 1's in GPIO OUTPUT REGISTER */
+			*(UINT *)ucResetValue =  pgpio_multi_info[WIMAX_IDX].uiGPIOMask &
+				pgpio_multi_info[WIMAX_IDX].uiGPIOCommand &
+				pgpio_multi_info[WIMAX_IDX].uiGPIOValue;
+
+			if (*(UINT *) ucResetValue)
+				Status = wrmaltWithLock(Adapter, BCM_GPIO_OUTPUT_SET_REG,
+							(PUINT)ucResetValue, sizeof(ULONG));
+
+			if (Status != STATUS_SUCCESS) {
+				BCM_DEBUG_PRINT(Adapter, DBG_TYPE_PRINTK, 0, 0, "WRM to BCM_GPIO_OUTPUT_SET_REG Failed.");
+				return Status;
+			}
+
+			/* Clear to 0's in GPIO OUTPUT REGISTER */
+			*(UINT *)ucResetValue = (pgpio_multi_info[WIMAX_IDX].uiGPIOMask &
+						pgpio_multi_info[WIMAX_IDX].uiGPIOCommand &
+						(~(pgpio_multi_info[WIMAX_IDX].uiGPIOValue)));
+
+			if (*(UINT *) ucResetValue)
+				Status = wrmaltWithLock(Adapter, BCM_GPIO_OUTPUT_CLR_REG, (PUINT)ucResetValue, sizeof(ULONG));
+
+			if (Status != STATUS_SUCCESS) {
+				BCM_DEBUG_PRINT(Adapter, DBG_TYPE_PRINTK, 0, 0, "WRM to BCM_GPIO_OUTPUT_CLR_REG Failed.");
+				return Status;
+			}
+		}
+
+		if (pgpio_multi_info[WIMAX_IDX].uiGPIOMask) {
+			Status = rdmaltWithLock(Adapter, (UINT)GPIO_PIN_STATE_REGISTER, (PUINT)ucResetValue, sizeof(UINT));
+
+			if (Status != STATUS_SUCCESS) {
+				BCM_DEBUG_PRINT(Adapter, DBG_TYPE_PRINTK, 0, 0, "RDM to GPIO_PIN_STATE_REGISTER Failed.");
+				return Status;
+			}
+
+			pgpio_multi_info[WIMAX_IDX].uiGPIOValue = (*(UINT *)ucResetValue &
+								pgpio_multi_info[WIMAX_IDX].uiGPIOMask);
+		}
+
+		Status = copy_to_user(IoBuffer.OutputBuffer, &gpio_multi_info, IoBuffer.OutputLength);
+		if (Status) {
+			BCM_DEBUG_PRINT(Adapter, DBG_TYPE_PRINTK, 0, 0,
+					"Failed while copying Content to IOBufer for user space err:%d", Status);
+			break;
+		}
+	}
+	break;
+
+	case IOCTL_BCM_GPIO_MODE_REQUEST: {
+		UCHAR ucResetValue[4];
+		GPIO_MULTI_MODE gpio_multi_mode[MAX_IDX];
+		PGPIO_MULTI_MODE pgpio_multi_mode = (PGPIO_MULTI_MODE)gpio_multi_mode;
+
+		if ((Adapter->IdleMode == TRUE) ||
+			(Adapter->bShutStatus == TRUE) ||
+			(Adapter->bPreparingForLowPowerMode == TRUE))
+			return -EINVAL;
+
+		if (copy_from_user(&IoBuffer, argp, sizeof(IOCTL_BUFFER)))
+			return -EFAULT;
+
+		if (IoBuffer.InputLength > sizeof(gpio_multi_mode))
+			return -EINVAL;
+
+		if (copy_from_user(&gpio_multi_mode, IoBuffer.InputBuffer, IoBuffer.InputLength))
+			return -EFAULT;
+
+		Status = rdmaltWithLock(Adapter, (UINT)GPIO_MODE_REGISTER, (PUINT)ucResetValue, sizeof(UINT));
+
+		if (STATUS_SUCCESS != Status) {
+			BCM_DEBUG_PRINT(Adapter, DBG_TYPE_PRINTK, 0, 0, "Read of GPIO_MODE_REGISTER failed");
+			return Status;
+		}
+
+		/* Validating the request */
+		if (IsReqGpioIsLedInNVM(Adapter, pgpio_multi_mode[WIMAX_IDX].uiGPIOMask) == FALSE) {
+			BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, OSAL_DBG, DBG_LVL_ALL,
+					"Sorry, Requested GPIO<0x%X> is not correspond to NVM LED bit map<0x%X>!!!",
+					pgpio_multi_mode[WIMAX_IDX].uiGPIOMask, Adapter->gpioBitMap);
+			Status = -EINVAL;
+			break;
+		}
+
+		if (pgpio_multi_mode[WIMAX_IDX].uiGPIOMask) {
+			/* write all OUT's (1's) */
+			*(UINT *) ucResetValue |= (pgpio_multi_mode[WIMAX_IDX].uiGPIOMode &
+						pgpio_multi_mode[WIMAX_IDX].uiGPIOMask);
+
+			/* write all IN's (0's) */
+			*(UINT *) ucResetValue &= ~((~pgpio_multi_mode[WIMAX_IDX].uiGPIOMode) &
+						pgpio_multi_mode[WIMAX_IDX].uiGPIOMask);
+
+			/* Currently implemented return the modes of all GPIO's
+			 * else needs to bit AND with  mask
+			 */
+			pgpio_multi_mode[WIMAX_IDX].uiGPIOMode = *(UINT *)ucResetValue;
+
+			Status = wrmaltWithLock(Adapter, GPIO_MODE_REGISTER, (PUINT)ucResetValue, sizeof(ULONG));
+			if (Status == STATUS_SUCCESS) {
+				BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, OSAL_DBG, DBG_LVL_ALL,
+						"WRM to GPIO_MODE_REGISTER Done");
+			} else {
+				BCM_DEBUG_PRINT(Adapter, DBG_TYPE_PRINTK, 0, 0,
+						"WRM to GPIO_MODE_REGISTER Failed");
+				Status = -EFAULT;
+				break;
+			}
+		} else {
+/* if uiGPIOMask is 0 then return mode register configuration */
+			pgpio_multi_mode[WIMAX_IDX].uiGPIOMode = *(UINT *)ucResetValue;
+		}
+
+		Status = copy_to_user(IoBuffer.OutputBuffer, &gpio_multi_mode, IoBuffer.OutputLength);
+		if (Status) {
+			BCM_DEBUG_PRINT(Adapter, DBG_TYPE_PRINTK, 0, 0,
+					"Failed while copying Content to IOBufer for user space err:%d", Status);
+			break;
+		}
+	}
+	break;
+
+	case IOCTL_MAC_ADDR_REQ:
+	case IOCTL_LINK_REQ:
+	case IOCTL_CM_REQUEST:
+	case IOCTL_SS_INFO_REQ:
+	case IOCTL_SEND_CONTROL_MESSAGE:
+	case IOCTL_IDLE_REQ: {
+		PVOID pvBuffer = NULL;
+
+		/* Copy Ioctl Buffer structure */
+		if (copy_from_user(&IoBuffer, argp, sizeof(IOCTL_BUFFER)))
+			return -EFAULT;
+
+		if (IoBuffer.InputLength < sizeof(struct link_request))
+			return -EINVAL;
+
+		if (IoBuffer.InputLength > MAX_CNTL_PKT_SIZE)
+			return -EINVAL;
+
+		pvBuffer = kmalloc(IoBuffer.InputLength, GFP_KERNEL);
+		if (!pvBuffer)
+			return -ENOMEM;
+
+		if (copy_from_user(pvBuffer, IoBuffer.InputBuffer, IoBuffer.InputLength)) {
+			Status = -EFAULT;
 			kfree(pvBuffer);
 			break;
 		}
-		case IOCTL_BCM_BUFFER_DOWNLOAD_START:
-		{
-			INT NVMAccess = down_trylock(&Adapter->NVMRdmWrmLock) ;
-			if(NVMAccess)
-			{
-				BCM_DEBUG_PRINT(Adapter,DBG_TYPE_OTHERS, OSAL_DBG, DBG_LVL_ALL, " IOCTL_BCM_CHIP_RESET not allowed as EEPROM Read/Write is in progress\n");
-				return -EACCES;
-			}
-			BCM_DEBUG_PRINT(Adapter,DBG_TYPE_PRINTK, 0, 0, "Starting the firmware download PID =0x%x!!!!\n", current->pid);
-		    if(!down_trylock(&Adapter->fw_download_sema))
-			{
-				Adapter->bBinDownloaded=FALSE;
-				Adapter->fw_download_process_pid=current->pid;
-				Adapter->bCfgDownloaded=FALSE;
-				Adapter->fw_download_done=FALSE;
-				netif_carrier_off(Adapter->dev);
-				netif_stop_queue(Adapter->dev);
-				Status = reset_card_proc(Adapter);
-				if(Status)
-				{
-					pr_err(PFX "%s: reset_card_proc Failed!\n", Adapter->dev->name);
-					up(&Adapter->fw_download_sema);
-					up(&Adapter->NVMRdmWrmLock);
-					break;
-				}
-				mdelay(10);
-			}
-			else
-			{
 
-				Status = -EBUSY;
+		down(&Adapter->LowPowerModeSync);
+		Status = wait_event_interruptible_timeout(Adapter->lowpower_mode_wait_queue,
+							!Adapter->bPreparingForLowPowerMode,
+							(1 * HZ));
+		if (Status == -ERESTARTSYS)
+			goto cntrlEnd;
 
-			}
-			up(&Adapter->NVMRdmWrmLock);
-			break;
+		if (Adapter->bPreparingForLowPowerMode) {
+			BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, OSAL_DBG, DBG_LVL_ALL,
+					"Preparing Idle Mode is still True - Hence Rejecting control message\n");
+			Status = STATUS_FAILURE;
+			goto cntrlEnd;
 		}
-		case IOCTL_BCM_BUFFER_DOWNLOAD:
-			{
-				FIRMWARE_INFO 	*psFwInfo = NULL;
-				BCM_DEBUG_PRINT(Adapter,DBG_TYPE_PRINTK, 0, 0, "Starting the firmware download PID =0x%x!!!!\n", current->pid);
-			do{
-				if(!down_trylock(&Adapter->fw_download_sema))
-				{
-					BCM_DEBUG_PRINT(Adapter,DBG_TYPE_PRINTK, 0, 0, "Invalid way to download buffer. Use Start and then call this!!!\n");
-					Status=-EINVAL;
-					break;
-				}
+		Status = CopyBufferToControlPacket(Adapter, (PVOID)pvBuffer);
 
-				/* Copy Ioctl Buffer structure */
-				if(copy_from_user(&IoBuffer, argp, sizeof(IOCTL_BUFFER)))
-					return -EFAULT;
+cntrlEnd:
+		up(&Adapter->LowPowerModeSync);
+		kfree(pvBuffer);
+		break;
+	}
 
-				BCM_DEBUG_PRINT(Adapter,DBG_TYPE_PRINTK, 0, 0, "Length for FW DLD is : %lx\n",
-										IoBuffer.InputLength);
-
-				if (IoBuffer.InputLength > sizeof(FIRMWARE_INFO))
-					return -EINVAL;
-
-				psFwInfo = kmalloc(sizeof(*psFwInfo), GFP_KERNEL);
-				if(!psFwInfo)
-					return -ENOMEM;
-
-				if(copy_from_user(psFwInfo, IoBuffer.InputBuffer, IoBuffer.InputLength))
-					return -EFAULT;
-
-				if(!psFwInfo->pvMappedFirmwareAddress ||
-						(psFwInfo->u32FirmwareLength == 0))
-				{
-					BCM_DEBUG_PRINT(Adapter,DBG_TYPE_PRINTK, 0, 0, "Something else is wrong %lu\n",
-					psFwInfo->u32FirmwareLength);
-					Status = -EINVAL;
-					break;
-				}
-				Status = bcm_ioctl_fw_download(Adapter, psFwInfo);
-				if(Status != STATUS_SUCCESS)
-				{
-					if(psFwInfo->u32StartingAddress==CONFIG_BEGIN_ADDR)
-					{
-						BCM_DEBUG_PRINT(Adapter,DBG_TYPE_PRINTK, 0, 0, "IOCTL: Configuration File Upload Failed\n");
-					}
-					else
-					{
-						BCM_DEBUG_PRINT(Adapter,DBG_TYPE_PRINTK, 0, 0, "IOCTL: Firmware File Upload Failed\n");
-					}
-					//up(&Adapter->fw_download_sema);
-
-					if(Adapter->LEDInfo.led_thread_running & BCM_LED_THREAD_RUNNING_ACTIVELY)
-					{
-						Adapter->DriverState = DRIVER_INIT;
-						Adapter->LEDInfo.bLedInitDone = FALSE;
-						wake_up(&Adapter->LEDInfo.notify_led_event);
-					}
-				}
-				break ;
-			  }while(0);
-
-			  if(Status != STATUS_SUCCESS)
-					up(&Adapter->fw_download_sema);
-				BCM_DEBUG_PRINT(Adapter,DBG_TYPE_PRINTK, OSAL_DBG, DBG_LVL_ALL, "IOCTL: Firmware File Uploaded\n");
-				kfree(psFwInfo);
-				break;
-			}
-		case IOCTL_BCM_BUFFER_DOWNLOAD_STOP:
-		{
-			INT NVMAccess = down_trylock(&Adapter->NVMRdmWrmLock);
-			if(NVMAccess)
-			{
-				BCM_DEBUG_PRINT(Adapter,DBG_TYPE_PRINTK, 0, 0, " FW download blocked as EEPROM Read/Write is in progress\n");
-				up(&Adapter->fw_download_sema);
-				return -EACCES;
-			}
-			if(down_trylock(&Adapter->fw_download_sema))
-			{
-				Adapter->bBinDownloaded=TRUE;
-				Adapter->bCfgDownloaded=TRUE;
-				atomic_set(&Adapter->CurrNumFreeTxDesc, 0);
-
-				Adapter->CurrNumRecvDescs=0;
-				Adapter->downloadDDR = 0;
-
-				//setting the Mips to Run
-				Status = run_card_proc(Adapter);
-				if(Status)
-				{
-					BCM_DEBUG_PRINT(Adapter,DBG_TYPE_PRINTK, 0, 0, "Firm Download Failed\n");
-					up(&Adapter->fw_download_sema);
-					up(&Adapter->NVMRdmWrmLock);
-					break;
-				}
-				else
-					BCM_DEBUG_PRINT(Adapter,DBG_TYPE_OTHERS, OSAL_DBG, DBG_LVL_ALL, "Firm Download Over...\n");
-				mdelay(10);
-				/* Wait for MailBox Interrupt */
-				if(StartInterruptUrb((PS_INTERFACE_ADAPTER)Adapter->pvInterfaceAdapter))
-				{
-					BCM_DEBUG_PRINT(Adapter,DBG_TYPE_PRINTK, 0, 0, "Unable to send interrupt...\n");
-				}
-				timeout = 5*HZ;
-				Adapter->waiting_to_fw_download_done = FALSE;
-				wait_event_timeout(Adapter->ioctl_fw_dnld_wait_queue,
-					Adapter->waiting_to_fw_download_done, timeout);
-				Adapter->fw_download_process_pid=INVALID_PID;
-				Adapter->fw_download_done=TRUE;
-				atomic_set(&Adapter->CurrNumFreeTxDesc, 0);
-				Adapter->CurrNumRecvDescs = 0;
-				Adapter->PrevNumRecvDescs = 0;
-				atomic_set(&Adapter->cntrlpktCnt,0);
-                Adapter->LinkUpStatus = 0;
-                Adapter->LinkStatus = 0;
-
-				if(Adapter->LEDInfo.led_thread_running & BCM_LED_THREAD_RUNNING_ACTIVELY)
-				{
-					Adapter->DriverState = FW_DOWNLOAD_DONE;
-					wake_up(&Adapter->LEDInfo.notify_led_event);
-				}
-
-				if(!timeout)
-				{
-					Status = -ENODEV;
-				}
-			}
-			else
-			{
-			   	Status = -EINVAL;
-			}
-			up(&Adapter->fw_download_sema);
-			up(&Adapter->NVMRdmWrmLock);
-			break;
+	case IOCTL_BCM_BUFFER_DOWNLOAD_START: {
+		INT NVMAccess = down_trylock(&Adapter->NVMRdmWrmLock);
+		if (NVMAccess) {
+			BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, OSAL_DBG, DBG_LVL_ALL,
+					"IOCTL_BCM_CHIP_RESET not allowed as EEPROM Read/Write is in progress\n");
+			return -EACCES;
 		}
-		case IOCTL_BE_BUCKET_SIZE:
-			Status = 0;
-			if (get_user(Adapter->BEBucketSize, (unsigned long __user *)arg))
-				Status = -EFAULT;
-			break;
 
-		case IOCTL_RTPS_BUCKET_SIZE:
-			Status = 0;
-			if (get_user(Adapter->rtPSBucketSize, (unsigned long __user *)arg))
-				Status = -EFAULT;
-			break;
-		case IOCTL_CHIP_RESET:
-	    {
-			INT NVMAccess = down_trylock(&Adapter->NVMRdmWrmLock);
-			if(NVMAccess)
-			{
-				BCM_DEBUG_PRINT(Adapter,DBG_TYPE_PRINTK, 0, 0, " IOCTL_BCM_CHIP_RESET not allowed as EEPROM Read/Write is in progress\n");
-				return -EACCES;
-			}
-			down(&Adapter->RxAppControlQueuelock);
+		BCM_DEBUG_PRINT(Adapter, DBG_TYPE_PRINTK, 0, 0,
+				"Starting the firmware download PID =0x%x!!!!\n", current->pid);
+
+		if (!down_trylock(&Adapter->fw_download_sema)) {
+			Adapter->bBinDownloaded = FALSE;
+			Adapter->fw_download_process_pid = current->pid;
+			Adapter->bCfgDownloaded = FALSE;
+			Adapter->fw_download_done = FALSE;
+			netif_carrier_off(Adapter->dev);
+			netif_stop_queue(Adapter->dev);
 			Status = reset_card_proc(Adapter);
-			flushAllAppQ();
-			up(&Adapter->RxAppControlQueuelock);
-			up(&Adapter->NVMRdmWrmLock);
-			ResetCounters(Adapter);
-			break;
-		}
-		case IOCTL_QOS_THRESHOLD:
-		{
-			USHORT uiLoopIndex;
-
-			Status = 0;
-			for (uiLoopIndex = 0; uiLoopIndex < NO_OF_QUEUES; uiLoopIndex++) {
-				if (get_user(Adapter->PackInfo[uiLoopIndex].uiThreshold,
-						(unsigned long __user *)arg)) {
-					Status = -EFAULT;
-					break;
-				}
-			}
-			break;
-		}
-
-		case IOCTL_DUMP_PACKET_INFO:
-
-			DumpPackInfo(Adapter);
-         	DumpPhsRules(&Adapter->stBCMPhsContext);
-			Status = STATUS_SUCCESS;
-			break;
-
-		case IOCTL_GET_PACK_INFO:
-			if(copy_to_user(argp, &Adapter->PackInfo, sizeof(PacketInfo)*NO_OF_QUEUES))
-				return -EFAULT;
-			Status = STATUS_SUCCESS;
-			break;
-		case IOCTL_BCM_SWITCH_TRANSFER_MODE:
-		{
-			UINT uiData = 0;
-			if(copy_from_user(&uiData, argp, sizeof(UINT)))
-				return -EFAULT;
-
-			if(uiData)	/* Allow All Packets */
-			{
-				BCM_DEBUG_PRINT(Adapter,DBG_TYPE_OTHERS, OSAL_DBG, DBG_LVL_ALL, "IOCTL_BCM_SWITCH_TRANSFER_MODE: ETH_PACKET_TUNNELING_MODE\n");
-				Adapter->TransferMode = ETH_PACKET_TUNNELING_MODE;
-			}
-			else	/* Allow IP only Packets */
-			{
-				BCM_DEBUG_PRINT(Adapter,DBG_TYPE_OTHERS, OSAL_DBG, DBG_LVL_ALL, "IOCTL_BCM_SWITCH_TRANSFER_MODE: IP_PACKET_ONLY_MODE\n");
-				Adapter->TransferMode = IP_PACKET_ONLY_MODE;
-			}
-			Status = STATUS_SUCCESS;
-			break;
-		}
-
-		case IOCTL_BCM_GET_DRIVER_VERSION:
-		{
-			/* Copy Ioctl Buffer structure */
-			if(copy_from_user(&IoBuffer, argp, sizeof(IOCTL_BUFFER)))
-				return -EFAULT;
-
-			if(copy_to_user(IoBuffer.OutputBuffer, VER_FILEVERSION_STR, IoBuffer.OutputLength))
-				return -EFAULT;
-			Status = STATUS_SUCCESS;
-			break;
-		}
-		case IOCTL_BCM_GET_CURRENT_STATUS:
-		{
-			LINK_STATE link_state;
-
-			/* Copy Ioctl Buffer structure */
-			if(copy_from_user(&IoBuffer, argp, sizeof(IOCTL_BUFFER)))
-			{
-				BCM_DEBUG_PRINT(Adapter,DBG_TYPE_PRINTK, 0, 0, "copy_from_user failed..\n");
-				Status = -EFAULT;
+			if (Status) {
+				pr_err(PFX "%s: reset_card_proc Failed!\n", Adapter->dev->name);
+				up(&Adapter->fw_download_sema);
+				up(&Adapter->NVMRdmWrmLock);
 				break;
 			}
-			if (IoBuffer.OutputLength != sizeof(link_state)) {
+			mdelay(10);
+		} else {
+			Status = -EBUSY;
+		}
+
+		up(&Adapter->NVMRdmWrmLock);
+		break;
+	}
+
+	case IOCTL_BCM_BUFFER_DOWNLOAD: {
+		FIRMWARE_INFO *psFwInfo = NULL;
+		BCM_DEBUG_PRINT(Adapter, DBG_TYPE_PRINTK, 0, 0, "Starting the firmware download PID =0x%x!!!!\n", current->pid);
+		do {
+			if (!down_trylock(&Adapter->fw_download_sema)) {
+				BCM_DEBUG_PRINT(Adapter, DBG_TYPE_PRINTK, 0, 0,
+						"Invalid way to download buffer. Use Start and then call this!!!\n");
 				Status = -EINVAL;
 				break;
 			}
 
-			memset(&link_state, 0, sizeof(link_state));
-			link_state.bIdleMode = Adapter->IdleMode;
-			link_state.bShutdownMode = Adapter->bShutStatus;
-			link_state.ucLinkStatus = Adapter->LinkStatus;
+			/* Copy Ioctl Buffer structure */
+			if (copy_from_user(&IoBuffer, argp, sizeof(IOCTL_BUFFER)))
+				return -EFAULT;
 
-			if (copy_to_user(IoBuffer.OutputBuffer, &link_state,
-					 min_t(size_t, sizeof(link_state), IoBuffer.OutputLength)))
-			{
-				BCM_DEBUG_PRINT(Adapter,DBG_TYPE_PRINTK, 0, 0, "Copy_to_user Failed..\n");
+			BCM_DEBUG_PRINT(Adapter, DBG_TYPE_PRINTK, 0, 0,
+					"Length for FW DLD is : %lx\n", IoBuffer.InputLength);
+
+			if (IoBuffer.InputLength > sizeof(FIRMWARE_INFO))
+				return -EINVAL;
+
+			psFwInfo = kmalloc(sizeof(*psFwInfo), GFP_KERNEL);
+			if (!psFwInfo)
+				return -ENOMEM;
+
+			if (copy_from_user(psFwInfo, IoBuffer.InputBuffer, IoBuffer.InputLength))
+				return -EFAULT;
+
+			if (!psFwInfo->pvMappedFirmwareAddress ||
+				(psFwInfo->u32FirmwareLength == 0)) {
+
+				BCM_DEBUG_PRINT(Adapter, DBG_TYPE_PRINTK, 0, 0, "Something else is wrong %lu\n",
+						psFwInfo->u32FirmwareLength);
+				Status = -EINVAL;
+				break;
+			}
+
+			Status = bcm_ioctl_fw_download(Adapter, psFwInfo);
+
+			if (Status != STATUS_SUCCESS) {
+				if (psFwInfo->u32StartingAddress == CONFIG_BEGIN_ADDR)
+					BCM_DEBUG_PRINT(Adapter, DBG_TYPE_PRINTK, 0, 0, "IOCTL: Configuration File Upload Failed\n");
+				else
+					BCM_DEBUG_PRINT(Adapter, DBG_TYPE_PRINTK, 0, 0,	"IOCTL: Firmware File Upload Failed\n");
+
+				/* up(&Adapter->fw_download_sema); */
+
+				if (Adapter->LEDInfo.led_thread_running & BCM_LED_THREAD_RUNNING_ACTIVELY) {
+					Adapter->DriverState = DRIVER_INIT;
+					Adapter->LEDInfo.bLedInitDone = FALSE;
+					wake_up(&Adapter->LEDInfo.notify_led_event);
+				}
+			}
+			break;
+
+		} while (0);
+
+		if (Status != STATUS_SUCCESS)
+			up(&Adapter->fw_download_sema);
+
+		BCM_DEBUG_PRINT(Adapter, DBG_TYPE_PRINTK, OSAL_DBG, DBG_LVL_ALL, "IOCTL: Firmware File Uploaded\n");
+		kfree(psFwInfo);
+		break;
+	}
+
+	case IOCTL_BCM_BUFFER_DOWNLOAD_STOP: {
+		INT NVMAccess = down_trylock(&Adapter->NVMRdmWrmLock);
+
+		if (NVMAccess) {
+			BCM_DEBUG_PRINT(Adapter, DBG_TYPE_PRINTK, 0, 0,
+					"FW download blocked as EEPROM Read/Write is in progress\n");
+			up(&Adapter->fw_download_sema);
+			return -EACCES;
+		}
+
+		if (down_trylock(&Adapter->fw_download_sema)) {
+			Adapter->bBinDownloaded = TRUE;
+			Adapter->bCfgDownloaded = TRUE;
+			atomic_set(&Adapter->CurrNumFreeTxDesc, 0);
+			Adapter->CurrNumRecvDescs = 0;
+			Adapter->downloadDDR = 0;
+
+			/* setting the Mips to Run */
+			Status = run_card_proc(Adapter);
+
+			if (Status) {
+				BCM_DEBUG_PRINT(Adapter, DBG_TYPE_PRINTK, 0, 0, "Firm Download Failed\n");
+				up(&Adapter->fw_download_sema);
+				up(&Adapter->NVMRdmWrmLock);
+				break;
+			} else {
+				BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, OSAL_DBG,
+						DBG_LVL_ALL, "Firm Download Over...\n");
+			}
+
+			mdelay(10);
+
+			/* Wait for MailBox Interrupt */
+			if (StartInterruptUrb((PS_INTERFACE_ADAPTER)Adapter->pvInterfaceAdapter))
+				BCM_DEBUG_PRINT(Adapter, DBG_TYPE_PRINTK, 0, 0, "Unable to send interrupt...\n");
+
+			timeout = 5*HZ;
+			Adapter->waiting_to_fw_download_done = FALSE;
+			wait_event_timeout(Adapter->ioctl_fw_dnld_wait_queue,
+					Adapter->waiting_to_fw_download_done, timeout);
+			Adapter->fw_download_process_pid = INVALID_PID;
+			Adapter->fw_download_done = TRUE;
+			atomic_set(&Adapter->CurrNumFreeTxDesc, 0);
+			Adapter->CurrNumRecvDescs = 0;
+			Adapter->PrevNumRecvDescs = 0;
+			atomic_set(&Adapter->cntrlpktCnt, 0);
+			Adapter->LinkUpStatus = 0;
+			Adapter->LinkStatus = 0;
+
+			if (Adapter->LEDInfo.led_thread_running & BCM_LED_THREAD_RUNNING_ACTIVELY) {
+				Adapter->DriverState = FW_DOWNLOAD_DONE;
+				wake_up(&Adapter->LEDInfo.notify_led_event);
+			}
+
+			if (!timeout)
+				Status = -ENODEV;
+		} else {
+			Status = -EINVAL;
+		}
+
+		up(&Adapter->fw_download_sema);
+		up(&Adapter->NVMRdmWrmLock);
+		break;
+	}
+
+	case IOCTL_BE_BUCKET_SIZE:
+		Status = 0;
+		if (get_user(Adapter->BEBucketSize, (unsigned long __user *)arg))
+			Status = -EFAULT;
+		break;
+
+	case IOCTL_RTPS_BUCKET_SIZE:
+		Status = 0;
+		if (get_user(Adapter->rtPSBucketSize, (unsigned long __user *)arg))
+			Status = -EFAULT;
+		break;
+
+	case IOCTL_CHIP_RESET: {
+		INT NVMAccess = down_trylock(&Adapter->NVMRdmWrmLock);
+		if (NVMAccess) {
+			BCM_DEBUG_PRINT(Adapter, DBG_TYPE_PRINTK, 0, 0, " IOCTL_BCM_CHIP_RESET not allowed as EEPROM Read/Write is in progress\n");
+			return -EACCES;
+		}
+
+		down(&Adapter->RxAppControlQueuelock);
+		Status = reset_card_proc(Adapter);
+		flushAllAppQ();
+		up(&Adapter->RxAppControlQueuelock);
+		up(&Adapter->NVMRdmWrmLock);
+		ResetCounters(Adapter);
+		break;
+	}
+
+	case IOCTL_QOS_THRESHOLD: {
+		USHORT uiLoopIndex;
+
+		Status = 0;
+		for (uiLoopIndex = 0; uiLoopIndex < NO_OF_QUEUES; uiLoopIndex++) {
+			if (get_user(Adapter->PackInfo[uiLoopIndex].uiThreshold,
+					(unsigned long __user *)arg)) {
 				Status = -EFAULT;
 				break;
 			}
-			Status = STATUS_SUCCESS;
-			break;
-		}
-        case IOCTL_BCM_SET_MAC_TRACING:
-        {
-            UINT  tracing_flag;
-
-            /* copy ioctl Buffer structure */
-	    if(copy_from_user(&IoBuffer, argp, sizeof(IOCTL_BUFFER)))
-		    return -EFAULT;
-
-	    if(copy_from_user(&tracing_flag,IoBuffer.InputBuffer,sizeof(UINT)))
-		    return -EFAULT;
-
-            if (tracing_flag)
-                Adapter->pTarangs->MacTracingEnabled = TRUE;
-            else
-                Adapter->pTarangs->MacTracingEnabled = FALSE;
-            break;
-        }
-		case IOCTL_BCM_GET_DSX_INDICATION:
-		{
-			ULONG ulSFId=0;
-			if(copy_from_user(&IoBuffer, argp, sizeof(IOCTL_BUFFER)))
-				return -EFAULT;
-
-			if(IoBuffer.OutputLength < sizeof(stLocalSFAddIndicationAlt))
-			{
-				BCM_DEBUG_PRINT(Adapter,DBG_TYPE_PRINTK, 0, 0,
-						"Mismatch req: %lx needed is =0x%zx!!!",
-						IoBuffer.OutputLength, sizeof(stLocalSFAddIndicationAlt));
-				return -EINVAL;
-			}
-
-			if(copy_from_user(&ulSFId, IoBuffer.InputBuffer, sizeof(ulSFId)))
-				return -EFAULT;
-
-			BCM_DEBUG_PRINT(Adapter,DBG_TYPE_OTHERS, OSAL_DBG, DBG_LVL_ALL, "Get DSX Data SF ID is =%lx\n", ulSFId );
-			get_dsx_sf_data_to_application(Adapter, ulSFId, IoBuffer.OutputBuffer);
-			Status=STATUS_SUCCESS;
 		}
 		break;
-		case IOCTL_BCM_GET_HOST_MIBS:
-		{
-			PVOID temp_buff;
+	}
 
-			if(copy_from_user(&IoBuffer, argp, sizeof(IOCTL_BUFFER)))
-				return -EFAULT;
+	case IOCTL_DUMP_PACKET_INFO:
+		DumpPackInfo(Adapter);
+		DumpPhsRules(&Adapter->stBCMPhsContext);
+		Status = STATUS_SUCCESS;
+		break;
 
-			if(IoBuffer.OutputLength != sizeof(S_MIBS_HOST_STATS_MIBS))
-			{
-				BCM_DEBUG_PRINT(Adapter,DBG_TYPE_PRINTK, 0, 0,
-						"Length Check failed %lu %zd\n",
-						IoBuffer.OutputLength, sizeof(S_MIBS_HOST_STATS_MIBS));
-				return -EINVAL;
-			}
+	case IOCTL_GET_PACK_INFO:
+		if (copy_to_user(argp, &Adapter->PackInfo, sizeof(PacketInfo)*NO_OF_QUEUES))
+			return -EFAULT;
+		Status = STATUS_SUCCESS;
+		break;
 
-			/* FIXME: HOST_STATS are too big for kmalloc (122048)! */
-			temp_buff = kzalloc(sizeof(S_MIBS_HOST_STATS_MIBS), GFP_KERNEL);
-			if(!temp_buff)
-				return STATUS_FAILURE;
+	case IOCTL_BCM_SWITCH_TRANSFER_MODE: {
+		UINT uiData = 0;
+		if (copy_from_user(&uiData, argp, sizeof(UINT)))
+			return -EFAULT;
 
-			Status = ProcessGetHostMibs(Adapter, temp_buff);
-			GetDroppedAppCntrlPktMibs(temp_buff, pTarang);
+		if (uiData) {
+			/* Allow All Packets */
+			BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, OSAL_DBG, DBG_LVL_ALL, "IOCTL_BCM_SWITCH_TRANSFER_MODE: ETH_PACKET_TUNNELING_MODE\n");
+				Adapter->TransferMode = ETH_PACKET_TUNNELING_MODE;
+		} else {
+			/* Allow IP only Packets */
+			BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, OSAL_DBG, DBG_LVL_ALL, "IOCTL_BCM_SWITCH_TRANSFER_MODE: IP_PACKET_ONLY_MODE\n");
+			Adapter->TransferMode = IP_PACKET_ONLY_MODE;
+		}
+		Status = STATUS_SUCCESS;
+		break;
+	}
 
-			if (Status != STATUS_FAILURE)
-				if(copy_to_user(IoBuffer.OutputBuffer, temp_buff, sizeof(S_MIBS_HOST_STATS_MIBS)))
-					Status = -EFAULT;
+	case IOCTL_BCM_GET_DRIVER_VERSION: {
+		/* Copy Ioctl Buffer structure */
+		if (copy_from_user(&IoBuffer, argp, sizeof(IOCTL_BUFFER)))
+			return -EFAULT;
 
-			kfree(temp_buff);
+		if (copy_to_user(IoBuffer.OutputBuffer, VER_FILEVERSION_STR, IoBuffer.OutputLength))
+			return -EFAULT;
+		Status = STATUS_SUCCESS;
+		break;
+	}
+
+	case IOCTL_BCM_GET_CURRENT_STATUS: {
+		LINK_STATE link_state;
+
+		/* Copy Ioctl Buffer structure */
+		if (copy_from_user(&IoBuffer, argp, sizeof(IOCTL_BUFFER))) {
+			BCM_DEBUG_PRINT(Adapter, DBG_TYPE_PRINTK, 0, 0, "copy_from_user failed..\n");
+			Status = -EFAULT;
 			break;
 		}
 
-		case IOCTL_BCM_WAKE_UP_DEVICE_FROM_IDLE:
-			if((FALSE == Adapter->bTriedToWakeUpFromlowPowerMode) && (TRUE==Adapter->IdleMode))
-			{
-				Adapter->usIdleModePattern = ABORT_IDLE_MODE;
-				Adapter->bWakeUpDevice = TRUE;
-				wake_up(&Adapter->process_rx_cntrlpkt);
-			}
-			Status = STATUS_SUCCESS;
+		if (IoBuffer.OutputLength != sizeof(link_state)) {
+			Status = -EINVAL;
 			break;
+		}
 
-		case IOCTL_BCM_BULK_WRM:
-			{
-				PBULKWRM_BUFFER pBulkBuffer;
-				UINT uiTempVar=0;
-				PCHAR pvBuffer = NULL;
+		memset(&link_state, 0, sizeof(link_state));
+		link_state.bIdleMode = Adapter->IdleMode;
+		link_state.bShutdownMode = Adapter->bShutStatus;
+		link_state.ucLinkStatus = Adapter->LinkStatus;
 
-				if((Adapter->IdleMode == TRUE) ||
-					(Adapter->bShutStatus ==TRUE) ||
-					(Adapter->bPreparingForLowPowerMode ==TRUE))
-				{
-                    BCM_DEBUG_PRINT (Adapter, DBG_TYPE_PRINTK, 0, 0, "Device in Idle/Shutdown Mode, Blocking Wrms\n");
-					Status = -EACCES;
-					break;
-				}
+		if (copy_to_user(IoBuffer.OutputBuffer, &link_state, min_t(size_t, sizeof(link_state), IoBuffer.OutputLength))) {
+			BCM_DEBUG_PRINT(Adapter, DBG_TYPE_PRINTK, 0, 0, "Copy_to_user Failed..\n");
+			Status = -EFAULT;
+			break;
+		}
+		Status = STATUS_SUCCESS;
+		break;
+	}
 
-				/* Copy Ioctl Buffer structure */
-				if(copy_from_user(&IoBuffer, argp, sizeof(IOCTL_BUFFER)))
-					return -EFAULT;
+	case IOCTL_BCM_SET_MAC_TRACING: {
+		UINT  tracing_flag;
 
-				/* FIXME: restrict length */
-				pvBuffer = kmalloc(IoBuffer.InputLength, GFP_KERNEL);
-				if(!pvBuffer)
-					return -ENOMEM;
+		/* copy ioctl Buffer structure */
+		if (copy_from_user(&IoBuffer, argp, sizeof(IOCTL_BUFFER)))
+			return -EFAULT;
 
-				/* Get WrmBuffer structure */
-				if(copy_from_user(pvBuffer, IoBuffer.InputBuffer, IoBuffer.InputLength))
-				{
-					kfree(pvBuffer);
-					Status = -EFAULT;
-					break;
-				}
+		if (copy_from_user(&tracing_flag, IoBuffer.InputBuffer, sizeof(UINT)))
+			return -EFAULT;
 
-				pBulkBuffer = (PBULKWRM_BUFFER)pvBuffer;
+		if (tracing_flag)
+			Adapter->pTarangs->MacTracingEnabled = TRUE;
+		else
+			Adapter->pTarangs->MacTracingEnabled = FALSE;
+		break;
+	}
 
-				if(((ULONG)pBulkBuffer->Register & 0x0F000000) != 0x0F000000 ||
-					((ULONG)pBulkBuffer->Register & 0x3))
-				{
-					kfree(pvBuffer);
-                    BCM_DEBUG_PRINT (Adapter, DBG_TYPE_PRINTK, 0, 0,"WRM Done On invalid Address : %x Access Denied.\n",(int)pBulkBuffer->Register);
-					Status = -EINVAL;
-					break;
-				}
+	case IOCTL_BCM_GET_DSX_INDICATION: {
+		ULONG ulSFId = 0;
+		if (copy_from_user(&IoBuffer, argp, sizeof(IOCTL_BUFFER)))
+			return -EFAULT;
 
+		if (IoBuffer.OutputLength < sizeof(stLocalSFAddIndicationAlt)) {
+			BCM_DEBUG_PRINT(Adapter, DBG_TYPE_PRINTK, 0, 0,
+					"Mismatch req: %lx needed is =0x%zx!!!",
+					IoBuffer.OutputLength, sizeof(stLocalSFAddIndicationAlt));
+			return -EINVAL;
+		}
 
-				uiTempVar = pBulkBuffer->Register & EEPROM_REJECT_MASK;
-				if(!((Adapter->pstargetparams->m_u32Customize)&VSG_MODE)
-				&& 	((uiTempVar == EEPROM_REJECT_REG_1)||
-						(uiTempVar == EEPROM_REJECT_REG_2) ||
-					(uiTempVar == EEPROM_REJECT_REG_3) ||
-					(uiTempVar == EEPROM_REJECT_REG_4)) &&
-					(cmd == IOCTL_BCM_REGISTER_WRITE))
-				{
-					kfree(pvBuffer);
-                    BCM_DEBUG_PRINT (Adapter, DBG_TYPE_PRINTK, 0, 0,"EEPROM Access Denied, not in VSG Mode\n");
-					Status = -EFAULT;
-					break;
-				}
+		if (copy_from_user(&ulSFId, IoBuffer.InputBuffer, sizeof(ulSFId)))
+			return -EFAULT;
 
-				if(pBulkBuffer->SwapEndian == FALSE)
-					Status = wrmWithLock(Adapter, (UINT)pBulkBuffer->Register, (PCHAR)pBulkBuffer->Values, IoBuffer.InputLength - 2*sizeof(ULONG));
-				else
-					Status = wrmaltWithLock(Adapter, (UINT)pBulkBuffer->Register, (PUINT)pBulkBuffer->Values, IoBuffer.InputLength - 2*sizeof(ULONG));
+		BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, OSAL_DBG, DBG_LVL_ALL, "Get DSX Data SF ID is =%lx\n", ulSFId);
+		get_dsx_sf_data_to_application(Adapter, ulSFId, IoBuffer.OutputBuffer);
+		Status = STATUS_SUCCESS;
+	}
+	break;
 
-				if(Status != STATUS_SUCCESS)
-				{
-					BCM_DEBUG_PRINT(Adapter,DBG_TYPE_PRINTK, 0, 0, "WRM Failed\n");
-				}
+	case IOCTL_BCM_GET_HOST_MIBS: {
+		PVOID temp_buff;
 
-				kfree(pvBuffer);
-				break;
-			}
+		if (copy_from_user(&IoBuffer, argp, sizeof(IOCTL_BUFFER)))
+			return -EFAULT;
 
-		case IOCTL_BCM_GET_NVM_SIZE:
-			if(copy_from_user(&IoBuffer, argp, sizeof(IOCTL_BUFFER)))
+		if (IoBuffer.OutputLength != sizeof(S_MIBS_HOST_STATS_MIBS)) {
+			BCM_DEBUG_PRINT(Adapter, DBG_TYPE_PRINTK, 0, 0,
+					"Length Check failed %lu %zd\n",
+					IoBuffer.OutputLength, sizeof(S_MIBS_HOST_STATS_MIBS));
+			return -EINVAL;
+		}
+
+		/* FIXME: HOST_STATS are too big for kmalloc (122048)! */
+		temp_buff = kzalloc(sizeof(S_MIBS_HOST_STATS_MIBS), GFP_KERNEL);
+		if (!temp_buff)
+			return STATUS_FAILURE;
+
+		Status = ProcessGetHostMibs(Adapter, temp_buff);
+		GetDroppedAppCntrlPktMibs(temp_buff, pTarang);
+
+		if (Status != STATUS_FAILURE)
+			if (copy_to_user(IoBuffer.OutputBuffer, temp_buff, sizeof(S_MIBS_HOST_STATS_MIBS)))
+				Status = -EFAULT;
+
+		kfree(temp_buff);
+		break;
+	}
+
+	case IOCTL_BCM_WAKE_UP_DEVICE_FROM_IDLE:
+		if ((FALSE == Adapter->bTriedToWakeUpFromlowPowerMode) && (TRUE == Adapter->IdleMode)) {
+			Adapter->usIdleModePattern = ABORT_IDLE_MODE;
+			Adapter->bWakeUpDevice = TRUE;
+			wake_up(&Adapter->process_rx_cntrlpkt);
+		}
+
+		Status = STATUS_SUCCESS;
+		break;
+
+	case IOCTL_BCM_BULK_WRM: {
+		PBULKWRM_BUFFER pBulkBuffer;
+		UINT uiTempVar = 0;
+		PCHAR pvBuffer = NULL;
+
+		if ((Adapter->IdleMode == TRUE) ||
+			(Adapter->bShutStatus == TRUE) ||
+			(Adapter->bPreparingForLowPowerMode == TRUE)) {
+
+			BCM_DEBUG_PRINT (Adapter, DBG_TYPE_PRINTK, 0, 0, "Device in Idle/Shutdown Mode, Blocking Wrms\n");
+			Status = -EACCES;
+			break;
+		}
+
+		/* Copy Ioctl Buffer structure */
+		if (copy_from_user(&IoBuffer, argp, sizeof(IOCTL_BUFFER)))
+			return -EFAULT;
+
+		/* FIXME: restrict length */
+		pvBuffer = kmalloc(IoBuffer.InputLength, GFP_KERNEL);
+		if (!pvBuffer)
+			return -ENOMEM;
+
+		/* Get WrmBuffer structure */
+		if (copy_from_user(pvBuffer, IoBuffer.InputBuffer, IoBuffer.InputLength)) {
+			kfree(pvBuffer);
+			Status = -EFAULT;
+			break;
+		}
+
+		pBulkBuffer = (PBULKWRM_BUFFER)pvBuffer;
+
+		if (((ULONG)pBulkBuffer->Register & 0x0F000000) != 0x0F000000 ||
+			((ULONG)pBulkBuffer->Register & 0x3)) {
+			kfree(pvBuffer);
+			BCM_DEBUG_PRINT (Adapter, DBG_TYPE_PRINTK, 0, 0, "WRM Done On invalid Address : %x Access Denied.\n", (int)pBulkBuffer->Register);
+			Status = -EINVAL;
+			break;
+		}
+
+		uiTempVar = pBulkBuffer->Register & EEPROM_REJECT_MASK;
+		if (!((Adapter->pstargetparams->m_u32Customize)&VSG_MODE) &&
+			((uiTempVar == EEPROM_REJECT_REG_1) ||
+				(uiTempVar == EEPROM_REJECT_REG_2) ||
+				(uiTempVar == EEPROM_REJECT_REG_3) ||
+				(uiTempVar == EEPROM_REJECT_REG_4)) &&
+			(cmd == IOCTL_BCM_REGISTER_WRITE)) {
+
+			kfree(pvBuffer);
+			BCM_DEBUG_PRINT (Adapter, DBG_TYPE_PRINTK, 0, 0, "EEPROM Access Denied, not in VSG Mode\n");
+			Status = -EFAULT;
+			break;
+		}
+
+		if (pBulkBuffer->SwapEndian == FALSE)
+			Status = wrmWithLock(Adapter, (UINT)pBulkBuffer->Register, (PCHAR)pBulkBuffer->Values, IoBuffer.InputLength - 2*sizeof(ULONG));
+		else
+			Status = wrmaltWithLock(Adapter, (UINT)pBulkBuffer->Register, (PUINT)pBulkBuffer->Values, IoBuffer.InputLength - 2*sizeof(ULONG));
+
+		if (Status != STATUS_SUCCESS)
+			BCM_DEBUG_PRINT(Adapter, DBG_TYPE_PRINTK, 0, 0, "WRM Failed\n");
+
+		kfree(pvBuffer);
+		break;
+	}
+
+	case IOCTL_BCM_GET_NVM_SIZE:
+		if (copy_from_user(&IoBuffer, argp, sizeof(IOCTL_BUFFER)))
+			return -EFAULT;
+
+		if (Adapter->eNVMType == NVM_EEPROM || Adapter->eNVMType == NVM_FLASH) {
+			if (copy_to_user(IoBuffer.OutputBuffer, &Adapter->uiNVMDSDSize, sizeof(UINT)))
+				return -EFAULT;
+		}
+
+		Status = STATUS_SUCCESS;
+		break;
+
+	case IOCTL_BCM_CAL_INIT: {
+		UINT uiSectorSize = 0 ;
+		if (Adapter->eNVMType == NVM_FLASH) {
+			if (copy_from_user(&IoBuffer, argp, sizeof(IOCTL_BUFFER)))
 				return -EFAULT;
 
-			if(Adapter->eNVMType == NVM_EEPROM || Adapter->eNVMType == NVM_FLASH ) {
-				if(copy_to_user(IoBuffer.OutputBuffer, &Adapter->uiNVMDSDSize, sizeof(UINT)))
+			if (copy_from_user(&uiSectorSize, IoBuffer.InputBuffer, sizeof(UINT)))
+				return -EFAULT;
+
+			if ((uiSectorSize < MIN_SECTOR_SIZE) || (uiSectorSize > MAX_SECTOR_SIZE)) {
+				if (copy_to_user(IoBuffer.OutputBuffer, &Adapter->uiSectorSize,
+							sizeof(UINT)))
 					return -EFAULT;
-			}
-			Status = STATUS_SUCCESS ;
-			break;
-
-		case IOCTL_BCM_CAL_INIT :
-
-			{
-				UINT uiSectorSize = 0 ;
-				if(Adapter->eNVMType == NVM_FLASH)
-				{
-					if(copy_from_user(&IoBuffer, argp, sizeof(IOCTL_BUFFER)))
+			} else {
+				if (IsFlash2x(Adapter)) {
+					if (copy_to_user(IoBuffer.OutputBuffer,	&Adapter->uiSectorSize, sizeof(UINT)))
 						return -EFAULT;
-
-					if (copy_from_user(&uiSectorSize, IoBuffer.InputBuffer, sizeof(UINT)))
-						return -EFAULT;
-
-					if((uiSectorSize < MIN_SECTOR_SIZE) || (uiSectorSize > MAX_SECTOR_SIZE))
-					{
-						if (copy_to_user(IoBuffer.OutputBuffer, &Adapter->uiSectorSize,
-								 sizeof(UINT)))
-							return -EFAULT;
+				} else {
+					if ((TRUE == Adapter->bShutStatus) || (TRUE == Adapter->IdleMode)) {
+						BCM_DEBUG_PRINT(Adapter, DBG_TYPE_PRINTK, 0, 0, "Device is in Idle/Shutdown Mode\n");
+						return -EACCES;
 					}
-					else
-					{
-						if(IsFlash2x(Adapter))
-						{
-							if (copy_to_user(IoBuffer.OutputBuffer,
-									 &Adapter->uiSectorSize ,
-									 sizeof(UINT)))
-							    return -EFAULT;
-						}
-						else
-						{
-							if((TRUE == Adapter->bShutStatus) ||
-							   (TRUE == Adapter->IdleMode))
-							{
-								BCM_DEBUG_PRINT(Adapter,DBG_TYPE_PRINTK, 0, 0,"Device is in Idle/Shutdown Mode\n");
-								return -EACCES;
-							}
 
-							Adapter->uiSectorSize = uiSectorSize ;
-							BcmUpdateSectorSize(Adapter,Adapter->uiSectorSize);
-						}
-					}
-					Status = STATUS_SUCCESS ;
-				}
-				else
-				{
-					Status = STATUS_FAILURE;
+					Adapter->uiSectorSize = uiSectorSize;
+					BcmUpdateSectorSize(Adapter, Adapter->uiSectorSize);
 				}
 			}
-			break;
-        case IOCTL_BCM_SET_DEBUG :
+			Status = STATUS_SUCCESS;
+		} else {
+			Status = STATUS_FAILURE;
+		}
+	}
+	break;
+
+	case IOCTL_BCM_SET_DEBUG:
 #ifdef DEBUG
-            {
-                USER_BCM_DBG_STATE sUserDebugState;
+	{
+		USER_BCM_DBG_STATE sUserDebugState;
 
-//				BCM_DEBUG_PRINT (Adapter, DBG_TYPE_PRINTK, 0, 0, "Entered the ioctl %x \n", IOCTL_BCM_SET_DEBUG );
+		BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, OSAL_DBG, DBG_LVL_ALL, "In SET_DEBUG ioctl\n");
+		if (copy_from_user(&IoBuffer, argp, sizeof(IOCTL_BUFFER)))
+			return -EFAULT;
 
-				BCM_DEBUG_PRINT (Adapter, DBG_TYPE_OTHERS, OSAL_DBG, DBG_LVL_ALL, "In SET_DEBUG ioctl\n");
-				if (copy_from_user(&IoBuffer, argp, sizeof(IOCTL_BUFFER)))
-					return -EFAULT;
+		if (copy_from_user(&sUserDebugState, IoBuffer.InputBuffer, sizeof(USER_BCM_DBG_STATE)))
+			return -EFAULT;
 
-				if (copy_from_user(&sUserDebugState, IoBuffer.InputBuffer, sizeof(USER_BCM_DBG_STATE)))
-					return -EFAULT;
-
-
-				BCM_DEBUG_PRINT (Adapter, DBG_TYPE_PRINTK, 0, 0, "IOCTL_BCM_SET_DEBUG: OnOff=%d Type = 0x%x ",
+		BCM_DEBUG_PRINT (Adapter, DBG_TYPE_PRINTK, 0, 0, "IOCTL_BCM_SET_DEBUG: OnOff=%d Type = 0x%x ",
 				sUserDebugState.OnOff, sUserDebugState.Type);
-				//sUserDebugState.Subtype <<= 1;
-				sUserDebugState.Subtype = 1 << sUserDebugState.Subtype;
-				BCM_DEBUG_PRINT (Adapter, DBG_TYPE_PRINTK, 0, 0, "actual Subtype=0x%x\n", sUserDebugState.Subtype);
+		/* sUserDebugState.Subtype <<= 1; */
+		sUserDebugState.Subtype = 1 << sUserDebugState.Subtype;
+		BCM_DEBUG_PRINT (Adapter, DBG_TYPE_PRINTK, 0, 0, "actual Subtype=0x%x\n", sUserDebugState.Subtype);
 
-				// Update new 'DebugState' in the Adapter
-				Adapter->stDebugState.type |= sUserDebugState.Type;
-				/* Subtype: A bitmap of 32 bits for Subtype per Type.
-				 * Valid indexes in 'subtype' array: 1,2,4,8
-				 * corresponding to valid Type values. Hence we can use the 'Type' field
-				 * as the index value, ignoring the array entries 0,3,5,6,7 !
-				 */
-				if (sUserDebugState.OnOff)
-					Adapter->stDebugState.subtype[sUserDebugState.Type] |= sUserDebugState.Subtype;
-				else
-					Adapter->stDebugState.subtype[sUserDebugState.Type] &= ~sUserDebugState.Subtype;
+		/* Update new 'DebugState' in the Adapter */
+		Adapter->stDebugState.type |= sUserDebugState.Type;
+		/* Subtype: A bitmap of 32 bits for Subtype per Type.
+		 * Valid indexes in 'subtype' array: 1,2,4,8
+		 * corresponding to valid Type values. Hence we can use the 'Type' field
+		 * as the index value, ignoring the array entries 0,3,5,6,7 !
+		 */
+		if (sUserDebugState.OnOff)
+			Adapter->stDebugState.subtype[sUserDebugState.Type] |= sUserDebugState.Subtype;
+		else
+			Adapter->stDebugState.subtype[sUserDebugState.Type] &= ~sUserDebugState.Subtype;
 
-                BCM_SHOW_DEBUG_BITMAP(Adapter);
-
-			}
+		BCM_SHOW_DEBUG_BITMAP(Adapter);
+	}
 #endif
+	break;
+
+	case IOCTL_BCM_NVM_READ:
+	case IOCTL_BCM_NVM_WRITE: {
+		NVM_READWRITE  stNVMReadWrite;
+		PUCHAR pReadData = NULL;
+		ULONG ulDSDMagicNumInUsrBuff = 0;
+		struct timeval tv0, tv1;
+		memset(&tv0, 0, sizeof(struct timeval));
+		memset(&tv1, 0, sizeof(struct timeval));
+		if ((Adapter->eNVMType == NVM_FLASH) && (Adapter->uiFlashLayoutMajorVersion == 0)) {
+			BCM_DEBUG_PRINT(Adapter, DBG_TYPE_PRINTK, 0, 0, "The Flash Control Section is Corrupted. Hence Rejection on NVM Read/Write\n");
+			Status = -EFAULT;
 			break;
-		case IOCTL_BCM_NVM_READ:
-		case IOCTL_BCM_NVM_WRITE:
-			{
-				NVM_READWRITE  stNVMReadWrite;
-				PUCHAR pReadData = NULL;
-				ULONG ulDSDMagicNumInUsrBuff = 0;
-				struct timeval tv0, tv1;
-				memset(&tv0,0,sizeof(struct timeval));
-				memset(&tv1,0,sizeof(struct timeval));
-				if((Adapter->eNVMType == NVM_FLASH) && (Adapter->uiFlashLayoutMajorVersion == 0))
-				{
-					BCM_DEBUG_PRINT(Adapter, DBG_TYPE_PRINTK, 0, 0,"The Flash Control Section is Corrupted. Hence Rejection on NVM Read/Write\n");
-					Status = -EFAULT;
-					break;
-				}
+		}
 
-				if(IsFlash2x(Adapter))
-				{
-					if((Adapter->eActiveDSD != DSD0) &&
-						(Adapter->eActiveDSD != DSD1) &&
-						(Adapter->eActiveDSD != DSD2))
-					{
-						BCM_DEBUG_PRINT(Adapter,DBG_TYPE_PRINTK, 0, 0,"No DSD is active..hence NVM Command is blocked");
-						return STATUS_FAILURE ;
-					}
-				}
+		if (IsFlash2x(Adapter)) {
+			if ((Adapter->eActiveDSD != DSD0) &&
+				(Adapter->eActiveDSD != DSD1) &&
+				(Adapter->eActiveDSD != DSD2)) {
 
-			/* Copy Ioctl Buffer structure */
+				BCM_DEBUG_PRINT(Adapter, DBG_TYPE_PRINTK, 0, 0, "No DSD is active..hence NVM Command is blocked");
+				return STATUS_FAILURE ;
+			}
+		}
 
-				if(copy_from_user(&IoBuffer, argp, sizeof(IOCTL_BUFFER)))
-					return -EFAULT;
+		/* Copy Ioctl Buffer structure */
+		if (copy_from_user(&IoBuffer, argp, sizeof(IOCTL_BUFFER)))
+			return -EFAULT;
 
-				if(copy_from_user(&stNVMReadWrite,
-						  (IOCTL_BCM_NVM_READ == cmd) ? IoBuffer.OutputBuffer : IoBuffer.InputBuffer,
-						  sizeof(NVM_READWRITE)))
-					return -EFAULT;
+		if (copy_from_user(&stNVMReadWrite,
+					(IOCTL_BCM_NVM_READ == cmd) ? IoBuffer.OutputBuffer : IoBuffer.InputBuffer,
+					sizeof(NVM_READWRITE)))
+			return -EFAULT;
 
-				//
-				// Deny the access if the offset crosses the cal area limit.
-				//
-				if((stNVMReadWrite.uiOffset + stNVMReadWrite.uiNumBytes) > Adapter->uiNVMDSDSize)
-				{
-				//BCM_DEBUG_PRINT(Adapter,DBG_TYPE_PRINTK, 0, 0,"Can't allow access beyond NVM Size: 0x%x 0x%x\n", stNVMReadWrite.uiOffset ,
-//							stNVMReadWrite.uiNumBytes);
-					Status = STATUS_FAILURE;
-					break;
-				}
+		/*
+		 * Deny the access if the offset crosses the cal area limit.
+		 */
 
-				pReadData = kzalloc(stNVMReadWrite.uiNumBytes, GFP_KERNEL);
-				if(!pReadData)
-					return -ENOMEM;
+		if ((stNVMReadWrite.uiOffset + stNVMReadWrite.uiNumBytes) > Adapter->uiNVMDSDSize) {
+			/* BCM_DEBUG_PRINT(Adapter,DBG_TYPE_PRINTK, 0, 0,"Can't allow access beyond NVM Size: 0x%x 0x%x\n", stNVMReadWrite.uiOffset, stNVMReadWrite.uiNumBytes); */
+			Status = STATUS_FAILURE;
+			break;
+		}
 
-				if(copy_from_user(pReadData, stNVMReadWrite.pBuffer,
-							stNVMReadWrite.uiNumBytes))
-				{
-					Status = -EFAULT;
-					kfree(pReadData);
-					break;
-				}
+		pReadData = kzalloc(stNVMReadWrite.uiNumBytes, GFP_KERNEL);
+		if (!pReadData)
+			return -ENOMEM;
 
-				do_gettimeofday(&tv0);
-				if(IOCTL_BCM_NVM_READ == cmd)
-				{
-					down(&Adapter->NVMRdmWrmLock);
+		if (copy_from_user(pReadData, stNVMReadWrite.pBuffer, stNVMReadWrite.uiNumBytes)) {
+			Status = -EFAULT;
+			kfree(pReadData);
+			break;
+		}
 
-					if((Adapter->IdleMode == TRUE) ||
-						(Adapter->bShutStatus ==TRUE) ||
-						(Adapter->bPreparingForLowPowerMode ==TRUE))
-					{
-						BCM_DEBUG_PRINT(Adapter,DBG_TYPE_OTHERS, OSAL_DBG, DBG_LVL_ALL,"Device is in Idle/Shutdown Mode\n");
+		do_gettimeofday(&tv0);
+		if (IOCTL_BCM_NVM_READ == cmd) {
+			down(&Adapter->NVMRdmWrmLock);
+
+			if ((Adapter->IdleMode == TRUE) ||
+				(Adapter->bShutStatus == TRUE) ||
+				(Adapter->bPreparingForLowPowerMode == TRUE)) {
+
+				BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, OSAL_DBG, DBG_LVL_ALL, "Device is in Idle/Shutdown Mode\n");
+				up(&Adapter->NVMRdmWrmLock);
+				kfree(pReadData);
+				return -EACCES;
+			}
+
+			Status = BeceemNVMRead(Adapter, (PUINT)pReadData, stNVMReadWrite.uiOffset, stNVMReadWrite.uiNumBytes);
+			up(&Adapter->NVMRdmWrmLock);
+
+			if (Status != STATUS_SUCCESS) {
+				kfree(pReadData);
+				return Status;
+			}
+
+			if (copy_to_user(stNVMReadWrite.pBuffer, pReadData, stNVMReadWrite.uiNumBytes)) {
+				kfree(pReadData);
+				Status = -EFAULT;
+			}
+		} else {
+			down(&Adapter->NVMRdmWrmLock);
+
+			if ((Adapter->IdleMode == TRUE) ||
+				(Adapter->bShutStatus == TRUE) ||
+				(Adapter->bPreparingForLowPowerMode == TRUE)) {
+
+				BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, OSAL_DBG, DBG_LVL_ALL, "Device is in Idle/Shutdown Mode\n");
+				up(&Adapter->NVMRdmWrmLock);
+				kfree(pReadData);
+				return -EACCES;
+			}
+
+			Adapter->bHeaderChangeAllowed = TRUE;
+			if (IsFlash2x(Adapter)) {
+				/*
+				 *			New Requirement:-
+				 *			DSD section updation will be allowed in two case:-
+				 *			1.  if DSD sig is present in DSD header means dongle is ok and updation is fruitfull
+				 *			2.  if point 1 failes then user buff should have DSD sig. this point ensures that if dongle is
+				 *			      corrupted then user space program first modify the DSD header with valid DSD sig so
+				 *			      that this as well as further write may be worthwhile.
+				 *
+				 *			 This restriction has been put assuming that if DSD sig is corrupted, DSD
+				 *			 data won't be considered valid.
+				 */
+
+				Status = BcmFlash2xCorruptSig(Adapter, Adapter->eActiveDSD);
+				if (Status != STATUS_SUCCESS) {
+					if (((stNVMReadWrite.uiOffset + stNVMReadWrite.uiNumBytes) != Adapter->uiNVMDSDSize) ||
+						(stNVMReadWrite.uiNumBytes < SIGNATURE_SIZE)) {
+
+						BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, OSAL_DBG, DBG_LVL_ALL, "DSD Sig is present neither in Flash nor User provided Input..");
 						up(&Adapter->NVMRdmWrmLock);
 						kfree(pReadData);
-						return -EACCES;
+						return Status;
 					}
 
-					Status = BeceemNVMRead(Adapter, (PUINT)pReadData,
-						stNVMReadWrite.uiOffset, stNVMReadWrite.uiNumBytes);
-
-					up(&Adapter->NVMRdmWrmLock);
-
-					if(Status != STATUS_SUCCESS)
-						{
-							kfree(pReadData);
-							return Status;
-						}
-					if(copy_to_user(stNVMReadWrite.pBuffer,pReadData, stNVMReadWrite.uiNumBytes))
-						{
-							kfree(pReadData);
-							Status = -EFAULT;
-						}
-				}
-				else
-				{
-
-					down(&Adapter->NVMRdmWrmLock);
-
-					if((Adapter->IdleMode == TRUE) ||
-						(Adapter->bShutStatus ==TRUE) ||
-						(Adapter->bPreparingForLowPowerMode ==TRUE))
-					{
-						BCM_DEBUG_PRINT(Adapter,DBG_TYPE_OTHERS, OSAL_DBG, DBG_LVL_ALL,"Device is in Idle/Shutdown Mode\n");
+					ulDSDMagicNumInUsrBuff = ntohl(*(PUINT)(pReadData + stNVMReadWrite.uiNumBytes - SIGNATURE_SIZE));
+					if (ulDSDMagicNumInUsrBuff != DSD_IMAGE_MAGIC_NUMBER) {
+						BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, OSAL_DBG, DBG_LVL_ALL, "DSD Sig is present neither in Flash nor User provided Input..");
 						up(&Adapter->NVMRdmWrmLock);
-						kfree(pReadData);
-						return -EACCES;
-					}
-
-					Adapter->bHeaderChangeAllowed = TRUE ;
-					if(IsFlash2x(Adapter))
-					{
-						/*
-							New Requirement:-
-							DSD section updation will be allowed in two case:-
-							1.  if DSD sig is present in DSD header means dongle is ok and updation is fruitfull
-							2.  if point 1 failes then user buff should have DSD sig. this point ensures that if dongle is
-							      corrupted then user space program first modify the DSD header with valid DSD sig so
-							      that this as well as further write may be worthwhile.
-
-							 This restriction has been put assuming that if DSD sig is corrupted, DSD
-							 data won't be considered valid.
-
-
-						*/
-						Status = BcmFlash2xCorruptSig(Adapter,Adapter->eActiveDSD);
-						if(Status != STATUS_SUCCESS)
-						{
-							if(( (stNVMReadWrite.uiOffset + stNVMReadWrite.uiNumBytes) != Adapter->uiNVMDSDSize ) ||
-								(stNVMReadWrite.uiNumBytes < SIGNATURE_SIZE))
-							{
-								BCM_DEBUG_PRINT(Adapter,DBG_TYPE_OTHERS, OSAL_DBG, DBG_LVL_ALL,"DSD Sig is present neither in Flash nor User provided Input..");
-								up(&Adapter->NVMRdmWrmLock);
-								kfree(pReadData);
-								return Status;
-							}
-
-							ulDSDMagicNumInUsrBuff = ntohl(*(PUINT)(pReadData + stNVMReadWrite.uiNumBytes - SIGNATURE_SIZE));
-							if(ulDSDMagicNumInUsrBuff != DSD_IMAGE_MAGIC_NUMBER)
-							{
-								BCM_DEBUG_PRINT(Adapter,DBG_TYPE_OTHERS, OSAL_DBG, DBG_LVL_ALL,"DSD Sig is present neither in Flash nor User provided Input..");
-								up(&Adapter->NVMRdmWrmLock);
-								kfree(pReadData);
-								return Status;
-							}
-						}
-					}
-					Status = BeceemNVMWrite(Adapter, (PUINT )pReadData,
-									stNVMReadWrite.uiOffset, stNVMReadWrite.uiNumBytes, stNVMReadWrite.bVerify);
-					if(IsFlash2x(Adapter))
-						BcmFlash2xWriteSig(Adapter,Adapter->eActiveDSD);
-
-					Adapter->bHeaderChangeAllowed = FALSE ;
-
-					up(&Adapter->NVMRdmWrmLock);
-
-
-					if(Status != STATUS_SUCCESS)
-					{
 						kfree(pReadData);
 						return Status;
 					}
 				}
-				do_gettimeofday(&tv1);
-				BCM_DEBUG_PRINT(Adapter,DBG_TYPE_OTHERS, OSAL_DBG, DBG_LVL_ALL, " timetaken by Write/read :%ld msec\n",(tv1.tv_sec - tv0.tv_sec)*1000 +(tv1.tv_usec - tv0.tv_usec)/1000);
+			}
 
+			Status = BeceemNVMWrite(Adapter, (PUINT)pReadData, stNVMReadWrite.uiOffset, stNVMReadWrite.uiNumBytes, stNVMReadWrite.bVerify);
+			if (IsFlash2x(Adapter))
+				BcmFlash2xWriteSig(Adapter, Adapter->eActiveDSD);
 
+			Adapter->bHeaderChangeAllowed = FALSE;
+
+			up(&Adapter->NVMRdmWrmLock);
+
+			if (Status != STATUS_SUCCESS) {
 				kfree(pReadData);
-				Status = STATUS_SUCCESS;
+				return Status;
 			}
-			break;
-		case IOCTL_BCM_FLASH2X_SECTION_READ :
-			 {
+		}
 
-				FLASH2X_READWRITE sFlash2xRead = {0};
-				PUCHAR pReadBuff = NULL ;
-				UINT NOB = 0;
-				UINT BuffSize = 0;
-				UINT ReadBytes = 0;
-				UINT ReadOffset = 0;
-				void __user *OutPutBuff;
+		do_gettimeofday(&tv1);
+		BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, OSAL_DBG, DBG_LVL_ALL, " timetaken by Write/read :%ld msec\n", (tv1.tv_sec - tv0.tv_sec)*1000 + (tv1.tv_usec - tv0.tv_usec)/1000);
 
-				if(IsFlash2x(Adapter) != TRUE)
-				{
-					BCM_DEBUG_PRINT(Adapter,DBG_TYPE_PRINTK, 0, 0,"Flash Does not have 2.x map");
-					return -EINVAL;
-				}
+		kfree(pReadData);
+		Status = STATUS_SUCCESS;
+	}
+	break;
 
-				BCM_DEBUG_PRINT(Adapter,DBG_TYPE_OTHERS, OSAL_DBG, DBG_LVL_ALL, "IOCTL_BCM_FLASH2X_SECTION_READ Called");
-				if (copy_from_user(&IoBuffer, argp, sizeof(IOCTL_BUFFER)))
-					return -EFAULT;
+	case IOCTL_BCM_FLASH2X_SECTION_READ: {
+		FLASH2X_READWRITE sFlash2xRead = {0};
+		PUCHAR pReadBuff = NULL ;
+		UINT NOB = 0;
+		UINT BuffSize = 0;
+		UINT ReadBytes = 0;
+		UINT ReadOffset = 0;
+		void __user *OutPutBuff;
 
-				//Reading FLASH 2.x READ structure
-				if (copy_from_user(&sFlash2xRead, IoBuffer.InputBuffer,sizeof(FLASH2X_READWRITE)))
-					return -EFAULT;
+		if (IsFlash2x(Adapter) != TRUE)	{
+			BCM_DEBUG_PRINT(Adapter, DBG_TYPE_PRINTK, 0, 0, "Flash Does not have 2.x map");
+			return -EINVAL;
+		}
 
+		BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, OSAL_DBG, DBG_LVL_ALL, "IOCTL_BCM_FLASH2X_SECTION_READ Called");
+		if (copy_from_user(&IoBuffer, argp, sizeof(IOCTL_BUFFER)))
+			return -EFAULT;
 
-				BCM_DEBUG_PRINT(Adapter,DBG_TYPE_OTHERS, OSAL_DBG, DBG_LVL_ALL,"\nsFlash2xRead.Section :%x" ,sFlash2xRead.Section);
-				BCM_DEBUG_PRINT(Adapter,DBG_TYPE_OTHERS, OSAL_DBG, DBG_LVL_ALL,"\nsFlash2xRead.offset :%x" ,sFlash2xRead.offset);
-				BCM_DEBUG_PRINT(Adapter,DBG_TYPE_OTHERS, OSAL_DBG, DBG_LVL_ALL,"\nsFlash2xRead.numOfBytes :%x" ,sFlash2xRead.numOfBytes);
-				BCM_DEBUG_PRINT(Adapter,DBG_TYPE_OTHERS, OSAL_DBG, DBG_LVL_ALL,"\nsFlash2xRead.bVerify :%x\n" ,sFlash2xRead.bVerify);
+		/* Reading FLASH 2.x READ structure */
+		if (copy_from_user(&sFlash2xRead, IoBuffer.InputBuffer, sizeof(FLASH2X_READWRITE)))
+			return -EFAULT;
 
-				//This was internal to driver for raw read. now it has ben exposed to user space app.
-				if(validateFlash2xReadWrite(Adapter,&sFlash2xRead) == FALSE)
-					return STATUS_FAILURE ;
+		BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, OSAL_DBG, DBG_LVL_ALL, "\nsFlash2xRead.Section :%x", sFlash2xRead.Section);
+		BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, OSAL_DBG, DBG_LVL_ALL, "\nsFlash2xRead.offset :%x", sFlash2xRead.offset);
+		BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, OSAL_DBG, DBG_LVL_ALL, "\nsFlash2xRead.numOfBytes :%x", sFlash2xRead.numOfBytes);
+		BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, OSAL_DBG, DBG_LVL_ALL, "\nsFlash2xRead.bVerify :%x\n", sFlash2xRead.bVerify);
 
-				NOB = sFlash2xRead.numOfBytes;
-				if(NOB > Adapter->uiSectorSize )
-					BuffSize = Adapter->uiSectorSize;
+		/* This was internal to driver for raw read. now it has ben exposed to user space app. */
+		if (validateFlash2xReadWrite(Adapter, &sFlash2xRead) == FALSE)
+			return STATUS_FAILURE;
+
+		NOB = sFlash2xRead.numOfBytes;
+		if (NOB > Adapter->uiSectorSize)
+			BuffSize = Adapter->uiSectorSize;
+		else
+			BuffSize = NOB;
+
+		ReadOffset = sFlash2xRead.offset ;
+		OutPutBuff = IoBuffer.OutputBuffer;
+		pReadBuff = (PCHAR)kzalloc(BuffSize , GFP_KERNEL);
+
+		if (pReadBuff == NULL) {
+			BCM_DEBUG_PRINT(Adapter, DBG_TYPE_PRINTK, 0, 0, "Memory allocation failed for Flash 2.x Read Structure");
+			return -ENOMEM;
+		}
+		down(&Adapter->NVMRdmWrmLock);
+
+		if ((Adapter->IdleMode == TRUE) ||
+			(Adapter->bShutStatus == TRUE) ||
+			(Adapter->bPreparingForLowPowerMode == TRUE)) {
+
+			BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, OSAL_DBG, DBG_LVL_ALL, "Device is in Idle/Shutdown Mode\n");
+			up(&Adapter->NVMRdmWrmLock);
+			kfree(pReadBuff);
+			return -EACCES;
+		}
+
+		while (NOB) {
+			if (NOB > Adapter->uiSectorSize)
+				ReadBytes = Adapter->uiSectorSize;
+			else
+				ReadBytes = NOB;
+
+			/* Reading the data from Flash 2.x */
+			Status = BcmFlash2xBulkRead(Adapter, (PUINT)pReadBuff, sFlash2xRead.Section, ReadOffset, ReadBytes);
+			if (Status) {
+				BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, OSAL_DBG, DBG_LVL_ALL, "Flash 2x read err with Status :%d", Status);
+				break;
+			}
+
+			BCM_DEBUG_PRINT_BUFFER(Adapter, DBG_TYPE_OTHERS, OSAL_DBG, DBG_LVL_ALL, pReadBuff, ReadBytes);
+
+			Status = copy_to_user(OutPutBuff, pReadBuff, ReadBytes);
+			if (Status) {
+				BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, OSAL_DBG, DBG_LVL_ALL, "Copy to use failed with status :%d", Status);
+				break;
+			}
+			NOB = NOB - ReadBytes;
+			if (NOB) {
+				ReadOffset = ReadOffset + ReadBytes;
+				OutPutBuff = OutPutBuff + ReadBytes ;
+			}
+		}
+
+		up(&Adapter->NVMRdmWrmLock);
+		kfree(pReadBuff);
+	}
+	break;
+
+	case IOCTL_BCM_FLASH2X_SECTION_WRITE: {
+		FLASH2X_READWRITE sFlash2xWrite = {0};
+		PUCHAR pWriteBuff;
+		void __user *InputAddr;
+		UINT NOB = 0;
+		UINT BuffSize = 0;
+		UINT WriteOffset = 0;
+		UINT WriteBytes = 0;
+
+		if (IsFlash2x(Adapter) != TRUE) {
+			BCM_DEBUG_PRINT(Adapter, DBG_TYPE_PRINTK, 0, 0, "Flash Does not have 2.x map");
+			return -EINVAL;
+		}
+
+		/* First make this False so that we can enable the Sector Permission Check in BeceemFlashBulkWrite */
+		Adapter->bAllDSDWriteAllow = FALSE;
+
+		BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, OSAL_DBG, DBG_LVL_ALL, "IOCTL_BCM_FLASH2X_SECTION_WRITE Called");
+
+		if (copy_from_user(&IoBuffer, argp, sizeof(IOCTL_BUFFER)))
+			return -EFAULT;
+
+		/* Reading FLASH 2.x READ structure */
+		if (copy_from_user(&sFlash2xWrite, IoBuffer.InputBuffer, sizeof(FLASH2X_READWRITE)))
+			return -EFAULT;
+
+		BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, OSAL_DBG, DBG_LVL_ALL, "\nsFlash2xRead.Section :%x", sFlash2xWrite.Section);
+		BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, OSAL_DBG, DBG_LVL_ALL, "\nsFlash2xRead.offset :%d", sFlash2xWrite.offset);
+		BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, OSAL_DBG, DBG_LVL_ALL, "\nsFlash2xRead.numOfBytes :%x", sFlash2xWrite.numOfBytes);
+		BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, OSAL_DBG, DBG_LVL_ALL, "\nsFlash2xRead.bVerify :%x\n", sFlash2xWrite.bVerify);
+
+		if ((sFlash2xWrite.Section != VSA0) && (sFlash2xWrite.Section != VSA1) && (sFlash2xWrite.Section != VSA2)) {
+			BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, OSAL_DBG, DBG_LVL_ALL, "Only VSA write is allowed");
+			return -EINVAL;
+		}
+
+		if (validateFlash2xReadWrite(Adapter, &sFlash2xWrite) == FALSE)
+			return STATUS_FAILURE;
+
+		InputAddr = sFlash2xWrite.pDataBuff;
+		WriteOffset = sFlash2xWrite.offset;
+		NOB = sFlash2xWrite.numOfBytes;
+
+		if (NOB > Adapter->uiSectorSize)
+			BuffSize = Adapter->uiSectorSize;
+		else
+			BuffSize = NOB ;
+
+		pWriteBuff = kmalloc(BuffSize, GFP_KERNEL);
+
+		if (pWriteBuff == NULL)
+			return -ENOMEM;
+
+		/* extracting the remainder of the given offset. */
+		WriteBytes = Adapter->uiSectorSize;
+		if (WriteOffset % Adapter->uiSectorSize)
+			WriteBytes = Adapter->uiSectorSize - (WriteOffset % Adapter->uiSectorSize);
+
+		if (NOB < WriteBytes)
+			WriteBytes = NOB;
+
+		down(&Adapter->NVMRdmWrmLock);
+
+		if ((Adapter->IdleMode == TRUE) ||
+			(Adapter->bShutStatus == TRUE) ||
+			(Adapter->bPreparingForLowPowerMode == TRUE)) {
+
+			BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, OSAL_DBG, DBG_LVL_ALL, "Device is in Idle/Shutdown Mode\n");
+			up(&Adapter->NVMRdmWrmLock);
+			kfree(pWriteBuff);
+			return -EACCES;
+		}
+
+		BcmFlash2xCorruptSig(Adapter, sFlash2xWrite.Section);
+		do {
+			Status = copy_from_user(pWriteBuff, InputAddr, WriteBytes);
+			if (Status) {
+				BCM_DEBUG_PRINT(Adapter, DBG_TYPE_PRINTK, 0, 0, "Copy to user failed with status :%d", Status);
+				break;
+			}
+			BCM_DEBUG_PRINT_BUFFER(Adapter, DBG_TYPE_OTHERS, OSAL_DBG, DBG_LVL_ALL, pWriteBuff, WriteBytes);
+
+			/* Writing the data from Flash 2.x */
+			Status = BcmFlash2xBulkWrite(Adapter, (PUINT)pWriteBuff, sFlash2xWrite.Section, WriteOffset, WriteBytes, sFlash2xWrite.bVerify);
+
+			if (Status) {
+				BCM_DEBUG_PRINT(Adapter, DBG_TYPE_PRINTK, 0, 0, "Flash 2x read err with Status :%d", Status);
+				break;
+			}
+
+			NOB = NOB - WriteBytes;
+			if (NOB) {
+				WriteOffset = WriteOffset + WriteBytes;
+				InputAddr = InputAddr + WriteBytes;
+				if (NOB > Adapter->uiSectorSize)
+					WriteBytes = Adapter->uiSectorSize;
 				else
-					BuffSize = NOB ;
-
-				ReadOffset = sFlash2xRead.offset ;
-				OutPutBuff = IoBuffer.OutputBuffer;
-
-
-				pReadBuff = (PCHAR)kzalloc(BuffSize , GFP_KERNEL);
-				if(pReadBuff == NULL)
-				{
-					BCM_DEBUG_PRINT(Adapter,DBG_TYPE_PRINTK, 0, 0,"Memory allocation failed for Flash 2.x Read Structure");
-					return -ENOMEM;
-				}
-				down(&Adapter->NVMRdmWrmLock);
-
-				if((Adapter->IdleMode == TRUE) ||
-					(Adapter->bShutStatus ==TRUE) ||
-					(Adapter->bPreparingForLowPowerMode ==TRUE))
-				{
-					BCM_DEBUG_PRINT(Adapter,DBG_TYPE_OTHERS, OSAL_DBG, DBG_LVL_ALL,"Device is in Idle/Shutdown Mode\n");
-					up(&Adapter->NVMRdmWrmLock);
-					kfree(pReadBuff);
-					return -EACCES;
-				}
-
-				while(NOB)
-				{
-
-					if(NOB > Adapter->uiSectorSize )
-						ReadBytes = Adapter->uiSectorSize;
-					else
-						ReadBytes = NOB;
-
-
-					//Reading the data from Flash 2.x
-
-					Status = BcmFlash2xBulkRead(Adapter,(PUINT)pReadBuff,sFlash2xRead.Section,ReadOffset,ReadBytes);
-					if(Status)
-					{
-						BCM_DEBUG_PRINT(Adapter,DBG_TYPE_OTHERS, OSAL_DBG, DBG_LVL_ALL,"Flash 2x read err with Status :%d", Status);
-						break ;
-					}
-
-					BCM_DEBUG_PRINT_BUFFER(Adapter,DBG_TYPE_OTHERS, OSAL_DBG, DBG_LVL_ALL,pReadBuff, ReadBytes);
-
-					Status = copy_to_user(OutPutBuff, pReadBuff,ReadBytes);
-				 	if(Status)
-				 	{
-				 		BCM_DEBUG_PRINT(Adapter,DBG_TYPE_OTHERS, OSAL_DBG, DBG_LVL_ALL,"Copy to use failed with status :%d", Status);
-						break;
-				 	}
-					NOB = NOB - ReadBytes;
-					if(NOB)
-					{
-						ReadOffset = ReadOffset + ReadBytes ;
-						OutPutBuff = OutPutBuff + ReadBytes ;
-					}
-
-				}
-				up(&Adapter->NVMRdmWrmLock);
-				kfree(pReadBuff);
-
-			 }
-			 break ;
-		case IOCTL_BCM_FLASH2X_SECTION_WRITE :
-			 {
-			 	FLASH2X_READWRITE sFlash2xWrite = {0};
-				PUCHAR pWriteBuff;
-				void __user *InputAddr;
-				UINT NOB = 0;
-				UINT BuffSize = 0;
-				UINT WriteOffset = 0;
-				UINT WriteBytes = 0;
-
-				if(IsFlash2x(Adapter) != TRUE)
-				{
-					BCM_DEBUG_PRINT(Adapter,DBG_TYPE_PRINTK, 0, 0,"Flash Does not have 2.x map");
-					return -EINVAL;
-				}
-
-				//First make this False so that we can enable the Sector Permission Check in BeceemFlashBulkWrite
-				Adapter->bAllDSDWriteAllow = FALSE;
-
-
-				BCM_DEBUG_PRINT(Adapter,DBG_TYPE_OTHERS, OSAL_DBG, DBG_LVL_ALL, " IOCTL_BCM_FLASH2X_SECTION_WRITE Called");
-				if (copy_from_user(&IoBuffer, argp, sizeof(IOCTL_BUFFER)))
-					return -EFAULT;
-
-				//Reading FLASH 2.x READ structure
-				if (copy_from_user(&sFlash2xWrite, IoBuffer.InputBuffer, sizeof(FLASH2X_READWRITE)))
-					return -EFAULT;
-
-				BCM_DEBUG_PRINT(Adapter,DBG_TYPE_OTHERS, OSAL_DBG, DBG_LVL_ALL,"\nsFlash2xRead.Section :%x" ,sFlash2xWrite.Section);
-				BCM_DEBUG_PRINT(Adapter,DBG_TYPE_OTHERS, OSAL_DBG, DBG_LVL_ALL,"\nsFlash2xRead.offset :%d" ,sFlash2xWrite.offset);
-				BCM_DEBUG_PRINT(Adapter,DBG_TYPE_OTHERS, OSAL_DBG, DBG_LVL_ALL,"\nsFlash2xRead.numOfBytes :%x" ,sFlash2xWrite.numOfBytes);
-				BCM_DEBUG_PRINT(Adapter,DBG_TYPE_OTHERS, OSAL_DBG, DBG_LVL_ALL,"\nsFlash2xRead.bVerify :%x\n" ,sFlash2xWrite.bVerify);
-				if((sFlash2xWrite.Section != VSA0) && (sFlash2xWrite.Section != VSA1) &&
-					(sFlash2xWrite.Section != VSA2) )
-				{
-					BCM_DEBUG_PRINT(Adapter,DBG_TYPE_OTHERS, OSAL_DBG, DBG_LVL_ALL,"Only VSA write is allowed");
-					return -EINVAL;
-				}
-
-				if(validateFlash2xReadWrite(Adapter,&sFlash2xWrite) == FALSE)
-					return STATUS_FAILURE ;
-
-				InputAddr = sFlash2xWrite.pDataBuff;
-				WriteOffset = sFlash2xWrite.offset ;
-				NOB = sFlash2xWrite.numOfBytes;
-
-				if(NOB > Adapter->uiSectorSize )
-					BuffSize = Adapter->uiSectorSize;
-				else
-					BuffSize = NOB ;
-
-				pWriteBuff = kmalloc(BuffSize, GFP_KERNEL);
-				if(pWriteBuff == NULL)
-					return -ENOMEM;
-
-
-				//extracting the remainder of the given offset.
-				WriteBytes = Adapter->uiSectorSize ;
-				if(WriteOffset % Adapter->uiSectorSize)
-					WriteBytes =Adapter->uiSectorSize - (WriteOffset % Adapter->uiSectorSize);
-				if(NOB < WriteBytes)
 					WriteBytes = NOB;
-
-				down(&Adapter->NVMRdmWrmLock);
-
-				if((Adapter->IdleMode == TRUE) ||
-					(Adapter->bShutStatus ==TRUE) ||
-					(Adapter->bPreparingForLowPowerMode ==TRUE))
-				{
-					BCM_DEBUG_PRINT(Adapter,DBG_TYPE_OTHERS, OSAL_DBG, DBG_LVL_ALL,"Device is in Idle/Shutdown Mode\n");
-					up(&Adapter->NVMRdmWrmLock);
-					kfree(pWriteBuff);
-					return -EACCES;
-				}
-
-				BcmFlash2xCorruptSig(Adapter,sFlash2xWrite.Section);
-				do
-				{
-					Status = copy_from_user(pWriteBuff,InputAddr,WriteBytes);
-				 	if(Status)
-				 	{
-				 		BCM_DEBUG_PRINT(Adapter,DBG_TYPE_PRINTK, 0, 0,"Copy to user failed with status :%d", Status);
-						break ;
-				 	}
-					BCM_DEBUG_PRINT_BUFFER(Adapter,DBG_TYPE_OTHERS, OSAL_DBG, DBG_LVL_ALL,pWriteBuff,WriteBytes);
-					//Writing the data from Flash 2.x
-					Status = BcmFlash2xBulkWrite(Adapter,(PUINT)pWriteBuff,sFlash2xWrite.Section,WriteOffset,WriteBytes,sFlash2xWrite.bVerify);
-
-					if(Status)
-					{
-						BCM_DEBUG_PRINT(Adapter,DBG_TYPE_PRINTK, 0, 0,"Flash 2x read err with Status :%d", Status);
-						break ;
-					}
-
-					NOB = NOB - WriteBytes;
-					if(NOB)
-					{
-						WriteOffset = WriteOffset + WriteBytes ;
-						InputAddr = InputAddr + WriteBytes ;
-						if(NOB > Adapter->uiSectorSize )
-							WriteBytes = Adapter->uiSectorSize;
-						else
-							WriteBytes = NOB;
-					}
-
-
-				}	while(NOB > 0);
-				BcmFlash2xWriteSig(Adapter,sFlash2xWrite.Section);
-				up(&Adapter->NVMRdmWrmLock);
-				kfree(pWriteBuff);
-			 }
-			 break ;
-		case IOCTL_BCM_GET_FLASH2X_SECTION_BITMAP :
-			 {
-
-				 PFLASH2X_BITMAP psFlash2xBitMap;
-				BCM_DEBUG_PRINT(Adapter,DBG_TYPE_OTHERS, OSAL_DBG, DBG_LVL_ALL, "IOCTL_BCM_GET_FLASH2X_SECTION_BITMAP Called");
-
-				if (copy_from_user(&IoBuffer, argp, sizeof(IOCTL_BUFFER)))
-					return -EFAULT;
-
-				if(IoBuffer.OutputLength != sizeof(FLASH2X_BITMAP))
-					return -EINVAL;
-
-				psFlash2xBitMap = kzalloc(sizeof(FLASH2X_BITMAP), GFP_KERNEL);
-				if(psFlash2xBitMap == NULL)
-				{
-					BCM_DEBUG_PRINT(Adapter,DBG_TYPE_PRINTK, 0, 0,"Memory is not available");
-					return -ENOMEM ;
-				}
-				//Reading the Flash Sectio Bit map
-				down(&Adapter->NVMRdmWrmLock);
-
-				if((Adapter->IdleMode == TRUE) ||
-					(Adapter->bShutStatus ==TRUE) ||
-					(Adapter->bPreparingForLowPowerMode ==TRUE))
-				{
-					BCM_DEBUG_PRINT(Adapter,DBG_TYPE_OTHERS, OSAL_DBG, DBG_LVL_ALL,"Device is in Idle/Shutdown Mode\n");
-					up(&Adapter->NVMRdmWrmLock);
-					kfree(psFlash2xBitMap);
-					return -EACCES;
-				}
-
-				BcmGetFlash2xSectionalBitMap(Adapter, psFlash2xBitMap);
-				up(&Adapter->NVMRdmWrmLock);
-				if (copy_to_user(IoBuffer.OutputBuffer, psFlash2xBitMap, sizeof(FLASH2X_BITMAP)))
-					Status = -EFAULT;
-
-				kfree(psFlash2xBitMap);
-			 }
-			 break ;
-		case IOCTL_BCM_SET_ACTIVE_SECTION :
-			 {
-				FLASH2X_SECTION_VAL eFlash2xSectionVal = 0;
-				BCM_DEBUG_PRINT(Adapter,DBG_TYPE_OTHERS, OSAL_DBG, DBG_LVL_ALL, "IOCTL_BCM_SET_ACTIVE_SECTION Called");
-
-				if(IsFlash2x(Adapter) != TRUE)
-				{
-					BCM_DEBUG_PRINT(Adapter,DBG_TYPE_PRINTK, 0, 0,"Flash Does not have 2.x map");
-					return -EINVAL;
-				}
-
-				Status = copy_from_user(&IoBuffer, argp, sizeof(IOCTL_BUFFER));
-				if(Status)
-				{
-					BCM_DEBUG_PRINT(Adapter,DBG_TYPE_PRINTK, 0, 0, "Copy of IOCTL BUFFER failed");
-					return Status;
-				}
-
-				Status = copy_from_user(&eFlash2xSectionVal,IoBuffer.InputBuffer, sizeof(INT));
-				if(Status)
-				{
-					BCM_DEBUG_PRINT(Adapter,DBG_TYPE_PRINTK, 0, 0, "Copy of flash section val failed");
-					return Status;
-				}
-
-				down(&Adapter->NVMRdmWrmLock);
-
-				if((Adapter->IdleMode == TRUE) ||
-					(Adapter->bShutStatus ==TRUE) ||
-					(Adapter->bPreparingForLowPowerMode ==TRUE))
-				{
-					BCM_DEBUG_PRINT(Adapter,DBG_TYPE_OTHERS, OSAL_DBG, DBG_LVL_ALL,"Device is in Idle/Shutdown Mode\n");
-					up(&Adapter->NVMRdmWrmLock);
-					return -EACCES;
-				}
-
-				Status = BcmSetActiveSection(Adapter,eFlash2xSectionVal);
-				if(Status)
-				{
-					BCM_DEBUG_PRINT(Adapter,DBG_TYPE_PRINTK, 0, 0,"Failed to make it's priority Highest. Status %d", Status);
-				}
-				up(&Adapter->NVMRdmWrmLock);
 			}
-			break ;
-		case IOCTL_BCM_IDENTIFY_ACTIVE_SECTION :
-			 {
-			 	//Right Now we are taking care of only DSD
-				Adapter->bAllDSDWriteAllow = FALSE ;
-				BCM_DEBUG_PRINT(Adapter,DBG_TYPE_OTHERS, OSAL_DBG, DBG_LVL_ALL,"IOCTL_BCM_IDENTIFY_ACTIVE_SECTION called");
+		} while (NOB > 0);
 
-				Status = STATUS_SUCCESS ;
-			 }
-			 break ;
-		case IOCTL_BCM_COPY_SECTION :
-			 {
-				FLASH2X_COPY_SECTION sCopySectStrut = {0};
-				Status = STATUS_SUCCESS;
-				BCM_DEBUG_PRINT(Adapter,DBG_TYPE_OTHERS, OSAL_DBG, DBG_LVL_ALL, "IOCTL_BCM_COPY_SECTION  Called");
+		BcmFlash2xWriteSig(Adapter, sFlash2xWrite.Section);
+		up(&Adapter->NVMRdmWrmLock);
+		kfree(pWriteBuff);
+	}
+	break;
 
-				Adapter->bAllDSDWriteAllow = FALSE ;
-				if(IsFlash2x(Adapter) != TRUE)
-				{
-					BCM_DEBUG_PRINT(Adapter,DBG_TYPE_PRINTK, 0, 0,"Flash Does not have 2.x map");
-					return -EINVAL;
-				}
+	case IOCTL_BCM_GET_FLASH2X_SECTION_BITMAP: {
+		PFLASH2X_BITMAP psFlash2xBitMap;
+		BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, OSAL_DBG, DBG_LVL_ALL, "IOCTL_BCM_GET_FLASH2X_SECTION_BITMAP Called");
 
-				Status = copy_from_user(&IoBuffer, argp, sizeof(IOCTL_BUFFER));
-				if(Status)
-				{
-					BCM_DEBUG_PRINT(Adapter,DBG_TYPE_PRINTK, 0, 0, "Copy of IOCTL BUFFER failed Status :%d", Status);
-					return Status;
-				}
+		if (copy_from_user(&IoBuffer, argp, sizeof(IOCTL_BUFFER)))
+			return -EFAULT;
 
-				Status = copy_from_user(&sCopySectStrut, IoBuffer.InputBuffer, sizeof(FLASH2X_COPY_SECTION));
-				if(Status)
-				{
-					BCM_DEBUG_PRINT(Adapter,DBG_TYPE_PRINTK, 0, 0, "Copy of Copy_Section_Struct failed with Status :%d", Status);
-					return Status;
-				}
-				BCM_DEBUG_PRINT(Adapter,DBG_TYPE_OTHERS, OSAL_DBG, DBG_LVL_ALL, "Source SEction :%x", sCopySectStrut.SrcSection);
-				BCM_DEBUG_PRINT(Adapter,DBG_TYPE_OTHERS, OSAL_DBG, DBG_LVL_ALL, "Destination SEction :%x", sCopySectStrut.DstSection);
-				BCM_DEBUG_PRINT(Adapter,DBG_TYPE_OTHERS, OSAL_DBG, DBG_LVL_ALL, "offset :%x", sCopySectStrut.offset);
-				BCM_DEBUG_PRINT(Adapter,DBG_TYPE_OTHERS, OSAL_DBG, DBG_LVL_ALL, "NOB :%x", sCopySectStrut.numOfBytes);
+		if (IoBuffer.OutputLength != sizeof(FLASH2X_BITMAP))
+			return -EINVAL;
 
+		psFlash2xBitMap = kzalloc(sizeof(FLASH2X_BITMAP), GFP_KERNEL);
+		if (psFlash2xBitMap == NULL) {
+			BCM_DEBUG_PRINT(Adapter, DBG_TYPE_PRINTK, 0, 0, "Memory is not available");
+			return -ENOMEM;
+		}
 
-				if(IsSectionExistInFlash(Adapter,sCopySectStrut.SrcSection) == FALSE)
-				{
-					BCM_DEBUG_PRINT(Adapter,DBG_TYPE_PRINTK, 0, 0,"Source Section<%x> does not exixt in Flash ", sCopySectStrut.SrcSection);
-					return -EINVAL;
-				}
+		/* Reading the Flash Sectio Bit map */
+		down(&Adapter->NVMRdmWrmLock);
 
-				if(IsSectionExistInFlash(Adapter,sCopySectStrut.DstSection) == FALSE)
-				{
-					BCM_DEBUG_PRINT(Adapter,DBG_TYPE_PRINTK, 0, 0,"Destinatio Section<%x> does not exixt in Flash ", sCopySectStrut.DstSection);
-					return -EINVAL;
-				}
+		if ((Adapter->IdleMode == TRUE) ||
+			(Adapter->bShutStatus == TRUE) ||
+			(Adapter->bPreparingForLowPowerMode == TRUE)) {
 
-				if(sCopySectStrut.SrcSection == sCopySectStrut.DstSection)
-				{
-					BCM_DEBUG_PRINT(Adapter,DBG_TYPE_OTHERS, OSAL_DBG, DBG_LVL_ALL,"Source and Destination section should be different");
-					return -EINVAL;
-				}
+			BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, OSAL_DBG, DBG_LVL_ALL, "Device is in Idle/Shutdown Mode\n");
+			up(&Adapter->NVMRdmWrmLock);
+			kfree(psFlash2xBitMap);
+			return -EACCES;
+		}
 
-				down(&Adapter->NVMRdmWrmLock);
+		BcmGetFlash2xSectionalBitMap(Adapter, psFlash2xBitMap);
+		up(&Adapter->NVMRdmWrmLock);
+		if (copy_to_user(IoBuffer.OutputBuffer, psFlash2xBitMap, sizeof(FLASH2X_BITMAP)))
+			Status = -EFAULT;
 
-				if((Adapter->IdleMode == TRUE) ||
-					(Adapter->bShutStatus ==TRUE) ||
-					(Adapter->bPreparingForLowPowerMode ==TRUE))
-				{
-					BCM_DEBUG_PRINT(Adapter,DBG_TYPE_OTHERS, OSAL_DBG, DBG_LVL_ALL,"Device is in Idle/Shutdown Mode\n");
-					up(&Adapter->NVMRdmWrmLock);
-					return -EACCES;
-				}
+		kfree(psFlash2xBitMap);
+	}
+	break;
 
-				if(sCopySectStrut.SrcSection == ISO_IMAGE1 || sCopySectStrut.SrcSection == ISO_IMAGE2)
-				{
-					if(IsNonCDLessDevice(Adapter))
-					{
-						BCM_DEBUG_PRINT(Adapter,DBG_TYPE_PRINTK, 0, 0,"Device is Non-CDLess hence won't have ISO !!");
-						Status = -EINVAL ;
-					}
-					else if(sCopySectStrut.numOfBytes == 0)
-					{
-						Status = BcmCopyISO(Adapter,sCopySectStrut);
-					}
-					else
-					{
-						BCM_DEBUG_PRINT(Adapter,DBG_TYPE_PRINTK, 0, 0,"Partial Copy of ISO section is not Allowed..");
-						Status = STATUS_FAILURE ;
-					}
-					up(&Adapter->NVMRdmWrmLock);
-					return Status;
-				}
+	case IOCTL_BCM_SET_ACTIVE_SECTION: {
+		FLASH2X_SECTION_VAL eFlash2xSectionVal = 0;
+		BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, OSAL_DBG, DBG_LVL_ALL, "IOCTL_BCM_SET_ACTIVE_SECTION Called");
 
-				Status = BcmCopySection(Adapter, sCopySectStrut.SrcSection,
-							sCopySectStrut.DstSection,sCopySectStrut.offset,sCopySectStrut.numOfBytes);
-				up(&Adapter->NVMRdmWrmLock);
-			 }
-			 break ;
-		case IOCTL_BCM_GET_FLASH_CS_INFO :
-			 {
-				Status = STATUS_SUCCESS;
-				BCM_DEBUG_PRINT(Adapter,DBG_TYPE_OTHERS, OSAL_DBG, DBG_LVL_ALL, " IOCTL_BCM_GET_FLASH_CS_INFO Called");
+		if (IsFlash2x(Adapter) != TRUE) {
+			BCM_DEBUG_PRINT(Adapter, DBG_TYPE_PRINTK, 0, 0, "Flash Does not have 2.x map");
+			return -EINVAL;
+		}
 
-				Status = copy_from_user(&IoBuffer, argp, sizeof(IOCTL_BUFFER));
-				if(Status)
-				{
-					BCM_DEBUG_PRINT(Adapter,DBG_TYPE_PRINTK, 0, 0, "Copy of IOCTL BUFFER failed");
-					break;
-				}
-				if(Adapter->eNVMType != NVM_FLASH)
-				{
-					BCM_DEBUG_PRINT(Adapter,DBG_TYPE_PRINTK, 0, 0,"Connected device does not have flash");
-					Status = -EINVAL;
-					break;
-				}
-				if(IsFlash2x(Adapter) == TRUE)
-				{
+		Status = copy_from_user(&IoBuffer, argp, sizeof(IOCTL_BUFFER));
+		if (Status) {
+			BCM_DEBUG_PRINT(Adapter, DBG_TYPE_PRINTK, 0, 0, "Copy of IOCTL BUFFER failed");
+			return Status;
+		}
 
-					if(IoBuffer.OutputLength < sizeof(FLASH2X_CS_INFO))
-						return -EINVAL;
+		Status = copy_from_user(&eFlash2xSectionVal, IoBuffer.InputBuffer, sizeof(INT));
+		if (Status) {
+			BCM_DEBUG_PRINT(Adapter, DBG_TYPE_PRINTK, 0, 0, "Copy of flash section val failed");
+			return Status;
+		}
 
-					if (copy_to_user(IoBuffer.OutputBuffer, Adapter->psFlash2xCSInfo, sizeof(FLASH2X_CS_INFO)))
-						return -EFAULT;
-				}
-				else
-				{
-					if(IoBuffer.OutputLength < sizeof(FLASH_CS_INFO))
-						return -EINVAL;
+		down(&Adapter->NVMRdmWrmLock);
 
-					if (copy_to_user(IoBuffer.OutputBuffer, Adapter->psFlashCSInfo, sizeof(FLASH_CS_INFO)))
-						return -EFAULT;
+		if ((Adapter->IdleMode == TRUE) ||
+			(Adapter->bShutStatus == TRUE) ||
+			(Adapter->bPreparingForLowPowerMode == TRUE)) {
 
-			 	 }
-			  }
-			  break ;
-		case IOCTL_BCM_SELECT_DSD :
-			 {
-				UINT SectOfset = 0;
-				FLASH2X_SECTION_VAL eFlash2xSectionVal;
-				eFlash2xSectionVal = NO_SECTION_VAL ;
-				BCM_DEBUG_PRINT(Adapter,DBG_TYPE_OTHERS, OSAL_DBG, DBG_LVL_ALL, " IOCTL_BCM_SELECT_DSD Called");
+			BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, OSAL_DBG, DBG_LVL_ALL, "Device is in Idle/Shutdown Mode\n");
+			up(&Adapter->NVMRdmWrmLock);
+			return -EACCES;
+		}
 
-				if(IsFlash2x(Adapter) != TRUE)
-				{
-					BCM_DEBUG_PRINT(Adapter,DBG_TYPE_PRINTK, 0, 0,"Flash Does not have 2.x map");
-					return -EINVAL;
-				}
+		Status = BcmSetActiveSection(Adapter, eFlash2xSectionVal);
+		if (Status)
+			BCM_DEBUG_PRINT(Adapter, DBG_TYPE_PRINTK, 0, 0, "Failed to make it's priority Highest. Status %d", Status);
 
-				Status = copy_from_user(&IoBuffer, argp, sizeof(IOCTL_BUFFER));
-				if(Status)
-				{
-					BCM_DEBUG_PRINT(Adapter,DBG_TYPE_PRINTK, 0, 0, "Copy of IOCTL BUFFER failed");
-					return Status;
-				}
-				Status = copy_from_user(&eFlash2xSectionVal, IoBuffer.InputBuffer, sizeof(INT));
-				if(Status)
-				{
-					BCM_DEBUG_PRINT(Adapter,DBG_TYPE_PRINTK, 0, 0, "Copy of flash section val failed");
-					return Status;
-				}
+		up(&Adapter->NVMRdmWrmLock);
+	}
+	break;
 
-				BCM_DEBUG_PRINT(Adapter,DBG_TYPE_OTHERS, OSAL_DBG, DBG_LVL_ALL,"Read Section :%d", eFlash2xSectionVal);
-				if((eFlash2xSectionVal != DSD0) &&
-					(eFlash2xSectionVal != DSD1) &&
-					(eFlash2xSectionVal != DSD2) )
-				{
-					BCM_DEBUG_PRINT(Adapter,DBG_TYPE_PRINTK, 0, 0,"Passed section<%x> is not DSD section", eFlash2xSectionVal);
-					return STATUS_FAILURE ;
-				}
+	case IOCTL_BCM_IDENTIFY_ACTIVE_SECTION: {
+		/* Right Now we are taking care of only DSD */
+		Adapter->bAllDSDWriteAllow = FALSE;
+		BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, OSAL_DBG, DBG_LVL_ALL, "IOCTL_BCM_IDENTIFY_ACTIVE_SECTION called");
+		Status = STATUS_SUCCESS;
+	}
+	break;
 
-				SectOfset= BcmGetSectionValStartOffset(Adapter,eFlash2xSectionVal);
-				if(SectOfset == INVALID_OFFSET)
-				{
-					BCM_DEBUG_PRINT(Adapter,DBG_TYPE_PRINTK, 0, 0,"Provided Section val <%d> does not exixt in Flash 2.x", eFlash2xSectionVal);
-					return -EINVAL;
-				}
+	case IOCTL_BCM_COPY_SECTION: {
+		FLASH2X_COPY_SECTION sCopySectStrut = {0};
+		Status = STATUS_SUCCESS;
+		BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, OSAL_DBG, DBG_LVL_ALL, "IOCTL_BCM_COPY_SECTION  Called");
 
-				Adapter->bAllDSDWriteAllow = TRUE ;
+		Adapter->bAllDSDWriteAllow = FALSE;
+		if (IsFlash2x(Adapter) != TRUE) {
+			BCM_DEBUG_PRINT(Adapter, DBG_TYPE_PRINTK, 0, 0, "Flash Does not have 2.x map");
+			return -EINVAL;
+		}
 
-				Adapter->ulFlashCalStart = SectOfset ;
-				Adapter->eActiveDSD = eFlash2xSectionVal;
-			 }
-			 Status = STATUS_SUCCESS ;
-			 break;
+		Status = copy_from_user(&IoBuffer, argp, sizeof(IOCTL_BUFFER));
+		if (Status) {
+			BCM_DEBUG_PRINT(Adapter, DBG_TYPE_PRINTK, 0, 0, "Copy of IOCTL BUFFER failed Status :%d", Status);
+			return Status;
+		}
 
-		case IOCTL_BCM_NVM_RAW_READ :
-			 {
+		Status = copy_from_user(&sCopySectStrut, IoBuffer.InputBuffer, sizeof(FLASH2X_COPY_SECTION));
+		if (Status) {
+			BCM_DEBUG_PRINT(Adapter, DBG_TYPE_PRINTK, 0, 0, "Copy of Copy_Section_Struct failed with Status :%d", Status);
+			return Status;
+		}
 
-				 NVM_READWRITE stNVMRead;
-				INT NOB ;
-				INT BuffSize ;
-				INT ReadOffset = 0;
-				UINT ReadBytes = 0 ;
-				PUCHAR pReadBuff;
-				void __user *OutPutBuff;
+		BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, OSAL_DBG, DBG_LVL_ALL, "Source SEction :%x", sCopySectStrut.SrcSection);
+		BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, OSAL_DBG, DBG_LVL_ALL, "Destination SEction :%x", sCopySectStrut.DstSection);
+		BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, OSAL_DBG, DBG_LVL_ALL, "offset :%x", sCopySectStrut.offset);
+		BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, OSAL_DBG, DBG_LVL_ALL, "NOB :%x", sCopySectStrut.numOfBytes);
 
-				if(Adapter->eNVMType != NVM_FLASH)
-				{
-					BCM_DEBUG_PRINT(Adapter,DBG_TYPE_PRINTK, 0, 0,"NVM TYPE is not Flash ");
-					return -EINVAL ;
-				}
+		if (IsSectionExistInFlash(Adapter, sCopySectStrut.SrcSection) == FALSE) {
+			BCM_DEBUG_PRINT(Adapter, DBG_TYPE_PRINTK, 0, 0, "Source Section<%x> does not exixt in Flash ", sCopySectStrut.SrcSection);
+			return -EINVAL;
+		}
 
-				/* Copy Ioctl Buffer structure */
-				if(copy_from_user(&IoBuffer, argp, sizeof(IOCTL_BUFFER)))
-				{
-					BCM_DEBUG_PRINT(Adapter,DBG_TYPE_PRINTK, 0, 0, "copy_from_user 1 failed\n");
-					Status = -EFAULT;
-					break;
-				}
+		if (IsSectionExistInFlash(Adapter, sCopySectStrut.DstSection) == FALSE) {
+			BCM_DEBUG_PRINT(Adapter, DBG_TYPE_PRINTK, 0, 0, "Destinatio Section<%x> does not exixt in Flash ", sCopySectStrut.DstSection);
+			return -EINVAL;
+		}
 
-				if(copy_from_user(&stNVMRead, IoBuffer.OutputBuffer,sizeof(NVM_READWRITE)))
-					return -EFAULT;
+		if (sCopySectStrut.SrcSection == sCopySectStrut.DstSection) {
+			BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, OSAL_DBG, DBG_LVL_ALL, "Source and Destination section should be different");
+			return -EINVAL;
+		}
 
-				NOB = stNVMRead.uiNumBytes;
-				//In Raw-Read max Buff size : 64MB
+		down(&Adapter->NVMRdmWrmLock);
 
-				if(NOB > DEFAULT_BUFF_SIZE)
-					BuffSize = DEFAULT_BUFF_SIZE;
-				else
-					BuffSize = NOB ;
+		if ((Adapter->IdleMode == TRUE) ||
+			(Adapter->bShutStatus == TRUE) ||
+			(Adapter->bPreparingForLowPowerMode == TRUE)) {
 
-				ReadOffset = stNVMRead.uiOffset;
-				OutPutBuff = stNVMRead.pBuffer;
+			BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, OSAL_DBG, DBG_LVL_ALL, "Device is in Idle/Shutdown Mode\n");
+			up(&Adapter->NVMRdmWrmLock);
+			return -EACCES;
+		}
 
-				pReadBuff = kzalloc(BuffSize , GFP_KERNEL);
-				if(pReadBuff == NULL)
-				{
-					BCM_DEBUG_PRINT(Adapter,DBG_TYPE_PRINTK, 0, 0,"Memory allocation failed for Flash 2.x Read Structure");
-					Status = -ENOMEM;
-					break;
-				}
-				down(&Adapter->NVMRdmWrmLock);
-
-				if((Adapter->IdleMode == TRUE) ||
-					(Adapter->bShutStatus ==TRUE) ||
-					(Adapter->bPreparingForLowPowerMode ==TRUE))
-				{
-					BCM_DEBUG_PRINT(Adapter,DBG_TYPE_OTHERS, OSAL_DBG, DBG_LVL_ALL,"Device is in Idle/Shutdown Mode\n");
-					kfree(pReadBuff);
-					up(&Adapter->NVMRdmWrmLock);
-					return -EACCES;
-				}
-
-				Adapter->bFlashRawRead = TRUE ;
-				while(NOB)
-				{
-					if(NOB > DEFAULT_BUFF_SIZE )
-						ReadBytes = DEFAULT_BUFF_SIZE;
-					else
-						ReadBytes = NOB;
-
-					//Reading the data from Flash 2.x
-					Status = BeceemNVMRead(Adapter,(PUINT)pReadBuff,ReadOffset,ReadBytes);
-					if(Status)
-					{
-						BCM_DEBUG_PRINT(Adapter,DBG_TYPE_PRINTK, 0, 0,"Flash 2x read err with Status :%d", Status);
-						break;
-					}
-
-					BCM_DEBUG_PRINT_BUFFER(Adapter,DBG_TYPE_OTHERS, OSAL_DBG, DBG_LVL_ALL,pReadBuff,ReadBytes);
-
-					Status = copy_to_user(OutPutBuff, pReadBuff,ReadBytes);
-				 	if(Status)
-				 	{
-				 		BCM_DEBUG_PRINT(Adapter,DBG_TYPE_PRINTK, 0, 0,"Copy to use failed with status :%d", Status);
-						break;
-				 	}
-					NOB = NOB - ReadBytes;
-					if(NOB)
-					{
-						ReadOffset = ReadOffset + ReadBytes ;
-						OutPutBuff = OutPutBuff + ReadBytes ;
-					}
-
-				}
-				Adapter->bFlashRawRead = FALSE ;
-				up(&Adapter->NVMRdmWrmLock);
-				kfree(pReadBuff);
-				break ;
-			 }
-
-		case IOCTL_BCM_CNTRLMSG_MASK:
-			 {
-				ULONG RxCntrlMsgBitMask = 0 ;
-
-				/* Copy Ioctl Buffer structure */
-				Status = copy_from_user(&IoBuffer, argp, sizeof(IOCTL_BUFFER));
-				if(Status)
-				{
-					BCM_DEBUG_PRINT(Adapter,DBG_TYPE_OTHERS, OSAL_DBG, DBG_LVL_ALL,"copy of Ioctl buffer is failed from user space");
-					Status = -EFAULT;
-					break;
-				}
-
-				if (IoBuffer.InputLength != sizeof(unsigned long)) {
-					Status = -EINVAL;
-					break;
-				}
-
-				Status = copy_from_user(&RxCntrlMsgBitMask, IoBuffer.InputBuffer, IoBuffer.InputLength);
-				if(Status)
-				{
-					BCM_DEBUG_PRINT(Adapter,DBG_TYPE_OTHERS, OSAL_DBG, DBG_LVL_ALL,"copy of control bit mask failed from user space");
-					Status = -EFAULT;
-					break;
-				}
-				BCM_DEBUG_PRINT(Adapter,DBG_TYPE_OTHERS, OSAL_DBG, DBG_LVL_ALL,"\n Got user defined cntrl msg bit mask :%lx", RxCntrlMsgBitMask);
-				pTarang->RxCntrlMsgBitMask = RxCntrlMsgBitMask ;
-			 }
-			 break;
-			case IOCTL_BCM_GET_DEVICE_DRIVER_INFO:
-			{
-				DEVICE_DRIVER_INFO DevInfo;
-
-				BCM_DEBUG_PRINT(Adapter,DBG_TYPE_OTHERS, OSAL_DBG, DBG_LVL_ALL,"Called IOCTL_BCM_GET_DEVICE_DRIVER_INFO\n");
-
-				DevInfo.MaxRDMBufferSize = BUFFER_4K;
-				DevInfo.u32DSDStartOffset = EEPROM_CALPARAM_START;
-				DevInfo.u32RxAlignmentCorrection = 0;
-				DevInfo.u32NVMType = Adapter->eNVMType;
-				DevInfo.u32InterfaceType = BCM_USB;
-
-				if (copy_from_user(&IoBuffer, argp, sizeof(IOCTL_BUFFER)))
-					return -EFAULT;
-
-				if(IoBuffer.OutputLength < sizeof(DevInfo))
-					return -EINVAL;
-
-				if (copy_to_user(IoBuffer.OutputBuffer, &DevInfo, sizeof(DevInfo)))
-					return -EFAULT;
+		if (sCopySectStrut.SrcSection == ISO_IMAGE1 || sCopySectStrut.SrcSection == ISO_IMAGE2) {
+			if (IsNonCDLessDevice(Adapter)) {
+				BCM_DEBUG_PRINT(Adapter, DBG_TYPE_PRINTK, 0, 0, "Device is Non-CDLess hence won't have ISO !!");
+				Status = -EINVAL;
+			} else if (sCopySectStrut.numOfBytes == 0) {
+				Status = BcmCopyISO(Adapter, sCopySectStrut);
+			} else {
+				BCM_DEBUG_PRINT(Adapter, DBG_TYPE_PRINTK, 0, 0, "Partial Copy of ISO section is not Allowed..");
+				Status = STATUS_FAILURE;
 			}
-			break ;
+			up(&Adapter->NVMRdmWrmLock);
+			return Status;
+		}
 
-			case IOCTL_BCM_TIME_SINCE_NET_ENTRY:
-			{
-				ST_TIME_ELAPSED stTimeElapsedSinceNetEntry = {0};
+		Status = BcmCopySection(Adapter, sCopySectStrut.SrcSection,
+					sCopySectStrut.DstSection, sCopySectStrut.offset, sCopySectStrut.numOfBytes);
+		up(&Adapter->NVMRdmWrmLock);
+	}
+	break;
 
-				BCM_DEBUG_PRINT(Adapter,DBG_TYPE_OTHERS, OSAL_DBG, DBG_LVL_ALL,"IOCTL_BCM_TIME_SINCE_NET_ENTRY called");
+	case IOCTL_BCM_GET_FLASH_CS_INFO: {
+		Status = STATUS_SUCCESS;
+		BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, OSAL_DBG, DBG_LVL_ALL, " IOCTL_BCM_GET_FLASH_CS_INFO Called");
 
-				if (copy_from_user(&IoBuffer, argp, sizeof(IOCTL_BUFFER)))
-					return -EFAULT;
+		Status = copy_from_user(&IoBuffer, argp, sizeof(IOCTL_BUFFER));
+		if (Status) {
+			BCM_DEBUG_PRINT(Adapter, DBG_TYPE_PRINTK, 0, 0, "Copy of IOCTL BUFFER failed");
+			break;
+		}
 
-				if(IoBuffer.OutputLength < sizeof(ST_TIME_ELAPSED))
-					return -EINVAL;
+		if (Adapter->eNVMType != NVM_FLASH) {
+			BCM_DEBUG_PRINT(Adapter, DBG_TYPE_PRINTK, 0, 0, "Connected device does not have flash");
+			Status = -EINVAL;
+			break;
+		}
 
-				stTimeElapsedSinceNetEntry.ul64TimeElapsedSinceNetEntry = get_seconds() - Adapter->liTimeSinceLastNetEntry;
+		if (IsFlash2x(Adapter) == TRUE) {
+			if (IoBuffer.OutputLength < sizeof(FLASH2X_CS_INFO))
+				return -EINVAL;
 
-				if (copy_to_user(IoBuffer.OutputBuffer, &stTimeElapsedSinceNetEntry, sizeof(ST_TIME_ELAPSED)))
-					return -EFAULT;
+			if (copy_to_user(IoBuffer.OutputBuffer, Adapter->psFlash2xCSInfo, sizeof(FLASH2X_CS_INFO)))
+				return -EFAULT;
+		} else {
+			if (IoBuffer.OutputLength < sizeof(FLASH_CS_INFO))
+				return -EINVAL;
 
+			if (copy_to_user(IoBuffer.OutputBuffer, Adapter->psFlashCSInfo, sizeof(FLASH_CS_INFO)))
+				return -EFAULT;
+		}
+	}
+	break;
+
+	case IOCTL_BCM_SELECT_DSD: {
+		UINT SectOfset = 0;
+		FLASH2X_SECTION_VAL eFlash2xSectionVal;
+		eFlash2xSectionVal = NO_SECTION_VAL;
+		BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, OSAL_DBG, DBG_LVL_ALL, "IOCTL_BCM_SELECT_DSD Called");
+
+		if (IsFlash2x(Adapter) != TRUE) {
+			BCM_DEBUG_PRINT(Adapter, DBG_TYPE_PRINTK, 0, 0, "Flash Does not have 2.x map");
+			return -EINVAL;
+		}
+
+		Status = copy_from_user(&IoBuffer, argp, sizeof(IOCTL_BUFFER));
+		if (Status) {
+			BCM_DEBUG_PRINT(Adapter, DBG_TYPE_PRINTK, 0, 0, "Copy of IOCTL BUFFER failed");
+			return Status;
+		}
+		Status = copy_from_user(&eFlash2xSectionVal, IoBuffer.InputBuffer, sizeof(INT));
+		if (Status) {
+			BCM_DEBUG_PRINT(Adapter, DBG_TYPE_PRINTK, 0, 0, "Copy of flash section val failed");
+			return Status;
+		}
+
+		BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, OSAL_DBG, DBG_LVL_ALL, "Read Section :%d", eFlash2xSectionVal);
+		if ((eFlash2xSectionVal != DSD0) &&
+			(eFlash2xSectionVal != DSD1) &&
+			(eFlash2xSectionVal != DSD2)) {
+
+			BCM_DEBUG_PRINT(Adapter, DBG_TYPE_PRINTK, 0, 0, "Passed section<%x> is not DSD section", eFlash2xSectionVal);
+			return STATUS_FAILURE;
+		}
+
+		SectOfset = BcmGetSectionValStartOffset(Adapter, eFlash2xSectionVal);
+		if (SectOfset == INVALID_OFFSET) {
+			BCM_DEBUG_PRINT(Adapter, DBG_TYPE_PRINTK, 0, 0, "Provided Section val <%d> does not exixt in Flash 2.x", eFlash2xSectionVal);
+			return -EINVAL;
+		}
+
+		Adapter->bAllDSDWriteAllow = TRUE;
+		Adapter->ulFlashCalStart = SectOfset;
+		Adapter->eActiveDSD = eFlash2xSectionVal;
+	}
+	Status = STATUS_SUCCESS;
+	break;
+
+	case IOCTL_BCM_NVM_RAW_READ: {
+		NVM_READWRITE stNVMRead;
+		INT NOB ;
+		INT BuffSize ;
+		INT ReadOffset = 0;
+		UINT ReadBytes = 0 ;
+		PUCHAR pReadBuff;
+		void __user *OutPutBuff;
+
+		if (Adapter->eNVMType != NVM_FLASH) {
+			BCM_DEBUG_PRINT(Adapter, DBG_TYPE_PRINTK, 0, 0, "NVM TYPE is not Flash");
+			return -EINVAL;
+		}
+
+		/* Copy Ioctl Buffer structure */
+		if (copy_from_user(&IoBuffer, argp, sizeof(IOCTL_BUFFER))) {
+			BCM_DEBUG_PRINT(Adapter, DBG_TYPE_PRINTK, 0, 0, "copy_from_user 1 failed\n");
+			Status = -EFAULT;
+			break;
+		}
+
+		if (copy_from_user(&stNVMRead, IoBuffer.OutputBuffer, sizeof(NVM_READWRITE)))
+			return -EFAULT;
+
+		NOB = stNVMRead.uiNumBytes;
+		/* In Raw-Read max Buff size : 64MB */
+
+		if (NOB > DEFAULT_BUFF_SIZE)
+			BuffSize = DEFAULT_BUFF_SIZE;
+		else
+			BuffSize = NOB;
+
+		ReadOffset = stNVMRead.uiOffset;
+		OutPutBuff = stNVMRead.pBuffer;
+
+		pReadBuff = kzalloc(BuffSize , GFP_KERNEL);
+		if (pReadBuff == NULL) {
+			BCM_DEBUG_PRINT(Adapter, DBG_TYPE_PRINTK, 0, 0, "Memory allocation failed for Flash 2.x Read Structure");
+			Status = -ENOMEM;
+			break;
+		}
+		down(&Adapter->NVMRdmWrmLock);
+
+		if ((Adapter->IdleMode == TRUE) ||
+			(Adapter->bShutStatus == TRUE) ||
+			(Adapter->bPreparingForLowPowerMode == TRUE)) {
+
+			BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, OSAL_DBG, DBG_LVL_ALL, "Device is in Idle/Shutdown Mode\n");
+			kfree(pReadBuff);
+			up(&Adapter->NVMRdmWrmLock);
+			return -EACCES;
+		}
+
+		Adapter->bFlashRawRead = TRUE;
+
+		while (NOB) {
+			if (NOB > DEFAULT_BUFF_SIZE)
+				ReadBytes = DEFAULT_BUFF_SIZE;
+			else
+				ReadBytes = NOB;
+
+			/* Reading the data from Flash 2.x */
+			Status = BeceemNVMRead(Adapter, (PUINT)pReadBuff, ReadOffset, ReadBytes);
+			if (Status) {
+				BCM_DEBUG_PRINT(Adapter, DBG_TYPE_PRINTK, 0, 0, "Flash 2x read err with Status :%d", Status);
+				break;
 			}
-			break;
 
-		case IOCTL_CLOSE_NOTIFICATION:
-			BCM_DEBUG_PRINT(Adapter,DBG_TYPE_OTHERS, OSAL_DBG, DBG_LVL_ALL,"IOCTL_CLOSE_NOTIFICATION");
-			break;
+			BCM_DEBUG_PRINT_BUFFER(Adapter, DBG_TYPE_OTHERS, OSAL_DBG, DBG_LVL_ALL, pReadBuff, ReadBytes);
 
-		default:
-			pr_info(DRV_NAME ": unknown ioctl cmd=%#x\n", cmd);
-			Status = STATUS_FAILURE;
+			Status = copy_to_user(OutPutBuff, pReadBuff, ReadBytes);
+			if (Status) {
+				BCM_DEBUG_PRINT(Adapter, DBG_TYPE_PRINTK, 0, 0, "Copy to use failed with status :%d", Status);
+				break;
+			}
+			NOB = NOB - ReadBytes;
+			if (NOB) {
+				ReadOffset = ReadOffset + ReadBytes;
+				OutPutBuff = OutPutBuff + ReadBytes;
+			}
+		}
+		Adapter->bFlashRawRead = FALSE;
+		up(&Adapter->NVMRdmWrmLock);
+		kfree(pReadBuff);
+		break;
+	}
+
+	case IOCTL_BCM_CNTRLMSG_MASK: {
+		ULONG RxCntrlMsgBitMask = 0;
+
+		/* Copy Ioctl Buffer structure */
+		Status = copy_from_user(&IoBuffer, argp, sizeof(IOCTL_BUFFER));
+		if (Status) {
+			BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, OSAL_DBG, DBG_LVL_ALL, "copy of Ioctl buffer is failed from user space");
+			Status = -EFAULT;
 			break;
+		}
+
+		if (IoBuffer.InputLength != sizeof(unsigned long)) {
+			Status = -EINVAL;
+			break;
+		}
+
+		Status = copy_from_user(&RxCntrlMsgBitMask, IoBuffer.InputBuffer, IoBuffer.InputLength);
+		if (Status) {
+			BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, OSAL_DBG, DBG_LVL_ALL, "copy of control bit mask failed from user space");
+			Status = -EFAULT;
+			break;
+		}
+		BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, OSAL_DBG, DBG_LVL_ALL, "\n Got user defined cntrl msg bit mask :%lx", RxCntrlMsgBitMask);
+		pTarang->RxCntrlMsgBitMask = RxCntrlMsgBitMask;
+	}
+	break;
+
+	case IOCTL_BCM_GET_DEVICE_DRIVER_INFO: {
+		DEVICE_DRIVER_INFO DevInfo;
+
+		BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, OSAL_DBG, DBG_LVL_ALL, "Called IOCTL_BCM_GET_DEVICE_DRIVER_INFO\n");
+
+		DevInfo.MaxRDMBufferSize = BUFFER_4K;
+		DevInfo.u32DSDStartOffset = EEPROM_CALPARAM_START;
+		DevInfo.u32RxAlignmentCorrection = 0;
+		DevInfo.u32NVMType = Adapter->eNVMType;
+		DevInfo.u32InterfaceType = BCM_USB;
+
+		if (copy_from_user(&IoBuffer, argp, sizeof(IOCTL_BUFFER)))
+			return -EFAULT;
+
+		if (IoBuffer.OutputLength < sizeof(DevInfo))
+			return -EINVAL;
+
+		if (copy_to_user(IoBuffer.OutputBuffer, &DevInfo, sizeof(DevInfo)))
+			return -EFAULT;
+	}
+	break;
+
+	case IOCTL_BCM_TIME_SINCE_NET_ENTRY: {
+		ST_TIME_ELAPSED stTimeElapsedSinceNetEntry = {0};
+
+		BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, OSAL_DBG, DBG_LVL_ALL, "IOCTL_BCM_TIME_SINCE_NET_ENTRY called");
+
+		if (copy_from_user(&IoBuffer, argp, sizeof(IOCTL_BUFFER)))
+			return -EFAULT;
+
+		if (IoBuffer.OutputLength < sizeof(ST_TIME_ELAPSED))
+			return -EINVAL;
+
+		stTimeElapsedSinceNetEntry.ul64TimeElapsedSinceNetEntry = get_seconds() - Adapter->liTimeSinceLastNetEntry;
+
+		if (copy_to_user(IoBuffer.OutputBuffer, &stTimeElapsedSinceNetEntry, sizeof(ST_TIME_ELAPSED)))
+			return -EFAULT;
+	}
+	break;
+
+	case IOCTL_CLOSE_NOTIFICATION:
+		BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, OSAL_DBG, DBG_LVL_ALL, "IOCTL_CLOSE_NOTIFICATION");
+		break;
+
+	default:
+		pr_info(DRV_NAME ": unknown ioctl cmd=%#x\n", cmd);
+		Status = STATUS_FAILURE;
+		break;
 	}
 	return Status;
 }
@@ -2107,8 +1989,6 @@ static const struct file_operations bcm_fops = {
 	.llseek = no_llseek,
 };
 
-extern struct class *bcm_class;
-
 int register_control_device_interface(PMINI_ADAPTER Adapter)
 {
 
@@ -2122,8 +2002,8 @@ int register_control_device_interface(PMINI_ADAPTER Adapter)
 	}
 
 	Adapter->pstCreatedClassDevice = device_create(bcm_class, NULL,
-						       MKDEV(Adapter->major, 0),
-						       Adapter, DEV_NAME);
+						MKDEV(Adapter->major, 0),
+						Adapter, DEV_NAME);
 
 	if (IS_ERR(Adapter->pstCreatedClassDevice)) {
 		pr_err(DRV_NAME ": class device create failed\n");
@@ -2141,3 +2021,4 @@ void unregister_control_device_interface(PMINI_ADAPTER Adapter)
 		unregister_chrdev(Adapter->major, DEV_NAME);
 	}
 }
+
