@@ -42,13 +42,6 @@
 #define VMALLOC_START		(((unsigned long)high_memory + VMALLOC_OFFSET) & ~(VMALLOC_OFFSET-1))
 #define VMALLOC_END		0xff000000UL
 
-/* This is a temporary hack until shmobile's DMA area size is sorted out */
-#ifdef CONFIG_ARCH_SHMOBILE
-#warning "SH-Mobile's consistent DMA size conflicts with VMALLOC_END by 144MB"
-#undef VMALLOC_END
-#define VMALLOC_END		0xF6000000UL
-#endif
-
 #define LIBRARY_TEXT_START	0x0c000000
 
 #ifndef __ASSEMBLY__
