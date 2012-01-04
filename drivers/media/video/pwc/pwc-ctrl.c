@@ -168,7 +168,8 @@ int send_control_msg(struct pwc_device *pdev,
 		request, value, pdev->vcinterface, buf, buflen);
 }
 
-static int set_video_mode_Nala(struct pwc_device *pdev, int size, int frames)
+static int set_video_mode_Nala(struct pwc_device *pdev, int size, int frames,
+			       int *compression)
 {
 	unsigned char buf[3];
 	int ret, fps;
@@ -234,32 +235,35 @@ static int set_video_mode_Nala(struct pwc_device *pdev, int size, int frames)
 	}
 	else
 		pdev->vbandlength = 0;
+
+	/* Let pwc-if.c:isoc_init know we don't support higher compression */
+	*compression = 3;
+
 	return 0;
 }
 
 
 static int set_video_mode_Timon(struct pwc_device *pdev, int size, int frames,
-	int compression)
+	int *compression)
 {
 	unsigned char buf[13];
 	const struct Timon_table_entry *pChoose;
 	int ret, fps;
 
-	if (size >= PSZ_MAX || frames < 5 || frames > 30 || compression < 0 || compression > 3)
+	if (size >= PSZ_MAX || frames < 5 || frames > 30 ||
+	    *compression < 0 || *compression > 3)
 		return -EINVAL;
 	if (size == PSZ_VGA && frames > 15)
 		return -EINVAL;
 	fps = (frames / 5) - 1;
 
-	/* Find a supported framerate with progressively higher compression ratios
-	   if the preferred ratio is not available.
-	*/
+	/* Find a supported framerate with progressively higher compression */
 	pChoose = NULL;
-	while (compression <= 3) {
-	   pChoose = &Timon_table[size][fps][compression];
-	   if (pChoose->alternate != 0)
-	     break;
-	   compression++;
+	while (*compression <= 3) {
+		pChoose = &Timon_table[size][fps][*compression];
+		if (pChoose->alternate != 0)
+			break;
+		(*compression)++;
 	}
 	if (pChoose == NULL || pChoose->alternate == 0)
 		return -ENOENT; /* Not supported. */
@@ -293,27 +297,25 @@ static int set_video_mode_Timon(struct pwc_device *pdev, int size, int frames,
 
 
 static int set_video_mode_Kiara(struct pwc_device *pdev, int size, int frames,
-	int compression)
+	int *compression)
 {
 	const struct Kiara_table_entry *pChoose = NULL;
 	int fps, ret;
 	unsigned char buf[12];
 
-	if (size >= PSZ_MAX || frames < 5 || frames > 30 || compression < 0 || compression > 3)
+	if (size >= PSZ_MAX || frames < 5 || frames > 30 ||
+	    *compression < 0 || *compression > 3)
 		return -EINVAL;
 	if (size == PSZ_VGA && frames > 15)
 		return -EINVAL;
 	fps = (frames / 5) - 1;
 
-	/* Find a supported framerate with progressively higher compression
-	   ratios if the preferred ratio is not available.
-	   Skip this step when using RAW modes.
-	*/
-	while (compression <= 3) {
-		pChoose = &Kiara_table[size][fps][compression];
+	/* Find a supported framerate with progressively higher compression */
+	while (*compression <= 3) {
+		pChoose = &Kiara_table[size][fps][*compression];
 		if (pChoose->alternate != 0)
 			break;
-		compression++;
+		(*compression)++;
 	}
 	if (pChoose == NULL || pChoose->alternate == 0)
 		return -ENOENT; /* Not supported. */
@@ -352,7 +354,7 @@ static int set_video_mode_Kiara(struct pwc_device *pdev, int size, int frames,
 }
 
 int pwc_set_video_mode(struct pwc_device *pdev, int width, int height,
-	int frames, int compression)
+	int frames, int *compression)
 {
 	int ret, size;
 
@@ -361,7 +363,7 @@ int pwc_set_video_mode(struct pwc_device *pdev, int width, int height,
 	PWC_TRACE("decode_size = %d.\n", size);
 
 	if (DEVICE_USE_CODEC1(pdev->type)) {
-		ret = set_video_mode_Nala(pdev, size, frames);
+		ret = set_video_mode_Nala(pdev, size, frames, compression);
 
 	} else if (DEVICE_USE_CODEC3(pdev->type)) {
 		ret = set_video_mode_Kiara(pdev, size, frames, compression);
@@ -373,7 +375,6 @@ int pwc_set_video_mode(struct pwc_device *pdev, int width, int height,
 		PWC_ERROR("Failed to set video mode %s@%d fps; return code = %d\n", size2name[size], frames, ret);
 		return ret;
 	}
-	pdev->vcompression = compression;
 	pdev->frame_total_size = pdev->frame_size + pdev->frame_header_size + pdev->frame_trailer_size;
 	PWC_DEBUG_SIZE("Set resolution to %dx%d\n", pdev->width, pdev->height);
 	return 0;

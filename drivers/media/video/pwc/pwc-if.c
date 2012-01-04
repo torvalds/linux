@@ -134,7 +134,6 @@ static int default_fps = 10;
 #endif
 static int power_save = -1;
 static int led_on = 100, led_off; /* defaults to LED that is on while in use */
-static int pwc_preferred_compression = 1; /* 0..3 = uncompressed..high */
 static struct {
 	int type;
 	char serial_number[30];
@@ -372,6 +371,7 @@ static int pwc_isoc_init(struct pwc_device *pdev)
 	int i, j, ret;
 	struct usb_interface *intf;
 	struct usb_host_interface *idesc = NULL;
+	int compression = 0; /* 0..3 = uncompressed..high */
 
 	if (pdev->iso_init)
 		return 0;
@@ -382,6 +382,12 @@ static int pwc_isoc_init(struct pwc_device *pdev)
 	pdev->vframe_count = 0;
 	pdev->visoc_errors = 0;
 	udev = pdev->udev;
+
+retry:
+	/* We first try with low compression and then retry with a higher
+	   compression setting if there is not enough bandwidth. */
+	ret = pwc_set_video_mode(pdev, pdev->width, pdev->height,
+				 pdev->vframes, &compression);
 
 	/* Get the current alternate interface, adjust packet size */
 	intf = usb_ifnum_to_if(udev, 0);
@@ -405,9 +411,12 @@ static int pwc_isoc_init(struct pwc_device *pdev)
 	}
 
 	/* Set alternate interface */
-	ret = 0;
 	PWC_DEBUG_OPEN("Setting alternate interface %d\n", pdev->valternate);
 	ret = usb_set_interface(pdev->udev, 0, pdev->valternate);
+	if (ret == -ENOSPC && compression < 3) {
+		compression++;
+		goto retry;
+	}
 	if (ret < 0)
 		return ret;
 
@@ -451,6 +460,12 @@ static int pwc_isoc_init(struct pwc_device *pdev)
 	/* link */
 	for (i = 0; i < MAX_ISO_BUFS; i++) {
 		ret = usb_submit_urb(pdev->urbs[i], GFP_KERNEL);
+		if (ret == -ENOSPC && compression < 3) {
+			compression++;
+			pdev->iso_init = 1;
+			pwc_isoc_cleanup(pdev);
+			goto retry;
+		}
 		if (ret) {
 			PWC_ERROR("isoc_init() submit_urb %d failed with error %d\n", i, ret);
 			pdev->iso_init = 1;
@@ -743,14 +758,16 @@ static int start_streaming(struct vb2_queue *vq, unsigned int count)
 
 	/* Turn on camera and set LEDS on */
 	pwc_camera_power(pdev, 1);
-	if (pdev->power_save) {
-		/* Restore video mode */
-		pwc_set_video_mode(pdev, pdev->width, pdev->height,
-				   pdev->vframes, pdev->vcompression);
-	}
 	pwc_set_leds(pdev, led_on, led_off);
 
 	r = pwc_isoc_init(pdev);
+	if (r) {
+		/* If we failed turn camera and LEDS back off */
+		pwc_set_leds(pdev, 0, 0);
+		pwc_camera_power(pdev, 0);
+		/* And cleanup any queued bufs!! */
+		pwc_cleanup_queued_bufs(pdev);
+	}
 leave:
 	mutex_unlock(&pdev->udevlock);
 	return r;
@@ -798,6 +815,7 @@ static int usb_pwc_probe(struct usb_interface *intf, const struct usb_device_id 
 	int vendor_id, product_id, type_id;
 	int hint, rc;
 	int features = 0;
+	int compression = 0;
 	int video_nr = -1; /* default: use next available device */
 	int my_power_save = power_save;
 	char serial_number[30], *name;
@@ -1068,7 +1086,6 @@ static int usb_pwc_probe(struct usb_interface *intf, const struct usb_device_id 
 	INIT_LIST_HEAD(&pdev->queued_bufs);
 
 	pdev->udev = udev;
-	pdev->vcompression = pwc_preferred_compression;
 	pdev->power_save = my_power_save;
 
 	/* Init videobuf2 queue structure */
@@ -1121,8 +1138,8 @@ static int usb_pwc_probe(struct usb_interface *intf, const struct usb_device_id 
 	pwc_set_leds(pdev, 0, 0);
 
 	/* Setup intial videomode */
-	rc = pwc_set_video_mode(pdev, MAX_WIDTH, MAX_HEIGHT,
-				pdev->vframes, pdev->vcompression);
+	rc = pwc_set_video_mode(pdev, MAX_WIDTH, MAX_HEIGHT, pdev->vframes,
+				&compression);
 	if (rc)
 		goto err_free_mem;
 
@@ -1227,7 +1244,6 @@ static void usb_pwc_disconnect(struct usb_interface *intf)
  */
 
 static int fps;
-static int compression = -1;
 static int leds[2] = { -1, -1 };
 static unsigned int leds_nargs;
 static char *dev_hint[MAX_DEV_HINTS];
@@ -1238,7 +1254,6 @@ module_param(fps, int, 0444);
 module_param_named(trace, pwc_trace, int, 0644);
 #endif
 module_param(power_save, int, 0644);
-module_param(compression, int, 0444);
 module_param_array(leds, int, &leds_nargs, 0444);
 module_param_array(dev_hint, charp, &dev_hint_nargs, 0444);
 
@@ -1247,7 +1262,6 @@ MODULE_PARM_DESC(fps, "Initial frames per second. Varies with model, useful rang
 MODULE_PARM_DESC(trace, "For debugging purposes");
 #endif
 MODULE_PARM_DESC(power_save, "Turn power saving for new cameras on or off");
-MODULE_PARM_DESC(compression, "Preferred compression quality. Range 0 (uncompressed) to 3 (high compression)");
 MODULE_PARM_DESC(leds, "LED on,off time in milliseconds");
 MODULE_PARM_DESC(dev_hint, "Device node hints");
 
@@ -1281,14 +1295,6 @@ static int __init usb_pwc_init(void)
 		PWC_DEBUG_MODULE("Default framerate set to %d.\n", default_fps);
 	}
 
-	if (compression >= 0) {
-		if (compression > 3) {
-			PWC_ERROR("Invalid compression setting; use a number between 0 (uncompressed) and 3 (high).\n");
-			return -EINVAL;
-		}
-		pwc_preferred_compression = compression;
-		PWC_DEBUG_MODULE("Preferred compression set to %d.\n", pwc_preferred_compression);
-	}
 	if (leds[0] >= 0)
 		led_on = leds[0];
 	if (leds[1] >= 0)

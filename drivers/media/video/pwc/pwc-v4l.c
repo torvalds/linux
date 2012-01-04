@@ -469,7 +469,7 @@ static int pwc_vidioc_try_fmt(struct pwc_device *pdev, struct v4l2_format *f)
 static int pwc_s_fmt_vid_cap(struct file *file, void *fh, struct v4l2_format *f)
 {
 	struct pwc_device *pdev = video_drvdata(file);
-	int ret, pixelformat;
+	int ret, pixelformat, compression = 0;
 
 	if (pwc_test_n_set_capt_file(pdev, file))
 		return -EBUSY;
@@ -497,19 +497,15 @@ static int pwc_s_fmt_vid_cap(struct file *file, void *fh, struct v4l2_format *f)
 	}
 
 	PWC_DEBUG_IOCTL("Trying to set format to: width=%d height=%d fps=%d "
-			"compression=%d format=%c%c%c%c\n",
+			"format=%c%c%c%c\n",
 			f->fmt.pix.width, f->fmt.pix.height, pdev->vframes,
-			pdev->vcompression,
 			(pixelformat)&255,
 			(pixelformat>>8)&255,
 			(pixelformat>>16)&255,
 			(pixelformat>>24)&255);
 
-	ret = pwc_set_video_mode(pdev,
-				 f->fmt.pix.width,
-				 f->fmt.pix.height,
-				 pdev->vframes,
-				 pdev->vcompression);
+	ret = pwc_set_video_mode(pdev, f->fmt.pix.width, f->fmt.pix.height,
+				 pdev->vframes, &compression);
 
 	PWC_DEBUG_IOCTL("pwc_set_video_mode(), return=%d\n", ret);
 
