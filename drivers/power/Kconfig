@@ -304,4 +304,7 @@ config BATTERY_RK29_AC_CHARGE
 	help
 	  say Y to enable suspport for the AC battery charge
 
+config POWER_ON_CHARGER_DISPLAY
+	bool "Support charger display"
+
 endif # POWER_SUPPLY

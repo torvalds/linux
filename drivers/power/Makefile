@@ -42,3 +42,4 @@ obj-$(CONFIG_CHARGER_MAX8903)	+= max8903_charger.o
 obj-$(CONFIG_CHARGER_TWL4030)	+= twl4030_charger.o
 obj-$(CONFIG_CHARGER_GPIO)	+= gpio-charger.o
 obj-$(CONFIG_BATTERY_RK29_ADC)	+= rk29_adc_battery.o
+obj-$(CONFIG_POWER_ON_CHARGER_DISPLAY)	+= rk29_charger_display.o
