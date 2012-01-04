@@ -241,18 +241,13 @@ static int isci_register_sas_ha(struct isci_host *isci_host)
 	if (!sas_ports)
 		return -ENOMEM;
 
-	/*----------------- Libsas Initialization Stuff----------------------
-	 * Set various fields in the sas_ha struct:
-	 */
-
 	sas_ha->sas_ha_name = DRV_NAME;
 	sas_ha->lldd_module = THIS_MODULE;
 	sas_ha->sas_addr    = &isci_host->phys[0].sas_addr[0];
 
-	/* set the array of phy and port structs.  */
 	for (i = 0; i < SCI_MAX_PHYS; i++) {
 		sas_phys[i] = &isci_host->phys[i].sas_phy;
-		sas_ports[i] = &isci_host->ports[i].sas_port;
+		sas_ports[i] = &isci_host->sas_ports[i];
 	}
 
 	sas_ha->sas_phy  = sas_phys;

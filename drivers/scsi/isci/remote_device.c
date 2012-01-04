@@ -1381,31 +1381,18 @@ void isci_remote_device_gone(struct domain_device *dev)
  *
  * status, zero indicates success.
  */
-int isci_remote_device_found(struct domain_device *domain_dev)
+int isci_remote_device_found(struct domain_device *dev)
 {
-	struct isci_host *isci_host = dev_to_ihost(domain_dev);
-	struct isci_port *isci_port;
-	struct isci_phy *isci_phy;
-	struct asd_sas_port *sas_port;
-	struct asd_sas_phy *sas_phy;
+	struct isci_host *isci_host = dev_to_ihost(dev);
+	struct isci_port *isci_port = dev->port->lldd_port;
 	struct isci_remote_device *isci_device;
 	enum sci_status status;
 
 	dev_dbg(&isci_host->pdev->dev,
-		"%s: domain_device = %p\n", __func__, domain_dev);
+		"%s: domain_device = %p\n", __func__, dev);
 
-	wait_for_start(isci_host);
-
-	sas_port = domain_dev->port;
-	sas_phy = list_first_entry(&sas_port->phy_list, struct asd_sas_phy,
-				   port_phy_el);
-	isci_phy = to_iphy(sas_phy);
-	isci_port = isci_phy->isci_port;
-
-	/* we are being called for a device on this port,
-	 * so it has to come up eventually
-	 */
-	wait_for_completion(&isci_port->start_complete);
+	if (!isci_port)
+		return -ENODEV;
 
 	if ((isci_stopping == isci_port_get_state(isci_port)) ||
 	    (isci_stopped == isci_port_get_state(isci_port)))
@@ -1419,7 +1406,7 @@ int isci_remote_device_found(struct domain_device *domain_dev)
 	INIT_LIST_HEAD(&isci_device->node);
 
 	spin_lock_irq(&isci_host->scic_lock);
-	isci_device->domain_dev = domain_dev;
+	isci_device->domain_dev = dev;
 	isci_device->isci_port = isci_port;
 	list_add_tail(&isci_device->node, &isci_port->remote_dev_list);
 
@@ -1432,7 +1419,7 @@ int isci_remote_device_found(struct domain_device *domain_dev)
 
 	if (status == SCI_SUCCESS) {
 		/* device came up, advertise it to the world */
-		domain_dev->lldd_dev = isci_device;
+		dev->lldd_dev = isci_device;
 	} else
 		isci_put_device(isci_device);
 	spin_unlock_irq(&isci_host->scic_lock);

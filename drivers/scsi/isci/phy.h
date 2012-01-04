@@ -103,7 +103,6 @@ struct isci_phy {
 	struct scu_transport_layer_registers __iomem *transport_layer_registers;
 	struct scu_link_layer_registers __iomem *link_layer_registers;
 	struct asd_sas_phy sas_phy;
-	struct isci_port *isci_port;
 	u8 sas_addr[SAS_ADDR_SIZE];
 	union {
 		struct sas_identify_frame iaf;

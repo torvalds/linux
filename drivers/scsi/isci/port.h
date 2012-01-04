@@ -97,11 +97,9 @@ enum isci_status {
 struct isci_port {
 	enum isci_status status;
 	struct isci_host *isci_host;
-	struct asd_sas_port sas_port;
 	struct list_head remote_dev_list;
 	spinlock_t state_lock;
 	struct list_head domain_dev_list;
-	struct completion start_complete;
 	struct completion hard_reset_complete;
 	enum sci_status hard_reset_status;
 	struct sci_base_state_machine sm;

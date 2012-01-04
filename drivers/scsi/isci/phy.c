@@ -67,6 +67,14 @@ enum sas_linkrate sci_phy_linkrate(struct isci_phy *iphy)
 	return iphy->max_negotiated_speed;
 }
 
+static struct device *sciphy_to_dev(struct isci_phy *iphy)
+{
+	struct isci_phy *table = iphy - iphy->phy_index;
+	struct isci_host *ihost = container_of(table, typeof(*ihost), phys[0]);
+
+	return &ihost->pdev->dev;
+}
+
 static enum sci_status
 sci_phy_transport_layer_initialization(struct isci_phy *iphy,
 				       struct scu_transport_layer_registers __iomem *reg)
@@ -1299,7 +1307,6 @@ void isci_phy_init(struct isci_phy *iphy, struct isci_host *ihost, int index)
 	sas_addr = cpu_to_be64(sci_sas_addr);
 	memcpy(iphy->sas_addr, &sas_addr, sizeof(sas_addr));
 
-	iphy->isci_port = NULL;
 	iphy->sas_phy.enabled = 0;
 	iphy->sas_phy.id = index;
 	iphy->sas_phy.sas_addr = &iphy->sas_addr[0];
@@ -1333,13 +1340,13 @@ int isci_phy_control(struct asd_sas_phy *sas_phy,
 {
 	int ret = 0;
 	struct isci_phy *iphy = sas_phy->lldd_phy;
-	struct isci_port *iport = iphy->isci_port;
+	struct asd_sas_port *port = sas_phy->port;
 	struct isci_host *ihost = sas_phy->ha->lldd_ha;
 	unsigned long flags;
 
 	dev_dbg(&ihost->pdev->dev,
 		"%s: phy %p; func %d; buf %p; isci phy %p, port %p\n",
-		__func__, sas_phy, func, buf, iphy, iport);
+		__func__, sas_phy, func, buf, iphy, port);
 
 	switch (func) {
 	case PHY_FUNC_DISABLE:
@@ -1356,11 +1363,10 @@ int isci_phy_control(struct asd_sas_phy *sas_phy,
 		break;
 
 	case PHY_FUNC_HARD_RESET:
-		if (!iport)
+		if (!port)
 			return -ENODEV;
 
-		/* Perform the port reset. */
-		ret = isci_port_perform_hard_reset(ihost, iport, iphy);
+		ret = isci_port_perform_hard_reset(ihost, port->lldd_port, iphy);
 
 		break;
 	case PHY_FUNC_GET_EVENTS: {

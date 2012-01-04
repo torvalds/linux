@@ -60,6 +60,21 @@
 #define SCIC_SDS_PORT_HARD_RESET_TIMEOUT  (1000)
 #define SCU_DUMMY_INDEX    (0xFFFF)
 
+static struct device *sciport_to_dev(struct isci_port *iport)
+{
+	int i = iport->physical_port_index;
+	struct isci_port *table;
+	struct isci_host *ihost;
+
+	if (i == SCIC_SDS_DUMMY_PORT)
+		i = SCI_MAX_PORTS+1;
+
+	table = iport - i;
+	ihost = container_of(table, typeof(*ihost), ports[0]);
+
+	return &ihost->pdev->dev;
+}
+
 static void isci_port_change_state(struct isci_port *iport, enum isci_status status)
 {
 	unsigned long flags;
@@ -165,17 +180,13 @@ static void isci_port_link_up(struct isci_host *isci_host,
 	struct sci_port_properties properties;
 	unsigned long success = true;
 
-	BUG_ON(iphy->isci_port != NULL);
-
-	iphy->isci_port = iport;
-
 	dev_dbg(&isci_host->pdev->dev,
 		"%s: isci_port = %p\n",
 		__func__, iport);
 
 	spin_lock_irqsave(&iphy->sas_phy.frame_rcvd_lock, flags);
 
-	isci_port_change_state(iphy->isci_port, isci_starting);
+	isci_port_change_state(iport, isci_starting);
 
 	sci_port_get_properties(iport, &properties);
 
@@ -269,8 +280,6 @@ static void isci_port_link_down(struct isci_host *isci_host,
 	isci_host->sas_ha.notify_phy_event(&isci_phy->sas_phy,
 					   PHYE_LOSS_OF_SIGNAL);
 
-	isci_phy->isci_port = NULL;
-
 	dev_dbg(&isci_host->pdev->dev,
 		"%s: isci_port = %p - Done\n", __func__, isci_port);
 }
@@ -288,7 +297,6 @@ static void isci_port_ready(struct isci_host *isci_host, struct isci_port *isci_
 	dev_dbg(&isci_host->pdev->dev,
 		"%s: isci_port = %p\n", __func__, isci_port);
 
-	complete_all(&isci_port->start_complete);
 	isci_port_change_state(isci_port, isci_ready);
 	return;
 }
@@ -1645,7 +1653,6 @@ void isci_port_init(struct isci_port *iport, struct isci_host *ihost, int index)
 	INIT_LIST_HEAD(&iport->remote_dev_list);
 	INIT_LIST_HEAD(&iport->domain_dev_list);
 	spin_lock_init(&iport->state_lock);
-	init_completion(&iport->start_complete);
 	iport->isci_host = ihost;
 	isci_port_change_state(iport, isci_freed);
 }
@@ -1726,24 +1733,55 @@ int isci_port_perform_hard_reset(struct isci_host *ihost, struct isci_port *ipor
 	return ret;
 }
 
-/**
- * isci_port_deformed() - This function is called by libsas when a port becomes
- *    inactive.
- * @phy: This parameter specifies the libsas phy with the inactive port.
- *
- */
 void isci_port_deformed(struct asd_sas_phy *phy)
 {
-	pr_debug("%s: sas_phy = %p\n", __func__, phy);
+	struct isci_host *ihost = phy->ha->lldd_ha;
+	struct isci_port *iport = phy->port->lldd_port;
+	unsigned long flags;
+	int i;
+
+	/* we got a port notification on a port that was subsequently
+	 * torn down and libsas is just now catching up
+	 */
+	if (!iport)
+		return;
+
+	spin_lock_irqsave(&ihost->scic_lock, flags);
+	for (i = 0; i < SCI_MAX_PHYS; i++) {
+		if (iport->active_phy_mask & 1 << i)
+			break;
+	}
+	spin_unlock_irqrestore(&ihost->scic_lock, flags);
+
+	if (i >= SCI_MAX_PHYS)
+		dev_dbg(&ihost->pdev->dev, "%s: port: %ld\n",
+			__func__, (long) (iport - &ihost->ports[0]));
 }
 
-/**
- * isci_port_formed() - This function is called by libsas when a port becomes
- *    active.
- * @phy: This parameter specifies the libsas phy with the active port.
- *
- */
 void isci_port_formed(struct asd_sas_phy *phy)
 {
-	pr_debug("%s: sas_phy = %p, sas_port = %p\n", __func__, phy, phy->port);
+	struct isci_host *ihost = phy->ha->lldd_ha;
+	struct isci_phy *iphy = to_iphy(phy);
+	struct asd_sas_port *port = phy->port;
+	struct isci_port *iport;
+	unsigned long flags;
+	int i;
+
+	/* initial ports are formed as the driver is still initializing,
+	 * wait for that process to complete
+	 */
+	wait_for_start(ihost);
+
+	spin_lock_irqsave(&ihost->scic_lock, flags);
+	for (i = 0; i < SCI_MAX_PORTS; i++) {
+		iport = &ihost->ports[i];
+		if (iport->active_phy_mask & 1 << iphy->phy_index)
+			break;
+	}
+	spin_unlock_irqrestore(&ihost->scic_lock, flags);
+
+	if (i >= SCI_MAX_PORTS)
+		iport = NULL;
+
+	port->lldd_port = iport;
 }
