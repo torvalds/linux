@@ -1507,6 +1507,7 @@ void igb_power_up_link(struct igb_adapter *adapter)
 		igb_power_up_phy_copper(&adapter->hw);
 	else
 		igb_power_up_serdes_link_82575(&adapter->hw);
+	igb_reset_phy(&adapter->hw);
 }
 
 /**
