@@ -1368,7 +1368,9 @@ skip_routeinfo:
 		for (p = ndopts.nd_opts_pi;
 		     p;
 		     p = ndisc_next_option(p, ndopts.nd_opts_pi_end)) {
-			addrconf_prefix_rcv(skb->dev, (u8*)p, (p->nd_opt_len) << 3);
+			addrconf_prefix_rcv(skb->dev, (u8 *)p,
+					    (p->nd_opt_len) << 3,
+					    ndopts.nd_opts_src_lladdr != NULL);
 		}
 	}
 
