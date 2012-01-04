@@ -2175,9 +2175,12 @@ static int cgroup_attach_proc(struct cgroup *cgrp, struct task_struct *leader)
 		oldcg = tc->task->cgroups;
 
 		/* if we don't already have it in the list get a new one */
-		if (!css_set_check_fetched(cgrp, tc->task, oldcg, &newcg_list))
-			if (retval = css_set_prefetch(cgrp, oldcg, &newcg_list))
+		if (!css_set_check_fetched(cgrp, tc->task, oldcg,
+					   &newcg_list)) {
+			retval = css_set_prefetch(cgrp, oldcg, &newcg_list);
+			if (retval)
 				goto out_list_teardown;
+		}
 	}
 
 	/*
