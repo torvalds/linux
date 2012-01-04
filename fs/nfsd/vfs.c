@@ -594,8 +594,19 @@ nfsd4_get_nfs4_acl(struct svc_rqst *rqstp, struct dentry *dentry, struct nfs4_ac
 	return error;
 }
 
-#define NFSD_XATTR_JUNCTION_PREFIX XATTR_TRUSTED_PREFIX "junction."
-#define NFSD_XATTR_JUNCTION_TYPE NFSD_XATTR_JUNCTION_PREFIX "type"
+/*
+ * NFS junction information is stored in an extended attribute.
+ */
+#define NFSD_JUNCTION_XATTR_NAME	XATTR_TRUSTED_PREFIX "junction.nfs"
+
+/**
+ * nfsd4_is_junction - Test if an object could be an NFS junction
+ *
+ * @dentry: object to test
+ *
+ * Returns 1 if "dentry" appears to contain NFS junction information.
+ * Otherwise 0 is returned.
+ */
 int nfsd4_is_junction(struct dentry *dentry)
 {
 	struct inode *inode = dentry->d_inode;
@@ -606,7 +617,7 @@ int nfsd4_is_junction(struct dentry *dentry)
 		return 0;
 	if (!(inode->i_mode & S_ISVTX))
 		return 0;
-	if (vfs_getxattr(dentry, NFSD_XATTR_JUNCTION_TYPE, NULL, 0) <= 0)
+	if (vfs_getxattr(dentry, NFSD_JUNCTION_XATTR_NAME, NULL, 0) <= 0)
 		return 0;
 	return 1;
 }
