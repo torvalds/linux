@@ -1,12 +1,9 @@
 /*
- * lp8727.h - Driver for LP8727 Micro/Mini USB IC with intergrated charger
- *
  *			Copyright (C) 2011 National Semiconductor
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
  * published by the Free Software Foundation.
- *
  */
 
 #ifndef _LP8727_H
@@ -43,10 +40,10 @@ struct lp8727_chg_param {
 };
 
 struct lp8727_platform_data {
-	u8(*get_batt_present) (void);
-	u16(*get_batt_level) (void);
-	u8(*get_batt_capacity) (void);
-	u8(*get_batt_temp) (void);
+	u8 (*get_batt_present)(void);
+	u16 (*get_batt_level)(void);
+	u8 (*get_batt_capacity)(void);
+	u8 (*get_batt_temp)(void);
 	struct lp8727_chg_param ac;
 	struct lp8727_chg_param usb;
 };
