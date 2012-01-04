@@ -633,13 +633,14 @@ static u32 which_bandwidth(struct gspca_dev *gspca_dev)
 	u32 bandwidth;
 	int i;
 
+	/* get the (max) image size */
 	i = gspca_dev->curr_mode;
 	bandwidth = gspca_dev->cam.cam_mode[i].sizeimage;
 
-	/* if the image is compressed, estimate the mean image size */
+	/* if the image is compressed, estimate its mean size */
 	if (bandwidth < gspca_dev->cam.cam_mode[i].width *
 				gspca_dev->cam.cam_mode[i].height)
-		bandwidth /= 3;
+		bandwidth = bandwidth * 3 / 8;	/* 0.375 */
 
 	/* estimate the frame rate */
 	if (gspca_dev->sd_desc->get_streamparm) {
@@ -649,7 +650,14 @@ static u32 which_bandwidth(struct gspca_dev *gspca_dev)
 		gspca_dev->sd_desc->get_streamparm(gspca_dev, &parm);
 		bandwidth *= parm.parm.capture.timeperframe.denominator;
 	} else {
-		bandwidth *= 15;		/* 15 fps */
+
+		/* don't hope more than 15 fps with USB 1.1 and
+		 * image resolution >= 640x480 */
+		if (gspca_dev->width >= 640
+		 && gspca_dev->dev->speed == USB_SPEED_FULL)
+			bandwidth *= 15;		/* 15 fps */
+		else
+			bandwidth *= 30;		/* 30 fps */
 	}
 
 	PDEBUG(D_STREAM, "min bandwidth: %d", bandwidth);
