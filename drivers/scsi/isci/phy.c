@@ -1098,24 +1098,25 @@ static void scu_link_layer_stop_protocol_engine(
 	writel(enable_spinup_value, &iphy->link_layer_registers->notify_enable_spinup_control);
 }
 
-/**
- *
- *
- * This method will start the OOB/SN state machine for this struct isci_phy object.
- */
-static void scu_link_layer_start_oob(
-	struct isci_phy *iphy)
+static void scu_link_layer_start_oob(struct isci_phy *iphy)
 {
-	u32 scu_sas_pcfg_value;
+	struct scu_link_layer_registers __iomem *ll = iphy->link_layer_registers;
+	u32 val;
 
-	scu_sas_pcfg_value =
-		readl(&iphy->link_layer_registers->phy_configuration);
-	scu_sas_pcfg_value |= SCU_SAS_PCFG_GEN_BIT(OOB_ENABLE);
-	scu_sas_pcfg_value &=
-		~(SCU_SAS_PCFG_GEN_BIT(OOB_RESET) |
-		SCU_SAS_PCFG_GEN_BIT(HARD_RESET));
-	writel(scu_sas_pcfg_value,
-	       &iphy->link_layer_registers->phy_configuration);
+	/** Reset OOB sequence - start */
+	val = readl(&ll->phy_configuration);
+	val &= ~(SCU_SAS_PCFG_GEN_BIT(OOB_RESET) |
+		 SCU_SAS_PCFG_GEN_BIT(HARD_RESET));
+	writel(val, &ll->phy_configuration);
+	readl(&ll->phy_configuration); /* flush */
+	/** Reset OOB sequence - end */
+
+	/** Start OOB sequence - start */
+	val = readl(&ll->phy_configuration);
+	val |= SCU_SAS_PCFG_GEN_BIT(OOB_ENABLE);
+	writel(val, &ll->phy_configuration);
+	readl(&ll->phy_configuration); /* flush */
+	/** Start OOB sequence - end */
 }
 
 /**
