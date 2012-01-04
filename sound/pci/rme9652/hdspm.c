@@ -941,6 +941,8 @@ struct hdspm {
 
 	cycles_t last_interrupt;
 
+	unsigned int serial;
+
 	struct hdspm_peak_rms peak_rms;
 };
 
@@ -4694,7 +4696,7 @@ snd_hdspm_proc_read_madi(struct snd_info_entry * entry,
 
 	snd_iprintf(buffer, "HW Serial: 0x%06x%06x\n",
 			(hdspm_read(hdspm, HDSPM_midiStatusIn1)>>8) & 0xFFFFFF,
-			(hdspm_read(hdspm, HDSPM_midiStatusIn0)>>8) & 0xFFFFFF);
+			hdspm->serial);
 
 	snd_iprintf(buffer, "IRQ: %d Registers bus: 0x%lx VM: 0x%lx\n",
 			hdspm->irq, hdspm->port, (unsigned long)hdspm->iobase);
@@ -6266,8 +6268,7 @@ static int snd_hdspm_hwdep_ioctl(struct snd_hwdep *hw, struct file *file,
 		hdspm_version.card_type = hdspm->io_type;
 		strncpy(hdspm_version.cardname, hdspm->card_name,
 				sizeof(hdspm_version.cardname));
-		hdspm_version.serial = (hdspm_read(hdspm,
-					HDSPM_midiStatusIn0)>>8) & 0xFFFFFF;
+		hdspm_version.serial = hdspm->serial;
 		hdspm_version.firmware_rev = hdspm->firmware_rev;
 		hdspm_version.addons = 0;
 		if (hdspm->tco)
@@ -6866,12 +6867,14 @@ static int __devinit snd_hdspm_probe(struct pci_dev *pci,
 	}
 
 	if (hdspm->io_type != MADIface) {
+		hdspm->serial = (hdspm_read(hdspm,
+				HDSPM_midiStatusIn0)>>8) & 0xFFFFFF;
 		sprintf(card->shortname, "%s_%x",
 			hdspm->card_name,
-			(hdspm_read(hdspm, HDSPM_midiStatusIn0)>>8) & 0xFFFFFF);
+			hdspm->serial);
 		sprintf(card->longname, "%s S/N 0x%x at 0x%lx, irq %d",
 			hdspm->card_name,
-			(hdspm_read(hdspm, HDSPM_midiStatusIn0)>>8) & 0xFFFFFF,
+			hdspm->serial,
 			hdspm->port, hdspm->irq);
 	} else {
 		sprintf(card->shortname, "%s", hdspm->card_name);
