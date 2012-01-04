@@ -48,43 +48,61 @@ static unsigned short const wXtalkNarrowLeftDelay = 0x7;
 static unsigned short const wXtalkNarrowRightDelay = 0x7;
 
 static xtalk_gains_t const asXtalkGainsDefault = {
-	0x4000, 0x4000, 4000, 0x4000, 4000, 0x4000, 4000, 0x4000, 4000,
-	0x4000
+	0x4000, 0x4000, 0x4000, 0x4000, 0x4000,
+	0x4000, 0x4000, 0x4000, 0x4000,	0x4000
 };
 
 static xtalk_gains_t const asXtalkGainsTest = {
-	0x8000, 0x7FFF, 0, 0xFFFF, 0x0001, 0xC000, 0x4000, 0xFFFE, 0x0002,
-	0
+	0x7fff, 0x8000, 0x0000, 0x0000, 0x0001,
+	0xffff, 0x4000, 0xc000, 0x0002, 0xfffe
 };
+
 static xtalk_gains_t const asXtalkGains1Chan = {
-	0x7FFF, 0, 0, 0, 0x7FFF, 0, 0, 0, 0, 0
+	0x7FFF, 0, 0, 0, 0,
+	0x7FFF, 0, 0, 0, 0,
 };
 
 // Input gain for 4 A3D slices. One possible input pair is left zero.
 static xtalk_gains_t const asXtalkGainsAllChan = {
-	0x7FFF, 0x7FFF, 0x7FFF, 0x7FFF, 0, 0x7FFF, 0x7FFF, 0x7FFF, 0x7FFF,
-	0
-	    //0x7FFF,0x7FFF,0x7FFF,0x7FFF,0x7fff,0x7FFF,0x7FFF,0x7FFF,0x7FFF,0x7fff
+	0x7FFF, 0x7FFF, 0x7FFF, 0x7FFF, 0,
+	0x7FFF, 0x7FFF, 0x7FFF, 0x7FFF,	0
 };
-static xtalk_gains_t const asXtalkGainsZeros;
 
-static xtalk_dline_t const alXtalkDlineZeros;
+static xtalk_gains_t const asXtalkGainsZeros = {
+	0, 0, 0, 0, 0, 0, 0, 0, 0, 0
+};
+
+static xtalk_dline_t const alXtalkDlineZeros = {
+	0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+	0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
+};
 static xtalk_dline_t const alXtalkDlineTest = {
-	0xFC18, 0x03E8FFFF, 0x186A0, 0x7960FFFE, 1, 0xFFFFFFFF,
-	0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+	0x0000fc18, 0xfff03e8, 0x000186a0, 0xfffe7960, 1, 0xffffffff, 0, 0,
+	0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+	0, 0, 0, 0, 0, 0, 0, 0
+};
+
+static xtalk_instate_t const asXtalkInStateZeros = {
 	0, 0, 0, 0
 };
 
-static xtalk_instate_t const asXtalkInStateZeros;
-static xtalk_instate_t const asXtalkInStateTest =
-    { 0xFF80, 0x0080, 0xFFFF, 0x0001 };
-static xtalk_state_t const asXtalkOutStateZeros;
+static xtalk_instate_t const asXtalkInStateTest = {
+	0x0080, 0xff80, 0x0001, 0xffff
+};
+
+static xtalk_state_t const asXtalkOutStateZeros = {
+	{0, 0, 0, 0},
+	{0, 0, 0, 0},
+	{0, 0, 0, 0},
+	{0, 0, 0, 0},
+	{0, 0, 0, 0}
+};
 
 static short const sDiamondKLeftEq = 0x401d;
 static short const sDiamondKRightEq = 0x401d;
 static short const sDiamondKLeftXt = 0xF90E;
 static short const sDiamondKRightXt = 0xF90E;
-static short const sDiamondShiftLeftEq = 1;	/* 0xF90E Is this a bug ??? */
+static short const sDiamondShiftLeftEq = 1;
 static short const sDiamondShiftRightEq = 1;
 static short const sDiamondShiftLeftXt = 0;
 static short const sDiamondShiftRightXt = 0;
@@ -94,29 +112,29 @@ static unsigned short const wDiamondRightDelay = 0xb;
 static xtalk_coefs_t const asXtalkWideCoefsLeftEq = {
 	{0xEC4C, 0xDCE9, 0xFDC2, 0xFEEC, 0},
 	{0x5F60, 0xCBCB, 0xFC26, 0x0305, 0},
-	{0x340B, 0xf504, 0x6CE8, 0x0D23, 0x00E4},
-	{0xD500, 0x8D76, 0xACC7, 0x5B05, 0x00FA},
+	{0x340B, 0xe8f5, 0x236c, 0xe40d, 0},
+	{0x76d5, 0xc78d, 0x05ac, 0xfa5b, 0},
 	{0x7F04, 0xC0FA, 0x0263, 0xFDA2, 0}
 };
 static xtalk_coefs_t const asXtalkWideCoefsRightEq = {
 	{0xEC4C, 0xDCE9, 0xFDC2, 0xFEEC, 0},
 	{0x5F60, 0xCBCB, 0xFC26, 0x0305, 0},
-	{0x340B, 0xF504, 0x6CE8, 0x0D23, 0x00E4},
-	{0xD500, 0x8D76, 0xACC7, 0x5B05, 0x00FA},
+	{0x340B, 0xe8f5, 0x236c, 0xe40d, 0},
+	{0x76d5, 0xc78d, 0x05ac, 0xfa5b, 0},
 	{0x7F04, 0xC0FA, 0x0263, 0xFDA2, 0}
 };
 static xtalk_coefs_t const asXtalkWideCoefsLeftXt = {
-	{0x86C3, 0x7B55, 0x89C3, 0x005B, 0x0047},
-	{0x6000, 0x206A, 0xC6CA, 0x40FF, 0},
-	{0x1100, 0x1164, 0xA1D7, 0x90FC, 0x0001},
-	{0xDC00, 0x9E77, 0xB8C7, 0x0AFF, 0},
+	{0x55c6, 0xc97b, 0x005b, 0x0047, 0},
+	{0x6a60, 0xca20, 0xffc6, 0x0040, 0},
+	{0x6411, 0xd711, 0xfca1, 0x0190, 0},
+	{0x77dc, 0xc79e, 0xffb8, 0x000a, 0},
 	{0, 0, 0, 0, 0}
 };
 static xtalk_coefs_t const asXtalkWideCoefsRightXt = {
-	{0x86C3, 0x7B55, 0x89C3, 0x005B, 0x0047},
-	{0x6000, 0x206A, 0xC6CA, 0x40FF, 0},
-	{0x1100, 0x1164, 0xA1D7, 0x90FC, 0x0001},
-	{0xDC00, 0x9E77, 0xB8C7, 0x0AFF, 0},
+	{0x55c6, 0xc97b, 0x005b, 0x0047, 0},
+	{0x6a60, 0xca20, 0xffc6, 0x0040, 0},
+	{0x6411, 0xd711, 0xfca1, 0x0190, 0},
+	{0x77dc, 0xc79e, 0xffb8, 0x000a, 0},
 	{0, 0, 0, 0, 0}
 };
 static xtalk_coefs_t const asXtalkNarrowCoefsLeftEq = {
@@ -151,7 +169,14 @@ static xtalk_coefs_t const asXtalkNarrowCoefsRightXt = {
 	{0, 0, 0, 0, 0}
 };
 
-static xtalk_coefs_t const asXtalkCoefsZeros;
+static xtalk_coefs_t const asXtalkCoefsZeros = {
+	{0, 0, 0, 0, 0},
+	{0, 0, 0, 0, 0},
+	{0, 0, 0, 0, 0},
+	{0, 0, 0, 0, 0},
+	{0, 0, 0, 0, 0}
+};
+
 static xtalk_coefs_t const asXtalkCoefsPipe = {
 	{0, 0, 0x0FA0, 0, 0},
 	{0, 0, 0x0FA0, 0, 0},
@@ -186,7 +211,7 @@ static xtalk_coefs_t const asXtalkCoefsDenTest = {
 static xtalk_state_t const asXtalkOutStateTest = {
 	{0x7FFF, 0x0004, 0xFFFC, 0},
 	{0xFE00, 0x0008, 0xFFF8, 0x4000},
-	{0x200, 0x0010, 0xFFF0, 0xC000},
+	{0x0200, 0x0010, 0xFFF0, 0xC000},
 	{0x8000, 0x0020, 0xFFE0, 0},
 	{0, 0, 0, 0}
 };
