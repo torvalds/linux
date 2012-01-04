@@ -121,6 +121,7 @@
 #define MTIP_FLAG_EH_ACTIVE_BIT			1
 #define MTIP_FLAG_SVC_THD_ACTIVE_BIT		2
 #define MTIP_FLAG_ISSUE_CMDS_BIT		4
+#define MTIP_FLAG_REBUILD_BIT			5
 #define MTIP_FLAG_SVC_THD_SHOULD_STOP_BIT	8
 
 /* Register Frame Information Structure (FIS), host to device. */

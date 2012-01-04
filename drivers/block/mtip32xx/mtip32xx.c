@@ -87,6 +87,8 @@ static int mtip_major;
 static DEFINE_SPINLOCK(rssd_index_lock);
 static DEFINE_IDA(rssd_index_ida);
 
+static int mtip_block_initialize(struct driver_data *dd);
+
 #ifdef CONFIG_COMPAT
 struct mtip_compat_ide_task_request_s {
 	__u8		io_ports[8];
@@ -1031,7 +1033,8 @@ static int mtip_quiesce_io(struct mtip_port *port, unsigned long timeout)
 
 	to = jiffies + msecs_to_jiffies(timeout);
 	do {
-		if (test_bit(MTIP_FLAG_SVC_THD_ACTIVE_BIT, &port->flags)) {
+		if (test_bit(MTIP_FLAG_SVC_THD_ACTIVE_BIT, &port->flags) &&
+			test_bit(MTIP_FLAG_ISSUE_CMDS_BIT, &port->flags)) {
 			msleep(20);
 			continue; /* svc thd is actively issuing commands */
 		}
@@ -2410,6 +2413,7 @@ static int mtip_ftl_rebuild_poll(struct driver_data *dd)
 				"FTL rebuild complete (%d secs).\n",
 			jiffies_to_msecs(jiffies - start) / 1000);
 			dd->ftlrebuildflag = 0;
+			mtip_block_initialize(dd);
 			break;
 		}
 		ssleep(10);
@@ -2454,8 +2458,8 @@ static int mtip_service_thread(void *data)
 		if (kthread_should_stop())
 			break;
 
+		set_bit(MTIP_FLAG_SVC_THD_ACTIVE_BIT, &port->flags);
 		if (test_bit(MTIP_FLAG_ISSUE_CMDS_BIT, &port->flags)) {
-			set_bit(MTIP_FLAG_SVC_THD_ACTIVE_BIT, &port->flags);
 			slot = 1;
 			/* used to restrict the loop to one iteration */
 			slot_start = num_cmd_slots;
@@ -2488,8 +2492,14 @@ static int mtip_service_thread(void *data)
 			}
 
 			clear_bit(MTIP_FLAG_ISSUE_CMDS_BIT, &port->flags);
-			clear_bit(MTIP_FLAG_SVC_THD_ACTIVE_BIT, &port->flags);
+		} else if (test_bit(MTIP_FLAG_REBUILD_BIT, &port->flags)) {
+			mtip_ftl_rebuild_poll(dd);
+			clear_bit(MTIP_FLAG_REBUILD_BIT, &port->flags);
 		}
+		clear_bit(MTIP_FLAG_SVC_THD_ACTIVE_BIT, &port->flags);
+
+		if (test_bit(MTIP_FLAG_SVC_THD_SHOULD_STOP_BIT, &port->flags))
+			break;
 	}
 	return 0;
 }
@@ -2658,12 +2668,13 @@ static int mtip_hw_init(struct driver_data *dd)
 		rv = -EFAULT;
 		goto out3;
 	}
-	mtip_dump_identify(dd->port);
 
 	if (*(dd->port->identify + MTIP_FTL_REBUILD_OFFSET) ==
 		MTIP_FTL_REBUILD_MAGIC) {
-		return mtip_ftl_rebuild_poll(dd);
+		set_bit(MTIP_FLAG_REBUILD_BIT, &dd->port->flags);
+		return MTIP_FTL_REBUILD_MAGIC;
 	}
+	mtip_dump_identify(dd->port);
 	return rv;
 
 out3:
@@ -3095,39 +3106,23 @@ static void mtip_make_request(struct request_queue *queue, struct bio *bio)
  */
 static int mtip_block_initialize(struct driver_data *dd)
 {
-	int rv = 0;
+	int rv = 0, wait_for_rebuild = 0;
 	sector_t capacity;
 	unsigned int index = 0;
 	struct kobject *kobj;
 	unsigned char thd_name[16];
 
+	if (dd->disk)
+		goto skip_create_disk; /* hw init done, before rebuild */
+
 	/* Initialize the protocol layer. */
-	rv = mtip_hw_init(dd);
-	if (rv < 0) {
+	wait_for_rebuild = mtip_hw_init(dd);
+	if (wait_for_rebuild < 0) {
 		dev_err(&dd->pdev->dev,
 			"Protocol layer initialization failed\n");
 		rv = -EINVAL;
 		goto protocol_init_error;
 	}
-
-	/* Allocate the request queue. */
-	dd->queue = blk_alloc_queue(GFP_KERNEL);
-	if (dd->queue == NULL) {
-		dev_err(&dd->pdev->dev,
-			"Unable to allocate request queue\n");
-		rv = -ENOMEM;
-		goto block_queue_alloc_init_error;
-	}
-
-	/* Attach our request function to the request queue. */
-	blk_queue_make_request(dd->queue, mtip_make_request);
-
-	/* Set device limits. */
-	set_bit(QUEUE_FLAG_NONROT, &dd->queue->queue_flags);
-	blk_queue_max_segments(dd->queue, MTIP_MAX_SG);
-	blk_queue_physical_block_size(dd->queue, 4096);
-	blk_queue_io_min(dd->queue, 4096);
-	blk_queue_flush(dd->queue, 0);
 
 	dd->disk = alloc_disk(MTIP_MAX_MINORS);
 	if (dd->disk  == NULL) {
@@ -3161,10 +3156,38 @@ static int mtip_block_initialize(struct driver_data *dd)
 	dd->disk->major		= dd->major;
 	dd->disk->first_minor	= dd->instance * MTIP_MAX_MINORS;
 	dd->disk->fops		= &mtip_block_ops;
-	dd->disk->queue		= dd->queue;
 	dd->disk->private_data	= dd;
-	dd->queue->queuedata	= dd;
 	dd->index		= index;
+
+	/*
+	 * if rebuild pending, start the service thread, and delay the block
+	 * queue creation and add_disk()
+	 */
+	if (wait_for_rebuild == MTIP_FTL_REBUILD_MAGIC)
+		goto start_service_thread;
+
+skip_create_disk:
+	/* Allocate the request queue. */
+	dd->queue = blk_alloc_queue(GFP_KERNEL);
+	if (dd->queue == NULL) {
+		dev_err(&dd->pdev->dev,
+			"Unable to allocate request queue\n");
+		rv = -ENOMEM;
+		goto block_queue_alloc_init_error;
+	}
+
+	/* Attach our request function to the request queue. */
+	blk_queue_make_request(dd->queue, mtip_make_request);
+
+	dd->disk->queue		= dd->queue;
+	dd->queue->queuedata	= dd;
+
+	/* Set device limits. */
+	set_bit(QUEUE_FLAG_NONROT, &dd->queue->queue_flags);
+	blk_queue_max_segments(dd->queue, MTIP_MAX_SG);
+	blk_queue_physical_block_size(dd->queue, 4096);
+	blk_queue_io_min(dd->queue, 4096);
+	blk_queue_flush(dd->queue, 0);
 
 	/* Set the capacity of the device in 512 byte sectors. */
 	if (!(mtip_hw_get_capacity(dd, &capacity))) {
@@ -3188,6 +3211,10 @@ static int mtip_block_initialize(struct driver_data *dd)
 		kobject_put(kobj);
 	}
 
+	if (dd->mtip_svc_handler)
+		return rv; /* service thread created for handling rebuild */
+
+start_service_thread:
 	sprintf(thd_name, "mtip_svc_thd_%02d", index);
 
 	dd->mtip_svc_handler = kthread_run(mtip_service_thread,
@@ -3197,18 +3224,19 @@ static int mtip_block_initialize(struct driver_data *dd)
 		printk(KERN_ERR "mtip32xx: service thread failed to start\n");
 		dd->mtip_svc_handler = NULL;
 		rv = -EFAULT;
-		goto read_capacity_error;
+		goto kthread_run_error;
 	}
 
 	return rv;
 
-read_capacity_error:
-	/*
-	 * Delete our gendisk structure. This also removes the device
-	 * from /dev
-	 */
+kthread_run_error:
+	/* Delete our gendisk. This also removes the device from /dev */
 	del_gendisk(dd->disk);
 
+read_capacity_error:
+	blk_cleanup_queue(dd->queue);
+
+block_queue_alloc_init_error:
 disk_index_error:
 	spin_lock(&rssd_index_lock);
 	ida_remove(&rssd_index_ida, index);
@@ -3218,11 +3246,7 @@ ida_get_error:
 	put_disk(dd->disk);
 
 alloc_disk_error:
-	blk_cleanup_queue(dd->queue);
-
-block_queue_alloc_init_error:
-	/* De-initialize the protocol layer. */
-	mtip_hw_exit(dd);
+	mtip_hw_exit(dd); /* De-initialize the protocol layer. */
 
 protocol_init_error:
 	return rv;
