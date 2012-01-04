@@ -91,7 +91,7 @@ struct lp8727_chg {
 	enum lp8727_dev_id devid;
 };
 
-static int lp8727_i2c_read(struct lp8727_chg *pchg, u8 reg, u8 * data, u8 len)
+static int lp8727_i2c_read(struct lp8727_chg *pchg, u8 reg, u8 *data, u8 len)
 {
 	s32 ret;
 
@@ -102,7 +102,7 @@ static int lp8727_i2c_read(struct lp8727_chg *pchg, u8 reg, u8 * data, u8 len)
 	return (ret != len) ? -EIO : 0;
 }
 
-static int lp8727_i2c_write(struct lp8727_chg *pchg, u8 reg, u8 * data, u8 len)
+static int lp8727_i2c_write(struct lp8727_chg *pchg, u8 reg, u8 *data, u8 len)
 {
 	s32 ret;
 
@@ -114,13 +114,13 @@ static int lp8727_i2c_write(struct lp8727_chg *pchg, u8 reg, u8 * data, u8 len)
 }
 
 static inline int lp8727_i2c_read_byte(struct lp8727_chg *pchg, u8 reg,
-				       u8 * data)
+				       u8 *data)
 {
 	return lp8727_i2c_read(pchg, reg, data, 1);
 }
 
 static inline int lp8727_i2c_write_byte(struct lp8727_chg *pchg, u8 reg,
-					u8 * data)
+					u8 *data)
 {
 	return lp8727_i2c_write(pchg, reg, data, 1);
 }
@@ -153,21 +153,21 @@ static void lp8727_init_device(struct lp8727_chg *pchg)
 static int lp8727_is_dedicated_charger(struct lp8727_chg *pchg)
 {
 	u8 val;
-	(void)lp8727_i2c_read_byte(pchg, STATUS1, &val);
+	lp8727_i2c_read_byte(pchg, STATUS1, &val);
 	return (val & DCPORT);
 }
 
 static int lp8727_is_usb_charger(struct lp8727_chg *pchg)
 {
 	u8 val;
-	(void)lp8727_i2c_read_byte(pchg, STATUS1, &val);
+	lp8727_i2c_read_byte(pchg, STATUS1, &val);
 	return (val & CHPORT);
 }
 
 static void lp8727_ctrl_switch(struct lp8727_chg *pchg, u8 sw)
 {
 	u8 val = sw;
-	(void)lp8727_i2c_write_byte(pchg, SWCTRL, &val);
+	lp8727_i2c_write_byte(pchg, SWCTRL, &val);
 }
 
 static void lp8727_id_detection(struct lp8727_chg *pchg, u8 id, int vbusin)
@@ -207,9 +207,9 @@ static void lp8727_enable_chgdet(struct lp8727_chg *pchg)
 {
 	u8 val;
 
-	(void)lp8727_i2c_read_byte(pchg, CTRL2, &val);
+	lp8727_i2c_read_byte(pchg, CTRL2, &val);
 	val |= CHGDET_EN;
-	(void)lp8727_i2c_write_byte(pchg, CTRL2, &val);
+	lp8727_i2c_write_byte(pchg, CTRL2, &val);
 }
 
 static void lp8727_delayed_func(struct work_struct *_work)
@@ -283,10 +283,9 @@ static int lp8727_charger_get_property(struct power_supply *psy,
 {
 	struct lp8727_chg *pchg = dev_get_drvdata(psy->dev->parent);
 
-	if (psp == POWER_SUPPLY_PROP_ONLINE) {
+	if (psp == POWER_SUPPLY_PROP_ONLINE)
 		val->intval = lp8727_is_charger_attached(psy->name,
 							 pchg->devid);
-	}
 
 	return 0;
 }
@@ -301,7 +300,7 @@ static int lp8727_battery_get_property(struct power_supply *psy,
 	switch (psp) {
 	case POWER_SUPPLY_PROP_STATUS:
 		if (lp8727_is_charger_attached(psy->name, pchg->devid)) {
-			(void)lp8727_i2c_read_byte(pchg, STATUS1, &read);
+			lp8727_i2c_read_byte(pchg, STATUS1, &read);
 			if (((read & CHGSTAT) >> 4) == EOC)
 				val->intval = POWER_SUPPLY_STATUS_FULL;
 			else
@@ -311,7 +310,7 @@ static int lp8727_battery_get_property(struct power_supply *psy,
 		}
 		break;
 	case POWER_SUPPLY_PROP_HEALTH:
-		(void)lp8727_i2c_read_byte(pchg, STATUS2, &read);
+		lp8727_i2c_read_byte(pchg, STATUS2, &read);
 		read = (read & TEMP_STAT) >> 5;
 		if (read >= 0x1 && read <= 0x3)
 			val->intval = POWER_SUPPLY_HEALTH_OVERHEAT;
@@ -352,7 +351,7 @@ static void lp8727_charger_changed(struct power_supply *psy)
 			eoc_level = pchg->chg_parm->eoc_level;
 			ichg = pchg->chg_parm->ichg;
 			val = (ichg << 4) | eoc_level;
-			(void)lp8727_i2c_write_byte(pchg, CHGCTRL2, &val);
+			lp8727_i2c_write_byte(pchg, CHGCTRL2, &val);
 		}
 	}
 }
@@ -412,12 +411,13 @@ static void lp8727_unregister_psy(struct lp8727_chg *pchg)
 {
 	struct lp8727_psy *psy = pchg->psy;
 
-	if (psy) {
-		power_supply_unregister(&psy->ac);
-		power_supply_unregister(&psy->usb);
-		power_supply_unregister(&psy->batt);
-		kfree(psy);
-	}
+	if (!psy)
+		return;
+
+	power_supply_unregister(&psy->ac);
+	power_supply_unregister(&psy->usb);
+	power_supply_unregister(&psy->batt);
+	kfree(psy);
 }
 
 static int lp8727_probe(struct i2c_client *cl, const struct i2c_device_id *id)
@@ -443,10 +443,9 @@ static int lp8727_probe(struct i2c_client *cl, const struct i2c_device_id *id)
 	lp8727_intr_config(pchg);
 
 	ret = lp8727_register_psy(pchg);
-	if (ret) {
+	if (ret)
 		dev_err(pchg->dev,
 			"can not register power supplies. err=%d", ret);
-	}
 
 	return 0;
 }
@@ -481,14 +480,15 @@ static int __init lp8727_init(void)
 	return i2c_add_driver(&lp8727_driver);
 }
 
-static void __exit lp8727_chg_exit(void)
+static void __exit lp8727_exit(void)
 {
 	i2c_del_driver(&lp8727_driver);
 }
 
 module_init(lp8727_init);
-module_exit(lp8727_chg_exit);
+module_exit(lp8727_exit);
 
 MODULE_DESCRIPTION("National Semiconductor LP8727 charger driver");
-MODULE_AUTHOR("Woogyom Kim <milo.kim@nsc.com>");
+MODULE_AUTHOR
+    ("Woogyom Kim <milo.kim@ti.com>, Daniel Jeong <daniel.jeong@ti.com>");
 MODULE_LICENSE("GPL");
