@@ -838,6 +838,7 @@ int parse_events(struct perf_evlist *evlist , const char *str, int unset __used)
 	for (;;) {
 		ostr = str;
 		memset(&attr, 0, sizeof(attr));
+		event_attr_init(&attr);
 		ret = parse_event_symbols(evlist, &str, &attr);
 		if (ret == EVT_FAILED)
 			return -1;
