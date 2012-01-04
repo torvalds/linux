@@ -2408,6 +2408,56 @@ static inline void hci_num_comp_pkts_evt(struct hci_dev *hdev, struct sk_buff *s
 	queue_work(hdev->workqueue, &hdev->tx_work);
 }
 
+static inline void hci_num_comp_blocks_evt(struct hci_dev *hdev,
+							struct sk_buff *skb)
+{
+	struct hci_ev_num_comp_blocks *ev = (void *) skb->data;
+	int i;
+
+	if (hdev->flow_ctl_mode != HCI_FLOW_CTL_MODE_BLOCK_BASED) {
+		BT_ERR("Wrong event for mode %d", hdev->flow_ctl_mode);
+		return;
+	}
+
+	if (skb->len < sizeof(*ev) || skb->len < sizeof(*ev) +
+			ev->num_hndl * sizeof(struct hci_comp_blocks_info)) {
+		BT_DBG("%s bad parameters", hdev->name);
+		return;
+	}
+
+	BT_DBG("%s num_blocks %d num_hndl %d", hdev->name, ev->num_blocks,
+								ev->num_hndl);
+
+	for (i = 0; i < ev->num_hndl; i++) {
+		struct hci_comp_blocks_info *info = &ev->handles[i];
+		struct hci_conn *conn;
+		__u16  handle, block_count;
+
+		handle = __le16_to_cpu(info->handle);
+		block_count = __le16_to_cpu(info->blocks);
+
+		conn = hci_conn_hash_lookup_handle(hdev, handle);
+		if (!conn)
+			continue;
+
+		conn->sent -= block_count;
+
+		switch (conn->type) {
+		case ACL_LINK:
+			hdev->block_cnt += block_count;
+			if (hdev->block_cnt > hdev->num_blocks)
+				hdev->block_cnt = hdev->num_blocks;
+			break;
+
+		default:
+			BT_ERR("Unknown type %d conn %p", conn->type, conn);
+			break;
+		}
+	}
+
+	queue_work(hdev->workqueue, &hdev->tx_work);
+}
+
 static inline void hci_mode_change_evt(struct hci_dev *hdev, struct sk_buff *skb)
 {
 	struct hci_ev_mode_change *ev = (void *) skb->data;
@@ -3384,6 +3434,10 @@ void hci_event_packet(struct hci_dev *hdev, struct sk_buff *skb)
 
 	case HCI_EV_REMOTE_OOB_DATA_REQUEST:
 		hci_remote_oob_data_request_evt(hdev, skb);
+		break;
+
+	case HCI_EV_NUM_COMP_BLOCKS:
+		hci_num_comp_blocks_evt(hdev, skb);
 		break;
 
 	default:

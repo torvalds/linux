@@ -1168,6 +1168,19 @@ struct hci_ev_le_meta {
 	__u8     subevent;
 } __packed;
 
+#define HCI_EV_NUM_COMP_BLOCKS		0x48
+struct hci_comp_blocks_info {
+	__le16   handle;
+	__le16   pkts;
+	__le16   blocks;
+} __packed;
+
+struct hci_ev_num_comp_blocks {
+	__le16   num_blocks;
+	__u8     num_hndl;
+	struct hci_comp_blocks_info handles[0];
+} __packed;
+
 /* Low energy meta events */
 #define HCI_EV_LE_CONN_COMPLETE		0x01
 struct hci_ev_le_conn_complete {
