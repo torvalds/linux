@@ -383,7 +383,7 @@ static struct device_type bt_host = {
 static int inquiry_cache_show(struct seq_file *f, void *p)
 {
 	struct hci_dev *hdev = f->private;
-	struct inquiry_cache *cache = &hdev->inq_cache;
+	struct discovery_state *cache = &hdev->discovery;
 	struct inquiry_entry *e;
 
 	hci_dev_lock(hdev);

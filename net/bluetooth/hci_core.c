@@ -357,7 +357,7 @@ struct hci_dev *hci_dev_get(int index)
 /* ---- Inquiry support ---- */
 static void inquiry_cache_flush(struct hci_dev *hdev)
 {
-	struct inquiry_cache *cache = &hdev->inq_cache;
+	struct discovery_state *cache = &hdev->discovery;
 	struct inquiry_entry *p, *n;
 
 	list_for_each_entry_safe(p, n, &cache->all, all) {
@@ -371,7 +371,7 @@ static void inquiry_cache_flush(struct hci_dev *hdev)
 
 struct inquiry_entry *hci_inquiry_cache_lookup(struct hci_dev *hdev, bdaddr_t *bdaddr)
 {
-	struct inquiry_cache *cache = &hdev->inq_cache;
+	struct discovery_state *cache = &hdev->discovery;
 	struct inquiry_entry *e;
 
 	BT_DBG("cache %p, %s", cache, batostr(bdaddr));
@@ -387,7 +387,7 @@ struct inquiry_entry *hci_inquiry_cache_lookup(struct hci_dev *hdev, bdaddr_t *b
 struct inquiry_entry *hci_inquiry_cache_lookup_unknown(struct hci_dev *hdev,
 							bdaddr_t *bdaddr)
 {
-	struct inquiry_cache *cache = &hdev->inq_cache;
+	struct discovery_state *cache = &hdev->discovery;
 	struct inquiry_entry *e;
 
 	BT_DBG("cache %p, %s", cache, batostr(bdaddr));
@@ -403,7 +403,7 @@ struct inquiry_entry *hci_inquiry_cache_lookup_unknown(struct hci_dev *hdev,
 bool hci_inquiry_cache_update(struct hci_dev *hdev, struct inquiry_data *data,
 							bool name_known)
 {
-	struct inquiry_cache *cache = &hdev->inq_cache;
+	struct discovery_state *cache = &hdev->discovery;
 	struct inquiry_entry *ie;
 
 	BT_DBG("cache %p, %s", cache, batostr(&data->bdaddr));
@@ -445,7 +445,7 @@ update:
 
 static int inquiry_cache_dump(struct hci_dev *hdev, int num, __u8 *buf)
 {
-	struct inquiry_cache *cache = &hdev->inq_cache;
+	struct discovery_state *cache = &hdev->discovery;
 	struct inquiry_info *info = (struct inquiry_info *) buf;
 	struct inquiry_entry *e;
 	int copied = 0;
@@ -1546,7 +1546,7 @@ int hci_register_dev(struct hci_dev *hdev)
 	init_waitqueue_head(&hdev->req_wait_q);
 	mutex_init(&hdev->req_lock);
 
-	inquiry_cache_init(hdev);
+	discovery_init(hdev);
 
 	hci_conn_hash_init(hdev);
 

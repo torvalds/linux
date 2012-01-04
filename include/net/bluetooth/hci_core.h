@@ -56,7 +56,7 @@ struct inquiry_entry {
 	struct inquiry_data	data;
 };
 
-struct inquiry_cache {
+struct discovery_state {
 	struct list_head all;		/* All devices found during inquiry */
 	struct list_head unknown;	/* Name state not known */
 	struct list_head resolve;	/* Name needs to be resolved */
@@ -226,7 +226,7 @@ struct hci_dev {
 
 	struct list_head	mgmt_pending;
 
-	struct inquiry_cache	inq_cache;
+	struct discovery_state	discovery;
 	struct hci_conn_hash	conn_hash;
 	struct list_head	blacklist;
 
@@ -357,21 +357,21 @@ extern int sco_recv_scodata(struct hci_conn *hcon, struct sk_buff *skb);
 #define INQUIRY_CACHE_AGE_MAX   (HZ*30)   /* 30 seconds */
 #define INQUIRY_ENTRY_AGE_MAX   (HZ*60)   /* 60 seconds */
 
-static inline void inquiry_cache_init(struct hci_dev *hdev)
+static inline void discovery_init(struct hci_dev *hdev)
 {
-	INIT_LIST_HEAD(&hdev->inq_cache.all);
-	INIT_LIST_HEAD(&hdev->inq_cache.unknown);
-	INIT_LIST_HEAD(&hdev->inq_cache.resolve);
+	INIT_LIST_HEAD(&hdev->discovery.all);
+	INIT_LIST_HEAD(&hdev->discovery.unknown);
+	INIT_LIST_HEAD(&hdev->discovery.resolve);
 }
 
 static inline int inquiry_cache_empty(struct hci_dev *hdev)
 {
-	return list_empty(&hdev->inq_cache.all);
+	return list_empty(&hdev->discovery.all);
 }
 
 static inline long inquiry_cache_age(struct hci_dev *hdev)
 {
-	struct inquiry_cache *c = &hdev->inq_cache;
+	struct discovery_state *c = &hdev->discovery;
 	return jiffies - c->timestamp;
 }
 
