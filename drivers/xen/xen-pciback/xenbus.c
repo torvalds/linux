@@ -243,8 +243,8 @@ static int xen_pcibk_export_device(struct xen_pcibk_device *pdev,
 	dev_dbg(&dev->dev, "registering for %d\n", pdev->xdev->otherend_id);
 	if (xen_register_device_domain_owner(dev,
 					     pdev->xdev->otherend_id) != 0) {
-		dev_err(&dev->dev, "device has been assigned to another " \
-			"domain! Over-writting the ownership, but beware.\n");
+		dev_err(&dev->dev, "Stealing ownership from dom%d.\n",
+			xen_find_device_domain_owner(dev));
 		xen_unregister_device_domain_owner(dev);
 		xen_register_device_domain_owner(dev, pdev->xdev->otherend_id);
 	}
