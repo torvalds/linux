@@ -56,6 +56,15 @@ static LIST_HEAD(sh_dmae_devices);
 static unsigned long sh_dmae_slave_used[BITS_TO_LONGS(SH_DMA_SLAVE_NUMBER)];
 
 static void sh_dmae_chan_ld_cleanup(struct sh_dmae_chan *sh_chan, bool all);
+static void sh_chan_xfer_ld_queue(struct sh_dmae_chan *sh_chan);
+
+static void chclr_write(struct sh_dmae_chan *sh_dc, u32 data)
+{
+	struct sh_dmae_device *shdev = to_sh_dev(sh_dc);
+
+	__raw_writel(data, shdev->chan_reg +
+		     shdev->pdata->channel[sh_dc->id].chclr_offset);
+}
 
 static void sh_dmae_writel(struct sh_dmae_chan *sh_dc, u32 data, u32 reg)
 {
@@ -128,6 +137,15 @@ static int sh_dmae_rst(struct sh_dmae_device *shdev)
 
 	dmaor = dmaor_read(shdev) & ~(DMAOR_NMIF | DMAOR_AE | DMAOR_DME);
 
+	if (shdev->pdata->chclr_present) {
+		int i;
+		for (i = 0; i < shdev->pdata->channel_num; i++) {
+			struct sh_dmae_chan *sh_chan = shdev->chan[i];
+			if (sh_chan)
+				chclr_write(sh_chan, 0);
+		}
+	}
+
 	dmaor_write(shdev, dmaor | shdev->pdata->dmaor_init);
 
 	dmaor = dmaor_read(shdev);
@@ -138,6 +156,10 @@ static int sh_dmae_rst(struct sh_dmae_device *shdev)
 		dev_warn(shdev->common.dev, "Can't initialize DMAOR.\n");
 		return -EIO;
 	}
+	if (shdev->pdata->dmaor_init & ~dmaor)
+		dev_warn(shdev->common.dev,
+			 "DMAOR=0x%x hasn't latched the initial value 0x%x.\n",
+			 dmaor, shdev->pdata->dmaor_init);
 	return 0;
 }
 
@@ -258,8 +280,6 @@ static int dmae_set_dmars(struct sh_dmae_chan *sh_chan, u16 val)
 	return 0;
 }
 
-static void sh_chan_xfer_ld_queue(struct sh_dmae_chan *sh_chan);
-
 static dma_cookie_t sh_dmae_tx_submit(struct dma_async_tx_descriptor *tx)
 {
 	struct sh_desc *desc = tx_to_sh_desc(tx), *chunk, *last = desc, *c;
@@ -339,6 +359,8 @@ static dma_cookie_t sh_dmae_tx_submit(struct dma_async_tx_descriptor *tx)
 				sh_chan_xfer_ld_queue(sh_chan);
 			sh_chan->pm_state = DMAE_PM_ESTABLISHED;
 		}
+	} else {
+		sh_chan->pm_state = DMAE_PM_PENDING;
 	}
 
 	spin_unlock_irq(&sh_chan->desc_lock);
@@ -1224,6 +1246,8 @@ static int __init sh_dmae_probe(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, shdev);
 
+	shdev->common.dev = &pdev->dev;
+
 	pm_runtime_enable(&pdev->dev);
 	pm_runtime_get_sync(&pdev->dev);
 
@@ -1253,7 +1277,6 @@ static int __init sh_dmae_probe(struct platform_device *pdev)
 	shdev->common.device_prep_slave_sg = sh_dmae_prep_slave_sg;
 	shdev->common.device_control = sh_dmae_control;
 
-	shdev->common.dev = &pdev->dev;
 	/* Default transfer size of 32 bytes requires 32-byte alignment */
 	shdev->common.copy_align = LOG2_DEFAULT_XFER_SIZE;
 
@@ -1434,22 +1457,17 @@ static int sh_dmae_runtime_resume(struct device *dev)
 #ifdef CONFIG_PM
 static int sh_dmae_suspend(struct device *dev)
 {
-	struct sh_dmae_device *shdev = dev_get_drvdata(dev);
-	int i;
-
-	for (i = 0; i < shdev->pdata->channel_num; i++) {
-		struct sh_dmae_chan *sh_chan = shdev->chan[i];
-		if (sh_chan->descs_allocated)
-			sh_chan->pm_error = pm_runtime_put_sync(dev);
-	}
-
 	return 0;
 }
 
 static int sh_dmae_resume(struct device *dev)
 {
 	struct sh_dmae_device *shdev = dev_get_drvdata(dev);
-	int i;
+	int i, ret;
+
+	ret = sh_dmae_rst(shdev);
+	if (ret < 0)
+		dev_err(dev, "Failed to reset!\n");
 
 	for (i = 0; i < shdev->pdata->channel_num; i++) {
 		struct sh_dmae_chan *sh_chan = shdev->chan[i];
@@ -1457,9 +1475,6 @@ static int sh_dmae_resume(struct device *dev)
 
 		if (!sh_chan->descs_allocated)
 			continue;
-
-		if (!sh_chan->pm_error)
-			pm_runtime_get_sync(dev);
 
 		if (param) {
 			const struct sh_dmae_slave_config *cfg = param->config;

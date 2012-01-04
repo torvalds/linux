@@ -48,6 +48,7 @@ struct sh_dmae_channel {
 	unsigned int	offset;
 	unsigned int	dmars;
 	unsigned int	dmars_bit;
+	unsigned int	chclr_offset;
 };
 
 struct sh_dmae_pdata {
@@ -68,6 +69,7 @@ struct sh_dmae_pdata {
 	unsigned int dmaor_is_32bit:1;
 	unsigned int needs_tend_set:1;
 	unsigned int no_dmars:1;
+	unsigned int chclr_present:1;
 };
 
 /* DMA register */
