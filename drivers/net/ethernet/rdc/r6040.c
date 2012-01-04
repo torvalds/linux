@@ -126,6 +126,7 @@
 #define PHY_CC		0x88	/* PHY status change configuration register */
 #define PHY_ST		0x8A	/* PHY status register */
 #define MAC_SM		0xAC	/* MAC status machine */
+#define  MAC_SM_RST	0x0002	/* MAC status machine reset */
 #define MAC_ID		0xBE	/* Identifier register */
 
 #define TX_DCNT		0x80	/* TX descriptor count */
@@ -375,7 +376,7 @@ static void r6040_init_mac_regs(struct net_device *dev)
 			break;
 	}
 	/* Reset internal state machine */
-	iowrite16(2, ioaddr + MAC_SM);
+	iowrite16(MAC_SM_RST, ioaddr + MAC_SM);
 	iowrite16(0, ioaddr + MAC_SM);
 	mdelay(5);
 
@@ -736,7 +737,7 @@ static void r6040_mac_address(struct net_device *dev)
 
 	/* MAC operation register */
 	iowrite16(MAC_RST, ioaddr + MCR1); /* Reset MAC */
-	iowrite16(2, ioaddr + MAC_SM); /* Reset internal state machine */
+	iowrite16(MAC_SM_RST, ioaddr + MAC_SM); /* Reset internal state machine */
 	iowrite16(0, ioaddr + MAC_SM);
 	mdelay(5);
 
