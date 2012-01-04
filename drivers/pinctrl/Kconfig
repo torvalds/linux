@@ -23,6 +23,28 @@ config DEBUG_PINCTRL
 	help
 	  Say Y here to add some extra checks and diagnostics to PINCTRL calls.
 
+config PINCTRL_PXA3xx
+	bool
+	select PINMUX
+
+config PINCTRL_MMP2
+	bool "MMP2 pin controller driver"
+	depends on ARCH_MMP
+	select PINCTRL_PXA3xx
+	select PINCONF
+
+config PINCTRL_PXA168
+	bool "PXA168 pin controller driver"
+	depends on ARCH_MMP
+	select PINCTRL_PXA3xx
+	select PINCONF
+
+config PINCTRL_PXA910
+	bool "PXA910 pin controller driver"
+	depends on ARCH_MMP
+	select PINCTRL_PXA3xx
+	select PINCONF
+
 config PINCTRL_SIRF
 	bool "CSR SiRFprimaII pin controller driver"
 	depends on ARCH_PRIMA2
