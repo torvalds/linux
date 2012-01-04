@@ -91,22 +91,23 @@ sci_phy_transport_layer_initialization(struct isci_phy *iphy,
 
 static enum sci_status
 sci_phy_link_layer_initialization(struct isci_phy *iphy,
-				  struct scu_link_layer_registers __iomem *reg)
+				  struct scu_link_layer_registers __iomem *llr)
 {
 	struct isci_host *ihost = iphy->owning_port->owning_controller;
+	struct sci_phy_user_params *phy_user;
+	struct sci_phy_oem_params *phy_oem;
 	int phy_idx = iphy->phy_index;
-	struct sci_phy_user_params *phy_user = &ihost->user_parameters.phys[phy_idx];
-	struct sci_phy_oem_params *phy_oem =
-		&ihost->oem_parameters.phys[phy_idx];
-	u32 phy_configuration;
 	struct sci_phy_cap phy_cap;
+	u32 phy_configuration;
 	u32 parity_check = 0;
 	u32 parity_count = 0;
 	u32 llctl, link_rate;
 	u32 clksm_value = 0;
 	u32 sp_timeouts = 0;
 
-	iphy->link_layer_registers = reg;
+	phy_user = &ihost->user_parameters.phys[phy_idx];
+	phy_oem = &ihost->oem_parameters.phys[phy_idx];
+	iphy->link_layer_registers = llr;
 
 	/* Set our IDENTIFY frame data */
 	#define SCI_END_DEVICE 0x01
@@ -116,32 +117,26 @@ sci_phy_link_layer_initialization(struct isci_phy *iphy,
 	       SCU_SAS_TIID_GEN_BIT(STP_INITIATOR) |
 	       SCU_SAS_TIID_GEN_BIT(DA_SATA_HOST) |
 	       SCU_SAS_TIID_GEN_VAL(DEVICE_TYPE, SCI_END_DEVICE),
-	       &iphy->link_layer_registers->transmit_identification);
+	       &llr->transmit_identification);
 
 	/* Write the device SAS Address */
-	writel(0xFEDCBA98,
-	       &iphy->link_layer_registers->sas_device_name_high);
-	writel(phy_idx, &iphy->link_layer_registers->sas_device_name_low);
+	writel(0xFEDCBA98, &llr->sas_device_name_high);
+	writel(phy_idx, &llr->sas_device_name_low);
 
 	/* Write the source SAS Address */
-	writel(phy_oem->sas_address.high,
-		&iphy->link_layer_registers->source_sas_address_high);
-	writel(phy_oem->sas_address.low,
-		&iphy->link_layer_registers->source_sas_address_low);
+	writel(phy_oem->sas_address.high, &llr->source_sas_address_high);
+	writel(phy_oem->sas_address.low, &llr->source_sas_address_low);
 
 	/* Clear and Set the PHY Identifier */
-	writel(0, &iphy->link_layer_registers->identify_frame_phy_id);
-	writel(SCU_SAS_TIPID_GEN_VALUE(ID, phy_idx),
-		&iphy->link_layer_registers->identify_frame_phy_id);
+	writel(0, &llr->identify_frame_phy_id);
+	writel(SCU_SAS_TIPID_GEN_VALUE(ID, phy_idx), &llr->identify_frame_phy_id);
 
 	/* Change the initial state of the phy configuration register */
-	phy_configuration =
-		readl(&iphy->link_layer_registers->phy_configuration);
+	phy_configuration = readl(&llr->phy_configuration);
 
 	/* Hold OOB state machine in reset */
 	phy_configuration |=  SCU_SAS_PCFG_GEN_BIT(OOB_RESET);
-	writel(phy_configuration,
-		&iphy->link_layer_registers->phy_configuration);
+	writel(phy_configuration, &llr->phy_configuration);
 
 	/* Configure the SNW capabilities */
 	phy_cap.all = 0;
@@ -155,9 +150,9 @@ sci_phy_link_layer_initialization(struct isci_phy *iphy,
 		phy_cap.gen1_ssc = 1;
 	}
 
-	/*
-	 * The SAS specification indicates that the phy_capabilities that
-	 * are transmitted shall have an even parity.  Calculate the parity. */
+	/* The SAS specification indicates that the phy_capabilities that
+	 * are transmitted shall have an even parity.  Calculate the parity.
+	 */
 	parity_check = phy_cap.all;
 	while (parity_check != 0) {
 		if (parity_check & 0x1)
@@ -165,20 +160,20 @@ sci_phy_link_layer_initialization(struct isci_phy *iphy,
 		parity_check >>= 1;
 	}
 
-	/*
-	 * If parity indicates there are an odd number of bits set, then
-	 * set the parity bit to 1 in the phy capabilities. */
+	/* If parity indicates there are an odd number of bits set, then
+	 * set the parity bit to 1 in the phy capabilities.
+	 */
 	if ((parity_count % 2) != 0)
 		phy_cap.parity = 1;
 
-	writel(phy_cap.all, &iphy->link_layer_registers->phy_capabilities);
+	writel(phy_cap.all, &llr->phy_capabilities);
 
 	/* Set the enable spinup period but disable the ability to send
 	 * notify enable spinup
 	 */
 	writel(SCU_ENSPINUP_GEN_VAL(COUNT,
 			phy_user->notify_enable_spin_up_insertion_frequency),
-		&iphy->link_layer_registers->notify_enable_spinup_control);
+		&llr->notify_enable_spinup_control);
 
 	/* Write the ALIGN Insertion Ferequency for connected phy and
 	 * inpendent of connected state
@@ -189,11 +184,10 @@ sci_phy_link_layer_initialization(struct isci_phy *iphy,
 	clksm_value |= SCU_ALIGN_INSERTION_FREQUENCY_GEN_VAL(GENERAL,
 			phy_user->align_insertion_frequency);
 
-	writel(clksm_value, &iphy->link_layer_registers->clock_skew_management);
+	writel(clksm_value, &llr->clock_skew_management);
 
 	/* @todo Provide a way to write this register correctly */
-	writel(0x02108421,
-		&iphy->link_layer_registers->afe_lookup_table_control);
+	writel(0x02108421, &llr->afe_lookup_table_control);
 
 	llctl = SCU_SAS_LLCTL_GEN_VAL(NO_OUTBOUND_TASK_TIMEOUT,
 		(u8)ihost->user_parameters.no_outbound_task_timeout);
@@ -210,9 +204,9 @@ sci_phy_link_layer_initialization(struct isci_phy *iphy,
 		break;
 	}
 	llctl |= SCU_SAS_LLCTL_GEN_VAL(MAX_LINK_RATE, link_rate);
-	writel(llctl, &iphy->link_layer_registers->link_layer_control);
+	writel(llctl, &llr->link_layer_control);
 
-	sp_timeouts = readl(&iphy->link_layer_registers->sas_phy_timeouts);
+	sp_timeouts = readl(&llr->sas_phy_timeouts);
 
 	/* Clear the default 0x36 (54us) RATE_CHANGE timeout value. */
 	sp_timeouts &= ~SCU_SAS_PHYTOV_GEN_VAL(RATE_CHANGE, 0xFF);
@@ -222,20 +216,23 @@ sci_phy_link_layer_initialization(struct isci_phy *iphy,
 	 */
 	sp_timeouts |= SCU_SAS_PHYTOV_GEN_VAL(RATE_CHANGE, 0x3B);
 
-	writel(sp_timeouts, &iphy->link_layer_registers->sas_phy_timeouts);
+	writel(sp_timeouts, &llr->sas_phy_timeouts);
 
 	if (is_a2(ihost->pdev)) {
-		/* Program the max ARB time for the PHY to 700us so we inter-operate with
-		 * the PMC expander which shuts down PHYs if the expander PHY generates too
-		 * many breaks.  This time value will guarantee that the initiator PHY will
-		 * generate the break.
+		/* Program the max ARB time for the PHY to 700us so we
+		 * inter-operate with the PMC expander which shuts down
+		 * PHYs if the expander PHY generates too many breaks.
+		 * This time value will guarantee that the initiator PHY
+		 * will generate the break.
 		 */
 		writel(SCIC_SDS_PHY_MAX_ARBITRATION_WAIT_TIME,
-			&iphy->link_layer_registers->maximum_arbitration_wait_timer_timeout);
+		       &llr->maximum_arbitration_wait_timer_timeout);
 	}
 
-	/* Disable link layer hang detection, rely on the OS timeout for I/O timeouts. */
-	writel(0, &iphy->link_layer_registers->link_layer_hang_detection_timeout);
+	/* Disable link layer hang detection, rely on the OS timeout for
+	 * I/O timeouts.
+	 */
+	writel(0, &llr->link_layer_hang_detection_timeout);
 
 	/* We can exit the initial state to the stopped state */
 	sci_change_state(&iphy->sm, SCI_PHY_STOPPED);

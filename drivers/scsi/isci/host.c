@@ -1910,160 +1910,147 @@ void sci_controller_power_control_queue_remove(struct isci_host *ihost,
 
 #define AFE_REGISTER_WRITE_DELAY 10
 
-/* Initialize the AFE for this phy index. We need to read the AFE setup from
- * the OEM parameters
- */
 static void sci_controller_afe_initialization(struct isci_host *ihost)
 {
+	struct scu_afe_registers __iomem *afe = &ihost->scu_registers->afe;
 	const struct sci_oem_params *oem = &ihost->oem_parameters;
 	struct pci_dev *pdev = ihost->pdev;
 	u32 afe_status;
 	u32 phy_id;
 
 	/* Clear DFX Status registers */
-	writel(0x0081000f, &ihost->scu_registers->afe.afe_dfx_master_control0);
+	writel(0x0081000f, &afe->afe_dfx_master_control0);
 	udelay(AFE_REGISTER_WRITE_DELAY);
 
 	if (is_b0(pdev)) {
 		/* PM Rx Equalization Save, PM SPhy Rx Acknowledgement
-		 * Timer, PM Stagger Timer */
-		writel(0x0007BFFF, &ihost->scu_registers->afe.afe_pmsn_master_control2);
+		 * Timer, PM Stagger Timer
+		 */
+		writel(0x0007BFFF, &afe->afe_pmsn_master_control2);
 		udelay(AFE_REGISTER_WRITE_DELAY);
 	}
 
 	/* Configure bias currents to normal */
 	if (is_a2(pdev))
-		writel(0x00005A00, &ihost->scu_registers->afe.afe_bias_control);
+		writel(0x00005A00, &afe->afe_bias_control);
 	else if (is_b0(pdev) || is_c0(pdev))
-		writel(0x00005F00, &ihost->scu_registers->afe.afe_bias_control);
+		writel(0x00005F00, &afe->afe_bias_control);
 
 	udelay(AFE_REGISTER_WRITE_DELAY);
 
 	/* Enable PLL */
 	if (is_b0(pdev) || is_c0(pdev))
-		writel(0x80040A08, &ihost->scu_registers->afe.afe_pll_control0);
+		writel(0x80040A08, &afe->afe_pll_control0);
 	else
-		writel(0x80040908, &ihost->scu_registers->afe.afe_pll_control0);
+		writel(0x80040908, &afe->afe_pll_control0);
 
 	udelay(AFE_REGISTER_WRITE_DELAY);
 
 	/* Wait for the PLL to lock */
 	do {
-		afe_status = readl(&ihost->scu_registers->afe.afe_common_block_status);
+		afe_status = readl(&afe->afe_common_block_status);
 		udelay(AFE_REGISTER_WRITE_DELAY);
 	} while ((afe_status & 0x00001000) == 0);
 
 	if (is_a2(pdev)) {
-		/* Shorten SAS SNW lock time (RxLock timer value from 76 us to 50 us) */
-		writel(0x7bcc96ad, &ihost->scu_registers->afe.afe_pmsn_master_control0);
+		/* Shorten SAS SNW lock time (RxLock timer value from 76
+		 * us to 50 us)
+		 */
+		writel(0x7bcc96ad, &afe->afe_pmsn_master_control0);
 		udelay(AFE_REGISTER_WRITE_DELAY);
 	}
 
 	for (phy_id = 0; phy_id < SCI_MAX_PHYS; phy_id++) {
+		struct scu_afe_transceiver *xcvr = &afe->scu_afe_xcvr[phy_id];
 		const struct sci_phy_oem_params *oem_phy = &oem->phys[phy_id];
 
 		if (is_b0(pdev)) {
 			 /* Configure transmitter SSC parameters */
-			writel(0x00030000, &ihost->scu_registers->afe.scu_afe_xcvr[phy_id].afe_tx_ssc_control);
+			writel(0x00030000, &xcvr->afe_tx_ssc_control);
 			udelay(AFE_REGISTER_WRITE_DELAY);
 		} else if (is_c0(pdev)) {
 			 /* Configure transmitter SSC parameters */
-			writel(0x0003000, &ihost->scu_registers->afe.scu_afe_xcvr[phy_id].afe_tx_ssc_control);
+			writel(0x0003000, &xcvr->afe_tx_ssc_control);
 			udelay(AFE_REGISTER_WRITE_DELAY);
 
-			/*
-			 * All defaults, except the Receive Word Alignament/Comma Detect
-			 * Enable....(0xe800) */
-			writel(0x00004500, &ihost->scu_registers->afe.scu_afe_xcvr[phy_id].afe_xcvr_control0);
+			/* All defaults, except the Receive Word
+			 * Alignament/Comma Detect Enable....(0xe800)
+			 */
+			writel(0x00004500, &xcvr->afe_xcvr_control0);
 			udelay(AFE_REGISTER_WRITE_DELAY);
 		} else {
-			/*
-			 * All defaults, except the Receive Word Alignament/Comma Detect
-			 * Enable....(0xe800) */
-			writel(0x00004512, &ihost->scu_registers->afe.scu_afe_xcvr[phy_id].afe_xcvr_control0);
+			/* All defaults, except the Receive Word
+			 * Alignament/Comma Detect Enable....(0xe800)
+			 */
+			writel(0x00004512, &xcvr->afe_xcvr_control0);
 			udelay(AFE_REGISTER_WRITE_DELAY);
 
-			writel(0x0050100F, &ihost->scu_registers->afe.scu_afe_xcvr[phy_id].afe_xcvr_control1);
+			writel(0x0050100F, &xcvr->afe_xcvr_control1);
 			udelay(AFE_REGISTER_WRITE_DELAY);
 		}
 
-		/*
-		 * Power up TX and RX out from power down (PWRDNTX and PWRDNRX)
-		 * & increase TX int & ext bias 20%....(0xe85c) */
+		/* Power up TX and RX out from power down (PWRDNTX and PWRDNRX)
+		 * & increase TX int & ext bias 20%....(0xe85c)
+		 */
 		if (is_a2(pdev))
-			writel(0x000003F0, &ihost->scu_registers->afe.scu_afe_xcvr[phy_id].afe_channel_control);
+			writel(0x000003F0, &xcvr->afe_channel_control);
 		else if (is_b0(pdev)) {
 			 /* Power down TX and RX (PWRDNTX and PWRDNRX) */
-			writel(0x000003D7, &ihost->scu_registers->afe.scu_afe_xcvr[phy_id].afe_channel_control);
+			writel(0x000003D7, &xcvr->afe_channel_control);
 			udelay(AFE_REGISTER_WRITE_DELAY);
-
-			/*
-			 * Power up TX and RX out from power down (PWRDNTX and PWRDNRX)
-			 * & increase TX int & ext bias 20%....(0xe85c) */
-			writel(0x000003D4, &ihost->scu_registers->afe.scu_afe_xcvr[phy_id].afe_channel_control);
+			writel(0x000003D4, &xcvr->afe_channel_control);
 		} else {
-			writel(0x000001E7, &ihost->scu_registers->afe.scu_afe_xcvr[phy_id].afe_channel_control);
+			writel(0x000001E7, &xcvr->afe_channel_control);
 			udelay(AFE_REGISTER_WRITE_DELAY);
-
-			/*
-			 * Power up TX and RX out from power down (PWRDNTX and PWRDNRX)
-			 * & increase TX int & ext bias 20%....(0xe85c) */
-			writel(0x000001E4, &ihost->scu_registers->afe.scu_afe_xcvr[phy_id].afe_channel_control);
+			writel(0x000001E4, &xcvr->afe_channel_control);
 		}
 		udelay(AFE_REGISTER_WRITE_DELAY);
 
 		if (is_a2(pdev)) {
 			/* Enable TX equalization (0xe824) */
-			writel(0x00040000, &ihost->scu_registers->afe.scu_afe_xcvr[phy_id].afe_tx_control);
+			writel(0x00040000, &xcvr->afe_tx_control);
 			udelay(AFE_REGISTER_WRITE_DELAY);
 		}
 
-		/*
-		 * RDPI=0x0(RX Power On), RXOOBDETPDNC=0x0, TPD=0x0(TX Power On),
-		 * RDD=0x0(RX Detect Enabled) ....(0xe800) */
-		writel(0x00004100, &ihost->scu_registers->afe.scu_afe_xcvr[phy_id].afe_xcvr_control0);
+		writel(0x00004100, &xcvr->afe_xcvr_control0);
 		udelay(AFE_REGISTER_WRITE_DELAY);
 
 		/* Leave DFE/FFE on */
 		if (is_a2(pdev))
-			writel(0x3F11103F, &ihost->scu_registers->afe.scu_afe_xcvr[phy_id].afe_rx_ssc_control0);
+			writel(0x3F11103F, &xcvr->afe_rx_ssc_control0);
 		else if (is_b0(pdev)) {
-			writel(0x3F11103F, &ihost->scu_registers->afe.scu_afe_xcvr[phy_id].afe_rx_ssc_control0);
+			writel(0x3F11103F, &xcvr->afe_rx_ssc_control0);
 			udelay(AFE_REGISTER_WRITE_DELAY);
 			/* Enable TX equalization (0xe824) */
-			writel(0x00040000, &ihost->scu_registers->afe.scu_afe_xcvr[phy_id].afe_tx_control);
+			writel(0x00040000, &xcvr->afe_tx_control);
 		} else {
-			writel(0x0140DF0F, &ihost->scu_registers->afe.scu_afe_xcvr[phy_id].afe_rx_ssc_control1);
+			writel(0x0140DF0F, &xcvr->afe_rx_ssc_control1);
 			udelay(AFE_REGISTER_WRITE_DELAY);
 
-			writel(0x3F6F103F, &ihost->scu_registers->afe.scu_afe_xcvr[phy_id].afe_rx_ssc_control0);
+			writel(0x3F6F103F, &xcvr->afe_rx_ssc_control0);
 			udelay(AFE_REGISTER_WRITE_DELAY);
 
 			/* Enable TX equalization (0xe824) */
-			writel(0x00040000, &ihost->scu_registers->afe.scu_afe_xcvr[phy_id].afe_tx_control);
+			writel(0x00040000, &xcvr->afe_tx_control);
 		}
 
 		udelay(AFE_REGISTER_WRITE_DELAY);
 
-		writel(oem_phy->afe_tx_amp_control0,
-			&ihost->scu_registers->afe.scu_afe_xcvr[phy_id].afe_tx_amp_control0);
+		writel(oem_phy->afe_tx_amp_control0, &xcvr->afe_tx_amp_control0);
 		udelay(AFE_REGISTER_WRITE_DELAY);
 
-		writel(oem_phy->afe_tx_amp_control1,
-			&ihost->scu_registers->afe.scu_afe_xcvr[phy_id].afe_tx_amp_control1);
+		writel(oem_phy->afe_tx_amp_control1, &xcvr->afe_tx_amp_control1);
 		udelay(AFE_REGISTER_WRITE_DELAY);
 
-		writel(oem_phy->afe_tx_amp_control2,
-			&ihost->scu_registers->afe.scu_afe_xcvr[phy_id].afe_tx_amp_control2);
+		writel(oem_phy->afe_tx_amp_control2, &xcvr->afe_tx_amp_control2);
 		udelay(AFE_REGISTER_WRITE_DELAY);
 
-		writel(oem_phy->afe_tx_amp_control3,
-			&ihost->scu_registers->afe.scu_afe_xcvr[phy_id].afe_tx_amp_control3);
+		writel(oem_phy->afe_tx_amp_control3, &xcvr->afe_tx_amp_control3);
 		udelay(AFE_REGISTER_WRITE_DELAY);
 	}
 
 	/* Transfer control to the PEs */
-	writel(0x00010f00, &ihost->scu_registers->afe.afe_dfx_master_control0);
+	writel(0x00010f00, &afe->afe_dfx_master_control0);
 	udelay(AFE_REGISTER_WRITE_DELAY);
 }
 
