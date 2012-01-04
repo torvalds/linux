@@ -225,6 +225,12 @@ config CHARGER_TWL4030
 	help
 	  Say Y here to enable support for TWL4030 Battery Charge Interface.
 
+config CHARGER_LP8727
+	tristate "National Semiconductor LP8727 charger driver"
+	depends on I2C
+	help
+	  Say Y here to enable support for LP8727 Charger Driver.
+
 config CHARGER_GPIO
 	tristate "GPIO charger"
 	depends on GPIOLIB
