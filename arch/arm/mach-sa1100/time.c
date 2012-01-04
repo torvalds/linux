@@ -19,7 +19,7 @@
 #include <asm/sched_clock.h>
 #include <mach/hardware.h>
 
-static u32 notrace sa100_read_sched_clock(void)
+static u32 notrace sa1100_read_sched_clock(void)
 {
 	return OSCR;
 }
