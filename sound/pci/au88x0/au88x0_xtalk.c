@@ -306,10 +306,10 @@ vortex_XtalkHw_SetLeftEQStates(vortex_t * vortex,
 		hwwrite(vortex->mmio, 0x2421C + i * 0x24, coefs[i][2]);
 		hwwrite(vortex->mmio, 0x24220 + i * 0x24, coefs[i][3]);
 	}
-	hwwrite(vortex->mmio, 0x244F8 + i * 0x24, arg_0[0]);
-	hwwrite(vortex->mmio, 0x244FC + i * 0x24, arg_0[1]);
-	hwwrite(vortex->mmio, 0x24500 + i * 0x24, arg_0[2]);
-	hwwrite(vortex->mmio, 0x24504 + i * 0x24, arg_0[3]);
+	hwwrite(vortex->mmio, 0x244F8, arg_0[0]);
+	hwwrite(vortex->mmio, 0x244FC, arg_0[1]);
+	hwwrite(vortex->mmio, 0x24500, arg_0[2]);
+	hwwrite(vortex->mmio, 0x24504, arg_0[3]);
 }
 
 static void
@@ -325,10 +325,10 @@ vortex_XtalkHw_SetRightEQStates(vortex_t * vortex,
 		hwwrite(vortex->mmio, 0x242D0 + i * 0x24, coefs[i][2]);
 		hwwrite(vortex->mmio, 0x244D4 + i * 0x24, coefs[i][3]);
 	}
-	hwwrite(vortex->mmio, 0x24508 + i * 0x24, arg_0[0]);
-	hwwrite(vortex->mmio, 0x2450C + i * 0x24, arg_0[1]);
-	hwwrite(vortex->mmio, 0x24510 + i * 0x24, arg_0[2]);
-	hwwrite(vortex->mmio, 0x24514 + i * 0x24, arg_0[3]);
+	hwwrite(vortex->mmio, 0x24508, arg_0[0]);
+	hwwrite(vortex->mmio, 0x2450C, arg_0[1]);
+	hwwrite(vortex->mmio, 0x24510, arg_0[2]);
+	hwwrite(vortex->mmio, 0x24514, arg_0[3]);
 }
 
 static void
@@ -344,10 +344,10 @@ vortex_XtalkHw_SetLeftXTStates(vortex_t * vortex,
 		hwwrite(vortex->mmio, 0x24384 + i * 0x24, coefs[i][2]);
 		hwwrite(vortex->mmio, 0x24388 + i * 0x24, coefs[i][3]);
 	}
-	hwwrite(vortex->mmio, 0x24518 + i * 0x24, arg_0[0]);
-	hwwrite(vortex->mmio, 0x2451C + i * 0x24, arg_0[1]);
-	hwwrite(vortex->mmio, 0x24520 + i * 0x24, arg_0[2]);
-	hwwrite(vortex->mmio, 0x24524 + i * 0x24, arg_0[3]);
+	hwwrite(vortex->mmio, 0x24518, arg_0[0]);
+	hwwrite(vortex->mmio, 0x2451C, arg_0[1]);
+	hwwrite(vortex->mmio, 0x24520, arg_0[2]);
+	hwwrite(vortex->mmio, 0x24524, arg_0[3]);
 }
 
 static void
@@ -363,10 +363,10 @@ vortex_XtalkHw_SetRightXTStates(vortex_t * vortex,
 		hwwrite(vortex->mmio, 0x24438 + i * 0x24, coefs[i][2]);
 		hwwrite(vortex->mmio, 0x2443C + i * 0x24, coefs[i][3]);
 	}
-	hwwrite(vortex->mmio, 0x24528 + i * 0x24, arg_0[0]);
-	hwwrite(vortex->mmio, 0x2452C + i * 0x24, arg_0[1]);
-	hwwrite(vortex->mmio, 0x24530 + i * 0x24, arg_0[2]);
-	hwwrite(vortex->mmio, 0x24534 + i * 0x24, arg_0[3]);
+	hwwrite(vortex->mmio, 0x24528, arg_0[0]);
+	hwwrite(vortex->mmio, 0x2452C, arg_0[1]);
+	hwwrite(vortex->mmio, 0x24530, arg_0[2]);
+	hwwrite(vortex->mmio, 0x24534, arg_0[3]);
 }
 
 #if 0
@@ -450,10 +450,10 @@ vortex_XtalkHw_GetLeftEQStates(vortex_t * vortex, xtalk_instate_t arg_0,
 		coefs[i][2] = hwread(vortex->mmio, 0x2421C + i * 0x24);
 		coefs[i][3] = hwread(vortex->mmio, 0x24220 + i * 0x24);
 	}
-	arg_0[0] = hwread(vortex->mmio, 0x244F8 + i * 0x24);
-	arg_0[1] = hwread(vortex->mmio, 0x244FC + i * 0x24);
-	arg_0[2] = hwread(vortex->mmio, 0x24500 + i * 0x24);
-	arg_0[3] = hwread(vortex->mmio, 0x24504 + i * 0x24);
+	arg_0[0] = hwread(vortex->mmio, 0x244F8);
+	arg_0[1] = hwread(vortex->mmio, 0x244FC);
+	arg_0[2] = hwread(vortex->mmio, 0x24500);
+	arg_0[3] = hwread(vortex->mmio, 0x24504);
 }
 
 static void
@@ -468,10 +468,10 @@ vortex_XtalkHw_GetRightEQStates(vortex_t * vortex, xtalk_instate_t arg_0,
 		coefs[i][2] = hwread(vortex->mmio, 0x242D0 + i * 0x24);
 		coefs[i][3] = hwread(vortex->mmio, 0x242D4 + i * 0x24);
 	}
-	arg_0[0] = hwread(vortex->mmio, 0x24508 + i * 0x24);
-	arg_0[1] = hwread(vortex->mmio, 0x2450C + i * 0x24);
-	arg_0[2] = hwread(vortex->mmio, 0x24510 + i * 0x24);
-	arg_0[3] = hwread(vortex->mmio, 0x24514 + i * 0x24);
+	arg_0[0] = hwread(vortex->mmio, 0x24508);
+	arg_0[1] = hwread(vortex->mmio, 0x2450C);
+	arg_0[2] = hwread(vortex->mmio, 0x24510);
+	arg_0[3] = hwread(vortex->mmio, 0x24514);
 }
 
 static void
@@ -486,10 +486,10 @@ vortex_XtalkHw_GetLeftXTStates(vortex_t * vortex, xtalk_instate_t arg_0,
 		coefs[i][2] = hwread(vortex->mmio, 0x24384 + i * 0x24);
 		coefs[i][3] = hwread(vortex->mmio, 0x24388 + i * 0x24);
 	}
-	arg_0[0] = hwread(vortex->mmio, 0x24518 + i * 0x24);
-	arg_0[1] = hwread(vortex->mmio, 0x2451C + i * 0x24);
-	arg_0[2] = hwread(vortex->mmio, 0x24520 + i * 0x24);
-	arg_0[3] = hwread(vortex->mmio, 0x24524 + i * 0x24);
+	arg_0[0] = hwread(vortex->mmio, 0x24518);
+	arg_0[1] = hwread(vortex->mmio, 0x2451C);
+	arg_0[2] = hwread(vortex->mmio, 0x24520);
+	arg_0[3] = hwread(vortex->mmio, 0x24524);
 }
 
 static void
@@ -504,10 +504,10 @@ vortex_XtalkHw_GetRightXTStates(vortex_t * vortex, xtalk_instate_t arg_0,
 		coefs[i][2] = hwread(vortex->mmio, 0x24438 + i * 0x24);
 		coefs[i][3] = hwread(vortex->mmio, 0x2443C + i * 0x24);
 	}
-	arg_0[0] = hwread(vortex->mmio, 0x24528 + i * 0x24);
-	arg_0[1] = hwread(vortex->mmio, 0x2452C + i * 0x24);
-	arg_0[2] = hwread(vortex->mmio, 0x24530 + i * 0x24);
-	arg_0[3] = hwread(vortex->mmio, 0x24534 + i * 0x24);
+	arg_0[0] = hwread(vortex->mmio, 0x24528);
+	arg_0[1] = hwread(vortex->mmio, 0x2452C);
+	arg_0[2] = hwread(vortex->mmio, 0x24530);
+	arg_0[3] = hwread(vortex->mmio, 0x24534);
 }
 
 #endif
