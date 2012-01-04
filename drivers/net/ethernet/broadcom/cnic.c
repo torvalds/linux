@@ -4869,6 +4869,7 @@ static int cnic_start_bnx2x_hw(struct cnic_dev *dev)
 	int func = CNIC_FUNC(cp), ret;
 	u32 pfid;
 
+	dev->stats_addr = ethdev->addr_drv_info_to_mcp;
 	cp->port_mode = CHIP_PORT_MODE_NONE;
 
 	if (BNX2X_CHIP_IS_E2_PLUS(cp->chip_id)) {
