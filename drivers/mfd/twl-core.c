@@ -113,8 +113,8 @@
 #define twl_has_watchdog()        false
 #endif
 
-#if defined(CONFIG_MFD_TWL4030_AUDIO) || defined(CONFIG_MFD_TWL4030_AUDIO_MODULE) ||\
-	defined(CONFIG_TWL6040_CORE) || defined(CONFIG_TWL6040_CORE_MODULE)
+#if defined(CONFIG_MFD_TWL4030_AUDIO) || \
+	defined(CONFIG_MFD_TWL4030_AUDIO_MODULE)
 #define twl_has_codec()	true
 #else
 #define twl_has_codec()	false
@@ -144,6 +144,7 @@
 #define SUB_CHIP_ID1 1
 #define SUB_CHIP_ID2 2
 #define SUB_CHIP_ID3 3
+#define SUB_CHIP_ID_INVAL 0xff
 
 #define TWL_MODULE_LAST TWL4030_MODULE_LAST
 
@@ -312,7 +313,7 @@ static struct twl_mapping twl6030_map[] = {
 	 * so they continue to match the order in this table.
 	 */
 	{ SUB_CHIP_ID1, TWL6030_BASEADD_USB },
-	{ SUB_CHIP_ID3, TWL6030_BASEADD_AUDIO },
+	{ SUB_CHIP_ID_INVAL, TWL6030_BASEADD_AUDIO },
 	{ SUB_CHIP_ID2, TWL6030_BASEADD_DIEID },
 	{ SUB_CHIP_ID2, TWL6030_BASEADD_RSV },
 	{ SUB_CHIP_ID1, TWL6030_BASEADD_PIH },
@@ -374,6 +375,11 @@ int twl_i2c_write(u8 mod_no, u8 *value, u8 reg, unsigned num_bytes)
 		return -EPERM;
 	}
 	sid = twl_map[mod_no].sid;
+	if (unlikely(sid == SUB_CHIP_ID_INVAL)) {
+		pr_err("%s: module %d is not part of the pmic\n",
+		       DRIVER_NAME, mod_no);
+		return -EINVAL;
+	}
 	twl = &twl_modules[sid];
 
 	mutex_lock(&twl->xfer_lock);
@@ -431,6 +437,11 @@ int twl_i2c_read(u8 mod_no, u8 *value, u8 reg, unsigned num_bytes)
 		return -EPERM;
 	}
 	sid = twl_map[mod_no].sid;
+	if (unlikely(sid == SUB_CHIP_ID_INVAL)) {
+		pr_err("%s: module %d is not part of the pmic\n",
+		       DRIVER_NAME, mod_no);
+		return -EINVAL;
+	}
 	twl = &twl_modules[sid];
 
 	mutex_lock(&twl->xfer_lock);
@@ -832,15 +843,6 @@ add_children(struct twl4030_platform_data *pdata, unsigned irq_base,
 			return PTR_ERR(child);
 	}
 
-	if (twl_has_codec() && pdata->audio && twl_class_is_6030()) {
-		sub_chip_id = twl_map[TWL_MODULE_AUDIO_VOICE].sid;
-		child = add_child(sub_chip_id, "twl6040",
-				pdata->audio, sizeof(*pdata->audio),
-				false, 0, 0);
-		if (IS_ERR(child))
-			return PTR_ERR(child);
-	}
-
 	/* twl4030 regulators */
 	if (twl_has_regulator() && twl_class_is_4030()) {
 		child = add_regulator(TWL4030_REG_VPLL1, pdata->vpll1,
@@ -1156,18 +1158,21 @@ static void clocks_init(struct device *dev,
 
 static int twl_remove(struct i2c_client *client)
 {
-	unsigned i;
+	unsigned i, num_slaves;
 	int status;
 
-	if (twl_class_is_4030())
+	if (twl_class_is_4030()) {
 		status = twl4030_exit_irq();
-	else
+		num_slaves = TWL_NUM_SLAVES;
+	} else {
 		status = twl6030_exit_irq();
+		num_slaves = TWL_NUM_SLAVES - 1;
+	}
 
 	if (status < 0)
 		return status;
 
-	for (i = 0; i < TWL_NUM_SLAVES; i++) {
+	for (i = 0; i < num_slaves; i++) {
 		struct twl_client	*twl = &twl_modules[i];
 
 		if (twl->client && twl->client != client)
@@ -1186,7 +1191,7 @@ twl_probe(struct i2c_client *client, const struct i2c_device_id *id)
 	struct device_node		*node = client->dev.of_node;
 	int				irq_base = 0;
 	int				status;
-	unsigned			i;
+	unsigned			i, num_slaves;
 
 	if (node && !pdata) {
 		/*
@@ -1215,7 +1220,17 @@ twl_probe(struct i2c_client *client, const struct i2c_device_id *id)
 		return -EBUSY;
 	}
 
-	for (i = 0; i < TWL_NUM_SLAVES; i++) {
+	if ((id->driver_data) & TWL6030_CLASS) {
+		twl_id = TWL6030_CLASS_ID;
+		twl_map = &twl6030_map[0];
+		num_slaves = TWL_NUM_SLAVES - 1;
+	} else {
+		twl_id = TWL4030_CLASS_ID;
+		twl_map = &twl4030_map[0];
+		num_slaves = TWL_NUM_SLAVES;
+	}
+
+	for (i = 0; i < num_slaves; i++) {
 		struct twl_client *twl = &twl_modules[i];
 
 		twl->address = client->addr + i;
@@ -1235,14 +1250,6 @@ twl_probe(struct i2c_client *client, const struct i2c_device_id *id)
 	}
 
 	inuse = true;
-
-	if ((id->driver_data) & TWL6030_CLASS) {
-		twl_id = TWL6030_CLASS_ID;
-		twl_map = &twl6030_map[0];
-	} else {
-		twl_id = TWL4030_CLASS_ID;
-		twl_map = &twl4030_map[0];
-	}
 
 	/* setup clock framework */
 	clocks_init(&client->dev, pdata->clock);
