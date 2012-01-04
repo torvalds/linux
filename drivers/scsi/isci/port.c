@@ -674,9 +674,13 @@ void sci_port_deactivate_phy(struct isci_port *iport, struct isci_phy *iphy,
 
 	iphy->max_negotiated_speed = SAS_LINK_RATE_UNKNOWN;
 
-	/* Re-assign the phy back to the LP as if it were a narrow port */
-	writel(iphy->phy_index,
-		&iport->port_pe_configuration_register[iphy->phy_index]);
+	/* Re-assign the phy back to the LP as if it were a narrow port for APC
+	 * mode. For MPC mode, the phy will remain in the port.
+	 */
+	if (iport->owning_controller->oem_parameters.controller.mode_type ==
+		SCIC_PORT_AUTOMATIC_CONFIGURATION_MODE)
+		writel(iphy->phy_index,
+			&iport->port_pe_configuration_register[iphy->phy_index]);
 
 	if (do_notify_user == true)
 		isci_port_link_down(ihost, iphy, iport);
