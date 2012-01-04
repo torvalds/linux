@@ -130,6 +130,7 @@ enum {
 #define HCI_IDLE_TIMEOUT	(6000)	/* 6 seconds */
 #define HCI_INIT_TIMEOUT	(10000)	/* 10 seconds */
 #define HCI_CMD_TIMEOUT		(1000)	/* 1 seconds */
+#define HCI_ACL_TX_TIMEOUT	(45000)	/* 45 seconds */
 
 /* HCI data types */
 #define HCI_COMMAND_PKT		0x01
