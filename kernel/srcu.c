@@ -172,6 +172,12 @@ static void __synchronize_srcu(struct srcu_struct *sp, void (*sync_func)(void))
 {
 	int idx;
 
+	rcu_lockdep_assert(!lock_is_held(&sp->dep_map) &&
+			   !lock_is_held(&rcu_bh_lock_map) &&
+			   !lock_is_held(&rcu_lock_map) &&
+			   !lock_is_held(&rcu_sched_lock_map),
+			   "Illegal synchronize_srcu() in same-type SRCU (or RCU) read-side critical section");
+
 	idx = sp->completed;
 	mutex_lock(&sp->mutex);
 
