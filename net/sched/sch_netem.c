@@ -381,8 +381,8 @@ static int netem_enqueue(struct sk_buff *skb, struct Qdisc *sch)
 		q->counter = 0;
 
 		__skb_queue_head(&q->qdisc->q, skb);
-		q->qdisc->qstats.backlog += qdisc_pkt_len(skb);
-		q->qdisc->qstats.requeues++;
+		sch->qstats.backlog += qdisc_pkt_len(skb);
+		sch->qstats.requeues++;
 		ret = NET_XMIT_SUCCESS;
 	}
 
