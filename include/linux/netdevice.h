@@ -707,6 +707,23 @@ struct netdev_tc_txq {
 	u16 offset;
 };
 
+#if defined(CONFIG_FCOE) || defined(CONFIG_FCOE_MODULE)
+/*
+ * This structure is to hold information about the device
+ * configured to run FCoE protocol stack.
+ */
+struct netdev_fcoe_hbainfo {
+	char	manufacturer[64];
+	char	serial_number[64];
+	char	hardware_version[64];
+	char	driver_version[64];
+	char	optionrom_version[64];
+	char	firmware_version[64];
+	char	model[256];
+	char	model_description[256];
+};
+#endif
+
 /*
  * This structure defines the management hooks for network devices.
  * The following hooks can be defined; unless noted otherwise, they are
@@ -847,6 +864,13 @@ struct netdev_tc_txq {
  *	perform necessary setup and returns 1 to indicate the device is set up
  *	successfully to perform DDP on this I/O, otherwise this returns 0.
  *
+ * int (*ndo_fcoe_get_hbainfo)(struct net_device *dev,
+ *			       struct netdev_fcoe_hbainfo *hbainfo);
+ *	Called when the FCoE Protocol stack wants information on the underlying
+ *	device. This information is utilized by the FCoE protocol stack to
+ *	register attributes with Fiber Channel management service as per the
+ *	FC-GS Fabric Device Management Information(FDMI) specification.
+ *
  * int (*ndo_fcoe_get_wwn)(struct net_device *dev, u64 *wwn, int type);
  *	Called when the underlying device wants to override default World Wide
  *	Name (WWN) generation mechanism in FCoE protocol stack to pass its own
@@ -950,6 +974,8 @@ struct net_device_ops {
 						       u16 xid,
 						       struct scatterlist *sgl,
 						       unsigned int sgc);
+	int			(*ndo_fcoe_get_hbainfo)(struct net_device *dev,
+							struct netdev_fcoe_hbainfo *hbainfo);
 #endif
 
 #if IS_ENABLED(CONFIG_LIBFCOE)
