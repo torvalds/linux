@@ -583,6 +583,7 @@ enum {
  /* note ioctl 11 reserved for filesystem-independent FIEMAP ioctl */
 #define EXT4_IOC_ALLOC_DA_BLKS		_IO('f', 12)
 #define EXT4_IOC_MOVE_EXT		_IOWR('f', 15, struct move_extent)
+#define EXT4_IOC_RESIZE_FS		_IOW('f', 16, __u64)
 
 #if defined(__KERNEL__) && defined(CONFIG_COMPAT)
 /*
@@ -1929,6 +1930,7 @@ extern int ext4_group_add(struct super_block *sb,
 extern int ext4_group_extend(struct super_block *sb,
 				struct ext4_super_block *es,
 				ext4_fsblk_t n_blocks_count);
+extern int ext4_resize_fs(struct super_block *sb, ext4_fsblk_t n_blocks_count);
 
 /* super.c */
 extern void *ext4_kvmalloc(size_t size, gfp_t flags);
