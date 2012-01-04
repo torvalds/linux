@@ -85,19 +85,34 @@ static struct pcistub_device *pcistub_device_alloc(struct pci_dev *dev)
 static void pcistub_device_release(struct kref *kref)
 {
 	struct pcistub_device *psdev;
+	struct xen_pcibk_dev_data *dev_data;
 
 	psdev = container_of(kref, struct pcistub_device, kref);
+	dev_data = pci_get_drvdata(psdev->dev);
 
 	dev_dbg(&psdev->dev->dev, "pcistub_device_release\n");
 
 	xen_unregister_device_domain_owner(psdev->dev);
 
-	/* Clean-up the device */
+	/* Call the reset function which does not take lock as this
+	 * is called from "unbind" which takes a device_lock mutex.
+	 */
+	__pci_reset_function_locked(psdev->dev);
+	if (pci_load_and_free_saved_state(psdev->dev,
+					  &dev_data->pci_saved_state)) {
+		dev_dbg(&psdev->dev->dev, "Could not reload PCI state\n");
+	} else
+		pci_restore_state(psdev->dev);
+
+	/* Disable the device */
 	xen_pcibk_reset_device(psdev->dev);
+
+	kfree(dev_data);
+	pci_set_drvdata(psdev->dev, NULL);
+
+	/* Clean-up the device */
 	xen_pcibk_config_free_dyn_fields(psdev->dev);
 	xen_pcibk_config_free_dev(psdev->dev);
-	kfree(pci_get_drvdata(psdev->dev));
-	pci_set_drvdata(psdev->dev, NULL);
 
 	psdev->dev->dev_flags &= ~PCI_DEV_FLAGS_ASSIGNED;
 	pci_dev_put(psdev->dev);
@@ -231,7 +246,17 @@ void pcistub_put_pci_dev(struct pci_dev *dev)
 	/* Cleanup our device
 	 * (so it's ready for the next domain)
 	 */
+
+	/* This is OK - we are running from workqueue context
+	 * and want to inhibit the user from fiddling with 'reset'
+	 */
+	pci_reset_function(dev);
+	pci_restore_state(psdev->dev);
+
+	/* This disables the device. */
 	xen_pcibk_reset_device(found_psdev->dev);
+
+	/* And cleanup up our emulated fields. */
 	xen_pcibk_config_free_dyn_fields(found_psdev->dev);
 	xen_pcibk_config_reset_dev(found_psdev->dev);
 
@@ -327,6 +352,16 @@ static int __devinit pcistub_init_device(struct pci_dev *dev)
 	err = pci_enable_device(dev);
 	if (err)
 		goto config_release;
+
+	dev_dbg(&dev->dev, "reseting (FLR, D3, etc) the device\n");
+	__pci_reset_function_locked(dev);
+
+	/* We need the device active to save the state. */
+	dev_dbg(&dev->dev, "save state of device\n");
+	pci_save_state(dev);
+	dev_data->pci_saved_state = pci_store_saved_state(dev);
+	if (!dev_data->pci_saved_state)
+		dev_err(&dev->dev, "Could not store PCI conf saved state!\n");
 
 	/* Now disable the device (this also ensures some private device
 	 * data is setup before we export)
