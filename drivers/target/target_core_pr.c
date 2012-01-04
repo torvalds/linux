@@ -471,6 +471,7 @@ static int core_scsi3_pr_seq_non_holder(
 	case READ_MEDIA_SERIAL_NUMBER:
 	case REPORT_LUNS:
 	case REQUEST_SENSE:
+	case PERSISTENT_RESERVE_IN:
 		ret = 0; /*/ Allowed CDBs */
 		break;
 	default:
