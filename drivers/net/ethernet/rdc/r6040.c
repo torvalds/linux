@@ -1188,7 +1188,8 @@ static int __devinit r6040_init_one(struct pci_dev *pdev,
 	lp->mii_bus->write = r6040_mdiobus_write;
 	lp->mii_bus->reset = r6040_mdiobus_reset;
 	lp->mii_bus->name = "r6040_eth_mii";
-	snprintf(lp->mii_bus->id, MII_BUS_ID_SIZE, "%x", card_idx);
+	snprintf(lp->mii_bus->id, MII_BUS_ID_SIZE, "%s-%x",
+		dev_name(&pdev->dev), card_idx);
 	lp->mii_bus->irq = kmalloc(sizeof(int)*PHY_MAX_ADDR, GFP_KERNEL);
 	if (!lp->mii_bus->irq) {
 		dev_err(&pdev->dev, "mii_bus irq allocation failed\n");
