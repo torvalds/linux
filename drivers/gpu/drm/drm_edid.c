@@ -714,8 +714,8 @@ drm_mode_std(struct drm_connector *connector, struct edid *edid,
 
 	/* HDTV hack, part 1 */
 	if (vrefresh_rate == 60 &&
-	    ((hsize == 1360 && vsize == 765) ||
-	     (hsize == 1368 && vsize == 769))) {
+	    ((hsize >= 1360 && hsize <= 1368) &&
+	     (vsize >= 765 && vsize <= 769))) {
 		hsize = 1366;
 		vsize = 768;
 	}
