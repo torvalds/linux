@@ -65,7 +65,7 @@
 #include "probe_roms.h"
 
 #define MAJ 1
-#define MIN 0
+#define MIN 1
 #define BUILD 0
 #define DRV_VERSION __stringify(MAJ) "." __stringify(MIN) "." \
 	__stringify(BUILD)
