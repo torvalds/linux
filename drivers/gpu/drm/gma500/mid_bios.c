@@ -202,7 +202,7 @@ static void mid_get_vbt_data(struct drm_psb_private *dev_priv)
 		/*so, some values have changed location*/
 		new_size = vbt->checksum; /*checksum contains lo size byte*/
 		/*LSB of oaktrail_gct contains hi size byte*/
-		new_size |= ((0xff & (unsigned int)vbt->oaktrail_gct)) << 8;
+		new_size |= ((0xff & (unsigned int)(long)vbt->oaktrail_gct)) << 8;
 
 		vbt->checksum = vbt->size; /*size contains the checksum*/
 		if (new_size > 0xff)
@@ -211,8 +211,8 @@ static void mid_get_vbt_data(struct drm_psb_private *dev_priv)
 			vbt->size = new_size;
 
 		/* number of descriptors defined in the GCT */
-		number_desc = ((0xff00 & (unsigned int)vbt->oaktrail_gct)) >> 8;
-		bpi = ((0xff0000 & (unsigned int)vbt->oaktrail_gct)) >> 16;
+		number_desc = ((0xff00 & (unsigned int)(long)vbt->oaktrail_gct)) >> 8;
+		bpi = ((0xff0000 & (unsigned int)(long)vbt->oaktrail_gct)) >> 16;
 		vbt->oaktrail_gct = ioremap(addr + GCT_R10_HEADER_SIZE,
 				GCT_R10_DISPLAY_DESC_SIZE * number_desc);
 		pGCT = vbt->oaktrail_gct;
