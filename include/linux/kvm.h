@@ -569,6 +569,7 @@ struct kvm_ppc_pvinfo {
 #define KVM_CAP_PPC_PAPR 68
 #define KVM_CAP_S390_GMAP 71
 #define KVM_CAP_TSC_DEADLINE_TIMER 72
+#define KVM_CAP_S390_UCONTROL 73
 
 #ifdef KVM_CAP_IRQ_ROUTING
 
