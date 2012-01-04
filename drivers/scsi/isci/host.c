@@ -899,7 +899,8 @@ static enum sci_status sci_controller_start_next_phy(struct isci_host *ihost)
 			 */
 			if ((iphy->is_in_link_training == false && state == SCI_PHY_INITIAL) ||
 			    (iphy->is_in_link_training == false && state == SCI_PHY_STOPPED) ||
-			    (iphy->is_in_link_training == true && is_phy_starting(iphy))) {
+			    (iphy->is_in_link_training == true && is_phy_starting(iphy)) ||
+			    (ihost->port_agent.phy_ready_mask != ihost->port_agent.phy_configured_mask)) {
 				is_controller_start_complete = false;
 				break;
 			}
@@ -1904,6 +1905,31 @@ static void power_control_timeout(unsigned long data)
 		ihost->power_control.phys_waiting--;
 		ihost->power_control.phys_granted_power++;
 		sci_phy_consume_power_handler(iphy);
+
+		if (iphy->protocol == SCIC_SDS_PHY_PROTOCOL_SAS) {
+			u8 j;
+
+			for (j = 0; j < SCI_MAX_PHYS; j++) {
+				struct isci_phy *requester = ihost->power_control.requesters[j];
+
+				/*
+				 * Search the power_control queue to see if there are other phys
+				 * attached to the same remote device. If found, take all of
+				 * them out of await_sas_power state.
+				 */
+				if (requester != NULL && requester != iphy) {
+					u8 other = memcmp(requester->frame_rcvd.iaf.sas_addr,
+							  iphy->frame_rcvd.iaf.sas_addr,
+							  sizeof(requester->frame_rcvd.iaf.sas_addr));
+
+					if (other == 0) {
+						ihost->power_control.requesters[j] = NULL;
+						ihost->power_control.phys_waiting--;
+						sci_phy_consume_power_handler(requester);
+					}
+				}
+			}
+		}
 	}
 
 	/*
@@ -1938,9 +1964,34 @@ void sci_controller_power_control_queue_insert(struct isci_host *ihost,
 		ihost->power_control.timer_started = true;
 
 	} else {
-		/* Add the phy in the waiting list */
-		ihost->power_control.requesters[iphy->phy_index] = iphy;
-		ihost->power_control.phys_waiting++;
+		/*
+		 * There are phys, attached to the same sas address as this phy, are
+		 * already in READY state, this phy don't need wait.
+		 */
+		u8 i;
+		struct isci_phy *current_phy;
+
+		for (i = 0; i < SCI_MAX_PHYS; i++) {
+			u8 other;
+			current_phy = &ihost->phys[i];
+
+			other = memcmp(current_phy->frame_rcvd.iaf.sas_addr,
+				       iphy->frame_rcvd.iaf.sas_addr,
+				       sizeof(current_phy->frame_rcvd.iaf.sas_addr));
+
+			if (current_phy->sm.current_state_id == SCI_PHY_READY &&
+			    current_phy->protocol == SCIC_SDS_PHY_PROTOCOL_SAS &&
+			    other == 0) {
+				sci_phy_consume_power_handler(iphy);
+				break;
+			}
+		}
+
+		if (i == SCI_MAX_PHYS) {
+			/* Add the phy in the waiting list */
+			ihost->power_control.requesters[iphy->phy_index] = iphy;
+			ihost->power_control.phys_waiting++;
+		}
 	}
 }
 
