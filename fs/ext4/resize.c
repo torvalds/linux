@@ -656,10 +656,10 @@ static unsigned ext4_list_backups(struct super_block *sb, unsigned *three,
  * groups in current filesystem that have BACKUPS, or -ve error code.
  */
 static int verify_reserved_gdb(struct super_block *sb,
+			       ext4_group_t end,
 			       struct buffer_head *primary)
 {
 	const ext4_fsblk_t blk = primary->b_blocknr;
-	const ext4_group_t end = EXT4_SB(sb)->s_groups_count;
 	unsigned three = 1;
 	unsigned five = 5;
 	unsigned seven = 7;
@@ -734,7 +734,7 @@ static int add_new_gdb(handle_t *handle, struct inode *inode,
 	if (!gdb_bh)
 		return -EIO;
 
-	gdbackups = verify_reserved_gdb(sb, gdb_bh);
+	gdbackups = verify_reserved_gdb(sb, group, gdb_bh);
 	if (gdbackups < 0) {
 		err = gdbackups;
 		goto exit_bh;
@@ -897,7 +897,8 @@ static int reserve_backup_gdb(handle_t *handle, struct inode *inode,
 			err = -EIO;
 			goto exit_bh;
 		}
-		if ((gdbackups = verify_reserved_gdb(sb, primary[res])) < 0) {
+		gdbackups = verify_reserved_gdb(sb, group, primary[res]);
+		if (gdbackups < 0) {
 			brelse(primary[res]);
 			err = gdbackups;
 			goto exit_bh;
