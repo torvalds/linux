@@ -146,15 +146,12 @@ static void s5p64x0_idle(void)
 {
 	unsigned long val;
 
-	if (!need_resched()) {
-		val = __raw_readl(S5P64X0_PWR_CFG);
-		val &= ~(0x3 << 5);
-		val |= (0x1 << 5);
-		__raw_writel(val, S5P64X0_PWR_CFG);
+	val = __raw_readl(S5P64X0_PWR_CFG);
+	val &= ~(0x3 << 5);
+	val |= (0x1 << 5);
+	__raw_writel(val, S5P64X0_PWR_CFG);
 
-		cpu_do_idle();
-	}
-	local_irq_enable();
+	cpu_do_idle();
 }
 
 /*
@@ -286,7 +283,7 @@ int __init s5p64x0_init(void)
 	printk(KERN_INFO "S5P64X0(S5P6440/S5P6450): Initializing architecture\n");
 
 	/* set idle function */
-	pm_idle = s5p64x0_idle;
+	arm_pm_idle = s5p64x0_idle;
 
 	return device_register(&s5p64x0_dev);
 }
