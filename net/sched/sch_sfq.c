@@ -544,10 +544,38 @@ static int sfq_change(struct Qdisc *sch, struct nlattr *opt)
 	return 0;
 }
 
+static void *sfq_alloc(size_t sz)
+{
+	void *ptr = kmalloc(sz, GFP_KERNEL | __GFP_NOWARN);
+
+	if (!ptr)
+		ptr = vmalloc(sz);
+	return ptr;
+}
+
+static void sfq_free(void *addr)
+{
+	if (addr) {
+		if (is_vmalloc_addr(addr))
+			vfree(addr);
+		else
+			kfree(addr);
+	}
+}
+
+static void sfq_destroy(struct Qdisc *sch)
+{
+	struct sfq_sched_data *q = qdisc_priv(sch);
+
+	tcf_destroy_chain(&q->filter_list);
+	q->perturb_period = 0;
+	del_timer_sync(&q->perturb_timer);
+	sfq_free(q->ht);
+}
+
 static int sfq_init(struct Qdisc *sch, struct nlattr *opt)
 {
 	struct sfq_sched_data *q = qdisc_priv(sch);
-	size_t sz;
 	int i;
 
 	q->perturb_timer.function = sfq_perturbation;
@@ -574,12 +602,11 @@ static int sfq_init(struct Qdisc *sch, struct nlattr *opt)
 			return err;
 	}
 
-	sz = sizeof(q->ht[0]) * q->divisor;
-	q->ht = kmalloc(sz, GFP_KERNEL);
-	if (!q->ht && sz > PAGE_SIZE)
-		q->ht = vmalloc(sz);
-	if (!q->ht)
+	q->ht = sfq_alloc(sizeof(q->ht[0]) * q->divisor);
+	if (!q->ht) {
+		sfq_destroy(sch);
 		return -ENOMEM;
+	}
 	for (i = 0; i < q->divisor; i++)
 		q->ht[i] = SFQ_EMPTY_SLOT;
 
@@ -592,19 +619,6 @@ static int sfq_init(struct Qdisc *sch, struct nlattr *opt)
 	else
 		sch->flags &= ~TCQ_F_CAN_BYPASS;
 	return 0;
-}
-
-static void sfq_destroy(struct Qdisc *sch)
-{
-	struct sfq_sched_data *q = qdisc_priv(sch);
-
-	tcf_destroy_chain(&q->filter_list);
-	q->perturb_period = 0;
-	del_timer_sync(&q->perturb_timer);
-	if (is_vmalloc_addr(q->ht))
-		vfree(q->ht);
-	else
-		kfree(q->ht);
 }
 
 static int sfq_dump(struct Qdisc *sch, struct sk_buff *skb)
