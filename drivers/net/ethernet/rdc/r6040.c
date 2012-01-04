@@ -173,7 +173,7 @@ struct r6040_descriptor {
 	struct r6040_descriptor *vndescp;	/* 14-17 */
 	struct sk_buff *skb_ptr;	/* 18-1B */
 	u32	rev2;			/* 1C-1F */
-} __attribute__((aligned(32)));
+} __aligned(32);
 
 struct r6040_private {
 	spinlock_t lock;		/* driver lock */
