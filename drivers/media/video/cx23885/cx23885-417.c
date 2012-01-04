@@ -1044,7 +1044,7 @@ static void cx23885_codec_settings(struct cx23885_dev *dev)
 	cx23885_api_cmd(dev, CX2341X_ENC_MISC, 2, 0, 4, 1);
 }
 
-static int cx23885_initialize_codec(struct cx23885_dev *dev)
+static int cx23885_initialize_codec(struct cx23885_dev *dev, int startencoder)
 {
 	int version;
 	int retval;
@@ -1126,9 +1126,11 @@ static int cx23885_initialize_codec(struct cx23885_dev *dev)
 	mc417_memory_write(dev, 2120, 0x00000080);
 
 	/* start capturing to the host interface */
-	cx23885_api_cmd(dev, CX2341X_ENC_START_CAPTURE, 2, 0,
-		CX23885_MPEG_CAPTURE, CX23885_RAW_BITS_NONE);
-	msleep(10);
+	if (startencoder) {
+		cx23885_api_cmd(dev, CX2341X_ENC_START_CAPTURE, 2, 0,
+			CX23885_MPEG_CAPTURE, CX23885_RAW_BITS_NONE);
+		msleep(10);
+	}
 
 	return 0;
 }
@@ -1346,7 +1348,7 @@ static int vidioc_s_frequency(struct file *file, void *priv,
 
 	call_all(dev, tuner, s_frequency, f);
 
-	cx23885_initialize_codec(dev);
+	cx23885_initialize_codec(dev, 0);
 
 	return 0;
 }
@@ -1650,7 +1652,7 @@ static ssize_t mpeg_read(struct file *file, char __user *data,
 	/* Start mpeg encoder on first read. */
 	if (atomic_cmpxchg(&fh->v4l_reading, 0, 1) == 0) {
 		if (atomic_inc_return(&dev->v4l_reader_count) == 1) {
-			if (cx23885_initialize_codec(dev) < 0)
+			if (cx23885_initialize_codec(dev, 1) < 0)
 				return -EINVAL;
 		}
 	}
@@ -1804,6 +1806,12 @@ int cx23885_417_register(struct cx23885_dev *dev)
 
 	printk(KERN_INFO "%s: registered device %s [mpeg]\n",
 	       dev->name, video_device_node_name(dev->v4l_device));
+
+	/* ST: Configure the encoder paramaters, but don't begin
+	 * encoding, this resolves an issue where the first time the
+	 * encoder is started video can be choppy.
+	 */
+	cx23885_initialize_codec(dev, 0);
 
 	return 0;
 }
