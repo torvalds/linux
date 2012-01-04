@@ -1073,6 +1073,7 @@ static struct usb_driver usb_storage_driver = {
 	.id_table =	usb_storage_usb_ids,
 	.supports_autosuspend = 1,
 	.soft_unbind =	1,
+	.no_dynamic_id = 1,
 };
 
 static int __init usb_stor_init(void)
