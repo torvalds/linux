@@ -21,6 +21,7 @@
 #include <linux/swapops.h>
 #include <linux/pm.h>
 #include <linux/fs.h>
+#include <linux/compat.h>
 #include <linux/console.h>
 #include <linux/cpu.h>
 #include <linux/freezer.h>
@@ -380,6 +381,66 @@ static long snapshot_ioctl(struct file *filp, unsigned int cmd,
 	return error;
 }
 
+#ifdef CONFIG_COMPAT
+
+struct compat_resume_swap_area {
+	compat_loff_t offset;
+	u32 dev;
+} __packed;
+
+static long
+snapshot_compat_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
+{
+	BUILD_BUG_ON(sizeof(loff_t) != sizeof(compat_loff_t));
+
+	switch (cmd) {
+	case SNAPSHOT_GET_IMAGE_SIZE:
+	case SNAPSHOT_AVAIL_SWAP_SIZE:
+	case SNAPSHOT_ALLOC_SWAP_PAGE: {
+		compat_loff_t __user *uoffset = compat_ptr(arg);
+		loff_t offset;
+		mm_segment_t old_fs;
+		int err;
+
+		old_fs = get_fs();
+		set_fs(KERNEL_DS);
+		err = snapshot_ioctl(file, cmd, (unsigned long) &offset);
+		set_fs(old_fs);
+		if (!err && put_user(offset, uoffset))
+			err = -EFAULT;
+		return err;
+	}
+
+	case SNAPSHOT_CREATE_IMAGE:
+		return snapshot_ioctl(file, cmd,
+				      (unsigned long) compat_ptr(arg));
+
+	case SNAPSHOT_SET_SWAP_AREA: {
+		struct compat_resume_swap_area __user *u_swap_area =
+			compat_ptr(arg);
+		struct resume_swap_area swap_area;
+		mm_segment_t old_fs;
+		int err;
+
+		err = get_user(swap_area.offset, &u_swap_area->offset);
+		err |= get_user(swap_area.dev, &u_swap_area->dev);
+		if (err)
+			return -EFAULT;
+		old_fs = get_fs();
+		set_fs(KERNEL_DS);
+		err = snapshot_ioctl(file, SNAPSHOT_SET_SWAP_AREA,
+				     (unsigned long) &swap_area);
+		set_fs(old_fs);
+		return err;
+	}
+
+	default:
+		return snapshot_ioctl(file, cmd, arg);
+	}
+}
+
+#endif /* CONFIG_COMPAT */
+
 static const struct file_operations snapshot_fops = {
 	.open = snapshot_open,
 	.release = snapshot_release,
@@ -387,6 +448,9 @@ static const struct file_operations snapshot_fops = {
 	.write = snapshot_write,
 	.llseek = no_llseek,
 	.unlocked_ioctl = snapshot_ioctl,
+#ifdef CONFIG_COMPAT
+	.compat_ioctl = snapshot_compat_ioctl,
+#endif
 };
 
 static struct miscdevice snapshot_device = {
