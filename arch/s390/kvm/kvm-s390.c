@@ -761,6 +761,12 @@ long kvm_arch_vcpu_ioctl(struct file *filp,
 		break;
 	}
 #endif
+	case KVM_S390_VCPU_FAULT: {
+		r = gmap_fault(arg, vcpu->arch.gmap);
+		if (!IS_ERR_VALUE(r))
+			r = 0;
+		break;
+	}
 	default:
 		r = -EINVAL;
 	}

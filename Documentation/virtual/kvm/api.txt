@@ -1539,6 +1539,22 @@ This ioctl unmaps the memory in the vcpu's address space starting at
 "vcpu_addr" with the length "length". The field "user_addr" is ignored.
 All parameters need to be alligned by 1 megabyte.
 
+4.66 KVM_S390_VCPU_FAULT
+
+Capability: KVM_CAP_S390_UCONTROL
+Architectures: s390
+Type: vcpu ioctl
+Parameters: vcpu absolute address (in)
+Returns: 0 in case of success
+
+This call creates a page table entry on the virtual cpu's address space
+(for user controlled virtual machines) or the virtual machine's address
+space (for regular virtual machines). This only works for minor faults,
+thus it's recommended to access subject memory page via the user page
+table upfront. This is useful to handle validity intercepts for user
+controlled virtual machines to fault in the virtual cpu's lowcore pages
+prior to calling the KVM_RUN ioctl.
+
 5. The kvm_run structure
 
 Application code obtains a pointer to the kvm_run structure by
