@@ -356,6 +356,17 @@ struct hci_dev *hci_dev_get(int index)
 
 /* ---- Inquiry support ---- */
 
+bool hci_discovery_active(struct hci_dev *hdev)
+{
+	struct discovery_state *discov = &hdev->discovery;
+
+	if (discov->state == DISCOVERY_INQUIRY ||
+					discov->state == DISCOVERY_RESOLVING)
+		return true;
+
+	return false;
+}
+
 void hci_discovery_set_state(struct hci_dev *hdev, int state)
 {
 	BT_DBG("%s state %u -> %u", hdev->name, hdev->discovery.state, state);
@@ -369,8 +380,10 @@ void hci_discovery_set_state(struct hci_dev *hdev, int state)
 		break;
 	case DISCOVERY_STARTING:
 		break;
-	case DISCOVERY_ACTIVE:
+	case DISCOVERY_INQUIRY:
 		mgmt_discovering(hdev, 1);
+		break;
+	case DISCOVERY_RESOLVING:
 		break;
 	case DISCOVERY_STOPPING:
 		break;
@@ -418,6 +431,25 @@ struct inquiry_entry *hci_inquiry_cache_lookup_unknown(struct hci_dev *hdev,
 	BT_DBG("cache %p, %s", cache, batostr(bdaddr));
 
 	list_for_each_entry(e, &cache->unknown, list) {
+		if (!bacmp(&e->data.bdaddr, bdaddr))
+			return e;
+	}
+
+	return NULL;
+}
+
+struct inquiry_entry *hci_inquiry_cache_lookup_resolve(struct hci_dev *hdev,
+							bdaddr_t *bdaddr,
+							int state)
+{
+	struct discovery_state *cache = &hdev->discovery;
+	struct inquiry_entry *e;
+
+	BT_DBG("cache %p bdaddr %s state %d", cache, batostr(bdaddr), state);
+
+	list_for_each_entry(e, &cache->resolve, list) {
+		if (!bacmp(bdaddr, BDADDR_ANY) && e->name_state == state)
+			return e;
 		if (!bacmp(&e->data.bdaddr, bdaddr))
 			return e;
 	}

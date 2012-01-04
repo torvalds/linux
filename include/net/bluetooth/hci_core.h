@@ -60,7 +60,8 @@ struct discovery_state {
 	enum {
 		DISCOVERY_STOPPED,
 		DISCOVERY_STARTING,
-		DISCOVERY_ACTIVE,
+		DISCOVERY_INQUIRY,
+		DISCOVERY_RESOLVING,
 		DISCOVERY_STOPPING,
 	} state;
 	struct list_head all;		/* All devices found during inquiry */
@@ -371,6 +372,8 @@ static inline void discovery_init(struct hci_dev *hdev)
 	INIT_LIST_HEAD(&hdev->discovery.resolve);
 }
 
+bool hci_discovery_active(struct hci_dev *hdev);
+
 void hci_discovery_set_state(struct hci_dev *hdev, int state);
 
 static inline int inquiry_cache_empty(struct hci_dev *hdev)
@@ -393,6 +396,9 @@ struct inquiry_entry *hci_inquiry_cache_lookup(struct hci_dev *hdev,
 							bdaddr_t *bdaddr);
 struct inquiry_entry *hci_inquiry_cache_lookup_unknown(struct hci_dev *hdev,
 							bdaddr_t *bdaddr);
+struct inquiry_entry *hci_inquiry_cache_lookup_resolve(struct hci_dev *hdev,
+							bdaddr_t *bdaddr,
+							int state);
 bool hci_inquiry_cache_update(struct hci_dev *hdev, struct inquiry_data *data,
 							bool name_known);
 

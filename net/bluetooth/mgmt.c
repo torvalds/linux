@@ -1947,6 +1947,8 @@ static int stop_discovery(struct sock *sk, u16 index)
 {
 	struct hci_dev *hdev;
 	struct pending_cmd *cmd;
+	struct hci_cp_remote_name_req_cancel cp;
+	struct inquiry_entry *e;
 	int err;
 
 	BT_DBG("hci%u", index);
@@ -1958,25 +1960,44 @@ static int stop_discovery(struct sock *sk, u16 index)
 
 	hci_dev_lock(hdev);
 
-	if (hdev->discovery.state != DISCOVERY_ACTIVE) {
+	if (!hci_discovery_active(hdev)) {
 		err = cmd_status(sk, index, MGMT_OP_STOP_DISCOVERY,
 						MGMT_STATUS_REJECTED);
-		goto failed;
+		goto unlock;
 	}
 
 	cmd = mgmt_pending_add(sk, MGMT_OP_STOP_DISCOVERY, hdev, NULL, 0);
 	if (!cmd) {
 		err = -ENOMEM;
-		goto failed;
+		goto unlock;
 	}
 
-	err = hci_cancel_inquiry(hdev);
+	if (hdev->discovery.state == DISCOVERY_INQUIRY) {
+		err = hci_cancel_inquiry(hdev);
+		if (err < 0)
+			mgmt_pending_remove(cmd);
+		else
+			hci_discovery_set_state(hdev, DISCOVERY_STOPPING);
+		goto unlock;
+	}
+
+	e = hci_inquiry_cache_lookup_resolve(hdev, BDADDR_ANY, NAME_PENDING);
+	if (!e) {
+		mgmt_pending_remove(cmd);
+		err = cmd_complete(sk, index, MGMT_OP_STOP_DISCOVERY, NULL, 0);
+		hci_discovery_set_state(hdev, DISCOVERY_STOPPED);
+		goto unlock;
+	}
+
+	bacpy(&cp.bdaddr, &e->data.bdaddr);
+	err = hci_send_cmd(hdev, HCI_OP_REMOTE_NAME_REQ_CANCEL,
+							sizeof(cp), &cp);
 	if (err < 0)
 		mgmt_pending_remove(cmd);
 	else
 		hci_discovery_set_state(hdev, DISCOVERY_STOPPING);
 
-failed:
+unlock:
 	hci_dev_unlock(hdev);
 	hci_dev_put(hdev);
 
@@ -2003,6 +2024,12 @@ static int confirm_name(struct sock *sk, u16 index, unsigned char *data,
 				MGMT_STATUS_INVALID_PARAMS);
 
 	hci_dev_lock(hdev);
+
+	if (!hci_discovery_active(hdev)) {
+		err = cmd_status(sk, index, MGMT_OP_CONFIRM_NAME,
+							MGMT_STATUS_FAILED);
+		goto failed;
+	}
 
 	e = hci_inquiry_cache_lookup_unknown(hdev, &cp->bdaddr);
 	if (!e) {

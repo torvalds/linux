@@ -1119,7 +1119,7 @@ static inline void hci_cs_inquiry(struct hci_dev *hdev, __u8 status)
 	set_bit(HCI_INQUIRY, &hdev->flags);
 
 	hci_dev_lock(hdev);
-	hci_discovery_set_state(hdev, DISCOVERY_ACTIVE);
+	hci_discovery_set_state(hdev, DISCOVERY_INQUIRY);
 	hci_dev_unlock(hdev);
 }
 
@@ -1271,6 +1271,50 @@ static int hci_outgoing_auth_needed(struct hci_dev *hdev,
 	return 1;
 }
 
+static inline int hci_resolve_name(struct hci_dev *hdev, struct inquiry_entry *e)
+{
+	struct hci_cp_remote_name_req cp;
+
+	memset(&cp, 0, sizeof(cp));
+
+	bacpy(&cp.bdaddr, &e->data.bdaddr);
+	cp.pscan_rep_mode = e->data.pscan_rep_mode;
+	cp.pscan_mode = e->data.pscan_mode;
+	cp.clock_offset = e->data.clock_offset;
+
+	return hci_send_cmd(hdev, HCI_OP_REMOTE_NAME_REQ, sizeof(cp), &cp);
+}
+
+static void hci_resolve_next_name(struct hci_dev *hdev, bdaddr_t *bdaddr)
+{
+	struct discovery_state *discov = &hdev->discovery;
+	struct inquiry_entry *e;
+
+	if (discov->state == DISCOVERY_STOPPING)
+		goto discov_complete;
+
+	if (discov->state != DISCOVERY_RESOLVING)
+		return;
+
+	e = hci_inquiry_cache_lookup_resolve(hdev, bdaddr, NAME_PENDING);
+	if (e) {
+		e->name_state = NAME_KNOWN;
+		list_del(&e->list);
+	}
+
+	if (list_empty(&discov->resolve))
+		goto discov_complete;
+
+	e = hci_inquiry_cache_lookup_resolve(hdev, BDADDR_ANY, NAME_NEEDED);
+	if (hci_resolve_name(hdev, e) == 0) {
+		e->name_state = NAME_PENDING;
+		return;
+	}
+
+discov_complete:
+	hci_discovery_set_state(hdev, DISCOVERY_STOPPED);
+}
+
 static void hci_cs_remote_name_req(struct hci_dev *hdev, __u8 status)
 {
 	struct hci_cp_remote_name_req *cp;
@@ -1288,6 +1332,9 @@ static void hci_cs_remote_name_req(struct hci_dev *hdev, __u8 status)
 		return;
 
 	hci_dev_lock(hdev);
+
+	if (test_bit(HCI_MGMT, &hdev->flags))
+		hci_resolve_next_name(hdev, &cp->bdaddr);
 
 	conn = hci_conn_hash_lookup_ba(hdev, ACL_LINK, &cp->bdaddr);
 	if (!conn)
@@ -1496,6 +1543,8 @@ static void hci_cs_le_start_enc(struct hci_dev *hdev, u8 status)
 static inline void hci_inquiry_complete_evt(struct hci_dev *hdev, struct sk_buff *skb)
 {
 	__u8 status = *((__u8 *) skb->data);
+	struct discovery_state *discov = &hdev->discovery;
+	struct inquiry_entry *e;
 
 	BT_DBG("%s status %d", hdev->name, status);
 
@@ -1506,8 +1555,28 @@ static inline void hci_inquiry_complete_evt(struct hci_dev *hdev, struct sk_buff
 	if (!test_and_clear_bit(HCI_INQUIRY, &hdev->flags))
 		return;
 
+	if (!test_bit(HCI_MGMT, &hdev->flags))
+		return;
+
 	hci_dev_lock(hdev);
-	hci_discovery_set_state(hdev, DISCOVERY_STOPPED);
+
+	if (discov->state != DISCOVERY_INQUIRY)
+		goto unlock;
+
+	if (list_empty(&discov->resolve)) {
+		hci_discovery_set_state(hdev, DISCOVERY_STOPPED);
+		goto unlock;
+	}
+
+	e = hci_inquiry_cache_lookup_resolve(hdev, BDADDR_ANY, NAME_NEEDED);
+	if (e && hci_resolve_name(hdev, e) == 0) {
+		e->name_state = NAME_PENDING;
+		hci_discovery_set_state(hdev, DISCOVERY_RESOLVING);
+	} else {
+		hci_discovery_set_state(hdev, DISCOVERY_STOPPED);
+	}
+
+unlock:
 	hci_dev_unlock(hdev);
 }
 
@@ -1807,8 +1876,12 @@ static inline void hci_remote_name_evt(struct hci_dev *hdev, struct sk_buff *skb
 
 	hci_dev_lock(hdev);
 
-	if (ev->status == 0 && test_bit(HCI_MGMT, &hdev->flags))
-		mgmt_remote_name(hdev, &ev->bdaddr, ev->name);
+	if (test_bit(HCI_MGMT, &hdev->flags)) {
+		if (ev->status == 0)
+			mgmt_remote_name(hdev, &ev->bdaddr, ev->name);
+
+		hci_resolve_next_name(hdev, &ev->bdaddr);
+	}
 
 	conn = hci_conn_hash_lookup_ba(hdev, ACL_LINK, &ev->bdaddr);
 	if (!conn)
