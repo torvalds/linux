@@ -1676,8 +1676,9 @@ static void sci_controller_set_default_config_parameters(struct isci_host *ihost
 
 	/* Initialize all of the phy parameter information. */
 	for (index = 0; index < SCI_MAX_PHYS; index++) {
-		/* Default to 6G (i.e. Gen 3) for now. */
-		ihost->user_parameters.phys[index].max_speed_generation = 3;
+		/* Default to 3G (i.e. Gen 2). */
+		ihost->user_parameters.phys[index].max_speed_generation =
+			SCIC_SDS_PARM_GEN2_SPEED;
 
 		/* the frequencies cannot be 0 */
 		ihost->user_parameters.phys[index].align_insertion_frequency = 0x7f;
