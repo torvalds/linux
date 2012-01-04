@@ -73,6 +73,16 @@ static const struct dmi_system_id pci_use_crs_table[] __initconst = {
 			DMI_MATCH(DMI_BIOS_VERSION, "A09"),
 		},
 	},
+	/* https://bugzilla.redhat.com/show_bug.cgi?id=769657 */
+	{
+		.callback = set_nouse_crs,
+		.ident = "Thinkpad SL510",
+		.matches = {
+			DMI_MATCH(DMI_BOARD_VENDOR, "LENOVO"),
+			DMI_MATCH(DMI_BOARD_NAME, "2847DFG"),
+			DMI_MATCH(DMI_BIOS_VERSION, "6JET85WW (1.43 )"),
+		},
+	},
 	{}
 };
 
