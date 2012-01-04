@@ -44,6 +44,23 @@ struct hdmi_platform_data {
 	int (*io_init)(void);
 	int (*io_deinit)(void);
 };
+
+/* adc battery */
+struct rk29_adc_battery_platform_data {
+	int (*io_init)(void);
+	int (*io_deinit)(void);
+
+	int dc_det_pin;
+	int batt_low_pin;
+	int charge_ok_pin;
+	int charge_set_pin;
+
+	int dc_det_level;
+	int batt_low_level;
+	int charge_ok_level;
+	int charge_set_level;
+};
+
 struct irda_info{
     u32 intr_pin;
     int (*iomux_init)(void);

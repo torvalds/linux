@@ -292,4 +292,16 @@ config CHARGER_GPIO
 	  This driver can be build as a module. If so, the module will be
 	  called gpio-charger.
 
+config BATTERY_RK29_ADC
+	tristate "RK29 ADC Battery"
+	depends on ADC_RK29
+	help
+	  Say Y to enable support for the battery on the RK2918.
+
+config BATTERY_RK29_AC_CHARGE
+	tristate "RK29 AC CHARGE"
+	depends on BATTERY_RK29_ADC
+	help
+	  say Y to enable suspport for the AC battery charge
+
 endif # POWER_SUPPLY
