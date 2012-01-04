@@ -55,7 +55,13 @@
 	gpio: gpio@6000d000 {
 		compatible = "nvidia,tegra30-gpio", "nvidia,tegra20-gpio";
 		reg = < 0x6000d000 0x1000 >;
-		interrupts = < 0 32 0x04 0 33 0x04 0 34 0x04 0 35 0x04 0 55 0x04 0 87 0x04 0 89 0x04 >;
+		interrupts = < 0 32 0x04
+			       0 33 0x04
+			       0 34 0x04
+			       0 35 0x04
+			       0 55 0x04
+			       0 87 0x04
+			       0 89 0x04 >;
 		#gpio-cells = <2>;
 		gpio-controller;
 	};
