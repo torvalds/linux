@@ -171,8 +171,11 @@ void kvm_arch_check_processor_compat(void *rtn)
 	*(int *)rtn = kvmppc_core_check_processor_compat();
 }
 
-int kvm_arch_init_vm(struct kvm *kvm)
+int kvm_arch_init_vm(struct kvm *kvm, unsigned long type)
 {
+	if (type)
+		return -EINVAL;
+
 	return kvmppc_core_init_vm(kvm);
 }
 

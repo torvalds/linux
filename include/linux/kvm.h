@@ -431,6 +431,9 @@ struct kvm_ppc_pvinfo {
 
 #define KVMIO 0xAE
 
+/* machine type bits, to be used as argument to KVM_CREATE_VM */
+#define KVM_VM_S390_UCONTROL	1
+
 /*
  * ioctls for /dev/kvm fds:
  */

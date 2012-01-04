@@ -809,9 +809,12 @@ static void kvm_build_io_pmt(struct kvm *kvm)
 #define GUEST_PHYSICAL_RR4	0x2739
 #define VMM_INIT_RR		0x1660
 
-int kvm_arch_init_vm(struct kvm *kvm)
+int kvm_arch_init_vm(struct kvm *kvm, unsigned long type)
 {
 	BUG_ON(!kvm);
+
+	if (type)
+		return -EINVAL;
 
 	kvm->arch.is_sn2 = ia64_platform_is("sn2");
 

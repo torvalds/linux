@@ -449,7 +449,7 @@ static void kvm_init_memslots_id(struct kvm *kvm)
 		slots->id_to_index[i] = slots->memslots[i].id = i;
 }
 
-static struct kvm *kvm_create_vm(void)
+static struct kvm *kvm_create_vm(unsigned long type)
 {
 	int r, i;
 	struct kvm *kvm = kvm_arch_alloc_vm();
@@ -457,7 +457,7 @@ static struct kvm *kvm_create_vm(void)
 	if (!kvm)
 		return ERR_PTR(-ENOMEM);
 
-	r = kvm_arch_init_vm(kvm);
+	r = kvm_arch_init_vm(kvm, type);
 	if (r)
 		goto out_err_nodisable;
 
@@ -2198,12 +2198,12 @@ static struct file_operations kvm_vm_fops = {
 	.llseek		= noop_llseek,
 };
 
-static int kvm_dev_ioctl_create_vm(void)
+static int kvm_dev_ioctl_create_vm(unsigned long type)
 {
 	int r;
 	struct kvm *kvm;
 
-	kvm = kvm_create_vm();
+	kvm = kvm_create_vm(type);
 	if (IS_ERR(kvm))
 		return PTR_ERR(kvm);
 #ifdef KVM_COALESCED_MMIO_PAGE_OFFSET
@@ -2254,10 +2254,7 @@ static long kvm_dev_ioctl(struct file *filp,
 		r = KVM_API_VERSION;
 		break;
 	case KVM_CREATE_VM:
-		r = -EINVAL;
-		if (arg)
-			goto out;
-		r = kvm_dev_ioctl_create_vm();
+		r = kvm_dev_ioctl_create_vm(arg);
 		break;
 	case KVM_CHECK_EXTENSION:
 		r = kvm_dev_ioctl_check_extension_generic(arg);

@@ -171,10 +171,21 @@ long kvm_arch_vm_ioctl(struct file *filp,
 	return r;
 }
 
-int kvm_arch_init_vm(struct kvm *kvm)
+int kvm_arch_init_vm(struct kvm *kvm, unsigned long type)
 {
 	int rc;
 	char debug_name[16];
+
+	rc = -EINVAL;
+#ifdef CONFIG_KVM_S390_UCONTROL
+	if (type & ~KVM_VM_S390_UCONTROL)
+		goto out_err;
+	if ((type & KVM_VM_S390_UCONTROL) && (!capable(CAP_SYS_ADMIN)))
+		goto out_err;
+#else
+	if (type)
+		goto out_err;
+#endif
 
 	rc = s390_enable_sie();
 	if (rc)
@@ -198,10 +209,13 @@ int kvm_arch_init_vm(struct kvm *kvm)
 	debug_register_view(kvm->arch.dbf, &debug_sprintf_view);
 	VM_EVENT(kvm, 3, "%s", "vm created");
 
-	kvm->arch.gmap = gmap_alloc(current->mm);
-	if (!kvm->arch.gmap)
-		goto out_nogmap;
-
+	if (type & KVM_VM_S390_UCONTROL) {
+		kvm->arch.gmap = NULL;
+	} else {
+		kvm->arch.gmap = gmap_alloc(current->mm);
+		if (!kvm->arch.gmap)
+			goto out_nogmap;
+	}
 	return 0;
 out_nogmap:
 	debug_unregister(kvm->arch.dbf);

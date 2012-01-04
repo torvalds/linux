@@ -520,7 +520,7 @@ static inline void kvm_arch_free_vm(struct kvm *kvm)
 }
 #endif
 
-int kvm_arch_init_vm(struct kvm *kvm);
+int kvm_arch_init_vm(struct kvm *kvm, unsigned long type);
 void kvm_arch_destroy_vm(struct kvm *kvm);
 void kvm_free_all_assigned_devices(struct kvm *kvm);
 void kvm_arch_sync_events(struct kvm *kvm);

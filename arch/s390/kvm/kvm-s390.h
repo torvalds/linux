@@ -47,6 +47,16 @@ static inline int __cpu_is_stopped(struct kvm_vcpu *vcpu)
 	return atomic_read(&vcpu->arch.sie_block->cpuflags) & CPUSTAT_STOP_INT;
 }
 
+static inline int kvm_is_ucontrol(struct kvm *kvm)
+{
+#ifdef CONFIG_KVM_S390_UCONTROL
+	if (kvm->arch.gmap)
+		return 0;
+	return 1;
+#else
+	return 0;
+#endif
+}
 int kvm_s390_handle_wait(struct kvm_vcpu *vcpu);
 enum hrtimer_restart kvm_s390_idle_wakeup(struct hrtimer *timer);
 void kvm_s390_tasklet(unsigned long parm);
