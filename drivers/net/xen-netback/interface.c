@@ -223,7 +223,7 @@ static void xenvif_get_strings(struct net_device *dev, u32 stringset, u8 * data)
 	}
 }
 
-static struct ethtool_ops xenvif_ethtool_ops = {
+static const struct ethtool_ops xenvif_ethtool_ops = {
 	.get_link	= ethtool_op_get_link,
 
 	.get_sset_count = xenvif_get_sset_count,
@@ -231,7 +231,7 @@ static struct ethtool_ops xenvif_ethtool_ops = {
 	.get_strings = xenvif_get_strings,
 };
 
-static struct net_device_ops xenvif_netdev_ops = {
+static const struct net_device_ops xenvif_netdev_ops = {
 	.ndo_start_xmit	= xenvif_start_xmit,
 	.ndo_get_stats	= xenvif_get_stats,
 	.ndo_open	= xenvif_open,
