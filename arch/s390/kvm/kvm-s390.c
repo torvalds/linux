@@ -566,7 +566,10 @@ rerun_vcpu:
 		rc = __vcpu_run(vcpu);
 		if (rc)
 			break;
-		rc = kvm_handle_sie_intercept(vcpu);
+		if (kvm_is_ucontrol(vcpu->kvm))
+			rc = -EOPNOTSUPP;
+		else
+			rc = kvm_handle_sie_intercept(vcpu);
 	} while (!signal_pending(current) && !rc);
 
 	if (rc == SIE_INTERCEPT_RERUNVCPU)
