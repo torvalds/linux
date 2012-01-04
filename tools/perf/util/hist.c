@@ -733,7 +733,7 @@ void hists__output_recalc_col_len(struct hists *hists, int max_rows)
 static int hist_entry__pcnt_snprintf(struct hist_entry *self, char *s,
 				     size_t size, struct hists *pair_hists,
 				     bool show_displacement, long displacement,
-				     bool color, u64 session_total)
+				     bool color, u64 total_period)
 {
 	u64 period, total, period_sys, period_us, period_guest_sys, period_guest_us;
 	u64 nr_events;
@@ -754,7 +754,7 @@ static int hist_entry__pcnt_snprintf(struct hist_entry *self, char *s,
 	} else {
 		period = self->period;
 		nr_events = self->nr_events;
-		total = session_total;
+		total = total_period;
 		period_sys = self->period_sys;
 		period_us = self->period_us;
 		period_guest_sys = self->period_guest_sys;
@@ -812,8 +812,8 @@ static int hist_entry__pcnt_snprintf(struct hist_entry *self, char *s,
 
 		if (total > 0)
 			old_percent = (period * 100.0) / total;
-		if (session_total > 0)
-			new_percent = (self->period * 100.0) / session_total;
+		if (total_period > 0)
+			new_percent = (self->period * 100.0) / total_period;
 
 		diff = new_percent - old_percent;
 
@@ -864,7 +864,7 @@ int hist_entry__snprintf(struct hist_entry *he, char *s, size_t size,
 
 int hist_entry__fprintf(struct hist_entry *he, size_t size, struct hists *hists,
 			struct hists *pair_hists, bool show_displacement,
-			long displacement, FILE *fp, u64 session_total)
+			long displacement, FILE *fp, u64 total_period)
 {
 	char bf[512];
 	int ret;
@@ -874,14 +874,14 @@ int hist_entry__fprintf(struct hist_entry *he, size_t size, struct hists *hists,
 
 	ret = hist_entry__pcnt_snprintf(he, bf, size, pair_hists,
 					show_displacement, displacement,
-					true, session_total);
+					true, total_period);
 	hist_entry__snprintf(he, bf + ret, size - ret, hists);
 	return fprintf(fp, "%s\n", bf);
 }
 
 static size_t hist_entry__fprintf_callchain(struct hist_entry *self,
 					    struct hists *hists, FILE *fp,
-					    u64 session_total)
+					    u64 total_period)
 {
 	int left_margin = 0;
 
@@ -892,7 +892,7 @@ static size_t hist_entry__fprintf_callchain(struct hist_entry *self,
 		left_margin -= thread__comm_len(self->thread);
 	}
 
-	return hist_entry_callchain__fprintf(fp, self, session_total,
+	return hist_entry_callchain__fprintf(fp, self, total_period,
 					     left_margin);
 }
 
