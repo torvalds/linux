@@ -591,12 +591,12 @@ static int sfq_init(struct Qdisc *sch, struct nlattr *opt)
 	q->cur_depth = 0;
 	q->tail = NULL;
 	q->divisor = SFQ_DEFAULT_HASH_DIVISOR;
-	if (opt == NULL) {
-		q->quantum = psched_mtu(qdisc_dev(sch));
-		q->scaled_quantum = SFQ_ALLOT_SIZE(q->quantum);
-		q->perturb_period = 0;
-		q->perturbation = net_random();
-	} else {
+	q->quantum = psched_mtu(qdisc_dev(sch));
+	q->scaled_quantum = SFQ_ALLOT_SIZE(q->quantum);
+	q->perturb_period = 0;
+	q->perturbation = net_random();
+
+	if (opt) {
 		int err = sfq_change(sch, opt);
 		if (err)
 			return err;
