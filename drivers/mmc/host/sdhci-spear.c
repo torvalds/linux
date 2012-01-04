@@ -277,10 +277,9 @@ static int sdhci_suspend(struct device *dev)
 {
 	struct sdhci_host *host = dev_get_drvdata(dev);
 	struct spear_sdhci *sdhci = dev_get_platdata(dev);
-	pm_message_t state = {.event = 0};
 	int ret;
 
-	ret = sdhci_suspend_host(host, state);
+	ret = sdhci_suspend_host(host);
 	if (!ret)
 		clk_disable(sdhci->clk);
 
