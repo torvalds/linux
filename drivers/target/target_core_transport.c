@@ -3516,6 +3516,7 @@ transport_generic_get_mem(struct se_cmd *cmd)
 	u32 length = cmd->data_length;
 	unsigned int nents;
 	struct page *page;
+	gfp_t zero_flag;
 	int i = 0;
 
 	nents = DIV_ROUND_UP(length, PAGE_SIZE);
@@ -3526,9 +3527,11 @@ transport_generic_get_mem(struct se_cmd *cmd)
 	cmd->t_data_nents = nents;
 	sg_init_table(cmd->t_data_sg, nents);
 
+	zero_flag = cmd->se_cmd_flags & SCF_SCSI_DATA_SG_IO_CDB ? 0 : __GFP_ZERO;
+
 	while (length) {
 		u32 page_len = min_t(u32, length, PAGE_SIZE);
-		page = alloc_page(GFP_KERNEL | __GFP_ZERO);
+		page = alloc_page(GFP_KERNEL | zero_flag);
 		if (!page)
 			goto out;
 
