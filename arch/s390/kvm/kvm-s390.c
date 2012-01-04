@@ -233,6 +233,10 @@ void kvm_arch_vcpu_destroy(struct kvm_vcpu *vcpu)
 		(__u64) vcpu->arch.sie_block)
 		vcpu->kvm->arch.sca->cpu[vcpu->vcpu_id].sda = 0;
 	smp_mb();
+
+	if (kvm_is_ucontrol(vcpu->kvm))
+		gmap_free(vcpu->arch.gmap);
+
 	free_page((unsigned long)(vcpu->arch.sie_block));
 	kvm_vcpu_uninit(vcpu);
 	kfree(vcpu);
@@ -263,12 +267,20 @@ void kvm_arch_destroy_vm(struct kvm *kvm)
 	kvm_free_vcpus(kvm);
 	free_page((unsigned long)(kvm->arch.sca));
 	debug_unregister(kvm->arch.dbf);
-	gmap_free(kvm->arch.gmap);
+	if (!kvm_is_ucontrol(kvm))
+		gmap_free(kvm->arch.gmap);
 }
 
 /* Section: vcpu related */
 int kvm_arch_vcpu_init(struct kvm_vcpu *vcpu)
 {
+	if (kvm_is_ucontrol(vcpu->kvm)) {
+		vcpu->arch.gmap = gmap_alloc(current->mm);
+		if (!vcpu->arch.gmap)
+			return -ENOMEM;
+		return 0;
+	}
+
 	vcpu->arch.gmap = vcpu->kvm->arch.gmap;
 	return 0;
 }
@@ -687,6 +699,42 @@ long kvm_arch_vcpu_ioctl(struct file *filp,
 	case KVM_S390_INITIAL_RESET:
 		r = kvm_arch_vcpu_ioctl_initial_reset(vcpu);
 		break;
+#ifdef CONFIG_KVM_S390_UCONTROL
+	case KVM_S390_UCAS_MAP: {
+		struct kvm_s390_ucas_mapping ucasmap;
+
+		if (copy_from_user(&ucasmap, argp, sizeof(ucasmap))) {
+			r = -EFAULT;
+			break;
+		}
+
+		if (!kvm_is_ucontrol(vcpu->kvm)) {
+			r = -EINVAL;
+			break;
+		}
+
+		r = gmap_map_segment(vcpu->arch.gmap, ucasmap.user_addr,
+				     ucasmap.vcpu_addr, ucasmap.length);
+		break;
+	}
+	case KVM_S390_UCAS_UNMAP: {
+		struct kvm_s390_ucas_mapping ucasmap;
+
+		if (copy_from_user(&ucasmap, argp, sizeof(ucasmap))) {
+			r = -EFAULT;
+			break;
+		}
+
+		if (!kvm_is_ucontrol(vcpu->kvm)) {
+			r = -EINVAL;
+			break;
+		}
+
+		r = gmap_unmap_segment(vcpu->arch.gmap, ucasmap.vcpu_addr,
+			ucasmap.length);
+		break;
+	}
+#endif
 	default:
 		r = -EINVAL;
 	}

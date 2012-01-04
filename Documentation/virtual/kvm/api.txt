@@ -1496,6 +1496,44 @@ following algorithm:
 Some guests configure the LINT1 NMI input to cause a panic, aiding in
 debugging.
 
+4.64 KVM_S390_UCAS_MAP
+
+Capability: KVM_CAP_S390_UCONTROL
+Architectures: s390
+Type: vcpu ioctl
+Parameters: struct kvm_s390_ucas_mapping (in)
+Returns: 0 in case of success
+
+The parameter is defined like this:
+	struct kvm_s390_ucas_mapping {
+		__u64 user_addr;
+		__u64 vcpu_addr;
+		__u64 length;
+	};
+
+This ioctl maps the memory at "user_addr" with the length "length" to
+the vcpu's address space starting at "vcpu_addr". All parameters need to
+be alligned by 1 megabyte.
+
+4.65 KVM_S390_UCAS_UNMAP
+
+Capability: KVM_CAP_S390_UCONTROL
+Architectures: s390
+Type: vcpu ioctl
+Parameters: struct kvm_s390_ucas_mapping (in)
+Returns: 0 in case of success
+
+The parameter is defined like this:
+	struct kvm_s390_ucas_mapping {
+		__u64 user_addr;
+		__u64 vcpu_addr;
+		__u64 length;
+	};
+
+This ioctl unmaps the memory in the vcpu's address space starting at
+"vcpu_addr" with the length "length". The field "user_addr" is ignored.
+All parameters need to be alligned by 1 megabyte.
+
 5. The kvm_run structure
 
 Application code obtains a pointer to the kvm_run structure by
