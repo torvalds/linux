@@ -493,8 +493,10 @@ int kvm_arch_vcpu_ioctl_set_mpstate(struct kvm_vcpu *vcpu,
 	return -EINVAL; /* not implemented yet */
 }
 
-static void __vcpu_run(struct kvm_vcpu *vcpu)
+static int __vcpu_run(struct kvm_vcpu *vcpu)
 {
+	int rc;
+
 	memcpy(&vcpu->arch.sie_block->gg14, &vcpu->arch.guest_gprs[14], 16);
 
 	if (need_resched())
@@ -511,9 +513,15 @@ static void __vcpu_run(struct kvm_vcpu *vcpu)
 	local_irq_enable();
 	VCPU_EVENT(vcpu, 6, "entering sie flags %x",
 		   atomic_read(&vcpu->arch.sie_block->cpuflags));
-	if (sie64a(vcpu->arch.sie_block, vcpu->arch.guest_gprs)) {
-		VCPU_EVENT(vcpu, 3, "%s", "fault in sie instruction");
-		kvm_s390_inject_program_int(vcpu, PGM_ADDRESSING);
+	rc = sie64a(vcpu->arch.sie_block, vcpu->arch.guest_gprs);
+	if (rc) {
+		if (kvm_is_ucontrol(vcpu->kvm)) {
+			rc = SIE_INTERCEPT_UCONTROL;
+		} else {
+			VCPU_EVENT(vcpu, 3, "%s", "fault in sie instruction");
+			kvm_s390_inject_program_int(vcpu, PGM_ADDRESSING);
+			rc = 0;
+		}
 	}
 	VCPU_EVENT(vcpu, 6, "exit sie icptcode %d",
 		   vcpu->arch.sie_block->icptcode);
@@ -522,6 +530,7 @@ static void __vcpu_run(struct kvm_vcpu *vcpu)
 	local_irq_enable();
 
 	memcpy(&vcpu->arch.guest_gprs[14], &vcpu->arch.sie_block->gg14, 16);
+	return rc;
 }
 
 int kvm_arch_vcpu_ioctl_run(struct kvm_vcpu *vcpu, struct kvm_run *kvm_run)
@@ -542,6 +551,7 @@ rerun_vcpu:
 	case KVM_EXIT_UNKNOWN:
 	case KVM_EXIT_INTR:
 	case KVM_EXIT_S390_RESET:
+	case KVM_EXIT_S390_UCONTROL:
 		break;
 	default:
 		BUG();
@@ -553,7 +563,9 @@ rerun_vcpu:
 	might_fault();
 
 	do {
-		__vcpu_run(vcpu);
+		rc = __vcpu_run(vcpu);
+		if (rc)
+			break;
 		rc = kvm_handle_sie_intercept(vcpu);
 	} while (!signal_pending(current) && !rc);
 
@@ -564,6 +576,16 @@ rerun_vcpu:
 		kvm_run->exit_reason = KVM_EXIT_INTR;
 		rc = -EINTR;
 	}
+
+#ifdef CONFIG_KVM_S390_UCONTROL
+	if (rc == SIE_INTERCEPT_UCONTROL) {
+		kvm_run->exit_reason = KVM_EXIT_S390_UCONTROL;
+		kvm_run->s390_ucontrol.trans_exc_code =
+			current->thread.gmap_addr;
+		kvm_run->s390_ucontrol.pgm_code = 0x10;
+		rc = 0;
+	}
+#endif
 
 	if (rc == -EOPNOTSUPP) {
 		/* intercept cannot be handled in-kernel, prepare kvm-run */

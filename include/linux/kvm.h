@@ -162,6 +162,7 @@ struct kvm_pit_config {
 #define KVM_EXIT_INTERNAL_ERROR   17
 #define KVM_EXIT_OSI              18
 #define KVM_EXIT_PAPR_HCALL	  19
+#define KVM_EXIT_S390_UCONTROL	  20
 
 /* For KVM_EXIT_INTERNAL_ERROR */
 #define KVM_INTERNAL_ERROR_EMULATION 1
@@ -249,6 +250,11 @@ struct kvm_run {
 #define KVM_S390_RESET_CPU_INIT  8
 #define KVM_S390_RESET_IPL       16
 		__u64 s390_reset_flags;
+		/* KVM_EXIT_S390_UCONTROL */
+		struct {
+			__u64 trans_exc_code;
+			__u32 pgm_code;
+		} s390_ucontrol;
 		/* KVM_EXIT_DCR */
 		struct {
 			__u32 dcrn;
