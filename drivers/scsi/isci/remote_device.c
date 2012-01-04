@@ -1394,10 +1394,6 @@ int isci_remote_device_found(struct domain_device *dev)
 	if (!isci_port)
 		return -ENODEV;
 
-	if ((isci_stopping == isci_port_get_state(isci_port)) ||
-	    (isci_stopped == isci_port_get_state(isci_port)))
-		return -ENODEV;
-
 	isci_device = isci_remote_device_alloc(isci_host, isci_port);
 	if (!isci_device)
 		return -ENODEV;

@@ -75,20 +75,6 @@ static struct device *sciport_to_dev(struct isci_port *iport)
 	return &ihost->pdev->dev;
 }
 
-static void isci_port_change_state(struct isci_port *iport, enum isci_status status)
-{
-	unsigned long flags;
-
-	dev_dbg(&iport->isci_host->pdev->dev,
-		"%s: iport = %p, state = 0x%x\n",
-		__func__, iport, status);
-
-	/* XXX pointless lock */
-	spin_lock_irqsave(&iport->state_lock, flags);
-	iport->status = status;
-	spin_unlock_irqrestore(&iport->state_lock, flags);
-}
-
 static void sci_port_get_protocols(struct isci_port *iport, struct sci_phy_proto *proto)
 {
 	u8 index;
@@ -186,8 +172,6 @@ static void isci_port_link_up(struct isci_host *isci_host,
 
 	spin_lock_irqsave(&iphy->sas_phy.frame_rcvd_lock, flags);
 
-	isci_port_change_state(iport, isci_starting);
-
 	sci_port_get_properties(iport, &properties);
 
 	if (iphy->protocol == SCIC_SDS_PHY_PROTOCOL_SATA) {
@@ -269,7 +253,6 @@ static void isci_port_link_down(struct isci_host *isci_host,
 					__func__, isci_device);
 				set_bit(IDEV_GONE, &isci_device->flags);
 			}
-			isci_port_change_state(isci_port, isci_stopping);
 		}
 	}
 
@@ -283,45 +266,6 @@ static void isci_port_link_down(struct isci_host *isci_host,
 	dev_dbg(&isci_host->pdev->dev,
 		"%s: isci_port = %p - Done\n", __func__, isci_port);
 }
-
-
-/**
- * isci_port_ready() - This function is called by the sci core when a link
- *    becomes ready.
- * @isci_host: This parameter specifies the isci host object.
- * @port: This parameter specifies the sci port with the active link.
- *
- */
-static void isci_port_ready(struct isci_host *isci_host, struct isci_port *isci_port)
-{
-	dev_dbg(&isci_host->pdev->dev,
-		"%s: isci_port = %p\n", __func__, isci_port);
-
-	isci_port_change_state(isci_port, isci_ready);
-	return;
-}
-
-/**
- * isci_port_not_ready() - This function is called by the sci core when a link
- *    is not ready. All remote devices on this link will be removed if they are
- *    in the stopping state.
- * @isci_host: This parameter specifies the isci host object.
- * @port: This parameter specifies the sci port with the active link.
- *
- */
-static void isci_port_not_ready(struct isci_host *isci_host, struct isci_port *isci_port)
-{
-	dev_dbg(&isci_host->pdev->dev,
-		"%s: isci_port = %p\n", __func__, isci_port);
-}
-
-static void isci_port_stop_complete(struct isci_host *ihost,
-				    struct isci_port *iport,
-				    enum sci_status completion_status)
-{
-	dev_dbg(&ihost->pdev->dev, "Port stop complete\n");
-}
-
 
 static bool is_port_ready_state(enum sci_port_states state)
 {
@@ -843,10 +787,9 @@ static void port_timeout(unsigned long data)
 			__func__,
 			iport);
 	} else if (current_state == SCI_PORT_STOPPING) {
-		/* if the port is still stopping then the stop has not completed */
-		isci_port_stop_complete(iport->owning_controller,
-					iport,
-					SCI_FAILURE_TIMEOUT);
+		dev_dbg(sciport_to_dev(iport),
+			"%s: port%d: stop complete timeout\n",
+			__func__, iport->physical_port_index);
 	} else {
 		/* The port is in the ready state and we have a timer
 		 * reporting a timeout this should not happen.
@@ -1011,7 +954,8 @@ static void sci_port_ready_substate_operational_enter(struct sci_base_state_mach
 	struct isci_port *iport = container_of(sm, typeof(*iport), sm);
 	struct isci_host *ihost = iport->owning_controller;
 
-	isci_port_ready(ihost, iport);
+	dev_dbg(&ihost->pdev->dev, "%s: port%d ready\n",
+		__func__, iport->physical_port_index);
 
 	for (index = 0; index < SCI_MAX_PHYS; index++) {
 		if (iport->phy_table[index]) {
@@ -1077,7 +1021,8 @@ static void sci_port_ready_substate_operational_exit(struct sci_base_state_machi
 	 */
 	sci_port_abort_dummy_request(iport);
 
-	isci_port_not_ready(ihost, iport);
+	dev_dbg(&ihost->pdev->dev, "%s: port%d !ready\n",
+		__func__, iport->physical_port_index);
 
 	if (iport->ready_exit)
 		sci_port_invalidate_dummy_remote_node(iport);
@@ -1089,7 +1034,8 @@ static void sci_port_ready_substate_configuring_enter(struct sci_base_state_mach
 	struct isci_host *ihost = iport->owning_controller;
 
 	if (iport->active_phy_mask == 0) {
-		isci_port_not_ready(ihost, iport);
+		dev_dbg(&ihost->pdev->dev, "%s: port%d !ready\n",
+			__func__, iport->physical_port_index);
 
 		port_state_machine_change(iport, SCI_PORT_SUB_WAITING);
 	} else
@@ -1555,7 +1501,8 @@ static void sci_port_ready_state_enter(struct sci_base_state_machine *sm)
 	if (prev_state  == SCI_PORT_RESETTING)
 		isci_port_hard_reset_complete(iport, SCI_SUCCESS);
 	else
-		isci_port_not_ready(ihost, iport);
+		dev_dbg(&ihost->pdev->dev, "%s: port%d !ready\n",
+			__func__, iport->physical_port_index);
 
 	/* Post and suspend the dummy remote node context for this port. */
 	sci_port_post_dummy_remote_node(iport);
@@ -1652,21 +1599,7 @@ void isci_port_init(struct isci_port *iport, struct isci_host *ihost, int index)
 {
 	INIT_LIST_HEAD(&iport->remote_dev_list);
 	INIT_LIST_HEAD(&iport->domain_dev_list);
-	spin_lock_init(&iport->state_lock);
 	iport->isci_host = ihost;
-	isci_port_change_state(iport, isci_freed);
-}
-
-/**
- * isci_port_get_state() - This function gets the status of the port object.
- * @isci_port: This parameter points to the isci_port object
- *
- * status of the object as a isci_status enum.
- */
-enum isci_status isci_port_get_state(
-	struct isci_port *isci_port)
-{
-	return isci_port->status;
 }
 
 void sci_port_broadcast_change_received(struct isci_port *iport, struct isci_phy *iphy)
