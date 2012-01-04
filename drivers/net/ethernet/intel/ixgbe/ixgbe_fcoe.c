@@ -855,3 +855,86 @@ int ixgbe_fcoe_get_wwn(struct net_device *netdev, u64 *wwn, int type)
 	}
 	return rc;
 }
+
+/**
+ * ixgbe_fcoe_get_hbainfo - get FCoE HBA information
+ * @netdev : ixgbe adapter
+ * @info : HBA information
+ *
+ * Returns ixgbe HBA information
+ *
+ * Returns : 0 on success
+ */
+int ixgbe_fcoe_get_hbainfo(struct net_device *netdev,
+			   struct netdev_fcoe_hbainfo *info)
+{
+	struct ixgbe_adapter *adapter = netdev_priv(netdev);
+	struct ixgbe_hw *hw = &adapter->hw;
+	int i, pos;
+	u8 buf[8];
+
+	if (!info)
+		return -EINVAL;
+
+	/* Don't return information on unsupported devices */
+	if (hw->mac.type != ixgbe_mac_82599EB &&
+	    hw->mac.type != ixgbe_mac_X540)
+		return -EINVAL;
+
+	/* Manufacturer */
+	snprintf(info->manufacturer, sizeof(info->manufacturer),
+		 "Intel Corporation");
+
+	/* Serial Number */
+
+	/* Get the PCI-e Device Serial Number Capability */
+	pos = pci_find_ext_capability(adapter->pdev, PCI_EXT_CAP_ID_DSN);
+	if (pos) {
+		pos += 4;
+		for (i = 0; i < 8; i++)
+			pci_read_config_byte(adapter->pdev, pos + i, &buf[i]);
+
+		snprintf(info->serial_number, sizeof(info->serial_number),
+			 "%02X%02X%02X%02X%02X%02X%02X%02X",
+			 buf[7], buf[6], buf[5], buf[4],
+			 buf[3], buf[2], buf[1], buf[0]);
+	} else
+		snprintf(info->serial_number, sizeof(info->serial_number),
+			 "Unknown");
+
+	/* Hardware Version */
+	snprintf(info->hardware_version,
+		 sizeof(info->hardware_version),
+		 "Rev %d", hw->revision_id);
+	/* Driver Name/Version */
+	snprintf(info->driver_version,
+		 sizeof(info->driver_version),
+		 "%s v%s",
+		 ixgbe_driver_name,
+		 ixgbe_driver_version);
+	/* Firmware Version */
+	snprintf(info->firmware_version,
+		 sizeof(info->firmware_version),
+		 "0x%08x",
+		 (adapter->eeprom_verh << 16) |
+		  adapter->eeprom_verl);
+
+	/* Model */
+	if (hw->mac.type == ixgbe_mac_82599EB) {
+		snprintf(info->model,
+			 sizeof(info->model),
+			 "Intel 82599");
+	} else {
+		snprintf(info->model,
+			 sizeof(info->model),
+			 "Intel X540");
+	}
+
+	/* Model Description */
+	snprintf(info->model_description,
+		 sizeof(info->model_description),
+		 "%s",
+		 ixgbe_default_device_descr);
+
+	return 0;
+}
