@@ -371,7 +371,7 @@ static void r6040_init_mac_regs(struct net_device *dev)
 	iowrite16(MAC_RST, ioaddr + MCR1);
 	while (limit--) {
 		cmd = ioread16(ioaddr + MCR1);
-		if (cmd & 0x1)
+		if (cmd & MAC_RST)
 			break;
 	}
 	/* Reset internal state machine */
@@ -453,7 +453,7 @@ static void r6040_down(struct net_device *dev)
 	iowrite16(MAC_RST, ioaddr + MCR1);	/* Reset RDC MAC */
 	while (limit--) {
 		cmd = ioread16(ioaddr + MCR1);
-		if (cmd & 0x1)
+		if (cmd & MAC_RST)
 			break;
 	}
 
@@ -735,7 +735,7 @@ static void r6040_mac_address(struct net_device *dev)
 	u16 *adrp;
 
 	/* MAC operation register */
-	iowrite16(0x01, ioaddr + MCR1); /* Reset MAC */
+	iowrite16(MAC_RST, ioaddr + MCR1); /* Reset MAC */
 	iowrite16(2, ioaddr + MAC_SM); /* Reset internal state machine */
 	iowrite16(0, ioaddr + MAC_SM);
 	mdelay(5);
