@@ -962,14 +962,24 @@ static int generic_set_freq(struct dvb_frontend *fe, u32 freq /* in HZ */,
 		 * For DTV 7/8, the firmware uses BW = 8000, so it needs a
 		 * further adjustment to get the frequency center on VHF
 		 */
+
+		/*
+		 * The firmware DTV78 used to work fine in UHF band (8 MHz
+		 * bandwidth) but not at all in VHF band (7 MHz bandwidth).
+		 * The real problem was connected to the formula used to
+		 * calculate the center frequency offset in VHF band.
+		 * In fact, removing the 500KHz adjustment fixed the problem.
+		 * This is coherent to what was implemented for the DTV7
+		 * firmware.
+		 * In the end, now the center frequency is the same for all 3
+		 * firmwares (DTV7, DTV8, DTV78) and doesn't depend on channel
+		 * bandwidth.
+		 */
+
 		if (priv->cur_fw.type & DTV6)
 			offset = 1750000;
-		else if (priv->cur_fw.type & DTV7)
-			offset = 2250000;
-		else	/* DTV8 or DTV78 */
+		else	/* DTV7 or DTV8 or DTV78 */
 			offset = 2750000;
-		if ((priv->cur_fw.type & DTV78) && freq < 470000000)
-			offset -= 500000;
 
 		/*
 		 * xc3028 additional "magic"
@@ -979,17 +989,13 @@ static int generic_set_freq(struct dvb_frontend *fe, u32 freq /* in HZ */,
 		 * newer firmwares
 		 */
 
-#if 1
 		/*
 		 * The proper adjustment would be to do it at s-code table.
 		 * However, this didn't work, as reported by
 		 * Robert Lowery <rglowery@exemail.com.au>
 		 */
 
-		if (priv->cur_fw.type & DTV7)
-			offset += 500000;
-
-#else
+#if 0
 		/*
 		 * Still need tests for XC3028L (firmware 3.2 or upper)
 		 * So, for now, let's just comment the per-firmware
