@@ -590,8 +590,8 @@ static void brcmf_ethtool_get_drvinfo(struct net_device *ndev,
 	sprintf(info->bus_info, "%s", dev_name(drvr->dev));
 }
 
-static struct ethtool_ops brcmf_ethtool_ops = {
-	.get_drvinfo = brcmf_ethtool_get_drvinfo
+static const struct ethtool_ops brcmf_ethtool_ops = {
+	.get_drvinfo = brcmf_ethtool_get_drvinfo,
 };
 
 static int brcmf_ethtool(struct brcmf_pub *drvr, void __user *uaddr)
