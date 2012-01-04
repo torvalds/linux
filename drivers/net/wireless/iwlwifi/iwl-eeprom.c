@@ -676,8 +676,6 @@ int iwl_eeprom_init(struct iwl_priv *priv, u32 hw_rev)
 	}
 	e = (__le16 *)shrd->eeprom;
 
-	iwl_apm_init(priv);
-
 	ret = iwl_eeprom_verify_signature(trans(priv));
 	if (ret < 0) {
 		IWL_ERR(priv, "EEPROM not found, EEPROM_GP=0x%08x\n", gp);
@@ -758,8 +756,6 @@ done:
 err:
 	if (ret)
 		iwl_eeprom_free(priv->shrd);
-	/* Reset chip to save power until we load uCode during "up". */
-	iwl_apm_stop(priv);
 alloc_err:
 	return ret;
 }
