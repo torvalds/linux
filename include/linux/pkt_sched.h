@@ -162,18 +162,16 @@ struct tc_sfq_qopt {
 	unsigned	flows;		/* Maximal number of flows  */
 };
 
+struct tc_sfq_qopt_v1 {
+	struct tc_sfq_qopt v0;
+	unsigned int	depth;		/* max number of packets per flow */
+	unsigned int	headdrop;
+};
+
+
 struct tc_sfq_xstats {
 	__s32		allot;
 };
-
-/*
- *  NOTE: limit, divisor and flows are hardwired to code at the moment.
- *
- *	limit=flows=128, divisor=1024;
- *
- *	The only reason for this is efficiency, it is possible
- *	to change these parameters in compile time.
- */
 
 /* RED section */
 
