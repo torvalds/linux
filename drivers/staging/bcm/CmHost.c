@@ -30,11 +30,11 @@ static ULONG GetNextTargetBufferLocation(PMINI_ADAPTER Adapter, B_UINT16 tid);
  ************************************************************/
 int SearchSfid(PMINI_ADAPTER Adapter, UINT uiSfid)
 {
-	int iIndex = 0;
+	int i;
 
-	for (iIndex = (NO_OF_QUEUES-1); iIndex >= 0; iIndex--)
-		if (Adapter->PackInfo[iIndex].ulSFID == uiSfid)
-			return iIndex;
+	for (i = (NO_OF_QUEUES-1); i >= 0; i--)
+		if (Adapter->PackInfo[i].ulSFID == uiSfid)
+			return i;
 
 	return NO_OF_QUEUES+1;
 }
@@ -51,11 +51,11 @@ int SearchSfid(PMINI_ADAPTER Adapter, UINT uiSfid)
  ****************************************************************/
 static int SearchFreeSfid(PMINI_ADAPTER Adapter)
 {
-	UINT uiIndex = 0;
+	int i;
 
-	for (uiIndex = 0; uiIndex < (NO_OF_QUEUES-1); uiIndex++)
-		if (Adapter->PackInfo[uiIndex].ulSFID == 0)
-			return uiIndex;
+	for (i = 0; i < (NO_OF_QUEUES-1); i++)
+		if (Adapter->PackInfo[i].ulSFID == 0)
+			return i;
 
 	return NO_OF_QUEUES+1;
 }
@@ -70,13 +70,13 @@ static int SearchFreeSfid(PMINI_ADAPTER Adapter)
  */
 static int SearchClsid(PMINI_ADAPTER Adapter, ULONG ulSFID, B_UINT16  uiClassifierID)
 {
-	unsigned int uiClassifierIndex = 0;
+	int i;
 
-	for (uiClassifierIndex = 0; uiClassifierIndex < MAX_CLASSIFIERS; uiClassifierIndex++) {
-		if ((Adapter->astClassifierTable[uiClassifierIndex].bUsed) &&
-			(Adapter->astClassifierTable[uiClassifierIndex].uiClassifierRuleIndex == uiClassifierID) &&
-			(Adapter->astClassifierTable[uiClassifierIndex].ulSFID == ulSFID))
-			return uiClassifierIndex;
+	for (i = 0; i < MAX_CLASSIFIERS; i++) {
+		if ((Adapter->astClassifierTable[i].bUsed) &&
+			(Adapter->astClassifierTable[i].uiClassifierRuleIndex == uiClassifierID) &&
+			(Adapter->astClassifierTable[i].ulSFID == ulSFID))
+			return i;
 	}
 
 	return MAX_CLASSIFIERS+1;
@@ -89,11 +89,11 @@ static int SearchClsid(PMINI_ADAPTER Adapter, ULONG ulSFID, B_UINT16  uiClassifi
  */
 static int SearchFreeClsid(PMINI_ADAPTER Adapter /**Adapter Context*/)
 {
-	unsigned int uiClassifierIndex = 0;
+	int i;
 
-	for (uiClassifierIndex = 0; uiClassifierIndex < MAX_CLASSIFIERS; uiClassifierIndex++) {
-		if (!Adapter->astClassifierTable[uiClassifierIndex].bUsed)
-			return uiClassifierIndex;
+	for (i = 0; i < MAX_CLASSIFIERS; i++) {
+		if (!Adapter->astClassifierTable[i].bUsed)
+			return i;
 	}
 
 	return MAX_CLASSIFIERS+1;
@@ -116,7 +116,7 @@ CopyIpAddrToClassifier(S_CLASSIFIER_RULE *pstClassifierEntry,
 		B_UINT8 u8IpAddressLen, B_UINT8 *pu8IpAddressMaskSrc,
 		BOOLEAN bIpVersion6, E_IPADDR_CONTEXT eIpAddrContext)
 {
-	UINT ucLoopIndex = 0;
+	int i = 0;
 	UINT nSizeOfIPAddressInBytes = IP_LENGTH_OF_ADDRESS;
 	UCHAR *ptrClassifierIpAddress = NULL;
 	UCHAR *ptrClassifierIpMask = NULL;
@@ -154,42 +154,42 @@ CopyIpAddrToClassifier(S_CLASSIFIER_RULE *pstClassifierEntry,
 			}
 		}
 		BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, CONN_MSG, DBG_LVL_ALL, "Address Length:0x%X\n", pstClassifierEntry->ucIPDestinationAddressLength);
-		while ((u8IpAddressLen >= nSizeOfIPAddressInBytes) && (ucLoopIndex < MAX_IP_RANGE_LENGTH)) {
+		while ((u8IpAddressLen >= nSizeOfIPAddressInBytes) && (i < MAX_IP_RANGE_LENGTH)) {
 			memcpy(ptrClassifierIpAddress +
-				(ucLoopIndex * nSizeOfIPAddressInBytes),
-				(pu8IpAddressMaskSrc+(ucLoopIndex*nSizeOfIPAddressInBytes*2)),
+				(i * nSizeOfIPAddressInBytes),
+				(pu8IpAddressMaskSrc+(i*nSizeOfIPAddressInBytes*2)),
 				nSizeOfIPAddressInBytes);
 
 			if (!bIpVersion6) {
 				if (eIpAddrContext == eSrcIpAddress) {
-					pstClassifierEntry->stSrcIpAddress.ulIpv4Addr[ucLoopIndex] = ntohl(pstClassifierEntry->stSrcIpAddress.ulIpv4Addr[ucLoopIndex]);
+					pstClassifierEntry->stSrcIpAddress.ulIpv4Addr[i] = ntohl(pstClassifierEntry->stSrcIpAddress.ulIpv4Addr[i]);
 					BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, CONN_MSG, DBG_LVL_ALL, "Src Ip Address:0x%luX ",
-							pstClassifierEntry->stSrcIpAddress.ulIpv4Addr[ucLoopIndex]);
+							pstClassifierEntry->stSrcIpAddress.ulIpv4Addr[i]);
 				} else if (eIpAddrContext == eDestIpAddress) {
-					pstClassifierEntry->stDestIpAddress.ulIpv4Addr[ucLoopIndex] = ntohl(pstClassifierEntry->stDestIpAddress.ulIpv4Addr[ucLoopIndex]);
+					pstClassifierEntry->stDestIpAddress.ulIpv4Addr[i] = ntohl(pstClassifierEntry->stDestIpAddress.ulIpv4Addr[i]);
 					BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, CONN_MSG, DBG_LVL_ALL, "Dest Ip Address:0x%luX ",
-							pstClassifierEntry->stDestIpAddress.ulIpv4Addr[ucLoopIndex]);
+							pstClassifierEntry->stDestIpAddress.ulIpv4Addr[i]);
 				}
 			}
 			u8IpAddressLen -= nSizeOfIPAddressInBytes;
 			if (u8IpAddressLen >= nSizeOfIPAddressInBytes) {
 				memcpy(ptrClassifierIpMask +
-					(ucLoopIndex * nSizeOfIPAddressInBytes),
+					(i * nSizeOfIPAddressInBytes),
 					(pu8IpAddressMaskSrc+nSizeOfIPAddressInBytes +
-						(ucLoopIndex*nSizeOfIPAddressInBytes*2)),
+						(i*nSizeOfIPAddressInBytes*2)),
 					nSizeOfIPAddressInBytes);
 
 				if (!bIpVersion6) {
 					if (eIpAddrContext == eSrcIpAddress) {
-						pstClassifierEntry->stSrcIpAddress.ulIpv4Mask[ucLoopIndex] =
-							ntohl(pstClassifierEntry->stSrcIpAddress.ulIpv4Mask[ucLoopIndex]);
+						pstClassifierEntry->stSrcIpAddress.ulIpv4Mask[i] =
+							ntohl(pstClassifierEntry->stSrcIpAddress.ulIpv4Mask[i]);
 						BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, CONN_MSG, DBG_LVL_ALL, "Src Ip Mask Address:0x%luX ",
-								pstClassifierEntry->stSrcIpAddress.ulIpv4Mask[ucLoopIndex]);
+								pstClassifierEntry->stSrcIpAddress.ulIpv4Mask[i]);
 					} else if (eIpAddrContext == eDestIpAddress) {
-						pstClassifierEntry->stDestIpAddress.ulIpv4Mask[ucLoopIndex] =
-							ntohl(pstClassifierEntry->stDestIpAddress.ulIpv4Mask[ucLoopIndex]);
+						pstClassifierEntry->stDestIpAddress.ulIpv4Mask[i] =
+							ntohl(pstClassifierEntry->stDestIpAddress.ulIpv4Mask[i]);
 						BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, CONN_MSG, DBG_LVL_ALL, "Dest Ip Mask Address:0x%luX ",
-								pstClassifierEntry->stDestIpAddress.ulIpv4Mask[ucLoopIndex]);
+								pstClassifierEntry->stDestIpAddress.ulIpv4Mask[i]);
 					}
 				}
 				u8IpAddressLen -= nSizeOfIPAddressInBytes;
@@ -197,17 +197,17 @@ CopyIpAddrToClassifier(S_CLASSIFIER_RULE *pstClassifierEntry,
 			if (u8IpAddressLen == 0)
 				pstClassifierEntry->bDestIpValid = TRUE;
 
-			ucLoopIndex++;
+			i++;
 		}
 		if (bIpVersion6) {
 			/* Restore EndianNess of Struct */
-			for (ucLoopIndex = 0; ucLoopIndex < MAX_IP_RANGE_LENGTH * 4; ucLoopIndex++) {
+			for (i = 0; i < MAX_IP_RANGE_LENGTH * 4; i++) {
 				if (eIpAddrContext == eSrcIpAddress) {
-					pstClassifierEntry->stSrcIpAddress.ulIpv6Addr[ucLoopIndex] = ntohl(pstClassifierEntry->stSrcIpAddress.ulIpv6Addr[ucLoopIndex]);
-					pstClassifierEntry->stSrcIpAddress.ulIpv6Mask[ucLoopIndex] = ntohl(pstClassifierEntry->stSrcIpAddress.ulIpv6Mask[ucLoopIndex]);
+					pstClassifierEntry->stSrcIpAddress.ulIpv6Addr[i] = ntohl(pstClassifierEntry->stSrcIpAddress.ulIpv6Addr[i]);
+					pstClassifierEntry->stSrcIpAddress.ulIpv6Mask[i] = ntohl(pstClassifierEntry->stSrcIpAddress.ulIpv6Mask[i]);
 				} else if (eIpAddrContext == eDestIpAddress) {
-					pstClassifierEntry->stDestIpAddress.ulIpv6Addr[ucLoopIndex] = ntohl(pstClassifierEntry->stDestIpAddress.ulIpv6Addr[ucLoopIndex]);
-					pstClassifierEntry->stDestIpAddress.ulIpv6Mask[ucLoopIndex] = ntohl(pstClassifierEntry->stDestIpAddress.ulIpv6Mask[ucLoopIndex]);
+					pstClassifierEntry->stDestIpAddress.ulIpv6Addr[i] = ntohl(pstClassifierEntry->stDestIpAddress.ulIpv6Addr[i]);
+					pstClassifierEntry->stDestIpAddress.ulIpv6Mask[i] = ntohl(pstClassifierEntry->stDestIpAddress.ulIpv6Mask[i]);
 				}
 			}
 		}
@@ -216,17 +216,17 @@ CopyIpAddrToClassifier(S_CLASSIFIER_RULE *pstClassifierEntry,
 
 void ClearTargetDSXBuffer(PMINI_ADAPTER Adapter, B_UINT16 TID, BOOLEAN bFreeAll)
 {
-	ULONG ulIndex;
+	int i;
 
-	for (ulIndex = 0; ulIndex < Adapter->ulTotalTargetBuffersAvailable; ulIndex++) {
-		if (Adapter->astTargetDsxBuffer[ulIndex].valid)
+	for (i = 0; i < Adapter->ulTotalTargetBuffersAvailable; i++) {
+		if (Adapter->astTargetDsxBuffer[i].valid)
 			continue;
 
-		if ((bFreeAll) || (Adapter->astTargetDsxBuffer[ulIndex].tid == TID)) {
+		if ((bFreeAll) || (Adapter->astTargetDsxBuffer[i].tid == TID)) {
 			BCM_DEBUG_PRINT(Adapter, DBG_TYPE_PRINTK, 0, 0, "ClearTargetDSXBuffer: found tid %d buffer cleared %lx\n",
-					TID, Adapter->astTargetDsxBuffer[ulIndex].ulTargetDsxBuffer);
-			Adapter->astTargetDsxBuffer[ulIndex].valid = 1;
-			Adapter->astTargetDsxBuffer[ulIndex].tid = 0;
+					TID, Adapter->astTargetDsxBuffer[i].ulTargetDsxBuffer);
+			Adapter->astTargetDsxBuffer[i].valid = 1;
+			Adapter->astTargetDsxBuffer[i].tid = 0;
 			Adapter->ulFreeTargetBufferCnt++;
 		}
 	}
@@ -240,7 +240,7 @@ static inline VOID CopyClassifierRuleToSF(PMINI_ADAPTER Adapter, stConvergenceSL
 {
 	S_CLASSIFIER_RULE *pstClassifierEntry = NULL;
 	/* VOID *pvPhsContext = NULL; */
-	UINT ucLoopIndex = 0;
+	int i;
 	/* UCHAR ucProtocolLength=0; */
 	/* ULONG ulPhsStatus; */
 
@@ -264,14 +264,14 @@ static inline VOID CopyClassifierRuleToSF(PMINI_ADAPTER Adapter, stConvergenceSL
 		BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, CONN_MSG, DBG_LVL_ALL, "Destination Port Range Length:0x%X ", pstClassifierEntry->ucDestPortRangeLength);
 
 		if (psfCSType->cCPacketClassificationRule.u8ProtocolDestPortRangeLength <= MAX_PORT_RANGE) {
-			for (ucLoopIndex = 0; ucLoopIndex < (pstClassifierEntry->ucDestPortRangeLength); ucLoopIndex++) {
-				pstClassifierEntry->usDestPortRangeLo[ucLoopIndex] = *((PUSHORT)(psfCSType->cCPacketClassificationRule.u8ProtocolDestPortRange+ucLoopIndex));
-				pstClassifierEntry->usDestPortRangeHi[ucLoopIndex] =
-					*((PUSHORT)(psfCSType->cCPacketClassificationRule.u8ProtocolDestPortRange+2+ucLoopIndex));
-				pstClassifierEntry->usDestPortRangeLo[ucLoopIndex] = ntohs(pstClassifierEntry->usDestPortRangeLo[ucLoopIndex]);
+			for (i = 0; i < (pstClassifierEntry->ucDestPortRangeLength); i++) {
+				pstClassifierEntry->usDestPortRangeLo[i] = *((PUSHORT)(psfCSType->cCPacketClassificationRule.u8ProtocolDestPortRange+i));
+				pstClassifierEntry->usDestPortRangeHi[i] =
+					*((PUSHORT)(psfCSType->cCPacketClassificationRule.u8ProtocolDestPortRange+2+i));
+				pstClassifierEntry->usDestPortRangeLo[i] = ntohs(pstClassifierEntry->usDestPortRangeLo[i]);
 				BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, CONN_MSG, DBG_LVL_ALL, "Destination Port Range Lo:0x%X ",
-						pstClassifierEntry->usDestPortRangeLo[ucLoopIndex]);
-				pstClassifierEntry->usDestPortRangeHi[ucLoopIndex] = ntohs(pstClassifierEntry->usDestPortRangeHi[ucLoopIndex]);
+						pstClassifierEntry->usDestPortRangeLo[i]);
+				pstClassifierEntry->usDestPortRangeHi[i] = ntohs(pstClassifierEntry->usDestPortRangeHi[i]);
 			}
 		} else {
 			pstClassifierEntry->ucDestPortRangeLength = 0;
@@ -282,18 +282,18 @@ static inline VOID CopyClassifierRuleToSF(PMINI_ADAPTER Adapter, stConvergenceSL
 				psfCSType->cCPacketClassificationRule.u8ProtocolSourcePortRangeLength);
 		if (psfCSType->cCPacketClassificationRule.u8ProtocolSourcePortRangeLength <= MAX_PORT_RANGE) {
 			pstClassifierEntry->ucSrcPortRangeLength = psfCSType->cCPacketClassificationRule.u8ProtocolSourcePortRangeLength/4;
-			for (ucLoopIndex = 0; ucLoopIndex < (pstClassifierEntry->ucSrcPortRangeLength); ucLoopIndex++) {
-				pstClassifierEntry->usSrcPortRangeLo[ucLoopIndex] =
+			for (i = 0; i < (pstClassifierEntry->ucSrcPortRangeLength); i++) {
+				pstClassifierEntry->usSrcPortRangeLo[i] =
 					*((PUSHORT)(psfCSType->cCPacketClassificationRule.
-							u8ProtocolSourcePortRange+ucLoopIndex));
-				pstClassifierEntry->usSrcPortRangeHi[ucLoopIndex] =
+							u8ProtocolSourcePortRange+i));
+				pstClassifierEntry->usSrcPortRangeHi[i] =
 					*((PUSHORT)(psfCSType->cCPacketClassificationRule.
-							u8ProtocolSourcePortRange+2+ucLoopIndex));
-				pstClassifierEntry->usSrcPortRangeLo[ucLoopIndex] =
-					ntohs(pstClassifierEntry->usSrcPortRangeLo[ucLoopIndex]);
+							u8ProtocolSourcePortRange+2+i));
+				pstClassifierEntry->usSrcPortRangeLo[i] =
+					ntohs(pstClassifierEntry->usSrcPortRangeLo[i]);
 				BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, CONN_MSG, DBG_LVL_ALL, "Source Port Range Lo:0x%X ",
-						pstClassifierEntry->usSrcPortRangeLo[ucLoopIndex]);
-				pstClassifierEntry->usSrcPortRangeHi[ucLoopIndex] = ntohs(pstClassifierEntry->usSrcPortRangeHi[ucLoopIndex]);
+						pstClassifierEntry->usSrcPortRangeLo[i]);
+				pstClassifierEntry->usSrcPortRangeHi[i] = ntohs(pstClassifierEntry->usSrcPortRangeHi[i]);
 			}
 		}
 		/* Destination Ip Address and Mask */
@@ -399,7 +399,7 @@ static inline VOID DeleteClassifierRuleFromSF(PMINI_ADAPTER Adapter, UINT uiSear
 VOID DeleteAllClassifiersForSF(PMINI_ADAPTER Adapter, UINT uiSearchRuleIndex)
 {
 	S_CLASSIFIER_RULE *pstClassifierEntry = NULL;
-	UINT nClassifierIndex;
+	int i;
 	/* B_UINT16  u16PacketClassificationRuleIndex; */
 	USHORT ulVCID;
 	/* VOID *pvPhsContext = NULL; */
@@ -410,12 +410,12 @@ VOID DeleteAllClassifiersForSF(PMINI_ADAPTER Adapter, UINT uiSearchRuleIndex)
 	if (ulVCID == 0)
 		return;
 
-	for (nClassifierIndex = 0; nClassifierIndex < MAX_CLASSIFIERS; nClassifierIndex++) {
-		if (Adapter->astClassifierTable[nClassifierIndex].usVCID_Value == ulVCID) {
-			pstClassifierEntry = &Adapter->astClassifierTable[nClassifierIndex];
+	for (i = 0; i < MAX_CLASSIFIERS; i++) {
+		if (Adapter->astClassifierTable[i].usVCID_Value == ulVCID) {
+			pstClassifierEntry = &Adapter->astClassifierTable[i];
 
 			if (pstClassifierEntry->bUsed)
-				DeleteClassifierRuleFromSF(Adapter, uiSearchRuleIndex, nClassifierIndex);
+				DeleteClassifierRuleFromSF(Adapter, uiSearchRuleIndex, i);
 		}
 	}
 
@@ -439,7 +439,7 @@ static VOID CopyToAdapter(register PMINI_ADAPTER Adapter, /* <Pointer to the Ada
 	UINT nClassifierIndex = 0;
 	enum E_CLASSIFIER_ACTION eClassifierAction = eInvalidClassifierAction;
 	B_UINT16 u16PacketClassificationRuleIndex = 0;
-	UINT nIndex = 0;
+	int i;
 	stConvergenceSLTypes *psfCSType = NULL;
 	S_PHS_RULE sPhsRule;
 	USHORT uVCID = Adapter->PackInfo[uiSearchRuleIndex].usVCID_Value;
@@ -527,10 +527,10 @@ static VOID CopyToAdapter(register PMINI_ADAPTER Adapter, /* <Pointer to the Ada
 	Adapter->PackInfo[uiSearchRuleIndex].u8TrafficPriority = psfLocalSet->u8TrafficPriority;
 
 	/* copy all the classifier in the Service Flow param  structure */
-	for (nIndex = 0; nIndex < psfLocalSet->u8TotalClassifiers; nIndex++) {
-		BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, CONN_MSG, DBG_LVL_ALL, "Classifier index =%d", nIndex);
-		psfCSType = &psfLocalSet->cConvergenceSLTypes[nIndex];
-		BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, CONN_MSG, DBG_LVL_ALL, "Classifier index =%d", nIndex);
+	for (i = 0; i < psfLocalSet->u8TotalClassifiers; i++) {
+		BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, CONN_MSG, DBG_LVL_ALL, "Classifier index =%d", i);
+		psfCSType = &psfLocalSet->cConvergenceSLTypes[i];
+		BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, CONN_MSG, DBG_LVL_ALL, "Classifier index =%d", i);
 
 		if (psfCSType->cCPacketClassificationRule.u8ClassifierRulePriority)
 			Adapter->PackInfo[uiSearchRuleIndex].bClassifierPriority = TRUE;
@@ -628,8 +628,8 @@ static VOID CopyToAdapter(register PMINI_ADAPTER Adapter, /* <Pointer to the Ada
 	}
 
 	/* Repeat parsing Classification Entries to process PHS Rules */
-	for (nIndex = 0; nIndex < psfLocalSet->u8TotalClassifiers; nIndex++) {
-		psfCSType = &psfLocalSet->cConvergenceSLTypes[nIndex];
+	for (i = 0; i < psfLocalSet->u8TotalClassifiers; i++) {
+		psfCSType = &psfLocalSet->cConvergenceSLTypes[i];
 		BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, CONN_MSG, DBG_LVL_ALL, "psfCSType->u8PhsDSCAction : 0x%x\n", psfCSType->u8PhsDSCAction);
 
 		switch (psfCSType->u8PhsDSCAction) {
@@ -832,8 +832,8 @@ static VOID CopyToAdapter(register PMINI_ADAPTER Adapter, /* <Pointer to the Ada
  *************************************************************************/
 static VOID DumpCmControlPacket(PVOID pvBuffer)
 {
-	UINT uiLoopIndex;
-	UINT nIndex;
+	int uiLoopIndex;
+	int nIndex;
 	stLocalSFAddIndicationAlt *pstAddIndication;
 	UINT nCurClassifierCnt;
 	PMINI_ADAPTER Adapter = GET_BCM_ADAPTER(gblpnetdev);
@@ -1542,7 +1542,7 @@ ULONG SetUpTargetDsxBuffers(PMINI_ADAPTER Adapter)
 {
 	ULONG ulTargetDsxBuffersBase = 0;
 	ULONG ulCntTargetBuffers;
-	ULONG ulIndex = 0;
+	ULONG i;
 	int Status;
 
 	if (!Adapter) {
@@ -1572,13 +1572,13 @@ ULONG SetUpTargetDsxBuffers(PMINI_ADAPTER Adapter)
 
 	BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, CONN_MSG, DBG_LVL_ALL, " Total Target DSX Buffer setup %lx ", Adapter->ulTotalTargetBuffersAvailable);
 
-	for (ulIndex = 0; ulIndex < Adapter->ulTotalTargetBuffersAvailable; ulIndex++) {
-		Adapter->astTargetDsxBuffer[ulIndex].ulTargetDsxBuffer = ulTargetDsxBuffersBase;
-		Adapter->astTargetDsxBuffer[ulIndex].valid = 1;
-		Adapter->astTargetDsxBuffer[ulIndex].tid = 0;
+	for (i = 0; i < Adapter->ulTotalTargetBuffersAvailable; i++) {
+		Adapter->astTargetDsxBuffer[i].ulTargetDsxBuffer = ulTargetDsxBuffersBase;
+		Adapter->astTargetDsxBuffer[i].valid = 1;
+		Adapter->astTargetDsxBuffer[i].tid = 0;
 		ulTargetDsxBuffersBase += sizeof(stServiceFlowParamSI);
 		BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, CONN_MSG, DBG_LVL_ALL, "  Target DSX Buffer %lx setup at 0x%lx",
-				ulIndex, Adapter->astTargetDsxBuffer[ulIndex].ulTargetDsxBuffer);
+				i, Adapter->astTargetDsxBuffer[i].ulTargetDsxBuffer);
 	}
 	Adapter->ulCurrentTargetBuffer = 0;
 	Adapter->ulFreeTargetBufferCnt = Adapter->ulTotalTargetBuffersAvailable;
