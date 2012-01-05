@@ -7,12 +7,12 @@
 /* #define CONN_MSG */
 #include "headers.h"
 
-typedef enum _E_CLASSIFIER_ACTION {
+enum E_CLASSIFIER_ACTION {
 	eInvalidClassifierAction,
 	eAddClassifier,
 	eReplaceClassifier,
 	eDeleteClassifier
-} E_CLASSIFIER_ACTION;
+};
 
 static ULONG GetNextTargetBufferLocation(PMINI_ADAPTER Adapter, B_UINT16 tid);
 
@@ -437,7 +437,7 @@ static VOID CopyToAdapter(register PMINI_ADAPTER Adapter, /* <Pointer to the Ada
 	/* UCHAR ucProtocolLength = 0; */
 	ULONG ulSFID;
 	UINT nClassifierIndex = 0;
-	E_CLASSIFIER_ACTION eClassifierAction = eInvalidClassifierAction;
+	enum E_CLASSIFIER_ACTION eClassifierAction = eInvalidClassifierAction;
 	B_UINT16 u16PacketClassificationRuleIndex = 0;
 	UINT nIndex = 0;
 	stConvergenceSLTypes *psfCSType = NULL;
