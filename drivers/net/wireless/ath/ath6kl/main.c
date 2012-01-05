@@ -1158,7 +1158,7 @@ out:
 	list_splice_tail(&mc_filter_new, &vif->mc_filter);
 }
 
-static struct net_device_ops ath6kl_netdev_ops = {
+static const struct net_device_ops ath6kl_netdev_ops = {
 	.ndo_open               = ath6kl_open,
 	.ndo_stop               = ath6kl_close,
 	.ndo_start_xmit         = ath6kl_data_tx,
