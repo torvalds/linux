@@ -4740,7 +4740,7 @@ static int wl1271_init_ieee80211(struct wl1271 *wl)
 	wl->hw->sta_data_size = sizeof(struct wl1271_station);
 	wl->hw->vif_data_size = sizeof(struct wl12xx_vif);
 
-	wl->hw->max_rx_aggregation_subframes = 8;
+	wl->hw->max_rx_aggregation_subframes = wl->conf.ht.rx_ba_win_size;
 
 	return 0;
 }
