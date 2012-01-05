@@ -2553,30 +2553,6 @@ re_arm:
 	}
 }
 
-static __be32 bond_glean_dev_ip(struct net_device *dev)
-{
-	struct in_device *idev;
-	struct in_ifaddr *ifa;
-	__be32 addr = 0;
-
-	if (!dev)
-		return 0;
-
-	rcu_read_lock();
-	idev = __in_dev_get_rcu(dev);
-	if (!idev)
-		goto out;
-
-	ifa = idev->ifa_list;
-	if (!ifa)
-		goto out;
-
-	addr = ifa->ifa_local;
-out:
-	rcu_read_unlock();
-	return addr;
-}
-
 static int bond_has_this_ip(struct bonding *bond, __be32 ip)
 {
 	struct vlan_entry *vlan;
@@ -3322,6 +3298,10 @@ static int bond_inetaddr_event(struct notifier_block *this, unsigned long event,
 	struct bonding *bond;
 	struct vlan_entry *vlan;
 
+	/* we only care about primary address */
+	if(ifa->ifa_flags & IFA_F_SECONDARY)
+		return NOTIFY_DONE;
+
 	list_for_each_entry(bond, &bn->dev_list, bond_list) {
 		if (bond->dev == event_dev) {
 			switch (event) {
@@ -3329,7 +3309,7 @@ static int bond_inetaddr_event(struct notifier_block *this, unsigned long event,
 				bond->master_ip = ifa->ifa_local;
 				return NOTIFY_OK;
 			case NETDEV_DOWN:
-				bond->master_ip = bond_glean_dev_ip(bond->dev);
+				bond->master_ip = 0;
 				return NOTIFY_OK;
 			default:
 				return NOTIFY_DONE;
@@ -3345,8 +3325,7 @@ static int bond_inetaddr_event(struct notifier_block *this, unsigned long event,
 					vlan->vlan_ip = ifa->ifa_local;
 					return NOTIFY_OK;
 				case NETDEV_DOWN:
-					vlan->vlan_ip =
-						bond_glean_dev_ip(vlan_dev);
+					vlan->vlan_ip = 0;
 					return NOTIFY_OK;
 				default:
 					return NOTIFY_DONE;

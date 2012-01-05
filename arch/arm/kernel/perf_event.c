@@ -343,19 +343,25 @@ validate_group(struct perf_event *event)
 {
 	struct perf_event *sibling, *leader = event->group_leader;
 	struct pmu_hw_events fake_pmu;
+	DECLARE_BITMAP(fake_used_mask, ARMPMU_MAX_HWEVENTS);
 
-	memset(&fake_pmu, 0, sizeof(fake_pmu));
+	/*
+	 * Initialise the fake PMU. We only need to populate the
+	 * used_mask for the purposes of validation.
+	 */
+	memset(fake_used_mask, 0, sizeof(fake_used_mask));
+	fake_pmu.used_mask = fake_used_mask;
 
 	if (!validate_event(&fake_pmu, leader))
-		return -ENOSPC;
+		return -EINVAL;
 
 	list_for_each_entry(sibling, &leader->sibling_list, group_entry) {
 		if (!validate_event(&fake_pmu, sibling))
-			return -ENOSPC;
+			return -EINVAL;
 	}
 
 	if (!validate_event(&fake_pmu, event))
-		return -ENOSPC;
+		return -EINVAL;
 
 	return 0;
 }
@@ -395,6 +401,9 @@ armpmu_reserve_hardware(struct arm_pmu *armpmu)
 	irq_handler_t handle_irq;
 	int i, err, irq, irqs;
 	struct platform_device *pmu_device = armpmu->plat_device;
+
+	if (!pmu_device)
+		return -ENODEV;
 
 	err = reserve_pmu(armpmu->type);
 	if (err) {
@@ -631,6 +640,9 @@ static struct platform_device_id armpmu_plat_device_ids[] = {
 
 static int __devinit armpmu_device_probe(struct platform_device *pdev)
 {
+	if (!cpu_pmu)
+		return -ENODEV;
+
 	cpu_pmu->plat_device = pdev;
 	return 0;
 }

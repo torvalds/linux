@@ -471,7 +471,8 @@ static void __init mx28evk_init(void)
 			       "mmc0-slot-power");
 	if (ret)
 		pr_warn("failed to request gpio mmc0-slot-power: %d\n", ret);
-	mx28_add_mxs_mmc(0, &mx28evk_mmc_pdata[0]);
+	else
+		mx28_add_mxs_mmc(0, &mx28evk_mmc_pdata[0]);
 
 	ret = gpio_request_one(MX28EVK_MMC1_SLOT_POWER, GPIOF_OUT_INIT_LOW,
 			       "mmc1-slot-power");
@@ -480,7 +481,6 @@ static void __init mx28evk_init(void)
 	else
 		mx28_add_mxs_mmc(1, &mx28evk_mmc_pdata[1]);
 
-	mx28_add_mxs_mmc(1, &mx28evk_mmc_pdata[1]);
 	mx28_add_rtc_stmp3xxx();
 
 	gpio_led_register_device(0, &mx28evk_led_data);

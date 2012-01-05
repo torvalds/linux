@@ -233,7 +233,7 @@
 #define PTCMD		0x120
 #define PTSTAT		0x128
 #define PDSTAT		0x200
-#define PDCTL1		0x304
+#define PDCTL		0x300
 #define MDSTAT		0x800
 #define MDCTL		0xA00
 
@@ -244,7 +244,10 @@
 #define PSC_STATE_ENABLE	3
 
 #define MDSTAT_STATE_MASK	0x3f
+#define PDSTAT_STATE_MASK	0x1f
 #define MDCTL_FORCE		BIT(31)
+#define PDCTL_NEXT		BIT(1)
+#define PDCTL_EPCGOOD		BIT(8)
 
 #ifndef __ASSEMBLER__
 

@@ -30,13 +30,29 @@
 			struct exynos_drm_gem_obj, base)
 
 /*
+ * exynos drm gem buffer structure.
+ *
+ * @kvaddr: kernel virtual address to allocated memory region.
+ * @dma_addr: bus address(accessed by dma) to allocated memory region.
+ *	- this address could be physical address without IOMMU and
+ *	device address with IOMMU.
+ * @size: size of allocated memory region.
+ */
+struct exynos_drm_gem_buf {
+	void __iomem		*kvaddr;
+	dma_addr_t		dma_addr;
+	unsigned long		size;
+};
+
+/*
  * exynos drm buffer structure.
  *
  * @base: a gem object.
  *	- a new handle to this gem object would be created
  *	by drm_gem_handle_create().
- * @entry: pointer to exynos drm buffer entry object.
- *	- containing the information to physically
+ * @buffer: a pointer to exynos_drm_gem_buffer object.
+ *	- contain the information to memory region allocated
+ *	by user request or at framebuffer creation.
  *	continuous memory region allocated by user request
  *	or at framebuffer creation.
  *
@@ -45,13 +61,13 @@
  */
 struct exynos_drm_gem_obj {
 	struct drm_gem_object base;
-	struct exynos_drm_buf_entry *entry;
+	struct exynos_drm_gem_buf *buffer;
 };
 
 /* create a new buffer and get a new gem handle. */
-struct exynos_drm_gem_obj *exynos_drm_gem_create(struct drm_file *file_priv,
-		struct drm_device *dev, unsigned int size,
-		unsigned int *handle);
+struct exynos_drm_gem_obj *exynos_drm_gem_create(struct drm_device *dev,
+		struct drm_file *file_priv,
+		unsigned int *handle, unsigned long size);
 
 /*
  * request gem object creation and buffer allocation as the size

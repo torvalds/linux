@@ -836,11 +836,13 @@ int cpdma_chan_stop(struct cpdma_chan *chan)
 	chan_write(chan, cp, CPDMA_TEARDOWN_VALUE);
 
 	/* handle completed packets */
+	spin_unlock_irqrestore(&chan->lock, flags);
 	do {
 		ret = __cpdma_chan_process(chan);
 		if (ret < 0)
 			break;
 	} while ((ret & CPDMA_DESC_TD_COMPLETE) == 0);
+	spin_lock_irqsave(&chan->lock, flags);
 
 	/* remaining packets haven't been tx/rx'ed, clean them up */
 	while (chan->head) {

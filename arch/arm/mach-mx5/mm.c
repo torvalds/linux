@@ -23,7 +23,9 @@
 
 static void imx5_idle(void)
 {
-	mx5_cpu_lp_set(WAIT_UNCLOCKED_POWER_OFF);
+	if (!need_resched())
+		mx5_cpu_lp_set(WAIT_UNCLOCKED_POWER_OFF);
+	local_irq_enable();
 }
 
 /*
@@ -89,7 +91,7 @@ void __init imx51_init_early(void)
 	mxc_set_cpu_type(MXC_CPU_MX51);
 	mxc_iomux_v3_init(MX51_IO_ADDRESS(MX51_IOMUXC_BASE_ADDR));
 	mxc_arch_reset_init(MX51_IO_ADDRESS(MX51_WDOG1_BASE_ADDR));
-	imx_idle = imx5_idle;
+	pm_idle = imx5_idle;
 }
 
 void __init imx53_init_early(void)

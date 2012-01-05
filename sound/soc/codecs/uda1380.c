@@ -863,13 +863,13 @@ static struct i2c_driver uda1380_i2c_driver = {
 
 static int __init uda1380_modinit(void)
 {
-	int ret;
+	int ret = 0;
 #if defined(CONFIG_I2C) || defined(CONFIG_I2C_MODULE)
 	ret = i2c_add_driver(&uda1380_i2c_driver);
 	if (ret != 0)
 		pr_err("Failed to register UDA1380 I2C driver: %d\n", ret);
 #endif
-	return 0;
+	return ret;
 }
 module_init(uda1380_modinit);
 

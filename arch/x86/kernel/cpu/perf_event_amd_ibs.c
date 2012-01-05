@@ -199,8 +199,7 @@ static int force_ibs_eilvt_setup(void)
 		goto out;
 	}
 
-	pr_err(FW_BUG "using offset %d for IBS interrupts\n", offset);
-	pr_err(FW_BUG "workaround enabled for IBS LVT offset\n");
+	pr_info("IBS: LVT offset %d assigned\n", offset);
 
 	return 0;
 out:
@@ -265,19 +264,23 @@ perf_ibs_cpu_notifier(struct notifier_block *self, unsigned long action, void *h
 static __init int amd_ibs_init(void)
 {
 	u32 caps;
-	int ret;
+	int ret = -EINVAL;
 
 	caps = __get_ibs_caps();
 	if (!caps)
 		return -ENODEV;	/* ibs not supported by the cpu */
 
-	if (!ibs_eilvt_valid()) {
-		ret = force_ibs_eilvt_setup();
-		if (ret) {
-			pr_err("Failed to setup IBS, %d\n", ret);
-			return ret;
-		}
-	}
+	/*
+	 * Force LVT offset assignment for family 10h: The offsets are
+	 * not assigned by the BIOS for this family, so the OS is
+	 * responsible for doing it. If the OS assignment fails, fall
+	 * back to BIOS settings and try to setup this.
+	 */
+	if (boot_cpu_data.x86 == 0x10)
+		force_ibs_eilvt_setup();
+
+	if (!ibs_eilvt_valid())
+		goto out;
 
 	get_online_cpus();
 	ibs_caps = caps;
@@ -287,7 +290,11 @@ static __init int amd_ibs_init(void)
 	smp_call_function(setup_APIC_ibs, NULL, 1);
 	put_online_cpus();
 
-	return perf_event_ibs_init();
+	ret = perf_event_ibs_init();
+out:
+	if (ret)
+		pr_err("Failed to setup IBS, %d\n", ret);
+	return ret;
 }
 
 /* Since we need the pci subsystem to init ibs we can't do this earlier: */

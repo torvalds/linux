@@ -19,6 +19,7 @@
 #include <linux/platform_device.h>
 #include <linux/io.h>
 #include <linux/dma-mapping.h>
+#include <linux/export.h>
 
 #include <lantiq_soc.h>
 #include <xway_dma.h>

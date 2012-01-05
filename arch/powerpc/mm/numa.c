@@ -315,7 +315,10 @@ static int __init find_min_common_depth(void)
 	struct device_node *root;
 	const char *vec5;
 
-	root = of_find_node_by_path("/rtas");
+	if (firmware_has_feature(FW_FEATURE_OPAL))
+		root = of_find_node_by_path("/ibm,opal");
+	else
+		root = of_find_node_by_path("/rtas");
 	if (!root)
 		root = of_find_node_by_path("/");
 
@@ -344,12 +347,19 @@ static int __init find_min_common_depth(void)
 
 #define VEC5_AFFINITY_BYTE	5
 #define VEC5_AFFINITY		0x80
-	chosen = of_find_node_by_path("/chosen");
-	if (chosen) {
-		vec5 = of_get_property(chosen, "ibm,architecture-vec-5", NULL);
-		if (vec5 && (vec5[VEC5_AFFINITY_BYTE] & VEC5_AFFINITY)) {
-			dbg("Using form 1 affinity\n");
-			form1_affinity = 1;
+
+	if (firmware_has_feature(FW_FEATURE_OPAL))
+		form1_affinity = 1;
+	else {
+		chosen = of_find_node_by_path("/chosen");
+		if (chosen) {
+			vec5 = of_get_property(chosen,
+					       "ibm,architecture-vec-5", NULL);
+			if (vec5 && (vec5[VEC5_AFFINITY_BYTE] &
+							VEC5_AFFINITY)) {
+				dbg("Using form 1 affinity\n");
+				form1_affinity = 1;
+			}
 		}
 	}
 

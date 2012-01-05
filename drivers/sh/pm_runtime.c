@@ -1,7 +1,5 @@
 /*
- * arch/arm/mach-shmobile/pm_runtime.c
- *
- * Runtime PM support code for SuperH Mobile ARM
+ * Runtime PM support code
  *
  *  Copyright (C) 2009-2010 Magnus Damm
  *

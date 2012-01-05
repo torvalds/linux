@@ -37,7 +37,8 @@ extern struct spi_driver as102_spi_driver;
 #define DRIVER_FULL_NAME "Abilis Systems as10x usb driver"
 #define DRIVER_NAME "as10x_usb"
 
-extern int debug;
+extern int as102_debug;
+#define debug	as102_debug
 
 #define dprintk(debug, args...) \
 	do { if (debug) {	\

@@ -1396,7 +1396,7 @@ i915_gem_mmap_gtt(struct drm_file *file,
 
 	if (obj->base.size > dev_priv->mm.gtt_mappable_end) {
 		ret = -E2BIG;
-		goto unlock;
+		goto out;
 	}
 
 	if (obj->madv != I915_MADV_WILLNEED) {
@@ -1745,7 +1745,7 @@ static void i915_gem_reset_fences(struct drm_device *dev)
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	int i;
 
-	for (i = 0; i < 16; i++) {
+	for (i = 0; i < dev_priv->num_fence_regs; i++) {
 		struct drm_i915_fence_reg *reg = &dev_priv->fence_regs[i];
 		struct drm_i915_gem_object *obj = reg->obj;
 
@@ -3512,9 +3512,11 @@ i915_gem_busy_ioctl(struct drm_device *dev, void *data,
 			 * so emit a request to do so.
 			 */
 			request = kzalloc(sizeof(*request), GFP_KERNEL);
-			if (request)
+			if (request) {
 				ret = i915_add_request(obj->ring, NULL, request);
-			else
+				if (ret)
+					kfree(request);
+			} else
 				ret = -ENOMEM;
 		}
 
@@ -3613,7 +3615,7 @@ struct drm_i915_gem_object *i915_gem_alloc_object(struct drm_device *dev,
 	obj->base.write_domain = I915_GEM_DOMAIN_CPU;
 	obj->base.read_domains = I915_GEM_DOMAIN_CPU;
 
-	if (IS_GEN6(dev)) {
+	if (IS_GEN6(dev) || IS_GEN7(dev)) {
 		/* On Gen6, we can have the GPU use the LLC (the CPU
 		 * cache) for about a 10% performance improvement
 		 * compared to uncached.  Graphics requests other than
@@ -3877,7 +3879,7 @@ i915_gem_load(struct drm_device *dev)
 	INIT_LIST_HEAD(&dev_priv->mm.gtt_list);
 	for (i = 0; i < I915_NUM_RINGS; i++)
 		init_ring_lists(&dev_priv->ring[i]);
-	for (i = 0; i < 16; i++)
+	for (i = 0; i < I915_MAX_NUM_FENCES; i++)
 		INIT_LIST_HEAD(&dev_priv->fence_regs[i].lru_list);
 	INIT_DELAYED_WORK(&dev_priv->mm.retire_work,
 			  i915_gem_retire_work_handler);

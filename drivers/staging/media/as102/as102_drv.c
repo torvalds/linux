@@ -32,8 +32,8 @@
 #include "as102_fw.h"
 #include "dvbdev.h"
 
-int debug;
-module_param_named(debug, debug, int, 0644);
+int as102_debug;
+module_param_named(debug, as102_debug, int, 0644);
 MODULE_PARM_DESC(debug, "Turn on/off debugging (default: off)");
 
 int dual_tuner;

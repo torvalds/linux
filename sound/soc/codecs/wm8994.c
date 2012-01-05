@@ -56,7 +56,7 @@ static int wm8994_retune_mobile_base[] = {
 static int wm8994_readable(struct snd_soc_codec *codec, unsigned int reg)
 {
 	struct wm8994_priv *wm8994 = snd_soc_codec_get_drvdata(codec);
-	struct wm8994 *control = wm8994->control_data;
+	struct wm8994 *control = codec->control_data;
 
 	switch (reg) {
 	case WM8994_GPIO_1:
@@ -1325,15 +1325,15 @@ SND_SOC_DAPM_DAC("DAC1R", NULL, WM8994_POWER_MANAGEMENT_5, 0, 0),
 };
 
 static const struct snd_soc_dapm_widget wm8994_adc_revd_widgets[] = {
-SND_SOC_DAPM_MUX_E("ADCL Mux", WM8994_POWER_MANAGEMENT_4, 1, 0, &adcl_mux,
-		   adc_mux_ev, SND_SOC_DAPM_PRE_PMU),
-SND_SOC_DAPM_MUX_E("ADCR Mux", WM8994_POWER_MANAGEMENT_4, 0, 0, &adcr_mux,
-		   adc_mux_ev, SND_SOC_DAPM_PRE_PMU),
+SND_SOC_DAPM_VIRT_MUX_E("ADCL Mux", WM8994_POWER_MANAGEMENT_4, 1, 0, &adcl_mux,
+			adc_mux_ev, SND_SOC_DAPM_PRE_PMU),
+SND_SOC_DAPM_VIRT_MUX_E("ADCR Mux", WM8994_POWER_MANAGEMENT_4, 0, 0, &adcr_mux,
+			adc_mux_ev, SND_SOC_DAPM_PRE_PMU),
 };
 
 static const struct snd_soc_dapm_widget wm8994_adc_widgets[] = {
-SND_SOC_DAPM_MUX("ADCL Mux", WM8994_POWER_MANAGEMENT_4, 1, 0, &adcl_mux),
-SND_SOC_DAPM_MUX("ADCR Mux", WM8994_POWER_MANAGEMENT_4, 0, 0, &adcr_mux),
+SND_SOC_DAPM_VIRT_MUX("ADCL Mux", WM8994_POWER_MANAGEMENT_4, 1, 0, &adcl_mux),
+SND_SOC_DAPM_VIRT_MUX("ADCR Mux", WM8994_POWER_MANAGEMENT_4, 0, 0, &adcr_mux),
 };
 
 static const struct snd_soc_dapm_widget wm8994_dapm_widgets[] = {
@@ -2357,6 +2357,11 @@ static int wm8994_hw_params(struct snd_pcm_substream *substream,
 	bclk |= best << WM8994_AIF1_BCLK_DIV_SHIFT;
 
 	lrclk = bclk_rate / params_rate(params);
+	if (!lrclk) {
+		dev_err(dai->dev, "Unable to generate LRCLK from %dHz BCLK\n",
+			bclk_rate);
+		return -EINVAL;
+	}
 	dev_dbg(dai->dev, "Using LRCLK rate %d for actual LRCLK %dHz\n",
 		lrclk, bclk_rate / lrclk);
 
@@ -3030,19 +3035,34 @@ static irqreturn_t wm8958_mic_irq(int irq, void *data)
 {
 	struct wm8994_priv *wm8994 = data;
 	struct snd_soc_codec *codec = wm8994->codec;
-	int reg;
+	int reg, count;
 
-	reg = snd_soc_read(codec, WM8958_MIC_DETECT_3);
-	if (reg < 0) {
-		dev_err(codec->dev, "Failed to read mic detect status: %d\n",
-			reg);
-		return IRQ_NONE;
-	}
+	/* We may occasionally read a detection without an impedence
+	 * range being provided - if that happens loop again.
+	 */
+	count = 10;
+	do {
+		reg = snd_soc_read(codec, WM8958_MIC_DETECT_3);
+		if (reg < 0) {
+			dev_err(codec->dev,
+				"Failed to read mic detect status: %d\n",
+				reg);
+			return IRQ_NONE;
+		}
 
-	if (!(reg & WM8958_MICD_VALID)) {
-		dev_dbg(codec->dev, "Mic detect data not valid\n");
-		goto out;
-	}
+		if (!(reg & WM8958_MICD_VALID)) {
+			dev_dbg(codec->dev, "Mic detect data not valid\n");
+			goto out;
+		}
+
+		if (!(reg & WM8958_MICD_STS) || (reg & WM8958_MICD_LVL_MASK))
+			break;
+
+		msleep(1);
+	} while (count--);
+
+	if (count == 0)
+		dev_warn(codec->dev, "No impedence range reported for jack\n");
 
 #ifndef CONFIG_SND_SOC_WM8994_MODULE
 	trace_snd_soc_jack_irq(dev_name(codec->dev));
@@ -3163,6 +3183,8 @@ static int wm8994_codec_probe(struct snd_soc_codec *codec)
 		switch (wm8994->revision) {
 		case 0:
 		case 1:
+		case 2:
+		case 3:
 			wm8994->hubs.dcs_codes_l = -9;
 			wm8994->hubs.dcs_codes_r = -5;
 			break;
@@ -3180,9 +3202,9 @@ static int wm8994_codec_probe(struct snd_soc_codec *codec)
 
 	wm8994_request_irq(codec->control_data, WM8994_IRQ_FIFOS_ERR,
 			   wm8994_fifo_error, "FIFO error", codec);
-	wm8994_request_irq(wm8994->control_data, WM8994_IRQ_TEMP_WARN,
+	wm8994_request_irq(codec->control_data, WM8994_IRQ_TEMP_WARN,
 			   wm8994_temp_warn, "Thermal warning", codec);
-	wm8994_request_irq(wm8994->control_data, WM8994_IRQ_TEMP_SHUT,
+	wm8994_request_irq(codec->control_data, WM8994_IRQ_TEMP_SHUT,
 			   wm8994_temp_shut, "Thermal shutdown", codec);
 
 	ret = wm8994_request_irq(codec->control_data, WM8994_IRQ_DCS_DONE,

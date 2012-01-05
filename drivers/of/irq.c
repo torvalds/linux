@@ -26,11 +26,6 @@
 #include <linux/string.h>
 #include <linux/slab.h>
 
-/* For archs that don't support NO_IRQ (such as x86), provide a dummy value */
-#ifndef NO_IRQ
-#define NO_IRQ 0
-#endif
-
 /**
  * irq_of_parse_and_map - Parse and map an interrupt into linux virq space
  * @device: Device node of the device whose interrupt is to be mapped
@@ -44,7 +39,7 @@ unsigned int irq_of_parse_and_map(struct device_node *dev, int index)
 	struct of_irq oirq;
 
 	if (of_irq_map_one(dev, index, &oirq))
-		return NO_IRQ;
+		return 0;
 
 	return irq_create_of_mapping(oirq.controller, oirq.specifier,
 				     oirq.size);
@@ -60,27 +55,27 @@ EXPORT_SYMBOL_GPL(irq_of_parse_and_map);
  */
 struct device_node *of_irq_find_parent(struct device_node *child)
 {
-	struct device_node *p, *c = child;
+	struct device_node *p;
 	const __be32 *parp;
 
-	if (!of_node_get(c))
+	if (!of_node_get(child))
 		return NULL;
 
 	do {
-		parp = of_get_property(c, "interrupt-parent", NULL);
+		parp = of_get_property(child, "interrupt-parent", NULL);
 		if (parp == NULL)
-			p = of_get_parent(c);
+			p = of_get_parent(child);
 		else {
 			if (of_irq_workarounds & OF_IMAP_NO_PHANDLE)
 				p = of_node_get(of_irq_dflt_pic);
 			else
 				p = of_find_node_by_phandle(be32_to_cpup(parp));
 		}
-		of_node_put(c);
-		c = p;
+		of_node_put(child);
+		child = p;
 	} while (p && of_get_property(p, "#interrupt-cells", NULL) == NULL);
 
-	return (p == child) ? NULL : p;
+	return p;
 }
 
 /**
@@ -345,7 +340,7 @@ int of_irq_to_resource(struct device_node *dev, int index, struct resource *r)
 
 	/* Only dereference the resource if both the
 	 * resource and the irq are valid. */
-	if (r && irq != NO_IRQ) {
+	if (r && irq) {
 		r->start = r->end = irq;
 		r->flags = IORESOURCE_IRQ;
 		r->name = dev->full_name;
@@ -363,7 +358,7 @@ int of_irq_count(struct device_node *dev)
 {
 	int nr = 0;
 
-	while (of_irq_to_resource(dev, nr, NULL) != NO_IRQ)
+	while (of_irq_to_resource(dev, nr, NULL))
 		nr++;
 
 	return nr;
@@ -383,7 +378,7 @@ int of_irq_to_resource_table(struct device_node *dev, struct resource *res,
 	int i;
 
 	for (i = 0; i < nr_irqs; i++, res++)
-		if (of_irq_to_resource(dev, i, res) == NO_IRQ)
+		if (!of_irq_to_resource(dev, i, res))
 			break;
 
 	return i;
@@ -424,6 +419,8 @@ void __init of_irq_init(const struct of_device_id *matches)
 
 		desc->dev = np;
 		desc->interrupt_parent = of_irq_find_parent(np);
+		if (desc->interrupt_parent == np)
+			desc->interrupt_parent = NULL;
 		list_add_tail(&desc->list, &intc_desc_list);
 	}
 

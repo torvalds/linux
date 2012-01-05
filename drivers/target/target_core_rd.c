@@ -343,235 +343,74 @@ static struct rd_dev_sg_table *rd_get_sg_table(struct rd_dev *rd_dev, u32 page)
 	return NULL;
 }
 
-/*	rd_MEMCPY_read():
- *
- *
- */
-static int rd_MEMCPY_read(struct rd_request *req)
+static int rd_MEMCPY(struct rd_request *req, u32 read_rd)
 {
 	struct se_task *task = &req->rd_task;
 	struct rd_dev *dev = req->rd_task.task_se_cmd->se_dev->dev_ptr;
 	struct rd_dev_sg_table *table;
-	struct scatterlist *sg_d, *sg_s;
-	void *dst, *src;
-	u32 i = 0, j = 0, dst_offset = 0, src_offset = 0;
-	u32 length, page_end = 0, table_sg_end;
+	struct scatterlist *rd_sg;
+	struct sg_mapping_iter m;
 	u32 rd_offset = req->rd_offset;
+	u32 src_len;
 
 	table = rd_get_sg_table(dev, req->rd_page);
 	if (!table)
 		return -EINVAL;
 
-	table_sg_end = (table->page_end_offset - req->rd_page);
-	sg_d = task->task_sg;
-	sg_s = &table->sg_table[req->rd_page - table->page_start_offset];
+	rd_sg = &table->sg_table[req->rd_page - table->page_start_offset];
 
-	pr_debug("RD[%u]: Read LBA: %llu, Size: %u Page: %u, Offset:"
-		" %u\n", dev->rd_dev_id, task->task_lba, req->rd_size,
-		req->rd_page, req->rd_offset);
+	pr_debug("RD[%u]: %s LBA: %llu, Size: %u Page: %u, Offset: %u\n",
+			dev->rd_dev_id, read_rd ? "Read" : "Write",
+			task->task_lba, req->rd_size, req->rd_page,
+			rd_offset);
 
-	src_offset = rd_offset;
-
+	src_len = PAGE_SIZE - rd_offset;
+	sg_miter_start(&m, task->task_sg, task->task_sg_nents,
+			read_rd ? SG_MITER_TO_SG : SG_MITER_FROM_SG);
 	while (req->rd_size) {
-		if ((sg_d[i].length - dst_offset) <
-		    (sg_s[j].length - src_offset)) {
-			length = (sg_d[i].length - dst_offset);
+		u32 len;
+		void *rd_addr;
 
-			pr_debug("Step 1 - sg_d[%d]: %p length: %d"
-				" offset: %u sg_s[%d].length: %u\n", i,
-				&sg_d[i], sg_d[i].length, sg_d[i].offset, j,
-				sg_s[j].length);
-			pr_debug("Step 1 - length: %u dst_offset: %u"
-				" src_offset: %u\n", length, dst_offset,
-				src_offset);
+		sg_miter_next(&m);
+		len = min((u32)m.length, src_len);
+		m.consumed = len;
 
-			if (length > req->rd_size)
-				length = req->rd_size;
+		rd_addr = sg_virt(rd_sg) + rd_offset;
 
-			dst = sg_virt(&sg_d[i++]) + dst_offset;
-			BUG_ON(!dst);
+		if (read_rd)
+			memcpy(m.addr, rd_addr, len);
+		else
+			memcpy(rd_addr, m.addr, len);
 
-			src = sg_virt(&sg_s[j]) + src_offset;
-			BUG_ON(!src);
-
-			dst_offset = 0;
-			src_offset = length;
-			page_end = 0;
-		} else {
-			length = (sg_s[j].length - src_offset);
-
-			pr_debug("Step 2 - sg_d[%d]: %p length: %d"
-				" offset: %u sg_s[%d].length: %u\n", i,
-				&sg_d[i], sg_d[i].length, sg_d[i].offset,
-				j, sg_s[j].length);
-			pr_debug("Step 2 - length: %u dst_offset: %u"
-				" src_offset: %u\n", length, dst_offset,
-				src_offset);
-
-			if (length > req->rd_size)
-				length = req->rd_size;
-
-			dst = sg_virt(&sg_d[i]) + dst_offset;
-			BUG_ON(!dst);
-
-			if (sg_d[i].length == length) {
-				i++;
-				dst_offset = 0;
-			} else
-				dst_offset = length;
-
-			src = sg_virt(&sg_s[j++]) + src_offset;
-			BUG_ON(!src);
-
-			src_offset = 0;
-			page_end = 1;
-		}
-
-		memcpy(dst, src, length);
-
-		pr_debug("page: %u, remaining size: %u, length: %u,"
-			" i: %u, j: %u\n", req->rd_page,
-			(req->rd_size - length), length, i, j);
-
-		req->rd_size -= length;
+		req->rd_size -= len;
 		if (!req->rd_size)
-			return 0;
-
-		if (!page_end)
 			continue;
 
-		if (++req->rd_page <= table->page_end_offset) {
-			pr_debug("page: %u in same page table\n",
-				req->rd_page);
+		src_len -= len;
+		if (src_len) {
+			rd_offset += len;
 			continue;
 		}
 
-		pr_debug("getting new page table for page: %u\n",
-				req->rd_page);
+		/* rd page completed, next one please */
+		req->rd_page++;
+		rd_offset = 0;
+		src_len = PAGE_SIZE;
+		if (req->rd_page <= table->page_end_offset) {
+			rd_sg++;
+			continue;
+		}
 
 		table = rd_get_sg_table(dev, req->rd_page);
-		if (!table)
+		if (!table) {
+			sg_miter_stop(&m);
 			return -EINVAL;
-
-		sg_s = &table->sg_table[j = 0];
-	}
-
-	return 0;
-}
-
-/*	rd_MEMCPY_write():
- *
- *
- */
-static int rd_MEMCPY_write(struct rd_request *req)
-{
-	struct se_task *task = &req->rd_task;
-	struct rd_dev *dev = req->rd_task.task_se_cmd->se_dev->dev_ptr;
-	struct rd_dev_sg_table *table;
-	struct scatterlist *sg_d, *sg_s;
-	void *dst, *src;
-	u32 i = 0, j = 0, dst_offset = 0, src_offset = 0;
-	u32 length, page_end = 0, table_sg_end;
-	u32 rd_offset = req->rd_offset;
-
-	table = rd_get_sg_table(dev, req->rd_page);
-	if (!table)
-		return -EINVAL;
-
-	table_sg_end = (table->page_end_offset - req->rd_page);
-	sg_d = &table->sg_table[req->rd_page - table->page_start_offset];
-	sg_s = task->task_sg;
-
-	pr_debug("RD[%d] Write LBA: %llu, Size: %u, Page: %u,"
-		" Offset: %u\n", dev->rd_dev_id, task->task_lba, req->rd_size,
-		req->rd_page, req->rd_offset);
-
-	dst_offset = rd_offset;
-
-	while (req->rd_size) {
-		if ((sg_s[i].length - src_offset) <
-		    (sg_d[j].length - dst_offset)) {
-			length = (sg_s[i].length - src_offset);
-
-			pr_debug("Step 1 - sg_s[%d]: %p length: %d"
-				" offset: %d sg_d[%d].length: %u\n", i,
-				&sg_s[i], sg_s[i].length, sg_s[i].offset,
-				j, sg_d[j].length);
-			pr_debug("Step 1 - length: %u src_offset: %u"
-				" dst_offset: %u\n", length, src_offset,
-				dst_offset);
-
-			if (length > req->rd_size)
-				length = req->rd_size;
-
-			src = sg_virt(&sg_s[i++]) + src_offset;
-			BUG_ON(!src);
-
-			dst = sg_virt(&sg_d[j]) + dst_offset;
-			BUG_ON(!dst);
-
-			src_offset = 0;
-			dst_offset = length;
-			page_end = 0;
-		} else {
-			length = (sg_d[j].length - dst_offset);
-
-			pr_debug("Step 2 - sg_s[%d]: %p length: %d"
-				" offset: %d sg_d[%d].length: %u\n", i,
-				&sg_s[i], sg_s[i].length, sg_s[i].offset,
-				j, sg_d[j].length);
-			pr_debug("Step 2 - length: %u src_offset: %u"
-				" dst_offset: %u\n", length, src_offset,
-				dst_offset);
-
-			if (length > req->rd_size)
-				length = req->rd_size;
-
-			src = sg_virt(&sg_s[i]) + src_offset;
-			BUG_ON(!src);
-
-			if (sg_s[i].length == length) {
-				i++;
-				src_offset = 0;
-			} else
-				src_offset = length;
-
-			dst = sg_virt(&sg_d[j++]) + dst_offset;
-			BUG_ON(!dst);
-
-			dst_offset = 0;
-			page_end = 1;
 		}
 
-		memcpy(dst, src, length);
-
-		pr_debug("page: %u, remaining size: %u, length: %u,"
-			" i: %u, j: %u\n", req->rd_page,
-			(req->rd_size - length), length, i, j);
-
-		req->rd_size -= length;
-		if (!req->rd_size)
-			return 0;
-
-		if (!page_end)
-			continue;
-
-		if (++req->rd_page <= table->page_end_offset) {
-			pr_debug("page: %u in same page table\n",
-				req->rd_page);
-			continue;
-		}
-
-		pr_debug("getting new page table for page: %u\n",
-				req->rd_page);
-
-		table = rd_get_sg_table(dev, req->rd_page);
-		if (!table)
-			return -EINVAL;
-
-		sg_d = &table->sg_table[j = 0];
+		/* since we increment, the first sg entry is correct */
+		rd_sg = table->sg_table;
 	}
-
+	sg_miter_stop(&m);
 	return 0;
 }
 
@@ -583,28 +422,21 @@ static int rd_MEMCPY_do_task(struct se_task *task)
 {
 	struct se_device *dev = task->task_se_cmd->se_dev;
 	struct rd_request *req = RD_REQ(task);
-	unsigned long long lba;
+	u64 tmp;
 	int ret;
 
-	req->rd_page = (task->task_lba * dev->se_sub_dev->se_dev_attrib.block_size) / PAGE_SIZE;
-	lba = task->task_lba;
-	req->rd_offset = (do_div(lba,
-			  (PAGE_SIZE / dev->se_sub_dev->se_dev_attrib.block_size))) *
-			   dev->se_sub_dev->se_dev_attrib.block_size;
+	tmp = task->task_lba * dev->se_sub_dev->se_dev_attrib.block_size;
+	req->rd_offset = do_div(tmp, PAGE_SIZE);
+	req->rd_page = tmp;
 	req->rd_size = task->task_size;
 
-	if (task->task_data_direction == DMA_FROM_DEVICE)
-		ret = rd_MEMCPY_read(req);
-	else
-		ret = rd_MEMCPY_write(req);
-
+	ret = rd_MEMCPY(req, task->task_data_direction == DMA_FROM_DEVICE);
 	if (ret != 0)
 		return ret;
 
 	task->task_scsi_status = GOOD;
 	transport_complete_task(task, 1);
-
-	return PYX_TRANSPORT_SENT_TO_TRANSPORT;
+	return 0;
 }
 
 /*	rd_free_task(): (Part of se_subsystem_api_t template)

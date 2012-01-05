@@ -53,6 +53,7 @@ struct dst_entry {
 #define DST_NOHASH		0x0008
 #define DST_NOCACHE		0x0010
 #define DST_NOCOUNT		0x0020
+#define DST_NOPEER		0x0040
 
 	short			error;
 	short			obsolete;
@@ -205,12 +206,7 @@ dst_feature(const struct dst_entry *dst, u32 feature)
 
 static inline u32 dst_mtu(const struct dst_entry *dst)
 {
-	u32 mtu = dst_metric_raw(dst, RTAX_MTU);
-
-	if (!mtu)
-		mtu = dst->ops->default_mtu(dst);
-
-	return mtu;
+	return dst->ops->mtu(dst);
 }
 
 /* RTT metrics are stored in milliseconds for user ABI, but used as jiffies */

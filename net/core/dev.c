@@ -1396,7 +1396,7 @@ rollback:
 	for_each_net(net) {
 		for_each_netdev(net, dev) {
 			if (dev == last)
-				break;
+				goto outroll;
 
 			if (dev->flags & IFF_UP) {
 				nb->notifier_call(nb, NETDEV_GOING_DOWN, dev);
@@ -1407,6 +1407,7 @@ rollback:
 		}
 	}
 
+outroll:
 	raw_notifier_chain_unregister(&netdev_chain, nb);
 	goto unlock;
 }
@@ -4280,6 +4281,12 @@ static int dev_seq_open(struct inode *inode, struct file *file)
 {
 	return seq_open_net(inode, file, &dev_seq_ops,
 			    sizeof(struct dev_iter_state));
+}
+
+int dev_seq_open_ops(struct inode *inode, struct file *file,
+		     const struct seq_operations *ops)
+{
+	return seq_open_net(inode, file, ops, sizeof(struct dev_iter_state));
 }
 
 static const struct file_operations dev_seq_fops = {

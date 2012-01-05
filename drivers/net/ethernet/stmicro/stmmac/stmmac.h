@@ -72,7 +72,6 @@ struct stmmac_priv {
 	spinlock_t lock;
 	spinlock_t tx_lock;
 	int wolopts;
-	int wolenabled;
 	int wol_irq;
 #ifdef CONFIG_STMMAC_TIMER
 	struct stmmac_timer *tm;
@@ -80,6 +79,7 @@ struct stmmac_priv {
 	struct plat_stmmacenet_data *plat;
 	struct stmmac_counters mmc;
 	struct dma_features dma_cap;
+	int hw_cap_support;
 };
 
 extern int stmmac_mdio_unregister(struct net_device *ndev);

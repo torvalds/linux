@@ -377,6 +377,7 @@ struct fimc_pix_limit {
  * @min_inp_pixsize: minimum input pixel size
  * @min_out_pixsize: minimum output pixel size
  * @hor_offs_align: horizontal pixel offset aligment
+ * @min_vsize_align: minimum vertical pixel size alignment
  * @out_buf_count: the number of buffers in output DMA sequence
  */
 struct samsung_fimc_variant {
@@ -390,6 +391,7 @@ struct samsung_fimc_variant {
 	u16		min_inp_pixsize;
 	u16		min_out_pixsize;
 	u16		hor_offs_align;
+	u16		min_vsize_align;
 	u16		out_buf_count;
 };
 

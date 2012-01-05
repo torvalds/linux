@@ -281,18 +281,18 @@ static int ceph_readdir(struct file *filp, void *dirent, filldir_t filldir)
 	}
 
 	/* can we use the dcache? */
-	spin_lock(&inode->i_lock);
+	spin_lock(&ci->i_ceph_lock);
 	if ((filp->f_pos == 2 || fi->dentry) &&
 	    !ceph_test_mount_opt(fsc, NOASYNCREADDIR) &&
 	    ceph_snap(inode) != CEPH_SNAPDIR &&
 	    ceph_dir_test_complete(inode) &&
 	    __ceph_caps_issued_mask(ci, CEPH_CAP_FILE_SHARED, 1)) {
-		spin_unlock(&inode->i_lock);
+		spin_unlock(&ci->i_ceph_lock);
 		err = __dcache_readdir(filp, dirent, filldir);
 		if (err != -EAGAIN)
 			return err;
 	} else {
-		spin_unlock(&inode->i_lock);
+		spin_unlock(&ci->i_ceph_lock);
 	}
 	if (fi->dentry) {
 		err = note_last_dentry(fi, fi->dentry->d_name.name,
@@ -428,12 +428,12 @@ more:
 	 * were released during the whole readdir, and we should have
 	 * the complete dir contents in our cache.
 	 */
-	spin_lock(&inode->i_lock);
+	spin_lock(&ci->i_ceph_lock);
 	if (ci->i_release_count == fi->dir_release_count) {
 		ceph_dir_set_complete(inode);
 		ci->i_max_offset = filp->f_pos;
 	}
-	spin_unlock(&inode->i_lock);
+	spin_unlock(&ci->i_ceph_lock);
 
 	dout("readdir %p filp %p done.\n", inode, filp);
 	return 0;
@@ -607,7 +607,7 @@ static struct dentry *ceph_lookup(struct inode *dir, struct dentry *dentry,
 		struct ceph_inode_info *ci = ceph_inode(dir);
 		struct ceph_dentry_info *di = ceph_dentry(dentry);
 
-		spin_lock(&dir->i_lock);
+		spin_lock(&ci->i_ceph_lock);
 		dout(" dir %p flags are %d\n", dir, ci->i_ceph_flags);
 		if (strncmp(dentry->d_name.name,
 			    fsc->mount_options->snapdir_name,
@@ -615,13 +615,13 @@ static struct dentry *ceph_lookup(struct inode *dir, struct dentry *dentry,
 		    !is_root_ceph_dentry(dir, dentry) &&
 		    ceph_dir_test_complete(dir) &&
 		    (__ceph_caps_issued_mask(ci, CEPH_CAP_FILE_SHARED, 1))) {
-			spin_unlock(&dir->i_lock);
+			spin_unlock(&ci->i_ceph_lock);
 			dout(" dir %p complete, -ENOENT\n", dir);
 			d_add(dentry, NULL);
 			di->lease_shared_gen = ci->i_shared_gen;
 			return NULL;
 		}
-		spin_unlock(&dir->i_lock);
+		spin_unlock(&ci->i_ceph_lock);
 	}
 
 	op = ceph_snap(dir) == CEPH_SNAPDIR ?
@@ -841,12 +841,12 @@ static int drop_caps_for_unlink(struct inode *inode)
 	struct ceph_inode_info *ci = ceph_inode(inode);
 	int drop = CEPH_CAP_LINK_SHARED | CEPH_CAP_LINK_EXCL;
 
-	spin_lock(&inode->i_lock);
+	spin_lock(&ci->i_ceph_lock);
 	if (inode->i_nlink == 1) {
 		drop |= ~(__ceph_caps_wanted(ci) | CEPH_CAP_PIN);
 		ci->i_ceph_flags |= CEPH_I_NODELAY;
 	}
-	spin_unlock(&inode->i_lock);
+	spin_unlock(&ci->i_ceph_lock);
 	return drop;
 }
 
@@ -1015,10 +1015,10 @@ static int dir_lease_is_valid(struct inode *dir, struct dentry *dentry)
 	struct ceph_dentry_info *di = ceph_dentry(dentry);
 	int valid = 0;
 
-	spin_lock(&dir->i_lock);
+	spin_lock(&ci->i_ceph_lock);
 	if (ci->i_shared_gen == di->lease_shared_gen)
 		valid = __ceph_caps_issued_mask(ci, CEPH_CAP_FILE_SHARED, 1);
-	spin_unlock(&dir->i_lock);
+	spin_unlock(&ci->i_ceph_lock);
 	dout("dir_lease_is_valid dir %p v%u dentry %p v%u = %d\n",
 	     dir, (unsigned)ci->i_shared_gen, dentry,
 	     (unsigned)di->lease_shared_gen, valid);
@@ -1143,7 +1143,7 @@ static void ceph_d_prune(struct dentry *dentry)
 {
 	struct ceph_dentry_info *di;
 
-	dout("d_release %p\n", dentry);
+	dout("ceph_d_prune %p\n", dentry);
 
 	/* do we have a valid parent? */
 	if (!dentry->d_parent || IS_ROOT(dentry))

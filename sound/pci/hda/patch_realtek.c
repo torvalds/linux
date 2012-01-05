@@ -277,6 +277,12 @@ static bool alc_dyn_adc_pcm_resetup(struct hda_codec *codec, int cur)
 	return false;
 }
 
+static inline hda_nid_t get_capsrc(struct alc_spec *spec, int idx)
+{
+	return spec->capsrc_nids ?
+		spec->capsrc_nids[idx] : spec->adc_nids[idx];
+}
+
 /* select the given imux item; either unmute exclusively or select the route */
 static int alc_mux_select(struct hda_codec *codec, unsigned int adc_idx,
 			  unsigned int idx, bool force)
@@ -284,13 +290,15 @@ static int alc_mux_select(struct hda_codec *codec, unsigned int adc_idx,
 	struct alc_spec *spec = codec->spec;
 	const struct hda_input_mux *imux;
 	unsigned int mux_idx;
-	int i, type;
+	int i, type, num_conns;
 	hda_nid_t nid;
 
 	mux_idx = adc_idx >= spec->num_mux_defs ? 0 : adc_idx;
 	imux = &spec->input_mux[mux_idx];
 	if (!imux->num_items && mux_idx > 0)
 		imux = &spec->input_mux[0];
+	if (!imux->num_items)
+		return 0;
 
 	if (idx >= imux->num_items)
 		idx = imux->num_items - 1;
@@ -303,20 +311,20 @@ static int alc_mux_select(struct hda_codec *codec, unsigned int adc_idx,
 		adc_idx = spec->dyn_adc_idx[idx];
 	}
 
-	nid = spec->capsrc_nids ?
-		spec->capsrc_nids[adc_idx] : spec->adc_nids[adc_idx];
+	nid = get_capsrc(spec, adc_idx);
 
 	/* no selection? */
-	if (snd_hda_get_conn_list(codec, nid, NULL) <= 1)
+	num_conns = snd_hda_get_conn_list(codec, nid, NULL);
+	if (num_conns <= 1)
 		return 1;
 
 	type = get_wcaps_type(get_wcaps(codec, nid));
 	if (type == AC_WID_AUD_MIX) {
 		/* Matrix-mixer style (e.g. ALC882) */
-		for (i = 0; i < imux->num_items; i++) {
-			unsigned int v = (i == idx) ? 0 : HDA_AMP_MUTE;
-			snd_hda_codec_amp_stereo(codec, nid, HDA_INPUT,
-						 imux->items[i].index,
+		int active = imux->items[idx].index;
+		for (i = 0; i < num_conns; i++) {
+			unsigned int v = (i == active) ? 0 : HDA_AMP_MUTE;
+			snd_hda_codec_amp_stereo(codec, nid, HDA_INPUT, i,
 						 HDA_AMP_MUTE, v);
 		}
 	} else {
@@ -1053,8 +1061,19 @@ static bool alc_rebuild_imux_for_auto_mic(struct hda_codec *codec)
 	spec->imux_pins[2] = spec->dock_mic_pin;
 	for (i = 0; i < 3; i++) {
 		strcpy(imux->items[i].label, texts[i]);
-		if (spec->imux_pins[i])
+		if (spec->imux_pins[i]) {
+			hda_nid_t pin = spec->imux_pins[i];
+			int c;
+			for (c = 0; c < spec->num_adc_nids; c++) {
+				hda_nid_t cap = get_capsrc(spec, c);
+				int idx = get_connection_index(codec, cap, pin);
+				if (idx >= 0) {
+					imux->items[i].index = idx;
+					break;
+				}
+			}
 			imux->num_items = i + 1;
+		}
 	}
 	spec->num_mux_defs = 1;
 	spec->input_mux = imux;
@@ -1451,7 +1470,7 @@ static void alc_apply_fixup(struct hda_codec *codec, int action)
 		switch (fix->type) {
 		case ALC_FIXUP_SKU:
 			if (action != ALC_FIXUP_ACT_PRE_PROBE || !fix->v.sku)
-				break;;
+				break;
 			snd_printdd(KERN_INFO "hda_codec: %s: "
 				    "Apply sku override for %s\n",
 				    codec->chip_name, modelname);
@@ -1956,10 +1975,8 @@ static int alc_build_controls(struct hda_codec *codec)
 		if (!kctl)
 			kctl = snd_hda_find_mixer_ctl(codec, "Input Source");
 		for (i = 0; kctl && i < kctl->count; i++) {
-			const hda_nid_t *nids = spec->capsrc_nids;
-			if (!nids)
-				nids = spec->adc_nids;
-			err = snd_hda_add_nid(codec, kctl, i, nids[i]);
+			err = snd_hda_add_nid(codec, kctl, i,
+					      get_capsrc(spec, i));
 			if (err < 0)
 				return err;
 		}
@@ -2614,6 +2631,8 @@ static const char *alc_get_line_out_pfx(struct alc_spec *spec, int ch,
 	case AUTO_PIN_SPEAKER_OUT:
 		if (cfg->line_outs == 1)
 			return "Speaker";
+		if (cfg->line_outs == 2)
+			return ch ? "Bass Speaker" : "Speaker";
 		break;
 	case AUTO_PIN_HP_OUT:
 		/* for multi-io case, only the primary out */
@@ -2746,8 +2765,7 @@ static int alc_auto_create_input_ctls(struct hda_codec *codec)
 		}
 
 		for (c = 0; c < num_adcs; c++) {
-			hda_nid_t cap = spec->capsrc_nids ?
-				spec->capsrc_nids[c] : spec->adc_nids[c];
+			hda_nid_t cap = get_capsrc(spec, c);
 			idx = get_connection_index(codec, cap, pin);
 			if (idx >= 0) {
 				spec->imux_pins[imux->num_items] = pin;
@@ -2888,7 +2906,7 @@ static hda_nid_t alc_auto_look_for_dac(struct hda_codec *codec, hda_nid_t pin)
 		if (!nid)
 			continue;
 		if (found_in_nid_list(nid, spec->multiout.dac_nids,
-				      spec->multiout.num_dacs))
+				      ARRAY_SIZE(spec->private_dac_nids)))
 			continue;
 		if (found_in_nid_list(nid, spec->multiout.hp_out_nid,
 				      ARRAY_SIZE(spec->multiout.hp_out_nid)))
@@ -2909,6 +2927,7 @@ static hda_nid_t get_dac_if_single(struct hda_codec *codec, hda_nid_t pin)
 	return 0;
 }
 
+/* return 0 if no possible DAC is found, 1 if one or more found */
 static int alc_auto_fill_extra_dacs(struct hda_codec *codec, int num_outs,
 				    const hda_nid_t *pins, hda_nid_t *dacs)
 {
@@ -2926,7 +2945,7 @@ static int alc_auto_fill_extra_dacs(struct hda_codec *codec, int num_outs,
 		if (!dacs[i])
 			dacs[i] = alc_auto_look_for_dac(codec, pins[i]);
 	}
-	return 0;
+	return 1;
 }
 
 static int alc_auto_fill_multi_ios(struct hda_codec *codec,
@@ -2936,7 +2955,7 @@ static int alc_auto_fill_multi_ios(struct hda_codec *codec,
 static int alc_auto_fill_dac_nids(struct hda_codec *codec)
 {
 	struct alc_spec *spec = codec->spec;
-	const struct auto_pin_cfg *cfg = &spec->autocfg;
+	struct auto_pin_cfg *cfg = &spec->autocfg;
 	bool redone = false;
 	int i;
 
@@ -2947,6 +2966,7 @@ static int alc_auto_fill_dac_nids(struct hda_codec *codec)
 	spec->multiout.extra_out_nid[0] = 0;
 	memset(spec->private_dac_nids, 0, sizeof(spec->private_dac_nids));
 	spec->multiout.dac_nids = spec->private_dac_nids;
+	spec->multi_ios = 0;
 
 	/* fill hard-wired DACs first */
 	if (!redone) {
@@ -2980,10 +3000,12 @@ static int alc_auto_fill_dac_nids(struct hda_codec *codec)
 	for (i = 0; i < cfg->line_outs; i++) {
 		if (spec->private_dac_nids[i])
 			spec->multiout.num_dacs++;
-		else
+		else {
 			memmove(spec->private_dac_nids + i,
 				spec->private_dac_nids + i + 1,
 				sizeof(hda_nid_t) * (cfg->line_outs - i - 1));
+			spec->private_dac_nids[cfg->line_outs - 1] = 0;
+		}
 	}
 
 	if (cfg->line_outs == 1 && cfg->line_out_type != AUTO_PIN_SPEAKER_OUT) {
@@ -3005,9 +3027,28 @@ static int alc_auto_fill_dac_nids(struct hda_codec *codec)
 	if (cfg->line_out_type != AUTO_PIN_HP_OUT)
 		alc_auto_fill_extra_dacs(codec, cfg->hp_outs, cfg->hp_pins,
 				 spec->multiout.hp_out_nid);
-	if (cfg->line_out_type != AUTO_PIN_SPEAKER_OUT)
-		alc_auto_fill_extra_dacs(codec, cfg->speaker_outs, cfg->speaker_pins,
-				 spec->multiout.extra_out_nid);
+	if (cfg->line_out_type != AUTO_PIN_SPEAKER_OUT) {
+		int err = alc_auto_fill_extra_dacs(codec, cfg->speaker_outs,
+					cfg->speaker_pins,
+					spec->multiout.extra_out_nid);
+		/* if no speaker volume is assigned, try again as the primary
+		 * output
+		 */
+		if (!err && cfg->speaker_outs > 0 &&
+		    cfg->line_out_type == AUTO_PIN_HP_OUT) {
+			cfg->hp_outs = cfg->line_outs;
+			memcpy(cfg->hp_pins, cfg->line_out_pins,
+			       sizeof(cfg->hp_pins));
+			cfg->line_outs = cfg->speaker_outs;
+			memcpy(cfg->line_out_pins, cfg->speaker_pins,
+			       sizeof(cfg->speaker_pins));
+			cfg->speaker_outs = 0;
+			memset(cfg->speaker_pins, 0, sizeof(cfg->speaker_pins));
+			cfg->line_out_type = AUTO_PIN_SPEAKER_OUT;
+			redone = false;
+			goto again;
+		}
+	}
 
 	return 0;
 }
@@ -3157,7 +3198,8 @@ static int alc_auto_create_multi_out_ctls(struct hda_codec *codec,
 }
 
 static int alc_auto_create_extra_out(struct hda_codec *codec, hda_nid_t pin,
-				     hda_nid_t dac, const char *pfx)
+				     hda_nid_t dac, const char *pfx,
+				     int cidx)
 {
 	struct alc_spec *spec = codec->spec;
 	hda_nid_t sw, vol;
@@ -3173,15 +3215,15 @@ static int alc_auto_create_extra_out(struct hda_codec *codec, hda_nid_t pin,
 		if (is_ctl_used(spec->sw_ctls, val))
 			return 0; /* already created */
 		mark_ctl_usage(spec->sw_ctls, val);
-		return add_pb_sw_ctrl(spec, ALC_CTL_WIDGET_MUTE, pfx, val);
+		return __add_pb_sw_ctrl(spec, ALC_CTL_WIDGET_MUTE, pfx, cidx, val);
 	}
 
 	sw = alc_look_for_out_mute_nid(codec, pin, dac);
 	vol = alc_look_for_out_vol_nid(codec, pin, dac);
-	err = alc_auto_add_stereo_vol(codec, pfx, 0, vol);
+	err = alc_auto_add_stereo_vol(codec, pfx, cidx, vol);
 	if (err < 0)
 		return err;
-	err = alc_auto_add_stereo_sw(codec, pfx, 0, sw);
+	err = alc_auto_add_stereo_sw(codec, pfx, cidx, sw);
 	if (err < 0)
 		return err;
 	return 0;
@@ -3222,16 +3264,21 @@ static int alc_auto_create_extra_outs(struct hda_codec *codec, int num_pins,
 		hda_nid_t dac = *dacs;
 		if (!dac)
 			dac = spec->multiout.dac_nids[0];
-		return alc_auto_create_extra_out(codec, *pins, dac, pfx);
+		return alc_auto_create_extra_out(codec, *pins, dac, pfx, 0);
 	}
 
 	if (dacs[num_pins - 1]) {
 		/* OK, we have a multi-output system with individual volumes */
 		for (i = 0; i < num_pins; i++) {
-			snprintf(name, sizeof(name), "%s %s",
-				 pfx, channel_name[i]);
-			err = alc_auto_create_extra_out(codec, pins[i], dacs[i],
-							name);
+			if (num_pins >= 3) {
+				snprintf(name, sizeof(name), "%s %s",
+					 pfx, channel_name[i]);
+				err = alc_auto_create_extra_out(codec, pins[i], dacs[i],
+								name, 0);
+			} else {
+				err = alc_auto_create_extra_out(codec, pins[i], dacs[i],
+								pfx, i);
+			}
 			if (err < 0)
 				return err;
 		}
@@ -3693,8 +3740,7 @@ static int init_capsrc_for_pin(struct hda_codec *codec, hda_nid_t pin)
 	if (!pin)
 		return 0;
 	for (i = 0; i < spec->num_adc_nids; i++) {
-		hda_nid_t cap = spec->capsrc_nids ?
-			spec->capsrc_nids[i] : spec->adc_nids[i];
+		hda_nid_t cap = get_capsrc(spec, i);
 		int idx;
 
 		idx = get_connection_index(codec, cap, pin);

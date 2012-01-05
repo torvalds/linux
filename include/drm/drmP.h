@@ -990,7 +990,9 @@ struct drm_minor {
 	struct proc_dir_entry *proc_root;  /**< proc directory entry */
 	struct drm_info_node proc_nodes;
 	struct dentry *debugfs_root;
-	struct drm_info_node debugfs_nodes;
+
+	struct list_head debugfs_list;
+	struct mutex debugfs_lock; /* Protects debugfs_list. */
 
 	struct drm_master *master; /* currently active master for this node */
 	struct list_head master_list;

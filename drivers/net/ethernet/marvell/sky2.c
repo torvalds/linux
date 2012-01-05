@@ -50,7 +50,7 @@
 #include "sky2.h"
 
 #define DRV_NAME		"sky2"
-#define DRV_VERSION		"1.29"
+#define DRV_VERSION		"1.30"
 
 /*
  * The Yukon II chipset takes 64 bit command blocks (called list elements)
@@ -68,7 +68,7 @@
 #define MAX_SKB_TX_LE	(2 + (sizeof(dma_addr_t)/sizeof(u32))*(MAX_SKB_FRAGS+1))
 #define TX_MIN_PENDING		(MAX_SKB_TX_LE+1)
 #define TX_MAX_PENDING		1024
-#define TX_DEF_PENDING		127
+#define TX_DEF_PENDING		63
 
 #define TX_WATCHDOG		(5 * HZ)
 #define NAPI_WEIGHT		64
@@ -869,6 +869,7 @@ static void sky2_wol_init(struct sky2_port *sky2)
 
 	/* block receiver */
 	sky2_write8(hw, SK_REG(port, RX_GMF_CTRL_T), GMF_RST_SET);
+	sky2_read32(hw, B0_CTST);
 }
 
 static void sky2_set_tx_stfwd(struct sky2_hw *hw, unsigned port)
@@ -1274,6 +1275,14 @@ static void rx_set_checksum(struct sky2_port *sky2)
 		     ? BMU_ENA_RX_CHKSUM : BMU_DIS_RX_CHKSUM);
 }
 
+/*
+ * Fixed initial key as seed to RSS.
+ */
+static const uint32_t rss_init_key[10] = {
+	0x7c3351da, 0x51c5cf4e,	0x44adbdd1, 0xe8d38d18,	0x48897c43,
+	0xb1d60e7e, 0x6a3dd760, 0x01a2e453, 0x16f46f13, 0x1a0e7b30
+};
+
 /* Enable/disable receive hash calculation (RSS) */
 static void rx_set_rss(struct net_device *dev, u32 features)
 {
@@ -1289,12 +1298,9 @@ static void rx_set_rss(struct net_device *dev, u32 features)
 
 	/* Program RSS initial values */
 	if (features & NETIF_F_RXHASH) {
-		u32 key[nkeys];
-
-		get_random_bytes(key, nkeys * sizeof(u32));
 		for (i = 0; i < nkeys; i++)
 			sky2_write32(hw, SK_REG(sky2->port, RSS_KEY + i * 4),
-				     key[i]);
+				     rss_init_key[i]);
 
 		/* Need to turn on (undocumented) flag to make hashing work  */
 		sky2_write32(hw, SK_REG(sky2->port, RX_GMF_CTRL_T),
@@ -1717,6 +1723,8 @@ static int sky2_setup_irq(struct sky2_hw *hw, const char *name)
 	if (err)
 		dev_err(&pdev->dev, "cannot assign irq %d\n", pdev->irq);
 	else {
+		hw->flags |= SKY2_HW_IRQ_SETUP;
+
 		napi_enable(&hw->napi);
 		sky2_write32(hw, B0_IMSK, Y2_IS_BASE);
 		sky2_read32(hw, B0_IMSK);
@@ -1727,7 +1735,7 @@ static int sky2_setup_irq(struct sky2_hw *hw, const char *name)
 
 
 /* Bring up network interface. */
-static int sky2_up(struct net_device *dev)
+static int sky2_open(struct net_device *dev)
 {
 	struct sky2_port *sky2 = netdev_priv(dev);
 	struct sky2_hw *hw = sky2->hw;
@@ -1746,6 +1754,11 @@ static int sky2_up(struct net_device *dev)
 		goto err_out;
 
 	sky2_hw_up(sky2);
+
+	if (hw->chip_id == CHIP_ID_YUKON_OPT ||
+	    hw->chip_id == CHIP_ID_YUKON_PRM ||
+	    hw->chip_id == CHIP_ID_YUKON_OP_2)
+		imask |= Y2_IS_PHY_QLNK;	/* enable PHY Quick Link */
 
 	/* Enable interrupts from phy/mac for port */
 	imask = sky2_read32(hw, B0_IMSK);
@@ -2040,6 +2053,8 @@ static void sky2_tx_reset(struct sky2_hw *hw, unsigned port)
 
 	sky2_write32(hw, RB_ADDR(txqaddr[port], RB_CTRL), RB_RST_SET);
 	sky2_write8(hw, SK_REG(port, TX_GMF_CTRL_T), GMF_RST_SET);
+
+	sky2_read32(hw, B0_CTST);
 }
 
 static void sky2_hw_down(struct sky2_port *sky2)
@@ -2090,7 +2105,7 @@ static void sky2_hw_down(struct sky2_port *sky2)
 }
 
 /* Network shutdown */
-static int sky2_down(struct net_device *dev)
+static int sky2_close(struct net_device *dev)
 {
 	struct sky2_port *sky2 = netdev_priv(dev);
 	struct sky2_hw *hw = sky2->hw;
@@ -2101,15 +2116,22 @@ static int sky2_down(struct net_device *dev)
 
 	netif_info(sky2, ifdown, dev, "disabling interface\n");
 
-	/* Disable port IRQ */
-	sky2_write32(hw, B0_IMSK,
-		     sky2_read32(hw, B0_IMSK) & ~portirq_msk[sky2->port]);
-	sky2_read32(hw, B0_IMSK);
-
 	if (hw->ports == 1) {
+		sky2_write32(hw, B0_IMSK, 0);
+		sky2_read32(hw, B0_IMSK);
+
 		napi_disable(&hw->napi);
 		free_irq(hw->pdev->irq, hw);
+		hw->flags &= ~SKY2_HW_IRQ_SETUP;
 	} else {
+		u32 imask;
+
+		/* Disable port IRQ */
+		imask  = sky2_read32(hw, B0_IMSK);
+		imask &= ~portirq_msk[sky2->port];
+		sky2_write32(hw, B0_IMSK, imask);
+		sky2_read32(hw, B0_IMSK);
+
 		synchronize_irq(hw->pdev->irq);
 		napi_synchronize(&hw->napi);
 	}
@@ -2587,7 +2609,7 @@ static inline void sky2_tx_done(struct net_device *dev, u16 last)
 	if (netif_running(dev)) {
 		sky2_tx_complete(sky2, last);
 
-		/* Wake unless it's detached, and called e.g. from sky2_down() */
+		/* Wake unless it's detached, and called e.g. from sky2_close() */
 		if (tx_avail(sky2) > MAX_SKB_TX_LE + 4)
 			netif_wake_queue(dev);
 	}
@@ -3258,7 +3280,6 @@ static void sky2_reset(struct sky2_hw *hw)
 	    hw->chip_id == CHIP_ID_YUKON_PRM ||
 	    hw->chip_id == CHIP_ID_YUKON_OP_2) {
 		u16 reg;
-		u32 msk;
 
 		if (hw->chip_id == CHIP_ID_YUKON_OPT && hw->chip_rev == 0) {
 			/* disable PCI-E PHY power down (set PHY reg 0x80, bit 7 */
@@ -3280,11 +3301,6 @@ static void sky2_reset(struct sky2_hw *hw)
 		/* reset PHY Link Detect */
 		sky2_write8(hw, B2_TST_CTRL1, TST_CFG_WRITE_ON);
 		sky2_pci_write16(hw, PSM_CONFIG_REG4, reg);
-
-		/* enable PHY Quick Link */
-		msk = sky2_read32(hw, B0_IMSK);
-		msk |= Y2_IS_PHY_QLNK;
-		sky2_write32(hw, B0_IMSK, msk);
 
 		/* check if PSMv2 was running before */
 		reg = sky2_pci_read16(hw, PSM_CONFIG_REG3);
@@ -3383,7 +3399,7 @@ static void sky2_detach(struct net_device *dev)
 		netif_tx_lock(dev);
 		netif_device_detach(dev);	/* stop txq */
 		netif_tx_unlock(dev);
-		sky2_down(dev);
+		sky2_close(dev);
 	}
 }
 
@@ -3393,7 +3409,7 @@ static int sky2_reattach(struct net_device *dev)
 	int err = 0;
 
 	if (netif_running(dev)) {
-		err = sky2_up(dev);
+		err = sky2_open(dev);
 		if (err) {
 			netdev_info(dev, "could not restart %d\n", err);
 			dev_close(dev);
@@ -3410,10 +3426,13 @@ static void sky2_all_down(struct sky2_hw *hw)
 {
 	int i;
 
-	sky2_read32(hw, B0_IMSK);
-	sky2_write32(hw, B0_IMSK, 0);
-	synchronize_irq(hw->pdev->irq);
-	napi_disable(&hw->napi);
+	if (hw->flags & SKY2_HW_IRQ_SETUP) {
+		sky2_read32(hw, B0_IMSK);
+		sky2_write32(hw, B0_IMSK, 0);
+
+		synchronize_irq(hw->pdev->irq);
+		napi_disable(&hw->napi);
+	}
 
 	for (i = 0; i < hw->ports; i++) {
 		struct net_device *dev = hw->dev[i];
@@ -3446,11 +3465,12 @@ static void sky2_all_up(struct sky2_hw *hw)
 		netif_wake_queue(dev);
 	}
 
-	sky2_write32(hw, B0_IMSK, imask);
-	sky2_read32(hw, B0_IMSK);
-
-	sky2_read32(hw, B0_Y2_SP_LISR);
-	napi_enable(&hw->napi);
+	if (hw->flags & SKY2_HW_IRQ_SETUP) {
+		sky2_write32(hw, B0_IMSK, imask);
+		sky2_read32(hw, B0_IMSK);
+		sky2_read32(hw, B0_Y2_SP_LISR);
+		napi_enable(&hw->napi);
+	}
 }
 
 static void sky2_restart(struct work_struct *work)
@@ -4071,6 +4091,16 @@ static int sky2_set_coalesce(struct net_device *dev,
 	return 0;
 }
 
+/*
+ * Hardware is limited to min of 128 and max of 2048 for ring size
+ * and  rounded up to next power of two
+ * to avoid division in modulus calclation
+ */
+static unsigned long roundup_ring_size(unsigned long pending)
+{
+	return max(128ul, roundup_pow_of_two(pending+1));
+}
+
 static void sky2_get_ringparam(struct net_device *dev,
 			       struct ethtool_ringparam *ering)
 {
@@ -4098,7 +4128,7 @@ static int sky2_set_ringparam(struct net_device *dev,
 
 	sky2->rx_pending = ering->rx_pending;
 	sky2->tx_pending = ering->tx_pending;
-	sky2->tx_ring_size = roundup_pow_of_two(sky2->tx_pending+1);
+	sky2->tx_ring_size = roundup_ring_size(sky2->tx_pending);
 
 	return sky2_reattach(dev);
 }
@@ -4556,7 +4586,7 @@ static int sky2_device_event(struct notifier_block *unused,
 	struct net_device *dev = ptr;
 	struct sky2_port *sky2 = netdev_priv(dev);
 
-	if (dev->netdev_ops->ndo_open != sky2_up || !sky2_debug)
+	if (dev->netdev_ops->ndo_open != sky2_open || !sky2_debug)
 		return NOTIFY_DONE;
 
 	switch (event) {
@@ -4621,8 +4651,8 @@ static __exit void sky2_debug_cleanup(void)
    not allowing netpoll on second port */
 static const struct net_device_ops sky2_netdev_ops[2] = {
   {
-	.ndo_open		= sky2_up,
-	.ndo_stop		= sky2_down,
+	.ndo_open		= sky2_open,
+	.ndo_stop		= sky2_close,
 	.ndo_start_xmit		= sky2_xmit_frame,
 	.ndo_do_ioctl		= sky2_ioctl,
 	.ndo_validate_addr	= eth_validate_addr,
@@ -4638,8 +4668,8 @@ static const struct net_device_ops sky2_netdev_ops[2] = {
 #endif
   },
   {
-	.ndo_open		= sky2_up,
-	.ndo_stop		= sky2_down,
+	.ndo_open		= sky2_open,
+	.ndo_stop		= sky2_close,
 	.ndo_start_xmit		= sky2_xmit_frame,
 	.ndo_do_ioctl		= sky2_ioctl,
 	.ndo_validate_addr	= eth_validate_addr,
@@ -4692,7 +4722,7 @@ static __devinit struct net_device *sky2_init_netdev(struct sky2_hw *hw,
 	spin_lock_init(&sky2->phy_lock);
 
 	sky2->tx_pending = TX_DEF_PENDING;
-	sky2->tx_ring_size = roundup_pow_of_two(TX_DEF_PENDING+1);
+	sky2->tx_ring_size = roundup_ring_size(TX_DEF_PENDING);
 	sky2->rx_pending = RX_DEF_PENDING;
 
 	hw->dev[port] = dev;

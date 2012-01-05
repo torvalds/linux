@@ -39,8 +39,11 @@
 #define L2CAP_DEFAULT_ACK_TO		200
 #define L2CAP_LE_DEFAULT_MTU		23
 
-#define L2CAP_CONN_TIMEOUT	(40000) /* 40 seconds */
-#define L2CAP_INFO_TIMEOUT	(4000)  /*  4 seconds */
+#define L2CAP_DISC_TIMEOUT             (100)
+#define L2CAP_DISC_REJ_TIMEOUT         (5000)  /*  5 seconds */
+#define L2CAP_ENC_TIMEOUT              (5000)  /*  5 seconds */
+#define L2CAP_CONN_TIMEOUT             (40000) /* 40 seconds */
+#define L2CAP_INFO_TIMEOUT             (4000)  /*  4 seconds */
 
 /* L2CAP socket address */
 struct sockaddr_l2 {

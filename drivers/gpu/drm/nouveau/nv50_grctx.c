@@ -601,7 +601,7 @@ nv50_graph_construct_mmio(struct nouveau_grctx *ctx)
 					gr_def(ctx, offset + 0x1c, 0x00880000);
 					break;
 				case 0x86:
-					gr_def(ctx, offset + 0x1c, 0x008c0000);
+					gr_def(ctx, offset + 0x1c, 0x018c0000);
 					break;
 				case 0x92:
 				case 0x96:

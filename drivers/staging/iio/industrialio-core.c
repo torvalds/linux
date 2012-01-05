@@ -242,19 +242,26 @@ static const struct file_operations iio_event_chrdev_fileops = {
 
 static int iio_event_getfd(struct iio_dev *indio_dev)
 {
-	if (indio_dev->event_interface == NULL)
+	struct iio_event_interface *ev_int = indio_dev->event_interface;
+	int fd;
+
+	if (ev_int == NULL)
 		return -ENODEV;
 
-	mutex_lock(&indio_dev->event_interface->event_list_lock);
-	if (test_and_set_bit(IIO_BUSY_BIT_POS,
-			     &indio_dev->event_interface->flags)) {
-		mutex_unlock(&indio_dev->event_interface->event_list_lock);
+	mutex_lock(&ev_int->event_list_lock);
+	if (test_and_set_bit(IIO_BUSY_BIT_POS, &ev_int->flags)) {
+		mutex_unlock(&ev_int->event_list_lock);
 		return -EBUSY;
 	}
-	mutex_unlock(&indio_dev->event_interface->event_list_lock);
-	return anon_inode_getfd("iio:event",
-				&iio_event_chrdev_fileops,
-				indio_dev->event_interface, O_RDONLY);
+	mutex_unlock(&ev_int->event_list_lock);
+	fd = anon_inode_getfd("iio:event",
+				&iio_event_chrdev_fileops, ev_int, O_RDONLY);
+	if (fd < 0) {
+		mutex_lock(&ev_int->event_list_lock);
+		clear_bit(IIO_BUSY_BIT_POS, &ev_int->flags);
+		mutex_unlock(&ev_int->event_list_lock);
+	}
+	return fd;
 }
 
 static int __init iio_init(void)

@@ -1269,7 +1269,7 @@ void mq_clear_sbinfo(struct ipc_namespace *ns)
 
 void mq_put_mnt(struct ipc_namespace *ns)
 {
-	mntput(ns->mq_mnt);
+	kern_unmount(ns->mq_mnt);
 }
 
 static int __init init_mqueue_fs(void)
@@ -1291,11 +1291,9 @@ static int __init init_mqueue_fs(void)
 
 	spin_lock_init(&mq_lock);
 
-	init_ipc_ns.mq_mnt = kern_mount_data(&mqueue_fs_type, &init_ipc_ns);
-	if (IS_ERR(init_ipc_ns.mq_mnt)) {
-		error = PTR_ERR(init_ipc_ns.mq_mnt);
+	error = mq_init_ns(&init_ipc_ns);
+	if (error)
 		goto out_filesystem;
-	}
 
 	return 0;
 

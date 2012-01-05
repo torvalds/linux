@@ -611,7 +611,8 @@ struct radeon_cs_parser {
 	struct radeon_ib	*ib;
 	void			*track;
 	unsigned		family;
-	int parser_error;
+	int			parser_error;
+	bool			keep_tiling_flags;
 };
 
 extern int radeon_cs_update_pages(struct radeon_cs_parser *p, int pg_idx);
@@ -784,8 +785,7 @@ struct radeon_pm_clock_info {
 
 struct radeon_power_state {
 	enum radeon_pm_state_type type;
-	/* XXX: use a define for num clock modes */
-	struct radeon_pm_clock_info clock_info[8];
+	struct radeon_pm_clock_info *clock_info;
 	/* number of valid clock modes in this power state */
 	int num_clock_modes;
 	struct radeon_pm_clock_info *default_clock_mode;
@@ -855,6 +855,9 @@ struct radeon_pm {
 	struct device	        *int_hwmon_dev;
 };
 
+int radeon_pm_get_type_index(struct radeon_device *rdev,
+			     enum radeon_pm_state_type ps_type,
+			     int instance);
 
 /*
  * Benchmarking
@@ -1142,6 +1145,48 @@ struct r600_vram_scratch {
 	u64				gpu_addr;
 };
 
+
+/*
+ * Mutex which allows recursive locking from the same process.
+ */
+struct radeon_mutex {
+	struct mutex		mutex;
+	struct task_struct	*owner;
+	int			level;
+};
+
+static inline void radeon_mutex_init(struct radeon_mutex *mutex)
+{
+	mutex_init(&mutex->mutex);
+	mutex->owner = NULL;
+	mutex->level = 0;
+}
+
+static inline void radeon_mutex_lock(struct radeon_mutex *mutex)
+{
+	if (mutex_trylock(&mutex->mutex)) {
+		/* The mutex was unlocked before, so it's ours now */
+		mutex->owner = current;
+	} else if (mutex->owner != current) {
+		/* Another process locked the mutex, take it */
+		mutex_lock(&mutex->mutex);
+		mutex->owner = current;
+	}
+	/* Otherwise the mutex was already locked by this process */
+
+	mutex->level++;
+}
+
+static inline void radeon_mutex_unlock(struct radeon_mutex *mutex)
+{
+	if (--mutex->level > 0)
+		return;
+
+	mutex->owner = NULL;
+	mutex_unlock(&mutex->mutex);
+}
+
+
 /*
  * Core structure, functions and helpers.
  */
@@ -1197,7 +1242,7 @@ struct radeon_device {
 	struct radeon_gem		gem;
 	struct radeon_pm		pm;
 	uint32_t			bios_scratch[RADEON_BIOS_NUM_SCRATCH];
-	struct mutex			cs_mutex;
+	struct radeon_mutex		cs_mutex;
 	struct radeon_wb		wb;
 	struct radeon_dummy_page	dummy_page;
 	bool				gpu_lockup;

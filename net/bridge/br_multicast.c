@@ -1501,6 +1501,8 @@ static int br_multicast_ipv6_rcv(struct net_bridge *br,
 
 	__skb_pull(skb2, offset);
 	skb_reset_transport_header(skb2);
+	skb_postpull_rcsum(skb2, skb_network_header(skb2),
+			   skb_network_header_len(skb2));
 
 	icmp6_type = icmp6_hdr(skb2)->icmp6_type;
 
@@ -1770,7 +1772,7 @@ int br_multicast_toggle(struct net_bridge *br, unsigned long val)
 	int err = 0;
 	struct net_bridge_mdb_htable *mdb;
 
-	spin_lock(&br->multicast_lock);
+	spin_lock_bh(&br->multicast_lock);
 	if (br->multicast_disabled == !val)
 		goto unlock;
 
@@ -1806,7 +1808,7 @@ rollback:
 	}
 
 unlock:
-	spin_unlock(&br->multicast_lock);
+	spin_unlock_bh(&br->multicast_lock);
 
 	return err;
 }

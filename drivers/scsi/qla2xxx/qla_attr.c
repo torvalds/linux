@@ -1762,12 +1762,31 @@ qla2x00_get_host_port_state(struct Scsi_Host *shost)
 	scsi_qla_host_t *vha = shost_priv(shost);
 	struct scsi_qla_host *base_vha = pci_get_drvdata(vha->hw->pdev);
 
-	if (!base_vha->flags.online)
+	if (!base_vha->flags.online) {
 		fc_host_port_state(shost) = FC_PORTSTATE_OFFLINE;
-	else if (atomic_read(&base_vha->loop_state) == LOOP_TIMEOUT)
-		fc_host_port_state(shost) = FC_PORTSTATE_UNKNOWN;
-	else
+		return;
+	}
+
+	switch (atomic_read(&base_vha->loop_state)) {
+	case LOOP_UPDATE:
+		fc_host_port_state(shost) = FC_PORTSTATE_DIAGNOSTICS;
+		break;
+	case LOOP_DOWN:
+		if (test_bit(LOOP_RESYNC_NEEDED, &base_vha->dpc_flags))
+			fc_host_port_state(shost) = FC_PORTSTATE_DIAGNOSTICS;
+		else
+			fc_host_port_state(shost) = FC_PORTSTATE_LINKDOWN;
+		break;
+	case LOOP_DEAD:
+		fc_host_port_state(shost) = FC_PORTSTATE_LINKDOWN;
+		break;
+	case LOOP_READY:
 		fc_host_port_state(shost) = FC_PORTSTATE_ONLINE;
+		break;
+	default:
+		fc_host_port_state(shost) = FC_PORTSTATE_UNKNOWN;
+		break;
+	}
 }
 
 static int

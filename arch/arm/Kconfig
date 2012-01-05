@@ -220,8 +220,9 @@ config NEED_MACH_MEMORY_H
 	  be avoided when possible.
 
 config PHYS_OFFSET
-	hex "Physical address of main memory"
+	hex "Physical address of main memory" if MMU
 	depends on !ARM_PATCH_PHYS_VIRT && !NEED_MACH_MEMORY_H
+	default DRAM_BASE if !MMU
 	help
 	  Please provide the physical address corresponding to the
 	  location of main memory in your system.
@@ -867,16 +868,6 @@ config ARCH_SHARK
 	  Support for the StrongARM based Digital DNARD machine, also known
 	  as "Shark" (<http://www.shark-linux.de/shark.html>).
 
-config ARCH_TCC_926
-	bool "Telechips TCC ARM926-based systems"
-	select CLKSRC_MMIO
-	select CPU_ARM926T
-	select HAVE_CLK
-	select CLKDEV_LOOKUP
-	select GENERIC_CLOCKEVENTS
-	help
-	  Support for Telechips TCC ARM926-based systems.
-
 config ARCH_U300
 	bool "ST-Ericsson U300 Series"
 	depends on MMU
@@ -1059,8 +1050,6 @@ source "arch/arm/plat-s5p/Kconfig"
 
 source "arch/arm/plat-spear/Kconfig"
 
-source "arch/arm/plat-tcc/Kconfig"
-
 if ARCH_S3C2410
 source "arch/arm/mach-s3c2410/Kconfig"
 source "arch/arm/mach-s3c2412/Kconfig"
@@ -1231,7 +1220,7 @@ config ARM_ERRATA_742231
 	  capabilities of the processor.
 
 config PL310_ERRATA_588369
-	bool "Clean & Invalidate maintenance operations do not invalidate clean lines"
+	bool "PL310 errata: Clean & Invalidate maintenance operations do not invalidate clean lines"
 	depends on CACHE_L2X0
 	help
 	   The PL310 L2 cache controller implements three types of Clean &
@@ -1256,7 +1245,7 @@ config ARM_ERRATA_720789
 	  entries regardless of the ASID.
 
 config PL310_ERRATA_727915
-	bool "Background Clean & Invalidate by Way operation can cause data corruption"
+	bool "PL310 errata: Background Clean & Invalidate by Way operation can cause data corruption"
 	depends on CACHE_L2X0
 	help
 	  PL310 implements the Clean & Invalidate by Way L2 cache maintenance
@@ -1289,8 +1278,8 @@ config ARM_ERRATA_751472
 	  operation is received by a CPU before the ICIALLUIS has completed,
 	  potentially leading to corrupted entries in the cache or TLB.
 
-config ARM_ERRATA_753970
-	bool "ARM errata: cache sync operation may be faulty"
+config PL310_ERRATA_753970
+	bool "PL310 errata: cache sync operation may be faulty"
 	depends on CACHE_PL310
 	help
 	  This option enables the workaround for the 753970 PL310 (r3p0) erratum.
@@ -1351,6 +1340,18 @@ config ARM_ERRATA_764369
 	  system. This workaround adds a DSB instruction before the
 	  relevant cache maintenance functions and sets a specific bit
 	  in the diagnostic control register of the SCU.
+
+config PL310_ERRATA_769419
+	bool "PL310 errata: no automatic Store Buffer drain"
+	depends on CACHE_L2X0
+	help
+	  On revisions of the PL310 prior to r3p2, the Store Buffer does
+	  not automatically drain. This can cause normal, non-cacheable
+	  writes to be retained when the memory system is idle, leading
+	  to suboptimal I/O performance for drivers using coherent DMA.
+	  This option adds a write barrier to the cpu_idle loop so that,
+	  on systems with an outer cache, the store buffer is drained
+	  explicitly.
 
 endmenu
 

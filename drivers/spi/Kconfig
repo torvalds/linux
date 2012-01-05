@@ -199,7 +199,7 @@ config SPI_FSL_LIB
 	depends on FSL_SOC
 
 config SPI_FSL_SPI
-	tristate "Freescale SPI controller"
+	bool "Freescale SPI controller"
 	depends on FSL_SOC
 	select SPI_FSL_LIB
 	help
@@ -208,7 +208,7 @@ config SPI_FSL_SPI
 	  MPC8569 uses the controller in QE mode, MPC8610 in cpu mode.
 
 config SPI_FSL_ESPI
-	tristate "Freescale eSPI controller"
+	bool "Freescale eSPI controller"
 	depends on FSL_SOC
 	select SPI_FSL_LIB
 	help

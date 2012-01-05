@@ -347,7 +347,7 @@ config SIMPLE_GPIO
 
 config MCU_MPC8349EMITX
 	bool "MPC8349E-mITX MCU driver"
-	depends on I2C && PPC_83xx
+	depends on I2C=y && PPC_83xx
 	select GENERIC_GPIO
 	select ARCH_REQUIRE_GPIOLIB
 	help

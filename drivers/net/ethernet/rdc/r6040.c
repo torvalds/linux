@@ -940,7 +940,7 @@ static void r6040_multicast_list(struct net_device *dev)
 	iowrite16(lp->mcr0, ioaddr + MCR0);
 
 	/* Fill the MAC hash tables with their values */
-	if (lp->mcr0 && MCR0_HASH_EN) {
+	if (lp->mcr0 & MCR0_HASH_EN) {
 		iowrite16(hash_table[0], ioaddr + MAR0);
 		iowrite16(hash_table[1], ioaddr + MAR1);
 		iowrite16(hash_table[2], ioaddr + MAR2);

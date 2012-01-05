@@ -358,13 +358,14 @@ static uint nrxdactive(struct dma_info *di, uint h, uint t)
 
 static uint _dma_ctrlflags(struct dma_info *di, uint mask, uint flags)
 {
-	uint dmactrlflags = di->dma.dmactrlflags;
+	uint dmactrlflags;
 
 	if (di == NULL) {
-		DMA_ERROR(("%s: _dma_ctrlflags: NULL dma handle\n", di->name));
+		DMA_ERROR(("_dma_ctrlflags: NULL dma handle\n"));
 		return 0;
 	}
 
+	dmactrlflags = di->dma.dmactrlflags;
 	dmactrlflags &= ~mask;
 	dmactrlflags |= flags;
 

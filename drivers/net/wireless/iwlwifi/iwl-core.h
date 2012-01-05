@@ -113,6 +113,7 @@ struct iwl_lib_ops {
  * @shadow_reg_enable: HW shadhow register bit
  * @no_idle_support: do not support idle mode
  * @hd_v2: v2 of enhanced sensitivity value, used for 2000 series and up
+ * wd_disable: disable watchdog timer
  */
 struct iwl_base_params {
 	int eeprom_size;
@@ -134,6 +135,7 @@ struct iwl_base_params {
 	const bool shadow_reg_enable;
 	const bool no_idle_support;
 	const bool hd_v2;
+	const bool wd_disable;
 };
 /*
  * @advanced_bt_coexist: support advanced bt coexist

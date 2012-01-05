@@ -1873,6 +1873,10 @@ int drm_mode_dirtyfb_ioctl(struct drm_device *dev,
 	}
 
 	if (num_clips && clips_ptr) {
+		if (num_clips < 0 || num_clips > DRM_MODE_FB_DIRTY_MAX_CLIPS) {
+			ret = -EINVAL;
+			goto out_err1;
+		}
 		clips = kzalloc(num_clips * sizeof(*clips), GFP_KERNEL);
 		if (!clips) {
 			ret = -ENOMEM;
@@ -2118,8 +2122,10 @@ struct drm_property *drm_property_create(struct drm_device *dev, int flags,
 	property->num_values = num_values;
 	INIT_LIST_HEAD(&property->enum_blob_list);
 
-	if (name)
+	if (name) {
 		strncpy(property->name, name, DRM_PROP_NAME_LEN);
+		property->name[DRM_PROP_NAME_LEN-1] = '\0';
+	}
 
 	list_add_tail(&property->head, &dev->mode_config.property_list);
 	return property;

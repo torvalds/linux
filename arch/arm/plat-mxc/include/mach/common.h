@@ -85,7 +85,6 @@ enum mxc_cpu_pwr_mode {
 };
 
 extern void mx5_cpu_lp_set(enum mxc_cpu_pwr_mode mode);
-extern void (*imx_idle)(void);
 extern void imx_print_silicon_rev(const char *cpu, int srev);
 
 void avic_handle_irq(struct pt_regs *);
@@ -133,4 +132,5 @@ extern void imx53_qsb_common_init(void);
 extern void imx53_smd_common_init(void);
 extern int imx6q_set_lpm(enum mxc_cpu_pwr_mode mode);
 extern void imx6q_pm_init(void);
+extern void imx6q_clock_map_io(void);
 #endif

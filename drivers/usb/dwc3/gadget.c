@@ -1284,6 +1284,7 @@ static int __devinit dwc3_gadget_init_endpoints(struct dwc3 *dwc)
 			int		ret;
 
 			dep->endpoint.maxpacket = 1024;
+			dep->endpoint.max_streams = 15;
 			dep->endpoint.ops = &dwc3_gadget_ep_ops;
 			list_add_tail(&dep->endpoint.ep_list,
 					&dwc->gadget.ep_list);
