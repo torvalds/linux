@@ -20,8 +20,7 @@
 #include <asm/mach/arch.h>
 
 #include <plat/board.h>
-#include <plat/common.h>
-#include <mach/omap4-common.h>
+#include "common.h"
 #include "common-board-devices.h"
 
 /*
@@ -122,6 +121,7 @@ DT_MACHINE_START(OMAP243X_DT, "Generic OMAP2430 (Flattened Device Tree)")
 	.map_io		= omap243x_map_io,
 	.init_early	= omap2430_init_early,
 	.init_irq	= omap2_init_irq,
+	.handle_irq	= omap2_intc_handle_irq,
 	.init_machine	= omap_generic_init,
 	.timer		= &omap2_timer,
 	.dt_compat	= omap243x_boards_compat,

@@ -24,6 +24,7 @@
 #include <linux/i2c/atmel_mxt_ts.h>
 
 #include <asm/mach/arch.h>
+#include <asm/hardware/gic.h>
 #include <asm/mach-types.h>
 
 #include <plat/regs-serial.h>
@@ -1058,6 +1059,7 @@ MACHINE_START(UNIVERSAL_C210, "UNIVERSAL_C210")
 	.atag_offset	= 0x100,
 	.init_irq	= exynos4_init_irq,
 	.map_io		= universal_map_io,
+	.handle_irq	= gic_handle_irq,
 	.init_machine	= universal_machine_init,
 	.timer		= &exynos4_timer,
 	.reserve        = &universal_reserve,

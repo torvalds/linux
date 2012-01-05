@@ -25,6 +25,7 @@
 
 #include <video/platform_lcd.h>
 
+#include <asm/hardware/vic.h>
 #include <asm/mach/arch.h>
 #include <asm/mach/map.h>
 #include <asm/mach/irq.h>
@@ -99,6 +100,7 @@ MACHINE_START(NCP, "NCP")
 	/* Maintainer: Samsung Electronics */
 	.atag_offset	= 0x100,
 	.init_irq	= s3c6410_init_irq,
+	.handle_irq	= vic_handle_irq,
 	.map_io		= ncp_map_io,
 	.init_machine	= ncp_machine_init,
 	.timer		= &s3c24xx_timer,

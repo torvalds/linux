@@ -11,8 +11,6 @@ static inline void arch_idle(void)
 
 static inline void arch_reset(char mode, const char *cmd)
 {
-	local_irq_disable();
-
 	/*
 	 * Set then clear the SWRST bit to initiate a software reset
 	 */

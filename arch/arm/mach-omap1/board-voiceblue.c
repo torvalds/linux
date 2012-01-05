@@ -34,7 +34,7 @@
 #include <asm/mach/map.h>
 
 #include <plat/board-voiceblue.h>
-#include <plat/common.h>
+#include "common.h"
 #include <plat/flash.h>
 #include <plat/mux.h>
 #include <plat/tc.h>

@@ -71,7 +71,7 @@ void arch_reset(char mode, const char *cmd)
 	mdelay(50);
 
 	/* we'll take a jump through zero as a poor second */
-	cpu_reset(0);
+	soft_restart(0);
 }
 
 void mxc_arch_reset_init(void __iomem *base)

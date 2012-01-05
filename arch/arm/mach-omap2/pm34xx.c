@@ -42,6 +42,7 @@
 #include <plat/gpmc.h>
 #include <plat/dma.h>
 
+#include "common.h"
 #include "cm2xxx_3xxx.h"
 #include "cm-regbits-34xx.h"
 #include "prm-regbits-34xx.h"

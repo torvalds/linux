@@ -53,7 +53,7 @@ void arch_reset(char mode, const char *cmd)
 	mdelay(50);
 
 	/* We'll take a jump through zero as a poor second */
-	cpu_reset(0);
+	soft_restart(0);
 }
 
 static int __init mxs_arch_reset_init(void)

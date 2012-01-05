@@ -33,9 +33,6 @@ static inline void arch_reset(char mode, const char *cmd)
 	case 'h':
 		printk(KERN_CRIT "RESET: Rebooting system\n");
 
-		/* Disable interrupts */
-		local_irq_disable();
-
 		lpc32xx_watchdog_reset();
 		break;
 

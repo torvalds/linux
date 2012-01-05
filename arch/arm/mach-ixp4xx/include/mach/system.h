@@ -26,7 +26,7 @@ static inline void arch_reset(char mode, const char *cmd)
 {
 	if ( 1 && mode == 's') {
 		/* Jump into ROM at address 0 */
-		cpu_reset(0);
+		soft_restart(0);
 	} else {
 		/* Use on-chip reset capability */
 

@@ -39,7 +39,7 @@
 #include <plat/board.h>
 #include <plat/irda.h>
 #include <plat/keypad.h>
-#include <plat/common.h>
+#include "common.h"
 
 #include <linux/spi/spi.h>
 #include <linux/spi/ads7846.h>

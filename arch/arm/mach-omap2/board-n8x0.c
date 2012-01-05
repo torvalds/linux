@@ -26,7 +26,7 @@
 #include <asm/mach-types.h>
 
 #include <plat/board.h>
-#include <plat/common.h>
+#include "common.h"
 #include <plat/menelaus.h>
 #include <mach/irqs.h>
 #include <plat/mcspi.h>
@@ -689,6 +689,7 @@ MACHINE_START(NOKIA_N800, "Nokia N800")
 	.map_io		= omap242x_map_io,
 	.init_early	= omap2420_init_early,
 	.init_irq	= omap2_init_irq,
+	.handle_irq	= omap2_intc_handle_irq,
 	.init_machine	= n8x0_init_machine,
 	.timer		= &omap2_timer,
 MACHINE_END
@@ -699,6 +700,7 @@ MACHINE_START(NOKIA_N810, "Nokia N810")
 	.map_io		= omap242x_map_io,
 	.init_early	= omap2420_init_early,
 	.init_irq	= omap2_init_irq,
+	.handle_irq	= omap2_intc_handle_irq,
 	.init_machine	= n8x0_init_machine,
 	.timer		= &omap2_timer,
 MACHINE_END
@@ -709,6 +711,7 @@ MACHINE_START(NOKIA_N810_WIMAX, "Nokia N810 WiMAX")
 	.map_io		= omap242x_map_io,
 	.init_early	= omap2420_init_early,
 	.init_irq	= omap2_init_irq,
+	.handle_irq	= omap2_intc_handle_irq,
 	.init_machine	= n8x0_init_machine,
 	.timer		= &omap2_timer,
 MACHINE_END

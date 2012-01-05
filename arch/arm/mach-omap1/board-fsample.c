@@ -32,7 +32,7 @@
 #include <plat/flash.h>
 #include <plat/fpga.h>
 #include <plat/keypad.h>
-#include <plat/common.h>
+#include "common.h"
 #include <plat/board.h>
 
 /* fsample is pretty close to p2-sample */

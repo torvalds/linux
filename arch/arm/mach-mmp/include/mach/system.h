@@ -19,8 +19,8 @@ static inline void arch_idle(void)
 static inline void arch_reset(char mode, const char *cmd)
 {
 	if (cpu_is_pxa168())
-		cpu_reset(0xffff0000);
+		soft_restart(0xffff0000);
 	else
-		cpu_reset(0);
+		soft_restart(0);
 }
 #endif /* __ASM_MACH_SYSTEM_H */

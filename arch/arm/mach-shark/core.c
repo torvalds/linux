@@ -29,7 +29,6 @@
 void arch_reset(char mode, const char *cmd)
 {
         short temp;
-        local_irq_disable();
         /* Reset the Machine via pc[3] of the sequoia chipset */
         outw(0x09,0x24);
         temp=inw(0x26);

@@ -40,7 +40,7 @@
 #include <plat/usb.h>
 #include <plat/tc.h>
 #include <plat/board.h>
-#include <plat/common.h>
+#include "common.h"
 #include <plat/keypad.h>
 #include <plat/board-sx1.h>
 

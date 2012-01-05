@@ -37,7 +37,7 @@
 #include <asm/mach/map.h>
 
 #include <plat/board.h>
-#include <plat/common.h>
+#include "common.h"
 #include <plat/nand.h>
 #include <plat/gpmc.h>
 #include <plat/usb.h>
@@ -634,6 +634,7 @@ MACHINE_START(CM_T35, "Compulab CM-T35")
 	.map_io		= omap3_map_io,
 	.init_early	= omap35xx_init_early,
 	.init_irq	= omap3_init_irq,
+	.handle_irq	= omap3_intc_handle_irq,
 	.init_machine	= cm_t35_init,
 	.timer		= &omap3_timer,
 MACHINE_END
@@ -644,6 +645,7 @@ MACHINE_START(CM_T3730, "Compulab CM-T3730")
 	.map_io         = omap3_map_io,
 	.init_early     = omap3630_init_early,
 	.init_irq       = omap3_init_irq,
+	.handle_irq	= omap3_intc_handle_irq,
 	.init_machine   = cm_t3730_init,
 	.timer          = &omap3_timer,
 MACHINE_END

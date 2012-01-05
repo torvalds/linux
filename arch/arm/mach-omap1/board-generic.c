@@ -25,7 +25,7 @@
 #include <plat/mux.h>
 #include <plat/usb.h>
 #include <plat/board.h>
-#include <plat/common.h>
+#include "common.h"
 
 /* assume no Mini-AB port */
 

@@ -91,8 +91,8 @@ static struct map_desc realview_eb_io_desc[] __initdata = {
 
 static struct map_desc realview_eb11mp_io_desc[] __initdata = {
 	{
-		.virtual	= IO_ADDRESS(REALVIEW_EB11MP_GIC_CPU_BASE),
-		.pfn		= __phys_to_pfn(REALVIEW_EB11MP_GIC_CPU_BASE),
+		.virtual	= IO_ADDRESS(REALVIEW_EB11MP_SCU_BASE),
+		.pfn		= __phys_to_pfn(REALVIEW_EB11MP_SCU_BASE),
 		.length		= SZ_4K,
 		.type		= MT_DEVICE,
 	}, {
@@ -469,6 +469,7 @@ MACHINE_START(REALVIEW_EB, "ARM-RealView EB")
 	.init_early	= realview_init_early,
 	.init_irq	= gic_init_irq,
 	.timer		= &realview_eb_timer,
+	.handle_irq	= gic_handle_irq,
 	.init_machine	= realview_eb_init,
 #ifdef CONFIG_ZONE_DMA
 	.dma_zone_size	= SZ_256M,

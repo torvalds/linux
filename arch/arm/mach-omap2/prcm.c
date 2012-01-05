@@ -26,7 +26,7 @@
 #include <linux/export.h>
 
 #include <mach/system.h>
-#include <plat/common.h>
+#include "common.h"
 #include <plat/prcm.h>
 #include <plat/irqs.h>
 
