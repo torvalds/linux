@@ -104,6 +104,7 @@ my $start_minconfig;
 my $start_minconfig_defined;
 my $output_minconfig;
 my $ignore_config;
+my $ignore_errors;
 my $addconfig;
 my $in_bisect = 0;
 my $bisect_bad_commit = "";
@@ -218,6 +219,7 @@ my %option_map = (
     "BISECT_SLEEP_TIME"		=> \$bisect_sleep_time,
     "PATCHCHECK_SLEEP_TIME"	=> \$patchcheck_sleep_time,
     "IGNORE_WARNINGS"		=> \$ignore_warnings,
+    "IGNORE_ERRORS"		=> \$ignore_errors,
     "BISECT_MANUAL"		=> \$bisect_manual,
     "BISECT_SKIP"		=> \$bisect_skip,
     "CONFIG_BISECT_GOOD"	=> \$config_bisect_good,
@@ -1529,7 +1531,7 @@ sub monitor {
 	}
 
 	if ($full_line =~ /call trace:/i) {
-	    if (!$bug && !$skip_call_trace) {
+	    if (!$ignore_errors && !$bug && !$skip_call_trace) {
 		$bug = 1;
 		$failure_start = time;
 	    }
