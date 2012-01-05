@@ -1696,5 +1696,13 @@ extern void drm_platform_exit(struct drm_driver *driver, struct platform_device 
 extern int drm_get_platform_dev(struct platform_device *pdev,
 				struct drm_driver *driver);
 
+/* returns true if currently okay to sleep */
+static __inline__ bool drm_can_sleep(void)
+{
+	if (in_atomic() || in_dbg_master() || irqs_disabled())
+		return false;
+	return true;
+}
+
 #endif				/* __KERNEL__ */
 #endif

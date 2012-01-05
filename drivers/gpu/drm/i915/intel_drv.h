@@ -40,20 +40,13 @@
 			ret__ = -ETIMEDOUT;				\
 			break;						\
 		}							\
-		if (W && !(in_atomic() || in_dbg_master())) msleep(W);	\
+		if (W && drm_can_sleep()) msleep(W);	\
 	}								\
 	ret__;								\
 })
 
 #define wait_for(COND, MS) _wait_for(COND, MS, 1)
 #define wait_for_atomic(COND, MS) _wait_for(COND, MS, 0)
-
-#define MSLEEP(x) do { \
-	if (in_dbg_master()) \
-		mdelay(x); \
-	else \
-		msleep(x); \
-} while (0)
 
 #define KHz(x) (1000*x)
 #define MHz(x) KHz(1000*x)
