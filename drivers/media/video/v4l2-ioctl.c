@@ -2226,6 +2226,10 @@ static int check_array_args(unsigned int cmd, void *parg, size_t *array_size,
 		struct v4l2_ext_controls *ctrls = parg;
 
 		if (ctrls->count != 0) {
+			if (ctrls->count > V4L2_CID_MAX_CTRLS) {
+				ret = -EINVAL;
+				break;
+			}
 			*user_ptr = (void __user *)ctrls->controls;
 			*kernel_ptr = (void *)&ctrls->controls;
 			*array_size = sizeof(struct v4l2_ext_control)
