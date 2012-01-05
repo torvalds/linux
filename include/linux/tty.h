@@ -52,6 +52,7 @@
  * hardcoded at present.)
  */
 #define NR_UNIX98_PTY_DEFAULT	4096      /* Default maximum for Unix98 ptys */
+#define NR_UNIX98_PTY_RESERVE	1024	  /* Default reserve for main devpts */
 #define NR_UNIX98_PTY_MAX	(1 << MINORBITS) /* Absolute limit */
 
 /*
