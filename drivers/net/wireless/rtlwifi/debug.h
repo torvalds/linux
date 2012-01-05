@@ -156,12 +156,11 @@ enum dbgp_flag_e {
 	DBGP_TYPE_MAX
 };
 
-#define RT_ASSERT(_exp, fmt)						\
+#define RT_ASSERT(_exp, fmt, ...)					\
 do {									\
 	if (!(_exp)) {							\
-		printk(KERN_DEBUG "%s:%s(): ",				\
-		       KBUILD_MODNAME, __func__);			\
-		printk fmt;						\
+		printk(KERN_DEBUG KBUILD_MODNAME ":%s(): " fmt,		\
+		       __func__, ##__VA_ARGS__);			\
 	}								\
 } while (0)
 

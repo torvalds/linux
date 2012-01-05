@@ -1984,8 +1984,9 @@ void rtl92cu_set_hw_reg(struct ieee80211_hw *hw, u8 variable, u8 *val)
 						u4b_ac_param);
 				break;
 			default:
-				RT_ASSERT(false, ("SetHwReg8185(): invalid"
-					  " aci: %d !\n", e_aci));
+				RT_ASSERT(false,
+					  "SetHwReg8185(): invalid aci: %d !\n",
+					  e_aci);
 				break;
 			}
 			if (rtlusb->acm_method != eAcmWay2_SW)

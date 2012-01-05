@@ -186,7 +186,7 @@ void rtl92d_firmware_selfreset(struct ieee80211_hw *hw)
 		udelay(50);
 		u1b_tmp = rtl_read_byte(rtlpriv, REG_SYS_FUNC_EN + 1);
 	}
-	RT_ASSERT((delay > 0), ("8051 reset failed!\n"));
+	RT_ASSERT((delay > 0), "8051 reset failed!\n");
 	RT_TRACE(rtlpriv, COMP_FW, DBG_DMESG,
 		 "=====> 8051 reset success (%d)\n", delay);
 }
@@ -536,8 +536,8 @@ void rtl92d_fill_h2c_cmd(struct ieee80211_hw *hw,
 	u32 tmp_cmdbuf[2];
 
 	if (rtlhal->fw_ready == false) {
-		RT_ASSERT(false, ("return H2C cmd because of Fw "
-				  "download fail!!!\n"));
+		RT_ASSERT(false,
+			  "return H2C cmd because of Fw download fail!!!\n");
 		return;
 	}
 	memset(tmp_cmdbuf, 0, 8);

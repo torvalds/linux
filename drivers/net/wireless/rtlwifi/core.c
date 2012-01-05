@@ -1026,8 +1026,8 @@ static int rtl_op_set_key(struct ieee80211_hw *hw, enum set_key_cmd cmd,
 			RT_TRACE(rtlpriv, COMP_SEC, DBG_DMESG,
 				 "set pairwise key\n");
 			if (!sta) {
-				RT_ASSERT(false, ("pairwise key withnot"
-						  "mac_addr\n"));
+				RT_ASSERT(false,
+					  "pairwise key without mac_addr\n");
 
 				err = -EOPNOTSUPP;
 				goto out_unlock;

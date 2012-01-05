@@ -946,7 +946,7 @@ int __devinit rtl_usb_probe(struct usb_interface *intf,
 	hw = ieee80211_alloc_hw(sizeof(struct rtl_priv) +
 				sizeof(struct rtl_usb_priv), &rtl_ops);
 	if (!hw) {
-		RT_ASSERT(false, ("%s : ieee80211 alloc failed\n", __func__));
+		RT_ASSERT(false, "ieee80211 alloc failed\n");
 		return -ENOMEM;
 	}
 	rtlpriv = hw->priv;

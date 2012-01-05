@@ -836,8 +836,8 @@ void rtl92ce_set_desc(u8 *pdesc, bool istx, u8 desc_name, u8 *val)
 			SET_TX_DESC_NEXT_DESC_ADDRESS(pdesc, *(u32 *) val);
 			break;
 		default:
-			RT_ASSERT(false, ("ERR txdesc :%d"
-					  " not process\n", desc_name));
+			RT_ASSERT(false, "ERR txdesc :%d not process\n",
+				  desc_name);
 			break;
 		}
 	} else {
@@ -856,8 +856,8 @@ void rtl92ce_set_desc(u8 *pdesc, bool istx, u8 desc_name, u8 *val)
 			SET_RX_DESC_EOR(pdesc, 1);
 			break;
 		default:
-			RT_ASSERT(false, ("ERR rxdesc :%d "
-					  "not process\n", desc_name));
+			RT_ASSERT(false, "ERR rxdesc :%d not process\n",
+				  desc_name);
 			break;
 		}
 	}
@@ -876,8 +876,8 @@ u32 rtl92ce_get_desc(u8 *p_desc, bool istx, u8 desc_name)
 			ret = GET_TX_DESC_TX_BUFFER_ADDRESS(p_desc);
 			break;
 		default:
-			RT_ASSERT(false, ("ERR txdesc :%d "
-					  "not process\n", desc_name));
+			RT_ASSERT(false, "ERR txdesc :%d not process\n",
+				  desc_name);
 			break;
 		}
 	} else {
@@ -890,8 +890,8 @@ u32 rtl92ce_get_desc(u8 *p_desc, bool istx, u8 desc_name)
 			ret = GET_RX_DESC_PKT_LEN(pdesc);
 			break;
 		default:
-			RT_ASSERT(false, ("ERR rxdesc :%d "
-					  "not process\n", desc_name));
+			RT_ASSERT(false, "ERR rxdesc :%d not process\n",
+				  desc_name);
 			break;
 		}
 	}
