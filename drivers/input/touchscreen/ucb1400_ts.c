@@ -299,7 +299,7 @@ static void ucb1400_ts_close(struct input_dev *idev)
  * Try to probe our interrupt, rather than relying on lots of
  * hard-coded machine dependencies.
  */
-static int ucb1400_ts_detect_irq(struct ucb1400_ts *ucb)
+static int __devinit ucb1400_ts_detect_irq(struct ucb1400_ts *ucb)
 {
 	unsigned long mask, timeout;
 
@@ -342,7 +342,7 @@ static int ucb1400_ts_detect_irq(struct ucb1400_ts *ucb)
 	return 0;
 }
 
-static int ucb1400_ts_probe(struct platform_device *dev)
+static int __devinit ucb1400_ts_probe(struct platform_device *dev)
 {
 	int error, x_res, y_res;
 	u16 fcsr;
@@ -416,15 +416,15 @@ err_free_devs:
 	input_free_device(ucb->ts_idev);
 err:
 	return error;
-
 }
 
-static int ucb1400_ts_remove(struct platform_device *dev)
+static int __devexit ucb1400_ts_remove(struct platform_device *dev)
 {
 	struct ucb1400_ts *ucb = dev->dev.platform_data;
 
 	free_irq(ucb->irq, ucb);
 	input_unregister_device(ucb->ts_idev);
+
 	return 0;
 }
 
@@ -450,7 +450,7 @@ static SIMPLE_DEV_PM_OPS(ucb1400_ts_pm_ops, NULL, ucb1400_ts_resume);
 
 static struct platform_driver ucb1400_ts_driver = {
 	.probe	= ucb1400_ts_probe,
-	.remove	= ucb1400_ts_remove,
+	.remove	= __devexit_p(ucb1400_ts_remove),
 	.driver	= {
 		.name	= "ucb1400_ts",
 		.owner	= THIS_MODULE,
