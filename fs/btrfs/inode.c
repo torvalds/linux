@@ -38,6 +38,7 @@
 #include <linux/falloc.h>
 #include <linux/slab.h>
 #include <linux/ratelimit.h>
+#include <linux/mount.h>
 #include "compat.h"
 #include "ctree.h"
 #include "disk-io.h"
@@ -2031,7 +2032,7 @@ int btrfs_orphan_add(struct btrfs_trans_handle *trans, struct inode *inode)
 	/* insert an orphan item to track this unlinked/truncated file */
 	if (insert >= 1) {
 		ret = btrfs_insert_orphan_item(trans, root, btrfs_ino(inode));
-		BUG_ON(ret);
+		BUG_ON(ret && ret != -EEXIST);
 	}
 
 	/* insert an orphan item to track subvolume contains orphan files */
@@ -2158,6 +2159,38 @@ int btrfs_orphan_cleanup(struct btrfs_root *root)
 		if (ret && ret != -ESTALE)
 			goto out;
 
+		if (ret == -ESTALE && root == root->fs_info->tree_root) {
+			struct btrfs_root *dead_root;
+			struct btrfs_fs_info *fs_info = root->fs_info;
+			int is_dead_root = 0;
+
+			/*
+			 * this is an orphan in the tree root. Currently these
+			 * could come from 2 sources:
+			 *  a) a snapshot deletion in progress
+			 *  b) a free space cache inode
+			 * We need to distinguish those two, as the snapshot
+			 * orphan must not get deleted.
+			 * find_dead_roots already ran before us, so if this
+			 * is a snapshot deletion, we should find the root
+			 * in the dead_roots list
+			 */
+			spin_lock(&fs_info->trans_lock);
+			list_for_each_entry(dead_root, &fs_info->dead_roots,
+					    root_list) {
+				if (dead_root->root_key.objectid ==
+				    found_key.objectid) {
+					is_dead_root = 1;
+					break;
+				}
+			}
+			spin_unlock(&fs_info->trans_lock);
+			if (is_dead_root) {
+				/* prevent this orphan from being found again */
+				key.offset = found_key.objectid - 1;
+				continue;
+			}
+		}
 		/*
 		 * Inode is already gone but the orphan item is still there,
 		 * kill the orphan item.
@@ -2191,7 +2224,14 @@ int btrfs_orphan_cleanup(struct btrfs_root *root)
 				continue;
 			}
 			nr_truncate++;
+			/*
+			 * Need to hold the imutex for reservation purposes, not
+			 * a huge deal here but I have a WARN_ON in
+			 * btrfs_delalloc_reserve_space to catch offenders.
+			 */
+			mutex_lock(&inode->i_mutex);
 			ret = btrfs_truncate(inode);
+			mutex_unlock(&inode->i_mutex);
 		} else {
 			nr_unlink++;
 		}
@@ -3327,7 +3367,7 @@ int btrfs_cont_expand(struct inode *inode, loff_t oldsize, loff_t size)
 			u64 hint_byte = 0;
 			hole_size = last_byte - cur_offset;
 
-			trans = btrfs_start_transaction(root, 2);
+			trans = btrfs_start_transaction(root, 3);
 			if (IS_ERR(trans)) {
 				err = PTR_ERR(trans);
 				break;
@@ -3337,6 +3377,7 @@ int btrfs_cont_expand(struct inode *inode, loff_t oldsize, loff_t size)
 						 cur_offset + hole_size,
 						 &hint_byte, 1);
 			if (err) {
+				btrfs_update_inode(trans, root, inode);
 				btrfs_end_transaction(trans, root);
 				break;
 			}
@@ -3346,6 +3387,7 @@ int btrfs_cont_expand(struct inode *inode, loff_t oldsize, loff_t size)
 					0, hole_size, 0, hole_size,
 					0, 0, 0);
 			if (err) {
+				btrfs_update_inode(trans, root, inode);
 				btrfs_end_transaction(trans, root);
 				break;
 			}
@@ -3353,6 +3395,7 @@ int btrfs_cont_expand(struct inode *inode, loff_t oldsize, loff_t size)
 			btrfs_drop_extent_cache(inode, hole_start,
 					last_byte - 1, 0);
 
+			btrfs_update_inode(trans, root, inode);
 			btrfs_end_transaction(trans, root);
 		}
 		free_extent_map(em);
@@ -3370,6 +3413,8 @@ int btrfs_cont_expand(struct inode *inode, loff_t oldsize, loff_t size)
 
 static int btrfs_setsize(struct inode *inode, loff_t newsize)
 {
+	struct btrfs_root *root = BTRFS_I(inode)->root;
+	struct btrfs_trans_handle *trans;
 	loff_t oldsize = i_size_read(inode);
 	int ret;
 
@@ -3377,16 +3422,19 @@ static int btrfs_setsize(struct inode *inode, loff_t newsize)
 		return 0;
 
 	if (newsize > oldsize) {
-		i_size_write(inode, newsize);
-		btrfs_ordered_update_i_size(inode, i_size_read(inode), NULL);
 		truncate_pagecache(inode, oldsize, newsize);
 		ret = btrfs_cont_expand(inode, oldsize, newsize);
-		if (ret) {
-			btrfs_setsize(inode, oldsize);
+		if (ret)
 			return ret;
-		}
 
-		mark_inode_dirty(inode);
+		trans = btrfs_start_transaction(root, 1);
+		if (IS_ERR(trans))
+			return PTR_ERR(trans);
+
+		i_size_write(inode, newsize);
+		btrfs_ordered_update_i_size(inode, i_size_read(inode), NULL);
+		ret = btrfs_update_inode(trans, root, inode);
+		btrfs_end_transaction_throttle(trans, root);
 	} else {
 
 		/*
@@ -3426,9 +3474,9 @@ static int btrfs_setattr(struct dentry *dentry, struct iattr *attr)
 
 	if (attr->ia_valid) {
 		setattr_copy(inode, attr);
-		mark_inode_dirty(inode);
+		err = btrfs_dirty_inode(inode);
 
-		if (attr->ia_valid & ATTR_MODE)
+		if (!err && attr->ia_valid & ATTR_MODE)
 			err = btrfs_acl_chmod(inode);
 	}
 
@@ -4204,42 +4252,80 @@ int btrfs_write_inode(struct inode *inode, struct writeback_control *wbc)
  * FIXME, needs more benchmarking...there are no reasons other than performance
  * to keep or drop this code.
  */
-void btrfs_dirty_inode(struct inode *inode, int flags)
+int btrfs_dirty_inode(struct inode *inode)
 {
 	struct btrfs_root *root = BTRFS_I(inode)->root;
 	struct btrfs_trans_handle *trans;
 	int ret;
 
 	if (BTRFS_I(inode)->dummy_inode)
-		return;
+		return 0;
 
 	trans = btrfs_join_transaction(root);
-	BUG_ON(IS_ERR(trans));
+	if (IS_ERR(trans))
+		return PTR_ERR(trans);
 
 	ret = btrfs_update_inode(trans, root, inode);
 	if (ret && ret == -ENOSPC) {
 		/* whoops, lets try again with the full transaction */
 		btrfs_end_transaction(trans, root);
 		trans = btrfs_start_transaction(root, 1);
-		if (IS_ERR(trans)) {
-			printk_ratelimited(KERN_ERR "btrfs: fail to "
-				       "dirty  inode %llu error %ld\n",
-				       (unsigned long long)btrfs_ino(inode),
-				       PTR_ERR(trans));
-			return;
-		}
+		if (IS_ERR(trans))
+			return PTR_ERR(trans);
 
 		ret = btrfs_update_inode(trans, root, inode);
-		if (ret) {
-			printk_ratelimited(KERN_ERR "btrfs: fail to "
-				       "dirty  inode %llu error %d\n",
-				       (unsigned long long)btrfs_ino(inode),
-				       ret);
-		}
 	}
 	btrfs_end_transaction(trans, root);
 	if (BTRFS_I(inode)->delayed_node)
 		btrfs_balance_delayed_items(root);
+
+	return ret;
+}
+
+/*
+ * This is a copy of file_update_time.  We need this so we can return error on
+ * ENOSPC for updating the inode in the case of file write and mmap writes.
+ */
+int btrfs_update_time(struct file *file)
+{
+	struct inode *inode = file->f_path.dentry->d_inode;
+	struct timespec now;
+	int ret;
+	enum { S_MTIME = 1, S_CTIME = 2, S_VERSION = 4 } sync_it = 0;
+
+	/* First try to exhaust all avenues to not sync */
+	if (IS_NOCMTIME(inode))
+		return 0;
+
+	now = current_fs_time(inode->i_sb);
+	if (!timespec_equal(&inode->i_mtime, &now))
+		sync_it = S_MTIME;
+
+	if (!timespec_equal(&inode->i_ctime, &now))
+		sync_it |= S_CTIME;
+
+	if (IS_I_VERSION(inode))
+		sync_it |= S_VERSION;
+
+	if (!sync_it)
+		return 0;
+
+	/* Finally allowed to write? Takes lock. */
+	if (mnt_want_write_file(file))
+		return 0;
+
+	/* Only change inode inside the lock region */
+	if (sync_it & S_VERSION)
+		inode_inc_iversion(inode);
+	if (sync_it & S_CTIME)
+		inode->i_ctime = now;
+	if (sync_it & S_MTIME)
+		inode->i_mtime = now;
+	ret = btrfs_dirty_inode(inode);
+	if (!ret)
+		mark_inode_dirty_sync(inode);
+	mnt_drop_write(file->f_path.mnt);
+	return ret;
 }
 
 /*
@@ -4504,10 +4590,6 @@ static int btrfs_add_nondir(struct btrfs_trans_handle *trans,
 	int err = btrfs_add_link(trans, dir, inode,
 				 dentry->d_name.name, dentry->d_name.len,
 				 backref, index);
-	if (!err) {
-		d_instantiate(dentry, inode);
-		return 0;
-	}
 	if (err > 0)
 		err = -EEXIST;
 	return err;
@@ -4555,13 +4637,21 @@ static int btrfs_mknod(struct inode *dir, struct dentry *dentry,
 		goto out_unlock;
 	}
 
+	/*
+	* If the active LSM wants to access the inode during
+	* d_instantiate it needs these. Smack checks to see
+	* if the filesystem supports xattrs by looking at the
+	* ops vector.
+	*/
+
+	inode->i_op = &btrfs_special_inode_operations;
 	err = btrfs_add_nondir(trans, dir, dentry, inode, 0, index);
 	if (err)
 		drop_inode = 1;
 	else {
-		inode->i_op = &btrfs_special_inode_operations;
 		init_special_inode(inode, inode->i_mode, rdev);
 		btrfs_update_inode(trans, root, inode);
+		d_instantiate(dentry, inode);
 	}
 out_unlock:
 	nr = trans->blocks_used;
@@ -4613,15 +4703,23 @@ static int btrfs_create(struct inode *dir, struct dentry *dentry,
 		goto out_unlock;
 	}
 
+	/*
+	* If the active LSM wants to access the inode during
+	* d_instantiate it needs these. Smack checks to see
+	* if the filesystem supports xattrs by looking at the
+	* ops vector.
+	*/
+	inode->i_fop = &btrfs_file_operations;
+	inode->i_op = &btrfs_file_inode_operations;
+
 	err = btrfs_add_nondir(trans, dir, dentry, inode, 0, index);
 	if (err)
 		drop_inode = 1;
 	else {
 		inode->i_mapping->a_ops = &btrfs_aops;
 		inode->i_mapping->backing_dev_info = &root->fs_info->bdi;
-		inode->i_fop = &btrfs_file_operations;
-		inode->i_op = &btrfs_file_inode_operations;
 		BTRFS_I(inode)->io_tree.ops = &btrfs_extent_io_ops;
+		d_instantiate(dentry, inode);
 	}
 out_unlock:
 	nr = trans->blocks_used;
@@ -4679,6 +4777,7 @@ static int btrfs_link(struct dentry *old_dentry, struct inode *dir,
 		struct dentry *parent = dentry->d_parent;
 		err = btrfs_update_inode(trans, root, inode);
 		BUG_ON(err);
+		d_instantiate(dentry, inode);
 		btrfs_log_new_name(trans, inode, NULL, parent);
 	}
 
@@ -6303,7 +6402,12 @@ int btrfs_page_mkwrite(struct vm_area_struct *vma, struct vm_fault *vmf)
 	u64 page_start;
 	u64 page_end;
 
+	/* Need this to keep space reservations serialized */
+	mutex_lock(&inode->i_mutex);
 	ret  = btrfs_delalloc_reserve_space(inode, PAGE_CACHE_SIZE);
+	mutex_unlock(&inode->i_mutex);
+	if (!ret)
+		ret = btrfs_update_time(vma->vm_file);
 	if (ret) {
 		if (ret == -ENOMEM)
 			ret = VM_FAULT_OOM;
@@ -6515,8 +6619,9 @@ static int btrfs_truncate(struct inode *inode)
 			/* Just need the 1 for updating the inode */
 			trans = btrfs_start_transaction(root, 1);
 			if (IS_ERR(trans)) {
-				err = PTR_ERR(trans);
-				goto out;
+				ret = err = PTR_ERR(trans);
+				trans = NULL;
+				break;
 			}
 		}
 
@@ -7076,14 +7181,21 @@ static int btrfs_symlink(struct inode *dir, struct dentry *dentry,
 		goto out_unlock;
 	}
 
+	/*
+	* If the active LSM wants to access the inode during
+	* d_instantiate it needs these. Smack checks to see
+	* if the filesystem supports xattrs by looking at the
+	* ops vector.
+	*/
+	inode->i_fop = &btrfs_file_operations;
+	inode->i_op = &btrfs_file_inode_operations;
+
 	err = btrfs_add_nondir(trans, dir, dentry, inode, 0, index);
 	if (err)
 		drop_inode = 1;
 	else {
 		inode->i_mapping->a_ops = &btrfs_aops;
 		inode->i_mapping->backing_dev_info = &root->fs_info->bdi;
-		inode->i_fop = &btrfs_file_operations;
-		inode->i_op = &btrfs_file_inode_operations;
 		BTRFS_I(inode)->io_tree.ops = &btrfs_extent_io_ops;
 	}
 	if (drop_inode)
@@ -7132,6 +7244,8 @@ static int btrfs_symlink(struct inode *dir, struct dentry *dentry,
 		drop_inode = 1;
 
 out_unlock:
+	if (!err)
+		d_instantiate(dentry, inode);
 	nr = trans->blocks_used;
 	btrfs_end_transaction_throttle(trans, root);
 	if (drop_inode) {
@@ -7353,6 +7467,7 @@ static const struct inode_operations btrfs_symlink_inode_operations = {
 	.follow_link	= page_follow_link_light,
 	.put_link	= page_put_link,
 	.getattr	= btrfs_getattr,
+	.setattr	= btrfs_setattr,
 	.permission	= btrfs_permission,
 	.setxattr	= btrfs_setxattr,
 	.getxattr	= btrfs_getxattr,

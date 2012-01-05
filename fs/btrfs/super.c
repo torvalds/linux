@@ -41,6 +41,7 @@
 #include <linux/slab.h>
 #include <linux/cleancache.h>
 #include <linux/mnt_namespace.h>
+#include <linux/ratelimit.h>
 #include "compat.h"
 #include "delayed-inode.h"
 #include "ctree.h"
@@ -1053,7 +1054,7 @@ static int btrfs_calc_avail_data_space(struct btrfs_root *root, u64 *free_bytes)
 	u64 avail_space;
 	u64 used_space;
 	u64 min_stripe_size;
-	int min_stripes = 1;
+	int min_stripes = 1, num_stripes = 1;
 	int i = 0, nr_devices;
 	int ret;
 
@@ -1067,12 +1068,16 @@ static int btrfs_calc_avail_data_space(struct btrfs_root *root, u64 *free_bytes)
 
 	/* calc min stripe number for data space alloction */
 	type = btrfs_get_alloc_profile(root, 1);
-	if (type & BTRFS_BLOCK_GROUP_RAID0)
+	if (type & BTRFS_BLOCK_GROUP_RAID0) {
 		min_stripes = 2;
-	else if (type & BTRFS_BLOCK_GROUP_RAID1)
+		num_stripes = nr_devices;
+	} else if (type & BTRFS_BLOCK_GROUP_RAID1) {
 		min_stripes = 2;
-	else if (type & BTRFS_BLOCK_GROUP_RAID10)
+		num_stripes = 2;
+	} else if (type & BTRFS_BLOCK_GROUP_RAID10) {
 		min_stripes = 4;
+		num_stripes = 4;
+	}
 
 	if (type & BTRFS_BLOCK_GROUP_DUP)
 		min_stripe_size = 2 * BTRFS_STRIPE_LEN;
@@ -1141,13 +1146,16 @@ static int btrfs_calc_avail_data_space(struct btrfs_root *root, u64 *free_bytes)
 	i = nr_devices - 1;
 	avail_space = 0;
 	while (nr_devices >= min_stripes) {
+		if (num_stripes > nr_devices)
+			num_stripes = nr_devices;
+
 		if (devices_info[i].max_avail >= min_stripe_size) {
 			int j;
 			u64 alloc_size;
 
-			avail_space += devices_info[i].max_avail * min_stripes;
+			avail_space += devices_info[i].max_avail * num_stripes;
 			alloc_size = devices_info[i].max_avail;
-			for (j = i + 1 - min_stripes; j <= i; j++)
+			for (j = i + 1 - num_stripes; j <= i; j++)
 				devices_info[j].max_avail -= alloc_size;
 		}
 		i--;
@@ -1264,6 +1272,16 @@ static int btrfs_unfreeze(struct super_block *sb)
 	return 0;
 }
 
+static void btrfs_fs_dirty_inode(struct inode *inode, int flags)
+{
+	int ret;
+
+	ret = btrfs_dirty_inode(inode);
+	if (ret)
+		printk_ratelimited(KERN_ERR "btrfs: fail to dirty inode %Lu "
+				   "error %d\n", btrfs_ino(inode), ret);
+}
+
 static const struct super_operations btrfs_super_ops = {
 	.drop_inode	= btrfs_drop_inode,
 	.evict_inode	= btrfs_evict_inode,
@@ -1271,7 +1289,7 @@ static const struct super_operations btrfs_super_ops = {
 	.sync_fs	= btrfs_sync_fs,
 	.show_options	= btrfs_show_options,
 	.write_inode	= btrfs_write_inode,
-	.dirty_inode	= btrfs_dirty_inode,
+	.dirty_inode	= btrfs_fs_dirty_inode,
 	.alloc_inode	= btrfs_alloc_inode,
 	.destroy_inode	= btrfs_destroy_inode,
 	.statfs		= btrfs_statfs,

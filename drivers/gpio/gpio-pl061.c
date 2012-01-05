@@ -12,7 +12,6 @@
 #include <linux/spinlock.h>
 #include <linux/errno.h>
 #include <linux/module.h>
-#include <linux/list.h>
 #include <linux/io.h>
 #include <linux/ioport.h>
 #include <linux/irq.h>
@@ -24,6 +23,7 @@
 #include <linux/amba/pl061.h>
 #include <linux/slab.h>
 #include <linux/pm.h>
+#include <asm/mach/irq.h>
 
 #define GPIODIR 0x400
 #define GPIOIS  0x404
@@ -48,23 +48,16 @@ struct pl061_context_save_regs {
 #endif
 
 struct pl061_gpio {
-	/* We use a list of pl061_gpio structs for each trigger IRQ in the main
-	 * interrupts controller of the system. We need this to support systems
-	 * in which more that one PL061s are connected to the same IRQ. The ISR
-	 * interates through this list to find the source of the interrupt.
-	 */
-	struct list_head	list;
-
 	/* Each of the two spinlocks protects a different set of hardware
 	 * regiters and data structurs. This decouples the code of the IRQ from
 	 * the GPIO code. This also makes the case of a GPIO routine call from
 	 * the IRQ code simpler.
 	 */
 	spinlock_t		lock;		/* GPIO registers */
-	spinlock_t		irq_lock;	/* IRQ registers */
 
 	void __iomem		*base;
-	unsigned		irq_base;
+	int			irq_base;
+	struct irq_chip_generic	*irq_gc;
 	struct gpio_chip	gc;
 
 #ifdef CONFIG_PM
@@ -134,46 +127,16 @@ static int pl061_to_irq(struct gpio_chip *gc, unsigned offset)
 {
 	struct pl061_gpio *chip = container_of(gc, struct pl061_gpio, gc);
 
-	if (chip->irq_base == NO_IRQ)
+	if (chip->irq_base <= 0)
 		return -EINVAL;
 
 	return chip->irq_base + offset;
 }
 
-/*
- * PL061 GPIO IRQ
- */
-static void pl061_irq_disable(struct irq_data *d)
-{
-	struct pl061_gpio *chip = irq_data_get_irq_chip_data(d);
-	int offset = d->irq - chip->irq_base;
-	unsigned long flags;
-	u8 gpioie;
-
-	spin_lock_irqsave(&chip->irq_lock, flags);
-	gpioie = readb(chip->base + GPIOIE);
-	gpioie &= ~(1 << offset);
-	writeb(gpioie, chip->base + GPIOIE);
-	spin_unlock_irqrestore(&chip->irq_lock, flags);
-}
-
-static void pl061_irq_enable(struct irq_data *d)
-{
-	struct pl061_gpio *chip = irq_data_get_irq_chip_data(d);
-	int offset = d->irq - chip->irq_base;
-	unsigned long flags;
-	u8 gpioie;
-
-	spin_lock_irqsave(&chip->irq_lock, flags);
-	gpioie = readb(chip->base + GPIOIE);
-	gpioie |= 1 << offset;
-	writeb(gpioie, chip->base + GPIOIE);
-	spin_unlock_irqrestore(&chip->irq_lock, flags);
-}
-
 static int pl061_irq_type(struct irq_data *d, unsigned trigger)
 {
-	struct pl061_gpio *chip = irq_data_get_irq_chip_data(d);
+	struct irq_chip_generic *gc = irq_data_get_irq_chip_data(d);
+	struct pl061_gpio *chip = gc->private;
 	int offset = d->irq - chip->irq_base;
 	unsigned long flags;
 	u8 gpiois, gpioibe, gpioiev;
@@ -181,7 +144,7 @@ static int pl061_irq_type(struct irq_data *d, unsigned trigger)
 	if (offset < 0 || offset >= PL061_GPIO_NR)
 		return -EINVAL;
 
-	spin_lock_irqsave(&chip->irq_lock, flags);
+	raw_spin_lock_irqsave(&gc->lock, flags);
 
 	gpioiev = readb(chip->base + GPIOIEV);
 
@@ -210,53 +173,54 @@ static int pl061_irq_type(struct irq_data *d, unsigned trigger)
 
 	writeb(gpioiev, chip->base + GPIOIEV);
 
-	spin_unlock_irqrestore(&chip->irq_lock, flags);
+	raw_spin_unlock_irqrestore(&gc->lock, flags);
 
 	return 0;
 }
 
-static struct irq_chip pl061_irqchip = {
-	.name		= "GPIO",
-	.irq_enable	= pl061_irq_enable,
-	.irq_disable	= pl061_irq_disable,
-	.irq_set_type	= pl061_irq_type,
-};
-
 static void pl061_irq_handler(unsigned irq, struct irq_desc *desc)
 {
-	struct list_head *chip_list = irq_get_handler_data(irq);
-	struct list_head *ptr;
-	struct pl061_gpio *chip;
+	unsigned long pending;
+	int offset;
+	struct pl061_gpio *chip = irq_desc_get_handler_data(desc);
+	struct irq_chip *irqchip = irq_desc_get_chip(desc);
 
-	desc->irq_data.chip->irq_ack(&desc->irq_data);
-	list_for_each(ptr, chip_list) {
-		unsigned long pending;
-		int offset;
+	chained_irq_enter(irqchip, desc);
 
-		chip = list_entry(ptr, struct pl061_gpio, list);
-		pending = readb(chip->base + GPIOMIS);
-		writeb(pending, chip->base + GPIOIC);
-
-		if (pending == 0)
-			continue;
-
+	pending = readb(chip->base + GPIOMIS);
+	writeb(pending, chip->base + GPIOIC);
+	if (pending) {
 		for_each_set_bit(offset, &pending, PL061_GPIO_NR)
 			generic_handle_irq(pl061_to_irq(&chip->gc, offset));
 	}
-	desc->irq_data.chip->irq_unmask(&desc->irq_data);
+
+	chained_irq_exit(irqchip, desc);
+}
+
+static void __init pl061_init_gc(struct pl061_gpio *chip, int irq_base)
+{
+	struct irq_chip_type *ct;
+
+	chip->irq_gc = irq_alloc_generic_chip("gpio-pl061", 1, irq_base,
+					      chip->base, handle_simple_irq);
+	chip->irq_gc->private = chip;
+
+	ct = chip->irq_gc->chip_types;
+	ct->chip.irq_mask = irq_gc_mask_clr_bit;
+	ct->chip.irq_unmask = irq_gc_mask_set_bit;
+	ct->chip.irq_set_type = pl061_irq_type;
+	ct->chip.irq_set_wake = irq_gc_set_wake;
+	ct->regs.mask = GPIOIE;
+
+	irq_setup_generic_chip(chip->irq_gc, IRQ_MSK(PL061_GPIO_NR),
+			       IRQ_GC_INIT_NESTED_LOCK, IRQ_NOREQUEST, 0);
 }
 
 static int pl061_probe(struct amba_device *dev, const struct amba_id *id)
 {
 	struct pl061_platform_data *pdata;
 	struct pl061_gpio *chip;
-	struct list_head *chip_list;
 	int ret, irq, i;
-	static DECLARE_BITMAP(init_irq, NR_IRQS);
-
-	pdata = dev->dev.platform_data;
-	if (pdata == NULL)
-		return -ENODEV;
 
 	chip = kzalloc(sizeof(*chip), GFP_KERNEL);
 	if (chip == NULL)
@@ -268,7 +232,7 @@ static int pl061_probe(struct amba_device *dev, const struct amba_id *id)
 		chip->irq_base = pdata->irq_base;
 	} else if (dev->dev.of_node) {
 		chip->gc.base = -1;
-		chip->irq_base = NO_IRQ;
+		chip->irq_base = 0;
 	} else {
 		ret = -ENODEV;
 		goto free_mem;
@@ -287,8 +251,6 @@ static int pl061_probe(struct amba_device *dev, const struct amba_id *id)
 	}
 
 	spin_lock_init(&chip->lock);
-	spin_lock_init(&chip->irq_lock);
-	INIT_LIST_HEAD(&chip->list);
 
 	chip->gc.direction_input = pl061_direction_input;
 	chip->gc.direction_output = pl061_direction_output;
@@ -308,8 +270,10 @@ static int pl061_probe(struct amba_device *dev, const struct amba_id *id)
 	 * irq_chip support
 	 */
 
-	if (chip->irq_base == NO_IRQ)
+	if (chip->irq_base <= 0)
 		return 0;
+
+	pl061_init_gc(chip, chip->irq_base);
 
 	writeb(0, chip->base + GPIOIE); /* disable irqs */
 	irq = dev->irq[0];
@@ -318,18 +282,7 @@ static int pl061_probe(struct amba_device *dev, const struct amba_id *id)
 		goto iounmap;
 	}
 	irq_set_chained_handler(irq, pl061_irq_handler);
-	if (!test_and_set_bit(irq, init_irq)) { /* list initialized? */
-		chip_list = kmalloc(sizeof(*chip_list), GFP_KERNEL);
-		if (chip_list == NULL) {
-			clear_bit(irq, init_irq);
-			ret = -ENOMEM;
-			goto iounmap;
-		}
-		INIT_LIST_HEAD(chip_list);
-		irq_set_handler_data(irq, chip_list);
-	} else
-		chip_list = irq_get_handler_data(irq);
-	list_add(&chip->list, chip_list);
+	irq_set_handler_data(irq, chip);
 
 	for (i = 0; i < PL061_GPIO_NR; i++) {
 		if (pdata) {
@@ -339,11 +292,6 @@ static int pl061_probe(struct amba_device *dev, const struct amba_id *id)
 			else
 				pl061_direction_input(&chip->gc, i);
 		}
-
-		irq_set_chip_and_handler(i + chip->irq_base, &pl061_irqchip,
-					 handle_simple_irq);
-		set_irq_flags(i+chip->irq_base, IRQF_VALID);
-		irq_set_chip_data(i + chip->irq_base, chip);
 	}
 
 	amba_set_drvdata(dev, chip);

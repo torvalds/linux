@@ -15,7 +15,6 @@
 #include <linux/slab.h>
 #include <linux/io.h>
 #include <linux/pwm_backlight.h>
-#include <linux/slab.h>
 
 #include <plat/devs.h>
 #include <plat/gpio-cfg.h>

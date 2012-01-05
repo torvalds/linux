@@ -87,10 +87,10 @@ connbytes_mt(const struct sk_buff *skb, struct xt_action_param *par)
 		break;
 	}
 
-	if (sinfo->count.to)
+	if (sinfo->count.to >= sinfo->count.from)
 		return what <= sinfo->count.to && what >= sinfo->count.from;
-	else
-		return what >= sinfo->count.from;
+	else /* inverted */
+		return what < sinfo->count.to || what > sinfo->count.from;
 }
 
 static int connbytes_mt_check(const struct xt_mtchk_param *par)

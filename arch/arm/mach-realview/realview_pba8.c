@@ -102,17 +102,14 @@ static void __init realview_pba8_map_io(void)
 
 static struct pl061_platform_data gpio0_plat_data = {
 	.gpio_base	= 0,
-	.irq_base	= -1,
 };
 
 static struct pl061_platform_data gpio1_plat_data = {
 	.gpio_base	= 8,
-	.irq_base	= -1,
 };
 
 static struct pl061_platform_data gpio2_plat_data = {
 	.gpio_base	= 16,
-	.irq_base	= -1,
 };
 
 static struct pl022_ssp_controller ssp0_plat_data = {

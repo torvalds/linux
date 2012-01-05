@@ -62,6 +62,7 @@ static int i915_capabilities(struct seq_file *m, void *data)
 	const struct intel_device_info *info = INTEL_INFO(dev);
 
 	seq_printf(m, "gen: %d\n", info->gen);
+	seq_printf(m, "pch: %d\n", INTEL_PCH_TYPE(dev));
 #define B(x) seq_printf(m, #x ": %s\n", yesno(info->x))
 	B(is_mobile);
 	B(is_i85x);
