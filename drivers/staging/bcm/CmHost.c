@@ -447,7 +447,7 @@ static VOID CopyToAdapter(register PMINI_ADAPTER Adapter, /* <Pointer to the Ada
 
 	Adapter->PackInfo[uiSearchRuleIndex].bValid = TRUE;
 	BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, CONN_MSG, DBG_LVL_ALL, "Search Rule Index = %d\n", uiSearchRuleIndex);
-	BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, CONN_MSG, DBG_LVL_ALL, "%s: SFID= %x ", __FUNCTION__, ntohl(psfLocalSet->u32SFID));
+	BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, CONN_MSG, DBG_LVL_ALL, "%s: SFID= %x ", __func__, ntohl(psfLocalSet->u32SFID));
 	BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, CONN_MSG, DBG_LVL_ALL, "Updating Queue %d", uiSearchRuleIndex);
 
 	ulSFID = ntohl(psfLocalSet->u32SFID);
@@ -816,7 +816,7 @@ static VOID CopyToAdapter(register PMINI_ADAPTER Adapter, /* <Pointer to the Ada
 	 */
 	SortClassifiers(Adapter);
 	DumpPhsRules(&Adapter->stBCMPhsContext);
-	BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, CONN_MSG, DBG_LVL_ALL, "%s <=====", __FUNCTION__);
+	BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, CONN_MSG, DBG_LVL_ALL, "%s <=====", __func__);
 }
 
 /***********************************************************************
@@ -1352,7 +1352,7 @@ static ULONG StoreSFParam(PMINI_ADAPTER Adapter, PUCHAR pucSrcBuffer, ULONG ulAd
 
 	ret = wrm(Adapter, ulAddrSFParamSet, (u8 *)pucSrcBuffer, nBytesToWrite);
 	if (ret < 0) {
-		BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, CONN_MSG, DBG_LVL_ALL, "%s:%d WRM failed", __FUNCTION__, __LINE__);
+		BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, CONN_MSG, DBG_LVL_ALL, "%s:%d WRM failed", __func__, __LINE__);
 		return ret;
 	}
 	return 1;
