@@ -1551,6 +1551,8 @@ static int set_delivery_system(struct dvb_frontend *fe, u32 desired_system)
 			}
 		}
 	}
+	dprintk("change delivery system on cache to %d\n", c->delivery_system);
+
 	return 0;
 }
 
@@ -1965,6 +1967,7 @@ static int dvb_frontend_ioctl_legacy(struct file *file,
 	switch (cmd) {
 	case FE_GET_INFO: {
 		struct dvb_frontend_info* info = parg;
+
 		memcpy(info, &fe->ops.info, sizeof(struct dvb_frontend_info));
 		dvb_frontend_get_frequency_limits(fe, &info->frequency_min, &info->frequency_max);
 
@@ -1981,16 +1984,16 @@ static int dvb_frontend_ioctl_legacy(struct file *file,
 		 */
 		switch (dvbv3_type(c->delivery_system)) {
 		case DVBV3_QPSK:
-			fe->ops.info.type = FE_QPSK;
+			info->type = FE_QPSK;
 			break;
 		case DVBV3_ATSC:
-			fe->ops.info.type = FE_ATSC;
+			info->type = FE_ATSC;
 			break;
 		case DVBV3_QAM:
-			fe->ops.info.type = FE_QAM;
+			info->type = FE_QAM;
 			break;
 		case DVBV3_OFDM:
-			fe->ops.info.type = FE_OFDM;
+			info->type = FE_OFDM;
 			break;
 		default:
 			printk(KERN_ERR
@@ -1998,6 +2001,8 @@ static int dvb_frontend_ioctl_legacy(struct file *file,
 			       __func__, c->delivery_system);
 			fe->ops.info.type = FE_OFDM;
 		}
+		dprintk("current delivery system on cache: %d, V3 type: %d\n",
+			c->delivery_system, fe->ops.info.type);
 
 		/* Force the CAN_INVERSION_AUTO bit on. If the frontend doesn't
 		 * do it, it is done for it. */
