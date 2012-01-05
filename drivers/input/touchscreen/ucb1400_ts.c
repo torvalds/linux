@@ -35,7 +35,7 @@ static int ts_delay = 55; /* us */
 static int ts_delay_pressure;	/* us */
 
 /* Switch to interrupt mode. */
-static inline void ucb1400_ts_mode_int(struct snd_ac97 *ac97)
+static void ucb1400_ts_mode_int(struct snd_ac97 *ac97)
 {
 	ucb1400_reg_write(ac97, UCB_TS_CR,
 			UCB_TS_CR_TSMX_POW | UCB_TS_CR_TSPX_POW |
@@ -47,7 +47,7 @@ static inline void ucb1400_ts_mode_int(struct snd_ac97 *ac97)
  * Switch to pressure mode, and read pressure.  We don't need to wait
  * here, since both plates are being driven.
  */
-static inline unsigned int ucb1400_ts_read_pressure(struct ucb1400_ts *ucb)
+static unsigned int ucb1400_ts_read_pressure(struct ucb1400_ts *ucb)
 {
 	ucb1400_reg_write(ucb->ac97, UCB_TS_CR,
 			UCB_TS_CR_TSMX_POW | UCB_TS_CR_TSPX_POW |
@@ -63,7 +63,7 @@ static inline unsigned int ucb1400_ts_read_pressure(struct ucb1400_ts *ucb)
  * gives a faster response time.  Even so, we need to wait about 55us
  * for things to stabilise.
  */
-static inline unsigned int ucb1400_ts_read_xpos(struct ucb1400_ts *ucb)
+static unsigned int ucb1400_ts_read_xpos(struct ucb1400_ts *ucb)
 {
 	ucb1400_reg_write(ucb->ac97, UCB_TS_CR,
 			UCB_TS_CR_TSMX_GND | UCB_TS_CR_TSPX_POW |
@@ -86,7 +86,7 @@ static inline unsigned int ucb1400_ts_read_xpos(struct ucb1400_ts *ucb)
  * gives a faster response time.  Even so, we need to wait about 55us
  * for things to stabilise.
  */
-static inline unsigned int ucb1400_ts_read_ypos(struct ucb1400_ts *ucb)
+static int ucb1400_ts_read_ypos(struct ucb1400_ts *ucb)
 {
 	ucb1400_reg_write(ucb->ac97, UCB_TS_CR,
 			UCB_TS_CR_TSMY_GND | UCB_TS_CR_TSPY_POW |
@@ -107,7 +107,7 @@ static inline unsigned int ucb1400_ts_read_ypos(struct ucb1400_ts *ucb)
  * Switch to X plate resistance mode.  Set MX to ground, PX to
  * supply.  Measure current.
  */
-static inline unsigned int ucb1400_ts_read_xres(struct ucb1400_ts *ucb)
+static unsigned int ucb1400_ts_read_xres(struct ucb1400_ts *ucb)
 {
 	ucb1400_reg_write(ucb->ac97, UCB_TS_CR,
 			UCB_TS_CR_TSMX_GND | UCB_TS_CR_TSPX_POW |
@@ -119,7 +119,7 @@ static inline unsigned int ucb1400_ts_read_xres(struct ucb1400_ts *ucb)
  * Switch to Y plate resistance mode.  Set MY to ground, PY to
  * supply.  Measure current.
  */
-static inline unsigned int ucb1400_ts_read_yres(struct ucb1400_ts *ucb)
+static unsigned int ucb1400_ts_read_yres(struct ucb1400_ts *ucb)
 {
 	ucb1400_reg_write(ucb->ac97, UCB_TS_CR,
 			UCB_TS_CR_TSMY_GND | UCB_TS_CR_TSPY_POW |
@@ -127,21 +127,21 @@ static inline unsigned int ucb1400_ts_read_yres(struct ucb1400_ts *ucb)
 	return ucb1400_adc_read(ucb->ac97, 0, adcsync);
 }
 
-static inline int ucb1400_ts_pen_up(struct snd_ac97 *ac97)
+static int ucb1400_ts_pen_up(struct snd_ac97 *ac97)
 {
 	unsigned short val = ucb1400_reg_read(ac97, UCB_TS_CR);
 
 	return val & (UCB_TS_CR_TSPX_LOW | UCB_TS_CR_TSMX_LOW);
 }
 
-static inline void ucb1400_ts_irq_enable(struct snd_ac97 *ac97)
+static void ucb1400_ts_irq_enable(struct snd_ac97 *ac97)
 {
 	ucb1400_reg_write(ac97, UCB_IE_CLEAR, UCB_IE_TSPX);
 	ucb1400_reg_write(ac97, UCB_IE_CLEAR, 0);
 	ucb1400_reg_write(ac97, UCB_IE_FAL, UCB_IE_TSPX);
 }
 
-static inline void ucb1400_ts_irq_disable(struct snd_ac97 *ac97)
+static void ucb1400_ts_irq_disable(struct snd_ac97 *ac97)
 {
 	ucb1400_reg_write(ac97, UCB_IE_FAL, 0);
 }
