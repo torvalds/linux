@@ -195,8 +195,7 @@ struct DRXKOfdmScCmd_t {
 };
 
 struct drxk_state {
-	struct dvb_frontend c_frontend;
-	struct dvb_frontend t_frontend;
+	struct dvb_frontend frontend;
 	struct dtv_frontend_properties props;
 	struct device *dev;
 

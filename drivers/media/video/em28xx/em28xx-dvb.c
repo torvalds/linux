@@ -874,11 +874,8 @@ static int em28xx_dvb_init(struct em28xx *dev)
 		struct xc5000_config cfg;
 		hauppauge_hvr930c_init(dev);
 
-		dvb->dont_attach_fe1 = 1;
-
 		dvb->fe[0] = dvb_attach(drxk_attach,
-					&hauppauge_930c_drxk, &dev->i2c_adap,
-					&dvb->fe[1]);
+					&hauppauge_930c_drxk, &dev->i2c_adap);
 		if (!dvb->fe[0]) {
 			result = -EINVAL;
 			goto out_free;
@@ -888,7 +885,6 @@ static int em28xx_dvb_init(struct em28xx *dev)
 		sema_init(&dvb->pll_mutex, 1);
 		dvb->gate_ctrl = dvb->fe[0]->ops.i2c_gate_ctrl;
 		dvb->fe[0]->ops.i2c_gate_ctrl = drxk_gate_ctrl;
-		dvb->fe[1]->id = 1;
 
 		/* Attach xc5000 */
 		memset(&cfg, 0, sizeof(cfg));
@@ -902,17 +898,8 @@ static int em28xx_dvb_init(struct em28xx *dev)
 			result = -EINVAL;
 			goto out_free;
 		}
-
 		if (dvb->fe[0]->ops.i2c_gate_ctrl)
 			dvb->fe[0]->ops.i2c_gate_ctrl(dvb->fe[0], 0);
-
-		/* Hack - needed by drxk/tda18271c2dd */
-		dvb->fe[1]->tuner_priv = dvb->fe[0]->tuner_priv;
-		memcpy(&dvb->fe[1]->ops.tuner_ops,
-		       &dvb->fe[0]->ops.tuner_ops,
-		       sizeof(dvb->fe[0]->ops.tuner_ops));
-
-		mfe_shared = 1;
 
 		break;
 	}
@@ -920,9 +907,7 @@ static int em28xx_dvb_init(struct em28xx *dev)
 	case EM2884_BOARD_CINERGY_HTC_STICK:
 		terratec_h5_init(dev);
 
-		dvb->dont_attach_fe1 = 1;
-
-		dvb->fe[0] = dvb_attach(drxk_attach, &terratec_h5_drxk, &dev->i2c_adap, &dvb->fe[1]);
+		dvb->fe[0] = dvb_attach(drxk_attach, &terratec_h5_drxk, &dev->i2c_adap);
 		if (!dvb->fe[0]) {
 			result = -EINVAL;
 			goto out_free;
@@ -932,7 +917,6 @@ static int em28xx_dvb_init(struct em28xx *dev)
 		sema_init(&dvb->pll_mutex, 1);
 		dvb->gate_ctrl = dvb->fe[0]->ops.i2c_gate_ctrl;
 		dvb->fe[0]->ops.i2c_gate_ctrl = drxk_gate_ctrl;
-		dvb->fe[1]->id = 1;
 
 		/* Attach tda18271 to DVB-C frontend */
 		if (dvb->fe[0]->ops.i2c_gate_ctrl)
@@ -943,14 +927,6 @@ static int em28xx_dvb_init(struct em28xx *dev)
 		}
 		if (dvb->fe[0]->ops.i2c_gate_ctrl)
 			dvb->fe[0]->ops.i2c_gate_ctrl(dvb->fe[0], 0);
-
-		/* Hack - needed by drxk/tda18271c2dd */
-		dvb->fe[1]->tuner_priv = dvb->fe[0]->tuner_priv;
-		memcpy(&dvb->fe[1]->ops.tuner_ops,
-		       &dvb->fe[0]->ops.tuner_ops,
-		       sizeof(dvb->fe[0]->ops.tuner_ops));
-
-		mfe_shared = 1;
 
 		break;
 	case EM28174_BOARD_PCTV_460E:

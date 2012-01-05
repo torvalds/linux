@@ -6174,7 +6174,7 @@ error:
 	return status;
 }
 
-static void drxk_c_release(struct dvb_frontend *fe)
+static void drxk_release(struct dvb_frontend *fe)
 {
 	struct drxk_state *state = fe->demodulator_priv;
 
@@ -6182,21 +6182,7 @@ static void drxk_c_release(struct dvb_frontend *fe)
 	kfree(state);
 }
 
-static int drxk_c_init(struct dvb_frontend *fe)
-{
-	struct drxk_state *state = fe->demodulator_priv;
-
-	dprintk(1, "\n");
-	if (mutex_trylock(&state->ctlock) == 0)
-		return -EBUSY;
-	if (state->m_itut_annex_c)
-		SetOperationMode(state, OM_QAM_ITU_C);
-	else
-		SetOperationMode(state, OM_QAM_ITU_A);
-	return 0;
-}
-
-static int drxk_c_sleep(struct dvb_frontend *fe)
+static int drxk_sleep(struct dvb_frontend *fe)
 {
 	struct drxk_state *state = fe->demodulator_priv;
 
@@ -6229,17 +6215,6 @@ static int drxk_set_parameters(struct dvb_frontend *fe)
 		return -EINVAL;
 	}
 
-	switch (delsys) {
-	case SYS_DVBC_ANNEX_A:
-		state->m_itut_annex_c = false;
-		break;
-	case SYS_DVBC_ANNEX_C:
-		state->m_itut_annex_c = true;
-		break;
-	default:
-		return -EINVAL;
-	}
-
 	if (fe->ops.i2c_gate_ctrl)
 		fe->ops.i2c_gate_ctrl(fe, 1);
 	if (fe->ops.tuner_ops.set_params)
@@ -6247,6 +6222,29 @@ static int drxk_set_parameters(struct dvb_frontend *fe)
 	if (fe->ops.i2c_gate_ctrl)
 		fe->ops.i2c_gate_ctrl(fe, 0);
 	state->props = *p;
+
+	switch (delsys) {
+	case SYS_DVBC_ANNEX_A:
+	case SYS_DVBC_ANNEX_C:
+		if (!state->m_hasDVBC)
+			return -EINVAL;
+		state->m_itut_annex_c = (delsys == SYS_DVBC_ANNEX_C) ? true : false;
+		if (state->m_itut_annex_c)
+			SetOperationMode(state, OM_QAM_ITU_C);
+		else
+			SetOperationMode(state, OM_QAM_ITU_A);
+			break;
+		state->m_itut_annex_c = true;
+		break;
+	case SYS_DVBT:
+		if (!state->m_hasDVBT)
+			return -EINVAL;
+		SetOperationMode(state, OM_DVBT);
+		break;
+	default:
+		return -EINVAL;
+	}
+
 	fe->ops.tuner_ops.get_if_frequency(fe, &IF);
 	Start(state, 0, IF);
 
@@ -6314,91 +6312,54 @@ static int drxk_read_ucblocks(struct dvb_frontend *fe, u32 *ucblocks)
 	return 0;
 }
 
-static int drxk_c_get_tune_settings(struct dvb_frontend *fe, struct dvb_frontend_tune_settings
+static int drxk_get_tune_settings(struct dvb_frontend *fe, struct dvb_frontend_tune_settings
 				    *sets)
 {
-	dprintk(1, "\n");
-	sets->min_delay_ms = 3000;
-	sets->max_drift = 0;
-	sets->step_size = 0;
-	return 0;
-}
-
-static void drxk_t_release(struct dvb_frontend *fe)
-{
-	/*
-	 * There's nothing to release here, as the state struct
-	 * is already freed by drxk_c_release.
-	 */
-}
-
-static int drxk_t_init(struct dvb_frontend *fe)
-{
-	struct drxk_state *state = fe->demodulator_priv;
+	struct dtv_frontend_properties *p = &fe->dtv_property_cache;
 
 	dprintk(1, "\n");
-	if (mutex_trylock(&state->ctlock) == 0)
-		return -EBUSY;
-	SetOperationMode(state, OM_DVBT);
-	return 0;
+	switch (p->delivery_system) {
+	case SYS_DVBC_ANNEX_A:
+	case SYS_DVBC_ANNEX_C:
+		sets->min_delay_ms = 3000;
+		sets->max_drift = 0;
+		sets->step_size = 0;
+		return 0;
+	default:
+		/*
+		 * For DVB-T, let it use the default DVB core way, that is:
+		 *	fepriv->step_size = fe->ops.info.frequency_stepsize * 2
+		 */
+		return -EINVAL;
+	}
 }
 
-static int drxk_t_sleep(struct dvb_frontend *fe)
-{
-	struct drxk_state *state = fe->demodulator_priv;
-
-	dprintk(1, "\n");
-	mutex_unlock(&state->ctlock);
-	return 0;
-}
-
-static struct dvb_frontend_ops drxk_c_ops = {
-	.delsys = { SYS_DVBC_ANNEX_A, SYS_DVBC_ANNEX_C },
+static struct dvb_frontend_ops drxk_ops = {
+	/* .delsys will be filled dynamically */
 	.info = {
-		 .name = "DRXK DVB-C",
-		 .frequency_min = 47000000,
-		 .frequency_max = 862000000,
-		 .symbol_rate_min = 870000,
-		 .symbol_rate_max = 11700000,
-		 .caps = FE_CAN_QAM_16 | FE_CAN_QAM_32 | FE_CAN_QAM_64 |
-		 FE_CAN_QAM_128 | FE_CAN_QAM_256 | FE_CAN_FEC_AUTO},
-	.release = drxk_c_release,
-	.init = drxk_c_init,
-	.sleep = drxk_c_sleep,
+		.name = "DRXK",
+		.frequency_min = 47000000,
+		.frequency_max = 865000000,
+		 /* For DVB-C */
+		.symbol_rate_min = 870000,
+		.symbol_rate_max = 11700000,
+		/* For DVB-T */
+		.frequency_stepsize = 166667,
+
+		.caps = FE_CAN_QAM_16 | FE_CAN_QAM_32 | FE_CAN_QAM_64 |
+			FE_CAN_QAM_128 | FE_CAN_QAM_256 | FE_CAN_FEC_AUTO |
+			FE_CAN_FEC_1_2 | FE_CAN_FEC_2_3 | FE_CAN_FEC_3_4 |
+			FE_CAN_FEC_5_6 | FE_CAN_FEC_7_8 | FE_CAN_MUTE_TS |
+			FE_CAN_TRANSMISSION_MODE_AUTO | FE_CAN_RECOVER |
+			FE_CAN_GUARD_INTERVAL_AUTO | FE_CAN_HIERARCHY_AUTO
+	},
+
+	.release = drxk_release,
+	.sleep = drxk_sleep,
 	.i2c_gate_ctrl = drxk_gate_ctrl,
 
 	.set_frontend = drxk_set_parameters,
-	.get_tune_settings = drxk_c_get_tune_settings,
-
-	.read_status = drxk_read_status,
-	.read_ber = drxk_read_ber,
-	.read_signal_strength = drxk_read_signal_strength,
-	.read_snr = drxk_read_snr,
-	.read_ucblocks = drxk_read_ucblocks,
-};
-
-static struct dvb_frontend_ops drxk_t_ops = {
-	.delsys = { SYS_DVBT },
-	.info = {
-		 .name = "DRXK DVB-T",
-		 .frequency_min = 47125000,
-		 .frequency_max = 865000000,
-		 .frequency_stepsize = 166667,
-		 .frequency_tolerance = 0,
-		 .caps = FE_CAN_FEC_1_2 | FE_CAN_FEC_2_3 |
-		 FE_CAN_FEC_3_4 | FE_CAN_FEC_5_6 | FE_CAN_FEC_7_8 |
-		 FE_CAN_FEC_AUTO |
-		 FE_CAN_QAM_16 | FE_CAN_QAM_64 |
-		 FE_CAN_QAM_AUTO |
-		 FE_CAN_TRANSMISSION_MODE_AUTO |
-		 FE_CAN_GUARD_INTERVAL_AUTO |
-		 FE_CAN_HIERARCHY_AUTO | FE_CAN_RECOVER | FE_CAN_MUTE_TS},
-	.release = drxk_t_release,
-	.init = drxk_t_init,
-	.sleep = drxk_t_sleep,
-	.i2c_gate_ctrl = drxk_gate_ctrl,
-
-	.set_frontend = drxk_set_parameters,
+	.get_tune_settings = drxk_get_tune_settings,
 
 	.read_status = drxk_read_status,
 	.read_ber = drxk_read_ber,
@@ -6408,9 +6369,10 @@ static struct dvb_frontend_ops drxk_t_ops = {
 };
 
 struct dvb_frontend *drxk_attach(const struct drxk_config *config,
-				 struct i2c_adapter *i2c,
-				 struct dvb_frontend **fe_t)
+				 struct i2c_adapter *i2c)
 {
+	int n;
+
 	struct drxk_state *state = NULL;
 	u8 adr = config->adr;
 
@@ -6445,21 +6407,29 @@ struct dvb_frontend *drxk_attach(const struct drxk_config *config,
 	mutex_init(&state->mutex);
 	mutex_init(&state->ctlock);
 
-	memcpy(&state->c_frontend.ops, &drxk_c_ops,
-	       sizeof(struct dvb_frontend_ops));
-	memcpy(&state->t_frontend.ops, &drxk_t_ops,
-	       sizeof(struct dvb_frontend_ops));
-	state->c_frontend.demodulator_priv = state;
-	state->t_frontend.demodulator_priv = state;
+	memcpy(&state->frontend.ops, &drxk_ops, sizeof(drxk_ops));
+	state->frontend.demodulator_priv = state;
 
 	init_state(state);
 	if (init_drxk(state) < 0)
 		goto error;
-	*fe_t = &state->t_frontend;
+
+	/* Initialize the supported delivery systems */
+	n = 0;
+	if (state->m_hasDVBC) {
+		state->frontend.ops.delsys[n++] = SYS_DVBC_ANNEX_A;
+		state->frontend.ops.delsys[n++] = SYS_DVBC_ANNEX_C;
+		strlcat(state->frontend.ops.info.name, " DVB-C",
+			sizeof(state->frontend.ops.info.name));
+	}
+	if (state->m_hasDVBT) {
+		state->frontend.ops.delsys[n++] = SYS_DVBT;
+		strlcat(state->frontend.ops.info.name, " DVB-T",
+			sizeof(state->frontend.ops.info.name));
+	}
 
 	printk(KERN_INFO "drxk: frontend initialized.\n");
-
-	return &state->c_frontend;
+	return &state->frontend;
 
 error:
 	printk(KERN_ERR "drxk: not found\n");
