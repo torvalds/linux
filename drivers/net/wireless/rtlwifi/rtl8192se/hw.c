@@ -1636,7 +1636,7 @@ static void _rtl92se_read_adapter_info(struct ieee80211_hw *hw)
 			HWSET_MAX_SIZE_92S);
 	}
 
-	RT_PRINT_DATA(rtlpriv, COMP_INIT, DBG_DMESG, ("MAP\n"),
+	RT_PRINT_DATA(rtlpriv, COMP_INIT, DBG_DMESG, "MAP",
 		      hwinfo, HWSET_MAX_SIZE_92S);
 
 	eeprom_id = *((u16 *)&hwinfo[0]);
@@ -2453,7 +2453,7 @@ void rtl92se_set_key(struct ieee80211_hw *hw, u32 key_index, u8 *p_macaddr,
 				 ("add one entry\n"));
 			if (is_pairwise) {
 				RT_PRINT_DATA(rtlpriv, COMP_SEC, DBG_LOUD,
-				      "Pairwiase Key content :",
+				      "Pairwise Key content",
 				       rtlpriv->sec.pairwise_key,
 				       rtlpriv->sec.key_len[PAIRWISE_KEYIDX]);
 

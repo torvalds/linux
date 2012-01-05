@@ -478,7 +478,7 @@ bool efuse_shadow_update(struct ieee80211_hw *hw)
 			       &rtlefuse->efuse_map[EFUSE_MODIFY_MAP][base],
 			       8);
 			RT_PRINT_DATA(rtlpriv, COMP_INIT, DBG_LOUD,
-				      ("U-efuse\n"), tmpdata, 8);
+				      "U-efuse", tmpdata, 8);
 
 			if (!efuse_pg_packet_write(hw, (u8) offset, word_en,
 						   tmpdata)) {

@@ -776,7 +776,7 @@ void rtl92de_tx_fill_cmddesc(struct ieee80211_hw *hw,
 	}
 
 	RT_PRINT_DATA(rtlpriv, COMP_CMD, DBG_LOUD,
-		      "H2C Tx Cmd Content\n", pdesc, TX_DESC_SIZE);
+		      "H2C Tx Cmd Content", pdesc, TX_DESC_SIZE);
 	wmb();
 	SET_TX_DESC_OWN(pdesc, 1);
 }
