@@ -551,8 +551,9 @@ static int dice_change_rate(struct dice *dice, unsigned int clock_rate)
 	if (err < 0)
 		return err;
 
-	wait_for_completion_timeout(&dice->clock_accepted,
-				    msecs_to_jiffies(100));
+	if (!wait_for_completion_timeout(&dice->clock_accepted,
+					 msecs_to_jiffies(100)))
+		dev_warn(&dice->unit->device, "clock change timed out\n");
 
 	return 0;
 }
