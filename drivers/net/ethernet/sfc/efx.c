@@ -38,7 +38,7 @@
 
 /* Loopback mode names (see LOOPBACK_MODE()) */
 const unsigned int efx_loopback_mode_max = LOOPBACK_MAX;
-const char *efx_loopback_mode_names[] = {
+const char *const efx_loopback_mode_names[] = {
 	[LOOPBACK_NONE]		= "NONE",
 	[LOOPBACK_DATA]		= "DATAPATH",
 	[LOOPBACK_GMAC]		= "GMAC",
@@ -69,7 +69,7 @@ const char *efx_loopback_mode_names[] = {
 };
 
 const unsigned int efx_reset_type_max = RESET_TYPE_MAX;
-const char *efx_reset_type_names[] = {
+const char *const efx_reset_type_names[] = {
 	[RESET_TYPE_INVISIBLE]     = "INVISIBLE",
 	[RESET_TYPE_ALL]           = "ALL",
 	[RESET_TYPE_WORLD]         = "WORLD",
@@ -2660,7 +2660,7 @@ static int efx_pm_suspend(struct device *dev)
 	return rc;
 }
 
-static struct dev_pm_ops efx_pm_ops = {
+static const struct dev_pm_ops efx_pm_ops = {
 	.suspend	= efx_pm_suspend,
 	.resume		= efx_pm_resume,
 	.freeze		= efx_pm_freeze,

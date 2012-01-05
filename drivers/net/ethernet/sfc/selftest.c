@@ -50,7 +50,7 @@ static const char payload_msg[] =
 
 /* Interrupt mode names */
 static const unsigned int efx_interrupt_mode_max = EFX_INT_MODE_MAX;
-static const char *efx_interrupt_mode_names[] = {
+static const char *const efx_interrupt_mode_names[] = {
 	[EFX_INT_MODE_MSIX]   = "MSI-X",
 	[EFX_INT_MODE_MSI]    = "MSI",
 	[EFX_INT_MODE_LEGACY] = "legacy",

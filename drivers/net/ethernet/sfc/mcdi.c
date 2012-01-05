@@ -502,7 +502,7 @@ static void efx_mcdi_process_link_change(struct efx_nic *efx, efx_qword_t *ev)
 	efx_link_status_changed(efx);
 }
 
-static const char *sensor_names[] = {
+static const char *const sensor_names[] = {
 	[MC_CMD_SENSOR_CONTROLLER_TEMP] = "Controller temp. sensor",
 	[MC_CMD_SENSOR_PHY_COMMON_TEMP] = "PHY shared temp. sensor",
 	[MC_CMD_SENSOR_CONTROLLER_COOLING] = "Controller cooling",
@@ -518,7 +518,7 @@ static const char *sensor_names[] = {
 	[MC_CMD_SENSOR_IN_12V0] = "12V supply sensor"
 };
 
-static const char *sensor_status_names[] = {
+static const char *const sensor_status_names[] = {
 	[MC_CMD_SENSOR_STATE_OK] = "OK",
 	[MC_CMD_SENSOR_STATE_WARNING] = "Warning",
 	[MC_CMD_SENSOR_STATE_FATAL] = "Fatal",
