@@ -269,9 +269,9 @@ static int pcf8591_read_channel(struct device *dev, int channel)
 
 	if ((channel == 2 && input_mode == 2) ||
 	    (channel != 3 && (input_mode == 1 || input_mode == 3)))
-		return (10 * REG_TO_SIGNED(value));
+		return 10 * REG_TO_SIGNED(value);
 	else
-		return (10 * value);
+		return 10 * value;
 }
 
 static const struct i2c_device_id pcf8591_id[] = {

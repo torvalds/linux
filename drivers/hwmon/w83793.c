@@ -181,7 +181,7 @@ static inline unsigned long FAN_FROM_REG(u16 val)
 {
 	if ((val >= 0xfff) || (val == 0))
 		return	0;
-	return (1350000UL / val);
+	return 1350000UL / val;
 }
 
 static inline u16 FAN_TO_REG(long rpm)
@@ -193,7 +193,7 @@ static inline u16 FAN_TO_REG(long rpm)
 
 static inline unsigned long TIME_FROM_REG(u8 reg)
 {
-	return (reg * 100);
+	return reg * 100;
 }
 
 static inline u8 TIME_TO_REG(unsigned long val)
@@ -203,7 +203,7 @@ static inline u8 TIME_TO_REG(unsigned long val)
 
 static inline long TEMP_FROM_REG(s8 reg)
 {
-	return (reg * 1000);
+	return reg * 1000;
 }
 
 static inline s8 TEMP_TO_REG(long val, s8 min, s8 max)

@@ -265,7 +265,7 @@ DIV_TO_REG(long val)
 			break;
 		val >>= 1;
 	}
-	return ((u8) i);
+	return (u8)i;
 }
 
 struct w83792d_data {
@@ -333,7 +333,7 @@ static struct i2c_driver w83792d_driver = {
 static inline long in_count_from_reg(int nr, struct w83792d_data *data)
 {
 	/* in7 and in8 do not have low bits, but the formula still works */
-	return ((data->in[nr] << 2) | ((data->low_bits >> (2 * nr)) & 0x03));
+	return (data->in[nr] << 2) | ((data->low_bits >> (2 * nr)) & 0x03);
 }
 
 /* The SMBus locks itself. The Winbond W83792D chip has a bank register,

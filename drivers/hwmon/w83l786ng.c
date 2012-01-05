@@ -116,7 +116,7 @@ DIV_TO_REG(long val)
 			break;
 		val >>= 1;
 	}
-	return ((u8) i);
+	return (u8)i;
 }
 
 struct w83l786ng_data {

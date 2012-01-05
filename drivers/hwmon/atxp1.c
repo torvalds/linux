@@ -106,7 +106,7 @@ static struct atxp1_data * atxp1_update_device(struct device *dev)
 
 	mutex_unlock(&data->update_lock);
 
-	return(data);
+	return data;
 }
 
 /* sys file functions for cpu0_vid */

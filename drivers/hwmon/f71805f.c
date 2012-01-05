@@ -202,7 +202,7 @@ struct f71805f_sio_data {
 
 static inline long in_from_reg(u8 reg)
 {
-	return (reg * 8);
+	return reg * 8;
 }
 
 /* The 2 least significant bits are not used */
@@ -212,13 +212,13 @@ static inline u8 in_to_reg(long val)
 		return 0;
 	if (val >= 2016)
 		return 0xfc;
-	return (((val + 16) / 32) << 2);
+	return ((val + 16) / 32) << 2;
 }
 
 /* in0 is downscaled by a factor 2 internally */
 static inline long in0_from_reg(u8 reg)
 {
-	return (reg * 16);
+	return reg * 16;
 }
 
 static inline u8 in0_to_reg(long val)
@@ -227,7 +227,7 @@ static inline u8 in0_to_reg(long val)
 		return 0;
 	if (val >= 4032)
 		return 0xfc;
-	return (((val + 32) / 64) << 2);
+	return ((val + 32) / 64) << 2;
 }
 
 /* The 4 most significant bits are not used */
@@ -236,7 +236,7 @@ static inline long fan_from_reg(u16 reg)
 	reg &= 0xfff;
 	if (!reg || reg == 0xfff)
 		return 0;
-	return (1500000 / reg);
+	return 1500000 / reg;
 }
 
 static inline u16 fan_to_reg(long rpm)
@@ -246,7 +246,7 @@ static inline u16 fan_to_reg(long rpm)
 	   so that no alarm will ever trigger. */
 	if (rpm < 367)
 		return 0xfff;
-	return (1500000 / rpm);
+	return 1500000 / rpm;
 }
 
 static inline unsigned long pwm_freq_from_reg(u8 reg)
@@ -278,7 +278,7 @@ static inline int pwm_mode_from_reg(u8 reg)
 
 static inline long temp_from_reg(u8 reg)
 {
-	return (reg * 1000);
+	return reg * 1000;
 }
 
 static inline u8 temp_to_reg(long val)

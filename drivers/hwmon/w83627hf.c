@@ -313,7 +313,7 @@ static inline unsigned long pwm_freq_from_reg(u8 reg)
 	/* This should not happen but anyway... */
 	if (reg == 0)
 		reg++;
-	return (clock / (reg << 8));
+	return clock / (reg << 8);
 }
 static inline u8 pwm_freq_to_reg(unsigned long val)
 {
@@ -321,11 +321,11 @@ static inline u8 pwm_freq_to_reg(unsigned long val)
 	if (val >= 93750)	/* The highest we can do */
 		return 0x01;
 	if (val >= 720)	/* Use 24 MHz clock */
-		return (24000000UL / (val << 8));
+		return 24000000UL / (val << 8);
 	if (val < 6)		/* The lowest we can do */
 		return 0xFF;
 	else			/* Use 180 kHz clock */
-		return (0x80 | (180000UL / (val << 8)));
+		return 0x80 | (180000UL / (val << 8));
 }
 
 #define BEEP_MASK_FROM_REG(val)		((val) & 0xff7fff)
@@ -342,7 +342,7 @@ static inline u8 DIV_TO_REG(long val)
 			break;
 		val >>= 1;
 	}
-	return ((u8) i);
+	return (u8)i;
 }
 
 /* For each registered chip, we need to keep some data in memory.
