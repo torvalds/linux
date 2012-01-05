@@ -2883,7 +2883,7 @@ static int bond_ioctl(struct net *net, unsigned int cmd,
 
 		return dev_ioctl(net, cmd, uifr);
 	default:
-		return -EINVAL;
+		return -ENOIOCTLCMD;
 	}
 }
 
@@ -3208,20 +3208,6 @@ static int compat_sock_ioctl_trans(struct file *file, struct socket *sock,
 	case SIOCDARP:
 	case SIOCATMARK:
 		return sock_do_ioctl(net, sock, cmd, arg);
-	}
-
-	/* Prevent warning from compat_sys_ioctl, these always
-	 * result in -EINVAL in the native case anyway. */
-	switch (cmd) {
-	case SIOCRTMSG:
-	case SIOCGIFCOUNT:
-	case SIOCSRARP:
-	case SIOCGRARP:
-	case SIOCDRARP:
-	case SIOCSIFLINK:
-	case SIOCGIFSLAVE:
-	case SIOCSIFSLAVE:
-		return -EINVAL;
 	}
 
 	return -ENOIOCTLCMD;
