@@ -524,4 +524,5 @@ MACHINE_START(ARMCORE, "Compulab CM-X2XX")
 #ifdef CONFIG_PCI
 	.dma_zone_size	= SZ_64M,
 #endif
+	.restart	= pxa_restart,
 MACHINE_END

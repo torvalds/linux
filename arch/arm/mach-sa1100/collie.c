@@ -387,4 +387,5 @@ MACHINE_START(COLLIE, "Sharp-Collie")
 	.init_irq	= sa1100_init_irq,
 	.timer		= &sa1100_timer,
 	.init_machine	= collie_init,
+	.restart	= sa11x0_restart,
 MACHINE_END

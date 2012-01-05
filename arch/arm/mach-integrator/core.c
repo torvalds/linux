@@ -247,3 +247,11 @@ void __init integrator_reserve(void)
 {
 	memblock_reserve(PHYS_OFFSET, __pa(swapper_pg_dir) - PHYS_OFFSET);
 }
+
+/*
+ * To reset, we hit the on-board reset register in the system FPGA
+ */
+void integrator_restart(char mode, const char *cmd)
+{
+	cm_control(CM_CTRL_RESET, CM_CTRL_RESET);
+}

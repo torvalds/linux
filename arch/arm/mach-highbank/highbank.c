@@ -147,4 +147,5 @@ DT_MACHINE_START(HIGHBANK, "Highbank")
 	.handle_irq	= gic_handle_irq,
 	.init_machine	= highbank_init,
 	.dt_compat	= highbank_match,
+	.restart	= highbank_restart,
 MACHINE_END

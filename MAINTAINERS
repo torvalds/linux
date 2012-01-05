@@ -1124,13 +1124,6 @@ S:	Supported
 F:	arch/arm/mach-shmobile/
 F:	drivers/sh/
 
-ARM/TELECHIPS ARM ARCHITECTURE
-M:	"Hans J. Koch" <hjk@hansjkoch.de>
-L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
-S:	Maintained
-F:	arch/arm/plat-tcc/
-F:	arch/arm/mach-tcc8k/
-
 ARM/TECHNOLOGIC SYSTEMS TS7250 MACHINE SUPPORT
 M:	Lennert Buytenhek <kernel@wantstofly.org>
 L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)

@@ -336,12 +336,13 @@ static struct sys_timer realview_pb1176_timer = {
 	.init		= realview_pb1176_timer_init,
 };
 
-static void realview_pb1176_reset(char mode)
+static void realview_pb1176_restart(char mode, const char *cmd)
 {
 	void __iomem *reset_ctrl = __io_address(REALVIEW_SYS_RESETCTL);
 	void __iomem *lock_ctrl = __io_address(REALVIEW_SYS_LOCK);
 	__raw_writel(REALVIEW_SYS_LOCK_VAL, lock_ctrl);
 	__raw_writel(REALVIEW_PB1176_SYS_SOFT_RESET, reset_ctrl);
+	dsb();
 }
 
 static void realview_pb1176_fixup(struct tag *tags, char **from,
@@ -381,7 +382,6 @@ static void __init realview_pb1176_init(void)
 #ifdef CONFIG_LEDS
 	leds_event = realview_leds_event;
 #endif
-	realview_reset = realview_pb1176_reset;
 }
 
 MACHINE_START(REALVIEW_PB1176, "ARM-RealView PB1176")
@@ -397,4 +397,5 @@ MACHINE_START(REALVIEW_PB1176, "ARM-RealView PB1176")
 #ifdef CONFIG_ZONE_DMA
 	.dma_zone_size	= SZ_256M,
 #endif
+	.restart	= realview_pb1176_restart,
 MACHINE_END

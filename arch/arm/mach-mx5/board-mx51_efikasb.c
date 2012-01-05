@@ -287,4 +287,5 @@ MACHINE_START(MX51_EFIKASB, "Genesi Efika Smartbook")
 	.handle_irq = imx51_handle_irq,
 	.init_machine =  efikasb_board_init,
 	.timer = &mx51_efikasb_timer,
+	.restart	= mxc_restart,
 MACHINE_END

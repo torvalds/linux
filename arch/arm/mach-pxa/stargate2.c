@@ -1005,6 +1005,7 @@ MACHINE_START(INTELMOTE2, "IMOTE 2")
 	.timer		= &pxa_timer,
 	.init_machine	= imote2_init,
 	.atag_offset	= 0x100,
+	.restart	= pxa_restart,
 MACHINE_END
 #endif
 
@@ -1017,5 +1018,6 @@ MACHINE_START(STARGATE2, "Stargate 2")
 	.timer = &pxa_timer,
 	.init_machine = stargate2_init,
 	.atag_offset = 0x100,
+	.restart	= pxa_restart,
 MACHINE_END
 #endif

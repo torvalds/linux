@@ -24,11 +24,12 @@
 #include <mach/regs-clock.h>
 
 #include <plat/regs-serial.h>
-#include <plat/s5pv210.h>
 #include <plat/devs.h>
 #include <plat/cpu.h>
 #include <plat/iic.h>
 #include <plat/s5p-time.h>
+
+#include "common.h"
 
 /* Following are default values for UCON, ULCON and UFCON UART registers */
 #define TORBRECK_UCON_DEFAULT	(S3C2410_UCON_TXILEVEL |	\
@@ -103,7 +104,7 @@ static struct i2c_board_info torbreck_i2c_devs2[] __initdata = {
 
 static void __init torbreck_map_io(void)
 {
-	s5p_init_io(NULL, 0, S5P_VA_CHIPID);
+	s5pv210_init_io(NULL, 0);
 	s3c24xx_init_clocks(24000000);
 	s3c24xx_init_uarts(torbreck_uartcfgs, ARRAY_SIZE(torbreck_uartcfgs));
 	s5p_set_timer_source(S5P_PWM3, S5P_PWM4);
@@ -132,4 +133,5 @@ MACHINE_START(TORBRECK, "TORBRECK")
 	.map_io		= torbreck_map_io,
 	.init_machine	= torbreck_machine_init,
 	.timer		= &s5p_timer,
+	.restart	= s5pv210_restart,
 MACHINE_END

@@ -417,7 +417,7 @@ static struct i2c_board_info __initdata poodle_i2c_devices[] = {
 
 static void poodle_poweroff(void)
 {
-	arm_machine_restart('h', NULL);
+	pxa_restart('h', NULL);
 }
 
 static void __init poodle_init(void)
@@ -466,4 +466,5 @@ MACHINE_START(POODLE, "SHARP Poodle")
 	.handle_irq	= pxa25x_handle_irq,
 	.timer		= &pxa_timer,
 	.init_machine	= poodle_init,
+	.restart	= pxa_restart,
 MACHINE_END

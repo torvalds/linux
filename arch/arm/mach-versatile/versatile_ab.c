@@ -43,4 +43,5 @@ MACHINE_START(VERSATILE_AB, "ARM-Versatile AB")
 	.handle_irq	= vic_handle_irq,
 	.timer		= &versatile_timer,
 	.init_machine	= versatile_init,
+	.restart	= versatile_restart,
 MACHINE_END

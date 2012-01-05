@@ -134,5 +134,6 @@ DT_MACHINE_START(TEGRA_DT, "nVidia Tegra (Flattened Device Tree)")
 	.handle_irq	= gic_handle_irq,
 	.timer		= &tegra_timer,
 	.init_machine	= tegra_dt_init,
+	.restart	= tegra_assert_system_reset,
 	.dt_compat	= tegra_dt_board_compat,
 MACHINE_END

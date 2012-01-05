@@ -40,4 +40,5 @@ MACHINE_START(ADSSPHERE, "ADS Sphere board")
 	.handle_irq	= vic_handle_irq,
 	.timer		= &ep93xx_timer,
 	.init_machine	= adssphere_init_machine,
+	.restart	= ep93xx_restart,
 MACHINE_END

@@ -491,3 +491,23 @@ static void __init ixp4xx_clockevent_init(void)
 
 	clockevents_register_device(&clockevent_ixp4xx);
 }
+
+void ixp4xx_restart(char mode, const char *cmd)
+{
+	if ( 1 && mode == 's') {
+		/* Jump into ROM at address 0 */
+		soft_restart(0);
+	} else {
+		/* Use on-chip reset capability */
+
+		/* set the "key" register to enable access to
+		 * "timer" and "enable" registers
+		 */
+		*IXP4XX_OSWK = IXP4XX_WDT_KEY;
+
+		/* write 0 to the timer register for an immediate reset */
+		*IXP4XX_OSWT = 0;
+
+		*IXP4XX_OSWE = IXP4XX_WDT_RESET_ENABLE | IXP4XX_WDT_COUNT_ENABLE;
+	}
+}
