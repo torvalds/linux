@@ -1705,6 +1705,41 @@ static int cx25840_s_stream(struct v4l2_subdev *sd, int enable)
 	return 0;
 }
 
+/* Query the current detected video format */
+static int cx25840_g_std(struct v4l2_subdev *sd, v4l2_std_id *std)
+{
+	struct i2c_client *client = v4l2_get_subdevdata(sd);
+
+	v4l2_std_id stds[] = {
+		/* 0000 */ V4L2_STD_UNKNOWN,
+
+		/* 0001 */ V4L2_STD_NTSC_M,
+		/* 0010 */ V4L2_STD_NTSC_M_JP,
+		/* 0011 */ V4L2_STD_NTSC_443,
+		/* 0100 */ V4L2_STD_PAL,
+		/* 0101 */ V4L2_STD_PAL_M,
+		/* 0110 */ V4L2_STD_PAL_N,
+		/* 0111 */ V4L2_STD_PAL_Nc,
+		/* 1000 */ V4L2_STD_PAL_60,
+
+		/* 1001 */ V4L2_STD_UNKNOWN,
+		/* 1010 */ V4L2_STD_UNKNOWN,
+		/* 1001 */ V4L2_STD_UNKNOWN,
+		/* 1010 */ V4L2_STD_UNKNOWN,
+		/* 1011 */ V4L2_STD_UNKNOWN,
+		/* 1110 */ V4L2_STD_UNKNOWN,
+		/* 1111 */ V4L2_STD_UNKNOWN
+	};
+
+	u32 fmt = (cx25840_read4(client, 0x40c) >> 8) & 0xf;
+	*std = stds[ fmt ];
+
+	v4l_dbg(1, cx25840_debug, client, "g_std fmt = %x, v4l2_std_id = 0x%x\n",
+		fmt, (unsigned int)stds[ fmt ]);
+
+	return 0;
+}
+
 static int cx25840_s_std(struct v4l2_subdev *sd, v4l2_std_id std)
 {
 	struct cx25840_state *state = to_state(sd);
@@ -4973,6 +5008,7 @@ static const struct v4l2_subdev_core_ops cx25840_core_ops = {
 	.queryctrl = v4l2_subdev_queryctrl,
 	.querymenu = v4l2_subdev_querymenu,
 	.s_std = cx25840_s_std,
+	.g_std = cx25840_g_std,
 	.reset = cx25840_reset,
 	.load_fw = cx25840_load_fw,
 	.s_io_pin_config = common_s_io_pin_config,
