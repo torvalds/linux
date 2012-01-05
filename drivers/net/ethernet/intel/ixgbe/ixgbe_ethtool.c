@@ -58,7 +58,7 @@ struct ixgbe_stats {
 				sizeof(((struct rtnl_link_stats64 *)0)->m), \
 				offsetof(struct rtnl_link_stats64, m)
 
-static struct ixgbe_stats ixgbe_gstrings_stats[] = {
+static const struct ixgbe_stats ixgbe_gstrings_stats[] = {
 	{"rx_packets", IXGBE_NETDEV_STAT(rx_packets)},
 	{"tx_packets", IXGBE_NETDEV_STAT(tx_packets)},
 	{"rx_bytes", IXGBE_NETDEV_STAT(rx_bytes)},
