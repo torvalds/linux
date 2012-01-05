@@ -1174,6 +1174,8 @@ static int clone_backref_node(struct btrfs_trans_handle *trans,
 			list_add_tail(&new_edge->list[UPPER],
 				      &new_node->lower);
 		}
+	} else {
+		list_add_tail(&new_node->lower, &cache->leaves);
 	}
 
 	rb_node = tree_insert(&cache->rb_root, new_node->bytenr,
@@ -2945,7 +2947,9 @@ static int relocate_file_extent_cluster(struct inode *inode,
 	index = (cluster->start - offset) >> PAGE_CACHE_SHIFT;
 	last_index = (cluster->end - offset) >> PAGE_CACHE_SHIFT;
 	while (index <= last_index) {
+		mutex_lock(&inode->i_mutex);
 		ret = btrfs_delalloc_reserve_metadata(inode, PAGE_CACHE_SIZE);
+		mutex_unlock(&inode->i_mutex);
 		if (ret)
 			goto out;
 

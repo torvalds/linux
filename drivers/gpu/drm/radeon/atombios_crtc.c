@@ -1107,9 +1107,40 @@ static int dce4_crtc_do_set_base(struct drm_crtc *crtc,
 		return -EINVAL;
 	}
 
-	if (tiling_flags & RADEON_TILING_MACRO)
+	if (tiling_flags & RADEON_TILING_MACRO) {
+		if (rdev->family >= CHIP_CAYMAN)
+			tmp = rdev->config.cayman.tile_config;
+		else
+			tmp = rdev->config.evergreen.tile_config;
+
+		switch ((tmp & 0xf0) >> 4) {
+		case 0: /* 4 banks */
+			fb_format |= EVERGREEN_GRPH_NUM_BANKS(EVERGREEN_ADDR_SURF_4_BANK);
+			break;
+		case 1: /* 8 banks */
+		default:
+			fb_format |= EVERGREEN_GRPH_NUM_BANKS(EVERGREEN_ADDR_SURF_8_BANK);
+			break;
+		case 2: /* 16 banks */
+			fb_format |= EVERGREEN_GRPH_NUM_BANKS(EVERGREEN_ADDR_SURF_16_BANK);
+			break;
+		}
+
+		switch ((tmp & 0xf000) >> 12) {
+		case 0: /* 1KB rows */
+		default:
+			fb_format |= EVERGREEN_GRPH_TILE_SPLIT(EVERGREEN_ADDR_SURF_TILE_SPLIT_1KB);
+			break;
+		case 1: /* 2KB rows */
+			fb_format |= EVERGREEN_GRPH_TILE_SPLIT(EVERGREEN_ADDR_SURF_TILE_SPLIT_2KB);
+			break;
+		case 2: /* 4KB rows */
+			fb_format |= EVERGREEN_GRPH_TILE_SPLIT(EVERGREEN_ADDR_SURF_TILE_SPLIT_4KB);
+			break;
+		}
+
 		fb_format |= EVERGREEN_GRPH_ARRAY_MODE(EVERGREEN_GRPH_ARRAY_2D_TILED_THIN1);
-	else if (tiling_flags & RADEON_TILING_MICRO)
+	} else if (tiling_flags & RADEON_TILING_MICRO)
 		fb_format |= EVERGREEN_GRPH_ARRAY_MODE(EVERGREEN_GRPH_ARRAY_1D_TILED_THIN1);
 
 	switch (radeon_crtc->crtc_id) {
@@ -1522,12 +1553,6 @@ static bool atombios_crtc_mode_fixup(struct drm_crtc *crtc,
 				     struct drm_display_mode *mode,
 				     struct drm_display_mode *adjusted_mode)
 {
-	struct drm_device *dev = crtc->dev;
-	struct radeon_device *rdev = dev->dev_private;
-
-	/* adjust pm to upcoming mode change */
-	radeon_pm_compute_clocks(rdev);
-
 	if (!radeon_crtc_scaling_mode_fixup(crtc, mode, adjusted_mode))
 		return false;
 	return true;

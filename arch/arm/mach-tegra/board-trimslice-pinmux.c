@@ -16,6 +16,7 @@
 #include <linux/gpio.h>
 #include <linux/kernel.h>
 #include <linux/init.h>
+#include <linux/of.h>
 
 #include <mach/pinmux.h>
 
@@ -157,7 +158,9 @@ static struct tegra_gpio_table gpio_table[] = {
 
 void __init trimslice_pinmux_init(void)
 {
-	platform_add_devices(pinmux_devices, ARRAY_SIZE(pinmux_devices));
+	if (!of_machine_is_compatible("nvidia,tegra20"))
+		platform_add_devices(pinmux_devices,
+					ARRAY_SIZE(pinmux_devices));
 	tegra_pinmux_config_table(trimslice_pinmux, ARRAY_SIZE(trimslice_pinmux));
 	tegra_gpio_config(gpio_table, ARRAY_SIZE(gpio_table));
 }

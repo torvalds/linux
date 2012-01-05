@@ -32,6 +32,7 @@
 #include <asm/hardware/cache-l2x0.h>
 
 #include "clock.h"
+#include "cpu-8815.h"
 
 #define __MEM_4K_RESOURCE(x) \
 	.res = {.start = (x), .end = (x) + SZ_4K - 1, .flags = IORESOURCE_MEM}

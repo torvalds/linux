@@ -406,8 +406,10 @@
 #define __NR_syncfs		335
 #define __NR_sendmmsg		336
 #define __NR_setns		337
+#define __NR_process_vm_readv	338
+#define __NR_process_vm_writev	339
 
-#define NR_syscalls		338
+#define NR_syscalls		340
 
 #ifdef __32bit_syscall_numbers__
 /* Sparc 32-bit only has the "setresuid32", "getresuid32" variants,

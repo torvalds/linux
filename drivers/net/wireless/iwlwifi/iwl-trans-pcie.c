@@ -990,28 +990,15 @@ static int iwl_trans_tx_stop(struct iwl_trans *trans)
 	return 0;
 }
 
-static void iwl_trans_pcie_disable_sync_irq(struct iwl_trans *trans)
+static void iwl_trans_pcie_stop_device(struct iwl_trans *trans)
 {
 	unsigned long flags;
-	struct iwl_trans_pcie *trans_pcie =
-		IWL_TRANS_GET_PCIE_TRANS(trans);
+	struct iwl_trans_pcie *trans_pcie = IWL_TRANS_GET_PCIE_TRANS(trans);
 
+	/* tell the device to stop sending interrupts */
 	spin_lock_irqsave(&trans->shrd->lock, flags);
 	iwl_disable_interrupts(trans);
 	spin_unlock_irqrestore(&trans->shrd->lock, flags);
-
-	/* wait to make sure we flush pending tasklet*/
-	synchronize_irq(bus(trans)->irq);
-	tasklet_kill(&trans_pcie->irq_tasklet);
-}
-
-static void iwl_trans_pcie_stop_device(struct iwl_trans *trans)
-{
-	/* stop and reset the on-board processor */
-	iwl_write32(bus(trans), CSR_RESET, CSR_RESET_REG_FLAG_NEVO_RESET);
-
-	/* tell the device to stop sending interrupts */
-	iwl_trans_pcie_disable_sync_irq(trans);
 
 	/* device going down, Stop using ICT table */
 	iwl_disable_ict(trans);
@@ -1039,6 +1026,20 @@ static void iwl_trans_pcie_stop_device(struct iwl_trans *trans)
 
 	/* Stop the device, and put it in low power state */
 	iwl_apm_stop(priv(trans));
+
+	/* Upon stop, the APM issues an interrupt if HW RF kill is set.
+	 * Clean again the interrupt here
+	 */
+	spin_lock_irqsave(&trans->shrd->lock, flags);
+	iwl_disable_interrupts(trans);
+	spin_unlock_irqrestore(&trans->shrd->lock, flags);
+
+	/* wait to make sure we flush pending tasklet*/
+	synchronize_irq(bus(trans)->irq);
+	tasklet_kill(&trans_pcie->irq_tasklet);
+
+	/* stop and reset the on-board processor */
+	iwl_write32(bus(trans), CSR_RESET, CSR_RESET_REG_FLAG_NEVO_RESET);
 }
 
 static int iwl_trans_pcie_tx(struct iwl_trans *trans, struct sk_buff *skb,
@@ -1196,9 +1197,7 @@ static int iwl_trans_pcie_tx(struct iwl_trans *trans, struct sk_buff *skb,
 	iwl_print_hex_dump(trans, IWL_DL_TX, (u8 *)tx_cmd->hdr, hdr_len);
 
 	/* Set up entry for this TFD in Tx byte-count array */
-	if (is_agg)
-		iwl_trans_txq_update_byte_cnt_tbl(trans, txq,
-					       le16_to_cpu(tx_cmd->len));
+	iwl_trans_txq_update_byte_cnt_tbl(trans, txq, le16_to_cpu(tx_cmd->len));
 
 	dma_sync_single_for_device(bus(trans)->dev, txcmd_phys, firstlen,
 			DMA_BIDIRECTIONAL);

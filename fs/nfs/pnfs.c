@@ -1260,6 +1260,25 @@ pnfs_generic_pg_writepages(struct nfs_pageio_descriptor *desc)
 }
 EXPORT_SYMBOL_GPL(pnfs_generic_pg_writepages);
 
+static void pnfs_ld_handle_read_error(struct nfs_read_data *data)
+{
+	struct nfs_pageio_descriptor pgio;
+
+	put_lseg(data->lseg);
+	data->lseg = NULL;
+	dprintk("pnfs write error = %d\n", data->pnfs_error);
+
+	nfs_pageio_init_read_mds(&pgio, data->inode);
+
+	while (!list_empty(&data->pages)) {
+		struct nfs_page *req = nfs_list_entry(data->pages.next);
+
+		nfs_list_remove_request(req);
+		nfs_pageio_add_request(&pgio, req);
+	}
+	nfs_pageio_complete(&pgio);
+}
+
 /*
  * Called by non rpc-based layout drivers
  */
@@ -1268,11 +1287,8 @@ void pnfs_ld_read_done(struct nfs_read_data *data)
 	if (likely(!data->pnfs_error)) {
 		__nfs4_read_done_cb(data);
 		data->mds_ops->rpc_call_done(&data->task, data);
-	} else {
-		put_lseg(data->lseg);
-		data->lseg = NULL;
-		dprintk("pnfs write error = %d\n", data->pnfs_error);
-	}
+	} else
+		pnfs_ld_handle_read_error(data);
 	data->mds_ops->rpc_release(data);
 }
 EXPORT_SYMBOL_GPL(pnfs_ld_read_done);

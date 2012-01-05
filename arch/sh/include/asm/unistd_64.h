@@ -396,10 +396,12 @@
 #define __NR_syncfs		373
 #define __NR_sendmmsg		374
 #define __NR_setns		375
+#define __NR_process_vm_readv	376
+#define __NR_process_vm_writev	377
 
 #ifdef __KERNEL__
 
-#define NR_syscalls 376
+#define NR_syscalls 378
 
 #define __ARCH_WANT_IPC_PARSE_VERSION
 #define __ARCH_WANT_OLD_READDIR

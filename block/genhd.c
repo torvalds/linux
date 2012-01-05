@@ -19,7 +19,6 @@
 #include <linux/mutex.h>
 #include <linux/idr.h>
 #include <linux/log2.h>
-#include <linux/ctype.h>
 
 #include "blk.h"
 
@@ -916,74 +915,6 @@ static int __init genhd_device_init(void)
 
 subsys_initcall(genhd_device_init);
 
-static ssize_t alias_show(struct device *dev,
-			       struct device_attribute *attr, char *buf)
-{
-	struct gendisk *disk = dev_to_disk(dev);
-	ssize_t ret = 0;
-
-	if (disk->alias)
-		ret = snprintf(buf, ALIAS_LEN, "%s\n", disk->alias);
-	return ret;
-}
-
-static ssize_t alias_store(struct device *dev, struct device_attribute *attr,
-			   const char *buf, size_t count)
-{
-	struct gendisk *disk = dev_to_disk(dev);
-	char *alias;
-	char *envp[] = { NULL, NULL };
-	unsigned char c;
-	int i;
-	ssize_t ret = count;
-
-	if (!count)
-		return -EINVAL;
-
-	if (count >= ALIAS_LEN) {
-		printk(KERN_ERR "alias: alias is too long\n");
-		return -EINVAL;
-	}
-
-	/* Validation check */
-	for (i = 0; i < count; i++) {
-		c = buf[i];
-		if (i == count - 1 && c == '\n')
-			break;
-		if (!isalnum(c) && c != '_' && c != '-') {
-			printk(KERN_ERR "alias: invalid alias\n");
-			return -EINVAL;
-		}
-	}
-
-	if (disk->alias) {
-		printk(KERN_INFO "alias: %s is already assigned (%s)\n",
-		       disk->disk_name, disk->alias);
-		return -EINVAL;
-	}
-
-	alias = kasprintf(GFP_KERNEL, "%s", buf);
-	if (!alias)
-		return -ENOMEM;
-
-	if (alias[count - 1] == '\n')
-		alias[count - 1] = '\0';
-
-	envp[0] = kasprintf(GFP_KERNEL, "ALIAS=%s", alias);
-	if (!envp[0]) {
-		kfree(alias);
-		return -ENOMEM;
-	}
-
-	disk->alias = alias;
-	printk(KERN_INFO "alias: assigned %s to %s\n", alias, disk->disk_name);
-
-	kobject_uevent_env(&dev->kobj, KOBJ_ADD, envp);
-
-	kfree(envp[0]);
-	return ret;
-}
-
 static ssize_t disk_range_show(struct device *dev,
 			       struct device_attribute *attr, char *buf)
 {
@@ -1043,7 +974,6 @@ static ssize_t disk_discard_alignment_show(struct device *dev,
 	return sprintf(buf, "%d\n", queue_discard_alignment(disk->queue));
 }
 
-static DEVICE_ATTR(alias, S_IRUGO|S_IWUSR, alias_show, alias_store);
 static DEVICE_ATTR(range, S_IRUGO, disk_range_show, NULL);
 static DEVICE_ATTR(ext_range, S_IRUGO, disk_ext_range_show, NULL);
 static DEVICE_ATTR(removable, S_IRUGO, disk_removable_show, NULL);
@@ -1066,7 +996,6 @@ static struct device_attribute dev_attr_fail_timeout =
 #endif
 
 static struct attribute *disk_attrs[] = {
-	&dev_attr_alias.attr,
 	&dev_attr_range.attr,
 	&dev_attr_ext_range.attr,
 	&dev_attr_removable.attr,

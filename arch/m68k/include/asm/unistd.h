@@ -350,10 +350,12 @@
 #define __NR_clock_adjtime	342
 #define __NR_syncfs		343
 #define __NR_setns		344
+#define __NR_process_vm_readv	345
+#define __NR_process_vm_writev	346
 
 #ifdef __KERNEL__
 
-#define NR_syscalls		345
+#define NR_syscalls		347
 
 #define __ARCH_WANT_IPC_PARSE_VERSION
 #define __ARCH_WANT_OLD_READDIR

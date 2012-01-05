@@ -7,7 +7,7 @@
 #define GPIO_REGS_VIRT	(APB_VIRT_BASE + 0x19000)
 
 #define BANK_OFF(n)	(((n) < 3) ? (n) << 2 : 0x100 + (((n) - 3) << 2))
-#define GPIO_REG(x)	(GPIO_REGS_VIRT + (x))
+#define GPIO_REG(x)	(*(volatile u32 *)(GPIO_REGS_VIRT + (x)))
 
 #define NR_BUILTIN_GPIO		IRQ_GPIO_NUM
 

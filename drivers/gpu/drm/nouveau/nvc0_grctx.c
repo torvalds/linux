@@ -1812,6 +1812,7 @@ nvc0_grctx_generate(struct nouveau_channel *chan)
 		/* calculate first set of magics */
 		memcpy(tpnr, priv->tp_nr, sizeof(priv->tp_nr));
 
+		gpc = -1;
 		for (tp = 0; tp < priv->tp_total; tp++) {
 			do {
 				gpc = (gpc + 1) % priv->gpc_nr;
@@ -1861,30 +1862,26 @@ nvc0_grctx_generate(struct nouveau_channel *chan)
 
 	if (1) {
 		u32 tp_mask = 0, tp_set = 0;
-		u8  tpnr[GPC_MAX];
+		u8  tpnr[GPC_MAX], a, b;
 
 		memcpy(tpnr, priv->tp_nr, sizeof(priv->tp_nr));
 		for (gpc = 0; gpc < priv->gpc_nr; gpc++)
 			tp_mask |= ((1 << priv->tp_nr[gpc]) - 1) << (gpc * 8);
 
-		gpc = -1;
-		for (i = 0, gpc = -1; i < 32; i++) {
-			int ltp = i * (priv->tp_total - 1) / 32;
+		for (i = 0, gpc = -1, b = -1; i < 32; i++) {
+			a = (i * (priv->tp_total - 1)) / 32;
+			if (a != b) {
+				b = a;
+				do {
+					gpc = (gpc + 1) % priv->gpc_nr;
+				} while (!tpnr[gpc]);
+				tp = priv->tp_nr[gpc] - tpnr[gpc]--;
 
-			do {
-				gpc = (gpc + 1) % priv->gpc_nr;
-			} while (!tpnr[gpc]);
-			tp = priv->tp_nr[gpc] - tpnr[gpc]--;
+				tp_set |= 1 << ((gpc * 8) + tp);
+			}
 
-			tp_set |= 1 << ((gpc * 8) + tp);
-
-			do {
-				nv_wr32(dev, 0x406800 + (i * 0x20), tp_set);
-				tp_set ^= tp_mask;
-				nv_wr32(dev, 0x406c00 + (i * 0x20), tp_set);
-				tp_set ^= tp_mask;
-			} while (ltp == (++i * (priv->tp_total - 1) / 32));
-			i--;
+			nv_wr32(dev, 0x406800 + (i * 0x20), tp_set);
+			nv_wr32(dev, 0x406c00 + (i * 0x20), tp_set ^ tp_mask);
 		}
 	}
 

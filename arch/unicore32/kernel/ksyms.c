@@ -24,8 +24,8 @@
 
 #include "ksyms.h"
 
-EXPORT_SYMBOL(__uc32_find_next_zero_bit);
-EXPORT_SYMBOL(__uc32_find_next_bit);
+EXPORT_SYMBOL(find_next_zero_bit);
+EXPORT_SYMBOL(find_next_bit);
 
 EXPORT_SYMBOL(__backtrace);
 

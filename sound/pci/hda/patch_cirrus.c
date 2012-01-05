@@ -58,6 +58,8 @@ struct cs_spec {
 	unsigned int gpio_mask;
 	unsigned int gpio_dir;
 	unsigned int gpio_data;
+	unsigned int gpio_eapd_hp; /* EAPD GPIO bit for headphones */
+	unsigned int gpio_eapd_speaker; /* EAPD GPIO bit for speakers */
 
 	struct hda_pcm pcm_rec[2];	/* PCM information */
 
@@ -76,6 +78,7 @@ enum {
 	CS420X_MBP53,
 	CS420X_MBP55,
 	CS420X_IMAC27,
+	CS420X_APPLE,
 	CS420X_AUTO,
 	CS420X_MODELS
 };
@@ -237,6 +240,15 @@ static int cs_dig_playback_pcm_cleanup(struct hda_pcm_stream *hinfo,
 	return snd_hda_multi_out_dig_cleanup(codec, &spec->multiout);
 }
 
+static void cs_update_input_select(struct hda_codec *codec)
+{
+	struct cs_spec *spec = codec->spec;
+	if (spec->cur_adc)
+		snd_hda_codec_write(codec, spec->cur_adc, 0,
+				    AC_VERB_SET_CONNECT_SEL,
+				    spec->adc_idx[spec->cur_input]);
+}
+
 /*
  * Analog capture
  */
@@ -250,6 +262,7 @@ static int cs_capture_pcm_prepare(struct hda_pcm_stream *hinfo,
 	spec->cur_adc = spec->adc_nid[spec->cur_input];
 	spec->cur_adc_stream_tag = stream_tag;
 	spec->cur_adc_format = format;
+	cs_update_input_select(codec);
 	snd_hda_codec_setup_stream(codec, spec->cur_adc, stream_tag, 0, format);
 	return 0;
 }
@@ -689,10 +702,8 @@ static int change_cur_input(struct hda_codec *codec, unsigned int idx,
 					   spec->cur_adc_stream_tag, 0,
 					   spec->cur_adc_format);
 	}
-	snd_hda_codec_write(codec, spec->cur_adc, 0,
-			    AC_VERB_SET_CONNECT_SEL,
-			    spec->adc_idx[idx]);
 	spec->cur_input = idx;
+	cs_update_input_select(codec);
 	return 1;
 }
 
@@ -920,10 +931,9 @@ static void cs_automute(struct hda_codec *codec)
 					spdif_present ? 0 : PIN_OUT);
 		}
 	}
-	if (spec->board_config == CS420X_MBP53 ||
-	    spec->board_config == CS420X_MBP55 ||
-	    spec->board_config == CS420X_IMAC27) {
-		unsigned int gpio = hp_present ? 0x02 : 0x08;
+	if (spec->gpio_eapd_hp) {
+		unsigned int gpio = hp_present ?
+			spec->gpio_eapd_hp : spec->gpio_eapd_speaker;
 		snd_hda_codec_write(codec, 0x01, 0,
 				    AC_VERB_SET_GPIO_DATA, gpio);
 	}
@@ -973,10 +983,7 @@ static void cs_automic(struct hda_codec *codec)
 		} else  {
 			spec->cur_input = spec->last_input;
 		}
-
-		snd_hda_codec_write_cache(codec, spec->cur_adc, 0,
-					AC_VERB_SET_CONNECT_SEL,
-					spec->adc_idx[spec->cur_input]);
+		cs_update_input_select(codec);
 	} else {
 		if (present)
 			change_cur_input(codec, spec->automic_idx, 0);
@@ -1073,9 +1080,7 @@ static void init_input(struct hda_codec *codec)
 			cs_automic(codec);
 		else  {
 			spec->cur_adc = spec->adc_nid[spec->cur_input];
-			snd_hda_codec_write(codec, spec->cur_adc, 0,
-					AC_VERB_SET_CONNECT_SEL,
-					spec->adc_idx[spec->cur_input]);
+			cs_update_input_select(codec);
 		}
 	} else {
 		change_cur_input(codec, spec->cur_input, 1);
@@ -1273,6 +1278,7 @@ static const char * const cs420x_models[CS420X_MODELS] = {
 	[CS420X_MBP53] = "mbp53",
 	[CS420X_MBP55] = "mbp55",
 	[CS420X_IMAC27] = "imac27",
+	[CS420X_APPLE] = "apple",
 	[CS420X_AUTO] = "auto",
 };
 
@@ -1282,7 +1288,13 @@ static const struct snd_pci_quirk cs420x_cfg_tbl[] = {
 	SND_PCI_QUIRK(0x10de, 0x0d94, "MacBookAir 3,1(2)", CS420X_MBP55),
 	SND_PCI_QUIRK(0x10de, 0xcb79, "MacBookPro 5,5", CS420X_MBP55),
 	SND_PCI_QUIRK(0x10de, 0xcb89, "MacBookPro 7,1", CS420X_MBP55),
-	SND_PCI_QUIRK(0x8086, 0x7270, "IMac 27 Inch", CS420X_IMAC27),
+	/* this conflicts with too many other models */
+	/*SND_PCI_QUIRK(0x8086, 0x7270, "IMac 27 Inch", CS420X_IMAC27),*/
+	{} /* terminator */
+};
+
+static const struct snd_pci_quirk cs420x_codec_cfg_tbl[] = {
+	SND_PCI_QUIRK_VENDOR(0x106b, "Apple", CS420X_APPLE),
 	{} /* terminator */
 };
 
@@ -1364,6 +1376,10 @@ static int patch_cs420x(struct hda_codec *codec)
 	spec->board_config =
 		snd_hda_check_board_config(codec, CS420X_MODELS,
 					   cs420x_models, cs420x_cfg_tbl);
+	if (spec->board_config < 0)
+		spec->board_config =
+			snd_hda_check_board_codec_sid_config(codec,
+				CS420X_MODELS, NULL, cs420x_codec_cfg_tbl);
 	if (spec->board_config >= 0)
 		fix_pincfg(codec, spec->board_config, cs_pincfgs);
 
@@ -1371,10 +1387,11 @@ static int patch_cs420x(struct hda_codec *codec)
 	case CS420X_IMAC27:
 	case CS420X_MBP53:
 	case CS420X_MBP55:
-		/* GPIO1 = headphones */
-		/* GPIO3 = speakers */
-		spec->gpio_mask = 0x0a;
-		spec->gpio_dir = 0x0a;
+	case CS420X_APPLE:
+		spec->gpio_eapd_hp = 2; /* GPIO1 = headphones */
+		spec->gpio_eapd_speaker = 8; /* GPIO3 = speakers */
+		spec->gpio_mask = spec->gpio_dir =
+			spec->gpio_eapd_hp | spec->gpio_eapd_speaker;
 		break;
 	}
 

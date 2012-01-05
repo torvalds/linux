@@ -705,7 +705,7 @@ static struct clksrc_clk *init_parents[] = {
 
 #define GET_DIV(clk, field) ((((clk) & field##_MASK) >> field##_SHIFT) + 1)
 
-void __init_or_cpufreq s3c6400_setup_clocks(void)
+void __init_or_cpufreq s3c64xx_setup_clocks(void)
 {
 	struct clk *xtal_clk;
 	unsigned long xtal;
@@ -804,7 +804,7 @@ static struct clk *clks[] __initdata = {
  * as ARMCLK as well as the necessary parent clocks.
  *
  * This call does not setup the clocks, which is left to the
- * s3c6400_setup_clocks() call which may be needed by the cpufreq
+ * s3c64xx_setup_clocks() call which may be needed by the cpufreq
  * or resume code to re-set the clocks if the bootloader has changed
  * them.
  */

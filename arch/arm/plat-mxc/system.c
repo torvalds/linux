@@ -21,6 +21,7 @@
 #include <linux/io.h>
 #include <linux/err.h>
 #include <linux/delay.h>
+#include <linux/module.h>
 
 #include <mach/hardware.h>
 #include <mach/common.h>
@@ -28,8 +29,8 @@
 #include <asm/system.h>
 #include <asm/mach-types.h>
 
-void (*imx_idle)(void) = NULL;
 void __iomem *(*imx_ioremap)(unsigned long, size_t, unsigned int) = NULL;
+EXPORT_SYMBOL_GPL(imx_ioremap);
 
 static void __iomem *wdog_base;
 

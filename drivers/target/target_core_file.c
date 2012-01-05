@@ -289,9 +289,9 @@ static int fd_do_readv(struct se_task *task)
 		return -ENOMEM;
 	}
 
-	for (i = 0; i < task->task_sg_nents; i++) {
-		iov[i].iov_len = sg[i].length;
-		iov[i].iov_base = sg_virt(&sg[i]);
+	for_each_sg(task->task_sg, sg, task->task_sg_nents, i) {
+		iov[i].iov_len = sg->length;
+		iov[i].iov_base = sg_virt(sg);
 	}
 
 	old_fs = get_fs();
@@ -342,9 +342,9 @@ static int fd_do_writev(struct se_task *task)
 		return -ENOMEM;
 	}
 
-	for (i = 0; i < task->task_sg_nents; i++) {
-		iov[i].iov_len = sg[i].length;
-		iov[i].iov_base = sg_virt(&sg[i]);
+	for_each_sg(task->task_sg, sg, task->task_sg_nents, i) {
+		iov[i].iov_len = sg->length;
+		iov[i].iov_base = sg_virt(sg);
 	}
 
 	old_fs = get_fs();
@@ -438,7 +438,7 @@ static int fd_do_task(struct se_task *task)
 		if (ret > 0 &&
 		    dev->se_sub_dev->se_dev_attrib.emulate_write_cache > 0 &&
 		    dev->se_sub_dev->se_dev_attrib.emulate_fua_write > 0 &&
-		    cmd->t_tasks_fua) {
+		    (cmd->se_cmd_flags & SCF_FUA)) {
 			/*
 			 * We might need to be a bit smarter here
 			 * and return some sense data to let the initiator
@@ -449,13 +449,15 @@ static int fd_do_task(struct se_task *task)
 
 	}
 
-	if (ret < 0)
+	if (ret < 0) {
+		cmd->scsi_sense_reason = TCM_LOGICAL_UNIT_COMMUNICATION_FAILURE;
 		return ret;
+	}
 	if (ret) {
 		task->task_scsi_status = GOOD;
 		transport_complete_task(task, 1);
 	}
-	return PYX_TRANSPORT_SENT_TO_TRANSPORT;
+	return 0;
 }
 
 /*	fd_free_task(): (Part of se_subsystem_api_t template)

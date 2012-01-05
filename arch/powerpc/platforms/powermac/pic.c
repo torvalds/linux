@@ -272,7 +272,6 @@ static struct irqaction xmon_action = {
 
 static struct irqaction gatwick_cascade_action = {
 	.handler	= gatwick_action,
-	.flags		= IRQF_DISABLED,
 	.name		= "cascade",
 };
 

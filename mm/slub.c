@@ -1862,7 +1862,7 @@ static void unfreeze_partials(struct kmem_cache *s)
 {
 	struct kmem_cache_node *n = NULL;
 	struct kmem_cache_cpu *c = this_cpu_ptr(s->cpu_slab);
-	struct page *page;
+	struct page *page, *discard_page = NULL;
 
 	while ((page = c->partial)) {
 		enum slab_modes { M_PARTIAL, M_FREE };
@@ -1904,7 +1904,8 @@ static void unfreeze_partials(struct kmem_cache *s)
 				if (l == M_PARTIAL)
 					remove_partial(n, page);
 				else
-					add_partial(n, page, 1);
+					add_partial(n, page,
+						DEACTIVATE_TO_TAIL);
 
 				l = m;
 			}
@@ -1915,14 +1916,22 @@ static void unfreeze_partials(struct kmem_cache *s)
 				"unfreezing slab"));
 
 		if (m == M_FREE) {
-			stat(s, DEACTIVATE_EMPTY);
-			discard_slab(s, page);
-			stat(s, FREE_SLAB);
+			page->next = discard_page;
+			discard_page = page;
 		}
 	}
 
 	if (n)
 		spin_unlock(&n->list_lock);
+
+	while (discard_page) {
+		page = discard_page;
+		discard_page = discard_page->next;
+
+		stat(s, DEACTIVATE_EMPTY);
+		discard_slab(s, page);
+		stat(s, FREE_SLAB);
+	}
 }
 
 /*
@@ -1969,7 +1978,7 @@ int put_cpu_partial(struct kmem_cache *s, struct page *page, int drain)
 		page->pobjects = pobjects;
 		page->next = oldpage;
 
-	} while (this_cpu_cmpxchg(s->cpu_slab->partial, oldpage, page) != oldpage);
+	} while (irqsafe_cpu_cmpxchg(s->cpu_slab->partial, oldpage, page) != oldpage);
 	stat(s, CPU_PARTIAL_FREE);
 	return pobjects;
 }
@@ -4435,30 +4444,31 @@ static ssize_t show_slab_objects(struct kmem_cache *s,
 
 		for_each_possible_cpu(cpu) {
 			struct kmem_cache_cpu *c = per_cpu_ptr(s->cpu_slab, cpu);
+			int node = ACCESS_ONCE(c->node);
 			struct page *page;
 
-			if (!c || c->node < 0)
+			if (node < 0)
 				continue;
-
-			if (c->page) {
-					if (flags & SO_TOTAL)
-						x = c->page->objects;
+			page = ACCESS_ONCE(c->page);
+			if (page) {
+				if (flags & SO_TOTAL)
+					x = page->objects;
 				else if (flags & SO_OBJECTS)
-					x = c->page->inuse;
+					x = page->inuse;
 				else
 					x = 1;
 
 				total += x;
-				nodes[c->node] += x;
+				nodes[node] += x;
 			}
 			page = c->partial;
 
 			if (page) {
 				x = page->pobjects;
-                                total += x;
-                                nodes[c->node] += x;
+				total += x;
+				nodes[node] += x;
 			}
-			per_cpu[c->node]++;
+			per_cpu[node]++;
 		}
 	}
 

@@ -24,6 +24,7 @@
 #include <linux/interrupt.h>
 #include <linux/types.h>
 #include <linux/pci.h>
+#include <linux/pci-aspm.h>
 #include <linux/kernel.h>
 #include <linux/slab.h>
 #include <linux/delay.h>
@@ -2600,6 +2601,8 @@ static int fill_cmd(ctlr_info_t *h, CommandList_struct *c, __u8 cmd, void *buff,
 			c->Request.Timeout = 0;
 			c->Request.CDB[0] = BMIC_WRITE;
 			c->Request.CDB[6] = BMIC_CACHE_FLUSH;
+			c->Request.CDB[7] = (size >> 8) & 0xFF;
+			c->Request.CDB[8] = size & 0xFF;
 			break;
 		case TEST_UNIT_READY:
 			c->Request.CDBLen = 6;
@@ -4319,6 +4322,10 @@ static int __devinit cciss_pci_init(ctlr_info_t *h)
 		dev_warn(&h->pdev->dev, "controller appears to be disabled\n");
 		return -ENODEV;
 	}
+
+	pci_disable_link_state(h->pdev, PCIE_LINK_STATE_L0S |
+				PCIE_LINK_STATE_L1 | PCIE_LINK_STATE_CLKPM);
+
 	err = pci_enable_device(h->pdev);
 	if (err) {
 		dev_warn(&h->pdev->dev, "Unable to Enable PCI device\n");
@@ -4875,7 +4882,7 @@ static int cciss_request_irq(ctlr_info_t *h,
 {
 	if (h->msix_vector || h->msi_vector) {
 		if (!request_irq(h->intr[h->intr_mode], msixhandler,
-				IRQF_DISABLED, h->devname, h))
+				0, h->devname, h))
 			return 0;
 		dev_err(&h->pdev->dev, "Unable to get msi irq %d"
 			" for %s\n", h->intr[h->intr_mode],
@@ -4884,7 +4891,7 @@ static int cciss_request_irq(ctlr_info_t *h,
 	}
 
 	if (!request_irq(h->intr[h->intr_mode], intxhandler,
-			IRQF_DISABLED, h->devname, h))
+			IRQF_SHARED, h->devname, h))
 		return 0;
 	dev_err(&h->pdev->dev, "Unable to get irq %d for %s\n",
 		h->intr[h->intr_mode], h->devname);
@@ -5158,6 +5165,7 @@ reinit_after_soft_reset:
 	h->cciss_max_sectors = 8192;
 
 	rebuild_lun_table(h, 1, 0);
+	cciss_engage_scsi(h);
 	h->busy_initializing = 0;
 	return 1;
 

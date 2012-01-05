@@ -12,6 +12,7 @@
 #define MAX_PRST_DEV_DB_ENTRIES		64
 #define MIN_DISC_DEV_DB_ENTRY		MAX_PRST_DEV_DB_ENTRIES
 #define MAX_DEV_DB_ENTRIES		512
+#define MAX_DEV_DB_ENTRIES_40XX		256
 
 /*************************************************************************
  *
@@ -603,6 +604,13 @@ struct addr_ctrl_blk {
 	uint32_t ipv6_gw_advrt_mtu;	/* 270-273 */
 	uint8_t res14[140];	/* 274-2FF */
 };
+
+#define IP_ADDR_COUNT	4 /* Total 4 IP address supported in one interface
+			   * One IPv4, one IPv6 link local and 2 IPv6
+			   */
+
+#define IP_STATE_MASK	0x0F000000
+#define IP_STATE_SHIFT	24
 
 struct init_fw_ctrl_blk {
 	struct addr_ctrl_blk pri;

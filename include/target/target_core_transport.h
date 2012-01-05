@@ -10,29 +10,6 @@
 
 #define PYX_TRANSPORT_STATUS_INTERVAL		5 /* In seconds */
 
-#define PYX_TRANSPORT_SENT_TO_TRANSPORT		0
-#define PYX_TRANSPORT_WRITE_PENDING		1
-
-#define PYX_TRANSPORT_UNKNOWN_SAM_OPCODE	-1
-#define PYX_TRANSPORT_HBA_QUEUE_FULL		-2
-#define PYX_TRANSPORT_REQ_TOO_MANY_SECTORS	-3
-#define PYX_TRANSPORT_OUT_OF_MEMORY_RESOURCES	-4
-#define PYX_TRANSPORT_INVALID_CDB_FIELD		-5
-#define PYX_TRANSPORT_INVALID_PARAMETER_LIST	-6
-#define PYX_TRANSPORT_LU_COMM_FAILURE		-7
-#define PYX_TRANSPORT_UNKNOWN_MODE_PAGE		-8
-#define PYX_TRANSPORT_WRITE_PROTECTED		-9
-#define PYX_TRANSPORT_RESERVATION_CONFLICT	-10
-#define PYX_TRANSPORT_ILLEGAL_REQUEST		-11
-#define PYX_TRANSPORT_USE_SENSE_REASON		-12
-
-#ifndef SAM_STAT_RESERVATION_CONFLICT
-#define SAM_STAT_RESERVATION_CONFLICT		0x18
-#endif
-
-#define TRANSPORT_PLUGIN_FREE			0
-#define TRANSPORT_PLUGIN_REGISTERED		1
-
 #define TRANSPORT_PLUGIN_PHBA_PDEV		1
 #define TRANSPORT_PLUGIN_VHBA_PDEV		2
 #define TRANSPORT_PLUGIN_VHBA_VDEV		3
@@ -158,7 +135,6 @@ extern int transport_generic_allocate_tasks(struct se_cmd *, unsigned char *);
 extern int transport_handle_cdb_direct(struct se_cmd *);
 extern int transport_generic_handle_cdb_map(struct se_cmd *);
 extern int transport_generic_handle_data(struct se_cmd *);
-extern void transport_new_cmd_failure(struct se_cmd *);
 extern int transport_generic_handle_tmr(struct se_cmd *);
 extern bool target_stop_task(struct se_task *task, unsigned long *flags);
 extern int transport_generic_map_mem_to_cmd(struct se_cmd *cmd, struct scatterlist *, u32,

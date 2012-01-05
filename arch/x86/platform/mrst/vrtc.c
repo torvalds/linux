@@ -76,8 +76,8 @@ unsigned long vrtc_get_time(void)
 
 	spin_unlock_irqrestore(&rtc_lock, flags);
 
-	/* vRTC YEAR reg contains the offset to 1960 */
-	year += 1960;
+	/* vRTC YEAR reg contains the offset to 1972 */
+	year += 1972;
 
 	printk(KERN_INFO "vRTC: sec: %d min: %d hour: %d day: %d "
 		"mon: %d year: %d\n", sec, min, hour, mday, mon, year);

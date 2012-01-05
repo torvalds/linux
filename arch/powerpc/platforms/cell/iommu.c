@@ -412,8 +412,7 @@ static void cell_iommu_enable_hardware(struct cbe_iommu *iommu)
 			IIC_IRQ_IOEX_ATI | (iommu->nid << IIC_IRQ_NODE_SHIFT));
 	BUG_ON(virq == NO_IRQ);
 
-	ret = request_irq(virq, ioc_interrupt, IRQF_DISABLED,
-			iommu->name, iommu);
+	ret = request_irq(virq, ioc_interrupt, 0, iommu->name, iommu);
 	BUG_ON(ret);
 
 	/* set the IOC segment table origin register (and turn on the iommu) */

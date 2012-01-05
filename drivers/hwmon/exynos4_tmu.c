@@ -506,17 +506,7 @@ static struct platform_driver exynos4_tmu_driver = {
 	.resume = exynos4_tmu_resume,
 };
 
-static int __init exynos4_tmu_driver_init(void)
-{
-	return platform_driver_register(&exynos4_tmu_driver);
-}
-module_init(exynos4_tmu_driver_init);
-
-static void __exit exynos4_tmu_driver_exit(void)
-{
-	platform_driver_unregister(&exynos4_tmu_driver);
-}
-module_exit(exynos4_tmu_driver_exit);
+module_platform_driver(exynos4_tmu_driver);
 
 MODULE_DESCRIPTION("EXYNOS4 TMU Driver");
 MODULE_AUTHOR("Donggeun Kim <dg77.kim@samsung.com>");

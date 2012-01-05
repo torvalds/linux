@@ -28,8 +28,8 @@
 #include <mach/board.h>
 #include <mach/msm_iomap.h>
 
-static void __init msm8x60_fixup(struct machine_desc *desc, struct tag *tag,
-			 char **cmdline, struct meminfo *mi)
+static void __init msm8x60_fixup(struct tag *tag, char **cmdline,
+		struct meminfo *mi)
 {
 	for (; tag->hdr.size; tag = tag_next(tag))
 		if (tag->hdr.tag == ATAG_MEM &&

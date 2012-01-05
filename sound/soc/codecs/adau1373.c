@@ -245,7 +245,7 @@ static const char *adau1373_bass_hpf_cutoff_text[] = {
 };
 
 static const unsigned int adau1373_bass_tlv[] = {
-	TLV_DB_RANGE_HEAD(4),
+	TLV_DB_RANGE_HEAD(3),
 	0, 2, TLV_DB_SCALE_ITEM(-600, 600, 1),
 	3, 4, TLV_DB_SCALE_ITEM(950, 250, 0),
 	5, 7, TLV_DB_SCALE_ITEM(1400, 150, 0),

@@ -32,7 +32,6 @@
 
 #include <plat/gpio-cfg.h>
 #include <plat/regs-serial.h>
-#include <plat/s5pv210.h>
 #include <plat/devs.h>
 #include <plat/cpu.h>
 #include <plat/fb.h>
@@ -40,6 +39,8 @@
 #include <plat/sdhci.h>
 #include <plat/s5p-time.h>
 #include <plat/regs-fb-v4.h>
+
+#include "common.h"
 
 /* Following are default values for UCON, ULCON and UFCON UART registers */
 #define AQUILA_UCON_DEFAULT	(S3C2410_UCON_TXILEVEL |	\
@@ -644,7 +645,7 @@ static void __init aquila_sound_init(void)
 
 static void __init aquila_map_io(void)
 {
-	s5p_init_io(NULL, 0, S5P_VA_CHIPID);
+	s5pv210_init_io(NULL, 0);
 	s3c24xx_init_clocks(24000000);
 	s3c24xx_init_uarts(aquila_uartcfgs, ARRAY_SIZE(aquila_uartcfgs));
 	s5p_set_timer_source(S5P_PWM3, S5P_PWM4);

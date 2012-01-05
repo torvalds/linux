@@ -745,7 +745,7 @@ static int ocfs2_move_extent(struct ocfs2_move_extents_context *context,
 	 */
 	ocfs2_probe_alloc_group(inode, gd_bh, &goal_bit, len, move_max_hop,
 				new_phys_cpos);
-	if (!new_phys_cpos) {
+	if (!*new_phys_cpos) {
 		ret = -ENOSPC;
 		goto out_commit;
 	}

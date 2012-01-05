@@ -515,14 +515,14 @@ static void __init ag5evm_init(void)
 	/* enable MMCIF */
 	gpio_request(GPIO_FN_MMCCLK0, NULL);
 	gpio_request(GPIO_FN_MMCCMD0_PU, NULL);
-	gpio_request(GPIO_FN_MMCD0_0, NULL);
-	gpio_request(GPIO_FN_MMCD0_1, NULL);
-	gpio_request(GPIO_FN_MMCD0_2, NULL);
-	gpio_request(GPIO_FN_MMCD0_3, NULL);
-	gpio_request(GPIO_FN_MMCD0_4, NULL);
-	gpio_request(GPIO_FN_MMCD0_5, NULL);
-	gpio_request(GPIO_FN_MMCD0_6, NULL);
-	gpio_request(GPIO_FN_MMCD0_7, NULL);
+	gpio_request(GPIO_FN_MMCD0_0_PU, NULL);
+	gpio_request(GPIO_FN_MMCD0_1_PU, NULL);
+	gpio_request(GPIO_FN_MMCD0_2_PU, NULL);
+	gpio_request(GPIO_FN_MMCD0_3_PU, NULL);
+	gpio_request(GPIO_FN_MMCD0_4_PU, NULL);
+	gpio_request(GPIO_FN_MMCD0_5_PU, NULL);
+	gpio_request(GPIO_FN_MMCD0_6_PU, NULL);
+	gpio_request(GPIO_FN_MMCD0_7_PU, NULL);
 	gpio_request(GPIO_PORT208, NULL); /* Reset */
 	gpio_direction_output(GPIO_PORT208, 1);
 
@@ -607,6 +607,7 @@ struct sys_timer ag5evm_timer = {
 
 MACHINE_START(AG5EVM, "ag5evm")
 	.map_io		= ag5evm_map_io,
+	.nr_irqs	= NR_IRQS_LEGACY,
 	.init_irq	= sh73a0_init_irq,
 	.handle_irq	= shmobile_handle_irq_gic,
 	.init_machine	= ag5evm_init,

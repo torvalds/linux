@@ -27,7 +27,6 @@
 #include <plat/regs-serial.h>
 #include <plat/regs-srom.h>
 #include <plat/regs-fb-v4.h>
-#include <plat/exynos4.h>
 #include <plat/cpu.h>
 #include <plat/devs.h>
 #include <plat/fb.h>
@@ -42,6 +41,8 @@
 #include <plat/clock.h>
 
 #include <mach/map.h>
+
+#include "common.h"
 
 /* Following are default values for UCON, ULCON and UFCON UART registers */
 #define SMDKV310_UCON_DEFAULT	(S3C2410_UCON_TXILEVEL |	\
@@ -332,7 +333,7 @@ static void s5p_tv_setup(void)
 
 static void __init smdkv310_map_io(void)
 {
-	s5p_init_io(NULL, 0, S5P_VA_CHIPID);
+	exynos_init_io(NULL, 0);
 	s3c24xx_init_clocks(24000000);
 	s3c24xx_init_uarts(smdkv310_uartcfgs, ARRAY_SIZE(smdkv310_uartcfgs));
 }

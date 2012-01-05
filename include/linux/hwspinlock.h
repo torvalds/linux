@@ -118,7 +118,6 @@ int __hwspin_trylock(struct hwspinlock *hwlock, int mode, unsigned long *flags)
 static inline
 void __hwspin_unlock(struct hwspinlock *hwlock, int mode, unsigned long *flags)
 {
-	return 0;
 }
 
 static inline int hwspin_lock_get_id(struct hwspinlock *hwlock)

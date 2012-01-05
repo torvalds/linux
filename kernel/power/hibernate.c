@@ -55,6 +55,8 @@ enum {
 
 static int hibernation_mode = HIBERNATION_SHUTDOWN;
 
+static bool freezer_test_done;
+
 static const struct platform_hibernation_ops *hibernation_ops;
 
 /**
@@ -345,11 +347,24 @@ int hibernation_snapshot(int platform_mode)
 
 	error = freeze_kernel_threads();
 	if (error)
-		goto Close;
+		goto Cleanup;
+
+	if (hibernation_test(TEST_FREEZER) ||
+		hibernation_testmode(HIBERNATION_TESTPROC)) {
+
+		/*
+		 * Indicate to the caller that we are returning due to a
+		 * successful freezer test.
+		 */
+		freezer_test_done = true;
+		goto Cleanup;
+	}
 
 	error = dpm_prepare(PMSG_FREEZE);
-	if (error)
-		goto Complete_devices;
+	if (error) {
+		dpm_complete(msg);
+		goto Cleanup;
+	}
 
 	suspend_console();
 	pm_restrict_gfp_mask();
@@ -378,8 +393,6 @@ int hibernation_snapshot(int platform_mode)
 		pm_restore_gfp_mask();
 
 	resume_console();
-
- Complete_devices:
 	dpm_complete(msg);
 
  Close:
@@ -389,6 +402,10 @@ int hibernation_snapshot(int platform_mode)
  Recover_platform:
 	platform_recover(platform_mode);
 	goto Resume_devices;
+
+ Cleanup:
+	swsusp_free();
+	goto Close;
 }
 
 /**
@@ -641,15 +658,13 @@ int hibernate(void)
 	if (error)
 		goto Finish;
 
-	if (hibernation_test(TEST_FREEZER))
-		goto Thaw;
-
-	if (hibernation_testmode(HIBERNATION_TESTPROC))
-		goto Thaw;
-
 	error = hibernation_snapshot(hibernation_mode == HIBERNATION_PLATFORM);
 	if (error)
 		goto Thaw;
+	if (freezer_test_done) {
+		freezer_test_done = false;
+		goto Thaw;
+	}
 
 	if (in_suspend) {
 		unsigned int flags = 0;

@@ -76,6 +76,20 @@ struct sfi_rtc_table_entry sfi_mrtc_array[SFI_MRTC_MAX];
 EXPORT_SYMBOL_GPL(sfi_mrtc_array);
 int sfi_mrtc_num;
 
+static void mrst_power_off(void)
+{
+	if (__mrst_cpu_chip == MRST_CPU_CHIP_LINCROFT)
+		intel_scu_ipc_simple_command(IPCMSG_COLD_RESET, 1);
+}
+
+static void mrst_reboot(void)
+{
+	if (__mrst_cpu_chip == MRST_CPU_CHIP_LINCROFT)
+		intel_scu_ipc_simple_command(IPCMSG_COLD_RESET, 0);
+	else
+		intel_scu_ipc_simple_command(IPCMSG_COLD_BOOT, 0);
+}
+
 /* parse all the mtimer info to a static mtimer array */
 static int __init sfi_parse_mtmr(struct sfi_table_header *table)
 {
@@ -187,11 +201,34 @@ int __init sfi_parse_mrtc(struct sfi_table_header *table)
 static unsigned long __init mrst_calibrate_tsc(void)
 {
 	unsigned long flags, fast_calibrate;
+	if (__mrst_cpu_chip == MRST_CPU_CHIP_PENWELL) {
+		u32 lo, hi, ratio, fsb;
 
-	local_irq_save(flags);
-	fast_calibrate = apbt_quick_calibrate();
-	local_irq_restore(flags);
-
+		rdmsr(MSR_IA32_PERF_STATUS, lo, hi);
+		pr_debug("IA32 perf status is 0x%x, 0x%0x\n", lo, hi);
+		ratio = (hi >> 8) & 0x1f;
+		pr_debug("ratio is %d\n", ratio);
+		if (!ratio) {
+			pr_err("read a zero ratio, should be incorrect!\n");
+			pr_err("force tsc ratio to 16 ...\n");
+			ratio = 16;
+		}
+		rdmsr(MSR_FSB_FREQ, lo, hi);
+		if ((lo & 0x7) == 0x7)
+			fsb = PENWELL_FSB_FREQ_83SKU;
+		else
+			fsb = PENWELL_FSB_FREQ_100SKU;
+		fast_calibrate = ratio * fsb;
+		pr_debug("read penwell tsc %lu khz\n", fast_calibrate);
+		lapic_timer_frequency = fsb * 1000 / HZ;
+		/* mark tsc clocksource as reliable */
+		set_cpu_cap(&boot_cpu_data, X86_FEATURE_TSC_RELIABLE);
+	} else {
+		local_irq_save(flags);
+		fast_calibrate = apbt_quick_calibrate();
+		local_irq_restore(flags);
+	}
+	
 	if (fast_calibrate)
 		return fast_calibrate;
 
@@ -242,15 +279,15 @@ static int mrst_i8042_detect(void)
 	return 0;
 }
 
-/* Reboot and power off are handled by the SCU on a MID device */
-static void mrst_power_off(void)
+/*
+ * Moorestown does not have external NMI source nor port 0x61 to report
+ * NMI status. The possible NMI sources are from pmu as a result of NMI
+ * watchdog or lock debug. Reading io port 0x61 results in 0xff which
+ * misled NMI handler.
+ */
+static unsigned char mrst_get_nmi_reason(void)
 {
-	intel_scu_ipc_simple_command(0xf1, 1);
-}
-
-static void mrst_reboot(void)
-{
-	intel_scu_ipc_simple_command(0xf1, 0);
+	return 0;
 }
 
 /*
@@ -274,6 +311,8 @@ void __init x86_mrst_early_setup(void)
 	x86_platform.calibrate_tsc = mrst_calibrate_tsc;
 	x86_platform.i8042_detect = mrst_i8042_detect;
 	x86_init.timers.wallclock_init = mrst_rtc_init;
+	x86_platform.get_nmi_reason = mrst_get_nmi_reason;
+
 	x86_init.pci.init = pci_mrst_init;
 	x86_init.pci.fixup_irqs = x86_init_noop;
 
@@ -448,6 +487,46 @@ static void __init *max7315_platform_data(void *info)
 	return max7315;
 }
 
+static void *tca6416_platform_data(void *info)
+{
+	static struct pca953x_platform_data tca6416;
+	struct i2c_board_info *i2c_info = info;
+	int gpio_base, intr;
+	char base_pin_name[SFI_NAME_LEN + 1];
+	char intr_pin_name[SFI_NAME_LEN + 1];
+
+	strcpy(i2c_info->type, "tca6416");
+	strcpy(base_pin_name, "tca6416_base");
+	strcpy(intr_pin_name, "tca6416_int");
+
+	gpio_base = get_gpio_by_name(base_pin_name);
+	intr = get_gpio_by_name(intr_pin_name);
+
+	if (gpio_base == -1)
+		return NULL;
+	tca6416.gpio_base = gpio_base;
+	if (intr != -1) {
+		i2c_info->irq = intr + MRST_IRQ_OFFSET;
+		tca6416.irq_base = gpio_base + MRST_IRQ_OFFSET;
+	} else {
+		i2c_info->irq = -1;
+		tca6416.irq_base = -1;
+	}
+	return &tca6416;
+}
+
+static void *mpu3050_platform_data(void *info)
+{
+	struct i2c_board_info *i2c_info = info;
+	int intr = get_gpio_by_name("mpu3050_int");
+
+	if (intr == -1)
+		return NULL;
+
+	i2c_info->irq = intr + MRST_IRQ_OFFSET;
+	return NULL;
+}
+
 static void __init *emc1403_platform_data(void *info)
 {
 	static short intr2nd_pdata;
@@ -608,13 +687,17 @@ static void *msic_ocd_platform_data(void *info)
 }
 
 static const struct devs_id __initconst device_ids[] = {
+	{"bma023", SFI_DEV_TYPE_I2C, 1, &no_platform_data},
 	{"pmic_gpio", SFI_DEV_TYPE_SPI, 1, &pmic_gpio_platform_data},
+	{"pmic_gpio", SFI_DEV_TYPE_IPC, 1, &pmic_gpio_platform_data},
 	{"spi_max3111", SFI_DEV_TYPE_SPI, 0, &max3111_platform_data},
 	{"i2c_max7315", SFI_DEV_TYPE_I2C, 1, &max7315_platform_data},
 	{"i2c_max7315_2", SFI_DEV_TYPE_I2C, 1, &max7315_platform_data},
+	{"tca6416", SFI_DEV_TYPE_I2C, 1, &tca6416_platform_data},
 	{"emc1403", SFI_DEV_TYPE_I2C, 1, &emc1403_platform_data},
 	{"i2c_accel", SFI_DEV_TYPE_I2C, 0, &lis331dl_platform_data},
 	{"pmic_audio", SFI_DEV_TYPE_IPC, 1, &no_platform_data},
+	{"mpu3050", SFI_DEV_TYPE_I2C, 1, &mpu3050_platform_data},
 
 	/* MSIC subdevices */
 	{"msic_battery", SFI_DEV_TYPE_IPC, 1, &msic_battery_platform_data},

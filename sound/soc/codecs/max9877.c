@@ -106,13 +106,13 @@ static int max9877_set_2reg(struct snd_kcontrol *kcontrol,
 	unsigned int mask = mc->max;
 	unsigned int val = (ucontrol->value.integer.value[0] & mask);
 	unsigned int val2 = (ucontrol->value.integer.value[1] & mask);
-	unsigned int change = 1;
+	unsigned int change = 0;
 
-	if (((max9877_regs[reg] >> shift) & mask) == val)
-		change = 0;
+	if (((max9877_regs[reg] >> shift) & mask) != val)
+		change = 1;
 
-	if (((max9877_regs[reg2] >> shift) & mask) == val2)
-		change = 0;
+	if (((max9877_regs[reg2] >> shift) & mask) != val2)
+		change = 1;
 
 	if (change) {
 		max9877_regs[reg] &= ~(mask << shift);

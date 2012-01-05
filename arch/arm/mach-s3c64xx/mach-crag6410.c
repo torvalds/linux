@@ -50,7 +50,6 @@
 
 #include <mach/regs-gpio-memport.h>
 
-#include <plat/s3c6410.h>
 #include <plat/regs-serial.h>
 #include <plat/regs-fb-v4.h>
 #include <plat/fb.h>
@@ -65,6 +64,8 @@
 #include <plat/adc.h>
 #include <plat/iic.h>
 #include <plat/pm.h>
+
+#include "common.h"
 
 /* serial port setup */
 

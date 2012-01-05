@@ -664,10 +664,10 @@ static int tps65910_set_voltage_dcdc(struct regulator_dev *dev,
 
 	switch (id) {
 	case TPS65910_REG_VDD1:
-		dcdc_mult = (selector / VDD1_2_NUM_VOLTS) + 1;
+		dcdc_mult = (selector / VDD1_2_NUM_VOLT_FINE) + 1;
 		if (dcdc_mult == 1)
 			dcdc_mult--;
-		vsel = (selector % VDD1_2_NUM_VOLTS) + 3;
+		vsel = (selector % VDD1_2_NUM_VOLT_FINE) + 3;
 
 		tps65910_modify_bits(pmic, TPS65910_VDD1,
 				(dcdc_mult << VDD1_VGAIN_SEL_SHIFT),
@@ -675,10 +675,10 @@ static int tps65910_set_voltage_dcdc(struct regulator_dev *dev,
 		tps65910_reg_write(pmic, TPS65910_VDD1_OP, vsel);
 		break;
 	case TPS65910_REG_VDD2:
-		dcdc_mult = (selector / VDD1_2_NUM_VOLTS) + 1;
+		dcdc_mult = (selector / VDD1_2_NUM_VOLT_FINE) + 1;
 		if (dcdc_mult == 1)
 			dcdc_mult--;
-		vsel = (selector % VDD1_2_NUM_VOLTS) + 3;
+		vsel = (selector % VDD1_2_NUM_VOLT_FINE) + 3;
 
 		tps65910_modify_bits(pmic, TPS65910_VDD2,
 				(dcdc_mult << VDD2_VGAIN_SEL_SHIFT),
@@ -756,9 +756,9 @@ static int tps65910_list_voltage_dcdc(struct regulator_dev *dev,
 	switch (id) {
 	case TPS65910_REG_VDD1:
 	case TPS65910_REG_VDD2:
-		mult = (selector / VDD1_2_NUM_VOLTS) + 1;
+		mult = (selector / VDD1_2_NUM_VOLT_FINE) + 1;
 		volt = VDD1_2_MIN_VOLT +
-				(selector % VDD1_2_NUM_VOLTS) * VDD1_2_OFFSET;
+				(selector % VDD1_2_NUM_VOLT_FINE) * VDD1_2_OFFSET;
 		break;
 	case TPS65911_REG_VDDCTRL:
 		volt = VDDCTRL_MIN_VOLT + (selector * VDDCTRL_OFFSET);
@@ -947,6 +947,8 @@ static __devinit int tps65910_probe(struct platform_device *pdev)
 
 		if (i == TPS65910_REG_VDD1 || i == TPS65910_REG_VDD2) {
 			pmic->desc[i].ops = &tps65910_ops_dcdc;
+			pmic->desc[i].n_voltages = VDD1_2_NUM_VOLT_FINE *
+							VDD1_2_NUM_VOLT_COARSE;
 		} else if (i == TPS65910_REG_VDD3) {
 			if (tps65910_chip_id(tps65910) == TPS65910)
 				pmic->desc[i].ops = &tps65910_ops_vdd3;

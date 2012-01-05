@@ -176,7 +176,7 @@ static bool oom_unkillable_task(struct task_struct *p,
 unsigned int oom_badness(struct task_struct *p, struct mem_cgroup *mem,
 		      const nodemask_t *nodemask, unsigned long totalpages)
 {
-	int points;
+	long points;
 
 	if (oom_unkillable_task(p, mem, nodemask))
 		return 0;
@@ -184,6 +184,11 @@ unsigned int oom_badness(struct task_struct *p, struct mem_cgroup *mem,
 	p = find_lock_task_mm(p);
 	if (!p)
 		return 0;
+
+	if (p->signal->oom_score_adj == OOM_SCORE_ADJ_MIN) {
+		task_unlock(p);
+		return 0;
+	}
 
 	/*
 	 * The memory controller may have a limit of 0 bytes, so avoid a divide

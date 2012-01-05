@@ -182,7 +182,7 @@ static void __init gplugd_init(void)
 
 	/* on-chip devices */
 	pxa168_add_uart(3);
-	pxa168_add_ssp(0);
+	pxa168_add_ssp(1);
 	pxa168_add_twsi(0, NULL, ARRAY_AND_SIZE(gplugd_i2c_board_info));
 
 	pxa168_add_eth(&gplugd_eth_platform_data);

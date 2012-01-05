@@ -40,7 +40,6 @@
 
 #include <plat/regs-serial.h>
 #include <plat/gpio-cfg.h>
-#include <plat/s5p6450.h>
 #include <plat/clock.h>
 #include <plat/devs.h>
 #include <plat/cpu.h>
@@ -52,6 +51,8 @@
 #include <plat/backlight.h>
 #include <plat/fb.h>
 #include <plat/regs-fb.h>
+
+#include "common.h"
 
 #define SMDK6450_UCON_DEFAULT	(S3C2410_UCON_TXILEVEL |	\
 				S3C2410_UCON_RXILEVEL |		\
@@ -221,7 +222,7 @@ static struct platform_pwm_backlight_data smdk6450_bl_data = {
 
 static void __init smdk6450_map_io(void)
 {
-	s5p_init_io(NULL, 0, S5P64X0_SYS_ID);
+	s5p64x0_init_io(NULL, 0);
 	s3c24xx_init_clocks(19200000);
 	s3c24xx_init_uarts(smdk6450_uartcfgs, ARRAY_SIZE(smdk6450_uartcfgs));
 	s5p_set_timer_source(S5P_PWM3, S5P_PWM4);

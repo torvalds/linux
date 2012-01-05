@@ -514,7 +514,7 @@ static __init int celleb_setup_pciex(struct device_node *node,
 	virq = irq_create_of_mapping(oirq.controller, oirq.specifier,
 				     oirq.size);
 	if (request_irq(virq, pciex_handle_internal_irq,
-			IRQF_DISABLED, "pciex", (void *)phb)) {
+			0, "pciex", (void *)phb)) {
 		pr_err("PCIEXC:Failed to request irq\n");
 		goto error;
 	}

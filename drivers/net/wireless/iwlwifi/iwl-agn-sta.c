@@ -1268,9 +1268,6 @@ int iwl_set_dynamic_key(struct iwl_priv *priv,
 
 	switch (keyconf->cipher) {
 	case WLAN_CIPHER_SUITE_TKIP:
-		keyconf->flags |= IEEE80211_KEY_FLAG_GENERATE_MMIC;
-		keyconf->flags |= IEEE80211_KEY_FLAG_GENERATE_IV;
-
 		if (sta)
 			addr = sta->addr;
 		else /* station mode case only */
@@ -1283,8 +1280,6 @@ int iwl_set_dynamic_key(struct iwl_priv *priv,
 					  seq.tkip.iv32, p1k, CMD_SYNC);
 		break;
 	case WLAN_CIPHER_SUITE_CCMP:
-		keyconf->flags |= IEEE80211_KEY_FLAG_GENERATE_IV;
-		/* fall through */
 	case WLAN_CIPHER_SUITE_WEP40:
 	case WLAN_CIPHER_SUITE_WEP104:
 		ret = iwlagn_send_sta_key(priv, keyconf, sta_id,

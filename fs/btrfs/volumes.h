@@ -100,6 +100,12 @@ struct btrfs_device {
 	struct reada_zone *reada_curr_zone;
 	struct radix_tree_root reada_zones;
 	struct radix_tree_root reada_extents;
+
+	/* for sending down flush barriers */
+	struct bio *flush_bio;
+	struct completion flush_wait;
+	int nobarriers;
+
 };
 
 struct btrfs_fs_devices {

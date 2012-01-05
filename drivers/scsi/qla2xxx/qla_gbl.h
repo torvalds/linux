@@ -578,6 +578,7 @@ extern int qla82xx_check_md_needed(scsi_qla_host_t *);
 extern void qla82xx_chip_reset_cleanup(scsi_qla_host_t *);
 extern int qla82xx_mbx_beacon_ctl(scsi_qla_host_t *, int);
 extern char *qdev_state(uint32_t);
+extern void qla82xx_clear_pending_mbx(scsi_qla_host_t *);
 
 /* BSG related functions */
 extern int qla24xx_bsg_request(struct fc_bsg_job *);
