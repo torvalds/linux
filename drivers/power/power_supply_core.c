@@ -159,7 +159,7 @@ EXPORT_SYMBOL_GPL(power_supply_get_by_name);
 
 int power_supply_powers(struct power_supply *psy, struct device *dev)
 {
-	return sysfs_create_link_nowarn(&psy->dev->kobj, &dev->kobj, "powers");
+	return sysfs_create_link(&psy->dev->kobj, &dev->kobj, "powers");
 }
 EXPORT_SYMBOL_GPL(power_supply_powers);
 
