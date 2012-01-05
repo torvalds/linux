@@ -487,22 +487,27 @@ static void e1000_receive_skb(struct e1000_adapter *adapter,
 
 /**
  * e1000_rx_checksum - Receive Checksum Offload
- * @adapter:     board private structure
- * @status_err:  receive descriptor status and error fields
- * @csum:	receive descriptor csum field
- * @sk_buff:     socket buffer with received data
+ * @adapter: board private structure
+ * @status_err: receive descriptor status and error fields
+ * @csum: receive descriptor csum field
+ * @sk_buff: socket buffer with received data
  **/
 static void e1000_rx_checksum(struct e1000_adapter *adapter, u32 status_err,
-			      u32 csum, struct sk_buff *skb)
+			      __le16 csum, struct sk_buff *skb)
 {
 	u16 status = (u16)status_err;
 	u8 errors = (u8)(status_err >> 24);
 
 	skb_checksum_none_assert(skb);
 
+	/* Rx checksum disabled */
+	if (!(adapter->netdev->features & NETIF_F_RXCSUM))
+		return;
+
 	/* Ignore Checksum bit is set */
 	if (status & E1000_RXD_STAT_IXSM)
 		return;
+
 	/* TCP/UDP checksum error bit is set */
 	if (errors & E1000_RXD_ERR_TCPE) {
 		/* let the stack verify checksum errors */
@@ -524,7 +529,7 @@ static void e1000_rx_checksum(struct e1000_adapter *adapter, u32 status_err,
 		 * Hardware complements the payload checksum, so we undo it
 		 * and then put the value in host order for further stack use.
 		 */
-		__sum16 sum = (__force __sum16)htons(csum);
+		__sum16 sum = (__force __sum16)swab16((__force u16)csum);
 		skb->csum = csum_unfold(~sum);
 		skb->ip_summed = CHECKSUM_COMPLETE;
 	}
@@ -957,8 +962,7 @@ static bool e1000_clean_rx_irq(struct e1000_adapter *adapter,
 
 		/* Receive Checksum Offload */
 		e1000_rx_checksum(adapter, staterr,
-				  le16_to_cpu(rx_desc->wb.lower.hi_dword.
-					      csum_ip.csum), skb);
+				  rx_desc->wb.lower.hi_dword.csum_ip.csum, skb);
 
 		e1000_receive_skb(adapter, netdev, skb, staterr,
 				  rx_desc->wb.upper.vlan);
@@ -1318,8 +1322,8 @@ copydone:
 		total_rx_bytes += skb->len;
 		total_rx_packets++;
 
-		e1000_rx_checksum(adapter, staterr, le16_to_cpu(
-			rx_desc->wb.lower.hi_dword.csum_ip.csum), skb);
+		e1000_rx_checksum(adapter, staterr,
+				  rx_desc->wb.lower.hi_dword.csum_ip.csum, skb);
 
 		if (rx_desc->wb.upper.header_status &
 			   cpu_to_le16(E1000_RXDPS_HDRSTAT_HDRSP))
@@ -1491,8 +1495,7 @@ static bool e1000_clean_jumbo_rx_irq(struct e1000_adapter *adapter,
 
 		/* Receive Checksum Offload XXX recompute due to CRC strip? */
 		e1000_rx_checksum(adapter, staterr,
-				  le16_to_cpu(rx_desc->wb.lower.hi_dword.
-					      csum_ip.csum), skb);
+				  rx_desc->wb.lower.hi_dword.csum_ip.csum, skb);
 
 		/* probably a little skewed due to removing CRC */
 		total_rx_bytes += skb->len;
