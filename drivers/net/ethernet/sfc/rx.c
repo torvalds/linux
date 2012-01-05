@@ -98,8 +98,8 @@ static inline unsigned int efx_rx_buf_offset(struct efx_nic *efx,
 	/* Offset is always within one page, so we don't need to consider
 	 * the page order.
 	 */
-	return (((__force unsigned long) buf->dma_addr & (PAGE_SIZE - 1)) +
-		efx->type->rx_buffer_hash_size);
+	return ((__force unsigned long) buf->dma_addr & (PAGE_SIZE - 1)) +
+		efx->type->rx_buffer_hash_size;
 }
 static inline unsigned int efx_rx_buf_size(struct efx_nic *efx)
 {
@@ -111,8 +111,7 @@ static u8 *efx_rx_buf_eh(struct efx_nic *efx, struct efx_rx_buffer *buf)
 	if (buf->is_page)
 		return page_address(buf->u.page) + efx_rx_buf_offset(efx, buf);
 	else
-		return ((u8 *)buf->u.skb->data +
-			efx->type->rx_buffer_hash_size);
+		return (u8 *)buf->u.skb->data + efx->type->rx_buffer_hash_size;
 }
 
 static inline u32 efx_rx_buf_hash(const u8 *eh)
@@ -122,10 +121,10 @@ static inline u32 efx_rx_buf_hash(const u8 *eh)
 	return __le32_to_cpup((const __le32 *)(eh - 4));
 #else
 	const u8 *data = eh - 4;
-	return ((u32)data[0]       |
-		(u32)data[1] << 8  |
-		(u32)data[2] << 16 |
-		(u32)data[3] << 24);
+	return (u32)data[0]	  |
+	       (u32)data[1] << 8  |
+	       (u32)data[2] << 16 |
+	       (u32)data[3] << 24;
 #endif
 }
 
