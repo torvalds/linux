@@ -9,6 +9,7 @@
 #include <linux/types.h>
 #include <linux/init.h>
 #include <linux/slab.h>
+#include <linux/export.h>
 
 #include <asm/hardirq.h>
 #include <asm/apic.h>

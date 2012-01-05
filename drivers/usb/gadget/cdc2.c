@@ -12,6 +12,7 @@
 
 #include <linux/kernel.h>
 #include <linux/utsname.h>
+#include <linux/module.h>
 
 #include "u_ether.h"
 #include "u_serial.h"

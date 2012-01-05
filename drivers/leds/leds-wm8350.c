@@ -17,6 +17,7 @@
 #include <linux/mfd/wm8350/pmic.h>
 #include <linux/regulator/consumer.h>
 #include <linux/slab.h>
+#include <linux/module.h>
 
 /* Microamps */
 static const int isink_cur[] = {

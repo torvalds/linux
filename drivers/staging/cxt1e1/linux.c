@@ -16,6 +16,7 @@
 
 #include <linux/types.h>
 #include <linux/netdevice.h>
+#include <linux/module.h>
 #include <linux/hdlc.h>
 #include <linux/if_arp.h>
 #include <linux/init.h>

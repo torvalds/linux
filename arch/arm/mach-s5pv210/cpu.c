@@ -42,6 +42,7 @@
 #include <plat/keypad-core.h>
 #include <plat/sdhci.h>
 #include <plat/reset.h>
+#include <plat/tv-core.h>
 
 /* Initial IO mappings */
 
@@ -145,6 +146,9 @@ void __init s5pv210_map_io(void)
 
 	/* Use s5pv210-keypad instead of samsung-keypad */
 	samsung_keypad_setname("s5pv210-keypad");
+
+	/* setup TV devices */
+	s5p_hdmi_setname("s5pv210-hdmi");
 }
 
 void __init s5pv210_init_clocks(int xtal)

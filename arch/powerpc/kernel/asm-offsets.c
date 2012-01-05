@@ -49,6 +49,9 @@
 #ifdef CONFIG_PPC_ISERIES
 #include <asm/iseries/alpaca.h>
 #endif
+#ifdef CONFIG_PPC_POWERNV
+#include <asm/opal.h>
+#endif
 #if defined(CONFIG_KVM) || defined(CONFIG_KVM_GUEST)
 #include <linux/kvm_host.h>
 #endif
@@ -608,6 +611,13 @@ int main(void)
 					arch.timing_last_enter.tv32.tbu));
 	DEFINE(VCPU_TIMING_LAST_ENTER_TBL, offsetof(struct kvm_vcpu,
 					arch.timing_last_enter.tv32.tbl));
+#endif
+
+#ifdef CONFIG_PPC_POWERNV
+	DEFINE(OPAL_MC_GPR3, offsetof(struct opal_machine_check_event, gpr3));
+	DEFINE(OPAL_MC_SRR0, offsetof(struct opal_machine_check_event, srr0));
+	DEFINE(OPAL_MC_SRR1, offsetof(struct opal_machine_check_event, srr1));
+	DEFINE(PACA_OPAL_MC_EVT, offsetof(struct paca_struct, opal_mc_evt));
 #endif
 
 	return 0;

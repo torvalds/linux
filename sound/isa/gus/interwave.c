@@ -27,7 +27,7 @@
 #include <linux/isa.h>
 #include <linux/delay.h>
 #include <linux/pnp.h>
-#include <linux/moduleparam.h>
+#include <linux/module.h>
 #include <asm/dma.h>
 #include <sound/core.h>
 #include <sound/gus.h>

@@ -21,6 +21,7 @@
 
 #include <linux/threads.h>
 #include <linux/interrupt.h>
+#include <linux/module.h>
 #include <linux/slab.h>
 #include <linux/vmalloc.h>
 #include <linux/time.h>
@@ -1081,12 +1082,12 @@ static int snd_ctl_elem_init_enum_names(struct user_element *ue)
 	char *names, *p;
 	size_t buf_len, name_len;
 	unsigned int i;
+	const uintptr_t user_ptrval = ue->info.value.enumerated.names_ptr;
 
 	if (ue->info.value.enumerated.names_length > 64 * 1024)
 		return -EINVAL;
 
-	names = memdup_user(
-		(const void __user *)ue->info.value.enumerated.names_ptr,
+	names = memdup_user((const void __user *)user_ptrval,
 		ue->info.value.enumerated.names_length);
 	if (IS_ERR(names))
 		return PTR_ERR(names);

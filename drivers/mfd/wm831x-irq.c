@@ -420,12 +420,19 @@ static int wm831x_irq_set_type(struct irq_data *data, unsigned int type)
 	switch (type) {
 	case IRQ_TYPE_EDGE_BOTH:
 		wm831x->gpio_update[irq] = 0x10000 | WM831X_GPN_INT_MODE;
+		wm831x->gpio_level[irq] = false;
 		break;
 	case IRQ_TYPE_EDGE_RISING:
 		wm831x->gpio_update[irq] = 0x10000 | WM831X_GPN_POL;
+		wm831x->gpio_level[irq] = false;
 		break;
 	case IRQ_TYPE_EDGE_FALLING:
 		wm831x->gpio_update[irq] = 0x10000;
+		wm831x->gpio_level[irq] = false;
+		break;
+	case IRQ_TYPE_LEVEL_HIGH:
+		wm831x->gpio_update[irq] = 0x10000 | WM831X_GPN_POL;
+		wm831x->gpio_level[irq] = true;
 		break;
 	default:
 		return -EINVAL;
@@ -449,7 +456,7 @@ static irqreturn_t wm831x_irq_thread(int irq, void *data)
 {
 	struct wm831x *wm831x = data;
 	unsigned int i;
-	int primary, status_addr;
+	int primary, status_addr, ret;
 	int status_regs[WM831X_NUM_IRQ_REGS] = { 0 };
 	int read[WM831X_NUM_IRQ_REGS] = { 0 };
 	int *status;
@@ -507,6 +514,19 @@ static irqreturn_t wm831x_irq_thread(int irq, void *data)
 
 		if (*status & wm831x_irqs[i].mask)
 			handle_nested_irq(wm831x->irq_base + i);
+
+		/* Simulate an edge triggered IRQ by polling the input
+		 * status.  This is sucky but improves interoperability.
+		 */
+		if (primary == WM831X_GP_INT &&
+		    wm831x->gpio_level[i - WM831X_IRQ_GPIO_1]) {
+			ret = wm831x_reg_read(wm831x, WM831X_GPIO_LEVEL);
+			while (ret & 1 << (i - WM831X_IRQ_GPIO_1)) {
+				handle_nested_irq(wm831x->irq_base + i);
+				ret = wm831x_reg_read(wm831x,
+						      WM831X_GPIO_LEVEL);
+			}
+		}
 	}
 
 out:
@@ -595,8 +615,6 @@ int wm831x_irq_init(struct wm831x *wm831x, int irq)
 		dev_warn(wm831x->dev,
 			 "No interrupt specified - functionality limited\n");
 	}
-
-
 
 	/* Enable top level interrupts, we mask at secondary level */
 	wm831x_reg_write(wm831x, WM831X_SYSTEM_INTERRUPTS_MASK, 0);

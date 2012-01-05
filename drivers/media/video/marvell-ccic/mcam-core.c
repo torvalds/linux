@@ -883,7 +883,8 @@ static int mcam_read_setup(struct mcam_camera *cam)
  * Videobuf2 interface code.
  */
 
-static int mcam_vb_queue_setup(struct vb2_queue *vq, unsigned int *nbufs,
+static int mcam_vb_queue_setup(struct vb2_queue *vq,
+		const struct v4l2_format *fmt, unsigned int *nbufs,
 		unsigned int *num_planes, unsigned int sizes[],
 		void *alloc_ctxs[])
 {

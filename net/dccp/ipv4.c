@@ -111,6 +111,7 @@ int dccp_v4_connect(struct sock *sk, struct sockaddr *uaddr, int addr_len)
 	rt = ip_route_newports(fl4, rt, orig_sport, orig_dport,
 			       inet->inet_sport, inet->inet_dport, sk);
 	if (IS_ERR(rt)) {
+		err = PTR_ERR(rt);
 		rt = NULL;
 		goto failure;
 	}
@@ -433,6 +434,7 @@ exit:
 	NET_INC_STATS_BH(sock_net(sk), LINUX_MIB_LISTENDROPS);
 	return NULL;
 put_and_exit:
+	bh_unlock_sock(newsk);
 	sock_put(newsk);
 	goto exit;
 }

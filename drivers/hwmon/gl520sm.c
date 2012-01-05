@@ -821,7 +821,7 @@ static int gl520_remove(struct i2c_client *client)
 static int gl520_read_value(struct i2c_client *client, u8 reg)
 {
 	if ((reg >= 0x07) && (reg <= 0x0c))
-		return swab16(i2c_smbus_read_word_data(client, reg));
+		return i2c_smbus_read_word_swapped(client, reg);
 	else
 		return i2c_smbus_read_byte_data(client, reg);
 }
@@ -829,7 +829,7 @@ static int gl520_read_value(struct i2c_client *client, u8 reg)
 static int gl520_write_value(struct i2c_client *client, u8 reg, u16 value)
 {
 	if ((reg >= 0x07) && (reg <= 0x0c))
-		return i2c_smbus_write_word_data(client, reg, swab16(value));
+		return i2c_smbus_write_word_swapped(client, reg, value);
 	else
 		return i2c_smbus_write_byte_data(client, reg, value);
 }

@@ -189,6 +189,7 @@ struct sk_buff *__alloc_skb(unsigned int size, gfp_t gfp_mask,
 	 * aligned memory blocks, unless SLUB/SLAB debug is enabled.
 	 * Both skb->head and skb_shared_info are cache line aligned.
 	 */
+	size = SKB_DATA_ALIGN(size);
 	size += SKB_DATA_ALIGN(sizeof(struct skb_shared_info));
 	data = kmalloc_node_track_caller(size, gfp_mask, node);
 	if (!data)
@@ -2229,7 +2230,7 @@ static int skb_prepare_for_shift(struct sk_buff *skb)
  * @shiftlen: shift up to this many bytes
  *
  * Attempts to shift up to shiftlen worth of bytes, which may be less than
- * the length of the skb, from tgt to skb. Returns number bytes shifted.
+ * the length of the skb, from skb to tgt. Returns number bytes shifted.
  * It's up to caller to free skb if everything was shifted.
  *
  * If @tgt runs out of frags, the whole operation is aborted.

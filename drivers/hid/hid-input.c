@@ -271,6 +271,97 @@ static __s32 hidinput_calc_abs_res(const struct hid_field *field, __u16 code)
 	return logical_extents / physical_extents;
 }
 
+#ifdef CONFIG_HID_BATTERY_STRENGTH
+static enum power_supply_property hidinput_battery_props[] = {
+	POWER_SUPPLY_PROP_PRESENT,
+	POWER_SUPPLY_PROP_ONLINE,
+	POWER_SUPPLY_PROP_CAPACITY,
+	POWER_SUPPLY_PROP_MODEL_NAME,
+};
+
+static int hidinput_get_battery_property(struct power_supply *psy,
+					 enum power_supply_property prop,
+					 union power_supply_propval *val)
+{
+	struct hid_device *dev = container_of(psy, struct hid_device, battery);
+	int ret = 0;
+
+	switch (prop) {
+	case POWER_SUPPLY_PROP_PRESENT:
+	case POWER_SUPPLY_PROP_ONLINE:
+		val->intval = 1;
+		break;
+
+	case POWER_SUPPLY_PROP_CAPACITY:
+		if (dev->battery_min < dev->battery_max &&
+		    dev->battery_val >= dev->battery_min &&
+		    dev->battery_val <= dev->battery_max)
+			val->intval = (100 * (dev->battery_val - dev->battery_min)) /
+				(dev->battery_max - dev->battery_min);
+		else
+			ret = -EINVAL;
+		break;
+
+	case POWER_SUPPLY_PROP_MODEL_NAME:
+		val->strval = dev->name;
+		break;
+
+	default:
+		ret = -EINVAL;
+		break;
+	}
+
+	return ret;
+}
+
+static void hidinput_setup_battery(struct hid_device *dev, s32 min, s32 max)
+{
+	struct power_supply *battery = &dev->battery;
+	int ret;
+
+	if (battery->name != NULL)
+		return;		/* already initialized? */
+
+	battery->name = kasprintf(GFP_KERNEL, "hid-%s-battery", dev->uniq);
+	if (battery->name == NULL)
+		return;
+
+	battery->type = POWER_SUPPLY_TYPE_BATTERY;
+	battery->properties = hidinput_battery_props;
+	battery->num_properties = ARRAY_SIZE(hidinput_battery_props);
+	battery->use_for_apm = 0;
+	battery->get_property = hidinput_get_battery_property;
+
+	dev->battery_min = min;
+	dev->battery_max = max;
+
+	ret = power_supply_register(&dev->dev, battery);
+	if (ret != 0) {
+		hid_warn(dev, "can't register power supply: %d\n", ret);
+		kfree(battery->name);
+		battery->name = NULL;
+	}
+}
+
+static void hidinput_cleanup_battery(struct hid_device *dev)
+{
+	if (!dev->battery.name)
+		return;
+
+	power_supply_unregister(&dev->battery);
+	kfree(dev->battery.name);
+	dev->battery.name = NULL;
+}
+#else  /* !CONFIG_HID_BATTERY_STRENGTH */
+static void hidinput_setup_battery(struct hid_device *dev, s32 min, s32 max)
+{
+}
+
+static void hidinput_cleanup_battery(struct hid_device *dev)
+{
+}
+#endif	/* CONFIG_HID_BATTERY_STRENGTH */
+
 static void hidinput_configure_usage(struct hid_input *hidinput, struct hid_field *field,
 				     struct hid_usage *usage)
 {
@@ -629,6 +720,16 @@ static void hidinput_configure_usage(struct hid_input *hidinput, struct hid_fiel
 		}
 		break;
 
+	case HID_UP_GENDEVCTRLS:
+		if ((usage->hid & HID_USAGE) == 0x20) {	/* Battery Strength */
+			hidinput_setup_battery(device,
+					       field->logical_minimum,
+					       field->logical_maximum);
+			goto ignore;
+		} else
+			goto unknown;
+		break;
+
 	case HID_UP_HPVENDOR:	/* Reported on a Dutch layout HP5308 */
 		set_bit(EV_REP, input->evbit);
 		switch (usage->hid & HID_USAGE) {
@@ -760,6 +861,14 @@ void hidinput_hid_event(struct hid_device *hid, struct hid_field *field, struct 
 
 	input = field->hidinput->input;
 
+#ifdef CONFIG_HID_BATTERY_STRENGTH
+	if (usage->hid == HID_DC_BATTERYSTRENGTH) {
+		hid->battery_val = value;
+		hid_dbg(hid, "battery value is %d (range %d-%d)\n",
+			value, hid->battery_min, hid->battery_max);
+		return;
+	}
+#endif
 	if (!usage->type)
 		return;
 
@@ -822,6 +931,12 @@ void hidinput_hid_event(struct hid_device *hid, struct hid_field *field, struct 
 		return;
 	}
 
+	/* Ignore out-of-range values as per HID specification, section 5.10 */
+	if (value < field->logical_minimum || value > field->logical_maximum) {
+		dbg_hid("Ignoring out-of-range value %x\n", value);
+		return;
+	}
+
 	/* report the usage code as scancode if the key status has changed */
 	if (usage->type == EV_KEY && !!test_bit(usage->code, input->key) != value)
 		input_event(input, EV_MSC, MSC_SCAN, usage->hid);
@@ -860,6 +975,48 @@ int hidinput_find_field(struct hid_device *hid, unsigned int type, unsigned int 
 	return -1;
 }
 EXPORT_SYMBOL_GPL(hidinput_find_field);
+
+struct hid_field *hidinput_get_led_field(struct hid_device *hid)
+{
+	struct hid_report *report;
+	struct hid_field *field;
+	int i, j;
+
+	list_for_each_entry(report,
+			    &hid->report_enum[HID_OUTPUT_REPORT].report_list,
+			    list) {
+		for (i = 0; i < report->maxfield; i++) {
+			field = report->field[i];
+			for (j = 0; j < field->maxusage; j++)
+				if (field->usage[j].type == EV_LED)
+					return field;
+		}
+	}
+	return NULL;
+}
+EXPORT_SYMBOL_GPL(hidinput_get_led_field);
+
+unsigned int hidinput_count_leds(struct hid_device *hid)
+{
+	struct hid_report *report;
+	struct hid_field *field;
+	int i, j;
+	unsigned int count = 0;
+
+	list_for_each_entry(report,
+			    &hid->report_enum[HID_OUTPUT_REPORT].report_list,
+			    list) {
+		for (i = 0; i < report->maxfield; i++) {
+			field = report->field[i];
+			for (j = 0; j < field->maxusage; j++)
+				if (field->usage[j].type == EV_LED &&
+				    field->value[j])
+					count += 1;
+		}
+	}
+	return count;
+}
+EXPORT_SYMBOL_GPL(hidinput_count_leds);
 
 static int hidinput_open(struct input_dev *dev)
 {
@@ -1009,6 +1166,8 @@ EXPORT_SYMBOL_GPL(hidinput_connect);
 void hidinput_disconnect(struct hid_device *hid)
 {
 	struct hid_input *hidinput, *next;
+
+	hidinput_cleanup_battery(hid);
 
 	list_for_each_entry_safe(hidinput, next, &hid->inputs, list) {
 		list_del(&hidinput->list);

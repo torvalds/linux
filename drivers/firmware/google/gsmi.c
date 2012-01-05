@@ -27,6 +27,7 @@
 #include <linux/kdebug.h>
 #include <linux/reboot.h>
 #include <linux/efi.h>
+#include <linux/module.h>
 
 #define GSMI_SHUTDOWN_CLEAN	0	/* Clean Shutdown */
 /* TODO(mikew@google.com): Tie in HARDLOCKUP_DETECTOR with NMIWDT */

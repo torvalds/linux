@@ -10,6 +10,7 @@
 #include <linux/dma-mapping.h>
 #include <linux/gfp.h>
 #include <linux/dma-debug.h>
+#include <linux/export.h>
 #include <asm/bug.h>
 
 /*

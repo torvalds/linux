@@ -16,6 +16,7 @@
 
 #include <linux/slab.h>
 #include <linux/vmalloc.h>
+#include <linux/export.h>
 #include <asm/unaligned.h>
 
 #include "ath9k.h"

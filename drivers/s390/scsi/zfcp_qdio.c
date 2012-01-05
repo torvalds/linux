@@ -10,6 +10,7 @@
 #define pr_fmt(fmt) KMSG_COMPONENT ": " fmt
 
 #include <linux/slab.h>
+#include <linux/module.h>
 #include "zfcp_ext.h"
 #include "zfcp_qdio.h"
 

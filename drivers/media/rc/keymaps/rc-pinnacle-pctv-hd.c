@@ -11,6 +11,7 @@
  */
 
 #include <media/rc-map.h>
+#include <linux/module.h>
 
 /* Pinnacle PCTV HD 800i mini remote */
 

@@ -623,7 +623,11 @@ static PyObject *pyrf_evsel__open(struct pyrf_evsel *pevsel,
 		cpus = ((struct pyrf_cpu_map *)pcpus)->cpus;
 
 	evsel->attr.inherit = inherit;
-	if (perf_evsel__open(evsel, cpus, threads, group) < 0) {
+	/*
+	 * This will group just the fds for this single evsel, to group
+	 * multiple events, use evlist.open().
+	 */
+	if (perf_evsel__open(evsel, cpus, threads, group, NULL) < 0) {
 		PyErr_SetFromErrno(PyExc_OSError);
 		return NULL;
 	}
@@ -814,12 +818,37 @@ static PyObject *pyrf_evlist__read_on_cpu(struct pyrf_evlist *pevlist,
 	return Py_None;
 }
 
+static PyObject *pyrf_evlist__open(struct pyrf_evlist *pevlist,
+				   PyObject *args, PyObject *kwargs)
+{
+	struct perf_evlist *evlist = &pevlist->evlist;
+	int group = 0;
+	static char *kwlist[] = { "group", NULL };
+
+	if (!PyArg_ParseTupleAndKeywords(args, kwargs, "|OOii", kwlist, &group))
+		return NULL;
+
+	if (perf_evlist__open(evlist, group) < 0) {
+		PyErr_SetFromErrno(PyExc_OSError);
+		return NULL;
+	}
+
+	Py_INCREF(Py_None);
+	return Py_None;
+}
+
 static PyMethodDef pyrf_evlist__methods[] = {
 	{
 		.ml_name  = "mmap",
 		.ml_meth  = (PyCFunction)pyrf_evlist__mmap,
 		.ml_flags = METH_VARARGS | METH_KEYWORDS,
 		.ml_doc	  = PyDoc_STR("mmap the file descriptor table.")
+	},
+	{
+		.ml_name  = "open",
+		.ml_meth  = (PyCFunction)pyrf_evlist__open,
+		.ml_flags = METH_VARARGS | METH_KEYWORDS,
+		.ml_doc	  = PyDoc_STR("open the file descriptors.")
 	},
 	{
 		.ml_name  = "poll",

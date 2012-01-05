@@ -52,7 +52,7 @@ static int __devinit pata_of_platform_probe(struct platform_device *ofdev)
 	}
 
 	ret = of_irq_to_resource(dn, 0, &irq_res);
-	if (ret == NO_IRQ)
+	if (!ret)
 		irq_res.start = irq_res.end = 0;
 	else
 		irq_res.flags = 0;

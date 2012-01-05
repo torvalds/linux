@@ -275,9 +275,7 @@ int jffs2_scan_medium(struct jffs2_sb_info *c)
 	else
 		c->mtd->unpoint(c->mtd, 0, c->mtd->size);
 #endif
-	if (s)
-		kfree(s);
-
+	kfree(s);
 	return ret;
 }
 

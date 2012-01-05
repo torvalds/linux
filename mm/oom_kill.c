@@ -26,7 +26,7 @@
 #include <linux/timex.h>
 #include <linux/jiffies.h>
 #include <linux/cpuset.h>
-#include <linux/module.h>
+#include <linux/export.h>
 #include <linux/notifier.h>
 #include <linux/memcontrol.h>
 #include <linux/mempolicy.h>
@@ -184,6 +184,11 @@ unsigned int oom_badness(struct task_struct *p, struct mem_cgroup *mem,
 	p = find_lock_task_mm(p);
 	if (!p)
 		return 0;
+
+	if (p->signal->oom_score_adj == OOM_SCORE_ADJ_MIN) {
+		task_unlock(p);
+		return 0;
+	}
 
 	/*
 	 * The memory controller may have a limit of 0 bytes, so avoid a divide

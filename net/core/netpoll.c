@@ -23,6 +23,7 @@
 #include <linux/rcupdate.h>
 #include <linux/workqueue.h>
 #include <linux/slab.h>
+#include <linux/export.h>
 #include <net/tcp.h>
 #include <net/udp.h>
 #include <asm/unaligned.h>

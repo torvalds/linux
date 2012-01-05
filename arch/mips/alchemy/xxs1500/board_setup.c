@@ -70,14 +70,6 @@ void __init board_setup(void)
 	/* Enable DTR (MCR bit 0) = USB power up */
 	__raw_writel(1, (void __iomem *)KSEG1ADDR(AU1000_UART3_PHYS_ADDR + 0x18));
 	wmb();
-
-#ifdef CONFIG_PCI
-#if defined(__MIPSEB__)
-	au_writel(0xf | (2 << 6) | (1 << 4), Au1500_PCI_CFG);
-#else
-	au_writel(0xf, Au1500_PCI_CFG);
-#endif
-#endif
 }
 
 static int __init xxs1500_init_irq(void)

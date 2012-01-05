@@ -29,6 +29,7 @@
 #include <media/tuner.h>
 #include <media/v4l2-common.h>
 #include <media/saa7115.h>
+#include <linux/module.h>
 
 #include "mxb.h"
 #include "tea6415c.h"

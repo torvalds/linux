@@ -3567,8 +3567,9 @@ rate_lowest_index(struct ieee80211_supported_band *sband,
 			return i;
 
 	/* warn when we cannot find a rate. */
-	WARN_ON(1);
+	WARN_ON_ONCE(1);
 
+	/* and return 0 (the lowest index) */
 	return 0;
 }
 

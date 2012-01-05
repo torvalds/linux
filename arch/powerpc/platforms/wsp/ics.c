@@ -710,3 +710,51 @@ void __init wsp_init_irq(void)
 	/* We need to patch our irq chip's EOI to point to the right ICP */
 	wsp_irq_chip.irq_eoi = icp_ops->eoi;
 }
+
+#ifdef CONFIG_PCI_MSI
+static void wsp_ics_msi_unmask_irq(struct irq_data *d)
+{
+	wsp_chip_unmask_irq(d);
+	unmask_msi_irq(d);
+}
+
+static unsigned int wsp_ics_msi_startup(struct irq_data *d)
+{
+	wsp_ics_msi_unmask_irq(d);
+	return 0;
+}
+
+static void wsp_ics_msi_mask_irq(struct irq_data *d)
+{
+	mask_msi_irq(d);
+	wsp_chip_mask_irq(d);
+}
+
+/*
+ * we do it this way because we reassinge default EOI handling in
+ * irq_init() above
+ */
+static void wsp_ics_eoi(struct irq_data *data)
+{
+	wsp_irq_chip.irq_eoi(data);
+}
+
+static struct irq_chip wsp_ics_msi = {
+	.name = "WSP ICS MSI",
+	.irq_startup = wsp_ics_msi_startup,
+	.irq_mask = wsp_ics_msi_mask_irq,
+	.irq_unmask = wsp_ics_msi_unmask_irq,
+	.irq_eoi = wsp_ics_eoi,
+	.irq_set_affinity = wsp_chip_set_affinity
+};
+
+void wsp_ics_set_msi_chip(unsigned int irq)
+{
+	irq_set_chip(irq, &wsp_ics_msi);
+}
+
+void wsp_ics_set_std_chip(unsigned int irq)
+{
+	irq_set_chip(irq, &wsp_irq_chip);
+}
+#endif /* CONFIG_PCI_MSI */

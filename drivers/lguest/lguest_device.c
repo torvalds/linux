@@ -15,6 +15,7 @@
 #include <linux/interrupt.h>
 #include <linux/virtio_ring.h>
 #include <linux/err.h>
+#include <linux/export.h>
 #include <linux/slab.h>
 #include <asm/io.h>
 #include <asm/paravirt.h>

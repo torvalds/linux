@@ -908,12 +908,15 @@ static bool ar9003_hw_rtt_restore(struct ath_hw *ah, struct ath9k_channel *chan)
 	int i;
 	bool restore;
 
-	if (!(ah->caps.hw_caps & ATH9K_HW_CAP_RTT) || !ah->caldata)
+	if (!ah->caldata)
 		return false;
 
 	hist = &ah->caldata->rtt_hist;
+	if (!hist->num_readings)
+		return false;
+
 	ar9003_hw_rtt_enable(ah);
-	ar9003_hw_rtt_set_mask(ah, 0x10);
+	ar9003_hw_rtt_set_mask(ah, 0x00);
 	for (i = 0; i < AR9300_MAX_CHAINS; i++) {
 		if (!(ah->rxchainmask & (1 << i)))
 			continue;
@@ -1070,6 +1073,7 @@ skip_tx_iqcal:
 		if (is_reusable && (hist->num_readings < RTT_HIST_MAX)) {
 			u32 *table;
 
+			hist->num_readings++;
 			for (i = 0; i < AR9300_MAX_CHAINS; i++) {
 				if (!(ah->rxchainmask & (1 << i)))
 					continue;
@@ -1080,9 +1084,6 @@ skip_tx_iqcal:
 
 		ar9003_hw_rtt_disable(ah);
 	}
-
-	ath9k_hw_loadnf(ah, chan);
-	ath9k_hw_start_nfcal(ah, true);
 
 	/* Initialize list pointers */
 	ah->cal_list = ah->cal_list_last = ah->cal_list_curr = NULL;

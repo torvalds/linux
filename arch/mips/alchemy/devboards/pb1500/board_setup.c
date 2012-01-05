@@ -33,13 +33,6 @@
 
 #include <prom.h>
 
-
-char irq_tab_alchemy[][5] __initdata = {
-	[12] = { -1, AU1500_PCI_INTA, 0xff, 0xff, 0xff },   /* IDSEL 12 - HPT370	*/
-	[13] = { -1, AU1500_PCI_INTA, AU1500_PCI_INTB, AU1500_PCI_INTC, AU1500_PCI_INTD },   /* IDSEL 13 - PCI slot */
-};
-
-
 const char *get_system_type(void)
 {
 	return "Alchemy Pb1500";
@@ -101,20 +94,18 @@ void __init board_setup(void)
 #endif /* defined(CONFIG_USB_OHCI_HCD) || defined(CONFIG_USB_OHCI_HCD_MODULE) */
 
 #ifdef CONFIG_PCI
-	/* Setup PCI bus controller */
-	au_writel(0, Au1500_PCI_CMEM);
-	au_writel(0x00003fff, Au1500_CFG_BASE);
-#if defined(__MIPSEB__)
-	au_writel(0xf | (2 << 6) | (1 << 4), Au1500_PCI_CFG);
-#else
-	au_writel(0xf, Au1500_PCI_CFG);
-#endif
-	au_writel(0xf0000000, Au1500_PCI_MWMASK_DEV);
-	au_writel(0, Au1500_PCI_MWBASE_REV_CCL);
-	au_writel(0x02a00356, Au1500_PCI_STATCMD);
-	au_writel(0x00003c04, Au1500_PCI_HDRTYPE);
-	au_writel(0x00000008, Au1500_PCI_MBAR);
-	au_sync();
+	{
+		void __iomem *base =
+				(void __iomem *)KSEG1ADDR(AU1500_PCI_PHYS_ADDR);
+		/* Setup PCI bus controller */
+		__raw_writel(0x00003fff, base + PCI_REG_CMEM);
+		__raw_writel(0xf0000000, base + PCI_REG_MWMASK_DEV);
+		__raw_writel(0, base + PCI_REG_MWBASE_REV_CCL);
+		__raw_writel(0x02a00356, base + PCI_REG_STATCMD);
+		__raw_writel(0x00003c04, base + PCI_REG_PARAM);
+		__raw_writel(0x00000008, base + PCI_REG_MBAR);
+		wmb();
+	}
 #endif
 
 	/* Enable sys bus clock divider when IDLE state or no bus activity. */

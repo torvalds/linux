@@ -245,6 +245,23 @@ void alchemy_sleep_au1000(void);
 void alchemy_sleep_au1550(void);
 void au_sleep(void);
 
+/* USB: drivers/usb/host/alchemy-common.c */
+enum alchemy_usb_block {
+	ALCHEMY_USB_OHCI0,
+	ALCHEMY_USB_UDC0,
+	ALCHEMY_USB_EHCI0,
+	ALCHEMY_USB_OTG0,
+};
+int alchemy_usb_control(int block, int enable);
+
+/* PCI controller platform data */
+struct alchemy_pci_platdata {
+	int (*board_map_irq)(const struct pci_dev *d, u8 slot, u8 pin);
+	int (*board_pci_idsel)(unsigned int devsel, int assert);
+	/* bits to set/clear in PCI_CONFIG register */
+	unsigned long pci_cfg_set;
+	unsigned long pci_cfg_clr;
+};
 
 /* SOC Interrupt numbers */
 
@@ -575,38 +592,95 @@ enum soc_au1200_ints {
 #endif /* !defined (_LANGUAGE_ASSEMBLY) */
 
 /*
- * SDRAM register offsets
+ * Physical base addresses for integrated peripherals
+ * 0..au1000 1..au1500 2..au1100 3..au1550 4..au1200
  */
-#if defined(CONFIG_SOC_AU1000) || defined(CONFIG_SOC_AU1500) || \
-    defined(CONFIG_SOC_AU1100)
-#define MEM_SDMODE0		0x0000
-#define MEM_SDMODE1		0x0004
-#define MEM_SDMODE2		0x0008
-#define MEM_SDADDR0		0x000C
-#define MEM_SDADDR1		0x0010
-#define MEM_SDADDR2		0x0014
-#define MEM_SDREFCFG		0x0018
-#define MEM_SDPRECMD		0x001C
-#define MEM_SDAUTOREF		0x0020
-#define MEM_SDWRMD0		0x0024
-#define MEM_SDWRMD1		0x0028
-#define MEM_SDWRMD2		0x002C
-#define MEM_SDSLEEP		0x0030
-#define MEM_SDSMCKE		0x0034
 
-/*
- * MEM_SDMODE register content definitions
- */
+#define AU1000_AC97_PHYS_ADDR		0x10000000 /* 012 */
+#define AU1000_USB_OHCI_PHYS_ADDR	0x10100000 /* 012 */
+#define AU1000_USB_UDC_PHYS_ADDR	0x10200000 /* 0123 */
+#define AU1000_IRDA_PHYS_ADDR		0x10300000 /* 02 */
+#define AU1200_AES_PHYS_ADDR		0x10300000 /* 4 */
+#define AU1000_IC0_PHYS_ADDR		0x10400000 /* 01234 */
+#define AU1000_MAC0_PHYS_ADDR		0x10500000 /* 023 */
+#define AU1000_MAC1_PHYS_ADDR		0x10510000 /* 023 */
+#define AU1000_MACEN_PHYS_ADDR		0x10520000 /* 023 */
+#define AU1100_SD0_PHYS_ADDR		0x10600000 /* 24 */
+#define AU1100_SD1_PHYS_ADDR		0x10680000 /* 24 */
+#define AU1550_PSC2_PHYS_ADDR		0x10A00000 /* 3 */
+#define AU1550_PSC3_PHYS_ADDR		0x10B00000 /* 3 */
+#define AU1000_I2S_PHYS_ADDR		0x11000000 /* 02 */
+#define AU1500_MAC0_PHYS_ADDR		0x11500000 /* 1 */
+#define AU1500_MAC1_PHYS_ADDR		0x11510000 /* 1 */
+#define AU1500_MACEN_PHYS_ADDR		0x11520000 /* 1 */
+#define AU1000_UART0_PHYS_ADDR		0x11100000 /* 01234 */
+#define AU1200_SWCNT_PHYS_ADDR		0x1110010C /* 4 */
+#define AU1000_UART1_PHYS_ADDR		0x11200000 /* 0234 */
+#define AU1000_UART2_PHYS_ADDR		0x11300000 /* 0 */
+#define AU1000_UART3_PHYS_ADDR		0x11400000 /* 0123 */
+#define AU1000_SSI0_PHYS_ADDR		0x11600000 /* 02 */
+#define AU1000_SSI1_PHYS_ADDR		0x11680000 /* 02 */
+#define AU1500_GPIO2_PHYS_ADDR		0x11700000 /* 1234 */
+#define AU1000_IC1_PHYS_ADDR		0x11800000 /* 01234 */
+#define AU1000_SYS_PHYS_ADDR		0x11900000 /* 01234 */
+#define AU1550_PSC0_PHYS_ADDR		0x11A00000 /* 34 */
+#define AU1550_PSC1_PHYS_ADDR		0x11B00000 /* 34 */
+#define AU1000_MEM_PHYS_ADDR		0x14000000 /* 01234 */
+#define AU1000_STATIC_MEM_PHYS_ADDR	0x14001000 /* 01234 */
+#define AU1000_DMA_PHYS_ADDR		0x14002000 /* 012 */
+#define AU1550_DBDMA_PHYS_ADDR		0x14002000 /* 34 */
+#define AU1550_DBDMA_CONF_PHYS_ADDR	0x14003000 /* 34 */
+#define AU1000_MACDMA0_PHYS_ADDR	0x14004000 /* 0123 */
+#define AU1000_MACDMA1_PHYS_ADDR	0x14004200 /* 0123 */
+#define AU1200_CIM_PHYS_ADDR		0x14004000 /* 4 */
+#define AU1500_PCI_PHYS_ADDR		0x14005000 /* 13 */
+#define AU1550_PE_PHYS_ADDR		0x14008000 /* 3 */
+#define AU1200_MAEBE_PHYS_ADDR		0x14010000 /* 4 */
+#define AU1200_MAEFE_PHYS_ADDR		0x14012000 /* 4 */
+#define AU1550_USB_OHCI_PHYS_ADDR	0x14020000 /* 3 */
+#define AU1200_USB_CTL_PHYS_ADDR	0x14020000 /* 4 */
+#define AU1200_USB_OTG_PHYS_ADDR	0x14020020 /* 4 */
+#define AU1200_USB_OHCI_PHYS_ADDR	0x14020100 /* 4 */
+#define AU1200_USB_EHCI_PHYS_ADDR	0x14020200 /* 4 */
+#define AU1200_USB_UDC_PHYS_ADDR	0x14022000 /* 4 */
+#define AU1100_LCD_PHYS_ADDR		0x15000000 /* 2 */
+#define AU1200_LCD_PHYS_ADDR		0x15000000 /* 4 */
+#define AU1500_PCI_MEM_PHYS_ADDR	0x400000000ULL /* 13 */
+#define AU1500_PCI_IO_PHYS_ADDR		0x500000000ULL /* 13 */
+#define AU1500_PCI_CONFIG0_PHYS_ADDR	0x600000000ULL /* 13 */
+#define AU1500_PCI_CONFIG1_PHYS_ADDR	0x680000000ULL /* 13 */
+#define AU1000_PCMCIA_IO_PHYS_ADDR	0xF00000000ULL /* 01234 */
+#define AU1000_PCMCIA_ATTR_PHYS_ADDR	0xF40000000ULL /* 01234 */
+#define AU1000_PCMCIA_MEM_PHYS_ADDR	0xF80000000ULL /* 01234 */
+
+
+/* Au1000 SDRAM memory controller register offsets */
+#define AU1000_MEM_SDMODE0		0x0000
+#define AU1000_MEM_SDMODE1		0x0004
+#define AU1000_MEM_SDMODE2		0x0008
+#define AU1000_MEM_SDADDR0		0x000C
+#define AU1000_MEM_SDADDR1		0x0010
+#define AU1000_MEM_SDADDR2		0x0014
+#define AU1000_MEM_SDREFCFG		0x0018
+#define AU1000_MEM_SDPRECMD		0x001C
+#define AU1000_MEM_SDAUTOREF		0x0020
+#define AU1000_MEM_SDWRMD0		0x0024
+#define AU1000_MEM_SDWRMD1		0x0028
+#define AU1000_MEM_SDWRMD2		0x002C
+#define AU1000_MEM_SDSLEEP		0x0030
+#define AU1000_MEM_SDSMCKE		0x0034
+
+/* MEM_SDMODE register content definitions */
 #define MEM_SDMODE_F		(1 << 22)
 #define MEM_SDMODE_SR		(1 << 21)
 #define MEM_SDMODE_BS		(1 << 20)
 #define MEM_SDMODE_RS		(3 << 18)
 #define MEM_SDMODE_CS		(7 << 15)
-#define MEM_SDMODE_TRAS 	(15 << 11)
-#define MEM_SDMODE_TMRD 	(3 << 9)
+#define MEM_SDMODE_TRAS		(15 << 11)
+#define MEM_SDMODE_TMRD		(3 << 9)
 #define MEM_SDMODE_TWR		(3 << 7)
 #define MEM_SDMODE_TRP		(3 << 5)
-#define MEM_SDMODE_TRCD 	(3 << 3)
+#define MEM_SDMODE_TRCD		(3 << 3)
 #define MEM_SDMODE_TCL		(7 << 0)
 
 #define MEM_SDMODE_BS_2Bank	(0 << 20)
@@ -628,173 +702,43 @@ enum soc_au1200_ints {
 #define MEM_SDMODE_TRCD_N(N)	((N) << 3)
 #define MEM_SDMODE_TCL_N(N)	((N) << 0)
 
-/*
- * MEM_SDADDR register contents definitions
- */
+/* MEM_SDADDR register contents definitions */
 #define MEM_SDADDR_E		(1 << 20)
-#define MEM_SDADDR_CSBA 	(0x03FF << 10)
+#define MEM_SDADDR_CSBA		(0x03FF << 10)
 #define MEM_SDADDR_CSMASK	(0x03FF << 0)
 #define MEM_SDADDR_CSBA_N(N)	((N) & (0x03FF << 22) >> 12)
 #define MEM_SDADDR_CSMASK_N(N)	((N)&(0x03FF << 22) >> 22)
 
-/*
- * MEM_SDREFCFG register content definitions
- */
+/* MEM_SDREFCFG register content definitions */
 #define MEM_SDREFCFG_TRC	(15 << 28)
 #define MEM_SDREFCFG_TRPM	(3 << 26)
 #define MEM_SDREFCFG_E		(1 << 25)
-#define MEM_SDREFCFG_RE 	(0x1ffffff << 0)
+#define MEM_SDREFCFG_RE		(0x1ffffff << 0)
 #define MEM_SDREFCFG_TRC_N(N)	((N) << MEM_SDREFCFG_TRC)
 #define MEM_SDREFCFG_TRPM_N(N)	((N) << MEM_SDREFCFG_TRPM)
 #define MEM_SDREFCFG_REF_N(N)	(N)
-#endif
 
-/***********************************************************************/
-
-/*
- * Au1550 SDRAM Register Offsets
- */
-
-/***********************************************************************/
-
-#if defined(CONFIG_SOC_AU1550) || defined(CONFIG_SOC_AU1200)
-#define MEM_SDMODE0		0x0800
-#define MEM_SDMODE1		0x0808
-#define MEM_SDMODE2		0x0810
-#define MEM_SDADDR0		0x0820
-#define MEM_SDADDR1		0x0828
-#define MEM_SDADDR2		0x0830
-#define MEM_SDCONFIGA		0x0840
-#define MEM_SDCONFIGB		0x0848
-#define MEM_SDSTAT		0x0850
-#define MEM_SDERRADDR		0x0858
-#define MEM_SDSTRIDE0		0x0860
-#define MEM_SDSTRIDE1		0x0868
-#define MEM_SDSTRIDE2		0x0870
-#define MEM_SDWRMD0		0x0880
-#define MEM_SDWRMD1		0x0888
-#define MEM_SDWRMD2		0x0890
-#define MEM_SDPRECMD		0x08C0
-#define MEM_SDAUTOREF		0x08C8
-#define MEM_SDSREF		0x08D0
-#define MEM_SDSLEEP		MEM_SDSREF
-
-#endif
-
-/*
- * Physical base addresses for integrated peripherals
- * 0..au1000 1..au1500 2..au1100 3..au1550 4..au1200
- */
-
-#define AU1000_AC97_PHYS_ADDR		0x10000000 /* 012 */
-#define AU1000_USBD_PHYS_ADDR		0x10200000 /* 0123 */
-#define AU1000_IC0_PHYS_ADDR		0x10400000 /* 01234 */
-#define AU1000_MAC0_PHYS_ADDR		0x10500000 /* 023 */
-#define AU1000_MAC1_PHYS_ADDR		0x10510000 /* 023 */
-#define AU1000_MACEN_PHYS_ADDR		0x10520000 /* 023 */
-#define AU1100_SD0_PHYS_ADDR		0x10600000 /* 24 */
-#define AU1100_SD1_PHYS_ADDR		0x10680000 /* 24 */
-#define AU1000_I2S_PHYS_ADDR		0x11000000 /* 02 */
-#define AU1500_MAC0_PHYS_ADDR		0x11500000 /* 1 */
-#define AU1500_MAC1_PHYS_ADDR		0x11510000 /* 1 */
-#define AU1500_MACEN_PHYS_ADDR		0x11520000 /* 1 */
-#define AU1000_UART0_PHYS_ADDR		0x11100000 /* 01234 */
-#define AU1000_UART1_PHYS_ADDR		0x11200000 /* 0234 */
-#define AU1000_UART2_PHYS_ADDR		0x11300000 /* 0 */
-#define AU1000_UART3_PHYS_ADDR		0x11400000 /* 0123 */
-#define AU1500_GPIO2_PHYS_ADDR		0x11700000 /* 1234 */
-#define AU1000_IC1_PHYS_ADDR		0x11800000 /* 01234 */
-#define AU1000_SYS_PHYS_ADDR		0x11900000 /* 01234 */
-#define AU1000_DMA_PHYS_ADDR		0x14002000 /* 012 */
-#define AU1550_DBDMA_PHYS_ADDR		0x14002000 /* 34 */
-#define AU1550_DBDMA_CONF_PHYS_ADDR	0x14003000 /* 34 */
-#define AU1000_MACDMA0_PHYS_ADDR	0x14004000 /* 0123 */
-#define AU1000_MACDMA1_PHYS_ADDR	0x14004200 /* 0123 */
-
-
-#ifdef CONFIG_SOC_AU1000
-#define	MEM_PHYS_ADDR		0x14000000
-#define	STATIC_MEM_PHYS_ADDR	0x14001000
-#define	USBH_PHYS_ADDR		0x10100000
-#define	IRDA_PHYS_ADDR		0x10300000
-#define	SSI0_PHYS_ADDR		0x11600000
-#define	SSI1_PHYS_ADDR		0x11680000
-#define PCMCIA_IO_PHYS_ADDR	0xF00000000ULL
-#define PCMCIA_ATTR_PHYS_ADDR	0xF40000000ULL
-#define PCMCIA_MEM_PHYS_ADDR	0xF80000000ULL
-#endif
-
-/********************************************************************/
-
-#ifdef CONFIG_SOC_AU1500
-#define	MEM_PHYS_ADDR		0x14000000
-#define	STATIC_MEM_PHYS_ADDR	0x14001000
-#define	USBH_PHYS_ADDR		0x10100000
-#define PCI_PHYS_ADDR		0x14005000
-#define PCI_MEM_PHYS_ADDR	0x400000000ULL
-#define PCI_IO_PHYS_ADDR	0x500000000ULL
-#define PCI_CONFIG0_PHYS_ADDR	0x600000000ULL
-#define PCI_CONFIG1_PHYS_ADDR	0x680000000ULL
-#define PCMCIA_IO_PHYS_ADDR	0xF00000000ULL
-#define PCMCIA_ATTR_PHYS_ADDR	0xF40000000ULL
-#define PCMCIA_MEM_PHYS_ADDR	0xF80000000ULL
-#endif
-
-/********************************************************************/
-
-#ifdef CONFIG_SOC_AU1100
-#define	MEM_PHYS_ADDR		0x14000000
-#define	STATIC_MEM_PHYS_ADDR	0x14001000
-#define	USBH_PHYS_ADDR		0x10100000
-#define	IRDA_PHYS_ADDR		0x10300000
-#define	SSI0_PHYS_ADDR		0x11600000
-#define	SSI1_PHYS_ADDR		0x11680000
-#define LCD_PHYS_ADDR		0x15000000
-#define PCMCIA_IO_PHYS_ADDR	0xF00000000ULL
-#define PCMCIA_ATTR_PHYS_ADDR	0xF40000000ULL
-#define PCMCIA_MEM_PHYS_ADDR	0xF80000000ULL
-#endif
-
-/***********************************************************************/
-
-#ifdef CONFIG_SOC_AU1550
-#define	MEM_PHYS_ADDR		0x14000000
-#define	STATIC_MEM_PHYS_ADDR	0x14001000
-#define	USBH_PHYS_ADDR		0x14020000
-#define PCI_PHYS_ADDR		0x14005000
-#define PE_PHYS_ADDR		0x14008000
-#define PSC0_PHYS_ADDR		0x11A00000
-#define PSC1_PHYS_ADDR		0x11B00000
-#define PSC2_PHYS_ADDR		0x10A00000
-#define PSC3_PHYS_ADDR		0x10B00000
-#define PCI_MEM_PHYS_ADDR	0x400000000ULL
-#define PCI_IO_PHYS_ADDR	0x500000000ULL
-#define PCI_CONFIG0_PHYS_ADDR	0x600000000ULL
-#define PCI_CONFIG1_PHYS_ADDR	0x680000000ULL
-#define PCMCIA_IO_PHYS_ADDR	0xF00000000ULL
-#define PCMCIA_ATTR_PHYS_ADDR	0xF40000000ULL
-#define PCMCIA_MEM_PHYS_ADDR	0xF80000000ULL
-#endif
-
-/***********************************************************************/
-
-#ifdef CONFIG_SOC_AU1200
-#define	MEM_PHYS_ADDR		0x14000000
-#define	STATIC_MEM_PHYS_ADDR	0x14001000
-#define AES_PHYS_ADDR		0x10300000
-#define CIM_PHYS_ADDR		0x14004000
-#define USBM_PHYS_ADDR		0x14020000
-#define	USBH_PHYS_ADDR		0x14020100
-#define PSC0_PHYS_ADDR	 	0x11A00000
-#define PSC1_PHYS_ADDR	 	0x11B00000
-#define LCD_PHYS_ADDR		0x15000000
-#define SWCNT_PHYS_ADDR		0x1110010C
-#define MAEFE_PHYS_ADDR		0x14012000
-#define MAEBE_PHYS_ADDR		0x14010000
-#define PCMCIA_IO_PHYS_ADDR	0xF00000000ULL
-#define PCMCIA_ATTR_PHYS_ADDR	0xF40000000ULL
-#define PCMCIA_MEM_PHYS_ADDR	0xF80000000ULL
-#endif
+/* Au1550 SDRAM Register Offsets */
+#define AU1550_MEM_SDMODE0		0x0800
+#define AU1550_MEM_SDMODE1		0x0808
+#define AU1550_MEM_SDMODE2		0x0810
+#define AU1550_MEM_SDADDR0		0x0820
+#define AU1550_MEM_SDADDR1		0x0828
+#define AU1550_MEM_SDADDR2		0x0830
+#define AU1550_MEM_SDCONFIGA		0x0840
+#define AU1550_MEM_SDCONFIGB		0x0848
+#define AU1550_MEM_SDSTAT		0x0850
+#define AU1550_MEM_SDERRADDR		0x0858
+#define AU1550_MEM_SDSTRIDE0		0x0860
+#define AU1550_MEM_SDSTRIDE1		0x0868
+#define AU1550_MEM_SDSTRIDE2		0x0870
+#define AU1550_MEM_SDWRMD0		0x0880
+#define AU1550_MEM_SDWRMD1		0x0888
+#define AU1550_MEM_SDWRMD2		0x0890
+#define AU1550_MEM_SDPRECMD		0x08C0
+#define AU1550_MEM_SDAUTOREF		0x08C8
+#define AU1550_MEM_SDSREF		0x08D0
+#define AU1550_MEM_SDSLEEP		MEM_SDSREF
 
 /* Static Bus Controller */
 #define MEM_STCFG0		0xB4001000
@@ -813,80 +757,13 @@ enum soc_au1200_ints {
 #define MEM_STTIME3		0xB4001034
 #define MEM_STADDR3		0xB4001038
 
-#if defined(CONFIG_SOC_AU1550) || defined(CONFIG_SOC_AU1200)
 #define MEM_STNDCTL		0xB4001100
 #define MEM_STSTAT		0xB4001104
 
 #define MEM_STNAND_CMD		0x0
 #define MEM_STNAND_ADDR 	0x4
 #define MEM_STNAND_DATA 	0x20
-#endif
 
-
-
-
-/* Au1000 */
-#ifdef CONFIG_SOC_AU1000
-
-#define USB_OHCI_BASE		0x10100000	/* phys addr for ioremap */
-#define USB_HOST_CONFIG 	0xB017FFFC
-#define FOR_PLATFORM_C_USB_HOST_INT AU1000_USB_HOST_INT
-#endif /* CONFIG_SOC_AU1000 */
-
-/* Au1500 */
-#ifdef CONFIG_SOC_AU1500
-
-#define USB_OHCI_BASE		0x10100000	/* phys addr for ioremap */
-#define USB_HOST_CONFIG 	0xB017fffc
-#define FOR_PLATFORM_C_USB_HOST_INT AU1500_USB_HOST_INT
-#endif /* CONFIG_SOC_AU1500 */
-
-/* Au1100 */
-#ifdef CONFIG_SOC_AU1100
-
-#define USB_OHCI_BASE		0x10100000	/* phys addr for ioremap */
-#define USB_HOST_CONFIG 	0xB017FFFC
-#define FOR_PLATFORM_C_USB_HOST_INT AU1100_USB_HOST_INT
-#endif /* CONFIG_SOC_AU1100 */
-
-#ifdef CONFIG_SOC_AU1550
-
-#define USB_OHCI_BASE		0x14020000	/* phys addr for ioremap */
-#define USB_OHCI_LEN		0x00060000
-#define USB_HOST_CONFIG 	0xB4027ffc
-#define FOR_PLATFORM_C_USB_HOST_INT AU1550_USB_HOST_INT
-#endif /* CONFIG_SOC_AU1550 */
-
-
-#ifdef CONFIG_SOC_AU1200
-
-#define USB_UOC_BASE		0x14020020
-#define USB_UOC_LEN		0x20
-#define USB_OHCI_BASE		0x14020100
-#define USB_OHCI_LEN		0x100
-#define USB_EHCI_BASE		0x14020200
-#define USB_EHCI_LEN		0x100
-#define USB_UDC_BASE		0x14022000
-#define USB_UDC_LEN		0x2000
-#define USB_MSR_BASE		0xB4020000
-#define USB_MSR_MCFG		4
-#define USBMSRMCFG_OMEMEN	0
-#define USBMSRMCFG_OBMEN	1
-#define USBMSRMCFG_EMEMEN	2
-#define USBMSRMCFG_EBMEN	3
-#define USBMSRMCFG_DMEMEN	4
-#define USBMSRMCFG_DBMEN	5
-#define USBMSRMCFG_GMEMEN	6
-#define USBMSRMCFG_OHCCLKEN	16
-#define USBMSRMCFG_EHCCLKEN	17
-#define USBMSRMCFG_UDCCLKEN	18
-#define USBMSRMCFG_PHYPLLEN	19
-#define USBMSRMCFG_RDCOMB	30
-#define USBMSRMCFG_PFEN 	31
-
-#define FOR_PLATFORM_C_USB_HOST_INT AU1200_USB_INT
-
-#endif /* CONFIG_SOC_AU1200 */
 
 /* Programmable Counters 0 and 1 */
 #define SYS_BASE		0xB1900000
@@ -958,56 +835,6 @@ enum soc_au1200_ints {
 #  define I2S_CONTROL_D 	(1 << 1)
 #  define I2S_CONTROL_CE	(1 << 0)
 
-/* USB Host Controller */
-#ifndef USB_OHCI_LEN
-#define USB_OHCI_LEN		0x00100000
-#endif
-
-#ifndef CONFIG_SOC_AU1200
-
-/* USB Device Controller */
-#define USBD_EP0RD		0xB0200000
-#define USBD_EP0WR		0xB0200004
-#define USBD_EP2WR		0xB0200008
-#define USBD_EP3WR		0xB020000C
-#define USBD_EP4RD		0xB0200010
-#define USBD_EP5RD		0xB0200014
-#define USBD_INTEN		0xB0200018
-#define USBD_INTSTAT		0xB020001C
-#  define USBDEV_INT_SOF	(1 << 12)
-#  define USBDEV_INT_HF_BIT	6
-#  define USBDEV_INT_HF_MASK	(0x3f << USBDEV_INT_HF_BIT)
-#  define USBDEV_INT_CMPLT_BIT	0
-#  define USBDEV_INT_CMPLT_MASK (0x3f << USBDEV_INT_CMPLT_BIT)
-#define USBD_CONFIG		0xB0200020
-#define USBD_EP0CS		0xB0200024
-#define USBD_EP2CS		0xB0200028
-#define USBD_EP3CS		0xB020002C
-#define USBD_EP4CS		0xB0200030
-#define USBD_EP5CS		0xB0200034
-#  define USBDEV_CS_SU		(1 << 14)
-#  define USBDEV_CS_NAK 	(1 << 13)
-#  define USBDEV_CS_ACK 	(1 << 12)
-#  define USBDEV_CS_BUSY	(1 << 11)
-#  define USBDEV_CS_TSIZE_BIT	1
-#  define USBDEV_CS_TSIZE_MASK	(0x3ff << USBDEV_CS_TSIZE_BIT)
-#  define USBDEV_CS_STALL	(1 << 0)
-#define USBD_EP0RDSTAT		0xB0200040
-#define USBD_EP0WRSTAT		0xB0200044
-#define USBD_EP2WRSTAT		0xB0200048
-#define USBD_EP3WRSTAT		0xB020004C
-#define USBD_EP4RDSTAT		0xB0200050
-#define USBD_EP5RDSTAT		0xB0200054
-#  define USBDEV_FSTAT_FLUSH	(1 << 6)
-#  define USBDEV_FSTAT_UF	(1 << 5)
-#  define USBDEV_FSTAT_OF	(1 << 4)
-#  define USBDEV_FSTAT_FCNT_BIT 0
-#  define USBDEV_FSTAT_FCNT_MASK (0x0f << USBDEV_FSTAT_FCNT_BIT)
-#define USBD_ENABLE		0xB0200058
-#  define USBDEV_ENABLE 	(1 << 1)
-#  define USBDEV_CE		(1 << 0)
-
-#endif /* !CONFIG_SOC_AU1200 */
 
 /* Ethernet Controllers  */
 
@@ -1322,7 +1149,6 @@ enum soc_au1200_ints {
 #  define SYS_PF_MUST_BE_SET	((1 << 5) | (1 << 2))
 
 /* Au1200 only */
-#ifdef CONFIG_SOC_AU1200
 #define SYS_PINFUNC_DMA 	(1 << 31)
 #define SYS_PINFUNC_S0A 	(1 << 30)
 #define SYS_PINFUNC_S1A 	(1 << 29)
@@ -1350,7 +1176,6 @@ enum soc_au1200_ints {
 #define SYS_PINFUNC_P0B 	(1 << 4)
 #define SYS_PINFUNC_U0T 	(1 << 3)
 #define SYS_PINFUNC_S1B 	(1 << 2)
-#endif
 
 /* Power Management */
 #define SYS_SCRATCH0		0xB1900018
@@ -1406,12 +1231,12 @@ enum soc_au1200_ints {
 #  define SYS_CS_MI2_MASK	(0x7 << SYS_CS_MI2_BIT)
 #  define SYS_CS_DI2		(1 << 16)
 #  define SYS_CS_CI2		(1 << 15)
-#ifdef CONFIG_SOC_AU1100
+
 #  define SYS_CS_ML_BIT 	7
 #  define SYS_CS_ML_MASK	(0x7 << SYS_CS_ML_BIT)
 #  define SYS_CS_DL		(1 << 6)
 #  define SYS_CS_CL		(1 << 5)
-#else
+
 #  define SYS_CS_MUH_BIT	12
 #  define SYS_CS_MUH_MASK	(0x7 << SYS_CS_MUH_BIT)
 #  define SYS_CS_DUH		(1 << 11)
@@ -1420,7 +1245,7 @@ enum soc_au1200_ints {
 #  define SYS_CS_MUD_MASK	(0x7 << SYS_CS_MUD_BIT)
 #  define SYS_CS_DUD		(1 << 6)
 #  define SYS_CS_CUD		(1 << 5)
-#endif
+
 #  define SYS_CS_MIR_BIT	2
 #  define SYS_CS_MIR_MASK	(0x7 << SYS_CS_MIR_BIT)
 #  define SYS_CS_DIR		(1 << 1)
@@ -1467,58 +1292,30 @@ enum soc_au1200_ints {
 #  define AC97C_RS		(1 << 1)
 #  define AC97C_CE		(1 << 0)
 
-#if defined(CONFIG_SOC_AU1500) || defined(CONFIG_SOC_AU1550)
-/* Au1500 PCI Controller */
-#define Au1500_CFG_BASE 	0xB4005000	/* virtual, KSEG1 addr */
-#define Au1500_PCI_CMEM 	(Au1500_CFG_BASE + 0)
-#define Au1500_PCI_CFG		(Au1500_CFG_BASE + 4)
-#  define PCI_ERROR		((1 << 22) | (1 << 23) | (1 << 24) | \
-				 (1 << 25) | (1 << 26) | (1 << 27))
-#define Au1500_PCI_B2BMASK_CCH	(Au1500_CFG_BASE + 8)
-#define Au1500_PCI_B2B0_VID	(Au1500_CFG_BASE + 0xC)
-#define Au1500_PCI_B2B1_ID	(Au1500_CFG_BASE + 0x10)
-#define Au1500_PCI_MWMASK_DEV	(Au1500_CFG_BASE + 0x14)
-#define Au1500_PCI_MWBASE_REV_CCL (Au1500_CFG_BASE + 0x18)
-#define Au1500_PCI_ERR_ADDR	(Au1500_CFG_BASE + 0x1C)
-#define Au1500_PCI_SPEC_INTACK	(Au1500_CFG_BASE + 0x20)
-#define Au1500_PCI_ID		(Au1500_CFG_BASE + 0x100)
-#define Au1500_PCI_STATCMD	(Au1500_CFG_BASE + 0x104)
-#define Au1500_PCI_CLASSREV	(Au1500_CFG_BASE + 0x108)
-#define Au1500_PCI_HDRTYPE	(Au1500_CFG_BASE + 0x10C)
-#define Au1500_PCI_MBAR 	(Au1500_CFG_BASE + 0x110)
 
-#define Au1500_PCI_HDR		0xB4005100	/* virtual, KSEG1 addr */
-
-/*
- * All of our structures, like PCI resource, have 32-bit members.
- * Drivers are expected to do an ioremap on the PCI MEM resource, but it's
- * hard to store 0x4 0000 0000 in a 32-bit type.  We require a small patch
- * to __ioremap to check for addresses between (u32)Au1500_PCI_MEM_START and
- * (u32)Au1500_PCI_MEM_END and change those to the full 36-bit PCI MEM
- * addresses.  For PCI I/O, it's simpler because we get to do the ioremap
- * ourselves and then adjust the device's resources.
+/* The PCI chip selects are outside the 32bit space, and since we can't
+ * just program the 36bit addresses into BARs, we have to take a chunk
+ * out of the 32bit space and reserve it for PCI.  When these addresses
+ * are ioremap()ed, they'll be fixed up to the real 36bit address before
+ * being passed to the real ioremap function.
  */
-#define Au1500_EXT_CFG		0x600000000ULL
-#define Au1500_EXT_CFG_TYPE1	0x680000000ULL
-#define Au1500_PCI_IO_START	0x500000000ULL
-#define Au1500_PCI_IO_END	0x5000FFFFFULL
-#define Au1500_PCI_MEM_START	0x440000000ULL
-#define Au1500_PCI_MEM_END	0x44FFFFFFFULL
+#define ALCHEMY_PCI_MEMWIN_START	(AU1500_PCI_MEM_PHYS_ADDR >> 4)
+#define ALCHEMY_PCI_MEMWIN_END		(ALCHEMY_PCI_MEMWIN_START + 0x0FFFFFFF)
 
-#define PCI_IO_START	0x00001000
-#define PCI_IO_END	0x000FFFFF
-#define PCI_MEM_START	0x40000000
-#define PCI_MEM_END	0x4FFFFFFF
+/* for PCI IO it's simpler because we get to do the ioremap ourselves and then
+ * adjust the device's resources.
+ */
+#define ALCHEMY_PCI_IOWIN_START		0x00001000
+#define ALCHEMY_PCI_IOWIN_END		0x0000FFFF
 
-#define PCI_FIRST_DEVFN (0 << 3)
-#define PCI_LAST_DEVFN	(19 << 3)
+#ifdef CONFIG_PCI
 
 #define IOPORT_RESOURCE_START	0x00001000	/* skip legacy probing */
 #define IOPORT_RESOURCE_END	0xffffffff
 #define IOMEM_RESOURCE_START	0x10000000
 #define IOMEM_RESOURCE_END	0xfffffffffULL
 
-#else /* Au1000 and Au1100 and Au1200 */
+#else
 
 /* Don't allow any legacy ports probing */
 #define IOPORT_RESOURCE_START	0x10000000
@@ -1526,13 +1323,77 @@ enum soc_au1200_ints {
 #define IOMEM_RESOURCE_START	0x10000000
 #define IOMEM_RESOURCE_END	0xfffffffffULL
 
-#define PCI_IO_START	0
-#define PCI_IO_END	0
-#define PCI_MEM_START	0
-#define PCI_MEM_END	0
-#define PCI_FIRST_DEVFN 0
-#define PCI_LAST_DEVFN	0
-
 #endif
+
+/* PCI controller block register offsets */
+#define PCI_REG_CMEM		0x0000
+#define PCI_REG_CONFIG		0x0004
+#define PCI_REG_B2BMASK_CCH	0x0008
+#define PCI_REG_B2BBASE0_VID	0x000C
+#define PCI_REG_B2BBASE1_SID	0x0010
+#define PCI_REG_MWMASK_DEV	0x0014
+#define PCI_REG_MWBASE_REV_CCL	0x0018
+#define PCI_REG_ERR_ADDR	0x001C
+#define PCI_REG_SPEC_INTACK	0x0020
+#define PCI_REG_ID		0x0100
+#define PCI_REG_STATCMD		0x0104
+#define PCI_REG_CLASSREV	0x0108
+#define PCI_REG_PARAM		0x010C
+#define PCI_REG_MBAR		0x0110
+#define PCI_REG_TIMEOUT		0x0140
+
+/* PCI controller block register bits */
+#define PCI_CMEM_E		(1 << 28)	/* enable cacheable memory */
+#define PCI_CMEM_CMBASE(x)	(((x) & 0x3fff) << 14)
+#define PCI_CMEM_CMMASK(x)	((x) & 0x3fff)
+#define PCI_CONFIG_ERD		(1 << 27) /* pci error during R/W */
+#define PCI_CONFIG_ET		(1 << 26) /* error in target mode */
+#define PCI_CONFIG_EF		(1 << 25) /* fatal error */
+#define PCI_CONFIG_EP		(1 << 24) /* parity error */
+#define PCI_CONFIG_EM		(1 << 23) /* multiple errors */
+#define PCI_CONFIG_BM		(1 << 22) /* bad master error */
+#define PCI_CONFIG_PD		(1 << 20) /* PCI Disable */
+#define PCI_CONFIG_BME		(1 << 19) /* Byte Mask Enable for reads */
+#define PCI_CONFIG_NC		(1 << 16) /* mark mem access non-coherent */
+#define PCI_CONFIG_IA		(1 << 15) /* INTA# enabled (target mode) */
+#define PCI_CONFIG_IP		(1 << 13) /* int on PCI_PERR# */
+#define PCI_CONFIG_IS		(1 << 12) /* int on PCI_SERR# */
+#define PCI_CONFIG_IMM		(1 << 11) /* int on master abort */
+#define PCI_CONFIG_ITM		(1 << 10) /* int on target abort (as master) */
+#define PCI_CONFIG_ITT		(1 << 9)  /* int on target abort (as target) */
+#define PCI_CONFIG_IPB		(1 << 8)  /* int on PERR# in bus master acc */
+#define PCI_CONFIG_SIC_NO	(0 << 6)  /* no byte mask changes */
+#define PCI_CONFIG_SIC_BA_ADR	(1 << 6)  /* on byte/hw acc, invert adr bits */
+#define PCI_CONFIG_SIC_HWA_DAT	(2 << 6)  /* on halfword acc, swap data */
+#define PCI_CONFIG_SIC_ALL	(3 << 6)  /* swap data bytes on all accesses */
+#define PCI_CONFIG_ST		(1 << 5)  /* swap data by target transactions */
+#define PCI_CONFIG_SM		(1 << 4)  /* swap data from PCI ctl */
+#define PCI_CONFIG_AEN		(1 << 3)  /* enable internal arbiter */
+#define PCI_CONFIG_R2H		(1 << 2)  /* REQ2# to hi-prio arbiter */
+#define PCI_CONFIG_R1H		(1 << 1)  /* REQ1# to hi-prio arbiter */
+#define PCI_CONFIG_CH		(1 << 0)  /* PCI ctl to hi-prio arbiter */
+#define PCI_B2BMASK_B2BMASK(x)	(((x) & 0xffff) << 16)
+#define PCI_B2BMASK_CCH(x)	((x) & 0xffff) /* 16 upper bits of class code */
+#define PCI_B2BBASE0_VID_B0(x)	(((x) & 0xffff) << 16)
+#define PCI_B2BBASE0_VID_SV(x)	((x) & 0xffff)
+#define PCI_B2BBASE1_SID_B1(x)	(((x) & 0xffff) << 16)
+#define PCI_B2BBASE1_SID_SI(x)	((x) & 0xffff)
+#define PCI_MWMASKDEV_MWMASK(x) (((x) & 0xffff) << 16)
+#define PCI_MWMASKDEV_DEVID(x)	((x) & 0xffff)
+#define PCI_MWBASEREVCCL_BASE(x) (((x) & 0xffff) << 16)
+#define PCI_MWBASEREVCCL_REV(x)  (((x) & 0xff) << 8)
+#define PCI_MWBASEREVCCL_CCL(x)  ((x) & 0xff)
+#define PCI_ID_DID(x)		(((x) & 0xffff) << 16)
+#define PCI_ID_VID(x)		((x) & 0xffff)
+#define PCI_STATCMD_STATUS(x)	(((x) & 0xffff) << 16)
+#define PCI_STATCMD_CMD(x)	((x) & 0xffff)
+#define PCI_CLASSREV_CLASS(x)	(((x) & 0x00ffffff) << 8)
+#define PCI_CLASSREV_REV(x)	((x) & 0xff)
+#define PCI_PARAM_BIST(x)	(((x) & 0xff) << 24)
+#define PCI_PARAM_HT(x)		(((x) & 0xff) << 16)
+#define PCI_PARAM_LT(x)		(((x) & 0xff) << 8)
+#define PCI_PARAM_CLS(x)	((x) & 0xff)
+#define PCI_TIMEOUT_RETRIES(x)	(((x) & 0xff) << 8)	/* max retries */
+#define PCI_TIMEOUT_TO(x)	((x) & 0xff)	/* target ready timeout */
 
 #endif

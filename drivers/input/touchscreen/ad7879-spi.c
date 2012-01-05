@@ -9,6 +9,7 @@
 #include <linux/input.h>	/* BUS_SPI */
 #include <linux/pm.h>
 #include <linux/spi/spi.h>
+#include <linux/module.h>
 
 #include "ad7879.h"
 

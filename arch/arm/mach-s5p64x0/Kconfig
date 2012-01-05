@@ -9,17 +9,27 @@ if ARCH_S5P64X0
 
 config CPU_S5P6440
 	bool
-	select S3C_PL330_DMA
+	select SAMSUNG_DMADEV
 	select S5P_HRT
+	select S5P_SLEEP if PM
+	select SAMSUNG_WAKEMASK if PM
 	help
 	  Enable S5P6440 CPU support
 
 config CPU_S5P6450
 	bool
-	select S3C_PL330_DMA
+	select SAMSUNG_DMADEV
 	select S5P_HRT
+	select S5P_SLEEP if PM
+	select SAMSUNG_WAKEMASK if PM
 	help
 	  Enable S5P6450 CPU support
+
+config S5P64X0_SETUP_FB_24BPP
+	bool
+	help
+	  Common setup code for S5P64X0 based boards with a LCD display
+	  through RGB interface.
 
 config S5P64X0_SETUP_I2C1
 	bool
@@ -31,6 +41,7 @@ config S5P64X0_SETUP_I2C1
 config MACH_SMDK6440
 	bool "SMDK6440"
 	select CPU_S5P6440
+	select S3C_DEV_FB
 	select S3C_DEV_I2C1
 	select S3C_DEV_RTC
 	select S3C_DEV_WDT
@@ -39,6 +50,7 @@ config MACH_SMDK6440
 	select SAMSUNG_DEV_BACKLIGHT
 	select SAMSUNG_DEV_PWM
 	select SAMSUNG_DEV_TS
+	select S5P64X0_SETUP_FB_24BPP
 	select S5P64X0_SETUP_I2C1
 	help
 	  Machine support for the Samsung SMDK6440
@@ -46,6 +58,7 @@ config MACH_SMDK6440
 config MACH_SMDK6450
 	bool "SMDK6450"
 	select CPU_S5P6450
+	select S3C_DEV_FB
 	select S3C_DEV_I2C1
 	select S3C_DEV_RTC
 	select S3C_DEV_WDT
@@ -54,6 +67,7 @@ config MACH_SMDK6450
 	select SAMSUNG_DEV_BACKLIGHT
 	select SAMSUNG_DEV_PWM
 	select SAMSUNG_DEV_TS
+	select S5P64X0_SETUP_FB_24BPP
 	select S5P64X0_SETUP_I2C1
 	help
 	  Machine support for the Samsung SMDK6450

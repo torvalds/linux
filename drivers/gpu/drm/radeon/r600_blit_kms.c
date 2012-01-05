@@ -201,7 +201,7 @@ set_vtx_resource(struct radeon_device *rdev, u64 gpu_addr)
 static void
 set_tex_resource(struct radeon_device *rdev,
 		 int format, int w, int h, int pitch,
-		 u64 gpu_addr)
+		 u64 gpu_addr, u32 size)
 {
 	uint32_t sq_tex_resource_word0, sq_tex_resource_word1, sq_tex_resource_word4;
 
@@ -221,6 +221,9 @@ set_tex_resource(struct radeon_device *rdev,
 		S_038010_DST_SEL_Y(SQ_SEL_Y) |
 		S_038010_DST_SEL_Z(SQ_SEL_Z) |
 		S_038010_DST_SEL_W(SQ_SEL_W);
+
+	cp_set_surface_sync(rdev,
+			    PACKET3_TC_ACTION_ENA, size, gpu_addr);
 
 	radeon_ring_write(rdev, PACKET3(PACKET3_SET_RESOURCE, 7));
 	radeon_ring_write(rdev, 0);
@@ -500,9 +503,9 @@ int r600_blit_init(struct radeon_device *rdev)
 	rdev->r600_blit.primitives.set_default_state = set_default_state;
 
 	rdev->r600_blit.ring_size_common = 40; /* shaders + def state */
-	rdev->r600_blit.ring_size_common += 10; /* fence emit for VB IB */
+	rdev->r600_blit.ring_size_common += 16; /* fence emit for VB IB */
 	rdev->r600_blit.ring_size_common += 5; /* done copy */
-	rdev->r600_blit.ring_size_common += 10; /* fence emit for done copy */
+	rdev->r600_blit.ring_size_common += 16; /* fence emit for done copy */
 
 	rdev->r600_blit.ring_size_per_loop = 76;
 	/* set_render_target emits 2 extra dwords on rv6xx */
@@ -760,10 +763,7 @@ void r600_kms_blit_copy(struct radeon_device *rdev,
 		vb[11] = i2f(h);
 
 		rdev->r600_blit.primitives.set_tex_resource(rdev, FMT_8_8_8_8,
-							    w, h, w, src_gpu_addr);
-		rdev->r600_blit.primitives.cp_set_surface_sync(rdev,
-							       PACKET3_TC_ACTION_ENA,
-							       size_in_bytes, src_gpu_addr);
+							    w, h, w, src_gpu_addr, size_in_bytes);
 		rdev->r600_blit.primitives.set_render_target(rdev, COLOR_8_8_8_8,
 							     w, h, dst_gpu_addr);
 		rdev->r600_blit.primitives.set_scissors(rdev, 0, 0, w, h);

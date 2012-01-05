@@ -442,6 +442,8 @@ struct auto_pin_cfg {
 	(cfg & AC_DEFCFG_SEQUENCE)
 #define get_defcfg_device(cfg) \
 	((cfg & AC_DEFCFG_DEVICE) >> AC_DEFCFG_DEVICE_SHIFT)
+#define get_defcfg_misc(cfg) \
+	((cfg & AC_DEFCFG_MISC) >> AC_DEFCFG_MISC_SHIFT)
 
 /* bit-flags for snd_hda_parse_pin_def_config() behavior */
 #define HDA_PINCFG_NO_HP_FIXUP	(1 << 0) /* no HP-split */
@@ -508,8 +510,15 @@ int snd_hda_jack_detect(struct hda_codec *codec, hda_nid_t nid);
 
 static inline bool is_jack_detectable(struct hda_codec *codec, hda_nid_t nid)
 {
-	return (snd_hda_query_pin_caps(codec, nid) & AC_PINCAP_PRES_DETECT) &&
-		(get_wcaps(codec, nid) & AC_WCAP_UNSOL_CAP);
+	if (!(snd_hda_query_pin_caps(codec, nid) & AC_PINCAP_PRES_DETECT))
+		return false;
+	if (!codec->ignore_misc_bit &&
+	    (get_defcfg_misc(snd_hda_codec_get_pincfg(codec, nid)) &
+	     AC_DEFCFG_MISC_NO_PRESENCE))
+		return false;
+	if (!(get_wcaps(codec, nid) & AC_WCAP_UNSOL_CAP))
+		return false;
+	return true;
 }
 
 /* flags for hda_nid_item */
@@ -644,6 +653,9 @@ struct hdmi_eld {
 	int	spk_alloc;
 	int	sad_count;
 	struct cea_sad sad[ELD_MAX_SAD];
+	/*
+	 * all fields above eld_buffer will be cleared before updating ELD
+	 */
 	char    eld_buffer[ELD_MAX_SIZE];
 #ifdef CONFIG_PROC_FS
 	struct snd_info_entry *proc_entry;

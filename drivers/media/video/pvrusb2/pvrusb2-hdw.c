@@ -21,6 +21,7 @@
 #include <linux/errno.h>
 #include <linux/string.h>
 #include <linux/slab.h>
+#include <linux/module.h>
 #include <linux/firmware.h>
 #include <linux/videodev2.h>
 #include <media/v4l2-common.h>

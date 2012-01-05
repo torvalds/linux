@@ -634,7 +634,7 @@ static int lbs_ret_scan(struct lbs_private *priv, unsigned long dummy,
 			if (channel &&
 			    !(channel->flags & IEEE80211_CHAN_DISABLED))
 				cfg80211_inform_bss(wiphy, channel,
-					bssid, le64_to_cpu(*(__le64 *)tsfdesc),
+					bssid, get_unaligned_le64(tsfdesc),
 					capa, intvl, ie, ielen,
 					LBS_SCAN_RSSI_TO_MBM(rssi),
 					GFP_KERNEL);
@@ -728,15 +728,9 @@ static void lbs_scan_worker(struct work_struct *work)
 		le16_to_cpu(scan_cmd->hdr.size),
 		lbs_ret_scan, 0);
 
-	if (priv->scan_channel >= priv->scan_req->n_channels) {
+	if (priv->scan_channel >= priv->scan_req->n_channels)
 		/* Mark scan done */
-		if (priv->internal_scan)
-			kfree(priv->scan_req);
-		else
-			cfg80211_scan_done(priv->scan_req, false);
-
-		priv->scan_req = NULL;
-	}
+		lbs_scan_done(priv);
 
 	/* Restart network */
 	if (carrier)
@@ -772,6 +766,21 @@ static void _internal_start_scan(struct lbs_private *priv, bool internal,
 	priv->internal_scan = internal;
 
 	lbs_deb_leave(LBS_DEB_CFG80211);
+}
+
+/*
+ * Clean up priv->scan_req.  Should be used to handle the allocation details.
+ */
+void lbs_scan_done(struct lbs_private *priv)
+{
+	WARN_ON(!priv->scan_req);
+
+	if (priv->internal_scan)
+		kfree(priv->scan_req);
+	else
+		cfg80211_scan_done(priv->scan_req, false);
+
+	priv->scan_req = NULL;
 }
 
 static int lbs_cfg_scan(struct wiphy *wiphy,

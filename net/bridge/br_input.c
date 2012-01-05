@@ -16,6 +16,7 @@
 #include <linux/netdevice.h>
 #include <linux/etherdevice.h>
 #include <linux/netfilter_bridge.h>
+#include <linux/export.h>
 #include "br_private.h"
 
 /* Bridge group multicast address 802.1d (pg 51). */

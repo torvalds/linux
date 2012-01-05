@@ -15,8 +15,8 @@
 
 #include <linux/device.h>
 #include <linux/list.h>
-#include <linux/module.h>
 
+struct module;
 struct i2c_client;
 struct spi_device;
 

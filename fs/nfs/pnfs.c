@@ -29,6 +29,7 @@
 
 #include <linux/nfs_fs.h>
 #include <linux/nfs_page.h>
+#include <linux/module.h>
 #include "internal.h"
 #include "pnfs.h"
 #include "iostat.h"
@@ -1259,6 +1260,25 @@ pnfs_generic_pg_writepages(struct nfs_pageio_descriptor *desc)
 }
 EXPORT_SYMBOL_GPL(pnfs_generic_pg_writepages);
 
+static void pnfs_ld_handle_read_error(struct nfs_read_data *data)
+{
+	struct nfs_pageio_descriptor pgio;
+
+	put_lseg(data->lseg);
+	data->lseg = NULL;
+	dprintk("pnfs write error = %d\n", data->pnfs_error);
+
+	nfs_pageio_init_read_mds(&pgio, data->inode);
+
+	while (!list_empty(&data->pages)) {
+		struct nfs_page *req = nfs_list_entry(data->pages.next);
+
+		nfs_list_remove_request(req);
+		nfs_pageio_add_request(&pgio, req);
+	}
+	nfs_pageio_complete(&pgio);
+}
+
 /*
  * Called by non rpc-based layout drivers
  */
@@ -1267,11 +1287,8 @@ void pnfs_ld_read_done(struct nfs_read_data *data)
 	if (likely(!data->pnfs_error)) {
 		__nfs4_read_done_cb(data);
 		data->mds_ops->rpc_call_done(&data->task, data);
-	} else {
-		put_lseg(data->lseg);
-		data->lseg = NULL;
-		dprintk("pnfs write error = %d\n", data->pnfs_error);
-	}
+	} else
+		pnfs_ld_handle_read_error(data);
 	data->mds_ops->rpc_release(data);
 }
 EXPORT_SYMBOL_GPL(pnfs_ld_read_done);
@@ -1443,17 +1460,31 @@ pnfs_layoutcommit_inode(struct inode *inode, bool sync)
 	/* Note kzalloc ensures data->res.seq_res.sr_slot == NULL */
 	data = kzalloc(sizeof(*data), GFP_NOFS);
 	if (!data) {
-		mark_inode_dirty_sync(inode);
 		status = -ENOMEM;
 		goto out;
+	}
+
+	if (!test_bit(NFS_INO_LAYOUTCOMMIT, &nfsi->flags))
+		goto out_free;
+
+	if (test_and_set_bit(NFS_INO_LAYOUTCOMMITTING, &nfsi->flags)) {
+		if (!sync) {
+			status = -EAGAIN;
+			goto out_free;
+		}
+		status = wait_on_bit_lock(&nfsi->flags, NFS_INO_LAYOUTCOMMITTING,
+					nfs_wait_bit_killable, TASK_KILLABLE);
+		if (status)
+			goto out_free;
 	}
 
 	INIT_LIST_HEAD(&data->lseg_list);
 	spin_lock(&inode->i_lock);
 	if (!test_and_clear_bit(NFS_INO_LAYOUTCOMMIT, &nfsi->flags)) {
+		clear_bit(NFS_INO_LAYOUTCOMMITTING, &nfsi->flags);
 		spin_unlock(&inode->i_lock);
-		kfree(data);
-		goto out;
+		wake_up_bit(&nfsi->flags, NFS_INO_LAYOUTCOMMITTING);
+		goto out_free;
 	}
 
 	pnfs_list_write_lseg(inode, &data->lseg_list);
@@ -1475,6 +1506,11 @@ pnfs_layoutcommit_inode(struct inode *inode, bool sync)
 
 	status = nfs4_proc_layoutcommit(data, sync);
 out:
+	if (status)
+		mark_inode_dirty_sync(inode);
 	dprintk("<-- %s status %d\n", __func__, status);
 	return status;
+out_free:
+	kfree(data);
+	goto out;
 }

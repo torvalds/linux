@@ -57,9 +57,6 @@ config ARCH_HAS_SC_SIGNALS
 config ARCH_REUSE_HOST_VSYSCALL_AREA
 	def_bool !64BIT
 
-config SMP_BROKEN
-	def_bool 64BIT
-
 config GENERIC_HWEIGHT
 	def_bool y
 

@@ -23,6 +23,7 @@
 #include <linux/slab.h>
 #include <linux/time.h>
 #include <linux/string.h>
+#include <linux/module.h>
 #include <sound/core.h>
 #include <sound/minors.h>
 #include <sound/control.h>

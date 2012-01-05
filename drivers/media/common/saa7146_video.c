@@ -2,6 +2,7 @@
 
 #include <media/saa7146_vv.h>
 #include <media/v4l2-chip-ident.h>
+#include <linux/module.h>
 
 static int max_memory = 32;
 

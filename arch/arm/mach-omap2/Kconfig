@@ -14,7 +14,6 @@ config ARCH_OMAP2PLUS_TYPICAL
 	select SERIAL_OMAP_CONSOLE
 	select I2C
 	select I2C_OMAP
-	select MFD_SUPPORT
 	select MENELAUS if ARCH_OMAP2
 	select TWL4030_CORE if ARCH_OMAP3 || ARCH_OMAP4
 	select TWL4030_POWER if ARCH_OMAP3 || ARCH_OMAP4
@@ -335,6 +334,7 @@ config MACH_OMAP4_PANDA
 config OMAP3_EMU
 	bool "OMAP3 debugging peripherals"
 	depends on ARCH_OMAP3
+	select ARM_AMBA
 	select OC_ETM
 	help
 	  Say Y here to enable debugging hardware of omap3

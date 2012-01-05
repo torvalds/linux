@@ -476,7 +476,7 @@ static struct clk_ops fsidiv_clk_ops = {
 	.disable	= fsidiv_disable,
 };
 
-static struct clk_mapping sh7372_fsidiva_clk_mapping = {
+static struct clk_mapping fsidiva_clk_mapping = {
 	.phys	= FSIDIVA,
 	.len	= 8,
 };
@@ -484,10 +484,10 @@ static struct clk_mapping sh7372_fsidiva_clk_mapping = {
 struct clk sh7372_fsidiva_clk = {
 	.ops		= &fsidiv_clk_ops,
 	.parent		= &div6_reparent_clks[DIV6_FSIA], /* late install */
-	.mapping	= &sh7372_fsidiva_clk_mapping,
+	.mapping	= &fsidiva_clk_mapping,
 };
 
-static struct clk_mapping sh7372_fsidivb_clk_mapping = {
+static struct clk_mapping fsidivb_clk_mapping = {
 	.phys	= FSIDIVB,
 	.len	= 8,
 };
@@ -495,7 +495,7 @@ static struct clk_mapping sh7372_fsidivb_clk_mapping = {
 struct clk sh7372_fsidivb_clk = {
 	.ops		= &fsidiv_clk_ops,
 	.parent		= &div6_reparent_clks[DIV6_FSIB],  /* late install */
-	.mapping	= &sh7372_fsidivb_clk_mapping,
+	.mapping	= &fsidivb_clk_mapping,
 };
 
 static struct clk *late_main_clks[] = {

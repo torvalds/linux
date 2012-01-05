@@ -89,6 +89,7 @@ static bool			vmlinux_warned;
 static bool			inherit				=  false;
 static int			realtime_prio			=      0;
 static bool			group				=  false;
+static bool			sample_id_all_avail		=   true;
 static unsigned int		mmap_pages			=    128;
 
 static bool			dump_symtab                     =  false;
@@ -199,7 +200,8 @@ static void record_precise_ip(struct hist_entry *he, int counter, u64 ip)
 	struct symbol *sym;
 
 	if (he == NULL || he->ms.sym == NULL ||
-	    (he != top.sym_filter_entry && use_browser != 1))
+	    ((top.sym_filter_entry == NULL ||
+	      top.sym_filter_entry->ms.sym != he->ms.sym) && use_browser != 1))
 		return;
 
 	sym = he->ms.sym;
@@ -289,11 +291,13 @@ static void print_sym_table(void)
 
 	printf("%-*.*s\n", win_width, win_width, graph_dotted_line);
 
-	if (top.total_lost_warned != top.session->hists.stats.total_lost) {
-		top.total_lost_warned = top.session->hists.stats.total_lost;
-		color_fprintf(stdout, PERF_COLOR_RED, "WARNING:");
-		printf(" LOST %" PRIu64 " events, Check IO/CPU overload\n",
-		       top.total_lost_warned);
+	if (top.sym_evsel->hists.stats.nr_lost_warned !=
+	    top.sym_evsel->hists.stats.nr_events[PERF_RECORD_LOST]) {
+		top.sym_evsel->hists.stats.nr_lost_warned =
+			top.sym_evsel->hists.stats.nr_events[PERF_RECORD_LOST];
+		color_fprintf(stdout, PERF_COLOR_RED,
+			      "WARNING: LOST %d chunks, Check IO/CPU overload",
+			      top.sym_evsel->hists.stats.nr_lost_warned);
 		++printed;
 	}
 
@@ -561,7 +565,6 @@ static void perf_top__sort_new_samples(void *arg)
 	hists__decay_entries_threaded(&t->sym_evsel->hists,
 				      top.hide_user_symbols,
 				      top.hide_kernel_symbols);
-	hists__output_recalc_col_len(&t->sym_evsel->hists, winsize.ws_row - 3);
 }
 
 static void *display_thread_tui(void *arg __used)
@@ -671,6 +674,7 @@ static int symbol_filter(struct map *map __used, struct symbol *sym)
 }
 
 static void perf_event__process_sample(const union perf_event *event,
+				       struct perf_evsel *evsel,
 				       struct perf_sample *sample,
 				       struct perf_session *session)
 {
@@ -770,11 +774,7 @@ static void perf_event__process_sample(const union perf_event *event,
 	}
 
 	if (al.sym == NULL || !al.sym->ignore) {
-		struct perf_evsel *evsel;
 		struct hist_entry *he;
-
-		evsel = perf_evlist__id2evsel(top.evlist, sample->id);
-		assert(evsel != NULL);
 
 		if ((sort__has_parent || symbol_conf.use_callchain) &&
 		    sample->callchain) {
@@ -807,6 +807,7 @@ static void perf_event__process_sample(const union perf_event *event,
 static void perf_session__mmap_read_idx(struct perf_session *self, int idx)
 {
 	struct perf_sample sample;
+	struct perf_evsel *evsel;
 	union perf_event *event;
 	int ret;
 
@@ -817,10 +818,16 @@ static void perf_session__mmap_read_idx(struct perf_session *self, int idx)
 			continue;
 		}
 
+		evsel = perf_evlist__id2evsel(self->evlist, sample.id);
+		assert(evsel != NULL);
+
 		if (event->header.type == PERF_RECORD_SAMPLE)
-			perf_event__process_sample(event, &sample, self);
-		else
+			perf_event__process_sample(event, evsel, &sample, self);
+		else if (event->header.type < PERF_RECORD_MAX) {
+			hists__inc_nr_events(&evsel->hists, event->header.type);
 			perf_event__process(event, &sample, self);
+		} else
+			++self->hists.stats.nr_unknown_events;
 	}
 }
 
@@ -834,10 +841,16 @@ static void perf_session__mmap_read(struct perf_session *self)
 
 static void start_counters(struct perf_evlist *evlist)
 {
-	struct perf_evsel *counter;
+	struct perf_evsel *counter, *first;
+
+	first = list_entry(evlist->entries.next, struct perf_evsel, node);
 
 	list_for_each_entry(counter, &evlist->entries, node) {
 		struct perf_event_attr *attr = &counter->attr;
+		struct xyarray *group_fd = NULL;
+
+		if (group && counter != first)
+			group_fd = first->fd;
 
 		attr->sample_type = PERF_SAMPLE_IP | PERF_SAMPLE_TID;
 
@@ -858,14 +871,23 @@ static void start_counters(struct perf_evlist *evlist)
 		attr->mmap = 1;
 		attr->comm = 1;
 		attr->inherit = inherit;
+retry_sample_id:
+		attr->sample_id_all = sample_id_all_avail ? 1 : 0;
 try_again:
 		if (perf_evsel__open(counter, top.evlist->cpus,
-				     top.evlist->threads, group) < 0) {
+				     top.evlist->threads, group,
+				     group_fd) < 0) {
 			int err = errno;
 
 			if (err == EPERM || err == EACCES) {
-				ui__warning_paranoid();
+				ui__error_paranoid();
 				goto out_err;
+			} else if (err == EINVAL && sample_id_all_avail) {
+				/*
+				 * Old kernel, no attr->sample_id_type_all field
+				 */
+				sample_id_all_avail = false;
+				goto retry_sample_id;
 			}
 			/*
 			 * If it's cycles then fall back to hrtimer

@@ -29,6 +29,7 @@
  */
 
 #include <linux/kernel.h>
+#include <linux/export.h>
 #include <linux/ioport.h>
 #include <linux/platform_device.h>
 #include <asm/mach-powertv/asic.h>

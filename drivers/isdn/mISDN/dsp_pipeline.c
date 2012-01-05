@@ -30,6 +30,7 @@
 #include <linux/string.h>
 #include <linux/mISDNif.h>
 #include <linux/mISDNdsp.h>
+#include <linux/export.h>
 #include "dsp.h"
 #include "dsp_hwec.h"
 

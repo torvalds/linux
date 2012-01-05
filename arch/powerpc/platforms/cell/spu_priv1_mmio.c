@@ -20,7 +20,6 @@
 
 #include <linux/interrupt.h>
 #include <linux/list.h>
-#include <linux/module.h>
 #include <linux/ptrace.h>
 #include <linux/wait.h>
 #include <linux/mm.h>

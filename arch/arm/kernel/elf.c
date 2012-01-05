@@ -1,4 +1,4 @@
-#include <linux/module.h>
+#include <linux/export.h>
 #include <linux/sched.h>
 #include <linux/personality.h>
 #include <linux/binfmts.h>

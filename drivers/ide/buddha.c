@@ -23,6 +23,7 @@
 #include <linux/zorro.h>
 #include <linux/ide.h>
 #include <linux/init.h>
+#include <linux/module.h>
 
 #include <asm/amigahw.h>
 #include <asm/amigaints.h>

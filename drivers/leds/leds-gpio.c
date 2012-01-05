@@ -18,6 +18,7 @@
 #include <linux/of_gpio.h>
 #include <linux/slab.h>
 #include <linux/workqueue.h>
+#include <linux/module.h>
 
 #include <asm/gpio.h>
 

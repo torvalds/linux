@@ -523,7 +523,7 @@ static int __devinit da903x_probe(struct i2c_client *client,
 	chip->ops->read_events(chip, &tmp);
 
 	ret = request_irq(client->irq, da903x_irq_handler,
-			IRQF_DISABLED | IRQF_TRIGGER_FALLING,
+			IRQF_TRIGGER_FALLING,
 			"da903x", chip);
 	if (ret) {
 		dev_err(&client->dev, "failed to request irq %d\n",

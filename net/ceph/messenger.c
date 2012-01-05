@@ -18,6 +18,7 @@
 #include <linux/ceph/messenger.h>
 #include <linux/ceph/decode.h>
 #include <linux/ceph/pagelist.h>
+#include <linux/export.h>
 
 /*
  * Ceph uses the messenger to exchange ceph_msg messages with other

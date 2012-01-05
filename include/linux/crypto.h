@@ -18,7 +18,6 @@
 #define _LINUX_CRYPTO_H
 
 #include <linux/atomic.h>
-#include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/list.h>
 #include <linux/slab.h>
@@ -508,11 +507,6 @@ static inline const char *crypto_tfm_alg_driver_name(struct crypto_tfm *tfm)
 static inline int crypto_tfm_alg_priority(struct crypto_tfm *tfm)
 {
 	return tfm->__crt_alg->cra_priority;
-}
-
-static inline const char *crypto_tfm_alg_modname(struct crypto_tfm *tfm)
-{
-	return module_name(tfm->__crt_alg->cra_module);
 }
 
 static inline u32 crypto_tfm_alg_type(struct crypto_tfm *tfm)

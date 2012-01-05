@@ -619,7 +619,7 @@ static void __unregister_request(struct ceph_mds_client *mdsc,
  *
  * Called under mdsc->mutex.
  */
-struct dentry *get_nonsnap_parent(struct dentry *dentry)
+static struct dentry *get_nonsnap_parent(struct dentry *dentry)
 {
 	/*
 	 * we don't need to worry about protecting the d_parent access
@@ -2002,7 +2002,7 @@ out:
 }
 
 /*
- * Invalidate dir I_COMPLETE, dentry lease state on an aborted MDS
+ * Invalidate dir D_COMPLETE, dentry lease state on an aborted MDS
  * namespace request.
  */
 void ceph_invalidate_dir_request(struct ceph_mds_request *req)
@@ -2010,9 +2010,9 @@ void ceph_invalidate_dir_request(struct ceph_mds_request *req)
 	struct inode *inode = req->r_locked_dir;
 	struct ceph_inode_info *ci = ceph_inode(inode);
 
-	dout("invalidate_dir_request %p (I_COMPLETE, lease(s))\n", inode);
+	dout("invalidate_dir_request %p (D_COMPLETE, lease(s))\n", inode);
 	spin_lock(&inode->i_lock);
-	ci->i_ceph_flags &= ~CEPH_I_COMPLETE;
+	ceph_dir_clear_complete(inode);
 	ci->i_release_count++;
 	spin_unlock(&inode->i_lock);
 
@@ -3154,7 +3154,7 @@ void ceph_mdsc_sync(struct ceph_mds_client *mdsc)
 /*
  * true if all sessions are closed, or we force unmount
  */
-bool done_closing_sessions(struct ceph_mds_client *mdsc)
+static bool done_closing_sessions(struct ceph_mds_client *mdsc)
 {
 	int i, n = 0;
 

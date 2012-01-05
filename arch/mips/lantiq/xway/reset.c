@@ -10,7 +10,7 @@
 #include <linux/io.h>
 #include <linux/ioport.h>
 #include <linux/pm.h>
-#include <linux/module.h>
+#include <linux/export.h>
 #include <asm/reboot.h>
 
 #include <lantiq_soc.h>

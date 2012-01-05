@@ -33,6 +33,7 @@
 #include <linux/pci.h>
 #include <linux/spinlock.h>
 #include <linux/string.h>
+#include <linux/export.h>
 #include <asm/hardware.h>
 #include <asm/io.h>
 #include <asm/pdc.h>

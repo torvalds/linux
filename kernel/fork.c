@@ -162,7 +162,6 @@ static void account_kernel_stack(struct thread_info *ti, int account)
 
 void free_task(struct task_struct *tsk)
 {
-	prop_local_destroy_single(&tsk->dirties);
 	account_kernel_stack(tsk->stack, -1);
 	free_thread_info(tsk->stack);
 	rt_mutex_debug_task_free(tsk);
@@ -273,10 +272,6 @@ static struct task_struct *dup_task_struct(struct task_struct *orig)
 		goto out;
 
 	tsk->stack = ti;
-
-	err = prop_local_init_single(&tsk->dirties);
-	if (err)
-		goto out;
 
 	setup_thread_stack(tsk, orig);
 	clear_user_return_notifier(tsk);
@@ -1298,6 +1293,9 @@ static struct task_struct *copy_process(unsigned long clone_flags,
 	p->exit_signal = (clone_flags & CLONE_THREAD) ? -1 : (clone_flags & CSIGNAL);
 	p->pdeath_signal = 0;
 	p->exit_state = 0;
+
+	p->nr_dirtied = 0;
+	p->nr_dirtied_pause = 128 >> (PAGE_SHIFT - 10);
 
 	/*
 	 * Ok, make it visible to the rest of the system.

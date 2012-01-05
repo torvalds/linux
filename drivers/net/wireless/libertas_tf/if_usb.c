@@ -15,7 +15,7 @@
 #include "if_usb.h"
 
 #include <linux/delay.h>
-#include <linux/moduleparam.h>
+#include <linux/module.h>
 #include <linux/firmware.h>
 #include <linux/netdevice.h>
 #include <linux/slab.h>

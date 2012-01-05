@@ -21,7 +21,7 @@
 
 #include <linux/hardirq.h>
 #include <linux/interrupt.h>
-#include <linux/moduleparam.h>
+#include <linux/module.h>
 #include <linux/firmware.h>
 #include <linux/jiffies.h>
 #include <linux/list.h>
@@ -995,6 +995,7 @@ static int if_spi_host_to_card(struct lbs_private *priv,
 		spin_unlock_irqrestore(&card->buffer_lock, flags);
 		break;
 	default:
+		kfree(packet);
 		netdev_err(priv->dev, "can't transfer buffer of type %d\n",
 			   type);
 		err = -EINVAL;

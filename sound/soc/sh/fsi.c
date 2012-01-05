@@ -16,6 +16,7 @@
 #include <linux/pm_runtime.h>
 #include <linux/io.h>
 #include <linux/slab.h>
+#include <linux/module.h>
 #include <sound/soc.h>
 #include <sound/sh_fsi.h>
 

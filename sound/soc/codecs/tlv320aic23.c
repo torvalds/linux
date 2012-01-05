@@ -430,6 +430,7 @@ static int tlv320aic23_set_dai_fmt(struct snd_soc_dai *codec_dai,
 		iface_reg |= TLV320AIC23_MS_MASTER;
 		break;
 	case SND_SOC_DAIFMT_CBS_CFS:
+		iface_reg &= ~TLV320AIC23_MS_MASTER;
 		break;
 	default:
 		return -EINVAL;

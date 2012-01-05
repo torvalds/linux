@@ -12,3 +12,4 @@ header-y += ipt_ah.h
 header-y += ipt_ecn.h
 header-y += ipt_realm.h
 header-y += ipt_ttl.h
+header-y += nf_nat.h

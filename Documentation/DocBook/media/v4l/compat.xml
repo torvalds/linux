@@ -2486,6 +2486,9 @@ ioctls.</para>
         <listitem>
 	  <para>Flash API. <xref linkend="flash-controls" /></para>
         </listitem>
+        <listitem>
+	  <para>&VIDIOC-CREATE-BUFS; and &VIDIOC-PREPARE-BUF; ioctls.</para>
+        </listitem>
       </itemizedlist>
     </section>
 

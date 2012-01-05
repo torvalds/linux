@@ -28,6 +28,7 @@
 #include <linux/platform_device.h>
 #include <linux/slab.h>
 #include <linux/basic_mmio_gpio.h>
+#include <linux/module.h>
 #include <mach/mxs.h>
 
 #define MXS_SET		0x4

@@ -469,6 +469,7 @@ and discussions on the V4L mailing list.</revremark>
     &sub-close;
     &sub-ioctl;
     <!-- All ioctls go here. -->
+    &sub-create-bufs;
     &sub-cropcap;
     &sub-dbg-g-chip-ident;
     &sub-dbg-g-register;
@@ -511,6 +512,7 @@ and discussions on the V4L mailing list.</revremark>
     &sub-queryctrl;
     &sub-query-dv-preset;
     &sub-querystd;
+    &sub-prepare-buf;
     &sub-reqbufs;
     &sub-s-hw-freq-seek;
     &sub-streamon;

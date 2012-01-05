@@ -11,6 +11,7 @@
 #include <linux/types.h>
 #include <linux/fs.h>
 #include <linux/cdev.h>
+#include <linux/export.h>
 #include <linux/usb.h>
 #include <linux/poll.h>
 #include <linux/compat.h>

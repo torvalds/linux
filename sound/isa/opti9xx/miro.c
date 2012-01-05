@@ -28,7 +28,7 @@
 #include <linux/pnp.h>
 #include <linux/delay.h>
 #include <linux/ioport.h>
-#include <linux/moduleparam.h>
+#include <linux/module.h>
 #include <asm/io.h>
 #include <asm/dma.h>
 #include <sound/core.h>

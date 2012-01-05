@@ -37,12 +37,6 @@
 
 #include <prom.h>
 
-
-char irq_tab_alchemy[][5] __initdata = {
-	[12] = { -1, AU1550_PCI_INTB, AU1550_PCI_INTC, AU1550_PCI_INTD, AU1550_PCI_INTA }, /* IDSEL 12 - PCI slot 2 (left)  */
-	[13] = { -1, AU1550_PCI_INTA, AU1550_PCI_INTB, AU1550_PCI_INTC, AU1550_PCI_INTD }, /* IDSEL 13 - PCI slot 1 (right) */
-};
-
 const char *get_system_type(void)
 {
 	return "Alchemy Pb1550";

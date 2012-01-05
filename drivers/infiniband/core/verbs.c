@@ -38,6 +38,7 @@
 
 #include <linux/errno.h>
 #include <linux/err.h>
+#include <linux/export.h>
 #include <linux/string.h>
 #include <linux/slab.h>
 

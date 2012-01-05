@@ -37,6 +37,7 @@
 #include <linux/mm.h>
 #include <linux/debugfs.h>
 #include <linux/irq_work.h>
+#include <linux/export.h>
 
 #include <asm/processor.h>
 #include <asm/mce.h>
@@ -1633,16 +1634,35 @@ static long mce_chrdev_ioctl(struct file *f, unsigned int cmd,
 	}
 }
 
-/* Modified in mce-inject.c, so not static or const */
-struct file_operations mce_chrdev_ops = {
+static ssize_t (*mce_write)(struct file *filp, const char __user *ubuf,
+			    size_t usize, loff_t *off);
+
+void register_mce_write_callback(ssize_t (*fn)(struct file *filp,
+			     const char __user *ubuf,
+			     size_t usize, loff_t *off))
+{
+	mce_write = fn;
+}
+EXPORT_SYMBOL_GPL(register_mce_write_callback);
+
+ssize_t mce_chrdev_write(struct file *filp, const char __user *ubuf,
+			 size_t usize, loff_t *off)
+{
+	if (mce_write)
+		return mce_write(filp, ubuf, usize, off);
+	else
+		return -EINVAL;
+}
+
+static const struct file_operations mce_chrdev_ops = {
 	.open			= mce_chrdev_open,
 	.release		= mce_chrdev_release,
 	.read			= mce_chrdev_read,
+	.write			= mce_chrdev_write,
 	.poll			= mce_chrdev_poll,
 	.unlocked_ioctl		= mce_chrdev_ioctl,
 	.llseek			= no_llseek,
 };
-EXPORT_SYMBOL_GPL(mce_chrdev_ops);
 
 static struct miscdevice mce_chrdev_device = {
 	MISC_MCELOG_MINOR,

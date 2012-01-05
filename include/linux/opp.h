@@ -97,11 +97,11 @@ static inline int opp_disable(struct device *dev, unsigned long freq)
 	return 0;
 }
 
-struct srcu_notifier_head *opp_get_notifier(struct device *dev)
+static inline struct srcu_notifier_head *opp_get_notifier(struct device *dev)
 {
 	return ERR_PTR(-EINVAL);
 }
-#endif		/* CONFIG_PM */
+#endif		/* CONFIG_PM_OPP */
 
 #if defined(CONFIG_CPU_FREQ) && defined(CONFIG_PM_OPP)
 int opp_init_cpufreq_table(struct device *dev,

@@ -18,6 +18,7 @@
  * 51 Franklin St - Fifth Floor, Boston, MA 02110-1301 USA.
  */
 
+#include <linux/export.h>
 #include <net/xfrm.h>
 
 u32 xfrm_replay_seqhi(struct xfrm_state *x, __be32 net_seq)

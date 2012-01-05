@@ -31,6 +31,7 @@
 #include <linux/root_dev.h>
 #include <linux/cpu.h>
 #include <linux/kdebug.h>
+#include <linux/export.h>
 
 #include <asm/system.h>
 #include <asm/io.h>

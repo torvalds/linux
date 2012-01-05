@@ -60,44 +60,6 @@ static struct musb_hdrc_platform_data musb_plat = {
 
 static u64 musb_dmamask = DMA_BIT_MASK(32);
 
-static void usb_musb_mux_init(struct omap_musb_board_data *board_data)
-{
-	switch (board_data->interface_type) {
-	case MUSB_INTERFACE_UTMI:
-		omap_mux_init_signal("usba0_otg_dp", OMAP_PIN_INPUT);
-		omap_mux_init_signal("usba0_otg_dm", OMAP_PIN_INPUT);
-		break;
-	case MUSB_INTERFACE_ULPI:
-		omap_mux_init_signal("usba0_ulpiphy_clk",
-						OMAP_PIN_INPUT_PULLDOWN);
-		omap_mux_init_signal("usba0_ulpiphy_stp",
-						OMAP_PIN_INPUT_PULLDOWN);
-		omap_mux_init_signal("usba0_ulpiphy_dir",
-						OMAP_PIN_INPUT_PULLDOWN);
-		omap_mux_init_signal("usba0_ulpiphy_nxt",
-						OMAP_PIN_INPUT_PULLDOWN);
-		omap_mux_init_signal("usba0_ulpiphy_dat0",
-						OMAP_PIN_INPUT_PULLDOWN);
-		omap_mux_init_signal("usba0_ulpiphy_dat1",
-						OMAP_PIN_INPUT_PULLDOWN);
-		omap_mux_init_signal("usba0_ulpiphy_dat2",
-						OMAP_PIN_INPUT_PULLDOWN);
-		omap_mux_init_signal("usba0_ulpiphy_dat3",
-						OMAP_PIN_INPUT_PULLDOWN);
-		omap_mux_init_signal("usba0_ulpiphy_dat4",
-						OMAP_PIN_INPUT_PULLDOWN);
-		omap_mux_init_signal("usba0_ulpiphy_dat5",
-						OMAP_PIN_INPUT_PULLDOWN);
-		omap_mux_init_signal("usba0_ulpiphy_dat6",
-						OMAP_PIN_INPUT_PULLDOWN);
-		omap_mux_init_signal("usba0_ulpiphy_dat7",
-						OMAP_PIN_INPUT_PULLDOWN);
-		break;
-	default:
-		break;
-	}
-}
-
 static struct omap_musb_board_data musb_default_board_data = {
 	.interface_type		= MUSB_INTERFACE_ULPI,
 	.mode			= MUSB_OTG,

@@ -3,6 +3,7 @@
  *
  */
 
+#include <linux/module.h>
 #include <crypto/aes.h>
 #include <asm/aes.h>
 

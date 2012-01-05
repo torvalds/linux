@@ -24,6 +24,7 @@
 #include <linux/hid.h>
 #include <linux/input.h>
 #include <linux/usb.h>
+#include <linux/module.h>
 
 #include "hid-ids.h"
 #include "usbhid/usbhid.h"
@@ -139,7 +140,7 @@ err:
 }
 
 static const struct hid_device_id ems_devices[] = {
-	{ HID_USB_DEVICE(USB_VENDOR_ID_EMS, 0x118) },
+	{ HID_USB_DEVICE(USB_VENDOR_ID_EMS, USB_DEVICE_ID_EMS_TRIO_LINKER_PLUS_II) },
 	{ }
 };
 MODULE_DEVICE_TABLE(hid, ems_devices);

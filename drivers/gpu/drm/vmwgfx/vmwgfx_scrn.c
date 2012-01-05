@@ -36,12 +36,9 @@
 	container_of(x, struct vmw_screen_object_unit, base.connector)
 
 struct vmw_screen_object_display {
-	struct list_head active;
+	unsigned num_implicit;
 
-	unsigned num_active;
-	unsigned last_num_active;
-
-	struct vmw_framebuffer *fb;
+	struct vmw_framebuffer *implicit_fb;
 };
 
 /**
@@ -54,13 +51,11 @@ struct vmw_screen_object_unit {
 	struct vmw_dma_buffer *buffer; /**< Backing store buffer */
 
 	bool defined;
-
-	struct list_head active;
+	bool active_implicit;
 };
 
 static void vmw_sou_destroy(struct vmw_screen_object_unit *sou)
 {
-	list_del_init(&sou->active);
 	vmw_display_unit_cleanup(&sou->base);
 	kfree(sou);
 }
@@ -75,58 +70,31 @@ static void vmw_sou_crtc_destroy(struct drm_crtc *crtc)
 	vmw_sou_destroy(vmw_crtc_to_sou(crtc));
 }
 
-static int vmw_sou_del_active(struct vmw_private *vmw_priv,
+static void vmw_sou_del_active(struct vmw_private *vmw_priv,
 			      struct vmw_screen_object_unit *sou)
 {
 	struct vmw_screen_object_display *ld = vmw_priv->sou_priv;
-	if (list_empty(&sou->active))
-		return 0;
 
-	/* Must init otherwise list_empty(&sou->active) will not work. */
-	list_del_init(&sou->active);
-	if (--(ld->num_active) == 0) {
-		BUG_ON(!ld->fb);
-		if (ld->fb->unpin)
-			ld->fb->unpin(ld->fb);
-		ld->fb = NULL;
+	if (sou->active_implicit) {
+		if (--(ld->num_implicit) == 0)
+			ld->implicit_fb = NULL;
+		sou->active_implicit = false;
 	}
-
-	return 0;
 }
 
-static int vmw_sou_add_active(struct vmw_private *vmw_priv,
+static void vmw_sou_add_active(struct vmw_private *vmw_priv,
 			      struct vmw_screen_object_unit *sou,
 			      struct vmw_framebuffer *vfb)
 {
 	struct vmw_screen_object_display *ld = vmw_priv->sou_priv;
-	struct vmw_screen_object_unit *entry;
-	struct list_head *at;
 
-	BUG_ON(!ld->num_active && ld->fb);
-	if (vfb != ld->fb) {
-		if (ld->fb && ld->fb->unpin)
-			ld->fb->unpin(ld->fb);
-		if (vfb->pin)
-			vfb->pin(vfb);
-		ld->fb = vfb;
+	BUG_ON(!ld->num_implicit && ld->implicit_fb);
+
+	if (!sou->active_implicit && sou->base.is_implicit) {
+		ld->implicit_fb = vfb;
+		sou->active_implicit = true;
+		ld->num_implicit++;
 	}
-
-	if (!list_empty(&sou->active))
-		return 0;
-
-	at = &ld->active;
-	list_for_each_entry(entry, &ld->active, active) {
-		if (entry->base.unit > sou->base.unit)
-			break;
-
-		at = &entry->active;
-	}
-
-	list_add(&sou->active, at);
-
-	ld->num_active++;
-
-	return 0;
 }
 
 /**
@@ -164,8 +132,13 @@ static int vmw_sou_fifo_create(struct vmw_private *dev_priv,
 		(sou->base.unit == 0 ? SVGA_SCREEN_IS_PRIMARY : 0);
 	cmd->obj.size.width = mode->hdisplay;
 	cmd->obj.size.height = mode->vdisplay;
-	cmd->obj.root.x = x;
-	cmd->obj.root.y = y;
+	if (sou->base.is_implicit) {
+		cmd->obj.root.x = x;
+		cmd->obj.root.y = y;
+	} else {
+		cmd->obj.root.x = sou->base.gui_x;
+		cmd->obj.root.y = sou->base.gui_y;
+	}
 
 	/* Ok to assume that buffer is pinned in vram */
 	vmw_bo_get_guest_ptr(&sou->buffer->base, &cmd->obj.backingStore.ptr);
@@ -312,10 +285,11 @@ static int vmw_sou_crtc_set_config(struct drm_mode_set *set)
 	}
 
 	/* sou only supports one fb active at the time */
-	if (dev_priv->sou_priv->fb && vfb &&
-	    !(dev_priv->sou_priv->num_active == 1 &&
-	      !list_empty(&sou->active)) &&
-	    dev_priv->sou_priv->fb != vfb) {
+	if (sou->base.is_implicit &&
+	    dev_priv->sou_priv->implicit_fb && vfb &&
+	    !(dev_priv->sou_priv->num_implicit == 1 &&
+	      sou->active_implicit) &&
+	    dev_priv->sou_priv->implicit_fb != vfb) {
 		DRM_ERROR("Multiple framebuffers not supported\n");
 		return -EINVAL;
 	}
@@ -471,19 +445,20 @@ static int vmw_sou_init(struct vmw_private *dev_priv, unsigned unit)
 	encoder = &sou->base.encoder;
 	connector = &sou->base.connector;
 
-	INIT_LIST_HEAD(&sou->active);
+	sou->active_implicit = false;
 
 	sou->base.pref_active = (unit == 0);
 	sou->base.pref_width = 800;
 	sou->base.pref_height = 600;
 	sou->base.pref_mode = NULL;
+	sou->base.is_implicit = true;
 
 	drm_connector_init(dev, connector, &vmw_legacy_connector_funcs,
-			   DRM_MODE_CONNECTOR_LVDS);
+			   DRM_MODE_CONNECTOR_VIRTUAL);
 	connector->status = vmw_du_connector_detect(connector, true);
 
 	drm_encoder_init(dev, encoder, &vmw_screen_object_encoder_funcs,
-			 DRM_MODE_ENCODER_LVDS);
+			 DRM_MODE_ENCODER_VIRTUAL);
 	drm_mode_connector_attach_encoder(connector, encoder);
 	encoder->possible_crtcs = (1 << unit);
 	encoder->possible_clones = 0;
@@ -520,10 +495,8 @@ int vmw_kms_init_screen_object_display(struct vmw_private *dev_priv)
 	if (unlikely(!dev_priv->sou_priv))
 		goto err_no_mem;
 
-	INIT_LIST_HEAD(&dev_priv->sou_priv->active);
-	dev_priv->sou_priv->num_active = 0;
-	dev_priv->sou_priv->last_num_active = 0;
-	dev_priv->sou_priv->fb = NULL;
+	dev_priv->sou_priv->num_implicit = 0;
+	dev_priv->sou_priv->implicit_fb = NULL;
 
 	ret = drm_vblank_init(dev, VMWGFX_NUM_DISPLAY_UNITS);
 	if (unlikely(ret != 0))
@@ -557,9 +530,6 @@ int vmw_kms_close_screen_object_display(struct vmw_private *dev_priv)
 		return -ENOSYS;
 
 	drm_vblank_cleanup(dev);
-
-	if (!list_empty(&dev_priv->sou_priv->active))
-		DRM_ERROR("Still have active outputs when unloading driver");
 
 	kfree(dev_priv->sou_priv);
 

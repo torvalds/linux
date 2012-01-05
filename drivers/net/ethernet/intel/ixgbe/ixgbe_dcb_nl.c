@@ -561,11 +561,12 @@ static int ixgbe_dcbnl_ieee_getets(struct net_device *dev,
 	struct ixgbe_adapter *adapter = netdev_priv(dev);
 	struct ieee_ets *my_ets = adapter->ixgbe_ieee_ets;
 
+	ets->ets_cap = adapter->dcb_cfg.num_tcs.pg_tcs;
+
 	/* No IEEE PFC settings available */
 	if (!my_ets)
-		return -EINVAL;
+		return 0;
 
-	ets->ets_cap = adapter->dcb_cfg.num_tcs.pg_tcs;
 	ets->cbs = my_ets->cbs;
 	memcpy(ets->tc_tx_bw, my_ets->tc_tx_bw, sizeof(ets->tc_tx_bw));
 	memcpy(ets->tc_rx_bw, my_ets->tc_rx_bw, sizeof(ets->tc_rx_bw));
@@ -621,11 +622,12 @@ static int ixgbe_dcbnl_ieee_getpfc(struct net_device *dev,
 	struct ieee_pfc *my_pfc = adapter->ixgbe_ieee_pfc;
 	int i;
 
+	pfc->pfc_cap = adapter->dcb_cfg.num_tcs.pfc_tcs;
+
 	/* No IEEE PFC settings available */
 	if (!my_pfc)
-		return -EINVAL;
+		return 0;
 
-	pfc->pfc_cap = adapter->dcb_cfg.num_tcs.pfc_tcs;
 	pfc->pfc_en = my_pfc->pfc_en;
 	pfc->mbc = my_pfc->mbc;
 	pfc->delay = my_pfc->delay;

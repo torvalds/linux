@@ -34,6 +34,7 @@
 #include <linux/regulator/fixed.h>
 #include <linux/regulator/machine.h>
 #include <linux/mmc/host.h>
+#include <linux/export.h>
 
 #include <mach/hardware.h>
 #include <asm/mach-types.h>

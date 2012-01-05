@@ -7,7 +7,7 @@
  * it under the terms of the GNU General Public License version 2 as
  * published by the Free Software Foundation.
  */
-#include <linux/module.h>
+#include <linux/export.h>
 #include <linux/kernel.h>
 #include <linux/stddef.h>
 #include <linux/ioport.h>
@@ -461,8 +461,10 @@ static void __init setup_processor(void)
 	       cpu_name, read_cpuid_id(), read_cpuid_id() & 15,
 	       proc_arch[cpu_architecture()], cr_alignment);
 
-	sprintf(init_utsname()->machine, "%s%c", list->arch_name, ENDIANNESS);
-	sprintf(elf_platform, "%s%c", list->elf_name, ENDIANNESS);
+	snprintf(init_utsname()->machine, __NEW_UTS_LEN + 1, "%s%c",
+		 list->arch_name, ENDIANNESS);
+	snprintf(elf_platform, ELF_PLATFORM_SIZE, "%s%c",
+		 list->elf_name, ENDIANNESS);
 	elf_hwcap = list->elf_hwcap;
 #ifndef CONFIG_ARM_THUMB
 	elf_hwcap &= ~HWCAP_THUMB;

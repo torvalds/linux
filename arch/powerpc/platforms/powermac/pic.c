@@ -24,7 +24,6 @@
 #include <linux/syscore_ops.h>
 #include <linux/adb.h>
 #include <linux/pmu.h>
-#include <linux/module.h>
 
 #include <asm/sections.h>
 #include <asm/io.h>
@@ -273,7 +272,6 @@ static struct irqaction xmon_action = {
 
 static struct irqaction gatwick_cascade_action = {
 	.handler	= gatwick_action,
-	.flags		= IRQF_DISABLED,
 	.name		= "cascade",
 };
 

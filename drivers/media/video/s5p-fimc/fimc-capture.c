@@ -246,9 +246,9 @@ static unsigned int get_plane_size(struct fimc_frame *fr, unsigned int plane)
 	return fr->f_width * fr->f_height * fr->fmt->depth[plane] / 8;
 }
 
-static int queue_setup(struct vb2_queue *vq, unsigned int *num_buffers,
-		       unsigned int *num_planes, unsigned int sizes[],
-		       void *allocators[])
+static int queue_setup(struct vb2_queue *vq,  const struct v4l2_format *pfmt,
+		       unsigned int *num_buffers, unsigned int *num_planes,
+		       unsigned int sizes[], void *allocators[])
 {
 	struct fimc_ctx *ctx = vq->drv_priv;
 	struct fimc_fmt *fmt = ctx->d_frame.fmt;

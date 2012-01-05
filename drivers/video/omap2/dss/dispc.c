@@ -25,6 +25,7 @@
 #include <linux/kernel.h>
 #include <linux/dma-mapping.h>
 #include <linux/vmalloc.h>
+#include <linux/export.h>
 #include <linux/clk.h>
 #include <linux/io.h>
 #include <linux/jiffies.h>
@@ -1719,12 +1720,11 @@ static int dispc_ovl_calc_scaling(enum omap_plane plane,
 	const int maxdownscale = dss_feat_get_param_max(FEAT_PARAM_DOWNSCALE);
 	unsigned long fclk = 0;
 
-	if ((ovl->caps & OMAP_DSS_OVL_CAP_SCALE) == 0) {
-		if (width != out_width || height != out_height)
-			return -EINVAL;
-		else
-			return 0;
-	}
+	if (width == out_width && height == out_height)
+		return 0;
+
+	if ((ovl->caps & OMAP_DSS_OVL_CAP_SCALE) == 0)
+		return -EINVAL;
 
 	if (out_width < width / maxdownscale ||
 			out_width > width * 8)

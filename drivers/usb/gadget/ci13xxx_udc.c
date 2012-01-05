@@ -71,6 +71,9 @@
 /******************************************************************************
  * DEFINE
  *****************************************************************************/
+
+#define DMA_ADDR_INVALID	(~(dma_addr_t)0)
+
 /* ctrl register bank access */
 static DEFINE_SPINLOCK(udc_lock);
 
@@ -1434,7 +1437,7 @@ static int _hardware_enqueue(struct ci13xxx_ep *mEp, struct ci13xxx_req *mReq)
 		return -EALREADY;
 
 	mReq->req.status = -EALREADY;
-	if (length && !mReq->req.dma) {
+	if (length && mReq->req.dma == DMA_ADDR_INVALID) {
 		mReq->req.dma = \
 			dma_map_single(mEp->device, mReq->req.buf,
 				       length, mEp->dir ? DMA_TO_DEVICE :
@@ -1453,7 +1456,7 @@ static int _hardware_enqueue(struct ci13xxx_ep *mEp, struct ci13xxx_req *mReq)
 				dma_unmap_single(mEp->device, mReq->req.dma,
 					length, mEp->dir ? DMA_TO_DEVICE :
 					DMA_FROM_DEVICE);
-				mReq->req.dma = 0;
+				mReq->req.dma = DMA_ADDR_INVALID;
 				mReq->map     = 0;
 			}
 			return -ENOMEM;
@@ -1549,7 +1552,7 @@ static int _hardware_dequeue(struct ci13xxx_ep *mEp, struct ci13xxx_req *mReq)
 	if (mReq->map) {
 		dma_unmap_single(mEp->device, mReq->req.dma, mReq->req.length,
 				 mEp->dir ? DMA_TO_DEVICE : DMA_FROM_DEVICE);
-		mReq->req.dma = 0;
+		mReq->req.dma = DMA_ADDR_INVALID;
 		mReq->map     = 0;
 	}
 
@@ -1610,7 +1613,6 @@ __acquires(mEp->lock)
  * @gadget: gadget
  *
  * This function returns an error code
- * Caller must hold lock
  */
 static int _gadget_stop_activity(struct usb_gadget *gadget)
 {
@@ -2189,6 +2191,7 @@ static struct usb_request *ep_alloc_request(struct usb_ep *ep, gfp_t gfp_flags)
 	mReq = kzalloc(sizeof(struct ci13xxx_req), gfp_flags);
 	if (mReq != NULL) {
 		INIT_LIST_HEAD(&mReq->queue);
+		mReq->req.dma = DMA_ADDR_INVALID;
 
 		mReq->ptr = dma_pool_alloc(mEp->td_pool, gfp_flags,
 					   &mReq->dma);
@@ -2328,7 +2331,7 @@ static int ep_dequeue(struct usb_ep *ep, struct usb_request *req)
 	if (mReq->map) {
 		dma_unmap_single(mEp->device, mReq->req.dma, mReq->req.length,
 				 mEp->dir ? DMA_TO_DEVICE : DMA_FROM_DEVICE);
-		mReq->req.dma = 0;
+		mReq->req.dma = DMA_ADDR_INVALID;
 		mReq->map     = 0;
 	}
 	req->status = -ECONNRESET;
@@ -2500,12 +2503,12 @@ static int ci13xxx_wakeup(struct usb_gadget *_gadget)
 	spin_lock_irqsave(udc->lock, flags);
 	if (!udc->remote_wakeup) {
 		ret = -EOPNOTSUPP;
-		dbg_trace("remote wakeup feature is not enabled\n");
+		trace("remote wakeup feature is not enabled\n");
 		goto out;
 	}
 	if (!hw_cread(CAP_PORTSC, PORTSC_SUSP)) {
 		ret = -EINVAL;
-		dbg_trace("port is not suspended\n");
+		trace("port is not suspended\n");
 		goto out;
 	}
 	hw_cwrite(CAP_PORTSC, PORTSC_FPR, PORTSC_FPR);
@@ -2703,7 +2706,9 @@ static int ci13xxx_stop(struct usb_gadget_driver *driver)
 		if (udc->udc_driver->notify_event)
 			udc->udc_driver->notify_event(udc,
 			CI13XXX_CONTROLLER_STOPPED_EVENT);
+		spin_unlock_irqrestore(udc->lock, flags);
 		_gadget_stop_activity(&udc->gadget);
+		spin_lock_irqsave(udc->lock, flags);
 		pm_runtime_put(&udc->gadget.dev);
 	}
 
@@ -2850,7 +2855,7 @@ static int udc_probe(struct ci13xxx_udc_driver *driver, struct device *dev,
 	struct ci13xxx *udc;
 	int retval = 0;
 
-	trace("%p, %p, %p", dev, regs, name);
+	trace("%p, %p, %p", dev, regs, driver->name);
 
 	if (dev == NULL || regs == NULL || driver == NULL ||
 			driver->name == NULL)

@@ -3345,34 +3345,25 @@ static void ixgbe_configure_dcb(struct ixgbe_adapter *adapter)
 
 	hw->mac.ops.set_vfta(&adapter->hw, 0, 0, true);
 
+#ifdef IXGBE_FCOE
+	if (adapter->netdev->features & NETIF_F_FCOE_MTU)
+		max_frame = max(max_frame, IXGBE_FCOE_JUMBO_FRAME_SIZE);
+#endif
+
 	/* reconfigure the hardware */
 	if (adapter->dcbx_cap & DCB_CAP_DCBX_VER_CEE) {
-#ifdef IXGBE_FCOE
-		if (adapter->netdev->features & NETIF_F_FCOE_MTU)
-			max_frame = max(max_frame, IXGBE_FCOE_JUMBO_FRAME_SIZE);
-#endif
 		ixgbe_dcb_calculate_tc_credits(hw, &adapter->dcb_cfg, max_frame,
 						DCB_TX_CONFIG);
 		ixgbe_dcb_calculate_tc_credits(hw, &adapter->dcb_cfg, max_frame,
 						DCB_RX_CONFIG);
 		ixgbe_dcb_hw_config(hw, &adapter->dcb_cfg);
-	} else {
-		struct net_device *dev = adapter->netdev;
-
-		if (adapter->ixgbe_ieee_ets) {
-			struct ieee_ets *ets = adapter->ixgbe_ieee_ets;
-			int max_frame = dev->mtu + ETH_HLEN + ETH_FCS_LEN;
-
-			ixgbe_dcb_hw_ets(&adapter->hw, ets, max_frame);
-		}
-
-		if (adapter->ixgbe_ieee_pfc) {
-			struct ieee_pfc *pfc = adapter->ixgbe_ieee_pfc;
-			u8 *prio_tc = adapter->ixgbe_ieee_ets->prio_tc;
-
-			ixgbe_dcb_hw_pfc_config(&adapter->hw, pfc->pfc_en,
-						prio_tc);
-		}
+	} else if (adapter->ixgbe_ieee_ets && adapter->ixgbe_ieee_pfc) {
+		ixgbe_dcb_hw_ets(&adapter->hw,
+				 adapter->ixgbe_ieee_ets,
+				 max_frame);
+		ixgbe_dcb_hw_pfc_config(&adapter->hw,
+					adapter->ixgbe_ieee_pfc->pfc_en,
+					adapter->ixgbe_ieee_ets->prio_tc);
 	}
 
 	/* Enable RSS Hash per TC */
@@ -6125,7 +6116,6 @@ static void ixgbe_sfp_link_config_subtask(struct ixgbe_adapter *adapter)
 	autoneg = hw->phy.autoneg_advertised;
 	if ((!autoneg) && (hw->mac.ops.get_link_capabilities))
 		hw->mac.ops.get_link_capabilities(hw, &autoneg, &negotiation);
-	hw->mac.autotry_restart = false;
 	if (hw->mac.ops.setup_link)
 		hw->mac.ops.setup_link(hw, autoneg, negotiation, true);
 
@@ -7589,13 +7579,6 @@ static int __devinit ixgbe_probe(struct pci_dev *pdev,
 		goto err_eeprom;
 	}
 
-	/* power down the optics for multispeed fiber and 82599 SFP+ fiber */
-	if (hw->mac.ops.disable_tx_laser &&
-	    ((hw->phy.multispeed_fiber) ||
-	     ((hw->mac.ops.get_media_type(hw) == ixgbe_media_type_fiber) &&
-	      (hw->mac.type == ixgbe_mac_82599EB))))
-		hw->mac.ops.disable_tx_laser(hw);
-
 	setup_timer(&adapter->service_timer, &ixgbe_service_timer,
 	            (unsigned long) adapter);
 
@@ -7692,6 +7675,13 @@ static int __devinit ixgbe_probe(struct pci_dev *pdev,
 	err = register_netdev(netdev);
 	if (err)
 		goto err_register;
+
+	/* power down the optics for multispeed fiber and 82599 SFP+ fiber */
+	if (hw->mac.ops.disable_tx_laser &&
+	    ((hw->phy.multispeed_fiber) ||
+	     ((hw->mac.ops.get_media_type(hw) == ixgbe_media_type_fiber) &&
+	      (hw->mac.type == ixgbe_mac_82599EB))))
+		hw->mac.ops.disable_tx_laser(hw);
 
 	/* carrier off reporting is important to ethtool even BEFORE open */
 	netif_carrier_off(netdev);

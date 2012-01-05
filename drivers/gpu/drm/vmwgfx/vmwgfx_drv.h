@@ -40,9 +40,9 @@
 #include "ttm/ttm_module.h"
 #include "vmwgfx_fence.h"
 
-#define VMWGFX_DRIVER_DATE "20111008"
+#define VMWGFX_DRIVER_DATE "20111025"
 #define VMWGFX_DRIVER_MAJOR 2
-#define VMWGFX_DRIVER_MINOR 2
+#define VMWGFX_DRIVER_MINOR 3
 #define VMWGFX_DRIVER_PATCHLEVEL 0
 #define VMWGFX_FILE_PAGE_OFFSET 0x00100000
 #define VMWGFX_FIFO_STATIC_SIZE (1024*1024)
@@ -633,6 +633,8 @@ int vmw_kms_readback(struct vmw_private *dev_priv,
 		     struct drm_vmw_fence_rep __user *user_fence_rep,
 		     struct drm_vmw_rect *clips,
 		     uint32_t num_clips);
+int vmw_kms_update_layout_ioctl(struct drm_device *dev, void *data,
+				struct drm_file *file_priv);
 
 /**
  * Overlay control - vmwgfx_overlay.c

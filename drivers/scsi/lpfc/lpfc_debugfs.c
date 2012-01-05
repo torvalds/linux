@@ -20,6 +20,7 @@
 
 #include <linux/blkdev.h>
 #include <linux/delay.h>
+#include <linux/module.h>
 #include <linux/dma-mapping.h>
 #include <linux/idr.h>
 #include <linux/interrupt.h>

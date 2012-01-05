@@ -21,7 +21,7 @@
 #include <linux/timex.h>
 #include <linux/smp.h>
 #include <linux/spinlock.h>
-#include <linux/module.h>
+#include <linux/export.h>
 
 #include <asm/cpu-features.h>
 #include <asm/div64.h>

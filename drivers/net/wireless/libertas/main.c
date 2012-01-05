@@ -6,7 +6,7 @@
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
-#include <linux/moduleparam.h>
+#include <linux/module.h>
 #include <linux/delay.h>
 #include <linux/etherdevice.h>
 #include <linux/hardirq.h>
@@ -255,10 +255,8 @@ static int lbs_eth_stop(struct net_device *dev)
 
 	lbs_update_mcast(priv);
 	cancel_delayed_work_sync(&priv->scan_work);
-	if (priv->scan_req) {
-		cfg80211_scan_done(priv->scan_req, false);
-		priv->scan_req = NULL;
-	}
+	if (priv->scan_req)
+		lbs_scan_done(priv);
 
 	netif_carrier_off(priv->dev);
 

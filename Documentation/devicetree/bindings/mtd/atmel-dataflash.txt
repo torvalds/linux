@@ -1,0 +1,14 @@
+* Atmel Data Flash
+
+Required properties:
+- compatible : "atmel,<model>", "atmel,<series>", "atmel,dataflash".
+
+Example:
+
+flash@1 {
+	#address-cells = <1>;
+	#size-cells = <1>;
+	compatible = "atmel,at45db321d", "atmel,at45", "atmel,dataflash";
+	spi-max-frequency = <25000000>;
+	reg = <1>;
+};

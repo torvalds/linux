@@ -41,7 +41,7 @@ struct s3c24xx_dma_selection {
 
 	void	(*direction)(struct s3c2410_dma_chan *chan,
 			     struct s3c24xx_dma_map *map,
-			     enum s3c2410_dmasrc dir);
+			     enum dma_data_direction dir);
 };
 
 extern int s3c24xx_dma_init_map(struct s3c24xx_dma_selection *sel);

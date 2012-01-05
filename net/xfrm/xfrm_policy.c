@@ -2382,9 +2382,11 @@ static unsigned int xfrm_default_advmss(const struct dst_entry *dst)
 	return dst_metric_advmss(dst->path);
 }
 
-static unsigned int xfrm_default_mtu(const struct dst_entry *dst)
+static unsigned int xfrm_mtu(const struct dst_entry *dst)
 {
-	return dst_mtu(dst->path);
+	unsigned int mtu = dst_metric_raw(dst, RTAX_MTU);
+
+	return mtu ? : dst_mtu(dst->path);
 }
 
 static struct neighbour *xfrm_neigh_lookup(const struct dst_entry *dst, const void *daddr)
@@ -2411,8 +2413,8 @@ int xfrm_policy_register_afinfo(struct xfrm_policy_afinfo *afinfo)
 			dst_ops->check = xfrm_dst_check;
 		if (likely(dst_ops->default_advmss == NULL))
 			dst_ops->default_advmss = xfrm_default_advmss;
-		if (likely(dst_ops->default_mtu == NULL))
-			dst_ops->default_mtu = xfrm_default_mtu;
+		if (likely(dst_ops->mtu == NULL))
+			dst_ops->mtu = xfrm_mtu;
 		if (likely(dst_ops->negative_advice == NULL))
 			dst_ops->negative_advice = xfrm_negative_advice;
 		if (likely(dst_ops->link_failure == NULL))

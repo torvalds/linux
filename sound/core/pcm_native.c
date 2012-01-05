@@ -20,6 +20,7 @@
  */
 
 #include <linux/mm.h>
+#include <linux/module.h>
 #include <linux/file.h>
 #include <linux/slab.h>
 #include <linux/time.h>

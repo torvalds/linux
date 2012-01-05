@@ -29,6 +29,7 @@
 #include <linux/slab.h>
 #include <linux/pci.h>
 #include <linux/dmi.h>
+#include <linux/module.h>
 #include <sound/core.h>
 #include <sound/asoundef.h>
 #include <sound/jack.h>
@@ -94,6 +95,7 @@ enum {
 	STAC_92HD83XXX_REF,
 	STAC_92HD83XXX_PWR_REF,
 	STAC_DELL_S14,
+	STAC_DELL_VOSTRO_3500,
 	STAC_92HD83XXX_HP,
 	STAC_92HD83XXX_HP_cNB11_INTQUAD,
 	STAC_HP_DV7_4000,
@@ -225,7 +227,6 @@ struct sigmatel_spec {
 
 	/* power management */
 	unsigned int num_pwrs;
-	const unsigned int *pwr_mapping;
 	const hda_nid_t *pwr_nids;
 	const hda_nid_t *dac_list;
 
@@ -372,16 +373,13 @@ static const unsigned long stac92hd73xx_capvols[] = {
 
 #define STAC92HD83_DAC_COUNT 3
 
-static const hda_nid_t stac92hd83xxx_pwr_nids[4] = {
-	0xa, 0xb, 0xd, 0xe,
+static const hda_nid_t stac92hd83xxx_pwr_nids[7] = {
+	0x0a, 0x0b, 0x0c, 0xd, 0x0e,
+	0x0f, 0x10
 };
 
 static const hda_nid_t stac92hd83xxx_slave_dig_outs[2] = {
 	0x1e, 0,
-};
-
-static const unsigned int stac92hd83xxx_pwr_mapping[4] = {
-	0x03, 0x0c, 0x20, 0x40,
 };
 
 static const hda_nid_t stac92hd83xxx_dmic_nids[] = {
@@ -1643,6 +1641,8 @@ static const struct snd_pci_quirk stac92hd73xx_codec_id_cfg_tbl[] = {
 		      "Alienware M17x", STAC_ALIENWARE_M17X),
 	SND_PCI_QUIRK(PCI_VENDOR_ID_DELL, 0x043a,
 		      "Alienware M17x", STAC_ALIENWARE_M17X),
+	SND_PCI_QUIRK(PCI_VENDOR_ID_DELL, 0x0490,
+		      "Alienware M17x", STAC_ALIENWARE_M17X),
 	{} /* terminator */
 };
 
@@ -1656,6 +1656,12 @@ static const unsigned int dell_s14_pin_configs[10] = {
 	0x0221403f, 0x0221101f, 0x02a19020, 0x90170110,
 	0x40f000f0, 0x40f000f0, 0x40f000f0, 0x90a60160,
 	0x40f000f0, 0x40f000f0,
+};
+
+static const unsigned int dell_vostro_3500_pin_configs[10] = {
+	0x02a11020, 0x0221101f, 0x400000f0, 0x90170110,
+	0x400000f1, 0x400000f2, 0x400000f3, 0x90a60160,
+	0x400000f4, 0x400000f5,
 };
 
 static const unsigned int hp_dv7_4000_pin_configs[10] = {
@@ -1674,6 +1680,7 @@ static const unsigned int *stac92hd83xxx_brd_tbl[STAC_92HD83XXX_MODELS] = {
 	[STAC_92HD83XXX_REF] = ref92hd83xxx_pin_configs,
 	[STAC_92HD83XXX_PWR_REF] = ref92hd83xxx_pin_configs,
 	[STAC_DELL_S14] = dell_s14_pin_configs,
+	[STAC_DELL_VOSTRO_3500] = dell_vostro_3500_pin_configs,
 	[STAC_92HD83XXX_HP_cNB11_INTQUAD] = hp_cNB11_intquad_pin_configs,
 	[STAC_HP_DV7_4000] = hp_dv7_4000_pin_configs,
 };
@@ -1683,6 +1690,7 @@ static const char * const stac92hd83xxx_models[STAC_92HD83XXX_MODELS] = {
 	[STAC_92HD83XXX_REF] = "ref",
 	[STAC_92HD83XXX_PWR_REF] = "mic-ref",
 	[STAC_DELL_S14] = "dell-s14",
+	[STAC_DELL_VOSTRO_3500] = "dell-vostro-3500",
 	[STAC_92HD83XXX_HP] = "hp",
 	[STAC_92HD83XXX_HP_cNB11_INTQUAD] = "hp_cNB11_intquad",
 	[STAC_HP_DV7_4000] = "hp-dv7-4000",
@@ -1696,6 +1704,8 @@ static const struct snd_pci_quirk stac92hd83xxx_cfg_tbl[] = {
 		      "DFI LanParty", STAC_92HD83XXX_REF),
 	SND_PCI_QUIRK(PCI_VENDOR_ID_DELL, 0x02ba,
 		      "unknown Dell", STAC_DELL_S14),
+	SND_PCI_QUIRK(PCI_VENDOR_ID_DELL, 0x1028,
+		      "Dell Vostro 3500", STAC_DELL_VOSTRO_3500),
 	SND_PCI_QUIRK_MASK(PCI_VENDOR_ID_HP, 0xff00, 0x3600,
 			  "HP", STAC_92HD83XXX_HP),
 	SND_PCI_QUIRK(PCI_VENDOR_ID_HP, 0x1656,
@@ -3791,9 +3801,10 @@ static int is_dual_headphones(struct hda_codec *codec)
 }
 
 
-static int stac92xx_parse_auto_config(struct hda_codec *codec, hda_nid_t dig_out, hda_nid_t dig_in)
+static int stac92xx_parse_auto_config(struct hda_codec *codec)
 {
 	struct sigmatel_spec *spec = codec->spec;
+	hda_nid_t dig_out = 0, dig_in = 0;
 	int hp_swap = 0;
 	int i, err;
 
@@ -3976,6 +3987,22 @@ static int stac92xx_parse_auto_config(struct hda_codec *codec, hda_nid_t dig_out
 	if (spec->multiout.max_channels > 2)
 		spec->surr_switch = 1;
 
+	/* find digital out and in converters */
+	for (i = codec->start_nid; i < codec->start_nid + codec->num_nodes; i++) {
+		unsigned int wid_caps = get_wcaps(codec, i);
+		if (wid_caps & AC_WCAP_DIGITAL) {
+			switch (get_wcaps_type(wid_caps)) {
+			case AC_WID_AUD_OUT:
+				if (!dig_out)
+					dig_out = i;
+				break;
+			case AC_WID_AUD_IN:
+				if (!dig_in)
+					dig_in = i;
+				break;
+			}
+		}
+	}
 	if (spec->autocfg.dig_outs)
 		spec->multiout.dig_out_nid = dig_out;
 	if (dig_in && spec->autocfg.dig_in_pin)
@@ -4414,7 +4441,9 @@ static int stac92xx_init(struct hda_codec *codec)
 		int pinctl, def_conf;
 
 		/* power on when no jack detection is available */
-		if (!spec->hp_detect) {
+		/* or when the VREF is used for controlling LED */
+		if (!spec->hp_detect ||
+		    (spec->gpio_led > 8 && spec->gpio_led == nid)) {
 			stac_toggle_power_map(codec, nid, 1);
 			continue;
 		}
@@ -4441,8 +4470,12 @@ static int stac92xx_init(struct hda_codec *codec)
 				stac_toggle_power_map(codec, nid, 1);
 			continue;
 		}
-		if (enable_pin_detect(codec, nid, STAC_PWR_EVENT))
+		if (enable_pin_detect(codec, nid, STAC_PWR_EVENT)) {
 			stac_issue_unsol_event(codec, nid);
+			continue;
+		}
+		/* none of the above, turn the port OFF */
+		stac_toggle_power_map(codec, nid, 0);
 	}
 
 	/* sync mute LED */
@@ -4698,11 +4731,7 @@ static void stac_toggle_power_map(struct hda_codec *codec, hda_nid_t nid,
 	if (idx >= spec->num_pwrs)
 		return;
 
-	/* several codecs have two power down bits */
-	if (spec->pwr_mapping)
-		idx = spec->pwr_mapping[idx];
-	else
-		idx = 1 << idx;
+	idx = 1 << idx;
 
 	val = snd_hda_codec_read(codec, codec->afg, 0, 0x0fec, 0x0) & 0xff;
 	if (enable)
@@ -5028,20 +5057,6 @@ static int stac92xx_pre_resume(struct hda_codec *codec)
 	return 0;
 }
 
-static int stac92xx_post_suspend(struct hda_codec *codec)
-{
-	struct sigmatel_spec *spec = codec->spec;
-	if (spec->gpio_led > 8) {
-		/* with vref-out pin used for mute led control
-		 * codec AFG is prevented from D3 state, but on
-		 * system suspend it can (and should) be used
-		 */
-		snd_hda_codec_read(codec, codec->afg, 0,
-				AC_VERB_SET_POWER_STATE, AC_PWRST_D3);
-	}
-	return 0;
-}
-
 static void stac92xx_set_power_state(struct hda_codec *codec, hda_nid_t fg,
 				unsigned int power_state)
 {
@@ -5279,7 +5294,7 @@ static int patch_stac925x(struct hda_codec *codec)
 	spec->capvols = stac925x_capvols;
 	spec->capsws = stac925x_capsws;
 
-	err = stac92xx_parse_auto_config(codec, 0x8, 0x7);
+	err = stac92xx_parse_auto_config(codec);
 	if (!err) {
 		if (spec->board_config < 0) {
 			printk(KERN_WARNING "hda_codec: No auto-config is "
@@ -5420,7 +5435,7 @@ again:
 	spec->num_pwrs = ARRAY_SIZE(stac92hd73xx_pwr_nids);
 	spec->pwr_nids = stac92hd73xx_pwr_nids;
 
-	err = stac92xx_parse_auto_config(codec, 0x25, 0x27);
+	err = stac92xx_parse_auto_config(codec);
 
 	if (!err) {
 		if (spec->board_config < 0) {
@@ -5600,9 +5615,6 @@ static int patch_stac92hd83xxx(struct hda_codec *codec)
 		snd_hda_codec_set_pincfg(codec, 0xf, 0x2181205e);
 	}
 
-	/* reset pin power-down; Windows may leave these bits after reboot */
-	snd_hda_codec_write_cache(codec, codec->afg, 0, 0x7EC, 0);
-	snd_hda_codec_write_cache(codec, codec->afg, 0, 0x7ED, 0);
 	codec->no_trigger_sense = 1;
 	codec->spec = spec;
 
@@ -5612,7 +5624,6 @@ static int patch_stac92hd83xxx(struct hda_codec *codec)
 	codec->slave_dig_outs = stac92hd83xxx_slave_dig_outs;
 	spec->digbeep_nid = 0x21;
 	spec->pwr_nids = stac92hd83xxx_pwr_nids;
-	spec->pwr_mapping = stac92hd83xxx_pwr_mapping;
 	spec->num_pwrs = ARRAY_SIZE(stac92hd83xxx_pwr_nids);
 	spec->multiout.dac_nids = spec->dac_nids;
 	spec->init = stac92hd83xxx_core_init;
@@ -5628,27 +5639,6 @@ again:
 	else
 		stac92xx_set_config_regs(codec,
 				stac92hd83xxx_brd_tbl[spec->board_config]);
-
-	switch (codec->vendor_id) {
-	case 0x111d76d1:
-	case 0x111d76d9:
-	case 0x111d76df:
-	case 0x111d76e5:
-	case 0x111d7666:
-	case 0x111d7667:
-	case 0x111d7668:
-	case 0x111d7669:
-	case 0x111d76e3:
-	case 0x111d7604:
-	case 0x111d76d4:
-	case 0x111d7605:
-	case 0x111d76d5:
-	case 0x111d76e7:
-		if (spec->board_config == STAC_92HD83XXX_PWR_REF)
-			break;
-		spec->num_pwrs = 0;
-		break;
-	}
 
 	codec->patch_ops = stac92xx_patch_ops;
 
@@ -5666,8 +5656,6 @@ again:
 		} else {
 			codec->patch_ops.set_power_state =
 					stac92xx_set_power_state;
-			codec->patch_ops.post_suspend =
-					stac92xx_post_suspend;
 		}
 		codec->patch_ops.pre_resume = stac92xx_pre_resume;
 		codec->patch_ops.check_power_status =
@@ -5675,7 +5663,7 @@ again:
 	}
 #endif	
 
-	err = stac92xx_parse_auto_config(codec, 0x1d, 0);
+	err = stac92xx_parse_auto_config(codec);
 	if (!err) {
 		if (spec->board_config < 0) {
 			printk(KERN_WARNING "hda_codec: No auto-config is "
@@ -5858,8 +5846,6 @@ again:
 		    (codec->revision_id & 0xf) == 1)
 			spec->stream_delay = 40; /* 40 milliseconds */
 
-		/* no output amps */
-		spec->num_pwrs = 0;
 		/* disable VSW */
 		spec->init = stac92hd71bxx_core_init;
 		unmute_init++;
@@ -5874,8 +5860,6 @@ again:
 		if ((codec->revision_id & 0xf) == 1)
 			spec->stream_delay = 40; /* 40 milliseconds */
 
-		/* no output amps */
-		spec->num_pwrs = 0;
 		/* fallthru */
 	default:
 		spec->init = stac92hd71bxx_core_init;
@@ -5985,8 +5969,6 @@ again:
 		} else {
 			codec->patch_ops.set_power_state =
 					stac92xx_set_power_state;
-			codec->patch_ops.post_suspend =
-					stac92xx_post_suspend;
 		}
 		codec->patch_ops.pre_resume = stac92xx_pre_resume;
 		codec->patch_ops.check_power_status =
@@ -5996,7 +5978,7 @@ again:
 
 	spec->multiout.dac_nids = spec->dac_nids;
 
-	err = stac92xx_parse_auto_config(codec, 0x21, 0);
+	err = stac92xx_parse_auto_config(codec);
 	if (!err) {
 		if (spec->board_config < 0) {
 			printk(KERN_WARNING "hda_codec: No auto-config is "
@@ -6105,7 +6087,7 @@ static int patch_stac922x(struct hda_codec *codec)
 
 	spec->multiout.dac_nids = spec->dac_nids;
 	
-	err = stac92xx_parse_auto_config(codec, 0x08, 0x09);
+	err = stac92xx_parse_auto_config(codec);
 	if (!err) {
 		if (spec->board_config < 0) {
 			printk(KERN_WARNING "hda_codec: No auto-config is "
@@ -6230,7 +6212,7 @@ static int patch_stac927x(struct hda_codec *codec)
 	spec->aloopback_shift = 0;
 	spec->eapd_switch = 1;
 
-	err = stac92xx_parse_auto_config(codec, 0x1e, 0x20);
+	err = stac92xx_parse_auto_config(codec);
 	if (!err) {
 		if (spec->board_config < 0) {
 			printk(KERN_WARNING "hda_codec: No auto-config is "
@@ -6355,7 +6337,7 @@ static int patch_stac9205(struct hda_codec *codec)
 		break;
 	}
 
-	err = stac92xx_parse_auto_config(codec, 0x1f, 0x20);
+	err = stac92xx_parse_auto_config(codec);
 	if (!err) {
 		if (spec->board_config < 0) {
 			printk(KERN_WARNING "hda_codec: No auto-config is "
@@ -6460,7 +6442,7 @@ static int patch_stac9872(struct hda_codec *codec)
 	spec->capvols = stac9872_capvols;
 	spec->capsws = stac9872_capsws;
 
-	err = stac92xx_parse_auto_config(codec, 0x10, 0x12);
+	err = stac92xx_parse_auto_config(codec);
 	if (err < 0) {
 		stac92xx_free(codec);
 		return -EINVAL;
@@ -6565,6 +6547,18 @@ static const struct hda_codec_preset snd_hda_preset_sigmatel[] = {
 	{ .id = 0x111d76e3, .name = "92HD98BXX", .patch = patch_stac92hd83xxx},
 	{ .id = 0x111d76e5, .name = "92HD99BXX", .patch = patch_stac92hd83xxx},
 	{ .id = 0x111d76e7, .name = "92HD90BXX", .patch = patch_stac92hd83xxx},
+	{ .id = 0x111d76e8, .name = "92HD66B1X5", .patch = patch_stac92hd83xxx},
+	{ .id = 0x111d76e9, .name = "92HD66B2X5", .patch = patch_stac92hd83xxx},
+	{ .id = 0x111d76ea, .name = "92HD66B3X5", .patch = patch_stac92hd83xxx},
+	{ .id = 0x111d76eb, .name = "92HD66C1X5", .patch = patch_stac92hd83xxx},
+	{ .id = 0x111d76ec, .name = "92HD66C2X5", .patch = patch_stac92hd83xxx},
+	{ .id = 0x111d76ed, .name = "92HD66C3X5", .patch = patch_stac92hd83xxx},
+	{ .id = 0x111d76ee, .name = "92HD66B1X3", .patch = patch_stac92hd83xxx},
+	{ .id = 0x111d76ef, .name = "92HD66B2X3", .patch = patch_stac92hd83xxx},
+	{ .id = 0x111d76f0, .name = "92HD66B3X3", .patch = patch_stac92hd83xxx},
+	{ .id = 0x111d76f1, .name = "92HD66C1X3", .patch = patch_stac92hd83xxx},
+	{ .id = 0x111d76f2, .name = "92HD66C2X3", .patch = patch_stac92hd83xxx},
+	{ .id = 0x111d76f3, .name = "92HD66C3/65", .patch = patch_stac92hd83xxx},
 	{} /* terminator */
 };
 

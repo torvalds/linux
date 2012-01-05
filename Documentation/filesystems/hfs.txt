@@ -1,3 +1,4 @@
+Note: This filesystem doesn't have a maintainer.
 
 Macintosh HFS Filesystem for Linux
 ==================================
@@ -76,8 +77,6 @@ hformat that can be used to create HFS filesystem. See
 Credits
 =======
 
-The HFS drivers was written by Paul H. Hargrovea (hargrove@sccm.Stanford.EDU)
-and is now maintained by Roman Zippel (roman@ardistech.com) at Ardis
-Technologies.
-Roman rewrote large parts of the code and brought in btree routines derived
-from Brad Boyer's hfsplus driver (also maintained by Roman now).
+The HFS drivers was written by Paul H. Hargrovea (hargrove@sccm.Stanford.EDU).
+Roman Zippel (roman@ardistech.com) rewrote large parts of the code and brought
+in btree routines derived from Brad Boyer's hfsplus driver.

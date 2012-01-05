@@ -27,6 +27,7 @@
  *
  */
 #include <linux/platform_device.h>
+#include <linux/module.h>
 #include <linux/nfc.h>
 #include <net/nfc/nci.h>
 #include <net/nfc/nci_core.h>

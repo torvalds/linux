@@ -595,6 +595,7 @@ config ARCH_MMP
 	select TICK_ONESHOT
 	select PLAT_PXA
 	select SPARSE_IRQ
+	select GENERIC_ALLOCATOR
 	help
 	  Support for Marvell's PXA168/PXA910(MMP) and MMP2 processor line.
 
@@ -769,6 +770,7 @@ config ARCH_S3C64XX
 	select CPU_V6
 	select ARM_VIC
 	select HAVE_CLK
+	select HAVE_TCM
 	select CLKDEV_LOOKUP
 	select NO_IOPORT
 	select ARCH_USES_GETTIMEOFFSET
@@ -777,9 +779,6 @@ config ARCH_S3C64XX
 	select SAMSUNG_CLKSRC
 	select SAMSUNG_IRQ_VIC_TIMER
 	select S3C_GPIO_TRACK
-	select S3C_GPIO_PULL_UPDOWN
-	select S3C_GPIO_CFG_S3C24XX
-	select S3C_GPIO_CFG_S3C64XX
 	select S3C_DEV_NAND
 	select USB_ARCH_HAS_OHCI
 	select SAMSUNG_GPIOLIB_4BIT
@@ -838,8 +837,8 @@ config ARCH_S5PV210
 	help
 	  Samsung S5PV210/S5PC110 series based systems
 
-config ARCH_EXYNOS4
-	bool "Samsung EXYNOS4"
+config ARCH_EXYNOS
+	bool "SAMSUNG EXYNOS"
 	select CPU_V7
 	select ARCH_SPARSEMEM_ENABLE
 	select ARCH_HAS_HOLES_MEMORYMODEL
@@ -853,7 +852,7 @@ config ARCH_EXYNOS4
 	select HAVE_S3C2410_WATCHDOG if WATCHDOG
 	select NEED_MACH_MEMORY_H
 	help
-	  Samsung EXYNOS4 series based systems
+	  Support for SAMSUNG's EXYNOS SoCs (EXYNOS4/5)
 
 config ARCH_SHARK
 	bool "Shark"
@@ -1080,7 +1079,7 @@ source "arch/arm/mach-s5pc100/Kconfig"
 
 source "arch/arm/mach-s5pv210/Kconfig"
 
-source "arch/arm/mach-exynos4/Kconfig"
+source "arch/arm/mach-exynos/Kconfig"
 
 source "arch/arm/mach-shmobile/Kconfig"
 
@@ -1232,7 +1231,7 @@ config ARM_ERRATA_742231
 	  capabilities of the processor.
 
 config PL310_ERRATA_588369
-	bool "Clean & Invalidate maintenance operations do not invalidate clean lines"
+	bool "PL310 errata: Clean & Invalidate maintenance operations do not invalidate clean lines"
 	depends on CACHE_L2X0
 	help
 	   The PL310 L2 cache controller implements three types of Clean &
@@ -1257,7 +1256,7 @@ config ARM_ERRATA_720789
 	  entries regardless of the ASID.
 
 config PL310_ERRATA_727915
-	bool "Background Clean & Invalidate by Way operation can cause data corruption"
+	bool "PL310 errata: Background Clean & Invalidate by Way operation can cause data corruption"
 	depends on CACHE_L2X0
 	help
 	  PL310 implements the Clean & Invalidate by Way L2 cache maintenance
@@ -1290,8 +1289,8 @@ config ARM_ERRATA_751472
 	  operation is received by a CPU before the ICIALLUIS has completed,
 	  potentially leading to corrupted entries in the cache or TLB.
 
-config ARM_ERRATA_753970
-	bool "ARM errata: cache sync operation may be faulty"
+config PL310_ERRATA_753970
+	bool "PL310 errata: cache sync operation may be faulty"
 	depends on CACHE_PL310
 	help
 	  This option enables the workaround for the 753970 PL310 (r3p0) erratum.
@@ -1352,6 +1351,18 @@ config ARM_ERRATA_764369
 	  system. This workaround adds a DSB instruction before the
 	  relevant cache maintenance functions and sets a specific bit
 	  in the diagnostic control register of the SCU.
+
+config PL310_ERRATA_769419
+	bool "PL310 errata: no automatic Store Buffer drain"
+	depends on CACHE_L2X0
+	help
+	  On revisions of the PL310 prior to r3p2, the Store Buffer does
+	  not automatically drain. This can cause normal, non-cacheable
+	  writes to be retained when the memory system is idle, leading
+	  to suboptimal I/O performance for drivers using coherent DMA.
+	  This option adds a write barrier to the cpu_idle loop so that,
+	  on systems with an outer cache, the store buffer is drained
+	  explicitly.
 
 endmenu
 
@@ -2212,7 +2223,7 @@ menu "Power management options"
 source "kernel/power/Kconfig"
 
 config ARCH_SUSPEND_POSSIBLE
-	depends on !ARCH_S5P64X0 && !ARCH_S5PC100
+	depends on !ARCH_S5PC100
 	depends on CPU_ARM920T || CPU_ARM926T || CPU_SA1100 || \
 		CPU_V6 || CPU_V6K || CPU_V7 || CPU_XSC3 || CPU_XSCALE
 	def_bool y

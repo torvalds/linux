@@ -22,7 +22,6 @@
  *  Naturally it's not a 1:1 relation, but there are similarities.
  */
 #include <linux/kernel_stat.h>
-#include <linux/module.h>
 #include <linux/signal.h>
 #include <linux/ioport.h>
 #include <linux/interrupt.h>

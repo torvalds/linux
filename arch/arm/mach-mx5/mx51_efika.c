@@ -565,7 +565,7 @@ static struct mc13xxx_regulator_init_data mx51_efika_regulators[] = {
 };
 
 static struct mc13xxx_platform_data mx51_efika_mc13892_data = {
-	.flags = MC13XXX_USE_RTC | MC13XXX_USE_REGULATOR,
+	.flags = MC13XXX_USE_RTC,
 	.regulators = {
 		.num_regulators = ARRAY_SIZE(mx51_efika_regulators),
 		.regulators = mx51_efika_regulators,

@@ -27,11 +27,12 @@
 #include <linux/dmapool.h>
 #include <linux/kernel.h>
 #include <linux/list.h>
-#include <linux/module.h>
+#include <linux/export.h>
 #include <linux/mutex.h>
 #include <linux/poison.h>
 #include <linux/sched.h>
 #include <linux/slab.h>
+#include <linux/stat.h>
 #include <linux/spinlock.h>
 #include <linux/string.h>
 #include <linux/types.h>

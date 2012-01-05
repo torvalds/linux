@@ -15,6 +15,7 @@
 #include <linux/genhd.h>
 #include <linux/netdevice.h>
 #include <linux/mutex.h>
+#include <linux/export.h>
 #include "aoe.h"
 
 static DEFINE_MUTEX(aoeblk_mutex);
@@ -159,7 +160,7 @@ aoeblk_release(struct gendisk *disk, fmode_t mode)
 	return 0;
 }
 
-static int
+static void
 aoeblk_make_request(struct request_queue *q, struct bio *bio)
 {
 	struct sk_buff_head queue;
@@ -172,25 +173,25 @@ aoeblk_make_request(struct request_queue *q, struct bio *bio)
 	if (bio == NULL) {
 		printk(KERN_ERR "aoe: bio is NULL\n");
 		BUG();
-		return 0;
+		return;
 	}
 	d = bio->bi_bdev->bd_disk->private_data;
 	if (d == NULL) {
 		printk(KERN_ERR "aoe: bd_disk->private_data is NULL\n");
 		BUG();
 		bio_endio(bio, -ENXIO);
-		return 0;
+		return;
 	} else if (bio->bi_io_vec == NULL) {
 		printk(KERN_ERR "aoe: bi_io_vec is NULL\n");
 		BUG();
 		bio_endio(bio, -ENXIO);
-		return 0;
+		return;
 	}
 	buf = mempool_alloc(d->bufpool, GFP_NOIO);
 	if (buf == NULL) {
 		printk(KERN_INFO "aoe: buf allocation failure\n");
 		bio_endio(bio, -ENOMEM);
-		return 0;
+		return;
 	}
 	memset(buf, 0, sizeof(*buf));
 	INIT_LIST_HEAD(&buf->bufs);
@@ -211,7 +212,7 @@ aoeblk_make_request(struct request_queue *q, struct bio *bio)
 		spin_unlock_irqrestore(&d->lock, flags);
 		mempool_free(buf, d->bufpool);
 		bio_endio(bio, -ENXIO);
-		return 0;
+		return;
 	}
 
 	list_add_tail(&buf->bufs, &d->bufq);
@@ -222,8 +223,6 @@ aoeblk_make_request(struct request_queue *q, struct bio *bio)
 
 	spin_unlock_irqrestore(&d->lock, flags);
 	aoenet_xmit(&queue);
-
-	return 0;
 }
 
 static int

@@ -14,6 +14,7 @@
 #include <linux/slab.h>
 #include <linux/mutex.h>
 #include <linux/workqueue.h>
+#include <linux/module.h>
 #include <linux/input-polldev.h>
 
 MODULE_AUTHOR("Dmitry Torokhov <dtor@mail.ru>");

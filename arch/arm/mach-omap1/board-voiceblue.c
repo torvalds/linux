@@ -25,6 +25,7 @@
 #include <linux/serial_8250.h>
 #include <linux/serial_reg.h>
 #include <linux/smc91x.h>
+#include <linux/export.h>
 
 #include <mach/hardware.h>
 #include <mach/system.h>

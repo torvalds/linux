@@ -3,7 +3,7 @@
  * Copyright (C) 2009 Hong H. Pham <hong.pham@windriver.com>
  */
 
-#include <linux/module.h>
+#include <linux/export.h>
 #include <linux/slab.h>
 #include <linux/kernel.h>
 #include <linux/init.h>

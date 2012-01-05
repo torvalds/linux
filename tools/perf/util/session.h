@@ -23,6 +23,7 @@ struct ordered_samples {
 	struct sample_queue	*sample_buffer;
 	struct sample_queue	*last_sample;
 	int			sample_buffer_idx;
+	unsigned int		nr_samples;
 };
 
 struct perf_session {

@@ -37,6 +37,7 @@
 #include <linux/delay.h>
 #include <linux/netdevice.h>
 #include <linux/vmalloc.h>
+#include <linux/module.h>
 
 #include "qib.h"
 

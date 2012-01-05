@@ -24,6 +24,7 @@
 #include <linux/preempt.h>
 #include <linux/sched.h>
 #include <linux/delay.h>
+#include <linux/export.h>
 #include <linux/fs.h>
 #include <linux/anon_inodes.h>
 #include <linux/cpumask.h>
@@ -43,6 +44,7 @@
 #include <asm/processor.h>
 #include <asm/cputhreads.h>
 #include <asm/page.h>
+#include <asm/hvcall.h>
 #include <linux/gfp.h>
 #include <linux/sched.h>
 #include <linux/vmalloc.h>

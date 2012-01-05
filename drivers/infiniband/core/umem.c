@@ -35,6 +35,7 @@
 #include <linux/mm.h>
 #include <linux/dma-mapping.h>
 #include <linux/sched.h>
+#include <linux/export.h>
 #include <linux/hugetlb.h>
 #include <linux/dma-attrs.h>
 #include <linux/slab.h>

@@ -25,7 +25,7 @@
 #include <linux/interrupt.h>
 #include <linux/pm.h>
 #include <linux/pnp.h>
-#include <linux/moduleparam.h>
+#include <linux/module.h>
 #include <sound/core.h>
 #include <sound/wss.h>
 #include <sound/mpu401.h>

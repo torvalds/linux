@@ -1704,6 +1704,7 @@ static int isp_register_entities(struct isp_device *isp)
 	isp->media_dev.dev = isp->dev;
 	strlcpy(isp->media_dev.model, "TI OMAP3 ISP",
 		sizeof(isp->media_dev.model));
+	isp->media_dev.hw_revision = isp->revision;
 	isp->media_dev.link_notify = isp_pipeline_link_notify;
 	ret = media_device_register(&isp->media_dev);
 	if (ret < 0) {
@@ -2210,6 +2211,8 @@ error:
 	regulator_put(isp->isp_csiphy2.vdd);
 	regulator_put(isp->isp_csiphy1.vdd);
 	platform_set_drvdata(pdev, NULL);
+
+	mutex_destroy(&isp->isp_mutex);
 	kfree(isp);
 
 	return ret;

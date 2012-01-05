@@ -2810,6 +2810,10 @@ static int __devinit e100_probe(struct pci_dev *pdev,
 
 	e100_get_defaults(nic);
 
+	/* D100 MAC doesn't allow rx of vlan packets with normal MTU */
+	if (nic->mac < mac_82558_D101_A4)
+		netdev->features |= NETIF_F_VLAN_CHALLENGED;
+
 	/* locks must be initialized before calling hw_reset */
 	spin_lock_init(&nic->cb_lock);
 	spin_lock_init(&nic->cmd_lock);

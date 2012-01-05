@@ -6,6 +6,7 @@
  */
 
 #include <linux/slab.h>
+#include <linux/module.h>
 
 #include "md.h"
 #include "raid1.h"

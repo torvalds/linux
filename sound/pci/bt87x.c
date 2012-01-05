@@ -25,7 +25,7 @@
 #include <linux/interrupt.h>
 #include <linux/pci.h>
 #include <linux/slab.h>
-#include <linux/moduleparam.h>
+#include <linux/module.h>
 #include <linux/bitops.h>
 #include <asm/io.h>
 #include <sound/core.h>

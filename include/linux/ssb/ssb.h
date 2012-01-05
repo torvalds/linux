@@ -231,10 +231,9 @@ struct ssb_driver {
 #define drv_to_ssb_drv(_drv) container_of(_drv, struct ssb_driver, drv)
 
 extern int __ssb_driver_register(struct ssb_driver *drv, struct module *owner);
-static inline int ssb_driver_register(struct ssb_driver *drv)
-{
-	return __ssb_driver_register(drv, THIS_MODULE);
-}
+#define ssb_driver_register(drv) \
+	__ssb_driver_register(drv, THIS_MODULE)
+
 extern void ssb_driver_unregister(struct ssb_driver *drv);
 
 

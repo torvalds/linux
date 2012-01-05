@@ -17,6 +17,7 @@
 #include <linux/device.h>
 #include <linux/serial.h>
 #include <linux/tty.h>
+#include <linux/export.h>
 
 struct ttyprintk_port {
 	struct tty_port port;

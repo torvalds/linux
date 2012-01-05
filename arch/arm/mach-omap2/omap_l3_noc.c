@@ -20,6 +20,7 @@
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307
  * USA
  */
+#include <linux/module.h>
 #include <linux/init.h>
 #include <linux/io.h>
 #include <linux/platform_device.h>
@@ -236,7 +237,7 @@ static int __devexit omap4_l3_remove(struct platform_device *pdev)
 static const struct of_device_id l3_noc_match[] = {
 	{.compatible = "ti,omap4-l3-noc", },
 	{},
-}
+};
 MODULE_DEVICE_TABLE(of, l3_noc_match);
 #else
 #define l3_noc_match NULL

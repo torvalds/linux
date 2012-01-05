@@ -550,7 +550,7 @@ down:
 /*
  * Get link speed and duplex from the slave's base driver
  * using ethtool. If for some reason the call fails or the
- * values are invalid, fake speed and duplex to 100/Full
+ * values are invalid, set speed and duplex to -1,
  * and return error.
  */
 static int bond_update_speed_duplex(struct slave *slave)
@@ -560,9 +560,8 @@ static int bond_update_speed_duplex(struct slave *slave)
 	u32 slave_speed;
 	int res;
 
-	/* Fake speed and duplex */
-	slave->speed = SPEED_100;
-	slave->duplex = DUPLEX_FULL;
+	slave->speed = SPEED_UNKNOWN;
+	slave->duplex = DUPLEX_UNKNOWN;
 
 	res = __ethtool_get_settings(slave_dev, &ecmd);
 	if (res < 0)
@@ -1751,16 +1750,7 @@ int bond_enslave(struct net_device *bond_dev, struct net_device *slave_dev)
 		new_slave->link  = BOND_LINK_DOWN;
 	}
 
-	if (bond_update_speed_duplex(new_slave) &&
-	    (new_slave->link != BOND_LINK_DOWN)) {
-		pr_warning("%s: Warning: failed to get speed and duplex from %s, assumed to be 100Mb/sec and Full.\n",
-			   bond_dev->name, new_slave->dev->name);
-
-		if (bond->params.mode == BOND_MODE_8023AD) {
-			pr_warning("%s: Warning: Operation of 802.3ad mode requires ETHTOOL support in base driver for proper aggregator selection.\n",
-				   bond_dev->name);
-		}
-	}
+	bond_update_speed_duplex(new_slave);
 
 	if (USES_PRIMARY(bond->params.mode) && bond->params.primary[0]) {
 		/* if there is a primary slave, remember it */
@@ -2563,30 +2553,6 @@ re_arm:
 	}
 }
 
-static __be32 bond_glean_dev_ip(struct net_device *dev)
-{
-	struct in_device *idev;
-	struct in_ifaddr *ifa;
-	__be32 addr = 0;
-
-	if (!dev)
-		return 0;
-
-	rcu_read_lock();
-	idev = __in_dev_get_rcu(dev);
-	if (!idev)
-		goto out;
-
-	ifa = idev->ifa_list;
-	if (!ifa)
-		goto out;
-
-	addr = ifa->ifa_local;
-out:
-	rcu_read_unlock();
-	return addr;
-}
-
 static int bond_has_this_ip(struct bonding *bond, __be32 ip)
 {
 	struct vlan_entry *vlan;
@@ -3220,6 +3186,7 @@ static int bond_slave_netdev_event(unsigned long event,
 {
 	struct net_device *bond_dev = slave_dev->master;
 	struct bonding *bond = netdev_priv(bond_dev);
+	struct slave *slave = NULL;
 
 	switch (event) {
 	case NETDEV_UNREGISTER:
@@ -3230,20 +3197,16 @@ static int bond_slave_netdev_event(unsigned long event,
 				bond_release(bond_dev, slave_dev);
 		}
 		break;
+	case NETDEV_UP:
 	case NETDEV_CHANGE:
-		if (bond->params.mode == BOND_MODE_8023AD || bond_is_lb(bond)) {
-			struct slave *slave;
+		slave = bond_get_slave_by_dev(bond, slave_dev);
+		if (slave) {
+			u32 old_speed = slave->speed;
+			u8  old_duplex = slave->duplex;
 
-			slave = bond_get_slave_by_dev(bond, slave_dev);
-			if (slave) {
-				u32 old_speed = slave->speed;
-				u8  old_duplex = slave->duplex;
+			bond_update_speed_duplex(slave);
 
-				bond_update_speed_duplex(slave);
-
-				if (bond_is_lb(bond))
-					break;
-
+			if (bond->params.mode == BOND_MODE_8023AD) {
 				if (old_speed != slave->speed)
 					bond_3ad_adapter_speed_changed(slave);
 				if (old_duplex != slave->duplex)
@@ -3335,6 +3298,10 @@ static int bond_inetaddr_event(struct notifier_block *this, unsigned long event,
 	struct bonding *bond;
 	struct vlan_entry *vlan;
 
+	/* we only care about primary address */
+	if(ifa->ifa_flags & IFA_F_SECONDARY)
+		return NOTIFY_DONE;
+
 	list_for_each_entry(bond, &bn->dev_list, bond_list) {
 		if (bond->dev == event_dev) {
 			switch (event) {
@@ -3342,7 +3309,7 @@ static int bond_inetaddr_event(struct notifier_block *this, unsigned long event,
 				bond->master_ip = ifa->ifa_local;
 				return NOTIFY_OK;
 			case NETDEV_DOWN:
-				bond->master_ip = bond_glean_dev_ip(bond->dev);
+				bond->master_ip = 0;
 				return NOTIFY_OK;
 			default:
 				return NOTIFY_DONE;
@@ -3358,8 +3325,7 @@ static int bond_inetaddr_event(struct notifier_block *this, unsigned long event,
 					vlan->vlan_ip = ifa->ifa_local;
 					return NOTIFY_OK;
 				case NETDEV_DOWN:
-					vlan->vlan_ip =
-						bond_glean_dev_ip(vlan_dev);
+					vlan->vlan_ip = 0;
 					return NOTIFY_OK;
 				default:
 					return NOTIFY_DONE;

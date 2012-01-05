@@ -41,8 +41,6 @@ config MTD_PHYSMAP_START
 	  are mapped on your particular target board. Refer to the
 	  memory map which should hopefully be in the documentation for
 	  your board.
-	  Ignore this option if you use run-time physmap configuration
-	  (i.e., run-time calling physmap_configure()).
 
 config MTD_PHYSMAP_LEN
 	hex "Physical length of flash mapping"
@@ -55,8 +53,6 @@ config MTD_PHYSMAP_LEN
 	  than the total amount of flash present. Refer to the memory
 	  map which should hopefully be in the documentation for your
 	  board.
-	  Ignore this option if you use run-time physmap configuration
-	  (i.e., run-time calling physmap_configure()).
 
 config MTD_PHYSMAP_BANKWIDTH
 	int "Bank width in octets"
@@ -67,8 +63,6 @@ config MTD_PHYSMAP_BANKWIDTH
 	  in octets. For example, if you have a data bus width of 32
 	  bits, you would set the bus width octet value to 4. This is
 	  used internally by the CFI drivers.
-	  Ignore this option if you use run-time physmap configuration
-	  (i.e., run-time calling physmap_configure()).
 
 config MTD_PHYSMAP_OF
 	tristate "Flash device in physical memory map based on OF description"
@@ -260,7 +254,6 @@ config MTD_BCM963XX
 config MTD_LANTIQ
 	tristate "Lantiq SoC NOR support"
 	depends on LANTIQ
-	select MTD_PARTITIONS
 	help
 	  Support for NOR flash attached to the Lantiq SoC's External Bus Unit.
 
@@ -339,10 +332,6 @@ config MTD_SOLUTIONENGINE
 	  This enables access to the flash chips on the Hitachi SolutionEngine and
 	  similar boards. Say 'Y' if you are building a kernel for such a board.
 
-config MTD_ARM_INTEGRATOR
-	tristate "CFI Flash device mapped on ARM Integrator/P720T"
-	depends on ARM && MTD_CFI
-
 config MTD_CDB89712
 	tristate "Cirrus CDB89712 evaluation board mappings"
 	depends on MTD_CFI && ARCH_CDB89712
@@ -398,27 +387,12 @@ config MTD_AUTCPU12
 	  This enables access to the NV-RAM on autronix autcpu12 board.
 	  If you have such a board, say 'Y'.
 
-config MTD_EDB7312
-	tristate "CFI Flash device mapped on EDB7312"
-	depends on ARCH_EDB7312 && MTD_CFI
-	help
-	  This enables access to the CFI Flash on the Cogent EDB7312 board.
-	  If you have such a board, say 'Y' here.
-
 config MTD_IMPA7
 	tristate "JEDEC Flash device mapped on impA7"
 	depends on ARM && MTD_JEDECPROBE
 	help
 	  This enables access to the NOR Flash on the impA7 board of
 	  implementa GmbH. If you have such a board, say 'Y' here.
-
-config MTD_CEIVA
-	tristate "JEDEC Flash device mapped on Ceiva/Polaroid PhotoMax Digital Picture Frame"
-	depends on MTD_JEDECPROBE && ARCH_CEIVA
-	help
-	  This enables access to the flash chips on the Ceiva/Polaroid
-	  PhotoMax Digital Picture Frame.
-	  If you have such a device, say 'Y'.
 
 config MTD_H720X
 	tristate "Hynix evaluation board mappings"

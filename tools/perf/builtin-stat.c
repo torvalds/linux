@@ -278,9 +278,14 @@ struct stats			runtime_itlb_cache_stats[MAX_NR_CPUS];
 struct stats			runtime_dtlb_cache_stats[MAX_NR_CPUS];
 struct stats			walltime_nsecs_stats;
 
-static int create_perf_stat_counter(struct perf_evsel *evsel)
+static int create_perf_stat_counter(struct perf_evsel *evsel,
+				    struct perf_evsel *first)
 {
 	struct perf_event_attr *attr = &evsel->attr;
+	struct xyarray *group_fd = NULL;
+
+	if (group && evsel != first)
+		group_fd = first->fd;
 
 	if (scale)
 		attr->read_format = PERF_FORMAT_TOTAL_TIME_ENABLED |
@@ -289,14 +294,15 @@ static int create_perf_stat_counter(struct perf_evsel *evsel)
 	attr->inherit = !no_inherit;
 
 	if (system_wide)
-		return perf_evsel__open_per_cpu(evsel, evsel_list->cpus, group);
-
+		return perf_evsel__open_per_cpu(evsel, evsel_list->cpus,
+						group, group_fd);
 	if (target_pid == -1 && target_tid == -1) {
 		attr->disabled = 1;
 		attr->enable_on_exec = 1;
 	}
 
-	return perf_evsel__open_per_thread(evsel, evsel_list->threads, group);
+	return perf_evsel__open_per_thread(evsel, evsel_list->threads,
+					   group, group_fd);
 }
 
 /*
@@ -396,7 +402,7 @@ static int read_counter(struct perf_evsel *counter)
 static int run_perf_stat(int argc __used, const char **argv)
 {
 	unsigned long long t0, t1;
-	struct perf_evsel *counter;
+	struct perf_evsel *counter, *first;
 	int status = 0;
 	int child_ready_pipe[2], go_pipe[2];
 	const bool forks = (argc > 0);
@@ -453,8 +459,10 @@ static int run_perf_stat(int argc __used, const char **argv)
 		close(child_ready_pipe[0]);
 	}
 
+	first = list_entry(evsel_list->entries.next, struct perf_evsel, node);
+
 	list_for_each_entry(counter, &evsel_list->entries, node) {
-		if (create_perf_stat_counter(counter) < 0) {
+		if (create_perf_stat_counter(counter, first) < 0) {
 			if (errno == EINVAL || errno == ENOSYS || errno == ENOENT) {
 				if (verbose)
 					ui__warning("%s event is not supported by the kernel.\n",

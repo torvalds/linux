@@ -3,7 +3,7 @@
 ##
 config SND_SOC_AU1XPSC
 	tristate "SoC Audio for Au1200/Au1250/Au1550"
-	depends on SOC_AU1200 || SOC_AU1550
+	depends on MIPS_ALCHEMY
 	help
 	  This option enables support for the Programmable Serial
 	  Controllers in AC97 and I2S mode, and the Descriptor-Based DMA

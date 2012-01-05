@@ -17,11 +17,13 @@
 #include <linux/fs.h>
 #include <linux/err.h>
 #include <linux/mount.h>
+#include <linux/parser.h>
 #include <linux/jffs2.h>
 #include <linux/pagemap.h>
 #include <linux/mtd/super.h>
 #include <linux/ctype.h>
 #include <linux/namei.h>
+#include <linux/seq_file.h>
 #include <linux/exportfs.h>
 #include "compr.h"
 #include "nodelist.h"
@@ -73,6 +75,37 @@ static void jffs2_write_super(struct super_block *sb)
 	}
 
 	unlock_super(sb);
+}
+
+static const char *jffs2_compr_name(unsigned int compr)
+{
+	switch (compr) {
+	case JFFS2_COMPR_MODE_NONE:
+		return "none";
+#ifdef CONFIG_JFFS2_LZO
+	case JFFS2_COMPR_MODE_FORCELZO:
+		return "lzo";
+#endif
+#ifdef CONFIG_JFFS2_ZLIB
+	case JFFS2_COMPR_MODE_FORCEZLIB:
+		return "zlib";
+#endif
+	default:
+		/* should never happen; programmer error */
+		WARN_ON(1);
+		return "";
+	}
+}
+
+static int jffs2_show_options(struct seq_file *s, struct vfsmount *mnt)
+{
+	struct jffs2_sb_info *c = JFFS2_SB_INFO(mnt->mnt_sb);
+	struct jffs2_mount_opts *opts = &c->mount_opts;
+
+	if (opts->override_compr)
+		seq_printf(s, ",compr=%s", jffs2_compr_name(opts->compr));
+
+	return 0;
 }
 
 static int jffs2_sync_fs(struct super_block *sb, int wait)
@@ -133,6 +166,85 @@ static const struct export_operations jffs2_export_ops = {
 	.fh_to_parent = jffs2_fh_to_parent,
 };
 
+/*
+ * JFFS2 mount options.
+ *
+ * Opt_override_compr: override default compressor
+ * Opt_err: just end of array marker
+ */
+enum {
+	Opt_override_compr,
+	Opt_err,
+};
+
+static const match_table_t tokens = {
+	{Opt_override_compr, "compr=%s"},
+	{Opt_err, NULL},
+};
+
+static int jffs2_parse_options(struct jffs2_sb_info *c, char *data)
+{
+	substring_t args[MAX_OPT_ARGS];
+	char *p, *name;
+
+	if (!data)
+		return 0;
+
+	while ((p = strsep(&data, ","))) {
+		int token;
+
+		if (!*p)
+			continue;
+
+		token = match_token(p, tokens, args);
+		switch (token) {
+		case Opt_override_compr:
+			name = match_strdup(&args[0]);
+
+			if (!name)
+				return -ENOMEM;
+			if (!strcmp(name, "none"))
+				c->mount_opts.compr = JFFS2_COMPR_MODE_NONE;
+#ifdef CONFIG_JFFS2_LZO
+			else if (!strcmp(name, "lzo"))
+				c->mount_opts.compr = JFFS2_COMPR_MODE_FORCELZO;
+#endif
+#ifdef CONFIG_JFFS2_ZLIB
+			else if (!strcmp(name, "zlib"))
+				c->mount_opts.compr =
+						JFFS2_COMPR_MODE_FORCEZLIB;
+#endif
+			else {
+				printk(KERN_ERR "JFFS2 Error: unknown compressor \"%s\"",
+						name);
+				kfree(name);
+				return -EINVAL;
+			}
+			kfree(name);
+			c->mount_opts.override_compr = true;
+			break;
+		default:
+			printk(KERN_ERR "JFFS2 Error: unrecognized mount option '%s' or missing value\n",
+					p);
+			return -EINVAL;
+		}
+	}
+
+	return 0;
+}
+
+static int jffs2_remount_fs(struct super_block *sb, int *flags, char *data)
+{
+	struct jffs2_sb_info *c = JFFS2_SB_INFO(sb);
+	int err;
+
+	err = jffs2_parse_options(c, data);
+	if (err)
+		return -EINVAL;
+
+	return jffs2_do_remount_fs(sb, flags, data);
+}
+
 static const struct super_operations jffs2_super_operations =
 {
 	.alloc_inode =	jffs2_alloc_inode,
@@ -143,6 +255,7 @@ static const struct super_operations jffs2_super_operations =
 	.remount_fs =	jffs2_remount_fs,
 	.evict_inode =	jffs2_evict_inode,
 	.dirty_inode =	jffs2_dirty_inode,
+	.show_options =	jffs2_show_options,
 	.sync_fs =	jffs2_sync_fs,
 };
 
@@ -165,6 +278,12 @@ static int jffs2_fill_super(struct super_block *sb, void *data, int silent)
 	c->mtd = sb->s_mtd;
 	c->os_priv = sb;
 	sb->s_fs_info = c;
+
+	ret = jffs2_parse_options(c, data);
+	if (ret) {
+		kfree(c);
+		return -EINVAL;
+	}
 
 	/* Initialize JFFS2 superblock locks, the further initialization will
 	 * be done later */

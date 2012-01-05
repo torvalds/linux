@@ -28,6 +28,7 @@
 #include <linux/slab.h>
 #include <linux/gpio.h>
 #include <linux/leds.h>
+#include <linux/module.h>
 #include <mach/leds-ns2.h>
 
 /*

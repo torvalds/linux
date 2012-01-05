@@ -37,7 +37,7 @@ config VIRTIO_BALLOON
 
  config VIRTIO_MMIO
  	tristate "Platform bus driver for memory mapped virtio devices (EXPERIMENTAL)"
- 	depends on EXPERIMENTAL
+ 	depends on HAS_IOMEM && EXPERIMENTAL
  	select VIRTIO
  	select VIRTIO_RING
  	---help---

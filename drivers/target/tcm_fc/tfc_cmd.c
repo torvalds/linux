@@ -112,9 +112,10 @@ void ft_release_cmd(struct se_cmd *se_cmd)
 	ft_free_cmd(cmd);
 }
 
-void ft_check_stop_free(struct se_cmd *se_cmd)
+int ft_check_stop_free(struct se_cmd *se_cmd)
 {
 	transport_generic_free_cmd(se_cmd, 0);
+	return 1;
 }
 
 /*

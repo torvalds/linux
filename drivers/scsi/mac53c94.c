@@ -17,6 +17,7 @@
 #include <linux/stat.h>
 #include <linux/spinlock.h>
 #include <linux/interrupt.h>
+#include <linux/module.h>
 #include <asm/dbdma.h>
 #include <asm/io.h>
 #include <asm/pgtable.h>

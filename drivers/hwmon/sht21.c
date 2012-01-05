@@ -83,25 +83,6 @@ static inline int sht21_rh_ticks_to_per_cent_mille(int ticks)
 }
 
 /**
- * sht21_read_word_data() - read word from register
- * @client: I2C client device
- * @reg: I2C command byte
- *
- * Returns value, negative errno on error.
- */
-static inline int sht21_read_word_data(struct i2c_client *client, u8 reg)
-{
-	int ret = i2c_smbus_read_word_data(client, reg);
-	if (ret < 0)
-		return ret;
-	/*
-	 * SMBus specifies low byte first, but the SHT21 returns MSB
-	 * first, so we have to swab16 the values
-	 */
-	return swab16(ret);
-}
-
-/**
  * sht21_update_measurements() - get updated measurements from device
  * @client: I2C client device
  *
@@ -119,12 +100,13 @@ static int sht21_update_measurements(struct i2c_client *client)
 	 * maximum two measurements per second at 12bit accuracy shall be made.
 	 */
 	if (time_after(jiffies, sht21->last_update + HZ / 2) || !sht21->valid) {
-		ret = sht21_read_word_data(client, SHT21_TRIG_T_MEASUREMENT_HM);
+		ret = i2c_smbus_read_word_swapped(client,
+						  SHT21_TRIG_T_MEASUREMENT_HM);
 		if (ret < 0)
 			goto out;
 		sht21->temperature = sht21_temp_ticks_to_millicelsius(ret);
-		ret = sht21_read_word_data(client,
-					SHT21_TRIG_RH_MEASUREMENT_HM);
+		ret = i2c_smbus_read_word_swapped(client,
+						  SHT21_TRIG_RH_MEASUREMENT_HM);
 		if (ret < 0)
 			goto out;
 		sht21->humidity = sht21_rh_ticks_to_per_cent_mille(ret);

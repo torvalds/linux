@@ -23,6 +23,7 @@
 #include <linux/slab.h>
 #include <linux/workqueue.h>
 #include <linux/spi/spi.h>
+#include <linux/module.h>
 
 #include <plat/lcd_mipid.h>
 

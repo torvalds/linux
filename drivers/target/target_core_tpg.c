@@ -32,6 +32,7 @@
 #include <linux/slab.h>
 #include <linux/spinlock.h>
 #include <linux/in.h>
+#include <linux/export.h>
 #include <net/sock.h>
 #include <net/tcp.h>
 #include <scsi/scsi.h>

@@ -117,14 +117,6 @@
 #define IRQ_U300_GPIO_END		(U300_VIC_IRQS_END)
 #endif
 
-/* Optional AB3550 mixsig chip */
-#ifdef CONFIG_AB3550_CORE
-#define IRQ_AB3550_BASE			(IRQ_U300_GPIO_END)
-#define IRQ_AB3550_END			(IRQ_AB3550_BASE + 38)
-#else
-#define IRQ_AB3550_END			(IRQ_U300_GPIO_END)
-#endif
-
-#define NR_IRQS				(IRQ_AB3550_END)
+#define NR_IRQS				(IRQ_U300_GPIO_END)
 
 #endif

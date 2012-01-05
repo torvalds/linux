@@ -16,6 +16,7 @@
 #include <linux/kernel.h>
 #include <linux/miscdevice.h>
 #include <linux/slab.h>
+#include <linux/export.h>
 #include <asm/compat.h>
 #include <asm/cpcmd.h>
 #include <asm/debug.h>

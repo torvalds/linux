@@ -177,19 +177,19 @@ static void wait_for_dc_servo(struct snd_soc_codec *codec)
 }
 
 static const unsigned int in_tlv[] = {
-	TLV_DB_RANGE_HEAD(6),
+	TLV_DB_RANGE_HEAD(3),
 	0, 0, TLV_DB_SCALE_ITEM(-600, 0, 0),
 	1, 3, TLV_DB_SCALE_ITEM(-350, 350, 0),
 	4, 6, TLV_DB_SCALE_ITEM(600, 600, 0),
 };
 static const unsigned int mix_tlv[] = {
-	TLV_DB_RANGE_HEAD(4),
+	TLV_DB_RANGE_HEAD(2),
 	0, 2, TLV_DB_SCALE_ITEM(-1200, 300, 0),
 	3, 3, TLV_DB_SCALE_ITEM(0, 0, 0),
 };
 static const DECLARE_TLV_DB_SCALE(out_tlv, -5700, 100, 0);
 static const unsigned int spkboost_tlv[] = {
-	TLV_DB_RANGE_HEAD(7),
+	TLV_DB_RANGE_HEAD(2),
 	0, 6, TLV_DB_SCALE_ITEM(0, 150, 0),
 	7, 7, TLV_DB_SCALE_ITEM(1200, 0, 0),
 };

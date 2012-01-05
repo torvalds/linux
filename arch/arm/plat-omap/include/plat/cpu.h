@@ -399,6 +399,13 @@ void omap2_check_revision(void);
 
 /*
  * Runtime detection of OMAP3 features
+ *
+ * OMAP3_HAS_IO_CHAIN_CTRL: Some later members of the OMAP3 chip
+ *    family have OS-level control over the I/O chain clock.  This is
+ *    to avoid a window during which wakeups could potentially be lost
+ *    during powerdomain transitions.  If this bit is set, it
+ *    indicates that the chip does support OS-level control of this
+ *    feature.
  */
 extern u32 omap_features;
 
@@ -410,9 +417,10 @@ extern u32 omap_features;
 #define OMAP3_HAS_192MHZ_CLK		BIT(5)
 #define OMAP3_HAS_IO_WAKEUP		BIT(6)
 #define OMAP3_HAS_SDRC			BIT(7)
-#define OMAP4_HAS_MPU_1GHZ		BIT(8)
-#define OMAP4_HAS_MPU_1_2GHZ		BIT(9)
-#define OMAP4_HAS_MPU_1_5GHZ		BIT(10)
+#define OMAP3_HAS_IO_CHAIN_CTRL		BIT(8)
+#define OMAP4_HAS_MPU_1GHZ		BIT(9)
+#define OMAP4_HAS_MPU_1_2GHZ		BIT(10)
+#define OMAP4_HAS_MPU_1_5GHZ		BIT(11)
 
 
 #define OMAP3_HAS_FEATURE(feat,flag)			\
@@ -429,12 +437,11 @@ OMAP3_HAS_FEATURE(isp, ISP)
 OMAP3_HAS_FEATURE(192mhz_clk, 192MHZ_CLK)
 OMAP3_HAS_FEATURE(io_wakeup, IO_WAKEUP)
 OMAP3_HAS_FEATURE(sdrc, SDRC)
+OMAP3_HAS_FEATURE(io_chain_ctrl, IO_CHAIN_CTRL)
 
 /*
  * Runtime detection of OMAP4 features
  */
-extern u32 omap_features;
-
 #define OMAP4_HAS_FEATURE(feat, flag)			\
 static inline unsigned int omap4_has_ ##feat(void)	\
 {							\

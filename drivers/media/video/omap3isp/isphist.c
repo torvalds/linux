@@ -516,5 +516,5 @@ void omap3isp_hist_cleanup(struct isp_device *isp)
 	if (HIST_USING_DMA(&isp->isp_hist))
 		omap_free_dma(isp->isp_hist.dma_ch);
 	kfree(isp->isp_hist.priv);
-	omap3isp_stat_free(&isp->isp_hist);
+	omap3isp_stat_cleanup(&isp->isp_hist);
 }

@@ -832,6 +832,12 @@ static int ieee80211_add_station(struct wiphy *wiphy, struct net_device *dev,
 	if (is_multicast_ether_addr(mac))
 		return -EINVAL;
 
+	/* Only TDLS-supporting stations can add TDLS peers */
+	if ((params->sta_flags_set & BIT(NL80211_STA_FLAG_TDLS_PEER)) &&
+	    !((wiphy->flags & WIPHY_FLAG_SUPPORTS_TDLS) &&
+	      sdata->vif.type == NL80211_IFTYPE_STATION))
+		return -ENOTSUPP;
+
 	sta = sta_info_alloc(sdata, mac, GFP_KERNEL);
 	if (!sta)
 		return -ENOMEM;
@@ -840,12 +846,6 @@ static int ieee80211_add_station(struct wiphy *wiphy, struct net_device *dev,
 	set_sta_flag(sta, WLAN_STA_ASSOC);
 
 	sta_apply_parameters(local, sta, params);
-
-	/* Only TDLS-supporting stations can add TDLS peers */
-	if (test_sta_flag(sta, WLAN_STA_TDLS_PEER) &&
-	    !((wiphy->flags & WIPHY_FLAG_SUPPORTS_TDLS) &&
-	      sdata->vif.type == NL80211_IFTYPE_STATION))
-		return -ENOTSUPP;
 
 	rate_control_rate_init(sta);
 

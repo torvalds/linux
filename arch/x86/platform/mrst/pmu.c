@@ -70,7 +70,7 @@ static struct mrst_device mrst_devs[] = {
 /* 24 */ { 0x4110, 0 },			/* Lincroft */
 };
 
-/* n.b. We ignore PCI-id 0x815 in LSS9 b/c MeeGo has no driver for it */
+/* n.b. We ignore PCI-id 0x815 in LSS9 b/c Linux has no driver for it */
 static u16 mrst_lss9_pci_ids[] = {0x080a, 0x0814, 0};
 static u16 mrst_lss10_pci_ids[] = {0x0800, 0x0801, 0x0802, 0x0803,
 					0x0804, 0x0805, 0x080f, 0};

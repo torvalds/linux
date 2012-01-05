@@ -1,7 +1,6 @@
 #ifndef __SAA7146__
 #define __SAA7146__
 
-#include <linux/module.h>	/* for module-version */
 #include <linux/delay.h>	/* for delay-stuff */
 #include <linux/slab.h>		/* for kmalloc/kfree */
 #include <linux/pci.h>		/* for pci-config-stuff, vendor ids etc. */
@@ -54,6 +53,8 @@ do {									\
 
 #define SAA7146_ISR_CLEAR(x,y) \
 	saa7146_write(x, ISR, (y));
+
+struct module;
 
 struct saa7146_dev;
 struct saa7146_extension;

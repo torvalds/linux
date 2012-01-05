@@ -18,6 +18,7 @@
 #include <asm/io.h>
 #include <linux/nsc_gpio.h>
 #include <linux/scx200_gpio.h>
+#include <linux/module.h>
 
 #define DRVNAME "net48xx-led"
 #define NET48XX_ERROR_LED_GPIO	20

@@ -11,4 +11,4 @@ ccflags-y += -Idrivers/media/dvb/frontends/
 ccflags-y += -Idrivers/media/common/tuners/
 
 # For the staging CI driver cxd2099
-ccflags-y += -Idrivers/staging/cxd2099/
+ccflags-y += -Idrivers/staging/media/cxd2099/

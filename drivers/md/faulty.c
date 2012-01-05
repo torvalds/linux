@@ -63,6 +63,7 @@
 
 #define MaxFault	50
 #include <linux/blkdev.h>
+#include <linux/module.h>
 #include <linux/raid/md_u.h>
 #include <linux/slab.h>
 #include "md.h"
@@ -169,7 +170,7 @@ static void add_sector(struct faulty_conf *conf, sector_t start, int mode)
 		conf->nfaults = n+1;
 }
 
-static int make_request(struct mddev *mddev, struct bio *bio)
+static void make_request(struct mddev *mddev, struct bio *bio)
 {
 	struct faulty_conf *conf = mddev->private;
 	int failit = 0;
@@ -181,7 +182,7 @@ static int make_request(struct mddev *mddev, struct bio *bio)
 			 * just fail immediately
 			 */
 			bio_endio(bio, -EIO);
-			return 0;
+			return;
 		}
 
 		if (check_sector(conf, bio->bi_sector, bio->bi_sector+(bio->bi_size>>9),
@@ -211,15 +212,15 @@ static int make_request(struct mddev *mddev, struct bio *bio)
 	}
 	if (failit) {
 		struct bio *b = bio_clone_mddev(bio, GFP_NOIO, mddev);
+
 		b->bi_bdev = conf->rdev->bdev;
 		b->bi_private = bio;
 		b->bi_end_io = faulty_fail;
-		generic_make_request(b);
-		return 0;
-	} else {
+		bio = b;
+	} else
 		bio->bi_bdev = conf->rdev->bdev;
-		return 1;
-	}
+
+	generic_make_request(bio);
 }
 
 static void status(struct seq_file *seq, struct mddev *mddev)

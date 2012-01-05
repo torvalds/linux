@@ -24,6 +24,7 @@
 #include <linux/device.h>
 #include <linux/err.h>
 #include <linux/kernel.h>
+#include <linux/module.h>
 
 #include "tegra_asoc_utils.h"
 

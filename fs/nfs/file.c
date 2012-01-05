@@ -40,47 +40,7 @@
 
 #define NFSDBG_FACILITY		NFSDBG_FILE
 
-static int nfs_file_open(struct inode *, struct file *);
-static int nfs_file_release(struct inode *, struct file *);
-static loff_t nfs_file_llseek(struct file *file, loff_t offset, int origin);
-static int  nfs_file_mmap(struct file *, struct vm_area_struct *);
-static ssize_t nfs_file_splice_read(struct file *filp, loff_t *ppos,
-					struct pipe_inode_info *pipe,
-					size_t count, unsigned int flags);
-static ssize_t nfs_file_read(struct kiocb *, const struct iovec *iov,
-				unsigned long nr_segs, loff_t pos);
-static ssize_t nfs_file_splice_write(struct pipe_inode_info *pipe,
-					struct file *filp, loff_t *ppos,
-					size_t count, unsigned int flags);
-static ssize_t nfs_file_write(struct kiocb *, const struct iovec *iov,
-				unsigned long nr_segs, loff_t pos);
-static int  nfs_file_flush(struct file *, fl_owner_t id);
-static int  nfs_file_fsync(struct file *, loff_t, loff_t, int datasync);
-static int nfs_check_flags(int flags);
-static int nfs_lock(struct file *filp, int cmd, struct file_lock *fl);
-static int nfs_flock(struct file *filp, int cmd, struct file_lock *fl);
-static int nfs_setlease(struct file *file, long arg, struct file_lock **fl);
-
 static const struct vm_operations_struct nfs_file_vm_ops;
-
-const struct file_operations nfs_file_operations = {
-	.llseek		= nfs_file_llseek,
-	.read		= do_sync_read,
-	.write		= do_sync_write,
-	.aio_read	= nfs_file_read,
-	.aio_write	= nfs_file_write,
-	.mmap		= nfs_file_mmap,
-	.open		= nfs_file_open,
-	.flush		= nfs_file_flush,
-	.release	= nfs_file_release,
-	.fsync		= nfs_file_fsync,
-	.lock		= nfs_lock,
-	.flock		= nfs_flock,
-	.splice_read	= nfs_file_splice_read,
-	.splice_write	= nfs_file_splice_write,
-	.check_flags	= nfs_check_flags,
-	.setlease	= nfs_setlease,
-};
 
 const struct inode_operations nfs_file_inode_operations = {
 	.permission	= nfs_permission,
@@ -137,11 +97,9 @@ nfs_file_open(struct inode *inode, struct file *filp)
 static int
 nfs_file_release(struct inode *inode, struct file *filp)
 {
-	struct dentry *dentry = filp->f_path.dentry;
-
 	dprintk("NFS: release(%s/%s)\n",
-			dentry->d_parent->d_name.name,
-			dentry->d_name.name);
+			filp->f_path.dentry->d_parent->d_name.name,
+			filp->f_path.dentry->d_name.name);
 
 	nfs_inc_stats(inode, NFSIOS_VFSRELEASE);
 	return nfs_release(inode, filp);
@@ -228,14 +186,13 @@ nfs_file_read(struct kiocb *iocb, const struct iovec *iov,
 	struct dentry * dentry = iocb->ki_filp->f_path.dentry;
 	struct inode * inode = dentry->d_inode;
 	ssize_t result;
-	size_t count = iov_length(iov, nr_segs);
 
 	if (iocb->ki_filp->f_flags & O_DIRECT)
 		return nfs_file_direct_read(iocb, iov, nr_segs, pos);
 
 	dprintk("NFS: read(%s/%s, %lu@%lu)\n",
 		dentry->d_parent->d_name.name, dentry->d_name.name,
-		(unsigned long) count, (unsigned long) pos);
+		(unsigned long) iov_length(iov, nr_segs), (unsigned long) pos);
 
 	result = nfs_revalidate_mapping(inode, iocb->ki_filp->f_mapping);
 	if (!result) {
@@ -889,3 +846,54 @@ static int nfs_setlease(struct file *file, long arg, struct file_lock **fl)
 			file->f_path.dentry->d_name.name, arg);
 	return -EINVAL;
 }
+
+const struct file_operations nfs_file_operations = {
+	.llseek		= nfs_file_llseek,
+	.read		= do_sync_read,
+	.write		= do_sync_write,
+	.aio_read	= nfs_file_read,
+	.aio_write	= nfs_file_write,
+	.mmap		= nfs_file_mmap,
+	.open		= nfs_file_open,
+	.flush		= nfs_file_flush,
+	.release	= nfs_file_release,
+	.fsync		= nfs_file_fsync,
+	.lock		= nfs_lock,
+	.flock		= nfs_flock,
+	.splice_read	= nfs_file_splice_read,
+	.splice_write	= nfs_file_splice_write,
+	.check_flags	= nfs_check_flags,
+	.setlease	= nfs_setlease,
+};
+
+#ifdef CONFIG_NFS_V4
+static int
+nfs4_file_open(struct inode *inode, struct file *filp)
+{
+	/*
+	 * NFSv4 opens are handled in d_lookup and d_revalidate. If we get to
+	 * this point, then something is very wrong
+	 */
+	dprintk("NFS: %s called! inode=%p filp=%p\n", __func__, inode, filp);
+	return -ENOTDIR;
+}
+
+const struct file_operations nfs4_file_operations = {
+	.llseek		= nfs_file_llseek,
+	.read		= do_sync_read,
+	.write		= do_sync_write,
+	.aio_read	= nfs_file_read,
+	.aio_write	= nfs_file_write,
+	.mmap		= nfs_file_mmap,
+	.open		= nfs4_file_open,
+	.flush		= nfs_file_flush,
+	.release	= nfs_file_release,
+	.fsync		= nfs_file_fsync,
+	.lock		= nfs_lock,
+	.flock		= nfs_flock,
+	.splice_read	= nfs_file_splice_read,
+	.splice_write	= nfs_file_splice_write,
+	.check_flags	= nfs_check_flags,
+	.setlease	= nfs_setlease,
+};
+#endif /* CONFIG_NFS_V4 */

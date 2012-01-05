@@ -5,7 +5,10 @@
 config NET_VENDOR_NATSEMI
 	bool "National Semi-conductor devices"
 	default y
-	depends on MCA || MAC || MACH_JAZZ || PCI || XTENSA_PLATFORM_XT2000
+	depends on AMIGA_PCMCIA || ARM || EISA || EXPERIMENTAL || H8300 || \
+		   ISA || M32R || MAC || MACH_JAZZ || MACH_TX49XX || MCA || \
+		   MCA_LEGACY || MIPS || PCI || PCMCIA || SUPERH || \
+		   XTENSA_PLATFORM_XT2000 || ZORRO
 	---help---
 	  If you have a network (Ethernet) card belonging to this class, say Y
 	  and read the Ethernet-HOWTO, available from

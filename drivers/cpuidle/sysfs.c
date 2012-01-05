@@ -216,7 +216,8 @@ static struct kobj_type ktype_cpuidle = {
 
 struct cpuidle_state_attr {
 	struct attribute attr;
-	ssize_t (*show)(struct cpuidle_state *, char *);
+	ssize_t (*show)(struct cpuidle_state *, \
+					struct cpuidle_state_usage *, char *);
 	ssize_t (*store)(struct cpuidle_state *, const char *, size_t);
 };
 
@@ -224,19 +225,22 @@ struct cpuidle_state_attr {
 static struct cpuidle_state_attr attr_##_name = __ATTR(_name, 0444, show, NULL)
 
 #define define_show_state_function(_name) \
-static ssize_t show_state_##_name(struct cpuidle_state *state, char *buf) \
+static ssize_t show_state_##_name(struct cpuidle_state *state, \
+			 struct cpuidle_state_usage *state_usage, char *buf) \
 { \
 	return sprintf(buf, "%u\n", state->_name);\
 }
 
 #define define_show_state_ull_function(_name) \
-static ssize_t show_state_##_name(struct cpuidle_state *state, char *buf) \
+static ssize_t show_state_##_name(struct cpuidle_state *state, \
+			struct cpuidle_state_usage *state_usage, char *buf) \
 { \
-	return sprintf(buf, "%llu\n", state->_name);\
+	return sprintf(buf, "%llu\n", state_usage->_name);\
 }
 
 #define define_show_state_str_function(_name) \
-static ssize_t show_state_##_name(struct cpuidle_state *state, char *buf) \
+static ssize_t show_state_##_name(struct cpuidle_state *state, \
+			struct cpuidle_state_usage *state_usage, char *buf) \
 { \
 	if (state->_name[0] == '\0')\
 		return sprintf(buf, "<null>\n");\
@@ -269,16 +273,18 @@ static struct attribute *cpuidle_state_default_attrs[] = {
 
 #define kobj_to_state_obj(k) container_of(k, struct cpuidle_state_kobj, kobj)
 #define kobj_to_state(k) (kobj_to_state_obj(k)->state)
+#define kobj_to_state_usage(k) (kobj_to_state_obj(k)->state_usage)
 #define attr_to_stateattr(a) container_of(a, struct cpuidle_state_attr, attr)
 static ssize_t cpuidle_state_show(struct kobject * kobj,
 	struct attribute * attr ,char * buf)
 {
 	int ret = -EIO;
 	struct cpuidle_state *state = kobj_to_state(kobj);
+	struct cpuidle_state_usage *state_usage = kobj_to_state_usage(kobj);
 	struct cpuidle_state_attr * cattr = attr_to_stateattr(attr);
 
 	if (cattr->show)
-		ret = cattr->show(state, buf);
+		ret = cattr->show(state, state_usage, buf);
 
 	return ret;
 }
@@ -316,13 +322,15 @@ int cpuidle_add_state_sysfs(struct cpuidle_device *device)
 {
 	int i, ret = -ENOMEM;
 	struct cpuidle_state_kobj *kobj;
+	struct cpuidle_driver *drv = cpuidle_get_driver();
 
 	/* state statistics */
 	for (i = 0; i < device->state_count; i++) {
 		kobj = kzalloc(sizeof(struct cpuidle_state_kobj), GFP_KERNEL);
 		if (!kobj)
 			goto error_state;
-		kobj->state = &device->states[i];
+		kobj->state = &drv->states[i];
+		kobj->state_usage = &device->states_usage[i];
 		init_completion(&kobj->kobj_unregister);
 
 		ret = kobject_init_and_add(&kobj->kobj, &ktype_state_cpuidle, &device->kobj,

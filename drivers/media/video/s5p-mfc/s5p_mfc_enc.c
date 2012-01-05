@@ -785,8 +785,8 @@ static int vidioc_querycap(struct file *file, void *priv,
 	strncpy(cap->card, dev->plat_dev->name, sizeof(cap->card) - 1);
 	cap->bus_info[0] = 0;
 	cap->version = KERNEL_VERSION(1, 0, 0);
-	cap->capabilities = V4L2_CAP_VIDEO_CAPTURE
-			  | V4L2_CAP_VIDEO_OUTPUT
+	cap->capabilities = V4L2_CAP_VIDEO_CAPTURE_MPLANE
+			  | V4L2_CAP_VIDEO_OUTPUT_MPLANE
 			  | V4L2_CAP_STREAMING;
 	return 0;
 }
@@ -1513,8 +1513,9 @@ static int check_vb_with_fmt(struct s5p_mfc_fmt *fmt, struct vb2_buffer *vb)
 }
 
 static int s5p_mfc_queue_setup(struct vb2_queue *vq,
-		       unsigned int *buf_count, unsigned int *plane_count,
-		       unsigned int psize[], void *allocators[])
+			const struct v4l2_format *fmt,
+			unsigned int *buf_count, unsigned int *plane_count,
+			unsigned int psize[], void *allocators[])
 {
 	struct s5p_mfc_ctx *ctx = fh_to_ctx(vq->drv_priv);
 

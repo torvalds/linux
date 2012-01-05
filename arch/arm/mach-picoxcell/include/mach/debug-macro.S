@@ -14,7 +14,7 @@
 
 #define UART_SHIFT 2
 
-		.macro	addruart, rp, rv
+		.macro	addruart, rp, rv, tmp
 		ldr	\rv, =PHYS_TO_IO(PICOXCELL_UART1_BASE)
 		ldr	\rp, =PICOXCELL_UART1_BASE
 		.endm

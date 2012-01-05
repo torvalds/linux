@@ -15,6 +15,7 @@
  */
 
 #include <linux/firmware.h>
+#include <linux/module.h>
 #include <linux/bitrev.h>
 #include <linux/kernel.h>
 

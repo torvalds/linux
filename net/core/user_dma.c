@@ -27,6 +27,7 @@
 
 #include <linux/dmaengine.h>
 #include <linux/socket.h>
+#include <linux/export.h>
 #include <net/tcp.h>
 #include <net/netdma.h>
 

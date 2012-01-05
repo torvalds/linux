@@ -24,6 +24,7 @@
 
 #include <net/mac80211.h>
 #include <linux/crc-ccitt.h>
+#include <linux/export.h>
 
 #include "p54.h"
 #include "eeprom.h"

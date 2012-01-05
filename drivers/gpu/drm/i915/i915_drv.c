@@ -35,6 +35,7 @@
 #include "intel_drv.h"
 
 #include <linux/console.h>
+#include <linux/module.h>
 #include "drm_crtc_helper.h"
 
 static int i915_modeset __read_mostly = -1;
@@ -67,7 +68,7 @@ module_param_named(i915_enable_rc6, i915_enable_rc6, int, 0600);
 MODULE_PARM_DESC(i915_enable_rc6,
 		"Enable power-saving render C-state 6 (default: true)");
 
-unsigned int i915_enable_fbc __read_mostly = -1;
+int i915_enable_fbc __read_mostly = -1;
 module_param_named(i915_enable_fbc, i915_enable_fbc, int, 0600);
 MODULE_PARM_DESC(i915_enable_fbc,
 		"Enable frame buffer compression for power savings "
@@ -79,7 +80,7 @@ MODULE_PARM_DESC(lvds_downclock,
 		"Use panel (LVDS/eDP) downclocking for power savings "
 		"(default: false)");
 
-unsigned int i915_panel_use_ssc __read_mostly = -1;
+int i915_panel_use_ssc __read_mostly = -1;
 module_param_named(lvds_use_ssc, i915_panel_use_ssc, int, 0600);
 MODULE_PARM_DESC(lvds_use_ssc,
 		"Use Spread Spectrum Clock with panels [LVDS/eDP] "
@@ -106,7 +107,7 @@ static struct drm_driver driver;
 extern int intel_agp_enabled;
 
 #define INTEL_VGA_DEVICE(id, info) {		\
-	.class = PCI_CLASS_DISPLAY_VGA << 8,	\
+	.class = PCI_BASE_CLASS_DISPLAY << 16,	\
 	.class_mask = 0xff0000,			\
 	.vendor = 0x8086,			\
 	.device = id,				\
@@ -788,8 +789,8 @@ static struct vm_operations_struct i915_gem_vm_ops = {
 };
 
 static struct drm_driver driver = {
-	/* don't use mtrr's here, the Xserver or user space app should
-	 * deal with them for intel hardware.
+	/* Don't use MTRRs here; the Xserver or userspace app should
+	 * deal with them for Intel hardware.
 	 */
 	.driver_features =
 	    DRIVER_USE_AGP | DRIVER_REQUIRE_AGP | /* DRIVER_USE_MTRR |*/

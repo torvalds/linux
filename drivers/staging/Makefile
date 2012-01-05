@@ -4,12 +4,9 @@
 obj-$(CONFIG_STAGING)		+= staging.o
 
 obj-y				+= serial/
+obj-y				+= media/
 obj-$(CONFIG_ET131X)		+= et131x/
 obj-$(CONFIG_SLICOSS)		+= slicoss/
-obj-$(CONFIG_VIDEO_GO7007)	+= go7007/
-obj-$(CONFIG_VIDEO_CX25821)	+= cx25821/
-obj-$(CONFIG_DVB_CXD2099)	+= cxd2099/
-obj-$(CONFIG_LIRC_STAGING)	+= lirc/
 obj-$(CONFIG_USBIP_CORE)	+= usbip/
 obj-$(CONFIG_W35UND)		+= winbond/
 obj-$(CONFIG_PRISM2_USB)	+= wlan-ng/
@@ -44,12 +41,9 @@ obj-$(CONFIG_ZCACHE)		+= zcache/
 obj-$(CONFIG_WLAGS49_H2)	+= wlags49_h2/
 obj-$(CONFIG_WLAGS49_H25)	+= wlags49_h25/
 obj-$(CONFIG_FB_SM7XX)		+= sm7xx/
-obj-$(CONFIG_VIDEO_DT3155)	+= dt3155v4l/
 obj-$(CONFIG_CRYSTALHD)		+= crystalhd/
 obj-$(CONFIG_CXT1E1)		+= cxt1e1/
 obj-$(CONFIG_FB_XGI)		+= xgifb/
-obj-$(CONFIG_EASYCAP)		+= easycap/
-obj-$(CONFIG_SOLO6X10)		+= solo6x10/
 obj-$(CONFIG_TIDSPBRIDGE)	+= tidspbridge/
 obj-$(CONFIG_ACPI_QUICKSTART)	+= quickstart/
 obj-$(CONFIG_SBE_2T3E3)		+= sbe-2t3e3/

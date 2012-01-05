@@ -11,6 +11,7 @@
  */
 #include <net/mac80211.h>
 #include <linux/usb.h>
+#include <linux/module.h>
 
 #include "core.h"
 #include "mds_f.h"

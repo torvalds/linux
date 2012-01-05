@@ -159,6 +159,7 @@ config S6GMAC
 	  will be called s6gmac.
 
 source "drivers/net/ethernet/seeq/Kconfig"
+source "drivers/net/ethernet/silan/Kconfig"
 source "drivers/net/ethernet/sis/Kconfig"
 source "drivers/net/ethernet/sfc/Kconfig"
 source "drivers/net/ethernet/sgi/Kconfig"

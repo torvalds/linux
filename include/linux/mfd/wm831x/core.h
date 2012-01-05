@@ -382,6 +382,7 @@ struct wm831x {
 
 	/* Used by the interrupt controller code to post writes */
 	int gpio_update[WM831X_NUM_GPIO_REGS];
+	bool gpio_level[WM831X_NUM_GPIO_REGS];
 
 	struct mutex auxadc_lock;
 	struct list_head auxadc_pending;

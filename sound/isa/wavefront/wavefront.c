@@ -24,7 +24,7 @@
 #include <linux/err.h>
 #include <linux/isa.h>
 #include <linux/pnp.h>
-#include <linux/moduleparam.h>
+#include <linux/module.h>
 #include <sound/core.h>
 #include <sound/initval.h>
 #include <sound/opl3.h>

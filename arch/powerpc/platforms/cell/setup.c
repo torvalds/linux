@@ -18,6 +18,7 @@
 #include <linux/kernel.h>
 #include <linux/mm.h>
 #include <linux/stddef.h>
+#include <linux/export.h>
 #include <linux/unistd.h>
 #include <linux/user.h>
 #include <linux/reboot.h>

@@ -39,6 +39,7 @@
 #include <linux/kernel.h>
 #include <linux/sched.h>
 #include <linux/errno.h>
+#include <linux/module.h>
 #include <linux/mm.h>
 #include <linux/bootmem.h>
 #include <linux/pagemap.h>
@@ -93,8 +94,8 @@ static unsigned long frame_list[PAGE_SIZE / sizeof(unsigned long)];
 #define inc_totalhigh_pages() (totalhigh_pages++)
 #define dec_totalhigh_pages() (totalhigh_pages--)
 #else
-#define inc_totalhigh_pages() do {} while(0)
-#define dec_totalhigh_pages() do {} while(0)
+#define inc_totalhigh_pages() do {} while (0)
+#define dec_totalhigh_pages() do {} while (0)
 #endif
 
 /* List of ballooned pages, threaded through the mem_map array. */
@@ -154,8 +155,7 @@ static struct page *balloon_retrieve(bool prefer_highmem)
 	if (PageHighMem(page)) {
 		balloon_stats.balloon_high--;
 		inc_totalhigh_pages();
-	}
-	else
+	} else
 		balloon_stats.balloon_low--;
 
 	totalram_pages++;
@@ -422,7 +422,7 @@ static enum bp_state decrease_reservation(unsigned long nr_pages, gfp_t gfp)
 				(unsigned long)__va(pfn << PAGE_SHIFT),
 				__pte_ma(0), 0);
 			BUG_ON(ret);
-                }
+		}
 
 	}
 
@@ -501,17 +501,17 @@ EXPORT_SYMBOL_GPL(balloon_set_new_target);
  * alloc_xenballooned_pages - get pages that have been ballooned out
  * @nr_pages: Number of pages to get
  * @pages: pages returned
- * @highmem: highmem or lowmem pages
+ * @highmem: allow highmem pages
  * @return 0 on success, error otherwise
  */
 int alloc_xenballooned_pages(int nr_pages, struct page **pages, bool highmem)
 {
 	int pgno = 0;
-	struct page* page;
+	struct page *page;
 	mutex_lock(&balloon_mutex);
 	while (pgno < nr_pages) {
 		page = balloon_retrieve(highmem);
-		if (page && PageHighMem(page) == highmem) {
+		if (page && (highmem || !PageHighMem(page))) {
 			pages[pgno++] = page;
 		} else {
 			enum bp_state st;
@@ -540,7 +540,7 @@ EXPORT_SYMBOL(alloc_xenballooned_pages);
  * @nr_pages: Number of pages
  * @pages: pages to return
  */
-void free_xenballooned_pages(int nr_pages, struct page** pages)
+void free_xenballooned_pages(int nr_pages, struct page **pages)
 {
 	int i;
 

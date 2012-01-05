@@ -1207,6 +1207,9 @@ _ctl_do_reset(void __user *arg)
 	if (_ctl_verify_adapter(karg.hdr.ioc_number, &ioc) == -1 || !ioc)
 		return -ENODEV;
 
+	if (ioc->shost_recovery || ioc->pci_error_recovery ||
+		ioc->is_driver_loading)
+		return -EAGAIN;
 	dctlprintk(ioc, printk(MPT2SAS_INFO_FMT "%s: enter\n", ioc->name,
 	    __func__));
 
@@ -2178,7 +2181,8 @@ _ctl_ioctl_main(struct file *file, unsigned int cmd, void __user *arg)
 		    !ioc)
 			return -ENODEV;
 
-		if (ioc->shost_recovery || ioc->pci_error_recovery)
+		if (ioc->shost_recovery || ioc->pci_error_recovery ||
+				ioc->is_driver_loading)
 			return -EAGAIN;
 
 		if (_IOC_SIZE(cmd) == sizeof(struct mpt2_ioctl_command)) {
@@ -2297,7 +2301,8 @@ _ctl_compat_mpt_command(struct file *file, unsigned cmd, unsigned long arg)
 	if (_ctl_verify_adapter(karg32.hdr.ioc_number, &ioc) == -1 || !ioc)
 		return -ENODEV;
 
-	if (ioc->shost_recovery || ioc->pci_error_recovery)
+	if (ioc->shost_recovery || ioc->pci_error_recovery ||
+			ioc->is_driver_loading)
 		return -EAGAIN;
 
 	memset(&karg, 0, sizeof(struct mpt2_ioctl_command));

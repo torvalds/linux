@@ -36,6 +36,7 @@
 #include <linux/bit_spinlock.h>
 #include <linux/rculist_bl.h>
 #include <linux/prefetch.h>
+#include <linux/ratelimit.h>
 #include "internal.h"
 
 /*
@@ -546,9 +547,11 @@ int d_invalidate(struct dentry * dentry)
 	 * would make it unreachable from the root,
 	 * we might still populate it if it was a
 	 * working directory or similar).
+	 * We also need to leave mountpoints alone,
+	 * directory or not.
 	 */
-	if (dentry->d_count > 1) {
-		if (dentry->d_inode && S_ISDIR(dentry->d_inode->i_mode)) {
+	if (dentry->d_count > 1 && dentry->d_inode) {
+		if (S_ISDIR(dentry->d_inode->i_mode) || d_mountpoint(dentry)) {
 			spin_unlock(&dentry->d_lock);
 			return -EBUSY;
 		}
@@ -2381,8 +2384,16 @@ struct dentry *d_materialise_unique(struct dentry *dentry, struct inode *inode)
 				actual = __d_unalias(inode, dentry, alias);
 			}
 			write_sequnlock(&rename_lock);
-			if (IS_ERR(actual))
+			if (IS_ERR(actual)) {
+				if (PTR_ERR(actual) == -ELOOP)
+					pr_warn_ratelimited(
+						"VFS: Lookup of '%s' in %s %s"
+						" would have caused loop\n",
+						dentry->d_name.name,
+						inode->i_sb->s_type->name,
+						inode->i_sb->s_id);
 				dput(alias);
+			}
 			goto out_nolock;
 		}
 	}

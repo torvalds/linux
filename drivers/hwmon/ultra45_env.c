@@ -6,6 +6,7 @@
 #include <linux/kernel.h>
 #include <linux/types.h>
 #include <linux/slab.h>
+#include <linux/module.h>
 #include <linux/of_device.h>
 #include <linux/io.h>
 #include <linux/hwmon.h>
@@ -308,15 +309,4 @@ static struct platform_driver env_driver = {
 	.remove		= __devexit_p(env_remove),
 };
 
-static int __init env_init(void)
-{
-	return platform_driver_register(&env_driver);
-}
-
-static void __exit env_exit(void)
-{
-	platform_driver_unregister(&env_driver);
-}
-
-module_init(env_init);
-module_exit(env_exit);
+module_platform_driver(env_driver);

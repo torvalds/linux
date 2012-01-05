@@ -442,12 +442,14 @@ static int ixgbe_set_vf_macvlan(struct ixgbe_adapter *adapter,
 
 int ixgbe_check_vf_assignment(struct ixgbe_adapter *adapter)
 {
+#ifdef CONFIG_PCI_IOV
 	int i;
 	for (i = 0; i < adapter->num_vfs; i++) {
 		if (adapter->vfinfo[i].vfdev->dev_flags &
 				PCI_DEV_FLAGS_ASSIGNED)
 			return true;
 	}
+#endif
 	return false;
 }
 

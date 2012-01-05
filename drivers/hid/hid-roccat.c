@@ -27,6 +27,7 @@
 #include <linux/poll.h>
 #include <linux/sched.h>
 #include <linux/hid-roccat.h>
+#include <linux/module.h>
 
 #define ROCCAT_FIRST_MINOR 0
 #define ROCCAT_MAX_DEVICES 8

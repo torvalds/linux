@@ -12,7 +12,7 @@ struct pci_ats {
 	unsigned int is_enabled:1;      /* Enable bit is set */
 };
 
-#ifdef CONFIG_PCI_IOV
+#ifdef CONFIG_PCI_ATS
 
 extern int pci_enable_ats(struct pci_dev *dev, int ps);
 extern void pci_disable_ats(struct pci_dev *dev);
@@ -29,7 +29,7 @@ static inline int pci_ats_enabled(struct pci_dev *dev)
 	return dev->ats && dev->ats->is_enabled;
 }
 
-#else /* CONFIG_PCI_IOV */
+#else /* CONFIG_PCI_ATS */
 
 static inline int pci_enable_ats(struct pci_dev *dev, int ps)
 {
@@ -50,7 +50,7 @@ static inline int pci_ats_enabled(struct pci_dev *dev)
 	return 0;
 }
 
-#endif /* CONFIG_PCI_IOV */
+#endif /* CONFIG_PCI_ATS */
 
 #ifdef CONFIG_PCI_PRI
 

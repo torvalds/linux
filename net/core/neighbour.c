@@ -872,12 +872,8 @@ static void neigh_timer_handler(unsigned long arg)
 	now = jiffies;
 	next = now + HZ;
 
-	if (!(state & NUD_IN_TIMER)) {
-#ifndef CONFIG_SMP
-		printk(KERN_WARNING "neigh: timer & !nud_in_timer\n");
-#endif
+	if (!(state & NUD_IN_TIMER))
 		goto out;
-	}
 
 	if (state & NUD_REACHABLE) {
 		if (time_before_eq(now,
@@ -2401,7 +2397,10 @@ static struct pneigh_entry *pneigh_get_next(struct seq_file *seq,
 	struct net *net = seq_file_net(seq);
 	struct neigh_table *tbl = state->tbl;
 
-	pn = pn->next;
+	do {
+		pn = pn->next;
+	} while (pn && !net_eq(pneigh_net(pn), net));
+
 	while (!pn) {
 		if (++state->bucket > PNEIGH_HASHMASK)
 			break;

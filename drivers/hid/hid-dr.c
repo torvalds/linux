@@ -31,6 +31,7 @@
 #include <linux/slab.h>
 #include <linux/usb.h>
 #include <linux/hid.h>
+#include <linux/module.h>
 
 #include "hid-ids.h"
 

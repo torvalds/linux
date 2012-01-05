@@ -1023,6 +1023,7 @@ static int aic3x_set_dai_fmt(struct snd_soc_dai *codec_dai,
 		break;
 	case SND_SOC_DAIFMT_CBS_CFS:
 		aic3x->master = 0;
+		iface_areg &= ~(BIT_CLK_MASTER | WORD_CLK_MASTER);
 		break;
 	default:
 		return -EINVAL;

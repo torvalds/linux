@@ -24,7 +24,7 @@
  *
  */
 
-#include <linux/module.h>
+#include <linux/export.h>
 #include <linux/mutex.h>
 #include <linux/percpu.h>
 #include <linux/preempt.h>

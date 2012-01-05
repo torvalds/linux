@@ -1683,6 +1683,20 @@ sub process {
 			#print "is_end<$is_end> length<$length>\n";
 		}
 
+		if (($realfile =~ /Makefile.*/ || $realfile =~ /Kbuild.*/) &&
+		    ($line =~ /\+(EXTRA_[A-Z]+FLAGS).*/)) {
+			my $flag = $1;
+			my $replacement = {
+				'EXTRA_AFLAGS' =>   'asflags-y',
+				'EXTRA_CFLAGS' =>   'ccflags-y',
+				'EXTRA_CPPFLAGS' => 'cppflags-y',
+				'EXTRA_LDFLAGS' =>  'ldflags-y',
+			};
+
+			WARN("DEPRECATED_VARIABLE",
+			     "Use of $flag is deprecated, please use \`$replacement->{$flag} instead.\n" . $herecurr) if ($replacement->{$flag});
+		}
+
 # check we are in a valid source file if not then ignore this hunk
 		next if ($realfile !~ /\.(h|c|s|S|pl|sh)$/);
 

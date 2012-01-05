@@ -40,6 +40,7 @@
 #include <net/netevent.h>
 #include <linux/highmem.h>
 #include <linux/vmalloc.h>
+#include <linux/export.h>
 
 #include "common.h"
 #include "regs.h"

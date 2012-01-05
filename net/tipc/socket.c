@@ -34,6 +34,7 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
+#include <linux/export.h>
 #include <net/sock.h>
 
 #include "core.h"

@@ -28,6 +28,7 @@
  */
 #include <linux/i2c.h>
 #include <linux/i2c-algo-bit.h>
+#include <linux/export.h>
 #include "drmP.h"
 #include "drm.h"
 #include "intel_drv.h"

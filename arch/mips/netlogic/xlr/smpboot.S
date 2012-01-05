@@ -32,17 +32,19 @@
  * IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
+#include <linux/init.h>
+
 #include <asm/asm.h>
 #include <asm/asm-offsets.h>
 #include <asm/regdef.h>
 #include <asm/mipsregs.h>
 
-
-/* Don't jump to linux function from Bootloader stack. Change it
- * here. Kernel might allocate bootloader memory before all the CPUs are
- * brought up (eg: Inode cache region) and we better don't overwrite this
- * memory
+/*
+ * Early code for secondary CPUs. This will get them out of the bootloader
+ * code and into linux. Needed because the bootloader area will be taken
+ * and initialized by linux.
  */
+	__CPUINIT
 NESTED(prom_pre_boot_secondary_cpus, 16, sp)
 	.set	mips64
 	mfc0	t0, $15, 1	# read ebase
@@ -73,7 +75,11 @@ NESTED(prom_pre_boot_secondary_cpus, 16, sp)
 	jr	t0
 	nop
 END(prom_pre_boot_secondary_cpus)
+	__FINIT
 
+/*
+ * NMI code, used for CPU wakeup, copied to reset entry
+ */
 NESTED(nlm_boot_smp_nmi, 0, sp)
 	.set push
 	.set noat

@@ -50,6 +50,7 @@
 #include <rdma/ib_verbs.h>
 #include <rdma/rdma_cm.h>
 #include <linux/sunrpc/svc_rdma.h>
+#include <linux/export.h>
 
 #define RPCDBG_FACILITY	RPCDBG_SVCXPRT
 

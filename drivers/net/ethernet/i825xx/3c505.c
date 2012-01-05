@@ -126,15 +126,13 @@
  *
  *********************************************************/
 
-#define filename __FILE__
-
 #define timeout_msg "*** timeout at %s:%s (line %d) ***\n"
 #define TIMEOUT_MSG(lineno) \
-	pr_notice(timeout_msg, filename, __func__, (lineno))
+	pr_notice(timeout_msg, __FILE__, __func__, (lineno))
 
 #define invalid_pcb_msg "*** invalid pcb length %d at %s:%s (line %d) ***\n"
 #define INVALID_PCB_MSG(len) \
-	pr_notice(invalid_pcb_msg, (len), filename, __func__, __LINE__)
+	pr_notice(invalid_pcb_msg, (len), __FILE__, __func__, __LINE__)
 
 #define search_msg "%s: Looking for 3c505 adapter at address %#x..."
 

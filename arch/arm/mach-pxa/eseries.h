@@ -11,5 +11,4 @@ extern int eseries_tmio_resume(struct platform_device *dev);
 extern void eseries_get_tmio_gpios(void);
 extern struct resource eseries_tmio_resources[];
 extern struct platform_device e300_tc6387xb_device;
-extern void eseries_register_clks(void);
 

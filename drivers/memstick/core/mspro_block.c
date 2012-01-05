@@ -20,6 +20,7 @@
 #include <linux/slab.h>
 #include <linux/mutex.h>
 #include <linux/memstick.h>
+#include <linux/module.h>
 
 #define DRIVER_NAME "mspro_block"
 

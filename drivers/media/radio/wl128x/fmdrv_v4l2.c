@@ -28,6 +28,8 @@
  *
  */
 
+#include <linux/export.h>
+
 #include "fmdrv.h"
 #include "fmdrv_v4l2.h"
 #include "fmdrv_common.h"

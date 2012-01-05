@@ -1103,7 +1103,10 @@ int bnx2fc_eh_abort(struct scsi_cmnd *sc_cmd)
 	struct fc_rport_libfc_priv *rp = rport->dd_data;
 	struct bnx2fc_cmd *io_req;
 	struct fc_lport *lport;
+	struct fc_rport_priv *rdata;
 	struct bnx2fc_rport *tgt;
+	int logo_issued;
+	int wait_cnt = 0;
 	int rc = FAILED;
 
 
@@ -1192,8 +1195,40 @@ int bnx2fc_eh_abort(struct scsi_cmnd *sc_cmd)
 	} else {
 		printk(KERN_ERR PFX "eh_abort: io_req (xid = 0x%x) "
 				"already in abts processing\n", io_req->xid);
+		if (cancel_delayed_work(&io_req->timeout_work))
+			kref_put(&io_req->refcount,
+				 bnx2fc_cmd_release); /* drop timer hold */
+		bnx2fc_initiate_cleanup(io_req);
+
+		spin_unlock_bh(&tgt->tgt_lock);
+
+		wait_for_completion(&io_req->tm_done);
+
+		spin_lock_bh(&tgt->tgt_lock);
+		io_req->wait_for_comp = 0;
+		rdata = io_req->tgt->rdata;
+		logo_issued = test_and_set_bit(BNX2FC_FLAG_EXPL_LOGO,
+					       &tgt->flags);
 		kref_put(&io_req->refcount, bnx2fc_cmd_release);
 		spin_unlock_bh(&tgt->tgt_lock);
+
+		if (!logo_issued) {
+			BNX2FC_IO_DBG(io_req, "Expl logo - tgt flags = 0x%lx\n",
+				      tgt->flags);
+			mutex_lock(&lport->disc.disc_mutex);
+			lport->tt.rport_logoff(rdata);
+			mutex_unlock(&lport->disc.disc_mutex);
+			do {
+				msleep(BNX2FC_RELOGIN_WAIT_TIME);
+				/*
+				 * If session not recovered, let SCSI-ml
+				 * escalate error recovery.
+				 */
+				if (wait_cnt++ > BNX2FC_RELOGIN_WAIT_CNT)
+					return FAILED;
+			} while (!test_bit(BNX2FC_FLAG_SESSION_READY,
+					   &tgt->flags));
+		}
 		return SUCCESS;
 	}
 	if (rc == FAILED) {
@@ -1275,6 +1310,8 @@ void bnx2fc_process_cleanup_compl(struct bnx2fc_cmd *io_req,
 		   io_req->refcount.refcount.counter, io_req->cmd_type);
 	bnx2fc_scsi_done(io_req, DID_ERROR);
 	kref_put(&io_req->refcount, bnx2fc_cmd_release);
+	if (io_req->wait_for_comp)
+		complete(&io_req->tm_done);
 }
 
 void bnx2fc_process_abts_compl(struct bnx2fc_cmd *io_req,

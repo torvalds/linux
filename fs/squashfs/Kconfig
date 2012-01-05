@@ -78,6 +78,28 @@ config SQUASHFS_XZ
 
 	  If unsure, say N.
 
+config SQUASHFS_4K_DEVBLK_SIZE
+	bool "Use 4K device block size?"
+	depends on SQUASHFS
+	help
+	  By default Squashfs sets the dev block size (sb_min_blocksize)
+	  to 1K or the smallest block size supported by the block device
+	  (if larger).  This, because blocks are packed together and
+	  unaligned in Squashfs, should reduce latency.
+
+	  This, however, gives poor performance on MTD NAND devices where
+	  the optimal I/O size is 4K (even though the devices can support
+	  smaller block sizes).
+
+	  Using a 4K device block size may also improve overall I/O
+	  performance for some file access patterns (e.g. sequential
+	  accesses of files in filesystem order) on all media.
+
+	  Setting this option will force Squashfs to use a 4K device block
+	  size by default.
+
+	  If unsure, say N.
+
 config SQUASHFS_EMBEDDED
 	bool "Additional option for memory-constrained systems"
 	depends on SQUASHFS

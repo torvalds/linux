@@ -90,6 +90,7 @@
 #include <linux/ctype.h>
 #include <linux/slab.h>
 #include <linux/workqueue.h>
+#include <linux/export.h>
 #include "wusbhc.h"
 
 static void wusbhc_devconnect_acked_work(struct work_struct *work);

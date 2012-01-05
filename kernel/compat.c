@@ -21,6 +21,7 @@
 #include <linux/unistd.h>
 #include <linux/security.h>
 #include <linux/timex.h>
+#include <linux/export.h>
 #include <linux/migrate.h>
 #include <linux/posix-timers.h>
 #include <linux/times.h>

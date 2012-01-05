@@ -7,7 +7,7 @@
  * Copyright (C) 2010 John Crispin <blogic@openwrt.org>
  */
 #include <linux/io.h>
-#include <linux/module.h>
+#include <linux/export.h>
 #include <linux/init.h>
 #include <linux/kernel.h>
 #include <linux/types.h>

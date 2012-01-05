@@ -41,7 +41,7 @@
 #include <linux/init.h>
 #include <linux/delay.h>
 #include <linux/interrupt.h>
-#include <linux/moduleparam.h>
+#include <linux/module.h>
 #include <linux/slab.h>
 #include <linux/pci.h>
 #include <linux/math64.h>
@@ -520,16 +520,9 @@ MODULE_SUPPORTED_DEVICE("{{RME HDSPM-MADI}}");
 #define HDSPM_DMA_AREA_BYTES (HDSPM_MAX_CHANNELS * HDSPM_CHANNEL_BUFFER_BYTES)
 #define HDSPM_DMA_AREA_KILOBYTES (HDSPM_DMA_AREA_BYTES/1024)
 
-/* revisions >= 230 indicate AES32 card */
-#define HDSPM_MADI_ANCIENT_REV	204
-#define HDSPM_MADI_OLD_REV	207
-#define HDSPM_MADI_REV		210
 #define HDSPM_RAYDAT_REV	211
 #define HDSPM_AIO_REV		212
 #define HDSPM_MADIFACE_REV	213
-#define HDSPM_AES_REV		240
-#define HDSPM_AES32_REV		234
-#define HDSPM_AES32_OLD_REV	233
 
 /* speed factor modes */
 #define HDSPM_SPEED_SINGLE 0
@@ -6253,7 +6246,7 @@ static int snd_hdspm_hwdep_ioctl(struct snd_hwdep *hw, struct file *file,
 			status.card_specific.madi.madi_input =
 				(statusregister & HDSPM_AB_int) ? 1 : 0;
 			status.card_specific.madi.channel_format =
-				(statusregister & HDSPM_TX_64ch) ? 1 : 0;
+				(statusregister & HDSPM_RX_64ch) ? 1 : 0;
 			/* TODO: Mac driver sets it when f_s>48kHz */
 			status.card_specific.madi.frame_format = 0;
 
@@ -6503,13 +6496,6 @@ static int __devinit snd_hdspm_create(struct snd_card *card,
 	strcpy(card->driver, "HDSPM");
 
 	switch (hdspm->firmware_rev) {
-	case HDSPM_MADI_REV:
-	case HDSPM_MADI_OLD_REV:
-	case HDSPM_MADI_ANCIENT_REV:
-		hdspm->io_type = MADI;
-		hdspm->card_name = "RME MADI";
-		hdspm->midiPorts = 3;
-		break;
 	case HDSPM_RAYDAT_REV:
 		hdspm->io_type = RayDAT;
 		hdspm->card_name = "RME RayDAT";
@@ -6525,17 +6511,25 @@ static int __devinit snd_hdspm_create(struct snd_card *card,
 		hdspm->card_name = "RME MADIface";
 		hdspm->midiPorts = 1;
 		break;
-	case HDSPM_AES_REV:
-	case HDSPM_AES32_REV:
-	case HDSPM_AES32_OLD_REV:
-		hdspm->io_type = AES32;
-		hdspm->card_name = "RME AES32";
-		hdspm->midiPorts = 2;
-		break;
 	default:
-		snd_printk(KERN_ERR "HDSPM: unknown firmware revision %x\n",
+		if ((hdspm->firmware_rev == 0xf0) ||
+			((hdspm->firmware_rev >= 0xe6) &&
+					(hdspm->firmware_rev <= 0xea))) {
+			hdspm->io_type = AES32;
+			hdspm->card_name = "RME AES32";
+			hdspm->midiPorts = 2;
+		} else if ((hdspm->firmware_rev == 0xd2) ||
+			((hdspm->firmware_rev >= 0xc8)  &&
+				(hdspm->firmware_rev <= 0xcf))) {
+			hdspm->io_type = MADI;
+			hdspm->card_name = "RME MADI";
+			hdspm->midiPorts = 3;
+		} else {
+			snd_printk(KERN_ERR
+				"HDSPM: unknown firmware revision %x\n",
 				hdspm->firmware_rev);
-		return -ENODEV;
+			return -ENODEV;
+		}
 	}
 
 	err = pci_enable_device(pci);

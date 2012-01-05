@@ -230,12 +230,14 @@ extern struct sock *udp6_lib_lookup(struct net *net, const struct in6_addr *sadd
 #endif
 
 /* /proc */
+int udp_seq_open(struct inode *inode, struct file *file);
+
 struct udp_seq_afinfo {
-	char			*name;
-	sa_family_t		family;
-	struct udp_table	*udp_table;
-	struct file_operations	seq_fops;
-	struct seq_operations	seq_ops;
+	char				*name;
+	sa_family_t			family;
+	struct udp_table		*udp_table;
+	const struct file_operations	*seq_fops;
+	struct seq_operations		seq_ops;
 };
 
 struct udp_iter_state {

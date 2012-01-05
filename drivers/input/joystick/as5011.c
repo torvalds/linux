@@ -30,6 +30,7 @@
 #include <linux/delay.h>
 #include <linux/input/as5011.h>
 #include <linux/slab.h>
+#include <linux/module.h>
 
 #define DRIVER_DESC "Driver for Austria Microsystems AS5011 joystick"
 #define MODULE_DEVICE_ALIAS "as5011"

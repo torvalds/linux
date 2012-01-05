@@ -8,6 +8,7 @@
  * Copyright (C) 2007, 2008 Cavium Networks
  */
 #include <linux/kernel.h>
+#include <linux/export.h>
 #include <linux/mtd/mtd.h>
 #include <linux/mtd/map.h>
 #include <linux/mtd/partitions.h>
@@ -16,8 +17,6 @@
 
 static struct map_info flash_map;
 static struct mtd_info *mymtd;
-static int nr_parts;
-static struct mtd_partition *parts;
 static const char *part_probe_types[] = {
 	"cmdlinepart",
 #ifdef CONFIG_MTD_REDBOOT_PARTS
@@ -60,11 +59,8 @@ static int __init flash_init(void)
 		mymtd = do_map_probe("cfi_probe", &flash_map);
 		if (mymtd) {
 			mymtd->owner = THIS_MODULE;
-
-			nr_parts = parse_mtd_partitions(mymtd,
-							part_probe_types,
-							&parts, 0);
-			mtd_device_register(mymtd, parts, nr_parts);
+			mtd_device_parse_register(mymtd, part_probe_types,
+						  0, NULL, 0);
 		} else {
 			pr_err("Failed to register MTD device for flash\n");
 		}

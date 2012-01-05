@@ -1,21 +1,15 @@
+#include "../../util.h"
 #include "../browser.h"
 #include "../helpline.h"
 #include "../libslang.h"
+#include "../ui.h"
+#include "../util.h"
 #include "../../annotate.h"
 #include "../../hist.h"
 #include "../../sort.h"
 #include "../../symbol.h"
 #include <pthread.h>
 #include <newt.h>
-
-static void ui__error_window(const char *fmt, ...)
-{
-	va_list ap;
-
-	va_start(ap, fmt);
-	newtWinMessagev((char *)"Error", (char *)"Ok", (char *)fmt, ap);
-	va_end(ap);
-}
 
 struct annotate_browser {
 	struct ui_browser b;
@@ -400,7 +394,7 @@ int symbol__tui_annotate(struct symbol *sym, struct map *map, int evidx,
 		return -1;
 
 	if (symbol__annotate(sym, map, sizeof(struct objdump_line_rb_node)) < 0) {
-		ui__error_window(ui_helpline__last_msg);
+		ui__error("%s", ui_helpline__last_msg);
 		return -1;
 	}
 

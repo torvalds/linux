@@ -27,6 +27,7 @@
 #include <linux/slab.h>
 #include <linux/i2c-tegra.h>
 #include <linux/of_i2c.h>
+#include <linux/module.h>
 
 #include <asm/unaligned.h>
 

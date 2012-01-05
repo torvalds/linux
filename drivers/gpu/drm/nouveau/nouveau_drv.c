@@ -23,6 +23,7 @@
  */
 
 #include <linux/console.h>
+#include <linux/module.h>
 
 #include "drmP.h"
 #include "drm.h"
@@ -431,6 +432,10 @@ static struct drm_driver driver = {
 	.gem_free_object = nouveau_gem_object_del,
 	.gem_open_object = nouveau_gem_object_open,
 	.gem_close_object = nouveau_gem_object_close,
+
+	.dumb_create = nouveau_display_dumb_create,
+	.dumb_map_offset = nouveau_display_dumb_map_offset,
+	.dumb_destroy = nouveau_display_dumb_destroy,
 
 	.name = DRIVER_NAME,
 	.desc = DRIVER_DESC,

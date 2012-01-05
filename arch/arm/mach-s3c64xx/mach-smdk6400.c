@@ -31,7 +31,7 @@
 
 #include <plat/regs-serial.h>
 
-#include <mach/s3c6400.h>
+#include <plat/s3c6400.h>
 #include <plat/clock.h>
 #include <plat/devs.h>
 #include <plat/cpu.h>

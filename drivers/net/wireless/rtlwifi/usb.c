@@ -28,6 +28,7 @@
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
 #include <linux/usb.h>
+#include <linux/export.h>
 #include "core.h"
 #include "wifi.h"
 #include "usb.h"

@@ -27,6 +27,7 @@
 #include <linux/delay.h>
 #include <linux/platform_device.h>
 #include <linux/interrupt.h>
+#include <linux/moduleparam.h>
 #include <linux/smsc911x.h>
 #include <linux/mtd/physmap.h>
 #include <linux/spi/spi.h>

@@ -15,6 +15,7 @@
 #include <linux/random.h>
 #include <linux/cryptohash.h>
 #include <linux/kernel.h>
+#include <linux/export.h>
 #include <net/tcp.h>
 #include <net/route.h>
 

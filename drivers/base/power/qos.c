@@ -39,6 +39,7 @@
 #include <linux/slab.h>
 #include <linux/device.h>
 #include <linux/mutex.h>
+#include <linux/export.h>
 
 
 static DEFINE_MUTEX(dev_pm_qos_mtx);
@@ -211,11 +212,9 @@ int dev_pm_qos_add_request(struct device *dev, struct dev_pm_qos_request *req,
 	if (!dev || !req) /*guard against callers passing in null */
 		return -EINVAL;
 
-	if (dev_pm_qos_request_active(req)) {
-		WARN(1, KERN_ERR "dev_pm_qos_add_request() called for already "
-			"added request\n");
+	if (WARN(dev_pm_qos_request_active(req),
+		 "%s() called for already added request\n", __func__))
 		return -EINVAL;
-	}
 
 	req->dev = dev;
 
@@ -270,11 +269,9 @@ int dev_pm_qos_update_request(struct dev_pm_qos_request *req,
 	if (!req) /*guard against callers passing in null */
 		return -EINVAL;
 
-	if (!dev_pm_qos_request_active(req)) {
-		WARN(1, KERN_ERR "dev_pm_qos_update_request() called for "
-			"unknown object\n");
+	if (WARN(!dev_pm_qos_request_active(req),
+		 "%s() called for unknown object\n", __func__))
 		return -EINVAL;
-	}
 
 	mutex_lock(&dev_pm_qos_mtx);
 
@@ -311,11 +308,9 @@ int dev_pm_qos_remove_request(struct dev_pm_qos_request *req)
 	if (!req) /*guard against callers passing in null */
 		return -EINVAL;
 
-	if (!dev_pm_qos_request_active(req)) {
-		WARN(1, KERN_ERR "dev_pm_qos_remove_request() called for "
-			"unknown object\n");
+	if (WARN(!dev_pm_qos_request_active(req),
+		 "%s() called for unknown object\n", __func__))
 		return -EINVAL;
-	}
 
 	mutex_lock(&dev_pm_qos_mtx);
 

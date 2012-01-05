@@ -339,7 +339,7 @@ ip_vs_dst_reset(struct ip_vs_dest *dest)
 								\
 	(skb)->ipvs_property = 1;				\
 	if (unlikely((cp)->flags & IP_VS_CONN_F_NFCT))		\
-		__ret = ip_vs_confirm_conntrack(skb, cp);	\
+		__ret = ip_vs_confirm_conntrack(skb);		\
 	if (__ret == NF_ACCEPT) {				\
 		nf_reset(skb);					\
 		skb_forward_csum(skb);				\

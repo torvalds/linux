@@ -121,9 +121,6 @@ struct tmio_nand {
 
 #define mtd_to_tmio(m)			container_of(m, struct tmio_nand, mtd)
 
-#ifdef CONFIG_MTD_CMDLINE_PARTS
-static const char *part_probes[] = { "cmdlinepart", NULL };
-#endif
 
 /*--------------------------------------------------------------------------*/
 
@@ -381,8 +378,6 @@ static int tmio_probe(struct platform_device *dev)
 	struct tmio_nand *tmio;
 	struct mtd_info *mtd;
 	struct nand_chip *nand_chip;
-	struct mtd_partition *parts;
-	int nbparts = 0;
 	int retval;
 
 	if (data == NULL)
@@ -461,15 +456,9 @@ static int tmio_probe(struct platform_device *dev)
 		goto err_scan;
 	}
 	/* Register the partitions */
-#ifdef CONFIG_MTD_CMDLINE_PARTS
-	nbparts = parse_mtd_partitions(mtd, part_probes, &parts, 0);
-#endif
-	if (nbparts <= 0 && data) {
-		parts = data->partition;
-		nbparts = data->num_partitions;
-	}
-
-	retval = mtd_device_register(mtd, parts, nbparts);
+	retval = mtd_device_parse_register(mtd, NULL, 0,
+			data ? data->partition : NULL,
+			data ? data->num_partitions : 0);
 	if (!retval)
 		return retval;
 

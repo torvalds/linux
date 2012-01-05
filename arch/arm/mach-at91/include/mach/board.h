@@ -117,7 +117,8 @@ struct atmel_nand_data {
 	u8		ale;		/* address line number connected to ALE */
 	u8		cle;		/* address line number connected to CLE */
 	u8		bus_width_16;	/* buswidth is 16 bit */
-	struct mtd_partition* (*partition_info)(int, int*);
+	struct mtd_partition *parts;
+	unsigned int	num_parts;
 };
 extern void __init at91_add_device_nand(struct atmel_nand_data *data);
 

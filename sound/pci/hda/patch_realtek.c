@@ -27,6 +27,7 @@
 #include <linux/delay.h>
 #include <linux/slab.h>
 #include <linux/pci.h>
+#include <linux/module.h>
 #include <sound/core.h>
 #include <sound/jack.h>
 #include "hda_codec.h"
@@ -276,6 +277,12 @@ static bool alc_dyn_adc_pcm_resetup(struct hda_codec *codec, int cur)
 	return false;
 }
 
+static inline hda_nid_t get_capsrc(struct alc_spec *spec, int idx)
+{
+	return spec->capsrc_nids ?
+		spec->capsrc_nids[idx] : spec->adc_nids[idx];
+}
+
 /* select the given imux item; either unmute exclusively or select the route */
 static int alc_mux_select(struct hda_codec *codec, unsigned int adc_idx,
 			  unsigned int idx, bool force)
@@ -283,7 +290,7 @@ static int alc_mux_select(struct hda_codec *codec, unsigned int adc_idx,
 	struct alc_spec *spec = codec->spec;
 	const struct hda_input_mux *imux;
 	unsigned int mux_idx;
-	int i, type;
+	int i, type, num_conns;
 	hda_nid_t nid;
 
 	mux_idx = adc_idx >= spec->num_mux_defs ? 0 : adc_idx;
@@ -302,20 +309,20 @@ static int alc_mux_select(struct hda_codec *codec, unsigned int adc_idx,
 		adc_idx = spec->dyn_adc_idx[idx];
 	}
 
-	nid = spec->capsrc_nids ?
-		spec->capsrc_nids[adc_idx] : spec->adc_nids[adc_idx];
+	nid = get_capsrc(spec, adc_idx);
 
 	/* no selection? */
-	if (snd_hda_get_conn_list(codec, nid, NULL) <= 1)
+	num_conns = snd_hda_get_conn_list(codec, nid, NULL);
+	if (num_conns <= 1)
 		return 1;
 
 	type = get_wcaps_type(get_wcaps(codec, nid));
 	if (type == AC_WID_AUD_MIX) {
 		/* Matrix-mixer style (e.g. ALC882) */
-		for (i = 0; i < imux->num_items; i++) {
-			unsigned int v = (i == idx) ? 0 : HDA_AMP_MUTE;
-			snd_hda_codec_amp_stereo(codec, nid, HDA_INPUT,
-						 imux->items[i].index,
+		int active = imux->items[idx].index;
+		for (i = 0; i < num_conns; i++) {
+			unsigned int v = (i == active) ? 0 : HDA_AMP_MUTE;
+			snd_hda_codec_amp_stereo(codec, nid, HDA_INPUT, i,
 						 HDA_AMP_MUTE, v);
 		}
 	} else {
@@ -1052,8 +1059,19 @@ static bool alc_rebuild_imux_for_auto_mic(struct hda_codec *codec)
 	spec->imux_pins[2] = spec->dock_mic_pin;
 	for (i = 0; i < 3; i++) {
 		strcpy(imux->items[i].label, texts[i]);
-		if (spec->imux_pins[i])
+		if (spec->imux_pins[i]) {
+			hda_nid_t pin = spec->imux_pins[i];
+			int c;
+			for (c = 0; c < spec->num_adc_nids; c++) {
+				hda_nid_t cap = get_capsrc(spec, c);
+				int idx = get_connection_index(codec, cap, pin);
+				if (idx >= 0) {
+					imux->items[i].index = idx;
+					break;
+				}
+			}
 			imux->num_items = i + 1;
+		}
 	}
 	spec->num_mux_defs = 1;
 	spec->input_mux = imux;
@@ -1450,7 +1468,7 @@ static void alc_apply_fixup(struct hda_codec *codec, int action)
 		switch (fix->type) {
 		case ALC_FIXUP_SKU:
 			if (action != ALC_FIXUP_ACT_PRE_PROBE || !fix->v.sku)
-				break;;
+				break;
 			snd_printdd(KERN_INFO "hda_codec: %s: "
 				    "Apply sku override for %s\n",
 				    codec->chip_name, modelname);
@@ -1604,27 +1622,29 @@ static void alc_auto_init_digital(struct hda_codec *codec)
 static void alc_auto_parse_digital(struct hda_codec *codec)
 {
 	struct alc_spec *spec = codec->spec;
-	int i, err;
+	int i, err, nums;
 	hda_nid_t dig_nid;
 
 	/* support multiple SPDIFs; the secondary is set up as a slave */
+	nums = 0;
 	for (i = 0; i < spec->autocfg.dig_outs; i++) {
 		hda_nid_t conn[4];
 		err = snd_hda_get_connections(codec,
 					      spec->autocfg.dig_out_pins[i],
 					      conn, ARRAY_SIZE(conn));
-		if (err < 0)
+		if (err <= 0)
 			continue;
 		dig_nid = conn[0]; /* assume the first element is audio-out */
-		if (!i) {
+		if (!nums) {
 			spec->multiout.dig_out_nid = dig_nid;
 			spec->dig_out_type = spec->autocfg.dig_out_type[0];
 		} else {
 			spec->multiout.slave_dig_outs = spec->slave_dig_outs;
-			if (i >= ARRAY_SIZE(spec->slave_dig_outs) - 1)
+			if (nums >= ARRAY_SIZE(spec->slave_dig_outs) - 1)
 				break;
-			spec->slave_dig_outs[i - 1] = dig_nid;
+			spec->slave_dig_outs[nums - 1] = dig_nid;
 		}
+		nums++;
 	}
 
 	if (spec->autocfg.dig_in_pin) {
@@ -1953,10 +1973,8 @@ static int alc_build_controls(struct hda_codec *codec)
 		if (!kctl)
 			kctl = snd_hda_find_mixer_ctl(codec, "Input Source");
 		for (i = 0; kctl && i < kctl->count; i++) {
-			const hda_nid_t *nids = spec->capsrc_nids;
-			if (!nids)
-				nids = spec->adc_nids;
-			err = snd_hda_add_nid(codec, kctl, i, nids[i]);
+			err = snd_hda_add_nid(codec, kctl, i,
+					      get_capsrc(spec, i));
 			if (err < 0)
 				return err;
 		}
@@ -2270,6 +2288,7 @@ static int alc_build_pcms(struct hda_codec *codec)
 	struct alc_spec *spec = codec->spec;
 	struct hda_pcm *info = spec->pcm_rec;
 	const struct hda_pcm_stream *p;
+	bool have_multi_adcs;
 	int i;
 
 	codec->num_pcms = 1;
@@ -2348,8 +2367,11 @@ static int alc_build_pcms(struct hda_codec *codec)
 	/* If the use of more than one ADC is requested for the current
 	 * model, configure a second analog capture-only PCM.
 	 */
+	have_multi_adcs = (spec->num_adc_nids > 1) &&
+		!spec->dyn_adc_switch && !spec->auto_mic &&
+		(!spec->input_mux || spec->input_mux->num_items > 1);
 	/* Additional Analaog capture for index #2 */
-	if (spec->alt_dac_nid || spec->num_adc_nids > 1) {
+	if (spec->alt_dac_nid || have_multi_adcs) {
 		codec->num_pcms = 3;
 		info = spec->pcm_rec + 2;
 		info->name = spec->stream_name_analog;
@@ -2365,7 +2387,7 @@ static int alc_build_pcms(struct hda_codec *codec)
 				alc_pcm_null_stream;
 			info->stream[SNDRV_PCM_STREAM_PLAYBACK].nid = 0;
 		}
-		if (spec->num_adc_nids > 1) {
+		if (have_multi_adcs) {
 			p = spec->stream_analog_alt_capture;
 			if (!p)
 				p = &alc_pcm_analog_alt_capture;
@@ -2657,7 +2679,6 @@ static int alc_auto_fill_adc_caps(struct hda_codec *codec)
 	hda_nid_t *adc_nids = spec->private_adc_nids;
 	hda_nid_t *cap_nids = spec->private_capsrc_nids;
 	int max_nums = ARRAY_SIZE(spec->private_adc_nids);
-	bool indep_capsrc = false;
 	int i, nums = 0;
 
 	nid = codec->start_nid;
@@ -2679,13 +2700,11 @@ static int alc_auto_fill_adc_caps(struct hda_codec *codec)
 				break;
 			if (type == AC_WID_AUD_SEL) {
 				cap_nids[nums] = src;
-				indep_capsrc = true;
 				break;
 			}
 			n = snd_hda_get_conn_list(codec, src, &list);
 			if (n > 1) {
 				cap_nids[nums] = src;
-				indep_capsrc = true;
 				break;
 			} else if (n != 1)
 				break;
@@ -2742,8 +2761,7 @@ static int alc_auto_create_input_ctls(struct hda_codec *codec)
 		}
 
 		for (c = 0; c < num_adcs; c++) {
-			hda_nid_t cap = spec->capsrc_nids ?
-				spec->capsrc_nids[c] : spec->adc_nids[c];
+			hda_nid_t cap = get_capsrc(spec, c);
 			idx = get_connection_index(codec, cap, pin);
 			if (idx >= 0) {
 				spec->imux_pins[imux->num_items] = pin;
@@ -3326,6 +3344,12 @@ static void alc_auto_set_output_and_unmute(struct hda_codec *codec,
 	if (nid)
 		snd_hda_codec_write(codec, nid, 0, AC_VERB_SET_AMP_GAIN_MUTE,
 				    AMP_OUT_ZERO);
+
+	/* unmute DAC if it's not assigned to a mixer */
+	nid = alc_look_for_out_mute_nid(codec, pin, dac);
+	if (nid == mix && nid_has_mute(codec, dac, HDA_OUTPUT))
+		snd_hda_codec_write(codec, dac, 0, AC_VERB_SET_AMP_GAIN_MUTE,
+				    AMP_OUT_ZERO);
 }
 
 static void alc_auto_init_multi_out(struct hda_codec *codec)
@@ -3683,8 +3707,7 @@ static int init_capsrc_for_pin(struct hda_codec *codec, hda_nid_t pin)
 	if (!pin)
 		return 0;
 	for (i = 0; i < spec->num_adc_nids; i++) {
-		hda_nid_t cap = spec->capsrc_nids ?
-			spec->capsrc_nids[i] : spec->adc_nids[i];
+		hda_nid_t cap = get_capsrc(spec, i);
 		int idx;
 
 		idx = get_connection_index(codec, cap, pin);

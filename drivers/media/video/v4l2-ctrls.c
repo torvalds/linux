@@ -20,6 +20,7 @@
 
 #include <linux/ctype.h>
 #include <linux/slab.h>
+#include <linux/export.h>
 #include <media/v4l2-ioctl.h>
 #include <media/v4l2-device.h>
 #include <media/v4l2-ctrls.h>
@@ -210,6 +211,7 @@ const char * const *v4l2_ctrl_get_menu(u32 id)
 		"Disabled",
 		"50 Hz",
 		"60 Hz",
+		"Auto",
 		NULL
 	};
 	static const char * const camera_exposure_auto[] = {
@@ -819,8 +821,8 @@ static void send_event(struct v4l2_fh *fh, struct v4l2_ctrl *ctrl, u32 changes)
 	fill_event(&ev, ctrl, changes);
 
 	list_for_each_entry(sev, &ctrl->ev_subs, node)
-		if (sev->fh && (sev->fh != fh ||
-				(sev->flags & V4L2_EVENT_SUB_FL_ALLOW_FEEDBACK)))
+		if (sev->fh != fh ||
+		    (sev->flags & V4L2_EVENT_SUB_FL_ALLOW_FEEDBACK))
 			v4l2_event_queue_fh(sev->fh, &ev);
 }
 
@@ -945,6 +947,7 @@ static void new_to_cur(struct v4l2_fh *fh, struct v4l2_ctrl *ctrl,
 			if (ctrl->cluster[0]->has_volatiles)
 				ctrl->flags |= V4L2_CTRL_FLAG_VOLATILE;
 		}
+		fh = NULL;
 	}
 	if (changed || update_inactive) {
 		/* If a control was changed that was not one of the controls

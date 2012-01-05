@@ -25,6 +25,7 @@
 #include <linux/kernel.h>
 #include <linux/bitops.h>
 #include <linux/debugfs.h>
+#include <linux/export.h>
 
 #include "iwm.h"
 #include "bus.h"

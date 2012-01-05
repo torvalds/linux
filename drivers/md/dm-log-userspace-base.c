@@ -9,6 +9,7 @@
 #include <linux/dm-dirty-log.h>
 #include <linux/device-mapper.h>
 #include <linux/dm-log-userspace.h>
+#include <linux/module.h>
 
 #include "dm-log-userspace-transfer.h"
 

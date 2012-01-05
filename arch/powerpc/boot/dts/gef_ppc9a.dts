@@ -269,14 +269,16 @@
 		enet0: ethernet@24000 {
 			#address-cells = <1>;
 			#size-cells = <1>;
+			cell-index = <0>;
 			device_type = "network";
-			model = "eTSEC";
+			model = "TSEC";
 			compatible = "gianfar";
 			reg = <0x24000 0x1000>;
 			ranges = <0x0 0x24000 0x1000>;
 			local-mac-address = [ 00 00 00 00 00 00 ];
-			interrupts = <0x1d 0x2 0x1e 0x2 0x22 0x2>;
+			interrupts = <29 2 30  2 34 2>;
 			interrupt-parent = <&mpic>;
+			tbi-handle = <&tbi0>;
 			phy-handle = <&phy0>;
 			phy-connection-type = "gmii";
 
@@ -290,25 +292,48 @@
 					interrupt-parent = <&gef_pic>;
 					interrupts = <0x9 0x4>;
 					reg = <1>;
+					device_type = "ethernet-phy";
 				};
 				phy2: ethernet-phy@2 {
 					interrupt-parent = <&gef_pic>;
 					interrupts = <0x8 0x4>;
 					reg = <3>;
+					device_type = "ethernet-phy";
+				};
+				tbi0: tbi-phy@11 {
+					reg = <0x11>;
+					device_type = "tbi-phy";
 				};
 			};
 		};
 
 		enet1: ethernet@26000 {
+			#address-cells = <1>;
+			#size-cells = <1>;
+			cell-index = <2>;
 			device_type = "network";
-			model = "eTSEC";
+			model = "TSEC";
 			compatible = "gianfar";
 			reg = <0x26000 0x1000>;
+			ranges = <0x0 0x26000 0x1000>;
 			local-mac-address = [ 00 00 00 00 00 00 ];
-			interrupts = <0x1f 0x2 0x20 0x2 0x21 0x2>;
+			interrupts = <31 2 32 2 33 2>;
 			interrupt-parent = <&mpic>;
+			tbi-handle = <&tbi2>;
 			phy-handle = <&phy2>;
 			phy-connection-type = "gmii";
+
+			mdio@520 {
+				#address-cells = <1>;
+				#size-cells = <0>;
+				compatible = "fsl,gianfar-tbi";
+				reg = <0x520 0x20>;
+
+				tbi2: tbi-phy@11 {
+					reg = <0x11>;
+					device_type = "tbi-phy";
+				};
+			};
 		};
 
 		serial0: serial@4500 {

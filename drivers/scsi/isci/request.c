@@ -191,7 +191,7 @@ static void sci_task_request_build_ssp_task_iu(struct isci_request *ireq)
 
 	task_iu->task_func = isci_tmf->tmf_code;
 	task_iu->task_tag =
-		(ireq->ttype == tmf_task) ?
+		(test_bit(IREQ_TMF, &ireq->flags)) ?
 		isci_tmf->io_tag :
 		SCI_CONTROLLER_INVALID_IO_TAG;
 }
@@ -516,7 +516,7 @@ sci_io_request_construct_sata(struct isci_request *ireq,
 	struct domain_device *dev = ireq->target_device->domain_dev;
 
 	/* check for management protocols */
-	if (ireq->ttype == tmf_task) {
+	if (test_bit(IREQ_TMF, &ireq->flags)) {
 		struct isci_tmf *tmf = isci_request_access_tmf(ireq);
 
 		if (tmf->tmf_code == isci_tmf_sata_srst_high ||
@@ -632,7 +632,7 @@ enum sci_status sci_task_request_construct_sata(struct isci_request *ireq)
 	enum sci_status status = SCI_SUCCESS;
 
 	/* check for management protocols */
-	if (ireq->ttype == tmf_task) {
+	if (test_bit(IREQ_TMF, &ireq->flags)) {
 		struct isci_tmf *tmf = isci_request_access_tmf(ireq);
 
 		if (tmf->tmf_code == isci_tmf_sata_srst_high ||
@@ -2630,14 +2630,8 @@ static void isci_task_save_for_upper_layer_completion(
 	switch (task_notification_selection) {
 
 	case isci_perform_normal_io_completion:
-
 		/* Normal notification (task_done) */
-		dev_dbg(&host->pdev->dev,
-			"%s: Normal - task = %p, response=%d (%d), status=%d (%d)\n",
-			__func__,
-			task,
-			task->task_status.resp, response,
-			task->task_status.stat, status);
+
 		/* Add to the completed list. */
 		list_add(&request->completed_node,
 			 &host->requests_to_complete);
@@ -2650,13 +2644,6 @@ static void isci_task_save_for_upper_layer_completion(
 		/* No notification to libsas because this request is
 		 * already in the abort path.
 		 */
-		dev_dbg(&host->pdev->dev,
-			 "%s: Aborted - task = %p, response=%d (%d), status=%d (%d)\n",
-			 __func__,
-			 task,
-			 task->task_status.resp, response,
-			 task->task_status.stat, status);
-
 		/* Wake up whatever process was waiting for this
 		 * request to complete.
 		 */
@@ -2673,30 +2660,22 @@ static void isci_task_save_for_upper_layer_completion(
 
 	case isci_perform_error_io_completion:
 		/* Use sas_task_abort */
-		dev_dbg(&host->pdev->dev,
-			 "%s: Error - task = %p, response=%d (%d), status=%d (%d)\n",
-			 __func__,
-			 task,
-			 task->task_status.resp, response,
-			 task->task_status.stat, status);
 		/* Add to the aborted list. */
 		list_add(&request->completed_node,
 			 &host->requests_to_errorback);
 		break;
 
 	default:
-		dev_dbg(&host->pdev->dev,
-			 "%s: Unknown - task = %p, response=%d (%d), status=%d (%d)\n",
-			 __func__,
-			 task,
-			 task->task_status.resp, response,
-			 task->task_status.stat, status);
-
 		/* Add to the error to libsas list. */
 		list_add(&request->completed_node,
 			 &host->requests_to_errorback);
 		break;
 	}
+	dev_dbg(&host->pdev->dev,
+		"%s: %d - task = %p, response=%d (%d), status=%d (%d)\n",
+		__func__, task_notification_selection, task,
+		(task) ? task->task_status.resp : 0, response,
+		(task) ? task->task_status.stat : 0, status);
 }
 
 static void isci_process_stp_response(struct sas_task *task, struct dev_to_host_fis *fis)
@@ -2728,9 +2707,9 @@ static void isci_request_io_request_complete(struct isci_host *ihost,
 	struct sas_task *task = isci_request_access_task(request);
 	struct ssp_response_iu *resp_iu;
 	unsigned long task_flags;
-	struct isci_remote_device *idev = isci_lookup_device(task->dev);
-	enum service_response response       = SAS_TASK_UNDELIVERED;
-	enum exec_status status         = SAS_ABORTED_TASK;
+	struct isci_remote_device *idev = request->target_device;
+	enum service_response response = SAS_TASK_UNDELIVERED;
+	enum exec_status status = SAS_ABORTED_TASK;
 	enum isci_request_status request_status;
 	enum isci_completion_selection complete_to_host
 		= isci_perform_normal_io_completion;
@@ -3061,7 +3040,6 @@ static void isci_request_io_request_complete(struct isci_host *ihost,
 
 	/* complete the io request to the core. */
 	sci_controller_complete_io(ihost, request->target_device, request);
-	isci_put_device(idev);
 
 	/* set terminated handle so it cannot be completed or
 	 * terminated again, and to cause any calls into abort
@@ -3080,7 +3058,7 @@ static void sci_request_started_state_enter(struct sci_base_state_machine *sm)
 	/* XXX as hch said always creating an internal sas_task for tmf
 	 * requests would simplify the driver
 	 */
-	task = ireq->ttype == io_task ? isci_request_access_task(ireq) : NULL;
+	task = (test_bit(IREQ_TMF, &ireq->flags)) ? NULL : isci_request_access_task(ireq);
 
 	/* all unaccelerated request types (non ssp or ncq) handled with
 	 * substates
@@ -3564,7 +3542,7 @@ static struct isci_request *isci_io_request_from_tag(struct isci_host *ihost,
 
 	ireq = isci_request_from_tag(ihost, tag);
 	ireq->ttype_ptr.io_task_ptr = task;
-	ireq->ttype = io_task;
+	clear_bit(IREQ_TMF, &ireq->flags);
 	task->lldd_task = ireq;
 
 	return ireq;
@@ -3578,7 +3556,7 @@ struct isci_request *isci_tmf_request_from_tag(struct isci_host *ihost,
 
 	ireq = isci_request_from_tag(ihost, tag);
 	ireq->ttype_ptr.tmf_task_ptr = isci_tmf;
-	ireq->ttype = tmf_task;
+	set_bit(IREQ_TMF, &ireq->flags);
 
 	return ireq;
 }

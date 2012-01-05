@@ -13,6 +13,7 @@
 #include <linux/bio.h>
 #include <linux/slab.h>
 #include <linux/blkdev.h>
+#include <linux/module.h>
 #include <linux/mtd/mtd.h>
 #include <linux/statfs.h>
 #include <linux/buffer_head.h>

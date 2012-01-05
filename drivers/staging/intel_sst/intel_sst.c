@@ -37,6 +37,7 @@
 #include <linux/firmware.h>
 #include <linux/miscdevice.h>
 #include <linux/pm_runtime.h>
+#include <linux/module.h>
 #include <asm/mrst.h>
 #include "intel_sst.h"
 #include "intel_sst_ioctl.h"

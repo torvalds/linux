@@ -6,6 +6,7 @@
  */
 
 #include "bcma_private.h"
+#include <linux/export.h>
 #include <linux/bcma/bcma.h>
 
 bool bcma_core_is_enabled(struct bcma_device *core)

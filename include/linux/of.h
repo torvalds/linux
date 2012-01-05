@@ -23,6 +23,7 @@
 #include <linux/spinlock.h>
 
 #include <asm/byteorder.h>
+#include <asm/errno.h>
 
 typedef u32 phandle;
 typedef u32 ihandle;
@@ -319,6 +320,16 @@ static inline struct device_node *of_parse_phandle(struct device_node *np,
 						   int index)
 {
 	return NULL;
+}
+
+static inline int of_alias_get_id(struct device_node *np, const char *stem)
+{
+	return -ENOSYS;
+}
+
+static inline int of_machine_is_compatible(const char *compat)
+{
+	return 0;
 }
 
 #define of_match_ptr(_ptr)	NULL

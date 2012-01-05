@@ -26,6 +26,7 @@
 #include <linux/etherdevice.h>
 #include <linux/spinlock.h>
 #include <linux/device.h>
+#include <linux/export.h>
 #include "i2400m.h"
 
 

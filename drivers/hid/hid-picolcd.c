@@ -36,6 +36,7 @@
 
 #include <linux/completion.h>
 #include <linux/uaccess.h>
+#include <linux/module.h>
 
 #define PICOLCD_NAME "PicoLCD (graphic)"
 
@@ -632,7 +633,7 @@ struct picolcd_fb_cleanup_item {
 	struct picolcd_fb_cleanup_item *next;
 };
 static struct picolcd_fb_cleanup_item *fb_pending;
-DEFINE_SPINLOCK(fb_pending_lock);
+static DEFINE_SPINLOCK(fb_pending_lock);
 
 static void picolcd_fb_do_cleanup(struct work_struct *data)
 {
@@ -657,7 +658,7 @@ static void picolcd_fb_do_cleanup(struct work_struct *data)
 	} while (item);
 }
 
-DECLARE_WORK(picolcd_fb_cleanup, picolcd_fb_do_cleanup);
+static DECLARE_WORK(picolcd_fb_cleanup, picolcd_fb_do_cleanup);
 
 static int picolcd_fb_open(struct fb_info *info, int u)
 {

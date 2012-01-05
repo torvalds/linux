@@ -27,6 +27,7 @@
 #include <linux/interrupt.h>
 #include <linux/pm_runtime.h>
 #include <linux/intel_mid_dma.h>
+#include <linux/module.h>
 
 #define MAX_CHAN	4 /*max ch across controllers*/
 #include "intel_mid_dma_regs.h"
@@ -115,16 +116,15 @@ DMAC1 interrupt Functions*/
 
 /**
  * dmac1_mask_periphral_intr -	mask the periphral interrupt
- * @midc: dma channel for which masking is required
+ * @mid: dma device for which masking is required
  *
  * Masks the DMA periphral interrupt
  * this is valid for DMAC1 family controllers only
  * This controller should have periphral mask registers already mapped
  */
-static void dmac1_mask_periphral_intr(struct intel_mid_dma_chan *midc)
+static void dmac1_mask_periphral_intr(struct middma_device *mid)
 {
 	u32 pimr;
-	struct middma_device *mid = to_middma_device(midc->chan.device);
 
 	if (mid->pimr_mask) {
 		pimr = readl(mid->mask_reg + LNW_PERIPHRAL_MASK);
@@ -184,7 +184,6 @@ static void enable_dma_interrupt(struct intel_mid_dma_chan *midc)
 static void disable_dma_interrupt(struct intel_mid_dma_chan *midc)
 {
 	/*Check LPE PISR, make sure fwd is disabled*/
-	dmac1_mask_periphral_intr(midc);
 	iowrite32(MASK_INTR_REG(midc->ch_id), midc->dma_base + MASK_BLOCK);
 	iowrite32(MASK_INTR_REG(midc->ch_id), midc->dma_base + MASK_TFR);
 	iowrite32(MASK_INTR_REG(midc->ch_id), midc->dma_base + MASK_ERR);
@@ -1114,7 +1113,6 @@ static int mid_setup_dma(struct pci_dev *pdev)
 
 		midch->chan.device = &dma->common;
 		midch->chan.cookie =  1;
-		midch->chan.chan_id = i;
 		midch->ch_id = dma->chan_base + i;
 		pr_debug("MDMA:Init CH %d, ID %d\n", i, midch->ch_id);
 
@@ -1150,7 +1148,6 @@ static int mid_setup_dma(struct pci_dev *pdev)
 	dma_cap_set(DMA_SLAVE, dma->common.cap_mask);
 	dma_cap_set(DMA_PRIVATE, dma->common.cap_mask);
 	dma->common.dev = &pdev->dev;
-	dma->common.chancnt = dma->max_chan;
 
 	dma->common.device_alloc_chan_resources =
 					intel_mid_dma_alloc_chan_resources;
@@ -1350,6 +1347,7 @@ int dma_suspend(struct pci_dev *pci, pm_message_t state)
 		if (device->ch[i].in_use)
 			return -EAGAIN;
 	}
+	dmac1_mask_periphral_intr(device);
 	device->state = SUSPENDED;
 	pci_save_state(pci);
 	pci_disable_device(pci);

@@ -25,9 +25,8 @@
 #include <linux/types.h>
 #include <linux/err.h>
 #include <asm/cacheflush.h>
-#include <asm/opcode-tile.h>
-#include <asm/opcode_constants.h>
 #include <arch/abi.h>
+#include <arch/opcode.h>
 
 #define signExtend17(val) sign_extend((val), 17)
 #define TILE_X1_MASK (0xffffffffULL << 31)
@@ -118,7 +117,7 @@ static tile_bundle_bits rewrite_load_store_unaligned(
 	int val_reg, addr_reg, err, val;
 
 	/* Get address and value registers */
-	if (bundle & TILE_BUNDLE_Y_ENCODING_MASK) {
+	if (bundle & TILEPRO_BUNDLE_Y_ENCODING_MASK) {
 		addr_reg = get_SrcA_Y2(bundle);
 		val_reg = get_SrcBDest_Y2(bundle);
 	} else if (mem_op == MEMOP_LOAD || mem_op == MEMOP_LOAD_POSTINCR) {
@@ -229,7 +228,7 @@ P("\n");
 	}
 	++unaligned_fixup_count;
 
-	if (bundle & TILE_BUNDLE_Y_ENCODING_MASK) {
+	if (bundle & TILEPRO_BUNDLE_Y_ENCODING_MASK) {
 		/* Convert the Y2 instruction to a prefetch. */
 		bundle &= ~(create_SrcBDest_Y2(-1) |
 			    create_Opcode_Y2(-1));
@@ -389,7 +388,7 @@ void single_step_once(struct pt_regs *regs)
 	state->branch_next_pc = 0;
 	state->update = 0;
 
-	if (!(bundle & TILE_BUNDLE_Y_ENCODING_MASK)) {
+	if (!(bundle & TILEPRO_BUNDLE_Y_ENCODING_MASK)) {
 		/* two wide, check for control flow */
 		int opcode = get_Opcode_X1(bundle);
 

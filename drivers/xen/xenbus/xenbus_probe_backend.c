@@ -42,6 +42,7 @@
 #include <linux/fcntl.h>
 #include <linux/mm.h>
 #include <linux/notifier.h>
+#include <linux/export.h>
 
 #include <asm/page.h>
 #include <asm/pgtable.h>

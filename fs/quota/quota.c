@@ -286,7 +286,7 @@ static int do_quotactl(struct super_block *sb, int type, int cmd, qid_t id,
 		/* caller already holds s_umount */
 		if (sb->s_flags & MS_RDONLY)
 			return -EROFS;
-		writeback_inodes_sb(sb);
+		writeback_inodes_sb(sb, WB_REASON_SYNC);
 		return 0;
 	default:
 		return -EINVAL;

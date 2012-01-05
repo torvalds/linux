@@ -77,11 +77,6 @@ enum isci_request_status {
 	dead        = 0x07
 };
 
-enum task_type {
-	io_task  = 0,
-	tmf_task = 1
-};
-
 enum sci_request_protocol {
 	SCIC_NO_PROTOCOL,
 	SCIC_SMP_PROTOCOL,
@@ -116,7 +111,6 @@ struct isci_request {
 	#define IREQ_ACTIVE 3
 	unsigned long flags;
 	/* XXX kill ttype and ttype_ptr, allocate full sas_task */
-	enum task_type ttype;
 	union ttype_ptr_union {
 		struct sas_task *io_task_ptr;   /* When ttype==io_task  */
 		struct isci_tmf *tmf_task_ptr;  /* When ttype==tmf_task */

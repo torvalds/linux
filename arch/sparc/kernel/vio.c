@@ -12,6 +12,7 @@
 #include <linux/kernel.h>
 #include <linux/slab.h>
 #include <linux/irq.h>
+#include <linux/export.h>
 #include <linux/init.h>
 
 #include <asm/mdesc.h>

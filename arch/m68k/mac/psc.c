@@ -18,6 +18,7 @@
 #include <linux/mm.h>
 #include <linux/delay.h>
 #include <linux/init.h>
+#include <linux/irq.h>
 
 #include <asm/traps.h>
 #include <asm/bootinfo.h>
@@ -29,8 +30,6 @@
 
 int psc_present;
 volatile __u8 *psc;
-
-irqreturn_t psc_irq(int, void *);
 
 /*
  * Debugging dump, used in various places to see what's going on.
@@ -112,52 +111,52 @@ void __init psc_init(void)
 }
 
 /*
- * Register the PSC interrupt dispatchers for autovector interrupts 3-6.
- */
-
-void __init psc_register_interrupts(void)
-{
-	if (request_irq(IRQ_AUTO_3, psc_irq, 0, "psc3", (void *) 0x30))
-		pr_err("Couldn't register psc%d interrupt\n", 3);
-	if (request_irq(IRQ_AUTO_4, psc_irq, 0, "psc4", (void *) 0x40))
-		pr_err("Couldn't register psc%d interrupt\n", 4);
-	if (request_irq(IRQ_AUTO_5, psc_irq, 0, "psc5", (void *) 0x50))
-		pr_err("Couldn't register psc%d interrupt\n", 5);
-	if (request_irq(IRQ_AUTO_6, psc_irq, 0, "psc6", (void *) 0x60))
-		pr_err("Couldn't register psc%d interrupt\n", 6);
-}
-
-/*
  * PSC interrupt handler. It's a lot like the VIA interrupt handler.
  */
 
-irqreturn_t psc_irq(int irq, void *dev_id)
+static void psc_irq(unsigned int irq, struct irq_desc *desc)
 {
-	int pIFR	= pIFRbase + ((int) dev_id);
-	int pIER	= pIERbase + ((int) dev_id);
+	unsigned int offset = (unsigned int)irq_desc_get_handler_data(desc);
+	int pIFR	= pIFRbase + offset;
+	int pIER	= pIERbase + offset;
 	int irq_num;
 	unsigned char irq_bit, events;
 
 #ifdef DEBUG_IRQS
-	printk("psc_irq: irq %d pIFR = 0x%02X pIER = 0x%02X\n",
+	printk("psc_irq: irq %u pIFR = 0x%02X pIER = 0x%02X\n",
 		irq, (int) psc_read_byte(pIFR), (int) psc_read_byte(pIER));
 #endif
 
 	events = psc_read_byte(pIFR) & psc_read_byte(pIER) & 0xF;
 	if (!events)
-		return IRQ_NONE;
+		return;
 
 	irq_num = irq << 3;
 	irq_bit = 1;
 	do {
 		if (events & irq_bit) {
 			psc_write_byte(pIFR, irq_bit);
-			m68k_handle_int(irq_num);
+			generic_handle_irq(irq_num);
 		}
 		irq_num++;
 		irq_bit <<= 1;
 	} while (events >= irq_bit);
-	return IRQ_HANDLED;
+}
+
+/*
+ * Register the PSC interrupt dispatchers for autovector interrupts 3-6.
+ */
+
+void __init psc_register_interrupts(void)
+{
+	irq_set_chained_handler(IRQ_AUTO_3, psc_irq);
+	irq_set_handler_data(IRQ_AUTO_3, (void *)0x30);
+	irq_set_chained_handler(IRQ_AUTO_4, psc_irq);
+	irq_set_handler_data(IRQ_AUTO_4, (void *)0x40);
+	irq_set_chained_handler(IRQ_AUTO_5, psc_irq);
+	irq_set_handler_data(IRQ_AUTO_5, (void *)0x50);
+	irq_set_chained_handler(IRQ_AUTO_6, psc_irq);
+	irq_set_handler_data(IRQ_AUTO_6, (void *)0x60);
 }
 
 void psc_irq_enable(int irq) {

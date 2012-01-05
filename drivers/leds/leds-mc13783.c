@@ -21,13 +21,13 @@
 #include <linux/platform_device.h>
 #include <linux/leds.h>
 #include <linux/workqueue.h>
-#include <linux/mfd/mc13783.h>
+#include <linux/mfd/mc13xxx.h>
 #include <linux/slab.h>
 
 struct mc13783_led {
 	struct led_classdev	cdev;
 	struct work_struct	work;
-	struct mc13783		*master;
+	struct mc13xxx		*master;
 	enum led_brightness	new_brightness;
 	int			id;
 };
@@ -111,11 +111,11 @@ static void mc13783_led_work(struct work_struct *work)
 		break;
 	}
 
-	mc13783_lock(led->master);
+	mc13xxx_lock(led->master);
 
-	mc13783_reg_rmw(led->master, reg, mask, value);
+	mc13xxx_reg_rmw(led->master, reg, mask, value);
 
-	mc13783_unlock(led->master);
+	mc13xxx_unlock(led->master);
 }
 
 static void mc13783_led_set(struct led_classdev *led_cdev,
@@ -172,23 +172,23 @@ static int __devinit mc13783_led_setup(struct mc13783_led *led, int max_current)
 		break;
 	}
 
-	mc13783_lock(led->master);
+	mc13xxx_lock(led->master);
 
-	ret = mc13783_reg_rmw(led->master, reg, mask << shift,
+	ret = mc13xxx_reg_rmw(led->master, reg, mask << shift,
 						value << shift);
 
-	mc13783_unlock(led->master);
+	mc13xxx_unlock(led->master);
 	return ret;
 }
 
 static int __devinit mc13783_leds_prepare(struct platform_device *pdev)
 {
-	struct mc13783_leds_platform_data *pdata = dev_get_platdata(&pdev->dev);
-	struct mc13783 *dev = dev_get_drvdata(pdev->dev.parent);
+	struct mc13xxx_leds_platform_data *pdata = dev_get_platdata(&pdev->dev);
+	struct mc13xxx *dev = dev_get_drvdata(pdev->dev.parent);
 	int ret = 0;
 	int reg = 0;
 
-	mc13783_lock(dev);
+	mc13xxx_lock(dev);
 
 	if (pdata->flags & MC13783_LED_TC1HALF)
 		reg |= MC13783_LED_C1_TC1HALF_BIT;
@@ -196,7 +196,7 @@ static int __devinit mc13783_leds_prepare(struct platform_device *pdev)
 	if (pdata->flags & MC13783_LED_SLEWLIMTC)
 		reg |= MC13783_LED_Cx_SLEWLIM_BIT;
 
-	ret = mc13783_reg_write(dev, MC13783_REG_LED_CONTROL_1, reg);
+	ret = mc13xxx_reg_write(dev, MC13783_REG_LED_CONTROL_1, reg);
 	if (ret)
 		goto out;
 
@@ -206,7 +206,7 @@ static int __devinit mc13783_leds_prepare(struct platform_device *pdev)
 	if (pdata->flags & MC13783_LED_SLEWLIMBL)
 		reg |= MC13783_LED_Cx_SLEWLIM_BIT;
 
-	ret = mc13783_reg_write(dev, MC13783_REG_LED_CONTROL_2, reg);
+	ret = mc13xxx_reg_write(dev, MC13783_REG_LED_CONTROL_2, reg);
 	if (ret)
 		goto out;
 
@@ -216,7 +216,7 @@ static int __devinit mc13783_leds_prepare(struct platform_device *pdev)
 	if (pdata->flags & MC13783_LED_TRIODE_TC1)
 		reg |= MC13783_LED_Cx_TRIODE_TC_BIT;
 
-	ret = mc13783_reg_write(dev, MC13783_REG_LED_CONTROL_3, reg);
+	ret = mc13xxx_reg_write(dev, MC13783_REG_LED_CONTROL_3, reg);
 	if (ret)
 		goto out;
 
@@ -226,7 +226,7 @@ static int __devinit mc13783_leds_prepare(struct platform_device *pdev)
 	if (pdata->flags & MC13783_LED_TRIODE_TC2)
 		reg |= MC13783_LED_Cx_TRIODE_TC_BIT;
 
-	ret = mc13783_reg_write(dev, MC13783_REG_LED_CONTROL_4, reg);
+	ret = mc13xxx_reg_write(dev, MC13783_REG_LED_CONTROL_4, reg);
 	if (ret)
 		goto out;
 
@@ -236,7 +236,7 @@ static int __devinit mc13783_leds_prepare(struct platform_device *pdev)
 	if (pdata->flags & MC13783_LED_TRIODE_TC3)
 		reg |= MC13783_LED_Cx_TRIODE_TC_BIT;
 
-	ret = mc13783_reg_write(dev, MC13783_REG_LED_CONTROL_5, reg);
+	ret = mc13xxx_reg_write(dev, MC13783_REG_LED_CONTROL_5, reg);
 	if (ret)
 		goto out;
 
@@ -255,17 +255,17 @@ static int __devinit mc13783_leds_prepare(struct platform_device *pdev)
 	reg |= (pdata->abref & MC13783_LED_C0_ABREF_MASK) <<
 							MC13783_LED_C0_ABREF;
 
-	ret = mc13783_reg_write(dev, MC13783_REG_LED_CONTROL_0, reg);
+	ret = mc13xxx_reg_write(dev, MC13783_REG_LED_CONTROL_0, reg);
 
 out:
-	mc13783_unlock(dev);
+	mc13xxx_unlock(dev);
 	return ret;
 }
 
 static int __devinit mc13783_led_probe(struct platform_device *pdev)
 {
-	struct mc13783_leds_platform_data *pdata = dev_get_platdata(&pdev->dev);
-	struct mc13783_led_platform_data *led_cur;
+	struct mc13xxx_leds_platform_data *pdata = dev_get_platdata(&pdev->dev);
+	struct mc13xxx_led_platform_data *led_cur;
 	struct mc13783_led *led, *led_dat;
 	int ret, i;
 	int init_led = 0;
@@ -351,9 +351,9 @@ err_free:
 
 static int __devexit mc13783_led_remove(struct platform_device *pdev)
 {
-	struct mc13783_leds_platform_data *pdata = dev_get_platdata(&pdev->dev);
+	struct mc13xxx_leds_platform_data *pdata = dev_get_platdata(&pdev->dev);
 	struct mc13783_led *led = platform_get_drvdata(pdev);
-	struct mc13783 *dev = dev_get_drvdata(pdev->dev.parent);
+	struct mc13xxx *dev = dev_get_drvdata(pdev->dev.parent);
 	int i;
 
 	for (i = 0; i < pdata->num_leds; i++) {
@@ -361,16 +361,16 @@ static int __devexit mc13783_led_remove(struct platform_device *pdev)
 		cancel_work_sync(&led[i].work);
 	}
 
-	mc13783_lock(dev);
+	mc13xxx_lock(dev);
 
-	mc13783_reg_write(dev, MC13783_REG_LED_CONTROL_0, 0);
-	mc13783_reg_write(dev, MC13783_REG_LED_CONTROL_1, 0);
-	mc13783_reg_write(dev, MC13783_REG_LED_CONTROL_2, 0);
-	mc13783_reg_write(dev, MC13783_REG_LED_CONTROL_3, 0);
-	mc13783_reg_write(dev, MC13783_REG_LED_CONTROL_4, 0);
-	mc13783_reg_write(dev, MC13783_REG_LED_CONTROL_5, 0);
+	mc13xxx_reg_write(dev, MC13783_REG_LED_CONTROL_0, 0);
+	mc13xxx_reg_write(dev, MC13783_REG_LED_CONTROL_1, 0);
+	mc13xxx_reg_write(dev, MC13783_REG_LED_CONTROL_2, 0);
+	mc13xxx_reg_write(dev, MC13783_REG_LED_CONTROL_3, 0);
+	mc13xxx_reg_write(dev, MC13783_REG_LED_CONTROL_4, 0);
+	mc13xxx_reg_write(dev, MC13783_REG_LED_CONTROL_5, 0);
 
-	mc13783_unlock(dev);
+	mc13xxx_unlock(dev);
 
 	kfree(led);
 	return 0;

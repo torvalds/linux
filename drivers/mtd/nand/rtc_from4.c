@@ -351,7 +351,7 @@ static int rtc_from4_correct_data(struct mtd_info *mtd, const u_char *buf, u_cha
 		return 0;
 	}
 
-	/* Read the syndrom pattern from the FPGA and correct the bitorder */
+	/* Read the syndrome pattern from the FPGA and correct the bitorder */
 	rs_ecc = (volatile unsigned short *)(rtc_from4_fio_base + RTC_FROM4_RS_ECC);
 	for (i = 0; i < 8; i++) {
 		ecc[i] = bitrev8(*rs_ecc);
@@ -380,7 +380,7 @@ static int rtc_from4_correct_data(struct mtd_info *mtd, const u_char *buf, u_cha
 	/* Let the library code do its magic. */
 	res = decode_rs8(rs_decoder, (uint8_t *) buf, par, 512, syn, 0, NULL, 0xff, NULL);
 	if (res > 0) {
-		DEBUG(MTD_DEBUG_LEVEL0, "rtc_from4_correct_data: " "ECC corrected %d errors on read\n", res);
+		pr_debug("rtc_from4_correct_data: " "ECC corrected %d errors on read\n", res);
 	}
 	return res;
 }
@@ -444,7 +444,6 @@ static int rtc_from4_errstat(struct mtd_info *mtd, struct nand_chip *this,
 		len = mtd->writesize;
 		buf = kmalloc(len, GFP_KERNEL);
 		if (!buf) {
-			printk(KERN_ERR "rtc_from4_errstat: Out of memory!\n");
 			er_stat = 1;
 			goto out;
 		}

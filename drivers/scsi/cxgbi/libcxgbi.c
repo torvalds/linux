@@ -25,6 +25,7 @@
 #include <net/dst.h>
 #include <net/route.h>
 #include <linux/inetdevice.h>	/* ip_dev_find */
+#include <linux/module.h>
 #include <net/tcp.h>
 
 static unsigned int dbg_level;

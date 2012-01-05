@@ -37,6 +37,9 @@
 #include <linux/if.h>
 #include <linux/if_vlan.h>
 #include <linux/jhash.h>
+#include <linux/module.h>
+#include <linux/debugfs.h>
+#include <linux/seq_file.h>
 #include <net/neighbour.h>
 #include "cxgb4.h"
 #include "l2t.h"
@@ -502,10 +505,6 @@ struct l2t_data *t4_init_l2t(void)
 	}
 	return d;
 }
-
-#include <linux/module.h>
-#include <linux/debugfs.h>
-#include <linux/seq_file.h>
 
 static inline void *l2t_get_idx(struct seq_file *seq, loff_t pos)
 {

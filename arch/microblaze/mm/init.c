@@ -17,6 +17,7 @@
 #include <linux/pfn.h>
 #include <linux/slab.h>
 #include <linux/swap.h>
+#include <linux/export.h>
 
 #include <asm/page.h>
 #include <asm/mmu_context.h>

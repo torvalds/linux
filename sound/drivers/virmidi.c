@@ -45,7 +45,7 @@
 #include <linux/wait.h>
 #include <linux/err.h>
 #include <linux/platform_device.h>
-#include <linux/moduleparam.h>
+#include <linux/module.h>
 #include <sound/core.h>
 #include <sound/seq_kernel.h>
 #include <sound/seq_virmidi.h>

@@ -13,7 +13,7 @@
  *  Copyright (c) 2007-2010 Paul Mundt <lethal@linux-sh.org>
  */
 
-#include <linux/module.h>
+#include <linux/export.h>
 #include <linux/mm.h>
 #include <linux/mman.h>
 #include <linux/swap.h>
@@ -454,7 +454,7 @@ void  __attribute__((weak)) vmalloc_sync_all(void)
  *	between processes, it syncs the pagetable across all
  *	processes.
  */
-struct vm_struct *alloc_vm_area(size_t size)
+struct vm_struct *alloc_vm_area(size_t size, pte_t **ptes)
 {
 	BUG();
 	return NULL;

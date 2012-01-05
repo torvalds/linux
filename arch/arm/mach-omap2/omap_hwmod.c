@@ -749,7 +749,7 @@ static int _count_mpu_irqs(struct omap_hwmod *oh)
 		ohii = &oh->mpu_irqs[i++];
 	} while (ohii->irq != -1);
 
-	return i;
+	return i-1;
 }
 
 /**
@@ -772,7 +772,7 @@ static int _count_sdma_reqs(struct omap_hwmod *oh)
 		ohdi = &oh->sdma_reqs[i++];
 	} while (ohdi->dma_req != -1);
 
-	return i;
+	return i-1;
 }
 
 /**
@@ -795,7 +795,7 @@ static int _count_ocp_if_addr_spaces(struct omap_hwmod_ocp_if *os)
 		mem = &os->addr[i++];
 	} while (mem->pa_start != mem->pa_end);
 
-	return i;
+	return i-1;
 }
 
 /**
@@ -2625,7 +2625,7 @@ ohsps_unlock:
  * Returns the context loss count of the powerdomain assocated with @oh
  * upon success, or zero if no powerdomain exists for @oh.
  */
-u32 omap_hwmod_get_context_loss_count(struct omap_hwmod *oh)
+int omap_hwmod_get_context_loss_count(struct omap_hwmod *oh)
 {
 	struct powerdomain *pwrdm;
 	int ret = 0;

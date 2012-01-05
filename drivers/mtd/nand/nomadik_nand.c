@@ -187,6 +187,7 @@ static int nomadik_nand_remove(struct platform_device *pdev)
 		pdata->exit();
 
 	if (host) {
+		nand_release(&host->mtd);
 		iounmap(host->cmd_va);
 		iounmap(host->data_va);
 		iounmap(host->addr_va);

@@ -18,6 +18,7 @@
 #include <linux/delay.h>
 #include <linux/backlight.h>
 #include <linux/gfp.h>
+#include <linux/module.h>
 
 #include <mach/board.h>
 #include <mach/cpu.h>

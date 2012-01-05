@@ -113,6 +113,16 @@ typedef struct page *pgtable_t;
 #define __MEMORY_SIZE		CONFIG_MEMORY_SIZE
 
 /*
+ * PHYSICAL_OFFSET is the offset in physical memory where the base
+ * of the kernel is loaded.
+ */
+#ifdef CONFIG_PHYSICAL_START
+#define PHYSICAL_OFFSET (CONFIG_PHYSICAL_START - __MEMORY_START)
+#else
+#define PHYSICAL_OFFSET 0
+#endif
+
+/*
  * PAGE_OFFSET is the virtual address of the start of kernel address
  * space.
  */
@@ -141,8 +151,13 @@ typedef struct page *pgtable_t;
 #endif /* !__ASSEMBLY__ */
 
 #ifdef CONFIG_UNCACHED_MAPPING
+#if defined(CONFIG_29BIT)
+#define UNCAC_ADDR(addr)	P2SEGADDR(addr)
+#define CAC_ADDR(addr)		P1SEGADDR(addr)
+#else
 #define UNCAC_ADDR(addr)	((addr) - PAGE_OFFSET + uncached_start)
 #define CAC_ADDR(addr)		((addr) - uncached_start + PAGE_OFFSET)
+#endif
 #else
 #define UNCAC_ADDR(addr)	((addr))
 #define CAC_ADDR(addr)		((addr))

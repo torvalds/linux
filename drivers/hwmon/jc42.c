@@ -154,8 +154,6 @@ static int jc42_probe(struct i2c_client *client,
 		      const struct i2c_device_id *id);
 static int jc42_detect(struct i2c_client *client, struct i2c_board_info *info);
 static int jc42_remove(struct i2c_client *client);
-static int jc42_read_value(struct i2c_client *client, u8 reg);
-static int jc42_write_value(struct i2c_client *client, u8 reg, u16 value);
 
 static struct jc42_data *jc42_update_device(struct device *dev);
 
@@ -187,7 +185,7 @@ static int jc42_suspend(struct device *dev)
 	struct jc42_data *data = i2c_get_clientdata(client);
 
 	data->config |= JC42_CFG_SHUTDOWN;
-	jc42_write_value(client, JC42_REG_CONFIG, data->config);
+	i2c_smbus_write_word_swapped(client, JC42_REG_CONFIG, data->config);
 	return 0;
 }
 
@@ -197,7 +195,7 @@ static int jc42_resume(struct device *dev)
 	struct jc42_data *data = i2c_get_clientdata(client);
 
 	data->config &= ~JC42_CFG_SHUTDOWN;
-	jc42_write_value(client, JC42_REG_CONFIG, data->config);
+	i2c_smbus_write_word_swapped(client, JC42_REG_CONFIG, data->config);
 	return 0;
 }
 
@@ -315,7 +313,7 @@ static ssize_t set_##value(struct device *dev,				\
 		return -EINVAL;						\
 	mutex_lock(&data->update_lock);					\
 	data->value = jc42_temp_to_reg(val, data->extended);		\
-	err = jc42_write_value(client, reg, data->value);		\
+	err = i2c_smbus_write_word_swapped(client, reg, data->value);	\
 	if (err < 0)							\
 		ret = err;						\
 	mutex_unlock(&data->update_lock);				\
@@ -357,7 +355,8 @@ static ssize_t set_temp_crit_hyst(struct device *dev,
 	data->config = (data->config
 			& ~(JC42_CFG_HYST_MASK << JC42_CFG_HYST_SHIFT))
 	  | (hyst << JC42_CFG_HYST_SHIFT);
-	err = jc42_write_value(client, JC42_REG_CONFIG, data->config);
+	err = i2c_smbus_write_word_swapped(client, JC42_REG_CONFIG,
+					   data->config);
 	if (err < 0)
 		ret = err;
 	mutex_unlock(&data->update_lock);
@@ -452,10 +451,10 @@ static int jc42_detect(struct i2c_client *new_client,
 				     I2C_FUNC_SMBUS_WORD_DATA))
 		return -ENODEV;
 
-	cap = jc42_read_value(new_client, JC42_REG_CAP);
-	config = jc42_read_value(new_client, JC42_REG_CONFIG);
-	manid = jc42_read_value(new_client, JC42_REG_MANID);
-	devid = jc42_read_value(new_client, JC42_REG_DEVICEID);
+	cap = i2c_smbus_read_word_swapped(new_client, JC42_REG_CAP);
+	config = i2c_smbus_read_word_swapped(new_client, JC42_REG_CONFIG);
+	manid = i2c_smbus_read_word_swapped(new_client, JC42_REG_MANID);
+	devid = i2c_smbus_read_word_swapped(new_client, JC42_REG_DEVICEID);
 
 	if (cap < 0 || config < 0 || manid < 0 || devid < 0)
 		return -ENODEV;
@@ -489,14 +488,14 @@ static int jc42_probe(struct i2c_client *new_client,
 	i2c_set_clientdata(new_client, data);
 	mutex_init(&data->update_lock);
 
-	cap = jc42_read_value(new_client, JC42_REG_CAP);
+	cap = i2c_smbus_read_word_swapped(new_client, JC42_REG_CAP);
 	if (cap < 0) {
 		err = -EINVAL;
 		goto exit_free;
 	}
 	data->extended = !!(cap & JC42_CAP_RANGE);
 
-	config = jc42_read_value(new_client, JC42_REG_CONFIG);
+	config = i2c_smbus_read_word_swapped(new_client, JC42_REG_CONFIG);
 	if (config < 0) {
 		err = -EINVAL;
 		goto exit_free;
@@ -504,7 +503,8 @@ static int jc42_probe(struct i2c_client *new_client,
 	data->orig_config = config;
 	if (config & JC42_CFG_SHUTDOWN) {
 		config &= ~JC42_CFG_SHUTDOWN;
-		jc42_write_value(new_client, JC42_REG_CONFIG, config);
+		i2c_smbus_write_word_swapped(new_client, JC42_REG_CONFIG,
+					     config);
 	}
 	data->config = config;
 
@@ -535,23 +535,10 @@ static int jc42_remove(struct i2c_client *client)
 	hwmon_device_unregister(data->hwmon_dev);
 	sysfs_remove_group(&client->dev.kobj, &jc42_group);
 	if (data->config != data->orig_config)
-		jc42_write_value(client, JC42_REG_CONFIG, data->orig_config);
+		i2c_smbus_write_word_swapped(client, JC42_REG_CONFIG,
+					     data->orig_config);
 	kfree(data);
 	return 0;
-}
-
-/* All registers are word-sized. */
-static int jc42_read_value(struct i2c_client *client, u8 reg)
-{
-	int ret = i2c_smbus_read_word_data(client, reg);
-	if (ret < 0)
-		return ret;
-	return swab16(ret);
-}
-
-static int jc42_write_value(struct i2c_client *client, u8 reg, u16 value)
-{
-	return i2c_smbus_write_word_data(client, reg, swab16(value));
 }
 
 static struct jc42_data *jc42_update_device(struct device *dev)
@@ -564,28 +551,29 @@ static struct jc42_data *jc42_update_device(struct device *dev)
 	mutex_lock(&data->update_lock);
 
 	if (time_after(jiffies, data->last_updated + HZ) || !data->valid) {
-		val = jc42_read_value(client, JC42_REG_TEMP);
+		val = i2c_smbus_read_word_swapped(client, JC42_REG_TEMP);
 		if (val < 0) {
 			ret = ERR_PTR(val);
 			goto abort;
 		}
 		data->temp_input = val;
 
-		val = jc42_read_value(client, JC42_REG_TEMP_CRITICAL);
+		val = i2c_smbus_read_word_swapped(client,
+						  JC42_REG_TEMP_CRITICAL);
 		if (val < 0) {
 			ret = ERR_PTR(val);
 			goto abort;
 		}
 		data->temp_crit = val;
 
-		val = jc42_read_value(client, JC42_REG_TEMP_LOWER);
+		val = i2c_smbus_read_word_swapped(client, JC42_REG_TEMP_LOWER);
 		if (val < 0) {
 			ret = ERR_PTR(val);
 			goto abort;
 		}
 		data->temp_min = val;
 
-		val = jc42_read_value(client, JC42_REG_TEMP_UPPER);
+		val = i2c_smbus_read_word_swapped(client, JC42_REG_TEMP_UPPER);
 		if (val < 0) {
 			ret = ERR_PTR(val);
 			goto abort;

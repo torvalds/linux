@@ -21,7 +21,6 @@
 #include <linux/errno.h>
 #include <linux/err.h>
 #include <linux/kvm_host.h>
-#include <linux/module.h>
 #include <linux/vmalloc.h>
 #include <linux/hrtimer.h>
 #include <linux/fs.h>
@@ -209,7 +208,6 @@ int kvm_dev_ioctl_check_extension(long ext)
 	case KVM_CAP_PPC_BOOKE_SREGS:
 #else
 	case KVM_CAP_PPC_SEGSTATE:
-	case KVM_CAP_PPC_HIOR:
 	case KVM_CAP_PPC_PAPR:
 #endif
 	case KVM_CAP_PPC_UNSET_IRQ:

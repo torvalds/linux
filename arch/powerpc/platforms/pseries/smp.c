@@ -14,7 +14,6 @@
 
 
 #include <linux/kernel.h>
-#include <linux/module.h>
 #include <linux/sched.h>
 #include <linux/smp.h>
 #include <linux/interrupt.h>

@@ -217,7 +217,7 @@ static int get_config_reg(struct pinmux_info *gpioc, pinmux_enum_t enum_id,
 
 		if (!r_width)
 			break;
-		for (n = 0; n < (r_width / f_width) * 1 << f_width; n++) {
+		for (n = 0; n < (r_width / f_width) * (1 << f_width); n++) {
 			if (config_reg->enum_ids[n] == enum_id) {
 				*crp = config_reg;
 				*indexp = n;
@@ -577,6 +577,32 @@ static void sh_gpio_set(struct gpio_chip *chip, unsigned offset, int value)
 	sh_gpio_set_value(chip_to_pinmux(chip), offset, value);
 }
 
+static int sh_gpio_to_irq(struct gpio_chip *chip, unsigned offset)
+{
+	struct pinmux_info *gpioc = chip_to_pinmux(chip);
+	pinmux_enum_t enum_id;
+	pinmux_enum_t *enum_ids;
+	int i, k, pos;
+
+	pos = 0;
+	enum_id = 0;
+	while (1) {
+		pos = get_gpio_enum_id(gpioc, offset, pos, &enum_id);
+		if (pos <= 0 || !enum_id)
+			break;
+
+		for (i = 0; i < gpioc->gpio_irq_size; i++) {
+			enum_ids = gpioc->gpio_irq[i].enum_ids;
+			for (k = 0; enum_ids[k]; k++) {
+				if (enum_ids[k] == enum_id)
+					return gpioc->gpio_irq[i].irq;
+			}
+		}
+	}
+
+	return -ENOSYS;
+}
+
 int register_pinmux(struct pinmux_info *pip)
 {
 	struct gpio_chip *chip = &pip->chip;
@@ -592,6 +618,7 @@ int register_pinmux(struct pinmux_info *pip)
 	chip->get = sh_gpio_get;
 	chip->direction_output = sh_gpio_direction_output;
 	chip->set = sh_gpio_set;
+	chip->to_irq = sh_gpio_to_irq;
 
 	WARN_ON(pip->first_gpio != 0); /* needs testing */
 

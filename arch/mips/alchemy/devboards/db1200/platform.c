@@ -213,7 +213,12 @@ static struct resource db1200_ide_res[] = {
 		.start	= DB1200_IDE_INT,
 		.end	= DB1200_IDE_INT,
 		.flags	= IORESOURCE_IRQ,
-	}
+	},
+	[2] = {
+		.start	= AU1200_DSCR_CMD0_DMA_REQ1,
+		.end	= AU1200_DSCR_CMD0_DMA_REQ1,
+		.flags	= IORESOURCE_DMA,
+	},
 };
 
 static u64 ide_dmamask = DMA_BIT_MASK(32);
@@ -328,23 +333,85 @@ static struct led_classdev db1200_mmc_led = {
 	.brightness_set	= db1200_mmcled_set,
 };
 
-/* needed by arch/mips/alchemy/common/platform.c */
-struct au1xmmc_platform_data au1xmmc_platdata[] = {
+static struct au1xmmc_platform_data db1200mmc_platdata = {
+	.cd_setup	= db1200_mmc_cd_setup,
+	.set_power	= db1200_mmc_set_power,
+	.card_inserted	= db1200_mmc_card_inserted,
+	.card_readonly	= db1200_mmc_card_readonly,
+	.led		= &db1200_mmc_led,
+};
+
+static struct resource au1200_mmc0_resources[] = {
 	[0] = {
-		.cd_setup	= db1200_mmc_cd_setup,
-		.set_power	= db1200_mmc_set_power,
-		.card_inserted	= db1200_mmc_card_inserted,
-		.card_readonly	= db1200_mmc_card_readonly,
-		.led		= &db1200_mmc_led,
+		.start	= AU1100_SD0_PHYS_ADDR,
+		.end	= AU1100_SD0_PHYS_ADDR + 0xfff,
+		.flags	= IORESOURCE_MEM,
 	},
+	[1] = {
+		.start	= AU1200_SD_INT,
+		.end	= AU1200_SD_INT,
+		.flags	= IORESOURCE_IRQ,
+	},
+	[2] = {
+		.start	= AU1200_DSCR_CMD0_SDMS_TX0,
+		.end	= AU1200_DSCR_CMD0_SDMS_TX0,
+		.flags	= IORESOURCE_DMA,
+	},
+	[3] = {
+		.start	= AU1200_DSCR_CMD0_SDMS_RX0,
+		.end	= AU1200_DSCR_CMD0_SDMS_RX0,
+		.flags	= IORESOURCE_DMA,
+	}
+};
+
+static u64 au1xxx_mmc_dmamask =  DMA_BIT_MASK(32);
+
+static struct platform_device db1200_mmc0_dev = {
+	.name		= "au1xxx-mmc",
+	.id		= 0,
+	.dev = {
+		.dma_mask		= &au1xxx_mmc_dmamask,
+		.coherent_dma_mask	= DMA_BIT_MASK(32),
+		.platform_data		= &db1200mmc_platdata,
+	},
+	.num_resources	= ARRAY_SIZE(au1200_mmc0_resources),
+	.resource	= au1200_mmc0_resources,
+};
+
+/**********************************************************************/
+
+static struct resource au1200_lcd_res[] = {
+	[0] = {
+		.start	= AU1200_LCD_PHYS_ADDR,
+		.end	= AU1200_LCD_PHYS_ADDR + 0x800 - 1,
+		.flags	= IORESOURCE_MEM,
+	},
+	[1] = {
+		.start	= AU1200_LCD_INT,
+		.end	= AU1200_LCD_INT,
+		.flags	= IORESOURCE_IRQ,
+	}
+};
+
+static u64 au1200_lcd_dmamask = DMA_BIT_MASK(32);
+
+static struct platform_device au1200_lcd_dev = {
+	.name		= "au1200-lcd",
+	.id		= 0,
+	.dev = {
+		.dma_mask		= &au1200_lcd_dmamask,
+		.coherent_dma_mask	= DMA_BIT_MASK(32),
+	},
+	.num_resources	= ARRAY_SIZE(au1200_lcd_res),
+	.resource	= au1200_lcd_res,
 };
 
 /**********************************************************************/
 
 static struct resource au1200_psc0_res[] = {
 	[0] = {
-		.start	= PSC0_PHYS_ADDR,
-		.end	= PSC0_PHYS_ADDR + 0x000fffff,
+		.start	= AU1550_PSC0_PHYS_ADDR,
+		.end	= AU1550_PSC0_PHYS_ADDR + 0xfff,
 		.flags	= IORESOURCE_MEM,
 	},
 	[1] = {
@@ -353,13 +420,13 @@ static struct resource au1200_psc0_res[] = {
 		.flags	= IORESOURCE_IRQ,
 	},
 	[2] = {
-		.start	= DSCR_CMD0_PSC0_TX,
-		.end	= DSCR_CMD0_PSC0_TX,
+		.start	= AU1200_DSCR_CMD0_PSC0_TX,
+		.end	= AU1200_DSCR_CMD0_PSC0_TX,
 		.flags	= IORESOURCE_DMA,
 	},
 	[3] = {
-		.start	= DSCR_CMD0_PSC0_RX,
-		.end	= DSCR_CMD0_PSC0_RX,
+		.start	= AU1200_DSCR_CMD0_PSC0_RX,
+		.end	= AU1200_DSCR_CMD0_PSC0_RX,
 		.flags	= IORESOURCE_DMA,
 	},
 };
@@ -401,8 +468,8 @@ static struct platform_device db1200_spi_dev = {
 
 static struct resource au1200_psc1_res[] = {
 	[0] = {
-		.start	= PSC1_PHYS_ADDR,
-		.end	= PSC1_PHYS_ADDR + 0x000fffff,
+		.start	= AU1550_PSC1_PHYS_ADDR,
+		.end	= AU1550_PSC1_PHYS_ADDR + 0xfff,
 		.flags	= IORESOURCE_MEM,
 	},
 	[1] = {
@@ -411,13 +478,13 @@ static struct resource au1200_psc1_res[] = {
 		.flags	= IORESOURCE_IRQ,
 	},
 	[2] = {
-		.start	= DSCR_CMD0_PSC1_TX,
-		.end	= DSCR_CMD0_PSC1_TX,
+		.start	= AU1200_DSCR_CMD0_PSC1_TX,
+		.end	= AU1200_DSCR_CMD0_PSC1_TX,
 		.flags	= IORESOURCE_DMA,
 	},
 	[3] = {
-		.start	= DSCR_CMD0_PSC1_RX,
-		.end	= DSCR_CMD0_PSC1_RX,
+		.start	= AU1200_DSCR_CMD0_PSC1_RX,
+		.end	= AU1200_DSCR_CMD0_PSC1_RX,
 		.flags	= IORESOURCE_DMA,
 	},
 };
@@ -449,6 +516,8 @@ static struct platform_device db1200_audiodma_dev = {
 static struct platform_device *db1200_devs[] __initdata = {
 	NULL,		/* PSC0, selected by S6.8 */
 	&db1200_ide_dev,
+	&db1200_mmc0_dev,
+	&au1200_lcd_dev,
 	&db1200_eth_dev,
 	&db1200_rtc_dev,
 	&db1200_nand_dev,
@@ -526,32 +595,28 @@ static int __init db1200_dev_init(void)
 
 	/* Audio PSC clock is supplied externally. (FIXME: platdata!!) */
 	__raw_writel(PSC_SEL_CLK_SERCLK,
-		(void __iomem *)KSEG1ADDR(PSC1_PHYS_ADDR) + PSC_SEL_OFFSET);
+		(void __iomem *)KSEG1ADDR(AU1550_PSC1_PHYS_ADDR) + PSC_SEL_OFFSET);
 	wmb();
 
-	db1x_register_pcmcia_socket(PCMCIA_ATTR_PHYS_ADDR,
-				    PCMCIA_ATTR_PHYS_ADDR + 0x000400000 - 1,
-				    PCMCIA_MEM_PHYS_ADDR,
-				    PCMCIA_MEM_PHYS_ADDR  + 0x000400000 - 1,
-				    PCMCIA_IO_PHYS_ADDR,
-				    PCMCIA_IO_PHYS_ADDR   + 0x000010000 - 1,
-				    DB1200_PC0_INT,
-				    DB1200_PC0_INSERT_INT,
-				    /*DB1200_PC0_STSCHG_INT*/0,
-				    DB1200_PC0_EJECT_INT,
-				    0);
+	db1x_register_pcmcia_socket(
+		AU1000_PCMCIA_ATTR_PHYS_ADDR,
+		AU1000_PCMCIA_ATTR_PHYS_ADDR + 0x000400000 - 1,
+		AU1000_PCMCIA_MEM_PHYS_ADDR,
+		AU1000_PCMCIA_MEM_PHYS_ADDR  + 0x000400000 - 1,
+		AU1000_PCMCIA_IO_PHYS_ADDR,
+		AU1000_PCMCIA_IO_PHYS_ADDR   + 0x000010000 - 1,
+		DB1200_PC0_INT, DB1200_PC0_INSERT_INT,
+		/*DB1200_PC0_STSCHG_INT*/0, DB1200_PC0_EJECT_INT, 0);
 
-	db1x_register_pcmcia_socket(PCMCIA_ATTR_PHYS_ADDR + 0x004000000,
-				    PCMCIA_ATTR_PHYS_ADDR + 0x004400000 - 1,
-				    PCMCIA_MEM_PHYS_ADDR  + 0x004000000,
-				    PCMCIA_MEM_PHYS_ADDR  + 0x004400000 - 1,
-				    PCMCIA_IO_PHYS_ADDR   + 0x004000000,
-				    PCMCIA_IO_PHYS_ADDR   + 0x004010000 - 1,
-				    DB1200_PC1_INT,
-				    DB1200_PC1_INSERT_INT,
-				    /*DB1200_PC1_STSCHG_INT*/0,
-				    DB1200_PC1_EJECT_INT,
-				    1);
+	db1x_register_pcmcia_socket(
+		AU1000_PCMCIA_ATTR_PHYS_ADDR + 0x004000000,
+		AU1000_PCMCIA_ATTR_PHYS_ADDR + 0x004400000 - 1,
+		AU1000_PCMCIA_MEM_PHYS_ADDR  + 0x004000000,
+		AU1000_PCMCIA_MEM_PHYS_ADDR  + 0x004400000 - 1,
+		AU1000_PCMCIA_IO_PHYS_ADDR   + 0x004000000,
+		AU1000_PCMCIA_IO_PHYS_ADDR   + 0x004010000 - 1,
+		DB1200_PC1_INT, DB1200_PC1_INSERT_INT,
+		/*DB1200_PC1_STSCHG_INT*/0, DB1200_PC1_EJECT_INT, 1);
 
 	swapped = bcsr_read(BCSR_STATUS) & BCSR_STATUS_DB1200_SWAPBOOT;
 	db1x_register_norflash(64 << 20, 2, swapped);

@@ -26,6 +26,7 @@
 #include <linux/pfn.h>
 #include <linux/poison.h>
 #include <linux/initrd.h>
+#include <linux/export.h>
 #include <linux/gfp.h>
 #include <asm/processor.h>
 #include <asm/system.h>

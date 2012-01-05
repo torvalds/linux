@@ -347,17 +347,6 @@ static inline int alchemy_gpio2_to_irq(int gpio)
 
 /**********************************************************************/
 
-/* On Au1000, Au1500 and Au1100 GPIOs won't work as inputs before
- * SYS_PININPUTEN is written to at least once.  On Au1550/Au1200 this
- * register enables use of GPIOs as wake source.
- */
-static inline void alchemy_gpio1_input_enable(void)
-{
-	void __iomem *base = (void __iomem *)KSEG1ADDR(AU1000_SYS_PHYS_ADDR);
-	__raw_writel(0, base + SYS_PININPUTEN);	/* the write op is key */
-	wmb();
-}
-
 /* GPIO2 shared interrupts and control */
 
 static inline void __alchemy_gpio2_mod_int(int gpio2, int en)
@@ -561,6 +550,7 @@ static inline int alchemy_irq_to_gpio(int irq)
 
 #ifndef CONFIG_GPIOLIB
 
+#ifdef CONFIG_ALCHEMY_GPIOINT_AU1000
 
 #ifndef CONFIG_ALCHEMY_GPIO_INDIRECT	/* case (4) */
 
@@ -665,24 +655,7 @@ static inline void gpio_unexport(unsigned gpio)
 
 #endif	/* !CONFIG_ALCHEMY_GPIO_INDIRECT */
 
-
-#else	/* CONFIG GPIOLIB */
-
-
- /* using gpiolib to provide up to 2 gpio_chips for on-chip gpios */
-#ifndef CONFIG_ALCHEMY_GPIO_INDIRECT	/* case (2) */
-
-/* get everything through gpiolib */
-#define gpio_to_irq	__gpio_to_irq
-#define gpio_get_value	__gpio_get_value
-#define gpio_set_value	__gpio_set_value
-#define gpio_cansleep	__gpio_cansleep
-#define irq_to_gpio	alchemy_irq_to_gpio
-
-#include <asm-generic/gpio.h>
-
-#endif	/* !CONFIG_ALCHEMY_GPIO_INDIRECT */
-
+#endif	/* CONFIG_ALCHEMY_GPIOINT_AU1000 */
 
 #endif	/* !CONFIG_GPIOLIB */
 

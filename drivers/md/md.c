@@ -44,6 +44,7 @@
 #include <linux/hdreg.h>
 #include <linux/proc_fs.h>
 #include <linux/random.h>
+#include <linux/module.h>
 #include <linux/reboot.h>
 #include <linux/file.h>
 #include <linux/compat.h>
@@ -332,18 +333,17 @@ static DEFINE_SPINLOCK(all_mddevs_lock);
  * call has finished, the bio has been linked into some internal structure
  * and so is visible to ->quiesce(), so we don't need the refcount any more.
  */
-static int md_make_request(struct request_queue *q, struct bio *bio)
+static void md_make_request(struct request_queue *q, struct bio *bio)
 {
 	const int rw = bio_data_dir(bio);
 	struct mddev *mddev = q->queuedata;
-	int rv;
 	int cpu;
 	unsigned int sectors;
 
 	if (mddev == NULL || mddev->pers == NULL
 	    || !mddev->ready) {
 		bio_io_error(bio);
-		return 0;
+		return;
 	}
 	smp_rmb(); /* Ensure implications of  'active' are visible */
 	rcu_read_lock();
@@ -368,7 +368,7 @@ static int md_make_request(struct request_queue *q, struct bio *bio)
 	 * go away inside make_request
 	 */
 	sectors = bio_sectors(bio);
-	rv = mddev->pers->make_request(mddev, bio);
+	mddev->pers->make_request(mddev, bio);
 
 	cpu = part_stat_lock();
 	part_stat_inc(cpu, &mddev->gendisk->part0, ios[rw]);
@@ -377,8 +377,6 @@ static int md_make_request(struct request_queue *q, struct bio *bio)
 
 	if (atomic_dec_and_test(&mddev->active_io) && mddev->suspended)
 		wake_up(&mddev->sb_wait);
-
-	return rv;
 }
 
 /* mddev_suspend makes sure no new requests are submitted
@@ -477,8 +475,7 @@ static void md_submit_flush_data(struct work_struct *ws)
 		bio_endio(bio, 0);
 	else {
 		bio->bi_rw &= ~REQ_FLUSH;
-		if (mddev->pers->make_request(mddev, bio))
-			generic_make_request(bio);
+		mddev->pers->make_request(mddev, bio);
 	}
 
 	mddev->flush_bio = NULL;

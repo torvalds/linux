@@ -35,6 +35,7 @@
 #include <linux/if_vlan.h>
 #include <linux/jhash.h>
 #include <linux/slab.h>
+#include <linux/export.h>
 #include <net/neighbour.h>
 #include "common.h"
 #include "t3cdev.h"

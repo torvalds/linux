@@ -97,6 +97,7 @@ static int bdi_debug_stats_show(struct seq_file *m, void *v)
 		   "BdiDirtyThresh:     %10lu kB\n"
 		   "DirtyThresh:        %10lu kB\n"
 		   "BackgroundThresh:   %10lu kB\n"
+		   "BdiDirtied:         %10lu kB\n"
 		   "BdiWritten:         %10lu kB\n"
 		   "BdiWriteBandwidth:  %10lu kBps\n"
 		   "b_dirty:            %10lu\n"
@@ -109,6 +110,7 @@ static int bdi_debug_stats_show(struct seq_file *m, void *v)
 		   K(bdi_thresh),
 		   K(dirty_thresh),
 		   K(background_thresh),
+		   (unsigned long) K(bdi_stat(bdi, BDI_DIRTIED)),
 		   (unsigned long) K(bdi_stat(bdi, BDI_WRITTEN)),
 		   (unsigned long) K(bdi->write_bandwidth),
 		   nr_dirty,
@@ -473,7 +475,8 @@ static int bdi_forker_thread(void *ptr)
 				 * the bdi from the thread. Hopefully 1024 is
 				 * large enough for efficient IO.
 				 */
-				writeback_inodes_wb(&bdi->wb, 1024);
+				writeback_inodes_wb(&bdi->wb, 1024,
+						    WB_REASON_FORKER_THREAD);
 			} else {
 				/*
 				 * The spinlock makes sure we do not lose
@@ -683,6 +686,8 @@ int bdi_init(struct backing_dev_info *bdi)
 	bdi->bw_time_stamp = jiffies;
 	bdi->written_stamp = 0;
 
+	bdi->balanced_dirty_ratelimit = INIT_BW;
+	bdi->dirty_ratelimit = INIT_BW;
 	bdi->write_bandwidth = INIT_BW;
 	bdi->avg_write_bandwidth = INIT_BW;
 
@@ -718,6 +723,14 @@ void bdi_destroy(struct backing_dev_info *bdi)
 	}
 
 	bdi_unregister(bdi);
+
+	/*
+	 * If bdi_unregister() had already been called earlier, the
+	 * wakeup_timer could still be armed because bdi_prune_sb()
+	 * can race with the bdi_wakeup_thread_delayed() calls from
+	 * __mark_inode_dirty().
+	 */
+	del_timer_sync(&bdi->wb.wakeup_timer);
 
 	for (i = 0; i < NR_BDI_STAT_ITEMS; i++)
 		percpu_counter_destroy(&bdi->bdi_stat[i]);

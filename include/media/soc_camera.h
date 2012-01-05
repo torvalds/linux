@@ -12,12 +12,14 @@
 #ifndef SOC_CAMERA_H
 #define SOC_CAMERA_H
 
+#include <linux/bitops.h>
 #include <linux/device.h>
 #include <linux/mutex.h>
 #include <linux/pm.h>
 #include <linux/videodev2.h>
 #include <media/videobuf-core.h>
 #include <media/videobuf2-core.h>
+#include <media/v4l2-ctrls.h>
 #include <media/v4l2-device.h>
 
 struct file;
@@ -37,8 +39,8 @@ struct soc_camera_device {
 	unsigned char iface;		/* Host number */
 	unsigned char devnum;		/* Device number per host */
 	struct soc_camera_sense *sense;	/* See comment in struct definition */
-	struct soc_camera_ops *ops;
 	struct video_device *vdev;
+	struct v4l2_ctrl_handler ctrl_handler;
 	const struct soc_camera_format_xlate *current_fmt;
 	struct soc_camera_format_xlate *user_formats;
 	int num_user_formats;
@@ -93,14 +95,10 @@ struct soc_camera_host_ops {
 	int (*reqbufs)(struct soc_camera_device *, struct v4l2_requestbuffers *);
 	int (*querycap)(struct soc_camera_host *, struct v4l2_capability *);
 	int (*set_bus_param)(struct soc_camera_device *, __u32);
-	int (*get_ctrl)(struct soc_camera_device *, struct v4l2_control *);
-	int (*set_ctrl)(struct soc_camera_device *, struct v4l2_control *);
 	int (*get_parm)(struct soc_camera_device *, struct v4l2_streamparm *);
 	int (*set_parm)(struct soc_camera_device *, struct v4l2_streamparm *);
 	int (*enum_fsizes)(struct soc_camera_device *, struct v4l2_frmsizeenum *);
 	unsigned int (*poll)(struct file *, poll_table *);
-	const struct v4l2_queryctrl *controls;
-	int num_controls;
 };
 
 #define SOCAM_SENSOR_INVERT_PCLK	(1 << 0)
@@ -193,13 +191,6 @@ struct soc_camera_format_xlate {
 	const struct soc_mbus_pixelfmt *host_fmt;
 };
 
-struct soc_camera_ops {
-	unsigned long (*query_bus_param)(struct soc_camera_device *);
-	int (*set_bus_param)(struct soc_camera_device *, unsigned long);
-	const struct v4l2_queryctrl *controls;
-	int num_controls;
-};
-
 #define SOCAM_SENSE_PCLK_CHANGED	(1 << 0)
 
 /**
@@ -226,64 +217,17 @@ struct soc_camera_sense {
 	unsigned long pixel_clock;
 };
 
-static inline struct v4l2_queryctrl const *soc_camera_find_qctrl(
-	struct soc_camera_ops *ops, int id)
-{
-	int i;
-
-	for (i = 0; i < ops->num_controls; i++)
-		if (ops->controls[i].id == id)
-			return &ops->controls[i];
-
-	return NULL;
-}
-
-#define SOCAM_MASTER			(1 << 0)
-#define SOCAM_SLAVE			(1 << 1)
-#define SOCAM_HSYNC_ACTIVE_HIGH		(1 << 2)
-#define SOCAM_HSYNC_ACTIVE_LOW		(1 << 3)
-#define SOCAM_VSYNC_ACTIVE_HIGH		(1 << 4)
-#define SOCAM_VSYNC_ACTIVE_LOW		(1 << 5)
-#define SOCAM_DATAWIDTH_4		(1 << 6)
-#define SOCAM_DATAWIDTH_8		(1 << 7)
-#define SOCAM_DATAWIDTH_9		(1 << 8)
-#define SOCAM_DATAWIDTH_10		(1 << 9)
-#define SOCAM_DATAWIDTH_15		(1 << 10)
-#define SOCAM_DATAWIDTH_16		(1 << 11)
-#define SOCAM_PCLK_SAMPLE_RISING	(1 << 12)
-#define SOCAM_PCLK_SAMPLE_FALLING	(1 << 13)
-#define SOCAM_DATA_ACTIVE_HIGH		(1 << 14)
-#define SOCAM_DATA_ACTIVE_LOW		(1 << 15)
-#define SOCAM_MIPI_1LANE		(1 << 16)
-#define SOCAM_MIPI_2LANE		(1 << 17)
-#define SOCAM_MIPI_3LANE		(1 << 18)
-#define SOCAM_MIPI_4LANE		(1 << 19)
-#define SOCAM_MIPI	(SOCAM_MIPI_1LANE | SOCAM_MIPI_2LANE | \
-			SOCAM_MIPI_3LANE | SOCAM_MIPI_4LANE)
+#define SOCAM_DATAWIDTH(x)	BIT((x) - 1)
+#define SOCAM_DATAWIDTH_4	SOCAM_DATAWIDTH(4)
+#define SOCAM_DATAWIDTH_8	SOCAM_DATAWIDTH(8)
+#define SOCAM_DATAWIDTH_9	SOCAM_DATAWIDTH(9)
+#define SOCAM_DATAWIDTH_10	SOCAM_DATAWIDTH(10)
+#define SOCAM_DATAWIDTH_15	SOCAM_DATAWIDTH(15)
+#define SOCAM_DATAWIDTH_16	SOCAM_DATAWIDTH(16)
 
 #define SOCAM_DATAWIDTH_MASK (SOCAM_DATAWIDTH_4 | SOCAM_DATAWIDTH_8 | \
 			      SOCAM_DATAWIDTH_9 | SOCAM_DATAWIDTH_10 | \
 			      SOCAM_DATAWIDTH_15 | SOCAM_DATAWIDTH_16)
-
-static inline unsigned long soc_camera_bus_param_compatible(
-			unsigned long camera_flags, unsigned long bus_flags)
-{
-	unsigned long common_flags, hsync, vsync, pclk, data, buswidth, mode;
-	unsigned long mipi;
-
-	common_flags = camera_flags & bus_flags;
-
-	hsync = common_flags & (SOCAM_HSYNC_ACTIVE_HIGH | SOCAM_HSYNC_ACTIVE_LOW);
-	vsync = common_flags & (SOCAM_VSYNC_ACTIVE_HIGH | SOCAM_VSYNC_ACTIVE_LOW);
-	pclk = common_flags & (SOCAM_PCLK_SAMPLE_RISING | SOCAM_PCLK_SAMPLE_FALLING);
-	data = common_flags & (SOCAM_DATA_ACTIVE_HIGH | SOCAM_DATA_ACTIVE_LOW);
-	mode = common_flags & (SOCAM_MASTER | SOCAM_SLAVE);
-	buswidth = common_flags & SOCAM_DATAWIDTH_MASK;
-	mipi = common_flags & SOCAM_MIPI;
-
-	return ((!hsync || !vsync || !pclk || !data || !mode || !buswidth) && !mipi) ? 0 :
-		common_flags;
-}
 
 static inline void soc_camera_limit_side(int *start, int *length,
 		unsigned int start_min,
@@ -300,23 +244,37 @@ static inline void soc_camera_limit_side(int *start, int *length,
 		*start = start_min + length_max - *length;
 }
 
-extern unsigned long soc_camera_apply_sensor_flags(struct soc_camera_link *icl,
-						   unsigned long flags);
+unsigned long soc_camera_apply_sensor_flags(struct soc_camera_link *icl,
+					    unsigned long flags);
+unsigned long soc_camera_apply_board_flags(struct soc_camera_link *icl,
+					   const struct v4l2_mbus_config *cfg);
 
 /* This is only temporary here - until v4l2-subdev begins to link to video_device */
 #include <linux/i2c.h>
-static inline struct video_device *soc_camera_i2c_to_vdev(struct i2c_client *client)
+static inline struct video_device *soc_camera_i2c_to_vdev(const struct i2c_client *client)
 {
-	struct soc_camera_device *icd = client->dev.platform_data;
-	return icd->vdev;
+	struct v4l2_subdev *sd = i2c_get_clientdata(client);
+	struct soc_camera_device *icd = (struct soc_camera_device *)sd->grp_id;
+	return icd ? icd->vdev : NULL;
 }
 
-static inline struct soc_camera_device *soc_camera_from_vb2q(struct vb2_queue *vq)
+static inline struct soc_camera_link *soc_camera_i2c_to_link(const struct i2c_client *client)
+{
+	return client->dev.platform_data;
+}
+
+static inline struct v4l2_subdev *soc_camera_vdev_to_subdev(const struct video_device *vdev)
+{
+	struct soc_camera_device *icd = dev_get_drvdata(vdev->parent);
+	return soc_camera_to_subdev(icd);
+}
+
+static inline struct soc_camera_device *soc_camera_from_vb2q(const struct vb2_queue *vq)
 {
 	return container_of(vq, struct soc_camera_device, vb2_vidq);
 }
 
-static inline struct soc_camera_device *soc_camera_from_vbq(struct videobuf_queue *vq)
+static inline struct soc_camera_device *soc_camera_from_vbq(const struct videobuf_queue *vq)
 {
 	return container_of(vq, struct soc_camera_device, vb_vidq);
 }

@@ -10,6 +10,8 @@
 #include <linux/bug.h>
 #include <linux/workqueue.h>
 #include <linux/spinlock.h>
+#include <linux/export.h>
+#include <linux/sched.h>
 #include <linux/init.h>
 #include <linux/jiffies.h>
 #include <linux/wait.h>

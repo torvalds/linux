@@ -42,7 +42,6 @@
  * can build the DRM (part of PI DRI). 4/21/2000 S + B */
 #include <asm/current.h>
 #endif				/* __alpha__ */
-#include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/miscdevice.h>
 #include <linux/fs.h>
@@ -79,6 +78,8 @@
 
 #define __OS_HAS_AGP (defined(CONFIG_AGP) || (defined(CONFIG_AGP_MODULE) && defined(MODULE)))
 #define __OS_HAS_MTRR (defined(CONFIG_MTRR))
+
+struct module;
 
 struct drm_file;
 struct drm_device;
@@ -989,7 +990,9 @@ struct drm_minor {
 	struct proc_dir_entry *proc_root;  /**< proc directory entry */
 	struct drm_info_node proc_nodes;
 	struct dentry *debugfs_root;
-	struct drm_info_node debugfs_nodes;
+
+	struct list_head debugfs_list;
+	struct mutex debugfs_lock; /* Protects debugfs_list. */
 
 	struct drm_master *master; /* currently active master for this node */
 	struct list_head master_list;

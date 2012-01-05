@@ -13,6 +13,7 @@
 #include <sound/soc-dapm.h>
 #include <sound/jack.h>
 #include <linux/gpio.h>
+#include <linux/module.h>
 
 #include "../codecs/wm8996.h"
 #include "../codecs/wm9081.h"
@@ -190,7 +191,7 @@ static int speyside_late_probe(struct snd_soc_card *card)
 	snd_soc_dapm_ignore_suspend(&card->dapm, "Headset Mic");
 	snd_soc_dapm_ignore_suspend(&card->dapm, "Main AMIC");
 	snd_soc_dapm_ignore_suspend(&card->dapm, "Main DMIC");
-	snd_soc_dapm_ignore_suspend(&card->dapm, "Speaker");
+	snd_soc_dapm_ignore_suspend(&card->dapm, "Main Speaker");
 	snd_soc_dapm_ignore_suspend(&card->dapm, "WM1250 Output");
 	snd_soc_dapm_ignore_suspend(&card->dapm, "WM1250 Input");
 

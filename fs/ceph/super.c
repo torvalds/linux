@@ -426,7 +426,7 @@ static int extra_mon_dispatch(struct ceph_client *client, struct ceph_msg *msg)
 /*
  * create a new fs client
  */
-struct ceph_fs_client *create_fs_client(struct ceph_mount_options *fsopt,
+static struct ceph_fs_client *create_fs_client(struct ceph_mount_options *fsopt,
 					struct ceph_options *opt)
 {
 	struct ceph_fs_client *fsc;
@@ -502,7 +502,7 @@ fail:
 	return ERR_PTR(err);
 }
 
-void destroy_fs_client(struct ceph_fs_client *fsc)
+static void destroy_fs_client(struct ceph_fs_client *fsc)
 {
 	dout("destroy_fs_client %p\n", fsc);
 
@@ -638,10 +638,12 @@ static struct dentry *open_root_dentry(struct ceph_fs_client *fsc,
 	if (err == 0) {
 		dout("open_root_inode success\n");
 		if (ceph_ino(req->r_target_inode) == CEPH_INO_ROOT &&
-		    fsc->sb->s_root == NULL)
+		    fsc->sb->s_root == NULL) {
 			root = d_alloc_root(req->r_target_inode);
-		else
+			ceph_init_dentry(root);
+		} else {
 			root = d_obtain_alias(req->r_target_inode);
+		}
 		req->r_target_inode = NULL;
 		dout("open_root_inode success, root dentry is %p\n", root);
 	} else {

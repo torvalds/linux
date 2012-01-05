@@ -28,6 +28,7 @@
 #include <linux/types.h>
 #include <linux/workqueue.h>
 #include <linux/completion.h>
+#include <linux/export.h>
 #include <linux/sched.h>
 #include <linux/bitops.h>
 #include <linux/skbuff.h>

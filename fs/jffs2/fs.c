@@ -379,7 +379,7 @@ void jffs2_dirty_inode(struct inode *inode, int flags)
 	jffs2_do_setattr(inode, &iattr);
 }
 
-int jffs2_remount_fs (struct super_block *sb, int *flags, char *data)
+int jffs2_do_remount_fs(struct super_block *sb, int *flags, char *data)
 {
 	struct jffs2_sb_info *c = JFFS2_SB_INFO(sb);
 

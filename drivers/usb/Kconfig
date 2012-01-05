@@ -62,7 +62,6 @@ config USB_ARCH_HAS_EHCI
 	boolean
 	default y if FSL_SOC
 	default y if PPC_MPC512x
-	default y if SOC_AU1200
 	default y if ARCH_IXP4XX
 	default y if ARCH_W90X900
 	default y if ARCH_AT91SAM9G45

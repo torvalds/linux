@@ -26,6 +26,8 @@
  *
  **************************************************************************/
 
+#include <linux/export.h>
+
 #include "drmP.h"
 #include "vmwgfx_drv.h"
 

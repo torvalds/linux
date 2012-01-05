@@ -42,6 +42,17 @@
 #       define EVERGREEN_GRPH_DEPTH_8BPP                0
 #       define EVERGREEN_GRPH_DEPTH_16BPP               1
 #       define EVERGREEN_GRPH_DEPTH_32BPP               2
+#       define EVERGREEN_GRPH_NUM_BANKS(x)              (((x) & 0x3) << 2)
+#       define EVERGREEN_ADDR_SURF_2_BANK               0
+#       define EVERGREEN_ADDR_SURF_4_BANK               1
+#       define EVERGREEN_ADDR_SURF_8_BANK               2
+#       define EVERGREEN_ADDR_SURF_16_BANK              3
+#       define EVERGREEN_GRPH_Z(x)                      (((x) & 0x3) << 4)
+#       define EVERGREEN_GRPH_BANK_WIDTH(x)             (((x) & 0x3) << 6)
+#       define EVERGREEN_ADDR_SURF_BANK_WIDTH_1         0
+#       define EVERGREEN_ADDR_SURF_BANK_WIDTH_2         1
+#       define EVERGREEN_ADDR_SURF_BANK_WIDTH_4         2
+#       define EVERGREEN_ADDR_SURF_BANK_WIDTH_8         3
 #       define EVERGREEN_GRPH_FORMAT(x)                 (((x) & 0x7) << 8)
 /* 8 BPP */
 #       define EVERGREEN_GRPH_FORMAT_INDEXED            0
@@ -61,6 +72,24 @@
 #       define EVERGREEN_GRPH_FORMAT_8B_BGRA1010102     5
 #       define EVERGREEN_GRPH_FORMAT_RGB111110          6
 #       define EVERGREEN_GRPH_FORMAT_BGR101111          7
+#       define EVERGREEN_GRPH_BANK_HEIGHT(x)            (((x) & 0x3) << 11)
+#       define EVERGREEN_ADDR_SURF_BANK_HEIGHT_1        0
+#       define EVERGREEN_ADDR_SURF_BANK_HEIGHT_2        1
+#       define EVERGREEN_ADDR_SURF_BANK_HEIGHT_4        2
+#       define EVERGREEN_ADDR_SURF_BANK_HEIGHT_8        3
+#       define EVERGREEN_GRPH_TILE_SPLIT(x)             (((x) & 0x7) << 13)
+#       define EVERGREEN_ADDR_SURF_TILE_SPLIT_64B       0
+#       define EVERGREEN_ADDR_SURF_TILE_SPLIT_128B      1
+#       define EVERGREEN_ADDR_SURF_TILE_SPLIT_256B      2
+#       define EVERGREEN_ADDR_SURF_TILE_SPLIT_512B      3
+#       define EVERGREEN_ADDR_SURF_TILE_SPLIT_1KB       4
+#       define EVERGREEN_ADDR_SURF_TILE_SPLIT_2KB       5
+#       define EVERGREEN_ADDR_SURF_TILE_SPLIT_4KB       6
+#       define EVERGREEN_GRPH_MACRO_TILE_ASPECT(x)      (((x) & 0x3) << 18)
+#       define EVERGREEN_ADDR_SURF_MACRO_TILE_ASPECT_1  0
+#       define EVERGREEN_ADDR_SURF_MACRO_TILE_ASPECT_2  1
+#       define EVERGREEN_ADDR_SURF_MACRO_TILE_ASPECT_4  2
+#       define EVERGREEN_ADDR_SURF_MACRO_TILE_ASPECT_8  3
 #       define EVERGREEN_GRPH_ARRAY_MODE(x)             (((x) & 0x7) << 20)
 #       define EVERGREEN_GRPH_ARRAY_LINEAR_GENERAL      0
 #       define EVERGREEN_GRPH_ARRAY_LINEAR_ALIGNED      1

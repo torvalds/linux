@@ -20,7 +20,7 @@
 #include <linux/lockdep.h>
 #include <linux/compiler.h>
 #include <linux/types.h>
-#include <linux/module.h>
+#include <linux/mutex.h>
 #include <linux/pm.h>
 #include <linux/atomic.h>
 #include <asm/device.h>
@@ -29,6 +29,7 @@ struct device;
 struct device_private;
 struct device_driver;
 struct driver_private;
+struct module;
 struct class;
 struct subsys_private;
 struct bus_type;
@@ -68,7 +69,7 @@ extern void bus_remove_file(struct bus_type *, struct bus_attribute *);
  * @resume:	Called to bring a device on this bus out of sleep mode.
  * @pm:		Power management operations of this bus, callback the specific
  *		device driver's pm-ops.
- * @iommu_ops   IOMMU specific operations for this bus, used to attach IOMMU
+ * @iommu_ops:  IOMMU specific operations for this bus, used to attach IOMMU
  *              driver implementations to a bus and allow the driver to do
  *              bus-specific setup
  * @p:		The private data of the driver core, only the driver core can
@@ -681,6 +682,11 @@ static inline bool device_async_suspend_enabled(struct device *dev)
 	return !!dev->power.async_suspend;
 }
 
+static inline void pm_suspend_ignore_children(struct device *dev, bool enable)
+{
+	dev->power.ignore_children = enable;
+}
+
 static inline void device_lock(struct device *dev)
 {
 	mutex_lock(&dev->mutex);
@@ -723,10 +729,14 @@ extern int dev_set_drvdata(struct device *dev, void *data);
  */
 extern struct device *__root_device_register(const char *name,
 					     struct module *owner);
-static inline struct device *root_device_register(const char *name)
-{
-	return __root_device_register(name, THIS_MODULE);
-}
+
+/*
+ * This is a macro to avoid include problems with THIS_MODULE,
+ * just as per what is done for device_schedule_callback() above.
+ */
+#define root_device_register(name) \
+	__root_device_register(name, THIS_MODULE)
+
 extern void root_device_unregister(struct device *root);
 
 static inline void *dev_get_platdata(const struct device *dev)

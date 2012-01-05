@@ -20,6 +20,7 @@
  * Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
+#include <linux/gfp.h>
 #include <asm/unaligned.h>
 
 #include "xhci.h"

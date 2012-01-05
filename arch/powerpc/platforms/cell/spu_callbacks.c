@@ -5,7 +5,7 @@
 #undef DEBUG
 
 #include <linux/kallsyms.h>
-#include <linux/module.h>
+#include <linux/export.h>
 #include <linux/syscalls.h>
 
 #include <asm/spu.h>

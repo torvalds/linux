@@ -20,6 +20,7 @@
 #include <linux/rtnetlink.h>
 #include <linux/wireless.h>
 #include <linux/vmalloc.h>
+#include <linux/export.h>
 #include <net/wext.h>
 
 #include "net-sysfs.h"

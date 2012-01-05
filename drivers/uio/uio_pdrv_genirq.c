@@ -18,6 +18,7 @@
 #include <linux/uio_driver.h>
 #include <linux/spinlock.h>
 #include <linux/bitops.h>
+#include <linux/module.h>
 #include <linux/interrupt.h>
 #include <linux/stringify.h>
 #include <linux/pm_runtime.h>

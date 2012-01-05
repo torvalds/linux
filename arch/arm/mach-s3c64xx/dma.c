@@ -147,14 +147,14 @@ static void s3c64xx_dma_fill_lli(struct s3c2410_dma_chan *chan,
 	u32 control0, control1;
 
 	switch (chan->source) {
-	case S3C2410_DMASRC_HW:
+	case DMA_FROM_DEVICE:
 		src = chan->dev_addr;
 		dst = data;
 		control0 = PL080_CONTROL_SRC_AHB2;
 		control0 |= PL080_CONTROL_DST_INCR;
 		break;
 
-	case S3C2410_DMASRC_MEM:
+	case DMA_TO_DEVICE:
 		src = data;
 		dst = chan->dev_addr;
 		control0 = PL080_CONTROL_DST_AHB2;
@@ -416,7 +416,7 @@ EXPORT_SYMBOL(s3c2410_dma_enqueue);
 
 
 int s3c2410_dma_devconfig(enum dma_ch channel,
-			  enum s3c2410_dmasrc source,
+			  enum dma_data_direction source,
 			  unsigned long devaddr)
 {
 	struct s3c2410_dma_chan *chan = s3c_dma_lookup_channel(channel);
@@ -437,11 +437,11 @@ int s3c2410_dma_devconfig(enum dma_ch channel,
 	pr_debug("%s: peripheral %d\n", __func__, peripheral);
 
 	switch (source) {
-	case S3C2410_DMASRC_HW:
+	case DMA_FROM_DEVICE:
 		config = 2 << PL080_CONFIG_FLOW_CONTROL_SHIFT;
 		config |= peripheral << PL080_CONFIG_SRC_SEL_SHIFT;
 		break;
-	case S3C2410_DMASRC_MEM:
+	case DMA_TO_DEVICE:
 		config = 1 << PL080_CONFIG_FLOW_CONTROL_SHIFT;
 		config |= peripheral << PL080_CONFIG_DST_SEL_SHIFT;
 		break;
@@ -740,7 +740,7 @@ static int __init s3c64xx_dma_init(void)
 	}
 
 	/* Set all DMA configuration to be DMA, not SDMA */
-	writel(0xffffff, S3C_SYSREG(0x110));
+	writel(0xffffff, S3C64XX_SDMA_SEL);
 
 	/* Register standard DMA controllers */
 	s3c64xx_dma_init1(0, DMACH_UART0, IRQ_DMA0, 0x75000000);

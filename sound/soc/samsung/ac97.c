@@ -15,6 +15,7 @@
 #include <linux/io.h>
 #include <linux/delay.h>
 #include <linux/clk.h>
+#include <linux/module.h>
 
 #include <sound/soc.h>
 
@@ -271,7 +272,10 @@ static int s3c_ac97_trigger(struct snd_pcm_substream *substream, int cmd,
 
 	writel(ac_glbctrl, s3c_ac97.regs + S3C_AC97_GLBCTRL);
 
-	s3c2410_dma_ctrl(dma_data->channel, S3C2410_DMAOP_STARTED);
+	if (!dma_data->ops)
+		dma_data->ops = samsung_dma_get_ops();
+
+	dma_data->ops->started(dma_data->channel);
 
 	return 0;
 }
@@ -317,7 +321,10 @@ static int s3c_ac97_mic_trigger(struct snd_pcm_substream *substream,
 
 	writel(ac_glbctrl, s3c_ac97.regs + S3C_AC97_GLBCTRL);
 
-	s3c2410_dma_ctrl(dma_data->channel, S3C2410_DMAOP_STARTED);
+	if (!dma_data->ops)
+		dma_data->ops = samsung_dma_get_ops();
+
+	dma_data->ops->started(dma_data->channel);
 
 	return 0;
 }

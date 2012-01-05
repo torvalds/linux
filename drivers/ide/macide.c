@@ -17,6 +17,7 @@
 #include <linux/blkdev.h>
 #include <linux/delay.h>
 #include <linux/ide.h>
+#include <linux/module.h>
 
 #include <asm/macintosh.h>
 #include <asm/macints.h>

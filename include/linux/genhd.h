@@ -21,8 +21,6 @@
 #define dev_to_part(device)	container_of((device), struct hd_struct, __dev)
 #define disk_to_dev(disk)	(&(disk)->part0.__dev)
 #define part_to_dev(part)	(&((part)->__dev))
-#define alias_name(disk)	((disk)->alias ? (disk)->alias : \
-						 (disk)->disk_name)
 
 extern struct device_type part_type;
 extern struct kobject *block_depr;
@@ -60,7 +58,6 @@ enum {
 
 #define DISK_MAX_PARTS			256
 #define DISK_NAME_LEN			32
-#define ALIAS_LEN			256
 
 #include <linux/major.h>
 #include <linux/device.h>
@@ -131,6 +128,7 @@ struct hd_struct {
 #define GENHD_FL_EXT_DEVT			64 /* allow extended devt */
 #define GENHD_FL_NATIVE_CAPACITY		128
 #define GENHD_FL_BLOCK_EVENTS_ON_EXCL_WRITE	256
+#define GENHD_FL_NO_PART_SCAN			512
 
 enum {
 	DISK_EVENT_MEDIA_CHANGE			= 1 << 0, /* media changed */
@@ -165,7 +163,6 @@ struct gendisk {
                                          * disks that can't be partitioned. */
 
 	char disk_name[DISK_NAME_LEN];	/* name of major driver */
-	char *alias;			/* alias name of disk */
 	char *(*devnode)(struct gendisk *gd, mode_t *mode);
 
 	unsigned int events;		/* supported events */
@@ -238,9 +235,10 @@ static inline int disk_max_parts(struct gendisk *disk)
 	return disk->minors;
 }
 
-static inline bool disk_partitionable(struct gendisk *disk)
+static inline bool disk_part_scan_enabled(struct gendisk *disk)
 {
-	return disk_max_parts(disk) > 1;
+	return disk_max_parts(disk) > 1 &&
+		!(disk->flags & GENHD_FL_NO_PART_SCAN);
 }
 
 static inline dev_t disk_devt(struct gendisk *disk)

@@ -18,6 +18,7 @@
 #include <linux/pci.h>
 #include <linux/pci-aspm.h>
 #include <linux/etherdevice.h>
+#include <linux/module.h>
 #include "../ath.h"
 #include "ath5k.h"
 #include "debug.h"

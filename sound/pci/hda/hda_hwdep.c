@@ -26,6 +26,7 @@
 #include <linux/ctype.h>
 #include <linux/string.h>
 #include <linux/firmware.h>
+#include <linux/export.h>
 #include <sound/core.h>
 #include "hda_codec.h"
 #include "hda_local.h"
@@ -756,8 +757,6 @@ static int get_line_from_fw(char *buf, int size, struct firmware *fw)
 	}
 	if (!fw->size)
 		return 0;
-	if (size < fw->size)
-		size = fw->size;
 
 	for (len = 0; len < fw->size; len++) {
 		if (!*p)

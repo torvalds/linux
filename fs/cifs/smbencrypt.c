@@ -199,75 +199,36 @@ SMBencrypt(unsigned char *passwd, const unsigned char *c8, unsigned char *p24)
 	return rc;
 }
 
-/* Routines for Windows NT MD4 Hash functions. */
-static int
-_my_wcslen(__u16 *str)
-{
-	int len = 0;
-	while (*str++ != 0)
-		len++;
-	return len;
-}
-
-/*
- * Convert a string into an NT UNICODE string.
- * Note that regardless of processor type
- * this must be in intel (little-endian)
- * format.
- */
-
-static int
-_my_mbstowcs(__u16 *dst, const unsigned char *src, int len)
-{	/* BB not a very good conversion routine - change/fix */
-	int i;
-	__u16 val;
-
-	for (i = 0; i < len; i++) {
-		val = *src;
-		SSVAL(dst, 0, val);
-		dst++;
-		src++;
-		if (val == 0)
-			break;
-	}
-	return i;
-}
-
 /*
  * Creates the MD4 Hash of the users password in NT UNICODE.
  */
 
 int
-E_md4hash(const unsigned char *passwd, unsigned char *p16)
+E_md4hash(const unsigned char *passwd, unsigned char *p16,
+	const struct nls_table *codepage)
 {
 	int rc;
 	int len;
 	__u16 wpwd[129];
 
 	/* Password cannot be longer than 128 characters */
-	if (passwd) {
-		len = strlen((char *) passwd);
-		if (len > 128)
-			len = 128;
-
-		/* Password must be converted to NT unicode */
-		_my_mbstowcs(wpwd, passwd, len);
-	} else
+	if (passwd) /* Password must be converted to NT unicode */
+		len = cifs_strtoUCS(wpwd, passwd, 128, codepage);
+	else {
 		len = 0;
+		*wpwd = 0; /* Ensure string is null terminated */
+	}
 
-	wpwd[len] = 0;	/* Ensure string is null terminated */
-	/* Calculate length in bytes */
-	len = _my_wcslen(wpwd) * sizeof(__u16);
-
-	rc = mdfour(p16, (unsigned char *) wpwd, len);
-	memset(wpwd, 0, 129 * 2);
+	rc = mdfour(p16, (unsigned char *) wpwd, len * sizeof(__u16));
+	memset(wpwd, 0, 129 * sizeof(__u16));
 
 	return rc;
 }
 
 /* Does the NT MD4 hash then des encryption. */
 int
-SMBNTencrypt(unsigned char *passwd, unsigned char *c8, unsigned char *p24)
+SMBNTencrypt(unsigned char *passwd, unsigned char *c8, unsigned char *p24,
+		const struct nls_table *codepage)
 {
 	int rc;
 	unsigned char p16[16], p21[21];
@@ -275,7 +236,7 @@ SMBNTencrypt(unsigned char *passwd, unsigned char *c8, unsigned char *p24)
 	memset(p16, '\0', 16);
 	memset(p21, '\0', 21);
 
-	rc = E_md4hash(passwd, p16);
+	rc = E_md4hash(passwd, p16, codepage);
 	if (rc) {
 		cFYI(1, "%s Can't generate NT hash, error: %d", __func__, rc);
 		return rc;

@@ -20,6 +20,7 @@
 
 #include <linux/i2c.h>
 #include <linux/i2c-algo-bit.h>
+#include <linux/export.h>
 
 #include "psb_drv.h"
 #include "psb_intel_reg.h"

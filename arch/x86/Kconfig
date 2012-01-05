@@ -194,9 +194,6 @@ config NEED_PER_CPU_EMBED_FIRST_CHUNK
 config NEED_PER_CPU_PAGE_FIRST_CHUNK
 	def_bool y
 
-config HAVE_CPUMASK_OF_CPU_MAP
-	def_bool X86_64_SMP
-
 config ARCH_HIBERNATION_POSSIBLE
 	def_bool y
 

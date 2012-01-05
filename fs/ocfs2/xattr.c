@@ -2376,16 +2376,18 @@ static int ocfs2_remove_value_outside(struct inode*inode,
 		}
 
 		ret = ocfs2_xattr_value_truncate(inode, vb, 0, &ctxt);
-		if (ret < 0) {
-			mlog_errno(ret);
-			break;
-		}
 
 		ocfs2_commit_trans(osb, ctxt.handle);
 		if (ctxt.meta_ac) {
 			ocfs2_free_alloc_context(ctxt.meta_ac);
 			ctxt.meta_ac = NULL;
 		}
+
+		if (ret < 0) {
+			mlog_errno(ret);
+			break;
+		}
+
 	}
 
 	if (ctxt.meta_ac)

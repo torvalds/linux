@@ -11,6 +11,7 @@
 
 #include <linux/usb.h>
 #include <linux/io.h>
+#include <linux/module.h>
 #include <linux/platform_device.h>
 #include <linux/usb/isp1760.h>
 #include <linux/usb/hcd.h>

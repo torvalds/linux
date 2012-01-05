@@ -23,6 +23,7 @@
 #include <linux/console.h>
 #include <linux/backlight.h>
 #include <linux/gpio.h>
+#include <linux/module.h>
 #include <video/sh_mobile_lcdc.h>
 #include <video/sh_mobile_meram.h>
 #include <linux/atomic.h>

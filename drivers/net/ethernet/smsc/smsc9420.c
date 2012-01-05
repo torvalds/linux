@@ -28,6 +28,7 @@
 #include <linux/dma-mapping.h>
 #include <linux/crc32.h>
 #include <linux/slab.h>
+#include <linux/module.h>
 #include <asm/unaligned.h>
 #include "smsc9420.h"
 

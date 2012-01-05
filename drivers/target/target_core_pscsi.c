@@ -36,6 +36,7 @@
 #include <linux/genhd.h>
 #include <linux/cdrom.h>
 #include <linux/file.h>
+#include <linux/module.h>
 #include <scsi/scsi.h>
 #include <scsi/scsi_device.h>
 #include <scsi/scsi_cmnd.h>
@@ -1091,7 +1092,7 @@ static int pscsi_do_task(struct se_task *task)
 
 		req = blk_make_request(pdv->pdv_sd->request_queue, hbio,
 				       GFP_KERNEL);
-		if (!req) {
+		if (IS_ERR(req)) {
 			pr_err("pSCSI: blk_make_request() failed\n");
 			goto fail;
 		}

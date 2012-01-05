@@ -572,14 +572,14 @@
 
 #define AR_PHY_TXGAIN_TABLE      (AR_SM_BASE + 0x300)
 
-#define AR_PHY_TX_IQCAL_CONTROL_0   (AR_SM_BASE + AR_SREV_9485(ah) ? \
-						 0x3c4 : 0x444)
-#define AR_PHY_TX_IQCAL_CONTROL_1   (AR_SM_BASE + AR_SREV_9485(ah) ? \
-						 0x3c8 : 0x448)
-#define AR_PHY_TX_IQCAL_START       (AR_SM_BASE + AR_SREV_9485(ah) ? \
-						 0x3c4 : 0x440)
-#define AR_PHY_TX_IQCAL_STATUS_B0   (AR_SM_BASE + AR_SREV_9485(ah) ? \
-						 0x3f0 : 0x48c)
+#define AR_PHY_TX_IQCAL_CONTROL_0   (AR_SM_BASE + (AR_SREV_9485(ah) ? \
+						 0x3c4 : 0x444))
+#define AR_PHY_TX_IQCAL_CONTROL_1   (AR_SM_BASE + (AR_SREV_9485(ah) ? \
+						 0x3c8 : 0x448))
+#define AR_PHY_TX_IQCAL_START       (AR_SM_BASE + (AR_SREV_9485(ah) ? \
+						 0x3c4 : 0x440))
+#define AR_PHY_TX_IQCAL_STATUS_B0   (AR_SM_BASE + (AR_SREV_9485(ah) ? \
+						 0x3f0 : 0x48c))
 #define AR_PHY_TX_IQCAL_CORR_COEFF_B0(_i)    (AR_SM_BASE + \
 					     (AR_SREV_9485(ah) ? \
 					      0x3d0 : 0x450) + ((_i) << 2))
@@ -651,7 +651,7 @@
 #define AR_SWITCH_TABLE_ALL_S (0)
 
 #define AR_PHY_65NM_CH0_THERM       (AR_SREV_9300(ah) ? 0x16290 :\
-					(AR_SREV_9485(ah) ? 0x1628c : 0x16294))
+					(AR_SREV_9462(ah) ? 0x16294 : 0x1628c))
 
 #define AR_PHY_65NM_CH0_THERM_LOCAL   0x80000000
 #define AR_PHY_65NM_CH0_THERM_LOCAL_S 31
@@ -668,12 +668,12 @@
 #define AR_PHY_65NM_CH2_RXTX2       0x16904
 
 #define AR_CH0_TOP2		(AR_SREV_9300(ah) ? 0x1628c : \
-					(AR_SREV_9485(ah) ? 0x16284 : 0x16290))
+					(AR_SREV_9462(ah) ? 0x16290 : 0x16284))
 #define AR_CH0_TOP2_XPABIASLVL		0xf000
 #define AR_CH0_TOP2_XPABIASLVL_S	12
 
 #define AR_CH0_XTAL		(AR_SREV_9300(ah) ? 0x16294 : \
-					(AR_SREV_9485(ah) ? 0x16290 : 0x16298))
+					(AR_SREV_9462(ah) ? 0x16298 : 0x16290))
 #define AR_CH0_XTAL_CAPINDAC	0x7f000000
 #define AR_CH0_XTAL_CAPINDAC_S	24
 #define AR_CH0_XTAL_CAPOUTDAC	0x00fe0000
@@ -908,8 +908,8 @@
 #define AR_PHY_TPC_5_B1         (AR_SM1_BASE + 0x208)
 #define AR_PHY_TPC_6_B1         (AR_SM1_BASE + 0x20c)
 #define AR_PHY_TPC_11_B1        (AR_SM1_BASE + 0x220)
-#define AR_PHY_PDADC_TAB_1	(AR_SM1_BASE + (AR_SREV_AR9300(ah) ? \
-					0x240 : 0x280))
+#define AR_PHY_PDADC_TAB_1	(AR_SM1_BASE + (AR_SREV_AR9462(ah) ? \
+					0x280 : 0x240))
 #define AR_PHY_TPC_19_B1	(AR_SM1_BASE + 0x240)
 #define AR_PHY_TPC_19_B1_ALPHA_THERM		0xff
 #define AR_PHY_TPC_19_B1_ALPHA_THERM_S		0
@@ -931,10 +931,10 @@
 #define AR_PHY_AIC_SRAM_ADDR_B1	(AR_SM1_BASE + 0x5f0)
 #define AR_PHY_AIC_SRAM_DATA_B1	(AR_SM1_BASE + 0x5f4)
 
-#define AR_PHY_RTT_TABLE_SW_INTF_B(i)	(0x384 + (i) ? \
-					AR_SM1_BASE : AR_SM_BASE)
-#define AR_PHY_RTT_TABLE_SW_INTF_1_B(i)	(0x388 + (i) ? \
-					AR_SM1_BASE : AR_SM_BASE)
+#define AR_PHY_RTT_TABLE_SW_INTF_B(i)	(0x384 + ((i) ? \
+					AR_SM1_BASE : AR_SM_BASE))
+#define AR_PHY_RTT_TABLE_SW_INTF_1_B(i)	(0x388 + ((i) ? \
+					AR_SM1_BASE : AR_SM_BASE))
 /*
  * Channel 2 Register Map
  */

@@ -207,6 +207,25 @@ static struct plat_sci_reg sci_regmap[SCIx_NR_REGTYPES][SCIx_NR_REGS] = {
 	},
 
 	/*
+	 * Common SH-2(A) SCIF definitions for ports with FIFO data
+	 * count registers.
+	 */
+	[SCIx_SH2_SCIF_FIFODATA_REGTYPE] = {
+		[SCSMR]		= { 0x00, 16 },
+		[SCBRR]		= { 0x04,  8 },
+		[SCSCR]		= { 0x08, 16 },
+		[SCxTDR]	= { 0x0c,  8 },
+		[SCxSR]		= { 0x10, 16 },
+		[SCxRDR]	= { 0x14,  8 },
+		[SCFCR]		= { 0x18, 16 },
+		[SCFDR]		= { 0x1c, 16 },
+		[SCTFDR]	= sci_reg_invalid,
+		[SCRFDR]	= sci_reg_invalid,
+		[SCSPTR]	= { 0x20, 16 },
+		[SCLSR]		= { 0x24, 16 },
+	},
+
+	/*
 	 * Common SH-3 SCIF definitions.
 	 */
 	[SCIx_SH3_SCIF_REGTYPE] = {
@@ -1446,12 +1465,8 @@ static bool filter(struct dma_chan *chan, void *slave)
 	dev_dbg(chan->device->dev, "%s: slave ID %d\n", __func__,
 		param->slave_id);
 
-	if (param->dma_dev == chan->device->dev) {
-		chan->private = param;
-		return true;
-	} else {
-		return false;
-	}
+	chan->private = param;
+	return true;
 }
 
 static void rx_timer_fn(unsigned long arg)
@@ -1477,10 +1492,10 @@ static void sci_request_dma(struct uart_port *port)
 	dma_cap_mask_t mask;
 	int nent;
 
-	dev_dbg(port->dev, "%s: port %d DMA %p\n", __func__,
-		port->line, s->cfg->dma_dev);
+	dev_dbg(port->dev, "%s: port %d\n", __func__,
+		port->line);
 
-	if (!s->cfg->dma_dev)
+	if (s->cfg->dma_slave_tx <= 0 || s->cfg->dma_slave_rx <= 0)
 		return;
 
 	dma_cap_zero(mask);
@@ -1490,7 +1505,6 @@ static void sci_request_dma(struct uart_port *port)
 
 	/* Slave ID, e.g., SHDMA_SLAVE_SCIF0_TX */
 	param->slave_id = s->cfg->dma_slave_tx;
-	param->dma_dev = s->cfg->dma_dev;
 
 	s->cookie_tx = -EINVAL;
 	chan = dma_request_channel(mask, filter, param);
@@ -1519,7 +1533,6 @@ static void sci_request_dma(struct uart_port *port)
 
 	/* Slave ID, e.g., SHDMA_SLAVE_SCIF0_RX */
 	param->slave_id = s->cfg->dma_slave_rx;
-	param->dma_dev = s->cfg->dma_dev;
 
 	chan = dma_request_channel(mask, filter, param);
 	dev_dbg(port->dev, "%s: RX: got channel %p\n", __func__, chan);
@@ -1563,9 +1576,6 @@ static void sci_request_dma(struct uart_port *port)
 static void sci_free_dma(struct uart_port *port)
 {
 	struct sci_port *s = to_sci_port(port);
-
-	if (!s->cfg->dma_dev)
-		return;
 
 	if (s->chan_tx)
 		sci_tx_dma_release(s, false);
@@ -1981,9 +1991,9 @@ static int __devinit sci_init_single(struct platform_device *dev,
 	port->serial_in		= sci_serial_in;
 	port->serial_out	= sci_serial_out;
 
-	if (p->dma_dev)
-		dev_dbg(port->dev, "DMA device %p, tx %d, rx %d\n",
-			p->dma_dev, p->dma_slave_tx, p->dma_slave_rx);
+	if (p->dma_slave_tx > 0 && p->dma_slave_rx > 0)
+		dev_dbg(port->dev, "DMA tx %d, rx %d\n",
+			p->dma_slave_tx, p->dma_slave_rx);
 
 	return 0;
 }

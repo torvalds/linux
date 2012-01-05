@@ -6,6 +6,7 @@
  * Copyright (C) 2007 Aurelien Jarno <aurelien@aurel32.net>
  */
 
+#include <linux/export.h>
 #include <linux/ssb/ssb.h>
 #include <linux/ssb/ssb_driver_chipcommon.h>
 #include <linux/ssb/ssb_driver_extif.h>

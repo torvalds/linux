@@ -28,6 +28,7 @@
 #include <linux/i2c.h>
 #include <linux/slab.h>
 #include <linux/videodev2.h>
+#include <linux/module.h>
 #include <media/tvp7002.h>
 #include <media/v4l2-device.h>
 #include <media/v4l2-chip-ident.h>

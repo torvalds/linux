@@ -36,6 +36,7 @@
 #include <linux/gpio.h>
 #include <linux/spi/spi.h>
 #include <linux/freezer.h>
+#include <linux/module.h>
 #include "max3107.h"
 
 static const struct baud_table brg26_ext[] = {

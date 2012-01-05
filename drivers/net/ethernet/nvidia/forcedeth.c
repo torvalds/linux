@@ -609,7 +609,7 @@ struct nv_ethtool_str {
 };
 
 static const struct nv_ethtool_str nv_estats_str[] = {
-	{ "tx_bytes" },
+	{ "tx_bytes" }, /* includes Ethernet FCS CRC */
 	{ "tx_zero_rexmt" },
 	{ "tx_one_rexmt" },
 	{ "tx_many_rexmt" },
@@ -637,7 +637,7 @@ static const struct nv_ethtool_str nv_estats_str[] = {
 	/* version 2 stats */
 	{ "tx_deferral" },
 	{ "tx_packets" },
-	{ "rx_bytes" },
+	{ "rx_bytes" }, /* includes Ethernet FCS CRC */
 	{ "tx_pause" },
 	{ "rx_pause" },
 	{ "rx_drop_frame" },
@@ -649,7 +649,7 @@ static const struct nv_ethtool_str nv_estats_str[] = {
 };
 
 struct nv_ethtool_stats {
-	u64 tx_bytes;
+	u64 tx_bytes; /* should be ifconfig->tx_bytes + 4*tx_packets */
 	u64 tx_zero_rexmt;
 	u64 tx_one_rexmt;
 	u64 tx_many_rexmt;
@@ -670,14 +670,14 @@ struct nv_ethtool_stats {
 	u64 rx_unicast;
 	u64 rx_multicast;
 	u64 rx_broadcast;
-	u64 rx_packets;
+	u64 rx_packets; /* should be ifconfig->rx_packets */
 	u64 rx_errors_total;
 	u64 tx_errors_total;
 
 	/* version 2 stats */
 	u64 tx_deferral;
-	u64 tx_packets;
-	u64 rx_bytes;
+	u64 tx_packets; /* should be ifconfig->tx_packets */
+	u64 rx_bytes;   /* should be ifconfig->rx_bytes + 4*rx_packets */
 	u64 tx_pause;
 	u64 rx_pause;
 	u64 rx_drop_frame;
@@ -1682,6 +1682,7 @@ static void nv_get_hw_stats(struct net_device *dev)
 		np->estats.tx_pause += readl(base + NvRegTxPause);
 		np->estats.rx_pause += readl(base + NvRegRxPause);
 		np->estats.rx_drop_frame += readl(base + NvRegRxDropFrame);
+		np->estats.rx_errors_total += np->estats.rx_drop_frame;
 	}
 
 	if (np->driver_data & DEV_HAS_STATISTICS_V3) {
@@ -1705,12 +1706,22 @@ static struct net_device_stats *nv_get_stats(struct net_device *dev)
 	if (np->driver_data & (DEV_HAS_STATISTICS_V1|DEV_HAS_STATISTICS_V2|DEV_HAS_STATISTICS_V3)) {
 		nv_get_hw_stats(dev);
 
+		/*
+		 * Note: because HW stats are not always available and
+		 * for consistency reasons, the following ifconfig
+		 * stats are managed by software: rx_bytes, tx_bytes,
+		 * rx_packets and tx_packets. The related hardware
+		 * stats reported by ethtool should be equivalent to
+		 * these ifconfig stats, with 4 additional bytes per
+		 * packet (Ethernet FCS CRC).
+		 */
+
 		/* copy to net_device stats */
-		dev->stats.tx_bytes = np->estats.tx_bytes;
 		dev->stats.tx_fifo_errors = np->estats.tx_fifo_errors;
 		dev->stats.tx_carrier_errors = np->estats.tx_carrier_errors;
 		dev->stats.rx_crc_errors = np->estats.rx_crc_errors;
 		dev->stats.rx_over_errors = np->estats.rx_over_errors;
+		dev->stats.rx_fifo_errors = np->estats.rx_drop_frame;
 		dev->stats.rx_errors = np->estats.rx_errors_total;
 		dev->stats.tx_errors = np->estats.tx_errors_total;
 	}
@@ -2099,10 +2110,10 @@ static netdev_tx_t nv_start_xmit(struct sk_buff *skb, struct net_device *dev)
 
 	/* add fragments to entries count */
 	for (i = 0; i < fragments; i++) {
-		u32 size = skb_frag_size(&skb_shinfo(skb)->frags[i]);
+		u32 frag_size = skb_frag_size(&skb_shinfo(skb)->frags[i]);
 
-		entries += (size >> NV_TX2_TSO_MAX_SHIFT) +
-			   ((size & (NV_TX2_TSO_MAX_SIZE-1)) ? 1 : 0);
+		entries += (frag_size >> NV_TX2_TSO_MAX_SHIFT) +
+			   ((frag_size & (NV_TX2_TSO_MAX_SIZE-1)) ? 1 : 0);
 	}
 
 	spin_lock_irqsave(&np->lock, flags);
@@ -2141,13 +2152,13 @@ static netdev_tx_t nv_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	/* setup the fragments */
 	for (i = 0; i < fragments; i++) {
 		const skb_frag_t *frag = &skb_shinfo(skb)->frags[i];
-		u32 size = skb_frag_size(frag);
+		u32 frag_size = skb_frag_size(frag);
 		offset = 0;
 
 		do {
 			prev_tx = put_tx;
 			prev_tx_ctx = np->put_tx_ctx;
-			bcnt = (size > NV_TX2_TSO_MAX_SIZE) ? NV_TX2_TSO_MAX_SIZE : size;
+			bcnt = (frag_size > NV_TX2_TSO_MAX_SIZE) ? NV_TX2_TSO_MAX_SIZE : frag_size;
 			np->put_tx_ctx->dma = skb_frag_dma_map(
 							&np->pci_dev->dev,
 							frag, offset,
@@ -2159,12 +2170,12 @@ static netdev_tx_t nv_start_xmit(struct sk_buff *skb, struct net_device *dev)
 			put_tx->flaglen = cpu_to_le32((bcnt-1) | tx_flags);
 
 			offset += bcnt;
-			size -= bcnt;
+			frag_size -= bcnt;
 			if (unlikely(put_tx++ == np->last_tx.orig))
 				put_tx = np->first_tx.orig;
 			if (unlikely(np->put_tx_ctx++ == np->last_tx_ctx))
 				np->put_tx_ctx = np->first_tx_ctx;
-		} while (size);
+		} while (frag_size);
 	}
 
 	/* set last fragment flag  */
@@ -2213,10 +2224,10 @@ static netdev_tx_t nv_start_xmit_optimized(struct sk_buff *skb,
 
 	/* add fragments to entries count */
 	for (i = 0; i < fragments; i++) {
-		u32 size = skb_frag_size(&skb_shinfo(skb)->frags[i]);
+		u32 frag_size = skb_frag_size(&skb_shinfo(skb)->frags[i]);
 
-		entries += (size >> NV_TX2_TSO_MAX_SHIFT) +
-			   ((size & (NV_TX2_TSO_MAX_SIZE-1)) ? 1 : 0);
+		entries += (frag_size >> NV_TX2_TSO_MAX_SHIFT) +
+			   ((frag_size & (NV_TX2_TSO_MAX_SIZE-1)) ? 1 : 0);
 	}
 
 	spin_lock_irqsave(&np->lock, flags);
@@ -2257,13 +2268,13 @@ static netdev_tx_t nv_start_xmit_optimized(struct sk_buff *skb,
 	/* setup the fragments */
 	for (i = 0; i < fragments; i++) {
 		skb_frag_t *frag = &skb_shinfo(skb)->frags[i];
-		u32 size = skb_frag_size(frag);
+		u32 frag_size = skb_frag_size(frag);
 		offset = 0;
 
 		do {
 			prev_tx = put_tx;
 			prev_tx_ctx = np->put_tx_ctx;
-			bcnt = (size > NV_TX2_TSO_MAX_SIZE) ? NV_TX2_TSO_MAX_SIZE : size;
+			bcnt = (frag_size > NV_TX2_TSO_MAX_SIZE) ? NV_TX2_TSO_MAX_SIZE : frag_size;
 			np->put_tx_ctx->dma = skb_frag_dma_map(
 							&np->pci_dev->dev,
 							frag, offset,
@@ -2276,12 +2287,12 @@ static netdev_tx_t nv_start_xmit_optimized(struct sk_buff *skb,
 			put_tx->flaglen = cpu_to_le32((bcnt-1) | tx_flags);
 
 			offset += bcnt;
-			size -= bcnt;
+			frag_size -= bcnt;
 			if (unlikely(put_tx++ == np->last_tx.ex))
 				put_tx = np->first_tx.ex;
 			if (unlikely(np->put_tx_ctx++ == np->last_tx_ctx))
 				np->put_tx_ctx = np->first_tx_ctx;
-		} while (size);
+		} while (frag_size);
 	}
 
 	/* set last fragment flag  */
@@ -2374,13 +2385,8 @@ static int nv_tx_done(struct net_device *dev, int limit)
 		if (np->desc_ver == DESC_VER_1) {
 			if (flags & NV_TX_LASTPACKET) {
 				if (flags & NV_TX_ERROR) {
-					if (flags & NV_TX_UNDERFLOW)
-						dev->stats.tx_fifo_errors++;
-					if (flags & NV_TX_CARRIERLOST)
-						dev->stats.tx_carrier_errors++;
 					if ((flags & NV_TX_RETRYERROR) && !(flags & NV_TX_RETRYCOUNT_MASK))
 						nv_legacybackoff_reseed(dev);
-					dev->stats.tx_errors++;
 				} else {
 					dev->stats.tx_packets++;
 					dev->stats.tx_bytes += np->get_tx_ctx->skb->len;
@@ -2392,13 +2398,8 @@ static int nv_tx_done(struct net_device *dev, int limit)
 		} else {
 			if (flags & NV_TX2_LASTPACKET) {
 				if (flags & NV_TX2_ERROR) {
-					if (flags & NV_TX2_UNDERFLOW)
-						dev->stats.tx_fifo_errors++;
-					if (flags & NV_TX2_CARRIERLOST)
-						dev->stats.tx_carrier_errors++;
 					if ((flags & NV_TX2_RETRYERROR) && !(flags & NV_TX2_RETRYCOUNT_MASK))
 						nv_legacybackoff_reseed(dev);
-					dev->stats.tx_errors++;
 				} else {
 					dev->stats.tx_packets++;
 					dev->stats.tx_bytes += np->get_tx_ctx->skb->len;
@@ -2434,15 +2435,16 @@ static int nv_tx_done_optimized(struct net_device *dev, int limit)
 		nv_unmap_txskb(np, np->get_tx_ctx);
 
 		if (flags & NV_TX2_LASTPACKET) {
-			if (!(flags & NV_TX2_ERROR))
-				dev->stats.tx_packets++;
-			else {
+			if (flags & NV_TX2_ERROR) {
 				if ((flags & NV_TX2_RETRYERROR) && !(flags & NV_TX2_RETRYCOUNT_MASK)) {
 					if (np->driver_data & DEV_HAS_GEAR_MODE)
 						nv_gear_backoff_reseed(dev);
 					else
 						nv_legacybackoff_reseed(dev);
 				}
+			} else {
+				dev->stats.tx_packets++;
+				dev->stats.tx_bytes += np->get_tx_ctx->skb->len;
 			}
 
 			dev_kfree_skb_any(np->get_tx_ctx->skb);
@@ -2636,7 +2638,6 @@ static int nv_rx_process(struct net_device *dev, int limit)
 					if ((flags & NV_RX_ERROR_MASK) == NV_RX_ERROR4) {
 						len = nv_getlen(dev, skb->data, len);
 						if (len < 0) {
-							dev->stats.rx_errors++;
 							dev_kfree_skb(skb);
 							goto next_pkt;
 						}
@@ -2650,11 +2651,6 @@ static int nv_rx_process(struct net_device *dev, int limit)
 					else {
 						if (flags & NV_RX_MISSEDFRAME)
 							dev->stats.rx_missed_errors++;
-						if (flags & NV_RX_CRCERR)
-							dev->stats.rx_crc_errors++;
-						if (flags & NV_RX_OVERFLOW)
-							dev->stats.rx_over_errors++;
-						dev->stats.rx_errors++;
 						dev_kfree_skb(skb);
 						goto next_pkt;
 					}
@@ -2670,7 +2666,6 @@ static int nv_rx_process(struct net_device *dev, int limit)
 					if ((flags & NV_RX2_ERROR_MASK) == NV_RX2_ERROR4) {
 						len = nv_getlen(dev, skb->data, len);
 						if (len < 0) {
-							dev->stats.rx_errors++;
 							dev_kfree_skb(skb);
 							goto next_pkt;
 						}
@@ -2682,11 +2677,6 @@ static int nv_rx_process(struct net_device *dev, int limit)
 					}
 					/* the rest are hard errors */
 					else {
-						if (flags & NV_RX2_CRCERR)
-							dev->stats.rx_crc_errors++;
-						if (flags & NV_RX2_OVERFLOW)
-							dev->stats.rx_over_errors++;
-						dev->stats.rx_errors++;
 						dev_kfree_skb(skb);
 						goto next_pkt;
 					}
@@ -2787,7 +2777,6 @@ static int nv_rx_process_optimized(struct net_device *dev, int limit)
 				__vlan_hwaccel_put_tag(skb, vid);
 			}
 			napi_gro_receive(&np->napi, skb);
-
 			dev->stats.rx_packets++;
 			dev->stats.rx_bytes += len;
 		} else {
@@ -2962,11 +2951,11 @@ static void nv_set_multicast(struct net_device *dev)
 				struct netdev_hw_addr *ha;
 
 				netdev_for_each_mc_addr(ha, dev) {
-					unsigned char *addr = ha->addr;
+					unsigned char *hw_addr = ha->addr;
 					u32 a, b;
 
-					a = le32_to_cpu(*(__le32 *) addr);
-					b = le16_to_cpu(*(__le16 *) (&addr[4]));
+					a = le32_to_cpu(*(__le32 *) hw_addr);
+					b = le16_to_cpu(*(__le16 *) (&hw_addr[4]));
 					alwaysOn[0] &= a;
 					alwaysOff[0] &= ~a;
 					alwaysOn[1] &= b;
@@ -3398,7 +3387,8 @@ static irqreturn_t nv_nic_irq_tx(int foo, void *data)
 
 	for (i = 0;; i++) {
 		events = readl(base + NvRegMSIXIrqStatus) & NVREG_IRQ_TX_ALL;
-		writel(NVREG_IRQ_TX_ALL, base + NvRegMSIXIrqStatus);
+		writel(events, base + NvRegMSIXIrqStatus);
+		netdev_dbg(dev, "tx irq events: %08x\n", events);
 		if (!(events & np->irqmask))
 			break;
 
@@ -3509,7 +3499,8 @@ static irqreturn_t nv_nic_irq_rx(int foo, void *data)
 
 	for (i = 0;; i++) {
 		events = readl(base + NvRegMSIXIrqStatus) & NVREG_IRQ_RX_ALL;
-		writel(NVREG_IRQ_RX_ALL, base + NvRegMSIXIrqStatus);
+		writel(events, base + NvRegMSIXIrqStatus);
+		netdev_dbg(dev, "rx irq events: %08x\n", events);
 		if (!(events & np->irqmask))
 			break;
 
@@ -3553,7 +3544,8 @@ static irqreturn_t nv_nic_irq_other(int foo, void *data)
 
 	for (i = 0;; i++) {
 		events = readl(base + NvRegMSIXIrqStatus) & NVREG_IRQ_OTHER;
-		writel(NVREG_IRQ_OTHER, base + NvRegMSIXIrqStatus);
+		writel(events, base + NvRegMSIXIrqStatus);
+		netdev_dbg(dev, "irq events: %08x\n", events);
 		if (!(events & np->irqmask))
 			break;
 
@@ -3617,10 +3609,10 @@ static irqreturn_t nv_nic_irq_test(int foo, void *data)
 
 	if (!(np->msi_flags & NV_MSI_X_ENABLED)) {
 		events = readl(base + NvRegIrqStatus) & NVREG_IRQSTAT_MASK;
-		writel(NVREG_IRQ_TIMER, base + NvRegIrqStatus);
+		writel(events & NVREG_IRQ_TIMER, base + NvRegIrqStatus);
 	} else {
 		events = readl(base + NvRegMSIXIrqStatus) & NVREG_IRQSTAT_MASK;
-		writel(NVREG_IRQ_TIMER, base + NvRegMSIXIrqStatus);
+		writel(events & NVREG_IRQ_TIMER, base + NvRegMSIXIrqStatus);
 	}
 	pci_push(base);
 	if (!(events & NVREG_IRQ_TIMER))
@@ -4566,7 +4558,7 @@ static void nv_get_ethtool_stats(struct net_device *dev, struct ethtool_stats *e
 	struct fe_priv *np = netdev_priv(dev);
 
 	/* update stats */
-	nv_do_stats_poll((unsigned long)dev);
+	nv_get_hw_stats(dev);
 
 	memcpy(buffer, &np->estats, nv_get_sset_count(dev, ETH_SS_STATS)*sizeof(u64));
 }

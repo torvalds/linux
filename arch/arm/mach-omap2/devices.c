@@ -318,18 +318,10 @@ static inline void omap_init_audio(void) {}
 #if defined(CONFIG_SND_OMAP_SOC_MCPDM) || \
 		defined(CONFIG_SND_OMAP_SOC_MCPDM_MODULE)
 
-static struct omap_device_pm_latency omap_mcpdm_latency[] = {
-	{
-		.deactivate_func = omap_device_idle_hwmods,
-		.activate_func = omap_device_enable_hwmods,
-		.flags = OMAP_DEVICE_LATENCY_AUTO_ADJUST,
-	},
-};
-
 static void omap_init_mcpdm(void)
 {
 	struct omap_hwmod *oh;
-	struct omap_device *od;
+	struct platform_device *pdev;
 
 	oh = omap_hwmod_lookup("mcpdm");
 	if (!oh) {
@@ -337,11 +329,8 @@ static void omap_init_mcpdm(void)
 		return;
 	}
 
-	od = omap_device_build("omap-mcpdm", -1, oh, NULL, 0,
-				omap_mcpdm_latency,
-				ARRAY_SIZE(omap_mcpdm_latency), 0);
-	if (IS_ERR(od))
-		printk(KERN_ERR "Could not build omap_device for omap-mcpdm-dai\n");
+	pdev = omap_device_build("omap-mcpdm", -1, oh, NULL, 0, NULL, 0, 0);
+	WARN(IS_ERR(pdev), "Can't build omap_device for omap-mcpdm.\n");
 }
 #else
 static inline void omap_init_mcpdm(void) {}

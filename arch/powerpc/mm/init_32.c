@@ -32,6 +32,8 @@
 #include <linux/pagemap.h>
 #include <linux/memblock.h>
 #include <linux/gfp.h>
+#include <linux/slab.h>
+#include <linux/hugetlb.h>
 
 #include <asm/pgalloc.h>
 #include <asm/prom.h>
@@ -44,6 +46,7 @@
 #include <asm/tlb.h>
 #include <asm/sections.h>
 #include <asm/system.h>
+#include <asm/hugetlb.h>
 
 #include "mmu_decl.h"
 
@@ -122,6 +125,12 @@ void __init MMU_init(void)
 
 	/* parse args from command line */
 	MMU_setup();
+
+	/*
+	 * Reserve gigantic pages for hugetlb.  This MUST occur before
+	 * lowmem_end_addr is initialized below.
+	 */
+	reserve_hugetlb_gpages();
 
 	if (memblock.memory.cnt > 1) {
 #ifndef CONFIG_WII

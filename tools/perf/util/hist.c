@@ -365,7 +365,6 @@ static void __hists__collapse_resort(struct hists *hists, bool threaded)
 
 	root = hists__get_rotate_entries_in(hists);
 	next = rb_first(root);
-	hists->stats.total_period = 0;
 
 	while (next) {
 		n = rb_entry(next, struct hist_entry, rb_node_in);
@@ -379,7 +378,6 @@ static void __hists__collapse_resort(struct hists *hists, bool threaded)
 			 * been set by, say, the hist_browser.
 			 */
 			hists__apply_filters(hists, n);
-			hists__inc_nr_entries(hists, n);
 		}
 	}
 }
@@ -442,6 +440,7 @@ static void __hists__output_resort(struct hists *hists, bool threaded)
 	hists->entries = RB_ROOT;
 
 	hists->nr_entries = 0;
+	hists->stats.total_period = 0;
 	hists__reset_col_len(hists);
 
 	while (next) {

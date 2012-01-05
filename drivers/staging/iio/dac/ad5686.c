@@ -15,6 +15,7 @@
 #include <linux/slab.h>
 #include <linux/sysfs.h>
 #include <linux/regulator/consumer.h>
+#include <linux/module.h>
 
 #include "../iio.h"
 #include "../sysfs.h"

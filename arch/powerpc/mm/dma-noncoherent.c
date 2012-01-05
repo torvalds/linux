@@ -30,6 +30,7 @@
 #include <linux/types.h>
 #include <linux/highmem.h>
 #include <linux/dma-mapping.h>
+#include <linux/export.h>
 
 #include <asm/tlbflush.h>
 

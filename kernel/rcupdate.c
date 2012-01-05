@@ -43,7 +43,7 @@
 #include <linux/notifier.h>
 #include <linux/cpu.h>
 #include <linux/mutex.h>
-#include <linux/module.h>
+#include <linux/export.h>
 #include <linux/hardirq.h>
 
 #define CREATE_TRACE_POINTS

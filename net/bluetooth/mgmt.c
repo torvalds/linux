@@ -23,6 +23,7 @@
 /* Bluetooth HCI Management interface */
 
 #include <linux/uaccess.h>
+#include <linux/module.h>
 #include <asm/unaligned.h>
 
 #include <net/bluetooth/bluetooth.h>
@@ -146,8 +147,6 @@ static int read_index_list(struct sock *sk)
 		struct hci_dev *d = list_entry(p, struct hci_dev, list);
 
 		hci_del_off_timer(d);
-
-		set_bit(HCI_MGMT, &d->flags);
 
 		if (test_bit(HCI_SETUP, &d->flags))
 			continue;

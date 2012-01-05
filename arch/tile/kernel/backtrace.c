@@ -1,5 +1,5 @@
 /*
- * Copyright 2010 Tilera Corporation. All Rights Reserved.
+ * Copyright 2011 Tilera Corporation. All Rights Reserved.
  *
  *   This program is free software; you can redistribute it and/or
  *   modify it under the terms of the GNU General Public License
@@ -15,13 +15,11 @@
 #include <linux/kernel.h>
 #include <linux/string.h>
 #include <asm/backtrace.h>
-#include <asm/opcode-tile.h>
+#include <asm/tile-desc.h>
 #include <arch/abi.h>
 
 #ifdef __tilegx__
-#define tile_bundle_bits tilegx_bundle_bits
 #define TILE_MAX_INSTRUCTIONS_PER_BUNDLE TILEGX_MAX_INSTRUCTIONS_PER_BUNDLE
-#define TILE_BUNDLE_ALIGNMENT_IN_BYTES TILEGX_BUNDLE_ALIGNMENT_IN_BYTES
 #define tile_decoded_instruction tilegx_decoded_instruction
 #define tile_mnemonic tilegx_mnemonic
 #define parse_insn_tile parse_insn_tilegx
@@ -35,7 +33,18 @@
 #define OPCODE_STORE TILEGX_OPC_ST
 typedef long long bt_int_reg_t;
 #else
-#define OPCODE_STORE TILE_OPC_SW
+#define TILE_MAX_INSTRUCTIONS_PER_BUNDLE TILEPRO_MAX_INSTRUCTIONS_PER_BUNDLE
+#define tile_decoded_instruction tilepro_decoded_instruction
+#define tile_mnemonic tilepro_mnemonic
+#define parse_insn_tile parse_insn_tilepro
+#define TILE_OPC_IRET TILEPRO_OPC_IRET
+#define TILE_OPC_ADDI TILEPRO_OPC_ADDI
+#define TILE_OPC_ADDLI TILEPRO_OPC_ADDLI
+#define TILE_OPC_INFO TILEPRO_OPC_INFO
+#define TILE_OPC_INFOL TILEPRO_OPC_INFOL
+#define TILE_OPC_JRP TILEPRO_OPC_JRP
+#define TILE_OPC_MOVE TILEPRO_OPC_MOVE
+#define OPCODE_STORE TILEPRO_OPC_SW
 typedef int bt_int_reg_t;
 #endif
 

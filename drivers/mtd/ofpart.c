@@ -20,13 +20,22 @@
 #include <linux/slab.h>
 #include <linux/mtd/partitions.h>
 
-int __devinit of_mtd_parse_partitions(struct device *dev,
-                                      struct device_node *node,
-                                      struct mtd_partition **pparts)
+static int parse_ofpart_partitions(struct mtd_info *master,
+				   struct mtd_partition **pparts,
+				   struct mtd_part_parser_data *data)
 {
+	struct device_node *node;
 	const char *partname;
 	struct device_node *pp;
 	int nr_parts, i;
+
+
+	if (!data)
+		return 0;
+
+	node = data->of_node;
+	if (!node)
+		return 0;
 
 	/* First count the subnodes */
 	pp = NULL;
@@ -69,7 +78,7 @@ int __devinit of_mtd_parse_partitions(struct device *dev,
 
 	if (!i) {
 		of_node_put(pp);
-		dev_err(dev, "No valid partition found on %s\n", node->full_name);
+		pr_err("No valid partition found on %s\n", node->full_name);
 		kfree(*pparts);
 		*pparts = NULL;
 		return -EINVAL;
@@ -77,6 +86,99 @@ int __devinit of_mtd_parse_partitions(struct device *dev,
 
 	return nr_parts;
 }
-EXPORT_SYMBOL(of_mtd_parse_partitions);
+
+static struct mtd_part_parser ofpart_parser = {
+	.owner = THIS_MODULE,
+	.parse_fn = parse_ofpart_partitions,
+	.name = "ofpart",
+};
+
+static int parse_ofoldpart_partitions(struct mtd_info *master,
+				      struct mtd_partition **pparts,
+				      struct mtd_part_parser_data *data)
+{
+	struct device_node *dp;
+	int i, plen, nr_parts;
+	const struct {
+		__be32 offset, len;
+	} *part;
+	const char *names;
+
+	if (!data)
+		return 0;
+
+	dp = data->of_node;
+	if (!dp)
+		return 0;
+
+	part = of_get_property(dp, "partitions", &plen);
+	if (!part)
+		return 0; /* No partitions found */
+
+	pr_warning("Device tree uses obsolete partition map binding: %s\n",
+			dp->full_name);
+
+	nr_parts = plen / sizeof(part[0]);
+
+	*pparts = kzalloc(nr_parts * sizeof(*(*pparts)), GFP_KERNEL);
+	if (!pparts)
+		return -ENOMEM;
+
+	names = of_get_property(dp, "partition-names", &plen);
+
+	for (i = 0; i < nr_parts; i++) {
+		(*pparts)[i].offset = be32_to_cpu(part->offset);
+		(*pparts)[i].size   = be32_to_cpu(part->len) & ~1;
+		/* bit 0 set signifies read only partition */
+		if (be32_to_cpu(part->len) & 1)
+			(*pparts)[i].mask_flags = MTD_WRITEABLE;
+
+		if (names && (plen > 0)) {
+			int len = strlen(names) + 1;
+
+			(*pparts)[i].name = (char *)names;
+			plen -= len;
+			names += len;
+		} else {
+			(*pparts)[i].name = "unnamed";
+		}
+
+		part++;
+	}
+
+	return nr_parts;
+}
+
+static struct mtd_part_parser ofoldpart_parser = {
+	.owner = THIS_MODULE,
+	.parse_fn = parse_ofoldpart_partitions,
+	.name = "ofoldpart",
+};
+
+static int __init ofpart_parser_init(void)
+{
+	int rc;
+	rc = register_mtd_parser(&ofpart_parser);
+	if (rc)
+		goto out;
+
+	rc = register_mtd_parser(&ofoldpart_parser);
+	if (!rc)
+		return 0;
+
+	deregister_mtd_parser(&ofoldpart_parser);
+out:
+	return rc;
+}
+
+module_init(ofpart_parser_init);
 
 MODULE_LICENSE("GPL");
+MODULE_DESCRIPTION("Parser for MTD partitioning information in device tree");
+MODULE_AUTHOR("Vitaly Wool, David Gibson");
+/*
+ * When MTD core cannot find the requested parser, it tries to load the module
+ * with the same name. Since we provide the ofoldpart parser, we should have
+ * the corresponding alias.
+ */
+MODULE_ALIAS("ofoldpart");

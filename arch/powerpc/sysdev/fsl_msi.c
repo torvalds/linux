@@ -30,7 +30,7 @@ LIST_HEAD(msi_head);
 
 struct fsl_msi_feature {
 	u32 fsl_pic_ip;
-	u32 msiir_offset;
+	u32 msiir_offset; /* Offset of MSIIR, relative to start of MSIR bank */
 };
 
 struct fsl_msi_cascade_data {
@@ -126,10 +126,19 @@ static void fsl_compose_msi_msg(struct pci_dev *pdev, int hwirq,
 {
 	struct fsl_msi *msi_data = fsl_msi_data;
 	struct pci_controller *hose = pci_bus_to_host(pdev->bus);
-	u64 base = fsl_pci_immrbar_base(hose);
+	u64 address; /* Physical address of the MSIIR */
+	int len;
+	const u64 *reg;
 
-	msg->address_lo = msi_data->msi_addr_lo + lower_32_bits(base);
-	msg->address_hi = msi_data->msi_addr_hi + upper_32_bits(base);
+	/* If the msi-address-64 property exists, then use it */
+	reg = of_get_property(hose->dn, "msi-address-64", &len);
+	if (reg && (len == sizeof(u64)))
+		address = be64_to_cpup(reg);
+	else
+		address = fsl_pci_immrbar_base(hose) + msi_data->msiir_offset;
+
+	msg->address_lo = lower_32_bits(address);
+	msg->address_hi = upper_32_bits(address);
 
 	msg->data = hwirq;
 
@@ -296,7 +305,7 @@ static int __devinit fsl_msi_setup_hwirq(struct fsl_msi *msi,
 	}
 
 	msi->msi_virqs[irq_index] = virt_msir;
-	cascade_data->index = offset + irq_index;
+	cascade_data->index = offset;
 	cascade_data->msi_data = msi;
 	irq_set_handler_data(virt_msir, cascade_data);
 	irq_set_chained_handler(virt_msir, fsl_msi_cascade);
@@ -359,8 +368,7 @@ static int __devinit fsl_of_msi_probe(struct platform_device *dev)
 
 	msi->irqhost->host_data = msi;
 
-	msi->msi_addr_hi = 0x0;
-	msi->msi_addr_lo = features->msiir_offset + (res.start & 0xfffff);
+	msi->msiir_offset = features->msiir_offset + (res.start & 0xfffff);
 
 	rc = fsl_msi_init_allocator(msi);
 	if (rc) {
@@ -376,8 +384,10 @@ static int __devinit fsl_of_msi_probe(struct platform_device *dev)
 		goto error_out;
 	}
 
-	if (!p)
+	if (!p) {
 		p = all_avail;
+		len = sizeof(all_avail);
+	}
 
 	for (irq_index = 0, i = 0; i < len / (2 * sizeof(u32)); i++) {
 		if (p[i * 2] % IRQS_PER_MSI_REG ||
@@ -393,7 +403,7 @@ static int __devinit fsl_of_msi_probe(struct platform_device *dev)
 		count = p[i * 2 + 1] / IRQS_PER_MSI_REG;
 
 		for (j = 0; j < count; j++, irq_index++) {
-			err = fsl_msi_setup_hwirq(msi, dev, offset, irq_index);
+			err = fsl_msi_setup_hwirq(msi, dev, offset + j, irq_index);
 			if (err)
 				goto error_out;
 		}

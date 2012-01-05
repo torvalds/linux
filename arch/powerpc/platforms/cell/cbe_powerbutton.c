@@ -21,6 +21,7 @@
  */
 
 #include <linux/input.h>
+#include <linux/module.h>
 #include <linux/platform_device.h>
 #include <asm/pmi.h>
 #include <asm/prom.h>

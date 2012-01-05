@@ -1806,12 +1806,12 @@ static inline void skb_frag_set_page(struct sk_buff *skb, int f,
 
 /**
  * skb_frag_dma_map - maps a paged fragment via the DMA API
- * @device: the device to map the fragment to
+ * @dev: the device to map the fragment to
  * @frag: the paged fragment to map
  * @offset: the offset within the fragment (starting at the
  *          fragment's own offset)
  * @size: the number of bytes to map
- * @direction: the direction of the mapping (%PCI_DMA_*)
+ * @dir: the direction of the mapping (%PCI_DMA_*)
  *
  * Maps the page associated with @frag to @device.
  */

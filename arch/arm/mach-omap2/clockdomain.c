@@ -17,6 +17,7 @@
 #include <linux/device.h>
 #include <linux/list.h>
 #include <linux/errno.h>
+#include <linux/string.h>
 #include <linux/delay.h>
 #include <linux/clk.h>
 #include <linux/limits.h>

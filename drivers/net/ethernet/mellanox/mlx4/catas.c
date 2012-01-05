@@ -32,6 +32,7 @@
  */
 
 #include <linux/workqueue.h>
+#include <linux/module.h>
 
 #include "mlx4.h"
 

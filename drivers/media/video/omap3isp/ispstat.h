@@ -144,7 +144,7 @@ int omap3isp_stat_request_statistics(struct ispstat *stat,
 				     struct omap3isp_stat_data *data);
 int omap3isp_stat_init(struct ispstat *stat, const char *name,
 		       const struct v4l2_subdev_ops *sd_ops);
-void omap3isp_stat_free(struct ispstat *stat);
+void omap3isp_stat_cleanup(struct ispstat *stat);
 int omap3isp_stat_subscribe_event(struct v4l2_subdev *subdev,
 				  struct v4l2_fh *fh,
 				  struct v4l2_event_subscription *sub);

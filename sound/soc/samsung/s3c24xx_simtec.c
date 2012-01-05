@@ -9,6 +9,7 @@
 
 #include <linux/gpio.h>
 #include <linux/clk.h>
+#include <linux/module.h>
 
 #include <sound/soc.h>
 

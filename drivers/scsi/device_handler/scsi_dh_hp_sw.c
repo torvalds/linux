@@ -22,6 +22,7 @@
  */
 
 #include <linux/slab.h>
+#include <linux/module.h>
 #include <scsi/scsi.h>
 #include <scsi/scsi_dbg.h>
 #include <scsi/scsi_eh.h>

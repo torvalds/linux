@@ -359,6 +359,7 @@ static void __init omap_hwmod_init_postsetup(void)
 	omap_pm_if_early_init();
 }
 
+#ifdef CONFIG_ARCH_OMAP2
 void __init omap2420_init_early(void)
 {
 	omap2_set_globals_242x();
@@ -382,11 +383,13 @@ void __init omap2430_init_early(void)
 	omap_hwmod_init_postsetup();
 	omap2430_clk_init();
 }
+#endif
 
 /*
  * Currently only board-omap3beagle.c should call this because of the
  * same machine_id for 34xx and 36xx beagle.. Will get fixed with DT.
  */
+#ifdef CONFIG_ARCH_OMAP3
 void __init omap3_init_early(void)
 {
 	omap2_set_globals_3xxx();
@@ -430,7 +433,9 @@ void __init ti816x_init_early(void)
 	omap_hwmod_init_postsetup();
 	omap3xxx_clk_init();
 }
+#endif
 
+#ifdef CONFIG_ARCH_OMAP4
 void __init omap4430_init_early(void)
 {
 	omap2_set_globals_443x();
@@ -442,6 +447,7 @@ void __init omap4430_init_early(void)
 	omap_hwmod_init_postsetup();
 	omap4xxx_clk_init();
 }
+#endif
 
 void __init omap_sdrc_init(struct omap_sdrc_params *sdrc_cs0,
 				      struct omap_sdrc_params *sdrc_cs1)

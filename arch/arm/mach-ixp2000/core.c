@@ -25,6 +25,7 @@
 #include <linux/bitops.h>
 #include <linux/serial_8250.h>
 #include <linux/mm.h>
+#include <linux/export.h>
 
 #include <asm/types.h>
 #include <asm/setup.h>

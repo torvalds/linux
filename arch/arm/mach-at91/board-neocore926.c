@@ -182,19 +182,14 @@ static struct mtd_partition __initdata neocore926_nand_partition[] = {
 	},
 };
 
-static struct mtd_partition * __init nand_partitions(int size, int *num_partitions)
-{
-	*num_partitions = ARRAY_SIZE(neocore926_nand_partition);
-	return neocore926_nand_partition;
-}
-
 static struct atmel_nand_data __initdata neocore926_nand_data = {
 	.ale			= 21,
 	.cle			= 22,
 	.rdy_pin		= AT91_PIN_PB19,
 	.rdy_pin_active_low	= 1,
 	.enable_pin		= AT91_PIN_PD15,
-	.partition_info		= nand_partitions,
+	.parts			= neocore926_nand_partition,
+	.num_parts		= ARRAY_SIZE(neocore926_nand_partition),
 };
 
 static struct sam9_smc_config __initdata neocore926_nand_smc_config = {

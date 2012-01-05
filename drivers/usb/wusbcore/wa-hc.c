@@ -23,6 +23,7 @@
  * FIXME: docs
  */
 #include <linux/slab.h>
+#include <linux/module.h>
 #include "wusbhc.h"
 #include "wa-hc.h"
 

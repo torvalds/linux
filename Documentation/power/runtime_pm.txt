@@ -44,25 +44,33 @@ struct dev_pm_ops {
 };
 
 The ->runtime_suspend(), ->runtime_resume() and ->runtime_idle() callbacks
-are executed by the PM core for either the power domain, or the device type
-(if the device power domain's struct dev_pm_ops does not exist), or the class
-(if the device power domain's and type's struct dev_pm_ops object does not
-exist), or the bus type (if the device power domain's, type's and class'
-struct dev_pm_ops objects do not exist) of the given device, so the priority
-order of callbacks from high to low is that power domain callbacks, device
-type callbacks, class callbacks and bus type callbacks, and the high priority
-one will take precedence over low priority one. The bus type, device type and
-class callbacks are referred to as subsystem-level callbacks in what follows,
-and generally speaking, the power domain callbacks are used for representing
-power domains within a SoC.
+are executed by the PM core for the device's subsystem that may be either of
+the following:
+
+  1. PM domain of the device, if the device's PM domain object, dev->pm_domain,
+     is present.
+
+  2. Device type of the device, if both dev->type and dev->type->pm are present.
+
+  3. Device class of the device, if both dev->class and dev->class->pm are
+     present.
+
+  4. Bus type of the device, if both dev->bus and dev->bus->pm are present.
+
+The PM core always checks which callback to use in the order given above, so the
+priority order of callbacks from high to low is: PM domain, device type, class
+and bus type.  Moreover, the high-priority one will always take precedence over
+a low-priority one.  The PM domain, bus type, device type and class callbacks
+are referred to as subsystem-level callbacks in what follows.
 
 By default, the callbacks are always invoked in process context with interrupts
 enabled.  However, subsystems can use the pm_runtime_irq_safe() helper function
-to tell the PM core that a device's ->runtime_suspend() and ->runtime_resume()
-callbacks should be invoked in atomic context with interrupts disabled.
-This implies that these callback routines must not block or sleep, but it also
-means that the synchronous helper functions listed at the end of Section 4 can
-be used within an interrupt handler or in an atomic context.
+to tell the PM core that their ->runtime_suspend(), ->runtime_resume() and
+->runtime_idle() callbacks may be invoked in atomic context with interrupts
+disabled for a given device.  This implies that the callback routines in
+question must not block or sleep, but it also means that the synchronous helper
+functions listed at the end of Section 4 may be used for that device within an
+interrupt handler or generally in an atomic context.
 
 The subsystem-level suspend callback is _entirely_ _responsible_ for handling
 the suspend of the device as appropriate, which may, but need not include
@@ -788,6 +796,16 @@ Drivers may also continue to use the non-autosuspend helper functions; they
 will behave normally, not taking the autosuspend delay into account.
 Similarly, if the power.use_autosuspend field isn't set then the autosuspend
 helper functions will behave just like the non-autosuspend counterparts.
+
+Under some circumstances a driver or subsystem may want to prevent a device
+from autosuspending immediately, even though the usage counter is zero and the
+autosuspend delay time has expired.  If the ->runtime_suspend() callback
+returns -EAGAIN or -EBUSY, and if the next autosuspend delay expiration time is
+in the future (as it normally would be if the callback invoked
+pm_runtime_mark_last_busy()), the PM core will automatically reschedule the
+autosuspend.  The ->runtime_suspend() callback can't do this rescheduling
+itself because no suspend requests of any kind are accepted while the device is
+suspending (i.e., while the callback is running).
 
 The implementation is well suited for asynchronous use in interrupt contexts.
 However such use inevitably involves races, because the PM core can't

@@ -22,6 +22,7 @@
  */
 
 #include <linux/nfc.h>
+#include <linux/module.h>
 
 #include "nfc.h"
 

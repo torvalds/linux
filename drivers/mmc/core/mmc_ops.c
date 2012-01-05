@@ -10,6 +10,7 @@
  */
 
 #include <linux/slab.h>
+#include <linux/export.h>
 #include <linux/types.h>
 #include <linux/scatterlist.h>
 

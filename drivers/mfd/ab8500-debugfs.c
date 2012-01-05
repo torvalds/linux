@@ -8,6 +8,7 @@
 #include <linux/seq_file.h>
 #include <linux/uaccess.h>
 #include <linux/fs.h>
+#include <linux/module.h>
 #include <linux/debugfs.h>
 #include <linux/platform_device.h>
 

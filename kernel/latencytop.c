@@ -53,7 +53,7 @@
 #include <linux/notifier.h>
 #include <linux/spinlock.h>
 #include <linux/proc_fs.h>
-#include <linux/module.h>
+#include <linux/export.h>
 #include <linux/sched.h>
 #include <linux/list.h>
 #include <linux/stacktrace.h>

@@ -96,6 +96,13 @@ struct vmw_display_unit {
 	unsigned pref_height;
 	bool pref_active;
 	struct drm_display_mode *pref_mode;
+
+	/*
+	 * Gui positioning
+	 */
+	int gui_x;
+	int gui_y;
+	bool is_implicit;
 };
 
 #define vmw_crtc_to_du(x) \
@@ -126,8 +133,7 @@ int vmw_du_connector_fill_modes(struct drm_connector *connector,
 int vmw_du_connector_set_property(struct drm_connector *connector,
 				  struct drm_property *property,
 				  uint64_t val);
-int vmw_du_update_layout(struct vmw_private *dev_priv, unsigned num,
-			 struct drm_vmw_rect *rects);
+
 
 /*
  * Legacy display unit functions - vmwgfx_ldu.c

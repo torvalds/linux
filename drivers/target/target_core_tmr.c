@@ -27,6 +27,7 @@
 #include <linux/slab.h>
 #include <linux/spinlock.h>
 #include <linux/list.h>
+#include <linux/export.h>
 #include <scsi/scsi.h>
 #include <scsi/scsi_cmnd.h>
 
@@ -118,7 +119,7 @@ static void core_tmr_drain_tmr_list(
 		/*
 		 * Allow the received TMR to return with FUNCTION_COMPLETE.
 		 */
-		if (tmr && (tmr_p == tmr))
+		if (tmr_p == tmr)
 			continue;
 
 		cmd = tmr_p->task_cmd;
@@ -147,19 +148,18 @@ static void core_tmr_drain_tmr_list(
 		}
 		spin_unlock(&cmd->t_state_lock);
 
-		list_move_tail(&tmr->tmr_list, &drain_tmr_list);
+		list_move_tail(&tmr_p->tmr_list, &drain_tmr_list);
 	}
 	spin_unlock_irqrestore(&dev->se_tmr_lock, flags);
 
-	while (!list_empty(&drain_tmr_list)) {
-		tmr = list_entry(drain_tmr_list.next, struct se_tmr_req, tmr_list);
-		list_del(&tmr->tmr_list);
+	list_for_each_entry_safe(tmr_p, tmr_pp, &drain_tmr_list, tmr_list) {
+		list_del_init(&tmr_p->tmr_list);
 		cmd = tmr_p->task_cmd;
 
 		pr_debug("LUN_RESET: %s releasing TMR %p Function: 0x%02x,"
 			" Response: 0x%02x, t_state: %d\n",
-			(preempt_and_abort_list) ? "Preempt" : "", tmr,
-			tmr->function, tmr->response, cmd->t_state);
+			(preempt_and_abort_list) ? "Preempt" : "", tmr_p,
+			tmr_p->function, tmr_p->response, cmd->t_state);
 
 		transport_cmd_finish_abort(cmd, 1);
 	}
@@ -330,16 +330,6 @@ static void core_tmr_drain_cmd_list(
 		 */
 		if (prout_cmd == cmd)
 			continue;
-		/*
-		 * Skip direct processing of TRANSPORT_FREE_CMD_INTR for
-		 * HW target mode fabrics.
-		 */
-		spin_lock(&cmd->t_state_lock);
-		if (cmd->t_state == TRANSPORT_FREE_CMD_INTR) {
-			spin_unlock(&cmd->t_state_lock);
-			continue;
-		}
-		spin_unlock(&cmd->t_state_lock);
 
 		atomic_set(&cmd->t_transport_queue_active, 0);
 		atomic_dec(&qobj->queue_cnt);

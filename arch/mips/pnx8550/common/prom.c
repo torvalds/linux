@@ -30,7 +30,7 @@ typedef struct
 }t_env_var;
 
 
-char * prom_getcmdline(void)
+char * __init prom_getcmdline(void)
 {
 	return &(arcs_cmdline[0]);
 }

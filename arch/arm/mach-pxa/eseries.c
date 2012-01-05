@@ -144,7 +144,7 @@ static struct clk_lookup eseries_clkregs[] = {
 	INIT_CLKREG(&tmio_dummy_clk, NULL, "CLK_CK32K"),
 };
 
-void eseries_register_clks(void)
+static void __init eseries_register_clks(void)
 {
 	clkdev_add_table(eseries_clkregs, ARRAY_SIZE(eseries_clkregs));
 }

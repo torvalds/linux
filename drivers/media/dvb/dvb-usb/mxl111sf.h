@@ -133,7 +133,7 @@ extern int dvb_usb_mxl111sf_debug;
 /* The following allows the mxl_fail() macro defined below to work
  * in externel modules, such as mxl111sf-tuner.ko, even though
  * dvb_usb_mxl111sf_debug is not defined within those modules */
-#ifdef __MXL111SF_TUNER_H__
+#if (defined(__MXL111SF_TUNER_H__)) || (defined(__MXL111SF_DEMOD_H__))
 #define MXL_ADV_DEBUG_ENABLED MXL_ADV_DBG
 #else
 #define MXL_ADV_DEBUG_ENABLED dvb_usb_mxl111sf_debug

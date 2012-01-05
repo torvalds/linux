@@ -307,17 +307,14 @@ nfulnl_alloc_skb(unsigned int inst_size, unsigned int pkt_size)
 	n = max(inst_size, pkt_size);
 	skb = alloc_skb(n, GFP_ATOMIC);
 	if (!skb) {
-		pr_notice("nfnetlink_log: can't alloc whole buffer (%u bytes)\n",
-			inst_size);
-
 		if (n > pkt_size) {
 			/* try to allocate only as much as we need for current
 			 * packet */
 
 			skb = alloc_skb(pkt_size, GFP_ATOMIC);
 			if (!skb)
-				pr_err("nfnetlink_log: can't even alloc %u "
-				       "bytes\n", pkt_size);
+				pr_err("nfnetlink_log: can't even alloc %u bytes\n",
+				       pkt_size);
 		}
 	}
 

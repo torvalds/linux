@@ -47,6 +47,6 @@ void __init ux500_init_irq(void)
 	if (cpu_is_u5500())
 		db5500_prcmu_early_init();
 	if (cpu_is_u8500())
-		prcmu_early_init();
+		db8500_prcmu_early_init();
 	clk_init();
 }

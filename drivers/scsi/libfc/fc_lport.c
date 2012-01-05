@@ -89,6 +89,7 @@
 
 #include <linux/timer.h>
 #include <linux/delay.h>
+#include <linux/module.h>
 #include <linux/slab.h>
 #include <asm/unaligned.h>
 
@@ -1030,16 +1031,8 @@ static void fc_lport_enter_reset(struct fc_lport *lport)
 			   FCH_EVT_LIPRESET, 0);
 	fc_vports_linkchange(lport);
 	fc_lport_reset_locked(lport);
-	if (lport->link_up) {
-		/*
-		 * Wait upto resource allocation time out before
-		 * doing re-login since incomplete FIP exchanged
-		 * from last session may collide with exchanges
-		 * in new session.
-		 */
-		msleep(lport->r_a_tov);
+	if (lport->link_up)
 		fc_lport_enter_flogi(lport);
-	}
 }
 
 /**
@@ -1481,6 +1474,7 @@ void fc_lport_flogi_resp(struct fc_seq *sp, struct fc_frame *fp,
 			 void *lp_arg)
 {
 	struct fc_lport *lport = lp_arg;
+	struct fc_frame_header *fh;
 	struct fc_els_flogi *flp;
 	u32 did;
 	u16 csp_flags;
@@ -1508,49 +1502,56 @@ void fc_lport_flogi_resp(struct fc_seq *sp, struct fc_frame *fp,
 		goto err;
 	}
 
+	fh = fc_frame_header_get(fp);
 	did = fc_frame_did(fp);
-	if (fc_frame_payload_op(fp) == ELS_LS_ACC && did) {
-		flp = fc_frame_payload_get(fp, sizeof(*flp));
-		if (flp) {
-			mfs = ntohs(flp->fl_csp.sp_bb_data) &
-				FC_SP_BB_DATA_MASK;
-			if (mfs >= FC_SP_MIN_MAX_PAYLOAD &&
-			    mfs < lport->mfs)
-				lport->mfs = mfs;
-			csp_flags = ntohs(flp->fl_csp.sp_features);
-			r_a_tov = ntohl(flp->fl_csp.sp_r_a_tov);
-			e_d_tov = ntohl(flp->fl_csp.sp_e_d_tov);
-			if (csp_flags & FC_SP_FT_EDTR)
-				e_d_tov /= 1000000;
-
-			lport->npiv_enabled = !!(csp_flags & FC_SP_FT_NPIV_ACC);
-
-			if ((csp_flags & FC_SP_FT_FPORT) == 0) {
-				if (e_d_tov > lport->e_d_tov)
-					lport->e_d_tov = e_d_tov;
-				lport->r_a_tov = 2 * e_d_tov;
-				fc_lport_set_port_id(lport, did, fp);
-				printk(KERN_INFO "host%d: libfc: "
-				       "Port (%6.6x) entered "
-				       "point-to-point mode\n",
-				       lport->host->host_no, did);
-				fc_lport_ptp_setup(lport, fc_frame_sid(fp),
-						   get_unaligned_be64(
-							   &flp->fl_wwpn),
-						   get_unaligned_be64(
-							   &flp->fl_wwnn));
-			} else {
-				lport->e_d_tov = e_d_tov;
-				lport->r_a_tov = r_a_tov;
-				fc_host_fabric_name(lport->host) =
-					get_unaligned_be64(&flp->fl_wwnn);
-				fc_lport_set_port_id(lport, did, fp);
-				fc_lport_enter_dns(lport);
-			}
-		}
-	} else {
-		FC_LPORT_DBG(lport, "FLOGI RJT or bad response\n");
+	if (fh->fh_r_ctl != FC_RCTL_ELS_REP || did == 0 ||
+	    fc_frame_payload_op(fp) != ELS_LS_ACC) {
+		FC_LPORT_DBG(lport, "FLOGI not accepted or bad response\n");
 		fc_lport_error(lport, fp);
+		goto err;
+	}
+
+	flp = fc_frame_payload_get(fp, sizeof(*flp));
+	if (!flp) {
+		FC_LPORT_DBG(lport, "FLOGI bad response\n");
+		fc_lport_error(lport, fp);
+		goto err;
+	}
+
+	mfs = ntohs(flp->fl_csp.sp_bb_data) &
+		FC_SP_BB_DATA_MASK;
+	if (mfs >= FC_SP_MIN_MAX_PAYLOAD &&
+	    mfs < lport->mfs)
+		lport->mfs = mfs;
+	csp_flags = ntohs(flp->fl_csp.sp_features);
+	r_a_tov = ntohl(flp->fl_csp.sp_r_a_tov);
+	e_d_tov = ntohl(flp->fl_csp.sp_e_d_tov);
+	if (csp_flags & FC_SP_FT_EDTR)
+		e_d_tov /= 1000000;
+
+	lport->npiv_enabled = !!(csp_flags & FC_SP_FT_NPIV_ACC);
+
+	if ((csp_flags & FC_SP_FT_FPORT) == 0) {
+		if (e_d_tov > lport->e_d_tov)
+			lport->e_d_tov = e_d_tov;
+		lport->r_a_tov = 2 * e_d_tov;
+		fc_lport_set_port_id(lport, did, fp);
+		printk(KERN_INFO "host%d: libfc: "
+		       "Port (%6.6x) entered "
+		       "point-to-point mode\n",
+		       lport->host->host_no, did);
+		fc_lport_ptp_setup(lport, fc_frame_sid(fp),
+				   get_unaligned_be64(
+					   &flp->fl_wwpn),
+				   get_unaligned_be64(
+					   &flp->fl_wwnn));
+	} else {
+		lport->e_d_tov = e_d_tov;
+		lport->r_a_tov = r_a_tov;
+		fc_host_fabric_name(lport->host) =
+			get_unaligned_be64(&flp->fl_wwnn);
+		fc_lport_set_port_id(lport, did, fp);
+		fc_lport_enter_dns(lport);
 	}
 
 out:

@@ -269,16 +269,17 @@ acpi_status acpi_hw_clear_acpi_status(void)
 
 	status = acpi_hw_register_write(ACPI_REGISTER_PM1_STATUS,
 					ACPI_BITMASK_ALL_FIXED_STATUS);
-	if (ACPI_FAILURE(status)) {
-		goto unlock_and_exit;
-	}
+
+	acpi_os_release_lock(acpi_gbl_hardware_lock, lock_flags);
+
+	if (ACPI_FAILURE(status))
+		goto exit;
 
 	/* Clear the GPE Bits in all GPE registers in all GPE blocks */
 
 	status = acpi_ev_walk_gpe_list(acpi_hw_clear_gpe_block, NULL);
 
-      unlock_and_exit:
-	acpi_os_release_lock(acpi_gbl_hardware_lock, lock_flags);
+exit:
 	return_ACPI_STATUS(status);
 }
 

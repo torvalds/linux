@@ -18,6 +18,7 @@
 #include <linux/input.h>
 #include <linux/slab.h>
 #include <linux/device.h>
+#include <linux/module.h>
 #include "rc-core-priv.h"
 
 /* Sizes are in bytes, 256 bytes allows for 32 entries on x64 */

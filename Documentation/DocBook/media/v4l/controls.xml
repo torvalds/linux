@@ -232,8 +232,9 @@ control is deprecated. New drivers and applications should use the
 	    <entry>Enables a power line frequency filter to avoid
 flicker. Possible values for <constant>enum v4l2_power_line_frequency</constant> are:
 <constant>V4L2_CID_POWER_LINE_FREQUENCY_DISABLED</constant> (0),
-<constant>V4L2_CID_POWER_LINE_FREQUENCY_50HZ</constant> (1) and
-<constant>V4L2_CID_POWER_LINE_FREQUENCY_60HZ</constant> (2).</entry>
+<constant>V4L2_CID_POWER_LINE_FREQUENCY_50HZ</constant> (1),
+<constant>V4L2_CID_POWER_LINE_FREQUENCY_60HZ</constant> (2) and
+<constant>V4L2_CID_POWER_LINE_FREQUENCY_AUTO</constant> (3).</entry>
 	  </row>
 	  <row>
 	    <entry><constant>V4L2_CID_HUE_AUTO</constant></entry>

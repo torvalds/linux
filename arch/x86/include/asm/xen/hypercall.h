@@ -47,6 +47,7 @@
 #include <xen/interface/xen.h>
 #include <xen/interface/sched.h>
 #include <xen/interface/physdev.h>
+#include <xen/interface/platform.h>
 
 /*
  * The hypercall asms have to meet several constraints:
@@ -298,6 +299,13 @@ HYPERVISOR_set_timer_op(u64 timeout)
 	unsigned long timeout_hi = (unsigned long)(timeout>>32);
 	unsigned long timeout_lo = (unsigned long)timeout;
 	return _hypercall2(long, set_timer_op, timeout_lo, timeout_hi);
+}
+
+static inline int
+HYPERVISOR_dom0_op(struct xen_platform_op *platform_op)
+{
+	platform_op->interface_version = XENPF_INTERFACE_VERSION;
+	return _hypercall1(int, dom0_op, platform_op);
 }
 
 static inline int

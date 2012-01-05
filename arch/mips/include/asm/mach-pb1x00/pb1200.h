@@ -28,23 +28,23 @@
 #include <asm/mach-au1x00/au1000.h>
 #include <asm/mach-au1x00/au1xxx_psc.h>
 
-#define DBDMA_AC97_TX_CHAN	DSCR_CMD0_PSC1_TX
-#define DBDMA_AC97_RX_CHAN	DSCR_CMD0_PSC1_RX
-#define DBDMA_I2S_TX_CHAN	DSCR_CMD0_PSC1_TX
-#define DBDMA_I2S_RX_CHAN	DSCR_CMD0_PSC1_RX
+#define DBDMA_AC97_TX_CHAN	AU1200_DSCR_CMD0_PSC1_TX
+#define DBDMA_AC97_RX_CHAN	AU1200_DSCR_CMD0_PSC1_RX
+#define DBDMA_I2S_TX_CHAN	AU1200_DSCR_CMD0_PSC1_TX
+#define DBDMA_I2S_RX_CHAN	AU1200_DSCR_CMD0_PSC1_RX
 
 /*
  * SPI and SMB are muxed on the Pb1200 board.
  * Refer to board documentation.
  */
-#define SPI_PSC_BASE		PSC0_BASE_ADDR
-#define SMBUS_PSC_BASE		PSC0_BASE_ADDR
+#define SPI_PSC_BASE		AU1550_PSC0_PHYS_ADDR
+#define SMBUS_PSC_BASE		AU1550_PSC0_PHYS_ADDR
 /*
  * AC97 and I2S are muxed on the Pb1200 board.
  * Refer to board documentation.
  */
-#define AC97_PSC_BASE       PSC1_BASE_ADDR
-#define I2S_PSC_BASE	PSC1_BASE_ADDR
+#define AC97_PSC_BASE       AU1550_PSC1_PHYS_ADDR
+#define I2S_PSC_BASE	AU1550_PSC1_PHYS_ADDR
 
 
 #define BCSR_SYSTEM_VDDI	0x001F
@@ -76,8 +76,6 @@
 #define IDE_REG_SHIFT		5
 #define IDE_PHYS_LEN		(16 << IDE_REG_SHIFT)
 #define IDE_INT 		PB1200_IDE_INT
-#define IDE_DDMA_REQ		DSCR_CMD0_DMA_REQ1
-#define IDE_RQSIZE		128
 
 #define NAND_PHYS_ADDR 	0x1C000000
 

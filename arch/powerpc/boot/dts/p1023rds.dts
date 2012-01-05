@@ -449,6 +449,7 @@
 			interrupt-parent = <&mpic>;
 			interrupts = <16 2>;
 			interrupt-map-mask = <0xf800 0 0 7>;
+			/* IRQ[0:3] are pulled up on board, set to active-low */
 			interrupt-map = <
 				/* IDSEL 0x0 */
 				0000 0 0 1 &mpic 0 1
@@ -488,11 +489,15 @@
 			interrupt-parent = <&mpic>;
 			interrupts = <16 2>;
 			interrupt-map-mask = <0xf800 0 0 7>;
+			/*
+			 * IRQ[4:6] only for PCIe, set to active-high,
+			 * IRQ[7] is pulled up on board, set to active-low
+			 */
 			interrupt-map = <
 				/* IDSEL 0x0 */
-				0000 0 0 1 &mpic 4 1
-				0000 0 0 2 &mpic 5 1
-				0000 0 0 3 &mpic 6 1
+				0000 0 0 1 &mpic 4 2
+				0000 0 0 2 &mpic 5 2
+				0000 0 0 3 &mpic 6 2
 				0000 0 0 4 &mpic 7 1
 				>;
 			ranges = <0x2000000 0x0 0xa0000000
@@ -527,12 +532,16 @@
 			interrupt-parent = <&mpic>;
 			interrupts = <16 2>;
 			interrupt-map-mask = <0xf800 0 0 7>;
+			/*
+			 * IRQ[8:10] are pulled up on board, set to active-low
+			 * IRQ[11] only for PCIe, set to active-high,
+			 */
 			interrupt-map = <
 				/* IDSEL 0x0 */
 				0000 0 0 1 &mpic 8 1
 				0000 0 0 2 &mpic 9 1
 				0000 0 0 3 &mpic 10 1
-				0000 0 0 4 &mpic 11 1
+				0000 0 0 4 &mpic 11 2
 				>;
 			ranges = <0x2000000 0x0 0x80000000
 				  0x2000000 0x0 0x80000000

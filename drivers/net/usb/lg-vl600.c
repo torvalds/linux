@@ -27,6 +27,7 @@
 #include <linux/if_ether.h>
 #include <linux/if_arp.h>
 #include <linux/inetdevice.h>
+#include <linux/module.h>
 
 /*
  * The device has a CDC ACM port for modem control (it claims to be
@@ -143,10 +144,11 @@ static int vl600_rx_fixup(struct usbnet *dev, struct sk_buff *skb)
 	}
 
 	frame = (struct vl600_frame_hdr *) buf->data;
-	/* NOTE: Should check that frame->magic == 0x53544448?
-	 * Otherwise if we receive garbage at the beginning of the frame
-	 * we may end up allocating a huge buffer and saving all the
-	 * future incoming data into it.  */
+	/* Yes, check that frame->magic == 0x53544448 (or 0x44544d48),
+	 * otherwise we may run out of memory w/a bad packet */
+	if (ntohl(frame->magic) != 0x53544448 &&
+			ntohl(frame->magic) != 0x44544d48)
+		goto error;
 
 	if (buf->len < sizeof(*frame) ||
 			buf->len != le32_to_cpup(&frame->len)) {
@@ -295,6 +297,11 @@ encapsulate:
 	 * overwrite the remaining fields.
 	 */
 	packet = (struct vl600_pkt_hdr *) skb->data;
+	/* The VL600 wants IPv6 packets to have an IPv4 ethertype
+	 * Since this modem only supports IPv4 and IPv6, just set all
+	 * frames to 0x0800 (ETH_P_IP)
+	 */
+	packet->h_proto = htons(ETH_P_IP);
 	memset(&packet->dummy, 0, sizeof(packet->dummy));
 	packet->len = cpu_to_le32(orig_len);
 
@@ -307,21 +314,12 @@ encapsulate:
 	if (skb->len < full_len) /* Pad */
 		skb_put(skb, full_len - skb->len);
 
-	/* The VL600 wants IPv6 packets to have an IPv4 ethertype
-	 * Check if this is an IPv6 packet, and set the ethertype
-	 * to 0x800
-	 */
-	if ((skb->data[sizeof(struct vl600_pkt_hdr *) + 0x22] & 0xf0) == 0x60) {
-		skb->data[sizeof(struct vl600_pkt_hdr *) + 0x20] = 0x08;
-		skb->data[sizeof(struct vl600_pkt_hdr *) + 0x21] = 0;
-	}
-
 	return skb;
 }
 
 static const struct driver_info	vl600_info = {
 	.description	= "LG VL600 modem",
-	.flags		= FLAG_ETHER | FLAG_RX_ASSEMBLE,
+	.flags		= FLAG_RX_ASSEMBLE | FLAG_WWAN,
 	.bind		= vl600_bind,
 	.unbind		= vl600_unbind,
 	.status		= usbnet_cdc_status,

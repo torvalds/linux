@@ -52,18 +52,6 @@ config BMAC
 	  To compile this driver as a module, choose M here: the module
 	  will be called bmac.
 
-config MAC89x0
-	tristate "Macintosh CS89x0 based ethernet cards"
-	depends on MAC
-	---help---
-	  Support for CS89x0 chipset based Ethernet cards.  If you have a
-	  Nubus or LC-PDS network (Ethernet) card of this type, say Y and
-	  read the Ethernet-HOWTO, available from
-	  <http://www.tldp.org/docs.html#howto>.
-
-	  To compile this driver as a module, choose M here. This module will
-	  be called mac89x0.
-
 config MACMACE
 	bool "Macintosh (AV) onboard MACE ethernet"
 	depends on MAC

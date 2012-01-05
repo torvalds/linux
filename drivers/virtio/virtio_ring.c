@@ -21,6 +21,7 @@
 #include <linux/virtio_config.h>
 #include <linux/device.h>
 #include <linux/slab.h>
+#include <linux/module.h>
 
 /* virtio guest is communicating with a virtual "device" that actually runs on
  * a host processor.  Memory barriers are used to control SMP effects. */

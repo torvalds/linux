@@ -60,6 +60,7 @@ static int crypto_init_rng_ops(struct crypto_tfm *tfm, u32 type, u32 mask)
 	return 0;
 }
 
+#ifdef CONFIG_NET
 static int crypto_rng_report(struct sk_buff *skb, struct crypto_alg *alg)
 {
 	struct crypto_report_rng rrng;
@@ -76,6 +77,12 @@ static int crypto_rng_report(struct sk_buff *skb, struct crypto_alg *alg)
 nla_put_failure:
 	return -EMSGSIZE;
 }
+#else
+static int crypto_rng_report(struct sk_buff *skb, struct crypto_alg *alg)
+{
+	return -ENOSYS;
+}
+#endif
 
 static void crypto_rng_show(struct seq_file *m, struct crypto_alg *alg)
 	__attribute__ ((unused));

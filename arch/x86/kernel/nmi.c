@@ -17,6 +17,7 @@
 #include <linux/delay.h>
 #include <linux/hardirq.h>
 #include <linux/slab.h>
+#include <linux/export.h>
 
 #include <linux/mca.h>
 
@@ -28,6 +29,7 @@
 #include <asm/traps.h>
 #include <asm/mach_traps.h>
 #include <asm/nmi.h>
+#include <asm/x86_init.h>
 
 #define NMI_MAX_NAMELEN	16
 struct nmiaction {
@@ -347,7 +349,7 @@ static notrace __kprobes void default_do_nmi(struct pt_regs *regs)
 
 	/* Non-CPU-specific NMI: NMI sources can be processed on any CPU */
 	raw_spin_lock(&nmi_reason_lock);
-	reason = get_nmi_reason();
+	reason = x86_platform.get_nmi_reason();
 
 	if (reason & NMI_REASON_MASK) {
 		if (reason & NMI_REASON_SERR)

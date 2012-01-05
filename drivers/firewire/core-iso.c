@@ -29,6 +29,7 @@
 #include <linux/slab.h>
 #include <linux/spinlock.h>
 #include <linux/vmalloc.h>
+#include <linux/export.h>
 
 #include <asm/byteorder.h>
 

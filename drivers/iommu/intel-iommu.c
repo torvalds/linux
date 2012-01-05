@@ -24,6 +24,7 @@
 #include <linux/init.h>
 #include <linux/bitmap.h>
 #include <linux/debugfs.h>
+#include <linux/export.h>
 #include <linux/slab.h>
 #include <linux/irq.h>
 #include <linux/interrupt.h>

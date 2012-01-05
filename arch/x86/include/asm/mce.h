@@ -201,7 +201,10 @@ int mce_notify_irq(void);
 void mce_notify_process(void);
 
 DECLARE_PER_CPU(struct mce, injectm);
-extern struct file_operations mce_chrdev_ops;
+
+extern void register_mce_write_callback(ssize_t (*)(struct file *filp,
+				    const char __user *ubuf,
+				    size_t usize, loff_t *off));
 
 /*
  * Exception handler

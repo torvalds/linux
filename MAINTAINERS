@@ -789,6 +789,7 @@ L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
 S:	Maintained
 T:	git git://git.pengutronix.de/git/imx/linux-2.6.git
 F:	arch/arm/mach-mx*/
+F:	arch/arm/mach-imx/
 F:	arch/arm/plat-mxc/
 
 ARM/FREESCALE IMX51
@@ -803,6 +804,13 @@ L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
 S:	Maintained
 T:	git git://git.linaro.org/people/shawnguo/linux-2.6.git
 F:	arch/arm/mach-imx/*imx6*
+
+ARM/FREESCALE MXS ARM ARCHITECTURE
+M:	Shawn Guo <shawn.guo@linaro.org>
+L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
+S:	Maintained
+T:	git git://git.linaro.org/people/shawnguo/linux-2.6.git
+F:	arch/arm/mach-mxs/
 
 ARM/GLOMATION GESBC9312SX MACHINE SUPPORT
 M:	Lennert Buytenhek <kernel@wantstofly.org>
@@ -1032,6 +1040,7 @@ F:	arch/arm/include/asm/hardware/ioc.h
 F:	arch/arm/include/asm/hardware/iomd.h
 F:	arch/arm/include/asm/hardware/memc.h
 F:	arch/arm/mach-rpc/
+F:	drivers/net/ethernet/8390/etherh.c
 F:	drivers/net/ethernet/i825xx/ether1*
 F:	drivers/net/ethernet/seeq/ether3*
 F:	drivers/scsi/arm/
@@ -1105,6 +1114,7 @@ F:	drivers/media/video/s5p-fimc/
 ARM/SAMSUNG S5P SERIES Multi Format Codec (MFC) SUPPORT
 M:	Kyungmin Park <kyungmin.park@samsung.com>
 M:	Kamil Debski <k.debski@samsung.com>
+M:     Jeongtae Park <jtp.park@samsung.com>
 L:	linux-arm-kernel@lists.infradead.org
 L:	linux-media@vger.kernel.org
 S:	Maintained
@@ -1716,6 +1726,7 @@ F:	include/linux/can.h
 F:	include/linux/can/core.h
 F:	include/linux/can/bcm.h
 F:	include/linux/can/raw.h
+F:	include/linux/can/gw.h
 
 CAN NETWORK DRIVERS
 M:	Wolfgang Grandegger <wg@grandegger.com>
@@ -1785,6 +1796,14 @@ F:	include/linux/nl80211.h
 F:	include/net/cfg80211.h
 F:	net/wireless/*
 X:	net/wireless/wext*
+
+CHAR and MISC DRIVERS
+M:	Arnd Bergmann <arnd@arndb.de>
+M:	Greg Kroah-Hartman <greg@kroah.com>
+T:	git git://git.kernel.org/pub/scm/linux/kernel/git/gregkh/char-misc.git
+S:	Maintained
+F:	drivers/char/*
+F:	drivers/misc/*
 
 CHECKPATCH
 M:	Andy Whitcroft <apw@canonical.com>
@@ -1924,9 +1943,11 @@ S:	Maintained
 F:	drivers/connector/
 
 CONTROL GROUPS (CGROUPS)
-M:	Paul Menage <paul@paulmenage.org>
+M:	Tejun Heo <tj@kernel.org>
 M:	Li Zefan <lizf@cn.fujitsu.com>
 L:	containers@lists.linux-foundation.org
+L:	cgroups@vger.kernel.org
+T:	git git://git.kernel.org/pub/scm/linux/kernel/git/tj/cgroup.git
 S:	Maintained
 F:	include/linux/cgroup*
 F:	kernel/cgroup*
@@ -2340,6 +2361,13 @@ S:	Supported
 F:	drivers/gpu/drm/i915
 F:	include/drm/i915*
 
+DRM DRIVERS FOR EXYNOS
+M:	Inki Dae <inki.dae@samsung.com>
+L:	dri-devel@lists.freedesktop.org
+S:	Supported
+F:	drivers/gpu/drm/exynos
+F:	include/drm/exynos*
+
 DSCC4 DRIVER
 M:	Francois Romieu <romieu@fr.zoreil.com>
 L:	netdev@vger.kernel.org
@@ -2386,7 +2414,7 @@ F:	include/linux/netfilter_bridge/ebt_*.h
 F:	net/bridge/netfilter/ebt*.c
 
 ECRYPT FILE SYSTEM
-M:	Tyler Hicks <tyhicks@linux.vnet.ibm.com>
+M:	Tyler Hicks <tyhicks@canonical.com>
 M:	Dustin Kirkland <kirkland@canonical.com>
 L:	ecryptfs@vger.kernel.org
 W:	https://launchpad.net/ecryptfs
@@ -2574,7 +2602,7 @@ S:	Maintained
 F:	drivers/net/ethernet/i825xx/eexpress.*
 
 ETHERNET BRIDGE
-M:	Stephen Hemminger <shemminger@linux-foundation.org>
+M:	Stephen Hemminger <shemminger@vyatta.com>
 L:	bridge@lists.linux-foundation.org
 L:	netdev@vger.kernel.org
 W:	http://www.linuxfoundation.org/en/Net:Bridge
@@ -3017,6 +3045,13 @@ S:	Odd fixes
 F:	Documentation/hw_random.txt
 F:	drivers/char/hw_random/
 F:	include/linux/hw_random.h
+
+HARDWARE SPINLOCK CORE
+M:	Ohad Ben-Cohen <ohad@wizery.com>
+S:	Maintained
+F:	Documentation/hwspinlock.txt
+F:	drivers/hwspinlock/hwspinlock_*
+F:	include/linux/hwspinlock.h
 
 HARMONY SOUND DRIVER
 M:	Kyle McMartin <kyle@mcmartin.ca>
@@ -3701,7 +3736,7 @@ F:	fs/jbd2/
 F:	include/linux/jbd2.h
 
 JSM Neo PCI based serial card
-M:	Breno Leitao <leitao@linux.vnet.ibm.com>
+M:	Lucas Tavares <lucaskt@linux.vnet.ibm.com>
 L:	linux-serial@vger.kernel.org
 S:	Maintained
 F:	drivers/tty/serial/jsm/
@@ -4287,6 +4322,7 @@ MEMORY RESOURCE CONTROLLER
 M:	Balbir Singh <bsingharora@gmail.com>
 M:	Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
 M:	KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+L:	cgroups@vger.kernel.org
 L:	linux-mm@kvack.org
 S:	Maintained
 F:	mm/memcontrol.c
@@ -4320,7 +4356,7 @@ MIPS
 M:	Ralf Baechle <ralf@linux-mips.org>
 L:	linux-mips@linux-mips.org
 W:	http://www.linux-mips.org/
-T:	git git://git.linux-mips.org/pub/scm/linux.git
+T:	git git://git.linux-mips.org/pub/scm/ralf/linux.git
 Q:	http://patchwork.linux-mips.org/project/linux-mips/list/
 S:	Supported
 F:	Documentation/mips/
@@ -4453,7 +4489,7 @@ S:	Supported
 F:	drivers/infiniband/hw/nes/
 
 NETEM NETWORK EMULATOR
-M:	Stephen Hemminger <shemminger@linux-foundation.org>
+M:	Stephen Hemminger <shemminger@vyatta.com>
 L:	netem@lists.linux-foundation.org
 S:	Maintained
 F:	net/sched/sch_netem.c
@@ -4469,11 +4505,9 @@ F:	Documentation/networking/vxge.txt
 F:	drivers/net/ethernet/neterion/
 
 NETFILTER/IPTABLES/IPCHAINS
-P:	Rusty Russell
-P:	Marc Boucher
-P:	James Morris
 P:	Harald Welte
 P:	Jozsef Kadlecsik
+M:	Pablo Neira Ayuso <pablo@netfilter.org>
 M:	Patrick McHardy <kaber@trash.net>
 L:	netfilter-devel@vger.kernel.org
 L:	netfilter@vger.kernel.org
@@ -4666,7 +4700,7 @@ L:	linux-omap@vger.kernel.org
 W:	http://www.muru.com/linux/omap/
 W:	http://linux.omap.com/
 Q:	http://patchwork.kernel.org/project/linux-omap/list/
-T:	git git://git.kernel.org/pub/scm/linux/kernel/git/tmlind/linux-omap-2.6.git
+T:	git git://git.kernel.org/pub/scm/linux/kernel/git/tmlind/linux-omap.git
 S:	Maintained
 F:	arch/arm/*omap*/
 
@@ -4713,6 +4747,13 @@ L:	linux-fbdev@vger.kernel.org
 S:	Maintained
 F:	drivers/video/omap2/
 F:	Documentation/arm/OMAP/DSS
+
+OMAP HARDWARE SPINLOCK SUPPORT
+M:	Ohad Ben-Cohen <ohad@wizery.com>
+L:	linux-omap@vger.kernel.org
+S:	Maintained
+F:	drivers/hwspinlock/omap_hwspinlock.c
+F:	arch/arm/mach-omap2/hwspinlock.c
 
 OMAP MMC SUPPORT
 M:	Jarkko Lavinen <jarkko.lavinen@nokia.com>
@@ -4925,7 +4966,7 @@ F:	drivers/char/ppdev.c
 F:	include/linux/ppdev.h
 
 PARAVIRT_OPS INTERFACE
-M:	Jeremy Fitzhardinge <jeremy@xensource.com>
+M:	Jeremy Fitzhardinge <jeremy@goop.org>
 M:	Chris Wright <chrisw@sous-sol.org>
 M:	Alok Kataria <akataria@vmware.com>
 M:	Rusty Russell <rusty@rustcorp.com.au>
@@ -5457,7 +5498,7 @@ S:	Maintained
 F:	drivers/net/ethernet/rdc/r6040.c
 
 RDS - RELIABLE DATAGRAM SOCKETS
-M:	Andy Grover <andy.grover@oracle.com>
+M:	Venkat Venkatsubra <venkat.x.venkatsubra@oracle.com>
 L:	rds-devel@oss.oracle.com (moderated for non-subscribers)
 S:	Supported
 F:	net/rds/
@@ -5634,7 +5675,6 @@ F:	drivers/media/video/*7146*
 F:	include/media/*7146*
 
 SAMSUNG AUDIO (ASoC) DRIVERS
-M:	Jassi Brar <jassisinghbrar@gmail.com>
 M:	Sangbeom Kim <sbkim73@samsung.com>
 L:	alsa-devel@alsa-project.org (moderated for non-subscribers)
 S:	Supported
@@ -5963,7 +6003,7 @@ S:	Maintained
 F:	drivers/usb/misc/sisusbvga/
 
 SKGE, SKY2 10/100/1000 GIGABIT ETHERNET DRIVERS
-M:	Stephen Hemminger <shemminger@linux-foundation.org>
+M:	Stephen Hemminger <shemminger@vyatta.com>
 L:	netdev@vger.kernel.org
 S:	Maintained
 F:	drivers/net/ethernet/marvell/sk*
@@ -6108,7 +6148,7 @@ F:	sound/
 SOUND - SOC LAYER / DYNAMIC AUDIO POWER MANAGEMENT (ASoC)
 M:	Liam Girdwood <lrg@ti.com>
 M:	Mark Brown <broonie@opensource.wolfsonmicro.com>
-T:	git git://git.kernel.org/pub/scm/linux/kernel/git/broonie/sound-2.6.git
+T:	git git://git.kernel.org/pub/scm/linux/kernel/git/broonie/sound.git
 L:	alsa-devel@alsa-project.org (moderated for non-subscribers)
 W:	http://alsa-project.org/main/index.php/ASoC
 S:	Supported
@@ -7377,8 +7417,8 @@ S:	Maintained
 F:	arch/x86/kernel/cpu/mcheck/*
 
 XEN HYPERVISOR INTERFACE
-M:	Jeremy Fitzhardinge <jeremy.fitzhardinge@citrix.com>
 M:	Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>
+M:	Jeremy Fitzhardinge <jeremy@goop.org>
 L:	xen-devel@lists.xensource.com (moderated for non-subscribers)
 L:	virtualization@lists.linux-foundation.org
 S:	Supported
@@ -7411,7 +7451,8 @@ F:	drivers/xen/*swiotlb*
 
 XFS FILESYSTEM
 P:	Silicon Graphics Inc
-M:	Alex Elder <aelder@sgi.com>
+M:	Ben Myers <bpm@sgi.com>
+M:	Alex Elder <elder@kernel.org>
 M:	xfs-masters@oss.sgi.com
 L:	xfs@oss.sgi.com
 W:	http://oss.sgi.com/projects/xfs

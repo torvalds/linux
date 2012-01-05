@@ -214,7 +214,7 @@ config EDAC_I7300
 
 config EDAC_SBRIDGE
 	tristate "Intel Sandy-Bridge Integrated MC"
-	depends on EDAC_MM_EDAC && PCI && X86 && X86_MCE_INTEL
+	depends on EDAC_MM_EDAC && PCI && X86_64 && X86_MCE_INTEL
 	depends on EXPERIMENTAL
 	help
 	  Support for error detection and correction the Intel

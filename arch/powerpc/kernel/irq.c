@@ -30,7 +30,7 @@
 
 #undef DEBUG
 
-#include <linux/module.h>
+#include <linux/export.h>
 #include <linux/threads.h>
 #include <linux/kernel_stat.h>
 #include <linux/signal.h>

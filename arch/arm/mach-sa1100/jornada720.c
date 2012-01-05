@@ -26,6 +26,7 @@
 #include <mach/hardware.h>
 #include <asm/hardware/sa1111.h>
 #include <asm/irq.h>
+#include <asm/page.h>
 #include <asm/mach-types.h>
 #include <asm/setup.h>
 #include <asm/mach/arch.h>

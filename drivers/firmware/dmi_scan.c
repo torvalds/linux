@@ -585,14 +585,12 @@ int dmi_name_in_serial(const char *str)
 }
 
 /**
- *	dmi_name_in_vendors - Check if string is anywhere in the DMI vendor information.
+ *	dmi_name_in_vendors - Check if string is in the DMI system or board vendor name
  *	@str: 	Case sensitive Name
  */
 int dmi_name_in_vendors(const char *str)
 {
-	static int fields[] = { DMI_BIOS_VENDOR, DMI_BIOS_VERSION, DMI_SYS_VENDOR,
-				DMI_PRODUCT_NAME, DMI_PRODUCT_VERSION, DMI_BOARD_VENDOR,
-				DMI_BOARD_NAME, DMI_BOARD_VERSION, DMI_NONE };
+	static int fields[] = { DMI_SYS_VENDOR, DMI_BOARD_VENDOR, DMI_NONE };
 	int i;
 	for (i = 0; fields[i] != DMI_NONE; i++) {
 		int f = fields[i];

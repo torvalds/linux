@@ -11,6 +11,7 @@
 #include <linux/pci.h>
 #include <linux/slab.h>
 #include <linux/mutex.h>
+#include <linux/export.h>
 #include <linux/string.h>
 #include <linux/delay.h>
 #include <linux/pci-ats.h>

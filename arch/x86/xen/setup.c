@@ -410,6 +410,6 @@ void __init xen_arch_setup(void)
 #endif
 	disable_cpuidle();
 	boot_option_idle_override = IDLE_HALT;
-
+	WARN_ON(set_pm_idle_to_default());
 	fiddle_vdso();
 }

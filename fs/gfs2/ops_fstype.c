@@ -14,6 +14,7 @@
 #include <linux/buffer_head.h>
 #include <linux/blkdev.h>
 #include <linux/kthread.h>
+#include <linux/export.h>
 #include <linux/namei.h>
 #include <linux/mount.h>
 #include <linux/gfs2_ondisk.h>

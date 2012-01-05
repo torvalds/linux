@@ -13,6 +13,7 @@
 
 #include <linux/cdev.h>
 #include <linux/slab.h>
+#include <linux/module.h>
 
 #include <asm/uaccess.h>
 #include <asm/cio.h>

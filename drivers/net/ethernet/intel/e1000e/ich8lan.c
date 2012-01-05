@@ -866,8 +866,7 @@ static s32 e1000_acquire_swflag_ich8lan(struct e1000_hw *hw)
 
 	if (test_and_set_bit(__E1000_ACCESS_SHARED_RESOURCE,
 			     &hw->adapter->state)) {
-		WARN(1, "e1000e: %s: contention for Phy access\n",
-		     hw->adapter->netdev->name);
+		e_dbg("contention for Phy access\n");
 		return -E1000_ERR_PHY;
 	}
 

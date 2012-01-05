@@ -42,7 +42,6 @@
 #include <plat/irda.h>
 #include <plat/keypad.h>
 #include <plat/common.h>
-#include <plat/omap-alsa.h>
 
 #include <linux/spi/spi.h>
 #include <linux/spi/ads7846.h>

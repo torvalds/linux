@@ -192,6 +192,13 @@ static rx_handler_result_t macvlan_handle_frame(struct sk_buff **pskb)
 			 */
 			macvlan_broadcast(skb, port, src->dev,
 					  MACVLAN_MODE_VEPA);
+		else {
+			/* forward to original port. */
+			vlan = src;
+			ret = macvlan_broadcast_one(skb, vlan, eth, 0);
+			goto out;
+		}
+
 		return RX_HANDLER_PASS;
 	}
 

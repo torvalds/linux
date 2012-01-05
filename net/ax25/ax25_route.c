@@ -38,6 +38,7 @@
 #include <linux/interrupt.h>
 #include <linux/init.h>
 #include <linux/seq_file.h>
+#include <linux/export.h>
 
 static ax25_route *ax25_route_list;
 static DEFINE_RWLOCK(ax25_route_lock);

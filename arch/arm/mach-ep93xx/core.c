@@ -33,6 +33,7 @@
 #include <linux/i2c.h>
 #include <linux/i2c-gpio.h>
 #include <linux/spi/spi.h>
+#include <linux/export.h>
 
 #include <mach/hardware.h>
 #include <mach/fb.h>

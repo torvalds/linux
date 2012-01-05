@@ -34,8 +34,8 @@
 #include <plat/devs.h>
 #include <plat/clock.h>
 
-#include <mach/s3c6400.h>
-#include <mach/s3c6410.h>
+#include <plat/s3c6400.h>
+#include <plat/s3c6410.h>
 
 /* table of supported CPUs */
 

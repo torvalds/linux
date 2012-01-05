@@ -24,6 +24,7 @@
 #include <linux/slab.h>
 #include <linux/types.h>
 #include <linux/videodev2.h>
+#include <linux/export.h>
 
 #include <media/v4l2-ctrls.h>
 #include <media/v4l2-device.h>

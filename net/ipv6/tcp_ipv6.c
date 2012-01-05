@@ -1255,6 +1255,13 @@ static int tcp_v6_conn_request(struct sock *sk, struct sk_buff *skb)
 	if (!want_cookie || tmp_opt.tstamp_ok)
 		TCP_ECN_create_request(req, tcp_hdr(skb));
 
+	treq->iif = sk->sk_bound_dev_if;
+
+	/* So that link locals have meaning */
+	if (!sk->sk_bound_dev_if &&
+	    ipv6_addr_type(&treq->rmt_addr) & IPV6_ADDR_LINKLOCAL)
+		treq->iif = inet6_iif(skb);
+
 	if (!isn) {
 		struct inet_peer *peer = NULL;
 
@@ -1264,12 +1271,6 @@ static int tcp_v6_conn_request(struct sock *sk, struct sk_buff *skb)
 			atomic_inc(&skb->users);
 			treq->pktopts = skb;
 		}
-		treq->iif = sk->sk_bound_dev_if;
-
-		/* So that link locals have meaning */
-		if (!sk->sk_bound_dev_if &&
-		    ipv6_addr_type(&treq->rmt_addr) & IPV6_ADDR_LINKLOCAL)
-			treq->iif = inet6_iif(skb);
 
 		if (want_cookie) {
 			isn = cookie_v6_init_sequence(sk, skb, &req->mss);
@@ -2161,12 +2162,18 @@ out:
 	return 0;
 }
 
+static const struct file_operations tcp6_afinfo_seq_fops = {
+	.owner   = THIS_MODULE,
+	.open    = tcp_seq_open,
+	.read    = seq_read,
+	.llseek  = seq_lseek,
+	.release = seq_release_net
+};
+
 static struct tcp_seq_afinfo tcp6_seq_afinfo = {
 	.name		= "tcp6",
 	.family		= AF_INET6,
-	.seq_fops	= {
-		.owner		= THIS_MODULE,
-	},
+	.seq_fops	= &tcp6_afinfo_seq_fops,
 	.seq_ops	= {
 		.show		= tcp6_seq_show,
 	},

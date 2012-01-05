@@ -2270,6 +2270,7 @@ retry:
 			ext4_msg(inode->i_sb, KERN_CRIT, "%s: jbd2_start: "
 			       "%ld pages, ino %lu; err %d", __func__,
 				wbc->nr_to_write, inode->i_ino, ret);
+			blk_finish_plug(&plug);
 			goto out_writepages;
 		}
 
@@ -2372,7 +2373,7 @@ static int ext4_nonda_switch(struct super_block *sb)
 	 * start pushing delalloc when 1/2 of free blocks are dirty.
 	 */
 	if (free_blocks < 2 * dirty_blocks)
-		writeback_inodes_sb_if_idle(sb);
+		writeback_inodes_sb_if_idle(sb, WB_REASON_FS_FREE_SPACE);
 
 	return 0;
 }
@@ -2806,8 +2807,8 @@ out:
 	spin_unlock_irqrestore(&ei->i_completed_io_lock, flags);
 
 	/* queue the work to convert unwritten extents to written */
-	queue_work(wq, &io_end->work);
 	iocb->private = NULL;
+	queue_work(wq, &io_end->work);
 
 	/* XXX: probably should move into the real I/O completion handler */
 	inode_dio_done(inode);

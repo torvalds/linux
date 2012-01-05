@@ -22,6 +22,7 @@
 #include <linux/hardirq.h>
 #include <linux/kthread.h>
 #include <linux/uaccess.h>
+#include <linux/module.h>
 #include <linux/ftrace.h>
 #include <linux/sysctl.h>
 #include <linux/slab.h>

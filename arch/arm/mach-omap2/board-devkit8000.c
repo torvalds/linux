@@ -226,7 +226,6 @@ static int devkit8000_twl_gpio_setup(struct device *dev,
 {
 	int ret;
 
-	omap_mux_init_gpio(29, OMAP_PIN_INPUT);
 	/* gpio + 0 is "mmc0_cd" (input/IRQ) */
 	mmc[0].gpio_cd = gpio + 0;
 	omap2_hsmmc_init(mmc);

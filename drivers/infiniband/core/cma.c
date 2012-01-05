@@ -41,6 +41,7 @@
 #include <linux/idr.h>
 #include <linux/inetdevice.h>
 #include <linux/slab.h>
+#include <linux/module.h>
 
 #include <net/tcp.h>
 #include <net/ipv6.h>

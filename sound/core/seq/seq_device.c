@@ -37,6 +37,7 @@
  */
 
 #include <linux/init.h>
+#include <linux/module.h>
 #include <sound/core.h>
 #include <sound/info.h>
 #include <sound/seq_device.h>

@@ -9,6 +9,7 @@
  */
 
 #include "bcma_private.h"
+#include <linux/export.h>
 #include <linux/bcma/bcma.h>
 
 static u32 bcma_chipco_pll_read(struct bcma_drv_cc *cc, u32 offset)

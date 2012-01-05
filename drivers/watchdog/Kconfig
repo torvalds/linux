@@ -66,6 +66,7 @@ config SOFT_WATCHDOG
 config WM831X_WATCHDOG
 	tristate "WM831x watchdog"
 	depends on MFD_WM831X
+	select WATCHDOG_CORE
 	help
 	  Support for the watchdog in the WM831x AudioPlus PMICs.  When
 	  the watchdog triggers the system will be reset.
@@ -170,6 +171,7 @@ config HAVE_S3C2410_WATCHDOG
 config S3C2410_WATCHDOG
 	tristate "S3C2410 Watchdog"
 	depends on ARCH_S3C2410 || HAVE_S3C2410_WATCHDOG
+	select WATCHDOG_CORE
 	help
 	  Watchdog timer block in the Samsung SoCs. This will reboot
 	  the system when the timer expires with the watchdog enabled.
@@ -311,13 +313,6 @@ config NUC900_WATCHDOG
 	  for the Nuvoton NUC900 series SoCs.
 	  To compile this driver as a module, choose M here: the
 	  module will be called nuc900_wdt.
-
-config ADX_WATCHDOG
-	tristate "Avionic Design Xanthos watchdog"
-	depends on ARCH_PXA_ADX
-	help
-	  Say Y here if you want support for the watchdog timer on Avionic
-	  Design Xanthos boards.
 
 config TS72XX_WATCHDOG
 	tristate "TS-72XX SBC Watchdog"

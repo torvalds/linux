@@ -16,6 +16,7 @@
  */
 
 #include <linux/prefetch.h>
+#include <linux/module.h>
 #include "be.h"
 #include "be_cmds.h"
 #include <asm/div64.h>
@@ -1905,6 +1906,8 @@ loop_continue:
 		be_rx_stats_update(rxo, rxcp);
 	}
 
+	be_cq_notify(adapter, rx_cq->id, false, work_done);
+
 	/* Refill the queue */
 	if (work_done && atomic_read(&rxo->q.used) < RX_FRAGS_REFILL_WM)
 		be_post_rx_frags(rxo, GFP_ATOMIC);
@@ -1912,10 +1915,8 @@ loop_continue:
 	/* All consumed */
 	if (work_done < budget) {
 		napi_complete(napi);
-		be_cq_notify(adapter, rx_cq->id, true, work_done);
-	} else {
-		/* More to be consumed; continue with interrupts disabled */
-		be_cq_notify(adapter, rx_cq->id, false, work_done);
+		/* Arm CQ */
+		be_cq_notify(adapter, rx_cq->id, true, 0);
 	}
 	return work_done;
 }
@@ -1977,42 +1978,62 @@ static int be_poll_tx_mcc(struct napi_struct *napi, int budget)
 
 void be_detect_dump_ue(struct be_adapter *adapter)
 {
-	u32 ue_status_lo, ue_status_hi, ue_status_lo_mask, ue_status_hi_mask;
+	u32 ue_lo = 0, ue_hi = 0, ue_lo_mask = 0, ue_hi_mask = 0;
+	u32 sliport_status = 0, sliport_err1 = 0, sliport_err2 = 0;
 	u32 i;
 
-	pci_read_config_dword(adapter->pdev,
-				PCICFG_UE_STATUS_LOW, &ue_status_lo);
-	pci_read_config_dword(adapter->pdev,
-				PCICFG_UE_STATUS_HIGH, &ue_status_hi);
-	pci_read_config_dword(adapter->pdev,
-				PCICFG_UE_STATUS_LOW_MASK, &ue_status_lo_mask);
-	pci_read_config_dword(adapter->pdev,
-				PCICFG_UE_STATUS_HI_MASK, &ue_status_hi_mask);
+	if (lancer_chip(adapter)) {
+		sliport_status = ioread32(adapter->db + SLIPORT_STATUS_OFFSET);
+		if (sliport_status & SLIPORT_STATUS_ERR_MASK) {
+			sliport_err1 = ioread32(adapter->db +
+					SLIPORT_ERROR1_OFFSET);
+			sliport_err2 = ioread32(adapter->db +
+					SLIPORT_ERROR2_OFFSET);
+		}
+	} else {
+		pci_read_config_dword(adapter->pdev,
+				PCICFG_UE_STATUS_LOW, &ue_lo);
+		pci_read_config_dword(adapter->pdev,
+				PCICFG_UE_STATUS_HIGH, &ue_hi);
+		pci_read_config_dword(adapter->pdev,
+				PCICFG_UE_STATUS_LOW_MASK, &ue_lo_mask);
+		pci_read_config_dword(adapter->pdev,
+				PCICFG_UE_STATUS_HI_MASK, &ue_hi_mask);
 
-	ue_status_lo = (ue_status_lo & (~ue_status_lo_mask));
-	ue_status_hi = (ue_status_hi & (~ue_status_hi_mask));
+		ue_lo = (ue_lo & (~ue_lo_mask));
+		ue_hi = (ue_hi & (~ue_hi_mask));
+	}
 
-	if (ue_status_lo || ue_status_hi) {
+	if (ue_lo || ue_hi ||
+		sliport_status & SLIPORT_STATUS_ERR_MASK) {
 		adapter->ue_detected = true;
 		adapter->eeh_err = true;
 		dev_err(&adapter->pdev->dev, "UE Detected!!\n");
 	}
 
-	if (ue_status_lo) {
-		for (i = 0; ue_status_lo; ue_status_lo >>= 1, i++) {
-			if (ue_status_lo & 1)
+	if (ue_lo) {
+		for (i = 0; ue_lo; ue_lo >>= 1, i++) {
+			if (ue_lo & 1)
 				dev_err(&adapter->pdev->dev,
 				"UE: %s bit set\n", ue_status_low_desc[i]);
 		}
 	}
-	if (ue_status_hi) {
-		for (i = 0; ue_status_hi; ue_status_hi >>= 1, i++) {
-			if (ue_status_hi & 1)
+	if (ue_hi) {
+		for (i = 0; ue_hi; ue_hi >>= 1, i++) {
+			if (ue_hi & 1)
 				dev_err(&adapter->pdev->dev,
 				"UE: %s bit set\n", ue_status_hi_desc[i]);
 		}
 	}
 
+	if (sliport_status & SLIPORT_STATUS_ERR_MASK) {
+		dev_err(&adapter->pdev->dev,
+			"sliport status 0x%x\n", sliport_status);
+		dev_err(&adapter->pdev->dev,
+			"sliport error1 0x%x\n", sliport_err1);
+		dev_err(&adapter->pdev->dev,
+			"sliport error2 0x%x\n", sliport_err2);
+	}
 }
 
 static void be_worker(struct work_struct *work)
@@ -2022,7 +2043,7 @@ static void be_worker(struct work_struct *work)
 	struct be_rx_obj *rxo;
 	int i;
 
-	if (!adapter->ue_detected && !lancer_chip(adapter))
+	if (!adapter->ue_detected)
 		be_detect_dump_ue(adapter);
 
 	/* when interrupts are not yet enabled, just reap any pending
