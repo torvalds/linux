@@ -57,14 +57,8 @@ int ath6kl_bmi_get_target_info(struct ath6kl *ar,
 		return ret;
 	}
 
-	if (ar->hif_type == ATH6KL_HIF_TYPE_USB) {
-		ret = ath6kl_hif_bmi_read(ar, (u8 *)targ_info,
-					  sizeof(*targ_info));
-	} else {
-		ret = ath6kl_hif_bmi_read(ar, (u8 *)&targ_info->version,
-				sizeof(targ_info->version));
-	}
-
+	ret = ath6kl_hif_bmi_read(ar, (u8 *)&targ_info->version,
+				  sizeof(targ_info->version));
 	if (ret) {
 		ath6kl_err("Unable to recv target info: %d\n", ret);
 		return ret;
