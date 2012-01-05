@@ -6356,7 +6356,6 @@ static struct dvb_frontend_ops drxk_c_ops = {
 	.delsys = { SYS_DVBC_ANNEX_A, SYS_DVBC_ANNEX_C },
 	.info = {
 		 .name = "DRXK DVB-C",
-		 .frequency_stepsize = 62500,
 		 .frequency_min = 47000000,
 		 .frequency_max = 862000000,
 		 .symbol_rate_min = 870000,
