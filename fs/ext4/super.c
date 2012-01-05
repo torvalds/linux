@@ -1096,7 +1096,7 @@ static int ext4_show_options(struct seq_file *seq, struct vfsmount *vfs)
 	}
 	if (sbi->s_max_batch_time != EXT4_DEF_MAX_BATCH_TIME) {
 		seq_printf(seq, ",max_batch_time=%u",
-			   (unsigned) sbi->s_min_batch_time);
+			   (unsigned) sbi->s_max_batch_time);
 	}
 
 	/*
