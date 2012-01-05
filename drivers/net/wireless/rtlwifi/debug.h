@@ -175,11 +175,11 @@ do {									\
 	}								\
 } while (0)
 
-#define RTPRINT(rtlpriv, dbgtype, dbgflag, printstr)			\
+#define RTPRINT(rtlpriv, dbgtype, dbgflag, fmt, ...)			\
 do {									\
 	if (unlikely(rtlpriv->dbg.dbgp_type[dbgtype] & dbgflag)) {	\
-		printk(KERN_DEBUG "%s: ", KBUILD_MODNAME);		\
-		printk printstr;					\
+		printk(KERN_DEBUG KBUILD_MODNAME ": " fmt,		\
+		       ##__VA_ARGS__);					\
 	}								\
 } while (0)
 

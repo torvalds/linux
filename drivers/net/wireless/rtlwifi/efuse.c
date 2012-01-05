@@ -280,7 +280,7 @@ void read_efuse(struct ieee80211_hw *hw, u16 _offset, u16 _size_byte, u8 *pbuf)
 	if (*rtemp8 != 0xFF) {
 		efuse_utilized++;
 		RTPRINT(rtlpriv, FEEPROM, EFUSE_READ_ALL,
-			("Addr=%d\n", efuse_addr));
+			"Addr=%d\n", efuse_addr);
 		efuse_addr++;
 	}
 
@@ -290,13 +290,13 @@ void read_efuse(struct ieee80211_hw *hw, u16 _offset, u16 _size_byte, u8 *pbuf)
 		if (offset < efuse_max_section) {
 			wren = (*rtemp8 & 0x0f);
 			RTPRINT(rtlpriv, FEEPROM, EFUSE_READ_ALL,
-				("offset-%d Worden=%x\n", offset, wren));
+				"offset-%d Worden=%x\n", offset, wren);
 
 			for (i = 0; i < EFUSE_MAX_WORD_UNIT; i++) {
 				if (!(wren & 0x01)) {
 					RTPRINT(rtlpriv, FEEPROM,
-						EFUSE_READ_ALL, ("Addr=%d\n",
-								 efuse_addr));
+						EFUSE_READ_ALL,
+						"Addr=%d\n", efuse_addr);
 
 					read_efuse_byte(hw, efuse_addr, rtemp8);
 					efuse_addr++;
@@ -308,8 +308,8 @@ void read_efuse(struct ieee80211_hw *hw, u16 _offset, u16 _size_byte, u8 *pbuf)
 						break;
 
 					RTPRINT(rtlpriv, FEEPROM,
-						EFUSE_READ_ALL, ("Addr=%d\n",
-								 efuse_addr));
+						EFUSE_READ_ALL,
+						"Addr=%d\n", efuse_addr);
 
 					read_efuse_byte(hw, efuse_addr, rtemp8);
 					efuse_addr++;
@@ -326,7 +326,7 @@ void read_efuse(struct ieee80211_hw *hw, u16 _offset, u16 _size_byte, u8 *pbuf)
 		}
 
 		RTPRINT(rtlpriv, FEEPROM, EFUSE_READ_ALL,
-			("Addr=%d\n", efuse_addr));
+			"Addr=%d\n", efuse_addr);
 		read_efuse_byte(hw, efuse_addr, rtemp8);
 		if (*rtemp8 != 0xFF && (efuse_addr < efuse_len)) {
 			efuse_utilized++;
@@ -850,7 +850,7 @@ static void efuse_write_data_case1(struct ieee80211_hw *hw, u16 *efuse_addr,
 			}
 		}
 	}
-	RTPRINT(rtlpriv, FEEPROM, EFUSE_PG, ("efuse PG_STATE_HEADER-1\n"));
+	RTPRINT(rtlpriv, FEEPROM, EFUSE_PG,  "efuse PG_STATE_HEADER-1\n");
 }
 
 static void efuse_write_data_case2(struct ieee80211_hw *hw, u16 *efuse_addr,
@@ -915,7 +915,7 @@ static void efuse_write_data_case2(struct ieee80211_hw *hw, u16 *efuse_addr,
 		}
 
 		RTPRINT(rtlpriv, FEEPROM, EFUSE_PG,
-			("efuse PG_STATE_HEADER-2\n"));
+			"efuse PG_STATE_HEADER-2\n");
 	}
 }
 
@@ -935,7 +935,7 @@ static int efuse_pg_packet_write(struct ieee80211_hw *hw,
 	if (efuse_get_current_size(hw) >=
 	    (EFUSE_MAX_SIZE - EFUSE_OOB_PROTECT_BYTES)) {
 		RTPRINT(rtlpriv, FEEPROM, EFUSE_PG,
-			("efuse_pg_packet_write error\n"));
+			"efuse_pg_packet_write error\n");
 		return false;
 	}
 
@@ -947,7 +947,7 @@ static int efuse_pg_packet_write(struct ieee80211_hw *hw,
 	efuse_word_enable_data_read(word_en, data, target_pkt.data);
 	target_word_cnts = efuse_calculate_word_cnts(target_pkt.word_en);
 
-	RTPRINT(rtlpriv, FEEPROM, EFUSE_PG, ("efuse Power ON\n"));
+	RTPRINT(rtlpriv, FEEPROM, EFUSE_PG,  "efuse Power ON\n");
 
 	while (continual && (efuse_addr <
 	       (EFUSE_MAX_SIZE - EFUSE_OOB_PROTECT_BYTES))) {
@@ -955,7 +955,7 @@ static int efuse_pg_packet_write(struct ieee80211_hw *hw,
 		if (write_state == PG_STATE_HEADER) {
 			badworden = 0x0F;
 			RTPRINT(rtlpriv, FEEPROM, EFUSE_PG,
-				("efuse PG_STATE_HEADER\n"));
+				"efuse PG_STATE_HEADER\n");
 
 			if (efuse_one_byte_read(hw, efuse_addr, &efuse_data) &&
 			    (efuse_data != 0xFF))
@@ -975,7 +975,7 @@ static int efuse_pg_packet_write(struct ieee80211_hw *hw,
 
 		} else if (write_state == PG_STATE_DATA) {
 			RTPRINT(rtlpriv, FEEPROM, EFUSE_PG,
-				("efuse PG_STATE_DATA\n"));
+				"efuse PG_STATE_DATA\n");
 			badworden =
 			    efuse_word_enable_data_write(hw, efuse_addr + 1,
 							 target_pkt.word_en,
@@ -998,7 +998,7 @@ static int efuse_pg_packet_write(struct ieee80211_hw *hw,
 					result = false;
 				}
 				RTPRINT(rtlpriv, FEEPROM, EFUSE_PG,
-					("efuse PG_STATE_HEADER-3\n"));
+					"efuse PG_STATE_HEADER-3\n");
 			}
 		}
 	}
