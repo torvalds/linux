@@ -1103,6 +1103,12 @@ sk_sockets_allocated_read_positive(struct sock *sk)
 	return percpu_counter_sum_positive(prot->sockets_allocated);
 }
 
+static inline void sk_update_clone(const struct sock *sk, struct sock *newsk)
+{
+	if (mem_cgroup_sockets_enabled && sk->sk_cgrp)
+		sock_update_memcg(newsk);
+}
+
 static inline int
 proto_sockets_allocated_sum_positive(struct proto *prot)
 {
