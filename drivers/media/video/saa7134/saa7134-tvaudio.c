@@ -605,7 +605,7 @@ static int tvaudio_thread(void *data)
 			if (kthread_should_stop())
 				break;
 			if (UNSET == dev->thread.mode) {
-				rx = tvaudio_getstereo(dev,&tvaudio[i]);
+				rx = tvaudio_getstereo(dev, &tvaudio[audio]);
 				mode = saa7134_tvaudio_rx2mode(rx);
 			} else {
 				mode = dev->thread.mode;
