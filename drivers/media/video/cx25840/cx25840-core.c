@@ -43,6 +43,7 @@
 #include <linux/videodev2.h>
 #include <linux/i2c.h>
 #include <linux/delay.h>
+#include <linux/math64.h>
 #include <media/v4l2-common.h>
 #include <media/v4l2-chip-ident.h>
 #include <media/cx25840.h>
@@ -2022,7 +2023,7 @@ void cx23885_dif_setup(struct i2c_client *client, u32 ifHz)
 
 	/* Assuming TV */
 	/* Calculate the PLL frequency word based on the adjusted ifHz */
-        pll_freq = ((u64)ifHz * 268435456) / 50000000;
+        pll_freq = div_u64((u64)ifHz * 268435456, 50000000);
         pll_freq_word = (u32)pll_freq;
 
         cx25840_write4(client, DIF_PLL_FREQ_WORD,  pll_freq_word);
