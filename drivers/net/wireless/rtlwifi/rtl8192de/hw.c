@@ -1617,7 +1617,7 @@ static void _rtl92de_read_txpower_info(struct ieee80211_hw *hw,
 			RT_TRACE(rtlpriv, COMP_INIT, DBG_DMESG,
 				 ("Is D cut,Internal PA0 %d Internal PA1 %d\n",
 				 rtlefuse->internal_pa_5g[0],
-				 rtlefuse->internal_pa_5g[1]))
+				 rtlefuse->internal_pa_5g[1]));
 		}
 		rtlefuse->eeprom_c9 = hwinfo[EEPROM_RF_OPT6];
 		rtlefuse->eeprom_cc = hwinfo[EEPROM_RF_OPT7];

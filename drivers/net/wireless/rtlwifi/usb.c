@@ -414,7 +414,7 @@ static struct sk_buff *_rtl_prep_rx_urb(struct ieee80211_hw *hw,
 			       gfp_mask);
 	if (!skb) {
 		RT_TRACE(rtlpriv, COMP_USB, DBG_EMERG,
-			 ("Failed to __dev_alloc_skb!!\n"))
+			 ("Failed to __dev_alloc_skb!!\n"));
 		return ERR_PTR(-ENOMEM);
 	}
 
@@ -632,14 +632,14 @@ static int _rtl_usb_receive(struct ieee80211_hw *hw)
 		urb = usb_alloc_urb(0, GFP_KERNEL);
 		if (!urb) {
 			RT_TRACE(rtlpriv, COMP_USB, DBG_EMERG,
-				 ("Failed to alloc URB!!\n"))
+				 ("Failed to alloc URB!!\n"));
 			goto err_out;
 		}
 
 		skb = _rtl_prep_rx_urb(hw, rtlusb, urb, GFP_KERNEL);
 		if (IS_ERR(skb)) {
 			RT_TRACE(rtlpriv, COMP_USB, DBG_EMERG,
-				 ("Failed to prep_rx_urb!!\n"))
+				 ("Failed to prep_rx_urb!!\n"));
 			err = PTR_ERR(skb);
 			goto err_out;
 		}
