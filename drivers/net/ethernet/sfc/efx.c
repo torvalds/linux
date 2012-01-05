@@ -1069,9 +1069,11 @@ static int efx_init_io(struct efx_nic *efx)
 	 * masks event though they reject 46 bit masks.
 	 */
 	while (dma_mask > 0x7fffffffUL) {
-		if (pci_dma_supported(pci_dev, dma_mask) &&
-		    ((rc = pci_set_dma_mask(pci_dev, dma_mask)) == 0))
-			break;
+		if (pci_dma_supported(pci_dev, dma_mask)) {
+			rc = pci_set_dma_mask(pci_dev, dma_mask);
+			if (rc == 0)
+				break;
+		}
 		dma_mask >>= 1;
 	}
 	if (rc) {
