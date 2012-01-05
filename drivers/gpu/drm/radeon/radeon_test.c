@@ -471,6 +471,8 @@ void radeon_test_syncing(struct radeon_device *rdev)
 
 			for (k = 0; k < j; ++k) {
 				struct radeon_ring *ringC = &rdev->ring[k];
+				if (!ringC->ready)
+					continue;
 
 				DRM_INFO("Testing syncing between rings %d, %d and %d...\n", i, j, k);
 				radeon_test_ring_sync2(rdev, ringA, ringB, ringC);
