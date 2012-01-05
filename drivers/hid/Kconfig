@@ -358,6 +358,7 @@ config HID_MULTITOUCH
 	  - Touch International Panels
 	  - Unitec Panels
 	  - XAT optical touch panels
+	  - Xiroku optical touch panels
 
 	  If unsure, say N.
 
