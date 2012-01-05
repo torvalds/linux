@@ -1440,9 +1440,13 @@ static int set_delivery_system(struct dvb_frontend *fe, u32 desired_system)
 	if (desired_system == SYS_UNDEFINED) {
 		/*
 		 * A DVBv3 call doesn't know what's the desired system.
-		 * So, don't change the current delivery system. Instead,
-		 * find the closest DVBv3 system that matches the delivery
-		 * system.
+		 * Also, DVBv3 applications don't know that ops.info->type
+		 * could be changed, and they simply dies when it doesn't
+		 * match.
+		 * So, don't change the current delivery system, as it
+		 * may be trying to do the wrong thing, like setting an
+		 * ISDB-T frontend as DVB-T. Instead, find the closest
+		 * DVBv3 system that matches the delivery system.
 		 */
 		if (is_dvbv3_delsys(c->delivery_system)) {
 			dprintk("%s() Using delivery system to %d\n",
@@ -1452,27 +1456,29 @@ static int set_delivery_system(struct dvb_frontend *fe, u32 desired_system)
 		type = dvbv3_type(c->delivery_system);
 		switch (type) {
 		case DVBV3_QPSK:
-			desired_system = FE_QPSK;
+			desired_system = SYS_DVBS;
 			break;
 		case DVBV3_QAM:
-			desired_system = FE_QAM;
+			desired_system = SYS_DVBC_ANNEX_A;
 			break;
 		case DVBV3_ATSC:
-			desired_system = FE_ATSC;
+			desired_system = SYS_ATSC;
 			break;
 		case DVBV3_OFDM:
-			desired_system = FE_OFDM;
+			desired_system = SYS_DVBT;
 			break;
 		default:
 			dprintk("%s(): This frontend doesn't support DVBv3 calls\n",
 				__func__);
 			return -EINVAL;
 		}
-		delsys = c->delivery_system;
 	} else {
 		/*
-		 * Check if the desired delivery system is supported
+		 * This is a DVBv5 call. So, it likely knows the supported
+		 * delivery systems.
 		 */
+
+		/* Check if the desired delivery system is supported */
 		ncaps = 0;
 		while (fe->ops.delsys[ncaps] && ncaps < MAX_DELSYS) {
 			if (fe->ops.delsys[ncaps] == desired_system) {
@@ -1518,6 +1524,9 @@ static int set_delivery_system(struct dvb_frontend *fe, u32 desired_system)
 	}
 
 	/*
+	 * The DVBv3 or DVBv5 call is requesting a different system. So,
+	 * emulation is needed.
+	 *
 	 * Emulate newer delivery systems like ISDBT, DVBT and DMBTH
 	 * for older DVBv5 applications. The emulation will try to use
 	 * the auto mode for most things, and will assume that the desired
