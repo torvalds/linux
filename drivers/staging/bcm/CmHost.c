@@ -28,9 +28,9 @@ static ULONG GetNextTargetBufferLocation(PMINI_ADAPTER Adapter, B_UINT16 tid);
  * Returns - Queue index for this SFID(If matched)
  *  Else Invalid Queue Index(If Not matched)
  ************************************************************/
-INT SearchSfid(PMINI_ADAPTER Adapter, UINT uiSfid)
+int SearchSfid(PMINI_ADAPTER Adapter, UINT uiSfid)
 {
-	INT iIndex = 0;
+	int iIndex = 0;
 
 	for (iIndex = (NO_OF_QUEUES-1); iIndex >= 0; iIndex--)
 		if (Adapter->PackInfo[iIndex].ulSFID == uiSfid)
@@ -49,7 +49,7 @@ INT SearchSfid(PMINI_ADAPTER Adapter, UINT uiSfid)
  * Returns - Queue index for the free SFID
  *  Else returns Invalid Index.
  ****************************************************************/
-static INT SearchFreeSfid(PMINI_ADAPTER Adapter)
+static int SearchFreeSfid(PMINI_ADAPTER Adapter)
 {
 	UINT uiIndex = 0;
 
@@ -1619,7 +1619,7 @@ static ULONG GetNextTargetBufferLocation(PMINI_ADAPTER Adapter, B_UINT16 tid)
 	return ulTargetDSXBufferAddress;
 }
 
-INT AllocAdapterDsxBuffer(PMINI_ADAPTER Adapter)
+int AllocAdapterDsxBuffer(PMINI_ADAPTER Adapter)
 {
 	/*
 	 * Need to Allocate memory to contain the SUPER Large structures
@@ -1632,7 +1632,7 @@ INT AllocAdapterDsxBuffer(PMINI_ADAPTER Adapter)
 	return 0;
 }
 
-INT FreeAdapterDsxBuffer(PMINI_ADAPTER Adapter)
+int FreeAdapterDsxBuffer(PMINI_ADAPTER Adapter)
 {
 	kfree(Adapter->caDsxReqResp);
 	return 0;
