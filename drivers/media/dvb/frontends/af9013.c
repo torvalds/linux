@@ -120,8 +120,8 @@ static int af9013_wr_regs(struct af9013_state *priv, u16 reg, const u8 *val,
 	int ret, i;
 	u8 mbox = (0 << 7)|(0 << 6)|(1 << 1)|(1 << 0);
 
-	if ((priv->config.ts_mode == AF9013_TS_USB) &
-		((reg & 0xff00) != 0xff00) & ((reg & 0xff00) != 0xae00)) {
+	if ((priv->config.ts_mode == AF9013_TS_USB) &&
+		((reg & 0xff00) != 0xff00) && ((reg & 0xff00) != 0xae00)) {
 		mbox |= ((len - 1) << 2);
 		ret = af9013_wr_regs_i2c(priv, mbox, reg, val, len);
 	} else {
@@ -142,8 +142,8 @@ static int af9013_rd_regs(struct af9013_state *priv, u16 reg, u8 *val, int len)
 	int ret, i;
 	u8 mbox = (0 << 7)|(0 << 6)|(1 << 1)|(0 << 0);
 
-	if ((priv->config.ts_mode == AF9013_TS_USB) &
-		((reg & 0xff00) != 0xff00) & ((reg & 0xff00) != 0xae00)) {
+	if ((priv->config.ts_mode == AF9013_TS_USB) &&
+		((reg & 0xff00) != 0xff00) && ((reg & 0xff00) != 0xae00)) {
 		mbox |= ((len - 1) << 2);
 		ret = af9013_rd_regs_i2c(priv, mbox, reg, val, len);
 	} else {
