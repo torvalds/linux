@@ -305,6 +305,23 @@ config PPC_QEMU_E500
 	  unset based on the emulated CPU (or actual host CPU in the case
 	  of KVM).
 
+if PPC64
+
+config T4240_QDS
+	bool "Freescale T4240 QDS"
+	select DEFAULT_UIMAGE
+	select E500
+	select PPC_E500MC
+	select PHYS_64BIT
+	select SWIOTLB
+	select ARCH_REQUIRE_GPIOLIB
+	select GPIO_MPC8XXX
+	select HAS_RAPIDIO
+	select PPC_EPAPR_HV_PIC
+	help
+	  This option enables support for the T4240 QDS board
+
+endif
 endif # FSL_SOC_BOOKE
 
 config TQM85xx
