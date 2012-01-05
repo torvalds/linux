@@ -3080,7 +3080,7 @@ fw_exit:
 	return status;
 }
 
-static struct net_device_ops be_netdev_ops = {
+static const struct net_device_ops be_netdev_ops = {
 	.ndo_open		= be_open,
 	.ndo_stop		= be_close,
 	.ndo_start_xmit		= be_xmit,
