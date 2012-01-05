@@ -741,7 +741,7 @@ static const char *efx_mcdi_phy_test_name(struct efx_nic *efx,
 
 const struct efx_phy_operations efx_mcdi_phy_ops = {
 	.probe		= efx_mcdi_phy_probe,
-	.init 	 	= efx_port_dummy_op_int,
+	.init		= efx_port_dummy_op_int,
 	.reconfigure	= efx_mcdi_phy_reconfigure,
 	.poll		= efx_mcdi_phy_poll,
 	.fini		= efx_port_dummy_op_void,

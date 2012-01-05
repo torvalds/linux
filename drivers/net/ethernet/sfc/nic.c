@@ -1837,7 +1837,7 @@ struct efx_nic_reg_table {
 	REGISTER_REVISION_ ## min_rev, REGISTER_REVISION_ ## max_rev,	\
 	step, rows							\
 }
-#define REGISTER_TABLE(name, min_rev, max_rev) 				\
+#define REGISTER_TABLE(name, min_rev, max_rev)				\
 	REGISTER_TABLE_DIMENSIONS(					\
 		name, FR_ ## min_rev ## max_rev ## _ ## name,		\
 		min_rev, max_rev,					\

@@ -445,7 +445,7 @@ static int efx_end_loopback(struct efx_tx_queue *tx_queue,
 
 	/* Count the number of tx completions, and decrement the refcnt. Any
 	 * skbs not already completed will be free'd when the queue is flushed */
-	for (i=0; i < state->packet_count; i++) {
+	for (i = 0; i < state->packet_count; i++) {
 		skb = state->skbs[i];
 		if (skb && !skb_shared(skb))
 			++tx_done;

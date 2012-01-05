@@ -68,11 +68,11 @@ static u64 efx_get_atomic_stat(void *field)
 }
 
 #define EFX_ETHTOOL_ULONG_MAC_STAT(field)			\
-	EFX_ETHTOOL_STAT(field, mac_stats, field, 		\
+	EFX_ETHTOOL_STAT(field, mac_stats, field,		\
 			  unsigned long, efx_get_ulong_stat)
 
 #define EFX_ETHTOOL_U64_MAC_STAT(field)				\
-	EFX_ETHTOOL_STAT(field, mac_stats, field, 		\
+	EFX_ETHTOOL_STAT(field, mac_stats, field,		\
 			  u64, efx_get_u64_stat)
 
 #define EFX_ETHTOOL_UINT_NIC_STAT(name)				\

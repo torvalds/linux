@@ -139,7 +139,7 @@ static bool falcon_xmac_link_ok(struct efx_nic *efx)
 	return (efx->loopback_mode == LOOPBACK_XGMII ||
 		falcon_xgxs_link_ok(efx)) &&
 		(!(efx->mdio.mmds & (1 << MDIO_MMD_PHYXS)) ||
-		 LOOPBACK_INTERNAL(efx) || 
+		 LOOPBACK_INTERNAL(efx) ||
 		 efx_mdio_phyxgxs_lane_sync(efx));
 }
 
