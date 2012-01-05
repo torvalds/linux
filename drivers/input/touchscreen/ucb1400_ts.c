@@ -428,10 +428,10 @@ static int ucb1400_ts_remove(struct platform_device *dev)
 	return 0;
 }
 
-#ifdef CONFIG_PM
-static int ucb1400_ts_resume(struct platform_device *dev)
+#ifdef CONFIG_PM_SLEEP
+static int ucb1400_ts_resume(struct device *dev)
 {
-	struct ucb1400_ts *ucb = dev->dev.platform_data;
+	struct ucb1400_ts *ucb = dev->platform_data;
 
 	if (ucb->ts_task) {
 		/*
@@ -444,16 +444,16 @@ static int ucb1400_ts_resume(struct platform_device *dev)
 	}
 	return 0;
 }
-#else
-#define ucb1400_ts_resume NULL
 #endif
+
+static SIMPLE_DEV_PM_OPS(ucb1400_ts_pm_ops, NULL, ucb1400_ts_resume);
 
 static struct platform_driver ucb1400_ts_driver = {
 	.probe	= ucb1400_ts_probe,
 	.remove	= ucb1400_ts_remove,
-	.resume	= ucb1400_ts_resume,
 	.driver	= {
 		.name	= "ucb1400_ts",
+		.pm	= &ucb1400_ts_pm_ops,
 	},
 };
 module_platform_driver(ucb1400_ts_driver);
