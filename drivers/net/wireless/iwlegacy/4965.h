@@ -107,8 +107,6 @@ void il4965_set_wr_ptrs(struct il_priv *il, int txq_id, u32 idx);
 void il4965_tx_queue_set_status(struct il_priv *il, struct il_tx_queue *txq,
 				int tx_fifo_id, int scd_retry);
 
-u8 il4965_toggle_tx_ant(struct il_priv *il, u8 ant_idx, u8 valid);
-
 /* rx */
 void il4965_hdl_missed_beacon(struct il_priv *il, struct il_rx_buf *rxb);
 bool il4965_good_plcp_health(struct il_priv *il, struct il_rx_pkt *pkt);
@@ -167,12 +165,6 @@ static inline u8
 il4965_hw_get_rate(__le32 rate_n_flags)
 {
 	return le32_to_cpu(rate_n_flags) & 0xFF;
-}
-
-static inline __le32
-il4965_hw_set_rate_n_flags(u8 rate, u32 flags)
-{
-	return cpu_to_le32(flags | (u32) rate);
 }
 
 /* eeprom */

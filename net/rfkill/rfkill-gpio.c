@@ -105,7 +105,7 @@ static int rfkill_gpio_probe(struct platform_device *pdev)
 		ret = pdata->gpio_runtime_setup(pdev);
 		if (ret) {
 			pr_warn("%s: can't set up gpio\n", __func__);
-			return ret;
+			goto fail_alloc;
 		}
 	}
 

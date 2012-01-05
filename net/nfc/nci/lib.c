@@ -77,9 +77,6 @@ int nci_to_errno(__u8 code)
 	case NCI_STATUS_NFCEE_TIMEOUT_ERROR:
 		return -ETIMEDOUT;
 
-	case NCI_STATUS_MAX_ACTIVE_NFCEE_INTERFACES_REACHED:
-		return -EDQUOT;
-
 	case NCI_STATUS_FAILED:
 	default:
 		return -ENOSYS;

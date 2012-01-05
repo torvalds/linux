@@ -88,18 +88,16 @@ static int iwl_trans_rx_alloc(struct iwl_trans *trans)
 		return -EINVAL;
 
 	/* Allocate the circular buffer of Read Buffer Descriptors (RBDs) */
-	rxq->bd = dma_alloc_coherent(dev, sizeof(__le32) * RX_QUEUE_SIZE,
-				     &rxq->bd_dma, GFP_KERNEL);
+	rxq->bd = dma_zalloc_coherent(dev, sizeof(__le32) * RX_QUEUE_SIZE,
+				      &rxq->bd_dma, GFP_KERNEL);
 	if (!rxq->bd)
 		goto err_bd;
-	memset(rxq->bd, 0, sizeof(__le32) * RX_QUEUE_SIZE);
 
 	/*Allocate the driver's pointer to receive buffer status */
-	rxq->rb_stts = dma_alloc_coherent(dev, sizeof(*rxq->rb_stts),
-					  &rxq->rb_stts_dma, GFP_KERNEL);
+	rxq->rb_stts = dma_zalloc_coherent(dev, sizeof(*rxq->rb_stts),
+					   &rxq->rb_stts_dma, GFP_KERNEL);
 	if (!rxq->rb_stts)
 		goto err_rb_stts;
-	memset(rxq->rb_stts, 0, sizeof(*rxq->rb_stts));
 
 	return 0;
 

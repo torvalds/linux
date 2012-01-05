@@ -1016,7 +1016,7 @@ struct ath_hw {
 	u32 ts_paddr_start;
 	u32 ts_paddr_end;
 	u16 ts_tail;
-	u8 ts_size;
+	u16 ts_size;
 
 	u32 bb_watchdog_last_status;
 	u32 bb_watchdog_timeout_ms; /* in ms, 0 to disable */

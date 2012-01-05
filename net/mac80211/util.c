@@ -1142,16 +1142,6 @@ int ieee80211_reconfig(struct ieee80211_local *local)
 		 */
 	}
 #endif
-
-	/* setup fragmentation threshold */
-	drv_set_frag_threshold(local, hw->wiphy->frag_threshold);
-
-	/* setup RTS threshold */
-	drv_set_rts_threshold(local, hw->wiphy->rts_threshold);
-
-	/* reset coverage class */
-	drv_set_coverage_class(local, hw->wiphy->coverage_class);
-
 	/* everything else happens only if HW was up & running */
 	if (!local->open_count)
 		goto wake_up;
@@ -1169,6 +1159,15 @@ int ieee80211_reconfig(struct ieee80211_local *local)
 		     "prior to suspend or a hardware issue.\n");
 		return res;
 	}
+
+	/* setup fragmentation threshold */
+	drv_set_frag_threshold(local, hw->wiphy->frag_threshold);
+
+	/* setup RTS threshold */
+	drv_set_rts_threshold(local, hw->wiphy->rts_threshold);
+
+	/* reset coverage class */
+	drv_set_coverage_class(local, hw->wiphy->coverage_class);
 
 	ieee80211_led_radio(local, true);
 	ieee80211_mod_tpt_led_trig(local,

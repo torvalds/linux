@@ -105,16 +105,19 @@ static int ath_max_4ms_framelen[4][32] = {
 /*********************/
 
 static void ath_txq_lock(struct ath_softc *sc, struct ath_txq *txq)
+	__acquires(&txq->axq_lock)
 {
 	spin_lock_bh(&txq->axq_lock);
 }
 
 static void ath_txq_unlock(struct ath_softc *sc, struct ath_txq *txq)
+	__releases(&txq->axq_lock)
 {
 	spin_unlock_bh(&txq->axq_lock);
 }
 
 static void ath_txq_unlock_complete(struct ath_softc *sc, struct ath_txq *txq)
+	__releases(&txq->axq_lock)
 {
 	struct sk_buff_head q;
 	struct sk_buff *skb;

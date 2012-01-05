@@ -154,14 +154,16 @@ static void nci_init_complete_req(struct nci_dev *ndev, unsigned long opt)
 		if (ndev->supported_rf_interfaces[i] ==
 			NCI_RF_INTERFACE_ISO_DEP) {
 			cfg[*num].rf_protocol = NCI_RF_PROTOCOL_ISO_DEP;
-			cfg[*num].mode = NCI_DISC_MAP_MODE_BOTH;
-			cfg[*num].rf_interface_type = NCI_RF_INTERFACE_ISO_DEP;
+			cfg[*num].mode = NCI_DISC_MAP_MODE_POLL |
+				NCI_DISC_MAP_MODE_LISTEN;
+			cfg[*num].rf_interface = NCI_RF_INTERFACE_ISO_DEP;
 			(*num)++;
 		} else if (ndev->supported_rf_interfaces[i] ==
 			NCI_RF_INTERFACE_NFC_DEP) {
 			cfg[*num].rf_protocol = NCI_RF_PROTOCOL_NFC_DEP;
-			cfg[*num].mode = NCI_DISC_MAP_MODE_BOTH;
-			cfg[*num].rf_interface_type = NCI_RF_INTERFACE_NFC_DEP;
+			cfg[*num].mode = NCI_DISC_MAP_MODE_POLL |
+				NCI_DISC_MAP_MODE_LISTEN;
+			cfg[*num].rf_interface = NCI_RF_INTERFACE_NFC_DEP;
 			(*num)++;
 		}
 
@@ -186,16 +188,16 @@ static void nci_rf_discover_req(struct nci_dev *ndev, unsigned long opt)
 		|| protocols & NFC_PROTO_MIFARE_MASK
 		|| protocols & NFC_PROTO_ISO14443_MASK
 		|| protocols & NFC_PROTO_NFC_DEP_MASK)) {
-		cmd.disc_configs[cmd.num_disc_configs].type =
-		NCI_DISCOVERY_TYPE_POLL_A_PASSIVE;
+		cmd.disc_configs[cmd.num_disc_configs].rf_tech_and_mode =
+		NCI_NFC_A_PASSIVE_POLL_MODE;
 		cmd.disc_configs[cmd.num_disc_configs].frequency = 1;
 		cmd.num_disc_configs++;
 	}
 
 	if ((cmd.num_disc_configs < NCI_MAX_NUM_RF_CONFIGS) &&
 		(protocols & NFC_PROTO_ISO14443_MASK)) {
-		cmd.disc_configs[cmd.num_disc_configs].type =
-		NCI_DISCOVERY_TYPE_POLL_B_PASSIVE;
+		cmd.disc_configs[cmd.num_disc_configs].rf_tech_and_mode =
+		NCI_NFC_B_PASSIVE_POLL_MODE;
 		cmd.disc_configs[cmd.num_disc_configs].frequency = 1;
 		cmd.num_disc_configs++;
 	}
@@ -203,8 +205,8 @@ static void nci_rf_discover_req(struct nci_dev *ndev, unsigned long opt)
 	if ((cmd.num_disc_configs < NCI_MAX_NUM_RF_CONFIGS) &&
 		(protocols & NFC_PROTO_FELICA_MASK
 		|| protocols & NFC_PROTO_NFC_DEP_MASK)) {
-		cmd.disc_configs[cmd.num_disc_configs].type =
-		NCI_DISCOVERY_TYPE_POLL_F_PASSIVE;
+		cmd.disc_configs[cmd.num_disc_configs].rf_tech_and_mode =
+		NCI_NFC_F_PASSIVE_POLL_MODE;
 		cmd.disc_configs[cmd.num_disc_configs].frequency = 1;
 		cmd.num_disc_configs++;
 	}

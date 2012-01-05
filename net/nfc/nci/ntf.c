@@ -52,6 +52,9 @@ static void nci_core_conn_credits_ntf_packet(struct nci_dev *ndev,
 
 	/* update the credits */
 	for (i = 0; i < ntf->num_entries; i++) {
+		ntf->conn_entries[i].conn_id =
+			nci_conn_id(&ntf->conn_entries[i].conn_id);
+
 		pr_debug("entry[%d]: conn_id %d, credits %d\n",
 			 i, ntf->conn_entries[i].conn_id,
 			 ntf->conn_entries[i].credits);
@@ -66,6 +69,20 @@ static void nci_core_conn_credits_ntf_packet(struct nci_dev *ndev,
 	/* trigger the next tx */
 	if (!skb_queue_empty(&ndev->tx_q))
 		queue_work(ndev->tx_wq, &ndev->tx_work);
+}
+
+static void nci_core_conn_intf_error_ntf_packet(struct nci_dev *ndev,
+						struct sk_buff *skb)
+{
+	struct nci_core_intf_error_ntf *ntf = (void *) skb->data;
+
+	ntf->conn_id = nci_conn_id(&ntf->conn_id);
+
+	pr_debug("status 0x%x, conn_id %d\n", ntf->status, ntf->conn_id);
+
+	/* complete the data exchange transaction, if exists */
+	if (test_bit(NCI_DATA_EXCHANGE, &ndev->flags))
+		nci_data_exchange_complete(ndev, NULL, -EIO);
 }
 
 static __u8 *nci_extract_rf_params_nfca_passive_poll(struct nci_dev *ndev,
@@ -137,6 +154,12 @@ static void nci_target_found(struct nci_dev *ndev,
 
 	nfc_tgt.sens_res = ntf->rf_tech_specific_params.nfca_poll.sens_res;
 	nfc_tgt.sel_res = ntf->rf_tech_specific_params.nfca_poll.sel_res;
+	nfc_tgt.nfcid1_len = ntf->rf_tech_specific_params.nfca_poll.nfcid1_len;
+	if (nfc_tgt.nfcid1_len > 0) {
+		memcpy(nfc_tgt.nfcid1,
+			ntf->rf_tech_specific_params.nfca_poll.nfcid1,
+			nfc_tgt.nfcid1_len);
+	}
 
 	if (!(nfc_tgt.supported_protocols & ndev->poll_prots)) {
 		pr_debug("the target found does not have the desired protocol\n");
@@ -147,6 +170,11 @@ static void nci_target_found(struct nci_dev *ndev,
 		 nfc_tgt.supported_protocols);
 
 	ndev->target_available_prots = nfc_tgt.supported_protocols;
+	ndev->max_data_pkt_payload_size = ntf->max_data_pkt_payload_size;
+	ndev->initial_num_credits = ntf->initial_num_credits;
+
+	/* set the available credits to initial value */
+	atomic_set(&ndev->credits_cnt, ndev->initial_num_credits);
 
 	nfc_targets_found(ndev->nfc_dev, &nfc_tgt, 1);
 }
@@ -162,16 +190,21 @@ static void nci_rf_intf_activated_ntf_packet(struct nci_dev *ndev,
 	set_bit(NCI_POLL_ACTIVE, &ndev->flags);
 
 	ntf.rf_discovery_id = *data++;
-	ntf.rf_interface_type = *data++;
+	ntf.rf_interface = *data++;
 	ntf.rf_protocol = *data++;
 	ntf.activation_rf_tech_and_mode = *data++;
+	ntf.max_data_pkt_payload_size = *data++;
+	ntf.initial_num_credits = *data++;
 	ntf.rf_tech_specific_params_len = *data++;
 
 	pr_debug("rf_discovery_id %d\n", ntf.rf_discovery_id);
-	pr_debug("rf_interface_type 0x%x\n", ntf.rf_interface_type);
+	pr_debug("rf_interface 0x%x\n", ntf.rf_interface);
 	pr_debug("rf_protocol 0x%x\n", ntf.rf_protocol);
 	pr_debug("activation_rf_tech_and_mode 0x%x\n",
 		 ntf.activation_rf_tech_and_mode);
+	pr_debug("max_data_pkt_payload_size 0x%x\n",
+		 ntf.max_data_pkt_payload_size);
+	pr_debug("initial_num_credits 0x%x\n", ntf.initial_num_credits);
 	pr_debug("rf_tech_specific_params_len %d\n",
 		 ntf.rf_tech_specific_params_len);
 
@@ -204,7 +237,7 @@ static void nci_rf_intf_activated_ntf_packet(struct nci_dev *ndev,
 		 ntf.activation_params_len);
 
 	if (ntf.activation_params_len > 0) {
-		switch (ntf.rf_interface_type) {
+		switch (ntf.rf_interface) {
 		case NCI_RF_INTERFACE_ISO_DEP:
 			err = nci_extract_activation_params_iso_dep(ndev,
 				&ntf, data);
@@ -215,8 +248,8 @@ static void nci_rf_intf_activated_ntf_packet(struct nci_dev *ndev,
 			break;
 
 		default:
-			pr_err("unsupported rf_interface_type 0x%x\n",
-			       ntf.rf_interface_type);
+			pr_err("unsupported rf_interface 0x%x\n",
+			       ntf.rf_interface);
 			return;
 		}
 	}
@@ -244,9 +277,6 @@ static void nci_rf_deactivate_ntf_packet(struct nci_dev *ndev,
 		ndev->rx_data_reassembly = 0;
 	}
 
-	/* set the available credits to initial value */
-	atomic_set(&ndev->credits_cnt, ndev->initial_num_credits);
-
 	/* complete the data exchange transaction, if exists */
 	if (test_bit(NCI_DATA_EXCHANGE, &ndev->flags))
 		nci_data_exchange_complete(ndev, NULL, -EIO);
@@ -268,6 +298,10 @@ void nci_ntf_packet(struct nci_dev *ndev, struct sk_buff *skb)
 	switch (ntf_opcode) {
 	case NCI_OP_CORE_CONN_CREDITS_NTF:
 		nci_core_conn_credits_ntf_packet(ndev, skb);
+		break;
+
+	case NCI_OP_CORE_INTF_ERROR_NTF:
+		nci_core_conn_intf_error_ntf_packet(ndev, skb);
 		break;
 
 	case NCI_OP_RF_INTF_ACTIVATED_NTF:

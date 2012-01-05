@@ -86,16 +86,10 @@ static void nci_core_init_rsp_packet(struct nci_dev *ndev, struct sk_buff *skb)
 		rsp_2->max_ctrl_pkt_payload_len;
 	ndev->max_size_for_large_params =
 		__le16_to_cpu(rsp_2->max_size_for_large_params);
-	ndev->max_data_pkt_payload_size =
-		rsp_2->max_data_pkt_payload_size;
-	ndev->initial_num_credits =
-		rsp_2->initial_num_credits;
 	ndev->manufact_id =
 		rsp_2->manufact_id;
 	ndev->manufact_specific_info =
 		__le32_to_cpu(rsp_2->manufact_specific_info);
-
-	atomic_set(&ndev->credits_cnt, ndev->initial_num_credits);
 
 	pr_debug("nfcc_features 0x%x\n",
 		 ndev->nfcc_features);
@@ -117,10 +111,6 @@ static void nci_core_init_rsp_packet(struct nci_dev *ndev, struct sk_buff *skb)
 		 ndev->max_ctrl_pkt_payload_len);
 	pr_debug("max_size_for_large_params %d\n",
 		 ndev->max_size_for_large_params);
-	pr_debug("max_data_pkt_payload_size %d\n",
-		 ndev->max_data_pkt_payload_size);
-	pr_debug("initial_num_credits %d\n",
-		 ndev->initial_num_credits);
 	pr_debug("manufact_id 0x%x\n",
 		 ndev->manufact_id);
 	pr_debug("manufact_specific_info 0x%x\n",
