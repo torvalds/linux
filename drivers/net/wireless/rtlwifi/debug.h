@@ -168,9 +168,9 @@ do {									\
 do {									\
 	if (unlikely(((comp) & rtlpriv->dbg.global_debugcomponents) &&	\
 		     ((level) <= rtlpriv->dbg.global_debuglevel))) {	\
-		printk(KERN_DEBUG "%s:%s():<%lx-%x> " fmt,		\
-		       KBUILD_MODNAME, __func__,			\
-		       in_interrupt(), in_atomic(), ##__VA_ARGS__);	\
+		printk(KERN_DEBUG KBUILD_MODNAME ":%s():<%lx-%x> " fmt,	\
+		       __func__, in_interrupt(), in_atomic(),		\
+		       ##__VA_ARGS__);					\
 	}								\
 } while (0)
 
