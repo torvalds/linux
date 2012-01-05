@@ -1481,6 +1481,7 @@ static int set_delivery_system(struct dvb_frontend *fe, u32 desired_system)
 					__func__, desired_system);
 				return 0;
 			}
+			ncaps++;
 		}
 		type = dvbv3_type(desired_system);
 
