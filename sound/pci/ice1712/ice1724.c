@@ -1825,7 +1825,12 @@ static int snd_vt1724_pro_internal_clock_info(struct snd_kcontrol *kcontrol,
 	uinfo->type = SNDRV_CTL_ELEM_TYPE_ENUMERATED;
 	uinfo->count = 1;
 
-	uinfo->value.enumerated.items = hw_rates_count + ice->ext_clock_count;
+	/* internal clocks */
+	uinfo->value.enumerated.items = hw_rates_count;
+	/* external clocks */
+	if (ice->force_rdma1 ||
+	    (ice->eeprom.data[ICE_EEP2_SPDIF] & VT1724_CFG_SPDIF_IN))
+		uinfo->value.enumerated.items += ice->ext_clock_count;
 	/* upper limit - keep at top */
 	if (uinfo->value.enumerated.item >= uinfo->value.enumerated.items)
 		uinfo->value.enumerated.item = uinfo->value.enumerated.items - 1;
