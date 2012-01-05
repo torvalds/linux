@@ -680,26 +680,31 @@ v9fs_create(struct v9fs_session_info *v9ses, struct inode *dir,
 		goto error;
 	}
 
-	/* now walk from the parent so we can get unopened fid */
-	fid = p9_client_walk(dfid, 1, &name, 1);
-	if (IS_ERR(fid)) {
-		err = PTR_ERR(fid);
-		p9_debug(P9_DEBUG_VFS, "p9_client_walk failed %d\n", err);
-		fid = NULL;
-		goto error;
+	if (!(perm & P9_DMLINK)) {
+		/* now walk from the parent so we can get unopened fid */
+		fid = p9_client_walk(dfid, 1, &name, 1);
+		if (IS_ERR(fid)) {
+			err = PTR_ERR(fid);
+			p9_debug(P9_DEBUG_VFS,
+				   "p9_client_walk failed %d\n", err);
+			fid = NULL;
+			goto error;
+		}
+		/*
+		 * instantiate inode and assign the unopened fid to the dentry
+		 */
+		inode = v9fs_get_new_inode_from_fid(v9ses, fid, dir->i_sb);
+		if (IS_ERR(inode)) {
+			err = PTR_ERR(inode);
+			p9_debug(P9_DEBUG_VFS,
+				   "inode creation failed %d\n", err);
+			goto error;
+		}
+		err = v9fs_fid_add(dentry, fid);
+		if (err < 0)
+			goto error;
+		d_instantiate(dentry, inode);
 	}
-
-	/* instantiate inode and assign the unopened fid to the dentry */
-	inode = v9fs_get_new_inode_from_fid(v9ses, fid, dir->i_sb);
-	if (IS_ERR(inode)) {
-		err = PTR_ERR(inode);
-		p9_debug(P9_DEBUG_VFS, "inode creation failed %d\n", err);
-		goto error;
-	}
-	err = v9fs_fid_add(dentry, fid);
-	if (err < 0)
-		goto error;
-	d_instantiate(dentry, inode);
 	return ofid;
 error:
 	if (ofid)
