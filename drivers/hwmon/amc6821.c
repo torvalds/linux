@@ -47,7 +47,7 @@ static const unsigned short normal_i2c[] = {0x18, 0x19, 0x1a, 0x2c, 0x2d, 0x2e,
  * Insmod parameters
  */
 
-static int pwminv = 0;	/*Inverted PWM output. */
+static int pwminv;	/*Inverted PWM output. */
 module_param(pwminv, int, S_IRUGO);
 
 static int init = 1; /*Power-on initialization.*/
