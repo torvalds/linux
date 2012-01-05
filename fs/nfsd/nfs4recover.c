@@ -117,8 +117,7 @@ out_no_tfm:
 	return status;
 }
 
-int
-nfsd4_create_clid_dir(struct nfs4_client *clp)
+void nfsd4_create_clid_dir(struct nfs4_client *clp)
 {
 	const struct cred *original_cred;
 	char *dname = clp->cl_recdir;
@@ -128,13 +127,13 @@ nfsd4_create_clid_dir(struct nfs4_client *clp)
 	dprintk("NFSD: nfsd4_create_clid_dir for \"%s\"\n", dname);
 
 	if (clp->cl_firststate)
-		return 0;
+		return;
 	clp->cl_firststate = 1;
 	if (!rec_file)
-		return -ENOENT;
+		return;
 	status = nfs4_save_creds(&original_cred);
 	if (status < 0)
-		return status;
+		return;
 
 	dir = rec_file->f_path.dentry;
 	/* lock the parent */
@@ -172,7 +171,6 @@ out_unlock:
 				" and is writeable", status,
 				user_recovery_dirname);
 	nfs4_reset_creds(original_cred);
-	return status;
 }
 
 typedef int (recdir_func)(struct dentry *, struct dentry *);
