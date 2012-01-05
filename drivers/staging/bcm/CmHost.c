@@ -194,7 +194,7 @@ CopyIpAddrToClassifier(S_CLASSIFIER_RULE *pstClassifierEntry,
 				}
 				u8IpAddressLen -= nSizeOfIPAddressInBytes;
 			}
-			if (0 == u8IpAddressLen)
+			if (u8IpAddressLen == 0)
 				pstClassifierEntry->bDestIpValid = TRUE;
 
 			ucLoopIndex++;
@@ -263,7 +263,7 @@ static inline VOID CopyClassifierRuleToSF(PMINI_ADAPTER Adapter, stConvergenceSL
 		pstClassifierEntry->ucDestPortRangeLength = psfCSType->cCPacketClassificationRule.u8ProtocolDestPortRangeLength / 4;
 		BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, CONN_MSG, DBG_LVL_ALL, "Destination Port Range Length:0x%X ", pstClassifierEntry->ucDestPortRangeLength);
 
-		if (MAX_PORT_RANGE >= psfCSType->cCPacketClassificationRule.u8ProtocolDestPortRangeLength) {
+		if (psfCSType->cCPacketClassificationRule.u8ProtocolDestPortRangeLength <= MAX_PORT_RANGE) {
 			for (ucLoopIndex = 0; ucLoopIndex < (pstClassifierEntry->ucDestPortRangeLength); ucLoopIndex++) {
 				pstClassifierEntry->usDestPortRangeLo[ucLoopIndex] = *((PUSHORT)(psfCSType->cCPacketClassificationRule.u8ProtocolDestPortRange+ucLoopIndex));
 				pstClassifierEntry->usDestPortRangeHi[ucLoopIndex] =
@@ -280,7 +280,7 @@ static inline VOID CopyClassifierRuleToSF(PMINI_ADAPTER Adapter, stConvergenceSL
 		/* Source Port */
 		BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, CONN_MSG, DBG_LVL_ALL, "Source Port Range Length:0x%X ",
 				psfCSType->cCPacketClassificationRule.u8ProtocolSourcePortRangeLength);
-		if (MAX_PORT_RANGE >= psfCSType->cCPacketClassificationRule.u8ProtocolSourcePortRangeLength) {
+		if (psfCSType->cCPacketClassificationRule.u8ProtocolSourcePortRangeLength <= MAX_PORT_RANGE) {
 			pstClassifierEntry->ucSrcPortRangeLength = psfCSType->cCPacketClassificationRule.u8ProtocolSourcePortRangeLength/4;
 			for (ucLoopIndex = 0; ucLoopIndex < (pstClassifierEntry->ucSrcPortRangeLength); ucLoopIndex++) {
 				pstClassifierEntry->usSrcPortRangeLo[ucLoopIndex] =
@@ -315,7 +315,7 @@ static inline VOID CopyClassifierRuleToSF(PMINI_ADAPTER Adapter, stConvergenceSL
 
 		/* TOS */
 		BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, CONN_MSG, DBG_LVL_ALL, "TOS Length:0x%X ", psfCSType->cCPacketClassificationRule.u8IPTypeOfServiceLength);
-		if (3 == psfCSType->cCPacketClassificationRule.u8IPTypeOfServiceLength) {
+		if (psfCSType->cCPacketClassificationRule.u8IPTypeOfServiceLength == 3) {
 			pstClassifierEntry->ucIPTypeOfServiceLength = psfCSType->cCPacketClassificationRule.u8IPTypeOfServiceLength;
 			pstClassifierEntry->ucTosLow = psfCSType->cCPacketClassificationRule.u8IPTypeOfService[0];
 			pstClassifierEntry->ucTosHigh = psfCSType->cCPacketClassificationRule.u8IPTypeOfService[1];
@@ -1393,7 +1393,7 @@ ULONG StoreCmControlResponseMessage(PMINI_ADAPTER Adapter, PVOID pvBuffer, UINT 
 	/* For DSA_REQ, only up to "psfAuthorizedSet" parameter should be accessed by driver! */
 
 	pstAddIndication = kmalloc(sizeof(*pstAddIndication), GFP_KERNEL);
-	if (NULL == pstAddIndication)
+	if (pstAddIndication == NULL)
 		return 0;
 
 	/* AUTHORIZED SET */
@@ -1656,7 +1656,8 @@ BOOLEAN CmControlResponseMessage(PMINI_ADAPTER Adapter,  /* <Pointer to the Adap
 	 * Otherwise the message contains a target address from where we need to
 	 * read out the rest of the service flow param structure
 	 */
-	if ((pstAddIndication = RestoreCmControlResponseMessage(Adapter, pvBuffer)) == NULL) {
+	pstAddIndication = RestoreCmControlResponseMessage(Adapter, pvBuffer);
+	if (pstAddIndication == NULL) {
 		ClearTargetDSXBuffer(Adapter, ((stLocalSFAddIndication *)pvBuffer)->u16TID, FALSE);
 		BCM_DEBUG_PRINT(Adapter, DBG_TYPE_PRINTK, 0, 0, "Error in restoring Service Flow param structure from DSx message");
 		return FALSE;
@@ -1721,7 +1722,7 @@ BOOLEAN CmControlResponseMessage(PMINI_ADAPTER Adapter,  /* <Pointer to the Adap
 			if (pstAddIndication->sfAdmittedSet.bValid == TRUE)
 				Adapter->PackInfo[uiSearchRuleIndex].bAdmittedSet = TRUE;
 
-			if (FALSE == pstAddIndication->sfActiveSet.bValid) {
+			if (pstAddIndication->sfActiveSet.bValid == FALSE) {
 				Adapter->PackInfo[uiSearchRuleIndex].bActive = FALSE;
 				Adapter->PackInfo[uiSearchRuleIndex].bActivateRequestSent = FALSE;
 				if (pstAddIndication->sfAdmittedSet.bValid)
@@ -1825,7 +1826,7 @@ BOOLEAN CmControlResponseMessage(PMINI_ADAPTER Adapter,  /* <Pointer to the Adap
 			if (pstChangeIndication->sfAdmittedSet.bValid == TRUE)
 				Adapter->PackInfo[uiSearchRuleIndex].bAdmittedSet = TRUE;
 
-			if (FALSE == pstChangeIndication->sfActiveSet.bValid) {
+			if (pstChangeIndication->sfActiveSet.bValid == FALSE) {
 				Adapter->PackInfo[uiSearchRuleIndex].bActive = FALSE;
 				Adapter->PackInfo[uiSearchRuleIndex].bActivateRequestSent = FALSE;
 
