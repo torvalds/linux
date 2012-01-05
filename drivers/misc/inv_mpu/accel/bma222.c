@@ -51,6 +51,8 @@
 #define BMA222_PWR_REG		(0x11)
 #define BMA222_SOFTRESET_REG	(0x14)
 
+#define BMA222_INTTERUPTSET_REG (0x17)
+
 #define BMA222_STATUS_RDY_MASK	(0x80)
 #define BMA222_FSR_MASK		(0x0F)
 #define BMA222_ODR_MASK		(0x1F)
@@ -257,7 +259,14 @@ static int bma222_init(void *mlsl_handle,
 		LOG_RESULT_LOCATION(result);
 		return result;
 	}
-
+/*	
+	result = inv_serial_single_write(mlsl_handle, pdata->address,
+		BMA222_INTTERUPTSET_REG, 0x10);
+	if (result) {
+		LOG_RESULT_LOCATION(result);
+		return result;
+	}
+*/
 	return result;
 }
 
@@ -328,6 +337,8 @@ static int bma222_get_config(void *mlsl_handle,
 		break;
 	case MPU_SLAVE_CONFIG_IRQ_SUSPEND:
 	case MPU_SLAVE_CONFIG_IRQ_RESUME:
+		//zwp,TODO,need to add irq config???
+		return INV_SUCCESS;
 	default:
 		return INV_ERROR_FEATURE_NOT_IMPLEMENTED;
 	};
@@ -383,6 +394,8 @@ static int bma222_config(void *mlsl_handle,
 				      *((long *)data->data));
 	case MPU_SLAVE_CONFIG_IRQ_SUSPEND:
 	case MPU_SLAVE_CONFIG_IRQ_RESUME:
+		//zwp,TODO,need to add irq config???
+		return INV_SUCCESS;
 	default:
 		return INV_ERROR_FEATURE_NOT_IMPLEMENTED;
 	};
@@ -475,7 +488,7 @@ static int bma222_resume(void *mlsl_handle,
 		LOG_RESULT_LOCATION(result);
 		return result;
 	}
-
+	
 	return result;
 }
 
@@ -499,14 +512,18 @@ static int bma222_read(void *mlsl_handle,
 		       unsigned char *data)
 {
 	int result = INV_SUCCESS;
-	result = inv_serial_read(mlsl_handle, pdata->address,
+/*	result = inv_serial_read(mlsl_handle, pdata->address,
 				BMA222_STATUS_REG, 1, data);
 	if (data[0] & BMA222_STATUS_RDY_MASK) {
+*/
 		result = inv_serial_read(mlsl_handle, pdata->address,
 				 slave->read_reg, slave->read_len, data);
+
 	return result;
-	} else
+/*	} else{
 		return INV_ERROR_ACCEL_DATA_NOT_READY;
+	}
+*/
 }
 
 static struct ext_slave_descr bma222_descr = {
@@ -548,7 +565,7 @@ static int bma222_mod_probe(struct i2c_client *client,
 	struct ext_slave_platform_data *pdata;
 	struct bma222_mod_private_data *private_data;
 	int result = 0;
-
+	printk("%s,++++++++++++++++++++\n",__FUNCTION__);
 	dev_info(&client->adapter->dev, "%s: %s\n", __func__, devid->name);
 
 	if (!i2c_check_functionality(client->adapter, I2C_FUNC_I2C)) {
