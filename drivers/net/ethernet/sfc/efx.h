@@ -145,6 +145,12 @@ static inline void efx_schedule_channel(struct efx_channel *channel)
 	napi_schedule(&channel->napi_str);
 }
 
+static inline void efx_schedule_channel_irq(struct efx_channel *channel)
+{
+	channel->last_irq_cpu = raw_smp_processor_id();
+	efx_schedule_channel(channel);
+}
+
 extern void efx_link_status_changed(struct efx_nic *efx);
 extern void efx_link_set_advertising(struct efx_nic *efx, u32);
 extern void efx_link_set_wanted_fc(struct efx_nic *efx, u8);

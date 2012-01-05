@@ -1311,7 +1311,7 @@ static inline void efx_nic_interrupts(struct efx_nic *efx,
 	efx_oword_t int_en_reg_ker;
 
 	EFX_POPULATE_OWORD_3(int_en_reg_ker,
-			     FRF_AZ_KER_INT_LEVE_SEL, efx->fatal_irq_level,
+			     FRF_AZ_KER_INT_LEVE_SEL, efx->irq_level,
 			     FRF_AZ_KER_INT_KER, force,
 			     FRF_AZ_DRV_INT_EN_KER, enabled);
 	efx_writeo(efx, &int_en_reg_ker, FR_AZ_INT_EN_KER);
@@ -1427,11 +1427,12 @@ static irqreturn_t efx_legacy_interrupt(int irq, void *dev_id)
 	efx_readd(efx, &reg, FR_BZ_INT_ISR0);
 	queues = EFX_EXTRACT_DWORD(reg, 0, 31);
 
-	/* Check to see if we have a serious error condition */
-	if (queues & (1U << efx->fatal_irq_level)) {
+	/* Handle non-event-queue sources */
+	if (queues & (1U << efx->irq_level)) {
 		syserr = EFX_OWORD_FIELD(*int_ker, FSF_AZ_NET_IVEC_FATAL_INT);
 		if (unlikely(syserr))
 			return efx_nic_fatal_interrupt(efx);
+		efx->last_irq_cpu = raw_smp_processor_id();
 	}
 
 	if (queues != 0) {
@@ -1441,7 +1442,7 @@ static irqreturn_t efx_legacy_interrupt(int irq, void *dev_id)
 		/* Schedule processing of any interrupting queues */
 		efx_for_each_channel(channel, efx) {
 			if (queues & 1)
-				efx_schedule_channel(channel);
+				efx_schedule_channel_irq(channel);
 			queues >>= 1;
 		}
 		result = IRQ_HANDLED;
@@ -1458,18 +1459,16 @@ static irqreturn_t efx_legacy_interrupt(int irq, void *dev_id)
 		efx_for_each_channel(channel, efx) {
 			event = efx_event(channel, channel->eventq_read_ptr);
 			if (efx_event_present(event))
-				efx_schedule_channel(channel);
+				efx_schedule_channel_irq(channel);
 			else
 				efx_nic_eventq_read_ack(channel);
 		}
 	}
 
-	if (result == IRQ_HANDLED) {
-		efx->last_irq_cpu = raw_smp_processor_id();
+	if (result == IRQ_HANDLED)
 		netif_vdbg(efx, intr, efx->net_dev,
 			   "IRQ %d on CPU %d status " EFX_DWORD_FMT "\n",
 			   irq, raw_smp_processor_id(), EFX_DWORD_VAL(reg));
-	}
 
 	return result;
 }
@@ -1488,20 +1487,20 @@ static irqreturn_t efx_msi_interrupt(int irq, void *dev_id)
 	efx_oword_t *int_ker = efx->irq_status.addr;
 	int syserr;
 
-	efx->last_irq_cpu = raw_smp_processor_id();
 	netif_vdbg(efx, intr, efx->net_dev,
 		   "IRQ %d on CPU %d status " EFX_OWORD_FMT "\n",
 		   irq, raw_smp_processor_id(), EFX_OWORD_VAL(*int_ker));
 
-	/* Check to see if we have a serious error condition */
-	if (channel->channel == efx->fatal_irq_level) {
+	/* Handle non-event-queue sources */
+	if (channel->channel == efx->irq_level) {
 		syserr = EFX_OWORD_FIELD(*int_ker, FSF_AZ_NET_IVEC_FATAL_INT);
 		if (unlikely(syserr))
 			return efx_nic_fatal_interrupt(efx);
+		efx->last_irq_cpu = raw_smp_processor_id();
 	}
 
 	/* Schedule processing of the channel */
-	efx_schedule_channel(channel);
+	efx_schedule_channel_irq(channel);
 
 	return IRQ_HANDLED;
 }
@@ -1640,10 +1639,10 @@ void efx_nic_init_common(struct efx_nic *efx)
 
 	if (EFX_WORKAROUND_17213(efx) && !EFX_INT_MODE_USE_MSI(efx))
 		/* Use an interrupt level unused by event queues */
-		efx->fatal_irq_level = 0x1f;
+		efx->irq_level = 0x1f;
 	else
 		/* Use a valid MSI-X vector */
-		efx->fatal_irq_level = 0;
+		efx->irq_level = 0;
 
 	/* Enable all the genuinely fatal interrupts.  (They are still
 	 * masked by the overall interrupt mask, controlled by

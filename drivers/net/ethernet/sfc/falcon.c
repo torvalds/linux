@@ -189,9 +189,9 @@ irqreturn_t falcon_legacy_interrupt_a1(int irq, void *dev_id)
 	falcon_irq_ack_a1(efx);
 
 	if (queues & 1)
-		efx_schedule_channel(efx_get_channel(efx, 0));
+		efx_schedule_channel_irq(efx_get_channel(efx, 0));
 	if (queues & 2)
-		efx_schedule_channel(efx_get_channel(efx, 1));
+		efx_schedule_channel_irq(efx_get_channel(efx, 1));
 	return IRQ_HANDLED;
 }
 /**************************************************************************

@@ -325,6 +325,7 @@ enum efx_rx_alloc_method {
  * @eventq_mask: Event queue pointer mask
  * @eventq_read_ptr: Event queue read pointer
  * @last_eventq_read_ptr: Last event queue read pointer value.
+ * @last_irq_cpu: Last CPU to handle interrupt for this channel
  * @irq_count: Number of IRQs since last adaptive moderation decision
  * @irq_mod_score: IRQ moderation score
  * @rx_alloc_level: Watermark based heuristic counter for pushing descriptors
@@ -355,6 +356,7 @@ struct efx_channel {
 	unsigned int eventq_read_ptr;
 	unsigned int last_eventq_read_ptr;
 
+	int last_irq_cpu;
 	unsigned int irq_count;
 	unsigned int irq_mod_score;
 #ifdef CONFIG_RFS_ACCEL
@@ -648,7 +650,7 @@ struct efx_filter_state;
  * @int_error_expire: Time at which error count will be expired
  * @irq_status: Interrupt status buffer
  * @irq_zero_count: Number of legacy IRQs seen with queue flags == 0
- * @fatal_irq_level: IRQ level (bit number) used for serious errors
+ * @irq_level: IRQ level/index for IRQs not triggered by an event queue
  * @mtd_list: List of MTDs attached to the NIC
  * @nic_data: Hardware dependent state
  * @mac_lock: MAC access lock. Protects @port_enabled, @phy_mode,
@@ -679,10 +681,9 @@ struct efx_filter_state;
  * @loopback_selftest: Offline self-test private state
  * @monitor_work: Hardware monitor workitem
  * @biu_lock: BIU (bus interface unit) lock
- * @last_irq_cpu: Last CPU to handle interrupt.
- *	This register is written with the SMP processor ID whenever an
- *	interrupt is handled.  It is used by efx_nic_test_interrupt()
- *	to verify that an interrupt has occurred.
+ * @last_irq_cpu: Last CPU to handle a possible test interrupt.  This
+ *	field is used by efx_test_interrupts() to verify that an
+ *	interrupt has occurred.
  * @n_rx_nodesc_drop_cnt: RX no descriptor drop count
  * @mac_stats: MAC statistics. These include all statistics the MACs
  *	can provide.  Generic code converts these into a standard
@@ -735,7 +736,7 @@ struct efx_nic {
 
 	struct efx_buffer irq_status;
 	unsigned irq_zero_count;
-	unsigned fatal_irq_level;
+	unsigned irq_level;
 
 #ifdef CONFIG_SFC_MTD
 	struct list_head mtd_list;
@@ -779,7 +780,7 @@ struct efx_nic {
 
 	struct delayed_work monitor_work ____cacheline_aligned_in_smp;
 	spinlock_t biu_lock;
-	volatile signed int last_irq_cpu;
+	int last_irq_cpu;
 	unsigned n_rx_nodesc_drop_cnt;
 	struct efx_mac_stats mac_stats;
 	spinlock_t stats_lock;

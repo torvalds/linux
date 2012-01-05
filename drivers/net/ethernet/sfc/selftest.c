@@ -130,6 +130,8 @@ static int efx_test_chip(struct efx_nic *efx, struct efx_self_tests *tests)
 static int efx_test_interrupts(struct efx_nic *efx,
 			       struct efx_self_tests *tests)
 {
+	int cpu;
+
 	netif_dbg(efx, drv, efx->net_dev, "testing interrupts\n");
 	tests->interrupt = -1;
 
@@ -142,7 +144,8 @@ static int efx_test_interrupts(struct efx_nic *efx,
 	/* Wait for arrival of test interrupt. */
 	netif_dbg(efx, drv, efx->net_dev, "waiting for test interrupt\n");
 	schedule_timeout_uninterruptible(HZ / 10);
-	if (efx->last_irq_cpu >= 0)
+	cpu = ACCESS_ONCE(efx->last_irq_cpu);
+	if (cpu >= 0)
 		goto success;
 
 	netif_err(efx, drv, efx->net_dev, "timed out waiting for interrupt\n");
@@ -150,8 +153,7 @@ static int efx_test_interrupts(struct efx_nic *efx,
 
  success:
 	netif_dbg(efx, drv, efx->net_dev, "%s test interrupt seen on CPU%d\n",
-		  INT_MODE(efx),
-		efx->last_irq_cpu);
+		  INT_MODE(efx), cpu);
 	tests->interrupt = 1;
 	return 0;
 }
@@ -165,7 +167,7 @@ static int efx_test_eventq_irq(struct efx_channel *channel,
 	bool napi_ran, dma_seen, int_seen;
 
 	read_ptr = channel->eventq_read_ptr;
-	channel->efx->last_irq_cpu = -1;
+	channel->last_irq_cpu = -1;
 	smp_wmb();
 
 	efx_nic_generate_test_event(channel);
@@ -182,7 +184,7 @@ static int efx_test_eventq_irq(struct efx_channel *channel,
 	} else {
 		napi_ran = false;
 		dma_seen = efx_nic_event_present(channel);
-		int_seen = efx->last_irq_cpu >= 0;
+		int_seen = ACCESS_ONCE(channel->last_irq_cpu) >= 0;
 	}
 	napi_enable(&channel->napi_str);
 	efx_nic_eventq_read_ack(channel);
