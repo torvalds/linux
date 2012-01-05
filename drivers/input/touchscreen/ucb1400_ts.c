@@ -274,7 +274,8 @@ static void ucb1400_ts_close(struct input_dev *idev)
  * Try to probe our interrupt, rather than relying on lots of
  * hard-coded machine dependencies.
  */
-static int __devinit ucb1400_ts_detect_irq(struct ucb1400_ts *ucb)
+static int __devinit ucb1400_ts_detect_irq(struct ucb1400_ts *ucb,
+					   struct platform_device *pdev)
 {
 	unsigned long mask, timeout;
 
@@ -296,7 +297,7 @@ static int __devinit ucb1400_ts_detect_irq(struct ucb1400_ts *ucb)
 						UCB_ADC_DAT_VALID)) {
 		cpu_relax();
 		if (time_after(jiffies, timeout)) {
-			printk(KERN_ERR "ucb1400: timed out in IRQ probe\n");
+			dev_err(&pdev->dev, "timed out in IRQ probe\n");
 			probe_irq_off(mask);
 			return -ENODEV;
 		}
@@ -331,13 +332,13 @@ static int __devinit ucb1400_ts_probe(struct platform_device *pdev)
 
 	/* Only in case the IRQ line wasn't supplied, try detecting it */
 	if (ucb->irq < 0) {
-		error = ucb1400_ts_detect_irq(ucb);
+		error = ucb1400_ts_detect_irq(ucb, pdev);
 		if (error) {
-			printk(KERN_ERR "UCB1400: IRQ probe failed\n");
+			dev_err(&pdev->dev, "IRQ probe failed\n");
 			goto err_free_devs;
 		}
 	}
-	printk(KERN_DEBUG "UCB1400: found IRQ %d\n", ucb->irq);
+	dev_dbg(&pdev->dev, "found IRQ %d\n", ucb->irq);
 
 	init_waitqueue_head(&ucb->ts_wait);
 
@@ -365,7 +366,7 @@ static int __devinit ucb1400_ts_probe(struct platform_device *pdev)
 	x_res = ucb1400_ts_read_xres(ucb);
 	y_res = ucb1400_ts_read_yres(ucb);
 	ucb1400_adc_disable(ucb->ac97);
-	printk(KERN_DEBUG "UCB1400: x/y = %d/%d\n", x_res, y_res);
+	dev_dbg(&pdev->dev, "x/y = %d/%d\n", x_res, y_res);
 
 	input_set_abs_params(ucb->ts_idev, ABS_X, 0, x_res, 0, 0);
 	input_set_abs_params(ucb->ts_idev, ABS_Y, 0, y_res, 0, 0);
@@ -377,8 +378,8 @@ static int __devinit ucb1400_ts_probe(struct platform_device *pdev)
 				     IRQF_TRIGGER_RISING | IRQF_ONESHOT,
 				     "UCB1400", ucb);
 	if (error) {
-		printk(KERN_ERR "ucb1400: unable to grab irq%d: %d\n",
-				ucb->irq, error);
+		dev_err(&pdev->dev,
+			"unable to grab irq%d: %d\n", ucb->irq, error);
 		goto err_free_devs;
 	}
 
