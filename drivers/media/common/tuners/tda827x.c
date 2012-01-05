@@ -540,9 +540,14 @@ static int tda827xa_set_params(struct dvb_frontend *fe)
 	}
 	tuner_freq = c->frequency;
 
-	if (fe->ops.info.type == FE_QAM) {
+	switch (c->delivery_system) {
+	case SYS_DVBC_ANNEX_A:
+	case SYS_DVBC_ANNEX_C:
 		dprintk("%s select tda827xa_dvbc\n", __func__);
 		frequency_map = tda827xa_dvbc;
+		break;
+	default:
+		break;
 	}
 
 	i = 0;

@@ -173,7 +173,6 @@ void fdtv_frontend_init(struct firedtv *fdtv, const char *name)
 	switch (fdtv->type) {
 	case FIREDTV_DVB_S:
 		ops->delsys[0]		= SYS_DVBS;
-		fi->type		= FE_QPSK;
 
 		fi->frequency_min	= 950000;
 		fi->frequency_max	= 2150000;
@@ -193,8 +192,7 @@ void fdtv_frontend_init(struct firedtv *fdtv, const char *name)
 
 	case FIREDTV_DVB_S2:
 		ops->delsys[0]		= SYS_DVBS;
-		ops->delsys[1]		= SYS_DVBS;
-		fi->type		= FE_QPSK;
+		ops->delsys[1]		= SYS_DVBS2;
 
 		fi->frequency_min	= 950000;
 		fi->frequency_max	= 2150000;
@@ -215,7 +213,6 @@ void fdtv_frontend_init(struct firedtv *fdtv, const char *name)
 
 	case FIREDTV_DVB_C:
 		ops->delsys[0]		= SYS_DVBC_ANNEX_A;
-		fi->type		= FE_QAM;
 
 		fi->frequency_min	= 47000000;
 		fi->frequency_max	= 866000000;
@@ -234,7 +231,6 @@ void fdtv_frontend_init(struct firedtv *fdtv, const char *name)
 
 	case FIREDTV_DVB_T:
 		ops->delsys[0]		= SYS_DVBT;
-		fi->type		= FE_OFDM;
 
 		fi->frequency_min	= 49000000;
 		fi->frequency_max	= 861000000;
