@@ -759,53 +759,17 @@ static struct mma8452_platform_data mma8452_info = {
 #endif
 
 #if defined (CONFIG_MPU_SENSORS_MPU3050)
-/*mpu3050*/
-static struct mpu3050_platform_data mpu3050_data = {
-		.int_config = 0x10,
-		//.orientation = { 1, 0, 0,0, -1, 0,0, 0, 1 },
-		//.orientation = { 0, 1, 0,-1, 0, 0,0, 0, -1 },
-		//.orientation = { -1, 0, 0,0, -1, 0,0, 0, -1 },
-		.orientation = { 1, 0, 0, 0, 1, 0, 0, 0, -1 },
-		.level_shifter = 0,
-#if defined (CONFIG_MPU_SENSORS_KXTF9)
-		.accel = {
-#ifdef CONFIG_MPU_SENSORS_MPU3050_MODULE
-				.get_slave_descr = NULL ,
-#else
-				.get_slave_descr = get_accel_slave_descr ,			
+static struct mpu_platform_data mpu3050_data = {
+	.int_config = 0x10,
+	.orientation ={ 1, 0, 0, 0, 1, 0, 0, 0, -1 },
+};
 #endif
-				.adapt_num = 0, // The i2c bus to which the mpu device is
-				// connected
-				.irq = RK29_PIN0_PA3,
-				.bus = EXT_SLAVE_BUS_SECONDARY,  //The secondary I2C of MPU
-				.address = 0x0f,
-				//.orientation = { 1, 0, 0,0, 1, 0,0, 0, 1 },
-				//.orientation = { 0, -1, 0,-1, 0, 0,0, 0, -1 },
-				//.orientation = { 0, 1, 0,1, 0, 0,0, 0, -1 },
-				
-				.orientation = { 0, -1, 0, 1, 0, 0, 0, 0, 1 },
-				//.orientation = { 0, 1, 0, -1, 0, 0, 0, 0, -1 },
-		},
-#endif
-#if defined (CONFIG_MPU_SENSORS_AK8975)
-		.compass = {
-#ifdef CONFIG_MPU_SENSORS_MPU3050_MODULE
-				.get_slave_descr = NULL,/*ak5883_get_slave_descr,*/
-#else
-				.get_slave_descr = get_compass_slave_descr,
-#endif						
-				.adapt_num = 0, // The i2c bus to which the compass device is. 
-				// It can be difference with mpu
-				// connected
-				.irq = RK29_PIN0_PA4,
-				.bus = EXT_SLAVE_BUS_PRIMARY,
-				.address = 0x0d,
-				//.orientation = { -1, 0, 0,0, -1, 0,0, 0, 1 },
-				//.orientation = { 0, -1, 0,-1, 0, 0,0, 0, -1 },
-				//.orientation = { 0, 1, 0,1, 0, 0,0, 0, -1 },
-				.orientation = { 1, 0, 0, 0, -1, 0, 0, 0, -1 },
-		},
-#endif
+/* accel */
+#if defined (CONFIG_MPU_SENSORS_BMA222)
+static struct ext_slave_platform_data inv_mpu_bma222_data = {
+	.bus         = EXT_SLAVE_BUS_SECONDARY,
+	.adapt_num = 0,
+	.orientation = { -1, 0, 0, 0, -1, 0, 0, 0, 1 },
 };
 #endif
 
@@ -938,6 +902,8 @@ static struct wm8994_pdata wm8994_platform_data = {
 
 	.micdet_irq = 0,
 	.irq_base = 0,
+	.PA_control_pin=RK29_PIN6_PB6,
+	
 };
 #endif 
 
@@ -1212,6 +1178,16 @@ static struct i2c_board_info __initdata board_i2c0_devices[] = {
 		.irq			= RK29_PIN0_PA4,
 	},
 #endif
+#if defined (CONFIG_MPU_SENSORS_BMA222)
+	{
+		.type    		= "bma222",
+		.addr           = 0x08,
+		.flags			= 0,
+//		.irq			= RK29_PIN0_PA3,
+		.platform_data = &inv_mpu_bma222_data,
+	},
+
+#endif
 /*mpu3050*/
 #if defined (CONFIG_MPU_SENSORS_MPU3050) 
 	{
@@ -1302,6 +1278,30 @@ static struct i2c_board_info __initdata board_i2c2_devices[] = {
 #endif
 };
 #endif
+
+#define	CONFIG_TDA998 1
+#if defined (CONFIG_TDA998)
+#define HDMI_V33_CTL RK29_PIN6_PD3 //3.3V power control
+#define HDMI_V5_CTL	RK29_PIN4_PD0  //5V power control
+#define HDMI_DET_PIN	RK29_PIN1_PD7  //DET PIN
+int tda998_io_init(void)
+{
+	printk("enter tda998_io_init()\n");
+	gpio_request(HDMI_V33_CTL, "hdmi pwr ctl 0");
+	gpio_request(HDMI_V5_CTL, "hdmi v5 ctl 1");
+	gpio_direction_output(HDMI_V33_CTL, GPIO_HIGH);
+	gpio_direction_output(HDMI_V5_CTL, GPIO_HIGH);
+	gpio_request(HDMI_DET_PIN, "hdmi det");
+  gpio_direction_input(HDMI_DET_PIN);
+	mdelay(10);
+	return 0;
+}
+struct hdmi_platform_data tda998_data = {
+	.io_init = tda998_io_init,
+};
+#endif
+
+
 #if defined (CONFIG_ANX7150)
 #define HDMI_V33_CTL RK29_PIN6_PD3 //3.3V power control
 #define HDMI_V5_CTL	RK29_PIN4_PD0  //5V power control
@@ -1331,6 +1331,25 @@ static struct i2c_board_info __initdata board_i2c3_devices[] = {
 		.platform_data  = &anx7150_data,
     },
 #endif
+
+#if defined (CONFIG_TDA998)
+    {
+		.type           = "tda998X",
+        .addr           = (0x70>>1),             //0x39, 0x3d
+        .flags          = 0,
+        .irq            = RK29_PIN1_PD7,
+		.platform_data  = &tda998_data,
+    },
+    {
+		.type           = "tda99Xcec",
+        .addr           = (0x34>>1),             //0x39, 0x3d
+        .flags          = 0,
+        .irq            = RK29_PIN1_PD7,
+		.platform_data  = &tda998_data,
+    },
+    
+#endif
+
 
 };
 #endif
@@ -2229,9 +2248,36 @@ static struct platform_device rk29_device_keys = {
 
 static void __init rk29_board_iomux_init(void)
 {
-	#ifdef CONFIG_RK29_PWM_REGULATOR
+	int err;
+#ifdef CONFIG_RK29_PWM_REGULATOR
 	rk29_mux_api_set(REGULATOR_PWM_MUX_NAME,REGULATOR_PWM_MUX_MODE);
-	#endif
+#endif
+
+#ifdef CONFIG_RK29_CLK_SWITCH_TO_32K
+/****************************clock change********************************************/
+	err = gpio_request(RK29_PIN4_PC0, "clk27M_control");
+	if (err) {
+		gpio_free(RK29_PIN4_PC0);
+		printk("-------request RK29_PIN4_PC0 fail--------\n");
+		return -1;
+	}
+	//phy power down
+	gpio_direction_output(RK29_PIN4_PC0, GPIO_LOW);// 27M  32K
+	gpio_set_value(RK29_PIN4_PC0, GPIO_LOW);
+
+	rk29_mux_api_set(GPIO4C5_RMIICSRDVALID_MIIRXDVALID_NAME,GPIO4H_GPIO4C5);
+
+	err = gpio_request(RK29_PIN4_PC5, "clk24M_control");
+	if (err) {
+		gpio_free(RK29_PIN4_PC5);
+		printk("-------request RK29_PIN4_PC5 fail--------\n");
+		return -1;
+	}
+	//phy power down
+	gpio_direction_output(RK29_PIN4_PC5, GPIO_LOW);// control 24M
+	gpio_set_value(RK29_PIN4_PC5, GPIO_LOW);
+/*******************************************************************/
+#endif
 }
 
 static struct platform_device *devices[] __initdata = {
