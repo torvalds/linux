@@ -602,8 +602,8 @@ void rtl92de_tx_fill_desc(struct ieee80211_hw *hw,
 					   EM_HDR_LEN);
 			if (ptcb_desc->empkt_num) {
 				RT_TRACE(rtlpriv, COMP_SEND, DBG_LOUD,
-					 ("Insert 8 byte.pTcb->EMPktNum:%d\n",
-					  ptcb_desc->empkt_num));
+					 "Insert 8 byte.pTcb->EMPktNum:%d\n",
+					 ptcb_desc->empkt_num);
 				_rtl92de_insert_emcontent(ptcb_desc,
 							  (u8 *)(skb->data));
 			}
@@ -700,7 +700,7 @@ void rtl92de_tx_fill_desc(struct ieee80211_hw *hw,
 		if (ieee80211_is_data_qos(fc)) {
 			if (mac->rdg_en) {
 				RT_TRACE(rtlpriv, COMP_SEND, DBG_TRACE,
-					("Enable RDG function.\n"));
+					 "Enable RDG function\n");
 				SET_TX_DESC_RDG_ENABLE(pdesc, 1);
 				SET_TX_DESC_HTC(pdesc, 1);
 			}
@@ -726,7 +726,7 @@ void rtl92de_tx_fill_desc(struct ieee80211_hw *hw,
 		SET_TX_DESC_PKT_ID(pdesc, 8);
 	}
 	SET_TX_DESC_MORE_FRAG(pdesc, (lastseg ? 0 : 1));
-	RT_TRACE(rtlpriv, COMP_SEND, DBG_TRACE, ("\n"));
+	RT_TRACE(rtlpriv, COMP_SEND, DBG_TRACE, "\n");
 }
 
 void rtl92de_tx_fill_cmddesc(struct ieee80211_hw *hw,
