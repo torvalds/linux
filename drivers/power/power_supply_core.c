@@ -19,6 +19,9 @@
 #include <linux/power_supply.h>
 #include "power_supply.h"
 
+#ifdef CONFIG_POWER_ON_CHARGER_DISPLAY 
+extern struct list_head rk_psy_head;
+#endif
 /* exported for the APM Power driver, APM emulation */
 struct class *power_supply_class;
 EXPORT_SYMBOL_GPL(power_supply_class);
@@ -180,6 +183,10 @@ int power_supply_register(struct device *parent, struct power_supply *psy)
 		return -ENOMEM;
 
 	device_initialize(dev);
+
+#ifdef CONFIG_POWER_ON_CHARGER_DISPLAY 
+	list_add(&psy->rk_psy_node, &rk_psy_head);
+#endif
 
 	dev->class = power_supply_class;
 	dev->type = &power_supply_dev_type;

@@ -123,6 +123,14 @@ config RTC_INTF_ALARM_DEV
 	help
 	  Exports the alarm interface to user-space.
 
+config AUTO_WAKE_UP
+	tristate "Support auto wake up"
+	depends on RTC_INTF_ALARM_DEV
+
+config AUTO_WAKE_UP_PERIOD
+	int "auto wake up period(sec)"
+	depends on AUTO_WAKE_UP
+	default 3600
 
 config RTC_DRV_TEST
 	tristate "Test driver/device"

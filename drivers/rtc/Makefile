@@ -15,6 +15,8 @@ rtc-core-$(CONFIG_RTC_INTF_DEV)	+= rtc-dev.o
 rtc-core-$(CONFIG_RTC_INTF_PROC) += rtc-proc.o
 rtc-core-$(CONFIG_RTC_INTF_SYSFS) += rtc-sysfs.o
 
+obj-$(CONFIG_AUTO_WAKE_UP) += auto-wake.o
+
 # Keep the list ordered.
 
 obj-$(CONFIG_RTC_DRV_88PM860X)  += rtc-88pm860x.o
