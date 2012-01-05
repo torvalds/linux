@@ -6188,7 +6188,6 @@ static int drxk_sleep(struct dvb_frontend *fe)
 
 	dprintk(1, "\n");
 	ShutDown(state);
-	mutex_unlock(&state->ctlock);
 	return 0;
 }
 
@@ -6203,7 +6202,7 @@ static int drxk_gate_ctrl(struct dvb_frontend *fe, int enable)
 static int drxk_set_parameters(struct dvb_frontend *fe)
 {
 	struct dtv_frontend_properties *p = &fe->dtv_property_cache;
-	u32 delsys  = p->delivery_system;
+	u32 delsys  = p->delivery_system, old_delsys;
 	struct drxk_state *state = fe->demodulator_priv;
 	u32 IF;
 
@@ -6221,28 +6220,33 @@ static int drxk_set_parameters(struct dvb_frontend *fe)
 		fe->ops.tuner_ops.set_params(fe);
 	if (fe->ops.i2c_gate_ctrl)
 		fe->ops.i2c_gate_ctrl(fe, 0);
+
+	old_delsys = state->props.delivery_system;
 	state->props = *p;
 
-	switch (delsys) {
-	case SYS_DVBC_ANNEX_A:
-	case SYS_DVBC_ANNEX_C:
-		if (!state->m_hasDVBC)
-			return -EINVAL;
-		state->m_itut_annex_c = (delsys == SYS_DVBC_ANNEX_C) ? true : false;
-		if (state->m_itut_annex_c)
-			SetOperationMode(state, OM_QAM_ITU_C);
-		else
-			SetOperationMode(state, OM_QAM_ITU_A);
+	if (old_delsys != delsys) {
+		ShutDown(state);
+		switch (delsys) {
+		case SYS_DVBC_ANNEX_A:
+		case SYS_DVBC_ANNEX_C:
+			if (!state->m_hasDVBC)
+				return -EINVAL;
+			state->m_itut_annex_c = (delsys == SYS_DVBC_ANNEX_C) ? true : false;
+			if (state->m_itut_annex_c)
+				SetOperationMode(state, OM_QAM_ITU_C);
+			else
+				SetOperationMode(state, OM_QAM_ITU_A);
+				break;
+			state->m_itut_annex_c = true;
 			break;
-		state->m_itut_annex_c = true;
-		break;
-	case SYS_DVBT:
-		if (!state->m_hasDVBT)
+		case SYS_DVBT:
+			if (!state->m_hasDVBT)
+				return -EINVAL;
+			SetOperationMode(state, OM_DVBT);
+			break;
+		default:
 			return -EINVAL;
-		SetOperationMode(state, OM_DVBT);
-		break;
-	default:
-		return -EINVAL;
+		}
 	}
 
 	fe->ops.tuner_ops.get_if_frequency(fe, &IF);
@@ -6405,7 +6409,6 @@ struct dvb_frontend *drxk_attach(const struct drxk_config *config,
 		state->m_GPIO &= ~state->antenna_gpio;
 
 	mutex_init(&state->mutex);
-	mutex_init(&state->ctlock);
 
 	memcpy(&state->frontend.ops, &drxk_ops, sizeof(drxk_ops));
 	state->frontend.demodulator_priv = state;

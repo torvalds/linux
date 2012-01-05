@@ -204,7 +204,6 @@ struct drxk_state {
 	void  *priv;
 
 	struct mutex mutex;
-	struct mutex ctlock;
 
 	u32    m_Instance;           /**< Channel 1,2,3 or 4 */
 
