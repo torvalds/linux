@@ -74,11 +74,13 @@
 
 /**
  * struct tc_keypad - data structure used by keypad driver
+ * @tc3589x:    pointer to tc35893
  * @input:      pointer to input device object
  * @board:      keypad platform device
  * @krow:	number of rows
  * @kcol:	number of coloumns
  * @keymap:     matrix scan code table for keycodes
+ * @keypad_stopped: holds keypad status
  */
 struct tc_keypad {
 	struct tc3589x *tc3589x;
