@@ -282,24 +282,6 @@ void bfin_coretmr_init(void)
 __attribute__((l1_text))
 #endif
 
-static void broadcast_timer_set_mode(enum clock_event_mode mode,
-		struct clock_event_device *evt)
-{
-}
-
-static void __cpuinit broadcast_timer_setup(struct clock_event_device *evt)
-{
-	evt->name       = "dummy_timer";
-	evt->features   = CLOCK_EVT_FEAT_ONESHOT |
-		CLOCK_EVT_FEAT_PERIODIC |
-		CLOCK_EVT_FEAT_DUMMY;
-	evt->rating     = 400;
-	evt->mult       = 1;
-	evt->set_mode   = broadcast_timer_set_mode;
-
-	clockevents_register_device(evt);
-}
-
 irqreturn_t bfin_coretmr_interrupt(int irq, void *dev_id)
 {
 	int cpu = smp_processor_id();
