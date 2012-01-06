@@ -784,7 +784,7 @@ static int __devinit dvb_bt8xx_load_card(struct dvb_bt8xx_card *card, u32 type)
 
 	result = dvb_net_init(&card->dvb_adapter, &card->dvbnet, &card->demux.dmx);
 	if (result < 0) {
-		printk(KERN_ERR,
+		printk(KERN_ERR
 		       "dvb_bt8xx: dvb_net_init failed (errno = %d)\n", result);
 		goto err_disconnect_frontend;
 	}
