@@ -342,6 +342,7 @@ config X86_EXTENDED_PLATFORM
 
 	  If you enable this option then you'll be able to select support
 	  for the following (non-PC) 64 bit x86 platforms:
+		Numascale NumaChip
 		ScaleMP vSMP
 		SGI Ultraviolet
 
@@ -350,6 +351,18 @@ config X86_EXTENDED_PLATFORM
 endif
 # This is an alphabetically sorted list of 64 bit extended platforms
 # Please maintain the alphabetic order if and when there are additions
+config X86_NUMACHIP
+	bool "Numascale NumaChip"
+	depends on X86_64
+	depends on X86_EXTENDED_PLATFORM
+	depends on NUMA
+	depends on SMP
+	depends on X86_X2APIC
+	depends on !EDAC_AMD64
+	---help---
+	  Adds support for Numascale NumaChip large-SMP systems. Needed to
+	  enable more than ~168 cores.
+	  If you don't have one of these, you should say N here.
 
 config X86_VSMP
 	bool "ScaleMP vSMP"
