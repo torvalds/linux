@@ -16,7 +16,6 @@
 #include <asm/hardware/cache-l2x0.h>
 
 	.section ".text.head", "ax"
-	__CPUINIT
 
 /*
  * The secondary kernel init calls v7_flush_dcache_all before it enables
@@ -33,6 +32,7 @@
  */
 ENTRY(v7_invalidate_l1)
 	mov	r0, #0
+	mcr	p15, 0, r0, c7, c5, 0	@ invalidate I cache
 	mcr	p15, 2, r0, c0, c0, 0
 	mrc	p15, 1, r0, c0, c0, 0
 
