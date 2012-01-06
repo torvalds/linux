@@ -66,8 +66,6 @@ static struct {
 	struct omap_display_platform_data *pdata;
 	struct platform_device *pdev;
 	struct hdmi_ip_data ip_data;
-	int code;
-	int mode;
 
 	struct clk *sys_clk;
 } hdmi;
@@ -162,7 +160,7 @@ static const struct hdmi_config *hdmi_find_timing(
 	int i;
 
 	for (i = 0; i < len; i++) {
-		if (timings_arr[i].cm.code == hdmi.code)
+		if (timings_arr[i].cm.code == hdmi.ip_data.cfg.cm.code)
 			return &timings_arr[i];
 	}
 	return NULL;
@@ -173,7 +171,7 @@ static const struct hdmi_config *hdmi_get_timings(void)
        const struct hdmi_config *arr;
        int len;
 
-       if (hdmi.mode == HDMI_DVI) {
+       if (hdmi.ip_data.cfg.cm.mode == HDMI_DVI) {
                arr = vesa_timings;
                len = ARRAY_SIZE(vesa_timings);
        } else {
@@ -313,9 +311,9 @@ static int hdmi_power_on(struct omap_dss_device *dssdev)
 	timing = hdmi_get_timings();
 	if (timing == NULL) {
 		/* HDMI code 4 corresponds to 640 * 480 VGA */
-		hdmi.code = 4;
+		hdmi.ip_data.cfg.cm.code = 4;
 		/* DVI mode 1 corresponds to HDMI 0 to DVI */
-		hdmi.mode = HDMI_DVI;
+		hdmi.ip_data.cfg.cm.mode = HDMI_DVI;
 		hdmi.ip_data.cfg = vesa_timings[0];
 	} else {
 		hdmi.ip_data.cfg = *timing;
@@ -339,8 +337,6 @@ static int hdmi_power_on(struct omap_dss_device *dssdev)
 		goto err;
 	}
 
-	hdmi.ip_data.cfg.cm.mode = hdmi.mode;
-	hdmi.ip_data.cfg.cm.code = hdmi.code;
 	hdmi.ip_data.ops->video_configure(&hdmi.ip_data);
 
 	/* Make selection of HDMI in DSS */
@@ -407,8 +403,8 @@ void omapdss_hdmi_display_set_timing(struct omap_dss_device *dssdev)
 	struct hdmi_cm cm;
 
 	cm = hdmi_get_code(&dssdev->panel.timings);
-	hdmi.code = cm.code;
-	hdmi.mode = cm.mode;
+	hdmi.ip_data.cfg.cm.code = cm.code;
+	hdmi.ip_data.cfg.cm.mode = cm.mode;
 
 	if (dssdev->state == OMAP_DSS_DISPLAY_ACTIVE) {
 		int r;
@@ -707,7 +703,7 @@ static int hdmi_audio_hw_params(struct snd_pcm_substream *substream,
 static int hdmi_audio_startup(struct snd_pcm_substream *substream,
 				  struct snd_soc_dai *dai)
 {
-	if (!hdmi.mode) {
+	if (!hdmi.ip_data.cfg.cm.mode) {
 		pr_err("Current video settings do not support audio.\n");
 		return -EIO;
 	}
