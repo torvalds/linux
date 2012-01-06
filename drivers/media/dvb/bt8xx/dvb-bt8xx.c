@@ -19,6 +19,8 @@
  *
  */
 
+#define pr_fmt(fmt) "dvb_bt8xx: " fmt
+
 #include <linux/bitops.h>
 #include <linux/module.h>
 #include <linux/init.h>
@@ -666,7 +668,7 @@ static void frontend_init(struct dvb_bt8xx_card *card, u32 type)
 		/*	DST is not a frontend driver !!!		*/
 		state = kmalloc(sizeof (struct dst_state), GFP_KERNEL);
 		if (!state) {
-			printk("dvb_bt8xx: No memory\n");
+			pr_err("No memory\n");
 			break;
 		}
 		/*	Setup the Card					*/
@@ -676,7 +678,7 @@ static void frontend_init(struct dvb_bt8xx_card *card, u32 type)
 		state->dst_ca = NULL;
 		/*	DST is not a frontend, attaching the ASIC	*/
 		if (dvb_attach(dst_attach, state, &card->dvb_adapter) == NULL) {
-			printk("%s: Could not find a Twinhan DST.\n", __func__);
+			pr_err("%s: Could not find a Twinhan DST\n", __func__);
 			break;
 		}
 		/*	Attach other DST peripherals if any		*/
@@ -705,14 +707,14 @@ static void frontend_init(struct dvb_bt8xx_card *card, u32 type)
 	}
 
 	if (card->fe == NULL)
-		printk("dvb-bt8xx: A frontend driver was not found for device [%04x:%04x] subsystem [%04x:%04x]\n",
+		pr_err("A frontend driver was not found for device [%04x:%04x] subsystem [%04x:%04x]\n",
 		       card->bt->dev->vendor,
 		       card->bt->dev->device,
 		       card->bt->dev->subsystem_vendor,
 		       card->bt->dev->subsystem_device);
 	else
 		if (dvb_register_frontend(&card->dvb_adapter, card->fe)) {
-			printk("dvb-bt8xx: Frontend registration failed!\n");
+			pr_err("Frontend registration failed!\n");
 			dvb_frontend_detach(card->fe);
 			card->fe = NULL;
 		}
@@ -726,7 +728,7 @@ static int __devinit dvb_bt8xx_load_card(struct dvb_bt8xx_card *card, u32 type)
 				      THIS_MODULE, &card->bt->dev->dev,
 				      adapter_nr);
 	if (result < 0) {
-		printk("dvb_bt8xx: dvb_register_adapter failed (errno = %d)\n", result);
+		pr_err("dvb_register_adapter failed (errno = %d)\n", result);
 		return result;
 	}
 	card->dvb_adapter.priv = card;
@@ -746,7 +748,7 @@ static int __devinit dvb_bt8xx_load_card(struct dvb_bt8xx_card *card, u32 type)
 
 	result = dvb_dmx_init(&card->demux);
 	if (result < 0) {
-		printk("dvb_bt8xx: dvb_dmx_init failed (errno = %d)\n", result);
+		pr_err("dvb_dmx_init failed (errno = %d)\n", result);
 		goto err_unregister_adaptor;
 	}
 
@@ -756,7 +758,7 @@ static int __devinit dvb_bt8xx_load_card(struct dvb_bt8xx_card *card, u32 type)
 
 	result = dvb_dmxdev_init(&card->dmxdev, &card->dvb_adapter);
 	if (result < 0) {
-		printk("dvb_bt8xx: dvb_dmxdev_init failed (errno = %d)\n", result);
+		pr_err("dvb_dmxdev_init failed (errno = %d)\n", result);
 		goto err_dmx_release;
 	}
 
@@ -764,7 +766,7 @@ static int __devinit dvb_bt8xx_load_card(struct dvb_bt8xx_card *card, u32 type)
 
 	result = card->demux.dmx.add_frontend(&card->demux.dmx, &card->fe_hw);
 	if (result < 0) {
-		printk("dvb_bt8xx: dvb_dmx_init failed (errno = %d)\n", result);
+		pr_err("dvb_dmx_init failed (errno = %d)\n", result);
 		goto err_dmxdev_release;
 	}
 
@@ -772,20 +774,19 @@ static int __devinit dvb_bt8xx_load_card(struct dvb_bt8xx_card *card, u32 type)
 
 	result = card->demux.dmx.add_frontend(&card->demux.dmx, &card->fe_mem);
 	if (result < 0) {
-		printk("dvb_bt8xx: dvb_dmx_init failed (errno = %d)\n", result);
+		pr_err("dvb_dmx_init failed (errno = %d)\n", result);
 		goto err_remove_hw_frontend;
 	}
 
 	result = card->demux.dmx.connect_frontend(&card->demux.dmx, &card->fe_hw);
 	if (result < 0) {
-		printk("dvb_bt8xx: dvb_dmx_init failed (errno = %d)\n", result);
+		pr_err("dvb_dmx_init failed (errno = %d)\n", result);
 		goto err_remove_mem_frontend;
 	}
 
 	result = dvb_net_init(&card->dvb_adapter, &card->dvbnet, &card->demux.dmx);
 	if (result < 0) {
-		printk(KERN_ERR
-		       "dvb_bt8xx: dvb_net_init failed (errno = %d)\n", result);
+		pr_err("dvb_net_init failed (errno = %d)\n", result);
 		goto err_disconnect_frontend;
 	}
 
@@ -888,8 +889,7 @@ static int __devinit dvb_bt8xx_probe(struct bttv_sub_device *sub)
 		break;
 
 	default:
-		printk(KERN_WARNING "dvb_bt8xx: Unknown bttv card type: %d.\n",
-				sub->core->type);
+		pr_err("Unknown bttv card type: %d\n", sub->core->type);
 		kfree(card);
 		return -ENODEV;
 	}
@@ -897,16 +897,14 @@ static int __devinit dvb_bt8xx_probe(struct bttv_sub_device *sub)
 	dprintk("dvb_bt8xx: identified card%d as %s\n", card->bttv_nr, card->card_name);
 
 	if (!(bttv_pci_dev = bttv_get_pcidev(card->bttv_nr))) {
-		printk("dvb_bt8xx: no pci device for card %d\n", card->bttv_nr);
+		pr_err("no pci device for card %d\n", card->bttv_nr);
 		kfree(card);
 		return -ENODEV;
 	}
 
 	if (!(card->bt = dvb_bt8xx_878_match(card->bttv_nr, bttv_pci_dev))) {
-		printk("dvb_bt8xx: unable to determine DMA core of card %d,\n",
-		       card->bttv_nr);
-		printk("dvb_bt8xx: if you have the ALSA bt87x audio driver "
-		       "installed, try removing it.\n");
+		pr_err("unable to determine DMA core of card %d,\n", card->bttv_nr);
+		pr_err("if you have the ALSA bt87x audio driver installed, try removing it.\n");
 
 		kfree(card);
 		return -ENODEV;
