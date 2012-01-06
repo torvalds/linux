@@ -954,9 +954,14 @@ MODULE_LICENSE("GPL and additional rights");
 u##x i915_read##x(struct drm_i915_private *dev_priv, u32 reg) { \
 	u##x val = 0; \
 	if (NEEDS_FORCE_WAKE((dev_priv), (reg))) { \
-		gen6_gt_force_wake_get(dev_priv); \
+		unsigned long irqflags; \
+		spin_lock_irqsave(&dev_priv->gt_lock, irqflags); \
+		if (dev_priv->forcewake_count == 0) \
+			dev_priv->display.force_wake_get(dev_priv); \
 		val = read##y(dev_priv->regs + reg); \
-		gen6_gt_force_wake_put(dev_priv); \
+		if (dev_priv->forcewake_count == 0) \
+			dev_priv->display.force_wake_put(dev_priv); \
+		spin_unlock_irqrestore(&dev_priv->gt_lock, irqflags); \
 	} else { \
 		val = read##y(dev_priv->regs + reg); \
 	} \
