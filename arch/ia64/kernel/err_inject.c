@@ -24,7 +24,7 @@
  * Copyright (C) 2006, Intel Corp.  All rights reserved.
  *
  */
-#include <linux/sysdev.h>
+#include <linux/device.h>
 #include <linux/init.h>
 #include <linux/mm.h>
 #include <linux/cpu.h>
@@ -35,10 +35,10 @@
 #define ERR_DATA_BUFFER_SIZE 3 		// Three 8-byte;
 
 #define define_one_ro(name) 						\
-static SYSDEV_ATTR(name, 0444, show_##name, NULL)
+static DEVICE_ATTR(name, 0444, show_##name, NULL)
 
 #define define_one_rw(name) 						\
-static SYSDEV_ATTR(name, 0644, show_##name, store_##name)
+static DEVICE_ATTR(name, 0644, show_##name, store_##name)
 
 static u64 call_start[NR_CPUS];
 static u64 phys_addr[NR_CPUS];
@@ -55,7 +55,7 @@ static u64 resources[NR_CPUS];
 
 #define show(name) 							\
 static ssize_t 								\
-show_##name(struct sys_device *dev, struct sysdev_attribute *attr,	\
+show_##name(struct device *dev, struct device_attribute *attr,	\
 		char *buf)						\
 {									\
 	u32 cpu=dev->id;						\
@@ -64,7 +64,7 @@ show_##name(struct sys_device *dev, struct sysdev_attribute *attr,	\
 
 #define store(name)							\
 static ssize_t 								\
-store_##name(struct sys_device *dev, struct sysdev_attribute *attr,	\
+store_##name(struct device *dev, struct device_attribute *attr,	\
 					const char *buf, size_t size)	\
 {									\
 	unsigned int cpu=dev->id;					\
@@ -78,7 +78,7 @@ show(call_start)
  * processor. The cpu number in driver is only used for storing data.
  */
 static ssize_t
-store_call_start(struct sys_device *dev, struct sysdev_attribute *attr,
+store_call_start(struct device *dev, struct device_attribute *attr,
 		const char *buf, size_t size)
 {
 	unsigned int cpu=dev->id;
@@ -127,7 +127,7 @@ show(err_type_info)
 store(err_type_info)
 
 static ssize_t
-show_virtual_to_phys(struct sys_device *dev, struct sysdev_attribute *attr,
+show_virtual_to_phys(struct device *dev, struct device_attribute *attr,
 			char *buf)
 {
 	unsigned int cpu=dev->id;
@@ -135,7 +135,7 @@ show_virtual_to_phys(struct sys_device *dev, struct sysdev_attribute *attr,
 }
 
 static ssize_t
-store_virtual_to_phys(struct sys_device *dev, struct sysdev_attribute *attr,
+store_virtual_to_phys(struct device *dev, struct device_attribute *attr,
 			const char *buf, size_t size)
 {
 	unsigned int cpu=dev->id;
@@ -159,8 +159,8 @@ show(err_struct_info)
 store(err_struct_info)
 
 static ssize_t
-show_err_data_buffer(struct sys_device *dev,
-			struct sysdev_attribute *attr, char *buf)
+show_err_data_buffer(struct device *dev,
+			struct device_attribute *attr, char *buf)
 {
 	unsigned int cpu=dev->id;
 
@@ -171,8 +171,8 @@ show_err_data_buffer(struct sys_device *dev,
 }
 
 static ssize_t
-store_err_data_buffer(struct sys_device *dev,
-			struct sysdev_attribute *attr,
+store_err_data_buffer(struct device *dev,
+			struct device_attribute *attr,
 			const char *buf, size_t size)
 {
 	unsigned int cpu=dev->id;
@@ -209,14 +209,14 @@ define_one_ro(capabilities);
 define_one_ro(resources);
 
 static struct attribute *default_attrs[] = {
-	&attr_call_start.attr,
-	&attr_virtual_to_phys.attr,
-	&attr_err_type_info.attr,
-	&attr_err_struct_info.attr,
-	&attr_err_data_buffer.attr,
-	&attr_status.attr,
-	&attr_capabilities.attr,
-	&attr_resources.attr,
+	&dev_attr_call_start.attr,
+	&dev_attr_virtual_to_phys.attr,
+	&dev_attr_err_type_info.attr,
+	&dev_attr_err_struct_info.attr,
+	&dev_attr_err_data_buffer.attr,
+	&dev_attr_status.attr,
+	&dev_attr_capabilities.attr,
+	&dev_attr_resources.attr,
 	NULL
 };
 
@@ -225,12 +225,12 @@ static struct attribute_group err_inject_attr_group = {
 	.name = "err_inject"
 };
 /* Add/Remove err_inject interface for CPU device */
-static int __cpuinit err_inject_add_dev(struct sys_device * sys_dev)
+static int __cpuinit err_inject_add_dev(struct device * sys_dev)
 {
 	return sysfs_create_group(&sys_dev->kobj, &err_inject_attr_group);
 }
 
-static int __cpuinit err_inject_remove_dev(struct sys_device * sys_dev)
+static int __cpuinit err_inject_remove_dev(struct device * sys_dev)
 {
 	sysfs_remove_group(&sys_dev->kobj, &err_inject_attr_group);
 	return 0;
@@ -239,9 +239,9 @@ static int __cpuinit err_inject_cpu_callback(struct notifier_block *nfb,
 		unsigned long action, void *hcpu)
 {
 	unsigned int cpu = (unsigned long)hcpu;
-	struct sys_device *sys_dev;
+	struct device *sys_dev;
 
-	sys_dev = get_cpu_sysdev(cpu);
+	sys_dev = get_cpu_device(cpu);
 	switch (action) {
 	case CPU_ONLINE:
 	case CPU_ONLINE_FROZEN:
@@ -283,13 +283,13 @@ static void __exit
 err_inject_exit(void)
 {
 	int i;
-	struct sys_device *sys_dev;
+	struct device *sys_dev;
 
 #ifdef ERR_INJ_DEBUG
 	printk(KERN_INFO "Exit error injection driver.\n");
 #endif
 	for_each_online_cpu(i) {
-		sys_dev = get_cpu_sysdev(i);
+		sys_dev = get_cpu_device(i);
 		sysfs_remove_group(&sys_dev->kobj, &err_inject_attr_group);
 	}
 	unregister_hotcpu_notifier(&err_inject_cpu_notifier);

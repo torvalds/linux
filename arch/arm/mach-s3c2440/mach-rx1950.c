@@ -24,7 +24,7 @@
 #include <linux/serial_core.h>
 #include <linux/input.h>
 #include <linux/gpio_keys.h>
-#include <linux/sysdev.h>
+#include <linux/device.h>
 #include <linux/pda_power.h>
 #include <linux/pwm_backlight.h>
 #include <linux/pwm.h>

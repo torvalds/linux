@@ -1789,15 +1789,4 @@ static struct usb_driver sddr09_driver = {
 	.soft_unbind =	1,
 };
 
-static int __init sddr09_init(void)
-{
-	return usb_register(&sddr09_driver);
-}
-
-static void __exit sddr09_exit(void)
-{
-	usb_deregister(&sddr09_driver);
-}
-
-module_init(sddr09_init);
-module_exit(sddr09_exit);
+module_usb_driver(sddr09_driver);

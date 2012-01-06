@@ -10,7 +10,7 @@
  * published by the Free Software Foundation.
 */
 
-#include <linux/sysdev.h>
+#include <linux/device.h>
 #include <linux/syscore_ops.h>
 #include <linux/io.h>
 
@@ -48,7 +48,7 @@ static void s3c2416_pm_prepare(void)
 	__raw_writel(virt_to_phys(s3c_cpu_resume), S3C2412_INFORM1);
 }
 
-static int s3c2416_pm_add(struct sys_device *sysdev)
+static int s3c2416_pm_add(struct device *dev)
 {
 	pm_cpu_prep = s3c2416_pm_prepare;
 	pm_cpu_sleep = s3c2416_cpu_suspend;
@@ -56,13 +56,15 @@ static int s3c2416_pm_add(struct sys_device *sysdev)
 	return 0;
 }
 
-static struct sysdev_driver s3c2416_pm_driver = {
-	.add		= s3c2416_pm_add,
+static struct subsys_interface s3c2416_pm_interface = {
+	.name		= "s3c2416_pm",
+	.subsys		= &s3c2416_subsys,
+	.add_dev	= s3c2416_pm_add,
 };
 
 static __init int s3c2416_pm_init(void)
 {
-	return sysdev_driver_register(&s3c2416_sysclass, &s3c2416_pm_driver);
+	return subsys_interface_register(&s3c2416_pm_interface);
 }
 
 arch_initcall(s3c2416_pm_init);

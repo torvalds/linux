@@ -276,18 +276,7 @@ static struct spi_driver ad7298_driver = {
 	.remove		= __devexit_p(ad7298_remove),
 	.id_table	= ad7298_id,
 };
-
-static int __init ad7298_init(void)
-{
-	return spi_register_driver(&ad7298_driver);
-}
-module_init(ad7298_init);
-
-static void __exit ad7298_exit(void)
-{
-	spi_unregister_driver(&ad7298_driver);
-}
-module_exit(ad7298_exit);
+module_spi_driver(ad7298_driver);
 
 MODULE_AUTHOR("Michael Hennerich <hennerich@blackfin.uclinux.org>");
 MODULE_DESCRIPTION("Analog Devices AD7298 ADC");

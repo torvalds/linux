@@ -577,18 +577,7 @@ static struct spi_driver adis16204_driver = {
 	.probe = adis16204_probe,
 	.remove = __devexit_p(adis16204_remove),
 };
-
-static __init int adis16204_init(void)
-{
-	return spi_register_driver(&adis16204_driver);
-}
-module_init(adis16204_init);
-
-static __exit void adis16204_exit(void)
-{
-	spi_unregister_driver(&adis16204_driver);
-}
-module_exit(adis16204_exit);
+module_spi_driver(adis16204_driver);
 
 MODULE_AUTHOR("Barry Song <21cnbao@gmail.com>");
 MODULE_DESCRIPTION("ADIS16204 High-g Digital Impact Sensor and Recorder");

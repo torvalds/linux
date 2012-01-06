@@ -271,27 +271,7 @@ static struct usb_driver cypress_driver = {
 	.id_table = cypress_table,
 };
 
-static int __init cypress_init(void)
-{
-	int result;
-
-	/* register this driver with the USB subsystem */
-	result = usb_register(&cypress_driver);
-	if (result)
-		printk(KERN_ERR KBUILD_MODNAME ": usb_register failed! "
-		       "Error number: %d\n", result);
-
-	return result;
-}
-
-static void __exit cypress_exit(void)
-{
-	/* deregister this driver with the USB subsystem */
-	usb_deregister(&cypress_driver);
-}
-
-module_init(cypress_init);
-module_exit(cypress_exit);
+module_usb_driver(cypress_driver);
 
 MODULE_AUTHOR(DRIVER_AUTHOR);
 MODULE_DESCRIPTION(DRIVER_DESC);

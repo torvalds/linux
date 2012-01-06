@@ -1865,15 +1865,4 @@ static struct usb_driver usbat_driver = {
 	.soft_unbind =	1,
 };
 
-static int __init usbat_init(void)
-{
-	return usb_register(&usbat_driver);
-}
-
-static void __exit usbat_exit(void)
-{
-	usb_deregister(&usbat_driver);
-}
-
-module_init(usbat_init);
-module_exit(usbat_exit);
+module_usb_driver(usbat_driver);

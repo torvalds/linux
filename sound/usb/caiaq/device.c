@@ -538,16 +538,5 @@ static struct usb_driver snd_usb_driver = {
 	.id_table 	= snd_usb_id_table,
 };
 
-static int __init snd_module_init(void)
-{
-	return usb_register(&snd_usb_driver);
-}
-
-static void __exit snd_module_exit(void)
-{
-	usb_deregister(&snd_usb_driver);
-}
-
-module_init(snd_module_init)
-module_exit(snd_module_exit)
+module_usb_driver(snd_usb_driver);
 

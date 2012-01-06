@@ -1462,7 +1462,7 @@ int arch_update_cpu_topology(void)
 {
 	int cpu, nid, old_nid;
 	unsigned int associativity[VPHN_ASSOC_BUFSIZE] = {0};
-	struct sys_device *sysdev;
+	struct device *dev;
 
 	for_each_cpu(cpu,&cpu_associativity_changes_mask) {
 		vphn_get_associativity(cpu, associativity);
@@ -1483,9 +1483,9 @@ int arch_update_cpu_topology(void)
 		register_cpu_under_node(cpu, nid);
 		put_online_cpus();
 
-		sysdev = get_cpu_sysdev(cpu);
-		if (sysdev)
-			kobject_uevent(&sysdev->kobj, KOBJ_CHANGE);
+		dev = get_cpu_device(cpu);
+		if (dev)
+			kobject_uevent(&dev->kobj, KOBJ_CHANGE);
 	}
 
 	return 1;

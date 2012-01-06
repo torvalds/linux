@@ -1289,26 +1289,7 @@ static struct usb_driver lme2510_driver = {
 	.id_table	= lme2510_table,
 };
 
-/* module stuff */
-static int __init lme2510_module_init(void)
-{
-	int result = usb_register(&lme2510_driver);
-	if (result) {
-		err("usb_register failed. Error number %d", result);
-		return result;
-	}
-
-	return 0;
-}
-
-static void __exit lme2510_module_exit(void)
-{
-	/* deregister this driver from the USB subsystem */
-	usb_deregister(&lme2510_driver);
-}
-
-module_init(lme2510_module_init);
-module_exit(lme2510_module_exit);
+module_usb_driver(lme2510_driver);
 
 MODULE_AUTHOR("Malcolm Priestley <tvboxspy@gmail.com>");
 MODULE_DESCRIPTION("LME2510(C) DVB-S USB2.0");

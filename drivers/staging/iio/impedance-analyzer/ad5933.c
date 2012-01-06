@@ -796,18 +796,7 @@ static struct i2c_driver ad5933_driver = {
 	.remove = __devexit_p(ad5933_remove),
 	.id_table = ad5933_id,
 };
-
-static __init int ad5933_init(void)
-{
-	return i2c_add_driver(&ad5933_driver);
-}
-module_init(ad5933_init);
-
-static __exit void ad5933_exit(void)
-{
-	i2c_del_driver(&ad5933_driver);
-}
-module_exit(ad5933_exit);
+module_i2c_driver(ad5933_driver);
 
 MODULE_AUTHOR("Michael Hennerich <hennerich@blackfin.uclinux.org>");
 MODULE_DESCRIPTION("Analog Devices AD5933 Impedance Conv. Network Analyzer");

@@ -63,7 +63,7 @@ struct platform_device_info {
 		u64 dma_mask;
 };
 extern struct platform_device *platform_device_register_full(
-		struct platform_device_info *pdevinfo);
+		const struct platform_device_info *pdevinfo);
 
 /**
  * platform_device_register_resndata - add a platform-level device with
@@ -196,16 +196,8 @@ static inline void platform_set_drvdata(struct platform_device *pdev, void *data
  * calling it replaces module_init() and module_exit()
  */
 #define module_platform_driver(__platform_driver) \
-static int __init __platform_driver##_init(void) \
-{ \
-	return platform_driver_register(&(__platform_driver)); \
-} \
-module_init(__platform_driver##_init); \
-static void __exit __platform_driver##_exit(void) \
-{ \
-	platform_driver_unregister(&(__platform_driver)); \
-} \
-module_exit(__platform_driver##_exit);
+	module_driver(__platform_driver, platform_driver_register, \
+			platform_driver_unregister)
 
 extern struct platform_device *platform_create_bundle(struct platform_driver *driver,
 					int (*probe)(struct platform_device *),

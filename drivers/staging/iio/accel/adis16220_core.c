@@ -708,18 +708,7 @@ static struct spi_driver adis16220_driver = {
 	.probe = adis16220_probe,
 	.remove = __devexit_p(adis16220_remove),
 };
-
-static __init int adis16220_init(void)
-{
-	return spi_register_driver(&adis16220_driver);
-}
-module_init(adis16220_init);
-
-static __exit void adis16220_exit(void)
-{
-	spi_unregister_driver(&adis16220_driver);
-}
-module_exit(adis16220_exit);
+module_spi_driver(adis16220_driver);
 
 MODULE_AUTHOR("Barry Song <21cnbao@gmail.com>");
 MODULE_DESCRIPTION("Analog Devices ADIS16220 Digital Vibration Sensor");

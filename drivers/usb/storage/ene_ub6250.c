@@ -2409,15 +2409,4 @@ static struct usb_driver ene_ub6250_driver = {
 	.soft_unbind =	1,
 };
 
-static int __init ene_ub6250_init(void)
-{
-	return usb_register(&ene_ub6250_driver);
-}
-
-static void __exit ene_ub6250_exit(void)
-{
-	usb_deregister(&ene_ub6250_driver);
-}
-
-module_init(ene_ub6250_init);
-module_exit(ene_ub6250_exit);
+module_usb_driver(ene_ub6250_driver);

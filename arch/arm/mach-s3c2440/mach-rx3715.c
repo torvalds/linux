@@ -20,7 +20,7 @@
 #include <linux/init.h>
 #include <linux/tty.h>
 #include <linux/console.h>
-#include <linux/sysdev.h>
+#include <linux/device.h>
 #include <linux/platform_device.h>
 #include <linux/serial_core.h>
 #include <linux/serial.h>

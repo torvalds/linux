@@ -18,7 +18,7 @@
 #include <linux/init.h>
 #include <linux/clk.h>
 #include <linux/delay.h>
-#include <linux/sysdev.h>
+#include <linux/device.h>
 #include <linux/syscore_ops.h>
 #include <linux/serial_core.h>
 #include <linux/platform_device.h>
@@ -220,25 +220,26 @@ void __init s3c2412_init_clocks(int xtal)
 	s3c2412_baseclk_add();
 }
 
-/* need to register class before we actually register the device, and
+/* need to register the subsystem before we actually register the device, and
  * we also need to ensure that it has been initialised before any of the
  * drivers even try to use it (even if not on an s3c2412 based system)
  * as a driver which may support both 2410 and 2440 may try and use it.
 */
 
-struct sysdev_class s3c2412_sysclass = {
+struct bus_type s3c2412_subsys = {
 	.name = "s3c2412-core",
+	.dev_name = "s3c2412-core",
 };
 
 static int __init s3c2412_core_init(void)
 {
-	return sysdev_class_register(&s3c2412_sysclass);
+	return subsys_system_register(&s3c2412_subsys, NULL);
 }
 
 core_initcall(s3c2412_core_init);
 
-static struct sys_device s3c2412_sysdev = {
-	.cls		= &s3c2412_sysclass,
+static struct device s3c2412_dev = {
+	.bus		= &s3c2412_subsys,
 };
 
 int __init s3c2412_init(void)
@@ -250,5 +251,5 @@ int __init s3c2412_init(void)
 #endif
 	register_syscore_ops(&s3c24xx_irq_syscore_ops);
 
-	return sysdev_register(&s3c2412_sysdev);
+	return device_register(&s3c2412_dev);
 }

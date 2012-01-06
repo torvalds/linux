@@ -1982,15 +1982,4 @@ static struct usb_driver rt2500usb_driver = {
 	.resume		= rt2x00usb_resume,
 };
 
-static int __init rt2500usb_init(void)
-{
-	return usb_register(&rt2500usb_driver);
-}
-
-static void __exit rt2500usb_exit(void)
-{
-	usb_deregister(&rt2500usb_driver);
-}
-
-module_init(rt2500usb_init);
-module_exit(rt2500usb_exit);
+module_usb_driver(rt2500usb_driver);

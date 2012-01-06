@@ -679,15 +679,4 @@ static struct usb_driver jumpshot_driver = {
 	.soft_unbind =	1,
 };
 
-static int __init jumpshot_init(void)
-{
-	return usb_register(&jumpshot_driver);
-}
-
-static void __exit jumpshot_exit(void)
-{
-	usb_deregister(&jumpshot_driver);
-}
-
-module_init(jumpshot_init);
-module_exit(jumpshot_exit);
+module_usb_driver(jumpshot_driver);

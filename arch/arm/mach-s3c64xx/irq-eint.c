@@ -14,7 +14,7 @@
 
 #include <linux/kernel.h>
 #include <linux/interrupt.h>
-#include <linux/sysdev.h>
+#include <linux/device.h>
 #include <linux/gpio.h>
 #include <linux/irq.h>
 #include <linux/io.h>
