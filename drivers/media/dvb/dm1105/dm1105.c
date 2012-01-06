@@ -1121,7 +1121,7 @@ static int __devinit dm1105_probe(struct pci_dev *pdev,
 
 	ret = frontend_init(dev);
 	if (ret < 0)
-		goto err_disconnect_frontend;
+		goto err_dvb_net;
 
 	dm1105_ir_init(dev);
 
