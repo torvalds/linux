@@ -19,3 +19,10 @@ config SFC_MTD
 	  This exposes the on-board flash memory as MTD devices (e.g.
 	  /dev/mtd1).  This makes it possible to upload new firmware
 	  to the NIC.
+config SFC_MCDI_MON
+	bool "Solarflare SFC9000-family hwmon support"
+	depends on SFC && HWMON && !(SFC=y && HWMON=m)
+	default y
+	----help---
+	  This exposes the on-board firmware-managed sensors as a
+	  hardware monitor device.

@@ -300,6 +300,10 @@ static int siena_probe_nic(struct efx_nic *efx)
 		goto fail5;
 	}
 
+	rc = efx_mcdi_mon_probe(efx);
+	if (rc)
+		goto fail5;
+
 	return 0;
 
 fail5:
@@ -387,6 +391,8 @@ static int siena_init_nic(struct efx_nic *efx)
 
 static void siena_remove_nic(struct efx_nic *efx)
 {
+	efx_mcdi_mon_remove(efx);
+
 	efx_nic_free_buffer(efx, &efx->irq_status);
 
 	siena_reset_hw(efx, RESET_TYPE_ALL);

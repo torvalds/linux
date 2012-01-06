@@ -517,49 +517,6 @@ static void efx_mcdi_process_link_change(struct efx_nic *efx, efx_qword_t *ev)
 	efx_link_status_changed(efx);
 }
 
-static const char *const sensor_names[] = {
-	[MC_CMD_SENSOR_CONTROLLER_TEMP] = "Controller temp. sensor",
-	[MC_CMD_SENSOR_PHY_COMMON_TEMP] = "PHY shared temp. sensor",
-	[MC_CMD_SENSOR_CONTROLLER_COOLING] = "Controller cooling",
-	[MC_CMD_SENSOR_PHY0_TEMP] = "PHY 0 temp. sensor",
-	[MC_CMD_SENSOR_PHY0_COOLING] = "PHY 0 cooling",
-	[MC_CMD_SENSOR_PHY1_TEMP] = "PHY 1 temp. sensor",
-	[MC_CMD_SENSOR_PHY1_COOLING] = "PHY 1 cooling",
-	[MC_CMD_SENSOR_IN_1V0] = "1.0V supply sensor",
-	[MC_CMD_SENSOR_IN_1V2] = "1.2V supply sensor",
-	[MC_CMD_SENSOR_IN_1V8] = "1.8V supply sensor",
-	[MC_CMD_SENSOR_IN_2V5] = "2.5V supply sensor",
-	[MC_CMD_SENSOR_IN_3V3] = "3.3V supply sensor",
-	[MC_CMD_SENSOR_IN_12V0] = "12V supply sensor"
-};
-
-static const char *const sensor_status_names[] = {
-	[MC_CMD_SENSOR_STATE_OK] = "OK",
-	[MC_CMD_SENSOR_STATE_WARNING] = "Warning",
-	[MC_CMD_SENSOR_STATE_FATAL] = "Fatal",
-	[MC_CMD_SENSOR_STATE_BROKEN] = "Device failure",
-};
-
-static void efx_mcdi_sensor_event(struct efx_nic *efx, efx_qword_t *ev)
-{
-	unsigned int monitor, state, value;
-	const char *name, *state_txt;
-	monitor = EFX_QWORD_FIELD(*ev, MCDI_EVENT_SENSOREVT_MONITOR);
-	state = EFX_QWORD_FIELD(*ev, MCDI_EVENT_SENSOREVT_STATE);
-	value = EFX_QWORD_FIELD(*ev, MCDI_EVENT_SENSOREVT_VALUE);
-	/* Deal gracefully with the board having more drivers than we
-	 * know about, but do not expect new sensor states. */
-	name = (monitor >= ARRAY_SIZE(sensor_names))
-				    ? "No sensor name available" :
-				    sensor_names[monitor];
-	EFX_BUG_ON_PARANOID(state >= ARRAY_SIZE(sensor_status_names));
-	state_txt = sensor_status_names[state];
-
-	netif_err(efx, hw, efx->net_dev,
-		  "Sensor %d (%s) reports condition '%s' for raw value %d\n",
-		  monitor, name, state_txt, value);
-}
-
 /* Called from  falcon_process_eventq for MCDI events */
 void efx_mcdi_process_event(struct efx_channel *channel,
 			    efx_qword_t *event)
