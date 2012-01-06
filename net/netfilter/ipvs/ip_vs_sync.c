@@ -740,7 +740,7 @@ static void ip_vs_proc_conn(struct net *net, struct ip_vs_conn_param *param,
 		 * but still handled.
 		 */
 		dest = ip_vs_find_dest(net, type, daddr, dport, param->vaddr,
-				       param->vport, protocol, fwmark);
+				       param->vport, protocol, fwmark, flags);
 
 		/*  Set the approprite ativity flag */
 		if (protocol == IPPROTO_TCP) {

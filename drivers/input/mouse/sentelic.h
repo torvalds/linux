@@ -2,7 +2,7 @@
  * Finger Sensing Pad PS/2 mouse driver.
  *
  * Copyright (C) 2005-2007 Asia Vital Components Co., Ltd.
- * Copyright (C) 2005-2009 Tai-hwa Liang, Sentelic Corporation.
+ * Copyright (C) 2005-2011 Tai-hwa Liang, Sentelic Corporation.
  *
  *   This program is free software; you can redistribute it and/or
  *   modify it under the terms of the GNU General Public License
@@ -33,6 +33,7 @@
 /* Finger-sensing Pad control registers */
 #define	FSP_REG_SYSCTL1		0x10
 #define	FSP_BIT_EN_REG_CLK	BIT(5)
+#define	FSP_REG_TMOD_STATUS	0x20
 #define	FSP_REG_OPC_QDOWN	0x31
 #define	FSP_BIT_EN_OPC_TAG	BIT(7)
 #define	FSP_REG_OPTZ_XLO	0x34
