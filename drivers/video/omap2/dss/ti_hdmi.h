@@ -42,6 +42,7 @@ enum hdmi_clk_refsel {
 	HDMI_REFSEL_SYSCLK = 3
 };
 
+/* HDMI timing structure */
 struct hdmi_video_timings {
 	u16 x_res;
 	u16 y_res;
@@ -53,13 +54,9 @@ struct hdmi_video_timings {
 	u16 vsw;
 	u16 vfp;
 	u16 vbp;
-};
-
-/* HDMI timing structure */
-struct hdmi_timings {
-	struct hdmi_video_timings timings;
-	int vsync_pol;
-	int hsync_pol;
+	bool vsync_pol;
+	bool hsync_pol;
+	bool interlace;
 };
 
 struct hdmi_cm {
@@ -68,8 +65,7 @@ struct hdmi_cm {
 };
 
 struct hdmi_config {
-	struct hdmi_timings timings;
-	u16	interlace;
+	struct hdmi_video_timings timings;
 	struct hdmi_cm cm;
 };
 

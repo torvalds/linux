@@ -656,15 +656,15 @@ static void hdmi_wp_video_init_format(struct hdmi_video_format *video_fmt,
 {
 	pr_debug("Enter hdmi_wp_video_init_format\n");
 
-	video_fmt->y_res = param->timings.timings.y_res;
-	video_fmt->x_res = param->timings.timings.x_res;
+	video_fmt->y_res = param->timings.y_res;
+	video_fmt->x_res = param->timings.x_res;
 
-	timings->hbp = param->timings.timings.hbp;
-	timings->hfp = param->timings.timings.hfp;
-	timings->hsw = param->timings.timings.hsw;
-	timings->vbp = param->timings.timings.vbp;
-	timings->vfp = param->timings.timings.vfp;
-	timings->vsw = param->timings.timings.vsw;
+	timings->hbp = param->timings.hbp;
+	timings->hfp = param->timings.hfp;
+	timings->hsw = param->timings.hsw;
+	timings->vbp = param->timings.vbp;
+	timings->vfp = param->timings.vfp;
+	timings->vsw = param->timings.vsw;
 }
 
 static void hdmi_wp_video_config_format(struct hdmi_ip_data *ip_data,
@@ -688,7 +688,7 @@ static void hdmi_wp_video_config_interface(struct hdmi_ip_data *ip_data)
 	r = hdmi_read_reg(hdmi_wp_base(ip_data), HDMI_WP_VIDEO_CFG);
 	r = FLD_MOD(r, ip_data->cfg.timings.vsync_pol, 7, 7);
 	r = FLD_MOD(r, ip_data->cfg.timings.hsync_pol, 6, 6);
-	r = FLD_MOD(r, ip_data->cfg.interlace, 3, 3);
+	r = FLD_MOD(r, ip_data->cfg.timings.interlace, 3, 3);
 	r = FLD_MOD(r, 1, 1, 0); /* HDMI_TIMING_MASTER_24BIT */
 	hdmi_write_reg(hdmi_wp_base(ip_data), HDMI_WP_VIDEO_CFG, r);
 }
