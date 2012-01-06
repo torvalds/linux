@@ -704,7 +704,7 @@ static int r300_packet0_check(struct radeon_cs_parser *p,
 			return r;
 		}
 
-		if (p->keep_tiling_flags) {
+		if (p->cs_flags & RADEON_CS_KEEP_TILING_FLAGS) {
 			ib[idx] = (idx_value & 31) | /* keep the 1st 5 bits */
 				  ((idx_value & ~31) + (u32)reloc->lobj.gpu_offset);
 		} else {
@@ -768,7 +768,7 @@ static int r300_packet0_check(struct radeon_cs_parser *p,
 		/* RB3D_COLORPITCH1 */
 		/* RB3D_COLORPITCH2 */
 		/* RB3D_COLORPITCH3 */
-		if (!p->keep_tiling_flags) {
+		if (!(p->cs_flags & RADEON_CS_KEEP_TILING_FLAGS)) {
 			r = r100_cs_packet_next_reloc(p, &reloc);
 			if (r) {
 				DRM_ERROR("No reloc for ib[%d]=0x%04X\n",
@@ -853,7 +853,7 @@ static int r300_packet0_check(struct radeon_cs_parser *p,
 		break;
 	case 0x4F24:
 		/* ZB_DEPTHPITCH */
-		if (!p->keep_tiling_flags) {
+		if (!(p->cs_flags & RADEON_CS_KEEP_TILING_FLAGS)) {
 			r = r100_cs_packet_next_reloc(p, &reloc);
 			if (r) {
 				DRM_ERROR("No reloc for ib[%d]=0x%04X\n",

@@ -952,6 +952,16 @@ static struct radeon_asic btc_asic = {
 	.post_page_flip = &evergreen_post_page_flip,
 };
 
+static const struct radeon_vm_funcs cayman_vm_funcs = {
+	.init = &cayman_vm_init,
+	.fini = &cayman_vm_fini,
+	.bind = &cayman_vm_bind,
+	.unbind = &cayman_vm_unbind,
+	.tlb_flush = &cayman_vm_tlb_flush,
+	.page_flags = &cayman_vm_page_flags,
+	.set_page = &cayman_vm_set_page,
+};
+
 static struct radeon_asic cayman_asic = {
 	.init = &cayman_init,
 	.fini = &cayman_fini,
@@ -965,17 +975,20 @@ static struct radeon_asic cayman_asic = {
 	.ring_test = &r600_ring_test,
 	.ring = {
 		[RADEON_RING_TYPE_GFX_INDEX] = {
-			.ib_execute = &evergreen_ring_ib_execute,
+			.ib_execute = &cayman_ring_ib_execute,
+			.ib_parse = &evergreen_ib_parse,
 			.emit_fence = &cayman_fence_ring_emit,
 			.emit_semaphore = &r600_semaphore_ring_emit,
 		},
 		[CAYMAN_RING_TYPE_CP1_INDEX] = {
-			.ib_execute = &r600_ring_ib_execute,
+			.ib_execute = &cayman_ring_ib_execute,
+			.ib_parse = &evergreen_ib_parse,
 			.emit_fence = &cayman_fence_ring_emit,
 			.emit_semaphore = &r600_semaphore_ring_emit,
 		},
 		[CAYMAN_RING_TYPE_CP2_INDEX] = {
-			.ib_execute = &r600_ring_ib_execute,
+			.ib_execute = &cayman_ring_ib_execute,
+			.ib_parse = &evergreen_ib_parse,
 			.emit_fence = &cayman_fence_ring_emit,
 			.emit_semaphore = &r600_semaphore_ring_emit,
 		}
@@ -1128,6 +1141,7 @@ int radeon_asic_init(struct radeon_device *rdev)
 		rdev->asic = &cayman_asic;
 		/* set num crtcs */
 		rdev->num_crtc = 6;
+		rdev->vm_manager.funcs = &cayman_vm_funcs;
 		break;
 	default:
 		/* FIXME: not supported yet */

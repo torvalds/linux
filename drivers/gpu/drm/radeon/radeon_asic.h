@@ -438,5 +438,17 @@ int cayman_suspend(struct radeon_device *rdev);
 int cayman_resume(struct radeon_device *rdev);
 bool cayman_gpu_is_lockup(struct radeon_device *rdev, struct radeon_ring *cp);
 int cayman_asic_reset(struct radeon_device *rdev);
+void cayman_ring_ib_execute(struct radeon_device *rdev, struct radeon_ib *ib);
+int cayman_vm_init(struct radeon_device *rdev);
+void cayman_vm_fini(struct radeon_device *rdev);
+int cayman_vm_bind(struct radeon_device *rdev, struct radeon_vm *vm, int id);
+void cayman_vm_unbind(struct radeon_device *rdev, struct radeon_vm *vm);
+void cayman_vm_tlb_flush(struct radeon_device *rdev, struct radeon_vm *vm);
+uint32_t cayman_vm_page_flags(struct radeon_device *rdev,
+			      struct radeon_vm *vm,
+			      uint32_t flags);
+void cayman_vm_set_page(struct radeon_device *rdev, struct radeon_vm *vm,
+			unsigned pfn, uint64_t addr, uint32_t flags);
+int evergreen_ib_parse(struct radeon_device *rdev, struct radeon_ib *ib);
 
 #endif

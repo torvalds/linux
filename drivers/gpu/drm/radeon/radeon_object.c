@@ -46,6 +46,20 @@ static void radeon_bo_clear_surface_reg(struct radeon_bo *bo);
  * function are calling it.
  */
 
+void radeon_bo_clear_va(struct radeon_bo *bo)
+{
+	struct radeon_bo_va *bo_va, *tmp;
+
+	list_for_each_entry_safe(bo_va, tmp, &bo->va, bo_list) {
+		/* remove from all vm address space */
+		mutex_lock(&bo_va->vm->mutex);
+		list_del(&bo_va->vm_list);
+		mutex_unlock(&bo_va->vm->mutex);
+		list_del(&bo_va->bo_list);
+		kfree(bo_va);
+	}
+}
+
 static void radeon_ttm_bo_destroy(struct ttm_buffer_object *tbo)
 {
 	struct radeon_bo *bo;
@@ -55,6 +69,7 @@ static void radeon_ttm_bo_destroy(struct ttm_buffer_object *tbo)
 	list_del_init(&bo->list);
 	mutex_unlock(&bo->rdev->gem.mutex);
 	radeon_bo_clear_surface_reg(bo);
+	radeon_bo_clear_va(bo);
 	drm_gem_object_release(&bo->gem_base);
 	kfree(bo);
 }
@@ -134,6 +149,7 @@ retry:
 	bo->gem_base.driver_private = NULL;
 	bo->surface_reg = -1;
 	INIT_LIST_HEAD(&bo->list);
+	INIT_LIST_HEAD(&bo->va);
 	radeon_ttm_placement_from_domain(bo, domain);
 	/* Kernel allocation are uninterruptible */
 	mutex_lock(&rdev->vram_mutex);
@@ -487,6 +503,7 @@ void radeon_bo_move_notify(struct ttm_buffer_object *bo,
 		return;
 	rbo = container_of(bo, struct radeon_bo, tbo);
 	radeon_bo_check_tiling(rbo, 0, 1);
+	radeon_vm_bo_invalidate(rbo->rdev, rbo);
 }
 
 int radeon_bo_fault_reserve_notify(struct ttm_buffer_object *bo)
@@ -559,4 +576,17 @@ int radeon_bo_reserve(struct radeon_bo *bo, bool no_wait)
 		return r;
 	}
 	return 0;
+}
+
+/* object have to be reserved */
+struct radeon_bo_va *radeon_bo_va(struct radeon_bo *rbo, struct radeon_vm *vm)
+{
+	struct radeon_bo_va *bo_va;
+
+	list_for_each_entry(bo_va, &rbo->va, bo_list) {
+		if (bo_va->vm == vm) {
+			return bo_va;
+		}
+	}
+	return NULL;
 }

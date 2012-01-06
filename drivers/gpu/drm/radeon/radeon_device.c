@@ -735,6 +735,10 @@ int radeon_device_init(struct radeon_device *rdev,
 	init_waitqueue_head(&rdev->irq.vblank_queue);
 	init_waitqueue_head(&rdev->irq.idle_queue);
 	INIT_LIST_HEAD(&rdev->semaphore_drv.bo);
+	/* initialize vm here */
+	rdev->vm_manager.use_bitmap = 1;
+	rdev->vm_manager.max_pfn = 1 << 20;
+	INIT_LIST_HEAD(&rdev->vm_manager.lru_vm);
 
 	/* Set asic functions */
 	r = radeon_asic_init(rdev);

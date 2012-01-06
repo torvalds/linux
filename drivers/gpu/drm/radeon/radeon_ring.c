@@ -132,6 +132,7 @@ retry:
 				(*ib)->gpu_addr = rdev->ib_pool.sa_manager.gpu_addr;
 				(*ib)->gpu_addr += (*ib)->sa_bo.offset;
 				(*ib)->fence = fence;
+				(*ib)->vm_id = 0;
 				/* ib are most likely to be allocated in a ring fashion
 				 * thus rdev->ib_pool.head_id should be the id of the
 				 * oldest ib

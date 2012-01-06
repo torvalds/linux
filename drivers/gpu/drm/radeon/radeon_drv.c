@@ -54,9 +54,10 @@
  *   2.10.0 - fusion 2D tiling
  *   2.11.0 - backend map, initial compute support for the CS checker
  *   2.12.0 - RADEON_CS_KEEP_TILING_FLAGS
+ *   2.13.0 - virtual memory support
  */
 #define KMS_DRIVER_MAJOR	2
-#define KMS_DRIVER_MINOR	12
+#define KMS_DRIVER_MINOR	13
 #define KMS_DRIVER_PATCHLEVEL	0
 int radeon_driver_load_kms(struct drm_device *dev, unsigned long flags);
 int radeon_driver_unload_kms(struct drm_device *dev);
@@ -84,6 +85,10 @@ int radeon_dma_ioctl_kms(struct drm_device *dev, void *data,
 			 struct drm_file *file_priv);
 int radeon_gem_object_init(struct drm_gem_object *obj);
 void radeon_gem_object_free(struct drm_gem_object *obj);
+int radeon_gem_object_open(struct drm_gem_object *obj,
+				struct drm_file *file_priv);
+void radeon_gem_object_close(struct drm_gem_object *obj,
+				struct drm_file *file_priv);
 extern int radeon_get_crtc_scanoutpos(struct drm_device *dev, int crtc,
 				      int *vpos, int *hpos);
 extern struct drm_ioctl_desc radeon_ioctls_kms[];
@@ -350,6 +355,8 @@ static struct drm_driver kms_driver = {
 	.ioctls = radeon_ioctls_kms,
 	.gem_init_object = radeon_gem_object_init,
 	.gem_free_object = radeon_gem_object_free,
+	.gem_open_object = radeon_gem_object_open,
+	.gem_close_object = radeon_gem_object_close,
 	.dma_ioctl = radeon_dma_ioctl_kms,
 	.dumb_create = radeon_mode_dumb_create,
 	.dumb_map_offset = radeon_mode_dumb_mmap,
