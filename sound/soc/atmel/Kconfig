@@ -9,6 +9,7 @@ config SND_ATMEL_SOC
 config SND_ATMEL_SOC_SSC
 	tristate
 	depends on SND_ATMEL_SOC
+	select ATMEL_SSC
 	help
 	  Say Y or M if you want to add support for codecs the
 	  ATMEL SSC interface. You will also needs to select the individual
