@@ -755,7 +755,7 @@ int saa7134_input_init1(struct saa7134_dev *dev)
 		polling      = 50; /* ms */
 		break;
 	case SAA7134_BOARD_VIDEOMATE_M1F:
-		ir_codes     = RC_MAP_VIDEOMATE_M1F;
+		ir_codes     = RC_MAP_VIDEOMATE_K100;
 		mask_keycode = 0x0ff00;
 		mask_keyup   = 0x040000;
 		break;
