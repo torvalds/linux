@@ -25,6 +25,7 @@
 #include "util/evsel.h"
 #include "util/header.h"
 #include "util/session.h"
+#include "util/tool.h"
 
 #include "util/parse-options.h"
 #include "util/parse-events.h"
@@ -35,38 +36,35 @@
 
 #include <linux/bitmap.h>
 
-static char		const *input_name = "perf.data";
+struct perf_report {
+	struct perf_tool	tool;
+	struct perf_session	*session;
+	char const		*input_name;
+	bool			force, use_tui, use_stdio;
+	bool			hide_unresolved;
+	bool			dont_use_callchains;
+	bool			show_full_info;
+	bool			show_threads;
+	bool			inverted_callchain;
+	struct perf_read_values	show_threads_values;
+	const char		*pretty_printing_style;
+	symbol_filter_t		annotate_init;
+	const char		*cpu_list;
+	DECLARE_BITMAP(cpu_bitmap, MAX_NR_CPUS);
+};
 
-static bool		force, use_tui, use_stdio;
-static bool		hide_unresolved;
-static bool		dont_use_callchains;
-static bool		show_full_info;
-
-static bool		show_threads;
-static struct perf_read_values	show_threads_values;
-
-static const char	default_pretty_printing_style[] = "normal";
-static const char	*pretty_printing_style = default_pretty_printing_style;
-
-static char		callchain_default_opt[] = "fractal,0.5,callee";
-static bool		inverted_callchain;
-static symbol_filter_t	annotate_init;
-
-static const char	*cpu_list;
-static DECLARE_BITMAP(cpu_bitmap, MAX_NR_CPUS);
-
-static int perf_session__add_hist_entry(struct perf_session *session,
-					struct addr_location *al,
-					struct perf_sample *sample,
-					struct perf_evsel *evsel)
+static int perf_evsel__add_hist_entry(struct perf_evsel *evsel,
+				      struct addr_location *al,
+				      struct perf_sample *sample,
+				      struct machine *machine)
 {
 	struct symbol *parent = NULL;
 	int err = 0;
 	struct hist_entry *he;
 
 	if ((sort__has_parent || symbol_conf.use_callchain) && sample->callchain) {
-		err = perf_session__resolve_callchain(session, al->thread,
-						      sample->callchain, &parent);
+		err = machine__resolve_callchain(machine, evsel, al->thread,
+						 sample->callchain, &parent);
 		if (err)
 			return err;
 	}
@@ -76,7 +74,8 @@ static int perf_session__add_hist_entry(struct perf_session *session,
 		return -ENOMEM;
 
 	if (symbol_conf.use_callchain) {
-		err = callchain_append(he->callchain, &session->callchain_cursor,
+		err = callchain_append(he->callchain,
+				       &evsel->hists.callchain_cursor,
 				       sample->period);
 		if (err)
 			return err;
@@ -92,8 +91,7 @@ static int perf_session__add_hist_entry(struct perf_session *session,
 		assert(evsel != NULL);
 
 		err = -ENOMEM;
-		if (notes->src == NULL &&
-		    symbol__alloc_hist(he->ms.sym, session->evlist->nr_entries) < 0)
+		if (notes->src == NULL && symbol__alloc_hist(he->ms.sym) < 0)
 			goto out;
 
 		err = hist_entry__inc_addr_samples(he, evsel->idx, al->addr);
@@ -106,30 +104,32 @@ out:
 }
 
 
-static int process_sample_event(union perf_event *event,
+static int process_sample_event(struct perf_tool *tool,
+				union perf_event *event,
 				struct perf_sample *sample,
 				struct perf_evsel *evsel,
-				struct perf_session *session)
+				struct machine *machine)
 {
+	struct perf_report *rep = container_of(tool, struct perf_report, tool);
 	struct addr_location al;
 
-	if (perf_event__preprocess_sample(event, session, &al, sample,
-					  annotate_init) < 0) {
+	if (perf_event__preprocess_sample(event, machine, &al, sample,
+					  rep->annotate_init) < 0) {
 		fprintf(stderr, "problem processing %d event, skipping it.\n",
 			event->header.type);
 		return -1;
 	}
 
-	if (al.filtered || (hide_unresolved && al.sym == NULL))
+	if (al.filtered || (rep->hide_unresolved && al.sym == NULL))
 		return 0;
 
-	if (cpu_list && !test_bit(sample->cpu, cpu_bitmap))
+	if (rep->cpu_list && !test_bit(sample->cpu, rep->cpu_bitmap))
 		return 0;
 
 	if (al.map != NULL)
 		al.map->dso->hit = 1;
 
-	if (perf_session__add_hist_entry(session, &al, sample, evsel)) {
+	if (perf_evsel__add_hist_entry(evsel, &al, sample, machine)) {
 		pr_debug("problem incrementing symbol period, skipping event\n");
 		return -1;
 	}
@@ -137,15 +137,17 @@ static int process_sample_event(union perf_event *event,
 	return 0;
 }
 
-static int process_read_event(union perf_event *event,
+static int process_read_event(struct perf_tool *tool,
+			      union perf_event *event,
 			      struct perf_sample *sample __used,
-			      struct perf_session *session)
+			      struct perf_evsel *evsel,
+			      struct machine *machine __used)
 {
-	struct perf_evsel *evsel = perf_evlist__id2evsel(session->evlist,
-							 event->read.id);
-	if (show_threads) {
+	struct perf_report *rep = container_of(tool, struct perf_report, tool);
+
+	if (rep->show_threads) {
 		const char *name = evsel ? event_name(evsel) : "unknown";
-		perf_read_values_add_value(&show_threads_values,
+		perf_read_values_add_value(&rep->show_threads_values,
 					   event->read.pid, event->read.tid,
 					   event->read.id,
 					   name,
@@ -159,8 +161,10 @@ static int process_read_event(union perf_event *event,
 	return 0;
 }
 
-static int perf_session__setup_sample_type(struct perf_session *self)
+static int perf_report__setup_sample_type(struct perf_report *rep)
 {
+	struct perf_session *self = rep->session;
+
 	if (!(self->sample_type & PERF_SAMPLE_CALLCHAIN)) {
 		if (sort__has_parent) {
 			ui__warning("Selected --sort parent, but no "
@@ -173,7 +177,8 @@ static int perf_session__setup_sample_type(struct perf_session *self)
 				    "you call 'perf record' without -g?\n");
 			return -1;
 		}
-	} else if (!dont_use_callchains && callchain_param.mode != CHAIN_NONE &&
+	} else if (!rep->dont_use_callchains &&
+		   callchain_param.mode != CHAIN_NONE &&
 		   !symbol_conf.use_callchain) {
 			symbol_conf.use_callchain = true;
 			if (callchain_register_param(&callchain_param) < 0) {
@@ -185,22 +190,6 @@ static int perf_session__setup_sample_type(struct perf_session *self)
 
 	return 0;
 }
-
-static struct perf_event_ops event_ops = {
-	.sample		 = process_sample_event,
-	.mmap		 = perf_event__process_mmap,
-	.comm		 = perf_event__process_comm,
-	.exit		 = perf_event__process_task,
-	.fork		 = perf_event__process_task,
-	.lost		 = perf_event__process_lost,
-	.read		 = process_read_event,
-	.attr		 = perf_event__process_attr,
-	.event_type	 = perf_event__process_event_type,
-	.tracing_data	 = perf_event__process_tracing_data,
-	.build_id	 = perf_event__process_build_id,
-	.ordered_samples = true,
-	.ordering_requires_timestamps = true,
-};
 
 extern volatile int session_done;
 
@@ -224,6 +213,7 @@ static size_t hists__fprintf_nr_sample_events(struct hists *self,
 }
 
 static int perf_evlist__tty_browse_hists(struct perf_evlist *evlist,
+					 struct perf_report *rep,
 					 const char *help)
 {
 	struct perf_evsel *pos;
@@ -241,18 +231,18 @@ static int perf_evlist__tty_browse_hists(struct perf_evlist *evlist,
 	    parent_pattern == default_parent_pattern) {
 		fprintf(stdout, "#\n# (%s)\n#\n", help);
 
-		if (show_threads) {
-			bool style = !strcmp(pretty_printing_style, "raw");
-			perf_read_values_display(stdout, &show_threads_values,
+		if (rep->show_threads) {
+			bool style = !strcmp(rep->pretty_printing_style, "raw");
+			perf_read_values_display(stdout, &rep->show_threads_values,
 						 style);
-			perf_read_values_destroy(&show_threads_values);
+			perf_read_values_destroy(&rep->show_threads_values);
 		}
 	}
 
 	return 0;
 }
 
-static int __cmd_report(void)
+static int __cmd_report(struct perf_report *rep)
 {
 	int ret = -EINVAL;
 	u64 nr_samples;
@@ -264,27 +254,31 @@ static int __cmd_report(void)
 
 	signal(SIGINT, sig_handler);
 
-	session = perf_session__new(input_name, O_RDONLY, force, false, &event_ops);
+	session = perf_session__new(rep->input_name, O_RDONLY,
+				    rep->force, false, &rep->tool);
 	if (session == NULL)
 		return -ENOMEM;
 
-	if (cpu_list) {
-		ret = perf_session__cpu_bitmap(session, cpu_list, cpu_bitmap);
+	rep->session = session;
+
+	if (rep->cpu_list) {
+		ret = perf_session__cpu_bitmap(session, rep->cpu_list,
+					       rep->cpu_bitmap);
 		if (ret)
 			goto out_delete;
 	}
 
 	if (use_browser <= 0)
-		perf_session__fprintf_info(session, stdout, show_full_info);
+		perf_session__fprintf_info(session, stdout, rep->show_full_info);
 
-	if (show_threads)
-		perf_read_values_init(&show_threads_values);
+	if (rep->show_threads)
+		perf_read_values_init(&rep->show_threads_values);
 
-	ret = perf_session__setup_sample_type(session);
+	ret = perf_report__setup_sample_type(rep);
 	if (ret)
 		goto out_delete;
 
-	ret = perf_session__process_events(session, &event_ops);
+	ret = perf_session__process_events(session, &rep->tool);
 	if (ret)
 		goto out_delete;
 
@@ -327,7 +321,7 @@ static int __cmd_report(void)
 	}
 
 	if (nr_samples == 0) {
-		ui__warning("The %s file has no samples!\n", input_name);
+		ui__warning("The %s file has no samples!\n", session->filename);
 		goto out_delete;
 	}
 
@@ -335,7 +329,7 @@ static int __cmd_report(void)
 		perf_evlist__tui_browse_hists(session->evlist, help,
 					      NULL, NULL, 0);
 	} else
-		perf_evlist__tty_browse_hists(session->evlist, help);
+		perf_evlist__tty_browse_hists(session->evlist, rep, help);
 
 out_delete:
 	/*
@@ -354,9 +348,9 @@ out_delete:
 }
 
 static int
-parse_callchain_opt(const struct option *opt __used, const char *arg,
-		    int unset)
+parse_callchain_opt(const struct option *opt, const char *arg, int unset)
 {
+	struct perf_report *rep = (struct perf_report *)opt->value;
 	char *tok, *tok2;
 	char *endptr;
 
@@ -364,7 +358,7 @@ parse_callchain_opt(const struct option *opt __used, const char *arg,
 	 * --no-call-graph
 	 */
 	if (unset) {
-		dont_use_callchains = true;
+		rep->dont_use_callchains = true;
 		return 0;
 	}
 
@@ -412,7 +406,7 @@ parse_callchain_opt(const struct option *opt __used, const char *arg,
 		goto setup;
 
 	if (tok2[0] != 'c') {
-		callchain_param.print_limit = strtod(tok2, &endptr);
+		callchain_param.print_limit = strtoul(tok2, &endptr, 0);
 		tok2 = strtok(NULL, ",");
 		if (!tok2)
 			goto setup;
@@ -433,13 +427,34 @@ setup:
 	return 0;
 }
 
-static const char * const report_usage[] = {
-	"perf report [<options>] <command>",
-	NULL
-};
-
-static const struct option options[] = {
-	OPT_STRING('i', "input", &input_name, "file",
+int cmd_report(int argc, const char **argv, const char *prefix __used)
+{
+	struct stat st;
+	char callchain_default_opt[] = "fractal,0.5,callee";
+	const char * const report_usage[] = {
+		"perf report [<options>]",
+		NULL
+	};
+	struct perf_report report = {
+		.tool = {
+			.sample		 = process_sample_event,
+			.mmap		 = perf_event__process_mmap,
+			.comm		 = perf_event__process_comm,
+			.exit		 = perf_event__process_task,
+			.fork		 = perf_event__process_task,
+			.lost		 = perf_event__process_lost,
+			.read		 = process_read_event,
+			.attr		 = perf_event__process_attr,
+			.event_type	 = perf_event__process_event_type,
+			.tracing_data	 = perf_event__process_tracing_data,
+			.build_id	 = perf_event__process_build_id,
+			.ordered_samples = true,
+			.ordering_requires_timestamps = true,
+		},
+		.pretty_printing_style	 = "normal",
+	};
+	const struct option options[] = {
+	OPT_STRING('i', "input", &report.input_name, "file",
 		    "input file name"),
 	OPT_INCR('v', "verbose", &verbose,
 		    "be more verbose (show symbol address, etc)"),
@@ -449,17 +464,18 @@ static const struct option options[] = {
 		   "file", "vmlinux pathname"),
 	OPT_STRING(0, "kallsyms", &symbol_conf.kallsyms_name,
 		   "file", "kallsyms pathname"),
-	OPT_BOOLEAN('f', "force", &force, "don't complain, do it"),
+	OPT_BOOLEAN('f', "force", &report.force, "don't complain, do it"),
 	OPT_BOOLEAN('m', "modules", &symbol_conf.use_modules,
 		    "load module symbols - WARNING: use only with -k and LIVE kernel"),
 	OPT_BOOLEAN('n', "show-nr-samples", &symbol_conf.show_nr_samples,
 		    "Show a column with the number of samples"),
-	OPT_BOOLEAN('T', "threads", &show_threads,
+	OPT_BOOLEAN('T', "threads", &report.show_threads,
 		    "Show per-thread event counters"),
-	OPT_STRING(0, "pretty", &pretty_printing_style, "key",
+	OPT_STRING(0, "pretty", &report.pretty_printing_style, "key",
 		   "pretty printing style key: normal raw"),
-	OPT_BOOLEAN(0, "tui", &use_tui, "Use the TUI interface"),
-	OPT_BOOLEAN(0, "stdio", &use_stdio, "Use the stdio interface"),
+	OPT_BOOLEAN(0, "tui", &report.use_tui, "Use the TUI interface"),
+	OPT_BOOLEAN(0, "stdio", &report.use_stdio,
+		    "Use the stdio interface"),
 	OPT_STRING('s', "sort", &sort_order, "key[,key2...]",
 		   "sort by key(s): pid, comm, dso, symbol, parent"),
 	OPT_BOOLEAN(0, "showcpuutilization", &symbol_conf.show_cpu_utilization,
@@ -468,13 +484,14 @@ static const struct option options[] = {
 		   "regex filter to identify parent, see: '--sort parent'"),
 	OPT_BOOLEAN('x', "exclude-other", &symbol_conf.exclude_other,
 		    "Only display entries with parent-match"),
-	OPT_CALLBACK_DEFAULT('g', "call-graph", NULL, "output_type,min_percent, call_order",
-		     "Display callchains using output_type (graph, flat, fractal, or none) , min percent threshold and callchain order. "
+	OPT_CALLBACK_DEFAULT('g', "call-graph", &report, "output_type,min_percent[,print_limit],call_order",
+		     "Display callchains using output_type (graph, flat, fractal, or none) , min percent threshold, optional print limit and callchain order. "
 		     "Default: fractal,0.5,callee", &parse_callchain_opt, callchain_default_opt),
-	OPT_BOOLEAN('G', "inverted", &inverted_callchain, "alias for inverted call graph"),
+	OPT_BOOLEAN('G', "inverted", &report.inverted_callchain,
+		    "alias for inverted call graph"),
 	OPT_STRING('d', "dsos", &symbol_conf.dso_list_str, "dso[,dso...]",
 		   "only consider symbols in these dsos"),
-	OPT_STRING('C', "comms", &symbol_conf.comm_list_str, "comm[,comm...]",
+	OPT_STRING('c', "comms", &symbol_conf.comm_list_str, "comm[,comm...]",
 		   "only consider symbols in these comms"),
 	OPT_STRING('S', "symbols", &symbol_conf.sym_list_str, "symbol[,symbol...]",
 		   "only consider these symbols"),
@@ -484,12 +501,13 @@ static const struct option options[] = {
 	OPT_STRING('t', "field-separator", &symbol_conf.field_sep, "separator",
 		   "separator for columns, no spaces will be added between "
 		   "columns '.' is reserved."),
-	OPT_BOOLEAN('U', "hide-unresolved", &hide_unresolved,
+	OPT_BOOLEAN('U', "hide-unresolved", &report.hide_unresolved,
 		    "Only display entries resolved to a symbol"),
 	OPT_STRING(0, "symfs", &symbol_conf.symfs, "directory",
 		    "Look for files with symbols relative to this directory"),
-	OPT_STRING('c', "cpu", &cpu_list, "cpu", "list of cpus to profile"),
-	OPT_BOOLEAN('I', "show-info", &show_full_info,
+	OPT_STRING('C', "cpu", &report.cpu_list, "cpu",
+		   "list of cpus to profile"),
+	OPT_BOOLEAN('I', "show-info", &report.show_full_info,
 		    "Display extended information about perf.data file"),
 	OPT_BOOLEAN(0, "source", &symbol_conf.annotate_src,
 		    "Interleave source code with assembly code (default)"),
@@ -500,24 +518,30 @@ static const struct option options[] = {
 	OPT_BOOLEAN(0, "show-total-period", &symbol_conf.show_total_period,
 		    "Show a column with the sum of periods"),
 	OPT_END()
-};
+	};
 
-int cmd_report(int argc, const char **argv, const char *prefix __used)
-{
 	argc = parse_options(argc, argv, options, report_usage, 0);
 
-	if (use_stdio)
+	if (report.use_stdio)
 		use_browser = 0;
-	else if (use_tui)
+	else if (report.use_tui)
 		use_browser = 1;
 
-	if (inverted_callchain)
+	if (report.inverted_callchain)
 		callchain_param.order = ORDER_CALLER;
 
-	if (strcmp(input_name, "-") != 0)
+	if (!report.input_name || !strlen(report.input_name)) {
+		if (!fstat(STDIN_FILENO, &st) && S_ISFIFO(st.st_mode))
+			report.input_name = "-";
+		else
+			report.input_name = "perf.data";
+	}
+
+	if (strcmp(report.input_name, "-") != 0)
 		setup_browser(true);
 	else
 		use_browser = 0;
+
 	/*
 	 * Only in the newt browser we are doing integrated annotation,
 	 * so don't allocate extra space that won't be used in the stdio
@@ -525,7 +549,7 @@ int cmd_report(int argc, const char **argv, const char *prefix __used)
 	 */
 	if (use_browser > 0) {
 		symbol_conf.priv_size = sizeof(struct annotation);
-		annotate_init	      = symbol__annotate_init;
+		report.annotate_init  = symbol__annotate_init;
 		/*
  		 * For searching by name on the "Browse map details".
  		 * providing it only in verbose mode not to bloat too
@@ -572,5 +596,5 @@ int cmd_report(int argc, const char **argv, const char *prefix __used)
 	sort_entry__setup_elide(&sort_comm, symbol_conf.comm_list, "comm", stdout);
 	sort_entry__setup_elide(&sort_sym, symbol_conf.sym_list, "symbol", stdout);
 
-	return __cmd_report();
+	return __cmd_report(&report);
 }
