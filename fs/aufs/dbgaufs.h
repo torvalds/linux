@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2005-2011 Junjiro R. Okajima
+ * Copyright (C) 2005-2012 Junjiro R. Okajima
  *
  * This program, aufs is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -24,9 +24,6 @@
 #define __DBGAUFS_H__
 
 #ifdef __KERNEL__
-
-#include <linux/init.h>
-#include <linux/aufs_type.h>
 
 struct super_block;
 struct au_sbinfo;
