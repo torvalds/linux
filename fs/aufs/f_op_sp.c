@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2005-2011 Junjiro R. Okajima
+ * Copyright (C) 2005-2012 Junjiro R. Okajima
  *
  * This program, aufs is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -22,7 +22,6 @@
  * their file I/O is handled out of aufs.
  */
 
-#include <linux/fs_stack.h>
 #include "aufs.h"
 
 static ssize_t aufs_aio_read_sp(struct kiocb *kio, const struct iovec *iov,
