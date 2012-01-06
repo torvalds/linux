@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2005-2011 Junjiro R. Okajima
+ * Copyright (C) 2005-2012 Junjiro R. Okajima
  *
  * This program, aufs is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -22,10 +22,8 @@
 
 #include <linux/device_cgroup.h>
 #include <linux/fs_stack.h>
-#include <linux/mm.h>
 #include <linux/namei.h>
 #include <linux/security.h>
-#include <linux/uaccess.h>
 #include "aufs.h"
 
 static int h_permission(struct inode *h_inode, int mask,

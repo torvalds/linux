@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2005-2011 Junjiro R. Okajima
+ * Copyright (C) 2005-2012 Junjiro R. Okajima
  *
  * This program, aufs is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -21,9 +21,7 @@
  * they are necessary regardless sysfs is disabled.
  */
 
-#include <linux/fs.h>
 #include <linux/random.h>
-#include <linux/sysfs.h>
 #include "aufs.h"
 
 unsigned long sysaufs_si_mask;
