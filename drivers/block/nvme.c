@@ -1045,6 +1045,7 @@ static struct nvme_iod *nvme_map_user_pages(struct nvme_dev *dev, int write,
 		length -= (PAGE_SIZE - offset);
 		offset = 0;
 	}
+	sg_mark_end(&sg[i - 1]);
 
 	err = -ENOMEM;
 	nents = dma_map_sg(&dev->pci_dev->dev, sg, count,
