@@ -79,7 +79,7 @@ static void isp1704_charger_set_power(struct isp1704_charger *isp, bool on)
 {
 	struct isp1704_charger_data	*board = isp->dev->platform_data;
 
-	if (board->set_power)
+	if (board && board->set_power)
 		board->set_power(on);
 }
 
