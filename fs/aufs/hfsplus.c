@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2010-2011 Junjiro R. Okajima
+ * Copyright (C) 2010-2012 Junjiro R. Okajima
  *
  * This program, aufs is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -26,7 +26,6 @@
  * and au_h_open_post() after releasing it.
  */
 
-#include <linux/file.h>
 #include "aufs.h"
 
 struct file *au_h_open_pre(struct dentry *dentry, aufs_bindex_t bindex)
