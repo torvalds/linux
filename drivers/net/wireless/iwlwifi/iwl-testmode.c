@@ -759,21 +759,21 @@ static int iwl_testmode_sram(struct ieee80211_hw *hw, struct nlattr **tb)
 		maxsize = trans(priv)->ucode_wowlan.data.len;
 		break;
 	case IWL_UCODE_NONE:
-		IWL_DEBUG_INFO(priv, "Error, uCode does not been loaded\n");
+		IWL_ERR(priv, "Error, uCode does not been loaded\n");
 		return -ENOSYS;
 	default:
-		IWL_DEBUG_INFO(priv, "Error, unsupported uCode type\n");
+		IWL_ERR(priv, "Error, unsupported uCode type\n");
 		return -ENOSYS;
 	}
 	if ((ofs + size) > (maxsize + SRAM_DATA_SEG_OFFSET)) {
-		IWL_DEBUG_INFO(priv, "Invalid offset/size: out of range\n");
+		IWL_ERR(priv, "Invalid offset/size: out of range\n");
 		return -EINVAL;
 	}
 	priv->testmode_sram.buff_size = (size / 4) * 4;
 	priv->testmode_sram.buff_addr =
 		kmalloc(priv->testmode_sram.buff_size, GFP_KERNEL);
 	if (priv->testmode_sram.buff_addr == NULL) {
-		IWL_DEBUG_INFO(priv, "Error allocating memory\n");
+		IWL_ERR(priv, "Error allocating memory\n");
 		return -ENOMEM;
 	}
 	_iwl_read_targ_mem_words(bus(priv), ofs,
