@@ -30,10 +30,10 @@
 
 #define DEBUG_UART_SHIFT 2
 
+volatile u8 *uart;
+
 static void putc(int c)
 {
-	volatile u8 *uart = (volatile u8 *)TEGRA_DEBUG_UART_BASE;
-
 	if (uart == NULL)
 		return;
 
@@ -50,8 +50,8 @@ static inline void arch_decomp_setup(void)
 {
 	volatile u32 *apb_misc = (volatile u32 *)TEGRA_APB_MISC_BASE;
 	u32 chip, div;
-	volatile u8 *uart = (volatile u8 *)TEGRA_DEBUG_UART_BASE;
 
+	uart = (volatile u8 *)TEGRA_DEBUG_UART_BASE;
 	if (uart == NULL)
 		return;
 
