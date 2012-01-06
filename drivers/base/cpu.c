@@ -247,6 +247,13 @@ struct sys_device *get_cpu_sysdev(unsigned cpu)
 }
 EXPORT_SYMBOL_GPL(get_cpu_sysdev);
 
+bool cpu_is_hotpluggable(unsigned cpu)
+{
+	struct sys_device *dev = get_cpu_sysdev(cpu);
+	return dev && container_of(dev, struct cpu, sysdev)->hotpluggable;
+}
+EXPORT_SYMBOL_GPL(cpu_is_hotpluggable);
+
 int __init cpu_dev_init(void)
 {
 	int err;

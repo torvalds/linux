@@ -61,10 +61,23 @@ nreaders	This is the number of RCU reading threads supported.
 		To properly exercise RCU implementations with preemptible
 		read-side critical sections.
 
+onoff_interval
+		The number of seconds between each attempt to execute a
+		randomly selected CPU-hotplug operation.  Defaults to
+		zero, which disables CPU hotplugging.  In HOTPLUG_CPU=n
+		kernels, rcutorture will silently refuse to do any
+		CPU-hotplug operations regardless of what value is
+		specified for onoff_interval.
+
 shuffle_interval
 		The number of seconds to keep the test threads affinitied
 		to a particular subset of the CPUs, defaults to 3 seconds.
 		Used in conjunction with test_no_idle_hz.
+
+shutdown_secs	The number of seconds to run the test before terminating
+		the test and powering off the system.  The default is
+		zero, which disables test termination and system shutdown.
+		This capability is useful for automated testing.
 
 stat_interval	The number of seconds between output of torture
 		statistics (via printk()).  Regardless of the interval,

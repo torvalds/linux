@@ -469,14 +469,14 @@ config RCU_FANOUT_EXACT
 
 config RCU_FAST_NO_HZ
 	bool "Accelerate last non-dyntick-idle CPU's grace periods"
-	depends on TREE_RCU && NO_HZ && SMP
+	depends on NO_HZ && SMP
 	default n
 	help
 	  This option causes RCU to attempt to accelerate grace periods
-	  in order to allow the final CPU to enter dynticks-idle state
-	  more quickly.  On the other hand, this option increases the
-	  overhead of the dynticks-idle checking, particularly on systems
-	  with large numbers of CPUs.
+	  in order to allow CPUs to enter dynticks-idle state more
+	  quickly.  On the other hand, this option increases the overhead
+	  of the dynticks-idle checking, particularly on systems with
+	  large numbers of CPUs.
 
 	  Say Y if energy efficiency is critically important, particularly
 	  	if you have relatively few CPUs.
