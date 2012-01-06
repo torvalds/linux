@@ -2437,7 +2437,8 @@ int usb_port_suspend(struct usb_device *udev, pm_message_t msg)
 					USB_REQ_SET_FEATURE,
 					USB_RECIP_INTERFACE,
 					USB_INTRF_FUNC_SUSPEND,
-					USB_INTRF_FUNC_SUSPEND_RW,
+					USB_INTRF_FUNC_SUSPEND_RW |
+					USB_INTRF_FUNC_SUSPEND_LP,
 					NULL, 0,
 					USB_CTRL_SET_TIMEOUT);
 		}
