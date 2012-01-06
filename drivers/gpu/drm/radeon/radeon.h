@@ -668,6 +668,8 @@ struct radeon_vm_manager {
 	unsigned			nvm;
 	/* vram base address for page table entry  */
 	u64				vram_base_offset;
+	/* is vm enabled? */
+	bool				enabled;
 };
 
 /*

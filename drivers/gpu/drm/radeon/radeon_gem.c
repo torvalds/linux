@@ -404,6 +404,11 @@ int radeon_gem_va_ioctl(struct drm_device *dev, void *data,
 	u32 invalid_flags;
 	int r = 0;
 
+	if (!rdev->vm_manager.enabled) {
+		args->operation = RADEON_VA_RESULT_ERROR;
+		return -ENOTTY;
+	}
+
 	/* !! DONT REMOVE !!
 	 * We don't support vm_id yet, to be sure we don't have have broken
 	 * userspace, reject anyone trying to use non 0 value thus moving

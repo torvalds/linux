@@ -286,6 +286,8 @@ int radeon_vm_manager_init(struct radeon_device *rdev)
 {
 	int r;
 
+	rdev->vm_manager.enabled = false;
+
 	/* mark first vm as always in use, it's the system one */
 	r = radeon_sa_bo_manager_init(rdev, &rdev->vm_manager.sa_manager,
 				      rdev->vm_manager.max_pfn * 8,
@@ -295,7 +297,12 @@ int radeon_vm_manager_init(struct radeon_device *rdev)
 			(rdev->vm_manager.max_pfn * 8) >> 10);
 		return r;
 	}
-	return rdev->vm_manager.funcs->init(rdev);
+
+	r = rdev->vm_manager.funcs->init(rdev);
+	if (r == 0)
+		rdev->vm_manager.enabled = true;
+
+	return r;
 }
 
 /* cs mutex must be lock */
@@ -334,6 +341,7 @@ void radeon_vm_manager_fini(struct radeon_device *rdev)
 	radeon_vm_manager_suspend(rdev);
 	rdev->vm_manager.funcs->fini(rdev);
 	radeon_sa_bo_manager_fini(rdev, &rdev->vm_manager.sa_manager);
+	rdev->vm_manager.enabled = false;
 }
 
 int radeon_vm_manager_start(struct radeon_device *rdev)

@@ -234,8 +234,8 @@ int radeon_cs_parser_init(struct radeon_cs_parser *p, void *data)
 	}
 
 	if ((p->cs_flags & RADEON_CS_USE_VM) &&
-	    (p->rdev->family < CHIP_CAYMAN)) {
-		DRM_ERROR("VM not supported on asic!\n");
+	    !p->rdev->vm_manager.enabled) {
+		DRM_ERROR("VM not active on asic!\n");
 		if (p->chunk_relocs_idx != -1)
 			kfree(p->chunks[p->chunk_relocs_idx].kdata);
 		if (p->chunk_flags_idx != -1)
