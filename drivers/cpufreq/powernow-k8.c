@@ -1,10 +1,11 @@
 /*
- *   (c) 2003-2010 Advanced Micro Devices, Inc.
+ *   (c) 2003-2012 Advanced Micro Devices, Inc.
  *  Your use of this code is subject to the terms and conditions of the
  *  GNU general public license version 2. See "COPYING" or
  *  http://www.gnu.org/licenses/gpl.html
  *
- *  Support : mark.langsdorf@amd.com
+ *  Maintainer:
+ *  Andreas Herrmann <andreas.herrmann3@amd.com>
  *
  *  Based on the powernow-k7.c module written by Dave Jones.
  *  (C) 2003 Dave Jones on behalf of SuSE Labs
@@ -16,12 +17,14 @@
  *  Valuable input gratefully received from Dave Jones, Pavel Machek,
  *  Dominik Brodowski, Jacob Shin, and others.
  *  Originally developed by Paul Devriendt.
- *  Processor information obtained from Chapter 9 (Power and Thermal Management)
- *  of the "BIOS and Kernel Developer's Guide for the AMD Athlon 64 and AMD
- *  Opteron Processors" available for download from www.amd.com
  *
- *  Tables for specific CPUs can be inferred from
- *     http://www.amd.com/us-en/assets/content_type/white_papers_and_tech_docs/30430.pdf
+ *  Processor information obtained from Chapter 9 (Power and Thermal
+ *  Management) of the "BIOS and Kernel Developer's Guide (BKDG) for
+ *  the AMD Athlon 64 and AMD Opteron Processors" and section "2.x
+ *  Power Management" in BKDGs for newer AMD CPU families.
+ *
+ *  Tables for specific CPUs can be inferred from AMD's processor
+ *  power and thermal data sheets, (e.g. 30417.pdf, 30430.pdf, 43375.pdf)
  */
 
 #include <linux/kernel.h>
