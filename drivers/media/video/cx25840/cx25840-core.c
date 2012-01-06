@@ -1741,6 +1741,21 @@ static int cx25840_g_std(struct v4l2_subdev *sd, v4l2_std_id *std)
 	return 0;
 }
 
+static int cx25840_g_input_status(struct v4l2_subdev *sd, u32 *status)
+{
+	struct i2c_client *client = v4l2_get_subdevdata(sd);
+
+	/* A limited function that checks for signal status and returns
+	 * the state.
+	 */
+
+	/* Check for status of Horizontal lock (SRC lock isn't reliable) */
+	if ((cx25840_read4(client, 0x40c) & 0x00010000) == 0)
+		*status |= V4L2_IN_ST_NO_SIGNAL;
+
+	return 0;
+}
+
 static int cx25840_s_std(struct v4l2_subdev *sd, v4l2_std_id std)
 {
 	struct cx25840_state *state = to_state(sd);
@@ -5037,6 +5052,7 @@ static const struct v4l2_subdev_video_ops cx25840_video_ops = {
 	.s_routing = cx25840_s_video_routing,
 	.s_mbus_fmt = cx25840_s_mbus_fmt,
 	.s_stream = cx25840_s_stream,
+	.g_input_status = cx25840_g_input_status,
 };
 
 static const struct v4l2_subdev_vbi_ops cx25840_vbi_ops = {
