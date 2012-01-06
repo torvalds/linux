@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2005-2011 Junjiro R. Okajima
+ * Copyright (C) 2005-2012 Junjiro R. Okajima
  *
  * This program, aufs is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -23,8 +23,6 @@
 #include <linux/compat.h>
 #include <linux/fs_stack.h>
 #include <linux/security.h>
-#include <linux/uaccess.h>
-#include <linux/aufs_type.h>
 #include "aufs.h"
 
 /* bits for struct aufs_rdu.flags */

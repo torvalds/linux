@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2005-2011 Junjiro R. Okajima
+ * Copyright (C) 2005-2012 Junjiro R. Okajima
  *
  * This program, aufs is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -26,7 +26,6 @@
 #ifdef __KERNEL__
 
 #include <linux/dcache.h>
-#include <linux/aufs_type.h>
 #include "rwsem.h"
 
 struct au_hdentry {

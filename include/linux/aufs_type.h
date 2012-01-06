@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2005-2011 Junjiro R. Okajima
+ * Copyright (C) 2005-2012 Junjiro R. Okajima
  *
  * This program, aufs is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -19,15 +19,25 @@
 #ifndef __AUFS_TYPE_H__
 #define __AUFS_TYPE_H__
 
-#include <linux/ioctl.h>
-#include <linux/kernel.h>
-#include <linux/limits.h>
+#define AUFS_NAME	"aufs"
+
 #ifdef __KERNEL__
-#include <linux/types.h>
+/*
+ * define it before including all other headers.
+ * sched.h may use pr_* macros before defining "current", so define the
+ * no-current version first, and re-define later.
+ */
+#define pr_fmt(fmt)	AUFS_NAME " %s:%d: " fmt, __func__, __LINE__
+#include <linux/sched.h>
+#undef pr_fmt
+#define pr_fmt(fmt)	AUFS_NAME " %s:%d:%s[%d]: " fmt, \
+		__func__, __LINE__, current->comm, current->pid
 #else
 #include <stdint.h>
 #include <sys/types.h>
-#endif
+#endif /* __KERNEL__ */
+
+#include <linux/limits.h>
 
 #define AUFS_VERSION	"3.x-rcN"
 
@@ -58,7 +68,6 @@ typedef int16_t aufs_bindex_t;
 
 /* ---------------------------------------------------------------------- */
 
-#define AUFS_NAME		"aufs"
 #define AUFS_FSTYPE		AUFS_NAME
 
 #define AUFS_ROOT_INO		2

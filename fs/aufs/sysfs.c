@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2005-2011 Junjiro R. Okajima
+ * Copyright (C) 2005-2012 Junjiro R. Okajima
  *
  * This program, aufs is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -20,10 +20,7 @@
  * sysfs interface
  */
 
-#include <linux/fs.h>
-#include <linux/module.h>
 #include <linux/seq_file.h>
-#include <linux/sysfs.h>
 #include "aufs.h"
 
 static struct attribute *au_attr[] = {
