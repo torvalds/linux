@@ -595,8 +595,7 @@ static struct s3c_sdhci_platdata aquila_hsmmc2_data __initdata = {
 
 static void aquila_setup_sdhci(void)
 {
-	gpio_request(AQUILA_EXT_FLASH_EN, "FLASH_EN");
-	gpio_direction_output(AQUILA_EXT_FLASH_EN, 1);
+	gpio_request_one(AQUILA_EXT_FLASH_EN, GPIOF_OUT_INIT_HIGH, "FLASH_EN");
 
 	s3c_sdhci0_set_platdata(&aquila_hsmmc0_data);
 	s3c_sdhci1_set_platdata(&aquila_hsmmc1_data);
