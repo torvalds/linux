@@ -26,6 +26,8 @@ config X86
 	select HAVE_IOREMAP_PROT
 	select HAVE_KPROBES
 	select HAVE_MEMBLOCK
+	select HAVE_MEMBLOCK_NODE_MAP
+	select ARCH_DISCARD_MEMBLOCK
 	select ARCH_WANT_OPTIONAL_GPIOLIB
 	select ARCH_WANT_FRAME_POINTERS
 	select HAVE_DMA_ATTRS
@@ -203,9 +205,6 @@ config ARCH_SUSPEND_POSSIBLE
 config ZONE_DMA32
 	bool
 	default X86_64
-
-config ARCH_POPULATES_NODE_MAP
-	def_bool y
 
 config AUDIT_ARCH
 	bool
