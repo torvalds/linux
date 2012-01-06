@@ -3263,27 +3263,12 @@ static int should_alloc_chunk(struct btrfs_root *root,
 		if (num_bytes - num_allocated < thresh)
 			return 1;
 	}
-
-	/*
-	 * we have two similar checks here, one based on percentage
-	 * and once based on a hard number of 256MB.  The idea
-	 * is that if we have a good amount of free
-	 * room, don't allocate a chunk.  A good mount is
-	 * less than 80% utilized of the chunks we have allocated,
-	 * or more than 256MB free
-	 */
-	if (num_allocated + alloc_bytes + 256 * 1024 * 1024 < num_bytes)
-		return 0;
-
-	if (num_allocated + alloc_bytes < div_factor(num_bytes, 8))
-		return 0;
-
 	thresh = btrfs_super_total_bytes(root->fs_info->super_copy);
 
-	/* 256MB or 5% of the FS */
-	thresh = max_t(u64, 256 * 1024 * 1024, div_factor_fine(thresh, 5));
+	/* 256MB or 2% of the FS */
+	thresh = max_t(u64, 256 * 1024 * 1024, div_factor_fine(thresh, 2));
 
-	if (num_bytes > thresh && sinfo->bytes_used < div_factor(num_bytes, 3))
+	if (num_bytes > thresh && sinfo->bytes_used < div_factor(num_bytes, 8))
 		return 0;
 	return 1;
 }
