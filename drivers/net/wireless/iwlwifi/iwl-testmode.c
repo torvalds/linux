@@ -733,7 +733,7 @@ static int iwl_testmode_ownership(struct ieee80211_hw *hw, struct nlattr **tb)
 static int iwl_testmode_sram(struct ieee80211_hw *hw, struct nlattr **tb)
 {
 	struct iwl_priv *priv = hw->priv;
-	u32 base, ofs, size, maxsize;
+	u32 ofs, size, maxsize;
 
 	if (priv->testmode_sram.sram_readed)
 		return -EBUSY;
@@ -765,7 +765,7 @@ static int iwl_testmode_sram(struct ieee80211_hw *hw, struct nlattr **tb)
 		IWL_DEBUG_INFO(priv, "Error, unsupported uCode type\n");
 		return -ENOSYS;
 	}
-	if ((ofs + size) > maxsize) {
+	if ((ofs + size) > (maxsize + SRAM_DATA_SEG_OFFSET)) {
 		IWL_DEBUG_INFO(priv, "Invalid offset/size: out of range\n");
 		return -EINVAL;
 	}
@@ -776,8 +776,7 @@ static int iwl_testmode_sram(struct ieee80211_hw *hw, struct nlattr **tb)
 		IWL_DEBUG_INFO(priv, "Error allocating memory\n");
 		return -ENOMEM;
 	}
-	base = 0x800000;
-	_iwl_read_targ_mem_words(bus(priv), base + ofs,
+	_iwl_read_targ_mem_words(bus(priv), ofs,
 					priv->testmode_sram.buff_addr,
 					priv->testmode_sram.buff_size / 4);
 	priv->testmode_sram.num_chunks =

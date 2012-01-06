@@ -271,4 +271,7 @@ enum iwl_tm_attr_t {
 /* Maximum data size of each dump it packet */
 #define DUMP_CHUNK_SIZE		(PAGE_SIZE - 1024)
 
+/* Address offset of data segment in SRAM */
+#define SRAM_DATA_SEG_OFFSET   0x800000
+
 #endif
