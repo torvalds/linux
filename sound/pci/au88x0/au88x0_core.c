@@ -805,7 +805,7 @@ static void vortex_fifo_setadbvalid(vortex_t * vortex, int fifo, int en)
 }
 
 static void
-vortex_fifo_setadbctrl(vortex_t * vortex, int fifo, int b, int priority,
+vortex_fifo_setadbctrl(vortex_t * vortex, int fifo, int stereo, int priority,
 		       int empty, int valid, int f)
 {
 	int temp, lifeboat = 0;
@@ -837,7 +837,7 @@ vortex_fifo_setadbctrl(vortex_t * vortex, int fifo, int b, int priority,
 #else
 			temp = (this_4 & 0x3f) << 0xc;
 #endif
-			temp = (temp & 0xfffffffd) | ((b & 1) << 1);
+			temp = (temp & 0xfffffffd) | ((stereo & 1) << 1);
 			temp = (temp & 0xfffffff3) | ((priority & 3) << 2);
 			temp = (temp & 0xffffffef) | ((valid & 1) << 4);
 			temp |= FIFO_U1;
@@ -1148,11 +1148,11 @@ vortex_adbdma_setbuffers(vortex_t * vortex, int adbdma,
 
 static void
 vortex_adbdma_setmode(vortex_t * vortex, int adbdma, int ie, int dir,
-		      int fmt, int d, u32 offset)
+		      int fmt, int stereo, u32 offset)
 {
 	stream_t *dma = &vortex->dma_adb[adbdma];
 
-	dma->dma_unknown = d;
+	dma->dma_unknown = stereo;
 	dma->dma_ctrl =
 	    ((offset & OFFSET_MASK) | (dma->dma_ctrl & ~OFFSET_MASK));
 	/* Enable PCMOUT interrupts. */

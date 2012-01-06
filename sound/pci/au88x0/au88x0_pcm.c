@@ -307,8 +307,8 @@ static int snd_vortex_pcm_prepare(struct snd_pcm_substream *substream)
 	fmt = vortex_alsafmt_aspfmt(runtime->format);
 	spin_lock_irq(&chip->lock);
 	if (VORTEX_PCM_TYPE(substream->pcm) != VORTEX_PCM_WT) {
-		vortex_adbdma_setmode(chip, dma, 1, dir, fmt, 0 /*? */ ,
-				      0);
+		vortex_adbdma_setmode(chip, dma, 1, dir, fmt,
+				runtime->channels == 1 ? 0 : 1, 0);
 		vortex_adbdma_setstartbuffer(chip, dma, 0);
 		if (VORTEX_PCM_TYPE(substream->pcm) != VORTEX_PCM_SPDIF)
 			vortex_adb_setsrc(chip, dma, runtime->rate, dir);
