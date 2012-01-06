@@ -1172,20 +1172,22 @@ int iwl_rx_dispatch(struct iwl_priv *priv, struct iwl_rx_mem_buffer *rxb,
 		wake_up_all(&priv->shrd->notif_waitq);
 	}
 
-	if (priv->pre_rx_handler)
+	if (priv->pre_rx_handler &&
+	    priv->shrd->ucode_owner == IWL_OWNERSHIP_TM)
 		priv->pre_rx_handler(priv, rxb);
-
-	/* Based on type of command response or notification,
-	 *   handle those that need handling via function in
-	 *   rx_handlers table.  See iwl_setup_rx_handlers() */
-	if (priv->rx_handlers[pkt->hdr.cmd]) {
-		priv->rx_handlers_stats[pkt->hdr.cmd]++;
-		err = priv->rx_handlers[pkt->hdr.cmd] (priv, rxb, cmd);
-	} else {
-		/* No handling needed */
-		IWL_DEBUG_RX(priv,
-			"No handler needed for %s, 0x%02x\n",
-			get_cmd_string(pkt->hdr.cmd), pkt->hdr.cmd);
+	else {
+		/* Based on type of command response or notification,
+		 *   handle those that need handling via function in
+		 *   rx_handlers table.  See iwl_setup_rx_handlers() */
+		if (priv->rx_handlers[pkt->hdr.cmd]) {
+			priv->rx_handlers_stats[pkt->hdr.cmd]++;
+			err = priv->rx_handlers[pkt->hdr.cmd] (priv, rxb, cmd);
+		} else {
+			/* No handling needed */
+			IWL_DEBUG_RX(priv,
+				"No handler needed for %s, 0x%02x\n",
+				get_cmd_string(pkt->hdr.cmd), pkt->hdr.cmd);
+		}
 	}
 	return err;
 }
