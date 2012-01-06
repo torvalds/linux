@@ -236,7 +236,7 @@ static int pinconf_pins_show(struct seq_file *s, void *what)
 	seq_puts(s, "Format: pin (name): pinmux setting array\n");
 
 	/* The pin number can be retrived from the pin controller descriptor */
-	for (i = 0; pin < pctldev->desc->npins; i++) {
+	for (i = 0; i < pctldev->desc->npins; i++) {
 		struct pin_desc *desc;
 
 		pin = pctldev->desc->pins[i].number;
