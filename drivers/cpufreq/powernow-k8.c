@@ -926,23 +926,24 @@ static int fill_powernow_table_pstate(struct powernow_k8_data *data,
 			invalidate_entry(powernow_table, i);
 			continue;
 		}
-		rdmsr(MSR_PSTATE_DEF_BASE + index, lo, hi);
-		if (!(hi & HW_PSTATE_VALID_MASK)) {
-			pr_debug("invalid pstate %d, ignoring\n", index);
-			invalidate_entry(powernow_table, i);
-			continue;
-		}
-
-		powernow_table[i].index = index;
-
 		/* Frequency may be rounded for these */
 		if ((boot_cpu_data.x86 == 0x10 && boot_cpu_data.x86_model < 10)
 				 || boot_cpu_data.x86 == 0x11) {
+
+			rdmsr(MSR_PSTATE_DEF_BASE + index, lo, hi);
+			if (!(hi & HW_PSTATE_VALID_MASK)) {
+				pr_debug("invalid pstate %d, ignoring\n", index);
+				invalidate_entry(powernow_table, i);
+				continue;
+			}
+
 			powernow_table[i].frequency =
 				freq_from_fid_did(lo & 0x3f, (lo >> 6) & 7);
 		} else
 			powernow_table[i].frequency =
 				data->acpi_data.states[i].core_frequency * 1000;
+
+		powernow_table[i].index = index;
 	}
 	return 0;
 }
