@@ -2017,32 +2017,6 @@ void setup_sysctl_set(struct ctl_table_set *p,
 	p->is_seen = is_seen;
 }
 
-#else /* !CONFIG_SYSCTL */
-struct ctl_table_header *register_sysctl_table(struct ctl_table * table)
-{
-	return NULL;
-}
-
-struct ctl_table_header *register_sysctl_paths(const struct ctl_path *path,
-						    struct ctl_table *table)
-{
-	return NULL;
-}
-
-void unregister_sysctl_table(struct ctl_table_header * table)
-{
-}
-
-void setup_sysctl_set(struct ctl_table_set *p,
-	struct ctl_table_set *parent,
-	int (*is_seen)(struct ctl_table_set *))
-{
-}
-
-void sysctl_head_put(struct ctl_table_header *head)
-{
-}
-
 #endif /* CONFIG_SYSCTL */
 
 /*
