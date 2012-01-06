@@ -517,13 +517,6 @@ struct hdmi_video_format {
 	u32			x_res;	/* pixel per line */
 };
 
-struct hdmi_video_interface {
-	int	vsp;	/* Vsync polarity */
-	int	hsp;	/* Hsync polarity */
-	int	interlacing;
-	int	tm;	/* Timing mode */
-};
-
 struct hdmi_audio_format {
 	enum hdmi_stereo_channels		stereo_channels;
 	u8					active_chnnls_msk;

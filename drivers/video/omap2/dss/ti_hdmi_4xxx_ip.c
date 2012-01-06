@@ -629,8 +629,7 @@ static void hdmi_core_av_packet_config(struct hdmi_ip_data *ip_data,
 }
 
 static void hdmi_wp_init(struct omap_video_timings *timings,
-			struct hdmi_video_format *video_fmt,
-			struct hdmi_video_interface *video_int)
+			struct hdmi_video_format *video_fmt)
 {
 	pr_debug("Enter hdmi_wp_init\n");
 
@@ -644,12 +643,6 @@ static void hdmi_wp_init(struct omap_video_timings *timings,
 	video_fmt->packing_mode = HDMI_PACK_10b_RGB_YUV444;
 	video_fmt->y_res = 0;
 	video_fmt->x_res = 0;
-
-	video_int->vsp = 0;
-	video_int->hsp = 0;
-
-	video_int->interlacing = 0;
-	video_int->tm = 0; /* HDMI_TIMING_SLAVE */
 
 }
 
@@ -687,17 +680,16 @@ static void hdmi_wp_video_config_format(struct hdmi_ip_data *ip_data,
 	hdmi_write_reg(hdmi_wp_base(ip_data), HDMI_WP_VIDEO_SIZE, l);
 }
 
-static void hdmi_wp_video_config_interface(struct hdmi_ip_data *ip_data,
-		struct hdmi_video_interface *video_int)
+static void hdmi_wp_video_config_interface(struct hdmi_ip_data *ip_data)
 {
 	u32 r;
 	pr_debug("Enter hdmi_wp_video_config_interface\n");
 
 	r = hdmi_read_reg(hdmi_wp_base(ip_data), HDMI_WP_VIDEO_CFG);
-	r = FLD_MOD(r, video_int->vsp, 7, 7);
-	r = FLD_MOD(r, video_int->hsp, 6, 6);
-	r = FLD_MOD(r, video_int->interlacing, 3, 3);
-	r = FLD_MOD(r, video_int->tm, 1, 0);
+	r = FLD_MOD(r, ip_data->cfg.timings.vsync_pol, 7, 7);
+	r = FLD_MOD(r, ip_data->cfg.timings.hsync_pol, 6, 6);
+	r = FLD_MOD(r, ip_data->cfg.interlace, 3, 3);
+	r = FLD_MOD(r, 1, 1, 0); /* HDMI_TIMING_MASTER_24BIT */
 	hdmi_write_reg(hdmi_wp_base(ip_data), HDMI_WP_VIDEO_CFG, r);
 }
 
@@ -725,15 +717,13 @@ void ti_hdmi_4xxx_basic_configure(struct hdmi_ip_data *ip_data)
 	/* HDMI */
 	struct omap_video_timings video_timing;
 	struct hdmi_video_format video_format;
-	struct hdmi_video_interface video_interface;
 	/* HDMI core */
 	struct hdmi_core_infoframe_avi avi_cfg;
 	struct hdmi_core_video_config v_core_cfg;
 	struct hdmi_core_packet_enable_repeat repeat_cfg;
 	struct hdmi_config *cfg = &ip_data->cfg;
 
-	hdmi_wp_init(&video_timing, &video_format,
-		&video_interface);
+	hdmi_wp_init(&video_timing, &video_format);
 
 	hdmi_core_init(&v_core_cfg,
 		&avi_cfg,
@@ -748,12 +738,7 @@ void ti_hdmi_4xxx_basic_configure(struct hdmi_ip_data *ip_data)
 
 	hdmi_wp_video_config_format(ip_data, &video_format);
 
-	video_interface.vsp = cfg->timings.vsync_pol;
-	video_interface.hsp = cfg->timings.hsync_pol;
-	video_interface.interlacing = cfg->interlace;
-	video_interface.tm = 1 ; /* HDMI_TIMING_MASTER_24BIT */
-
-	hdmi_wp_video_config_interface(ip_data, &video_interface);
+	hdmi_wp_video_config_interface(ip_data);
 
 	/*
 	 * configure core video part
