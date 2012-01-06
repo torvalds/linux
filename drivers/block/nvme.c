@@ -1165,7 +1165,8 @@ static int nvme_user_admin_cmd(struct nvme_ns *ns,
 
 	length = cmd.data_len;
 	if (cmd.data_len) {
-		iod = nvme_map_user_pages(dev, 1, cmd.addr, length);
+		iod = nvme_map_user_pages(dev, cmd.opcode & 1, cmd.addr,
+								length);
 		if (IS_ERR(iod))
 			return PTR_ERR(iod);
 		length = nvme_setup_prps(dev, &c.common, iod, length,
@@ -1178,7 +1179,8 @@ static int nvme_user_admin_cmd(struct nvme_ns *ns,
 		status = nvme_submit_admin_cmd(dev, &c, NULL);
 
 	if (cmd.data_len) {
-		nvme_unmap_user_pages(dev, 0, cmd.addr, cmd.data_len, iod);
+		nvme_unmap_user_pages(dev, cmd.opcode & 1, cmd.addr,
+							cmd.data_len, iod);
 		nvme_free_iod(dev, iod);
 	}
 	return status;
