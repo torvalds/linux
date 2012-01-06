@@ -488,15 +488,8 @@ static struct net_device_stats *rhine_get_stats(struct net_device *dev);
 static int netdev_ioctl(struct net_device *dev, struct ifreq *rq, int cmd);
 static const struct ethtool_ops netdev_ethtool_ops;
 static int  rhine_close(struct net_device *dev);
-static void rhine_shutdown (struct pci_dev *pdev);
 static int rhine_vlan_rx_add_vid(struct net_device *dev, unsigned short vid);
 static int rhine_vlan_rx_kill_vid(struct net_device *dev, unsigned short vid);
-static void rhine_set_cam(void __iomem *ioaddr, int idx, u8 *addr);
-static void rhine_set_vlan_cam(void __iomem *ioaddr, int idx, u8 *addr);
-static void rhine_set_cam_mask(void __iomem *ioaddr, u32 mask);
-static void rhine_set_vlan_cam_mask(void __iomem *ioaddr, u32 mask);
-static void rhine_init_cam_filter(struct net_device *dev);
-static void rhine_update_vcam(struct net_device *dev);
 
 #define RHINE_WAIT_FOR(condition)				\
 do {								\
