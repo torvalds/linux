@@ -232,7 +232,7 @@ static void dump_common_audit_data(struct audit_buffer *ab,
 	case LSM_AUDIT_DATA_PATH: {
 		struct inode *inode;
 
-		audit_log_d_path(ab, "path=", &a->u.path);
+		audit_log_d_path(ab, " path=", &a->u.path);
 
 		inode = a->u.path.dentry->d_inode;
 		if (inode) {
@@ -318,7 +318,7 @@ static void dump_common_audit_data(struct audit_buffer *ab,
 						.dentry = u->dentry,
 						.mnt = u->mnt
 					};
-					audit_log_d_path(ab, "path=", &path);
+					audit_log_d_path(ab, " path=", &path);
 					break;
 				}
 				if (!u->addr)

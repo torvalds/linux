@@ -1171,7 +1171,7 @@ static void audit_log_task_info(struct audit_buffer *ab, struct task_struct *tsk
 		while (vma) {
 			if ((vma->vm_flags & VM_EXECUTABLE) &&
 			    vma->vm_file) {
-				audit_log_d_path(ab, "exe=",
+				audit_log_d_path(ab, " exe=",
 						 &vma->vm_file->f_path);
 				break;
 			}
@@ -1540,7 +1540,7 @@ static void audit_log_name(struct audit_context *context, struct audit_names *n,
 		case 0:
 			/* name was specified as a relative path and the
 			 * directory component is the cwd */
-			audit_log_d_path(ab, "name=", &context->pwd);
+			audit_log_d_path(ab, " name=", &context->pwd);
 			break;
 		default:
 			/* log the name's directory component */
@@ -1725,7 +1725,7 @@ static void audit_log_exit(struct audit_context *context, struct task_struct *ts
 	if (context->pwd.dentry && context->pwd.mnt) {
 		ab = audit_log_start(context, GFP_KERNEL, AUDIT_CWD);
 		if (ab) {
-			audit_log_d_path(ab, "cwd=", &context->pwd);
+			audit_log_d_path(ab, " cwd=", &context->pwd);
 			audit_log_end(ab);
 		}
 	}
