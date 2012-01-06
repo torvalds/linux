@@ -57,6 +57,7 @@ void rtl92c_read_chip_version(struct ieee80211_hw *hw)
 	struct rtl_phy *rtlphy = &(rtlpriv->phy);
 	struct rtl_hal *rtlhal = rtl_hal(rtlpriv);
 	enum version_8192c chip_version = VERSION_UNKNOWN;
+	const char *versionid;
 	u32 value32;
 
 	value32 = rtl_read_dword(rtlpriv, REG_SYS_CFG);
@@ -87,62 +88,51 @@ void rtl92c_read_chip_version(struct ieee80211_hw *hw)
 	pr_info("Chip version 0x%x\n", chip_version);
 	switch (rtlhal->version) {
 	case VERSION_NORMAL_TSMC_CHIP_92C_1T2R:
-		RT_TRACE(rtlpriv, COMP_INIT, DBG_TRACE,
-			 "Chip Version ID: VERSION_B_CHIP_92C\n");
+		versionid = "NORMAL_B_CHIP_92C";
 		break;
 	case VERSION_NORMAL_TSMC_CHIP_92C:
-		RT_TRACE(rtlpriv, COMP_INIT, DBG_TRACE,
-			 "Chip Version ID: VERSION_NORMAL_TSMC_CHIP_92C\n");
+		versionid = "NORMAL_TSMC_CHIP_92C";
 		break;
 	case VERSION_NORMAL_TSMC_CHIP_88C:
-		RT_TRACE(rtlpriv, COMP_INIT, DBG_TRACE,
-			 "Chip Version ID: VERSION_NORMAL_TSMC_CHIP_88C\n");
+		versionid = "NORMAL_TSMC_CHIP_88C";
 		break;
 	case VERSION_NORMAL_UMC_CHIP_92C_1T2R_A_CUT:
-		RT_TRACE(rtlpriv, COMP_INIT, DBG_TRACE,
-			 "Chip Version ID: VERSION_NORMAL_UMC_CHIP_i92C_1T2R_A_CUT\n");
+		versionid = "NORMAL_UMC_CHIP_i92C_1T2R_A_CUT";
 		break;
 	case VERSION_NORMAL_UMC_CHIP_92C_A_CUT:
-		RT_TRACE(rtlpriv, COMP_INIT, DBG_TRACE,
-			 "Chip Version ID: VERSION_NORMAL_UMC_CHIP_92C_A_CUT\n");
+		versionid = "NORMAL_UMC_CHIP_92C_A_CUT";
 		break;
 	case VERSION_NORMAL_UMC_CHIP_88C_A_CUT:
-		RT_TRACE(rtlpriv, COMP_INIT, DBG_TRACE,
-			 "Chip Version ID: VERSION_NORMAL_UMC_CHIP_88C_A_CUT\n");
+		versionid = "NORMAL_UMC_CHIP_88C_A_CUT";
 		break;
 	case VERSION_NORMAL_UMC_CHIP_92C_1T2R_B_CUT:
-		RT_TRACE(rtlpriv, COMP_INIT, DBG_TRACE,
-			 "Chip Version ID: VERSION_NORMAL_UMC_CHIP_92C_1T2R_B_CUT\n");
+		versionid = "NORMAL_UMC_CHIP_92C_1T2R_B_CUT";
 		break;
 	case VERSION_NORMAL_UMC_CHIP_92C_B_CUT:
-		RT_TRACE(rtlpriv, COMP_INIT, DBG_TRACE,
-			 "Chip Version ID: VERSION_NORMAL_UMC_CHIP_92C_B_CUT\n");
+		versionid = "NORMAL_UMC_CHIP_92C_B_CUT";
 		break;
 	case VERSION_NORMAL_UMC_CHIP_88C_B_CUT:
-		RT_TRACE(rtlpriv, COMP_INIT, DBG_TRACE,
-			 "Chip Version ID: VERSION_NORMAL_UMC_CHIP_88C_B_CUT\n");
+		versionid = "NORMAL_UMC_CHIP_88C_B_CUT";
 		break;
 	case VERSION_NORMA_UMC_CHIP_8723_1T1R_A_CUT:
-		RT_TRACE(rtlpriv, COMP_INIT, DBG_TRACE,
-			 "Chip Version ID: VERSION_NORMA_UMC_CHIP_8723_1T1R_A_CUT\n");
+		versionid = "NORMAL_UMC_CHIP_8723_1T1R_A_CUT";
 		break;
 	case VERSION_NORMA_UMC_CHIP_8723_1T1R_B_CUT:
-		RT_TRACE(rtlpriv, COMP_INIT, DBG_TRACE,
-			 "Chip Version ID: VERSION_NORMA_UMC_CHIP_8723_1T1R_B_CUT\n");
+		versionid = "NORMAL_UMC_CHIP_8723_1T1R_B_CUT";
 		break;
 	case VERSION_TEST_CHIP_92C:
-		RT_TRACE(rtlpriv, COMP_INIT, DBG_TRACE,
-			 "Chip Version ID: VERSION_TEST_CHIP_92C\n");
+		versionid = "TEST_CHIP_92C";
 		break;
 	case VERSION_TEST_CHIP_88C:
-		RT_TRACE(rtlpriv, COMP_INIT, DBG_TRACE,
-			 "Chip Version ID: VERSION_TEST_CHIP_88C\n");
+		versionid = "TEST_CHIP_88C";
 		break;
 	default:
-		RT_TRACE(rtlpriv, COMP_INIT, DBG_TRACE,
-			 "Chip Version ID: ???????????????\n");
+		versionid = "UNKNOWN";
 		break;
 	}
+	RT_TRACE(rtlpriv, COMP_INIT, DBG_TRACE,
+		 "Chip Version ID: %s\n", versionid);
+
 	if (IS_92C_SERIAL(rtlhal->version))
 		rtlphy->rf_type =
 			 (IS_92C_1T2R(rtlhal->version)) ? RF_1T2R : RF_2T2R;

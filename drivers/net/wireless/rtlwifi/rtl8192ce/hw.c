@@ -991,6 +991,7 @@ static enum version_8192c _rtl92ce_read_chip_version(struct ieee80211_hw *hw)
 	struct rtl_phy *rtlphy = &(rtlpriv->phy);
 	enum version_8192c version = VERSION_UNKNOWN;
 	u32 value32;
+	const char *versionid;
 
 	value32 = rtl_read_dword(rtlpriv, REG_SYS_CFG);
 	if (value32 & TRP_VAUX_EN) {
@@ -1003,26 +1004,24 @@ static enum version_8192c _rtl92ce_read_chip_version(struct ieee80211_hw *hw)
 
 	switch (version) {
 	case VERSION_B_CHIP_92C:
-		RT_TRACE(rtlpriv, COMP_INIT, DBG_TRACE,
-			 "Chip Version ID: VERSION_B_CHIP_92C\n");
+		versionid = "B_CHIP_92C";
 		break;
 	case VERSION_B_CHIP_88C:
-		RT_TRACE(rtlpriv, COMP_INIT, DBG_TRACE,
-			 "Chip Version ID: VERSION_B_CHIP_88C\n");
+		versionid = "B_CHIP_88C";
 		break;
 	case VERSION_A_CHIP_92C:
-		RT_TRACE(rtlpriv, COMP_INIT, DBG_TRACE,
-			 "Chip Version ID: VERSION_A_CHIP_92C\n");
+		versionid = "A_CHIP_92C";
 		break;
 	case VERSION_A_CHIP_88C:
-		RT_TRACE(rtlpriv, COMP_INIT, DBG_TRACE,
-			 "Chip Version ID: VERSION_A_CHIP_88C\n");
+		versionid = "A_CHIP_88C";
 		break;
 	default:
-		RT_TRACE(rtlpriv, COMP_ERR, DBG_EMERG,
-			 "Chip Version ID: Unknown. Bug?\n");
+		versionid = "Unknown. Bug?";
 		break;
 	}
+
+	RT_TRACE(rtlpriv, COMP_INIT, DBG_TRACE,
+		 "Chip Version ID: %s\n", versionid);
 
 	switch (version & 0x3) {
 	case CHIP_88C:
