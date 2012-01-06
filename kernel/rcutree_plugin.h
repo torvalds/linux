@@ -671,9 +671,23 @@ static void rcu_preempt_do_callbacks(void)
  */
 void call_rcu(struct rcu_head *head, void (*func)(struct rcu_head *rcu))
 {
-	__call_rcu(head, func, &rcu_preempt_state);
+	__call_rcu(head, func, &rcu_preempt_state, 0);
 }
 EXPORT_SYMBOL_GPL(call_rcu);
+
+/*
+ * Queue an RCU callback for lazy invocation after a grace period.
+ * This will likely be later named something like "call_rcu_lazy()",
+ * but this change will require some way of tagging the lazy RCU
+ * callbacks in the list of pending callbacks.  Until then, this
+ * function may only be called from __kfree_rcu().
+ */
+void kfree_call_rcu(struct rcu_head *head,
+		    void (*func)(struct rcu_head *rcu))
+{
+	__call_rcu(head, func, &rcu_preempt_state, 1);
+}
+EXPORT_SYMBOL_GPL(kfree_call_rcu);
 
 /**
  * synchronize_rcu - wait until a grace period has elapsed.
@@ -1063,6 +1077,22 @@ static void rcu_preempt_check_callbacks(int cpu)
 static void rcu_preempt_process_callbacks(void)
 {
 }
+
+/*
+ * Queue an RCU callback for lazy invocation after a grace period.
+ * This will likely be later named something like "call_rcu_lazy()",
+ * but this change will require some way of tagging the lazy RCU
+ * callbacks in the list of pending callbacks.  Until then, this
+ * function may only be called from __kfree_rcu().
+ *
+ * Because there is no preemptible RCU, we use RCU-sched instead.
+ */
+void kfree_call_rcu(struct rcu_head *head,
+		    void (*func)(struct rcu_head *rcu))
+{
+	__call_rcu(head, func, &rcu_sched_state, 1);
+}
+EXPORT_SYMBOL_GPL(kfree_call_rcu);
 
 /*
  * Wait for an rcu-preempt grace period, but make it happen quickly.
@@ -2052,6 +2082,48 @@ int rcu_needs_cpu(int cpu)
 }
 
 /*
+ * Does the specified flavor of RCU have non-lazy callbacks pending on
+ * the specified CPU?  Both RCU flavor and CPU are specified by the
+ * rcu_data structure.
+ */
+static bool __rcu_cpu_has_nonlazy_callbacks(struct rcu_data *rdp)
+{
+	return rdp->qlen != rdp->qlen_lazy;
+}
+
+#ifdef CONFIG_TREE_PREEMPT_RCU
+
+/*
+ * Are there non-lazy RCU-preempt callbacks?  (There cannot be if there
+ * is no RCU-preempt in the kernel.)
+ */
+static bool rcu_preempt_cpu_has_nonlazy_callbacks(int cpu)
+{
+	struct rcu_data *rdp = &per_cpu(rcu_preempt_data, cpu);
+
+	return __rcu_cpu_has_nonlazy_callbacks(rdp);
+}
+
+#else /* #ifdef CONFIG_TREE_PREEMPT_RCU */
+
+static bool rcu_preempt_cpu_has_nonlazy_callbacks(int cpu)
+{
+	return 0;
+}
+
+#endif /* else #ifdef CONFIG_TREE_PREEMPT_RCU */
+
+/*
+ * Does any flavor of RCU have non-lazy callbacks on the specified CPU?
+ */
+static bool rcu_cpu_has_nonlazy_callbacks(int cpu)
+{
+	return __rcu_cpu_has_nonlazy_callbacks(&per_cpu(rcu_sched_data, cpu)) ||
+	       __rcu_cpu_has_nonlazy_callbacks(&per_cpu(rcu_bh_data, cpu)) ||
+	       rcu_preempt_cpu_has_nonlazy_callbacks(cpu);
+}
+
+/*
  * Timer handler used to force CPU to start pushing its remaining RCU
  * callbacks in the case where it entered dyntick-idle mode with callbacks
  * pending.  The hander doesn't really need to do anything because the
@@ -2149,8 +2221,9 @@ static void rcu_prepare_for_idle(int cpu)
 		trace_rcu_prep_idle("Dyntick with callbacks");
 		per_cpu(rcu_dyntick_drain, cpu) = 0;
 		per_cpu(rcu_dyntick_holdoff, cpu) = jiffies - 1;
-		hrtimer_start(&per_cpu(rcu_idle_gp_timer, cpu),
-			      rcu_idle_gp_wait, HRTIMER_MODE_REL);
+		if (rcu_cpu_has_nonlazy_callbacks(cpu))
+			hrtimer_start(&per_cpu(rcu_idle_gp_timer, cpu),
+				      rcu_idle_gp_wait, HRTIMER_MODE_REL);
 		return; /* Nothing more to do immediately. */
 	} else if (--per_cpu(rcu_dyntick_drain, cpu) <= 0) {
 		/* We have hit the limit, so time to give up. */

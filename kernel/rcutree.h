@@ -265,7 +265,8 @@ struct rcu_data {
 	 */
 	struct rcu_head *nxtlist;
 	struct rcu_head **nxttail[RCU_NEXT_SIZE];
-	long		qlen;		/* # of queued callbacks */
+	long		qlen_lazy;	/* # of lazy queued callbacks */
+	long		qlen;		/* # of queued callbacks, incl lazy */
 	long		qlen_last_fqs_check;
 					/* qlen at last check for QS forcing */
 	unsigned long	n_cbs_invoked;	/* count of RCU cbs invoked. */

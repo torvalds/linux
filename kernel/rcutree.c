@@ -1261,6 +1261,7 @@ static void rcu_send_cbs_to_online(struct rcu_state *rsp)
 
 	*receive_rdp->nxttail[RCU_NEXT_TAIL] = rdp->nxtlist;
 	receive_rdp->nxttail[RCU_NEXT_TAIL] = rdp->nxttail[RCU_NEXT_TAIL];
+	receive_rdp->qlen_lazy += rdp->qlen_lazy;
 	receive_rdp->qlen += rdp->qlen;
 	receive_rdp->n_cbs_adopted += rdp->qlen;
 	rdp->n_cbs_orphaned += rdp->qlen;
@@ -1268,6 +1269,7 @@ static void rcu_send_cbs_to_online(struct rcu_state *rsp)
 	rdp->nxtlist = NULL;
 	for (i = 0; i < RCU_NEXT_SIZE; i++)
 		rdp->nxttail[i] = &rdp->nxtlist;
+	rdp->qlen_lazy = 0;
 	rdp->qlen = 0;
 }
 
@@ -1368,11 +1370,11 @@ static void rcu_do_batch(struct rcu_state *rsp, struct rcu_data *rdp)
 {
 	unsigned long flags;
 	struct rcu_head *next, *list, **tail;
-	int bl, count;
+	int bl, count, count_lazy;
 
 	/* If no callbacks are ready, just return.*/
 	if (!cpu_has_callbacks_ready_to_invoke(rdp)) {
-		trace_rcu_batch_start(rsp->name, 0, 0);
+		trace_rcu_batch_start(rsp->name, rdp->qlen_lazy, rdp->qlen, 0);
 		trace_rcu_batch_end(rsp->name, 0, !!ACCESS_ONCE(rdp->nxtlist),
 				    need_resched(), is_idle_task(current),
 				    rcu_is_callbacks_kthread());
@@ -1385,7 +1387,7 @@ static void rcu_do_batch(struct rcu_state *rsp, struct rcu_data *rdp)
 	 */
 	local_irq_save(flags);
 	bl = rdp->blimit;
-	trace_rcu_batch_start(rsp->name, rdp->qlen, bl);
+	trace_rcu_batch_start(rsp->name, rdp->qlen_lazy, rdp->qlen, bl);
 	list = rdp->nxtlist;
 	rdp->nxtlist = *rdp->nxttail[RCU_DONE_TAIL];
 	*rdp->nxttail[RCU_DONE_TAIL] = NULL;
@@ -1396,12 +1398,13 @@ static void rcu_do_batch(struct rcu_state *rsp, struct rcu_data *rdp)
 	local_irq_restore(flags);
 
 	/* Invoke callbacks. */
-	count = 0;
+	count = count_lazy = 0;
 	while (list) {
 		next = list->next;
 		prefetch(next);
 		debug_rcu_head_unqueue(list);
-		__rcu_reclaim(rsp->name, list);
+		if (__rcu_reclaim(rsp->name, list))
+			count_lazy++;
 		list = next;
 		/* Stop only if limit reached and CPU has something to do. */
 		if (++count >= bl &&
@@ -1416,6 +1419,7 @@ static void rcu_do_batch(struct rcu_state *rsp, struct rcu_data *rdp)
 			    rcu_is_callbacks_kthread());
 
 	/* Update count, and requeue any remaining callbacks. */
+	rdp->qlen_lazy -= count_lazy;
 	rdp->qlen -= count;
 	rdp->n_cbs_invoked += count;
 	if (list != NULL) {
@@ -1702,7 +1706,7 @@ static void invoke_rcu_core(void)
 
 static void
 __call_rcu(struct rcu_head *head, void (*func)(struct rcu_head *rcu),
-	   struct rcu_state *rsp)
+	   struct rcu_state *rsp, bool lazy)
 {
 	unsigned long flags;
 	struct rcu_data *rdp;
@@ -1727,12 +1731,14 @@ __call_rcu(struct rcu_head *head, void (*func)(struct rcu_head *rcu),
 	*rdp->nxttail[RCU_NEXT_TAIL] = head;
 	rdp->nxttail[RCU_NEXT_TAIL] = &head->next;
 	rdp->qlen++;
+	if (lazy)
+		rdp->qlen_lazy++;
 
 	if (__is_kfree_rcu_offset((unsigned long)func))
 		trace_rcu_kfree_callback(rsp->name, head, (unsigned long)func,
-					 rdp->qlen);
+					 rdp->qlen_lazy, rdp->qlen);
 	else
-		trace_rcu_callback(rsp->name, head, rdp->qlen);
+		trace_rcu_callback(rsp->name, head, rdp->qlen_lazy, rdp->qlen);
 
 	/* If interrupts were disabled, don't dive into RCU core. */
 	if (irqs_disabled_flags(flags)) {
@@ -1779,16 +1785,16 @@ __call_rcu(struct rcu_head *head, void (*func)(struct rcu_head *rcu),
  */
 void call_rcu_sched(struct rcu_head *head, void (*func)(struct rcu_head *rcu))
 {
-	__call_rcu(head, func, &rcu_sched_state);
+	__call_rcu(head, func, &rcu_sched_state, 0);
 }
 EXPORT_SYMBOL_GPL(call_rcu_sched);
 
 /*
- * Queue an RCU for invocation after a quicker grace period.
+ * Queue an RCU callback for invocation after a quicker grace period.
  */
 void call_rcu_bh(struct rcu_head *head, void (*func)(struct rcu_head *rcu))
 {
-	__call_rcu(head, func, &rcu_bh_state);
+	__call_rcu(head, func, &rcu_bh_state, 0);
 }
 EXPORT_SYMBOL_GPL(call_rcu_bh);
 
@@ -2036,6 +2042,7 @@ rcu_boot_init_percpu_data(int cpu, struct rcu_state *rsp)
 	rdp->nxtlist = NULL;
 	for (i = 0; i < RCU_NEXT_SIZE; i++)
 		rdp->nxttail[i] = &rdp->nxtlist;
+	rdp->qlen_lazy = 0;
 	rdp->qlen = 0;
 	rdp->dynticks = &per_cpu(rcu_dynticks, cpu);
 	WARN_ON_ONCE(rdp->dynticks->dynticks_nesting != DYNTICK_TASK_NESTING);

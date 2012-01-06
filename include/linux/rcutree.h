@@ -61,6 +61,8 @@ extern void synchronize_rcu_bh(void);
 extern void synchronize_sched_expedited(void);
 extern void synchronize_rcu_expedited(void);
 
+void kfree_call_rcu(struct rcu_head *head, void (*func)(struct rcu_head *rcu));
+
 static inline void synchronize_rcu_bh_expedited(void)
 {
 	synchronize_sched_expedited();

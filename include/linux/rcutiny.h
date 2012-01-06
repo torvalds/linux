@@ -83,6 +83,12 @@ static inline void synchronize_sched_expedited(void)
 	synchronize_sched();
 }
 
+static inline void kfree_call_rcu(struct rcu_head *head,
+				  void (*func)(struct rcu_head *rcu))
+{
+	call_rcu(head, func);
+}
+
 #ifdef CONFIG_TINY_RCU
 
 static inline void rcu_preempt_note_context_switch(void)
