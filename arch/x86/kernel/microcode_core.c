@@ -563,6 +563,8 @@ module_init(microcode_init);
 
 static void __exit microcode_exit(void)
 {
+	struct cpuinfo_x86 *c = &cpu_data(0);
+
 	microcode_dev_exit();
 
 	unregister_hotcpu_notifier(&mc_cpu_notifier);
@@ -579,6 +581,9 @@ static void __exit microcode_exit(void)
 	platform_device_unregister(microcode_pdev);
 
 	microcode_ops = NULL;
+
+	if (c->x86_vendor == X86_VENDOR_AMD)
+		exit_amd_microcode();
 
 	pr_info("Microcode Update Driver: v" MICROCODE_VERSION " removed.\n");
 }
