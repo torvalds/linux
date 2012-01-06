@@ -2057,6 +2057,8 @@ struct usb_device_id em28xx_id_table[] = {
 			.driver_info = EM2884_BOARD_HAUPPAUGE_WINTV_HVR_930C },
 	{ USB_DEVICE(0xeb1a, 0x5006),
 			.driver_info = EM2860_BOARD_HT_VIDBOX_NW03 },
+	{ USB_DEVICE(0x1b80, 0xe309), /* Sveon STV40 */
+			.driver_info = EM2860_BOARD_EASYCAP },
 	{ },
 };
 MODULE_DEVICE_TABLE(usb, em28xx_id_table);
