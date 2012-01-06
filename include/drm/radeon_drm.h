@@ -907,9 +907,6 @@ struct drm_radeon_gem_va {
 #define RADEON_CS_RING_COMPUTE      1
 /* The third dword of RADEON_CHUNK_ID_FLAGS is a sint32 that sets the priority */
 /* 0 = normal, + = higher priority, - = lower priority */
-struct drm_radeon_cs_ring_priority {
-	int32_t			priority;
-};
 
 struct drm_radeon_cs_chunk {
 	uint32_t		chunk_id;
