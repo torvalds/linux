@@ -600,9 +600,17 @@ static int ironlake_do_reset(struct drm_device *dev, u8 flags)
 static int gen6_do_reset(struct drm_device *dev, u8 flags)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
+	int	ret;
+	unsigned long irqflags;
 
 	I915_WRITE(GEN6_GDRST, GEN6_GRDOM_FULL);
-	return wait_for((I915_READ(GEN6_GDRST) & GEN6_GRDOM_FULL) == 0, 500);
+	ret = wait_for((I915_READ(GEN6_GDRST) & GEN6_GRDOM_FULL) == 0, 500);
+	/* If reset with a user forcewake, try to restore */
+	spin_lock_irqsave(&dev_priv->gt_lock, irqflags);
+	if (dev_priv->forcewake_count)
+		dev_priv->display.force_wake_get(dev_priv);
+	spin_unlock_irqrestore(&dev_priv->gt_lock, irqflags);
+	return ret;
 }
 
 /**
@@ -629,7 +637,6 @@ int i915_reset(struct drm_device *dev, u8 flags)
 	 * need to
 	 */
 	bool need_display = true;
-	unsigned long irqflags;
 	int ret;
 
 	if (!i915_try_reset)
@@ -647,11 +654,6 @@ int i915_reset(struct drm_device *dev, u8 flags)
 	case 7:
 	case 6:
 		ret = gen6_do_reset(dev, flags);
-		/* If reset with a user forcewake, try to restore */
-		spin_lock_irqsave(&dev_priv->gt_lock, irqflags);
-		if (dev_priv->forcewake_count)
-			dev_priv->display.force_wake_get(dev_priv);
-		spin_unlock_irqrestore(&dev_priv->gt_lock, irqflags);
 		break;
 	case 5:
 		ret = ironlake_do_reset(dev, flags);
