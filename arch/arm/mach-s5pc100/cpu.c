@@ -166,5 +166,5 @@ int __init s5pc100_init(void)
 	/* set idle function */
 	pm_idle = s5pc100_idle;
 
-	return device_register(&s5pc100_sys);
+	return device_register(&s5pc100_dev);
 }

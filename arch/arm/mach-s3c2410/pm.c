@@ -137,7 +137,7 @@ arch_initcall(s3c2410_pm_drvinit);
 
 static struct subsys_interface s3c2410a_pm_interface = {
 	.name		= "s3c2410a_pm",
-	subsys		= &s3c2410a_subsys,
+	.subsys		= &s3c2410a_subsys,
 	.add_dev	= s3c2410_pm_add,
 };
 

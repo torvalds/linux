@@ -95,7 +95,7 @@ static struct subsys_interface s3c2412_pm_interface = {
 
 static __init int s3c2412_pm_init(void)
 {
-	return subsys_interface_register_register(&s3c2412_pm_interface);
+	return subsys_interface_register(&s3c2412_pm_interface);
 }
 
 arch_initcall(s3c2412_pm_init);

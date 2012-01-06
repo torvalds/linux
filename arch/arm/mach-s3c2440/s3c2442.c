@@ -151,7 +151,7 @@ static int s3c2442_clk_add(struct device *dev)
 static struct subsys_interface s3c2442_clk_interface = {
 	.name		= "s3c2442_clk",
 	.subsys		= &s3c2442_subsys,
-	.add_dev	 s3c2442_clk_add,
+	.add_dev	= s3c2442_clk_add,
 };
 
 static __init int s3c2442_clk_init(void)

@@ -195,7 +195,7 @@ struct bus_type s5p64x0_subsys = {
 	.dev_name	= "s5p64x0-core",
 };
 
-static struct device s5p64x0_subsys = {
+static struct device s5p64x0_dev = {
 	.bus	= &s5p64x0_subsys,
 };
 
