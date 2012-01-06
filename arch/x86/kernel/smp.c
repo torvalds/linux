@@ -176,7 +176,7 @@ static void native_nmi_stop_other_cpus(int wait)
 	 */
 	if (num_online_cpus() > 1) {
 		/* did someone beat us here? */
-		if (atomic_cmpxchg(&stopping_cpu, -1, safe_smp_processor_id() != -1))
+		if (atomic_cmpxchg(&stopping_cpu, -1, safe_smp_processor_id()) != -1)
 			return;
 
 		if (register_nmi_handler(NMI_LOCAL, smp_stop_nmi_callback,
