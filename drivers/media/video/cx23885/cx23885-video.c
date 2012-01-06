@@ -1303,6 +1303,15 @@ int cx23885_enum_input(struct cx23885_dev *dev, struct v4l2_input *i)
 	if (INPUT(n)->type != CX23885_VMUX_TELEVISION)
 		i->audioset = 0x3;
 
+	if (dev->input == n) {
+		/* enum'd input matches our configured input.
+		 * Ask the video decoder to process the call
+		 * and give it an oppertunity to update the
+		 * status field.
+		 */
+		call_all(dev, video, g_input_status, &i->status);
+	}
+
 	return 0;
 }
 
