@@ -6141,15 +6141,18 @@ static void ironlake_write_eld(struct drm_connector *connector,
 	uint32_t i;
 	int len;
 	int hdmiw_hdmiedid;
+	int aud_config;
 	int aud_cntl_st;
 	int aud_cntrl_st2;
 
 	if (HAS_PCH_IBX(connector->dev)) {
 		hdmiw_hdmiedid = IBX_HDMIW_HDMIEDID_A;
+		aud_config = IBX_AUD_CONFIG_A;
 		aud_cntl_st = IBX_AUD_CNTL_ST_A;
 		aud_cntrl_st2 = IBX_AUD_CNTL_ST2;
 	} else {
 		hdmiw_hdmiedid = CPT_HDMIW_HDMIEDID_A;
+		aud_config = CPT_AUD_CONFIG_A;
 		aud_cntl_st = CPT_AUD_CNTL_ST_A;
 		aud_cntrl_st2 = CPT_AUD_CNTRL_ST2;
 	}
@@ -6157,6 +6160,7 @@ static void ironlake_write_eld(struct drm_connector *connector,
 	i = to_intel_crtc(crtc)->pipe;
 	hdmiw_hdmiedid += i * 0x100;
 	aud_cntl_st += i * 0x100;
+	aud_config += i * 0x100;
 
 	DRM_DEBUG_DRIVER("ELD on pipe %c\n", pipe_name(i));
 
@@ -6176,7 +6180,9 @@ static void ironlake_write_eld(struct drm_connector *connector,
 	if (intel_pipe_has_type(crtc, INTEL_OUTPUT_DISPLAYPORT)) {
 		DRM_DEBUG_DRIVER("ELD: DisplayPort detected\n");
 		eld[5] |= (1 << 2);	/* Conn_Type, 0x1 = DisplayPort */
-	}
+		I915_WRITE(aud_config, AUD_CONFIG_N_VALUE_INDEX); /* 0x1 = DP */
+	} else
+		I915_WRITE(aud_config, 0);
 
 	if (intel_eld_uptodate(connector,
 			       aud_cntrl_st2, eldv,
