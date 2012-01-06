@@ -1036,6 +1036,9 @@ int radeon_asic_init(struct radeon_device *rdev)
 	else
 		rdev->num_crtc = 2;
 
+	/* set the ring used for bo copies */
+	rdev->copy_ring = RADEON_RING_TYPE_GFX_INDEX;
+
 	switch (rdev->family) {
 	case CHIP_R100:
 	case CHIP_RV100:

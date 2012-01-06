@@ -1489,6 +1489,8 @@ struct radeon_device {
 	unsigned 		debugfs_count;
 	/* virtual memory */
 	struct radeon_vm_manager	vm_manager;
+	/* ring used for bo copies */
+	u32				copy_ring;
 };
 
 int radeon_device_init(struct radeon_device *rdev,
