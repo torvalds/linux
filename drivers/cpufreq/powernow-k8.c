@@ -54,6 +54,9 @@ static DEFINE_PER_CPU(struct powernow_k8_data *, powernow_data);
 
 static int cpu_family = CPU_OPTERON;
 
+/* array to map SW pstate number to acpi state */
+static u32 ps_to_as[8];
+
 /* core performance boost */
 static bool cpb_capable, cpb_enabled;
 static struct msr __percpu *msrs;
@@ -80,9 +83,9 @@ static u32 find_khz_freq_from_fid(u32 fid)
 }
 
 static u32 find_khz_freq_from_pstate(struct cpufreq_frequency_table *data,
-		u32 pstate)
+				     u32 pstate)
 {
-	return data[pstate].frequency;
+	return data[ps_to_as[pstate]].frequency;
 }
 
 /* Return the vco fid for an input fid
@@ -926,6 +929,9 @@ static int fill_powernow_table_pstate(struct powernow_k8_data *data,
 			invalidate_entry(powernow_table, i);
 			continue;
 		}
+
+		ps_to_as[index] = i;
+
 		/* Frequency may be rounded for these */
 		if ((boot_cpu_data.x86 == 0x10 && boot_cpu_data.x86_model < 10)
 				 || boot_cpu_data.x86 == 0x11) {
@@ -1190,7 +1196,8 @@ static int powernowk8_target(struct cpufreq_policy *pol,
 	powernow_k8_acpi_pst_values(data, newstate);
 
 	if (cpu_family == CPU_HW_PSTATE)
-		ret = transition_frequency_pstate(data, newstate);
+		ret = transition_frequency_pstate(data,
+			data->powernow_table[newstate].index);
 	else
 		ret = transition_frequency_fidvid(data, newstate);
 	if (ret) {
@@ -1203,7 +1210,7 @@ static int powernowk8_target(struct cpufreq_policy *pol,
 
 	if (cpu_family == CPU_HW_PSTATE)
 		pol->cur = find_khz_freq_from_pstate(data->powernow_table,
-				newstate);
+				data->powernow_table[newstate].index);
 	else
 		pol->cur = find_khz_freq_from_fid(data->currfid);
 	ret = 0;
