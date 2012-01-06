@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2005-2011 Junjiro R. Okajima
+ * Copyright (C) 2005-2012 Junjiro R. Okajima
  *
  * This program, aufs is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -24,10 +24,6 @@
 #define __AUFS_SPL_H__
 
 #ifdef __KERNEL__
-
-#include <linux/spinlock.h>
-#include <linux/list.h>
-#include <linux/rculist.h>
 
 struct au_splhead {
 	spinlock_t		spin;
