@@ -1,3 +1,5 @@
+#include "sched.h"
+
 /*
  * idle-task scheduling class.
  *
@@ -71,7 +73,7 @@ static unsigned int get_rr_interval_idle(struct rq *rq, struct task_struct *task
 /*
  * Simple, special scheduling class for the per-CPU idle tasks:
  */
-static const struct sched_class idle_sched_class = {
+const struct sched_class idle_sched_class = {
 	/* .next is NULL */
 	/* no enqueue/yield_task for idle tasks */
 

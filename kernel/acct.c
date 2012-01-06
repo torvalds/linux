@@ -613,8 +613,8 @@ void acct_collect(long exitcode, int group_dead)
 		pacct->ac_flag |= ACORE;
 	if (current->flags & PF_SIGNALED)
 		pacct->ac_flag |= AXSIG;
-	pacct->ac_utime = cputime_add(pacct->ac_utime, current->utime);
-	pacct->ac_stime = cputime_add(pacct->ac_stime, current->stime);
+	pacct->ac_utime += current->utime;
+	pacct->ac_stime += current->stime;
 	pacct->ac_minflt += current->min_flt;
 	pacct->ac_majflt += current->maj_flt;
 	spin_unlock_irq(&current->sighand->siglock);
