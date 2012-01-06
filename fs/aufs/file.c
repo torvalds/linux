@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2005-2011 Junjiro R. Okajima
+ * Copyright (C) 2005-2012 Junjiro R. Okajima
  *
  * This program, aufs is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -20,9 +20,6 @@
  * handling file/dir, and address_space operation
  */
 
-#include <linux/file.h>
-#include <linux/fsnotify.h>
-#include <linux/namei.h>
 #include <linux/pagemap.h>
 #include "aufs.h"
 
