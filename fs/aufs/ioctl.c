@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2005-2011 Junjiro R. Okajima
+ * Copyright (C) 2005-2012 Junjiro R. Okajima
  *
  * This program, aufs is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -22,7 +22,6 @@
  * assist the pathconf(3) wrapper library.
  */
 
-#include <linux/file.h>
 #include "aufs.h"
 
 static int au_wbr_fd(struct path *path, struct aufs_wbr_fd __user *arg)
