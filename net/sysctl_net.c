@@ -90,7 +90,7 @@ static struct pernet_operations sysctl_pernet_ops = {
 	.exit = sysctl_net_exit,
 };
 
-static __init int sysctl_init(void)
+static __init int net_sysctl_init(void)
 {
 	int ret;
 	ret = register_pernet_subsys(&sysctl_pernet_ops);
@@ -102,7 +102,7 @@ static __init int sysctl_init(void)
 out:
 	return ret;
 }
-subsys_initcall(sysctl_init);
+subsys_initcall(net_sysctl_init);
 
 struct ctl_table_header *register_net_sysctl_table(struct net *net,
 	const struct ctl_path *path, struct ctl_table *table)

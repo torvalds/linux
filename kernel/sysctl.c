@@ -192,7 +192,7 @@ static int sysrq_sysctl_handler(ctl_table *table, int write,
 
 #endif
 
-static struct ctl_table root_table[];
+static struct ctl_table root_table[1];
 static struct ctl_table_root sysctl_table_root;
 static struct ctl_table_header root_table_header = {
 	{{.count = 1,
@@ -222,7 +222,7 @@ int sysctl_legacy_va_layout;
 
 /* The default sysctl tables: */
 
-static struct ctl_table root_table[] = {
+static struct ctl_table sysctl_base_table[] = {
 	{
 		.procname	= "kernel",
 		.mode		= 0555,
@@ -1747,16 +1747,11 @@ static void sysctl_set_parent(struct ctl_table *parent, struct ctl_table *table)
 	}
 }
 
-static __init int sysctl_init(void)
+int __init sysctl_init(void)
 {
-	sysctl_set_parent(NULL, root_table);
-#ifdef CONFIG_SYSCTL_SYSCALL_CHECK
-	sysctl_check_table(current->nsproxy, root_table);
-#endif
+	register_sysctl_table(sysctl_base_table);
 	return 0;
 }
-
-core_initcall(sysctl_init);
 
 static struct ctl_table *is_branch_in(struct ctl_table *branch,
 				      struct ctl_table *table)
