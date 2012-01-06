@@ -610,7 +610,7 @@ static const struct of_device_id sbs_dt_ids[] = {
 	{ .compatible = "ti,bq20z75" },
 	{ }
 };
-MODULE_DEVICE_TABLE(i2c, sbs_dt_ids);
+MODULE_DEVICE_TABLE(of, sbs_dt_ids);
 
 static struct sbs_platform_data *sbs_of_populate_pdata(
 		struct i2c_client *client)
