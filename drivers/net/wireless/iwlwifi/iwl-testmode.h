@@ -120,6 +120,8 @@
  * @IWL_TM_CMD_APP2DEV_LOAD_WOWLAN_FW: load Weak On Wireless LAN uCode image
  * @IWL_TM_CMD_APP2DEV_GET_FW_VERSION: retrieve uCode version
  * @IWL_TM_CMD_APP2DEV_GET_DEVICE_ID: retrieve ID information in device
+ * @IWL_TM_CMD_APP2DEV_GET_FW_INFO:
+ *	retrieve informration of existing loaded uCode image
  *
  */
 enum iwl_tm_cmd_t {
@@ -147,7 +149,8 @@ enum iwl_tm_cmd_t {
 	IWL_TM_CMD_APP2DEV_LOAD_WOWLAN_FW	= 22,
 	IWL_TM_CMD_APP2DEV_GET_FW_VERSION	= 23,
 	IWL_TM_CMD_APP2DEV_GET_DEVICE_ID	= 24,
-	IWL_TM_CMD_MAX				= 25,
+	IWL_TM_CMD_APP2DEV_GET_FW_INFO		= 25,
+	IWL_TM_CMD_MAX				= 26,
 };
 
 /*
@@ -237,6 +240,15 @@ enum iwl_tm_cmd_t {
  *	When IWL_TM_ATTR_COMMAND is IWL_TM_CMD_APP2DEV_GET_DEVICE_ID,
  *	IWL_TM_ATTR_DEVICE_ID for the device ID information
  *
+ * @IWL_TM_ATTR_FW_TYPE:
+ * @IWL_TM_ATTR_FW_INST_SIZE:
+ * @IWL_TM_ATTR_FW_DATA_SIZE:
+ *	When IWL_TM_ATTR_COMMAND is IWL_TM_CMD_APP2DEV_GET_FW_INFO,
+ *	The mandatory fields are:
+ *	IWL_TM_ATTR_FW_TYPE for the uCode type (INIT/RUNTIME/...)
+ *	IWL_TM_ATTR_FW_INST_SIZE for the size of instruction section
+ *	IWL_TM_ATTR_FW_DATA_SIZE for the size of data section
+ *
  */
 enum iwl_tm_attr_t {
 	IWL_TM_ATTR_NOT_APPLICABLE		= 0,
@@ -259,7 +271,10 @@ enum iwl_tm_attr_t {
 	IWL_TM_ATTR_SRAM_DUMP			= 17,
 	IWL_TM_ATTR_FW_VERSION			= 18,
 	IWL_TM_ATTR_DEVICE_ID			= 19,
-	IWL_TM_ATTR_MAX				= 20,
+	IWL_TM_ATTR_FW_TYPE			= 20,
+	IWL_TM_ATTR_FW_INST_SIZE		= 21,
+	IWL_TM_ATTR_FW_DATA_SIZE		= 22,
+	IWL_TM_ATTR_MAX				= 23,
 };
 
 /* uCode trace buffer */
