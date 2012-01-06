@@ -2755,11 +2755,10 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
 			functions are at fixed addresses, they make nice
 			targets for exploits that can control RIP.
 
-			emulate     Vsyscalls turn into traps and are emulated
-			            reasonably safely.
+			emulate     [default] Vsyscalls turn into traps and are
+			            emulated reasonably safely.
 
-			native      [default] Vsyscalls are native syscall
-			            instructions.
+			native      Vsyscalls are native syscall instructions.
 			            This is a little bit faster than trapping
 			            and makes a few dynamic recompilers work
 			            better than they would in emulation mode.

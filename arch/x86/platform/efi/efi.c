@@ -238,7 +238,8 @@ static efi_status_t __init phys_efi_get_time(efi_time_t *tm,
 
 	spin_lock_irqsave(&rtc_lock, flags);
 	efi_call_phys_prelog();
-	status = efi_call_phys2(efi_phys.get_time, tm, tc);
+	status = efi_call_phys2(efi_phys.get_time, virt_to_phys(tm),
+				virt_to_phys(tc));
 	efi_call_phys_epilog();
 	spin_unlock_irqrestore(&rtc_lock, flags);
 	return status;
