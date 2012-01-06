@@ -1659,8 +1659,7 @@ static void sbridge_unregister_mci(struct sbridge_dev *sbridge_dev)
 	debugf0("MC: " __FILE__ ": %s(): mci = %p, dev = %p\n",
 		__func__, mci, &sbridge_dev->pdev[0]->dev);
 
-	atomic_notifier_chain_unregister(&x86_mce_decoder_chain,
-					 &sbridge_mce_dec);
+	mce_unregister_decode_chain(&sbridge_mce_dec);
 
 	/* Remove MC sysfs nodes */
 	edac_mc_del_mc(mci->dev);
@@ -1729,8 +1728,7 @@ static int sbridge_register_mci(struct sbridge_dev *sbridge_dev)
 		goto fail0;
 	}
 
-	atomic_notifier_chain_register(&x86_mce_decoder_chain,
-				       &sbridge_mce_dec);
+	mce_register_decode_chain(&sbridge_mce_dec);
 	return 0;
 
 fail0:
