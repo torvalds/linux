@@ -25,6 +25,8 @@
 #include <sound/initval.h>
 #include <sound/tlv.h>
 
+#include <mach/gpio.h>
+
 #include "rt5621.h"
 
 #if REALTEK_HWDEP
@@ -296,9 +298,9 @@ static int rt5621_ChangeCodecPowerStatus(struct snd_soc_codec *codec,int power_s
 	case POWER_STATE_D1_PLAYBACK: //Low on of Playback
 		rt5621_write_mask(codec, RT5621_PWR_MANAG_ADD2, PWR_VREF | PWR_DAC_REF_CIR |
 			PWR_L_DAC_CLK | PWR_R_DAC_CLK | PWR_L_HP_MIXER | PWR_R_HP_MIXER |
-			PWR_CLASS_AB | PWR_CLASS_D, PWR_VREF | PWR_DAC_REF_CIR |
+			PWR_CLASS_AB | PWR_CLASS_D|PWR_SPK_MIXER, PWR_VREF | PWR_DAC_REF_CIR |
 			PWR_L_DAC_CLK | PWR_R_DAC_CLK | PWR_L_HP_MIXER | PWR_R_HP_MIXER |
-			PWR_CLASS_AB | PWR_CLASS_D);
+			PWR_CLASS_AB | PWR_CLASS_D|PWR_SPK_MIXER);
 
 		rt5621_write_mask(codec, RT5621_PWR_MANAG_ADD3, PWR_MAIN_BIAS |
 			PWR_HP_R_OUT_VOL | PWR_HP_L_OUT_VOL | PWR_SPK_OUT, 
@@ -929,7 +931,7 @@ struct rt5621_init_reg{
 
 static struct rt5621_init_reg init_data[] = {
 	{RT5621_AUDIO_INTERFACE,        0x8000},    //set I2S codec to slave mode
-	{RT5621_STEREO_DAC_VOL,         0x0505},    //default stereo DAC volume to 0db
+	{RT5621_STEREO_DAC_VOL,         0x0808},    //default stereo DAC volume to 0db
 	{RT5621_OUTPUT_MIXER_CTRL,      0x2b40},    //default output mixer control	
 	{RT5621_ADC_REC_MIXER,          0x3f3f},    //set record source is Mic1 by default
 	{RT5621_MIC_CTRL,               0x0a00},    //set Mic1,Mic2 boost 20db	
@@ -939,7 +941,8 @@ static struct rt5621_init_reg init_data[] = {
 	{RT5621_STEREO_AD_DA_CLK_CTRL,  0x066d},    //set Dac filter to 256fs
 	{RT5621_ADC_REC_GAIN,		    0xfa95},    //set ADC boost to 15db	
 	{RT5621_HID_CTRL_INDEX,         0x46},	    //Class D setting
-	{RT5621_MIC_VOL,              0x1f08},
+	{RT5621_MIC_VOL,                0x0808},
+	{RT5621_MIC_ROUTING_CTRL, 		0xf0e0},
 	{RT5621_HID_CTRL_DATA,          0xFFFF},    //power on Class D Internal register
 	{RT5621_JACK_DET_CTRL,          0x4810},    //power on Class D Internal register
 };
@@ -991,6 +994,8 @@ static void rt5621_work(struct work_struct *work)
 static int rt5621_probe(struct snd_soc_codec *codec)
 {
 	int ret;
+
+	printk("##################### %s ######################\n", __FUNCTION__);
 
 	ret = snd_soc_codec_set_cache_io(codec, 8, 16, SND_SOC_I2C);
 	if (ret != 0) {
@@ -1172,6 +1177,18 @@ static int rt5621_i2c_probe(struct i2c_client *i2c,
 {
 	struct rt5621_priv *rt5621;
 	int ret;
+	
+	printk("##################### %s ######################\n", __FUNCTION__);
+
+	ret = gpio_request(RK29_PIN6_PB6, "spk_con");
+	if(ret < 0){
+		printk("gpio request spk_con error!\n");
+	}
+	else{
+		printk("########################### set spk_con HIGH ##################################\n");
+		gpio_direction_output(RK29_PIN6_PB6, GPIO_HIGH);
+		gpio_set_value(RK29_PIN6_PB6, GPIO_HIGH);
+	}
 
 	rt5621 = kzalloc(sizeof(struct rt5621_priv), GFP_KERNEL);
 	if (NULL == rt5621)
