@@ -2267,9 +2267,7 @@ static noinline int run_clustered_refs(struct btrfs_trans_handle *trans,
 				BUG_ON(ret);
 				kfree(extent_op);
 
-				cond_resched();
-				spin_lock(&delayed_refs->lock);
-				continue;
+				goto next;
 			}
 
 			list_del_init(&locked_ref->cluster);
@@ -2289,7 +2287,11 @@ static noinline int run_clustered_refs(struct btrfs_trans_handle *trans,
 		btrfs_put_delayed_ref(ref);
 		kfree(extent_op);
 		count++;
-
+next:
+		do_chunk_alloc(trans, root->fs_info->extent_root,
+			       2 * 1024 * 1024,
+			       btrfs_get_alloc_profile(root, 0),
+			       CHUNK_ALLOC_NO_FORCE);
 		cond_resched();
 		spin_lock(&delayed_refs->lock);
 	}
@@ -2316,6 +2318,10 @@ int btrfs_run_delayed_refs(struct btrfs_trans_handle *trans,
 
 	if (root == root->fs_info->extent_root)
 		root = root->fs_info->tree_root;
+
+	do_chunk_alloc(trans, root->fs_info->extent_root,
+		       2 * 1024 * 1024, btrfs_get_alloc_profile(root, 0),
+		       CHUNK_ALLOC_NO_FORCE);
 
 	delayed_refs = &trans->transaction->delayed_refs;
 	INIT_LIST_HEAD(&cluster);
