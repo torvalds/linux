@@ -84,6 +84,13 @@ int radeon_cs_parser_relocs(struct radeon_cs_parser *p)
 			p->relocs[i].flags = r->flags;
 			radeon_bo_list_add_object(&p->relocs[i].lobj,
 						  &p->validated);
+
+			if (p->relocs[i].robj->tbo.sync_obj && !(r->flags & RADEON_RELOC_DONT_SYNC)) {
+				struct radeon_fence *fence = p->relocs[i].robj->tbo.sync_obj;
+				if (!radeon_fence_signaled(fence)) {
+					p->sync_to_ring[fence->ring] = true;
+				}
+			}
 		} else
 			p->relocs[i].handle = 0;
 	}
@@ -105,6 +112,36 @@ static int radeon_cs_get_ring(struct radeon_cs_parser *p, u32 ring, s32 priority
 		/* for now */
 		p->ring = RADEON_RING_TYPE_GFX_INDEX;
 		break;
+	}
+	return 0;
+}
+
+static int radeon_cs_sync_rings(struct radeon_cs_parser *p)
+{
+	int i, r;
+
+	for (i = 0; i < RADEON_NUM_RINGS; ++i) {
+		/* no need to sync to our own or unused rings */
+		if (i == p->ring || !p->sync_to_ring[i] || !p->rdev->ring[i].ready)
+			continue;
+
+		if (!p->ib->fence->semaphore) {
+			r = radeon_semaphore_create(p->rdev, &p->ib->fence->semaphore);
+			if (r)
+				return r;
+		}
+
+		r = radeon_ring_lock(p->rdev, &p->rdev->ring[i], 3);
+		if (r)
+			return r;
+		radeon_semaphore_emit_signal(p->rdev, i, p->ib->fence->semaphore);
+		radeon_ring_unlock_commit(p->rdev, &p->rdev->ring[i]);
+
+		r = radeon_ring_lock(p->rdev, &p->rdev->ring[p->ring], 3);
+		if (r)
+			return r;
+		radeon_semaphore_emit_wait(p->rdev, p->ring, p->ib->fence->semaphore);
+		radeon_ring_unlock_commit(p->rdev, &p->rdev->ring[p->ring]);
 	}
 	return 0;
 }
@@ -314,6 +351,10 @@ static int radeon_cs_ib_chunk(struct radeon_device *rdev,
 		DRM_ERROR("Invalid command stream !\n");
 		return r;
 	}
+	r = radeon_cs_sync_rings(parser);
+	if (r) {
+		DRM_ERROR("Failed to synchronize rings !\n");
+	}
 	parser->ib->vm_id = 0;
 	r = radeon_ib_schedule(rdev, parser->ib);
 	if (r) {
@@ -383,6 +424,10 @@ static int radeon_cs_ib_vm_chunk(struct radeon_device *rdev,
 	r = radeon_bo_vm_update_pte(parser, vm);
 	if (r) {
 		goto out;
+	}
+	r = radeon_cs_sync_rings(parser);
+	if (r) {
+		DRM_ERROR("Failed to synchronize rings !\n");
 	}
 	parser->ib->vm_id = vm->id;
 	/* ib pool is bind at 0 in virtual address space to gpu_addr is the

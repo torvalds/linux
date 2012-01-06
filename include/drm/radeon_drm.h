@@ -917,6 +917,9 @@ struct drm_radeon_cs_chunk {
 	uint64_t		chunk_data;
 };
 
+/* drm_radeon_cs_reloc.flags */
+#define RADEON_RELOC_DONT_SYNC		0x01
+
 struct drm_radeon_cs_reloc {
 	uint32_t		handle;
 	uint32_t		read_domains;

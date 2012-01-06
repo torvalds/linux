@@ -153,6 +153,8 @@ static void radeon_fence_destroy(struct kref *kref)
 	list_del(&fence->list);
 	fence->emitted = false;
 	write_unlock_irqrestore(&fence->rdev->fence_lock, irq_flags);
+	if (fence->semaphore)
+		radeon_semaphore_free(fence->rdev, fence->semaphore);
 	kfree(fence);
 }
 
@@ -172,6 +174,7 @@ int radeon_fence_create(struct radeon_device *rdev,
 	(*fence)->signaled = false;
 	(*fence)->seq = 0;
 	(*fence)->ring = ring;
+	(*fence)->semaphore = NULL;
 	INIT_LIST_HEAD(&(*fence)->list);
 
 	write_lock_irqsave(&rdev->fence_lock, irq_flags);
