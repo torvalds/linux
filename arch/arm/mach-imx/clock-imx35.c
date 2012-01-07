@@ -507,7 +507,7 @@ static struct clk_lookup lookups[] = {
 
 int __init mx35_clocks_init()
 {
-	unsigned int cgr2 = 3 << 26, cgr3 = 0;
+	unsigned int cgr2 = 3 << 26;
 
 #if defined(CONFIG_DEBUG_LL) && !defined(CONFIG_DEBUG_ICEDCC)
 	cgr2 |= 3 << 16;
@@ -521,6 +521,12 @@ int __init mx35_clocks_init()
 	__raw_writel((3 << 18), CCM_BASE + CCM_CGR0);
 	__raw_writel((3 << 2) | (3 << 4) | (3 << 6) | (3 << 8) | (3 << 16),
 			CCM_BASE + CCM_CGR1);
+	__raw_writel(cgr2, CCM_BASE + CCM_CGR2);
+	__raw_writel(0, CCM_BASE + CCM_CGR3);
+
+	clk_enable(&iim_clk);
+	imx_print_silicon_rev("i.MX35", mx35_revision());
+	clk_disable(&iim_clk);
 
 	/*
 	 * Check if we came up in internal boot mode. If yes, we need some
@@ -529,16 +535,10 @@ int __init mx35_clocks_init()
 	 */
 	if (!(__raw_readl(CCM_BASE + CCM_RCSR) & (3 << 10))) {
 		/* Additionally turn on UART1, SCC, and IIM clocks */
-		cgr2 |= 3 << 16 | 3 << 4;
-		cgr3 |= 3 << 2;
+		clk_enable(&iim_clk);
+		clk_enable(&uart1_clk);
+		clk_enable(&scc_clk);
 	}
-
-	__raw_writel(cgr2, CCM_BASE + CCM_CGR2);
-	__raw_writel(cgr3, CCM_BASE + CCM_CGR3);
-
-	clk_enable(&iim_clk);
-	imx_print_silicon_rev("i.MX35", mx35_revision());
-	clk_disable(&iim_clk);
 
 #ifdef CONFIG_MXC_USE_EPIT
 	epit_timer_init(&epit1_clk,

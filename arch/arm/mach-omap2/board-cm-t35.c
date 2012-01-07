@@ -637,6 +637,7 @@ MACHINE_START(CM_T35, "Compulab CM-T35")
 	.handle_irq	= omap3_intc_handle_irq,
 	.init_machine	= cm_t35_init,
 	.timer		= &omap3_timer,
+	.restart	= omap_prcm_restart,
 MACHINE_END
 
 MACHINE_START(CM_T3730, "Compulab CM-T3730")
@@ -648,4 +649,5 @@ MACHINE_START(CM_T3730, "Compulab CM-T3730")
 	.handle_irq	= omap3_intc_handle_irq,
 	.init_machine   = cm_t3730_init,
 	.timer          = &omap3_timer,
+	.restart	= omap_prcm_restart,
 MACHINE_END

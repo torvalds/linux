@@ -362,7 +362,7 @@ static void __init mx51_babbage_init(void)
 {
 	iomux_v3_cfg_t usbh1stp = MX51_PAD_USBH1_STP__USBH1_STP;
 	iomux_v3_cfg_t power_key = NEW_PAD_CTRL(MX51_PAD_EIM_A27__GPIO2_21,
-		PAD_CTL_SRE_FAST | PAD_CTL_DSE_HIGH | PAD_CTL_PUS_100K_UP);
+		PAD_CTL_SRE_FAST | PAD_CTL_DSE_HIGH);
 
 	imx51_soc_init();
 
@@ -426,4 +426,5 @@ MACHINE_START(MX51_BABBAGE, "Freescale MX51 Babbage Board")
 	.handle_irq = imx51_handle_irq,
 	.timer = &mx51_babbage_timer,
 	.init_machine = mx51_babbage_init,
+	.restart	= mxc_restart,
 MACHINE_END

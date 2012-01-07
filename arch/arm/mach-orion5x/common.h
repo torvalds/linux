@@ -39,6 +39,7 @@ void orion5x_spi_init(void);
 void orion5x_uart0_init(void);
 void orion5x_uart1_init(void);
 void orion5x_xor_init(void);
+void orion5x_restart(char, const char *);
 
 /*
  * PCIe/PCI functions.

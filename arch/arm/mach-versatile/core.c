@@ -740,6 +740,19 @@ static void versatile_leds_event(led_event_t ledevt)
 }
 #endif	/* CONFIG_LEDS */
 
+void versatile_restart(char mode, const char *cmd)
+{
+	void __iomem *sys = __io_address(VERSATILE_SYS_BASE);
+	u32 val;
+
+	val = __raw_readl(sys + VERSATILE_SYS_RESETCTL_OFFSET);
+	val |= 0x105;
+
+	__raw_writel(0xa05f, sys + VERSATILE_SYS_LOCK_OFFSET);
+	__raw_writel(val, sys + VERSATILE_SYS_RESETCTL_OFFSET);
+	__raw_writel(0, sys + VERSATILE_SYS_LOCK_OFFSET);
+}
+
 /* Early initializations */
 void __init versatile_init_early(void)
 {

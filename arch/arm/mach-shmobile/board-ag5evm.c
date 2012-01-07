@@ -466,8 +466,6 @@ static struct map_desc ag5evm_io_desc[] __initdata = {
 static void __init ag5evm_map_io(void)
 {
 	iotable_init(ag5evm_io_desc, ARRAY_SIZE(ag5evm_io_desc));
-	/* DMA memory at 0xf6000000 - 0xffdfffff */
-	init_consistent_dma_size(158 << 20);
 
 	/* setup early devices and console here as well */
 	sh73a0_add_early_devices();
@@ -607,6 +605,7 @@ struct sys_timer ag5evm_timer = {
 
 MACHINE_START(AG5EVM, "ag5evm")
 	.map_io		= ag5evm_map_io,
+	.nr_irqs	= NR_IRQS_LEGACY,
 	.init_irq	= sh73a0_init_irq,
 	.handle_irq	= gic_handle_irq,
 	.init_machine	= ag5evm_init,

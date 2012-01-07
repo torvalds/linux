@@ -2822,7 +2822,7 @@ out_free:
 	btrfs_release_path(path);
 out:
 	spin_lock(&block_group->lock);
-	if (!ret)
+	if (!ret && dcs == BTRFS_DC_SETUP)
 		block_group->cache_generation = trans->transid;
 	block_group->disk_cache_state = dcs;
 	spin_unlock(&block_group->lock);
@@ -4204,12 +4204,17 @@ int btrfs_delalloc_reserve_metadata(struct inode *inode, u64 num_bytes)
 	struct btrfs_root *root = BTRFS_I(inode)->root;
 	struct btrfs_block_rsv *block_rsv = &root->fs_info->delalloc_block_rsv;
 	u64 to_reserve = 0;
+	u64 csum_bytes;
 	unsigned nr_extents = 0;
+	int extra_reserve = 0;
 	int flush = 1;
 	int ret;
 
+	/* Need to be holding the i_mutex here if we aren't free space cache */
 	if (btrfs_is_free_space_inode(root, inode))
 		flush = 0;
+	else
+		WARN_ON(!mutex_is_locked(&inode->i_mutex));
 
 	if (flush && btrfs_transaction_in_commit(root->fs_info))
 		schedule_timeout(1);
@@ -4220,11 +4225,9 @@ int btrfs_delalloc_reserve_metadata(struct inode *inode, u64 num_bytes)
 	BTRFS_I(inode)->outstanding_extents++;
 
 	if (BTRFS_I(inode)->outstanding_extents >
-	    BTRFS_I(inode)->reserved_extents) {
+	    BTRFS_I(inode)->reserved_extents)
 		nr_extents = BTRFS_I(inode)->outstanding_extents -
 			BTRFS_I(inode)->reserved_extents;
-		BTRFS_I(inode)->reserved_extents += nr_extents;
-	}
 
 	/*
 	 * Add an item to reserve for updating the inode when we complete the
@@ -4232,11 +4235,12 @@ int btrfs_delalloc_reserve_metadata(struct inode *inode, u64 num_bytes)
 	 */
 	if (!BTRFS_I(inode)->delalloc_meta_reserved) {
 		nr_extents++;
-		BTRFS_I(inode)->delalloc_meta_reserved = 1;
+		extra_reserve = 1;
 	}
 
 	to_reserve = btrfs_calc_trans_metadata_size(root, nr_extents);
 	to_reserve += calc_csum_metadata_size(inode, num_bytes, 1);
+	csum_bytes = BTRFS_I(inode)->csum_bytes;
 	spin_unlock(&BTRFS_I(inode)->lock);
 
 	ret = reserve_metadata_bytes(root, block_rsv, to_reserve, flush);
@@ -4246,21 +4250,34 @@ int btrfs_delalloc_reserve_metadata(struct inode *inode, u64 num_bytes)
 
 		spin_lock(&BTRFS_I(inode)->lock);
 		dropped = drop_outstanding_extent(inode);
-		to_free = calc_csum_metadata_size(inode, num_bytes, 0);
-		spin_unlock(&BTRFS_I(inode)->lock);
-		to_free += btrfs_calc_trans_metadata_size(root, dropped);
-
 		/*
-		 * Somebody could have come in and twiddled with the
-		 * reservation, so if we have to free more than we would have
-		 * reserved from this reservation go ahead and release those
-		 * bytes.
+		 * If the inodes csum_bytes is the same as the original
+		 * csum_bytes then we know we haven't raced with any free()ers
+		 * so we can just reduce our inodes csum bytes and carry on.
+		 * Otherwise we have to do the normal free thing to account for
+		 * the case that the free side didn't free up its reserve
+		 * because of this outstanding reservation.
 		 */
-		to_free -= to_reserve;
+		if (BTRFS_I(inode)->csum_bytes == csum_bytes)
+			calc_csum_metadata_size(inode, num_bytes, 0);
+		else
+			to_free = calc_csum_metadata_size(inode, num_bytes, 0);
+		spin_unlock(&BTRFS_I(inode)->lock);
+		if (dropped)
+			to_free += btrfs_calc_trans_metadata_size(root, dropped);
+
 		if (to_free)
 			btrfs_block_rsv_release(root, block_rsv, to_free);
 		return ret;
 	}
+
+	spin_lock(&BTRFS_I(inode)->lock);
+	if (extra_reserve) {
+		BTRFS_I(inode)->delalloc_meta_reserved = 1;
+		nr_extents--;
+	}
+	BTRFS_I(inode)->reserved_extents += nr_extents;
+	spin_unlock(&BTRFS_I(inode)->lock);
 
 	block_rsv_add_bytes(block_rsv, to_reserve, 1);
 

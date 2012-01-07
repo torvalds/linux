@@ -65,6 +65,5 @@ extern int realview_usb_register(struct resource *res);
 extern void realview_init_early(void);
 extern void realview_fixup(struct tag *tags, char **from,
 			   struct meminfo *meminfo);
-extern void (*realview_reset)(char);
 
 #endif

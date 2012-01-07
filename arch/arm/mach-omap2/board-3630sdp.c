@@ -218,4 +218,5 @@ MACHINE_START(OMAP_3630SDP, "OMAP 3630SDP board")
 	.handle_irq	= omap3_intc_handle_irq,
 	.init_machine	= omap_sdp_init,
 	.timer		= &omap3_timer,
+	.restart	= omap_prcm_restart,
 MACHINE_END

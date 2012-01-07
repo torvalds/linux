@@ -20,7 +20,7 @@
  *
  *         mdsc->snap_rwsem
  *
- *         inode->i_lock
+ *         ci->i_ceph_lock
  *                 mdsc->snap_flush_lock
  *                 mdsc->cap_delay_lock
  *

@@ -1535,18 +1535,22 @@ static noinline_for_stack int scrub_supers(struct scrub_dev *sdev)
 static noinline_for_stack int scrub_workers_get(struct btrfs_root *root)
 {
 	struct btrfs_fs_info *fs_info = root->fs_info;
+	int ret = 0;
 
 	mutex_lock(&fs_info->scrub_lock);
 	if (fs_info->scrub_workers_refcnt == 0) {
 		btrfs_init_workers(&fs_info->scrub_workers, "scrub",
 			   fs_info->thread_pool_size, &fs_info->generic_worker);
 		fs_info->scrub_workers.idle_thresh = 4;
-		btrfs_start_workers(&fs_info->scrub_workers, 1);
+		ret = btrfs_start_workers(&fs_info->scrub_workers);
+		if (ret)
+			goto out;
 	}
 	++fs_info->scrub_workers_refcnt;
+out:
 	mutex_unlock(&fs_info->scrub_lock);
 
-	return 0;
+	return ret;
 }
 
 static noinline_for_stack void scrub_workers_put(struct btrfs_root *root)

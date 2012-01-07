@@ -621,15 +621,6 @@ static struct xenbus_watch *find_watch(const char *token)
 	return NULL;
 }
 
-static void xs_reset_watches(void)
-{
-	int err;
-
-	err = xs_error(xs_single(XBT_NIL, XS_RESET_WATCHES, "", NULL));
-	if (err && err != -EEXIST)
-		printk(KERN_WARNING "xs_reset_watches failed: %d\n", err);
-}
-
 /* Register callback to watch this node. */
 int register_xenbus_watch(struct xenbus_watch *watch)
 {
@@ -905,10 +896,6 @@ int xs_init(void)
 	task = kthread_run(xenbus_thread, NULL, "xenbus");
 	if (IS_ERR(task))
 		return PTR_ERR(task);
-
-	/* shutdown watches for kexec boot */
-	if (xen_hvm_domain())
-		xs_reset_watches();
 
 	return 0;
 }

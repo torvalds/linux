@@ -62,6 +62,8 @@
 #include <plat/cpu.h>
 #include <plat/pm.h>
 
+#include "common.h"
+
 static struct map_desc qt2410_iodesc[] __initdata = {
 	{ 0xe0000000, __phys_to_pfn(S3C2410_CS3+0x01000000), SZ_1M, MT_DEVICE }
 };
@@ -350,6 +352,5 @@ MACHINE_START(QT2410, "QT2410")
 	.init_irq	= s3c24xx_init_irq,
 	.init_machine	= qt2410_machine_init,
 	.timer		= &s3c24xx_timer,
+	.restart	= s3c2410_restart,
 MACHINE_END
-
-

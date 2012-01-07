@@ -263,6 +263,8 @@ static struct ip_tunnel *ipip6_tunnel_locate(struct net *net,
 	if (register_netdevice(dev) < 0)
 		goto failed_free;
 
+	strcpy(nt->parms.name, dev->name);
+
 	dev_hold(dev);
 
 	ipip6_tunnel_link(sitn, nt);
@@ -1144,7 +1146,6 @@ static int ipip6_tunnel_init(struct net_device *dev)
 	struct ip_tunnel *tunnel = netdev_priv(dev);
 
 	tunnel->dev = dev;
-	strcpy(tunnel->parms.name, dev->name);
 
 	memcpy(dev->dev_addr, &tunnel->parms.iph.saddr, 4);
 	memcpy(dev->broadcast, &tunnel->parms.iph.daddr, 4);
@@ -1207,6 +1208,7 @@ static void __net_exit sit_destroy_tunnels(struct sit_net *sitn, struct list_hea
 static int __net_init sit_init_net(struct net *net)
 {
 	struct sit_net *sitn = net_generic(net, sit_net_id);
+	struct ip_tunnel *t;
 	int err;
 
 	sitn->tunnels[0] = sitn->tunnels_wc;
@@ -1231,6 +1233,9 @@ static int __net_init sit_init_net(struct net *net)
 	if ((err = register_netdev(sitn->fb_tunnel_dev)))
 		goto err_reg_dev;
 
+	t = netdev_priv(sitn->fb_tunnel_dev);
+
+	strcpy(t->parms.name, sitn->fb_tunnel_dev->name);
 	return 0;
 
 err_reg_dev:

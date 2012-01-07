@@ -1285,6 +1285,9 @@ SCTP_STATIC __init int sctp_init(void)
 	sctp_max_instreams    		= SCTP_DEFAULT_INSTREAMS;
 	sctp_max_outstreams   		= SCTP_DEFAULT_OUTSTREAMS;
 
+	/* Initialize maximum autoclose timeout. */
+	sctp_max_autoclose		= INT_MAX / HZ;
+
 	/* Initialize handle used for association ids. */
 	idr_init(&sctp_assocs_id);
 
