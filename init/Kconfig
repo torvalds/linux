@@ -28,8 +28,14 @@ config BUILDTIME_EXTABLE_SORT
 
 menu "General setup"
 
+choice
+	prompt "CPU Scheduler"
+	default SCHED_BFS
+	---help---
+	  Select the CPU Scheduler to be used.
+
 config SCHED_BFS
-	bool "BFS cpu scheduler"
+	bool "Brain Fuck Scheduler (BFS)"
 	---help---
 	  The Brain Fuck CPU Scheduler for excellent interactivity and
 	  responsiveness on the desktop and solid scalability on normal
@@ -39,7 +45,12 @@ config SCHED_BFS
           TEST so these options are disabled.
 
           Say Y here.
-	default y
+
+config SCHED_CFS
+	bool "Completely Fair Scheduler (CFS)"
+	---help---
+	This is the default cpu scheduler found in the upstream kernel.
+endchoice
 
 
 config BROKEN
