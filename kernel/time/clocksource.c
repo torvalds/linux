@@ -647,7 +647,7 @@ static void clocksource_enqueue(struct clocksource *cs)
 
 /**
  * __clocksource_updatefreq_scale - Used update clocksource with new freq
- * @t:		clocksource to be registered
+ * @cs:		clocksource to be registered
  * @scale:	Scale factor multiplied against freq to get clocksource hz
  * @freq:	clocksource frequency (cycles per second) divided by scale
  *
@@ -699,7 +699,7 @@ EXPORT_SYMBOL_GPL(__clocksource_updatefreq_scale);
 
 /**
  * __clocksource_register_scale - Used to install new clocksources
- * @t:		clocksource to be registered
+ * @cs:		clocksource to be registered
  * @scale:	Scale factor multiplied against freq to get clocksource hz
  * @freq:	clocksource frequency (cycles per second) divided by scale
  *
@@ -727,7 +727,7 @@ EXPORT_SYMBOL_GPL(__clocksource_register_scale);
 
 /**
  * clocksource_register - Used to install new clocksources
- * @t:		clocksource to be registered
+ * @cs:		clocksource to be registered
  *
  * Returns -EBUSY if registration fails, zero otherwise.
  */
@@ -761,6 +761,8 @@ static void __clocksource_change_rating(struct clocksource *cs, int rating)
 
 /**
  * clocksource_change_rating - Change the rating of a registered clocksource
+ * @cs:		clocksource to be changed
+ * @rating:	new rating
  */
 void clocksource_change_rating(struct clocksource *cs, int rating)
 {
@@ -772,6 +774,7 @@ EXPORT_SYMBOL(clocksource_change_rating);
 
 /**
  * clocksource_unregister - remove a registered clocksource
+ * @cs:	clocksource to be unregistered
  */
 void clocksource_unregister(struct clocksource *cs)
 {
@@ -787,6 +790,7 @@ EXPORT_SYMBOL(clocksource_unregister);
 /**
  * sysfs_show_current_clocksources - sysfs interface for current clocksource
  * @dev:	unused
+ * @attr:	unused
  * @buf:	char buffer to be filled with clocksource list
  *
  * Provides sysfs interface for listing current clocksource.
@@ -807,6 +811,7 @@ sysfs_show_current_clocksources(struct sys_device *dev,
 /**
  * sysfs_override_clocksource - interface for manually overriding clocksource
  * @dev:	unused
+ * @attr:	unused
  * @buf:	name of override clocksource
  * @count:	length of buffer
  *
@@ -842,6 +847,7 @@ static ssize_t sysfs_override_clocksource(struct sys_device *dev,
 /**
  * sysfs_show_available_clocksources - sysfs interface for listing clocksource
  * @dev:	unused
+ * @attr:	unused
  * @buf:	char buffer to be filled with clocksource list
  *
  * Provides sysfs interface for listing registered clocksources

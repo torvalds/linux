@@ -140,4 +140,45 @@
 #define L_PTE_MT_DEV_CACHED	(_AT(pteval_t, 0x0b) << 2)	/* 1011 */
 #define L_PTE_MT_MASK		(_AT(pteval_t, 0x0f) << 2)
 
+#ifndef __ASSEMBLY__
+
+/*
+ * The "pud_xxx()" functions here are trivial when the pmd is folded into
+ * the pud: the pud entry is never bad, always exists, and can't be set or
+ * cleared.
+ */
+#define pud_none(pud)		(0)
+#define pud_bad(pud)		(0)
+#define pud_present(pud)	(1)
+#define pud_clear(pudp)		do { } while (0)
+#define set_pud(pud,pudp)	do { } while (0)
+
+static inline pmd_t *pmd_offset(pud_t *pud, unsigned long addr)
+{
+	return (pmd_t *)pud;
+}
+
+#define pmd_bad(pmd)		(pmd_val(pmd) & 2)
+
+#define copy_pmd(pmdpd,pmdps)		\
+	do {				\
+		pmdpd[0] = pmdps[0];	\
+		pmdpd[1] = pmdps[1];	\
+		flush_pmd_entry(pmdpd);	\
+	} while (0)
+
+#define pmd_clear(pmdp)			\
+	do {				\
+		pmdp[0] = __pmd(0);	\
+		pmdp[1] = __pmd(0);	\
+		clean_pmd_entry(pmdp);	\
+	} while (0)
+
+/* we don't need complex calculations here as the pmd is folded into the pgd */
+#define pmd_addr_end(addr,end) (end)
+
+#define set_pte_ext(ptep,pte,ext) cpu_set_pte_ext(ptep,pte,ext)
+
+#endif /* __ASSEMBLY__ */
+
 #endif /* _ASM_PGTABLE_2LEVEL_H */

@@ -264,7 +264,7 @@ static int __devinit dwc3_core_init(struct dwc3 *dwc)
 		ret = -ENODEV;
 		goto err0;
 	}
-	dwc->revision = reg & DWC3_GSNPSREV_MASK;
+	dwc->revision = reg;
 
 	dwc3_core_soft_reset(dwc);
 

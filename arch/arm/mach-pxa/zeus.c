@@ -911,5 +911,6 @@ MACHINE_START(ARCOM_ZEUS, "Arcom/Eurotech ZEUS")
 	.handle_irq	= pxa27x_handle_irq,
 	.timer		= &pxa_timer,
 	.init_machine	= zeus_init,
+	.restart	= pxa_restart,
 MACHINE_END
 

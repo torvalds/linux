@@ -107,7 +107,7 @@ static void __init sheevaplug_init(void)
 	kirkwood_init();
 
 	/* setup gpio pin select */
-	if (machine_is_sheeva_esata())
+	if (machine_is_esata_sheevaplug())
 		kirkwood_mpp_conf(sheeva_esata_mpp_config);
 	else
 		kirkwood_mpp_conf(sheevaplug_mpp_config);
@@ -123,11 +123,11 @@ static void __init sheevaplug_init(void)
 	kirkwood_ge00_init(&sheevaplug_ge00_data);
 
 	/* honor lower power consumption for plugs with out eSATA */
-	if (machine_is_sheeva_esata())
+	if (machine_is_esata_sheevaplug())
 		kirkwood_sata_init(&sheeva_esata_sata_data);
 
 	/* enable sd wp and sd cd on plugs with esata */
-	if (machine_is_sheeva_esata())
+	if (machine_is_esata_sheevaplug())
 		kirkwood_sdio_init(&sheeva_esata_mvsdio_data);
 	else
 		kirkwood_sdio_init(&sheevaplug_mvsdio_data);
@@ -144,6 +144,7 @@ MACHINE_START(SHEEVAPLUG, "Marvell SheevaPlug Reference Board")
 	.init_early	= kirkwood_init_early,
 	.init_irq	= kirkwood_init_irq,
 	.timer		= &kirkwood_timer,
+	.restart	= kirkwood_restart,
 MACHINE_END
 #endif
 
@@ -155,5 +156,6 @@ MACHINE_START(ESATA_SHEEVAPLUG, "Marvell eSATA SheevaPlug Reference Board")
 	.init_early	= kirkwood_init_early,
 	.init_irq	= kirkwood_init_irq,
 	.timer		= &kirkwood_timer,
+	.restart	= kirkwood_restart,
 MACHINE_END
 #endif

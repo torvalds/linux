@@ -44,7 +44,6 @@
 #include <asm/proc-fns.h>
 #include <asm/irq.h>
 
-#include <mach/reset.h>
 #include <mach/idle.h>
 #include <mach/regs-s3c2443-clock.h>
 
@@ -76,8 +75,11 @@ static struct sys_device s3c2416_sysdev = {
 	.cls		= &s3c2416_sysclass,
 };
 
-static void s3c2416_hard_reset(void)
+void s3c2416_restart(char mode, const char *cmd)
 {
+	if (mode == 's')
+		soft_restart(0);
+
 	__raw_writel(S3C2443_SWRST_RESET, S3C2443_SWRST);
 }
 
@@ -85,7 +87,6 @@ int __init s3c2416_init(void)
 {
 	printk(KERN_INFO "S3C2416: Initializing architecture\n");
 
-	s3c24xx_reset_hook = s3c2416_hard_reset;
 	/* s3c24xx_idle = s3c2416_idle;	*/
 
 	/* change WDT IRQ number */

@@ -47,6 +47,8 @@
 #include <plat/devs.h>
 #include <plat/cpu.h>
 
+#include "common.h"
+
 static struct map_desc nexcoder_iodesc[] __initdata = {
 	/* nothing here yet */
 };
@@ -156,4 +158,5 @@ MACHINE_START(NEXCODER_2440, "NexVision - Nexcoder 2440")
 	.init_machine	= nexcoder_init,
 	.init_irq	= s3c24xx_init_irq,
 	.timer		= &s3c24xx_timer,
+	.restart	= s3c2440_restart,
 MACHINE_END

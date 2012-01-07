@@ -82,12 +82,15 @@ static void __init cpuat91_init_early(void)
 	at91_set_serial_console(0);
 }
 
-static struct at91_eth_data __initdata cpuat91_eth_data = {
+static struct macb_platform_data __initdata cpuat91_eth_data = {
+	.phy_irq_pin	= -EINVAL,
 	.is_rmii	= 1,
 };
 
 static struct at91_usbh_data __initdata cpuat91_usbh_data = {
 	.ports		= 1,
+	.vbus_pin	= {-EINVAL, -EINVAL},
+	.overcurrent_pin= {-EINVAL, -EINVAL},
 };
 
 static struct at91_udc_data __initdata cpuat91_udc_data = {
@@ -98,6 +101,8 @@ static struct at91_udc_data __initdata cpuat91_udc_data = {
 static struct at91_mmc_data __initdata cpuat91_mmc_data = {
 	.det_pin	= AT91_PIN_PC2,
 	.wire4		= 1,
+	.wp_pin		= -EINVAL,
+	.vcc_pin	= -EINVAL,
 };
 
 static struct physmap_flash_data cpuat91_flash_data = {

@@ -66,6 +66,7 @@
 
 #include "usb-simtec.h"
 #include "nor-simtec.h"
+#include "common.h"
 
 #define COPYRIGHT ", Copyright 2004-2008 Simtec Electronics"
 
@@ -640,4 +641,5 @@ MACHINE_START(BAST, "Simtec-BAST")
 	.init_irq	= s3c24xx_init_irq,
 	.init_machine	= bast_init,
 	.timer		= &s3c24xx_timer,
+	.restart	= s3c2410_restart,
 MACHINE_END

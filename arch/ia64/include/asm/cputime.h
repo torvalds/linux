@@ -60,6 +60,7 @@ typedef u64 cputime64_t;
  */
 #define cputime_to_usecs(__ct)		((__ct) / NSEC_PER_USEC)
 #define usecs_to_cputime(__usecs)	((__usecs) * NSEC_PER_USEC)
+#define usecs_to_cputime64(__usecs)	usecs_to_cputime(__usecs)
 
 /*
  * Convert cputime <-> seconds

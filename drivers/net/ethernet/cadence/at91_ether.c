@@ -26,6 +26,7 @@
 #include <linux/skbuff.h>
 #include <linux/dma-mapping.h>
 #include <linux/ethtool.h>
+#include <linux/platform_data/macb.h>
 #include <linux/platform_device.h>
 #include <linux/clk.h>
 #include <linux/gfp.h>
@@ -984,7 +985,7 @@ static const struct net_device_ops at91ether_netdev_ops = {
 static int __init at91ether_setup(unsigned long phy_type, unsigned short phy_address,
 			struct platform_device *pdev, struct clk *ether_clk)
 {
-	struct at91_eth_data *board_data = pdev->dev.platform_data;
+	struct macb_platform_data *board_data = pdev->dev.platform_data;
 	struct net_device *dev;
 	struct at91_private *lp;
 	unsigned int val;

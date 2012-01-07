@@ -90,7 +90,7 @@ struct iommu_domain *iommu_domain_alloc(struct bus_type *bus)
 	if (bus == NULL || bus->iommu_ops == NULL)
 		return NULL;
 
-	domain = kmalloc(sizeof(*domain), GFP_KERNEL);
+	domain = kzalloc(sizeof(*domain), GFP_KERNEL);
 	if (!domain)
 		return NULL;
 

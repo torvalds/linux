@@ -31,6 +31,7 @@
 #include <linux/memblock.h>
 #include <linux/bug.h>
 #include <linux/compiler.h>
+#include <linux/sort.h>
 
 #include <asm/unified.h>
 #include <asm/cpu.h>
@@ -890,6 +891,12 @@ static struct machine_desc * __init setup_machine_tags(unsigned int nr)
 	return mdesc;
 }
 
+static int __init meminfo_cmp(const void *_a, const void *_b)
+{
+	const struct membank *a = _a, *b = _b;
+	long cmp = bank_pfn_start(a) - bank_pfn_start(b);
+	return cmp < 0 ? -1 : cmp > 0 ? 1 : 0;
+}
 
 void __init setup_arch(char **cmdline_p)
 {
@@ -908,8 +915,8 @@ void __init setup_arch(char **cmdline_p)
 		arm_dma_zone_size = mdesc->dma_zone_size;
 	}
 #endif
-	if (mdesc->soft_reboot)
-		reboot_setup("s");
+	if (mdesc->restart_mode)
+		reboot_setup(&mdesc->restart_mode);
 
 	init_mm.start_code = (unsigned long) _text;
 	init_mm.end_code   = (unsigned long) _etext;
@@ -922,11 +929,15 @@ void __init setup_arch(char **cmdline_p)
 
 	parse_early_param();
 
+	sort(&meminfo.bank, meminfo.nr_banks, sizeof(meminfo.bank[0]), meminfo_cmp, NULL);
 	sanity_check_meminfo();
 	arm_memblock_init(&meminfo, mdesc);
 
 	paging_init(mdesc);
 	request_standard_resources(mdesc);
+
+	if (mdesc->restart)
+		arm_pm_restart = mdesc->restart;
 
 	unflatten_device_tree();
 

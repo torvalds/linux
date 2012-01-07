@@ -30,4 +30,5 @@ struct sam9_smc_config {
 	u8 tdf_cycles:4;
 };
 
-extern void __init sam9_smc_configure(int cs, struct sam9_smc_config* config);
+extern void __init sam9_smc_configure(int id, int cs, struct sam9_smc_config* config);
+extern void __init at91sam9_ioremap_smc(int id, u32 addr);

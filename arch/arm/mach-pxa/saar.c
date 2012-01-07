@@ -602,4 +602,5 @@ MACHINE_START(SAAR, "PXA930 Handheld Platform (aka SAAR)")
 	.handle_irq       = pxa3xx_handle_irq,
 	.timer          = &pxa_timer,
 	.init_machine   = saar_init,
+	.restart	= pxa_restart,
 MACHINE_END

@@ -22,7 +22,7 @@
 
 #include <plat/irqs.h>
 #include <plat/board.h>
-#include <plat/common.h>
+#include "common.h"
 
 static struct omap_board_config_kernel ti8168_evm_config[] __initdata = {
 };
@@ -48,4 +48,5 @@ MACHINE_START(TI8168EVM, "ti8168evm")
 	.init_irq	= ti816x_init_irq,
 	.timer		= &omap3_timer,
 	.init_machine	= ti8168_evm_init,
+	.restart	= omap_prcm_restart,
 MACHINE_END

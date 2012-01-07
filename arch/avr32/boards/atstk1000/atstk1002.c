@@ -105,7 +105,7 @@ struct eth_addr {
 };
 
 static struct eth_addr __initdata hw_addr[2];
-static struct eth_platform_data __initdata eth_data[2] = {
+static struct macb_platform_data __initdata eth_data[2] = {
 	{
 		/*
 		 * The MDIO pullups on STK1000 are a bit too weak for

@@ -313,6 +313,7 @@ MACHINE_START(COLIBRI, "Toradex Colibri PXA270")
 	.init_irq	= pxa27x_init_irq,
 	.handle_irq	= pxa27x_handle_irq,
 	.timer		= &pxa_timer,
+	.restart	= pxa_restart,
 MACHINE_END
 
 MACHINE_START(INCOME, "Income s.r.o. SH-Dmaster PXA270 SBC")
@@ -322,5 +323,6 @@ MACHINE_START(INCOME, "Income s.r.o. SH-Dmaster PXA270 SBC")
 	.init_irq	= pxa27x_init_irq,
 	.handle_irq	= pxa27x_handle_irq,
 	.timer		= &pxa_timer,
+	.restart	= pxa_restart,
 MACHINE_END
 

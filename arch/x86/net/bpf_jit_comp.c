@@ -568,8 +568,8 @@ cond_branch:			f_offset = addrs[i + filter[i].jf] - addrs[i];
 					break;
 				}
 				if (filter[i].jt != 0) {
-					if (filter[i].jf)
-						t_offset += is_near(f_offset) ? 2 : 6;
+					if (filter[i].jf && f_offset)
+						t_offset += is_near(f_offset) ? 2 : 5;
 					EMIT_COND_JMP(t_op, t_offset);
 					if (filter[i].jf)
 						EMIT_JMP(f_offset);

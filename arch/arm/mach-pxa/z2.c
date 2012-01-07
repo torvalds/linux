@@ -725,4 +725,5 @@ MACHINE_START(ZIPIT2, "Zipit Z2")
 	.handle_irq	= pxa27x_handle_irq,
 	.timer		= &pxa_timer,
 	.init_machine	= z2_init,
+	.restart	= pxa_restart,
 MACHINE_END
