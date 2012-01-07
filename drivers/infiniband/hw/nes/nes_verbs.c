@@ -3428,6 +3428,8 @@ static int nes_post_send(struct ib_qp *ibqp, struct ib_send_wr *ib_wr,
 					    NES_IWARP_SQ_FMR_WQE_LENGTH_LOW_IDX,
 					    ib_wr->wr.fast_reg.length);
 			set_wqe_32bit_value(wqe->wqe_words,
+					    NES_IWARP_SQ_FMR_WQE_LENGTH_HIGH_IDX, 0);
+			set_wqe_32bit_value(wqe->wqe_words,
 					    NES_IWARP_SQ_FMR_WQE_MR_STAG_IDX,
 					    ib_wr->wr.fast_reg.rkey);
 			/* Set page size: */
