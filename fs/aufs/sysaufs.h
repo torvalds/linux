@@ -25,6 +25,7 @@
 
 #ifdef __KERNEL__
 
+#include <linux/sysfs.h>
 #include "module.h"
 
 struct super_block;
