@@ -919,6 +919,24 @@ size_t hists__fprintf(struct hists *hists, struct hists *pair,
 
 	fprintf(fp, "# %s", pair ? "Baseline" : "Overhead");
 
+	if (symbol_conf.show_cpu_utilization) {
+		if (sep) {
+			ret += fprintf(fp, "%csys", *sep);
+			ret += fprintf(fp, "%cus", *sep);
+			if (perf_guest) {
+				ret += fprintf(fp, "%cguest sys", *sep);
+				ret += fprintf(fp, "%cguest us", *sep);
+			}
+		} else {
+			ret += fprintf(fp, "     sys  ");
+			ret += fprintf(fp, "      us  ");
+			if (perf_guest) {
+				ret += fprintf(fp, "  guest sys  ");
+				ret += fprintf(fp, "  guest us  ");
+			}
+		}
+	}
+
 	if (symbol_conf.show_nr_samples) {
 		if (sep)
 			fprintf(fp, "%cSamples", *sep);
@@ -931,24 +949,6 @@ size_t hists__fprintf(struct hists *hists, struct hists *pair,
 			ret += fprintf(fp, "%cPeriod", *sep);
 		else
 			ret += fprintf(fp, "   Period    ");
-	}
-
-	if (symbol_conf.show_cpu_utilization) {
-		if (sep) {
-			ret += fprintf(fp, "%csys", *sep);
-			ret += fprintf(fp, "%cus", *sep);
-			if (perf_guest) {
-				ret += fprintf(fp, "%cguest sys", *sep);
-				ret += fprintf(fp, "%cguest us", *sep);
-			}
-		} else {
-			ret += fprintf(fp, "  sys  ");
-			ret += fprintf(fp, "  us  ");
-			if (perf_guest) {
-				ret += fprintf(fp, "  guest sys  ");
-				ret += fprintf(fp, "  guest us  ");
-			}
-		}
 	}
 
 	if (pair) {
@@ -995,6 +995,8 @@ size_t hists__fprintf(struct hists *hists, struct hists *pair,
 		goto print_entries;
 
 	fprintf(fp, "# ........");
+	if (symbol_conf.show_cpu_utilization)
+		fprintf(fp, "   .......   .......");
 	if (symbol_conf.show_nr_samples)
 		fprintf(fp, " ..........");
 	if (symbol_conf.show_total_period)
