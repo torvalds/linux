@@ -353,8 +353,7 @@ static int snd_vortex_pcm_trigger(struct snd_pcm_substream *substream, int cmd)
 		//printk(KERN_INFO "vortex: stop %d\n", dma);
 		stream->fifo_enabled = 0;
 		if (VORTEX_PCM_TYPE(substream->pcm) != VORTEX_PCM_WT)
-			vortex_adbdma_pausefifo(chip, dma);
-		//vortex_adbdma_stopfifo(chip, dma);
+			vortex_adbdma_stopfifo(chip, dma);
 #ifndef CHIP_AU8810
 		else {
 			printk(KERN_INFO "vortex: wt stop %d\n", dma);

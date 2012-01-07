@@ -1336,7 +1336,6 @@ static void vortex_adbdma_pausefifo(vortex_t * vortex, int adbdma)
 	dma->fifo_status = FIFO_PAUSE;
 }
 
-#if 0				// Using pause instead
 static void vortex_adbdma_stopfifo(vortex_t * vortex, int adbdma)
 {
 	stream_t *dma = &vortex->dma_adb[adbdma];
@@ -1351,7 +1350,6 @@ static void vortex_adbdma_stopfifo(vortex_t * vortex, int adbdma)
 	dma->fifo_enabled = 0;
 }
 
-#endif
 /* WTDMA */
 
 #ifndef CHIP_AU8810
