@@ -3726,7 +3726,7 @@ static int nes_poll_cq(struct ib_cq *ibcq, int num_entries, struct ib_wc *entry)
 						entry->opcode = IB_WC_SEND;
 						break;
 					case NES_IWARP_SQ_OP_LOCINV:
-						entry->opcode = IB_WR_LOCAL_INV;
+						entry->opcode = IB_WC_LOCAL_INV;
 						break;
 					case NES_IWARP_SQ_OP_FAST_REG:
 						entry->opcode = IB_WC_FAST_REG_MR;
