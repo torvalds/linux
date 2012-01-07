@@ -897,29 +897,6 @@ static int dvb_frontend_check_parameters(struct dvb_frontend *fe)
 		break;
 	}
 
-	/*
-	 * check for supported modulation
-	 *
-	 * This is currently hacky. Also, it only works for DVB-S & friends,
-	 * and not all modulations has FE_CAN flags
-	 */
-	switch (c->delivery_system) {
-	case SYS_DVBS:
-	case SYS_DVBS2:
-	case SYS_TURBO:
-		if ((c->modulation > QAM_AUTO ||
-		    !((1 << (c->modulation + 10)) & fe->ops.info.caps))) {
-			printk(KERN_WARNING
-			       "DVB: adapter %i frontend %i modulation %u not supported\n",
-			       fe->dvb->num, fe->id, c->modulation);
-			return -EINVAL;
-		}
-		break;
-	default:
-		/* FIXME: it makes sense to validate othere delsys here */
-		break;
-	}
-
 	return 0;
 }
 
