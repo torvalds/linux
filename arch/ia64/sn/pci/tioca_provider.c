@@ -600,11 +600,11 @@ tioca_bus_fixup(struct pcibus_bussoft *prom_bussoft, struct pci_controller *cont
 	 * Allocate kernel bus soft and copy from prom.
 	 */
 
-	tioca_common = kzalloc(sizeof(struct tioca_common), GFP_KERNEL);
+	tioca_common = kmemdup(prom_bussoft, sizeof(struct tioca_common),
+			       GFP_KERNEL);
 	if (!tioca_common)
 		return NULL;
 
-	memcpy(tioca_common, prom_bussoft, sizeof(struct tioca_common));
 	tioca_common->ca_common.bs_base = (unsigned long)
 		ioremap(REGION_OFFSET(tioca_common->ca_common.bs_base),
 			sizeof(struct tioca_common));
