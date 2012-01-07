@@ -53,12 +53,18 @@ static const struct imxi2c_platform_data
 	.bitrate =		100000,
 };
 
+#define TSC2007_IRQGPIO		IMX_GPIO_NR(3, 2)
+static int tsc2007_get_pendown_state(void)
+{
+	return !gpio_get_value(TSC2007_IRQGPIO);
+}
+
 static struct tsc2007_platform_data tsc2007_info = {
 	.model			= 2007,
 	.x_plate_ohms		= 180,
+	.get_pendown_state = tsc2007_get_pendown_state,
 };
 
-#define TSC2007_IRQGPIO		IMX_GPIO_NR(3, 2)
 static struct i2c_board_info eukrea_cpuimx35_i2c_devices[] = {
 	{
 		I2C_BOARD_INFO("pcf8563", 0x51),

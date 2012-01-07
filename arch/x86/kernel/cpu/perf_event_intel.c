@@ -1169,7 +1169,7 @@ again:
 		 */
 		c = &unconstrained;
 	} else if (intel_try_alt_er(event, orig_idx)) {
-		raw_spin_unlock(&era->lock);
+		raw_spin_unlock_irqrestore(&era->lock, flags);
 		goto again;
 	}
 	raw_spin_unlock_irqrestore(&era->lock, flags);
