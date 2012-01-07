@@ -143,7 +143,7 @@ static int sh_csi2_s_mbus_config(struct v4l2_subdev *sd,
 				 const struct v4l2_mbus_config *cfg)
 {
 	struct sh_csi2 *priv = container_of(sd, struct sh_csi2, subdev);
-	struct soc_camera_device *icd = (struct soc_camera_device *)sd->grp_id;
+	struct soc_camera_device *icd = v4l2_get_subdev_hostdata(sd);
 	struct v4l2_subdev *client_sd = soc_camera_to_subdev(icd);
 	struct v4l2_mbus_config client_cfg = {.type = V4L2_MBUS_CSI2,
 					      .flags = priv->mipi_flags};
@@ -202,7 +202,7 @@ static void sh_csi2_hwinit(struct sh_csi2 *priv)
 static int sh_csi2_client_connect(struct sh_csi2 *priv)
 {
 	struct sh_csi2_pdata *pdata = priv->pdev->dev.platform_data;
-	struct soc_camera_device *icd = (struct soc_camera_device *)priv->subdev.grp_id;
+	struct soc_camera_device *icd = v4l2_get_subdev_hostdata(&priv->subdev);
 	struct v4l2_subdev *client_sd = soc_camera_to_subdev(icd);
 	struct device *dev = v4l2_get_subdevdata(&priv->subdev);
 	struct v4l2_mbus_config cfg;

@@ -2606,6 +2606,9 @@ static int skge_up(struct net_device *dev)
 	spin_unlock_irq(&hw->hw_lock);
 
 	napi_enable(&skge->napi);
+
+	skge_set_multicast(dev);
+
 	return 0;
 
  free_tx_ring:
