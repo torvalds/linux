@@ -589,24 +589,16 @@ static inline void hci_conn_put(struct hci_conn *conn)
 }
 
 /* ----- HCI Devices ----- */
-static inline void __hci_dev_put(struct hci_dev *d)
+static inline void hci_dev_put(struct hci_dev *d)
 {
 	put_device(&d->dev);
 }
 
-/*
- * hci_dev_put and hci_dev_hold are macros to avoid dragging all the
- * overhead of all the modular infrastructure into this header.
- */
-#define hci_dev_put(d) __hci_dev_put(d)
-
-static inline struct hci_dev *__hci_dev_hold(struct hci_dev *d)
+static inline struct hci_dev *hci_dev_hold(struct hci_dev *d)
 {
 	get_device(&d->dev);
 	return d;
 }
-
-#define hci_dev_hold(d) __hci_dev_hold(d)
 
 #define hci_dev_lock(d)		mutex_lock(&d->lock)
 #define hci_dev_unlock(d)	mutex_unlock(&d->lock)

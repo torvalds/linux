@@ -1079,7 +1079,7 @@ static void btusb_disconnect(struct usb_interface *intf)
 
 	hdev = data->hdev;
 
-	__hci_dev_hold(hdev);
+	hci_dev_hold(hdev);
 
 	usb_set_intfdata(data->intf, NULL);
 
@@ -1093,7 +1093,7 @@ static void btusb_disconnect(struct usb_interface *intf)
 	else if (data->isoc)
 		usb_driver_release_interface(&btusb_driver, data->isoc);
 
-	__hci_dev_put(hdev);
+	hci_dev_put(hdev);
 
 	hci_free_dev(hdev);
 	kfree(data);
