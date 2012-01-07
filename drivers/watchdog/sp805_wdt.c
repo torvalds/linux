@@ -351,7 +351,7 @@ static int __devexit sp805_wdt_remove(struct amba_device *adev)
 	return 0;
 }
 
-static struct amba_id sp805_wdt_ids[] __initdata = {
+static struct amba_id sp805_wdt_ids[] = {
 	{
 		.id	= 0x00141805,
 		.mask	= 0x00ffffff,

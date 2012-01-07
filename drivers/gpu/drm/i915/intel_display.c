@@ -7922,13 +7922,11 @@ static bool intel_enable_rc6(struct drm_device *dev)
 		return 0;
 
 	/*
-	 * Enable rc6 on Sandybridge if DMA remapping is disabled
+	 * Disable rc6 on Sandybridge
 	 */
 	if (INTEL_INFO(dev)->gen == 6) {
-		DRM_DEBUG_DRIVER("Sandybridge: intel_iommu_enabled %s -- RC6 %sabled\n",
-				 intel_iommu_enabled ? "true" : "false",
-				 !intel_iommu_enabled ? "en" : "dis");
-		return !intel_iommu_enabled;
+		DRM_DEBUG_DRIVER("Sandybridge: RC6 disabled\n");
+		return 0;
 	}
 	DRM_DEBUG_DRIVER("RC6 enabled\n");
 	return 1;

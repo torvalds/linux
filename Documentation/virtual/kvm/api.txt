@@ -1100,6 +1100,15 @@ emulate them efficiently. The fields in each entry are defined as follows:
    eax, ebx, ecx, edx: the values returned by the cpuid instruction for
          this function/index combination
 
+The TSC deadline timer feature (CPUID leaf 1, ecx[24]) is always returned
+as false, since the feature depends on KVM_CREATE_IRQCHIP for local APIC
+support.  Instead it is reported via
+
+  ioctl(KVM_CHECK_EXTENSION, KVM_CAP_TSC_DEADLINE_TIMER)
+
+if that returns true and you use KVM_CREATE_IRQCHIP, or if you emulate the
+feature in userspace, then you can enable the feature for KVM_SET_CPUID2.
+
 4.47 KVM_PPC_GET_PVINFO
 
 Capability: KVM_CAP_PPC_GET_PVINFO
@@ -1150,6 +1159,13 @@ following flags are specified:
 
 /* Depends on KVM_CAP_IOMMU */
 #define KVM_DEV_ASSIGN_ENABLE_IOMMU	(1 << 0)
+
+The KVM_DEV_ASSIGN_ENABLE_IOMMU flag is a mandatory option to ensure
+isolation of the device.  Usages not specifying this flag are deprecated.
+
+Only PCI header type 0 devices with PCI BAR resources are supported by
+device assignment.  The user requesting this ioctl must have read/write
+access to the PCI sysfs resource files associated with the device.
 
 4.49 KVM_DEASSIGN_PCI_DEVICE
 

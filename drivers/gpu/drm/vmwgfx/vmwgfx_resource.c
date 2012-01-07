@@ -1190,6 +1190,29 @@ void vmw_resource_unreserve(struct list_head *list)
 		write_unlock(lock);
 }
 
+/**
+ * Helper function that looks either a surface or dmabuf.
+ *
+ * The pointer this pointed at by out_surf and out_buf needs to be null.
+ */
+int vmw_user_lookup_handle(struct vmw_private *dev_priv,
+			   struct ttm_object_file *tfile,
+			   uint32_t handle,
+			   struct vmw_surface **out_surf,
+			   struct vmw_dma_buffer **out_buf)
+{
+	int ret;
+
+	BUG_ON(*out_surf || *out_buf);
+
+	ret = vmw_user_surface_lookup_handle(dev_priv, tfile, handle, out_surf);
+	if (!ret)
+		return 0;
+
+	ret = vmw_user_dmabuf_lookup(tfile, handle, out_buf);
+	return ret;
+}
+
 
 int vmw_user_surface_lookup_handle(struct vmw_private *dev_priv,
 				   struct ttm_object_file *tfile,
