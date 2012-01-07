@@ -339,6 +339,7 @@ static inline int ftrace_text_reserved(void *start, void *end)
  * functions may still be called. Use a macro instead of inline.
  */
 #define ftrace_regex_open(ops, flag, inod, file) ({ -ENODEV; })
+#define ftrace_set_early_filter(ops, buf, enable) do { } while (0)
 
 static inline ssize_t ftrace_filter_write(struct file *file, const char __user *ubuf,
 			    size_t cnt, loff_t *ppos) { return -ENODEV; }
