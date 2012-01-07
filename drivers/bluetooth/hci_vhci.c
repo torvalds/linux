@@ -103,11 +103,6 @@ static int vhci_send_frame(struct sk_buff *skb)
 	return 0;
 }
 
-static void vhci_destruct(struct hci_dev *hdev)
-{
-	kfree(hdev->driver_data);
-}
-
 static inline ssize_t vhci_get_user(struct vhci_data *data,
 					const char __user *buf, size_t count)
 {
@@ -248,7 +243,6 @@ static int vhci_open(struct inode *inode, struct file *file)
 	hdev->close    = vhci_close_dev;
 	hdev->flush    = vhci_flush;
 	hdev->send     = vhci_send_frame;
-	hdev->destruct = vhci_destruct;
 
 	hdev->owner = THIS_MODULE;
 
@@ -273,6 +267,7 @@ static int vhci_release(struct inode *inode, struct file *file)
 	hci_free_dev(hdev);
 
 	file->private_data = NULL;
+	kfree(data);
 
 	return 0;
 }
