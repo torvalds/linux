@@ -9,24 +9,16 @@
  * published by the Free Software Foundation.
 */
 
-#include <linux/types.h>
+#include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/err.h>
 #include <linux/clk.h>
 #include <linux/io.h>
 #include <linux/slab.h>
-#include <linux/regulator/consumer.h>
 #include <linux/cpufreq.h>
-#include <linux/notifier.h>
-#include <linux/suspend.h>
 
-#include <mach/map.h>
 #include <mach/regs-clock.h>
-#include <mach/regs-mem.h>
 #include <mach/cpufreq.h>
-
-#include <plat/clock.h>
-#include <plat/pm.h>
 
 #define CPUFREQ_LEVEL_END	L5
 
@@ -37,10 +29,6 @@ static struct clk *cpu_clk;
 static struct clk *moutcore;
 static struct clk *mout_mpll;
 static struct clk *mout_apll;
-
-static struct regulator *arm_regulator;
-
-static struct cpufreq_freqs freqs;
 
 struct cpufreq_clkdiv {
 	unsigned int index;

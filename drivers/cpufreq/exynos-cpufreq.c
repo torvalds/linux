@@ -9,7 +9,6 @@
  * published by the Free Software Foundation.
 */
 
-#include <linux/types.h>
 #include <linux/kernel.h>
 #include <linux/err.h>
 #include <linux/clk.h>
@@ -18,15 +17,10 @@
 #include <linux/regulator/consumer.h>
 #include <linux/cpufreq.h>
 #include <linux/suspend.h>
-#include <linux/reboot.h>
 
-#include <mach/map.h>
-#include <mach/regs-clock.h>
-#include <mach/regs-mem.h>
 #include <mach/cpufreq.h>
 
-#include <plat/clock.h>
-#include <plat/pm.h>
+#include <plat/cpu.h>
 
 static struct exynos_dvfs_info *exynos_info;
 
