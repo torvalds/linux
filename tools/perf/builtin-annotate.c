@@ -235,7 +235,7 @@ out_delete:
 }
 
 static const char * const annotate_usage[] = {
-	"perf annotate [<options>] <command>",
+	"perf annotate [<options>]",
 	NULL
 };
 
