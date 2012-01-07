@@ -1750,7 +1750,7 @@ static void sas_unregister_ex_tree(struct asd_sas_port *port, struct domain_devi
 	struct domain_device *child, *n;
 
 	list_for_each_entry_safe(child, n, &ex->children, siblings) {
-		child->gone = 1;
+		set_bit(SAS_DEV_GONE, &child->state);
 		if (child->dev_type == EDGE_DEV ||
 		    child->dev_type == FANOUT_DEV)
 			sas_unregister_ex_tree(port, child);
@@ -1771,7 +1771,7 @@ static void sas_unregister_devs_sas_addr(struct domain_device *parent,
 			&ex_dev->children, siblings) {
 			if (SAS_ADDR(child->sas_addr) ==
 			    SAS_ADDR(phy->attached_sas_addr)) {
-				child->gone = 1;
+				set_bit(SAS_DEV_GONE, &child->state);
 				if (child->dev_type == EDGE_DEV ||
 				    child->dev_type == FANOUT_DEV)
 					sas_unregister_ex_tree(parent->port, child);
@@ -1780,7 +1780,7 @@ static void sas_unregister_devs_sas_addr(struct domain_device *parent,
 				break;
 			}
 		}
-		parent->gone = 1;
+		set_bit(SAS_DEV_GONE, &parent->state);
 		sas_disable_routing(parent, phy->attached_sas_addr);
 	}
 	memset(phy->attached_sas_addr, 0, SAS_ADDR_SIZE);
