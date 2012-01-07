@@ -69,6 +69,7 @@ SECTIONS {
 		SCHED_TEXT
 		LOCK_TEXT
 		*(.text..lock)
+		*(.fixup)
 
 		. = ALIGN(16);          /* Exception table              */
 		__start___ex_table = .;
@@ -160,6 +161,13 @@ SECTIONS {
 		INIT_TASK_DATA(THREAD_SIZE)
 		_edata = . ;
 	} > DATA
+
+	.m68k_fixup : {
+		__start_fixup = .;
+		*(.m68k_fixup)
+		__stop_fixup = .;
+	} > DATA
+	NOTES > DATA
 
 	.init.text : {
 		. = ALIGN(PAGE_SIZE);
