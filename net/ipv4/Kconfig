@@ -410,8 +410,12 @@ config INET_TCP_DIAG
 	def_tristate INET_DIAG
 
 config INET_UDP_DIAG
+	tristate "UDP: socket monitoring interface"
 	depends on INET_DIAG
-	def_tristate INET_DIAG && IPV6
+	default n
+	---help---
+	  Support for UDP socket monitoring interface used by the ss tool.
+	  If unsure, say Y.
 
 menuconfig TCP_CONG_ADVANCED
 	bool "TCP: advanced congestion control"
