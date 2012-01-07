@@ -64,6 +64,45 @@ config SCHED_BFS_AUTOISO
 
 	  Tasks (including X) can be run as sched_iso manually using schedtool.
 
+choice
+	prompt "Zen-Tune Profile"
+	default ZEN_CUSTOM
+	---help---
+	  Select the tunable profile to be used.
+
+config ZEN_DEFAULT
+	bool "Default"
+	---help---
+	  This option sets tunables to default.
+
+	    DIRTY_RATIO: 20
+	    BACKGROUND_DIRTY_RATIO: 10
+	   *BFS ONLY*
+	    ISO_CPU: 70
+	    RR_INTERVAL: 6
+	   *CFS ONLY*
+	    SCHED LATENCY: 6 ms
+	    SCHED LATENCY GRANULARITY: 0.75 ms
+
+
+config ZEN_CUSTOM
+	bool "Custom"
+	---help---
+	  This option sets tunables to optimal desktop values.
+	  Changes to these values can be adjusted in include/linux/zentune.h
+
+	    DIRTY_RATIO: 1
+	    BACKGROUND_DIRTY_RATIO: 10
+	   *BFS ONLY*
+	    ISO_CPU: 25
+	    RR_INTERVAL: 3
+	   *CFS ONLY*
+	    SCHED LATENCY: 3 ms
+	    SCHED LATENCY GRANULARITY: 0.3 ms
+
+
+endchoice
+
 config BROKEN
 	bool
 
