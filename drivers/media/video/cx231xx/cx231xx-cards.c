@@ -1016,7 +1016,6 @@ static int cx231xx_usb_probe(struct usb_interface *interface,
 	int i, isoc_pipe = 0;
 	char *speed;
 	char descr[255] = "";
-	struct usb_interface *lif = NULL;
 	struct usb_interface_assoc_descriptor *assoc_desc;
 
 	udev = usb_get_dev(interface_to_usbdev(interface));
@@ -1071,9 +1070,6 @@ static int cx231xx_usb_probe(struct usb_interface *interface,
 
 	/* init CIR module TBD */
 
-	/* store the current interface */
-	lif = interface;
-
 	/*mode_tv: digital=1 or analog=0*/
 	dev->mode_tv = 0;
 
@@ -1112,9 +1108,6 @@ static int cx231xx_usb_probe(struct usb_interface *interface,
 	     le16_to_cpu(udev->descriptor.idVendor),
 	     le16_to_cpu(udev->descriptor.idProduct),
 	     dev->max_iad_interface_count);
-
-	/* store the interface 0 back */
-	lif = udev->actconfig->interface[0];
 
 	/* increment interface count */
 	dev->interface_count++;
