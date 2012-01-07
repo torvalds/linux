@@ -2129,7 +2129,7 @@ static struct i2c_board_info __initdata board_i2c0_devices[] = {
 		.type    		= "kxtf9",
 		.addr           = 0x0f,
 		.flags			= 0,	
-		//.irq 			= RK29_PIN6_PC4,
+		.irq 			= RK29_PIN6_PC4,
 		.platform_data = &inv_mpu_kxtf9_data,
 	},
 #endif
@@ -2138,7 +2138,7 @@ static struct i2c_board_info __initdata board_i2c0_devices[] = {
 		.type			= "ak8975",
 		.addr			= 0x0d,
 		.flags			= 0,	
-		//.irq 			= RK29_PIN6_PC5,
+		.irq 			= RK29_PIN6_PC5,
 		.platform_data = &inv_mpu_ak8975_data,
 	},
 #endif

@@ -943,7 +943,7 @@ int inv_mpu_register_slave(struct module *slave_module,
 	}
 
 	slave_pdata->address	= slave_client->addr;
-	slave_pdata->irq	= slave_client->irq;
+	slave_pdata->irq	= gpio_to_irq(slave_client->irq);
 	slave_pdata->adapt_num	= i2c_adapter_id(slave_client->adapter);
 
 	dev_info(&slave_client->adapter->dev,
