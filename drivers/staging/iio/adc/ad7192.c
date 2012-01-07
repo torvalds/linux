@@ -1161,18 +1161,7 @@ static struct spi_driver ad7192_driver = {
 	.remove		= __devexit_p(ad7192_remove),
 	.id_table	= ad7192_id,
 };
-
-static int __init ad7192_init(void)
-{
-	return spi_register_driver(&ad7192_driver);
-}
-module_init(ad7192_init);
-
-static void __exit ad7192_exit(void)
-{
-	spi_unregister_driver(&ad7192_driver);
-}
-module_exit(ad7192_exit);
+module_spi_driver(ad7192_driver);
 
 MODULE_AUTHOR("Michael Hennerich <hennerich@blackfin.uclinux.org>");
 MODULE_DESCRIPTION("Analog Devices AD7190, AD7192, AD7195 ADC");

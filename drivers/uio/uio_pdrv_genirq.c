@@ -273,18 +273,7 @@ static struct platform_driver uio_pdrv_genirq = {
 	},
 };
 
-static int __init uio_pdrv_genirq_init(void)
-{
-	return platform_driver_register(&uio_pdrv_genirq);
-}
-
-static void __exit uio_pdrv_genirq_exit(void)
-{
-	platform_driver_unregister(&uio_pdrv_genirq);
-}
-
-module_init(uio_pdrv_genirq_init);
-module_exit(uio_pdrv_genirq_exit);
+module_platform_driver(uio_pdrv_genirq);
 
 MODULE_AUTHOR("Magnus Damm");
 MODULE_DESCRIPTION("Userspace I/O platform driver with generic IRQ handling");

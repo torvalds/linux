@@ -14,7 +14,7 @@
 #include <linux/spinlock.h>
 #include <linux/wait.h>
 #include <linux/sched.h>
-#include <linux/sysdev.h>
+#include <linux/device.h>
 #include <cpu/dma.h>
 #include <asm-generic/dma.h>
 
@@ -91,7 +91,7 @@ struct dma_channel {
 
 	wait_queue_head_t wait_queue;
 
-	struct sys_device dev;
+	struct device dev;
 	void *priv_data;
 };
 

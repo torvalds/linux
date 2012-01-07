@@ -866,20 +866,8 @@ static struct i2c_driver tsl2563_i2c_driver = {
 	.remove		= __devexit_p(tsl2563_remove),
 	.id_table	= tsl2563_id,
 };
-
-static int __init tsl2563_init(void)
-{
-	return i2c_add_driver(&tsl2563_i2c_driver);
-}
-
-static void __exit tsl2563_exit(void)
-{
-	i2c_del_driver(&tsl2563_i2c_driver);
-}
+module_i2c_driver(tsl2563_i2c_driver);
 
 MODULE_AUTHOR("Nokia Corporation");
 MODULE_DESCRIPTION("tsl2563 light sensor driver");
 MODULE_LICENSE("GPL");
-
-module_init(tsl2563_init);
-module_exit(tsl2563_exit);

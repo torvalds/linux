@@ -51,18 +51,13 @@
 #include "gadget.h"
 #include "io.h"
 
-struct dwc3_register {
-	const char	*name;
-	u32		offset;
-};
-
 #define dump_register(nm)				\
 {							\
 	.name	= __stringify(nm),			\
 	.offset	= DWC3_ ##nm,				\
 }
 
-static const struct dwc3_register dwc3_regs[] = {
+static const struct debugfs_reg32 dwc3_regs[] = {
 	dump_register(GSBUSCFG0),
 	dump_register(GSBUSCFG1),
 	dump_register(GTXTHRCFG),
@@ -382,15 +377,10 @@ static const struct dwc3_register dwc3_regs[] = {
 static int dwc3_regdump_show(struct seq_file *s, void *unused)
 {
 	struct dwc3		*dwc = s->private;
-	int			i;
 
 	seq_printf(s, "DesignWare USB3 Core Register Dump\n");
-
-	for (i = 0; i < ARRAY_SIZE(dwc3_regs); i++) {
-		seq_printf(s, "%-20s :    %08x\n", dwc3_regs[i].name,
-				dwc3_readl(dwc->regs, dwc3_regs[i].offset));
-	}
-
+	debugfs_print_regs32(s, dwc3_regs, ARRAY_SIZE(dwc3_regs),
+			     dwc->regs, "");
 	return 0;
 }
 

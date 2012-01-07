@@ -18,7 +18,7 @@
 #include <linux/module.h>
 #include <linux/clk.h>
 #include <linux/io.h>
-#include <linux/sysdev.h>
+#include <linux/device.h>
 #include <linux/platform_device.h>
 #include <linux/sched.h>
 #include <linux/dma-mapping.h>
@@ -229,17 +229,18 @@ void __init s5pv210_init_irq(void)
 	s5p_init_irq(vic, ARRAY_SIZE(vic));
 }
 
-struct sysdev_class s5pv210_sysclass = {
-	.name	= "s5pv210-core",
+struct bus_type s5pv210_subsys = {
+	.name		= "s5pv210-core",
+	.dev_name	= "s5pv210-core",
 };
 
-static struct sys_device s5pv210_sysdev = {
-	.cls	= &s5pv210_sysclass,
+static struct device s5pv210_dev = {
+	.bus	= &s5pv210_subsys,
 };
 
 static int __init s5pv210_core_init(void)
 {
-	return sysdev_class_register(&s5pv210_sysclass);
+	return subsys_system_register(&s5pv210_subsys, NULL);
 }
 core_initcall(s5pv210_core_init);
 
@@ -250,7 +251,7 @@ int __init s5pv210_init(void)
 	/* set idle function */
 	pm_idle = s5pv210_idle;
 
-	return sysdev_register(&s5pv210_sysdev);
+	return device_register(&s5pv210_dev);
 }
 
 static struct s3c24xx_uart_clksrc s5pv210_serial_clocks[] = {

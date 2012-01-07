@@ -19,7 +19,6 @@
 #include <linux/module.h>
 #include <linux/interrupt.h>
 #include <linux/ioport.h>
-#include <linux/sysdev.h>
 #include <linux/serial_core.h>
 #include <linux/platform_device.h>
 #include <linux/io.h>
@@ -139,12 +138,13 @@ static struct map_desc s3c_iodesc[] __initdata = {
 	},
 };
 
-struct sysdev_class s3c64xx_sysclass = {
-	.name	= "s3c64xx-core",
+static struct bus_type s3c64xx_subsys = {
+	.name		= "s3c64xx-core",
+	.dev_name	= "s3c64xx-core",
 };
 
-static struct sys_device s3c64xx_sysdev = {
-	.cls	= &s3c64xx_sysclass,
+static struct device s3c64xx_dev = {
+	.bus	= &s3c64xx_subsys,
 };
 
 /* read cpu identification code */
@@ -162,12 +162,12 @@ void __init s3c64xx_init_io(struct map_desc *mach_desc, int size)
 	s3c_init_cpu(samsung_cpu_id, cpu_ids, ARRAY_SIZE(cpu_ids));
 }
 
-static __init int s3c64xx_sysdev_init(void)
+static __init int s3c64xx_dev_init(void)
 {
-	sysdev_class_register(&s3c64xx_sysclass);
-	return sysdev_register(&s3c64xx_sysdev);
+	subsys_system_register(&s3c64xx_subsys, NULL);
+	return device_register(&s3c64xx_dev);
 }
-core_initcall(s3c64xx_sysdev_init);
+core_initcall(s3c64xx_dev_init);
 
 /*
  * setup the sources the vic should advertise resume

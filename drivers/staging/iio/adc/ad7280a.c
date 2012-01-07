@@ -979,18 +979,7 @@ static struct spi_driver ad7280_driver = {
 	.remove		= __devexit_p(ad7280_remove),
 	.id_table	= ad7280_id,
 };
-
-static int __init ad7280_init(void)
-{
-	return spi_register_driver(&ad7280_driver);
-}
-module_init(ad7280_init);
-
-static void __exit ad7280_exit(void)
-{
-	spi_unregister_driver(&ad7280_driver);
-}
-module_exit(ad7280_exit);
+module_spi_driver(ad7280_driver);
 
 MODULE_AUTHOR("Michael Hennerich <hennerich@blackfin.uclinux.org>");
 MODULE_DESCRIPTION("Analog Devices AD7280A");

@@ -13,7 +13,7 @@
 #include <linux/init.h>
 #include <linux/serial_core.h>
 #include <linux/i2c.h>
-#include <linux/sysdev.h>
+#include <linux/device.h>
 
 #include <asm/hardware/vic.h>
 #include <asm/mach/arch.h>

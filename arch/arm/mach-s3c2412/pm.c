@@ -16,7 +16,7 @@
 #include <linux/list.h>
 #include <linux/timer.h>
 #include <linux/init.h>
-#include <linux/sysdev.h>
+#include <linux/device.h>
 #include <linux/syscore_ops.h>
 #include <linux/platform_device.h>
 #include <linux/io.h>
@@ -56,7 +56,7 @@ static void s3c2412_pm_prepare(void)
 {
 }
 
-static int s3c2412_pm_add(struct sys_device *sysdev)
+static int s3c2412_pm_add(struct device *dev)
 {
 	pm_cpu_prep = s3c2412_pm_prepare;
 	pm_cpu_sleep = s3c2412_cpu_suspend;
@@ -87,13 +87,15 @@ static struct sleep_save s3c2412_sleep[] = {
 	SAVE_ITEM(S3C2413_GPJSLPCON),
 };
 
-static struct sysdev_driver s3c2412_pm_driver = {
-	.add		= s3c2412_pm_add,
+static struct subsys_interface s3c2412_pm_interface = {
+	.name		= "s3c2412_pm",
+	.subsys		= &s3c2412_subsys,
+	.add_dev	= s3c2412_pm_add,
 };
 
 static __init int s3c2412_pm_init(void)
 {
-	return sysdev_driver_register(&s3c2412_sysclass, &s3c2412_pm_driver);
+	return subsys_interface_register(&s3c2412_pm_interface);
 }
 
 arch_initcall(s3c2412_pm_init);

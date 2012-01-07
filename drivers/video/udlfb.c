@@ -1761,24 +1761,7 @@ static struct usb_driver dlfb_driver = {
 	.id_table = id_table,
 };
 
-static int __init dlfb_module_init(void)
-{
-	int res;
-
-	res = usb_register(&dlfb_driver);
-	if (res)
-		err("usb_register failed. Error number %d", res);
-
-	return res;
-}
-
-static void __exit dlfb_module_exit(void)
-{
-	usb_deregister(&dlfb_driver);
-}
-
-module_init(dlfb_module_init);
-module_exit(dlfb_module_exit);
+module_usb_driver(dlfb_driver);
 
 static void dlfb_urb_completion(struct urb *urb)
 {

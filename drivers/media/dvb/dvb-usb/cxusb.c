@@ -2034,26 +2034,7 @@ static struct usb_driver cxusb_driver = {
 	.id_table	= cxusb_table,
 };
 
-/* module stuff */
-static int __init cxusb_module_init(void)
-{
-	int result;
-	if ((result = usb_register(&cxusb_driver))) {
-		err("usb_register failed. Error number %d",result);
-		return result;
-	}
-
-	return 0;
-}
-
-static void __exit cxusb_module_exit(void)
-{
-	/* deregister this driver from the USB subsystem */
-	usb_deregister(&cxusb_driver);
-}
-
-module_init (cxusb_module_init);
-module_exit (cxusb_module_exit);
+module_usb_driver(cxusb_driver);
 
 MODULE_AUTHOR("Patrick Boettcher <patrick.boettcher@desy.de>");
 MODULE_AUTHOR("Michael Krufky <mkrufky@linuxtv.org>");

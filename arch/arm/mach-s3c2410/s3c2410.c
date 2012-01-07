@@ -18,7 +18,7 @@
 #include <linux/init.h>
 #include <linux/gpio.h>
 #include <linux/clk.h>
-#include <linux/sysdev.h>
+#include <linux/device.h>
 #include <linux/syscore_ops.h>
 #include <linux/serial_core.h>
 #include <linux/platform_device.h>
@@ -132,22 +132,24 @@ void __init s3c2410_init_clocks(int xtal)
 	s3c24xx_register_clock(&s3c2410_armclk);
 }
 
-struct sysdev_class s3c2410_sysclass = {
+struct bus_type s3c2410_subsys = {
 	.name = "s3c2410-core",
+	.dev_name = "s3c2410-core",
 };
 
 /* Note, we would have liked to name this s3c2410-core, but we cannot
- * register two sysdev_class with the same name.
+ * register two subsystems with the same name.
  */
-struct sysdev_class s3c2410a_sysclass = {
+struct bus_type s3c2410a_subsys = {
 	.name = "s3c2410a-core",
+	.dev_name = "s3c2410a-core",
 };
 
-static struct sys_device s3c2410_sysdev = {
-	.cls		= &s3c2410_sysclass,
+static struct device s3c2410_dev = {
+	.bus		= &s3c2410_subsys,
 };
 
-/* need to register class before we actually register the device, and
+/* need to register the subsystem before we actually register the device, and
  * we also need to ensure that it has been initialised before any of the
  * drivers even try to use it (even if not on an s3c2410 based system)
  * as a driver which may support both 2410 and 2440 may try and use it.
@@ -155,14 +157,14 @@ static struct sys_device s3c2410_sysdev = {
 
 static int __init s3c2410_core_init(void)
 {
-	return sysdev_class_register(&s3c2410_sysclass);
+	return subsys_system_register(&s3c2410_subsys, NULL);
 }
 
 core_initcall(s3c2410_core_init);
 
 static int __init s3c2410a_core_init(void)
 {
-	return sysdev_class_register(&s3c2410a_sysclass);
+	return subsys_system_register(&s3c2410a_subsys, NULL);
 }
 
 core_initcall(s3c2410a_core_init);
@@ -176,12 +178,12 @@ int __init s3c2410_init(void)
 #endif
 	register_syscore_ops(&s3c24xx_irq_syscore_ops);
 
-	return sysdev_register(&s3c2410_sysdev);
+	return device_register(&s3c2410_dev);
 }
 
 int __init s3c2410a_init(void)
 {
-	s3c2410_sysdev.cls = &s3c2410a_sysclass;
+	s3c2410_dev.bus = &s3c2410a_subsys;
 	return s3c2410_init();
 }
 

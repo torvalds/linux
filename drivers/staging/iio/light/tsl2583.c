@@ -933,19 +933,7 @@ static struct i2c_driver taos_driver = {
 	.probe = taos_probe,
 	.remove = __devexit_p(taos_remove),
 };
-
-static int __init taos_init(void)
-{
-	return i2c_add_driver(&taos_driver);
-}
-
-static void __exit taos_exit(void)
-{
-	i2c_del_driver(&taos_driver);
-}
-
-module_init(taos_init);
-module_exit(taos_exit);
+module_i2c_driver(taos_driver);
 
 MODULE_AUTHOR("J. August Brenner<jbrenner@taosinc.com>");
 MODULE_DESCRIPTION("TAOS tsl2583 ambient light sensor driver");

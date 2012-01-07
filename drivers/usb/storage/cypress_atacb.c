@@ -274,15 +274,4 @@ static struct usb_driver cypress_driver = {
 	.soft_unbind =	1,
 };
 
-static int __init cypress_init(void)
-{
-	return usb_register(&cypress_driver);
-}
-
-static void __exit cypress_exit(void)
-{
-	usb_deregister(&cypress_driver);
-}
-
-module_init(cypress_init);
-module_exit(cypress_exit);
+module_usb_driver(cypress_driver);

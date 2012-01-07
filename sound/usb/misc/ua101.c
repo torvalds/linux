@@ -1387,16 +1387,4 @@ static struct usb_driver ua101_driver = {
 #endif
 };
 
-static int __init alsa_card_ua101_init(void)
-{
-	return usb_register(&ua101_driver);
-}
-
-static void __exit alsa_card_ua101_exit(void)
-{
-	usb_deregister(&ua101_driver);
-	mutex_destroy(&devices_mutex);
-}
-
-module_init(alsa_card_ua101_init);
-module_exit(alsa_card_ua101_exit);
+module_usb_driver(ua101_driver);
