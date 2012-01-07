@@ -34,6 +34,7 @@ struct pci_sys_data;
 void ixp23xx_map_io(void);
 void ixp23xx_init_irq(void);
 void ixp23xx_sys_init(void);
+void ixp23xx_restart(char, const char *);
 int ixp23xx_pci_setup(int, struct pci_sys_data *);
 void ixp23xx_pci_preinit(void);
 struct pci_bus *ixp23xx_pci_scan_bus(int, struct pci_sys_data*);

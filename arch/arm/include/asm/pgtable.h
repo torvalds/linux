@@ -11,20 +11,24 @@
 #define _ASMARM_PGTABLE_H
 
 #include <linux/const.h>
-#include <asm-generic/4level-fixup.h>
 #include <asm/proc-fns.h>
 
 #ifndef CONFIG_MMU
 
+#include <asm-generic/4level-fixup.h>
 #include "pgtable-nommu.h"
 
 #else
 
+#include <asm-generic/pgtable-nopud.h>
 #include <asm/memory.h>
-#include <mach/vmalloc.h>
 #include <asm/pgtable-hwdef.h>
 
+#ifdef CONFIG_ARM_LPAE
+#include <asm/pgtable-3level.h>
+#else
 #include <asm/pgtable-2level.h>
+#endif
 
 /*
  * Just any arbitrary offset to the start of the vmalloc VM area: the
@@ -33,15 +37,10 @@
  * any out-of-bounds memory accesses will hopefully be caught.
  * The vmalloc() routines leaves a hole of 4kB between each vmalloced
  * area for the same reason. ;)
- *
- * Note that platforms may override VMALLOC_START, but they must provide
- * VMALLOC_END.  VMALLOC_END defines the (exclusive) limit of this space,
- * which may not overlap IO space.
  */
-#ifndef VMALLOC_START
 #define VMALLOC_OFFSET		(8*1024*1024)
 #define VMALLOC_START		(((unsigned long)high_memory + VMALLOC_OFFSET) & ~(VMALLOC_OFFSET-1))
-#endif
+#define VMALLOC_END		0xff000000UL
 
 #define LIBRARY_TEXT_START	0x0c000000
 
@@ -163,39 +162,8 @@ extern pgd_t swapper_pg_dir[PTRS_PER_PGD];
 /* to find an entry in a kernel page-table-directory */
 #define pgd_offset_k(addr)	pgd_offset(&init_mm, addr)
 
-/*
- * The "pgd_xxx()" functions here are trivial for a folded two-level
- * setup: the pgd is never bad, and a pmd always exists (as it's folded
- * into the pgd entry)
- */
-#define pgd_none(pgd)		(0)
-#define pgd_bad(pgd)		(0)
-#define pgd_present(pgd)	(1)
-#define pgd_clear(pgdp)		do { } while (0)
-#define set_pgd(pgd,pgdp)	do { } while (0)
-#define set_pud(pud,pudp)	do { } while (0)
-
-
-/* Find an entry in the second-level page table.. */
-#define pmd_offset(dir, addr)	((pmd_t *)(dir))
-
 #define pmd_none(pmd)		(!pmd_val(pmd))
 #define pmd_present(pmd)	(pmd_val(pmd))
-#define pmd_bad(pmd)		(pmd_val(pmd) & 2)
-
-#define copy_pmd(pmdpd,pmdps)		\
-	do {				\
-		pmdpd[0] = pmdps[0];	\
-		pmdpd[1] = pmdps[1];	\
-		flush_pmd_entry(pmdpd);	\
-	} while (0)
-
-#define pmd_clear(pmdp)			\
-	do {				\
-		pmdp[0] = __pmd(0);	\
-		pmdp[1] = __pmd(0);	\
-		clean_pmd_entry(pmdp);	\
-	} while (0)
 
 static inline pte_t *pmd_page_vaddr(pmd_t pmd)
 {
@@ -203,10 +171,6 @@ static inline pte_t *pmd_page_vaddr(pmd_t pmd)
 }
 
 #define pmd_page(pmd)		pfn_to_page(__phys_to_pfn(pmd_val(pmd) & PHYS_MASK))
-
-/* we don't need complex calculations here as the pmd is folded into the pgd */
-#define pmd_addr_end(addr,end)	(end)
-
 
 #ifndef CONFIG_HIGHPTE
 #define __pte_map(pmd)		pmd_page_vaddr(*(pmd))
@@ -229,7 +193,6 @@ static inline pte_t *pmd_page_vaddr(pmd_t pmd)
 #define pte_page(pte)		pfn_to_page(pte_pfn(pte))
 #define mk_pte(page,prot)	pfn_pte(page_to_pfn(page), prot)
 
-#define set_pte_ext(ptep,pte,ext) cpu_set_pte_ext(ptep,pte,ext)
 #define pte_clear(mm,addr,ptep)	set_pte_ext(ptep, __pte(0), 0)
 
 #if __LINUX_ARM_ARCH__ < 6
@@ -336,6 +299,7 @@ static inline pte_t pte_modify(pte_t pte, pgprot_t newprot)
  * We provide our own arch_get_unmapped_area to cope with VIPT caches.
  */
 #define HAVE_ARCH_UNMAPPED_AREA
+#define HAVE_ARCH_UNMAPPED_AREA_TOPDOWN
 
 /*
  * remap a physical page `pfn' of size `size' with page protection `prot'
@@ -345,9 +309,6 @@ static inline pte_t pte_modify(pte_t pte, pgprot_t newprot)
 		remap_pfn_range(vma, from, pfn, size, prot)
 
 #define pgtable_cache_init() do { } while (0)
-
-void identity_mapping_add(pgd_t *, unsigned long, unsigned long);
-void identity_mapping_del(pgd_t *, unsigned long, unsigned long);
 
 #endif /* !__ASSEMBLY__ */
 

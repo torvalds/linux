@@ -46,6 +46,7 @@ void mv78xx0_uart1_init(void);
 void mv78xx0_uart2_init(void);
 void mv78xx0_uart3_init(void);
 void mv78xx0_i2c_init(void);
+void mv78xx0_restart(char, const char *);
 
 extern struct sys_timer mv78xx0_timer;
 

@@ -212,4 +212,5 @@ MACHINE_START(GLANTANK, "GLAN Tank")
 	.init_irq	= iop32x_init_irq,
 	.timer		= &glantank_timer,
 	.init_machine	= glantank_init_machine,
+	.restart	= iop3xx_restart,
 MACHINE_END

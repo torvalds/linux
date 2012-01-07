@@ -90,4 +90,5 @@ MACHINE_START(ESPRESSO, "IP Fabrics Double Espresso")
 	.timer		= &ixp23xx_timer,
 	.atag_offset	= 0x100,
 	.init_machine	= espresso_init,
+	.restart	= ixp23xx_restart,
 MACHINE_END
