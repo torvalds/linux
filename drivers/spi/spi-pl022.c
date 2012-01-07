@@ -2432,6 +2432,8 @@ static struct amba_id pl022_ids[] = {
 	{ 0, 0 },
 };
 
+MODULE_DEVICE_TABLE(amba, pl022_ids);
+
 static struct amba_driver pl022_driver = {
 	.drv = {
 		.name	= "ssp-pl022",
