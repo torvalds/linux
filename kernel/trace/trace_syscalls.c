@@ -6,7 +6,6 @@
 #include <linux/ftrace.h>
 #include <linux/perf_event.h>
 #include <asm/syscall.h>
-#include <asm/asm-offsets.h>
 
 #include "trace_output.h"
 #include "trace.h"
