@@ -691,11 +691,6 @@ static int bluecard_hci_send_frame(struct sk_buff *skb)
 }
 
 
-static void bluecard_hci_destruct(struct hci_dev *hdev)
-{
-}
-
-
 static int bluecard_hci_ioctl(struct hci_dev *hdev, unsigned int cmd, unsigned long arg)
 {
 	return -ENOIOCTLCMD;
@@ -741,7 +736,6 @@ static int bluecard_open(bluecard_info_t *info)
 	hdev->close    = bluecard_hci_close;
 	hdev->flush    = bluecard_hci_flush;
 	hdev->send     = bluecard_hci_send_frame;
-	hdev->destruct = bluecard_hci_destruct;
 	hdev->ioctl    = bluecard_hci_ioctl;
 
 	hdev->owner = THIS_MODULE;
