@@ -4330,6 +4330,10 @@ static int ixgbe_set_num_queues(struct ixgbe_adapter *adapter)
 	adapter->num_tx_queues = 1;
 
 done:
+	if ((adapter->netdev->reg_state == NETREG_UNREGISTERED) ||
+	    (adapter->netdev->reg_state == NETREG_UNREGISTERING))
+		return 0;
+
 	/* Notify the stack of the (possibly) reduced queue counts. */
 	netif_set_real_num_tx_queues(adapter->netdev, adapter->num_tx_queues);
 	return netif_set_real_num_rx_queues(adapter->netdev,
