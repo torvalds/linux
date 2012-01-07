@@ -888,6 +888,10 @@ try_again:
 				ui__warning("The %s event is not supported.\n",
 					    event_name(counter));
 				goto out_err;
+			} else if (err == EMFILE) {
+				ui__warning("Too many events are opened.\n"
+					    "Try again after reducing the number of events\n");
+				goto out_err;
 			}
 
 			ui__warning("The sys_perf_event_open() syscall "
