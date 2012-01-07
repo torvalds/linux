@@ -752,7 +752,7 @@ int of_property_read_string_index(struct device_node *np, const char *propname,
 
 	for (i = 0; total < prop->length; total += l, p += l) {
 		l = strlen(p) + 1;
-		if ((*p != 0) && (i++ == index)) {
+		if (i++ == index) {
 			*output = p;
 			return 0;
 		}
@@ -790,11 +790,9 @@ int of_property_count_strings(struct device_node *np, const char *propname)
 
 	p = prop->value;
 
-	for (i = 0; total < prop->length; total += l, p += l) {
+	for (i = 0; total < prop->length; total += l, p += l, i++)
 		l = strlen(p) + 1;
-		if (*p != 0)
-			i++;
-	}
+
 	return i;
 }
 EXPORT_SYMBOL_GPL(of_property_count_strings);
@@ -1163,7 +1161,7 @@ void of_alias_scan(void * (*dt_alloc)(u64 size, u64 align))
 	if (!of_aliases)
 		return;
 
-	for_each_property(pp, of_aliases->properties) {
+	for_each_property_of_node(of_aliases, pp) {
 		const char *start = pp->name;
 		const char *end = start + strlen(start);
 		struct device_node *np;

@@ -72,6 +72,20 @@ struct of_phandle_args {
 	uint32_t args[MAX_PHANDLE_ARGS];
 };
 
+#if defined(CONFIG_SPARC) || !defined(CONFIG_OF)
+/* Dummy ref counting routines - to be implemented later */
+static inline struct device_node *of_node_get(struct device_node *node)
+{
+	return node;
+}
+static inline void of_node_put(struct device_node *node)
+{
+}
+#else
+extern struct device_node *of_node_get(struct device_node *node);
+extern void of_node_put(struct device_node *node);
+#endif
+
 #ifdef CONFIG_OF
 
 /* Pointer for first entry in chain of all nodes. */
@@ -101,21 +115,6 @@ static inline void of_node_set_flag(struct device_node *n, unsigned long flag)
 }
 
 extern struct device_node *of_find_all_nodes(struct device_node *prev);
-
-#if defined(CONFIG_SPARC)
-/* Dummy ref counting routines - to be implemented later */
-static inline struct device_node *of_node_get(struct device_node *node)
-{
-	return node;
-}
-static inline void of_node_put(struct device_node *node)
-{
-}
-
-#else
-extern struct device_node *of_node_get(struct device_node *node);
-extern void of_node_put(struct device_node *node);
-#endif
 
 /*
  * OF address retrieval & translation
@@ -226,8 +225,8 @@ extern int of_device_is_available(const struct device_node *device);
 extern const void *of_get_property(const struct device_node *node,
 				const char *name,
 				int *lenp);
-#define for_each_property(pp, properties) \
-	for (pp = properties; pp != NULL; pp = pp->next)
+#define for_each_property_of_node(dn, pp) \
+	for (pp = dn->properties; pp != NULL; pp = pp->next)
 
 extern int of_n_addr_cells(struct device_node *np);
 extern int of_n_size_cells(struct device_node *np);
