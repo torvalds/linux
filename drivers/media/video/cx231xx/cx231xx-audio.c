@@ -307,7 +307,7 @@ static int cx231xx_init_audio_isoc(struct cx231xx *dev)
 		urb->context = dev;
 		urb->pipe = usb_rcvisocpipe(dev->udev,
 						dev->adev.end_point_addr);
-		urb->transfer_flags = URB_ISO_ASAP;
+		urb->transfer_flags = URB_ISO_ASAP | URB_NO_TRANSFER_DMA_MAP;
 		urb->transfer_buffer = dev->adev.transfer_buffer[i];
 		urb->interval = 1;
 		urb->complete = cx231xx_audio_isocirq;
@@ -368,7 +368,7 @@ static int cx231xx_init_audio_bulk(struct cx231xx *dev)
 		urb->context = dev;
 		urb->pipe = usb_rcvbulkpipe(dev->udev,
 						dev->adev.end_point_addr);
-		urb->transfer_flags = 0;
+		urb->transfer_flags = URB_NO_TRANSFER_DMA_MAP;
 		urb->transfer_buffer = dev->adev.transfer_buffer[i];
 		urb->complete = cx231xx_audio_bulkirq;
 		urb->transfer_buffer_length = sb_size;

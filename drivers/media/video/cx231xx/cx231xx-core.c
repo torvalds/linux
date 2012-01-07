@@ -1074,7 +1074,7 @@ int cx231xx_init_isoc(struct cx231xx *dev, int max_packets,
 				 sb_size, cx231xx_isoc_irq_callback, dma_q, 1);
 
 		urb->number_of_packets = max_packets;
-		urb->transfer_flags = URB_ISO_ASAP;
+		urb->transfer_flags = URB_ISO_ASAP | URB_NO_TRANSFER_DMA_MAP;
 
 		k = 0;
 		for (j = 0; j < max_packets; j++) {
@@ -1185,7 +1185,7 @@ int cx231xx_init_bulk(struct cx231xx *dev, int max_packets,
 			return -ENOMEM;
 		}
 		dev->video_mode.bulk_ctl.urb[i] = urb;
-		urb->transfer_flags = 0;
+		urb->transfer_flags = URB_NO_TRANSFER_DMA_MAP;
 
 		dev->video_mode.bulk_ctl.transfer_buffer[i] =
 		    usb_alloc_coherent(dev->udev, sb_size, GFP_KERNEL,
