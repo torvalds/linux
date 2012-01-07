@@ -52,6 +52,17 @@ config SCHED_CFS
 	This is the default cpu scheduler found in the upstream kernel.
 endchoice
 
+config SCHED_BFS_AUTOISO
+	bool "Automatically use SCHED_ISO policy for X"
+	depends on SCHED_BFS
+	default n
+	---help---
+	  Selecting this option will automatically use the SCHED_ISO scheduling
+	  policy for X, resulting in an interactivity boost. This *may* cause
+	  things like skipping sound on audio applications that are not run
+	  as SCHED_ISO.
+
+	  Tasks (including X) can be run as sched_iso manually using schedtool.
 
 config BROKEN
 	bool
