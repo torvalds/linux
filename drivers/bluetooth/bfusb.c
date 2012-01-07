@@ -544,15 +544,6 @@ static int bfusb_send_frame(struct sk_buff *skb)
 	return 0;
 }
 
-static void bfusb_destruct(struct hci_dev *hdev)
-{
-	struct bfusb_data *data = hdev->driver_data;
-
-	BT_DBG("hdev %p bfusb %p", hdev, data);
-
-	kfree(data);
-}
-
 static int bfusb_ioctl(struct hci_dev *hdev, unsigned int cmd, unsigned long arg)
 {
 	return -ENOIOCTLCMD;
@@ -712,7 +703,6 @@ static int bfusb_probe(struct usb_interface *intf, const struct usb_device_id *i
 	hdev->close    = bfusb_close;
 	hdev->flush    = bfusb_flush;
 	hdev->send     = bfusb_send_frame;
-	hdev->destruct = bfusb_destruct;
 	hdev->ioctl    = bfusb_ioctl;
 
 	hdev->owner = THIS_MODULE;
@@ -753,6 +743,7 @@ static void bfusb_disconnect(struct usb_interface *intf)
 
 	hci_unregister_dev(hdev);
 	hci_free_dev(hdev);
+	kfree(data);
 }
 
 static struct usb_driver bfusb_driver = {
