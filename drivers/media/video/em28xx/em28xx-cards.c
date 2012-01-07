@@ -2916,11 +2916,10 @@ void em28xx_release_resources(struct em28xx *dev)
  * em28xx_init_dev()
  * allocates and inits the device structs, registers i2c bus and v4l device
  */
-static int em28xx_init_dev(struct em28xx **devhandle, struct usb_device *udev,
+static int em28xx_init_dev(struct em28xx *dev, struct usb_device *udev,
 			   struct usb_interface *interface,
 			   int minor)
 {
-	struct em28xx *dev = *devhandle;
 	int retval;
 
 	dev->udev = udev;
@@ -3302,7 +3301,7 @@ static int em28xx_usb_probe(struct usb_interface *interface,
 	/* allocate device struct */
 	mutex_init(&dev->lock);
 	mutex_lock(&dev->lock);
-	retval = em28xx_init_dev(&dev, udev, interface, nr);
+	retval = em28xx_init_dev(dev, udev, interface, nr);
 	if (retval) {
 		goto unlock_and_free;
 	}
