@@ -5,7 +5,7 @@
 #include <linux/blkpg.h>
 #include <linux/hdreg.h>
 #include <linux/backing-dev.h>
-#include <linux/buffer_head.h>
+#include <linux/fs.h>
 #include <linux/blktrace_api.h>
 #include <asm/uaccess.h>
 

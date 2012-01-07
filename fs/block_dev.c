@@ -17,6 +17,7 @@
 #include <linux/module.h>
 #include <linux/blkpg.h>
 #include <linux/buffer_head.h>
+#include <linux/swap.h>
 #include <linux/pagevec.h>
 #include <linux/writeback.h>
 #include <linux/mpage.h>
@@ -25,6 +26,7 @@
 #include <linux/namei.h>
 #include <linux/log2.h>
 #include <linux/kmemleak.h>
+#include <linux/cleancache.h>
 #include <asm/uaccess.h>
 #include "internal.h"
 
@@ -82,13 +84,35 @@ static sector_t max_block(struct block_device *bdev)
 }
 
 /* Kill _all_ buffers and pagecache , dirty or not.. */
-static void kill_bdev(struct block_device *bdev)
+void kill_bdev(struct block_device *bdev)
 {
-	if (bdev->bd_inode->i_mapping->nrpages == 0)
+	struct address_space *mapping = bdev->bd_inode->i_mapping;
+
+	if (mapping->nrpages == 0)
 		return;
+
 	invalidate_bh_lrus();
-	truncate_inode_pages(bdev->bd_inode->i_mapping, 0);
+	truncate_inode_pages(mapping, 0);
 }	
+EXPORT_SYMBOL(kill_bdev);
+
+/* Invalidate clean unused buffers and pagecache. */
+void invalidate_bdev(struct block_device *bdev)
+{
+	struct address_space *mapping = bdev->bd_inode->i_mapping;
+
+	if (mapping->nrpages == 0)
+		return;
+
+	invalidate_bh_lrus();
+	lru_add_drain_all();	/* make sure all lru add caches are flushed */
+	invalidate_mapping_pages(mapping, 0, -1);
+	/* 99% of the time, we don't need to flush the cleancache on the bdev.
+	 * But, for the strange corners, lets be cautious
+	 */
+	cleancache_flush_inode(mapping);
+}
+EXPORT_SYMBOL(invalidate_bdev);
 
 int set_blocksize(struct block_device *bdev, int size)
 {

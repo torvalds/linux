@@ -22,6 +22,9 @@ struct parsed_partitions {
 	char *pp_buf;
 };
 
+struct parsed_partitions *
+check_partition(struct gendisk *, struct block_device *);
+
 static inline void *read_part_sector(struct parsed_partitions *state,
 				     sector_t n, Sector *p)
 {

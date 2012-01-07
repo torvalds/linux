@@ -270,15 +270,13 @@ static int remount(struct super_block *sb, int *flags, char *data)
 	return 0;
 }
 
-static struct inode *usbfs_get_inode (struct super_block *sb, int mode, dev_t dev)
+static struct inode *usbfs_get_inode (struct super_block *sb, umode_t mode, dev_t dev)
 {
 	struct inode *inode = new_inode(sb);
 
 	if (inode) {
 		inode->i_ino = get_next_ino();
-		inode->i_mode = mode;
-		inode->i_uid = current_fsuid();
-		inode->i_gid = current_fsgid();
+		inode_init_owner(inode, NULL, mode);
 		inode->i_atime = inode->i_mtime = inode->i_ctime = CURRENT_TIME;
 		switch (mode & S_IFMT) {
 		default:
@@ -300,7 +298,7 @@ static struct inode *usbfs_get_inode (struct super_block *sb, int mode, dev_t de
 }
 
 /* SMP-safe */
-static int usbfs_mknod (struct inode *dir, struct dentry *dentry, int mode,
+static int usbfs_mknod (struct inode *dir, struct dentry *dentry, umode_t mode,
 			dev_t dev)
 {
 	struct inode *inode = usbfs_get_inode(dir->i_sb, mode, dev);
@@ -317,7 +315,7 @@ static int usbfs_mknod (struct inode *dir, struct dentry *dentry, int mode,
 	return error;
 }
 
-static int usbfs_mkdir (struct inode *dir, struct dentry *dentry, int mode)
+static int usbfs_mkdir (struct inode *dir, struct dentry *dentry, umode_t mode)
 {
 	int res;
 
@@ -328,7 +326,7 @@ static int usbfs_mkdir (struct inode *dir, struct dentry *dentry, int mode)
 	return res;
 }
 
-static int usbfs_create (struct inode *dir, struct dentry *dentry, int mode)
+static int usbfs_create (struct inode *dir, struct dentry *dentry, umode_t mode)
 {
 	mode = (mode & S_IALLUGO) | S_IFREG;
 	return usbfs_mknod (dir, dentry, mode, 0);
@@ -489,7 +487,7 @@ static int usbfs_fill_super(struct super_block *sb, void *data, int silent)
  *
  * This function handles both regular files and directories.
  */
-static int fs_create_by_name (const char *name, mode_t mode,
+static int fs_create_by_name (const char *name, umode_t mode,
 			      struct dentry *parent, struct dentry **dentry)
 {
 	int error = 0;
@@ -513,7 +511,7 @@ static int fs_create_by_name (const char *name, mode_t mode,
 	mutex_lock(&parent->d_inode->i_mutex);
 	*dentry = lookup_one_len(name, parent, strlen(name));
 	if (!IS_ERR(*dentry)) {
-		if ((mode & S_IFMT) == S_IFDIR)
+		if (S_ISDIR(mode))
 			error = usbfs_mkdir (parent->d_inode, *dentry, mode);
 		else 
 			error = usbfs_create (parent->d_inode, *dentry, mode);
@@ -524,7 +522,7 @@ static int fs_create_by_name (const char *name, mode_t mode,
 	return error;
 }
 
-static struct dentry *fs_create_file (const char *name, mode_t mode,
+static struct dentry *fs_create_file (const char *name, umode_t mode,
 				      struct dentry *parent, void *data,
 				      const struct file_operations *fops,
 				      uid_t uid, gid_t gid)

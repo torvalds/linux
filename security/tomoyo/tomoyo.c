@@ -186,7 +186,7 @@ static int tomoyo_path_unlink(struct path *parent, struct dentry *dentry)
  * Returns 0 on success, negative value otherwise.
  */
 static int tomoyo_path_mkdir(struct path *parent, struct dentry *dentry,
-			     int mode)
+			     umode_t mode)
 {
 	struct path path = { parent->mnt, dentry };
 	return tomoyo_path_number_perm(TOMOYO_TYPE_MKDIR, &path,
@@ -234,7 +234,7 @@ static int tomoyo_path_symlink(struct path *parent, struct dentry *dentry,
  * Returns 0 on success, negative value otherwise.
  */
 static int tomoyo_path_mknod(struct path *parent, struct dentry *dentry,
-			     int mode, unsigned int dev)
+			     umode_t mode, unsigned int dev)
 {
 	struct path path = { parent->mnt, dentry };
 	int type = TOMOYO_TYPE_CREATE;
@@ -360,7 +360,7 @@ static int tomoyo_file_ioctl(struct file *file, unsigned int cmd,
  * Returns 0 on success, negative value otherwise.
  */
 static int tomoyo_path_chmod(struct dentry *dentry, struct vfsmount *mnt,
-			     mode_t mode)
+			     umode_t mode)
 {
 	struct path path = { mnt, dentry };
 	return tomoyo_path_number_perm(TOMOYO_TYPE_CHMOD, &path,

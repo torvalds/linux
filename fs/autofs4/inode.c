@@ -326,7 +326,7 @@ fail_unlock:
 	return -EINVAL;
 }
 
-struct inode *autofs4_get_inode(struct super_block *sb, mode_t mode)
+struct inode *autofs4_get_inode(struct super_block *sb, umode_t mode)
 {
 	struct inode *inode = new_inode(sb);
 

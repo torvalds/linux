@@ -2056,7 +2056,7 @@ struct inode *reiserfs_iget(struct super_block *s, const struct cpu_key *key);
 
 struct reiserfs_security_handle;
 int reiserfs_new_inode(struct reiserfs_transaction_handle *th,
-		       struct inode *dir, int mode,
+		       struct inode *dir, umode_t mode,
 		       const char *symname, loff_t i_size,
 		       struct dentry *dentry, struct inode *inode,
 		       struct reiserfs_security_handle *security);

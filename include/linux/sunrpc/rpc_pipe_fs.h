@@ -55,7 +55,7 @@ extern int rpc_remove_client_dir(struct dentry *);
 struct cache_detail;
 extern struct dentry *rpc_create_cache_dir(struct dentry *,
 					   struct qstr *,
-					   mode_t umode,
+					   umode_t umode,
 					   struct cache_detail *);
 extern void rpc_remove_cache_dir(struct dentry *);
 

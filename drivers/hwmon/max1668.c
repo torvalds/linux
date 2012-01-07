@@ -335,10 +335,10 @@ static struct attribute *max1668_attribute_unique[] = {
 	NULL
 };
 
-static mode_t max1668_attribute_mode(struct kobject *kobj,
+static umode_t max1668_attribute_mode(struct kobject *kobj,
 				     struct attribute *attr, int index)
 {
-	int ret = S_IRUGO;
+	umode_t ret = S_IRUGO;
 	if (read_only)
 		return ret;
 	if (attr == &sensor_dev_attr_temp1_max.dev_attr.attr ||

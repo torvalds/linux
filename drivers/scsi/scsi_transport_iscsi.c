@@ -328,7 +328,7 @@ iscsi_iface_net_attr(iface, vlan_enabled, ISCSI_NET_PARAM_VLAN_ENABLED);
 iscsi_iface_net_attr(iface, mtu, ISCSI_NET_PARAM_MTU);
 iscsi_iface_net_attr(iface, port, ISCSI_NET_PARAM_PORT);
 
-static mode_t iscsi_iface_attr_is_visible(struct kobject *kobj,
+static umode_t iscsi_iface_attr_is_visible(struct kobject *kobj,
 					  struct attribute *attr, int i)
 {
 	struct device *dev = container_of(kobj, struct device, kobj);
@@ -2199,7 +2199,7 @@ static struct attribute *iscsi_conn_attrs[] = {
 	NULL,
 };
 
-static mode_t iscsi_conn_attr_is_visible(struct kobject *kobj,
+static umode_t iscsi_conn_attr_is_visible(struct kobject *kobj,
 					 struct attribute *attr, int i)
 {
 	struct device *cdev = container_of(kobj, struct device, kobj);
@@ -2370,7 +2370,7 @@ static struct attribute *iscsi_session_attrs[] = {
 	NULL,
 };
 
-static mode_t iscsi_session_attr_is_visible(struct kobject *kobj,
+static umode_t iscsi_session_attr_is_visible(struct kobject *kobj,
 					    struct attribute *attr, int i)
 {
 	struct device *cdev = container_of(kobj, struct device, kobj);
@@ -2468,7 +2468,7 @@ static struct attribute *iscsi_host_attrs[] = {
 	NULL,
 };
 
-static mode_t iscsi_host_attr_is_visible(struct kobject *kobj,
+static umode_t iscsi_host_attr_is_visible(struct kobject *kobj,
 					 struct attribute *attr, int i)
 {
 	struct device *cdev = container_of(kobj, struct device, kobj);

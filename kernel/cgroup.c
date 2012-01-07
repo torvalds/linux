@@ -760,7 +760,7 @@ EXPORT_SYMBOL_GPL(cgroup_unlock);
  * -> cgroup_mkdir.
  */
 
-static int cgroup_mkdir(struct inode *dir, struct dentry *dentry, int mode);
+static int cgroup_mkdir(struct inode *dir, struct dentry *dentry, umode_t mode);
 static struct dentry *cgroup_lookup(struct inode *, struct dentry *, struct nameidata *);
 static int cgroup_rmdir(struct inode *unused_dir, struct dentry *dentry);
 static int cgroup_populate_dir(struct cgroup *cgrp);
@@ -775,7 +775,7 @@ static struct backing_dev_info cgroup_backing_dev_info = {
 static int alloc_css_id(struct cgroup_subsys *ss,
 			struct cgroup *parent, struct cgroup *child);
 
-static struct inode *cgroup_new_inode(mode_t mode, struct super_block *sb)
+static struct inode *cgroup_new_inode(umode_t mode, struct super_block *sb)
 {
 	struct inode *inode = new_inode(sb);
 
@@ -2585,7 +2585,7 @@ static inline struct cftype *__file_cft(struct file *file)
 	return __d_cft(file->f_dentry);
 }
 
-static int cgroup_create_file(struct dentry *dentry, mode_t mode,
+static int cgroup_create_file(struct dentry *dentry, umode_t mode,
 				struct super_block *sb)
 {
 	struct inode *inode;
@@ -2626,7 +2626,7 @@ static int cgroup_create_file(struct dentry *dentry, mode_t mode,
  * @mode: mode to set on new directory.
  */
 static int cgroup_create_dir(struct cgroup *cgrp, struct dentry *dentry,
-				mode_t mode)
+				umode_t mode)
 {
 	struct dentry *parent;
 	int error = 0;
@@ -2653,9 +2653,9 @@ static int cgroup_create_dir(struct cgroup *cgrp, struct dentry *dentry,
  * returns S_IRUGO if it has only a read handler
  * returns S_IWUSR if it has only a write hander
  */
-static mode_t cgroup_file_mode(const struct cftype *cft)
+static umode_t cgroup_file_mode(const struct cftype *cft)
 {
-	mode_t mode = 0;
+	umode_t mode = 0;
 
 	if (cft->mode)
 		return cft->mode;
@@ -2678,7 +2678,7 @@ int cgroup_add_file(struct cgroup *cgrp,
 	struct dentry *dir = cgrp->dentry;
 	struct dentry *dentry;
 	int error;
-	mode_t mode;
+	umode_t mode;
 
 	char name[MAX_CGROUP_TYPE_NAMELEN + MAX_CFTYPE_NAME + 2] = { 0 };
 	if (subsys && !test_bit(ROOT_NOPREFIX, &cgrp->root->flags)) {
@@ -3752,7 +3752,7 @@ static void cgroup_unlock_hierarchy(struct cgroupfs_root *root)
  * Must be called with the mutex on the parent inode held
  */
 static long cgroup_create(struct cgroup *parent, struct dentry *dentry,
-			     mode_t mode)
+			     umode_t mode)
 {
 	struct cgroup *cgrp;
 	struct cgroupfs_root *root = parent->root;
@@ -3846,7 +3846,7 @@ static long cgroup_create(struct cgroup *parent, struct dentry *dentry,
 	return err;
 }
 
-static int cgroup_mkdir(struct inode *dir, struct dentry *dentry, int mode)
+static int cgroup_mkdir(struct inode *dir, struct dentry *dentry, umode_t mode)
 {
 	struct cgroup *c_parent = dentry->d_parent->d_fsdata;
 

@@ -14,7 +14,6 @@
 #include <linux/linkage.h>
 #include <linux/pagemap.h>
 #include <linux/quotaops.h>
-#include <linux/buffer_head.h>
 #include <linux/backing-dev.h>
 #include "internal.h"
 

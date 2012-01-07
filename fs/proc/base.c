@@ -101,7 +101,7 @@
 struct pid_entry {
 	char *name;
 	int len;
-	mode_t mode;
+	umode_t mode;
 	const struct inode_operations *iop;
 	const struct file_operations *fop;
 	union proc_op op;

@@ -169,8 +169,8 @@ struct iso9660_options{
 	unsigned char map;
 	unsigned char check;
 	unsigned int blocksize;
-	mode_t fmode;
-	mode_t dmode;
+	umode_t fmode;
+	umode_t dmode;
 	gid_t gid;
 	uid_t uid;
 	char *iocharset;

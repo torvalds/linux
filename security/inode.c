@@ -56,7 +56,7 @@ static const struct file_operations default_file_ops = {
 	.llseek =	noop_llseek,
 };
 
-static struct inode *get_inode(struct super_block *sb, int mode, dev_t dev)
+static struct inode *get_inode(struct super_block *sb, umode_t mode, dev_t dev)
 {
 	struct inode *inode = new_inode(sb);
 
@@ -85,7 +85,7 @@ static struct inode *get_inode(struct super_block *sb, int mode, dev_t dev)
 
 /* SMP-safe */
 static int mknod(struct inode *dir, struct dentry *dentry,
-			 int mode, dev_t dev)
+			 umode_t mode, dev_t dev)
 {
 	struct inode *inode;
 	int error = -ENOMEM;
@@ -102,7 +102,7 @@ static int mknod(struct inode *dir, struct dentry *dentry,
 	return error;
 }
 
-static int mkdir(struct inode *dir, struct dentry *dentry, int mode)
+static int mkdir(struct inode *dir, struct dentry *dentry, umode_t mode)
 {
 	int res;
 
@@ -113,7 +113,7 @@ static int mkdir(struct inode *dir, struct dentry *dentry, int mode)
 	return res;
 }
 
-static int create(struct inode *dir, struct dentry *dentry, int mode)
+static int create(struct inode *dir, struct dentry *dentry, umode_t mode)
 {
 	mode = (mode & S_IALLUGO) | S_IFREG;
 	return mknod(dir, dentry, mode, 0);
@@ -145,7 +145,7 @@ static struct file_system_type fs_type = {
 	.kill_sb =	kill_litter_super,
 };
 
-static int create_by_name(const char *name, mode_t mode,
+static int create_by_name(const char *name, umode_t mode,
 			  struct dentry *parent,
 			  struct dentry **dentry)
 {
@@ -164,7 +164,7 @@ static int create_by_name(const char *name, mode_t mode,
 	mutex_lock(&parent->d_inode->i_mutex);
 	*dentry = lookup_one_len(name, parent, strlen(name));
 	if (!IS_ERR(*dentry)) {
-		if ((mode & S_IFMT) == S_IFDIR)
+		if (S_ISDIR(mode))
 			error = mkdir(parent->d_inode, *dentry, mode);
 		else
 			error = create(parent->d_inode, *dentry, mode);
@@ -205,7 +205,7 @@ static int create_by_name(const char *name, mode_t mode,
  * If securityfs is not enabled in the kernel, the value %-ENODEV is
  * returned.
  */
-struct dentry *securityfs_create_file(const char *name, mode_t mode,
+struct dentry *securityfs_create_file(const char *name, umode_t mode,
 				   struct dentry *parent, void *data,
 				   const struct file_operations *fops)
 {

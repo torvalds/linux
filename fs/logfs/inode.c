@@ -323,7 +323,7 @@ static void logfs_set_ino_generation(struct super_block *sb,
 	mutex_unlock(&super->s_journal_mutex);
 }
 
-struct inode *logfs_new_inode(struct inode *dir, int mode)
+struct inode *logfs_new_inode(struct inode *dir, umode_t mode)
 {
 	struct super_block *sb = dir->i_sb;
 	struct inode *inode;
