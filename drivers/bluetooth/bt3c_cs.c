@@ -456,11 +456,6 @@ static int bt3c_hci_send_frame(struct sk_buff *skb)
 }
 
 
-static void bt3c_hci_destruct(struct hci_dev *hdev)
-{
-}
-
-
 static int bt3c_hci_ioctl(struct hci_dev *hdev, unsigned int cmd, unsigned long arg)
 {
 	return -ENOIOCTLCMD;
@@ -587,7 +582,6 @@ static int bt3c_open(bt3c_info_t *info)
 	hdev->close    = bt3c_hci_close;
 	hdev->flush    = bt3c_hci_flush;
 	hdev->send     = bt3c_hci_send_frame;
-	hdev->destruct = bt3c_hci_destruct;
 	hdev->ioctl    = bt3c_hci_ioctl;
 
 	hdev->owner = THIS_MODULE;
