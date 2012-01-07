@@ -25,6 +25,8 @@
 
 #ifdef __KERNEL__
 
+#include <linux/path.h>
+
 struct inode;
 struct file;
 
