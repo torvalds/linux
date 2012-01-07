@@ -432,17 +432,6 @@ static int bpa10x_send_frame(struct sk_buff *skb)
 	return 0;
 }
 
-static void bpa10x_destruct(struct hci_dev *hdev)
-{
-	struct bpa10x_data *data = hdev->driver_data;
-
-	BT_DBG("%s", hdev->name);
-
-	kfree_skb(data->rx_skb[0]);
-	kfree_skb(data->rx_skb[1]);
-	kfree(data);
-}
-
 static int bpa10x_probe(struct usb_interface *intf, const struct usb_device_id *id)
 {
 	struct bpa10x_data *data;
@@ -480,7 +469,6 @@ static int bpa10x_probe(struct usb_interface *intf, const struct usb_device_id *
 	hdev->close    = bpa10x_close;
 	hdev->flush    = bpa10x_flush;
 	hdev->send     = bpa10x_send_frame;
-	hdev->destruct = bpa10x_destruct;
 
 	hdev->owner = THIS_MODULE;
 
@@ -512,6 +500,9 @@ static void bpa10x_disconnect(struct usb_interface *intf)
 	hci_unregister_dev(data->hdev);
 
 	hci_free_dev(data->hdev);
+	kfree_skb(data->rx_skb[0]);
+	kfree_skb(data->rx_skb[1]);
+	kfree(data);
 }
 
 static struct usb_driver bpa10x_driver = {
