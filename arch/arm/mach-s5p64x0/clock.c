@@ -30,8 +30,8 @@
 #include <plat/pll.h>
 #include <plat/s5p-clock.h>
 #include <plat/clock-clksrc.h>
-#include <plat/s5p6440.h>
-#include <plat/s5p6450.h>
+
+#include "common.h"
 
 struct clksrc_clk clk_mout_apll = {
 	.clk	= {

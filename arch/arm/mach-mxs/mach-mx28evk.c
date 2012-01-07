@@ -501,4 +501,5 @@ MACHINE_START(MX28EVK, "Freescale MX28 EVK")
 	.init_irq	= mx28_init_irq,
 	.timer		= &mx28evk_timer,
 	.init_machine	= mx28evk_init,
+	.restart	= mxs_restart,
 MACHINE_END

@@ -21,7 +21,7 @@
 
 #include <asm/cputype.h>
 
-#include <plat/common.h>
+#include "common.h"
 #include <plat/cpu.h>
 
 #include <mach/id.h>

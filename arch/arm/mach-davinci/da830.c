@@ -1201,7 +1201,6 @@ static struct davinci_soc_info davinci_soc_info_da830 = {
 	.gpio_irq		= IRQ_DA8XX_GPIO0,
 	.serial_dev		= &da8xx_serial_device,
 	.emac_pdata		= &da8xx_emac_pdata,
-	.reset_device		= &da8xx_wdt_device,
 };
 
 void __init da830_init(void)

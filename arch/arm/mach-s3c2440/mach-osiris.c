@@ -54,6 +54,8 @@
 #include <plat/devs.h>
 #include <plat/cpu.h>
 
+#include "common.h"
+
 /* onboard perihperal map */
 
 static struct map_desc osiris_iodesc[] __initdata = {
@@ -434,4 +436,5 @@ MACHINE_START(OSIRIS, "Simtec-OSIRIS")
 	.init_irq	= s3c24xx_init_irq,
 	.init_machine	= osiris_init,
 	.timer		= &s3c24xx_timer,
+	.restart	= s3c2440_restart,
 MACHINE_END

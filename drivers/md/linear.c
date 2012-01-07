@@ -230,6 +230,7 @@ static int linear_add(struct mddev *mddev, struct md_rdev *rdev)
 		return -EINVAL;
 
 	rdev->raid_disk = rdev->saved_raid_disk;
+	rdev->saved_raid_disk = -1;
 
 	newconf = linear_conf(mddev,mddev->raid_disks+1);
 

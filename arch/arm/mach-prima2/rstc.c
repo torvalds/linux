@@ -68,3 +68,10 @@ int sirfsoc_reset_device(struct device *dev)
 
 	return 0;
 }
+
+#define SIRFSOC_SYS_RST_BIT  BIT(31)
+
+void sirfsoc_restart(char mode, const char *cmd)
+{
+	writel(SIRFSOC_SYS_RST_BIT, sirfsoc_rstc_base);
+}

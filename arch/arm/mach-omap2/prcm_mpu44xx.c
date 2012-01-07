@@ -15,7 +15,7 @@
 #include <linux/err.h>
 #include <linux/io.h>
 
-#include <plat/common.h>
+#include "common.h"
 
 #include "prcm_mpu44xx.h"
 #include "cm-regbits-44xx.h"

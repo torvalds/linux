@@ -499,4 +499,5 @@ MACHINE_START(CINTEGRATOR, "ARM-IntegratorCP")
 	.init_irq	= intcp_init_irq,
 	.timer		= &cp_timer,
 	.init_machine	= intcp_init,
+	.restart	= integrator_restart,
 MACHINE_END

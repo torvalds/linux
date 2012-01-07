@@ -28,6 +28,8 @@
 #include <mach/hardware.h>
 #include <mach/regs-irq.h>
 
+#include "nuc9xx.h"
+
 struct group_irq {
 	unsigned long		gpen;
 	unsigned int		enabled;

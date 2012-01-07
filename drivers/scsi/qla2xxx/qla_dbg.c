@@ -12,17 +12,17 @@
  * |             Level            |   Last Value Used  |     Holes	|
  * ----------------------------------------------------------------------
  * | Module Init and Probe        |       0x0116       |  		|
- * | Mailbox commands             |       0x1129       |		|
+ * | Mailbox commands             |       0x112b       |		|
  * | Device Discovery             |       0x2083       |		|
  * | Queue Command and IO tracing |       0x302e       |     0x3008     |
  * | DPC Thread                   |       0x401c       |		|
  * | Async Events                 |       0x5059       |		|
- * | Timer Routines               |       0x600d       |		|
+ * | Timer Routines               |       0x6010       | 0x600e,0x600f  |
  * | User Space Interactions      |       0x709d       |		|
- * | Task Management              |       0x8041       |    		|
+ * | Task Management              |       0x8041       | 0x800b         |
  * | AER/EEH                      |       0x900f       |		|
  * | Virtual Port                 |       0xa007       |		|
- * | ISP82XX Specific             |       0xb051       |    		|
+ * | ISP82XX Specific             |       0xb052       |    		|
  * | MultiQ                       |       0xc00b       |		|
  * | Misc                         |       0xd00b       |		|
  * ----------------------------------------------------------------------

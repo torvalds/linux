@@ -17,7 +17,7 @@
 #include <linux/err.h>
 #include <linux/io.h>
 
-#include <plat/common.h>
+#include "common.h"
 #include <plat/cpu.h>
 #include <plat/prcm.h>
 
