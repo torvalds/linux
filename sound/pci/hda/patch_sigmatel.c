@@ -4929,6 +4929,12 @@ static int find_mute_led_gpio(struct hda_codec *codec, int default_polarity)
 				set_hp_led_gpio(codec);
 				return 1;
 			}
+			/* BIOS bug: unfilled OEM string */
+			if (strstr(dev->name, "HP_Mute_LED_P_G")) {
+				set_hp_led_gpio(codec);
+				spec->gpio_led_polarity = 1;
+				return 1;
+			}
 		}
 
 		/*

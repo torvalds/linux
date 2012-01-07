@@ -132,6 +132,15 @@ static int mpc8xxx_gpio_dir_out(struct gpio_chip *gc, unsigned int gpio, int val
 	return 0;
 }
 
+static int mpc5121_gpio_dir_out(struct gpio_chip *gc, unsigned int gpio, int val)
+{
+	/* GPIO 28..31 are input only on MPC5121 */
+	if (gpio >= 28)
+		return -EINVAL;
+
+	return mpc8xxx_gpio_dir_out(gc, gpio, val);
+}
+
 static int mpc8xxx_gpio_to_irq(struct gpio_chip *gc, unsigned offset)
 {
 	struct of_mm_gpio_chip *mm = to_of_mm_gpio_chip(gc);
@@ -340,11 +349,10 @@ static void __init mpc8xxx_add_controller(struct device_node *np)
 	mm_gc->save_regs = mpc8xxx_gpio_save_regs;
 	gc->ngpio = MPC8XXX_GPIO_PINS;
 	gc->direction_input = mpc8xxx_gpio_dir_in;
-	gc->direction_output = mpc8xxx_gpio_dir_out;
-	if (of_device_is_compatible(np, "fsl,mpc8572-gpio"))
-		gc->get = mpc8572_gpio_get;
-	else
-		gc->get = mpc8xxx_gpio_get;
+	gc->direction_output = of_device_is_compatible(np, "fsl,mpc5121-gpio") ?
+		mpc5121_gpio_dir_out : mpc8xxx_gpio_dir_out;
+	gc->get = of_device_is_compatible(np, "fsl,mpc8572-gpio") ?
+		mpc8572_gpio_get : mpc8xxx_gpio_get;
 	gc->set = mpc8xxx_gpio_set;
 	gc->to_irq = mpc8xxx_gpio_to_irq;
 

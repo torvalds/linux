@@ -53,4 +53,5 @@ MACHINE_START(U300, MACH_U300_STRING)
 	.handle_irq	= vic_handle_irq,
 	.timer		= &u300_timer,
 	.init_machine	= u300_init_machine,
+	.restart	= u300_restart,
 MACHINE_END

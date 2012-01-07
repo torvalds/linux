@@ -111,4 +111,5 @@ MACHINE_START(VERSATILE_PB, "ARM-Versatile PB")
 	.handle_irq	= vic_handle_irq,
 	.timer		= &versatile_timer,
 	.init_machine	= versatile_pb_init,
+	.restart	= versatile_restart,
 MACHINE_END

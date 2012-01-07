@@ -147,14 +147,8 @@ void soft_restart(unsigned long addr)
 	BUG();
 }
 
-void arm_machine_restart(char mode, const char *cmd)
+static void null_restart(char mode, const char *cmd)
 {
-	/* Disable interrupts first */
-	local_irq_disable();
-	local_fiq_disable();
-
-	/* Call the architecture specific reboot code. */
-	arch_reset(mode, cmd);
 }
 
 /*
@@ -163,7 +157,7 @@ void arm_machine_restart(char mode, const char *cmd)
 void (*pm_power_off)(void);
 EXPORT_SYMBOL(pm_power_off);
 
-void (*arm_pm_restart)(char str, const char *cmd) = arm_machine_restart;
+void (*arm_pm_restart)(char str, const char *cmd) = null_restart;
 EXPORT_SYMBOL_GPL(arm_pm_restart);
 
 static void do_nothing(void *unused)

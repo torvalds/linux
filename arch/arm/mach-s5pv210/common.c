@@ -1,12 +1,13 @@
-/* linux/arch/arm/mach-s5pv210/cpu.c
- *
- * Copyright (c) 2010 Samsung Electronics Co., Ltd.
+/*
+ * Copyright (c) 2009-2011 Samsung Electronics Co., Ltd.
  *		http://www.samsung.com
+ *
+ * Common Codes for S5PV210
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
  * published by the Free Software Foundation.
-*/
+ */
 
 #include <linux/kernel.h>
 #include <linux/types.h>
@@ -21,33 +22,74 @@
 #include <linux/platform_device.h>
 #include <linux/sched.h>
 #include <linux/dma-mapping.h>
+#include <linux/serial_core.h>
 
+#include <asm/proc-fns.h>
 #include <asm/mach/arch.h>
 #include <asm/mach/map.h>
 #include <asm/mach/irq.h>
 
-#include <asm/proc-fns.h>
 #include <mach/map.h>
 #include <mach/regs-clock.h>
 
 #include <plat/cpu.h>
-#include <plat/devs.h>
 #include <plat/clock.h>
-#include <plat/fb-core.h>
-#include <plat/s5pv210.h>
+#include <plat/devs.h>
+#include <plat/sdhci.h>
 #include <plat/adc-core.h>
 #include <plat/ata-core.h>
+#include <plat/fb-core.h>
 #include <plat/fimc-core.h>
 #include <plat/iic-core.h>
 #include <plat/keypad-core.h>
-#include <plat/sdhci.h>
-#include <plat/reset.h>
 #include <plat/tv-core.h>
+#include <plat/regs-serial.h>
+
+#include "common.h"
+
+static const char name_s5pv210[] = "S5PV210/S5PC110";
+
+static struct cpu_table cpu_ids[] __initdata = {
+	{
+		.idcode		= S5PV210_CPU_ID,
+		.idmask		= S5PV210_CPU_MASK,
+		.map_io		= s5pv210_map_io,
+		.init_clocks	= s5pv210_init_clocks,
+		.init_uarts	= s5pv210_init_uarts,
+		.init		= s5pv210_init,
+		.name		= name_s5pv210,
+	},
+};
 
 /* Initial IO mappings */
 
 static struct map_desc s5pv210_iodesc[] __initdata = {
 	{
+		.virtual	= (unsigned long)S5P_VA_CHIPID,
+		.pfn		= __phys_to_pfn(S5PV210_PA_CHIPID),
+		.length		= SZ_4K,
+		.type		= MT_DEVICE,
+	}, {
+		.virtual	= (unsigned long)S3C_VA_SYS,
+		.pfn		= __phys_to_pfn(S5PV210_PA_SYSCON),
+		.length		= SZ_64K,
+		.type		= MT_DEVICE,
+	}, {
+		.virtual	= (unsigned long)S3C_VA_TIMER,
+		.pfn		= __phys_to_pfn(S5PV210_PA_TIMER),
+		.length		= SZ_16K,
+		.type		= MT_DEVICE,
+	}, {
+		.virtual	= (unsigned long)S3C_VA_WATCHDOG,
+		.pfn		= __phys_to_pfn(S5PV210_PA_WATCHDOG),
+		.length		= SZ_4K,
+		.type		= MT_DEVICE,
+	}, {
+		.virtual	= (unsigned long)S5P_VA_SROMC,
+		.pfn		= __phys_to_pfn(S5PV210_PA_SROMC),
+		.length		= SZ_4K,
+		.type		= MT_DEVICE,
+	}, {
 		.virtual	= (unsigned long)S5P_VA_SYSTIMER,
 		.pfn		= __phys_to_pfn(S5PV210_PA_SYSTIMER),
 		.length		= SZ_4K,
@@ -108,19 +150,32 @@ static void s5pv210_idle(void)
 	local_irq_enable();
 }
 
-static void s5pv210_sw_reset(void)
+void s5pv210_restart(char mode, const char *cmd)
 {
 	__raw_writel(0x1, S5P_SWRESET);
 }
 
-/* s5pv210_map_io
+/*
+ * s5pv210_map_io
  *
  * register the standard cpu IO areas
-*/
+ */
+
+void __init s5pv210_init_io(struct map_desc *mach_desc, int size)
+{
+	/* initialize the io descriptors we need for initialization */
+	iotable_init(s5pv210_iodesc, ARRAY_SIZE(s5pv210_iodesc));
+	if (mach_desc)
+		iotable_init(mach_desc, size);
+
+	/* detect cpu id and rev. */
+	s5p_init_cpu(S5P_VA_CHIPID);
+
+	s3c_init_cpu(samsung_cpu_id, cpu_ids, ARRAY_SIZE(cpu_ids));
+}
 
 void __init s5pv210_map_io(void)
 {
-	iotable_init(s5pv210_iodesc, ARRAY_SIZE(s5pv210_iodesc));
 	init_consistent_dma_size(14 << 20);
 
 	/* initialise device information early */
@@ -186,7 +241,6 @@ static int __init s5pv210_core_init(void)
 {
 	return sysdev_class_register(&s5pv210_sysclass);
 }
-
 core_initcall(s5pv210_core_init);
 
 int __init s5pv210_init(void)
@@ -196,8 +250,31 @@ int __init s5pv210_init(void)
 	/* set idle function */
 	pm_idle = s5pv210_idle;
 
-	/* set sw_reset function */
-	s5p_reset_hook = s5pv210_sw_reset;
-
 	return sysdev_register(&s5pv210_sysdev);
+}
+
+static struct s3c24xx_uart_clksrc s5pv210_serial_clocks[] = {
+	[0] = {
+		.name		= "pclk",
+		.divisor	= 1,
+		.min_baud	= 0,
+		.max_baud	= 0,
+	},
+};
+
+/* uart registration process */
+
+void __init s5pv210_init_uarts(struct s3c2410_uartcfg *cfg, int no)
+{
+	struct s3c2410_uartcfg *tcfg = cfg;
+	u32 ucnt;
+
+	for (ucnt = 0; ucnt < no; ucnt++, tcfg++) {
+		if (!tcfg->clocks) {
+			tcfg->clocks = s5pv210_serial_clocks;
+			tcfg->clocks_size = ARRAY_SIZE(s5pv210_serial_clocks);
+		}
+	}
+
+	s3c24xx_init_uartdevs("s5pv210-uart", s5p_uart_resources, cfg, no);
 }

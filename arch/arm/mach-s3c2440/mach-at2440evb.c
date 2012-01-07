@@ -49,6 +49,8 @@
 #include <plat/cpu.h>
 #include <plat/mci.h>
 
+#include "common.h"
+
 static struct map_desc at2440evb_iodesc[] __initdata = {
 	/* Nothing here */
 };
@@ -238,4 +240,5 @@ MACHINE_START(AT2440EVB, "AT2440EVB")
 	.init_machine	= at2440evb_init,
 	.init_irq	= s3c24xx_init_irq,
 	.timer		= &s3c24xx_timer,
+	.restart	= s3c2440_restart,
 MACHINE_END

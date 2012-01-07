@@ -42,7 +42,7 @@ static void __iomem *mxs_clkctrl_reset_addr;
 /*
  * Reset the system. It is called by machine_restart().
  */
-void arch_reset(char mode, const char *cmd)
+void mxs_restart(char mode, const char *cmd)
 {
 	/* reset the chip */
 	__mxs_setl(MXS_CLKCTRL_RESET_CHIP, mxs_clkctrl_reset_addr);

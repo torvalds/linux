@@ -35,6 +35,9 @@ void fimc_hw_reset(struct fimc_dev *dev)
 	cfg = readl(dev->regs + S5P_CIGCTRL);
 	cfg &= ~S5P_CIGCTRL_SWRST;
 	writel(cfg, dev->regs + S5P_CIGCTRL);
+
+	if (dev->variant->out_buf_count > 4)
+		fimc_hw_set_dma_seq(dev, 0xF);
 }
 
 static u32 fimc_hw_get_in_flip(struct fimc_ctx *ctx)
@@ -251,7 +254,14 @@ static void fimc_hw_set_scaler(struct fimc_ctx *ctx)
 	struct fimc_scaler *sc = &ctx->scaler;
 	struct fimc_frame *src_frame = &ctx->s_frame;
 	struct fimc_frame *dst_frame = &ctx->d_frame;
-	u32 cfg = 0;
+
+	u32 cfg = readl(dev->regs + S5P_CISCCTRL);
+
+	cfg &= ~(S5P_CISCCTRL_CSCR2Y_WIDE | S5P_CISCCTRL_CSCY2R_WIDE |
+		 S5P_CISCCTRL_SCALEUP_H | S5P_CISCCTRL_SCALEUP_V |
+		 S5P_CISCCTRL_SCALERBYPASS | S5P_CISCCTRL_ONE2ONE |
+		 S5P_CISCCTRL_INRGB_FMT_MASK | S5P_CISCCTRL_OUTRGB_FMT_MASK |
+		 S5P_CISCCTRL_INTERLACE | S5P_CISCCTRL_RGB_EXT);
 
 	if (!(ctx->flags & FIMC_COLOR_RANGE_NARROW))
 		cfg |= (S5P_CISCCTRL_CSCR2Y_WIDE | S5P_CISCCTRL_CSCY2R_WIDE);
@@ -308,9 +318,9 @@ void fimc_hw_set_mainscaler(struct fimc_ctx *ctx)
 	fimc_hw_set_scaler(ctx);
 
 	cfg = readl(dev->regs + S5P_CISCCTRL);
+	cfg &= ~(S5P_CISCCTRL_MHRATIO_MASK | S5P_CISCCTRL_MVRATIO_MASK);
 
 	if (variant->has_mainscaler_ext) {
-		cfg &= ~(S5P_CISCCTRL_MHRATIO_MASK | S5P_CISCCTRL_MVRATIO_MASK);
 		cfg |= S5P_CISCCTRL_MHRATIO_EXT(sc->main_hratio);
 		cfg |= S5P_CISCCTRL_MVRATIO_EXT(sc->main_vratio);
 		writel(cfg, dev->regs + S5P_CISCCTRL);
@@ -323,7 +333,6 @@ void fimc_hw_set_mainscaler(struct fimc_ctx *ctx)
 		cfg |= S5P_CIEXTEN_MVRATIO_EXT(sc->main_vratio);
 		writel(cfg, dev->regs + S5P_CIEXTEN);
 	} else {
-		cfg &= ~(S5P_CISCCTRL_MHRATIO_MASK | S5P_CISCCTRL_MVRATIO_MASK);
 		cfg |= S5P_CISCCTRL_MHRATIO(sc->main_hratio);
 		cfg |= S5P_CISCCTRL_MVRATIO(sc->main_vratio);
 		writel(cfg, dev->regs + S5P_CISCCTRL);

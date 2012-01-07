@@ -329,4 +329,5 @@ MACHINE_START(TS209, "QNAP TS-109/TS-209")
 	.init_irq	= orion5x_init_irq,
 	.timer		= &orion5x_timer,
 	.fixup		= tag_fixup_mem32,
+	.restart	= orion5x_restart,
 MACHINE_END
