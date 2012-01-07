@@ -4773,6 +4773,8 @@ megasas_mgmt_fw_ioctl(struct megasas_instance *instance,
 	memcpy(cmd->frame, ioc->frame.raw, 2 * MEGAMFI_FRAME_SIZE);
 	cmd->frame->hdr.context = cmd->index;
 	cmd->frame->hdr.pad_0 = 0;
+	cmd->frame->hdr.flags &= ~(MFI_FRAME_IEEE | MFI_FRAME_SGL64 |
+				   MFI_FRAME_SENSE64);
 
 	/*
 	 * The management interface between applications and the fw uses
