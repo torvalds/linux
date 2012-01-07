@@ -83,9 +83,6 @@ typedef struct dtl1_info_t {
 
 
 static int dtl1_config(struct pcmcia_device *link);
-static void dtl1_release(struct pcmcia_device *link);
-
-static void dtl1_detach(struct pcmcia_device *p_dev);
 
 
 /* Transmit states  */
@@ -579,8 +576,8 @@ static void dtl1_detach(struct pcmcia_device *link)
 {
 	dtl1_info_t *info = link->priv;
 
-	dtl1_release(link);
-
+	dtl1_close(info);
+	pcmcia_disable_device(link);
 	kfree(info);
 }
 
@@ -619,20 +616,9 @@ static int dtl1_config(struct pcmcia_device *link)
 	return 0;
 
 failed:
-	dtl1_release(link);
+	dtl1_detach(link);
 	return -ENODEV;
 }
-
-
-static void dtl1_release(struct pcmcia_device *link)
-{
-	dtl1_info_t *info = link->priv;
-
-	dtl1_close(info);
-
-	pcmcia_disable_device(link);
-}
-
 
 static const struct pcmcia_device_id dtl1_ids[] = {
 	PCMCIA_DEVICE_PROD_ID12("Nokia Mobile Phones", "DTL-1", 0xe1bfdd64, 0xe168480d),
