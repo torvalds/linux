@@ -642,8 +642,7 @@ static void ieee80211_sta_merge_ibss(struct ieee80211_sub_if_data *sdata)
 	       "IBSS networks with same SSID (merge)\n", sdata->name);
 
 	ieee80211_request_internal_scan(sdata,
-			ifibss->ssid, ifibss->ssid_len,
-			ifibss->fixed_channel ? ifibss->channel : NULL);
+			ifibss->ssid, ifibss->ssid_len, NULL);
 }
 
 static void ieee80211_sta_create_ibss(struct ieee80211_sub_if_data *sdata)
