@@ -1135,7 +1135,7 @@ static int cx231xx_usb_probe(struct usb_interface *interface,
 	cx231xx_info("registering interface %d\n", ifnum);
 
 	/* save our data pointer in this interface device */
-	usb_set_intfdata(lif, dev);
+	usb_set_intfdata(interface, dev);
 
 	/*
 	 * AV device initialization - only done at the last interface
@@ -1157,7 +1157,7 @@ static int cx231xx_usb_probe(struct usb_interface *interface,
 		v4l2_device_unregister(&dev->v4l2_dev);
 		kfree(dev);
 		dev = NULL;
-		usb_set_intfdata(lif, NULL);
+		usb_set_intfdata(interface, NULL);
 
 		return retval;
 	}
