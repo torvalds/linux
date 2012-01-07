@@ -595,8 +595,10 @@ static inline void hci_conn_put(struct hci_conn *conn)
 /* ----- HCI Devices ----- */
 static inline void __hci_dev_put(struct hci_dev *d)
 {
-	if (atomic_dec_and_test(&d->refcnt))
-		d->destruct(d);
+	if (atomic_dec_and_test(&d->refcnt)) {
+		if (d->destruct)
+			d->destruct(d);
+	}
 }
 
 /*

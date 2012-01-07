@@ -1551,7 +1551,7 @@ int hci_register_dev(struct hci_dev *hdev)
 	BT_DBG("%p name %s bus %d owner %p", hdev, hdev->name,
 						hdev->bus, hdev->owner);
 
-	if (!hdev->open || !hdev->close || !hdev->destruct)
+	if (!hdev->open || !hdev->close)
 		return -EINVAL;
 
 	/* Do not allow HCI_AMP devices to register at index 0,
