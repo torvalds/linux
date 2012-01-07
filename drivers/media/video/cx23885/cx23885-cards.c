@@ -492,6 +492,11 @@ struct cx23885_board cx23885_boards[] = {
 					CX25840_VIN7_CH3,
 			},
 		},
+	},
+	[CX23885_BOARD_TERRATEC_CINERGY_T_PCIE_DUAL] = {
+		.name		= "TerraTec Cinergy T PCIe Dual",
+		.portb		= CX23885_MPEG_DVB,
+		.portc		= CX23885_MPEG_DVB,
 	}
 };
 const unsigned int cx23885_bcount = ARRAY_SIZE(cx23885_boards);
@@ -696,6 +701,10 @@ struct cx23885_subid cx23885_subids[] = {
 		.subvendor = 0x14f1,
 		.subdevice = 0x8502,
 		.card      = CX23885_BOARD_MYGICA_X8507,
+	}, {
+		.subvendor = 0x153b,
+		.subdevice = 0x117e,
+		.card      = CX23885_BOARD_TERRATEC_CINERGY_T_PCIE_DUAL,
 	},
 };
 const unsigned int cx23885_idcount = ARRAY_SIZE(cx23885_subids);
@@ -1458,6 +1467,7 @@ void cx23885_card_setup(struct cx23885_dev *dev)
 		break;
 	case CX23885_BOARD_NETUP_DUAL_DVBS2_CI:
 	case CX23885_BOARD_NETUP_DUAL_DVB_T_C_CI_RF:
+	case CX23885_BOARD_TERRATEC_CINERGY_T_PCIE_DUAL:
 		ts1->gen_ctrl_val  = 0xc; /* Serial bus + punctured clock */
 		ts1->ts_clk_en_val = 0x1; /* Enable TS_CLK */
 		ts1->src_sel_val   = CX23885_SRC_SEL_PARALLEL_MPEG_VIDEO;
@@ -1530,6 +1540,7 @@ void cx23885_card_setup(struct cx23885_dev *dev)
 	case CX23885_BOARD_HAUPPAUGE_HVR1500:
 	case CX23885_BOARD_MPX885:
 	case CX23885_BOARD_MYGICA_X8507:
+	case CX23885_BOARD_TERRATEC_CINERGY_T_PCIE_DUAL:
 		dev->sd_cx25840 = v4l2_i2c_new_subdev(&dev->v4l2_dev,
 				&dev->i2c_bus[2].i2c_adap,
 				"cx25840", 0x88 >> 1, NULL);

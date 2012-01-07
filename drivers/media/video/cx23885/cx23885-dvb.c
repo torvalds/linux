@@ -61,6 +61,8 @@
 #include "cx23885-f300.h"
 #include "altera-ci.h"
 #include "stv0367.h"
+#include "drxk.h"
+#include "mt2063.h"
 
 static unsigned int debug;
 
@@ -600,6 +602,24 @@ static struct xc5000_config netup_xc5000_config[] = {
 	},
 };
 
+static struct drxk_config terratec_drxk_config[] = {
+	{
+		.adr = 0x29,
+		.no_i2c_bridge = 1,
+	}, {
+		.adr = 0x2a,
+		.no_i2c_bridge = 1,
+	},
+};
+
+static struct mt2063_config terratec_mt2063_config[] = {
+	{
+		.tuner_address = 0x60,
+	}, {
+		.tuner_address = 0x67,
+	},
+};
+
 int netup_altera_fpga_rw(void *device, int flag, int data, int read)
 {
 	struct cx23885_dev *dev = (struct cx23885_dev *)device;
@@ -1113,6 +1133,39 @@ static int dvb_register(struct cx23885_tsport *port)
 					&i2c_bus->i2c_adap,
 					&netup_xc5000_config[port->nr - 1]))
 				goto frontend_detach;
+		}
+		break;
+	case CX23885_BOARD_TERRATEC_CINERGY_T_PCIE_DUAL:
+		i2c_bus = &dev->i2c_bus[0];
+		i2c_bus2 = &dev->i2c_bus[1];
+
+		switch (port->nr) {
+		/* port b */
+		case 1:
+			fe0->dvb.frontend = dvb_attach(drxk_attach,
+					&terratec_drxk_config[0],
+					&i2c_bus->i2c_adap);
+			if (fe0->dvb.frontend != NULL) {
+				if (!dvb_attach(mt2063_attach,
+						fe0->dvb.frontend,
+						&terratec_mt2063_config[0],
+						&i2c_bus2->i2c_adap))
+					goto frontend_detach;
+			}
+			break;
+		/* port c */
+		case 2:
+			fe0->dvb.frontend = dvb_attach(drxk_attach,
+					&terratec_drxk_config[1],
+					&i2c_bus->i2c_adap);
+			if (fe0->dvb.frontend != NULL) {
+				if (!dvb_attach(mt2063_attach,
+						fe0->dvb.frontend,
+						&terratec_mt2063_config[1],
+						&i2c_bus2->i2c_adap))
+					goto frontend_detach;
+			}
+			break;
 		}
 		break;
 	default:
