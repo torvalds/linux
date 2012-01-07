@@ -430,6 +430,9 @@ struct d11regs {
 	u16 PAD[0x380];	/* 0x800 - 0xEFE */
 };
 
+/* d11 register field offset */
+#define D11REGOFFS(field)	offsetof(struct d11regs, field)
+
 #define	PIHR_BASE	0x0400	/* byte address of packed IHR region */
 
 /* biststatus */

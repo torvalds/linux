@@ -164,7 +164,7 @@ void originator_free(struct bat_priv *bat_priv)
 	struct hlist_head *head;
 	spinlock_t *list_lock; /* spinlock to protect write access */
 	struct orig_node *orig_node;
-	int i;
+	uint32_t i;
 
 	if (!hash)
 		return;
@@ -350,7 +350,7 @@ static void _purge_orig(struct bat_priv *bat_priv)
 	struct hlist_head *head;
 	spinlock_t *list_lock; /* spinlock to protect write access */
 	struct orig_node *orig_node;
-	int i;
+	uint32_t i;
 
 	if (!hash)
 		return;
@@ -413,7 +413,8 @@ int orig_seq_print_text(struct seq_file *seq, void *offset)
 	int batman_count = 0;
 	int last_seen_secs;
 	int last_seen_msecs;
-	int i, ret = 0;
+	uint32_t i;
+	int ret = 0;
 
 	primary_if = primary_if_get_selected(bat_priv);
 
@@ -519,7 +520,8 @@ int orig_hash_add_if(struct hard_iface *hard_iface, int max_if_num)
 	struct hlist_node *node;
 	struct hlist_head *head;
 	struct orig_node *orig_node;
-	int i, ret;
+	uint32_t i;
+	int ret;
 
 	/* resize all orig nodes because orig_node->bcast_own(_sum) depend on
 	 * if_num */
@@ -601,7 +603,8 @@ int orig_hash_del_if(struct hard_iface *hard_iface, int max_if_num)
 	struct hlist_head *head;
 	struct hard_iface *hard_iface_tmp;
 	struct orig_node *orig_node;
-	int i, ret;
+	uint32_t i;
+	int ret;
 
 	/* resize all orig nodes because orig_node->bcast_own(_sum) depend on
 	 * if_num */

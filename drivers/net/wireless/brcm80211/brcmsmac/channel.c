@@ -1153,121 +1153,6 @@ brcms_c_channel_set_chanspec(struct brcms_cm_info *wlc_cm, u16 chanspec,
 			      &txpwr);
 }
 
-#ifdef POWER_DBG
-static void wlc_phy_txpower_limits_dump(struct txpwr_limits *txpwr)
-{
-	int i;
-	char buf[80];
-	char fraction[4][4] = { "   ", ".25", ".5 ", ".75" };
-
-	sprintf(buf, "CCK                ");
-	for (i = 0; i < BRCMS_NUM_RATES_CCK; i++)
-		sprintf(buf[strlen(buf)], " %2d%s",
-			txpwr->cck[i] / BRCMS_TXPWR_DB_FACTOR,
-			fraction[txpwr->cck[i] % BRCMS_TXPWR_DB_FACTOR]);
-	printk(KERN_DEBUG "%s\n", buf);
-
-	sprintf(buf, "20 MHz OFDM SISO   ");
-	for (i = 0; i < BRCMS_NUM_RATES_OFDM; i++)
-		sprintf(buf[strlen(buf)], " %2d%s",
-			txpwr->ofdm[i] / BRCMS_TXPWR_DB_FACTOR,
-			fraction[txpwr->ofdm[i] % BRCMS_TXPWR_DB_FACTOR]);
-	printk(KERN_DEBUG "%s\n", buf);
-
-	sprintf(buf, "20 MHz OFDM CDD    ");
-	for (i = 0; i < BRCMS_NUM_RATES_OFDM; i++)
-		sprintf(buf[strlen(buf)], " %2d%s",
-			txpwr->ofdm_cdd[i] / BRCMS_TXPWR_DB_FACTOR,
-			fraction[txpwr->ofdm_cdd[i] % BRCMS_TXPWR_DB_FACTOR]);
-	printk(KERN_DEBUG "%s\n", buf);
-
-	sprintf(buf, "40 MHz OFDM SISO   ");
-	for (i = 0; i < BRCMS_NUM_RATES_OFDM; i++)
-		sprintf(buf[strlen(buf)], " %2d%s",
-			txpwr->ofdm_40_siso[i] / BRCMS_TXPWR_DB_FACTOR,
-			fraction[txpwr->ofdm_40_siso[i] %
-							BRCMS_TXPWR_DB_FACTOR]);
-	printk(KERN_DEBUG "%s\n", buf);
-
-	sprintf(buf, "40 MHz OFDM CDD    ");
-	for (i = 0; i < BRCMS_NUM_RATES_OFDM; i++)
-		sprintf(buf[strlen(buf)], " %2d%s",
-			txpwr->ofdm_40_cdd[i] / BRCMS_TXPWR_DB_FACTOR,
-			fraction[txpwr->ofdm_40_cdd[i] %
-							BRCMS_TXPWR_DB_FACTOR]);
-	printk(KERN_DEBUG "%s\n", buf);
-
-	sprintf(buf, "20 MHz MCS0-7 SISO ");
-	for (i = 0; i < BRCMS_NUM_RATES_MCS_1_STREAM; i++)
-		sprintf(buf[strlen(buf)], " %2d%s",
-			txpwr->mcs_20_siso[i] / BRCMS_TXPWR_DB_FACTOR,
-			fraction[txpwr->mcs_20_siso[i] %
-							BRCMS_TXPWR_DB_FACTOR]);
-	printk(KERN_DEBUG "%s\n", buf);
-
-	sprintf(buf, "20 MHz MCS0-7 CDD  ");
-	for (i = 0; i < BRCMS_NUM_RATES_MCS_1_STREAM; i++)
-		sprintf(buf[strlen(buf)], " %2d%s",
-			txpwr->mcs_20_cdd[i] / BRCMS_TXPWR_DB_FACTOR,
-			fraction[txpwr->mcs_20_cdd[i] %
-							BRCMS_TXPWR_DB_FACTOR]);
-	printk(KERN_DEBUG "%s\n", buf);
-
-	sprintf(buf, "20 MHz MCS0-7 STBC ");
-	for (i = 0; i < BRCMS_NUM_RATES_MCS_1_STREAM; i++)
-		sprintf(buf[strlen(buf)], " %2d%s",
-			txpwr->mcs_20_stbc[i] / BRCMS_TXPWR_DB_FACTOR,
-			fraction[txpwr->mcs_20_stbc[i] %
-							BRCMS_TXPWR_DB_FACTOR]);
-	printk(KERN_DEBUG "%s\n", buf);
-
-	sprintf(buf, "20 MHz MCS8-15 SDM ");
-	for (i = 0; i < BRCMS_NUM_RATES_MCS_2_STREAM; i++)
-		sprintf(buf[strlen(buf)], " %2d%s",
-			txpwr->mcs_20_mimo[i] / BRCMS_TXPWR_DB_FACTOR,
-			fraction[txpwr->mcs_20_mimo[i] %
-							BRCMS_TXPWR_DB_FACTOR]);
-	printk(KERN_DEBUG "%s\n", buf);
-
-	sprintf(buf, "40 MHz MCS0-7 SISO ");
-	for (i = 0; i < BRCMS_NUM_RATES_MCS_1_STREAM; i++)
-		sprintf(buf[strlen(buf)], " %2d%s",
-			txpwr->mcs_40_siso[i] / BRCMS_TXPWR_DB_FACTOR,
-			fraction[txpwr->mcs_40_siso[i] %
-							BRCMS_TXPWR_DB_FACTOR]);
-	printk(KERN_DEBUG "%s\n", buf);
-
-	sprintf(buf, "40 MHz MCS0-7 CDD  ");
-	for (i = 0; i < BRCMS_NUM_RATES_MCS_1_STREAM; i++)
-		sprintf(buf[strlen(buf)], " %2d%s",
-			txpwr->mcs_40_cdd[i] / BRCMS_TXPWR_DB_FACTOR,
-			fraction[txpwr->mcs_40_cdd[i] %
-							BRCMS_TXPWR_DB_FACTOR]);
-	printk(KERN_DEBUG "%s\n", buf);
-
-	sprintf(buf, "40 MHz MCS0-7 STBC ");
-	for (i = 0; i < BRCMS_NUM_RATES_MCS_1_STREAM; i++)
-		sprintf(buf[strlen(buf)], " %2d%s",
-			txpwr->mcs_40_stbc[i] / BRCMS_TXPWR_DB_FACTOR,
-			fraction[txpwr->mcs_40_stbc[i] %
-							BRCMS_TXPWR_DB_FACTOR]);
-	printk(KERN_DEBUG "%s\n", buf);
-
-	sprintf(buf, "40 MHz MCS8-15 SDM ");
-	for (i = 0; i < BRCMS_NUM_RATES_MCS_2_STREAM; i++)
-		sprintf(buf[strlen(buf)], " %2d%s",
-			txpwr->mcs_40_mimo[i] / BRCMS_TXPWR_DB_FACTOR,
-			fraction[txpwr->mcs_40_mimo[i] %
-							BRCMS_TXPWR_DB_FACTOR]);
-	}
-	printk(KERN_DEBUG "%s\n", buf);
-
-	printk(KERN_DEBUG "MCS32               %2d%s\n",
-	       txpwr->mcs32 / BRCMS_TXPWR_DB_FACTOR,
-	       fraction[txpwr->mcs32 % BRCMS_TXPWR_DB_FACTOR]);
-}
-#endif				/* POWER_DBG */
-
 void
 brcms_c_channel_reg_limits(struct brcms_cm_info *wlc_cm, u16 chanspec,
 		       struct txpwr_limits *txpwr)
@@ -1478,9 +1363,6 @@ brcms_c_channel_reg_limits(struct brcms_cm_info *wlc_cm, u16 chanspec,
 			txpwr->mcs_40_stbc[i] = txpwr->mcs_40_cdd[i];
 	}
 
-#ifdef POWER_DBG
-	wlc_phy_txpower_limits_dump(txpwr);
-#endif
 	return;
 }
 

@@ -35,6 +35,7 @@
 #define DRV_VERSION	"1.5.0"
 #define DRV_RELDATE	"2010-10-09"
 
+#include <linux/types.h>
 
 /* A few user-configurable values.
    These may be modified when a driver module is loaded. */
@@ -55,7 +56,7 @@ static int rx_copybreak;
 
 /* Work-around for broken BIOSes: they are unable to get the chip back out of
    power state D3 so PXE booting fails. bootparam(7): via-rhine.avoid_D3=1 */
-static int avoid_D3;
+static bool avoid_D3;
 
 /*
  * In case you are looking for 'options[]' or 'full_duplex[]', they
@@ -488,8 +489,8 @@ static int netdev_ioctl(struct net_device *dev, struct ifreq *rq, int cmd);
 static const struct ethtool_ops netdev_ethtool_ops;
 static int  rhine_close(struct net_device *dev);
 static void rhine_shutdown (struct pci_dev *pdev);
-static void rhine_vlan_rx_add_vid(struct net_device *dev, unsigned short vid);
-static void rhine_vlan_rx_kill_vid(struct net_device *dev, unsigned short vid);
+static int rhine_vlan_rx_add_vid(struct net_device *dev, unsigned short vid);
+static int rhine_vlan_rx_kill_vid(struct net_device *dev, unsigned short vid);
 static void rhine_set_cam(void __iomem *ioaddr, int idx, u8 *addr);
 static void rhine_set_vlan_cam(void __iomem *ioaddr, int idx, u8 *addr);
 static void rhine_set_cam_mask(void __iomem *ioaddr, u32 mask);
@@ -1261,7 +1262,7 @@ static void rhine_update_vcam(struct net_device *dev)
 	rhine_set_vlan_cam_mask(ioaddr, vCAMmask);
 }
 
-static void rhine_vlan_rx_add_vid(struct net_device *dev, unsigned short vid)
+static int rhine_vlan_rx_add_vid(struct net_device *dev, unsigned short vid)
 {
 	struct rhine_private *rp = netdev_priv(dev);
 
@@ -1269,9 +1270,10 @@ static void rhine_vlan_rx_add_vid(struct net_device *dev, unsigned short vid)
 	set_bit(vid, rp->active_vlans);
 	rhine_update_vcam(dev);
 	spin_unlock_irq(&rp->lock);
+	return 0;
 }
 
-static void rhine_vlan_rx_kill_vid(struct net_device *dev, unsigned short vid)
+static int rhine_vlan_rx_kill_vid(struct net_device *dev, unsigned short vid)
 {
 	struct rhine_private *rp = netdev_priv(dev);
 
@@ -1279,6 +1281,7 @@ static void rhine_vlan_rx_kill_vid(struct net_device *dev, unsigned short vid)
 	clear_bit(vid, rp->active_vlans);
 	rhine_update_vcam(dev);
 	spin_unlock_irq(&rp->lock);
+	return 0;
 }
 
 static void init_registers(struct net_device *dev)
@@ -2009,9 +2012,9 @@ static void netdev_get_drvinfo(struct net_device *dev, struct ethtool_drvinfo *i
 {
 	struct rhine_private *rp = netdev_priv(dev);
 
-	strcpy(info->driver, DRV_NAME);
-	strcpy(info->version, DRV_VERSION);
-	strcpy(info->bus_info, pci_name(rp->pdev));
+	strlcpy(info->driver, DRV_NAME, sizeof(info->driver));
+	strlcpy(info->version, DRV_VERSION, sizeof(info->version));
+	strlcpy(info->bus_info, pci_name(rp->pdev), sizeof(info->bus_info));
 }
 
 static int netdev_get_settings(struct net_device *dev, struct ethtool_cmd *cmd)
@@ -2320,7 +2323,7 @@ static int __init rhine_init(void)
 #endif
 	if (dmi_check_system(rhine_dmi_table)) {
 		/* these BIOSes fail at PXE boot if chip is in D3 */
-		avoid_D3 = 1;
+		avoid_D3 = true;
 		pr_warn("Broken BIOS detected, avoid_D3 enabled\n");
 	}
 	else if (avoid_D3)

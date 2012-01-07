@@ -411,17 +411,7 @@ static struct platform_driver mpc5xxx_can_driver = {
 #endif
 };
 
-static int __init mpc5xxx_can_init(void)
-{
-	return platform_driver_register(&mpc5xxx_can_driver);
-}
-module_init(mpc5xxx_can_init);
-
-static void __exit mpc5xxx_can_exit(void)
-{
-	platform_driver_unregister(&mpc5xxx_can_driver);
-};
-module_exit(mpc5xxx_can_exit);
+module_platform_driver(mpc5xxx_can_driver);
 
 MODULE_AUTHOR("Wolfgang Grandegger <wg@grandegger.com>");
 MODULE_DESCRIPTION("Freescale MPC5xxx CAN driver");

@@ -1348,7 +1348,8 @@ static int nes_addr_resolve_neigh(struct nes_vnic *nesvnic, u32 dst_ip, int arpi
 	else
 		netdev = nesvnic->netdev;
 
-	neigh = neigh_lookup(&arp_tbl, &rt->rt_gateway, netdev);
+	rcu_read_lock();
+	neigh = dst_get_neighbour_noref(&rt->dst);
 	if (neigh) {
 		if (neigh->nud_state & NUD_VALID) {
 			nes_debug(NES_DBG_CM, "Neighbor MAC address for 0x%08X"
@@ -1359,7 +1360,6 @@ static int nes_addr_resolve_neigh(struct nes_vnic *nesvnic, u32 dst_ip, int arpi
 				if (!memcmp(nesadapter->arp_table[arpindex].mac_addr,
 					    neigh->ha, ETH_ALEN)) {
 					/* Mac address same as in nes_arp_table */
-					neigh_release(neigh);
 					ip_rt_put(rt);
 					return rc;
 				}
@@ -1373,15 +1373,11 @@ static int nes_addr_resolve_neigh(struct nes_vnic *nesvnic, u32 dst_ip, int arpi
 					     dst_ip, NES_ARP_ADD);
 			rc = nes_arp_table(nesvnic->nesdev, dst_ip, NULL,
 					   NES_ARP_RESOLVE);
+		} else {
+			neigh_event_send(neigh, NULL);
 		}
-		neigh_release(neigh);
 	}
-
-	if ((neigh == NULL) || (!(neigh->nud_state & NUD_VALID))) {
-		rcu_read_lock();
-		neigh_event_send(dst_get_neighbour(&rt->dst), NULL);
-		rcu_read_unlock();
-	}
+	rcu_read_unlock();
 	ip_rt_put(rt);
 	return rc;
 }

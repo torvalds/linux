@@ -47,20 +47,21 @@ do {									\
 } while (0)
 
 #ifdef CONFIG_IWLWIFI_DEBUG
-#define IWL_DEBUG(m, level, fmt, args...)				\
+#define IWL_DEBUG(m, level, fmt, ...)					\
 do {									\
 	if (iwl_get_debug_level((m)->shrd) & (level))			\
-		dev_printk(KERN_ERR, bus(m)->dev,			\
-			 "%c %s " fmt, in_interrupt() ? 'I' : 'U',	\
-			__func__ , ## args);				\
+		dev_err(bus(m)->dev, "%c %s " fmt,			\
+			in_interrupt() ? 'I' : 'U', __func__,		\
+			##__VA_ARGS__);					\
 } while (0)
 
-#define IWL_DEBUG_LIMIT(m, level, fmt, args...)				\
+#define IWL_DEBUG_LIMIT(m, level, fmt, ...)				\
 do {									\
-	if (iwl_get_debug_level((m)->shrd) & (level) && net_ratelimit())\
-		dev_printk(KERN_ERR, bus(m)->dev,			\
-			"%c %s " fmt, in_interrupt() ? 'I' : 'U',	\
-			 __func__ , ## args);				\
+	if (iwl_get_debug_level((m)->shrd) & (level) &&			\
+	    net_ratelimit())						\
+		dev_err(bus(m)->dev, "%c %s " fmt,			\
+			in_interrupt() ? 'I' : 'U', __func__,		\
+			##__VA_ARGS__);					\
 } while (0)
 
 #define iwl_print_hex_dump(m, level, p, len)				\
@@ -70,10 +71,29 @@ do {                                            			\
 			       DUMP_PREFIX_OFFSET, 16, 1, p, len, 1);	\
 } while (0)
 
+#define IWL_DEBUG_QUIET_RFKILL(p, fmt, ...)				\
+do {									\
+	if (!iwl_is_rfkill(p->shrd))					\
+		dev_err(bus(p)->dev, "%s%c %s " fmt,			\
+			"",						\
+			in_interrupt() ? 'I' : 'U', __func__,		\
+			##__VA_ARGS__);					\
+	else if	(iwl_get_debug_level(p->shrd) & IWL_DL_RADIO)		\
+		dev_err(bus(p)->dev, "%s%c %s " fmt,			\
+			"(RFKILL) ",					\
+			in_interrupt() ? 'I' : 'U', __func__,		\
+			##__VA_ARGS__);					\
+} while (0)
+
 #else
 #define IWL_DEBUG(m, level, fmt, args...)
 #define IWL_DEBUG_LIMIT(m, level, fmt, args...)
 #define iwl_print_hex_dump(m, level, p, len)
+#define IWL_DEBUG_QUIET_RFKILL(p, fmt, args...)	\
+do {							\
+	if (!iwl_is_rfkill(p->shrd))			\
+		IWL_ERR(p, fmt, ##args);		\
+} while (0)
 #endif				/* CONFIG_IWLWIFI_DEBUG */
 
 #ifdef CONFIG_IWLWIFI_DEBUGFS
@@ -114,48 +134,43 @@ static inline void iwl_dbgfs_unregister(struct iwl_priv *priv)
  */
 
 /* 0x0000000F - 0x00000001 */
-#define IWL_DL_INFO		(1 << 0)
-#define IWL_DL_MAC80211		(1 << 1)
-#define IWL_DL_HCMD		(1 << 2)
-#define IWL_DL_STATE		(1 << 3)
+#define IWL_DL_INFO		0x00000001
+#define IWL_DL_MAC80211		0x00000002
+#define IWL_DL_HCMD		0x00000004
+#define IWL_DL_STATE		0x00000008
 /* 0x000000F0 - 0x00000010 */
-#define IWL_DL_MACDUMP		(1 << 4)
-#define IWL_DL_HCMD_DUMP	(1 << 5)
-#define IWL_DL_EEPROM		(1 << 6)
-#define IWL_DL_RADIO		(1 << 7)
+#define IWL_DL_EEPROM		0x00000040
+#define IWL_DL_RADIO		0x00000080
 /* 0x00000F00 - 0x00000100 */
-#define IWL_DL_POWER		(1 << 8)
-#define IWL_DL_TEMP		(1 << 9)
-/* reserved (1 << 10) */
-#define IWL_DL_SCAN		(1 << 11)
+#define IWL_DL_POWER		0x00000100
+#define IWL_DL_TEMP		0x00000200
+#define IWL_DL_SCAN		0x00000800
 /* 0x0000F000 - 0x00001000 */
-#define IWL_DL_ASSOC		(1 << 12)
-#define IWL_DL_DROP		(1 << 13)
-/* reserved (1 << 14) */
-#define IWL_DL_COEX		(1 << 15)
+#define IWL_DL_ASSOC		0x00001000
+#define IWL_DL_DROP		0x00002000
+#define IWL_DL_COEX		0x00008000
 /* 0x000F0000 - 0x00010000 */
-#define IWL_DL_FW		(1 << 16)
-#define IWL_DL_RF_KILL		(1 << 17)
-#define IWL_DL_FW_ERRORS	(1 << 18)
-#define IWL_DL_LED		(1 << 19)
+#define IWL_DL_FW		0x00010000
+#define IWL_DL_RF_KILL		0x00020000
+#define IWL_DL_FW_ERRORS	0x00040000
+#define IWL_DL_LED		0x00080000
 /* 0x00F00000 - 0x00100000 */
-#define IWL_DL_RATE		(1 << 20)
-#define IWL_DL_CALIB		(1 << 21)
-#define IWL_DL_WEP		(1 << 22)
-#define IWL_DL_TX		(1 << 23)
+#define IWL_DL_RATE		0x00100000
+#define IWL_DL_CALIB		0x00200000
+#define IWL_DL_WEP		0x00400000
+#define IWL_DL_TX		0x00800000
 /* 0x0F000000 - 0x01000000 */
-#define IWL_DL_RX		(1 << 24)
-#define IWL_DL_ISR		(1 << 25)
-#define IWL_DL_HT		(1 << 26)
+#define IWL_DL_RX		0x01000000
+#define IWL_DL_ISR		0x02000000
+#define IWL_DL_HT		0x04000000
 /* 0xF0000000 - 0x10000000 */
-#define IWL_DL_11H		(1 << 28)
-#define IWL_DL_STATS		(1 << 29)
-#define IWL_DL_TX_REPLY		(1 << 30)
-#define IWL_DL_QOS		(1 << 31)
+#define IWL_DL_11H		0x10000000
+#define IWL_DL_STATS		0x20000000
+#define IWL_DL_TX_REPLY		0x40000000
+#define IWL_DL_TX_QUEUES	0x80000000
 
 #define IWL_DEBUG_INFO(p, f, a...)	IWL_DEBUG(p, IWL_DL_INFO, f, ## a)
 #define IWL_DEBUG_MAC80211(p, f, a...)	IWL_DEBUG(p, IWL_DL_MAC80211, f, ## a)
-#define IWL_DEBUG_MACDUMP(p, f, a...)	IWL_DEBUG(p, IWL_DL_MACDUMP, f, ## a)
 #define IWL_DEBUG_TEMP(p, f, a...)	IWL_DEBUG(p, IWL_DL_TEMP, f, ## a)
 #define IWL_DEBUG_SCAN(p, f, a...)	IWL_DEBUG(p, IWL_DL_SCAN, f, ## a)
 #define IWL_DEBUG_RX(p, f, a...)	IWL_DEBUG(p, IWL_DL_RX, f, ## a)
@@ -164,7 +179,6 @@ static inline void iwl_dbgfs_unregister(struct iwl_priv *priv)
 #define IWL_DEBUG_LED(p, f, a...)	IWL_DEBUG(p, IWL_DL_LED, f, ## a)
 #define IWL_DEBUG_WEP(p, f, a...)	IWL_DEBUG(p, IWL_DL_WEP, f, ## a)
 #define IWL_DEBUG_HC(p, f, a...)	IWL_DEBUG(p, IWL_DL_HCMD, f, ## a)
-#define IWL_DEBUG_HC_DUMP(p, f, a...)	IWL_DEBUG(p, IWL_DL_HCMD_DUMP, f, ## a)
 #define IWL_DEBUG_EEPROM(p, f, a...)	IWL_DEBUG(p, IWL_DL_EEPROM, f, ## a)
 #define IWL_DEBUG_CALIB(p, f, a...)	IWL_DEBUG(p, IWL_DL_CALIB, f, ## a)
 #define IWL_DEBUG_FW(p, f, a...)	IWL_DEBUG(p, IWL_DL_FW, f, ## a)
@@ -186,9 +200,7 @@ static inline void iwl_dbgfs_unregister(struct iwl_priv *priv)
 #define IWL_DEBUG_STATS_LIMIT(p, f, a...)	\
 		IWL_DEBUG_LIMIT(p, IWL_DL_STATS, f, ## a)
 #define IWL_DEBUG_TX_REPLY(p, f, a...)	IWL_DEBUG(p, IWL_DL_TX_REPLY, f, ## a)
-#define IWL_DEBUG_TX_REPLY_LIMIT(p, f, a...) \
-		IWL_DEBUG_LIMIT(p, IWL_DL_TX_REPLY, f, ## a)
-#define IWL_DEBUG_QOS(p, f, a...)	IWL_DEBUG(p, IWL_DL_QOS, f, ## a)
+#define IWL_DEBUG_TX_QUEUES(p, f, a...)	IWL_DEBUG(p, IWL_DL_TX_QUEUES, f, ## a)
 #define IWL_DEBUG_RADIO(p, f, a...)	IWL_DEBUG(p, IWL_DL_RADIO, f, ## a)
 #define IWL_DEBUG_POWER(p, f, a...)	IWL_DEBUG(p, IWL_DL_POWER, f, ## a)
 #define IWL_DEBUG_11H(p, f, a...)	IWL_DEBUG(p, IWL_DL_11H, f, ## a)

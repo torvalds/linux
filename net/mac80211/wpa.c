@@ -223,14 +223,14 @@ static int tkip_encrypt_skb(struct ieee80211_tx_data *tx, struct sk_buff *skb)
 ieee80211_tx_result
 ieee80211_crypto_tkip_encrypt(struct ieee80211_tx_data *tx)
 {
-	struct sk_buff *skb = tx->skb;
+	struct sk_buff *skb;
 
 	ieee80211_tx_set_protected(tx);
 
-	do {
+	skb_queue_walk(&tx->skbs, skb) {
 		if (tkip_encrypt_skb(tx, skb) < 0)
 			return TX_DROP;
-	} while ((skb = skb->next));
+	}
 
 	return TX_CONTINUE;
 }
@@ -390,7 +390,8 @@ static int ccmp_encrypt_skb(struct ieee80211_tx_data *tx, struct sk_buff *skb)
 	u8 scratch[6 * AES_BLOCK_SIZE];
 
 	if (info->control.hw_key &&
-	    !(info->control.hw_key->flags & IEEE80211_KEY_FLAG_GENERATE_IV)) {
+	    !(info->control.hw_key->flags & IEEE80211_KEY_FLAG_GENERATE_IV) &&
+	    !(info->control.hw_key->flags & IEEE80211_KEY_FLAG_PUT_IV_SPACE)) {
 		/*
 		 * hwaccel has no need for preallocated room for CCMP
 		 * header or MIC fields
@@ -412,6 +413,12 @@ static int ccmp_encrypt_skb(struct ieee80211_tx_data *tx, struct sk_buff *skb)
 
 	pos = skb_push(skb, CCMP_HDR_LEN);
 	memmove(pos, pos + CCMP_HDR_LEN, hdrlen);
+
+	/* the HW only needs room for the IV, but not the actual IV */
+	if (info->control.hw_key &&
+	    (info->control.hw_key->flags & IEEE80211_KEY_FLAG_PUT_IV_SPACE))
+		return 0;
+
 	hdr = (struct ieee80211_hdr *) pos;
 	pos += hdrlen;
 
@@ -442,14 +449,14 @@ static int ccmp_encrypt_skb(struct ieee80211_tx_data *tx, struct sk_buff *skb)
 ieee80211_tx_result
 ieee80211_crypto_ccmp_encrypt(struct ieee80211_tx_data *tx)
 {
-	struct sk_buff *skb = tx->skb;
+	struct sk_buff *skb;
 
 	ieee80211_tx_set_protected(tx);
 
-	do {
+	skb_queue_walk(&tx->skbs, skb) {
 		if (ccmp_encrypt_skb(tx, skb) < 0)
 			return TX_DROP;
-	} while ((skb = skb->next));
+	}
 
 	return TX_CONTINUE;
 }
@@ -547,15 +554,22 @@ static inline void bip_ipn_swap(u8 *d, const u8 *s)
 ieee80211_tx_result
 ieee80211_crypto_aes_cmac_encrypt(struct ieee80211_tx_data *tx)
 {
-	struct sk_buff *skb = tx->skb;
-	struct ieee80211_tx_info *info = IEEE80211_SKB_CB(skb);
+	struct sk_buff *skb;
+	struct ieee80211_tx_info *info;
 	struct ieee80211_key *key = tx->key;
 	struct ieee80211_mmie *mmie;
 	u8 aad[20];
 	u64 pn64;
 
+	if (WARN_ON(skb_queue_len(&tx->skbs) != 1))
+		return TX_DROP;
+
+	skb = skb_peek(&tx->skbs);
+
+	info = IEEE80211_SKB_CB(skb);
+
 	if (info->control.hw_key)
-		return 0;
+		return TX_CONTINUE;
 
 	if (WARN_ON(skb_tailroom(skb) < sizeof(*mmie)))
 		return TX_DROP;

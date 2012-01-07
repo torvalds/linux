@@ -2417,15 +2417,4 @@ static struct platform_driver smc_driver = {
 	},
 };
 
-static int __init smc_init(void)
-{
-	return platform_driver_register(&smc_driver);
-}
-
-static void __exit smc_cleanup(void)
-{
-	platform_driver_unregister(&smc_driver);
-}
-
-module_init(smc_init);
-module_exit(smc_cleanup);
+module_platform_driver(smc_driver);

@@ -244,6 +244,9 @@ config CPU_RMAP
 	bool
 	depends on SMP
 
+config DQL
+	bool
+
 #
 # Netlink attribute parsing support is select'ed if needed
 #

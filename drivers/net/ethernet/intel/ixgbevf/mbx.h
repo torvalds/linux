@@ -47,8 +47,8 @@
 #define IXGBE_VFMAILBOX_RSTD     0x00000080 /* PF has indicated reset done */
 #define IXGBE_VFMAILBOX_R2C_BITS 0x000000B0 /* All read to clear bits */
 
-#define IXGBE_PFMAILBOX(x)          (0x04B00 + (4 * x))
-#define IXGBE_PFMBMEM(vfn)          (0x13000 + (64 * vfn))
+#define IXGBE_PFMAILBOX(x)          (0x04B00 + (4 * (x)))
+#define IXGBE_PFMBMEM(vfn)          (0x13000 + (64 * (vfn)))
 
 #define IXGBE_PFMAILBOX_STS   0x00000001 /* Initiate message send to VF */
 #define IXGBE_PFMAILBOX_ACK   0x00000002 /* Ack message recv'd from VF */

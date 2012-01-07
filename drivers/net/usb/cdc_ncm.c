@@ -465,11 +465,9 @@ static int cdc_ncm_bind(struct usbnet *dev, struct usb_interface *intf)
 	int temp;
 	u8 iface_no;
 
-	ctx = kmalloc(sizeof(*ctx), GFP_KERNEL);
+	ctx = kzalloc(sizeof(*ctx), GFP_KERNEL);
 	if (ctx == NULL)
 		return -ENODEV;
-
-	memset(ctx, 0, sizeof(*ctx));
 
 	init_timer(&ctx->tx_timer);
 	spin_lock_init(&ctx->mtx);

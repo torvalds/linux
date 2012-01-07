@@ -826,7 +826,7 @@ static int __svc_rpcb_register4(const u32 program, const u32 version,
 	return error;
 }
 
-#if defined(CONFIG_IPV6) || defined(CONFIG_IPV6_MODULE)
+#if IS_ENABLED(CONFIG_IPV6)
 /*
  * Register an "inet6" protocol family netid with the local
  * rpcbind daemon via an rpcbind v4 SET request.
@@ -872,7 +872,7 @@ static int __svc_rpcb_register6(const u32 program, const u32 version,
 
 	return error;
 }
-#endif	/* defined(CONFIG_IPV6) || defined(CONFIG_IPV6_MODULE) */
+#endif	/* IS_ENABLED(CONFIG_IPV6) */
 
 /*
  * Register a kernel RPC service via rpcbind version 4.
@@ -893,11 +893,11 @@ static int __svc_register(const char *progname,
 		error = __svc_rpcb_register4(program, version,
 						protocol, port);
 		break;
-#if defined(CONFIG_IPV6) || defined(CONFIG_IPV6_MODULE)
+#if IS_ENABLED(CONFIG_IPV6)
 	case PF_INET6:
 		error = __svc_rpcb_register6(program, version,
 						protocol, port);
-#endif	/* defined(CONFIG_IPV6) || defined(CONFIG_IPV6_MODULE) */
+#endif
 	}
 
 	if (error < 0)

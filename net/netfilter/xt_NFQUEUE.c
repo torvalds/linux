@@ -49,7 +49,7 @@ static u32 hash_v4(const struct sk_buff *skb)
 	return jhash_2words((__force u32)ipaddr, iph->protocol, jhash_initval);
 }
 
-#if defined(CONFIG_IP6_NF_IPTABLES) || defined(CONFIG_IP6_NF_IPTABLES_MODULE)
+#if IS_ENABLED(CONFIG_IP6_NF_IPTABLES)
 static u32 hash_v6(const struct sk_buff *skb)
 {
 	const struct ipv6hdr *ip6h = ipv6_hdr(skb);
@@ -74,7 +74,7 @@ nfqueue_tg_v1(struct sk_buff *skb, const struct xt_action_param *par)
 		if (par->family == NFPROTO_IPV4)
 			queue = (((u64) hash_v4(skb) * info->queues_total) >>
 				 32) + queue;
-#if defined(CONFIG_IP6_NF_IPTABLES) || defined(CONFIG_IP6_NF_IPTABLES_MODULE)
+#if IS_ENABLED(CONFIG_IP6_NF_IPTABLES)
 		else if (par->family == NFPROTO_IPV6)
 			queue = (((u64) hash_v6(skb) * info->queues_total) >>
 				 32) + queue;

@@ -45,7 +45,8 @@ static int iwlagn_disable_bss(struct iwl_priv *priv,
 	send->filter_flags = old_filter;
 
 	if (ret)
-		IWL_ERR(priv, "Error clearing ASSOC_MSK on BSS (%d)\n", ret);
+		IWL_DEBUG_QUIET_RFKILL(priv,
+			"Error clearing ASSOC_MSK on BSS (%d)\n", ret);
 
 	return ret;
 }
@@ -59,7 +60,7 @@ static int iwlagn_disable_pan(struct iwl_priv *priv,
 	u8 old_dev_type = send->dev_type;
 	int ret;
 
-	iwlagn_init_notification_wait(priv, &disable_wait,
+	iwl_init_notification_wait(priv->shrd, &disable_wait,
 				      REPLY_WIPAN_DEACTIVATION_COMPLETE,
 				      NULL, NULL);
 
@@ -73,9 +74,9 @@ static int iwlagn_disable_pan(struct iwl_priv *priv,
 
 	if (ret) {
 		IWL_ERR(priv, "Error disabling PAN (%d)\n", ret);
-		iwlagn_remove_notification(priv, &disable_wait);
+		iwl_remove_notification(priv->shrd, &disable_wait);
 	} else {
-		ret = iwlagn_wait_notification(priv, &disable_wait, HZ);
+		ret = iwl_wait_notification(priv->shrd, &disable_wait, HZ);
 		if (ret)
 			IWL_ERR(priv, "Timed out waiting for PAN disable\n");
 	}
@@ -116,7 +117,7 @@ static void iwlagn_update_qos(struct iwl_priv *priv,
 	if (ctx->ht.enabled)
 		ctx->qos_data.def_qos_parm.qos_flags |= QOS_PARAM_FLG_TGN_MSK;
 
-	IWL_DEBUG_QOS(priv, "send QoS cmd with Qos active=%d FLAGS=0x%X\n",
+	IWL_DEBUG_INFO(priv, "send QoS cmd with Qos active=%d FLAGS=0x%X\n",
 		      ctx->qos_data.qos_active,
 		      ctx->qos_data.def_qos_parm.qos_flags);
 
@@ -124,7 +125,7 @@ static void iwlagn_update_qos(struct iwl_priv *priv,
 			       sizeof(struct iwl_qosparam_cmd),
 			       &ctx->qos_data.def_qos_parm);
 	if (ret)
-		IWL_ERR(priv, "Failed to update QoS\n");
+		IWL_DEBUG_QUIET_RFKILL(priv, "Failed to update QoS\n");
 }
 
 static int iwlagn_update_beacon(struct iwl_priv *priv,
@@ -295,9 +296,9 @@ static int iwlagn_rxon_connect(struct iwl_priv *priv,
 	}
 
 	if (ctx->vif && ctx->vif->type == NL80211_IFTYPE_STATION &&
-	    priv->cfg->ht_params && priv->cfg->ht_params->smps_mode)
+	    cfg(priv)->ht_params && cfg(priv)->ht_params->smps_mode)
 		ieee80211_request_smps(ctx->vif,
-				       priv->cfg->ht_params->smps_mode);
+				       cfg(priv)->ht_params->smps_mode);
 
 	return 0;
 }
@@ -444,8 +445,8 @@ int iwlagn_commit_rxon(struct iwl_priv *priv, struct iwl_rxon_context *ctx)
 	 * force CTS-to-self frames protection if RTS-CTS is not preferred
 	 * one aggregation protection method
 	 */
-	if (!(priv->cfg->ht_params &&
-	      priv->cfg->ht_params->use_rts_for_aggregation))
+	if (!(cfg(priv)->ht_params &&
+	      cfg(priv)->ht_params->use_rts_for_aggregation))
 		ctx->staging.flags |= RXON_FLG_SELF_CTS_EN;
 
 	if ((ctx->vif && ctx->vif->bss_conf.use_short_slot) ||
@@ -558,6 +559,9 @@ int iwlagn_mac_config(struct ieee80211_hw *hw, u32 changed)
 	IWL_DEBUG_MAC80211(priv, "enter: changed %#x", changed);
 
 	mutex_lock(&priv->shrd->mutex);
+
+	if (test_bit(STATUS_EXIT_PENDING, &priv->shrd->status))
+		goto out;
 
 	if (unlikely(test_bit(STATUS_SCANNING, &priv->shrd->status))) {
 		IWL_DEBUG_MAC80211(priv, "leave - scanning\n");
@@ -850,7 +854,8 @@ void iwlagn_bss_info_changed(struct ieee80211_hw *hw,
 			if (ctx->last_tx_rejected) {
 				ctx->last_tx_rejected = false;
 				iwl_trans_wake_any_queue(trans(priv),
-							 ctx->ctxid);
+							 ctx->ctxid,
+							 "Disassoc: flush queue");
 			}
 			ctx->staging.filter_flags &= ~RXON_FILTER_ASSOC_MSK;
 

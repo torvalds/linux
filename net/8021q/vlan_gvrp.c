@@ -29,7 +29,7 @@ static struct garp_application vlan_gvrp_app __read_mostly = {
 
 int vlan_gvrp_request_join(const struct net_device *dev)
 {
-	const struct vlan_dev_info *vlan = vlan_dev_info(dev);
+	const struct vlan_dev_priv *vlan = vlan_dev_priv(dev);
 	__be16 vlan_id = htons(vlan->vlan_id);
 
 	return garp_request_join(vlan->real_dev, &vlan_gvrp_app,
@@ -38,7 +38,7 @@ int vlan_gvrp_request_join(const struct net_device *dev)
 
 void vlan_gvrp_request_leave(const struct net_device *dev)
 {
-	const struct vlan_dev_info *vlan = vlan_dev_info(dev);
+	const struct vlan_dev_priv *vlan = vlan_dev_priv(dev);
 	__be16 vlan_id = htons(vlan->vlan_id);
 
 	garp_request_leave(vlan->real_dev, &vlan_gvrp_app,

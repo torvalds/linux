@@ -31,6 +31,16 @@ neigh/default/gc_thresh3 - INTEGER
 	when using large numbers of interfaces and when communicating
 	with large numbers of directly-connected peers.
 
+neigh/default/unres_qlen_bytes - INTEGER
+	The maximum number of bytes which may be used by packets
+	queued for each	unresolved address by other network layers.
+	(added in linux 3.3)
+
+neigh/default/unres_qlen - INTEGER
+	The maximum number of packets which may be queued for each
+	unresolved address by other network layers.
+	(deprecated in linux 3.3) : use unres_qlen_bytes instead.
+
 mtu_expires - INTEGER
 	Time, in seconds, that cached PMTU information is kept.
 
@@ -165,6 +175,9 @@ tcp_congestion_control - STRING
 	connections. The algorithm "reno" is always available, but
 	additional choices may be available based on kernel configuration.
 	Default is set as part of kernel configuration.
+	For passive connections, the listener congestion control choice
+	is inherited.
+	[see setsockopt(listenfd, SOL_TCP, TCP_CONGESTION, "name" ...) ]
 
 tcp_cookie_size - INTEGER
 	Default size of TCP Cookie Transactions (TCPCT) option, that may be
