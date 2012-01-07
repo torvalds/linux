@@ -6236,8 +6236,6 @@ static int drxk_set_parameters(struct dvb_frontend *fe)
 				SetOperationMode(state, OM_QAM_ITU_C);
 			else
 				SetOperationMode(state, OM_QAM_ITU_A);
-				break;
-			state->m_itut_annex_c = true;
 			break;
 		case SYS_DVBT:
 			if (!state->m_hasDVBT)
