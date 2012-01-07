@@ -618,15 +618,15 @@ static int rcu_preempt_offline_tasks(struct rcu_state *rsp,
 	return retval;
 }
 
+#endif /* #ifdef CONFIG_HOTPLUG_CPU */
+
 /*
  * Do CPU-offline processing for preemptible RCU.
  */
-static void rcu_preempt_offline_cpu(int cpu)
+static void rcu_preempt_cleanup_dead_cpu(int cpu)
 {
-	__rcu_offline_cpu(cpu, &rcu_preempt_state);
+	rcu_cleanup_dead_cpu(cpu, &rcu_preempt_state);
 }
-
-#endif /* #ifdef CONFIG_HOTPLUG_CPU */
 
 /*
  * Check for a quiescent state from the current CPU.  When a task blocks,
@@ -912,11 +912,12 @@ static void __cpuinit rcu_preempt_init_percpu_data(int cpu)
 }
 
 /*
- * Move preemptible RCU's callbacks from dying CPU to other online CPU.
+ * Move preemptible RCU's callbacks from dying CPU to other online CPU
+ * and record a quiescent state.
  */
-static void rcu_preempt_send_cbs_to_online(void)
+static void rcu_preempt_cleanup_dying_cpu(void)
 {
-	rcu_send_cbs_to_online(&rcu_preempt_state);
+	rcu_cleanup_dying_cpu(&rcu_preempt_state);
 }
 
 /*
@@ -1052,15 +1053,15 @@ static int rcu_preempt_offline_tasks(struct rcu_state *rsp,
 	return 0;
 }
 
+#endif /* #ifdef CONFIG_HOTPLUG_CPU */
+
 /*
  * Because preemptible RCU does not exist, it never needs CPU-offline
  * processing.
  */
-static void rcu_preempt_offline_cpu(int cpu)
+static void rcu_preempt_cleanup_dead_cpu(int cpu)
 {
 }
-
-#endif /* #ifdef CONFIG_HOTPLUG_CPU */
 
 /*
  * Because preemptible RCU does not exist, it never has any callbacks
@@ -1153,9 +1154,9 @@ static void __cpuinit rcu_preempt_init_percpu_data(int cpu)
 }
 
 /*
- * Because there is no preemptible RCU, there are no callbacks to move.
+ * Because there is no preemptible RCU, there is no cleanup to do.
  */
-static void rcu_preempt_send_cbs_to_online(void)
+static void rcu_preempt_cleanup_dying_cpu(void)
 {
 }
 

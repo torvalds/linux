@@ -943,6 +943,10 @@ rcu_start_gp_per_cpu(struct rcu_state *rsp, struct rcu_node *rnp, struct rcu_dat
  * in preparation for detecting the next grace period.  The caller must hold
  * the root node's ->lock, which is released before return.  Hard irqs must
  * be disabled.
+ *
+ * Note that it is legal for a dying CPU (which is marked as offline) to
+ * invoke this function.  This can happen when the dying CPU reports its
+ * quiescent state.
  */
 static void
 rcu_start_gp(struct rcu_state *rsp, unsigned long flags)
@@ -1245,118 +1249,101 @@ rcu_check_quiescent_state(struct rcu_state *rsp, struct rcu_data *rdp)
 
 /*
  * Move a dying CPU's RCU callbacks to online CPU's callback list.
- * Synchronization is not required because this function executes
- * in stop_machine() context.
+ * Also record a quiescent state for this CPU for the current grace period.
+ * Synchronization and interrupt disabling are not required because
+ * this function executes in stop_machine() context.  Therefore, cleanup
+ * operations that might block must be done later from the CPU_DEAD
+ * notifier.
+ *
+ * Note that the outgoing CPU's bit has already been cleared in the
+ * cpu_online_mask.  This allows us to randomly pick a callback
+ * destination from the bits set in that mask.
  */
-static void rcu_send_cbs_to_online(struct rcu_state *rsp)
+static void rcu_cleanup_dying_cpu(struct rcu_state *rsp)
 {
+	unsigned long flags;
 	int i;
-	/* current DYING CPU is cleared in the cpu_online_mask */
+	unsigned long mask;
+	int need_report;
 	int receive_cpu = cpumask_any(cpu_online_mask);
 	struct rcu_data *rdp = this_cpu_ptr(rsp->rda);
 	struct rcu_data *receive_rdp = per_cpu_ptr(rsp->rda, receive_cpu);
+	struct rcu_node *rnp = rdp->mynode; /* For dying CPU. */
 
-	if (rdp->nxtlist == NULL)
-		return;  /* irqs disabled, so comparison is stable. */
+	/* Move callbacks to some other CPU. */
+	if (rdp->nxtlist != NULL) {
+		*receive_rdp->nxttail[RCU_NEXT_TAIL] = rdp->nxtlist;
+		receive_rdp->nxttail[RCU_NEXT_TAIL] =
+				rdp->nxttail[RCU_NEXT_TAIL];
+		receive_rdp->qlen_lazy += rdp->qlen_lazy;
+		receive_rdp->qlen += rdp->qlen;
+		receive_rdp->n_cbs_adopted += rdp->qlen;
+		rdp->n_cbs_orphaned += rdp->qlen;
 
-	*receive_rdp->nxttail[RCU_NEXT_TAIL] = rdp->nxtlist;
-	receive_rdp->nxttail[RCU_NEXT_TAIL] = rdp->nxttail[RCU_NEXT_TAIL];
-	receive_rdp->qlen_lazy += rdp->qlen_lazy;
-	receive_rdp->qlen += rdp->qlen;
-	receive_rdp->n_cbs_adopted += rdp->qlen;
-	rdp->n_cbs_orphaned += rdp->qlen;
+		rdp->nxtlist = NULL;
+		for (i = 0; i < RCU_NEXT_SIZE; i++)
+			rdp->nxttail[i] = &rdp->nxtlist;
+		rdp->qlen_lazy = 0;
+		rdp->qlen = 0;
+	}
 
-	rdp->nxtlist = NULL;
-	for (i = 0; i < RCU_NEXT_SIZE; i++)
-		rdp->nxttail[i] = &rdp->nxtlist;
-	rdp->qlen_lazy = 0;
-	rdp->qlen = 0;
-}
-
-/*
- * Remove the outgoing CPU from the bitmasks in the rcu_node hierarchy
- * and move all callbacks from the outgoing CPU to the current one.
- * There can only be one CPU hotplug operation at a time, so no other
- * CPU can be attempting to update rcu_cpu_kthread_task.
- */
-static void __rcu_offline_cpu(int cpu, struct rcu_state *rsp)
-{
-	unsigned long flags;
-	unsigned long mask;
-	int need_report = 0;
-	struct rcu_data *rdp = per_cpu_ptr(rsp->rda, cpu);
-	struct rcu_node *rnp;
-
-	rcu_stop_cpu_kthread(cpu);
-
-	/* Exclude any attempts to start a new grace period. */
-	raw_spin_lock_irqsave(&rsp->onofflock, flags);
-
-	/* Remove the outgoing CPU from the masks in the rcu_node hierarchy. */
-	rnp = rdp->mynode;	/* this is the outgoing CPU's rnp. */
+	/* Record a quiescent state for the dying CPU. */
 	mask = rdp->grpmask;	/* rnp->grplo is constant. */
+	trace_rcu_grace_period(rsp->name,
+			       rnp->gpnum + 1 - !!(rnp->qsmask & mask),
+			       "cpuofl");
+	rcu_report_qs_rdp(smp_processor_id(), rsp, rdp, rsp->gpnum);
+	/* Note that rcu_report_qs_rdp() might call trace_rcu_grace_period(). */
+
+	/*
+	 * Remove the dying CPU from the bitmasks in the rcu_node
+	 * hierarchy.  Because we are in stop_machine() context, we
+	 * automatically exclude ->onofflock critical sections.
+	 */
 	do {
-		raw_spin_lock(&rnp->lock);	/* irqs already disabled. */
+		raw_spin_lock_irqsave(&rnp->lock, flags);
 		rnp->qsmaskinit &= ~mask;
 		if (rnp->qsmaskinit != 0) {
-			if (rnp != rdp->mynode)
-				raw_spin_unlock(&rnp->lock); /* irqs remain disabled. */
-			else
-				trace_rcu_grace_period(rsp->name,
-						       rnp->gpnum + 1 -
-						       !!(rnp->qsmask & mask),
-						       "cpuofl");
+			raw_spin_unlock_irqrestore(&rnp->lock, flags);
 			break;
 		}
 		if (rnp == rdp->mynode) {
-			trace_rcu_grace_period(rsp->name,
-					       rnp->gpnum + 1 -
-					       !!(rnp->qsmask & mask),
-					       "cpuofl");
 			need_report = rcu_preempt_offline_tasks(rsp, rnp, rdp);
+			if (need_report & RCU_OFL_TASKS_NORM_GP)
+				rcu_report_unblock_qs_rnp(rnp, flags);
+			else
+				raw_spin_unlock_irqrestore(&rnp->lock, flags);
+			if (need_report & RCU_OFL_TASKS_EXP_GP)
+				rcu_report_exp_rnp(rsp, rnp, true);
 		} else
-			raw_spin_unlock(&rnp->lock); /* irqs remain disabled. */
+			raw_spin_unlock_irqrestore(&rnp->lock, flags);
 		mask = rnp->grpmask;
 		rnp = rnp->parent;
 	} while (rnp != NULL);
-
-	/*
-	 * We still hold the leaf rcu_node structure lock here, and
-	 * irqs are still disabled.  The reason for this subterfuge is
-	 * because invoking rcu_report_unblock_qs_rnp() with ->onofflock
-	 * held leads to deadlock.
-	 */
-	raw_spin_unlock(&rsp->onofflock); /* irqs remain disabled. */
-	rnp = rdp->mynode;
-	if (need_report & RCU_OFL_TASKS_NORM_GP)
-		rcu_report_unblock_qs_rnp(rnp, flags);
-	else
-		raw_spin_unlock_irqrestore(&rnp->lock, flags);
-	if (need_report & RCU_OFL_TASKS_EXP_GP)
-		rcu_report_exp_rnp(rsp, rnp, true);
-	rcu_node_kthread_setaffinity(rnp, -1);
 }
 
 /*
- * Remove the specified CPU from the RCU hierarchy and move any pending
- * callbacks that it might have to the current CPU.  This code assumes
- * that at least one CPU in the system will remain running at all times.
- * Any attempt to offline -all- CPUs is likely to strand RCU callbacks.
+ * The CPU has been completely removed, and some other CPU is reporting
+ * this fact from process context.  Do the remainder of the cleanup.
+ * There can only be one CPU hotplug operation at a time, so no other
+ * CPU can be attempting to update rcu_cpu_kthread_task.
  */
-static void rcu_offline_cpu(int cpu)
+static void rcu_cleanup_dead_cpu(int cpu, struct rcu_state *rsp)
 {
-	__rcu_offline_cpu(cpu, &rcu_sched_state);
-	__rcu_offline_cpu(cpu, &rcu_bh_state);
-	rcu_preempt_offline_cpu(cpu);
+	struct rcu_data *rdp = per_cpu_ptr(rsp->rda, cpu);
+	struct rcu_node *rnp = rdp->mynode;
+
+	rcu_stop_cpu_kthread(cpu);
+	rcu_node_kthread_setaffinity(rnp, -1);
 }
 
 #else /* #ifdef CONFIG_HOTPLUG_CPU */
 
-static void rcu_send_cbs_to_online(struct rcu_state *rsp)
+static void rcu_cleanup_dying_cpu(struct rcu_state *rsp)
 {
 }
 
-static void rcu_offline_cpu(int cpu)
+static void rcu_cleanup_dead_cpu(int cpu, struct rcu_state *rsp)
 {
 }
 
@@ -1725,6 +1712,7 @@ __call_rcu(struct rcu_head *head, void (*func)(struct rcu_head *rcu),
 	 * a quiescent state betweentimes.
 	 */
 	local_irq_save(flags);
+	WARN_ON_ONCE(cpu_is_offline(smp_processor_id()));
 	rdp = this_cpu_ptr(rsp->rda);
 
 	/* Add the callback to our list. */
@@ -2155,16 +2143,18 @@ static int __cpuinit rcu_cpu_notify(struct notifier_block *self,
 		 * touch any data without introducing corruption. We send the
 		 * dying CPU's callbacks to an arbitrarily chosen online CPU.
 		 */
-		rcu_send_cbs_to_online(&rcu_bh_state);
-		rcu_send_cbs_to_online(&rcu_sched_state);
-		rcu_preempt_send_cbs_to_online();
+		rcu_cleanup_dying_cpu(&rcu_bh_state);
+		rcu_cleanup_dying_cpu(&rcu_sched_state);
+		rcu_preempt_cleanup_dying_cpu();
 		rcu_cleanup_after_idle(cpu);
 		break;
 	case CPU_DEAD:
 	case CPU_DEAD_FROZEN:
 	case CPU_UP_CANCELED:
 	case CPU_UP_CANCELED_FROZEN:
-		rcu_offline_cpu(cpu);
+		rcu_cleanup_dead_cpu(cpu, &rcu_bh_state);
+		rcu_cleanup_dead_cpu(cpu, &rcu_sched_state);
+		rcu_preempt_cleanup_dead_cpu(cpu);
 		break;
 	default:
 		break;
