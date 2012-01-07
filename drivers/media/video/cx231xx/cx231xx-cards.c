@@ -868,10 +868,9 @@ void cx231xx_release_resources(struct cx231xx *dev)
  * cx231xx_init_dev()
  * allocates and inits the device structs, registers i2c bus and v4l device
  */
-static int cx231xx_init_dev(struct cx231xx **devhandle, struct usb_device *udev,
+static int cx231xx_init_dev(struct cx231xx *dev, struct usb_device *udev,
 			    int minor)
 {
-	struct cx231xx *dev = *devhandle;
 	int retval = -ENOMEM;
 	int errCode;
 	unsigned int maxh, maxw;
@@ -1154,7 +1153,7 @@ static int cx231xx_usb_probe(struct usb_interface *interface,
 		return -EIO;
 	}
 	/* allocate device struct */
-	retval = cx231xx_init_dev(&dev, udev, nr);
+	retval = cx231xx_init_dev(dev, udev, nr);
 	if (retval) {
 		clear_bit(dev->devno, &cx231xx_devused);
 		v4l2_device_unregister(&dev->v4l2_dev);
