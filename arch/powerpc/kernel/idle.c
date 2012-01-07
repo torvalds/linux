@@ -39,9 +39,13 @@
 #define cpu_should_die()	0
 #endif
 
+unsigned long cpuidle_disable = IDLE_NO_OVERRIDE;
+EXPORT_SYMBOL(cpuidle_disable);
+
 static int __init powersave_off(char *arg)
 {
 	ppc_md.power_save = NULL;
+	cpuidle_disable = IDLE_POWERSAVE_OFF;
 	return 0;
 }
 __setup("powersave=off", powersave_off);
@@ -112,6 +116,29 @@ void cpu_idle(void)
 		preempt_disable();
 	}
 }
+
+
+/*
+ * cpu_idle_wait - Used to ensure that all the CPUs come out of the old
+ * idle loop and start using the new idle loop.
+ * Required while changing idle handler on SMP systems.
+ * Caller must have changed idle handler to the new value before the call.
+ * This window may be larger on shared systems.
+ */
+void cpu_idle_wait(void)
+{
+	int cpu;
+	smp_mb();
+
+	/* kick all the CPUs so that they exit out of old idle routine */
+	get_online_cpus();
+	for_each_online_cpu(cpu) {
+		if (cpu != smp_processor_id())
+			smp_send_reschedule(cpu);
+	}
+	put_online_cpus();
+}
+EXPORT_SYMBOL_GPL(cpu_idle_wait);
 
 int powersave_nap;
 

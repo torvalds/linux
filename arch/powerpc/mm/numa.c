@@ -386,7 +386,7 @@ static void __init get_n_mem_cells(int *n_addr_cells, int *n_size_cells)
 	of_node_put(memory);
 }
 
-static unsigned long __devinit read_n_cells(int n, const unsigned int **buf)
+static unsigned long read_n_cells(int n, const unsigned int **buf)
 {
 	unsigned long result = 0;
 
@@ -947,7 +947,7 @@ static struct notifier_block __cpuinitdata ppc64_numa_nb = {
 	.priority = 1 /* Must run before sched domains notifier. */
 };
 
-static void mark_reserved_regions_for_nid(int nid)
+static void __init mark_reserved_regions_for_nid(int nid)
 {
 	struct pglist_data *node = NODE_DATA(nid);
 	struct memblock_region *reg;

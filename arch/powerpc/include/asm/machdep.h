@@ -213,6 +213,9 @@ struct machdep_calls {
 	 * allow assignment/enabling of the device. */
 	int  (*pcibios_enable_device_hook)(struct pci_dev *);
 
+	/* Called after scan and before resource survey */
+	void (*pcibios_fixup_phb)(struct pci_controller *hose);
+
 	/* Called to shutdown machine specific hardware not already controlled
 	 * by other drivers.
 	 */

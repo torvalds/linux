@@ -186,6 +186,16 @@ config ISS4xx
 	help
 	  This option enables support for the IBM ISS simulation environment
 
+config CURRITUCK
+	bool "IBM Currituck (476fpe) Support"
+	depends on PPC_47x
+	default n
+	select SWIOTLB
+	select 476FPE
+	select PPC4xx_PCI_EXPRESS
+	help
+	  This option enables support for the IBM Currituck (476fpe) evaluation board
+
 config ICON
 	bool "Icon"
 	depends on 44x
@@ -307,6 +317,10 @@ config 460SX
 	select IBM_EMAC_RGMII
 	select IBM_EMAC_ZMII
 	select IBM_EMAC_TAH
+
+config 476FPE
+	bool
+	select PPC_FPU
 
 config APM821xx
 	bool

@@ -320,7 +320,8 @@ void __init opb_pic_init(void)
 		}
 
 		/* Attach opb interrupt handler to new virtual IRQ */
-		rc = request_irq(virq, opb_irq_handler, 0, "OPB LS Cascade", opb);
+		rc = request_irq(virq, opb_irq_handler, IRQF_NO_THREAD,
+				 "OPB LS Cascade", opb);
 		if (rc) {
 			printk("opb: request_irq failed: %d\n", rc);
 			continue;

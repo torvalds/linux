@@ -39,6 +39,7 @@
 #include <linux/irq.h>
 #include <linux/seq_file.h>
 #include <linux/root_dev.h>
+#include <linux/cpuidle.h>
 
 #include <asm/mmu.h>
 #include <asm/processor.h>
@@ -73,9 +74,6 @@ unsigned long CMO_PageSize = (ASM_CONST(1) << IOMMU_PAGE_SHIFT);
 EXPORT_SYMBOL(CMO_PageSize);
 
 int fwnmi_active;  /* TRUE if an FWNMI handler is present */
-
-static void pseries_shared_idle_sleep(void);
-static void pseries_dedicated_idle_sleep(void);
 
 static struct device_node *pSeries_mpic_node;
 
@@ -192,8 +190,7 @@ static void __init pseries_mpic_init_IRQ(void)
 	BUG_ON(openpic_addr == 0);
 
 	/* Setup the openpic driver */
-	mpic = mpic_alloc(pSeries_mpic_node, openpic_addr,
-			  MPIC_PRIMARY,
+	mpic = mpic_alloc(pSeries_mpic_node, openpic_addr, 0,
 			  16, 250, /* isu size, irq count */
 			  " MPIC     ");
 	BUG_ON(mpic == NULL);
@@ -352,8 +349,25 @@ static int alloc_dispatch_log_kmem_cache(void)
 }
 early_initcall(alloc_dispatch_log_kmem_cache);
 
+static void pSeries_idle(void)
+{
+	/* This would call on the cpuidle framework, and the back-end pseries
+	 * driver to  go to idle states
+	 */
+	if (cpuidle_idle_call()) {
+		/* On error, execute default handler
+		 * to go into low thread priority and possibly
+		 * low power mode.
+		 */
+		HMT_low();
+		HMT_very_low();
+	}
+}
+
 static void __init pSeries_setup_arch(void)
 {
+	panic_timeout = 10;
+
 	/* Discover PIC type and setup ppc_md accordingly */
 	pseries_discover_pic();
 
@@ -374,18 +388,9 @@ static void __init pSeries_setup_arch(void)
 
 	pSeries_nvram_init();
 
-	/* Choose an idle loop */
 	if (firmware_has_feature(FW_FEATURE_SPLPAR)) {
 		vpa_init(boot_cpuid);
-		if (get_lppaca()->shared_proc) {
-			printk(KERN_DEBUG "Using shared processor idle loop\n");
-			ppc_md.power_save = pseries_shared_idle_sleep;
-		} else {
-			printk(KERN_DEBUG "Using dedicated idle loop\n");
-			ppc_md.power_save = pseries_dedicated_idle_sleep;
-		}
-	} else {
-		printk(KERN_DEBUG "Using default idle loop\n");
+		ppc_md.power_save = pSeries_idle;
 	}
 
 	if (firmware_has_feature(FW_FEATURE_LPAR))
@@ -584,80 +589,6 @@ static int __init pSeries_probe(void)
 	         (powerpc_firmware_features & FW_FEATURE_LPAR) ? "" : " not");
 
 	return 1;
-}
-
-
-DECLARE_PER_CPU(long, smt_snooze_delay);
-
-static void pseries_dedicated_idle_sleep(void)
-{ 
-	unsigned int cpu = smp_processor_id();
-	unsigned long start_snooze;
-	unsigned long in_purr, out_purr;
-	long snooze = __get_cpu_var(smt_snooze_delay);
-
-	/*
-	 * Indicate to the HV that we are idle. Now would be
-	 * a good time to find other work to dispatch.
-	 */
-	get_lppaca()->idle = 1;
-	get_lppaca()->donate_dedicated_cpu = 1;
-	in_purr = mfspr(SPRN_PURR);
-
-	/*
-	 * We come in with interrupts disabled, and need_resched()
-	 * has been checked recently.  If we should poll for a little
-	 * while, do so.
-	 */
-	if (snooze) {
-		start_snooze = get_tb() + snooze * tb_ticks_per_usec;
-		local_irq_enable();
-		set_thread_flag(TIF_POLLING_NRFLAG);
-
-		while ((snooze < 0) || (get_tb() < start_snooze)) {
-			if (need_resched() || cpu_is_offline(cpu))
-				goto out;
-			ppc64_runlatch_off();
-			HMT_low();
-			HMT_very_low();
-		}
-
-		HMT_medium();
-		clear_thread_flag(TIF_POLLING_NRFLAG);
-		smp_mb();
-		local_irq_disable();
-		if (need_resched() || cpu_is_offline(cpu))
-			goto out;
-	}
-
-	cede_processor();
-
-out:
-	HMT_medium();
-	out_purr = mfspr(SPRN_PURR);
-	get_lppaca()->wait_state_cycles += out_purr - in_purr;
-	get_lppaca()->donate_dedicated_cpu = 0;
-	get_lppaca()->idle = 0;
-}
-
-static void pseries_shared_idle_sleep(void)
-{
-	/*
-	 * Indicate to the HV that we are idle. Now would be
-	 * a good time to find other work to dispatch.
-	 */
-	get_lppaca()->idle = 1;
-
-	/*
-	 * Yield the processor to the hypervisor.  We return if
-	 * an external interrupt occurs (which are driven prior
-	 * to returning here) or if a prod occurs from another
-	 * processor. When returning here, external interrupts
-	 * are enabled.
-	 */
-	cede_processor();
-
-	get_lppaca()->idle = 0;
 }
 
 static int pSeries_pci_probe_mode(struct pci_bus *bus)

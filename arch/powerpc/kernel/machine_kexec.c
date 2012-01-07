@@ -125,7 +125,7 @@ void __init reserve_crashkernel(void)
 
 	crash_size = resource_size(&crashk_res);
 
-#ifndef CONFIG_RELOCATABLE
+#ifndef CONFIG_NONSTATIC_KERNEL
 	if (crashk_res.start != KDUMP_KERNELBASE)
 		printk("Crash kernel location must be 0x%x\n",
 				KDUMP_KERNELBASE);

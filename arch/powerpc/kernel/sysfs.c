@@ -18,6 +18,7 @@
 #include <asm/machdep.h>
 #include <asm/smp.h>
 #include <asm/pmc.h>
+#include <asm/system.h>
 
 #include "cacheinfo.h"
 
@@ -51,6 +52,7 @@ static ssize_t store_smt_snooze_delay(struct sys_device *dev,
 		return -EINVAL;
 
 	per_cpu(smt_snooze_delay, cpu->sysdev.id) = snooze;
+	update_smt_snooze_delay(snooze);
 
 	return count;
 }
@@ -177,11 +179,13 @@ SYSFS_PMCSETUP(mmcra, SPRN_MMCRA);
 SYSFS_PMCSETUP(purr, SPRN_PURR);
 SYSFS_PMCSETUP(spurr, SPRN_SPURR);
 SYSFS_PMCSETUP(dscr, SPRN_DSCR);
+SYSFS_PMCSETUP(pir, SPRN_PIR);
 
 static SYSDEV_ATTR(mmcra, 0600, show_mmcra, store_mmcra);
 static SYSDEV_ATTR(spurr, 0600, show_spurr, NULL);
 static SYSDEV_ATTR(dscr, 0600, show_dscr, store_dscr);
 static SYSDEV_ATTR(purr, 0600, show_purr, store_purr);
+static SYSDEV_ATTR(pir, 0400, show_pir, NULL);
 
 unsigned long dscr_default = 0;
 EXPORT_SYMBOL(dscr_default);
@@ -392,6 +396,9 @@ static void __cpuinit register_cpu_online(unsigned int cpu)
 
 	if (cpu_has_feature(CPU_FTR_DSCR))
 		sysdev_create_file(s, &attr_dscr);
+
+	if (cpu_has_feature(CPU_FTR_PPCAS_ARCH_V2))
+		sysdev_create_file(s, &attr_pir);
 #endif /* CONFIG_PPC64 */
 
 	cacheinfo_cpu_online(cpu);
@@ -462,6 +469,9 @@ static void unregister_cpu_online(unsigned int cpu)
 
 	if (cpu_has_feature(CPU_FTR_DSCR))
 		sysdev_remove_file(s, &attr_dscr);
+
+	if (cpu_has_feature(CPU_FTR_PPCAS_ARCH_V2))
+		sysdev_remove_file(s, &attr_pir);
 #endif /* CONFIG_PPC64 */
 
 	cacheinfo_cpu_offline(cpu);
