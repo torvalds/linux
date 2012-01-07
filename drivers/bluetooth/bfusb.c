@@ -705,8 +705,6 @@ static int bfusb_probe(struct usb_interface *intf, const struct usb_device_id *i
 	hdev->send     = bfusb_send_frame;
 	hdev->ioctl    = bfusb_ioctl;
 
-	hdev->owner = THIS_MODULE;
-
 	if (hci_register_dev(hdev) < 0) {
 		BT_ERR("Can't register HCI device");
 		hci_free_dev(hdev);

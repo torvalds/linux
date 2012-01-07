@@ -484,8 +484,6 @@ static int dtl1_open(dtl1_info_t *info)
 	hdev->send     = dtl1_hci_send_frame;
 	hdev->ioctl    = dtl1_hci_ioctl;
 
-	hdev->owner = THIS_MODULE;
-
 	spin_lock_irqsave(&(info->lock), flags);
 
 	/* Reset UART */

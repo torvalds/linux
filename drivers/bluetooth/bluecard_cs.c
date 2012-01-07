@@ -738,8 +738,6 @@ static int bluecard_open(bluecard_info_t *info)
 	hdev->send     = bluecard_hci_send_frame;
 	hdev->ioctl    = bluecard_hci_ioctl;
 
-	hdev->owner = THIS_MODULE;
-
 	id = inb(iobase + 0x30);
 
 	if ((id & 0x0f) == 0x02)

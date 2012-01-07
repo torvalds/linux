@@ -317,7 +317,6 @@ static int bt_ti_probe(struct platform_device *pdev)
 	hdev->close = ti_st_close;
 	hdev->flush = NULL;
 	hdev->send = ti_st_send_frame;
-	hdev->owner = THIS_MODULE;
 
 	err = hci_register_dev(hdev);
 	if (err < 0) {

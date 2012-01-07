@@ -337,8 +337,6 @@ static int btsdio_probe(struct sdio_func *func,
 	hdev->flush    = btsdio_flush;
 	hdev->send     = btsdio_send_frame;
 
-	hdev->owner = THIS_MODULE;
-
 	err = hci_register_dev(hdev);
 	if (err < 0) {
 		hci_free_dev(hdev);

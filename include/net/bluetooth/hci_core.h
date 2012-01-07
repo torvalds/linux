@@ -262,8 +262,6 @@ struct hci_dev {
 
 	struct rfkill		*rfkill;
 
-	struct module		*owner;
-
 	unsigned long		dev_flags;
 
 	int (*open)(struct hci_dev *hdev);
@@ -601,11 +599,7 @@ static inline void __hci_dev_put(struct hci_dev *d)
  * hci_dev_put and hci_dev_hold are macros to avoid dragging all the
  * overhead of all the modular infrastructure into this header.
  */
-#define hci_dev_put(d)		\
-do {				\
-	__hci_dev_put(d);	\
-	module_put(d->owner);	\
-} while (0)
+#define hci_dev_put(d) __hci_dev_put(d)
 
 static inline struct hci_dev *__hci_dev_hold(struct hci_dev *d)
 {
@@ -613,10 +607,7 @@ static inline struct hci_dev *__hci_dev_hold(struct hci_dev *d)
 	return d;
 }
 
-#define hci_dev_hold(d)						\
-({								\
-	try_module_get(d->owner) ? __hci_dev_hold(d) : NULL;	\
-})
+#define hci_dev_hold(d) __hci_dev_hold(d)
 
 #define hci_dev_lock(d)		mutex_lock(&d->lock)
 #define hci_dev_unlock(d)	mutex_unlock(&d->lock)

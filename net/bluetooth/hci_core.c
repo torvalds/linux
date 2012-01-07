@@ -1548,8 +1548,7 @@ int hci_register_dev(struct hci_dev *hdev)
 	struct list_head *head = &hci_dev_list, *p;
 	int i, id, error;
 
-	BT_DBG("%p name %s bus %d owner %p", hdev, hdev->name,
-						hdev->bus, hdev->owner);
+	BT_DBG("%p name %s bus %d", hdev, hdev->name, hdev->bus);
 
 	if (!hdev->open || !hdev->close)
 		return -EINVAL;

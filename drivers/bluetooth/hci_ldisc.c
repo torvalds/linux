@@ -392,8 +392,6 @@ static int hci_uart_register_dev(struct hci_uart *hu)
 	hdev->send  = hci_uart_send_frame;
 	hdev->parent = hu->tty->dev;
 
-	hdev->owner = THIS_MODULE;
-
 	if (!reset)
 		set_bit(HCI_QUIRK_NO_RESET, &hdev->quirks);
 
