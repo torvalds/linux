@@ -50,9 +50,9 @@ static struct platform_device heartbeat_device = {
 #define GBECONT		0xffc10100
 #define GBECONT_RMII1	BIT(17)
 #define GBECONT_RMII0	BIT(16)
-static void sh7757_eth_set_mdio_gate(unsigned long addr)
+static void sh7757_eth_set_mdio_gate(void *addr)
 {
-	if ((addr & 0x00000fff) < 0x0800)
+	if (((unsigned long)addr & 0x00000fff) < 0x0800)
 		writel(readl(GBECONT) | GBECONT_RMII0, GBECONT);
 	else
 		writel(readl(GBECONT) | GBECONT_RMII1, GBECONT);
@@ -116,9 +116,9 @@ static struct platform_device sh7757_eth1_device = {
 	},
 };
 
-static void sh7757_eth_giga_set_mdio_gate(unsigned long addr)
+static void sh7757_eth_giga_set_mdio_gate(void *addr)
 {
-	if ((addr & 0x00000fff) < 0x0800) {
+	if (((unsigned long)addr & 0x00000fff) < 0x0800) {
 		gpio_set_value(GPIO_PTT4, 1);
 		writel(readl(GBECONT) & ~GBECONT_RMII0, GBECONT);
 	} else {
@@ -210,8 +210,12 @@ static struct resource sh_mmcif_resources[] = {
 };
 
 static struct sh_mmcif_dma sh7757lcr_mmcif_dma = {
-	.chan_priv_tx	= SHDMA_SLAVE_MMCIF_TX,
-	.chan_priv_rx	= SHDMA_SLAVE_MMCIF_RX,
+	.chan_priv_tx	= {
+		.slave_id = SHDMA_SLAVE_MMCIF_TX,
+	},
+	.chan_priv_rx	= {
+		.slave_id = SHDMA_SLAVE_MMCIF_RX,
+	}
 };
 
 static struct sh_mmcif_plat_data sh_mmcif_plat = {

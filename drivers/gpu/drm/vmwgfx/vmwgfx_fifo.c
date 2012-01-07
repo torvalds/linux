@@ -33,6 +33,7 @@ bool vmw_fifo_have_3d(struct vmw_private *dev_priv)
 {
 	__le32 __iomem *fifo_mem = dev_priv->mmio_virt;
 	uint32_t fifo_min, hwversion;
+	const struct vmw_fifo_state *fifo = &dev_priv->fifo;
 
 	if (!(dev_priv->capabilities & SVGA_CAP_EXTENDED_FIFO))
 		return false;
@@ -41,7 +42,12 @@ bool vmw_fifo_have_3d(struct vmw_private *dev_priv)
 	if (fifo_min <= SVGA_FIFO_3D_HWVERSION * sizeof(unsigned int))
 		return false;
 
-	hwversion = ioread32(fifo_mem + SVGA_FIFO_3D_HWVERSION);
+	hwversion = ioread32(fifo_mem +
+			     ((fifo->capabilities &
+			       SVGA_FIFO_CAP_3D_HWVERSION_REVISED) ?
+			      SVGA_FIFO_3D_HWVERSION_REVISED :
+			      SVGA_FIFO_3D_HWVERSION));
+
 	if (hwversion == 0)
 		return false;
 

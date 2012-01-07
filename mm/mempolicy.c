@@ -636,6 +636,7 @@ static int mbind_range(struct mm_struct *mm, unsigned long start,
 	struct vm_area_struct *prev;
 	struct vm_area_struct *vma;
 	int err = 0;
+	pgoff_t pgoff;
 	unsigned long vmstart;
 	unsigned long vmend;
 
@@ -643,13 +644,21 @@ static int mbind_range(struct mm_struct *mm, unsigned long start,
 	if (!vma || vma->vm_start > start)
 		return -EFAULT;
 
+	if (start > vma->vm_start)
+		prev = vma;
+
 	for (; vma && vma->vm_start < end; prev = vma, vma = next) {
 		next = vma->vm_next;
 		vmstart = max(start, vma->vm_start);
 		vmend   = min(end, vma->vm_end);
 
+		if (mpol_equal(vma_policy(vma), new_pol))
+			continue;
+
+		pgoff = vma->vm_pgoff +
+			((vmstart - vma->vm_start) >> PAGE_SHIFT);
 		prev = vma_merge(mm, prev, vmstart, vmend, vma->vm_flags,
-				  vma->anon_vma, vma->vm_file, vma->vm_pgoff,
+				  vma->anon_vma, vma->vm_file, pgoff,
 				  new_pol);
 		if (prev) {
 			vma = prev;
