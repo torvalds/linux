@@ -372,6 +372,7 @@ static void bt_host_release(struct device *dev)
 {
 	void *data = dev_get_drvdata(dev);
 	kfree(data);
+	module_put(THIS_MODULE);
 }
 
 static struct device_type bt_host = {
@@ -523,6 +524,7 @@ void hci_init_sysfs(struct hci_dev *hdev)
 	dev->type = &bt_host;
 	dev->class = bt_class;
 
+	__module_get(THIS_MODULE);
 	dev_set_drvdata(dev, hdev);
 	device_initialize(dev);
 }
