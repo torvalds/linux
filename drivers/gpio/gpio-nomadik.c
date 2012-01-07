@@ -1150,8 +1150,8 @@ static int __devinit nmk_gpio_probe(struct platform_device *dev)
 
 	nmk_gpio_init_irq(nmk_chip);
 
-	dev_info(&dev->dev, "Bits %i-%i at address %p\n",
-		 nmk_chip->chip.base, nmk_chip->chip.base+31, nmk_chip->addr);
+	dev_info(&dev->dev, "at address %p\n",
+		 nmk_chip->addr);
 	return 0;
 
 out_free:

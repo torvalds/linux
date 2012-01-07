@@ -230,7 +230,7 @@ static int samsung_gpio_setcfg_2bit(struct samsung_gpio_chip *chip,
  * @chip: The gpio chip that is being configured.
  * @off: The offset for the GPIO being configured.
  *
- * The reverse of samsung_gpio_setcfg_2bit(). Will return a value whicg
+ * The reverse of samsung_gpio_setcfg_2bit(). Will return a value which
  * could be directly passed back to samsung_gpio_setcfg_2bit(), from the
  * S3C_GPIO_SPECIAL() macro.
  */
@@ -467,33 +467,42 @@ static struct samsung_gpio_cfg s5p64x0_gpio_cfg_rbank = {
 #endif
 
 static struct samsung_gpio_cfg samsung_gpio_cfgs[] = {
-	{
+	[0] = {
 		.cfg_eint	= 0x0,
-	}, {
+	},
+	[1] = {
 		.cfg_eint	= 0x3,
-	}, {
+	},
+	[2] = {
 		.cfg_eint	= 0x7,
-	}, {
+	},
+	[3] = {
 		.cfg_eint	= 0xF,
-	}, {
+	},
+	[4] = {
 		.cfg_eint	= 0x0,
 		.set_config	= samsung_gpio_setcfg_2bit,
 		.get_config	= samsung_gpio_getcfg_2bit,
-	}, {
+	},
+	[5] = {
 		.cfg_eint	= 0x2,
 		.set_config	= samsung_gpio_setcfg_2bit,
 		.get_config	= samsung_gpio_getcfg_2bit,
-	}, {
+	},
+	[6] = {
 		.cfg_eint	= 0x3,
 		.set_config	= samsung_gpio_setcfg_2bit,
 		.get_config	= samsung_gpio_getcfg_2bit,
-	}, {
+	},
+	[7] = {
 		.set_config	= samsung_gpio_setcfg_2bit,
 		.get_config	= samsung_gpio_getcfg_2bit,
-	}, {
+	},
+	[8] = {
 		.set_pull	= exynos4_gpio_setpull,
 		.get_pull	= exynos4_gpio_getpull,
-	}, {
+	},
+	[9] = {
 		.cfg_eint	= 0x3,
 		.set_pull	= exynos4_gpio_setpull,
 		.get_pull	= exynos4_gpio_getpull,
