@@ -485,4 +485,12 @@ struct kvm_vcpu_arch {
 #define KVMPPC_VCPU_BUSY_IN_HOST	1
 #define KVMPPC_VCPU_RUNNABLE		2
 
+/* Values for vcpu->arch.io_gpr */
+#define KVM_MMIO_REG_MASK	0x001f
+#define KVM_MMIO_REG_EXT_MASK	0xffe0
+#define KVM_MMIO_REG_GPR	0x0000
+#define KVM_MMIO_REG_FPR	0x0020
+#define KVM_MMIO_REG_QPR	0x0040
+#define KVM_MMIO_REG_FQPR	0x0060
+
 #endif /* __POWERPC_KVM_HOST_H__ */

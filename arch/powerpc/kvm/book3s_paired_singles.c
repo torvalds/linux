@@ -196,7 +196,8 @@ static int kvmppc_emulate_fpr_load(struct kvm_run *run, struct kvm_vcpu *vcpu,
 		kvmppc_inject_pf(vcpu, addr, false);
 		goto done_load;
 	} else if (r == EMULATE_DO_MMIO) {
-		emulated = kvmppc_handle_load(run, vcpu, KVM_REG_FPR | rs, len, 1);
+		emulated = kvmppc_handle_load(run, vcpu, KVM_MMIO_REG_FPR | rs,
+					      len, 1);
 		goto done_load;
 	}
 
@@ -286,11 +287,13 @@ static int kvmppc_emulate_psq_load(struct kvm_run *run, struct kvm_vcpu *vcpu,
 		kvmppc_inject_pf(vcpu, addr, false);
 		goto done_load;
 	} else if ((r == EMULATE_DO_MMIO) && w) {
-		emulated = kvmppc_handle_load(run, vcpu, KVM_REG_FPR | rs, 4, 1);
+		emulated = kvmppc_handle_load(run, vcpu, KVM_MMIO_REG_FPR | rs,
+					      4, 1);
 		vcpu->arch.qpr[rs] = tmp[1];
 		goto done_load;
 	} else if (r == EMULATE_DO_MMIO) {
-		emulated = kvmppc_handle_load(run, vcpu, KVM_REG_FQPR | rs, 8, 1);
+		emulated = kvmppc_handle_load(run, vcpu, KVM_MMIO_REG_FQPR | rs,
+					      8, 1);
 		goto done_load;
 	}
 
