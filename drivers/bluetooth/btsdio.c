@@ -289,15 +289,6 @@ static int btsdio_send_frame(struct sk_buff *skb)
 	return 0;
 }
 
-static void btsdio_destruct(struct hci_dev *hdev)
-{
-	struct btsdio_data *data = hdev->driver_data;
-
-	BT_DBG("%s", hdev->name);
-
-	kfree(data);
-}
-
 static int btsdio_probe(struct sdio_func *func,
 				const struct sdio_device_id *id)
 {
@@ -345,7 +336,6 @@ static int btsdio_probe(struct sdio_func *func,
 	hdev->close    = btsdio_close;
 	hdev->flush    = btsdio_flush;
 	hdev->send     = btsdio_send_frame;
-	hdev->destruct = btsdio_destruct;
 
 	hdev->owner = THIS_MODULE;
 
@@ -378,6 +368,7 @@ static void btsdio_remove(struct sdio_func *func)
 	hci_unregister_dev(hdev);
 
 	hci_free_dev(hdev);
+	kfree(data);
 }
 
 static struct sdio_driver btsdio_driver = {
