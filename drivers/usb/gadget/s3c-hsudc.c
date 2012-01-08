@@ -759,7 +759,7 @@ static int s3c_hsudc_ep_enable(struct usb_ep *_ep,
 	unsigned long flags;
 	u32 ecr = 0;
 
-	hsep = container_of(_ep, struct s3c_hsudc_ep, ep);
+	hsep = our_ep(_ep);
 	if (!_ep || !desc || hsep->desc || _ep->name == ep0name
 		|| desc->bDescriptorType != USB_DT_ENDPOINT
 		|| hsep->bEndpointAddress != desc->bEndpointAddress
@@ -853,7 +853,7 @@ static void s3c_hsudc_free_request(struct usb_ep *ep, struct usb_request *_req)
 {
 	struct s3c_hsudc_req *hsreq;
 
-	hsreq = container_of(_req, struct s3c_hsudc_req, req);
+	hsreq = our_req(_req);
 	WARN_ON(!list_empty(&hsreq->queue));
 	kfree(hsreq);
 }
@@ -876,12 +876,12 @@ static int s3c_hsudc_queue(struct usb_ep *_ep, struct usb_request *_req,
 	u32 offset;
 	u32 csr;
 
-	hsreq = container_of(_req, struct s3c_hsudc_req, req);
+	hsreq = our_req(_req);
 	if ((!_req || !_req->complete || !_req->buf ||
 		!list_empty(&hsreq->queue)))
 		return -EINVAL;
 
-	hsep = container_of(_ep, struct s3c_hsudc_ep, ep);
+	hsep = our_ep(_ep);
 	hsudc = hsep->dev;
 	if (!hsudc->driver || hsudc->gadget.speed == USB_SPEED_UNKNOWN)
 		return -ESHUTDOWN;
@@ -935,7 +935,7 @@ static int s3c_hsudc_dequeue(struct usb_ep *_ep, struct usb_request *_req)
 	struct s3c_hsudc_req *hsreq;
 	unsigned long flags;
 
-	hsep = container_of(_ep, struct s3c_hsudc_ep, ep);
+	hsep = our_ep(_ep);
 	if (!_ep || hsep->ep.name == ep0name)
 		return -EINVAL;
 
