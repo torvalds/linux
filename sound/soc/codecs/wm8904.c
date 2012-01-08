@@ -304,6 +304,7 @@ static bool wm8904_readable_register(struct device *dev, unsigned int reg)
 	case WM8904_EQ23:
 	case WM8904_EQ24:
 	case WM8904_CONTROL_INTERFACE_TEST_1:
+	case WM8904_ADC_TEST_0:
 	case WM8904_ANALOGUE_OUTPUT_BIAS_0:
 	case WM8904_FLL_NCO_TEST_0:
 	case WM8904_FLL_NCO_TEST_1:
@@ -569,6 +570,29 @@ static const char *hpf_mode_text[] = {
 static const struct soc_enum hpf_mode =
 	SOC_ENUM_SINGLE(WM8904_ADC_DIGITAL_0, 5, 4, hpf_mode_text);
 
+static int wm8904_adc_osr_put(struct snd_kcontrol *kcontrol,
+			      struct snd_ctl_elem_value *ucontrol)
+{
+	struct snd_soc_codec *codec = snd_kcontrol_chip(kcontrol);
+	unsigned int val;
+	int ret;
+
+	ret = snd_soc_put_volsw(kcontrol, ucontrol);
+	if (ret < 0)
+		return ret;
+
+	if (ucontrol->value.integer.value[0])
+		val = 0;
+	else
+		val = WM8904_ADC_128_OSR_TST_MODE | WM8904_ADC_BIASX1P5;
+
+	snd_soc_update_bits(codec, WM8904_ADC_TEST_0,
+			    WM8904_ADC_128_OSR_TST_MODE | WM8904_ADC_BIASX1P5,
+			    val);
+
+	return ret;
+}
+
 static const struct snd_kcontrol_new wm8904_adc_snd_controls[] = {
 SOC_DOUBLE_R_TLV("Digital Capture Volume", WM8904_ADC_DIGITAL_VOLUME_LEFT,
 		 WM8904_ADC_DIGITAL_VOLUME_RIGHT, 1, 119, 0, digital_tlv),
@@ -585,7 +609,12 @@ SOC_DOUBLE_R("Capture Switch", WM8904_ANALOGUE_LEFT_INPUT_0,
 SOC_SINGLE("High Pass Filter Switch", WM8904_ADC_DIGITAL_0, 4, 1, 0),
 SOC_ENUM("High Pass Filter Mode", hpf_mode),
 
-SOC_SINGLE("ADC 128x OSR Switch", WM8904_ANALOGUE_ADC_0, 0, 1, 0),
+{       .iface = SNDRV_CTL_ELEM_IFACE_MIXER,
+	.name = "ADC 128x OSR Switch",
+	.info = snd_soc_info_volsw, .get = snd_soc_get_volsw,
+	.put = wm8904_adc_osr_put,
+	.private_value = SOC_SINGLE_VALUE(WM8904_ANALOGUE_ADC_0, 0, 1, 0),
+},
 };
 
 static const char *drc_path_text[] = {
