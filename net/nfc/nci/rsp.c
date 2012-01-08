@@ -151,7 +151,10 @@ static void nci_rf_deactivate_rsp_packet(struct nci_dev *ndev,
 
 	clear_bit(NCI_DISCOVERY, &ndev->flags);
 
-	nci_req_complete(ndev, status);
+	/* If target was active, complete the request only in deactivate_ntf */
+	if ((status != NCI_STATUS_OK) ||
+		(!test_bit(NCI_POLL_ACTIVE, &ndev->flags)))
+		nci_req_complete(ndev, status);
 }
 
 void nci_rsp_packet(struct nci_dev *ndev, struct sk_buff *skb)
