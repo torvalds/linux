@@ -130,7 +130,11 @@ static ssize_t set_max_min(struct device *dev,
 	struct ad7414_data *data = i2c_get_clientdata(client);
 	int index = to_sensor_dev_attr(attr)->index;
 	u8 reg = AD7414_REG_LIMIT[index];
-	long temp = simple_strtol(buf, NULL, 10);
+	long temp;
+	int ret = kstrtol(buf, 10, &temp);
+
+	if (ret < 0)
+		return ret;
 
 	temp = SENSORS_LIMIT(temp, -40000, 85000);
 	temp = (temp + (temp < 0 ? -500 : 500)) / 1000;
