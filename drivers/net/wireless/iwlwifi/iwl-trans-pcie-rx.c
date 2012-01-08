@@ -1130,11 +1130,7 @@ void iwl_irq_tasklet(struct iwl_trans *trans)
 		isr_stats->tx++;
 		handled |= CSR_INT_BIT_FH_TX;
 		/* Wake up uCode load routine, now that load is complete */
-#ifdef CONFIG_IWLWIFI_IDI
-		trans->shrd->trans->ucode_write_complete = 1;
-#else
 		trans->ucode_write_complete = 1;
-#endif
 		wake_up(&trans->shrd->wait_command_queue);
 	}
 

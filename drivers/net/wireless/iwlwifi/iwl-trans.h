@@ -131,13 +131,25 @@ struct iwl_host_cmd {
 	u8 id;
 };
 
+/* one for each uCode image (inst/data, boot/init/runtime) */
+struct fw_desc {
+	dma_addr_t p_addr;	/* hardware address */
+	void *v_addr;		/* software address */
+	u32 len;		/* size in bytes */
+};
+
+struct fw_img {
+	struct fw_desc code;	/* firmware code image */
+	struct fw_desc data;	/* firmware data image */
+};
+
 /**
  * struct iwl_trans_ops - transport specific operations
  * @start_hw: starts the HW- from that point on, the HW can send interrupts
  * @stop_hw: stops the HW- from that point on, the HW will be in low power but
  *	will still issue interrupt if the HW RF kill is triggered.
- * @start_device: allocates and inits all the resources for the transport
- *                layer.
+ * @start_fw: allocates and inits all the resources for the transport
+ *	layer. Also kick a fw image. This handler may sleep.
  * @fw_alive: called when the fw sends alive notification
  * @wake_any_queue: wake all the queues of a specfic context IWL_RXON_CTX_*
  * @stop_device:stops the whole device (embedded CPU put to reset)
@@ -148,7 +160,6 @@ struct iwl_host_cmd {
  * @tx_agg_setup: setup a tx queue for AMPDU - will be called once the HW is
  *                 ready and a successful ADDBA response has been received.
  * @tx_agg_disable: de-configure a Tx queue to send AMPDUs
- * @kick_nic: remove the RESET from the embedded CPU and let it run
  * @free: release all the ressource for the transport layer itself such as
  *        irq, tasklet etc...
  * @stop_queue: stop a specific queue
@@ -166,7 +177,7 @@ struct iwl_trans_ops {
 
 	int (*start_hw)(struct iwl_trans *iwl_trans);
 	void (*stop_hw)(struct iwl_trans *iwl_trans);
-	int (*start_device)(struct iwl_trans *trans);
+	int (*start_fw)(struct iwl_trans *trans, struct fw_img *fw);
 	void (*fw_alive)(struct iwl_trans *trans);
 	void (*stop_device)(struct iwl_trans *trans);
 
@@ -191,8 +202,6 @@ struct iwl_trans_ops {
 			     enum iwl_rxon_context_id ctx, int sta_id, int tid,
 			     int frame_limit, u16 ssn);
 
-	void (*kick_nic)(struct iwl_trans *trans);
-
 	void (*free)(struct iwl_trans *trans);
 
 	void (*stop_queue)(struct iwl_trans *trans, int q, const char *msg);
@@ -207,18 +216,6 @@ struct iwl_trans_ops {
 	void (*write8)(struct iwl_trans *trans, u32 ofs, u8 val);
 	void (*write32)(struct iwl_trans *trans, u32 ofs, u32 val);
 	u32 (*read32)(struct iwl_trans *trans, u32 ofs);
-};
-
-/* one for each uCode image (inst/data, boot/init/runtime) */
-struct fw_desc {
-	dma_addr_t p_addr;	/* hardware address */
-	void *v_addr;		/* software address */
-	u32 len;		/* size in bytes */
-};
-
-struct fw_img {
-	struct fw_desc code;	/* firmware code image */
-	struct fw_desc data;	/* firmware data image */
 };
 
 /* Opaque calibration results */
@@ -284,9 +281,11 @@ static inline void iwl_trans_fw_alive(struct iwl_trans *trans)
 	trans->ops->fw_alive(trans);
 }
 
-static inline int iwl_trans_start_device(struct iwl_trans *trans)
+static inline int iwl_trans_start_fw(struct iwl_trans *trans, struct fw_img *fw)
 {
-	return trans->ops->start_device(trans);
+	might_sleep();
+
+	return trans->ops->start_fw(trans, fw);
 }
 
 static inline void iwl_trans_stop_device(struct iwl_trans *trans)
@@ -345,11 +344,6 @@ static inline void iwl_trans_tx_agg_setup(struct iwl_trans *trans,
 					   int frame_limit, u16 ssn)
 {
 	trans->ops->tx_agg_setup(trans, ctx, sta_id, tid, frame_limit, ssn);
-}
-
-static inline void iwl_trans_kick_nic(struct iwl_trans *trans)
-{
-	trans->ops->kick_nic(trans);
 }
 
 static inline void iwl_trans_free(struct iwl_trans *trans)

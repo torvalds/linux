@@ -120,58 +120,6 @@ int iwl_alloc_fw_desc(struct iwl_trans *trans, struct fw_desc *desc,
 	return 0;
 }
 
-/*
- * ucode
- */
-static int iwl_load_section(struct iwl_trans *trans, const char *name,
-				struct fw_desc *image, u32 dst_addr)
-{
-	dma_addr_t phy_addr = image->p_addr;
-	u32 byte_cnt = image->len;
-	int ret;
-
-	trans->ucode_write_complete = 0;
-
-	iwl_write_direct32(trans,
-		FH_TCSR_CHNL_TX_CONFIG_REG(FH_SRVC_CHNL),
-		FH_TCSR_TX_CONFIG_REG_VAL_DMA_CHNL_PAUSE);
-
-	iwl_write_direct32(trans,
-		FH_SRVC_CHNL_SRAM_ADDR_REG(FH_SRVC_CHNL), dst_addr);
-
-	iwl_write_direct32(trans,
-		FH_TFDIB_CTRL0_REG(FH_SRVC_CHNL),
-		phy_addr & FH_MEM_TFDIB_DRAM_ADDR_LSB_MSK);
-
-	iwl_write_direct32(trans,
-		FH_TFDIB_CTRL1_REG(FH_SRVC_CHNL),
-		(iwl_get_dma_hi_addr(phy_addr)
-			<< FH_MEM_TFDIB_REG1_ADDR_BITSHIFT) | byte_cnt);
-
-	iwl_write_direct32(trans,
-		FH_TCSR_CHNL_TX_BUF_STS_REG(FH_SRVC_CHNL),
-		1 << FH_TCSR_CHNL_TX_BUF_STS_REG_POS_TB_NUM |
-		1 << FH_TCSR_CHNL_TX_BUF_STS_REG_POS_TB_IDX |
-		FH_TCSR_CHNL_TX_BUF_STS_REG_VAL_TFDB_VALID);
-
-	iwl_write_direct32(trans,
-		FH_TCSR_CHNL_TX_CONFIG_REG(FH_SRVC_CHNL),
-		FH_TCSR_TX_CONFIG_REG_VAL_DMA_CHNL_ENABLE	|
-		FH_TCSR_TX_CONFIG_REG_VAL_DMA_CREDIT_DISABLE	|
-		FH_TCSR_TX_CONFIG_REG_VAL_CIRQ_HOST_ENDTFD);
-
-	IWL_DEBUG_FW(trans, "%s uCode section being loaded...\n", name);
-	ret = wait_event_timeout(trans->shrd->wait_command_queue,
-				 trans->ucode_write_complete, 5 * HZ);
-	if (!ret) {
-		IWL_ERR(trans, "Could not load the %s uCode section\n",
-			name);
-		return -ETIMEDOUT;
-	}
-
-	return 0;
-}
-
 static inline struct fw_img *iwl_get_ucode_image(struct iwl_trans *trans,
 					enum iwl_ucode_type ucode_type)
 {
@@ -186,28 +134,6 @@ static inline struct fw_img *iwl_get_ucode_image(struct iwl_trans *trans,
 		break;
 	}
 	return NULL;
-}
-
-static int iwl_load_given_ucode(struct iwl_trans *trans,
-				   enum iwl_ucode_type ucode_type)
-{
-	int ret = 0;
-	struct fw_img *image = iwl_get_ucode_image(trans, ucode_type);
-
-
-	if (!image) {
-		IWL_ERR(trans, "Invalid ucode requested (%d)\n",
-			ucode_type);
-		return -EINVAL;
-	}
-
-	ret = iwl_load_section(trans, "INST", &image->code,
-				   IWLAGN_RTC_INST_LOWER_BOUND);
-	if (ret)
-		return ret;
-
-	return iwl_load_section(trans, "DATA", &image->data,
-				    IWLAGN_RTC_DATA_LOWER_BOUND);
 }
 
 /*
@@ -646,27 +572,26 @@ int iwl_load_ucode_wait_alive(struct iwl_trans *trans,
 {
 	struct iwl_notification_wait alive_wait;
 	struct iwl_alive_data alive_data;
+	struct fw_img *fw;
 	int ret;
 	enum iwl_ucode_type old_type;
-
-	ret = iwl_trans_start_device(trans);
-	if (ret)
-		return ret;
 
 	iwl_init_notification_wait(trans->shrd, &alive_wait, REPLY_ALIVE,
 				      iwl_alive_fn, &alive_data);
 
 	old_type = trans->shrd->ucode_type;
 	trans->shrd->ucode_type = ucode_type;
+	fw = iwl_get_ucode_image(trans, ucode_type);
 
-	ret = iwl_load_given_ucode(trans, ucode_type);
+	if (!fw)
+		return -EINVAL;
+
+	ret = iwl_trans_start_fw(trans, fw);
 	if (ret) {
 		trans->shrd->ucode_type = old_type;
 		iwl_remove_notification(trans->shrd, &alive_wait);
 		return ret;
 	}
-
-	iwl_trans_kick_nic(trans);
 
 	/*
 	 * Some things may run in the background now, but we

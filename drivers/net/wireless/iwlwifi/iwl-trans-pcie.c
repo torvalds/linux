@@ -64,6 +64,7 @@
 #include <linux/pci-aspm.h>
 #include <linux/interrupt.h>
 #include <linux/debugfs.h>
+#include <linux/sched.h>
 #include <linux/bitops.h>
 #include <linux/gfp.h>
 
@@ -895,7 +896,79 @@ static const u8 iwlagn_pan_ac_to_queue[] = {
 	7, 6, 5, 4,
 };
 
-static int iwl_trans_pcie_start_device(struct iwl_trans *trans)
+/*
+ * ucode
+ */
+static int iwl_load_section(struct iwl_trans *trans, const char *name,
+				struct fw_desc *image, u32 dst_addr)
+{
+	dma_addr_t phy_addr = image->p_addr;
+	u32 byte_cnt = image->len;
+	int ret;
+
+	trans->ucode_write_complete = 0;
+
+	iwl_write_direct32(trans,
+		FH_TCSR_CHNL_TX_CONFIG_REG(FH_SRVC_CHNL),
+		FH_TCSR_TX_CONFIG_REG_VAL_DMA_CHNL_PAUSE);
+
+	iwl_write_direct32(trans,
+		FH_SRVC_CHNL_SRAM_ADDR_REG(FH_SRVC_CHNL), dst_addr);
+
+	iwl_write_direct32(trans,
+		FH_TFDIB_CTRL0_REG(FH_SRVC_CHNL),
+		phy_addr & FH_MEM_TFDIB_DRAM_ADDR_LSB_MSK);
+
+	iwl_write_direct32(trans,
+		FH_TFDIB_CTRL1_REG(FH_SRVC_CHNL),
+		(iwl_get_dma_hi_addr(phy_addr)
+			<< FH_MEM_TFDIB_REG1_ADDR_BITSHIFT) | byte_cnt);
+
+	iwl_write_direct32(trans,
+		FH_TCSR_CHNL_TX_BUF_STS_REG(FH_SRVC_CHNL),
+		1 << FH_TCSR_CHNL_TX_BUF_STS_REG_POS_TB_NUM |
+		1 << FH_TCSR_CHNL_TX_BUF_STS_REG_POS_TB_IDX |
+		FH_TCSR_CHNL_TX_BUF_STS_REG_VAL_TFDB_VALID);
+
+	iwl_write_direct32(trans,
+		FH_TCSR_CHNL_TX_CONFIG_REG(FH_SRVC_CHNL),
+		FH_TCSR_TX_CONFIG_REG_VAL_DMA_CHNL_ENABLE	|
+		FH_TCSR_TX_CONFIG_REG_VAL_DMA_CREDIT_DISABLE	|
+		FH_TCSR_TX_CONFIG_REG_VAL_CIRQ_HOST_ENDTFD);
+
+	IWL_DEBUG_FW(trans, "%s uCode section being loaded...\n", name);
+	ret = wait_event_timeout(trans->shrd->wait_command_queue,
+				 trans->ucode_write_complete, 5 * HZ);
+	if (!ret) {
+		IWL_ERR(trans, "Could not load the %s uCode section\n",
+			name);
+		return -ETIMEDOUT;
+	}
+
+	return 0;
+}
+
+static int iwl_load_given_ucode(struct iwl_trans *trans, struct fw_img *image)
+{
+	int ret = 0;
+
+	ret = iwl_load_section(trans, "INST", &image->code,
+				   IWLAGN_RTC_INST_LOWER_BOUND);
+	if (ret)
+		return ret;
+
+	ret = iwl_load_section(trans, "DATA", &image->data,
+				    IWLAGN_RTC_DATA_LOWER_BOUND);
+	if (ret)
+		return ret;
+
+	/* Remove all resets to allow NIC to operate */
+	iwl_write32(trans, CSR_RESET, 0);
+
+	return 0;
+}
+
+static int iwl_trans_pcie_start_fw(struct iwl_trans *trans, struct fw_img *fw)
 {
 	int ret;
 	struct iwl_trans_pcie *trans_pcie =
@@ -950,6 +1023,9 @@ static int iwl_trans_pcie_start_device(struct iwl_trans *trans)
 	/* really make sure rfkill handshake bits are cleared */
 	iwl_write32(trans, CSR_UCODE_DRV_GP1_CLR, CSR_UCODE_SW_BIT_RFKILL);
 	iwl_write32(trans, CSR_UCODE_DRV_GP1_CLR, CSR_UCODE_SW_BIT_RFKILL);
+
+	/* Load the given image to the HW */
+	iwl_load_given_ucode(trans, fw);
 
 	return 0;
 }
@@ -1351,12 +1427,6 @@ static int iwl_trans_pcie_tx(struct iwl_trans *trans, struct sk_buff *skb,
 		}
 	}
 	return 0;
-}
-
-static void iwl_trans_pcie_kick_nic(struct iwl_trans *trans)
-{
-	/* Remove all resets to allow NIC to operate */
-	iwl_write32(trans, CSR_RESET, 0);
 }
 
 static int iwl_trans_pcie_start_hw(struct iwl_trans *trans)
@@ -2086,7 +2156,7 @@ const struct iwl_trans_ops trans_ops_pcie = {
 	.start_hw = iwl_trans_pcie_start_hw,
 	.stop_hw = iwl_trans_pcie_stop_hw,
 	.fw_alive = iwl_trans_pcie_fw_alive,
-	.start_device = iwl_trans_pcie_start_device,
+	.start_fw = iwl_trans_pcie_start_fw,
 	.stop_device = iwl_trans_pcie_stop_device,
 
 	.wake_any_queue = iwl_trans_pcie_wake_any_queue,
@@ -2099,8 +2169,6 @@ const struct iwl_trans_ops trans_ops_pcie = {
 	.tx_agg_disable = iwl_trans_pcie_tx_agg_disable,
 	.tx_agg_alloc = iwl_trans_pcie_tx_agg_alloc,
 	.tx_agg_setup = iwl_trans_pcie_tx_agg_setup,
-
-	.kick_nic = iwl_trans_pcie_kick_nic,
 
 	.free = iwl_trans_pcie_free,
 	.stop_queue = iwl_trans_pcie_stop_queue,
