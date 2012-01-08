@@ -1702,7 +1702,7 @@ xfsbufd(
 		struct blk_plug plug;
 
 		if (unlikely(freezing(current)))
-			refrigerator();
+			try_to_freeze();
 
 		/* sleep for a long time if there is nothing to do. */
 		if (list_empty(&target->bt_delwri_queue))

@@ -1417,8 +1417,8 @@ int gfs2_quotad(void *data)
 		/* Check for & recover partially truncated inodes */
 		quotad_check_trunc_list(sdp);
 
-		if (freezing(current))
-			refrigerator();
+		try_to_freeze();
+
 		t = min(quotad_timeo, statfs_timeo);
 
 		prepare_to_wait(&sdp->sd_quota_wait, &wait, TASK_INTERRUPTIBLE);

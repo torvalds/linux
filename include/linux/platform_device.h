@@ -256,62 +256,34 @@ static inline char *early_platform_driver_setup_func(void)		\
 }
 #endif /* MODULE */
 
-#ifdef CONFIG_PM_SLEEP
-extern int platform_pm_prepare(struct device *dev);
-extern void platform_pm_complete(struct device *dev);
-#else
-#define platform_pm_prepare	NULL
-#define platform_pm_complete	NULL
-#endif
-
 #ifdef CONFIG_SUSPEND
 extern int platform_pm_suspend(struct device *dev);
-extern int platform_pm_suspend_noirq(struct device *dev);
 extern int platform_pm_resume(struct device *dev);
-extern int platform_pm_resume_noirq(struct device *dev);
 #else
 #define platform_pm_suspend		NULL
 #define platform_pm_resume		NULL
-#define platform_pm_suspend_noirq	NULL
-#define platform_pm_resume_noirq	NULL
 #endif
 
 #ifdef CONFIG_HIBERNATE_CALLBACKS
 extern int platform_pm_freeze(struct device *dev);
-extern int platform_pm_freeze_noirq(struct device *dev);
 extern int platform_pm_thaw(struct device *dev);
-extern int platform_pm_thaw_noirq(struct device *dev);
 extern int platform_pm_poweroff(struct device *dev);
-extern int platform_pm_poweroff_noirq(struct device *dev);
 extern int platform_pm_restore(struct device *dev);
-extern int platform_pm_restore_noirq(struct device *dev);
 #else
 #define platform_pm_freeze		NULL
 #define platform_pm_thaw		NULL
 #define platform_pm_poweroff		NULL
 #define platform_pm_restore		NULL
-#define platform_pm_freeze_noirq	NULL
-#define platform_pm_thaw_noirq		NULL
-#define platform_pm_poweroff_noirq	NULL
-#define platform_pm_restore_noirq	NULL
 #endif
 
 #ifdef CONFIG_PM_SLEEP
 #define USE_PLATFORM_PM_SLEEP_OPS \
-	.prepare = platform_pm_prepare, \
-	.complete = platform_pm_complete, \
 	.suspend = platform_pm_suspend, \
 	.resume = platform_pm_resume, \
 	.freeze = platform_pm_freeze, \
 	.thaw = platform_pm_thaw, \
 	.poweroff = platform_pm_poweroff, \
-	.restore = platform_pm_restore, \
-	.suspend_noirq = platform_pm_suspend_noirq, \
-	.resume_noirq = platform_pm_resume_noirq, \
-	.freeze_noirq = platform_pm_freeze_noirq, \
-	.thaw_noirq = platform_pm_thaw_noirq, \
-	.poweroff_noirq = platform_pm_poweroff_noirq, \
-	.restore_noirq = platform_pm_restore_noirq,
+	.restore = platform_pm_restore,
 #else
 #define USE_PLATFORM_PM_SLEEP_OPS
 #endif

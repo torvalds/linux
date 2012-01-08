@@ -2456,8 +2456,9 @@ static int hotkey_kthread(void *data)
 	u32 poll_mask, event_mask;
 	unsigned int si, so;
 	unsigned long t;
-	unsigned int change_detector, must_reset;
+	unsigned int change_detector;
 	unsigned int poll_freq;
+	bool was_frozen;
 
 	mutex_lock(&hotkey_thread_mutex);
 
@@ -2488,14 +2489,14 @@ static int hotkey_kthread(void *data)
 				t = 100;	/* should never happen... */
 		}
 		t = msleep_interruptible(t);
-		if (unlikely(kthread_should_stop()))
+		if (unlikely(kthread_freezable_should_stop(&was_frozen)))
 			break;
-		must_reset = try_to_freeze();
-		if (t > 0 && !must_reset)
+
+		if (t > 0 && !was_frozen)
 			continue;
 
 		mutex_lock(&hotkey_thread_data_mutex);
-		if (must_reset || hotkey_config_change != change_detector) {
+		if (was_frozen || hotkey_config_change != change_detector) {
 			/* forget old state on thaw or config change */
 			si = so;
 			t = 0;
@@ -2528,10 +2529,6 @@ exit:
 static void hotkey_poll_stop_sync(void)
 {
 	if (tpacpi_hotkey_task) {
-		if (frozen(tpacpi_hotkey_task) ||
-		    freezing(tpacpi_hotkey_task))
-			thaw_process(tpacpi_hotkey_task);
-
 		kthread_stop(tpacpi_hotkey_task);
 		tpacpi_hotkey_task = NULL;
 		mutex_lock(&hotkey_thread_mutex);

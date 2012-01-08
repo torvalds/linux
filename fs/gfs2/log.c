@@ -951,8 +951,8 @@ int gfs2_logd(void *data)
 			wake_up(&sdp->sd_log_waitq);
 
 		t = gfs2_tune_get(sdp, gt_logd_secs) * HZ;
-		if (freezing(current))
-			refrigerator();
+
+		try_to_freeze();
 
 		do {
 			prepare_to_wait(&sdp->sd_logd_waitq, &wait,

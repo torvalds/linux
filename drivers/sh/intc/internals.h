@@ -67,6 +67,7 @@ struct intc_desc_int {
 	struct intc_window *window;
 	unsigned int nr_windows;
 	struct irq_chip chip;
+	bool skip_suspend;
 };
 
 
