@@ -15,7 +15,7 @@
  *  This driver takes one kernel command line parameter, sa1100ir=, with
  *  the following options:
  *	max_rate:baudrate	- set the maximum baud rate
- *	power_leve:level	- set the transmitter power level
+ *	power_level:level	- set the transmitter power level
  *	tx_lpm:0|1		- set transmit low power mode
  */
 #include <linux/module.h>
