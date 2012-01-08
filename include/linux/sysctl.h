@@ -1047,10 +1047,10 @@ struct ctl_table_header
 struct ctl_dir {
 	/* Header must be at the start of ctl_dir */
 	struct ctl_table_header header;
+	struct list_head list;
 };
 
 struct ctl_table_set {
-	struct list_head list;
 	int (*is_seen)(struct ctl_table_set *);
 	struct ctl_dir dir;
 };
