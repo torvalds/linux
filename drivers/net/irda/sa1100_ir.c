@@ -261,6 +261,57 @@ static irqreturn_t sa1100_irda_sir_irq(struct net_device *dev, struct sa1100_ird
 /*
  * FIR format support.
  */
+static void sa1100_irda_firtxdma_irq(void *id)
+{
+	struct net_device *dev = id;
+	struct sa1100_irda *si = netdev_priv(dev);
+	struct sk_buff *skb;
+
+	/*
+	 * Wait for the transmission to complete.  Unfortunately,
+	 * the hardware doesn't give us an interrupt to indicate
+	 * "end of frame".
+	 */
+	do
+		rmb();
+	while (!(Ser2HSSR0 & HSSR0_TUR) || Ser2HSSR1 & HSSR1_TBY);
+
+	/*
+	 * Clear the transmit underrun bit.
+	 */
+	Ser2HSSR0 = HSSR0_TUR;
+
+	/*
+	 * Do we need to change speed?  Note that we're lazy
+	 * here - we don't free the old dma_rx.skb.  We don't need
+	 * to allocate a buffer either.
+	 */
+	sa1100_irda_check_speed(si);
+
+	/*
+	 * Start reception.  This disables the transmitter for
+	 * us.  This will be using the existing RX buffer.
+	 */
+	sa1100_irda_rx_dma_start(si);
+
+	/* Account and free the packet. */
+	skb = si->dma_tx.skb;
+	if (skb) {
+		dma_unmap_single(si->dev, si->dma_tx.dma, skb->len,
+				 DMA_TO_DEVICE);
+		dev->stats.tx_packets ++;
+		dev->stats.tx_bytes += skb->len;
+		dev_kfree_skb_irq(skb);
+		si->dma_tx.skb = NULL;
+	}
+
+	/*
+	 * Make sure that the TX queue is available for sending
+	 * (for retries).  TX has priority over RX at all times.
+	 */
+	netif_wake_queue(dev);
+}
+
 static int sa1100_irda_fir_tx_start(struct sk_buff *skb, struct net_device *dev,
 	struct sa1100_irda *si)
 {
@@ -528,60 +579,6 @@ static irqreturn_t sa1100_irda_irq(int irq, void *dev_id)
 	return si->irq(dev, si);
 }
 
-/*
- * TX DMA completion handler.
- */
-static void sa1100_irda_txdma_irq(void *id)
-{
-	struct net_device *dev = id;
-	struct sa1100_irda *si = netdev_priv(dev);
-	struct sk_buff *skb;
-
-	/*
-	 * Wait for the transmission to complete.  Unfortunately,
-	 * the hardware doesn't give us an interrupt to indicate
-	 * "end of frame".
-	 */
-	do
-		rmb();
-	while (!(Ser2HSSR0 & HSSR0_TUR) || Ser2HSSR1 & HSSR1_TBY);
-
-	/*
-	 * Clear the transmit underrun bit.
-	 */
-	Ser2HSSR0 = HSSR0_TUR;
-
-	/*
-	 * Do we need to change speed?  Note that we're lazy
-	 * here - we don't free the old dma_rx.skb.  We don't need
-	 * to allocate a buffer either.
-	 */
-	sa1100_irda_check_speed(si);
-
-	/*
-	 * Start reception.  This disables the transmitter for
-	 * us.  This will be using the existing RX buffer.
-	 */
-	sa1100_irda_rx_dma_start(si);
-
-	/* Account and free the packet. */
-	skb = si->dma_tx.skb;
-	if (skb) {
-		dma_unmap_single(si->dev, si->dma_tx.dma, skb->len,
-				 DMA_TO_DEVICE);
-		dev->stats.tx_packets ++;
-		dev->stats.tx_bytes += skb->len;
-		dev_kfree_skb_irq(skb);
-		si->dma_tx.skb = NULL;
-	}
-
-	/*
-	 * Make sure that the TX queue is available for sending
-	 * (for retries).  TX has priority over RX at all times.
-	 */
-	netif_wake_queue(dev);
-}
-
 static int sa1100_irda_hard_xmit(struct sk_buff *skb, struct net_device *dev)
 {
 	struct sa1100_irda *si = netdev_priv(dev);
@@ -730,7 +727,8 @@ static int sa1100_irda_start(struct net_device *dev)
 		goto err_rx_dma;
 
 	err = sa1100_request_dma(DMA_Ser2HSSPWr, "IrDA transmit",
-				 sa1100_irda_txdma_irq, dev, &si->dma_tx.regs);
+				 sa1100_irda_firtxdma_irq, dev,
+				 &si->dma_tx.regs);
 	if (err)
 		goto err_tx_dma;
 
