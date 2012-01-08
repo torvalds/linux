@@ -106,34 +106,6 @@ static bool iwl_pci_is_pm_supported(struct iwl_bus *bus)
 	return !(lctl & PCI_CFG_LINK_CTRL_VAL_L0S_EN);
 }
 
-static void iwl_pci_apm_config(struct iwl_bus *bus)
-{
-	/*
-	 * HW bug W/A for instability in PCIe bus L0S->L1 transition.
-	 * Check if BIOS (or OS) enabled L1-ASPM on this device.
-	 * If so (likely), disable L0S, so device moves directly L0->L1;
-	 *    costs negligible amount of power savings.
-	 * If not (unlikely), enable L0S, so there is at least some
-	 *    power savings, even without L1.
-	 */
-	u16 lctl = iwl_pciexp_link_ctrl(bus);
-
-	if ((lctl & PCI_CFG_LINK_CTRL_VAL_L1_EN) ==
-				PCI_CFG_LINK_CTRL_VAL_L1_EN) {
-		/* L1-ASPM enabled; disable(!) L0S */
-		iwl_set_bit(trans(bus), CSR_GIO_REG,
-				CSR_GIO_REG_VAL_L0S_ENABLED);
-		dev_printk(KERN_INFO, trans(bus)->dev,
-			   "L1 Enabled; Disabling L0S\n");
-	} else {
-		/* L1-ASPM disabled; enable(!) L0S */
-		iwl_clear_bit(trans(bus), CSR_GIO_REG,
-				CSR_GIO_REG_VAL_L0S_ENABLED);
-		dev_printk(KERN_INFO, trans(bus)->dev,
-			   "L1 Disabled; Enabling L0S\n");
-	}
-}
-
 static void iwl_pci_get_hw_id_string(struct iwl_bus *bus, char buf[],
 			      int buf_len)
 {
@@ -152,7 +124,6 @@ static u32 iwl_pci_get_hw_id(struct iwl_bus *bus)
 
 static const struct iwl_bus_ops bus_ops_pci = {
 	.get_pm_support = iwl_pci_is_pm_supported,
-	.apm_config = iwl_pci_apm_config,
 	.get_hw_id_string = iwl_pci_get_hw_id_string,
 	.get_hw_id = iwl_pci_get_hw_id,
 };

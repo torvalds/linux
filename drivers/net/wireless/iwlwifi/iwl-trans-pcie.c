@@ -633,6 +633,51 @@ static void iwl_set_pwr_vmain(struct iwl_trans *trans)
 			       ~APMG_PS_CTRL_MSK_PWR_SRC);
 }
 
+/* PCI registers */
+#define PCI_CFG_RETRY_TIMEOUT	0x041
+#define PCI_CFG_LINK_CTRL_VAL_L0S_EN	0x01
+#define PCI_CFG_LINK_CTRL_VAL_L1_EN	0x02
+
+static u16 iwl_pciexp_link_ctrl(struct iwl_trans *trans)
+{
+	int pos;
+	u16 pci_lnk_ctl;
+	struct iwl_trans_pcie *trans_pcie =
+		IWL_TRANS_GET_PCIE_TRANS(trans);
+
+	struct pci_dev *pci_dev = trans_pcie->pci_dev;
+
+	pos = pci_pcie_cap(pci_dev);
+	pci_read_config_word(pci_dev, pos + PCI_EXP_LNKCTL, &pci_lnk_ctl);
+	return pci_lnk_ctl;
+}
+
+static void iwl_apm_config(struct iwl_trans *trans)
+{
+	/*
+	 * HW bug W/A for instability in PCIe bus L0S->L1 transition.
+	 * Check if BIOS (or OS) enabled L1-ASPM on this device.
+	 * If so (likely), disable L0S, so device moves directly L0->L1;
+	 *    costs negligible amount of power savings.
+	 * If not (unlikely), enable L0S, so there is at least some
+	 *    power savings, even without L1.
+	 */
+	u16 lctl = iwl_pciexp_link_ctrl(trans);
+
+	if ((lctl & PCI_CFG_LINK_CTRL_VAL_L1_EN) ==
+				PCI_CFG_LINK_CTRL_VAL_L1_EN) {
+		/* L1-ASPM enabled; disable(!) L0S */
+		iwl_set_bit(trans, CSR_GIO_REG, CSR_GIO_REG_VAL_L0S_ENABLED);
+		dev_printk(KERN_INFO, trans->dev,
+			   "L1 Enabled; Disabling L0S\n");
+	} else {
+		/* L1-ASPM disabled; enable(!) L0S */
+		iwl_clear_bit(trans, CSR_GIO_REG, CSR_GIO_REG_VAL_L0S_ENABLED);
+		dev_printk(KERN_INFO, trans->dev,
+			   "L1 Disabled; Enabling L0S\n");
+	}
+}
+
 /*
  * Start up NIC's basic functionality after it has been reset
  * (e.g. after platform boot, or shutdown via iwl_apm_stop())
@@ -669,7 +714,7 @@ static int iwl_apm_init(struct iwl_trans *trans)
 	iwl_set_bit(trans, CSR_HW_IF_CONFIG_REG,
 				    CSR_HW_IF_CONFIG_REG_BIT_HAP_WAKE_L1A);
 
-	bus_apm_config(bus(trans));
+	iwl_apm_config(trans);
 
 	/* Configure analog phase-lock-loop before activating to D0A */
 	if (cfg(trans)->base_params->pll_cfg_val)
@@ -2186,9 +2231,6 @@ const struct iwl_trans_ops trans_ops_pcie = {
 	.write32 = iwl_trans_pcie_write32,
 	.read32 = iwl_trans_pcie_read32,
 };
-
-/* PCI registers */
-#define PCI_CFG_RETRY_TIMEOUT	0x041
 
 struct iwl_trans *iwl_trans_pcie_alloc(struct iwl_shared *shrd,
 				       struct pci_dev *pdev,

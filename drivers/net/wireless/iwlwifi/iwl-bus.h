@@ -121,13 +121,11 @@ struct iwl_bus;
 /**
  * struct iwl_bus_ops - bus specific operations
  * @get_pm_support: must returns true if the bus can go to sleep
- * @apm_config: will be called during the config of the APM
  * @get_hw_id_string: prints the hw_id in the provided buffer
  * @get_hw_id: get hw_id in u32
  */
 struct iwl_bus_ops {
 	bool (*get_pm_support)(struct iwl_bus *bus);
-	void (*apm_config)(struct iwl_bus *bus);
 	void (*get_hw_id_string)(struct iwl_bus *bus, char buf[], int buf_len);
 	u32 (*get_hw_id)(struct iwl_bus *bus);
 };
@@ -154,11 +152,6 @@ struct iwl_bus {
 static inline bool bus_get_pm_support(struct iwl_bus *bus)
 {
 	return bus->ops->get_pm_support(bus);
-}
-
-static inline void bus_apm_config(struct iwl_bus *bus)
-{
-	bus->ops->apm_config(bus);
 }
 
 static inline void bus_get_hw_id_string(struct iwl_bus *bus, char buf[],
