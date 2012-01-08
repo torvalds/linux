@@ -1084,8 +1084,7 @@ out:
 
 /**
  * __register_sysctl_table - register a leaf sysctl table
- * @root: List of sysctl headers to register on
- * @namespaces: Data to compute which lists of sysctl entries are visible
+ * @set: Sysctl tree to register on
  * @path: The path to the directory the sysctl table is in.
  * @table: the top-level table structure
  *
@@ -1126,26 +1125,24 @@ out:
  * to the table header on success.
  */
 struct ctl_table_header *__register_sysctl_table(
-	struct ctl_table_root *root,
-	struct nsproxy *namespaces,
+	struct ctl_table_set *set,
 	const char *path, struct ctl_table *table)
 {
+	struct ctl_table_root *root = set->dir.header.root;
 	struct ctl_table_header *links = NULL;
 	struct ctl_table_header *header;
 	const char *name, *nextname;
-	struct ctl_table_set *set;
 	struct ctl_dir *dir;
 
 	header = kzalloc(sizeof(struct ctl_table_header), GFP_KERNEL);
 	if (!header)
 		return NULL;
 
-	init_header(header, root, NULL, table);
+	init_header(header, root, set, table);
 	if (sysctl_check_table(path, table))
 		goto fail;
 
 	spin_lock(&sysctl_lock);
-	header->set = set = lookup_header_set(root, namespaces);
 	dir = &set->dir;
 	dir->header.nreg++;
 	spin_unlock(&sysctl_lock);
@@ -1223,8 +1220,7 @@ static int count_subheaders(struct ctl_table *table)
 }
 
 static int register_leaf_sysctl_tables(const char *path, char *pos,
-	struct ctl_table_header ***subheader,
-	struct ctl_table_root *root, struct nsproxy *namespaces,
+	struct ctl_table_header ***subheader, struct ctl_table_set *set,
 	struct ctl_table *table)
 {
 	struct ctl_table *ctl_table_arg = NULL;
@@ -1261,7 +1257,7 @@ static int register_leaf_sysctl_tables(const char *path, char *pos,
 	/* Register everything except a directory full of subdirectories */
 	if (nr_files || !nr_dirs) {
 		struct ctl_table_header *header;
-		header = __register_sysctl_table(root, namespaces, path, files);
+		header = __register_sysctl_table(set, path, files);
 		if (!header) {
 			kfree(ctl_table_arg);
 			goto out;
@@ -1286,7 +1282,7 @@ static int register_leaf_sysctl_tables(const char *path, char *pos,
 			goto out;
 
 		err = register_leaf_sysctl_tables(path, child_pos, subheader,
-						  root, namespaces, entry->child);
+						  set, entry->child);
 		pos[0] = '\0';
 		if (err)
 			goto out;
@@ -1299,8 +1295,7 @@ out:
 
 /**
  * __register_sysctl_paths - register a sysctl table hierarchy
- * @root: List of sysctl headers to register on
- * @namespaces: Data to compute which lists of sysctl entries are visible
+ * @set: Sysctl tree to register on
  * @path: The path to the directory the sysctl table is in.
  * @table: the top-level table structure
  *
@@ -1310,8 +1305,7 @@ out:
  * See __register_sysctl_table for more details.
  */
 struct ctl_table_header *__register_sysctl_paths(
-	struct ctl_table_root *root,
-	struct nsproxy *namespaces,
+	struct ctl_table_set *set,
 	const struct ctl_path *path, struct ctl_table *table)
 {
 	struct ctl_table *ctl_table_arg = table;
@@ -1337,7 +1331,7 @@ struct ctl_table_header *__register_sysctl_paths(
 		table = table->child;
 	}
 	if (nr_subheaders == 1) {
-		header = __register_sysctl_table(root, namespaces, new_path, table);
+		header = __register_sysctl_table(set, new_path, table);
 		if (header)
 			header->ctl_table_arg = ctl_table_arg;
 	} else {
@@ -1351,7 +1345,7 @@ struct ctl_table_header *__register_sysctl_paths(
 		header->ctl_table_arg = ctl_table_arg;
 
 		if (register_leaf_sysctl_tables(new_path, pos, &subheader,
-						root, namespaces, table))
+						set, table))
 			goto err_register_leaves;
 	}
 
@@ -1384,7 +1378,7 @@ err_register_leaves:
 struct ctl_table_header *register_sysctl_paths(const struct ctl_path *path,
 						struct ctl_table *table)
 {
-	return __register_sysctl_paths(&sysctl_table_root, current->nsproxy,
+	return __register_sysctl_paths(&sysctl_table_root.default_set,
 					path, table);
 }
 EXPORT_SYMBOL(register_sysctl_paths);

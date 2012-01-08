@@ -105,19 +105,15 @@ subsys_initcall(net_sysctl_init);
 struct ctl_table_header *register_net_sysctl_table(struct net *net,
 	const struct ctl_path *path, struct ctl_table *table)
 {
-	struct nsproxy namespaces;
-	namespaces = *current->nsproxy;
-	namespaces.net_ns = net;
-	return __register_sysctl_paths(&net_sysctl_root,
-					&namespaces, path, table);
+	return __register_sysctl_paths(&net->sysctls, path, table);
 }
 EXPORT_SYMBOL_GPL(register_net_sysctl_table);
 
 struct ctl_table_header *register_net_sysctl_rotable(const
 		struct ctl_path *path, struct ctl_table *table)
 {
-	return __register_sysctl_paths(&net_sysctl_ro_root,
-			&init_nsproxy, path, table);
+	return __register_sysctl_paths(&net_sysctl_ro_root.default_set,
+					path, table);
 }
 EXPORT_SYMBOL_GPL(register_net_sysctl_rotable);
 
