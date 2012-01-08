@@ -25,11 +25,6 @@ DECLARE_PER_CPU(int, dirty_throttle_leaks);
 #define DIRTY_SCOPE		8
 #define DIRTY_FULL_SCOPE	(DIRTY_SCOPE / 2)
 
-/*
- * 4MB minimal write chunk size
- */
-#define MIN_WRITEBACK_PAGES	(4096UL >> (PAGE_CACHE_SHIFT - 10))
-
 struct backing_dev_info;
 
 /*
