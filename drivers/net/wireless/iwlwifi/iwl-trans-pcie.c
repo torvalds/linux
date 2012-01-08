@@ -690,13 +690,14 @@ static int iwl_set_hw_ready(struct iwl_trans *trans)
 }
 
 /* Note: returns standard 0/-ERROR code */
-static int iwl_trans_pcie_prepare_card_hw(struct iwl_trans *trans)
+static int iwl_prepare_card_hw(struct iwl_trans *trans)
 {
 	int ret;
 
 	IWL_DEBUG_INFO(trans, "iwl_trans_prepare_card_hw enter\n");
 
 	ret = iwl_set_hw_ready(trans);
+	/* If the card is ready, exit 0 */
 	if (ret >= 0)
 		return 0;
 
@@ -788,7 +789,7 @@ static int iwl_trans_pcie_start_device(struct iwl_trans *trans)
 	trans_pcie->mcast_queue[IWL_RXON_CTX_PAN] = IWL_IPAN_MCAST_QUEUE;
 
 	if ((hw_params(trans).sku & EEPROM_SKU_CAP_AMT_ENABLE) &&
-	     iwl_trans_pcie_prepare_card_hw(trans)) {
+	     iwl_prepare_card_hw(trans)) {
 		IWL_WARN(trans, "Exit HW not ready\n");
 		return -EIO;
 	}
@@ -1254,16 +1255,24 @@ static int iwl_trans_pcie_start_hw(struct iwl_trans *trans)
 		if (err) {
 			IWL_ERR(trans, "Error allocating IRQ %d\n",
 				trans->irq);
-			iwl_free_isr_ict(trans);
-			tasklet_kill(&trans_pcie->irq_tasklet);
-			return err;
+			goto error;
 		}
 
 		INIT_WORK(&trans_pcie->rx_replenish, iwl_bg_rx_replenish);
 		trans_pcie->irq_requested = true;
 	}
 
-	return 0;
+	err = iwl_prepare_card_hw(trans);
+	if (err) {
+		IWL_ERR(trans, "Error while preparing HW: %d", err);
+		goto error;
+	}
+	return err;
+
+error:
+	iwl_free_isr_ict(trans);
+	tasklet_kill(&trans_pcie->irq_tasklet);
+	return err;
 }
 
 static int iwl_trans_pcie_reclaim(struct iwl_trans *trans, int sta_id, int tid,
@@ -1931,7 +1940,6 @@ const struct iwl_trans_ops trans_ops_pcie = {
 	.start_hw = iwl_trans_pcie_start_hw,
 	.fw_alive = iwl_trans_pcie_fw_alive,
 	.start_device = iwl_trans_pcie_start_device,
-	.prepare_card_hw = iwl_trans_pcie_prepare_card_hw,
 	.stop_device = iwl_trans_pcie_stop_device,
 
 	.wake_any_queue = iwl_trans_pcie_wake_any_queue,

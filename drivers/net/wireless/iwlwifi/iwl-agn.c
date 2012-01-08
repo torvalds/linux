@@ -1833,12 +1833,6 @@ int iwl_probe(struct iwl_bus *bus, const struct iwl_trans_ops *trans_ops,
 	if (err)
 		goto out_free_traffic_mem;
 
-	if (iwl_trans_prepare_card_hw(trans(priv))) {
-		err = -EIO;
-		IWL_WARN(priv, "Failed, HW not ready\n");
-		goto out_free_traffic_mem;
-	}
-
 	/*****************
 	 * 4. Read EEPROM
 	 *****************/

@@ -136,8 +136,6 @@ struct iwl_host_cmd {
  * @start_hw: starts the HW- from that point on, the HW can send interrupts
  * @start_device: allocates and inits all the resources for the transport
  *                layer.
- * @prepare_card_hw: claim the ownership on the HW. Will be called during
- *                   probe.
  * @fw_alive: called when the fw sends alive notification
  * @wake_any_queue: wake all the queues of a specfic context IWL_RXON_CTX_*
  * @stop_device:stops the whole device (embedded CPU put to reset)
@@ -167,7 +165,6 @@ struct iwl_trans_ops {
 	int (*start_hw)(struct iwl_trans *iwl_trans);
 	int (*start_device)(struct iwl_trans *trans);
 	void (*fw_alive)(struct iwl_trans *trans);
-	int (*prepare_card_hw)(struct iwl_trans *trans);
 	void (*stop_device)(struct iwl_trans *trans);
 
 	void (*wake_any_queue)(struct iwl_trans *trans,
@@ -282,11 +279,6 @@ static inline void iwl_trans_fw_alive(struct iwl_trans *trans)
 static inline int iwl_trans_start_device(struct iwl_trans *trans)
 {
 	return trans->ops->start_device(trans);
-}
-
-static inline int iwl_trans_prepare_card_hw(struct iwl_trans *trans)
-{
-	return trans->ops->prepare_card_hw(trans);
 }
 
 static inline void iwl_trans_stop_device(struct iwl_trans *trans)
