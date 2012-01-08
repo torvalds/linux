@@ -1569,20 +1569,18 @@ delegate:
 
 static void destroy_ep_files (struct dev_data *dev)
 {
-	struct list_head	*entry, *tmp;
-
 	DBG (dev, "%s %d\n", __func__, dev->state);
 
 	/* dev->state must prevent interference */
 restart:
 	spin_lock_irq (&dev->lock);
-	list_for_each_safe (entry, tmp, &dev->epfiles) {
+	while (!list_empty(&dev->epfiles)) {
 		struct ep_data	*ep;
 		struct inode	*parent;
 		struct dentry	*dentry;
 
 		/* break link to FS */
-		ep = list_entry (entry, struct ep_data, epfiles);
+		ep = list_first_entry (&dev->epfiles, struct ep_data, epfiles);
 		list_del_init (&ep->epfiles);
 		dentry = ep->dentry;
 		ep->dentry = NULL;
@@ -1605,8 +1603,7 @@ restart:
 		dput (dentry);
 		mutex_unlock (&parent->i_mutex);
 
-		/* fds may still be open */
-		goto restart;
+		spin_lock_irq (&dev->lock);
 	}
 	spin_unlock_irq (&dev->lock);
 }
