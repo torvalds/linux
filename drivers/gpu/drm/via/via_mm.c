@@ -189,7 +189,6 @@ int via_mem_free(struct drm_device *dev, void *data, struct drm_file *file_priv)
 	drm_via_private_t *dev_priv = dev->dev_private;
 	drm_via_mem_t *mem = data;
 	struct via_memblock *obj;
-	int ret;
 
 	mutex_lock(&dev->struct_mutex);
 	obj = idr_find(&dev_priv->object_idr, mem->index);
@@ -206,7 +205,7 @@ int via_mem_free(struct drm_device *dev, void *data, struct drm_file *file_priv)
 
 	DRM_DEBUG("free = 0x%lx\n", mem->index);
 
-	return ret;
+	return 0;
 }
 
 

@@ -172,7 +172,6 @@ static int sis_drm_free(struct drm_device *dev, void *data, struct drm_file *fil
 	drm_sis_private_t *dev_priv = dev->dev_private;
 	drm_sis_mem_t *mem = data;
 	struct sis_memblock *obj;
-	int ret;
 
 	mutex_lock(&dev->struct_mutex);
 	obj = idr_find(&dev_priv->object_idr, mem->free);
@@ -193,7 +192,7 @@ static int sis_drm_free(struct drm_device *dev, void *data, struct drm_file *fil
 	mutex_unlock(&dev->struct_mutex);
 	DRM_DEBUG("free = 0x%lx\n", mem->free);
 
-	return ret;
+	return 0;
 }
 
 static int sis_fb_alloc(struct drm_device *dev, void *data,
