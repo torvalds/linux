@@ -279,7 +279,7 @@ xfs_cil_prepare_item(
  * Insert the log items into the CIL and calculate the difference in space
  * consumed by the item. Add the space to the checkpoint ticket and calculate
  * if the change requires additional log metadata. If it does, take that space
- * as well. Remove the amount of space we addded to the checkpoint ticket from
+ * as well. Remove the amount of space we added to the checkpoint ticket from
  * the current transaction ticket so that the accounting works out correctly.
  */
 static void

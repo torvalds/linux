@@ -205,7 +205,7 @@ enum sis900_tx_buffer_status {
 	EXCCOLL = 0x00100000, COLCNT   = 0x000F0000
 };
 
-enum sis900_rx_bufer_status {
+enum sis900_rx_buffer_status {
 	OVERRUN = 0x02000000, DEST = 0x00800000,     BCAST = 0x01800000,
 	MCAST   = 0x01000000, UNIMATCH = 0x00800000, TOOLONG = 0x00400000,
 	RUNT    = 0x00200000, RXISERR  = 0x00100000, CRCERR  = 0x00080000,

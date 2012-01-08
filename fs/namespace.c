@@ -324,9 +324,7 @@ int mnt_want_write(struct vfsmount *m)
 	if (mnt_is_readonly(m)) {
 		mnt_dec_writers(mnt);
 		ret = -EROFS;
-		goto out;
 	}
-out:
 	preempt_enable();
 	return ret;
 }

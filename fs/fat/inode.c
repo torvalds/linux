@@ -897,7 +897,7 @@ enum {
 	Opt_charset, Opt_shortname_lower, Opt_shortname_win95,
 	Opt_shortname_winnt, Opt_shortname_mixed, Opt_utf8_no, Opt_utf8_yes,
 	Opt_uni_xl_no, Opt_uni_xl_yes, Opt_nonumtail_no, Opt_nonumtail_yes,
-	Opt_obsolate, Opt_flush, Opt_tz_utc, Opt_rodir, Opt_err_cont,
+	Opt_obsolete, Opt_flush, Opt_tz_utc, Opt_rodir, Opt_err_cont,
 	Opt_err_panic, Opt_err_ro, Opt_discard, Opt_err,
 };
 
@@ -927,17 +927,17 @@ static const match_table_t fat_tokens = {
 	{Opt_err_panic, "errors=panic"},
 	{Opt_err_ro, "errors=remount-ro"},
 	{Opt_discard, "discard"},
-	{Opt_obsolate, "conv=binary"},
-	{Opt_obsolate, "conv=text"},
-	{Opt_obsolate, "conv=auto"},
-	{Opt_obsolate, "conv=b"},
-	{Opt_obsolate, "conv=t"},
-	{Opt_obsolate, "conv=a"},
-	{Opt_obsolate, "fat=%u"},
-	{Opt_obsolate, "blocksize=%u"},
-	{Opt_obsolate, "cvf_format=%20s"},
-	{Opt_obsolate, "cvf_options=%100s"},
-	{Opt_obsolate, "posix"},
+	{Opt_obsolete, "conv=binary"},
+	{Opt_obsolete, "conv=text"},
+	{Opt_obsolete, "conv=auto"},
+	{Opt_obsolete, "conv=b"},
+	{Opt_obsolete, "conv=t"},
+	{Opt_obsolete, "conv=a"},
+	{Opt_obsolete, "fat=%u"},
+	{Opt_obsolete, "blocksize=%u"},
+	{Opt_obsolete, "cvf_format=%20s"},
+	{Opt_obsolete, "cvf_options=%100s"},
+	{Opt_obsolete, "posix"},
 	{Opt_err, NULL},
 };
 static const match_table_t msdos_tokens = {
@@ -1169,7 +1169,7 @@ static int parse_options(struct super_block *sb, char *options, int is_vfat,
 			break;
 
 		/* obsolete mount options */
-		case Opt_obsolate:
+		case Opt_obsolete:
 			fat_msg(sb, KERN_INFO, "\"%s\" option is obsolete, "
 			       "not supported now", p);
 			break;

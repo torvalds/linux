@@ -501,7 +501,7 @@ static int of_get_assoc_arrays(struct device_node *memory,
 	aa->n_arrays = *prop++;
 	aa->array_sz = *prop++;
 
-	/* Now that we know the number of arrrays and size of each array,
+	/* Now that we know the number of arrays and size of each array,
 	 * revalidate the size of the property read in.
 	 */
 	if (len < (aa->n_arrays * aa->array_sz + 2) * sizeof(unsigned int))

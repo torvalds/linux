@@ -3182,6 +3182,16 @@ M:	William Irwin <wli@holomorphy.com>
 S:	Maintained
 F:	fs/hugetlbfs/
 
+Hyper-V CORE AND DRIVERS
+M:	K. Y. Srinivasan <kys@microsoft.com>
+M:	Haiyang Zhang <haiyangz@microsoft.com>
+L:	devel@linuxdriverproject.org
+S:	Maintained
+F:	drivers/hv/
+F:	drivers/hid/hid-hyperv.c
+F:	drivers/net/hyperv/
+F:	drivers/staging/hv/
+
 I2C/SMBUS STUB DRIVER
 M:	"Mark M. Hoffman" <mhoffman@lightlink.com>
 L:	linux-i2c@vger.kernel.org
@@ -3577,8 +3587,7 @@ F:	net/netfilter/ipvs/
 IPWIRELESS DRIVER
 M:	Jiri Kosina <jkosina@suse.cz>
 M:	David Sterba <dsterba@suse.cz>
-S:	Maintained
-T:	git git://git.kernel.org/pub/scm/linux/kernel/git/jikos/ipwireless_cs.git
+S:	Odd Fixes
 F:	drivers/tty/ipwireless/
 
 IPX NETWORK LAYER
@@ -6320,12 +6329,6 @@ STAGING - FRONTIER TRANZPORT AND ALPHATRACK
 M:	David Täht <d@teklibre.com>
 S:	Odd Fixes
 F:	drivers/staging/frontier/
-
-STAGING - HYPER-V (MICROSOFT)
-M:	Hank Janssen <hjanssen@microsoft.com>
-M:	Haiyang Zhang <haiyangz@microsoft.com>
-S:	Odd Fixes
-F:	drivers/staging/hv/
 
 STAGING - INDUSTRIAL IO
 M:	Jonathan Cameron <jic23@cam.ac.uk>

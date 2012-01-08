@@ -273,10 +273,9 @@ config AVERAGE
 	  If unsure, say N.
 
 config CORDIC
-	tristate "Cordic function"
+	tristate "CORDIC algorithm"
 	help
-	  The option provides arithmetic function using cordic algorithm
-	  so its calculations are in fixed point. Modules can select this
-	  when they require this function. Module will be called cordic.
+	  This option provides an implementation of the CORDIC algorithm;
+	  calculations are in fixed point. Module will be called cordic.
 
 endmenu

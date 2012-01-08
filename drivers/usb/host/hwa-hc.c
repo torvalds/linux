@@ -481,7 +481,7 @@ static int __hwahc_op_set_ptk(struct wusbhc *wusbhc, u8 port_idx, u32 tkid,
 		encryption_value = 0;
 	}
 
-	/* Set the encryption type for commmunicating with the device */
+	/* Set the encryption type for communicating with the device */
 	result = usb_control_msg(wa->usb_dev, usb_sndctrlpipe(wa->usb_dev, 0),
 			USB_REQ_SET_ENCRYPTION,
 			USB_DIR_OUT | USB_TYPE_CLASS | USB_RECIP_INTERFACE,

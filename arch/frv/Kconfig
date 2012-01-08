@@ -341,16 +341,6 @@ source "drivers/pci/Kconfig"
 
 source "drivers/pcmcia/Kconfig"
 
-#config MATH_EMULATION
-#	bool "Math emulation support (EXPERIMENTAL)"
-#	depends on EXPERIMENTAL
-#	help
-#	  At some point in the future, this will cause floating-point math
-#	  instructions to be emulated by the kernel on machines that lack a
-#	  floating-point math coprocessor.  Thrill-seekers and chronically
-#	  sleep-deprived psychotic hacker types can say Y now, everyone else
-#	  should probably wait a while.
-
 menu "Power management options"
 
 config ARCH_SUSPEND_POSSIBLE

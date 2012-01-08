@@ -347,7 +347,8 @@ config LEDS_MC13783
 config LEDS_NS2
 	tristate "LED support for Network Space v2 GPIO LEDs"
 	depends on LEDS_CLASS
-	depends on MACH_NETSPACE_V2 || MACH_INETSPACE_V2 || MACH_NETSPACE_MAX_V2 || D2NET_V2
+	depends on MACH_NETSPACE_V2 || MACH_INETSPACE_V2 || \
+		   MACH_NETSPACE_MAX_V2 || MACH_D2NET_V2
 	default y
 	help
 	  This option enable support for the dual-GPIO LED found on the

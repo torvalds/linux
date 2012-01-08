@@ -295,7 +295,7 @@ void iio_dealloc_pollfunc(struct iio_poll_func *pf)
 EXPORT_SYMBOL_GPL(iio_dealloc_pollfunc);
 
 /**
- * iio_trigger_read_currrent() - trigger consumer sysfs query which trigger
+ * iio_trigger_read_current() - trigger consumer sysfs query which trigger
  *
  * For trigger consumers the current_trigger interface allows the trigger
  * used by the device to be queried.

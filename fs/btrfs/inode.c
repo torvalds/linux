@@ -1944,7 +1944,7 @@ enum btrfs_orphan_cleanup_state {
 };
 
 /*
- * This is called in transaction commmit time. If there are no orphan
+ * This is called in transaction commit time. If there are no orphan
  * files in the subvolume, it removes orphan item and frees block_rsv
  * structure.
  */
