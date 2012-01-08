@@ -35,7 +35,6 @@
 #include <net/irda/wrapper.h>
 #include <net/irda/irda_device.h>
 
-#include <asm/irq.h>
 #include <mach/dma.h>
 #include <mach/hardware.h>
 #include <asm/mach/irda.h>
@@ -900,10 +899,14 @@ static int sa1100_irda_probe(struct platform_device *pdev)
 	struct net_device *dev;
 	struct sa1100_irda *si;
 	unsigned int baudrate_mask;
-	int err;
+	int err, irq;
 
 	if (!pdev->dev.platform_data)
 		return -EINVAL;
+
+	irq = platform_get_irq(pdev, 0);
+	if (irq <= 0)
+		return irq < 0 ? irq : -ENXIO;
 
 	err = request_mem_region(__PREG(Ser2UTCR0), 0x24, "IrDA") ? 0 : -EBUSY;
 	if (err)
@@ -936,7 +939,7 @@ static int sa1100_irda_probe(struct platform_device *pdev)
 		goto err_mem_5;
 
 	dev->netdev_ops	= &sa1100_irda_netdev_ops;
-	dev->irq	= IRQ_Ser2ICP;
+	dev->irq	= irq;
 
 	irda_init_max_qos_capabilies(&si->qos);
 
