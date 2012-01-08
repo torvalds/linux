@@ -57,7 +57,7 @@ static ssize_t lm70_sense_temp(struct device *dev,
 	struct spi_device *spi = to_spi_device(dev);
 	int status, val = 0;
 	u8 rxbuf[2];
-	s16 raw=0;
+	s16 raw = 0;
 	struct lm70 *p_lm70 = spi_get_drvdata(spi);
 
 	if (mutex_lock_interruptible(&p_lm70->lock))
