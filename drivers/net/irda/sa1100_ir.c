@@ -43,6 +43,12 @@ static int power_level = 3;
 static int tx_lpm;
 static int max_rate = 4000000;
 
+struct sa1100_buf {
+	struct sk_buff		*skb;
+	dma_addr_t		dma;
+	dma_regs_t		*regs;
+};
+
 struct sa1100_irda {
 	unsigned char		hscr0;
 	unsigned char		utcr4;
@@ -52,12 +58,8 @@ struct sa1100_irda {
 	int			speed;
 	int			newspeed;
 
-	struct sk_buff		*txskb;
-	struct sk_buff		*rxskb;
-	dma_addr_t		txbuf_dma;
-	dma_addr_t		rxbuf_dma;
-	dma_regs_t		*txdma;
-	dma_regs_t		*rxdma;
+	struct sa1100_buf	dma_rx;
+	struct sa1100_buf	dma_tx;
 
 	struct device		*dev;
 	struct irda_platform_data *pdata;
@@ -77,11 +79,11 @@ struct sa1100_irda {
  */
 static int sa1100_irda_rx_alloc(struct sa1100_irda *si)
 {
-	if (si->rxskb)
+	if (si->dma_rx.skb)
 		return 0;
 
-	si->rxskb = alloc_skb(HPSIR_MAX_RXLEN + 1, GFP_ATOMIC);
-	if (!si->rxskb) {
+	si->dma_rx.skb = alloc_skb(HPSIR_MAX_RXLEN + 1, GFP_ATOMIC);
+	if (!si->dma_rx.skb) {
 		printk(KERN_ERR "sa1100_ir: out of memory for RX SKB\n");
 		return -ENOMEM;
 	}
@@ -90,13 +92,13 @@ static int sa1100_irda_rx_alloc(struct sa1100_irda *si)
 	 * Align any IP headers that may be contained
 	 * within the frame.
 	 */
-	skb_reserve(si->rxskb, 1);
+	skb_reserve(si->dma_rx.skb, 1);
 
-	si->rxbuf_dma = dma_map_single(si->dev, si->rxskb->data,
+	si->dma_rx.dma = dma_map_single(si->dev, si->dma_rx.skb->data,
 					HPSIR_MAX_RXLEN,
 					DMA_FROM_DEVICE);
-	if (dma_mapping_error(si->dev, si->rxbuf_dma)) {
-		dev_kfree_skb_any(si->rxskb);
+	if (dma_mapping_error(si->dev, si->dma_rx.dma)) {
+		dev_kfree_skb_any(si->dma_rx.skb);
 		return -ENOMEM;
 	}
 
@@ -109,7 +111,7 @@ static int sa1100_irda_rx_alloc(struct sa1100_irda *si)
  */
 static void sa1100_irda_rx_dma_start(struct sa1100_irda *si)
 {
-	if (!si->rxskb) {
+	if (!si->dma_rx.skb) {
 		printk(KERN_ERR "sa1100_ir: rx buffer went missing\n");
 		return;
 	}
@@ -122,8 +124,8 @@ static void sa1100_irda_rx_dma_start(struct sa1100_irda *si)
 	/*
 	 * Enable the DMA, receiver and receive interrupt.
 	 */
-	sa1100_clear_dma(si->rxdma);
-	sa1100_start_dma(si->rxdma, si->rxbuf_dma, HPSIR_MAX_RXLEN);
+	sa1100_clear_dma(si->dma_rx.regs);
+	sa1100_start_dma(si->dma_rx.regs, si->dma_rx.dma, HPSIR_MAX_RXLEN);
 	Ser2HSCR0 = si->hscr0 | HSCR0_HSSP | HSCR0_RXE;
 }
 
@@ -144,7 +146,7 @@ static int sa1100_irda_set_speed(struct sa1100_irda *si, int speed)
 		 * Stop the receive DMA.
 		 */
 		if (IS_FIR(si))
-			sa1100_stop_dma(si->rxdma);
+			sa1100_stop_dma(si->dma_rx.regs);
 
 		local_irq_save(flags);
 
@@ -280,8 +282,8 @@ static void sa1100_irda_shutdown(struct sa1100_irda *si)
 	/*
 	 * Stop all DMA activity.
 	 */
-	sa1100_stop_dma(si->rxdma);
-	sa1100_stop_dma(si->txdma);
+	sa1100_stop_dma(si->dma_rx.regs);
+	sa1100_stop_dma(si->dma_tx.regs);
 
 	/* Disable the port. */
 	Ser2UTCR3 = 0;
@@ -460,7 +462,7 @@ static void sa1100_irda_hpsir_irq(struct net_device *dev)
 
 static void sa1100_irda_fir_error(struct sa1100_irda *si, struct net_device *dev)
 {
-	struct sk_buff *skb = si->rxskb;
+	struct sk_buff *skb = si->dma_rx.skb;
 	dma_addr_t dma_addr;
 	unsigned int len, stat, data;
 
@@ -472,11 +474,11 @@ static void sa1100_irda_fir_error(struct sa1100_irda *si, struct net_device *dev
 	/*
 	 * Get the current data position.
 	 */
-	dma_addr = sa1100_get_dma_pos(si->rxdma);
-	len = dma_addr - si->rxbuf_dma;
+	dma_addr = sa1100_get_dma_pos(si->dma_rx.regs);
+	len = dma_addr - si->dma_rx.dma;
 	if (len > HPSIR_MAX_RXLEN)
 		len = HPSIR_MAX_RXLEN;
-	dma_unmap_single(si->dev, si->rxbuf_dma, len, DMA_FROM_DEVICE);
+	dma_unmap_single(si->dev, si->dma_rx.dma, len, DMA_FROM_DEVICE);
 
 	do {
 		/*
@@ -504,7 +506,7 @@ static void sa1100_irda_fir_error(struct sa1100_irda *si, struct net_device *dev
 	} while (Ser2HSSR0 & HSSR0_EIF);
 
 	if (stat & HSSR1_EOF) {
-		si->rxskb = NULL;
+		si->dma_rx.skb = NULL;
 
 		skb_put(skb, len);
 		skb->dev = dev;
@@ -524,7 +526,7 @@ static void sa1100_irda_fir_error(struct sa1100_irda *si, struct net_device *dev
 		 * Remap the buffer - it was previously mapped, and we
 		 * hope that this succeeds.
 		 */
-		si->rxbuf_dma = dma_map_single(si->dev, si->rxskb->data,
+		si->dma_rx.dma = dma_map_single(si->dev, si->dma_rx.skb->data,
 						HPSIR_MAX_RXLEN,
 						DMA_FROM_DEVICE);
 	}
@@ -543,7 +545,7 @@ static void sa1100_irda_fir_irq(struct net_device *dev)
 	/*
 	 * Stop RX DMA
 	 */
-	sa1100_stop_dma(si->rxdma);
+	sa1100_stop_dma(si->dma_rx.regs);
 
 	/*
 	 * Framing error - we throw away the packet completely.
@@ -600,9 +602,9 @@ static void sa1100_irda_txdma_irq(void *id)
 {
 	struct net_device *dev = id;
 	struct sa1100_irda *si = netdev_priv(dev);
-	struct sk_buff *skb = si->txskb;
+	struct sk_buff *skb = si->dma_tx.skb;
 
-	si->txskb = NULL;
+	si->dma_tx.skb = NULL;
 
 	/*
 	 * Wait for the transmission to complete.  Unfortunately,
@@ -620,7 +622,7 @@ static void sa1100_irda_txdma_irq(void *id)
 
 	/*
 	 * Do we need to change speed?  Note that we're lazy
-	 * here - we don't free the old rxskb.  We don't need
+	 * here - we don't free the old dma_rx.skb.  We don't need
 	 * to allocate a buffer either.
 	 */
 	if (si->newspeed) {
@@ -638,7 +640,7 @@ static void sa1100_irda_txdma_irq(void *id)
 	 * Account and free the packet.
 	 */
 	if (skb) {
-		dma_unmap_single(si->dev, si->txbuf_dma, skb->len, DMA_TO_DEVICE);
+		dma_unmap_single(si->dev, si->dma_tx.dma, skb->len, DMA_TO_DEVICE);
 		dev->stats.tx_packets ++;
 		dev->stats.tx_bytes += skb->len;
 		dev_kfree_skb_irq(skb);
@@ -698,22 +700,22 @@ static int sa1100_irda_hard_xmit(struct sk_buff *skb, struct net_device *dev)
 		/*
 		 * We must not be transmitting...
 		 */
-		BUG_ON(si->txskb);
+		BUG_ON(si->dma_tx.skb);
 
 		netif_stop_queue(dev);
 
-		si->txskb = skb;
-		si->txbuf_dma = dma_map_single(si->dev, skb->data,
+		si->dma_tx.skb = skb;
+		si->dma_tx.dma = dma_map_single(si->dev, skb->data,
 					 skb->len, DMA_TO_DEVICE);
-		if (dma_mapping_error(si->dev, si->txbuf_dma)) {
-			si->txskb = NULL;
+		if (dma_mapping_error(si->dev, si->dma_tx.dma)) {
+			si->dma_tx.skb = NULL;
 			netif_wake_queue(dev);
 			dev->stats.tx_dropped++;
 			dev_kfree_skb(skb);
 			return NETDEV_TX_OK;
 		}
 
-		sa1100_start_dma(si->txdma, si->txbuf_dma, skb->len);
+		sa1100_start_dma(si->dma_tx.regs, si->dma_tx.dma, skb->len);
 
 		/*
 		 * If we have a mean turn-around time, impose the specified
@@ -785,12 +787,12 @@ static int sa1100_irda_start(struct net_device *dev)
 		goto err_irq;
 
 	err = sa1100_request_dma(DMA_Ser2HSSPRd, "IrDA receive",
-				 NULL, NULL, &si->rxdma);
+				 NULL, NULL, &si->dma_rx.regs);
 	if (err)
 		goto err_rx_dma;
 
 	err = sa1100_request_dma(DMA_Ser2HSSPWr, "IrDA transmit",
-				 sa1100_irda_txdma_irq, dev, &si->txdma);
+				 sa1100_irda_txdma_irq, dev, &si->dma_tx.regs);
 	if (err)
 		goto err_tx_dma;
 
@@ -827,9 +829,9 @@ err_irlap:
 	si->open = 0;
 	sa1100_irda_shutdown(si);
 err_startup:
-	sa1100_free_dma(si->txdma);
+	sa1100_free_dma(si->dma_tx.regs);
 err_tx_dma:
-	sa1100_free_dma(si->rxdma);
+	sa1100_free_dma(si->dma_rx.regs);
 err_rx_dma:
 	free_irq(dev->irq, dev);
 err_irq:
@@ -847,11 +849,11 @@ static int sa1100_irda_stop(struct net_device *dev)
 	 * If we have been doing DMA receive, make sure we
 	 * tidy that up cleanly.
 	 */
-	if (si->rxskb) {
-		dma_unmap_single(si->dev, si->rxbuf_dma, HPSIR_MAX_RXLEN,
+	if (si->dma_rx.skb) {
+		dma_unmap_single(si->dev, si->dma_rx.dma, HPSIR_MAX_RXLEN,
 				 DMA_FROM_DEVICE);
-		dev_kfree_skb(si->rxskb);
-		si->rxskb = NULL;
+		dev_kfree_skb(si->dma_rx.skb);
+		si->dma_rx.skb = NULL;
 	}
 
 	/* Stop IrLAP */
@@ -866,8 +868,8 @@ static int sa1100_irda_stop(struct net_device *dev)
 	/*
 	 * Free resources
 	 */
-	sa1100_free_dma(si->txdma);
-	sa1100_free_dma(si->rxdma);
+	sa1100_free_dma(si->dma_tx.regs);
+	sa1100_free_dma(si->dma_rx.regs);
 	free_irq(dev->irq, dev);
 
 	sa1100_set_power(si, 0);
