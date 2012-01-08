@@ -23,6 +23,7 @@
 #include <linux/delay.h>
 #include <linux/sched.h>
 #include <linux/clk.h>
+#include <linux/cpu.h>
 #include <linux/fs.h>
 #include <linux/of.h>
 
@@ -493,3 +494,17 @@ const struct seq_operations cpuinfo_op = {
 	c_next,
 	show_cpuinfo
 };
+
+static struct cpu cpu_devices[NR_CPUS];
+
+static int __init topology_init(void)
+{
+	int i;
+
+	for_each_present_cpu(i)
+		register_cpu(&cpu_devices[i], i);
+
+	return 0;
+}
+
+subsys_initcall(topology_init);
