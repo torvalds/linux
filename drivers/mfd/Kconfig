@@ -389,6 +389,17 @@ config MFD_MAX8998
 	  additional drivers must be enabled in order to use the functionality
 	  of the device.
 
+config MFD_S5M_CORE
+	bool "SAMSUNG S5M Series Support"
+	depends on I2C=y && GENERIC_HARDIRQS
+	select MFD_CORE
+	select REGMAP_I2C
+	help
+	 Support for the Samsung Electronics S5M MFD series.
+	 This driver provies common support for accessing the device,
+	 additional drivers must be enabled in order to use the functionality
+	 of the device
+
 config MFD_WM8400
 	tristate "Support Wolfson Microelectronics WM8400"
 	select MFD_CORE
