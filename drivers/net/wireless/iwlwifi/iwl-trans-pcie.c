@@ -2317,6 +2317,8 @@ struct iwl_trans *iwl_trans_pcie_alloc(struct iwl_shared *shrd,
 	trans->dev = &pdev->dev;
 	trans->irq = pdev->irq;
 	trans_pcie->pci_dev = pdev;
+	snprintf(trans->hw_id_str, sizeof(trans->hw_id_str),
+		 "PCI ID: 0x%04X:0x%04X", pdev->device, pdev->subsystem_device);
 
 	/* TODO: Move this away, not needed if not MSI */
 	/* enable rfkill interrupt: hw bug w/a */

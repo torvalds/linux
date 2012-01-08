@@ -234,6 +234,7 @@ struct iwl_calib_result {
  * @reg_lock - protect hw register access
  * @dev - pointer to struct device * that represents the device
  * @irq - the irq number for the device
+ * @hw_id_str: a string with info about HW ID. Set during transport allocation.
  * @ucode_write_complete: indicates that the ucode has been copied.
  * @ucode_rt: run time ucode image
  * @ucode_init: init ucode image
@@ -250,6 +251,7 @@ struct iwl_trans {
 
 	struct device *dev;
 	unsigned int irq;
+	char hw_id_str[52];
 
 	u8 ucode_write_complete;	/* the image write is complete */
 	struct fw_img ucode_rt;

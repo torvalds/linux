@@ -87,15 +87,6 @@ struct iwl_pci_bus {
 #define IWL_BUS_GET_PCI_DEV(_iwl_bus) \
 			((IWL_BUS_GET_PCI_BUS(_iwl_bus))->pci_dev)
 
-static void iwl_pci_get_hw_id_string(struct iwl_bus *bus, char buf[],
-			      int buf_len)
-{
-	struct pci_dev *pci_dev = IWL_BUS_GET_PCI_DEV(bus);
-
-	snprintf(buf, buf_len, "PCI ID: 0x%04X:0x%04X", pci_dev->device,
-		 pci_dev->subsystem_device);
-}
-
 static u32 iwl_pci_get_hw_id(struct iwl_bus *bus)
 {
 	struct pci_dev *pci_dev = IWL_BUS_GET_PCI_DEV(bus);
@@ -104,7 +95,6 @@ static u32 iwl_pci_get_hw_id(struct iwl_bus *bus)
 }
 
 static const struct iwl_bus_ops bus_ops_pci = {
-	.get_hw_id_string = iwl_pci_get_hw_id_string,
 	.get_hw_id = iwl_pci_get_hw_id,
 };
 

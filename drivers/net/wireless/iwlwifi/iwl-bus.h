@@ -120,11 +120,9 @@ struct iwl_bus;
 
 /**
  * struct iwl_bus_ops - bus specific operations
- * @get_hw_id_string: prints the hw_id in the provided buffer
  * @get_hw_id: get hw_id in u32
  */
 struct iwl_bus_ops {
-	void (*get_hw_id_string)(struct iwl_bus *bus, char buf[], int buf_len);
 	u32 (*get_hw_id)(struct iwl_bus *bus);
 };
 
@@ -146,12 +144,6 @@ struct iwl_bus {
 	/*Ensure that this pointer will always be aligned to sizeof pointer */
 	char bus_specific[0] __attribute__((__aligned__(sizeof(void *))));
 };
-
-static inline void bus_get_hw_id_string(struct iwl_bus *bus, char buf[],
-		int buf_len)
-{
-	bus->ops->get_hw_id_string(bus, buf, buf_len);
-}
 
 static inline u32 bus_get_hw_id(struct iwl_bus *bus)
 {
