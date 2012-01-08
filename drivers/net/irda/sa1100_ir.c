@@ -602,9 +602,7 @@ static void sa1100_irda_txdma_irq(void *id)
 {
 	struct net_device *dev = id;
 	struct sa1100_irda *si = netdev_priv(dev);
-	struct sk_buff *skb = si->dma_tx.skb;
-
-	si->dma_tx.skb = NULL;
+	struct sk_buff *skb;
 
 	/*
 	 * Wait for the transmission to complete.  Unfortunately,
@@ -636,14 +634,15 @@ static void sa1100_irda_txdma_irq(void *id)
 	 */
 	sa1100_irda_rx_dma_start(si);
 
-	/*
-	 * Account and free the packet.
-	 */
+	/* Account and free the packet. */
+	skb = si->dma_tx.skb;
 	if (skb) {
-		dma_unmap_single(si->dev, si->dma_tx.dma, skb->len, DMA_TO_DEVICE);
+		dma_unmap_single(si->dev, si->dma_tx.dma, skb->len,
+				 DMA_TO_DEVICE);
 		dev->stats.tx_packets ++;
 		dev->stats.tx_bytes += skb->len;
 		dev_kfree_skb_irq(skb);
+		si->dma_tx.skb = NULL;
 	}
 
 	/*
@@ -841,19 +840,29 @@ err_irq:
 static int sa1100_irda_stop(struct net_device *dev)
 {
 	struct sa1100_irda *si = netdev_priv(dev);
+	struct sk_buff *skb;
 
 	disable_irq(dev->irq);
 	sa1100_irda_shutdown(si);
 
 	/*
-	 * If we have been doing DMA receive, make sure we
+	 * If we have been doing any DMA activity, make sure we
 	 * tidy that up cleanly.
 	 */
-	if (si->dma_rx.skb) {
+	skb = si->dma_rx.skb;
+	if (skb) {
 		dma_unmap_single(si->dev, si->dma_rx.dma, HPSIR_MAX_RXLEN,
 				 DMA_FROM_DEVICE);
-		dev_kfree_skb(si->dma_rx.skb);
+		dev_kfree_skb(skb);
 		si->dma_rx.skb = NULL;
+	}
+
+	skb = si->dma_tx.skb;
+	if (skb) {
+		dma_unmap_single(si->dev, si->dma_tx.dma, skb->len,
+				 DMA_TO_DEVICE);
+		dev_kfree_skb(skb);
+		si->dma_tx.skb = NULL;
 	}
 
 	/* Stop IrLAP */
