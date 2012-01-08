@@ -82,7 +82,6 @@ static int sa1100_irda_rx_alloc(struct sa1100_irda *si)
 		return 0;
 
 	si->rxskb = alloc_skb(HPSIR_MAX_RXLEN + 1, GFP_ATOMIC);
-
 	if (!si->rxskb) {
 		printk(KERN_ERR "sa1100_ir: out of memory for RX SKB\n");
 		return -ENOMEM;
@@ -97,6 +96,11 @@ static int sa1100_irda_rx_alloc(struct sa1100_irda *si)
 	si->rxbuf_dma = dma_map_single(si->dev, si->rxskb->data,
 					HPSIR_MAX_RXLEN,
 					DMA_FROM_DEVICE);
+	if (dma_mapping_error(si->dev, si->rxbuf_dma)) {
+		dev_kfree_skb_any(si->rxskb);
+		return -ENOMEM;
+	}
+
 	return 0;
 }
 
@@ -518,7 +522,8 @@ static void sa1100_irda_fir_error(struct sa1100_irda *si, struct net_device *dev
 		netif_rx(skb);
 	} else {
 		/*
-		 * Remap the buffer.
+		 * Remap the buffer - it was previously mapped, and we
+		 * hope that this succeeds.
 		 */
 		si->rxbuf_dma = dma_map_single(si->dev, si->rxskb->data,
 						HPSIR_MAX_RXLEN,
@@ -701,6 +706,13 @@ static int sa1100_irda_hard_xmit(struct sk_buff *skb, struct net_device *dev)
 		si->txskb = skb;
 		si->txbuf_dma = dma_map_single(si->dev, skb->data,
 					 skb->len, DMA_TO_DEVICE);
+		if (dma_mapping_error(si->dev, si->txbuf_dma)) {
+			si->txskb = NULL;
+			netif_wake_queue(dev);
+			dev->stats.tx_dropped++;
+			dev_kfree_skb(skb);
+			return NETDEV_TX_OK;
+		}
 
 		sa1100_start_dma(si->txdma, si->txbuf_dma, skb->len);
 
