@@ -714,6 +714,46 @@ out:
 	return ret;
 }
 
+static int iwl_apm_stop_master(struct iwl_trans *trans)
+{
+	int ret = 0;
+
+	/* stop device's busmaster DMA activity */
+	iwl_set_bit(trans, CSR_RESET, CSR_RESET_REG_FLAG_STOP_MASTER);
+
+	ret = iwl_poll_bit(trans, CSR_RESET,
+			CSR_RESET_REG_FLAG_MASTER_DISABLED,
+			CSR_RESET_REG_FLAG_MASTER_DISABLED, 100);
+	if (ret)
+		IWL_WARN(trans, "Master Disable Timed Out, 100 usec\n");
+
+	IWL_DEBUG_INFO(trans, "stop master\n");
+
+	return ret;
+}
+
+static void iwl_apm_stop(struct iwl_trans *trans)
+{
+	IWL_DEBUG_INFO(trans, "Stop card, put in low power state\n");
+
+	clear_bit(STATUS_DEVICE_ENABLED, &trans->shrd->status);
+
+	/* Stop device's DMA activity */
+	iwl_apm_stop_master(trans);
+
+	/* Reset the entire device */
+	iwl_set_bit(trans, CSR_RESET, CSR_RESET_REG_FLAG_SW_RESET);
+
+	udelay(10);
+
+	/*
+	 * Clear "initialization complete" bit to move adapter from
+	 * D0A* (powered-up Active) --> D0U* (Uninitialized) state.
+	 */
+	iwl_clear_bit(trans, CSR_GP_CNTRL,
+		      CSR_GP_CNTRL_REG_FLAG_INIT_DONE);
+}
+
 static int iwl_nic_init(struct iwl_trans *trans)
 {
 	unsigned long flags;
@@ -1118,7 +1158,7 @@ static void iwl_trans_pcie_stop_device(struct iwl_trans *trans)
 			CSR_GP_CNTRL_REG_FLAG_MAC_ACCESS_REQ);
 
 	/* Stop the device, and put it in low power state */
-	iwl_apm_stop(priv(trans));
+	iwl_apm_stop(trans);
 
 	/* Upon stop, the APM issues an interrupt if HW RF kill is set.
 	 * Clean again the interrupt here
@@ -1361,6 +1401,15 @@ error:
 	return err;
 }
 
+static void iwl_trans_pcie_stop_hw(struct iwl_trans *trans)
+{
+	iwl_apm_stop(trans);
+
+	/* Even if we stop the HW, we still want the RF kill interrupt */
+	IWL_DEBUG_ISR(trans, "Enabling rfkill interrupt\n");
+	iwl_write32(trans, CSR_INT_MASK, CSR_INT_BIT_RF_KILL);
+}
+
 static int iwl_trans_pcie_reclaim(struct iwl_trans *trans, int sta_id, int tid,
 		      int txq_id, int ssn, u32 status,
 		      struct sk_buff_head *skbs)
@@ -1455,7 +1504,7 @@ static int iwl_trans_pcie_suspend(struct iwl_trans *trans)
 	 * things already :-)
 	 */
 	if (!trans->shrd->wowlan) {
-		iwl_apm_stop(priv(trans));
+		iwl_apm_stop(trans);
 	} else {
 		iwl_disable_interrupts(trans);
 		iwl_clear_bit(trans, CSR_GP_CNTRL,
@@ -2024,6 +2073,7 @@ static int iwl_trans_pcie_dbgfs_register(struct iwl_trans *trans,
 
 const struct iwl_trans_ops trans_ops_pcie = {
 	.start_hw = iwl_trans_pcie_start_hw,
+	.stop_hw = iwl_trans_pcie_stop_hw,
 	.fw_alive = iwl_trans_pcie_fw_alive,
 	.start_device = iwl_trans_pcie_start_device,
 	.stop_device = iwl_trans_pcie_stop_device,

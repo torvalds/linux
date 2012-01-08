@@ -134,6 +134,8 @@ struct iwl_host_cmd {
 /**
  * struct iwl_trans_ops - transport specific operations
  * @start_hw: starts the HW- from that point on, the HW can send interrupts
+ * @stop_hw: stops the HW- from that point on, the HW will be in low power but
+ *	will still issue interrupt if the HW RF kill is triggered.
  * @start_device: allocates and inits all the resources for the transport
  *                layer.
  * @fw_alive: called when the fw sends alive notification
@@ -163,6 +165,7 @@ struct iwl_host_cmd {
 struct iwl_trans_ops {
 
 	int (*start_hw)(struct iwl_trans *iwl_trans);
+	void (*stop_hw)(struct iwl_trans *iwl_trans);
 	int (*start_device)(struct iwl_trans *trans);
 	void (*fw_alive)(struct iwl_trans *trans);
 	void (*stop_device)(struct iwl_trans *trans);
@@ -269,6 +272,11 @@ struct iwl_trans {
 static inline int iwl_trans_start_hw(struct iwl_trans *trans)
 {
 	return trans->ops->start_hw(trans);
+}
+
+static inline void iwl_trans_stop_hw(struct iwl_trans *trans)
+{
+	trans->ops->stop_hw(trans);
 }
 
 static inline void iwl_trans_fw_alive(struct iwl_trans *trans)

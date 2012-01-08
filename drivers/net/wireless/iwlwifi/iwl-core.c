@@ -883,46 +883,6 @@ void iwlagn_fw_error(struct iwl_priv *priv, bool ondemand)
 	}
 }
 
-static int iwl_apm_stop_master(struct iwl_priv *priv)
-{
-	int ret = 0;
-
-	/* stop device's busmaster DMA activity */
-	iwl_set_bit(trans(priv), CSR_RESET, CSR_RESET_REG_FLAG_STOP_MASTER);
-
-	ret = iwl_poll_bit(trans(priv), CSR_RESET,
-			CSR_RESET_REG_FLAG_MASTER_DISABLED,
-			CSR_RESET_REG_FLAG_MASTER_DISABLED, 100);
-	if (ret)
-		IWL_WARN(priv, "Master Disable Timed Out, 100 usec\n");
-
-	IWL_DEBUG_INFO(priv, "stop master\n");
-
-	return ret;
-}
-
-void iwl_apm_stop(struct iwl_priv *priv)
-{
-	IWL_DEBUG_INFO(priv, "Stop card, put in low power state\n");
-
-	clear_bit(STATUS_DEVICE_ENABLED, &priv->shrd->status);
-
-	/* Stop device's DMA activity */
-	iwl_apm_stop_master(priv);
-
-	/* Reset the entire device */
-	iwl_set_bit(trans(priv), CSR_RESET, CSR_RESET_REG_FLAG_SW_RESET);
-
-	udelay(10);
-
-	/*
-	 * Clear "initialization complete" bit to move adapter from
-	 * D0A* (powered-up Active) --> D0U* (Uninitialized) state.
-	 */
-	iwl_clear_bit(trans(priv), CSR_GP_CNTRL,
-		      CSR_GP_CNTRL_REG_FLAG_INIT_DONE);
-}
-
 int iwl_set_tx_power(struct iwl_priv *priv, s8 tx_power, bool force)
 {
 	int ret;

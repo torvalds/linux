@@ -1839,7 +1839,7 @@ int iwl_probe(struct iwl_bus *bus, const struct iwl_trans_ops *trans_ops,
 	/* Read the EEPROM */
 	err = iwl_eeprom_init(priv, hw_rev);
 	/* Reset chip to save power until we load uCode during "up". */
-	iwl_apm_stop(priv);
+	iwl_trans_stop_hw(trans(priv));
 	if (err) {
 		IWL_ERR(priv, "Unable to init EEPROM\n");
 		goto out_free_traffic_mem;
