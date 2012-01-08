@@ -70,6 +70,7 @@ struct sa1100_irda {
 	iobuff_t		rx_buff;
 
 	int (*tx_start)(struct sk_buff *, struct net_device *, struct sa1100_irda *);
+	irqreturn_t (*irq)(struct net_device *, struct sa1100_irda *);
 };
 
 static int sa1100_irda_set_speed(struct sa1100_irda *, int);
@@ -197,6 +198,8 @@ static int sa1100_irda_fir_tx_start(struct sk_buff *skb, struct net_device *dev,
 	return NETDEV_TX_OK;
 }
 
+static irqreturn_t sa1100_irda_sir_irq(struct net_device *, struct sa1100_irda *);
+static irqreturn_t sa1100_irda_fir_irq(struct net_device *, struct sa1100_irda *);
 
 /*
  * Set the IrDA communications speed.
@@ -236,6 +239,7 @@ static int sa1100_irda_set_speed(struct sa1100_irda *si, int speed)
 
 		si->speed = speed;
 		si->tx_start = sa1100_irda_sir_tx_start;
+		si->irq = sa1100_irda_sir_irq;
 
 		local_irq_restore(flags);
 		ret = 0;
@@ -252,6 +256,7 @@ static int sa1100_irda_set_speed(struct sa1100_irda *si, int speed)
 
 		si->speed = speed;
 		si->tx_start = sa1100_irda_fir_tx_start;
+		si->irq = sa1100_irda_fir_irq;
 
 		if (si->pdata->set_speed)
 			si->pdata->set_speed(si->dev, speed);
@@ -304,9 +309,8 @@ sa1100_set_power(struct sa1100_irda *si, unsigned int state)
 /*
  * HP-SIR format interrupt service routines.
  */
-static void sa1100_irda_hpsir_irq(struct net_device *dev)
+static irqreturn_t sa1100_irda_sir_irq(struct net_device *dev, struct sa1100_irda *si)
 {
-	struct sa1100_irda *si = netdev_priv(dev);
 	int status;
 
 	status = Ser2UTSR0;
@@ -395,6 +399,8 @@ static void sa1100_irda_hpsir_irq(struct net_device *dev)
 			netif_wake_queue(dev);
 		}
 	}
+
+	return IRQ_HANDLED;
 }
 
 static void sa1100_irda_fir_error(struct sa1100_irda *si, struct net_device *dev)
@@ -475,10 +481,8 @@ static void sa1100_irda_fir_error(struct sa1100_irda *si, struct net_device *dev
  *
  * No matter what, we disable RX, process, and the restart RX.
  */
-static void sa1100_irda_fir_irq(struct net_device *dev)
+static irqreturn_t sa1100_irda_fir_irq(struct net_device *dev, struct sa1100_irda *si)
 {
-	struct sa1100_irda *si = netdev_priv(dev);
-
 	/*
 	 * Stop RX DMA
 	 */
@@ -520,16 +524,16 @@ static void sa1100_irda_fir_irq(struct net_device *dev)
 	 * No matter what happens, we must restart reception.
 	 */
 	sa1100_irda_rx_dma_start(si);
+
+	return IRQ_HANDLED;
 }
 
 static irqreturn_t sa1100_irda_irq(int irq, void *dev_id)
 {
 	struct net_device *dev = dev_id;
-	if (IS_FIR(((struct sa1100_irda *)netdev_priv(dev))))
-		sa1100_irda_fir_irq(dev);
-	else
-		sa1100_irda_hpsir_irq(dev);
-	return IRQ_HANDLED;
+	struct sa1100_irda *si = netdev_priv(dev);
+
+	return si->irq(dev, si);
 }
 
 /*
@@ -728,10 +732,6 @@ static int sa1100_irda_start(struct net_device *dev)
 
 	si->speed = 9600;
 
-	err = request_irq(dev->irq, sa1100_irda_irq, 0, dev->name, dev);
-	if (err)
-		goto err_irq;
-
 	err = sa1100_request_dma(DMA_Ser2HSSPRd, "IrDA receive",
 				 NULL, NULL, &si->dma_rx.regs);
 	if (err)
@@ -741,11 +741,6 @@ static int sa1100_irda_start(struct net_device *dev)
 				 sa1100_irda_txdma_irq, dev, &si->dma_tx.regs);
 	if (err)
 		goto err_tx_dma;
-
-	/*
-	 * The interrupt must remain disabled for now.
-	 */
-	disable_irq(dev->irq);
 
 	/*
 	 * Setup the serial port for the specified speed.
@@ -762,15 +757,21 @@ static int sa1100_irda_start(struct net_device *dev)
 	if (!si->irlap)
 		goto err_irlap;
 
+	err = request_irq(dev->irq, sa1100_irda_irq, 0, dev->name, dev);
+	if (err)
+		goto err_irq;
+
 	/*
 	 * Now enable the interrupt and start the queue
 	 */
 	si->open = 1;
 	sa1100_set_power(si, power_level); /* low power mode */
-	enable_irq(dev->irq);
+
 	netif_start_queue(dev);
 	return 0;
 
+err_irq:
+	irlap_close(si->irlap);
 err_irlap:
 	si->open = 0;
 	sa1100_irda_shutdown(si);
@@ -779,8 +780,6 @@ err_startup:
 err_tx_dma:
 	sa1100_free_dma(si->dma_rx.regs);
 err_rx_dma:
-	free_irq(dev->irq, dev);
-err_irq:
 	return err;
 }
 
@@ -789,7 +788,9 @@ static int sa1100_irda_stop(struct net_device *dev)
 	struct sa1100_irda *si = netdev_priv(dev);
 	struct sk_buff *skb;
 
-	disable_irq(dev->irq);
+	netif_stop_queue(dev);
+
+	si->open = 0;
 	sa1100_irda_shutdown(si);
 
 	/*
@@ -817,9 +818,6 @@ static int sa1100_irda_stop(struct net_device *dev)
 		irlap_close(si->irlap);
 		si->irlap = NULL;
 	}
-
-	netif_stop_queue(dev);
-	si->open = 0;
 
 	/*
 	 * Free resources
