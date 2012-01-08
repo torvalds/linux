@@ -119,14 +119,6 @@ struct iwl_shared;
 struct iwl_bus;
 
 /**
- * struct iwl_bus_ops - bus specific operations
- * @get_hw_id: get hw_id in u32
- */
-struct iwl_bus_ops {
-	u32 (*get_hw_id)(struct iwl_bus *bus);
-};
-
-/**
  * struct iwl_bus - bus common data
  *
  * This data is common to all bus layer implementations.
@@ -137,18 +129,12 @@ struct iwl_bus_ops {
  *	it allocates the shared data
  */
 struct iwl_bus {
-	const struct iwl_bus_ops *ops;
 	struct iwl_shared *shrd;
 
 	/* pointer to bus specific struct */
 	/*Ensure that this pointer will always be aligned to sizeof pointer */
 	char bus_specific[0] __attribute__((__aligned__(sizeof(void *))));
 };
-
-static inline u32 bus_get_hw_id(struct iwl_bus *bus)
-{
-	return bus->ops->get_hw_id(bus);
-}
 
 /*****************************************************
 * Bus layer registration functions

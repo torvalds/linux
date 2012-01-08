@@ -71,33 +71,6 @@
 #include "iwl-csr.h"
 #include "iwl-cfg.h"
 
-/* PCI registers */
-#define PCI_CFG_RETRY_TIMEOUT	0x041
-#define PCI_CFG_LINK_CTRL_VAL_L0S_EN	0x01
-#define PCI_CFG_LINK_CTRL_VAL_L1_EN	0x02
-
-struct iwl_pci_bus {
-	/* basic pci-network driver stuff */
-	struct pci_dev *pci_dev;
-};
-
-#define IWL_BUS_GET_PCI_BUS(_iwl_bus) \
-			((struct iwl_pci_bus *) ((_iwl_bus)->bus_specific))
-
-#define IWL_BUS_GET_PCI_DEV(_iwl_bus) \
-			((IWL_BUS_GET_PCI_BUS(_iwl_bus))->pci_dev)
-
-static u32 iwl_pci_get_hw_id(struct iwl_bus *bus)
-{
-	struct pci_dev *pci_dev = IWL_BUS_GET_PCI_DEV(bus);
-
-	return (pci_dev->device << 16) + pci_dev->subsystem_device;
-}
-
-static const struct iwl_bus_ops bus_ops_pci = {
-	.get_hw_id = iwl_pci_get_hw_id,
-};
-
 #define IWL_PCI_DEVICE(dev, subdev, cfg) \
 	.vendor = PCI_VENDOR_ID_INTEL,  .device = (dev), \
 	.subvendor = PCI_ANY_ID, .subdevice = (subdev), \
@@ -283,14 +256,16 @@ static DEFINE_PCI_DEVICE_TABLE(iwl_hw_card_ids) = {
 };
 MODULE_DEVICE_TABLE(pci, iwl_hw_card_ids);
 
+/* PCI registers */
+#define PCI_CFG_RETRY_TIMEOUT	0x041
+
 static int iwl_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 {
 	struct iwl_cfg *cfg = (struct iwl_cfg *)(ent->driver_data);
 	struct iwl_bus *bus;
-	struct iwl_pci_bus *pci_bus;
 	int err;
 
-	bus = kzalloc(sizeof(*bus) + sizeof(*pci_bus), GFP_KERNEL);
+	bus = kzalloc(sizeof(*bus), GFP_KERNEL);
 	if (!bus) {
 		dev_printk(KERN_ERR, &pdev->dev,
 			   "Couldn't allocate iwl_pci_bus");
@@ -306,12 +281,8 @@ static int iwl_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	}
 
 	bus->shrd->bus = bus;
-	pci_bus = IWL_BUS_GET_PCI_BUS(bus);
-	pci_bus->pci_dev = pdev;
 
 	pci_set_drvdata(pdev, bus);
-
-	bus->ops = &bus_ops_pci;
 
 #ifdef CONFIG_IWLWIFI_IDI
 	trans(bus) = iwl_trans_idi_alloc(bus->shrd, pdev, ent);

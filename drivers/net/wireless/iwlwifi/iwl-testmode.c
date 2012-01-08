@@ -536,7 +536,7 @@ static int iwl_testmode_driver(struct ieee80211_hw *hw, struct nlattr **tb)
 		break;
 
 	case IWL_TM_CMD_APP2DEV_GET_DEVICE_ID:
-		devid = bus_get_hw_id(bus(priv));
+		devid = trans(priv)->hw_id;
 		IWL_INFO(priv, "hw version: 0x%x\n", devid);
 
 		skb = cfg80211_testmode_alloc_reply_skb(hw->wiphy, 20);
