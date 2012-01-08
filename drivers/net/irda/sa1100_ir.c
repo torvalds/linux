@@ -68,6 +68,8 @@ struct sa1100_irda {
 
 	iobuff_t		tx_buff;
 	iobuff_t		rx_buff;
+
+	int (*tx_start)(struct sk_buff *, struct net_device *, struct sa1100_irda *);
 };
 
 static int sa1100_irda_set_speed(struct sa1100_irda *, int);
@@ -140,6 +142,63 @@ static void sa1100_irda_check_speed(struct sa1100_irda *si)
 }
 
 /*
+ * HP-SIR format support.
+ */
+static int sa1100_irda_sir_tx_start(struct sk_buff *skb, struct net_device *dev,
+	struct sa1100_irda *si)
+{
+	si->tx_buff.data = si->tx_buff.head;
+	si->tx_buff.len  = async_wrap_skb(skb, si->tx_buff.data,
+					  si->tx_buff.truesize);
+
+	/*
+	 * Set the transmit interrupt enable.  This will fire off an
+	 * interrupt immediately.  Note that we disable the receiver
+	 * so we won't get spurious characters received.
+	 */
+	Ser2UTCR3 = UTCR3_TIE | UTCR3_TXE;
+
+	dev_kfree_skb(skb);
+
+	return NETDEV_TX_OK;
+}
+
+/*
+ * FIR format support.
+ */
+static int sa1100_irda_fir_tx_start(struct sk_buff *skb, struct net_device *dev,
+	struct sa1100_irda *si)
+{
+	int mtt = irda_get_mtt(skb);
+
+	si->dma_tx.skb = skb;
+	si->dma_tx.dma = dma_map_single(si->dev, skb->data, skb->len,
+					DMA_TO_DEVICE);
+	if (dma_mapping_error(si->dev, si->dma_tx.dma)) {
+		si->dma_tx.skb = NULL;
+		netif_wake_queue(dev);
+		dev->stats.tx_dropped++;
+		dev_kfree_skb(skb);
+		return NETDEV_TX_OK;
+	}
+
+	sa1100_start_dma(si->dma_tx.regs, si->dma_tx.dma, skb->len);
+
+	/*
+	 * If we have a mean turn-around time, impose the specified
+	 * specified delay.  We could shorten this by timing from
+	 * the point we received the packet.
+	 */
+	if (mtt)
+		udelay(mtt);
+
+	Ser2HSCR0 = si->hscr0 | HSCR0_HSSP | HSCR0_TXE;
+
+	return NETDEV_TX_OK;
+}
+
+
+/*
  * Set the IrDA communications speed.
  */
 static int sa1100_irda_set_speed(struct sa1100_irda *si, int speed)
@@ -176,6 +235,7 @@ static int sa1100_irda_set_speed(struct sa1100_irda *si, int speed)
 			si->pdata->set_speed(si->dev, speed);
 
 		si->speed = speed;
+		si->tx_start = sa1100_irda_sir_tx_start;
 
 		local_irq_restore(flags);
 		ret = 0;
@@ -191,6 +251,7 @@ static int sa1100_irda_set_speed(struct sa1100_irda *si, int speed)
 		Ser2UTCR3 = 0;
 
 		si->speed = speed;
+		si->tx_start = sa1100_irda_fir_tx_start;
 
 		if (si->pdata->set_speed)
 			si->pdata->set_speed(si->dev, speed);
@@ -538,66 +599,19 @@ static int sa1100_irda_hard_xmit(struct sk_buff *skb, struct net_device *dev)
 	if (speed != si->speed && speed != -1)
 		si->newspeed = speed;
 
-	/*
-	 * If this is an empty frame, we can bypass a lot.
-	 */
+	/* If this is an empty frame, we can bypass a lot. */
 	if (skb->len == 0) {
 		sa1100_irda_check_speed(si);
 		dev_kfree_skb(skb);
 		return NETDEV_TX_OK;
 	}
 
-	if (!IS_FIR(si)) {
-		netif_stop_queue(dev);
+	netif_stop_queue(dev);
 
-		si->tx_buff.data = si->tx_buff.head;
-		si->tx_buff.len  = async_wrap_skb(skb, si->tx_buff.data,
-						  si->tx_buff.truesize);
+	/* We must not already have a skb to transmit... */
+	BUG_ON(si->dma_tx.skb);
 
-		/*
-		 * Set the transmit interrupt enable.  This will fire
-		 * off an interrupt immediately.  Note that we disable
-		 * the receiver so we won't get spurious characteres
-		 * received.
-		 */
-		Ser2UTCR3 = UTCR3_TIE | UTCR3_TXE;
-
-		dev_kfree_skb(skb);
-	} else {
-		int mtt = irda_get_mtt(skb);
-
-		/*
-		 * We must not be transmitting...
-		 */
-		BUG_ON(si->dma_tx.skb);
-
-		netif_stop_queue(dev);
-
-		si->dma_tx.skb = skb;
-		si->dma_tx.dma = dma_map_single(si->dev, skb->data,
-					 skb->len, DMA_TO_DEVICE);
-		if (dma_mapping_error(si->dev, si->dma_tx.dma)) {
-			si->dma_tx.skb = NULL;
-			netif_wake_queue(dev);
-			dev->stats.tx_dropped++;
-			dev_kfree_skb(skb);
-			return NETDEV_TX_OK;
-		}
-
-		sa1100_start_dma(si->dma_tx.regs, si->dma_tx.dma, skb->len);
-
-		/*
-		 * If we have a mean turn-around time, impose the specified
-		 * specified delay.  We could shorten this by timing from
-		 * the point we received the packet.
-		 */
-		if (mtt)
-			udelay(mtt);
-
-		Ser2HSCR0 = si->hscr0 | HSCR0_HSSP | HSCR0_TXE;
-	}
-
-	return NETDEV_TX_OK;
+	return si->tx_start(skb, dev, si);
 }
 
 static int
