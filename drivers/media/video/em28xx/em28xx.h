@@ -831,7 +831,7 @@ static inline unsigned int norm_maxw(struct em28xx *dev)
 	if (dev->board.is_webcam)
 		return dev->sensor_xres;
 
-	if (dev->board.max_range_640_480 || dev->board.is_em2800)
+	if (dev->board.max_range_640_480)
 		return 640;
 
 	return 720;
