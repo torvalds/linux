@@ -668,7 +668,7 @@ int hci_dev_open(__u16 dev)
 		hci_dev_hold(hdev);
 		set_bit(HCI_UP, &hdev->flags);
 		hci_notify(hdev, HCI_DEV_UP);
-		if (!test_bit(HCI_SETUP, &hdev->flags)) {
+		if (!test_bit(HCI_SETUP, &hdev->dev_flags)) {
 			hci_dev_lock(hdev);
 			mgmt_powered(hdev, 1);
 			hci_dev_unlock(hdev);
@@ -722,10 +722,10 @@ static int hci_dev_do_close(struct hci_dev *hdev)
 		hdev->discov_timeout = 0;
 	}
 
-	if (test_and_clear_bit(HCI_AUTO_OFF, &hdev->flags))
+	if (test_and_clear_bit(HCI_AUTO_OFF, &hdev->dev_flags))
 		cancel_delayed_work(&hdev->power_off);
 
-	if (test_and_clear_bit(HCI_SERVICE_CACHE, &hdev->flags))
+	if (test_and_clear_bit(HCI_SERVICE_CACHE, &hdev->dev_flags))
 		cancel_delayed_work(&hdev->service_cache);
 
 	hci_dev_lock(hdev);
@@ -947,11 +947,11 @@ int hci_get_dev_list(void __user *arg)
 
 	read_lock(&hci_dev_list_lock);
 	list_for_each_entry(hdev, &hci_dev_list, list) {
-		if (test_and_clear_bit(HCI_AUTO_OFF, &hdev->flags))
+		if (test_and_clear_bit(HCI_AUTO_OFF, &hdev->dev_flags))
 			cancel_delayed_work(&hdev->power_off);
 
-		if (!test_bit(HCI_MGMT, &hdev->flags))
-			set_bit(HCI_PAIRABLE, &hdev->flags);
+		if (!test_bit(HCI_MGMT, &hdev->dev_flags))
+			set_bit(HCI_PAIRABLE, &hdev->dev_flags);
 
 		(dr + n)->dev_id  = hdev->id;
 		(dr + n)->dev_opt = hdev->flags;
@@ -983,11 +983,11 @@ int hci_get_dev_info(void __user *arg)
 	if (!hdev)
 		return -ENODEV;
 
-	if (test_and_clear_bit(HCI_AUTO_OFF, &hdev->flags))
+	if (test_and_clear_bit(HCI_AUTO_OFF, &hdev->dev_flags))
 		cancel_delayed_work_sync(&hdev->power_off);
 
-	if (!test_bit(HCI_MGMT, &hdev->flags))
-		set_bit(HCI_PAIRABLE, &hdev->flags);
+	if (!test_bit(HCI_MGMT, &hdev->dev_flags))
+		set_bit(HCI_PAIRABLE, &hdev->dev_flags);
 
 	strcpy(di.name, hdev->name);
 	di.bdaddr   = hdev->bdaddr;
@@ -1067,11 +1067,11 @@ static void hci_power_on(struct work_struct *work)
 	if (hci_dev_open(hdev->id) < 0)
 		return;
 
-	if (test_bit(HCI_AUTO_OFF, &hdev->flags))
+	if (test_bit(HCI_AUTO_OFF, &hdev->dev_flags))
 		schedule_delayed_work(&hdev->power_off,
 					msecs_to_jiffies(AUTO_OFF_TIMEOUT));
 
-	if (test_and_clear_bit(HCI_SETUP, &hdev->flags))
+	if (test_and_clear_bit(HCI_SETUP, &hdev->dev_flags))
 		mgmt_index_added(hdev);
 }
 
@@ -1082,7 +1082,7 @@ static void hci_power_off(struct work_struct *work)
 
 	BT_DBG("%s", hdev->name);
 
-	clear_bit(HCI_AUTO_OFF, &hdev->flags);
+	clear_bit(HCI_AUTO_OFF, &hdev->dev_flags);
 
 	hci_dev_close(hdev->id);
 }
@@ -1649,8 +1649,8 @@ int hci_register_dev(struct hci_dev *hdev)
 		}
 	}
 
-	set_bit(HCI_AUTO_OFF, &hdev->flags);
-	set_bit(HCI_SETUP, &hdev->flags);
+	set_bit(HCI_AUTO_OFF, &hdev->dev_flags);
+	set_bit(HCI_SETUP, &hdev->dev_flags);
 	schedule_work(&hdev->power_on);
 
 	hci_notify(hdev, HCI_DEV_REG);
@@ -1686,7 +1686,7 @@ void hci_unregister_dev(struct hci_dev *hdev)
 		kfree_skb(hdev->reassembly[i]);
 
 	if (!test_bit(HCI_INIT, &hdev->flags) &&
-					!test_bit(HCI_SETUP, &hdev->flags)) {
+				!test_bit(HCI_SETUP, &hdev->dev_flags)) {
 		hci_dev_lock(hdev);
 		mgmt_index_removed(hdev);
 		hci_dev_unlock(hdev);

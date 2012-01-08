@@ -226,10 +226,10 @@ static int read_index_list(struct sock *sk)
 
 	i = 0;
 	list_for_each_entry(d, &hci_dev_list, list) {
-		if (test_and_clear_bit(HCI_AUTO_OFF, &d->flags))
+		if (test_and_clear_bit(HCI_AUTO_OFF, &d->dev_flags))
 			cancel_delayed_work(&d->power_off);
 
-		if (test_bit(HCI_SETUP, &d->flags))
+		if (test_bit(HCI_SETUP, &d->dev_flags))
 			continue;
 
 		put_unaligned_le16(d->id, &rp->index[i++]);
@@ -285,7 +285,7 @@ static u32 get_current_settings(struct hci_dev *hdev)
 	if (test_bit(HCI_ISCAN, &hdev->flags))
 		settings |= MGMT_SETTING_DISCOVERABLE;
 
-	if (test_bit(HCI_PAIRABLE, &hdev->flags))
+	if (test_bit(HCI_PAIRABLE, &hdev->dev_flags))
 		settings |= MGMT_SETTING_PAIRABLE;
 
 	if (!(hdev->features[4] & LMP_NO_BREDR))
@@ -419,7 +419,7 @@ static int update_eir(struct hci_dev *hdev)
 	if (hdev->ssp_mode == 0)
 		return 0;
 
-	if (test_bit(HCI_SERVICE_CACHE, &hdev->flags))
+	if (test_bit(HCI_SERVICE_CACHE, &hdev->dev_flags))
 		return 0;
 
 	memset(&cp, 0, sizeof(cp));
@@ -451,7 +451,7 @@ static int update_class(struct hci_dev *hdev)
 
 	BT_DBG("%s", hdev->name);
 
-	if (test_bit(HCI_SERVICE_CACHE, &hdev->flags))
+	if (test_bit(HCI_SERVICE_CACHE, &hdev->dev_flags))
 		return 0;
 
 	cod[0] = hdev->minor_class;
@@ -469,7 +469,7 @@ static void service_cache_off(struct work_struct *work)
 	struct hci_dev *hdev = container_of(work, struct hci_dev,
 							service_cache.work);
 
-	if (!test_and_clear_bit(HCI_SERVICE_CACHE, &hdev->flags))
+	if (!test_and_clear_bit(HCI_SERVICE_CACHE, &hdev->dev_flags))
 		return;
 
 	hci_dev_lock(hdev);
@@ -482,10 +482,10 @@ static void service_cache_off(struct work_struct *work)
 
 static void mgmt_init_hdev(struct hci_dev *hdev)
 {
-	if (!test_and_set_bit(HCI_MGMT, &hdev->flags))
+	if (!test_and_set_bit(HCI_MGMT, &hdev->dev_flags))
 		INIT_DELAYED_WORK(&hdev->service_cache, service_cache_off);
 
-	if (!test_and_set_bit(HCI_SERVICE_CACHE, &hdev->flags))
+	if (!test_and_set_bit(HCI_SERVICE_CACHE, &hdev->dev_flags))
 		schedule_delayed_work(&hdev->service_cache,
 				msecs_to_jiffies(SERVICE_CACHE_TIMEOUT));
 }
@@ -502,7 +502,7 @@ static int read_controller_info(struct sock *sk, u16 index)
 		return cmd_status(sk, index, MGMT_OP_READ_INFO,
 						MGMT_STATUS_INVALID_PARAMS);
 
-	if (test_and_clear_bit(HCI_AUTO_OFF, &hdev->flags))
+	if (test_and_clear_bit(HCI_AUTO_OFF, &hdev->dev_flags))
 		cancel_delayed_work_sync(&hdev->power_off);
 
 	hci_dev_lock(hdev);
@@ -851,9 +851,9 @@ static int set_pairable(struct sock *sk, u16 index, unsigned char *data,
 	hci_dev_lock(hdev);
 
 	if (cp->val)
-		set_bit(HCI_PAIRABLE, &hdev->flags);
+		set_bit(HCI_PAIRABLE, &hdev->dev_flags);
 	else
-		clear_bit(HCI_PAIRABLE, &hdev->flags);
+		clear_bit(HCI_PAIRABLE, &hdev->dev_flags);
 
 	err = send_settings_rsp(sk, MGMT_OP_SET_PAIRABLE, hdev);
 	if (err < 0)
@@ -1008,7 +1008,7 @@ static int set_dev_class(struct sock *sk, u16 index, unsigned char *data,
 	hdev->major_class = cp->major;
 	hdev->minor_class = cp->minor;
 
-	if (test_and_clear_bit(HCI_SERVICE_CACHE, &hdev->flags)) {
+	if (test_and_clear_bit(HCI_SERVICE_CACHE, &hdev->dev_flags)) {
 		hci_dev_unlock(hdev);
 		cancel_delayed_work_sync(&hdev->service_cache);
 		hci_dev_lock(hdev);
@@ -1063,12 +1063,12 @@ static int load_link_keys(struct sock *sk, u16 index, unsigned char *data,
 
 	hci_link_keys_clear(hdev);
 
-	set_bit(HCI_LINK_KEYS, &hdev->flags);
+	set_bit(HCI_LINK_KEYS, &hdev->dev_flags);
 
 	if (cp->debug_keys)
-		set_bit(HCI_DEBUG_KEYS, &hdev->flags);
+		set_bit(HCI_DEBUG_KEYS, &hdev->dev_flags);
 	else
-		clear_bit(HCI_DEBUG_KEYS, &hdev->flags);
+		clear_bit(HCI_DEBUG_KEYS, &hdev->dev_flags);
 
 	for (i = 0; i < key_count; i++) {
 		struct mgmt_link_key_info *key = &cp->keys[i];

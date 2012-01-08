@@ -77,14 +77,6 @@ enum {
 
 	HCI_RAW,
 
-	HCI_SETUP,
-	HCI_AUTO_OFF,
-	HCI_MGMT,
-	HCI_PAIRABLE,
-	HCI_SERVICE_CACHE,
-	HCI_LINK_KEYS,
-	HCI_DEBUG_KEYS,
-
 	HCI_RESET,
 };
 
@@ -93,6 +85,14 @@ enum {
  * states from the controller.
  */
 enum {
+	HCI_SETUP,
+	HCI_AUTO_OFF,
+	HCI_MGMT,
+	HCI_PAIRABLE,
+	HCI_SERVICE_CACHE,
+	HCI_LINK_KEYS,
+	HCI_DEBUG_KEYS,
+
 	HCI_LE_SCAN,
 };
 

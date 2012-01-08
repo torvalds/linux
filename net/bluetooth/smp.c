@@ -217,7 +217,7 @@ static void build_pairing_cmd(struct l2cap_conn *conn,
 {
 	u8 dist_keys = 0;
 
-	if (test_bit(HCI_PAIRABLE, &conn->hcon->hdev->flags)) {
+	if (test_bit(HCI_PAIRABLE, &conn->hcon->hdev->dev_flags)) {
 		dist_keys = SMP_DIST_ENC_KEY;
 		authreq |= SMP_AUTH_BONDING;
 	} else {

@@ -211,7 +211,7 @@ static void hci_cc_write_local_name(struct hci_dev *hdev, struct sk_buff *skb)
 
 	hci_dev_lock(hdev);
 
-	if (test_bit(HCI_MGMT, &hdev->flags))
+	if (test_bit(HCI_MGMT, &hdev->dev_flags))
 		mgmt_set_local_name_complete(hdev, sent, status);
 
 	if (status == 0)
@@ -890,7 +890,7 @@ static void hci_cc_pin_code_reply(struct hci_dev *hdev, struct sk_buff *skb)
 
 	hci_dev_lock(hdev);
 
-	if (test_bit(HCI_MGMT, &hdev->flags))
+	if (test_bit(HCI_MGMT, &hdev->dev_flags))
 		mgmt_pin_code_reply_complete(hdev, &rp->bdaddr, rp->status);
 
 	if (rp->status != 0)
@@ -916,7 +916,7 @@ static void hci_cc_pin_code_neg_reply(struct hci_dev *hdev, struct sk_buff *skb)
 
 	hci_dev_lock(hdev);
 
-	if (test_bit(HCI_MGMT, &hdev->flags))
+	if (test_bit(HCI_MGMT, &hdev->dev_flags))
 		mgmt_pin_code_neg_reply_complete(hdev, &rp->bdaddr,
 								rp->status);
 
@@ -951,7 +951,7 @@ static void hci_cc_user_confirm_reply(struct hci_dev *hdev, struct sk_buff *skb)
 
 	hci_dev_lock(hdev);
 
-	if (test_bit(HCI_MGMT, &hdev->flags))
+	if (test_bit(HCI_MGMT, &hdev->dev_flags))
 		mgmt_user_confirm_reply_complete(hdev, &rp->bdaddr,
 								rp->status);
 
@@ -967,7 +967,7 @@ static void hci_cc_user_confirm_neg_reply(struct hci_dev *hdev,
 
 	hci_dev_lock(hdev);
 
-	if (test_bit(HCI_MGMT, &hdev->flags))
+	if (test_bit(HCI_MGMT, &hdev->dev_flags))
 		mgmt_user_confirm_neg_reply_complete(hdev, &rp->bdaddr,
 								rp->status);
 
@@ -982,7 +982,7 @@ static void hci_cc_user_passkey_reply(struct hci_dev *hdev, struct sk_buff *skb)
 
 	hci_dev_lock(hdev);
 
-	if (test_bit(HCI_MGMT, &hdev->flags))
+	if (test_bit(HCI_MGMT, &hdev->dev_flags))
 		mgmt_user_passkey_reply_complete(hdev, &rp->bdaddr,
 								rp->status);
 
@@ -998,7 +998,7 @@ static void hci_cc_user_passkey_neg_reply(struct hci_dev *hdev,
 
 	hci_dev_lock(hdev);
 
-	if (test_bit(HCI_MGMT, &hdev->flags))
+	if (test_bit(HCI_MGMT, &hdev->dev_flags))
 		mgmt_user_passkey_neg_reply_complete(hdev, &rp->bdaddr,
 								rp->status);
 
@@ -1110,7 +1110,7 @@ static inline void hci_cs_inquiry(struct hci_dev *hdev, __u8 status)
 		hci_req_complete(hdev, HCI_OP_INQUIRY, status);
 		hci_conn_check_pending(hdev);
 		hci_dev_lock(hdev);
-		if (test_bit(HCI_MGMT, &hdev->flags))
+		if (test_bit(HCI_MGMT, &hdev->dev_flags))
 			mgmt_start_discovery_failed(hdev, status);
 		hci_dev_unlock(hdev);
 		return;
@@ -1333,7 +1333,7 @@ static void hci_cs_remote_name_req(struct hci_dev *hdev, __u8 status)
 
 	hci_dev_lock(hdev);
 
-	if (test_bit(HCI_MGMT, &hdev->flags))
+	if (test_bit(HCI_MGMT, &hdev->dev_flags))
 		hci_resolve_next_name(hdev, &cp->bdaddr);
 
 	conn = hci_conn_hash_lookup_ba(hdev, ACL_LINK, &cp->bdaddr);
@@ -1555,7 +1555,7 @@ static inline void hci_inquiry_complete_evt(struct hci_dev *hdev, struct sk_buff
 	if (!test_and_clear_bit(HCI_INQUIRY, &hdev->flags))
 		return;
 
-	if (!test_bit(HCI_MGMT, &hdev->flags))
+	if (!test_bit(HCI_MGMT, &hdev->dev_flags))
 		return;
 
 	hci_dev_lock(hdev);
@@ -1876,7 +1876,7 @@ static inline void hci_remote_name_evt(struct hci_dev *hdev, struct sk_buff *skb
 
 	hci_dev_lock(hdev);
 
-	if (test_bit(HCI_MGMT, &hdev->flags)) {
+	if (test_bit(HCI_MGMT, &hdev->dev_flags)) {
 		if (ev->status == 0)
 			mgmt_remote_name(hdev, &ev->bdaddr, ev->name);
 
@@ -2505,10 +2505,10 @@ static inline void hci_pin_code_request_evt(struct hci_dev *hdev, struct sk_buff
 		hci_conn_put(conn);
 	}
 
-	if (!test_bit(HCI_PAIRABLE, &hdev->flags))
+	if (!test_bit(HCI_PAIRABLE, &hdev->dev_flags))
 		hci_send_cmd(hdev, HCI_OP_PIN_CODE_NEG_REPLY,
 					sizeof(ev->bdaddr), &ev->bdaddr);
-	else if (test_bit(HCI_MGMT, &hdev->flags)) {
+	else if (test_bit(HCI_MGMT, &hdev->dev_flags)) {
 		u8 secure;
 
 		if (conn->pending_sec_level == BT_SECURITY_HIGH)
@@ -2532,7 +2532,7 @@ static inline void hci_link_key_request_evt(struct hci_dev *hdev, struct sk_buff
 
 	BT_DBG("%s", hdev->name);
 
-	if (!test_bit(HCI_LINK_KEYS, &hdev->flags))
+	if (!test_bit(HCI_LINK_KEYS, &hdev->dev_flags))
 		return;
 
 	hci_dev_lock(hdev);
@@ -2547,7 +2547,7 @@ static inline void hci_link_key_request_evt(struct hci_dev *hdev, struct sk_buff
 	BT_DBG("%s found key type %u for %s", hdev->name, key->type,
 							batostr(&ev->bdaddr));
 
-	if (!test_bit(HCI_DEBUG_KEYS, &hdev->flags) &&
+	if (!test_bit(HCI_DEBUG_KEYS, &hdev->dev_flags) &&
 				key->type == HCI_LK_DEBUG_COMBINATION) {
 		BT_DBG("%s ignoring debug key", hdev->name);
 		goto not_found;
@@ -2609,7 +2609,7 @@ static inline void hci_link_key_notify_evt(struct hci_dev *hdev, struct sk_buff 
 		hci_conn_put(conn);
 	}
 
-	if (test_bit(HCI_LINK_KEYS, &hdev->flags))
+	if (test_bit(HCI_LINK_KEYS, &hdev->dev_flags))
 		hci_add_link_key(hdev, conn, 1, &ev->bdaddr, ev->link_key,
 							ev->key_type, pin_len);
 
@@ -2890,7 +2890,7 @@ static inline void hci_extended_inquiry_result_evt(struct hci_dev *hdev, struct 
 		data.rssi		= info->rssi;
 		data.ssp_mode		= 0x01;
 
-		if (test_bit(HCI_MGMT, &hdev->flags))
+		if (test_bit(HCI_MGMT, &hdev->dev_flags))
 			name_known = eir_has_complete_name(info->data,
 							sizeof(info->data));
 		else
@@ -2939,10 +2939,10 @@ static inline void hci_io_capa_request_evt(struct hci_dev *hdev, struct sk_buff 
 
 	hci_conn_hold(conn);
 
-	if (!test_bit(HCI_MGMT, &hdev->flags))
+	if (!test_bit(HCI_MGMT, &hdev->dev_flags))
 		goto unlock;
 
-	if (test_bit(HCI_PAIRABLE, &hdev->flags) ||
+	if (test_bit(HCI_PAIRABLE, &hdev->dev_flags) ||
 			(conn->remote_auth & ~0x01) == HCI_AT_NO_BONDING) {
 		struct hci_cp_io_capability_reply cp;
 
@@ -3005,7 +3005,7 @@ static inline void hci_user_confirm_request_evt(struct hci_dev *hdev,
 
 	hci_dev_lock(hdev);
 
-	if (!test_bit(HCI_MGMT, &hdev->flags))
+	if (!test_bit(HCI_MGMT, &hdev->dev_flags))
 		goto unlock;
 
 	conn = hci_conn_hash_lookup_ba(hdev, ACL_LINK, &ev->bdaddr);
@@ -3071,7 +3071,7 @@ static inline void hci_user_passkey_request_evt(struct hci_dev *hdev,
 
 	hci_dev_lock(hdev);
 
-	if (test_bit(HCI_MGMT, &hdev->flags))
+	if (test_bit(HCI_MGMT, &hdev->dev_flags))
 		mgmt_user_passkey_request(hdev, &ev->bdaddr);
 
 	hci_dev_unlock(hdev);
@@ -3130,7 +3130,7 @@ static inline void hci_remote_oob_data_request_evt(struct hci_dev *hdev,
 
 	hci_dev_lock(hdev);
 
-	if (!test_bit(HCI_MGMT, &hdev->flags))
+	if (!test_bit(HCI_MGMT, &hdev->dev_flags))
 		goto unlock;
 
 	data = hci_find_remote_oob_data(hdev, &ev->bdaddr);
