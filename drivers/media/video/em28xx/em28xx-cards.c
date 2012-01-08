@@ -2287,7 +2287,8 @@ void em28xx_pre_card_setup(struct em28xx *dev)
 	/* Set the initial XCLK and I2C clock values based on the board
 	   definition */
 	em28xx_write_reg(dev, EM28XX_R0F_XCLK, dev->board.xclk & 0x7f);
-	em28xx_write_reg(dev, EM28XX_R06_I2C_CLK, dev->board.i2c_speed);
+	if (!dev->board.is_em2800)
+		em28xx_write_reg(dev, EM28XX_R06_I2C_CLK, dev->board.i2c_speed);
 	msleep(50);
 
 	/* request some modules */
