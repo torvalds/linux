@@ -603,14 +603,6 @@ static void pwc_video_release(struct v4l2_device *v)
 		if (device_hint[hint].pdev == pdev)
 			device_hint[hint].pdev = NULL;
 
-	/* Free intermediate decompression buffer & tables */
-	if (pdev->decompress_data != NULL) {
-		PWC_DEBUG_MEMORY("Freeing decompression buffer at %p.\n",
-				 pdev->decompress_data);
-		kfree(pdev->decompress_data);
-		pdev->decompress_data = NULL;
-	}
-
 	v4l2_ctrl_handler_free(&pdev->ctrl_handler);
 
 	kfree(pdev);

@@ -213,9 +213,7 @@ static int set_video_mode_Nala(struct pwc_device *pdev, int size, int frames,
 		return ret;
 	}
 	if (pEntry->compressed && pdev->pixfmt == V4L2_PIX_FMT_YUV420) {
-		ret = pwc_dec1_init(pdev, pdev->type, pdev->release, buf);
-		if (ret < 0)
-			return ret;
+		pwc_dec1_init(pdev, buf);
 	}
 
 	pdev->cmd_len = 3;
@@ -281,9 +279,7 @@ static int set_video_mode_Timon(struct pwc_device *pdev, int size, int frames,
 		return ret;
 
 	if (pChoose->bandlength > 0 && pdev->pixfmt == V4L2_PIX_FMT_YUV420) {
-		ret = pwc_dec23_init(pdev, pdev->type, buf);
-		if (ret < 0)
-			return ret;
+		pwc_dec23_init(pdev, buf);
 	}
 
 	pdev->cmd_len = 13;
@@ -341,9 +337,7 @@ static int set_video_mode_Kiara(struct pwc_device *pdev, int size, int frames,
 		return ret;
 
 	if (pChoose->bandlength > 0 && pdev->pixfmt == V4L2_PIX_FMT_YUV420) {
-		ret = pwc_dec23_init(pdev, pdev->type, buf);
-		if (ret < 0)
-			return ret;
+		pwc_dec23_init(pdev, buf);
 	}
 
 	pdev->cmd_len = 12;
@@ -368,7 +362,8 @@ int pwc_set_video_mode(struct pwc_device *pdev, int width, int height,
 {
 	int ret, size;
 
-	PWC_DEBUG_FLOW("set_video_mode(%dx%d @ %d, pixfmt %08x).\n", width, height, frames, pdev->pixfmt);
+	PWC_DEBUG_FLOW("set_video_mode(%dx%d @ %d, pixfmt %08x).\n",
+		       width, height, frames, pdev->pixfmt);
 	size = pwc_get_size(pdev, width, height);
 	PWC_TRACE("decode_size = %d.\n", size);
 

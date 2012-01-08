@@ -44,6 +44,8 @@
 #ifdef CONFIG_USB_PWC_INPUT_EVDEV
 #include <linux/input.h>
 #endif
+#include "pwc-dec1.h"
+#include "pwc-dec23.h"
 
 /* Version block */
 #define PWC_VERSION	"10.0.15"
@@ -272,7 +274,10 @@ struct pwc_device
 	int frame_total_size;	/* including header & trailer */
 	int drop_frames;
 
-	void *decompress_data;	/* private data for decompression engine */
+	union {	/* private data for decompression engine */
+		struct pwc_dec1_private dec1;
+		struct pwc_dec23_private dec23;
+	};
 
 	/*
 	 * We have an 'image' and a 'view', where 'image' is the fixed-size img
