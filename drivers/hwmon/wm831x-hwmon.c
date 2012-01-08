@@ -40,7 +40,7 @@ static ssize_t show_name(struct device *dev,
 	return sprintf(buf, "wm831x\n");
 }
 
-static const char *input_names[] = {
+static const char * const input_names[] = {
 	[WM831X_AUX_SYSVDD]    = "SYSVDD",
 	[WM831X_AUX_USB]       = "USB",
 	[WM831X_AUX_BKUP_BATT] = "Backup battery",
