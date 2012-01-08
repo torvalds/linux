@@ -70,6 +70,8 @@ struct sa1100_irda {
 	iobuff_t		rx_buff;
 };
 
+static int sa1100_irda_set_speed(struct sa1100_irda *, int);
+
 #define IS_FIR(si)		((si)->speed >= 4000000)
 
 #define HPSIR_MAX_RXLEN		2047
@@ -127,6 +129,14 @@ static void sa1100_irda_rx_dma_start(struct sa1100_irda *si)
 	sa1100_clear_dma(si->dma_rx.regs);
 	sa1100_start_dma(si->dma_rx.regs, si->dma_rx.dma, HPSIR_MAX_RXLEN);
 	Ser2HSCR0 = si->hscr0 | HSCR0_HSSP | HSCR0_RXE;
+}
+
+static void sa1100_irda_check_speed(struct sa1100_irda *si)
+{
+	if (si->newspeed) {
+		sa1100_irda_set_speed(si, si->newspeed);
+		si->newspeed = 0;
+	}
 }
 
 /*
@@ -318,10 +328,7 @@ static void sa1100_irda_hpsir_irq(struct net_device *dev)
 			Ser2UTSR0 = UTSR0_REB | UTSR0_RBB | UTSR0_RID;
 			Ser2UTCR3 = UTCR3_RIE | UTCR3_RXE | UTCR3_TXE;
 
-			if (si->newspeed) {
-				sa1100_irda_set_speed(si, si->newspeed);
-				si->newspeed = 0;
-			}
+			sa1100_irda_check_speed(si);
 
 			/* I'm hungry! */
 			netif_wake_queue(dev);
@@ -492,10 +499,7 @@ static void sa1100_irda_txdma_irq(void *id)
 	 * here - we don't free the old dma_rx.skb.  We don't need
 	 * to allocate a buffer either.
 	 */
-	if (si->newspeed) {
-		sa1100_irda_set_speed(si, si->newspeed);
-		si->newspeed = 0;
-	}
+	sa1100_irda_check_speed(si);
 
 	/*
 	 * Start reception.  This disables the transmitter for
@@ -538,10 +542,7 @@ static int sa1100_irda_hard_xmit(struct sk_buff *skb, struct net_device *dev)
 	 * If this is an empty frame, we can bypass a lot.
 	 */
 	if (skb->len == 0) {
-		if (si->newspeed) {
-			si->newspeed = 0;
-			sa1100_irda_set_speed(si, speed);
-		}
+		sa1100_irda_check_speed(si);
 		dev_kfree_skb(skb);
 		return NETDEV_TX_OK;
 	}
