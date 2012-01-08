@@ -86,7 +86,7 @@ static struct w83l785ts_data *w83l785ts_update_device(struct device *dev);
 /*
  * Driver data (common to all clients)
  */
- 
+
 static const struct i2c_device_id w83l785ts_id[] = {
 	{ "w83l785ts", 0 },
 	{ }
