@@ -371,9 +371,8 @@ static u32 qib_rcv_hdrerr(struct qib_ctxtdata *rcd, struct qib_pportdata *ppd,
 						lnh == QIB_LRH_GRH,
 						qp,
 						be32_to_cpu(ohdr->bth[0]));
-				if (ruc_res) {
+				if (ruc_res)
 					goto unlock;
-				}
 
 				/* Only deal with RDMA Writes for now */
 				if (opcode <
