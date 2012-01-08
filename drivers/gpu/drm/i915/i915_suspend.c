@@ -28,6 +28,7 @@
 #include "drm.h"
 #include "i915_drm.h"
 #include "intel_drv.h"
+#include "i915_reg.h"
 
 static bool i915_pipe_enabled(struct drm_device *dev, enum pipe pipe)
 {
@@ -35,7 +36,7 @@ static bool i915_pipe_enabled(struct drm_device *dev, enum pipe pipe)
 	u32	dpll_reg;
 
 	if (HAS_PCH_SPLIT(dev))
-		dpll_reg = (pipe == PIPE_A) ? _PCH_DPLL_A : _PCH_DPLL_B;
+		dpll_reg = PCH_DPLL(pipe);
 	else
 		dpll_reg = (pipe == PIPE_A) ? _DPLL_A : _DPLL_B;
 
