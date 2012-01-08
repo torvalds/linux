@@ -8,7 +8,7 @@
  *  published by the Free Software Foundation.
  *
  *  TODO: SPI, support for external temperature sensor
- * 	  use power-down mode for suspend?, interrupt handling?
+ *	  use power-down mode for suspend?, interrupt handling?
  */
 
 #include <linux/kernel.h>
