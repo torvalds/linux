@@ -1686,7 +1686,7 @@ gckVIDMEM_Unlock(
                     flush = (gceKERNEL_FLUSH) 0;
                 }
 
-                flush = flush | gcvFLUSH_2D;    // dkm : add to avoid the gpu hang
+                flush = gcvFLUSH_ALL;    // dkm : add to avoid the gpu hang
 
                 gcmkONERROR(
                     gckHARDWARE_Flush(hardware, flush, gcvNULL, &requested));
