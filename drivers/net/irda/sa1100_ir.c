@@ -50,7 +50,6 @@ struct sa1100_buf {
 };
 
 struct sa1100_irda {
-	unsigned char		hscr0;
 	unsigned char		utcr4;
 	unsigned char		power;
 	unsigned char		open;
@@ -124,14 +123,14 @@ static void sa1100_irda_rx_dma_start(struct sa1100_irda *si)
 	/*
 	 * First empty receive FIFO
 	 */
-	Ser2HSCR0 = si->hscr0 | HSCR0_HSSP;
+	Ser2HSCR0 = HSCR0_HSSP;
 
 	/*
 	 * Enable the DMA, receiver and receive interrupt.
 	 */
 	sa1100_clear_dma(si->dma_rx.regs);
 	sa1100_start_dma(si->dma_rx.regs, si->dma_rx.dma, HPSIR_MAX_RXLEN);
-	Ser2HSCR0 = si->hscr0 | HSCR0_HSSP | HSCR0_RXE;
+	Ser2HSCR0 = HSCR0_HSSP | HSCR0_RXE;
 }
 
 static void sa1100_irda_check_speed(struct sa1100_irda *si)
@@ -338,7 +337,7 @@ static int sa1100_irda_fir_tx_start(struct sk_buff *skb, struct net_device *dev,
 	if (mtt)
 		udelay(mtt);
 
-	Ser2HSCR0 = si->hscr0 | HSCR0_HSSP | HSCR0_TXE;
+	Ser2HSCR0 = HSCR0_HSSP | HSCR0_TXE;
 
 	return NETDEV_TX_OK;
 }
@@ -440,7 +439,7 @@ static irqreturn_t sa1100_irda_fir_irq(struct net_device *dev, struct sa1100_ird
 		/*
 		 * Clear out the DMA...
 		 */
-		Ser2HSCR0 = si->hscr0 | HSCR0_HSSP;
+		Ser2HSCR0 = HSCR0_HSSP;
 
 		/*
 		 * Clear selected status bits now, so we
@@ -513,10 +512,8 @@ static int sa1100_irda_set_speed(struct sa1100_irda *si, int speed)
 	case 4000000:
 		local_irq_save(flags);
 
-		si->hscr0 = 0;
-
 		Ser2HSSR0 = 0xff;
-		Ser2HSCR0 = si->hscr0 | HSCR0_HSSP;
+		Ser2HSCR0 = HSCR0_HSSP;
 		Ser2UTCR3 = 0;
 
 		si->speed = speed;
