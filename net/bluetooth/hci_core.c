@@ -457,6 +457,25 @@ struct inquiry_entry *hci_inquiry_cache_lookup_resolve(struct hci_dev *hdev,
 	return NULL;
 }
 
+void hci_inquiry_cache_update_resolve(struct hci_dev *hdev,
+						struct inquiry_entry *ie)
+{
+	struct discovery_state *cache = &hdev->discovery;
+	struct list_head *pos = &cache->resolve;
+	struct inquiry_entry *p;
+
+	list_del(&ie->list);
+
+	list_for_each_entry(p, &cache->resolve, list) {
+		if (p->name_state != NAME_PENDING &&
+				abs(p->data.rssi) >= abs(ie->data.rssi))
+			break;
+		pos = &p->list;
+	}
+
+	list_add(&ie->list, pos);
+}
+
 bool hci_inquiry_cache_update(struct hci_dev *hdev, struct inquiry_data *data,
 							bool name_known)
 {
@@ -466,8 +485,15 @@ bool hci_inquiry_cache_update(struct hci_dev *hdev, struct inquiry_data *data,
 	BT_DBG("cache %p, %s", cache, batostr(&data->bdaddr));
 
 	ie = hci_inquiry_cache_lookup(hdev, &data->bdaddr);
-	if (ie)
+	if (ie) {
+		if (ie->name_state == NAME_NEEDED &&
+						data->rssi != ie->data.rssi) {
+			ie->data.rssi = data->rssi;
+			hci_inquiry_cache_update_resolve(hdev, ie);
+		}
+
 		goto update;
+	}
 
 	/* Entry not in the cache. Add new one. */
 	ie = kzalloc(sizeof(struct inquiry_entry), GFP_ATOMIC);

@@ -2043,7 +2043,7 @@ static int confirm_name(struct sock *sk, u16 index, unsigned char *data,
 		list_del(&e->list);
 	} else {
 		e->name_state = NAME_NEEDED;
-		list_move(&e->list, &hdev->discovery.resolve);
+		hci_inquiry_cache_update_resolve(hdev, e);
 	}
 
 	err = 0;
