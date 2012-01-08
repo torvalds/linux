@@ -1,11 +1,11 @@
 /*
     g760a - Driver for the Global Mixed-mode Technology Inc. G760A
-            fan speed PWM controller chip
+	    fan speed PWM controller chip
 
     Copyright (C) 2007  Herbert Valerio Riedel <hvr@gnu.org>
 
     Complete datasheet is available at GMT's website:
-      http://www.gmt.com.tw/product/datasheet/EDS-760A.pdf 
+      http://www.gmt.com.tw/product/datasheet/EDS-760A.pdf
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
