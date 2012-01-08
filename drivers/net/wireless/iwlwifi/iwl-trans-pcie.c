@@ -74,6 +74,7 @@
 #include "iwl-shared.h"
 #include "iwl-eeprom.h"
 #include "iwl-agn-hw.h"
+#include "iwl-core.h"
 
 static int iwl_trans_rx_alloc(struct iwl_trans *trans)
 {
@@ -631,13 +632,95 @@ static void iwl_set_pwr_vmain(struct iwl_trans *trans)
 			       ~APMG_PS_CTRL_MSK_PWR_SRC);
 }
 
+/*
+ * Start up NIC's basic functionality after it has been reset
+ * (e.g. after platform boot, or shutdown via iwl_apm_stop())
+ * NOTE:  This does not load uCode nor start the embedded processor
+ */
+static int iwl_apm_init(struct iwl_trans *trans)
+{
+	int ret = 0;
+	IWL_DEBUG_INFO(trans, "Init card's basic functions\n");
+
+	/*
+	 * Use "set_bit" below rather than "write", to preserve any hardware
+	 * bits already set by default after reset.
+	 */
+
+	/* Disable L0S exit timer (platform NMI Work/Around) */
+	iwl_set_bit(trans, CSR_GIO_CHICKEN_BITS,
+			  CSR_GIO_CHICKEN_BITS_REG_BIT_DIS_L0S_EXIT_TIMER);
+
+	/*
+	 * Disable L0s without affecting L1;
+	 *  don't wait for ICH L0s (ICH bug W/A)
+	 */
+	iwl_set_bit(trans, CSR_GIO_CHICKEN_BITS,
+			  CSR_GIO_CHICKEN_BITS_REG_BIT_L1A_NO_L0S_RX);
+
+	/* Set FH wait threshold to maximum (HW error during stress W/A) */
+	iwl_set_bit(trans, CSR_DBG_HPET_MEM_REG, CSR_DBG_HPET_MEM_REG_VAL);
+
+	/*
+	 * Enable HAP INTA (interrupt from management bus) to
+	 * wake device's PCI Express link L1a -> L0s
+	 */
+	iwl_set_bit(trans, CSR_HW_IF_CONFIG_REG,
+				    CSR_HW_IF_CONFIG_REG_BIT_HAP_WAKE_L1A);
+
+	bus_apm_config(bus(trans));
+
+	/* Configure analog phase-lock-loop before activating to D0A */
+	if (cfg(trans)->base_params->pll_cfg_val)
+		iwl_set_bit(trans, CSR_ANA_PLL_CFG,
+			    cfg(trans)->base_params->pll_cfg_val);
+
+	/*
+	 * Set "initialization complete" bit to move adapter from
+	 * D0U* --> D0A* (powered-up active) state.
+	 */
+	iwl_set_bit(trans, CSR_GP_CNTRL, CSR_GP_CNTRL_REG_FLAG_INIT_DONE);
+
+	/*
+	 * Wait for clock stabilization; once stabilized, access to
+	 * device-internal resources is supported, e.g. iwl_write_prph()
+	 * and accesses to uCode SRAM.
+	 */
+	ret = iwl_poll_bit(trans, CSR_GP_CNTRL,
+			CSR_GP_CNTRL_REG_FLAG_MAC_CLOCK_READY,
+			CSR_GP_CNTRL_REG_FLAG_MAC_CLOCK_READY, 25000);
+	if (ret < 0) {
+		IWL_DEBUG_INFO(trans, "Failed to init the card\n");
+		goto out;
+	}
+
+	/*
+	 * Enable DMA clock and wait for it to stabilize.
+	 *
+	 * Write to "CLK_EN_REG"; "1" bits enable clocks, while "0" bits
+	 * do not disable clocks.  This preserves any hardware bits already
+	 * set by default in "CLK_CTRL_REG" after reset.
+	 */
+	iwl_write_prph(trans, APMG_CLK_EN_REG, APMG_CLK_VAL_DMA_CLK_RQT);
+	udelay(20);
+
+	/* Disable L1-Active */
+	iwl_set_bits_prph(trans, APMG_PCIDEV_STT_REG,
+			  APMG_PCIDEV_STT_VAL_L1_ACT_DIS);
+
+	set_bit(STATUS_DEVICE_ENABLED, &trans->shrd->status);
+
+out:
+	return ret;
+}
+
 static int iwl_nic_init(struct iwl_trans *trans)
 {
 	unsigned long flags;
 
 	/* nic_init */
 	spin_lock_irqsave(&trans->shrd->lock, flags);
-	iwl_apm_init(priv(trans));
+	iwl_apm_init(trans);
 
 	/* Set interrupt coalescing calibration timer to default (512 usecs) */
 	iwl_write8(trans, CSR_INT_COALESCING,
@@ -1267,6 +1350,9 @@ static int iwl_trans_pcie_start_hw(struct iwl_trans *trans)
 		IWL_ERR(trans, "Error while preparing HW: %d", err);
 		goto error;
 	}
+
+	iwl_apm_init(trans);
+
 	return err;
 
 error:
