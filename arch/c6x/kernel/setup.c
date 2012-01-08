@@ -305,8 +305,6 @@ void __init setup_arch(char **cmdline_p)
 	/* Initialize command line */
 	*cmdline_p = c6x_command_line;
 
-	memblock_init();
-
 	memory_end = ram_end;
 	memory_end &= ~(PAGE_SIZE - 1);
 
@@ -366,7 +364,6 @@ void __init setup_arch(char **cmdline_p)
 					 memory_end >> PAGE_SHIFT);
 	memblock_reserve(memory_start, bootmap_size);
 
-	memblock_analyze();
 	unflatten_device_tree();
 
 	c6x_cache_init();
