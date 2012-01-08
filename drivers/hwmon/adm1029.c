@@ -78,7 +78,7 @@ static const unsigned short normal_i2c[] = { 0x28, 0x29, 0x2a, 0x2b, 0x2c, 0x2d,
 
 #define TEMP_FROM_REG(val)	((val) * 1000)
 
-#define DIV_FROM_REG(val)	( 1 << (((val) >> 6) - 1))
+#define DIV_FROM_REG(val)	(1 << (((val) >> 6) - 1))
 
 /* Registers to be checked by adm1029_update_device() */
 static const u8 ADM1029_REG_TEMP[] = {
@@ -200,8 +200,11 @@ static ssize_t set_fan_div(struct device *dev,
 	struct i2c_client *client = to_i2c_client(dev);
 	struct adm1029_data *data = i2c_get_clientdata(client);
 	struct sensor_device_attribute *attr = to_sensor_dev_attr(devattr);
-	long val = simple_strtol(buf, NULL, 10);
 	u8 reg;
+	long val;
+	int ret = kstrtol(buf, 10, &val);
+	if (ret < 0)
+		return ret;
 
 	mutex_lock(&data->update_lock);
 
@@ -355,7 +358,8 @@ static int adm1029_probe(struct i2c_client *client,
 	}
 
 	/* Register sysfs hooks */
-	if ((err = sysfs_create_group(&client->dev.kobj, &adm1029_group)))
+	err = sysfs_create_group(&client->dev.kobj, &adm1029_group);
+	if (err)
 		goto exit_free;
 
 	data->hwmon_dev = hwmon_device_register(&client->dev);
