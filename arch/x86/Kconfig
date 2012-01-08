@@ -1742,7 +1742,7 @@ source "drivers/sfi/Kconfig"
 
 config X86_APM_BOOT
 	def_bool y
-	depends on APM || APM_MODULE
+	depends on APM
 
 menuconfig APM
 	tristate "APM (Advanced Power Management) BIOS support"
