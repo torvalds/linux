@@ -376,7 +376,7 @@ static ssize_t smm665_show_input(struct device *dev,
 }
 
 #define SMM665_SHOW(what) \
-  static ssize_t smm665_show_##what(struct device *dev, \
+static ssize_t smm665_show_##what(struct device *dev, \
 				    struct device_attribute *da, char *buf) \
 { \
 	struct sensor_device_attribute *attr = to_sensor_dev_attr(da); \
