@@ -1051,12 +1051,11 @@ struct ctl_dir {
 
 struct ctl_table_set {
 	struct list_head list;
-	struct ctl_table_root *root;
 	int (*is_seen)(struct ctl_table_set *);
+	struct ctl_dir dir;
 };
 
 struct ctl_table_root {
-	struct list_head root_list;
 	struct ctl_table_set default_set;
 	struct ctl_table_set *(*lookup)(struct ctl_table_root *root,
 					   struct nsproxy *namespaces);
