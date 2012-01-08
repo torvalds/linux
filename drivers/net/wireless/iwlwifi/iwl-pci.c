@@ -87,25 +87,6 @@ struct iwl_pci_bus {
 #define IWL_BUS_GET_PCI_DEV(_iwl_bus) \
 			((IWL_BUS_GET_PCI_BUS(_iwl_bus))->pci_dev)
 
-static u16 iwl_pciexp_link_ctrl(struct iwl_bus *bus)
-{
-	int pos;
-	u16 pci_lnk_ctl;
-
-	struct pci_dev *pci_dev = IWL_BUS_GET_PCI_DEV(bus);
-
-	pos = pci_pcie_cap(pci_dev);
-	pci_read_config_word(pci_dev, pos + PCI_EXP_LNKCTL, &pci_lnk_ctl);
-	return pci_lnk_ctl;
-}
-
-static bool iwl_pci_is_pm_supported(struct iwl_bus *bus)
-{
-	u16 lctl = iwl_pciexp_link_ctrl(bus);
-
-	return !(lctl & PCI_CFG_LINK_CTRL_VAL_L0S_EN);
-}
-
 static void iwl_pci_get_hw_id_string(struct iwl_bus *bus, char buf[],
 			      int buf_len)
 {
@@ -123,7 +104,6 @@ static u32 iwl_pci_get_hw_id(struct iwl_bus *bus)
 }
 
 static const struct iwl_bus_ops bus_ops_pci = {
-	.get_pm_support = iwl_pci_is_pm_supported,
 	.get_hw_id_string = iwl_pci_get_hw_id_string,
 	.get_hw_id = iwl_pci_get_hw_id,
 };

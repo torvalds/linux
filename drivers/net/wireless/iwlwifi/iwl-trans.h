@@ -239,6 +239,7 @@ struct iwl_calib_result {
  * @ucode_init: init ucode image
  * @ucode_wowlan: wake on wireless ucode image (optional)
  * @nvm_device_type: indicates OTP or eeprom
+ * @pm_support: set to true in start_hw if link pm is supported
  * @calib_results: list head for init calibration results
  */
 struct iwl_trans {
@@ -257,6 +258,7 @@ struct iwl_trans {
 
 	/* eeprom related variables */
 	int    nvm_device_type;
+	bool pm_support;
 
 	/* init calibration results */
 	struct list_head calib_results;

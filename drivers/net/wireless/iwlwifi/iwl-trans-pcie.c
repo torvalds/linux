@@ -676,6 +676,7 @@ static void iwl_apm_config(struct iwl_trans *trans)
 		dev_printk(KERN_INFO, trans->dev,
 			   "L1 Disabled; Enabling L0S\n");
 	}
+	trans->pm_support = !(lctl & PCI_CFG_LINK_CTRL_VAL_L0S_EN);
 }
 
 /*
