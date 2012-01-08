@@ -104,10 +104,7 @@
 #include "fsl_pq_mdio.h"
 
 #define TX_TIMEOUT      (1*HZ)
-#undef BRIEF_GFAR_ERRORS
-#undef VERBOSE_GFAR_ERRORS
 
-const char gfar_driver_name[] = "Gianfar Ethernet";
 const char gfar_driver_version[] = "1.3";
 
 static int gfar_enet_open(struct net_device *dev);
