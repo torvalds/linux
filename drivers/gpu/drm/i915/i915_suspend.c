@@ -34,6 +34,10 @@ static bool i915_pipe_enabled(struct drm_device *dev, enum pipe pipe)
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	u32	dpll_reg;
 
+	/* On IVB, 3rd pipe shares PLL with another one */
+	if (pipe > 1)
+		return false;
+
 	if (HAS_PCH_SPLIT(dev))
 		dpll_reg = (pipe == PIPE_A) ? _PCH_DPLL_A : _PCH_DPLL_B;
 	else
