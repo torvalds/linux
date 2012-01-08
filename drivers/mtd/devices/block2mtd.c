@@ -14,7 +14,6 @@
 #include <linux/list.h>
 #include <linux/init.h>
 #include <linux/mtd/mtd.h>
-#include <linux/buffer_head.h>
 #include <linux/mutex.h>
 #include <linux/mount.h>
 #include <linux/slab.h>

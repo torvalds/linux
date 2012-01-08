@@ -838,14 +838,14 @@ static struct attribute *ad7192_attributes[] = {
 	NULL
 };
 
-static mode_t ad7192_attr_is_visible(struct kobject *kobj,
+static umode_t ad7192_attr_is_visible(struct kobject *kobj,
 				     struct attribute *attr, int n)
 {
 	struct device *dev = container_of(kobj, struct device, kobj);
 	struct iio_dev *indio_dev = dev_get_drvdata(dev);
 	struct ad7192_state *st = iio_priv(indio_dev);
 
-	mode_t mode = attr->mode;
+	umode_t mode = attr->mode;
 
 	if ((st->devid != ID_AD7195) &&
 		(attr == &iio_dev_attr_ac_excitation_en.dev_attr.attr))

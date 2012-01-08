@@ -518,7 +518,6 @@ static struct inode *fat_alloc_inode(struct super_block *sb)
 static void fat_i_callback(struct rcu_head *head)
 {
 	struct inode *inode = container_of(head, struct inode, i_rcu);
-	INIT_LIST_HEAD(&inode->i_dentry);
 	kmem_cache_free(fat_inode_cachep, MSDOS_I(inode));
 }
 
@@ -672,7 +671,7 @@ int fat_sync_inode(struct inode *inode)
 
 EXPORT_SYMBOL_GPL(fat_sync_inode);
 
-static int fat_show_options(struct seq_file *m, struct vfsmount *mnt);
+static int fat_show_options(struct seq_file *m, struct dentry *root);
 static const struct super_operations fat_sops = {
 	.alloc_inode	= fat_alloc_inode,
 	.destroy_inode	= fat_destroy_inode,
@@ -811,9 +810,9 @@ static const struct export_operations fat_export_ops = {
 	.get_parent	= fat_get_parent,
 };
 
-static int fat_show_options(struct seq_file *m, struct vfsmount *mnt)
+static int fat_show_options(struct seq_file *m, struct dentry *root)
 {
-	struct msdos_sb_info *sbi = MSDOS_SB(mnt->mnt_sb);
+	struct msdos_sb_info *sbi = MSDOS_SB(root->d_sb);
 	struct fat_mount_options *opts = &sbi->options;
 	int isvfat = opts->isvfat;
 

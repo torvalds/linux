@@ -215,7 +215,7 @@ extern int udf_CS0toUTF8(struct ustr *, const struct ustr *);
 
 /* ialloc.c */
 extern void udf_free_inode(struct inode *);
-extern struct inode *udf_new_inode(struct inode *, int, int *);
+extern struct inode *udf_new_inode(struct inode *, umode_t, int *);
 
 /* truncate.c */
 extern void udf_truncate_tail_extent(struct inode *);

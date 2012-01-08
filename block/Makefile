@@ -5,7 +5,8 @@
 obj-$(CONFIG_BLOCK) := elevator.o blk-core.o blk-tag.o blk-sysfs.o \
 			blk-flush.o blk-settings.o blk-ioc.o blk-map.o \
 			blk-exec.o blk-merge.o blk-softirq.o blk-timeout.o \
-			blk-iopoll.o blk-lib.o ioctl.o genhd.o scsi_ioctl.o
+			blk-iopoll.o blk-lib.o ioctl.o genhd.o scsi_ioctl.o \
+			partition-generic.o partitions/
 
 obj-$(CONFIG_BLK_DEV_BSG)	+= bsg.o
 obj-$(CONFIG_BLK_DEV_BSGLIB)	+= bsg-lib.o

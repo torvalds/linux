@@ -1424,9 +1424,9 @@ struct security_operations {
 
 #ifdef CONFIG_SECURITY_PATH
 	int (*path_unlink) (struct path *dir, struct dentry *dentry);
-	int (*path_mkdir) (struct path *dir, struct dentry *dentry, int mode);
+	int (*path_mkdir) (struct path *dir, struct dentry *dentry, umode_t mode);
 	int (*path_rmdir) (struct path *dir, struct dentry *dentry);
-	int (*path_mknod) (struct path *dir, struct dentry *dentry, int mode,
+	int (*path_mknod) (struct path *dir, struct dentry *dentry, umode_t mode,
 			   unsigned int dev);
 	int (*path_truncate) (struct path *path);
 	int (*path_symlink) (struct path *dir, struct dentry *dentry,
@@ -1435,8 +1435,7 @@ struct security_operations {
 			  struct dentry *new_dentry);
 	int (*path_rename) (struct path *old_dir, struct dentry *old_dentry,
 			    struct path *new_dir, struct dentry *new_dentry);
-	int (*path_chmod) (struct dentry *dentry, struct vfsmount *mnt,
-			   mode_t mode);
+	int (*path_chmod) (struct path *path, umode_t mode);
 	int (*path_chown) (struct path *path, uid_t uid, gid_t gid);
 	int (*path_chroot) (struct path *path);
 #endif
@@ -1447,16 +1446,16 @@ struct security_operations {
 				    const struct qstr *qstr, char **name,
 				    void **value, size_t *len);
 	int (*inode_create) (struct inode *dir,
-			     struct dentry *dentry, int mode);
+			     struct dentry *dentry, umode_t mode);
 	int (*inode_link) (struct dentry *old_dentry,
 			   struct inode *dir, struct dentry *new_dentry);
 	int (*inode_unlink) (struct inode *dir, struct dentry *dentry);
 	int (*inode_symlink) (struct inode *dir,
 			      struct dentry *dentry, const char *old_name);
-	int (*inode_mkdir) (struct inode *dir, struct dentry *dentry, int mode);
+	int (*inode_mkdir) (struct inode *dir, struct dentry *dentry, umode_t mode);
 	int (*inode_rmdir) (struct inode *dir, struct dentry *dentry);
 	int (*inode_mknod) (struct inode *dir, struct dentry *dentry,
-			    int mode, dev_t dev);
+			    umode_t mode, dev_t dev);
 	int (*inode_rename) (struct inode *old_dir, struct dentry *old_dentry,
 			     struct inode *new_dir, struct dentry *new_dentry);
 	int (*inode_readlink) (struct dentry *dentry);
@@ -1716,15 +1715,15 @@ int security_inode_init_security(struct inode *inode, struct inode *dir,
 int security_old_inode_init_security(struct inode *inode, struct inode *dir,
 				     const struct qstr *qstr, char **name,
 				     void **value, size_t *len);
-int security_inode_create(struct inode *dir, struct dentry *dentry, int mode);
+int security_inode_create(struct inode *dir, struct dentry *dentry, umode_t mode);
 int security_inode_link(struct dentry *old_dentry, struct inode *dir,
 			 struct dentry *new_dentry);
 int security_inode_unlink(struct inode *dir, struct dentry *dentry);
 int security_inode_symlink(struct inode *dir, struct dentry *dentry,
 			   const char *old_name);
-int security_inode_mkdir(struct inode *dir, struct dentry *dentry, int mode);
+int security_inode_mkdir(struct inode *dir, struct dentry *dentry, umode_t mode);
 int security_inode_rmdir(struct inode *dir, struct dentry *dentry);
-int security_inode_mknod(struct inode *dir, struct dentry *dentry, int mode, dev_t dev);
+int security_inode_mknod(struct inode *dir, struct dentry *dentry, umode_t mode, dev_t dev);
 int security_inode_rename(struct inode *old_dir, struct dentry *old_dentry,
 			  struct inode *new_dir, struct dentry *new_dentry);
 int security_inode_readlink(struct dentry *dentry);
@@ -2061,7 +2060,7 @@ static inline int security_old_inode_init_security(struct inode *inode,
 
 static inline int security_inode_create(struct inode *dir,
 					 struct dentry *dentry,
-					 int mode)
+					 umode_t mode)
 {
 	return 0;
 }
@@ -2855,9 +2854,9 @@ static inline void security_skb_classify_flow(struct sk_buff *skb, struct flowi 
 
 #ifdef CONFIG_SECURITY_PATH
 int security_path_unlink(struct path *dir, struct dentry *dentry);
-int security_path_mkdir(struct path *dir, struct dentry *dentry, int mode);
+int security_path_mkdir(struct path *dir, struct dentry *dentry, umode_t mode);
 int security_path_rmdir(struct path *dir, struct dentry *dentry);
-int security_path_mknod(struct path *dir, struct dentry *dentry, int mode,
+int security_path_mknod(struct path *dir, struct dentry *dentry, umode_t mode,
 			unsigned int dev);
 int security_path_truncate(struct path *path);
 int security_path_symlink(struct path *dir, struct dentry *dentry,
@@ -2866,8 +2865,7 @@ int security_path_link(struct dentry *old_dentry, struct path *new_dir,
 		       struct dentry *new_dentry);
 int security_path_rename(struct path *old_dir, struct dentry *old_dentry,
 			 struct path *new_dir, struct dentry *new_dentry);
-int security_path_chmod(struct dentry *dentry, struct vfsmount *mnt,
-			mode_t mode);
+int security_path_chmod(struct path *path, umode_t mode);
 int security_path_chown(struct path *path, uid_t uid, gid_t gid);
 int security_path_chroot(struct path *path);
 #else	/* CONFIG_SECURITY_PATH */
@@ -2877,7 +2875,7 @@ static inline int security_path_unlink(struct path *dir, struct dentry *dentry)
 }
 
 static inline int security_path_mkdir(struct path *dir, struct dentry *dentry,
-				      int mode)
+				      umode_t mode)
 {
 	return 0;
 }
@@ -2888,7 +2886,7 @@ static inline int security_path_rmdir(struct path *dir, struct dentry *dentry)
 }
 
 static inline int security_path_mknod(struct path *dir, struct dentry *dentry,
-				      int mode, unsigned int dev)
+				      umode_t mode, unsigned int dev)
 {
 	return 0;
 }
@@ -2919,9 +2917,7 @@ static inline int security_path_rename(struct path *old_dir,
 	return 0;
 }
 
-static inline int security_path_chmod(struct dentry *dentry,
-				      struct vfsmount *mnt,
-				      mode_t mode)
+static inline int security_path_chmod(struct path *path, umode_t mode)
 {
 	return 0;
 }
@@ -3010,7 +3006,7 @@ static inline void security_audit_rule_free(void *lsmrule)
 
 #ifdef CONFIG_SECURITYFS
 
-extern struct dentry *securityfs_create_file(const char *name, mode_t mode,
+extern struct dentry *securityfs_create_file(const char *name, umode_t mode,
 					     struct dentry *parent, void *data,
 					     const struct file_operations *fops);
 extern struct dentry *securityfs_create_dir(const char *name, struct dentry *parent);
@@ -3025,7 +3021,7 @@ static inline struct dentry *securityfs_create_dir(const char *name,
 }
 
 static inline struct dentry *securityfs_create_file(const char *name,
-						    mode_t mode,
+						    umode_t mode,
 						    struct dentry *parent,
 						    void *data,
 						    const struct file_operations *fops)

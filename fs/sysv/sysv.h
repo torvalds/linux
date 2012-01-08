@@ -125,7 +125,7 @@ static inline void dirty_sb(struct super_block *sb)
 /* ialloc.c */
 extern struct sysv_inode *sysv_raw_inode(struct super_block *, unsigned,
 			struct buffer_head **);
-extern struct inode * sysv_new_inode(const struct inode *, mode_t);
+extern struct inode * sysv_new_inode(const struct inode *, umode_t);
 extern void sysv_free_inode(struct inode *);
 extern unsigned long sysv_count_free_inodes(struct super_block *);
 

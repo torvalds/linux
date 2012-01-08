@@ -351,7 +351,7 @@ static void get_orlov_stats(struct super_block *sb, ext4_group_t g,
  */
 
 static int find_group_orlov(struct super_block *sb, struct inode *parent,
-			    ext4_group_t *group, int mode,
+			    ext4_group_t *group, umode_t mode,
 			    const struct qstr *qstr)
 {
 	ext4_group_t parent_group = EXT4_I(parent)->i_block_group;
@@ -497,7 +497,7 @@ fallback_retry:
 }
 
 static int find_group_other(struct super_block *sb, struct inode *parent,
-			    ext4_group_t *group, int mode)
+			    ext4_group_t *group, umode_t mode)
 {
 	ext4_group_t parent_group = EXT4_I(parent)->i_block_group;
 	ext4_group_t i, last, ngroups = ext4_get_groups_count(sb);
@@ -602,7 +602,7 @@ static int find_group_other(struct super_block *sb, struct inode *parent,
  */
 static int ext4_claim_inode(struct super_block *sb,
 			struct buffer_head *inode_bitmap_bh,
-			unsigned long ino, ext4_group_t group, int mode)
+			unsigned long ino, ext4_group_t group, umode_t mode)
 {
 	int free = 0, retval = 0, count;
 	struct ext4_sb_info *sbi = EXT4_SB(sb);
@@ -690,7 +690,7 @@ err_ret:
  * For other inodes, search forward from the parent directory's block
  * group to find a free inode.
  */
-struct inode *ext4_new_inode(handle_t *handle, struct inode *dir, int mode,
+struct inode *ext4_new_inode(handle_t *handle, struct inode *dir, umode_t mode,
 			     const struct qstr *qstr, __u32 goal, uid_t *owner)
 {
 	struct super_block *sb;

@@ -1778,7 +1778,7 @@ const struct file_operations cache_flush_operations_pipefs = {
 };
 
 int sunrpc_cache_register_pipefs(struct dentry *parent,
-				 const char *name, mode_t umode,
+				 const char *name, umode_t umode,
 				 struct cache_detail *cd)
 {
 	struct qstr q;

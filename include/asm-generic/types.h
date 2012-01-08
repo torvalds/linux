@@ -6,10 +6,4 @@
  */
 #include <asm-generic/int-ll64.h>
 
-#ifndef __ASSEMBLY__
-
-typedef unsigned short umode_t;
-
-#endif /* __ASSEMBLY__ */
-
 #endif /* _ASM_GENERIC_TYPES_H */

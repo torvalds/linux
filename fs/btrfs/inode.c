@@ -4412,8 +4412,8 @@ static struct inode *btrfs_new_inode(struct btrfs_trans_handle *trans,
 				     struct btrfs_root *root,
 				     struct inode *dir,
 				     const char *name, int name_len,
-				     u64 ref_objectid, u64 objectid, int mode,
-				     u64 *index)
+				     u64 ref_objectid, u64 objectid,
+				     umode_t mode, u64 *index)
 {
 	struct inode *inode;
 	struct btrfs_inode_item *inode_item;
@@ -4596,7 +4596,7 @@ static int btrfs_add_nondir(struct btrfs_trans_handle *trans,
 }
 
 static int btrfs_mknod(struct inode *dir, struct dentry *dentry,
-			int mode, dev_t rdev)
+			umode_t mode, dev_t rdev)
 {
 	struct btrfs_trans_handle *trans;
 	struct btrfs_root *root = BTRFS_I(dir)->root;
@@ -4665,7 +4665,7 @@ out_unlock:
 }
 
 static int btrfs_create(struct inode *dir, struct dentry *dentry,
-			int mode, struct nameidata *nd)
+			umode_t mode, struct nameidata *nd)
 {
 	struct btrfs_trans_handle *trans;
 	struct btrfs_root *root = BTRFS_I(dir)->root;
@@ -4792,7 +4792,7 @@ fail:
 	return err;
 }
 
-static int btrfs_mkdir(struct inode *dir, struct dentry *dentry, int mode)
+static int btrfs_mkdir(struct inode *dir, struct dentry *dentry, umode_t mode)
 {
 	struct inode *inode = NULL;
 	struct btrfs_trans_handle *trans;
@@ -6761,7 +6761,6 @@ struct inode *btrfs_alloc_inode(struct super_block *sb)
 static void btrfs_i_callback(struct rcu_head *head)
 {
 	struct inode *inode = container_of(head, struct inode, i_rcu);
-	INIT_LIST_HEAD(&inode->i_dentry);
 	kmem_cache_free(btrfs_inode_cachep, BTRFS_I(inode));
 }
 

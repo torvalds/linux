@@ -5176,7 +5176,7 @@ static void sd_free_ctl_entry(struct ctl_table **tablep)
 static void
 set_table_entry(struct ctl_table *entry,
 		const char *procname, void *data, int maxlen,
-		mode_t mode, proc_handler *proc_handler)
+		umode_t mode, proc_handler *proc_handler)
 {
 	entry->procname = procname;
 	entry->data = data;

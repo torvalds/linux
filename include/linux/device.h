@@ -343,7 +343,7 @@ struct class {
 	struct kobject			*dev_kobj;
 
 	int (*dev_uevent)(struct device *dev, struct kobj_uevent_env *env);
-	char *(*devnode)(struct device *dev, mode_t *mode);
+	char *(*devnode)(struct device *dev, umode_t *mode);
 
 	void (*class_release)(struct class *class);
 	void (*dev_release)(struct device *dev);
@@ -472,7 +472,7 @@ struct device_type {
 	const char *name;
 	const struct attribute_group **groups;
 	int (*uevent)(struct device *dev, struct kobj_uevent_env *env);
-	char *(*devnode)(struct device *dev, mode_t *mode);
+	char *(*devnode)(struct device *dev, umode_t *mode);
 	void (*release)(struct device *dev);
 
 	const struct dev_pm_ops *pm;
@@ -793,7 +793,7 @@ extern int device_rename(struct device *dev, const char *new_name);
 extern int device_move(struct device *dev, struct device *new_parent,
 		       enum dpm_order dpm_order);
 extern const char *device_get_devnode(struct device *dev,
-				      mode_t *mode, const char **tmp);
+				      umode_t *mode, const char **tmp);
 extern void *dev_get_drvdata(const struct device *dev);
 extern int dev_set_drvdata(struct device *dev, void *data);
 

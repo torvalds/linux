@@ -237,7 +237,7 @@ extern long spu_sys_callback(struct spu_syscall_block *s);
 struct file;
 struct spufs_calls {
 	long (*create_thread)(const char __user *name,
-					unsigned int flags, mode_t mode,
+					unsigned int flags, umode_t mode,
 					struct file *neighbor);
 	long (*spu_run)(struct file *filp, __u32 __user *unpc,
 						__u32 __user *ustatus);

@@ -97,7 +97,7 @@ DEFINE_SIMPLE_ATTRIBUTE(fops_u8_wo, NULL, debugfs_u8_set, "%llu\n");
  * %NULL or !%NULL instead as to eliminate the need for #ifdef in the calling
  * code.
  */
-struct dentry *debugfs_create_u8(const char *name, mode_t mode,
+struct dentry *debugfs_create_u8(const char *name, umode_t mode,
 				 struct dentry *parent, u8 *value)
 {
 	/* if there are no write bits set, make read only */
@@ -149,7 +149,7 @@ DEFINE_SIMPLE_ATTRIBUTE(fops_u16_wo, NULL, debugfs_u16_set, "%llu\n");
  * %NULL or !%NULL instead as to eliminate the need for #ifdef in the calling
  * code.
  */
-struct dentry *debugfs_create_u16(const char *name, mode_t mode,
+struct dentry *debugfs_create_u16(const char *name, umode_t mode,
 				  struct dentry *parent, u16 *value)
 {
 	/* if there are no write bits set, make read only */
@@ -201,7 +201,7 @@ DEFINE_SIMPLE_ATTRIBUTE(fops_u32_wo, NULL, debugfs_u32_set, "%llu\n");
  * %NULL or !%NULL instead as to eliminate the need for #ifdef in the calling
  * code.
  */
-struct dentry *debugfs_create_u32(const char *name, mode_t mode,
+struct dentry *debugfs_create_u32(const char *name, umode_t mode,
 				 struct dentry *parent, u32 *value)
 {
 	/* if there are no write bits set, make read only */
@@ -254,7 +254,7 @@ DEFINE_SIMPLE_ATTRIBUTE(fops_u64_wo, NULL, debugfs_u64_set, "%llu\n");
  * %NULL or !%NULL instead as to eliminate the need for #ifdef in the calling
  * code.
  */
-struct dentry *debugfs_create_u64(const char *name, mode_t mode,
+struct dentry *debugfs_create_u64(const char *name, umode_t mode,
 				 struct dentry *parent, u64 *value)
 {
 	/* if there are no write bits set, make read only */
@@ -300,7 +300,7 @@ DEFINE_SIMPLE_ATTRIBUTE(fops_x64, debugfs_u64_get, debugfs_u64_set, "0x%016llx\n
  * @value: a pointer to the variable that the file should read to and write
  *         from.
  */
-struct dentry *debugfs_create_x8(const char *name, mode_t mode,
+struct dentry *debugfs_create_x8(const char *name, umode_t mode,
 				 struct dentry *parent, u8 *value)
 {
 	/* if there are no write bits set, make read only */
@@ -324,7 +324,7 @@ EXPORT_SYMBOL_GPL(debugfs_create_x8);
  * @value: a pointer to the variable that the file should read to and write
  *         from.
  */
-struct dentry *debugfs_create_x16(const char *name, mode_t mode,
+struct dentry *debugfs_create_x16(const char *name, umode_t mode,
 				 struct dentry *parent, u16 *value)
 {
 	/* if there are no write bits set, make read only */
@@ -348,7 +348,7 @@ EXPORT_SYMBOL_GPL(debugfs_create_x16);
  * @value: a pointer to the variable that the file should read to and write
  *         from.
  */
-struct dentry *debugfs_create_x32(const char *name, mode_t mode,
+struct dentry *debugfs_create_x32(const char *name, umode_t mode,
 				 struct dentry *parent, u32 *value)
 {
 	/* if there are no write bits set, make read only */
@@ -372,7 +372,7 @@ EXPORT_SYMBOL_GPL(debugfs_create_x32);
  * @value: a pointer to the variable that the file should read to and write
  *         from.
  */
-struct dentry *debugfs_create_x64(const char *name, mode_t mode,
+struct dentry *debugfs_create_x64(const char *name, umode_t mode,
 				 struct dentry *parent, u64 *value)
 {
 	return debugfs_create_file(name, mode, parent, value, &fops_x64);
@@ -403,7 +403,7 @@ DEFINE_SIMPLE_ATTRIBUTE(fops_size_t, debugfs_size_t_get, debugfs_size_t_set,
  * @value: a pointer to the variable that the file should read to and write
  *         from.
  */
-struct dentry *debugfs_create_size_t(const char *name, mode_t mode,
+struct dentry *debugfs_create_size_t(const char *name, umode_t mode,
 				     struct dentry *parent, size_t *value)
 {
 	return debugfs_create_file(name, mode, parent, value, &fops_size_t);
@@ -475,7 +475,7 @@ static const struct file_operations fops_bool = {
  * %NULL or !%NULL instead as to eliminate the need for #ifdef in the calling
  * code.
  */
-struct dentry *debugfs_create_bool(const char *name, mode_t mode,
+struct dentry *debugfs_create_bool(const char *name, umode_t mode,
 				   struct dentry *parent, u32 *value)
 {
 	return debugfs_create_file(name, mode, parent, value, &fops_bool);
@@ -520,7 +520,7 @@ static const struct file_operations fops_blob = {
  * %NULL or !%NULL instead as to eliminate the need for #ifdef in the calling
  * code.
  */
-struct dentry *debugfs_create_blob(const char *name, mode_t mode,
+struct dentry *debugfs_create_blob(const char *name, umode_t mode,
 				   struct dentry *parent,
 				   struct debugfs_blob_wrapper *blob)
 {

@@ -85,7 +85,6 @@ static struct inode *isofs_alloc_inode(struct super_block *sb)
 static void isofs_i_callback(struct rcu_head *head)
 {
 	struct inode *inode = container_of(head, struct inode, i_rcu);
-	INIT_LIST_HEAD(&inode->i_dentry);
 	kmem_cache_free(isofs_inode_cachep, ISOFS_I(inode));
 }
 
@@ -170,8 +169,8 @@ struct iso9660_options{
 	unsigned char map;
 	unsigned char check;
 	unsigned int blocksize;
-	mode_t fmode;
-	mode_t dmode;
+	umode_t fmode;
+	umode_t dmode;
 	gid_t gid;
 	uid_t uid;
 	char *iocharset;

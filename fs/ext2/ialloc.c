@@ -429,7 +429,7 @@ found:
 	return group;
 }
 
-struct inode *ext2_new_inode(struct inode *dir, int mode,
+struct inode *ext2_new_inode(struct inode *dir, umode_t mode,
 			     const struct qstr *qstr)
 {
 	struct super_block *sb;
