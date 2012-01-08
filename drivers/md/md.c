@@ -1713,6 +1713,8 @@ static int super_1_validate(struct mddev *mddev, struct md_rdev *rdev)
 		}
 		if (sb->devflags & WriteMostly1)
 			set_bit(WriteMostly, &rdev->flags);
+		if (le32_to_cpu(sb->feature_map) & MD_FEATURE_REPLACEMENT)
+			set_bit(Replacement, &rdev->flags);
 	} else /* MULTIPATH are always insync */
 		set_bit(In_sync, &rdev->flags);
 
@@ -1766,6 +1768,9 @@ static void super_1_sync(struct mddev *mddev, struct md_rdev *rdev)
 		sb->recovery_offset =
 			cpu_to_le64(rdev->recovery_offset);
 	}
+	if (test_bit(Replacement, &rdev->flags))
+		sb->feature_map |=
+			cpu_to_le32(MD_FEATURE_REPLACEMENT);
 
 	if (mddev->reshape_position != MaxSector) {
 		sb->feature_map |= cpu_to_le32(MD_FEATURE_RESHAPE_ACTIVE);
@@ -2559,6 +2564,15 @@ state_show(struct md_rdev *rdev, char *page)
 		len += sprintf(page+len, "%swrite_error", sep);
 		sep = ",";
 	}
+	if (test_bit(WantReplacement, &rdev->flags)) {
+		len += sprintf(page+len, "%swant_replacement", sep);
+		sep = ",";
+	}
+	if (test_bit(Replacement, &rdev->flags)) {
+		len += sprintf(page+len, "%sreplacement", sep);
+		sep = ",";
+	}
+
 	return len+sprintf(page+len, "\n");
 }
 
@@ -2627,6 +2641,42 @@ state_store(struct md_rdev *rdev, const char *buf, size_t len)
 	} else if (cmd_match(buf, "-write_error")) {
 		clear_bit(WriteErrorSeen, &rdev->flags);
 		err = 0;
+	} else if (cmd_match(buf, "want_replacement")) {
+		/* Any non-spare device that is not a replacement can
+		 * become want_replacement at any time, but we then need to
+		 * check if recovery is needed.
+		 */
+		if (rdev->raid_disk >= 0 &&
+		    !test_bit(Replacement, &rdev->flags))
+			set_bit(WantReplacement, &rdev->flags);
+		set_bit(MD_RECOVERY_NEEDED, &rdev->mddev->recovery);
+		md_wakeup_thread(rdev->mddev->thread);
+		err = 0;
+	} else if (cmd_match(buf, "-want_replacement")) {
+		/* Clearing 'want_replacement' is always allowed.
+		 * Once replacements starts it is too late though.
+		 */
+		err = 0;
+		clear_bit(WantReplacement, &rdev->flags);
+	} else if (cmd_match(buf, "replacement")) {
+		/* Can only set a device as a replacement when array has not
+		 * yet been started.  Once running, replacement is automatic
+		 * from spares, or by assigning 'slot'.
+		 */
+		if (rdev->mddev->pers)
+			err = -EBUSY;
+		else {
+			set_bit(Replacement, &rdev->flags);
+			err = 0;
+		}
+	} else if (cmd_match(buf, "-replacement")) {
+		/* Similarly, can only clear Replacement before start */
+		if (rdev->mddev->pers)
+			err = -EBUSY;
+		else {
+			clear_bit(Replacement, &rdev->flags);
+			err = 0;
+		}
 	}
 	if (!err)
 		sysfs_notify_dirent_safe(rdev->sysfs_state);
@@ -2688,7 +2738,7 @@ slot_store(struct md_rdev *rdev, const char *buf, size_t len)
 		if (rdev->mddev->pers->hot_remove_disk == NULL)
 			return -EINVAL;
 		err = rdev->mddev->pers->
-			hot_remove_disk(rdev->mddev, rdev->raid_disk);
+			hot_remove_disk(rdev->mddev, rdev);
 		if (err)
 			return err;
 		sysfs_unlink_rdev(rdev->mddev, rdev);
@@ -2696,7 +2746,6 @@ slot_store(struct md_rdev *rdev, const char *buf, size_t len)
 		set_bit(MD_RECOVERY_NEEDED, &rdev->mddev->recovery);
 		md_wakeup_thread(rdev->mddev->thread);
 	} else if (rdev->mddev->pers) {
-		struct md_rdev *rdev2;
 		/* Activating a spare .. or possibly reactivating
 		 * if we ever get bitmaps working here.
 		 */
@@ -2709,10 +2758,6 @@ slot_store(struct md_rdev *rdev, const char *buf, size_t len)
 
 		if (rdev->mddev->pers->hot_add_disk == NULL)
 			return -EINVAL;
-
-		list_for_each_entry(rdev2, &rdev->mddev->disks, same_set)
-			if (rdev2->raid_disk == slot)
-				return -EEXIST;
 
 		if (slot >= rdev->mddev->raid_disks &&
 		    slot >= rdev->mddev->raid_disks + rdev->mddev->delta_disks)
@@ -6053,8 +6098,15 @@ static int md_ioctl(struct block_device *bdev, fmode_t mode,
 	struct mddev *mddev = NULL;
 	int ro;
 
-	if (!capable(CAP_SYS_ADMIN))
-		return -EACCES;
+	switch (cmd) {
+	case RAID_VERSION:
+	case GET_ARRAY_INFO:
+	case GET_DISK_INFO:
+		break;
+	default:
+		if (!capable(CAP_SYS_ADMIN))
+			return -EACCES;
+	}
 
 	/*
 	 * Commands dealing with the RAID driver but not any
@@ -6714,8 +6766,11 @@ static int md_seq_show(struct seq_file *seq, void *v)
 			if (test_bit(Faulty, &rdev->flags)) {
 				seq_printf(seq, "(F)");
 				continue;
-			} else if (rdev->raid_disk < 0)
+			}
+			if (rdev->raid_disk < 0)
 				seq_printf(seq, "(S)"); /* spare */
+			if (test_bit(Replacement, &rdev->flags))
+				seq_printf(seq, "(R)");
 			sectors += rdev->sectors;
 		}
 
@@ -7337,29 +7392,27 @@ static int remove_and_add_spares(struct mddev *mddev)
 		     ! test_bit(In_sync, &rdev->flags)) &&
 		    atomic_read(&rdev->nr_pending)==0) {
 			if (mddev->pers->hot_remove_disk(
-				    mddev, rdev->raid_disk)==0) {
+				    mddev, rdev) == 0) {
 				sysfs_unlink_rdev(mddev, rdev);
 				rdev->raid_disk = -1;
 			}
 		}
 
-	if (mddev->degraded) {
-		list_for_each_entry(rdev, &mddev->disks, same_set) {
-			if (rdev->raid_disk >= 0 &&
-			    !test_bit(In_sync, &rdev->flags) &&
-			    !test_bit(Faulty, &rdev->flags))
+	list_for_each_entry(rdev, &mddev->disks, same_set) {
+		if (rdev->raid_disk >= 0 &&
+		    !test_bit(In_sync, &rdev->flags) &&
+		    !test_bit(Faulty, &rdev->flags))
+			spares++;
+		if (rdev->raid_disk < 0
+		    && !test_bit(Faulty, &rdev->flags)) {
+			rdev->recovery_offset = 0;
+			if (mddev->pers->
+			    hot_add_disk(mddev, rdev) == 0) {
+				if (sysfs_link_rdev(mddev, rdev))
+					/* failure here is OK */;
 				spares++;
-			if (rdev->raid_disk < 0
-			    && !test_bit(Faulty, &rdev->flags)) {
-				rdev->recovery_offset = 0;
-				if (mddev->pers->
-				    hot_add_disk(mddev, rdev) == 0) {
-					if (sysfs_link_rdev(mddev, rdev))
-						/* failure here is OK */;
-					spares++;
-					md_new_event(mddev);
-					set_bit(MD_CHANGE_DEVS, &mddev->flags);
-				}
+				md_new_event(mddev);
+				set_bit(MD_CHANGE_DEVS, &mddev->flags);
 			}
 		}
 	}
@@ -7474,7 +7527,7 @@ void md_check_recovery(struct mddev *mddev)
 				    test_bit(Faulty, &rdev->flags) &&
 				    atomic_read(&rdev->nr_pending)==0) {
 					if (mddev->pers->hot_remove_disk(
-						    mddev, rdev->raid_disk)==0) {
+						    mddev, rdev) == 0) {
 						sysfs_unlink_rdev(mddev, rdev);
 						rdev->raid_disk = -1;
 					}
