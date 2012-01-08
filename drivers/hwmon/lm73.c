@@ -50,7 +50,7 @@ static ssize_t set_temp(struct device *dev, struct device_attribute *da,
 	long temp;
 	short value;
 
-	int status = strict_strtol(buf, 10, &temp);
+	int status = kstrtol(buf, 10, &temp);
 	if (status < 0)
 		return status;
 

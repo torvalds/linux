@@ -343,7 +343,7 @@ static ssize_t set_voltage(struct device *dev, struct device_attribute *attr,
 	unsigned char reg;
 	long val;
 
-	if (strict_strtol(buf, 10, &val))
+	if (kstrtol(buf, 10, &val))
 		return -EINVAL;
 
 	mutex_lock(&data->lock);
@@ -432,7 +432,7 @@ static ssize_t set_temp(struct device *dev, struct device_attribute *attr,
 	int temp;
 	long val;
 
-	if (strict_strtol(buf, 10, &val))
+	if (kstrtol(buf, 10, &val))
 		return -EINVAL;
 
 	mutex_lock(&data->lock);
@@ -546,7 +546,7 @@ static ssize_t set_point2(struct device *dev, struct device_attribute *attr,
 	int temp;
 	long val;
 
-	if (strict_strtol(buf, 10, &val))
+	if (kstrtol(buf, 10, &val))
 		return -EINVAL;
 
 	mutex_lock(&data->lock);
@@ -602,7 +602,7 @@ static ssize_t set_tach(struct device *dev, struct device_attribute *attr,
 	struct adt7475_data *data = i2c_get_clientdata(client);
 	unsigned long val;
 
-	if (strict_strtoul(buf, 10, &val))
+	if (kstrtoul(buf, 10, &val))
 		return -EINVAL;
 
 	mutex_lock(&data->lock);
@@ -653,7 +653,7 @@ static ssize_t set_pwm(struct device *dev, struct device_attribute *attr,
 	unsigned char reg = 0;
 	long val;
 
-	if (strict_strtol(buf, 10, &val))
+	if (kstrtol(buf, 10, &val))
 		return -EINVAL;
 
 	mutex_lock(&data->lock);
@@ -758,7 +758,7 @@ static ssize_t set_pwmchan(struct device *dev, struct device_attribute *attr,
 	int r;
 	long val;
 
-	if (strict_strtol(buf, 10, &val))
+	if (kstrtol(buf, 10, &val))
 		return -EINVAL;
 
 	mutex_lock(&data->lock);
@@ -781,7 +781,7 @@ static ssize_t set_pwmctrl(struct device *dev, struct device_attribute *attr,
 	int r;
 	long val;
 
-	if (strict_strtol(buf, 10, &val))
+	if (kstrtol(buf, 10, &val))
 		return -EINVAL;
 
 	mutex_lock(&data->lock);
@@ -819,7 +819,7 @@ static ssize_t set_pwmfreq(struct device *dev, struct device_attribute *attr,
 	int out;
 	long val;
 
-	if (strict_strtol(buf, 10, &val))
+	if (kstrtol(buf, 10, &val))
 		return -EINVAL;
 
 	out = find_nearest(val, pwmfreq_table, ARRAY_SIZE(pwmfreq_table));
@@ -853,7 +853,7 @@ static ssize_t set_pwm_at_crit(struct device *dev,
 	struct adt7475_data *data = i2c_get_clientdata(client);
 	long val;
 
-	if (strict_strtol(buf, 10, &val))
+	if (kstrtol(buf, 10, &val))
 		return -EINVAL;
 	if (val != 0 && val != 1)
 		return -EINVAL;
@@ -883,7 +883,7 @@ static ssize_t set_vrm(struct device *dev, struct device_attribute *devattr,
 	struct adt7475_data *data = dev_get_drvdata(dev);
 	long val;
 
-	if (strict_strtol(buf, 10, &val))
+	if (kstrtol(buf, 10, &val))
 		return -EINVAL;
 	if (val < 0 || val > 255)
 		return -EINVAL;
