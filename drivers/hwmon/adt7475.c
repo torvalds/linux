@@ -1232,7 +1232,7 @@ static void adt7475_remove_files(struct i2c_client *client,
 static int adt7475_probe(struct i2c_client *client,
 			 const struct i2c_device_id *id)
 {
-	static const char *names[] = {
+	static const char * const names[] = {
 		[adt7473] = "ADT7473",
 		[adt7475] = "ADT7475",
 		[adt7476] = "ADT7476",
