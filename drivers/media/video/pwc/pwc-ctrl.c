@@ -194,8 +194,12 @@ static int set_video_mode_Nala(struct pwc_device *pdev, int size, int frames,
 	  7              /* 30    */
 	};
 
-	if (size < 0 || size > PSZ_CIF || frames < 4 || frames > 25)
+	if (size < 0 || size > PSZ_CIF)
 		return -EINVAL;
+	if (frames < 4)
+		frames = 4;
+	else if (frames > 25)
+		frames = 25;
 	frames = frames2frames[frames];
 	fps = frames2table[frames];
 	pEntry = &Nala_table[size][fps];
@@ -250,11 +254,14 @@ static int set_video_mode_Timon(struct pwc_device *pdev, int size, int frames,
 	const struct Timon_table_entry *pChoose;
 	int ret, fps;
 
-	if (size >= PSZ_MAX || frames < 5 || frames > 30 ||
-	    *compression < 0 || *compression > 3)
+	if (size >= PSZ_MAX || *compression < 0 || *compression > 3)
 		return -EINVAL;
-	if (size == PSZ_VGA && frames > 15)
-		return -EINVAL;
+	if (frames < 5)
+		frames = 5;
+	else if (size == PSZ_VGA && frames > 15)
+		frames = 15;
+	else if (frames > 30)
+		frames = 30;
 	fps = (frames / 5) - 1;
 
 	/* Find a supported framerate with progressively higher compression */
@@ -283,7 +290,7 @@ static int set_video_mode_Timon(struct pwc_device *pdev, int size, int frames,
 	memcpy(pdev->cmd_buf, buf, 13);
 
 	/* Set various parameters */
-	pdev->vframes = frames;
+	pdev->vframes = (fps + 1) * 5;
 	pdev->valternate = pChoose->alternate;
 	pdev->width  = pwc_image_sizes[size][0];
 	pdev->height = pwc_image_sizes[size][1];
@@ -303,11 +310,14 @@ static int set_video_mode_Kiara(struct pwc_device *pdev, int size, int frames,
 	int fps, ret;
 	unsigned char buf[12];
 
-	if (size >= PSZ_MAX || frames < 5 || frames > 30 ||
-	    *compression < 0 || *compression > 3)
+	if (size >= PSZ_MAX || *compression < 0 || *compression > 3)
 		return -EINVAL;
-	if (size == PSZ_VGA && frames > 15)
-		return -EINVAL;
+	if (frames < 5)
+		frames = 5;
+	else if (size == PSZ_VGA && frames > 15)
+		frames = 15;
+	else if (frames > 30)
+		frames = 30;
 	fps = (frames / 5) - 1;
 
 	/* Find a supported framerate with progressively higher compression */
@@ -339,7 +349,7 @@ static int set_video_mode_Kiara(struct pwc_device *pdev, int size, int frames,
 	pdev->cmd_len = 12;
 	memcpy(pdev->cmd_buf, buf, 12);
 	/* All set and go */
-	pdev->vframes = frames;
+	pdev->vframes = (fps + 1) * 5;
 	pdev->valternate = pChoose->alternate;
 	pdev->width  = pwc_image_sizes[size][0];
 	pdev->height = pwc_image_sizes[size][1];

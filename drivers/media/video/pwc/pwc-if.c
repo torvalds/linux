@@ -128,7 +128,6 @@ static struct usb_driver pwc_driver = {
 #define MAX_DEV_HINTS	20
 #define MAX_ISOC_ERRORS	20
 
-static int default_fps = 10;
 #ifdef CONFIG_USB_PWC_DEBUG
 	int pwc_trace = PWC_DEBUG_LEVEL;
 #endif
@@ -1076,7 +1075,6 @@ static int usb_pwc_probe(struct usb_interface *intf, const struct usb_device_id 
 		return -ENOMEM;
 	}
 	pdev->type = type_id;
-	pdev->vframes = default_fps;
 	pdev->features = features;
 	pwc_construct(pdev); /* set min/max sizes correct */
 
@@ -1138,8 +1136,7 @@ static int usb_pwc_probe(struct usb_interface *intf, const struct usb_device_id 
 	pwc_set_leds(pdev, 0, 0);
 
 	/* Setup intial videomode */
-	rc = pwc_set_video_mode(pdev, MAX_WIDTH, MAX_HEIGHT, pdev->vframes,
-				&compression);
+	rc = pwc_set_video_mode(pdev, MAX_WIDTH, MAX_HEIGHT, 30, &compression);
 	if (rc)
 		goto err_free_mem;
 
@@ -1243,13 +1240,11 @@ static void usb_pwc_disconnect(struct usb_interface *intf)
  * Initialization code & module stuff
  */
 
-static int fps;
 static int leds[2] = { -1, -1 };
 static unsigned int leds_nargs;
 static char *dev_hint[MAX_DEV_HINTS];
 static unsigned int dev_hint_nargs;
 
-module_param(fps, int, 0444);
 #ifdef CONFIG_USB_PWC_DEBUG
 module_param_named(trace, pwc_trace, int, 0644);
 #endif
@@ -1257,7 +1252,6 @@ module_param(power_save, int, 0644);
 module_param_array(leds, int, &leds_nargs, 0444);
 module_param_array(dev_hint, charp, &dev_hint_nargs, 0444);
 
-MODULE_PARM_DESC(fps, "Initial frames per second. Varies with model, useful range 5-30");
 #ifdef CONFIG_USB_PWC_DEBUG
 MODULE_PARM_DESC(trace, "For debugging purposes");
 #endif
@@ -1285,15 +1279,6 @@ static int __init usb_pwc_init(void)
 		PWC_DEBUG_MODULE("Trace options: 0x%04x\n", pwc_trace);
 	}
 #endif
-
-	if (fps) {
-		if (fps < 4 || fps > 30) {
-			PWC_ERROR("Framerate out of bounds (4-30).\n");
-			return -EINVAL;
-		}
-		default_fps = fps;
-		PWC_DEBUG_MODULE("Default framerate set to %d.\n", default_fps);
-	}
 
 	if (leds[0] >= 0)
 		led_on = leds[0];

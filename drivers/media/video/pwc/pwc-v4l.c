@@ -493,7 +493,7 @@ static int pwc_s_fmt_vid_cap(struct file *file, void *fh, struct v4l2_format *f)
 			(pixelformat>>24)&255);
 
 	ret = pwc_set_video_mode(pdev, f->fmt.pix.width, f->fmt.pix.height,
-				 pdev->vframes, &compression);
+				 30, &compression);
 
 	PWC_DEBUG_IOCTL("pwc_set_video_mode(), return=%d\n", ret);
 
@@ -1094,6 +1094,63 @@ static int pwc_enum_frameintervals(struct file *file, void *fh,
 	return 0;
 }
 
+static int pwc_g_parm(struct file *file, void *fh,
+		      struct v4l2_streamparm *parm)
+{
+	struct pwc_device *pdev = video_drvdata(file);
+
+	if (parm->type != V4L2_BUF_TYPE_VIDEO_CAPTURE)
+		return -EINVAL;
+
+	memset(parm, 0, sizeof(*parm));
+
+	parm->type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
+	parm->parm.capture.readbuffers = MIN_FRAMES;
+	parm->parm.capture.capability |= V4L2_CAP_TIMEPERFRAME;
+	parm->parm.capture.timeperframe.denominator = pdev->vframes;
+	parm->parm.capture.timeperframe.numerator = 1;
+
+	return 0;
+}
+
+static int pwc_s_parm(struct file *file, void *fh,
+		      struct v4l2_streamparm *parm)
+{
+	struct pwc_device *pdev = video_drvdata(file);
+	int compression = 0;
+	int ret, fps;
+
+	if (parm->type != V4L2_BUF_TYPE_VIDEO_CAPTURE ||
+	    parm->parm.capture.timeperframe.numerator == 0)
+		return -EINVAL;
+
+	if (pwc_test_n_set_capt_file(pdev, file))
+		return -EBUSY;
+
+	fps = parm->parm.capture.timeperframe.denominator /
+	      parm->parm.capture.timeperframe.numerator;
+
+	mutex_lock(&pdev->udevlock);
+	if (!pdev->udev) {
+		ret = -ENODEV;
+		goto leave;
+	}
+
+	if (pdev->iso_init) {
+		ret = -EBUSY;
+		goto leave;
+	}
+
+	ret = pwc_set_video_mode(pdev, pdev->width, pdev->height, fps,
+				 &compression);
+
+	pwc_g_parm(file, fh, parm);
+
+leave:
+	mutex_unlock(&pdev->udevlock);
+	return ret;
+}
+
 static int pwc_log_status(struct file *file, void *priv)
 {
 	struct pwc_device *pdev = video_drvdata(file);
@@ -1120,4 +1177,6 @@ const struct v4l2_ioctl_ops pwc_ioctl_ops = {
 	.vidioc_log_status		    = pwc_log_status,
 	.vidioc_enum_framesizes		    = pwc_enum_framesizes,
 	.vidioc_enum_frameintervals	    = pwc_enum_frameintervals,
+	.vidioc_g_parm			    = pwc_g_parm,
+	.vidioc_s_parm			    = pwc_s_parm,
 };
