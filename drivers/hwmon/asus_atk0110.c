@@ -1318,7 +1318,8 @@ static int atk_probe_if(struct atk_data *data)
 	 */
 	if (new_if)
 		dev_info(dev, "Overriding interface detection\n");
-	if (data->rtmp_handle && data->rvlt_handle && data->rfan_handle && !new_if)
+	if (data->rtmp_handle &&
+			data->rvlt_handle && data->rfan_handle && !new_if)
 		data->old_interface = true;
 	else if (data->enumerate_handle && data->read_handle &&
 			data->write_handle)
