@@ -178,6 +178,8 @@ static int omap_dss_probe(struct platform_device *pdev)
 
 	dss_features_init();
 
+	dss_apply_init();
+
 	dss_init_overlay_managers(pdev);
 	dss_init_overlays(pdev);
 
