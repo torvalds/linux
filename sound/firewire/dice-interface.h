@@ -7,9 +7,9 @@
 
 /*
  * Generally, all registers can be read like memory, i.e., with quadlet read or
- * block read transactions with any alignment or length.  Writes are not
- * allowed except where noted; quadlet-sized registers must be written with
- * a quadlet write transaction.
+ * block read transactions with at least quadlet-aligned offset and length.
+ * Writes are not allowed except where noted; quadlet-sized registers must be
+ * written with a quadlet write transaction.
  *
  * All values are in big endian.  The DICE firmware runs on a little-endian CPU
  * and just byte-swaps _all_ quadlets on the bus, so values without endianness
