@@ -1235,7 +1235,7 @@ static void iwl_trans_pcie_kick_nic(struct iwl_trans *trans)
 	iwl_write32(trans, CSR_RESET, 0);
 }
 
-static int iwl_trans_pcie_request_irq(struct iwl_trans *trans)
+static int iwl_trans_pcie_start_hw(struct iwl_trans *trans)
 {
 	struct iwl_trans_pcie *trans_pcie =
 		IWL_TRANS_GET_PCIE_TRANS(trans);
@@ -1243,20 +1243,26 @@ static int iwl_trans_pcie_request_irq(struct iwl_trans *trans)
 
 	trans_pcie->inta_mask = CSR_INI_SET_MASK;
 
-	tasklet_init(&trans_pcie->irq_tasklet, (void (*)(unsigned long))
-		iwl_irq_tasklet, (unsigned long)trans);
+	if (!trans_pcie->irq_requested) {
+		tasklet_init(&trans_pcie->irq_tasklet, (void (*)(unsigned long))
+			iwl_irq_tasklet, (unsigned long)trans);
 
-	iwl_alloc_isr_ict(trans);
+		iwl_alloc_isr_ict(trans);
 
-	err = request_irq(trans->irq, iwl_isr_ict, IRQF_SHARED,
-		DRV_NAME, trans);
-	if (err) {
-		IWL_ERR(trans, "Error allocating IRQ %d\n", trans->irq);
-		iwl_free_isr_ict(trans);
-		return err;
+		err = request_irq(trans->irq, iwl_isr_ict, IRQF_SHARED,
+			DRV_NAME, trans);
+		if (err) {
+			IWL_ERR(trans, "Error allocating IRQ %d\n",
+				trans->irq);
+			iwl_free_isr_ict(trans);
+			tasklet_kill(&trans_pcie->irq_tasklet);
+			return err;
+		}
+
+		INIT_WORK(&trans_pcie->rx_replenish, iwl_bg_rx_replenish);
+		trans_pcie->irq_requested = true;
 	}
 
-	INIT_WORK(&trans_pcie->rx_replenish, iwl_bg_rx_replenish);
 	return 0;
 }
 
@@ -1325,8 +1331,10 @@ static void iwl_trans_pcie_free(struct iwl_trans *trans)
 #ifndef CONFIG_IWLWIFI_IDI
 	iwl_trans_pcie_rx_free(trans);
 #endif
-	free_irq(trans->irq, trans);
-	iwl_free_isr_ict(trans);
+	if (trans_pcie->irq_requested == true) {
+		free_irq(trans->irq, trans);
+		iwl_free_isr_ict(trans);
+	}
 
 	pci_disable_msi(trans_pcie->pci_dev);
 	pci_iounmap(trans_pcie->pci_dev, trans_pcie->hw_base);
@@ -1920,7 +1928,7 @@ static int iwl_trans_pcie_dbgfs_register(struct iwl_trans *trans,
 #endif /*CONFIG_IWLWIFI_DEBUGFS */
 
 const struct iwl_trans_ops trans_ops_pcie = {
-	.request_irq = iwl_trans_pcie_request_irq,
+	.start_hw = iwl_trans_pcie_start_hw,
 	.fw_alive = iwl_trans_pcie_fw_alive,
 	.start_device = iwl_trans_pcie_start_device,
 	.prepare_card_hw = iwl_trans_pcie_prepare_card_hw,

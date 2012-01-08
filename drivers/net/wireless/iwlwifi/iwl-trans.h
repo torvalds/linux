@@ -133,7 +133,7 @@ struct iwl_host_cmd {
 
 /**
  * struct iwl_trans_ops - transport specific operations
- * @request_irq: requests IRQ - will be called before the FW load in probe flow
+ * @start_hw: starts the HW- from that point on, the HW can send interrupts
  * @start_device: allocates and inits all the resources for the transport
  *                layer.
  * @prepare_card_hw: claim the ownership on the HW. Will be called during
@@ -164,7 +164,7 @@ struct iwl_host_cmd {
  */
 struct iwl_trans_ops {
 
-	int (*request_irq)(struct iwl_trans *iwl_trans);
+	int (*start_hw)(struct iwl_trans *iwl_trans);
 	int (*start_device)(struct iwl_trans *trans);
 	void (*fw_alive)(struct iwl_trans *trans);
 	int (*prepare_card_hw)(struct iwl_trans *trans);
@@ -269,9 +269,9 @@ struct iwl_trans {
 	char trans_specific[0] __attribute__((__aligned__(sizeof(void *))));
 };
 
-static inline int iwl_trans_request_irq(struct iwl_trans *trans)
+static inline int iwl_trans_start_hw(struct iwl_trans *trans)
 {
-	return trans->ops->request_irq(trans);
+	return trans->ops->start_hw(trans);
 }
 
 static inline void iwl_trans_fw_alive(struct iwl_trans *trans)

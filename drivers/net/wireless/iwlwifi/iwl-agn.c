@@ -1829,7 +1829,7 @@ int iwl_probe(struct iwl_bus *bus, const struct iwl_trans_ops *trans_ops,
 	IWL_INFO(priv, "Detected %s, REV=0x%X\n",
 		cfg(priv)->name, hw_rev);
 
-	err = iwl_trans_request_irq(trans(priv));
+	err = iwl_trans_start_hw(trans(priv));
 	if (err)
 		goto out_free_traffic_mem;
 
