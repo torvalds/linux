@@ -98,6 +98,10 @@ static int fimc_capture_state_cleanup(struct fimc_dev *fimc, bool suspend)
 			vb2_buffer_done(&buf->vb, VB2_BUF_STATE_ERROR);
 	}
 	set_bit(ST_CAPT_SUSPENDED, &fimc->state);
+
+	fimc_hw_reset(fimc);
+	cap->buf_index = 0;
+
 	spin_unlock_irqrestore(&fimc->slock, flags);
 
 	if (streaming)
@@ -137,7 +141,7 @@ int fimc_capture_config_update(struct fimc_ctx *ctx)
 	struct fimc_dev *fimc = ctx->fimc_dev;
 	int ret;
 
-	if (test_bit(ST_CAPT_APPLY_CFG, &fimc->state))
+	if (!test_bit(ST_CAPT_APPLY_CFG, &fimc->state))
 		return 0;
 
 	spin_lock(&ctx->slock);
@@ -150,7 +154,7 @@ int fimc_capture_config_update(struct fimc_ctx *ctx)
 		fimc_hw_set_rotation(ctx);
 		fimc_prepare_dma_offset(ctx, &ctx->d_frame);
 		fimc_hw_set_out_dma(ctx);
-		set_bit(ST_CAPT_APPLY_CFG, &fimc->state);
+		clear_bit(ST_CAPT_APPLY_CFG, &fimc->state);
 	}
 	spin_unlock(&ctx->slock);
 	return ret;
@@ -164,7 +168,6 @@ static int start_streaming(struct vb2_queue *q, unsigned int count)
 	int min_bufs;
 	int ret;
 
-	fimc_hw_reset(fimc);
 	vid_cap->frame_count = 0;
 
 	ret = fimc_init_capture(fimc);
@@ -523,7 +526,7 @@ static struct fimc_fmt *fimc_capture_try_format(struct fimc_ctx *ctx,
 	max_w = rotation ? pl->out_rot_en_w : pl->out_rot_dis_w;
 	min_w = ctx->state & FIMC_DST_CROP ? dst->width : var->min_out_pixsize;
 	min_h = ctx->state & FIMC_DST_CROP ? dst->height : var->min_out_pixsize;
-	if (fimc->id == 1 && var->pix_hoff)
+	if (var->min_vsize_align == 1 && !rotation)
 		align_h = fimc_fmt_is_rgb(ffmt->color) ? 0 : 1;
 
 	depth = fimc_get_format_depth(ffmt);
@@ -1239,6 +1242,7 @@ static int fimc_subdev_set_fmt(struct v4l2_subdev *sd,
 
 	mutex_lock(&fimc->lock);
 	set_frame_bounds(ff, mf->width, mf->height);
+	fimc->vid_cap.mf = *mf;
 	ff->fmt = ffmt;
 
 	/* Reset the crop rectangle if required. */
@@ -1375,7 +1379,7 @@ static void fimc_destroy_capture_subdev(struct fimc_dev *fimc)
 	media_entity_cleanup(&sd->entity);
 	v4l2_device_unregister_subdev(sd);
 	kfree(sd);
-	sd = NULL;
+	fimc->vid_cap.subdev = NULL;
 }
 
 /* Set default format at the sensor and host interface */

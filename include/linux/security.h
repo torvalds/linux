@@ -2056,7 +2056,7 @@ static inline int security_old_inode_init_security(struct inode *inode,
 						   char **name, void **value,
 						   size_t *len)
 {
-	return 0;
+	return -EOPNOTSUPP;
 }
 
 static inline int security_inode_create(struct inode *dir,
