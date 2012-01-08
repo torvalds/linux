@@ -195,7 +195,8 @@ static void hci_cc_reset(struct hci_dev *hdev, struct sk_buff *skb)
 
 	hci_req_complete(hdev, HCI_OP_RESET, status);
 
-	hdev->dev_flags = 0;
+	/* Reset all flags, except persistent ones like HCI_MGMT */
+	hdev->dev_flags &= BIT(HCI_MGMT);
 }
 
 static void hci_cc_write_local_name(struct hci_dev *hdev, struct sk_buff *skb)
