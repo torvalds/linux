@@ -1815,13 +1815,6 @@ int iwl_probe(struct iwl_bus *bus, const struct iwl_trans_ops *trans_ops,
 	spin_lock_init(&trans(priv)->reg_lock);
 	spin_lock_init(&priv->shrd->lock);
 
-	/*
-	 * stop and reset the on-board processor just in case it is in a
-	 * strange state ... like being left stranded by a primary kernel
-	 * and this is now the kdump kernel trying to start up
-	 */
-	iwl_write32(trans(priv), CSR_RESET, CSR_RESET_REG_FLAG_NEVO_RESET);
-
 	/***********************
 	 * 3. Read REV register
 	 ***********************/
@@ -1889,22 +1882,6 @@ int iwl_probe(struct iwl_bus *bus, const struct iwl_trans_ops *trans_ops,
 	iwl_setup_deferred_work(priv);
 	iwl_setup_rx_handlers(priv);
 	iwl_testmode_init(priv);
-
-	/*********************************************
-	 * 8. Enable interrupts
-	 *********************************************/
-
-	iwl_enable_rfkill_int(priv);
-
-	/* If platform's RF_KILL switch is NOT set to KILL */
-	if (iwl_read32(trans(priv),
-			CSR_GP_CNTRL) & CSR_GP_CNTRL_REG_FLAG_HW_RF_KILL_SW)
-		clear_bit(STATUS_RF_KILL_HW, &priv->shrd->status);
-	else
-		set_bit(STATUS_RF_KILL_HW, &priv->shrd->status);
-
-	wiphy_rfkill_set_hw_state(priv->hw->wiphy,
-		test_bit(STATUS_RF_KILL_HW, &priv->shrd->status));
 
 	iwl_power_initialize(priv);
 	iwl_tt_initialize(priv);

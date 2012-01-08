@@ -1393,6 +1393,17 @@ static int iwl_trans_pcie_start_hw(struct iwl_trans *trans)
 
 	iwl_apm_init(trans);
 
+	/* If platform's RF_KILL switch is NOT set to KILL */
+	if (iwl_read32(trans,
+			CSR_GP_CNTRL) & CSR_GP_CNTRL_REG_FLAG_HW_RF_KILL_SW)
+		clear_bit(STATUS_RF_KILL_HW, &trans->shrd->status);
+	else
+		set_bit(STATUS_RF_KILL_HW, &trans->shrd->status);
+
+	iwl_set_hw_rfkill_state(priv(trans),
+				test_bit(STATUS_RF_KILL_HW,
+					 &trans->shrd->status));
+
 	return err;
 
 error:
