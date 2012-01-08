@@ -164,6 +164,100 @@ static int sa1100_irda_sir_tx_start(struct sk_buff *skb, struct net_device *dev,
 	return NETDEV_TX_OK;
 }
 
+static irqreturn_t sa1100_irda_sir_irq(struct net_device *dev, struct sa1100_irda *si)
+{
+	int status;
+
+	status = Ser2UTSR0;
+
+	/*
+	 * Deal with any receive errors first.  The bytes in error may be
+	 * the only bytes in the receive FIFO, so we do this first.
+	 */
+	while (status & UTSR0_EIF) {
+		int stat, data;
+
+		stat = Ser2UTSR1;
+		data = Ser2UTDR;
+
+		if (stat & (UTSR1_FRE | UTSR1_ROR)) {
+			dev->stats.rx_errors++;
+			if (stat & UTSR1_FRE)
+				dev->stats.rx_frame_errors++;
+			if (stat & UTSR1_ROR)
+				dev->stats.rx_fifo_errors++;
+		} else
+			async_unwrap_char(dev, &dev->stats, &si->rx_buff, data);
+
+		status = Ser2UTSR0;
+	}
+
+	/*
+	 * We must clear certain bits.
+	 */
+	Ser2UTSR0 = status & (UTSR0_RID | UTSR0_RBB | UTSR0_REB);
+
+	if (status & UTSR0_RFS) {
+		/*
+		 * There are at least 4 bytes in the FIFO.  Read 3 bytes
+		 * and leave the rest to the block below.
+		 */
+		async_unwrap_char(dev, &dev->stats, &si->rx_buff, Ser2UTDR);
+		async_unwrap_char(dev, &dev->stats, &si->rx_buff, Ser2UTDR);
+		async_unwrap_char(dev, &dev->stats, &si->rx_buff, Ser2UTDR);
+	}
+
+	if (status & (UTSR0_RFS | UTSR0_RID)) {
+		/*
+		 * Fifo contains more than 1 character.
+		 */
+		do {
+			async_unwrap_char(dev, &dev->stats, &si->rx_buff,
+					  Ser2UTDR);
+		} while (Ser2UTSR1 & UTSR1_RNE);
+
+	}
+
+	if (status & UTSR0_TFS && si->tx_buff.len) {
+		/*
+		 * Transmitter FIFO is not full
+		 */
+		do {
+			Ser2UTDR = *si->tx_buff.data++;
+			si->tx_buff.len -= 1;
+		} while (Ser2UTSR1 & UTSR1_TNF && si->tx_buff.len);
+
+		if (si->tx_buff.len == 0) {
+			dev->stats.tx_packets++;
+			dev->stats.tx_bytes += si->tx_buff.data -
+					      si->tx_buff.head;
+
+			/*
+			 * We need to ensure that the transmitter has
+			 * finished.
+			 */
+			do
+				rmb();
+			while (Ser2UTSR1 & UTSR1_TBY);
+
+			/*
+			 * Ok, we've finished transmitting.  Now enable
+			 * the receiver.  Sometimes we get a receive IRQ
+			 * immediately after a transmit...
+			 */
+			Ser2UTSR0 = UTSR0_REB | UTSR0_RBB | UTSR0_RID;
+			Ser2UTCR3 = UTCR3_RIE | UTCR3_RXE | UTCR3_TXE;
+
+			sa1100_irda_check_speed(si);
+
+			/* I'm hungry! */
+			netif_wake_queue(dev);
+		}
+	}
+
+	return IRQ_HANDLED;
+}
+
 /*
  * FIR format support.
  */
@@ -198,8 +292,128 @@ static int sa1100_irda_fir_tx_start(struct sk_buff *skb, struct net_device *dev,
 	return NETDEV_TX_OK;
 }
 
-static irqreturn_t sa1100_irda_sir_irq(struct net_device *, struct sa1100_irda *);
-static irqreturn_t sa1100_irda_fir_irq(struct net_device *, struct sa1100_irda *);
+static void sa1100_irda_fir_error(struct sa1100_irda *si, struct net_device *dev)
+{
+	struct sk_buff *skb = si->dma_rx.skb;
+	dma_addr_t dma_addr;
+	unsigned int len, stat, data;
+
+	if (!skb) {
+		printk(KERN_ERR "sa1100_ir: SKB is NULL!\n");
+		return;
+	}
+
+	/*
+	 * Get the current data position.
+	 */
+	dma_addr = sa1100_get_dma_pos(si->dma_rx.regs);
+	len = dma_addr - si->dma_rx.dma;
+	if (len > HPSIR_MAX_RXLEN)
+		len = HPSIR_MAX_RXLEN;
+	dma_unmap_single(si->dev, si->dma_rx.dma, len, DMA_FROM_DEVICE);
+
+	do {
+		/*
+		 * Read Status, and then Data.
+		 */
+		stat = Ser2HSSR1;
+		rmb();
+		data = Ser2HSDR;
+
+		if (stat & (HSSR1_CRE | HSSR1_ROR)) {
+			dev->stats.rx_errors++;
+			if (stat & HSSR1_CRE)
+				dev->stats.rx_crc_errors++;
+			if (stat & HSSR1_ROR)
+				dev->stats.rx_frame_errors++;
+		} else
+			skb->data[len++] = data;
+
+		/*
+		 * If we hit the end of frame, there's
+		 * no point in continuing.
+		 */
+		if (stat & HSSR1_EOF)
+			break;
+	} while (Ser2HSSR0 & HSSR0_EIF);
+
+	if (stat & HSSR1_EOF) {
+		si->dma_rx.skb = NULL;
+
+		skb_put(skb, len);
+		skb->dev = dev;
+		skb_reset_mac_header(skb);
+		skb->protocol = htons(ETH_P_IRDA);
+		dev->stats.rx_packets++;
+		dev->stats.rx_bytes += len;
+
+		/*
+		 * Before we pass the buffer up, allocate a new one.
+		 */
+		sa1100_irda_rx_alloc(si);
+
+		netif_rx(skb);
+	} else {
+		/*
+		 * Remap the buffer - it was previously mapped, and we
+		 * hope that this succeeds.
+		 */
+		si->dma_rx.dma = dma_map_single(si->dev, si->dma_rx.skb->data,
+						HPSIR_MAX_RXLEN,
+						DMA_FROM_DEVICE);
+	}
+}
+
+/*
+ * We only have to handle RX events here; transmit events go via the TX
+ * DMA handler. We disable RX, process, and the restart RX.
+ */
+static irqreturn_t sa1100_irda_fir_irq(struct net_device *dev, struct sa1100_irda *si)
+{
+	/*
+	 * Stop RX DMA
+	 */
+	sa1100_stop_dma(si->dma_rx.regs);
+
+	/*
+	 * Framing error - we throw away the packet completely.
+	 * Clearing RXE flushes the error conditions and data
+	 * from the fifo.
+	 */
+	if (Ser2HSSR0 & (HSSR0_FRE | HSSR0_RAB)) {
+		dev->stats.rx_errors++;
+
+		if (Ser2HSSR0 & HSSR0_FRE)
+			dev->stats.rx_frame_errors++;
+
+		/*
+		 * Clear out the DMA...
+		 */
+		Ser2HSCR0 = si->hscr0 | HSCR0_HSSP;
+
+		/*
+		 * Clear selected status bits now, so we
+		 * don't miss them next time around.
+		 */
+		Ser2HSSR0 = HSSR0_FRE | HSSR0_RAB;
+	}
+
+	/*
+	 * Deal with any receive errors.  The any of the lowest
+	 * 8 bytes in the FIFO may contain an error.  We must read
+	 * them one by one.  The "error" could even be the end of
+	 * packet!
+	 */
+	if (Ser2HSSR0 & HSSR0_EIF)
+		sa1100_irda_fir_error(si, dev);
+
+	/*
+	 * No matter what happens, we must restart reception.
+	 */
+	sa1100_irda_rx_dma_start(si);
+
+	return IRQ_HANDLED;
+}
 
 /*
  * Set the IrDA communications speed.
@@ -304,228 +518,6 @@ sa1100_set_power(struct sa1100_irda *si, unsigned int state)
 		si->power = state;
 
 	return ret;
-}
-
-/*
- * HP-SIR format interrupt service routines.
- */
-static irqreturn_t sa1100_irda_sir_irq(struct net_device *dev, struct sa1100_irda *si)
-{
-	int status;
-
-	status = Ser2UTSR0;
-
-	/*
-	 * Deal with any receive errors first.  The bytes in error may be
-	 * the only bytes in the receive FIFO, so we do this first.
-	 */
-	while (status & UTSR0_EIF) {
-		int stat, data;
-
-		stat = Ser2UTSR1;
-		data = Ser2UTDR;
-
-		if (stat & (UTSR1_FRE | UTSR1_ROR)) {
-			dev->stats.rx_errors++;
-			if (stat & UTSR1_FRE)
-				dev->stats.rx_frame_errors++;
-			if (stat & UTSR1_ROR)
-				dev->stats.rx_fifo_errors++;
-		} else
-			async_unwrap_char(dev, &dev->stats, &si->rx_buff, data);
-
-		status = Ser2UTSR0;
-	}
-
-	/*
-	 * We must clear certain bits.
-	 */
-	Ser2UTSR0 = status & (UTSR0_RID | UTSR0_RBB | UTSR0_REB);
-
-	if (status & UTSR0_RFS) {
-		/*
-		 * There are at least 4 bytes in the FIFO.  Read 3 bytes
-		 * and leave the rest to the block below.
-		 */
-		async_unwrap_char(dev, &dev->stats, &si->rx_buff, Ser2UTDR);
-		async_unwrap_char(dev, &dev->stats, &si->rx_buff, Ser2UTDR);
-		async_unwrap_char(dev, &dev->stats, &si->rx_buff, Ser2UTDR);
-	}
-
-	if (status & (UTSR0_RFS | UTSR0_RID)) {
-		/*
-		 * Fifo contains more than 1 character.
-		 */
-		do {
-			async_unwrap_char(dev, &dev->stats, &si->rx_buff,
-					  Ser2UTDR);
-		} while (Ser2UTSR1 & UTSR1_RNE);
-
-	}
-
-	if (status & UTSR0_TFS && si->tx_buff.len) {
-		/*
-		 * Transmitter FIFO is not full
-		 */
-		do {
-			Ser2UTDR = *si->tx_buff.data++;
-			si->tx_buff.len -= 1;
-		} while (Ser2UTSR1 & UTSR1_TNF && si->tx_buff.len);
-
-		if (si->tx_buff.len == 0) {
-			dev->stats.tx_packets++;
-			dev->stats.tx_bytes += si->tx_buff.data -
-					      si->tx_buff.head;
-
-			/*
-			 * We need to ensure that the transmitter has
-			 * finished.
-			 */
-			do
-				rmb();
-			while (Ser2UTSR1 & UTSR1_TBY);
-
-			/*
-			 * Ok, we've finished transmitting.  Now enable
-			 * the receiver.  Sometimes we get a receive IRQ
-			 * immediately after a transmit...
-			 */
-			Ser2UTSR0 = UTSR0_REB | UTSR0_RBB | UTSR0_RID;
-			Ser2UTCR3 = UTCR3_RIE | UTCR3_RXE | UTCR3_TXE;
-
-			sa1100_irda_check_speed(si);
-
-			/* I'm hungry! */
-			netif_wake_queue(dev);
-		}
-	}
-
-	return IRQ_HANDLED;
-}
-
-static void sa1100_irda_fir_error(struct sa1100_irda *si, struct net_device *dev)
-{
-	struct sk_buff *skb = si->dma_rx.skb;
-	dma_addr_t dma_addr;
-	unsigned int len, stat, data;
-
-	if (!skb) {
-		printk(KERN_ERR "sa1100_ir: SKB is NULL!\n");
-		return;
-	}
-
-	/*
-	 * Get the current data position.
-	 */
-	dma_addr = sa1100_get_dma_pos(si->dma_rx.regs);
-	len = dma_addr - si->dma_rx.dma;
-	if (len > HPSIR_MAX_RXLEN)
-		len = HPSIR_MAX_RXLEN;
-	dma_unmap_single(si->dev, si->dma_rx.dma, len, DMA_FROM_DEVICE);
-
-	do {
-		/*
-		 * Read Status, and then Data.
-		 */
-		stat = Ser2HSSR1;
-		rmb();
-		data = Ser2HSDR;
-
-		if (stat & (HSSR1_CRE | HSSR1_ROR)) {
-			dev->stats.rx_errors++;
-			if (stat & HSSR1_CRE)
-				dev->stats.rx_crc_errors++;
-			if (stat & HSSR1_ROR)
-				dev->stats.rx_frame_errors++;
-		} else
-			skb->data[len++] = data;
-
-		/*
-		 * If we hit the end of frame, there's
-		 * no point in continuing.
-		 */
-		if (stat & HSSR1_EOF)
-			break;
-	} while (Ser2HSSR0 & HSSR0_EIF);
-
-	if (stat & HSSR1_EOF) {
-		si->dma_rx.skb = NULL;
-
-		skb_put(skb, len);
-		skb->dev = dev;
-		skb_reset_mac_header(skb);
-		skb->protocol = htons(ETH_P_IRDA);
-		dev->stats.rx_packets++;
-		dev->stats.rx_bytes += len;
-
-		/*
-		 * Before we pass the buffer up, allocate a new one.
-		 */
-		sa1100_irda_rx_alloc(si);
-
-		netif_rx(skb);
-	} else {
-		/*
-		 * Remap the buffer - it was previously mapped, and we
-		 * hope that this succeeds.
-		 */
-		si->dma_rx.dma = dma_map_single(si->dev, si->dma_rx.skb->data,
-						HPSIR_MAX_RXLEN,
-						DMA_FROM_DEVICE);
-	}
-}
-
-/*
- * FIR format interrupt service routine.  We only have to
- * handle RX events; transmit events go via the TX DMA handler.
- *
- * No matter what, we disable RX, process, and the restart RX.
- */
-static irqreturn_t sa1100_irda_fir_irq(struct net_device *dev, struct sa1100_irda *si)
-{
-	/*
-	 * Stop RX DMA
-	 */
-	sa1100_stop_dma(si->dma_rx.regs);
-
-	/*
-	 * Framing error - we throw away the packet completely.
-	 * Clearing RXE flushes the error conditions and data
-	 * from the fifo.
-	 */
-	if (Ser2HSSR0 & (HSSR0_FRE | HSSR0_RAB)) {
-		dev->stats.rx_errors++;
-
-		if (Ser2HSSR0 & HSSR0_FRE)
-			dev->stats.rx_frame_errors++;
-
-		/*
-		 * Clear out the DMA...
-		 */
-		Ser2HSCR0 = si->hscr0 | HSCR0_HSSP;
-
-		/*
-		 * Clear selected status bits now, so we
-		 * don't miss them next time around.
-		 */
-		Ser2HSSR0 = HSSR0_FRE | HSSR0_RAB;
-	}
-
-	/*
-	 * Deal with any receive errors.  The any of the lowest
-	 * 8 bytes in the FIFO may contain an error.  We must read
-	 * them one by one.  The "error" could even be the end of
-	 * packet!
-	 */
-	if (Ser2HSSR0 & HSSR0_EIF)
-		sa1100_irda_fir_error(si, dev);
-
-	/*
-	 * No matter what happens, we must restart reception.
-	 */
-	sa1100_irda_rx_dma_start(si);
-
-	return IRQ_HANDLED;
 }
 
 static irqreturn_t sa1100_irda_irq(int irq, void *dev_id)
