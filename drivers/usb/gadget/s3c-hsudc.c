@@ -30,6 +30,7 @@
 #include <linux/prefetch.h>
 #include <linux/platform_data/s3c-hsudc.h>
 #include <linux/regulator/consumer.h>
+#include <linux/pm_runtime.h>
 
 #include <mach/regs-s3c2443-clock.h>
 
@@ -1178,6 +1179,9 @@ static int s3c_hsudc_start(struct usb_gadget *gadget,
 	dev_info(hsudc->dev, "bound driver %s\n", driver->driver.name);
 
 	s3c_hsudc_reconfig(hsudc);
+
+	pm_runtime_get_sync(hsudc->dev);
+
 	s3c_hsudc_init_phy();
 	if (hsudc->pd->gpio_init)
 		hsudc->pd->gpio_init();
@@ -1208,6 +1212,9 @@ static int s3c_hsudc_stop(struct usb_gadget *gadget,
 	hsudc->gadget.dev.driver = NULL;
 	hsudc->gadget.speed = USB_SPEED_UNKNOWN;
 	s3c_hsudc_uninit_phy();
+
+	pm_runtime_put(hsudc->dev);
+
 	if (hsudc->pd->gpio_uninit)
 		hsudc->pd->gpio_uninit();
 	s3c_hsudc_stop_activity(hsudc);
@@ -1361,6 +1368,8 @@ static int __devinit s3c_hsudc_probe(struct platform_device *pdev)
 	ret = usb_add_gadget_udc(&pdev->dev, &hsudc->gadget);
 	if (ret)
 		goto err_add_udc;
+
+	pm_runtime_enable(dev);
 
 	return 0;
 err_add_udc:
