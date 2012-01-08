@@ -520,12 +520,14 @@ static void _rtl_usb_rx_process_noagg(struct ieee80211_hw *hw,
 			u8 *pdata;
 
 			uskb = dev_alloc_skb(skb->len + 128);
-			memcpy(IEEE80211_SKB_RXCB(uskb), &rx_status,
-			       sizeof(rx_status));
-			pdata = (u8 *)skb_put(uskb, skb->len);
-			memcpy(pdata, skb->data, skb->len);
+			if (uskb) {	/* drop packet on allocation failure */
+				memcpy(IEEE80211_SKB_RXCB(uskb), &rx_status,
+				       sizeof(rx_status));
+				pdata = (u8 *)skb_put(uskb, skb->len);
+				memcpy(pdata, skb->data, skb->len);
+				ieee80211_rx_irqsafe(hw, uskb);
+			}
 			dev_kfree_skb_any(skb);
-			ieee80211_rx_irqsafe(hw, uskb);
 		} else {
 			dev_kfree_skb_any(skb);
 		}

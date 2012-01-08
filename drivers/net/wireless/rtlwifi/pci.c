@@ -652,6 +652,8 @@ static void _rtl_receive_one(struct ieee80211_hw *hw, struct sk_buff *skb,
 		return;
 
 	uskb = dev_alloc_skb(skb->len + 128);
+	if (!uskb)
+		return;		/* exit if allocation failed */
 	memcpy(IEEE80211_SKB_RXCB(uskb), &rx_status, sizeof(rx_status));
 	pdata = (u8 *)skb_put(uskb, skb->len);
 	memcpy(pdata, skb->data, skb->len);
