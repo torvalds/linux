@@ -112,7 +112,7 @@ MODULE_PARM_DESC(force_id, "Override the detected device ID");
 enum chips { f71808e, f71808a, f71858fg, f71862fg, f71869, f71869a, f71882fg,
 	     f71889fg, f71889ed, f71889a, f8000, f81865f };
 
-static const char *f71882fg_names[] = {
+static const char *const f71882fg_names[] = {
 	"f71808e",
 	"f71808a",
 	"f71858fg",
@@ -362,7 +362,7 @@ static ssize_t store_pwm_auto_point_temp(struct device *dev,
 static ssize_t show_name(struct device *dev, struct device_attribute *devattr,
 	char *buf);
 
-static int __devinit f71882fg_probe(struct platform_device * pdev);
+static int __devinit f71882fg_probe(struct platform_device *pdev);
 static int f71882fg_remove(struct platform_device *pdev);
 
 static struct platform_driver f71882fg_driver = {
