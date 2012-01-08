@@ -230,137 +230,6 @@ sa1100_set_power(struct sa1100_irda *si, unsigned int state)
 	return ret;
 }
 
-static int sa1100_irda_startup(struct sa1100_irda *si)
-{
-	int ret;
-
-	/*
-	 * Ensure that the ports for this device are setup correctly.
-	 */
-	if (si->pdata->startup)	{
-		ret = si->pdata->startup(si->dev);
-		if (ret)
-			return ret;
-	}
-
-	/*
-	 * Configure PPC for IRDA - we want to drive TXD2 low.
-	 * We also want to drive this pin low during sleep.
-	 */
-	PPSR &= ~PPC_TXD2;
-	PSDR &= ~PPC_TXD2;
-	PPDR |= PPC_TXD2;
-
-	/*
-	 * Enable HP-SIR modulation, and ensure that the port is disabled.
-	 */
-	Ser2UTCR3 = 0;
-	Ser2HSCR0 = HSCR0_UART;
-	Ser2UTCR4 = si->utcr4;
-	Ser2UTCR0 = UTCR0_8BitData;
-	Ser2HSCR2 = HSCR2_TrDataH | HSCR2_RcDataL;
-
-	/*
-	 * Clear status register
-	 */
-	Ser2UTSR0 = UTSR0_REB | UTSR0_RBB | UTSR0_RID;
-
-	ret = sa1100_irda_set_speed(si, si->speed = 9600);
-	if (ret) {
-		Ser2UTCR3 = 0;
-		Ser2HSCR0 = 0;
-
-		if (si->pdata->shutdown)
-			si->pdata->shutdown(si->dev);
-	}
-
-	return ret;
-}
-
-static void sa1100_irda_shutdown(struct sa1100_irda *si)
-{
-	/*
-	 * Stop all DMA activity.
-	 */
-	sa1100_stop_dma(si->dma_rx.regs);
-	sa1100_stop_dma(si->dma_tx.regs);
-
-	/* Disable the port. */
-	Ser2UTCR3 = 0;
-	Ser2HSCR0 = 0;
-
-	if (si->pdata->shutdown)
-		si->pdata->shutdown(si->dev);
-}
-
-#ifdef CONFIG_PM
-/*
- * Suspend the IrDA interface.
- */
-static int sa1100_irda_suspend(struct platform_device *pdev, pm_message_t state)
-{
-	struct net_device *dev = platform_get_drvdata(pdev);
-	struct sa1100_irda *si;
-
-	if (!dev)
-		return 0;
-
-	si = netdev_priv(dev);
-	if (si->open) {
-		/*
-		 * Stop the transmit queue
-		 */
-		netif_device_detach(dev);
-		disable_irq(dev->irq);
-		sa1100_irda_shutdown(si);
-		__sa1100_irda_set_power(si, 0);
-	}
-
-	return 0;
-}
-
-/*
- * Resume the IrDA interface.
- */
-static int sa1100_irda_resume(struct platform_device *pdev)
-{
-	struct net_device *dev = platform_get_drvdata(pdev);
-	struct sa1100_irda *si;
-
-	if (!dev)
-		return 0;
-
-	si = netdev_priv(dev);
-	if (si->open) {
-		/*
-		 * If we missed a speed change, initialise at the new speed
-		 * directly.  It is debatable whether this is actually
-		 * required, but in the interests of continuing from where
-		 * we left off it is desirable.  The converse argument is
-		 * that we should re-negotiate at 9600 baud again.
-		 */
-		if (si->newspeed) {
-			si->speed = si->newspeed;
-			si->newspeed = 0;
-		}
-
-		sa1100_irda_startup(si);
-		__sa1100_irda_set_power(si, si->power);
-		enable_irq(dev->irq);
-
-		/*
-		 * This automatically wakes up the queue
-		 */
-		netif_device_attach(dev);
-	}
-
-	return 0;
-}
-#else
-#define sa1100_irda_suspend	NULL
-#define sa1100_irda_resume	NULL
-#endif
-
 /*
  * HP-SIR format interrupt service routines.
  */
@@ -774,6 +643,69 @@ sa1100_irda_ioctl(struct net_device *dev, struct ifreq *ifreq, int cmd)
 	return ret;
 }
 
+static int sa1100_irda_startup(struct sa1100_irda *si)
+{
+	int ret;
+
+	/*
+	 * Ensure that the ports for this device are setup correctly.
+	 */
+	if (si->pdata->startup)	{
+		ret = si->pdata->startup(si->dev);
+		if (ret)
+			return ret;
+	}
+
+	/*
+	 * Configure PPC for IRDA - we want to drive TXD2 low.
+	 * We also want to drive this pin low during sleep.
+	 */
+	PPSR &= ~PPC_TXD2;
+	PSDR &= ~PPC_TXD2;
+	PPDR |= PPC_TXD2;
+
+	/*
+	 * Enable HP-SIR modulation, and ensure that the port is disabled.
+	 */
+	Ser2UTCR3 = 0;
+	Ser2HSCR0 = HSCR0_UART;
+	Ser2UTCR4 = si->utcr4;
+	Ser2UTCR0 = UTCR0_8BitData;
+	Ser2HSCR2 = HSCR2_TrDataH | HSCR2_RcDataL;
+
+	/*
+	 * Clear status register
+	 */
+	Ser2UTSR0 = UTSR0_REB | UTSR0_RBB | UTSR0_RID;
+
+	ret = sa1100_irda_set_speed(si, si->speed = 9600);
+	if (ret) {
+		Ser2UTCR3 = 0;
+		Ser2HSCR0 = 0;
+
+		if (si->pdata->shutdown)
+			si->pdata->shutdown(si->dev);
+	}
+
+	return ret;
+}
+
+static void sa1100_irda_shutdown(struct sa1100_irda *si)
+{
+	/*
+	 * Stop all DMA activity.
+	 */
+	sa1100_stop_dma(si->dma_rx.regs);
+	sa1100_stop_dma(si->dma_tx.regs);
+
+	/* Disable the port. */
+	Ser2UTCR3 = 0;
+	Ser2HSCR0 = 0;
+
+	if (si->pdata->shutdown)
+		si->pdata->shutdown(si->dev);
+}
+
 static int sa1100_irda_start(struct net_device *dev)
 {
 	struct sa1100_irda *si = netdev_priv(dev);
@@ -1023,6 +955,74 @@ static int sa1100_irda_remove(struct platform_device *pdev)
 
 	return 0;
 }
+
+#ifdef CONFIG_PM
+/*
+ * Suspend the IrDA interface.
+ */
+static int sa1100_irda_suspend(struct platform_device *pdev, pm_message_t state)
+{
+	struct net_device *dev = platform_get_drvdata(pdev);
+	struct sa1100_irda *si;
+
+	if (!dev)
+		return 0;
+
+	si = netdev_priv(dev);
+	if (si->open) {
+		/*
+		 * Stop the transmit queue
+		 */
+		netif_device_detach(dev);
+		disable_irq(dev->irq);
+		sa1100_irda_shutdown(si);
+		__sa1100_irda_set_power(si, 0);
+	}
+
+	return 0;
+}
+
+/*
+ * Resume the IrDA interface.
+ */
+static int sa1100_irda_resume(struct platform_device *pdev)
+{
+	struct net_device *dev = platform_get_drvdata(pdev);
+	struct sa1100_irda *si;
+
+	if (!dev)
+		return 0;
+
+	si = netdev_priv(dev);
+	if (si->open) {
+		/*
+		 * If we missed a speed change, initialise at the new speed
+		 * directly.  It is debatable whether this is actually
+		 * required, but in the interests of continuing from where
+		 * we left off it is desirable.  The converse argument is
+		 * that we should re-negotiate at 9600 baud again.
+		 */
+		if (si->newspeed) {
+			si->speed = si->newspeed;
+			si->newspeed = 0;
+		}
+
+		sa1100_irda_startup(si);
+		__sa1100_irda_set_power(si, si->power);
+		enable_irq(dev->irq);
+
+		/*
+		 * This automatically wakes up the queue
+		 */
+		netif_device_attach(dev);
+	}
+
+	return 0;
+}
+#else
+#define sa1100_irda_suspend	NULL
+#define sa1100_irda_resume	NULL
+#endif
 
 static struct platform_driver sa1100ir_driver = {
 	.probe		= sa1100_irda_probe,
