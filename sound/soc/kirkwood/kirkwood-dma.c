@@ -94,9 +94,10 @@ static irqreturn_t kirkwood_dma_irq(int irq, void *dev_id)
 	return IRQ_HANDLED;
 }
 
-static void kirkwood_dma_conf_mbus_windows(void __iomem *base, int win,
-					unsigned long dma,
-					struct mbus_dram_target_info *dram)
+static void
+kirkwood_dma_conf_mbus_windows(void __iomem *base, int win,
+			       unsigned long dma,
+			       const struct mbus_dram_target_info *dram)
 {
 	int i;
 
@@ -106,7 +107,7 @@ static void kirkwood_dma_conf_mbus_windows(void __iomem *base, int win,
 
 	/* try to find matching cs for current dma address */
 	for (i = 0; i < dram->num_cs; i++) {
-		struct mbus_dram_window *cs = dram->cs + i;
+		const struct mbus_dram_window *cs = dram->cs + i;
 		if ((cs->base & 0xffff0000) < (dma & 0xffff0000)) {
 			writel(cs->base & 0xffff0000,
 				base + KIRKWOOD_AUDIO_WIN_BASE_REG(win));
@@ -127,6 +128,7 @@ static int kirkwood_dma_open(struct snd_pcm_substream *substream)
 	struct snd_soc_dai *cpu_dai = soc_runtime->cpu_dai;
 	struct kirkwood_dma_data *priv;
 	struct kirkwood_dma_priv *prdata = snd_soc_platform_get_drvdata(platform);
+	const struct mbus_dram_target_info *dram;
 	unsigned long addr;
 
 	priv = snd_soc_dai_get_dma_data(cpu_dai, substream);
@@ -175,15 +177,16 @@ static int kirkwood_dma_open(struct snd_pcm_substream *substream)
 		writel((unsigned long)-1, priv->io + KIRKWOOD_ERR_MASK);
 	}
 
+	dram = mv_mbus_dram_info();
 	addr = virt_to_phys(substream->dma_buffer.area);
 	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK) {
 		prdata->play_stream = substream;
 		kirkwood_dma_conf_mbus_windows(priv->io,
-			KIRKWOOD_PLAYBACK_WIN, addr, priv->dram);
+			KIRKWOOD_PLAYBACK_WIN, addr, dram);
 	} else {
 		prdata->rec_stream = substream;
 		kirkwood_dma_conf_mbus_windows(priv->io,
-			KIRKWOOD_RECORD_WIN, addr, priv->dram);
+			KIRKWOOD_RECORD_WIN, addr, dram);
 	}
 
 	return 0;

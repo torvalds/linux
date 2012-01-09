@@ -2511,7 +2511,7 @@ static void mv643xx_eth_netpoll(struct net_device *dev)
 /* platform glue ************************************************************/
 static void
 mv643xx_eth_conf_mbus_windows(struct mv643xx_eth_shared_private *msp,
-			      struct mbus_dram_target_info *dram)
+			      const struct mbus_dram_target_info *dram)
 {
 	void __iomem *base = msp->base;
 	u32 win_enable;
@@ -2529,7 +2529,7 @@ mv643xx_eth_conf_mbus_windows(struct mv643xx_eth_shared_private *msp,
 	win_protect = 0;
 
 	for (i = 0; i < dram->num_cs; i++) {
-		struct mbus_dram_window *cs = dram->cs + i;
+		const struct mbus_dram_window *cs = dram->cs + i;
 
 		writel((cs->base & 0xffff0000) |
 			(cs->mbus_attr << 8) |
@@ -2579,6 +2579,7 @@ static int mv643xx_eth_shared_probe(struct platform_device *pdev)
 	static int mv643xx_eth_version_printed;
 	struct mv643xx_eth_shared_platform_data *pd = pdev->dev.platform_data;
 	struct mv643xx_eth_shared_private *msp;
+	const struct mbus_dram_target_info *dram;
 	struct resource *res;
 	int ret;
 
@@ -2643,8 +2644,9 @@ static int mv643xx_eth_shared_probe(struct platform_device *pdev)
 	/*
 	 * (Re-)program MBUS remapping windows if we are asked to.
 	 */
-	if (pd != NULL && pd->dram != NULL)
-		mv643xx_eth_conf_mbus_windows(msp, pd->dram);
+	dram = mv_mbus_dram_info();
+	if (dram)
+		mv643xx_eth_conf_mbus_windows(msp, dram);
 
 	/*
 	 * Detect hardware parameters.

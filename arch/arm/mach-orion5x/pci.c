@@ -18,6 +18,7 @@
 #include <asm/irq.h>
 #include <asm/mach/pci.h>
 #include <plat/pcie.h>
+#include <plat/addr-map.h>
 #include "common.h"
 
 /*****************************************************************************
@@ -145,7 +146,7 @@ static int __init pcie_setup(struct pci_sys_data *sys)
 	/*
 	 * Generic PCIe unit setup.
 	 */
-	orion_pcie_setup(PCIE_BASE, &orion5x_mbus_dram_info);
+	orion_pcie_setup(PCIE_BASE);
 
 	/*
 	 * Check whether to apply Orion-1/Orion-NAS PCIe config
@@ -477,7 +478,7 @@ static int __init pci_setup(struct pci_sys_data *sys)
 	/*
 	 * Point PCI unit MBUS decode windows to DRAM space.
 	 */
-	orion5x_setup_pci_wins(&orion5x_mbus_dram_info);
+	orion5x_setup_pci_wins(&orion_mbus_dram_info);
 
 	/*
 	 * Master + Slave enable
