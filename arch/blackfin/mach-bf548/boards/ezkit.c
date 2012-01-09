@@ -1237,6 +1237,8 @@ static struct bfin_capture_config bfin_capture_data = {
 	},
 	.ppi_info = &ppi_info,
 	.ppi_control = (POLC | PACKEN | DLEN_8 | XFR_TYPE | 0x20),
+	.int_mask = 0xFFFFFFFF, /* disable error interrupt on eppi */
+	.blank_clocks = 8, /* 8 clocks as SAV and EAV */
 };
 #endif
 
