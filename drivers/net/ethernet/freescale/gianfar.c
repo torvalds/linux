@@ -2086,6 +2086,10 @@ static int gfar_start_xmit(struct sk_buff *skb, struct net_device *dev)
 			kfree_skb(skb);
 			return NETDEV_TX_OK;
 		}
+
+		/* Steal sock reference for processing TX time stamps */
+		swap(skb_new->sk, skb->sk);
+		swap(skb_new->destructor, skb->destructor);
 		kfree_skb(skb);
 		skb = skb_new;
 	}
