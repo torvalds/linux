@@ -29,6 +29,7 @@
 #include <linux/mtd/partitions.h>
 #include <linux/mmc/host.h>
 #include <linux/ioport.h>
+#include <linux/platform_data/s3c-hsudc.h>
 
 #include <asm/irq.h>
 #include <asm/pmu.h>

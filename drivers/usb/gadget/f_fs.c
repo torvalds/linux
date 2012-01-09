@@ -1399,7 +1399,7 @@ static int ffs_epfiles_create(struct ffs_data *ffs)
 	ENTER();
 
 	count = ffs->eps_count;
-	epfiles = kzalloc(count * sizeof *epfiles, GFP_KERNEL);
+	epfiles = kcalloc(count, sizeof(*epfiles), GFP_KERNEL);
 	if (!epfiles)
 		return -ENOMEM;
 

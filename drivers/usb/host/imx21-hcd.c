@@ -1924,18 +1924,7 @@ static struct platform_driver imx21_hcd_driver = {
 	.resume = NULL,
 };
 
-static int __init imx21_hcd_init(void)
-{
-	return platform_driver_register(&imx21_hcd_driver);
-}
-
-static void __exit imx21_hcd_cleanup(void)
-{
-	platform_driver_unregister(&imx21_hcd_driver);
-}
-
-module_init(imx21_hcd_init);
-module_exit(imx21_hcd_cleanup);
+module_platform_driver(imx21_hcd_driver);
 
 MODULE_DESCRIPTION("i.MX21 USB Host controller");
 MODULE_AUTHOR("Martin Fuzzey");
