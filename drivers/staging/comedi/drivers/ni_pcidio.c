@@ -436,6 +436,7 @@ static int ni_pcidio_request_di_mite_channel(struct comedi_device *dev)
 		comedi_error(dev, "failed to reserve mite dma channel.");
 		return -EBUSY;
 	}
+	devpriv->di_mite_chan->dir = COMEDI_INPUT;
 	writeb(primary_DMAChannel_bits(devpriv->di_mite_chan->channel) |
 	       secondary_DMAChannel_bits(devpriv->di_mite_chan->channel),
 	       devpriv->mite->daq_io_addr + DMA_Line_Control_Group1);
@@ -1005,20 +1006,24 @@ static int ni_pcidio_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 static int setup_mite_dma(struct comedi_device *dev, struct comedi_subdevice *s)
 {
 	int retval;
+	unsigned long flags;
 
 	retval = ni_pcidio_request_di_mite_channel(dev);
 	if (retval)
 		return retval;
 
-	devpriv->di_mite_chan->dir = COMEDI_INPUT;
-
 	/* write alloc the entire buffer */
 	comedi_buf_write_alloc(s->async, s->async->prealloc_bufsz);
 
-	mite_prep_dma(devpriv->di_mite_chan, 32, 32);
+	spin_lock_irqsave(&devpriv->mite_channel_lock, flags);
+	if (devpriv->di_mite_chan) {
+		mite_prep_dma(devpriv->di_mite_chan, 32, 32);
+		mite_dma_arm(devpriv->di_mite_chan);
+	} else
+		retval = -EIO;
+	spin_unlock_irqrestore(&devpriv->mite_channel_lock, flags);
 
-	mite_dma_arm(devpriv->di_mite_chan);
-	return 0;
+	return retval;
 }
 
 static int ni_pcidio_inttrig(struct comedi_device *dev,
