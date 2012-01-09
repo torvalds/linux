@@ -41,7 +41,6 @@ ldd
 Debugging modules
 The proc file system
 Starting points for debugging scripting languages etc.
-Dumptool & Lcrash
 SysRq
 References
 Special Thanks
@@ -2452,39 +2451,6 @@ Type 'h' in the debugger for help.
 for debugging java type
 jdb <filename> another fully interactive gdb style debugger.
 & type ? in the debugger for help.
-
-
-
-Dumptool & Lcrash ( lkcd )
-==========================
-Michael Holzheu & others here at IBM have a fairly mature port of 
-SGI's lcrash tool which allows one to look at kernel structures in a
-running kernel.
-
-It also complements a tool called dumptool which dumps all the kernel's
-memory pages & registers to either a tape or a disk.
-This can be used by tech support or an ambitious end user do
-post mortem debugging of a machine like gdb core dumps.
-
-Going into how to use this tool in detail will be explained
-in other documentation supplied by IBM with the patches & the 
-lcrash homepage http://oss.sgi.com/projects/lkcd/ & the lcrash manpage.
-
-How they work
--------------
-Lcrash is a perfectly normal program,however, it requires 2 
-additional files, Kerntypes which is built using a patch to the 
-linux kernel sources in the linux root directory & the System.map.
-
-Kerntypes is an objectfile whose sole purpose in life
-is to provide stabs debug info to lcrash, to do this
-Kerntypes is built from kerntypes.c which just includes the most commonly
-referenced header files used when debugging, lcrash can then read the
-.stabs section of this file.
-
-Debugging a live system it uses /dev/mem
-alternatively for post mortem debugging it uses the data 
-collected by dumptool.
 
 
 

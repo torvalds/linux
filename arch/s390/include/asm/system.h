@@ -20,8 +20,6 @@
 
 struct task_struct;
 
-extern int sysctl_userprocess_debug;
-
 extern struct task_struct *__switch_to(void *, void *);
 extern void update_per_regs(struct task_struct *task);
 
