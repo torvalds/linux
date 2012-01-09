@@ -1305,6 +1305,7 @@ MACHINE_START(EM_X270, "Compulab EM-X270")
 	.handle_irq	= pxa27x_handle_irq,
 	.timer		= &pxa_timer,
 	.init_machine	= em_x270_init,
+	.restart	= pxa_restart,
 MACHINE_END
 
 MACHINE_START(EXEDA, "Compulab eXeda")
@@ -1314,4 +1315,5 @@ MACHINE_START(EXEDA, "Compulab eXeda")
 	.handle_irq	= pxa27x_handle_irq,
 	.timer		= &pxa_timer,
 	.init_machine	= em_x270_init,
+	.restart	= pxa_restart,
 MACHINE_END

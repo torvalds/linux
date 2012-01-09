@@ -307,7 +307,7 @@ static inline void balloon3_mmc_init(void) {}
 /******************************************************************************
  * USB Gadget
  ******************************************************************************/
-#if defined(CONFIG_USB_GADGET_PXA27X)||defined(CONFIG_USB_GADGET_PXA27X_MODULE)
+#if defined(CONFIG_USB_PXA27X)||defined(CONFIG_USB_PXA27X_MODULE)
 static void balloon3_udc_command(int cmd)
 {
 	if (cmd == PXA2XX_UDC_CMD_CONNECT)
@@ -829,4 +829,5 @@ MACHINE_START(BALLOON3, "Balloon3")
 	.timer		= &pxa_timer,
 	.init_machine	= balloon3_init,
 	.atag_offset	= 0x100,
+	.restart	= pxa_restart,
 MACHINE_END

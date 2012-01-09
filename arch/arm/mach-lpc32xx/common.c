@@ -164,7 +164,7 @@ int clk_is_sysclk_mainosc(void)
 /*
  * System reset via the watchdog timer
  */
-void lpc32xx_watchdog_reset(void)
+static void lpc32xx_watchdog_reset(void)
 {
 	/* Make sure WDT clocks are enabled */
 	__raw_writel(LPC32XX_CLKPWR_PWMCLK_WDOG_EN,
@@ -310,4 +310,22 @@ static struct map_desc lpc32xx_io_desc[] __initdata = {
 void __init lpc32xx_map_io(void)
 {
 	iotable_init(lpc32xx_io_desc, ARRAY_SIZE(lpc32xx_io_desc));
+}
+
+void lpc23xx_restart(char mode, const char *cmd)
+{
+	switch (mode) {
+	case 's':
+	case 'h':
+		lpc32xx_watchdog_reset();
+		break;
+
+	default:
+		/* Do nothing */
+		break;
+	}
+
+	/* Wait for watchdog to reset system */
+	while (1)
+		;
 }

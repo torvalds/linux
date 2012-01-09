@@ -501,7 +501,7 @@ EXPORT_SYMBOL_GPL(balloon_set_new_target);
  * alloc_xenballooned_pages - get pages that have been ballooned out
  * @nr_pages: Number of pages to get
  * @pages: pages returned
- * @highmem: highmem or lowmem pages
+ * @highmem: allow highmem pages
  * @return 0 on success, error otherwise
  */
 int alloc_xenballooned_pages(int nr_pages, struct page **pages, bool highmem)
@@ -511,7 +511,7 @@ int alloc_xenballooned_pages(int nr_pages, struct page **pages, bool highmem)
 	mutex_lock(&balloon_mutex);
 	while (pgno < nr_pages) {
 		page = balloon_retrieve(highmem);
-		if (page && PageHighMem(page) == highmem) {
+		if (page && (highmem || !PageHighMem(page))) {
 			pages[pgno++] = page;
 		} else {
 			enum bp_state st;

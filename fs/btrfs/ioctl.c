@@ -201,7 +201,7 @@ static int btrfs_ioctl_setflags(struct file *file, void __user *arg)
 		}
 	}
 
-	ret = mnt_want_write(file->f_path.mnt);
+	ret = mnt_want_write_file(file);
 	if (ret)
 		goto out_unlock;
 
@@ -252,14 +252,14 @@ static int btrfs_ioctl_setflags(struct file *file, void __user *arg)
 	trans = btrfs_join_transaction(root);
 	BUG_ON(IS_ERR(trans));
 
+	btrfs_update_iflags(inode);
+	inode->i_ctime = CURRENT_TIME;
 	ret = btrfs_update_inode(trans, root, inode);
 	BUG_ON(ret);
 
-	btrfs_update_iflags(inode);
-	inode->i_ctime = CURRENT_TIME;
 	btrfs_end_transaction(trans, root);
 
-	mnt_drop_write(file->f_path.mnt);
+	mnt_drop_write_file(file);
 
 	ret = 0;
  out_unlock:
@@ -858,8 +858,10 @@ static int cluster_pages_for_defrag(struct inode *inode,
 		return 0;
 	file_end = (isize - 1) >> PAGE_CACHE_SHIFT;
 
+	mutex_lock(&inode->i_mutex);
 	ret = btrfs_delalloc_reserve_space(inode,
 					   num_pages << PAGE_CACHE_SHIFT);
+	mutex_unlock(&inode->i_mutex);
 	if (ret)
 		return ret;
 again:
@@ -1216,12 +1218,12 @@ static noinline int btrfs_ioctl_resize(struct btrfs_root *root,
 		*devstr = '\0';
 		devstr = vol_args->name;
 		devid = simple_strtoull(devstr, &end, 10);
-		printk(KERN_INFO "resizing devid %llu\n",
+		printk(KERN_INFO "btrfs: resizing devid %llu\n",
 		       (unsigned long long)devid);
 	}
 	device = btrfs_find_device(root, devid, NULL, NULL);
 	if (!device) {
-		printk(KERN_INFO "resizer unable to find device %llu\n",
+		printk(KERN_INFO "btrfs: resizer unable to find device %llu\n",
 		       (unsigned long long)devid);
 		ret = -EINVAL;
 		goto out_unlock;
@@ -1267,7 +1269,7 @@ static noinline int btrfs_ioctl_resize(struct btrfs_root *root,
 	do_div(new_size, root->sectorsize);
 	new_size *= root->sectorsize;
 
-	printk(KERN_INFO "new size for %s is %llu\n",
+	printk(KERN_INFO "btrfs: new size for %s is %llu\n",
 		device->name, (unsigned long long)new_size);
 
 	if (new_size > old_size) {
@@ -1278,7 +1280,7 @@ static noinline int btrfs_ioctl_resize(struct btrfs_root *root,
 		}
 		ret = btrfs_grow_device(trans, device, new_size);
 		btrfs_commit_transaction(trans, root);
-	} else {
+	} else if (new_size < old_size) {
 		ret = btrfs_shrink_device(device, new_size);
 	}
 
@@ -1853,7 +1855,7 @@ static noinline int btrfs_ioctl_snap_destroy(struct file *file,
 		goto out;
 	}
 
-	err = mnt_want_write(file->f_path.mnt);
+	err = mnt_want_write_file(file);
 	if (err)
 		goto out;
 
@@ -1969,7 +1971,7 @@ out_dput:
 	dput(dentry);
 out_unlock_dir:
 	mutex_unlock(&dir->i_mutex);
-	mnt_drop_write(file->f_path.mnt);
+	mnt_drop_write_file(file);
 out:
 	kfree(vol_args);
 	return err;
@@ -1985,7 +1987,7 @@ static int btrfs_ioctl_defrag(struct file *file, void __user *argp)
 	if (btrfs_root_readonly(root))
 		return -EROFS;
 
-	ret = mnt_want_write(file->f_path.mnt);
+	ret = mnt_want_write_file(file);
 	if (ret)
 		return ret;
 
@@ -2038,7 +2040,7 @@ static int btrfs_ioctl_defrag(struct file *file, void __user *argp)
 		ret = -EINVAL;
 	}
 out:
-	mnt_drop_write(file->f_path.mnt);
+	mnt_drop_write_file(file);
 	return ret;
 }
 
@@ -2193,7 +2195,7 @@ static noinline long btrfs_ioctl_clone(struct file *file, unsigned long srcfd,
 	if (btrfs_root_readonly(root))
 		return -EROFS;
 
-	ret = mnt_want_write(file->f_path.mnt);
+	ret = mnt_want_write_file(file);
 	if (ret)
 		return ret;
 
@@ -2508,7 +2510,7 @@ out_unlock:
 out_fput:
 	fput(src_file);
 out_drop_write:
-	mnt_drop_write(file->f_path.mnt);
+	mnt_drop_write_file(file);
 	return ret;
 }
 
@@ -2547,7 +2549,7 @@ static long btrfs_ioctl_trans_start(struct file *file)
 	if (btrfs_root_readonly(root))
 		goto out;
 
-	ret = mnt_want_write(file->f_path.mnt);
+	ret = mnt_want_write_file(file);
 	if (ret)
 		goto out;
 
@@ -2563,7 +2565,7 @@ static long btrfs_ioctl_trans_start(struct file *file)
 
 out_drop:
 	atomic_dec(&root->fs_info->open_ioctl_trans);
-	mnt_drop_write(file->f_path.mnt);
+	mnt_drop_write_file(file);
 out:
 	return ret;
 }
@@ -2798,7 +2800,7 @@ long btrfs_ioctl_trans_end(struct file *file)
 
 	atomic_dec(&root->fs_info->open_ioctl_trans);
 
-	mnt_drop_write(file->f_path.mnt);
+	mnt_drop_write_file(file);
 	return 0;
 }
 
@@ -2930,11 +2932,13 @@ static long btrfs_ioctl_ino_to_path(struct btrfs_root *root, void __user *arg)
 		goto out;
 
 	for (i = 0; i < ipath->fspath->elem_cnt; ++i) {
-		rel_ptr = ipath->fspath->val[i] - (u64)ipath->fspath->val;
+		rel_ptr = ipath->fspath->val[i] -
+			  (u64)(unsigned long)ipath->fspath->val;
 		ipath->fspath->val[i] = rel_ptr;
 	}
 
-	ret = copy_to_user((void *)ipa->fspath, (void *)ipath->fspath, size);
+	ret = copy_to_user((void *)(unsigned long)ipa->fspath,
+			   (void *)(unsigned long)ipath->fspath, size);
 	if (ret) {
 		ret = -EFAULT;
 		goto out;
@@ -3017,7 +3021,8 @@ static long btrfs_ioctl_logical_to_ino(struct btrfs_root *root,
 	if (ret < 0)
 		goto out;
 
-	ret = copy_to_user((void *)loi->inodes, (void *)inodes, size);
+	ret = copy_to_user((void *)(unsigned long)loi->inodes,
+			   (void *)(unsigned long)inodes, size);
 	if (ret)
 		ret = -EFAULT;
 

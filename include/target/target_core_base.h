@@ -103,9 +103,10 @@ enum se_cmd_flags_table {
 	SCF_SCSI_NON_DATA_CDB		= 0x00000040,
 	SCF_SCSI_CDB_EXCEPTION		= 0x00000080,
 	SCF_SCSI_RESERVATION_CONFLICT	= 0x00000100,
-	SCF_SE_CMD_FAILED		= 0x00000400,
+	SCF_FUA				= 0x00000200,
 	SCF_SE_LUN_CMD			= 0x00000800,
 	SCF_SE_ALLOW_EOO		= 0x00001000,
+	SCF_BIDI			= 0x00002000,
 	SCF_SENT_CHECK_CONDITION	= 0x00004000,
 	SCF_OVERFLOW_BIT		= 0x00008000,
 	SCF_UNDERFLOW_BIT		= 0x00010000,
@@ -154,6 +155,7 @@ enum tcm_sense_reason_table {
 	TCM_CHECK_CONDITION_ABORT_CMD		= 0x0d,
 	TCM_CHECK_CONDITION_UNIT_ATTENTION	= 0x0e,
 	TCM_CHECK_CONDITION_NOT_READY		= 0x0f,
+	TCM_RESERVATION_CONFLICT		= 0x10,
 };
 
 struct se_obj {
@@ -211,7 +213,6 @@ struct t10_alua_lu_gp {
 	u16	lu_gp_id;
 	int	lu_gp_valid_id;
 	u32	lu_gp_members;
-	atomic_t lu_gp_shutdown;
 	atomic_t lu_gp_ref_cnt;
 	spinlock_t lu_gp_lock;
 	struct config_group lu_gp_group;
@@ -422,11 +423,9 @@ struct se_cmd {
 	int			sam_task_attr;
 	/* Transport protocol dependent state, see transport_state_table */
 	enum transport_state_table t_state;
-	/* Transport specific error status */
-	int			transport_error_status;
 	/* Used to signal cmd->se_tfo->check_release_cmd() usage per cmd */
-	int			check_release:1;
-	int			cmd_wait_set:1;
+	unsigned		check_release:1;
+	unsigned		cmd_wait_set:1;
 	/* See se_cmd_flags_table */
 	u32			se_cmd_flags;
 	u32			se_ordered_id;
@@ -441,13 +440,10 @@ struct se_cmd {
 	/* Used for sense data */
 	void			*sense_buffer;
 	struct list_head	se_delayed_node;
-	struct list_head	se_ordered_node;
 	struct list_head	se_lun_node;
 	struct list_head	se_qf_node;
 	struct se_device      *se_dev;
 	struct se_dev_entry   *se_deve;
-	struct se_device	*se_obj_ptr;
-	struct se_device	*se_orig_obj_ptr;
 	struct se_lun		*se_lun;
 	/* Only used for internal passthrough and legacy TCM fabric modules */
 	struct se_session	*se_sess;
@@ -463,8 +459,6 @@ struct se_cmd {
 	unsigned char		__t_task_cdb[TCM_MAX_COMMAND_SIZE];
 	unsigned long long	t_task_lba;
 	int			t_tasks_failed;
-	int			t_tasks_fua;
-	bool			t_tasks_bidi;
 	u32			t_tasks_sg_chained_no;
 	atomic_t		t_fe_count;
 	atomic_t		t_se_count;
@@ -488,14 +482,6 @@ struct se_cmd {
 	struct scatterlist	*t_tasks_sg_chained;
 
 	struct work_struct	work;
-
-	/*
-	 * Used for pre-registered fabric SGL passthrough WRITE and READ
-	 * with the special SCF_PASSTHROUGH_CONTIG_TO_SG case for TCM_Loop
-	 * and other HW target mode fabric modules.
-	 */
-	struct scatterlist	*t_task_pt_sgl;
-	u32			t_task_pt_sgl_num;
 
 	struct scatterlist	*t_data_sg;
 	unsigned int		t_data_nents;
@@ -562,7 +548,7 @@ struct se_node_acl {
 } ____cacheline_aligned;
 
 struct se_session {
-	int			sess_tearing_down:1;
+	unsigned		sess_tearing_down:1;
 	u64			sess_bin_isid;
 	struct se_node_acl	*se_node_acl;
 	struct se_portal_group *se_tpg;
@@ -683,7 +669,6 @@ struct se_subsystem_dev {
 	struct t10_reservation t10_pr;
 	spinlock_t      se_dev_lock;
 	void            *se_dev_su_ptr;
-	struct list_head se_dev_node;
 	struct config_group se_dev_group;
 	/* For T10 Reservations */
 	struct config_group se_dev_pr_group;
@@ -692,9 +677,6 @@ struct se_subsystem_dev {
 } ____cacheline_aligned;
 
 struct se_device {
-	/* Set to 1 if thread is NOT sleeping on thread_sem */
-	u8			thread_active;
-	u8			dev_status_timer_flags;
 	/* RELATIVE TARGET PORT IDENTIFER Counter */
 	u16			dev_rpti_counter;
 	/* Used for SAM Task Attribute ordering */
@@ -719,14 +701,10 @@ struct se_device {
 	u64			write_bytes;
 	spinlock_t		stats_lock;
 	/* Active commands on this virtual SE device */
-	atomic_t		active_cmds;
 	atomic_t		simple_cmds;
 	atomic_t		depth_left;
 	atomic_t		dev_ordered_id;
-	atomic_t		dev_tur_active;
 	atomic_t		execute_tasks;
-	atomic_t		dev_status_thr_count;
-	atomic_t		dev_hoq_count;
 	atomic_t		dev_ordered_sync;
 	atomic_t		dev_qf_count;
 	struct se_obj		dev_obj;
@@ -734,14 +712,9 @@ struct se_device {
 	struct se_obj		dev_export_obj;
 	struct se_queue_obj	dev_queue_obj;
 	spinlock_t		delayed_cmd_lock;
-	spinlock_t		ordered_cmd_lock;
 	spinlock_t		execute_task_lock;
-	spinlock_t		state_task_lock;
-	spinlock_t		dev_alua_lock;
 	spinlock_t		dev_reservation_lock;
-	spinlock_t		dev_state_lock;
 	spinlock_t		dev_status_lock;
-	spinlock_t		dev_status_thr_lock;
 	spinlock_t		se_port_lock;
 	spinlock_t		se_tmr_lock;
 	spinlock_t		qf_cmd_lock;
@@ -753,14 +726,10 @@ struct se_device {
 	struct t10_pr_registration *dev_pr_res_holder;
 	struct list_head	dev_sep_list;
 	struct list_head	dev_tmr_list;
-	struct timer_list	dev_status_timer;
 	/* Pointer to descriptor for processing thread */
 	struct task_struct	*process_thread;
-	pid_t			process_thread_pid;
-	struct task_struct		*dev_mgmt_thread;
 	struct work_struct	qf_work_queue;
 	struct list_head	delayed_cmd_list;
-	struct list_head	ordered_cmd_list;
 	struct list_head	execute_task_list;
 	struct list_head	state_task_list;
 	struct list_head	qf_cmd_list;
@@ -771,8 +740,6 @@ struct se_device {
 	struct se_subsystem_api *transport;
 	/* Linked list for struct se_hba struct se_device list */
 	struct list_head	dev_list;
-	/* Linked list for struct se_global->g_se_dev_list */
-	struct list_head	g_se_dev_list;
 }  ____cacheline_aligned;
 
 struct se_hba {
@@ -834,7 +801,6 @@ struct se_port {
 	u32		sep_index;
 	struct scsi_port_stats sep_stats;
 	/* Used for ALUA Target Port Groups membership */
-	atomic_t	sep_tg_pt_gp_active;
 	atomic_t	sep_tg_pt_secondary_offline;
 	/* Used for PR ALL_TG_PT=1 */
 	atomic_t	sep_tg_pt_ref_cnt;

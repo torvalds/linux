@@ -26,7 +26,6 @@
 #include <linux/module.h>
 #include <linux/device.h>
 #include <linux/sched.h>
-#include <linux/sysdev.h>
 #include <linux/fs.h>
 #include <linux/types.h>
 #include <linux/string.h>
@@ -315,6 +314,13 @@ static ssize_t bonding_store_mode(struct device *d,
 	if (bond->dev->flags & IFF_UP) {
 		pr_err("unable to update mode of %s because interface is up.\n",
 		       bond->dev->name);
+		ret = -EPERM;
+		goto out;
+	}
+
+	if (bond->slave_cnt > 0) {
+		pr_err("unable to update mode of %s because it has slaves.\n",
+			bond->dev->name);
 		ret = -EPERM;
 		goto out;
 	}

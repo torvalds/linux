@@ -257,18 +257,7 @@ static struct spi_driver ad7887_driver = {
 	.remove		= __devexit_p(ad7887_remove),
 	.id_table	= ad7887_id,
 };
-
-static int __init ad7887_init(void)
-{
-	return spi_register_driver(&ad7887_driver);
-}
-module_init(ad7887_init);
-
-static void __exit ad7887_exit(void)
-{
-	spi_unregister_driver(&ad7887_driver);
-}
-module_exit(ad7887_exit);
+module_spi_driver(ad7887_driver);
 
 MODULE_AUTHOR("Michael Hennerich <hennerich@blackfin.uclinux.org>");
 MODULE_DESCRIPTION("Analog Devices AD7887 ADC");

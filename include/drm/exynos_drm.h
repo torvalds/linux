@@ -32,17 +32,16 @@
 /**
  * User-desired buffer creation information structure.
  *
- * @size: requested size for the object.
+ * @size: user-desired memory allocation size.
  *	- this size value would be page-aligned internally.
  * @flags: user request for setting memory type or cache attributes.
- * @handle: returned handle for the object.
- * @pad: just padding to be 64-bit aligned.
+ * @handle: returned a handle to created gem object.
+ *	- this handle will be set by gem module of kernel side.
  */
 struct drm_exynos_gem_create {
-	unsigned int size;
+	uint64_t size;
 	unsigned int flags;
 	unsigned int handle;
-	unsigned int pad;
 };
 
 /**

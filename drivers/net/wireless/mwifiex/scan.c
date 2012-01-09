@@ -500,7 +500,6 @@ mwifiex_scan_create_channel_list(struct mwifiex_private *priv,
 	struct ieee80211_channel *ch;
 	struct mwifiex_adapter *adapter = priv->adapter;
 	int chan_idx = 0, i;
-	u8 scan_type;
 
 	for (band = 0; (band < IEEE80211_NUM_BANDS) ; band++) {
 
@@ -514,19 +513,20 @@ mwifiex_scan_create_channel_list(struct mwifiex_private *priv,
 			if (ch->flags & IEEE80211_CHAN_DISABLED)
 				continue;
 			scan_chan_list[chan_idx].radio_type = band;
-			scan_type = ch->flags & IEEE80211_CHAN_PASSIVE_SCAN;
+
 			if (user_scan_in &&
 				user_scan_in->chan_list[0].scan_time)
 				scan_chan_list[chan_idx].max_scan_time =
 					cpu_to_le16((u16) user_scan_in->
 					chan_list[0].scan_time);
-			else if (scan_type == MWIFIEX_SCAN_TYPE_PASSIVE)
+			else if (ch->flags & IEEE80211_CHAN_PASSIVE_SCAN)
 				scan_chan_list[chan_idx].max_scan_time =
 					cpu_to_le16(adapter->passive_scan_time);
 			else
 				scan_chan_list[chan_idx].max_scan_time =
 					cpu_to_le16(adapter->active_scan_time);
-			if (scan_type == MWIFIEX_SCAN_TYPE_PASSIVE)
+
+			if (ch->flags & IEEE80211_CHAN_PASSIVE_SCAN)
 				scan_chan_list[chan_idx].chan_scan_mode_bitmap
 					|= MWIFIEX_PASSIVE_SCAN;
 			else
@@ -819,8 +819,10 @@ mwifiex_scan_setup_scan_config(struct mwifiex_private *priv,
 			wildcard_ssid_tlv->header.len = cpu_to_le16(
 				(u16) (ssid_len + sizeof(wildcard_ssid_tlv->
 							 max_ssid_length)));
-			wildcard_ssid_tlv->max_ssid_length =
-				user_scan_in->ssid_list[ssid_idx].max_len;
+
+			/* max_ssid_length = 0 tells firmware to perform
+			   specific scan for the SSID filled */
+			wildcard_ssid_tlv->max_ssid_length = 0;
 
 			memcpy(wildcard_ssid_tlv->ssid,
 			       user_scan_in->ssid_list[ssid_idx].ssid,
@@ -1389,11 +1391,8 @@ int mwifiex_set_user_scan_ioctl(struct mwifiex_private *priv,
 {
 	int status;
 
-	priv->adapter->scan_wait_q_woken = false;
-
 	status = mwifiex_scan_networks(priv, scan_req);
-	if (!status)
-		status = mwifiex_wait_queue_complete(priv->adapter);
+	queue_work(priv->adapter->workqueue, &priv->adapter->main_work);
 
 	return status;
 }
@@ -1469,7 +1468,7 @@ mwifiex_update_curr_bss_params(struct mwifiex_private *priv, u8 *bssid,
 			       s32 rssi, const u8 *ie_buf, size_t ie_len,
 			       u16 beacon_period, u16 cap_info_bitmap, u8 band)
 {
-	struct mwifiex_bssdescriptor *bss_desc = NULL;
+	struct mwifiex_bssdescriptor *bss_desc;
 	int ret;
 	unsigned long flags;
 	u8 *beacon_ie;
@@ -1484,6 +1483,7 @@ mwifiex_update_curr_bss_params(struct mwifiex_private *priv, u8 *bssid,
 
 	beacon_ie = kmemdup(ie_buf, ie_len, GFP_KERNEL);
 	if (!beacon_ie) {
+		kfree(bss_desc);
 		dev_err(priv->adapter->dev, " failed to alloc beacon_ie\n");
 		return -ENOMEM;
 	}
@@ -1532,11 +1532,6 @@ done:
 	kfree(bss_desc);
 	kfree(beacon_ie);
 	return 0;
-}
-
-static void mwifiex_free_bss_priv(struct cfg80211_bss *bss)
-{
-	kfree(bss->priv);
 }
 
 /*
@@ -1764,7 +1759,7 @@ int mwifiex_ret_802_11_scan(struct mwifiex_private *priv,
 					      cap_info_bitmap, beacon_period,
 					      ie_buf, ie_len, rssi, GFP_KERNEL);
 				*(u8 *)bss->priv = band;
-				bss->free_priv = mwifiex_free_bss_priv;
+				cfg80211_put_bss(bss);
 
 				if (priv->media_connected && !memcmp(bssid,
 					priv->curr_bss_params.bss_descriptor
@@ -1798,6 +1793,14 @@ int mwifiex_ret_802_11_scan(struct mwifiex_private *priv,
 			up(&priv->async_sem);
 		}
 
+		if (priv->user_scan_cfg) {
+			dev_dbg(priv->adapter->dev, "info: %s: sending scan "
+							"results\n", __func__);
+			cfg80211_scan_done(priv->scan_request, 0);
+			priv->scan_request = NULL;
+			kfree(priv->user_scan_cfg);
+			priv->user_scan_cfg = NULL;
+		}
 	} else {
 		/* Get scan command from scan_pending_q and put to
 		   cmd_pending_q */

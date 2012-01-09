@@ -61,7 +61,6 @@
 static int sub_api_initialized;
 
 static struct workqueue_struct *target_completion_wq;
-static struct kmem_cache *se_cmd_cache;
 static struct kmem_cache *se_sess_cache;
 struct kmem_cache *se_tmr_req_cache;
 struct kmem_cache *se_ua_cache;
@@ -82,24 +81,18 @@ static int transport_generic_get_mem(struct se_cmd *cmd);
 static void transport_put_cmd(struct se_cmd *cmd);
 static void transport_remove_cmd_from_queue(struct se_cmd *cmd);
 static int transport_set_sense_codes(struct se_cmd *cmd, u8 asc, u8 ascq);
-static void transport_generic_request_failure(struct se_cmd *, int, int);
+static void transport_generic_request_failure(struct se_cmd *);
 static void target_complete_ok_work(struct work_struct *work);
 
 int init_se_kmem_caches(void)
 {
-	se_cmd_cache = kmem_cache_create("se_cmd_cache",
-			sizeof(struct se_cmd), __alignof__(struct se_cmd), 0, NULL);
-	if (!se_cmd_cache) {
-		pr_err("kmem_cache_create for struct se_cmd failed\n");
-		goto out;
-	}
 	se_tmr_req_cache = kmem_cache_create("se_tmr_cache",
 			sizeof(struct se_tmr_req), __alignof__(struct se_tmr_req),
 			0, NULL);
 	if (!se_tmr_req_cache) {
 		pr_err("kmem_cache_create() for struct se_tmr_req"
 				" failed\n");
-		goto out_free_cmd_cache;
+		goto out;
 	}
 	se_sess_cache = kmem_cache_create("se_sess_cache",
 			sizeof(struct se_session), __alignof__(struct se_session),
@@ -182,8 +175,6 @@ out_free_sess_cache:
 	kmem_cache_destroy(se_sess_cache);
 out_free_tmr_req_cache:
 	kmem_cache_destroy(se_tmr_req_cache);
-out_free_cmd_cache:
-	kmem_cache_destroy(se_cmd_cache);
 out:
 	return -ENOMEM;
 }
@@ -191,7 +182,6 @@ out:
 void release_se_kmem_caches(void)
 {
 	destroy_workqueue(target_completion_wq);
-	kmem_cache_destroy(se_cmd_cache);
 	kmem_cache_destroy(se_tmr_req_cache);
 	kmem_cache_destroy(se_sess_cache);
 	kmem_cache_destroy(se_ua_cache);
@@ -680,9 +670,9 @@ void transport_complete_sync_cache(struct se_cmd *cmd, int good)
 		task->task_scsi_status = GOOD;
 	} else {
 		task->task_scsi_status = SAM_STAT_CHECK_CONDITION;
-		task->task_error_status = PYX_TRANSPORT_ILLEGAL_REQUEST;
-		task->task_se_cmd->transport_error_status =
-					PYX_TRANSPORT_ILLEGAL_REQUEST;
+		task->task_se_cmd->scsi_sense_reason =
+				TCM_LOGICAL_UNIT_COMMUNICATION_FAILURE;
+
 	}
 
 	transport_complete_task(task, good);
@@ -693,7 +683,7 @@ static void target_complete_failure_work(struct work_struct *work)
 {
 	struct se_cmd *cmd = container_of(work, struct se_cmd, work);
 
-	transport_generic_request_failure(cmd, 1, 1);
+	transport_generic_request_failure(cmd);
 }
 
 /*	transport_complete_task():
@@ -755,10 +745,11 @@ void transport_complete_task(struct se_task *task, int success)
 	if (cmd->t_tasks_failed) {
 		if (!task->task_error_status) {
 			task->task_error_status =
-				PYX_TRANSPORT_UNKNOWN_SAM_OPCODE;
-			cmd->transport_error_status =
-				PYX_TRANSPORT_UNKNOWN_SAM_OPCODE;
+				TCM_LOGICAL_UNIT_COMMUNICATION_FAILURE;
+			cmd->scsi_sense_reason =
+				TCM_LOGICAL_UNIT_COMMUNICATION_FAILURE;
 		}
+
 		INIT_WORK(&cmd->work, target_complete_failure_work);
 	} else {
 		atomic_set(&cmd->t_transport_complete, 1);
@@ -1335,23 +1326,17 @@ struct se_device *transport_add_device_to_core_hba(
 	dev->se_hba		= hba;
 	dev->se_sub_dev		= se_dev;
 	dev->transport		= transport;
-	atomic_set(&dev->active_cmds, 0);
 	INIT_LIST_HEAD(&dev->dev_list);
 	INIT_LIST_HEAD(&dev->dev_sep_list);
 	INIT_LIST_HEAD(&dev->dev_tmr_list);
 	INIT_LIST_HEAD(&dev->execute_task_list);
 	INIT_LIST_HEAD(&dev->delayed_cmd_list);
-	INIT_LIST_HEAD(&dev->ordered_cmd_list);
 	INIT_LIST_HEAD(&dev->state_task_list);
 	INIT_LIST_HEAD(&dev->qf_cmd_list);
 	spin_lock_init(&dev->execute_task_lock);
 	spin_lock_init(&dev->delayed_cmd_lock);
-	spin_lock_init(&dev->ordered_cmd_lock);
-	spin_lock_init(&dev->state_task_lock);
-	spin_lock_init(&dev->dev_alua_lock);
 	spin_lock_init(&dev->dev_reservation_lock);
 	spin_lock_init(&dev->dev_status_lock);
-	spin_lock_init(&dev->dev_status_thr_lock);
 	spin_lock_init(&dev->se_port_lock);
 	spin_lock_init(&dev->se_tmr_lock);
 	spin_lock_init(&dev->qf_cmd_lock);
@@ -1507,7 +1492,6 @@ void transport_init_se_cmd(
 {
 	INIT_LIST_HEAD(&cmd->se_lun_node);
 	INIT_LIST_HEAD(&cmd->se_delayed_node);
-	INIT_LIST_HEAD(&cmd->se_ordered_node);
 	INIT_LIST_HEAD(&cmd->se_qf_node);
 	INIT_LIST_HEAD(&cmd->se_queue_node);
 	INIT_LIST_HEAD(&cmd->se_cmd_list);
@@ -1573,6 +1557,8 @@ int transport_generic_allocate_tasks(
 		pr_err("Received SCSI CDB with command_size: %d that"
 			" exceeds SCSI_MAX_VARLEN_CDB_SIZE: %d\n",
 			scsi_command_size(cdb), SCSI_MAX_VARLEN_CDB_SIZE);
+		cmd->se_cmd_flags |= SCF_SCSI_CDB_EXCEPTION;
+		cmd->scsi_sense_reason = TCM_INVALID_CDB_FIELD;
 		return -EINVAL;
 	}
 	/*
@@ -1588,6 +1574,9 @@ int transport_generic_allocate_tasks(
 				" %u > sizeof(cmd->__t_task_cdb): %lu ops\n",
 				scsi_command_size(cdb),
 				(unsigned long)sizeof(cmd->__t_task_cdb));
+			cmd->se_cmd_flags |= SCF_SCSI_CDB_EXCEPTION;
+			cmd->scsi_sense_reason =
+					TCM_LOGICAL_UNIT_COMMUNICATION_FAILURE;
 			return -ENOMEM;
 		}
 	} else
@@ -1658,11 +1647,9 @@ int transport_handle_cdb_direct(
 	 * and call transport_generic_request_failure() if necessary..
 	 */
 	ret = transport_generic_new_cmd(cmd);
-	if (ret < 0) {
-		cmd->transport_error_status = ret;
-		transport_generic_request_failure(cmd, 0,
-				(cmd->data_direction != DMA_TO_DEVICE));
-	}
+	if (ret < 0)
+		transport_generic_request_failure(cmd);
+
 	return 0;
 }
 EXPORT_SYMBOL(transport_handle_cdb_direct);
@@ -1798,20 +1785,16 @@ static int transport_stop_tasks_for_cmd(struct se_cmd *cmd)
 /*
  * Handle SAM-esque emulation for generic transport request failures.
  */
-static void transport_generic_request_failure(
-	struct se_cmd *cmd,
-	int complete,
-	int sc)
+static void transport_generic_request_failure(struct se_cmd *cmd)
 {
 	int ret = 0;
 
 	pr_debug("-----[ Storage Engine Exception for cmd: %p ITT: 0x%08x"
 		" CDB: 0x%02x\n", cmd, cmd->se_tfo->get_task_tag(cmd),
 		cmd->t_task_cdb[0]);
-	pr_debug("-----[ i_state: %d t_state: %d transport_error_status: %d\n",
+	pr_debug("-----[ i_state: %d t_state: %d scsi_sense_reason: %d\n",
 		cmd->se_tfo->get_cmd_state(cmd),
-		cmd->t_state,
-		cmd->transport_error_status);
+		cmd->t_state, cmd->scsi_sense_reason);
 	pr_debug("-----[ t_tasks: %d t_task_cdbs_left: %d"
 		" t_task_cdbs_sent: %d t_task_cdbs_ex_left: %d --"
 		" t_transport_active: %d t_transport_stop: %d"
@@ -1829,46 +1812,19 @@ static void transport_generic_request_failure(
 	if (cmd->se_dev->dev_task_attr_type == SAM_TASK_ATTR_EMULATED)
 		transport_complete_task_attr(cmd);
 
-	if (complete) {
-		cmd->transport_error_status = PYX_TRANSPORT_LU_COMM_FAILURE;
-	}
-
-	switch (cmd->transport_error_status) {
-	case PYX_TRANSPORT_UNKNOWN_SAM_OPCODE:
-		cmd->scsi_sense_reason = TCM_UNSUPPORTED_SCSI_OPCODE;
+	switch (cmd->scsi_sense_reason) {
+	case TCM_NON_EXISTENT_LUN:
+	case TCM_UNSUPPORTED_SCSI_OPCODE:
+	case TCM_INVALID_CDB_FIELD:
+	case TCM_INVALID_PARAMETER_LIST:
+	case TCM_LOGICAL_UNIT_COMMUNICATION_FAILURE:
+	case TCM_UNKNOWN_MODE_PAGE:
+	case TCM_WRITE_PROTECTED:
+	case TCM_CHECK_CONDITION_ABORT_CMD:
+	case TCM_CHECK_CONDITION_UNIT_ATTENTION:
+	case TCM_CHECK_CONDITION_NOT_READY:
 		break;
-	case PYX_TRANSPORT_REQ_TOO_MANY_SECTORS:
-		cmd->scsi_sense_reason = TCM_SECTOR_COUNT_TOO_MANY;
-		break;
-	case PYX_TRANSPORT_INVALID_CDB_FIELD:
-		cmd->scsi_sense_reason = TCM_INVALID_CDB_FIELD;
-		break;
-	case PYX_TRANSPORT_INVALID_PARAMETER_LIST:
-		cmd->scsi_sense_reason = TCM_INVALID_PARAMETER_LIST;
-		break;
-	case PYX_TRANSPORT_OUT_OF_MEMORY_RESOURCES:
-		if (!sc)
-			transport_new_cmd_failure(cmd);
-		/*
-		 * Currently for PYX_TRANSPORT_OUT_OF_MEMORY_RESOURCES,
-		 * we force this session to fall back to session
-		 * recovery.
-		 */
-		cmd->se_tfo->fall_back_to_erl0(cmd->se_sess);
-		cmd->se_tfo->stop_session(cmd->se_sess, 0, 0);
-
-		goto check_stop;
-	case PYX_TRANSPORT_LU_COMM_FAILURE:
-	case PYX_TRANSPORT_ILLEGAL_REQUEST:
-		cmd->scsi_sense_reason = TCM_LOGICAL_UNIT_COMMUNICATION_FAILURE;
-		break;
-	case PYX_TRANSPORT_UNKNOWN_MODE_PAGE:
-		cmd->scsi_sense_reason = TCM_UNKNOWN_MODE_PAGE;
-		break;
-	case PYX_TRANSPORT_WRITE_PROTECTED:
-		cmd->scsi_sense_reason = TCM_WRITE_PROTECTED;
-		break;
-	case PYX_TRANSPORT_RESERVATION_CONFLICT:
+	case TCM_RESERVATION_CONFLICT:
 		/*
 		 * No SENSE Data payload for this case, set SCSI Status
 		 * and queue the response to $FABRIC_MOD.
@@ -1893,15 +1849,9 @@ static void transport_generic_request_failure(
 		if (ret == -EAGAIN || ret == -ENOMEM)
 			goto queue_full;
 		goto check_stop;
-	case PYX_TRANSPORT_USE_SENSE_REASON:
-		/*
-		 * struct se_cmd->scsi_sense_reason already set
-		 */
-		break;
 	default:
 		pr_err("Unknown transport error for CDB 0x%02x: %d\n",
-			cmd->t_task_cdb[0],
-			cmd->transport_error_status);
+			cmd->t_task_cdb[0], cmd->scsi_sense_reason);
 		cmd->scsi_sense_reason = TCM_UNSUPPORTED_SCSI_OPCODE;
 		break;
 	}
@@ -1912,14 +1862,10 @@ static void transport_generic_request_failure(
 	 * transport_send_check_condition_and_sense() after handling
 	 * possible unsoliticied write data payloads.
 	 */
-	if (!sc && !cmd->se_tfo->new_cmd_map)
-		transport_new_cmd_failure(cmd);
-	else {
-		ret = transport_send_check_condition_and_sense(cmd,
-				cmd->scsi_sense_reason, 0);
-		if (ret == -EAGAIN || ret == -ENOMEM)
-			goto queue_full;
-	}
+	ret = transport_send_check_condition_and_sense(cmd,
+			cmd->scsi_sense_reason, 0);
+	if (ret == -EAGAIN || ret == -ENOMEM)
+		goto queue_full;
 
 check_stop:
 	transport_lun_remove_cmd(cmd);
@@ -2002,19 +1948,12 @@ static inline int transport_execute_task_attr(struct se_cmd *cmd)
 	 * to allow the passed struct se_cmd list of tasks to the front of the list.
 	 */
 	 if (cmd->sam_task_attr == MSG_HEAD_TAG) {
-		atomic_inc(&cmd->se_dev->dev_hoq_count);
-		smp_mb__after_atomic_inc();
 		pr_debug("Added HEAD_OF_QUEUE for CDB:"
 			" 0x%02x, se_ordered_id: %u\n",
 			cmd->t_task_cdb[0],
 			cmd->se_ordered_id);
 		return 1;
 	} else if (cmd->sam_task_attr == MSG_ORDERED_TAG) {
-		spin_lock(&cmd->se_dev->ordered_cmd_lock);
-		list_add_tail(&cmd->se_ordered_node,
-				&cmd->se_dev->ordered_cmd_list);
-		spin_unlock(&cmd->se_dev->ordered_cmd_lock);
-
 		atomic_inc(&cmd->se_dev->dev_ordered_sync);
 		smp_mb__after_atomic_inc();
 
@@ -2076,9 +2015,9 @@ static int transport_execute_tasks(struct se_cmd *cmd)
 {
 	int add_tasks;
 
-	if (se_dev_check_online(cmd->se_orig_obj_ptr) != 0) {
-		cmd->transport_error_status = PYX_TRANSPORT_LU_COMM_FAILURE;
-		transport_generic_request_failure(cmd, 0, 1);
+	if (se_dev_check_online(cmd->se_dev) != 0) {
+		cmd->scsi_sense_reason = TCM_LOGICAL_UNIT_COMMUNICATION_FAILURE;
+		transport_generic_request_failure(cmd);
 		return 0;
 	}
 
@@ -2163,32 +2102,18 @@ check_depth:
 	else
 		error = dev->transport->do_task(task);
 	if (error != 0) {
-		cmd->transport_error_status = error;
 		spin_lock_irqsave(&cmd->t_state_lock, flags);
 		task->task_flags &= ~TF_ACTIVE;
 		spin_unlock_irqrestore(&cmd->t_state_lock, flags);
 		atomic_set(&cmd->t_transport_sent, 0);
 		transport_stop_tasks_for_cmd(cmd);
 		atomic_inc(&dev->depth_left);
-		transport_generic_request_failure(cmd, 0, 1);
+		transport_generic_request_failure(cmd);
 	}
 
 	goto check_depth;
 
 	return 0;
-}
-
-void transport_new_cmd_failure(struct se_cmd *se_cmd)
-{
-	unsigned long flags;
-	/*
-	 * Any unsolicited data will get dumped for failed command inside of
-	 * the fabric plugin
-	 */
-	spin_lock_irqsave(&se_cmd->t_state_lock, flags);
-	se_cmd->se_cmd_flags |= SCF_SE_CMD_FAILED;
-	se_cmd->se_cmd_flags |= SCF_SCSI_CDB_EXCEPTION;
-	spin_unlock_irqrestore(&se_cmd->t_state_lock, flags);
 }
 
 static inline u32 transport_get_sectors_6(
@@ -2213,10 +2138,15 @@ static inline u32 transport_get_sectors_6(
 
 	/*
 	 * Everything else assume TYPE_DISK Sector CDB location.
-	 * Use 8-bit sector value.
+	 * Use 8-bit sector value.  SBC-3 says:
+	 *
+	 *   A TRANSFER LENGTH field set to zero specifies that 256
+	 *   logical blocks shall be written.  Any other value
+	 *   specifies the number of logical blocks that shall be
+	 *   written.
 	 */
 type_disk:
-	return (u32)cdb[4];
+	return cdb[4] ? : 256;
 }
 
 static inline u32 transport_get_sectors_10(
@@ -2460,27 +2390,6 @@ static int transport_get_sense_data(struct se_cmd *cmd)
 	return -1;
 }
 
-static int
-transport_handle_reservation_conflict(struct se_cmd *cmd)
-{
-	cmd->se_cmd_flags |= SCF_SCSI_CDB_EXCEPTION;
-	cmd->se_cmd_flags |= SCF_SCSI_RESERVATION_CONFLICT;
-	cmd->scsi_status = SAM_STAT_RESERVATION_CONFLICT;
-	/*
-	 * For UA Interlock Code 11b, a RESERVATION CONFLICT will
-	 * establish a UNIT ATTENTION with PREVIOUS RESERVATION
-	 * CONFLICT STATUS.
-	 *
-	 * See spc4r17, section 7.4.6 Control Mode Page, Table 349
-	 */
-	if (cmd->se_sess &&
-	    cmd->se_dev->se_sub_dev->se_dev_attrib.emulate_ua_intlck_ctrl == 2)
-		core_scsi3_ua_allocate(cmd->se_sess->se_node_acl,
-			cmd->orig_fe_lun, 0x2C,
-			ASCQ_2CH_PREVIOUS_RESERVATION_CONFLICT_STATUS);
-	return -EINVAL;
-}
-
 static inline long long transport_dev_end_lba(struct se_device *dev)
 {
 	return dev->transport->get_blocks(dev) + 1;
@@ -2595,8 +2504,12 @@ static int transport_generic_cmd_sequencer(
 	 */
 	if (su_dev->t10_pr.pr_ops.t10_reservation_check(cmd, &pr_reg_type) != 0) {
 		if (su_dev->t10_pr.pr_ops.t10_seq_non_holder(
-					cmd, cdb, pr_reg_type) != 0)
-			return transport_handle_reservation_conflict(cmd);
+					cmd, cdb, pr_reg_type) != 0) {
+			cmd->se_cmd_flags |= SCF_SCSI_CDB_EXCEPTION;
+			cmd->se_cmd_flags |= SCF_SCSI_RESERVATION_CONFLICT;
+			cmd->scsi_sense_reason = TCM_RESERVATION_CONFLICT;
+			return -EBUSY;
+		}
 		/*
 		 * This means the CDB is allowed for the SCSI Initiator port
 		 * when said port is *NOT* holding the legacy SPC-2 or
@@ -2658,7 +2571,8 @@ static int transport_generic_cmd_sequencer(
 			goto out_unsupported_cdb;
 		size = transport_get_size(sectors, cdb, cmd);
 		cmd->t_task_lba = transport_lba_32(cdb);
-		cmd->t_tasks_fua = (cdb[1] & 0x8);
+		if (cdb[1] & 0x8)
+			cmd->se_cmd_flags |= SCF_FUA;
 		cmd->se_cmd_flags |= SCF_SCSI_DATA_SG_IO_CDB;
 		break;
 	case WRITE_12:
@@ -2667,7 +2581,8 @@ static int transport_generic_cmd_sequencer(
 			goto out_unsupported_cdb;
 		size = transport_get_size(sectors, cdb, cmd);
 		cmd->t_task_lba = transport_lba_32(cdb);
-		cmd->t_tasks_fua = (cdb[1] & 0x8);
+		if (cdb[1] & 0x8)
+			cmd->se_cmd_flags |= SCF_FUA;
 		cmd->se_cmd_flags |= SCF_SCSI_DATA_SG_IO_CDB;
 		break;
 	case WRITE_16:
@@ -2676,12 +2591,13 @@ static int transport_generic_cmd_sequencer(
 			goto out_unsupported_cdb;
 		size = transport_get_size(sectors, cdb, cmd);
 		cmd->t_task_lba = transport_lba_64(cdb);
-		cmd->t_tasks_fua = (cdb[1] & 0x8);
+		if (cdb[1] & 0x8)
+			cmd->se_cmd_flags |= SCF_FUA;
 		cmd->se_cmd_flags |= SCF_SCSI_DATA_SG_IO_CDB;
 		break;
 	case XDWRITEREAD_10:
 		if ((cmd->data_direction != DMA_TO_DEVICE) ||
-		    !(cmd->t_tasks_bidi))
+		    !(cmd->se_cmd_flags & SCF_BIDI))
 			goto out_invalid_cdb_field;
 		sectors = transport_get_sectors_10(cdb, cmd, &sector_ret);
 		if (sector_ret)
@@ -2700,7 +2616,8 @@ static int transport_generic_cmd_sequencer(
 		 * Setup BIDI XOR callback to be run after I/O completion.
 		 */
 		cmd->transport_complete_callback = &transport_xor_callback;
-		cmd->t_tasks_fua = (cdb[1] & 0x8);
+		if (cdb[1] & 0x8)
+			cmd->se_cmd_flags |= SCF_FUA;
 		break;
 	case VARIABLE_LENGTH_CMD:
 		service_action = get_unaligned_be16(&cdb[8]);
@@ -2728,7 +2645,8 @@ static int transport_generic_cmd_sequencer(
 			 * completion.
 			 */
 			cmd->transport_complete_callback = &transport_xor_callback;
-			cmd->t_tasks_fua = (cdb[10] & 0x8);
+			if (cdb[1] & 0x8)
+				cmd->se_cmd_flags |= SCF_FUA;
 			break;
 		case WRITE_SAME_32:
 			sectors = transport_get_sectors_32(cdb, cmd, &sector_ret);
@@ -3171,18 +3089,13 @@ static void transport_complete_task_attr(struct se_cmd *cmd)
 			" SIMPLE: %u\n", dev->dev_cur_ordered_id,
 			cmd->se_ordered_id);
 	} else if (cmd->sam_task_attr == MSG_HEAD_TAG) {
-		atomic_dec(&dev->dev_hoq_count);
-		smp_mb__after_atomic_dec();
 		dev->dev_cur_ordered_id++;
 		pr_debug("Incremented dev_cur_ordered_id: %u for"
 			" HEAD_OF_QUEUE: %u\n", dev->dev_cur_ordered_id,
 			cmd->se_ordered_id);
 	} else if (cmd->sam_task_attr == MSG_ORDERED_TAG) {
-		spin_lock(&dev->ordered_cmd_lock);
-		list_del(&cmd->se_ordered_node);
 		atomic_dec(&dev->dev_ordered_sync);
 		smp_mb__after_atomic_dec();
-		spin_unlock(&dev->ordered_cmd_lock);
 
 		dev->dev_cur_ordered_id++;
 		pr_debug("Incremented dev_cur_ordered_id: %u for ORDERED:"
@@ -3495,6 +3408,18 @@ int transport_generic_map_mem_to_cmd(
 
 	if ((cmd->se_cmd_flags & SCF_SCSI_DATA_SG_IO_CDB) ||
 	    (cmd->se_cmd_flags & SCF_SCSI_CONTROL_SG_IO_CDB)) {
+		/*
+		 * Reject SCSI data overflow with map_mem_to_cmd() as incoming
+		 * scatterlists already have been set to follow what the fabric
+		 * passes for the original expected data transfer length.
+		 */
+		if (cmd->se_cmd_flags & SCF_OVERFLOW_BIT) {
+			pr_warn("Rejecting SCSI DATA overflow for fabric using"
+				" SCF_PASSTHROUGH_SG_TO_MEM_NOALLOC\n");
+			cmd->se_cmd_flags |= SCF_SCSI_CDB_EXCEPTION;
+			cmd->scsi_sense_reason = TCM_INVALID_CDB_FIELD;
+			return -EINVAL;
+		}
 
 		cmd->t_data_sg = sgl;
 		cmd->t_data_nents = sgl_count;
@@ -3813,7 +3738,7 @@ int transport_generic_new_cmd(struct se_cmd *cmd)
 	    cmd->data_length) {
 		ret = transport_generic_get_mem(cmd);
 		if (ret < 0)
-			return ret;
+			goto out_fail;
 	}
 
 	/*
@@ -3842,8 +3767,15 @@ int transport_generic_new_cmd(struct se_cmd *cmd)
 		task_cdbs = transport_allocate_control_task(cmd);
 	}
 
-	if (task_cdbs <= 0)
+	if (task_cdbs < 0)
 		goto out_fail;
+	else if (!task_cdbs && (cmd->se_cmd_flags & SCF_SCSI_DATA_SG_IO_CDB)) {
+		cmd->t_state = TRANSPORT_COMPLETE;
+		atomic_set(&cmd->t_transport_active, 1);
+		INIT_WORK(&cmd->work, target_complete_ok_work);
+		queue_work(target_completion_wq, &cmd->work);
+		return 0;
+	}
 
 	if (set_counts) {
 		atomic_inc(&cmd->t_fe_count);
@@ -3929,7 +3861,7 @@ static int transport_generic_write_pending(struct se_cmd *cmd)
 	else if (ret < 0)
 		return ret;
 
-	return PYX_TRANSPORT_WRITE_PENDING;
+	return 1;
 
 queue_full:
 	pr_debug("Handling write_pending QUEUE__FULL: se_cmd: %p\n", cmd);
@@ -4602,9 +4534,6 @@ void transport_send_task_abort(struct se_cmd *cmd)
 		if (cmd->se_tfo->write_pending_status(cmd) != 0) {
 			atomic_inc(&cmd->t_transport_aborted);
 			smp_mb__after_atomic_inc();
-			cmd->scsi_status = SAM_STAT_TASK_ABORTED;
-			transport_new_cmd_failure(cmd);
-			return;
 		}
 	}
 	cmd->scsi_status = SAM_STAT_TASK_ABORTED;
@@ -4670,8 +4599,6 @@ static int transport_processing_thread(void *param)
 	struct se_cmd *cmd;
 	struct se_device *dev = (struct se_device *) param;
 
-	set_user_nice(current, -20);
-
 	while (!kthread_should_stop()) {
 		ret = wait_event_interruptible(dev->dev_queue_obj.thread_wq,
 				atomic_read(&dev->dev_queue_obj.queue_cnt) ||
@@ -4698,18 +4625,13 @@ get_cmd:
 			}
 			ret = cmd->se_tfo->new_cmd_map(cmd);
 			if (ret < 0) {
-				cmd->transport_error_status = ret;
-				transport_generic_request_failure(cmd,
-						0, (cmd->data_direction !=
-						    DMA_TO_DEVICE));
+				transport_generic_request_failure(cmd);
 				break;
 			}
 			ret = transport_generic_new_cmd(cmd);
 			if (ret < 0) {
-				cmd->transport_error_status = ret;
-				transport_generic_request_failure(cmd,
-					0, (cmd->data_direction !=
-					 DMA_TO_DEVICE));
+				transport_generic_request_failure(cmd);
+				break;
 			}
 			break;
 		case TRANSPORT_PROCESS_WRITE:

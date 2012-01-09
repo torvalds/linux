@@ -1128,18 +1128,7 @@ static struct spi_driver adis16400_driver = {
 	.probe = adis16400_probe,
 	.remove = __devexit_p(adis16400_remove),
 };
-
-static __init int adis16400_init(void)
-{
-	return spi_register_driver(&adis16400_driver);
-}
-module_init(adis16400_init);
-
-static __exit void adis16400_exit(void)
-{
-	spi_unregister_driver(&adis16400_driver);
-}
-module_exit(adis16400_exit);
+module_spi_driver(adis16400_driver);
 
 MODULE_AUTHOR("Manuel Stahl <manuel.stahl@iis.fraunhofer.de>");
 MODULE_DESCRIPTION("Analog Devices ADIS16400/5 IMU SPI driver");

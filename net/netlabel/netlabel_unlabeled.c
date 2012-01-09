@@ -170,7 +170,7 @@ static void netlbl_unlhsh_free_iface(struct rcu_head *entry)
 	struct netlbl_unlhsh_iface *iface;
 	struct netlbl_af4list *iter4;
 	struct netlbl_af4list *tmp4;
-#if defined(CONFIG_IPV6) || defined(CONFIG_IPV6_MODULE)
+#if IS_ENABLED(CONFIG_IPV6)
 	struct netlbl_af6list *iter6;
 	struct netlbl_af6list *tmp6;
 #endif /* IPv6 */
@@ -184,7 +184,7 @@ static void netlbl_unlhsh_free_iface(struct rcu_head *entry)
 		netlbl_af4list_remove_entry(iter4);
 		kfree(netlbl_unlhsh_addr4_entry(iter4));
 	}
-#if defined(CONFIG_IPV6) || defined(CONFIG_IPV6_MODULE)
+#if IS_ENABLED(CONFIG_IPV6)
 	netlbl_af6list_foreach_safe(iter6, tmp6, &iface->addr6_list) {
 		netlbl_af6list_remove_entry(iter6);
 		kfree(netlbl_unlhsh_addr6_entry(iter6));
@@ -274,7 +274,7 @@ static int netlbl_unlhsh_add_addr4(struct netlbl_unlhsh_iface *iface,
 	return ret_val;
 }
 
-#if defined(CONFIG_IPV6) || defined(CONFIG_IPV6_MODULE)
+#if IS_ENABLED(CONFIG_IPV6)
 /**
  * netlbl_unlhsh_add_addr6 - Add a new IPv6 address entry to the hash table
  * @iface: the associated interface entry
@@ -300,12 +300,12 @@ static int netlbl_unlhsh_add_addr6(struct netlbl_unlhsh_iface *iface,
 	if (entry == NULL)
 		return -ENOMEM;
 
-	ipv6_addr_copy(&entry->list.addr, addr);
+	entry->list.addr = *addr;
 	entry->list.addr.s6_addr32[0] &= mask->s6_addr32[0];
 	entry->list.addr.s6_addr32[1] &= mask->s6_addr32[1];
 	entry->list.addr.s6_addr32[2] &= mask->s6_addr32[2];
 	entry->list.addr.s6_addr32[3] &= mask->s6_addr32[3];
-	ipv6_addr_copy(&entry->list.mask, mask);
+	entry->list.mask = *mask;
 	entry->list.valid = 1;
 	entry->secid = secid;
 
@@ -436,7 +436,7 @@ int netlbl_unlhsh_add(struct net *net,
 						  mask4->s_addr);
 		break;
 	}
-#if defined(CONFIG_IPV6) || defined(CONFIG_IPV6_MODULE)
+#if IS_ENABLED(CONFIG_IPV6)
 	case sizeof(struct in6_addr): {
 		const struct in6_addr *addr6 = addr;
 		const struct in6_addr *mask6 = mask;
@@ -531,7 +531,7 @@ static int netlbl_unlhsh_remove_addr4(struct net *net,
 	return 0;
 }
 
-#if defined(CONFIG_IPV6) || defined(CONFIG_IPV6_MODULE)
+#if IS_ENABLED(CONFIG_IPV6)
 /**
  * netlbl_unlhsh_remove_addr6 - Remove an IPv6 address entry
  * @net: network namespace
@@ -606,14 +606,14 @@ static int netlbl_unlhsh_remove_addr6(struct net *net,
 static void netlbl_unlhsh_condremove_iface(struct netlbl_unlhsh_iface *iface)
 {
 	struct netlbl_af4list *iter4;
-#if defined(CONFIG_IPV6) || defined(CONFIG_IPV6_MODULE)
+#if IS_ENABLED(CONFIG_IPV6)
 	struct netlbl_af6list *iter6;
 #endif /* IPv6 */
 
 	spin_lock(&netlbl_unlhsh_lock);
 	netlbl_af4list_foreach_rcu(iter4, &iface->addr4_list)
 		goto unlhsh_condremove_failure;
-#if defined(CONFIG_IPV6) || defined(CONFIG_IPV6_MODULE)
+#if IS_ENABLED(CONFIG_IPV6)
 	netlbl_af6list_foreach_rcu(iter6, &iface->addr6_list)
 		goto unlhsh_condremove_failure;
 #endif /* IPv6 */
@@ -680,7 +680,7 @@ int netlbl_unlhsh_remove(struct net *net,
 						     iface, addr, mask,
 						     audit_info);
 		break;
-#if defined(CONFIG_IPV6) || defined(CONFIG_IPV6_MODULE)
+#if IS_ENABLED(CONFIG_IPV6)
 	case sizeof(struct in6_addr):
 		ret_val = netlbl_unlhsh_remove_addr6(net,
 						     iface, addr, mask,
@@ -1196,7 +1196,7 @@ static int netlbl_unlabel_staticlist(struct sk_buff *skb,
 	struct netlbl_unlhsh_iface *iface;
 	struct list_head *iter_list;
 	struct netlbl_af4list *addr4;
-#if defined(CONFIG_IPV6) || defined(CONFIG_IPV6_MODULE)
+#if IS_ENABLED(CONFIG_IPV6)
 	struct netlbl_af6list *addr6;
 #endif
 
@@ -1228,7 +1228,7 @@ static int netlbl_unlabel_staticlist(struct sk_buff *skb,
 					goto unlabel_staticlist_return;
 				}
 			}
-#if defined(CONFIG_IPV6) || defined(CONFIG_IPV6_MODULE)
+#if IS_ENABLED(CONFIG_IPV6)
 			netlbl_af6list_foreach_rcu(addr6,
 						   &iface->addr6_list) {
 				if (iter_addr6++ < skip_addr6)
@@ -1277,7 +1277,7 @@ static int netlbl_unlabel_staticlistdef(struct sk_buff *skb,
 	u32 skip_addr6 = cb->args[1];
 	u32 iter_addr4 = 0;
 	struct netlbl_af4list *addr4;
-#if defined(CONFIG_IPV6) || defined(CONFIG_IPV6_MODULE)
+#if IS_ENABLED(CONFIG_IPV6)
 	u32 iter_addr6 = 0;
 	struct netlbl_af6list *addr6;
 #endif
@@ -1303,7 +1303,7 @@ static int netlbl_unlabel_staticlistdef(struct sk_buff *skb,
 			goto unlabel_staticlistdef_return;
 		}
 	}
-#if defined(CONFIG_IPV6) || defined(CONFIG_IPV6_MODULE)
+#if IS_ENABLED(CONFIG_IPV6)
 	netlbl_af6list_foreach_rcu(addr6, &iface->addr6_list) {
 		if (iter_addr6++ < skip_addr6)
 			continue;
@@ -1494,7 +1494,7 @@ int netlbl_unlabel_getattr(const struct sk_buff *skb,
 		secattr->attr.secid = netlbl_unlhsh_addr4_entry(addr4)->secid;
 		break;
 	}
-#if defined(CONFIG_IPV6) || defined(CONFIG_IPV6_MODULE)
+#if IS_ENABLED(CONFIG_IPV6)
 	case PF_INET6: {
 		struct ipv6hdr *hdr6;
 		struct netlbl_af6list *addr6;

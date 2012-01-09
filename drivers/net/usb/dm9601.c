@@ -672,18 +672,7 @@ static struct usb_driver dm9601_driver = {
 	.resume = usbnet_resume,
 };
 
-static int __init dm9601_init(void)
-{
-	return usb_register(&dm9601_driver);
-}
-
-static void __exit dm9601_exit(void)
-{
-	usb_deregister(&dm9601_driver);
-}
-
-module_init(dm9601_init);
-module_exit(dm9601_exit);
+module_usb_driver(dm9601_driver);
 
 MODULE_AUTHOR("Peter Korsgaard <jacmet@sunsite.dk>");
 MODULE_DESCRIPTION("Davicom DM9601 USB 1.1 ethernet devices");

@@ -4,7 +4,7 @@ menu "S/390 network device drivers"
 config LCS
 	def_tristate m
 	prompt "Lan Channel Station Interface"
-	depends on CCW && NETDEVICES && (NET_ETHERNET || TR || FDDI)
+	depends on CCW && NETDEVICES && (ETHERNET || TR || FDDI)
 	help
 	   Select this option if you want to use LCS networking on IBM System z.
 	   This device driver supports Token Ring (IEEE 802.5),

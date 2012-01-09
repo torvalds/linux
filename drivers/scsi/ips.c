@@ -4494,7 +4494,7 @@ ips_init_scb(ips_ha_t * ha, ips_scb_t * scb)
 /*                                                                          */
 /*   Initialize a CCB to default values                                     */
 /*                                                                          */
-/* ASSUMED to be callled from within a lock                                 */
+/* ASSUMED to be called from within a lock                                 */
 /*                                                                          */
 /****************************************************************************/
 static ips_scb_t *

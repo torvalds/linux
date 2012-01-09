@@ -521,6 +521,11 @@ Here's a description of the fields of <varname>struct uio_mem</varname>:
 
 <itemizedlist>
 <listitem><para>
+<varname>const char *name</varname>: Optional. Set this to help identify
+the memory region, it will show up in the corresponding sysfs node.
+</para></listitem>
+
+<listitem><para>
 <varname>int memtype</varname>: Required if the mapping is used. Set this to
 <varname>UIO_MEM_PHYS</varname> if you you have physical memory on your
 card to be mapped. Use <varname>UIO_MEM_LOGICAL</varname> for logical
@@ -553,7 +558,7 @@ instead to remember such an address.
 </itemizedlist>
 
 <para>
-Please do not touch the <varname>kobj</varname> element of
+Please do not touch the <varname>map</varname> element of
 <varname>struct uio_mem</varname>! It is used by the UIO framework
 to set up sysfs files for this mapping. Simply leave it alone.
 </para>

@@ -1794,26 +1794,7 @@ static struct usb_driver ttusb_driver = {
       .id_table		= ttusb_table,
 };
 
-static int __init ttusb_init(void)
-{
-	int err;
-
-	if ((err = usb_register(&ttusb_driver)) < 0) {
-		printk("%s: usb_register failed! Error number %d",
-		       __FILE__, err);
-		return err;
-	}
-
-	return 0;
-}
-
-static void __exit ttusb_exit(void)
-{
-	usb_deregister(&ttusb_driver);
-}
-
-module_init(ttusb_init);
-module_exit(ttusb_exit);
+module_usb_driver(ttusb_driver);
 
 MODULE_AUTHOR("Holger Waechtler <holger@convergence.de>");
 MODULE_DESCRIPTION("TTUSB DVB Driver");

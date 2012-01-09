@@ -55,6 +55,8 @@
 #include <plat/cpu.h>
 #include <plat/audio-simtec.h>
 
+#include "common.h"
+
 #define COPYRIGHT ", Copyright 2005-2009 Simtec Electronics"
 
 static struct map_desc anubis_iodesc[] __initdata = {
@@ -503,4 +505,5 @@ MACHINE_START(ANUBIS, "Simtec-Anubis")
 	.init_machine	= anubis_init,
 	.init_irq	= s3c24xx_init_irq,
 	.timer		= &s3c24xx_timer,
+	.restart	= s3c2440_restart,
 MACHINE_END

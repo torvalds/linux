@@ -28,19 +28,19 @@ extern void gfs2_free_clones(struct gfs2_rgrpd *rgd);
 extern int gfs2_rgrp_go_lock(struct gfs2_holder *gh);
 extern void gfs2_rgrp_go_unlock(struct gfs2_holder *gh);
 
-extern struct gfs2_alloc *gfs2_alloc_get(struct gfs2_inode *ip);
-static inline void gfs2_alloc_put(struct gfs2_inode *ip)
+extern struct gfs2_qadata *gfs2_qadata_get(struct gfs2_inode *ip);
+static inline void gfs2_qadata_put(struct gfs2_inode *ip)
 {
-	BUG_ON(ip->i_alloc == NULL);
-	kfree(ip->i_alloc);
-	ip->i_alloc = NULL;
+	BUG_ON(ip->i_qadata == NULL);
+	kfree(ip->i_qadata);
+	ip->i_qadata = NULL;
 }
 
-extern int gfs2_inplace_reserve(struct gfs2_inode *ip);
+extern int gfs2_inplace_reserve(struct gfs2_inode *ip, u32 requested);
 extern void gfs2_inplace_release(struct gfs2_inode *ip);
 
-extern int gfs2_alloc_block(struct gfs2_inode *ip, u64 *bn, unsigned int *n);
-extern int gfs2_alloc_di(struct gfs2_inode *ip, u64 *bn, u64 *generation);
+extern int gfs2_alloc_blocks(struct gfs2_inode *ip, u64 *bn, unsigned int *n,
+			     bool dinode, u64 *generation);
 
 extern void __gfs2_free_blocks(struct gfs2_inode *ip, u64 bstart, u32 blen, int meta);
 extern void gfs2_free_meta(struct gfs2_inode *ip, u64 bstart, u32 blen);

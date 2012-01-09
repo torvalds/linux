@@ -2,7 +2,7 @@
  * arch/arm/plat-omap/include/mach/serial.h
  *
  * Copyright (C) 2009 Texas Instruments
- * Addded OMAP4 support- Santosh Shilimkar <santosh.shilimkar@ti.com>
+ * Added OMAP4 support- Santosh Shilimkar <santosh.shilimkar@ti.com>
  *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of

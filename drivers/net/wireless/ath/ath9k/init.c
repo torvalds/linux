@@ -258,6 +258,8 @@ static void setup_ht_cap(struct ath_softc *sc,
 
 	if (AR_SREV_9330(ah) || AR_SREV_9485(ah))
 		max_streams = 1;
+	else if (AR_SREV_9462(ah))
+		max_streams = 2;
 	else if (AR_SREV_9300_20_OR_LATER(ah))
 		max_streams = 3;
 	else
@@ -274,8 +276,7 @@ static void setup_ht_cap(struct ath_softc *sc,
 	tx_streams = ath9k_cmn_count_streams(ah->txchainmask, max_streams);
 	rx_streams = ath9k_cmn_count_streams(ah->rxchainmask, max_streams);
 
-	ath_dbg(common, ATH_DBG_CONFIG,
-		"TX streams %d, RX streams: %d\n",
+	ath_dbg(common, CONFIG, "TX streams %d, RX streams: %d\n",
 		tx_streams, rx_streams);
 
 	if (tx_streams != rx_streams) {
@@ -295,9 +296,22 @@ static int ath9k_reg_notifier(struct wiphy *wiphy,
 {
 	struct ieee80211_hw *hw = wiphy_to_ieee80211_hw(wiphy);
 	struct ath_softc *sc = hw->priv;
-	struct ath_regulatory *reg = ath9k_hw_regulatory(sc->sc_ah);
+	struct ath_hw *ah = sc->sc_ah;
+	struct ath_regulatory *reg = ath9k_hw_regulatory(ah);
+	int ret;
 
-	return ath_reg_notifier_apply(wiphy, request, reg);
+	ret = ath_reg_notifier_apply(wiphy, request, reg);
+
+	/* Set tx power */
+	if (ah->curchan) {
+		sc->config.txpowlimit = 2 * ah->curchan->chan->max_power;
+		ath9k_ps_wakeup(sc);
+		ath9k_hw_set_txpowerlimit(ah, sc->config.txpowlimit, false);
+		sc->curtxpow = ath9k_hw_regulatory(ah)->power_limit;
+		ath9k_ps_restore(sc);
+	}
+
+	return ret;
 }
 
 /*
@@ -314,7 +328,7 @@ int ath_descdma_setup(struct ath_softc *sc, struct ath_descdma *dd,
 	struct ath_buf *bf;
 	int i, bsize, error, desc_len;
 
-	ath_dbg(common, ATH_DBG_CONFIG, "%s DMA: %u buffers %u desc/buf\n",
+	ath_dbg(common, CONFIG, "%s DMA: %u buffers %u desc/buf\n",
 		name, nbuf, ndesc);
 
 	INIT_LIST_HEAD(head);
@@ -360,7 +374,7 @@ int ath_descdma_setup(struct ath_softc *sc, struct ath_descdma *dd,
 		goto fail;
 	}
 	ds = (u8 *) dd->dd_desc;
-	ath_dbg(common, ATH_DBG_CONFIG, "%s DMA map: %p (%u) -> %llx (%u)\n",
+	ath_dbg(common, CONFIG, "%s DMA map: %p (%u) -> %llx (%u)\n",
 		name, ds, (u32) dd->dd_desc_len,
 		ito64(dd->dd_desc_paddr), /*XXX*/(u32) dd->dd_desc_len);
 
@@ -408,9 +422,10 @@ fail:
 static int ath9k_init_btcoex(struct ath_softc *sc)
 {
 	struct ath_txq *txq;
+	struct ath_hw *ah = sc->sc_ah;
 	int r;
 
-	switch (sc->sc_ah->btcoex_hw.scheme) {
+	switch (ath9k_hw_get_btcoex_scheme(sc->sc_ah)) {
 	case ATH_BTCOEX_CFG_NONE:
 		break;
 	case ATH_BTCOEX_CFG_2WIRE:
@@ -424,6 +439,37 @@ static int ath9k_init_btcoex(struct ath_softc *sc)
 		txq = sc->tx.txq_map[WME_AC_BE];
 		ath9k_hw_init_btcoex_hw(sc->sc_ah, txq->axq_qnum);
 		sc->btcoex.bt_stomp_type = ATH_BTCOEX_STOMP_LOW;
+		break;
+	case ATH_BTCOEX_CFG_MCI:
+		sc->btcoex.bt_stomp_type = ATH_BTCOEX_STOMP_LOW;
+		sc->btcoex.duty_cycle = ATH_BTCOEX_DEF_DUTY_CYCLE;
+		INIT_LIST_HEAD(&sc->btcoex.mci.info);
+
+		r = ath_mci_setup(sc);
+		if (r)
+			return r;
+
+		if (sc->sc_ah->caps.hw_caps & ATH9K_HW_CAP_MCI) {
+			ah->btcoex_hw.mci.ready = false;
+			ah->btcoex_hw.mci.bt_state = 0;
+			ah->btcoex_hw.mci.bt_ver_major = 3;
+			ah->btcoex_hw.mci.bt_ver_minor = 0;
+			ah->btcoex_hw.mci.bt_version_known = false;
+			ah->btcoex_hw.mci.update_2g5g = true;
+			ah->btcoex_hw.mci.is_2g = true;
+			ah->btcoex_hw.mci.wlan_channels_update = false;
+			ah->btcoex_hw.mci.wlan_channels[0] = 0x00000000;
+			ah->btcoex_hw.mci.wlan_channels[1] = 0xffffffff;
+			ah->btcoex_hw.mci.wlan_channels[2] = 0xffffffff;
+			ah->btcoex_hw.mci.wlan_channels[3] = 0x7fffffff;
+			ah->btcoex_hw.mci.query_bt = true;
+			ah->btcoex_hw.mci.unhalt_bt_gpm = true;
+			ah->btcoex_hw.mci.halted_bt_gpm = false;
+			ah->btcoex_hw.mci.need_flush_btinfo = false;
+			ah->btcoex_hw.mci.wlan_cal_seq = 0;
+			ah->btcoex_hw.mci.wlan_cal_done = 0;
+			ah->btcoex_hw.mci.config = 0x2201;
+		}
 		break;
 	default:
 		WARN_ON(1);
@@ -695,6 +741,7 @@ void ath9k_set_hw_capab(struct ath_softc *sc, struct ieee80211_hw *hw)
 		hw->wiphy->flags &= ~WIPHY_FLAG_PS_ON_BY_DEFAULT;
 
 	hw->wiphy->flags |= WIPHY_FLAG_IBSS_RSN;
+	hw->wiphy->flags |= WIPHY_FLAG_SUPPORTS_TDLS;
 
 	hw->queues = 4;
 	hw->max_rates = 4;
@@ -833,8 +880,11 @@ static void ath9k_deinit_softc(struct ath_softc *sc)
 		kfree(sc->sbands[IEEE80211_BAND_5GHZ].channels);
 
         if ((sc->btcoex.no_stomp_timer) &&
-	    sc->sc_ah->btcoex_hw.scheme == ATH_BTCOEX_CFG_3WIRE)
+	    ath9k_hw_get_btcoex_scheme(sc->sc_ah) == ATH_BTCOEX_CFG_3WIRE)
 		ath_gen_timer_free(sc->sc_ah, sc->btcoex.no_stomp_timer);
+
+	if (ath9k_hw_get_btcoex_scheme(sc->sc_ah) == ATH_BTCOEX_CFG_MCI)
+		ath_mci_cleanup(sc);
 
 	for (i = 0; i < ATH9K_NUM_TX_QUEUES; i++)
 		if (ATH_TXQ_SETUP(sc, i))

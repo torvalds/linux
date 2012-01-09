@@ -1103,7 +1103,8 @@ static int soc_camera_probe(struct soc_camera_device *icd)
 	}
 
 	sd = soc_camera_to_subdev(icd);
-	sd->grp_id = (long)icd;
+	sd->grp_id = soc_camera_grp_id(icd);
+	v4l2_set_subdev_hostdata(sd, icd);
 
 	if (v4l2_ctrl_add_handler(&icd->ctrl_handler, sd->ctrl_handler))
 		goto ectrl;

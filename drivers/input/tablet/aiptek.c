@@ -1919,21 +1919,7 @@ static struct usb_driver aiptek_driver = {
 	.id_table = aiptek_ids,
 };
 
-static int __init aiptek_init(void)
-{
-	int result = usb_register(&aiptek_driver);
-	if (result == 0) {
-		printk(KERN_INFO KBUILD_MODNAME ": " DRIVER_VERSION ":"
-		       DRIVER_DESC "\n");
-		printk(KERN_INFO KBUILD_MODNAME ": " DRIVER_AUTHOR "\n");
-	}
-	return result;
-}
-
-static void __exit aiptek_exit(void)
-{
-	usb_deregister(&aiptek_driver);
-}
+module_usb_driver(aiptek_driver);
 
 MODULE_AUTHOR(DRIVER_AUTHOR);
 MODULE_DESCRIPTION(DRIVER_DESC);
@@ -1943,6 +1929,3 @@ module_param(programmableDelay, int, 0);
 MODULE_PARM_DESC(programmableDelay, "delay used during tablet programming");
 module_param(jitterDelay, int, 0);
 MODULE_PARM_DESC(jitterDelay, "stylus/mouse settlement delay");
-
-module_init(aiptek_init);
-module_exit(aiptek_exit);

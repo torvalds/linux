@@ -237,15 +237,4 @@ static struct platform_driver fs_enet_fec_mdio_driver = {
 	.remove = fs_enet_mdio_remove,
 };
 
-static int fs_enet_mdio_fec_init(void)
-{
-	return platform_driver_register(&fs_enet_fec_mdio_driver);
-}
-
-static void fs_enet_mdio_fec_exit(void)
-{
-	platform_driver_unregister(&fs_enet_fec_mdio_driver);
-}
-
-module_init(fs_enet_mdio_fec_init);
-module_exit(fs_enet_mdio_fec_exit);
+module_platform_driver(fs_enet_fec_mdio_driver);

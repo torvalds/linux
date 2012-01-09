@@ -711,7 +711,7 @@ static ssize_t store_pwm(struct device *dev, struct device_attribute *attr,
 	int nr = sensor_attr->index;
 	unsigned long val;
 
-	if (strict_strtoul(buf, 10, &val))
+	if (kstrtoul(buf, 10, &val))
 		return -EINVAL;
 
 	mutex_lock(&data->update_lock);
@@ -756,7 +756,7 @@ static ssize_t store_pwmenable(struct device *dev,
 	u8 val_shift = 0;
 	u8 keep_mask = 0;
 
-	int ret = strict_strtoul(buf, 10, &val);
+	int ret = kstrtoul(buf, 10, &val);
 
 	if (ret || val < 1 || val > 3)
 		return -EINVAL;
@@ -819,7 +819,7 @@ static ssize_t store_temp_target(struct device *dev,
 	unsigned long val;
 	u8 target_mask;
 
-	if (strict_strtoul(buf, 10, &val))
+	if (kstrtoul(buf, 10, &val))
 		return -EINVAL;
 
 	mutex_lock(&data->update_lock);
@@ -863,7 +863,7 @@ static ssize_t store_temp_tolerance(struct device *dev,
 	u8 val_shift = 0;
 	u8 keep_mask = 0;
 
-	if (strict_strtoul(buf, 10, &val))
+	if (kstrtoul(buf, 10, &val))
 		return -EINVAL;
 
 	switch (nr) {

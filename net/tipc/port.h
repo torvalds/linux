@@ -151,7 +151,7 @@ struct tipc_port {
 };
 
 extern spinlock_t tipc_port_list_lock;
-struct port_list;
+struct tipc_port_list;
 
 /*
  * TIPC port manipulation routines
@@ -228,7 +228,7 @@ int tipc_port_reject_sections(struct tipc_port *p_ptr, struct tipc_msg *hdr,
 			      unsigned int total_len, int err);
 struct sk_buff *tipc_port_get_ports(void);
 void tipc_port_recv_proto_msg(struct sk_buff *buf);
-void tipc_port_recv_mcast(struct sk_buff *buf, struct port_list *dp);
+void tipc_port_recv_mcast(struct sk_buff *buf, struct tipc_port_list *dp);
 void tipc_port_reinit(void);
 
 /**

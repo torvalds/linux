@@ -25,7 +25,6 @@
 #include <linux/writeback.h>
 #include <linux/blkdev.h>
 #include <linux/backing-dev.h>
-#include <linux/buffer_head.h>
 #include <linux/tracepoint.h>
 #include "internal.h"
 
@@ -45,17 +44,6 @@ struct wb_writeback_work {
 
 	struct list_head list;		/* pending work list */
 	struct completion *done;	/* set if the caller waits */
-};
-
-const char *wb_reason_name[] = {
-	[WB_REASON_BACKGROUND]		= "background",
-	[WB_REASON_TRY_TO_FREE_PAGES]	= "try_to_free_pages",
-	[WB_REASON_SYNC]		= "sync",
-	[WB_REASON_PERIODIC]		= "periodic",
-	[WB_REASON_LAPTOP_TIMER]	= "laptop_timer",
-	[WB_REASON_FREE_MORE_MEM]	= "free_more_memory",
-	[WB_REASON_FS_FREE_SPACE]	= "fs_free_space",
-	[WB_REASON_FORKER_THREAD]	= "forker_thread"
 };
 
 /*
@@ -156,6 +144,7 @@ __bdi_start_writeback(struct backing_dev_info *bdi, long nr_pages,
  * bdi_start_writeback - start writeback
  * @bdi: the backing device to write from
  * @nr_pages: the number of pages to write
+ * @reason: reason why some writeback work was initiated
  *
  * Description:
  *   This does WB_SYNC_NONE opportunistic writeback. The IO is only
@@ -947,7 +936,7 @@ int bdi_writeback_thread(void *data)
 
 	trace_writeback_thread_start(bdi);
 
-	while (!kthread_should_stop()) {
+	while (!kthread_freezable_should_stop(NULL)) {
 		/*
 		 * Remove own delayed wake-up timer, since we are already awake
 		 * and we'll take care of the preriodic write-back.
@@ -977,8 +966,6 @@ int bdi_writeback_thread(void *data)
 			 */
 			schedule();
 		}
-
-		try_to_freeze();
 	}
 
 	/* Flush any work that raced with us exiting */
@@ -1223,6 +1210,7 @@ static void wait_sb_inodes(struct super_block *sb)
  * writeback_inodes_sb_nr -	writeback dirty inodes from given super_block
  * @sb: the superblock
  * @nr: the number of pages to write
+ * @reason: reason why some writeback work initiated
  *
  * Start writeback on some inodes on this super_block. No guarantees are made
  * on how many (if any) will be written, and this function does not wait
@@ -1251,6 +1239,7 @@ EXPORT_SYMBOL(writeback_inodes_sb_nr);
 /**
  * writeback_inodes_sb	-	writeback dirty inodes from given super_block
  * @sb: the superblock
+ * @reason: reason why some writeback work was initiated
  *
  * Start writeback on some inodes on this super_block. No guarantees are made
  * on how many (if any) will be written, and this function does not wait
@@ -1265,6 +1254,7 @@ EXPORT_SYMBOL(writeback_inodes_sb);
 /**
  * writeback_inodes_sb_if_idle	-	start writeback if none underway
  * @sb: the superblock
+ * @reason: reason why some writeback work was initiated
  *
  * Invoke writeback_inodes_sb if no writeback is currently underway.
  * Returns 1 if writeback was started, 0 if not.
@@ -1285,6 +1275,7 @@ EXPORT_SYMBOL(writeback_inodes_sb_if_idle);
  * writeback_inodes_sb_if_idle	-	start writeback if none underway
  * @sb: the superblock
  * @nr: the number of pages to write
+ * @reason: reason why some writeback work was initiated
  *
  * Invoke writeback_inodes_sb if no writeback is currently underway.
  * Returns 1 if writeback was started, 0 if not.

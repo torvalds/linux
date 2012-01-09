@@ -61,7 +61,7 @@ static size_t thread__fprintf(struct thread *self, FILE *fp)
 	       map_groups__fprintf(&self->mg, verbose, fp);
 }
 
-struct thread *perf_session__findnew(struct perf_session *self, pid_t pid)
+struct thread *machine__findnew_thread(struct machine *self, pid_t pid)
 {
 	struct rb_node **p = &self->threads.rb_node;
 	struct rb_node *parent = NULL;
@@ -125,12 +125,12 @@ int thread__fork(struct thread *self, struct thread *parent)
 	return 0;
 }
 
-size_t perf_session__fprintf(struct perf_session *self, FILE *fp)
+size_t machine__fprintf(struct machine *machine, FILE *fp)
 {
 	size_t ret = 0;
 	struct rb_node *nd;
 
-	for (nd = rb_first(&self->threads); nd; nd = rb_next(nd)) {
+	for (nd = rb_first(&machine->threads); nd; nd = rb_next(nd)) {
 		struct thread *pos = rb_entry(nd, struct thread, rb_node);
 
 		ret += thread__fprintf(pos, fp);

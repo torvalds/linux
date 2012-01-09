@@ -359,7 +359,7 @@ typedef struct {
     u32     cmd_buff_addr2;     /* physical address of cmd buffer 1 */   
     u32     cmd_buff_u_addr2;   /* reserved for 64 bit addressing */
     u32     cmd_buff_indx2;     /* cmd buf addr1 unique identifier */
-    u32     cmd_buff_size;      /* size of each cmd bufer in bytes */
+    u32     cmd_buff_size;      /* size of each cmd buffer in bytes */
     u32     reserved1;
     u32     reserved2;
 } __attribute__((packed)) gdth_perf_modes;

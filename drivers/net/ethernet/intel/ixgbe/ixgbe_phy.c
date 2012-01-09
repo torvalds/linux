@@ -1214,7 +1214,7 @@ s32 ixgbe_read_i2c_byte_generic(struct ixgbe_hw *hw, u8 byte_offset,
 	u32 max_retry = 10;
 	u32 retry = 0;
 	u16 swfw_mask = 0;
-	bool nack = 1;
+	bool nack = true;
 	*data = 0;
 
 	if (IXGBE_READ_REG(hw, IXGBE_STATUS) & IXGBE_STATUS_LAN_ID_1)
@@ -1421,7 +1421,7 @@ static void ixgbe_i2c_stop(struct ixgbe_hw *hw)
 static s32 ixgbe_clock_in_i2c_byte(struct ixgbe_hw *hw, u8 *data)
 {
 	s32 i;
-	bool bit = 0;
+	bool bit = false;
 
 	for (i = 7; i >= 0; i--) {
 		ixgbe_clock_in_i2c_bit(hw, &bit);
@@ -1443,7 +1443,7 @@ static s32 ixgbe_clock_out_i2c_byte(struct ixgbe_hw *hw, u8 data)
 	s32 status = 0;
 	s32 i;
 	u32 i2cctl;
-	bool bit = 0;
+	bool bit = false;
 
 	for (i = 7; i >= 0; i--) {
 		bit = (data >> i) & 0x1;
@@ -1457,6 +1457,7 @@ static s32 ixgbe_clock_out_i2c_byte(struct ixgbe_hw *hw, u8 data)
 	i2cctl = IXGBE_READ_REG(hw, IXGBE_I2CCTL);
 	i2cctl |= IXGBE_I2C_DATA_OUT;
 	IXGBE_WRITE_REG(hw, IXGBE_I2CCTL, i2cctl);
+	IXGBE_WRITE_FLUSH(hw);
 
 	return status;
 }
@@ -1473,7 +1474,7 @@ static s32 ixgbe_get_i2c_ack(struct ixgbe_hw *hw)
 	u32 i = 0;
 	u32 i2cctl = IXGBE_READ_REG(hw, IXGBE_I2CCTL);
 	u32 timeout = 10;
-	bool ack = 1;
+	bool ack = true;
 
 	ixgbe_raise_i2c_clk(hw, &i2cctl);
 
@@ -1646,9 +1647,9 @@ static bool ixgbe_get_i2c_data(u32 *i2cctl)
 	bool data;
 
 	if (*i2cctl & IXGBE_I2C_DATA_IN)
-		data = 1;
+		data = true;
 	else
-		data = 0;
+		data = false;
 
 	return data;
 }

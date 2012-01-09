@@ -108,7 +108,7 @@ static s32 ixgbevf_reset_hw_vf(struct ixgbe_hw *hw)
 	if (msgbuf[0] != (IXGBE_VF_RESET | IXGBE_VT_MSGTYPE_ACK))
 		return IXGBE_ERR_INVALID_MAC_ADDR;
 
-	memcpy(hw->mac.perm_addr, addr, IXGBE_ETH_LENGTH_OF_ADDRESS);
+	memcpy(hw->mac.perm_addr, addr, ETH_ALEN);
 	hw->mac.mc_filter_type = msgbuf[IXGBE_VF_MC_TYPE_WORD];
 
 	return 0;
@@ -211,7 +211,7 @@ static s32 ixgbevf_mta_vector(struct ixgbe_hw *hw, u8 *mc_addr)
  **/
 static s32 ixgbevf_get_mac_addr_vf(struct ixgbe_hw *hw, u8 *mac_addr)
 {
-	memcpy(mac_addr, hw->mac.perm_addr, IXGBE_ETH_LENGTH_OF_ADDRESS);
+	memcpy(mac_addr, hw->mac.perm_addr, ETH_ALEN);
 
 	return 0;
 }

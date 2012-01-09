@@ -472,6 +472,13 @@ static void start_event_scan(void)
 				 &event_scan_work, event_scan_delay);
 }
 
+/* Cancel the rtas event scan work */
+void rtas_cancel_event_scan(void)
+{
+	cancel_delayed_work_sync(&event_scan_work);
+}
+EXPORT_SYMBOL_GPL(rtas_cancel_event_scan);
+
 static int __init rtas_init(void)
 {
 	struct proc_dir_entry *entry;

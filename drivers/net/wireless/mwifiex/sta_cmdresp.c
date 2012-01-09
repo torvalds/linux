@@ -508,7 +508,7 @@ static int mwifiex_ret_802_11_tx_rate_query(struct mwifiex_private *priv,
 	priv->tx_htinfo = resp->params.tx_rate.ht_info;
 	if (!priv->is_data_rate_auto)
 		priv->data_rate =
-			mwifiex_index_to_data_rate(priv->tx_rate,
+			mwifiex_index_to_data_rate(priv, priv->tx_rate,
 						   priv->tx_htinfo);
 
 	return 0;

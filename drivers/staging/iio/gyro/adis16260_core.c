@@ -711,18 +711,7 @@ static struct spi_driver adis16260_driver = {
 	.remove = __devexit_p(adis16260_remove),
 	.id_table = adis16260_id,
 };
-
-static __init int adis16260_init(void)
-{
-	return spi_register_driver(&adis16260_driver);
-}
-module_init(adis16260_init);
-
-static __exit void adis16260_exit(void)
-{
-	spi_unregister_driver(&adis16260_driver);
-}
-module_exit(adis16260_exit);
+module_spi_driver(adis16260_driver);
 
 MODULE_AUTHOR("Barry Song <21cnbao@gmail.com>");
 MODULE_DESCRIPTION("Analog Devices ADIS16260/5 Digital Gyroscope Sensor");

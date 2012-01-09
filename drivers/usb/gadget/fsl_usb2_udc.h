@@ -569,6 +569,16 @@ static void dump_msg(const char *label, const u8 * buf, unsigned int length)
 					* 2 + ((windex & USB_DIR_IN) ? 1 : 0))
 #define get_pipe_by_ep(EP)	(ep_index(EP) * 2 + ep_is_in(EP))
 
+static inline struct ep_queue_head *get_qh_by_ep(struct fsl_ep *ep)
+{
+	/* we only have one ep0 structure but two queue heads */
+	if (ep_index(ep) != 0)
+		return ep->qh;
+	else
+		return &ep->udc->ep_qh[(ep->udc->ep0_dir ==
+				USB_DIR_IN) ? 1 : 0];
+}
+
 struct platform_device;
 #ifdef CONFIG_ARCH_MXC
 int fsl_udc_clk_init(struct platform_device *pdev);

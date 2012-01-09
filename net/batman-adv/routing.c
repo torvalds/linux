@@ -39,7 +39,7 @@ void slide_own_bcast_window(struct hard_iface *hard_iface)
 	struct hlist_head *head;
 	struct orig_node *orig_node;
 	unsigned long *word;
-	int i;
+	uint32_t i;
 	size_t word_index;
 
 	for (i = 0; i < hash->size; i++) {
@@ -578,6 +578,7 @@ int recv_tt_query(struct sk_buff *skb, struct hard_iface *recv_if)
 {
 	struct bat_priv *bat_priv = netdev_priv(recv_if->soft_iface);
 	struct tt_query_packet *tt_query;
+	uint16_t tt_len;
 	struct ethhdr *ethhdr;
 
 	/* drop packet if it has not necessary minimum size */
@@ -616,13 +617,21 @@ int recv_tt_query(struct sk_buff *skb, struct hard_iface *recv_if)
 		}
 		break;
 	case TT_RESPONSE:
-		/* packet needs to be linearized to access the TT changes */
-		if (skb_linearize(skb) < 0)
-			goto out;
+		if (is_my_mac(tt_query->dst)) {
+			/* packet needs to be linearized to access the TT
+			 * changes */
+			if (skb_linearize(skb) < 0)
+				goto out;
 
-		if (is_my_mac(tt_query->dst))
+			tt_len = tt_query->tt_data * sizeof(struct tt_change);
+
+			/* Ensure we have all the claimed data */
+			if (unlikely(skb_headlen(skb) <
+				     sizeof(struct tt_query_packet) + tt_len))
+				goto out;
+
 			handle_tt_response(bat_priv, tt_query);
-		else {
+		} else {
 			bat_dbg(DBG_TT, bat_priv,
 				"Routing TT_RESPONSE to %pM [%c]\n",
 				tt_query->dst,

@@ -1698,7 +1698,7 @@ static int ext3_add_nondir(handle_t *handle,
  * If the create succeeds, we fill in the inode information
  * with d_instantiate().
  */
-static int ext3_create (struct inode * dir, struct dentry * dentry, int mode,
+static int ext3_create (struct inode * dir, struct dentry * dentry, umode_t mode,
 		struct nameidata *nd)
 {
 	handle_t *handle;
@@ -1732,7 +1732,7 @@ retry:
 }
 
 static int ext3_mknod (struct inode * dir, struct dentry *dentry,
-			int mode, dev_t rdev)
+			umode_t mode, dev_t rdev)
 {
 	handle_t *handle;
 	struct inode *inode;
@@ -1768,7 +1768,7 @@ retry:
 	return err;
 }
 
-static int ext3_mkdir(struct inode * dir, struct dentry * dentry, int mode)
+static int ext3_mkdir(struct inode * dir, struct dentry * dentry, umode_t mode)
 {
 	handle_t *handle;
 	struct inode * inode;

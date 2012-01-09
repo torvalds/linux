@@ -30,7 +30,7 @@ struct shmem_sb_info {
 	spinlock_t stat_lock;	    /* Serialize shmem_sb_info changes */
 	uid_t uid;		    /* Mount uid for root directory */
 	gid_t gid;		    /* Mount gid for root directory */
-	mode_t mode;		    /* Mount mode for root directory */
+	umode_t mode;		    /* Mount mode for root directory */
 	struct mempolicy *mpol;     /* default memory policy for mappings */
 };
 

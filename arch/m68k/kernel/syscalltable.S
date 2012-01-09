@@ -365,4 +365,6 @@ ENTRY(sys_call_table)
 	.long sys_clock_adjtime
 	.long sys_syncfs
 	.long sys_setns
+	.long sys_process_vm_readv	/* 345 */
+	.long sys_process_vm_writev
 

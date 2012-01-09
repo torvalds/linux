@@ -262,7 +262,7 @@ static int apparmor_path_unlink(struct path *dir, struct dentry *dentry)
 }
 
 static int apparmor_path_mkdir(struct path *dir, struct dentry *dentry,
-			       int mode)
+			       umode_t mode)
 {
 	return common_perm_create(OP_MKDIR, dir, dentry, AA_MAY_CREATE,
 				  S_IFDIR);
@@ -274,7 +274,7 @@ static int apparmor_path_rmdir(struct path *dir, struct dentry *dentry)
 }
 
 static int apparmor_path_mknod(struct path *dir, struct dentry *dentry,
-			       int mode, unsigned int dev)
+			       umode_t mode, unsigned int dev)
 {
 	return common_perm_create(OP_MKNOD, dir, dentry, AA_MAY_CREATE, mode);
 }
@@ -344,13 +344,12 @@ static int apparmor_path_rename(struct path *old_dir, struct dentry *old_dentry,
 	return error;
 }
 
-static int apparmor_path_chmod(struct dentry *dentry, struct vfsmount *mnt,
-			       mode_t mode)
+static int apparmor_path_chmod(struct path *path, umode_t mode)
 {
-	if (!mediated_filesystem(dentry->d_inode))
+	if (!mediated_filesystem(path->dentry->d_inode))
 		return 0;
 
-	return common_perm_mnt_dentry(OP_CHMOD, mnt, dentry, AA_MAY_CHMOD);
+	return common_perm_mnt_dentry(OP_CHMOD, path->mnt, path->dentry, AA_MAY_CHMOD);
 }
 
 static int apparmor_path_chown(struct path *path, uid_t uid, gid_t gid)

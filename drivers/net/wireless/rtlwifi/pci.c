@@ -78,7 +78,7 @@ static void _rtl_pci_update_default_setting(struct ieee80211_hw *hw)
 	u8 init_aspm;
 
 	ppsc->reg_rfps_level = 0;
-	ppsc->support_aspm = 0;
+	ppsc->support_aspm = false;
 
 	/*Update PCI ASPM setting */
 	ppsc->const_amdpci_aspm = rtlpci->const_amdpci_aspm;
@@ -570,9 +570,9 @@ static void _rtl_pci_tx_isr(struct ieee80211_hw *hw, int prio)
 		if (ieee80211_is_nullfunc(fc)) {
 			if (ieee80211_has_pm(fc)) {
 				rtlpriv->mac80211.offchan_delay = true;
-				rtlpriv->psc.state_inap = 1;
+				rtlpriv->psc.state_inap = true;
 			} else {
-				rtlpriv->psc.state_inap = 0;
+				rtlpriv->psc.state_inap = false;
 			}
 		}
 
@@ -610,7 +610,7 @@ tx_status_ok:
 	if (((rtlpriv->link_info.num_rx_inperiod +
 		rtlpriv->link_info.num_tx_inperiod) > 8) ||
 		(rtlpriv->link_info.num_rx_inperiod > 2)) {
-		tasklet_schedule(&rtlpriv->works.ips_leave_tasklet);
+		schedule_work(&rtlpriv->works.lps_leave_work);
 	}
 }
 
@@ -736,7 +736,7 @@ static void _rtl_pci_rx_interrupt(struct ieee80211_hw *hw)
 		if (((rtlpriv->link_info.num_rx_inperiod +
 			rtlpriv->link_info.num_tx_inperiod) > 8) ||
 			(rtlpriv->link_info.num_rx_inperiod > 2)) {
-			tasklet_schedule(&rtlpriv->works.ips_leave_tasklet);
+			schedule_work(&rtlpriv->works.lps_leave_work);
 		}
 
 		dev_kfree_skb_any(skb);
@@ -780,6 +780,7 @@ static irqreturn_t _rtl_pci_interrupt(int irq, void *dev_id)
 	unsigned long flags;
 	u32 inta = 0;
 	u32 intb = 0;
+	irqreturn_t ret = IRQ_HANDLED;
 
 	spin_lock_irqsave(&rtlpriv->locks.irq_th_lock, flags);
 
@@ -787,8 +788,10 @@ static irqreturn_t _rtl_pci_interrupt(int irq, void *dev_id)
 	rtlpriv->cfg->ops->interrupt_recognized(hw, &inta, &intb);
 
 	/*Shared IRQ or HW disappared */
-	if (!inta || inta == 0xffff)
+	if (!inta || inta == 0xffff) {
+		ret = IRQ_NONE;
 		goto done;
+	}
 
 	/*<1> beacon related */
 	if (inta & rtlpriv->cfg->maps[RTL_IMR_TBDOK]) {
@@ -890,22 +893,14 @@ static irqreturn_t _rtl_pci_interrupt(int irq, void *dev_id)
 	if (rtlpriv->rtlhal.earlymode_enable)
 		tasklet_schedule(&rtlpriv->works.irq_tasklet);
 
-	spin_unlock_irqrestore(&rtlpriv->locks.irq_th_lock, flags);
-	return IRQ_HANDLED;
-
 done:
 	spin_unlock_irqrestore(&rtlpriv->locks.irq_th_lock, flags);
-	return IRQ_HANDLED;
+	return ret;
 }
 
 static void _rtl_pci_irq_tasklet(struct ieee80211_hw *hw)
 {
 	_rtl_pci_tx_chk_waitq(hw);
-}
-
-static void _rtl_pci_ips_leave_tasklet(struct ieee80211_hw *hw)
-{
-	rtl_lps_leave(hw);
 }
 
 static void _rtl_pci_prepare_bcn_tasklet(struct ieee80211_hw *hw)
@@ -943,6 +938,15 @@ static void _rtl_pci_prepare_bcn_tasklet(struct ieee80211_hw *hw)
 				    (u8 *)&temp_one);
 
 	return;
+}
+
+static void rtl_lps_leave_work_callback(struct work_struct *work)
+{
+	struct rtl_works *rtlworks =
+	    container_of(work, struct rtl_works, lps_leave_work);
+	struct ieee80211_hw *hw = rtlworks->hw;
+
+	rtl_lps_leave(hw);
 }
 
 static void _rtl_pci_init_trx_var(struct ieee80211_hw *hw)
@@ -1006,9 +1010,7 @@ static void _rtl_pci_init_struct(struct ieee80211_hw *hw,
 	tasklet_init(&rtlpriv->works.irq_prepare_bcn_tasklet,
 		     (void (*)(unsigned long))_rtl_pci_prepare_bcn_tasklet,
 		     (unsigned long)hw);
-	tasklet_init(&rtlpriv->works.ips_leave_tasklet,
-		     (void (*)(unsigned long))_rtl_pci_ips_leave_tasklet,
-		     (unsigned long)hw);
+	INIT_WORK(&rtlpriv->works.lps_leave_work, rtl_lps_leave_work_callback);
 }
 
 static int _rtl_pci_init_tx_ring(struct ieee80211_hw *hw,
@@ -1478,7 +1480,7 @@ static void rtl_pci_deinit(struct ieee80211_hw *hw)
 
 	synchronize_irq(rtlpci->pdev->irq);
 	tasklet_kill(&rtlpriv->works.irq_tasklet);
-	tasklet_kill(&rtlpriv->works.ips_leave_tasklet);
+	cancel_work_sync(&rtlpriv->works.lps_leave_work);
 
 	flush_workqueue(rtlpriv->works.rtl_wq);
 	destroy_workqueue(rtlpriv->works.rtl_wq);
@@ -1553,7 +1555,7 @@ static void rtl_pci_stop(struct ieee80211_hw *hw)
 	set_hal_stop(rtlhal);
 
 	rtlpriv->cfg->ops->disable_interrupt(hw);
-	tasklet_kill(&rtlpriv->works.ips_leave_tasklet);
+	cancel_work_sync(&rtlpriv->works.lps_leave_work);
 
 	spin_lock_irqsave(&rtlpriv->locks.rf_ps_lock, flags);
 	while (ppsc->rfchange_inprogress) {

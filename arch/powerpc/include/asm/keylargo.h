@@ -51,7 +51,7 @@
 
 #define KL_GPIO_SOUND_POWER		(KEYLARGO_GPIO_0+0x05)
 
-/* Hrm... this one is only to be used on Pismo. It seeem to also
+/* Hrm... this one is only to be used on Pismo. It seems to also
  * control the timebase enable on other machines. Still to be
  * experimented... --BenH.
  */

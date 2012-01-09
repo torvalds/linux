@@ -99,6 +99,7 @@ MACHINE_START(MSM8960_SIM, "QCT MSM8960 SIMULATOR")
 	.map_io = msm8960_map_io,
 	.init_irq = msm8960_init_irq,
 	.timer = &msm_timer,
+	.handle_irq = gic_handle_irq,
 	.init_machine = msm8960_sim_init,
 MACHINE_END
 
@@ -108,6 +109,7 @@ MACHINE_START(MSM8960_RUMI3, "QCT MSM8960 RUMI3")
 	.map_io = msm8960_map_io,
 	.init_irq = msm8960_init_irq,
 	.timer = &msm_timer,
+	.handle_irq = gic_handle_irq,
 	.init_machine = msm8960_rumi3_init,
 MACHINE_END
 

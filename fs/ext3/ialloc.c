@@ -371,7 +371,7 @@ static int find_group_other(struct super_block *sb, struct inode *parent)
  * group to find a free inode.
  */
 struct inode *ext3_new_inode(handle_t *handle, struct inode * dir,
-			     const struct qstr *qstr, int mode)
+			     const struct qstr *qstr, umode_t mode)
 {
 	struct super_block *sb;
 	struct buffer_head *bitmap_bh = NULL;

@@ -749,7 +749,8 @@ put:
 /*
  * Handle PTRACE_POKEUSR calls for the debug register area.
  */
-int ptrace_set_debugreg(struct task_struct *tsk, int n, unsigned long val)
+static int ptrace_set_debugreg(struct task_struct *tsk, int n,
+			       unsigned long val)
 {
 	struct thread_struct *thread = &(tsk->thread);
 	int rc = 0;

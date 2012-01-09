@@ -17,7 +17,7 @@
 #include <linux/errno.h>
 #include <linux/err.h>
 #include <linux/clk.h>
-#include <linux/sysdev.h>
+#include <linux/device.h>
 #include <linux/io.h>
 
 #include <mach/hardware.h>
@@ -31,7 +31,8 @@
 #include <plat/pll.h>
 #include <plat/s5p-clock.h>
 #include <plat/clock-clksrc.h>
-#include <plat/s5p6450.h>
+
+#include "common.h"
 
 static struct clksrc_clk clk_mout_dpll = {
 	.clk	= {

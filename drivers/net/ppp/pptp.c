@@ -162,7 +162,7 @@ static void del_chan(struct pppox_sock *sock)
 {
 	spin_lock(&chan_lock);
 	clear_bit(sock->proto.pptp.src_addr.call_id, callid_bitmap);
-	rcu_assign_pointer(callid_sock[sock->proto.pptp.src_addr.call_id], NULL);
+	RCU_INIT_POINTER(callid_sock[sock->proto.pptp.src_addr.call_id], NULL);
 	spin_unlock(&chan_lock);
 	synchronize_rcu();
 }
@@ -423,10 +423,8 @@ static int pptp_bind(struct socket *sock, struct sockaddr *uservaddr,
 	lock_sock(sk);
 
 	opt->src_addr = sp->sa_addr.pptp;
-	if (add_chan(po)) {
-		release_sock(sk);
+	if (add_chan(po))
 		error = -EBUSY;
-	}
 
 	release_sock(sk);
 	return error;

@@ -18,7 +18,7 @@
 #include <linux/init.h>
 #include <linux/platform_device.h>
 #include <linux/serial_core.h>
-#include <linux/sysdev.h>
+#include <linux/device.h>
 #include <linux/syscore_ops.h>
 #include <linux/gpio.h>
 #include <linux/clk.h>
@@ -35,13 +35,14 @@
 #include <plat/cpu.h>
 #include <plat/s3c244x.h>
 #include <plat/pm.h>
+#include <plat/watchdog-reset.h>
 
 #include <plat/gpio-core.h>
 #include <plat/gpio-cfg.h>
 #include <plat/gpio-cfg-helpers.h>
 
-static struct sys_device s3c2440_sysdev = {
-	.cls		= &s3c2440_sysclass,
+static struct device s3c2440_dev = {
+	.bus		= &s3c2440_subsys,
 };
 
 int __init s3c2440_init(void)
@@ -63,7 +64,7 @@ int __init s3c2440_init(void)
 
 	/* register our system device for everything else */
 
-	return sysdev_register(&s3c2440_sysdev);
+	return device_register(&s3c2440_dev);
 }
 
 void __init s3c2440_map_io(void)
@@ -72,4 +73,16 @@ void __init s3c2440_map_io(void)
 
 	s3c24xx_gpiocfg_default.set_pull = s3c24xx_gpio_setpull_1up;
 	s3c24xx_gpiocfg_default.get_pull = s3c24xx_gpio_getpull_1up;
+}
+
+void s3c2440_restart(char mode, const char *cmd)
+{
+	if (mode == 's') {
+		soft_restart(0);
+	}
+
+	arch_wdt_reset();
+
+	/* we'll take a jump through zero as a poor second */
+	soft_restart(0);
 }

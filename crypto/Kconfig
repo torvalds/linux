@@ -329,7 +329,6 @@ config CRYPTO_CRC32C_INTEL
 
 config CRYPTO_GHASH
 	tristate "GHASH digest algorithm"
-	select CRYPTO_SHASH
 	select CRYPTO_GF128MUL
 	help
 	  GHASH is message digest algorithm for GCM (Galois/Counter Mode).
@@ -477,7 +476,6 @@ config CRYPTO_WP512
 config CRYPTO_GHASH_CLMUL_NI_INTEL
 	tristate "GHASH digest algorithm (CLMUL-NI accelerated)"
 	depends on X86 && 64BIT
-	select CRYPTO_SHASH
 	select CRYPTO_CRYPTD
 	help
 	  GHASH is message digest algorithm for GCM (Galois/Counter Mode).

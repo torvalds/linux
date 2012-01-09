@@ -111,8 +111,6 @@ int netlbl_cfg_unlbl_map_add(const char *domain,
 	struct netlbl_domaddr_map *addrmap = NULL;
 	struct netlbl_domaddr4_map *map4 = NULL;
 	struct netlbl_domaddr6_map *map6 = NULL;
-	const struct in_addr *addr4, *mask4;
-	const struct in6_addr *addr6, *mask6;
 
 	entry = kzalloc(sizeof(*entry), GFP_ATOMIC);
 	if (entry == NULL)
@@ -133,9 +131,9 @@ int netlbl_cfg_unlbl_map_add(const char *domain,
 		INIT_LIST_HEAD(&addrmap->list6);
 
 		switch (family) {
-		case AF_INET:
-			addr4 = addr;
-			mask4 = mask;
+		case AF_INET: {
+			const struct in_addr *addr4 = addr;
+			const struct in_addr *mask4 = mask;
 			map4 = kzalloc(sizeof(*map4), GFP_ATOMIC);
 			if (map4 == NULL)
 				goto cfg_unlbl_map_add_failure;
@@ -148,25 +146,29 @@ int netlbl_cfg_unlbl_map_add(const char *domain,
 			if (ret_val != 0)
 				goto cfg_unlbl_map_add_failure;
 			break;
-		case AF_INET6:
-			addr6 = addr;
-			mask6 = mask;
+			}
+#if IS_ENABLED(CONFIG_IPV6)
+		case AF_INET6: {
+			const struct in6_addr *addr6 = addr;
+			const struct in6_addr *mask6 = mask;
 			map6 = kzalloc(sizeof(*map6), GFP_ATOMIC);
 			if (map6 == NULL)
 				goto cfg_unlbl_map_add_failure;
 			map6->type = NETLBL_NLTYPE_UNLABELED;
-			ipv6_addr_copy(&map6->list.addr, addr6);
+			map6->list.addr = *addr6;
 			map6->list.addr.s6_addr32[0] &= mask6->s6_addr32[0];
 			map6->list.addr.s6_addr32[1] &= mask6->s6_addr32[1];
 			map6->list.addr.s6_addr32[2] &= mask6->s6_addr32[2];
 			map6->list.addr.s6_addr32[3] &= mask6->s6_addr32[3];
-			ipv6_addr_copy(&map6->list.mask, mask6);
+			map6->list.mask = *mask6;
 			map6->list.valid = 1;
-			ret_val = netlbl_af4list_add(&map4->list,
-						     &addrmap->list4);
+			ret_val = netlbl_af6list_add(&map6->list,
+						     &addrmap->list6);
 			if (ret_val != 0)
 				goto cfg_unlbl_map_add_failure;
 			break;
+			}
+#endif /* IPv6 */
 		default:
 			goto cfg_unlbl_map_add_failure;
 			break;
@@ -225,9 +227,11 @@ int netlbl_cfg_unlbl_static_add(struct net *net,
 	case AF_INET:
 		addr_len = sizeof(struct in_addr);
 		break;
+#if IS_ENABLED(CONFIG_IPV6)
 	case AF_INET6:
 		addr_len = sizeof(struct in6_addr);
 		break;
+#endif /* IPv6 */
 	default:
 		return -EPFNOSUPPORT;
 	}
@@ -266,9 +270,11 @@ int netlbl_cfg_unlbl_static_del(struct net *net,
 	case AF_INET:
 		addr_len = sizeof(struct in_addr);
 		break;
+#if IS_ENABLED(CONFIG_IPV6)
 	case AF_INET6:
 		addr_len = sizeof(struct in6_addr);
 		break;
+#endif /* IPv6 */
 	default:
 		return -EPFNOSUPPORT;
 	}
@@ -667,7 +673,7 @@ int netlbl_sock_setattr(struct sock *sk,
 			ret_val = -ENOENT;
 		}
 		break;
-#if defined(CONFIG_IPV6) || defined(CONFIG_IPV6_MODULE)
+#if IS_ENABLED(CONFIG_IPV6)
 	case AF_INET6:
 		/* since we don't support any IPv6 labeling protocols right
 		 * now we can optimize everything away until we do */
@@ -718,7 +724,7 @@ int netlbl_sock_getattr(struct sock *sk,
 	case AF_INET:
 		ret_val = cipso_v4_sock_getattr(sk, secattr);
 		break;
-#if defined(CONFIG_IPV6) || defined(CONFIG_IPV6_MODULE)
+#if IS_ENABLED(CONFIG_IPV6)
 	case AF_INET6:
 		ret_val = -ENOMSG;
 		break;
@@ -776,7 +782,7 @@ int netlbl_conn_setattr(struct sock *sk,
 			ret_val = -ENOENT;
 		}
 		break;
-#if defined(CONFIG_IPV6) || defined(CONFIG_IPV6_MODULE)
+#if IS_ENABLED(CONFIG_IPV6)
 	case AF_INET6:
 		/* since we don't support any IPv6 labeling protocols right
 		 * now we can optimize everything away until we do */
@@ -847,7 +853,7 @@ int netlbl_req_setattr(struct request_sock *req,
 			ret_val = -ENOENT;
 		}
 		break;
-#if defined(CONFIG_IPV6) || defined(CONFIG_IPV6_MODULE)
+#if IS_ENABLED(CONFIG_IPV6)
 	case AF_INET6:
 		/* since we don't support any IPv6 labeling protocols right
 		 * now we can optimize everything away until we do */
@@ -920,7 +926,7 @@ int netlbl_skbuff_setattr(struct sk_buff *skb,
 			ret_val = -ENOENT;
 		}
 		break;
-#if defined(CONFIG_IPV6) || defined(CONFIG_IPV6_MODULE)
+#if IS_ENABLED(CONFIG_IPV6)
 	case AF_INET6:
 		/* since we don't support any IPv6 labeling protocols right
 		 * now we can optimize everything away until we do */
@@ -959,7 +965,7 @@ int netlbl_skbuff_getattr(const struct sk_buff *skb,
 		    cipso_v4_skbuff_getattr(skb, secattr) == 0)
 			return 0;
 		break;
-#if defined(CONFIG_IPV6) || defined(CONFIG_IPV6_MODULE)
+#if IS_ENABLED(CONFIG_IPV6)
 	case AF_INET6:
 		break;
 #endif /* IPv6 */

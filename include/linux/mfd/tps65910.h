@@ -243,7 +243,8 @@
 
 
 /*Registers VDD1, VDD2 voltage values definitions */
-#define VDD1_2_NUM_VOLTS				73
+#define VDD1_2_NUM_VOLT_FINE				73
+#define VDD1_2_NUM_VOLT_COARSE				3
 #define VDD1_2_MIN_VOLT					6000
 #define VDD1_2_OFFSET					125
 

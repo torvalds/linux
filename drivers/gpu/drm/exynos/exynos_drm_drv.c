@@ -27,6 +27,7 @@
 
 #include "drmP.h"
 #include "drm.h"
+#include "drm_crtc_helper.h"
 
 #include <drm/exynos_drm.h>
 
@@ -60,6 +61,9 @@ static int exynos_drm_load(struct drm_device *dev, unsigned long flags)
 	dev->dev_private = (void *)private;
 
 	drm_mode_config_init(dev);
+
+	/* init kms poll for handling hpd */
+	drm_kms_helper_poll_init(dev);
 
 	exynos_drm_mode_config_init(dev);
 
@@ -116,6 +120,7 @@ static int exynos_drm_unload(struct drm_device *dev)
 	exynos_drm_fbdev_fini(dev);
 	exynos_drm_device_unregister(dev);
 	drm_vblank_cleanup(dev);
+	drm_kms_helper_poll_fini(dev);
 	drm_mode_config_cleanup(dev);
 	kfree(dev->dev_private);
 

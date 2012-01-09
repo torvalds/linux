@@ -625,6 +625,8 @@ work_notifysig:				# deal with pending signals and
 	movl %esp, %eax
 	jne work_notifysig_v86		# returning to kernel-space or
 					# vm86-space
+	TRACE_IRQS_ON
+	ENABLE_INTERRUPTS(CLBR_NONE)
 	xorl %edx, %edx
 	call do_notify_resume
 	jmp resume_userspace_sig
@@ -638,6 +640,8 @@ work_notifysig_v86:
 #else
 	movl %esp, %eax
 #endif
+	TRACE_IRQS_ON
+	ENABLE_INTERRUPTS(CLBR_NONE)
 	xorl %edx, %edx
 	call do_notify_resume
 	jmp resume_userspace_sig

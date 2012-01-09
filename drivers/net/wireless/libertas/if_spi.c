@@ -995,6 +995,7 @@ static int if_spi_host_to_card(struct lbs_private *priv,
 		spin_unlock_irqrestore(&card->buffer_lock, flags);
 		break;
 	default:
+		kfree(packet);
 		netdev_err(priv->dev, "can't transfer buffer of type %d\n",
 			   type);
 		err = -EINVAL;
@@ -1290,7 +1291,6 @@ static struct spi_driver libertas_spi_driver = {
 	.remove = __devexit_p(libertas_spi_remove),
 	.driver = {
 		.name	= "libertas_spi",
-		.bus	= &spi_bus_type,
 		.owner	= THIS_MODULE,
 		.pm	= &if_spi_pm_ops,
 	},

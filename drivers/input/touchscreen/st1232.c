@@ -23,6 +23,7 @@
 #include <linux/input.h>
 #include <linux/interrupt.h>
 #include <linux/module.h>
+#include <linux/pm_qos.h>
 #include <linux/slab.h>
 #include <linux/types.h>
 
@@ -46,6 +47,7 @@ struct st1232_ts_data {
 	struct i2c_client *client;
 	struct input_dev *input_dev;
 	struct st1232_ts_finger finger[MAX_FINGERS];
+	struct dev_pm_qos_request low_latency_req;
 };
 
 static int st1232_ts_read_data(struct st1232_ts_data *ts)
@@ -118,8 +120,17 @@ static irqreturn_t st1232_ts_irq_handler(int irq, void *dev_id)
 	}
 
 	/* SYN_MT_REPORT only if no contact */
-	if (!count)
+	if (!count) {
 		input_mt_sync(input_dev);
+		if (ts->low_latency_req.dev) {
+			dev_pm_qos_remove_request(&ts->low_latency_req);
+			ts->low_latency_req.dev = NULL;
+		}
+	} else if (!ts->low_latency_req.dev) {
+		/* First contact, request 100 us latency. */
+		dev_pm_qos_add_ancestor_request(&ts->client->dev,
+						&ts->low_latency_req, 100);
+	}
 
 	/* SYN_REPORT */
 	input_sync(input_dev);

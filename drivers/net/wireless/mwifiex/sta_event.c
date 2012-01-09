@@ -115,18 +115,17 @@ mwifiex_reset_connect_state(struct mwifiex_private *priv)
 	if (adapter->num_cmd_timeout && adapter->curr_cmd)
 		return;
 	priv->media_connected = false;
-	if (!priv->disconnect) {
-		priv->disconnect = 1;
-		dev_dbg(adapter->dev, "info: successfully disconnected from"
-				" %pM: reason code %d\n", priv->cfg_bssid,
-				WLAN_REASON_DEAUTH_LEAVING);
-		cfg80211_disconnected(priv->netdev,
-				WLAN_REASON_DEAUTH_LEAVING, NULL, 0,
-				GFP_KERNEL);
-		queue_work(priv->workqueue, &priv->cfg_workqueue);
+	dev_dbg(adapter->dev, "info: successfully disconnected from"
+			" %pM: reason code %d\n", priv->cfg_bssid,
+			WLAN_REASON_DEAUTH_LEAVING);
+	if (priv->bss_mode == NL80211_IFTYPE_STATION) {
+		cfg80211_disconnected(priv->netdev, WLAN_REASON_DEAUTH_LEAVING,
+				      NULL, 0, GFP_KERNEL);
 	}
+	memset(priv->cfg_bssid, 0, ETH_ALEN);
+
 	if (!netif_queue_stopped(priv->netdev))
-		netif_stop_queue(priv->netdev);
+		mwifiex_stop_net_dev_queue(priv->netdev, adapter);
 	if (netif_carrier_ok(priv->netdev))
 		netif_carrier_off(priv->netdev);
 	/* Reset wireless stats signal info */
@@ -201,7 +200,7 @@ int mwifiex_process_sta_event(struct mwifiex_private *priv)
 		if (!netif_carrier_ok(priv->netdev))
 			netif_carrier_on(priv->netdev);
 		if (netif_queue_stopped(priv->netdev))
-			netif_wake_queue(priv->netdev);
+			mwifiex_wake_up_net_dev_queue(priv->netdev, adapter);
 		break;
 
 	case EVENT_DEAUTHENTICATED:
@@ -292,7 +291,7 @@ int mwifiex_process_sta_event(struct mwifiex_private *priv)
 		priv->adhoc_is_link_sensed = false;
 		mwifiex_clean_txrx(priv);
 		if (!netif_queue_stopped(priv->netdev))
-			netif_stop_queue(priv->netdev);
+			mwifiex_stop_net_dev_queue(priv->netdev, adapter);
 		if (netif_carrier_ok(priv->netdev))
 			netif_carrier_off(priv->netdev);
 		break;

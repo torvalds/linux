@@ -16,38 +16,26 @@
 #include <linux/bitops.h>
 #include <linux/sched.h>
 
-static const int nibblemap[] = { 4,3,3,2,3,2,2,1,3,2,2,1,2,1,1,0 };
-
 static DEFINE_SPINLOCK(bitmap_lock);
 
-static unsigned long count_free(struct buffer_head *map[], unsigned numblocks, __u32 numbits)
+/*
+ * bitmap consists of blocks filled with 16bit words
+ * bit set == busy, bit clear == free
+ * endianness is a mess, but for counting zero bits it really doesn't matter...
+ */
+static __u32 count_free(struct buffer_head *map[], unsigned blocksize, __u32 numbits)
 {
-	unsigned i, j, sum = 0;
-	struct buffer_head *bh;
-  
-	for (i=0; i<numblocks-1; i++) {
-		if (!(bh=map[i])) 
-			return(0);
-		for (j=0; j<bh->b_size; j++)
-			sum += nibblemap[bh->b_data[j] & 0xf]
-				+ nibblemap[(bh->b_data[j]>>4) & 0xf];
+	__u32 sum = 0;
+	unsigned blocks = DIV_ROUND_UP(numbits, blocksize * 8);
+
+	while (blocks--) {
+		unsigned words = blocksize / 2;
+		__u16 *p = (__u16 *)(*map++)->b_data;
+		while (words--)
+			sum += 16 - hweight16(*p++);
 	}
 
-	if (numblocks==0 || !(bh=map[numblocks-1]))
-		return(0);
-	i = ((numbits - (numblocks-1) * bh->b_size * 8) / 16) * 2;
-	for (j=0; j<i; j++) {
-		sum += nibblemap[bh->b_data[j] & 0xf]
-			+ nibblemap[(bh->b_data[j]>>4) & 0xf];
-	}
-
-	i = numbits%16;
-	if (i!=0) {
-		i = *(__u16 *)(&bh->b_data[j]) | ~((1<<i) - 1);
-		sum += nibblemap[i & 0xf] + nibblemap[(i>>4) & 0xf];
-		sum += nibblemap[(i>>8) & 0xf] + nibblemap[(i>>12) & 0xf];
-	}
-	return(sum);
+	return sum;
 }
 
 void minix_free_block(struct inode *inode, unsigned long block)
@@ -105,10 +93,12 @@ int minix_new_block(struct inode * inode)
 	return 0;
 }
 
-unsigned long minix_count_free_blocks(struct minix_sb_info *sbi)
+unsigned long minix_count_free_blocks(struct super_block *sb)
 {
-	return (count_free(sbi->s_zmap, sbi->s_zmap_blocks,
-		sbi->s_nzones - sbi->s_firstdatazone + 1)
+	struct minix_sb_info *sbi = minix_sb(sb);
+	u32 bits = sbi->s_nzones - (sbi->s_firstdatazone + 1);
+
+	return (count_free(sbi->s_zmap, sb->s_blocksize, bits)
 		<< sbi->s_log_zone_size);
 }
 
@@ -219,7 +209,7 @@ void minix_free_inode(struct inode * inode)
 	mark_buffer_dirty(bh);
 }
 
-struct inode *minix_new_inode(const struct inode *dir, int mode, int *error)
+struct inode *minix_new_inode(const struct inode *dir, umode_t mode, int *error)
 {
 	struct super_block *sb = dir->i_sb;
 	struct minix_sb_info *sbi = minix_sb(sb);
@@ -273,7 +263,10 @@ struct inode *minix_new_inode(const struct inode *dir, int mode, int *error)
 	return inode;
 }
 
-unsigned long minix_count_free_inodes(struct minix_sb_info *sbi)
+unsigned long minix_count_free_inodes(struct super_block *sb)
 {
-	return count_free(sbi->s_imap, sbi->s_imap_blocks, sbi->s_ninodes + 1);
+	struct minix_sb_info *sbi = minix_sb(sb);
+	u32 bits = sbi->s_ninodes + 1;
+
+	return count_free(sbi->s_imap, sb->s_blocksize, bits);
 }

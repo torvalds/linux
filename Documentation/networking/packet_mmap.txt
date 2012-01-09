@@ -155,7 +155,7 @@ As capture, each frame contains two parts:
 
  /* fill sockaddr_ll struct to prepare binding */
  my_addr.sll_family = AF_PACKET;
- my_addr.sll_protocol = ETH_P_ALL;
+ my_addr.sll_protocol = htons(ETH_P_ALL);
  my_addr.sll_ifindex =  s_ifr.ifr_ifindex;
 
  /* bind socket to eth0 */

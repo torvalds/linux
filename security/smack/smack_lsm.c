@@ -406,7 +406,7 @@ static int smack_sb_statfs(struct dentry *dentry)
 static int smack_sb_mount(char *dev_name, struct path *path,
 			  char *type, unsigned long flags, void *data)
 {
-	struct superblock_smack *sbp = path->mnt->mnt_sb->s_security;
+	struct superblock_smack *sbp = path->dentry->d_sb->s_security;
 	struct smk_audit_info ad;
 
 	smk_ad_init(&ad, __func__, LSM_AUDIT_DATA_PATH);
@@ -435,7 +435,7 @@ static int smack_sb_umount(struct vfsmount *mnt, int flags)
 	smk_ad_init(&ad, __func__, LSM_AUDIT_DATA_PATH);
 	smk_ad_setfield_u_fs_path(&ad, path);
 
-	sbp = mnt->mnt_sb->s_security;
+	sbp = path.dentry->d_sb->s_security;
 	return smk_curacc(sbp->smk_floor, MAY_WRITE, &ad);
 }
 

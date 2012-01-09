@@ -1268,7 +1268,7 @@ reserve:
 	}
 
 done:
-	return num ? -ENOSPC : 0;
+	return num ? -EINVAL : 0;
 }
 
 static __initconst const struct x86_pmu p4_pmu = {

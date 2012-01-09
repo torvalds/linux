@@ -76,6 +76,7 @@ config PCI_IOV
 
 config PCI_PRI
 	bool "PCI PRI support"
+	depends on PCI
 	select PCI_ATS
 	help
 	  PRI is the PCI Page Request Interface. It allows PCI devices that are
@@ -97,11 +98,11 @@ config PCI_PASID
 	  If unsure, say N.
 
 config PCI_IOAPIC
-	bool
+	tristate "PCI IO-APIC hotplug support" if X86
 	depends on PCI
 	depends on ACPI
 	depends on HOTPLUG
-	default y
+	default !X86
 
 config PCI_LABEL
 	def_bool y if (DMI || ACPI)

@@ -472,7 +472,7 @@ static const struct file_operations bfad_debugfs_op_regwr = {
 
 struct bfad_debugfs_entry {
 	const char *name;
-	mode_t	mode;
+	umode_t	mode;
 	const struct file_operations *fops;
 };
 

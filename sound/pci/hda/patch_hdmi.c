@@ -69,6 +69,7 @@ struct hdmi_spec_per_pin {
 	struct hda_codec *codec;
 	struct hdmi_eld sink_eld;
 	struct delayed_work work;
+	int repoll_count;
 };
 
 struct hdmi_spec {
@@ -748,7 +749,7 @@ static void hdmi_setup_audio_infoframe(struct hda_codec *codec, int pin_idx,
  * Unsolicited events
  */
 
-static void hdmi_present_sense(struct hdmi_spec_per_pin *per_pin, bool retry);
+static void hdmi_present_sense(struct hdmi_spec_per_pin *per_pin, int repoll);
 
 static void hdmi_intrinsic_event(struct hda_codec *codec, unsigned int res)
 {
@@ -766,7 +767,7 @@ static void hdmi_intrinsic_event(struct hda_codec *codec, unsigned int res)
 	if (pin_idx < 0)
 		return;
 
-	hdmi_present_sense(&spec->pins[pin_idx], true);
+	hdmi_present_sense(&spec->pins[pin_idx], 1);
 }
 
 static void hdmi_non_intrinsic_event(struct hda_codec *codec, unsigned int res)
@@ -960,7 +961,7 @@ static int hdmi_read_pin_conn(struct hda_codec *codec, int pin_idx)
 	return 0;
 }
 
-static void hdmi_present_sense(struct hdmi_spec_per_pin *per_pin, bool retry)
+static void hdmi_present_sense(struct hdmi_spec_per_pin *per_pin, int repoll)
 {
 	struct hda_codec *codec = per_pin->codec;
 	struct hdmi_eld *eld = &per_pin->sink_eld;
@@ -989,7 +990,7 @@ static void hdmi_present_sense(struct hdmi_spec_per_pin *per_pin, bool retry)
 	if (eld_valid) {
 		if (!snd_hdmi_get_eld(eld, codec, pin_nid))
 			snd_hdmi_show_eld(eld);
-		else if (retry) {
+		else if (repoll) {
 			queue_delayed_work(codec->bus->workq,
 					   &per_pin->work,
 					   msecs_to_jiffies(300));
@@ -1004,7 +1005,10 @@ static void hdmi_repoll_eld(struct work_struct *work)
 	struct hdmi_spec_per_pin *per_pin =
 	container_of(to_delayed_work(work), struct hdmi_spec_per_pin, work);
 
-	hdmi_present_sense(per_pin, false);
+	if (per_pin->repoll_count++ > 6)
+		per_pin->repoll_count = 0;
+
+	hdmi_present_sense(per_pin, per_pin->repoll_count);
 }
 
 static int hdmi_add_pin(struct hda_codec *codec, hda_nid_t pin_nid)
@@ -1235,7 +1239,7 @@ static int generic_hdmi_build_jack(struct hda_codec *codec, int pin_idx)
 	if (err < 0)
 		return err;
 
-	hdmi_present_sense(per_pin, false);
+	hdmi_present_sense(per_pin, 0);
 	return 0;
 }
 

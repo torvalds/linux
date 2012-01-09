@@ -211,6 +211,12 @@ config PPC_PASEMI_CPUFREQ
 
 endmenu
 
+menu "CPUIdle driver"
+
+source "drivers/cpuidle/Kconfig"
+
+endmenu
+
 config PPC601_SYNC_FIX
 	bool "Workarounds for PPC601 bugs"
 	depends on 6xx && (PPC_PREP || PPC_PMAC)
@@ -347,7 +353,7 @@ config SIMPLE_GPIO
 
 config MCU_MPC8349EMITX
 	bool "MPC8349E-mITX MCU driver"
-	depends on I2C && PPC_83xx
+	depends on I2C=y && PPC_83xx
 	select GENERIC_GPIO
 	select ARCH_REQUIRE_GPIOLIB
 	help

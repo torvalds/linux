@@ -27,8 +27,8 @@
 
 struct veth_net_stats {
 	u64			rx_packets;
-	u64			tx_packets;
 	u64			rx_bytes;
+	u64			tx_packets;
 	u64			tx_bytes;
 	u64			rx_dropped;
 	struct u64_stats_sync	syncp;
@@ -66,9 +66,8 @@ static int veth_get_settings(struct net_device *dev, struct ethtool_cmd *cmd)
 
 static void veth_get_drvinfo(struct net_device *dev, struct ethtool_drvinfo *info)
 {
-	strcpy(info->driver, DRV_NAME);
-	strcpy(info->version, DRV_VERSION);
-	strcpy(info->fw_version, "N/A");
+	strlcpy(info->driver, DRV_NAME, sizeof(info->driver));
+	strlcpy(info->version, DRV_VERSION, sizeof(info->version));
 }
 
 static void veth_get_strings(struct net_device *dev, u32 stringset, u8 *buf)
@@ -271,7 +270,7 @@ static void veth_setup(struct net_device *dev)
 	dev->features |= NETIF_F_LLTX;
 	dev->destructor = veth_dev_free;
 
-	dev->hw_features = NETIF_F_NO_CSUM | NETIF_F_SG | NETIF_F_RXCSUM;
+	dev->hw_features = NETIF_F_HW_CSUM | NETIF_F_SG | NETIF_F_RXCSUM;
 }
 
 /*

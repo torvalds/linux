@@ -60,6 +60,8 @@ static int wm8958_dsp2_fw(struct snd_soc_codec *codec, const char *name,
 	}
 
 	if (memcmp(fw->data, "WMFW", 4) != 0) {
+		memcpy(&data32, fw->data, sizeof(data32));
+		data32 = be32_to_cpu(data32);
 		dev_err(codec->dev, "%s: firmware has bad file magic %08x\n",
 			name, data32);
 		goto err;

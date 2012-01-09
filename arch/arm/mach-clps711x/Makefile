@@ -4,7 +4,7 @@
 
 # Object file lists.
 
-obj-y			:= irq.o mm.o time.o
+obj-y			:= common.o
 obj-m			:=
 obj-n			:=
 obj-			:=

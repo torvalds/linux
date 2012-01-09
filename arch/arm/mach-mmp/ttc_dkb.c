@@ -159,4 +159,5 @@ MACHINE_START(TTC_DKB, "PXA910-based TTC_DKB Development Platform")
 	.init_irq       = pxa910_init_irq,
 	.timer          = &pxa910_timer,
 	.init_machine   = ttc_dkb_init,
+	.restart	= mmp_restart,
 MACHINE_END

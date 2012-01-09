@@ -13,7 +13,6 @@
 
 #ifdef CONFIG_OF
 
-#include <asm/setup.h>
 #include <asm/irq.h>
 
 extern struct machine_desc *setup_machine_fdt(unsigned int dt_phys);

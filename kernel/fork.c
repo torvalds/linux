@@ -162,7 +162,6 @@ static void account_kernel_stack(struct thread_info *ti, int account)
 
 void free_task(struct task_struct *tsk)
 {
-	prop_local_destroy_single(&tsk->dirties);
 	account_kernel_stack(tsk->stack, -1);
 	free_thread_info(tsk->stack);
 	rt_mutex_debug_task_free(tsk);
@@ -273,10 +272,6 @@ static struct task_struct *dup_task_struct(struct task_struct *orig)
 		goto out;
 
 	tsk->stack = ti;
-
-	err = prop_local_init_single(&tsk->dirties);
-	if (err)
-		goto out;
 
 	setup_thread_stack(tsk, orig);
 	clear_user_return_notifier(tsk);
@@ -997,7 +992,6 @@ static void copy_flags(unsigned long clone_flags, struct task_struct *p)
 	new_flags |= PF_FORKNOEXEC;
 	new_flags |= PF_STARTING;
 	p->flags = new_flags;
-	clear_freeze_flag(p);
 }
 
 SYSCALL_DEFINE1(set_tid_address, int __user *, tidptr)
@@ -1028,8 +1022,8 @@ void mm_init_owner(struct mm_struct *mm, struct task_struct *p)
  */
 static void posix_cpu_timers_init(struct task_struct *tsk)
 {
-	tsk->cputime_expires.prof_exp = cputime_zero;
-	tsk->cputime_expires.virt_exp = cputime_zero;
+	tsk->cputime_expires.prof_exp = 0;
+	tsk->cputime_expires.virt_exp = 0;
 	tsk->cputime_expires.sched_exp = 0;
 	INIT_LIST_HEAD(&tsk->cpu_timers[0]);
 	INIT_LIST_HEAD(&tsk->cpu_timers[1]);
@@ -1137,14 +1131,10 @@ static struct task_struct *copy_process(unsigned long clone_flags,
 
 	init_sigpending(&p->pending);
 
-	p->utime = cputime_zero;
-	p->stime = cputime_zero;
-	p->gtime = cputime_zero;
-	p->utimescaled = cputime_zero;
-	p->stimescaled = cputime_zero;
+	p->utime = p->stime = p->gtime = 0;
+	p->utimescaled = p->stimescaled = 0;
 #ifndef CONFIG_VIRT_CPU_ACCOUNTING
-	p->prev_utime = cputime_zero;
-	p->prev_stime = cputime_zero;
+	p->prev_utime = p->prev_stime = 0;
 #endif
 #if defined(SPLIT_RSS_COUNTING)
 	memset(&p->rss_stat, 0, sizeof(p->rss_stat));

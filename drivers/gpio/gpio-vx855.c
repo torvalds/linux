@@ -315,17 +315,7 @@ static struct platform_driver vx855gpio_driver = {
 	.remove		= __devexit_p(vx855gpio_remove),
 };
 
-static int vx855gpio_init(void)
-{
-	return platform_driver_register(&vx855gpio_driver);
-}
-module_init(vx855gpio_init);
-
-static void vx855gpio_exit(void)
-{
-	platform_driver_unregister(&vx855gpio_driver);
-}
-module_exit(vx855gpio_exit);
+module_platform_driver(vx855gpio_driver);
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Harald Welte <HaraldWelte@viatech.com>");

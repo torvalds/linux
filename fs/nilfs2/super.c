@@ -175,8 +175,6 @@ static void nilfs_i_callback(struct rcu_head *head)
 	struct inode *inode = container_of(head, struct inode, i_rcu);
 	struct nilfs_mdt_info *mdi = NILFS_MDT(inode);
 
-	INIT_LIST_HEAD(&inode->i_dentry);
-
 	if (mdi) {
 		kfree(mdi->mi_bgl); /* kfree(NULL) is safe */
 		kfree(mdi);
@@ -650,11 +648,11 @@ static int nilfs_statfs(struct dentry *dentry, struct kstatfs *buf)
 	return 0;
 }
 
-static int nilfs_show_options(struct seq_file *seq, struct vfsmount *vfs)
+static int nilfs_show_options(struct seq_file *seq, struct dentry *dentry)
 {
-	struct super_block *sb = vfs->mnt_sb;
+	struct super_block *sb = dentry->d_sb;
 	struct the_nilfs *nilfs = sb->s_fs_info;
-	struct nilfs_root *root = NILFS_I(vfs->mnt_root->d_inode)->i_root;
+	struct nilfs_root *root = NILFS_I(dentry->d_inode)->i_root;
 
 	if (!nilfs_test_opt(nilfs, BARRIER))
 		seq_puts(seq, ",nobarrier");

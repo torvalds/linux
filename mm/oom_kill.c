@@ -176,7 +176,7 @@ static bool oom_unkillable_task(struct task_struct *p,
 unsigned int oom_badness(struct task_struct *p, struct mem_cgroup *mem,
 		      const nodemask_t *nodemask, unsigned long totalpages)
 {
-	int points;
+	long points;
 
 	if (oom_unkillable_task(p, mem, nodemask))
 		return 0;
@@ -328,7 +328,7 @@ static struct task_struct *select_bad_process(unsigned int *ppoints,
 		 */
 		if (test_tsk_thread_flag(p, TIF_MEMDIE)) {
 			if (unlikely(frozen(p)))
-				thaw_process(p);
+				__thaw_task(p);
 			return ERR_PTR(-1UL);
 		}
 		if (!p->mm)

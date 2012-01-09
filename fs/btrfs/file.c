@@ -1167,6 +1167,8 @@ static noinline ssize_t __btrfs_buffered_write(struct file *file,
 	nrptrs = min((iov_iter_count(i) + PAGE_CACHE_SIZE - 1) /
 		     PAGE_CACHE_SIZE, PAGE_CACHE_SIZE /
 		     (sizeof(struct page *)));
+	nrptrs = min(nrptrs, current->nr_dirtied_pause - current->nr_dirtied);
+	nrptrs = max(nrptrs, 8);
 	pages = kmalloc(nrptrs * sizeof(struct page *), GFP_KERNEL);
 	if (!pages)
 		return -ENOMEM;
@@ -1387,7 +1389,11 @@ static ssize_t btrfs_file_aio_write(struct kiocb *iocb,
 		goto out;
 	}
 
-	file_update_time(file);
+	err = btrfs_update_time(file);
+	if (err) {
+		mutex_unlock(&inode->i_mutex);
+		goto out;
+	}
 	BTRFS_I(inode)->sequence++;
 
 	start_pos = round_down(pos, root->sectorsize);

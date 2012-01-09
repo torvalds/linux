@@ -2,7 +2,7 @@
  * OMAP2 Remote Frame Buffer Interface support
  *
  * Copyright (C) 2005 Nokia Corporation
- * Author: Juha Yrjölä <juha.yrjola@nokia.com>
+ * Author: Juha YrjÃ¶lÃ¤ <juha.yrjola@nokia.com>
  *	   Imre Deak <imre.deak@nokia.com>
  *
  * This program is free software; you can redistribute it and/or modify it

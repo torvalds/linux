@@ -30,7 +30,6 @@ pfc-$(CONFIG_ARCH_R8A7740)	+= pfc-r8a7740.o
 obj-$(CONFIG_ARCH_SH7367)	+= entry-intc.o
 obj-$(CONFIG_ARCH_SH7377)	+= entry-intc.o
 obj-$(CONFIG_ARCH_SH7372)	+= entry-intc.o
-obj-$(CONFIG_ARCH_SH73A0)	+= entry-gic.o
 obj-$(CONFIG_ARCH_R8A7740)	+= entry-intc.o
 
 # PM objects

@@ -1055,22 +1055,7 @@ static struct usb_driver pctv452e_usb_driver = {
 	.id_table   = pctv452e_usb_table,
 };
 
-static int __init pctv452e_usb_init(void)
-{
-	int ret = usb_register(&pctv452e_usb_driver);
-	if (ret)
-		err("%s: usb_register failed! Error %d", __FILE__, ret);
-
-	return ret;
-}
-
-static void __exit pctv452e_usb_exit(void)
-{
-	usb_deregister(&pctv452e_usb_driver);
-}
-
-module_init(pctv452e_usb_init);
-module_exit(pctv452e_usb_exit);
+module_usb_driver(pctv452e_usb_driver);
 
 MODULE_AUTHOR("Dominik Kuhlen <dkuhlen@gmx.net>");
 MODULE_AUTHOR("Andre Weidemann <Andre.Weidemann@web.de>");

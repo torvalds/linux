@@ -74,7 +74,7 @@ static void b43_led_update(struct b43_wldev *dev,
 	if (radio_enabled)
 		turn_on = atomic_read(&led->state) != LED_OFF;
 	else
-		turn_on = 0;
+		turn_on = false;
 	if (turn_on == led->hw_state)
 		return;
 	led->hw_state = turn_on;
@@ -225,11 +225,11 @@ static void b43_led_get_sprominfo(struct b43_wldev *dev,
 	if (sprom[led_index] == 0xFF) {
 		/* There is no LED information in the SPROM
 		 * for this LED. Hardcode it here. */
-		*activelow = 0;
+		*activelow = false;
 		switch (led_index) {
 		case 0:
 			*behaviour = B43_LED_ACTIVITY;
-			*activelow = 1;
+			*activelow = true;
 			if (dev->dev->board_vendor == PCI_VENDOR_ID_COMPAQ)
 				*behaviour = B43_LED_RADIO_ALL;
 			break;
@@ -267,11 +267,11 @@ void b43_leds_init(struct b43_wldev *dev)
 	if (led->wl) {
 		if (dev->phy.radio_on && b43_is_hw_radio_enabled(dev)) {
 			b43_led_turn_on(dev, led->index, led->activelow);
-			led->hw_state = 1;
+			led->hw_state = true;
 			atomic_set(&led->state, 1);
 		} else {
 			b43_led_turn_off(dev, led->index, led->activelow);
-			led->hw_state = 0;
+			led->hw_state = false;
 			atomic_set(&led->state, 0);
 		}
 	}
@@ -280,19 +280,19 @@ void b43_leds_init(struct b43_wldev *dev)
 	led = &dev->wl->leds.led_tx;
 	if (led->wl) {
 		b43_led_turn_off(dev, led->index, led->activelow);
-		led->hw_state = 0;
+		led->hw_state = false;
 		atomic_set(&led->state, 0);
 	}
 	led = &dev->wl->leds.led_rx;
 	if (led->wl) {
 		b43_led_turn_off(dev, led->index, led->activelow);
-		led->hw_state = 0;
+		led->hw_state = false;
 		atomic_set(&led->state, 0);
 	}
 	led = &dev->wl->leds.led_assoc;
 	if (led->wl) {
 		b43_led_turn_off(dev, led->index, led->activelow);
-		led->hw_state = 0;
+		led->hw_state = false;
 		atomic_set(&led->state, 0);
 	}
 

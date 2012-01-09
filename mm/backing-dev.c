@@ -600,14 +600,10 @@ static void bdi_wb_shutdown(struct backing_dev_info *bdi)
 
 	/*
 	 * Finally, kill the kernel thread. We don't need to be RCU
-	 * safe anymore, since the bdi is gone from visibility. Force
-	 * unfreeze of the thread before calling kthread_stop(), otherwise
-	 * it would never exet if it is currently stuck in the refrigerator.
+	 * safe anymore, since the bdi is gone from visibility.
 	 */
-	if (bdi->wb.task) {
-		thaw_process(bdi->wb.task);
+	if (bdi->wb.task)
 		kthread_stop(bdi->wb.task);
-	}
 }
 
 /*
@@ -723,6 +719,14 @@ void bdi_destroy(struct backing_dev_info *bdi)
 	}
 
 	bdi_unregister(bdi);
+
+	/*
+	 * If bdi_unregister() had already been called earlier, the
+	 * wakeup_timer could still be armed because bdi_prune_sb()
+	 * can race with the bdi_wakeup_thread_delayed() calls from
+	 * __mark_inode_dirty().
+	 */
+	del_timer_sync(&bdi->wb.wakeup_timer);
 
 	for (i = 0; i < NR_BDI_STAT_ITEMS; i++)
 		percpu_counter_destroy(&bdi->bdi_stat[i]);

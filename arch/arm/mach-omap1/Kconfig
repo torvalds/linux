@@ -171,14 +171,6 @@ config MACH_OMAP_GENERIC
 comment "OMAP CPU Speed"
 	depends on ARCH_OMAP1
 
-config OMAP_CLOCKS_SET_BY_BOOTLOADER
-	bool "OMAP clocks set by bootloader"
-	depends on ARCH_OMAP1
-	help
-	  Enable this option to prevent the kernel from overriding the clock
-	  frequencies programmed by bootloader for MPU, DSP, MMUs, TC,
-	  internal LCD controller and MPU peripherals.
-
 config OMAP_ARM_216MHZ
 	bool "OMAP ARM 216 MHz CPU (1710 only)"
         depends on ARCH_OMAP1 && ARCH_OMAP16XX

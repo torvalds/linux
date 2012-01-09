@@ -534,3 +534,19 @@ static int __init kirkwood_clock_gate(void)
 	return 0;
 }
 late_initcall(kirkwood_clock_gate);
+
+void kirkwood_restart(char mode, const char *cmd)
+{
+	/*
+	 * Enable soft reset to assert RSTOUTn.
+	 */
+	writel(SOFT_RESET_OUT_EN, RSTOUTn_MASK);
+
+	/*
+	 * Assert soft reset.
+	 */
+	writel(SOFT_RESET, SYSTEM_SOFT_RESET);
+
+	while (1)
+		;
+}

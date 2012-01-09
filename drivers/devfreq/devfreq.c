@@ -15,7 +15,9 @@
 #include <linux/errno.h>
 #include <linux/err.h>
 #include <linux/init.h>
+#include <linux/module.h>
 #include <linux/slab.h>
+#include <linux/stat.h>
 #include <linux/opp.h>
 #include <linux/devfreq.h>
 #include <linux/workqueue.h>
@@ -345,7 +347,7 @@ struct devfreq *devfreq_add_device(struct device *dev,
 		if (!IS_ERR(devfreq)) {
 			dev_err(dev, "%s: Unable to create devfreq for the device. It already has one.\n", __func__);
 			err = -EINVAL;
-			goto out;
+			goto err_out;
 		}
 	}
 
@@ -354,7 +356,7 @@ struct devfreq *devfreq_add_device(struct device *dev,
 		dev_err(dev, "%s: Unable to create devfreq for the device\n",
 			__func__);
 		err = -ENOMEM;
-		goto out;
+		goto err_out;
 	}
 
 	mutex_init(&devfreq->lock);
@@ -397,17 +399,16 @@ struct devfreq *devfreq_add_device(struct device *dev,
 				   devfreq->next_polling);
 	}
 	mutex_unlock(&devfreq_list_lock);
-	goto out;
+out:
+	return devfreq;
+
 err_init:
 	device_unregister(&devfreq->dev);
 err_dev:
 	mutex_unlock(&devfreq->lock);
 	kfree(devfreq);
-out:
-	if (err)
-		return ERR_PTR(err);
-	else
-		return devfreq;
+err_out:
+	return ERR_PTR(err);
 }
 
 /**
@@ -416,10 +417,14 @@ out:
  */
 int devfreq_remove_device(struct devfreq *devfreq)
 {
+	bool central_polling;
+
 	if (!devfreq)
 		return -EINVAL;
 
-	if (!devfreq->governor->no_central_polling) {
+	central_polling = !devfreq->governor->no_central_polling;
+
+	if (central_polling) {
 		mutex_lock(&devfreq_list_lock);
 		while (wait_remove_device == devfreq) {
 			mutex_unlock(&devfreq_list_lock);
@@ -431,7 +436,7 @@ int devfreq_remove_device(struct devfreq *devfreq)
 	mutex_lock(&devfreq->lock);
 	_remove_devfreq(devfreq, false); /* it unlocks devfreq->lock */
 
-	if (!devfreq->governor->no_central_polling)
+	if (central_polling)
 		mutex_unlock(&devfreq_list_lock);
 
 	return 0;

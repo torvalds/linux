@@ -29,8 +29,7 @@ enum xsd_sockmsg_type
     XS_IS_DOMAIN_INTRODUCED,
     XS_RESUME,
     XS_SET_TARGET,
-    XS_RESTRICT,
-    XS_RESET_WATCHES
+    XS_RESTRICT
 };
 
 #define XS_WRITE_NONE "NONE"
