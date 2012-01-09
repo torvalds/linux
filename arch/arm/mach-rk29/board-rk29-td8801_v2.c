@@ -1709,20 +1709,21 @@ static struct wm8994_pdata wm8994_platform_data = {
 #if defined (CONFIG_GPIO_WM8994)	
 	.gpio_base = WM8994_GPIO_EXPANDER_BASE,
 	//Fill value to initialize the GPIO	
-	.gpio_defaults ={},
-#endif		
+//	.gpio_defaults ={},
 	/* configure gpio1 function: 0x0001(Logic level input/output) */
 //	.gpio_defaults[0] = 0x0001,
 	/* configure gpio3/4/5/7 function for AIF2 voice */
-//	.gpio_defaults[2] = 0x8100,
-//	.gpio_defaults[3] = 0x8100,
-//	.gpio_defaults[4] = 0x8100,
+	.gpio_defaults[2] = 0x2100,
+	.gpio_defaults[3] = 0x2100,
+	.gpio_defaults[4] = 0xA100,
 //	.gpio_defaults[6] = 0x0100,
 	/* configure gpio8/9/10/11 function for AIF3 BT */
-//	.gpio_defaults[7] = 0x8100,
-//	.gpio_defaults[8] = 0x0100,
-//	.gpio_defaults[9] = 0x0100,
-//	.gpio_defaults[10] = 0x0100,
+	.gpio_defaults[7] = 0xA100,
+	.gpio_defaults[8] = 0x2100,
+	.gpio_defaults[9] = 0x2100,
+	.gpio_defaults[10] = 0x2100,	
+#endif		
+
 	.ldo[0]	= { RK29_PIN5_PA1, NULL, &wm8994_ldo1_data },	/* XM0FRNB_2 */
 	.ldo[1]	= { 0, NULL, &wm8994_ldo2_data },
 

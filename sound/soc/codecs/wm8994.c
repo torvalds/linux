@@ -148,8 +148,8 @@ static int wm8994_write(struct snd_soc_codec *codec, unsigned int reg,
 	unsigned int value)
 {
 	int ret;
-	if(reg == 0x3 || reg == 0x208)
-		debug_write_read = 1;
+//	if(reg == 0x3 || reg == 0x208)
+//		debug_write_read = 1;
 
 	BUG_ON(reg > WM8994_MAX_REGISTER);
 #ifdef WM8994_PROC		
@@ -167,8 +167,8 @@ static int wm8994_write(struct snd_soc_codec *codec, unsigned int reg,
 			DBG("snd_soc_cache_write:0x%04x = 0x%04x\n",reg,value);
 #endif	
 	}
-	if(reg == 0x3 || reg == 0x208)
-		debug_write_read = 0;
+//	if(reg == 0x3 || reg == 0x208)
+//		debug_write_read = 0;
 
 	return wm8994_reg_write(codec->control_data, reg, value);
 }
