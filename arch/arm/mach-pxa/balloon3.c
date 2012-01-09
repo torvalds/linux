@@ -180,7 +180,7 @@ static unsigned long balloon3_ac97_pin_config[] __initdata = {
 };
 
 static struct ucb1400_pdata vpac270_ucb1400_pdata = {
-	.irq		= IRQ_GPIO(BALLOON3_GPIO_CODEC_IRQ),
+	.irq		= PXA_GPIO_TO_IRQ(BALLOON3_GPIO_CODEC_IRQ),
 };
 
 

@@ -1,5 +1,5 @@
 /*
- * Atmel MACB Ethernet Controller driver
+ * Cadence MACB/GEM Ethernet Controller driver
  *
  * Copyright (C) 2004-2006 Atmel Corporation
  *
@@ -23,6 +23,9 @@
 #include <linux/platform_data/macb.h>
 #include <linux/platform_device.h>
 #include <linux/phy.h>
+#include <linux/of.h>
+#include <linux/of_device.h>
+#include <linux/of_net.h>
 
 #include "macb.h"
 
@@ -59,9 +62,9 @@ static void __macb_set_hwaddr(struct macb *bp)
 	u16 top;
 
 	bottom = cpu_to_le32(*((u32 *)bp->dev->dev_addr));
-	macb_writel(bp, SA1B, bottom);
+	macb_or_gem_writel(bp, SA1B, bottom);
 	top = cpu_to_le16(*((u16 *)(bp->dev->dev_addr + 4)));
-	macb_writel(bp, SA1T, top);
+	macb_or_gem_writel(bp, SA1T, top);
 }
 
 static void __init macb_get_hwaddr(struct macb *bp)
@@ -70,8 +73,8 @@ static void __init macb_get_hwaddr(struct macb *bp)
 	u16 top;
 	u8 addr[6];
 
-	bottom = macb_readl(bp, SA1B);
-	top = macb_readl(bp, SA1T);
+	bottom = macb_or_gem_readl(bp, SA1B);
+	top = macb_or_gem_readl(bp, SA1T);
 
 	addr[0] = bottom & 0xff;
 	addr[1] = (bottom >> 8) & 0xff;
@@ -191,7 +194,6 @@ static int macb_mii_probe(struct net_device *dev)
 {
 	struct macb *bp = netdev_priv(dev);
 	struct phy_device *phydev;
-	struct macb_platform_data *pdata;
 	int ret;
 
 	phydev = phy_find_first(bp->mii_bus);
@@ -200,14 +202,11 @@ static int macb_mii_probe(struct net_device *dev)
 		return -1;
 	}
 
-	pdata = bp->pdev->dev.platform_data;
 	/* TODO : add pin_irq */
 
 	/* attach the mac to the phy */
 	ret = phy_connect_direct(dev, phydev, &macb_handle_link_change, 0,
-				 pdata && pdata->is_rmii ?
-				 PHY_INTERFACE_MODE_RMII :
-				 PHY_INTERFACE_MODE_MII);
+				 bp->phy_interface);
 	if (ret) {
 		netdev_err(dev, "Could not attach to PHY\n");
 		return ret;
@@ -285,8 +284,8 @@ err_out:
 static void macb_update_stats(struct macb *bp)
 {
 	u32 __iomem *reg = bp->regs + MACB_PFR;
-	u32 *p = &bp->hw_stats.rx_pause_frames;
-	u32 *end = &bp->hw_stats.tx_pause_frames + 1;
+	u32 *p = &bp->hw_stats.macb.rx_pause_frames;
+	u32 *end = &bp->hw_stats.macb.tx_pause_frames + 1;
 
 	WARN_ON((unsigned long)(end - p - 1) != (MACB_TPF - MACB_PFR) / 4);
 
@@ -580,7 +579,10 @@ static irqreturn_t macb_interrupt(int irq, void *dev_id)
 
 		if (status & MACB_BIT(ISR_ROVR)) {
 			/* We missed at least one packet */
-			bp->hw_stats.rx_overruns++;
+			if (macb_is_gem(bp))
+				bp->hw_stats.gem.rx_overruns++;
+			else
+				bp->hw_stats.macb.rx_overruns++;
 		}
 
 		if (status & MACB_BIT(HRESP)) {
@@ -790,6 +792,84 @@ static void macb_reset_hw(struct macb *bp)
 	macb_readl(bp, ISR);
 }
 
+static u32 gem_mdc_clk_div(struct macb *bp)
+{
+	u32 config;
+	unsigned long pclk_hz = clk_get_rate(bp->pclk);
+
+	if (pclk_hz <= 20000000)
+		config = GEM_BF(CLK, GEM_CLK_DIV8);
+	else if (pclk_hz <= 40000000)
+		config = GEM_BF(CLK, GEM_CLK_DIV16);
+	else if (pclk_hz <= 80000000)
+		config = GEM_BF(CLK, GEM_CLK_DIV32);
+	else if (pclk_hz <= 120000000)
+		config = GEM_BF(CLK, GEM_CLK_DIV48);
+	else if (pclk_hz <= 160000000)
+		config = GEM_BF(CLK, GEM_CLK_DIV64);
+	else
+		config = GEM_BF(CLK, GEM_CLK_DIV96);
+
+	return config;
+}
+
+static u32 macb_mdc_clk_div(struct macb *bp)
+{
+	u32 config;
+	unsigned long pclk_hz;
+
+	if (macb_is_gem(bp))
+		return gem_mdc_clk_div(bp);
+
+	pclk_hz = clk_get_rate(bp->pclk);
+	if (pclk_hz <= 20000000)
+		config = MACB_BF(CLK, MACB_CLK_DIV8);
+	else if (pclk_hz <= 40000000)
+		config = MACB_BF(CLK, MACB_CLK_DIV16);
+	else if (pclk_hz <= 80000000)
+		config = MACB_BF(CLK, MACB_CLK_DIV32);
+	else
+		config = MACB_BF(CLK, MACB_CLK_DIV64);
+
+	return config;
+}
+
+/*
+ * Get the DMA bus width field of the network configuration register that we
+ * should program.  We find the width from decoding the design configuration
+ * register to find the maximum supported data bus width.
+ */
+static u32 macb_dbw(struct macb *bp)
+{
+	if (!macb_is_gem(bp))
+		return 0;
+
+	switch (GEM_BFEXT(DBWDEF, gem_readl(bp, DCFG1))) {
+	case 4:
+		return GEM_BF(DBW, GEM_DBW128);
+	case 2:
+		return GEM_BF(DBW, GEM_DBW64);
+	case 1:
+	default:
+		return GEM_BF(DBW, GEM_DBW32);
+	}
+}
+
+/*
+ * Configure the receive DMA engine to use the correct receive buffer size.
+ * This is a configurable parameter for GEM.
+ */
+static void macb_configure_dma(struct macb *bp)
+{
+	u32 dmacfg;
+
+	if (macb_is_gem(bp)) {
+		dmacfg = gem_readl(bp, DMACFG) & ~GEM_BF(RXBS, -1L);
+		dmacfg |= GEM_BF(RXBS, RX_BUFFER_SIZE / 64);
+		gem_writel(bp, DMACFG, dmacfg);
+	}
+}
+
 static void macb_init_hw(struct macb *bp)
 {
 	u32 config;
@@ -797,7 +877,7 @@ static void macb_init_hw(struct macb *bp)
 	macb_reset_hw(bp);
 	__macb_set_hwaddr(bp);
 
-	config = macb_readl(bp, NCFGR) & MACB_BF(CLK, -1L);
+	config = macb_mdc_clk_div(bp);
 	config |= MACB_BIT(PAE);		/* PAuse Enable */
 	config |= MACB_BIT(DRFCS);		/* Discard Rx FCS */
 	config |= MACB_BIT(BIG);		/* Receive oversized frames */
@@ -805,7 +885,10 @@ static void macb_init_hw(struct macb *bp)
 		config |= MACB_BIT(CAF);	/* Copy All Frames */
 	if (!(bp->dev->flags & IFF_BROADCAST))
 		config |= MACB_BIT(NBC);	/* No BroadCast */
+	config |= macb_dbw(bp);
 	macb_writel(bp, NCFGR, config);
+
+	macb_configure_dma(bp);
 
 	/* Initialize TX and RX buffers */
 	macb_writel(bp, RBQP, bp->rx_ring_dma);
@@ -902,8 +985,8 @@ static void macb_sethashtable(struct net_device *dev)
 		mc_filter[bitnr >> 5] |= 1 << (bitnr & 31);
 	}
 
-	macb_writel(bp, HRB, mc_filter[0]);
-	macb_writel(bp, HRT, mc_filter[1]);
+	macb_or_gem_writel(bp, HRB, mc_filter[0]);
+	macb_or_gem_writel(bp, HRT, mc_filter[1]);
 }
 
 /*
@@ -925,8 +1008,8 @@ static void macb_set_rx_mode(struct net_device *dev)
 
 	if (dev->flags & IFF_ALLMULTI) {
 		/* Enable all multicast mode */
-		macb_writel(bp, HRB, -1);
-		macb_writel(bp, HRT, -1);
+		macb_or_gem_writel(bp, HRB, -1);
+		macb_or_gem_writel(bp, HRT, -1);
 		cfg |= MACB_BIT(NCFGR_MTI);
 	} else if (!netdev_mc_empty(dev)) {
 		/* Enable specific multicasts */
@@ -934,8 +1017,8 @@ static void macb_set_rx_mode(struct net_device *dev)
 		cfg |= MACB_BIT(NCFGR_MTI);
 	} else if (dev->flags & (~IFF_ALLMULTI)) {
 		/* Disable all multicast mode */
-		macb_writel(bp, HRB, 0);
-		macb_writel(bp, HRT, 0);
+		macb_or_gem_writel(bp, HRB, 0);
+		macb_or_gem_writel(bp, HRT, 0);
 		cfg &= ~MACB_BIT(NCFGR_MTI);
 	}
 
@@ -997,11 +1080,62 @@ static int macb_close(struct net_device *dev)
 	return 0;
 }
 
+static void gem_update_stats(struct macb *bp)
+{
+	u32 __iomem *reg = bp->regs + GEM_OTX;
+	u32 *p = &bp->hw_stats.gem.tx_octets_31_0;
+	u32 *end = &bp->hw_stats.gem.rx_udp_checksum_errors + 1;
+
+	for (; p < end; p++, reg++)
+		*p += __raw_readl(reg);
+}
+
+static struct net_device_stats *gem_get_stats(struct macb *bp)
+{
+	struct gem_stats *hwstat = &bp->hw_stats.gem;
+	struct net_device_stats *nstat = &bp->stats;
+
+	gem_update_stats(bp);
+
+	nstat->rx_errors = (hwstat->rx_frame_check_sequence_errors +
+			    hwstat->rx_alignment_errors +
+			    hwstat->rx_resource_errors +
+			    hwstat->rx_overruns +
+			    hwstat->rx_oversize_frames +
+			    hwstat->rx_jabbers +
+			    hwstat->rx_undersized_frames +
+			    hwstat->rx_length_field_frame_errors);
+	nstat->tx_errors = (hwstat->tx_late_collisions +
+			    hwstat->tx_excessive_collisions +
+			    hwstat->tx_underrun +
+			    hwstat->tx_carrier_sense_errors);
+	nstat->multicast = hwstat->rx_multicast_frames;
+	nstat->collisions = (hwstat->tx_single_collision_frames +
+			     hwstat->tx_multiple_collision_frames +
+			     hwstat->tx_excessive_collisions);
+	nstat->rx_length_errors = (hwstat->rx_oversize_frames +
+				   hwstat->rx_jabbers +
+				   hwstat->rx_undersized_frames +
+				   hwstat->rx_length_field_frame_errors);
+	nstat->rx_over_errors = hwstat->rx_resource_errors;
+	nstat->rx_crc_errors = hwstat->rx_frame_check_sequence_errors;
+	nstat->rx_frame_errors = hwstat->rx_alignment_errors;
+	nstat->rx_fifo_errors = hwstat->rx_overruns;
+	nstat->tx_aborted_errors = hwstat->tx_excessive_collisions;
+	nstat->tx_carrier_errors = hwstat->tx_carrier_sense_errors;
+	nstat->tx_fifo_errors = hwstat->tx_underrun;
+
+	return nstat;
+}
+
 static struct net_device_stats *macb_get_stats(struct net_device *dev)
 {
 	struct macb *bp = netdev_priv(dev);
 	struct net_device_stats *nstat = &bp->stats;
-	struct macb_stats *hwstat = &bp->hw_stats;
+	struct macb_stats *hwstat = &bp->hw_stats.macb;
+
+	if (macb_is_gem(bp))
+		return gem_get_stats(bp);
 
 	/* read stats from hardware */
 	macb_update_stats(bp);
@@ -1109,6 +1243,52 @@ static const struct net_device_ops macb_netdev_ops = {
 #endif
 };
 
+#if defined(CONFIG_OF)
+static const struct of_device_id macb_dt_ids[] = {
+	{ .compatible = "cdns,at32ap7000-macb" },
+	{ .compatible = "cdns,at91sam9260-macb" },
+	{ .compatible = "cdns,macb" },
+	{ .compatible = "cdns,pc302-gem" },
+	{ .compatible = "cdns,gem" },
+	{ /* sentinel */ }
+};
+
+MODULE_DEVICE_TABLE(of, macb_dt_ids);
+
+static int __devinit macb_get_phy_mode_dt(struct platform_device *pdev)
+{
+	struct device_node *np = pdev->dev.of_node;
+
+	if (np)
+		return of_get_phy_mode(np);
+
+	return -ENODEV;
+}
+
+static int __devinit macb_get_hwaddr_dt(struct macb *bp)
+{
+	struct device_node *np = bp->pdev->dev.of_node;
+	if (np) {
+		const char *mac = of_get_mac_address(np);
+		if (mac) {
+			memcpy(bp->dev->dev_addr, mac, ETH_ALEN);
+			return 0;
+		}
+	}
+
+	return -ENODEV;
+}
+#else
+static int __devinit macb_get_phy_mode_dt(struct platform_device *pdev)
+{
+	return -ENODEV;
+}
+static int __devinit macb_get_hwaddr_dt(struct macb *bp)
+{
+	return -ENODEV;
+}
+#endif
+
 static int __init macb_probe(struct platform_device *pdev)
 {
 	struct macb_platform_data *pdata;
@@ -1116,7 +1296,6 @@ static int __init macb_probe(struct platform_device *pdev)
 	struct net_device *dev;
 	struct macb *bp;
 	struct phy_device *phydev;
-	unsigned long pclk_hz;
 	u32 config;
 	int err = -ENXIO;
 
@@ -1180,31 +1359,37 @@ static int __init macb_probe(struct platform_device *pdev)
 	dev->base_addr = regs->start;
 
 	/* Set MII management clock divider */
-	pclk_hz = clk_get_rate(bp->pclk);
-	if (pclk_hz <= 20000000)
-		config = MACB_BF(CLK, MACB_CLK_DIV8);
-	else if (pclk_hz <= 40000000)
-		config = MACB_BF(CLK, MACB_CLK_DIV16);
-	else if (pclk_hz <= 80000000)
-		config = MACB_BF(CLK, MACB_CLK_DIV32);
-	else
-		config = MACB_BF(CLK, MACB_CLK_DIV64);
+	config = macb_mdc_clk_div(bp);
+	config |= macb_dbw(bp);
 	macb_writel(bp, NCFGR, config);
 
-	macb_get_hwaddr(bp);
-	pdata = pdev->dev.platform_data;
+	err = macb_get_hwaddr_dt(bp);
+	if (err < 0)
+		macb_get_hwaddr(bp);
 
-	if (pdata && pdata->is_rmii)
+	err = macb_get_phy_mode_dt(pdev);
+	if (err < 0) {
+		pdata = pdev->dev.platform_data;
+		if (pdata && pdata->is_rmii)
+			bp->phy_interface = PHY_INTERFACE_MODE_RMII;
+		else
+			bp->phy_interface = PHY_INTERFACE_MODE_MII;
+	} else {
+		bp->phy_interface = err;
+	}
+
+	if (bp->phy_interface == PHY_INTERFACE_MODE_RMII)
 #if defined(CONFIG_ARCH_AT91)
-		macb_writel(bp, USRIO, (MACB_BIT(RMII) | MACB_BIT(CLKEN)) );
+		macb_or_gem_writel(bp, USRIO, (MACB_BIT(RMII) |
+					       MACB_BIT(CLKEN)));
 #else
-		macb_writel(bp, USRIO, 0);
+		macb_or_gem_writel(bp, USRIO, 0);
 #endif
 	else
 #if defined(CONFIG_ARCH_AT91)
-		macb_writel(bp, USRIO, MACB_BIT(CLKEN));
+		macb_or_gem_writel(bp, USRIO, MACB_BIT(CLKEN));
 #else
-		macb_writel(bp, USRIO, MACB_BIT(MII));
+		macb_or_gem_writel(bp, USRIO, MACB_BIT(MII));
 #endif
 
 	bp->tx_pending = DEF_TX_RING_PENDING;
@@ -1221,8 +1406,9 @@ static int __init macb_probe(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, dev);
 
-	netdev_info(dev, "Atmel MACB at 0x%08lx irq %d (%pM)\n",
-		dev->base_addr, dev->irq, dev->dev_addr);
+	netdev_info(dev, "Cadence %s at 0x%08lx irq %d (%pM)\n",
+		    macb_is_gem(bp) ? "GEM" : "MACB", dev->base_addr,
+		    dev->irq, dev->dev_addr);
 
 	phydev = bp->phy_dev;
 	netdev_info(dev, "attached PHY driver [%s] (mii_bus:phy_addr=%s, irq=%d)\n",
@@ -1315,6 +1501,7 @@ static struct platform_driver macb_driver = {
 	.driver		= {
 		.name		= "macb",
 		.owner	= THIS_MODULE,
+		.of_match_table	= of_match_ptr(macb_dt_ids),
 	},
 };
 
@@ -1332,6 +1519,6 @@ module_init(macb_init);
 module_exit(macb_exit);
 
 MODULE_LICENSE("GPL");
-MODULE_DESCRIPTION("Atmel MACB Ethernet driver");
+MODULE_DESCRIPTION("Cadence MACB/GEM Ethernet driver");
 MODULE_AUTHOR("Haavard Skinnemoen (Atmel)");
 MODULE_ALIAS("platform:macb");

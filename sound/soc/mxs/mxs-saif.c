@@ -625,13 +625,6 @@ static int mxs_saif_probe(struct platform_device *pdev)
 	if (pdev->id >= ARRAY_SIZE(mxs_saif))
 		return -EINVAL;
 
-	pdata = pdev->dev.platform_data;
-	if (pdata && pdata->init) {
-		ret = pdata->init();
-		if (ret)
-			return ret;
-	}
-
 	saif = kzalloc(sizeof(*saif), GFP_KERNEL);
 	if (!saif)
 		return -ENOMEM;
@@ -639,12 +632,17 @@ static int mxs_saif_probe(struct platform_device *pdev)
 	mxs_saif[pdev->id] = saif;
 	saif->id = pdev->id;
 
-	saif->master_id = saif->id;
-	if (pdata && pdata->get_master_id) {
-		saif->master_id = pdata->get_master_id(saif->id);
+	pdata = pdev->dev.platform_data;
+	if (pdata && !pdata->master_mode) {
+		saif->master_id = pdata->master_id;
 		if (saif->master_id < 0 ||
-			saif->master_id >= ARRAY_SIZE(mxs_saif))
+			saif->master_id >= ARRAY_SIZE(mxs_saif) ||
+			saif->master_id == saif->id) {
+			dev_err(&pdev->dev, "get wrong master id\n");
 			return -EINVAL;
+		}
+	} else {
+		saif->master_id = saif->id;
 	}
 
 	saif->clk = clk_get(&pdev->dev, NULL);

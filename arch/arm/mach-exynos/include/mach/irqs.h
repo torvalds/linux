@@ -72,6 +72,9 @@
 #define IRQ_IIC5		IRQ_SPI(63)
 #define IRQ_IIC6		IRQ_SPI(64)
 #define IRQ_IIC7		IRQ_SPI(65)
+#define IRQ_SPI0		IRQ_SPI(66)
+#define IRQ_SPI1		IRQ_SPI(67)
+#define IRQ_SPI2		IRQ_SPI(68)
 
 #define IRQ_USB_HOST		IRQ_SPI(70)
 #define IRQ_USB_HSOTG		IRQ_SPI(71)

@@ -100,9 +100,6 @@ extern void usb_musb_init(struct omap_musb_board_data *board_data);
 
 extern void usbhs_init(const struct usbhs_omap_board_data *pdata);
 
-extern int omap_usbhs_enable(struct device *dev);
-extern void omap_usbhs_disable(struct device *dev);
-
 extern int omap4430_phy_power(struct device *dev, int ID, int on);
 extern int omap4430_phy_set_clk(struct device *dev, int on);
 extern int omap4430_phy_init(struct device *dev);

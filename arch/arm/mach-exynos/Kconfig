@@ -89,6 +89,11 @@ config EXYNOS4_DEV_DWMCI
 	help
 	  Compile in platform device definitions for DWMCI
 
+config EXYNOS4_DEV_USB_OHCI
+	bool
+	help
+	  Compile in platform device definition for USB OHCI
+
 config EXYNOS4_SETUP_I2C1
 	bool
 	help
@@ -150,6 +155,11 @@ config EXYNOS4_SETUP_USB_PHY
 	help
 	  Common setup code for USB PHY controller
 
+config EXYNOS4_SETUP_SPI
+	bool
+	help
+	  Common setup code for SPI GPIO configurations.
+
 # machine support
 
 if ARCH_EXYNOS4
@@ -187,6 +197,7 @@ config MACH_SMDKV310
 	select EXYNOS4_DEV_DMA
 	select EXYNOS4_DEV_PD
 	select SAMSUNG_DEV_PWM
+	select EXYNOS4_DEV_USB_OHCI
 	select EXYNOS4_DEV_SYSMMU
 	select EXYNOS4_SETUP_FIMD0
 	select EXYNOS4_SETUP_I2C1
@@ -300,6 +311,7 @@ config MACH_ORIGEN
 	select SAMSUNG_DEV_PWM
 	select EXYNOS4_DEV_DMA
 	select EXYNOS4_DEV_PD
+	select EXYNOS4_DEV_USB_OHCI
 	select EXYNOS4_SETUP_FIMD0
 	select EXYNOS4_SETUP_SDHCI
 	select EXYNOS4_SETUP_USB_PHY
