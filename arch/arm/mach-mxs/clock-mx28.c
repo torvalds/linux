@@ -404,7 +404,7 @@ static int name##_set_rate(struct clk *clk, unsigned long rate)		\
 	reg = __raw_readl(CLKCTRL_BASE_ADDR + HW_CLKCTRL_##dr);		\
 	reg &= ~BM_CLKCTRL_##dr##_DIV;					\
 	reg |= div << BP_CLKCTRL_##dr##_DIV;				\
-	if (reg | (1 << clk->enable_shift)) {				\
+	if (reg & (1 << clk->enable_shift)) {				\
 		pr_err("%s: clock is gated\n", __func__);		\
 		return -EINVAL;						\
 	}								\

@@ -326,7 +326,7 @@ static const struct dev_pm_ops usb_device_pm_ops = {
 #endif	/* CONFIG_PM */
 
 
-static char *usb_devnode(struct device *dev, mode_t *mode)
+static char *usb_devnode(struct device *dev, umode_t *mode)
 {
 	struct usb_device *usb_dev;
 

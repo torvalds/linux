@@ -423,7 +423,7 @@ static void io_ctl_set_crc(struct io_ctl *io_ctl, int index)
 	}
 
 	if (index == 0)
-		offset = sizeof(u32) * io_ctl->num_pages;;
+		offset = sizeof(u32) * io_ctl->num_pages;
 
 	crc = btrfs_csum_data(io_ctl->root, io_ctl->orig + offset, crc,
 			      PAGE_CACHE_SIZE - offset);
@@ -1470,6 +1470,7 @@ static void add_new_bitmap(struct btrfs_free_space_ctl *ctl,
 {
 	info->offset = offset_to_bitmap(ctl, offset);
 	info->bytes = 0;
+	INIT_LIST_HEAD(&info->list);
 	link_free_space(ctl, info);
 	ctl->total_bitmaps++;
 
@@ -2319,6 +2320,7 @@ again:
 
 	if (!found) {
 		start = i;
+		cluster->max_size = 0;
 		found = true;
 	}
 

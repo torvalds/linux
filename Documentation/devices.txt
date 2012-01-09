@@ -379,7 +379,7 @@ Your cooperation is appreciated.
 		162 = /dev/smbus	System Management Bus
 		163 = /dev/lik		Logitech Internet Keyboard
 		164 = /dev/ipmo		Intel Intelligent Platform Management
-		165 = /dev/vmmon	VMWare virtual machine monitor
+		165 = /dev/vmmon	VMware virtual machine monitor
 		166 = /dev/i2o/ctl	I2O configuration manager
 		167 = /dev/specialix_sxctl Specialix serial control
 		168 = /dev/tcldrv	Technology Concepts serial control

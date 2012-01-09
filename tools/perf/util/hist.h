@@ -63,8 +63,6 @@ struct hists {
 	struct callchain_cursor	callchain_cursor;
 };
 
-void hists__init(struct hists *hists);
-
 struct hist_entry *__hists__add_entry(struct hists *self,
 				      struct addr_location *al,
 				      struct symbol *parent, u64 period);
@@ -119,7 +117,6 @@ int perf_evlist__tui_browse_hists(struct perf_evlist *evlist __used,
 
 static inline int hist_entry__tui_annotate(struct hist_entry *self __used,
 					   int evidx __used,
-					   int nr_events __used,
 					   void(*timer)(void *arg) __used,
 					   void *arg __used,
 					   int delay_secs __used)
@@ -130,7 +127,7 @@ static inline int hist_entry__tui_annotate(struct hist_entry *self __used,
 #define K_RIGHT -2
 #else
 #include "ui/keysyms.h"
-int hist_entry__tui_annotate(struct hist_entry *he, int evidx, int nr_events,
+int hist_entry__tui_annotate(struct hist_entry *he, int evidx,
 			     void(*timer)(void *arg), void *arg, int delay_secs);
 
 int perf_evlist__tui_browse_hists(struct perf_evlist *evlist, const char *help,

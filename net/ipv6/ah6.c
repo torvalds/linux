@@ -193,9 +193,9 @@ static void ipv6_rearrange_destopt(struct ipv6hdr *iph, struct ipv6_opt_hdr *des
 						printk(KERN_WARNING "destopt hao: invalid header length: %u\n", hao->length);
 					goto bad;
 				}
-				ipv6_addr_copy(&final_addr, &hao->addr);
-				ipv6_addr_copy(&hao->addr, &iph->saddr);
-				ipv6_addr_copy(&iph->saddr, &final_addr);
+				final_addr = hao->addr;
+				hao->addr = iph->saddr;
+				iph->saddr = final_addr;
 			}
 			break;
 		}
@@ -241,13 +241,13 @@ static void ipv6_rearrange_rthdr(struct ipv6hdr *iph, struct ipv6_rt_hdr *rthdr)
 	segments = rthdr->hdrlen >> 1;
 
 	addrs = ((struct rt0_hdr *)rthdr)->addr;
-	ipv6_addr_copy(&final_addr, addrs + segments - 1);
+	final_addr = addrs[segments - 1];
 
 	addrs += segments - segments_left;
 	memmove(addrs + 1, addrs, (segments_left - 1) * sizeof(*addrs));
 
-	ipv6_addr_copy(addrs, &iph->daddr);
-	ipv6_addr_copy(&iph->daddr, &final_addr);
+	addrs[0] = iph->daddr;
+	iph->daddr = final_addr;
 }
 
 static int ipv6_clear_mutable_options(struct ipv6hdr *iph, int len, int dir)

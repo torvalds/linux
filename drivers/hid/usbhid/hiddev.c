@@ -859,7 +859,7 @@ static const struct file_operations hiddev_fops = {
 	.llseek		= noop_llseek,
 };
 
-static char *hiddev_devnode(struct device *dev, mode_t *mode)
+static char *hiddev_devnode(struct device *dev, umode_t *mode)
 {
 	return kasprintf(GFP_KERNEL, "usb/%s", dev_name(dev));
 }

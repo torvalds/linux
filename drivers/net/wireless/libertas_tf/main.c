@@ -719,11 +719,11 @@ void lbtf_bcn_sent(struct lbtf_private *priv)
 		return;
 
 	if (skb_queue_empty(&priv->bc_ps_buf)) {
-		bool tx_buff_bc = 0;
+		bool tx_buff_bc = false;
 
 		while ((skb = ieee80211_get_buffered_bc(priv->hw, priv->vif))) {
 			skb_queue_tail(&priv->bc_ps_buf, skb);
-			tx_buff_bc = 1;
+			tx_buff_bc = true;
 		}
 		if (tx_buff_bc) {
 			ieee80211_stop_queues(priv->hw);

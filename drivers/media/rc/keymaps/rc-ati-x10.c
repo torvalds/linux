@@ -27,55 +27,55 @@
 #include <media/rc-map.h>
 
 static struct rc_map_table ati_x10[] = {
-	{ 0xd20d, KEY_1 },
-	{ 0xd30e, KEY_2 },
-	{ 0xd40f, KEY_3 },
-	{ 0xd510, KEY_4 },
-	{ 0xd611, KEY_5 },
-	{ 0xd712, KEY_6 },
-	{ 0xd813, KEY_7 },
-	{ 0xd914, KEY_8 },
-	{ 0xda15, KEY_9 },
-	{ 0xdc17, KEY_0 },
-	{ 0xc500, KEY_A },
-	{ 0xc601, KEY_B },
-	{ 0xde19, KEY_C },
-	{ 0xe01b, KEY_D },
-	{ 0xe621, KEY_E },
-	{ 0xe823, KEY_F },
+	{ 0x0d, KEY_1 },
+	{ 0x0e, KEY_2 },
+	{ 0x0f, KEY_3 },
+	{ 0x10, KEY_4 },
+	{ 0x11, KEY_5 },
+	{ 0x12, KEY_6 },
+	{ 0x13, KEY_7 },
+	{ 0x14, KEY_8 },
+	{ 0x15, KEY_9 },
+	{ 0x17, KEY_0 },
+	{ 0x00, KEY_A },
+	{ 0x01, KEY_B },
+	{ 0x19, KEY_C },
+	{ 0x1b, KEY_D },
+	{ 0x21, KEY_E },
+	{ 0x23, KEY_F },
 
-	{ 0xdd18, KEY_KPENTER },    /* "check" */
-	{ 0xdb16, KEY_MENU },       /* "menu" */
-	{ 0xc702, KEY_POWER },      /* Power */
-	{ 0xc803, KEY_TV },         /* TV */
-	{ 0xc904, KEY_DVD },        /* DVD */
-	{ 0xca05, KEY_WWW },        /* WEB */
-	{ 0xcb06, KEY_BOOKMARKS },  /* "book" */
-	{ 0xcc07, KEY_EDIT },       /* "hand" */
-	{ 0xe11c, KEY_COFFEE },     /* "timer" */
-	{ 0xe520, KEY_FRONT },      /* "max" */
-	{ 0xe21d, KEY_LEFT },       /* left */
-	{ 0xe41f, KEY_RIGHT },      /* right */
-	{ 0xe722, KEY_DOWN },       /* down */
-	{ 0xdf1a, KEY_UP },         /* up */
-	{ 0xe31e, KEY_OK },         /* "OK" */
-	{ 0xce09, KEY_VOLUMEDOWN }, /* VOL + */
-	{ 0xcd08, KEY_VOLUMEUP },   /* VOL - */
-	{ 0xcf0a, KEY_MUTE },       /* MUTE  */
-	{ 0xd00b, KEY_CHANNELUP },  /* CH + */
-	{ 0xd10c, KEY_CHANNELDOWN },/* CH - */
-	{ 0xec27, KEY_RECORD },     /* ( o) red */
-	{ 0xea25, KEY_PLAY },       /* ( >) */
-	{ 0xe924, KEY_REWIND },     /* (<<) */
-	{ 0xeb26, KEY_FORWARD },    /* (>>) */
-	{ 0xed28, KEY_STOP },       /* ([]) */
-	{ 0xee29, KEY_PAUSE },      /* ('') */
-	{ 0xf02b, KEY_PREVIOUS },   /* (<-) */
-	{ 0xef2a, KEY_NEXT },       /* (>+) */
-	{ 0xf22d, KEY_INFO },       /* PLAYING */
-	{ 0xf32e, KEY_HOME },       /* TOP */
-	{ 0xf42f, KEY_END },        /* END */
-	{ 0xf530, KEY_SELECT },     /* SELECT */
+	{ 0x18, KEY_KPENTER },    /* "check" */
+	{ 0x16, KEY_MENU },       /* "menu" */
+	{ 0x02, KEY_POWER },      /* Power */
+	{ 0x03, KEY_TV },         /* TV */
+	{ 0x04, KEY_DVD },        /* DVD */
+	{ 0x05, KEY_WWW },        /* WEB */
+	{ 0x06, KEY_BOOKMARKS },  /* "book" */
+	{ 0x07, KEY_EDIT },       /* "hand" */
+	{ 0x1c, KEY_COFFEE },     /* "timer" */
+	{ 0x20, KEY_FRONT },      /* "max" */
+	{ 0x1d, KEY_LEFT },       /* left */
+	{ 0x1f, KEY_RIGHT },      /* right */
+	{ 0x22, KEY_DOWN },       /* down */
+	{ 0x1a, KEY_UP },         /* up */
+	{ 0x1e, KEY_OK },         /* "OK" */
+	{ 0x09, KEY_VOLUMEDOWN }, /* VOL + */
+	{ 0x08, KEY_VOLUMEUP },   /* VOL - */
+	{ 0x0a, KEY_MUTE },       /* MUTE  */
+	{ 0x0b, KEY_CHANNELUP },  /* CH + */
+	{ 0x0c, KEY_CHANNELDOWN },/* CH - */
+	{ 0x27, KEY_RECORD },     /* ( o) red */
+	{ 0x25, KEY_PLAY },       /* ( >) */
+	{ 0x24, KEY_REWIND },     /* (<<) */
+	{ 0x26, KEY_FORWARD },    /* (>>) */
+	{ 0x28, KEY_STOP },       /* ([]) */
+	{ 0x29, KEY_PAUSE },      /* ('') */
+	{ 0x2b, KEY_PREVIOUS },   /* (<-) */
+	{ 0x2a, KEY_NEXT },       /* (>+) */
+	{ 0x2d, KEY_INFO },       /* PLAYING */
+	{ 0x2e, KEY_HOME },       /* TOP */
+	{ 0x2f, KEY_END },        /* END */
+	{ 0x30, KEY_SELECT },     /* SELECT */
 };
 
 static struct rc_map_list ati_x10_map = {

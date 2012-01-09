@@ -126,9 +126,9 @@ static void adfs_put_super(struct super_block *sb)
 	sb->s_fs_info = NULL;
 }
 
-static int adfs_show_options(struct seq_file *seq, struct vfsmount *mnt)
+static int adfs_show_options(struct seq_file *seq, struct dentry *root)
 {
-	struct adfs_sb_info *asb = ADFS_SB(mnt->mnt_sb);
+	struct adfs_sb_info *asb = ADFS_SB(root->d_sb);
 
 	if (asb->s_uid != 0)
 		seq_printf(seq, ",uid=%u", asb->s_uid);

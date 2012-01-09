@@ -209,6 +209,7 @@ static u32 ieee80211_enable_ht(struct ieee80211_sub_if_data *sdata,
 		channel_type = NL80211_CHAN_HT20;
 
 		if (!(ap_ht_cap_flags & IEEE80211_HT_CAP_40MHZ_INTOLERANT) &&
+		    !ieee80111_cfg_override_disables_ht40(sdata) &&
 		    (sband->ht_cap.cap & IEEE80211_HT_CAP_SUP_WIDTH_20_40) &&
 		    (hti->ht_param & IEEE80211_HT_PARAM_CHAN_WIDTH_ANY)) {
 			switch(hti->ht_param & IEEE80211_HT_PARAM_CHA_SEC_OFFSET) {
@@ -818,7 +819,7 @@ void ieee80211_dynamic_ps_enable_work(struct work_struct *work)
 	}
 
 	if ((local->hw.flags & IEEE80211_HW_PS_NULLFUNC_STACK) &&
-	    (!(ifmgd->flags & IEEE80211_STA_NULLFUNC_ACKED))) {
+	    !(ifmgd->flags & IEEE80211_STA_NULLFUNC_ACKED)) {
 		netif_tx_stop_all_queues(sdata->dev);
 
 		if (drv_tx_frames_pending(local))
@@ -1120,6 +1121,8 @@ static void ieee80211_set_disassoc(struct ieee80211_sub_if_data *sdata,
 
 	/* on the next assoc, re-program HT parameters */
 	sdata->ht_opmode_valid = false;
+	memset(&ifmgd->ht_capa, 0, sizeof(ifmgd->ht_capa));
+	memset(&ifmgd->ht_capa_mask, 0, sizeof(ifmgd->ht_capa_mask));
 
 	local->power_constr_level = 0;
 
@@ -1359,9 +1362,6 @@ static void __ieee80211_connection_loss(struct ieee80211_sub_if_data *sdata)
 	ieee80211_set_disassoc(sdata, true, true);
 	mutex_unlock(&ifmgd->mtx);
 
-	mutex_lock(&local->mtx);
-	ieee80211_recalc_idle(local);
-	mutex_unlock(&local->mtx);
 	/*
 	 * must be outside lock due to cfg80211,
 	 * but that's not a problem.
@@ -1370,6 +1370,10 @@ static void __ieee80211_connection_loss(struct ieee80211_sub_if_data *sdata)
 				       IEEE80211_STYPE_DEAUTH,
 				       WLAN_REASON_DISASSOC_DUE_TO_INACTIVITY,
 				       NULL, true);
+
+	mutex_lock(&local->mtx);
+	ieee80211_recalc_idle(local);
+	mutex_unlock(&local->mtx);
 }
 
 void ieee80211_beacon_connection_loss_work(struct work_struct *work)
@@ -1377,6 +1381,16 @@ void ieee80211_beacon_connection_loss_work(struct work_struct *work)
 	struct ieee80211_sub_if_data *sdata =
 		container_of(work, struct ieee80211_sub_if_data,
 			     u.mgd.beacon_connection_loss_work);
+	struct ieee80211_if_managed *ifmgd = &sdata->u.mgd;
+	struct sta_info *sta;
+
+	if (ifmgd->associated) {
+		rcu_read_lock();
+		sta = sta_info_get(sdata, ifmgd->bssid);
+		if (sta)
+			sta->beacon_loss_count++;
+		rcu_read_unlock();
+	}
 
 	if (sdata->local->hw.flags & IEEE80211_HW_CONNECTION_MONITOR)
 		__ieee80211_connection_loss(sdata);
@@ -1468,6 +1482,47 @@ ieee80211_rx_mgmt_disassoc(struct ieee80211_sub_if_data *sdata,
 	return RX_MGMT_CFG80211_DISASSOC;
 }
 
+static void ieee80211_get_rates(struct ieee80211_supported_band *sband,
+				u8 *supp_rates, unsigned int supp_rates_len,
+				u32 *rates, u32 *basic_rates,
+				bool *have_higher_than_11mbit,
+				int *min_rate, int *min_rate_index)
+{
+	int i, j;
+
+	for (i = 0; i < supp_rates_len; i++) {
+		int rate = (supp_rates[i] & 0x7f) * 5;
+		bool is_basic = !!(supp_rates[i] & 0x80);
+
+		if (rate > 110)
+			*have_higher_than_11mbit = true;
+
+		/*
+		 * BSS_MEMBERSHIP_SELECTOR_HT_PHY is defined in 802.11n-2009
+		 * 7.3.2.2 as a magic value instead of a rate. Hence, skip it.
+		 *
+		 * Note: Even through the membership selector and the basic
+		 *	 rate flag share the same bit, they are not exactly
+		 *	 the same.
+		 */
+		if (!!(supp_rates[i] & 0x80) &&
+		    (supp_rates[i] & 0x7f) == BSS_MEMBERSHIP_SELECTOR_HT_PHY)
+			continue;
+
+		for (j = 0; j < sband->n_bitrates; j++) {
+			if (sband->bitrates[j].bitrate == rate) {
+				*rates |= BIT(j);
+				if (is_basic)
+					*basic_rates |= BIT(j);
+				if (rate < *min_rate) {
+					*min_rate = rate;
+					*min_rate_index = j;
+				}
+				break;
+			}
+		}
+	}
+}
 
 static bool ieee80211_assoc_success(struct ieee80211_work *wk,
 				    struct ieee80211_mgmt *mgmt, size_t len)
@@ -1484,7 +1539,7 @@ static bool ieee80211_assoc_success(struct ieee80211_work *wk,
 	struct ieee802_11_elems elems;
 	struct ieee80211_bss_conf *bss_conf = &sdata->vif.bss_conf;
 	u32 changed = 0;
-	int i, j, err;
+	int err;
 	bool have_higher_than_11mbit = false;
 	u16 ap_ht_cap_flags;
 	int min_rate = INT_MAX, min_rate_index = -1;
@@ -1532,57 +1587,23 @@ static bool ieee80211_assoc_success(struct ieee80211_work *wk,
 		return false;
 	}
 
-	set_sta_flag(sta, WLAN_STA_AUTH);
-	set_sta_flag(sta, WLAN_STA_ASSOC);
-	set_sta_flag(sta, WLAN_STA_ASSOC_AP);
+	sta_info_move_state(sta, IEEE80211_STA_AUTH);
+	sta_info_move_state(sta, IEEE80211_STA_ASSOC);
 	if (!(ifmgd->flags & IEEE80211_STA_CONTROL_PORT))
-		set_sta_flag(sta, WLAN_STA_AUTHORIZED);
+		sta_info_move_state(sta, IEEE80211_STA_AUTHORIZED);
 
 	rates = 0;
 	basic_rates = 0;
 	sband = local->hw.wiphy->bands[wk->chan->band];
 
-	for (i = 0; i < elems.supp_rates_len; i++) {
-		int rate = (elems.supp_rates[i] & 0x7f) * 5;
-		bool is_basic = !!(elems.supp_rates[i] & 0x80);
+	ieee80211_get_rates(sband, elems.supp_rates, elems.supp_rates_len,
+			    &rates, &basic_rates, &have_higher_than_11mbit,
+			    &min_rate, &min_rate_index);
 
-		if (rate > 110)
-			have_higher_than_11mbit = true;
-
-		for (j = 0; j < sband->n_bitrates; j++) {
-			if (sband->bitrates[j].bitrate == rate) {
-				rates |= BIT(j);
-				if (is_basic)
-					basic_rates |= BIT(j);
-				if (rate < min_rate) {
-					min_rate = rate;
-					min_rate_index = j;
-				}
-				break;
-			}
-		}
-	}
-
-	for (i = 0; i < elems.ext_supp_rates_len; i++) {
-		int rate = (elems.ext_supp_rates[i] & 0x7f) * 5;
-		bool is_basic = !!(elems.ext_supp_rates[i] & 0x80);
-
-		if (rate > 110)
-			have_higher_than_11mbit = true;
-
-		for (j = 0; j < sband->n_bitrates; j++) {
-			if (sband->bitrates[j].bitrate == rate) {
-				rates |= BIT(j);
-				if (is_basic)
-					basic_rates |= BIT(j);
-				if (rate < min_rate) {
-					min_rate = rate;
-					min_rate_index = j;
-				}
-				break;
-			}
-		}
-	}
+	ieee80211_get_rates(sband, elems.ext_supp_rates,
+			    elems.ext_supp_rates_len, &rates, &basic_rates,
+			    &have_higher_than_11mbit,
+			    &min_rate, &min_rate_index);
 
 	/*
 	 * some buggy APs don't advertise basic_rates. use the lowest
@@ -1605,7 +1626,7 @@ static bool ieee80211_assoc_success(struct ieee80211_work *wk,
 		sdata->flags &= ~IEEE80211_SDATA_OPERATING_GMODE;
 
 	if (elems.ht_cap_elem && !(ifmgd->flags & IEEE80211_STA_DISABLE_11N))
-		ieee80211_ht_cap_ie_to_sta_ht_cap(sband,
+		ieee80211_ht_cap_ie_to_sta_ht_cap(sdata, sband,
 				elems.ht_cap_elem, &sta->sta.ht_cap);
 
 	ap_ht_cap_flags = sta->sta.ht_cap.cap;
@@ -1974,7 +1995,7 @@ static void ieee80211_rx_mgmt_beacon(struct ieee80211_sub_if_data *sdata,
 
 		sband = local->hw.wiphy->bands[local->hw.conf.channel->band];
 
-		ieee80211_ht_cap_ie_to_sta_ht_cap(sband,
+		ieee80211_ht_cap_ie_to_sta_ht_cap(sdata, sband,
 				elems.ht_cap_elem, &sta->sta.ht_cap);
 
 		ap_ht_cap_flags = sta->sta.ht_cap.cap;
@@ -2128,9 +2149,6 @@ static void ieee80211_sta_connection_lost(struct ieee80211_sub_if_data *sdata,
 
 	ieee80211_set_disassoc(sdata, true, true);
 	mutex_unlock(&ifmgd->mtx);
-	mutex_lock(&local->mtx);
-	ieee80211_recalc_idle(local);
-	mutex_unlock(&local->mtx);
 	/*
 	 * must be outside lock due to cfg80211,
 	 * but that's not a problem.
@@ -2138,6 +2156,11 @@ static void ieee80211_sta_connection_lost(struct ieee80211_sub_if_data *sdata,
 	ieee80211_send_deauth_disassoc(sdata, bssid,
 			IEEE80211_STYPE_DEAUTH, reason,
 			NULL, true);
+
+	mutex_lock(&local->mtx);
+	ieee80211_recalc_idle(local);
+	mutex_unlock(&local->mtx);
+
 	mutex_lock(&ifmgd->mtx);
 }
 
@@ -2358,6 +2381,7 @@ void ieee80211_sta_setup_sdata(struct ieee80211_sub_if_data *sdata)
 		    (unsigned long) sdata);
 
 	ifmgd->flags = 0;
+	ifmgd->powersave = sdata->wdev.ps;
 
 	mutex_init(&ifmgd->mtx);
 
@@ -2631,6 +2655,13 @@ int ieee80211_mgd_assoc(struct ieee80211_sub_if_data *sdata,
 		    req->crypto.ciphers_pairwise[i] == WLAN_CIPHER_SUITE_WEP104)
 			ifmgd->flags |= IEEE80211_STA_DISABLE_11N;
 
+
+	if (req->flags & ASSOC_REQ_DISABLE_HT)
+		ifmgd->flags |= IEEE80211_STA_DISABLE_11N;
+
+	memcpy(&ifmgd->ht_capa, &req->ht_capa, sizeof(ifmgd->ht_capa));
+	memcpy(&ifmgd->ht_capa_mask, &req->ht_capa_mask,
+	       sizeof(ifmgd->ht_capa_mask));
 
 	if (req->ie && req->ie_len) {
 		memcpy(wk->ie, req->ie, req->ie_len);

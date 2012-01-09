@@ -32,7 +32,6 @@
 
 #include <plat/cpu.h>
 
-extern unsigned int gic_bank_offset;
 extern void exynos4_secondary_startup(void);
 
 #define CPU1_BOOT_REG		(samsung_rev() == EXYNOS4210_REV_1_1 ? \
@@ -65,31 +64,6 @@ static void __iomem *scu_base_addr(void)
 
 static DEFINE_SPINLOCK(boot_lock);
 
-static void __cpuinit exynos4_gic_secondary_init(void)
-{
-	void __iomem *dist_base = S5P_VA_GIC_DIST +
-				(gic_bank_offset * smp_processor_id());
-	void __iomem *cpu_base = S5P_VA_GIC_CPU +
-				(gic_bank_offset * smp_processor_id());
-	int i;
-
-	/*
-	 * Deal with the banked PPI and SGI interrupts - disable all
-	 * PPI interrupts, ensure all SGI interrupts are enabled.
-	 */
-	__raw_writel(0xffff0000, dist_base + GIC_DIST_ENABLE_CLEAR);
-	__raw_writel(0x0000ffff, dist_base + GIC_DIST_ENABLE_SET);
-
-	/*
-	 * Set priority on PPI and SGI interrupts
-	 */
-	for (i = 0; i < 32; i += 4)
-		__raw_writel(0xa0a0a0a0, dist_base + GIC_DIST_PRI + i * 4 / 4);
-
-	__raw_writel(0xf0, cpu_base + GIC_CPU_PRIMASK);
-	__raw_writel(1, cpu_base + GIC_CPU_CTRL);
-}
-
 void __cpuinit platform_secondary_init(unsigned int cpu)
 {
 	/*
@@ -97,7 +71,7 @@ void __cpuinit platform_secondary_init(unsigned int cpu)
 	 * core (e.g. timer irq), then they will not have been enabled
 	 * for us: do so
 	 */
-	exynos4_gic_secondary_init();
+	gic_secondary_init(0);
 
 	/*
 	 * let the primary processor know we're out of the

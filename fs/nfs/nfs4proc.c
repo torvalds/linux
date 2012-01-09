@@ -39,6 +39,8 @@
 #include <linux/delay.h>
 #include <linux/errno.h>
 #include <linux/string.h>
+#include <linux/ratelimit.h>
+#include <linux/printk.h>
 #include <linux/slab.h>
 #include <linux/sunrpc/clnt.h>
 #include <linux/sunrpc/gss_api.h>
@@ -53,6 +55,7 @@
 #include <linux/sunrpc/bc_xprt.h>
 #include <linux/xattr.h>
 #include <linux/utsname.h>
+#include <linux/freezer.h>
 
 #include "nfs4_fs.h"
 #include "delegation.h"
@@ -241,7 +244,7 @@ static int nfs4_delay(struct rpc_clnt *clnt, long *timeout)
 		*timeout = NFS4_POLL_RETRY_MIN;
 	if (*timeout > NFS4_POLL_RETRY_MAX)
 		*timeout = NFS4_POLL_RETRY_MAX;
-	schedule_timeout_killable(*timeout);
+	freezable_schedule_timeout_killable(*timeout);
 	if (fatal_signal_pending(current))
 		res = -ERESTARTSYS;
 	*timeout <<= 1;
@@ -894,6 +897,8 @@ out:
 
 static int can_open_delegated(struct nfs_delegation *delegation, fmode_t fmode)
 {
+	if (delegation == NULL)
+		return 0;
 	if ((delegation->type & fmode) != fmode)
 		return 0;
 	if (test_bit(NFS_DELEGATION_NEED_RECLAIM, &delegation->flags))
@@ -1036,8 +1041,7 @@ static struct nfs4_state *nfs4_try_open_cached(struct nfs4_opendata *opendata)
 		}
 		rcu_read_lock();
 		delegation = rcu_dereference(nfsi->delegation);
-		if (delegation == NULL ||
-		    !can_open_delegated(delegation, fmode)) {
+		if (!can_open_delegated(delegation, fmode)) {
 			rcu_read_unlock();
 			break;
 		}
@@ -1091,7 +1095,12 @@ static struct nfs4_state *nfs4_opendata_to_nfs4_state(struct nfs4_opendata *data
 		if (delegation)
 			delegation_flags = delegation->flags;
 		rcu_read_unlock();
-		if ((delegation_flags & 1UL<<NFS_DELEGATION_NEED_RECLAIM) == 0)
+		if (data->o_arg.claim == NFS4_OPEN_CLAIM_DELEGATE_CUR) {
+			pr_err_ratelimited("NFS: Broken NFSv4 server %s is "
+					"returning a delegation for "
+					"OPEN(CLAIM_DELEGATE_CUR)\n",
+					NFS_CLIENT(inode)->cl_server);
+		} else if ((delegation_flags & 1UL<<NFS_DELEGATION_NEED_RECLAIM) == 0)
 			nfs_inode_set_delegation(state->inode,
 					data->owner->so_cred,
 					&data->o_res);
@@ -1423,11 +1432,9 @@ static void nfs4_open_prepare(struct rpc_task *task, void *calldata)
 			goto out_no_action;
 		rcu_read_lock();
 		delegation = rcu_dereference(NFS_I(data->state->inode)->delegation);
-		if (delegation != NULL &&
-		    test_bit(NFS_DELEGATION_NEED_RECLAIM, &delegation->flags) == 0) {
-			rcu_read_unlock();
-			goto out_no_action;
-		}
+		if (data->o_arg.claim != NFS4_OPEN_CLAIM_DELEGATE_CUR &&
+		    can_open_delegated(delegation, data->o_arg.fmode))
+			goto unlock_no_action;
 		rcu_read_unlock();
 	}
 	/* Update sequence id. */
@@ -1444,6 +1451,8 @@ static void nfs4_open_prepare(struct rpc_task *task, void *calldata)
 		return;
 	rpc_call_start(task);
 	return;
+unlock_no_action:
+	rcu_read_unlock();
 out_no_action:
 	task->tk_action = NULL;
 
@@ -3950,7 +3959,7 @@ int nfs4_proc_delegreturn(struct inode *inode, struct rpc_cred *cred, const nfs4
 static unsigned long
 nfs4_set_lock_task_retry(unsigned long timeout)
 {
-	schedule_timeout_killable(timeout);
+	freezable_schedule_timeout_killable(timeout);
 	timeout <<= 1;
 	if (timeout > NFS4_LOCK_MAXTIMEOUT)
 		return NFS4_LOCK_MAXTIMEOUT;

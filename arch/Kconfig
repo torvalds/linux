@@ -30,6 +30,10 @@ config OPROFILE_EVENT_MULTIPLEX
 config HAVE_OPROFILE
 	bool
 
+config OPROFILE_NMI_TIMER
+	def_bool y
+	depends on PERF_EVENTS && HAVE_PERF_EVENTS_NMI
+
 config KPROBES
 	bool "Kprobes"
 	depends on MODULES

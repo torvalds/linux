@@ -276,4 +276,5 @@ MACHINE_START(DM355_LEOPARD, "DaVinci DM355 leopard")
 	.timer	      = &davinci_timer,
 	.init_machine = dm355_leopard_init,
 	.dma_zone_size	= SZ_128M,
+	.restart	= davinci_restart,
 MACHINE_END

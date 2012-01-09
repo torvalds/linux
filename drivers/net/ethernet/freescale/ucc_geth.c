@@ -443,7 +443,7 @@ static void hw_add_addr_in_hash(struct ucc_geth_private *ugeth,
 
 static inline int compare_addr(u8 **addr1, u8 **addr2)
 {
-	return memcmp(addr1, addr2, ENET_NUM_OCTETS_PER_ADDRESS);
+	return memcmp(addr1, addr2, ETH_ALEN);
 }
 
 #ifdef DEBUG

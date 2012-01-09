@@ -23,6 +23,9 @@ config IA64
 	select HAVE_ARCH_TRACEHOOK
 	select HAVE_DMA_API_DEBUG
 	select HAVE_GENERIC_HARDIRQS
+	select HAVE_MEMBLOCK
+	select HAVE_MEMBLOCK_NODE_MAP
+	select ARCH_DISCARD_MEMBLOCK
 	select GENERIC_IRQ_PROBE
 	select GENERIC_PENDING_IRQ if SMP
 	select IRQ_PER_CPU
@@ -473,9 +476,6 @@ config NODES_SHIFT
 	  This option specifies the maximum number of nodes in your SSI system.
 	  MAX_NUMNODES will be 2^(This value).
 	  If in doubt, use the default.
-
-config ARCH_POPULATES_NODE_MAP
-	def_bool y
 
 # VIRTUAL_MEM_MAP and FLAT_NODE_MEM_MAP are functionally equivalent.
 # VIRTUAL_MEM_MAP has been retained for historical reasons.

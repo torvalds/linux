@@ -195,8 +195,8 @@ static inline int mip6_report_rl_allow(struct timeval *stamp,
 		mip6_report_rl.stamp.tv_sec = stamp->tv_sec;
 		mip6_report_rl.stamp.tv_usec = stamp->tv_usec;
 		mip6_report_rl.iif = iif;
-		ipv6_addr_copy(&mip6_report_rl.src, src);
-		ipv6_addr_copy(&mip6_report_rl.dst, dst);
+		mip6_report_rl.src = *src;
+		mip6_report_rl.dst = *dst;
 		allow = 1;
 	}
 	spin_unlock_bh(&mip6_report_rl.lock);

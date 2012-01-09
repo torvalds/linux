@@ -616,7 +616,7 @@ struct ip_vs_dest *ip_vs_try_bind_dest(struct ip_vs_conn *cp)
 	if ((cp) && (!cp->dest)) {
 		dest = ip_vs_find_dest(ip_vs_conn_net(cp), cp->af, &cp->daddr,
 				       cp->dport, &cp->vaddr, cp->vport,
-				       cp->protocol, cp->fwmark);
+				       cp->protocol, cp->fwmark, cp->flags);
 		ip_vs_bind_dest(cp, dest);
 		return dest;
 	} else

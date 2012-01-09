@@ -224,7 +224,7 @@ static ssize_t set_pwm(struct device *dev, struct device_attribute *attr,
 	int speed_index;
 	int ret = count;
 
-	if (strict_strtoul(buf, 10, &pwm) || pwm > 255)
+	if (kstrtoul(buf, 10, &pwm) || pwm > 255)
 		return -EINVAL;
 
 	mutex_lock(&fan_data->lock);
@@ -257,7 +257,7 @@ static ssize_t set_pwm_enable(struct device *dev, struct device_attribute *attr,
 	struct gpio_fan_data *fan_data = dev_get_drvdata(dev);
 	unsigned long val;
 
-	if (strict_strtoul(buf, 10, &val) || val > 1)
+	if (kstrtoul(buf, 10, &val) || val > 1)
 		return -EINVAL;
 
 	if (fan_data->pwm_enable == val)
@@ -314,7 +314,7 @@ static ssize_t set_rpm(struct device *dev, struct device_attribute *attr,
 	unsigned long rpm;
 	int ret = count;
 
-	if (strict_strtoul(buf, 10, &rpm))
+	if (kstrtoul(buf, 10, &rpm))
 		return -EINVAL;
 
 	mutex_lock(&fan_data->lock);

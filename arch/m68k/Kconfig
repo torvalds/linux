@@ -3,7 +3,6 @@ config M68K
 	default y
 	select HAVE_IDE
 	select HAVE_AOUT if MMU
-	select GENERIC_ATOMIC64 if MMU
 	select HAVE_GENERIC_HARDIRQS
 	select GENERIC_IRQ_SHOW
 	select ARCH_HAVE_NMI_SAFE_CMPXCHG if RMW_INSNS
@@ -41,12 +40,15 @@ config GENERIC_CALIBRATE_DELAY
 config GENERIC_IOMAP
 	def_bool MMU
 
+config GENERIC_CSUM
+	bool
+
 config TIME_LOW_RES
 	bool
 	default y
 
 config ARCH_USES_GETTIMEOFFSET
-	def_bool MMU
+	def_bool MMU && !COLDFIRE
 
 config NO_IOPORT
 	def_bool y
@@ -59,6 +61,12 @@ config ZONE_DMA
 	default y
 
 config CPU_HAS_NO_BITFIELDS
+	bool
+
+config CPU_HAS_NO_MULDIV64
+	bool
+
+config CPU_HAS_ADDRESS_SPACES
 	bool
 
 config HZ
@@ -80,9 +88,12 @@ config MMU
 config MMU_MOTOROLA
 	bool
 
+config MMU_COLDFIRE
+	bool
+
 config MMU_SUN3
 	bool
-	depends on MMU && !MMU_MOTOROLA
+	depends on MMU && !MMU_MOTOROLA && !MMU_COLDFIRE
 
 menu "Platform setup"
 

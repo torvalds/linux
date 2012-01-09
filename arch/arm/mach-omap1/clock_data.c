@@ -16,6 +16,8 @@
 
 #include <linux/kernel.h>
 #include <linux/clk.h>
+#include <linux/cpufreq.h>
+#include <linux/delay.h>
 #include <linux/io.h>
 
 #include <asm/mach-types.h>  /* for machine_is_* */
@@ -767,6 +769,15 @@ static struct clk_functions omap1_clk_functions = {
 	.clk_disable_unused	= omap1_clk_disable_unused,
 };
 
+static void __init omap1_show_rates(void)
+{
+	pr_notice("Clocking rate (xtal/DPLL1/MPU): "
+			"%ld.%01ld/%ld.%01ld/%ld.%01ld MHz\n",
+		ck_ref.rate / 1000000, (ck_ref.rate / 100000) % 10,
+		ck_dpll1.rate / 1000000, (ck_dpll1.rate / 100000) % 10,
+		arm_ck.rate / 1000000, (arm_ck.rate / 100000) % 10);
+}
+
 int __init omap1_clk_init(void)
 {
 	struct omap_clk *c;
@@ -835,9 +846,12 @@ int __init omap1_clk_init(void)
 	/* We want to be in syncronous scalable mode */
 	omap_writew(0x1000, ARM_SYSST);
 
-#ifdef CONFIG_OMAP_CLOCKS_SET_BY_BOOTLOADER
-	/* Use values set by bootloader. Determine PLL rate and recalculate
-	 * dependent clocks as if kernel had changed PLL or divisors.
+
+	/*
+	 * Initially use the values set by bootloader. Determine PLL rate and
+	 * recalculate dependent clocks as if kernel had changed PLL or
+	 * divisors. See also omap1_clk_late_init() that can reprogram dpll1
+	 * after the SRAM is initialized.
 	 */
 	{
 		unsigned pll_ctl_val = omap_readw(DPLL_CTL);
@@ -862,25 +876,10 @@ int __init omap1_clk_init(void)
 			}
 		}
 	}
-#else
-	/* Find the highest supported frequency and enable it */
-	if (omap1_select_table_rate(&virtual_ck_mpu, ~0)) {
-		printk(KERN_ERR "System frequencies not set. Check your config.\n");
-		/* Guess sane values (60MHz) */
-		omap_writew(0x2290, DPLL_CTL);
-		omap_writew(cpu_is_omap7xx() ? 0x3005 : 0x1005, ARM_CKCTL);
-		ck_dpll1.rate = 60000000;
-	}
-#endif
 	propagate_rate(&ck_dpll1);
 	/* Cache rates for clocks connected to ck_ref (not dpll1) */
 	propagate_rate(&ck_ref);
-	printk(KERN_INFO "Clocking rate (xtal/DPLL1/MPU): "
-		"%ld.%01ld/%ld.%01ld/%ld.%01ld MHz\n",
-	       ck_ref.rate / 1000000, (ck_ref.rate / 100000) % 10,
-	       ck_dpll1.rate / 1000000, (ck_dpll1.rate / 100000) % 10,
-	       arm_ck.rate / 1000000, (arm_ck.rate / 100000) % 10);
-
+	omap1_show_rates();
 	if (machine_is_omap_perseus2() || machine_is_omap_fsample()) {
 		/* Select slicer output as OMAP input clock */
 		omap_writew(omap_readw(OMAP7XX_PCC_UPLD_CTRL) & ~0x1,
@@ -924,4 +923,28 @@ int __init omap1_clk_init(void)
 		clk_enable(&arm_gpio_ck);
 
 	return 0;
+}
+
+#define OMAP1_DPLL1_SANE_VALUE	60000000
+
+void __init omap1_clk_late_init(void)
+{
+	unsigned long rate = ck_dpll1.rate;
+
+	if (rate >= OMAP1_DPLL1_SANE_VALUE)
+		return;
+
+	/* System booting at unusable rate, force reprogramming of DPLL1 */
+	ck_dpll1_p->rate = 0;
+
+	/* Find the highest supported frequency and enable it */
+	if (omap1_select_table_rate(&virtual_ck_mpu, ~0)) {
+		pr_err("System frequencies not set, using default. Check your config.\n");
+		omap_writew(0x2290, DPLL_CTL);
+		omap_writew(cpu_is_omap7xx() ? 0x2005 : 0x0005, ARM_CKCTL);
+		ck_dpll1.rate = OMAP1_DPLL1_SANE_VALUE;
+	}
+	propagate_rate(&ck_dpll1);
+	omap1_show_rates();
+	loops_per_jiffy = cpufreq_scale(loops_per_jiffy, rate, ck_dpll1.rate);
 }

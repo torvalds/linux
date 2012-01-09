@@ -325,9 +325,9 @@ static ssize_t beiscsi_show_boot_eth_info(void *data, int type, char *buf)
 }
 
 
-static mode_t beiscsi_tgt_get_attr_visibility(void *data, int type)
+static umode_t beiscsi_tgt_get_attr_visibility(void *data, int type)
 {
-	int rc;
+	umode_t rc;
 
 	switch (type) {
 	case ISCSI_BOOT_TGT_NAME:
@@ -348,9 +348,9 @@ static mode_t beiscsi_tgt_get_attr_visibility(void *data, int type)
 	return rc;
 }
 
-static mode_t beiscsi_ini_get_attr_visibility(void *data, int type)
+static umode_t beiscsi_ini_get_attr_visibility(void *data, int type)
 {
-	int rc;
+	umode_t rc;
 
 	switch (type) {
 	case ISCSI_BOOT_INI_INITIATOR_NAME:
@@ -364,9 +364,9 @@ static mode_t beiscsi_ini_get_attr_visibility(void *data, int type)
 }
 
 
-static mode_t beiscsi_eth_get_attr_visibility(void *data, int type)
+static umode_t beiscsi_eth_get_attr_visibility(void *data, int type)
 {
-	int rc;
+	umode_t rc;
 
 	switch (type) {
 	case ISCSI_BOOT_ETH_FLAGS:

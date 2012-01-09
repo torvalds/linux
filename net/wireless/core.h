@@ -54,6 +54,8 @@ struct cfg80211_registered_device {
 	int opencount; /* also protected by devlist_mtx */
 	wait_queue_head_t dev_wait;
 
+	u32 ap_beacons_nlpid;
+
 	/* BSSes/scanning */
 	spinlock_t bss_lock;
 	struct list_head bss_list;
@@ -247,12 +249,11 @@ struct cfg80211_event {
 			u16 status;
 		} cr;
 		struct {
-			struct ieee80211_channel *channel;
-			u8 bssid[ETH_ALEN];
 			const u8 *req_ie;
 			const u8 *resp_ie;
 			size_t req_ie_len;
 			size_t resp_ie_len;
+			struct cfg80211_bss *bss;
 		} rm;
 		struct {
 			const u8 *ie;
@@ -339,13 +340,17 @@ int __cfg80211_mlme_assoc(struct cfg80211_registered_device *rdev,
 			  const u8 *bssid, const u8 *prev_bssid,
 			  const u8 *ssid, int ssid_len,
 			  const u8 *ie, int ie_len, bool use_mfp,
-			  struct cfg80211_crypto_settings *crypt);
+			  struct cfg80211_crypto_settings *crypt,
+			  u32 assoc_flags, struct ieee80211_ht_cap *ht_capa,
+			  struct ieee80211_ht_cap *ht_capa_mask);
 int cfg80211_mlme_assoc(struct cfg80211_registered_device *rdev,
 			struct net_device *dev, struct ieee80211_channel *chan,
 			const u8 *bssid, const u8 *prev_bssid,
 			const u8 *ssid, int ssid_len,
 			const u8 *ie, int ie_len, bool use_mfp,
-			struct cfg80211_crypto_settings *crypt);
+			struct cfg80211_crypto_settings *crypt,
+			u32 assoc_flags, struct ieee80211_ht_cap *ht_capa,
+			struct ieee80211_ht_cap *ht_capa_mask);
 int __cfg80211_mlme_deauth(struct cfg80211_registered_device *rdev,
 			   struct net_device *dev, const u8 *bssid,
 			   const u8 *ie, int ie_len, u16 reason,
@@ -376,7 +381,9 @@ int cfg80211_mlme_mgmt_tx(struct cfg80211_registered_device *rdev,
 			  enum nl80211_channel_type channel_type,
 			  bool channel_type_valid, unsigned int wait,
 			  const u8 *buf, size_t len, bool no_cck,
-			  u64 *cookie);
+			  bool dont_wait_for_ack, u64 *cookie);
+void cfg80211_oper_and_ht_capa(struct ieee80211_ht_cap *ht_capa,
+			       const struct ieee80211_ht_cap *ht_capa_mask);
 
 /* SME */
 int __cfg80211_connect(struct cfg80211_registered_device *rdev,
@@ -395,8 +402,7 @@ int cfg80211_disconnect(struct cfg80211_registered_device *rdev,
 			struct net_device *dev, u16 reason,
 			bool wextev);
 void __cfg80211_roamed(struct wireless_dev *wdev,
-		       struct ieee80211_channel *channel,
-		       const u8 *bssid,
+		       struct cfg80211_bss *bss,
 		       const u8 *req_ie, size_t req_ie_len,
 		       const u8 *resp_ie, size_t resp_ie_len);
 int cfg80211_mgd_wext_connect(struct cfg80211_registered_device *rdev,

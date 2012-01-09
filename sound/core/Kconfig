@@ -5,7 +5,6 @@ config SND_TIMER
 config SND_PCM
 	tristate
 	select SND_TIMER
-	select GCD
 
 config SND_HWDEP
 	tristate

@@ -8,6 +8,7 @@
 
 #include <linux/init.h>
 #include <linux/kernel.h>
+#include <asm/sizes.h>
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
 #include <linux/of.h>
@@ -39,4 +40,5 @@ MACHINE_START(PRIMA2_EVB, "prima2cb")
 	.dma_zone_size	= SZ_256M,
 	.init_machine	= sirfsoc_mach_init,
 	.dt_compat      = prima2cb_dt_match,
+	.restart	= sirfsoc_restart,
 MACHINE_END

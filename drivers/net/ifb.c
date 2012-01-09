@@ -164,7 +164,7 @@ static const struct net_device_ops ifb_netdev_ops = {
 	.ndo_validate_addr = eth_validate_addr,
 };
 
-#define IFB_FEATURES (NETIF_F_NO_CSUM | NETIF_F_SG  | NETIF_F_FRAGLIST	| \
+#define IFB_FEATURES (NETIF_F_HW_CSUM | NETIF_F_SG  | NETIF_F_FRAGLIST	| \
 		      NETIF_F_TSO_ECN | NETIF_F_TSO | NETIF_F_TSO6	| \
 		      NETIF_F_HIGHDMA | NETIF_F_HW_VLAN_TX)
 

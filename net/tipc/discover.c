@@ -45,7 +45,7 @@
 
 
 /**
- * struct link_req - information about an ongoing link setup request
+ * struct tipc_link_req - information about an ongoing link setup request
  * @bearer: bearer issuing requests
  * @dest: destination address for request messages
  * @domain: network domain to which links can be established
@@ -54,7 +54,7 @@
  * @timer: timer governing period between requests
  * @timer_intv: current interval between requests (in ms)
  */
-struct link_req {
+struct tipc_link_req {
 	struct tipc_bearer *bearer;
 	struct tipc_media_addr dest;
 	u32 domain;
@@ -84,7 +84,7 @@ static struct sk_buff *tipc_disc_init_msg(u32 type,
 		msg_set_non_seq(msg, 1);
 		msg_set_dest_domain(msg, dest_domain);
 		msg_set_bc_netid(msg, tipc_net_id);
-		msg_set_media_addr(msg, &b_ptr->addr);
+		b_ptr->media->addr2msg(&b_ptr->addr, msg_media_addr(msg));
 	}
 	return buf;
 }
@@ -120,7 +120,7 @@ static void disc_dupl_alert(struct tipc_bearer *b_ptr, u32 node_addr,
 void tipc_disc_recv_msg(struct sk_buff *buf, struct tipc_bearer *b_ptr)
 {
 	struct tipc_node *n_ptr;
-	struct link *link;
+	struct tipc_link *link;
 	struct tipc_media_addr media_addr, *addr;
 	struct sk_buff *rbuf;
 	struct tipc_msg *msg = buf_msg(buf);
@@ -130,11 +130,14 @@ void tipc_disc_recv_msg(struct sk_buff *buf, struct tipc_bearer *b_ptr)
 	u32 type = msg_type(msg);
 	int link_fully_up;
 
-	msg_get_media_addr(msg, &media_addr);
+	media_addr.broadcast = 1;
+	b_ptr->media->msg2addr(&media_addr, msg_media_addr(msg));
 	buf_discard(buf);
 
 	/* Validate discovery message from requesting node */
 	if (net_id != tipc_net_id)
+		return;
+	if (media_addr.broadcast)
 		return;
 	if (!tipc_addr_domain_valid(dest))
 		return;
@@ -215,7 +218,7 @@ void tipc_disc_recv_msg(struct sk_buff *buf, struct tipc_bearer *b_ptr)
  * and is either not currently searching or is searching at a slow rate
  */
 
-static void disc_update(struct link_req *req)
+static void disc_update(struct tipc_link_req *req)
 {
 	if (!req->num_nodes) {
 		if ((req->timer_intv == TIPC_LINK_REQ_INACTIVE) ||
@@ -231,7 +234,7 @@ static void disc_update(struct link_req *req)
  * @req: ptr to link request structure
  */
 
-void tipc_disc_add_dest(struct link_req *req)
+void tipc_disc_add_dest(struct tipc_link_req *req)
 {
 	req->num_nodes++;
 }
@@ -241,7 +244,7 @@ void tipc_disc_add_dest(struct link_req *req)
  * @req: ptr to link request structure
  */
 
-void tipc_disc_remove_dest(struct link_req *req)
+void tipc_disc_remove_dest(struct tipc_link_req *req)
 {
 	req->num_nodes--;
 	disc_update(req);
@@ -252,7 +255,7 @@ void tipc_disc_remove_dest(struct link_req *req)
  * @req: ptr to link request structure
  */
 
-static void disc_send_msg(struct link_req *req)
+static void disc_send_msg(struct tipc_link_req *req)
 {
 	if (!req->bearer->blocked)
 		tipc_bearer_send(req->bearer, req->buf, &req->dest);
@@ -265,7 +268,7 @@ static void disc_send_msg(struct link_req *req)
  * Called whenever a link setup request timer associated with a bearer expires.
  */
 
-static void disc_timeout(struct link_req *req)
+static void disc_timeout(struct tipc_link_req *req)
 {
 	int max_delay;
 
@@ -313,7 +316,7 @@ exit:
 int tipc_disc_create(struct tipc_bearer *b_ptr,
 		     struct tipc_media_addr *dest, u32 dest_domain)
 {
-	struct link_req *req;
+	struct tipc_link_req *req;
 
 	req = kmalloc(sizeof(*req), GFP_ATOMIC);
 	if (!req)
@@ -342,7 +345,7 @@ int tipc_disc_create(struct tipc_bearer *b_ptr,
  * @req: ptr to link request structure
  */
 
-void tipc_disc_delete(struct link_req *req)
+void tipc_disc_delete(struct tipc_link_req *req)
 {
 	k_cancel_timer(&req->timer);
 	k_term_timer(&req->timer);

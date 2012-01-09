@@ -71,7 +71,6 @@ static struct inode *minix_alloc_inode(struct super_block *sb)
 static void minix_i_callback(struct rcu_head *head)
 {
 	struct inode *inode = container_of(head, struct inode, i_rcu);
-	INIT_LIST_HEAD(&inode->i_dentry);
 	kmem_cache_free(minix_inode_cachep, minix_i(inode));
 }
 
@@ -263,23 +262,6 @@ static int minix_fill_super(struct super_block *s, void *data, int silent)
 		goto out_no_root;
 	}
 
-	ret = -ENOMEM;
-	s->s_root = d_alloc_root(root_inode);
-	if (!s->s_root)
-		goto out_iput;
-
-	if (!(s->s_flags & MS_RDONLY)) {
-		if (sbi->s_version != MINIX_V3) /* s_state is now out from V3 sb */
-			ms->s_state &= ~MINIX_VALID_FS;
-		mark_buffer_dirty(bh);
-	}
-	if (!(sbi->s_mount_state & MINIX_VALID_FS))
-		printk("MINIX-fs: mounting unchecked file system, "
-			"running fsck is recommended\n");
- 	else if (sbi->s_mount_state & MINIX_ERROR_FS)
-		printk("MINIX-fs: mounting file system with errors, "
-			"running fsck is recommended\n");
-
 	/* Apparently minix can create filesystems that allocate more blocks for
 	 * the bitmaps than needed.  We simply ignore that, but verify it didn't
 	 * create one with not enough blocks and bail out if so.
@@ -299,6 +281,23 @@ static int minix_fill_super(struct super_block *s, void *data, int silent)
 				"zmap blocks allocated.  Refusing to mount.\n");
 		goto out_iput;
 	}
+
+	ret = -ENOMEM;
+	s->s_root = d_alloc_root(root_inode);
+	if (!s->s_root)
+		goto out_iput;
+
+	if (!(s->s_flags & MS_RDONLY)) {
+		if (sbi->s_version != MINIX_V3) /* s_state is now out from V3 sb */
+			ms->s_state &= ~MINIX_VALID_FS;
+		mark_buffer_dirty(bh);
+	}
+	if (!(sbi->s_mount_state & MINIX_VALID_FS))
+		printk("MINIX-fs: mounting unchecked file system, "
+			"running fsck is recommended\n");
+	else if (sbi->s_mount_state & MINIX_ERROR_FS)
+		printk("MINIX-fs: mounting file system with errors, "
+			"running fsck is recommended\n");
 
 	return 0;
 

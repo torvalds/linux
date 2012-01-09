@@ -67,7 +67,10 @@ nouveau_sgdma_clear(struct ttm_backend *be)
 			pci_unmap_page(dev->pdev, nvbe->pages[nvbe->nr_pages],
 				       PAGE_SIZE, PCI_DMA_BIDIRECTIONAL);
 		}
+		nvbe->unmap_pages = false;
 	}
+
+	nvbe->pages = NULL;
 }
 
 static void

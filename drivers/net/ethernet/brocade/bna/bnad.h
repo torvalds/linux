@@ -124,6 +124,12 @@ enum bnad_link_state {
 	BNAD_LS_UP		= 1
 };
 
+struct bnad_iocmd_comp {
+	struct bnad		*bnad;
+	struct completion	comp;
+	int			comp_status;
+};
+
 struct bnad_completion {
 	struct completion	ioc_comp;
 	struct completion	ucast_comp;
@@ -251,6 +257,8 @@ struct bnad_unmap_q {
 
 struct bnad {
 	struct net_device	*netdev;
+	u32			id;
+	struct list_head	list_entry;
 
 	/* Data path */
 	struct bnad_tx_info tx_info[BNAD_MAX_TX];
@@ -320,12 +328,26 @@ struct bnad {
 	char			adapter_name[BNAD_NAME_LEN];
 	char			port_name[BNAD_NAME_LEN];
 	char			mbox_irq_name[BNAD_NAME_LEN];
+
+	/* debugfs specific data */
+	char	*regdata;
+	u32	reglen;
+	struct dentry *bnad_dentry_files[5];
+	struct dentry *port_debugfs_root;
+};
+
+struct bnad_drvinfo {
+	struct bfa_ioc_attr  ioc_attr;
+	struct bfa_cee_attr  cee_attr;
+	struct bfa_flash_attr flash_attr;
+	u32	cee_status;
+	u32	flash_status;
 };
 
 /*
  * EXTERN VARIABLES
  */
-extern struct firmware *bfi_fw;
+extern const struct firmware *bfi_fw;
 extern u32		bnad_rxqs_per_cq;
 
 /*
@@ -340,6 +362,7 @@ extern int bnad_mac_addr_set_locked(struct bnad *bnad, u8 *mac_addr);
 extern int bnad_enable_default_bcast(struct bnad *bnad);
 extern void bnad_restore_vlans(struct bnad *bnad, u32 rx_id);
 extern void bnad_set_ethtool_ops(struct net_device *netdev);
+extern void bnad_cb_completion(void *arg, enum bfa_status status);
 
 /* Configuration & setup */
 extern void bnad_tx_coalescing_timeo_set(struct bnad *bnad);
@@ -358,6 +381,10 @@ extern void bnad_netdev_qstats_fill(struct bnad *bnad,
 		struct rtnl_link_stats64 *stats);
 extern void bnad_netdev_hwstats_fill(struct bnad *bnad,
 		struct rtnl_link_stats64 *stats);
+
+/* Debugfs */
+void	bnad_debugfs_init(struct bnad *bnad);
+void	bnad_debugfs_uninit(struct bnad *bnad);
 
 /**
  * MACROS

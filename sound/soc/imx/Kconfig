@@ -28,7 +28,7 @@ config SND_MXC_SOC_WM1133_EV1
 
 config SND_SOC_MX27VIS_AIC32X4
 	tristate "SoC audio support for Visstrim M10 boards"
-	depends on MACH_IMX27_VISSTRIM_M10
+	depends on MACH_IMX27_VISSTRIM_M10 && I2C
 	select SND_SOC_TLV320AIC32X4
 	select SND_MXC_SOC_MX2
 	help

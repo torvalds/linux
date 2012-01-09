@@ -51,15 +51,14 @@ ffc00000	ffefffff	DMA memory mapping region.  Memory returned
 ff000000	ffbfffff	Reserved for future expansion of DMA
 				mapping region.
 
-VMALLOC_END	feffffff	Free for platform use, recommended.
-				VMALLOC_END must be aligned to a 2MB
-				boundary.
-
 VMALLOC_START	VMALLOC_END-1	vmalloc() / ioremap() space.
 				Memory returned by vmalloc/ioremap will
 				be dynamically placed in this region.
-				VMALLOC_START may be based upon the value
-				of the high_memory variable.
+				Machine specific static mappings are also
+				located here through iotable_init().
+				VMALLOC_START is based upon the value
+				of the high_memory variable, and VMALLOC_END
+				is equal to 0xff000000.
 
 PAGE_OFFSET	high_memory-1	Kernel direct-mapped RAM region.
 				This maps the platforms RAM, and typically

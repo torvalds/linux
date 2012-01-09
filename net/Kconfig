@@ -215,6 +215,7 @@ source "net/sched/Kconfig"
 source "net/dcb/Kconfig"
 source "net/dns_resolver/Kconfig"
 source "net/batman-adv/Kconfig"
+source "net/openvswitch/Kconfig"
 
 config RPS
 	boolean
@@ -230,6 +231,19 @@ config RFS_ACCEL
 config XPS
 	boolean
 	depends on SMP && SYSFS && USE_GENERIC_SMP_HELPERS
+	default y
+
+config NETPRIO_CGROUP
+	tristate "Network priority cgroup"
+	depends on CGROUPS
+	---help---
+	  Cgroup subsystem for use in assigning processes to network priorities on
+	  a per-interface basis
+
+config BQL
+	boolean
+	depends on SYSFS
+	select DQL
 	default y
 
 config HAVE_BPF_JIT

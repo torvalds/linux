@@ -28,6 +28,7 @@
 #include <linux/mount.h>
 #include <linux/namei.h>
 #include <linux/crc32.h>
+#include <linux/seq_file.h>
 
 struct file_system_type reiserfs_fs_type;
 
@@ -61,6 +62,7 @@ static int is_any_reiserfs_magic_string(struct reiserfs_super_block *rs)
 
 static int reiserfs_remount(struct super_block *s, int *flags, char *data);
 static int reiserfs_statfs(struct dentry *dentry, struct kstatfs *buf);
+void show_alloc_options(struct seq_file *seq, struct super_block *s);
 
 static int reiserfs_sync_fs(struct super_block *s, int wait)
 {
@@ -532,7 +534,6 @@ static struct inode *reiserfs_alloc_inode(struct super_block *sb)
 static void reiserfs_i_callback(struct rcu_head *head)
 {
 	struct inode *inode = container_of(head, struct inode, i_rcu);
-	INIT_LIST_HEAD(&inode->i_dentry);
 	kmem_cache_free(reiserfs_inode_cachep, REISERFS_I(inode));
 }
 
@@ -597,6 +598,82 @@ out:
 	reiserfs_write_unlock_once(inode->i_sb, lock_depth);
 }
 
+static int reiserfs_show_options(struct seq_file *seq, struct dentry *root)
+{
+	struct super_block *s = root->d_sb;
+	struct reiserfs_journal *journal = SB_JOURNAL(s);
+	long opts = REISERFS_SB(s)->s_mount_opt;
+
+	if (opts & (1 << REISERFS_LARGETAIL))
+		seq_puts(seq, ",tails=on");
+	else if (!(opts & (1 << REISERFS_SMALLTAIL)))
+		seq_puts(seq, ",notail");
+	/* tails=small is default so we don't show it */
+
+	if (!(opts & (1 << REISERFS_BARRIER_FLUSH)))
+		seq_puts(seq, ",barrier=none");
+	/* barrier=flush is default so we don't show it */
+
+	if (opts & (1 << REISERFS_ERROR_CONTINUE))
+		seq_puts(seq, ",errors=continue");
+	else if (opts & (1 << REISERFS_ERROR_PANIC))
+		seq_puts(seq, ",errors=panic");
+	/* errors=ro is default so we don't show it */
+
+	if (opts & (1 << REISERFS_DATA_LOG))
+		seq_puts(seq, ",data=journal");
+	else if (opts & (1 << REISERFS_DATA_WRITEBACK))
+		seq_puts(seq, ",data=writeback");
+	/* data=ordered is default so we don't show it */
+
+	if (opts & (1 << REISERFS_ATTRS))
+		seq_puts(seq, ",attrs");
+
+	if (opts & (1 << REISERFS_XATTRS_USER))
+		seq_puts(seq, ",user_xattr");
+
+	if (opts & (1 << REISERFS_EXPOSE_PRIVROOT))
+		seq_puts(seq, ",expose_privroot");
+
+	if (opts & (1 << REISERFS_POSIXACL))
+		seq_puts(seq, ",acl");
+
+	if (REISERFS_SB(s)->s_jdev)
+		seq_printf(seq, ",jdev=%s", REISERFS_SB(s)->s_jdev);
+
+	if (journal->j_max_commit_age != journal->j_default_max_commit_age)
+		seq_printf(seq, ",commit=%d", journal->j_max_commit_age);
+
+#ifdef CONFIG_QUOTA
+	if (REISERFS_SB(s)->s_qf_names[USRQUOTA])
+		seq_printf(seq, ",usrjquota=%s", REISERFS_SB(s)->s_qf_names[USRQUOTA]);
+	else if (opts & (1 << REISERFS_USRQUOTA))
+		seq_puts(seq, ",usrquota");
+	if (REISERFS_SB(s)->s_qf_names[GRPQUOTA])
+		seq_printf(seq, ",grpjquota=%s", REISERFS_SB(s)->s_qf_names[GRPQUOTA]);
+	else if (opts & (1 << REISERFS_GRPQUOTA))
+		seq_puts(seq, ",grpquota");
+	if (REISERFS_SB(s)->s_jquota_fmt) {
+		if (REISERFS_SB(s)->s_jquota_fmt == QFMT_VFS_OLD)
+			seq_puts(seq, ",jqfmt=vfsold");
+		else if (REISERFS_SB(s)->s_jquota_fmt == QFMT_VFS_V0)
+			seq_puts(seq, ",jqfmt=vfsv0");
+	}
+#endif
+
+	/* Block allocator options */
+	if (opts & (1 << REISERFS_NO_BORDER))
+		seq_puts(seq, ",block-allocator=noborder");
+	if (opts & (1 << REISERFS_NO_UNHASHED_RELOCATION))
+		seq_puts(seq, ",block-allocator=no_unhashed_relocation");
+	if (opts & (1 << REISERFS_HASHED_RELOCATION))
+		seq_puts(seq, ",block-allocator=hashed_relocation");
+	if (opts & (1 << REISERFS_TEST4))
+		seq_puts(seq, ",block-allocator=test4");
+	show_alloc_options(seq, s);
+	return 0;
+}
+
 #ifdef CONFIG_QUOTA
 static ssize_t reiserfs_quota_write(struct super_block *, int, const char *,
 				    size_t, loff_t);
@@ -617,7 +694,7 @@ static const struct super_operations reiserfs_sops = {
 	.unfreeze_fs = reiserfs_unfreeze,
 	.statfs = reiserfs_statfs,
 	.remount_fs = reiserfs_remount,
-	.show_options = generic_show_options,
+	.show_options = reiserfs_show_options,
 #ifdef CONFIG_QUOTA
 	.quota_read = reiserfs_quota_read,
 	.quota_write = reiserfs_quota_write,
@@ -915,9 +992,9 @@ static int reiserfs_parse_options(struct super_block *s, char *options,	/* strin
 		{"jdev",.arg_required = 'j',.values = NULL},
 		{"nolargeio",.arg_required = 'w',.values = NULL},
 		{"commit",.arg_required = 'c',.values = NULL},
-		{"usrquota",.setmask = 1 << REISERFS_QUOTA},
-		{"grpquota",.setmask = 1 << REISERFS_QUOTA},
-		{"noquota",.clrmask = 1 << REISERFS_QUOTA},
+		{"usrquota",.setmask = 1 << REISERFS_USRQUOTA},
+		{"grpquota",.setmask = 1 << REISERFS_GRPQUOTA},
+		{"noquota",.clrmask = 1 << REISERFS_USRQUOTA | 1 << REISERFS_GRPQUOTA},
 		{"errors",.arg_required = 'e',.values = error_actions},
 		{"usrjquota",.arg_required =
 		 'u' | (1 << REISERFS_OPT_ALLOWEMPTY),.values = NULL},
@@ -1031,12 +1108,19 @@ static int reiserfs_parse_options(struct super_block *s, char *options,	/* strin
 					return 0;
 				}
 				strcpy(qf_names[qtype], arg);
-				*mount_options |= 1 << REISERFS_QUOTA;
+				if (qtype == USRQUOTA)
+					*mount_options |= 1 << REISERFS_USRQUOTA;
+				else
+					*mount_options |= 1 << REISERFS_GRPQUOTA;
 			} else {
 				if (qf_names[qtype] !=
 				    REISERFS_SB(s)->s_qf_names[qtype])
 					kfree(qf_names[qtype]);
 				qf_names[qtype] = NULL;
+				if (qtype == USRQUOTA)
+					*mount_options &= ~(1 << REISERFS_USRQUOTA);
+				else
+					*mount_options &= ~(1 << REISERFS_GRPQUOTA);
 			}
 		}
 		if (c == 'f') {
@@ -1075,9 +1159,10 @@ static int reiserfs_parse_options(struct super_block *s, char *options,	/* strin
 				 "journaled quota format not specified.");
 		return 0;
 	}
-	/* This checking is not precise wrt the quota type but for our purposes it is sufficient */
-	if (!(*mount_options & (1 << REISERFS_QUOTA))
-	    && sb_any_quota_loaded(s)) {
+	if ((!(*mount_options & (1 << REISERFS_USRQUOTA)) &&
+	       sb_has_quota_loaded(s, USRQUOTA)) ||
+	    (!(*mount_options & (1 << REISERFS_GRPQUOTA)) &&
+	       sb_has_quota_loaded(s, GRPQUOTA))) {
 		reiserfs_warning(s, "super-6516", "quota options must "
 				 "be present when quota is turned on.");
 		return 0;
@@ -1225,7 +1310,8 @@ static int reiserfs_remount(struct super_block *s, int *mount_flags, char *arg)
 	safe_mask |= 1 << REISERFS_ERROR_RO;
 	safe_mask |= 1 << REISERFS_ERROR_CONTINUE;
 	safe_mask |= 1 << REISERFS_ERROR_PANIC;
-	safe_mask |= 1 << REISERFS_QUOTA;
+	safe_mask |= 1 << REISERFS_USRQUOTA;
+	safe_mask |= 1 << REISERFS_GRPQUOTA;
 
 	/* Update the bitmask, taking care to keep
 	 * the bits we're not allowed to change here */
@@ -1672,6 +1758,14 @@ static int reiserfs_fill_super(struct super_block *s, void *data, int silent)
 	     &commit_max_age, qf_names, &qfmt) == 0) {
 		goto error;
 	}
+	if (jdev_name && jdev_name[0]) {
+		REISERFS_SB(s)->s_jdev = kstrdup(jdev_name, GFP_KERNEL);
+		if (!REISERFS_SB(s)->s_jdev) {
+			SWARN(silent, s, "", "Cannot allocate memory for "
+				"journal device name");
+			goto error;
+		}
+	}
 #ifdef CONFIG_QUOTA
 	handle_quota_files(s, qf_names, &qfmt);
 #endif
@@ -2054,12 +2148,13 @@ static int reiserfs_quota_on(struct super_block *sb, int type, int format_id,
 	int err;
 	struct inode *inode;
 	struct reiserfs_transaction_handle th;
+	int opt = type == USRQUOTA ? REISERFS_USRQUOTA : REISERFS_GRPQUOTA;
 
-	if (!(REISERFS_SB(sb)->s_mount_opt & (1 << REISERFS_QUOTA)))
+	if (!(REISERFS_SB(sb)->s_mount_opt & (1 << opt)))
 		return -EINVAL;
 
 	/* Quotafile not on the same filesystem? */
-	if (path->mnt->mnt_sb != sb) {
+	if (path->dentry->d_sb != sb) {
 		err = -EXDEV;
 		goto out;
 	}

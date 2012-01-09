@@ -1264,18 +1264,7 @@ static struct platform_driver ks8842_platform_driver = {
 	.remove		= ks8842_remove,
 };
 
-static int __init ks8842_init(void)
-{
-	return platform_driver_register(&ks8842_platform_driver);
-}
-
-static void __exit ks8842_exit(void)
-{
-	platform_driver_unregister(&ks8842_platform_driver);
-}
-
-module_init(ks8842_init);
-module_exit(ks8842_exit);
+module_platform_driver(ks8842_platform_driver);
 
 MODULE_DESCRIPTION("Timberdale KS8842 ethernet driver");
 MODULE_AUTHOR("Mocean Laboratories <info@mocean-labs.com>");

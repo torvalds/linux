@@ -45,7 +45,7 @@
 /*
  * Allow hardware encryption to be disabled.
  */
-static int modparam_nohwcrypt;
+static bool modparam_nohwcrypt;
 module_param_named(nohwcrypt, modparam_nohwcrypt, bool, S_IRUGO);
 MODULE_PARM_DESC(nohwcrypt, "Disable hardware encryption.");
 
@@ -400,10 +400,10 @@ static void rt2800usb_write_tx_desc(struct queue_entry *entry,
 	/*
 	 * The size of TXINFO_W0_USB_DMA_TX_PKT_LEN is
 	 * TXWI + 802.11 header + L2 pad + payload + pad,
-	 * so need to decrease size of TXINFO and USB end pad.
+	 * so need to decrease size of TXINFO.
 	 */
 	rt2x00_set_field32(&word, TXINFO_W0_USB_DMA_TX_PKT_LEN,
-			   entry->skb->len - TXINFO_DESC_SIZE - 4);
+			   roundup(entry->skb->len, 4) - TXINFO_DESC_SIZE);
 	rt2x00_set_field32(&word, TXINFO_W0_WIV,
 			   !test_bit(ENTRY_TXD_ENCRYPT_IV, &txdesc->flags));
 	rt2x00_set_field32(&word, TXINFO_W0_QSEL, 2);
@@ -421,37 +421,20 @@ static void rt2800usb_write_tx_desc(struct queue_entry *entry,
 	skbdesc->desc_len = TXINFO_DESC_SIZE + TXWI_DESC_SIZE;
 }
 
-static void rt2800usb_write_tx_data(struct queue_entry *entry,
-					struct txentry_desc *txdesc)
-{
-	unsigned int len;
-	int err;
-
-	rt2800_write_tx_data(entry, txdesc);
-
-	/*
-	 * pad(1~3 bytes) is added after each 802.11 payload.
-	 * USB end pad(4 bytes) is added at each USB bulk out packet end.
-	 * TX frame format is :
-	 * | TXINFO | TXWI | 802.11 header | L2 pad | payload | pad | USB end pad |
-	 *                 |<------------- tx_pkt_len ------------->|
-	 */
-	len = roundup(entry->skb->len, 4) + 4;
-	err = skb_padto(entry->skb, len);
-	if (unlikely(err)) {
-		WARNING(entry->queue->rt2x00dev, "TX SKB padding error, out of memory\n");
-		return;
-	}
-
-	entry->skb->len = len;
-}
-
 /*
  * TX data initialization
  */
 static int rt2800usb_get_tx_data_len(struct queue_entry *entry)
 {
-	return entry->skb->len;
+	/*
+	 * pad(1~3 bytes) is needed after each 802.11 payload.
+	 * USB end pad(4 bytes) is needed at each USB bulk out packet end.
+	 * TX frame format is :
+	 * | TXINFO | TXWI | 802.11 header | L2 pad | payload | pad | USB end pad |
+	 *                 |<------------- tx_pkt_len ------------->|
+	 */
+
+	return roundup(entry->skb->len, 4) + 4;
 }
 
 /*
@@ -807,7 +790,7 @@ static const struct rt2x00lib_ops rt2800usb_rt2x00_ops = {
 	.flush_queue		= rt2x00usb_flush_queue,
 	.tx_dma_done		= rt2800usb_tx_dma_done,
 	.write_tx_desc		= rt2800usb_write_tx_desc,
-	.write_tx_data		= rt2800usb_write_tx_data,
+	.write_tx_data		= rt2800_write_tx_data,
 	.write_beacon		= rt2800_write_beacon,
 	.clear_beacon		= rt2800_clear_beacon,
 	.get_tx_data_len	= rt2800usb_get_tx_data_len,
@@ -914,12 +897,14 @@ static struct usb_device_id rt2800usb_device_table[] = {
 	{ USB_DEVICE(0x050d, 0x8053) },
 	{ USB_DEVICE(0x050d, 0x805c) },
 	{ USB_DEVICE(0x050d, 0x815c) },
+	{ USB_DEVICE(0x050d, 0x825a) },
 	{ USB_DEVICE(0x050d, 0x825b) },
 	{ USB_DEVICE(0x050d, 0x935a) },
 	{ USB_DEVICE(0x050d, 0x935b) },
 	/* Buffalo */
 	{ USB_DEVICE(0x0411, 0x00e8) },
 	{ USB_DEVICE(0x0411, 0x0158) },
+	{ USB_DEVICE(0x0411, 0x015d) },
 	{ USB_DEVICE(0x0411, 0x016f) },
 	{ USB_DEVICE(0x0411, 0x01a2) },
 	/* Corega */
@@ -934,6 +919,8 @@ static struct usb_device_id rt2800usb_device_table[] = {
 	{ USB_DEVICE(0x07d1, 0x3c0e) },
 	{ USB_DEVICE(0x07d1, 0x3c0f) },
 	{ USB_DEVICE(0x07d1, 0x3c11) },
+	{ USB_DEVICE(0x07d1, 0x3c13) },
+	{ USB_DEVICE(0x07d1, 0x3c15) },
 	{ USB_DEVICE(0x07d1, 0x3c16) },
 	/* Draytek */
 	{ USB_DEVICE(0x07fa, 0x7712) },
@@ -943,6 +930,7 @@ static struct usb_device_id rt2800usb_device_table[] = {
 	{ USB_DEVICE(0x7392, 0x7711) },
 	{ USB_DEVICE(0x7392, 0x7717) },
 	{ USB_DEVICE(0x7392, 0x7718) },
+	{ USB_DEVICE(0x7392, 0x7722) },
 	/* Encore */
 	{ USB_DEVICE(0x203d, 0x1480) },
 	{ USB_DEVICE(0x203d, 0x14a9) },
@@ -976,6 +964,8 @@ static struct usb_device_id rt2800usb_device_table[] = {
 	{ USB_DEVICE(0x13b1, 0x0031) },
 	{ USB_DEVICE(0x1737, 0x0070) },
 	{ USB_DEVICE(0x1737, 0x0071) },
+	{ USB_DEVICE(0x1737, 0x0077) },
+	{ USB_DEVICE(0x1737, 0x0078) },
 	/* Logitec */
 	{ USB_DEVICE(0x0789, 0x0162) },
 	{ USB_DEVICE(0x0789, 0x0163) },
@@ -999,9 +989,13 @@ static struct usb_device_id rt2800usb_device_table[] = {
 	{ USB_DEVICE(0x0db0, 0x871b) },
 	{ USB_DEVICE(0x0db0, 0x871c) },
 	{ USB_DEVICE(0x0db0, 0x899a) },
+	/* Ovislink */
+	{ USB_DEVICE(0x1b75, 0x3071) },
+	{ USB_DEVICE(0x1b75, 0x3072) },
 	/* Para */
 	{ USB_DEVICE(0x20b8, 0x8888) },
 	/* Pegatron */
+	{ USB_DEVICE(0x1d4d, 0x0002) },
 	{ USB_DEVICE(0x1d4d, 0x000c) },
 	{ USB_DEVICE(0x1d4d, 0x000e) },
 	{ USB_DEVICE(0x1d4d, 0x0011) },
@@ -1054,7 +1048,9 @@ static struct usb_device_id rt2800usb_device_table[] = {
 	/* Sparklan */
 	{ USB_DEVICE(0x15a9, 0x0006) },
 	/* Sweex */
+	{ USB_DEVICE(0x177f, 0x0153) },
 	{ USB_DEVICE(0x177f, 0x0302) },
+	{ USB_DEVICE(0x177f, 0x0313) },
 	/* U-Media */
 	{ USB_DEVICE(0x157e, 0x300e) },
 	{ USB_DEVICE(0x157e, 0x3013) },
@@ -1138,27 +1134,24 @@ static struct usb_device_id rt2800usb_device_table[] = {
 	{ USB_DEVICE(0x13d3, 0x3322) },
 	/* Belkin */
 	{ USB_DEVICE(0x050d, 0x1003) },
-	{ USB_DEVICE(0x050d, 0x825a) },
 	/* Buffalo */
 	{ USB_DEVICE(0x0411, 0x012e) },
 	{ USB_DEVICE(0x0411, 0x0148) },
 	{ USB_DEVICE(0x0411, 0x0150) },
-	{ USB_DEVICE(0x0411, 0x015d) },
 	/* Corega */
 	{ USB_DEVICE(0x07aa, 0x0041) },
 	{ USB_DEVICE(0x07aa, 0x0042) },
 	{ USB_DEVICE(0x18c5, 0x0008) },
 	/* D-Link */
 	{ USB_DEVICE(0x07d1, 0x3c0b) },
-	{ USB_DEVICE(0x07d1, 0x3c13) },
-	{ USB_DEVICE(0x07d1, 0x3c15) },
 	{ USB_DEVICE(0x07d1, 0x3c17) },
 	{ USB_DEVICE(0x2001, 0x3c17) },
 	/* Edimax */
 	{ USB_DEVICE(0x7392, 0x4085) },
-	{ USB_DEVICE(0x7392, 0x7722) },
 	/* Encore */
 	{ USB_DEVICE(0x203d, 0x14a1) },
+	/* Fujitsu Stylistic 550 */
+	{ USB_DEVICE(0x1690, 0x0761) },
 	/* Gemtek */
 	{ USB_DEVICE(0x15a9, 0x0010) },
 	/* Gigabyte */
@@ -1170,20 +1163,13 @@ static struct usb_device_id rt2800usb_device_table[] = {
 	/* LevelOne */
 	{ USB_DEVICE(0x1740, 0x0605) },
 	{ USB_DEVICE(0x1740, 0x0615) },
-	/* Linksys */
-	{ USB_DEVICE(0x1737, 0x0077) },
-	{ USB_DEVICE(0x1737, 0x0078) },
 	/* Logitec */
 	{ USB_DEVICE(0x0789, 0x0168) },
 	{ USB_DEVICE(0x0789, 0x0169) },
 	/* Motorola */
 	{ USB_DEVICE(0x100d, 0x9032) },
-	/* Ovislink */
-	{ USB_DEVICE(0x1b75, 0x3071) },
-	{ USB_DEVICE(0x1b75, 0x3072) },
 	/* Pegatron */
 	{ USB_DEVICE(0x05a6, 0x0101) },
-	{ USB_DEVICE(0x1d4d, 0x0002) },
 	{ USB_DEVICE(0x1d4d, 0x0010) },
 	/* Planex */
 	{ USB_DEVICE(0x2019, 0x5201) },
@@ -1202,9 +1188,6 @@ static struct usb_device_id rt2800usb_device_table[] = {
 	{ USB_DEVICE(0x083a, 0xc522) },
 	{ USB_DEVICE(0x083a, 0xd522) },
 	{ USB_DEVICE(0x083a, 0xf511) },
-	/* Sweex */
-	{ USB_DEVICE(0x177f, 0x0153) },
-	{ USB_DEVICE(0x177f, 0x0313) },
 	/* Zyxel */
 	{ USB_DEVICE(0x0586, 0x341a) },
 #endif
@@ -1234,15 +1217,4 @@ static struct usb_driver rt2800usb_driver = {
 	.resume		= rt2x00usb_resume,
 };
 
-static int __init rt2800usb_init(void)
-{
-	return usb_register(&rt2800usb_driver);
-}
-
-static void __exit rt2800usb_exit(void)
-{
-	usb_deregister(&rt2800usb_driver);
-}
-
-module_init(rt2800usb_init);
-module_exit(rt2800usb_exit);
+module_usb_driver(rt2800usb_driver);

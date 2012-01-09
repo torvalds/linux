@@ -184,13 +184,12 @@ static struct sk_buff *cfg_set_own_addr(void)
 						   " (cannot change node address once assigned)");
 
 	/*
-	 * Must release all spinlocks before calling start_net() because
-	 * Linux version of TIPC calls eth_media_start() which calls
-	 * register_netdevice_notifier() which may block!
-	 *
-	 * Temporarily releasing the lock should be harmless for non-Linux TIPC,
-	 * but Linux version of eth_media_start() should really be reworked
-	 * so that it can be called with spinlocks held.
+	 * Must temporarily release configuration spinlock while switching into
+	 * networking mode as it calls tipc_eth_media_start(), which may sleep.
+	 * Releasing the lock is harmless as other locally-issued configuration
+	 * commands won't occur until this one completes, and remotely-issued
+	 * configuration commands can't be received until a local configuration
+	 * command to enable the first bearer is received and processed.
 	 */
 
 	spin_unlock_bh(&config_lock);

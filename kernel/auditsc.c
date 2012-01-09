@@ -210,12 +210,12 @@ struct audit_context {
 		struct {
 			uid_t			uid;
 			gid_t			gid;
-			mode_t			mode;
+			umode_t			mode;
 			u32			osid;
 			int			has_perm;
 			uid_t			perm_uid;
 			gid_t			perm_gid;
-			mode_t			perm_mode;
+			umode_t			perm_mode;
 			unsigned long		qbytes;
 		} ipc;
 		struct {
@@ -234,7 +234,7 @@ struct audit_context {
 		} mq_sendrecv;
 		struct {
 			int			oflag;
-			mode_t			mode;
+			umode_t			mode;
 			struct mq_attr		attr;
 		} mq_open;
 		struct {
@@ -308,7 +308,7 @@ static int audit_match_perm(struct audit_context *ctx, int mask)
 static int audit_match_filetype(struct audit_context *ctx, int which)
 {
 	unsigned index = which & ~S_IFMT;
-	mode_t mode = which & S_IFMT;
+	umode_t mode = which & S_IFMT;
 
 	if (unlikely(!ctx))
 		return 0;
@@ -1249,7 +1249,7 @@ static void show_special(struct audit_context *context, int *call_panic)
 	case AUDIT_IPC: {
 		u32 osid = context->ipc.osid;
 
-		audit_log_format(ab, "ouid=%u ogid=%u mode=%#o",
+		audit_log_format(ab, "ouid=%u ogid=%u mode=%#ho",
 			 context->ipc.uid, context->ipc.gid, context->ipc.mode);
 		if (osid) {
 			char *ctx = NULL;
@@ -1267,7 +1267,7 @@ static void show_special(struct audit_context *context, int *call_panic)
 			ab = audit_log_start(context, GFP_KERNEL,
 					     AUDIT_IPC_SET_PERM);
 			audit_log_format(ab,
-				"qbytes=%lx ouid=%u ogid=%u mode=%#o",
+				"qbytes=%lx ouid=%u ogid=%u mode=%#ho",
 				context->ipc.qbytes,
 				context->ipc.perm_uid,
 				context->ipc.perm_gid,
@@ -1278,7 +1278,7 @@ static void show_special(struct audit_context *context, int *call_panic)
 		break; }
 	case AUDIT_MQ_OPEN: {
 		audit_log_format(ab,
-			"oflag=0x%x mode=%#o mq_flags=0x%lx mq_maxmsg=%ld "
+			"oflag=0x%x mode=%#ho mq_flags=0x%lx mq_maxmsg=%ld "
 			"mq_msgsize=%ld mq_curmsgs=%ld",
 			context->mq_open.oflag, context->mq_open.mode,
 			context->mq_open.attr.mq_flags,
@@ -1502,7 +1502,7 @@ static void audit_log_exit(struct audit_context *context, struct task_struct *ts
 
 		if (n->ino != (unsigned long)-1) {
 			audit_log_format(ab, " inode=%lu"
-					 " dev=%02x:%02x mode=%#o"
+					 " dev=%02x:%02x mode=%#ho"
 					 " ouid=%u ogid=%u rdev=%02x:%02x",
 					 n->ino,
 					 MAJOR(n->dev),
@@ -2160,7 +2160,7 @@ int audit_set_loginuid(struct task_struct *task, uid_t loginuid)
  * @attr: queue attributes
  *
  */
-void __audit_mq_open(int oflag, mode_t mode, struct mq_attr *attr)
+void __audit_mq_open(int oflag, umode_t mode, struct mq_attr *attr)
 {
 	struct audit_context *context = current->audit_context;
 
@@ -2260,7 +2260,7 @@ void __audit_ipc_obj(struct kern_ipc_perm *ipcp)
  *
  * Called only after audit_ipc_obj().
  */
-void __audit_ipc_set_perm(unsigned long qbytes, uid_t uid, gid_t gid, mode_t mode)
+void __audit_ipc_set_perm(unsigned long qbytes, uid_t uid, gid_t gid, umode_t mode)
 {
 	struct audit_context *context = current->audit_context;
 

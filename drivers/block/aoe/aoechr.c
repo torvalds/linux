@@ -270,7 +270,7 @@ static const struct file_operations aoe_fops = {
 	.llseek = noop_llseek,
 };
 
-static char *aoe_devnode(struct device *dev, mode_t *mode)
+static char *aoe_devnode(struct device *dev, umode_t *mode)
 {
 	return kasprintf(GFP_KERNEL, "etherd/%s", dev_name(dev));
 }

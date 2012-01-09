@@ -114,19 +114,20 @@ int ipv6_skb_to_auditdata(struct sk_buff *skb,
 	int offset, ret = 0;
 	struct ipv6hdr *ip6;
 	u8 nexthdr;
+	__be16 frag_off;
 
 	ip6 = ipv6_hdr(skb);
 	if (ip6 == NULL)
 		return -EINVAL;
-	ipv6_addr_copy(&ad->u.net.v6info.saddr, &ip6->saddr);
-	ipv6_addr_copy(&ad->u.net.v6info.daddr, &ip6->daddr);
+	ad->u.net.v6info.saddr = ip6->saddr;
+	ad->u.net.v6info.daddr = ip6->daddr;
 	ret = 0;
 	/* IPv6 can have several extension header before the Transport header
 	 * skip them */
 	offset = skb_network_offset(skb);
 	offset += sizeof(*ip6);
 	nexthdr = ip6->nexthdr;
-	offset = ipv6_skip_exthdr(skb, offset, &nexthdr);
+	offset = ipv6_skip_exthdr(skb, offset, &nexthdr, &frag_off);
 	if (offset < 0)
 		return 0;
 	if (proto)

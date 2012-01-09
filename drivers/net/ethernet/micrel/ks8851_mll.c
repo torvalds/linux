@@ -1500,8 +1500,7 @@ static int ks_hw_init(struct ks_net *ks)
 	ks->all_mcast = 0;
 	ks->mcast_lst_size = 0;
 
-	ks->frame_head_info = (struct type_frame_head *) \
-		kmalloc(MHEADER_SIZE, GFP_KERNEL);
+	ks->frame_head_info = kmalloc(MHEADER_SIZE, GFP_KERNEL);
 	if (!ks->frame_head_info) {
 		pr_err("Error: Fail to allocate frame memory\n");
 		return false;
@@ -1659,18 +1658,7 @@ static struct platform_driver ks8851_platform_driver = {
 	.remove = __devexit_p(ks8851_remove),
 };
 
-static int __init ks8851_init(void)
-{
-	return platform_driver_register(&ks8851_platform_driver);
-}
-
-static void __exit ks8851_exit(void)
-{
-	platform_driver_unregister(&ks8851_platform_driver);
-}
-
-module_init(ks8851_init);
-module_exit(ks8851_exit);
+module_platform_driver(ks8851_platform_driver);
 
 MODULE_DESCRIPTION("KS8851 MLL Network driver");
 MODULE_AUTHOR("David Choi <david.choi@micrel.com>");

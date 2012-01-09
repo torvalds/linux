@@ -211,6 +211,12 @@ config PPC_PASEMI_CPUFREQ
 
 endmenu
 
+menu "CPUIdle driver"
+
+source "drivers/cpuidle/Kconfig"
+
+endmenu
+
 config PPC601_SYNC_FIX
 	bool "Workarounds for PPC601 bugs"
 	depends on 6xx && (PPC_PREP || PPC_PMAC)

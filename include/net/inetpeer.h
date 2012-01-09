@@ -35,6 +35,7 @@ struct inet_peer {
 
 	u32			metrics[RTAX_MAX];
 	u32			rate_tokens;	/* rate limiting for ICMP */
+	int			redirect_genid;
 	unsigned long		rate_last;
 	unsigned long		pmtu_expires;
 	u32			pmtu_orig;
@@ -86,7 +87,7 @@ static inline struct inet_peer *inet_getpeer_v6(const struct in6_addr *v6daddr, 
 {
 	struct inetpeer_addr daddr;
 
-	ipv6_addr_copy((struct in6_addr *)daddr.addr.a6, v6daddr);
+	*(struct in6_addr *)daddr.addr.a6 = *v6daddr;
 	daddr.family = AF_INET6;
 	return inet_getpeer(&daddr, create);
 }

@@ -17,7 +17,7 @@
 #include <linux/errno.h>
 #include <linux/err.h>
 #include <linux/clk.h>
-#include <linux/sysdev.h>
+#include <linux/device.h>
 #include <linux/io.h>
 
 #include <mach/map.h>
@@ -29,7 +29,8 @@
 #include <plat/pll.h>
 #include <plat/s5p-clock.h>
 #include <plat/clock-clksrc.h>
-#include <plat/s5pv210.h>
+
+#include "common.h"
 
 static unsigned long xtal;
 

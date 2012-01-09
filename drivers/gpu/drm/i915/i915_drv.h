@@ -107,6 +107,7 @@ struct opregion_header;
 struct opregion_acpi;
 struct opregion_swsci;
 struct opregion_asle;
+struct drm_i915_private;
 
 struct intel_opregion {
 	struct opregion_header *header;
@@ -221,6 +222,8 @@ struct drm_i915_display_funcs {
 			  struct drm_i915_gem_object *obj);
 	int (*update_plane)(struct drm_crtc *crtc, struct drm_framebuffer *fb,
 			    int x, int y);
+	void (*force_wake_get)(struct drm_i915_private *dev_priv);
+	void (*force_wake_put)(struct drm_i915_private *dev_priv);
 	/* clock updates for mode set */
 	/* cursor updates */
 	/* render clock increase/decrease */
@@ -710,6 +713,7 @@ typedef struct drm_i915_private {
 
 	u64 last_count1;
 	unsigned long last_time1;
+	unsigned long chipset_power;
 	u64 last_count2;
 	struct timespec last_time2;
 	unsigned long gfx_power;
@@ -998,11 +1002,11 @@ extern int i915_max_ioctl;
 extern unsigned int i915_fbpercrtc __always_unused;
 extern int i915_panel_ignore_lid __read_mostly;
 extern unsigned int i915_powersave __read_mostly;
-extern unsigned int i915_semaphores __read_mostly;
+extern int i915_semaphores __read_mostly;
 extern unsigned int i915_lvds_downclock __read_mostly;
 extern int i915_panel_use_ssc __read_mostly;
 extern int i915_vbt_sdvo_panel_type __read_mostly;
-extern unsigned int i915_enable_rc6 __read_mostly;
+extern int i915_enable_rc6 __read_mostly;
 extern int i915_enable_fbc __read_mostly;
 extern bool i915_enable_hangcheck __read_mostly;
 
@@ -1308,6 +1312,11 @@ extern void gen6_set_rps(struct drm_device *dev, u8 val);
 extern void intel_detect_pch(struct drm_device *dev);
 extern int intel_trans_dp_port_sel(struct drm_crtc *crtc);
 
+extern void __gen6_gt_force_wake_get(struct drm_i915_private *dev_priv);
+extern void __gen6_gt_force_wake_mt_get(struct drm_i915_private *dev_priv);
+extern void __gen6_gt_force_wake_put(struct drm_i915_private *dev_priv);
+extern void __gen6_gt_force_wake_mt_put(struct drm_i915_private *dev_priv);
+
 /* overlay */
 #ifdef CONFIG_DEBUG_FS
 extern struct intel_overlay_error_state *intel_overlay_capture_error_state(struct drm_device *dev);
@@ -1352,8 +1361,9 @@ void __gen6_gt_wait_for_fifo(struct drm_i915_private *dev_priv);
 /* We give fast paths for the really cool registers */
 #define NEEDS_FORCE_WAKE(dev_priv, reg) \
 	(((dev_priv)->info->gen >= 6) && \
-	((reg) < 0x40000) && \
-	((reg) != FORCEWAKE))
+	 ((reg) < 0x40000) &&		 \
+	 ((reg) != FORCEWAKE) &&	 \
+	 ((reg) != ECOBUS))
 
 #define __i915_read(x, y) \
 	u##x i915_read##x(struct drm_i915_private *dev_priv, u32 reg);

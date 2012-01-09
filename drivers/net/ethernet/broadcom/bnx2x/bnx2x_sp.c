@@ -30,6 +30,8 @@
 
 #define BNX2X_MAX_EMUL_MULTI		16
 
+#define MAC_LEADING_ZERO_CNT (ALIGN(ETH_ALEN, sizeof(u32)) - ETH_ALEN)
+
 /**** Exe Queue interfaces ****/
 
 /**
@@ -439,6 +441,36 @@ static bool bnx2x_put_credit_vlan_mac(struct bnx2x_vlan_mac_obj *o)
 	}
 
 	return true;
+}
+
+static int bnx2x_get_n_elements(struct bnx2x *bp, struct bnx2x_vlan_mac_obj *o,
+				int n, u8 *buf)
+{
+	struct bnx2x_vlan_mac_registry_elem *pos;
+	u8 *next = buf;
+	int counter = 0;
+
+	/* traverse list */
+	list_for_each_entry(pos, &o->head, link) {
+		if (counter < n) {
+			/* place leading zeroes in buffer */
+			memset(next, 0, MAC_LEADING_ZERO_CNT);
+
+			/* place mac after leading zeroes*/
+			memcpy(next + MAC_LEADING_ZERO_CNT, pos->u.mac.mac,
+			       ETH_ALEN);
+
+			/* calculate address of next element and
+			 * advance counter
+			 */
+			counter++;
+			next = buf + counter * ALIGN(ETH_ALEN, sizeof(u32));
+
+			DP(BNX2X_MSG_SP, "copied element number %d to address %p element was %pM\n",
+			   counter, next, pos->u.mac.mac);
+		}
+	}
+	return counter * ETH_ALEN;
 }
 
 /* check_add() callbacks */
@@ -1886,6 +1918,7 @@ void bnx2x_init_mac_obj(struct bnx2x *bp,
 		mac_obj->check_move        = bnx2x_check_move;
 		mac_obj->ramrod_cmd        =
 			RAMROD_CMD_ID_ETH_CLASSIFICATION_RULES;
+		mac_obj->get_n_elements    = bnx2x_get_n_elements;
 
 		/* Exe Queue */
 		bnx2x_exe_queue_init(bp,
@@ -3342,7 +3375,7 @@ static inline int bnx2x_mcast_refresh_registry_e1(struct bnx2x *bp,
 		if (!list_empty(&o->registry.exact_match.macs))
 			return 0;
 
-		elem = kzalloc(sizeof(*elem)*len, GFP_ATOMIC);
+		elem = kcalloc(len, sizeof(*elem), GFP_ATOMIC);
 		if (!elem) {
 			BNX2X_ERR("Failed to allocate registry memory\n");
 			return -ENOMEM;

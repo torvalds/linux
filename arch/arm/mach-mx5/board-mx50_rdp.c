@@ -222,4 +222,5 @@ MACHINE_START(MX50_RDP, "Freescale MX50 Reference Design Platform")
 	.handle_irq = imx50_handle_irq,
 	.timer = &mx50_rdp_timer,
 	.init_machine = mx50_rdp_board_init,
+	.restart	= mxc_restart,
 MACHINE_END

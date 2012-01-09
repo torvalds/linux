@@ -177,7 +177,7 @@ II. Credits
 
 Benjamin Herrenschmidt (IBM?) started this work when he discussed such design
 with the Xorg community in 2005 [1, 2]. In the end of 2007, Paulo Zanoni and
-Tiago Vignatti (both of C3SL/Federal University of Paran·) proceeded his work
+Tiago Vignatti (both of C3SL/Federal University of Paran√°) proceeded his work
 enhancing the kernel code to adapt as a kernel module and also did the
 implementation of the user space side [3]. Now (2009) Tiago Vignatti and Dave
 Airlie finally put this work in shape and queued to Jesse Barnes' PCI tree.

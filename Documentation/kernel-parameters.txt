@@ -315,12 +315,12 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
 			CPU-intensive style benchmark, and it can vary highly in
 			a microbenchmark depending on workload and compiler.
 
-			1: only for 32-bit processes
-			2: only for 64-bit processes
+			32: only for 32-bit processes
+			64: only for 64-bit processes
 			on: enable for both 32- and 64-bit processes
 			off: disable for both 32- and 64-bit processes
 
-	amd_iommu=	[HW,X86-84]
+	amd_iommu=	[HW,X86-64]
 			Pass parameters to the AMD IOMMU driver in the system.
 			Possible values are:
 			fullflush - enable flushing of IO/TLB entries when
@@ -1885,6 +1885,11 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
 			arch_perfmon: [X86] Force use of architectural
 				perfmon on Intel CPUs instead of the
 				CPU specific event set.
+			timer: [X86] Force use of architectural NMI
+				timer mode (see also oprofile.timer
+				for generic hr timer mode)
+				[s390] Force legacy basic mode sampling
+                                (report cpu_type "timer")
 
 	oops=panic	Always panic on oopses. Default is to just kill the
 			process, but there is a small probability of
@@ -2750,11 +2755,10 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
 			functions are at fixed addresses, they make nice
 			targets for exploits that can control RIP.
 
-			emulate     Vsyscalls turn into traps and are emulated
-			            reasonably safely.
+			emulate     [default] Vsyscalls turn into traps and are
+			            emulated reasonably safely.
 
-			native      [default] Vsyscalls are native syscall
-			            instructions.
+			native      Vsyscalls are native syscall instructions.
 			            This is a little bit faster than trapping
 			            and makes a few dynamic recompilers work
 			            better than they would in emulation mode.

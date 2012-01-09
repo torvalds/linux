@@ -899,6 +899,10 @@
 #define DB_HTILE_DATA_BASE				0x28014
 #define DB_Z_INFO					0x28040
 #       define Z_ARRAY_MODE(x)                          ((x) << 4)
+#       define DB_TILE_SPLIT(x)                         (((x) & 0x7) << 8)
+#       define DB_NUM_BANKS(x)                          (((x) & 0x3) << 12)
+#       define DB_BANK_WIDTH(x)                         (((x) & 0x3) << 16)
+#       define DB_BANK_HEIGHT(x)                        (((x) & 0x3) << 20)
 #define DB_STENCIL_INFO					0x28044
 #define DB_Z_READ_BASE					0x28048
 #define DB_STENCIL_READ_BASE				0x2804c
@@ -951,6 +955,29 @@
 #	define CB_SF_EXPORT_FULL			0
 #	define CB_SF_EXPORT_NORM			1
 #define	CB_COLOR0_ATTRIB				0x28c74
+#       define CB_TILE_SPLIT(x)                         (((x) & 0x7) << 5)
+#       define ADDR_SURF_TILE_SPLIT_64B                 0
+#       define ADDR_SURF_TILE_SPLIT_128B                1
+#       define ADDR_SURF_TILE_SPLIT_256B                2
+#       define ADDR_SURF_TILE_SPLIT_512B                3
+#       define ADDR_SURF_TILE_SPLIT_1KB                 4
+#       define ADDR_SURF_TILE_SPLIT_2KB                 5
+#       define ADDR_SURF_TILE_SPLIT_4KB                 6
+#       define CB_NUM_BANKS(x)                          (((x) & 0x3) << 10)
+#       define ADDR_SURF_2_BANK                         0
+#       define ADDR_SURF_4_BANK                         1
+#       define ADDR_SURF_8_BANK                         2
+#       define ADDR_SURF_16_BANK                        3
+#       define CB_BANK_WIDTH(x)                         (((x) & 0x3) << 13)
+#       define ADDR_SURF_BANK_WIDTH_1                   0
+#       define ADDR_SURF_BANK_WIDTH_2                   1
+#       define ADDR_SURF_BANK_WIDTH_4                   2
+#       define ADDR_SURF_BANK_WIDTH_8                   3
+#       define CB_BANK_HEIGHT(x)                        (((x) & 0x3) << 16)
+#       define ADDR_SURF_BANK_HEIGHT_1                  0
+#       define ADDR_SURF_BANK_HEIGHT_2                  1
+#       define ADDR_SURF_BANK_HEIGHT_4                  2
+#       define ADDR_SURF_BANK_HEIGHT_8                  3
 #define	CB_COLOR0_DIM					0x28c78
 /* only CB0-7 blocks have these regs */
 #define	CB_COLOR0_CMASK					0x28c7c
@@ -1137,7 +1164,11 @@
 #	define SQ_SEL_1					5
 #define SQ_TEX_RESOURCE_WORD5_0                         0x30014
 #define SQ_TEX_RESOURCE_WORD6_0                         0x30018
+#       define TEX_TILE_SPLIT(x)                        (((x) & 0x7) << 29)
 #define SQ_TEX_RESOURCE_WORD7_0                         0x3001c
+#       define TEX_BANK_WIDTH(x)                        (((x) & 0x3) << 8)
+#       define TEX_BANK_HEIGHT(x)                       (((x) & 0x3) << 10)
+#       define TEX_NUM_BANKS(x)                         (((x) & 0x3) << 16)
 
 #define SQ_VTX_CONSTANT_WORD0_0				0x30000
 #define SQ_VTX_CONSTANT_WORD1_0				0x30004

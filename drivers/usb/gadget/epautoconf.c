@@ -130,9 +130,6 @@ ep_matches (
 			num_req_streams = ep_comp->bmAttributes & 0x1f;
 			if (num_req_streams > ep->max_streams)
 				return 0;
-			/* Update the ep_comp descriptor if needed */
-			if (num_req_streams != ep->max_streams)
-				ep_comp->bmAttributes = ep->max_streams;
 		}
 
 	}

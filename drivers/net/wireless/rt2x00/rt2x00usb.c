@@ -298,11 +298,21 @@ static bool rt2x00usb_kick_tx_entry(struct queue_entry *entry, void* data)
 		return false;
 
 	/*
-	 * USB devices cannot blindly pass the skb->len as the
-	 * length of the data to usb_fill_bulk_urb. Pass the skb
-	 * to the driver to determine what the length should be.
+	 * USB devices require certain padding at the end of each frame
+	 * and urb. Those paddings are not included in skbs. Pass entry
+	 * to the driver to determine what the overall length should be.
 	 */
 	length = rt2x00dev->ops->lib->get_tx_data_len(entry);
+
+	status = skb_padto(entry->skb, length);
+	if (unlikely(status)) {
+		/* TODO: report something more appropriate than IO_FAILED. */
+		WARNING(rt2x00dev, "TX SKB padding error, out of memory\n");
+		set_bit(ENTRY_DATA_IO_FAILED, &entry->flags);
+		rt2x00lib_dmadone(entry);
+
+		return false;
+	}
 
 	usb_fill_bulk_urb(entry_priv->urb, usb_dev,
 			  usb_sndbulkpipe(usb_dev, entry->queue->usb_endpoint),

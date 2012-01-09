@@ -623,7 +623,7 @@ static int mipspmu_event_init(struct perf_event *event)
 	if (!atomic_inc_not_zero(&active_events)) {
 		if (atomic_read(&active_events) > MIPS_MAX_HWEVENTS) {
 			atomic_dec(&active_events);
-			return -ENOSPC;
+			return -EINVAL;
 		}
 
 		mutex_lock(&pmu_reserve_mutex);
@@ -732,15 +732,15 @@ static int validate_group(struct perf_event *event)
 	memset(&fake_cpuc, 0, sizeof(fake_cpuc));
 
 	if (!validate_event(&fake_cpuc, leader))
-		return -ENOSPC;
+		return -EINVAL;
 
 	list_for_each_entry(sibling, &leader->sibling_list, group_entry) {
 		if (!validate_event(&fake_cpuc, sibling))
-			return -ENOSPC;
+			return -EINVAL;
 	}
 
 	if (!validate_event(&fake_cpuc, event))
-		return -ENOSPC;
+		return -EINVAL;
 
 	return 0;
 }

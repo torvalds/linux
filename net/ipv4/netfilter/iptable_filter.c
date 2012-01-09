@@ -52,7 +52,7 @@ iptable_filter_hook(unsigned int hook, struct sk_buff *skb,
 static struct nf_hook_ops *filter_ops __read_mostly;
 
 /* Default to forward because I got too much mail already. */
-static int forward = NF_ACCEPT;
+static bool forward = NF_ACCEPT;
 module_param(forward, bool, 0000);
 
 static int __net_init iptable_filter_net_init(struct net *net)

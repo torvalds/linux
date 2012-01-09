@@ -52,6 +52,30 @@ static int wme_downgrade_ac(struct sk_buff *skb)
 	}
 }
 
+/* Indicate which queue to use for this fully formed 802.11 frame */
+u16 ieee80211_select_queue_80211(struct ieee80211_local *local,
+				 struct sk_buff *skb,
+				 struct ieee80211_hdr *hdr)
+{
+	u8 *p;
+
+	if (local->hw.queues < 4)
+		return 0;
+
+	if (!ieee80211_is_data(hdr->frame_control)) {
+		skb->priority = 7;
+		return ieee802_1d_to_ac[skb->priority];
+	}
+	if (!ieee80211_is_data_qos(hdr->frame_control)) {
+		skb->priority = 0;
+		return ieee802_1d_to_ac[skb->priority];
+	}
+
+	p = ieee80211_get_qos_ctl(hdr);
+	skb->priority = *p & IEEE80211_QOS_CTL_TAG1D_MASK;
+
+	return ieee80211_downgrade_queue(local, skb);
+}
 
 /* Indicate which queue to use. */
 u16 ieee80211_select_queue(struct ieee80211_sub_if_data *sdata,
@@ -83,7 +107,7 @@ u16 ieee80211_select_queue(struct ieee80211_sub_if_data *sdata,
 		break;
 #ifdef CONFIG_MAC80211_MESH
 	case NL80211_IFTYPE_MESH_POINT:
-		ra = skb->data;
+		qos = true;
 		break;
 #endif
 	case NL80211_IFTYPE_STATION:
@@ -139,16 +163,24 @@ void ieee80211_set_qos_hdr(struct ieee80211_sub_if_data *sdata,
 			   struct sk_buff *skb)
 {
 	struct ieee80211_hdr *hdr = (void *)skb->data;
+	struct ieee80211_tx_info *info = IEEE80211_SKB_CB(skb);
 
 	/* Fill in the QoS header if there is one. */
 	if (ieee80211_is_data_qos(hdr->frame_control)) {
 		u8 *p = ieee80211_get_qos_ctl(hdr);
-		u8 ack_policy = 0, tid;
+		u8 ack_policy, tid;
 
 		tid = skb->priority & IEEE80211_QOS_CTL_TAG1D_MASK;
 
-		if (unlikely(sdata->local->wifi_wme_noack_test))
+		/* preserve EOSP bit */
+		ack_policy = *p & IEEE80211_QOS_CTL_EOSP;
+
+		if (is_multicast_ether_addr(hdr->addr1) ||
+		    sdata->noack_map & BIT(tid)) {
 			ack_policy |= IEEE80211_QOS_CTL_ACK_POLICY_NOACK;
+			info->flags |= IEEE80211_TX_CTL_NO_ACK;
+		}
+
 		/* qos header is 2 bytes */
 		*p++ = ack_policy | tid;
 		*p = ieee80211_vif_is_mesh(&sdata->vif) ?

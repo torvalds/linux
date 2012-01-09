@@ -624,8 +624,8 @@ static struct timer_rand_state input_timer_state;
 static void add_timer_randomness(struct timer_rand_state *state, unsigned num)
 {
 	struct {
-		cycles_t cycles;
 		long jiffies;
+		unsigned cycles;
 		unsigned num;
 	} sample;
 	long delta, delta2, delta3;
@@ -637,7 +637,11 @@ static void add_timer_randomness(struct timer_rand_state *state, unsigned num)
 		goto out;
 
 	sample.jiffies = jiffies;
-	sample.cycles = get_cycles();
+
+	/* Use arch random value, fall back to cycles */
+	if (!arch_get_random_int(&sample.cycles))
+		sample.cycles = get_cycles();
+
 	sample.num = num;
 	mix_pool_bytes(&input_pool, &sample, sizeof(sample));
 

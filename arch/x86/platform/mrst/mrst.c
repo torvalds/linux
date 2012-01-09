@@ -76,6 +76,20 @@ struct sfi_rtc_table_entry sfi_mrtc_array[SFI_MRTC_MAX];
 EXPORT_SYMBOL_GPL(sfi_mrtc_array);
 int sfi_mrtc_num;
 
+static void mrst_power_off(void)
+{
+	if (__mrst_cpu_chip == MRST_CPU_CHIP_LINCROFT)
+		intel_scu_ipc_simple_command(IPCMSG_COLD_RESET, 1);
+}
+
+static void mrst_reboot(void)
+{
+	if (__mrst_cpu_chip == MRST_CPU_CHIP_LINCROFT)
+		intel_scu_ipc_simple_command(IPCMSG_COLD_RESET, 0);
+	else
+		intel_scu_ipc_simple_command(IPCMSG_COLD_BOOT, 0);
+}
+
 /* parse all the mtimer info to a static mtimer array */
 static int __init sfi_parse_mtmr(struct sfi_table_header *table)
 {
@@ -263,17 +277,6 @@ static void __cpuinit mrst_arch_setup(void)
 static int mrst_i8042_detect(void)
 {
 	return 0;
-}
-
-/* Reboot and power off are handled by the SCU on a MID device */
-static void mrst_power_off(void)
-{
-	intel_scu_ipc_simple_command(0xf1, 1);
-}
-
-static void mrst_reboot(void)
-{
-	intel_scu_ipc_simple_command(0xf1, 0);
 }
 
 /*
@@ -484,6 +487,46 @@ static void __init *max7315_platform_data(void *info)
 	return max7315;
 }
 
+static void *tca6416_platform_data(void *info)
+{
+	static struct pca953x_platform_data tca6416;
+	struct i2c_board_info *i2c_info = info;
+	int gpio_base, intr;
+	char base_pin_name[SFI_NAME_LEN + 1];
+	char intr_pin_name[SFI_NAME_LEN + 1];
+
+	strcpy(i2c_info->type, "tca6416");
+	strcpy(base_pin_name, "tca6416_base");
+	strcpy(intr_pin_name, "tca6416_int");
+
+	gpio_base = get_gpio_by_name(base_pin_name);
+	intr = get_gpio_by_name(intr_pin_name);
+
+	if (gpio_base == -1)
+		return NULL;
+	tca6416.gpio_base = gpio_base;
+	if (intr != -1) {
+		i2c_info->irq = intr + MRST_IRQ_OFFSET;
+		tca6416.irq_base = gpio_base + MRST_IRQ_OFFSET;
+	} else {
+		i2c_info->irq = -1;
+		tca6416.irq_base = -1;
+	}
+	return &tca6416;
+}
+
+static void *mpu3050_platform_data(void *info)
+{
+	struct i2c_board_info *i2c_info = info;
+	int intr = get_gpio_by_name("mpu3050_int");
+
+	if (intr == -1)
+		return NULL;
+
+	i2c_info->irq = intr + MRST_IRQ_OFFSET;
+	return NULL;
+}
+
 static void __init *emc1403_platform_data(void *info)
 {
 	static short intr2nd_pdata;
@@ -646,12 +689,15 @@ static void *msic_ocd_platform_data(void *info)
 static const struct devs_id __initconst device_ids[] = {
 	{"bma023", SFI_DEV_TYPE_I2C, 1, &no_platform_data},
 	{"pmic_gpio", SFI_DEV_TYPE_SPI, 1, &pmic_gpio_platform_data},
+	{"pmic_gpio", SFI_DEV_TYPE_IPC, 1, &pmic_gpio_platform_data},
 	{"spi_max3111", SFI_DEV_TYPE_SPI, 0, &max3111_platform_data},
 	{"i2c_max7315", SFI_DEV_TYPE_I2C, 1, &max7315_platform_data},
 	{"i2c_max7315_2", SFI_DEV_TYPE_I2C, 1, &max7315_platform_data},
+	{"tca6416", SFI_DEV_TYPE_I2C, 1, &tca6416_platform_data},
 	{"emc1403", SFI_DEV_TYPE_I2C, 1, &emc1403_platform_data},
 	{"i2c_accel", SFI_DEV_TYPE_I2C, 0, &lis331dl_platform_data},
 	{"pmic_audio", SFI_DEV_TYPE_IPC, 1, &no_platform_data},
+	{"mpu3050", SFI_DEV_TYPE_I2C, 1, &mpu3050_platform_data},
 
 	/* MSIC subdevices */
 	{"msic_battery", SFI_DEV_TYPE_IPC, 1, &msic_battery_platform_data},

@@ -41,6 +41,7 @@
 #include <linux/tboot.h>
 #include <linux/dmi.h>
 #include <linux/pci-ats.h>
+#include <linux/memblock.h>
 #include <asm/cacheflush.h>
 #include <asm/iommu.h>
 
@@ -404,6 +405,9 @@ int dmar_disabled = 0;
 #else
 int dmar_disabled = 1;
 #endif /*CONFIG_INTEL_IOMMU_DEFAULT_ON*/
+
+int intel_iommu_enabled = 0;
+EXPORT_SYMBOL_GPL(intel_iommu_enabled);
 
 static int dmar_map_gfx = 1;
 static int dmar_forcedac;
@@ -2185,18 +2189,6 @@ static inline void iommu_prepare_isa(void)
 
 static int md_domain_init(struct dmar_domain *domain, int guest_width);
 
-static int __init si_domain_work_fn(unsigned long start_pfn,
-				    unsigned long end_pfn, void *datax)
-{
-	int *ret = datax;
-
-	*ret = iommu_domain_identity_map(si_domain,
-					 (uint64_t)start_pfn << PAGE_SHIFT,
-					 (uint64_t)end_pfn << PAGE_SHIFT);
-	return *ret;
-
-}
-
 static int __init si_domain_init(int hw)
 {
 	struct dmar_drhd_unit *drhd;
@@ -2228,9 +2220,15 @@ static int __init si_domain_init(int hw)
 		return 0;
 
 	for_each_online_node(nid) {
-		work_with_active_regions(nid, si_domain_work_fn, &ret);
-		if (ret)
-			return ret;
+		unsigned long start_pfn, end_pfn;
+		int i;
+
+		for_each_mem_pfn_range(i, nid, &start_pfn, &end_pfn, NULL) {
+			ret = iommu_domain_identity_map(si_domain,
+					PFN_PHYS(start_pfn), PFN_PHYS(end_pfn));
+			if (ret)
+				return ret;
+		}
 	}
 
 	return 0;
@@ -3524,7 +3522,7 @@ found:
 	return 0;
 }
 
-int dmar_parse_rmrr_atsr_dev(void)
+int __init dmar_parse_rmrr_atsr_dev(void)
 {
 	struct dmar_rmrr_unit *rmrr, *rmrr_n;
 	struct dmar_atsr_unit *atsr, *atsr_n;
@@ -3646,6 +3644,8 @@ int __init intel_iommu_init(void)
 	bus_set_iommu(&pci_bus_type, &intel_iommu_ops);
 
 	bus_register_notifier(&pci_bus_type, &device_nb);
+
+	intel_iommu_enabled = 1;
 
 	return 0;
 }

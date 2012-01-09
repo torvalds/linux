@@ -1410,20 +1410,8 @@ static struct i2c_driver max1363_driver = {
 	.remove = max1363_remove,
 	.id_table = max1363_id,
 };
-
-static __init int max1363_init(void)
-{
-	return i2c_add_driver(&max1363_driver);
-}
-
-static __exit void max1363_exit(void)
-{
-	i2c_del_driver(&max1363_driver);
-}
+module_i2c_driver(max1363_driver);
 
 MODULE_AUTHOR("Jonathan Cameron <jic23@cam.ac.uk>");
 MODULE_DESCRIPTION("Maxim 1363 ADC");
 MODULE_LICENSE("GPL v2");
-
-module_init(max1363_init);
-module_exit(max1363_exit);

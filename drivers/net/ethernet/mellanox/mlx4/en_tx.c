@@ -307,59 +307,60 @@ int mlx4_en_free_tx_buf(struct net_device *dev, struct mlx4_en_tx_ring *ring)
 	return cnt;
 }
 
-
 static void mlx4_en_process_tx_cq(struct net_device *dev, struct mlx4_en_cq *cq)
 {
 	struct mlx4_en_priv *priv = netdev_priv(dev);
 	struct mlx4_cq *mcq = &cq->mcq;
 	struct mlx4_en_tx_ring *ring = &priv->tx_ring[cq->ring];
-	struct mlx4_cqe *cqe = cq->buf;
+	struct mlx4_cqe *cqe;
 	u16 index;
-	u16 new_index;
+	u16 new_index, ring_index;
 	u32 txbbs_skipped = 0;
-	u32 cq_last_sav;
-
-	/* index always points to the first TXBB of the last polled descriptor */
-	index = ring->cons & ring->size_mask;
-	new_index = be16_to_cpu(cqe->wqe_index) & ring->size_mask;
-	if (index == new_index)
-		return;
+	u32 cons_index = mcq->cons_index;
+	int size = cq->size;
+	u32 size_mask = ring->size_mask;
+	struct mlx4_cqe *buf = cq->buf;
 
 	if (!priv->port_up)
 		return;
 
-	/*
-	 * We use a two-stage loop:
-	 * - the first samples the HW-updated CQE
-	 * - the second frees TXBBs until the last sample
-	 * This lets us amortize CQE cache misses, while still polling the CQ
-	 * until is quiescent.
-	 */
-	cq_last_sav = mcq->cons_index;
-	do {
+	index = cons_index & size_mask;
+	cqe = &buf[index];
+	ring_index = ring->cons & size_mask;
+
+	/* Process all completed CQEs */
+	while (XNOR(cqe->owner_sr_opcode & MLX4_CQE_OWNER_MASK,
+			cons_index & size)) {
+		/*
+		 * make sure we read the CQE after we read the
+		 * ownership bit
+		 */
+		rmb();
+
+		/* Skip over last polled CQE */
+		new_index = be16_to_cpu(cqe->wqe_index) & size_mask;
+
 		do {
-			/* Skip over last polled CQE */
-			index = (index + ring->last_nr_txbb) & ring->size_mask;
 			txbbs_skipped += ring->last_nr_txbb;
-
-			/* Poll next CQE */
+			ring_index = (ring_index + ring->last_nr_txbb) & size_mask;
+			/* free next descriptor */
 			ring->last_nr_txbb = mlx4_en_free_tx_desc(
-						priv, ring, index,
-						!!((ring->cons + txbbs_skipped) &
-						   ring->size));
-			++mcq->cons_index;
+					priv, ring, ring_index,
+					!!((ring->cons + txbbs_skipped) &
+							ring->size));
+		} while (ring_index != new_index);
 
-		} while (index != new_index);
+		++cons_index;
+		index = cons_index & size_mask;
+		cqe = &buf[index];
+	}
 
-		new_index = be16_to_cpu(cqe->wqe_index) & ring->size_mask;
-	} while (index != new_index);
-	AVG_PERF_COUNTER(priv->pstats.tx_coal_avg,
-			 (u32) (mcq->cons_index - cq_last_sav));
 
 	/*
 	 * To prevent CQ overflow we first update CQ consumer and only then
 	 * the ring consumer.
 	 */
+	mcq->cons_index = cons_index;
 	mlx4_cq_set_ci(mcq);
 	wmb();
 	ring->cons += txbbs_skipped;
@@ -565,7 +566,8 @@ static void build_inline_wqe(struct mlx4_en_tx_desc *tx_desc, struct sk_buff *sk
 		inl->byte_count = cpu_to_be32(1 << 31 | (skb->len - spc));
 	}
 	tx_desc->ctrl.vlan_tag = cpu_to_be16(*vlan_tag);
-	tx_desc->ctrl.ins_vlan = MLX4_WQE_CTRL_INS_VLAN * !!(*vlan_tag);
+	tx_desc->ctrl.ins_vlan = MLX4_WQE_CTRL_INS_VLAN *
+		(!!vlan_tx_tag_present(skb));
 	tx_desc->ctrl.fence_size = (real_size / 16) & 0x3f;
 }
 
@@ -676,27 +678,25 @@ netdev_tx_t mlx4_en_xmit(struct sk_buff *skb, struct net_device *dev)
 	/* Prepare ctrl segement apart opcode+ownership, which depends on
 	 * whether LSO is used */
 	tx_desc->ctrl.vlan_tag = cpu_to_be16(vlan_tag);
-	tx_desc->ctrl.ins_vlan = MLX4_WQE_CTRL_INS_VLAN * !!vlan_tag;
+	tx_desc->ctrl.ins_vlan = MLX4_WQE_CTRL_INS_VLAN *
+		!!vlan_tx_tag_present(skb);
 	tx_desc->ctrl.fence_size = (real_size / 16) & 0x3f;
-	tx_desc->ctrl.srcrb_flags = cpu_to_be32(MLX4_WQE_CTRL_CQ_UPDATE |
-						MLX4_WQE_CTRL_SOLICITED);
+	tx_desc->ctrl.srcrb_flags = priv->ctrl_flags;
 	if (likely(skb->ip_summed == CHECKSUM_PARTIAL)) {
 		tx_desc->ctrl.srcrb_flags |= cpu_to_be32(MLX4_WQE_CTRL_IP_CSUM |
 							 MLX4_WQE_CTRL_TCP_UDP_CSUM);
 		ring->tx_csum++;
 	}
 
-	if (unlikely(priv->validate_loopback)) {
-		/* Copy dst mac address to wqe */
-		skb_reset_mac_header(skb);
-		ethh = eth_hdr(skb);
-		if (ethh && ethh->h_dest) {
-			mac = mlx4_en_mac_to_u64(ethh->h_dest);
-			mac_h = (u32) ((mac & 0xffff00000000ULL) >> 16);
-			mac_l = (u32) (mac & 0xffffffff);
-			tx_desc->ctrl.srcrb_flags |= cpu_to_be32(mac_h);
-			tx_desc->ctrl.imm = cpu_to_be32(mac_l);
-		}
+	/* Copy dst mac address to wqe */
+	skb_reset_mac_header(skb);
+	ethh = eth_hdr(skb);
+	if (ethh && ethh->h_dest) {
+		mac = mlx4_en_mac_to_u64(ethh->h_dest);
+		mac_h = (u32) ((mac & 0xffff00000000ULL) >> 16);
+		mac_l = (u32) (mac & 0xffffffff);
+		tx_desc->ctrl.srcrb_flags |= cpu_to_be32(mac_h);
+		tx_desc->ctrl.imm = cpu_to_be32(mac_l);
 	}
 
 	/* Handle LSO (TSO) packets */

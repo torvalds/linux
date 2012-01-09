@@ -793,8 +793,8 @@ islpci_set_multicast_list(struct net_device *dev)
 static void islpci_ethtool_get_drvinfo(struct net_device *dev,
                                        struct ethtool_drvinfo *info)
 {
-	strcpy(info->driver, DRV_NAME);
-	strcpy(info->version, DRV_VERSION);
+	strlcpy(info->driver, DRV_NAME, sizeof(info->driver));
+	strlcpy(info->version, DRV_VERSION, sizeof(info->version));
 }
 
 static const struct ethtool_ops islpci_ethtool_ops = {
@@ -804,7 +804,6 @@ static const struct ethtool_ops islpci_ethtool_ops = {
 static const struct net_device_ops islpci_netdev_ops = {
 	.ndo_open 		= islpci_open,
 	.ndo_stop		= islpci_close,
-	.ndo_do_ioctl		= prism54_ioctl,
 	.ndo_start_xmit		= islpci_eth_transmit,
 	.ndo_tx_timeout		= islpci_eth_tx_timeout,
 	.ndo_set_mac_address 	= prism54_set_mac_address,

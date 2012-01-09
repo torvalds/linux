@@ -603,19 +603,7 @@ static struct i2c_driver isl29018_driver = {
 	.remove	 = __devexit_p(isl29018_remove),
 	.id_table = isl29018_id,
 };
-
-static int __init isl29018_init(void)
-{
-	return i2c_add_driver(&isl29018_driver);
-}
-
-static void __exit isl29018_exit(void)
-{
-	i2c_del_driver(&isl29018_driver);
-}
-
-module_init(isl29018_init);
-module_exit(isl29018_exit);
+module_i2c_driver(isl29018_driver);
 
 MODULE_DESCRIPTION("ISL29018 Ambient Light Sensor driver");
 MODULE_LICENSE("GPL");

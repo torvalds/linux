@@ -873,7 +873,7 @@ DECLARE_FILE_FUNCTIONS(alarm);
 
 static const struct battery_file {
 	struct file_operations ops;
-	mode_t mode;
+	umode_t mode;
 	const char *name;
 } acpi_battery_file[] = {
 	FILE_DESCRIPTION_RO(info),

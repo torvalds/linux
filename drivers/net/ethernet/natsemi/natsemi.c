@@ -2555,9 +2555,9 @@ static void set_rx_mode(struct net_device *dev)
 static void get_drvinfo(struct net_device *dev, struct ethtool_drvinfo *info)
 {
 	struct netdev_private *np = netdev_priv(dev);
-	strncpy(info->driver, DRV_NAME, ETHTOOL_BUSINFO_LEN);
-	strncpy(info->version, DRV_VERSION, ETHTOOL_BUSINFO_LEN);
-	strncpy(info->bus_info, pci_name(np->pci_dev), ETHTOOL_BUSINFO_LEN);
+	strlcpy(info->driver, DRV_NAME, sizeof(info->driver));
+	strlcpy(info->version, DRV_VERSION, sizeof(info->version));
+	strlcpy(info->bus_info, pci_name(np->pci_dev), sizeof(info->bus_info));
 }
 
 static int get_regs_len(struct net_device *dev)

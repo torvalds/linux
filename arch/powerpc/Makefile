@@ -63,9 +63,9 @@ override CC	+= -m$(CONFIG_WORD_SIZE)
 override AR	:= GNUTARGET=elf$(CONFIG_WORD_SIZE)-powerpc $(AR)
 endif
 
-LDFLAGS_vmlinux-yy := -Bstatic
-LDFLAGS_vmlinux-$(CONFIG_PPC64)$(CONFIG_RELOCATABLE) := -pie
-LDFLAGS_vmlinux	:= $(LDFLAGS_vmlinux-yy)
+LDFLAGS_vmlinux-y := -Bstatic
+LDFLAGS_vmlinux-$(CONFIG_RELOCATABLE) := -pie
+LDFLAGS_vmlinux	:= $(LDFLAGS_vmlinux-y)
 
 CFLAGS-$(CONFIG_PPC64)	:= -mminimal-toc -mtraceback=no -mcall-aixdesc
 CFLAGS-$(CONFIG_PPC32)	:= -ffixed-r2 -mmultiple
@@ -131,8 +131,7 @@ KBUILD_CFLAGS		+= -mno-sched-epilog
 endif
 
 cpu-as-$(CONFIG_4xx)		+= -Wa,-m405
-cpu-as-$(CONFIG_6xx)		+= -Wa,-maltivec
-cpu-as-$(CONFIG_POWER4)		+= -Wa,-maltivec
+cpu-as-$(CONFIG_ALTIVEC)	+= -Wa,-maltivec
 cpu-as-$(CONFIG_E500)		+= -Wa,-me500
 cpu-as-$(CONFIG_E200)		+= -Wa,-me200
 
@@ -166,7 +165,7 @@ all: zImage
 
 # With make 3.82 we cannot mix normal and wildcard targets
 BOOT_TARGETS1 := zImage zImage.initrd uImage
-BOOT_TARGETS2 := zImage% dtbImage% treeImage.% cuImage.% simpleImage.%
+BOOT_TARGETS2 := zImage% dtbImage% treeImage.% cuImage.% simpleImage.% uImage.%
 
 PHONY += $(BOOT_TARGETS1) $(BOOT_TARGETS2)
 

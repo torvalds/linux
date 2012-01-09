@@ -117,7 +117,7 @@ static struct dentry *v9fs_mount(struct file_system_type *fs_type, int flags,
 	struct inode *inode = NULL;
 	struct dentry *root = NULL;
 	struct v9fs_session_info *v9ses = NULL;
-	int mode = S_IRWXUGO | S_ISVTX;
+	umode_t mode = S_IRWXUGO | S_ISVTX;
 	struct p9_fid *fid;
 	int retval = 0;
 

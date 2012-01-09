@@ -477,7 +477,6 @@ int crush_do_rule(struct crush_map *map,
 	int i, j;
 	int numrep;
 	int firstn;
-	int rc = -1;
 
 	BUG_ON(ruleno >= map->max_rules);
 
@@ -491,23 +490,18 @@ int crush_do_rule(struct crush_map *map,
 	 * that this may or may not correspond to the specific types
 	 * referenced by the crush rule.
 	 */
-	if (force >= 0) {
-		if (force >= map->max_devices ||
-		    map->device_parents[force] == 0) {
-			/*dprintk("CRUSH: forcefed device dne\n");*/
-			rc = -1;  /* force fed device dne */
-			goto out;
-		}
-		if (!is_out(map, weight, force, x)) {
-			while (1) {
-				force_context[++force_pos] = force;
-				if (force >= 0)
-					force = map->device_parents[force];
-				else
-					force = map->bucket_parents[-1-force];
-				if (force == 0)
-					break;
-			}
+	if (force >= 0 &&
+	    force < map->max_devices &&
+	    map->device_parents[force] != 0 &&
+	    !is_out(map, weight, force, x)) {
+		while (1) {
+			force_context[++force_pos] = force;
+			if (force >= 0)
+				force = map->device_parents[force];
+			else
+				force = map->bucket_parents[-1-force];
+			if (force == 0)
+				break;
 		}
 	}
 
@@ -600,10 +594,7 @@ int crush_do_rule(struct crush_map *map,
 			BUG_ON(1);
 		}
 	}
-	rc = result_len;
-
-out:
-	return rc;
+	return result_len;
 }
 
 

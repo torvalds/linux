@@ -770,4 +770,5 @@ MACHINE_START(MX31_3DS, "Freescale MX31PDK (3DS)")
 	.timer = &mx31_3ds_timer,
 	.init_machine = mx31_3ds_init,
 	.reserve = mx31_3ds_reserve,
+	.restart	= mxc_restart,
 MACHINE_END
