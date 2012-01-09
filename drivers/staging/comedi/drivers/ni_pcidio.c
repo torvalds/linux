@@ -483,6 +483,21 @@ void ni_pcidio_event(struct comedi_device *dev, struct comedi_subdevice *s)
 	comedi_event(dev, s);
 }
 
+static int ni_pcidio_poll(struct comedi_device *dev, struct comedi_subdevice *s)
+{
+	unsigned long irq_flags;
+	int count;
+
+	spin_lock_irqsave(&dev->spinlock, irq_flags);
+	spin_lock(&devpriv->mite_channel_lock);
+	if (devpriv->di_mite_chan)
+		mite_sync_input_dma(devpriv->di_mite_chan, s->async);
+	spin_unlock(&devpriv->mite_channel_lock);
+	count = s->async->buf_write_count - s->async->buf_read_count;
+	spin_unlock_irqrestore(&dev->spinlock, irq_flags);
+	return count;
+}
+
 static irqreturn_t nidio_interrupt(int irq, void *d)
 {
 	struct comedi_device *dev = d;
@@ -498,13 +513,15 @@ static irqreturn_t nidio_interrupt(int irq, void *d)
 	int status;
 	int work = 0;
 	unsigned int m_status = 0;
-	unsigned long irq_flags;
 
 	/* interrupcions parasites */
 	if (dev->attached == 0) {
 		/* assume it's from another card */
 		return IRQ_NONE;
 	}
+
+	/* Lock to avoid race with comedi_poll */
+	spin_lock(&dev->spinlock);
 
 	status = readb(devpriv->mite->daq_io_addr +
 		       Interrupt_And_Window_Status);
@@ -519,7 +536,7 @@ static irqreturn_t nidio_interrupt(int irq, void *d)
 	/* printk("buf[4096]=%08x\n",
 	       *(unsigned int *)(async->prealloc_buf+4096)); */
 
-	spin_lock_irqsave(&devpriv->mite_channel_lock, irq_flags);
+	spin_lock(&devpriv->mite_channel_lock);
 	if (devpriv->di_mite_chan)
 		m_status = mite_get_status(devpriv->di_mite_chan);
 #ifdef MITE_DEBUG
@@ -544,7 +561,7 @@ static irqreturn_t nidio_interrupt(int irq, void *d)
 			disable_irq(dev->irq);
 		}
 	}
-	spin_unlock_irqrestore(&devpriv->mite_channel_lock, irq_flags);
+	spin_unlock(&devpriv->mite_channel_lock);
 
 	while (status & DataLeft) {
 		work++;
@@ -646,6 +663,8 @@ out:
 		       Master_DMA_And_Interrupt_Control);
 	}
 #endif
+
+	spin_unlock(&dev->spinlock);
 	return IRQ_HANDLED;
 }
 
@@ -1252,6 +1271,7 @@ static int nidio_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 		s->len_chanlist = 32;	/* XXX */
 		s->buf_change = &ni_pcidio_change;
 		s->async_dma_dir = DMA_BIDIRECTIONAL;
+		s->poll = &ni_pcidio_poll;
 
 		writel(0, devpriv->mite->daq_io_addr + Port_IO(0));
 		writel(0, devpriv->mite->daq_io_addr + Port_Pin_Directions(0));
