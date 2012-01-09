@@ -494,10 +494,10 @@ int radeon_vm_bo_add(struct radeon_device *rdev,
 		}
 		if (bo_va->soffset >= tmp->soffset && bo_va->soffset < tmp->eoffset) {
 			/* bo and tmp overlap, invalid offset */
-			kfree(bo_va);
 			dev_err(rdev->dev, "bo %p va 0x%08X conflict with (bo %p 0x%08X 0x%08X)\n",
 				bo, (unsigned)bo_va->soffset, tmp->bo,
 				(unsigned)tmp->soffset, (unsigned)tmp->eoffset);
+			kfree(bo_va);
 			mutex_unlock(&vm->mutex);
 			return -EINVAL;
 		}
