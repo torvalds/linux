@@ -121,6 +121,8 @@
 #include	<asm/tlbflush.h>
 #include	<asm/page.h>
 
+#include <trace/events/kmem.h>
+
 /*
  * DEBUG	- 1 for kmem_cache_create() to honour; SLAB_RED_ZONE & SLAB_POISON.
  *		  0 for faster, smaller code (especially in the critical paths).
