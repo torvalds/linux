@@ -427,7 +427,7 @@ EXPORT_SYMBOL(dev_uc_del);
  *
  *	Add newly added addresses to the destination device and release
  *	addresses that have no users left. The source device must be
- *	locked by netif_tx_lock_bh.
+ *	locked by netif_addr_lock_bh.
  *
  *	This function is intended to be called from the dev->set_rx_mode
  *	function of layered software devices.
@@ -590,7 +590,7 @@ EXPORT_SYMBOL(dev_mc_del_global);
  *
  *	Add newly added addresses to the destination device and release
  *	addresses that have no users left. The source device must be
- *	locked by netif_tx_lock_bh.
+ *	locked by netif_addr_lock_bh.
  *
  *	This function is intended to be called from the ndo_set_rx_mode
  *	function of layered software devices.
