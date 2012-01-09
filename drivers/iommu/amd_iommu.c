@@ -3188,6 +3188,26 @@ static int amd_iommu_domain_has_cap(struct iommu_domain *domain,
 	return 0;
 }
 
+static int amd_iommu_device_group(struct device *dev, unsigned int *groupid)
+{
+	struct iommu_dev_data *dev_data = dev->archdata.iommu;
+	struct pci_dev *pdev = to_pci_dev(dev);
+	u16 devid;
+
+	if (!dev_data)
+		return -ENODEV;
+
+	if (pdev->is_virtfn || !iommu_group_mf)
+		devid = dev_data->devid;
+	else
+		devid = calc_devid(pdev->bus->number,
+				   PCI_DEVFN(PCI_SLOT(pdev->devfn), 0));
+
+	*groupid = amd_iommu_alias_table[devid];
+
+	return 0;
+}
+
 static struct iommu_ops amd_iommu_ops = {
 	.domain_init = amd_iommu_domain_init,
 	.domain_destroy = amd_iommu_domain_destroy,
@@ -3197,6 +3217,7 @@ static struct iommu_ops amd_iommu_ops = {
 	.unmap = amd_iommu_unmap,
 	.iova_to_phys = amd_iommu_iova_to_phys,
 	.domain_has_cap = amd_iommu_domain_has_cap,
+	.device_group = amd_iommu_device_group,
 	.pgsize_bitmap	= AMD_IOMMU_PGSIZES,
 };
 
