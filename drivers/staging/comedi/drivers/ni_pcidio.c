@@ -30,7 +30,7 @@ Status: works
 Devices: [National Instruments] PCI-DIO-32HS (ni_pcidio), PXI-6533,
   PCI-DIO-96, PCI-DIO-96B, PXI-6508, PCI-6503, PCI-6503B, PCI-6503X,
   PXI-6503, PCI-6533, PCI-6534
-Updated: Sun, 21 Apr 2002 21:03:38 -0700
+Updated: Mon, 09 Jan 2012 14:27:23 +0000
 
 The DIO-96 appears as four 8255 subdevices.  See the 8255
 driver notes for details.
@@ -41,6 +41,11 @@ is 0=A0, 1=A1, 2=A2, ... 8=B0, 16=C0, 24=D0.  The driver only
 supports simple digital I/O; no handshaking is supported.
 
 DMA mostly works for the PCI-DIO32HS, but only in timed input mode.
+
+The PCI-DIO-32HS/PCI-6533 has a configurable external trigger. Setting
+scan_begin_arg to 0 or CR_EDGE triggers on the leading edge. Setting
+scan_begin_arg to CR_INVERT or (CR_EDGE | CR_INVERT) triggers on the
+trailing edge.
 
 This driver could be easily modified to support AT-MIO32HS and
 AT-MIO96.
@@ -845,8 +850,8 @@ static int ni_pcidio_cmdtest(struct comedi_device *dev,
 	} else {
 		/* TRIG_EXT */
 		/* should be level/edge, hi/lo specification here */
-		if (cmd->scan_begin_arg != 0) {
-			cmd->scan_begin_arg = 0;
+		if ((cmd->scan_begin_arg & ~(CR_EDGE | CR_INVERT)) != 0) {
+			cmd->scan_begin_arg &= (CR_EDGE | CR_INVERT);
 			err++;
 		}
 	}
@@ -961,7 +966,13 @@ static int ni_pcidio_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 		writeb(0, devpriv->mite->daq_io_addr + Sequence);
 		writeb(0x00, devpriv->mite->daq_io_addr + ReqReg);
 		writeb(4, devpriv->mite->daq_io_addr + BlockMode);
-		writeb(0, devpriv->mite->daq_io_addr + LinePolarities);
+		if (!(cmd->scan_begin_arg & CR_INVERT)) {
+			/* Leading Edge pulse mode */
+			writeb(0, devpriv->mite->daq_io_addr + LinePolarities);
+		} else {
+			/* Trailing Edge pulse mode */
+			writeb(2, devpriv->mite->daq_io_addr + LinePolarities);
+		}
 		writeb(0x00, devpriv->mite->daq_io_addr + AckSer);
 		writel(1, devpriv->mite->daq_io_addr + StartDelay);
 		writeb(1, devpriv->mite->daq_io_addr + ReqDelay);
