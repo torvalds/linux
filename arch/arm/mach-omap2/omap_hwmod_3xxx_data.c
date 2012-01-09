@@ -3198,7 +3198,6 @@ static __initdata struct omap_hwmod *omap3xxx_hwmods[] = {
 	&omap3xxx_timer9_hwmod,
 	&omap3xxx_timer10_hwmod,
 	&omap3xxx_timer11_hwmod,
-	&omap3xxx_timer12_hwmod,
 
 	&omap3xxx_wd_timer2_hwmod,
 	&omap3xxx_uart1_hwmod,
@@ -3243,6 +3242,12 @@ static __initdata struct omap_hwmod *omap3xxx_hwmods[] = {
 	&omap34xx_mcspi4,
 
 	NULL,
+};
+
+/* GP-only hwmods */
+static __initdata struct omap_hwmod *omap3xxx_gp_hwmods[] = {
+	&omap3xxx_timer12_hwmod,
+	NULL
 };
 
 /* 3430ES1-only hwmods */
@@ -3295,6 +3300,13 @@ int __init omap3xxx_hwmod_init(void)
 	r = omap_hwmod_register(omap3xxx_hwmods);
 	if (r < 0)
 		return r;
+
+	/* Register GP-only hwmods. */
+	if (omap_type() == OMAP2_DEVICE_TYPE_GP) {
+		r = omap_hwmod_register(omap3xxx_gp_hwmods);
+		if (r < 0)
+			return r;
+	}
 
 	rev = omap_rev();
 

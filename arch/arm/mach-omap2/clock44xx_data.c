@@ -1206,6 +1206,14 @@ static const struct clksel ocp_abe_iclk_div[] = {
 	{ .parent = NULL },
 };
 
+static struct clk mpu_periphclk = {
+	.name		= "mpu_periphclk",
+	.parent		= &dpll_mpu_ck,
+	.ops		= &clkops_null,
+	.fixed_div	= 2,
+	.recalc		= &omap_fixed_divisor_recalc,
+};
+
 static struct clk ocp_abe_iclk = {
 	.name		= "ocp_abe_iclk",
 	.parent		= &aess_fclk,
@@ -3189,6 +3197,7 @@ static struct omap_clk omap44xx_clks[] = {
 	CLK(NULL,	"l4_div_ck",			&l4_div_ck,	CK_443X),
 	CLK(NULL,	"lp_clk_div_ck",		&lp_clk_div_ck,	CK_443X),
 	CLK(NULL,	"l4_wkup_clk_mux_ck",		&l4_wkup_clk_mux_ck,	CK_443X),
+	CLK("smp_twd",	NULL,				&mpu_periphclk,	CK_443X),
 	CLK(NULL,	"ocp_abe_iclk",			&ocp_abe_iclk,	CK_443X),
 	CLK(NULL,	"per_abe_24m_fclk",		&per_abe_24m_fclk,	CK_443X),
 	CLK(NULL,	"per_abe_nc_fclk",		&per_abe_nc_fclk,	CK_443X),

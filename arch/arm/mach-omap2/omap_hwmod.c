@@ -706,27 +706,65 @@ static void _enable_module(struct omap_hwmod *oh)
 }
 
 /**
- * _disable_module - enable CLKCTRL modulemode on OMAP4
+ * _omap4_wait_target_disable - wait for a module to be disabled on OMAP4
+ * @oh: struct omap_hwmod *
+ *
+ * Wait for a module @oh to enter slave idle.  Returns 0 if the module
+ * does not have an IDLEST bit or if the module successfully enters
+ * slave idle; otherwise, pass along the return value of the
+ * appropriate *_cm*_wait_module_idle() function.
+ */
+static int _omap4_wait_target_disable(struct omap_hwmod *oh)
+{
+	if (!cpu_is_omap44xx())
+		return 0;
+
+	if (!oh)
+		return -EINVAL;
+
+	if (oh->_int_flags & _HWMOD_NO_MPU_PORT)
+		return 0;
+
+	if (oh->flags & HWMOD_NO_IDLEST)
+		return 0;
+
+	return omap4_cminst_wait_module_idle(oh->clkdm->prcm_partition,
+					     oh->clkdm->cm_inst,
+					     oh->clkdm->clkdm_offs,
+					     oh->prcm.omap4.clkctrl_offs);
+}
+
+/**
+ * _omap4_disable_module - enable CLKCTRL modulemode on OMAP4
  * @oh: struct omap_hwmod *
  *
  * Disable the PRCM module mode related to the hwmod @oh.
- * No return value.
+ * Return EINVAL if the modulemode is not supported and 0 in case of success.
  */
-static void _disable_module(struct omap_hwmod *oh)
+static int _omap4_disable_module(struct omap_hwmod *oh)
 {
+	int v;
+
 	/* The module mode does not exist prior OMAP4 */
-	if (cpu_is_omap24xx() || cpu_is_omap34xx())
-		return;
+	if (!cpu_is_omap44xx())
+		return -EINVAL;
 
 	if (!oh->clkdm || !oh->prcm.omap4.modulemode)
-		return;
+		return -EINVAL;
 
-	pr_debug("omap_hwmod: %s: _disable_module\n", oh->name);
+	pr_debug("omap_hwmod: %s: %s\n", oh->name, __func__);
 
 	omap4_cminst_module_disable(oh->clkdm->prcm_partition,
 				    oh->clkdm->cm_inst,
 				    oh->clkdm->clkdm_offs,
 				    oh->prcm.omap4.clkctrl_offs);
+
+	v = _omap4_wait_target_disable(oh);
+	if (v)
+		pr_warn("omap_hwmod: %s: _wait_target_disable failed\n",
+			oh->name);
+
+	return 0;
 }
 
 /**
@@ -1153,36 +1191,6 @@ static int _wait_target_ready(struct omap_hwmod *oh)
 }
 
 /**
- * _wait_target_disable - wait for a module to be disabled
- * @oh: struct omap_hwmod *
- *
- * Wait for a module @oh to enter slave idle.  Returns 0 if the module
- * does not have an IDLEST bit or if the module successfully enters
- * slave idle; otherwise, pass along the return value of the
- * appropriate *_cm*_wait_module_idle() function.
- */
-static int _wait_target_disable(struct omap_hwmod *oh)
-{
-	/* TODO: For now just handle OMAP4+ */
-	if (cpu_is_omap24xx() || cpu_is_omap34xx())
-		return 0;
-
-	if (!oh)
-		return -EINVAL;
-
-	if (oh->_int_flags & _HWMOD_NO_MPU_PORT)
-		return 0;
-
-	if (oh->flags & HWMOD_NO_IDLEST)
-		return 0;
-
-	return omap4_cminst_wait_module_idle(oh->clkdm->prcm_partition,
-					     oh->clkdm->cm_inst,
-					     oh->clkdm->clkdm_offs,
-					     oh->prcm.omap4.clkctrl_offs);
-}
-
-/**
  * _lookup_hardreset - fill register bit info for this hwmod/reset line
  * @oh: struct omap_hwmod *
  * @name: name of the reset line in the context of this hwmod
@@ -1524,8 +1532,6 @@ static int _enable(struct omap_hwmod *oh)
  */
 static int _idle(struct omap_hwmod *oh)
 {
-	int ret;
-
 	pr_debug("omap_hwmod: %s: idling\n", oh->name);
 
 	if (oh->_state != _HWMOD_STATE_ENABLED) {
@@ -1537,11 +1543,9 @@ static int _idle(struct omap_hwmod *oh)
 	if (oh->class->sysc)
 		_idle_sysc(oh);
 	_del_initiator_dep(oh, mpu_oh);
-	_disable_module(oh);
-	ret = _wait_target_disable(oh);
-	if (ret)
-		pr_warn("omap_hwmod: %s: _wait_target_disable failed\n",
-			oh->name);
+
+	_omap4_disable_module(oh);
+
 	/*
 	 * The module must be in idle mode before disabling any parents
 	 * clocks. Otherwise, the parent clock might be disabled before
@@ -1642,11 +1646,7 @@ static int _shutdown(struct omap_hwmod *oh)
 	if (oh->_state == _HWMOD_STATE_ENABLED) {
 		_del_initiator_dep(oh, mpu_oh);
 		/* XXX what about the other system initiators here? dma, dsp */
-		_disable_module(oh);
-		ret = _wait_target_disable(oh);
-		if (ret)
-			pr_warn("omap_hwmod: %s: _wait_target_disable failed\n",
-				oh->name);
+		_omap4_disable_module(oh);
 		_disable_clocks(oh);
 		if (oh->clkdm)
 			clkdm_hwmod_disable(oh->clkdm, oh);
