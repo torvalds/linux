@@ -838,14 +838,11 @@ static dma_cookie_t sdma_tx_submit(struct dma_async_tx_descriptor *tx)
 {
 	unsigned long flags;
 	struct sdma_channel *sdmac = to_sdma_chan(tx->chan);
-	struct sdma_engine *sdma = sdmac->sdma;
 	dma_cookie_t cookie;
 
 	spin_lock_irqsave(&sdmac->lock, flags);
 
 	cookie = sdma_assign_cookie(sdmac);
-
-	sdma_enable_channel(sdma, sdmac->channel);
 
 	spin_unlock_irqrestore(&sdmac->lock, flags);
 
@@ -1135,9 +1132,11 @@ static enum dma_status sdma_tx_status(struct dma_chan *chan,
 
 static void sdma_issue_pending(struct dma_chan *chan)
 {
-	/*
-	 * Nothing to do. We only have a single descriptor
-	 */
+	struct sdma_channel *sdmac = to_sdma_chan(chan);
+	struct sdma_engine *sdma = sdmac->sdma;
+
+	if (sdmac->status == DMA_IN_PROGRESS)
+		sdma_enable_channel(sdma, sdmac->channel);
 }
 
 #define SDMA_SCRIPT_ADDRS_ARRAY_SIZE_V1	34
