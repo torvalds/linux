@@ -2286,7 +2286,7 @@ static int dummy_setup(struct usb_hcd *hcd)
 }
 
 /* Change a group of bulk endpoints to support multiple stream IDs */
-int dummy_alloc_streams(struct usb_hcd *hcd, struct usb_device *udev,
+static int dummy_alloc_streams(struct usb_hcd *hcd, struct usb_device *udev,
 	struct usb_host_endpoint **eps, unsigned int num_eps,
 	unsigned int num_streams, gfp_t mem_flags)
 {
@@ -2298,7 +2298,7 @@ int dummy_alloc_streams(struct usb_hcd *hcd, struct usb_device *udev,
 }
 
 /* Reverts a group of bulk endpoints back to not using stream IDs. */
-int dummy_free_streams(struct usb_hcd *hcd, struct usb_device *udev,
+static int dummy_free_streams(struct usb_hcd *hcd, struct usb_device *udev,
 	struct usb_host_endpoint **eps, unsigned int num_eps,
 	gfp_t mem_flags)
 {
