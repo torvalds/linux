@@ -29,7 +29,6 @@
  *   - smart tree reduction
  */
 
-#include <linux/module.h>
 #include <linux/fs.h>
 #include <linux/time.h>
 #include <linux/jbd2.h>
