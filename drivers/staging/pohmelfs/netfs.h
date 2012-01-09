@@ -776,7 +776,7 @@ struct pohmelfs_name *pohmelfs_search_hash(struct pohmelfs_inode *pi, u32 hash);
 void pohmelfs_inode_del_inode(struct pohmelfs_sb *psb, struct pohmelfs_inode *pi);
 
 struct pohmelfs_inode *pohmelfs_create_entry_local(struct pohmelfs_sb *psb,
-	struct pohmelfs_inode *parent, struct qstr *str, u64 start, int mode);
+	struct pohmelfs_inode *parent, struct qstr *str, u64 start, umode_t mode);
 
 int pohmelfs_write_create_inode(struct pohmelfs_inode *pi);
 

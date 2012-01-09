@@ -324,7 +324,7 @@ static int ene_rx_get_sample_reg(struct ene_device *dev)
 		return dev->extra_buf2_address + r_pointer;
 	}
 
-	dbg("attempt to read beyong ring bufer end");
+	dbg("attempt to read beyond ring buffer end");
 	return 0;
 }
 

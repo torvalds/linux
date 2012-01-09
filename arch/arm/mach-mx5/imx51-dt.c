@@ -115,4 +115,5 @@ DT_MACHINE_START(IMX51_DT, "Freescale i.MX51 (Device Tree Support)")
 	.timer		= &imx51_timer,
 	.init_machine	= imx51_dt_init,
 	.dt_compat	= imx51_dt_board_compat,
+	.restart	= mxc_restart,
 MACHINE_END

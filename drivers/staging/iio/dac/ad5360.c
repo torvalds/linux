@@ -563,18 +563,7 @@ static struct spi_driver ad5360_driver = {
 	.remove = __devexit_p(ad5360_remove),
 	.id_table = ad5360_ids,
 };
-
-static __init int ad5360_spi_init(void)
-{
-	return spi_register_driver(&ad5360_driver);
-}
-module_init(ad5360_spi_init);
-
-static __exit void ad5360_spi_exit(void)
-{
-	spi_unregister_driver(&ad5360_driver);
-}
-module_exit(ad5360_spi_exit);
+module_spi_driver(ad5360_driver);
 
 MODULE_AUTHOR("Lars-Peter Clausen <lars@metafoo.de>");
 MODULE_DESCRIPTION("Analog Devices AD5360/61/62/63/70/71/72/73 DAC");

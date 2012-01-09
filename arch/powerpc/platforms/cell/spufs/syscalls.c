@@ -60,7 +60,7 @@ out:
 }
 
 static long do_spu_create(const char __user *pathname, unsigned int flags,
-		mode_t mode, struct file *neighbor)
+		umode_t mode, struct file *neighbor)
 {
 	struct path path;
 	struct dentry *dentry;

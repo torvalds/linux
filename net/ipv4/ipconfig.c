@@ -767,13 +767,15 @@ static void __init ic_bootp_send_if(struct ic_device *d, unsigned long jiffies_d
 	struct sk_buff *skb;
 	struct bootp_pkt *b;
 	struct iphdr *h;
+	int hlen = LL_RESERVED_SPACE(dev);
+	int tlen = dev->needed_tailroom;
 
 	/* Allocate packet */
-	skb = alloc_skb(sizeof(struct bootp_pkt) + LL_ALLOCATED_SPACE(dev) + 15,
+	skb = alloc_skb(sizeof(struct bootp_pkt) + hlen + tlen + 15,
 			GFP_KERNEL);
 	if (!skb)
 		return;
-	skb_reserve(skb, LL_RESERVED_SPACE(dev));
+	skb_reserve(skb, hlen);
 	b = (struct bootp_pkt *) skb_put(skb, sizeof(struct bootp_pkt));
 	memset(b, 0, sizeof(struct bootp_pkt));
 
@@ -826,8 +828,13 @@ static void __init ic_bootp_send_if(struct ic_device *d, unsigned long jiffies_d
 	skb->dev = dev;
 	skb->protocol = htons(ETH_P_IP);
 	if (dev_hard_header(skb, dev, ntohs(skb->protocol),
-			    dev->broadcast, dev->dev_addr, skb->len) < 0 ||
-	    dev_queue_xmit(skb) < 0)
+			    dev->broadcast, dev->dev_addr, skb->len) < 0) {
+		kfree_skb(skb);
+		printk("E");
+		return;
+	}
+
+	if (dev_queue_xmit(skb) < 0)
 		printk("E");
 }
 

@@ -1300,25 +1300,7 @@ static struct usb_driver redrat3_dev_driver = {
 	.id_table	= redrat3_dev_table
 };
 
-static int __init redrat3_dev_init(void)
-{
-	int ret;
-
-	ret = usb_register(&redrat3_dev_driver);
-	if (ret < 0)
-		pr_err(DRIVER_NAME
-		       ": usb register failed, result = %d\n", ret);
-
-	return ret;
-}
-
-static void __exit redrat3_dev_exit(void)
-{
-	usb_deregister(&redrat3_dev_driver);
-}
-
-module_init(redrat3_dev_init);
-module_exit(redrat3_dev_exit);
+module_usb_driver(redrat3_dev_driver);
 
 MODULE_DESCRIPTION(DRIVER_DESC);
 MODULE_AUTHOR(DRIVER_AUTHOR);

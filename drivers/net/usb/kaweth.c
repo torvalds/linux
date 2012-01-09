@@ -1324,32 +1324,4 @@ static int kaweth_internal_control_msg(struct usb_device *usb_dev,
 	}
 }
 
-
-/****************************************************************
- *     kaweth_init
- ****************************************************************/
-static int __init kaweth_init(void)
-{
-	dbg("Driver loading");
-	return usb_register(&kaweth_driver);
-}
-
-/****************************************************************
- *     kaweth_exit
- ****************************************************************/
-static void __exit kaweth_exit(void)
-{
-	usb_deregister(&kaweth_driver);
-}
-
-module_init(kaweth_init);
-module_exit(kaweth_exit);
-
-
-
-
-
-
-
-
-
+module_usb_driver(kaweth_driver);

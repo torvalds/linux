@@ -166,7 +166,9 @@ static int ath_ahb_probe(struct platform_device *pdev)
 		if (to_platform_device(ah->dev)->id == 0 &&
 		    (bcfg->config->flags & (BD_WLAN0 | BD_WLAN1)) ==
 		     (BD_WLAN1 | BD_WLAN0))
-			__set_bit(ATH_STAT_2G_DISABLED, ah->status);
+			ah->ah_capabilities.cap_needs_2GHz_ovr = true;
+		else
+			ah->ah_capabilities.cap_needs_2GHz_ovr = false;
 	}
 
 	ret = ath5k_init_ah(ah, &ath_ahb_bus_ops);

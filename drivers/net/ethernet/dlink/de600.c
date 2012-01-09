@@ -59,7 +59,7 @@ static const char version[] = "de600.c: $Revision: 1.41-2.5 $,  Bjorn Ekwall (bj
 
 #include "de600.h"
 
-static unsigned int check_lost = 1;
+static bool check_lost = true;
 module_param(check_lost, bool, 0);
 MODULE_PARM_DESC(check_lost, "If set then check for unplugged de600");
 

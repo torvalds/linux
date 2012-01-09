@@ -196,5 +196,6 @@ MACHINE_START(ICONTROL, "iControl/SafeTcam boards using Embedian MXM-8x10 CoM")
 	.init_irq	= pxa3xx_init_irq,
 	.handle_irq	= pxa3xx_handle_irq,
 	.timer		= &pxa_timer,
-	.init_machine	= icontrol_init
+	.init_machine	= icontrol_init,
+	.restart	= pxa_restart,
 MACHINE_END

@@ -62,14 +62,14 @@
  * freed before they are done using it.
  */
 
-/* Caller must hold local->sta_lock */
+/* Caller must hold local->sta_mtx */
 static int sta_info_hash_del(struct ieee80211_local *local,
 			     struct sta_info *sta)
 {
 	struct sta_info *s;
 
 	s = rcu_dereference_protected(local->sta_hash[STA_HASH(sta->sta.addr)],
-				      lockdep_is_held(&local->sta_lock));
+				      lockdep_is_held(&local->sta_mtx));
 	if (!s)
 		return -ENOENT;
 	if (s == sta) {
@@ -81,7 +81,7 @@ static int sta_info_hash_del(struct ieee80211_local *local,
 	while (rcu_access_pointer(s->hnext) &&
 	       rcu_access_pointer(s->hnext) != sta)
 		s = rcu_dereference_protected(s->hnext,
-					lockdep_is_held(&local->sta_lock));
+					lockdep_is_held(&local->sta_mtx));
 	if (rcu_access_pointer(s->hnext)) {
 		RCU_INIT_POINTER(s->hnext, sta->hnext);
 		return 0;
@@ -98,14 +98,12 @@ struct sta_info *sta_info_get(struct ieee80211_sub_if_data *sdata,
 	struct sta_info *sta;
 
 	sta = rcu_dereference_check(local->sta_hash[STA_HASH(addr)],
-				    lockdep_is_held(&local->sta_lock) ||
 				    lockdep_is_held(&local->sta_mtx));
 	while (sta) {
 		if (sta->sdata == sdata && !sta->dummy &&
 		    memcmp(sta->sta.addr, addr, ETH_ALEN) == 0)
 			break;
 		sta = rcu_dereference_check(sta->hnext,
-					    lockdep_is_held(&local->sta_lock) ||
 					    lockdep_is_held(&local->sta_mtx));
 	}
 	return sta;
@@ -119,14 +117,12 @@ struct sta_info *sta_info_get_rx(struct ieee80211_sub_if_data *sdata,
 	struct sta_info *sta;
 
 	sta = rcu_dereference_check(local->sta_hash[STA_HASH(addr)],
-				    lockdep_is_held(&local->sta_lock) ||
 				    lockdep_is_held(&local->sta_mtx));
 	while (sta) {
 		if (sta->sdata == sdata &&
 		    memcmp(sta->sta.addr, addr, ETH_ALEN) == 0)
 			break;
 		sta = rcu_dereference_check(sta->hnext,
-					    lockdep_is_held(&local->sta_lock) ||
 					    lockdep_is_held(&local->sta_mtx));
 	}
 	return sta;
@@ -143,7 +139,6 @@ struct sta_info *sta_info_get_bss(struct ieee80211_sub_if_data *sdata,
 	struct sta_info *sta;
 
 	sta = rcu_dereference_check(local->sta_hash[STA_HASH(addr)],
-				    lockdep_is_held(&local->sta_lock) ||
 				    lockdep_is_held(&local->sta_mtx));
 	while (sta) {
 		if ((sta->sdata == sdata ||
@@ -152,7 +147,6 @@ struct sta_info *sta_info_get_bss(struct ieee80211_sub_if_data *sdata,
 		    memcmp(sta->sta.addr, addr, ETH_ALEN) == 0)
 			break;
 		sta = rcu_dereference_check(sta->hnext,
-					    lockdep_is_held(&local->sta_lock) ||
 					    lockdep_is_held(&local->sta_mtx));
 	}
 	return sta;
@@ -169,7 +163,6 @@ struct sta_info *sta_info_get_bss_rx(struct ieee80211_sub_if_data *sdata,
 	struct sta_info *sta;
 
 	sta = rcu_dereference_check(local->sta_hash[STA_HASH(addr)],
-				    lockdep_is_held(&local->sta_lock) ||
 				    lockdep_is_held(&local->sta_mtx));
 	while (sta) {
 		if ((sta->sdata == sdata ||
@@ -177,7 +170,6 @@ struct sta_info *sta_info_get_bss_rx(struct ieee80211_sub_if_data *sdata,
 		    memcmp(sta->sta.addr, addr, ETH_ALEN) == 0)
 			break;
 		sta = rcu_dereference_check(sta->hnext,
-					    lockdep_is_held(&local->sta_lock) ||
 					    lockdep_is_held(&local->sta_mtx));
 	}
 	return sta;
@@ -204,16 +196,17 @@ struct sta_info *sta_info_get_by_idx(struct ieee80211_sub_if_data *sdata,
 }
 
 /**
- * __sta_info_free - internal STA free helper
+ * sta_info_free - free STA
  *
  * @local: pointer to the global information
  * @sta: STA info to free
  *
  * This function must undo everything done by sta_info_alloc()
- * that may happen before sta_info_insert().
+ * that may happen before sta_info_insert(). It may only be
+ * called when sta_info_insert() has not been attempted (and
+ * if that fails, the station is freed anyway.)
  */
-static void __sta_info_free(struct ieee80211_local *local,
-			    struct sta_info *sta)
+void sta_info_free(struct ieee80211_local *local, struct sta_info *sta)
 {
 	if (sta->rate_ctrl) {
 		rate_control_free_sta(sta);
@@ -227,10 +220,11 @@ static void __sta_info_free(struct ieee80211_local *local,
 	kfree(sta);
 }
 
-/* Caller must hold local->sta_lock */
+/* Caller must hold local->sta_mtx */
 static void sta_info_hash_add(struct ieee80211_local *local,
 			      struct sta_info *sta)
 {
+	lockdep_assert_held(&local->sta_mtx);
 	sta->hnext = local->sta_hash[STA_HASH(sta->sta.addr)];
 	RCU_INIT_POINTER(local->sta_hash[STA_HASH(sta->sta.addr)], sta);
 }
@@ -280,7 +274,7 @@ static int sta_prepare_rate_control(struct ieee80211_local *local,
 }
 
 struct sta_info *sta_info_alloc(struct ieee80211_sub_if_data *sdata,
-				u8 *addr, gfp_t gfp)
+				const u8 *addr, gfp_t gfp)
 {
 	struct ieee80211_local *local = sdata->local;
 	struct sta_info *sta;
@@ -338,102 +332,6 @@ struct sta_info *sta_info_alloc(struct ieee80211_sub_if_data *sdata,
 	return sta;
 }
 
-static int sta_info_finish_insert(struct sta_info *sta,
-				bool async, bool dummy_reinsert)
-{
-	struct ieee80211_local *local = sta->local;
-	struct ieee80211_sub_if_data *sdata = sta->sdata;
-	struct station_info sinfo;
-	unsigned long flags;
-	int err = 0;
-
-	lockdep_assert_held(&local->sta_mtx);
-
-	if (!sta->dummy || dummy_reinsert) {
-		/* notify driver */
-		if (sdata->vif.type == NL80211_IFTYPE_AP_VLAN)
-			sdata = container_of(sdata->bss,
-					     struct ieee80211_sub_if_data,
-					     u.ap);
-		err = drv_sta_add(local, sdata, &sta->sta);
-		if (err) {
-			if (!async)
-				return err;
-			printk(KERN_DEBUG "%s: failed to add IBSS STA %pM to "
-					  "driver (%d) - keeping it anyway.\n",
-			       sdata->name, sta->sta.addr, err);
-		} else {
-			sta->uploaded = true;
-#ifdef CONFIG_MAC80211_VERBOSE_DEBUG
-			if (async)
-				wiphy_debug(local->hw.wiphy,
-					    "Finished adding IBSS STA %pM\n",
-					    sta->sta.addr);
-#endif
-		}
-
-		sdata = sta->sdata;
-	}
-
-	if (!dummy_reinsert) {
-		if (!async) {
-			local->num_sta++;
-			local->sta_generation++;
-			smp_mb();
-
-			/* make the station visible */
-			spin_lock_irqsave(&local->sta_lock, flags);
-			sta_info_hash_add(local, sta);
-			spin_unlock_irqrestore(&local->sta_lock, flags);
-		}
-
-		list_add(&sta->list, &local->sta_list);
-	} else {
-		sta->dummy = false;
-	}
-
-	if (!sta->dummy) {
-		ieee80211_sta_debugfs_add(sta);
-		rate_control_add_sta_debugfs(sta);
-
-		memset(&sinfo, 0, sizeof(sinfo));
-		sinfo.filled = 0;
-		sinfo.generation = local->sta_generation;
-		cfg80211_new_sta(sdata->dev, sta->sta.addr, &sinfo, GFP_KERNEL);
-	}
-
-	return 0;
-}
-
-static void sta_info_finish_pending(struct ieee80211_local *local)
-{
-	struct sta_info *sta;
-	unsigned long flags;
-
-	spin_lock_irqsave(&local->sta_lock, flags);
-	while (!list_empty(&local->sta_pending_list)) {
-		sta = list_first_entry(&local->sta_pending_list,
-				       struct sta_info, list);
-		list_del(&sta->list);
-		spin_unlock_irqrestore(&local->sta_lock, flags);
-
-		sta_info_finish_insert(sta, true, false);
-
-		spin_lock_irqsave(&local->sta_lock, flags);
-	}
-	spin_unlock_irqrestore(&local->sta_lock, flags);
-}
-
-static void sta_info_finish_work(struct work_struct *work)
-{
-	struct ieee80211_local *local =
-		container_of(work, struct ieee80211_local, sta_finish_work);
-
-	mutex_lock(&local->sta_mtx);
-	sta_info_finish_pending(local);
-	mutex_unlock(&local->sta_mtx);
-}
-
 static int sta_info_insert_check(struct sta_info *sta)
 {
 	struct ieee80211_sub_if_data *sdata = sta->sdata;
@@ -453,50 +351,15 @@ static int sta_info_insert_check(struct sta_info *sta)
 	return 0;
 }
 
-static int sta_info_insert_ibss(struct sta_info *sta) __acquires(RCU)
-{
-	struct ieee80211_local *local = sta->local;
-	struct ieee80211_sub_if_data *sdata = sta->sdata;
-	unsigned long flags;
-
-	spin_lock_irqsave(&local->sta_lock, flags);
-	/* check if STA exists already */
-	if (sta_info_get_bss_rx(sdata, sta->sta.addr)) {
-		spin_unlock_irqrestore(&local->sta_lock, flags);
-		rcu_read_lock();
-		return -EEXIST;
-	}
-
-	local->num_sta++;
-	local->sta_generation++;
-	smp_mb();
-	sta_info_hash_add(local, sta);
-
-	list_add_tail(&sta->list, &local->sta_pending_list);
-
-	rcu_read_lock();
-	spin_unlock_irqrestore(&local->sta_lock, flags);
-
-#ifdef CONFIG_MAC80211_VERBOSE_DEBUG
-	wiphy_debug(local->hw.wiphy, "Added IBSS STA %pM\n",
-			sta->sta.addr);
-#endif /* CONFIG_MAC80211_VERBOSE_DEBUG */
-
-	ieee80211_queue_work(&local->hw, &local->sta_finish_work);
-
-	return 0;
-}
-
 /*
  * should be called with sta_mtx locked
  * this function replaces the mutex lock
  * with a RCU lock
  */
-static int sta_info_insert_non_ibss(struct sta_info *sta) __acquires(RCU)
+static int sta_info_insert_finish(struct sta_info *sta) __acquires(RCU)
 {
 	struct ieee80211_local *local = sta->local;
 	struct ieee80211_sub_if_data *sdata = sta->sdata;
-	unsigned long flags;
 	struct sta_info *exist_sta;
 	bool dummy_reinsert = false;
 	int err = 0;
@@ -504,19 +367,8 @@ static int sta_info_insert_non_ibss(struct sta_info *sta) __acquires(RCU)
 	lockdep_assert_held(&local->sta_mtx);
 
 	/*
-	 * On first glance, this will look racy, because the code
-	 * in this function, which inserts a station with sleeping,
-	 * unlocks the sta_lock between checking existence in the
-	 * hash table and inserting into it.
-	 *
-	 * However, it is not racy against itself because it keeps
-	 * the mutex locked.
-	 */
-
-	spin_lock_irqsave(&local->sta_lock, flags);
-	/*
 	 * check if STA exists already.
-	 * only accept a scenario of a second call to sta_info_insert_non_ibss
+	 * only accept a scenario of a second call to sta_info_insert_finish
 	 * with a dummy station entry that was inserted earlier
 	 * in that case - assume that the dummy station flag should
 	 * be removed.
@@ -526,20 +378,47 @@ static int sta_info_insert_non_ibss(struct sta_info *sta) __acquires(RCU)
 		if (exist_sta == sta && sta->dummy) {
 			dummy_reinsert = true;
 		} else {
-			spin_unlock_irqrestore(&local->sta_lock, flags);
-			mutex_unlock(&local->sta_mtx);
-			rcu_read_lock();
-			return -EEXIST;
+			err = -EEXIST;
+			goto out_err;
 		}
 	}
 
-	spin_unlock_irqrestore(&local->sta_lock, flags);
+	if (!sta->dummy || dummy_reinsert) {
+		/* notify driver */
+		err = drv_sta_add(local, sdata, &sta->sta);
+		if (err) {
+			if (sdata->vif.type != NL80211_IFTYPE_ADHOC)
+				goto out_err;
+			printk(KERN_DEBUG "%s: failed to add IBSS STA %pM to "
+					  "driver (%d) - keeping it anyway.\n",
+			       sdata->name, sta->sta.addr, err);
+		} else
+			sta->uploaded = true;
+	}
 
-	err = sta_info_finish_insert(sta, false, dummy_reinsert);
-	if (err) {
-		mutex_unlock(&local->sta_mtx);
-		rcu_read_lock();
-		return err;
+	if (!dummy_reinsert) {
+		local->num_sta++;
+		local->sta_generation++;
+		smp_mb();
+
+		/* make the station visible */
+		sta_info_hash_add(local, sta);
+
+		list_add(&sta->list, &local->sta_list);
+	} else {
+		sta->dummy = false;
+	}
+
+	if (!sta->dummy) {
+		struct station_info sinfo;
+
+		ieee80211_sta_debugfs_add(sta);
+		rate_control_add_sta_debugfs(sta);
+
+		memset(&sinfo, 0, sizeof(sinfo));
+		sinfo.filled = 0;
+		sinfo.generation = local->sta_generation;
+		cfg80211_new_sta(sdata->dev, sta->sta.addr, &sinfo, GFP_KERNEL);
 	}
 
 #ifdef CONFIG_MAC80211_VERBOSE_DEBUG
@@ -555,13 +434,18 @@ static int sta_info_insert_non_ibss(struct sta_info *sta) __acquires(RCU)
 		mesh_accept_plinks_update(sdata);
 
 	return 0;
+ out_err:
+	mutex_unlock(&local->sta_mtx);
+	rcu_read_lock();
+	return err;
 }
 
 int sta_info_insert_rcu(struct sta_info *sta) __acquires(RCU)
 {
 	struct ieee80211_local *local = sta->local;
-	struct ieee80211_sub_if_data *sdata = sta->sdata;
 	int err = 0;
+
+	might_sleep();
 
 	err = sta_info_insert_check(sta);
 	if (err) {
@@ -569,40 +453,16 @@ int sta_info_insert_rcu(struct sta_info *sta) __acquires(RCU)
 		goto out_free;
 	}
 
-	/*
-	 * In ad-hoc mode, we sometimes need to insert stations
-	 * from tasklet context from the RX path. To avoid races,
-	 * always do so in that case -- see the comment below.
-	 */
-	if (sdata->vif.type == NL80211_IFTYPE_ADHOC) {
-		err = sta_info_insert_ibss(sta);
-		if (err)
-			goto out_free;
-
-		return 0;
-	}
-
-	/*
-	 * It might seem that the function called below is in race against
-	 * the function call above that atomically inserts the station... That,
-	 * however, is not true because the above code can only
-	 * be invoked for IBSS interfaces, and the below code will
-	 * not be -- and the two do not race against each other as
-	 * the hash table also keys off the interface.
-	 */
-
-	might_sleep();
-
 	mutex_lock(&local->sta_mtx);
 
-	err = sta_info_insert_non_ibss(sta);
+	err = sta_info_insert_finish(sta);
 	if (err)
 		goto out_free;
 
 	return 0;
  out_free:
 	BUG_ON(!err);
-	__sta_info_free(local, sta);
+	sta_info_free(local, sta);
 	return err;
 }
 
@@ -629,7 +489,7 @@ int sta_info_reinsert(struct sta_info *sta)
 
 	might_sleep();
 
-	err = sta_info_insert_non_ibss(sta);
+	err = sta_info_insert_finish(sta);
 	rcu_read_unlock();
 	return err;
 }
@@ -716,7 +576,7 @@ void sta_info_recalc_tim(struct sta_info *sta)
 	}
 
  done:
-	spin_lock_irqsave(&local->sta_lock, flags);
+	spin_lock_irqsave(&local->tim_lock, flags);
 
 	if (indicate_tim)
 		__bss_tim_set(bss, sta->sta.aid);
@@ -729,7 +589,7 @@ void sta_info_recalc_tim(struct sta_info *sta)
 		local->tim_in_locked_section = false;
 	}
 
-	spin_unlock_irqrestore(&local->sta_lock, flags);
+	spin_unlock_irqrestore(&local->tim_lock, flags);
 }
 
 static bool sta_info_buffer_expired(struct sta_info *sta, struct sk_buff *skb)
@@ -853,8 +713,8 @@ static int __must_check __sta_info_destroy(struct sta_info *sta)
 {
 	struct ieee80211_local *local;
 	struct ieee80211_sub_if_data *sdata;
-	unsigned long flags;
 	int ret, i, ac;
+	struct tid_ampdu_tx *tid_tx;
 
 	might_sleep();
 
@@ -873,14 +733,11 @@ static int __must_check __sta_info_destroy(struct sta_info *sta)
 	set_sta_flag(sta, WLAN_STA_BLOCK_BA);
 	ieee80211_sta_tear_down_BA_sessions(sta, true);
 
-	spin_lock_irqsave(&local->sta_lock, flags);
 	ret = sta_info_hash_del(local, sta);
-	/* this might still be the pending list ... which is fine */
-	if (!ret)
-		list_del(&sta->list);
-	spin_unlock_irqrestore(&local->sta_lock, flags);
 	if (ret)
 		return ret;
+
+	list_del(&sta->list);
 
 	mutex_lock(&local->key_mtx);
 	for (i = 0; i < NUM_DEFAULT_KEYS; i++)
@@ -907,6 +764,9 @@ static int __must_check __sta_info_destroy(struct sta_info *sta)
 
 	if (sdata->vif.type == NL80211_IFTYPE_AP_VLAN)
 		RCU_INIT_POINTER(sdata->u.vlan.sta, NULL);
+
+	while (sta->sta_state > IEEE80211_STA_NONE)
+		sta_info_move_state(sta, sta->sta_state - 1);
 
 	if (sta->uploaded) {
 		if (sdata->vif.type == NL80211_IFTYPE_AP_VLAN)
@@ -953,7 +813,36 @@ static int __must_check __sta_info_destroy(struct sta_info *sta)
 	}
 #endif
 
-	__sta_info_free(local, sta);
+	/* There could be some memory leaks because of ampdu tx pending queue
+	 * not being freed before destroying the station info.
+	 *
+	 * Make sure that such queues are purged before freeing the station
+	 * info.
+	 * TODO: We have to somehow postpone the full destruction
+	 * until the aggregation stop completes. Refer
+	 * http://thread.gmane.org/gmane.linux.kernel.wireless.general/81936
+	 */
+
+	mutex_lock(&sta->ampdu_mlme.mtx);
+
+	for (i = 0; i < STA_TID_NUM; i++) {
+		tid_tx = rcu_dereference_protected_tid_tx(sta, i);
+		if (!tid_tx)
+			continue;
+		if (skb_queue_len(&tid_tx->pending)) {
+#ifdef CONFIG_MAC80211_HT_DEBUG
+			wiphy_debug(local->hw.wiphy, "TX A-MPDU  purging %d "
+				"packets for tid=%d\n",
+				skb_queue_len(&tid_tx->pending), i);
+#endif /* CONFIG_MAC80211_HT_DEBUG */
+			__skb_queue_purge(&tid_tx->pending);
+		}
+		kfree_rcu(tid_tx, rcu_head);
+	}
+
+	mutex_unlock(&sta->ampdu_mlme.mtx);
+
+	sta_info_free(local, sta);
 
 	return 0;
 }
@@ -1009,11 +898,9 @@ static void sta_info_cleanup(unsigned long data)
 
 void sta_info_init(struct ieee80211_local *local)
 {
-	spin_lock_init(&local->sta_lock);
+	spin_lock_init(&local->tim_lock);
 	mutex_init(&local->sta_mtx);
 	INIT_LIST_HEAD(&local->sta_list);
-	INIT_LIST_HEAD(&local->sta_pending_list);
-	INIT_WORK(&local->sta_finish_work, sta_info_finish_work);
 
 	setup_timer(&local->sta_cleanup, sta_info_cleanup,
 		    (unsigned long)local);
@@ -1042,9 +929,6 @@ int sta_info_flush(struct ieee80211_local *local,
 	might_sleep();
 
 	mutex_lock(&local->sta_mtx);
-
-	sta_info_finish_pending(local);
-
 	list_for_each_entry_safe(sta, tmp, &local->sta_list, list) {
 		if (!sdata || sdata == sta->sdata)
 			WARN_ON(__sta_info_destroy(sta));
@@ -1061,7 +945,11 @@ void ieee80211_sta_expire(struct ieee80211_sub_if_data *sdata,
 	struct sta_info *sta, *tmp;
 
 	mutex_lock(&local->sta_mtx);
-	list_for_each_entry_safe(sta, tmp, &local->sta_list, list)
+
+	list_for_each_entry_safe(sta, tmp, &local->sta_list, list) {
+		if (sdata != sta->sdata)
+			continue;
+
 		if (time_after(jiffies, sta->last_rx + exp_time)) {
 #ifdef CONFIG_MAC80211_IBSS_DEBUG
 			printk(KERN_DEBUG "%s: expiring inactive STA %pM\n",
@@ -1069,6 +957,8 @@ void ieee80211_sta_expire(struct ieee80211_sub_if_data *sdata,
 #endif
 			WARN_ON(__sta_info_destroy(sta));
 		}
+	}
+
 	mutex_unlock(&local->sta_mtx);
 }
 
@@ -1517,3 +1407,56 @@ void ieee80211_sta_set_buffered(struct ieee80211_sta *pubsta,
 	sta_info_recalc_tim(sta);
 }
 EXPORT_SYMBOL(ieee80211_sta_set_buffered);
+
+int sta_info_move_state_checked(struct sta_info *sta,
+				enum ieee80211_sta_state new_state)
+{
+	might_sleep();
+
+	if (sta->sta_state == new_state)
+		return 0;
+
+	switch (new_state) {
+	case IEEE80211_STA_NONE:
+		if (sta->sta_state == IEEE80211_STA_AUTH)
+			clear_bit(WLAN_STA_AUTH, &sta->_flags);
+		else
+			return -EINVAL;
+		break;
+	case IEEE80211_STA_AUTH:
+		if (sta->sta_state == IEEE80211_STA_NONE)
+			set_bit(WLAN_STA_AUTH, &sta->_flags);
+		else if (sta->sta_state == IEEE80211_STA_ASSOC)
+			clear_bit(WLAN_STA_ASSOC, &sta->_flags);
+		else
+			return -EINVAL;
+		break;
+	case IEEE80211_STA_ASSOC:
+		if (sta->sta_state == IEEE80211_STA_AUTH) {
+			set_bit(WLAN_STA_ASSOC, &sta->_flags);
+		} else if (sta->sta_state == IEEE80211_STA_AUTHORIZED) {
+			if (sta->sdata->vif.type == NL80211_IFTYPE_AP)
+				atomic_dec(&sta->sdata->u.ap.num_sta_authorized);
+			clear_bit(WLAN_STA_AUTHORIZED, &sta->_flags);
+		} else
+			return -EINVAL;
+		break;
+	case IEEE80211_STA_AUTHORIZED:
+		if (sta->sta_state == IEEE80211_STA_ASSOC) {
+			if (sta->sdata->vif.type == NL80211_IFTYPE_AP)
+				atomic_inc(&sta->sdata->u.ap.num_sta_authorized);
+			set_bit(WLAN_STA_AUTHORIZED, &sta->_flags);
+		} else
+			return -EINVAL;
+		break;
+	default:
+		WARN(1, "invalid state %d", new_state);
+		return -EINVAL;
+	}
+
+	printk(KERN_DEBUG "%s: moving STA %pM to state %d\n",
+		sta->sdata->name, sta->sta.addr, new_state);
+	sta->sta_state = new_state;
+
+	return 0;
+}

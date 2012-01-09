@@ -447,4 +447,9 @@ static inline s32 igb_get_phy_info(struct e1000_hw *hw)
 	return 0;
 }
 
+static inline struct netdev_queue *txring_txq(const struct igb_ring *tx_ring)
+{
+	return netdev_get_tx_queue(tx_ring->netdev, tx_ring->queue_index);
+}
+
 #endif /* _IGB_H_ */

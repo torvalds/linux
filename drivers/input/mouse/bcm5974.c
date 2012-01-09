@@ -940,16 +940,4 @@ static struct usb_driver bcm5974_driver = {
 	.supports_autosuspend	= 1,
 };
 
-static int __init bcm5974_init(void)
-{
-	return usb_register(&bcm5974_driver);
-}
-
-static void __exit bcm5974_exit(void)
-{
-	usb_deregister(&bcm5974_driver);
-}
-
-module_init(bcm5974_init);
-module_exit(bcm5974_exit);
-
+module_usb_driver(bcm5974_driver);

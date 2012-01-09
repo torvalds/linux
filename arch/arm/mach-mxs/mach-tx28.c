@@ -178,4 +178,5 @@ MACHINE_START(TX28, "Ka-Ro electronics TX28 module")
 	.init_irq = mx28_init_irq,
 	.timer = &tx28_timer,
 	.init_machine = tx28_stk5v3_init,
+	.restart	= mxs_restart,
 MACHINE_END

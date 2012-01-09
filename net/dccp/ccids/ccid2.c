@@ -29,7 +29,7 @@
 
 
 #ifdef CONFIG_IP_DCCP_CCID2_DEBUG
-static int ccid2_debug;
+static bool ccid2_debug;
 #define ccid2_pr_debug(format, a...)	DCCP_PR_DEBUG(ccid2_debug, format, ##a)
 #else
 #define ccid2_pr_debug(format, a...)
@@ -174,7 +174,7 @@ out:
 /*
  *	Congestion window validation (RFC 2861).
  */
-static int ccid2_do_cwv = 1;
+static bool ccid2_do_cwv = true;
 module_param(ccid2_do_cwv, bool, 0644);
 MODULE_PARM_DESC(ccid2_do_cwv, "Perform RFC2861 Congestion Window Validation");
 

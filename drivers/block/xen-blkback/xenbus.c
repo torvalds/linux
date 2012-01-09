@@ -613,7 +613,7 @@ static void frontend_changed(struct xenbus_device *dev,
 	case XenbusStateConnected:
 		/*
 		 * Ensure we connect even when two watches fire in
-		 * close successsion and we miss the intermediate value
+		 * close succession and we miss the intermediate value
 		 * of frontend_state.
 		 */
 		if (dev->state == XenbusStateConnected)

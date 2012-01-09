@@ -998,7 +998,7 @@ out_err:
 }
 EXPORT_SYMBOL(set_memory_uc);
 
-int _set_memory_array(unsigned long *addr, int addrinarray,
+static int _set_memory_array(unsigned long *addr, int addrinarray,
 		unsigned long new_type)
 {
 	int i, j;

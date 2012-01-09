@@ -14,12 +14,8 @@ obj-$(CONFIG_M68328)	+= config.o
 obj-$(CONFIG_ROM)	+= romvec.o
 
 extra-y			:= head.o
-extra-$(CONFIG_M68328)	+= bootlogo.rh head.o
-
-$(obj)/bootlogo.rh: $(src)/bootlogo.h
-	perl $(src)/bootlogo.pl < $(src)/bootlogo.h > $(obj)/bootlogo.rh
 
 $(obj)/head.o: $(obj)/$(head-y)
 	ln -sf $(head-y) $(obj)/head.o
 
-clean-files := $(obj)/bootlogo.rh $(obj)/head.o $(head-y)
+clean-files := $(obj)/head.o $(head-y)

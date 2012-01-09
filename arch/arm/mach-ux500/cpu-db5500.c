@@ -30,12 +30,11 @@ static struct map_desc u5500_uart_io_desc[] __initdata = {
 };
 
 static struct map_desc u5500_io_desc[] __initdata = {
-	__IO_DEV_DESC(U5500_GIC_CPU_BASE, SZ_4K),
+	/* SCU base also covers GIC CPU BASE and TWD with its 4K page */
+	__IO_DEV_DESC(U5500_SCU_BASE, SZ_4K),
 	__IO_DEV_DESC(U5500_GIC_DIST_BASE, SZ_4K),
 	__IO_DEV_DESC(U5500_L2CC_BASE, SZ_4K),
-	__IO_DEV_DESC(U5500_TWD_BASE, SZ_4K),
 	__IO_DEV_DESC(U5500_MTU0_BASE, SZ_4K),
-	__IO_DEV_DESC(U5500_SCU_BASE, SZ_4K),
 	__IO_DEV_DESC(U5500_BACKUPRAM0_BASE, SZ_8K),
 
 	__IO_DEV_DESC(U5500_GPIO0_BASE, SZ_4K),

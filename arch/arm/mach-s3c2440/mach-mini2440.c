@@ -60,6 +60,8 @@
 
 #include <sound/s3c24xx_uda134x.h>
 
+#include "common.h"
+
 #define MACH_MINI2440_DM9K_BASE (S3C2410_CS4 + 0x300)
 
 static struct map_desc mini2440_iodesc[] __initdata = {
@@ -681,4 +683,5 @@ MACHINE_START(MINI2440, "MINI2440")
 	.init_machine	= mini2440_init,
 	.init_irq	= s3c24xx_init_irq,
 	.timer		= &s3c24xx_timer,
+	.restart	= s3c2440_restart,
 MACHINE_END

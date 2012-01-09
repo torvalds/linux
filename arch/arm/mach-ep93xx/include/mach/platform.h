@@ -66,4 +66,6 @@ void ep93xx_register_ac97(void);
 void ep93xx_init_devices(void);
 extern struct sys_timer ep93xx_timer;
 
+void ep93xx_restart(char, const char *);
+
 #endif

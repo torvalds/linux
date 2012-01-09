@@ -25,7 +25,7 @@
 #include <plat/mmc.h>
 #include <plat/usb.h>
 #include <plat/gpmc.h>
-#include <plat/common.h>
+#include "common.h"
 #include <plat/onenand.h>
 
 #include "mux.h"
@@ -149,6 +149,8 @@ MACHINE_START(NOKIA_RM680, "Nokia RM-680 board")
 	.map_io		= omap3_map_io,
 	.init_early	= omap3630_init_early,
 	.init_irq	= omap3_init_irq,
+	.handle_irq	= omap3_intc_handle_irq,
 	.init_machine	= rm680_init,
 	.timer		= &omap3_timer,
+	.restart	= omap_prcm_restart,
 MACHINE_END

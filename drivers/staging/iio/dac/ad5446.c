@@ -197,14 +197,14 @@ static struct attribute *ad5446_attributes[] = {
 	NULL,
 };
 
-static mode_t ad5446_attr_is_visible(struct kobject *kobj,
+static umode_t ad5446_attr_is_visible(struct kobject *kobj,
 				     struct attribute *attr, int n)
 {
 	struct device *dev = container_of(kobj, struct device, kobj);
 	struct iio_dev *indio_dev = dev_get_drvdata(dev);
 	struct ad5446_state *st = iio_priv(indio_dev);
 
-	mode_t mode = attr->mode;
+	umode_t mode = attr->mode;
 
 	if (!st->chip_info->store_pwr_down &&
 		(attr == &iio_dev_attr_out_voltage0_powerdown.dev_attr.attr ||
@@ -465,18 +465,7 @@ static struct spi_driver ad5446_driver = {
 	.remove		= __devexit_p(ad5446_remove),
 	.id_table	= ad5446_id,
 };
-
-static int __init ad5446_init(void)
-{
-	return spi_register_driver(&ad5446_driver);
-}
-module_init(ad5446_init);
-
-static void __exit ad5446_exit(void)
-{
-	spi_unregister_driver(&ad5446_driver);
-}
-module_exit(ad5446_exit);
+module_spi_driver(ad5446_driver);
 
 MODULE_AUTHOR("Michael Hennerich <hennerich@blackfin.uclinux.org>");
 MODULE_DESCRIPTION("Analog Devices AD5444/AD5446 DAC");

@@ -994,11 +994,15 @@ void __init sh7372_add_standard_devices(void)
 	sh7372_init_pm_domain(&sh7372_a4r);
 	sh7372_init_pm_domain(&sh7372_a3rv);
 	sh7372_init_pm_domain(&sh7372_a3ri);
-	sh7372_init_pm_domain(&sh7372_a3sg);
+	sh7372_init_pm_domain(&sh7372_a4s);
 	sh7372_init_pm_domain(&sh7372_a3sp);
+	sh7372_init_pm_domain(&sh7372_a3sg);
 
 	sh7372_pm_add_subdomain(&sh7372_a4lc, &sh7372_a3rv);
 	sh7372_pm_add_subdomain(&sh7372_a4r, &sh7372_a4lc);
+
+	sh7372_pm_add_subdomain(&sh7372_a4s, &sh7372_a3sg);
+	sh7372_pm_add_subdomain(&sh7372_a4s, &sh7372_a3sp);
 
 	platform_add_devices(sh7372_early_devices,
 			    ARRAY_SIZE(sh7372_early_devices));

@@ -1,8 +1,42 @@
 comment "Processor Type"
 
+choice
+	prompt "CPU family support"
+	default M68KCLASSIC if MMU
+	default COLDFIRE if !MMU
+	help
+	  The Freescale (was Motorola) M68K family of processors implements
+	  the full 68000 processor instruction set.
+	  The Freescale ColdFire family of processors is a modern derivitive
+	  of the 68000 processor family. They are mainly targeted at embedded
+	  applications, and are all System-On-Chip (SOC) devices, as opposed
+	  to stand alone CPUs. They implement a subset of the original 68000
+	  processor instruction set.
+	  If you anticipate running this kernel on a computer with a classic
+	  MC68xxx processor, select M68KCLASSIC.
+	  If you anticipate running this kernel on a computer with a ColdFire
+	  processor, select COLDFIRE.
+
+config M68KCLASSIC
+	bool "Classic M68K CPU family support"
+
+config COLDFIRE
+	bool "Coldfire CPU family support"
+	select GENERIC_GPIO
+	select ARCH_REQUIRE_GPIOLIB
+	select CPU_HAS_NO_BITFIELDS
+	select CPU_HAS_NO_MULDIV64
+	select GENERIC_CSUM
+
+endchoice
+
+if M68KCLASSIC
+
 config M68000
 	bool
 	select CPU_HAS_NO_BITFIELDS
+	select CPU_HAS_NO_MULDIV64
+	select GENERIC_CSUM
 	help
 	  The Freescale (was Motorola) 68000 CPU is the first generation of
 	  the well known M68K family of processors. The CPU core as well as
@@ -18,21 +52,11 @@ config MCPU32
 	  based on the 68020 processor. For the most part it is used in
 	  System-On-Chip parts, and does not contain a paging MMU.
 
-config COLDFIRE
-	bool
-	select GENERIC_GPIO
-	select ARCH_REQUIRE_GPIOLIB
-	select CPU_HAS_NO_BITFIELDS
-	help
-	  The Freescale ColdFire family of processors is a modern derivitive
-	  of the 68000 processor family. They are mainly targeted at embedded
-	  applications, and are all System-On-Chip (SOC) devices, as opposed
-	  to stand alone CPUs. They implement a subset of the original 68000
-	  processor instruction set.
-
 config M68020
 	bool "68020 support"
 	depends on MMU
+	select GENERIC_ATOMIC64
+	select CPU_HAS_ADDRESS_SPACES
 	help
 	  If you anticipate running this kernel on a computer with a MC68020
 	  processor, say Y. Otherwise, say N. Note that the 68020 requires a
@@ -42,6 +66,8 @@ config M68020
 config M68030
 	bool "68030 support"
 	depends on MMU && !MMU_SUN3
+	select GENERIC_ATOMIC64
+	select CPU_HAS_ADDRESS_SPACES
 	help
 	  If you anticipate running this kernel on a computer with a MC68030
 	  processor, say Y. Otherwise, say N. Note that a MC68EC030 will not
@@ -50,6 +76,8 @@ config M68030
 config M68040
 	bool "68040 support"
 	depends on MMU && !MMU_SUN3
+	select GENERIC_ATOMIC64
+	select CPU_HAS_ADDRESS_SPACES
 	help
 	  If you anticipate running this kernel on a computer with a MC68LC040
 	  or MC68040 processor, say Y. Otherwise, say N. Note that an
@@ -59,6 +87,8 @@ config M68040
 config M68060
 	bool "68060 support"
 	depends on MMU && !MMU_SUN3
+	select GENERIC_ATOMIC64
+	select CPU_HAS_ADDRESS_SPACES
 	help
 	  If you anticipate running this kernel on a computer with a MC68060
 	  processor, say Y. Otherwise, say N.
@@ -91,10 +121,13 @@ config M68360
 	help
 	  Motorola 68360 processor support.
 
+endif # M68KCLASSIC
+
+if COLDFIRE
+
 config M5206
 	bool "MCF5206"
 	depends on !MMU
-	select COLDFIRE
 	select COLDFIRE_SW_A7
 	select HAVE_MBAR
 	help
@@ -103,7 +136,6 @@ config M5206
 config M5206e
 	bool "MCF5206e"
 	depends on !MMU
-	select COLDFIRE
 	select COLDFIRE_SW_A7
 	select HAVE_MBAR
 	help
@@ -112,7 +144,6 @@ config M5206e
 config M520x
 	bool "MCF520x"
 	depends on !MMU
-	select COLDFIRE
 	select GENERIC_CLOCKEVENTS
 	select HAVE_CACHE_SPLIT
 	help
@@ -121,7 +152,6 @@ config M520x
 config M523x
 	bool "MCF523x"
 	depends on !MMU
-	select COLDFIRE
 	select GENERIC_CLOCKEVENTS
 	select HAVE_CACHE_SPLIT
 	select HAVE_IPSBAR
@@ -131,7 +161,6 @@ config M523x
 config M5249
 	bool "MCF5249"
 	depends on !MMU
-	select COLDFIRE
 	select COLDFIRE_SW_A7
 	select HAVE_MBAR
 	help
@@ -143,7 +172,6 @@ config M527x
 config M5271
 	bool "MCF5271"
 	depends on !MMU
-	select COLDFIRE
 	select M527x
 	select HAVE_CACHE_SPLIT
 	select HAVE_IPSBAR
@@ -154,7 +182,6 @@ config M5271
 config M5272
 	bool "MCF5272"
 	depends on !MMU
-	select COLDFIRE
 	select COLDFIRE_SW_A7
 	select HAVE_MBAR
 	help
@@ -163,7 +190,6 @@ config M5272
 config M5275
 	bool "MCF5275"
 	depends on !MMU
-	select COLDFIRE
 	select M527x
 	select HAVE_CACHE_SPLIT
 	select HAVE_IPSBAR
@@ -174,7 +200,6 @@ config M5275
 config M528x
 	bool "MCF528x"
 	depends on !MMU
-	select COLDFIRE
 	select GENERIC_CLOCKEVENTS
 	select HAVE_CACHE_SPLIT
 	select HAVE_IPSBAR
@@ -184,7 +209,6 @@ config M528x
 config M5307
 	bool "MCF5307"
 	depends on !MMU
-	select COLDFIRE
 	select COLDFIRE_SW_A7
 	select HAVE_CACHE_CB
 	select HAVE_MBAR
@@ -194,7 +218,6 @@ config M5307
 config M532x
 	bool "MCF532x"
 	depends on !MMU
-	select COLDFIRE
 	select HAVE_CACHE_CB
 	help
 	  Freescale (Motorola) ColdFire 532x processor support.
@@ -202,7 +225,6 @@ config M532x
 config M5407
 	bool "MCF5407"
 	depends on !MMU
-	select COLDFIRE
 	select COLDFIRE_SW_A7
 	select HAVE_CACHE_CB
 	select HAVE_MBAR
@@ -214,9 +236,8 @@ config M54xx
 
 config M547x
 	bool "MCF547x"
-	depends on !MMU
-	select COLDFIRE
 	select M54xx
+	select MMU_COLDFIRE if MMU
 	select HAVE_CACHE_CB
 	select HAVE_MBAR
 	help
@@ -224,13 +245,14 @@ config M547x
 
 config M548x
 	bool "MCF548x"
-	depends on !MMU
-	select COLDFIRE
+	select MMU_COLDFIRE if MMU
 	select M54xx
 	select HAVE_CACHE_CB
 	select HAVE_MBAR
 	help
 	  Freescale ColdFire 5480/5481/5482/5483/5484/5485 processor support.
+
+endif # COLDFIRE
 
 
 comment "Processor Specific Options"

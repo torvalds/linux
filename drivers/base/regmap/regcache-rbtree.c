@@ -11,12 +11,15 @@
  */
 
 #include <linux/slab.h>
+#include <linux/debugfs.h>
 #include <linux/rbtree.h>
+#include <linux/seq_file.h>
 
 #include "internal.h"
 
 static int regcache_rbtree_write(struct regmap *map, unsigned int reg,
 				 unsigned int value);
+static int regcache_rbtree_exit(struct regmap *map);
 
 struct regcache_rbtree_node {
 	/* the actual rbtree node holding this block */
@@ -124,6 +127,60 @@ static int regcache_rbtree_insert(struct rb_root *root,
 	return 1;
 }
 
+#ifdef CONFIG_DEBUG_FS
+static int rbtree_show(struct seq_file *s, void *ignored)
+{
+	struct regmap *map = s->private;
+	struct regcache_rbtree_ctx *rbtree_ctx = map->cache;
+	struct regcache_rbtree_node *n;
+	struct rb_node *node;
+	unsigned int base, top;
+	int nodes = 0;
+	int registers = 0;
+
+	mutex_lock(&map->lock);
+
+	for (node = rb_first(&rbtree_ctx->root); node != NULL;
+	     node = rb_next(node)) {
+		n = container_of(node, struct regcache_rbtree_node, node);
+
+		regcache_rbtree_get_base_top_reg(n, &base, &top);
+		seq_printf(s, "%x-%x (%d)\n", base, top, top - base + 1);
+
+		nodes++;
+		registers += top - base + 1;
+	}
+
+	seq_printf(s, "%d nodes, %d registers, average %d registers\n",
+		   nodes, registers, registers / nodes);
+
+	mutex_unlock(&map->lock);
+
+	return 0;
+}
+
+static int rbtree_open(struct inode *inode, struct file *file)
+{
+	return single_open(file, rbtree_show, inode->i_private);
+}
+
+static const struct file_operations rbtree_fops = {
+	.open		= rbtree_open,
+	.read		= seq_read,
+	.llseek		= seq_lseek,
+	.release	= single_release,
+};
+
+static void rbtree_debugfs_init(struct regmap *map)
+{
+	debugfs_create_file("rbtree", 0400, map->debugfs, map, &rbtree_fops);
+}
+#else
+static void rbtree_debugfs_init(struct regmap *map)
+{
+}
+#endif
+
 static int regcache_rbtree_init(struct regmap *map)
 {
 	struct regcache_rbtree_ctx *rbtree_ctx;
@@ -146,10 +203,12 @@ static int regcache_rbtree_init(struct regmap *map)
 			goto err;
 	}
 
+	rbtree_debugfs_init(map);
+
 	return 0;
 
 err:
-	regcache_exit(map);
+	regcache_rbtree_exit(map);
 	return ret;
 }
 

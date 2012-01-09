@@ -197,7 +197,7 @@ static char *driver_name = DRIVER_NAME;
 
 static int max_baud = 4000000;
 #ifdef USE_PROBE
-static int do_probe = 0;
+static bool do_probe = false;
 #endif
 
 

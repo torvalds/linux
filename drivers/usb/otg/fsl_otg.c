@@ -639,7 +639,7 @@ static int fsl_otg_set_power(struct otg_transceiver *otg_p, unsigned mA)
  * Delayed pin detect interrupt processing.
  *
  * When the Mini-A cable is disconnected from the board,
- * the pin-detect interrupt happens before the disconnnect
+ * the pin-detect interrupt happens before the disconnect
  * interrupts for the connected device(s).  In order to
  * process the disconnect interrupt(s) prior to switching
  * roles, the pin-detect interrupts are delayed, and handled

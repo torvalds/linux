@@ -24,7 +24,7 @@
 #include <linux/serial_core.h>
 #include <linux/input.h>
 #include <linux/gpio_keys.h>
-#include <linux/sysdev.h>
+#include <linux/device.h>
 #include <linux/pda_power.h>
 #include <linux/pwm_backlight.h>
 #include <linux/pwm.h>
@@ -61,6 +61,8 @@
 #include <plat/ts.h>
 
 #include <sound/uda1380.h>
+
+#include "common.h"
 
 #define LCD_PWM_PERIOD 192960
 #define LCD_PWM_DUTY 127353
@@ -832,4 +834,5 @@ MACHINE_START(RX1950, "HP iPAQ RX1950")
 	.init_irq = s3c24xx_init_irq,
 	.init_machine = rx1950_init_machine,
 	.timer = &s3c24xx_timer,
+	.restart	= s3c2440_restart,
 MACHINE_END

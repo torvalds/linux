@@ -244,26 +244,7 @@ static struct usb_driver au6610_driver = {
 	.id_table   = au6610_table,
 };
 
-/* module stuff */
-static int __init au6610_module_init(void)
-{
-	int ret;
-
-	ret = usb_register(&au6610_driver);
-	if (ret)
-		err("usb_register failed. Error number %d", ret);
-
-	return ret;
-}
-
-static void __exit au6610_module_exit(void)
-{
-	/* deregister this driver from the USB subsystem */
-	usb_deregister(&au6610_driver);
-}
-
-module_init(au6610_module_init);
-module_exit(au6610_module_exit);
+module_usb_driver(au6610_driver);
 
 MODULE_AUTHOR("Antti Palosaari <crope@iki.fi>");
 MODULE_DESCRIPTION("Driver for Alcor Micro AU6610 DVB-T USB2.0");

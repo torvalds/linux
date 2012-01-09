@@ -9,267 +9,33 @@
  * option) any later version.
  */
 
-/include/ "p1020si.dtsi"
-
+/include/ "fsl/p1020si-pre.dtsi"
 / {
 	model = "fsl,P1020RDB";
 	compatible = "fsl,P1020RDB";
-
-	aliases {
-		serial0 = &serial0;
-		serial1 = &serial1;
-		ethernet0 = &enet0;
-		ethernet1 = &enet1;
-		ethernet2 = &enet2;
-		pci0 = &pci0;
-		pci1 = &pci1;
-	};
 
 	memory {
 		device_type = "memory";
 	};
 
-	localbus@ffe05000 {
+	board_lbc: lbc: localbus@ffe05000 {
+		reg = <0 0xffe05000 0 0x1000>;
 
 		/* NOR, NAND Flashes and Vitesse 5 port L2 switch */
 		ranges = <0x0 0x0 0x0 0xef000000 0x01000000
 			  0x1 0x0 0x0 0xffa00000 0x00040000
 			  0x2 0x0 0x0 0xffb00000 0x00020000>;
-
-		nor@0,0 {
-			#address-cells = <1>;
-			#size-cells = <1>;
-			compatible = "cfi-flash";
-			reg = <0x0 0x0 0x1000000>;
-			bank-width = <2>;
-			device-width = <1>;
-
-			partition@0 {
-				/* This location must not be altered  */
-				/* 256KB for Vitesse 7385 Switch firmware */
-				reg = <0x0 0x00040000>;
-				label = "NOR (RO) Vitesse-7385 Firmware";
-				read-only;
-			};
-
-			partition@40000 {
-				/* 256KB for DTB Image */
-				reg = <0x00040000 0x00040000>;
-				label = "NOR (RO) DTB Image";
-				read-only;
-			};
-
-			partition@80000 {
-				/* 3.5 MB for Linux Kernel Image */
-				reg = <0x00080000 0x00380000>;
-				label = "NOR (RO) Linux Kernel Image";
-				read-only;
-			};
-
-			partition@400000 {
-				/* 11MB for JFFS2 based Root file System */
-				reg = <0x00400000 0x00b00000>;
-				label = "NOR (RW) JFFS2 Root File System";
-			};
-
-			partition@f00000 {
-				/* This location must not be altered  */
-				/* 512KB for u-boot Bootloader Image */
-				/* 512KB for u-boot Environment Variables */
-				reg = <0x00f00000 0x00100000>;
-				label = "NOR (RO) U-Boot Image";
-				read-only;
-			};
-		};
-
-		nand@1,0 {
-			#address-cells = <1>;
-			#size-cells = <1>;
-			compatible = "fsl,p1020-fcm-nand",
-				     "fsl,elbc-fcm-nand";
-			reg = <0x1 0x0 0x40000>;
-
-			partition@0 {
-				/* This location must not be altered  */
-				/* 1MB for u-boot Bootloader Image */
-				reg = <0x0 0x00100000>;
-				label = "NAND (RO) U-Boot Image";
-				read-only;
-			};
-
-			partition@100000 {
-				/* 1MB for DTB Image */
-				reg = <0x00100000 0x00100000>;
-				label = "NAND (RO) DTB Image";
-				read-only;
-			};
-
-			partition@200000 {
-				/* 4MB for Linux Kernel Image */
-				reg = <0x00200000 0x00400000>;
-				label = "NAND (RO) Linux Kernel Image";
-				read-only;
-			};
-
-			partition@600000 {
-				/* 4MB for Compressed Root file System Image */
-				reg = <0x00600000 0x00400000>;
-				label = "NAND (RO) Compressed RFS Image";
-				read-only;
-			};
-
-			partition@a00000 {
-				/* 7MB for JFFS2 based Root file System */
-				reg = <0x00a00000 0x00700000>;
-				label = "NAND (RW) JFFS2 Root File System";
-			};
-
-			partition@1100000 {
-				/* 15MB for JFFS2 based Root file System */
-				reg = <0x01100000 0x00f00000>;
-				label = "NAND (RW) Writable User area";
-			};
-		};
-
-		L2switch@2,0 {
-			#address-cells = <1>;
-			#size-cells = <1>;
-			compatible = "vitesse-7385";
-			reg = <0x2 0x0 0x20000>;
-		};
-
 	};
 
-	soc@ffe00000 {
-		i2c@3000 {
-			rtc@68 {
-				compatible = "dallas,ds1339";
-				reg = <0x68>;
-			};
-		};
-
-		spi@7000 {
-
-			fsl_m25p80@0 {
-				#address-cells = <1>;
-				#size-cells = <1>;
-				compatible = "fsl,espi-flash";
-				reg = <0>;
-				linux,modalias = "fsl_m25p80";
-				modal = "s25sl128b";
-				spi-max-frequency = <50000000>;
-				mode = <0>;
-
-				partition@0 {
-					/* 512KB for u-boot Bootloader Image */
-					reg = <0x0 0x00080000>;
-					label = "SPI (RO) U-Boot Image";
-					read-only;
-				};
-
-				partition@80000 {
-					/* 512KB for DTB Image */
-					reg = <0x00080000 0x00080000>;
-					label = "SPI (RO) DTB Image";
-					read-only;
-				};
-
-				partition@100000 {
-					/* 4MB for Linux Kernel Image */
-					reg = <0x00100000 0x00400000>;
-					label = "SPI (RO) Linux Kernel Image";
-					read-only;
-				};
-
-				partition@500000 {
-					/* 4MB for Compressed RFS Image */
-					reg = <0x00500000 0x00400000>;
-					label = "SPI (RO) Compressed RFS Image";
-					read-only;
-				};
-
-				partition@900000 {
-					/* 7MB for JFFS2 based RFS */
-					reg = <0x00900000 0x00700000>;
-					label = "SPI (RW) JFFS2 RFS";
-				};
-			};
-		};
-
-		mdio@24000 {
-
-			phy0: ethernet-phy@0 {
-				interrupt-parent = <&mpic>;
-				interrupts = <3 1>;
-				reg = <0x0>;
-			};
-
-			phy1: ethernet-phy@1 {
-				interrupt-parent = <&mpic>;
-				interrupts = <2 1>;
-				reg = <0x1>;
-			};
-		};
-
-		mdio@25000 {
-
-			tbi0: tbi-phy@11 {
-				reg = <0x11>;
-				device_type = "tbi-phy";
-			};
-		};
-
-		enet0: ethernet@b0000 {
-			fixed-link = <1 1 1000 0 0>;
-			phy-connection-type = "rgmii-id";
-
-		};
-
-		enet1: ethernet@b1000 {
-			phy-handle = <&phy0>;
-			tbi-handle = <&tbi0>;
-			phy-connection-type = "sgmii";
-
-		};
-
-		enet2: ethernet@b2000 {
-			phy-handle = <&phy1>;
-			phy-connection-type = "rgmii-id";
-
-		};
-
-		usb@22000 {
-			phy_type = "ulpi";
-		};
-
-		/* USB2 is shared with localbus, so it must be disabled
-		   by default. We can't put 'status = "disabled";' here
-		   since U-Boot doesn't clear the status property when
-		   it enables USB2. OTOH, U-Boot does create a new node
-		   when there isn't any. So, just comment it out.
-		usb@23000 {
-			phy_type = "ulpi";
-		};
-		*/
-
+	board_soc: soc: soc@ffe00000 {
+		ranges = <0x0 0x0 0xffe00000 0x100000>;
 	};
 
 	pci0: pcie@ffe09000 {
 		ranges = <0x2000000 0x0 0xa0000000 0 0xa0000000 0x0 0x20000000
 			  0x1000000 0x0 0x00000000 0 0xffc10000 0x0 0x10000>;
-		interrupt-map-mask = <0xf800 0x0 0x0 0x7>;
-		interrupt-map = <
-			/* IDSEL 0x0 */
-			0000 0x0 0x0 0x1 &mpic 0x4 0x1
-			0000 0x0 0x0 0x2 &mpic 0x5 0x1
-			0000 0x0 0x0 0x3 &mpic 0x6 0x1
-			0000 0x0 0x0 0x4 &mpic 0x7 0x1
-			>;
+		reg = <0 0xffe09000 0 0x1000>;
 		pcie@0 {
-			reg = <0x0 0x0 0x0 0x0 0x0>;
-			#size-cells = <2>;
-			#address-cells = <3>;
-			device_type = "pci";
 			ranges = <0x2000000 0x0 0xa0000000
 				  0x2000000 0x0 0xa0000000
 				  0x0 0x20000000
@@ -281,21 +47,10 @@
 	};
 
 	pci1: pcie@ffe0a000 {
+		reg = <0 0xffe0a000 0 0x1000>;
 		ranges = <0x2000000 0x0 0x80000000 0 0x80000000 0x0 0x20000000
 			  0x1000000 0x0 0x00000000 0 0xffc00000 0x0 0x10000>;
-		interrupt-map-mask = <0xf800 0x0 0x0 0x7>;
-		interrupt-map = <
-			/* IDSEL 0x0 */
-			0000 0x0 0x0 0x1 &mpic 0x0 0x1
-			0000 0x0 0x0 0x2 &mpic 0x1 0x1
-			0000 0x0 0x0 0x3 &mpic 0x2 0x1
-			0000 0x0 0x0 0x4 &mpic 0x3 0x1
-			>;
 		pcie@0 {
-			reg = <0x0 0x0 0x0 0x0 0x0>;
-			#size-cells = <2>;
-			#address-cells = <3>;
-			device_type = "pci";
 			ranges = <0x2000000 0x0 0x80000000
 				  0x2000000 0x0 0x80000000
 				  0x0 0x20000000
@@ -306,3 +61,6 @@
 		};
 	};
 };
+
+/include/ "p1020rdb.dtsi"
+/include/ "fsl/p1020si-post.dtsi"

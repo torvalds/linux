@@ -35,7 +35,7 @@
 #include "clock3xxx.h"
 #include "clock44xx.h"
 
-#include <plat/common.h>
+#include "common.h"
 #include <plat/omap-pm.h>
 #include "voltage.h"
 #include "powerdomain.h"
@@ -43,7 +43,7 @@
 #include "clockdomain.h"
 #include <plat/omap_hwmod.h>
 #include <plat/multi.h>
-#include <plat/common.h>
+#include "common.h"
 
 /*
  * The machine specific code may provide the extra mapping besides the
@@ -316,13 +316,9 @@ static int _set_hwmod_postsetup_state(struct omap_hwmod *oh, void *data)
 	return omap_hwmod_set_postsetup_state(oh, *(u8 *)data);
 }
 
-/* See irq.c, omap4-common.c and entry-macro.S */
-void __iomem *omap_irq_base;
-
 static void __init omap_common_init_early(void)
 {
 	omap2_check_revision();
-	omap_ioremap_init();
 	omap_init_consistent_dma_size();
 }
 

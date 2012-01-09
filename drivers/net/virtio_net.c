@@ -30,7 +30,7 @@
 static int napi_weight = 128;
 module_param(napi_weight, int, 0444);
 
-static int csum = 1, gso = 1;
+static bool csum = true, gso = true;
 module_param(csum, bool, 0444);
 module_param(gso, bool, 0444);
 
@@ -39,6 +39,7 @@ module_param(gso, bool, 0444);
 #define GOOD_COPY_LEN	128
 
 #define VIRTNET_SEND_COMMAND_SG_MAX    2
+#define VIRTNET_DRIVER_VERSION "1.0.0"
 
 struct virtnet_stats {
 	struct u64_stats_sync syncp;
@@ -155,6 +156,7 @@ static void set_skb_frag(struct sk_buff *skb, struct page *page,
 	*len -= size;
 }
 
+/* Called from bottom half context */
 static struct sk_buff *page_to_skb(struct virtnet_info *vi,
 				   struct page *page, unsigned int len)
 {
@@ -357,7 +359,7 @@ static int add_recvbuf_small(struct virtnet_info *vi, gfp_t gfp)
 	struct skb_vnet_hdr *hdr;
 	int err;
 
-	skb = netdev_alloc_skb_ip_align(vi->dev, MAX_PACKET_LEN);
+	skb = __netdev_alloc_skb_ip_align(vi->dev, MAX_PACKET_LEN, gfp);
 	if (unlikely(!skb))
 		return -ENOMEM;
 
@@ -439,7 +441,13 @@ static int add_recvbuf_mergeable(struct virtnet_info *vi, gfp_t gfp)
 	return err;
 }
 
-/* Returns false if we couldn't fill entirely (OOM). */
+/*
+ * Returns false if we couldn't fill entirely (OOM).
+ *
+ * Normally run in the receive path, but can also be run from ndo_open
+ * before we're receiving packets, or from refill_work which is
+ * careful to disable receiving (using napi_disable).
+ */
 static bool try_fill_recv(struct virtnet_info *vi, gfp_t gfp)
 {
 	int err;
@@ -501,7 +509,7 @@ static void refill_work(struct work_struct *work)
 	/* In theory, this can happen: if we don't get any buffers in
 	 * we will *never* try to fill again. */
 	if (still_empty)
-		schedule_delayed_work(&vi->refill, HZ/2);
+		queue_delayed_work(system_nrt_wq, &vi->refill, HZ/2);
 }
 
 static int virtnet_poll(struct napi_struct *napi, int budget)
@@ -520,7 +528,7 @@ again:
 
 	if (vi->num < vi->max / 2) {
 		if (!try_fill_recv(vi, GFP_ATOMIC))
-			schedule_delayed_work(&vi->refill, 0);
+			queue_delayed_work(system_nrt_wq, &vi->refill, 0);
 	}
 
 	/* Out of packets? */
@@ -699,6 +707,7 @@ static struct rtnl_link_stats64 *virtnet_stats(struct net_device *dev,
 	}
 
 	tot->tx_dropped = dev->stats.tx_dropped;
+	tot->tx_fifo_errors = dev->stats.tx_fifo_errors;
 	tot->rx_dropped = dev->stats.rx_dropped;
 	tot->rx_length_errors = dev->stats.rx_length_errors;
 	tot->rx_frame_errors = dev->stats.rx_frame_errors;
@@ -718,6 +727,10 @@ static void virtnet_netpoll(struct net_device *dev)
 static int virtnet_open(struct net_device *dev)
 {
 	struct virtnet_info *vi = netdev_priv(dev);
+
+	/* Make sure we have some buffers: if oom use wq. */
+	if (!try_fill_recv(vi, GFP_KERNEL))
+		queue_delayed_work(system_nrt_wq, &vi->refill, 0);
 
 	virtnet_napi_enable(vi);
 	return 0;
@@ -772,6 +785,8 @@ static int virtnet_close(struct net_device *dev)
 {
 	struct virtnet_info *vi = netdev_priv(dev);
 
+	/* Make sure refill_work doesn't re-enable napi! */
+	cancel_delayed_work_sync(&vi->refill);
 	napi_disable(&vi->napi);
 
 	return 0;
@@ -853,7 +868,7 @@ static void virtnet_set_rx_mode(struct net_device *dev)
 	kfree(buf);
 }
 
-static void virtnet_vlan_rx_add_vid(struct net_device *dev, u16 vid)
+static int virtnet_vlan_rx_add_vid(struct net_device *dev, u16 vid)
 {
 	struct virtnet_info *vi = netdev_priv(dev);
 	struct scatterlist sg;
@@ -863,9 +878,10 @@ static void virtnet_vlan_rx_add_vid(struct net_device *dev, u16 vid)
 	if (!virtnet_send_command(vi, VIRTIO_NET_CTRL_VLAN,
 				  VIRTIO_NET_CTRL_VLAN_ADD, &sg, 1, 0))
 		dev_warn(&dev->dev, "Failed to add VLAN ID %d.\n", vid);
+	return 0;
 }
 
-static void virtnet_vlan_rx_kill_vid(struct net_device *dev, u16 vid)
+static int virtnet_vlan_rx_kill_vid(struct net_device *dev, u16 vid)
 {
 	struct virtnet_info *vi = netdev_priv(dev);
 	struct scatterlist sg;
@@ -875,6 +891,7 @@ static void virtnet_vlan_rx_kill_vid(struct net_device *dev, u16 vid)
 	if (!virtnet_send_command(vi, VIRTIO_NET_CTRL_VLAN,
 				  VIRTIO_NET_CTRL_VLAN_DEL, &sg, 1, 0))
 		dev_warn(&dev->dev, "Failed to kill VLAN ID %d.\n", vid);
+	return 0;
 }
 
 static void virtnet_get_ringparam(struct net_device *dev,
@@ -889,7 +906,21 @@ static void virtnet_get_ringparam(struct net_device *dev,
 
 }
 
+
+static void virtnet_get_drvinfo(struct net_device *dev,
+				struct ethtool_drvinfo *info)
+{
+	struct virtnet_info *vi = netdev_priv(dev);
+	struct virtio_device *vdev = vi->vdev;
+
+	strlcpy(info->driver, KBUILD_MODNAME, sizeof(info->driver));
+	strlcpy(info->version, VIRTNET_DRIVER_VERSION, sizeof(info->version));
+	strlcpy(info->bus_info, virtio_bus_name(vdev), sizeof(info->bus_info));
+
+}
+
 static const struct ethtool_ops virtnet_ethtool_ops = {
+	.get_drvinfo = virtnet_get_drvinfo,
 	.get_link = ethtool_op_get_link,
 	.get_ringparam = virtnet_get_ringparam,
 };
@@ -1082,7 +1113,6 @@ static int virtnet_probe(struct virtio_device *vdev)
 
 unregister:
 	unregister_netdev(dev);
-	cancel_delayed_work_sync(&vi->refill);
 free_vqs:
 	vdev->config->del_vqs(vdev);
 free_stats:
@@ -1121,9 +1151,7 @@ static void __devexit virtnet_remove(struct virtio_device *vdev)
 	/* Stop all the virtqueues. */
 	vdev->config->reset(vdev);
 
-
 	unregister_netdev(vi->dev);
-	cancel_delayed_work_sync(&vi->refill);
 
 	/* Free unused buffers in both send and recv, if any. */
 	free_unused_bufs(vi);

@@ -808,7 +808,7 @@ config BFIN_UART3_CTSRTS
 
 config SERIAL_IMX
 	bool "IMX serial port support"
-	depends on ARM && (ARCH_IMX || ARCH_MXC)
+	depends on ARCH_MXC
 	select SERIAL_CORE
 	select RATIONAL
 	help

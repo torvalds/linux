@@ -1713,25 +1713,7 @@ static struct usb_driver af9015_usb_driver = {
 	.id_table = af9015_usb_table,
 };
 
-/* module stuff */
-static int __init af9015_usb_module_init(void)
-{
-	int ret;
-	ret = usb_register(&af9015_usb_driver);
-	if (ret)
-		err("module init failed:%d", ret);
-
-	return ret;
-}
-
-static void __exit af9015_usb_module_exit(void)
-{
-	/* deregister this driver from the USB subsystem */
-	usb_deregister(&af9015_usb_driver);
-}
-
-module_init(af9015_usb_module_init);
-module_exit(af9015_usb_module_exit);
+module_usb_driver(af9015_usb_driver);
 
 MODULE_AUTHOR("Antti Palosaari <crope@iki.fi>");
 MODULE_DESCRIPTION("Driver for Afatech AF9015 DVB-T");

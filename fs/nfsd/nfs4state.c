@@ -658,7 +658,7 @@ static int nfsd4_sanitize_slot_size(u32 size)
 /*
  * XXX: If we run out of reserved DRC memory we could (up to a point)
  * re-negotiate active sessions and reduce their slot usage to make
- * rooom for new connections. For now we just fail the create session.
+ * room for new connections. For now we just fail the create session.
  */
 static int nfsd4_get_drc_mem(int slotsize, u32 num)
 {

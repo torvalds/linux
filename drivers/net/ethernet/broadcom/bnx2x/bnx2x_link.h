@@ -479,7 +479,7 @@ int bnx2x_ets_strict(const struct link_params *params, const u8 strict_cos);
 /*  Configure the COS to ETS according to BW and SP settings.*/
 int bnx2x_ets_e3b0_config(const struct link_params *params,
 			 const struct link_vars *vars,
-			 const struct bnx2x_ets_params *ets_params);
+			 struct bnx2x_ets_params *ets_params);
 /* Read pfc statistic*/
 void bnx2x_pfc_statistic(struct link_params *params, struct link_vars *vars,
 						 u32 pfc_frames_sent[2],

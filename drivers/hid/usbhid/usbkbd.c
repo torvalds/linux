@@ -354,19 +354,4 @@ static struct usb_driver usb_kbd_driver = {
 	.id_table =	usb_kbd_id_table,
 };
 
-static int __init usb_kbd_init(void)
-{
-	int result = usb_register(&usb_kbd_driver);
-	if (result == 0)
-		printk(KERN_INFO KBUILD_MODNAME ": " DRIVER_VERSION ":"
-				DRIVER_DESC "\n");
-	return result;
-}
-
-static void __exit usb_kbd_exit(void)
-{
-	usb_deregister(&usb_kbd_driver);
-}
-
-module_init(usb_kbd_init);
-module_exit(usb_kbd_exit);
+module_usb_driver(usb_kbd_driver);

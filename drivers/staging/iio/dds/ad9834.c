@@ -281,14 +281,14 @@ static struct attribute *ad9834_attributes[] = {
 	NULL,
 };
 
-static mode_t ad9834_attr_is_visible(struct kobject *kobj,
+static umode_t ad9834_attr_is_visible(struct kobject *kobj,
 				     struct attribute *attr, int n)
 {
 	struct device *dev = container_of(kobj, struct device, kobj);
 	struct iio_dev *indio_dev = dev_get_drvdata(dev);
 	struct ad9834_state *st = iio_priv(indio_dev);
 
-	mode_t mode = attr->mode;
+	umode_t mode = attr->mode;
 
 	if (((st->devid == ID_AD9833) || (st->devid == ID_AD9837)) &&
 		((attr == &iio_dev_attr_dds0_out1_enable.dev_attr.attr) ||
@@ -446,18 +446,7 @@ static struct spi_driver ad9834_driver = {
 	.remove		= __devexit_p(ad9834_remove),
 	.id_table	= ad9834_id,
 };
-
-static int __init ad9834_init(void)
-{
-	return spi_register_driver(&ad9834_driver);
-}
-module_init(ad9834_init);
-
-static void __exit ad9834_exit(void)
-{
-	spi_unregister_driver(&ad9834_driver);
-}
-module_exit(ad9834_exit);
+module_spi_driver(ad9834_driver);
 
 MODULE_AUTHOR("Michael Hennerich <hennerich@blackfin.uclinux.org>");
 MODULE_DESCRIPTION("Analog Devices AD9833/AD9834/AD9837/AD9838 DDS");

@@ -1290,11 +1290,4 @@ static int __init init_pipe_fs(void)
 	return err;
 }
 
-static void __exit exit_pipe_fs(void)
-{
-	kern_unmount(pipe_mnt);
-	unregister_filesystem(&pipe_fs_type);
-}
-
 fs_initcall(init_pipe_fs);
-module_exit(exit_pipe_fs);
