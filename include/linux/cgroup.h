@@ -319,7 +319,7 @@ struct cftype {
 	 * If not 0, file mode is set to this value, otherwise it will
 	 * be figured out automatically
 	 */
-	mode_t mode;
+	umode_t mode;
 
 	/*
 	 * If non-zero, defines the maximum length of string that can

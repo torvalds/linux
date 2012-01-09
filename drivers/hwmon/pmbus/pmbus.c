@@ -200,8 +200,6 @@ static int pmbus_remove(struct i2c_client *client)
  */
 static const struct i2c_device_id pmbus_id[] = {
 	{"adp4000", 1},
-	{"bmr450", 1},
-	{"bmr451", 1},
 	{"bmr453", 1},
 	{"bmr454", 1},
 	{"ncp4200", 1},

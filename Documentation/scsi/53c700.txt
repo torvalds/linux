@@ -16,31 +16,12 @@ fill in to get the driver working.
 Compile Time Flags
 ==================
 
-The driver may be either io mapped or memory mapped.  This is
-selectable by configuration flags:
-
-CONFIG_53C700_MEM_MAPPED
-
-define if the driver is memory mapped.
-
-CONFIG_53C700_IO_MAPPED
-
-define if the driver is to be io mapped.
-
-One or other of the above flags *must* be defined.
-
-Other flags are:
+A compile time flag is:
 
 CONFIG_53C700_LE_ON_BE
 
 define if the chipset must be supported in little endian mode on a big
 endian architecture (used for the 700 on parisc).
-
-CONFIG_53C700_USE_CONSISTENT
-
-allocate consistent memory (should only be used if your architecture
-has a mixture of consistent and inconsistent memory).  Fully
-consistent or fully inconsistent architectures should not define this.
 
 
 Using the Chip Core Driver

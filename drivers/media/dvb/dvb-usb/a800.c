@@ -183,26 +183,7 @@ static struct usb_driver a800_driver = {
 	.id_table	= a800_table,
 };
 
-/* module stuff */
-static int __init a800_module_init(void)
-{
-	int result;
-	if ((result = usb_register(&a800_driver))) {
-		err("usb_register failed. Error number %d",result);
-		return result;
-	}
-
-	return 0;
-}
-
-static void __exit a800_module_exit(void)
-{
-	/* deregister this driver from the USB subsystem */
-	usb_deregister(&a800_driver);
-}
-
-module_init (a800_module_init);
-module_exit (a800_module_exit);
+module_usb_driver(a800_driver);
 
 MODULE_AUTHOR("Patrick Boettcher <patrick.boettcher@desy.de>");
 MODULE_DESCRIPTION("AVerMedia AverTV DVB-T USB 2.0 (A800)");

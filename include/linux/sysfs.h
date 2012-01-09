@@ -25,7 +25,7 @@ enum kobj_ns_type;
 
 struct attribute {
 	const char		*name;
-	mode_t			mode;
+	umode_t			mode;
 #ifdef CONFIG_DEBUG_LOCK_ALLOC
 	struct lock_class_key	*key;
 	struct lock_class_key	skey;
@@ -55,7 +55,7 @@ do {							\
 
 struct attribute_group {
 	const char		*name;
-	mode_t			(*is_visible)(struct kobject *,
+	umode_t			(*is_visible)(struct kobject *,
 					      struct attribute *, int);
 	struct attribute	**attrs;
 };
@@ -133,7 +133,7 @@ int __must_check sysfs_create_file(struct kobject *kobj,
 int __must_check sysfs_create_files(struct kobject *kobj,
 				   const struct attribute **attr);
 int __must_check sysfs_chmod_file(struct kobject *kobj,
-				  const struct attribute *attr, mode_t mode);
+				  const struct attribute *attr, umode_t mode);
 void sysfs_remove_file(struct kobject *kobj, const struct attribute *attr);
 void sysfs_remove_files(struct kobject *kobj, const struct attribute **attr);
 
@@ -221,7 +221,7 @@ static inline int sysfs_create_files(struct kobject *kobj,
 }
 
 static inline int sysfs_chmod_file(struct kobject *kobj,
-				   const struct attribute *attr, mode_t mode)
+				   const struct attribute *attr, umode_t mode)
 {
 	return 0;
 }

@@ -1045,7 +1045,7 @@ static const struct file_operations usblp_fops = {
 	.llseek =	noop_llseek,
 };
 
-static char *usblp_devnode(struct device *dev, mode_t *mode)
+static char *usblp_devnode(struct device *dev, umode_t *mode)
 {
 	return kasprintf(GFP_KERNEL, "usb/%s", dev_name(dev));
 }
@@ -1412,18 +1412,7 @@ static struct usb_driver usblp_driver = {
 	.supports_autosuspend =	1,
 };
 
-static int __init usblp_init(void)
-{
-	return usb_register(&usblp_driver);
-}
-
-static void __exit usblp_exit(void)
-{
-	usb_deregister(&usblp_driver);
-}
-
-module_init(usblp_init);
-module_exit(usblp_exit);
+module_usb_driver(usblp_driver);
 
 MODULE_AUTHOR(DRIVER_AUTHOR);
 MODULE_DESCRIPTION(DRIVER_DESC);

@@ -261,7 +261,7 @@ void store_topology(struct sysinfo_15_1_x *info)
 int arch_update_cpu_topology(void)
 {
 	struct sysinfo_15_1_x *info = tl_info;
-	struct sys_device *sysdev;
+	struct device *dev;
 	int cpu;
 
 	if (!MACHINE_HAS_TOPOLOGY) {
@@ -273,8 +273,8 @@ int arch_update_cpu_topology(void)
 	tl_to_cores(info);
 	update_cpu_core_map();
 	for_each_online_cpu(cpu) {
-		sysdev = get_cpu_sysdev(cpu);
-		kobject_uevent(&sysdev->kobj, KOBJ_CHANGE);
+		dev = get_cpu_device(cpu);
+		kobject_uevent(&dev->kobj, KOBJ_CHANGE);
 	}
 	return 1;
 }

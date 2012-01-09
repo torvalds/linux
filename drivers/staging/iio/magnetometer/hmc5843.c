@@ -618,20 +618,8 @@ static struct i2c_driver hmc5843_driver = {
 	.suspend	= hmc5843_suspend,
 	.resume		= hmc5843_resume,
 };
-
-static int __init hmc5843_init(void)
-{
-	return i2c_add_driver(&hmc5843_driver);
-}
-
-static void __exit hmc5843_exit(void)
-{
-	i2c_del_driver(&hmc5843_driver);
-}
+module_i2c_driver(hmc5843_driver);
 
 MODULE_AUTHOR("Shubhrajyoti Datta <shubhrajyoti@ti.com");
 MODULE_DESCRIPTION("HMC5843 driver");
 MODULE_LICENSE("GPL");
-
-module_init(hmc5843_init);
-module_exit(hmc5843_exit);

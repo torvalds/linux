@@ -48,7 +48,7 @@ MODULE_LICENSE("GPL");
 
 #define EXTENT_MERGE_SIZE 5
 
-static mode_t udf_convert_permissions(struct fileEntry *);
+static umode_t udf_convert_permissions(struct fileEntry *);
 static int udf_update_inode(struct inode *, int);
 static void udf_fill_inode(struct inode *, struct buffer_head *);
 static int udf_sync_inode(struct inode *inode);
@@ -1452,9 +1452,9 @@ static int udf_alloc_i_data(struct inode *inode, size_t size)
 	return 0;
 }
 
-static mode_t udf_convert_permissions(struct fileEntry *fe)
+static umode_t udf_convert_permissions(struct fileEntry *fe)
 {
-	mode_t mode;
+	umode_t mode;
 	uint32_t permissions;
 	uint32_t flags;
 

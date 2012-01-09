@@ -929,21 +929,9 @@ static struct i2c_driver ad799x_driver = {
 	.remove = __devexit_p(ad799x_remove),
 	.id_table = ad799x_id,
 };
-
-static __init int ad799x_init(void)
-{
-	return i2c_add_driver(&ad799x_driver);
-}
-
-static __exit void ad799x_exit(void)
-{
-	i2c_del_driver(&ad799x_driver);
-}
+module_i2c_driver(ad799x_driver);
 
 MODULE_AUTHOR("Michael Hennerich <hennerich@blackfin.uclinux.org>");
 MODULE_DESCRIPTION("Analog Devices AD799x ADC");
 MODULE_LICENSE("GPL v2");
 MODULE_ALIAS("i2c:ad799x");
-
-module_init(ad799x_init);
-module_exit(ad799x_exit);

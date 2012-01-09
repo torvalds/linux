@@ -1592,9 +1592,9 @@ static void __init hugetlb_sysfs_init(void)
 
 /*
  * node_hstate/s - associate per node hstate attributes, via their kobjects,
- * with node sysdevs in node_devices[] using a parallel array.  The array
- * index of a node sysdev or _hstate == node id.
- * This is here to avoid any static dependency of the node sysdev driver, in
+ * with node devices in node_devices[] using a parallel array.  The array
+ * index of a node device or _hstate == node id.
+ * This is here to avoid any static dependency of the node device driver, in
  * the base kernel, on the hugetlb module.
  */
 struct node_hstate {
@@ -1604,7 +1604,7 @@ struct node_hstate {
 struct node_hstate node_hstates[MAX_NUMNODES];
 
 /*
- * A subset of global hstate attributes for node sysdevs
+ * A subset of global hstate attributes for node devices
  */
 static struct attribute *per_node_hstate_attrs[] = {
 	&nr_hugepages_attr.attr,
@@ -1618,7 +1618,7 @@ static struct attribute_group per_node_hstate_attr_group = {
 };
 
 /*
- * kobj_to_node_hstate - lookup global hstate for node sysdev hstate attr kobj.
+ * kobj_to_node_hstate - lookup global hstate for node device hstate attr kobj.
  * Returns node id via non-NULL nidp.
  */
 static struct hstate *kobj_to_node_hstate(struct kobject *kobj, int *nidp)
@@ -1641,13 +1641,13 @@ static struct hstate *kobj_to_node_hstate(struct kobject *kobj, int *nidp)
 }
 
 /*
- * Unregister hstate attributes from a single node sysdev.
+ * Unregister hstate attributes from a single node device.
  * No-op if no hstate attributes attached.
  */
 void hugetlb_unregister_node(struct node *node)
 {
 	struct hstate *h;
-	struct node_hstate *nhs = &node_hstates[node->sysdev.id];
+	struct node_hstate *nhs = &node_hstates[node->dev.id];
 
 	if (!nhs->hugepages_kobj)
 		return;		/* no hstate attributes */
@@ -1663,7 +1663,7 @@ void hugetlb_unregister_node(struct node *node)
 }
 
 /*
- * hugetlb module exit:  unregister hstate attributes from node sysdevs
+ * hugetlb module exit:  unregister hstate attributes from node devices
  * that have them.
  */
 static void hugetlb_unregister_all_nodes(void)
@@ -1671,7 +1671,7 @@ static void hugetlb_unregister_all_nodes(void)
 	int nid;
 
 	/*
-	 * disable node sysdev registrations.
+	 * disable node device registrations.
 	 */
 	register_hugetlbfs_with_node(NULL, NULL);
 
@@ -1683,20 +1683,20 @@ static void hugetlb_unregister_all_nodes(void)
 }
 
 /*
- * Register hstate attributes for a single node sysdev.
+ * Register hstate attributes for a single node device.
  * No-op if attributes already registered.
  */
 void hugetlb_register_node(struct node *node)
 {
 	struct hstate *h;
-	struct node_hstate *nhs = &node_hstates[node->sysdev.id];
+	struct node_hstate *nhs = &node_hstates[node->dev.id];
 	int err;
 
 	if (nhs->hugepages_kobj)
 		return;		/* already allocated */
 
 	nhs->hugepages_kobj = kobject_create_and_add("hugepages",
-							&node->sysdev.kobj);
+							&node->dev.kobj);
 	if (!nhs->hugepages_kobj)
 		return;
 
@@ -1707,7 +1707,7 @@ void hugetlb_register_node(struct node *node)
 		if (err) {
 			printk(KERN_ERR "Hugetlb: Unable to add hstate %s"
 					" for node %d\n",
-						h->name, node->sysdev.id);
+						h->name, node->dev.id);
 			hugetlb_unregister_node(node);
 			break;
 		}
@@ -1716,8 +1716,8 @@ void hugetlb_register_node(struct node *node)
 
 /*
  * hugetlb init time:  register hstate attributes for all registered node
- * sysdevs of nodes that have memory.  All on-line nodes should have
- * registered their associated sysdev by this time.
+ * devices of nodes that have memory.  All on-line nodes should have
+ * registered their associated device by this time.
  */
 static void hugetlb_register_all_nodes(void)
 {
@@ -1725,12 +1725,12 @@ static void hugetlb_register_all_nodes(void)
 
 	for_each_node_state(nid, N_HIGH_MEMORY) {
 		struct node *node = &node_devices[nid];
-		if (node->sysdev.id == nid)
+		if (node->dev.id == nid)
 			hugetlb_register_node(node);
 	}
 
 	/*
-	 * Let the node sysdev driver know we're here so it can
+	 * Let the node device driver know we're here so it can
 	 * [un]register hstate attributes on node hotplug.
 	 */
 	register_hugetlbfs_with_node(hugetlb_register_node,

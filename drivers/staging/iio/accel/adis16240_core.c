@@ -606,18 +606,7 @@ static struct spi_driver adis16240_driver = {
 	.probe = adis16240_probe,
 	.remove = __devexit_p(adis16240_remove),
 };
-
-static __init int adis16240_init(void)
-{
-	return spi_register_driver(&adis16240_driver);
-}
-module_init(adis16240_init);
-
-static __exit void adis16240_exit(void)
-{
-	spi_unregister_driver(&adis16240_driver);
-}
-module_exit(adis16240_exit);
+module_spi_driver(adis16240_driver);
 
 MODULE_AUTHOR("Barry Song <21cnbao@gmail.com>");
 MODULE_DESCRIPTION("Analog Devices Programmable Impact Sensor and Recorder");

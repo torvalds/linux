@@ -953,22 +953,7 @@ static int speedtch_usb_probe(struct usb_interface *intf, const struct usb_devic
 	return usbatm_usb_probe(intf, id, &speedtch_usbatm_driver);
 }
 
-static int __init speedtch_usb_init(void)
-{
-	dbg("%s: driver version %s", __func__, DRIVER_VERSION);
-
-	return usb_register(&speedtch_usb_driver);
-}
-
-static void __exit speedtch_usb_cleanup(void)
-{
-	dbg("%s", __func__);
-
-	usb_deregister(&speedtch_usb_driver);
-}
-
-module_init(speedtch_usb_init);
-module_exit(speedtch_usb_cleanup);
+module_usb_driver(speedtch_usb_driver);
 
 MODULE_AUTHOR(DRIVER_AUTHOR);
 MODULE_DESCRIPTION(DRIVER_DESC);

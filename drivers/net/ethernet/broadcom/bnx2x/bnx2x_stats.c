@@ -39,6 +39,17 @@ static inline long bnx2x_hilo(u32 *hiref)
 #endif
 }
 
+static u16 bnx2x_get_port_stats_dma_len(struct bnx2x *bp)
+{
+	u16 res = sizeof(struct host_port_stats) >> 2;
+
+	/* if PFC stats are not supported by the MFW, don't DMA them */
+	if (!(bp->flags &  BC_SUPPORTS_PFC_STATS))
+		res -= (sizeof(u32)*4) >> 2;
+
+	return res;
+}
+
 /*
  * Init service functions
  */
@@ -178,7 +189,8 @@ static void bnx2x_stats_pmf_update(struct bnx2x *bp)
 				   DMAE_LEN32_RD_MAX * 4);
 	dmae->dst_addr_hi = U64_HI(bnx2x_sp_mapping(bp, port_stats) +
 				   DMAE_LEN32_RD_MAX * 4);
-	dmae->len = (sizeof(struct host_port_stats) >> 2) - DMAE_LEN32_RD_MAX;
+	dmae->len = bnx2x_get_port_stats_dma_len(bp) - DMAE_LEN32_RD_MAX;
+
 	dmae->comp_addr_lo = U64_LO(bnx2x_sp_mapping(bp, stats_comp));
 	dmae->comp_addr_hi = U64_HI(bnx2x_sp_mapping(bp, stats_comp));
 	dmae->comp_val = DMAE_COMP_VAL;
@@ -217,7 +229,7 @@ static void bnx2x_port_stats_init(struct bnx2x *bp)
 		dmae->src_addr_hi = U64_HI(bnx2x_sp_mapping(bp, port_stats));
 		dmae->dst_addr_lo = bp->port.port_stx >> 2;
 		dmae->dst_addr_hi = 0;
-		dmae->len = sizeof(struct host_port_stats) >> 2;
+		dmae->len = bnx2x_get_port_stats_dma_len(bp);
 		dmae->comp_addr_lo = dmae_reg_go_c[loader_idx] >> 2;
 		dmae->comp_addr_hi = 0;
 		dmae->comp_val = 1;
@@ -540,6 +552,25 @@ static void bnx2x_bmac_stats_update(struct bnx2x *bp)
 		UPDATE_STAT64(tx_stat_gterr,
 				tx_stat_dot3statsinternalmactransmiterrors);
 		UPDATE_STAT64(tx_stat_gtufl, tx_stat_mac_ufl);
+
+		/* collect PFC stats */
+		DIFF_64(diff.hi, new->tx_stat_gtpp_hi,
+			pstats->pfc_frames_tx_hi,
+			diff.lo, new->tx_stat_gtpp_lo,
+			pstats->pfc_frames_tx_lo);
+		pstats->pfc_frames_tx_hi = new->tx_stat_gtpp_hi;
+		pstats->pfc_frames_tx_lo = new->tx_stat_gtpp_lo;
+		ADD_64(pstats->pfc_frames_tx_hi, diff.hi,
+			pstats->pfc_frames_tx_lo, diff.lo);
+
+		DIFF_64(diff.hi, new->rx_stat_grpp_hi,
+			pstats->pfc_frames_rx_hi,
+			diff.lo, new->rx_stat_grpp_lo,
+			pstats->pfc_frames_rx_lo);
+		pstats->pfc_frames_rx_hi = new->rx_stat_grpp_hi;
+		pstats->pfc_frames_rx_lo = new->rx_stat_grpp_lo;
+		ADD_64(pstats->pfc_frames_rx_hi, diff.hi,
+			pstats->pfc_frames_rx_lo, diff.lo);
 	}
 
 	estats->pause_frames_received_hi =
@@ -551,6 +582,15 @@ static void bnx2x_bmac_stats_update(struct bnx2x *bp)
 				pstats->mac_stx[1].tx_stat_outxoffsent_hi;
 	estats->pause_frames_sent_lo =
 				pstats->mac_stx[1].tx_stat_outxoffsent_lo;
+
+	estats->pfc_frames_received_hi =
+				pstats->pfc_frames_rx_hi;
+	estats->pfc_frames_received_lo =
+				pstats->pfc_frames_rx_lo;
+	estats->pfc_frames_sent_hi =
+				pstats->pfc_frames_tx_hi;
+	estats->pfc_frames_sent_lo =
+				pstats->pfc_frames_tx_lo;
 }
 
 static void bnx2x_mstat_stats_update(struct bnx2x *bp)
@@ -571,6 +611,11 @@ static void bnx2x_mstat_stats_update(struct bnx2x *bp)
 	ADD_STAT64(stats_tx.tx_gtxpf, tx_stat_outxoffsent);
 	ADD_STAT64(stats_tx.tx_gtxpf, tx_stat_flowcontroldone);
 
+	/* collect pfc stats */
+	ADD_64(pstats->pfc_frames_tx_hi, new->stats_tx.tx_gtxpp_hi,
+		pstats->pfc_frames_tx_lo, new->stats_tx.tx_gtxpp_lo);
+	ADD_64(pstats->pfc_frames_rx_hi, new->stats_rx.rx_grxpp_hi,
+		pstats->pfc_frames_rx_lo, new->stats_rx.rx_grxpp_lo);
 
 	ADD_STAT64(stats_tx.tx_gt64, tx_stat_etherstatspkts64octets);
 	ADD_STAT64(stats_tx.tx_gt127,
@@ -628,6 +673,15 @@ static void bnx2x_mstat_stats_update(struct bnx2x *bp)
 				pstats->mac_stx[1].tx_stat_outxoffsent_hi;
 	estats->pause_frames_sent_lo =
 				pstats->mac_stx[1].tx_stat_outxoffsent_lo;
+
+	estats->pfc_frames_received_hi =
+				pstats->pfc_frames_rx_hi;
+	estats->pfc_frames_received_lo =
+				pstats->pfc_frames_rx_lo;
+	estats->pfc_frames_sent_hi =
+				pstats->pfc_frames_tx_hi;
+	estats->pfc_frames_sent_lo =
+				pstats->pfc_frames_tx_lo;
 }
 
 static void bnx2x_emac_stats_update(struct bnx2x *bp)
@@ -740,7 +794,7 @@ static int bnx2x_hw_stats_update(struct bnx2x *bp)
 	estats->brb_drop_hi = pstats->brb_drop_hi;
 	estats->brb_drop_lo = pstats->brb_drop_lo;
 
-	pstats->host_port_stats_start = ++pstats->host_port_stats_end;
+	pstats->host_port_stats_counter++;
 
 	if (!BP_NOMCP(bp)) {
 		u32 nig_timer_max =
@@ -1265,7 +1319,7 @@ static void bnx2x_port_stats_stop(struct bnx2x *bp)
 		dmae->src_addr_hi = U64_HI(bnx2x_sp_mapping(bp, port_stats));
 		dmae->dst_addr_lo = bp->port.port_stx >> 2;
 		dmae->dst_addr_hi = 0;
-		dmae->len = sizeof(struct host_port_stats) >> 2;
+		dmae->len = bnx2x_get_port_stats_dma_len(bp);
 		if (bp->func_stx) {
 			dmae->comp_addr_lo = dmae_reg_go_c[loader_idx] >> 2;
 			dmae->comp_addr_hi = 0;
@@ -1349,11 +1403,13 @@ void bnx2x_stats_handle(struct bnx2x *bp, enum bnx2x_stats_event event)
 	enum bnx2x_stats_state state;
 	if (unlikely(bp->panic))
 		return;
-	bnx2x_stats_stm[bp->stats_state][event].action(bp);
+
 	spin_lock_bh(&bp->stats_lock);
 	state = bp->stats_state;
 	bp->stats_state = bnx2x_stats_stm[state][event].next_state;
 	spin_unlock_bh(&bp->stats_lock);
+
+	bnx2x_stats_stm[state][event].action(bp);
 
 	if ((event != STATS_EVENT_UPDATE) || netif_msg_timer(bp))
 		DP(BNX2X_MSG_STATS, "state %d -> event %d -> state %d\n",
@@ -1380,7 +1436,7 @@ static void bnx2x_port_stats_base_init(struct bnx2x *bp)
 	dmae->src_addr_hi = U64_HI(bnx2x_sp_mapping(bp, port_stats));
 	dmae->dst_addr_lo = bp->port.port_stx >> 2;
 	dmae->dst_addr_hi = 0;
-	dmae->len = sizeof(struct host_port_stats) >> 2;
+	dmae->len = bnx2x_get_port_stats_dma_len(bp);
 	dmae->comp_addr_lo = U64_LO(bnx2x_sp_mapping(bp, stats_comp));
 	dmae->comp_addr_hi = U64_HI(bnx2x_sp_mapping(bp, stats_comp));
 	dmae->comp_val = DMAE_COMP_VAL;
@@ -1457,6 +1513,7 @@ static void bnx2x_func_stats_base_update(struct bnx2x *bp)
 static inline void bnx2x_prep_fw_stats_req(struct bnx2x *bp)
 {
 	int i;
+	int first_queue_query_index;
 	struct stats_query_header *stats_hdr = &bp->fw_stats_req->hdr;
 
 	dma_addr_t cur_data_offset;
@@ -1512,14 +1569,40 @@ static inline void bnx2x_prep_fw_stats_req(struct bnx2x *bp)
 	cur_query_entry->address.hi = cpu_to_le32(U64_HI(cur_data_offset));
 	cur_query_entry->address.lo = cpu_to_le32(U64_LO(cur_data_offset));
 
+	/**** FCoE FW statistics data ****/
+	if (!NO_FCOE(bp)) {
+		cur_data_offset = bp->fw_stats_data_mapping +
+			offsetof(struct bnx2x_fw_stats_data, fcoe);
+
+		cur_query_entry =
+			&bp->fw_stats_req->query[BNX2X_FCOE_QUERY_IDX];
+
+		cur_query_entry->kind = STATS_TYPE_FCOE;
+		/* For FCoE query index is a DONT CARE */
+		cur_query_entry->index = BP_PORT(bp);
+		cur_query_entry->funcID = cpu_to_le16(BP_FUNC(bp));
+		cur_query_entry->address.hi =
+			cpu_to_le32(U64_HI(cur_data_offset));
+		cur_query_entry->address.lo =
+			cpu_to_le32(U64_LO(cur_data_offset));
+	}
+
 	/**** Clients' queries ****/
 	cur_data_offset = bp->fw_stats_data_mapping +
 		offsetof(struct bnx2x_fw_stats_data, queue_stats);
 
+	/* first queue query index depends whether FCoE offloaded request will
+	 * be included in the ramrod
+	 */
+	if (!NO_FCOE(bp))
+		first_queue_query_index = BNX2X_FIRST_QUEUE_QUERY_IDX;
+	else
+		first_queue_query_index = BNX2X_FIRST_QUEUE_QUERY_IDX - 1;
+
 	for_each_eth_queue(bp, i) {
 		cur_query_entry =
 			&bp->fw_stats_req->
-					query[BNX2X_FIRST_QUEUE_QUERY_IDX + i];
+					query[first_queue_query_index + i];
 
 		cur_query_entry->kind = STATS_TYPE_QUEUE;
 		cur_query_entry->index = bnx2x_stats_id(&bp->fp[i]);
@@ -1530,6 +1613,21 @@ static inline void bnx2x_prep_fw_stats_req(struct bnx2x *bp)
 			cpu_to_le32(U64_LO(cur_data_offset));
 
 		cur_data_offset += sizeof(struct per_queue_stats);
+	}
+
+	/* add FCoE queue query if needed */
+	if (!NO_FCOE(bp)) {
+		cur_query_entry =
+			&bp->fw_stats_req->
+					query[first_queue_query_index + i];
+
+		cur_query_entry->kind = STATS_TYPE_QUEUE;
+		cur_query_entry->index = bnx2x_stats_id(&bp->fp[FCOE_IDX]);
+		cur_query_entry->funcID = cpu_to_le16(BP_FUNC(bp));
+		cur_query_entry->address.hi =
+			cpu_to_le32(U64_HI(cur_data_offset));
+		cur_query_entry->address.lo =
+			cpu_to_le32(U64_LO(cur_data_offset));
 	}
 }
 

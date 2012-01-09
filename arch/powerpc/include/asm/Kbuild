@@ -34,3 +34,5 @@ header-y += termios.h
 header-y += types.h
 header-y += ucontext.h
 header-y += unistd.h
+
+generic-y += rwsem.h

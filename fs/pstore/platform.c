@@ -122,7 +122,7 @@ static void pstore_dump(struct kmsg_dumper *dumper,
 		memcpy(dst, s1 + s1_start, l1_cpy);
 		memcpy(dst + l1_cpy, s2 + s2_start, l2_cpy);
 
-		ret = psinfo->write(PSTORE_TYPE_DMESG, &id, part,
+		ret = psinfo->write(PSTORE_TYPE_DMESG, reason, &id, part,
 				   hsize + l1_cpy + l2_cpy, psinfo);
 		if (ret == 0 && reason == KMSG_DUMP_OOPS && pstore_is_mounted())
 			pstore_new_entry = 1;
@@ -207,8 +207,7 @@ void pstore_get_records(int quiet)
 		return;
 
 	mutex_lock(&psi->read_mutex);
-	rc = psi->open(psi);
-	if (rc)
+	if (psi->open && psi->open(psi))
 		goto out;
 
 	while ((size = psi->read(&id, &type, &time, &buf, psi)) > 0) {
@@ -219,7 +218,8 @@ void pstore_get_records(int quiet)
 		if (rc && (rc != -EEXIST || !quiet))
 			failed++;
 	}
-	psi->close(psi);
+	if (psi->close)
+		psi->close(psi);
 out:
 	mutex_unlock(&psi->read_mutex);
 
@@ -242,34 +242,6 @@ static void pstore_timefunc(unsigned long dummy)
 
 	mod_timer(&pstore_timer, jiffies + PSTORE_INTERVAL);
 }
-
-/*
- * Call platform driver to write a record to the
- * persistent store.
- */
-int pstore_write(enum pstore_type_id type, char *buf, size_t size)
-{
-	u64		id;
-	int		ret;
-	unsigned long	flags;
-
-	if (!psinfo)
-		return -ENODEV;
-
-	if (size > psinfo->bufsize)
-		return -EFBIG;
-
-	spin_lock_irqsave(&psinfo->buf_lock, flags);
-	memcpy(psinfo->buf, buf, size);
-	ret = psinfo->write(type, &id, 0, size, psinfo);
-	if (ret == 0 && pstore_is_mounted())
-		pstore_mkfile(PSTORE_TYPE_DMESG, psinfo->name, id, psinfo->buf,
-			      size, CURRENT_TIME, psinfo);
-	spin_unlock_irqrestore(&psinfo->buf_lock, flags);
-
-	return 0;
-}
-EXPORT_SYMBOL_GPL(pstore_write);
 
 module_param(backend, charp, 0444);
 MODULE_PARM_DESC(backend, "Pstore backend to use");

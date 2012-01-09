@@ -280,18 +280,7 @@ static struct spi_driver kxsd9_driver = {
 	.remove = __devexit_p(kxsd9_remove),
 	.id_table = kxsd9_id,
 };
-
-static __init int kxsd9_spi_init(void)
-{
-	return spi_register_driver(&kxsd9_driver);
-}
-module_init(kxsd9_spi_init);
-
-static __exit void kxsd9_spi_exit(void)
-{
-	spi_unregister_driver(&kxsd9_driver);
-}
-module_exit(kxsd9_spi_exit);
+module_spi_driver(kxsd9_driver);
 
 MODULE_AUTHOR("Jonathan Cameron <jic23@cam.ac.uk>");
 MODULE_DESCRIPTION("Kionix KXSD9 SPI driver");

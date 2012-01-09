@@ -279,4 +279,5 @@ MACHINE_START(KZM_ARM11_01, "Kyoto Microcomputer Co., Ltd. KZM-ARM11-01")
 	.handle_irq = imx31_handle_irq,
 	.timer = &kzm_timer,
 	.init_machine = kzm_board_init,
+	.restart	= mxc_restart,
 MACHINE_END

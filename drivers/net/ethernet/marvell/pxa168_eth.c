@@ -1645,18 +1645,7 @@ static struct platform_driver pxa168_eth_driver = {
 		   },
 };
 
-static int __init pxa168_init_module(void)
-{
-	return platform_driver_register(&pxa168_eth_driver);
-}
-
-static void __exit pxa168_cleanup_module(void)
-{
-	platform_driver_unregister(&pxa168_eth_driver);
-}
-
-module_init(pxa168_init_module);
-module_exit(pxa168_cleanup_module);
+module_platform_driver(pxa168_eth_driver);
 
 MODULE_LICENSE("GPL");
 MODULE_DESCRIPTION("Ethernet driver for Marvell PXA168");

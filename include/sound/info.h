@@ -72,7 +72,7 @@ struct snd_info_entry_ops {
 
 struct snd_info_entry {
 	const char *name;
-	mode_t mode;
+	umode_t mode;
 	long size;
 	unsigned short content;
 	union {

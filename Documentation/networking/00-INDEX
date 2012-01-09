@@ -144,6 +144,8 @@ nfc.txt
 	- The Linux Near Field Communication (NFS) subsystem.
 olympic.txt
 	- IBM PCI Pit/Pit-Phy/Olympic Token Ring driver info.
+openvswitch.txt
+	- Open vSwitch developer documentation.
 operstates.txt
 	- Overview of network interface operational states.
 packet_mmap.txt

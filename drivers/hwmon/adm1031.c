@@ -767,7 +767,7 @@ static ssize_t set_update_interval(struct device *dev,
 	int i, err;
 	u8 reg;
 
-	err = strict_strtoul(buf, 10, &val);
+	err = kstrtoul(buf, 10, &val);
 	if (err)
 		return err;
 

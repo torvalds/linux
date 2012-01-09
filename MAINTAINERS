@@ -1124,13 +1124,6 @@ S:	Supported
 F:	arch/arm/mach-shmobile/
 F:	drivers/sh/
 
-ARM/TELECHIPS ARM ARCHITECTURE
-M:	"Hans J. Koch" <hjk@hansjkoch.de>
-L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
-S:	Maintained
-F:	arch/arm/plat-tcc/
-F:	arch/arm/mach-tcc8k/
-
 ARM/TECHNOLOGIC SYSTEMS TS7250 MACHINE SUPPORT
 M:	Lennert Buytenhek <kernel@wantstofly.org>
 L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
@@ -2919,6 +2912,7 @@ F:	include/linux/gigaset_dev.h
 
 GPIO SUBSYSTEM
 M:	Grant Likely <grant.likely@secretlab.ca>
+M:	Linus Walleij <linus.walleij@stericsson.com>
 S:	Maintained
 T:	git git://git.secretlab.ca/git/linux-2.6.git
 F:	Documentation/gpio.txt
@@ -3187,6 +3181,16 @@ HUGETLB FILESYSTEM
 M:	William Irwin <wli@holomorphy.com>
 S:	Maintained
 F:	fs/hugetlbfs/
+
+Hyper-V CORE AND DRIVERS
+M:	K. Y. Srinivasan <kys@microsoft.com>
+M:	Haiyang Zhang <haiyangz@microsoft.com>
+L:	devel@linuxdriverproject.org
+S:	Maintained
+F:	drivers/hv/
+F:	drivers/hid/hid-hyperv.c
+F:	drivers/net/hyperv/
+F:	drivers/staging/hv/
 
 I2C/SMBUS STUB DRIVER
 M:	"Mark M. Hoffman" <mhoffman@lightlink.com>
@@ -3583,8 +3587,7 @@ F:	net/netfilter/ipvs/
 IPWIRELESS DRIVER
 M:	Jiri Kosina <jkosina@suse.cz>
 M:	David Sterba <dsterba@suse.cz>
-S:	Maintained
-T:	git git://git.kernel.org/pub/scm/linux/kernel/git/jikos/ipwireless_cs.git
+S:	Odd Fixes
 F:	drivers/tty/ipwireless/
 
 IPX NETWORK LAYER
@@ -4011,7 +4014,7 @@ M:	Josh Boyer <jwboyer@gmail.com>
 M:	Matt Porter <mporter@kernel.crashing.org>
 W:	http://www.penguinppc.org/
 L:	linuxppc-dev@lists.ozlabs.org
-T:	git git://git.kernel.org/pub/scm/linux/kernel/git/jwboyer/powerpc-4xx.git
+T:	git git://git.infradead.org/users/jwboyer/powerpc-4xx.git
 S:	Maintained
 F:	arch/powerpc/platforms/40x/
 F:	arch/powerpc/platforms/44x/
@@ -4854,6 +4857,14 @@ S:	Maintained
 T:	git git://openrisc.net/~jonas/linux
 F:	arch/openrisc
 
+OPENVSWITCH
+M:	Jesse Gross <jesse@nicira.com>
+L:	dev@openvswitch.org
+W:	http://openvswitch.org
+T:	git git://git.kernel.org/pub/scm/linux/kernel/git/jesse/openvswitch.git
+S:	Maintained
+F:	net/openvswitch/
+
 OPL4 DRIVER
 M:	Clemens Ladisch <clemens@ladisch.de>
 L:	alsa-devel@alsa-project.org (moderated for non-subscribers)
@@ -5373,6 +5384,7 @@ S:	Supported
 F:	drivers/scsi/qla4xxx/
 
 QLOGIC QLA3XXX NETWORK DRIVER
+M:	Jitendra Kalsaria <jitendra.kalsaria@qlogic.com>
 M:	Ron Mercer <ron.mercer@qlogic.com>
 M:	linux-driver@qlogic.com
 L:	netdev@vger.kernel.org
@@ -5892,7 +5904,6 @@ F:	drivers/net/ethernet/emulex/benet/
 
 SFC NETWORK DRIVER
 M:	Solarflare linux maintainers <linux-net-drivers@solarflare.com>
-M:	Steve Hodgson <shodgson@solarflare.com>
 M:	Ben Hutchings <bhutchings@solarflare.com>
 L:	netdev@vger.kernel.org
 S:	Supported
@@ -6258,7 +6269,7 @@ F:	arch/alpha/kernel/srm_env.c
 
 STABLE BRANCH
 M:	Greg Kroah-Hartman <greg@kroah.com>
-L:	stable@kernel.org
+L:	stable@vger.kernel.org
 S:	Maintained
 
 STAGING SUBSYSTEM
@@ -6318,12 +6329,6 @@ STAGING - FRONTIER TRANZPORT AND ALPHATRACK
 M:	David Täht <d@teklibre.com>
 S:	Odd Fixes
 F:	drivers/staging/frontier/
-
-STAGING - HYPER-V (MICROSOFT)
-M:	Hank Janssen <hjanssen@microsoft.com>
-M:	Haiyang Zhang <haiyangz@microsoft.com>
-S:	Odd Fixes
-F:	drivers/staging/hv/
 
 STAGING - INDUSTRIAL IO
 M:	Jonathan Cameron <jic23@cam.ac.uk>
@@ -6499,6 +6504,13 @@ M:	"Hung Hing Lun, Mike" <hlhung3i@gmail.com>
 W:	http://tcp-lp-mod.sourceforge.net/
 S:	Maintained
 F:	net/ipv4/tcp_lp.c
+
+TEAM DRIVER
+M:	Jiri Pirko <jpirko@redhat.com>
+L:	netdev@vger.kernel.org
+S:	Supported
+F:	drivers/net/team/
+F:	include/linux/if_team.h
 
 TEGRA SUPPORT
 M:	Colin Cross <ccross@android.com>

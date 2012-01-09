@@ -1368,6 +1368,7 @@ hfsc_dump_class_stats(struct Qdisc *sch, unsigned long arg,
 	struct tc_hfsc_stats xstats;
 
 	cl->qstats.qlen = cl->qdisc->q.qlen;
+	cl->qstats.backlog = cl->qdisc->qstats.backlog;
 	xstats.level   = cl->level;
 	xstats.period  = cl->cl_vtperiod;
 	xstats.work    = cl->cl_total;
@@ -1561,6 +1562,15 @@ hfsc_dump_qdisc(struct Qdisc *sch, struct sk_buff *skb)
 	struct hfsc_sched *q = qdisc_priv(sch);
 	unsigned char *b = skb_tail_pointer(skb);
 	struct tc_hfsc_qopt qopt;
+	struct hfsc_class *cl;
+	struct hlist_node *n;
+	unsigned int i;
+
+	sch->qstats.backlog = 0;
+	for (i = 0; i < q->clhash.hashsize; i++) {
+		hlist_for_each_entry(cl, n, &q->clhash.hash[i], cl_common.hnode)
+			sch->qstats.backlog += cl->qdisc->qstats.backlog;
+	}
 
 	qopt.defcls = q->defcls;
 	NLA_PUT(skb, TCA_OPTIONS, sizeof(qopt), &qopt);

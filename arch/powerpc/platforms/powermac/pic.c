@@ -52,13 +52,8 @@ struct device_node *of_irq_dflt_pic;
 /* Default addresses */
 static volatile struct pmac_irq_hw __iomem *pmac_irq_hw[4];
 
-#define GC_LEVEL_MASK		0x3ff00000
-#define OHARE_LEVEL_MASK	0x1ff00000
-#define HEATHROW_LEVEL_MASK	0x1ff00000
-
 static int max_irqs;
 static int max_real_irqs;
-static u32 level_mask[4];
 
 static DEFINE_RAW_SPINLOCK(pmac_pic_lock);
 
@@ -217,8 +212,7 @@ static irqreturn_t gatwick_action(int cpl, void *dev_id)
 	for (irq = max_irqs; (irq -= 32) >= max_real_irqs; ) {
 		int i = irq >> 5;
 		bits = in_le32(&pmac_irq_hw[i]->event) | ppc_lost_interrupts[i];
-		/* We must read level interrupts from the level register */
-		bits |= (in_le32(&pmac_irq_hw[i]->level) & level_mask[i]);
+		bits |= in_le32(&pmac_irq_hw[i]->level);
 		bits &= ppc_cached_irq_mask[i];
 		if (bits == 0)
 			continue;
@@ -248,8 +242,7 @@ static unsigned int pmac_pic_get_irq(void)
 	for (irq = max_real_irqs; (irq -= 32) >= 0; ) {
 		int i = irq >> 5;
 		bits = in_le32(&pmac_irq_hw[i]->event) | ppc_lost_interrupts[i];
-		/* We must read level interrupts from the level register */
-		bits |= (in_le32(&pmac_irq_hw[i]->level) & level_mask[i]);
+		bits |= in_le32(&pmac_irq_hw[i]->level);
 		bits &= ppc_cached_irq_mask[i];
 		if (bits == 0)
 			continue;
@@ -284,19 +277,14 @@ static int pmac_pic_host_match(struct irq_host *h, struct device_node *node)
 static int pmac_pic_host_map(struct irq_host *h, unsigned int virq,
 			     irq_hw_number_t hw)
 {
-	int level;
-
 	if (hw >= max_irqs)
 		return -EINVAL;
 
 	/* Mark level interrupts, set delayed disable for edge ones and set
 	 * handlers
 	 */
-	level = !!(level_mask[hw >> 5] & (1UL << (hw & 0x1f)));
-	if (level)
-		irq_set_status_flags(virq, IRQ_LEVEL);
-	irq_set_chip_and_handler(virq, &pmac_pic,
-				 level ? handle_level_irq : handle_edge_irq);
+	irq_set_status_flags(virq, IRQ_LEVEL);
+	irq_set_chip_and_handler(virq, &pmac_pic, handle_level_irq);
 	return 0;
 }
 
@@ -334,21 +322,14 @@ static void __init pmac_pic_probe_oldstyle(void)
 
 	if ((master = of_find_node_by_name(NULL, "gc")) != NULL) {
 		max_irqs = max_real_irqs = 32;
-		level_mask[0] = GC_LEVEL_MASK;
 	} else if ((master = of_find_node_by_name(NULL, "ohare")) != NULL) {
 		max_irqs = max_real_irqs = 32;
-		level_mask[0] = OHARE_LEVEL_MASK;
-
 		/* We might have a second cascaded ohare */
 		slave = of_find_node_by_name(NULL, "pci106b,7");
-		if (slave) {
+		if (slave)
 			max_irqs = 64;
-			level_mask[1] = OHARE_LEVEL_MASK;
-		}
 	} else if ((master = of_find_node_by_name(NULL, "mac-io")) != NULL) {
 		max_irqs = max_real_irqs = 64;
-		level_mask[0] = HEATHROW_LEVEL_MASK;
-		level_mask[1] = 0;
 
 		/* We might have a second cascaded heathrow */
 		slave = of_find_node_by_name(master, "mac-io");
@@ -363,11 +344,8 @@ static void __init pmac_pic_probe_oldstyle(void)
 		}
 
 		/* We found a slave */
-		if (slave) {
+		if (slave)
 			max_irqs = 128;
-			level_mask[2] = HEATHROW_LEVEL_MASK;
-			level_mask[3] = 0;
-		}
 	}
 	BUG_ON(master == NULL);
 
@@ -464,18 +442,6 @@ int of_irq_map_oldworld(struct device_node *device, int index,
 }
 #endif /* CONFIG_PPC32 */
 
-static void pmac_u3_cascade(unsigned int irq, struct irq_desc *desc)
-{
-	struct irq_chip *chip = irq_desc_get_chip(desc);
-	struct mpic *mpic = irq_desc_get_handler_data(desc);
-	unsigned int cascade_irq = mpic_get_one_irq(mpic);
-
-	if (cascade_irq != NO_IRQ)
-		generic_handle_irq(cascade_irq);
-
-	chip->irq_eoi(&desc->irq_data);
-}
-
 static void __init pmac_pic_setup_mpic_nmi(struct mpic *mpic)
 {
 #if defined(CONFIG_XMON) && defined(CONFIG_PPC32)
@@ -498,14 +464,8 @@ static struct mpic * __init pmac_setup_one_mpic(struct device_node *np,
 						int master)
 {
 	const char *name = master ? " MPIC 1   " : " MPIC 2   ";
-	struct resource r;
 	struct mpic *mpic;
-	unsigned int flags = master ? MPIC_PRIMARY : 0;
-	int rc;
-
-	rc = of_address_to_resource(np, 0, &r);
-	if (rc)
-		return NULL;
+	unsigned int flags = master ? 0 : MPIC_SECONDARY;
 
 	pmac_call_feature(PMAC_FTR_ENABLE_MPIC, np, 0, 0);
 
@@ -519,7 +479,7 @@ static struct mpic * __init pmac_setup_one_mpic(struct device_node *np,
 	if (master && (flags & MPIC_BIG_ENDIAN))
 		flags |= MPIC_U3_HT_IRQS;
 
-	mpic = mpic_alloc(np, r.start, flags, 0, 0, name);
+	mpic = mpic_alloc(np, 0, flags, 0, 0, name);
 	if (mpic == NULL)
 		return NULL;
 
@@ -532,7 +492,6 @@ static int __init pmac_pic_probe_mpic(void)
 {
 	struct mpic *mpic1, *mpic2;
 	struct device_node *np, *master = NULL, *slave = NULL;
-	unsigned int cascade;
 
 	/* We can have up to 2 MPICs cascaded */
 	for (np = NULL; (np = of_find_node_by_type(np, "open-pic"))
@@ -568,27 +527,14 @@ static int __init pmac_pic_probe_mpic(void)
 
 	of_node_put(master);
 
-	/* No slave, let's go out */
-	if (slave == NULL)
-		return 0;
-
-	/* Get/Map slave interrupt */
-	cascade = irq_of_parse_and_map(slave, 0);
-	if (cascade == NO_IRQ) {
-		printk(KERN_ERR "Failed to map cascade IRQ\n");
-		return 0;
-	}
-
-	mpic2 = pmac_setup_one_mpic(slave, 0);
-	if (mpic2 == NULL) {
-		printk(KERN_ERR "Failed to setup slave MPIC\n");
+	/* Set up a cascaded controller, if present */
+	if (slave) {
+		mpic2 = pmac_setup_one_mpic(slave, 0);
+		if (mpic2 == NULL)
+			printk(KERN_ERR "Failed to setup slave MPIC\n");
 		of_node_put(slave);
-		return 0;
 	}
-	irq_set_handler_data(cascade, mpic2);
-	irq_set_chained_handler(cascade, pmac_u3_cascade);
 
-	of_node_put(slave);
 	return 0;
 }
 

@@ -146,4 +146,5 @@ MACHINE_START(IQ80331, "Intel IQ80331")
 	.init_irq	= iop33x_init_irq,
 	.timer		= &iq80331_timer,
 	.init_machine	= iq80331_init_machine,
+	.restart	= iop3xx_restart,
 MACHINE_END

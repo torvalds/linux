@@ -328,7 +328,7 @@ static struct task_struct *select_bad_process(unsigned int *ppoints,
 		 */
 		if (test_tsk_thread_flag(p, TIF_MEMDIE)) {
 			if (unlikely(frozen(p)))
-				thaw_process(p);
+				__thaw_task(p);
 			return ERR_PTR(-1UL);
 		}
 		if (!p->mm)

@@ -27,6 +27,8 @@
 #define BFA_IOC_HWSEM_TOV	500	/* msecs */
 #define BFA_IOC_HB_TOV		500	/* msecs */
 #define BFA_IOC_POLL_TOV	200	/* msecs */
+#define BNA_DBG_FWTRC_LEN      (BFI_IOC_TRC_ENTS * BFI_IOC_TRC_ENT_SZ + \
+				BFI_IOC_TRC_HDR_SZ)
 
 /**
  * PCI device information required by IOC
@@ -66,6 +68,16 @@ __bfa_dma_be_addr_set(union bfi_addr_u *dma_addr, u64 pa)
 {
 	dma_addr->a32.addr_lo = (u32) htonl(pa);
 	dma_addr->a32.addr_hi = (u32) htonl(upper_32_bits(pa));
+}
+
+#define bfa_alen_set(__alen, __len, __pa)	\
+	__bfa_alen_set(__alen, __len, (u64)__pa)
+
+static inline void
+__bfa_alen_set(struct bfi_alen *alen, u32 len, u64 pa)
+{
+	alen->al_len = cpu_to_be32(len);
+	bfa_dma_be_addr_set(alen->al_addr, pa);
 }
 
 struct bfa_ioc_regs {
@@ -296,6 +308,7 @@ void bfa_nw_ioc_disable(struct bfa_ioc *ioc);
 
 void bfa_nw_ioc_error_isr(struct bfa_ioc *ioc);
 bool bfa_nw_ioc_is_disabled(struct bfa_ioc *ioc);
+bool bfa_nw_ioc_is_operational(struct bfa_ioc *ioc);
 void bfa_nw_ioc_get_attr(struct bfa_ioc *ioc, struct bfa_ioc_attr *ioc_attr);
 void bfa_nw_ioc_notify_register(struct bfa_ioc *ioc,
 	struct bfa_ioc_notify *notify);
@@ -307,6 +320,9 @@ void bfa_nw_ioc_fwver_get(struct bfa_ioc *ioc,
 bool bfa_nw_ioc_fwver_cmp(struct bfa_ioc *ioc,
 			struct bfi_ioc_image_hdr *fwhdr);
 mac_t bfa_nw_ioc_get_mac(struct bfa_ioc *ioc);
+void bfa_nw_ioc_debug_memclaim(struct bfa_ioc *ioc, void *dbg_fwsave);
+int bfa_nw_ioc_debug_fwtrc(struct bfa_ioc *ioc, void *trcdata, int *trclen);
+int bfa_nw_ioc_debug_fwsave(struct bfa_ioc *ioc, void *trcdata, int *trclen);
 
 /*
  * Timeout APIs
@@ -321,5 +337,43 @@ void bfa_nw_iocpf_sem_timeout(void *ioc);
  */
 u32 *bfa_cb_image_get_chunk(enum bfi_asic_gen asic_gen, u32 off);
 u32 bfa_cb_image_get_size(enum bfi_asic_gen asic_gen);
+
+/*
+ *	Flash module specific
+ */
+typedef void	(*bfa_cb_flash) (void *cbarg, enum bfa_status status);
+
+struct bfa_flash {
+	struct bfa_ioc *ioc;		/* back pointer to ioc */
+	u32		type;		/* partition type */
+	u8		instance;	/* partition instance */
+	u8		rsv[3];
+	u32		op_busy;	/*  operation busy flag */
+	u32		residue;	/*  residual length */
+	u32		offset;		/*  offset */
+	enum bfa_status	status;		/*  status */
+	u8		*dbuf_kva;	/*  dma buf virtual address */
+	u64		dbuf_pa;	/*  dma buf physical address */
+	bfa_cb_flash	cbfn;		/*  user callback function */
+	void		*cbarg;		/*  user callback arg */
+	u8		*ubuf;		/*  user supplied buffer */
+	u32		addr_off;	/*  partition address offset */
+	struct bfa_mbox_cmd mb;		/*  mailbox */
+	struct bfa_ioc_notify ioc_notify; /*  ioc event notify */
+};
+
+enum bfa_status bfa_nw_flash_get_attr(struct bfa_flash *flash,
+			struct bfa_flash_attr *attr,
+			bfa_cb_flash cbfn, void *cbarg);
+enum bfa_status bfa_nw_flash_update_part(struct bfa_flash *flash,
+			u32 type, u8 instance, void *buf, u32 len, u32 offset,
+			bfa_cb_flash cbfn, void *cbarg);
+enum bfa_status bfa_nw_flash_read_part(struct bfa_flash *flash,
+			u32 type, u8 instance, void *buf, u32 len, u32 offset,
+			bfa_cb_flash cbfn, void *cbarg);
+u32	bfa_nw_flash_meminfo(void);
+void	bfa_nw_flash_attach(struct bfa_flash *flash,
+			    struct bfa_ioc *ioc, void *dev);
+void	bfa_nw_flash_memclaim(struct bfa_flash *flash, u8 *dm_kva, u64 dm_pa);
 
 #endif /* __BFA_IOC_H__ */

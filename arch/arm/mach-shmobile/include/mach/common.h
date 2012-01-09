@@ -7,7 +7,6 @@ extern void shmobile_secondary_vector(void);
 struct clk;
 extern int clk_init(void);
 extern void shmobile_handle_irq_intc(struct pt_regs *);
-extern void shmobile_handle_irq_gic(struct pt_regs *);
 extern struct platform_suspend_ops shmobile_suspend_ops;
 struct cpuidle_driver;
 extern void (*shmobile_cpuidle_modes[])(void);
@@ -35,8 +34,8 @@ extern void sh7372_add_standard_devices(void);
 extern void sh7372_clock_init(void);
 extern void sh7372_pinmux_init(void);
 extern void sh7372_pm_init(void);
-extern void sh7372_resume_core_standby_a3sm(void);
-extern int sh7372_do_idle_a3sm(unsigned long unused);
+extern void sh7372_resume_core_standby_sysc(void);
+extern int sh7372_do_idle_sysc(unsigned long sleep_mode);
 extern struct clk sh7372_extal1_clk;
 extern struct clk sh7372_extal2_clk;
 

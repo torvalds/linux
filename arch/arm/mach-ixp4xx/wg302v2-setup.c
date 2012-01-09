@@ -105,5 +105,6 @@ MACHINE_START(WG302V2, "Netgear WG302 v2 / WAG302 v2")
 #if defined(CONFIG_PCI)
 	.dma_zone_size	= SZ_64M,
 #endif
+	.restart	= ixp4xx_restart,
 MACHINE_END
 #endif

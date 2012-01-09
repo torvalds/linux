@@ -721,5 +721,6 @@ MACHINE_START(VPAC270, "Voipac PXA270")
 	.init_irq	= pxa27x_init_irq,
 	.handle_irq	= pxa27x_handle_irq,
 	.timer		= &pxa_timer,
-	.init_machine	= vpac270_init
+	.init_machine	= vpac270_init,
+	.restart	= pxa_restart,
 MACHINE_END

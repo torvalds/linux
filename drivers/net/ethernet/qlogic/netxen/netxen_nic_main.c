@@ -544,7 +544,8 @@ static void netxen_set_multicast_list(struct net_device *dev)
 	adapter->set_multi(dev);
 }
 
-static u32 netxen_fix_features(struct net_device *dev, u32 features)
+static netdev_features_t netxen_fix_features(struct net_device *dev,
+	netdev_features_t features)
 {
 	if (!(features & NETIF_F_RXCSUM)) {
 		netdev_info(dev, "disabling LRO as RXCSUM is off\n");
@@ -555,7 +556,8 @@ static u32 netxen_fix_features(struct net_device *dev, u32 features)
 	return features;
 }
 
-static int netxen_set_features(struct net_device *dev, u32 features)
+static int netxen_set_features(struct net_device *dev,
+	netdev_features_t features)
 {
 	struct netxen_adapter *adapter = netdev_priv(dev);
 	int hw_lro;

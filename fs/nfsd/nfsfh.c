@@ -59,7 +59,7 @@ static int nfsd_acceptable(void *expv, struct dentry *dentry)
  * the write call).
  */
 static inline __be32
-nfsd_mode_check(struct svc_rqst *rqstp, umode_t mode, int requested)
+nfsd_mode_check(struct svc_rqst *rqstp, umode_t mode, umode_t requested)
 {
 	mode &= S_IFMT;
 
@@ -293,7 +293,7 @@ out:
  * include/linux/nfsd/nfsd.h.
  */
 __be32
-fh_verify(struct svc_rqst *rqstp, struct svc_fh *fhp, int type, int access)
+fh_verify(struct svc_rqst *rqstp, struct svc_fh *fhp, umode_t type, int access)
 {
 	struct svc_export *exp;
 	struct dentry	*dentry;

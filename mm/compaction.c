@@ -721,23 +721,23 @@ int sysctl_extfrag_handler(struct ctl_table *table, int write,
 }
 
 #if defined(CONFIG_SYSFS) && defined(CONFIG_NUMA)
-ssize_t sysfs_compact_node(struct sys_device *dev,
-			struct sysdev_attribute *attr,
+ssize_t sysfs_compact_node(struct device *dev,
+			struct device_attribute *attr,
 			const char *buf, size_t count)
 {
 	compact_node(dev->id);
 
 	return count;
 }
-static SYSDEV_ATTR(compact, S_IWUSR, NULL, sysfs_compact_node);
+static DEVICE_ATTR(compact, S_IWUSR, NULL, sysfs_compact_node);
 
 int compaction_register_node(struct node *node)
 {
-	return sysdev_create_file(&node->sysdev, &attr_compact);
+	return device_create_file(&node->dev, &dev_attr_compact);
 }
 
 void compaction_unregister_node(struct node *node)
 {
-	return sysdev_remove_file(&node->sysdev, &attr_compact);
+	return device_remove_file(&node->dev, &dev_attr_compact);
 }
 #endif /* CONFIG_SYSFS && CONFIG_NUMA */

@@ -1480,7 +1480,7 @@ static const struct file_operations ddb_fops = {
 	.open           = ddb_open,
 };
 
-static char *ddb_devnode(struct device *device, mode_t *mode)
+static char *ddb_devnode(struct device *device, umode_t *mode)
 {
 	struct ddb *dev = dev_get_drvdata(device);
 

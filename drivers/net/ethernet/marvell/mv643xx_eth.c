@@ -1502,10 +1502,12 @@ mv643xx_eth_set_settings(struct net_device *dev, struct ethtool_cmd *cmd)
 static void mv643xx_eth_get_drvinfo(struct net_device *dev,
 				    struct ethtool_drvinfo *drvinfo)
 {
-	strncpy(drvinfo->driver,  mv643xx_eth_driver_name, 32);
-	strncpy(drvinfo->version, mv643xx_eth_driver_version, 32);
-	strncpy(drvinfo->fw_version, "N/A", 32);
-	strncpy(drvinfo->bus_info, "platform", 32);
+	strlcpy(drvinfo->driver, mv643xx_eth_driver_name,
+		sizeof(drvinfo->driver));
+	strlcpy(drvinfo->version, mv643xx_eth_driver_version,
+		sizeof(drvinfo->version));
+	strlcpy(drvinfo->fw_version, "N/A", sizeof(drvinfo->fw_version));
+	strlcpy(drvinfo->bus_info, "platform", sizeof(drvinfo->bus_info));
 	drvinfo->n_stats = ARRAY_SIZE(mv643xx_eth_stats);
 }
 
@@ -1578,10 +1580,10 @@ mv643xx_eth_set_ringparam(struct net_device *dev, struct ethtool_ringparam *er)
 
 
 static int
-mv643xx_eth_set_features(struct net_device *dev, u32 features)
+mv643xx_eth_set_features(struct net_device *dev, netdev_features_t features)
 {
 	struct mv643xx_eth_private *mp = netdev_priv(dev);
-	u32 rx_csum = features & NETIF_F_RXCSUM;
+	bool rx_csum = features & NETIF_F_RXCSUM;
 
 	wrlp(mp, PORT_CONFIG, rx_csum ? 0x02000000 : 0x00000000);
 

@@ -21,7 +21,7 @@ static u_int16_t udplite_port_rover;
 
 static void
 udplite_unique_tuple(struct nf_conntrack_tuple *tuple,
-		     const struct nf_nat_range *range,
+		     const struct nf_nat_ipv4_range *range,
 		     enum nf_nat_manip_type maniptype,
 		     const struct nf_conn *ct)
 {
@@ -47,7 +47,7 @@ udplite_manip_pkt(struct sk_buff *skb,
 	iph = (struct iphdr *)(skb->data + iphdroff);
 	hdr = (struct udphdr *)(skb->data + hdroff);
 
-	if (maniptype == IP_NAT_MANIP_SRC) {
+	if (maniptype == NF_NAT_MANIP_SRC) {
 		/* Get rid of src ip and src pt */
 		oldip = iph->saddr;
 		newip = tuple->src.u3.ip;
@@ -72,12 +72,10 @@ udplite_manip_pkt(struct sk_buff *skb,
 
 static const struct nf_nat_protocol nf_nat_protocol_udplite = {
 	.protonum		= IPPROTO_UDPLITE,
-	.me			= THIS_MODULE,
 	.manip_pkt		= udplite_manip_pkt,
 	.in_range		= nf_nat_proto_in_range,
 	.unique_tuple		= udplite_unique_tuple,
 #if defined(CONFIG_NF_CT_NETLINK) || defined(CONFIG_NF_CT_NETLINK_MODULE)
-	.range_to_nlattr	= nf_nat_proto_range_to_nlattr,
 	.nlattr_to_range	= nf_nat_proto_nlattr_to_range,
 #endif
 };

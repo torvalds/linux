@@ -29,7 +29,6 @@
 
 #include <linux/tracepoint.h>
 
-struct iwl_priv;
 
 #if !defined(CONFIG_IWLWIFI_DEVICE_TRACING) || defined(__CHECKER__)
 #undef TRACE_EVENT
@@ -37,14 +36,14 @@ struct iwl_priv;
 static inline void trace_ ## name(proto) {}
 #endif
 
-#define PRIV_ENTRY	__field(struct iwl_priv *, priv)
+#define PRIV_ENTRY	__field(void *, priv)
 #define PRIV_ASSIGN	__entry->priv = priv
 
 #undef TRACE_SYSTEM
 #define TRACE_SYSTEM iwlwifi_io
 
 TRACE_EVENT(iwlwifi_dev_ioread32,
-	TP_PROTO(struct iwl_priv *priv, u32 offs, u32 val),
+	TP_PROTO(void *priv, u32 offs, u32 val),
 	TP_ARGS(priv, offs, val),
 	TP_STRUCT__entry(
 		PRIV_ENTRY
@@ -60,7 +59,7 @@ TRACE_EVENT(iwlwifi_dev_ioread32,
 );
 
 TRACE_EVENT(iwlwifi_dev_iowrite8,
-	TP_PROTO(struct iwl_priv *priv, u32 offs, u8 val),
+	TP_PROTO(void *priv, u32 offs, u8 val),
 	TP_ARGS(priv, offs, val),
 	TP_STRUCT__entry(
 		PRIV_ENTRY
@@ -76,7 +75,7 @@ TRACE_EVENT(iwlwifi_dev_iowrite8,
 );
 
 TRACE_EVENT(iwlwifi_dev_iowrite32,
-	TP_PROTO(struct iwl_priv *priv, u32 offs, u32 val),
+	TP_PROTO(void *priv, u32 offs, u32 val),
 	TP_ARGS(priv, offs, val),
 	TP_STRUCT__entry(
 		PRIV_ENTRY
@@ -91,11 +90,40 @@ TRACE_EVENT(iwlwifi_dev_iowrite32,
 	TP_printk("[%p] write io[%#x] = %#x)", __entry->priv, __entry->offs, __entry->val)
 );
 
+TRACE_EVENT(iwlwifi_dev_irq,
+	TP_PROTO(void *priv),
+	TP_ARGS(priv),
+	TP_STRUCT__entry(
+		PRIV_ENTRY
+	),
+	TP_fast_assign(
+		PRIV_ASSIGN;
+	),
+	/* TP_printk("") doesn't compile */
+	TP_printk("%d", 0)
+);
+
+TRACE_EVENT(iwlwifi_dev_ict_read,
+	TP_PROTO(void *priv, u32 index, u32 value),
+	TP_ARGS(priv, index, value),
+	TP_STRUCT__entry(
+		PRIV_ENTRY
+		__field(u32, index)
+		__field(u32, value)
+	),
+	TP_fast_assign(
+		PRIV_ASSIGN;
+		__entry->index = index;
+		__entry->value = value;
+	),
+	TP_printk("read ict[%d] = %#.8x", __entry->index, __entry->value)
+);
+
 #undef TRACE_SYSTEM
 #define TRACE_SYSTEM iwlwifi_ucode
 
 TRACE_EVENT(iwlwifi_dev_ucode_cont_event,
-	TP_PROTO(struct iwl_priv *priv, u32 time, u32 data, u32 ev),
+	TP_PROTO(void *priv, u32 time, u32 data, u32 ev),
 	TP_ARGS(priv, time, data, ev),
 	TP_STRUCT__entry(
 		PRIV_ENTRY
@@ -115,7 +143,7 @@ TRACE_EVENT(iwlwifi_dev_ucode_cont_event,
 );
 
 TRACE_EVENT(iwlwifi_dev_ucode_wrap_event,
-	TP_PROTO(struct iwl_priv *priv, u32 wraps, u32 n_entry, u32 p_entry),
+	TP_PROTO(void *priv, u32 wraps, u32 n_entry, u32 p_entry),
 	TP_ARGS(priv, wraps, n_entry, p_entry),
 	TP_STRUCT__entry(
 		PRIV_ENTRY
@@ -139,7 +167,7 @@ TRACE_EVENT(iwlwifi_dev_ucode_wrap_event,
 #define TRACE_SYSTEM iwlwifi
 
 TRACE_EVENT(iwlwifi_dev_hcmd,
-	TP_PROTO(struct iwl_priv *priv, u32 flags,
+	TP_PROTO(void *priv, u32 flags,
 		 const void *hcmd0, size_t len0,
 		 const void *hcmd1, size_t len1,
 		 const void *hcmd2, size_t len2),
@@ -164,7 +192,7 @@ TRACE_EVENT(iwlwifi_dev_hcmd,
 );
 
 TRACE_EVENT(iwlwifi_dev_rx,
-	TP_PROTO(struct iwl_priv *priv, void *rxbuf, size_t len),
+	TP_PROTO(void *priv, void *rxbuf, size_t len),
 	TP_ARGS(priv, rxbuf, len),
 	TP_STRUCT__entry(
 		PRIV_ENTRY
@@ -179,7 +207,7 @@ TRACE_EVENT(iwlwifi_dev_rx,
 );
 
 TRACE_EVENT(iwlwifi_dev_tx,
-	TP_PROTO(struct iwl_priv *priv, void *tfd, size_t tfdlen,
+	TP_PROTO(void *priv, void *tfd, size_t tfdlen,
 		 void *buf0, size_t buf0_len,
 		 void *buf1, size_t buf1_len),
 	TP_ARGS(priv, tfd, tfdlen, buf0, buf0_len, buf1, buf1_len),
@@ -211,7 +239,7 @@ TRACE_EVENT(iwlwifi_dev_tx,
 );
 
 TRACE_EVENT(iwlwifi_dev_ucode_error,
-	TP_PROTO(struct iwl_priv *priv, u32 desc, u32 tsf_low,
+	TP_PROTO(void *priv, u32 desc, u32 tsf_low,
 		 u32 data1, u32 data2, u32 line, u32 blink1,
 		 u32 blink2, u32 ilink1, u32 ilink2, u32 bcon_time,
 		 u32 gp1, u32 gp2, u32 gp3, u32 ucode_ver, u32 hw_ver,
@@ -271,7 +299,7 @@ TRACE_EVENT(iwlwifi_dev_ucode_error,
 );
 
 TRACE_EVENT(iwlwifi_dev_ucode_event,
-	TP_PROTO(struct iwl_priv *priv, u32 time, u32 data, u32 ev),
+	TP_PROTO(void *priv, u32 time, u32 data, u32 ev),
 	TP_ARGS(priv, time, data, ev),
 	TP_STRUCT__entry(
 		PRIV_ENTRY

@@ -501,13 +501,32 @@ int cfg80211_mlme_auth(struct cfg80211_registered_device *rdev,
 	return err;
 }
 
+/*  Do a logical ht_capa &= ht_capa_mask.  */
+void cfg80211_oper_and_ht_capa(struct ieee80211_ht_cap *ht_capa,
+			       const struct ieee80211_ht_cap *ht_capa_mask)
+{
+	int i;
+	u8 *p1, *p2;
+	if (!ht_capa_mask) {
+		memset(ht_capa, 0, sizeof(*ht_capa));
+		return;
+	}
+
+	p1 = (u8*)(ht_capa);
+	p2 = (u8*)(ht_capa_mask);
+	for (i = 0; i<sizeof(*ht_capa); i++)
+		p1[i] &= p2[i];
+}
+
 int __cfg80211_mlme_assoc(struct cfg80211_registered_device *rdev,
 			  struct net_device *dev,
 			  struct ieee80211_channel *chan,
 			  const u8 *bssid, const u8 *prev_bssid,
 			  const u8 *ssid, int ssid_len,
 			  const u8 *ie, int ie_len, bool use_mfp,
-			  struct cfg80211_crypto_settings *crypt)
+			  struct cfg80211_crypto_settings *crypt,
+			  u32 assoc_flags, struct ieee80211_ht_cap *ht_capa,
+			  struct ieee80211_ht_cap *ht_capa_mask)
 {
 	struct wireless_dev *wdev = dev->ieee80211_ptr;
 	struct cfg80211_assoc_request req;
@@ -537,6 +556,15 @@ int __cfg80211_mlme_assoc(struct cfg80211_registered_device *rdev,
 	memcpy(&req.crypto, crypt, sizeof(req.crypto));
 	req.use_mfp = use_mfp;
 	req.prev_bssid = prev_bssid;
+	req.flags = assoc_flags;
+	if (ht_capa)
+		memcpy(&req.ht_capa, ht_capa, sizeof(req.ht_capa));
+	if (ht_capa_mask)
+		memcpy(&req.ht_capa_mask, ht_capa_mask,
+		       sizeof(req.ht_capa_mask));
+	cfg80211_oper_and_ht_capa(&req.ht_capa_mask,
+				  rdev->wiphy.ht_capa_mod_mask);
+
 	req.bss = cfg80211_get_bss(&rdev->wiphy, chan, bssid, ssid, ssid_len,
 				   WLAN_CAPABILITY_ESS, WLAN_CAPABILITY_ESS);
 	if (!req.bss) {
@@ -574,14 +602,17 @@ int cfg80211_mlme_assoc(struct cfg80211_registered_device *rdev,
 			const u8 *bssid, const u8 *prev_bssid,
 			const u8 *ssid, int ssid_len,
 			const u8 *ie, int ie_len, bool use_mfp,
-			struct cfg80211_crypto_settings *crypt)
+			struct cfg80211_crypto_settings *crypt,
+			u32 assoc_flags, struct ieee80211_ht_cap *ht_capa,
+			struct ieee80211_ht_cap *ht_capa_mask)
 {
 	struct wireless_dev *wdev = dev->ieee80211_ptr;
 	int err;
 
 	wdev_lock(wdev);
 	err = __cfg80211_mlme_assoc(rdev, dev, chan, bssid, prev_bssid,
-				    ssid, ssid_len, ie, ie_len, use_mfp, crypt);
+				    ssid, ssid_len, ie, ie_len, use_mfp, crypt,
+				    assoc_flags, ht_capa, ht_capa_mask);
 	wdev_unlock(wdev);
 
 	return err;
@@ -879,6 +910,9 @@ void cfg80211_mlme_unregister_socket(struct wireless_dev *wdev, u32 nlpid)
 	}
 
 	spin_unlock_bh(&wdev->mgmt_registrations_lock);
+
+	if (nlpid == wdev->ap_unexpected_nlpid)
+		wdev->ap_unexpected_nlpid = 0;
 }
 
 void cfg80211_mlme_purge_registrations(struct wireless_dev *wdev)
@@ -901,7 +935,7 @@ int cfg80211_mlme_mgmt_tx(struct cfg80211_registered_device *rdev,
 			  enum nl80211_channel_type channel_type,
 			  bool channel_type_valid, unsigned int wait,
 			  const u8 *buf, size_t len, bool no_cck,
-			  u64 *cookie)
+			  bool dont_wait_for_ack, u64 *cookie)
 {
 	struct wireless_dev *wdev = dev->ieee80211_ptr;
 	const struct ieee80211_mgmt *mgmt;
@@ -992,7 +1026,8 @@ int cfg80211_mlme_mgmt_tx(struct cfg80211_registered_device *rdev,
 	/* Transmit the Action frame as requested by user space */
 	return rdev->ops->mgmt_tx(&rdev->wiphy, dev, chan, offchan,
 				  channel_type, channel_type_valid,
-				  wait, buf, len, no_cck, cookie);
+				  wait, buf, len, no_cck, dont_wait_for_ack,
+				  cookie);
 }
 
 bool cfg80211_rx_mgmt(struct net_device *dev, int freq, const u8 *buf,
@@ -1107,3 +1142,30 @@ void cfg80211_pmksa_candidate_notify(struct net_device *dev, int index,
 	nl80211_pmksa_candidate_notify(rdev, dev, index, bssid, preauth, gfp);
 }
 EXPORT_SYMBOL(cfg80211_pmksa_candidate_notify);
+
+bool cfg80211_rx_spurious_frame(struct net_device *dev,
+				const u8 *addr, gfp_t gfp)
+{
+	struct wireless_dev *wdev = dev->ieee80211_ptr;
+
+	if (WARN_ON(wdev->iftype != NL80211_IFTYPE_AP &&
+		    wdev->iftype != NL80211_IFTYPE_P2P_GO))
+		return false;
+
+	return nl80211_unexpected_frame(dev, addr, gfp);
+}
+EXPORT_SYMBOL(cfg80211_rx_spurious_frame);
+
+bool cfg80211_rx_unexpected_4addr_frame(struct net_device *dev,
+					const u8 *addr, gfp_t gfp)
+{
+	struct wireless_dev *wdev = dev->ieee80211_ptr;
+
+	if (WARN_ON(wdev->iftype != NL80211_IFTYPE_AP &&
+		    wdev->iftype != NL80211_IFTYPE_P2P_GO &&
+		    wdev->iftype != NL80211_IFTYPE_AP_VLAN))
+		return false;
+
+	return nl80211_unexpected_4addr_frame(dev, addr, gfp);
+}
+EXPORT_SYMBOL(cfg80211_rx_unexpected_4addr_frame);

@@ -1203,8 +1203,10 @@ void rt2800_config_filter(struct rt2x00_dev *rt2x00dev,
 			   !(filter_flags & FIF_CONTROL));
 	rt2x00_set_field32(&reg, RX_FILTER_CFG_DROP_PSPOLL,
 			   !(filter_flags & FIF_PSPOLL));
-	rt2x00_set_field32(&reg, RX_FILTER_CFG_DROP_BA, 1);
-	rt2x00_set_field32(&reg, RX_FILTER_CFG_DROP_BAR, 0);
+	rt2x00_set_field32(&reg, RX_FILTER_CFG_DROP_BA,
+			   !(filter_flags & FIF_CONTROL));
+	rt2x00_set_field32(&reg, RX_FILTER_CFG_DROP_BAR,
+			   !(filter_flags & FIF_CONTROL));
 	rt2x00_set_field32(&reg, RX_FILTER_CFG_DROP_CNTL,
 			   !(filter_flags & FIF_CONTROL));
 	rt2800_register_write(rt2x00dev, RX_FILTER_CFG, reg);
@@ -1942,19 +1944,24 @@ static void rt2800_config_channel(struct rt2x00_dev *rt2x00dev,
 		info->default_power2 = TXPOWER_A_TO_DEV(info->default_power2);
 	}
 
-	if (rt2x00_rf(rt2x00dev, RF2020) ||
-	    rt2x00_rf(rt2x00dev, RF3020) ||
-	    rt2x00_rf(rt2x00dev, RF3021) ||
-	    rt2x00_rf(rt2x00dev, RF3022) ||
-	    rt2x00_rf(rt2x00dev, RF3320))
+	switch (rt2x00dev->chip.rf) {
+	case RF2020:
+	case RF3020:
+	case RF3021:
+	case RF3022:
+	case RF3320:
 		rt2800_config_channel_rf3xxx(rt2x00dev, conf, rf, info);
-	else if (rt2x00_rf(rt2x00dev, RF3052))
+		break;
+	case RF3052:
 		rt2800_config_channel_rf3052(rt2x00dev, conf, rf, info);
-	else if (rt2x00_rf(rt2x00dev, RF5370) ||
-		 rt2x00_rf(rt2x00dev, RF5390))
+		break;
+	case RF5370:
+	case RF5390:
 		rt2800_config_channel_rf53xx(rt2x00dev, conf, rf, info);
-	else
+		break;
+	default:
 		rt2800_config_channel_rf2xxx(rt2x00dev, conf, rf, info);
+	}
 
 	/*
 	 * Change BBP settings
@@ -3930,15 +3937,18 @@ int rt2800_init_eeprom(struct rt2x00_dev *rt2x00dev)
 	rt2x00_set_chip(rt2x00dev, rt2x00_get_field32(reg, MAC_CSR0_CHIPSET),
 			value, rt2x00_get_field32(reg, MAC_CSR0_REVISION));
 
-	if (!rt2x00_rt(rt2x00dev, RT2860) &&
-	    !rt2x00_rt(rt2x00dev, RT2872) &&
-	    !rt2x00_rt(rt2x00dev, RT2883) &&
-	    !rt2x00_rt(rt2x00dev, RT3070) &&
-	    !rt2x00_rt(rt2x00dev, RT3071) &&
-	    !rt2x00_rt(rt2x00dev, RT3090) &&
-	    !rt2x00_rt(rt2x00dev, RT3390) &&
-	    !rt2x00_rt(rt2x00dev, RT3572) &&
-	    !rt2x00_rt(rt2x00dev, RT5390)) {
+	switch (rt2x00dev->chip.rt) {
+	case RT2860:
+	case RT2872:
+	case RT2883:
+	case RT3070:
+	case RT3071:
+	case RT3090:
+	case RT3390:
+	case RT3572:
+	case RT5390:
+		break;
+	default:
 		ERROR(rt2x00dev, "Invalid RT chipset detected.\n");
 		return -ENODEV;
 	}
@@ -4551,6 +4561,9 @@ int rt2800_get_survey(struct ieee80211_hw *hw, int idx,
 		survey->channel_time_busy = busy / 1000;
 		survey->channel_time_ext_busy = busy_ext / 1000;
 	}
+
+	if (!(hw->conf.flags & IEEE80211_CONF_OFFCHANNEL))
+		survey->filled |= SURVEY_INFO_IN_USE;
 
 	return 0;
 

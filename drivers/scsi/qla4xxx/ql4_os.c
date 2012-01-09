@@ -128,7 +128,7 @@ static int qla4xxx_eh_host_reset(struct scsi_cmnd *cmd);
 static int qla4xxx_slave_alloc(struct scsi_device *device);
 static int qla4xxx_slave_configure(struct scsi_device *device);
 static void qla4xxx_slave_destroy(struct scsi_device *sdev);
-static mode_t ql4_attr_is_visible(int param_type, int param);
+static umode_t ql4_attr_is_visible(int param_type, int param);
 static int qla4xxx_host_reset(struct Scsi_Host *shost, int reset_type);
 
 static struct qla4_8xxx_legacy_intr_set legacy_intr[] =
@@ -197,7 +197,7 @@ static struct iscsi_transport qla4xxx_iscsi_transport = {
 
 static struct scsi_transport_template *qla4xxx_scsi_transport;
 
-static mode_t ql4_attr_is_visible(int param_type, int param)
+static umode_t ql4_attr_is_visible(int param_type, int param)
 {
 	switch (param_type) {
 	case ISCSI_HOST_PARAM:
@@ -3039,7 +3039,7 @@ static ssize_t qla4xxx_show_boot_eth_info(void *data, int type, char *buf)
 	return rc;
 }
 
-static mode_t qla4xxx_eth_get_attr_visibility(void *data, int type)
+static umode_t qla4xxx_eth_get_attr_visibility(void *data, int type)
 {
 	int rc;
 
@@ -3073,7 +3073,7 @@ static ssize_t qla4xxx_show_boot_ini_info(void *data, int type, char *buf)
 	return rc;
 }
 
-static mode_t qla4xxx_ini_get_attr_visibility(void *data, int type)
+static umode_t qla4xxx_ini_get_attr_visibility(void *data, int type)
 {
 	int rc;
 
@@ -3160,7 +3160,7 @@ static ssize_t qla4xxx_show_boot_tgt_sec_info(void *data, int type, char *buf)
 	return qla4xxx_show_boot_tgt_info(boot_sess, type, buf);
 }
 
-static mode_t qla4xxx_tgt_get_attr_visibility(void *data, int type)
+static umode_t qla4xxx_tgt_get_attr_visibility(void *data, int type)
 {
 	int rc;
 

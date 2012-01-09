@@ -157,7 +157,7 @@ static void svc_set_cmsg_data(struct svc_rqst *rqstp, struct cmsghdr *cmh)
 			cmh->cmsg_level = SOL_IPV6;
 			cmh->cmsg_type = IPV6_PKTINFO;
 			pki->ipi6_ifindex = daddr->sin6_scope_id;
-			ipv6_addr_copy(&pki->ipi6_addr,	&daddr->sin6_addr);
+			pki->ipi6_addr = daddr->sin6_addr;
 			cmh->cmsg_len = CMSG_LEN(sizeof(*pki));
 		}
 		break;
@@ -523,7 +523,7 @@ static int svc_udp_get_dest_address6(struct svc_rqst *rqstp,
 		return 0;
 
 	daddr->sin6_family = AF_INET6;
-	ipv6_addr_copy(&daddr->sin6_addr, &pki->ipi6_addr);
+	daddr->sin6_addr = pki->ipi6_addr;
 	daddr->sin6_scope_id = pki->ipi6_ifindex;
 	return 1;
 }

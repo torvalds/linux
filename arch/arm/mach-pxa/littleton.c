@@ -445,4 +445,5 @@ MACHINE_START(LITTLETON, "Marvell Form Factor Development Platform (aka Littleto
 	.handle_irq	= pxa3xx_handle_irq,
 	.timer		= &pxa_timer,
 	.init_machine	= littleton_init,
+	.restart	= pxa_restart,
 MACHINE_END

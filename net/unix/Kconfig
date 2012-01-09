@@ -19,3 +19,10 @@ config UNIX
 
 	  Say Y unless you know what you are doing.
 
+config UNIX_DIAG
+	tristate "UNIX: socket monitoring interface"
+	depends on UNIX
+	default UNIX
+	---help---
+	  Support for UNIX socket monitoring interface used by the ss tool.
+	  If unsure, say Y.

@@ -190,7 +190,9 @@ static int cfg80211_conn_do_work(struct wireless_dev *wdev)
 					    prev_bssid,
 					    params->ssid, params->ssid_len,
 					    params->ie, params->ie_len,
-					    false, &params->crypto);
+					    false, &params->crypto,
+					    params->flags, &params->ht_capa,
+					    &params->ht_capa_mask);
 		if (err)
 			__cfg80211_mlme_deauth(rdev, wdev->netdev, params->bssid,
 					       NULL, 0,
@@ -551,45 +553,35 @@ void cfg80211_connect_result(struct net_device *dev, const u8 *bssid,
 EXPORT_SYMBOL(cfg80211_connect_result);
 
 void __cfg80211_roamed(struct wireless_dev *wdev,
-		       struct ieee80211_channel *channel,
-		       const u8 *bssid,
+		       struct cfg80211_bss *bss,
 		       const u8 *req_ie, size_t req_ie_len,
 		       const u8 *resp_ie, size_t resp_ie_len)
 {
-	struct cfg80211_bss *bss;
 #ifdef CONFIG_CFG80211_WEXT
 	union iwreq_data wrqu;
 #endif
-
 	ASSERT_WDEV_LOCK(wdev);
 
 	if (WARN_ON(wdev->iftype != NL80211_IFTYPE_STATION &&
 		    wdev->iftype != NL80211_IFTYPE_P2P_CLIENT))
-		return;
+		goto out;
 
 	if (wdev->sme_state != CFG80211_SME_CONNECTED)
-		return;
+		goto out;
 
 	/* internal error -- how did we get to CONNECTED w/o BSS? */
 	if (WARN_ON(!wdev->current_bss)) {
-		return;
+		goto out;
 	}
 
 	cfg80211_unhold_bss(wdev->current_bss);
 	cfg80211_put_bss(&wdev->current_bss->pub);
 	wdev->current_bss = NULL;
 
-	bss = cfg80211_get_bss(wdev->wiphy, channel, bssid,
-			       wdev->ssid, wdev->ssid_len,
-			       WLAN_CAPABILITY_ESS, WLAN_CAPABILITY_ESS);
-
-	if (WARN_ON(!bss))
-		return;
-
 	cfg80211_hold_bss(bss_from_pub(bss));
 	wdev->current_bss = bss_from_pub(bss);
 
-	nl80211_send_roamed(wiphy_to_dev(wdev->wiphy), wdev->netdev, bssid,
+	nl80211_send_roamed(wiphy_to_dev(wdev->wiphy), wdev->netdev, bss->bssid,
 			    req_ie, req_ie_len, resp_ie, resp_ie_len,
 			    GFP_KERNEL);
 
@@ -610,11 +602,15 @@ void __cfg80211_roamed(struct wireless_dev *wdev,
 
 	memset(&wrqu, 0, sizeof(wrqu));
 	wrqu.ap_addr.sa_family = ARPHRD_ETHER;
-	memcpy(wrqu.ap_addr.sa_data, bssid, ETH_ALEN);
-	memcpy(wdev->wext.prev_bssid, bssid, ETH_ALEN);
+	memcpy(wrqu.ap_addr.sa_data, bss->bssid, ETH_ALEN);
+	memcpy(wdev->wext.prev_bssid, bss->bssid, ETH_ALEN);
 	wdev->wext.prev_bssid_valid = true;
 	wireless_send_event(wdev->netdev, SIOCGIWAP, &wrqu, NULL);
 #endif
+
+	return;
+out:
+	cfg80211_put_bss(bss);
 }
 
 void cfg80211_roamed(struct net_device *dev,
@@ -624,32 +620,57 @@ void cfg80211_roamed(struct net_device *dev,
 		     const u8 *resp_ie, size_t resp_ie_len, gfp_t gfp)
 {
 	struct wireless_dev *wdev = dev->ieee80211_ptr;
+	struct cfg80211_bss *bss;
+
+	CFG80211_DEV_WARN_ON(wdev->sme_state != CFG80211_SME_CONNECTED);
+
+	bss = cfg80211_get_bss(wdev->wiphy, channel, bssid, wdev->ssid,
+			       wdev->ssid_len, WLAN_CAPABILITY_ESS,
+			       WLAN_CAPABILITY_ESS);
+	if (WARN_ON(!bss))
+		return;
+
+	cfg80211_roamed_bss(dev, bss, req_ie, req_ie_len, resp_ie,
+			    resp_ie_len, gfp);
+}
+EXPORT_SYMBOL(cfg80211_roamed);
+
+void cfg80211_roamed_bss(struct net_device *dev,
+			 struct cfg80211_bss *bss, const u8 *req_ie,
+			 size_t req_ie_len, const u8 *resp_ie,
+			 size_t resp_ie_len, gfp_t gfp)
+{
+	struct wireless_dev *wdev = dev->ieee80211_ptr;
 	struct cfg80211_registered_device *rdev = wiphy_to_dev(wdev->wiphy);
 	struct cfg80211_event *ev;
 	unsigned long flags;
 
 	CFG80211_DEV_WARN_ON(wdev->sme_state != CFG80211_SME_CONNECTED);
 
-	ev = kzalloc(sizeof(*ev) + req_ie_len + resp_ie_len, gfp);
-	if (!ev)
+	if (WARN_ON(!bss))
 		return;
 
+	ev = kzalloc(sizeof(*ev) + req_ie_len + resp_ie_len, gfp);
+	if (!ev) {
+		cfg80211_put_bss(bss);
+		return;
+	}
+
 	ev->type = EVENT_ROAMED;
-	ev->rm.channel = channel;
-	memcpy(ev->rm.bssid, bssid, ETH_ALEN);
 	ev->rm.req_ie = ((u8 *)ev) + sizeof(*ev);
 	ev->rm.req_ie_len = req_ie_len;
 	memcpy((void *)ev->rm.req_ie, req_ie, req_ie_len);
 	ev->rm.resp_ie = ((u8 *)ev) + sizeof(*ev) + req_ie_len;
 	ev->rm.resp_ie_len = resp_ie_len;
 	memcpy((void *)ev->rm.resp_ie, resp_ie, resp_ie_len);
+	ev->rm.bss = bss;
 
 	spin_lock_irqsave(&wdev->event_lock, flags);
 	list_add_tail(&ev->list, &wdev->event_list);
 	spin_unlock_irqrestore(&wdev->event_lock, flags);
 	queue_work(cfg80211_wq, &rdev->event_work);
 }
-EXPORT_SYMBOL(cfg80211_roamed);
+EXPORT_SYMBOL(cfg80211_roamed_bss);
 
 void __cfg80211_disconnected(struct net_device *dev, const u8 *ie,
 			     size_t ie_len, u16 reason, bool from_ap)
@@ -773,6 +794,9 @@ int __cfg80211_connect(struct cfg80211_registered_device *rdev,
 		kfree(wdev->connect_keys);
 		wdev->connect_keys = NULL;
 	}
+
+	cfg80211_oper_and_ht_capa(&connect->ht_capa_mask,
+				  rdev->wiphy.ht_capa_mod_mask);
 
 	if (connkeys && connkeys->def >= 0) {
 		int idx;

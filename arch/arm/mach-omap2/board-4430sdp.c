@@ -27,13 +27,13 @@
 #include <linux/leds_pwm.h>
 
 #include <mach/hardware.h>
-#include <mach/omap4-common.h>
+#include <asm/hardware/gic.h>
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
 #include <asm/mach/map.h>
 
 #include <plat/board.h>
-#include <plat/common.h>
+#include "common.h"
 #include <plat/usb.h>
 #include <plat/mmc.h>
 #include <plat/omap4-keypad.h>
@@ -984,6 +984,8 @@ MACHINE_START(OMAP_4430SDP, "OMAP4430 4430SDP board")
 	.map_io		= omap4_map_io,
 	.init_early	= omap4430_init_early,
 	.init_irq	= gic_init_irq,
+	.handle_irq	= gic_handle_irq,
 	.init_machine	= omap_4430sdp_init,
 	.timer		= &omap4_timer,
+	.restart	= omap_prcm_restart,
 MACHINE_END

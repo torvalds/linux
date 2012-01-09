@@ -2109,10 +2109,11 @@ static int pch_gbe_change_mtu(struct net_device *netdev, int new_mtu)
  * Returns
  *	0:		HW state updated successfully
  */
-static int pch_gbe_set_features(struct net_device *netdev, u32 features)
+static int pch_gbe_set_features(struct net_device *netdev,
+	netdev_features_t features)
 {
 	struct pch_gbe_adapter *adapter = netdev_priv(netdev);
-	u32 changed = features ^ netdev->features;
+	netdev_features_t changed = features ^ netdev->features;
 
 	if (!(changed & NETIF_F_RXCSUM))
 		return 0;

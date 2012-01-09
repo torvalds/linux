@@ -447,18 +447,7 @@ static struct spi_driver ad5686_driver = {
 	.remove = __devexit_p(ad5686_remove),
 	.id_table = ad5686_id,
 };
-
-static __init int ad5686_spi_init(void)
-{
-	return spi_register_driver(&ad5686_driver);
-}
-module_init(ad5686_spi_init);
-
-static __exit void ad5686_spi_exit(void)
-{
-	spi_unregister_driver(&ad5686_driver);
-}
-module_exit(ad5686_spi_exit);
+module_spi_driver(ad5686_driver);
 
 MODULE_AUTHOR("Michael Hennerich <hennerich@blackfin.uclinux.org>");
 MODULE_DESCRIPTION("Analog Devices AD5686/85/84 DAC");

@@ -853,18 +853,7 @@ static struct spi_driver ade7758_driver = {
 	.remove = __devexit_p(ade7758_remove),
 	.id_table = ade7758_id,
 };
-
-static __init int ade7758_init(void)
-{
-	return spi_register_driver(&ade7758_driver);
-}
-module_init(ade7758_init);
-
-static __exit void ade7758_exit(void)
-{
-	spi_unregister_driver(&ade7758_driver);
-}
-module_exit(ade7758_exit);
+module_spi_driver(ade7758_driver);
 
 MODULE_AUTHOR("Barry Song <21cnbao@gmail.com>");
 MODULE_DESCRIPTION("Analog Devices ADE7758 Polyphase Multifunction Energy Metering IC Driver");

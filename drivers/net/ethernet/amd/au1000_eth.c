@@ -1339,18 +1339,7 @@ static struct platform_driver au1000_eth_driver = {
 		.owner  = THIS_MODULE,
 	},
 };
+
+module_platform_driver(au1000_eth_driver);
+
 MODULE_ALIAS("platform:au1000-eth");
-
-
-static int __init au1000_init_module(void)
-{
-	return platform_driver_register(&au1000_eth_driver);
-}
-
-static void __exit au1000_exit_module(void)
-{
-	platform_driver_unregister(&au1000_eth_driver);
-}
-
-module_init(au1000_init_module);
-module_exit(au1000_exit_module);
