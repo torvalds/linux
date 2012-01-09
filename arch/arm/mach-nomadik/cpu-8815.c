@@ -22,6 +22,9 @@
 #include <linux/amba/bus.h>
 #include <linux/platform_device.h>
 #include <linux/io.h>
+#include <linux/slab.h>
+#include <linux/irq.h>
+#include <linux/dma-mapping.h>
 
 #include <plat/gpio-nomadik.h>
 #include <mach/hardware.h>
@@ -34,12 +37,6 @@
 
 #include "clock.h"
 #include "cpu-8815.h"
-
-static AMBA_APB_DEVICE(cpu8815_amba_rng, "rng", 0, NOMADIK_RNG_BASE, { }, NULL);
-
-static struct amba_device *amba_devs[] __initdata = {
-	&cpu8815_amba_rng_device
-};
 
 /* The 8815 has 4 GPIO blocks, let's register them immediately */
 static resource_size_t __initdata cpu8815_gpio_base[] = {
@@ -88,15 +85,13 @@ void cpu8815_add_gpios(resource_size_t *base, int num, int irq,
 
 static int __init cpu8815_init(void)
 {
-	int i;
 	struct nmk_gpio_platform_data pdata = {
 		/* No custom data yet */
 	};
 
 	cpu8815_add_gpios(cpu8815_gpio_base, ARRAY_SIZE(cpu8815_gpio_base),
 			  IRQ_GPIO0, &pdata);
-	for (i = 0; i < ARRAY_SIZE(amba_devs); i++)
-		amba_device_register(amba_devs[i], &iomem_resource);
+	amba_apb_device_add(NULL, "rng", NOMADIK_RNG_BASE, SZ_4K, 0, 0, NULL, 0);
 	return 0;
 }
 arch_initcall(cpu8815_init);

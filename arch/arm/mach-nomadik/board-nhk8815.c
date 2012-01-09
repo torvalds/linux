@@ -185,17 +185,6 @@ static void __init nhk8815_onenand_init(void)
 #endif
 }
 
-static AMBA_APB_DEVICE(uart0, "uart0", 0, NOMADIK_UART0_BASE,
-	{ IRQ_UART0 }, NULL);
-
-static AMBA_APB_DEVICE(uart1, "uart1", 0, NOMADIK_UART1_BASE,
-	{ IRQ_UART1 }, NULL);
-
-static struct amba_device *amba_devs[] __initdata = {
-	&uart0_device,
-	&uart1_device,
-};
-
 static struct resource nhk8815_eth_resources[] = {
 	{
 		.name = "smc91x-regs",
@@ -255,15 +244,13 @@ static struct sys_timer nomadik_timer = {
 
 static void __init nhk8815_platform_init(void)
 {
-	int i;
-
 	cpu8815_platform_init();
 	nhk8815_onenand_init();
 	platform_add_devices(nhk8815_platform_devices,
 			     ARRAY_SIZE(nhk8815_platform_devices));
 
-	for (i = 0; i < ARRAY_SIZE(amba_devs); i++)
-		amba_device_register(amba_devs[i], &iomem_resource);
+	amba_apb_device_add(NULL, "uart0", NOMADIK_UART0_BASE, SZ_4K, IRQ_UART0, 0, NULL, 0);
+	amba_apb_device_add(NULL, "uart1", NOMADIK_UART1_BASE, SZ_4K, IRQ_UART1, 0, NULL, 0);
 }
 
 MACHINE_START(NOMADIK, "NHK8815")
