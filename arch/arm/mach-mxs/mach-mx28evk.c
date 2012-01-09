@@ -229,7 +229,7 @@ static void __init mx28evk_fec_reset(void)
 	/* Enable fec phy clock */
 	clk = clk_get_sys("pll2", NULL);
 	if (!IS_ERR(clk))
-		clk_enable(clk);
+		clk_prepare_enable(clk);
 
 	/* Power up fec phy */
 	ret = gpio_request(MX28EVK_FEC_PHY_POWER, "fec-phy-power");

@@ -804,11 +804,11 @@ int __init mx28_clocks_init(void)
 	clk_set_parent(&ssp0_clk, &ref_io0_clk);
 	clk_set_parent(&ssp1_clk, &ref_io0_clk);
 
-	clk_enable(&cpu_clk);
-	clk_enable(&hbus_clk);
-	clk_enable(&xbus_clk);
-	clk_enable(&emi_clk);
-	clk_enable(&uart_clk);
+	clk_prepare_enable(&cpu_clk);
+	clk_prepare_enable(&hbus_clk);
+	clk_prepare_enable(&xbus_clk);
+	clk_prepare_enable(&emi_clk);
+	clk_prepare_enable(&uart_clk);
 
 	clk_set_parent(&lcdif_clk, &ref_pix_clk);
 	clk_set_parent(&saif0_clk, &pll0_clk);
