@@ -800,17 +800,10 @@ static int dummy_set_selfpowered (struct usb_gadget *_gadget, int value)
 
 static void dummy_udc_udpate_ep0(struct dummy *dum)
 {
-	u32 i;
-
-	if (dum->gadget.speed == USB_SPEED_SUPER) {
-		for (i = 0; i < DUMMY_ENDPOINTS; i++)
-			dum->ep[i].ep.max_streams = 0x10;
+	if (dum->gadget.speed == USB_SPEED_SUPER)
 		dum->ep[0].ep.maxpacket = 9;
-	} else {
-		for (i = 0; i < DUMMY_ENDPOINTS; i++)
-			dum->ep[i].ep.max_streams = 0;
+	else
 		dum->ep[0].ep.maxpacket = 64;
-	}
 }
 
 static int dummy_pullup (struct usb_gadget *_gadget, int value)
@@ -954,6 +947,7 @@ static void init_dummy_udc_hw(struct dummy *dum)
 		ep->halted = ep->wedged = ep->already_seen =
 				ep->setup_stage = 0;
 		ep->ep.maxpacket = ~0;
+		ep->ep.max_streams = 16;
 		ep->last_io = jiffies;
 		ep->gadget = &dum->gadget;
 		ep->desc = NULL;
