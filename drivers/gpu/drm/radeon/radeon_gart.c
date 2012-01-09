@@ -603,7 +603,7 @@ int radeon_vm_bo_rmv(struct radeon_device *rdev,
 	radeon_vm_bo_update_pte(rdev, vm, bo, NULL);
 	radeon_mutex_unlock(&rdev->cs_mutex);
 	list_del(&bo_va->vm_list);
-	mutex_lock(&vm->mutex);
+	mutex_unlock(&vm->mutex);
 
 	kfree(bo_va);
 	return 0;
