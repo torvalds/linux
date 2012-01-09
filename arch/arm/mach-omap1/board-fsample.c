@@ -32,7 +32,7 @@
 #include <plat/flash.h>
 #include <plat/fpga.h>
 #include <plat/keypad.h>
-#include <plat/common.h>
+#include "common.h"
 #include <plat/board.h>
 
 /* fsample is pretty close to p2-sample */
@@ -390,4 +390,5 @@ MACHINE_START(OMAP_FSAMPLE, "OMAP730 F-Sample")
 	.init_irq	= omap1_init_irq,
 	.init_machine	= omap_fsample_init,
 	.timer		= &omap1_timer,
+	.restart	= omap1_restart,
 MACHINE_END

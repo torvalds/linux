@@ -274,4 +274,5 @@ MACHINE_START(MXT_TD60, "Maxtrack i-MXT TD60")
 	.handle_irq = imx27_handle_irq,
 	.timer = &mxt_td60_timer,
 	.init_machine = mxt_td60_board_init,
+	.restart	= mxc_restart,
 MACHINE_END

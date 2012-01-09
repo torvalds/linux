@@ -1,5 +1,3 @@
-#include <asm/hardware/entry-macro-gic.S>
-
 	.macro	disable_fiq
 	.endm
 

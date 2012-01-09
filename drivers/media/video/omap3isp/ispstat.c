@@ -496,7 +496,7 @@ static int isp_stat_bufs_alloc(struct ispstat *stat, u32 size)
 
 static void isp_stat_queue_event(struct ispstat *stat, int err)
 {
-	struct video_device *vdev = &stat->subdev.devnode;
+	struct video_device *vdev = stat->subdev.devnode;
 	struct v4l2_event event;
 	struct omap3isp_stat_event_status *status = (void *)event.u.data;
 

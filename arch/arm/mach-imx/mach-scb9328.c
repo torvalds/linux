@@ -144,4 +144,5 @@ MACHINE_START(SCB9328, "Synertronixx scb9328")
 	.handle_irq = imx1_handle_irq,
 	.timer = &scb9328_timer,
 	.init_machine = scb9328_init,
+	.restart	= mxc_restart,
 MACHINE_END

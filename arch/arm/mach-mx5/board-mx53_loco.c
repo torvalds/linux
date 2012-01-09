@@ -317,4 +317,5 @@ MACHINE_START(MX53_LOCO, "Freescale MX53 LOCO Board")
 	.handle_irq = imx53_handle_irq,
 	.timer = &mx53_loco_timer,
 	.init_machine = mx53_loco_board_init,
+	.restart	= mxc_restart,
 MACHINE_END

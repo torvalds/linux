@@ -137,7 +137,7 @@
 #include <linux/mutex.h>
 #include <linux/spinlock.h>
 
-#include <plat/common.h>
+#include "common.h"
 #include <plat/cpu.h>
 #include "clockdomain.h"
 #include "powerdomain.h"

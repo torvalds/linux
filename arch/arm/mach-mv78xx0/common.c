@@ -401,3 +401,19 @@ void __init mv78xx0_init(void)
 	feroceon_l2_init(is_l2_writethrough());
 #endif
 }
+
+void mv78xx0_restart(char mode, const char *cmd)
+{
+	/*
+	 * Enable soft reset to assert RSTOUTn.
+	 */
+	writel(SOFT_RESET_OUT_EN, RSTOUTn_MASK);
+
+	/*
+	 * Assert soft reset.
+	 */
+	writel(SOFT_RESET, SYSTEM_SOFT_RESET);
+
+	while (1)
+		;
+}

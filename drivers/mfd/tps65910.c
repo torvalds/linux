@@ -120,7 +120,7 @@ int tps65910_clear_bits(struct tps65910 *tps65910, u8 reg, u8 mask)
 		goto out;
 	}
 
-	data &= mask;
+	data &= ~mask;
 	err = tps65910_i2c_write(tps65910, reg, 1, &data);
 	if (err)
 		dev_err(tps65910->dev, "write to reg %x failed\n", reg);

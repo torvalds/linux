@@ -600,4 +600,5 @@ MACHINE_START(MX31MOBOARD, "EPFL Mobots mx31moboard")
 	.handle_irq = imx31_handle_irq,
 	.timer = &mx31moboard_timer,
 	.init_machine = mx31moboard_init,
+	.restart	= mxc_restart,
 MACHINE_END

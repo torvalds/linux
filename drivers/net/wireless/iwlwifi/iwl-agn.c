@@ -2850,6 +2850,9 @@ static int iwlagn_mac_tx_sync(struct ieee80211_hw *hw,
 	int ret;
 	u8 sta_id;
 
+	if (ctx->ctxid != IWL_RXON_CTX_PAN)
+		return 0;
+
 	IWL_DEBUG_MAC80211(priv, "enter\n");
 	mutex_lock(&priv->shrd->mutex);
 
@@ -2897,6 +2900,9 @@ static void iwlagn_mac_finish_tx_sync(struct ieee80211_hw *hw,
 	struct iwl_priv *priv = hw->priv;
 	struct iwl_vif_priv *vif_priv = (void *)vif->drv_priv;
 	struct iwl_rxon_context *ctx = vif_priv->ctx;
+
+	if (ctx->ctxid != IWL_RXON_CTX_PAN)
+		return;
 
 	IWL_DEBUG_MAC80211(priv, "enter\n");
 	mutex_lock(&priv->shrd->mutex);

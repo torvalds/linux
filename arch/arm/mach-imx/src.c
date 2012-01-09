@@ -19,6 +19,7 @@
 
 #define SRC_SCR				0x000
 #define SRC_GPR1			0x020
+#define BP_SRC_SCR_WARM_RESET_ENABLE	0
 #define BP_SRC_SCR_CORE1_RST		14
 #define BP_SRC_SCR_CORE1_ENABLE		22
 
@@ -46,11 +47,33 @@ void imx_set_cpu_jump(int cpu, void *jump_addr)
 		       src_base + SRC_GPR1 + cpu * 8);
 }
 
+void imx_src_prepare_restart(void)
+{
+	u32 val;
+
+	/* clear enable bits of secondary cores */
+	val = readl_relaxed(src_base + SRC_SCR);
+	val &= ~(0x7 << BP_SRC_SCR_CORE1_ENABLE);
+	writel_relaxed(val, src_base + SRC_SCR);
+
+	/* clear persistent entry register of primary core */
+	writel_relaxed(0, src_base + SRC_GPR1);
+}
+
 void __init imx_src_init(void)
 {
 	struct device_node *np;
+	u32 val;
 
 	np = of_find_compatible_node(NULL, NULL, "fsl,imx6q-src");
 	src_base = of_iomap(np, 0);
 	WARN_ON(!src_base);
+
+	/*
+	 * force warm reset sources to generate cold reset
+	 * for a more reliable restart
+	 */
+	val = readl_relaxed(src_base + SRC_SCR);
+	val &= ~(1 << BP_SRC_SCR_WARM_RESET_ENABLE);
+	writel_relaxed(val, src_base + SRC_SCR);
 }

@@ -259,6 +259,7 @@ MACHINE_START(ENP2611, "Radisys ENP-2611 PCI network processor board")
 	.init_irq	= ixp2000_init_irq,
 	.timer		= &enp2611_timer,
 	.init_machine	= enp2611_init_machine,
+	.restart	= ixp2000_restart,
 MACHINE_END
 
 

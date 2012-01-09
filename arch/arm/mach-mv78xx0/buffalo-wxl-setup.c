@@ -151,4 +151,5 @@ MACHINE_START(TERASTATION_WXL, "Buffalo Nas WXL")
 	.init_early	= mv78xx0_init_early,
 	.init_irq	= mv78xx0_init_irq,
 	.timer		= &mv78xx0_timer,
+	.restart	= mv78xx0_restart,
 MACHINE_END
