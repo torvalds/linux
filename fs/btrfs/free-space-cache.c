@@ -319,9 +319,11 @@ static void io_ctl_drop_pages(struct io_ctl *io_ctl)
 	io_ctl_unmap_page(io_ctl);
 
 	for (i = 0; i < io_ctl->num_pages; i++) {
-		ClearPageChecked(io_ctl->pages[i]);
-		unlock_page(io_ctl->pages[i]);
-		page_cache_release(io_ctl->pages[i]);
+		if (io_ctl->pages[i]) {
+			ClearPageChecked(io_ctl->pages[i]);
+			unlock_page(io_ctl->pages[i]);
+			page_cache_release(io_ctl->pages[i]);
+		}
 	}
 }
 
