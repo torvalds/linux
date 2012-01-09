@@ -429,6 +429,7 @@ struct gfs2_jdesc {
 #define JDF_RECOVERY 1
 	unsigned int jd_jid;
 	unsigned int jd_blocks;
+	int jd_recover_error;
 };
 
 struct gfs2_statfs_change_host {

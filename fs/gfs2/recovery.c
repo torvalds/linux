@@ -583,6 +583,7 @@ fail_gunlock_j:
 
 	fs_info(sdp, "jid=%u: %s\n", jd->jd_jid, (error) ? "Failed" : "Done");
 fail:
+	jd->jd_recover_error = error;
 	gfs2_recovery_done(sdp, jd->jd_jid, LM_RD_GAVEUP);
 done:
 	clear_bit(JDF_RECOVERY, &jd->jd_flags);
@@ -611,6 +612,6 @@ int gfs2_recover_journal(struct gfs2_jdesc *jd, bool wait)
 		wait_on_bit(&jd->jd_flags, JDF_RECOVERY, gfs2_recovery_wait,
 			    TASK_UNINTERRUPTIBLE);
 
-	return 0;
+	return wait ? jd->jd_recover_error : 0;
 }
 
