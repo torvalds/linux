@@ -47,6 +47,8 @@
 
 #include <plat/common-smdk.h>
 
+#include "common.h"
+
 static struct map_desc smdk2440_iodesc[] __initdata = {
 	/* ISA IO Space map (memory space selected by A24) */
 
@@ -181,4 +183,5 @@ MACHINE_START(S3C2440, "SMDK2440")
 	.map_io		= smdk2440_map_io,
 	.init_machine	= smdk2440_machine_init,
 	.timer		= &s3c24xx_timer,
+	.restart	= s3c2440_restart,
 MACHINE_END

@@ -251,4 +251,5 @@ MACHINE_START(TS72XX, "Technologic Systems TS-72xx SBC")
 	.handle_irq	= vic_handle_irq,
 	.timer		= &ep93xx_timer,
 	.init_machine	= ts72xx_init_machine,
+	.restart	= ep93xx_restart,
 MACHINE_END

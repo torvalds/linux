@@ -32,11 +32,17 @@
 
 #include <mach/at91_rtc.h>
 
+#define at91_rtc_read(field) \
+	__raw_readl(at91_rtc_regs + field)
+#define at91_rtc_write(field, val) \
+	__raw_writel((val), at91_rtc_regs + field)
 
 #define AT91_RTC_EPOCH		1900UL	/* just like arch/arm/common/rtctime.c */
 
 static DECLARE_COMPLETION(at91_rtc_updated);
 static unsigned int at91_alarm_year = AT91_RTC_EPOCH;
+static void __iomem *at91_rtc_regs;
+static int irq;
 
 /*
  * Decode time/date into rtc_time structure
@@ -48,10 +54,10 @@ static void at91_rtc_decodetime(unsigned int timereg, unsigned int calreg,
 
 	/* must read twice in case it changes */
 	do {
-		time = at91_sys_read(timereg);
-		date = at91_sys_read(calreg);
-	} while ((time != at91_sys_read(timereg)) ||
-			(date != at91_sys_read(calreg)));
+		time = at91_rtc_read(timereg);
+		date = at91_rtc_read(calreg);
+	} while ((time != at91_rtc_read(timereg)) ||
+			(date != at91_rtc_read(calreg)));
 
 	tm->tm_sec  = bcd2bin((time & AT91_RTC_SEC) >> 0);
 	tm->tm_min  = bcd2bin((time & AT91_RTC_MIN) >> 8);
@@ -98,19 +104,19 @@ static int at91_rtc_settime(struct device *dev, struct rtc_time *tm)
 		tm->tm_hour, tm->tm_min, tm->tm_sec);
 
 	/* Stop Time/Calendar from counting */
-	cr = at91_sys_read(AT91_RTC_CR);
-	at91_sys_write(AT91_RTC_CR, cr | AT91_RTC_UPDCAL | AT91_RTC_UPDTIM);
+	cr = at91_rtc_read(AT91_RTC_CR);
+	at91_rtc_write(AT91_RTC_CR, cr | AT91_RTC_UPDCAL | AT91_RTC_UPDTIM);
 
-	at91_sys_write(AT91_RTC_IER, AT91_RTC_ACKUPD);
+	at91_rtc_write(AT91_RTC_IER, AT91_RTC_ACKUPD);
 	wait_for_completion(&at91_rtc_updated);	/* wait for ACKUPD interrupt */
-	at91_sys_write(AT91_RTC_IDR, AT91_RTC_ACKUPD);
+	at91_rtc_write(AT91_RTC_IDR, AT91_RTC_ACKUPD);
 
-	at91_sys_write(AT91_RTC_TIMR,
+	at91_rtc_write(AT91_RTC_TIMR,
 			  bin2bcd(tm->tm_sec) << 0
 			| bin2bcd(tm->tm_min) << 8
 			| bin2bcd(tm->tm_hour) << 16);
 
-	at91_sys_write(AT91_RTC_CALR,
+	at91_rtc_write(AT91_RTC_CALR,
 			  bin2bcd((tm->tm_year + 1900) / 100)	/* century */
 			| bin2bcd(tm->tm_year % 100) << 8	/* year */
 			| bin2bcd(tm->tm_mon + 1) << 16		/* tm_mon starts at zero */
@@ -118,8 +124,8 @@ static int at91_rtc_settime(struct device *dev, struct rtc_time *tm)
 			| bin2bcd(tm->tm_mday) << 24);
 
 	/* Restart Time/Calendar */
-	cr = at91_sys_read(AT91_RTC_CR);
-	at91_sys_write(AT91_RTC_CR, cr & ~(AT91_RTC_UPDCAL | AT91_RTC_UPDTIM));
+	cr = at91_rtc_read(AT91_RTC_CR);
+	at91_rtc_write(AT91_RTC_CR, cr & ~(AT91_RTC_UPDCAL | AT91_RTC_UPDTIM));
 
 	return 0;
 }
@@ -135,7 +141,7 @@ static int at91_rtc_readalarm(struct device *dev, struct rtc_wkalrm *alrm)
 	tm->tm_yday = rtc_year_days(tm->tm_mday, tm->tm_mon, tm->tm_year);
 	tm->tm_year = at91_alarm_year - 1900;
 
-	alrm->enabled = (at91_sys_read(AT91_RTC_IMR) & AT91_RTC_ALARM)
+	alrm->enabled = (at91_rtc_read(AT91_RTC_IMR) & AT91_RTC_ALARM)
 			? 1 : 0;
 
 	pr_debug("%s(): %4d-%02d-%02d %02d:%02d:%02d\n", __func__,
@@ -160,20 +166,20 @@ static int at91_rtc_setalarm(struct device *dev, struct rtc_wkalrm *alrm)
 	tm.tm_min = alrm->time.tm_min;
 	tm.tm_sec = alrm->time.tm_sec;
 
-	at91_sys_write(AT91_RTC_IDR, AT91_RTC_ALARM);
-	at91_sys_write(AT91_RTC_TIMALR,
+	at91_rtc_write(AT91_RTC_IDR, AT91_RTC_ALARM);
+	at91_rtc_write(AT91_RTC_TIMALR,
 		  bin2bcd(tm.tm_sec) << 0
 		| bin2bcd(tm.tm_min) << 8
 		| bin2bcd(tm.tm_hour) << 16
 		| AT91_RTC_HOUREN | AT91_RTC_MINEN | AT91_RTC_SECEN);
-	at91_sys_write(AT91_RTC_CALALR,
+	at91_rtc_write(AT91_RTC_CALALR,
 		  bin2bcd(tm.tm_mon + 1) << 16		/* tm_mon starts at zero */
 		| bin2bcd(tm.tm_mday) << 24
 		| AT91_RTC_DATEEN | AT91_RTC_MTHEN);
 
 	if (alrm->enabled) {
-		at91_sys_write(AT91_RTC_SCCR, AT91_RTC_ALARM);
-		at91_sys_write(AT91_RTC_IER, AT91_RTC_ALARM);
+		at91_rtc_write(AT91_RTC_SCCR, AT91_RTC_ALARM);
+		at91_rtc_write(AT91_RTC_IER, AT91_RTC_ALARM);
 	}
 
 	pr_debug("%s(): %4d-%02d-%02d %02d:%02d:%02d\n", __func__,
@@ -188,10 +194,10 @@ static int at91_rtc_alarm_irq_enable(struct device *dev, unsigned int enabled)
 	pr_debug("%s(): cmd=%08x\n", __func__, enabled);
 
 	if (enabled) {
-		at91_sys_write(AT91_RTC_SCCR, AT91_RTC_ALARM);
-		at91_sys_write(AT91_RTC_IER, AT91_RTC_ALARM);
+		at91_rtc_write(AT91_RTC_SCCR, AT91_RTC_ALARM);
+		at91_rtc_write(AT91_RTC_IER, AT91_RTC_ALARM);
 	} else
-		at91_sys_write(AT91_RTC_IDR, AT91_RTC_ALARM);
+		at91_rtc_write(AT91_RTC_IDR, AT91_RTC_ALARM);
 
 	return 0;
 }
@@ -200,7 +206,7 @@ static int at91_rtc_alarm_irq_enable(struct device *dev, unsigned int enabled)
  */
 static int at91_rtc_proc(struct device *dev, struct seq_file *seq)
 {
-	unsigned long imr = at91_sys_read(AT91_RTC_IMR);
+	unsigned long imr = at91_rtc_read(AT91_RTC_IMR);
 
 	seq_printf(seq, "update_IRQ\t: %s\n",
 			(imr & AT91_RTC_ACKUPD) ? "yes" : "no");
@@ -220,7 +226,7 @@ static irqreturn_t at91_rtc_interrupt(int irq, void *dev_id)
 	unsigned int rtsr;
 	unsigned long events = 0;
 
-	rtsr = at91_sys_read(AT91_RTC_SR) & at91_sys_read(AT91_RTC_IMR);
+	rtsr = at91_rtc_read(AT91_RTC_SR) & at91_rtc_read(AT91_RTC_IMR);
 	if (rtsr) {		/* this interrupt is shared!  Is it ours? */
 		if (rtsr & AT91_RTC_ALARM)
 			events |= (RTC_AF | RTC_IRQF);
@@ -229,7 +235,7 @@ static irqreturn_t at91_rtc_interrupt(int irq, void *dev_id)
 		if (rtsr & AT91_RTC_ACKUPD)
 			complete(&at91_rtc_updated);
 
-		at91_sys_write(AT91_RTC_SCCR, rtsr);	/* clear status reg */
+		at91_rtc_write(AT91_RTC_SCCR, rtsr);	/* clear status reg */
 
 		rtc_update_irq(rtc, 1, events);
 
@@ -256,22 +262,41 @@ static const struct rtc_class_ops at91_rtc_ops = {
 static int __init at91_rtc_probe(struct platform_device *pdev)
 {
 	struct rtc_device *rtc;
-	int ret;
+	struct resource *regs;
+	int ret = 0;
 
-	at91_sys_write(AT91_RTC_CR, 0);
-	at91_sys_write(AT91_RTC_MR, 0);		/* 24 hour mode */
+	regs = platform_get_resource(pdev, IORESOURCE_MEM, 0);
+	if (!regs) {
+		dev_err(&pdev->dev, "no mmio resource defined\n");
+		return -ENXIO;
+	}
+
+	irq = platform_get_irq(pdev, 0);
+	if (irq < 0) {
+		dev_err(&pdev->dev, "no irq resource defined\n");
+		return -ENXIO;
+	}
+
+	at91_rtc_regs = ioremap(regs->start, resource_size(regs));
+	if (!at91_rtc_regs) {
+		dev_err(&pdev->dev, "failed to map registers, aborting.\n");
+		return -ENOMEM;
+	}
+
+	at91_rtc_write(AT91_RTC_CR, 0);
+	at91_rtc_write(AT91_RTC_MR, 0);		/* 24 hour mode */
 
 	/* Disable all interrupts */
-	at91_sys_write(AT91_RTC_IDR, AT91_RTC_ACKUPD | AT91_RTC_ALARM |
+	at91_rtc_write(AT91_RTC_IDR, AT91_RTC_ACKUPD | AT91_RTC_ALARM |
 					AT91_RTC_SECEV | AT91_RTC_TIMEV |
 					AT91_RTC_CALEV);
 
-	ret = request_irq(AT91_ID_SYS, at91_rtc_interrupt,
+	ret = request_irq(irq, at91_rtc_interrupt,
 				IRQF_SHARED,
 				"at91_rtc", pdev);
 	if (ret) {
 		printk(KERN_ERR "at91_rtc: IRQ %d already in use.\n",
-				AT91_ID_SYS);
+				irq);
 		return ret;
 	}
 
@@ -284,7 +309,7 @@ static int __init at91_rtc_probe(struct platform_device *pdev)
 	rtc = rtc_device_register(pdev->name, &pdev->dev,
 				&at91_rtc_ops, THIS_MODULE);
 	if (IS_ERR(rtc)) {
-		free_irq(AT91_ID_SYS, pdev);
+		free_irq(irq, pdev);
 		return PTR_ERR(rtc);
 	}
 	platform_set_drvdata(pdev, rtc);
@@ -301,10 +326,10 @@ static int __exit at91_rtc_remove(struct platform_device *pdev)
 	struct rtc_device *rtc = platform_get_drvdata(pdev);
 
 	/* Disable all interrupts */
-	at91_sys_write(AT91_RTC_IDR, AT91_RTC_ACKUPD | AT91_RTC_ALARM |
+	at91_rtc_write(AT91_RTC_IDR, AT91_RTC_ACKUPD | AT91_RTC_ALARM |
 					AT91_RTC_SECEV | AT91_RTC_TIMEV |
 					AT91_RTC_CALEV);
-	free_irq(AT91_ID_SYS, pdev);
+	free_irq(irq, pdev);
 
 	rtc_device_unregister(rtc);
 	platform_set_drvdata(pdev, NULL);
@@ -323,13 +348,13 @@ static int at91_rtc_suspend(struct device *dev)
 	/* this IRQ is shared with DBGU and other hardware which isn't
 	 * necessarily doing PM like we are...
 	 */
-	at91_rtc_imr = at91_sys_read(AT91_RTC_IMR)
+	at91_rtc_imr = at91_rtc_read(AT91_RTC_IMR)
 			& (AT91_RTC_ALARM|AT91_RTC_SECEV);
 	if (at91_rtc_imr) {
 		if (device_may_wakeup(dev))
-			enable_irq_wake(AT91_ID_SYS);
+			enable_irq_wake(irq);
 		else
-			at91_sys_write(AT91_RTC_IDR, at91_rtc_imr);
+			at91_rtc_write(AT91_RTC_IDR, at91_rtc_imr);
 	}
 	return 0;
 }
@@ -338,9 +363,9 @@ static int at91_rtc_resume(struct device *dev)
 {
 	if (at91_rtc_imr) {
 		if (device_may_wakeup(dev))
-			disable_irq_wake(AT91_ID_SYS);
+			disable_irq_wake(irq);
 		else
-			at91_sys_write(AT91_RTC_IER, at91_rtc_imr);
+			at91_rtc_write(AT91_RTC_IER, at91_rtc_imr);
 	}
 	return 0;
 }

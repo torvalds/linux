@@ -43,8 +43,10 @@ config ARCH_OMAP4
 	bool "TI OMAP4"
 	default y
 	depends on ARCH_OMAP2PLUS
+	select CACHE_L2X0
 	select CPU_V7
 	select ARM_GIC
+	select HAVE_SMP
 	select LOCAL_TIMERS if SMP
 	select PL310_ERRATA_588369
 	select PL310_ERRATA_727915

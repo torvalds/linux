@@ -435,14 +435,11 @@ static int __devinit sdhci_s3c_probe(struct platform_device *pdev)
 
 	for (clks = 0, ptr = 0; ptr < MAX_BUS_CLK; ptr++) {
 		struct clk *clk;
-		char *name = pdata->clocks[ptr];
+		char name[14];
 
-		if (name == NULL)
-			continue;
-
+		snprintf(name, 14, "mmc_busclk.%d", ptr);
 		clk = clk_get(dev, name);
 		if (IS_ERR(clk)) {
-			dev_err(dev, "failed to get clock %s\n", name);
 			continue;
 		}
 
@@ -622,23 +619,29 @@ static int __devexit sdhci_s3c_remove(struct platform_device *pdev)
 
 #ifdef CONFIG_PM
 
-static int sdhci_s3c_suspend(struct platform_device *dev, pm_message_t pm)
+static int sdhci_s3c_suspend(struct device *dev)
 {
-	struct sdhci_host *host = platform_get_drvdata(dev);
+	struct sdhci_host *host = dev_get_drvdata(dev);
 
-	return sdhci_suspend_host(host, pm);
+	return sdhci_suspend_host(host);
 }
 
-static int sdhci_s3c_resume(struct platform_device *dev)
+static int sdhci_s3c_resume(struct device *dev)
 {
-	struct sdhci_host *host = platform_get_drvdata(dev);
+	struct sdhci_host *host = dev_get_drvdata(dev);
 
 	return sdhci_resume_host(host);
 }
 
+static const struct dev_pm_ops sdhci_s3c_pmops = {
+	.suspend	= sdhci_s3c_suspend,
+	.resume		= sdhci_s3c_resume,
+};
+
+#define SDHCI_S3C_PMOPS (&sdhci_s3c_pmops)
+
 #else
-#define sdhci_s3c_suspend NULL
-#define sdhci_s3c_resume NULL
+#define SDHCI_S3C_PMOPS NULL
 #endif
 
 static struct platform_driver sdhci_s3c_driver = {
@@ -647,6 +650,7 @@ static struct platform_driver sdhci_s3c_driver = {
 	.driver		= {
 		.owner	= THIS_MODULE,
 		.name	= "s3c-sdhci",
+		.pm	= SDHCI_S3C_PMOPS,
 	},
 };
 

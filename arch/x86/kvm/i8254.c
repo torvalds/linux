@@ -338,10 +338,14 @@ static enum hrtimer_restart pit_timer_fn(struct hrtimer *data)
 		return HRTIMER_NORESTART;
 }
 
-static void create_pit_timer(struct kvm_kpit_state *ps, u32 val, int is_period)
+static void create_pit_timer(struct kvm *kvm, u32 val, int is_period)
 {
+	struct kvm_kpit_state *ps = &kvm->arch.vpit->pit_state;
 	struct kvm_timer *pt = &ps->pit_timer;
 	s64 interval;
+
+	if (!irqchip_in_kernel(kvm))
+		return;
 
 	interval = muldiv64(val, NSEC_PER_SEC, KVM_PIT_FREQ);
 
@@ -394,13 +398,13 @@ static void pit_load_count(struct kvm *kvm, int channel, u32 val)
         /* FIXME: enhance mode 4 precision */
 	case 4:
 		if (!(ps->flags & KVM_PIT_FLAGS_HPET_LEGACY)) {
-			create_pit_timer(ps, val, 0);
+			create_pit_timer(kvm, val, 0);
 		}
 		break;
 	case 2:
 	case 3:
 		if (!(ps->flags & KVM_PIT_FLAGS_HPET_LEGACY)){
-			create_pit_timer(ps, val, 1);
+			create_pit_timer(kvm, val, 1);
 		}
 		break;
 	default:

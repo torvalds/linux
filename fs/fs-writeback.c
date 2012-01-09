@@ -47,17 +47,6 @@ struct wb_writeback_work {
 	struct completion *done;	/* set if the caller waits */
 };
 
-const char *wb_reason_name[] = {
-	[WB_REASON_BACKGROUND]		= "background",
-	[WB_REASON_TRY_TO_FREE_PAGES]	= "try_to_free_pages",
-	[WB_REASON_SYNC]		= "sync",
-	[WB_REASON_PERIODIC]		= "periodic",
-	[WB_REASON_LAPTOP_TIMER]	= "laptop_timer",
-	[WB_REASON_FREE_MORE_MEM]	= "free_more_memory",
-	[WB_REASON_FS_FREE_SPACE]	= "fs_free_space",
-	[WB_REASON_FORKER_THREAD]	= "forker_thread"
-};
-
 /*
  * Include the creation of the trace points after defining the
  * wb_writeback_work structure so that the definition remains local to this

@@ -2513,6 +2513,9 @@ static int cma_resolve_ib_udp(struct rdma_id_private *id_priv,
 
 	req.private_data_len = sizeof(struct cma_hdr) +
 			       conn_param->private_data_len;
+	if (req.private_data_len < conn_param->private_data_len)
+		return -EINVAL;
+
 	req.private_data = kzalloc(req.private_data_len, GFP_ATOMIC);
 	if (!req.private_data)
 		return -ENOMEM;
@@ -2562,6 +2565,9 @@ static int cma_connect_ib(struct rdma_id_private *id_priv,
 	memset(&req, 0, sizeof req);
 	offset = cma_user_data_offset(id_priv->id.ps);
 	req.private_data_len = offset + conn_param->private_data_len;
+	if (req.private_data_len < conn_param->private_data_len)
+		return -EINVAL;
+
 	private_data = kzalloc(req.private_data_len, GFP_ATOMIC);
 	if (!private_data)
 		return -ENOMEM;

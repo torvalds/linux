@@ -31,6 +31,7 @@ struct samsung_dma_info {
 	enum dma_slave_buswidth width;
 	dma_addr_t fifo;
 	struct s3c2410_dma_client *client;
+	struct property *dt_dmach_prop;
 };
 
 struct samsung_dma_ops {

@@ -31,7 +31,6 @@
 #include <asm/irq.h>
 
 #include <mach/regs-s3c2443-clock.h>
-#include <mach/reset.h>
 
 #include <plat/gpio-core.h>
 #include <plat/gpio-cfg.h>
@@ -57,16 +56,17 @@ static struct sys_device s3c2443_sysdev = {
 	.cls		= &s3c2443_sysclass,
 };
 
-static void s3c2443_hard_reset(void)
+void s3c2443_restart(char mode, const char *cmd)
 {
+	if (mode == 's')
+		soft_restart(0);
+
 	__raw_writel(S3C2443_SWRST_RESET, S3C2443_SWRST);
 }
 
 int __init s3c2443_init(void)
 {
 	printk("S3C2443: Initialising architecture\n");
-
-	s3c24xx_reset_hook = s3c2443_hard_reset;
 
 	s3c_nand_setname("s3c2412-nand");
 	s3c_fb_setname("s3c2443-fb");

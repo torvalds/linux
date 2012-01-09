@@ -390,6 +390,11 @@ extern int vmw_context_check(struct vmw_private *dev_priv,
 			     struct ttm_object_file *tfile,
 			     int id,
 			     struct vmw_resource **p_res);
+extern int vmw_user_lookup_handle(struct vmw_private *dev_priv,
+				  struct ttm_object_file *tfile,
+				  uint32_t handle,
+				  struct vmw_surface **out_surf,
+				  struct vmw_dma_buffer **out_buf);
 extern void vmw_surface_res_free(struct vmw_resource *res);
 extern int vmw_surface_init(struct vmw_private *dev_priv,
 			    struct vmw_surface *srf,

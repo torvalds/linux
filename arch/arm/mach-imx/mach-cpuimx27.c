@@ -318,4 +318,5 @@ MACHINE_START(EUKREA_CPUIMX27, "EUKREA CPUIMX27")
 	.handle_irq = imx27_handle_irq,
 	.timer = &eukrea_cpuimx27_timer,
 	.init_machine = eukrea_cpuimx27_init,
+	.restart	= mxc_restart,
 MACHINE_END

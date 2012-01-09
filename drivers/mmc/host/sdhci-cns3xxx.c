@@ -109,13 +109,10 @@ static struct platform_driver sdhci_cns3xxx_driver = {
 	.driver		= {
 		.name	= "sdhci-cns3xxx",
 		.owner	= THIS_MODULE,
+		.pm	= SDHCI_PLTFM_PMOPS,
 	},
 	.probe		= sdhci_cns3xxx_probe,
 	.remove		= __devexit_p(sdhci_cns3xxx_remove),
-#ifdef CONFIG_PM
-	.suspend	= sdhci_pltfm_suspend,
-	.resume		= sdhci_pltfm_resume,
-#endif
 };
 
 static int __init sdhci_cns3xxx_init(void)

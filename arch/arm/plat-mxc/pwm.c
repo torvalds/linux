@@ -77,6 +77,15 @@ int pwm_config(struct pwm_device *pwm, int duty_ns, int period_ns)
 		do_div(c, period_ns);
 		duty_cycles = c;
 
+		/*
+		 * according to imx pwm RM, the real period value should be
+		 * PERIOD value in PWMPR plus 2.
+		 */
+		if (period_cycles > 2)
+			period_cycles -= 2;
+		else
+			period_cycles = 0;
+
 		writel(duty_cycles, pwm->mmio_base + MX3_PWMSAR);
 		writel(period_cycles, pwm->mmio_base + MX3_PWMPR);
 

@@ -244,4 +244,5 @@ MACHINE_START(ARCOM_VULCAN, "Arcom/Eurotech Vulcan")
 #if defined(CONFIG_PCI)
 	.dma_zone_size	= SZ_64M,
 #endif
+	.restart	= ixp4xx_restart,
 MACHINE_END

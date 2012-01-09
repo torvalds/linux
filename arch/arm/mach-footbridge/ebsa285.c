@@ -21,5 +21,6 @@ MACHINE_START(EBSA285, "EBSA285")
 	.map_io		= footbridge_map_io,
 	.init_irq	= footbridge_init_irq,
 	.timer		= &footbridge_timer,
+	.restart	= footbridge_restart,
 MACHINE_END
 

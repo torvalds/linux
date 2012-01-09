@@ -494,4 +494,5 @@ MACHINE_START(OMAP3517EVM, "OMAP3517/AM3517 EVM")
 	.handle_irq	= omap3_intc_handle_irq,
 	.init_machine	= am3517_evm_init,
 	.timer		= &omap3_timer,
+	.restart	= omap_prcm_restart,
 MACHINE_END

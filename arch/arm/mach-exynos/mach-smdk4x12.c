@@ -28,7 +28,6 @@
 #include <plat/clock.h>
 #include <plat/cpu.h>
 #include <plat/devs.h>
-#include <plat/exynos4.h>
 #include <plat/gpio-cfg.h>
 #include <plat/iic.h>
 #include <plat/keypad.h>
@@ -36,6 +35,8 @@
 #include <plat/sdhci.h>
 
 #include <mach/map.h>
+
+#include "common.h"
 
 /* Following are default values for UCON, ULCON and UFCON UART registers */
 #define SMDK4X12_UCON_DEFAULT	(S3C2410_UCON_TXILEVEL |	\
@@ -250,7 +251,7 @@ static void __init smdk4x12_map_io(void)
 {
 	clk_xusbxti.rate = 24000000;
 
-	s5p_init_io(NULL, 0, S5P_VA_CHIPID);
+	exynos_init_io(NULL, 0);
 	s3c24xx_init_clocks(clk_xusbxti.rate);
 	s3c24xx_init_uarts(smdk4x12_uartcfgs, ARRAY_SIZE(smdk4x12_uartcfgs));
 }
@@ -291,6 +292,7 @@ MACHINE_START(SMDK4212, "SMDK4212")
 	.handle_irq	= gic_handle_irq,
 	.init_machine	= smdk4x12_machine_init,
 	.timer		= &exynos4_timer,
+	.restart	= exynos4_restart,
 MACHINE_END
 
 MACHINE_START(SMDK4412, "SMDK4412")
@@ -302,4 +304,5 @@ MACHINE_START(SMDK4412, "SMDK4412")
 	.handle_irq	= gic_handle_irq,
 	.init_machine	= smdk4x12_machine_init,
 	.timer		= &exynos4_timer,
+	.restart	= exynos4_restart,
 MACHINE_END

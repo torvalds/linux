@@ -50,4 +50,5 @@ DT_MACHINE_START(VERSATILE_PB, "ARM-Versatile (Device Tree Support)")
 	.timer		= &versatile_timer,
 	.init_machine	= versatile_dt_init,
 	.dt_compat	= versatile_dt_match,
+	.restart	= versatile_restart,
 MACHINE_END

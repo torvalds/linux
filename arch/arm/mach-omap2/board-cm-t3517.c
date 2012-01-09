@@ -302,4 +302,5 @@ MACHINE_START(CM_T3517, "Compulab CM-T3517")
 	.handle_irq	= omap3_intc_handle_irq,
 	.init_machine	= cm_t3517_init,
 	.timer		= &omap3_timer,
+	.restart	= omap_prcm_restart,
 MACHINE_END

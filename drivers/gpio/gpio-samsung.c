@@ -24,6 +24,9 @@
 #include <linux/interrupt.h>
 #include <linux/sysdev.h>
 #include <linux/ioport.h>
+#include <linux/of.h>
+#include <linux/slab.h>
+#include <linux/of_address.h>
 
 #include <asm/irq.h>
 
@@ -2374,6 +2377,63 @@ static struct samsung_gpio_chip exynos4_gpios_3[] = {
 #endif
 };
 
+#if defined(CONFIG_ARCH_EXYNOS4) && defined(CONFIG_OF)
+static int exynos4_gpio_xlate(struct gpio_chip *gc, struct device_node *np,
+			      const void *gpio_spec, u32 *flags)
+{
+	const __be32 *gpio = gpio_spec;
+	const u32 n = be32_to_cpup(gpio);
+	unsigned int pin = gc->base + be32_to_cpu(gpio[0]);
+
+	if (WARN_ON(gc->of_gpio_n_cells < 4))
+		return -EINVAL;
+
+	if (n > gc->ngpio)
+		return -EINVAL;
+
+	if (s3c_gpio_cfgpin(pin, S3C_GPIO_SFN(be32_to_cpu(gpio[1]))))
+		pr_warn("gpio_xlate: failed to set pin function\n");
+	if (s3c_gpio_setpull(pin, be32_to_cpu(gpio[2])))
+		pr_warn("gpio_xlate: failed to set pin pull up/down\n");
+	if (s5p_gpio_set_drvstr(pin, be32_to_cpu(gpio[3])))
+		pr_warn("gpio_xlate: failed to set pin drive strength\n");
+
+	return n;
+}
+
+static const struct of_device_id exynos4_gpio_dt_match[] __initdata = {
+	{ .compatible = "samsung,exynos4-gpio", },
+	{}
+};
+
+static __init void exynos4_gpiolib_attach_ofnode(struct samsung_gpio_chip *chip,
+						 u64 base, u64 offset)
+{
+	struct gpio_chip *gc =  &chip->chip;
+	u64 address;
+
+	if (!of_have_populated_dt())
+		return;
+
+	address = chip->base ? base + ((u32)chip->base & 0xfff) : base + offset;
+	gc->of_node = of_find_matching_node_by_address(NULL,
+			exynos4_gpio_dt_match, address);
+	if (!gc->of_node) {
+		pr_info("gpio: device tree node not found for gpio controller"
+			" with base address %08llx\n", address);
+		return;
+	}
+	gc->of_gpio_n_cells = 4;
+	gc->of_xlate = exynos4_gpio_xlate;
+}
+#elif defined(CONFIG_ARCH_EXYNOS4)
+static __init void exynos4_gpiolib_attach_ofnode(struct samsung_gpio_chip *chip,
+						 u64 base, u64 offset)
+{
+	return;
+}
+#endif /* defined(CONFIG_ARCH_EXYNOS4) && defined(CONFIG_OF) */
+
 /* TODO: cleanup soc_is_* */
 static __init int samsung_gpiolib_init(void)
 {
@@ -2455,6 +2515,10 @@ static __init int samsung_gpiolib_init(void)
 				chip->config = &exynos4_gpio_cfg;
 				chip->group = group++;
 			}
+#ifdef CONFIG_CPU_EXYNOS4210
+			exynos4_gpiolib_attach_ofnode(chip,
+					EXYNOS4_PA_GPIO1, i * 0x20);
+#endif
 		}
 		samsung_gpiolib_add_4bit_chips(exynos4_gpios_1, nr_chips, S5P_VA_GPIO1);
 
@@ -2467,6 +2531,10 @@ static __init int samsung_gpiolib_init(void)
 				chip->config = &exynos4_gpio_cfg;
 				chip->group = group++;
 			}
+#ifdef CONFIG_CPU_EXYNOS4210
+			exynos4_gpiolib_attach_ofnode(chip,
+					EXYNOS4_PA_GPIO2, i * 0x20);
+#endif
 		}
 		samsung_gpiolib_add_4bit_chips(exynos4_gpios_2, nr_chips, S5P_VA_GPIO2);
 
@@ -2479,6 +2547,10 @@ static __init int samsung_gpiolib_init(void)
 				chip->config = &exynos4_gpio_cfg;
 				chip->group = group++;
 			}
+#ifdef CONFIG_CPU_EXYNOS4210
+			exynos4_gpiolib_attach_ofnode(chip,
+					EXYNOS4_PA_GPIO3, i * 0x20);
+#endif
 		}
 		samsung_gpiolib_add_4bit_chips(exynos4_gpios_3, nr_chips, S5P_VA_GPIO3);
 

@@ -756,9 +756,9 @@ intel_enable_semaphores(struct drm_device *dev)
 	if (i915_semaphores >= 0)
 		return i915_semaphores;
 
-	/* Enable semaphores on SNB when IO remapping is off */
+	/* Disable semaphores on SNB */
 	if (INTEL_INFO(dev)->gen == 6)
-		return !intel_iommu_enabled;
+		return 0;
 
 	return 1;
 }

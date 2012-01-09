@@ -149,4 +149,5 @@ MACHINE_START(APF9328, "Armadeus APF9328")
 	.handle_irq   = imx1_handle_irq,
 	.timer        = &apf9328_timer,
 	.init_machine = apf9328_init,
+	.restart	= mxc_restart,
 MACHINE_END

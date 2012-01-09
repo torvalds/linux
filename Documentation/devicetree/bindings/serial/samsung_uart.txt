@@ -1,0 +1,14 @@
+* Samsung's UART Controller
+
+The Samsung's UART controller is used for interfacing SoC with serial communicaion
+devices.
+
+Required properties:
+- compatible: should be
+  - "samsung,exynos4210-uart", for UART's compatible with Exynos4210 uart ports.
+
+- reg: base physical address of the controller and length of memory mapped
+  region.
+
+- interrupts: interrupt number to the cpu. The interrupt specifier format depends
+  on the interrupt controller parent.

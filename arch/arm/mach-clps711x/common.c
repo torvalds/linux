@@ -220,3 +220,8 @@ struct sys_timer clps711x_timer = {
 	.init		= clps711x_timer_init,
 	.offset		= clps711x_gettimeoffset,
 };
+
+void clps711x_restart(char mode, const char *cmd)
+{
+	soft_restart(0);
+}

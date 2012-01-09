@@ -357,4 +357,5 @@ MACHINE_START(OMAP_APOLLON, "OMAP24xx Apollon")
 	.handle_irq	= omap2_intc_handle_irq,
 	.init_machine	= omap_apollon_init,
 	.timer		= &omap2_timer,
+	.restart	= omap_prcm_restart,
 MACHINE_END

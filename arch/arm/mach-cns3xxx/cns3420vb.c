@@ -204,4 +204,5 @@ MACHINE_START(CNS3420VB, "Cavium Networks CNS3420 Validation Board")
 	.timer		= &cns3xxx_timer,
 	.handle_irq	= gic_handle_irq,
 	.init_machine	= cns3420_init,
+	.restart	= cns3xxx_restart,
 MACHINE_END

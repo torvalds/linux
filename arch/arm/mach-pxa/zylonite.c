@@ -430,4 +430,5 @@ MACHINE_START(ZYLONITE, "PXA3xx Platform Development Kit (aka Zylonite)")
 	.handle_irq	= pxa3xx_handle_irq,
 	.timer		= &pxa_timer,
 	.init_machine	= zylonite_init,
+	.restart	= pxa_restart,
 MACHINE_END
