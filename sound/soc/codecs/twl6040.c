@@ -1052,6 +1052,19 @@ int twl6040_get_trim_value(struct snd_soc_codec *codec, enum twl6040_trim trim)
 }
 EXPORT_SYMBOL_GPL(twl6040_get_trim_value);
 
+int twl6040_get_hs_step_size(struct snd_soc_codec *codec)
+{
+	struct twl6040 *twl6040 = codec->control_data;
+
+	if (twl6040_get_revid(twl6040) < TWL6040_REV_ES1_2)
+		/* For ES under ES_1.3 HS step is 2 mV */
+		return 2;
+	else
+		/* For ES_1.3 HS step is 1 mV */
+		return 1;
+}
+EXPORT_SYMBOL_GPL(twl6040_get_hs_step_size);
+
 static const struct snd_kcontrol_new twl6040_snd_controls[] = {
 	/* Capture gains */
 	SOC_DOUBLE_TLV("Capture Preamplifier Volume",
