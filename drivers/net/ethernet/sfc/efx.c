@@ -852,7 +852,7 @@ int __efx_reconfigure_port(struct efx_nic *efx)
 
 	WARN_ON(!mutex_is_locked(&efx->mac_lock));
 
-	/* Serialise the promiscuous flag with efx_set_multicast_list. */
+	/* Serialise the promiscuous flag with efx_set_rx_mode. */
 	netif_addr_lock_bh(efx->net_dev);
 	netif_addr_unlock_bh(efx->net_dev);
 
@@ -1844,7 +1844,7 @@ static int efx_set_mac_address(struct net_device *net_dev, void *data)
 }
 
 /* Context: netif_addr_lock held, BHs disabled. */
-static void efx_set_multicast_list(struct net_device *net_dev)
+static void efx_set_rx_mode(struct net_device *net_dev)
 {
 	struct efx_nic *efx = netdev_priv(net_dev);
 	struct netdev_hw_addr *ha;
@@ -1898,7 +1898,7 @@ static const struct net_device_ops efx_netdev_ops = {
 	.ndo_do_ioctl		= efx_ioctl,
 	.ndo_change_mtu		= efx_change_mtu,
 	.ndo_set_mac_address	= efx_set_mac_address,
-	.ndo_set_rx_mode	= efx_set_multicast_list,
+	.ndo_set_rx_mode	= efx_set_rx_mode,
 	.ndo_set_features	= efx_set_features,
 #ifdef CONFIG_NET_POLL_CONTROLLER
 	.ndo_poll_controller = efx_netpoll,
