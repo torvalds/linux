@@ -52,10 +52,18 @@ static inline void omap34xx_map_common_io(void)
 }
 #endif
 
-#ifdef CONFIG_SOC_OMAPTI816X
-extern void omapti816x_map_common_io(void);
+#ifdef CONFIG_SOC_OMAPTI81XX
+extern void omapti81xx_map_common_io(void);
 #else
-static inline void omapti816x_map_common_io(void)
+static inline void omapti81xx_map_common_io(void)
+{
+}
+#endif
+
+#ifdef CONFIG_SOC_OMAPAM33XX
+extern void omapam33xx_map_common_io(void);
+#else
+static inline void omapam33xx_map_common_io(void)
 {
 }
 #endif
@@ -82,7 +90,7 @@ void omap35xx_init_early(void);
 void omap3630_init_early(void);
 void omap3_init_early(void);	/* Do not use this one */
 void am35xx_init_early(void);
-void ti816x_init_early(void);
+void ti81xx_init_early(void);
 void omap4430_init_early(void);
 void omap_prcm_restart(char, const char *);
 
@@ -107,7 +115,8 @@ void omap2_set_globals_242x(void);
 void omap2_set_globals_243x(void);
 void omap2_set_globals_3xxx(void);
 void omap2_set_globals_443x(void);
-void omap2_set_globals_ti816x(void);
+void omap2_set_globals_ti81xx(void);
+void omap2_set_globals_am33xx(void);
 
 /* These get called from omap2_set_globals_xxxx(), do not call these */
 void omap2_set_globals_tap(struct omap_globals *);
@@ -118,7 +127,9 @@ void omap2_set_globals_prcm(struct omap_globals *);
 void omap242x_map_io(void);
 void omap243x_map_io(void);
 void omap3_map_io(void);
+void am33xx_map_io(void);
 void omap4_map_io(void);
+void ti81xx_map_io(void);
 
 /**
  * omap_test_timeout - busy-loop, testing a condition
@@ -147,7 +158,7 @@ extern struct device *omap4_get_dsp_device(void);
 
 void omap2_init_irq(void);
 void omap3_init_irq(void);
-void ti816x_init_irq(void);
+void ti81xx_init_irq(void);
 extern int omap_irq_pending(void);
 void omap_intc_save_context(void);
 void omap_intc_restore_context(void);

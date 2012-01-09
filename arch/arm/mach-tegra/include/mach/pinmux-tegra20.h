@@ -1,5 +1,5 @@
 /*
- * linux/arch/arm/mach-tegra/include/mach/pinmux-t2.h
+ * linux/arch/arm/mach-tegra/include/mach/pinmux-tegra20.h
  *
  * Copyright (C) 2010 Google, Inc.
  *
@@ -14,8 +14,8 @@
  *
  */
 
-#ifndef __MACH_TEGRA_PINMUX_T2_H
-#define __MACH_TEGRA_PINMUX_T2_H
+#ifndef __MACH_TEGRA_PINMUX_TEGRA20_H
+#define __MACH_TEGRA_PINMUX_TEGRA20_H
 
 enum tegra_pingroup {
 	TEGRA_PINGROUP_ATA = 0,

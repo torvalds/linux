@@ -19,7 +19,7 @@
 #include <linux/of.h>
 
 #include <mach/pinmux.h>
-#include <mach/pinmux-t2.h>
+#include <mach/pinmux-tegra20.h>
 
 #include "gpio-names.h"
 #include "board-seaboard.h"
