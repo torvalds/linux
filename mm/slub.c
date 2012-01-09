@@ -4649,6 +4649,8 @@ static ssize_t cpu_partial_store(struct kmem_cache *s, const char *buf,
 	err = strict_strtoul(buf, 10, &objects);
 	if (err)
 		return err;
+	if (objects && kmem_cache_debug(s))
+		return -EINVAL;
 
 	s->cpu_partial = objects;
 	flush_all(s);
