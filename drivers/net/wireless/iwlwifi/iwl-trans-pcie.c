@@ -1532,6 +1532,8 @@ static void iwl_trans_pcie_stop_hw(struct iwl_trans *trans)
 {
 	iwl_apm_stop(trans);
 
+	iwl_write32(trans, CSR_INT, 0xFFFFFFFF);
+
 	/* Even if we stop the HW, we still want the RF kill interrupt */
 	IWL_DEBUG_ISR(trans, "Enabling rfkill interrupt\n");
 	iwl_write32(trans, CSR_INT_MASK, CSR_INT_BIT_RF_KILL);
