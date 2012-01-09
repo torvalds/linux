@@ -1691,13 +1691,6 @@ static void iwl_uninit_drv(struct iwl_priv *priv)
 #endif
 }
 
-
-
-static u32 iwl_hw_detect(struct iwl_priv *priv)
-{
-	return iwl_read32(trans(priv), CSR_HW_REV);
-}
-
 /* Size of one Rx buffer in host DRAM */
 #define IWL_RX_BUF_SIZE_4K (4 * 1024)
 #define IWL_RX_BUF_SIZE_8K (8 * 1024)
@@ -1769,7 +1762,6 @@ int iwl_probe(struct iwl_bus *bus, const struct iwl_trans_ops *trans_ops,
 	struct iwl_priv *priv;
 	struct ieee80211_hw *hw;
 	u16 num_mac;
-	u32 hw_rev;
 
 	/************************
 	 * 1. Allocating HW data
@@ -1818,9 +1810,8 @@ int iwl_probe(struct iwl_bus *bus, const struct iwl_trans_ops *trans_ops,
 	/***********************
 	 * 3. Read REV register
 	 ***********************/
-	hw_rev = iwl_hw_detect(priv);
 	IWL_INFO(priv, "Detected %s, REV=0x%X\n",
-		cfg(priv)->name, hw_rev);
+		cfg(priv)->name, trans(priv)->hw_rev);
 
 	err = iwl_trans_start_hw(trans(priv));
 	if (err)
@@ -1830,7 +1821,7 @@ int iwl_probe(struct iwl_bus *bus, const struct iwl_trans_ops *trans_ops,
 	 * 4. Read EEPROM
 	 *****************/
 	/* Read the EEPROM */
-	err = iwl_eeprom_init(priv, hw_rev);
+	err = iwl_eeprom_init(priv, trans(priv)->hw_rev);
 	/* Reset chip to save power until we load uCode during "up". */
 	iwl_trans_stop_hw(trans(priv));
 	if (err) {

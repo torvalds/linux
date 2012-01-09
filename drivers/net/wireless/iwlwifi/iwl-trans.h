@@ -253,6 +253,7 @@ struct iwl_trans {
 
 	struct device *dev;
 	unsigned int irq;
+	u32 hw_rev;
 	u32 hw_id;
 	char hw_id_str[52];
 
