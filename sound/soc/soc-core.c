@@ -2864,7 +2864,8 @@ int snd_soc_register_card(struct snd_soc_card *card)
 		 */
 		if (!!link->codec_name == !!link->codec_of_node) {
 			dev_err(card->dev,
-				"Neither/both codec name/of_node are set\n");
+				"Neither/both codec name/of_node are set for %s\n",
+				link->name);
 			return -EINVAL;
 		}
 
@@ -2874,7 +2875,7 @@ int snd_soc_register_card(struct snd_soc_card *card)
 		 */
 		if (link->platform_name && link->platform_of_node) {
 			dev_err(card->dev,
-				"Both platform name/of_node are set\n");
+				"Both platform name/of_node are set for %s\n", link->name);
 			return -EINVAL;
 		}
 
@@ -2884,7 +2885,8 @@ int snd_soc_register_card(struct snd_soc_card *card)
 		 */
 		if (!!link->cpu_dai_name == !!link->cpu_dai_of_node) {
 			dev_err(card->dev,
-				"Neither/both cpu_dai name/of_node are set\n");
+				"Neither/both cpu_dai name/of_node are set for %s\n",
+				link->name);
 			return -EINVAL;
 		}
 	}
