@@ -798,6 +798,8 @@ nv50_pm_clocks_set(struct drm_device *dev, void *data)
 	nv_mask(dev, 0x002504, 0x00000001, 0x00000001);
 	if (!nv_wait(dev, 0x002504, 0x00000010, 0x00000010))
 		goto resume;
+	if (!nv_wait(dev, 0x00251c, 0x0000003f, 0x0000003f))
+		goto resume;
 
 	/* program memory clock, if necessary - must come before engine clock
 	 * reprogramming due to how we construct the hwsq scripts in pre()
