@@ -25,7 +25,7 @@
 #include <linux/interrupt.h>
 #include <linux/pci.h>
 #include <linux/dma-mapping.h>
-#include <linux/moduleparam.h>
+#include <linux/module.h>
 #include <linux/mutex.h>
 #include <linux/slab.h>
 

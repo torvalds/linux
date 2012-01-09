@@ -165,8 +165,8 @@ static void __init omap_init_irq(u32 base, int nr_irqs)
 
 		omap_irq_bank_init_one(bank);
 
-		for (i = 0, j = 0; i < bank->nr_irqs; i += 32, j += 0x20)
-			omap_alloc_gc(bank->base_reg + j, i, 32);
+		for (j = 0; j < bank->nr_irqs; j += 32)
+			omap_alloc_gc(bank->base_reg + j, j, 32);
 
 		nr_of_irqs += bank->nr_irqs;
 		nr_banks++;

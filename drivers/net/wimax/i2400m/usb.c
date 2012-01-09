@@ -67,6 +67,7 @@
 #include <linux/wimax/i2400m.h>
 #include <linux/debugfs.h>
 #include <linux/slab.h>
+#include <linux/module.h>
 
 
 #define D_SUBMODULE usb
@@ -599,7 +600,7 @@ void i2400mu_disconnect(struct usb_interface *iface)
  *
  *    As well, the device might refuse going to sleep for whichever
  *    reason. In this case we just fail. For system suspend/hibernate,
- *    we *can't* fail. We check PM_EVENT_AUTO to see if the
+ *    we *can't* fail. We check PMSG_IS_AUTO to see if the
  *    suspend call comes from the USB stack or from the system and act
  *    in consequence.
  *
@@ -615,7 +616,7 @@ int i2400mu_suspend(struct usb_interface *iface, pm_message_t pm_msg)
 	struct i2400m *i2400m = &i2400mu->i2400m;
 
 #ifdef CONFIG_PM
-	if (pm_msg.event & PM_EVENT_AUTO)
+	if (PMSG_IS_AUTO(pm_msg))
 		is_autosuspend = 1;
 #endif
 

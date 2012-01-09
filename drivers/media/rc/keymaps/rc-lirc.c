@@ -10,6 +10,7 @@
  */
 
 #include <media/rc-core.h>
+#include <linux/module.h>
 
 static struct rc_map_table lirc[] = {
 	{ },

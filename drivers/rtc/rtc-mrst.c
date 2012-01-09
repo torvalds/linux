@@ -76,12 +76,15 @@ static inline unsigned char vrtc_is_updating(void)
 /*
  * rtc_time's year contains the increment over 1900, but vRTC's YEAR
  * register can't be programmed to value larger than 0x64, so vRTC
- * driver chose to use 1960 (1970 is UNIX time start point) as the base,
+ * driver chose to use 1972 (1970 is UNIX time start point) as the base,
  * and does the translation at read/write time.
  *
- * Why not just use 1970 as the offset? it's because using 1960 will
+ * Why not just use 1970 as the offset? it's because using 1972 will
  * make it consistent in leap year setting for both vrtc and low-level
- * physical rtc devices.
+ * physical rtc devices. Then why not use 1960 as the offset? If we use
+ * 1960, for a device's first use, its YEAR register is 0 and the system
+ * year will be parsed as 1960 which is not a valid UNIX time and will
+ * cause many applications to fail mysteriously.
  */
 static int mrst_read_time(struct device *dev, struct rtc_time *time)
 {
@@ -99,10 +102,10 @@ static int mrst_read_time(struct device *dev, struct rtc_time *time)
 	time->tm_year = vrtc_cmos_read(RTC_YEAR);
 	spin_unlock_irqrestore(&rtc_lock, flags);
 
-	/* Adjust for the 1960/1900 */
-	time->tm_year += 60;
+	/* Adjust for the 1972/1900 */
+	time->tm_year += 72;
 	time->tm_mon--;
-	return RTC_24H;
+	return rtc_valid_tm(time);
 }
 
 static int mrst_set_time(struct device *dev, struct rtc_time *time)
@@ -119,9 +122,9 @@ static int mrst_set_time(struct device *dev, struct rtc_time *time)
 	min = time->tm_min;
 	sec = time->tm_sec;
 
-	if (yrs < 70 || yrs > 138)
+	if (yrs < 72 || yrs > 138)
 		return -EINVAL;
-	yrs -= 60;
+	yrs -= 72;
 
 	spin_lock_irqsave(&rtc_lock, flags);
 

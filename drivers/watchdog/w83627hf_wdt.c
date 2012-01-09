@@ -142,7 +142,7 @@ static void w83627hf_init(void)
 	w83627hf_unselect_wd_register();
 }
 
-static void wdt_ctrl(int timeout)
+static void wdt_set_time(int timeout)
 {
 	spin_lock(&io_lock);
 
@@ -158,13 +158,13 @@ static void wdt_ctrl(int timeout)
 
 static int wdt_ping(void)
 {
-	wdt_ctrl(timeout);
+	wdt_set_time(timeout);
 	return 0;
 }
 
 static int wdt_disable(void)
 {
-	wdt_ctrl(0);
+	wdt_set_time(0);
 	return 0;
 }
 
@@ -174,6 +174,24 @@ static int wdt_set_heartbeat(int t)
 		return -EINVAL;
 	timeout = t;
 	return 0;
+}
+
+static int wdt_get_time(void)
+{
+	int timeleft;
+
+	spin_lock(&io_lock);
+
+	w83627hf_select_wd_register();
+
+	outb_p(0xF6, WDT_EFER);    /* Select CRF6 */
+	timeleft = inb_p(WDT_EFDR); /* Read Timeout counter to CRF6 */
+
+	w83627hf_unselect_wd_register();
+
+	spin_unlock(&io_lock);
+
+	return timeleft;
 }
 
 static ssize_t wdt_write(struct file *file, const char __user *buf,
@@ -202,7 +220,7 @@ static long wdt_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 {
 	void __user *argp = (void __user *)arg;
 	int __user *p = argp;
-	int new_timeout;
+	int timeval;
 	static const struct watchdog_info ident = {
 		.options = WDIOF_KEEPALIVEPING | WDIOF_SETTIMEOUT |
 							WDIOF_MAGICCLOSE,
@@ -238,14 +256,17 @@ static long wdt_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 		wdt_ping();
 		break;
 	case WDIOC_SETTIMEOUT:
-		if (get_user(new_timeout, p))
+		if (get_user(timeval, p))
 			return -EFAULT;
-		if (wdt_set_heartbeat(new_timeout))
+		if (wdt_set_heartbeat(timeval))
 			return -EINVAL;
 		wdt_ping();
 		/* Fall */
 	case WDIOC_GETTIMEOUT:
 		return put_user(timeout, p);
+	case WDIOC_GETTIMELEFT:
+		timeval = wdt_get_time();
+		return put_user(timeval, p);
 	default:
 		return -ENOTTY;
 	}

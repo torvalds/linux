@@ -98,6 +98,37 @@ nv50_gpio_set(struct drm_device *dev, enum dcb_gpio_tag tag, int state)
 }
 
 int
+nvd0_gpio_get(struct drm_device *dev, enum dcb_gpio_tag tag)
+{
+	struct dcb_gpio_entry *gpio;
+	u32 v;
+
+	gpio = nouveau_bios_gpio_entry(dev, tag);
+	if (!gpio)
+		return -ENOENT;
+
+	v  = nv_rd32(dev, 0x00d610 + (gpio->line * 4));
+	v &= 0x00004000;
+	return (!!v == (gpio->state[1] & 1));
+}
+
+int
+nvd0_gpio_set(struct drm_device *dev, enum dcb_gpio_tag tag, int state)
+{
+	struct dcb_gpio_entry *gpio;
+	u32 v;
+
+	gpio = nouveau_bios_gpio_entry(dev, tag);
+	if (!gpio)
+		return -ENOENT;
+
+	v = gpio->state[state] ^ 2;
+
+	nv_mask(dev, 0x00d610 + (gpio->line * 4), 0x00003000, v << 12);
+	return 0;
+}
+
+int
 nv50_gpio_irq_register(struct drm_device *dev, enum dcb_gpio_tag tag,
 		       void (*handler)(void *, int), void *data)
 {

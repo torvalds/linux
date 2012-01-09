@@ -15,6 +15,8 @@
 #include <linux/atomic.h>
 #include <xen/interface/io/pciif.h>
 
+#define DRV_NAME	"xen-pciback"
+
 struct pci_dev_entry {
 	struct list_head list;
 	struct pci_dev *dev;
@@ -27,7 +29,7 @@ struct pci_dev_entry {
 
 struct xen_pcibk_device {
 	void *pci_dev_data;
-	spinlock_t dev_lock;
+	struct mutex dev_lock;
 	struct xenbus_device *xdev;
 	struct xenbus_watch be_watch;
 	u8 be_watching;
@@ -89,7 +91,7 @@ typedef int (*publish_pci_root_cb) (struct xen_pcibk_device *pdev,
  *  passthrough - BDFs are exactly like in the host.
  */
 struct xen_pcibk_backend {
-	char *name;
+	const char *name;
 	int (*init)(struct xen_pcibk_device *pdev);
 	void (*free)(struct xen_pcibk_device *pdev);
 	int (*find)(struct pci_dev *pcidev, struct xen_pcibk_device *pdev,
@@ -104,9 +106,9 @@ struct xen_pcibk_backend {
 			       unsigned int devfn);
 };
 
-extern struct xen_pcibk_backend xen_pcibk_vpci_backend;
-extern struct xen_pcibk_backend xen_pcibk_passthrough_backend;
-extern struct xen_pcibk_backend *xen_pcibk_backend;
+extern const struct xen_pcibk_backend xen_pcibk_vpci_backend;
+extern const struct xen_pcibk_backend xen_pcibk_passthrough_backend;
+extern const struct xen_pcibk_backend *xen_pcibk_backend;
 
 static inline int xen_pcibk_add_pci_dev(struct xen_pcibk_device *pdev,
 					struct pci_dev *dev,
@@ -116,13 +118,14 @@ static inline int xen_pcibk_add_pci_dev(struct xen_pcibk_device *pdev,
 	if (xen_pcibk_backend && xen_pcibk_backend->add)
 		return xen_pcibk_backend->add(pdev, dev, devid, publish_cb);
 	return -1;
-};
+}
+
 static inline void xen_pcibk_release_pci_dev(struct xen_pcibk_device *pdev,
 					     struct pci_dev *dev)
 {
 	if (xen_pcibk_backend && xen_pcibk_backend->free)
 		return xen_pcibk_backend->release(pdev, dev);
-};
+}
 
 static inline struct pci_dev *
 xen_pcibk_get_pci_dev(struct xen_pcibk_device *pdev, unsigned int domain,
@@ -131,7 +134,8 @@ xen_pcibk_get_pci_dev(struct xen_pcibk_device *pdev, unsigned int domain,
 	if (xen_pcibk_backend && xen_pcibk_backend->get)
 		return xen_pcibk_backend->get(pdev, domain, bus, devfn);
 	return NULL;
-};
+}
+
 /**
 * Add for domain0 PCIE-AER handling. Get guest domain/bus/devfn in xen_pcibk
 * before sending aer request to pcifront, so that guest could identify
@@ -148,25 +152,29 @@ static inline int xen_pcibk_get_pcifront_dev(struct pci_dev *pcidev,
 		return xen_pcibk_backend->find(pcidev, pdev, domain, bus,
 					       devfn);
 	return -1;
-};
+}
+
 static inline int xen_pcibk_init_devices(struct xen_pcibk_device *pdev)
 {
 	if (xen_pcibk_backend && xen_pcibk_backend->init)
 		return xen_pcibk_backend->init(pdev);
 	return -1;
-};
+}
+
 static inline int xen_pcibk_publish_pci_roots(struct xen_pcibk_device *pdev,
 					      publish_pci_root_cb cb)
 {
 	if (xen_pcibk_backend && xen_pcibk_backend->publish)
 		return xen_pcibk_backend->publish(pdev, cb);
 	return -1;
-};
+}
+
 static inline void xen_pcibk_release_devices(struct xen_pcibk_device *pdev)
 {
 	if (xen_pcibk_backend && xen_pcibk_backend->free)
 		return xen_pcibk_backend->free(pdev);
-};
+}
+
 /* Handles events from front-end */
 irqreturn_t xen_pcibk_handle_event(int irq, void *dev_id);
 void xen_pcibk_do_op(struct work_struct *data);

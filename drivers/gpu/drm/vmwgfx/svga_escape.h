@@ -75,7 +75,7 @@
  */
 
 #define SVGA_ESCAPE_VMWARE_HINT               0x00030000
-#define SVGA_ESCAPE_VMWARE_HINT_FULLSCREEN    0x00030001  // Deprecated
+#define SVGA_ESCAPE_VMWARE_HINT_FULLSCREEN    0x00030001  /* Deprecated */
 
 typedef
 struct {

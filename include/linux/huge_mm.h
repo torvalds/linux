@@ -22,6 +22,11 @@ extern int zap_huge_pmd(struct mmu_gather *tlb,
 extern int mincore_huge_pmd(struct vm_area_struct *vma, pmd_t *pmd,
 			unsigned long addr, unsigned long end,
 			unsigned char *vec);
+extern int move_huge_pmd(struct vm_area_struct *vma,
+			 struct vm_area_struct *new_vma,
+			 unsigned long old_addr,
+			 unsigned long new_addr, unsigned long old_end,
+			 pmd_t *old_pmd, pmd_t *new_pmd);
 extern int change_huge_pmd(struct vm_area_struct *vma, pmd_t *pmd,
 			unsigned long addr, pgprot_t newprot);
 

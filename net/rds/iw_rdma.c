@@ -84,7 +84,8 @@ static int rds_iw_map_fastreg(struct rds_iw_mr_pool *pool,
 static void rds_iw_free_fastreg(struct rds_iw_mr_pool *pool, struct rds_iw_mr *ibmr);
 static unsigned int rds_iw_unmap_fastreg_list(struct rds_iw_mr_pool *pool,
 			struct list_head *unmap_list,
-			struct list_head *kill_list);
+			struct list_head *kill_list,
+			int *unpinned);
 static void rds_iw_destroy_fastreg(struct rds_iw_mr_pool *pool, struct rds_iw_mr *ibmr);
 
 static int rds_iw_get_device(struct rds_sock *rs, struct rds_iw_device **rds_iwdev, struct rdma_cm_id **cm_id)
@@ -499,7 +500,7 @@ static int rds_iw_flush_mr_pool(struct rds_iw_mr_pool *pool, int free_all)
 	LIST_HEAD(unmap_list);
 	LIST_HEAD(kill_list);
 	unsigned long flags;
-	unsigned int nfreed = 0, ncleaned = 0, free_goal;
+	unsigned int nfreed = 0, ncleaned = 0, unpinned = 0, free_goal;
 	int ret = 0;
 
 	rds_iw_stats_inc(s_iw_rdma_mr_pool_flush);
@@ -524,7 +525,8 @@ static int rds_iw_flush_mr_pool(struct rds_iw_mr_pool *pool, int free_all)
 	 * will be destroyed by the unmap function.
 	 */
 	if (!list_empty(&unmap_list)) {
-		ncleaned = rds_iw_unmap_fastreg_list(pool, &unmap_list, &kill_list);
+		ncleaned = rds_iw_unmap_fastreg_list(pool, &unmap_list,
+						     &kill_list, &unpinned);
 		/* If we've been asked to destroy all MRs, move those
 		 * that were simply cleaned to the kill list */
 		if (free_all)
@@ -548,6 +550,7 @@ static int rds_iw_flush_mr_pool(struct rds_iw_mr_pool *pool, int free_all)
 		spin_unlock_irqrestore(&pool->list_lock, flags);
 	}
 
+	atomic_sub(unpinned, &pool->free_pinned);
 	atomic_sub(ncleaned, &pool->dirty_count);
 	atomic_sub(nfreed, &pool->item_count);
 
@@ -828,7 +831,8 @@ static void rds_iw_free_fastreg(struct rds_iw_mr_pool *pool,
 
 static unsigned int rds_iw_unmap_fastreg_list(struct rds_iw_mr_pool *pool,
 				struct list_head *unmap_list,
-				struct list_head *kill_list)
+				struct list_head *kill_list,
+				int *unpinned)
 {
 	struct rds_iw_mapping *mapping, *next;
 	unsigned int ncleaned = 0;
@@ -855,6 +859,7 @@ static unsigned int rds_iw_unmap_fastreg_list(struct rds_iw_mr_pool *pool,
 
 		spin_lock_irqsave(&pool->list_lock, flags);
 		list_for_each_entry_safe(mapping, next, unmap_list, m_list) {
+			*unpinned += mapping->m_sg.len;
 			list_move(&mapping->m_list, &laundered);
 			ncleaned++;
 		}

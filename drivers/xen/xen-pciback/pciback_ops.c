@@ -10,7 +10,6 @@
 #include <linux/sched.h>
 #include "pciback.h"
 
-#define DRV_NAME	"xen-pciback"
 int verbose_request;
 module_param(verbose_request, int, 0644);
 

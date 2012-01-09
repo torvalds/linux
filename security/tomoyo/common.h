@@ -3,7 +3,7 @@
  *
  * Header file for TOMOYO.
  *
- * Copyright (C) 2005-2010  NTT DATA CORPORATION
+ * Copyright (C) 2005-2011  NTT DATA CORPORATION
  */
 
 #ifndef _SECURITY_TOMOYO_COMMON_H
@@ -23,6 +23,16 @@
 #include <linux/poll.h>
 #include <linux/binfmts.h>
 #include <linux/highmem.h>
+#include <linux/net.h>
+#include <linux/inet.h>
+#include <linux/in.h>
+#include <linux/in6.h>
+#include <linux/un.h>
+#include <net/sock.h>
+#include <net/af_unix.h>
+#include <net/ip.h>
+#include <net/ipv6.h>
+#include <net/udp.h>
 
 /********** Constants definitions. **********/
 
@@ -34,7 +44,16 @@
 #define TOMOYO_HASH_BITS  8
 #define TOMOYO_MAX_HASH (1u<<TOMOYO_HASH_BITS)
 
+/*
+ * TOMOYO checks only SOCK_STREAM, SOCK_DGRAM, SOCK_RAW, SOCK_SEQPACKET.
+ * Therefore, we don't need SOCK_MAX.
+ */
+#define TOMOYO_SOCK_MAX 6
+
 #define TOMOYO_EXEC_TMPSIZE     4096
+
+/* Garbage collector is trying to kfree() this element. */
+#define TOMOYO_GC_IN_PROGRESS -1
 
 /* Profile number is an integer between 0 and 255. */
 #define TOMOYO_MAX_PROFILES 256
@@ -136,6 +155,7 @@ enum tomoyo_mode_index {
 /* Index numbers for entry type. */
 enum tomoyo_policy_id {
 	TOMOYO_ID_GROUP,
+	TOMOYO_ID_ADDRESS_GROUP,
 	TOMOYO_ID_PATH_GROUP,
 	TOMOYO_ID_NUMBER_GROUP,
 	TOMOYO_ID_TRANSITION_CONTROL,
@@ -162,10 +182,21 @@ enum tomoyo_domain_info_flags_index {
 	TOMOYO_MAX_DOMAIN_INFO_FLAGS
 };
 
+/* Index numbers for audit type. */
+enum tomoyo_grant_log {
+	/* Follow profile's configuration. */
+	TOMOYO_GRANTLOG_AUTO,
+	/* Do not generate grant log. */
+	TOMOYO_GRANTLOG_NO,
+	/* Generate grant_log. */
+	TOMOYO_GRANTLOG_YES,
+};
+
 /* Index numbers for group entries. */
 enum tomoyo_group_id {
 	TOMOYO_PATH_GROUP,
 	TOMOYO_NUMBER_GROUP,
+	TOMOYO_ADDRESS_GROUP,
 	TOMOYO_MAX_GROUP
 };
 
@@ -196,6 +227,10 @@ enum tomoyo_acl_entry_type_index {
 	TOMOYO_TYPE_PATH_NUMBER_ACL,
 	TOMOYO_TYPE_MKDEV_ACL,
 	TOMOYO_TYPE_MOUNT_ACL,
+	TOMOYO_TYPE_INET_ACL,
+	TOMOYO_TYPE_UNIX_ACL,
+	TOMOYO_TYPE_ENV_ACL,
+	TOMOYO_TYPE_MANUAL_TASK_ACL,
 };
 
 /* Index numbers for access controls with one pathname. */
@@ -228,6 +263,15 @@ enum tomoyo_mkdev_acl_index {
 	TOMOYO_MAX_MKDEV_OPERATION
 };
 
+/* Index numbers for socket operations. */
+enum tomoyo_network_acl_index {
+	TOMOYO_NETWORK_BIND,    /* bind() operation. */
+	TOMOYO_NETWORK_LISTEN,  /* listen() operation. */
+	TOMOYO_NETWORK_CONNECT, /* connect() operation. */
+	TOMOYO_NETWORK_SEND,    /* send() operation. */
+	TOMOYO_MAX_NETWORK_OPERATION
+};
+
 /* Index numbers for access controls with two pathnames. */
 enum tomoyo_path2_acl_index {
 	TOMOYO_TYPE_LINK,
@@ -255,7 +299,6 @@ enum tomoyo_securityfs_interface_index {
 	TOMOYO_EXCEPTIONPOLICY,
 	TOMOYO_PROCESS_STATUS,
 	TOMOYO_STAT,
-	TOMOYO_SELFDOMAIN,
 	TOMOYO_AUDIT,
 	TOMOYO_VERSION,
 	TOMOYO_PROFILE,
@@ -300,12 +343,30 @@ enum tomoyo_mac_index {
 	TOMOYO_MAC_FILE_MOUNT,
 	TOMOYO_MAC_FILE_UMOUNT,
 	TOMOYO_MAC_FILE_PIVOT_ROOT,
+	TOMOYO_MAC_NETWORK_INET_STREAM_BIND,
+	TOMOYO_MAC_NETWORK_INET_STREAM_LISTEN,
+	TOMOYO_MAC_NETWORK_INET_STREAM_CONNECT,
+	TOMOYO_MAC_NETWORK_INET_DGRAM_BIND,
+	TOMOYO_MAC_NETWORK_INET_DGRAM_SEND,
+	TOMOYO_MAC_NETWORK_INET_RAW_BIND,
+	TOMOYO_MAC_NETWORK_INET_RAW_SEND,
+	TOMOYO_MAC_NETWORK_UNIX_STREAM_BIND,
+	TOMOYO_MAC_NETWORK_UNIX_STREAM_LISTEN,
+	TOMOYO_MAC_NETWORK_UNIX_STREAM_CONNECT,
+	TOMOYO_MAC_NETWORK_UNIX_DGRAM_BIND,
+	TOMOYO_MAC_NETWORK_UNIX_DGRAM_SEND,
+	TOMOYO_MAC_NETWORK_UNIX_SEQPACKET_BIND,
+	TOMOYO_MAC_NETWORK_UNIX_SEQPACKET_LISTEN,
+	TOMOYO_MAC_NETWORK_UNIX_SEQPACKET_CONNECT,
+	TOMOYO_MAC_ENVIRON,
 	TOMOYO_MAX_MAC_INDEX
 };
 
 /* Index numbers for category of functionality. */
 enum tomoyo_mac_category_index {
 	TOMOYO_MAC_CATEGORY_FILE,
+	TOMOYO_MAC_CATEGORY_NETWORK,
+	TOMOYO_MAC_CATEGORY_MISC,
 	TOMOYO_MAX_MAC_CATEGORY_INDEX
 };
 
@@ -340,7 +401,7 @@ enum tomoyo_pref_index {
 /* Common header for holding ACL entries. */
 struct tomoyo_acl_head {
 	struct list_head list;
-	bool is_deleted;
+	s8 is_deleted; /* true or false or TOMOYO_GC_IN_PROGRESS */
 } __packed;
 
 /* Common header for shared entries. */
@@ -397,13 +458,36 @@ struct tomoyo_request_info {
 			u8 operation;
 		} path_number;
 		struct {
+			const struct tomoyo_path_info *name;
+		} environ;
+		struct {
+			const __be32 *address;
+			u16 port;
+			/* One of values smaller than TOMOYO_SOCK_MAX. */
+			u8 protocol;
+			/* One of values in "enum tomoyo_network_acl_index". */
+			u8 operation;
+			bool is_ipv6;
+		} inet_network;
+		struct {
+			const struct tomoyo_path_info *address;
+			/* One of values smaller than TOMOYO_SOCK_MAX. */
+			u8 protocol;
+			/* One of values in "enum tomoyo_network_acl_index". */
+			u8 operation;
+		} unix_network;
+		struct {
 			const struct tomoyo_path_info *type;
 			const struct tomoyo_path_info *dir;
 			const struct tomoyo_path_info *dev;
 			unsigned long flags;
 			int need_dev;
 		} mount;
+		struct {
+			const struct tomoyo_path_info *domainname;
+		} task;
 	} param;
+	struct tomoyo_acl_info *matched_acl;
 	u8 param_type;
 	bool granted;
 	u8 retry;
@@ -442,7 +526,14 @@ struct tomoyo_number_union {
 	u8 value_type[2];
 };
 
-/* Structure for "path_group"/"number_group" directive. */
+/* Structure for holding an IP address. */
+struct tomoyo_ipaddr_union {
+	struct in6_addr ip[2]; /* Big endian. */
+	struct tomoyo_group *group; /* Pointer to address group. */
+	bool is_ipv6; /* Valid only if @group == NULL. */
+};
+
+/* Structure for "path_group"/"number_group"/"address_group" directive. */
 struct tomoyo_group {
 	struct tomoyo_shared_acl_head head;
 	const struct tomoyo_path_info *group_name;
@@ -459,6 +550,13 @@ struct tomoyo_path_group {
 struct tomoyo_number_group {
 	struct tomoyo_acl_head head;
 	struct tomoyo_number_union number;
+};
+
+/* Structure for "address_group" directive. */
+struct tomoyo_address_group {
+	struct tomoyo_acl_head head;
+	/* Structure for holding an IP address. */
+	struct tomoyo_ipaddr_union address;
 };
 
 /* Subset of "struct stat". Used by conditional ACL and audit logs. */
@@ -520,6 +618,7 @@ struct tomoyo_execve {
 	struct tomoyo_request_info r;
 	struct tomoyo_obj_info obj;
 	struct linux_binprm *bprm;
+	const struct tomoyo_path_info *transition;
 	/* For dumping argv[] and envp[]. */
 	struct tomoyo_page_dump dump;
 	/* For temporary use. */
@@ -554,6 +653,8 @@ struct tomoyo_condition {
 	u16 names_count; /* Number of "struct tomoyo_name_union names". */
 	u16 argc; /* Number of "struct tomoyo_argv". */
 	u16 envc; /* Number of "struct tomoyo_envp". */
+	u8 grant_log; /* One of values in "enum tomoyo_grant_log". */
+	const struct tomoyo_path_info *transit; /* Maybe NULL. */
 	/*
 	 * struct tomoyo_condition_element condition[condc];
 	 * struct tomoyo_number_union values[numbers_count];
@@ -567,7 +668,7 @@ struct tomoyo_condition {
 struct tomoyo_acl_info {
 	struct list_head list;
 	struct tomoyo_condition *cond; /* Maybe NULL. */
-	bool is_deleted;
+	s8 is_deleted; /* true or false or TOMOYO_GC_IN_PROGRESS */
 	u8 type; /* One of values in "enum tomoyo_acl_entry_type_index". */
 } __packed;
 
@@ -584,6 +685,15 @@ struct tomoyo_domain_info {
 	bool is_deleted;   /* Delete flag.           */
 	bool flags[TOMOYO_MAX_DOMAIN_INFO_FLAGS];
 	atomic_t users; /* Number of referring credentials. */
+};
+
+/*
+ * Structure for "task manual_domain_transition" directive.
+ */
+struct tomoyo_task_acl {
+	struct tomoyo_acl_info head; /* type = TOMOYO_TYPE_MANUAL_TASK_ACL */
+	/* Pointer to domainname. */
+	const struct tomoyo_path_info *domainname;
 };
 
 /*
@@ -636,6 +746,29 @@ struct tomoyo_mount_acl {
 	struct tomoyo_name_union dir_name;
 	struct tomoyo_name_union fs_type;
 	struct tomoyo_number_union flags;
+};
+
+/* Structure for "misc env" directive in domain policy. */
+struct tomoyo_env_acl {
+	struct tomoyo_acl_info head;        /* type = TOMOYO_TYPE_ENV_ACL  */
+	const struct tomoyo_path_info *env; /* environment variable */
+};
+
+/* Structure for "network inet" directive. */
+struct tomoyo_inet_acl {
+	struct tomoyo_acl_info head; /* type = TOMOYO_TYPE_INET_ACL */
+	u8 protocol;
+	u8 perm; /* Bitmask of values in "enum tomoyo_network_acl_index" */
+	struct tomoyo_ipaddr_union address;
+	struct tomoyo_number_union port;
+};
+
+/* Structure for "network unix" directive. */
+struct tomoyo_unix_acl {
+	struct tomoyo_acl_info head; /* type = TOMOYO_TYPE_UNIX_ACL */
+	u8 protocol;
+	u8 perm; /* Bitmask of values in "enum tomoyo_network_acl_index" */
+	struct tomoyo_name_union name;
 };
 
 /* Structure for holding a line from /sys/kernel/security/tomoyo/ interface. */
@@ -773,7 +906,7 @@ struct tomoyo_policy_namespace {
 	struct list_head acl_group[TOMOYO_MAX_ACL_GROUPS];
 	/* List for connecting to tomoyo_namespace_list list. */
 	struct list_head namespace_list;
-	/* Profile version. Currently only 20100903 is defined. */
+	/* Profile version. Currently only 20110903 is defined. */
 	unsigned int profile_version;
 	/* Name of this namespace (e.g. "<kernel>", "</usr/sbin/httpd>" ). */
 	const char *name;
@@ -781,6 +914,8 @@ struct tomoyo_policy_namespace {
 
 /********** Function prototypes. **********/
 
+bool tomoyo_address_matches_group(const bool is_ipv6, const __be32 *address,
+				  const struct tomoyo_group *group);
 bool tomoyo_compare_number_union(const unsigned long value,
 				 const struct tomoyo_number_union *ptr);
 bool tomoyo_condition(struct tomoyo_request_info *r,
@@ -796,6 +931,8 @@ bool tomoyo_memory_ok(void *ptr);
 bool tomoyo_number_matches_group(const unsigned long min,
 				 const unsigned long max,
 				 const struct tomoyo_group *group);
+bool tomoyo_parse_ipaddr_union(struct tomoyo_acl_param *param,
+			       struct tomoyo_ipaddr_union *ptr);
 bool tomoyo_parse_name_union(struct tomoyo_acl_param *param,
 			     struct tomoyo_name_union *ptr);
 bool tomoyo_parse_number_union(struct tomoyo_acl_param *param,
@@ -805,6 +942,7 @@ bool tomoyo_path_matches_pattern(const struct tomoyo_path_info *filename,
 bool tomoyo_permstr(const char *string, const char *keyword);
 bool tomoyo_str_starts(char **src, const char *find);
 char *tomoyo_encode(const char *str);
+char *tomoyo_encode2(const char *str, int str_len);
 char *tomoyo_init_log(struct tomoyo_request_info *r, int len, const char *fmt,
 		      va_list args);
 char *tomoyo_read_token(struct tomoyo_acl_param *param);
@@ -814,12 +952,17 @@ const char *tomoyo_get_exe(void);
 const char *tomoyo_yesno(const unsigned int value);
 const struct tomoyo_path_info *tomoyo_compare_name_union
 (const struct tomoyo_path_info *name, const struct tomoyo_name_union *ptr);
+const struct tomoyo_path_info *tomoyo_get_domainname
+(struct tomoyo_acl_param *param);
 const struct tomoyo_path_info *tomoyo_get_name(const char *name);
 const struct tomoyo_path_info *tomoyo_path_matches_group
 (const struct tomoyo_path_info *pathname, const struct tomoyo_group *group);
 int tomoyo_check_open_permission(struct tomoyo_domain_info *domain,
 				 struct path *path, const int flag);
 int tomoyo_close_control(struct tomoyo_io_buffer *head);
+int tomoyo_env_perm(struct tomoyo_request_info *r, const char *env);
+int tomoyo_execute_permission(struct tomoyo_request_info *r,
+			      const struct tomoyo_path_info *filename);
 int tomoyo_find_next_domain(struct linux_binprm *bprm);
 int tomoyo_get_mode(const struct tomoyo_policy_namespace *ns, const u8 profile,
 		    const u8 index);
@@ -838,10 +981,15 @@ int tomoyo_path_number_perm(const u8 operation, struct path *path,
 			    unsigned long number);
 int tomoyo_path_perm(const u8 operation, struct path *path,
 		     const char *target);
-int tomoyo_path_permission(struct tomoyo_request_info *r, u8 operation,
-			   const struct tomoyo_path_info *filename);
 int tomoyo_poll_control(struct file *file, poll_table *wait);
 int tomoyo_poll_log(struct file *file, poll_table *wait);
+int tomoyo_socket_bind_permission(struct socket *sock, struct sockaddr *addr,
+				  int addr_len);
+int tomoyo_socket_connect_permission(struct socket *sock,
+				     struct sockaddr *addr, int addr_len);
+int tomoyo_socket_listen_permission(struct socket *sock);
+int tomoyo_socket_sendmsg_permission(struct socket *sock, struct msghdr *msg,
+				     int size);
 int tomoyo_supervisor(struct tomoyo_request_info *r, const char *fmt, ...)
 	__printf(2, 3);
 int tomoyo_update_domain(struct tomoyo_acl_info *new_entry, const int size,
@@ -860,8 +1008,11 @@ int tomoyo_update_policy(struct tomoyo_acl_head *new_entry, const int size,
 int tomoyo_write_aggregator(struct tomoyo_acl_param *param);
 int tomoyo_write_file(struct tomoyo_acl_param *param);
 int tomoyo_write_group(struct tomoyo_acl_param *param, const u8 type);
+int tomoyo_write_misc(struct tomoyo_acl_param *param);
+int tomoyo_write_inet_network(struct tomoyo_acl_param *param);
 int tomoyo_write_transition_control(struct tomoyo_acl_param *param,
 				    const u8 type);
+int tomoyo_write_unix_network(struct tomoyo_acl_param *param);
 ssize_t tomoyo_read_control(struct tomoyo_io_buffer *head, char __user *buffer,
 			    const int buffer_len);
 ssize_t tomoyo_write_control(struct tomoyo_io_buffer *head,
@@ -891,12 +1042,11 @@ void tomoyo_del_condition(struct list_head *element);
 void tomoyo_fill_path_info(struct tomoyo_path_info *ptr);
 void tomoyo_get_attributes(struct tomoyo_obj_info *obj);
 void tomoyo_init_policy_namespace(struct tomoyo_policy_namespace *ns);
-void tomoyo_io_printf(struct tomoyo_io_buffer *head, const char *fmt, ...)
-	 __printf(2, 3);
 void tomoyo_load_policy(const char *filename);
-void tomoyo_memory_free(void *ptr);
 void tomoyo_normalize_line(unsigned char *buffer);
 void tomoyo_notify_gc(struct tomoyo_io_buffer *head, const bool is_register);
+void tomoyo_print_ip(char *buf, const unsigned int size,
+		     const struct tomoyo_ipaddr_union *ptr);
 void tomoyo_print_ulong(char *buffer, const int buffer_len,
 			const unsigned long value, const u8 type);
 void tomoyo_put_name_union(struct tomoyo_name_union *ptr);
@@ -919,6 +1069,8 @@ extern const char * const tomoyo_mac_keywords[TOMOYO_MAX_MAC_INDEX
 					      + TOMOYO_MAX_MAC_CATEGORY_INDEX];
 extern const char * const tomoyo_mode[TOMOYO_CONFIG_MAX_MODE];
 extern const char * const tomoyo_path_keyword[TOMOYO_MAX_PATH_OPERATION];
+extern const char * const tomoyo_proto_keyword[TOMOYO_SOCK_MAX];
+extern const char * const tomoyo_socket_keyword[TOMOYO_MAX_NETWORK_OPERATION];
 extern const u8 tomoyo_index2category[TOMOYO_MAX_MAC_INDEX];
 extern const u8 tomoyo_pn2mac[TOMOYO_MAX_PATH_NUMBER_OPERATION];
 extern const u8 tomoyo_pnnn2mac[TOMOYO_MAX_MKDEV_OPERATION];
@@ -1095,6 +1247,21 @@ static inline bool tomoyo_same_number_union
 	return a->values[0] == b->values[0] && a->values[1] == b->values[1] &&
 		a->group == b->group && a->value_type[0] == b->value_type[0] &&
 		a->value_type[1] == b->value_type[1];
+}
+
+/**
+ * tomoyo_same_ipaddr_union - Check for duplicated "struct tomoyo_ipaddr_union" entry.
+ *
+ * @a: Pointer to "struct tomoyo_ipaddr_union".
+ * @b: Pointer to "struct tomoyo_ipaddr_union".
+ *
+ * Returns true if @a == @b, false otherwise.
+ */
+static inline bool tomoyo_same_ipaddr_union
+(const struct tomoyo_ipaddr_union *a, const struct tomoyo_ipaddr_union *b)
+{
+	return !memcmp(a->ip, b->ip, sizeof(a->ip)) && a->group == b->group &&
+		a->is_ipv6 == b->is_ipv6;
 }
 
 /**

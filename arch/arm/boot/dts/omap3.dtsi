@@ -1,0 +1,63 @@
+/*
+ * Device Tree Source for OMAP3 SoC
+ *
+ * Copyright (C) 2011 Texas Instruments Incorporated - http://www.ti.com/
+ *
+ * This file is licensed under the terms of the GNU General Public License
+ * version 2.  This program is licensed "as is" without any warranty of any
+ * kind, whether express or implied.
+ */
+
+/include/ "skeleton.dtsi"
+
+/ {
+	compatible = "ti,omap3430", "ti,omap3";
+
+	cpus {
+		cpu@0 {
+			compatible = "arm,cortex-a8";
+		};
+	};
+
+	/*
+	 * The soc node represents the soc top level view. It is uses for IPs
+	 * that are not memory mapped in the MPU view or for the MPU itself.
+	 */
+	soc {
+		compatible = "ti,omap-infra";
+		mpu {
+			compatible = "ti,omap3-mpu";
+			ti,hwmods = "mpu";
+		};
+
+		iva {
+			compatible = "ti,iva2.2";
+			ti,hwmods = "iva";
+
+			dsp {
+				compatible = "ti,omap3-c64";
+			};
+		};
+	};
+
+	/*
+	 * XXX: Use a flat representation of the OMAP3 interconnect.
+	 * The real OMAP interconnect network is quite complex.
+	 * Since that will not bring real advantage to represent that in DT for
+	 * the moment, just use a fake OCP bus entry to represent the whole bus
+	 * hierarchy.
+	 */
+	ocp {
+		compatible = "simple-bus";
+		#address-cells = <1>;
+		#size-cells = <1>;
+		ranges;
+		ti,hwmods = "l3_main";
+
+		intc: interrupt-controller@1 {
+			compatible = "ti,omap3-intc";
+			interrupt-controller;
+			#interrupt-cells = <1>;
+		};
+	};
+};

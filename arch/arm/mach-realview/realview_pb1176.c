@@ -26,6 +26,8 @@
 #include <linux/amba/pl061.h>
 #include <linux/amba/mmci.h>
 #include <linux/amba/pl022.h>
+#include <linux/mtd/physmap.h>
+#include <linux/mtd/partitions.h>
 #include <linux/io.h>
 
 #include <mach/hardware.h>
@@ -204,22 +206,48 @@ static struct amba_device *amba_devs[] __initdata = {
  * RealView PB1176 platform devices
  */
 static struct resource realview_pb1176_flash_resources[] = {
-	[0] = {
+	{
 		.start		= REALVIEW_PB1176_FLASH_BASE,
 		.end		= REALVIEW_PB1176_FLASH_BASE + REALVIEW_PB1176_FLASH_SIZE - 1,
 		.flags		= IORESOURCE_MEM,
 	},
-	[1] = {
+#ifdef CONFIG_REALVIEW_PB1176_SECURE_FLASH
+	{
 		.start		= REALVIEW_PB1176_SEC_FLASH_BASE,
 		.end		= REALVIEW_PB1176_SEC_FLASH_BASE + REALVIEW_PB1176_SEC_FLASH_SIZE - 1,
 		.flags		= IORESOURCE_MEM,
 	},
-};
-#ifdef CONFIG_REALVIEW_PB1176_SECURE_FLASH
-#define PB1176_FLASH_BLOCKS	2
-#else
-#define PB1176_FLASH_BLOCKS	1
 #endif
+};
+
+static struct physmap_flash_data pb1176_rom_pdata = {
+	.probe_type	= "map_rom",
+	.width		= 4,
+	.nr_parts	= 0,
+};
+
+static struct resource pb1176_rom_resources[] = {
+	/*
+	 * This exposes the PB1176 DevChip ROM as an MTD ROM mapping.
+	 * The reference manual states that this is actually a pseudo-ROM
+	 * programmed in NVRAM.
+	 */
+	{
+		.start		= REALVIEW_DC1176_ROM_BASE,
+		.end		= REALVIEW_DC1176_ROM_BASE + SZ_16K - 1,
+		.flags		= IORESOURCE_MEM,
+	}
+};
+
+static struct platform_device pb1176_rom_device = {
+	.name		= "physmap-flash",
+	.id		= -1,
+	.num_resources	= ARRAY_SIZE(pb1176_rom_resources),
+	.resource	= pb1176_rom_resources,
+	.dev = {
+		.platform_data = &pb1176_rom_pdata,
+	},
+};
 
 static struct resource realview_pb1176_smsc911x_resources[] = {
 	[0] = {
@@ -316,8 +344,7 @@ static void realview_pb1176_reset(char mode)
 	__raw_writel(REALVIEW_PB1176_SYS_SOFT_RESET, reset_ctrl);
 }
 
-static void realview_pb1176_fixup(struct machine_desc *mdesc,
-				  struct tag *tags, char **from,
+static void realview_pb1176_fixup(struct tag *tags, char **from,
 				  struct meminfo *meminfo)
 {
 	/*
@@ -338,7 +365,8 @@ static void __init realview_pb1176_init(void)
 #endif
 
 	realview_flash_register(realview_pb1176_flash_resources,
-				PB1176_FLASH_BLOCKS);
+				ARRAY_SIZE(realview_pb1176_flash_resources));
+	platform_device_register(&pb1176_rom_device);
 	realview_eth_register(NULL, realview_pb1176_smsc911x_resources);
 	platform_device_register(&realview_i2c_device);
 	realview_usb_register(realview_pb1176_isp1761_resources);
@@ -358,7 +386,7 @@ static void __init realview_pb1176_init(void)
 
 MACHINE_START(REALVIEW_PB1176, "ARM-RealView PB1176")
 	/* Maintainer: ARM Ltd/Deep Blue Solutions Ltd */
-	.boot_params	= PLAT_PHYS_OFFSET + 0x00000100,
+	.atag_offset	= 0x100,
 	.fixup		= realview_pb1176_fixup,
 	.map_io		= realview_pb1176_map_io,
 	.init_early	= realview_init_early,

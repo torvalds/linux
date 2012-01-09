@@ -53,7 +53,7 @@ unsigned long netlogic_io_base = (unsigned long)(DEFAULT_NETLOGIC_IO_BASE);
 unsigned long nlm_common_ebase = 0x0;
 struct psb_info nlm_prom_info;
 
-static void nlm_early_serial_setup(void)
+static void __init nlm_early_serial_setup(void)
 {
 	struct uart_port s;
 	nlm_reg_t *uart_base;
@@ -101,7 +101,7 @@ void __init prom_free_prom_memory(void)
 	/* Nothing yet */
 }
 
-static void build_arcs_cmdline(int *argv)
+static void __init build_arcs_cmdline(int *argv)
 {
 	int i, remain, len;
 	char *arg;

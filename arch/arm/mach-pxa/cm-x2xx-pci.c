@@ -26,7 +26,7 @@
 
 #include <asm/hardware/it8152.h>
 
-unsigned long it8152_base_address;
+void __iomem *it8152_base_address;
 static int cmx2xx_it8152_irq_gpio;
 
 static void cmx2xx_it8152_irq_demux(unsigned int irq, struct irq_desc *desc)

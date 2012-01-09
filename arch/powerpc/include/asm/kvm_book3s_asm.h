@@ -75,6 +75,8 @@ struct kvmppc_host_state {
 	ulong scratch0;
 	ulong scratch1;
 	u8 in_guest;
+	u8 restore_hid5;
+	u8 napping;
 
 #ifdef CONFIG_KVM_BOOK3S_64_HV
 	struct kvm_vcpu *kvm_vcpu;

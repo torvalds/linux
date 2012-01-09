@@ -23,14 +23,9 @@
  */
 
 #include <linux/kthread.h>
+#include <linux/module.h>
 #include <linux/debugfs.h>
 #include <linux/seq_file.h>
-
-#ifdef CONFIG_RCU_TRACE
-#define RCU_TRACE(stmt)	stmt
-#else /* #ifdef CONFIG_RCU_TRACE */
-#define RCU_TRACE(stmt)
-#endif /* #else #ifdef CONFIG_RCU_TRACE */
 
 /* Global control variables for rcupdate callback mechanism. */
 struct rcu_ctrlblk {
@@ -38,17 +33,20 @@ struct rcu_ctrlblk {
 	struct rcu_head **donetail;	/* ->next pointer of last "done" CB. */
 	struct rcu_head **curtail;	/* ->next pointer of last CB. */
 	RCU_TRACE(long qlen);		/* Number of pending CBs. */
+	RCU_TRACE(char *name);		/* Name of RCU type. */
 };
 
 /* Definition for rcupdate control block. */
 static struct rcu_ctrlblk rcu_sched_ctrlblk = {
 	.donetail	= &rcu_sched_ctrlblk.rcucblist,
 	.curtail	= &rcu_sched_ctrlblk.rcucblist,
+	RCU_TRACE(.name = "rcu_sched")
 };
 
 static struct rcu_ctrlblk rcu_bh_ctrlblk = {
 	.donetail	= &rcu_bh_ctrlblk.rcucblist,
 	.curtail	= &rcu_bh_ctrlblk.rcucblist,
+	RCU_TRACE(.name = "rcu_bh")
 };
 
 #ifdef CONFIG_DEBUG_LOCK_ALLOC
@@ -131,6 +129,7 @@ static struct rcu_preempt_ctrlblk rcu_preempt_ctrlblk = {
 	.rcb.curtail = &rcu_preempt_ctrlblk.rcb.rcucblist,
 	.nexttail = &rcu_preempt_ctrlblk.rcb.rcucblist,
 	.blkd_tasks = LIST_HEAD_INIT(rcu_preempt_ctrlblk.blkd_tasks),
+	RCU_TRACE(.rcb.name = "rcu_preempt")
 };
 
 static int rcu_preempted_readers_exp(void);
@@ -247,6 +246,13 @@ static void show_tiny_preempt_stats(struct seq_file *m)
 
 #include "rtmutex_common.h"
 
+#define RCU_BOOST_PRIO CONFIG_RCU_BOOST_PRIO
+
+/* Controls for rcu_kthread() kthread. */
+static struct task_struct *rcu_kthread_task;
+static DECLARE_WAIT_QUEUE_HEAD(rcu_kthread_wq);
+static unsigned long have_rcu_kthread_work;
+
 /*
  * Carry out RCU priority boosting on the task indicated by ->boost_tasks,
  * and advance ->boost_tasks to the next task in the ->blkd_tasks list.
@@ -334,7 +340,7 @@ static int rcu_initiate_boost(void)
 		if (rcu_preempt_ctrlblk.exp_tasks == NULL)
 			rcu_preempt_ctrlblk.boost_tasks =
 				rcu_preempt_ctrlblk.gp_tasks;
-		invoke_rcu_kthread();
+		invoke_rcu_callbacks();
 	} else
 		RCU_TRACE(rcu_initiate_boost_trace());
 	return 1;
@@ -351,14 +357,6 @@ static void rcu_preempt_boost_start_gp(void)
 }
 
 #else /* #ifdef CONFIG_RCU_BOOST */
-
-/*
- * If there is no RCU priority boosting, we don't boost.
- */
-static int rcu_boost(void)
-{
-	return 0;
-}
 
 /*
  * If there is no RCU priority boosting, we don't initiate boosting,
@@ -427,7 +425,7 @@ static void rcu_preempt_cpu_qs(void)
 
 	/* If there are done callbacks, cause them to be invoked. */
 	if (*rcu_preempt_ctrlblk.rcb.donetail != NULL)
-		invoke_rcu_kthread();
+		invoke_rcu_callbacks();
 }
 
 /*
@@ -648,7 +646,7 @@ static void rcu_preempt_check_callbacks(void)
 		rcu_preempt_cpu_qs();
 	if (&rcu_preempt_ctrlblk.rcb.rcucblist !=
 	    rcu_preempt_ctrlblk.rcb.donetail)
-		invoke_rcu_kthread();
+		invoke_rcu_callbacks();
 	if (rcu_preempt_gp_in_progress() &&
 	    rcu_cpu_blocking_cur_gp() &&
 	    rcu_preempt_running_reader())
@@ -674,7 +672,7 @@ static void rcu_preempt_remove_callbacks(struct rcu_ctrlblk *rcp)
  */
 static void rcu_preempt_process_callbacks(void)
 {
-	rcu_process_callbacks(&rcu_preempt_ctrlblk.rcb);
+	__rcu_process_callbacks(&rcu_preempt_ctrlblk.rcb);
 }
 
 /*
@@ -696,20 +694,6 @@ void call_rcu(struct rcu_head *head, void (*func)(struct rcu_head *rcu))
 	local_irq_restore(flags);
 }
 EXPORT_SYMBOL_GPL(call_rcu);
-
-void rcu_barrier(void)
-{
-	struct rcu_synchronize rcu;
-
-	init_rcu_head_on_stack(&rcu.head);
-	init_completion(&rcu.completion);
-	/* Will wake me after RCU finished. */
-	call_rcu(&rcu.head, wakeme_after_rcu);
-	/* Wait for it. */
-	wait_for_completion(&rcu.completion);
-	destroy_rcu_head_on_stack(&rcu.head);
-}
-EXPORT_SYMBOL_GPL(rcu_barrier);
 
 /*
  * synchronize_rcu - wait until a grace period has elapsed.
@@ -864,15 +848,6 @@ static void show_tiny_preempt_stats(struct seq_file *m)
 #endif /* #ifdef CONFIG_RCU_TRACE */
 
 /*
- * Because preemptible RCU does not exist, it is never necessary to
- * boost preempted RCU readers.
- */
-static int rcu_boost(void)
-{
-	return 0;
-}
-
-/*
  * Because preemptible RCU does not exist, it never has any callbacks
  * to check.
  */
@@ -898,6 +873,78 @@ static void rcu_preempt_process_callbacks(void)
 
 #endif /* #else #ifdef CONFIG_TINY_PREEMPT_RCU */
 
+#ifdef CONFIG_RCU_BOOST
+
+/*
+ * Wake up rcu_kthread() to process callbacks now eligible for invocation
+ * or to boost readers.
+ */
+static void invoke_rcu_callbacks(void)
+{
+	have_rcu_kthread_work = 1;
+	wake_up(&rcu_kthread_wq);
+}
+
+/*
+ * This kthread invokes RCU callbacks whose grace periods have
+ * elapsed.  It is awakened as needed, and takes the place of the
+ * RCU_SOFTIRQ that is used for this purpose when boosting is disabled.
+ * This is a kthread, but it is never stopped, at least not until
+ * the system goes down.
+ */
+static int rcu_kthread(void *arg)
+{
+	unsigned long work;
+	unsigned long morework;
+	unsigned long flags;
+
+	for (;;) {
+		wait_event_interruptible(rcu_kthread_wq,
+					 have_rcu_kthread_work != 0);
+		morework = rcu_boost();
+		local_irq_save(flags);
+		work = have_rcu_kthread_work;
+		have_rcu_kthread_work = morework;
+		local_irq_restore(flags);
+		if (work)
+			rcu_process_callbacks(NULL);
+		schedule_timeout_interruptible(1); /* Leave CPU for others. */
+	}
+
+	return 0;  /* Not reached, but needed to shut gcc up. */
+}
+
+/*
+ * Spawn the kthread that invokes RCU callbacks.
+ */
+static int __init rcu_spawn_kthreads(void)
+{
+	struct sched_param sp;
+
+	rcu_kthread_task = kthread_run(rcu_kthread, NULL, "rcu_kthread");
+	sp.sched_priority = RCU_BOOST_PRIO;
+	sched_setscheduler_nocheck(rcu_kthread_task, SCHED_FIFO, &sp);
+	return 0;
+}
+early_initcall(rcu_spawn_kthreads);
+
+#else /* #ifdef CONFIG_RCU_BOOST */
+
+/*
+ * Start up softirq processing of callbacks.
+ */
+void invoke_rcu_callbacks(void)
+{
+	raise_softirq(RCU_SOFTIRQ);
+}
+
+void rcu_init(void)
+{
+	open_softirq(RCU_SOFTIRQ, rcu_process_callbacks);
+}
+
+#endif /* #else #ifdef CONFIG_RCU_BOOST */
+
 #ifdef CONFIG_DEBUG_LOCK_ALLOC
 #include <linux/kernel_stat.h>
 
@@ -912,12 +959,6 @@ void __init rcu_scheduler_starting(void)
 }
 
 #endif /* #ifdef CONFIG_DEBUG_LOCK_ALLOC */
-
-#ifdef CONFIG_RCU_BOOST
-#define RCU_BOOST_PRIO CONFIG_RCU_BOOST_PRIO
-#else /* #ifdef CONFIG_RCU_BOOST */
-#define RCU_BOOST_PRIO 1
-#endif /* #else #ifdef CONFIG_RCU_BOOST */
 
 #ifdef CONFIG_RCU_TRACE
 

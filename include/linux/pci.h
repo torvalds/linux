@@ -174,6 +174,8 @@ enum pci_dev_flags {
 	PCI_DEV_FLAGS_MSI_INTX_DISABLE_BUG = (__force pci_dev_flags_t) 1,
 	/* Device configuration is irrevocably lost if disabled into D3 */
 	PCI_DEV_FLAGS_NO_D3 = (__force pci_dev_flags_t) 2,
+	/* Provide indication device is assigned by a Virtual Machine Manager */
+	PCI_DEV_FLAGS_ASSIGNED = (__force pci_dev_flags_t) 4,
 };
 
 enum pci_irq_reroute_variant {
@@ -273,6 +275,7 @@ struct pci_dev {
 	unsigned int	pme_support:5;	/* Bitmask of states from which PME#
 					   can be generated */
 	unsigned int	pme_interrupt:1;
+	unsigned int	pme_poll:1;	/* Poll device's PME status bit */
 	unsigned int	d1_support:1;	/* Low power state D1 is supported */
 	unsigned int	d2_support:1;	/* Low power state D2 is supported */
 	unsigned int	no_d1d2:1;	/* Only allow D0 and D3 */
@@ -335,7 +338,7 @@ struct pci_dev {
 	struct list_head msi_list;
 #endif
 	struct pci_vpd *vpd;
-#ifdef CONFIG_PCI_IOV
+#ifdef CONFIG_PCI_ATS
 	union {
 		struct pci_sriov *sriov;	/* SR-IOV capability related */
 		struct pci_dev *physfn;	/* the PF this VF is associated with */
@@ -621,8 +624,9 @@ struct pci_driver {
 extern void pcie_bus_configure_settings(struct pci_bus *bus, u8 smpss);
 
 enum pcie_bus_config_types {
-	PCIE_BUS_PERFORMANCE,
+	PCIE_BUS_TUNE_OFF,
 	PCIE_BUS_SAFE,
+	PCIE_BUS_PERFORMANCE,
 	PCIE_BUS_PEER2PEER,
 };
 
@@ -954,6 +958,7 @@ void pci_walk_bus(struct pci_bus *top, int (*cb)(struct pci_dev *, void *),
 int pci_cfg_space_size_ext(struct pci_dev *dev);
 int pci_cfg_space_size(struct pci_dev *dev);
 unsigned char pci_bus_max_busnr(struct pci_bus *bus);
+void pci_setup_bridge(struct pci_bus *bus);
 
 #define PCI_VGA_STATE_CHANGE_BRIDGE (1 << 0)
 #define PCI_VGA_STATE_CHANGE_DECODES (1 << 1)

@@ -1,7 +1,6 @@
 #ifndef _LINUX_FIRMWARE_H
 #define _LINUX_FIRMWARE_H
 
-#include <linux/module.h>
 #include <linux/types.h>
 #include <linux/compiler.h>
 #include <linux/gfp.h>
@@ -15,6 +14,7 @@ struct firmware {
 	struct page **pages;
 };
 
+struct module;
 struct device;
 
 struct builtin_fw {

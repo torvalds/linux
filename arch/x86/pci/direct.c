@@ -79,7 +79,7 @@ static int pci_conf1_write(unsigned int seg, unsigned int bus,
 
 #undef PCI_CONF1_ADDRESS
 
-struct pci_raw_ops pci_direct_conf1 = {
+const struct pci_raw_ops pci_direct_conf1 = {
 	.read =		pci_conf1_read,
 	.write =	pci_conf1_write,
 };
@@ -175,7 +175,7 @@ static int pci_conf2_write(unsigned int seg, unsigned int bus,
 
 #undef PCI_CONF2_ADDRESS
 
-struct pci_raw_ops pci_direct_conf2 = {
+static const struct pci_raw_ops pci_direct_conf2 = {
 	.read =		pci_conf2_read,
 	.write =	pci_conf2_write,
 };
@@ -191,7 +191,7 @@ struct pci_raw_ops pci_direct_conf2 = {
  * This should be close to trivial, but it isn't, because there are buggy
  * chipsets (yes, you guessed it, by Intel and Compaq) that have no class ID.
  */
-static int __init pci_sanity_check(struct pci_raw_ops *o)
+static int __init pci_sanity_check(const struct pci_raw_ops *o)
 {
 	u32 x = 0;
 	int year, devfn;

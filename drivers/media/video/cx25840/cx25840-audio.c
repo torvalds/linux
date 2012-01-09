@@ -480,6 +480,7 @@ void cx25840_audio_set_path(struct i2c_client *client)
 
 static void set_volume(struct i2c_client *client, int volume)
 {
+	struct cx25840_state *state = to_state(i2c_get_clientdata(client));
 	int vol;
 
 	/* Convert the volume to msp3400 values (0-127) */
@@ -495,7 +496,14 @@ static void set_volume(struct i2c_client *client, int volume)
 	}
 
 	/* PATH1_VOLUME */
-	cx25840_write(client, 0x8d4, 228 - (vol * 2));
+	if (is_cx2388x(state)) {
+		/* for cx23885 volume doesn't work,
+		 * the calculation always results in
+		 * e4 regardless.
+		 */
+		cx25840_write(client, 0x8d4, volume);
+	} else
+		cx25840_write(client, 0x8d4, 228 - (vol * 2));
 }
 
 static void set_balance(struct i2c_client *client, int balance)

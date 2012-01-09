@@ -97,7 +97,7 @@ static inline int put_sigset_t(compat_sigset_t __user *uset, sigset_t *set)
 	compat_sigset_t	cset;
 
 	switch (_NSIG_WORDS) {
-	case 4: cset.sig[5] = set->sig[3] & 0xffffffffull;
+	case 4: cset.sig[6] = set->sig[3] & 0xffffffffull;
 		cset.sig[7] = set->sig[3] >> 32;
 	case 3: cset.sig[4] = set->sig[2] & 0xffffffffull;
 		cset.sig[5] = set->sig[2] >> 32;

@@ -178,42 +178,6 @@ error_return:
 }
 
 /*
- * There are two policies for allocating an inode.  If the new inode is
- * a directory, then a forward search is made for a block group with both
- * free space and a low directory-to-inode ratio; if that fails, then of
- * the groups with above-average free space, that group with the fewest
- * directories already is chosen.
- *
- * For other inodes, search forward from the parent directory\'s block
- * group to find a free inode.
- */
-static int find_group_dir(struct super_block *sb, struct inode *parent)
-{
-	int ngroups = EXT3_SB(sb)->s_groups_count;
-	unsigned int freei, avefreei;
-	struct ext3_group_desc *desc, *best_desc = NULL;
-	int group, best_group = -1;
-
-	freei = percpu_counter_read_positive(&EXT3_SB(sb)->s_freeinodes_counter);
-	avefreei = freei / ngroups;
-
-	for (group = 0; group < ngroups; group++) {
-		desc = ext3_get_group_desc (sb, group, NULL);
-		if (!desc || !desc->bg_free_inodes_count)
-			continue;
-		if (le16_to_cpu(desc->bg_free_inodes_count) < avefreei)
-			continue;
-		if (!best_desc ||
-		    (le16_to_cpu(desc->bg_free_blocks_count) >
-		     le16_to_cpu(best_desc->bg_free_blocks_count))) {
-			best_group = group;
-			best_desc = desc;
-		}
-	}
-	return best_group;
-}
-
-/*
  * Orlov's allocator for directories.
  *
  * We always try to spread first-level directories.
@@ -436,12 +400,9 @@ struct inode *ext3_new_inode(handle_t *handle, struct inode * dir,
 
 	sbi = EXT3_SB(sb);
 	es = sbi->s_es;
-	if (S_ISDIR(mode)) {
-		if (test_opt (sb, OLDALLOC))
-			group = find_group_dir(sb, dir);
-		else
-			group = find_group_orlov(sb, dir);
-	} else
+	if (S_ISDIR(mode))
+		group = find_group_orlov(sb, dir);
+	else
 		group = find_group_other(sb, dir);
 
 	err = -ENOSPC;
@@ -621,7 +582,7 @@ fail_free_drop:
 fail_drop:
 	dquot_drop(inode);
 	inode->i_flags |= S_NOQUOTA;
-	inode->i_nlink = 0;
+	clear_nlink(inode);
 	unlock_new_inode(inode);
 	iput(inode);
 	brelse(bitmap_bh);

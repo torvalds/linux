@@ -29,7 +29,7 @@
  *           nxp,external-clock-frequency = <16000000>;
  *   };
  *
- * See "Documentation/powerpc/dts-bindings/can/sja1000.txt" for further
+ * See "Documentation/devicetree/bindings/net/can/sja1000.txt" for further
  * information.
  */
 

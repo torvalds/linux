@@ -502,6 +502,7 @@ static void flush_sample_queue(struct perf_session *s,
 	struct perf_sample sample;
 	u64 limit = os->next_flush;
 	u64 last_ts = os->last_sample ? os->last_sample->timestamp : 0ULL;
+	unsigned idx = 0, progress_next = os->nr_samples / 16;
 	int ret;
 
 	if (!ops->ordered_samples || !limit)
@@ -521,6 +522,11 @@ static void flush_sample_queue(struct perf_session *s,
 		os->last_flush = iter->timestamp;
 		list_del(&iter->list);
 		list_add(&iter->list, &os->sample_cache);
+		if (++idx >= progress_next) {
+			progress_next += os->nr_samples / 16;
+			ui_progress__update(idx, os->nr_samples,
+					    "Processing time ordered events...");
+		}
 	}
 
 	if (list_empty(head)) {
@@ -529,6 +535,8 @@ static void flush_sample_queue(struct perf_session *s,
 		os->last_sample =
 			list_entry(head->prev, struct sample_queue, list);
 	}
+
+	os->nr_samples = 0;
 }
 
 /*
@@ -588,6 +596,7 @@ static void __queue_event(struct sample_queue *new, struct perf_session *s)
 	u64 timestamp = new->timestamp;
 	struct list_head *p;
 
+	++os->nr_samples;
 	os->last_sample = new;
 
 	if (!sample) {
@@ -738,10 +747,27 @@ static int perf_session_deliver_event(struct perf_session *session,
 
 	dump_event(session, event, file_offset, sample);
 
+	evsel = perf_evlist__id2evsel(session->evlist, sample->id);
+	if (evsel != NULL && event->header.type != PERF_RECORD_SAMPLE) {
+		/*
+		 * XXX We're leaving PERF_RECORD_SAMPLE unnacounted here
+		 * because the tools right now may apply filters, discarding
+		 * some of the samples. For consistency, in the future we
+		 * should have something like nr_filtered_samples and remove
+		 * the sample->period from total_sample_period, etc, KISS for
+		 * now tho.
+		 *
+		 * Also testing against NULL allows us to handle files without
+		 * attr.sample_id_all and/or without PERF_SAMPLE_ID. In the
+		 * future probably it'll be a good idea to restrict event
+		 * processing via perf_session to files with both set.
+		 */
+		hists__inc_nr_events(&evsel->hists, event->header.type);
+	}
+
 	switch (event->header.type) {
 	case PERF_RECORD_SAMPLE:
 		dump_sample(session, event, sample);
-		evsel = perf_evlist__id2evsel(session->evlist, sample->id);
 		if (evsel == NULL) {
 			++session->hists.stats.nr_unknown_id;
 			return -1;
@@ -874,11 +900,11 @@ static void perf_session__warn_about_errors(const struct perf_session *session,
 					    const struct perf_event_ops *ops)
 {
 	if (ops->lost == perf_event__process_lost &&
-	    session->hists.stats.total_lost != 0) {
-		ui__warning("Processed %" PRIu64 " events and LOST %" PRIu64
-			    "!\n\nCheck IO/CPU overload!\n\n",
-			    session->hists.stats.total_period,
-			    session->hists.stats.total_lost);
+	    session->hists.stats.nr_events[PERF_RECORD_LOST] != 0) {
+		ui__warning("Processed %d events and lost %d chunks!\n\n"
+			    "Check IO/CPU overload!\n\n",
+			    session->hists.stats.nr_events[0],
+			    session->hists.stats.nr_events[PERF_RECORD_LOST]);
 	}
 
 	if (session->hists.stats.nr_unknown_events != 0) {
@@ -1012,7 +1038,6 @@ int __perf_session__process_events(struct perf_session *session,
 {
 	u64 head, page_offset, file_offset, file_pos, progress_next;
 	int err, mmap_prot, mmap_flags, map_idx = 0;
-	struct ui_progress *progress;
 	size_t	page_size, mmap_size;
 	char *buf, *mmaps[8];
 	union perf_event *event;
@@ -1030,9 +1055,6 @@ int __perf_session__process_events(struct perf_session *session,
 		file_size = data_offset + data_size;
 
 	progress_next = file_size / 16;
-	progress = ui_progress__new("Processing events...", file_size);
-	if (progress == NULL)
-		return -1;
 
 	mmap_size = session->mmap_window;
 	if (mmap_size > file_size)
@@ -1095,7 +1117,8 @@ more:
 
 	if (file_pos >= progress_next) {
 		progress_next += file_size / 16;
-		ui_progress__update(progress, file_pos);
+		ui_progress__update(file_pos, file_size,
+				    "Processing events...");
 	}
 
 	if (file_pos < file_size)
@@ -1106,7 +1129,6 @@ more:
 	session->ordered_samples.next_flush = ULLONG_MAX;
 	flush_sample_queue(session, ops);
 out_err:
-	ui_progress__delete(progress);
 	perf_session__warn_about_errors(session, ops);
 	perf_session_free_sample_buffers(session);
 	return err;
@@ -1325,4 +1347,23 @@ int perf_session__cpu_bitmap(struct perf_session *session,
 	}
 
 	return 0;
+}
+
+void perf_session__fprintf_info(struct perf_session *session, FILE *fp,
+				bool full)
+{
+	struct stat st;
+	int ret;
+
+	if (session == NULL || fp == NULL)
+		return;
+
+	ret = fstat(session->fd, &st);
+	if (ret == -1)
+		return;
+
+	fprintf(fp, "# ========\n");
+	fprintf(fp, "# captured on: %s", ctime(&st.st_ctime));
+	perf_header__fprintf_info(session, fp, full);
+	fprintf(fp, "# ========\n#\n");
 }

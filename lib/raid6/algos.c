@@ -17,6 +17,7 @@
  */
 
 #include <linux/raid/pq.h>
+#include <linux/module.h>
 #ifndef __KERNEL__
 #include <sys/mman.h>
 #include <stdio.h>

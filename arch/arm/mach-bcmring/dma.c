@@ -26,6 +26,7 @@
 #include <linux/device.h>
 #include <linux/dma-mapping.h>
 #include <linux/interrupt.h>
+#include <linux/sched.h>
 #include <linux/irqreturn.h>
 #include <linux/proc_fs.h>
 #include <linux/slab.h>
@@ -35,6 +36,7 @@
 #include <linux/mm.h>
 #include <linux/pfn.h>
 #include <linux/atomic.h>
+#include <linux/sched.h>
 #include <mach/dma.h>
 
 /* I don't quite understand why dc4 fails when this is set to 1 and DMA is enabled */

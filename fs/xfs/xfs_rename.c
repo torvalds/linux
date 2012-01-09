@@ -170,12 +170,12 @@ xfs_rename(
 	 * we can rely on either trans_commit or trans_cancel to unlock
 	 * them.
 	 */
-	xfs_trans_ijoin_ref(tp, src_dp, XFS_ILOCK_EXCL);
+	xfs_trans_ijoin(tp, src_dp, XFS_ILOCK_EXCL);
 	if (new_parent)
-		xfs_trans_ijoin_ref(tp, target_dp, XFS_ILOCK_EXCL);
-	xfs_trans_ijoin_ref(tp, src_ip, XFS_ILOCK_EXCL);
+		xfs_trans_ijoin(tp, target_dp, XFS_ILOCK_EXCL);
+	xfs_trans_ijoin(tp, src_ip, XFS_ILOCK_EXCL);
 	if (target_ip)
-		xfs_trans_ijoin_ref(tp, target_ip, XFS_ILOCK_EXCL);
+		xfs_trans_ijoin(tp, target_ip, XFS_ILOCK_EXCL);
 
 	/*
 	 * If we are using project inheritance, we only allow renames

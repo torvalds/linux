@@ -435,7 +435,7 @@ int usb_sg_init(struct usb_sg_request *io, struct usb_device *dev,
 
 			len = sg->length;
 			if (length) {
-				len = min_t(unsigned, len, length);
+				len = min_t(size_t, len, length);
 				length -= len;
 				if (length == 0)
 					io->entries = i + 1;

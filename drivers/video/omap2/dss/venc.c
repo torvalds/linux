@@ -295,7 +295,6 @@ static struct {
 	u32 wss_data;
 	struct regulator *vdda_dac_reg;
 
-	struct clk	*tv_clk;
 	struct clk	*tv_dac_clk;
 } venc;
 
@@ -464,9 +463,11 @@ static void venc_power_off(struct omap_dss_device *dssdev)
 	regulator_disable(venc.vdda_dac_reg);
 }
 
-
-
-
+unsigned long venc_get_pixel_clock(void)
+{
+	/* VENC Pixel Clock in Mhz */
+	return 13500000;
+}
 
 /* driver */
 static int venc_panel_probe(struct omap_dss_device *dssdev)
@@ -732,22 +733,10 @@ static int venc_get_clocks(struct platform_device *pdev)
 {
 	struct clk *clk;
 
-	clk = clk_get(&pdev->dev, "fck");
-	if (IS_ERR(clk)) {
-		DSSERR("can't get fck\n");
-		return PTR_ERR(clk);
-	}
-
-	venc.tv_clk = clk;
-
 	if (dss_has_feature(FEAT_VENC_REQUIRES_TV_DAC_CLK)) {
-		if (cpu_is_omap34xx() || cpu_is_omap3630())
-			clk = clk_get(&pdev->dev, "dss_96m_fck");
-		else
-			clk = clk_get(&pdev->dev, "tv_dac_clk");
+		clk = clk_get(&pdev->dev, "tv_dac_clk");
 		if (IS_ERR(clk)) {
 			DSSERR("can't get tv_dac_clk\n");
-			clk_put(venc.tv_clk);
 			return PTR_ERR(clk);
 		}
 	} else {
@@ -761,8 +750,6 @@ static int venc_get_clocks(struct platform_device *pdev)
 
 static void venc_put_clocks(void)
 {
-	if (venc.tv_clk)
-		clk_put(venc.tv_clk);
 	if (venc.tv_dac_clk)
 		clk_put(venc.tv_dac_clk);
 }
@@ -838,7 +825,6 @@ static int venc_runtime_suspend(struct device *dev)
 {
 	if (venc.tv_dac_clk)
 		clk_disable(venc.tv_dac_clk);
-	clk_disable(venc.tv_clk);
 
 	dispc_runtime_put();
 	dss_runtime_put();
@@ -858,7 +844,6 @@ static int venc_runtime_resume(struct device *dev)
 	if (r < 0)
 		goto err_get_dispc;
 
-	clk_enable(venc.tv_clk);
 	if (venc.tv_dac_clk)
 		clk_enable(venc.tv_dac_clk);
 

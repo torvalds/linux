@@ -16,6 +16,7 @@
 #include <linux/pm_runtime.h>
 #include <linux/io.h>
 #include <linux/slab.h>
+#include <linux/module.h>
 #include <sound/soc.h>
 #include <sound/sh_fsi.h>
 
@@ -210,7 +211,7 @@ struct fsi_master {
  *		basic read write function
  */
 
-static void __fsi_reg_write(u32 reg, u32 data)
+static void __fsi_reg_write(u32 __iomem *reg, u32 data)
 {
 	/* valid data area is 24bit */
 	data &= 0x00ffffff;
@@ -218,12 +219,12 @@ static void __fsi_reg_write(u32 reg, u32 data)
 	__raw_writel(data, reg);
 }
 
-static u32 __fsi_reg_read(u32 reg)
+static u32 __fsi_reg_read(u32 __iomem *reg)
 {
 	return __raw_readl(reg);
 }
 
-static void __fsi_reg_mask_set(u32 reg, u32 mask, u32 data)
+static void __fsi_reg_mask_set(u32 __iomem *reg, u32 mask, u32 data)
 {
 	u32 val = __fsi_reg_read(reg);
 
@@ -250,7 +251,7 @@ static u32 _fsi_master_read(struct fsi_master *master, u32 reg)
 	unsigned long flags;
 
 	spin_lock_irqsave(&master->lock, flags);
-	ret = __fsi_reg_read((u32)(master->base + reg));
+	ret = __fsi_reg_read(master->base + reg);
 	spin_unlock_irqrestore(&master->lock, flags);
 
 	return ret;
@@ -264,7 +265,7 @@ static void _fsi_master_mask_set(struct fsi_master *master,
 	unsigned long flags;
 
 	spin_lock_irqsave(&master->lock, flags);
-	__fsi_reg_mask_set((u32)(master->base + reg), mask, data);
+	__fsi_reg_mask_set(master->base + reg, mask, data);
 	spin_unlock_irqrestore(&master->lock, flags);
 }
 
@@ -1285,7 +1286,7 @@ static int fsi_probe(struct platform_device *pdev)
 	pm_runtime_enable(&pdev->dev);
 	dev_set_drvdata(&pdev->dev, master);
 
-	ret = request_irq(irq, &fsi_interrupt, IRQF_DISABLED,
+	ret = request_irq(irq, &fsi_interrupt, 0,
 			  id_entry->name, master);
 	if (ret) {
 		dev_err(&pdev->dev, "irq request err\n");

@@ -21,6 +21,7 @@
 #include <linux/string.h>
 #include <linux/init.h>
 #include <linux/bootmem.h>
+#include <linux/export.h>
 #include <linux/of_address.h>
 #include <linux/of_pci.h>
 #include <linux/mm.h>
@@ -1730,6 +1731,17 @@ void __devinit pcibios_scan_phb(struct pci_controller *hose)
 
 	if (mode == PCI_PROBE_NORMAL)
 		hose->last_busno = bus->subordinate = pci_scan_child_bus(bus);
+
+	/* Configure PCI Express settings */
+	if (bus && !pci_has_flag(PCI_PROBE_ONLY)) {
+		struct pci_bus *child;
+		list_for_each_entry(child, &bus->children, node) {
+			struct pci_dev *self = child->self;
+			if (!self)
+				continue;
+			pcie_bus_configure_settings(child, self->pcie_mpss);
+		}
+	}
 }
 
 static void fixup_hide_host_resource_fsl(struct pci_dev *dev)

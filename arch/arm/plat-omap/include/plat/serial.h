@@ -16,8 +16,8 @@
 #include <linux/init.h>
 
 /*
- * Memory entry used for the DEBUG_LL UART configuration. See also
- * uncompress.h and debug-macro.S.
+ * Memory entry used for the DEBUG_LL UART configuration, relative to
+ * start of RAM. See also uncompress.h and debug-macro.S.
  *
  * Note that using a memory location for storing the UART configuration
  * has at least two limitations:
@@ -27,7 +27,7 @@
  * 2. We assume printascii is called at least once before paging_init,
  *    and addruart has a chance to read OMAP_UART_INFO
  */
-#define OMAP_UART_INFO		(PLAT_PHYS_OFFSET + 0x3ffc)
+#define OMAP_UART_INFO_OFS	0x3ffc
 
 /* OMAP1 serial ports */
 #define OMAP1_UART1_BASE	0xfffb0000

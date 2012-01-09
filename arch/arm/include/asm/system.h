@@ -57,17 +57,11 @@
 
 #ifndef __ASSEMBLY__
 
+#include <linux/compiler.h>
 #include <linux/linkage.h>
 #include <linux/irqflags.h>
 
 #include <asm/outercache.h>
-
-#define __exception	__attribute__((section(".exception.text")))
-#ifdef CONFIG_FUNCTION_GRAPH_TRACER
-#define __exception_irq_entry	__irq_entry
-#else
-#define __exception_irq_entry	__exception
-#endif
 
 struct thread_info;
 struct task_struct;
@@ -97,14 +91,13 @@ void hook_ifault_code(int nr, int (*fn)(unsigned long, unsigned int,
 #define xchg(ptr,x) \
 	((__typeof__(*(ptr)))__xchg((unsigned long)(x),(ptr),sizeof(*(ptr))))
 
-extern asmlinkage void __backtrace(void);
 extern asmlinkage void c_backtrace(unsigned long fp, int pmode);
 
 struct mm_struct;
 extern void show_pte(struct mm_struct *mm, unsigned long addr);
 extern void __show_regs(struct pt_regs *);
 
-extern int cpu_architecture(void);
+extern int __pure cpu_architecture(void);
 extern void cpu_init(void);
 
 void arm_machine_restart(char mode, const char *cmd);

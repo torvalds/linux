@@ -32,9 +32,27 @@ checking of rcu_dereference() primitives:
 	srcu_dereference(p, sp):
 		Check for SRCU read-side critical section.
 	rcu_dereference_check(p, c):
-		Use explicit check expression "c".  This is useful in
-		code that is invoked by both readers and updaters.
-	rcu_dereference_raw(p)
+		Use explicit check expression "c" along with
+		rcu_read_lock_held().  This is useful in code that is
+		invoked by both RCU readers and updaters.
+	rcu_dereference_bh_check(p, c):
+		Use explicit check expression "c" along with
+		rcu_read_lock_bh_held().  This is useful in code that
+		is invoked by both RCU-bh readers and updaters.
+	rcu_dereference_sched_check(p, c):
+		Use explicit check expression "c" along with
+		rcu_read_lock_sched_held().  This is useful in code that
+		is invoked by both RCU-sched readers and updaters.
+	srcu_dereference_check(p, c):
+		Use explicit check expression "c" along with
+		srcu_read_lock_held()().  This is useful in code that
+		is invoked by both SRCU readers and updaters.
+	rcu_dereference_index_check(p, c):
+		Use explicit check expression "c", but the caller
+		must supply one of the rcu_read_lock_held() functions.
+		This is useful in code that uses RCU-protected arrays
+		that is invoked by both RCU readers and updaters.
+	rcu_dereference_raw(p):
 		Don't check.  (Use sparingly, if at all.)
 	rcu_dereference_protected(p, c):
 		Use explicit check expression "c", and omit all barriers
@@ -48,13 +66,11 @@ checking of rcu_dereference() primitives:
 		value of the pointer itself, for example, against NULL.
 
 The rcu_dereference_check() check expression can be any boolean
-expression, but would normally include one of the rcu_read_lock_held()
-family of functions and a lockdep expression.  However, any boolean
-expression can be used.  For a moderately ornate example, consider
-the following:
+expression, but would normally include a lockdep expression.  However,
+any boolean expression can be used.  For a moderately ornate example,
+consider the following:
 
 	file = rcu_dereference_check(fdt->fd[fd],
-				     rcu_read_lock_held() ||
 				     lockdep_is_held(&files->file_lock) ||
 				     atomic_read(&files->count) == 1);
 
@@ -62,7 +78,7 @@ This expression picks up the pointer "fdt->fd[fd]" in an RCU-safe manner,
 and, if CONFIG_PROVE_RCU is configured, verifies that this expression
 is used in:
 
-1.	An RCU read-side critical section, or
+1.	An RCU read-side critical section (implicit), or
 2.	with files->file_lock held, or
 3.	on an unshared files_struct.
 

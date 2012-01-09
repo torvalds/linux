@@ -2,10 +2,10 @@
 #define _INTEL_RINGBUFFER_H_
 
 enum {
-    RCS = 0x0,
-    VCS,
-    BCS,
-    I915_NUM_RINGS,
+	RCS = 0x0,
+	VCS,
+	BCS,
+	I915_NUM_RINGS,
 };
 
 struct  intel_hw_status_page {
@@ -75,7 +75,12 @@ struct  intel_ring_buffer {
 	int		(*dispatch_execbuffer)(struct intel_ring_buffer *ring,
 					       u32 offset, u32 length);
 	void		(*cleanup)(struct intel_ring_buffer *ring);
+	int		(*sync_to)(struct intel_ring_buffer *ring,
+				   struct intel_ring_buffer *to,
+				   u32 seqno);
 
+	u32		semaphore_register[3]; /*our mbox written by others */
+	u32		signal_mbox[2]; /* mboxes this ring signals to */
 	/**
 	 * List of objects currently involved in rendering from the
 	 * ringbuffer.
@@ -180,9 +185,6 @@ static inline void intel_ring_emit(struct intel_ring_buffer *ring,
 void intel_ring_advance(struct intel_ring_buffer *ring);
 
 u32 intel_ring_get_seqno(struct intel_ring_buffer *ring);
-int intel_ring_sync(struct intel_ring_buffer *ring,
-		    struct intel_ring_buffer *to,
-		    u32 seqno);
 
 int intel_init_render_ring_buffer(struct drm_device *dev);
 int intel_init_bsd_ring_buffer(struct drm_device *dev);

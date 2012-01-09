@@ -148,5 +148,11 @@ config KERNEL_STACK_ORDER
 	  be 1 << order pages.  The default is OK unless you're running Valgrind
 	  on UML, in which case, set this to 3.
 
+config MMAPPER
+	tristate "iomem emulation driver"
+	help
+	  This driver allows a host file to be used as emulated IO memory inside
+	  UML.
+
 config NO_DMA
 	def_bool y

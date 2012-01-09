@@ -249,8 +249,6 @@ extern int (*console_blank_hook)(int);
 #define	APM_MINOR_DEV	134
 
 /*
- * See Documentation/Config.help for the configuration options.
- *
  * Various options can be changed at boot time as follows:
  * (We allow underscores for compatibility with the modules code)
  *	apm=on/off			enable/disable APM

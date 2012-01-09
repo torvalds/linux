@@ -15,6 +15,7 @@
 #include <linux/bug.h>
 #include <linux/err.h>
 #include <linux/kernel.h>
+#include <linux/module.h>
 #include <linux/regulator/driver.h>
 #include <linux/mfd/wm8400-private.h>
 

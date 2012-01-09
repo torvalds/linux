@@ -36,6 +36,13 @@
 #define SQUASHFS_FILE_SIZE		131072
 #define SQUASHFS_FILE_LOG		17
 
+/* default size of block device I/O */
+#ifdef CONFIG_SQUASHFS_4K_DEVBLK_SIZE
+#define SQUASHFS_DEVBLK_SIZE 4096
+#else
+#define SQUASHFS_DEVBLK_SIZE 1024
+#endif
+
 #define SQUASHFS_FILE_MAX_SIZE		1048576
 #define SQUASHFS_FILE_MAX_LOG		20
 

@@ -106,17 +106,21 @@ MODULE_PARM_DESC(ql2xmaxqdepth,
 		"Maximum queue depth to report for target devices.");
 
 /* Do not change the value of this after module load */
-int ql2xenabledif = 1;
+int ql2xenabledif = 0;
 module_param(ql2xenabledif, int, S_IRUGO|S_IWUSR);
 MODULE_PARM_DESC(ql2xenabledif,
 		" Enable T10-CRC-DIF "
-		" Default is 0 - No DIF Support. 1 - Enable it");
+		" Default is 0 - No DIF Support. 1 - Enable it"
+		", 2 - Enable DIF for all types, except Type 0.");
 
-int ql2xenablehba_err_chk;
+int ql2xenablehba_err_chk = 2;
 module_param(ql2xenablehba_err_chk, int, S_IRUGO|S_IWUSR);
 MODULE_PARM_DESC(ql2xenablehba_err_chk,
-		" Enable T10-CRC-DIF Error isolation by HBA"
-		" Default is 0 - Error isolation disabled, 1 - Enable it");
+		" Enable T10-CRC-DIF Error isolation by HBA:\n"
+		" Default is 1.\n"
+		"  0 -- Error isolation disabled\n"
+		"  1 -- Error isolation enabled only for DIX Type 0\n"
+		"  2 -- Error isolation enabled for all Types\n");
 
 int ql2xiidmaenable=1;
 module_param(ql2xiidmaenable, int, S_IRUGO);
@@ -139,7 +143,7 @@ MODULE_PARM_DESC(ql2xmultique_tag,
 		"Set it to 1 to turn on the cpu affinity.");
 
 int ql2xfwloadbin;
-module_param(ql2xfwloadbin, int, S_IRUGO);
+module_param(ql2xfwloadbin, int, S_IRUGO|S_IWUSR);
 MODULE_PARM_DESC(ql2xfwloadbin,
 		"Option to specify location from which to load ISP firmware:.\n"
 		" 2 -- load firmware via the request_firmware() (hotplug).\n"
@@ -154,11 +158,11 @@ MODULE_PARM_DESC(ql2xetsenable,
 		"Default is 0 - skip ETS enablement.");
 
 int ql2xdbwr = 1;
-module_param(ql2xdbwr, int, S_IRUGO);
+module_param(ql2xdbwr, int, S_IRUGO|S_IWUSR);
 MODULE_PARM_DESC(ql2xdbwr,
-	"Option to specify scheme for request queue posting.\n"
-	" 0 -- Regular doorbell.\n"
-	" 1 -- CAMRAM doorbell (faster).\n");
+		"Option to specify scheme for request queue posting.\n"
+		" 0 -- Regular doorbell.\n"
+		" 1 -- CAMRAM doorbell (faster).\n");
 
 int ql2xtargetreset = 1;
 module_param(ql2xtargetreset, int, S_IRUGO);
@@ -179,17 +183,30 @@ MODULE_PARM_DESC(ql2xasynctmfenable,
 		"Default is 0 - Issue TM IOCBs via mailbox mechanism.");
 
 int ql2xdontresethba;
-module_param(ql2xdontresethba, int, S_IRUGO);
+module_param(ql2xdontresethba, int, S_IRUGO|S_IWUSR);
 MODULE_PARM_DESC(ql2xdontresethba,
-	"Option to specify reset behaviour.\n"
-	" 0 (Default) -- Reset on failure.\n"
-	" 1 -- Do not reset on failure.\n");
+		"Option to specify reset behaviour.\n"
+		" 0 (Default) -- Reset on failure.\n"
+		" 1 -- Do not reset on failure.\n");
 
 uint ql2xmaxlun = MAX_LUNS;
 module_param(ql2xmaxlun, uint, S_IRUGO);
 MODULE_PARM_DESC(ql2xmaxlun,
 		"Defines the maximum LU number to register with the SCSI "
 		"midlayer. Default is 65535.");
+
+int ql2xmdcapmask = 0x1F;
+module_param(ql2xmdcapmask, int, S_IRUGO);
+MODULE_PARM_DESC(ql2xmdcapmask,
+		"Set the Minidump driver capture mask level. "
+		"Default is 0x7F - Can be set to 0x3, 0x7, 0xF, 0x1F, 0x7F.");
+
+int ql2xmdenable;
+module_param(ql2xmdenable, int, S_IRUGO);
+MODULE_PARM_DESC(ql2xmdenable,
+		"Enable/disable MiniDump. "
+		"0 (Default) - MiniDump disabled. "
+		"1 - MiniDump enabled.");
 
 /*
  * SCSI host template entry points
@@ -909,7 +926,14 @@ qla2xxx_eh_abort(struct scsi_cmnd *cmd)
 		    "Abort command mbx success.\n");
 		wait = 1;
 	}
+
+	spin_lock_irqsave(&ha->hardware_lock, flags);
 	qla2x00_sp_compl(ha, sp);
+	spin_unlock_irqrestore(&ha->hardware_lock, flags);
+
+	/* Did the command return during mailbox execution? */
+	if (ret == FAILED && !CMD_SP(cmd))
+		ret = SUCCESS;
 
 	/* Wait for the command to be returned. */
 	if (wait) {
@@ -1317,10 +1341,9 @@ qla2x00_abort_all_cmds(scsi_qla_host_t *vha, int res)
 					qla2x00_sp_compl(ha, sp);
 				} else {
 					ctx = sp->ctx;
-					if (ctx->type == SRB_LOGIN_CMD ||
-					    ctx->type == SRB_LOGOUT_CMD) {
-						ctx->u.iocb_cmd->free(sp);
-					} else {
+					if (ctx->type == SRB_ELS_CMD_RPT ||
+					    ctx->type == SRB_ELS_CMD_HST ||
+					    ctx->type == SRB_CT_CMD) {
 						struct fc_bsg_job *bsg_job =
 						    ctx->u.bsg_job;
 						if (bsg_job->request->msgcode
@@ -1332,6 +1355,8 @@ qla2x00_abort_all_cmds(scsi_qla_host_t *vha, int res)
 						kfree(sp->ctx);
 						mempool_free(sp,
 							ha->srb_mempool);
+					} else {
+						ctx->u.iocb_cmd->free(sp);
 					}
 				}
 			}
@@ -1738,9 +1763,9 @@ static struct isp_operations qla82xx_isp_ops = {
 	.read_nvram		= qla24xx_read_nvram_data,
 	.write_nvram		= qla24xx_write_nvram_data,
 	.fw_dump		= qla24xx_fw_dump,
-	.beacon_on		= qla24xx_beacon_on,
-	.beacon_off		= qla24xx_beacon_off,
-	.beacon_blink		= qla24xx_beacon_blink,
+	.beacon_on		= qla82xx_beacon_on,
+	.beacon_off		= qla82xx_beacon_off,
+	.beacon_blink		= NULL,
 	.read_optrom		= qla82xx_read_optrom_data,
 	.write_optrom		= qla82xx_write_optrom_data,
 	.get_flash_version	= qla24xx_get_flash_version,
@@ -2251,7 +2276,7 @@ qla2x00_probe_one(struct pci_dev *pdev, const struct pci_device_id *id)
 	host->this_id = 255;
 	host->cmd_per_lun = 3;
 	host->unique_id = host->host_no;
-	if ((IS_QLA25XX(ha) || IS_QLA81XX(ha)) && ql2xenabledif)
+	if (IS_T10_PI_CAPABLE(ha) && ql2xenabledif)
 		host->max_cmd_len = 32;
 	else
 		host->max_cmd_len = MAX_CMDSZ;
@@ -2378,13 +2403,16 @@ skip_dpc:
 	    "Detected hba at address=%p.\n",
 	    ha);
 
-	if ((IS_QLA25XX(ha) || IS_QLA81XX(ha)) && ql2xenabledif) {
+	if (IS_T10_PI_CAPABLE(ha) && ql2xenabledif) {
 		if (ha->fw_attributes & BIT_4) {
+			int prot = 0;
 			base_vha->flags.difdix_supported = 1;
 			ql_dbg(ql_dbg_init, base_vha, 0x00f1,
 			    "Registering for DIF/DIX type 1 and 3 protection.\n");
+			if (ql2xenabledif == 1)
+				prot = SHOST_DIX_TYPE0_PROTECTION;
 			scsi_host_set_prot(host,
-			    SHOST_DIF_TYPE1_PROTECTION
+			    prot | SHOST_DIF_TYPE1_PROTECTION
 			    | SHOST_DIF_TYPE2_PROTECTION
 			    | SHOST_DIF_TYPE3_PROTECTION
 			    | SHOST_DIX_TYPE1_PROTECTION
@@ -2654,6 +2682,8 @@ qla2x00_free_device(scsi_qla_host_t *vha)
 	qla2x00_free_fcports(vha);
 
 	qla2x00_mem_free(ha);
+
+	qla82xx_md_free(vha);
 
 	qla2x00_free_queues(ha);
 }
@@ -3888,8 +3918,11 @@ qla2x00_timer(scsi_qla_host_t *vha)
 
 	/* Check if beacon LED needs to be blinked for physical host only */
 	if (!vha->vp_idx && (ha->beacon_blink_led == 1)) {
-		set_bit(BEACON_BLINK_NEEDED, &vha->dpc_flags);
-		start_dpc++;
+		/* There is no beacon_blink function for ISP82xx */
+		if (!IS_QLA82XX(ha)) {
+			set_bit(BEACON_BLINK_NEEDED, &vha->dpc_flags);
+			start_dpc++;
+		}
 	}
 
 	/* Process any deferred work. */

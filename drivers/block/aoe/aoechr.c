@@ -11,6 +11,7 @@
 #include <linux/slab.h>
 #include <linux/mutex.h>
 #include <linux/skbuff.h>
+#include <linux/export.h>
 #include "aoe.h"
 
 enum {

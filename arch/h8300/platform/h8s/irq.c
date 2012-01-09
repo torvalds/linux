@@ -14,7 +14,7 @@
 #include <asm/traps.h>
 #include <asm/irq.h>
 #include <asm/io.h>
-#include <asm/gpio.h>
+#include <asm/gpio-internal.h>
 #include <asm/regs267x.h>
 
 /* saved vector list */

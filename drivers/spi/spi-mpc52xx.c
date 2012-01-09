@@ -564,16 +564,4 @@ static struct platform_driver mpc52xx_spi_of_driver = {
 	.probe = mpc52xx_spi_probe,
 	.remove = __devexit_p(mpc52xx_spi_remove),
 };
-
-static int __init mpc52xx_spi_init(void)
-{
-	return platform_driver_register(&mpc52xx_spi_of_driver);
-}
-module_init(mpc52xx_spi_init);
-
-static void __exit mpc52xx_spi_exit(void)
-{
-	platform_driver_unregister(&mpc52xx_spi_of_driver);
-}
-module_exit(mpc52xx_spi_exit);
-
+module_platform_driver(mpc52xx_spi_of_driver);

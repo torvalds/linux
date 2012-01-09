@@ -1263,7 +1263,7 @@ review the kernel documentation in the directory /usr/src/linux/Documentation.
 This chapter  is  heavily  based  on the documentation included in the pre 2.2
 kernels, and became part of it in version 2.2.1 of the Linux kernel.
 
-Please see: Documentation/sysctls/ directory for descriptions of these
+Please see: Documentation/sysctl/ directory for descriptions of these
 entries.
 
 ------------------------------------------------------------------------------

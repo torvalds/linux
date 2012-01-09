@@ -275,7 +275,7 @@ static struct platform_nand_data ts78xx_ts_nand_data = {
 		.partitions		= ts78xx_ts_nand_parts,
 		.nr_partitions		= ARRAY_SIZE(ts78xx_ts_nand_parts),
 		.chip_delay		= 15,
-		.options		= NAND_USE_FLASH_BBT,
+		.bbt_options		= NAND_BBT_USE_FLASH,
 	},
 	.ctrl	= {
 		/*
@@ -621,7 +621,7 @@ static void __init ts78xx_init(void)
 
 MACHINE_START(TS78XX, "Technologic Systems TS-78xx SBC")
 	/* Maintainer: Alexander Clouter <alex@digriz.org.uk> */
-	.boot_params	= 0x00000100,
+	.atag_offset	= 0x100,
 	.init_machine	= ts78xx_init,
 	.map_io		= ts78xx_map_io,
 	.init_early	= orion5x_init_early,

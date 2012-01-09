@@ -75,12 +75,6 @@ static void *vb2_dma_sg_alloc(void *alloc_ctx, unsigned long size)
 
 	printk(KERN_DEBUG "%s: Allocated buffer of %d pages\n",
 		__func__, buf->sg_desc.num_pages);
-
-	if (!buf->vaddr)
-		buf->vaddr = vm_map_ram(buf->pages,
-					buf->sg_desc.num_pages,
-					-1,
-					PAGE_KERNEL);
 	return buf;
 
 fail_pages_alloc:

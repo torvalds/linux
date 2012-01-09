@@ -1,0 +1,16 @@
+config RTS5139
+	tristate "Realtek RTS5139 USB card reader support"
+	depends on USB && SCSI
+	help
+	  Say Y here to include driver code to support the Realtek
+	  RTS5139 USB card readers.
+
+	  If this driver is compiled as a module, it will be named rts5139.
+
+config RTS5139_DEBUG
+	bool "Realtek RTS5139 Card Reader verbose debug"
+	depends on RTS5139
+	help
+	  Say Y here in order to have the rts5139 code generate
+	  verbose debugging messages.
+

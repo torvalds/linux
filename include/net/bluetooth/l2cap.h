@@ -39,8 +39,11 @@
 #define L2CAP_DEFAULT_ACK_TO		200
 #define L2CAP_LE_DEFAULT_MTU		23
 
-#define L2CAP_CONN_TIMEOUT	(40000) /* 40 seconds */
-#define L2CAP_INFO_TIMEOUT	(4000)  /*  4 seconds */
+#define L2CAP_DISC_TIMEOUT             (100)
+#define L2CAP_DISC_REJ_TIMEOUT         (5000)  /*  5 seconds */
+#define L2CAP_ENC_TIMEOUT              (5000)  /*  5 seconds */
+#define L2CAP_CONN_TIMEOUT             (40000) /* 40 seconds */
+#define L2CAP_INFO_TIMEOUT             (4000)  /*  4 seconds */
 
 /* L2CAP socket address */
 struct sockaddr_l2 {
@@ -354,8 +357,8 @@ struct l2cap_chan {
 	__u8		retry_count;
 	__u8		num_acked;
 	__u16		sdu_len;
-	__u16		partial_sdu_len;
 	struct sk_buff	*sdu;
+	struct sk_buff	*sdu_last_frag;
 
 	__u8		remote_tx_win;
 	__u8		remote_max_tx;
@@ -409,14 +412,8 @@ struct l2cap_conn {
 
 	__u8		disc_reason;
 
-	__u8		preq[7]; /* SMP Pairing Request */
-	__u8		prsp[7]; /* SMP Pairing Response */
-	__u8		prnd[16]; /* SMP Pairing Random */
-	__u8		pcnf[16]; /* SMP Pairing Confirm */
-	__u8		tk[16]; /* SMP Temporary Key */
-	__u8		smp_key_size;
-
 	struct timer_list security_timer;
+	struct smp_chan *smp_chan;
 
 	struct list_head chan_l;
 	rwlock_t	chan_lock;
@@ -454,7 +451,6 @@ enum {
 #define L2CAP_CONF_MAX_CONF_RSP 2
 
 enum {
-	CONN_SAR_SDU,
 	CONN_SREJ_SENT,
 	CONN_WAIT_F,
 	CONN_SREJ_ACT,

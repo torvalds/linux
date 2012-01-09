@@ -19,6 +19,7 @@ static DEFINE_MUTEX(rstc_lock);
 
 static struct of_device_id rstc_ids[]  = {
 	{ .compatible = "sirf,prima2-rstc" },
+	{},
 };
 
 static int __init sirfsoc_of_rstc_init(void)

@@ -170,17 +170,11 @@ static uint r8712_get_rateset_len(u8 *rateset)
 	return i;
 }
 
-int r8712_generate_ie(struct registry_priv *pregistrypriv,
-		      struct _adapter *padapter)
+int r8712_generate_ie(struct registry_priv *pregistrypriv)
 {
 	int sz = 0, rateLen;
 	struct wlan_bssid_ex *pdev_network = &pregistrypriv->dev_network;
 	u8 *ie = pdev_network->IEs;
-	struct ieee80211_ht_cap ht_capie;
-	struct ieee80211_ht_addt_info ht_addt_info;
-	unsigned char WMM_IE[] = {0x00, 0x50, 0xf2, 0x02, 0x00, 0x01, 0x00};
-	struct mlme_priv *pmlmepriv = &padapter->mlmepriv;
-	struct qos_priv *pqospriv = &pmlmepriv->qospriv;
 
 	/*timestamp will be inserted by hardware*/
 	sz += 8;
@@ -219,33 +213,6 @@ int r8712_generate_ie(struct registry_priv *pregistrypriv,
 	/*IBSS Parameter Set*/
 	ie = r8712_set_ie(ie, _IBSS_PARA_IE_, 2,
 		    (u8 *)&(pdev_network->Configuration.ATIMWindow), &sz);
-	if (pregistrypriv->ht_enable == 1) {
-		if (pqospriv->qos_option == 0) {
-			ie = r8712_set_ie(ie, _VENDOR_SPECIFIC_IE_,
-					   _WMM_IE_Length_, WMM_IE, &sz);
-			pqospriv->qos_option = 1;
-		}
-		memset(&ht_capie, 0, sizeof(struct ieee80211_ht_cap));
-		ht_capie.cap_info = IEEE80211_HT_CAP_SUP_WIDTH |
-				    IEEE80211_HT_CAP_SGI_20 |
-				    IEEE80211_HT_CAP_SGI_40 |
-				    IEEE80211_HT_CAP_TX_STBC |
-				    IEEE80211_HT_CAP_MAX_AMSDU |
-				    IEEE80211_HT_CAP_DSSSCCK40;
-		ht_capie.ampdu_params_info = (IEEE80211_HT_CAP_AMPDU_FACTOR &
-				0x03) | (IEEE80211_HT_CAP_AMPDU_DENSITY & 0x00);
-		ie = r8712_set_ie(ie, _HT_CAPABILITY_IE_,
-			    sizeof(struct ieee80211_ht_cap),
-			    (unsigned char *)&ht_capie, &sz);
-		/*add HT info ie*/
-		memset(&ht_addt_info, 0,
-			sizeof(struct ieee80211_ht_addt_info));
-		/*need to add the HT additional IEs*/
-		ht_addt_info.control_chan = pregistrypriv->channel;
-		ie = r8712_set_ie(ie, _HT_ADD_INFO_IE_,
-			    sizeof(struct ieee80211_ht_addt_info),
-			    (unsigned char *)&ht_addt_info, &sz);
-	}
 	return sz;
 }
 

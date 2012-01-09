@@ -42,6 +42,7 @@
 #include <linux/device.h>
 #include <linux/debugfs.h>
 #include <linux/seq_file.h>
+#include <linux/security.h>
 #include <net/sock.h>
 
 #include <asm/system.h>
@@ -264,6 +265,8 @@ static void rfcomm_sock_init(struct sock *sk, struct sock *parent)
 
 		pi->sec_level = rfcomm_pi(parent)->sec_level;
 		pi->role_switch = rfcomm_pi(parent)->role_switch;
+
+		security_sk_clone(parent, sk);
 	} else {
 		pi->dlc->defer_setup = 0;
 
@@ -485,11 +488,6 @@ static int rfcomm_sock_accept(struct socket *sock, struct socket *newsock, int f
 
 	lock_sock(sk);
 
-	if (sk->sk_state != BT_LISTEN) {
-		err = -EBADFD;
-		goto done;
-	}
-
 	if (sk->sk_type != SOCK_STREAM) {
 		err = -EINVAL;
 		goto done;
@@ -501,19 +499,20 @@ static int rfcomm_sock_accept(struct socket *sock, struct socket *newsock, int f
 
 	/* Wait for an incoming connection. (wake-one). */
 	add_wait_queue_exclusive(sk_sleep(sk), &wait);
-	while (!(nsk = bt_accept_dequeue(sk, newsock))) {
+	while (1) {
 		set_current_state(TASK_INTERRUPTIBLE);
-		if (!timeo) {
-			err = -EAGAIN;
-			break;
-		}
-
-		release_sock(sk);
-		timeo = schedule_timeout(timeo);
-		lock_sock(sk);
 
 		if (sk->sk_state != BT_LISTEN) {
 			err = -EBADFD;
+			break;
+		}
+
+		nsk = bt_accept_dequeue(sk, newsock);
+		if (nsk)
+			break;
+
+		if (!timeo) {
+			err = -EAGAIN;
 			break;
 		}
 
@@ -521,8 +520,12 @@ static int rfcomm_sock_accept(struct socket *sock, struct socket *newsock, int f
 			err = sock_intr_errno(timeo);
 			break;
 		}
+
+		release_sock(sk);
+		timeo = schedule_timeout(timeo);
+		lock_sock(sk);
 	}
-	set_current_state(TASK_RUNNING);
+	__set_current_state(TASK_RUNNING);
 	remove_wait_queue(sk_sleep(sk), &wait);
 
 	if (err)

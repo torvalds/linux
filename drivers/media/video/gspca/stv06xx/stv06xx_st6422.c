@@ -26,6 +26,8 @@
  *
  */
 
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
 #include "stv06xx_st6422.h"
 
 /* controls */
@@ -136,7 +138,7 @@ static int st6422_probe(struct sd *sd)
 	if (sd->bridge != BRIDGE_ST6422)
 		return -ENODEV;
 
-	info("st6422 sensor detected");
+	pr_info("st6422 sensor detected\n");
 
 	sensor_settings = kmalloc(sizeof *sensor_settings, GFP_KERNEL);
 	if (!sensor_settings)

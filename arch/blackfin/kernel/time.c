@@ -25,7 +25,6 @@
 
 static struct irqaction bfin_timer_irq = {
 	.name = "Blackfin Timer Tick",
-	.flags = IRQF_DISABLED
 };
 
 #if defined(CONFIG_IPIPE)

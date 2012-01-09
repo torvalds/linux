@@ -572,7 +572,7 @@ static void board_select_chip (struct mtd_info *mtd, int chip)
 			</para>
 			<para>
 				The simplest way to activate the FLASH based bad block table support 
-				is to set the option NAND_USE_FLASH_BBT in the option field of
+				is to set the option NAND_BBT_USE_FLASH in the bbt_option field of
 				the nand chip structure before calling nand_scan(). For AG-AND
 				chips is this done by default.
 				This activates the default FLASH based bad block table functionality 
@@ -772,20 +772,6 @@ struct nand_oobinfo {
 				If the spare area buffer is NULL then only the ECC placement is
 				done according to the default builtin scheme.
 			</para>
-		</sect2>
-		<sect2 id="User_space_placement_selection">
-			<title>User space placement selection</title>
-		<para>
-			All non ecc functions like mtd->read and mtd->write use an internal 
-			structure, which can be set by an ioctl. This structure is preset 
-			to the autoplacement default.
-	     		<programlisting>
-	ioctl (fd, MEMSETOOBSEL, oobsel);
-	     		</programlisting>
-			oobsel is a pointer to a user supplied structure of type
-			nand_oobconfig. The contents of this structure must match the 
-			criteria of the filesystem, which will be used. See an example in utils/nandwrite.c.
-		</para>
 		</sect2>
 	</sect1>	
 	<sect1 id="Spare_area_autoplacement_default">
@@ -1158,9 +1144,6 @@ in this page</entry>
 		These constants are defined in nand.h. They are ored together to describe
 		the functionality.
      		<programlisting>
-/* Use a flash based bad block table. This option is parsed by the
- * default bad block table function (nand_default_bbt). */
-#define NAND_USE_FLASH_BBT	0x00010000
 /* The hw ecc generator provides a syndrome instead a ecc value on read 
  * This can only work if we have the ecc bytes directly behind the 
  * data bytes. Applies for DOC and AG-AND Renesas HW Reed Solomon generators */

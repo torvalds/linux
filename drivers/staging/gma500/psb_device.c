@@ -213,7 +213,6 @@ static int psb_restore_display_registers(struct drm_device *dev)
 	struct drm_psb_private *dev_priv = dev->dev_private;
 	struct drm_crtc *crtc;
 	struct drm_connector *connector;
-	int pp_stat;
 
 	/* Display arbitration + watermarks */
 	PSB_WVDC32(dev_priv->saveDSPARB, DSPARB);
@@ -237,37 +236,6 @@ static int psb_restore_display_registers(struct drm_device *dev)
 		connector->funcs->restore(connector);
 
 	mutex_unlock(&dev->mode_config.mutex);
-
-	if (dev_priv->iLVDS_enable) {
-		/*shutdown the panel*/
-		PSB_WVDC32(0, PP_CONTROL);
-		do {
-			pp_stat = PSB_RVDC32(PP_STATUS);
-		} while (pp_stat & 0x80000000);
-
-		/* Turn off the plane */
-		PSB_WVDC32(0x58000000, DSPACNTR);
-		PSB_WVDC32(0, DSPASURF);/*trigger the plane disable*/
-		/* Wait ~4 ticks */
-		msleep(4);
-		/* Turn off pipe */
-		PSB_WVDC32(0x0, PIPEACONF);
-		/* Wait ~8 ticks */
-		msleep(8);
-
-		/* Turn off PLLs */
-		PSB_WVDC32(0, MRST_DPLL_A);
-	} else {
-		PSB_WVDC32(DPI_SHUT_DOWN, DPI_CONTROL_REG);
-		PSB_WVDC32(0x0, PIPEACONF);
-		PSB_WVDC32(0x2faf0000, BLC_PWM_CTL);
-		while (REG_READ(0x70008) & 0x40000000)
-			cpu_relax();
-		while ((PSB_RVDC32(GEN_FIFO_STAT_REG) & DPI_FIFO_EMPTY)
-			!= DPI_FIFO_EMPTY)
-			cpu_relax();
-		PSB_WVDC32(0, DEVICE_READY_REG);
-	}
 	return 0;
 }
 

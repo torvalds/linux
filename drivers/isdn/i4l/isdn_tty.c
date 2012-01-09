@@ -750,6 +750,7 @@ isdn_tty_modem_hup(modem_info * info, int local)
  * supplementary service (CAPI 2.0 part III)
  */
 #include <linux/isdn/capicmd.h>
+#include <linux/module.h>
 
 int
 isdn_tty_capi_facility(capi_msg *cm) {
@@ -1693,7 +1694,7 @@ isdn_tty_close(struct tty_struct *tty, struct file *filp)
 	 * line status register.
 	 */
 	if (info->flags & ISDN_ASYNC_INITIALIZED) {
-		tty_wait_until_sent(tty, 3000);	/* 30 seconds timeout */
+		tty_wait_until_sent_from_close(tty, 3000);	/* 30 seconds timeout */
 		/*
 		 * Before we drop DTR, make sure the UART transmitter
 		 * has completely drained; this is especially

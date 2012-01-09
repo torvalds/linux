@@ -80,8 +80,6 @@ struct clkops {
  *
  * @div is the divisor that should be applied to the parent clock's rate
  * to produce the current clock's rate.
- *
- * XXX @flags probably should be replaced with an struct omap_chip.
  */
 struct clksel_rate {
 	u32			val;

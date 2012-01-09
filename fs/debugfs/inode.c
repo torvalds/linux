@@ -1,5 +1,5 @@
 /*
- *  file.c - part of debugfs, a tiny little debug file system
+ *  inode.c - part of debugfs, a tiny little debug file system
  *
  *  Copyright (C) 2004 Greg Kroah-Hartman <greg@kroah.com>
  *  Copyright (C) 2004 IBM Inc.

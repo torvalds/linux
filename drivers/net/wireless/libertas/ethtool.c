@@ -5,6 +5,7 @@
 
 #include "decl.h"
 #include "cmd.h"
+#include "mesh.h"
 
 
 static void lbs_ethtool_get_drvinfo(struct net_device *dev,

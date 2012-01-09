@@ -7,7 +7,6 @@
  */
 
 #include <linux/interrupt.h>
-#include <linux/gpio.h>
 #include <linux/fs.h>
 #include <linux/device.h>
 #include <linux/kernel.h>
@@ -15,6 +14,7 @@
 #include <linux/slab.h>
 #include <linux/sysfs.h>
 #include <linux/regulator/consumer.h>
+#include <linux/module.h>
 
 #include "../iio.h"
 #include "../sysfs.h"
@@ -172,22 +172,22 @@ static ssize_t ad5624r_show_scale(struct device *dev,
 
 	return sprintf(buf, "%d.%03d\n", scale_uv / 1000, scale_uv % 1000);
 }
-static IIO_DEVICE_ATTR(out_scale, S_IRUGO, ad5624r_show_scale, NULL, 0);
+static IIO_DEVICE_ATTR(out_voltage_scale, S_IRUGO, ad5624r_show_scale, NULL, 0);
 
 static IIO_DEV_ATTR_OUT_RAW(0, ad5624r_write_dac, AD5624R_ADDR_DAC0);
 static IIO_DEV_ATTR_OUT_RAW(1, ad5624r_write_dac, AD5624R_ADDR_DAC1);
 static IIO_DEV_ATTR_OUT_RAW(2, ad5624r_write_dac, AD5624R_ADDR_DAC2);
 static IIO_DEV_ATTR_OUT_RAW(3, ad5624r_write_dac, AD5624R_ADDR_DAC3);
 
-static IIO_DEVICE_ATTR(out_powerdown_mode, S_IRUGO |
+static IIO_DEVICE_ATTR(out_voltage_powerdown_mode, S_IRUGO |
 			S_IWUSR, ad5624r_read_powerdown_mode,
 			ad5624r_write_powerdown_mode, 0);
 
-static IIO_CONST_ATTR(out_powerdown_mode_available,
+static IIO_CONST_ATTR(out_voltage_powerdown_mode_available,
 			"1kohm_to_gnd 100kohm_to_gnd three_state");
 
 #define IIO_DEV_ATTR_DAC_POWERDOWN(_num, _show, _store, _addr)		\
-	IIO_DEVICE_ATTR(out##_num##_powerdown,				\
+	IIO_DEVICE_ATTR(out_voltage##_num##_powerdown,			\
 			S_IRUGO | S_IWUSR, _show, _store, _addr)
 
 static IIO_DEV_ATTR_DAC_POWERDOWN(0, ad5624r_read_dac_powerdown,
@@ -200,17 +200,17 @@ static IIO_DEV_ATTR_DAC_POWERDOWN(3, ad5624r_read_dac_powerdown,
 				   ad5624r_write_dac_powerdown, 3);
 
 static struct attribute *ad5624r_attributes[] = {
-	&iio_dev_attr_out0_raw.dev_attr.attr,
-	&iio_dev_attr_out1_raw.dev_attr.attr,
-	&iio_dev_attr_out2_raw.dev_attr.attr,
-	&iio_dev_attr_out3_raw.dev_attr.attr,
-	&iio_dev_attr_out0_powerdown.dev_attr.attr,
-	&iio_dev_attr_out1_powerdown.dev_attr.attr,
-	&iio_dev_attr_out2_powerdown.dev_attr.attr,
-	&iio_dev_attr_out3_powerdown.dev_attr.attr,
-	&iio_dev_attr_out_powerdown_mode.dev_attr.attr,
-	&iio_const_attr_out_powerdown_mode_available.dev_attr.attr,
-	&iio_dev_attr_out_scale.dev_attr.attr,
+	&iio_dev_attr_out_voltage0_raw.dev_attr.attr,
+	&iio_dev_attr_out_voltage1_raw.dev_attr.attr,
+	&iio_dev_attr_out_voltage2_raw.dev_attr.attr,
+	&iio_dev_attr_out_voltage3_raw.dev_attr.attr,
+	&iio_dev_attr_out_voltage0_powerdown.dev_attr.attr,
+	&iio_dev_attr_out_voltage1_powerdown.dev_attr.attr,
+	&iio_dev_attr_out_voltage2_powerdown.dev_attr.attr,
+	&iio_dev_attr_out_voltage3_powerdown.dev_attr.attr,
+	&iio_dev_attr_out_voltage_powerdown_mode.dev_attr.attr,
+	&iio_const_attr_out_voltage_powerdown_mode_available.dev_attr.attr,
+	&iio_dev_attr_out_voltage_scale.dev_attr.attr,
 	NULL,
 };
 
@@ -227,24 +227,23 @@ static int __devinit ad5624r_probe(struct spi_device *spi)
 {
 	struct ad5624r_state *st;
 	struct iio_dev *indio_dev;
-	struct regulator *reg;
 	int ret, voltage_uv = 0;
 
-	reg = regulator_get(&spi->dev, "vcc");
-	if (!IS_ERR(reg)) {
-		ret = regulator_enable(reg);
-		if (ret)
-			goto error_put_reg;
-
-		voltage_uv = regulator_get_voltage(reg);
-	}
 	indio_dev = iio_allocate_device(sizeof(*st));
 	if (indio_dev == NULL) {
 		ret = -ENOMEM;
-		goto error_disable_reg;
+		goto error_ret;
 	}
 	st = iio_priv(indio_dev);
-	st->reg = reg;
+	st->reg = regulator_get(&spi->dev, "vcc");
+	if (!IS_ERR(st->reg)) {
+		ret = regulator_enable(st->reg);
+		if (ret)
+			goto error_put_reg;
+
+		voltage_uv = regulator_get_voltage(st->reg);
+	}
+
 	spi_set_drvdata(spi, indio_dev);
 	st->chip_info =
 		&ad5624r_chip_info_tbl[spi_get_device_id(spi)->driver_data];
@@ -261,25 +260,25 @@ static int __devinit ad5624r_probe(struct spi_device *spi)
 	indio_dev->info = &ad5624r_info;
 	indio_dev->modes = INDIO_DIRECT_MODE;
 
-	ret = iio_device_register(indio_dev);
-	if (ret)
-		goto error_free_dev;
-
 	ret = ad5624r_spi_write(spi, AD5624R_CMD_INTERNAL_REFER_SETUP, 0,
 				!!voltage_uv, 16);
 	if (ret)
-		goto error_free_dev;
+		goto error_disable_reg;
+
+	ret = iio_device_register(indio_dev);
+	if (ret)
+		goto error_disable_reg;
 
 	return 0;
 
-error_free_dev:
-	iio_free_device(indio_dev);
 error_disable_reg:
-	if (!IS_ERR(reg))
-		regulator_disable(reg);
+	if (!IS_ERR(st->reg))
+		regulator_disable(st->reg);
 error_put_reg:
-	if (!IS_ERR(reg))
-		regulator_put(reg);
+	if (!IS_ERR(st->reg))
+		regulator_put(st->reg);
+	iio_free_device(indio_dev);
+error_ret:
 
 	return ret;
 }
@@ -288,13 +287,13 @@ static int __devexit ad5624r_remove(struct spi_device *spi)
 {
 	struct iio_dev *indio_dev = spi_get_drvdata(spi);
 	struct ad5624r_state *st = iio_priv(indio_dev);
-	struct regulator *reg = st->reg;
 
 	iio_device_unregister(indio_dev);
-	if (!IS_ERR(reg)) {
-		regulator_disable(reg);
-		regulator_put(reg);
+	if (!IS_ERR(st->reg)) {
+		regulator_disable(st->reg);
+		regulator_put(st->reg);
 	}
+	iio_free_device(indio_dev);
 
 	return 0;
 }

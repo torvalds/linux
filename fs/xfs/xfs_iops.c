@@ -70,9 +70,8 @@ xfs_synchronize_times(
 }
 
 /*
- * If the linux inode is valid, mark it dirty.
- * Used when committing a dirty inode into a transaction so that
- * the inode will get written back by the linux code
+ * If the linux inode is valid, mark it dirty, else mark the dirty state
+ * in the XFS inode to make sure we pick it up when reclaiming the inode.
  */
 void
 xfs_mark_inode_dirty_sync(
@@ -82,6 +81,10 @@ xfs_mark_inode_dirty_sync(
 
 	if (!(inode->i_state & (I_WILL_FREE|I_FREEING)))
 		mark_inode_dirty_sync(inode);
+	else {
+		barrier();
+		ip->i_update_core = 1;
+	}
 }
 
 void
@@ -92,6 +95,28 @@ xfs_mark_inode_dirty(
 
 	if (!(inode->i_state & (I_WILL_FREE|I_FREEING)))
 		mark_inode_dirty(inode);
+	else {
+		barrier();
+		ip->i_update_core = 1;
+	}
+
+}
+
+
+int xfs_initxattrs(struct inode *inode, const struct xattr *xattr_array,
+		   void *fs_info)
+{
+	const struct xattr *xattr;
+	struct xfs_inode *ip = XFS_I(inode);
+	int error = 0;
+
+	for (xattr = xattr_array; xattr->name != NULL; xattr++) {
+		error = xfs_attr_set(ip, xattr->name, xattr->value,
+				     xattr->value_len, ATTR_SECURE);
+		if (error < 0)
+			break;
+	}
+	return error;
 }
 
 /*
@@ -100,31 +125,15 @@ xfs_mark_inode_dirty(
  * these attrs can be journalled at inode creation time (along with the
  * inode, of course, such that log replay can't cause these to be lost).
  */
+
 STATIC int
 xfs_init_security(
 	struct inode	*inode,
 	struct inode	*dir,
 	const struct qstr *qstr)
 {
-	struct xfs_inode *ip = XFS_I(inode);
-	size_t		length;
-	void		*value;
-	unsigned char	*name;
-	int		error;
-
-	error = security_inode_init_security(inode, dir, qstr, (char **)&name,
-					     &value, &length);
-	if (error) {
-		if (error == -EOPNOTSUPP)
-			return 0;
-		return -error;
-	}
-
-	error = xfs_attr_set(ip, name, value, length, ATTR_SECURE);
-
-	kfree(name);
-	kfree(value);
-	return error;
+	return security_inode_init_security(inode, dir, qstr,
+					    &xfs_initxattrs, NULL);
 }
 
 static void
@@ -457,7 +466,7 @@ xfs_vn_getattr(
 	trace_xfs_getattr(ip);
 
 	if (XFS_FORCED_SHUTDOWN(mp))
-		return XFS_ERROR(EIO);
+		return -XFS_ERROR(EIO);
 
 	stat->size = XFS_ISIZE(ip);
 	stat->dev = inode->i_sb->s_dev;
@@ -603,7 +612,7 @@ xfs_setattr_nonsize(
 		}
 	}
 
-	xfs_trans_ijoin(tp, ip);
+	xfs_trans_ijoin(tp, ip, 0);
 
 	/*
 	 * Change file ownership.  Must be the owner or privileged.
@@ -825,16 +834,16 @@ xfs_setattr_size(
 	 * care about here.
 	 */
 	if (ip->i_size != ip->i_d.di_size && iattr->ia_size > ip->i_d.di_size) {
-		error = xfs_flush_pages(ip, ip->i_d.di_size, iattr->ia_size,
-					XBF_ASYNC, FI_NONE);
+		error = xfs_flush_pages(ip, ip->i_d.di_size, iattr->ia_size, 0,
+					FI_NONE);
 		if (error)
 			goto out_unlock;
 	}
 
 	/*
-	 * Wait for all I/O to complete.
+	 * Wait for all direct I/O to complete.
 	 */
-	xfs_ioend_wait(ip);
+	inode_dio_wait(inode);
 
 	error = -block_truncate_page(inode->i_mapping, iattr->ia_size,
 				     xfs_get_blocks);
@@ -855,7 +864,7 @@ xfs_setattr_size(
 
 	xfs_ilock(ip, XFS_ILOCK_EXCL);
 
-	xfs_trans_ijoin(tp, ip);
+	xfs_trans_ijoin(tp, ip, 0);
 
 	/*
 	 * Only change the c/mtime if we are changing the size or we are
@@ -1144,7 +1153,7 @@ xfs_setup_inode(
 	hlist_add_fake(&inode->i_hash);
 
 	inode->i_mode	= ip->i_d.di_mode;
-	inode->i_nlink	= ip->i_d.di_nlink;
+	set_nlink(inode, ip->i_d.di_nlink);
 	inode->i_uid	= ip->i_d.di_uid;
 	inode->i_gid	= ip->i_d.di_gid;
 

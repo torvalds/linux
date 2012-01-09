@@ -6,14 +6,11 @@
 #ifndef __UM_MMU_CONTEXT_H
 #define __UM_MMU_CONTEXT_H
 
-#include "linux/sched.h"
-#include "um_mmu.h"
+#include <linux/sched.h>
+#include <asm/mmu.h>
 
 extern void arch_dup_mmap(struct mm_struct *oldmm, struct mm_struct *mm);
 extern void arch_exit_mmap(struct mm_struct *mm);
-
-#define get_mmu_context(task) do ; while(0)
-#define activate_context(tsk) do ; while(0)
 
 #define deactivate_mm(tsk,mm)	do { } while (0)
 

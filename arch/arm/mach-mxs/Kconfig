@@ -23,6 +23,7 @@ config MACH_STMP378X_DEVB
 	select MXS_HAVE_AMBA_DUART
 	select MXS_HAVE_PLATFORM_AUART
 	select MXS_HAVE_PLATFORM_MXS_MMC
+	select MXS_HAVE_PLATFORM_RTC_STMP3XXX
 	help
 	  Include support for STMP378x-devb platform. This includes specific
 	  configurations for the board and its peripherals.
@@ -34,6 +35,7 @@ config MACH_MX23EVK
 	select MXS_HAVE_PLATFORM_AUART
 	select MXS_HAVE_PLATFORM_MXS_MMC
 	select MXS_HAVE_PLATFORM_MXSFB
+	select MXS_HAVE_PLATFORM_RTC_STMP3XXX
 	help
 	  Include support for MX23EVK platform. This includes specific
 	  configurations for the board and its peripherals.
@@ -48,6 +50,9 @@ config MACH_MX28EVK
 	select MXS_HAVE_PLATFORM_FLEXCAN
 	select MXS_HAVE_PLATFORM_MXS_MMC
 	select MXS_HAVE_PLATFORM_MXSFB
+	select MXS_HAVE_PLATFORM_MXS_SAIF
+	select MXS_HAVE_PLATFORM_MXS_I2C
+	select MXS_HAVE_PLATFORM_RTC_STMP3XXX
 	select MXS_OCOTP
 	help
 	  Include support for MX28EVK platform. This includes specific
@@ -63,9 +68,27 @@ config MODULE_TX28
 	select MXS_HAVE_PLATFORM_MXS_I2C
 	select MXS_HAVE_PLATFORM_MXS_MMC
 	select MXS_HAVE_PLATFORM_MXS_PWM
+	select MXS_HAVE_PLATFORM_RTC_STMP3XXX
+
+config MODULE_M28
+	bool
+	select SOC_IMX28
+	select LEDS_GPIO_REGISTER
+	select MXS_HAVE_AMBA_DUART
+	select MXS_HAVE_PLATFORM_AUART
+	select MXS_HAVE_PLATFORM_FEC
+	select MXS_HAVE_PLATFORM_FLEXCAN
+	select MXS_HAVE_PLATFORM_MXS_I2C
+	select MXS_HAVE_PLATFORM_MXS_MMC
+	select MXS_HAVE_PLATFORM_MXSFB
+	select MXS_OCOTP
 
 config MACH_TX28
 	bool "Ka-Ro TX28 module"
 	select MODULE_TX28
+
+config MACH_M28EVK
+	bool "Support DENX M28EVK Platform"
+	select MODULE_M28
 
 endif

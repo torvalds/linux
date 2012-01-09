@@ -57,5 +57,9 @@ void *dm_kcopyd_prepare_callback(struct dm_kcopyd_client *kc,
 				 dm_kcopyd_notify_fn fn, void *context);
 void dm_kcopyd_do_callback(void *job, int read_err, unsigned long write_err);
 
+int dm_kcopyd_zero(struct dm_kcopyd_client *kc,
+		   unsigned num_dests, struct dm_io_region *dests,
+		   unsigned flags, dm_kcopyd_notify_fn fn, void *context);
+
 #endif	/* __KERNEL__ */
 #endif	/* _LINUX_DM_KCOPYD_H */

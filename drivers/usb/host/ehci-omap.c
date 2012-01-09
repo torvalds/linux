@@ -228,7 +228,7 @@ static int ehci_hcd_omap_probe(struct platform_device *pdev)
 	/* cache this readonly data; minimize chip reads */
 	omap_ehci->hcs_params = readl(&omap_ehci->caps->hcs_params);
 
-	ret = usb_add_hcd(hcd, irq, IRQF_DISABLED | IRQF_SHARED);
+	ret = usb_add_hcd(hcd, irq, IRQF_SHARED);
 	if (ret) {
 		dev_err(dev, "failed to add hcd with err %d\n", ret);
 		goto err_add_hcd;

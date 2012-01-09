@@ -101,10 +101,6 @@ config GENERIC_LOCKBREAK
 	def_bool y
 	depends on SMP && PREEMPT
 
-config SYS_SUPPORTS_PM
-	bool
-	depends on !SMP
-
 config ARCH_SUSPEND_POSSIBLE
 	def_bool n
 
@@ -649,7 +645,7 @@ config CRASH_DUMP
 	  a specially reserved region and then later executed after
 	  a crash by kdump/kexec. The crash dump kernel must be compiled
 	  to a memory address not used by the main kernel using
-	  MEMORY_START.
+	  PHYSICAL_START.
 
 	  For more details see Documentation/kdump/kdump.txt
 
@@ -659,6 +655,17 @@ config KEXEC_JUMP
 	help
 	  Jump between original kernel and kexeced kernel and invoke
 	  code via KEXEC
+
+config PHYSICAL_START
+	hex "Physical address where the kernel is loaded" if (EXPERT || CRASH_DUMP)
+	default MEMORY_START
+	---help---
+	  This gives the physical address where the kernel is loaded
+	  and is ordinarily the same as MEMORY_START.
+
+	  Different values are primarily used in the case of kexec on panic
+	  where the fail safe kernel needs to run at a different address
+	  than the panic-ed kernel.
 
 config SECCOMP
 	bool "Enable seccomp to safely compute untrusted bytecode"

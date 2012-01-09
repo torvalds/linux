@@ -222,26 +222,6 @@ extern void omap_gpio_restore_context(void);
 #include <linux/errno.h>
 #include <asm-generic/gpio.h>
 
-static inline int gpio_get_value(unsigned gpio)
-{
-	return __gpio_get_value(gpio);
-}
-
-static inline void gpio_set_value(unsigned gpio, int value)
-{
-	__gpio_set_value(gpio, value);
-}
-
-static inline int gpio_cansleep(unsigned gpio)
-{
-	return __gpio_cansleep(gpio);
-}
-
-static inline int gpio_to_irq(unsigned gpio)
-{
-	return __gpio_to_irq(gpio);
-}
-
 static inline int irq_to_gpio(unsigned irq)
 {
 	int tmp;

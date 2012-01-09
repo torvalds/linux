@@ -122,7 +122,7 @@ gss_cred_set_ctx(struct rpc_cred *cred, struct gss_cl_ctx *ctx)
 	if (!test_bit(RPCAUTH_CRED_NEW, &cred->cr_flags))
 		return;
 	gss_get_ctx(ctx);
-	rcu_assign_pointer(gss_cred->gc_ctx, ctx);
+	RCU_INIT_POINTER(gss_cred->gc_ctx, ctx);
 	set_bit(RPCAUTH_CRED_UPTODATE, &cred->cr_flags);
 	smp_mb__before_clear_bit();
 	clear_bit(RPCAUTH_CRED_NEW, &cred->cr_flags);
@@ -603,26 +603,6 @@ out:
 	return err;
 }
 
-static ssize_t
-gss_pipe_upcall(struct file *filp, struct rpc_pipe_msg *msg,
-		char __user *dst, size_t buflen)
-{
-	char *data = (char *)msg->data + msg->copied;
-	size_t mlen = min(msg->len, buflen);
-	unsigned long left;
-
-	left = copy_to_user(dst, data, mlen);
-	if (left == mlen) {
-		msg->errno = -EFAULT;
-		return -EFAULT;
-	}
-
-	mlen -= left;
-	msg->copied += mlen;
-	msg->errno = 0;
-	return mlen;
-}
-
 #define MSG_BUF_MAXSIZE 1024
 
 static ssize_t
@@ -970,7 +950,7 @@ gss_destroy_nullcred(struct rpc_cred *cred)
 	struct gss_auth *gss_auth = container_of(cred->cr_auth, struct gss_auth, rpc_auth);
 	struct gss_cl_ctx *ctx = gss_cred->gc_ctx;
 
-	rcu_assign_pointer(gss_cred->gc_ctx, NULL);
+	RCU_INIT_POINTER(gss_cred->gc_ctx, NULL);
 	call_rcu(&cred->cr_rcu, gss_free_cred_callback);
 	if (ctx)
 		gss_put_ctx(ctx);
@@ -1590,7 +1570,7 @@ static const struct rpc_credops gss_nullops = {
 };
 
 static const struct rpc_pipe_ops gss_upcall_ops_v0 = {
-	.upcall		= gss_pipe_upcall,
+	.upcall		= rpc_pipe_generic_upcall,
 	.downcall	= gss_pipe_downcall,
 	.destroy_msg	= gss_pipe_destroy_msg,
 	.open_pipe	= gss_pipe_open_v0,
@@ -1598,7 +1578,7 @@ static const struct rpc_pipe_ops gss_upcall_ops_v0 = {
 };
 
 static const struct rpc_pipe_ops gss_upcall_ops_v1 = {
-	.upcall		= gss_pipe_upcall,
+	.upcall		= rpc_pipe_generic_upcall,
 	.downcall	= gss_pipe_downcall,
 	.destroy_msg	= gss_pipe_destroy_msg,
 	.open_pipe	= gss_pipe_open_v1,

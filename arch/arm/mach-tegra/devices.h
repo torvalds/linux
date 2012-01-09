@@ -21,6 +21,8 @@
 
 #include <linux/platform_device.h>
 
+extern struct platform_device tegra_gpio_device;
+extern struct platform_device tegra_pinmux_device;
 extern struct platform_device tegra_sdhci_device1;
 extern struct platform_device tegra_sdhci_device2;
 extern struct platform_device tegra_sdhci_device3;

@@ -24,8 +24,8 @@ config ETRAX_PA_LEDS
 	help
 	  The ETRAX network driver is responsible for flashing LED's when
 	  packets arrive and are sent.  It uses macros defined in
-	  <file:include/asm-cris/io.h>, and those macros are defined after what
-	  YOU choose in this option.  The actual bits used are configured
+	  <file:arch/cris/include/asm/io.h>, and those macros are defined after
+	  what YOU choose in this option.  The actual bits used are configured
 	  separately.  Select this if the LEDs are on port PA.  Some products
 	  put the leds on PB or a memory-mapped latch (CSP0) instead.
 
@@ -34,8 +34,8 @@ config ETRAX_PB_LEDS
 	help
 	  The ETRAX network driver is responsible for flashing LED's when
 	  packets arrive and are sent.  It uses macros defined in
-	  <file:include/asm-cris/io.h>, and those macros are defined after what
-	  YOU choose in this option.  The actual bits used are configured
+	  <file:arch/cris/include/asm/io.h>, and those macros are defined after
+	  what YOU choose in this option.  The actual bits used are configured
 	  separately.  Select this if the LEDs are on port PB.  Some products
 	  put the leds on PA or a memory-mapped latch (CSP0) instead.
 
@@ -44,8 +44,8 @@ config ETRAX_CSP0_LEDS
 	help
 	  The ETRAX network driver is responsible for flashing LED's when
 	  packets arrive and are sent. It uses macros defined in
-	  <file:include/asm-cris/io.h>, and those macros are defined after what
-	  YOU choose in this option.  The actual bits used are configured
+	  <file:arch/cris/include/asm/io.h>, and those macros are defined after
+	  what YOU choose in this option.  The actual bits used are configured
 	  separately.  Select this if the LEDs are on a memory-mapped latch
 	  using chip select CSP0, this is mapped at 0x90000000.
 	  Some products put the leds on PA or PB instead.

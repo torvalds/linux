@@ -161,12 +161,13 @@ static struct sys_timer eukrea_cpuimx25_timer = {
 	.init   = eukrea_cpuimx25_timer_init,
 };
 
-MACHINE_START(EUKREA_CPUIMX25, "Eukrea CPUIMX25")
+MACHINE_START(EUKREA_CPUIMX25SD, "Eukrea CPUIMX25")
 	/* Maintainer: Eukrea Electromatique */
-	.boot_params = MX25_PHYS_OFFSET + 0x100,
+	.atag_offset = 0x100,
 	.map_io = mx25_map_io,
 	.init_early = imx25_init_early,
 	.init_irq = mx25_init_irq,
+	.handle_irq = imx25_handle_irq,
 	.timer = &eukrea_cpuimx25_timer,
 	.init_machine = eukrea_cpuimx25_init,
 MACHINE_END

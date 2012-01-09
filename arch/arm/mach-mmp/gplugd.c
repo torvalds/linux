@@ -9,11 +9,11 @@
  */
 
 #include <linux/init.h>
+#include <linux/gpio.h>
 
 #include <asm/mach/arch.h>
 #include <asm/mach-types.h>
 
-#include <mach/gpio.h>
 #include <mach/pxa168.h>
 #include <mach/mfp-pxa168.h>
 
@@ -188,7 +188,7 @@ static void __init gplugd_init(void)
 	pxa168_add_eth(&gplugd_eth_platform_data);
 }
 
-MACHINE_START(SHEEVAD, "PXA168-based GuruPlug Display (gplugD) Platform")
+MACHINE_START(GPLUGD, "PXA168-based GuruPlug Display (gplugD) Platform")
 	.map_io		= mmp_map_io,
 	.nr_irqs	= IRQ_BOARD_START,
 	.init_irq       = pxa168_init_irq,

@@ -11,6 +11,7 @@
 #include <linux/kernel.h>
 #include <linux/kmemcheck.h>
 #include <linux/slab.h>
+#include <linux/module.h>
 #include <net/inet_hashtables.h>
 #include <net/inet_timewait_sock.h>
 #include <net/ip.h>
@@ -183,6 +184,7 @@ struct inet_timewait_sock *inet_twsk_alloc(const struct sock *sk, const int stat
 		tw->tw_daddr	    = inet->inet_daddr;
 		tw->tw_rcv_saddr    = inet->inet_rcv_saddr;
 		tw->tw_bound_dev_if = sk->sk_bound_dev_if;
+		tw->tw_tos	    = inet->tos;
 		tw->tw_num	    = inet->inet_num;
 		tw->tw_state	    = TCP_TIME_WAIT;
 		tw->tw_substate	    = state;

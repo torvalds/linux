@@ -9,11 +9,13 @@
  * This file is released under the GPLv2.
  */
 
+#include <linux/export.h>
 #include <linux/suspend.h>
 #include <linux/syscalls.h>
 #include <linux/reboot.h>
 #include <linux/string.h>
 #include <linux/device.h>
+#include <linux/async.h>
 #include <linux/kmod.h>
 #include <linux/delay.h>
 #include <linux/fs.h>
@@ -29,12 +31,14 @@
 #include "power.h"
 
 
-static int nocompress = 0;
-static int noresume = 0;
+static int nocompress;
+static int noresume;
+static int resume_wait;
+static int resume_delay;
 static char resume_file[256] = CONFIG_PM_STD_PARTITION;
 dev_t swsusp_resume_device;
 sector_t swsusp_resume_block;
-int in_suspend __nosavedata = 0;
+int in_suspend __nosavedata;
 
 enum {
 	HIBERNATION_INVALID,
@@ -50,6 +54,8 @@ enum {
 #define HIBERNATION_FIRST (HIBERNATION_INVALID + 1)
 
 static int hibernation_mode = HIBERNATION_SHUTDOWN;
+
+static bool freezer_test_done;
 
 static const struct platform_hibernation_ops *hibernation_ops;
 
@@ -334,12 +340,27 @@ int hibernation_snapshot(int platform_mode)
 	if (error)
 		goto Close;
 
-	error = dpm_prepare(PMSG_FREEZE);
-	if (error)
-		goto Complete_devices;
-
 	/* Preallocate image memory before shutting down devices. */
 	error = hibernate_preallocate_memory();
+	if (error)
+		goto Close;
+
+	error = freeze_kernel_threads();
+	if (error)
+		goto Close;
+
+	if (hibernation_test(TEST_FREEZER) ||
+		hibernation_testmode(HIBERNATION_TESTPROC)) {
+
+		/*
+		 * Indicate to the caller that we are returning due to a
+		 * successful freezer test.
+		 */
+		freezer_test_done = true;
+		goto Close;
+	}
+
+	error = dpm_prepare(PMSG_FREEZE);
 	if (error)
 		goto Complete_devices;
 
@@ -463,7 +484,7 @@ static int resume_target_kernel(bool platform_mode)
  * @platform_mode: If set, use platform driver to prepare for the transition.
  *
  * This routine must be called with pm_mutex held.  If it is successful, control
- * reappears in the restored target kernel in hibernation_snaphot().
+ * reappears in the restored target kernel in hibernation_snapshot().
  */
 int hibernation_restore(int platform_mode)
 {
@@ -633,15 +654,13 @@ int hibernate(void)
 	if (error)
 		goto Finish;
 
-	if (hibernation_test(TEST_FREEZER))
-		goto Thaw;
-
-	if (hibernation_testmode(HIBERNATION_TESTPROC))
-		goto Thaw;
-
 	error = hibernation_snapshot(hibernation_mode == HIBERNATION_PLATFORM);
 	if (error)
 		goto Thaw;
+	if (freezer_test_done) {
+		freezer_test_done = false;
+		goto Thaw;
+	}
 
 	if (in_suspend) {
 		unsigned int flags = 0;
@@ -650,6 +669,9 @@ int hibernate(void)
 			flags |= SF_PLATFORM_MODE;
 		if (nocompress)
 			flags |= SF_NOCOMPRESS_MODE;
+		else
+		        flags |= SF_CRC32_MODE;
+
 		pr_debug("PM: writing image.\n");
 		error = swsusp_write(flags);
 		swsusp_free();
@@ -724,6 +746,12 @@ static int software_resume(void)
 
 	pr_debug("PM: Checking hibernation image partition %s\n", resume_file);
 
+	if (resume_delay) {
+		printk(KERN_INFO "Waiting %dsec before reading resume device...\n",
+			resume_delay);
+		ssleep(resume_delay);
+	}
+
 	/* Check if the device is there */
 	swsusp_resume_device = name_to_dev_t(resume_file);
 	if (!swsusp_resume_device) {
@@ -732,6 +760,13 @@ static int software_resume(void)
 		 * to wait for this to finish.
 		 */
 		wait_for_device_probe();
+
+		if (resume_wait) {
+			while ((swsusp_resume_device = name_to_dev_t(resume_file)) == 0)
+				msleep(10);
+			async_synchronize_full();
+		}
+
 		/*
 		 * We can't depend on SCSI devices being available after loading
 		 * one of their modules until scsi_complete_async_scans() is
@@ -1060,7 +1095,21 @@ static int __init noresume_setup(char *str)
 	return 1;
 }
 
+static int __init resumewait_setup(char *str)
+{
+	resume_wait = 1;
+	return 1;
+}
+
+static int __init resumedelay_setup(char *str)
+{
+	resume_delay = simple_strtoul(str, NULL, 0);
+	return 1;
+}
+
 __setup("noresume", noresume_setup);
 __setup("resume_offset=", resume_offset_setup);
 __setup("resume=", resume_setup);
 __setup("hibernate=", hibernate_setup);
+__setup("resumewait", resumewait_setup);
+__setup("resumedelay=", resumedelay_setup);

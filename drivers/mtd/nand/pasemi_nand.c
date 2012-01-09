@@ -155,7 +155,8 @@ static int __devinit pasemi_nand_probe(struct platform_device *ofdev)
 	chip->ecc.mode = NAND_ECC_SOFT;
 
 	/* Enable the following for a flash based bad block table */
-	chip->options = NAND_USE_FLASH_BBT | NAND_NO_AUTOINCR;
+	chip->options = NAND_NO_AUTOINCR;
+	chip->bbt_options = NAND_BBT_USE_FLASH;
 
 	/* Scan to find existence of the device */
 	if (nand_scan(pasemi_nand_mtd, 1)) {

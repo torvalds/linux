@@ -227,19 +227,12 @@ static int ioctl_write_page_data(unsigned long arg)
 	if (copy_from_user(&info, (void __user *)arg, sizeof(info)))
 		return -EFAULT;
 
-	buf = kmalloc(IdentifyDeviceData.PageDataSize, GFP_ATOMIC);
-	if (!buf) {
-		printk(KERN_ERR "ioctl_write_page_data: "
-		       "failed to allocate memory\n");
-		return -ENOMEM;
-	}
-
-	if (copy_from_user(buf, (void __user *)info.data,
-			   IdentifyDeviceData.PageDataSize)) {
+	buf = memdup_user((void __user *)info.data,
+			  IdentifyDeviceData.PageDataSize);
+	if (IS_ERR(buf)) {
 		printk(KERN_ERR "ioctl_write_page_data: "
 		       "failed to copy user data\n");
-		kfree(buf);
-		return -EFAULT;
+		return PTR_ERR(buf);
 	}
 
 	mutex_lock(&spectra_lock);

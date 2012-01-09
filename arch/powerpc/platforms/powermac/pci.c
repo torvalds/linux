@@ -561,6 +561,20 @@ static struct pci_ops u4_pcie_pci_ops =
 	.write = u4_pcie_write_config,
 };
 
+static void __devinit pmac_pci_fixup_u4_of_node(struct pci_dev *dev)
+{
+	/* Apple's device-tree "hides" the root complex virtual P2P bridge
+	 * on U4. However, Linux sees it, causing the PCI <-> OF matching
+	 * code to fail to properly match devices below it. This works around
+	 * it by setting the node of the bridge to point to the PHB node,
+	 * which is not entirely correct but fixes the matching code and
+	 * doesn't break anything else. It's also the simplest possible fix.
+	 */
+	if (dev->dev.of_node == NULL)
+		dev->dev.of_node = pcibios_get_phb_of_node(dev->bus);
+}
+DECLARE_PCI_FIXUP_HEADER(PCI_VENDOR_ID_APPLE, 0x5b, pmac_pci_fixup_u4_of_node);
+
 #endif /* CONFIG_PPC64 */
 
 #ifdef CONFIG_PPC32

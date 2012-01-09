@@ -18,32 +18,16 @@
 #include <asm/apic.h>
 #include <asm/ptrace.h>
 
-static int profile_timer_exceptions_notify(struct notifier_block *self,
-					   unsigned long val, void *data)
+static int profile_timer_exceptions_notify(unsigned int val, struct pt_regs *regs)
 {
-	struct die_args *args = (struct die_args *)data;
-	int ret = NOTIFY_DONE;
-
-	switch (val) {
-	case DIE_NMI:
-		oprofile_add_sample(args->regs, 0);
-		ret = NOTIFY_STOP;
-		break;
-	default:
-		break;
-	}
-	return ret;
+	oprofile_add_sample(regs, 0);
+	return NMI_HANDLED;
 }
-
-static struct notifier_block profile_timer_exceptions_nb = {
-	.notifier_call = profile_timer_exceptions_notify,
-	.next = NULL,
-	.priority = NMI_LOW_PRIOR,
-};
 
 static int timer_start(void)
 {
-	if (register_die_notifier(&profile_timer_exceptions_nb))
+	if (register_nmi_handler(NMI_LOCAL, profile_timer_exceptions_notify,
+					0, "oprofile-timer"))
 		return 1;
 	return 0;
 }
@@ -51,7 +35,7 @@ static int timer_start(void)
 
 static void timer_stop(void)
 {
-	unregister_die_notifier(&profile_timer_exceptions_nb);
+	unregister_nmi_handler(NMI_LOCAL, "oprofile-timer");
 	synchronize_sched();  /* Allow already-started NMIs to complete. */
 }
 

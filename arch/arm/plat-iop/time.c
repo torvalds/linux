@@ -22,6 +22,7 @@
 #include <linux/io.h>
 #include <linux/clocksource.h>
 #include <linux/clockchips.h>
+#include <linux/export.h>
 #include <mach/hardware.h>
 #include <asm/irq.h>
 #include <asm/sched_clock.h>

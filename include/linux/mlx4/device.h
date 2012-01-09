@@ -61,6 +61,7 @@ enum {
 	MLX4_DEV_CAP_FLAG_RC		= 1LL <<  0,
 	MLX4_DEV_CAP_FLAG_UC		= 1LL <<  1,
 	MLX4_DEV_CAP_FLAG_UD		= 1LL <<  2,
+	MLX4_DEV_CAP_FLAG_XRC		= 1LL <<  3,
 	MLX4_DEV_CAP_FLAG_SRQ		= 1LL <<  6,
 	MLX4_DEV_CAP_FLAG_IPOIB_CSUM	= 1LL <<  7,
 	MLX4_DEV_CAP_FLAG_BAD_PKEY_CNTR	= 1LL <<  8,
@@ -75,11 +76,18 @@ enum {
 	MLX4_DEV_CAP_FLAG_UD_MCAST	= 1LL << 21,
 	MLX4_DEV_CAP_FLAG_IBOE		= 1LL << 30,
 	MLX4_DEV_CAP_FLAG_UC_LOOPBACK	= 1LL << 32,
+	MLX4_DEV_CAP_FLAG_FCS_KEEP	= 1LL << 34,
 	MLX4_DEV_CAP_FLAG_WOL		= 1LL << 38,
 	MLX4_DEV_CAP_FLAG_UDP_RSS	= 1LL << 40,
 	MLX4_DEV_CAP_FLAG_VEP_UC_STEER	= 1LL << 41,
 	MLX4_DEV_CAP_FLAG_VEP_MC_STEER	= 1LL << 42,
 	MLX4_DEV_CAP_FLAG_COUNTERS	= 1LL << 48
+};
+
+#define MLX4_ATTR_EXTENDED_PORT_INFO	cpu_to_be16(0xff90)
+
+enum {
+	MLX_EXT_PORT_CAP_FLAG_EXTENDED_PORT_INFO	= 1 <<  0
 };
 
 enum {
@@ -256,6 +264,8 @@ struct mlx4_caps {
 	int			num_qp_per_mgm;
 	int			num_pds;
 	int			reserved_pds;
+	int			max_xrcds;
+	int			reserved_xrcds;
 	int			mtt_entry_sz;
 	u32			max_msg_sz;
 	u32			page_size_cap;
@@ -276,6 +286,7 @@ struct mlx4_caps {
 	u32			port_mask;
 	enum mlx4_port_type	possible_type[MLX4_MAX_PORTS + 1];
 	u32			max_counters;
+	u8			ext_port_cap[MLX4_MAX_PORTS + 1];
 };
 
 struct mlx4_buf_list {
@@ -499,6 +510,8 @@ static inline void *mlx4_buf_offset(struct mlx4_buf *buf, int offset)
 
 int mlx4_pd_alloc(struct mlx4_dev *dev, u32 *pdn);
 void mlx4_pd_free(struct mlx4_dev *dev, u32 pdn);
+int mlx4_xrcd_alloc(struct mlx4_dev *dev, u32 *xrcdn);
+void mlx4_xrcd_free(struct mlx4_dev *dev, u32 xrcdn);
 
 int mlx4_uar_alloc(struct mlx4_dev *dev, struct mlx4_uar *uar);
 void mlx4_uar_free(struct mlx4_dev *dev, struct mlx4_uar *uar);
@@ -538,8 +551,8 @@ void mlx4_qp_release_range(struct mlx4_dev *dev, int base_qpn, int cnt);
 int mlx4_qp_alloc(struct mlx4_dev *dev, int qpn, struct mlx4_qp *qp);
 void mlx4_qp_free(struct mlx4_dev *dev, struct mlx4_qp *qp);
 
-int mlx4_srq_alloc(struct mlx4_dev *dev, u32 pdn, struct mlx4_mtt *mtt,
-		   u64 db_rec, struct mlx4_srq *srq);
+int mlx4_srq_alloc(struct mlx4_dev *dev, u32 pdn, u32 cqn, u16 xrcdn,
+		   struct mlx4_mtt *mtt, u64 db_rec, struct mlx4_srq *srq);
 void mlx4_srq_free(struct mlx4_dev *dev, struct mlx4_srq *srq);
 int mlx4_srq_arm(struct mlx4_dev *dev, struct mlx4_srq *srq, int limit_watermark);
 int mlx4_srq_query(struct mlx4_dev *dev, struct mlx4_srq *srq, int *limit_watermark);

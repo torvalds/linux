@@ -91,7 +91,6 @@ static int br_dev_open(struct net_device *dev)
 {
 	struct net_bridge *br = netdev_priv(dev);
 
-	netif_carrier_off(dev);
 	netdev_update_features(dev);
 	netif_start_queue(dev);
 	br_stp_enable_bridge(br);
@@ -107,8 +106,6 @@ static void br_dev_set_multicast_list(struct net_device *dev)
 static int br_dev_stop(struct net_device *dev)
 {
 	struct net_bridge *br = netdev_priv(dev);
-
-	netif_carrier_off(dev);
 
 	br_stp_disable_bridge(br);
 	br_multicast_stop(br);
@@ -304,7 +301,7 @@ static const struct net_device_ops br_netdev_ops = {
 	.ndo_start_xmit		 = br_dev_xmit,
 	.ndo_get_stats64	 = br_get_stats64,
 	.ndo_set_mac_address	 = br_set_mac_address,
-	.ndo_set_multicast_list	 = br_dev_set_multicast_list,
+	.ndo_set_rx_mode	 = br_dev_set_multicast_list,
 	.ndo_change_mtu		 = br_change_mtu,
 	.ndo_do_ioctl		 = br_dev_ioctl,
 #ifdef CONFIG_NET_POLL_CONTROLLER
@@ -361,6 +358,8 @@ void br_dev_setup(struct net_device *dev)
 	memcpy(br->group_addr, br_group_address, ETH_ALEN);
 
 	br->stp_enabled = BR_NO_STP;
+	br->group_fwd_mask = BR_GROUPFWD_DEFAULT;
+
 	br->designated_root = br->bridge_id;
 	br->bridge_max_age = br->max_age = 20 * HZ;
 	br->bridge_hello_time = br->hello_time = 2 * HZ;

@@ -844,6 +844,30 @@ static void dasd_eckd_fill_rcd_cqr(struct dasd_device *device,
 	set_bit(DASD_CQR_VERIFY_PATH, &cqr->flags);
 }
 
+/*
+ * Wakeup helper for read_conf
+ * if the cqr is not done and needs some error recovery
+ * the buffer has to be re-initialized with the EBCDIC "V1.0"
+ * to show support for virtual device SNEQ
+ */
+static void read_conf_cb(struct dasd_ccw_req *cqr, void *data)
+{
+	struct ccw1 *ccw;
+	__u8 *rcd_buffer;
+
+	if (cqr->status !=  DASD_CQR_DONE) {
+		ccw = cqr->cpaddr;
+		rcd_buffer = (__u8 *)((addr_t) ccw->cda);
+		memset(rcd_buffer, 0, sizeof(*rcd_buffer));
+
+		rcd_buffer[0] = 0xE5;
+		rcd_buffer[1] = 0xF1;
+		rcd_buffer[2] = 0x4B;
+		rcd_buffer[3] = 0xF0;
+	}
+	dasd_wakeup_cb(cqr, data);
+}
+
 static int dasd_eckd_read_conf_immediately(struct dasd_device *device,
 					   struct dasd_ccw_req *cqr,
 					   __u8 *rcd_buffer,
@@ -863,6 +887,7 @@ static int dasd_eckd_read_conf_immediately(struct dasd_device *device,
 	clear_bit(DASD_CQR_FLAGS_USE_ERP, &cqr->flags);
 	set_bit(DASD_CQR_ALLOW_SLOCK, &cqr->flags);
 	cqr->retries = 5;
+	cqr->callback = read_conf_cb;
 	rc = dasd_sleep_on_immediatly(cqr);
 	return rc;
 }
@@ -900,6 +925,7 @@ static int dasd_eckd_read_conf_lpm(struct dasd_device *device,
 		goto out_error;
 	}
 	dasd_eckd_fill_rcd_cqr(device, cqr, rcd_buf, lpm);
+	cqr->callback = read_conf_cb;
 	ret = dasd_sleep_on(cqr);
 	/*
 	 * on success we update the user input parms
@@ -1074,6 +1100,12 @@ static void do_path_verification_work(struct work_struct *work)
 
 	data = container_of(work, struct path_verification_work_data, worker);
 	device = data->device;
+
+	/* delay path verification until device was resumed */
+	if (test_bit(DASD_FLAG_SUSPENDED, &device->flags)) {
+		schedule_work(work);
+		return;
+	}
 
 	opm = 0;
 	npm = 0;
@@ -2021,9 +2053,13 @@ static void dasd_eckd_check_for_device_change(struct dasd_device *device,
 	/* first of all check for state change pending interrupt */
 	mask = DEV_STAT_ATTENTION | DEV_STAT_DEV_END | DEV_STAT_UNIT_EXCEP;
 	if ((scsw_dstat(&irb->scsw) & mask) == mask) {
-		/* for alias only and not in offline processing*/
+		/*
+		 * for alias only, not in offline processing
+		 * and only if not suspended
+		 */
 		if (!device->block && private->lcu &&
-		    !test_bit(DASD_FLAG_OFFLINE, &device->flags)) {
+		    !test_bit(DASD_FLAG_OFFLINE, &device->flags) &&
+		    !test_bit(DASD_FLAG_SUSPENDED, &device->flags)) {
 			/*
 			 * the state change could be caused by an alias
 			 * reassignment remove device from alias handling
@@ -2350,7 +2386,7 @@ static struct dasd_ccw_req *dasd_eckd_build_cp_cmd_track(
 	new_track = 1;
 	end_idaw = 0;
 	len_to_track_end = 0;
-	idaw_dst = 0;
+	idaw_dst = NULL;
 	idaw_len = 0;
 	rq_for_each_segment(bv, req, iter) {
 		dst = page_address(bv->bv_page) + bv->bv_offset;
@@ -2412,7 +2448,7 @@ static struct dasd_ccw_req *dasd_eckd_build_cp_cmd_track(
 			if (end_idaw) {
 				idaws = idal_create_words(idaws, idaw_dst,
 							  idaw_len);
-				idaw_dst = 0;
+				idaw_dst = NULL;
 				idaw_len = 0;
 				end_idaw = 0;
 			}
@@ -3998,6 +4034,7 @@ static struct ccw_driver dasd_eckd_driver = {
 	.thaw	     = dasd_generic_restore_device,
 	.restore     = dasd_generic_restore_device,
 	.uc_handler  = dasd_generic_uc_handler,
+	.int_class   = IOINT_DAS,
 };
 
 /*

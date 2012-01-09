@@ -27,6 +27,10 @@
 #ifndef __iwl_agn_rs_h__
 #define __iwl_agn_rs_h__
 
+#include <net/mac80211.h>
+
+#include "iwl-commands.h"
+
 struct iwl_rate_info {
 	u8 plcp;	/* uCode API:  IWL_RATE_6M_PLCP, etc. */
 	u8 plcp_siso;	/* uCode API:  IWL_RATE_SISO_6M_PLCP, etc. */

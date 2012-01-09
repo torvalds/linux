@@ -3,7 +3,7 @@
  * Copyright (C) 1997, 2007, 2008 David S. Miller (davem@davemloft.net)
  */
 
-#include <linux/module.h>
+#include <linux/export.h>
 #include <linux/kernel.h>
 #include <linux/sched.h>
 #include <linux/mm.h>

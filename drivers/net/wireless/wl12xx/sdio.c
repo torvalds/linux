@@ -164,7 +164,7 @@ static int wl1271_sdio_power_on(struct wl1271 *wl)
 	/* If enabled, tell runtime PM not to power off the card */
 	if (pm_runtime_enabled(&func->dev)) {
 		ret = pm_runtime_get_sync(&func->dev);
-		if (ret)
+		if (ret < 0)
 			goto out;
 	} else {
 		/* Runtime PM is disabled: power up the card manually */
@@ -412,7 +412,5 @@ module_exit(wl1271_exit);
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Luciano Coelho <coelho@ti.com>");
 MODULE_AUTHOR("Juuso Oikarinen <juuso.oikarinen@nokia.com>");
-MODULE_FIRMWARE(WL1271_FW_NAME);
+MODULE_FIRMWARE(WL127X_FW_NAME);
 MODULE_FIRMWARE(WL128X_FW_NAME);
-MODULE_FIRMWARE(WL127X_AP_FW_NAME);
-MODULE_FIRMWARE(WL128X_AP_FW_NAME);

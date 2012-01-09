@@ -20,9 +20,11 @@
 #include <linux/io.h>
 #include <linux/module.h>
 #include <linux/platform_device.h>
+#include <linux/pm.h>
+#include <linux/pm_runtime.h>
 #include <linux/slab.h>
 #include <linux/sched.h>
-#include <plat/keypad.h>
+#include <linux/input/samsung-keypad.h>
 
 #define SAMSUNG_KEYIFCON			0x00
 #define SAMSUNG_KEYIFSTSCLR			0x04
@@ -63,10 +65,12 @@ enum samsung_keypad_type {
 
 struct samsung_keypad {
 	struct input_dev *input_dev;
+	struct platform_device *pdev;
 	struct clk *clk;
 	void __iomem *base;
 	wait_queue_head_t wait;
 	bool stopped;
+	bool wake_enabled;
 	int irq;
 	unsigned int row_shift;
 	unsigned int rows;
@@ -158,6 +162,8 @@ static irqreturn_t samsung_keypad_irq(int irq, void *dev_id)
 	unsigned int val;
 	bool key_down;
 
+	pm_runtime_get_sync(&keypad->pdev->dev);
+
 	do {
 		val = readl(keypad->base + SAMSUNG_KEYIFSTSCLR);
 		/* Clear interrupt. */
@@ -172,12 +178,16 @@ static irqreturn_t samsung_keypad_irq(int irq, void *dev_id)
 
 	} while (key_down && !keypad->stopped);
 
+	pm_runtime_put_sync(&keypad->pdev->dev);
+
 	return IRQ_HANDLED;
 }
 
 static void samsung_keypad_start(struct samsung_keypad *keypad)
 {
 	unsigned int val;
+
+	pm_runtime_get_sync(&keypad->pdev->dev);
 
 	/* Tell IRQ thread that it may poll the device. */
 	keypad->stopped = false;
@@ -191,11 +201,15 @@ static void samsung_keypad_start(struct samsung_keypad *keypad)
 
 	/* KEYIFCOL reg clear. */
 	writel(0, keypad->base + SAMSUNG_KEYIFCOL);
+
+	pm_runtime_put_sync(&keypad->pdev->dev);
 }
 
 static void samsung_keypad_stop(struct samsung_keypad *keypad)
 {
 	unsigned int val;
+
+	pm_runtime_get_sync(&keypad->pdev->dev);
 
 	/* Signal IRQ thread to stop polling and disable the handler. */
 	keypad->stopped = true;
@@ -217,6 +231,8 @@ static void samsung_keypad_stop(struct samsung_keypad *keypad)
 	 * re-enable the handler.
 	 */
 	enable_irq(keypad->irq);
+
+	pm_runtime_put_sync(&keypad->pdev->dev);
 }
 
 static int samsung_keypad_open(struct input_dev *input_dev)
@@ -298,9 +314,11 @@ static int __devinit samsung_keypad_probe(struct platform_device *pdev)
 	}
 
 	keypad->input_dev = input_dev;
+	keypad->pdev = pdev;
 	keypad->row_shift = row_shift;
 	keypad->rows = pdata->rows;
 	keypad->cols = pdata->cols;
+	keypad->stopped = true;
 	init_waitqueue_head(&keypad->wait);
 
 	input_dev->name = pdev->name;
@@ -337,16 +355,21 @@ static int __devinit samsung_keypad_probe(struct platform_device *pdev)
 		goto err_put_clk;
 	}
 
+	device_init_wakeup(&pdev->dev, pdata->wakeup);
+	platform_set_drvdata(pdev, keypad);
+	pm_runtime_enable(&pdev->dev);
+
 	error = input_register_device(keypad->input_dev);
 	if (error)
 		goto err_free_irq;
 
-	device_init_wakeup(&pdev->dev, pdata->wakeup);
-	platform_set_drvdata(pdev, keypad);
 	return 0;
 
 err_free_irq:
 	free_irq(keypad->irq, keypad);
+	pm_runtime_disable(&pdev->dev);
+	device_init_wakeup(&pdev->dev, 0);
+	platform_set_drvdata(pdev, NULL);
 err_put_clk:
 	clk_put(keypad->clk);
 err_unmap_base:
@@ -362,6 +385,7 @@ static int __devexit samsung_keypad_remove(struct platform_device *pdev)
 {
 	struct samsung_keypad *keypad = platform_get_drvdata(pdev);
 
+	pm_runtime_disable(&pdev->dev);
 	device_init_wakeup(&pdev->dev, 0);
 	platform_set_drvdata(pdev, NULL);
 
@@ -381,11 +405,57 @@ static int __devexit samsung_keypad_remove(struct platform_device *pdev)
 	return 0;
 }
 
-#ifdef CONFIG_PM
+#ifdef CONFIG_PM_RUNTIME
+static int samsung_keypad_runtime_suspend(struct device *dev)
+{
+	struct platform_device *pdev = to_platform_device(dev);
+	struct samsung_keypad *keypad = platform_get_drvdata(pdev);
+	unsigned int val;
+	int error;
+
+	if (keypad->stopped)
+		return 0;
+
+	/* This may fail on some SoCs due to lack of controller support */
+	error = enable_irq_wake(keypad->irq);
+	if (!error)
+		keypad->wake_enabled = true;
+
+	val = readl(keypad->base + SAMSUNG_KEYIFCON);
+	val |= SAMSUNG_KEYIFCON_WAKEUPEN;
+	writel(val, keypad->base + SAMSUNG_KEYIFCON);
+
+	clk_disable(keypad->clk);
+
+	return 0;
+}
+
+static int samsung_keypad_runtime_resume(struct device *dev)
+{
+	struct platform_device *pdev = to_platform_device(dev);
+	struct samsung_keypad *keypad = platform_get_drvdata(pdev);
+	unsigned int val;
+
+	if (keypad->stopped)
+		return 0;
+
+	clk_enable(keypad->clk);
+
+	val = readl(keypad->base + SAMSUNG_KEYIFCON);
+	val &= ~SAMSUNG_KEYIFCON_WAKEUPEN;
+	writel(val, keypad->base + SAMSUNG_KEYIFCON);
+
+	if (keypad->wake_enabled)
+		disable_irq_wake(keypad->irq);
+
+	return 0;
+}
+#endif
+
+#ifdef CONFIG_PM_SLEEP
 static void samsung_keypad_toggle_wakeup(struct samsung_keypad *keypad,
 					 bool enable)
 {
-	struct device *dev = keypad->input_dev->dev.parent;
 	unsigned int val;
 
 	clk_enable(keypad->clk);
@@ -393,11 +463,11 @@ static void samsung_keypad_toggle_wakeup(struct samsung_keypad *keypad,
 	val = readl(keypad->base + SAMSUNG_KEYIFCON);
 	if (enable) {
 		val |= SAMSUNG_KEYIFCON_WAKEUPEN;
-		if (device_may_wakeup(dev))
+		if (device_may_wakeup(&keypad->pdev->dev))
 			enable_irq_wake(keypad->irq);
 	} else {
 		val &= ~SAMSUNG_KEYIFCON_WAKEUPEN;
-		if (device_may_wakeup(dev))
+		if (device_may_wakeup(&keypad->pdev->dev))
 			disable_irq_wake(keypad->irq);
 	}
 	writel(val, keypad->base + SAMSUNG_KEYIFCON);
@@ -440,12 +510,13 @@ static int samsung_keypad_resume(struct device *dev)
 
 	return 0;
 }
+#endif
 
 static const struct dev_pm_ops samsung_keypad_pm_ops = {
-	.suspend	= samsung_keypad_suspend,
-	.resume		= samsung_keypad_resume,
+	SET_SYSTEM_SLEEP_PM_OPS(samsung_keypad_suspend, samsung_keypad_resume)
+	SET_RUNTIME_PM_OPS(samsung_keypad_runtime_suspend,
+			   samsung_keypad_runtime_resume, NULL)
 };
-#endif
 
 static struct platform_device_id samsung_keypad_driver_ids[] = {
 	{
@@ -465,27 +536,13 @@ static struct platform_driver samsung_keypad_driver = {
 	.driver		= {
 		.name	= "samsung-keypad",
 		.owner	= THIS_MODULE,
-#ifdef CONFIG_PM
 		.pm	= &samsung_keypad_pm_ops,
-#endif
 	},
 	.id_table	= samsung_keypad_driver_ids,
 };
-
-static int __init samsung_keypad_init(void)
-{
-	return platform_driver_register(&samsung_keypad_driver);
-}
-module_init(samsung_keypad_init);
-
-static void __exit samsung_keypad_exit(void)
-{
-	platform_driver_unregister(&samsung_keypad_driver);
-}
-module_exit(samsung_keypad_exit);
+module_platform_driver(samsung_keypad_driver);
 
 MODULE_DESCRIPTION("Samsung keypad driver");
 MODULE_AUTHOR("Joonyoung Shim <jy0922.shim@samsung.com>");
 MODULE_AUTHOR("Donghwa Lee <dh09.lee@samsung.com>");
 MODULE_LICENSE("GPL");
-MODULE_ALIAS("platform:samsung-keypad");

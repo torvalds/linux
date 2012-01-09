@@ -11,7 +11,7 @@
  */
 #include <mach/hardware.h>
 
-	.macro	addruart, rp, rv
+	.macro	addruart, rp, rv, tmp
 	ldr	\rp, =GEMINI_UART_BASE			@ physical
 	ldr	\rv, =IO_ADDRESS(GEMINI_UART_BASE)	@ virtual
 	.endm

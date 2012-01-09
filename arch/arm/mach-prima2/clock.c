@@ -350,10 +350,10 @@ static struct clk_lookup onchip_clks[] = {
 		.clk = &clk_mem,
 	}, {
 		.dev_id = "sys",
-			.clk = &clk_sys,
+		.clk = &clk_sys,
 	}, {
 		.dev_id = "io",
-			.clk = &clk_io,
+		.clk = &clk_io,
 	},
 };
 
@@ -481,6 +481,7 @@ static void __init sirfsoc_clk_init(void)
 
 static struct of_device_id clkc_ids[] = {
 	{ .compatible = "sirf,prima2-clkc" },
+	{},
 };
 
 void __init sirfsoc_of_clk_init(void)

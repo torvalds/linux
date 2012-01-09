@@ -14,6 +14,7 @@
 #include <linux/of.h>
 #include <linux/of_platform.h>
 #include <linux/spinlock.h>
+#include <linux/module.h>
 #include <asm/io.h>
 #include <asm/prom.h>
 #include <asm/mpc52xx.h>

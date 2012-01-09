@@ -7,7 +7,7 @@
  * License version 2.  This program is licensed "as is" without any
  * warranty of any kind, whether express or implied.
  */
-
+#include <linux/gpio.h>
 #include <linux/kernel.h>
 #include <linux/init.h>
 #include <linux/platform_device.h>
@@ -19,7 +19,6 @@
 #include <linux/i2c.h>
 #include <net/dsa.h>
 #include <asm/mach-types.h>
-#include <asm/gpio.h>
 #include <asm/leds.h>
 #include <asm/mach/arch.h>
 #include <asm/mach/pci.h>
@@ -181,7 +180,7 @@ subsys_initcall(rd88f5181l_ge_pci_init);
 
 MACHINE_START(RD88F5181L_GE, "Marvell Orion-VoIP GE Reference Design")
 	/* Maintainer: Lennert Buytenhek <buytenh@marvell.com> */
-	.boot_params	= 0x00000100,
+	.atag_offset	= 0x100,
 	.init_machine	= rd88f5181l_ge_init,
 	.map_io		= orion5x_map_io,
 	.init_early	= orion5x_init_early,

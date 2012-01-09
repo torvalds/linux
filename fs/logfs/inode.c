@@ -93,7 +93,7 @@ static struct inode *__logfs_iget(struct super_block *sb, ino_t ino)
 		/* inode->i_nlink == 0 can be true when called from
 		 * block validator */
 		/* set i_nlink to 0 to prevent caching */
-		inode->i_nlink = 0;
+		clear_nlink(inode);
 		logfs_inode(inode)->li_flags |= LOGFS_IF_ZOMBIE;
 		iget_failed(inode);
 		if (!err)
@@ -199,7 +199,6 @@ static void logfs_init_inode(struct super_block *sb, struct inode *inode)
 	inode->i_blocks	= 0;
 	inode->i_ctime	= CURRENT_TIME;
 	inode->i_mtime	= CURRENT_TIME;
-	inode->i_nlink	= 1;
 	li->li_refcount = 1;
 	INIT_LIST_HEAD(&li->li_freeing_list);
 

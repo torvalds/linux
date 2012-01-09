@@ -450,15 +450,14 @@ static int omap_hsmmc_reg_get(struct omap_hsmmc_host *host)
 		* framework is fixed, we need a workaround like this
 		* (which is safe for MMC, but not in general).
 		*/
-		if (regulator_is_enabled(host->vcc) > 0) {
-			regulator_enable(host->vcc);
-			regulator_disable(host->vcc);
-		}
-		if (host->vcc_aux) {
-			if (regulator_is_enabled(reg) > 0) {
-				regulator_enable(reg);
-				regulator_disable(reg);
-			}
+		if (regulator_is_enabled(host->vcc) > 0 ||
+		    (host->vcc_aux && regulator_is_enabled(host->vcc_aux))) {
+			int vdd = ffs(mmc_slot(host).ocr_mask) - 1;
+
+			mmc_slot(host).set_power(host->dev, host->slot_id,
+						 1, vdd);
+			mmc_slot(host).set_power(host->dev, host->slot_id,
+						 0, 0);
 		}
 	}
 
@@ -1264,14 +1263,14 @@ static void omap_hsmmc_protect_card(struct omap_hsmmc_host *host)
 	host->reqs_blocked = 0;
 	if (mmc_slot(host).get_cover_state(host->dev, host->slot_id)) {
 		if (host->protect_card) {
-			printk(KERN_INFO "%s: cover is closed, "
+			pr_info("%s: cover is closed, "
 					 "card is now accessible\n",
 					 mmc_hostname(host->mmc));
 			host->protect_card = 0;
 		}
 	} else {
 		if (!host->protect_card) {
-			printk(KERN_INFO "%s: cover is open, "
+			pr_info("%s: cover is open, "
 					 "card is now inaccessible\n",
 					 mmc_hostname(host->mmc));
 			host->protect_card = 1;
@@ -1422,7 +1421,7 @@ static int omap_hsmmc_pre_dma_transfer(struct omap_hsmmc_host *host,
 
 	if (!next && data->host_cookie &&
 	    data->host_cookie != host->next_data.cookie) {
-		printk(KERN_WARNING "[%s] invalid cookie: data->host_cookie %d"
+		pr_warning("[%s] invalid cookie: data->host_cookie %d"
 		       " host->next_data.cookie %d\n",
 		       __func__, data->host_cookie, host->next_data.cookie);
 		data->host_cookie = 0;
@@ -1943,6 +1942,10 @@ static int __init omap_hsmmc_probe(struct platform_device *pdev)
 	omap_hsmmc_context_save(host);
 
 	mmc->caps |= MMC_CAP_DISABLE;
+	if (host->pdata->controller_flags & OMAP_HSMMC_BROKEN_MULTIBLOCK_READ) {
+		dev_info(&pdev->dev, "multiblock reads disabled due to 35xx erratum 2.1.1.128; MMC read performance may suffer\n");
+		mmc->caps2 |= MMC_CAP2_NO_MULTI_READ;
+	}
 
 	pm_runtime_enable(host->dev);
 	pm_runtime_get_sync(host->dev);
@@ -2015,7 +2018,7 @@ static int __init omap_hsmmc_probe(struct platform_device *pdev)
 	}
 
 	/* Request IRQ for MMC operations */
-	ret = request_irq(host->irq, omap_hsmmc_irq, IRQF_DISABLED,
+	ret = request_irq(host->irq, omap_hsmmc_irq, 0,
 			mmc_hostname(mmc), host);
 	if (ret) {
 		dev_dbg(mmc_dev(host->mmc), "Unable to grab HSMMC IRQ\n");
@@ -2043,8 +2046,7 @@ static int __init omap_hsmmc_probe(struct platform_device *pdev)
 	if ((mmc_slot(host).card_detect_irq)) {
 		ret = request_irq(mmc_slot(host).card_detect_irq,
 				  omap_hsmmc_cd_handler,
-				  IRQF_TRIGGER_RISING | IRQF_TRIGGER_FALLING
-					  | IRQF_DISABLED,
+				  IRQF_TRIGGER_RISING | IRQF_TRIGGER_FALLING,
 				  mmc_hostname(mmc), host);
 		if (ret) {
 			dev_dbg(mmc_dev(host->mmc),

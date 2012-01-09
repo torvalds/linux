@@ -367,7 +367,7 @@ static void tegra_pcm_free(struct snd_pcm *pcm)
 	tegra_pcm_deallocate_dma_buffer(pcm, SNDRV_PCM_STREAM_PLAYBACK);
 }
 
-struct snd_soc_platform_driver tegra_pcm_platform = {
+static struct snd_soc_platform_driver tegra_pcm_platform = {
 	.ops		= &tegra_pcm_ops,
 	.pcm_new	= tegra_pcm_new,
 	.pcm_free	= tegra_pcm_free,

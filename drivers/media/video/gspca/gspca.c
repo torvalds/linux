@@ -21,7 +21,9 @@
  * Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
-#define MODULE_NAME "gspca"
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
+#define GSPCA_VERSION	"2.14.0"
 
 #include <linux/init.h>
 #include <linux/fs.h>
@@ -50,12 +52,10 @@
 #error "DEF_NURBS too big"
 #endif
 
-#define DRIVER_VERSION_NUMBER	"2.13.0"
-
 MODULE_AUTHOR("Jean-François Moine <http://moinejf.free.fr>");
 MODULE_DESCRIPTION("GSPCA USB Camera Driver");
 MODULE_LICENSE("GPL");
-MODULE_VERSION(DRIVER_VERSION_NUMBER);
+MODULE_VERSION(GSPCA_VERSION);
 
 #ifdef GSPCA_DEBUG
 int gspca_debug = D_ERR | D_PROBE;
@@ -148,7 +148,7 @@ static void int_irq(struct urb *urb)
 	if (ret == 0) {
 		ret = usb_submit_urb(urb, GFP_ATOMIC);
 		if (ret < 0)
-			err("Resubmit URB failed with error %i", ret);
+			pr_err("Resubmit URB failed with error %i\n", ret);
 	}
 }
 
@@ -177,8 +177,8 @@ static int gspca_input_connect(struct gspca_dev *dev)
 
 		err = input_register_device(input_dev);
 		if (err) {
-			err("Input device registration failed with error %i",
-				err);
+			pr_err("Input device registration failed with error %i\n",
+			       err);
 			input_dev->dev.parent = NULL;
 			input_free_device(input_dev);
 		} else {
@@ -323,8 +323,8 @@ static void fill_frame(struct gspca_dev *gspca_dev,
 		/* check the packet status and length */
 		st = urb->iso_frame_desc[i].status;
 		if (st) {
-			err("ISOC data error: [%d] len=%d, status=%d",
-				i, len, st);
+			pr_err("ISOC data error: [%d] len=%d, status=%d\n",
+			       i, len, st);
 			gspca_dev->last_packet_type = DISCARD_PACKET;
 			continue;
 		}
@@ -346,7 +346,7 @@ resubmit:
 	/* resubmit the URB */
 	st = usb_submit_urb(urb, GFP_ATOMIC);
 	if (st < 0)
-		err("usb_submit_urb() ret %d", st);
+		pr_err("usb_submit_urb() ret %d\n", st);
 }
 
 /*
@@ -400,7 +400,7 @@ resubmit:
 	if (gspca_dev->cam.bulk_nurbs != 0) {
 		st = usb_submit_urb(urb, GFP_ATOMIC);
 		if (st < 0)
-			err("usb_submit_urb() ret %d", st);
+			pr_err("usb_submit_urb() ret %d\n", st);
 	}
 }
 
@@ -464,7 +464,7 @@ void gspca_frame_add(struct gspca_dev *gspca_dev,
 		} else {
 /* !! image is NULL only when last pkt is LAST or DISCARD
 			if (gspca_dev->image == NULL) {
-				err("gspca_frame_add() image == NULL");
+				pr_err("gspca_frame_add() image == NULL\n");
 				return;
 			}
  */
@@ -497,19 +497,6 @@ void gspca_frame_add(struct gspca_dev *gspca_dev,
 }
 EXPORT_SYMBOL(gspca_frame_add);
 
-static int gspca_is_compressed(__u32 format)
-{
-	switch (format) {
-	case V4L2_PIX_FMT_MJPEG:
-	case V4L2_PIX_FMT_JPEG:
-	case V4L2_PIX_FMT_SPCA561:
-	case V4L2_PIX_FMT_PAC207:
-	case V4L2_PIX_FMT_MR97310A:
-		return 1;
-	}
-	return 0;
-}
-
 static int frame_alloc(struct gspca_dev *gspca_dev, struct file *file,
 			enum v4l2_memory memory, unsigned int count)
 {
@@ -525,7 +512,7 @@ static int frame_alloc(struct gspca_dev *gspca_dev, struct file *file,
 		count = GSPCA_MAX_FRAMES - 1;
 	gspca_dev->frbuf = vmalloc_32(frsz * count);
 	if (!gspca_dev->frbuf) {
-		err("frame alloc failed");
+		pr_err("frame alloc failed\n");
 		return -ENOMEM;
 	}
 	gspca_dev->capt_file = file;
@@ -597,7 +584,7 @@ static int gspca_set_alt0(struct gspca_dev *gspca_dev)
 		return 0;
 	ret = usb_set_interface(gspca_dev->dev, gspca_dev->iface, 0);
 	if (ret < 0)
-		err("set alt 0 err %d", ret);
+		pr_err("set alt 0 err %d\n", ret);
 	return ret;
 }
 
@@ -640,53 +627,104 @@ static struct usb_host_endpoint *alt_xfer(struct usb_host_interface *alt,
 	return NULL;
 }
 
-/*
- * look for an input (isoc or bulk) endpoint
- *
- * The endpoint is defined by the subdriver.
- * Use only the first isoc (some Zoran - 0x0572:0x0001 - have two such ep).
- * This routine may be called many times when the bandwidth is too small
- * (the bandwidth is checked on urb submit).
- */
-static struct usb_host_endpoint *get_ep(struct gspca_dev *gspca_dev)
+/* compute the minimum bandwidth for the current transfer */
+static u32 which_bandwidth(struct gspca_dev *gspca_dev)
 {
-	struct usb_interface *intf;
-	struct usb_host_endpoint *ep;
-	int xfer, i, ret;
+	u32 bandwidth;
+	int i;
 
-	intf = usb_ifnum_to_if(gspca_dev->dev, gspca_dev->iface);
-	ep = NULL;
-	xfer = gspca_dev->cam.bulk ? USB_ENDPOINT_XFER_BULK
-				   : USB_ENDPOINT_XFER_ISOC;
-	i = gspca_dev->alt;			/* previous alt setting */
-	if (gspca_dev->cam.reverse_alts) {
-		while (++i < gspca_dev->nbalt) {
-			ep = alt_xfer(&intf->altsetting[i], xfer);
-			if (ep)
-				break;
-		}
+	i = gspca_dev->curr_mode;
+	bandwidth = gspca_dev->cam.cam_mode[i].sizeimage;
+
+	/* if the image is compressed, estimate the mean image size */
+	if (bandwidth < gspca_dev->cam.cam_mode[i].width *
+				gspca_dev->cam.cam_mode[i].height)
+		bandwidth /= 3;
+
+	/* estimate the frame rate */
+	if (gspca_dev->sd_desc->get_streamparm) {
+		struct v4l2_streamparm parm;
+
+		parm.parm.capture.timeperframe.denominator = 15;
+		gspca_dev->sd_desc->get_streamparm(gspca_dev, &parm);
+		bandwidth *= parm.parm.capture.timeperframe.denominator;
 	} else {
-		while (--i >= 0) {
-			ep = alt_xfer(&intf->altsetting[i], xfer);
-			if (ep)
-				break;
+		bandwidth *= 15;		/* 15 fps */
+	}
+
+	PDEBUG(D_STREAM, "min bandwidth: %d", bandwidth);
+	return bandwidth;
+}
+
+/* endpoint table */
+#define MAX_ALT 16
+struct ep_tb_s {
+	u32 alt;
+	u32 bandwidth;
+};
+
+/*
+ * build the table of the endpoints
+ * and compute the minimum bandwidth for the image transfer
+ */
+static int build_ep_tb(struct gspca_dev *gspca_dev,
+			struct usb_interface *intf,
+			int xfer,
+			struct ep_tb_s *ep_tb)
+{
+	struct usb_host_endpoint *ep;
+	int i, j, nbalt, psize, found;
+	u32 bandwidth, last_bw;
+
+	nbalt = intf->num_altsetting;
+	if (nbalt > MAX_ALT)
+		nbalt = MAX_ALT;	/* fixme: should warn */
+
+	/* build the endpoint table */
+	i = 0;
+	last_bw = 0;
+	for (;;) {
+		ep_tb->bandwidth = 2000 * 2000 * 120;
+		found = 0;
+		for (j = 0; j < nbalt; j++) {
+			ep = alt_xfer(&intf->altsetting[j], xfer);
+			if (ep == NULL)
+				continue;
+			psize = le16_to_cpu(ep->desc.wMaxPacketSize);
+			if (!gspca_dev->cam.bulk)		/* isoc */
+				psize = (psize & 0x07ff) *
+						(1 + ((psize >> 11) & 3));
+			bandwidth = psize * ep->desc.bInterval * 1000;
+			if (gspca_dev->dev->speed == USB_SPEED_HIGH
+			 || gspca_dev->dev->speed == USB_SPEED_SUPER)
+				bandwidth *= 8;
+			if (bandwidth <= last_bw)
+				continue;
+			if (bandwidth < ep_tb->bandwidth) {
+				ep_tb->bandwidth = bandwidth;
+				ep_tb->alt = j;
+				found = 1;
+			}
 		}
+		if (!found)
+			break;
+		PDEBUG(D_STREAM, "alt %d bandwidth %d",
+				ep_tb->alt, ep_tb->bandwidth);
+		last_bw = ep_tb->bandwidth;
+		i++;
+		ep_tb++;
 	}
-	if (ep == NULL) {
-		err("no transfer endpoint found");
-		return NULL;
+
+	/* get the requested bandwidth and start at the highest atlsetting */
+	bandwidth = which_bandwidth(gspca_dev);
+	ep_tb--;
+	while (i > 1) {
+		ep_tb--;
+		if (ep_tb->bandwidth < bandwidth)
+			break;
+		i--;
 	}
-	PDEBUG(D_STREAM, "use alt %d ep 0x%02x",
-			i, ep->desc.bEndpointAddress);
-	gspca_dev->alt = i;		/* memorize the current alt setting */
-	if (gspca_dev->nbalt > 1) {
-		ret = usb_set_interface(gspca_dev->dev, gspca_dev->iface, i);
-		if (ret < 0) {
-			err("set alt %d err %d", i, ret);
-			ep = NULL;
-		}
-	}
-	return ep;
+	return i;
 }
 
 /*
@@ -731,7 +769,7 @@ static int create_urbs(struct gspca_dev *gspca_dev,
 	for (n = 0; n < nurbs; n++) {
 		urb = usb_alloc_urb(npkt, GFP_KERNEL);
 		if (!urb) {
-			err("usb_alloc_urb failed");
+			pr_err("usb_alloc_urb failed\n");
 			return -ENOMEM;
 		}
 		gspca_dev->urb[n] = urb;
@@ -741,7 +779,7 @@ static int create_urbs(struct gspca_dev *gspca_dev,
 						&urb->transfer_dma);
 
 		if (urb->transfer_buffer == NULL) {
-			err("usb_alloc_coherent failed");
+			pr_err("usb_alloc_coherent failed\n");
 			return -ENOMEM;
 		}
 		urb->dev = gspca_dev->dev;
@@ -752,7 +790,10 @@ static int create_urbs(struct gspca_dev *gspca_dev,
 						    ep->desc.bEndpointAddress);
 			urb->transfer_flags = URB_ISO_ASAP
 					| URB_NO_TRANSFER_DMA_MAP;
-			urb->interval = ep->desc.bInterval;
+			if (gspca_dev->dev->speed == USB_SPEED_LOW)
+				urb->interval = ep->desc.bInterval;
+			else
+				urb->interval = 1 << (ep->desc.bInterval - 1);
 			urb->complete = isoc_irq;
 			urb->number_of_packets = npkt;
 			for (i = 0; i < npkt; i++) {
@@ -774,9 +815,11 @@ static int create_urbs(struct gspca_dev *gspca_dev,
  */
 static int gspca_init_transfer(struct gspca_dev *gspca_dev)
 {
+	struct usb_interface *intf;
 	struct usb_host_endpoint *ep;
 	struct urb *urb;
-	int n, ret;
+	struct ep_tb_s ep_tb[MAX_ALT];
+	int n, ret, xfer, alt, alt_idx;
 
 	if (mutex_lock_interruptible(&gspca_dev->usb_lock))
 		return -ERESTARTSYS;
@@ -794,30 +837,65 @@ static int gspca_init_transfer(struct gspca_dev *gspca_dev)
 
 	gspca_dev->usb_err = 0;
 
-	/* set the higher alternate setting and
-	 * loop until urb submit succeeds */
-	if (gspca_dev->cam.reverse_alts)
-		gspca_dev->alt = 0;
-	else
-		gspca_dev->alt = gspca_dev->nbalt;
-
+	/* do the specific subdriver stuff before endpoint selection */
+	gspca_dev->alt = 0;
 	if (gspca_dev->sd_desc->isoc_init) {
 		ret = gspca_dev->sd_desc->isoc_init(gspca_dev);
 		if (ret < 0)
 			goto unlock;
 	}
+	intf = usb_ifnum_to_if(gspca_dev->dev, gspca_dev->iface);
+	xfer = gspca_dev->cam.bulk ? USB_ENDPOINT_XFER_BULK
+				   : USB_ENDPOINT_XFER_ISOC;
 
-	gspca_input_destroy_urb(gspca_dev);
-	ep = get_ep(gspca_dev);
-	if (ep == NULL) {
-		ret = -EIO;
-		goto out;
+	/* if the subdriver forced an altsetting, get the endpoint */
+	if (gspca_dev->alt != 0) {
+		gspca_dev->alt--;	/* (previous version compatibility) */
+		ep = alt_xfer(&intf->altsetting[gspca_dev->alt], xfer);
+		if (ep == NULL) {
+			pr_err("bad altsetting %d\n", gspca_dev->alt);
+			ret = -EIO;
+			goto out;
+		}
+		ep_tb[0].alt = gspca_dev->alt;
+		alt_idx = 1;
+	} else {
+
+	/* else, compute the minimum bandwidth
+	 * and build the endpoint table */
+		alt_idx = build_ep_tb(gspca_dev, intf, xfer, ep_tb);
+		if (alt_idx <= 0) {
+			pr_err("no transfer endpoint found\n");
+			ret = -EIO;
+			goto unlock;
+		}
 	}
+
+	/* set the highest alternate setting and
+	 * loop until urb submit succeeds */
+	gspca_input_destroy_urb(gspca_dev);
+
+	gspca_dev->alt = ep_tb[--alt_idx].alt;
+	alt = -1;
 	for (;;) {
+		if (alt != gspca_dev->alt) {
+			alt = gspca_dev->alt;
+			if (gspca_dev->nbalt > 1) {
+				ret = usb_set_interface(gspca_dev->dev,
+							gspca_dev->iface,
+							alt);
+				if (ret < 0) {
+					if (ret == -ENOSPC)
+						goto retry; /*fixme: ugly*/
+					pr_err("set alt %d err %d\n", alt, ret);
+					goto out;
+				}
+			}
+		}
 		if (!gspca_dev->cam.no_urb_create) {
-			PDEBUG(D_STREAM, "init transfer alt %d",
-				gspca_dev->alt);
-			ret = create_urbs(gspca_dev, ep);
+			PDEBUG(D_STREAM, "init transfer alt %d", alt);
+			ret = create_urbs(gspca_dev,
+				alt_xfer(&intf->altsetting[alt], xfer));
 			if (ret < 0) {
 				destroy_urbs(gspca_dev);
 				goto out;
@@ -851,29 +929,35 @@ static int gspca_init_transfer(struct gspca_dev *gspca_dev)
 				break;
 		}
 		if (ret >= 0)
-			break;
+			break;			/* transfer is started */
+
+		/* something when wrong
+		 * stop the webcam and free the transfer resources */
 		gspca_stream_off(gspca_dev);
 		if (ret != -ENOSPC) {
-			err("usb_submit_urb alt %d err %d",
-				gspca_dev->alt, ret);
+			pr_err("usb_submit_urb alt %d err %d\n",
+			       gspca_dev->alt, ret);
 			goto out;
 		}
 
 		/* the bandwidth is not wide enough
 		 * negotiate or try a lower alternate setting */
+retry:
 		PDEBUG(D_ERR|D_STREAM,
-			"bandwidth not wide enough - trying again");
+			"alt %d - bandwidth not wide enough - trying again",
+			alt);
 		msleep(20);	/* wait for kill complete */
 		if (gspca_dev->sd_desc->isoc_nego) {
 			ret = gspca_dev->sd_desc->isoc_nego(gspca_dev);
 			if (ret < 0)
 				goto out;
 		} else {
-			ep = get_ep(gspca_dev);
-			if (ep == NULL) {
+			if (alt_idx <= 0) {
+				pr_err("no transfer endpoint found\n");
 				ret = -EIO;
 				goto out;
 			}
+			alt = ep_tb[--alt_idx].alt;
 		}
 	}
 out:
@@ -1044,7 +1128,9 @@ static int vidioc_enum_fmt_vid_cap(struct file *file, void  *priv,
 		return -EINVAL;		/* no more format */
 
 	fmtdesc->pixelformat = fmt_tb[index];
-	if (gspca_is_compressed(fmt_tb[index]))
+	if (gspca_dev->cam.cam_mode[i].sizeimage <
+			gspca_dev->cam.cam_mode[i].width *
+				gspca_dev->cam.cam_mode[i].height)
 		fmtdesc->flags = V4L2_FMT_FLAG_COMPRESSED;
 	fmtdesc->description[0] = fmtdesc->pixelformat & 0xff;
 	fmtdesc->description[1] = (fmtdesc->pixelformat >> 8) & 0xff;
@@ -2195,19 +2281,20 @@ int gspca_dev_probe2(struct usb_interface *intf,
 	struct usb_device *dev = interface_to_usbdev(intf);
 	int ret;
 
-	PDEBUG(D_PROBE, "probing %04x:%04x", id->idVendor, id->idProduct);
+	pr_info("%s-" GSPCA_VERSION " probing %04x:%04x\n",
+		sd_desc->name, id->idVendor, id->idProduct);
 
 	/* create the device */
 	if (dev_size < sizeof *gspca_dev)
 		dev_size = sizeof *gspca_dev;
 	gspca_dev = kzalloc(dev_size, GFP_KERNEL);
 	if (!gspca_dev) {
-		err("couldn't kzalloc gspca struct");
+		pr_err("couldn't kzalloc gspca struct\n");
 		return -ENOMEM;
 	}
 	gspca_dev->usb_buf = kmalloc(USB_BUF_SZ, GFP_KERNEL);
 	if (!gspca_dev->usb_buf) {
-		err("out of memory");
+		pr_err("out of memory\n");
 		ret = -ENOMEM;
 		goto out;
 	}
@@ -2264,7 +2351,7 @@ int gspca_dev_probe2(struct usb_interface *intf,
 				  VFL_TYPE_GRABBER,
 				  -1);
 	if (ret < 0) {
-		err("video_register_device err %d", ret);
+		pr_err("video_register_device err %d\n", ret);
 		goto out;
 	}
 
@@ -2296,8 +2383,8 @@ int gspca_dev_probe(struct usb_interface *intf,
 
 	/* we don't handle multi-config cameras */
 	if (dev->descriptor.bNumConfigurations != 1) {
-		err("%04x:%04x too many config",
-				id->idVendor, id->idProduct);
+		pr_err("%04x:%04x too many config\n",
+		       id->idVendor, id->idProduct);
 		return -ENODEV;
 	}
 
@@ -2480,7 +2567,7 @@ EXPORT_SYMBOL(gspca_auto_gain_n_exposure);
 /* -- module insert / remove -- */
 static int __init gspca_init(void)
 {
-	info("v" DRIVER_VERSION_NUMBER " registered");
+	pr_info("v" GSPCA_VERSION " registered\n");
 	return 0;
 }
 static void __exit gspca_exit(void)

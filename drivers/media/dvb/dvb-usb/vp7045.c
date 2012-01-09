@@ -214,7 +214,7 @@ static int vp7045_frontend_attach(struct dvb_usb_adapter *adap)
 /*	Dump the EEPROM */
 /*	vp7045_read_eeprom(d,buf, 255, FX2_ID_ADDR); */
 
-	adap->fe = vp7045_fe_attach(adap->dev);
+	adap->fe_adap[0].fe = vp7045_fe_attach(adap->dev);
 
 	return 0;
 }
@@ -224,26 +224,8 @@ static struct dvb_usb_device_properties vp7045_properties;
 static int vp7045_usb_probe(struct usb_interface *intf,
 		const struct usb_device_id *id)
 {
-	struct dvb_usb_device *d;
-	int ret = dvb_usb_device_init(intf, &vp7045_properties,
-				   THIS_MODULE, &d, adapter_nr);
-	if (ret)
-		return ret;
-
-	d->priv = kmalloc(20, GFP_KERNEL);
-	if (!d->priv) {
-		dvb_usb_device_exit(intf);
-		return -ENOMEM;
-	}
-
-	return ret;
-}
-
-static void vp7045_usb_disconnect(struct usb_interface *intf)
-{
-	struct dvb_usb_device *d = usb_get_intfdata(intf);
-	kfree(d->priv);
-	dvb_usb_device_exit(intf);
+	return dvb_usb_device_init(intf, &vp7045_properties,
+				   THIS_MODULE, NULL, adapter_nr);
 }
 
 static struct usb_device_id vp7045_usb_table [] = {
@@ -258,11 +240,13 @@ MODULE_DEVICE_TABLE(usb, vp7045_usb_table);
 static struct dvb_usb_device_properties vp7045_properties = {
 	.usb_ctrl = CYPRESS_FX2,
 	.firmware = "dvb-usb-vp7045-01.fw",
-	.size_of_priv = sizeof(u8 *),
+	.size_of_priv = 20,
 
 	.num_adapters = 1,
 	.adapter = {
 		{
+		.num_frontends = 1,
+		.fe = {{
 			.frontend_attach  = vp7045_frontend_attach,
 			/* parameter for the MPEG2-data transfer */
 			.stream = {
@@ -275,6 +259,7 @@ static struct dvb_usb_device_properties vp7045_properties = {
 					}
 				}
 			},
+		}},
 		}
 	},
 	.power_ctrl       = vp7045_power_ctrl,
@@ -305,7 +290,7 @@ static struct dvb_usb_device_properties vp7045_properties = {
 static struct usb_driver vp7045_usb_driver = {
 	.name		= "dvb_usb_vp7045",
 	.probe		= vp7045_usb_probe,
-	.disconnect	= vp7045_usb_disconnect,
+	.disconnect	= dvb_usb_device_exit,
 	.id_table	= vp7045_usb_table,
 };
 

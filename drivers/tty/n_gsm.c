@@ -21,7 +21,6 @@
  *	Mostly done:	ioctls for setting modes/timing
  *	Partly done:	hooks so you can pull off frames to non tty devs
  *	Restart DLCI 0 when it closes ?
- *	Test basic encoding
  *	Improve the tx engine
  *	Resolve tx side locking by adding a queue_head and routing
  *		all control traffic via it
@@ -67,14 +66,16 @@
 static int debug;
 module_param(debug, int, 0600);
 
-#define T1	(HZ/10)
-#define T2	(HZ/3)
-#define N2	3
+/* Defaults: these are from the specification */
+
+#define T1	10		/* 100mS */
+#define T2	34		/* 333mS */
+#define N2	3		/* Retry 3 times */
 
 /* Use long timers for testing at low speed with debug on */
 #ifdef DEBUG_TIMING
-#define T1	HZ
-#define T2	(2 * HZ)
+#define T1	100
+#define T2	200
 #endif
 
 /*
@@ -810,38 +811,41 @@ static int gsm_dlci_data_output(struct gsm_mux *gsm, struct gsm_dlci *dlci)
 {
 	struct gsm_msg *msg;
 	u8 *dp;
-	int len, size;
+	int len, total_size, size;
 	int h = dlci->adaption - 1;
 
-	len = kfifo_len(dlci->fifo);
-	if (len == 0)
-		return 0;
+	total_size = 0;
+	while(1) {
+		len = kfifo_len(dlci->fifo);
+		if (len == 0)
+			return total_size;
 
-	/* MTU/MRU count only the data bits */
-	if (len > gsm->mtu)
-		len = gsm->mtu;
+		/* MTU/MRU count only the data bits */
+		if (len > gsm->mtu)
+			len = gsm->mtu;
 
-	size = len + h;
+		size = len + h;
 
-	msg = gsm_data_alloc(gsm, dlci->addr, size, gsm->ftype);
-	/* FIXME: need a timer or something to kick this so it can't
-	   get stuck with no work outstanding and no buffer free */
-	if (msg == NULL)
-		return -ENOMEM;
-	dp = msg->data;
-	switch (dlci->adaption) {
-	case 1:	/* Unstructured */
-		break;
-	case 2:	/* Unstructed with modem bits. Always one byte as we never
-		   send inline break data */
-		*dp += gsm_encode_modem(dlci);
-		len--;
-		break;
+		msg = gsm_data_alloc(gsm, dlci->addr, size, gsm->ftype);
+		/* FIXME: need a timer or something to kick this so it can't
+		   get stuck with no work outstanding and no buffer free */
+		if (msg == NULL)
+			return -ENOMEM;
+		dp = msg->data;
+		switch (dlci->adaption) {
+		case 1:	/* Unstructured */
+			break;
+		case 2:	/* Unstructed with modem bits. Always one byte as we never
+			   send inline break data */
+			*dp++ = gsm_encode_modem(dlci);
+			break;
+		}
+		WARN_ON(kfifo_out_locked(dlci->fifo, dp , len, &dlci->lock) != len);
+		__gsm_data_queue(dlci, msg);
+		total_size += size;
 	}
-	WARN_ON(kfifo_out_locked(dlci->fifo, dp , len, &dlci->lock) != len);
-	__gsm_data_queue(dlci, msg);
 	/* Bytes of data we used up */
-	return size;
+	return total_size;
 }
 
 /**
@@ -2004,6 +2008,7 @@ void gsm_cleanup_mux(struct gsm_mux *gsm)
 	int i;
 	struct gsm_dlci *dlci = gsm->dlci[0];
 	struct gsm_msg *txq;
+	struct gsm_control *gc;
 
 	gsm->dead = 1;
 
@@ -2017,6 +2022,13 @@ void gsm_cleanup_mux(struct gsm_mux *gsm)
 	spin_unlock(&gsm_mux_lock);
 	WARN_ON(i == MAX_MUX);
 
+	/* In theory disconnecting DLCI 0 is sufficient but for some
+	   modems this is apparently not the case. */
+	if (dlci) {
+		gc = gsm_control_send(gsm, CMD_CLD, NULL, 0);
+		if (gc)
+			gsm_control_wait(gsm, gc);
+	}
 	del_timer_sync(&gsm->t2_timer);
 	/* Now we are sure T2 has stopped */
 	if (dlci) {
@@ -2982,7 +2994,7 @@ static int gsmtty_tiocmset(struct tty_struct *tty,
 	struct gsm_dlci *dlci = tty->driver_data;
 	unsigned int modem_tx = dlci->modem_tx;
 
-	modem_tx &= clear;
+	modem_tx &= ~clear;
 	modem_tx |= set;
 
 	if (modem_tx != dlci->modem_tx) {

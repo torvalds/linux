@@ -651,7 +651,7 @@ int usb_wwan_suspend(struct usb_serial *serial, pm_message_t message)
 
 	dbg("%s entered", __func__);
 
-	if (message.event & PM_EVENT_AUTO) {
+	if (PMSG_IS_AUTO(message)) {
 		spin_lock_irq(&intfdata->susp_lock);
 		b = intfdata->in_flight;
 		spin_unlock_irq(&intfdata->susp_lock);

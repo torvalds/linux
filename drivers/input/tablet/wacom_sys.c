@@ -28,7 +28,9 @@
 #define HID_USAGE_Y_TILT		0x3e
 #define HID_USAGE_FINGER		0x22
 #define HID_USAGE_STYLUS		0x20
-#define HID_COLLECTION			0xc0
+#define HID_COLLECTION			0xa1
+#define HID_COLLECTION_LOGICAL		0x02
+#define HID_COLLECTION_END		0xc0
 
 enum {
 	WCM_UNDEFINED = 0,
@@ -66,7 +68,8 @@ static int wacom_get_report(struct usb_interface *intf, u8 type, u8 id,
 	do {
 		retval = usb_control_msg(dev, usb_rcvctrlpipe(dev, 0),
 				USB_REQ_GET_REPORT,
-				USB_TYPE_CLASS | USB_RECIP_INTERFACE,
+				USB_DIR_IN | USB_TYPE_CLASS |
+				USB_RECIP_INTERFACE,
 				(type << 8) + id,
 				intf->altsetting[0].desc.bInterfaceNumber,
 				buf, size, 100);
@@ -164,7 +167,70 @@ static void wacom_close(struct input_dev *dev)
 		usb_autopm_put_interface(wacom->intf);
 }
 
-static int wacom_parse_hid(struct usb_interface *intf, struct hid_descriptor *hid_desc,
+static int wacom_parse_logical_collection(unsigned char *report,
+					  struct wacom_features *features)
+{
+	int length = 0;
+
+	if (features->type == BAMBOO_PT) {
+
+		/* Logical collection is only used by 3rd gen Bamboo Touch */
+		features->pktlen = WACOM_PKGLEN_BBTOUCH3;
+		features->device_type = BTN_TOOL_DOUBLETAP;
+
+		/*
+		 * Stylus and Touch have same active area
+		 * so compute physical size based on stylus
+		 * data before its overwritten.
+		 */
+		features->x_phy =
+			(features->x_max * features->x_resolution) / 100;
+		features->y_phy =
+			(features->y_max * features->y_resolution) / 100;
+
+		features->x_max = features->y_max =
+			get_unaligned_le16(&report[10]);
+
+		length = 11;
+	}
+	return length;
+}
+
+/*
+ * Interface Descriptor of wacom devices can be incomplete and
+ * inconsistent so wacom_features table is used to store stylus
+ * device's packet lengths, various maximum values, and tablet
+ * resolution based on product ID's.
+ *
+ * For devices that contain 2 interfaces, wacom_features table is
+ * inaccurate for the touch interface.  Since the Interface Descriptor
+ * for touch interfaces has pretty complete data, this function exists
+ * to query tablet for this missing information instead of hard coding in
+ * an additional table.
+ *
+ * A typical Interface Descriptor for a stylus will contain a
+ * boot mouse application collection that is not of interest and this
+ * function will ignore it.
+ *
+ * It also contains a digitizer application collection that also is not
+ * of interest since any information it contains would be duplicate
+ * of what is in wacom_features. Usually it defines a report of an array
+ * of bytes that could be used as max length of the stylus packet returned.
+ * If it happens to define a Digitizer-Stylus Physical Collection then
+ * the X and Y logical values contain valid data but it is ignored.
+ *
+ * A typical Interface Descriptor for a touch interface will contain a
+ * Digitizer-Finger Physical Collection which will define both logical
+ * X/Y maximum as well as the physical size of tablet. Since touch
+ * interfaces haven't supported pressure or distance, this is enough
+ * information to override invalid values in the wacom_features table.
+ *
+ * 3rd gen Bamboo Touch no longer define a Digitizer-Finger Pysical
+ * Collection. Instead they define a Logical Collection with a single
+ * Logical Maximum for both X and Y.
+ */
+static int wacom_parse_hid(struct usb_interface *intf,
+			   struct hid_descriptor *hid_desc,
 			   struct wacom_features *features)
 {
 	struct usb_device *dev = interface_to_usbdev(intf);
@@ -244,8 +310,6 @@ static int wacom_parse_hid(struct usb_interface *intf, struct hid_descriptor *hi
 						/* penabled only accepts exact bytes of data */
 						if (features->type == TABLETPC2FG)
 							features->pktlen = WACOM_PKGLEN_GRAPHIRE;
-						if (features->type == BAMBOO_PT)
-							features->pktlen = WACOM_PKGLEN_BBFUN;
 						features->device_type = BTN_TOOL_PEN;
 						features->x_max =
 							get_unaligned_le16(&report[i + 3]);
@@ -287,8 +351,6 @@ static int wacom_parse_hid(struct usb_interface *intf, struct hid_descriptor *hi
 						/* penabled only accepts exact bytes of data */
 						if (features->type == TABLETPC2FG)
 							features->pktlen = WACOM_PKGLEN_GRAPHIRE;
-						if (features->type == BAMBOO_PT)
-							features->pktlen = WACOM_PKGLEN_BBFUN;
 						features->device_type = BTN_TOOL_PEN;
 						features->y_max =
 							get_unaligned_le16(&report[i + 3]);
@@ -302,6 +364,11 @@ static int wacom_parse_hid(struct usb_interface *intf, struct hid_descriptor *hi
 				i++;
 				break;
 
+			/*
+			 * Requiring Stylus Usage will ignore boot mouse
+			 * X/Y values and some cases of invalid Digitizer X/Y
+			 * values commonly reported.
+			 */
 			case HID_USAGE_STYLUS:
 				pen = 1;
 				i++;
@@ -309,9 +376,19 @@ static int wacom_parse_hid(struct usb_interface *intf, struct hid_descriptor *hi
 			}
 			break;
 
-		case HID_COLLECTION:
+		case HID_COLLECTION_END:
 			/* reset UsagePage and Finger */
 			finger = usage = 0;
+			break;
+
+		case HID_COLLECTION:
+			i++;
+			switch (report[i]) {
+			case HID_COLLECTION_LOGICAL:
+				i += wacom_parse_logical_collection(&report[i],
+								    features);
+				break;
+			}
 			break;
 		}
 	}
@@ -348,7 +425,8 @@ static int wacom_query_tablet_data(struct usb_interface *intf, struct wacom_feat
 						WAC_HID_FEATURE_REPORT,
 						report_id, rep_data, 4, 1);
 		} while ((error < 0 || rep_data[1] != 4) && limit++ < WAC_MSG_RETRIES);
-	} else if (features->type != TABLETPC) {
+	} else if (features->type != TABLETPC &&
+		   features->device_type == BTN_TOOL_PEN) {
 		do {
 			rep_data[0] = 2;
 			rep_data[1] = 2;
@@ -485,7 +563,8 @@ static int wacom_led_control(struct wacom *wacom)
 	if (!buf)
 		return -ENOMEM;
 
-	if (wacom->wacom_wac.features.type == WACOM_21UX2)
+	if (wacom->wacom_wac.features.type == WACOM_21UX2 ||
+	    wacom->wacom_wac.features.type == WACOM_24HD)
 		led = (wacom->led.select[1] << 4) | 0x40;
 
 	led |=  wacom->led.select[0] | 0x4;
@@ -704,6 +783,7 @@ static int wacom_initialize_leds(struct wacom *wacom)
 					   &intuos4_led_attr_group);
 		break;
 
+	case WACOM_24HD:
 	case WACOM_21UX2:
 		wacom->led.select[0] = 0;
 		wacom->led.select[1] = 0;
@@ -738,6 +818,7 @@ static void wacom_destroy_leds(struct wacom *wacom)
 				   &intuos4_led_attr_group);
 		break;
 
+	case WACOM_24HD:
 	case WACOM_21UX2:
 		sysfs_remove_group(&wacom->intf->dev.kobj,
 				   &cintiq_led_attr_group);

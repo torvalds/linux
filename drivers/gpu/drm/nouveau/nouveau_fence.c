@@ -519,7 +519,7 @@ nouveau_fence_channel_init(struct nouveau_channel *chan)
 	if (USE_SEMA(dev) && dev_priv->chipset < 0x84) {
 		struct ttm_mem_reg *mem = &dev_priv->fence.bo->bo.mem;
 
-		ret = nouveau_gpuobj_dma_new(chan, NV_CLASS_DMA_IN_MEMORY,
+		ret = nouveau_gpuobj_dma_new(chan, NV_CLASS_DMA_FROM_MEMORY,
 					     mem->start << PAGE_SHIFT,
 					     mem->size, NV_MEM_ACCESS_RW,
 					     NV_MEM_TARGET_VRAM, &obj);
@@ -530,7 +530,8 @@ nouveau_fence_channel_init(struct nouveau_channel *chan)
 		nouveau_gpuobj_ref(NULL, &obj);
 		if (ret)
 			return ret;
-	} else {
+	} else
+	if (USE_SEMA(dev)) {
 		/* map fence bo into channel's vm */
 		ret = nouveau_bo_vma_add(dev_priv->fence.bo, chan->vm,
 					 &chan->fence.vma);
@@ -538,8 +539,6 @@ nouveau_fence_channel_init(struct nouveau_channel *chan)
 			return ret;
 	}
 
-	INIT_LIST_HEAD(&chan->fence.pending);
-	spin_lock_init(&chan->fence.lock);
 	atomic_set(&chan->fence.last_sequence_irq, 0);
 	return 0;
 }

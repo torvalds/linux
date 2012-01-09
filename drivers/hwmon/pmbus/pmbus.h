@@ -134,8 +134,16 @@
  * Semantics:
  * Virtual registers are all word size.
  * READ registers are read-only; writes are either ignored or return an error.
- * RESET registers are read/write. Reading returns zero (used for detection),
- * writing any value causes the associated history to be reset.
+ * RESET registers are read/write. Reading reset registers returns zero
+ * (used for detection), writing any value causes the associated history to be
+ * reset.
+ * Virtual registers have to be handled in device specific driver code. Chip
+ * driver code returns non-negative register values if a virtual register is
+ * supported, or a negative error code if not. The chip driver may return
+ * -ENODATA or any other error code in this case, though an error code other
+ * than -ENODATA is handled more efficiently and thus preferred. Either case,
+ * the calling PMBus core code will abort if the chip driver returns an error
+ * code when reading or writing virtual registers.
  */
 #define PMBUS_VIRT_BASE			0x100
 #define PMBUS_VIRT_READ_TEMP_MIN	(PMBUS_VIRT_BASE + 0)
@@ -160,6 +168,9 @@
 #define PMBUS_VIRT_READ_IOUT_MIN	(PMBUS_VIRT_BASE + 19)
 #define PMBUS_VIRT_READ_IOUT_MAX	(PMBUS_VIRT_BASE + 20)
 #define PMBUS_VIRT_RESET_IOUT_HISTORY	(PMBUS_VIRT_BASE + 21)
+#define PMBUS_VIRT_READ_TEMP2_MIN	(PMBUS_VIRT_BASE + 22)
+#define PMBUS_VIRT_READ_TEMP2_MAX	(PMBUS_VIRT_BASE + 23)
+#define PMBUS_VIRT_RESET_TEMP2_HISTORY	(PMBUS_VIRT_BASE + 24)
 
 /*
  * CAPABILITY
@@ -320,6 +331,12 @@ struct pmbus_driver_info {
 	 * The following functions map manufacturing specific register values
 	 * to PMBus standard register values. Specify only if mapping is
 	 * necessary.
+	 * Functions return the register value (read) or zero (write) if
+	 * successful. A return value of -ENODATA indicates that there is no
+	 * manufacturer specific register, but that a standard PMBus register
+	 * may exist. Any other negative return value indicates that the
+	 * register does not exist, and that no attempt should be made to read
+	 * the standard register.
 	 */
 	int (*read_byte_data)(struct i2c_client *client, int page, int reg);
 	int (*read_word_data)(struct i2c_client *client, int page, int reg);
@@ -347,7 +364,7 @@ bool pmbus_check_byte_register(struct i2c_client *client, int page, int reg);
 bool pmbus_check_word_register(struct i2c_client *client, int page, int reg);
 int pmbus_do_probe(struct i2c_client *client, const struct i2c_device_id *id,
 		   struct pmbus_driver_info *info);
-int pmbus_do_remove(struct i2c_client *client);
+void pmbus_do_remove(struct i2c_client *client);
 const struct pmbus_driver_info *pmbus_get_driver_info(struct i2c_client
 						      *client);
 

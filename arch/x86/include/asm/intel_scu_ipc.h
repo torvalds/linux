@@ -1,6 +1,8 @@
 #ifndef _ASM_X86_INTEL_SCU_IPC_H_
 #define  _ASM_X86_INTEL_SCU_IPC_H_
 
+#include <linux/notifier.h>
+
 #define IPCMSG_VRTC	0xFA	 /* Set vRTC device */
 
 /* Command id associated with message IPCMSG_VRTC */
@@ -43,5 +45,25 @@ int intel_scu_ipc_i2c_cntrl(u32 addr, u32 *data);
 
 /* Update FW version */
 int intel_scu_ipc_fw_update(u8 *buffer, u32 length);
+
+extern struct blocking_notifier_head intel_scu_notifier;
+
+static inline void intel_scu_notifier_add(struct notifier_block *nb)
+{
+	blocking_notifier_chain_register(&intel_scu_notifier, nb);
+}
+
+static inline void intel_scu_notifier_remove(struct notifier_block *nb)
+{
+	blocking_notifier_chain_unregister(&intel_scu_notifier, nb);
+}
+
+static inline int intel_scu_notifier_post(unsigned long v, void *p)
+{
+	return blocking_notifier_call_chain(&intel_scu_notifier, v, p);
+}
+
+#define		SCU_AVAILABLE		1
+#define		SCU_DOWN		2
 
 #endif

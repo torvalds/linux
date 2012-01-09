@@ -91,9 +91,9 @@ static struct resource m520x_qspi_resources[] = {
 	},
 };
 
-#define MCFQSPI_CS0    62
-#define MCFQSPI_CS1    63
-#define MCFQSPI_CS2    44
+#define MCFQSPI_CS0    46
+#define MCFQSPI_CS1    47
+#define MCFQSPI_CS2    27
 
 static int m520x_cs_setup(struct mcfqspi_cs_control *cs_control)
 {

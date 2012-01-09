@@ -200,7 +200,7 @@ static int __color_vfprintf(FILE *fp, const char *color, const char *fmt,
 	 * Auto-detect:
 	 */
 	if (perf_use_color_default < 0) {
-		if (isatty(1) || pager_in_use())
+		if (isatty(fileno(fp)) || pager_in_use())
 			perf_use_color_default = 1;
 		else
 			perf_use_color_default = 0;

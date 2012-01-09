@@ -12,6 +12,7 @@
 #include <linux/types.h>
 #include <linux/init.h>
 #include <linux/crash_dump.h>
+#include <linux/export.h>
 #include <linux/bootmem.h>
 #include <linux/pfn.h>
 #include <linux/suspend.h>

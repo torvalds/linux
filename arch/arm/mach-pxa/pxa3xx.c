@@ -12,7 +12,6 @@
  * it under the terms of the GNU General Public License version 2 as
  * published by the Free Software Foundation.
  */
-
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/init.h>
@@ -26,7 +25,7 @@
 #include <asm/mach/map.h>
 #include <asm/suspend.h>
 #include <mach/hardware.h>
-#include <mach/gpio.h>
+#include <mach/gpio-pxa.h>
 #include <mach/pxa3xx-regs.h>
 #include <mach/reset.h>
 #include <mach/ohci.h>
@@ -394,7 +393,7 @@ void __init pxa3xx_init_irq(void)
 
 static struct map_desc pxa3xx_io_desc[] __initdata = {
 	{	/* Mem Ctl */
-		.virtual	= SMEMC_VIRT,
+		.virtual	= (unsigned long)SMEMC_VIRT,
 		.pfn		= __phys_to_pfn(PXA3XX_SMEMC_BASE),
 		.length		= 0x00200000,
 		.type		= MT_DEVICE

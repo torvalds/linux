@@ -176,10 +176,7 @@ dsthash_alloc_init(struct xt_hashlimit_htable *ht,
 		ent = NULL;
 	} else
 		ent = kmem_cache_alloc(hashlimit_cachep, GFP_ATOMIC);
-	if (!ent) {
-		if (net_ratelimit())
-			pr_err("cannot allocate dsthash_ent\n");
-	} else {
+	if (ent) {
 		memcpy(&ent->dst, dst, sizeof(ent->dst));
 		spin_lock_init(&ent->lock);
 

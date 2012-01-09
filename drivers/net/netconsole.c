@@ -307,6 +307,11 @@ static ssize_t store_enabled(struct netconsole_target *nt,
 		return err;
 	if (enabled < 0 || enabled > 1)
 		return -EINVAL;
+	if (enabled == nt->enabled) {
+		printk(KERN_INFO "netconsole: network logging has already %s\n",
+				nt->enabled ? "started" : "stopped");
+		return -EINVAL;
+	}
 
 	if (enabled) {	/* 1 */
 
@@ -799,5 +804,11 @@ static void __exit cleanup_netconsole(void)
 	}
 }
 
-module_init(init_netconsole);
+/*
+ * Use late_initcall to ensure netconsole is
+ * initialized after network device driver if built-in.
+ *
+ * late_initcall() and module_init() are identical if built as module.
+ */
+late_initcall(init_netconsole);
 module_exit(cleanup_netconsole);

@@ -1,0 +1,27 @@
+* TI - MPU (Main Processor Unit) subsystem
+
+The MPU subsystem contain one or several ARM cores
+depending of the version.
+The MPU contain CPUs, GIC, L2 cache and a local PRCM.
+
+Required properties:
+- compatible : Should be "ti,omap3-mpu" for OMAP3
+               Should be "ti,omap4-mpu" for OMAP4
+- ti,hwmods: "mpu"
+
+Examples:
+
+- For an OMAP4 SMP system:
+
+mpu {
+    compatible = "ti,omap4-mpu";
+    ti,hwmods = "mpu";
+};
+
+
+- For an OMAP3 monocore system:
+
+mpu {
+    compatible = "ti,omap3-mpu";
+    ti,hwmods = "mpu";
+};

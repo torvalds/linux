@@ -1,5 +1,5 @@
 menuconfig OMAP2_DSS
-        tristate "OMAP2+ Display Subsystem support (EXPERIMENTAL)"
+        tristate "OMAP2+ Display Subsystem support"
         depends on ARCH_OMAP2PLUS
         help
 	  OMAP2+ Display Subsystem support.

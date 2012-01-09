@@ -31,7 +31,6 @@
 #include <linux/slab.h>
 #include <linux/init.h>
 #include <linux/compiler.h>
-#include <linux/delay.h>
 #include <linux/blktrace_api.h>
 #include <linux/hash.h>
 #include <linux/uaccess.h>
@@ -182,7 +181,7 @@ static void elevator_attach(struct request_queue *q, struct elevator_queue *eq,
 	eq->elevator_data = data;
 }
 
-static char chosen_elevator[16];
+static char chosen_elevator[ELV_NAME_MAX];
 
 static int __init elevator_setup(char *str)
 {
@@ -606,43 +605,35 @@ void elv_requeue_request(struct request_queue *q, struct request *rq)
 void elv_drain_elevator(struct request_queue *q)
 {
 	static int printed;
+
+	lockdep_assert_held(q->queue_lock);
+
 	while (q->elevator->ops->elevator_dispatch_fn(q, 1))
 		;
-	if (q->nr_sorted == 0)
-		return;
-	if (printed++ < 10) {
+	if (q->nr_sorted && printed++ < 10) {
 		printk(KERN_ERR "%s: forced dispatching is broken "
 		       "(nr_sorted=%u), please report this\n",
 		       q->elevator->elevator_type->elevator_name, q->nr_sorted);
 	}
 }
 
-/*
- * Call with queue lock held, interrupts disabled
- */
 void elv_quiesce_start(struct request_queue *q)
 {
 	if (!q->elevator)
 		return;
 
+	spin_lock_irq(q->queue_lock);
 	queue_flag_set(QUEUE_FLAG_ELVSWITCH, q);
+	spin_unlock_irq(q->queue_lock);
 
-	/*
-	 * make sure we don't have any requests in flight
-	 */
-	elv_drain_elevator(q);
-	while (q->rq.elvpriv) {
-		__blk_run_queue(q);
-		spin_unlock_irq(q->queue_lock);
-		msleep(10);
-		spin_lock_irq(q->queue_lock);
-		elv_drain_elevator(q);
-	}
+	blk_drain_queue(q, false);
 }
 
 void elv_quiesce_end(struct request_queue *q)
 {
+	spin_lock_irq(q->queue_lock);
 	queue_flag_clear(QUEUE_FLAG_ELVSWITCH, q);
+	spin_unlock_irq(q->queue_lock);
 }
 
 void __elv_add_request(struct request_queue *q, struct request *rq, int where)
@@ -972,7 +963,6 @@ static int elevator_switch(struct request_queue *q, struct elevator_type *new_e)
 	/*
 	 * Turn on BYPASS and drain all requests w/ elevator private data
 	 */
-	spin_lock_irq(q->queue_lock);
 	elv_quiesce_start(q);
 
 	/*
@@ -983,8 +973,8 @@ static int elevator_switch(struct request_queue *q, struct elevator_type *new_e)
 	/*
 	 * attach and start new elevator
 	 */
+	spin_lock_irq(q->queue_lock);
 	elevator_attach(q, e, data);
-
 	spin_unlock_irq(q->queue_lock);
 
 	if (old_elevator->registered) {
@@ -999,9 +989,7 @@ static int elevator_switch(struct request_queue *q, struct elevator_type *new_e)
 	 * finally exit old elevator and turn off BYPASS.
 	 */
 	elevator_exit(old_elevator);
-	spin_lock_irq(q->queue_lock);
 	elv_quiesce_end(q);
-	spin_unlock_irq(q->queue_lock);
 
 	blk_add_trace_msg(q, "elv switch: %s", e->elevator_type->elevator_name);
 
@@ -1015,10 +1003,7 @@ fail_register:
 	elevator_exit(e);
 	q->elevator = old_elevator;
 	elv_register_queue(q);
-
-	spin_lock_irq(q->queue_lock);
-	queue_flag_clear(QUEUE_FLAG_ELVSWITCH, q);
-	spin_unlock_irq(q->queue_lock);
+	elv_quiesce_end(q);
 
 	return err;
 }

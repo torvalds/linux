@@ -18,12 +18,14 @@
 #include <linux/delay.h>
 #include <linux/mfd/core.h>
 #include <linux/slab.h>
+#include <linux/err.h>
 
 #include <linux/mfd/wm831x/core.h>
 #include <linux/mfd/wm831x/pdata.h>
 #include <linux/mfd/wm831x/irq.h>
 #include <linux/mfd/wm831x/auxadc.h>
 #include <linux/mfd/wm831x/otp.h>
+#include <linux/mfd/wm831x/pmu.h>
 #include <linux/mfd/wm831x/regulator.h>
 
 /* Current settings - values are 2*2^(reg_val/4) microamps.  These are
@@ -160,27 +162,350 @@ int wm831x_reg_unlock(struct wm831x *wm831x)
 }
 EXPORT_SYMBOL_GPL(wm831x_reg_unlock);
 
-static int wm831x_read(struct wm831x *wm831x, unsigned short reg,
-		       int bytes, void *dest)
+static bool wm831x_reg_readable(struct device *dev, unsigned int reg)
 {
-	int ret, i;
-	u16 *buf = dest;
-
-	BUG_ON(bytes % 2);
-	BUG_ON(bytes <= 0);
-
-	ret = wm831x->read_dev(wm831x, reg, bytes, dest);
-	if (ret < 0)
-		return ret;
-
-	for (i = 0; i < bytes / 2; i++) {
-		buf[i] = be16_to_cpu(buf[i]);
-
-		dev_vdbg(wm831x->dev, "Read %04x from R%d(0x%x)\n",
-			 buf[i], reg + i, reg + i);
+	switch (reg) {
+	case WM831X_RESET_ID:
+	case WM831X_REVISION:
+	case WM831X_PARENT_ID:
+	case WM831X_SYSVDD_CONTROL:
+	case WM831X_THERMAL_MONITORING:
+	case WM831X_POWER_STATE:
+	case WM831X_WATCHDOG:
+	case WM831X_ON_PIN_CONTROL:
+	case WM831X_RESET_CONTROL:
+	case WM831X_CONTROL_INTERFACE:
+	case WM831X_SECURITY_KEY:
+	case WM831X_SOFTWARE_SCRATCH:
+	case WM831X_OTP_CONTROL:
+	case WM831X_GPIO_LEVEL:
+	case WM831X_SYSTEM_STATUS:
+	case WM831X_ON_SOURCE:
+	case WM831X_OFF_SOURCE:
+	case WM831X_SYSTEM_INTERRUPTS:
+	case WM831X_INTERRUPT_STATUS_1:
+	case WM831X_INTERRUPT_STATUS_2:
+	case WM831X_INTERRUPT_STATUS_3:
+	case WM831X_INTERRUPT_STATUS_4:
+	case WM831X_INTERRUPT_STATUS_5:
+	case WM831X_IRQ_CONFIG:
+	case WM831X_SYSTEM_INTERRUPTS_MASK:
+	case WM831X_INTERRUPT_STATUS_1_MASK:
+	case WM831X_INTERRUPT_STATUS_2_MASK:
+	case WM831X_INTERRUPT_STATUS_3_MASK:
+	case WM831X_INTERRUPT_STATUS_4_MASK:
+	case WM831X_INTERRUPT_STATUS_5_MASK:
+	case WM831X_RTC_WRITE_COUNTER:
+	case WM831X_RTC_TIME_1:
+	case WM831X_RTC_TIME_2:
+	case WM831X_RTC_ALARM_1:
+	case WM831X_RTC_ALARM_2:
+	case WM831X_RTC_CONTROL:
+	case WM831X_RTC_TRIM:
+	case WM831X_TOUCH_CONTROL_1:
+	case WM831X_TOUCH_CONTROL_2:
+	case WM831X_TOUCH_DATA_X:
+	case WM831X_TOUCH_DATA_Y:
+	case WM831X_TOUCH_DATA_Z:
+	case WM831X_AUXADC_DATA:
+	case WM831X_AUXADC_CONTROL:
+	case WM831X_AUXADC_SOURCE:
+	case WM831X_COMPARATOR_CONTROL:
+	case WM831X_COMPARATOR_1:
+	case WM831X_COMPARATOR_2:
+	case WM831X_COMPARATOR_3:
+	case WM831X_COMPARATOR_4:
+	case WM831X_GPIO1_CONTROL:
+	case WM831X_GPIO2_CONTROL:
+	case WM831X_GPIO3_CONTROL:
+	case WM831X_GPIO4_CONTROL:
+	case WM831X_GPIO5_CONTROL:
+	case WM831X_GPIO6_CONTROL:
+	case WM831X_GPIO7_CONTROL:
+	case WM831X_GPIO8_CONTROL:
+	case WM831X_GPIO9_CONTROL:
+	case WM831X_GPIO10_CONTROL:
+	case WM831X_GPIO11_CONTROL:
+	case WM831X_GPIO12_CONTROL:
+	case WM831X_GPIO13_CONTROL:
+	case WM831X_GPIO14_CONTROL:
+	case WM831X_GPIO15_CONTROL:
+	case WM831X_GPIO16_CONTROL:
+	case WM831X_CHARGER_CONTROL_1:
+	case WM831X_CHARGER_CONTROL_2:
+	case WM831X_CHARGER_STATUS:
+	case WM831X_BACKUP_CHARGER_CONTROL:
+	case WM831X_STATUS_LED_1:
+	case WM831X_STATUS_LED_2:
+	case WM831X_CURRENT_SINK_1:
+	case WM831X_CURRENT_SINK_2:
+	case WM831X_DCDC_ENABLE:
+	case WM831X_LDO_ENABLE:
+	case WM831X_DCDC_STATUS:
+	case WM831X_LDO_STATUS:
+	case WM831X_DCDC_UV_STATUS:
+	case WM831X_LDO_UV_STATUS:
+	case WM831X_DC1_CONTROL_1:
+	case WM831X_DC1_CONTROL_2:
+	case WM831X_DC1_ON_CONFIG:
+	case WM831X_DC1_SLEEP_CONTROL:
+	case WM831X_DC1_DVS_CONTROL:
+	case WM831X_DC2_CONTROL_1:
+	case WM831X_DC2_CONTROL_2:
+	case WM831X_DC2_ON_CONFIG:
+	case WM831X_DC2_SLEEP_CONTROL:
+	case WM831X_DC2_DVS_CONTROL:
+	case WM831X_DC3_CONTROL_1:
+	case WM831X_DC3_CONTROL_2:
+	case WM831X_DC3_ON_CONFIG:
+	case WM831X_DC3_SLEEP_CONTROL:
+	case WM831X_DC4_CONTROL:
+	case WM831X_DC4_SLEEP_CONTROL:
+	case WM831X_EPE1_CONTROL:
+	case WM831X_EPE2_CONTROL:
+	case WM831X_LDO1_CONTROL:
+	case WM831X_LDO1_ON_CONTROL:
+	case WM831X_LDO1_SLEEP_CONTROL:
+	case WM831X_LDO2_CONTROL:
+	case WM831X_LDO2_ON_CONTROL:
+	case WM831X_LDO2_SLEEP_CONTROL:
+	case WM831X_LDO3_CONTROL:
+	case WM831X_LDO3_ON_CONTROL:
+	case WM831X_LDO3_SLEEP_CONTROL:
+	case WM831X_LDO4_CONTROL:
+	case WM831X_LDO4_ON_CONTROL:
+	case WM831X_LDO4_SLEEP_CONTROL:
+	case WM831X_LDO5_CONTROL:
+	case WM831X_LDO5_ON_CONTROL:
+	case WM831X_LDO5_SLEEP_CONTROL:
+	case WM831X_LDO6_CONTROL:
+	case WM831X_LDO6_ON_CONTROL:
+	case WM831X_LDO6_SLEEP_CONTROL:
+	case WM831X_LDO7_CONTROL:
+	case WM831X_LDO7_ON_CONTROL:
+	case WM831X_LDO7_SLEEP_CONTROL:
+	case WM831X_LDO8_CONTROL:
+	case WM831X_LDO8_ON_CONTROL:
+	case WM831X_LDO8_SLEEP_CONTROL:
+	case WM831X_LDO9_CONTROL:
+	case WM831X_LDO9_ON_CONTROL:
+	case WM831X_LDO9_SLEEP_CONTROL:
+	case WM831X_LDO10_CONTROL:
+	case WM831X_LDO10_ON_CONTROL:
+	case WM831X_LDO10_SLEEP_CONTROL:
+	case WM831X_LDO11_ON_CONTROL:
+	case WM831X_LDO11_SLEEP_CONTROL:
+	case WM831X_POWER_GOOD_SOURCE_1:
+	case WM831X_POWER_GOOD_SOURCE_2:
+	case WM831X_CLOCK_CONTROL_1:
+	case WM831X_CLOCK_CONTROL_2:
+	case WM831X_FLL_CONTROL_1:
+	case WM831X_FLL_CONTROL_2:
+	case WM831X_FLL_CONTROL_3:
+	case WM831X_FLL_CONTROL_4:
+	case WM831X_FLL_CONTROL_5:
+	case WM831X_UNIQUE_ID_1:
+	case WM831X_UNIQUE_ID_2:
+	case WM831X_UNIQUE_ID_3:
+	case WM831X_UNIQUE_ID_4:
+	case WM831X_UNIQUE_ID_5:
+	case WM831X_UNIQUE_ID_6:
+	case WM831X_UNIQUE_ID_7:
+	case WM831X_UNIQUE_ID_8:
+	case WM831X_FACTORY_OTP_ID:
+	case WM831X_FACTORY_OTP_1:
+	case WM831X_FACTORY_OTP_2:
+	case WM831X_FACTORY_OTP_3:
+	case WM831X_FACTORY_OTP_4:
+	case WM831X_FACTORY_OTP_5:
+	case WM831X_CUSTOMER_OTP_ID:
+	case WM831X_DC1_OTP_CONTROL:
+	case WM831X_DC2_OTP_CONTROL:
+	case WM831X_DC3_OTP_CONTROL:
+	case WM831X_LDO1_2_OTP_CONTROL:
+	case WM831X_LDO3_4_OTP_CONTROL:
+	case WM831X_LDO5_6_OTP_CONTROL:
+	case WM831X_LDO7_8_OTP_CONTROL:
+	case WM831X_LDO9_10_OTP_CONTROL:
+	case WM831X_LDO11_EPE_CONTROL:
+	case WM831X_GPIO1_OTP_CONTROL:
+	case WM831X_GPIO2_OTP_CONTROL:
+	case WM831X_GPIO3_OTP_CONTROL:
+	case WM831X_GPIO4_OTP_CONTROL:
+	case WM831X_GPIO5_OTP_CONTROL:
+	case WM831X_GPIO6_OTP_CONTROL:
+	case WM831X_DBE_CHECK_DATA:
+		return true;
+	default:
+		return false;
 	}
+}
 
-	return 0;
+static bool wm831x_reg_writeable(struct device *dev, unsigned int reg)
+{
+	struct wm831x *wm831x = dev_get_drvdata(dev);
+
+	if (wm831x_reg_locked(wm831x, reg))
+		return false;
+
+	switch (reg) {
+	case WM831X_SYSVDD_CONTROL:
+	case WM831X_THERMAL_MONITORING:
+	case WM831X_POWER_STATE:
+	case WM831X_WATCHDOG:
+	case WM831X_ON_PIN_CONTROL:
+	case WM831X_RESET_CONTROL:
+	case WM831X_CONTROL_INTERFACE:
+	case WM831X_SECURITY_KEY:
+	case WM831X_SOFTWARE_SCRATCH:
+	case WM831X_OTP_CONTROL:
+	case WM831X_GPIO_LEVEL:
+	case WM831X_INTERRUPT_STATUS_1:
+	case WM831X_INTERRUPT_STATUS_2:
+	case WM831X_INTERRUPT_STATUS_3:
+	case WM831X_INTERRUPT_STATUS_4:
+	case WM831X_INTERRUPT_STATUS_5:
+	case WM831X_IRQ_CONFIG:
+	case WM831X_SYSTEM_INTERRUPTS_MASK:
+	case WM831X_INTERRUPT_STATUS_1_MASK:
+	case WM831X_INTERRUPT_STATUS_2_MASK:
+	case WM831X_INTERRUPT_STATUS_3_MASK:
+	case WM831X_INTERRUPT_STATUS_4_MASK:
+	case WM831X_INTERRUPT_STATUS_5_MASK:
+	case WM831X_RTC_TIME_1:
+	case WM831X_RTC_TIME_2:
+	case WM831X_RTC_ALARM_1:
+	case WM831X_RTC_ALARM_2:
+	case WM831X_RTC_CONTROL:
+	case WM831X_RTC_TRIM:
+	case WM831X_TOUCH_CONTROL_1:
+	case WM831X_TOUCH_CONTROL_2:
+	case WM831X_AUXADC_CONTROL:
+	case WM831X_AUXADC_SOURCE:
+	case WM831X_COMPARATOR_CONTROL:
+	case WM831X_COMPARATOR_1:
+	case WM831X_COMPARATOR_2:
+	case WM831X_COMPARATOR_3:
+	case WM831X_COMPARATOR_4:
+	case WM831X_GPIO1_CONTROL:
+	case WM831X_GPIO2_CONTROL:
+	case WM831X_GPIO3_CONTROL:
+	case WM831X_GPIO4_CONTROL:
+	case WM831X_GPIO5_CONTROL:
+	case WM831X_GPIO6_CONTROL:
+	case WM831X_GPIO7_CONTROL:
+	case WM831X_GPIO8_CONTROL:
+	case WM831X_GPIO9_CONTROL:
+	case WM831X_GPIO10_CONTROL:
+	case WM831X_GPIO11_CONTROL:
+	case WM831X_GPIO12_CONTROL:
+	case WM831X_GPIO13_CONTROL:
+	case WM831X_GPIO14_CONTROL:
+	case WM831X_GPIO15_CONTROL:
+	case WM831X_GPIO16_CONTROL:
+	case WM831X_CHARGER_CONTROL_1:
+	case WM831X_CHARGER_CONTROL_2:
+	case WM831X_CHARGER_STATUS:
+	case WM831X_BACKUP_CHARGER_CONTROL:
+	case WM831X_STATUS_LED_1:
+	case WM831X_STATUS_LED_2:
+	case WM831X_CURRENT_SINK_1:
+	case WM831X_CURRENT_SINK_2:
+	case WM831X_DCDC_ENABLE:
+	case WM831X_LDO_ENABLE:
+	case WM831X_DC1_CONTROL_1:
+	case WM831X_DC1_CONTROL_2:
+	case WM831X_DC1_ON_CONFIG:
+	case WM831X_DC1_SLEEP_CONTROL:
+	case WM831X_DC1_DVS_CONTROL:
+	case WM831X_DC2_CONTROL_1:
+	case WM831X_DC2_CONTROL_2:
+	case WM831X_DC2_ON_CONFIG:
+	case WM831X_DC2_SLEEP_CONTROL:
+	case WM831X_DC2_DVS_CONTROL:
+	case WM831X_DC3_CONTROL_1:
+	case WM831X_DC3_CONTROL_2:
+	case WM831X_DC3_ON_CONFIG:
+	case WM831X_DC3_SLEEP_CONTROL:
+	case WM831X_DC4_CONTROL:
+	case WM831X_DC4_SLEEP_CONTROL:
+	case WM831X_EPE1_CONTROL:
+	case WM831X_EPE2_CONTROL:
+	case WM831X_LDO1_CONTROL:
+	case WM831X_LDO1_ON_CONTROL:
+	case WM831X_LDO1_SLEEP_CONTROL:
+	case WM831X_LDO2_CONTROL:
+	case WM831X_LDO2_ON_CONTROL:
+	case WM831X_LDO2_SLEEP_CONTROL:
+	case WM831X_LDO3_CONTROL:
+	case WM831X_LDO3_ON_CONTROL:
+	case WM831X_LDO3_SLEEP_CONTROL:
+	case WM831X_LDO4_CONTROL:
+	case WM831X_LDO4_ON_CONTROL:
+	case WM831X_LDO4_SLEEP_CONTROL:
+	case WM831X_LDO5_CONTROL:
+	case WM831X_LDO5_ON_CONTROL:
+	case WM831X_LDO5_SLEEP_CONTROL:
+	case WM831X_LDO6_CONTROL:
+	case WM831X_LDO6_ON_CONTROL:
+	case WM831X_LDO6_SLEEP_CONTROL:
+	case WM831X_LDO7_CONTROL:
+	case WM831X_LDO7_ON_CONTROL:
+	case WM831X_LDO7_SLEEP_CONTROL:
+	case WM831X_LDO8_CONTROL:
+	case WM831X_LDO8_ON_CONTROL:
+	case WM831X_LDO8_SLEEP_CONTROL:
+	case WM831X_LDO9_CONTROL:
+	case WM831X_LDO9_ON_CONTROL:
+	case WM831X_LDO9_SLEEP_CONTROL:
+	case WM831X_LDO10_CONTROL:
+	case WM831X_LDO10_ON_CONTROL:
+	case WM831X_LDO10_SLEEP_CONTROL:
+	case WM831X_LDO11_ON_CONTROL:
+	case WM831X_LDO11_SLEEP_CONTROL:
+	case WM831X_POWER_GOOD_SOURCE_1:
+	case WM831X_POWER_GOOD_SOURCE_2:
+	case WM831X_CLOCK_CONTROL_1:
+	case WM831X_CLOCK_CONTROL_2:
+	case WM831X_FLL_CONTROL_1:
+	case WM831X_FLL_CONTROL_2:
+	case WM831X_FLL_CONTROL_3:
+	case WM831X_FLL_CONTROL_4:
+	case WM831X_FLL_CONTROL_5:
+		return true;
+	default:
+		return false;
+	}
+}
+
+static bool wm831x_reg_volatile(struct device *dev, unsigned int reg)
+{
+	switch (reg) {
+	case WM831X_SYSTEM_STATUS:
+	case WM831X_ON_SOURCE:
+	case WM831X_OFF_SOURCE:
+	case WM831X_GPIO_LEVEL:
+	case WM831X_SYSTEM_INTERRUPTS:
+	case WM831X_INTERRUPT_STATUS_1:
+	case WM831X_INTERRUPT_STATUS_2:
+	case WM831X_INTERRUPT_STATUS_3:
+	case WM831X_INTERRUPT_STATUS_4:
+	case WM831X_INTERRUPT_STATUS_5:
+	case WM831X_RTC_TIME_1:
+	case WM831X_RTC_TIME_2:
+	case WM831X_TOUCH_DATA_X:
+	case WM831X_TOUCH_DATA_Y:
+	case WM831X_TOUCH_DATA_Z:
+	case WM831X_AUXADC_DATA:
+	case WM831X_CHARGER_STATUS:
+	case WM831X_DCDC_STATUS:
+	case WM831X_LDO_STATUS:
+	case WM831X_DCDC_UV_STATUS:
+	case WM831X_LDO_UV_STATUS:
+		return true;
+	default:
+		return false;
+	}
 }
 
 /**
@@ -191,14 +516,10 @@ static int wm831x_read(struct wm831x *wm831x, unsigned short reg,
  */
 int wm831x_reg_read(struct wm831x *wm831x, unsigned short reg)
 {
-	unsigned short val;
+	unsigned int val;
 	int ret;
 
-	mutex_lock(&wm831x->io_lock);
-
-	ret = wm831x_read(wm831x, reg, 2, &val);
-
-	mutex_unlock(&wm831x->io_lock);
+	ret = regmap_read(wm831x->regmap, reg, &val);
 
 	if (ret < 0)
 		return ret;
@@ -218,15 +539,7 @@ EXPORT_SYMBOL_GPL(wm831x_reg_read);
 int wm831x_bulk_read(struct wm831x *wm831x, unsigned short reg,
 		     int count, u16 *buf)
 {
-	int ret;
-
-	mutex_lock(&wm831x->io_lock);
-
-	ret = wm831x_read(wm831x, reg, count * 2, buf);
-
-	mutex_unlock(&wm831x->io_lock);
-
-	return ret;
+	return regmap_bulk_read(wm831x->regmap, reg, buf, count);
 }
 EXPORT_SYMBOL_GPL(wm831x_bulk_read);
 
@@ -234,7 +547,7 @@ static int wm831x_write(struct wm831x *wm831x, unsigned short reg,
 			int bytes, void *src)
 {
 	u16 *buf = src;
-	int i;
+	int i, ret;
 
 	BUG_ON(bytes % 2);
 	BUG_ON(bytes <= 0);
@@ -245,11 +558,10 @@ static int wm831x_write(struct wm831x *wm831x, unsigned short reg,
 
 		dev_vdbg(wm831x->dev, "Write %04x to R%d(0x%x)\n",
 			 buf[i], reg + i, reg + i);
-
-		buf[i] = cpu_to_be16(buf[i]);
+		ret = regmap_write(wm831x->regmap, reg + i, buf[i]);
 	}
 
-	return wm831x->write_dev(wm831x, reg, bytes, src);
+	return 0;
 }
 
 /**
@@ -286,20 +598,14 @@ int wm831x_set_bits(struct wm831x *wm831x, unsigned short reg,
 		    unsigned short mask, unsigned short val)
 {
 	int ret;
-	u16 r;
 
 	mutex_lock(&wm831x->io_lock);
 
-	ret = wm831x_read(wm831x, reg, 2, &r);
-	if (ret < 0)
-		goto out;
+	if (!wm831x_reg_locked(wm831x, reg))
+		ret = regmap_update_bits(wm831x->regmap, reg, mask, val);
+	else
+		ret = -EPERM;
 
-	r &= ~mask;
-	r |= val & mask;
-
-	ret = wm831x_write(wm831x, reg, 2, &r);
-
-out:
 	mutex_unlock(&wm831x->io_lock);
 
 	return ret;
@@ -1292,6 +1598,19 @@ static struct mfd_cell backlight_devs[] = {
 	},
 };
 
+struct regmap_config wm831x_regmap_config = {
+	.reg_bits = 16,
+	.val_bits = 16,
+
+	.cache_type = REGCACHE_RBTREE,
+
+	.max_register = WM831X_DBE_CHECK_DATA,
+	.readable_reg = wm831x_reg_readable,
+	.writeable_reg = wm831x_reg_writeable,
+	.volatile_reg = wm831x_reg_volatile,
+};
+EXPORT_SYMBOL_GPL(wm831x_regmap_config);
+
 /*
  * Instantiate the generic non-control parts of the device.
  */
@@ -1305,11 +1624,12 @@ int wm831x_device_init(struct wm831x *wm831x, unsigned long id, int irq)
 	mutex_init(&wm831x->io_lock);
 	mutex_init(&wm831x->key_lock);
 	dev_set_drvdata(wm831x->dev, wm831x);
+	wm831x->soft_shutdown = pdata->soft_shutdown;
 
 	ret = wm831x_reg_read(wm831x, WM831X_PARENT_ID);
 	if (ret < 0) {
 		dev_err(wm831x->dev, "Failed to read parent ID: %d\n", ret);
-		goto err;
+		goto err_regmap;
 	}
 	switch (ret) {
 	case 0x6204:
@@ -1318,20 +1638,20 @@ int wm831x_device_init(struct wm831x *wm831x, unsigned long id, int irq)
 	default:
 		dev_err(wm831x->dev, "Device is not a WM831x: ID %x\n", ret);
 		ret = -EINVAL;
-		goto err;
+		goto err_regmap;
 	}
 
 	ret = wm831x_reg_read(wm831x, WM831X_REVISION);
 	if (ret < 0) {
 		dev_err(wm831x->dev, "Failed to read revision: %d\n", ret);
-		goto err;
+		goto err_regmap;
 	}
 	rev = (ret & WM831X_PARENT_REV_MASK) >> WM831X_PARENT_REV_SHIFT;
 
 	ret = wm831x_reg_read(wm831x, WM831X_RESET_ID);
 	if (ret < 0) {
 		dev_err(wm831x->dev, "Failed to read device ID: %d\n", ret);
-		goto err;
+		goto err_regmap;
 	}
 
 	/* Some engineering samples do not have the ID set, rely on
@@ -1406,7 +1726,7 @@ int wm831x_device_init(struct wm831x *wm831x, unsigned long id, int irq)
 	default:
 		dev_err(wm831x->dev, "Unknown WM831x device %04x\n", ret);
 		ret = -EINVAL;
-		goto err;
+		goto err_regmap;
 	}
 
 	/* This will need revisiting in future but is OK for all
@@ -1420,7 +1740,7 @@ int wm831x_device_init(struct wm831x *wm831x, unsigned long id, int irq)
 	ret = wm831x_reg_read(wm831x, WM831X_SECURITY_KEY);
 	if (ret < 0) {
 		dev_err(wm831x->dev, "Failed to read security key: %d\n", ret);
-		goto err;
+		goto err_regmap;
 	}
 	if (ret != 0) {
 		dev_warn(wm831x->dev, "Security key had non-zero value %x\n",
@@ -1433,7 +1753,7 @@ int wm831x_device_init(struct wm831x *wm831x, unsigned long id, int irq)
 		ret = pdata->pre_init(wm831x);
 		if (ret != 0) {
 			dev_err(wm831x->dev, "pre_init() failed: %d\n", ret);
-			goto err;
+			goto err_regmap;
 		}
 	}
 
@@ -1456,7 +1776,7 @@ int wm831x_device_init(struct wm831x *wm831x, unsigned long id, int irq)
 
 	ret = wm831x_irq_init(wm831x, irq);
 	if (ret != 0)
-		goto err;
+		goto err_regmap;
 
 	wm831x_auxadc_init(wm831x);
 
@@ -1552,8 +1872,9 @@ int wm831x_device_init(struct wm831x *wm831x, unsigned long id, int irq)
 
 err_irq:
 	wm831x_irq_exit(wm831x);
-err:
+err_regmap:
 	mfd_remove_devices(wm831x->dev);
+	regmap_exit(wm831x->regmap);
 	kfree(wm831x);
 	return ret;
 }
@@ -1565,6 +1886,7 @@ void wm831x_device_exit(struct wm831x *wm831x)
 	if (wm831x->irq_base)
 		free_irq(wm831x->irq_base + WM831X_IRQ_AUXADC_DATA, wm831x);
 	wm831x_irq_exit(wm831x);
+	regmap_exit(wm831x->regmap);
 	kfree(wm831x);
 }
 
@@ -1603,6 +1925,15 @@ int wm831x_device_suspend(struct wm831x *wm831x)
 
 	return 0;
 }
+
+void wm831x_device_shutdown(struct wm831x *wm831x)
+{
+	if (wm831x->soft_shutdown) {
+		dev_info(wm831x->dev, "Initiating shutdown...\n");
+		wm831x_set_bits(wm831x, WM831X_POWER_STATE, WM831X_CHIP_ON, 0);
+	}
+}
+EXPORT_SYMBOL_GPL(wm831x_device_shutdown);
 
 MODULE_DESCRIPTION("Core support for the WM831X AudioPlus PMIC");
 MODULE_LICENSE("GPL");

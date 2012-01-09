@@ -17,11 +17,6 @@
 #include "phy_common.h"
 
 
-/* The unique identifier of the firmware that's officially supported by
- * this driver version. */
-#define B43_SUPPORTED_FIRMWARE_ID	"FW13"
-
-
 #ifdef CONFIG_B43_DEBUG
 # define B43_DEBUG	1
 #else
@@ -112,21 +107,61 @@
 #define B43_MMIO_RADIO_HWENABLED_LO	0x49A
 #define B43_MMIO_GPIO_CONTROL		0x49C
 #define B43_MMIO_GPIO_MASK		0x49E
+#define B43_MMIO_TXE0_CTL		0x500
+#define B43_MMIO_TXE0_AUX		0x502
+#define B43_MMIO_TXE0_TS_LOC		0x504
+#define B43_MMIO_TXE0_TIME_OUT		0x506
+#define B43_MMIO_TXE0_WM_0		0x508
+#define B43_MMIO_TXE0_WM_1		0x50A
+#define B43_MMIO_TXE0_PHYCTL		0x50C
+#define B43_MMIO_TXE0_STATUS		0x50E
+#define B43_MMIO_TXE0_MMPLCP0		0x510
+#define B43_MMIO_TXE0_MMPLCP1		0x512
+#define B43_MMIO_TXE0_PHYCTL1		0x514
+#define B43_MMIO_XMTFIFODEF		0x520
+#define B43_MMIO_XMTFIFO_FRAME_CNT	0x522	/* core rev>= 16 only */
+#define B43_MMIO_XMTFIFO_BYTE_CNT	0x524	/* core rev>= 16 only */
+#define B43_MMIO_XMTFIFO_HEAD		0x526	/* core rev>= 16 only */
+#define B43_MMIO_XMTFIFO_RD_PTR		0x528	/* core rev>= 16 only */
+#define B43_MMIO_XMTFIFO_WR_PTR		0x52A	/* core rev>= 16 only */
+#define B43_MMIO_XMTFIFODEF1		0x52C	/* core rev>= 16 only */
+#define B43_MMIO_XMTFIFOCMD		0x540
+#define B43_MMIO_XMTFIFOFLUSH		0x542
+#define B43_MMIO_XMTFIFOTHRESH		0x544
+#define B43_MMIO_XMTFIFORDY		0x546
+#define B43_MMIO_XMTFIFOPRIRDY		0x548
+#define B43_MMIO_XMTFIFORQPRI		0x54A
+#define B43_MMIO_XMTTPLATETXPTR		0x54C
+#define B43_MMIO_XMTTPLATEPTR		0x550
+#define B43_MMIO_SMPL_CLCT_STRPTR	0x552	/* core rev>= 22 only */
+#define B43_MMIO_SMPL_CLCT_STPPTR	0x554	/* core rev>= 22 only */
+#define B43_MMIO_SMPL_CLCT_CURPTR	0x556	/* core rev>= 22 only */
+#define B43_MMIO_XMTTPLATEDATALO	0x560
+#define B43_MMIO_XMTTPLATEDATAHI	0x562
+#define B43_MMIO_XMTSEL			0x568
+#define B43_MMIO_XMTTXCNT		0x56A
+#define B43_MMIO_XMTTXSHMADDR		0x56C
 #define B43_MMIO_TSF_CFP_START_LOW	0x604
 #define B43_MMIO_TSF_CFP_START_HIGH	0x606
 #define B43_MMIO_TSF_CFP_PRETBTT	0x612
+#define B43_MMIO_TSF_CLK_FRAC_LOW	0x62E
+#define B43_MMIO_TSF_CLK_FRAC_HIGH	0x630
 #define B43_MMIO_TSF_0			0x632	/* core rev < 3 only */
 #define B43_MMIO_TSF_1			0x634	/* core rev < 3 only */
 #define B43_MMIO_TSF_2			0x636	/* core rev < 3 only */
 #define B43_MMIO_TSF_3			0x638	/* core rev < 3 only */
 #define B43_MMIO_RNG			0x65A
 #define B43_MMIO_IFSSLOT		0x684	/* Interframe slot time */
-#define B43_MMIO_IFSCTL			0x688 /* Interframe space control */
+#define B43_MMIO_IFSCTL			0x688	/* Interframe space control */
+#define B43_MMIO_IFSSTAT		0x690
+#define B43_MMIO_IFSMEDBUSYCTL		0x692
+#define B43_MMIO_IFTXDUR		0x694
 #define  B43_MMIO_IFSCTL_USE_EDCF	0x0004
 #define B43_MMIO_POWERUP_DELAY		0x6A8
 #define B43_MMIO_BTCOEX_CTL		0x6B4 /* Bluetooth Coexistence Control */
 #define B43_MMIO_BTCOEX_STAT		0x6B6 /* Bluetooth Coexistence Status */
 #define B43_MMIO_BTCOEX_TXCTL		0x6B8 /* Bluetooth Coexistence Transmit Control */
+#define B43_MMIO_WEPCTL			0x7C0
 
 /* SPROM boardflags_lo values */
 #define B43_BFL_BTCOEXIST		0x0001	/* implements Bluetooth coexistance */
@@ -594,6 +629,7 @@ struct b43_dma {
 	struct b43_dmaring *rx_ring;
 
 	u32 translation; /* Routing bits */
+	bool translation_in_low; /* Should translation bit go into low addr? */
 	bool parity; /* Check for parity */
 };
 
@@ -694,6 +730,12 @@ struct b43_firmware_file {
 	enum b43_firmware_file_type type;
 };
 
+enum b43_firmware_hdr_format {
+	B43_FW_HDR_598,
+	B43_FW_HDR_410,
+	B43_FW_HDR_351,
+};
+
 /* Pointers to the firmware data and meta information about it. */
 struct b43_firmware {
 	/* Microcode */
@@ -709,6 +751,9 @@ struct b43_firmware {
 	u16 rev;
 	/* Firmware patchlevel */
 	u16 patch;
+
+	/* Format of header used by firmware */
+	enum b43_firmware_hdr_format hdr_format;
 
 	/* Set to true, if we are using an opensource firmware.
 	 * Use this to check for proprietary vs opensource. */
@@ -875,7 +920,7 @@ struct b43_wl {
 	struct b43_leds leds;
 
 	/* Kmalloc'ed scratch space for PIO TX/RX. Protected by wl->mutex. */
-	u8 pio_scratchspace[110] __attribute__((__aligned__(8)));
+	u8 pio_scratchspace[118] __attribute__((__aligned__(8)));
 	u8 pio_tailspace[4] __attribute__((__aligned__(8)));
 };
 
@@ -965,21 +1010,11 @@ static inline bool b43_using_pio_transfers(struct b43_wldev *dev)
 	return dev->__using_pio_transfers;
 }
 
-#ifdef CONFIG_B43_FORCE_PIO
-# define B43_PIO_DEFAULT 1
-#else
-# define B43_PIO_DEFAULT 0
-#endif
-
 /* Message printing */
-void b43info(struct b43_wl *wl, const char *fmt, ...)
-    __attribute__ ((format(printf, 2, 3)));
-void b43err(struct b43_wl *wl, const char *fmt, ...)
-    __attribute__ ((format(printf, 2, 3)));
-void b43warn(struct b43_wl *wl, const char *fmt, ...)
-    __attribute__ ((format(printf, 2, 3)));
-void b43dbg(struct b43_wl *wl, const char *fmt, ...)
-    __attribute__ ((format(printf, 2, 3)));
+__printf(2, 3) void b43info(struct b43_wl *wl, const char *fmt, ...);
+__printf(2, 3) void b43err(struct b43_wl *wl, const char *fmt, ...);
+__printf(2, 3) void b43warn(struct b43_wl *wl, const char *fmt, ...);
+__printf(2, 3) void b43dbg(struct b43_wl *wl, const char *fmt, ...);
 
 
 /* A WARN_ON variant that vanishes when b43 debugging is disabled.

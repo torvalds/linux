@@ -20,12 +20,12 @@
 #include <linux/threads.h>
 #include <asm/current.h>
 #include <asm/pgtable.h>
+#include <asm/mmu_context.h>
 #include <asm/uaccess.h>
 #include "as-layout.h"
 #include "kern_util.h"
 #include "os.h"
 #include "skas.h"
-#include "tlb.h"
 
 /*
  * This is a per-cpu array.  A processor only modifies its entry and it only
@@ -78,6 +78,7 @@ int kernel_thread(int (*fn)(void *), void * arg, unsigned long flags)
 		      &current->thread.regs, 0, NULL, NULL);
 	return pid;
 }
+EXPORT_SYMBOL(kernel_thread);
 
 static inline void set_current(struct task_struct *task)
 {
@@ -202,7 +203,7 @@ int copy_thread(unsigned long clone_flags, unsigned long sp,
 		arch_copy_thread(&current->thread.arch, &p->thread.arch);
 	}
 	else {
-		get_safe_registers(p->thread.regs.regs.gp);
+		get_safe_registers(p->thread.regs.regs.gp, p->thread.regs.regs.fp);
 		p->thread.request.u.thread = current->thread.request.u.thread;
 		handler = new_thread_handler;
 	}
@@ -286,6 +287,7 @@ char *uml_strdup(const char *string)
 {
 	return kstrdup(string, GFP_KERNEL);
 }
+EXPORT_SYMBOL(uml_strdup);
 
 int copy_to_user_proc(void __user *to, void *from, int size)
 {

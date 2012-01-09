@@ -24,6 +24,7 @@
 #define   BCMA_CC_FLASHT_NONE		0x00000000	/* No flash */
 #define   BCMA_CC_FLASHT_STSER		0x00000100	/* ST serial flash */
 #define   BCMA_CC_FLASHT_ATSER		0x00000200	/* Atmel serial flash */
+#define   BCMA_CC_FLASHT_NFLASH		0x00000200
 #define	  BCMA_CC_FLASHT_PARA		0x00000700	/* Parallel flash */
 #define  BCMA_CC_CAP_PLLT		0x00038000	/* PLL Type */
 #define   BCMA_PLLTYPE_NONE		0x00000000
@@ -178,6 +179,7 @@
 #define BCMA_CC_PROG_CFG		0x0120
 #define BCMA_CC_PROG_WAITCNT		0x0124
 #define BCMA_CC_FLASH_CFG		0x0128
+#define  BCMA_CC_FLASH_CFG_DS		0x0010	/* Data size, 0=8bit, 1=16bit */
 #define BCMA_CC_FLASH_WAITCNT		0x012C
 /* 0x1E0 is defined as shared BCMA_CLKCTLST */
 #define BCMA_CC_HW_WORKAROUND		0x01E4 /* Hardware workaround (rev >= 20) */
@@ -239,6 +241,64 @@
 #define BCMA_CC_SPROM			0x0800 /* SPROM beginning */
 #define BCMA_CC_SPROM_PCIE6		0x0830 /* SPROM beginning on PCIe rev >= 6 */
 
+/* Divider allocation in 4716/47162/5356 */
+#define BCMA_CC_PMU5_MAINPLL_CPU	1
+#define BCMA_CC_PMU5_MAINPLL_MEM	2
+#define BCMA_CC_PMU5_MAINPLL_SSB	3
+
+/* PLL usage in 4716/47162 */
+#define BCMA_CC_PMU4716_MAINPLL_PLL0	12
+
+/* PLL usage in 5356/5357 */
+#define BCMA_CC_PMU5356_MAINPLL_PLL0	0
+#define BCMA_CC_PMU5357_MAINPLL_PLL0	0
+
+/* 4706 PMU */
+#define BCMA_CC_PMU4706_MAINPLL_PLL0	0
+
+/* ALP clock on pre-PMU chips */
+#define BCMA_CC_PMU_ALP_CLOCK		20000000
+/* HT clock for systems with PMU-enabled chipcommon */
+#define BCMA_CC_PMU_HT_CLOCK		80000000
+
+/* PMU rev 5 (& 6) */
+#define BCMA_CC_PPL_P1P2_OFF		0
+#define BCMA_CC_PPL_P1_MASK		0x0f000000
+#define BCMA_CC_PPL_P1_SHIFT		24
+#define BCMA_CC_PPL_P2_MASK		0x00f00000
+#define BCMA_CC_PPL_P2_SHIFT		20
+#define BCMA_CC_PPL_M14_OFF		1
+#define BCMA_CC_PPL_MDIV_MASK		0x000000ff
+#define BCMA_CC_PPL_MDIV_WIDTH		8
+#define BCMA_CC_PPL_NM5_OFF		2
+#define BCMA_CC_PPL_NDIV_MASK		0xfff00000
+#define BCMA_CC_PPL_NDIV_SHIFT		20
+#define BCMA_CC_PPL_FMAB_OFF		3
+#define BCMA_CC_PPL_MRAT_MASK		0xf0000000
+#define BCMA_CC_PPL_MRAT_SHIFT		28
+#define BCMA_CC_PPL_ABRAT_MASK		0x08000000
+#define BCMA_CC_PPL_ABRAT_SHIFT		27
+#define BCMA_CC_PPL_FDIV_MASK		0x07ffffff
+#define BCMA_CC_PPL_PLLCTL_OFF		4
+#define BCMA_CC_PPL_PCHI_OFF		5
+#define BCMA_CC_PPL_PCHI_MASK		0x0000003f
+
+/* BCM4331 ChipControl numbers. */
+#define BCMA_CHIPCTL_4331_BT_COEXIST		BIT(0)	/* 0 disable */
+#define BCMA_CHIPCTL_4331_SECI			BIT(1)	/* 0 SECI is disabled (JATG functional) */
+#define BCMA_CHIPCTL_4331_EXT_LNA		BIT(2)	/* 0 disable */
+#define BCMA_CHIPCTL_4331_SPROM_GPIO13_15	BIT(3)	/* sprom/gpio13-15 mux */
+#define BCMA_CHIPCTL_4331_EXTPA_EN		BIT(4)	/* 0 ext pa disable, 1 ext pa enabled */
+#define BCMA_CHIPCTL_4331_GPIOCLK_ON_SPROMCS	BIT(5)	/* set drive out GPIO_CLK on sprom_cs pin */
+#define BCMA_CHIPCTL_4331_PCIE_MDIO_ON_SPROMCS	BIT(6)	/* use sprom_cs pin as PCIE mdio interface */
+#define BCMA_CHIPCTL_4331_EXTPA_ON_GPIO2_5	BIT(7)	/* aband extpa will be at gpio2/5 and sprom_dout */
+#define BCMA_CHIPCTL_4331_OVR_PIPEAUXCLKEN	BIT(8)	/* override core control on pipe_AuxClkEnable */
+#define BCMA_CHIPCTL_4331_OVR_PIPEAUXPWRDOWN	BIT(9)	/* override core control on pipe_AuxPowerDown */
+#define BCMA_CHIPCTL_4331_PCIE_AUXCLKEN		BIT(10)	/* pcie_auxclkenable */
+#define BCMA_CHIPCTL_4331_PCIE_PIPE_PLLDOWN	BIT(11)	/* pcie_pipe_pllpowerdown */
+#define BCMA_CHIPCTL_4331_BT_SHD0_ON_GPIO4	BIT(16)	/* enable bt_shd0 at gpio4 */
+#define BCMA_CHIPCTL_4331_BT_SHD1_ON_GPIO5	BIT(17)	/* enable bt_shd1 at gpio5 */
+
 /* Data for the PMU, if available.
  * Check availability with ((struct bcma_chipcommon)->capabilities & BCMA_CC_CAP_PMU)
  */
@@ -247,14 +307,37 @@ struct bcma_chipcommon_pmu {
 	u32 crystalfreq;	/* The active crystal frequency (in kHz) */
 };
 
+#ifdef CONFIG_BCMA_DRIVER_MIPS
+struct bcma_pflash {
+	u8 buswidth;
+	u32 window;
+	u32 window_size;
+};
+
+struct bcma_serial_port {
+	void *regs;
+	unsigned long clockspeed;
+	unsigned int irq;
+	unsigned int baud_base;
+	unsigned int reg_shift;
+};
+#endif /* CONFIG_BCMA_DRIVER_MIPS */
+
 struct bcma_drv_cc {
 	struct bcma_device *core;
 	u32 status;
 	u32 capabilities;
 	u32 capabilities_ext;
+	u8 setup_done:1;
 	/* Fast Powerup Delay constant */
 	u16 fast_pwrup_delay;
 	struct bcma_chipcommon_pmu pmu;
+#ifdef CONFIG_BCMA_DRIVER_MIPS
+	struct bcma_pflash pflash;
+
+	int nr_serial_ports;
+	struct bcma_serial_port serial_ports[4];
+#endif /* CONFIG_BCMA_DRIVER_MIPS */
 };
 
 /* Register access */
@@ -275,6 +358,8 @@ extern void bcma_core_chipcommon_init(struct bcma_drv_cc *cc);
 extern void bcma_chipco_suspend(struct bcma_drv_cc *cc);
 extern void bcma_chipco_resume(struct bcma_drv_cc *cc);
 
+void bcma_chipco_bcm4331_ext_pa_lines_ctl(struct bcma_drv_cc *cc, bool enable);
+
 extern void bcma_chipco_watchdog_timer_set(struct bcma_drv_cc *cc,
 					  u32 ticks);
 
@@ -292,5 +377,14 @@ u32 bcma_chipco_gpio_polarity(struct bcma_drv_cc *cc, u32 mask, u32 value);
 
 /* PMU support */
 extern void bcma_pmu_init(struct bcma_drv_cc *cc);
+
+extern void bcma_chipco_pll_write(struct bcma_drv_cc *cc, u32 offset,
+				  u32 value);
+extern void bcma_chipco_pll_maskset(struct bcma_drv_cc *cc, u32 offset,
+				    u32 mask, u32 set);
+extern void bcma_chipco_chipctl_maskset(struct bcma_drv_cc *cc,
+					u32 offset, u32 mask, u32 set);
+extern void bcma_chipco_regctl_maskset(struct bcma_drv_cc *cc,
+				       u32 offset, u32 mask, u32 set);
 
 #endif /* LINUX_BCMA_DRIVER_CC_H_ */

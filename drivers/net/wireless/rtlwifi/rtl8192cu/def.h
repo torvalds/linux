@@ -50,10 +50,6 @@
 #define IS_VENDOR_UMC(version)		\
 	(((version) & CHIP_VENDOR_UMC) ? true : false)
 
-#define IS_VENDOR_UMC_A_CUT(version)	\
-	(((version) & CHIP_VENDOR_UMC) ? (((version) & (BIT(6) | BIT(7))) ? \
-	false : true) : false)
-
 #define IS_VENDOR_8723_A_CUT(version)	\
 	(((version) & CHIP_VENDOR_UMC) ? (((version) & (BIT(6))) ? \
 	false : true) : false)

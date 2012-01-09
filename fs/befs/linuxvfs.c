@@ -357,7 +357,7 @@ static struct inode *befs_iget(struct super_block *sb, unsigned long ino)
 	inode->i_gid = befs_sb->mount_opts.use_gid ?
 	    befs_sb->mount_opts.gid : (gid_t) fs32_to_cpu(sb, raw_inode->gid);
 
-	inode->i_nlink = 1;
+	set_nlink(inode, 1);
 
 	/*
 	 * BEFS's time is 64 bits, but current VFS is 32 bits...

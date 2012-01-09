@@ -10,6 +10,7 @@
 
 #include <linux/clk.h>
 #include <linux/debugfs.h>
+#include <linux/export.h>
 #include <linux/fs.h>
 #include <linux/platform_device.h>
 #include <linux/irq.h>

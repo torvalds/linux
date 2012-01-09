@@ -212,9 +212,6 @@ enum {
 	/* module sn9c20x: just ident 10000 */
 	V4L2_IDENT_SN9C20X = 10000,
 
-	/* Siliconfile sensors: reserved range 10100 - 10199 */
-	V4L2_IDENT_NOON010PC30	= 10100,
-
 	/* module cx231xx and cx25840 */
 	V4L2_IDENT_CX2310X_AV = 23099, /* Integrated A/V decoder; not in '100 */
 	V4L2_IDENT_CX23100    = 23100,

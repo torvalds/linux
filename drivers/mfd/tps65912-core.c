@@ -131,9 +131,6 @@ int tps65912_device_init(struct tps65912 *tps65912)
 	if (init_data == NULL)
 		return -ENOMEM;
 
-	init_data->irq = pmic_plat_data->irq;
-	init_data->irq_base = pmic_plat_data->irq;
-
 	mutex_init(&tps65912->io_mutex);
 	dev_set_drvdata(tps65912->dev, tps65912);
 
@@ -153,10 +150,13 @@ int tps65912_device_init(struct tps65912 *tps65912)
 	if (ret < 0)
 		goto err;
 
+	init_data->irq = pmic_plat_data->irq;
+	init_data->irq_base = pmic_plat_data->irq;
 	ret = tps65912_irq_init(tps65912, init_data->irq, init_data);
 	if (ret < 0)
 		goto err;
 
+	kfree(init_data);
 	return ret;
 
 err:

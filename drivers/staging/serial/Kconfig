@@ -1,0 +1,16 @@
+config SERIAL_68360_SMC
+	bool "68360 SMC uart support"
+	depends on M68360
+	help
+	  This driver supports the SMC serial ports of the Motorola 68360 CPU.
+
+config SERIAL_68360_SCC
+	bool "68360 SCC uart support"
+	depends on M68360
+	help
+	  This driver supports the SCC serial ports of the Motorola 68360 CPU.
+
+config SERIAL_68360
+	bool
+	depends on SERIAL_68360_SMC || SERIAL_68360_SCC
+	default y

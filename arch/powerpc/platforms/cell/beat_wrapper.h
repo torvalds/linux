@@ -20,6 +20,7 @@
  * 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
  */
 #ifndef BEAT_HCALL
+#include <linux/string.h>
 #include "beat_syscall.h"
 
 /* defined in hvCall.S */

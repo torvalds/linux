@@ -9,7 +9,6 @@
 #include <string.h>
 #include <sys/mman.h>
 #include "init.h"
-#include "kern_constants.h"
 #include "as-layout.h"
 #include "mm_id.h"
 #include "os.h"
@@ -17,7 +16,6 @@
 #include "ptrace_user.h"
 #include "registers.h"
 #include "skas.h"
-#include "user.h"
 #include "sysdep/ptrace.h"
 #include "sysdep/stub.h"
 
@@ -39,7 +37,7 @@ static unsigned long syscall_regs[MAX_REG_NR];
 
 static int __init init_syscall_regs(void)
 {
-	get_safe_registers(syscall_regs);
+	get_safe_registers(syscall_regs, NULL);
 	syscall_regs[REGS_IP_INDEX] = STUB_CODE +
 		((unsigned long) &batch_syscall_stub -
 		 (unsigned long) &__syscall_stub_start);

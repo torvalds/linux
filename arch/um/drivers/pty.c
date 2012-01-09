@@ -12,10 +12,8 @@
 #include <termios.h>
 #include <sys/stat.h>
 #include "chan_user.h"
-#include "kern_constants.h"
 #include "os.h"
 #include "um_malloc.h"
-#include "user.h"
 
 struct pty_chan {
 	void (*announce)(char *dev_name, int dev);

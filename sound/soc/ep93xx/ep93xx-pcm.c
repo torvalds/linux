@@ -355,3 +355,4 @@ module_exit(ep93xx_soc_platform_exit);
 MODULE_AUTHOR("Ryan Mallon");
 MODULE_DESCRIPTION("EP93xx ALSA PCM interface");
 MODULE_LICENSE("GPL");
+MODULE_ALIAS("platform:ep93xx-pcm-audio");

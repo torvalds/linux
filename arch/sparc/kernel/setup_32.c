@@ -31,6 +31,7 @@
 #include <linux/root_dev.h>
 #include <linux/cpu.h>
 #include <linux/kdebug.h>
+#include <linux/export.h>
 
 #include <asm/system.h>
 #include <asm/io.h>
@@ -137,7 +138,7 @@ static void __init process_switch(char c)
 		prom_halt();
 		break;
 	case 'p':
-		/* Just ignore, this behavior is now the default.  */
+		prom_early_console.flags &= ~CON_BOOT;
 		break;
 	default:
 		printk("Unknown boot switch (-%c)\n", c);

@@ -727,8 +727,8 @@ static const struct v4l2_file_operations mxr_fops = {
 	.unlocked_ioctl = video_ioctl2,
 };
 
-static int queue_setup(struct vb2_queue *vq, unsigned int *nbuffers,
-	unsigned int *nplanes, unsigned long sizes[],
+static int queue_setup(struct vb2_queue *vq, const struct v4l2_format *pfmt,
+	unsigned int *nbuffers, unsigned int *nplanes, unsigned int sizes[],
 	void *alloc_ctxs[])
 {
 	struct mxr_layer *layer = vb2_get_drv_priv(vq);
@@ -764,19 +764,10 @@ static void buf_queue(struct vb2_buffer *vb)
 	struct mxr_layer *layer = vb2_get_drv_priv(vb->vb2_queue);
 	struct mxr_device *mdev = layer->mdev;
 	unsigned long flags;
-	int must_start = 0;
 
 	spin_lock_irqsave(&layer->enq_slock, flags);
-	if (layer->state == MXR_LAYER_STREAMING_START) {
-		layer->state = MXR_LAYER_STREAMING;
-		must_start = 1;
-	}
 	list_add_tail(&buffer->list, &layer->enq_list);
 	spin_unlock_irqrestore(&layer->enq_slock, flags);
-	if (must_start) {
-		layer->ops.stream_set(layer, MXR_ENABLE);
-		mxr_streamer_get(mdev);
-	}
 
 	mxr_dbg(mdev, "queuing buffer\n");
 }
@@ -797,13 +788,19 @@ static void wait_unlock(struct vb2_queue *vq)
 	mutex_unlock(&layer->mutex);
 }
 
-static int start_streaming(struct vb2_queue *vq)
+static int start_streaming(struct vb2_queue *vq, unsigned int count)
 {
 	struct mxr_layer *layer = vb2_get_drv_priv(vq);
 	struct mxr_device *mdev = layer->mdev;
 	unsigned long flags;
 
 	mxr_dbg(mdev, "%s\n", __func__);
+
+	if (count == 0) {
+		mxr_dbg(mdev, "no output buffers queued\n");
+		return -EINVAL;
+	}
+
 	/* block any changes in output configuration */
 	mxr_output_get(mdev);
 
@@ -814,8 +811,11 @@ static int start_streaming(struct vb2_queue *vq)
 	layer->ops.format_set(layer);
 	/* enabling layer in hardware */
 	spin_lock_irqsave(&layer->enq_slock, flags);
-	layer->state = MXR_LAYER_STREAMING_START;
+	layer->state = MXR_LAYER_STREAMING;
 	spin_unlock_irqrestore(&layer->enq_slock, flags);
+
+	layer->ops.stream_set(layer, MXR_ENABLE);
+	mxr_streamer_get(mdev);
 
 	return 0;
 }

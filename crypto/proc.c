@@ -16,6 +16,7 @@
 #include <linux/atomic.h>
 #include <linux/init.h>
 #include <linux/crypto.h>
+#include <linux/module.h>	/* for module_name() */
 #include <linux/rwsem.h>
 #include <linux/proc_fs.h>
 #include <linux/seq_file.h>

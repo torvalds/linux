@@ -28,6 +28,7 @@
 #include <linux/delay.h>
 #include <linux/init.h>
 #include <linux/module.h>
+#include <linux/irq.h>
 
 #include <asm/bootinfo.h>
 #include <asm/macintosh.h>
@@ -77,9 +78,6 @@ static int gIER,gIFR,gBufA,gBufB;
 static u8 nubus_disabled;
 
 void via_debug_dump(void);
-irqreturn_t via1_irq(int, void *);
-irqreturn_t via2_irq(int, void *);
-irqreturn_t via_nubus_irq(int, void *);
 void via_irq_enable(int irq);
 void via_irq_disable(int irq);
 void via_irq_clear(int irq);
@@ -281,37 +279,8 @@ void __init via_init_clock(irq_handler_t func)
 	via1[vT1CL] = MAC_CLOCK_LOW;
 	via1[vT1CH] = MAC_CLOCK_HIGH;
 
-	if (request_irq(IRQ_MAC_TIMER_1, func, IRQ_FLG_LOCK, "timer", func))
+	if (request_irq(IRQ_MAC_TIMER_1, func, 0, "timer", func))
 		pr_err("Couldn't register %s interrupt\n", "timer");
-}
-
-/*
- * Register the interrupt dispatchers for VIA or RBV machines only.
- */
-
-void __init via_register_interrupts(void)
-{
-	if (via_alt_mapping) {
-		if (request_irq(IRQ_AUTO_1, via1_irq,
-				IRQ_FLG_LOCK|IRQ_FLG_FAST, "software",
-				(void *) via1))
-			pr_err("Couldn't register %s interrupt\n", "software");
-		if (request_irq(IRQ_AUTO_6, via1_irq,
-				IRQ_FLG_LOCK|IRQ_FLG_FAST, "via1",
-				(void *) via1))
-			pr_err("Couldn't register %s interrupt\n", "via1");
-	} else {
-		if (request_irq(IRQ_AUTO_1, via1_irq,
-				IRQ_FLG_LOCK|IRQ_FLG_FAST, "via1",
-				(void *) via1))
-			pr_err("Couldn't register %s interrupt\n", "via1");
-	}
-	if (request_irq(IRQ_AUTO_2, via2_irq, IRQ_FLG_LOCK|IRQ_FLG_FAST,
-			"via2", (void *) via2))
-		pr_err("Couldn't register %s interrupt\n", "via2");
-	if (request_irq(IRQ_MAC_NUBUS, via_nubus_irq,
-			IRQ_FLG_LOCK|IRQ_FLG_FAST, "nubus", (void *) via2))
-		pr_err("Couldn't register %s interrupt\n", "nubus");
 }
 
 /*
@@ -446,48 +415,46 @@ void __init via_nubus_init(void)
  * via6522.c :-), disable/pending masks added.
  */
 
-irqreturn_t via1_irq(int irq, void *dev_id)
+void via1_irq(unsigned int irq, struct irq_desc *desc)
 {
 	int irq_num;
 	unsigned char irq_bit, events;
 
 	events = via1[vIFR] & via1[vIER] & 0x7F;
 	if (!events)
-		return IRQ_NONE;
+		return;
 
 	irq_num = VIA1_SOURCE_BASE;
 	irq_bit = 1;
 	do {
 		if (events & irq_bit) {
 			via1[vIFR] = irq_bit;
-			m68k_handle_int(irq_num);
+			generic_handle_irq(irq_num);
 		}
 		++irq_num;
 		irq_bit <<= 1;
 	} while (events >= irq_bit);
-	return IRQ_HANDLED;
 }
 
-irqreturn_t via2_irq(int irq, void *dev_id)
+static void via2_irq(unsigned int irq, struct irq_desc *desc)
 {
 	int irq_num;
 	unsigned char irq_bit, events;
 
 	events = via2[gIFR] & via2[gIER] & 0x7F;
 	if (!events)
-		return IRQ_NONE;
+		return;
 
 	irq_num = VIA2_SOURCE_BASE;
 	irq_bit = 1;
 	do {
 		if (events & irq_bit) {
 			via2[gIFR] = irq_bit | rbv_clear;
-			m68k_handle_int(irq_num);
+			generic_handle_irq(irq_num);
 		}
 		++irq_num;
 		irq_bit <<= 1;
 	} while (events >= irq_bit);
-	return IRQ_HANDLED;
 }
 
 /*
@@ -495,7 +462,7 @@ irqreturn_t via2_irq(int irq, void *dev_id)
  * VIA2 dispatcher as a fast interrupt handler.
  */
 
-irqreturn_t via_nubus_irq(int irq, void *dev_id)
+void via_nubus_irq(unsigned int irq, struct irq_desc *desc)
 {
 	int slot_irq;
 	unsigned char slot_bit, events;
@@ -506,7 +473,7 @@ irqreturn_t via_nubus_irq(int irq, void *dev_id)
 	else
 		events &= ~via2[vDirA];
 	if (!events)
-		return IRQ_NONE;
+		return;
 
 	do {
 		slot_irq = IRQ_NUBUS_F;
@@ -514,7 +481,7 @@ irqreturn_t via_nubus_irq(int irq, void *dev_id)
 		do {
 			if (events & slot_bit) {
 				events &= ~slot_bit;
-				m68k_handle_int(slot_irq);
+				generic_handle_irq(slot_irq);
 			}
 			--slot_irq;
 			slot_bit >>= 1;
@@ -528,7 +495,24 @@ irqreturn_t via_nubus_irq(int irq, void *dev_id)
 		else
 			events &= ~via2[vDirA];
 	} while (events);
-	return IRQ_HANDLED;
+}
+
+/*
+ * Register the interrupt dispatchers for VIA or RBV machines only.
+ */
+
+void __init via_register_interrupts(void)
+{
+	if (via_alt_mapping) {
+		/* software interrupt */
+		irq_set_chained_handler(IRQ_AUTO_1, via1_irq);
+		/* via1 interrupt */
+		irq_set_chained_handler(IRQ_AUTO_6, via1_irq);
+	} else {
+		irq_set_chained_handler(IRQ_AUTO_1, via1_irq);
+	}
+	irq_set_chained_handler(IRQ_AUTO_2, via2_irq);
+	irq_set_chained_handler(IRQ_MAC_NUBUS, via_nubus_irq);
 }
 
 void via_irq_enable(int irq) {

@@ -21,7 +21,6 @@
 #include "clock.h"
 
 extern void omap_check_revision(void);
-extern void omap_sram_init(void);
 
 /*
  * The machine specific code may provide the extra mapping besides the
@@ -85,50 +84,45 @@ static struct map_desc omap16xx_io_desc[] __initdata = {
 #endif
 
 /*
- * Maps common IO regions for omap1. This should only get called from
- * board specific init.
+ * Maps common IO regions for omap1
  */
-void __init omap1_map_common_io(void)
+static void __init omap1_map_common_io(void)
 {
 	iotable_init(omap_io_desc, ARRAY_SIZE(omap_io_desc));
-
-	/* Normally devicemaps_init() would flush caches and tlb after
-	 * mdesc->map_io(), but we must also do it here because of the CPU
-	 * revision check below.
-	 */
-	local_flush_tlb_all();
-	flush_cache_all();
-
-	/* We want to check CPU revision early for cpu_is_omapxxxx() macros.
-	 * IO space mapping must be initialized before we can do that.
-	 */
-	omap_check_revision();
-
-#if defined (CONFIG_ARCH_OMAP730) || defined (CONFIG_ARCH_OMAP850)
-	if (cpu_is_omap7xx()) {
-		iotable_init(omap7xx_io_desc, ARRAY_SIZE(omap7xx_io_desc));
-	}
-#endif
-#ifdef CONFIG_ARCH_OMAP15XX
-	if (cpu_is_omap15xx()) {
-		iotable_init(omap1510_io_desc, ARRAY_SIZE(omap1510_io_desc));
-	}
-#endif
-#if defined(CONFIG_ARCH_OMAP16XX)
-	if (cpu_is_omap16xx()) {
-		iotable_init(omap16xx_io_desc, ARRAY_SIZE(omap16xx_io_desc));
-	}
-#endif
-
-	omap_sram_init();
 }
 
-/*
- * Common low-level hardware init for omap1. This should only get called from
- * board specific init.
- */
-void __init omap1_init_common_hw(void)
+#if defined (CONFIG_ARCH_OMAP730) || defined (CONFIG_ARCH_OMAP850)
+void __init omap7xx_map_io(void)
 {
+	omap1_map_common_io();
+	iotable_init(omap7xx_io_desc, ARRAY_SIZE(omap7xx_io_desc));
+}
+#endif
+
+#ifdef CONFIG_ARCH_OMAP15XX
+void __init omap15xx_map_io(void)
+{
+	omap1_map_common_io();
+	iotable_init(omap1510_io_desc, ARRAY_SIZE(omap1510_io_desc));
+}
+#endif
+
+#if defined(CONFIG_ARCH_OMAP16XX)
+void __init omap16xx_map_io(void)
+{
+	omap1_map_common_io();
+	iotable_init(omap16xx_io_desc, ARRAY_SIZE(omap16xx_io_desc));
+}
+#endif
+
+/*
+ * Common low-level hardware init for omap1.
+ */
+void omap1_init_early(void)
+{
+	omap_check_revision();
+	omap_ioremap_init();
+
 	/* REVISIT: Refer to OMAP5910 Errata, Advisory SYS_1: "Timeout Abort
 	 * on a Posted Write in the TIPB Bridge".
 	 */
@@ -138,8 +132,8 @@ void __init omap1_init_common_hw(void)
 	/* Must init clocks early to assure that timer interrupt works
 	 */
 	omap1_clk_init();
-
 	omap1_mux_init();
+	omap_init_consistent_dma_size();
 }
 
 /*

@@ -98,7 +98,6 @@ struct mwifiex_802_11_ssid {
 
 struct mwifiex_wait_queue {
 	wait_queue_head_t wait;
-	u16 condition;
 	int status;
 };
 
@@ -112,14 +111,6 @@ struct mwifiex_txinfo {
 	u32 status_code;
 	u8 flags;
 	u8 bss_index;
-};
-
-struct mwifiex_bss_attr {
-	u8 bss_type;
-	u8 frame_type;
-	u8 active;
-	u8 bss_priority;
-	u8 bss_num;
 };
 
 enum mwifiex_wmm_ac_e {

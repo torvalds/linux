@@ -18,10 +18,11 @@
 #include <linux/delay.h>
 #include <linux/backlight.h>
 #include <linux/gfp.h>
+#include <linux/module.h>
 
 #include <mach/board.h>
 #include <mach/cpu.h>
-#include <mach/gpio.h>
+#include <asm/gpio.h>
 
 #include <video/atmel_lcdc.h>
 
@@ -39,7 +40,8 @@
 					 | FBINFO_HWACCEL_YPAN)
 
 static inline void atmel_lcdfb_update_dma2d(struct atmel_lcdfb_info *sinfo,
-					struct fb_var_screeninfo *var)
+					struct fb_var_screeninfo *var,
+					struct fb_info *info)
 {
 
 }
@@ -50,14 +52,16 @@ static inline void atmel_lcdfb_update_dma2d(struct atmel_lcdfb_info *sinfo,
 					| FBINFO_HWACCEL_YPAN)
 
 static void atmel_lcdfb_update_dma2d(struct atmel_lcdfb_info *sinfo,
-				     struct fb_var_screeninfo *var)
+				     struct fb_var_screeninfo *var,
+				     struct fb_info *info)
 {
 	u32 dma2dcfg;
 	u32 pixeloff;
 
-	pixeloff = (var->xoffset * var->bits_per_pixel) & 0x1f;
+	pixeloff = (var->xoffset * info->var.bits_per_pixel) & 0x1f;
 
-	dma2dcfg = ((var->xres_virtual - var->xres) * var->bits_per_pixel) / 8;
+	dma2dcfg = (info->var.xres_virtual - info->var.xres)
+		 * info->var.bits_per_pixel / 8;
 	dma2dcfg |= pixeloff << ATMEL_LCDC_PIXELOFF_OFFSET;
 	lcdc_writel(sinfo, ATMEL_LCDC_DMA2DCFG, dma2dcfg);
 
@@ -249,14 +253,14 @@ static void atmel_lcdfb_update_dma(struct fb_info *info,
 	unsigned long dma_addr;
 
 	dma_addr = (fix->smem_start + var->yoffset * fix->line_length
-		    + var->xoffset * var->bits_per_pixel / 8);
+		    + var->xoffset * info->var.bits_per_pixel / 8);
 
 	dma_addr &= ~3UL;
 
 	/* Set framebuffer DMA base address and pixel offset */
 	lcdc_writel(sinfo, ATMEL_LCDC_DMABADDR1, dma_addr);
 
-	atmel_lcdfb_update_dma2d(sinfo, var);
+	atmel_lcdfb_update_dma2d(sinfo, var, info);
 }
 
 static inline void atmel_lcdfb_free_video_memory(struct atmel_lcdfb_info *sinfo)

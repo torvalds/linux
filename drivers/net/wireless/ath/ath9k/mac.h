@@ -17,10 +17,6 @@
 #ifndef MAC_H
 #define MAC_H
 
-#define RXSTATUS_RATE(ah, ads) (AR_SREV_5416_20_OR_LATER(ah) ?		\
-				MS(ads->ds_rxstatus0, AR_RxRate) :	\
-				(ads->ds_rxstatus3 >> 2) & 0xFF)
-
 #define set11nTries(_series, _index) \
 	(SM((_series)[_index].Tries, AR_XmitDataTries##_index))
 
@@ -79,9 +75,10 @@
 #define ATH9K_TXERR_XTXOP          0x08
 #define ATH9K_TXERR_TIMER_EXPIRED  0x10
 #define ATH9K_TX_ACKED		   0x20
+#define ATH9K_TX_FLUSH		   0x40
 #define ATH9K_TXERR_MASK						\
 	(ATH9K_TXERR_XRETRY | ATH9K_TXERR_FILT | ATH9K_TXERR_FIFO |	\
-	 ATH9K_TXERR_XTXOP | ATH9K_TXERR_TIMER_EXPIRED)
+	 ATH9K_TXERR_XTXOP | ATH9K_TXERR_TIMER_EXPIRED | ATH9K_TX_FLUSH)
 
 #define ATH9K_TX_BA                0x01
 #define ATH9K_TX_PWRMGMT           0x02
@@ -146,6 +143,7 @@ struct ath_rx_status {
 	u8 rs_moreaggr;
 	u8 rs_num_delims;
 	u8 rs_flags;
+	bool is_mybeacon;
 	u32 evm0;
 	u32 evm1;
 	u32 evm2;
@@ -184,6 +182,7 @@ struct ath_htc_rx_status {
 #define ATH9K_RXERR_FIFO          0x04
 #define ATH9K_RXERR_DECRYPT       0x08
 #define ATH9K_RXERR_MIC           0x10
+#define ATH9K_RXERR_KEYMISS       0x20
 
 #define ATH9K_RX_MORE             0x01
 #define ATH9K_RX_MORE_AGGR        0x02
@@ -194,7 +193,7 @@ struct ath_htc_rx_status {
 #define ATH9K_RX_DECRYPT_BUSY     0x40
 
 #define ATH9K_RXKEYIX_INVALID	((u8)-1)
-#define ATH9K_TXKEYIX_INVALID	((u32)-1)
+#define ATH9K_TXKEYIX_INVALID	((u8)-1)
 
 enum ath9k_phyerr {
 	ATH9K_PHYERR_UNDERRUN             = 0,  /* Transmit underrun */
@@ -262,7 +261,11 @@ struct ath_desc {
 #define ATH9K_TXDESC_VMF		0x0100
 #define ATH9K_TXDESC_FRAG_IS_ON 	0x0200
 #define ATH9K_TXDESC_LOWRXCHAIN		0x0400
-#define ATH9K_TXDESC_LDPC		0x00010000
+#define ATH9K_TXDESC_LDPC		0x0800
+#define ATH9K_TXDESC_CLRDMASK		0x1000
+
+#define ATH9K_TXDESC_PAPRD		0x70000
+#define ATH9K_TXDESC_PAPRD_S		16
 
 #define ATH9K_RXDESC_INTREQ		0x0020
 
@@ -643,6 +646,7 @@ enum ath9k_rx_filter {
 	ATH9K_RX_FILTER_PSPOLL = 0x00004000,
 	ATH9K_RX_FILTER_PHYRADAR = 0x00002000,
 	ATH9K_RX_FILTER_MCAST_BCAST_ALL = 0x00008000,
+	ATH9K_RX_FILTER_CONTROL_WRAPPER = 0x00080000,
 };
 
 #define ATH9K_RATESERIES_RTS_CTS  0x0001
@@ -658,11 +662,45 @@ struct ath9k_11n_rate_series {
 	u32 RateFlags;
 };
 
+enum aggr_type {
+	AGGR_BUF_NONE,
+	AGGR_BUF_FIRST,
+	AGGR_BUF_MIDDLE,
+	AGGR_BUF_LAST,
+};
+
 enum ath9k_key_type {
 	ATH9K_KEY_TYPE_CLEAR,
 	ATH9K_KEY_TYPE_WEP,
 	ATH9K_KEY_TYPE_AES,
 	ATH9K_KEY_TYPE_TKIP,
+};
+
+struct ath_tx_info {
+	u8 qcu;
+
+	bool is_first;
+	bool is_last;
+
+	enum aggr_type aggr;
+	u8 ndelim;
+	u16 aggr_len;
+
+	dma_addr_t link;
+	int pkt_len;
+	u32 flags;
+
+	dma_addr_t buf_addr[4];
+	int buf_len[4];
+
+	struct ath9k_11n_rate_series rates[4];
+	u8 rtscts_rate;
+	bool dur_update;
+
+	enum ath9k_pkt_type type;
+	enum ath9k_key_type keytype;
+	u8 keyix;
+	u8 txpower;
 };
 
 struct ath_hw;
@@ -672,7 +710,6 @@ enum ath9k_int;
 u32 ath9k_hw_gettxbuf(struct ath_hw *ah, u32 q);
 void ath9k_hw_puttxbuf(struct ath_hw *ah, u32 q, u32 txdp);
 void ath9k_hw_txstart(struct ath_hw *ah, u32 q);
-void ath9k_hw_cleartxdesc(struct ath_hw *ah, void *ds);
 u32 ath9k_hw_numtxpending(struct ath_hw *ah, u32 q);
 bool ath9k_hw_updatetxtriglevel(struct ath_hw *ah, bool bIncTrigLevel);
 bool ath9k_hw_stop_dma_queue(struct ath_hw *ah, u32 q);
@@ -687,7 +724,7 @@ int ath9k_hw_setuptxqueue(struct ath_hw *ah, enum ath9k_tx_queue type,
 bool ath9k_hw_releasetxqueue(struct ath_hw *ah, u32 q);
 bool ath9k_hw_resettxqueue(struct ath_hw *ah, u32 q);
 int ath9k_hw_rxprocdesc(struct ath_hw *ah, struct ath_desc *ds,
-			struct ath_rx_status *rs, u64 tsf);
+			struct ath_rx_status *rs);
 void ath9k_hw_setuprxdesc(struct ath_hw *ah, struct ath_desc *ds,
 			  u32 size, u32 flags);
 bool ath9k_hw_setrxabort(struct ath_hw *ah, bool set);
@@ -699,7 +736,7 @@ int ath9k_hw_beaconq_setup(struct ath_hw *ah);
 
 /* Interrupt Handling */
 bool ath9k_hw_intrpend(struct ath_hw *ah);
-void ath9k_hw_set_interrupts(struct ath_hw *ah, enum ath9k_int ints);
+void ath9k_hw_set_interrupts(struct ath_hw *ah);
 void ath9k_hw_enable_interrupts(struct ath_hw *ah);
 void ath9k_hw_disable_interrupts(struct ath_hw *ah);
 

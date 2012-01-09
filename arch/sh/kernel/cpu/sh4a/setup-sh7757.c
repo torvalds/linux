@@ -15,6 +15,7 @@
 #include <linux/serial_sci.h>
 #include <linux/io.h>
 #include <linux/mm.h>
+#include <linux/dma-mapping.h>
 #include <linux/sh_timer.h>
 #include <linux/sh_dma.h>
 

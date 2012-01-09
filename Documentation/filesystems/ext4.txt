@@ -160,7 +160,9 @@ noload			if the filesystem was not unmounted cleanly,
                      	lead to any number of problems.
 
 data=journal		All data are committed into the journal prior to being
-			written into the main file system.
+			written into the main file system.  Enabling
+			this mode will disable delayed allocation and
+			O_DIRECT support.
 
 data=ordered	(*)	All data are forced directly out to the main file
 			system prior to its metadata being committed to the
@@ -201,30 +203,19 @@ inode_readahead_blks=n	This tuning parameter controls the maximum
 			table readahead algorithm will pre-read into
 			the buffer cache.  The default value is 32 blocks.
 
-orlov		(*)	This enables the new Orlov block allocator. It is
-			enabled by default.
-
-oldalloc		This disables the Orlov block allocator and enables
-			the old block allocator.  Orlov should have better
-			performance - we'd like to get some feedback if it's
-			the contrary for you.
-
-user_xattr		Enables Extended User Attributes.  Additionally, you
-			need to have extended attribute support enabled in the
-			kernel configuration (CONFIG_EXT4_FS_XATTR).  See the
-			attr(5) manual page and http://acl.bestbits.at/ to
-			learn more about extended attributes.
-
-nouser_xattr		Disables Extended User Attributes.
-
-acl			Enables POSIX Access Control Lists support.
-			Additionally, you need to have ACL support enabled in
-			the kernel configuration (CONFIG_EXT4_FS_POSIX_ACL).
-			See the acl(5) manual page and http://acl.bestbits.at/
-			for more information.
+nouser_xattr		Disables Extended User Attributes. If you have extended
+			attribute support enabled in the kernel configuration
+			(CONFIG_EXT4_FS_XATTR), extended attribute support
+			is enabled by default on mount. See the attr(5) manual
+			page and http://acl.bestbits.at/ for more information
+			about extended attributes.
 
 noacl			This option disables POSIX Access Control List
-			support.
+			support. If ACL support is enabled in the kernel
+			configuration (CONFIG_EXT4_FS_POSIX_ACL), ACL is
+			enabled by default on mount. See the acl(5) manual
+			page and http://acl.bestbits.at/ for more information
+			about acl.
 
 bsddf		(*)	Make 'df' act like BSD.
 minixdf			Make 'df' act like Minix.
@@ -419,8 +410,8 @@ written to the journal first, and then to its final location.
 In the event of a crash, the journal can be replayed, bringing both data and
 metadata into a consistent state.  This mode is the slowest except when data
 needs to be read from and written to disk at the same time where it
-outperforms all others modes.  Currently ext4 does not have delayed
-allocation support if this data journalling mode is selected.
+outperforms all others modes.  Enabling this mode will disable delayed
+allocation and O_DIRECT support.
 
 /proc entries
 =============

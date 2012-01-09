@@ -784,8 +784,6 @@ int cx18_v4l2_close(struct file *filp)
 		cx18_release_stream(s);
 	} else {
 		cx18_stop_capture(id, 0);
-		if (id->type == CX18_ENC_STREAM_TYPE_YUV)
-			videobuf_mmap_free(&id->vbuf_q);
 	}
 	kfree(id);
 	mutex_unlock(&cx->serialize_lock);

@@ -511,6 +511,11 @@ static void __init read_obp_translations(void)
 		for (i = 0; i < prom_trans_ents; i++)
 			prom_trans[i].data &= ~0x0003fe0000000000UL;
 	}
+
+	/* Force execute bit on.  */
+	for (i = 0; i < prom_trans_ents; i++)
+		prom_trans[i].data |= (tlb_type == hypervisor ?
+				       _PAGE_EXEC_4V : _PAGE_EXEC_4U);
 }
 
 static void __init hypervisor_tlb_lock(unsigned long vaddr,

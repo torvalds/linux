@@ -224,8 +224,8 @@ static void qla4xxx_status_entry(struct scsi_qla_host *ha,
 		 * I/O to this device.	We should get a ddb state change
 		 * AEN soon.
 		 */
-		if (atomic_read(&ddb_entry->state) == DDB_STATE_ONLINE)
-			qla4xxx_mark_device_missing(ha, ddb_entry);
+		if (iscsi_is_session_online(ddb_entry->sess))
+			qla4xxx_mark_device_missing(ddb_entry->sess);
 		break;
 
 	case SCS_DATA_UNDERRUN:
@@ -306,8 +306,8 @@ static void qla4xxx_status_entry(struct scsi_qla_host *ha,
 		 * send I/O to this device.  We should get a ddb
 		 * state change AEN soon.
 		 */
-		if (atomic_read(&ddb_entry->state) == DDB_STATE_ONLINE)
-			qla4xxx_mark_device_missing(ha, ddb_entry);
+		if (iscsi_is_session_online(ddb_entry->sess))
+			qla4xxx_mark_device_missing(ddb_entry->sess);
 
 		cmd->result = DID_TRANSPORT_DISRUPTED << 16;
 		break;
@@ -338,6 +338,51 @@ status_entry_exit:
 	srb->cc_stat = sts_entry->completionStatus;
 	if (ha->status_srb == NULL)
 		kref_put(&srb->srb_ref, qla4xxx_srb_compl);
+}
+
+/**
+ * qla4xxx_passthru_status_entry - processes passthru status IOCBs (0x3C)
+ * @ha: Pointer to host adapter structure.
+ * @sts_entry: Pointer to status entry structure.
+ **/
+static void qla4xxx_passthru_status_entry(struct scsi_qla_host *ha,
+					  struct passthru_status *sts_entry)
+{
+	struct iscsi_task *task;
+	struct ddb_entry *ddb_entry;
+	struct ql4_task_data *task_data;
+	struct iscsi_cls_conn *cls_conn;
+	struct iscsi_conn *conn;
+	itt_t itt;
+	uint32_t fw_ddb_index;
+
+	itt = sts_entry->handle;
+	fw_ddb_index = le32_to_cpu(sts_entry->target);
+
+	ddb_entry = qla4xxx_lookup_ddb_by_fw_index(ha, fw_ddb_index);
+
+	if (ddb_entry == NULL) {
+		ql4_printk(KERN_ERR, ha, "%s: Invalid target index = 0x%x\n",
+			   __func__, sts_entry->target);
+		return;
+	}
+
+	cls_conn = ddb_entry->conn;
+	conn = cls_conn->dd_data;
+	spin_lock(&conn->session->lock);
+	task = iscsi_itt_to_task(conn, itt);
+	spin_unlock(&conn->session->lock);
+
+	if (task == NULL) {
+		ql4_printk(KERN_ERR, ha, "%s: Task is NULL\n", __func__);
+		return;
+	}
+
+	task_data = task->dd_data;
+	memcpy(&task_data->sts, sts_entry, sizeof(struct passthru_status));
+	ha->req_q_count += task_data->iocb_req_cnt;
+	ha->iocb_cnt -= task_data->iocb_req_cnt;
+	queue_work(ha->task_wq, &task_data->task_work);
 }
 
 /**
@@ -375,6 +420,14 @@ void qla4xxx_process_response_queue(struct scsi_qla_host *ha)
 			break;
 
 		case ET_PASSTHRU_STATUS:
+			if (sts_entry->hdr.systemDefined == SD_ISCSI_PDU)
+				qla4xxx_passthru_status_entry(ha,
+					(struct passthru_status *)sts_entry);
+			else
+				ql4_printk(KERN_ERR, ha,
+					   "%s: Invalid status received\n",
+					   __func__);
+
 			break;
 
 		case ET_STATUS_CONTINUATION:
@@ -566,6 +619,8 @@ static void qla4xxx_isr_decode_mailbox(struct scsi_qla_host * ha,
 			else if ((mbox_sts[3] == ACB_STATE_ACQUIRING) &&
 			    (mbox_sts[2] == ACB_STATE_VALID))
 				set_bit(DPC_RESET_HA, &ha->dpc_flags);
+			else if ((mbox_sts[3] == ACB_STATE_UNCONFIGURED))
+				complete(&ha->disable_acb_comp);
 			break;
 
 		case MBOX_ASTS_MAC_ADDRESS_CHANGED:
@@ -1009,23 +1064,23 @@ void qla4xxx_process_aen(struct scsi_qla_host * ha, uint8_t process_aen)
 
 		switch (mbox_sts[0]) {
 		case MBOX_ASTS_DATABASE_CHANGED:
-			if (process_aen == FLUSH_DDB_CHANGED_AENS) {
+			switch (process_aen) {
+			case FLUSH_DDB_CHANGED_AENS:
 				DEBUG2(printk("scsi%ld: AEN[%d] %04x, index "
 					      "[%d] state=%04x FLUSHED!\n",
 					      ha->host_no, ha->aen_out,
 					      mbox_sts[0], mbox_sts[2],
 					      mbox_sts[3]));
 				break;
+			case PROCESS_ALL_AENS:
+			default:
+				/* Specific device. */
+				if (mbox_sts[1] == 1)
+					qla4xxx_process_ddb_changed(ha,
+						mbox_sts[2], mbox_sts[3],
+						mbox_sts[4]);
+				break;
 			}
-		case PROCESS_ALL_AENS:
-		default:
-			if (mbox_sts[1] == 0) {	/* Global DB change. */
-				qla4xxx_reinitialize_ddb_list(ha);
-			} else if (mbox_sts[1] == 1) {	/* Specific device. */
-				qla4xxx_process_ddb_changed(ha, mbox_sts[2],
-						mbox_sts[3], mbox_sts[4]);
-			}
-			break;
 		}
 		spin_lock_irqsave(&ha->hardware_lock, flags);
 	}

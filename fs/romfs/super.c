@@ -337,7 +337,7 @@ static struct inode *romfs_iget(struct super_block *sb, unsigned long pos)
 	inode->i_metasize = (ROMFH_SIZE + nlen + 1 + ROMFH_PAD) & ROMFH_MASK;
 	inode->i_dataoffset = pos + inode->i_metasize;
 
-	i->i_nlink = 1;		/* Hard to decide.. */
+	set_nlink(i, 1);		/* Hard to decide.. */
 	i->i_size = be32_to_cpu(ri.size);
 	i->i_mtime.tv_sec = i->i_atime.tv_sec = i->i_ctime.tv_sec = 0;
 	i->i_mtime.tv_nsec = i->i_atime.tv_nsec = i->i_ctime.tv_nsec = 0;

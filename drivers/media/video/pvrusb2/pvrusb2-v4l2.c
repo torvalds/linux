@@ -29,6 +29,7 @@
 #include "pvrusb2-v4l2.h"
 #include "pvrusb2-ioread.h"
 #include <linux/videodev2.h>
+#include <linux/module.h>
 #include <media/v4l2-dev.h>
 #include <media/v4l2-common.h>
 #include <media/v4l2-ioctl.h>
@@ -224,6 +225,14 @@ static long pvr2_v4l2_do_ioctl(struct file *file, unsigned int cmd, void *arg)
 		struct v4l2_standard *vs = (struct v4l2_standard *)arg;
 		int idx = vs->index;
 		ret = pvr2_hdw_get_stdenum_value(hdw,vs,idx+1);
+		break;
+	}
+
+	case VIDIOC_QUERYSTD:
+	{
+		v4l2_std_id *std = arg;
+		*std = V4L2_STD_ALL;
+		ret = pvr2_hdw_get_detected_std(hdw, std);
 		break;
 	}
 

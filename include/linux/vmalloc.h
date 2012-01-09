@@ -13,6 +13,7 @@ struct vm_area_struct;		/* vma defining user mapping in mm_types.h */
 #define VM_MAP		0x00000004	/* vmap()ed pages */
 #define VM_USERMAP	0x00000008	/* suitable for remap_vmalloc_range */
 #define VM_VPAGES	0x00000010	/* buffer for pages was vmalloc'ed */
+#define VM_UNLIST	0x00000020	/* vm_struct is not listed in vmlist */
 /* bits [20..32] reserved for arch specific ioremap internals */
 
 /*
@@ -118,7 +119,7 @@ unmap_kernel_range(unsigned long addr, unsigned long size)
 #endif
 
 /* Allocate/destroy a 'vmalloc' VM area. */
-extern struct vm_struct *alloc_vm_area(size_t size);
+extern struct vm_struct *alloc_vm_area(size_t size, pte_t **ptes);
 extern void free_vm_area(struct vm_struct *area);
 
 /* for /dev/kmem */

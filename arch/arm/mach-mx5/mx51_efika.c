@@ -34,14 +34,12 @@
 #include <linux/usb/ulpi.h>
 #include <mach/ulpi.h>
 
-#include <asm/irq.h>
 #include <asm/setup.h>
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
 #include <asm/mach/time.h>
 
 #include "devices-imx51.h"
-#include "devices.h"
 #include "efika.h"
 #include "cpu_op-mx51.h"
 
@@ -133,7 +131,7 @@ static int initialize_otg_port(struct platform_device *pdev)
 	u32 v;
 	void __iomem *usb_base;
 	void __iomem *usbother_base;
-	usb_base = ioremap(MX51_OTG_BASE_ADDR, SZ_4K);
+	usb_base = ioremap(MX51_USB_OTG_BASE_ADDR, SZ_4K);
 	if (!usb_base)
 		return -ENOMEM;
 	usbother_base = (void __iomem *)(usb_base + MX5_USBOTHER_REGS_OFFSET);
@@ -150,7 +148,7 @@ static int initialize_otg_port(struct platform_device *pdev)
 	return mx51_initialize_usb_hw(pdev->id, MXC_EHCI_INTERNAL_PHY);
 }
 
-static struct mxc_usbh_platform_data dr_utmi_config = {
+static const struct mxc_usbh_platform_data dr_utmi_config __initconst = {
 	.init   = initialize_otg_port,
 	.portsc = MXC_EHCI_UTMI_16BIT,
 };
@@ -170,7 +168,7 @@ static int initialize_usbh1_port(struct platform_device *pdev)
 	gpio_set_value(EFIKAMX_USBH1_STP, 1);
 	msleep(1);
 
-	usb_base = ioremap(MX51_OTG_BASE_ADDR, SZ_4K);
+	usb_base = ioremap(MX51_USB_OTG_BASE_ADDR, SZ_4K);
 	socregs_base = (void __iomem *)(usb_base + MX5_USBOTHER_REGS_OFFSET);
 
 	/* The clock for the USBH1 ULPI port will come externally */
@@ -189,7 +187,7 @@ static int initialize_usbh1_port(struct platform_device *pdev)
 	return mx51_initialize_usb_hw(pdev->id, MXC_EHCI_ITC_NO_THRESHOLD);
 }
 
-static struct mxc_usbh_platform_data usbh1_config = {
+static struct mxc_usbh_platform_data usbh1_config __initdata = {
 	.init   = initialize_usbh1_port,
 	.portsc = MXC_EHCI_MODE_ULPI,
 };
@@ -217,9 +215,9 @@ static void __init mx51_efika_usb(void)
 	usbh1_config.otg = imx_otg_ulpi_create(ULPI_OTG_DRVVBUS |
 			ULPI_OTG_DRVVBUS_EXT | ULPI_OTG_EXTVBUSIND);
 
-	mxc_register_device(&mxc_usbdr_host_device, &dr_utmi_config);
+	imx51_add_mxc_ehci_otg(&dr_utmi_config);
 	if (usbh1_config.otg)
-		mxc_register_device(&mxc_usbh1_device, &usbh1_config);
+		imx51_add_mxc_ehci_hs(1, &usbh1_config);
 }
 
 static struct mtd_partition mx51_efika_spi_nor_partitions[] = {
@@ -567,7 +565,7 @@ static struct mc13xxx_regulator_init_data mx51_efika_regulators[] = {
 };
 
 static struct mc13xxx_platform_data mx51_efika_mc13892_data = {
-	.flags = MC13XXX_USE_RTC | MC13XXX_USE_REGULATOR,
+	.flags = MC13XXX_USE_RTC,
 	.regulators = {
 		.num_regulators = ARRAY_SIZE(mx51_efika_regulators),
 		.regulators = mx51_efika_regulators,
@@ -589,7 +587,7 @@ static struct spi_board_info mx51_efika_spi_board_info[] __initdata = {
 		.bus_num = 0,
 		.chip_select = 0,
 		.platform_data = &mx51_efika_mc13892_data,
-		.irq = gpio_to_irq(EFIKAMX_PMIC),
+		.irq = IMX_GPIO_TO_IRQ(EFIKAMX_PMIC),
 	},
 };
 
@@ -609,7 +607,6 @@ void __init efika_board_common_init(void)
 					ARRAY_SIZE(mx51efika_pads));
 	imx51_add_imx_uart(0, &uart_pdata);
 	mx51_efika_usb();
-	imx51_add_sdhci_esdhc_imx(0, NULL);
 
 	/* FIXME: comes from original code. check this. */
 	if (mx51_revision() < IMX_CHIP_REVISION_2_0)
@@ -627,8 +624,9 @@ void __init efika_board_common_init(void)
 		ARRAY_SIZE(mx51_efika_spi_board_info));
 	imx51_add_ecspi(0, &mx51_efika_spi_pdata);
 
+	imx51_add_pata_imx();
+
 #if defined(CONFIG_CPU_FREQ_IMX)
 	get_cpu_op = mx51_get_cpu_op;
 #endif
 }
-

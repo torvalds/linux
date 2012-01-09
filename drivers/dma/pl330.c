@@ -17,6 +17,8 @@
 #include <linux/interrupt.h>
 #include <linux/amba/bus.h>
 #include <linux/amba/pl330.h>
+#include <linux/pm_runtime.h>
+#include <linux/scatterlist.h>
 
 #define NR_DEFAULT_DESC	16
 
@@ -68,6 +70,14 @@ struct dma_pl330_chan {
 	 * NULL if the channel is available to be acquired.
 	 */
 	void *pl330_chid;
+
+	/* For D-to-M and M-to-D channels */
+	int burst_sz; /* the peripheral fifo width */
+	int burst_len; /* the number of burst */
+	dma_addr_t fifo_addr;
+
+	/* for cyclic capability */
+	bool cyclic;
 };
 
 struct dma_pl330_dmac {
@@ -83,6 +93,8 @@ struct dma_pl330_dmac {
 
 	/* Peripheral channels connected to this DMAC */
 	struct dma_pl330_chan *peripherals; /* keep at end */
+
+	struct clk *clk;
 };
 
 struct dma_pl330_desc {
@@ -152,6 +164,31 @@ static inline void free_desc_list(struct list_head *list)
 	spin_unlock_irqrestore(&pdmac->pool_lock, flags);
 }
 
+static inline void handle_cyclic_desc_list(struct list_head *list)
+{
+	struct dma_pl330_desc *desc;
+	struct dma_pl330_chan *pch;
+	unsigned long flags;
+
+	if (list_empty(list))
+		return;
+
+	list_for_each_entry(desc, list, node) {
+		dma_async_tx_callback callback;
+
+		/* Change status to reload it */
+		desc->status = PREP;
+		pch = desc->pchan;
+		callback = desc->txd.callback;
+		if (callback)
+			callback(desc->txd.callback_param);
+	}
+
+	spin_lock_irqsave(&pch->lock, flags);
+	list_splice_tail_init(list, &pch->work_list);
+	spin_unlock_irqrestore(&pch->lock, flags);
+}
+
 static inline void fill_queue(struct dma_pl330_chan *pch)
 {
 	struct dma_pl330_desc *desc;
@@ -205,7 +242,10 @@ static void pl330_tasklet(unsigned long data)
 
 	spin_unlock_irqrestore(&pch->lock, flags);
 
-	free_desc_list(&list);
+	if (pch->cyclic)
+		handle_cyclic_desc_list(&list);
+	else
+		free_desc_list(&list);
 }
 
 static void dma_pl330_rqcb(void *token, enum pl330_op_err err)
@@ -236,6 +276,7 @@ static int pl330_alloc_chan_resources(struct dma_chan *chan)
 	spin_lock_irqsave(&pch->lock, flags);
 
 	pch->completed = chan->cookie = 1;
+	pch->cyclic = false;
 
 	pch->pl330_chid = pl330_request_channel(&pdmac->pif);
 	if (!pch->pl330_chid) {
@@ -253,25 +294,52 @@ static int pl330_alloc_chan_resources(struct dma_chan *chan)
 static int pl330_control(struct dma_chan *chan, enum dma_ctrl_cmd cmd, unsigned long arg)
 {
 	struct dma_pl330_chan *pch = to_pchan(chan);
-	struct dma_pl330_desc *desc;
+	struct dma_pl330_desc *desc, *_dt;
 	unsigned long flags;
+	struct dma_pl330_dmac *pdmac = pch->dmac;
+	struct dma_slave_config *slave_config;
+	LIST_HEAD(list);
 
-	/* Only supports DMA_TERMINATE_ALL */
-	if (cmd != DMA_TERMINATE_ALL)
+	switch (cmd) {
+	case DMA_TERMINATE_ALL:
+		spin_lock_irqsave(&pch->lock, flags);
+
+		/* FLUSH the PL330 Channel thread */
+		pl330_chan_ctrl(pch->pl330_chid, PL330_OP_FLUSH);
+
+		/* Mark all desc done */
+		list_for_each_entry_safe(desc, _dt, &pch->work_list , node) {
+			desc->status = DONE;
+			pch->completed = desc->txd.cookie;
+			list_move_tail(&desc->node, &list);
+		}
+
+		list_splice_tail_init(&list, &pdmac->desc_pool);
+		spin_unlock_irqrestore(&pch->lock, flags);
+		break;
+	case DMA_SLAVE_CONFIG:
+		slave_config = (struct dma_slave_config *)arg;
+
+		if (slave_config->direction == DMA_TO_DEVICE) {
+			if (slave_config->dst_addr)
+				pch->fifo_addr = slave_config->dst_addr;
+			if (slave_config->dst_addr_width)
+				pch->burst_sz = __ffs(slave_config->dst_addr_width);
+			if (slave_config->dst_maxburst)
+				pch->burst_len = slave_config->dst_maxburst;
+		} else if (slave_config->direction == DMA_FROM_DEVICE) {
+			if (slave_config->src_addr)
+				pch->fifo_addr = slave_config->src_addr;
+			if (slave_config->src_addr_width)
+				pch->burst_sz = __ffs(slave_config->src_addr_width);
+			if (slave_config->src_maxburst)
+				pch->burst_len = slave_config->src_maxburst;
+		}
+		break;
+	default:
+		dev_err(pch->dmac->pif.dev, "Not supported command.\n");
 		return -ENXIO;
-
-	spin_lock_irqsave(&pch->lock, flags);
-
-	/* FLUSH the PL330 Channel thread */
-	pl330_chan_ctrl(pch->pl330_chid, PL330_OP_FLUSH);
-
-	/* Mark all desc done */
-	list_for_each_entry(desc, &pch->work_list, node)
-		desc->status = DONE;
-
-	spin_unlock_irqrestore(&pch->lock, flags);
-
-	pl330_tasklet((unsigned long) pch);
+	}
 
 	return 0;
 }
@@ -287,6 +355,9 @@ static void pl330_free_chan_resources(struct dma_chan *chan)
 
 	pl330_release_channel(pch->pl330_chid);
 	pch->pl330_chid = NULL;
+
+	if (pch->cyclic)
+		list_splice_tail_init(&pch->work_list, &pch->dmac->desc_pool);
 
 	spin_unlock_irqrestore(&pch->lock, flags);
 }
@@ -453,7 +524,7 @@ static struct dma_pl330_desc *pl330_get_desc(struct dma_pl330_chan *pch)
 
 	if (peri) {
 		desc->req.rqtype = peri->rqtype;
-		desc->req.peri = peri->peri_id;
+		desc->req.peri = pch->chan.chan_id;
 	} else {
 		desc->req.rqtype = MEMTOMEM;
 		desc->req.peri = 0;
@@ -524,6 +595,51 @@ static inline int get_burst_len(struct dma_pl330_desc *desc, size_t len)
 	return burst_len;
 }
 
+static struct dma_async_tx_descriptor *pl330_prep_dma_cyclic(
+		struct dma_chan *chan, dma_addr_t dma_addr, size_t len,
+		size_t period_len, enum dma_data_direction direction)
+{
+	struct dma_pl330_desc *desc;
+	struct dma_pl330_chan *pch = to_pchan(chan);
+	dma_addr_t dst;
+	dma_addr_t src;
+
+	desc = pl330_get_desc(pch);
+	if (!desc) {
+		dev_err(pch->dmac->pif.dev, "%s:%d Unable to fetch desc\n",
+			__func__, __LINE__);
+		return NULL;
+	}
+
+	switch (direction) {
+	case DMA_TO_DEVICE:
+		desc->rqcfg.src_inc = 1;
+		desc->rqcfg.dst_inc = 0;
+		src = dma_addr;
+		dst = pch->fifo_addr;
+		break;
+	case DMA_FROM_DEVICE:
+		desc->rqcfg.src_inc = 0;
+		desc->rqcfg.dst_inc = 1;
+		src = pch->fifo_addr;
+		dst = dma_addr;
+		break;
+	default:
+		dev_err(pch->dmac->pif.dev, "%s:%d Invalid dma direction\n",
+		__func__, __LINE__);
+		return NULL;
+	}
+
+	desc->rqcfg.brst_size = pch->burst_sz;
+	desc->rqcfg.brst_len = 1;
+
+	pch->cyclic = true;
+
+	fill_px(&desc->px, dst, src, period_len);
+
+	return &desc->txd;
+}
+
 static struct dma_async_tx_descriptor *
 pl330_prep_dma_memcpy(struct dma_chan *chan, dma_addr_t dst,
 		dma_addr_t src, size_t len, unsigned long flags)
@@ -579,7 +695,7 @@ pl330_prep_slave_sg(struct dma_chan *chan, struct scatterlist *sgl,
 	struct dma_pl330_peri *peri = chan->private;
 	struct scatterlist *sg;
 	unsigned long flags;
-	int i, burst_size;
+	int i;
 	dma_addr_t addr;
 
 	if (unlikely(!pch || !sgl || !sg_len || !peri))
@@ -595,8 +711,7 @@ pl330_prep_slave_sg(struct dma_chan *chan, struct scatterlist *sgl,
 		return NULL;
 	}
 
-	addr = peri->fifo_addr;
-	burst_size = peri->burst_sz;
+	addr = pch->fifo_addr;
 
 	first = NULL;
 
@@ -644,7 +759,7 @@ pl330_prep_slave_sg(struct dma_chan *chan, struct scatterlist *sgl,
 				sg_dma_address(sg), addr, sg_dma_len(sg));
 		}
 
-		desc->rqcfg.brst_size = burst_size;
+		desc->rqcfg.brst_size = pch->burst_sz;
 		desc->rqcfg.brst_len = 1;
 	}
 
@@ -696,6 +811,30 @@ pl330_probe(struct amba_device *adev, const struct amba_id *id)
 		goto probe_err1;
 	}
 
+	pdmac->clk = clk_get(&adev->dev, "dma");
+	if (IS_ERR(pdmac->clk)) {
+		dev_err(&adev->dev, "Cannot get operation clock.\n");
+		ret = -EINVAL;
+		goto probe_err1;
+	}
+
+	amba_set_drvdata(adev, pdmac);
+
+#ifdef CONFIG_PM_RUNTIME
+	/* to use the runtime PM helper functions */
+	pm_runtime_enable(&adev->dev);
+
+	/* enable the power domain */
+	if (pm_runtime_get_sync(&adev->dev)) {
+		dev_err(&adev->dev, "failed to get runtime pm\n");
+		ret = -ENODEV;
+		goto probe_err1;
+	}
+#else
+	/* enable dma clk */
+	clk_enable(pdmac->clk);
+#endif
+
 	irq = adev->irq[0];
 	ret = request_irq(irq, pl330_irq_handler, 0,
 			dev_name(&adev->dev), pi);
@@ -732,6 +871,7 @@ pl330_probe(struct amba_device *adev, const struct amba_id *id)
 			case MEMTODEV:
 			case DEVTOMEM:
 				dma_cap_set(DMA_SLAVE, pd->cap_mask);
+				dma_cap_set(DMA_CYCLIC, pd->cap_mask);
 				break;
 			default:
 				dev_err(&adev->dev, "DEVTODEV Not Supported\n");
@@ -747,11 +887,9 @@ pl330_probe(struct amba_device *adev, const struct amba_id *id)
 		spin_lock_init(&pch->lock);
 		pch->pl330_chid = NULL;
 		pch->chan.device = pd;
-		pch->chan.chan_id = i;
 		pch->dmac = pdmac;
 
 		/* Add the channel to the DMAC list */
-		pd->chancnt++;
 		list_add_tail(&pch->chan.device_node, &pd->channels);
 	}
 
@@ -760,6 +898,7 @@ pl330_probe(struct amba_device *adev, const struct amba_id *id)
 	pd->device_alloc_chan_resources = pl330_alloc_chan_resources;
 	pd->device_free_chan_resources = pl330_free_chan_resources;
 	pd->device_prep_dma_memcpy = pl330_prep_dma_memcpy;
+	pd->device_prep_dma_cyclic = pl330_prep_dma_cyclic;
 	pd->device_tx_status = pl330_tx_status;
 	pd->device_prep_slave_sg = pl330_prep_slave_sg;
 	pd->device_control = pl330_control;
@@ -770,8 +909,6 @@ pl330_probe(struct amba_device *adev, const struct amba_id *id)
 		dev_err(&adev->dev, "unable to register DMAC\n");
 		goto probe_err4;
 	}
-
-	amba_set_drvdata(adev, pdmac);
 
 	dev_info(&adev->dev,
 		"Loaded driver for PL330 DMAC-%d\n", adev->periphid);
@@ -833,6 +970,13 @@ static int __devexit pl330_remove(struct amba_device *adev)
 	res = &adev->res;
 	release_mem_region(res->start, resource_size(res));
 
+#ifdef CONFIG_PM_RUNTIME
+	pm_runtime_put(&adev->dev);
+	pm_runtime_disable(&adev->dev);
+#else
+	clk_disable(pdmac->clk);
+#endif
+
 	kfree(pdmac);
 
 	return 0;
@@ -846,10 +990,49 @@ static struct amba_id pl330_ids[] = {
 	{ 0, 0 },
 };
 
+#ifdef CONFIG_PM_RUNTIME
+static int pl330_runtime_suspend(struct device *dev)
+{
+	struct dma_pl330_dmac *pdmac = dev_get_drvdata(dev);
+
+	if (!pdmac) {
+		dev_err(dev, "failed to get dmac\n");
+		return -ENODEV;
+	}
+
+	clk_disable(pdmac->clk);
+
+	return 0;
+}
+
+static int pl330_runtime_resume(struct device *dev)
+{
+	struct dma_pl330_dmac *pdmac = dev_get_drvdata(dev);
+
+	if (!pdmac) {
+		dev_err(dev, "failed to get dmac\n");
+		return -ENODEV;
+	}
+
+	clk_enable(pdmac->clk);
+
+	return 0;
+}
+#else
+#define pl330_runtime_suspend	NULL
+#define pl330_runtime_resume	NULL
+#endif /* CONFIG_PM_RUNTIME */
+
+static const struct dev_pm_ops pl330_pm_ops = {
+	.runtime_suspend = pl330_runtime_suspend,
+	.runtime_resume = pl330_runtime_resume,
+};
+
 static struct amba_driver pl330_driver = {
 	.drv = {
 		.owner = THIS_MODULE,
 		.name = "dma-pl330",
+		.pm = &pl330_pm_ops,
 	},
 	.id_table = pl330_ids,
 	.probe = pl330_probe,

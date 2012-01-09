@@ -59,7 +59,7 @@ static struct watchdog_device *wdd;
 
 static int watchdog_ping(struct watchdog_device *wddev)
 {
-	if (test_bit(WDOG_ACTIVE, &wdd->status)) {
+	if (test_bit(WDOG_ACTIVE, &wddev->status)) {
 		if (wddev->ops->ping)
 			return wddev->ops->ping(wddev);  /* ping the watchdog */
 		else
@@ -81,12 +81,12 @@ static int watchdog_start(struct watchdog_device *wddev)
 {
 	int err;
 
-	if (!test_bit(WDOG_ACTIVE, &wdd->status)) {
+	if (!test_bit(WDOG_ACTIVE, &wddev->status)) {
 		err = wddev->ops->start(wddev);
 		if (err < 0)
 			return err;
 
-		set_bit(WDOG_ACTIVE, &wdd->status);
+		set_bit(WDOG_ACTIVE, &wddev->status);
 	}
 	return 0;
 }
@@ -105,18 +105,18 @@ static int watchdog_stop(struct watchdog_device *wddev)
 {
 	int err = -EBUSY;
 
-	if (test_bit(WDOG_NO_WAY_OUT, &wdd->status)) {
+	if (test_bit(WDOG_NO_WAY_OUT, &wddev->status)) {
 		pr_info("%s: nowayout prevents watchdog to be stopped!\n",
-							wdd->info->identity);
+							wddev->info->identity);
 		return err;
 	}
 
-	if (test_bit(WDOG_ACTIVE, &wdd->status)) {
+	if (test_bit(WDOG_ACTIVE, &wddev->status)) {
 		err = wddev->ops->stop(wddev);
 		if (err < 0)
 			return err;
 
-		clear_bit(WDOG_ACTIVE, &wdd->status);
+		clear_bit(WDOG_ACTIVE, &wddev->status);
 	}
 	return 0;
 }

@@ -1,0 +1,106 @@
+/*
+ * at91sam9g45.dtsi - Device Tree Include file for AT91SAM9G45 family SoC
+ *                    applies to AT91SAM9G45, AT91SAM9M10,
+ *                    AT91SAM9G46, AT91SAM9M11 SoC
+ *
+ *  Copyright (C) 2011 Atmel,
+ *                2011 Nicolas Ferre <nicolas.ferre@atmel.com>
+ *
+ * Licensed under GPLv2 or later.
+ */
+
+/include/ "skeleton.dtsi"
+
+/ {
+	model = "Atmel AT91SAM9G45 family SoC";
+	compatible = "atmel,at91sam9g45";
+	interrupt-parent = <&aic>;
+
+	aliases {
+		serial0 = &dbgu;
+		serial1 = &usart0;
+		serial2 = &usart1;
+		serial3 = &usart2;
+		serial4 = &usart3;
+	};
+	cpus {
+		cpu@0 {
+			compatible = "arm,arm926ejs";
+		};
+	};
+
+	memory@70000000 {
+		reg = <0x70000000 0x10000000>;
+	};
+
+	ahb {
+		compatible = "simple-bus";
+		#address-cells = <1>;
+		#size-cells = <1>;
+		ranges;
+
+		apb {
+			compatible = "simple-bus";
+			#address-cells = <1>;
+			#size-cells = <1>;
+			ranges;
+
+			aic: interrupt-controller@fffff000 {
+				#interrupt-cells = <1>;
+				compatible = "atmel,at91rm9200-aic";
+				interrupt-controller;
+				interrupt-parent;
+				reg = <0xfffff000 0x200>;
+			};
+
+			dma: dma-controller@ffffec00 {
+				compatible = "atmel,at91sam9g45-dma";
+				reg = <0xffffec00 0x200>;
+				interrupts = <21>;
+			};
+
+			dbgu: serial@ffffee00 {
+				compatible = "atmel,at91sam9260-usart";
+				reg = <0xffffee00 0x200>;
+				interrupts = <1>;
+				status = "disabled";
+			};
+
+			usart0: serial@fff8c000 {
+				compatible = "atmel,at91sam9260-usart";
+				reg = <0xfff8c000 0x200>;
+				interrupts = <7>;
+				atmel,use-dma-rx;
+				atmel,use-dma-tx;
+				status = "disabled";
+			};
+
+			usart1: serial@fff90000 {
+				compatible = "atmel,at91sam9260-usart";
+				reg = <0xfff90000 0x200>;
+				interrupts = <8>;
+				atmel,use-dma-rx;
+				atmel,use-dma-tx;
+				status = "disabled";
+			};
+
+			usart2: serial@fff94000 {
+				compatible = "atmel,at91sam9260-usart";
+				reg = <0xfff94000 0x200>;
+				interrupts = <9>;
+				atmel,use-dma-rx;
+				atmel,use-dma-tx;
+				status = "disabled";
+			};
+
+			usart3: serial@fff98000 {
+				compatible = "atmel,at91sam9260-usart";
+				reg = <0xfff98000 0x200>;
+				interrupts = <10>;
+				atmel,use-dma-rx;
+				atmel,use-dma-tx;
+				status = "disabled";
+			};
+		};
+	};
+};

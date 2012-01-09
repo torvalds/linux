@@ -624,9 +624,9 @@ static void log_write_header(struct gfs2_sbd *sdp, u32 flags, int pull)
 	bh->b_end_io = end_buffer_write_sync;
 	get_bh(bh);
 	if (test_bit(SDF_NOBARRIERS, &sdp->sd_flags))
-		submit_bh(WRITE_SYNC | REQ_META, bh);
+		submit_bh(WRITE_SYNC | REQ_META | REQ_PRIO, bh);
 	else
-		submit_bh(WRITE_FLUSH_FUA | REQ_META, bh);
+		submit_bh(WRITE_FLUSH_FUA | REQ_META | REQ_PRIO, bh);
 	wait_on_buffer(bh);
 
 	if (!buffer_uptodate(bh))

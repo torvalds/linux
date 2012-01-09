@@ -1052,6 +1052,8 @@ extern int ata_scsi_slave_config(struct scsi_device *sdev);
 extern void ata_scsi_slave_destroy(struct scsi_device *sdev);
 extern int ata_scsi_change_queue_depth(struct scsi_device *sdev,
 				       int queue_depth, int reason);
+extern int __ata_change_queue_depth(struct ata_port *ap, struct scsi_device *sdev,
+				    int queue_depth, int reason);
 extern struct ata_device *ata_dev_pair(struct ata_device *adev);
 extern int ata_do_set_mode(struct ata_link *link, struct ata_device **r_failed_dev);
 extern void ata_scsi_port_error_handler(struct Scsi_Host *host, struct ata_port *ap);
@@ -1254,13 +1256,13 @@ static inline int sata_srst_pmp(struct ata_link *link)
 /*
  * printk helpers
  */
-__attribute__((format (printf, 3, 4)))
+__printf(3, 4)
 int ata_port_printk(const struct ata_port *ap, const char *level,
 		    const char *fmt, ...);
-__attribute__((format (printf, 3, 4)))
+__printf(3, 4)
 int ata_link_printk(const struct ata_link *link, const char *level,
 		    const char *fmt, ...);
-__attribute__((format (printf, 3, 4)))
+__printf(3, 4)
 int ata_dev_printk(const struct ata_device *dev, const char *level,
 		   const char *fmt, ...);
 
@@ -1302,10 +1304,10 @@ void ata_print_version(const struct device *dev, const char *version);
 /*
  * ata_eh_info helpers
  */
-extern void __ata_ehi_push_desc(struct ata_eh_info *ehi, const char *fmt, ...)
-	__attribute__ ((format (printf, 2, 3)));
-extern void ata_ehi_push_desc(struct ata_eh_info *ehi, const char *fmt, ...)
-	__attribute__ ((format (printf, 2, 3)));
+extern __printf(2, 3)
+void __ata_ehi_push_desc(struct ata_eh_info *ehi, const char *fmt, ...);
+extern __printf(2, 3)
+void ata_ehi_push_desc(struct ata_eh_info *ehi, const char *fmt, ...);
 extern void ata_ehi_clear_desc(struct ata_eh_info *ehi);
 
 static inline void ata_ehi_hotplugged(struct ata_eh_info *ehi)
@@ -1319,8 +1321,8 @@ static inline void ata_ehi_hotplugged(struct ata_eh_info *ehi)
 /*
  * port description helpers
  */
-extern void ata_port_desc(struct ata_port *ap, const char *fmt, ...)
-	__attribute__ ((format (printf, 2, 3)));
+extern __printf(2, 3)
+void ata_port_desc(struct ata_port *ap, const char *fmt, ...);
 #ifdef CONFIG_PCI
 extern void ata_port_pbar_desc(struct ata_port *ap, int bar, ssize_t offset,
 			       const char *name);

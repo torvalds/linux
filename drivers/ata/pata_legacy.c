@@ -79,15 +79,6 @@ static int all;
 module_param(all, int, 0444);
 MODULE_PARM_DESC(all, "Grab all legacy port devices, even if PCI(0=off, 1=on)");
 
-struct legacy_data {
-	unsigned long timing;
-	u8 clock[2];
-	u8 last;
-	int fast;
-	struct platform_device *platform_dev;
-
-};
-
 enum controller {
 	BIOS = 0,
 	SNOOP = 1,
@@ -104,6 +95,14 @@ enum controller {
 	UNKNOWN = -1
 };
 
+struct legacy_data {
+	unsigned long timing;
+	u8 clock[2];
+	u8 last;
+	int fast;
+	enum controller type;
+	struct platform_device *platform_dev;
+};
 
 struct legacy_probe {
 	unsigned char *name;
@@ -137,10 +136,16 @@ static int ht6560a;		/* HT 6560A on primary 1, second 2, both 3 */
 static int ht6560b;		/* HT 6560A on primary 1, second 2, both 3 */
 static int opti82c611a;		/* Opti82c611A on primary 1, sec 2, both 3 */
 static int opti82c46x;		/* Opti 82c465MV present(pri/sec autodetect) */
-static int qdi;			/* Set to probe QDI controllers */
 static int autospeed;		/* Chip present which snoops speed changes */
 static int pio_mask = ATA_PIO4;	/* PIO range for autospeed devices */
 static int iordy_mask = 0xFFFFFFFF;	/* Use iordy if available */
+
+/* Set to probe QDI controllers */
+#ifdef CONFIG_PATA_QDI_MODULE
+static int qdi = 1;
+#else
+static int qdi;
+#endif
 
 #ifdef CONFIG_PATA_WINBOND_VLB_MODULE
 static int winbond = 1;		/* Set to probe Winbond controllers,
@@ -631,77 +636,20 @@ static struct ata_port_operations opti82c46x_port_ops = {
 	.qc_issue	= opti82c46x_qc_issue,
 };
 
-static void qdi6500_set_piomode(struct ata_port *ap, struct ata_device *adev)
-{
-	struct ata_timing t;
-	struct legacy_data *ld_qdi = ap->host->private_data;
-	int active, recovery;
-	u8 timing;
-
-	/* Get the timing data in cycles */
-	ata_timing_compute(adev, adev->pio_mode, &t, 30303, 1000);
-
-	if (ld_qdi->fast) {
-		active = 8 - clamp_val(t.active, 1, 8);
-		recovery = 18 - clamp_val(t.recover, 3, 18);
-	} else {
-		active = 9 - clamp_val(t.active, 2, 9);
-		recovery = 15 - clamp_val(t.recover, 0, 15);
-	}
-	timing = (recovery << 4) | active | 0x08;
-
-	ld_qdi->clock[adev->devno] = timing;
-
-	outb(timing, ld_qdi->timing);
-}
-
 /**
- *	qdi6580dp_set_piomode		-	PIO setup for dual channel
- *	@ap: Port
- *	@adev: Device
- *
- *	In dual channel mode the 6580 has one clock per channel and we have
- *	to software clockswitch in qc_issue.
- */
-
-static void qdi6580dp_set_piomode(struct ata_port *ap, struct ata_device *adev)
-{
-	struct ata_timing t;
-	struct legacy_data *ld_qdi = ap->host->private_data;
-	int active, recovery;
-	u8 timing;
-
-	/* Get the timing data in cycles */
-	ata_timing_compute(adev, adev->pio_mode, &t, 30303, 1000);
-
-	if (ld_qdi->fast) {
-		active = 8 - clamp_val(t.active, 1, 8);
-		recovery = 18 - clamp_val(t.recover, 3, 18);
-	} else {
-		active = 9 - clamp_val(t.active, 2, 9);
-		recovery = 15 - clamp_val(t.recover, 0, 15);
-	}
-	timing = (recovery << 4) | active | 0x08;
-
-	ld_qdi->clock[adev->devno] = timing;
-
-	outb(timing, ld_qdi->timing + 2 * ap->port_no);
-	/* Clear the FIFO */
-	if (adev->class != ATA_DEV_ATA)
-		outb(0x5F, (ld_qdi->timing & 0xFFF0) + 3);
-}
-
-/**
- *	qdi6580_set_piomode		-	PIO setup for single channel
+ *	qdi65x0_set_piomode		-	PIO setup for QDI65x0
  *	@ap: Port
  *	@adev: Device
  *
  *	In single channel mode the 6580 has one clock per device and we can
  *	avoid the requirement to clock switch. We also have to load the timing
  *	into the right clock according to whether we are master or slave.
+ *
+ *	In dual channel mode the 6580 has one clock per channel and we have
+ *	to software clockswitch in qc_issue.
  */
 
-static void qdi6580_set_piomode(struct ata_port *ap, struct ata_device *adev)
+static void qdi65x0_set_piomode(struct ata_port *ap, struct ata_device *adev)
 {
 	struct ata_timing t;
 	struct legacy_data *ld_qdi = ap->host->private_data;
@@ -720,9 +668,14 @@ static void qdi6580_set_piomode(struct ata_port *ap, struct ata_device *adev)
 	}
 	timing = (recovery << 4) | active | 0x08;
 	ld_qdi->clock[adev->devno] = timing;
-	outb(timing, ld_qdi->timing + 2 * adev->devno);
+
+	if (ld_qdi->type == QDI6580)
+		outb(timing, ld_qdi->timing + 2 * adev->devno);
+	else
+		outb(timing, ld_qdi->timing + 2 * ap->port_no);
+
 	/* Clear the FIFO */
-	if (adev->class != ATA_DEV_ATA)
+	if (ld_qdi->type != QDI6500 && adev->class != ATA_DEV_ATA)
 		outb(0x5F, (ld_qdi->timing & 0xFFF0) + 3);
 }
 
@@ -789,20 +742,20 @@ static int qdi_port(struct platform_device *dev,
 
 static struct ata_port_operations qdi6500_port_ops = {
 	.inherits	= &legacy_base_port_ops,
-	.set_piomode	= qdi6500_set_piomode,
+	.set_piomode	= qdi65x0_set_piomode,
 	.qc_issue	= qdi_qc_issue,
 	.sff_data_xfer	= vlb32_data_xfer,
 };
 
 static struct ata_port_operations qdi6580_port_ops = {
 	.inherits	= &legacy_base_port_ops,
-	.set_piomode	= qdi6580_set_piomode,
+	.set_piomode	= qdi65x0_set_piomode,
 	.sff_data_xfer	= vlb32_data_xfer,
 };
 
 static struct ata_port_operations qdi6580dp_port_ops = {
 	.inherits	= &legacy_base_port_ops,
-	.set_piomode	= qdi6580dp_set_piomode,
+	.set_piomode	= qdi65x0_set_piomode,
 	.qc_issue	= qdi_qc_issue,
 	.sff_data_xfer	= vlb32_data_xfer,
 };
@@ -879,29 +832,29 @@ static struct ata_port_operations winbond_port_ops = {
 };
 
 static struct legacy_controller controllers[] = {
-	{"BIOS",	&legacy_port_ops, 	0x1F,
+	{"BIOS",	&legacy_port_ops, 	ATA_PIO4,
 			ATA_FLAG_NO_IORDY,	0,			NULL },
-	{"Snooping", 	&simple_port_ops, 	0x1F,
+	{"Snooping", 	&simple_port_ops, 	ATA_PIO4,
 			0,			0,			NULL },
-	{"PDC20230",	&pdc20230_port_ops,	0x7,
+	{"PDC20230",	&pdc20230_port_ops,	ATA_PIO2,
 			ATA_FLAG_NO_IORDY,
 			ATA_PFLAG_PIO32 | ATA_PFLAG_PIO32CHANGE,	NULL },
-	{"HT6560A",	&ht6560a_port_ops,	0x07,
+	{"HT6560A",	&ht6560a_port_ops,	ATA_PIO2,
 			ATA_FLAG_NO_IORDY,	0,			NULL },
-	{"HT6560B",	&ht6560b_port_ops,	0x1F,
+	{"HT6560B",	&ht6560b_port_ops,	ATA_PIO4,
 			ATA_FLAG_NO_IORDY,	0,			NULL },
-	{"OPTI82C611A",	&opti82c611a_port_ops,	0x0F,
+	{"OPTI82C611A",	&opti82c611a_port_ops,	ATA_PIO3,
 			0,			0,			NULL },
-	{"OPTI82C46X",	&opti82c46x_port_ops,	0x0F,
+	{"OPTI82C46X",	&opti82c46x_port_ops,	ATA_PIO3,
 			0,			0,			NULL },
-	{"QDI6500",	&qdi6500_port_ops,	0x07,
+	{"QDI6500",	&qdi6500_port_ops,	ATA_PIO2,
 			ATA_FLAG_NO_IORDY,
 			ATA_PFLAG_PIO32 | ATA_PFLAG_PIO32CHANGE,    qdi_port },
-	{"QDI6580",	&qdi6580_port_ops,	0x1F,
+	{"QDI6580",	&qdi6580_port_ops,	ATA_PIO4,
 			0, ATA_PFLAG_PIO32 | ATA_PFLAG_PIO32CHANGE, qdi_port },
-	{"QDI6580DP",	&qdi6580dp_port_ops,	0x1F,
+	{"QDI6580DP",	&qdi6580dp_port_ops,	ATA_PIO4,
 			0, ATA_PFLAG_PIO32 | ATA_PFLAG_PIO32CHANGE, qdi_port },
-	{"W83759A",	&winbond_port_ops,	0x1F,
+	{"W83759A",	&winbond_port_ops,	ATA_PIO4,
 			0, ATA_PFLAG_PIO32 | ATA_PFLAG_PIO32CHANGE,
 								winbond_port }
 };
@@ -1022,6 +975,7 @@ static __init int legacy_init_one(struct legacy_probe *probe)
 	ctrl_addr = devm_ioport_map(&pdev->dev, io + 0x0206, 1);
 	if (!io_addr || !ctrl_addr)
 		goto fail;
+	ld->type = probe->type;
 	if (controller->setup)
 		if (controller->setup(pdev, probe, ld) < 0)
 			goto fail;
@@ -1306,6 +1260,7 @@ MODULE_AUTHOR("Alan Cox");
 MODULE_DESCRIPTION("low-level driver for legacy ATA");
 MODULE_LICENSE("GPL");
 MODULE_VERSION(DRV_VERSION);
+MODULE_ALIAS("pata_qdi");
 MODULE_ALIAS("pata_winbond");
 
 module_param(probe_all, int, 0);

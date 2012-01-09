@@ -17,6 +17,7 @@
 #include <linux/dma-mapping.h>
 #include <linux/slab.h>
 #include <linux/ath9k_platform.h>
+#include <linux/module.h>
 
 #include "ath9k.h"
 
@@ -270,8 +271,8 @@ static void setup_ht_cap(struct ath_softc *sc,
 
 	/* set up supported mcs set */
 	memset(&ht_info->mcs, 0, sizeof(ht_info->mcs));
-	tx_streams = ath9k_cmn_count_streams(common->tx_chainmask, max_streams);
-	rx_streams = ath9k_cmn_count_streams(common->rx_chainmask, max_streams);
+	tx_streams = ath9k_cmn_count_streams(ah->txchainmask, max_streams);
+	rx_streams = ath9k_cmn_count_streams(ah->rxchainmask, max_streams);
 
 	ath_dbg(common, ATH_DBG_CONFIG,
 		"TX streams %d, RX streams: %d\n",
@@ -404,31 +405,6 @@ fail:
 	return error;
 }
 
-void ath9k_init_crypto(struct ath_softc *sc)
-{
-	struct ath_common *common = ath9k_hw_common(sc->sc_ah);
-	int i = 0;
-
-	/* Get the hardware key cache size. */
-	common->keymax = AR_KEYTABLE_SIZE;
-
-	/*
-	 * Reset the key cache since some parts do not
-	 * reset the contents on initial power up.
-	 */
-	for (i = 0; i < common->keymax; i++)
-		ath_hw_keyreset(common, (u16) i);
-
-	/*
-	 * Check whether the separate key cache entries
-	 * are required to handle both tx+rx MIC keys.
-	 * With split mic keys the number of stations is limited
-	 * to 27 otherwise 59.
-	 */
-	if (sc->sc_ah->misc_mode & AR_PCU_MIC_NEW_LOC_ENA)
-		common->crypt_caps |= ATH_CRYPT_CAP_MIC_COMBINED;
-}
-
 static int ath9k_init_btcoex(struct ath_softc *sc)
 {
 	struct ath_txq *txq;
@@ -531,10 +507,6 @@ static void ath9k_init_misc(struct ath_softc *sc)
 		sc->sc_flags |= SC_OP_RXAGGR;
 	}
 
-	common->tx_chainmask = sc->sc_ah->caps.tx_chainmask;
-	common->rx_chainmask = sc->sc_ah->caps.rx_chainmask;
-
-	ath9k_hw_set_diversity(sc->sc_ah, true);
 	sc->rx.defant = ath9k_hw_getdefantenna(sc->sc_ah);
 
 	memcpy(common->bssidmask, ath_bcast_mac, ETH_ALEN);
@@ -548,7 +520,7 @@ static void ath9k_init_misc(struct ath_softc *sc)
 		sc->ant_comb.count = ATH_ANT_DIV_COMB_INIT_COUNT;
 }
 
-static int ath9k_init_softc(u16 devid, struct ath_softc *sc, u16 subsysid,
+static int ath9k_init_softc(u16 devid, struct ath_softc *sc,
 			    const struct ath_bus_ops *bus_ops)
 {
 	struct ath9k_platform_data *pdata = sc->dev->platform_data;
@@ -563,10 +535,10 @@ static int ath9k_init_softc(u16 devid, struct ath_softc *sc, u16 subsysid,
 
 	ah->hw = sc->hw;
 	ah->hw_version.devid = devid;
-	ah->hw_version.subsysid = subsysid;
 	ah->reg_ops.read = ath9k_ioread32;
 	ah->reg_ops.write = ath9k_iowrite32;
 	ah->reg_ops.rmw = ath9k_reg_rmw;
+	atomic_set(&ah->intr_ref_cnt, -1);
 	sc->sc_ah = ah;
 
 	if (!pdata) {
@@ -597,6 +569,7 @@ static int ath9k_init_softc(u16 devid, struct ath_softc *sc, u16 subsysid,
 	mutex_init(&sc->mutex);
 #ifdef CONFIG_ATH9K_DEBUGFS
 	spin_lock_init(&sc->nodes_lock);
+	spin_lock_init(&sc->debug.samp_lock);
 	INIT_LIST_HEAD(&sc->nodes);
 #endif
 	tasklet_init(&sc->intr_tq, ath9k_tasklet, (unsigned long)sc);
@@ -630,7 +603,7 @@ static int ath9k_init_softc(u16 devid, struct ath_softc *sc, u16 subsysid,
 	if (ret)
 		goto err_btcoex;
 
-	ath9k_init_crypto(sc);
+	ath9k_cmn_init_crypto(sc->sc_ah);
 	ath9k_init_misc(sc);
 
 	return 0;
@@ -654,7 +627,6 @@ static void ath9k_init_band_txpower(struct ath_softc *sc, int band)
 	struct ieee80211_supported_band *sband;
 	struct ieee80211_channel *chan;
 	struct ath_hw *ah = sc->sc_ah;
-	struct ath_regulatory *reg = ath9k_hw_regulatory(ah);
 	int i;
 
 	sband = &sc->sbands[band];
@@ -663,17 +635,14 @@ static void ath9k_init_band_txpower(struct ath_softc *sc, int band)
 		ah->curchan = &ah->channels[chan->hw_value];
 		ath9k_cmn_update_ichannel(ah->curchan, chan, NL80211_CHAN_HT20);
 		ath9k_hw_set_txpowerlimit(ah, MAX_RATE_POWER, true);
-		chan->max_power = reg->max_power_level / 2;
 	}
 }
 
 static void ath9k_init_txpower_limits(struct ath_softc *sc)
 {
 	struct ath_hw *ah = sc->sc_ah;
-	struct ath_common *common = ath9k_hw_common(sc->sc_ah);
 	struct ath9k_channel *curchan = ah->curchan;
 
-	ah->txchainmask = common->tx_chainmask;
 	if (ah->caps.hw_caps & ATH9K_HW_CAP_2GHZ)
 		ath9k_init_band_txpower(sc, IEEE80211_BAND_2GHZ);
 	if (ah->caps.hw_caps & ATH9K_HW_CAP_5GHZ)
@@ -682,9 +651,22 @@ static void ath9k_init_txpower_limits(struct ath_softc *sc)
 	ah->curchan = curchan;
 }
 
+void ath9k_reload_chainmask_settings(struct ath_softc *sc)
+{
+	if (!(sc->sc_ah->caps.hw_caps & ATH9K_HW_CAP_HT))
+		return;
+
+	if (sc->sc_ah->caps.hw_caps & ATH9K_HW_CAP_2GHZ)
+		setup_ht_cap(sc, &sc->sbands[IEEE80211_BAND_2GHZ].ht_cap);
+	if (sc->sc_ah->caps.hw_caps & ATH9K_HW_CAP_5GHZ)
+		setup_ht_cap(sc, &sc->sbands[IEEE80211_BAND_5GHZ].ht_cap);
+}
+
+
 void ath9k_set_hw_capab(struct ath_softc *sc, struct ieee80211_hw *hw)
 {
-	struct ath_common *common = ath9k_hw_common(sc->sc_ah);
+	struct ath_hw *ah = sc->sc_ah;
+	struct ath_common *common = ath9k_hw_common(ah);
 
 	hw->flags = IEEE80211_HW_RX_INCLUDES_FCS |
 		IEEE80211_HW_HOST_BROADCAST_PS_BUFFERING |
@@ -722,6 +704,16 @@ void ath9k_set_hw_capab(struct ath_softc *sc, struct ieee80211_hw *hw)
 	hw->sta_data_size = sizeof(struct ath_node);
 	hw->vif_data_size = sizeof(struct ath_vif);
 
+	hw->wiphy->available_antennas_rx = BIT(ah->caps.max_rxchains) - 1;
+	hw->wiphy->available_antennas_tx = BIT(ah->caps.max_txchains) - 1;
+
+	/* single chain devices with rx diversity */
+	if (ah->caps.hw_caps & ATH9K_HW_CAP_ANT_DIV_COMB)
+		hw->wiphy->available_antennas_rx = BIT(0) | BIT(1);
+
+	sc->ant_rx = hw->wiphy->available_antennas_rx;
+	sc->ant_tx = hw->wiphy->available_antennas_tx;
+
 #ifdef CONFIG_ATH9K_RATE_CONTROL
 	hw->rate_control_algorithm = "ath9k_rate_control";
 #endif
@@ -733,17 +725,12 @@ void ath9k_set_hw_capab(struct ath_softc *sc, struct ieee80211_hw *hw)
 		hw->wiphy->bands[IEEE80211_BAND_5GHZ] =
 			&sc->sbands[IEEE80211_BAND_5GHZ];
 
-	if (sc->sc_ah->caps.hw_caps & ATH9K_HW_CAP_HT) {
-		if (sc->sc_ah->caps.hw_caps & ATH9K_HW_CAP_2GHZ)
-			setup_ht_cap(sc, &sc->sbands[IEEE80211_BAND_2GHZ].ht_cap);
-		if (sc->sc_ah->caps.hw_caps & ATH9K_HW_CAP_5GHZ)
-			setup_ht_cap(sc, &sc->sbands[IEEE80211_BAND_5GHZ].ht_cap);
-	}
+	ath9k_reload_chainmask_settings(sc);
 
 	SET_IEEE80211_PERM_ADDR(hw, common->macaddr);
 }
 
-int ath9k_init_device(u16 devid, struct ath_softc *sc, u16 subsysid,
+int ath9k_init_device(u16 devid, struct ath_softc *sc,
 		    const struct ath_bus_ops *bus_ops)
 {
 	struct ieee80211_hw *hw = sc->hw;
@@ -753,7 +740,7 @@ int ath9k_init_device(u16 devid, struct ath_softc *sc, u16 subsysid,
 	struct ath_regulatory *reg;
 
 	/* Bring up device */
-	error = ath9k_init_softc(devid, sc, subsysid, bus_ops);
+	error = ath9k_init_softc(devid, sc, bus_ops);
 	if (error != 0)
 		goto error_init;
 
@@ -806,6 +793,7 @@ int ath9k_init_device(u16 devid, struct ath_softc *sc, u16 subsysid,
 			goto error_world;
 	}
 
+	INIT_WORK(&sc->hw_reset_work, ath_reset_work);
 	INIT_WORK(&sc->hw_check_work, ath_hw_check);
 	INIT_WORK(&sc->paprd_work, ath_paprd_calibrate);
 	INIT_DELAYED_WORK(&sc->hw_pll_work, ath_hw_pll_work);

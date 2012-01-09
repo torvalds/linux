@@ -9,6 +9,7 @@
 
 #include <linux/netdevice.h>
 #include <linux/firmware.h>
+#include <linux/nl80211.h>
 
 /* Should be terminated by a NULL entry */
 struct lbs_fw_table {
@@ -43,10 +44,15 @@ int lbs_start_card(struct lbs_private *priv);
 void lbs_stop_card(struct lbs_private *priv);
 void lbs_host_to_card_done(struct lbs_private *priv);
 
+int lbs_start_iface(struct lbs_private *priv);
+int lbs_stop_iface(struct lbs_private *priv);
+int lbs_set_iface_type(struct lbs_private *priv, enum nl80211_iftype type);
+
 int lbs_rtap_supported(struct lbs_private *priv);
 
 int lbs_set_mac_address(struct net_device *dev, void *addr);
 void lbs_set_multicast_list(struct net_device *dev);
+void lbs_update_mcast(struct lbs_private *priv);
 
 int lbs_suspend(struct lbs_private *priv);
 int lbs_resume(struct lbs_private *priv);

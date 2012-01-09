@@ -16,7 +16,7 @@
 
 #define IIO_MAX_NAME_LENGTH 30
 
-#define FORMAT_SCAN_ELEMENTS_DIR "%s:buffer0/scan_elements"
+#define FORMAT_SCAN_ELEMENTS_DIR "%s/scan_elements"
 #define FORMAT_TYPE_FILE "%s_type"
 
 const char *iio_dir = "/sys/bus/iio/devices/";

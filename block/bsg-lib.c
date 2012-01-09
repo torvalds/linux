@@ -25,7 +25,7 @@
 #include <linux/delay.h>
 #include <linux/scatterlist.h>
 #include <linux/bsg-lib.h>
-#include <linux/module.h>
+#include <linux/export.h>
 #include <scsi/scsi_cmnd.h>
 
 /**

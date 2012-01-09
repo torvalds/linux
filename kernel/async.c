@@ -51,7 +51,7 @@ asynchronous and synchronous parts of the kernel.
 #include <linux/async.h>
 #include <linux/atomic.h>
 #include <linux/ktime.h>
-#include <linux/module.h>
+#include <linux/export.h>
 #include <linux/wait.h>
 #include <linux/sched.h>
 #include <linux/slab.h>
@@ -120,7 +120,7 @@ static void async_run_entry_fn(struct work_struct *work)
 	struct async_entry *entry =
 		container_of(work, struct async_entry, work);
 	unsigned long flags;
-	ktime_t calltime, delta, rettime;
+	ktime_t uninitialized_var(calltime), delta, rettime;
 
 	/* 1) move self to the running queue */
 	spin_lock_irqsave(&async_lock, flags);
@@ -269,7 +269,7 @@ EXPORT_SYMBOL_GPL(async_synchronize_full_domain);
 void async_synchronize_cookie_domain(async_cookie_t cookie,
 				     struct list_head *running)
 {
-	ktime_t starttime, delta, endtime;
+	ktime_t uninitialized_var(starttime), delta, endtime;
 
 	if (initcall_debug && system_state == SYSTEM_BOOTING) {
 		printk(KERN_DEBUG "async_waiting @ %i\n", task_pid_nr(current));

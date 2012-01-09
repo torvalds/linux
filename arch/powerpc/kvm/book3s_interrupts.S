@@ -29,26 +29,10 @@
 #define ULONG_SIZE 		8
 #define FUNC(name) 		GLUE(.,name)
 
-#define GET_SHADOW_VCPU_R13
-
-#define DISABLE_INTERRUPTS	\
-	mfmsr   r0;		\
-	rldicl  r0,r0,48,1;	\
-	rotldi  r0,r0,16;	\
-	mtmsrd  r0,1;		\
-
 #elif defined(CONFIG_PPC_BOOK3S_32)
 
 #define ULONG_SIZE              4
 #define FUNC(name)		name
-
-#define GET_SHADOW_VCPU_R13	\
-	lwz	r13, (THREAD + THREAD_KVM_SVCPU)(r2)
-
-#define DISABLE_INTERRUPTS	\
-	mfmsr   r0;		\
-	rlwinm  r0,r0,0,17,15;	\
-	mtmsr   r0;		\
 
 #endif /* CONFIG_PPC_BOOK3S_XX */
 
@@ -108,44 +92,17 @@ kvm_start_entry:
 
 kvm_start_lightweight:
 
-	GET_SHADOW_VCPU_R13
-	PPC_LL	r3, VCPU_HIGHMEM_HANDLER(r4)
-	PPC_STL	r3, HSTATE_VMHANDLER(r13)
-
-	PPC_LL	r10, VCPU_SHADOW_MSR(r4)	/* r10 = vcpu->arch.shadow_msr */
-
-	DISABLE_INTERRUPTS
-
 #ifdef CONFIG_PPC_BOOK3S_64
-	/* Some guests may need to have dcbz set to 32 byte length.
-	 *
-	 * Usually we ensure that by patching the guest's instructions
-	 * to trap on dcbz and emulate it in the hypervisor.
-	 *
-	 * If we can, we should tell the CPU to use 32 byte dcbz though,
-	 * because that's a lot faster.
-	 */
-
 	PPC_LL	r3, VCPU_HFLAGS(r4)
-	rldicl.	r3, r3, 0, 63		/* CR = ((r3 & 1) == 0) */
-	beq	no_dcbz32_on
-
-	mfspr   r3,SPRN_HID5
-	ori     r3, r3, 0x80		/* XXX HID5_dcbz32 = 0x80 */
-	mtspr   SPRN_HID5,r3
-
-no_dcbz32_on:
-
+	rldicl	r3, r3, 0, 63		/* r3 &= 1 */
+	stb	r3, HSTATE_RESTORE_HID5(r13)
 #endif /* CONFIG_PPC_BOOK3S_64 */
 
-	PPC_LL	r6, VCPU_RMCALL(r4)
-	mtctr	r6
-
-	PPC_LL	r3, VCPU_TRAMPOLINE_ENTER(r4)
-	LOAD_REG_IMMEDIATE(r4, MSR_KERNEL & ~(MSR_IR | MSR_DR))
+	PPC_LL	r4, VCPU_SHADOW_MSR(r4)	/* get shadow_msr */
 
 	/* Jump to segment patching handler and into our guest */
-	bctr
+	bl	FUNC(kvmppc_entry_trampoline)
+	nop
 
 /*
  * This is the handler in module memory. It gets jumped at from the
@@ -170,21 +127,6 @@ kvmppc_handler_highmem:
 	/* R7 = vcpu */
 	PPC_LL	r7, GPR4(r1)
 
-#ifdef CONFIG_PPC_BOOK3S_64
-
-	PPC_LL	r5, VCPU_HFLAGS(r7)
-	rldicl.	r5, r5, 0, 63		/* CR = ((r5 & 1) == 0) */
-	beq	no_dcbz32_off
-
-	li	r4, 0
-	mfspr   r5,SPRN_HID5
-	rldimi  r5,r4,6,56
-	mtspr   SPRN_HID5,r5
-
-no_dcbz32_off:
-
-#endif /* CONFIG_PPC_BOOK3S_64 */
-
 	PPC_STL	r14, VCPU_GPR(r14)(r7)
 	PPC_STL	r15, VCPU_GPR(r15)(r7)
 	PPC_STL	r16, VCPU_GPR(r16)(r7)
@@ -203,67 +145,6 @@ no_dcbz32_off:
 	PPC_STL	r29, VCPU_GPR(r29)(r7)
 	PPC_STL	r30, VCPU_GPR(r30)(r7)
 	PPC_STL	r31, VCPU_GPR(r31)(r7)
-
-	/* Restore host msr -> SRR1 */
-	PPC_LL	r6, VCPU_HOST_MSR(r7)
-
-	/*
-	 * For some interrupts, we need to call the real Linux
-	 * handler, so it can do work for us. This has to happen
-	 * as if the interrupt arrived from the kernel though,
-	 * so let's fake it here where most state is restored.
-	 *
-	 * Call Linux for hardware interrupts/decrementer
-	 * r3 = address of interrupt handler (exit reason)
-	 */
-
-	cmpwi	r12, BOOK3S_INTERRUPT_EXTERNAL
-	beq	call_linux_handler
-	cmpwi	r12, BOOK3S_INTERRUPT_DECREMENTER
-	beq	call_linux_handler
-	cmpwi	r12, BOOK3S_INTERRUPT_PERFMON
-	beq	call_linux_handler
-
-	/* Back to EE=1 */
-	mtmsr	r6
-	sync
-	b	kvm_return_point
-
-call_linux_handler:
-
-	/*
-	 * If we land here we need to jump back to the handler we
-	 * came from.
-	 *
-	 * We have a page that we can access from real mode, so let's
-	 * jump back to that and use it as a trampoline to get back into the
-	 * interrupt handler!
-	 *
-	 * R3 still contains the exit code,
-	 * R5 VCPU_HOST_RETIP and
-	 * R6 VCPU_HOST_MSR
-	 */
-
-	/* Restore host IP -> SRR0 */
-	PPC_LL	r5, VCPU_HOST_RETIP(r7)
-
-	/* XXX Better move to a safe function?
-	 *     What if we get an HTAB flush in between mtsrr0 and mtsrr1? */
-
-	mtlr	r12
-
-	PPC_LL	r4, VCPU_TRAMPOLINE_LOWMEM(r7)
-	mtsrr0	r4
-	LOAD_REG_IMMEDIATE(r3, MSR_KERNEL & ~(MSR_IR | MSR_DR))
-	mtsrr1	r3
-
-	RFI
-
-.global kvm_return_point
-kvm_return_point:
-
-	/* Jump back to lightweight entry if we're supposed to */
-	/* go back into the guest */
 
 	/* Pass the exit number as 3rd argument to kvmppc_handle_exit */
 	mr	r5, r12

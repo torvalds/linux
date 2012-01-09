@@ -7,6 +7,7 @@
  * published by the Free Software Foundation.
 */
 
+#include <linux/module.h>
 #include <sound/soc.h>
 
 #include "s3c24xx_simtec.h"
@@ -54,18 +55,12 @@ static int simtec_tlv320aic23_init(struct snd_soc_pcm_runtime *rtd)
 	struct snd_soc_codec *codec = rtd->codec;
 	struct snd_soc_dapm_context *dapm = &codec->dapm;
 
-	snd_soc_dapm_new_controls(dapm, dapm_widgets,
-				  ARRAY_SIZE(dapm_widgets));
-
-	snd_soc_dapm_add_routes(dapm, base_map, ARRAY_SIZE(base_map));
-
 	snd_soc_dapm_enable_pin(dapm, "Headphone Jack");
 	snd_soc_dapm_enable_pin(dapm, "Line In");
 	snd_soc_dapm_enable_pin(dapm, "Line Out");
 	snd_soc_dapm_enable_pin(dapm, "Mic Jack");
 
 	simtec_audio_init(rtd);
-	snd_soc_dapm_sync(dapm);
 
 	return 0;
 }
@@ -85,6 +80,11 @@ static struct snd_soc_card snd_soc_machine_simtec_aic23 = {
 	.name		= "Simtec",
 	.dai_link	= &simtec_dai_aic23,
 	.num_links	= 1,
+
+	.dapm_widgets	= dapm_widgets,
+	.num_dapm_widgets = ARRAY_SIZE(dapm_widgets),
+	.dapm_routes	= base_map,
+	.num_dapm_routes = ARRAY_SIZE(base_map),
 };
 
 static int __devinit simtec_audio_tlv320aic23_probe(struct platform_device *pd)

@@ -41,7 +41,6 @@
 #endif /* CONFIG_P54_SPI_DEFAULT_EEPROM */
 
 MODULE_FIRMWARE("3826.arm");
-MODULE_ALIAS("stlc45xx");
 
 /*
  * gpios should be handled in board files and provided via platform data,
@@ -738,3 +737,4 @@ MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Christian Lamparter <chunkeey@web.de>");
 MODULE_ALIAS("spi:cx3110x");
 MODULE_ALIAS("spi:p54spi");
+MODULE_ALIAS("spi:stlc45xx");

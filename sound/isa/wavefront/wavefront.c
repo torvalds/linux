@@ -24,7 +24,7 @@
 #include <linux/err.h>
 #include <linux/isa.h>
 #include <linux/pnp.h>
-#include <linux/moduleparam.h>
+#include <linux/module.h>
 #include <sound/core.h>
 #include <sound/initval.h>
 #include <sound/opl3.h>
@@ -418,7 +418,7 @@ snd_wavefront_probe (struct snd_card *card, int dev)
 		return -EBUSY;
 	}
 	if (request_irq(ics2115_irq[dev], snd_wavefront_ics2115_interrupt,
-			IRQF_DISABLED, "ICS2115", acard)) {
+			0, "ICS2115", acard)) {
 		snd_printk(KERN_ERR "unable to use ICS2115 IRQ %d\n", ics2115_irq[dev]);
 		return -EBUSY;
 	}
@@ -449,8 +449,7 @@ snd_wavefront_probe (struct snd_card *card, int dev)
 	if (cs4232_mpu_port[dev] > 0 && cs4232_mpu_port[dev] != SNDRV_AUTO_PORT) {
 		err = snd_mpu401_uart_new(card, midi_dev, MPU401_HW_CS4232,
 					  cs4232_mpu_port[dev], 0,
-					  cs4232_mpu_irq[dev], IRQF_DISABLED,
-					  NULL);
+					  cs4232_mpu_irq[dev], NULL);
 		if (err < 0) {
 			snd_printk (KERN_ERR "can't allocate CS4232 MPU-401 device\n");
 			return err;

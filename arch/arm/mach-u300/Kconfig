@@ -6,6 +6,9 @@ comment "ST-Ericsson Mobile Platform Products"
 
 config MACH_U300
 	bool "U300"
+	select PINCTRL
+	select PINMUX_U300
+	select GPIO_U300
 
 comment "ST-Ericsson U300/U330/U335/U365 Feature Selections"
 
@@ -48,38 +51,11 @@ config MACH_U300_BS365
 
 endchoice
 
-choice
-	prompt "Memory configuration"
-	default MACH_U300_SINGLE_RAM
-	---help---
-	You have to config the kernel according to the physical memory
-	configuration.
-
-config MACH_U300_SINGLE_RAM
-	bool "Single RAM"
-	help
-		Select this if you want support for Single RAM phones.
-
-config MACH_U300_DUAL_RAM
-	bool "Dual RAM"
-	help
-		Select this if you want support for Dual RAM phones.
-		This is two RAM memories on different EMIFs.
-endchoice
-
 config U300_DEBUG
 	bool "Debug support for U300"
 	depends on PM
 	help
 		Debug support for U300 in sysfs, procfs etc.
-
-config MACH_U300_SEMI_IS_SHARED
-	bool "The SEMI is used by both the access and application side"
-	depends on MACH_U300
-	help
-		This makes it possible to use the SEMI (Shared External
-		Memory Interface) from both from access and application
-		side.
 
 config MACH_U300_SPIDUMMY
 	bool "SSP/SPI dummy chip"
@@ -92,25 +68,6 @@ config MACH_U300_SPIDUMMY
 		to test reference designs. If you're not testing SPI,
 		you don't need it. Selecting this will activate the
 		SPI framework and ARM PL022 support.
-
-comment "All the settings below must match the bootloader's settings"
-
-config MACH_U300_ACCESS_MEM_SIZE
-       int "Access CPU memory allocation"
-       range 7 25
-       depends on MACH_U300_SINGLE_RAM
-       default 13
-       help
-		How much memory in MiB that the Access side CPU has allocated
-
-config MACH_U300_2MB_ALIGNMENT_FIX
-       bool "2MiB alignment fix"
-       depends on MACH_U300_SINGLE_RAM
-       default y
-       help
-		If yes and the Access side CPU has allocated an odd size in
-		MiB, this fix gives you one MiB extra that would otherwise be
-		lost due to Linux 2 MiB alignment policy.
 
 endmenu
 

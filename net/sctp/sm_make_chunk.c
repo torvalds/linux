@@ -3015,6 +3015,7 @@ static __be16 sctp_process_asconf_param(struct sctp_association *asoc,
 		/* Start the heartbeat timer. */
 		if (!mod_timer(&peer->hb_timer, sctp_transport_timeout(peer)))
 			sctp_transport_hold(peer);
+		asoc->new_transport = peer;
 		break;
 	case SCTP_PARAM_DEL_IP:
 		/* ADDIP 4.3 D7) If a request is received to delete the

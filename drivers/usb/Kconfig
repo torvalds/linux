@@ -12,6 +12,11 @@ menuconfig USB_SUPPORT
 
 if USB_SUPPORT
 
+config USB_COMMON
+	tristate
+	default y
+	depends on USB || USB_GADGET
+
 # Host-side USB depends on having a host controller
 # NOTE:  dummy_hcd is always an option, but it's ignored here ...
 # NOTE:  SL-811 option should be board-specific ...
@@ -19,6 +24,7 @@ config USB_ARCH_HAS_HCD
 	boolean
 	default y if USB_ARCH_HAS_OHCI
 	default y if USB_ARCH_HAS_EHCI
+	default y if USB_ARCH_HAS_XHCI
 	default y if PCMCIA && !M32R			# sl811_cs
 	default y if ARM				# SL-811
 	default y if BLACKFIN				# SL-811
@@ -54,9 +60,8 @@ config USB_ARCH_HAS_OHCI
 # some non-PCI hcds implement EHCI
 config USB_ARCH_HAS_EHCI
 	boolean
-	default y if PPC_83xx
+	default y if FSL_SOC
 	default y if PPC_MPC512x
-	default y if SOC_AU1200
 	default y if ARCH_IXP4XX
 	default y if ARCH_W90X900
 	default y if ARCH_AT91SAM9G45
@@ -69,6 +74,12 @@ config USB_ARCH_HAS_EHCI
 	default y if ARCH_MSM
 	default y if MICROBLAZE
 	default y if SPARC_LEON
+	default y if ARCH_MMP
+	default PCI
+
+# some non-PCI HCDs implement xHCI
+config USB_ARCH_HAS_XHCI
+	boolean
 	default PCI
 
 # ARM SA1111 chips have a non-PCI based "OHCI-compatible" USB host interface.
@@ -109,6 +120,8 @@ config USB
 	  module will be called usbcore.
 
 source "drivers/usb/core/Kconfig"
+
+source "drivers/usb/dwc3/Kconfig"
 
 source "drivers/usb/mon/Kconfig"
 

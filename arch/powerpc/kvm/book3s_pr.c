@@ -20,6 +20,7 @@
  */
 
 #include <linux/kvm_host.h>
+#include <linux/export.h>
 #include <linux/err.h>
 #include <linux/slab.h>
 
@@ -152,13 +153,17 @@ void kvmppc_set_pvr(struct kvm_vcpu *vcpu, u32 pvr)
 		kvmppc_mmu_book3s_64_init(vcpu);
 		to_book3s(vcpu)->hior = 0xfff00000;
 		to_book3s(vcpu)->msr_mask = 0xffffffffffffffffULL;
+		vcpu->arch.cpu_type = KVM_CPU_3S_64;
 	} else
 #endif
 	{
 		kvmppc_mmu_book3s_32_init(vcpu);
 		to_book3s(vcpu)->hior = 0;
 		to_book3s(vcpu)->msr_mask = 0xffffffffULL;
+		vcpu->arch.cpu_type = KVM_CPU_3S_32;
 	}
+
+	kvmppc_sanity_check(vcpu);
 
 	/* If we are in hypervisor level on 970, we can tell the CPU to
 	 * treat DCBZ as 32 bytes store */
@@ -646,7 +651,27 @@ program_interrupt:
 		break;
 	}
 	case BOOK3S_INTERRUPT_SYSCALL:
-		if (vcpu->arch.osi_enabled &&
+		if (vcpu->arch.papr_enabled &&
+		    (kvmppc_get_last_inst(vcpu) == 0x44000022) &&
+		    !(vcpu->arch.shared->msr & MSR_PR)) {
+			/* SC 1 papr hypercalls */
+			ulong cmd = kvmppc_get_gpr(vcpu, 3);
+			int i;
+
+			if (kvmppc_h_pr(vcpu, cmd) == EMULATE_DONE) {
+				r = RESUME_GUEST;
+				break;
+			}
+
+			run->papr_hcall.nr = cmd;
+			for (i = 0; i < 9; ++i) {
+				ulong gpr = kvmppc_get_gpr(vcpu, 4 + i);
+				run->papr_hcall.args[i] = gpr;
+			}
+			run->exit_reason = KVM_EXIT_PAPR_HCALL;
+			vcpu->arch.hcall_needed = 1;
+			r = RESUME_HOST;
+		} else if (vcpu->arch.osi_enabled &&
 		    (((u32)kvmppc_get_gpr(vcpu, 3)) == OSI_SC_MAGIC_R3) &&
 		    (((u32)kvmppc_get_gpr(vcpu, 4)) == OSI_SC_MAGIC_R4)) {
 			/* MOL hypercalls */
@@ -841,8 +866,6 @@ struct kvm_vcpu *kvmppc_core_vcpu_create(struct kvm *kvm, unsigned int id)
 	if (!p)
 		goto uninit_vcpu;
 
-	vcpu->arch.host_retip = kvm_return_point;
-	vcpu->arch.host_msr = mfmsr();
 #ifdef CONFIG_PPC_BOOK3S_64
 	/* default to book3s_64 (970fx) */
 	vcpu->arch.pvr = 0x3C0301;
@@ -852,16 +875,6 @@ struct kvm_vcpu *kvmppc_core_vcpu_create(struct kvm *kvm, unsigned int id)
 #endif
 	kvmppc_set_pvr(vcpu, vcpu->arch.pvr);
 	vcpu->arch.slb_nr = 64;
-
-	/* remember where some real-mode handlers are */
-	vcpu->arch.trampoline_lowmem = __pa(kvmppc_handler_lowmem_trampoline);
-	vcpu->arch.trampoline_enter = __pa(kvmppc_handler_trampoline_enter);
-	vcpu->arch.highmem_handler = (ulong)kvmppc_handler_highmem;
-#ifdef CONFIG_PPC_BOOK3S_64
-	vcpu->arch.rmcall = *(ulong*)kvmppc_rmcall;
-#else
-	vcpu->arch.rmcall = (ulong)kvmppc_rmcall;
-#endif
 
 	vcpu->arch.shadow_msr = MSR_USER64;
 
@@ -907,6 +920,12 @@ int kvmppc_vcpu_run(struct kvm_run *kvm_run, struct kvm_vcpu *vcpu)
 	int used_vsr;
 #endif
 	ulong ext_msr;
+
+	/* Check if we can run the vcpu at all */
+	if (!vcpu->arch.sane) {
+		kvm_run->exit_reason = KVM_EXIT_INTERNAL_ERROR;
+		return -EINVAL;
+	}
 
 	/* No need to go into the guest when all we do is going out */
 	if (signal_pending(current)) {

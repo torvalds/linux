@@ -196,7 +196,7 @@ static int pca_xfer(struct i2c_adapter *i2c_adap,
 		} else {
 			dev_dbg(&i2c_adap->dev, "bus is not idle. status is "
 				"%#04x\n", state);
-			return -EAGAIN;
+			return -EBUSY;
 		}
 	}
 
@@ -224,7 +224,7 @@ static int pca_xfer(struct i2c_adapter *i2c_adap,
 	}
 
 	curmsg = 0;
-	ret = -EREMOTEIO;
+	ret = -EIO;
 	while (curmsg < num) {
 		state = pca_status(adap);
 
@@ -259,6 +259,7 @@ static int pca_xfer(struct i2c_adapter *i2c_adap,
 		case 0x20: /* SLA+W has been transmitted; NOT ACK has been received */
 			DEB2("NOT ACK received after SLA+W\n");
 			pca_stop(adap);
+			ret = -ENXIO;
 			goto out;
 
 		case 0x40: /* SLA+R has been transmitted; ACK has been received */
@@ -283,6 +284,7 @@ static int pca_xfer(struct i2c_adapter *i2c_adap,
 		case 0x48: /* SLA+R has been transmitted; NOT ACK has been received */
 			DEB2("NOT ACK received after SLA+R\n");
 			pca_stop(adap);
+			ret = -ENXIO;
 			goto out;
 
 		case 0x30: /* Data byte in I2CDAT has been transmitted; NOT ACK has been received */

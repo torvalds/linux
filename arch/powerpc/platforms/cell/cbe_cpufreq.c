@@ -21,6 +21,7 @@
  */
 
 #include <linux/cpufreq.h>
+#include <linux/module.h>
 #include <linux/of_platform.h>
 
 #include <asm/machdep.h>

@@ -53,12 +53,13 @@ int nf_log_bind_pf(u_int8_t pf, const struct nf_logger *logger);
 void nf_log_unbind_pf(u_int8_t pf);
 
 /* Calls the registered backend logging function */
+__printf(7, 8)
 void nf_log_packet(u_int8_t pf,
 		   unsigned int hooknum,
 		   const struct sk_buff *skb,
 		   const struct net_device *in,
 		   const struct net_device *out,
 		   const struct nf_loginfo *li,
-		   const char *fmt, ...) __attribute__ ((format(printf,7,8)));
+		   const char *fmt, ...);
 
 #endif /* _NF_LOG_H */

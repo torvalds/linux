@@ -117,7 +117,7 @@ int __cpuinit boot_secondary(unsigned int cpu, struct task_struct *idle)
 	 * Note that "pen_release" is the hardware CPU ID, whereas
 	 * "cpu" is Linux's internal ID.
 	 */
-	pen_release = cpu;
+	pen_release = cpu_logical_map(cpu);
 	__cpuc_flush_dcache_area((void *)&pen_release, sizeof(pen_release));
 	outer_clean_range(__pa(&pen_release), __pa(&pen_release + 1));
 
@@ -155,6 +155,12 @@ int __cpuinit boot_secondary(unsigned int cpu, struct task_struct *idle)
 void __init smp_init_cpus(void)
 {
 	unsigned int i, ncores = get_core_count();
+
+	if (ncores > nr_cpu_ids) {
+		pr_warn("SMP: %u cores greater than maximum (%u), clipping\n",
+			ncores, nr_cpu_ids);
+		ncores = nr_cpu_ids;
+	}
 
 	for (i = 0; i < ncores; i++)
 		set_cpu_possible(i, true);

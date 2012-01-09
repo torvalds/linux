@@ -169,9 +169,7 @@ config 64BIT
 
 choice
 	prompt "Kernel page size"
-	default PARISC_PAGE_SIZE_4KB  if !64BIT
-	default PARISC_PAGE_SIZE_4KB  if 64BIT
-#	default PARISC_PAGE_SIZE_16KB if 64BIT
+	default PARISC_PAGE_SIZE_4KB
 
 config PARISC_PAGE_SIZE_4KB
 	bool "4KB"

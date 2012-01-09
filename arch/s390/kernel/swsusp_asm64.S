@@ -136,11 +136,14 @@ ENTRY(swsusp_arch_resume)
 0:
 	lg	%r2,8(%r1)
 	lg	%r4,0(%r1)
+	iske	%r0,%r4
 	lghi	%r3,PAGE_SIZE
 	lghi	%r5,PAGE_SIZE
 1:
 	mvcle	%r2,%r4,0
 	jo	1b
+	lg	%r2,8(%r1)
+	sske	%r0,%r2
 	lg	%r1,16(%r1)
 	ltgr	%r1,%r1
 	jnz	0b

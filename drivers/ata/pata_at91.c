@@ -30,7 +30,7 @@
 
 #include <mach/at91sam9_smc.h>
 #include <mach/board.h>
-#include <mach/gpio.h>
+#include <asm/gpio.h>
 
 #define DRV_NAME		"pata_at91"
 #define DRV_VERSION		"0.3"
@@ -414,9 +414,12 @@ static int __devinit pata_at91_probe(struct platform_device *pdev)
 
 	host->private_data = info;
 
-	return ata_host_activate(host, irq ? gpio_to_irq(irq) : 0,
+	ret = ata_host_activate(host, irq ? gpio_to_irq(irq) : 0,
 			irq ? ata_sff_interrupt : NULL,
 			irq_flags, &pata_at91_sht);
+
+	if (!ret)
+		return 0;
 
 err_put:
 	clk_put(info->mck);

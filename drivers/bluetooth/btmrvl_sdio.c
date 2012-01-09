@@ -23,6 +23,7 @@
 
 #include <linux/mmc/sdio_ids.h>
 #include <linux/mmc/sdio_func.h>
+#include <linux/module.h>
 
 #include <net/bluetooth/bluetooth.h>
 #include <net/bluetooth/hci_core.h>
@@ -81,7 +82,7 @@ static const struct btmrvl_sdio_card_reg btmrvl_reg_8787 = {
 	.io_port_2 = 0x7a,
 };
 
-static const struct btmrvl_sdio_device btmrvl_sdio_sd6888 = {
+static const struct btmrvl_sdio_device btmrvl_sdio_sd8688 = {
 	.helper		= "sd8688_helper.bin",
 	.firmware	= "sd8688.bin",
 	.reg		= &btmrvl_reg_8688,
@@ -98,7 +99,7 @@ static const struct btmrvl_sdio_device btmrvl_sdio_sd8787 = {
 static const struct sdio_device_id btmrvl_sdio_ids[] = {
 	/* Marvell SD8688 Bluetooth device */
 	{ SDIO_DEVICE(SDIO_VENDOR_ID_MARVELL, 0x9105),
-			.driver_data = (unsigned long) &btmrvl_sdio_sd6888 },
+			.driver_data = (unsigned long) &btmrvl_sdio_sd8688 },
 	/* Marvell SD8787 Bluetooth device */
 	{ SDIO_DEVICE(SDIO_VENDOR_ID_MARVELL, 0x911A),
 			.driver_data = (unsigned long) &btmrvl_sdio_sd8787 },

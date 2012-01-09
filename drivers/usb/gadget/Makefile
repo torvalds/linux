@@ -28,7 +28,7 @@ obj-$(CONFIG_USB_S3C_HSUDC)	+= s3c-hsudc.o
 obj-$(CONFIG_USB_LANGWELL)	+= langwell_udc.o
 obj-$(CONFIG_USB_EG20T)		+= pch_udc.o
 obj-$(CONFIG_USB_PXA_U2O)	+= mv_udc.o
-mv_udc-y			:= mv_udc_core.o mv_udc_phy.o
+mv_udc-y			:= mv_udc_core.o
 obj-$(CONFIG_USB_CI13XXX_MSM)	+= ci13xxx_msm.o
 obj-$(CONFIG_USB_FUSB300)	+= fusb300_udc.o
 
@@ -51,6 +51,7 @@ g_dbgp-y			:= dbgp.o
 g_nokia-y			:= nokia.o
 g_webcam-y			:= webcam.o
 g_ncm-y				:= ncm.o
+g_acm_ms-y			:= acm_ms.o
 
 obj-$(CONFIG_USB_ZERO)		+= g_zero.o
 obj-$(CONFIG_USB_AUDIO)		+= g_audio.o
@@ -69,3 +70,4 @@ obj-$(CONFIG_USB_G_MULTI)	+= g_multi.o
 obj-$(CONFIG_USB_G_NOKIA)	+= g_nokia.o
 obj-$(CONFIG_USB_G_WEBCAM)	+= g_webcam.o
 obj-$(CONFIG_USB_G_NCM)		+= g_ncm.o
+obj-$(CONFIG_USB_G_ACM_MS)	+= g_acm_ms.o

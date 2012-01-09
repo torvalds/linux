@@ -20,7 +20,7 @@ ip_no_pmtu_disc - BOOLEAN
 	default FALSE
 
 min_pmtu - INTEGER
-	default 562 - minimum discovered Path MTU
+	default 552 - minimum discovered Path MTU
 
 route/max_size - INTEGER
 	Maximum number of routes allowed in the kernel.  Increase
@@ -1042,8 +1042,13 @@ conf/interface/*:
 	The functional behaviour for certain settings is different
 	depending on whether local forwarding is enabled or not.
 
-accept_ra - BOOLEAN
+accept_ra - INTEGER
 	Accept Router Advertisements; autoconfigure using them.
+
+	It also determines whether or not to transmit Router
+	Solicitations. If and only if the functional setting is to
+	accept Router Advertisements, Router Solicitations will be
+	transmitted.
 
 	Possible values are:
 		0 Do not accept Router Advertisements.
@@ -1106,7 +1111,7 @@ dad_transmits - INTEGER
 	The amount of Duplicate Address Detection probes to send.
 	Default: 1
 
-forwarding - BOOLEAN
+forwarding - INTEGER
 	Configure interface-specific Host/Router behaviour.
 
 	Note: It is recommended to have the same setting on all
@@ -1115,14 +1120,14 @@ forwarding - BOOLEAN
 	Possible values are:
 		0 Forwarding disabled
 		1 Forwarding enabled
-		2 Forwarding enabled (Hybrid Mode)
 
 	FALSE (0):
 
 	By default, Host behaviour is assumed.  This means:
 
 	1. IsRouter flag is not set in Neighbour Advertisements.
-	2. Router Solicitations are being sent when necessary.
+	2. If accept_ra is TRUE (default), transmit Router
+	   Solicitations.
 	3. If accept_ra is TRUE (default), accept Router
 	   Advertisements (and do autoconfiguration).
 	4. If accept_redirects is TRUE (default), accept Redirects.
@@ -1133,15 +1138,9 @@ forwarding - BOOLEAN
 	This means exactly the reverse from the above:
 
 	1. IsRouter flag is set in Neighbour Advertisements.
-	2. Router Solicitations are not sent.
+	2. Router Solicitations are not sent unless accept_ra is 2.
 	3. Router Advertisements are ignored unless accept_ra is 2.
 	4. Redirects are ignored.
-
-	TRUE (2):
-
-	Hybrid mode. Same behaviour as TRUE, except for:
-
-	2. Router Solicitations are being sent when necessary.
 
 	Default: 0 (disabled) if global forwarding is disabled (default),
 		 otherwise 1 (enabled).

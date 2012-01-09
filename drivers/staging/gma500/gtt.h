@@ -49,6 +49,7 @@ struct gtt_range {
 	bool mmapping;			/* Is mmappable */
 	struct page **pages;		/* Backing pages if present */
 	int npage;			/* Number of backing pages */
+	int roll;			/* Roll applied to the GTT entries */
 };
 
 extern struct gtt_range *psb_gtt_alloc_range(struct drm_device *dev, int len,
@@ -57,5 +58,7 @@ extern void psb_gtt_kref_put(struct gtt_range *gt);
 extern void psb_gtt_free_range(struct drm_device *dev, struct gtt_range *gt);
 extern int psb_gtt_pin(struct gtt_range *gt);
 extern void psb_gtt_unpin(struct gtt_range *gt);
+extern void psb_gtt_roll(struct drm_device *dev,
+					struct gtt_range *gt, int roll);
 
 #endif

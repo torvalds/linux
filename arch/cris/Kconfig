@@ -282,8 +282,8 @@ config ETRAX_RTC
 	  Enables drivers for the Real-Time Clock battery-backed chips on
 	  some products. The kernel reads the time when booting, and
 	  the date can be set using ioctl(fd, RTC_SET_TIME, &rt) with rt a
-	  rtc_time struct (see <file:include/asm-cris/rtc.h>) on the /dev/rtc
-	  device.  You can check the time with cat /proc/rtc, but
+	  rtc_time struct (see <file:arch/cris/include/asm/rtc.h>) on the
+	  /dev/rtc device.  You can check the time with cat /proc/rtc, but
 	  normal time reading should be done using libc function time and
 	  friends.
 

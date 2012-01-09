@@ -142,8 +142,7 @@ static struct platform_device *devices[] __initdata = {
 
 /* We have to state that there are HWMON devices on the I2C bus on XCEP.
  * Drivers for HWMON verify capabilities of the adapter when loading and
- * refuse to attach if the adapter doesn't support HWMON class of devices.
- * See also Documentation/i2c/porting-clients. */
+ * refuse to attach if the adapter doesn't support HWMON class of devices. */
 static struct i2c_pxa_platform_data xcep_i2c_platform_data  = {
 	.class = I2C_CLASS_HWMON
 };
@@ -180,7 +179,7 @@ static void __init xcep_init(void)
 }
 
 MACHINE_START(XCEP, "Iskratel XCEP")
-	.boot_params	= 0xa0000100,
+	.atag_offset	= 0x100,
 	.init_machine	= xcep_init,
 	.map_io		= pxa25x_map_io,
 	.init_irq	= pxa25x_init_irq,

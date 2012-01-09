@@ -32,7 +32,8 @@ static void __udelay_disabled(unsigned long long usecs)
 	u64 clock_saved;
 	u64 end;
 
-	mask = psw_kernel_bits | PSW_MASK_WAIT | PSW_MASK_EXT;
+	mask = psw_kernel_bits | PSW_MASK_DAT | PSW_MASK_WAIT |
+		PSW_MASK_EXT | PSW_MASK_MCHECK;
 	end = get_clock() + (usecs << 12);
 	clock_saved = local_tick_disable();
 	__ctl_store(cr0_saved, 0, 0);

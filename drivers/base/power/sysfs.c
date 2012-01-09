@@ -4,6 +4,7 @@
 
 #include <linux/device.h>
 #include <linux/string.h>
+#include <linux/export.h>
 #include <linux/pm_runtime.h>
 #include <linux/atomic.h>
 #include <linux/jiffies.h>

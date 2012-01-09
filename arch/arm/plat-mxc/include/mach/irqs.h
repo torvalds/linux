@@ -14,9 +14,15 @@
 #include <asm-generic/gpio.h>
 
 /*
- * SoCs with TZIC interrupt controller have 128 IRQs, those with AVIC have 64
+ * SoCs with GIC interrupt controller have 160 IRQs, those with TZIC
+ * have 128 IRQs, and those with AVIC have 64.
+ *
+ * To support single image, the biggest number should be defined on
+ * top of the list.
  */
-#ifdef CONFIG_MXC_TZIC
+#if defined CONFIG_ARM_GIC
+#define MXC_INTERNAL_IRQS	160
+#elif defined CONFIG_MXC_TZIC
 #define MXC_INTERNAL_IRQS	128
 #else
 #define MXC_INTERNAL_IRQS	64

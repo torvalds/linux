@@ -19,6 +19,26 @@
 
 #include <asm-generic/sections.h>
 
+#if defined(KBUILD_MCOUNT_RA_ADDRESS) && defined(CONFIG_32BIT)
+#define MCOUNT_OFFSET_INSNS 5
+#else
+#define MCOUNT_OFFSET_INSNS 4
+#endif
+
+/*
+ * Check if the address is in kernel space
+ *
+ * Clone core_kernel_text() from kernel/extable.c, but doesn't call
+ * init_kernel_text() for Ftrace doesn't trace functions in init sections.
+ */
+static inline int in_kernel_space(unsigned long ip)
+{
+	if (ip >= (unsigned long)_stext &&
+	    ip <= (unsigned long)_etext)
+		return 1;
+	return 0;
+}
+
 #ifdef CONFIG_DYNAMIC_FTRACE
 
 #define JAL 0x0c000000		/* jump & link: ip --> ra, jump to target */
@@ -52,20 +72,6 @@ static inline void ftrace_dyn_arch_init_insns(void)
 	buf = (u32 *)&insn_j_ftrace_graph_caller;
 	uasm_i_j(&buf, (unsigned long)ftrace_graph_caller & JUMP_RANGE_MASK);
 #endif
-}
-
-/*
- * Check if the address is in kernel space
- *
- * Clone core_kernel_text() from kernel/extable.c, but doesn't call
- * init_kernel_text() for Ftrace doesn't trace functions in init sections.
- */
-static inline int in_kernel_space(unsigned long ip)
-{
-	if (ip >= (unsigned long)_stext &&
-	    ip <= (unsigned long)_etext)
-		return 1;
-	return 0;
 }
 
 static int ftrace_modify_code(unsigned long ip, unsigned int new_code)
@@ -112,11 +118,6 @@ static int ftrace_modify_code(unsigned long ip, unsigned int new_code)
  *                                  1: offset = 4 instructions
  */
 
-#if defined(KBUILD_MCOUNT_RA_ADDRESS) && defined(CONFIG_32BIT)
-#define MCOUNT_OFFSET_INSNS 5
-#else
-#define MCOUNT_OFFSET_INSNS 4
-#endif
 #define INSN_B_1F (0x10000000 | MCOUNT_OFFSET_INSNS)
 
 int ftrace_make_nop(struct module *mod,

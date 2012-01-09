@@ -151,7 +151,7 @@ MODULE_LICENSE("GPL");
 struct vmballoon_stats {
 	unsigned int timer;
 
-	/* allocation statustics */
+	/* allocation statistics */
 	unsigned int alloc;
 	unsigned int alloc_fail;
 	unsigned int sleep_alloc;
@@ -412,6 +412,7 @@ static int vmballoon_reserve_page(struct vmballoon *b, bool can_sleep)
 	gfp_t flags;
 	unsigned int hv_status;
 	bool locked = false;
+	flags = can_sleep ? VMW_PAGE_ALLOC_CANSLEEP : VMW_PAGE_ALLOC_NOSLEEP;
 
 	do {
 		if (!can_sleep)
@@ -419,7 +420,6 @@ static int vmballoon_reserve_page(struct vmballoon *b, bool can_sleep)
 		else
 			STATS_INC(b->stats.sleep_alloc);
 
-		flags = can_sleep ? VMW_PAGE_ALLOC_CANSLEEP : VMW_PAGE_ALLOC_NOSLEEP;
 		page = alloc_page(flags);
 		if (!page) {
 			if (!can_sleep)

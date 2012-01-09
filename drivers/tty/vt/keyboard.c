@@ -33,7 +33,6 @@
 #include <linux/string.h>
 #include <linux/init.h>
 #include <linux/slab.h>
-#include <linux/irq.h>
 
 #include <linux/kbd_kern.h>
 #include <linux/kbd_diacr.h>
@@ -42,6 +41,8 @@
 #include <linux/reboot.h>
 #include <linux/notifier.h>
 #include <linux/jiffies.h>
+
+#include <asm/irq_regs.h>
 
 extern void ctrl_alt_del(void);
 

@@ -41,6 +41,7 @@
 #include <linux/io.h>
 #include <linux/fs.h>
 #include <linux/delay.h>
+#include <linux/module.h>
 
 #include <sound/core.h>
 #include <sound/initval.h>

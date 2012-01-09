@@ -786,9 +786,11 @@ static int __devinit spi_imx_probe(struct platform_device *pdev)
 		int cs_gpio = of_get_named_gpio(np, "cs-gpios", i);
 		if (cs_gpio < 0)
 			cs_gpio = mxc_platform_info->chipselect[i];
+
+		spi_imx->chipselect[i] = cs_gpio;
 		if (cs_gpio < 0)
 			continue;
-		spi_imx->chipselect[i] = cs_gpio;
+
 		ret = gpio_request(spi_imx->chipselect[i], DRIVER_NAME);
 		if (ret) {
 			while (i > 0) {
@@ -927,19 +929,7 @@ static struct platform_driver spi_imx_driver = {
 	.probe = spi_imx_probe,
 	.remove = __devexit_p(spi_imx_remove),
 };
-
-static int __init spi_imx_init(void)
-{
-	return platform_driver_register(&spi_imx_driver);
-}
-
-static void __exit spi_imx_exit(void)
-{
-	platform_driver_unregister(&spi_imx_driver);
-}
-
-module_init(spi_imx_init);
-module_exit(spi_imx_exit);
+module_platform_driver(spi_imx_driver);
 
 MODULE_DESCRIPTION("SPI Master Controller driver");
 MODULE_AUTHOR("Sascha Hauer, Pengutronix");

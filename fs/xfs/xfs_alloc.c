@@ -452,7 +452,7 @@ xfs_alloc_read_agfl(
 	if (error)
 		return error;
 	ASSERT(!xfs_buf_geterror(bp));
-	XFS_BUF_SET_VTYPE_REF(bp, B_FS_AGFL, XFS_AGFL_REF);
+	xfs_buf_set_ref(bp, XFS_AGFL_REF);
 	*bpp = bp;
 	return 0;
 }
@@ -2139,7 +2139,7 @@ xfs_read_agf(
 		xfs_trans_brelse(tp, *bpp);
 		return XFS_ERROR(EFSCORRUPTED);
 	}
-	XFS_BUF_SET_VTYPE_REF(*bpp, B_FS_AGF, XFS_AGF_REF);
+	xfs_buf_set_ref(*bpp, XFS_AGF_REF);
 	return 0;
 }
 

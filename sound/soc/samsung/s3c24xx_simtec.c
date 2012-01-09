@@ -9,6 +9,7 @@
 
 #include <linux/gpio.h>
 #include <linux/clk.h>
+#include <linux/module.h>
 
 #include <sound/soc.h>
 
@@ -300,7 +301,7 @@ static void detach_gpio_amp(struct s3c24xx_audio_simtec_pdata *pd)
 }
 
 #ifdef CONFIG_PM
-int simtec_audio_resume(struct device *dev)
+static int simtec_audio_resume(struct device *dev)
 {
 	simtec_call_startup(pdata);
 	return 0;

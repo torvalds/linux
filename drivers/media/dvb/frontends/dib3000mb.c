@@ -17,7 +17,7 @@
  *  Amaury Demol (ademol@dibcom.fr) from DiBcom for providing specs and driver
  *  sources, on which this driver (and the dvb-dibusb) are based.
  *
- * see Documentation/dvb/README.dibusb for more information
+ * see Documentation/dvb/README.dvb-usb for more information
  *
  */
 

@@ -22,12 +22,12 @@ try_to_freeze_tasks() that sets TIF_FREEZE for all of the freezable tasks and
 either wakes them up, if they are kernel threads, or sends fake signals to them,
 if they are user space processes.  A task that has TIF_FREEZE set, should react
 to it by calling the function called refrigerator() (defined in
-kernel/power/process.c), which sets the task's PF_FROZEN flag, changes its state
+kernel/freezer.c), which sets the task's PF_FROZEN flag, changes its state
 to TASK_UNINTERRUPTIBLE and makes it loop until PF_FROZEN is cleared for it.
 Then, we say that the task is 'frozen' and therefore the set of functions
 handling this mechanism is referred to as 'the freezer' (these functions are
-defined in kernel/power/process.c and include/linux/freezer.h).  User space
-processes are generally frozen before kernel threads.
+defined in kernel/power/process.c, kernel/freezer.c & include/linux/freezer.h).
+User space processes are generally frozen before kernel threads.
 
 It is not recommended to call refrigerator() directly.  Instead, it is
 recommended to use the try_to_freeze() function (defined in
@@ -95,7 +95,7 @@ after the memory for the image has been freed, we don't want tasks to allocate
 additional memory and we prevent them from doing that by freezing them earlier.
 [Of course, this also means that device drivers should not allocate substantial
 amounts of memory from their .suspend() callbacks before hibernation, but this
-is e separate issue.]
+is a separate issue.]
 
 3. The third reason is to prevent user space processes and some kernel threads
 from interfering with the suspending and resuming of devices.  A user space

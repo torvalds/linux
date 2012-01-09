@@ -826,8 +826,7 @@ void ath9k_htc_ani_work(struct work_struct *work)
 		if (longcal || shortcal)
 			common->ani.caldone =
 				ath9k_hw_calibrate(ah, ah->curchan,
-						   common->rx_chainmask,
-						   longcal);
+						   ah->rxchainmask, longcal);
 
 		ath9k_htc_ps_restore(priv);
 	}
@@ -1300,6 +1299,7 @@ static void ath9k_htc_configure_filter(struct ieee80211_hw *hw,
 	if (priv->op_flags & OP_INVALID) {
 		ath_dbg(ath9k_hw_common(priv->ah), ATH_DBG_ANY,
 			"Unable to configure filter on invalid state\n");
+		mutex_unlock(&priv->mutex);
 		return;
 	}
 	ath9k_htc_ps_wakeup(priv);
@@ -1352,7 +1352,8 @@ static int ath9k_htc_sta_remove(struct ieee80211_hw *hw,
 	return ret;
 }
 
-static int ath9k_htc_conf_tx(struct ieee80211_hw *hw, u16 queue,
+static int ath9k_htc_conf_tx(struct ieee80211_hw *hw,
+			     struct ieee80211_vif *vif, u16 queue,
 			     const struct ieee80211_tx_queue_params *params)
 {
 	struct ath9k_htc_priv *priv = hw->priv;
@@ -1563,7 +1564,8 @@ static void ath9k_htc_bss_info_changed(struct ieee80211_hw *hw,
 	mutex_unlock(&priv->mutex);
 }
 
-static u64 ath9k_htc_get_tsf(struct ieee80211_hw *hw)
+static u64 ath9k_htc_get_tsf(struct ieee80211_hw *hw,
+			     struct ieee80211_vif *vif)
 {
 	struct ath9k_htc_priv *priv = hw->priv;
 	u64 tsf;
@@ -1577,7 +1579,8 @@ static u64 ath9k_htc_get_tsf(struct ieee80211_hw *hw)
 	return tsf;
 }
 
-static void ath9k_htc_set_tsf(struct ieee80211_hw *hw, u64 tsf)
+static void ath9k_htc_set_tsf(struct ieee80211_hw *hw,
+			      struct ieee80211_vif *vif, u64 tsf)
 {
 	struct ath9k_htc_priv *priv = hw->priv;
 
@@ -1588,7 +1591,8 @@ static void ath9k_htc_set_tsf(struct ieee80211_hw *hw, u64 tsf)
 	mutex_unlock(&priv->mutex);
 }
 
-static void ath9k_htc_reset_tsf(struct ieee80211_hw *hw)
+static void ath9k_htc_reset_tsf(struct ieee80211_hw *hw,
+				struct ieee80211_vif *vif)
 {
 	struct ath9k_htc_priv *priv = hw->priv;
 
@@ -1736,6 +1740,22 @@ out:
 	return ret;
 }
 
+
+static int ath9k_htc_get_stats(struct ieee80211_hw *hw,
+			       struct ieee80211_low_level_stats *stats)
+{
+	struct ath9k_htc_priv *priv = hw->priv;
+	struct ath_hw *ah = priv->ah;
+	struct ath9k_mib_stats *mib_stats = &ah->ah_mibStats;
+
+	stats->dot11ACKFailureCount = mib_stats->ackrcv_bad;
+	stats->dot11RTSFailureCount = mib_stats->rts_bad;
+	stats->dot11FCSErrorCount = mib_stats->fcs_bad;
+	stats->dot11RTSSuccessCount = mib_stats->rts_good;
+
+	return 0;
+}
+
 struct ieee80211_ops ath9k_htc_ops = {
 	.tx                 = ath9k_htc_tx,
 	.start              = ath9k_htc_start,
@@ -1759,4 +1779,5 @@ struct ieee80211_ops ath9k_htc_ops = {
 	.rfkill_poll        = ath9k_htc_rfkill_poll_state,
 	.set_coverage_class = ath9k_htc_set_coverage_class,
 	.set_bitrate_mask   = ath9k_htc_set_bitrate_mask,
+	.get_stats	    = ath9k_htc_get_stats,
 };

@@ -106,7 +106,7 @@ put_device:
 static ssize_t manager_default_color_show(struct omap_overlay_manager *mgr,
 					  char *buf)
 {
-	return snprintf(buf, PAGE_SIZE, "%d\n", mgr->info.default_color);
+	return snprintf(buf, PAGE_SIZE, "%#x\n", mgr->info.default_color);
 }
 
 static ssize_t manager_default_color_store(struct omap_overlay_manager *mgr,
@@ -116,8 +116,9 @@ static ssize_t manager_default_color_store(struct omap_overlay_manager *mgr,
 	u32 color;
 	int r;
 
-	if (sscanf(buf, "%d", &color) != 1)
-		return -EINVAL;
+	r = kstrtouint(buf, 0, &color);
+	if (r)
+		return r;
 
 	mgr->get_manager_info(mgr, &info);
 
@@ -184,7 +185,7 @@ static ssize_t manager_trans_key_type_store(struct omap_overlay_manager *mgr,
 static ssize_t manager_trans_key_value_show(struct omap_overlay_manager *mgr,
 					    char *buf)
 {
-	return snprintf(buf, PAGE_SIZE, "%d\n", mgr->info.trans_key);
+	return snprintf(buf, PAGE_SIZE, "%#x\n", mgr->info.trans_key);
 }
 
 static ssize_t manager_trans_key_value_store(struct omap_overlay_manager *mgr,
@@ -194,8 +195,9 @@ static ssize_t manager_trans_key_value_store(struct omap_overlay_manager *mgr,
 	u32 key_value;
 	int r;
 
-	if (sscanf(buf, "%d", &key_value) != 1)
-		return -EINVAL;
+	r = kstrtouint(buf, 0, &key_value);
+	if (r)
+		return r;
 
 	mgr->get_manager_info(mgr, &info);
 
@@ -222,15 +224,16 @@ static ssize_t manager_trans_key_enabled_store(struct omap_overlay_manager *mgr,
 					       const char *buf, size_t size)
 {
 	struct omap_overlay_manager_info info;
-	int enable;
+	bool enable;
 	int r;
 
-	if (sscanf(buf, "%d", &enable) != 1)
-		return -EINVAL;
+	r = strtobool(buf, &enable);
+	if (r)
+		return r;
 
 	mgr->get_manager_info(mgr, &info);
 
-	info.trans_enabled = enable ? true : false;
+	info.trans_enabled = enable;
 
 	r = mgr->set_manager_info(mgr, &info);
 	if (r)
@@ -246,7 +249,10 @@ static ssize_t manager_trans_key_enabled_store(struct omap_overlay_manager *mgr,
 static ssize_t manager_alpha_blending_enabled_show(
 		struct omap_overlay_manager *mgr, char *buf)
 {
-	return snprintf(buf, PAGE_SIZE, "%d\n", mgr->info.alpha_enabled);
+	WARN_ON(!dss_has_feature(FEAT_ALPHA_FIXED_ZORDER));
+
+	return snprintf(buf, PAGE_SIZE, "%d\n",
+		mgr->info.partial_alpha_enabled);
 }
 
 static ssize_t manager_alpha_blending_enabled_store(
@@ -254,15 +260,18 @@ static ssize_t manager_alpha_blending_enabled_store(
 		const char *buf, size_t size)
 {
 	struct omap_overlay_manager_info info;
-	int enable;
+	bool enable;
 	int r;
 
-	if (sscanf(buf, "%d", &enable) != 1)
-		return -EINVAL;
+	WARN_ON(!dss_has_feature(FEAT_ALPHA_FIXED_ZORDER));
+
+	r = strtobool(buf, &enable);
+	if (r)
+		return r;
 
 	mgr->get_manager_info(mgr, &info);
 
-	info.alpha_enabled = enable ? true : false;
+	info.partial_alpha_enabled = enable;
 
 	r = mgr->set_manager_info(mgr, &info);
 	if (r)
@@ -285,18 +294,15 @@ static ssize_t manager_cpr_enable_store(struct omap_overlay_manager *mgr,
 		const char *buf, size_t size)
 {
 	struct omap_overlay_manager_info info;
-	int v;
 	int r;
 	bool enable;
 
 	if (!dss_has_feature(FEAT_CPR))
 		return -ENODEV;
 
-	r = kstrtoint(buf, 0, &v);
+	r = strtobool(buf, &enable);
 	if (r)
 		return r;
-
-	enable = !!v;
 
 	mgr->get_manager_info(mgr, &info);
 
@@ -586,6 +592,13 @@ static int omap_dss_unset_device(struct omap_overlay_manager *mgr)
 		return -EINVAL;
 	}
 
+	/*
+	 * Don't allow currently enabled displays to have the overlay manager
+	 * pulled out from underneath them
+	 */
+	if (mgr->device->state != OMAP_DSS_DISPLAY_DISABLED)
+		return -EINVAL;
+
 	mgr->device->manager = NULL;
 	mgr->device = NULL;
 	mgr->device_changed = true;
@@ -801,7 +814,7 @@ static int configure_overlay(enum omap_plane plane)
 {
 	struct overlay_cache_data *c;
 	struct manager_cache_data *mc;
-	struct omap_overlay_info *oi;
+	struct omap_overlay_info *oi, new_oi;
 	struct omap_overlay_manager_info *mi;
 	u16 outw, outh;
 	u16 x, y, w, h;
@@ -815,7 +828,7 @@ static int configure_overlay(enum omap_plane plane)
 	oi = &c->info;
 
 	if (!c->enabled) {
-		dispc_enable_plane(plane, 0);
+		dispc_ovl_enable(plane, 0);
 		return 0;
 	}
 
@@ -843,7 +856,7 @@ static int configure_overlay(enum omap_plane plane)
 		/* If the overlay is outside the update region, disable it */
 		if (!rectangle_intersects(mc->x, mc->y, mc->w, mc->h,
 					x, y, outw, outh)) {
-			dispc_enable_plane(plane, 0);
+			dispc_ovl_enable(plane, 0);
 			return 0;
 		}
 
@@ -921,34 +934,27 @@ static int configure_overlay(enum omap_plane plane)
 		}
 	}
 
-	r = dispc_setup_plane(plane,
-			paddr,
-			oi->screen_width,
-			x, y,
-			w, h,
-			outw, outh,
-			oi->color_mode,
-			c->ilace,
-			oi->rotation_type,
-			oi->rotation,
-			oi->mirror,
-			oi->global_alpha,
-			oi->pre_mult_alpha,
-			c->channel,
-			oi->p_uv_addr);
+	new_oi = *oi;
 
+	/* update new_oi members which could have been possibly updated */
+	new_oi.pos_x = x;
+	new_oi.pos_y = y;
+	new_oi.width = w;
+	new_oi.height = h;
+	new_oi.out_width = outw;
+	new_oi.out_height = outh;
+	new_oi.paddr = paddr;
+
+	r = dispc_ovl_setup(plane, &new_oi, c->ilace, c->channel,
+		c->replication, c->fifo_low, c->fifo_high);
 	if (r) {
 		/* this shouldn't happen */
-		DSSERR("dispc_setup_plane failed for ovl %d\n", plane);
-		dispc_enable_plane(plane, 0);
+		DSSERR("dispc_ovl_setup failed for ovl %d\n", plane);
+		dispc_ovl_enable(plane, 0);
 		return r;
 	}
 
-	dispc_enable_replication(plane, c->replication);
-
-	dispc_set_fifo_threshold(plane, c->fifo_low, c->fifo_high);
-
-	dispc_enable_plane(plane, 1);
+	dispc_ovl_enable(plane, 1);
 
 	return 0;
 }
@@ -962,13 +968,13 @@ static void configure_manager(enum omap_channel channel)
 	/* picking info from the cache */
 	mi = &dss_cache.manager_cache[channel].info;
 
-	dispc_set_default_color(channel, mi->default_color);
-	dispc_set_trans_key(channel, mi->trans_key_type, mi->trans_key);
-	dispc_enable_trans_key(channel, mi->trans_enabled);
-	dispc_enable_alpha_blending(channel, mi->alpha_enabled);
+	dispc_mgr_set_default_color(channel, mi->default_color);
+	dispc_mgr_set_trans_key(channel, mi->trans_key_type, mi->trans_key);
+	dispc_mgr_enable_trans_key(channel, mi->trans_enabled);
+	dispc_mgr_enable_alpha_fixed_zorder(channel, mi->partial_alpha_enabled);
 	if (dss_has_feature(FEAT_CPR)) {
-		dispc_enable_cpr(channel, mi->cpr_enable);
-		dispc_set_cpr_coef(channel, &mi->cpr_coefs);
+		dispc_mgr_enable_cpr(channel, mi->cpr_enable);
+		dispc_mgr_set_cpr_coef(channel, &mi->cpr_coefs);
 	}
 }
 
@@ -992,7 +998,7 @@ static int configure_dispc(void)
 	busy = false;
 
 	for (i = 0; i < num_mgrs; i++) {
-		mgr_busy[i] = dispc_go_busy(i);
+		mgr_busy[i] = dispc_mgr_go_busy(i);
 		mgr_go[i] = false;
 	}
 
@@ -1053,7 +1059,7 @@ static int configure_dispc(void)
 		 * always be turned off after frame, and new settings will be
 		 * taken in to use at next update */
 		if (!mc->manual_update)
-			dispc_go(i);
+			dispc_mgr_go(i);
 	}
 
 	if (busy)
@@ -1258,7 +1264,7 @@ static void dss_apply_irq_handler(void *data, u32 mask)
 	u32 irq_mask;
 
 	for (i = 0; i < num_mgrs; i++)
-		mgr_busy[i] = dispc_go_busy(i);
+		mgr_busy[i] = dispc_mgr_go_busy(i);
 
 	spin_lock(&dss_cache.lock);
 
@@ -1280,7 +1286,7 @@ static void dss_apply_irq_handler(void *data, u32 mask)
 
 	/* re-read busy flags */
 	for (i = 0; i < num_mgrs; i++)
-		mgr_busy[i] = dispc_go_busy(i);
+		mgr_busy[i] = dispc_mgr_go_busy(i);
 
 	/* keep running as long as there are busy managers, so that
 	 * we can collect overlay-applied information */
@@ -1326,10 +1332,12 @@ static int omap_dss_mgr_apply(struct omap_overlay_manager *mgr)
 
 		ovl = omap_dss_get_overlay(i);
 
-		if (!(ovl->caps & OMAP_DSS_OVL_CAP_DISPC))
-			continue;
-
 		oc = &dss_cache.overlay_cache[ovl->id];
+
+		if (ovl->manager_changed) {
+			ovl->manager_changed = false;
+			ovl->info_dirty  = true;
+		}
 
 		if (!overlay_enabled(ovl)) {
 			if (oc->enabled) {
@@ -1374,9 +1382,6 @@ static int omap_dss_mgr_apply(struct omap_overlay_manager *mgr)
 	/* Configure managers */
 	list_for_each_entry(mgr, &manager_list, list) {
 		struct omap_dss_device *dssdev;
-
-		if (!(mgr->caps & OMAP_DSS_OVL_MGR_CAP_DISPC))
-			continue;
 
 		mc = &dss_cache.manager_cache[mgr->id];
 
@@ -1423,9 +1428,6 @@ static int omap_dss_mgr_apply(struct omap_overlay_manager *mgr)
 
 		ovl = omap_dss_get_overlay(i);
 
-		if (!(ovl->caps & OMAP_DSS_OVL_CAP_DISPC))
-			continue;
-
 		oc = &dss_cache.overlay_cache[ovl->id];
 
 		if (!oc->enabled)
@@ -1433,11 +1435,11 @@ static int omap_dss_mgr_apply(struct omap_overlay_manager *mgr)
 
 		dssdev = ovl->manager->device;
 
-		size = dispc_get_plane_fifo_size(ovl->id);
+		size = dispc_ovl_get_fifo_size(ovl->id);
 		if (use_fifomerge)
 			size *= 3;
 
-		burst_size = dispc_get_burst_size(ovl->id);
+		burst_size = dispc_ovl_get_burst_size(ovl->id);
 
 		switch (dssdev->type) {
 		case OMAP_DISPLAY_TYPE_DPI:
@@ -1484,12 +1486,17 @@ static int omap_dss_mgr_apply(struct omap_overlay_manager *mgr)
 
 static int dss_check_manager(struct omap_overlay_manager *mgr)
 {
-	/* OMAP supports only graphics source transparency color key and alpha
-	 * blending simultaneously. See TRM 15.4.2.4.2.2 Alpha Mode */
-
-	if (mgr->info.alpha_enabled && mgr->info.trans_enabled &&
-			mgr->info.trans_key_type != OMAP_DSS_COLOR_KEY_GFX_DST)
-		return -EINVAL;
+	if (dss_has_feature(FEAT_ALPHA_FIXED_ZORDER)) {
+		/*
+		 * OMAP3 supports only graphics source transparency color key
+		 * and alpha blending simultaneously. See TRM 15.4.2.4.2.2
+		 * Alpha Mode
+		 */
+		if (mgr->info.partial_alpha_enabled && mgr->info.trans_enabled
+			&& mgr->info.trans_key_type !=
+				OMAP_DSS_COLOR_KEY_GFX_DST)
+			return -EINVAL;
+	}
 
 	return 0;
 }
@@ -1522,13 +1529,13 @@ static void omap_dss_mgr_get_info(struct omap_overlay_manager *mgr,
 
 static int dss_mgr_enable(struct omap_overlay_manager *mgr)
 {
-	dispc_enable_channel(mgr->id, 1);
+	dispc_mgr_enable(mgr->id, 1);
 	return 0;
 }
 
 static int dss_mgr_disable(struct omap_overlay_manager *mgr)
 {
-	dispc_enable_channel(mgr->id, 0);
+	dispc_mgr_enable(mgr->id, 0);
 	return 0;
 }
 
@@ -1580,7 +1587,7 @@ int dss_init_overlay_managers(struct platform_device *pdev)
 		mgr->enable = &dss_mgr_enable;
 		mgr->disable = &dss_mgr_disable;
 
-		mgr->caps = OMAP_DSS_OVL_MGR_CAP_DISPC;
+		mgr->caps = 0;
 		mgr->supported_displays =
 			dss_feat_get_supported_displays(mgr->id);
 
@@ -1596,42 +1603,6 @@ int dss_init_overlay_managers(struct platform_device *pdev)
 			continue;
 		}
 	}
-
-#ifdef L4_EXAMPLE
-	{
-		int omap_dss_mgr_apply_l4(struct omap_overlay_manager *mgr)
-		{
-			DSSDBG("omap_dss_mgr_apply_l4(%s)\n", mgr->name);
-
-			return 0;
-		}
-
-		struct omap_overlay_manager *mgr;
-		mgr = kzalloc(sizeof(*mgr), GFP_KERNEL);
-
-		BUG_ON(mgr == NULL);
-
-		mgr->name = "l4";
-		mgr->supported_displays =
-			OMAP_DISPLAY_TYPE_DBI | OMAP_DISPLAY_TYPE_DSI;
-
-		mgr->set_device = &omap_dss_set_device;
-		mgr->unset_device = &omap_dss_unset_device;
-		mgr->apply = &omap_dss_mgr_apply_l4;
-		mgr->set_manager_info = &omap_dss_mgr_set_info;
-		mgr->get_manager_info = &omap_dss_mgr_get_info;
-
-		dss_overlay_setup_l4_manager(mgr);
-
-		omap_dss_add_overlay_manager(mgr);
-
-		r = kobject_init_and_add(&mgr->kobj, &manager_ktype,
-				&pdev->dev.kobj, "managerl4");
-
-		if (r)
-			DSSERR("failed to create sysfs file\n");
-	}
-#endif
 
 	return 0;
 }

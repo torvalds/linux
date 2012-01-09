@@ -13,6 +13,7 @@
 
 enum gpd_status {
 	GPD_STATE_ACTIVE = 0,	/* PM domain is active */
+	GPD_STATE_WAIT_MASTER,	/* PM domain's master is being waited for */
 	GPD_STATE_BUSY,		/* Something is happening to the PM domain */
 	GPD_STATE_REPEAT,	/* Power off in progress, to be repeated */
 	GPD_STATE_POWER_OFF,	/* PM domain is off */
@@ -25,15 +26,14 @@ struct dev_power_governor {
 struct generic_pm_domain {
 	struct dev_pm_domain domain;	/* PM domain operations */
 	struct list_head gpd_list_node;	/* Node in the global PM domains list */
-	struct list_head sd_node;	/* Node in the parent's subdomain list */
-	struct generic_pm_domain *parent;	/* Parent PM domain */
-	struct list_head sd_list;	/* List of dubdomains */
+	struct list_head master_links;	/* Links with PM domain as a master */
+	struct list_head slave_links;	/* Links with PM domain as a slave */
 	struct list_head dev_list;	/* List of devices */
 	struct mutex lock;
 	struct dev_power_governor *gov;
 	struct work_struct power_off_work;
 	unsigned int in_progress;	/* Number of devices being suspended now */
-	unsigned int sd_count;	/* Number of subdomains with power "on" */
+	atomic_t sd_count;	/* Number of subdomains with power "on" */
 	enum gpd_status status;	/* Current state of the domain */
 	wait_queue_head_t status_wait_queue;
 	struct task_struct *poweroff_task;	/* Powering off task */
@@ -42,6 +42,7 @@ struct generic_pm_domain {
 	unsigned int suspended_count;	/* System suspend device counter */
 	unsigned int prepared_count;	/* Suspend counter of prepared devices */
 	bool suspend_power_off;	/* Power status before system suspend */
+	bool dev_irq_safe;	/* Device callbacks are IRQ-safe */
 	int (*power_off)(struct generic_pm_domain *domain);
 	int (*power_on)(struct generic_pm_domain *domain);
 	int (*start_device)(struct device *dev);
@@ -54,11 +55,22 @@ static inline struct generic_pm_domain *pd_to_genpd(struct dev_pm_domain *pd)
 	return container_of(pd, struct generic_pm_domain, domain);
 }
 
-struct dev_list_entry {
-	struct list_head node;
-	struct device *dev;
+struct gpd_link {
+	struct generic_pm_domain *master;
+	struct list_head master_node;
+	struct generic_pm_domain *slave;
+	struct list_head slave_node;
+};
+
+struct generic_pm_domain_data {
+	struct pm_domain_data base;
 	bool need_restore;
 };
+
+static inline struct generic_pm_domain_data *to_gpd_data(struct pm_domain_data *pdd)
+{
+	return container_of(pdd, struct generic_pm_domain_data, base);
+}
 
 #ifdef CONFIG_PM_GENERIC_DOMAINS
 extern int pm_genpd_add_device(struct generic_pm_domain *genpd,

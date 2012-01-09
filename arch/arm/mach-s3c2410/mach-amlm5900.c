@@ -236,7 +236,7 @@ static void __init amlm5900_init(void)
 }
 
 MACHINE_START(AML_M5900, "AML_M5900")
-	.boot_params	= S3C2410_SDRAM_PA + 0x100,
+	.atag_offset	= 0x100,
 	.map_io		= amlm5900_map_io,
 	.init_irq	= s3c24xx_init_irq,
 	.init_machine	= amlm5900_init,

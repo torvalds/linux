@@ -20,12 +20,6 @@
 extern struct snd_soc_dai_driver sh4_hac_dai[2];
 extern struct snd_soc_platform_driver sh7760_soc_platform;
 
-static int machine_init(struct snd_soc_pcm_runtime *rtd)
-{
-	snd_soc_dapm_sync(&rtd->codec->dapm);
-	return 0;
-}
-
 static struct snd_soc_dai_link sh7760_ac97_dai = {
 	.name = "AC97",
 	.stream_name = "AC97 HiFi",
@@ -33,7 +27,6 @@ static struct snd_soc_dai_link sh7760_ac97_dai = {
 	.codec_dai_name = "ac97-hifi",
 	.platform_name = "sh7760-pcm-audio",
 	.codec_name = "ac97-codec",
-	.init = machine_init,
 	.ops = NULL,
 };
 

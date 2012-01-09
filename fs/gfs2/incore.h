@@ -18,6 +18,7 @@
 #include <linux/rcupdate.h>
 #include <linux/rculist_bl.h>
 #include <linux/completion.h>
+#include <linux/rbtree.h>
 
 #define DIO_WAIT	0x00000010
 #define DIO_METADATA	0x00000020
@@ -78,8 +79,7 @@ struct gfs2_bitmap {
 };
 
 struct gfs2_rgrpd {
-	struct list_head rd_list;	/* Link with superblock */
-	struct list_head rd_list_mru;
+	struct rb_node rd_node;		/* Link with superblock */
 	struct gfs2_glock *rd_gl;	/* Glock for this rgrp */
 	u64 rd_addr;			/* grp block disk address */
 	u64 rd_data0;			/* first data location */
@@ -91,10 +91,7 @@ struct gfs2_rgrpd {
 	u32 rd_dinodes;
 	u64 rd_igeneration;
 	struct gfs2_bitmap *rd_bits;
-	struct mutex rd_mutex;
-	struct gfs2_log_element rd_le;
 	struct gfs2_sbd *rd_sbd;
-	unsigned int rd_bh_count;
 	u32 rd_last_alloc;
 	u32 rd_flags;
 #define GFS2_RDF_CHECK		0x10000000 /* check for unlinked inodes */
@@ -106,12 +103,15 @@ struct gfs2_rgrpd {
 enum gfs2_state_bits {
 	BH_Pinned = BH_PrivateStart,
 	BH_Escaped = BH_PrivateStart + 1,
+	BH_Zeronew = BH_PrivateStart + 2,
 };
 
 BUFFER_FNS(Pinned, pinned)
 TAS_BUFFER_FNS(Pinned, pinned)
 BUFFER_FNS(Escaped, escaped)
 TAS_BUFFER_FNS(Escaped, escaped)
+BUFFER_FNS(Zeronew, zeronew)
+TAS_BUFFER_FNS(Zeronew, zeronew)
 
 struct gfs2_bufdata {
 	struct buffer_head *bd_bh;
@@ -246,7 +246,6 @@ struct gfs2_glock {
 
 struct gfs2_alloc {
 	/* Quota stuff */
-
 	struct gfs2_quota_data *al_qd[2*MAXQUOTAS];
 	struct gfs2_holder al_qd_ghs[2*MAXQUOTAS];
 	unsigned int al_qd_num;
@@ -255,18 +254,13 @@ struct gfs2_alloc {
 	u32 al_alloced; /* Filled in by gfs2_alloc_*() */
 
 	/* Filled in by gfs2_inplace_reserve() */
-
-	unsigned int al_line;
-	char *al_file;
-	struct gfs2_holder al_ri_gh;
 	struct gfs2_holder al_rgd_gh;
-	struct gfs2_rgrpd *al_rgd;
-
 };
 
 enum {
 	GIF_INVALID		= 0,
 	GIF_QD_LOCKED		= 1,
+	GIF_ALLOC_FAILED	= 2,
 	GIF_SW_PAGED		= 3,
 };
 
@@ -282,6 +276,7 @@ struct gfs2_inode {
 	struct gfs2_holder i_iopen_gh;
 	struct gfs2_holder i_gh; /* for prepare/commit_write only */
 	struct gfs2_alloc *i_alloc;
+	struct gfs2_rgrpd *i_rgd;
 	u64 i_goal;	/* goal block for allocations */
 	struct rw_semaphore i_rw_mutex;
 	struct list_head i_trunc_list;
@@ -574,9 +569,7 @@ struct gfs2_sbd {
 	int sd_rindex_uptodate;
 	spinlock_t sd_rindex_spin;
 	struct mutex sd_rindex_mutex;
-	struct list_head sd_rindex_list;
-	struct list_head sd_rindex_mru_list;
-	struct gfs2_rgrpd *sd_rindex_forward;
+	struct rb_root sd_rindex_tree;
 	unsigned int sd_rgrps;
 	unsigned int sd_max_rg_data;
 

@@ -25,6 +25,7 @@
 #include <net/dst.h>
 #include <net/route.h>
 #include <linux/inetdevice.h>	/* ip_dev_find */
+#include <linux/module.h>
 #include <net/tcp.h>
 
 static unsigned int dbg_level;
@@ -1787,7 +1788,7 @@ static int sgl_seek_offset(struct scatterlist *sgl, unsigned int sgcnt,
 }
 
 static int sgl_read_to_frags(struct scatterlist *sg, unsigned int sgoffset,
-				unsigned int dlen, skb_frag_t *frags,
+				unsigned int dlen, struct page_frag *frags,
 				int frag_max)
 {
 	unsigned int datalen = dlen;
@@ -1814,7 +1815,7 @@ static int sgl_read_to_frags(struct scatterlist *sg, unsigned int sgoffset,
 		copy = min(datalen, sglen);
 		if (i && page == frags[i - 1].page &&
 		    sgoffset + sg->offset ==
-			frags[i - 1].page_offset + frags[i - 1].size) {
+			frags[i - 1].offset + frags[i - 1].size) {
 			frags[i - 1].size += copy;
 		} else {
 			if (i >= frag_max) {
@@ -1824,7 +1825,7 @@ static int sgl_read_to_frags(struct scatterlist *sg, unsigned int sgoffset,
 			}
 
 			frags[i].page = page;
-			frags[i].page_offset = sg->offset + sgoffset;
+			frags[i].offset = sg->offset + sgoffset;
 			frags[i].size = copy;
 			i++;
 		}
@@ -1944,14 +1945,14 @@ int cxgbi_conn_init_pdu(struct iscsi_task *task, unsigned int offset,
 		if (tdata->nr_frags > MAX_SKB_FRAGS ||
 		    (padlen && tdata->nr_frags == MAX_SKB_FRAGS)) {
 			char *dst = skb->data + task->hdr_len;
-			skb_frag_t *frag = tdata->frags;
+			struct page_frag *frag = tdata->frags;
 
 			/* data fits in the skb's headroom */
 			for (i = 0; i < tdata->nr_frags; i++, frag++) {
 				char *src = kmap_atomic(frag->page,
 							KM_SOFTIRQ0);
 
-				memcpy(dst, src+frag->page_offset, frag->size);
+				memcpy(dst, src+frag->offset, frag->size);
 				dst += frag->size;
 				kunmap_atomic(src, KM_SOFTIRQ0);
 			}
@@ -1962,11 +1963,13 @@ int cxgbi_conn_init_pdu(struct iscsi_task *task, unsigned int offset,
 			skb_put(skb, count + padlen);
 		} else {
 			/* data fit into frag_list */
-			for (i = 0; i < tdata->nr_frags; i++)
-				get_page(tdata->frags[i].page);
-
-			memcpy(skb_shinfo(skb)->frags, tdata->frags,
-				sizeof(skb_frag_t) * tdata->nr_frags);
+			for (i = 0; i < tdata->nr_frags; i++) {
+				__skb_fill_page_desc(skb, i,
+						tdata->frags[i].page,
+						tdata->frags[i].offset,
+						tdata->frags[i].size);
+				skb_frag_ref(skb, i);
+			}
 			skb_shinfo(skb)->nr_frags = tdata->nr_frags;
 			skb->len += count;
 			skb->data_len += count;
@@ -2565,6 +2568,62 @@ void cxgbi_iscsi_cleanup(struct iscsi_transport *itp,
 	}
 }
 EXPORT_SYMBOL_GPL(cxgbi_iscsi_cleanup);
+
+mode_t cxgbi_attr_is_visible(int param_type, int param)
+{
+	switch (param_type) {
+	case ISCSI_HOST_PARAM:
+		switch (param) {
+		case ISCSI_HOST_PARAM_NETDEV_NAME:
+		case ISCSI_HOST_PARAM_HWADDRESS:
+		case ISCSI_HOST_PARAM_IPADDRESS:
+		case ISCSI_HOST_PARAM_INITIATOR_NAME:
+			return S_IRUGO;
+		default:
+			return 0;
+		}
+	case ISCSI_PARAM:
+		switch (param) {
+		case ISCSI_PARAM_MAX_RECV_DLENGTH:
+		case ISCSI_PARAM_MAX_XMIT_DLENGTH:
+		case ISCSI_PARAM_HDRDGST_EN:
+		case ISCSI_PARAM_DATADGST_EN:
+		case ISCSI_PARAM_CONN_ADDRESS:
+		case ISCSI_PARAM_CONN_PORT:
+		case ISCSI_PARAM_EXP_STATSN:
+		case ISCSI_PARAM_PERSISTENT_ADDRESS:
+		case ISCSI_PARAM_PERSISTENT_PORT:
+		case ISCSI_PARAM_PING_TMO:
+		case ISCSI_PARAM_RECV_TMO:
+		case ISCSI_PARAM_INITIAL_R2T_EN:
+		case ISCSI_PARAM_MAX_R2T:
+		case ISCSI_PARAM_IMM_DATA_EN:
+		case ISCSI_PARAM_FIRST_BURST:
+		case ISCSI_PARAM_MAX_BURST:
+		case ISCSI_PARAM_PDU_INORDER_EN:
+		case ISCSI_PARAM_DATASEQ_INORDER_EN:
+		case ISCSI_PARAM_ERL:
+		case ISCSI_PARAM_TARGET_NAME:
+		case ISCSI_PARAM_TPGT:
+		case ISCSI_PARAM_USERNAME:
+		case ISCSI_PARAM_PASSWORD:
+		case ISCSI_PARAM_USERNAME_IN:
+		case ISCSI_PARAM_PASSWORD_IN:
+		case ISCSI_PARAM_FAST_ABORT:
+		case ISCSI_PARAM_ABORT_TMO:
+		case ISCSI_PARAM_LU_RESET_TMO:
+		case ISCSI_PARAM_TGT_RESET_TMO:
+		case ISCSI_PARAM_IFACE_NAME:
+		case ISCSI_PARAM_INITIATOR_NAME:
+			return S_IRUGO;
+		default:
+			return 0;
+		}
+	}
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(cxgbi_attr_is_visible);
 
 static int __init libcxgbi_init_module(void)
 {

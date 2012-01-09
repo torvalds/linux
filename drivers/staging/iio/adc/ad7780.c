@@ -16,11 +16,10 @@
 #include <linux/err.h>
 #include <linux/sched.h>
 #include <linux/gpio.h>
+#include <linux/module.h>
 
 #include "../iio.h"
 #include "../sysfs.h"
-#include "../ring_generic.h"
-#include "adc.h"
 
 #include "ad7780.h"
 
@@ -127,12 +126,12 @@ static int ad7780_read_raw(struct iio_dev *indio_dev,
 
 static const struct ad7780_chip_info ad7780_chip_info_tbl[] = {
 	[ID_AD7780] = {
-		.channel = IIO_CHAN(IIO_IN, 0, 1, 0, NULL, 0, 0,
+		.channel = IIO_CHAN(IIO_VOLTAGE, 0, 1, 0, NULL, 0, 0,
 				    (1 << IIO_CHAN_INFO_SCALE_SHARED),
 				    0, 0, IIO_ST('s', 24, 32, 8), 0),
 	},
 	[ID_AD7781] = {
-		.channel = IIO_CHAN(IIO_IN, 0, 1, 0, NULL, 0, 0,
+		.channel = IIO_CHAN(IIO_VOLTAGE, 0, 1, 0, NULL, 0, 0,
 				    (1 << IIO_CHAN_INFO_SCALE_SHARED),
 				    0, 0, IIO_ST('s', 20, 32, 12), 0),
 	},
@@ -256,13 +255,14 @@ static int ad7780_remove(struct spi_device *spi)
 	struct iio_dev *indio_dev = spi_get_drvdata(spi);
 	struct ad7780_state *st = iio_priv(indio_dev);
 
+	iio_device_unregister(indio_dev);
 	free_irq(spi->irq, st);
 	gpio_free(st->pdata->gpio_pdrst);
 	if (!IS_ERR(st->reg)) {
 		regulator_disable(st->reg);
 		regulator_put(st->reg);
 	}
-	iio_device_unregister(indio_dev);
+	iio_free_device(indio_dev);
 
 	return 0;
 }

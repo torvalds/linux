@@ -40,7 +40,9 @@
 
 #include <linux/sched.h>
 #include <linux/slab.h>
+#include <linux/stat.h>
 #include <linux/mm.h>
+#include <linux/export.h>
 
 #include "mthca_dev.h"
 #include "mthca_cmd.h"
@@ -437,6 +439,9 @@ static struct ib_srq *mthca_create_srq(struct ib_pd *pd,
 	struct mthca_ucontext *context = NULL;
 	struct mthca_srq *srq;
 	int err;
+
+	if (init_attr->srq_type != IB_SRQT_BASIC)
+		return ERR_PTR(-ENOSYS);
 
 	srq = kmalloc(sizeof *srq, GFP_KERNEL);
 	if (!srq)

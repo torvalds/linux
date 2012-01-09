@@ -327,12 +327,12 @@ int xenvif_connect(struct xenvif *vif, unsigned long tx_ring_ref,
 	xenvif_get(vif);
 
 	rtnl_lock();
-	if (netif_running(vif->dev))
-		xenvif_up(vif);
 	if (!vif->can_sg && vif->dev->mtu > ETH_DATA_LEN)
 		dev_set_mtu(vif->dev, ETH_DATA_LEN);
 	netdev_update_features(vif->dev);
 	netif_carrier_on(vif->dev);
+	if (netif_running(vif->dev))
+		xenvif_up(vif);
 	rtnl_unlock();
 
 	return 0;

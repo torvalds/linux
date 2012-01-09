@@ -183,13 +183,14 @@ xfs_qm_dqunpin_wait(
  * search the buffer cache can be a time consuming thing, and AIL lock is a
  * spinlock.
  */
-STATIC void
+STATIC bool
 xfs_qm_dquot_logitem_pushbuf(
 	struct xfs_log_item	*lip)
 {
 	struct xfs_dq_logitem	*qlip = DQUOT_ITEM(lip);
 	struct xfs_dquot	*dqp = qlip->qli_dquot;
 	struct xfs_buf		*bp;
+	bool			ret = true;
 
 	ASSERT(XFS_DQ_IS_LOCKED(dqp));
 
@@ -201,17 +202,20 @@ xfs_qm_dquot_logitem_pushbuf(
 	if (completion_done(&dqp->q_flush) ||
 	    !(lip->li_flags & XFS_LI_IN_AIL)) {
 		xfs_dqunlock(dqp);
-		return;
+		return true;
 	}
 
 	bp = xfs_incore(dqp->q_mount->m_ddev_targp, qlip->qli_format.qlf_blkno,
 			dqp->q_mount->m_quotainfo->qi_dqchunklen, XBF_TRYLOCK);
 	xfs_dqunlock(dqp);
 	if (!bp)
-		return;
+		return true;
 	if (XFS_BUF_ISDELAYWRITE(bp))
 		xfs_buf_delwri_promote(bp);
+	if (xfs_buf_ispinned(bp))
+		ret = false;
 	xfs_buf_relse(bp);
+	return ret;
 }
 
 /*
@@ -291,7 +295,7 @@ xfs_qm_dquot_logitem_committing(
 /*
  * This is the ops vector for dquots
  */
-static struct xfs_item_ops xfs_dquot_item_ops = {
+static const struct xfs_item_ops xfs_dquot_item_ops = {
 	.iop_size	= xfs_qm_dquot_logitem_size,
 	.iop_format	= xfs_qm_dquot_logitem_format,
 	.iop_pin	= xfs_qm_dquot_logitem_pin,
@@ -479,7 +483,7 @@ xfs_qm_qoff_logitem_committing(
 {
 }
 
-static struct xfs_item_ops xfs_qm_qoffend_logitem_ops = {
+static const struct xfs_item_ops xfs_qm_qoffend_logitem_ops = {
 	.iop_size	= xfs_qm_qoff_logitem_size,
 	.iop_format	= xfs_qm_qoff_logitem_format,
 	.iop_pin	= xfs_qm_qoff_logitem_pin,
@@ -494,7 +498,7 @@ static struct xfs_item_ops xfs_qm_qoffend_logitem_ops = {
 /*
  * This is the ops vector shared by all quotaoff-start log items.
  */
-static struct xfs_item_ops xfs_qm_qoff_logitem_ops = {
+static const struct xfs_item_ops xfs_qm_qoff_logitem_ops = {
 	.iop_size	= xfs_qm_qoff_logitem_size,
 	.iop_format	= xfs_qm_qoff_logitem_format,
 	.iop_pin	= xfs_qm_qoff_logitem_pin,

@@ -11,18 +11,17 @@
  */
 
 #include <linux/interrupt.h>
-#include <linux/gpio.h>
 #include <linux/fs.h>
 #include <linux/device.h>
 #include <linux/slab.h>
 #include <linux/kernel.h>
 #include <linux/spi/spi.h>
 #include <linux/sysfs.h>
+#include <linux/module.h>
 #include "../iio.h"
 #include "../sysfs.h"
-#include "../ring_generic.h"
+#include "../buffer_generic.h"
 
-#include "accel.h"
 #include "sca3000.h"
 
 enum sca3000_variant {
@@ -268,8 +267,8 @@ static ssize_t sca3000_show_rev(struct device *dev,
 				char *buf)
 {
 	int len = 0, ret;
-	struct iio_dev *dev_info = dev_get_drvdata(dev);
-	struct sca3000_state *st = iio_priv(dev_info);
+	struct iio_dev *indio_dev = dev_get_drvdata(dev);
+	struct sca3000_state *st = iio_priv(indio_dev);
 
 	mutex_lock(&st->lock);
 	ret = sca3000_read_data_short(st, SCA3000_REG_ADDR_REVID, 1);
@@ -296,8 +295,8 @@ sca3000_show_available_measurement_modes(struct device *dev,
 					 struct device_attribute *attr,
 					 char *buf)
 {
-	struct iio_dev *dev_info = dev_get_drvdata(dev);
-	struct sca3000_state *st = iio_priv(dev_info);
+	struct iio_dev *indio_dev = dev_get_drvdata(dev);
+	struct sca3000_state *st = iio_priv(indio_dev);
 	int len = 0;
 
 	len += sprintf(buf + len, "0 - normal mode");
@@ -328,8 +327,8 @@ sca3000_show_measurement_mode(struct device *dev,
 			      struct device_attribute *attr,
 			      char *buf)
 {
-	struct iio_dev *dev_info = dev_get_drvdata(dev);
-	struct sca3000_state *st = iio_priv(dev_info);
+	struct iio_dev *indio_dev = dev_get_drvdata(dev);
+	struct sca3000_state *st = iio_priv(indio_dev);
 	int len = 0, ret;
 
 	mutex_lock(&st->lock);
@@ -379,8 +378,8 @@ sca3000_store_measurement_mode(struct device *dev,
 			       const char *buf,
 			       size_t len)
 {
-	struct iio_dev *dev_info = dev_get_drvdata(dev);
-	struct sca3000_state *st = iio_priv(dev_info);
+	struct iio_dev *indio_dev = dev_get_drvdata(dev);
+	struct sca3000_state *st = iio_priv(indio_dev);
 	int ret;
 	int mask = 0x03;
 	long val;
@@ -422,7 +421,7 @@ static IIO_DEVICE_ATTR(measurement_mode, S_IRUGO | S_IWUSR,
 
 /* More standard attributes */
 
-static IIO_DEV_ATTR_REV(sca3000_show_rev);
+static IIO_DEVICE_ATTR(revision, S_IRUGO, sca3000_show_rev, NULL, 0);
 
 #define SCA3000_INFO_MASK			\
 	(1 << IIO_CHAN_INFO_SCALE_SHARED)
@@ -695,7 +694,7 @@ static IIO_CONST_ATTR_TEMP_OFFSET("-214.6");
  * sca3000_read_thresh() - query of a threshold
  **/
 static int sca3000_read_thresh(struct iio_dev *indio_dev,
-			       int e,
+			       u64 e,
 			       int *val)
 {
 	int ret, i;
@@ -723,8 +722,8 @@ static int sca3000_read_thresh(struct iio_dev *indio_dev,
  * sca3000_write_thresh() control of threshold
  **/
 static int sca3000_write_thresh(struct iio_dev *indio_dev,
-				    int e,
-				    int val)
+				u64 e,
+				int val)
 {
 	struct sca3000_state *st = iio_priv(indio_dev);
 	int num = IIO_EVENT_CODE_EXTRACT_MODIFIER(e);
@@ -771,9 +770,9 @@ static struct attribute *sca3000_attributes_with_temp[] = {
 	&iio_dev_attr_sampling_frequency_available.dev_attr.attr,
 	&iio_dev_attr_sampling_frequency.dev_attr.attr,
 	/* Only present if temp sensor is */
-	&iio_dev_attr_temp_raw.dev_attr.attr,
-	&iio_const_attr_temp_offset.dev_attr.attr,
-	&iio_const_attr_temp_scale.dev_attr.attr,
+	&iio_dev_attr_in_temp_raw.dev_attr.attr,
+	&iio_const_attr_in_temp_offset.dev_attr.attr,
+	&iio_const_attr_in_temp_scale.dev_attr.attr,
 	NULL,
 };
 
@@ -812,40 +811,40 @@ static irqreturn_t sca3000_event_handler(int irq, void *private)
 	if (ret)
 		goto done;
 
-	sca3000_ring_int_process(val, indio_dev->ring);
+	sca3000_ring_int_process(val, indio_dev->buffer);
 
 	if (val & SCA3000_INT_STATUS_FREE_FALL)
-		iio_push_event(indio_dev, 0,
-			       IIO_MOD_EVENT_CODE(IIO_EV_CLASS_ACCEL,
+		iio_push_event(indio_dev,
+			       IIO_MOD_EVENT_CODE(IIO_ACCEL,
 						  0,
-						  IIO_EV_MOD_X_AND_Y_AND_Z,
+						  IIO_MOD_X_AND_Y_AND_Z,
 						  IIO_EV_TYPE_MAG,
 						  IIO_EV_DIR_FALLING),
 			       last_timestamp);
 
 	if (val & SCA3000_INT_STATUS_Y_TRIGGER)
-		iio_push_event(indio_dev, 0,
-			       IIO_MOD_EVENT_CODE(IIO_EV_CLASS_ACCEL,
+		iio_push_event(indio_dev,
+			       IIO_MOD_EVENT_CODE(IIO_ACCEL,
 						  0,
-						  IIO_EV_MOD_Y,
+						  IIO_MOD_Y,
 						  IIO_EV_TYPE_MAG,
 						  IIO_EV_DIR_RISING),
 			       last_timestamp);
 
 	if (val & SCA3000_INT_STATUS_X_TRIGGER)
-		iio_push_event(indio_dev, 0,
-			       IIO_MOD_EVENT_CODE(IIO_EV_CLASS_ACCEL,
+		iio_push_event(indio_dev,
+			       IIO_MOD_EVENT_CODE(IIO_ACCEL,
 						  0,
-						  IIO_EV_MOD_X,
+						  IIO_MOD_X,
 						  IIO_EV_TYPE_MAG,
 						  IIO_EV_DIR_RISING),
 			       last_timestamp);
 
 	if (val & SCA3000_INT_STATUS_Z_TRIGGER)
-		iio_push_event(indio_dev, 0,
-			       IIO_MOD_EVENT_CODE(IIO_EV_CLASS_ACCEL,
+		iio_push_event(indio_dev,
+			       IIO_MOD_EVENT_CODE(IIO_ACCEL,
 						  0,
-						  IIO_EV_MOD_Z,
+						  IIO_MOD_Z,
 						  IIO_EV_TYPE_MAG,
 						  IIO_EV_DIR_RISING),
 			       last_timestamp);
@@ -858,7 +857,7 @@ done:
  * sca3000_read_event_config() what events are enabled
  **/
 static int sca3000_read_event_config(struct iio_dev *indio_dev,
-				     int e)
+				     u64 e)
 {
 	struct sca3000_state *st = iio_priv(indio_dev);
 	int ret;
@@ -961,7 +960,7 @@ error_ret:
  * this mode is disabled.  Currently normal mode is assumed.
  **/
 static int sca3000_write_event_config(struct iio_dev *indio_dev,
-				      int e,
+				      u64 e,
 				      int state)
 {
 	struct sca3000_state *st = iio_priv(indio_dev);
@@ -1018,14 +1017,14 @@ exit_point:
 
 /* Free fall detector related event attribute */
 static IIO_DEVICE_ATTR_NAMED(accel_xayaz_mag_falling_en,
-			     accel_x&y&z_mag_falling_en,
+			     in_accel_x&y&z_mag_falling_en,
 			     S_IRUGO | S_IWUSR,
 			     sca3000_query_free_fall_mode,
 			     sca3000_set_free_fall_mode,
 			     0);
 
 static IIO_CONST_ATTR_NAMED(accel_xayaz_mag_falling_period,
-			    accel_x&y&z_mag_falling_period,
+			    in_accel_x&y&z_mag_falling_period,
 			    "0.226");
 
 static struct attribute *sca3000_event_attributes[] = {
@@ -1036,6 +1035,7 @@ static struct attribute *sca3000_event_attributes[] = {
 
 static struct attribute_group sca3000_event_attribute_group = {
 	.attrs = sca3000_event_attributes,
+	.name = "events",
 };
 
 /**
@@ -1102,7 +1102,6 @@ error_ret:
 static const struct iio_info sca3000_info = {
 	.attrs = &sca3000_attribute_group,
 	.read_raw = &sca3000_read_raw,
-	.num_interrupt_lines = 1,
 	.event_attrs = &sca3000_event_attribute_group,
 	.read_event_value = &sca3000_read_thresh,
 	.write_event_value = &sca3000_write_thresh,
@@ -1123,7 +1122,7 @@ static const struct iio_info sca3000_info_with_temp = {
 
 static int __devinit sca3000_probe(struct spi_device *spi)
 {
-	int ret, regdone = 0;
+	int ret;
 	struct sca3000_state *st;
 	struct iio_dev *indio_dev;
 
@@ -1155,13 +1154,19 @@ static int __devinit sca3000_probe(struct spi_device *spi)
 	ret = iio_device_register(indio_dev);
 	if (ret < 0)
 		goto error_free_dev;
-	regdone = 1;
-	ret = iio_ring_buffer_register_ex(indio_dev->ring, 0,
-					  sca3000_channels,
-					  ARRAY_SIZE(sca3000_channels));
+
+	ret = iio_buffer_register(indio_dev,
+				  sca3000_channels,
+				  ARRAY_SIZE(sca3000_channels));
 	if (ret < 0)
 		goto error_unregister_dev;
-	if (spi->irq && gpio_is_valid(irq_to_gpio(spi->irq)) > 0) {
+	if (indio_dev->buffer) {
+		iio_scan_mask_set(indio_dev->buffer, 0);
+		iio_scan_mask_set(indio_dev->buffer, 1);
+		iio_scan_mask_set(indio_dev->buffer, 2);
+	}
+
+	if (spi->irq) {
 		ret = request_threaded_irq(spi->irq,
 					   NULL,
 					   &sca3000_event_handler,
@@ -1178,16 +1183,14 @@ static int __devinit sca3000_probe(struct spi_device *spi)
 	return 0;
 
 error_free_irq:
-	if (spi->irq && gpio_is_valid(irq_to_gpio(spi->irq)) > 0)
+	if (spi->irq)
 		free_irq(spi->irq, indio_dev);
 error_unregister_ring:
-	iio_ring_buffer_unregister(indio_dev->ring);
+	iio_buffer_unregister(indio_dev);
 error_unregister_dev:
+	iio_device_unregister(indio_dev);
 error_free_dev:
-	if (regdone)
-		iio_device_unregister(indio_dev);
-	else
-		iio_free_device(indio_dev);
+	iio_free_device(indio_dev);
 
 error_ret:
 	return ret;
@@ -1220,11 +1223,12 @@ static int sca3000_remove(struct spi_device *spi)
 	ret = sca3000_stop_all_interrupts(st);
 	if (ret)
 		return ret;
-	if (spi->irq && gpio_is_valid(irq_to_gpio(spi->irq)) > 0)
+	if (spi->irq)
 		free_irq(spi->irq, indio_dev);
-	iio_ring_buffer_unregister(indio_dev->ring);
-	sca3000_unconfigure_ring(indio_dev);
 	iio_device_unregister(indio_dev);
+	iio_buffer_unregister(indio_dev);
+	sca3000_unconfigure_ring(indio_dev);
+	iio_free_device(indio_dev);
 
 	return 0;
 }

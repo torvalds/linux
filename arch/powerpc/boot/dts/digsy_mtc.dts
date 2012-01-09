@@ -23,19 +23,26 @@
 
 	soc5200@f0000000 {
 		timer@600 {	// General Purpose Timer
+			#gpio-cells = <2>;
 			fsl,has-wdt;
+			gpio-controller;
+		};
+
+		timer@610 {
+			#gpio-cells = <2>;
+			gpio-controller;
 		};
 
 		rtc@800 {
 			status = "disabled";
 		};
 
-		can@900 {
-			status = "disabled";
-		};
-
-		can@980 {
-			status = "disabled";
+		spi@f00 {
+			msp430@0 {
+				compatible = "spidev";
+				spi-max-frequency = <32000>;
+				reg = <0>;
+			};
 		};
 
 		psc@2000 {		// PSC1
@@ -73,9 +80,14 @@
 		};
 
 		i2c@3d00 {
-			rtc@50 {
+			eeprom@50 {
 				compatible = "at,24c08";
 				reg = <0x50>;
+			};
+
+			rtc@56 {
+				compatible = "mc,rv3029c2";
+				reg = <0x56>;
 			};
 
 			rtc@68 {
@@ -90,11 +102,22 @@
 	};
 
 	pci@f0000d00 {
-		status = "disabled";
+		interrupt-map-mask = <0xf800 0 0 7>;
+		interrupt-map = <0xc000 0 0 1 &mpc5200_pic 0 0 3
+				 0xc000 0 0 2 &mpc5200_pic 0 0 3
+				 0xc000 0 0 3 &mpc5200_pic 0 0 3
+				 0xc000 0 0 4 &mpc5200_pic 0 0 3>;
+		clock-frequency = <0>; // From boot loader
+		interrupts = <2 8 0 2 9 0 2 10 0>;
+		bus-range = <0 0>;
+		ranges = <0x42000000 0 0x80000000 0x80000000 0 0x10000000
+			  0x02000000 0 0x90000000 0x90000000 0 0x10000000
+			  0x01000000 0 0x00000000 0xa0000000 0 0x01000000>;
 	};
 
 	localbus {
-		ranges = <0 0 0xff000000 0x1000000>;
+		ranges = <0 0 0xff000000 0x1000000
+			  4 0 0x60000000 0x0001000>;
 
 		// 16-bit flash device at LocalPlus Bus CS0
 		flash@0,0 {
@@ -121,6 +144,26 @@
 				label = "u-boot";
 				reg = <0x00f00000 0x100000>;
 			};
+		};
+
+		can@4,0 {
+			compatible = "nxp,sja1000";
+			reg = <4 0x000 0x80>;
+			nxp,external-clock-frequency = <24000000>;
+			interrupts = <1 2 3>; // Level-low
+		};
+
+		can@4,100 {
+			compatible = "nxp,sja1000";
+			reg = <4 0x100 0x80>;
+			nxp,external-clock-frequency = <24000000>;
+			interrupts = <1 2 3>;  // Level-low
+		};
+
+		serial@4,200 {
+			compatible = "nxp,sc28l92";
+			reg = <4 0x200 0x10>;
+			interrupts = <1 3 3>;
 		};
 	};
 };

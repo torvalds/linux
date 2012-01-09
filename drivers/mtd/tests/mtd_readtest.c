@@ -29,7 +29,7 @@
 
 #define PRINT_PREF KERN_INFO "mtd_readtest: "
 
-static int dev;
+static int dev = -EINVAL;
 module_param(dev, int, S_IRUGO);
 MODULE_PARM_DESC(dev, "MTD device number to use");
 
@@ -66,7 +66,7 @@ static int read_eraseblock_by_page(int ebnum)
 		if (mtd->oobsize) {
 			struct mtd_oob_ops ops;
 
-			ops.mode      = MTD_OOB_PLACE;
+			ops.mode      = MTD_OPS_PLACE_OOB;
 			ops.len       = 0;
 			ops.retlen    = 0;
 			ops.ooblen    = mtd->oobsize;
@@ -75,7 +75,8 @@ static int read_eraseblock_by_page(int ebnum)
 			ops.datbuf    = NULL;
 			ops.oobbuf    = oobbuf;
 			ret = mtd->read_oob(mtd, addr, &ops);
-			if (ret || ops.oobretlen != mtd->oobsize) {
+			if ((ret && !mtd_is_bitflip(ret)) ||
+					ops.oobretlen != mtd->oobsize) {
 				printk(PRINT_PREF "error: read oob failed at "
 						  "%#llx\n", (long long)addr);
 				if (!err)
@@ -169,6 +170,12 @@ static int __init mtd_readtest_init(void)
 
 	printk(KERN_INFO "\n");
 	printk(KERN_INFO "=================================================\n");
+
+	if (dev < 0) {
+		printk(PRINT_PREF "Please specify a valid mtd-device via module paramter\n");
+		return -EINVAL;
+	}
+
 	printk(PRINT_PREF "MTD device: %d\n", dev);
 
 	mtd = get_mtd_device(NULL, dev);

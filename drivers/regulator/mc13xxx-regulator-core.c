@@ -23,6 +23,7 @@
 #include <linux/slab.h>
 #include <linux/init.h>
 #include <linux/err.h>
+#include <linux/module.h>
 #include "mc13xxx.h"
 
 static int mc13xxx_regulator_enable(struct regulator_dev *rdev)

@@ -19,6 +19,7 @@
 #include <mach/regs-gpio.h>
 #include <mach/regs-clock.h>
 
+#include <plat/cpu.h>
 #include <plat/gpio-core.h>
 #include <plat/gpio-cfg.h>
 #include <plat/gpio-cfg-helpers.h>
@@ -473,14 +474,10 @@ static void __init s5p64x0_gpio_add_rbank_4bit2(struct s3c_gpio_chip *chip,
 
 static int __init s5p64x0_gpiolib_init(void)
 {
-	unsigned int chipid;
-
-	chipid = __raw_readl(S5P64X0_SYS_ID);
-
 	s5p64x0_gpiolib_set_cfg(s5p64x0_gpio_cfgs,
 				ARRAY_SIZE(s5p64x0_gpio_cfgs));
 
-	if ((chipid & 0xff000) == 0x50000) {
+	if (soc_is_s5p6450()) {
 		samsung_gpiolib_add_2bit_chips(s5p6450_gpio_2bit,
 					ARRAY_SIZE(s5p6450_gpio_2bit));
 

@@ -1,6 +1,6 @@
 #
 # For a description of the syntax of this configuration file,
-# see Documentation/kbuild/config-language.txt.
+# see Documentation/kbuild/kconfig-language.txt.
 #
 
 config OPENRISC
@@ -17,9 +17,6 @@ config OPENRISC
 	select GENERIC_IOMAP
 
 config MMU
-	def_bool y
-
-config WISHBONE_BUS_BIG_ENDIAN
 	def_bool y
 
 config SYMBOL_PREFIX
@@ -159,15 +156,6 @@ config JUMP_UPON_UNHANDLED_EXCEPTION
 	  your kernel crashes this doesn't have any influence.
 
 	  Say Y if you are unsure.
-
-config OPENRISC_EXCEPTION_DEBUG
-	bool "Print processor state at each exception"
-	default n
-	help
-	  This option will make your kernel unusable for all but kernel
-	  debugging.
-
-	  Say N if you are unsure.
 
 config OPENRISC_ESR_EXCEPTION_BUG_CHECK
 	bool "Check for possible ESR exception bug"

@@ -30,7 +30,7 @@ extern struct clkops apmu_clk_ops;
 
 #define APBC_CLK(_name, _reg, _fnclksel, _rate)			\
 struct clk clk_##_name = {					\
-		.clk_rst	= (void __iomem *)APBC_##_reg,	\
+		.clk_rst	= APBC_##_reg,			\
 		.fnclksel	= _fnclksel,			\
 		.rate		= _rate,			\
 		.ops		= &apbc_clk_ops,		\
@@ -38,7 +38,7 @@ struct clk clk_##_name = {					\
 
 #define APBC_CLK_OPS(_name, _reg, _fnclksel, _rate, _ops)	\
 struct clk clk_##_name = {					\
-		.clk_rst	= (void __iomem *)APBC_##_reg,	\
+		.clk_rst	= APBC_##_reg,			\
 		.fnclksel	= _fnclksel,			\
 		.rate		= _rate,			\
 		.ops		= _ops,				\
@@ -46,7 +46,7 @@ struct clk clk_##_name = {					\
 
 #define APMU_CLK(_name, _reg, _eval, _rate)			\
 struct clk clk_##_name = {					\
-		.clk_rst	= (void __iomem *)APMU_##_reg,	\
+		.clk_rst	= APMU_##_reg,			\
 		.enable_val	= _eval,			\
 		.rate		= _rate,			\
 		.ops		= &apmu_clk_ops,		\
@@ -54,7 +54,7 @@ struct clk clk_##_name = {					\
 
 #define APMU_CLK_OPS(_name, _reg, _eval, _rate, _ops)		\
 struct clk clk_##_name = {					\
-		.clk_rst	= (void __iomem *)APMU_##_reg,	\
+		.clk_rst	= APMU_##_reg,			\
 		.enable_val	= _eval,			\
 		.rate		= _rate,			\
 		.ops		= _ops,				\

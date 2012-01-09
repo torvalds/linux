@@ -207,8 +207,9 @@ void octeon_prepare_cpus(unsigned int max_cpus)
 	 * the other bits alone.
 	 */
 	cvmx_write_csr(CVMX_CIU_MBOX_CLRX(cvmx_get_core_num()), 0xffff);
-	if (request_irq(OCTEON_IRQ_MBOX0, mailbox_interrupt, IRQF_DISABLED,
-			"SMP-IPI", mailbox_interrupt)) {
+	if (request_irq(OCTEON_IRQ_MBOX0, mailbox_interrupt,
+			IRQF_PERCPU | IRQF_NO_THREAD, "SMP-IPI",
+			mailbox_interrupt)) {
 		panic("Cannot request_irq(OCTEON_IRQ_MBOX0)\n");
 	}
 }

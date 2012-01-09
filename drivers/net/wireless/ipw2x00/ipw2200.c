@@ -32,6 +32,7 @@
 
 #include <linux/sched.h>
 #include <linux/slab.h>
+#include <net/cfg80211-wext.h>
 #include "ipw2200.h"
 
 
@@ -11425,16 +11426,23 @@ static void ipw_bg_down(struct work_struct *work)
 /* Called by register_netdev() */
 static int ipw_net_init(struct net_device *dev)
 {
+	int rc = 0;
+	struct ipw_priv *priv = libipw_priv(dev);
+
+	mutex_lock(&priv->mutex);
+	if (ipw_up(priv))
+		rc = -EIO;
+	mutex_unlock(&priv->mutex);
+
+	return rc;
+}
+
+static int ipw_wdev_init(struct net_device *dev)
+{
 	int i, rc = 0;
 	struct ipw_priv *priv = libipw_priv(dev);
 	const struct libipw_geo *geo = libipw_get_geo(priv->ieee);
 	struct wireless_dev *wdev = &priv->ieee->wdev;
-	mutex_lock(&priv->mutex);
-
-	if (ipw_up(priv)) {
-		rc = -EIO;
-		goto out;
-	}
 
 	memcpy(wdev->wiphy->perm_addr, priv->mac_addr, ETH_ALEN);
 
@@ -11519,13 +11527,9 @@ static int ipw_net_init(struct net_device *dev)
 	set_wiphy_dev(wdev->wiphy, &priv->pci_dev->dev);
 
 	/* With that information in place, we can now register the wiphy... */
-	if (wiphy_register(wdev->wiphy)) {
+	if (wiphy_register(wdev->wiphy))
 		rc = -EIO;
-		goto out;
-	}
-
 out:
-	mutex_unlock(&priv->mutex);
 	return rc;
 }
 
@@ -11701,7 +11705,7 @@ static const struct net_device_ops ipw_netdev_ops = {
 	.ndo_init		= ipw_net_init,
 	.ndo_open		= ipw_net_open,
 	.ndo_stop		= ipw_net_stop,
-	.ndo_set_multicast_list	= ipw_net_set_multicast_list,
+	.ndo_set_rx_mode	= ipw_net_set_multicast_list,
 	.ndo_set_mac_address	= ipw_net_set_mac_address,
 	.ndo_start_xmit		= libipw_xmit,
 	.ndo_change_mtu		= libipw_change_mtu,
@@ -11832,14 +11836,22 @@ static int __devinit ipw_pci_probe(struct pci_dev *pdev,
 		goto out_remove_sysfs;
 	}
 
+	err = ipw_wdev_init(net_dev);
+	if (err) {
+		IPW_ERROR("failed to register wireless device\n");
+		goto out_unregister_netdev;
+	}
+
 #ifdef CONFIG_IPW2200_PROMISCUOUS
 	if (rtap_iface) {
 	        err = ipw_prom_alloc(priv);
 		if (err) {
 			IPW_ERROR("Failed to register promiscuous network "
 				  "device (error %d).\n", err);
-			unregister_netdev(priv->net_dev);
-			goto out_remove_sysfs;
+			wiphy_unregister(priv->ieee->wdev.wiphy);
+			kfree(priv->ieee->a_band.channels);
+			kfree(priv->ieee->bg_band.channels);
+			goto out_unregister_netdev;
 		}
 	}
 #endif
@@ -11851,6 +11863,8 @@ static int __devinit ipw_pci_probe(struct pci_dev *pdev,
 
 	return 0;
 
+      out_unregister_netdev:
+	unregister_netdev(priv->net_dev);
       out_remove_sysfs:
 	sysfs_remove_group(&pdev->dev.kobj, &ipw_attribute_group);
       out_release_irq:

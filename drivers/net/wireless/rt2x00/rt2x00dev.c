@@ -33,6 +33,22 @@
 #include "rt2x00lib.h"
 
 /*
+ * Utility functions.
+ */
+u32 rt2x00lib_get_bssidx(struct rt2x00_dev *rt2x00dev,
+			 struct ieee80211_vif *vif)
+{
+	/*
+	 * When in STA mode, bssidx is always 0 otherwise local_address[5]
+	 * contains the bss number, see BSS_ID_MASK comments for details.
+	 */
+	if (rt2x00dev->intf_sta_count)
+		return 0;
+	return vif->addr[5] & (rt2x00dev->ops->max_ap_intf - 1);
+}
+EXPORT_SYMBOL_GPL(rt2x00lib_get_bssidx);
+
+/*
  * Radio control handlers.
  */
 int rt2x00lib_enable_radio(struct rt2x00_dev *rt2x00dev)
@@ -449,6 +465,23 @@ static u8 *rt2x00lib_find_ie(u8 *data, unsigned int len, u8 ie)
 	return NULL;
 }
 
+static void rt2x00lib_sleep(struct work_struct *work)
+{
+	struct rt2x00_dev *rt2x00dev =
+	    container_of(work, struct rt2x00_dev, sleep_work);
+
+	if (!test_bit(DEVICE_STATE_PRESENT, &rt2x00dev->flags))
+		return;
+
+	/*
+	 * Check again is powersaving is enabled, to prevent races from delayed
+	 * work execution.
+	 */
+	if (!test_bit(CONFIG_POWERSAVING, &rt2x00dev->flags))
+		rt2x00lib_config(rt2x00dev, &rt2x00dev->hw->conf,
+				 IEEE80211_CONF_CHANGE_PS);
+}
+
 static void rt2x00lib_rxdone_check_ps(struct rt2x00_dev *rt2x00dev,
 				      struct sk_buff *skb,
 				      struct rxdone_entry_desc *rxdesc)
@@ -496,8 +529,7 @@ static void rt2x00lib_rxdone_check_ps(struct rt2x00_dev *rt2x00dev,
 	cam |= (tim_ie->bitmap_ctrl & 0x01);
 
 	if (!cam && !test_bit(CONFIG_POWERSAVING, &rt2x00dev->flags))
-		rt2x00lib_config(rt2x00dev, &rt2x00dev->hw->conf,
-				 IEEE80211_CONF_CHANGE_PS);
+		queue_work(rt2x00dev->workqueue, &rt2x00dev->sleep_work);
 }
 
 static int rt2x00lib_rxdone_read_signal(struct rt2x00_dev *rt2x00dev,
@@ -915,6 +947,11 @@ static int rt2x00lib_probe_hw(struct rt2x00_dev *rt2x00dev)
 		rt2x00dev->hw->extra_tx_headroom += RT2X00_ALIGN_SIZE;
 
 	/*
+	 * Tell mac80211 about the size of our private STA structure.
+	 */
+	rt2x00dev->hw->sta_data_size = sizeof(struct rt2x00_sta);
+
+	/*
 	 * Allocate tx status FIFO for driver use.
 	 */
 	if (test_bit(REQUIRE_TXSTATUS_FIFO, &rt2x00dev->cap_flags)) {
@@ -946,7 +983,6 @@ static int rt2x00lib_probe_hw(struct rt2x00_dev *rt2x00dev)
 		tasklet_init(&rt2x00dev->taskletname, \
 			     rt2x00dev->ops->lib->taskletname, \
 			     (unsigned long)rt2x00dev); \
-		tasklet_disable(&rt2x00dev->taskletname); \
 	}
 
 	RT2X00_TASKLET_INIT(txstatus_tasklet);
@@ -1121,6 +1157,7 @@ int rt2x00lib_probe_dev(struct rt2x00_dev *rt2x00dev)
 
 	INIT_WORK(&rt2x00dev->intf_work, rt2x00lib_intf_scheduled);
 	INIT_DELAYED_WORK(&rt2x00dev->autowakeup_work, rt2x00lib_autowakeup);
+	INIT_WORK(&rt2x00dev->sleep_work, rt2x00lib_sleep);
 
 	/*
 	 * Let the driver probe the device to detect the capabilities.
@@ -1177,6 +1214,7 @@ void rt2x00lib_remove_dev(struct rt2x00_dev *rt2x00dev)
 	 */
 	cancel_work_sync(&rt2x00dev->intf_work);
 	cancel_delayed_work_sync(&rt2x00dev->autowakeup_work);
+	cancel_work_sync(&rt2x00dev->sleep_work);
 	if (rt2x00_is_usb(rt2x00dev)) {
 		del_timer_sync(&rt2x00dev->txstatus_timer);
 		cancel_work_sync(&rt2x00dev->rxdone_work);

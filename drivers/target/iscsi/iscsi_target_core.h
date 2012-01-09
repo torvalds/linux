@@ -57,6 +57,9 @@
 #define TA_PROD_MODE_WRITE_PROTECT	0
 #define TA_CACHE_CORE_NPS		0
 
+
+#define ISCSI_IOV_DATA_BUFFER		5
+
 enum tpg_np_network_transport_table {
 	ISCSI_TCP				= 0,
 	ISCSI_SCTP_TCP				= 1,
@@ -425,7 +428,6 @@ struct iscsi_cmd {
 	/* Number of times struct iscsi_cmd is present in immediate queue */
 	atomic_t		immed_queue_count;
 	atomic_t		response_queue_count;
-	atomic_t		transport_sent;
 	spinlock_t		datain_lock;
 	spinlock_t		dataout_timeout_lock;
 	/* spinlock for protecting struct iscsi_cmd->i_state */

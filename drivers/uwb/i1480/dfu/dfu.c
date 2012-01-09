@@ -33,6 +33,7 @@
 #include <linux/device.h>
 #include <linux/uwb.h>
 #include <linux/random.h>
+#include <linux/export.h>
 
 /*
  * i1480_rceb_check - Check RCEB for expected field values

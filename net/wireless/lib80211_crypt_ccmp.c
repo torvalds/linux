@@ -77,8 +77,6 @@ static void *lib80211_ccmp_init(int key_idx)
 
 	priv->tfm = crypto_alloc_cipher("aes", 0, CRYPTO_ALG_ASYNC);
 	if (IS_ERR(priv->tfm)) {
-		printk(KERN_DEBUG "lib80211_crypt_ccmp: could not allocate "
-		       "crypto API aes\n");
 		priv->tfm = NULL;
 		goto fail;
 	}

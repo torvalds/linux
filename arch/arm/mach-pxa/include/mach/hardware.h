@@ -36,22 +36,23 @@
  * Note that not all PXA2xx chips implement all those addresses, and the
  * kernel only maps the minimum needed range of this mapping.
  */
-#define io_p2v(x) (0xf2000000 + ((x) & 0x01ffffff) + (((x) & 0x1c000000) >> 1))
 #define io_v2p(x) (0x3c000000 + ((x) & 0x01ffffff) + (((x) & 0x0e000000) << 1))
+#define io_p2v(x) IOMEM(0xf2000000 + ((x) & 0x01ffffff) + (((x) & 0x1c000000) >> 1))
 
 #ifndef __ASSEMBLY__
-
-# define __REG(x)	(*((volatile u32 *)io_p2v(x)))
+# define IOMEM(x) ((void __iomem *)(x))
+# define __REG(x)	(*((volatile u32 __iomem *)io_p2v(x)))
 
 /* With indexed regs we don't want to feed the index through io_p2v()
    especially if it is a variable, otherwise horrible code will result. */
 # define __REG2(x,y)	\
-	(*(volatile u32 *)((u32)&__REG(x) + (y)))
+	(*(volatile u32 __iomem*)((u32)&__REG(x) + (y)))
 
 # define __PREG(x)	(io_v2p((u32)&(x)))
 
 #else
 
+# define IOMEM(x)	x 
 # define __REG(x)	io_p2v(x)
 # define __PREG(x)	io_v2p(x)
 

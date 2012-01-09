@@ -64,6 +64,16 @@ config REGULATOR_USERSPACE_CONSUMER
 
           If unsure, say no.
 
+config REGULATOR_GPIO
+	tristate "GPIO regulator support"
+	depends on GENERIC_GPIO
+	help
+	  This driver provides support for regulators that can be
+	  controlled via gpios.
+	  It is capable of supporting current and voltage regulators
+	  and the platform has to provide a mapping of GPIO-states
+	  to target volts/amps.
+
 config REGULATOR_BQ24022
 	tristate "TI bq24022 Dual Input 1-Cell Li-Ion Charger IC"
 	help

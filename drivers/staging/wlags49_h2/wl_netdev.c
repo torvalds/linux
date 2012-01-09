@@ -217,7 +217,7 @@ int wl_config( struct net_device *dev, struct ifmap *map )
 
     /* The only thing we care about here is a port change. Since this not needed,
        ignore the request. */
-    DBG_TRACE( DbgInfo, "%s: %s called.\n", dev->name, __FUNC__ );
+    DBG_TRACE(DbgInfo, "%s: %s called.\n", dev->name, __func__);
 
     DBG_LEAVE( DbgInfo );
     return 0;
@@ -1179,7 +1179,7 @@ static const struct net_device_ops wl_netdev_ops =
 
     .ndo_set_config         = &wl_config,
     .ndo_get_stats          = &wl_stats,
-    .ndo_set_multicast_list = &wl_multicast,
+    .ndo_set_rx_mode        = &wl_multicast,
 
     .ndo_init               = &wl_insert,
     .ndo_open               = &wl_adapter_open,

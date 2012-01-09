@@ -35,6 +35,7 @@
 #include <linux/notifier.h>
 #include <linux/spinlock.h>
 #include <linux/pm_runtime.h>
+#include <linux/module.h>
 #include <acpi/video.h>
 
 static int drm_psb_trap_pagefaults;
@@ -183,7 +184,6 @@ static void psb_lastclose(struct drm_device *dev)
 
 static void psb_do_takedown(struct drm_device *dev)
 {
-	/* FIXME: do we need to clean up the gtt here ? */
 }
 
 static int psb_do_init(struct drm_device *dev)
@@ -229,7 +229,7 @@ static int psb_do_init(struct drm_device *dev)
 
 
 	spin_lock_init(&dev_priv->irqmask_lock);
-	mutex_init(&dev_priv->mutex_2d);
+	spin_lock_init(&dev_priv->lock_2d);
 
 	PSB_WSGX32(0x00000000, PSB_CR_BIF_BANK0);
 	PSB_WSGX32(0x00000000, PSB_CR_BIF_BANK1);
@@ -329,6 +329,11 @@ static int psb_driver_load(struct drm_device *dev, unsigned long chipset)
 	dev_priv->dev = dev;
 	dev->dev_private = (void *) dev_priv;
 
+	if (!IS_PSB(dev)) {
+		if (pci_enable_msi(dev->pdev))
+			dev_warn(dev->dev, "Enabling MSI failed!\n");
+	}
+
 	dev_priv->num_pipe = dev_priv->ops->pipes;
 
 	resource_start = pci_resource_start(dev->pdev, PSB_MMIO_RESOURCE);
@@ -410,7 +415,7 @@ static int psb_driver_load(struct drm_device *dev, unsigned long chipset)
 	PSB_WVDC32(0x00000000, PSB_INT_ENABLE_R);
 	PSB_WVDC32(0xFFFFFFFF, PSB_INT_MASK_R);
 	spin_unlock_irqrestore(&dev_priv->irqmask_lock, irqflags);
-	if (drm_core_check_feature(dev, DRIVER_MODESET))
+	if (IS_PSB(dev) && drm_core_check_feature(dev, DRIVER_MODESET))
 		drm_irq_install(dev);
 
 	dev->vblank_disable_allowed = 1;
@@ -444,12 +449,9 @@ static int psb_driver_load(struct drm_device *dev, unsigned long chipset)
 
 	if (ret)
 		return ret;
-#if 0
-	/*enable runtime pm at last*/
-	pm_runtime_enable(&dev->pdev->dev);
+
+	/* Enable runtime pm at last */
 	pm_runtime_set_active(&dev->pdev->dev);
-#endif
-	/*Intel drm driver load is done, continue doing pvr load*/
 	return 0;
 out_err:
 	psb_driver_unload(dev);
@@ -466,14 +468,13 @@ static int psb_sizes_ioctl(struct drm_device *dev, void *data,
 			   struct drm_file *file_priv)
 {
 	struct drm_psb_private *dev_priv = psb_priv(dev);
-	struct drm_psb_sizes_arg *arg =
-		(struct drm_psb_sizes_arg *) data;
+	struct drm_psb_sizes_arg *arg = data;
 
 	*arg = dev_priv->sizes;
 	return 0;
 }
 
-static int psb_dc_state_ioctl(struct drm_device *dev, void * data,
+static int psb_dc_state_ioctl(struct drm_device *dev, void *data,
 				struct drm_file *file_priv)
 {
 	uint32_t flags;
@@ -481,8 +482,7 @@ static int psb_dc_state_ioctl(struct drm_device *dev, void * data,
 	struct drm_mode_object *obj;
 	struct drm_connector *connector;
 	struct drm_crtc *crtc;
-	struct drm_psb_dc_state_arg *arg =
-		(struct drm_psb_dc_state_arg *)data;
+	struct drm_psb_dc_state_arg *arg = data;
 
 
 	/* Double check MRST case */
@@ -1110,15 +1110,12 @@ static long psb_unlocked_ioctl(struct file *filp, unsigned int cmd,
 {
 	struct drm_file *file_priv = filp->private_data;
 	struct drm_device *dev = file_priv->minor->dev;
-	struct drm_psb_private *dev_priv = dev->dev_private;
-	static unsigned int runtime_allowed;
-
-	if (runtime_allowed == 1 && dev_priv->is_lvds_on) {
-		runtime_allowed++;
-		pm_runtime_allow(&dev->pdev->dev);
-		dev_priv->rpm_enabled = 1;
-	}
-	return drm_ioctl(filp, cmd, arg);
+	int ret;
+	
+	pm_runtime_forbid(dev->dev);
+	ret = drm_ioctl(filp, cmd, arg);
+	pm_runtime_allow(dev->dev);
+	return ret;
 	/* FIXME: do we need to wrap the other side of this */
 }
 
@@ -1137,8 +1134,12 @@ static void psb_remove(struct pci_dev *pdev)
 }
 
 static const struct dev_pm_ops psb_pm_ops = {
-	.resume = gma_power_resume,
 	.suspend = gma_power_suspend,
+	.resume = gma_power_resume,
+	.freeze = gma_power_suspend,
+	.thaw = gma_power_resume,
+	.poweroff = gma_power_suspend,
+	.restore = gma_power_resume,
 	.runtime_suspend = psb_runtime_suspend,
 	.runtime_resume = psb_runtime_resume,
 	.runtime_idle = psb_runtime_idle,
@@ -1207,9 +1208,6 @@ static struct pci_driver psb_pci_driver = {
 
 static int psb_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 {
-	/* MLD Added this from Inaky's patch */
-	if (pci_enable_msi(pdev))
-		dev_warn(&pdev->dev, "Enable MSI failed!\n");
 	return drm_get_pci_dev(pdev, ent, &driver);
 }
 

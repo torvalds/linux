@@ -151,7 +151,7 @@ int mwifiex_send_null_packet(struct mwifiex_private *priv, u8 flags)
 	skb_push(skb, INTF_HEADER_LEN);
 
 	ret = adapter->if_ops.host_to_card(adapter, MWIFIEX_TYPE_DATA,
-					     skb->data, skb->len, NULL);
+					   skb, NULL);
 	switch (ret) {
 	case -EBUSY:
 		adapter->data_sent = true;

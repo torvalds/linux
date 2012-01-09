@@ -127,7 +127,7 @@ static int tegra_spdif_hw_params(struct snd_pcm_substream *substream,
 {
 	struct device *dev = substream->pcm->card->dev;
 	struct tegra_spdif *spdif = snd_soc_dai_get_drvdata(dai);
-	int ret, srate, spdifclock;
+	int ret, spdifclock;
 
 	spdif->reg_ctrl &= ~TEGRA_SPDIF_CTRL_PACK;
 	spdif->reg_ctrl &= ~TEGRA_SPDIF_CTRL_BIT_MODE_MASK;
@@ -140,7 +140,6 @@ static int tegra_spdif_hw_params(struct snd_pcm_substream *substream,
 		return -EINVAL;
 	}
 
-	srate = params_rate(params);
 	switch (params_rate(params)) {
 	case 32000:
 		spdifclock = 4096000;
@@ -232,7 +231,7 @@ static struct snd_soc_dai_ops tegra_spdif_dai_ops = {
 	.trigger	= tegra_spdif_trigger,
 };
 
-struct snd_soc_dai_driver tegra_spdif_dai = {
+static struct snd_soc_dai_driver tegra_spdif_dai = {
 	.name = DRV_NAME,
 	.probe = tegra_spdif_probe,
 	.playback = {

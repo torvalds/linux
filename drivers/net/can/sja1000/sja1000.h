@@ -40,8 +40,6 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH
  * DAMAGE.
  *
- * Send feedback to <socketcan-users@lists.berlios.de>
- *
  */
 
 #ifndef SJA1000_DEV_H

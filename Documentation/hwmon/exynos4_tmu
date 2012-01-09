@@ -1,0 +1,81 @@
+Kernel driver exynos4_tmu
+=================
+
+Supported chips:
+* ARM SAMSUNG EXYNOS4 series of SoC
+  Prefix: 'exynos4-tmu'
+  Datasheet: Not publicly available
+
+Authors: Donggeun Kim <dg77.kim@samsung.com>
+
+Description
+-----------
+
+This driver allows to read temperature inside SAMSUNG EXYNOS4 series of SoC.
+
+The chip only exposes the measured 8-bit temperature code value
+through a register.
+Temperature can be taken from the temperature code.
+There are three equations converting from temperature to temperature code.
+
+The three equations are:
+  1. Two point trimming
+	Tc = (T - 25) * (TI2 - TI1) / (85 - 25) + TI1
+
+  2. One point trimming
+	Tc = T + TI1 - 25
+
+  3. No trimming
+	Tc = T + 50
+
+  Tc: Temperature code, T: Temperature,
+  TI1: Trimming info for 25 degree Celsius (stored at TRIMINFO register)
+       Temperature code measured at 25 degree Celsius which is unchanged
+  TI2: Trimming info for 85 degree Celsius (stored at TRIMINFO register)
+       Temperature code measured at 85 degree Celsius which is unchanged
+
+TMU(Thermal Management Unit) in EXYNOS4 generates interrupt
+when temperature exceeds pre-defined levels.
+The maximum number of configurable threshold is four.
+The threshold levels are defined as follows:
+  Level_0: current temperature > trigger_level_0 + threshold
+  Level_1: current temperature > trigger_level_1 + threshold
+  Level_2: current temperature > trigger_level_2 + threshold
+  Level_3: current temperature > trigger_level_3 + threshold
+
+  The threshold and each trigger_level are set
+  through the corresponding registers.
+
+When an interrupt occurs, this driver notify user space of
+one of four threshold levels for the interrupt
+through kobject_uevent_env and sysfs_notify functions.
+Although an interrupt condition for level_0 can be set,
+it is not notified to user space through sysfs_notify function.
+
+Sysfs Interface
+---------------
+name		name of the temperature sensor
+		RO
+
+temp1_input	temperature
+		RO
+
+temp1_max	temperature for level_1 interrupt
+		RO
+
+temp1_crit	temperature for level_2 interrupt
+		RO
+
+temp1_emergency	temperature for level_3 interrupt
+		RO
+
+temp1_max_alarm	alarm for level_1 interrupt
+		RO
+
+temp1_crit_alarm
+		alarm for level_2 interrupt
+		RO
+
+temp1_emergency_alarm
+		alarm for level_3 interrupt
+		RO

@@ -12,7 +12,7 @@
 #include <stdarg.h>
 
 #include <linux/errno.h>
-#include <linux/module.h>
+#include <linux/export.h>
 #include <linux/sched.h>
 #include <linux/kernel.h>
 #include <linux/mm.h>
@@ -368,9 +368,6 @@ void flush_thread(void)
 
 	/* Clear FPU register state. */
 	t->fpsaved[0] = 0;
-	
-	if (get_thread_current_ds() != ASI_AIUS)
-		set_fs(USER_DS);
 }
 
 /* It's a bit more tricky when 64-bit tasks are involved... */

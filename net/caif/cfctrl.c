@@ -35,15 +35,12 @@ struct cflayer *cfctrl_create(void)
 {
 	struct dev_info dev_info;
 	struct cfctrl *this =
-		kmalloc(sizeof(struct cfctrl), GFP_ATOMIC);
-	if (!this) {
-		pr_warn("Out of memory\n");
+		kzalloc(sizeof(struct cfctrl), GFP_ATOMIC);
+	if (!this)
 		return NULL;
-	}
 	caif_assert(offsetof(struct cfctrl, serv.layer) == 0);
 	memset(&dev_info, 0, sizeof(dev_info));
 	dev_info.id = 0xff;
-	memset(this, 0, sizeof(*this));
 	cfsrvl_init(&this->serv, 0, &dev_info, false);
 	atomic_set(&this->req_seq_no, 1);
 	atomic_set(&this->rsp_seq_no, 1);
@@ -180,10 +177,8 @@ void cfctrl_enum_req(struct cflayer *layer, u8 physlinkid)
 	struct cfctrl *cfctrl = container_obj(layer);
 	struct cfpkt *pkt = cfpkt_create(CFPKT_CTRL_PKT_LEN);
 	struct cflayer *dn = cfctrl->serv.layer.dn;
-	if (!pkt) {
-		pr_warn("Out of memory\n");
+	if (!pkt)
 		return;
-	}
 	if (!dn) {
 		pr_debug("not able to send enum request\n");
 		return;
@@ -224,10 +219,8 @@ int cfctrl_linkup_request(struct cflayer *layer,
 	}
 
 	pkt = cfpkt_create(CFPKT_CTRL_PKT_LEN);
-	if (!pkt) {
-		pr_warn("Out of memory\n");
+	if (!pkt)
 		return -ENOMEM;
-	}
 	cfpkt_addbdy(pkt, CFCTRL_CMD_LINK_SETUP);
 	cfpkt_addbdy(pkt, (param->chtype << 4) | param->linktype);
 	cfpkt_addbdy(pkt, (param->priority << 3) | param->phyid);
@@ -275,10 +268,8 @@ int cfctrl_linkup_request(struct cflayer *layer,
 		return -EINVAL;
 	}
 	req = kzalloc(sizeof(*req), GFP_KERNEL);
-	if (!req) {
-		pr_warn("Out of memory\n");
+	if (!req)
 		return -ENOMEM;
-	}
 	req->client_layer = user_layer;
 	req->cmd = CFCTRL_CMD_LINK_SETUP;
 	req->param = *param;
@@ -312,10 +303,8 @@ int cfctrl_linkdown_req(struct cflayer *layer, u8 channelid,
 	struct cfpkt *pkt = cfpkt_create(CFPKT_CTRL_PKT_LEN);
 	struct cflayer *dn = cfctrl->serv.layer.dn;
 
-	if (!pkt) {
-		pr_warn("Out of memory\n");
+	if (!pkt)
 		return -ENOMEM;
-	}
 
 	if (!dn) {
 		pr_debug("not able to send link-down request\n");

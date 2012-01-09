@@ -716,12 +716,18 @@ static int hidp_session(void *arg)
 
 		while ((skb = skb_dequeue(&ctrl_sk->sk_receive_queue))) {
 			skb_orphan(skb);
-			hidp_recv_ctrl_frame(session, skb);
+			if (!skb_linearize(skb))
+				hidp_recv_ctrl_frame(session, skb);
+			else
+				kfree_skb(skb);
 		}
 
 		while ((skb = skb_dequeue(&intr_sk->sk_receive_queue))) {
 			skb_orphan(skb);
-			hidp_recv_intr_frame(session, skb);
+			if (!skb_linearize(skb))
+				hidp_recv_intr_frame(session, skb);
+			else
+				kfree_skb(skb);
 		}
 
 		hidp_process_transmit(session);
@@ -764,6 +770,7 @@ static int hidp_session(void *arg)
 
 	up_write(&hidp_session_sem);
 
+	kfree(session->rd_data);
 	kfree(session);
 	return 0;
 }
@@ -841,7 +848,8 @@ static int hidp_setup_input(struct hidp_session *session,
 
 	err = input_register_device(input);
 	if (err < 0) {
-		hci_conn_put_device(session->conn);
+		input_free_device(input);
+		session->input = NULL;
 		return err;
 	}
 
@@ -869,6 +877,9 @@ static int hidp_start(struct hid_device *hid)
 {
 	struct hidp_session *session = hid->driver_data;
 	struct hid_report *report;
+
+	if (hid->quirks & HID_QUIRK_NO_INIT_REPORTS)
+		return 0;
 
 	list_for_each_entry(report, &hid->report_enum[HID_INPUT_REPORT].
 			report_list, list)
@@ -1044,8 +1055,12 @@ int hidp_add_connection(struct hidp_connadd_req *req, struct socket *ctrl_sock, 
 	}
 
 	err = hid_add_device(session->hid);
-	if (err < 0)
-		goto err_add_device;
+	if (err < 0) {
+		atomic_inc(&session->terminate);
+		wake_up_process(session->task);
+		up_write(&hidp_session_sem);
+		return err;
+	}
 
 	if (session->input) {
 		hidp_send_ctrl_message(session,
@@ -1058,12 +1073,6 @@ int hidp_add_connection(struct hidp_connadd_req *req, struct socket *ctrl_sock, 
 
 	up_write(&hidp_session_sem);
 	return 0;
-
-err_add_device:
-	hid_destroy_device(session->hid);
-	session->hid = NULL;
-	atomic_inc(&session->terminate);
-	wake_up_process(session->task);
 
 unlink:
 	hidp_del_timer(session);
@@ -1090,7 +1099,6 @@ purge:
 failed:
 	up_write(&hidp_session_sem);
 
-	input_free_device(session->input);
 	kfree(session);
 	return err;
 }

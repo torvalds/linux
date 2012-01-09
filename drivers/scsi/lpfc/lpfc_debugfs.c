@@ -20,6 +20,7 @@
 
 #include <linux/blkdev.h>
 #include <linux/delay.h>
+#include <linux/module.h>
 #include <linux/dma-mapping.h>
 #include <linux/idr.h>
 #include <linux/interrupt.h>
@@ -994,6 +995,85 @@ lpfc_debugfs_dumpDataDif_write(struct file *file, const char __user *buf,
 	spin_unlock(&_dump_buf_lock);
 
 	return nbytes;
+}
+
+static int
+lpfc_debugfs_dif_err_open(struct inode *inode, struct file *file)
+{
+	file->private_data = inode->i_private;
+	return 0;
+}
+
+static ssize_t
+lpfc_debugfs_dif_err_read(struct file *file, char __user *buf,
+	size_t nbytes, loff_t *ppos)
+{
+	struct dentry *dent = file->f_dentry;
+	struct lpfc_hba *phba = file->private_data;
+	char cbuf[16];
+	int cnt = 0;
+
+	if (dent == phba->debug_writeGuard)
+		cnt = snprintf(cbuf, 16, "%u\n", phba->lpfc_injerr_wgrd_cnt);
+	else if (dent == phba->debug_writeApp)
+		cnt = snprintf(cbuf, 16, "%u\n", phba->lpfc_injerr_wapp_cnt);
+	else if (dent == phba->debug_writeRef)
+		cnt = snprintf(cbuf, 16, "%u\n", phba->lpfc_injerr_wref_cnt);
+	else if (dent == phba->debug_readApp)
+		cnt = snprintf(cbuf, 16, "%u\n", phba->lpfc_injerr_rapp_cnt);
+	else if (dent == phba->debug_readRef)
+		cnt = snprintf(cbuf, 16, "%u\n", phba->lpfc_injerr_rref_cnt);
+	else if (dent == phba->debug_InjErrLBA)
+		cnt = snprintf(cbuf, 16, "0x%lx\n",
+				 (unsigned long) phba->lpfc_injerr_lba);
+	else
+		lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
+			 "0547 Unknown debugfs error injection entry\n");
+
+	return simple_read_from_buffer(buf, nbytes, ppos, &cbuf, cnt);
+}
+
+static ssize_t
+lpfc_debugfs_dif_err_write(struct file *file, const char __user *buf,
+	size_t nbytes, loff_t *ppos)
+{
+	struct dentry *dent = file->f_dentry;
+	struct lpfc_hba *phba = file->private_data;
+	char dstbuf[32];
+	unsigned long tmp;
+	int size;
+
+	memset(dstbuf, 0, 32);
+	size = (nbytes < 32) ? nbytes : 32;
+	if (copy_from_user(dstbuf, buf, size))
+		return 0;
+
+	if (strict_strtoul(dstbuf, 0, &tmp))
+		return 0;
+
+	if (dent == phba->debug_writeGuard)
+		phba->lpfc_injerr_wgrd_cnt = (uint32_t)tmp;
+	else if (dent == phba->debug_writeApp)
+		phba->lpfc_injerr_wapp_cnt = (uint32_t)tmp;
+	else if (dent == phba->debug_writeRef)
+		phba->lpfc_injerr_wref_cnt = (uint32_t)tmp;
+	else if (dent == phba->debug_readApp)
+		phba->lpfc_injerr_rapp_cnt = (uint32_t)tmp;
+	else if (dent == phba->debug_readRef)
+		phba->lpfc_injerr_rref_cnt = (uint32_t)tmp;
+	else if (dent == phba->debug_InjErrLBA)
+		phba->lpfc_injerr_lba = (sector_t)tmp;
+	else
+		lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
+			 "0548 Unknown debugfs error injection entry\n");
+
+	return nbytes;
+}
+
+static int
+lpfc_debugfs_dif_err_release(struct inode *inode, struct file *file)
+{
+	return 0;
 }
 
 /**
@@ -3380,6 +3460,16 @@ static const struct file_operations lpfc_debugfs_op_dumpDif = {
 	.release =      lpfc_debugfs_dumpDataDif_release,
 };
 
+#undef lpfc_debugfs_op_dif_err
+static const struct file_operations lpfc_debugfs_op_dif_err = {
+	.owner =	THIS_MODULE,
+	.open =		lpfc_debugfs_dif_err_open,
+	.llseek =	lpfc_debugfs_lseek,
+	.read =		lpfc_debugfs_dif_err_read,
+	.write =	lpfc_debugfs_dif_err_write,
+	.release =	lpfc_debugfs_dif_err_release,
+};
+
 #undef lpfc_debugfs_op_slow_ring_trc
 static const struct file_operations lpfc_debugfs_op_slow_ring_trc = {
 	.owner =        THIS_MODULE,
@@ -3788,6 +3878,74 @@ lpfc_debugfs_initialize(struct lpfc_vport *vport)
 			goto debug_failed;
 		}
 
+		/* Setup DIF Error Injections */
+		snprintf(name, sizeof(name), "InjErrLBA");
+		phba->debug_InjErrLBA =
+			debugfs_create_file(name, S_IFREG|S_IRUGO|S_IWUSR,
+			phba->hba_debugfs_root,
+			phba, &lpfc_debugfs_op_dif_err);
+		if (!phba->debug_InjErrLBA) {
+			lpfc_printf_vlog(vport, KERN_ERR, LOG_INIT,
+				"0807 Cannot create debugfs InjErrLBA\n");
+			goto debug_failed;
+		}
+		phba->lpfc_injerr_lba = LPFC_INJERR_LBA_OFF;
+
+		snprintf(name, sizeof(name), "writeGuardInjErr");
+		phba->debug_writeGuard =
+			debugfs_create_file(name, S_IFREG|S_IRUGO|S_IWUSR,
+			phba->hba_debugfs_root,
+			phba, &lpfc_debugfs_op_dif_err);
+		if (!phba->debug_writeGuard) {
+			lpfc_printf_vlog(vport, KERN_ERR, LOG_INIT,
+				"0802 Cannot create debugfs writeGuard\n");
+			goto debug_failed;
+		}
+
+		snprintf(name, sizeof(name), "writeAppInjErr");
+		phba->debug_writeApp =
+			debugfs_create_file(name, S_IFREG|S_IRUGO|S_IWUSR,
+			phba->hba_debugfs_root,
+			phba, &lpfc_debugfs_op_dif_err);
+		if (!phba->debug_writeApp) {
+			lpfc_printf_vlog(vport, KERN_ERR, LOG_INIT,
+				"0803 Cannot create debugfs writeApp\n");
+			goto debug_failed;
+		}
+
+		snprintf(name, sizeof(name), "writeRefInjErr");
+		phba->debug_writeRef =
+			debugfs_create_file(name, S_IFREG|S_IRUGO|S_IWUSR,
+			phba->hba_debugfs_root,
+			phba, &lpfc_debugfs_op_dif_err);
+		if (!phba->debug_writeRef) {
+			lpfc_printf_vlog(vport, KERN_ERR, LOG_INIT,
+				"0804 Cannot create debugfs writeRef\n");
+			goto debug_failed;
+		}
+
+		snprintf(name, sizeof(name), "readAppInjErr");
+		phba->debug_readApp =
+			debugfs_create_file(name, S_IFREG|S_IRUGO|S_IWUSR,
+			phba->hba_debugfs_root,
+			phba, &lpfc_debugfs_op_dif_err);
+		if (!phba->debug_readApp) {
+			lpfc_printf_vlog(vport, KERN_ERR, LOG_INIT,
+				"0805 Cannot create debugfs readApp\n");
+			goto debug_failed;
+		}
+
+		snprintf(name, sizeof(name), "readRefInjErr");
+		phba->debug_readRef =
+			debugfs_create_file(name, S_IFREG|S_IRUGO|S_IWUSR,
+			phba->hba_debugfs_root,
+			phba, &lpfc_debugfs_op_dif_err);
+		if (!phba->debug_readRef) {
+			lpfc_printf_vlog(vport, KERN_ERR, LOG_INIT,
+				"0806 Cannot create debugfs readApp\n");
+			goto debug_failed;
+		}
+
 		/* Setup slow ring trace */
 		if (lpfc_debugfs_max_slow_ring_trc) {
 			num = lpfc_debugfs_max_slow_ring_trc - 1;
@@ -4089,6 +4247,30 @@ lpfc_debugfs_terminate(struct lpfc_vport *vport)
 		if (phba->debug_dumpDif) {
 			debugfs_remove(phba->debug_dumpDif); /* dumpDif */
 			phba->debug_dumpDif = NULL;
+		}
+		if (phba->debug_InjErrLBA) {
+			debugfs_remove(phba->debug_InjErrLBA); /* InjErrLBA */
+			phba->debug_InjErrLBA = NULL;
+		}
+		if (phba->debug_writeGuard) {
+			debugfs_remove(phba->debug_writeGuard); /* writeGuard */
+			phba->debug_writeGuard = NULL;
+		}
+		if (phba->debug_writeApp) {
+			debugfs_remove(phba->debug_writeApp); /* writeApp */
+			phba->debug_writeApp = NULL;
+		}
+		if (phba->debug_writeRef) {
+			debugfs_remove(phba->debug_writeRef); /* writeRef */
+			phba->debug_writeRef = NULL;
+		}
+		if (phba->debug_readApp) {
+			debugfs_remove(phba->debug_readApp); /* readApp */
+			phba->debug_readApp = NULL;
+		}
+		if (phba->debug_readRef) {
+			debugfs_remove(phba->debug_readRef); /* readRef */
+			phba->debug_readRef = NULL;
 		}
 
 		if (phba->slow_ring_trc) {

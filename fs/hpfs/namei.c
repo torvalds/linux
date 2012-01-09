@@ -56,7 +56,7 @@ static int hpfs_mkdir(struct inode *dir, struct dentry *dentry, int mode)
 	result->i_fop = &hpfs_dir_ops;
 	result->i_blocks = 4;
 	result->i_size = 2048;
-	result->i_nlink = 2;
+	set_nlink(result, 2);
 	if (dee.read_only)
 		result->i_mode &= ~0222;
 
@@ -150,7 +150,7 @@ static int hpfs_create(struct inode *dir, struct dentry *dentry, int mode, struc
 	result->i_mode &= ~0111;
 	result->i_op = &hpfs_file_iops;
 	result->i_fop = &hpfs_file_ops;
-	result->i_nlink = 1;
+	set_nlink(result, 1);
 	hpfs_i(result)->i_parent_dir = dir->i_ino;
 	result->i_ctime.tv_sec = result->i_mtime.tv_sec = result->i_atime.tv_sec = local_to_gmt(dir->i_sb, le32_to_cpu(dee.creation_date));
 	result->i_ctime.tv_nsec = 0;
@@ -242,7 +242,7 @@ static int hpfs_mknod(struct inode *dir, struct dentry *dentry, int mode, dev_t 
 	hpfs_i(result)->i_ea_size = 0;
 	result->i_uid = current_fsuid();
 	result->i_gid = current_fsgid();
-	result->i_nlink = 1;
+	set_nlink(result, 1);
 	result->i_size = 0;
 	result->i_blocks = 1;
 	init_special_inode(result, mode, rdev);
@@ -318,7 +318,7 @@ static int hpfs_symlink(struct inode *dir, struct dentry *dentry, const char *sy
 	result->i_uid = current_fsuid();
 	result->i_gid = current_fsgid();
 	result->i_blocks = 1;
-	result->i_nlink = 1;
+	set_nlink(result, 1);
 	result->i_size = strlen(symlink);
 	result->i_op = &page_symlink_inode_operations;
 	result->i_data.a_ops = &hpfs_symlink_aops;

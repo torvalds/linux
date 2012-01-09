@@ -259,7 +259,6 @@ static void __init vic_disable(void __iomem *base)
 	writel(0, base + VIC_INT_SELECT);
 	writel(0, base + VIC_INT_ENABLE);
 	writel(~0, base + VIC_INT_ENABLE_CLEAR);
-	writel(0, base + VIC_IRQ_STATUS);
 	writel(0, base + VIC_ITCR);
 	writel(~0, base + VIC_INT_SOFT_CLEAR);
 }
@@ -347,7 +346,8 @@ void __init vic_init(void __iomem *base, unsigned int irq_start,
 
 	/* Identify which VIC cell this one is, by reading the ID */
 	for (i = 0; i < 4; i++) {
-		u32 addr = ((u32)base & PAGE_MASK) + 0xfe0 + (i * 4);
+		void __iomem *addr;
+		addr = (void __iomem *)((u32)base & PAGE_MASK) + 0xfe0 + (i * 4);
 		cellid |= (readl(addr) & 0xff) << (8 * i);
 	}
 	vendor = (cellid >> 12) & 0xff;

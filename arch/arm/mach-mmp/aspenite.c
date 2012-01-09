@@ -8,7 +8,7 @@
  *  it under the terms of the GNU General Public License version 2 as
  *  publishhed by the Free Software Foundation.
  */
-
+#include <linux/gpio.h>
 #include <linux/init.h>
 #include <linux/kernel.h>
 #include <linux/platform_device.h>
@@ -17,13 +17,13 @@
 #include <linux/mtd/partitions.h>
 #include <linux/mtd/nand.h>
 #include <linux/interrupt.h>
+#include <linux/gpio.h>
 
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
 #include <mach/addr-map.h>
 #include <mach/mfp-pxa168.h>
 #include <mach/pxa168.h>
-#include <mach/gpio.h>
 #include <video/pxa168fb.h>
 #include <linux/input.h>
 #include <plat/pxa27x_keypad.h>
@@ -160,15 +160,16 @@ static struct mtd_partition aspenite_nand_partitions[] = {
 	}, {
 		.name		= "filesystem",
 		.offset		= MTDPART_OFS_APPEND,
-		.size		= SZ_48M,
+		.size		= SZ_32M + SZ_16M,
 		.mask_flags	= 0,
 	}
 };
 
 static struct pxa3xx_nand_platform_data aspenite_nand_info = {
 	.enable_arbiter	= 1,
-	.parts		= aspenite_nand_partitions,
-	.nr_parts	= ARRAY_SIZE(aspenite_nand_partitions),
+	.num_cs = 1,
+	.parts[0]	= aspenite_nand_partitions,
+	.nr_parts[0]	= ARRAY_SIZE(aspenite_nand_partitions),
 };
 
 static struct i2c_board_info aspenite_i2c_info[] __initdata = {

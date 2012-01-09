@@ -151,7 +151,7 @@ void fuse_change_attributes_common(struct inode *inode, struct fuse_attr *attr,
 
 	inode->i_ino     = attr->ino;
 	inode->i_mode    = (inode->i_mode & S_IFMT) | (attr->mode & 07777);
-	inode->i_nlink   = attr->nlink;
+	set_nlink(inode, attr->nlink);
 	inode->i_uid     = attr->uid;
 	inode->i_gid     = attr->gid;
 	inode->i_blocks  = attr->blocks;
@@ -811,6 +811,9 @@ static void process_init_reply(struct fuse_conn *fc, struct fuse_req *req)
 				fc->no_lock = 1;
 			if (arg->minor >= 17) {
 				if (!(arg->flags & FUSE_FLOCK_LOCKS))
+					fc->no_flock = 1;
+			} else {
+				if (!(arg->flags & FUSE_POSIX_LOCKS))
 					fc->no_flock = 1;
 			}
 			if (arg->flags & FUSE_ATOMIC_O_TRUNC)

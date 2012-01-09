@@ -536,7 +536,7 @@ void register_disk(struct gendisk *disk)
 	disk->slave_dir = kobject_create_and_add("slaves", &ddev->kobj);
 
 	/* No minors to use for partitions */
-	if (!disk_partitionable(disk))
+	if (!disk_part_scan_enabled(disk))
 		goto exit;
 
 	/* No such device (e.g., media were just removed) */
@@ -610,6 +610,12 @@ void add_disk(struct gendisk *disk)
 			    exact_match, exact_lock, disk);
 	register_disk(disk);
 	blk_register_queue(disk);
+
+	/*
+	 * Take an extra ref on queue which will be put on disk_release()
+	 * so that it sticks around as long as @disk is there.
+	 */
+	WARN_ON_ONCE(blk_get_queue(disk->queue));
 
 	retval = sysfs_create_link(&disk_to_dev(disk)->kobj, &bdi->dev->kobj,
 				   "bdi");
@@ -841,7 +847,7 @@ static int show_partition(struct seq_file *seqf, void *v)
 	char buf[BDEVNAME_SIZE];
 
 	/* Don't show non-partitionable removeable devices or empty devices */
-	if (!get_capacity(sgp) || (!disk_partitionable(sgp) &&
+	if (!get_capacity(sgp) || (!disk_max_parts(sgp) &&
 				   (sgp->flags & GENHD_FL_REMOVABLE)))
 		return 0;
 	if (sgp->flags & GENHD_FL_SUPPRESS_PARTITION_INFO)
@@ -1095,6 +1101,8 @@ static void disk_release(struct device *dev)
 	disk_replace_part_tbl(disk, NULL);
 	free_part_stats(&disk->part0);
 	free_part_info(&disk->part0);
+	if (disk->queue)
+		blk_put_queue(disk->queue);
 	kfree(disk);
 }
 struct class block_class = {

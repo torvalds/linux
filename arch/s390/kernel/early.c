@@ -252,7 +252,7 @@ static noinline __init void setup_lowcore_early(void)
 {
 	psw_t psw;
 
-	psw.mask = PSW_BASE_BITS | PSW_DEFAULT_KEY;
+	psw.mask = PSW_MASK_BASE | PSW_DEFAULT_KEY | PSW_MASK_EA | PSW_MASK_BA;
 	psw.addr = PSW_ADDR_AMODE | (unsigned long) s390_base_ext_handler;
 	S390_lowcore.external_new_psw = psw;
 	psw.addr = PSW_ADDR_AMODE | (unsigned long) s390_base_pgm_handler;
@@ -390,6 +390,8 @@ static __init void detect_machine_facilities(void)
 		S390_lowcore.machine_flags |= MACHINE_FLAG_MVCOS;
 	if (test_facility(40))
 		S390_lowcore.machine_flags |= MACHINE_FLAG_SPP;
+	if (test_facility(25))
+		S390_lowcore.machine_flags |= MACHINE_FLAG_STCKF;
 #endif
 }
 

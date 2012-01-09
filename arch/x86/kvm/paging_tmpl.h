@@ -147,7 +147,7 @@ static int FNAME(walk_addr_generic)(struct guest_walker *walker,
 	gfn_t table_gfn;
 	unsigned index, pt_access, uninitialized_var(pte_access);
 	gpa_t pte_gpa;
-	bool eperm;
+	bool eperm, last_gpte;
 	int offset;
 	const int write_fault = access & PFERR_WRITE_MASK;
 	const int user_fault  = access & PFERR_USER_MASK;
@@ -163,7 +163,7 @@ retry_walk:
 
 #if PTTYPE == 64
 	if (walker->level == PT32E_ROOT_LEVEL) {
-		pte = kvm_pdptr_read_mmu(vcpu, mmu, (addr >> 30) & 3);
+		pte = mmu->get_pdptr(vcpu, (addr >> 30) & 3);
 		trace_kvm_mmu_paging_element(pte, walker->level);
 		if (!is_present_gpte(pte))
 			goto error;
@@ -221,6 +221,17 @@ retry_walk:
 			eperm = true;
 #endif
 
+		last_gpte = FNAME(is_last_gpte)(walker, vcpu, mmu, pte);
+		if (last_gpte) {
+			pte_access = pt_access &
+				     FNAME(gpte_access)(vcpu, pte, true);
+			/* check if the kernel is fetching from user page */
+			if (unlikely(pte_access & PT_USER_MASK) &&
+			    kvm_read_cr4_bits(vcpu, X86_CR4_SMEP))
+				if (fetch_fault && !user_fault)
+					eperm = true;
+		}
+
 		if (!eperm && unlikely(!(pte & PT_ACCESSED_MASK))) {
 			int ret;
 			trace_kvm_mmu_set_accessed_bit(table_gfn, index,
@@ -238,17 +249,11 @@ retry_walk:
 
 		walker->ptes[walker->level - 1] = pte;
 
-		if (FNAME(is_last_gpte)(walker, vcpu, mmu, pte)) {
+		if (last_gpte) {
 			int lvl = walker->level;
 			gpa_t real_gpa;
 			gfn_t gfn;
 			u32 ac;
-
-			/* check if the kernel is fetching from user page */
-			if (unlikely(pte_access & PT_USER_MASK) &&
-			    kvm_read_cr4_bits(vcpu, X86_CR4_SMEP))
-				if (fetch_fault && !user_fault)
-					eperm = true;
 
 			gfn = gpte_to_gfn_lvl(pte, lvl);
 			gfn += (addr & PT_LVL_OFFSET_MASK(lvl)) >> PAGE_SHIFT;
@@ -295,7 +300,6 @@ retry_walk:
 		walker->ptes[walker->level - 1] = pte;
 	}
 
-	pte_access = pt_access & FNAME(gpte_access)(vcpu, pte, true);
 	walker->pt_access = pt_access;
 	walker->pte_access = pte_access;
 	pgprintk("%s: pte %llx pte_access %x pt_access %x\n",

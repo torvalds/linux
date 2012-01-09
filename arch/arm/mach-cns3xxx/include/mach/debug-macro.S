@@ -10,7 +10,7 @@
  * published by the Free Software Foundation.
  */
 
-		.macro	addruart,rp,rv
+		.macro	addruart,rp,rv,tmp
 		mov	\rp, #0x00009000
 		orr	\rv, \rp, #0xf0000000	@ virtual base
 		orr	\rp, \rp, #0x10000000

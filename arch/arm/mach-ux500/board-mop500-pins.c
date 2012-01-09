@@ -6,10 +6,10 @@
 
 #include <linux/kernel.h>
 #include <linux/init.h>
-#include <linux/gpio.h>
 
 #include <asm/mach-types.h>
 #include <plat/pincfg.h>
+#include <plat/gpio-nomadik.h>
 #include <mach/hardware.h>
 
 #include "pins-db8500.h"
@@ -153,7 +153,7 @@ static pin_cfg_t mop500_pins_default[] = {
 	GPIO7_U1_RTSn	| PIN_OUTPUT_HIGH,
 };
 
-static pin_cfg_t mop500_pins_hrefv60[] = {
+static pin_cfg_t hrefv60_pins[] = {
 	/* WLAN */
 	GPIO4_GPIO		| PIN_INPUT_PULLUP,/* WLAN_IRQ */
 	GPIO85_GPIO		| PIN_OUTPUT_LOW,/* WLAN_ENA */
@@ -279,14 +279,26 @@ static pin_cfg_t snowball_pins[] = {
 void __init mop500_pins_init(void)
 {
 	nmk_config_pins(mop500_pins_common,
-				ARRAY_SIZE(mop500_pins_common));
-	if (machine_is_hrefv60())
-		nmk_config_pins(mop500_pins_hrefv60,
-				ARRAY_SIZE(mop500_pins_hrefv60));
-	else if (machine_is_snowball())
-		nmk_config_pins(snowball_pins,
-				ARRAY_SIZE(snowball_pins));
-	else
-		nmk_config_pins(mop500_pins_default,
-				ARRAY_SIZE(mop500_pins_default));
+			ARRAY_SIZE(mop500_pins_common));
+
+	nmk_config_pins(mop500_pins_default,
+			ARRAY_SIZE(mop500_pins_default));
+}
+
+void __init snowball_pins_init(void)
+{
+	nmk_config_pins(mop500_pins_common,
+			ARRAY_SIZE(mop500_pins_common));
+
+	nmk_config_pins(snowball_pins,
+			ARRAY_SIZE(snowball_pins));
+}
+
+void __init hrefv60_pins_init(void)
+{
+	nmk_config_pins(mop500_pins_common,
+			ARRAY_SIZE(mop500_pins_common));
+
+	nmk_config_pins(hrefv60_pins,
+			ARRAY_SIZE(hrefv60_pins));
 }

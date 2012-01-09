@@ -1458,7 +1458,7 @@ static int nes_destroy_qp(struct ib_qp *ibqp)
 	struct ib_qp_attr attr;
 	struct iw_cm_id *cm_id;
 	struct iw_cm_event cm_event;
-	int ret;
+	int ret = 0;
 
 	atomic_inc(&sw_qps_destroyed);
 	nesqp->destroyed = 1;
@@ -1511,7 +1511,6 @@ static int nes_destroy_qp(struct ib_qp *ibqp)
 		if ((nesqp->nesrcq) && (nesqp->nesrcq != nesqp->nesscq))
 			nes_clean_cq(nesqp, nesqp->nesrcq);
 	}
-
 	nes_rem_ref(&nesqp->ibqp);
 	return 0;
 }
@@ -2338,8 +2337,10 @@ static struct ib_mr *nes_reg_user_mr(struct ib_pd *pd, u64 start, u64 length,
 
 	skip_pages = ((u32)region->offset) >> 12;
 
-	if (ib_copy_from_udata(&req, udata, sizeof(req)))
+	if (ib_copy_from_udata(&req, udata, sizeof(req))) {
+		ib_umem_release(region);
 		return ERR_PTR(-EFAULT);
+	}
 	nes_debug(NES_DBG_MR, "Memory Registration type = %08X.\n", req.reg_type);
 
 	switch (req.reg_type) {
@@ -2631,6 +2632,7 @@ static struct ib_mr *nes_reg_user_mr(struct ib_pd *pd, u64 start, u64 length,
 			return &nesmr->ibmr;
 	}
 
+	ib_umem_release(region);
 	return ERR_PTR(-ENOSYS);
 }
 

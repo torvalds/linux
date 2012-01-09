@@ -231,6 +231,7 @@ void pxa2xx_configure_sockets(struct device *dev)
 
 	__raw_writel(mecr, MECR);
 }
+EXPORT_SYMBOL(pxa2xx_configure_sockets);
 
 static const char *skt_names[] = {
 	"PCMCIA socket 0",

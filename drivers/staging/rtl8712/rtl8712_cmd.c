@@ -28,6 +28,24 @@
 
 #define _RTL8712_CMD_C_
 
+#include <linux/compiler.h>
+#include <linux/kernel.h>
+#include <linux/errno.h>
+#include <linux/init.h>
+#include <linux/slab.h>
+#include <linux/module.h>
+#include <linux/kref.h>
+#include <linux/netdevice.h>
+#include <linux/skbuff.h>
+#include <linux/usb.h>
+#include <linux/usb/ch9.h>
+#include <linux/circ_buf.h>
+#include <linux/uaccess.h>
+#include <asm/byteorder.h>
+#include <linux/atomic.h>
+#include <linux/semaphore.h>
+#include <linux/rtnetlink.h>
+
 #include "osdep_service.h"
 #include "drv_types.h"
 #include "recv_osdep.h"

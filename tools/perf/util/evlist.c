@@ -113,6 +113,19 @@ void perf_evlist__disable(struct perf_evlist *evlist)
 	}
 }
 
+void perf_evlist__enable(struct perf_evlist *evlist)
+{
+	int cpu, thread;
+	struct perf_evsel *pos;
+
+	for (cpu = 0; cpu < evlist->cpus->nr; cpu++) {
+		list_for_each_entry(pos, &evlist->entries, node) {
+			for (thread = 0; thread < evlist->threads->nr; thread++)
+				ioctl(FD(pos, cpu, thread), PERF_EVENT_IOC_ENABLE);
+		}
+	}
+}
+
 int perf_evlist__alloc_pollfd(struct perf_evlist *evlist)
 {
 	int nfds = evlist->cpus->nr * evlist->threads->nr * evlist->nr_entries;
@@ -519,4 +532,40 @@ bool perf_evlist__sample_id_all(const struct perf_evlist *evlist)
 
 	first = list_entry(evlist->entries.next, struct perf_evsel, node);
 	return first->attr.sample_id_all;
+}
+
+void perf_evlist__set_selected(struct perf_evlist *evlist,
+			       struct perf_evsel *evsel)
+{
+	evlist->selected = evsel;
+}
+
+int perf_evlist__open(struct perf_evlist *evlist, bool group)
+{
+	struct perf_evsel *evsel, *first;
+	int err, ncpus, nthreads;
+
+	first = list_entry(evlist->entries.next, struct perf_evsel, node);
+
+	list_for_each_entry(evsel, &evlist->entries, node) {
+		struct xyarray *group_fd = NULL;
+
+		if (group && evsel != first)
+			group_fd = first->fd;
+
+		err = perf_evsel__open(evsel, evlist->cpus, evlist->threads,
+				       group, group_fd);
+		if (err < 0)
+			goto out_err;
+	}
+
+	return 0;
+out_err:
+	ncpus = evlist->cpus ? evlist->cpus->nr : 1;
+	nthreads = evlist->threads ? evlist->threads->nr : 1;
+
+	list_for_each_entry_reverse(evsel, &evlist->entries, node)
+		perf_evsel__close(evsel, ncpus, nthreads);
+
+	return err;
 }

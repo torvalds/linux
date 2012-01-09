@@ -1,5 +1,5 @@
 menuconfig FB_OMAP2
-        tristate "OMAP2+ frame buffer support (EXPERIMENTAL)"
+        tristate "OMAP2+ frame buffer support"
         depends on FB && OMAP2_DSS
 
 	select OMAP2_VRAM

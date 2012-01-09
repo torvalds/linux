@@ -1,6 +1,6 @@
 #include <linux/kdebug.h>
 #include <linux/kprobes.h>
-#include <linux/module.h>
+#include <linux/export.h>
 #include <linux/notifier.h>
 #include <linux/rcupdate.h>
 #include <linux/vmalloc.h>

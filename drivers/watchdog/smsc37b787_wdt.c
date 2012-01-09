@@ -40,7 +40,7 @@
  *  mknod /dev/watchdog c 10 130
  *
  * For an example userspace keep-alive daemon, see:
- *   Documentation/watchdog/watchdog.txt
+ *   Documentation/watchdog/wdt.txt
  */
 
 #include <linux/module.h>

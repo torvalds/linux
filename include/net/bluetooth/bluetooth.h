@@ -77,7 +77,7 @@ struct bt_power {
 #define BT_POWER_FORCE_ACTIVE_OFF 0
 #define BT_POWER_FORCE_ACTIVE_ON  1
 
-__attribute__((format (printf, 2, 3)))
+__printf(2, 3)
 int bt_printk(const char *level, const char *fmt, ...);
 
 #define BT_INFO(fmt, arg...)   bt_printk(KERN_INFO, pr_fmt(fmt), ##arg)

@@ -631,7 +631,7 @@ xfs_btree_read_bufl(
 	}
 	ASSERT(!xfs_buf_geterror(bp));
 	if (bp)
-		XFS_BUF_SET_VTYPE_REF(bp, B_FS_MAP, refval);
+		xfs_buf_set_ref(bp, refval);
 	*bpp = bp;
 	return 0;
 }
@@ -939,13 +939,13 @@ xfs_btree_set_refs(
 	switch (cur->bc_btnum) {
 	case XFS_BTNUM_BNO:
 	case XFS_BTNUM_CNT:
-		XFS_BUF_SET_VTYPE_REF(bp, B_FS_MAP, XFS_ALLOC_BTREE_REF);
+		xfs_buf_set_ref(bp, XFS_ALLOC_BTREE_REF);
 		break;
 	case XFS_BTNUM_INO:
-		XFS_BUF_SET_VTYPE_REF(bp, B_FS_INOMAP, XFS_INO_BTREE_REF);
+		xfs_buf_set_ref(bp, XFS_INO_BTREE_REF);
 		break;
 	case XFS_BTNUM_BMAP:
-		XFS_BUF_SET_VTYPE_REF(bp, B_FS_MAP, XFS_BMAP_BTREE_REF);
+		xfs_buf_set_ref(bp, XFS_BMAP_BTREE_REF);
 		break;
 	default:
 		ASSERT(0);
@@ -970,7 +970,8 @@ xfs_btree_get_buf_block(
 	*bpp = xfs_trans_get_buf(cur->bc_tp, mp->m_ddev_targp, d,
 				 mp->m_bsize, flags);
 
-	ASSERT(!xfs_buf_geterror(*bpp));
+	if (!*bpp)
+		return ENOMEM;
 
 	*block = XFS_BUF_TO_BLOCK(*bpp);
 	return 0;

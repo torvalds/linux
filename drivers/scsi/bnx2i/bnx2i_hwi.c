@@ -563,7 +563,7 @@ int bnx2i_send_iscsi_nopout(struct bnx2i_conn *bnx2i_conn,
 	nopout_wqe->itt = ((u16)task->itt |
 			   (ISCSI_TASK_TYPE_MPATH <<
 			    ISCSI_TMF_REQUEST_TYPE_SHIFT));
-	nopout_wqe->ttt = nopout_hdr->ttt;
+	nopout_wqe->ttt = be32_to_cpu(nopout_hdr->ttt);
 	nopout_wqe->flags = 0;
 	if (!unsol)
 		nopout_wqe->flags = ISCSI_NOP_OUT_REQUEST_LOCAL_COMPLETION;

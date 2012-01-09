@@ -101,9 +101,8 @@ static inline int lookup_symbol_attrs(unsigned long addr, unsigned long *size, u
 #endif /*CONFIG_KALLSYMS*/
 
 /* This macro allows us to keep printk typechecking */
-static void __check_printsym_format(const char *fmt, ...)
-__attribute__((format(printf,1,2)));
-static inline void __check_printsym_format(const char *fmt, ...)
+static __printf(1, 2)
+void __check_printsym_format(const char *fmt, ...)
 {
 }
 

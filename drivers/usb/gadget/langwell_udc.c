@@ -5,16 +5,6 @@
  * This program is free software; you can redistribute it and/or modify it
  * under the terms and conditions of the GNU General Public License,
  * version 2, as published by the Free Software Foundation.
- *
- * This program is distributed in the hope it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
- *
- * You should have received a copy of the GNU General Public License along with
- * this program; if not, write to the Free Software Foundation, Inc.,
- * 51 Franklin St - Fifth Floor, Boston, MA 02110-1301 USA.
- *
  */
 
 
@@ -59,9 +49,6 @@
 static const char driver_name[] = "langwell_udc";
 static const char driver_desc[] = DRIVER_DESC;
 
-
-/* controller device global variable */
-static struct langwell_udc	*the_controller;
 
 /* for endpoint 0 operations */
 static const struct usb_endpoint_descriptor
@@ -283,7 +270,7 @@ static int langwell_ep_enable(struct usb_ep *_ep,
 	if (!dev->driver || dev->gadget.speed == USB_SPEED_UNKNOWN)
 		return -ESHUTDOWN;
 
-	max = le16_to_cpu(desc->wMaxPacketSize);
+	max = usb_endpoint_maxp(desc);
 
 	/*
 	 * disable HW zero length termination select
@@ -1321,9 +1308,12 @@ static int langwell_pullup(struct usb_gadget *_gadget, int is_on)
 	return 0;
 }
 
-static int langwell_start(struct usb_gadget_driver *driver,
-		int (*bind)(struct usb_gadget *));
-static int langwell_stop(struct usb_gadget_driver *driver);
+static int langwell_start(struct usb_gadget *g,
+		struct usb_gadget_driver *driver);
+
+static int langwell_stop(struct usb_gadget *g,
+		struct usb_gadget_driver *driver);
+
 /* device controller usb_gadget_ops structure */
 static const struct usb_gadget_ops langwell_ops = {
 
@@ -1345,8 +1335,8 @@ static const struct usb_gadget_ops langwell_ops = {
 	/* D+ pullup, software-controlled connect/disconnect to USB host */
 	.pullup		= langwell_pullup,
 
-	.start		= langwell_start,
-	.stop		= langwell_stop,
+	.udc_start	= langwell_start,
+	.udc_stop	= langwell_stop,
 };
 
 
@@ -1561,7 +1551,7 @@ static void stop_activity(struct langwell_udc *dev,
 static ssize_t show_function(struct device *_dev,
 		struct device_attribute *attr, char *buf)
 {
-	struct langwell_udc	*dev = the_controller;
+	struct langwell_udc	*dev = dev_get_drvdata(_dev);
 
 	if (!dev->driver || !dev->driver->function
 			|| strlen(dev->driver->function) > PAGE_SIZE)
@@ -1572,11 +1562,25 @@ static ssize_t show_function(struct device *_dev,
 static DEVICE_ATTR(function, S_IRUGO, show_function, NULL);
 
 
+static inline enum usb_device_speed lpm_device_speed(u32 reg)
+{
+	switch (LPM_PSPD(reg)) {
+	case LPM_SPEED_HIGH:
+		return USB_SPEED_HIGH;
+	case LPM_SPEED_FULL:
+		return USB_SPEED_FULL;
+	case LPM_SPEED_LOW:
+		return USB_SPEED_LOW;
+	default:
+		return USB_SPEED_UNKNOWN;
+	}
+}
+
 /* device "langwell_udc" sysfs attribute file */
 static ssize_t show_langwell_udc(struct device *_dev,
 		struct device_attribute *attr, char *buf)
 {
-	struct langwell_udc	*dev = the_controller;
+	struct langwell_udc	*dev = dev_get_drvdata(_dev);
 	struct langwell_request *req;
 	struct langwell_ep	*ep = NULL;
 	char			*next;
@@ -1700,20 +1704,7 @@ static ssize_t show_langwell_udc(struct device *_dev,
 		"BmAttributes: %d\n\n",
 		LPM_PTS(tmp_reg),
 		(tmp_reg & LPM_STS) ? 1 : 0,
-		({
-			char	*s;
-			switch (LPM_PSPD(tmp_reg)) {
-			case LPM_SPEED_FULL:
-				s = "Full Speed"; break;
-			case LPM_SPEED_LOW:
-				s = "Low Speed"; break;
-			case LPM_SPEED_HIGH:
-				s = "High Speed"; break;
-			default:
-				s = "Unknown Speed"; break;
-			}
-			s;
-		}),
+		usb_speed_string(lpm_device_speed(tmp_reg)),
 		(tmp_reg & LPM_PFSC) ? "Force Full Speed" : "Not Force",
 		(tmp_reg & LPM_PHCD) ? "Disabled" : "Enabled",
 		LPM_BA(tmp_reg));
@@ -1821,7 +1812,7 @@ static DEVICE_ATTR(langwell_udc, S_IRUGO, show_langwell_udc, NULL);
 static ssize_t store_remote_wakeup(struct device *_dev,
 		struct device_attribute *attr, const char *buf, size_t count)
 {
-	struct langwell_udc	*dev = the_controller;
+	struct langwell_udc	*dev = dev_get_drvdata(_dev);
 	unsigned long		flags;
 	ssize_t			rc = count;
 
@@ -1857,20 +1848,14 @@ static DEVICE_ATTR(remote_wakeup, S_IWUSR, NULL, store_remote_wakeup);
  * the driver might get unbound.
  */
 
-static int langwell_start(struct usb_gadget_driver *driver,
-		int (*bind)(struct usb_gadget *))
+static int langwell_start(struct usb_gadget *g,
+		struct usb_gadget_driver *driver)
 {
-	struct langwell_udc	*dev = the_controller;
+	struct langwell_udc	*dev = gadget_to_langwell(g);
 	unsigned long		flags;
 	int			retval;
 
-	if (!dev)
-		return -ENODEV;
-
 	dev_dbg(&dev->pdev->dev, "---> %s()\n", __func__);
-
-	if (dev->driver)
-		return -EBUSY;
 
 	spin_lock_irqsave(&dev->lock, flags);
 
@@ -1881,18 +1866,9 @@ static int langwell_start(struct usb_gadget_driver *driver,
 
 	spin_unlock_irqrestore(&dev->lock, flags);
 
-	retval = bind(&dev->gadget);
-	if (retval) {
-		dev_dbg(&dev->pdev->dev, "bind to driver %s --> %d\n",
-				driver->driver.name, retval);
-		dev->driver = NULL;
-		dev->gadget.dev.driver = NULL;
-		return retval;
-	}
-
 	retval = device_create_file(&dev->pdev->dev, &dev_attr_function);
 	if (retval)
-		goto err_unbind;
+		goto err;
 
 	dev->usb_state = USB_STATE_ATTACHED;
 	dev->ep0_state = WAIT_FOR_SETUP;
@@ -1909,30 +1885,26 @@ static int langwell_start(struct usb_gadget_driver *driver,
 	dev_info(&dev->pdev->dev, "register driver: %s\n",
 			driver->driver.name);
 	dev_dbg(&dev->pdev->dev, "<--- %s()\n", __func__);
+
 	return 0;
 
-err_unbind:
-	driver->unbind(&dev->gadget);
+err:
 	dev->gadget.dev.driver = NULL;
 	dev->driver = NULL;
 
 	dev_dbg(&dev->pdev->dev, "<--- %s()\n", __func__);
+
 	return retval;
 }
 
 /* unregister gadget driver */
-static int langwell_stop(struct usb_gadget_driver *driver)
+static int langwell_stop(struct usb_gadget *g,
+		struct usb_gadget_driver *driver)
 {
-	struct langwell_udc	*dev = the_controller;
+	struct langwell_udc	*dev = gadget_to_langwell(g);
 	unsigned long		flags;
 
-	if (!dev)
-		return -ENODEV;
-
 	dev_dbg(&dev->pdev->dev, "---> %s()\n", __func__);
-
-	if (unlikely(!driver || !driver->unbind))
-		return -EINVAL;
 
 	/* exit PHY low power suspend */
 	if (dev->pdev->device != 0x0829)
@@ -1956,8 +1928,6 @@ static int langwell_stop(struct usb_gadget_driver *driver)
 	stop_activity(dev, driver);
 	spin_unlock_irqrestore(&dev->lock, flags);
 
-	/* unbind gadget driver */
-	driver->unbind(&dev->gadget);
 	dev->gadget.dev.driver = NULL;
 	dev->driver = NULL;
 
@@ -1966,6 +1936,7 @@ static int langwell_stop(struct usb_gadget_driver *driver)
 	dev_info(&dev->pdev->dev, "unregistered driver '%s'\n",
 			driver->driver.name);
 	dev_dbg(&dev->pdev->dev, "<--- %s()\n", __func__);
+
 	return 0;
 }
 
@@ -2657,12 +2628,10 @@ done:
 	dev_vdbg(&dev->pdev->dev, "<--- %s()\n", __func__);
 }
 
-
 /* port change detect interrupt handler */
 static void handle_port_change(struct langwell_udc *dev)
 {
 	u32	portsc1, devlc;
-	u32	speed;
 
 	dev_vdbg(&dev->pdev->dev, "---> %s()\n", __func__);
 
@@ -2677,24 +2646,9 @@ static void handle_port_change(struct langwell_udc *dev)
 	/* bus reset is finished */
 	if (!(portsc1 & PORTS_PR)) {
 		/* get the speed */
-		speed = LPM_PSPD(devlc);
-		switch (speed) {
-		case LPM_SPEED_HIGH:
-			dev->gadget.speed = USB_SPEED_HIGH;
-			break;
-		case LPM_SPEED_FULL:
-			dev->gadget.speed = USB_SPEED_FULL;
-			break;
-		case LPM_SPEED_LOW:
-			dev->gadget.speed = USB_SPEED_LOW;
-			break;
-		default:
-			dev->gadget.speed = USB_SPEED_UNKNOWN;
-			break;
-		}
-		dev_vdbg(&dev->pdev->dev,
-				"speed = %d, dev->gadget.speed = %d\n",
-				speed, dev->gadget.speed);
+		dev->gadget.speed = lpm_device_speed(devlc);
+		dev_vdbg(&dev->pdev->dev, "dev->gadget.speed = %d\n",
+			dev->gadget.speed);
 	}
 
 	/* LPM L0 to L1 */
@@ -2969,7 +2923,7 @@ static irqreturn_t langwell_irq(int irq, void *_dev)
 		handle_port_change(dev);
 	}
 
-	/* suspend interrrupt */
+	/* suspend interrupt */
 	if (irq_sts & STS_SLI) {
 		dev_vdbg(&dev->pdev->dev, "suspend interrupt\n");
 		handle_bus_suspend(dev);
@@ -2999,7 +2953,7 @@ static irqreturn_t langwell_irq(int irq, void *_dev)
 /* release device structure */
 static void gadget_release(struct device *_dev)
 {
-	struct langwell_udc	*dev = the_controller;
+	struct langwell_udc	*dev = dev_get_drvdata(_dev);
 
 	dev_dbg(&dev->pdev->dev, "---> %s()\n", __func__);
 
@@ -3057,7 +3011,7 @@ static void sram_deinit(struct langwell_udc *dev)
 /* tear down the binding between this driver and the pci device */
 static void langwell_udc_remove(struct pci_dev *pdev)
 {
-	struct langwell_udc	*dev = the_controller;
+	struct langwell_udc	*dev = pci_get_drvdata(pdev);
 
 	DECLARE_COMPLETION(done);
 
@@ -3124,8 +3078,6 @@ static void langwell_udc_remove(struct pci_dev *pdev)
 
 	/* free dev, wait for the release() finished */
 	wait_for_completion(&done);
-
-	the_controller = NULL;
 }
 
 
@@ -3143,11 +3095,6 @@ static int langwell_udc_probe(struct pci_dev *pdev,
 	void			__iomem *base = NULL;
 	size_t			size;
 	int			retval;
-
-	if (the_controller) {
-		dev_warn(&pdev->dev, "ignoring\n");
-		return -EBUSY;
-	}
 
 	/* alloc, and start init */
 	dev = kzalloc(sizeof *dev, GFP_KERNEL);
@@ -3368,8 +3315,6 @@ static int langwell_udc_probe(struct pci_dev *pdev,
 			"After langwell_udc_probe(), print all registers:\n");
 	print_all_registers(dev);
 
-	the_controller = dev;
-
 	retval = device_register(&dev->gadget.dev);
 	if (retval)
 		goto error;
@@ -3404,7 +3349,7 @@ error:
 /* device controller suspend */
 static int langwell_udc_suspend(struct pci_dev *pdev, pm_message_t state)
 {
-	struct langwell_udc	*dev = the_controller;
+	struct langwell_udc	*dev = pci_get_drvdata(pdev);
 
 	dev_dbg(&dev->pdev->dev, "---> %s()\n", __func__);
 
@@ -3452,7 +3397,7 @@ static int langwell_udc_suspend(struct pci_dev *pdev, pm_message_t state)
 /* device controller resume */
 static int langwell_udc_resume(struct pci_dev *pdev)
 {
-	struct langwell_udc	*dev = the_controller;
+	struct langwell_udc	*dev = pci_get_drvdata(pdev);
 	size_t			size;
 
 	dev_dbg(&dev->pdev->dev, "---> %s()\n", __func__);
@@ -3534,7 +3479,7 @@ static int langwell_udc_resume(struct pci_dev *pdev)
 /* pci driver shutdown */
 static void langwell_udc_shutdown(struct pci_dev *pdev)
 {
-	struct langwell_udc	*dev = the_controller;
+	struct langwell_udc	*dev = pci_get_drvdata(pdev);
 	u32			usbmode;
 
 	dev_dbg(&dev->pdev->dev, "---> %s()\n", __func__);

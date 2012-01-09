@@ -26,7 +26,7 @@
 
 #include <mach/platform.h>
 #include <mach/irqs.h>
-#include <mach/gpio.h>
+#include <asm/gpio.h>
 
 #define USB_CTRL	IO_ADDRESS(PNX4008_PWRMAN_BASE + 0x64)
 
@@ -398,7 +398,7 @@ static int __devinit usb_hcd_pnx4008_probe(struct platform_device *pdev)
 	ohci_hcd_init(ohci);
 
 	dev_info(&pdev->dev, "at 0x%p, irq %d\n", hcd->regs, hcd->irq);
-	ret = usb_add_hcd(hcd, irq, IRQF_DISABLED);
+	ret = usb_add_hcd(hcd, irq, 0);
 	if (ret == 0)
 		return ret;
 

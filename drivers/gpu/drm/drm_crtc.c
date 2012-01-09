@@ -31,6 +31,7 @@
  */
 #include <linux/list.h>
 #include <linux/slab.h>
+#include <linux/export.h>
 #include "drm.h"
 #include "drmP.h"
 #include "drm_crtc.h"
@@ -162,6 +163,7 @@ static struct drm_conn_prop_enum_list drm_connector_enum_list[] =
 	{ DRM_MODE_CONNECTOR_HDMIB, "HDMI-B", 0 },
 	{ DRM_MODE_CONNECTOR_TV, "TV", 0 },
 	{ DRM_MODE_CONNECTOR_eDP, "eDP", 0 },
+	{ DRM_MODE_CONNECTOR_VIRTUAL, "Virtual", 0},
 };
 
 static struct drm_prop_enum_list drm_encoder_enum_list[] =
@@ -170,6 +172,7 @@ static struct drm_prop_enum_list drm_encoder_enum_list[] =
 	{ DRM_MODE_ENCODER_TMDS, "TMDS" },
 	{ DRM_MODE_ENCODER_LVDS, "LVDS" },
 	{ DRM_MODE_ENCODER_TVDAC, "TV" },
+	{ DRM_MODE_ENCODER_VIRTUAL, "Virtual" },
 };
 
 char *drm_get_encoder_name(struct drm_encoder *encoder)
@@ -463,8 +466,10 @@ void drm_connector_init(struct drm_device *dev,
 	list_add_tail(&connector->head, &dev->mode_config.connector_list);
 	dev->mode_config.num_connector++;
 
-	drm_connector_attach_property(connector,
-				      dev->mode_config.edid_property, 0);
+	if (connector_type != DRM_MODE_CONNECTOR_VIRTUAL)
+		drm_connector_attach_property(connector,
+					      dev->mode_config.edid_property,
+					      0);
 
 	drm_connector_attach_property(connector,
 				      dev->mode_config.dpms_property, 0);
@@ -499,6 +504,7 @@ void drm_connector_cleanup(struct drm_connector *connector)
 	mutex_lock(&dev->mode_config.mutex);
 	drm_mode_object_put(dev, &connector->base);
 	list_del(&connector->head);
+	dev->mode_config.num_connector--;
 	mutex_unlock(&dev->mode_config.mutex);
 }
 EXPORT_SYMBOL(drm_connector_cleanup);
@@ -529,6 +535,7 @@ void drm_encoder_cleanup(struct drm_encoder *encoder)
 	mutex_lock(&dev->mode_config.mutex);
 	drm_mode_object_put(dev, &encoder->base);
 	list_del(&encoder->head);
+	dev->mode_config.num_encoder--;
 	mutex_unlock(&dev->mode_config.mutex);
 }
 EXPORT_SYMBOL(drm_encoder_cleanup);
@@ -1866,6 +1873,10 @@ int drm_mode_dirtyfb_ioctl(struct drm_device *dev,
 	}
 
 	if (num_clips && clips_ptr) {
+		if (num_clips < 0 || num_clips > DRM_MODE_FB_DIRTY_MAX_CLIPS) {
+			ret = -EINVAL;
+			goto out_err1;
+		}
 		clips = kzalloc(num_clips * sizeof(*clips), GFP_KERNEL);
 		if (!clips) {
 			ret = -ENOMEM;
@@ -2111,8 +2122,10 @@ struct drm_property *drm_property_create(struct drm_device *dev, int flags,
 	property->num_values = num_values;
 	INIT_LIST_HEAD(&property->enum_blob_list);
 
-	if (name)
+	if (name) {
 		strncpy(property->name, name, DRM_PROP_NAME_LEN);
+		property->name[DRM_PROP_NAME_LEN-1] = '\0';
+	}
 
 	list_add_tail(&property->head, &dev->mode_config.property_list);
 	return property;

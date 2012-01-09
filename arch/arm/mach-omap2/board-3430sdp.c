@@ -37,7 +37,7 @@
 #include <plat/dma.h>
 #include <plat/gpmc.h>
 #include <video/omapdss.h>
-#include <video/omap-panel-generic-dpi.h>
+#include <video/omap-panel-dvi.h>
 
 #include <plat/gpmc-smc91x.h>
 
@@ -186,8 +186,7 @@ static struct omap_dss_device sdp3430_lcd_device = {
 	.platform_disable	= sdp3430_panel_disable_lcd,
 };
 
-static struct panel_generic_dpi_data dvi_panel = {
-	.name			= "generic",
+static struct panel_dvi_platform_data dvi_panel = {
 	.platform_enable	= sdp3430_panel_enable_dvi,
 	.platform_disable	= sdp3430_panel_disable_dvi,
 };
@@ -195,7 +194,7 @@ static struct panel_generic_dpi_data dvi_panel = {
 static struct omap_dss_device sdp3430_dvi_device = {
 	.name			= "dvi",
 	.type			= OMAP_DISPLAY_TYPE_DPI,
-	.driver_name		= "generic_dpi_panel",
+	.driver_name		= "dvi",
 	.data			= &dvi_panel,
 	.phy.dpi.data_lines	= 24,
 };
@@ -224,12 +223,6 @@ static struct omap_dss_board_info sdp3430_dss_data = {
 
 static struct omap_board_config_kernel sdp3430_config[] __initdata = {
 };
-
-static void __init omap_3430sdp_init_early(void)
-{
-	omap2_init_common_infrastructure();
-	omap2_init_common_devices(hyb18m512160af6_sdrc_params, NULL);
-}
 
 static struct omap2_hsmmc_info mmc[] = {
 	{
@@ -719,6 +712,7 @@ static void __init omap_3430sdp_init(void)
 		gpio_pendown = SDP3430_TS_GPIO_IRQ_SDPV1;
 	omap_ads7846_init(1, gpio_pendown, 310, NULL);
 	board_serial_init();
+	omap_sdrc_init(hyb18m512160af6_sdrc_params, NULL);
 	usb_musb_init(NULL);
 	board_smc91x_init();
 	board_flash_init(sdp_flash_partitions, chip_sel_3430, 0);
@@ -729,10 +723,10 @@ static void __init omap_3430sdp_init(void)
 
 MACHINE_START(OMAP_3430SDP, "OMAP3430 3430SDP board")
 	/* Maintainer: Syed Khasim - Texas Instruments Inc */
-	.boot_params	= 0x80000100,
+	.atag_offset	= 0x100,
 	.reserve	= omap_reserve,
 	.map_io		= omap3_map_io,
-	.init_early	= omap_3430sdp_init_early,
+	.init_early	= omap3430_init_early,
 	.init_irq	= omap3_init_irq,
 	.init_machine	= omap_3430sdp_init,
 	.timer		= &omap3_timer,

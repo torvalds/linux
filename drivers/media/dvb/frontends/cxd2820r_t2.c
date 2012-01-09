@@ -420,4 +420,3 @@ int cxd2820r_get_tune_settings_t2(struct dvb_frontend *fe,
 
 	return 0;
 }
-

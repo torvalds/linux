@@ -38,7 +38,7 @@ long compat_keyctl_instantiate_key_iov(
 
 	ret = compat_rw_copy_check_uvector(WRITE, _payload_iov, ioc,
 					   ARRAY_SIZE(iovstack),
-					   iovstack, &iov);
+					   iovstack, &iov, 1);
 	if (ret < 0)
 		return ret;
 	if (ret == 0)

@@ -9,6 +9,7 @@
  */
 
 #include <linux/pci.h>
+#include <linux/module.h>
 #include <linux/dma-mapping.h>
 #include <linux/highmem.h>
 #include <linux/delay.h>
@@ -1191,7 +1192,7 @@ static void __devexit via_sd_remove(struct pci_dev *pcidev)
 	mmiowb();
 
 	if (sdhost->mrq) {
-		printk(KERN_ERR "%s: Controller removed during "
+		pr_err("%s: Controller removed during "
 			"transfer\n", mmc_hostname(sdhost->mmc));
 
 		/* make sure all DMA is stopped */

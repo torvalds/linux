@@ -135,8 +135,7 @@ static int get_valid_cis_sector(struct mtd_info *mtd)
 				/* Found */
 				cis_sector = (int)(offset >> SECTOR_SHIFT);
 			} else {
-				DEBUG(MTD_DEBUG_LEVEL1,
-					"SSFDC_RO: CIS/IDI sector not found"
+				pr_debug("SSFDC_RO: CIS/IDI sector not found"
 					" on %s (mtd%d)\n", mtd->name,
 					mtd->index);
 			}
@@ -170,7 +169,7 @@ static int read_raw_oob(struct mtd_info *mtd, loff_t offs, uint8_t *buf)
 	struct mtd_oob_ops ops;
 	int ret;
 
-	ops.mode = MTD_OOB_RAW;
+	ops.mode = MTD_OPS_RAW;
 	ops.ooboffs = 0;
 	ops.ooblen = OOB_SIZE;
 	ops.oobbuf = buf;
@@ -221,8 +220,7 @@ static int get_logical_address(uint8_t *oob_buf)
 			block_address >>= 1;
 
 			if (get_parity(block_address, 10) != parity) {
-				DEBUG(MTD_DEBUG_LEVEL0,
-					"SSFDC_RO: logical address field%d"
+				pr_debug("SSFDC_RO: logical address field%d"
 					"parity error(0x%04X)\n", j+1,
 					block_address);
 			} else {
@@ -235,7 +233,7 @@ static int get_logical_address(uint8_t *oob_buf)
 	if (!ok)
 		block_address = -2;
 
-	DEBUG(MTD_DEBUG_LEVEL3, "SSFDC_RO: get_logical_address() %d\n",
+	pr_debug("SSFDC_RO: get_logical_address() %d\n",
 		block_address);
 
 	return block_address;
@@ -249,7 +247,7 @@ static int build_logical_block_map(struct ssfdcr_record *ssfdc)
 	int ret, block_address, phys_block;
 	struct mtd_info *mtd = ssfdc->mbd.mtd;
 
-	DEBUG(MTD_DEBUG_LEVEL1, "SSFDC_RO: build_block_map() nblks=%d (%luK)\n",
+	pr_debug("SSFDC_RO: build_block_map() nblks=%d (%luK)\n",
 	      ssfdc->map_len,
 	      (unsigned long)ssfdc->map_len * ssfdc->erase_size / 1024);
 
@@ -262,8 +260,7 @@ static int build_logical_block_map(struct ssfdcr_record *ssfdc)
 
 		ret = read_raw_oob(mtd, offset, oob_buf);
 		if (ret < 0) {
-			DEBUG(MTD_DEBUG_LEVEL0,
-				"SSFDC_RO: mtd read_oob() failed at %lu\n",
+			pr_debug("SSFDC_RO: mtd read_oob() failed at %lu\n",
 				offset);
 			return -1;
 		}
@@ -279,8 +276,7 @@ static int build_logical_block_map(struct ssfdcr_record *ssfdc)
 			ssfdc->logic_block_map[block_address] =
 				(unsigned short)phys_block;
 
-			DEBUG(MTD_DEBUG_LEVEL2,
-				"SSFDC_RO: build_block_map() phys_block=%d,"
+			pr_debug("SSFDC_RO: build_block_map() phys_block=%d,"
 				"logic_block_addr=%d, zone=%d\n",
 				phys_block, block_address, zone_index);
 		}
@@ -304,11 +300,8 @@ static void ssfdcr_add_mtd(struct mtd_blktrans_ops *tr, struct mtd_info *mtd)
 		return;
 
 	ssfdc = kzalloc(sizeof(struct ssfdcr_record), GFP_KERNEL);
-	if (!ssfdc) {
-		printk(KERN_WARNING
-			"SSFDC_RO: out of memory for data structures\n");
+	if (!ssfdc)
 		return;
-	}
 
 	ssfdc->mbd.mtd = mtd;
 	ssfdc->mbd.devnum = -1;
@@ -319,8 +312,7 @@ static void ssfdcr_add_mtd(struct mtd_blktrans_ops *tr, struct mtd_info *mtd)
 	ssfdc->erase_size = mtd->erasesize;
 	ssfdc->map_len = (u32)mtd->size / mtd->erasesize;
 
-	DEBUG(MTD_DEBUG_LEVEL1,
-		"SSFDC_RO: cis_block=%d,erase_size=%d,map_len=%d,n_zones=%d\n",
+	pr_debug("SSFDC_RO: cis_block=%d,erase_size=%d,map_len=%d,n_zones=%d\n",
 		ssfdc->cis_block, ssfdc->erase_size, ssfdc->map_len,
 		DIV_ROUND_UP(ssfdc->map_len, MAX_PHYS_BLK_PER_ZONE));
 
@@ -331,7 +323,7 @@ static void ssfdcr_add_mtd(struct mtd_blktrans_ops *tr, struct mtd_info *mtd)
 	ssfdc->cylinders = (unsigned short)(((u32)mtd->size >> SECTOR_SHIFT) /
 			((long)ssfdc->sectors * (long)ssfdc->heads));
 
-	DEBUG(MTD_DEBUG_LEVEL1, "SSFDC_RO: using C:%d H:%d S:%d == %ld sects\n",
+	pr_debug("SSFDC_RO: using C:%d H:%d S:%d == %ld sects\n",
 		ssfdc->cylinders, ssfdc->heads , ssfdc->sectors,
 		(long)ssfdc->cylinders * (long)ssfdc->heads *
 		(long)ssfdc->sectors);
@@ -342,11 +334,8 @@ static void ssfdcr_add_mtd(struct mtd_blktrans_ops *tr, struct mtd_info *mtd)
 	/* Allocate logical block map */
 	ssfdc->logic_block_map = kmalloc(sizeof(ssfdc->logic_block_map[0]) *
 					 ssfdc->map_len, GFP_KERNEL);
-	if (!ssfdc->logic_block_map) {
-		printk(KERN_WARNING
-			"SSFDC_RO: out of memory for data structures\n");
+	if (!ssfdc->logic_block_map)
 		goto out_err;
-	}
 	memset(ssfdc->logic_block_map, 0xff, sizeof(ssfdc->logic_block_map[0]) *
 		ssfdc->map_len);
 
@@ -371,7 +360,7 @@ static void ssfdcr_remove_dev(struct mtd_blktrans_dev *dev)
 {
 	struct ssfdcr_record *ssfdc = (struct ssfdcr_record *)dev;
 
-	DEBUG(MTD_DEBUG_LEVEL1, "SSFDC_RO: remove_dev (i=%d)\n", dev->devnum);
+	pr_debug("SSFDC_RO: remove_dev (i=%d)\n", dev->devnum);
 
 	del_mtd_blktrans_dev(dev);
 	kfree(ssfdc->logic_block_map);
@@ -387,8 +376,7 @@ static int ssfdcr_readsect(struct mtd_blktrans_dev *dev,
 	offset = (int)(logic_sect_no % sectors_per_block);
 	block_address = (int)(logic_sect_no / sectors_per_block);
 
-	DEBUG(MTD_DEBUG_LEVEL3,
-		"SSFDC_RO: ssfdcr_readsect(%lu) sec_per_blk=%d, ofst=%d,"
+	pr_debug("SSFDC_RO: ssfdcr_readsect(%lu) sec_per_blk=%d, ofst=%d,"
 		" block_addr=%d\n", logic_sect_no, sectors_per_block, offset,
 		block_address);
 
@@ -397,8 +385,7 @@ static int ssfdcr_readsect(struct mtd_blktrans_dev *dev,
 
 	block_address = ssfdc->logic_block_map[block_address];
 
-	DEBUG(MTD_DEBUG_LEVEL3,
-		"SSFDC_RO: ssfdcr_readsect() phys_block_addr=%d\n",
+	pr_debug("SSFDC_RO: ssfdcr_readsect() phys_block_addr=%d\n",
 		block_address);
 
 	if (block_address < 0xffff) {
@@ -407,8 +394,7 @@ static int ssfdcr_readsect(struct mtd_blktrans_dev *dev,
 		sect_no = (unsigned long)block_address * sectors_per_block +
 				offset;
 
-		DEBUG(MTD_DEBUG_LEVEL3,
-			"SSFDC_RO: ssfdcr_readsect() phys_sect_no=%lu\n",
+		pr_debug("SSFDC_RO: ssfdcr_readsect() phys_sect_no=%lu\n",
 			sect_no);
 
 		if (read_physical_sector(ssfdc->mbd.mtd, buf, sect_no) < 0)
@@ -424,7 +410,7 @@ static int ssfdcr_getgeo(struct mtd_blktrans_dev *dev,  struct hd_geometry *geo)
 {
 	struct ssfdcr_record *ssfdc = (struct ssfdcr_record *)dev;
 
-	DEBUG(MTD_DEBUG_LEVEL1, "SSFDC_RO: ssfdcr_getgeo() C=%d, H=%d, S=%d\n",
+	pr_debug("SSFDC_RO: ssfdcr_getgeo() C=%d, H=%d, S=%d\n",
 			ssfdc->cylinders, ssfdc->heads, ssfdc->sectors);
 
 	geo->heads = ssfdc->heads;

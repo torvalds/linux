@@ -67,7 +67,7 @@ ret_from_signal:
 	jra	ret_from_exception
 
 ENTRY(system_call)
-	SAVE_ALL
+	SAVE_ALL_SYS
 
 	/* save top of frame*/
 	pea	%sp@
@@ -129,7 +129,7 @@ Lsignal_return:
  * This is the main interrupt handler, responsible for calling process_int()
  */
 inthandler1:
-	SAVE_ALL
+	SAVE_ALL_INT
 	movew	%sp@(PT_OFF_FORMATVEC), %d0
 	and	#0x3ff, %d0
 
@@ -140,7 +140,7 @@ inthandler1:
 	bra	ret_from_interrupt
 
 inthandler2:
-	SAVE_ALL
+	SAVE_ALL_INT
 	movew	%sp@(PT_OFF_FORMATVEC), %d0
 	and	#0x3ff, %d0
 
@@ -151,7 +151,7 @@ inthandler2:
 	bra	ret_from_interrupt
 
 inthandler3:
-	SAVE_ALL
+	SAVE_ALL_INT
 	movew	%sp@(PT_OFF_FORMATVEC), %d0
 	and	#0x3ff, %d0
 
@@ -162,7 +162,7 @@ inthandler3:
 	bra	ret_from_interrupt
 
 inthandler4:
-	SAVE_ALL
+	SAVE_ALL_INT
 	movew	%sp@(PT_OFF_FORMATVEC), %d0
 	and	#0x3ff, %d0
 
@@ -173,7 +173,7 @@ inthandler4:
 	bra	ret_from_interrupt
 
 inthandler5:
-	SAVE_ALL
+	SAVE_ALL_INT
 	movew	%sp@(PT_OFF_FORMATVEC), %d0
 	and	#0x3ff, %d0
 
@@ -184,7 +184,7 @@ inthandler5:
 	bra	ret_from_interrupt
 
 inthandler6:
-	SAVE_ALL
+	SAVE_ALL_INT
 	movew	%sp@(PT_OFF_FORMATVEC), %d0
 	and	#0x3ff, %d0
 
@@ -195,7 +195,7 @@ inthandler6:
 	bra	ret_from_interrupt
 
 inthandler7:
-	SAVE_ALL
+	SAVE_ALL_INT
 	movew	%sp@(PT_OFF_FORMATVEC), %d0
 	and	#0x3ff, %d0
 
@@ -206,7 +206,7 @@ inthandler7:
 	bra	ret_from_interrupt
 
 inthandler:
-	SAVE_ALL
+	SAVE_ALL_INT
 	movew	%sp@(PT_OFF_FORMATVEC), %d0
 	and	#0x3ff, %d0
 

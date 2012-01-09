@@ -629,7 +629,7 @@ xfs_buf_item_push(
  * the xfsbufd to get this buffer written. We have to unlock the buffer
  * to allow the xfsbufd to write it, too.
  */
-STATIC void
+STATIC bool
 xfs_buf_item_pushbuf(
 	struct xfs_log_item	*lip)
 {
@@ -643,6 +643,7 @@ xfs_buf_item_pushbuf(
 
 	xfs_buf_delwri_promote(bp);
 	xfs_buf_relse(bp);
+	return true;
 }
 
 STATIC void
@@ -655,7 +656,7 @@ xfs_buf_item_committing(
 /*
  * This is the ops vector shared by all buf log items.
  */
-static struct xfs_item_ops xfs_buf_item_ops = {
+static const struct xfs_item_ops xfs_buf_item_ops = {
 	.iop_size	= xfs_buf_item_size,
 	.iop_format	= xfs_buf_item_format,
 	.iop_pin	= xfs_buf_item_pin,
@@ -966,7 +967,8 @@ xfs_buf_iodone_callbacks(
 	 * I/O errors, there's no point in giving this a retry.
 	 */
 	if (XFS_FORCED_SHUTDOWN(mp)) {
-		XFS_BUF_SUPER_STALE(bp);
+		xfs_buf_stale(bp);
+		XFS_BUF_DONE(bp);
 		trace_xfs_buf_item_iodone(bp, _RET_IP_);
 		goto do_callbacks;
 	}
@@ -974,9 +976,7 @@ xfs_buf_iodone_callbacks(
 	if (bp->b_target != lasttarg ||
 	    time_after(jiffies, (lasttime + 5*HZ))) {
 		lasttime = jiffies;
-		xfs_alert(mp, "Device %s: metadata write error block 0x%llx",
-			xfs_buf_target_name(bp->b_target),
-		      (__uint64_t)XFS_BUF_ADDR(bp));
+		xfs_buf_ioerror_alert(bp, __func__);
 	}
 	lasttarg = bp->b_target;
 
@@ -992,7 +992,7 @@ xfs_buf_iodone_callbacks(
 		xfs_buf_ioerror(bp, 0); /* errno of 0 unsets the flag */
 
 		if (!XFS_BUF_ISSTALE(bp)) {
-			XFS_BUF_DELAYWRITE(bp);
+			xfs_buf_delwri_queue(bp);
 			XFS_BUF_DONE(bp);
 		}
 		ASSERT(bp->b_iodone != NULL);
@@ -1005,9 +1005,8 @@ xfs_buf_iodone_callbacks(
 	 * If the write of the buffer was synchronous, we want to make
 	 * sure to return the error to the caller of xfs_bwrite().
 	 */
-	XFS_BUF_STALE(bp);
+	xfs_buf_stale(bp);
 	XFS_BUF_DONE(bp);
-	XFS_BUF_UNDELAYWRITE(bp);
 
 	trace_xfs_buf_error_relse(bp, _RET_IP_);
 

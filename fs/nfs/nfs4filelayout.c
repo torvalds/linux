@@ -31,6 +31,7 @@
 
 #include <linux/nfs_fs.h>
 #include <linux/nfs_page.h>
+#include <linux/module.h>
 
 #include "internal.h"
 #include "nfs4filelayout.h"
@@ -75,19 +76,6 @@ filelayout_get_dserver_offset(struct pnfs_layout_segment *lseg, loff_t offset)
 	}
 
 	BUG();
-}
-
-/* For data server errors we don't recover from */
-static void
-filelayout_set_lo_fail(struct pnfs_layout_segment *lseg)
-{
-	if (lseg->pls_range.iomode == IOMODE_RW) {
-		dprintk("%s Setting layout IOMODE_RW fail bit\n", __func__);
-		set_bit(lo_fail_bit(IOMODE_RW), &lseg->pls_layout->plh_flags);
-	} else {
-		dprintk("%s Setting layout IOMODE_READ fail bit\n", __func__);
-		set_bit(lo_fail_bit(IOMODE_READ), &lseg->pls_layout->plh_flags);
-	}
 }
 
 static int filelayout_async_handle_error(struct rpc_task *task,
@@ -135,7 +123,6 @@ static int filelayout_async_handle_error(struct rpc_task *task,
 static int filelayout_read_done_cb(struct rpc_task *task,
 				struct nfs_read_data *data)
 {
-	struct nfs_client *clp = data->ds_clp;
 	int reset = 0;
 
 	dprintk("%s DS read\n", __func__);
@@ -145,11 +132,10 @@ static int filelayout_read_done_cb(struct rpc_task *task,
 		dprintk("%s calling restart ds_clp %p ds_clp->cl_session %p\n",
 			__func__, data->ds_clp, data->ds_clp->cl_session);
 		if (reset) {
-			filelayout_set_lo_fail(data->lseg);
+			pnfs_set_lo_fail(data->lseg);
 			nfs4_reset_read(task, data);
-			clp = NFS_SERVER(data->inode)->nfs_client;
 		}
-		nfs_restart_rpc(task, clp);
+		rpc_restart_call_prepare(task);
 		return -EAGAIN;
 	}
 
@@ -216,17 +202,13 @@ static int filelayout_write_done_cb(struct rpc_task *task,
 
 	if (filelayout_async_handle_error(task, data->args.context->state,
 					  data->ds_clp, &reset) == -EAGAIN) {
-		struct nfs_client *clp;
-
 		dprintk("%s calling restart ds_clp %p ds_clp->cl_session %p\n",
 			__func__, data->ds_clp, data->ds_clp->cl_session);
 		if (reset) {
-			filelayout_set_lo_fail(data->lseg);
+			pnfs_set_lo_fail(data->lseg);
 			nfs4_reset_write(task, data);
-			clp = NFS_SERVER(data->inode)->nfs_client;
-		} else
-			clp = data->ds_clp;
-		nfs_restart_rpc(task, clp);
+		}
+		rpc_restart_call_prepare(task);
 		return -EAGAIN;
 	}
 
@@ -256,9 +238,9 @@ static int filelayout_commit_done_cb(struct rpc_task *task,
 			__func__, data->ds_clp, data->ds_clp->cl_session);
 		if (reset) {
 			prepare_to_resend_writes(data);
-			filelayout_set_lo_fail(data->lseg);
+			pnfs_set_lo_fail(data->lseg);
 		} else
-			nfs_restart_rpc(task, data->ds_clp);
+			rpc_restart_call_prepare(task);
 		return -EAGAIN;
 	}
 
@@ -468,9 +450,8 @@ filelayout_check_layout(struct pnfs_layout_hdr *lo,
 
 	fl->dsaddr = dsaddr;
 
-	if (fl->first_stripe_index < 0 ||
-	    fl->first_stripe_index >= dsaddr->stripe_count) {
-		dprintk("%s Bad first_stripe_index %d\n",
+	if (fl->first_stripe_index >= dsaddr->stripe_count) {
+		dprintk("%s Bad first_stripe_index %u\n",
 				__func__, fl->first_stripe_index);
 		goto out_put;
 	}
@@ -571,7 +552,7 @@ filelayout_decode_layout(struct pnfs_layout_hdr *flo,
 
 	/* Note that a zero value for num_fh is legal for STRIPE_SPARSE.
 	 * Futher checking is done in filelayout_check_layout */
-	if (fl->num_fh < 0 || fl->num_fh >
+	if (fl->num_fh >
 	    max(NFS4_PNFS_MAX_STRIPE_CNT, NFS4_PNFS_MAX_MULTI_CNT))
 		goto out_err;
 

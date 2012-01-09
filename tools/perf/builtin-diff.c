@@ -162,7 +162,7 @@ static int __cmd_diff(void)
 
 	hists__match(&session[0]->hists, &session[1]->hists);
 	hists__fprintf(&session[1]->hists, &session[0]->hists,
-		       show_displacement, stdout);
+		       show_displacement, true, 0, 0, stdout);
 out_delete:
 	for (i = 0; i < 2; ++i)
 		perf_session__delete(session[i]);

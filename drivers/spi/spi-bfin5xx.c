@@ -1098,7 +1098,7 @@ static int bfin_spi_setup(struct spi_device *spi)
 
 	if (chip->pio_interrupt && !drv_data->irq_requested) {
 		ret = request_irq(drv_data->spi_irq, bfin_spi_pio_irq_handler,
-			IRQF_DISABLED, "BFIN_SPI", drv_data);
+			0, "BFIN_SPI", drv_data);
 		if (ret) {
 			dev_err(&spi->dev, "Unable to register spi IRQ\n");
 			goto error;

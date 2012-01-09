@@ -58,10 +58,6 @@ struct xenvif {
 	u8               fe_dev_addr[6];
 
 	/* Physical parameters of the comms window. */
-	grant_handle_t   tx_shmem_handle;
-	grant_ref_t      tx_shmem_ref;
-	grant_handle_t   rx_shmem_handle;
-	grant_ref_t      rx_shmem_ref;
 	unsigned int     irq;
 
 	/* List of frontends to notify after a batch of frames sent. */
@@ -70,8 +66,6 @@ struct xenvif {
 	/* The shared rings and indexes. */
 	struct xen_netif_tx_back_ring tx;
 	struct xen_netif_rx_back_ring rx;
-	struct vm_struct *tx_comms_area;
-	struct vm_struct *rx_comms_area;
 
 	/* Frontend feature information. */
 	u8 can_sg:1;
@@ -105,6 +99,11 @@ struct xenvif {
 
 	wait_queue_head_t waiting_to_free;
 };
+
+static inline struct xenbus_device *xenvif_to_xenbus_device(struct xenvif *vif)
+{
+	return to_xenbus_device(vif->dev->dev.parent);
+}
 
 #define XEN_NETIF_TX_RING_SIZE __CONST_RING_SIZE(xen_netif_tx, PAGE_SIZE)
 #define XEN_NETIF_RX_RING_SIZE __CONST_RING_SIZE(xen_netif_rx, PAGE_SIZE)

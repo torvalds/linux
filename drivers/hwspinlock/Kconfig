@@ -2,22 +2,31 @@
 # Generic HWSPINLOCK framework
 #
 
+# HWSPINLOCK always gets selected by whoever wants it.
 config HWSPINLOCK
-	tristate "Generic Hardware Spinlock framework"
-	depends on ARCH_OMAP4
-	help
-	  Say y here to support the generic hardware spinlock framework.
-	  You only need to enable this if you have hardware spinlock module
-	  on your system (usually only relevant if your system has remote slave
-	  coprocessors).
+	tristate
 
-	  If unsure, say N.
+menu "Hardware Spinlock drivers"
 
 config HWSPINLOCK_OMAP
 	tristate "OMAP Hardware Spinlock device"
-	depends on HWSPINLOCK && ARCH_OMAP4
+	depends on ARCH_OMAP4
+	select HWSPINLOCK
 	help
 	  Say y here to support the OMAP Hardware Spinlock device (firstly
 	  introduced in OMAP4).
 
 	  If unsure, say N.
+
+config HSEM_U8500
+	tristate "STE Hardware Semaphore functionality"
+	depends on ARCH_U8500
+	select HWSPINLOCK
+	help
+	  Say y here to support the STE Hardware Semaphore functionality, which
+	  provides a synchronisation mechanism for the various processor on the
+	  SoC.
+
+	  If unsure, say N.
+
+endmenu

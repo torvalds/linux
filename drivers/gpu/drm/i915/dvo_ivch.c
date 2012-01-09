@@ -344,8 +344,8 @@ static void ivch_mode_set(struct intel_dvo_device *dvo,
 			   (adjusted_mode->hdisplay - 1)) >> 2;
 		y_ratio = (((mode->vdisplay - 1) << 16) /
 			   (adjusted_mode->vdisplay - 1)) >> 2;
-		ivch_write (dvo, VR42, x_ratio);
-		ivch_write (dvo, VR41, y_ratio);
+		ivch_write(dvo, VR42, x_ratio);
+		ivch_write(dvo, VR41, y_ratio);
 	} else {
 		vr01 &= ~VR01_PANEL_FIT_ENABLE;
 		vr40 &= ~VR40_CLOCK_GATING_ENABLE;
@@ -410,7 +410,7 @@ static void ivch_destroy(struct intel_dvo_device *dvo)
 	}
 }
 
-struct intel_dvo_dev_ops ivch_ops= {
+struct intel_dvo_dev_ops ivch_ops = {
 	.init = ivch_init,
 	.dpms = ivch_dpms,
 	.mode_valid = ivch_mode_valid,

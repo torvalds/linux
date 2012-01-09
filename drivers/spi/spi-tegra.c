@@ -18,6 +18,7 @@
  */
 
 #include <linux/kernel.h>
+#include <linux/module.h>
 #include <linux/init.h>
 #include <linux/err.h>
 #include <linux/platform_device.h>
@@ -464,7 +465,7 @@ static int spi_tegra_transfer(struct spi_device *spi, struct spi_message *m)
 	return 0;
 }
 
-static int __init spi_tegra_probe(struct platform_device *pdev)
+static int __devinit spi_tegra_probe(struct platform_device *pdev)
 {
 	struct spi_master	*master;
 	struct spi_tegra_data	*tspi;
@@ -612,19 +613,9 @@ static struct platform_driver spi_tegra_driver = {
 		.owner =	THIS_MODULE,
 		.of_match_table = spi_tegra_of_match_table,
 	},
+	.probe =	spi_tegra_probe,
 	.remove =	__devexit_p(spi_tegra_remove),
 };
-
-static int __init spi_tegra_init(void)
-{
-	return platform_driver_probe(&spi_tegra_driver, spi_tegra_probe);
-}
-module_init(spi_tegra_init);
-
-static void __exit spi_tegra_exit(void)
-{
-	platform_driver_unregister(&spi_tegra_driver);
-}
-module_exit(spi_tegra_exit);
+module_platform_driver(spi_tegra_driver);
 
 MODULE_LICENSE("GPL");

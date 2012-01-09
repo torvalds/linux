@@ -26,7 +26,6 @@
 #define KMSG_COMPONENT		"lcs"
 #define pr_fmt(fmt) KMSG_COMPONENT ": " fmt
 
-#include <linux/kernel_stat.h>
 #include <linux/module.h>
 #include <linux/if.h>
 #include <linux/netdevice.h>
@@ -51,7 +50,7 @@
 #include "lcs.h"
 
 
-#if !defined(CONFIG_NET_ETHERNET) && \
+#if !defined(CONFIG_ETHERNET) && \
     !defined(CONFIG_TR) && !defined(CONFIG_FDDI)
 #error Cannot compile lcs.c without some net devices switched on.
 #endif
@@ -1399,7 +1398,6 @@ lcs_irq(struct ccw_device *cdev, unsigned long intparm, struct irb *irb)
 	int rc, index;
 	int cstat, dstat;
 
-	kstat_cpu(smp_processor_id()).irqs[IOINT_LCS]++;
 	if (lcs_check_irb_error(cdev, irb))
 		return;
 
@@ -1636,7 +1634,7 @@ lcs_startlan_auto(struct lcs_card *card)
 	int rc;
 
 	LCS_DBF_TEXT(2, trace, "strtauto");
-#ifdef CONFIG_NET_ETHERNET
+#ifdef CONFIG_ETHERNET
 	card->lan_type = LCS_FRAME_TYPE_ENET;
 	rc = lcs_send_startlan(card, LCS_INITIATOR_TCPIP);
 	if (rc == 0)
@@ -1972,7 +1970,7 @@ lcs_portno_store (struct device *dev, struct device_attribute *attr, const char 
 
 static DEVICE_ATTR(portno, 0644, lcs_portno_show, lcs_portno_store);
 
-const char *lcs_type[] = {
+static const char *lcs_type[] = {
 	"not a channel",
 	"2216 parallel",
 	"2216 channel",
@@ -2122,7 +2120,7 @@ static const struct net_device_ops lcs_mc_netdev_ops = {
 	.ndo_stop		= lcs_stop_device,
 	.ndo_get_stats		= lcs_getstats,
 	.ndo_start_xmit		= lcs_start_xmit,
-	.ndo_set_multicast_list = lcs_set_multicast_list,
+	.ndo_set_rx_mode	= lcs_set_multicast_list,
 };
 
 static int
@@ -2168,7 +2166,7 @@ lcs_new_device(struct ccwgroup_device *ccwgdev)
 		goto netdev_out;
 	}
 	switch (card->lan_type) {
-#ifdef CONFIG_NET_ETHERNET
+#ifdef CONFIG_ETHERNET
 	case LCS_FRAME_TYPE_ENET:
 		card->lan_type_trans = eth_type_trans;
 		dev = alloc_etherdev(0);
@@ -2399,6 +2397,7 @@ static struct ccw_driver lcs_ccw_driver = {
 	.ids	= lcs_ids,
 	.probe	= ccwgroup_probe_ccwdev,
 	.remove	= ccwgroup_remove_ccwdev,
+	.int_class = IOINT_LCS,
 };
 
 /**

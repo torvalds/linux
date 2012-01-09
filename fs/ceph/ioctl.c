@@ -42,17 +42,39 @@ static long ceph_ioctl_set_layout(struct file *file, void __user *arg)
 	struct ceph_mds_client *mdsc = ceph_sb_to_client(inode->i_sb)->mdsc;
 	struct ceph_mds_request *req;
 	struct ceph_ioctl_layout l;
+	struct ceph_inode_info *ci = ceph_inode(file->f_dentry->d_inode);
+	struct ceph_ioctl_layout nl;
 	int err, i;
 
-	/* copy and validate */
 	if (copy_from_user(&l, arg, sizeof(l)))
 		return -EFAULT;
 
-	if ((l.object_size & ~PAGE_MASK) ||
-	    (l.stripe_unit & ~PAGE_MASK) ||
-	    !l.stripe_unit ||
-	    (l.object_size &&
-	     (unsigned)l.object_size % (unsigned)l.stripe_unit))
+	/* validate changed params against current layout */
+	err = ceph_do_getattr(file->f_dentry->d_inode, CEPH_STAT_CAP_LAYOUT);
+	if (!err) {
+		nl.stripe_unit = ceph_file_layout_su(ci->i_layout);
+		nl.stripe_count = ceph_file_layout_stripe_count(ci->i_layout);
+		nl.object_size = ceph_file_layout_object_size(ci->i_layout);
+		nl.data_pool = le32_to_cpu(ci->i_layout.fl_pg_pool);
+		nl.preferred_osd =
+				(s32)le32_to_cpu(ci->i_layout.fl_pg_preferred);
+	} else
+		return err;
+
+	if (l.stripe_count)
+		nl.stripe_count = l.stripe_count;
+	if (l.stripe_unit)
+		nl.stripe_unit = l.stripe_unit;
+	if (l.object_size)
+		nl.object_size = l.object_size;
+	if (l.data_pool)
+		nl.data_pool = l.data_pool;
+	if (l.preferred_osd)
+		nl.preferred_osd = l.preferred_osd;
+
+	if ((nl.object_size & ~PAGE_MASK) ||
+	    (nl.stripe_unit & ~PAGE_MASK) ||
+	    ((unsigned)nl.object_size % (unsigned)nl.stripe_unit))
 		return -EINVAL;
 
 	/* make sure it's a valid data pool */

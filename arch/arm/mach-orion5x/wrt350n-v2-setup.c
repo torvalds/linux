@@ -5,7 +5,7 @@
  * License version 2.  This program is licensed "as is" without any
  * warranty of any kind, whether express or implied.
  */
-
+#include <linux/gpio.h>
 #include <linux/kernel.h>
 #include <linux/init.h>
 #include <linux/platform_device.h>
@@ -20,7 +20,6 @@
 #include <linux/input.h>
 #include <net/dsa.h>
 #include <asm/mach-types.h>
-#include <asm/gpio.h>
 #include <asm/mach/arch.h>
 #include <asm/mach/pci.h>
 #include <mach/orion5x.h>
@@ -261,7 +260,7 @@ subsys_initcall(wrt350n_v2_pci_init);
 
 MACHINE_START(WRT350N_V2, "Linksys WRT350N v2")
 	/* Maintainer: Lennert Buytenhek <buytenh@marvell.com> */
-	.boot_params	= 0x00000100,
+	.atag_offset	= 0x100,
 	.init_machine	= wrt350n_v2_init,
 	.map_io		= orion5x_map_io,
 	.init_early	= orion5x_init_early,

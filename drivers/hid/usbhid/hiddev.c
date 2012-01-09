@@ -641,6 +641,8 @@ static long hiddev_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 			struct usb_device *dev = hid_to_usb_dev(hid);
 			struct usbhid_device *usbhid = hid->driver_data;
 
+			memset(&dinfo, 0, sizeof(dinfo));
+
 			dinfo.bustype = BUS_USB;
 			dinfo.busnum = dev->bus->busnum;
 			dinfo.devnum = dev->devnum;

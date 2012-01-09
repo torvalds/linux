@@ -1,0 +1,103 @@
+/*
+ * Copyright (C) 2011 Texas Instruments Incorporated - http://www.ti.com/
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License version 2 as
+ * published by the Free Software Foundation.
+ */
+
+/*
+ * Carveout for multimedia usecases
+ * It should be the last 48MB of the first 512MB memory part
+ * In theory, it should not even exist. That zone should be reserved
+ * dynamically during the .reserve callback.
+ */
+/memreserve/ 0x9d000000 0x03000000;
+
+/include/ "skeleton.dtsi"
+
+/ {
+	compatible = "ti,omap4430", "ti,omap4";
+	interrupt-parent = <&gic>;
+
+	aliases {
+	};
+
+	cpus {
+		cpu@0 {
+			compatible = "arm,cortex-a9";
+		};
+		cpu@1 {
+			compatible = "arm,cortex-a9";
+		};
+	};
+
+	/*
+	 * The soc node represents the soc top level view. It is uses for IPs
+	 * that are not memory mapped in the MPU view or for the MPU itself.
+	 */
+	soc {
+		compatible = "ti,omap-infra";
+		mpu {
+			compatible = "ti,omap4-mpu";
+			ti,hwmods = "mpu";
+		};
+
+		dsp {
+			compatible = "ti,omap3-c64";
+			ti,hwmods = "dsp";
+		};
+
+		iva {
+			compatible = "ti,ivahd";
+			ti,hwmods = "iva";
+		};
+	};
+
+	/*
+	 * XXX: Use a flat representation of the OMAP4 interconnect.
+	 * The real OMAP interconnect network is quite complex.
+	 *
+	 * MPU -+-- MPU_PRIVATE - GIC, L2
+	 *      |
+	 *      +----------------+----------+
+	 *      |                |          |
+	 *      +            +- EMIF - DDR  |
+	 *      |            |              |
+	 *      |            +     +--------+
+	 *      |            |     |
+	 *      |            +- L4_ABE - AESS, MCBSP, TIMERs...
+	 *      |            |
+	 *      +- L3_MAIN --+- L4_CORE - IPs...
+	 *                   |
+	 *                   +- L4_PER - IPs...
+	 *                   |
+	 *                   +- L4_CFG -+- L4_WKUP - IPs...
+	 *                   |          |
+	 *                   |          +- IPs...
+	 *                   +- IPU ----+
+	 *                   |          |
+	 *                   +- DSP ----+
+	 *                   |          |
+	 *                   +- DSS ----+
+	 *
+	 * Since that will not bring real advantage to represent that in DT for
+	 * the moment, just use a fake OCP bus entry to represent the whole bus
+	 * hierarchy.
+	 */
+	ocp {
+		compatible = "ti,omap4-l3-noc", "simple-bus";
+		#address-cells = <1>;
+		#size-cells = <1>;
+		ranges;
+		ti,hwmods = "l3_main_1", "l3_main_2", "l3_main_3";
+
+		gic: interrupt-controller@48241000 {
+			compatible = "arm,cortex-a9-gic";
+			interrupt-controller;
+			#interrupt-cells = <1>;
+			reg = <0x48241000 0x1000>,
+			      <0x48240100 0x0100>;
+		};
+	};
+};

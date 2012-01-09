@@ -247,7 +247,7 @@ static struct snd_soc_codec_driver soc_codec_device_ak4104 = {
 	.probe =	ak4104_probe,
 	.remove =	ak4104_remove,
 	.reg_cache_size = AK4104_NUM_REGS,
-	.reg_word_size = sizeof(u16),
+	.reg_word_size = sizeof(u8),
 };
 
 static int ak4104_spi_probe(struct spi_device *spi)

@@ -5,7 +5,6 @@ Arnaud
 
 TODO:
 - clean ups
-- fix build warnings when module
 - sort out dup ids with SiS driver
 - remove useless/wrong/unused #ifdef/code/...
 - fix printk usages

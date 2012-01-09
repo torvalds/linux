@@ -9,7 +9,7 @@
  * most "normal" filesystems (but you don't /have/ to use this:
  * the NFS filesystem used to do this differently, for example)
  */
-#include <linux/module.h>
+#include <linux/export.h>
 #include <linux/compiler.h>
 #include <linux/fs.h>
 #include <linux/uaccess.h>
@@ -827,13 +827,14 @@ unsigned find_get_pages(struct address_space *mapping, pgoff_t start,
 {
 	unsigned int i;
 	unsigned int ret;
-	unsigned int nr_found;
+	unsigned int nr_found, nr_skip;
 
 	rcu_read_lock();
 restart:
 	nr_found = radix_tree_gang_lookup_slot(&mapping->page_tree,
 				(void ***)pages, NULL, start, nr_pages);
 	ret = 0;
+	nr_skip = 0;
 	for (i = 0; i < nr_found; i++) {
 		struct page *page;
 repeat:
@@ -856,6 +857,7 @@ repeat:
 			 * here as an exceptional entry: so skip over it -
 			 * we only reach this from invalidate_mapping_pages().
 			 */
+			nr_skip++;
 			continue;
 		}
 
@@ -876,7 +878,7 @@ repeat:
 	 * If all entries were removed before we could secure them,
 	 * try again, because callers stop trying once 0 is returned.
 	 */
-	if (unlikely(!ret && nr_found))
+	if (unlikely(!ret && nr_found > nr_skip))
 		goto restart;
 	rcu_read_unlock();
 	return ret;
@@ -2113,6 +2115,7 @@ void iov_iter_advance(struct iov_iter *i, size_t bytes)
 	} else {
 		const struct iovec *iov = i->iov;
 		size_t base = i->iov_offset;
+		unsigned long nr_segs = i->nr_segs;
 
 		/*
 		 * The !iov->iov_len check ensures we skip over unlikely
@@ -2128,11 +2131,13 @@ void iov_iter_advance(struct iov_iter *i, size_t bytes)
 			base += copy;
 			if (iov->iov_len == base) {
 				iov++;
+				nr_segs--;
 				base = 0;
 			}
 		}
 		i->iov = iov;
 		i->iov_offset = base;
+		i->nr_segs = nr_segs;
 	}
 }
 EXPORT_SYMBOL(iov_iter_advance);

@@ -348,7 +348,7 @@ static void apbt_restart_clocksource(struct clocksource *cs)
  * dw_apb_clocksource_register() as the next step.
  */
 struct dw_apb_clocksource *
-dw_apb_clocksource_init(unsigned rating, char *name, void __iomem *base,
+dw_apb_clocksource_init(unsigned rating, const char *name, void __iomem *base,
 			unsigned long freq)
 {
 	struct dw_apb_clocksource *dw_cs = kzalloc(sizeof(*dw_cs), GFP_KERNEL);

@@ -47,11 +47,13 @@ xfs_trans_inode_broot_debug(
  * Add a locked inode to the transaction.
  *
  * The inode must be locked, and it cannot be associated with any transaction.
+ * If lock_flags is non-zero the inode will be unlocked on transaction commit.
  */
 void
 xfs_trans_ijoin(
 	struct xfs_trans	*tp,
-	struct xfs_inode	*ip)
+	struct xfs_inode	*ip,
+	uint			lock_flags)
 {
 	xfs_inode_log_item_t	*iip;
 
@@ -59,7 +61,9 @@ xfs_trans_ijoin(
 	if (ip->i_itemp == NULL)
 		xfs_inode_item_init(ip, ip->i_mount);
 	iip = ip->i_itemp;
+
 	ASSERT(iip->ili_lock_flags == 0);
+	iip->ili_lock_flags = lock_flags;
 
 	/*
 	 * Get a log_item_desc to point at the new item.
@@ -67,25 +71,6 @@ xfs_trans_ijoin(
 	xfs_trans_add_item(tp, &iip->ili_item);
 
 	xfs_trans_inode_broot_debug(ip);
-}
-
-/*
- * Add a locked inode to the transaction.
- *
- *
- * Grabs a reference to the inode which will be dropped when the transaction
- * is committed.  The inode will also be unlocked at that point.  The inode
- * must be locked, and it cannot be associated with any transaction.
- */
-void
-xfs_trans_ijoin_ref(
-	struct xfs_trans	*tp,
-	struct xfs_inode	*ip,
-	uint			lock_flags)
-{
-	xfs_trans_ijoin(tp, ip);
-	IHOLD(ip);
-	ip->i_itemp->ili_lock_flags = lock_flags;
 }
 
 /*

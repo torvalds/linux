@@ -24,10 +24,10 @@
  *
  ******************************************************************************/
 
-#include <linux/version.h>
 #include <linux/slab.h>
 #include <linux/spinlock.h>
 #include <linux/configfs.h>
+#include <linux/export.h>
 #include <scsi/scsi.h>
 #include <scsi/scsi_cmnd.h>
 
@@ -59,8 +59,9 @@ struct t10_alua_lu_gp *default_lu_gp;
  *
  * See spc4r17 section 6.27
  */
-int core_emulate_report_target_port_groups(struct se_cmd *cmd)
+int target_emulate_report_target_port_groups(struct se_task *task)
 {
+	struct se_cmd *cmd = task->task_se_cmd;
 	struct se_subsystem_dev *su_dev = cmd->se_dev->se_sub_dev;
 	struct se_port *port;
 	struct t10_alua_tg_pt_gp *tg_pt_gp;
@@ -68,12 +69,32 @@ int core_emulate_report_target_port_groups(struct se_cmd *cmd)
 	unsigned char *buf;
 	u32 rd_len = 0, off = 4; /* Skip over RESERVED area to first
 				    Target port group descriptor */
+	/*
+	 * Need at least 4 bytes of response data or else we can't
+	 * even fit the return data length.
+	 */
+	if (cmd->data_length < 4) {
+		pr_warn("REPORT TARGET PORT GROUPS allocation length %u"
+			" too small\n", cmd->data_length);
+		return -EINVAL;
+	}
 
 	buf = transport_kmap_first_data_page(cmd);
 
 	spin_lock(&su_dev->t10_alua.tg_pt_gps_lock);
 	list_for_each_entry(tg_pt_gp, &su_dev->t10_alua.tg_pt_gps_list,
 			tg_pt_gp_list) {
+		/*
+		 * Check if the Target port group and Target port descriptor list
+		 * based on tg_pt_gp_members count will fit into the response payload.
+		 * Otherwise, bump rd_len to let the initiator know we have exceeded
+		 * the allocation length and the response is truncated.
+		 */
+		if ((off + 8 + (tg_pt_gp->tg_pt_gp_members * 4)) >
+		     cmd->data_length) {
+			rd_len += 8 + (tg_pt_gp->tg_pt_gp_members * 4);
+			continue;
+		}
 		/*
 		 * PREF: Preferred target port bit, determine if this
 		 * bit should be set for port group.
@@ -145,6 +166,8 @@ int core_emulate_report_target_port_groups(struct se_cmd *cmd)
 
 	transport_kunmap_first_data_page(cmd);
 
+	task->task_scsi_status = GOOD;
+	transport_complete_task(task, 1);
 	return 0;
 }
 
@@ -153,8 +176,9 @@ int core_emulate_report_target_port_groups(struct se_cmd *cmd)
  *
  * See spc4r17 section 6.35
  */
-int core_emulate_set_target_port_groups(struct se_cmd *cmd)
+int target_emulate_set_target_port_groups(struct se_task *task)
 {
+	struct se_cmd *cmd = task->task_se_cmd;
 	struct se_device *dev = cmd->se_dev;
 	struct se_subsystem_dev *su_dev = dev->se_sub_dev;
 	struct se_port *port, *l_port = cmd->se_lun->lun_sep;
@@ -322,7 +346,8 @@ int core_emulate_set_target_port_groups(struct se_cmd *cmd)
 
 out:
 	transport_kunmap_first_data_page(cmd);
-
+	task->task_scsi_status = GOOD;
+	transport_complete_task(task, 1);
 	return 0;
 }
 

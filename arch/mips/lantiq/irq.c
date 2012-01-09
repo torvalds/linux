@@ -123,11 +123,10 @@ void ltq_enable_irq(struct irq_data *d)
 static unsigned int ltq_startup_eiu_irq(struct irq_data *d)
 {
 	int i;
-	int irq_nr = d->irq - INT_NUM_IRQ0;
 
 	ltq_enable_irq(d);
 	for (i = 0; i < MAX_EIU; i++) {
-		if (irq_nr == ltq_eiu_irq[i]) {
+		if (d->irq == ltq_eiu_irq[i]) {
 			/* low level - we should really handle set_type */
 			ltq_eiu_w32(ltq_eiu_r32(LTQ_EIU_EXIN_C) |
 				(0x6 << (i * 4)), LTQ_EIU_EXIN_C);
@@ -147,11 +146,10 @@ static unsigned int ltq_startup_eiu_irq(struct irq_data *d)
 static void ltq_shutdown_eiu_irq(struct irq_data *d)
 {
 	int i;
-	int irq_nr = d->irq - INT_NUM_IRQ0;
 
 	ltq_disable_irq(d);
 	for (i = 0; i < MAX_EIU; i++) {
-		if (irq_nr == ltq_eiu_irq[i]) {
+		if (d->irq == ltq_eiu_irq[i]) {
 			/* disable */
 			ltq_eiu_w32(ltq_eiu_r32(LTQ_EIU_EXIN_INEN) & ~(1 << i),
 				LTQ_EIU_EXIN_INEN);

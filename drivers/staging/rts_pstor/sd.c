@@ -3134,39 +3134,38 @@ int reset_sd_card(struct rtsx_chip *chip)
 
 	if (chip->sd_ctl & RESET_MMC_FIRST) {
 		retval = reset_mmc(chip);
-		if ((retval != STATUS_SUCCESS) && !sd_check_err_code(chip, SD_NO_CARD)) {
+		if (retval != STATUS_SUCCESS) {
+			if (sd_check_err_code(chip, SD_NO_CARD))
+				TRACE_RET(chip, STATUS_FAIL);
+
 			retval = reset_sd(chip);
 			if (retval != STATUS_SUCCESS) {
-				if (CHECK_PID(chip, 0x5209)) {
-					retval = sd_change_bank_voltage(chip, SD_IO_3V3);
-					if (retval != STATUS_SUCCESS) {
-						TRACE_RET(chip, STATUS_FAIL);
-					}
-				}
+				if (CHECK_PID(chip, 0x5209))
+					sd_change_bank_voltage(chip, SD_IO_3V3);
+
+				TRACE_RET(chip, STATUS_FAIL);
 			}
 		}
 	} else {
 		retval = reset_sd(chip);
 		if (retval != STATUS_SUCCESS) {
-			if (sd_check_err_code(chip, SD_NO_CARD)) {
+			if (sd_check_err_code(chip, SD_NO_CARD))
 				TRACE_RET(chip, STATUS_FAIL);
-			}
 
 			if (CHECK_PID(chip, 0x5209)) {
 				retval = sd_change_bank_voltage(chip, SD_IO_3V3);
-				if (retval != STATUS_SUCCESS) {
+				if (retval != STATUS_SUCCESS)
 					TRACE_RET(chip, STATUS_FAIL);
-				}
 			}
 
-			if (!chip->sd_io) {
+			if (chip->sd_io) {
+				TRACE_RET(chip, STATUS_FAIL);
+			} else {
 				retval = reset_mmc(chip);
+				if (retval != STATUS_SUCCESS)
+					TRACE_RET(chip, STATUS_FAIL);
 			}
 		}
-	}
-
-	if (retval != STATUS_SUCCESS) {
-		TRACE_RET(chip, STATUS_FAIL);
 	}
 
 	retval = sd_set_clock_divider(chip, SD_CLK_DIVIDE_0);
@@ -4139,7 +4138,7 @@ int sd_execute_read_data(struct scsi_cmnd *srb, struct rtsx_chip *chip)
 		cmd[3] = srb->cmnd[5];
 		cmd[4] = srb->cmnd[6];
 
-		buf = (u8 *)kmalloc(data_len, GFP_KERNEL);
+		buf = kmalloc(data_len, GFP_KERNEL);
 		if (buf == NULL) {
 			TRACE_RET(chip, TRANSPORT_ERROR);
 		}
@@ -4385,7 +4384,7 @@ int sd_execute_write_data(struct scsi_cmnd *srb, struct rtsx_chip *chip)
 		u16 i;
 		u8 *buf;
 
-		buf = (u8 *)kmalloc(data_len, GFP_KERNEL);
+		buf = kmalloc(data_len, GFP_KERNEL);
 		if (buf == NULL) {
 			TRACE_RET(chip, TRANSPORT_ERROR);
 		}

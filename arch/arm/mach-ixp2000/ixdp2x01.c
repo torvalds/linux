@@ -417,7 +417,7 @@ static void __init ixdp2x01_init_machine(void)
 #ifdef CONFIG_ARCH_IXDP2401
 MACHINE_START(IXDP2401, "Intel IXDP2401 Development Platform")
 	/* Maintainer: MontaVista Software, Inc. */
-	.boot_params	= 0x00000100,
+	.atag_offset	= 0x100,
 	.map_io		= ixdp2x01_map_io,
 	.init_irq	= ixdp2x01_init_irq,
 	.timer		= &ixdp2x01_timer,
@@ -428,7 +428,7 @@ MACHINE_END
 #ifdef CONFIG_ARCH_IXDP2801
 MACHINE_START(IXDP2801, "Intel IXDP2801 Development Platform")
 	/* Maintainer: MontaVista Software, Inc. */
-	.boot_params	= 0x00000100,
+	.atag_offset	= 0x100,
 	.map_io		= ixdp2x01_map_io,
 	.init_irq	= ixdp2x01_init_irq,
 	.timer		= &ixdp2x01_timer,
@@ -441,7 +441,7 @@ MACHINE_END
  */
 MACHINE_START(IXDP28X5, "Intel IXDP2805/2855 Development Platform")
 	/* Maintainer: MontaVista Software, Inc. */
-	.boot_params	= 0x00000100,
+	.atag_offset	= 0x100,
 	.map_io		= ixdp2x01_map_io,
 	.init_irq	= ixdp2x01_init_irq,
 	.timer		= &ixdp2x01_timer,

@@ -35,6 +35,7 @@ struct plat_serial8250_port {
 	void		(*set_termios)(struct uart_port *,
 			               struct ktermios *new,
 			               struct ktermios *old);
+	int		(*handle_irq)(struct uart_port *);
 	void		(*pm)(struct uart_port *, unsigned int state,
 			      unsigned old);
 };
@@ -80,6 +81,7 @@ extern void serial8250_do_set_termios(struct uart_port *port,
 		struct ktermios *termios, struct ktermios *old);
 extern void serial8250_do_pm(struct uart_port *port, unsigned int state,
 			     unsigned int oldstate);
+int serial8250_handle_irq(struct uart_port *port, unsigned int iir);
 
 extern void serial8250_set_isa_configurator(void (*v)
 					(int port, struct uart_port *up,

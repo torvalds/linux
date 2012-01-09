@@ -13,6 +13,7 @@
 
 #include <linux/clk.h>
 #include <linux/gpio.h>
+#include <linux/module.h>
 
 #include <sound/soc.h>
 #include <sound/s3c24xx_uda134x.h>
@@ -66,17 +67,17 @@ static int s3c24xx_uda134x_startup(struct snd_pcm_substream *substream)
 	pr_debug("%s %d\n", __func__, clk_users);
 	if (clk_users == 0) {
 		xtal = clk_get(&s3c24xx_uda134x_snd_device->dev, "xtal");
-		if (!xtal) {
+		if (IS_ERR(xtal)) {
 			printk(KERN_ERR "%s cannot get xtal\n", __func__);
-			ret = -EBUSY;
+			ret = PTR_ERR(xtal);
 		} else {
 			pclk = clk_get(&s3c24xx_uda134x_snd_device->dev,
 				       "pclk");
-			if (!pclk) {
+			if (IS_ERR(pclk)) {
 				printk(KERN_ERR "%s cannot get pclk\n",
 				       __func__);
 				clk_put(xtal);
-				ret = -EBUSY;
+				ret = PTR_ERR(pclk);
 			}
 		}
 		if (!ret) {

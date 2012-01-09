@@ -6,7 +6,7 @@
 
 #include <linux/seq_file.h>
 #include <linux/kernel.h>
-#include <linux/module.h>
+#include <linux/export.h>
 #include <linux/init.h>
 #include <linux/smp.h>
 #include <linux/threads.h>
@@ -479,6 +479,18 @@ static void __init sun4v_cpu_probe(void)
 		sparc_cpu_type = "UltraSparc T3 (Niagara3)";
 		sparc_fpu_type = "UltraSparc T3 integrated FPU";
 		sparc_pmu_type = "niagara3";
+		break;
+
+	case SUN4V_CHIP_NIAGARA4:
+		sparc_cpu_type = "UltraSparc T4 (Niagara4)";
+		sparc_fpu_type = "UltraSparc T4 integrated FPU";
+		sparc_pmu_type = "niagara4";
+		break;
+
+	case SUN4V_CHIP_NIAGARA5:
+		sparc_cpu_type = "UltraSparc T5 (Niagara5)";
+		sparc_fpu_type = "UltraSparc T5 integrated FPU";
+		sparc_pmu_type = "niagara5";
 		break;
 
 	default:

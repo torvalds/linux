@@ -80,24 +80,6 @@ struct ds1621_data {
 	u8 conf;			/* Register encoding, combined */
 };
 
-/* Temperature registers are word-sized.
-   DS1621 uses a high-byte first convention, which is exactly opposite to
-   the SMBus standard. */
-static int ds1621_read_temp(struct i2c_client *client, u8 reg)
-{
-	int ret;
-
-	ret = i2c_smbus_read_word_data(client, reg);
-	if (ret < 0)
-		return ret;
-	return swab16(ret);
-}
-
-static int ds1621_write_temp(struct i2c_client *client, u8 reg, u16 value)
-{
-	return i2c_smbus_write_word_data(client, reg, swab16(value));
-}
-
 static void ds1621_init_client(struct i2c_client *client)
 {
 	u8 conf, new_conf;
@@ -136,7 +118,7 @@ static struct ds1621_data *ds1621_update_client(struct device *dev)
 		data->conf = i2c_smbus_read_byte_data(client, DS1621_REG_CONF);
 
 		for (i = 0; i < ARRAY_SIZE(data->temp); i++)
-			data->temp[i] = ds1621_read_temp(client,
+			data->temp[i] = i2c_smbus_read_word_swapped(client,
 							 DS1621_REG_TEMP[i]);
 
 		/* reset alarms if necessary */
@@ -177,8 +159,8 @@ static ssize_t set_temp(struct device *dev, struct device_attribute *da,
 
 	mutex_lock(&data->update_lock);
 	data->temp[attr->index] = val;
-	ds1621_write_temp(client, DS1621_REG_TEMP[attr->index],
-			  data->temp[attr->index]);
+	i2c_smbus_write_word_swapped(client, DS1621_REG_TEMP[attr->index],
+				     data->temp[attr->index]);
 	mutex_unlock(&data->update_lock);
 	return count;
 }

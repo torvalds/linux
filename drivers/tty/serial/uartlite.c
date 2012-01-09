@@ -15,6 +15,7 @@
 #include <linux/serial.h>
 #include <linux/serial_core.h>
 #include <linux/tty.h>
+#include <linux/tty_flip.h>
 #include <linux/delay.h>
 #include <linux/interrupt.h>
 #include <linux/init.h>
@@ -568,8 +569,6 @@ static struct of_device_id ulite_of_match[] __devinitdata = {
 	{}
 };
 MODULE_DEVICE_TABLE(of, ulite_of_match);
-#else /* CONFIG_OF */
-#define ulite_of_match NULL
 #endif /* CONFIG_OF */
 
 static int __devinit ulite_probe(struct platform_device *pdev)
@@ -609,7 +608,7 @@ static struct platform_driver ulite_platform_driver = {
 	.driver = {
 		.owner = THIS_MODULE,
 		.name  = "uartlite",
-		.of_match_table = ulite_of_match,
+		.of_match_table = of_match_ptr(ulite_of_match),
 	},
 };
 

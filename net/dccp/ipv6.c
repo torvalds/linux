@@ -271,7 +271,7 @@ static int dccp_v6_send_response(struct sock *sk, struct request_sock *req,
 							 &ireq6->loc_addr,
 							 &ireq6->rmt_addr);
 		ipv6_addr_copy(&fl6.daddr, &ireq6->rmt_addr);
-		err = ip6_xmit(sk, skb, &fl6, opt);
+		err = ip6_xmit(sk, skb, &fl6, opt, np->tclass);
 		err = net_xmit_eval(err);
 	}
 
@@ -326,7 +326,7 @@ static void dccp_v6_ctl_send_reset(struct sock *sk, struct sk_buff *rxskb)
 	dst = ip6_dst_lookup_flow(ctl_sk, &fl6, NULL, false);
 	if (!IS_ERR(dst)) {
 		skb_dst_set(skb, dst);
-		ip6_xmit(ctl_sk, skb, &fl6, NULL);
+		ip6_xmit(ctl_sk, skb, &fl6, NULL, 0);
 		DCCP_INC_STATS_BH(DCCP_MIB_OUTSEGS);
 		DCCP_INC_STATS_BH(DCCP_MIB_OUTRSTS);
 		return;

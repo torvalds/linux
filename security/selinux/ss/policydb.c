@@ -1743,8 +1743,6 @@ static int policydb_bounds_sanity_check(struct policydb *p)
 	return 0;
 }
 
-extern int ss_initialized;
-
 u16 string_to_security_class(struct policydb *p, const char *name)
 {
 	struct class_datum *cladatum;

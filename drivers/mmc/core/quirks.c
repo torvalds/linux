@@ -11,6 +11,7 @@
 
 #include <linux/types.h>
 #include <linux/kernel.h>
+#include <linux/export.h>
 #include <linux/mmc/card.h>
 
 #ifndef SDIO_VENDOR_ID_TI
@@ -19,6 +20,14 @@
 
 #ifndef SDIO_DEVICE_ID_TI_WL1271
 #define SDIO_DEVICE_ID_TI_WL1271	0x4076
+#endif
+
+#ifndef SDIO_VENDOR_ID_STE
+#define SDIO_VENDOR_ID_STE		0x0020
+#endif
+
+#ifndef SDIO_DEVICE_ID_STE_CW1200
+#define SDIO_DEVICE_ID_STE_CW1200	0x2280
 #endif
 
 /*
@@ -45,6 +54,9 @@ static const struct mmc_fixup mmc_fixup_methods[] = {
 
 	SDIO_FIXUP(SDIO_VENDOR_ID_TI, SDIO_DEVICE_ID_TI_WL1271,
 		   add_quirk, MMC_QUIRK_DISABLE_CD),
+
+	SDIO_FIXUP(SDIO_VENDOR_ID_STE, SDIO_DEVICE_ID_STE_CW1200,
+		   add_quirk, MMC_QUIRK_BROKEN_BYTE_MODE_512),
 
 	END_FIXUP
 };

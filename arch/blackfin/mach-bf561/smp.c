@@ -114,7 +114,7 @@ void __init platform_request_ipi(int irq, void *handler)
 	int ret;
 	const char *name = (irq == IRQ_SUPPLE_0) ? supple0 : supple1;
 
-	ret = request_irq(irq, handler, IRQF_DISABLED | IRQF_PERCPU, name, handler);
+	ret = request_irq(irq, handler, IRQF_PERCPU, name, handler);
 	if (ret)
 		panic("Cannot request %s for IPI service", name);
 }

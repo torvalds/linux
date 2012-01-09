@@ -13,9 +13,7 @@
 #include <wait.h>
 #include <sys/mman.h>
 #include <sys/utsname.h>
-#include "kern_constants.h"
 #include "os.h"
-#include "user.h"
 
 void stack_protections(unsigned long address)
 {

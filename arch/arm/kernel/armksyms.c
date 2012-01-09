@@ -7,7 +7,7 @@
  * it under the terms of the GNU General Public License version 2 as
  * published by the Free Software Foundation.
  */
-#include <linux/module.h>
+#include <linux/export.h>
 #include <linux/sched.h>
 #include <linux/string.h>
 #include <linux/cryptohash.h>
@@ -48,9 +48,6 @@ extern void __aeabi_uidivmod(void);
 extern void __aeabi_ulcmp(void);
 
 extern void fpundefinstr(void);
-
-
-EXPORT_SYMBOL(__backtrace);
 
 	/* platform dependent support */
 EXPORT_SYMBOL(__udelay);

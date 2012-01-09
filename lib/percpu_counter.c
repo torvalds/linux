@@ -10,8 +10,10 @@
 #include <linux/module.h>
 #include <linux/debugobjects.h>
 
+#ifdef CONFIG_HOTPLUG_CPU
 static LIST_HEAD(percpu_counters);
 static DEFINE_MUTEX(percpu_counters_lock);
+#endif
 
 #ifdef CONFIG_DEBUG_OBJECTS_PERCPU_COUNTER
 
@@ -59,13 +61,13 @@ void percpu_counter_set(struct percpu_counter *fbc, s64 amount)
 {
 	int cpu;
 
-	spin_lock(&fbc->lock);
+	raw_spin_lock(&fbc->lock);
 	for_each_possible_cpu(cpu) {
 		s32 *pcount = per_cpu_ptr(fbc->counters, cpu);
 		*pcount = 0;
 	}
 	fbc->count = amount;
-	spin_unlock(&fbc->lock);
+	raw_spin_unlock(&fbc->lock);
 }
 EXPORT_SYMBOL(percpu_counter_set);
 
@@ -76,10 +78,10 @@ void __percpu_counter_add(struct percpu_counter *fbc, s64 amount, s32 batch)
 	preempt_disable();
 	count = __this_cpu_read(*fbc->counters) + amount;
 	if (count >= batch || count <= -batch) {
-		spin_lock(&fbc->lock);
+		raw_spin_lock(&fbc->lock);
 		fbc->count += count;
 		__this_cpu_write(*fbc->counters, 0);
-		spin_unlock(&fbc->lock);
+		raw_spin_unlock(&fbc->lock);
 	} else {
 		__this_cpu_write(*fbc->counters, count);
 	}
@@ -96,13 +98,13 @@ s64 __percpu_counter_sum(struct percpu_counter *fbc)
 	s64 ret;
 	int cpu;
 
-	spin_lock(&fbc->lock);
+	raw_spin_lock(&fbc->lock);
 	ret = fbc->count;
 	for_each_online_cpu(cpu) {
 		s32 *pcount = per_cpu_ptr(fbc->counters, cpu);
 		ret += *pcount;
 	}
-	spin_unlock(&fbc->lock);
+	raw_spin_unlock(&fbc->lock);
 	return ret;
 }
 EXPORT_SYMBOL(__percpu_counter_sum);
@@ -110,7 +112,7 @@ EXPORT_SYMBOL(__percpu_counter_sum);
 int __percpu_counter_init(struct percpu_counter *fbc, s64 amount,
 			  struct lock_class_key *key)
 {
-	spin_lock_init(&fbc->lock);
+	raw_spin_lock_init(&fbc->lock);
 	lockdep_set_class(&fbc->lock, key);
 	fbc->count = amount;
 	fbc->counters = alloc_percpu(s32);
@@ -173,11 +175,11 @@ static int __cpuinit percpu_counter_hotcpu_callback(struct notifier_block *nb,
 		s32 *pcount;
 		unsigned long flags;
 
-		spin_lock_irqsave(&fbc->lock, flags);
+		raw_spin_lock_irqsave(&fbc->lock, flags);
 		pcount = per_cpu_ptr(fbc->counters, cpu);
 		fbc->count += *pcount;
 		*pcount = 0;
-		spin_unlock_irqrestore(&fbc->lock, flags);
+		raw_spin_unlock_irqrestore(&fbc->lock, flags);
 	}
 	mutex_unlock(&percpu_counters_lock);
 #endif

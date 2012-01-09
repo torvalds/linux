@@ -433,8 +433,18 @@
           Insert notes about VLAN interfaces with hw crypto here or
           in the hw crypto chapter.
         </para>
+      <section id="ps-client">
+        <title>support for powersaving clients</title>
+!Pinclude/net/mac80211.h AP support for powersaving clients
+      </section>
 !Finclude/net/mac80211.h ieee80211_get_buffered_bc
 !Finclude/net/mac80211.h ieee80211_beacon_get
+!Finclude/net/mac80211.h ieee80211_sta_eosp_irqsafe
+!Finclude/net/mac80211.h ieee80211_frame_release_type
+!Finclude/net/mac80211.h ieee80211_sta_ps_transition
+!Finclude/net/mac80211.h ieee80211_sta_ps_transition_ni
+!Finclude/net/mac80211.h ieee80211_sta_set_buffered
+!Finclude/net/mac80211.h ieee80211_sta_block_awake
       </chapter>
 
       <chapter id="multi-iface">
@@ -460,7 +470,6 @@
 !Finclude/net/mac80211.h sta_notify_cmd
 !Finclude/net/mac80211.h ieee80211_find_sta
 !Finclude/net/mac80211.h ieee80211_find_sta_by_ifaddr
-!Finclude/net/mac80211.h ieee80211_sta_block_awake
       </chapter>
 
       <chapter id="hardware-scan-offload">

@@ -450,7 +450,7 @@ static void mcam_set_contig_buffer(struct mcam_camera *cam, int frame)
 		buf = cam->vb_bufs[frame ^ 0x1];
 		cam->vb_bufs[frame] = buf;
 		mcam_reg_write(cam, frame == 0 ? REG_Y0BAR : REG_Y1BAR,
-				vb2_dma_contig_plane_paddr(&buf->vb_buf, 0));
+				vb2_dma_contig_plane_dma_addr(&buf->vb_buf, 0));
 		set_bit(CF_SINGLE_BUFFER, &cam->flags);
 		singles++;
 		return;
@@ -461,7 +461,7 @@ static void mcam_set_contig_buffer(struct mcam_camera *cam, int frame)
 	buf = list_first_entry(&cam->buffers, struct mcam_vb_buffer, queue);
 	list_del_init(&buf->queue);
 	mcam_reg_write(cam, frame == 0 ? REG_Y0BAR : REG_Y1BAR,
-			vb2_dma_contig_plane_paddr(&buf->vb_buf, 0));
+			vb2_dma_contig_plane_dma_addr(&buf->vb_buf, 0));
 	cam->vb_bufs[frame] = buf;
 	clear_bit(CF_SINGLE_BUFFER, &cam->flags);
 }
@@ -883,8 +883,9 @@ static int mcam_read_setup(struct mcam_camera *cam)
  * Videobuf2 interface code.
  */
 
-static int mcam_vb_queue_setup(struct vb2_queue *vq, unsigned int *nbufs,
-		unsigned int *num_planes, unsigned long sizes[],
+static int mcam_vb_queue_setup(struct vb2_queue *vq,
+		const struct v4l2_format *fmt, unsigned int *nbufs,
+		unsigned int *num_planes, unsigned int sizes[],
 		void *alloc_ctxs[])
 {
 	struct mcam_camera *cam = vb2_get_drv_priv(vq);
@@ -940,12 +941,14 @@ static void mcam_vb_wait_finish(struct vb2_queue *vq)
 /*
  * These need to be called with the mutex held from vb2
  */
-static int mcam_vb_start_streaming(struct vb2_queue *vq)
+static int mcam_vb_start_streaming(struct vb2_queue *vq, unsigned int count)
 {
 	struct mcam_camera *cam = vb2_get_drv_priv(vq);
 
-	if (cam->state != S_IDLE)
+	if (cam->state != S_IDLE) {
+		INIT_LIST_HEAD(&cam->buffers);
 		return -EINVAL;
+	}
 	cam->sequence = 0;
 	/*
 	 * Videobuf2 sneakily hoards all the buffers and won't

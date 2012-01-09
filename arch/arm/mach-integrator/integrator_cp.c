@@ -492,7 +492,7 @@ static struct sys_timer cp_timer = {
 
 MACHINE_START(CINTEGRATOR, "ARM-IntegratorCP")
 	/* Maintainer: ARM Ltd/Deep Blue Solutions Ltd */
-	.boot_params	= 0x00000100,
+	.atag_offset	= 0x100,
 	.reserve	= integrator_reserve,
 	.map_io		= intcp_map_io,
 	.init_early	= intcp_init_early,

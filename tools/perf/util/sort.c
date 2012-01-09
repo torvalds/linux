@@ -151,11 +151,17 @@ sort__sym_cmp(struct hist_entry *left, struct hist_entry *right)
 {
 	u64 ip_l, ip_r;
 
+	if (!left->ms.sym && !right->ms.sym)
+		return right->level - left->level;
+
+	if (!left->ms.sym || !right->ms.sym)
+		return cmp_null(left->ms.sym, right->ms.sym);
+
 	if (left->ms.sym == right->ms.sym)
 		return 0;
 
-	ip_l = left->ms.sym ? left->ms.sym->start : left->ip;
-	ip_r = right->ms.sym ? right->ms.sym->start : right->ip;
+	ip_l = left->ms.sym->start;
+	ip_r = right->ms.sym->start;
 
 	return (int64_t)(ip_r - ip_l);
 }
@@ -171,7 +177,9 @@ static int hist_entry__sym_snprintf(struct hist_entry *self, char *bf,
 				       BITS_PER_LONG / 4, self->ip, o);
 	}
 
-	ret += repsep_snprintf(bf + ret, size - ret, "[%c] ", self->level);
+	if (!sort_dso.elide)
+		ret += repsep_snprintf(bf + ret, size - ret, "[%c] ", self->level);
+
 	if (self->ms.sym)
 		ret += repsep_snprintf(bf + ret, size - ret, "%s",
 				       self->ms.sym->name);

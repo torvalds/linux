@@ -19,16 +19,6 @@ config WL12XX
 	  If you choose to build a module, it will be called wl12xx. Say N if
 	  unsure.
 
-config WL12XX_HT
-        bool "TI wl12xx 802.11 HT support (EXPERIMENTAL)"
-        depends on WL12XX && EXPERIMENTAL
-        default n
-        ---help---
-          This will enable 802.11 HT support in the wl12xx module.
-
-	  That configuration is temporary due to the code incomplete and
-	  still in testing process.
-
 config WL12XX_SPI
 	tristate "TI wl12xx SPI support"
 	depends on WL12XX && SPI_MASTER

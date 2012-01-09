@@ -10,6 +10,7 @@
 #include <asm/mach/map.h>
 
 #include <linux/dma-mapping.h>
+#include <linux/gpio.h>
 #include <linux/platform_device.h>
 #include <linux/i2c-gpio.h>
 
@@ -17,7 +18,6 @@
 #include <video/atmel_lcdc.h>
 
 #include <mach/board.h>
-#include <mach/gpio.h>
 #include <mach/at91sam9rl.h>
 #include <mach/at91sam9rl_matrix.h>
 #include <mach/at91sam9_smc.h>
@@ -75,7 +75,7 @@ void __init at91_add_device_hdmac(void) {}
  *  USB HS Device (Gadget)
  * -------------------------------------------------------------------- */
 
-#if defined(CONFIG_USB_GADGET_ATMEL_USBA) || defined(CONFIG_USB_GADGET_ATMEL_USBA_MODULE)
+#if defined(CONFIG_USB_ATMEL_USBA) || defined(CONFIG_USB_ATMEL_USBA_MODULE)
 
 static struct resource usba_udc_resources[] = {
 	[0] = {
@@ -908,8 +908,8 @@ void __init at91_add_device_ssc(unsigned id, unsigned pins) {}
 #if defined(CONFIG_SERIAL_ATMEL)
 static struct resource dbgu_resources[] = {
 	[0] = {
-		.start	= AT91_VA_BASE_SYS + AT91_DBGU,
-		.end	= AT91_VA_BASE_SYS + AT91_DBGU + SZ_512 - 1,
+		.start	= AT91_BASE_SYS + AT91_DBGU,
+		.end	= AT91_BASE_SYS + AT91_DBGU + SZ_512 - 1,
 		.flags	= IORESOURCE_MEM,
 	},
 	[1] = {
@@ -922,7 +922,6 @@ static struct resource dbgu_resources[] = {
 static struct atmel_uart_data dbgu_data = {
 	.use_dma_tx	= 0,
 	.use_dma_rx	= 0,		/* DBGU not capable of receive DMA */
-	.regs		= (void __iomem *)(AT91_VA_BASE_SYS + AT91_DBGU),
 };
 
 static u64 dbgu_dmamask = DMA_BIT_MASK(32);

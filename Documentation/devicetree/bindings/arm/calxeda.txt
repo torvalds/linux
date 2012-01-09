@@ -1,0 +1,8 @@
+Calxeda Highbank Platforms Device Tree Bindings
+-----------------------------------------------
+
+Boards with Calxeda Cortex-A9 based Highbank SOC shall have the following
+properties.
+
+Required root node properties:
+    - compatible = "calxeda,highbank";

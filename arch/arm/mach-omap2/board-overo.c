@@ -46,6 +46,7 @@
 #include <plat/common.h>
 #include <video/omapdss.h>
 #include <video/omap-panel-generic-dpi.h>
+#include <video/omap-panel-dvi.h>
 #include <plat/gpmc.h>
 #include <mach/hardware.h>
 #include <plat/nand.h>
@@ -182,16 +183,16 @@ static void overo_panel_disable_dvi(struct omap_dss_device *dssdev)
 	dvi_enabled = 0;
 }
 
-static struct panel_generic_dpi_data dvi_panel = {
-	.name			= "generic",
+static struct panel_dvi_platform_data dvi_panel = {
 	.platform_enable	= overo_panel_enable_dvi,
 	.platform_disable	= overo_panel_disable_dvi,
+	.i2c_bus_num		= 3,
 };
 
 static struct omap_dss_device overo_dvi_device = {
 	.name			= "dvi",
 	.type			= OMAP_DISPLAY_TYPE_DPI,
-	.driver_name		= "generic_dpi_panel",
+	.driver_name		= "dvi",
 	.data			= &dvi_panel,
 	.phy.dpi.data_lines	= 24,
 };
@@ -478,13 +479,6 @@ static int __init overo_spi_init(void)
 	return 0;
 }
 
-static void __init overo_init_early(void)
-{
-	omap2_init_common_infrastructure();
-	omap2_init_common_devices(mt46h32m32lf6_sdrc_params,
-				  mt46h32m32lf6_sdrc_params);
-}
-
 static const struct usbhs_omap_board_data usbhs_bdata __initconst = {
 	.port_mode[0] = OMAP_USBHS_PORT_MODE_UNUSED,
 	.port_mode[1] = OMAP_EHCI_PORT_MODE_PHY,
@@ -514,6 +508,8 @@ static void __init overo_init(void)
 	overo_i2c_init();
 	omap_display_init(&overo_dss_data);
 	omap_serial_init();
+	omap_sdrc_init(mt46h32m32lf6_sdrc_params,
+				  mt46h32m32lf6_sdrc_params);
 	omap_nand_flash_init(0, overo_nand_partitions,
 			     ARRAY_SIZE(overo_nand_partitions));
 	usb_musb_init(NULL);
@@ -561,10 +557,10 @@ static void __init overo_init(void)
 }
 
 MACHINE_START(OVERO, "Gumstix Overo")
-	.boot_params	= 0x80000100,
+	.atag_offset	= 0x100,
 	.reserve	= omap_reserve,
 	.map_io		= omap3_map_io,
-	.init_early	= overo_init_early,
+	.init_early	= omap35xx_init_early,
 	.init_irq	= omap3_init_irq,
 	.init_machine	= overo_init,
 	.timer		= &omap3_timer,

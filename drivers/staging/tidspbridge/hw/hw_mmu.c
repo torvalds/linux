@@ -558,5 +558,5 @@ static hw_status mmu_set_ram_entry(const void __iomem *base_address,
 
 void hw_mmu_tlb_flush_all(const void __iomem *base)
 {
-	__raw_writeb(1, base + MMU_GFLUSH);
+	__raw_writel(1, base + MMU_GFLUSH);
 }

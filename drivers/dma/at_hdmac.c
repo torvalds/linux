@@ -107,10 +107,11 @@ static struct at_desc *atc_desc_get(struct at_dma_chan *atchan)
 {
 	struct at_desc *desc, *_desc;
 	struct at_desc *ret = NULL;
+	unsigned long flags;
 	unsigned int i = 0;
 	LIST_HEAD(tmp_list);
 
-	spin_lock_bh(&atchan->lock);
+	spin_lock_irqsave(&atchan->lock, flags);
 	list_for_each_entry_safe(desc, _desc, &atchan->free_list, desc_node) {
 		i++;
 		if (async_tx_test_ack(&desc->txd)) {
@@ -121,7 +122,7 @@ static struct at_desc *atc_desc_get(struct at_dma_chan *atchan)
 		dev_dbg(chan2dev(&atchan->chan_common),
 				"desc %p not ACKed\n", desc);
 	}
-	spin_unlock_bh(&atchan->lock);
+	spin_unlock_irqrestore(&atchan->lock, flags);
 	dev_vdbg(chan2dev(&atchan->chan_common),
 		"scanned %u descriptors on freelist\n", i);
 
@@ -129,9 +130,9 @@ static struct at_desc *atc_desc_get(struct at_dma_chan *atchan)
 	if (!ret) {
 		ret = atc_alloc_descriptor(&atchan->chan_common, GFP_ATOMIC);
 		if (ret) {
-			spin_lock_bh(&atchan->lock);
+			spin_lock_irqsave(&atchan->lock, flags);
 			atchan->descs_allocated++;
-			spin_unlock_bh(&atchan->lock);
+			spin_unlock_irqrestore(&atchan->lock, flags);
 		} else {
 			dev_err(chan2dev(&atchan->chan_common),
 					"not enough descriptors available\n");
@@ -150,8 +151,9 @@ static void atc_desc_put(struct at_dma_chan *atchan, struct at_desc *desc)
 {
 	if (desc) {
 		struct at_desc *child;
+		unsigned long flags;
 
-		spin_lock_bh(&atchan->lock);
+		spin_lock_irqsave(&atchan->lock, flags);
 		list_for_each_entry(child, &desc->tx_list, desc_node)
 			dev_vdbg(chan2dev(&atchan->chan_common),
 					"moving child desc %p to freelist\n",
@@ -160,7 +162,7 @@ static void atc_desc_put(struct at_dma_chan *atchan, struct at_desc *desc)
 		dev_vdbg(chan2dev(&atchan->chan_common),
 			 "moving desc %p to freelist\n", desc);
 		list_add(&desc->desc_node, &atchan->free_list);
-		spin_unlock_bh(&atchan->lock);
+		spin_unlock_irqrestore(&atchan->lock, flags);
 	}
 }
 
@@ -299,7 +301,7 @@ atc_chain_complete(struct at_dma_chan *atchan, struct at_desc *desc)
 
 	/* for cyclic transfers,
 	 * no need to replay callback function while stopping */
-	if (!test_bit(ATC_IS_CYCLIC, &atchan->status)) {
+	if (!atc_chan_is_cyclic(atchan)) {
 		dma_async_tx_callback	callback = txd->callback;
 		void			*param = txd->callback_param;
 
@@ -471,16 +473,17 @@ static void atc_handle_cyclic(struct at_dma_chan *atchan)
 static void atc_tasklet(unsigned long data)
 {
 	struct at_dma_chan *atchan = (struct at_dma_chan *)data;
+	unsigned long flags;
 
-	spin_lock(&atchan->lock);
+	spin_lock_irqsave(&atchan->lock, flags);
 	if (test_and_clear_bit(ATC_IS_ERROR, &atchan->status))
 		atc_handle_error(atchan);
-	else if (test_bit(ATC_IS_CYCLIC, &atchan->status))
+	else if (atc_chan_is_cyclic(atchan))
 		atc_handle_cyclic(atchan);
 	else
 		atc_advance_work(atchan);
 
-	spin_unlock(&atchan->lock);
+	spin_unlock_irqrestore(&atchan->lock, flags);
 }
 
 static irqreturn_t at_dma_interrupt(int irq, void *dev_id)
@@ -539,8 +542,9 @@ static dma_cookie_t atc_tx_submit(struct dma_async_tx_descriptor *tx)
 	struct at_desc		*desc = txd_to_at_desc(tx);
 	struct at_dma_chan	*atchan = to_at_dma_chan(tx->chan);
 	dma_cookie_t		cookie;
+	unsigned long		flags;
 
-	spin_lock_bh(&atchan->lock);
+	spin_lock_irqsave(&atchan->lock, flags);
 	cookie = atc_assign_cookie(atchan, desc);
 
 	if (list_empty(&atchan->active_list)) {
@@ -554,7 +558,7 @@ static dma_cookie_t atc_tx_submit(struct dma_async_tx_descriptor *tx)
 		list_add_tail(&desc->desc_node, &atchan->queue);
 	}
 
-	spin_unlock_bh(&atchan->lock);
+	spin_unlock_irqrestore(&atchan->lock, flags);
 
 	return cookie;
 }
@@ -927,28 +931,29 @@ static int atc_control(struct dma_chan *chan, enum dma_ctrl_cmd cmd,
 	struct at_dma_chan	*atchan = to_at_dma_chan(chan);
 	struct at_dma		*atdma = to_at_dma(chan->device);
 	int			chan_id = atchan->chan_common.chan_id;
+	unsigned long		flags;
 
 	LIST_HEAD(list);
 
 	dev_vdbg(chan2dev(chan), "atc_control (%d)\n", cmd);
 
 	if (cmd == DMA_PAUSE) {
-		spin_lock_bh(&atchan->lock);
+		spin_lock_irqsave(&atchan->lock, flags);
 
 		dma_writel(atdma, CHER, AT_DMA_SUSP(chan_id));
 		set_bit(ATC_IS_PAUSED, &atchan->status);
 
-		spin_unlock_bh(&atchan->lock);
+		spin_unlock_irqrestore(&atchan->lock, flags);
 	} else if (cmd == DMA_RESUME) {
-		if (!test_bit(ATC_IS_PAUSED, &atchan->status))
+		if (!atc_chan_is_paused(atchan))
 			return 0;
 
-		spin_lock_bh(&atchan->lock);
+		spin_lock_irqsave(&atchan->lock, flags);
 
 		dma_writel(atdma, CHDR, AT_DMA_RES(chan_id));
 		clear_bit(ATC_IS_PAUSED, &atchan->status);
 
-		spin_unlock_bh(&atchan->lock);
+		spin_unlock_irqrestore(&atchan->lock, flags);
 	} else if (cmd == DMA_TERMINATE_ALL) {
 		struct at_desc	*desc, *_desc;
 		/*
@@ -957,7 +962,7 @@ static int atc_control(struct dma_chan *chan, enum dma_ctrl_cmd cmd,
 		 * channel. We still have to poll the channel enable bit due
 		 * to AHB/HSB limitations.
 		 */
-		spin_lock_bh(&atchan->lock);
+		spin_lock_irqsave(&atchan->lock, flags);
 
 		/* disabling channel: must also remove suspend state */
 		dma_writel(atdma, CHDR, AT_DMA_RES(chan_id) | atchan->mask);
@@ -978,7 +983,7 @@ static int atc_control(struct dma_chan *chan, enum dma_ctrl_cmd cmd,
 		/* if channel dedicated to cyclic operations, free it */
 		clear_bit(ATC_IS_CYCLIC, &atchan->status);
 
-		spin_unlock_bh(&atchan->lock);
+		spin_unlock_irqrestore(&atchan->lock, flags);
 	} else {
 		return -ENXIO;
 	}
@@ -1004,9 +1009,10 @@ atc_tx_status(struct dma_chan *chan,
 	struct at_dma_chan	*atchan = to_at_dma_chan(chan);
 	dma_cookie_t		last_used;
 	dma_cookie_t		last_complete;
+	unsigned long		flags;
 	enum dma_status		ret;
 
-	spin_lock_bh(&atchan->lock);
+	spin_lock_irqsave(&atchan->lock, flags);
 
 	last_complete = atchan->completed_cookie;
 	last_used = chan->cookie;
@@ -1021,7 +1027,7 @@ atc_tx_status(struct dma_chan *chan,
 		ret = dma_async_is_complete(cookie, last_complete, last_used);
 	}
 
-	spin_unlock_bh(&atchan->lock);
+	spin_unlock_irqrestore(&atchan->lock, flags);
 
 	if (ret != DMA_SUCCESS)
 		dma_set_tx_state(txstate, last_complete, last_used,
@@ -1029,7 +1035,7 @@ atc_tx_status(struct dma_chan *chan,
 	else
 		dma_set_tx_state(txstate, last_complete, last_used, 0);
 
-	if (test_bit(ATC_IS_PAUSED, &atchan->status))
+	if (atc_chan_is_paused(atchan))
 		ret = DMA_PAUSED;
 
 	dev_vdbg(chan2dev(chan), "tx_status %d: cookie = %d (d%d, u%d)\n",
@@ -1046,18 +1052,19 @@ atc_tx_status(struct dma_chan *chan,
 static void atc_issue_pending(struct dma_chan *chan)
 {
 	struct at_dma_chan	*atchan = to_at_dma_chan(chan);
+	unsigned long		flags;
 
 	dev_vdbg(chan2dev(chan), "issue_pending\n");
 
 	/* Not needed for cyclic transfers */
-	if (test_bit(ATC_IS_CYCLIC, &atchan->status))
+	if (atc_chan_is_cyclic(atchan))
 		return;
 
-	spin_lock_bh(&atchan->lock);
+	spin_lock_irqsave(&atchan->lock, flags);
 	if (!atc_chan_is_enabled(atchan)) {
 		atc_advance_work(atchan);
 	}
-	spin_unlock_bh(&atchan->lock);
+	spin_unlock_irqrestore(&atchan->lock, flags);
 }
 
 /**
@@ -1073,6 +1080,7 @@ static int atc_alloc_chan_resources(struct dma_chan *chan)
 	struct at_dma		*atdma = to_at_dma(chan->device);
 	struct at_desc		*desc;
 	struct at_dma_slave	*atslave;
+	unsigned long		flags;
 	int			i;
 	u32			cfg;
 	LIST_HEAD(tmp_list);
@@ -1116,11 +1124,11 @@ static int atc_alloc_chan_resources(struct dma_chan *chan)
 		list_add_tail(&desc->desc_node, &tmp_list);
 	}
 
-	spin_lock_bh(&atchan->lock);
+	spin_lock_irqsave(&atchan->lock, flags);
 	atchan->descs_allocated = i;
 	list_splice(&tmp_list, &atchan->free_list);
 	atchan->completed_cookie = chan->cookie = 1;
-	spin_unlock_bh(&atchan->lock);
+	spin_unlock_irqrestore(&atchan->lock, flags);
 
 	/* channel parameters */
 	channel_writel(atchan, CFG, cfg);
@@ -1260,12 +1268,11 @@ static int __init at_dma_probe(struct platform_device *pdev)
 
 	/* initialize channels related values */
 	INIT_LIST_HEAD(&atdma->dma_common.channels);
-	for (i = 0; i < pdata->nr_channels; i++, atdma->dma_common.chancnt++) {
+	for (i = 0; i < pdata->nr_channels; i++) {
 		struct at_dma_chan	*atchan = &atdma->chan[i];
 
 		atchan->chan_common.device = &atdma->dma_common;
 		atchan->chan_common.cookie = atchan->completed_cookie = 1;
-		atchan->chan_common.chan_id = i;
 		list_add_tail(&atchan->chan_common.device_node,
 				&atdma->dma_common.channels);
 
@@ -1293,22 +1300,20 @@ static int __init at_dma_probe(struct platform_device *pdev)
 	if (dma_has_cap(DMA_MEMCPY, atdma->dma_common.cap_mask))
 		atdma->dma_common.device_prep_dma_memcpy = atc_prep_dma_memcpy;
 
-	if (dma_has_cap(DMA_SLAVE, atdma->dma_common.cap_mask))
+	if (dma_has_cap(DMA_SLAVE, atdma->dma_common.cap_mask)) {
 		atdma->dma_common.device_prep_slave_sg = atc_prep_slave_sg;
-
-	if (dma_has_cap(DMA_CYCLIC, atdma->dma_common.cap_mask))
+		/* controller can do slave DMA: can trigger cyclic transfers */
+		dma_cap_set(DMA_CYCLIC, atdma->dma_common.cap_mask);
 		atdma->dma_common.device_prep_dma_cyclic = atc_prep_dma_cyclic;
-
-	if (dma_has_cap(DMA_SLAVE, atdma->dma_common.cap_mask) ||
-	    dma_has_cap(DMA_CYCLIC, atdma->dma_common.cap_mask))
 		atdma->dma_common.device_control = atc_control;
+	}
 
 	dma_writel(atdma, EN, AT_DMA_ENABLE);
 
 	dev_info(&pdev->dev, "Atmel AHB DMA Controller ( %s%s), %d channels\n",
 	  dma_has_cap(DMA_MEMCPY, atdma->dma_common.cap_mask) ? "cpy " : "",
 	  dma_has_cap(DMA_SLAVE, atdma->dma_common.cap_mask)  ? "slave " : "",
-	  atdma->dma_common.chancnt);
+	  pdata->nr_channels);
 
 	dma_async_device_register(&atdma->dma_common);
 
@@ -1377,27 +1382,112 @@ static void at_dma_shutdown(struct platform_device *pdev)
 	clk_disable(atdma->clk);
 }
 
+static int at_dma_prepare(struct device *dev)
+{
+	struct platform_device *pdev = to_platform_device(dev);
+	struct at_dma *atdma = platform_get_drvdata(pdev);
+	struct dma_chan *chan, *_chan;
+
+	list_for_each_entry_safe(chan, _chan, &atdma->dma_common.channels,
+			device_node) {
+		struct at_dma_chan *atchan = to_at_dma_chan(chan);
+		/* wait for transaction completion (except in cyclic case) */
+		if (atc_chan_is_enabled(atchan) && !atc_chan_is_cyclic(atchan))
+			return -EAGAIN;
+	}
+	return 0;
+}
+
+static void atc_suspend_cyclic(struct at_dma_chan *atchan)
+{
+	struct dma_chan	*chan = &atchan->chan_common;
+
+	/* Channel should be paused by user
+	 * do it anyway even if it is not done already */
+	if (!atc_chan_is_paused(atchan)) {
+		dev_warn(chan2dev(chan),
+		"cyclic channel not paused, should be done by channel user\n");
+		atc_control(chan, DMA_PAUSE, 0);
+	}
+
+	/* now preserve additional data for cyclic operations */
+	/* next descriptor address in the cyclic list */
+	atchan->save_dscr = channel_readl(atchan, DSCR);
+
+	vdbg_dump_regs(atchan);
+}
+
 static int at_dma_suspend_noirq(struct device *dev)
 {
 	struct platform_device *pdev = to_platform_device(dev);
 	struct at_dma *atdma = platform_get_drvdata(pdev);
+	struct dma_chan *chan, *_chan;
 
-	at_dma_off(platform_get_drvdata(pdev));
+	/* preserve data */
+	list_for_each_entry_safe(chan, _chan, &atdma->dma_common.channels,
+			device_node) {
+		struct at_dma_chan *atchan = to_at_dma_chan(chan);
+
+		if (atc_chan_is_cyclic(atchan))
+			atc_suspend_cyclic(atchan);
+		atchan->save_cfg = channel_readl(atchan, CFG);
+	}
+	atdma->save_imr = dma_readl(atdma, EBCIMR);
+
+	/* disable DMA controller */
+	at_dma_off(atdma);
 	clk_disable(atdma->clk);
 	return 0;
+}
+
+static void atc_resume_cyclic(struct at_dma_chan *atchan)
+{
+	struct at_dma	*atdma = to_at_dma(atchan->chan_common.device);
+
+	/* restore channel status for cyclic descriptors list:
+	 * next descriptor in the cyclic list at the time of suspend */
+	channel_writel(atchan, SADDR, 0);
+	channel_writel(atchan, DADDR, 0);
+	channel_writel(atchan, CTRLA, 0);
+	channel_writel(atchan, CTRLB, 0);
+	channel_writel(atchan, DSCR, atchan->save_dscr);
+	dma_writel(atdma, CHER, atchan->mask);
+
+	/* channel pause status should be removed by channel user
+	 * We cannot take the initiative to do it here */
+
+	vdbg_dump_regs(atchan);
 }
 
 static int at_dma_resume_noirq(struct device *dev)
 {
 	struct platform_device *pdev = to_platform_device(dev);
 	struct at_dma *atdma = platform_get_drvdata(pdev);
+	struct dma_chan *chan, *_chan;
 
+	/* bring back DMA controller */
 	clk_enable(atdma->clk);
 	dma_writel(atdma, EN, AT_DMA_ENABLE);
+
+	/* clear any pending interrupt */
+	while (dma_readl(atdma, EBCISR))
+		cpu_relax();
+
+	/* restore saved data */
+	dma_writel(atdma, EBCIER, atdma->save_imr);
+	list_for_each_entry_safe(chan, _chan, &atdma->dma_common.channels,
+			device_node) {
+		struct at_dma_chan *atchan = to_at_dma_chan(chan);
+
+		channel_writel(atchan, CFG, atchan->save_cfg);
+		if (atc_chan_is_cyclic(atchan))
+			atc_resume_cyclic(atchan);
+	}
 	return 0;
 }
 
 static const struct dev_pm_ops at_dma_dev_pm_ops = {
+	.prepare = at_dma_prepare,
 	.suspend_noirq = at_dma_suspend_noirq,
 	.resume_noirq = at_dma_resume_noirq,
 };

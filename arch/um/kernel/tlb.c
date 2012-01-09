@@ -4,6 +4,7 @@
  */
 
 #include <linux/mm.h>
+#include <linux/module.h>
 #include <linux/sched.h>
 #include <asm/pgtable.h>
 #include <asm/tlbflush.h>
@@ -11,7 +12,6 @@
 #include "mem_user.h"
 #include "os.h"
 #include "skas.h"
-#include "tlb.h"
 
 struct host_vm_change {
 	struct host_vm_op {
@@ -287,7 +287,7 @@ void fix_range_common(struct mm_struct *mm, unsigned long start_addr,
 	}
 }
 
-int flush_tlb_kernel_range_common(unsigned long start, unsigned long end)
+static int flush_tlb_kernel_range_common(unsigned long start, unsigned long end)
 {
 	struct mm_struct *mm;
 	pgd_t *pgd;
@@ -499,6 +499,7 @@ void flush_tlb_range(struct vm_area_struct *vma, unsigned long start,
 		flush_tlb_kernel_range_common(start, end);
 	else fix_range(vma->vm_mm, start, end, 0);
 }
+EXPORT_SYMBOL(flush_tlb_range);
 
 void flush_tlb_mm_range(struct mm_struct *mm, unsigned long start,
 			unsigned long end)

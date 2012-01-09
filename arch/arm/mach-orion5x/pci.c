@@ -14,6 +14,7 @@
 #include <linux/pci.h>
 #include <linux/slab.h>
 #include <linux/mbus.h>
+#include <video/vga.h>
 #include <asm/irq.h>
 #include <asm/mach/pci.h>
 #include <plat/pcie.h>

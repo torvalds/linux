@@ -48,6 +48,8 @@ void ath_init_leds(struct ath_softc *sc)
 			sc->sc_ah->led_pin = ATH_LED_PIN_9485;
 		else if (AR_SREV_9300(sc->sc_ah))
 			sc->sc_ah->led_pin = ATH_LED_PIN_9300;
+		else if (AR_SREV_9462(sc->sc_ah))
+			sc->sc_ah->led_pin = ATH_LED_PIN_9462;
 		else
 			sc->sc_ah->led_pin = ATH_LED_PIN_DEF;
 	}
@@ -82,9 +84,14 @@ void ath_init_leds(struct ath_softc *sc)
 static bool ath_is_rfkill_set(struct ath_softc *sc)
 {
 	struct ath_hw *ah = sc->sc_ah;
+	bool is_blocked;
 
-	return ath9k_hw_gpio_get(ah, ah->rfkill_gpio) ==
+	ath9k_ps_wakeup(sc);
+	is_blocked = ath9k_hw_gpio_get(ah, ah->rfkill_gpio) ==
 				  ah->rfkill_polarity;
+	ath9k_ps_restore(sc);
+
+	return is_blocked;
 }
 
 void ath9k_rfkill_poll_state(struct ieee80211_hw *hw)
@@ -148,7 +155,8 @@ static void ath9k_gen_timer_start(struct ath_hw *ah,
 	if ((ah->imask & ATH9K_INT_GENTIMER) == 0) {
 		ath9k_hw_disable_interrupts(ah);
 		ah->imask |= ATH9K_INT_GENTIMER;
-		ath9k_hw_set_interrupts(ah, ah->imask);
+		ath9k_hw_set_interrupts(ah);
+		ath9k_hw_enable_interrupts(ah);
 	}
 }
 
@@ -162,7 +170,8 @@ static void ath9k_gen_timer_stop(struct ath_hw *ah, struct ath_gen_timer *timer)
 	if (timer_table->timer_mask.val == 0) {
 		ath9k_hw_disable_interrupts(ah);
 		ah->imask &= ~ATH9K_INT_GENTIMER;
-		ath9k_hw_set_interrupts(ah, ah->imask);
+		ath9k_hw_set_interrupts(ah);
+		ath9k_hw_enable_interrupts(ah);
 	}
 }
 

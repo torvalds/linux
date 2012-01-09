@@ -145,6 +145,10 @@ static int dss_initialize_debugfs(void)
 	debugfs_create_file("venc", S_IRUGO, dss_debugfs_dir,
 			&venc_dump_regs, &dss_debug_fops);
 #endif
+#ifdef CONFIG_OMAP4_DSS_HDMI
+	debugfs_create_file("hdmi", S_IRUGO, dss_debugfs_dir,
+			&hdmi_dump_regs, &dss_debug_fops);
+#endif
 	return 0;
 }
 

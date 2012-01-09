@@ -295,10 +295,15 @@ EXPORT_SYMBOL_GPL(smp_call_function_single);
 
 void smp_send_reschedule(int cpu)
 {
+	cpumask_t callmap;
 	/* simply trigger an ipi */
 	if (cpu_is_offline(cpu))
 		return;
-	platform_send_ipi_cpu(cpu, IRQ_SUPPLE_0);
+
+	cpumask_clear(&callmap);
+	cpumask_set_cpu(cpu, &callmap);
+
+	smp_send_message(callmap, BFIN_IPI_RESCHEDULE, NULL, NULL, 0);
 
 	return;
 }

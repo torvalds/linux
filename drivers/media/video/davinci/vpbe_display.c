@@ -43,7 +43,6 @@
 
 static int debug;
 
-#define VPBE_DISPLAY_SD_BUF_SIZE (720*576*2)
 #define VPBE_DEFAULT_NUM_BUFS 3
 
 module_param(debug, int, 0644);

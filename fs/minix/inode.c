@@ -279,6 +279,27 @@ static int minix_fill_super(struct super_block *s, void *data, int silent)
  	else if (sbi->s_mount_state & MINIX_ERROR_FS)
 		printk("MINIX-fs: mounting file system with errors, "
 			"running fsck is recommended\n");
+
+	/* Apparently minix can create filesystems that allocate more blocks for
+	 * the bitmaps than needed.  We simply ignore that, but verify it didn't
+	 * create one with not enough blocks and bail out if so.
+	 */
+	block = minix_blocks_needed(sbi->s_ninodes, s->s_blocksize);
+	if (sbi->s_imap_blocks < block) {
+		printk("MINIX-fs: file system does not have enough "
+				"imap blocks allocated.  Refusing to mount\n");
+		goto out_iput;
+	}
+
+	block = minix_blocks_needed(
+			(sbi->s_nzones - (sbi->s_firstdatazone + 1)),
+			s->s_blocksize);
+	if (sbi->s_zmap_blocks < block) {
+		printk("MINIX-fs: file system does not have enough "
+				"zmap blocks allocated.  Refusing to mount.\n");
+		goto out_iput;
+	}
+
 	return 0;
 
 out_iput:
@@ -339,10 +360,10 @@ static int minix_statfs(struct dentry *dentry, struct kstatfs *buf)
 	buf->f_type = sb->s_magic;
 	buf->f_bsize = sb->s_blocksize;
 	buf->f_blocks = (sbi->s_nzones - sbi->s_firstdatazone) << sbi->s_log_zone_size;
-	buf->f_bfree = minix_count_free_blocks(sbi);
+	buf->f_bfree = minix_count_free_blocks(sb);
 	buf->f_bavail = buf->f_bfree;
 	buf->f_files = sbi->s_ninodes;
-	buf->f_ffree = minix_count_free_inodes(sbi);
+	buf->f_ffree = minix_count_free_inodes(sb);
 	buf->f_namelen = sbi->s_namelen;
 	buf->f_fsid.val[0] = (u32)id;
 	buf->f_fsid.val[1] = (u32)(id >> 32);
@@ -446,7 +467,7 @@ static struct inode *V1_minix_iget(struct inode *inode)
 	inode->i_mode = raw_inode->i_mode;
 	inode->i_uid = (uid_t)raw_inode->i_uid;
 	inode->i_gid = (gid_t)raw_inode->i_gid;
-	inode->i_nlink = raw_inode->i_nlinks;
+	set_nlink(inode, raw_inode->i_nlinks);
 	inode->i_size = raw_inode->i_size;
 	inode->i_mtime.tv_sec = inode->i_atime.tv_sec = inode->i_ctime.tv_sec = raw_inode->i_time;
 	inode->i_mtime.tv_nsec = 0;
@@ -479,7 +500,7 @@ static struct inode *V2_minix_iget(struct inode *inode)
 	inode->i_mode = raw_inode->i_mode;
 	inode->i_uid = (uid_t)raw_inode->i_uid;
 	inode->i_gid = (gid_t)raw_inode->i_gid;
-	inode->i_nlink = raw_inode->i_nlinks;
+	set_nlink(inode, raw_inode->i_nlinks);
 	inode->i_size = raw_inode->i_size;
 	inode->i_mtime.tv_sec = raw_inode->i_mtime;
 	inode->i_atime.tv_sec = raw_inode->i_atime;

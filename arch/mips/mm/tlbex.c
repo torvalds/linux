@@ -1759,14 +1759,13 @@ static void __cpuinit build_r3000_tlb_modify_handler(void)
 	u32 *p = handle_tlbm;
 	struct uasm_label *l = labels;
 	struct uasm_reloc *r = relocs;
-	struct work_registers wr;
 
 	memset(handle_tlbm, 0, sizeof(handle_tlbm));
 	memset(labels, 0, sizeof(labels));
 	memset(relocs, 0, sizeof(relocs));
 
 	build_r3000_tlbchange_handler_head(&p, K0, K1);
-	build_pte_modifiable(&p, &r, wr.r1, wr.r2,  wr.r3, label_nopage_tlbm);
+	build_pte_modifiable(&p, &r, K0, K1,  -1, label_nopage_tlbm);
 	uasm_i_nop(&p); /* load delay */
 	build_make_write(&p, &r, K0, K1);
 	build_r3000_pte_reload_tlbwi(&p, K0, K1);
@@ -1963,7 +1962,8 @@ static void __cpuinit build_r4000_tlb_load_handler(void)
 			uasm_i_andi(&p, wr.r3, wr.r3, 2);
 			uasm_il_beqz(&p, &r, wr.r3, label_tlbl_goaround2);
 		}
-
+		if (PM_DEFAULT_MASK == 0)
+			uasm_i_nop(&p);
 		/*
 		 * We clobbered C0_PAGEMASK, restore it.  On the other branch
 		 * it is restored in build_huge_tlb_write_entry.

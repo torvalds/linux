@@ -22,14 +22,23 @@
 #include <asm/inat.h>
 #include <asm/insn.h>
 
-#define get_next(t, insn)	\
-	({t r; r = *(t*)insn->next_byte; insn->next_byte += sizeof(t); r; })
+/* Verify next sizeof(t) bytes can be on the same instruction */
+#define validate_next(t, insn, n)	\
+	((insn)->next_byte + sizeof(t) + n - (insn)->kaddr <= MAX_INSN_SIZE)
 
-#define peek_next(t, insn)	\
-	({t r; r = *(t*)insn->next_byte; r; })
+#define __get_next(t, insn)	\
+	({ t r = *(t*)insn->next_byte; insn->next_byte += sizeof(t); r; })
+
+#define __peek_nbyte_next(t, insn, n)	\
+	({ t r = *(t*)((insn)->next_byte + n); r; })
+
+#define get_next(t, insn)	\
+	({ if (unlikely(!validate_next(t, insn, 0))) goto err_out; __get_next(t, insn); })
 
 #define peek_nbyte_next(t, insn, n)	\
-	({t r; r = *(t*)((insn)->next_byte + n); r; })
+	({ if (unlikely(!validate_next(t, insn, n))) goto err_out; __peek_nbyte_next(t, insn, n); })
+
+#define peek_next(t, insn)	peek_nbyte_next(t, insn, 0)
 
 /**
  * insn_init() - initialize struct insn
@@ -158,6 +167,8 @@ vex_end:
 	insn->vex_prefix.got = 1;
 
 	prefixes->got = 1;
+
+err_out:
 	return;
 }
 
@@ -208,6 +219,9 @@ void insn_get_opcode(struct insn *insn)
 		insn->attr = 0;	/* This instruction is bad */
 end:
 	opcode->got = 1;
+
+err_out:
+	return;
 }
 
 /**
@@ -241,6 +255,9 @@ void insn_get_modrm(struct insn *insn)
 	if (insn->x86_64 && inat_is_force64(insn->attr))
 		insn->opnd_bytes = 8;
 	modrm->got = 1;
+
+err_out:
+	return;
 }
 
 
@@ -290,6 +307,9 @@ void insn_get_sib(struct insn *insn)
 		}
 	}
 	insn->sib.got = 1;
+
+err_out:
+	return;
 }
 
 
@@ -351,6 +371,9 @@ void insn_get_displacement(struct insn *insn)
 	}
 out:
 	insn->displacement.got = 1;
+
+err_out:
+	return;
 }
 
 /* Decode moffset16/32/64 */
@@ -373,6 +396,9 @@ static void __get_moffset(struct insn *insn)
 		break;
 	}
 	insn->moffset1.got = insn->moffset2.got = 1;
+
+err_out:
+	return;
 }
 
 /* Decode imm v32(Iz) */
@@ -389,6 +415,9 @@ static void __get_immv32(struct insn *insn)
 		insn->immediate.nbytes = 4;
 		break;
 	}
+
+err_out:
+	return;
 }
 
 /* Decode imm v64(Iv/Ov) */
@@ -411,6 +440,9 @@ static void __get_immv(struct insn *insn)
 		break;
 	}
 	insn->immediate1.got = insn->immediate2.got = 1;
+
+err_out:
+	return;
 }
 
 /* Decode ptr16:16/32(Ap) */
@@ -432,6 +464,9 @@ static void __get_immptr(struct insn *insn)
 	insn->immediate2.value = get_next(unsigned short, insn);
 	insn->immediate2.nbytes = 2;
 	insn->immediate1.got = insn->immediate2.got = 1;
+
+err_out:
+	return;
 }
 
 /**
@@ -496,6 +531,9 @@ void insn_get_immediate(struct insn *insn)
 	}
 done:
 	insn->immediate.got = 1;
+
+err_out:
+	return;
 }
 
 /**

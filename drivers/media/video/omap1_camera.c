@@ -102,10 +102,10 @@
 /* end of OMAP1 Camera Interface registers */
 
 
-#define SOCAM_BUS_FLAGS	(SOCAM_MASTER | \
-			SOCAM_HSYNC_ACTIVE_HIGH | SOCAM_VSYNC_ACTIVE_HIGH | \
-			SOCAM_PCLK_SAMPLE_RISING | SOCAM_PCLK_SAMPLE_FALLING | \
-			SOCAM_DATA_ACTIVE_HIGH | SOCAM_DATAWIDTH_8)
+#define SOCAM_BUS_FLAGS	(V4L2_MBUS_MASTER | \
+			V4L2_MBUS_HSYNC_ACTIVE_HIGH | V4L2_MBUS_VSYNC_ACTIVE_HIGH | \
+			V4L2_MBUS_PCLK_SAMPLE_RISING | V4L2_MBUS_PCLK_SAMPLE_FALLING | \
+			V4L2_MBUS_DATA_ACTIVE_HIGH)
 
 
 #define FIFO_SIZE		((THRESHOLD_MASK >> THRESHOLD_SHIFT) + 1)
@@ -1438,41 +1438,55 @@ static int omap1_cam_querycap(struct soc_camera_host *ici,
 static int omap1_cam_set_bus_param(struct soc_camera_device *icd,
 		__u32 pixfmt)
 {
+	struct v4l2_subdev *sd = soc_camera_to_subdev(icd);
 	struct device *dev = icd->parent;
 	struct soc_camera_host *ici = to_soc_camera_host(dev);
 	struct omap1_cam_dev *pcdev = ici->priv;
 	const struct soc_camera_format_xlate *xlate;
 	const struct soc_mbus_pixelfmt *fmt;
-	unsigned long camera_flags, common_flags;
+	struct v4l2_mbus_config cfg = {.type = V4L2_MBUS_PARALLEL,};
+	unsigned long common_flags;
 	u32 ctrlclock, mode;
 	int ret;
 
-	camera_flags = icd->ops->query_bus_param(icd);
-
-	common_flags = soc_camera_bus_param_compatible(camera_flags,
-			SOCAM_BUS_FLAGS);
-	if (!common_flags)
-		return -EINVAL;
-
-	/* Make choices, possibly based on platform configuration */
-	if ((common_flags & SOCAM_PCLK_SAMPLE_RISING) &&
-			(common_flags & SOCAM_PCLK_SAMPLE_FALLING)) {
-		if (!pcdev->pdata ||
-				pcdev->pdata->flags & OMAP1_CAMERA_LCLK_RISING)
-			common_flags &= ~SOCAM_PCLK_SAMPLE_FALLING;
-		else
-			common_flags &= ~SOCAM_PCLK_SAMPLE_RISING;
+	ret = v4l2_subdev_call(sd, video, g_mbus_config, &cfg);
+	if (!ret) {
+		common_flags = soc_mbus_config_compatible(&cfg, SOCAM_BUS_FLAGS);
+		if (!common_flags) {
+			dev_warn(dev,
+				 "Flags incompatible: camera 0x%x, host 0x%x\n",
+				 cfg.flags, SOCAM_BUS_FLAGS);
+			return -EINVAL;
+		}
+	} else if (ret != -ENOIOCTLCMD) {
+		return ret;
+	} else {
+		common_flags = SOCAM_BUS_FLAGS;
 	}
 
-	ret = icd->ops->set_bus_param(icd, common_flags);
-	if (ret < 0)
+	/* Make choices, possibly based on platform configuration */
+	if ((common_flags & V4L2_MBUS_PCLK_SAMPLE_RISING) &&
+			(common_flags & V4L2_MBUS_PCLK_SAMPLE_FALLING)) {
+		if (!pcdev->pdata ||
+				pcdev->pdata->flags & OMAP1_CAMERA_LCLK_RISING)
+			common_flags &= ~V4L2_MBUS_PCLK_SAMPLE_FALLING;
+		else
+			common_flags &= ~V4L2_MBUS_PCLK_SAMPLE_RISING;
+	}
+
+	cfg.flags = common_flags;
+	ret = v4l2_subdev_call(sd, video, s_mbus_config, &cfg);
+	if (ret < 0 && ret != -ENOIOCTLCMD) {
+		dev_dbg(dev, "camera s_mbus_config(0x%lx) returned %d\n",
+			common_flags, ret);
 		return ret;
+	}
 
 	ctrlclock = CAM_READ_CACHE(pcdev, CTRLCLOCK);
 	if (ctrlclock & LCLK_EN)
 		CAM_WRITE(pcdev, CTRLCLOCK, ctrlclock & ~LCLK_EN);
 
-	if (common_flags & SOCAM_PCLK_SAMPLE_RISING) {
+	if (common_flags & V4L2_MBUS_PCLK_SAMPLE_RISING) {
 		dev_dbg(dev, "CTRLCLOCK_REG |= POLCLK\n");
 		ctrlclock |= POLCLK;
 	} else {
@@ -1565,10 +1579,10 @@ static int __init omap1_cam_probe(struct platform_device *pdev)
 	pcdev->clk = clk;
 
 	pcdev->pdata = pdev->dev.platform_data;
-	pcdev->pflags = pcdev->pdata->flags;
-
-	if (pcdev->pdata)
+	if (pcdev->pdata) {
+		pcdev->pflags = pcdev->pdata->flags;
 		pcdev->camexclk = pcdev->pdata->camexclk_khz * 1000;
+	}
 
 	switch (pcdev->camexclk) {
 	case 6000000:
@@ -1578,6 +1592,7 @@ static int __init omap1_cam_probe(struct platform_device *pdev)
 	case 24000000:
 		break;
 	default:
+		/* pcdev->camexclk != 0 => pcdev->pdata != NULL */
 		dev_warn(&pdev->dev,
 				"Incorrect sensor clock frequency %ld kHz, "
 				"should be one of 0, 6, 8, 9.6, 12 or 24 MHz, "
@@ -1585,8 +1600,7 @@ static int __init omap1_cam_probe(struct platform_device *pdev)
 				pcdev->pdata->camexclk_khz);
 		pcdev->camexclk = 0;
 	case 0:
-		dev_info(&pdev->dev,
-				"Not providing sensor clock\n");
+		dev_info(&pdev->dev, "Not providing sensor clock\n");
 	}
 
 	INIT_LIST_HEAD(&pcdev->capture);
@@ -1716,5 +1730,5 @@ MODULE_PARM_DESC(sg_mode, "videobuf mode, 0: dma-contig (default), 1: dma-sg");
 MODULE_DESCRIPTION("OMAP1 Camera Interface driver");
 MODULE_AUTHOR("Janusz Krzysztofik <jkrzyszt@tis.icnet.pl>");
 MODULE_LICENSE("GPL v2");
-MODULE_LICENSE(DRIVER_VERSION);
+MODULE_VERSION(DRIVER_VERSION);
 MODULE_ALIAS("platform:" DRIVER_NAME);

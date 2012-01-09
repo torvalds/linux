@@ -540,7 +540,7 @@ static struct mtd_partition saar_onenand_partitions[] = {
 	}, {
 		.name		= "filesystem",
 		.offset		= MTDPART_OFS_APPEND,
-		.size		= SZ_48M,
+		.size		= SZ_32M + SZ_16M,
 		.mask_flags	= 0,
 	}
 };
@@ -596,7 +596,7 @@ static void __init saar_init(void)
 
 MACHINE_START(SAAR, "PXA930 Handheld Platform (aka SAAR)")
 	/* Maintainer: Eric Miao <eric.miao@marvell.com> */
-	.boot_params    = 0xa0000100,
+	.atag_offset    = 0x100,
 	.map_io         = pxa3xx_map_io,
 	.init_irq       = pxa3xx_init_irq,
 	.handle_irq       = pxa3xx_handle_irq,

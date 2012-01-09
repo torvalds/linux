@@ -58,7 +58,7 @@ struct prop_local_percpu {
 	 */
 	int shift;
 	unsigned long period;
-	spinlock_t lock;		/* protect the snapshot state */
+	raw_spinlock_t lock;		/* protect the snapshot state */
 };
 
 int prop_local_init_percpu(struct prop_local_percpu *pl);
@@ -106,11 +106,11 @@ struct prop_local_single {
 	 */
 	unsigned long period;
 	int shift;
-	spinlock_t lock;		/* protect the snapshot state */
+	raw_spinlock_t lock;		/* protect the snapshot state */
 };
 
 #define INIT_PROP_LOCAL_SINGLE(name)			\
-{	.lock = __SPIN_LOCK_UNLOCKED(name.lock),	\
+{	.lock = __RAW_SPIN_LOCK_UNLOCKED(name.lock),	\
 }
 
 int prop_local_init_single(struct prop_local_single *pl);

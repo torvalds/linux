@@ -56,7 +56,7 @@
 #define TFP410_CTL_2_MDI	(1<<0)
 
 #define TFP410_CTL_3		0x0A
-#define TFP410_CTL_3_DK_MASK 	(0x7<<5)
+#define TFP410_CTL_3_DK_MASK	(0x7<<5)
 #define TFP410_CTL_3_DK		(1<<5)
 #define TFP410_CTL_3_DKEN	(1<<4)
 #define TFP410_CTL_3_CTL_MASK	(0x7<<1)
@@ -225,12 +225,12 @@ static void tfp410_mode_set(struct intel_dvo_device *dvo,
 			    struct drm_display_mode *mode,
 			    struct drm_display_mode *adjusted_mode)
 {
-    /* As long as the basics are set up, since we don't have clock dependencies
-     * in the mode setup, we can just leave the registers alone and everything
-     * will work fine.
-     */
-    /* don't do much */
-    return;
+	/* As long as the basics are set up, since we don't have clock dependencies
+	* in the mode setup, we can just leave the registers alone and everything
+	* will work fine.
+	*/
+	/* don't do much */
+	return;
 }
 
 /* set the tfp410 power state */

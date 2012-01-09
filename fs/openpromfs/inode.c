@@ -242,7 +242,7 @@ found:
 		inode->i_mode = S_IFDIR | S_IRUGO | S_IXUGO;
 		inode->i_op = &openprom_inode_operations;
 		inode->i_fop = &openprom_operations;
-		inode->i_nlink = 2;
+		set_nlink(inode, 2);
 		break;
 	case op_inode_prop:
 		if (!strcmp(dp->name, "options") && (len == 17) &&
@@ -251,7 +251,7 @@ found:
 		else
 			inode->i_mode = S_IFREG | S_IRUGO;
 		inode->i_fop = &openpromfs_prop_ops;
-		inode->i_nlink = 1;
+		set_nlink(inode, 1);
 		inode->i_size = ent_oi->u.prop->length;
 		break;
 	}

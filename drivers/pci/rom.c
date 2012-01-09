@@ -7,6 +7,7 @@
  * PCI ROM access routines
  */
 #include <linux/kernel.h>
+#include <linux/export.h>
 #include <linux/pci.h>
 #include <linux/slab.h>
 

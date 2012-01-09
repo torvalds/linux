@@ -539,7 +539,6 @@ static void acm_port_down(struct acm *acm)
 {
 	int i;
 
-	mutex_lock(&open_mutex);
 	if (acm->dev) {
 		usb_autopm_get_interface(acm->control);
 		acm_set_control(acm, acm->ctrlout = 0);
@@ -551,14 +550,15 @@ static void acm_port_down(struct acm *acm)
 		acm->control->needs_remote_wakeup = 0;
 		usb_autopm_put_interface(acm->control);
 	}
-	mutex_unlock(&open_mutex);
 }
 
 static void acm_tty_hangup(struct tty_struct *tty)
 {
 	struct acm *acm = tty->driver_data;
 	tty_port_hangup(&acm->port);
+	mutex_lock(&open_mutex);
 	acm_port_down(acm);
+	mutex_unlock(&open_mutex);
 }
 
 static void acm_tty_close(struct tty_struct *tty, struct file *filp)
@@ -569,8 +569,9 @@ static void acm_tty_close(struct tty_struct *tty, struct file *filp)
 	   shutdown */
 	if (!acm)
 		return;
+
+	mutex_lock(&open_mutex);
 	if (tty_port_close_start(&acm->port, tty, filp) == 0) {
-		mutex_lock(&open_mutex);
 		if (!acm->dev) {
 			tty_port_tty_set(&acm->port, NULL);
 			acm_tty_unregister(acm);
@@ -582,6 +583,7 @@ static void acm_tty_close(struct tty_struct *tty, struct file *filp)
 	acm_port_down(acm);
 	tty_port_close_end(&acm->port, tty);
 	tty_port_tty_set(&acm->port, NULL);
+	mutex_unlock(&open_mutex);
 }
 
 static int acm_tty_write(struct tty_struct *tty,
@@ -1058,11 +1060,11 @@ made_compressed_probe:
 		goto alloc_fail;
 	}
 
-	ctrlsize = le16_to_cpu(epctrl->wMaxPacketSize);
-	readsize = le16_to_cpu(epread->wMaxPacketSize) *
+	ctrlsize = usb_endpoint_maxp(epctrl);
+	readsize = usb_endpoint_maxp(epread) *
 				(quirks == SINGLE_RX_URB ? 1 : 2);
 	acm->combined_interfaces = combined_interfaces;
-	acm->writesize = le16_to_cpu(epwrite->wMaxPacketSize) * 20;
+	acm->writesize = usb_endpoint_maxp(epwrite) * 20;
 	acm->control = control_interface;
 	acm->data = data_interface;
 	acm->minor = minor;
@@ -1305,7 +1307,7 @@ static int acm_suspend(struct usb_interface *intf, pm_message_t message)
 	struct acm *acm = usb_get_intfdata(intf);
 	int cnt;
 
-	if (message.event & PM_EVENT_AUTO) {
+	if (PMSG_IS_AUTO(message)) {
 		int b;
 
 		spin_lock_irq(&acm->write_lock);
@@ -1533,6 +1535,9 @@ static const struct usb_device_id acm_ids[] = {
 	{ NOKIA_PCSUITE_ACM_INFO(0x0335), }, /* Nokia E7 */
 	{ NOKIA_PCSUITE_ACM_INFO(0x03cd), }, /* Nokia C7 */
 	{ SAMSUNG_PCSUITE_ACM_INFO(0x6651), }, /* Samsung GTi8510 (INNOV8) */
+
+	/* Support for Owen devices */
+	{ USB_DEVICE(0x03eb, 0x0030), }, /* Owen SI30 */
 
 	/* NOTE: non-Nokia COMM/ACM/0xff is likely MSFT RNDIS... NOT a modem! */
 

@@ -21,6 +21,8 @@
 #include <linux/of.h>
 #include <linux/of_gpio.h>
 #include <linux/slab.h>
+#include <linux/kthread.h>
+#include <linux/reboot.h>
 #include <asm/prom.h>
 #include <asm/machdep.h>
 
@@ -30,6 +32,7 @@
  */
 #define MCU_REG_CTRL	0x20
 #define MCU_CTRL_POFF	0x40
+#define MCU_CTRL_BTN	0x80
 
 #define MCU_NUM_GPIO	2
 
@@ -42,13 +45,55 @@ struct mcu {
 
 static struct mcu *glob_mcu;
 
+struct task_struct *shutdown_thread;
+static int shutdown_thread_fn(void *data)
+{
+	int ret;
+	struct mcu *mcu = glob_mcu;
+
+	while (!kthread_should_stop()) {
+		ret = i2c_smbus_read_byte_data(mcu->client, MCU_REG_CTRL);
+		if (ret < 0)
+			pr_err("MCU status reg read failed.\n");
+		mcu->reg_ctrl = ret;
+
+
+		if (mcu->reg_ctrl & MCU_CTRL_BTN) {
+			i2c_smbus_write_byte_data(mcu->client, MCU_REG_CTRL,
+						  mcu->reg_ctrl & ~MCU_CTRL_BTN);
+
+			ctrl_alt_del();
+		}
+
+		set_current_state(TASK_INTERRUPTIBLE);
+		schedule_timeout(HZ);
+	}
+
+	return 0;
+}
+
+static ssize_t show_status(struct device *d,
+			   struct device_attribute *attr, char *buf)
+{
+	int ret;
+	struct mcu *mcu = glob_mcu;
+
+	ret = i2c_smbus_read_byte_data(mcu->client, MCU_REG_CTRL);
+	if (ret < 0)
+		return -ENODEV;
+	mcu->reg_ctrl = ret;
+
+	return sprintf(buf, "%02x\n", ret);
+}
+static DEVICE_ATTR(status, S_IRUGO, show_status, NULL);
+
 static void mcu_power_off(void)
 {
 	struct mcu *mcu = glob_mcu;
 
 	pr_info("Sending power-off request to the MCU...\n");
 	mutex_lock(&mcu->lock);
-	i2c_smbus_write_byte_data(glob_mcu->client, MCU_REG_CTRL,
+	i2c_smbus_write_byte_data(mcu->client, MCU_REG_CTRL,
 				  mcu->reg_ctrl | MCU_CTRL_POFF);
 	mutex_unlock(&mcu->lock);
 }
@@ -130,6 +175,13 @@ static int __devinit mcu_probe(struct i2c_client *client,
 		dev_info(&client->dev, "will provide power-off service\n");
 	}
 
+	if (device_create_file(&client->dev, &dev_attr_status))
+		dev_err(&client->dev,
+			"couldn't create device file for status\n");
+
+	shutdown_thread = kthread_run(shutdown_thread_fn, NULL,
+				      "mcu-i2c-shdn");
+
 	return 0;
 err:
 	kfree(mcu);
@@ -140,6 +192,10 @@ static int __devexit mcu_remove(struct i2c_client *client)
 {
 	struct mcu *mcu = i2c_get_clientdata(client);
 	int ret;
+
+	kthread_stop(shutdown_thread);
+
+	device_remove_file(&client->dev, &dev_attr_status);
 
 	if (glob_mcu == mcu) {
 		ppc_md.power_off = NULL;

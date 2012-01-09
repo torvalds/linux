@@ -325,8 +325,9 @@ static struct mtd_partition littleton_nand_partitions[] = {
 
 static struct pxa3xx_nand_platform_data littleton_nand_info = {
 	.enable_arbiter	= 1,
-	.parts		= littleton_nand_partitions,
-	.nr_parts	= ARRAY_SIZE(littleton_nand_partitions),
+	.num_cs		= 1,
+	.parts[0]	= littleton_nand_partitions,
+	.nr_parts[0]	= ARRAY_SIZE(littleton_nand_partitions),
 };
 
 static void __init littleton_init_nand(void)
@@ -437,7 +438,7 @@ static void __init littleton_init(void)
 }
 
 MACHINE_START(LITTLETON, "Marvell Form Factor Development Platform (aka Littleton)")
-	.boot_params	= 0xa0000100,
+	.atag_offset	= 0x100,
 	.map_io		= pxa3xx_map_io,
 	.nr_irqs	= LITTLETON_NR_IRQS,
 	.init_irq	= pxa3xx_init_irq,

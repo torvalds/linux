@@ -8,7 +8,6 @@
  */
 #include <linux/types.h>
 #include <linux/threads.h>
-#include <linux/module.h>
 #include <linux/bitops.h>
 #include <asm/processor.h>
 #include <asm/ptrace.h>

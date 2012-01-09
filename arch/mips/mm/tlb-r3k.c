@@ -223,8 +223,8 @@ void __update_tlb(struct vm_area_struct *vma, unsigned long address, pte_t pte)
 	local_irq_restore(flags);
 }
 
-void __init add_wired_entry(unsigned long entrylo0, unsigned long entrylo1,
-			    unsigned long entryhi, unsigned long pagemask)
+void add_wired_entry(unsigned long entrylo0, unsigned long entrylo1,
+		     unsigned long entryhi, unsigned long pagemask)
 {
 	unsigned long flags;
 	unsigned long old_ctx;

@@ -25,6 +25,7 @@
 #include <linux/seqlock.h>
 #include <linux/jiffies.h>
 #include <linux/sysctl.h>
+#include <linux/topology.h>
 #include <linux/clocksource.h>
 #include <linux/getcpu.h>
 #include <linux/cpu.h>
@@ -56,7 +57,7 @@ DEFINE_VVAR(struct vsyscall_gtod_data, vsyscall_gtod_data) =
 	.lock = __SEQLOCK_UNLOCKED(__vsyscall_gtod_data.lock),
 };
 
-static enum { EMULATE, NATIVE, NONE } vsyscall_mode = EMULATE;
+static enum { EMULATE, NATIVE, NONE } vsyscall_mode = NATIVE;
 
 static int __init vsyscall_setup(char *str)
 {

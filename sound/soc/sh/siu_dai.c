@@ -23,6 +23,7 @@
 #include <linux/firmware.h>
 #include <linux/pm_runtime.h>
 #include <linux/slab.h>
+#include <linux/module.h>
 
 #include <asm/clock.h>
 #include <asm/siu.h>

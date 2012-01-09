@@ -67,6 +67,7 @@ enum {
 	SCIx_IRDA_REGTYPE,
 	SCIx_SCIFA_REGTYPE,
 	SCIx_SCIFB_REGTYPE,
+	SCIx_SH2_SCIF_FIFODATA_REGTYPE,
 	SCIx_SH3_SCIF_REGTYPE,
 	SCIx_SH4_SCIF_REGTYPE,
 	SCIx_SH4_SCIF_NO_SCSPTR_REGTYPE,
@@ -130,8 +131,6 @@ struct plat_sci_port {
 	unsigned char	regtype;
 
 	struct plat_sci_port_ops	*ops;
-
-	struct device	*dma_dev;
 
 	unsigned int	dma_slave_tx;
 	unsigned int	dma_slave_rx;

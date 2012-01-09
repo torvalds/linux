@@ -744,9 +744,9 @@ static int pwc_video_mmap(struct file *file, struct vm_area_struct *vma)
 /***************************************************************************/
 /* Videobuf2 operations */
 
-static int queue_setup(struct vb2_queue *vq, unsigned int *nbuffers,
-				unsigned int *nplanes, unsigned long sizes[],
-				void *alloc_ctxs[])
+static int queue_setup(struct vb2_queue *vq, const struct v4l2_format *fmt,
+				unsigned int *nbuffers, unsigned int *nplanes,
+				unsigned int sizes[], void *alloc_ctxs[])
 {
 	struct pwc_device *pdev = vb2_get_drv_priv(vq);
 
@@ -816,7 +816,7 @@ static void buffer_queue(struct vb2_buffer *vb)
 	spin_unlock_irqrestore(&pdev->queued_bufs_lock, flags);
 }
 
-static int start_streaming(struct vb2_queue *vq)
+static int start_streaming(struct vb2_queue *vq, unsigned int count)
 {
 	struct pwc_device *pdev = vb2_get_drv_priv(vq);
 

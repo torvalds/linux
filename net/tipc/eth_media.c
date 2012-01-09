@@ -2,7 +2,7 @@
  * net/tipc/eth_media.c: Ethernet bearer support for TIPC
  *
  * Copyright (c) 2001-2007, Ericsson AB
- * Copyright (c) 2005-2007, Wind River Systems
+ * Copyright (c) 2005-2008, 2011, Wind River Systems
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -37,7 +37,7 @@
 #include "core.h"
 #include "bearer.h"
 
-#define MAX_ETH_BEARERS		2
+#define MAX_ETH_BEARERS		MAX_BEARERS
 #define ETH_LINK_PRIORITY	TIPC_DEF_LINK_PRI
 #define ETH_LINK_TOLERANCE	TIPC_DEF_LINK_TOL
 #define ETH_LINK_WINDOW		TIPC_DEF_LINK_WIN
@@ -144,31 +144,27 @@ static int enable_bearer(struct tipc_bearer *tb_ptr)
 
 	/* Find device with specified name */
 
+	read_lock(&dev_base_lock);
 	for_each_netdev(&init_net, pdev) {
 		if (!strncmp(pdev->name, driver_name, IFNAMSIZ)) {
 			dev = pdev;
+			dev_hold(dev);
 			break;
 		}
 	}
+	read_unlock(&dev_base_lock);
 	if (!dev)
 		return -ENODEV;
 
-	/* Find Ethernet bearer for device (or create one) */
+	/* Create Ethernet bearer for device */
 
-	while ((eb_ptr != stop) && eb_ptr->dev && (eb_ptr->dev != dev))
-		eb_ptr++;
-	if (eb_ptr == stop)
-		return -EDQUOT;
-	if (!eb_ptr->dev) {
-		eb_ptr->dev = dev;
-		eb_ptr->tipc_packet_type.type = htons(ETH_P_TIPC);
-		eb_ptr->tipc_packet_type.dev = dev;
-		eb_ptr->tipc_packet_type.func = recv_msg;
-		eb_ptr->tipc_packet_type.af_packet_priv = eb_ptr;
-		INIT_LIST_HEAD(&(eb_ptr->tipc_packet_type.list));
-		dev_hold(dev);
-		dev_add_pack(&eb_ptr->tipc_packet_type);
-	}
+	eb_ptr->dev = dev;
+	eb_ptr->tipc_packet_type.type = htons(ETH_P_TIPC);
+	eb_ptr->tipc_packet_type.dev = dev;
+	eb_ptr->tipc_packet_type.func = recv_msg;
+	eb_ptr->tipc_packet_type.af_packet_priv = eb_ptr;
+	INIT_LIST_HEAD(&(eb_ptr->tipc_packet_type.list));
+	dev_add_pack(&eb_ptr->tipc_packet_type);
 
 	/* Associate TIPC bearer with Ethernet bearer */
 

@@ -22,6 +22,7 @@
 #include <linux/filter.h>
 #include <linux/compat.h>
 #include <linux/security.h>
+#include <linux/export.h>
 
 #include <net/scm.h>
 #include <net/sock.h>

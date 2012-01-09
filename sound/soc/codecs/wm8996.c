@@ -41,12 +41,11 @@
 #define HPOUT2L 4
 #define HPOUT2R 8
 
-#define WM8996_NUM_SUPPLIES 4
+#define WM8996_NUM_SUPPLIES 3
 static const char *wm8996_supply_names[WM8996_NUM_SUPPLIES] = {
 	"DBVDD",
 	"AVDD1",
 	"AVDD2",
-	"CPVDD",
 };
 
 struct wm8996_priv {
@@ -71,6 +70,8 @@ struct wm8996_priv {
 
 	struct regulator_bulk_data supplies[WM8996_NUM_SUPPLIES];
 	struct notifier_block disable_nb[WM8996_NUM_SUPPLIES];
+	struct regulator *cpvdd;
+	int bg_ena;
 
 	struct wm8996_pdata pdata;
 
@@ -112,7 +113,6 @@ static int wm8996_regulator_event_##n(struct notifier_block *nb, \
 WM8996_REGULATOR_EVENT(0)
 WM8996_REGULATOR_EVENT(1)
 WM8996_REGULATOR_EVENT(2)
-WM8996_REGULATOR_EVENT(3)
 
 static const u16 wm8996_reg[WM8996_MAX_REGISTER] = {
 	[WM8996_SOFTWARE_RESET] = 0x8996,
@@ -414,6 +414,7 @@ static const DECLARE_TLV_DB_SCALE(out_digital_tlv, -1200, 150, 0);
 static const DECLARE_TLV_DB_SCALE(out_tlv, -900, 75, 0);
 static const DECLARE_TLV_DB_SCALE(spk_tlv, -900, 150, 0);
 static const DECLARE_TLV_DB_SCALE(eq_tlv, -1200, 100, 0);
+static const DECLARE_TLV_DB_SCALE(threedstereo_tlv, -1600, 183, 1);
 
 static const char *sidetone_hpf_text[] = {
 	"2.9kHz", "1.5kHz", "735Hz", "403Hz", "196Hz", "98Hz", "49Hz"
@@ -608,6 +609,14 @@ SOC_SINGLE("DAC High Performance Switch", WM8996_OVERSAMPLING, 0, 1, 0),
 SOC_SINGLE("DAC Soft Mute Switch", WM8996_DAC_SOFTMUTE, 1, 1, 0),
 SOC_SINGLE("DAC Slow Soft Mute Switch", WM8996_DAC_SOFTMUTE, 0, 1, 0),
 
+SOC_SINGLE("DSP1 3D Stereo Switch", WM8996_DSP1_RX_FILTERS_2, 8, 1, 0),
+SOC_SINGLE("DSP2 3D Stereo Switch", WM8996_DSP2_RX_FILTERS_2, 8, 1, 0),
+
+SOC_SINGLE_TLV("DSP1 3D Stereo Volume", WM8996_DSP1_RX_FILTERS_2, 10, 15,
+		0, threedstereo_tlv),
+SOC_SINGLE_TLV("DSP2 3D Stereo Volume", WM8996_DSP2_RX_FILTERS_2, 10, 15,
+		0, threedstereo_tlv),
+
 SOC_DOUBLE_TLV("Digital Output 1 Volume", WM8996_DAC1_HPOUT1_VOLUME, 0, 4,
 	       8, 0, out_digital_tlv),
 SOC_DOUBLE_TLV("Digital Output 2 Volume", WM8996_DAC2_HPOUT2_VOLUME, 0, 4,
@@ -632,6 +641,14 @@ SOC_DOUBLE_R("Speaker ZC Switch", WM8996_LEFT_PDM_SPEAKER,
 
 SOC_SINGLE("DSP1 EQ Switch", WM8996_DSP1_RX_EQ_GAINS_1, 0, 1, 0),
 SOC_SINGLE("DSP2 EQ Switch", WM8996_DSP2_RX_EQ_GAINS_1, 0, 1, 0),
+
+SOC_SINGLE("DSP1 DRC TXL Switch", WM8996_DSP1_DRC_1, 0, 1, 0),
+SOC_SINGLE("DSP1 DRC TXR Switch", WM8996_DSP1_DRC_1, 1, 1, 0),
+SOC_SINGLE("DSP1 DRC RX Switch", WM8996_DSP1_DRC_1, 2, 1, 0),
+
+SOC_SINGLE("DSP2 DRC TXL Switch", WM8996_DSP2_DRC_1, 0, 1, 0),
+SOC_SINGLE("DSP2 DRC TXR Switch", WM8996_DSP2_DRC_1, 1, 1, 0),
+SOC_SINGLE("DSP2 DRC RX Switch", WM8996_DSP2_DRC_1, 2, 1, 0),
 };
 
 static const struct snd_kcontrol_new wm8996_eq_controls[] = {
@@ -658,19 +675,75 @@ SOC_SINGLE_TLV("DSP2 EQ B5 Volume", WM8996_DSP2_RX_EQ_GAINS_2, 6, 31, 0,
 	       eq_tlv),
 };
 
-static int cp_event(struct snd_soc_dapm_widget *w,
+static void wm8996_bg_enable(struct snd_soc_codec *codec)
+{
+	struct wm8996_priv *wm8996 = snd_soc_codec_get_drvdata(codec);
+
+	wm8996->bg_ena++;
+	if (wm8996->bg_ena == 1) {
+		snd_soc_update_bits(codec, WM8996_POWER_MANAGEMENT_1,
+				    WM8996_BG_ENA, WM8996_BG_ENA);
+		msleep(2);
+	}
+}
+
+static void wm8996_bg_disable(struct snd_soc_codec *codec)
+{
+	struct wm8996_priv *wm8996 = snd_soc_codec_get_drvdata(codec);
+
+	wm8996->bg_ena--;
+	if (!wm8996->bg_ena)
+		snd_soc_update_bits(codec, WM8996_POWER_MANAGEMENT_1,
+				    WM8996_BG_ENA, 0);
+}
+
+static int bg_event(struct snd_soc_dapm_widget *w,
 		    struct snd_kcontrol *kcontrol, int event)
 {
+	struct snd_soc_codec *codec = w->codec;
+	int ret = 0;
+
 	switch (event) {
-	case SND_SOC_DAPM_POST_PMU:
-		msleep(5);
+	case SND_SOC_DAPM_PRE_PMU:
+		wm8996_bg_enable(codec);
+		break;
+	case SND_SOC_DAPM_POST_PMD:
+		wm8996_bg_disable(codec);
 		break;
 	default:
 		BUG();
-		return -EINVAL;
+		ret = -EINVAL;
 	}
 
-	return 0;
+	return ret;
+}
+
+static int cp_event(struct snd_soc_dapm_widget *w,
+		    struct snd_kcontrol *kcontrol, int event)
+{
+	struct snd_soc_codec *codec = w->codec;
+	struct wm8996_priv *wm8996 = snd_soc_codec_get_drvdata(codec);
+	int ret = 0;
+
+	switch (event) {
+	case SND_SOC_DAPM_PRE_PMU:
+		ret = regulator_enable(wm8996->cpvdd);
+		if (ret != 0)
+			dev_err(codec->dev, "Failed to enable CPVDD: %d\n",
+				ret);
+		break;
+	case SND_SOC_DAPM_POST_PMU:
+		msleep(5);
+		break;
+	case SND_SOC_DAPM_POST_PMD:
+		regulator_disable_deferred(wm8996->cpvdd, 20);
+		break;
+	default:
+		BUG();
+		ret = -EINVAL;
+	}
+
+	return ret;
 }
 
 static int rmv_short_event(struct snd_soc_dapm_widget *w,
@@ -698,7 +771,7 @@ static void wait_for_dc_servo(struct snd_soc_codec *codec, u16 mask)
 {
 	struct i2c_client *i2c = to_i2c_client(codec->dev);
 	struct wm8996_priv *wm8996 = snd_soc_codec_get_drvdata(codec);
-	int i, ret;
+	int ret;
 	unsigned long timeout = 200;
 
 	snd_soc_write(codec, WM8996_DC_SERVO_2, mask);
@@ -713,15 +786,12 @@ static void wait_for_dc_servo(struct snd_soc_codec *codec, u16 mask)
 
 		} else {
 			msleep(1);
-			if (--i) {
-				timeout = 0;
-				break;
-			}
+			timeout--;
 		}
 
 		ret = snd_soc_read(codec, WM8996_DC_SERVO_2);
 		dev_dbg(codec->dev, "DC servo state: %x\n", ret);
-	} while (ret & mask);
+	} while (timeout && ret & mask);
 
 	if (timeout == 0)
 		dev_err(codec->dev, "DC servo timed out for %x\n", mask);
@@ -979,9 +1049,12 @@ SND_SOC_DAPM_SUPPLY_S("SYSCLK", 1, WM8996_AIF_CLOCKING_1, 0, 0, NULL, 0),
 SND_SOC_DAPM_SUPPLY_S("SYSDSPCLK", 2, WM8996_CLOCKING_1, 1, 0, NULL, 0),
 SND_SOC_DAPM_SUPPLY_S("AIFCLK", 2, WM8996_CLOCKING_1, 2, 0, NULL, 0),
 SND_SOC_DAPM_SUPPLY_S("Charge Pump", 2, WM8996_CHARGE_PUMP_1, 15, 0, cp_event,
-		      SND_SOC_DAPM_POST_PMU),
-
+		      SND_SOC_DAPM_PRE_PMU | SND_SOC_DAPM_POST_PMD),
+SND_SOC_DAPM_SUPPLY("Bandgap", SND_SOC_NOPM, 0, 0, bg_event,
+		    SND_SOC_DAPM_PRE_PMU | SND_SOC_DAPM_POST_PMD),
 SND_SOC_DAPM_SUPPLY("LDO2", WM8996_POWER_MANAGEMENT_2, 1, 0, NULL, 0),
+SND_SOC_DAPM_SUPPLY("MICB1 Audio", WM8996_MICBIAS_1, 4, 1, NULL, 0),
+SND_SOC_DAPM_SUPPLY("MICB2 Audio", WM8996_MICBIAS_2, 4, 1, NULL, 0),
 SND_SOC_DAPM_MICBIAS("MICB2", WM8996_POWER_MANAGEMENT_1, 9, 0),
 SND_SOC_DAPM_MICBIAS("MICB1", WM8996_POWER_MANAGEMENT_1, 8, 0),
 
@@ -1035,14 +1108,14 @@ SND_SOC_DAPM_DAC("DAC2R", NULL, WM8996_POWER_MANAGEMENT_5, 2, 0),
 SND_SOC_DAPM_DAC("DAC1L", NULL, WM8996_POWER_MANAGEMENT_5, 1, 0),
 SND_SOC_DAPM_DAC("DAC1R", NULL, WM8996_POWER_MANAGEMENT_5, 0, 0),
 
-SND_SOC_DAPM_AIF_IN("AIF2RX1", "AIF2 Playback", 1,
+SND_SOC_DAPM_AIF_IN("AIF2RX1", "AIF2 Playback", 0,
 		    WM8996_POWER_MANAGEMENT_4, 9, 0),
-SND_SOC_DAPM_AIF_IN("AIF2RX0", "AIF2 Playback", 2,
+SND_SOC_DAPM_AIF_IN("AIF2RX0", "AIF2 Playback", 1,
 		    WM8996_POWER_MANAGEMENT_4, 8, 0),
 
-SND_SOC_DAPM_AIF_IN("AIF2TX1", "AIF2 Capture", 1,
+SND_SOC_DAPM_AIF_OUT("AIF2TX1", "AIF2 Capture", 0,
 		    WM8996_POWER_MANAGEMENT_6, 9, 0),
-SND_SOC_DAPM_AIF_IN("AIF2TX0", "AIF2 Capture", 2,
+SND_SOC_DAPM_AIF_OUT("AIF2TX0", "AIF2 Capture", 1,
 		    WM8996_POWER_MANAGEMENT_6, 8, 0),
 
 SND_SOC_DAPM_AIF_IN("AIF1RX5", "AIF1 Playback", 5,
@@ -1137,17 +1210,23 @@ static const struct snd_soc_dapm_route wm8996_dapm_routes[] = {
 	{ "Charge Pump", NULL, "SYSCLK" },
 
 	{ "MICB1", NULL, "LDO2" },
+	{ "MICB1", NULL, "MICB1 Audio" },
+	{ "MICB1", NULL, "Bandgap" },
 	{ "MICB2", NULL, "LDO2" },
+	{ "MICB2", NULL, "MICB2 Audio" },
+	{ "MICB2", NULL, "Bandgap" },
 
 	{ "IN1L PGA", NULL, "IN2LN" },
 	{ "IN1L PGA", NULL, "IN2LP" },
 	{ "IN1L PGA", NULL, "IN1LN" },
 	{ "IN1L PGA", NULL, "IN1LP" },
+	{ "IN1L PGA", NULL, "Bandgap" },
 
 	{ "IN1R PGA", NULL, "IN2RN" },
 	{ "IN1R PGA", NULL, "IN2RP" },
 	{ "IN1R PGA", NULL, "IN1RN" },
 	{ "IN1R PGA", NULL, "IN1RP" },
+	{ "IN1R PGA", NULL, "Bandgap" },
 
 	{ "ADCL", NULL, "IN1L PGA" },
 
@@ -1281,6 +1360,7 @@ static const struct snd_soc_dapm_route wm8996_dapm_routes[] = {
 	{ "DAC2R", NULL, "DAC2R Mixer" },
 
 	{ "HPOUT2L PGA", NULL, "Charge Pump" },
+	{ "HPOUT2L PGA", NULL, "Bandgap" },
 	{ "HPOUT2L PGA", NULL, "DAC2L" },
 	{ "HPOUT2L_DLY", NULL, "HPOUT2L PGA" },
 	{ "HPOUT2L_DCS", NULL, "HPOUT2L_DLY" },
@@ -1288,6 +1368,7 @@ static const struct snd_soc_dapm_route wm8996_dapm_routes[] = {
 	{ "HPOUT2L_RMV_SHORT", NULL, "HPOUT2L_OUTP" },
 
 	{ "HPOUT2R PGA", NULL, "Charge Pump" },
+	{ "HPOUT2R PGA", NULL, "Bandgap" },
 	{ "HPOUT2R PGA", NULL, "DAC2R" },
 	{ "HPOUT2R_DLY", NULL, "HPOUT2R PGA" },
 	{ "HPOUT2R_DCS", NULL, "HPOUT2R_DLY" },
@@ -1295,6 +1376,7 @@ static const struct snd_soc_dapm_route wm8996_dapm_routes[] = {
 	{ "HPOUT2R_RMV_SHORT", NULL, "HPOUT2R_OUTP" },
 
 	{ "HPOUT1L PGA", NULL, "Charge Pump" },
+	{ "HPOUT1L PGA", NULL, "Bandgap" },
 	{ "HPOUT1L PGA", NULL, "DAC1L" },
 	{ "HPOUT1L_DLY", NULL, "HPOUT1L PGA" },
 	{ "HPOUT1L_DCS", NULL, "HPOUT1L_DLY" },
@@ -1302,6 +1384,7 @@ static const struct snd_soc_dapm_route wm8996_dapm_routes[] = {
 	{ "HPOUT1L_RMV_SHORT", NULL, "HPOUT1L_OUTP" },
 
 	{ "HPOUT1R PGA", NULL, "Charge Pump" },
+	{ "HPOUT1R PGA", NULL, "Bandgap" },
 	{ "HPOUT1R PGA", NULL, "DAC1R" },
 	{ "HPOUT1R_DLY", NULL, "HPOUT1R PGA" },
 	{ "HPOUT1R_DCS", NULL, "HPOUT1R_DLY" },
@@ -1620,14 +1703,7 @@ static int wm8996_set_bias_level(struct snd_soc_codec *codec,
 
 	switch (level) {
 	case SND_SOC_BIAS_ON:
-		break;
-
 	case SND_SOC_BIAS_PREPARE:
-		if (codec->dapm.bias_level == SND_SOC_BIAS_STANDBY) {
-			snd_soc_update_bits(codec, WM8996_POWER_MANAGEMENT_1,
-					    WM8996_BG_ENA, WM8996_BG_ENA);
-			msleep(2);
-		}
 		break;
 
 	case SND_SOC_BIAS_STANDBY:
@@ -1650,9 +1726,6 @@ static int wm8996_set_bias_level(struct snd_soc_codec *codec,
 			codec->cache_only = false;
 			snd_soc_cache_sync(codec);
 		}
-
-		snd_soc_update_bits(codec, WM8996_POWER_MANAGEMENT_1,
-				    WM8996_BG_ENA, 0);
 		break;
 
 	case SND_SOC_BIAS_OFF:
@@ -1847,7 +1920,7 @@ static int wm8996_hw_params(struct snd_pcm_substream *substream,
 	snd_soc_update_bits(codec, lrclk_reg, WM8996_AIF1RX_RATE_MASK,
 			    lrclk);
 	snd_soc_update_bits(codec, WM8996_AIF_CLOCKING_2,
-			    WM8996_DSP1_DIV_SHIFT << dsp_shift, dsp);
+			    WM8996_DSP1_DIV_MASK << dsp_shift, dsp);
 
 	return 0;
 }
@@ -2041,7 +2114,7 @@ static int wm8996_set_fll(struct snd_soc_codec *codec, int fll_id, int source,
 	struct i2c_client *i2c = to_i2c_client(codec->dev);
 	struct _fll_div fll_div;
 	unsigned long timeout;
-	int ret, reg;
+	int ret, reg, retry;
 
 	/* Any change? */
 	if (source == wm8996->fll_src && Fref == wm8996->fll_fref &&
@@ -2056,6 +2129,8 @@ static int wm8996_set_fll(struct snd_soc_codec *codec, int fll_id, int source,
 
 		snd_soc_update_bits(codec, WM8996_FLL_CONTROL_1,
 				    WM8996_FLL_ENA, 0);
+
+		wm8996_bg_disable(codec);
 
 		return 0;
 	}
@@ -2111,6 +2186,11 @@ static int wm8996_set_fll(struct snd_soc_codec *codec, int fll_id, int source,
 
 	snd_soc_write(codec, WM8996_FLL_EFS_1, fll_div.lambda);
 
+	/* Enable the bandgap if it's not already enabled */
+	ret = snd_soc_read(codec, WM8996_FLL_CONTROL_1);
+	if (!(ret & WM8996_FLL_ENA))
+		wm8996_bg_enable(codec);
+
 	/* Clear any pending completions (eg, from failed startups) */
 	try_wait_for_completion(&wm8996->fll_lock);
 
@@ -2128,17 +2208,29 @@ static int wm8996_set_fll(struct snd_soc_codec *codec, int fll_id, int source,
 	else
 		timeout = msecs_to_jiffies(2);
 
-	/* Allow substantially longer if we've actually got the IRQ */
+	/* Allow substantially longer if we've actually got the IRQ, poll
+	 * at a slightly higher rate if we don't.
+	 */
 	if (i2c->irq)
-		timeout *= 1000;
+		timeout *= 10;
+	else
+		timeout /= 2;
 
-	ret = wait_for_completion_timeout(&wm8996->fll_lock, timeout);
+	for (retry = 0; retry < 10; retry++) {
+		ret = wait_for_completion_timeout(&wm8996->fll_lock,
+						  timeout);
+		if (ret != 0) {
+			WARN_ON(!i2c->irq);
+			break;
+		}
 
-	if (ret == 0 && i2c->irq) {
+		ret = snd_soc_read(codec, WM8996_INTERRUPT_RAW_STATUS_2);
+		if (ret & WM8996_FLL_LOCK_STS)
+			break;
+	}
+	if (retry == 10) {
 		dev_err(codec->dev, "Timed out waiting for FLL\n");
 		ret = -ETIMEDOUT;
-	} else {
-		ret = 0;
 	}
 
 	dev_dbg(codec->dev, "FLL configured for %dHz->%dHz\n", Fref, Fout);
@@ -2297,11 +2389,93 @@ int wm8996_detect(struct snd_soc_codec *codec, struct snd_soc_jack *jack,
 
 	/* Enable interrupts and we're off */
 	snd_soc_update_bits(codec, WM8996_INTERRUPT_STATUS_2_MASK,
-			    WM8996_IM_MICD_EINT, 0);
+			    WM8996_IM_MICD_EINT | WM8996_HP_DONE_EINT, 0);
 
 	return 0;
 }
 EXPORT_SYMBOL_GPL(wm8996_detect);
+
+static void wm8996_hpdet_irq(struct snd_soc_codec *codec)
+{
+	struct wm8996_priv *wm8996 = snd_soc_codec_get_drvdata(codec);
+	int val, reg, report;
+
+	/* Assume headphone in error conditions; we need to report
+	 * something or we stall our state machine.
+	 */
+	report = SND_JACK_HEADPHONE;
+
+	reg = snd_soc_read(codec, WM8996_HEADPHONE_DETECT_2);
+	if (reg < 0) {
+		dev_err(codec->dev, "Failed to read HPDET status\n");
+		goto out;
+	}
+
+	if (!(reg & WM8996_HP_DONE)) {
+		dev_err(codec->dev, "Got HPDET IRQ but HPDET is busy\n");
+		goto out;
+	}
+
+	val = reg & WM8996_HP_LVL_MASK;
+
+	dev_dbg(codec->dev, "HPDET measured %d ohms\n", val);
+
+	/* If we've got high enough impedence then report as line,
+	 * otherwise assume headphone.
+	 */
+	if (val >= 126)
+		report = SND_JACK_LINEOUT;
+	else
+		report = SND_JACK_HEADPHONE;
+
+out:
+	if (wm8996->jack_mic)
+		report |= SND_JACK_MICROPHONE;
+
+	snd_soc_jack_report(wm8996->jack, report,
+			    SND_JACK_LINEOUT | SND_JACK_HEADSET);
+
+	wm8996->detecting = false;
+
+	/* If the output isn't running re-clamp it */
+	if (!(snd_soc_read(codec, WM8996_POWER_MANAGEMENT_1) &
+	      (WM8996_HPOUT1L_ENA | WM8996_HPOUT1R_RMV_SHORT)))
+		snd_soc_update_bits(codec, WM8996_ANALOGUE_HP_1,
+				    WM8996_HPOUT1L_RMV_SHORT |
+				    WM8996_HPOUT1R_RMV_SHORT, 0);
+
+	/* Go back to looking at the microphone */
+	snd_soc_update_bits(codec, WM8996_ACCESSORY_DETECT_MODE_1,
+			    WM8996_JD_MODE_MASK, 0);
+	snd_soc_update_bits(codec, WM8996_MIC_DETECT_1, WM8996_MICD_ENA,
+			    WM8996_MICD_ENA);
+
+	snd_soc_dapm_disable_pin(&codec->dapm, "Bandgap");
+	snd_soc_dapm_sync(&codec->dapm);
+}
+
+static void wm8996_hpdet_start(struct snd_soc_codec *codec)
+{
+	/* Unclamp the output, we can't measure while we're shorting it */
+	snd_soc_update_bits(codec, WM8996_ANALOGUE_HP_1,
+			    WM8996_HPOUT1L_RMV_SHORT |
+			    WM8996_HPOUT1R_RMV_SHORT,
+			    WM8996_HPOUT1L_RMV_SHORT |
+			    WM8996_HPOUT1R_RMV_SHORT);
+
+	/* We need bandgap for HPDET */
+	snd_soc_dapm_force_enable_pin(&codec->dapm, "Bandgap");
+	snd_soc_dapm_sync(&codec->dapm);
+
+	/* Go into headphone detect left mode */
+	snd_soc_update_bits(codec, WM8996_MIC_DETECT_1, WM8996_MICD_ENA, 0);
+	snd_soc_update_bits(codec, WM8996_ACCESSORY_DETECT_MODE_1,
+			    WM8996_JD_MODE_MASK, 1);
+
+	/* Trigger a measurement */
+	snd_soc_update_bits(codec, WM8996_HEADPHONE_DETECT_1,
+			    WM8996_HP_POLL, WM8996_HP_POLL);
+}
 
 static void wm8996_micd(struct snd_soc_codec *codec)
 {
@@ -2323,28 +2497,36 @@ static void wm8996_micd(struct snd_soc_codec *codec)
 		wm8996->jack_mic = false;
 		wm8996->detecting = true;
 		snd_soc_jack_report(wm8996->jack, 0,
-				    SND_JACK_HEADSET | SND_JACK_BTN_0);
+				    SND_JACK_LINEOUT | SND_JACK_HEADSET |
+				    SND_JACK_BTN_0);
+
 		snd_soc_update_bits(codec, WM8996_MIC_DETECT_1,
 				    WM8996_MICD_RATE_MASK,
 				    WM8996_MICD_RATE_MASK);
 		return;
 	}
 
-	/* If the measurement is very high we've got a microphone but
-	 * do a little debounce to account for mechanical issues.
+	/* If the measurement is very high we've got a microphone,
+	 * either we just detected one or if we already reported then
+	 * we've got a button release event.
 	 */
 	if (val & 0x400) {
-		dev_dbg(codec->dev, "Microphone detected\n");
-		snd_soc_jack_report(wm8996->jack, SND_JACK_HEADSET,
-				    SND_JACK_HEADSET | SND_JACK_BTN_0);
-		wm8996->jack_mic = true;
-		wm8996->detecting = false;
+		if (wm8996->detecting) {
+			dev_dbg(codec->dev, "Microphone detected\n");
+			wm8996->jack_mic = true;
+			wm8996_hpdet_start(codec);
 
-		/* Increase poll rate to give better responsiveness
-		 * for buttons */
-		snd_soc_update_bits(codec, WM8996_MIC_DETECT_1,
-				    WM8996_MICD_RATE_MASK,
-				    5 << WM8996_MICD_RATE_SHIFT);
+			/* Increase poll rate to give better responsiveness
+			 * for buttons */
+			snd_soc_update_bits(codec, WM8996_MIC_DETECT_1,
+					    WM8996_MICD_RATE_MASK,
+					    5 << WM8996_MICD_RATE_SHIFT);
+		} else {
+			dev_dbg(codec->dev, "Mic button up\n");
+			snd_soc_jack_report(wm8996->jack, 0, SND_JACK_BTN_0);
+		}
+
+		return;
 	}
 
 	/* If we detected a lower impedence during initial startup
@@ -2376,15 +2558,11 @@ static void wm8996_micd(struct snd_soc_codec *codec)
 	if (val & 0x3fc) {
 		if (wm8996->jack_mic) {
 			dev_dbg(codec->dev, "Mic button detected\n");
-			snd_soc_jack_report(wm8996->jack,
-					    SND_JACK_HEADSET | SND_JACK_BTN_0,
-					    SND_JACK_HEADSET | SND_JACK_BTN_0);
-		} else {
-			dev_dbg(codec->dev, "Headphone detected\n");
-			snd_soc_jack_report(wm8996->jack,
-					    SND_JACK_HEADPHONE,
-					    SND_JACK_HEADSET |
+			snd_soc_jack_report(wm8996->jack, SND_JACK_BTN_0,
 					    SND_JACK_BTN_0);
+		} else if (wm8996->detecting) {
+			dev_dbg(codec->dev, "Headphone detected\n");
+			wm8996_hpdet_start(codec);
 
 			/* Increase the detection rate a bit for
 			 * responsiveness.
@@ -2392,8 +2570,6 @@ static void wm8996_micd(struct snd_soc_codec *codec)
 			snd_soc_update_bits(codec, WM8996_MIC_DETECT_1,
 					    WM8996_MICD_RATE_MASK,
 					    7 << WM8996_MICD_RATE_SHIFT);
-
-			wm8996->detecting = false;
 		}
 	}
 }
@@ -2411,6 +2587,9 @@ static irqreturn_t wm8996_irq(int irq, void *data)
 		return IRQ_NONE;
 	}
 	irq_val &= ~snd_soc_read(codec, WM8996_INTERRUPT_STATUS_2_MASK);
+
+	if (!irq_val)
+		return IRQ_NONE;
 
 	snd_soc_write(codec, WM8996_INTERRUPT_STATUS_2, irq_val);
 
@@ -2430,10 +2609,10 @@ static irqreturn_t wm8996_irq(int irq, void *data)
 	if (irq_val & WM8996_MICD_EINT)
 		wm8996_micd(codec);
 
-	if (irq_val)
-		return IRQ_HANDLED;
-	else
-		return IRQ_NONE;
+	if (irq_val & WM8996_HP_DONE_EINT)
+		wm8996_hpdet_irq(codec);
+
+	return IRQ_HANDLED;
 }
 
 static irqreturn_t wm8996_edge_irq(int irq, void *data)
@@ -2527,7 +2706,6 @@ static int wm8996_probe(struct snd_soc_codec *codec)
 	init_completion(&wm8996->fll_lock);
 
 	dapm->idle_bias_off = true;
-	dapm->bias_level = SND_SOC_BIAS_OFF;
 
 	ret = snd_soc_codec_set_cache_io(codec, 16, 16, SND_SOC_I2C);
 	if (ret != 0) {
@@ -2548,7 +2726,13 @@ static int wm8996_probe(struct snd_soc_codec *codec)
 	wm8996->disable_nb[0].notifier_call = wm8996_regulator_event_0;
 	wm8996->disable_nb[1].notifier_call = wm8996_regulator_event_1;
 	wm8996->disable_nb[2].notifier_call = wm8996_regulator_event_2;
-	wm8996->disable_nb[3].notifier_call = wm8996_regulator_event_3;
+
+	wm8996->cpvdd = regulator_get(&i2c->dev, "CPVDD");
+	if (IS_ERR(wm8996->cpvdd)) {
+		ret = PTR_ERR(wm8996->cpvdd);
+		dev_err(&i2c->dev, "Failed to get CPVDD: %d\n", ret);
+		goto err_get;
+	}
 
 	/* This should really be moved into the regulator core */
 	for (i = 0; i < ARRAY_SIZE(wm8996->supplies); i++) {
@@ -2565,7 +2749,7 @@ static int wm8996_probe(struct snd_soc_codec *codec)
 				    wm8996->supplies);
 	if (ret != 0) {
 		dev_err(codec->dev, "Failed to enable supplies: %d\n", ret);
-		goto err_get;
+		goto err_cpvdd;
 	}
 
 	if (wm8996->pdata.ldo_ena >= 0) {
@@ -2808,6 +2992,8 @@ err_enable:
 		gpio_set_value_cansleep(wm8996->pdata.ldo_ena, 0);
 
 	regulator_bulk_disable(ARRAY_SIZE(wm8996->supplies), wm8996->supplies);
+err_cpvdd:
+	regulator_put(wm8996->cpvdd);
 err_get:
 	regulator_bulk_free(ARRAY_SIZE(wm8996->supplies), wm8996->supplies);
 err:
@@ -2831,6 +3017,7 @@ static int wm8996_remove(struct snd_soc_codec *codec)
 	for (i = 0; i < ARRAY_SIZE(wm8996->supplies); i++)
 		regulator_unregister_notifier(wm8996->supplies[i].consumer,
 					      &wm8996->disable_nb[i]);
+	regulator_put(wm8996->cpvdd);
 	regulator_bulk_free(ARRAY_SIZE(wm8996->supplies), wm8996->supplies);
 
 	return 0;

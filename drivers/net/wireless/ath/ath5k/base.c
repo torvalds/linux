@@ -52,6 +52,7 @@
 #include <linux/uaccess.h>
 #include <linux/slab.h>
 #include <linux/etherdevice.h>
+#include <linux/nl80211.h>
 
 #include <net/ieee80211_radiotap.h>
 
@@ -61,6 +62,8 @@
 #include "reg.h"
 #include "debug.h"
 #include "ani.h"
+#include "ath5k.h"
+#include "../regd.h"
 
 #define CREATE_TRACE_POINTS
 #include "trace.h"
@@ -272,20 +275,18 @@ static unsigned int
 ath5k_setup_channels(struct ath5k_hw *ah, struct ieee80211_channel *channels,
 		unsigned int mode, unsigned int max)
 {
-	unsigned int count, size, chfreq, freq, ch;
+	unsigned int count, size, freq, ch;
 	enum ieee80211_band band;
 
 	switch (mode) {
 	case AR5K_MODE_11A:
 		/* 1..220, but 2GHz frequencies are filtered by check_channel */
 		size = 220;
-		chfreq = CHANNEL_5GHZ;
 		band = IEEE80211_BAND_5GHZ;
 		break;
 	case AR5K_MODE_11B:
 	case AR5K_MODE_11G:
 		size = 26;
-		chfreq = CHANNEL_2GHZ;
 		band = IEEE80211_BAND_2GHZ;
 		break;
 	default:
@@ -300,25 +301,18 @@ ath5k_setup_channels(struct ath5k_hw *ah, struct ieee80211_channel *channels,
 		if (freq == 0) /* mapping failed - not a standard channel */
 			continue;
 
+		/* Write channel info, needed for ath5k_channel_ok() */
+		channels[count].center_freq = freq;
+		channels[count].band = band;
+		channels[count].hw_value = mode;
+
 		/* Check if channel is supported by the chipset */
-		if (!ath5k_channel_ok(ah, freq, chfreq))
+		if (!ath5k_channel_ok(ah, &channels[count]))
 			continue;
 
 		if (!modparam_all_channels &&
 		    !ath5k_is_standard_channel(ch, band))
 			continue;
-
-		/* Write channel info and increment counter */
-		channels[count].center_freq = freq;
-		channels[count].band = band;
-		switch (mode) {
-		case AR5K_MODE_11A:
-		case AR5K_MODE_11G:
-			channels[count].hw_value = chfreq | CHANNEL_OFDM;
-			break;
-		case AR5K_MODE_11B:
-			channels[count].hw_value = CHANNEL_B;
-		}
 
 		count++;
 	}
@@ -926,12 +920,6 @@ ath5k_txq_setup(struct ath5k_hw *ah,
 		 * normally on parts with too few tx queues
 		 */
 		return ERR_PTR(qnum);
-	}
-	if (qnum >= ARRAY_SIZE(ah->txqs)) {
-		ATH5K_ERR(ah, "hw qnum %u out of range, max %tu!\n",
-			qnum, ARRAY_SIZE(ah->txqs));
-		ath5k_hw_release_tx_queue(ah, qnum);
-		return ERR_PTR(-EINVAL);
 	}
 	txq = &ah->txqs[qnum];
 	if (!txq->setup) {
@@ -2349,7 +2337,7 @@ ath5k_tx_complete_poll_work(struct work_struct *work)
 \*************************/
 
 int __devinit
-ath5k_init_softc(struct ath5k_hw *ah, const struct ath_bus_ops *bus_ops)
+ath5k_init_ah(struct ath5k_hw *ah, const struct ath_bus_ops *bus_ops)
 {
 	struct ieee80211_hw *hw = ah->hw;
 	struct ath_common *common;
@@ -2867,7 +2855,6 @@ ath5k_init(struct ieee80211_hw *hw)
 	}
 
 	SET_IEEE80211_PERM_ADDR(hw, mac);
-	memcpy(&ah->lladdr, mac, ETH_ALEN);
 	/* All MAC address bits matter for ACKs */
 	ath5k_update_bssid_mask_and_opmode(ah, NULL);
 
@@ -2903,7 +2890,7 @@ err:
 }
 
 void
-ath5k_deinit_softc(struct ath5k_hw *ah)
+ath5k_deinit_ah(struct ath5k_hw *ah)
 {
 	struct ieee80211_hw *hw = ah->hw;
 

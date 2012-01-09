@@ -836,11 +836,17 @@ static void __unregister_trace_probe(struct trace_probe *tp)
 }
 
 /* Unregister a trace_probe and probe_event: call with locking probe_lock */
-static void unregister_trace_probe(struct trace_probe *tp)
+static int unregister_trace_probe(struct trace_probe *tp)
 {
+	/* Enabled event can not be unregistered */
+	if (trace_probe_is_enabled(tp))
+		return -EBUSY;
+
 	__unregister_trace_probe(tp);
 	list_del(&tp->list);
 	unregister_probe_event(tp);
+
+	return 0;
 }
 
 /* Register a trace_probe and probe_event */
@@ -854,7 +860,9 @@ static int register_trace_probe(struct trace_probe *tp)
 	/* Delete old (same name) event if exist */
 	old_tp = find_trace_probe(tp->call.name, tp->call.class->system);
 	if (old_tp) {
-		unregister_trace_probe(old_tp);
+		ret = unregister_trace_probe(old_tp);
+		if (ret < 0)
+			goto end;
 		free_trace_probe(old_tp);
 	}
 
@@ -892,6 +900,7 @@ static int trace_probe_module_callback(struct notifier_block *nb,
 	mutex_lock(&probe_lock);
 	list_for_each_entry(tp, &probe_list, list) {
 		if (trace_probe_within_module(tp, mod)) {
+			/* Don't need to check busy - this should have gone. */
 			__unregister_trace_probe(tp);
 			ret = __register_trace_probe(tp);
 			if (ret)
@@ -1205,10 +1214,11 @@ static int create_trace_probe(int argc, char **argv)
 			return -ENOENT;
 		}
 		/* delete an event */
-		unregister_trace_probe(tp);
-		free_trace_probe(tp);
+		ret = unregister_trace_probe(tp);
+		if (ret == 0)
+			free_trace_probe(tp);
 		mutex_unlock(&probe_lock);
-		return 0;
+		return ret;
 	}
 
 	if (argc < 2) {
@@ -1317,18 +1327,29 @@ error:
 	return ret;
 }
 
-static void release_all_trace_probes(void)
+static int release_all_trace_probes(void)
 {
 	struct trace_probe *tp;
+	int ret = 0;
 
 	mutex_lock(&probe_lock);
+	/* Ensure no probe is in use. */
+	list_for_each_entry(tp, &probe_list, list)
+		if (trace_probe_is_enabled(tp)) {
+			ret = -EBUSY;
+			goto end;
+		}
 	/* TODO: Use batch unregistration */
 	while (!list_empty(&probe_list)) {
 		tp = list_entry(probe_list.next, struct trace_probe, list);
 		unregister_trace_probe(tp);
 		free_trace_probe(tp);
 	}
+
+end:
 	mutex_unlock(&probe_lock);
+
+	return ret;
 }
 
 /* Probes listing interfaces */
@@ -1380,9 +1401,13 @@ static const struct seq_operations probes_seq_op = {
 
 static int probes_open(struct inode *inode, struct file *file)
 {
-	if ((file->f_mode & FMODE_WRITE) &&
-	    (file->f_flags & O_TRUNC))
-		release_all_trace_probes();
+	int ret;
+
+	if ((file->f_mode & FMODE_WRITE) && (file->f_flags & O_TRUNC)) {
+		ret = release_all_trace_probes();
+		if (ret < 0)
+			return ret;
+	}
 
 	return seq_open(file, &probes_seq_op);
 }
@@ -2054,6 +2079,21 @@ static __init int kprobe_trace_self_tests_init(void)
 		goto end;
 
 	ret = target(1, 2, 3, 4, 5, 6);
+
+	/* Disable trace points before removing it */
+	tp = find_trace_probe("testprobe", KPROBE_EVENT_SYSTEM);
+	if (WARN_ON_ONCE(tp == NULL)) {
+		pr_warning("error on getting test probe.\n");
+		warn++;
+	} else
+		disable_trace_probe(tp, TP_FLAG_TRACE);
+
+	tp = find_trace_probe("testprobe2", KPROBE_EVENT_SYSTEM);
+	if (WARN_ON_ONCE(tp == NULL)) {
+		pr_warning("error on getting 2nd test probe.\n");
+		warn++;
+	} else
+		disable_trace_probe(tp, TP_FLAG_TRACE);
 
 	ret = command_trace_probe("-:testprobe");
 	if (WARN_ON_ONCE(ret)) {

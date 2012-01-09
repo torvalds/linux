@@ -195,17 +195,17 @@ static inline unsigned long __must_check
 copy_from_user(void *to, const void __user *from, unsigned long n)
 {
 	if (access_ok(VERIFY_READ, from, n))
-		memcpy(to, from, n);
+		memcpy(to, (const void __force *)from, n);
 	else
 		return n;
 	return 0;
 }
 
 static inline unsigned long __must_check
-copy_to_user(void *to, const void __user *from, unsigned long n)
+copy_to_user(void __user *to, const void *from, unsigned long n)
 {
 	if (access_ok(VERIFY_WRITE, to, n))
-		memcpy(to, from, n);
+		memcpy((void __force *)to, from, n);
 	else
 		return n;
 	return 0;

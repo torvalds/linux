@@ -42,6 +42,7 @@
 
 	aliases {
 		ccsr = &soc;
+		dcsr = &dcsr;
 
 		serial0 = &serial0;
 		serial1 = &serial1;
@@ -77,7 +78,7 @@
 		#address-cells = <1>;
 		#size-cells = <0>;
 
-		cpu0: PowerPC,4080@0 {
+		cpu0: PowerPC,e500mc@0 {
 			device_type = "cpu";
 			reg = <0>;
 			next-level-cache = <&L2_0>;
@@ -85,7 +86,7 @@
 				next-level-cache = <&cpc>;
 			};
 		};
-		cpu1: PowerPC,4080@1 {
+		cpu1: PowerPC,e500mc@1 {
 			device_type = "cpu";
 			reg = <1>;
 			next-level-cache = <&L2_1>;
@@ -93,7 +94,7 @@
 				next-level-cache = <&cpc>;
 			};
 		};
-		cpu2: PowerPC,4080@2 {
+		cpu2: PowerPC,e500mc@2 {
 			device_type = "cpu";
 			reg = <2>;
 			next-level-cache = <&L2_2>;
@@ -101,7 +102,7 @@
 				next-level-cache = <&cpc>;
 			};
 		};
-		cpu3: PowerPC,4080@3 {
+		cpu3: PowerPC,e500mc@3 {
 			device_type = "cpu";
 			reg = <3>;
 			next-level-cache = <&L2_3>;
@@ -109,7 +110,7 @@
 				next-level-cache = <&cpc>;
 			};
 		};
-		cpu4: PowerPC,4080@4 {
+		cpu4: PowerPC,e500mc@4 {
 			device_type = "cpu";
 			reg = <4>;
 			next-level-cache = <&L2_4>;
@@ -117,7 +118,7 @@
 				next-level-cache = <&cpc>;
 			};
 		};
-		cpu5: PowerPC,4080@5 {
+		cpu5: PowerPC,e500mc@5 {
 			device_type = "cpu";
 			reg = <5>;
 			next-level-cache = <&L2_5>;
@@ -125,7 +126,7 @@
 				next-level-cache = <&cpc>;
 			};
 		};
-		cpu6: PowerPC,4080@6 {
+		cpu6: PowerPC,e500mc@6 {
 			device_type = "cpu";
 			reg = <6>;
 			next-level-cache = <&L2_6>;
@@ -133,13 +134,106 @@
 				next-level-cache = <&cpc>;
 			};
 		};
-		cpu7: PowerPC,4080@7 {
+		cpu7: PowerPC,e500mc@7 {
 			device_type = "cpu";
 			reg = <7>;
 			next-level-cache = <&L2_7>;
 			L2_7: l2-cache {
 				next-level-cache = <&cpc>;
 			};
+		};
+	};
+
+	dcsr: dcsr@f00000000 {
+		#address-cells = <1>;
+		#size-cells = <1>;
+		compatible = "fsl,dcsr", "simple-bus";
+
+		dcsr-epu@0 {
+			compatible = "fsl,dcsr-epu";
+			interrupts = <52 2 0 0
+				      84 2 0 0
+				      85 2 0 0>;
+			interrupt-parent = <&mpic>;
+			reg = <0x0 0x1000>;
+		};
+		dcsr-npc {
+			compatible = "fsl,dcsr-npc";
+			reg = <0x1000 0x1000 0x1000000 0x8000>;
+		};
+		dcsr-nxc@2000 {
+			compatible = "fsl,dcsr-nxc";
+			reg = <0x2000 0x1000>;
+		};
+		dcsr-corenet {
+			compatible = "fsl,dcsr-corenet";
+			reg = <0x8000 0x1000 0xB0000 0x1000>;
+		};
+		dcsr-dpaa@9000 {
+			compatible = "fsl,p4080-dcsr-dpaa", "fsl,dcsr-dpaa";
+			reg = <0x9000 0x1000>;
+		};
+		dcsr-ocn@11000 {
+			compatible = "fsl,p4080-dcsr-ocn", "fsl,dcsr-ocn";
+			reg = <0x11000 0x1000>;
+		};
+		dcsr-ddr@12000 {
+			compatible = "fsl,dcsr-ddr";
+			dev-handle = <&ddr1>;
+			reg = <0x12000 0x1000>;
+		};
+		dcsr-ddr@13000 {
+			compatible = "fsl,dcsr-ddr";
+			dev-handle = <&ddr2>;
+			reg = <0x13000 0x1000>;
+		};
+		dcsr-nal@18000 {
+			compatible = "fsl,p4080-dcsr-nal", "fsl,dcsr-nal";
+			reg = <0x18000 0x1000>;
+		};
+		dcsr-rcpm@22000 {
+			compatible = "fsl,p4080-dcsr-rcpm", "fsl,dcsr-rcpm";
+			reg = <0x22000 0x1000>;
+		};
+		dcsr-cpu-sb-proxy@40000 {
+			compatible = "fsl,dcsr-e500mc-sb-proxy", "fsl,dcsr-cpu-sb-proxy";
+			cpu-handle = <&cpu0>;
+			reg = <0x40000 0x1000>;
+		};
+		dcsr-cpu-sb-proxy@41000 {
+			compatible = "fsl,dcsr-e500mc-sb-proxy", "fsl,dcsr-cpu-sb-proxy";
+			cpu-handle = <&cpu1>;
+			reg = <0x41000 0x1000>;
+		};
+		dcsr-cpu-sb-proxy@42000 {
+			compatible = "fsl,dcsr-e500mc-sb-proxy", "fsl,dcsr-cpu-sb-proxy";
+			cpu-handle = <&cpu2>;
+			reg = <0x42000 0x1000>;
+		};
+		dcsr-cpu-sb-proxy@43000 {
+			compatible = "fsl,dcsr-e500mc-sb-proxy", "fsl,dcsr-cpu-sb-proxy";
+			cpu-handle = <&cpu3>;
+			reg = <0x43000 0x1000>;
+		};
+		dcsr-cpu-sb-proxy@44000 {
+			compatible = "fsl,dcsr-e500mc-sb-proxy", "fsl,dcsr-cpu-sb-proxy";
+			cpu-handle = <&cpu4>;
+			reg = <0x44000 0x1000>;
+		};
+		dcsr-cpu-sb-proxy@45000 {
+			compatible = "fsl,dcsr-e500mc-sb-proxy", "fsl,dcsr-cpu-sb-proxy";
+			cpu-handle = <&cpu5>;
+			reg = <0x45000 0x1000>;
+		};
+		dcsr-cpu-sb-proxy@46000 {
+			compatible = "fsl,dcsr-e500mc-sb-proxy", "fsl,dcsr-cpu-sb-proxy";
+			cpu-handle = <&cpu6>;
+			reg = <0x46000 0x1000>;
+		};
+		dcsr-cpu-sb-proxy@47000 {
+			compatible = "fsl,dcsr-e500mc-sb-proxy", "fsl,dcsr-cpu-sb-proxy";
+			cpu-handle = <&cpu7>;
+			reg = <0x47000 0x1000>;
 		};
 	};
 
@@ -162,13 +256,13 @@
 			fsl,num-laws = <32>;
 		};
 
-		memory-controller@8000 {
+		ddr1: memory-controller@8000 {
 			compatible = "fsl,qoriq-memory-controller-v4.4", "fsl,qoriq-memory-controller";
 			reg = <0x8000 0x1000>;
 			interrupts = <16 2 1 23>;
 		};
 
-		memory-controller@9000 {
+		ddr2: memory-controller@9000 {
 			compatible = "fsl,qoriq-memory-controller-v4.4","fsl,qoriq-memory-controller";
 			reg = <0x9000 0x1000>;
 			interrupts = <16 2 1 22>;

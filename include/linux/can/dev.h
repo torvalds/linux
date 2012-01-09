@@ -8,7 +8,6 @@
  *
  * Copyright (C) 2008 Wolfgang Grandegger <wg@grandegger.com>
  *
- * Send feedback to <socketcan-users@lists.berlios.de>
  */
 
 #ifndef CAN_DEV_H

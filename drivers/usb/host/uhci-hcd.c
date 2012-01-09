@@ -294,50 +294,50 @@ __acquires(uhci->lock)
 	 * and that remote wakeups should be enabled.
 	 */
 	egsm_enable = USBCMD_EGSM;
-	uhci->RD_enable = 1;
 	int_enable = USBINTR_RESUME;
 	wakeup_enable = 1;
 
-	/* In auto-stop mode wakeups must always be detected, but
-	 * Resume-Detect interrupts may be prohibited.  (In the absence
-	 * of CONFIG_PM, they are always disallowed.)
+	/*
+	 * In auto-stop mode, we must be able to detect new connections.
+	 * The user can force us to poll by disabling remote wakeup;
+	 * otherwise we will use the EGSM/RD mechanism.
 	 */
 	if (auto_stop) {
 		if (!device_may_wakeup(&rhdev->dev))
-			int_enable = 0;
-
-	/* In bus-suspend mode wakeups may be disabled, but if they are
-	 * allowed then so are Resume-Detect interrupts.
-	 */
-	} else {
-#ifdef CONFIG_PM
-		if (!rhdev->do_remote_wakeup)
-			wakeup_enable = 0;
-#endif
+			egsm_enable = int_enable = 0;
 	}
 
-	/* EGSM causes the root hub to echo a 'K' signal (resume) out any
-	 * port which requests a remote wakeup.  According to the USB spec,
-	 * every hub is supposed to do this.  But if we are ignoring
-	 * remote-wakeup requests anyway then there's no point to it.
-	 * We also shouldn't enable EGSM if it's broken.
+#ifdef CONFIG_PM
+	/*
+	 * In bus-suspend mode, we use the wakeup setting specified
+	 * for the root hub.
 	 */
-	if (!wakeup_enable || global_suspend_mode_is_broken(uhci))
-		egsm_enable = 0;
+	else {
+		if (!rhdev->do_remote_wakeup)
+			wakeup_enable = 0;
+	}
+#endif
 
-	/* If we're ignoring wakeup events then there's no reason to
-	 * enable Resume-Detect interrupts.  We also shouldn't enable
-	 * them if they are broken or disallowed.
+	/*
+	 * UHCI doesn't distinguish between wakeup requests from downstream
+	 * devices and local connect/disconnect events.  There's no way to
+	 * enable one without the other; both are controlled by EGSM.  Thus
+	 * if wakeups are disallowed then EGSM must be turned off -- in which
+	 * case remote wakeup requests from downstream during system sleep
+	 * will be lost.
 	 *
-	 * This logic may lead us to enabling RD but not EGSM.  The UHCI
-	 * spec foolishly says that RD works only when EGSM is on, but
-	 * there's no harm in enabling it anyway -- perhaps some chips
-	 * will implement it!
+	 * In addition, if EGSM is broken then we can't use it.  Likewise,
+	 * if Resume-Detect interrupts are broken then we can't use them.
+	 *
+	 * Finally, neither EGSM nor RD is useful by itself.  Without EGSM,
+	 * the RD status bit will never get set.  Without RD, the controller
+	 * won't generate interrupts to tell the system about wakeup events.
 	 */
-	if (!wakeup_enable || resume_detect_interrupts_are_broken(uhci) ||
-			!int_enable)
-		uhci->RD_enable = int_enable = 0;
+	if (!wakeup_enable || global_suspend_mode_is_broken(uhci) ||
+			resume_detect_interrupts_are_broken(uhci))
+		egsm_enable = int_enable = 0;
 
+	uhci->RD_enable = !!int_enable;
 	uhci_writew(uhci, int_enable, USBINTR);
 	uhci_writew(uhci, egsm_enable | USBCMD_CF, USBCMD);
 	mb();
@@ -364,10 +364,12 @@ __acquires(uhci->lock)
 	uhci->rh_state = new_state;
 	uhci->is_stopped = UHCI_IS_STOPPED;
 
-	/* If interrupts don't work and remote wakeup is enabled then
-	 * the suspended root hub needs to be polled.
+	/*
+	 * If remote wakeup is enabled but either EGSM or RD interrupts
+	 * doesn't work, then we won't get an interrupt when a wakeup event
+	 * occurs.  Thus the suspended root hub needs to be polled.
 	 */
-	if (!int_enable && wakeup_enable)
+	if (wakeup_enable && (!int_enable || !egsm_enable))
 		set_bit(HCD_FLAG_POLL_RH, &uhci_to_hcd(uhci)->flags);
 	else
 		clear_bit(HCD_FLAG_POLL_RH, &uhci_to_hcd(uhci)->flags);

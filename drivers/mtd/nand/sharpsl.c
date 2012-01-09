@@ -103,16 +103,12 @@ static int sharpsl_nand_calculate_ecc(struct mtd_info *mtd, const u_char * dat, 
 	return readb(sharpsl->io + ECCCNTR) != 0;
 }
 
-static const char *part_probes[] = { "cmdlinepart", NULL };
-
 /*
  * Main initialization routine
  */
 static int __devinit sharpsl_nand_probe(struct platform_device *pdev)
 {
 	struct nand_chip *this;
-	struct mtd_partition *sharpsl_partition_info;
-	int nr_partitions;
 	struct resource *r;
 	int err = 0;
 	struct sharpsl_nand *sharpsl;
@@ -184,14 +180,9 @@ static int __devinit sharpsl_nand_probe(struct platform_device *pdev)
 
 	/* Register the partitions */
 	sharpsl->mtd.name = "sharpsl-nand";
-	nr_partitions = parse_mtd_partitions(&sharpsl->mtd, part_probes, &sharpsl_partition_info, 0);
-	if (nr_partitions <= 0) {
-		nr_partitions = data->nr_partitions;
-		sharpsl_partition_info = data->partitions;
-	}
 
-	err = mtd_device_register(&sharpsl->mtd, sharpsl_partition_info,
-				  nr_partitions);
+	err = mtd_device_parse_register(&sharpsl->mtd, NULL, 0,
+			data->partitions, data->nr_partitions);
 	if (err)
 		goto err_add;
 

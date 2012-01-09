@@ -223,6 +223,7 @@ struct sk_buff *tipc_link_cmd_show_stats(const void *req_tlv_area, int req_tlv_s
 struct sk_buff *tipc_link_cmd_reset_stats(const void *req_tlv_area, int req_tlv_space);
 void tipc_link_reset(struct link *l_ptr);
 int tipc_link_send(struct sk_buff *buf, u32 dest, u32 selector);
+void tipc_link_send_names(struct list_head *message_list, u32 dest);
 int tipc_link_send_buf(struct link *l_ptr, struct sk_buff *buf);
 u32 tipc_link_get_max_pkt(u32 dest, u32 selector);
 int tipc_link_send_sections_fast(struct tipc_port *sender,

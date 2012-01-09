@@ -1,6 +1,7 @@
 #include <linux/dma-mapping.h>
 #include <linux/dma-debug.h>
 #include <linux/dmar.h>
+#include <linux/export.h>
 #include <linux/bootmem.h>
 #include <linux/gfp.h>
 #include <linux/pci.h>
@@ -117,8 +118,8 @@ again:
 }
 
 /*
- * See <Documentation/x86_64/boot-options.txt> for the iommu kernel parameter
- * documentation.
+ * See <Documentation/x86/x86_64/boot-options.txt> for the iommu kernel
+ * parameter documentation.
  */
 static __init int iommu_setup(char *p)
 {

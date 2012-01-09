@@ -39,6 +39,7 @@
 #include <net/protocol.h>
 #include <linux/skbuff.h>
 #include <linux/proc_fs.h>
+#include <linux/export.h>
 #include <net/sock.h>
 #include <net/ping.h>
 #include <net/udp.h>
@@ -338,7 +339,6 @@ void ping_err(struct sk_buff *skb, u32 info)
 	sk = ping_v4_lookup(net, iph->daddr, iph->saddr,
 			    ntohs(icmph->un.echo.id), skb->dev->ifindex);
 	if (sk == NULL) {
-		ICMP_INC_STATS_BH(net, ICMP_MIB_INERRORS);
 		pr_debug("no socket, dropping\n");
 		return;	/* No socket for error */
 	}
@@ -678,7 +678,6 @@ static int ping_queue_rcv_skb(struct sock *sk, struct sk_buff *skb)
 	pr_debug("ping_queue_rcv_skb(sk=%p,sk->num=%d,skb=%p)\n",
 		inet_sk(sk), inet_sk(sk)->inet_num, skb);
 	if (sock_queue_rcv_skb(sk, skb) < 0) {
-		ICMP_INC_STATS_BH(sock_net(sk), ICMP_MIB_INERRORS);
 		kfree_skb(skb);
 		pr_debug("ping_queue_rcv_skb -> failed\n");
 		return -1;

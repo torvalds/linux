@@ -81,10 +81,10 @@ static void __ieee80211_sta_join_ibss(struct ieee80211_sub_if_data *sdata,
 	lockdep_assert_held(&ifibss->mtx);
 
 	/* Reset own TSF to allow time synchronization work. */
-	drv_reset_tsf(local);
+	drv_reset_tsf(local, sdata);
 
 	skb = ifibss->skb;
-	rcu_assign_pointer(ifibss->presp, NULL);
+	RCU_INIT_POINTER(ifibss->presp, NULL);
 	synchronize_rcu();
 	skb->data = skb->head;
 	skb->len = 0;
@@ -184,7 +184,7 @@ static void __ieee80211_sta_join_ibss(struct ieee80211_sub_if_data *sdata,
 		*pos++ = 0; /* U-APSD no in use */
 	}
 
-	rcu_assign_pointer(ifibss->presp, skb);
+	RCU_INIT_POINTER(ifibss->presp, skb);
 
 	sdata->vif.bss_conf.beacon_int = beacon_int;
 	sdata->vif.bss_conf.basic_rates = basic_rates;
@@ -314,7 +314,7 @@ static void ieee80211_rx_bss_info(struct ieee80211_sub_if_data *sdata,
 		}
 
 		if (sta && elems->wmm_info)
-			set_sta_flags(sta, WLAN_STA_WME);
+			set_sta_flag(sta, WLAN_STA_WME);
 
 		rcu_read_unlock();
 	}
@@ -382,7 +382,7 @@ static void ieee80211_rx_bss_info(struct ieee80211_sub_if_data *sdata,
 		 * second best option: get current TSF
 		 * (will return -1 if not supported)
 		 */
-		rx_timestamp = drv_get_tsf(local);
+		rx_timestamp = drv_get_tsf(local, sdata);
 	}
 
 #ifdef CONFIG_MAC80211_IBSS_DEBUG
@@ -417,7 +417,7 @@ static void ieee80211_rx_bss_info(struct ieee80211_sub_if_data *sdata,
  * must be callable in atomic context.
  */
 struct sta_info *ieee80211_ibss_add_sta(struct ieee80211_sub_if_data *sdata,
-					u8 *bssid,u8 *addr, u32 supp_rates,
+					u8 *bssid, u8 *addr, u32 supp_rates,
 					gfp_t gfp)
 {
 	struct ieee80211_if_ibss *ifibss = &sdata->u.ibss;
@@ -452,7 +452,7 @@ struct sta_info *ieee80211_ibss_add_sta(struct ieee80211_sub_if_data *sdata,
 		return NULL;
 
 	sta->last_rx = jiffies;
-	set_sta_flags(sta, WLAN_STA_AUTHORIZED);
+	set_sta_flag(sta, WLAN_STA_AUTHORIZED);
 
 	/* make sure mandatory rates are always added */
 	sta->sta.supp_rates[band] = supp_rates |
@@ -995,7 +995,7 @@ int ieee80211_ibss_leave(struct ieee80211_sub_if_data *sdata)
 	kfree(sdata->u.ibss.ie);
 	skb = rcu_dereference_protected(sdata->u.ibss.presp,
 					lockdep_is_held(&sdata->u.ibss.mtx));
-	rcu_assign_pointer(sdata->u.ibss.presp, NULL);
+	RCU_INIT_POINTER(sdata->u.ibss.presp, NULL);
 	sdata->vif.bss_conf.ibss_joined = false;
 	ieee80211_bss_info_change_notify(sdata, BSS_CHANGED_BEACON_ENABLED |
 						BSS_CHANGED_IBSS);

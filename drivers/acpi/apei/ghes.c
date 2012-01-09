@@ -50,6 +50,7 @@
 #include <acpi/hed.h>
 #include <asm/mce.h>
 #include <asm/tlbflush.h>
+#include <asm/nmi.h>
 
 #include "apei-internal.h"
 
@@ -749,15 +750,11 @@ static void ghes_proc_in_irq(struct irq_work *irq_work)
 	}
 }
 
-static int ghes_notify_nmi(struct notifier_block *this,
-				  unsigned long cmd, void *data)
+static int ghes_notify_nmi(unsigned int cmd, struct pt_regs *regs)
 {
 	struct ghes *ghes, *ghes_global = NULL;
 	int sev, sev_global = -1;
-	int ret = NOTIFY_DONE;
-
-	if (cmd != DIE_NMI)
-		return ret;
+	int ret = NMI_DONE;
 
 	raw_spin_lock(&ghes_nmi_lock);
 	list_for_each_entry_rcu(ghes, &ghes_nmi, list) {
@@ -770,10 +767,10 @@ static int ghes_notify_nmi(struct notifier_block *this,
 			sev_global = sev;
 			ghes_global = ghes;
 		}
-		ret = NOTIFY_STOP;
+		ret = NMI_HANDLED;
 	}
 
-	if (ret == NOTIFY_DONE)
+	if (ret == NMI_DONE)
 		goto out;
 
 	if (sev_global >= GHES_SEV_PANIC) {
@@ -823,10 +820,6 @@ out:
 
 static struct notifier_block ghes_notifier_sci = {
 	.notifier_call = ghes_notify_sci,
-};
-
-static struct notifier_block ghes_notifier_nmi = {
-	.notifier_call = ghes_notify_nmi,
 };
 
 static unsigned long ghes_esource_prealloc_size(
@@ -918,7 +911,8 @@ static int __devinit ghes_probe(struct platform_device *ghes_dev)
 		ghes_estatus_pool_expand(len);
 		mutex_lock(&ghes_list_mutex);
 		if (list_empty(&ghes_nmi))
-			register_die_notifier(&ghes_notifier_nmi);
+			register_nmi_handler(NMI_LOCAL, ghes_notify_nmi, 0,
+						"ghes");
 		list_add_rcu(&ghes->list, &ghes_nmi);
 		mutex_unlock(&ghes_list_mutex);
 		break;
@@ -964,7 +958,7 @@ static int __devexit ghes_remove(struct platform_device *ghes_dev)
 		mutex_lock(&ghes_list_mutex);
 		list_del_rcu(&ghes->list);
 		if (list_empty(&ghes_nmi))
-			unregister_die_notifier(&ghes_notifier_nmi);
+			unregister_nmi_handler(NMI_LOCAL, "ghes");
 		mutex_unlock(&ghes_list_mutex);
 		/*
 		 * To synchronize with NMI handler, ghes can only be

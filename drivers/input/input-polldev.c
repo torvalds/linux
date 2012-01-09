@@ -14,6 +14,7 @@
 #include <linux/slab.h>
 #include <linux/mutex.h>
 #include <linux/workqueue.h>
+#include <linux/module.h>
 #include <linux/input-polldev.h>
 
 MODULE_AUTHOR("Dmitry Torokhov <dtor@mail.ru>");
@@ -83,10 +84,12 @@ static ssize_t input_polldev_set_poll(struct device *dev,
 {
 	struct input_polled_dev *polldev = dev_get_drvdata(dev);
 	struct input_dev *input = polldev->input;
-	unsigned long interval;
+	unsigned int interval;
+	int err;
 
-	if (strict_strtoul(buf, 0, &interval))
-		return -EINVAL;
+	err = kstrtouint(buf, 0, &interval);
+	if (err)
+		return err;
 
 	if (interval < polldev->poll_interval_min)
 		return -EINVAL;

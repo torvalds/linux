@@ -808,19 +808,15 @@ static unsigned calc_rotation_offset_vrfb(const struct fb_var_screeninfo *var,
 static void omapfb_calc_addr(const struct omapfb_info *ofbi,
 			     const struct fb_var_screeninfo *var,
 			     const struct fb_fix_screeninfo *fix,
-			     int rotation, u32 *paddr, void __iomem **vaddr)
+			     int rotation, u32 *paddr)
 {
 	u32 data_start_p;
-	void __iomem *data_start_v;
 	int offset;
 
-	if (ofbi->rotation_type == OMAP_DSS_ROT_VRFB) {
+	if (ofbi->rotation_type == OMAP_DSS_ROT_VRFB)
 		data_start_p = omapfb_get_region_rot_paddr(ofbi, rotation);
-		data_start_v = NULL;
-	} else {
+	else
 		data_start_p = omapfb_get_region_paddr(ofbi);
-		data_start_v = omapfb_get_region_vaddr(ofbi);
-	}
 
 	if (ofbi->rotation_type == OMAP_DSS_ROT_VRFB)
 		offset = calc_rotation_offset_vrfb(var, fix, rotation);
@@ -828,16 +824,14 @@ static void omapfb_calc_addr(const struct omapfb_info *ofbi,
 		offset = calc_rotation_offset_dma(var, fix, rotation);
 
 	data_start_p += offset;
-	data_start_v += offset;
 
 	if (offset)
 		DBG("offset %d, %d = %d\n",
 		    var->xoffset, var->yoffset, offset);
 
-	DBG("paddr %x, vaddr %p\n", data_start_p, data_start_v);
+	DBG("paddr %x\n", data_start_p);
 
 	*paddr = data_start_p;
-	*vaddr = data_start_v;
 }
 
 /* setup overlay according to the fb */
@@ -850,7 +844,6 @@ int omapfb_setup_overlay(struct fb_info *fbi, struct omap_overlay *ovl,
 	struct fb_fix_screeninfo *fix = &fbi->fix;
 	enum omap_color_mode mode = 0;
 	u32 data_start_p = 0;
-	void __iomem *data_start_v = NULL;
 	struct omap_overlay_info info;
 	int xres, yres;
 	int screen_width;
@@ -880,8 +873,7 @@ int omapfb_setup_overlay(struct fb_info *fbi, struct omap_overlay *ovl,
 	}
 
 	if (ofbi->region->size)
-		omapfb_calc_addr(ofbi, var, fix, rotation,
-				 &data_start_p, &data_start_v);
+		omapfb_calc_addr(ofbi, var, fix, rotation, &data_start_p);
 
 	r = fb_mode_to_dss_mode(var, &mode);
 	if (r) {
@@ -910,7 +902,6 @@ int omapfb_setup_overlay(struct fb_info *fbi, struct omap_overlay *ovl,
 		mirror = ofbi->mirror;
 
 	info.paddr = data_start_p;
-	info.vaddr = data_start_v;
 	info.screen_width = screen_width;
 	info.width = xres;
 	info.height = yres;
@@ -2276,6 +2267,87 @@ static int omapfb_parse_def_modes(struct omapfb2_device *fbdev)
 	return r;
 }
 
+static void fb_videomode_to_omap_timings(struct fb_videomode *m,
+		struct omap_video_timings *t)
+{
+	t->x_res = m->xres;
+	t->y_res = m->yres;
+	t->pixel_clock = PICOS2KHZ(m->pixclock);
+	t->hsw = m->hsync_len;
+	t->hfp = m->right_margin;
+	t->hbp = m->left_margin;
+	t->vsw = m->vsync_len;
+	t->vfp = m->lower_margin;
+	t->vbp = m->upper_margin;
+}
+
+static int omapfb_find_best_mode(struct omap_dss_device *display,
+		struct omap_video_timings *timings)
+{
+	struct fb_monspecs *specs;
+	u8 *edid;
+	int r, i, best_xres, best_idx, len;
+
+	if (!display->driver->read_edid)
+		return -ENODEV;
+
+	len = 0x80 * 2;
+	edid = kmalloc(len, GFP_KERNEL);
+
+	r = display->driver->read_edid(display, edid, len);
+	if (r < 0)
+		goto err1;
+
+	specs = kzalloc(sizeof(*specs), GFP_KERNEL);
+
+	fb_edid_to_monspecs(edid, specs);
+
+	if (edid[126] > 0)
+		fb_edid_add_monspecs(edid + 0x80, specs);
+
+	best_xres = 0;
+	best_idx = -1;
+
+	for (i = 0; i < specs->modedb_len; ++i) {
+		struct fb_videomode *m;
+		struct omap_video_timings t;
+
+		m = &specs->modedb[i];
+
+		if (m->pixclock == 0)
+			continue;
+
+		/* skip repeated pixel modes */
+		if (m->xres == 2880 || m->xres == 1440)
+			continue;
+
+		fb_videomode_to_omap_timings(m, &t);
+
+		r = display->driver->check_timings(display, &t);
+		if (r == 0 && best_xres < m->xres) {
+			best_xres = m->xres;
+			best_idx = i;
+		}
+	}
+
+	if (best_xres == 0) {
+		r = -ENOENT;
+		goto err2;
+	}
+
+	fb_videomode_to_omap_timings(&specs->modedb[best_idx], timings);
+
+	r = 0;
+
+err2:
+	fb_destroy_modedb(specs->modedb);
+	kfree(specs);
+err1:
+	kfree(edid);
+
+	return r;
+}
+
 static int omapfb_init_display(struct omapfb2_device *fbdev,
 		struct omap_dss_device *dssdev)
 {
@@ -2373,8 +2445,10 @@ static int omapfb_probe(struct platform_device *pdev)
 		omap_dss_get_device(dssdev);
 
 		if (!dssdev->driver) {
-			dev_err(&pdev->dev, "no driver for display\n");
-			r = -ENODEV;
+			dev_warn(&pdev->dev, "no driver for display: %s\n",
+				dssdev->name);
+			omap_dss_put_device(dssdev);
+			continue;
 		}
 
 		d = &fbdev->displays[fbdev->num_displays++];
@@ -2402,9 +2476,27 @@ static int omapfb_probe(struct platform_device *pdev)
 	for (i = 0; i < fbdev->num_managers; i++)
 		fbdev->managers[i] = omap_dss_get_overlay_manager(i);
 
+	/* gfx overlay should be the default one. find a display
+	 * connected to that, and use it as default display */
+	ovl = omap_dss_get_overlay(0);
+	if (ovl->manager && ovl->manager->device) {
+		def_display = ovl->manager->device;
+	} else {
+		dev_warn(&pdev->dev, "cannot find default display\n");
+		def_display = NULL;
+	}
+
 	if (def_mode && strlen(def_mode) > 0) {
 		if (omapfb_parse_def_modes(fbdev))
 			dev_warn(&pdev->dev, "cannot parse default modes\n");
+	} else if (def_display && def_display->driver->set_timings &&
+			def_display->driver->check_timings) {
+		struct omap_video_timings t;
+
+		r = omapfb_find_best_mode(def_display, &t);
+
+		if (r == 0)
+			def_display->driver->set_timings(def_display, &t);
 	}
 
 	r = omapfb_create_framebuffers(fbdev);
@@ -2420,16 +2512,6 @@ static int omapfb_probe(struct platform_device *pdev)
 	}
 
 	DBG("mgr->apply'ed\n");
-
-	/* gfx overlay should be the default one. find a display
-	 * connected to that, and use it as default display */
-	ovl = omap_dss_get_overlay(0);
-	if (ovl->manager && ovl->manager->device) {
-		def_display = ovl->manager->device;
-	} else {
-		dev_warn(&pdev->dev, "cannot find default display\n");
-		def_display = NULL;
-	}
 
 	if (def_display) {
 		r = omapfb_init_display(fbdev, def_display);

@@ -304,11 +304,51 @@ static int wacom_raw_event(struct hid_device *hdev, struct hid_report *report,
 	return 1;
 }
 
+static int wacom_input_mapped(struct hid_device *hdev, struct hid_input *hi,
+	struct hid_field *field, struct hid_usage *usage, unsigned long **bit,
+								int *max)
+{
+	struct input_dev *input = hi->input;
+
+	__set_bit(INPUT_PROP_POINTER, input->propbit);
+
+	/* Basics */
+	input->evbit[0] |= BIT(EV_KEY) | BIT(EV_ABS) | BIT(EV_REL);
+
+	__set_bit(REL_WHEEL, input->relbit);
+
+	__set_bit(BTN_TOOL_PEN, input->keybit);
+	__set_bit(BTN_TOUCH, input->keybit);
+	__set_bit(BTN_STYLUS, input->keybit);
+	__set_bit(BTN_STYLUS2, input->keybit);
+	__set_bit(BTN_LEFT, input->keybit);
+	__set_bit(BTN_RIGHT, input->keybit);
+	__set_bit(BTN_MIDDLE, input->keybit);
+
+	/* Pad */
+	input->evbit[0] |= BIT(EV_MSC);
+
+	__set_bit(MSC_SERIAL, input->mscbit);
+
+	__set_bit(BTN_0, input->keybit);
+	__set_bit(BTN_1, input->keybit);
+	__set_bit(BTN_TOOL_FINGER, input->keybit);
+
+	/* Distance, rubber and mouse */
+	__set_bit(BTN_TOOL_RUBBER, input->keybit);
+	__set_bit(BTN_TOOL_MOUSE, input->keybit);
+
+	input_set_abs_params(input, ABS_X, 0, 16704, 4, 0);
+	input_set_abs_params(input, ABS_Y, 0, 12064, 4, 0);
+	input_set_abs_params(input, ABS_PRESSURE, 0, 511, 0, 0);
+	input_set_abs_params(input, ABS_DISTANCE, 0, 32, 0, 0);
+
+	return 0;
+}
+
 static int wacom_probe(struct hid_device *hdev,
 		const struct hid_device_id *id)
 {
-	struct hid_input *hidinput;
-	struct input_dev *input;
 	struct wacom_data *wdata;
 	int ret;
 
@@ -353,11 +393,7 @@ static int wacom_probe(struct hid_device *hdev,
 	if (ret) {
 		hid_warn(hdev, "can't create sysfs battery attribute, err: %d\n",
 			 ret);
-		/*
-		 * battery attribute is not critical for the tablet, but if it
-		 * failed then there is no need to create ac attribute
-		 */
-		goto move_on;
+		goto err_battery;
 	}
 
 	wdata->ac.properties = wacom_ac_props;
@@ -371,53 +407,18 @@ static int wacom_probe(struct hid_device *hdev,
 	if (ret) {
 		hid_warn(hdev,
 			 "can't create ac battery attribute, err: %d\n", ret);
-		/*
-		 * ac attribute is not critical for the tablet, but if it
-		 * failed then we don't want to battery attribute to exist
-		 */
-		power_supply_unregister(&wdata->battery);
+		goto err_ac;
 	}
-
-move_on:
 #endif
-	hidinput = list_entry(hdev->inputs.next, struct hid_input, list);
-	input = hidinput->input;
-
-	__set_bit(INPUT_PROP_POINTER, input->propbit);
-
-	/* Basics */
-	input->evbit[0] |= BIT(EV_KEY) | BIT(EV_ABS) | BIT(EV_REL);
-
-	__set_bit(REL_WHEEL, input->relbit);
-
-	__set_bit(BTN_TOOL_PEN, input->keybit);
-	__set_bit(BTN_TOUCH, input->keybit);
-	__set_bit(BTN_STYLUS, input->keybit);
-	__set_bit(BTN_STYLUS2, input->keybit);
-	__set_bit(BTN_LEFT, input->keybit);
-	__set_bit(BTN_RIGHT, input->keybit);
-	__set_bit(BTN_MIDDLE, input->keybit);
-
-	/* Pad */
-	input->evbit[0] |= BIT(EV_MSC);
-
-	__set_bit(MSC_SERIAL, input->mscbit);
-
-	__set_bit(BTN_0, input->keybit);
-	__set_bit(BTN_1, input->keybit);
-	__set_bit(BTN_TOOL_FINGER, input->keybit);
-
-	/* Distance, rubber and mouse */
-	__set_bit(BTN_TOOL_RUBBER, input->keybit);
-	__set_bit(BTN_TOOL_MOUSE, input->keybit);
-
-	input_set_abs_params(input, ABS_X, 0, 16704, 4, 0);
-	input_set_abs_params(input, ABS_Y, 0, 12064, 4, 0);
-	input_set_abs_params(input, ABS_PRESSURE, 0, 511, 0, 0);
-	input_set_abs_params(input, ABS_DISTANCE, 0, 32, 0, 0);
-
 	return 0;
 
+#ifdef CONFIG_HID_WACOM_POWER_SUPPLY
+err_ac:
+	power_supply_unregister(&wdata->battery);
+err_battery:
+	device_remove_file(&hdev->dev, &dev_attr_speed);
+	hid_hw_stop(hdev);
+#endif
 err_free:
 	kfree(wdata);
 	return ret;
@@ -428,6 +429,7 @@ static void wacom_remove(struct hid_device *hdev)
 #ifdef CONFIG_HID_WACOM_POWER_SUPPLY
 	struct wacom_data *wdata = hid_get_drvdata(hdev);
 #endif
+	device_remove_file(&hdev->dev, &dev_attr_speed);
 	hid_hw_stop(hdev);
 
 #ifdef CONFIG_HID_WACOM_POWER_SUPPLY
@@ -450,6 +452,7 @@ static struct hid_driver wacom_driver = {
 	.probe = wacom_probe,
 	.remove = wacom_remove,
 	.raw_event = wacom_raw_event,
+	.input_mapped = wacom_input_mapped,
 };
 
 static int __init wacom_init(void)

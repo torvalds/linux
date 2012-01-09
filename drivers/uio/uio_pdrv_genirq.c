@@ -18,6 +18,7 @@
 #include <linux/uio_driver.h>
 #include <linux/spinlock.h>
 #include <linux/bitops.h>
+#include <linux/module.h>
 #include <linux/interrupt.h>
 #include <linux/stringify.h>
 #include <linux/pm_runtime.h>
@@ -253,7 +254,7 @@ static const struct dev_pm_ops uio_pdrv_genirq_dev_pm_ops = {
 };
 
 #ifdef CONFIG_OF
-static const struct of_device_id __devinitconst uio_of_genirq_match[] = {
+static const struct of_device_id uio_of_genirq_match[] = {
 	{ /* empty for now */ },
 };
 MODULE_DEVICE_TABLE(of, uio_of_genirq_match);

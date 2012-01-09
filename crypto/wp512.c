@@ -762,11 +762,17 @@ static const u64 C7[256] = {
 	0x86228644a411c286ULL,
 };
 
-static const u64 rc[WHIRLPOOL_ROUNDS + 1] = {
-	0x0000000000000000ULL, 0x1823c6e887b8014fULL, 0x36a6d2f5796f9152ULL,
-	0x60bc9b8ea30c7b35ULL, 0x1de0d7c22e4bfe57ULL, 0x157737e59ff04adaULL,
-	0x58c9290ab1a06b85ULL, 0xbd5d10f4cb3e0567ULL, 0xe427418ba77d95d8ULL,
-	0xfbee7c66dd17479eULL, 0xca2dbf07ad5a8333ULL,
+static const u64 rc[WHIRLPOOL_ROUNDS] = {
+	0x1823c6e887b8014fULL,
+	0x36a6d2f5796f9152ULL,
+	0x60bc9b8ea30c7b35ULL,
+	0x1de0d7c22e4bfe57ULL,
+	0x157737e59ff04adaULL,
+	0x58c9290ab1a06b85ULL,
+	0xbd5d10f4cb3e0567ULL,
+	0xe427418ba77d95d8ULL,
+	0xfbee7c66dd17479eULL,
+	0xca2dbf07ad5a8333ULL,
 };
 
 /**
@@ -793,7 +799,7 @@ static void wp512_process_buffer(struct wp512_ctx *wctx) {
 	state[6] = block[6] ^ (K[6] = wctx->hash[6]);
 	state[7] = block[7] ^ (K[7] = wctx->hash[7]);
 
-	for (r = 1; r <= WHIRLPOOL_ROUNDS; r++) {
+	for (r = 0; r < WHIRLPOOL_ROUNDS; r++) {
 
 		L[0] = C0[(int)(K[0] >> 56)       ] ^
 			   C1[(int)(K[7] >> 48) & 0xff] ^

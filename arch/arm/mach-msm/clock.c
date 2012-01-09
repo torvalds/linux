@@ -18,7 +18,7 @@
 #include <linux/list.h>
 #include <linux/err.h>
 #include <linux/spinlock.h>
-#include <linux/pm_qos_params.h>
+#include <linux/pm_qos.h>
 #include <linux/mutex.h>
 #include <linux/clk.h>
 #include <linux/string.h>

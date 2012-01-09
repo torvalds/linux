@@ -172,7 +172,7 @@ static const struct net_device_ops simeth_netdev_ops = {
 	.ndo_stop		= simeth_close,
 	.ndo_start_xmit		= simeth_tx,
 	.ndo_get_stats		= simeth_get_stats,
-	.ndo_set_multicast_list	= set_multicast_list, /* not yet used */
+	.ndo_set_rx_mode	= set_multicast_list, /* not yet used */
 
 };
 

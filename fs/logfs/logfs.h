@@ -618,7 +618,6 @@ static inline int logfs_buf_recover(struct logfs_area *area, u64 ofs,
 struct page *emergency_read_begin(struct address_space *mapping, pgoff_t index);
 void emergency_read_end(struct page *page);
 void logfs_crash_dump(struct super_block *sb);
-void *memchr_inv(const void *s, int c, size_t n);
 int logfs_statfs(struct dentry *dentry, struct kstatfs *stats);
 int logfs_check_ds(struct logfs_disk_super *ds);
 int logfs_write_sb(struct super_block *sb);

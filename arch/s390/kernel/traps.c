@@ -200,7 +200,7 @@ void show_registers(struct pt_regs *regs)
 	       mask_bits(regs, PSW_MASK_PSTATE), mask_bits(regs, PSW_MASK_ASC),
 	       mask_bits(regs, PSW_MASK_CC), mask_bits(regs, PSW_MASK_PM));
 #ifdef CONFIG_64BIT
-	printk(" EA:%x", mask_bits(regs, PSW_BASE_BITS));
+	printk(" EA:%x", mask_bits(regs, PSW_MASK_EA | PSW_MASK_BA));
 #endif
 	printk("\n%s GPRS: " FOURLONG, mode,
 	       regs->gprs[0], regs->gprs[1], regs->gprs[2], regs->gprs[3]);
@@ -334,7 +334,8 @@ void __kprobes do_per_trap(struct pt_regs *regs)
 	info.si_signo = SIGTRAP;
 	info.si_errno = 0;
 	info.si_code = TRAP_HWBKPT;
-	info.si_addr = (void *) current->thread.per_event.address;
+	info.si_addr =
+		(void __force __user *) current->thread.per_event.address;
 	force_sig_info(SIGTRAP, &info, current);
 }
 

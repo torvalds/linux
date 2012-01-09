@@ -1,6 +1,6 @@
 What:		/sys/bus/bcma/devices/.../manuf
 Date:		May 2011
-KernelVersion:	2.6.40
+KernelVersion:	3.0
 Contact:	Rafał Miłecki <zajec5@gmail.com>
 Description:
 		Each BCMA core has it's manufacturer id. See
@@ -8,7 +8,7 @@ Description:
 
 What:		/sys/bus/bcma/devices/.../id
 Date:		May 2011
-KernelVersion:	2.6.40
+KernelVersion:	3.0
 Contact:	Rafał Miłecki <zajec5@gmail.com>
 Description:
 		There are a few types of BCMA cores, they can be identified by
@@ -16,7 +16,7 @@ Description:
 
 What:		/sys/bus/bcma/devices/.../rev
 Date:		May 2011
-KernelVersion:	2.6.40
+KernelVersion:	3.0
 Contact:	Rafał Miłecki <zajec5@gmail.com>
 Description:
 		BCMA cores of the same type can still slightly differ depending
@@ -24,7 +24,7 @@ Description:
 
 What:		/sys/bus/bcma/devices/.../class
 Date:		May 2011
-KernelVersion:	2.6.40
+KernelVersion:	3.0
 Contact:	Rafał Miłecki <zajec5@gmail.com>
 Description:
 		Each BCMA core is identified by few fields, including class it

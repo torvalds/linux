@@ -847,6 +847,7 @@ SND_SOC_DAPM_SUPPLY("CLK_SYS", WM8993_BUS_CONTROL_1, 1, 0, clk_sys_event,
 		    SND_SOC_DAPM_PRE_PMU | SND_SOC_DAPM_POST_PMD),
 SND_SOC_DAPM_SUPPLY("TOCLK", WM8993_CLOCKING_1, 14, 0, NULL, 0),
 SND_SOC_DAPM_SUPPLY("CLK_DSP", WM8993_CLOCKING_3, 0, 0, NULL, 0),
+SND_SOC_DAPM_SUPPLY("VMID", SND_SOC_NOPM, 0, 0, NULL, 0),
 
 SND_SOC_DAPM_ADC("ADCL", NULL, WM8993_POWER_MANAGEMENT_2, 1, 0),
 SND_SOC_DAPM_ADC("ADCR", NULL, WM8993_POWER_MANAGEMENT_2, 0, 0),
@@ -880,6 +881,9 @@ SND_SOC_DAPM_PGA("Direct Voice", SND_SOC_NOPM, 0, 0, NULL, 0),
 };
 
 static const struct snd_soc_dapm_route routes[] = {
+	{ "MICBIAS1", NULL, "VMID" },
+	{ "MICBIAS2", NULL, "VMID" },
+
 	{ "ADCL", NULL, "CLK_SYS" },
 	{ "ADCL", NULL, "CLK_DSP" },
 	{ "ADCR", NULL, "CLK_SYS" },
@@ -1433,7 +1437,8 @@ static int wm8993_probe(struct snd_soc_codec *codec)
 	int ret, i, val;
 
 	wm8993->hubs_data.hp_startup_mode = 1;
-	wm8993->hubs_data.dcs_codes = -2;
+	wm8993->hubs_data.dcs_codes_l = -2;
+	wm8993->hubs_data.dcs_codes_r = -2;
 	wm8993->hubs_data.series_startup = 1;
 
 	ret = snd_soc_codec_set_cache_io(codec, 8, 16, SND_SOC_I2C);

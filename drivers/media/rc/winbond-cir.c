@@ -41,6 +41,8 @@
  *  Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
 #include <linux/module.h>
 #include <linux/pnp.h>
 #include <linux/interrupt.h>
@@ -1155,12 +1157,12 @@ wbcir_init(void)
 	case IR_PROTOCOL_RC6:
 		break;
 	default:
-		printk(KERN_ERR DRVNAME ": Invalid power-on protocol\n");
+		pr_err("Invalid power-on protocol\n");
 	}
 
 	ret = pnp_register_driver(&wbcir_driver);
 	if (ret)
-		printk(KERN_ERR DRVNAME ": Unable to register driver\n");
+		pr_err("Unable to register driver\n");
 
 	return ret;
 }

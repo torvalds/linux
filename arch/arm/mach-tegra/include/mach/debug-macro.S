@@ -21,7 +21,7 @@
 #include <mach/io.h>
 #include <mach/iomap.h>
 
-	.macro  addruart, rp, rv
+	.macro  addruart, rp, rv, tmp
         ldr     \rp, =IO_APB_PHYS       @ physical
         ldr     \rv, =IO_APB_VIRT        @ virtual
 	orr	\rp, \rp, #(TEGRA_DEBUG_UART_BASE & 0xFF)

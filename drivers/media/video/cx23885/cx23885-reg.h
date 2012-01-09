@@ -203,6 +203,7 @@ Channel manager Data Structure entry = 20 DWORD
 #define SD2_BIAS_CTRL	0x0000000A
 #define AMP_BIAS_CTRL	0x0000000C
 #define CH_PWR_CTRL1	0x0000000E
+#define FLD_CH_SEL      (1 << 3)
 #define CH_PWR_CTRL2	0x0000000F
 #define DSM_STATUS1	0x00000010
 #define DSM_STATUS2	0x00000011
@@ -271,7 +272,9 @@ Channel manager Data Structure entry = 20 DWORD
 #define VID_BC_MSK_OPC_ERR (1 << 16)
 #define VID_BC_MSK_SYNC    (1 << 12)
 #define VID_BC_MSK_OF      (1 <<  8)
+#define VID_BC_MSK_VBI_RISCI2 (1 <<  5)
 #define VID_BC_MSK_RISCI2  (1 <<  4)
+#define VID_BC_MSK_VBI_RISCI1 (1 <<  1)
 #define VID_BC_MSK_RISCI1   1
 
 #define VID_C_INT_MSK	0x00040040

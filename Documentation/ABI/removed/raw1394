@@ -5,7 +5,7 @@ Description:
 	/dev/raw1394 was a character device file that allowed low-level
 	access to FireWire buses.  Its major drawbacks were its inability
 	to implement sensible device security policies, and its low level
-	of abstraction that required userspace clients do duplicate much
+	of abstraction that required userspace clients to duplicate much
 	of the kernel's ieee1394 core functionality.
 	Replaced by /dev/fw*, i.e. the <linux/firewire-cdev.h> ABI of
 	firewire-core.

@@ -13,6 +13,7 @@
 #include <linux/slab.h>
 
 #include <linux/etherdevice.h>
+#include <linux/module.h>
 #include "libertas_tf.h"
 
 #define DRIVER_RELEASE_VERSION "004.p0"

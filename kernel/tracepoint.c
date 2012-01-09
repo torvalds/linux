@@ -34,10 +34,15 @@ extern struct tracepoint * const __stop___tracepoints_ptrs[];
 static const int tracepoint_debug;
 
 /*
- * tracepoints_mutex nests inside module_mutex. Tracepoints mutex protects the
- * builtin and module tracepoints and the hash table.
+ * Tracepoints mutex protects the builtin and module tracepoints and the hash
+ * table, as well as the local module list.
  */
 static DEFINE_MUTEX(tracepoints_mutex);
+
+#ifdef CONFIG_MODULES
+/* Local list of struct module */
+static LIST_HEAD(tracepoint_module_list);
+#endif /* CONFIG_MODULES */
 
 /*
  * Tracepoint hash table, containing the active tracepoints.
@@ -292,9 +297,10 @@ static void disable_tracepoint(struct tracepoint *elem)
  * @end: end of the range
  *
  * Updates the probe callback corresponding to a range of tracepoints.
+ * Called with tracepoints_mutex held.
  */
-void tracepoint_update_probe_range(struct tracepoint * const *begin,
-				   struct tracepoint * const *end)
+static void tracepoint_update_probe_range(struct tracepoint * const *begin,
+					  struct tracepoint * const *end)
 {
 	struct tracepoint * const *iter;
 	struct tracepoint_entry *mark_entry;
@@ -302,7 +308,6 @@ void tracepoint_update_probe_range(struct tracepoint * const *begin,
 	if (!begin)
 		return;
 
-	mutex_lock(&tracepoints_mutex);
 	for (iter = begin; iter < end; iter++) {
 		mark_entry = get_tracepoint((*iter)->name);
 		if (mark_entry) {
@@ -312,11 +317,27 @@ void tracepoint_update_probe_range(struct tracepoint * const *begin,
 			disable_tracepoint(*iter);
 		}
 	}
-	mutex_unlock(&tracepoints_mutex);
 }
+
+#ifdef CONFIG_MODULES
+void module_update_tracepoints(void)
+{
+	struct tp_module *tp_mod;
+
+	list_for_each_entry(tp_mod, &tracepoint_module_list, list)
+		tracepoint_update_probe_range(tp_mod->tracepoints_ptrs,
+			tp_mod->tracepoints_ptrs + tp_mod->num_tracepoints);
+}
+#else /* CONFIG_MODULES */
+void module_update_tracepoints(void)
+{
+}
+#endif /* CONFIG_MODULES */
+
 
 /*
  * Update probes, removing the faulty probes.
+ * Called with tracepoints_mutex held.
  */
 static void tracepoint_update_probes(void)
 {
@@ -359,11 +380,12 @@ int tracepoint_probe_register(const char *name, void *probe, void *data)
 
 	mutex_lock(&tracepoints_mutex);
 	old = tracepoint_add_probe(name, probe, data);
-	mutex_unlock(&tracepoints_mutex);
-	if (IS_ERR(old))
+	if (IS_ERR(old)) {
+		mutex_unlock(&tracepoints_mutex);
 		return PTR_ERR(old);
-
+	}
 	tracepoint_update_probes();		/* may update entry */
+	mutex_unlock(&tracepoints_mutex);
 	release_probes(old);
 	return 0;
 }
@@ -402,11 +424,12 @@ int tracepoint_probe_unregister(const char *name, void *probe, void *data)
 
 	mutex_lock(&tracepoints_mutex);
 	old = tracepoint_remove_probe(name, probe, data);
-	mutex_unlock(&tracepoints_mutex);
-	if (IS_ERR(old))
+	if (IS_ERR(old)) {
+		mutex_unlock(&tracepoints_mutex);
 		return PTR_ERR(old);
-
+	}
 	tracepoint_update_probes();		/* may update entry */
+	mutex_unlock(&tracepoints_mutex);
 	release_probes(old);
 	return 0;
 }
@@ -489,9 +512,8 @@ void tracepoint_probe_update_all(void)
 	if (!list_empty(&old_probes))
 		list_replace_init(&old_probes, &release_probes);
 	need_update = 0;
-	mutex_unlock(&tracepoints_mutex);
-
 	tracepoint_update_probes();
+	mutex_unlock(&tracepoints_mutex);
 	list_for_each_entry_safe(pos, next, &release_probes, u.list) {
 		list_del(&pos->u.list);
 		call_rcu_sched(&pos->u.rcu, rcu_free_old_probes);
@@ -509,7 +531,7 @@ EXPORT_SYMBOL_GPL(tracepoint_probe_update_all);
  * Will return the first tracepoint in the range if the input tracepoint is
  * NULL.
  */
-int tracepoint_get_iter_range(struct tracepoint * const **tracepoint,
+static int tracepoint_get_iter_range(struct tracepoint * const **tracepoint,
 	struct tracepoint * const *begin, struct tracepoint * const *end)
 {
 	if (!*tracepoint && begin != end) {
@@ -520,11 +542,12 @@ int tracepoint_get_iter_range(struct tracepoint * const **tracepoint,
 		return 1;
 	return 0;
 }
-EXPORT_SYMBOL_GPL(tracepoint_get_iter_range);
 
+#ifdef CONFIG_MODULES
 static void tracepoint_get_iter(struct tracepoint_iter *iter)
 {
 	int found = 0;
+	struct tp_module *iter_mod;
 
 	/* Core kernel tracepoints */
 	if (!iter->module) {
@@ -534,12 +557,43 @@ static void tracepoint_get_iter(struct tracepoint_iter *iter)
 		if (found)
 			goto end;
 	}
-	/* tracepoints in modules. */
-	found = module_get_iter_tracepoints(iter);
+	/* Tracepoints in modules */
+	mutex_lock(&tracepoints_mutex);
+	list_for_each_entry(iter_mod, &tracepoint_module_list, list) {
+		/*
+		 * Sorted module list
+		 */
+		if (iter_mod < iter->module)
+			continue;
+		else if (iter_mod > iter->module)
+			iter->tracepoint = NULL;
+		found = tracepoint_get_iter_range(&iter->tracepoint,
+			iter_mod->tracepoints_ptrs,
+			iter_mod->tracepoints_ptrs
+				+ iter_mod->num_tracepoints);
+		if (found) {
+			iter->module = iter_mod;
+			break;
+		}
+	}
+	mutex_unlock(&tracepoints_mutex);
 end:
 	if (!found)
 		tracepoint_iter_reset(iter);
 }
+#else /* CONFIG_MODULES */
+static void tracepoint_get_iter(struct tracepoint_iter *iter)
+{
+	int found = 0;
+
+	/* Core kernel tracepoints */
+	found = tracepoint_get_iter_range(&iter->tracepoint,
+			__start___tracepoints_ptrs,
+			__stop___tracepoints_ptrs);
+	if (!found)
+		tracepoint_iter_reset(iter);
+}
+#endif /* CONFIG_MODULES */
 
 void tracepoint_iter_start(struct tracepoint_iter *iter)
 {
@@ -566,26 +620,98 @@ EXPORT_SYMBOL_GPL(tracepoint_iter_stop);
 
 void tracepoint_iter_reset(struct tracepoint_iter *iter)
 {
+#ifdef CONFIG_MODULES
 	iter->module = NULL;
+#endif /* CONFIG_MODULES */
 	iter->tracepoint = NULL;
 }
 EXPORT_SYMBOL_GPL(tracepoint_iter_reset);
 
 #ifdef CONFIG_MODULES
+static int tracepoint_module_coming(struct module *mod)
+{
+	struct tp_module *tp_mod, *iter;
+	int ret = 0;
+
+	/*
+	 * We skip modules that tain the kernel, especially those with different
+	 * module header (for forced load), to make sure we don't cause a crash.
+	 */
+	if (mod->taints)
+		return 0;
+	mutex_lock(&tracepoints_mutex);
+	tp_mod = kmalloc(sizeof(struct tp_module), GFP_KERNEL);
+	if (!tp_mod) {
+		ret = -ENOMEM;
+		goto end;
+	}
+	tp_mod->num_tracepoints = mod->num_tracepoints;
+	tp_mod->tracepoints_ptrs = mod->tracepoints_ptrs;
+
+	/*
+	 * tracepoint_module_list is kept sorted by struct module pointer
+	 * address for iteration on tracepoints from a seq_file that can release
+	 * the mutex between calls.
+	 */
+	list_for_each_entry_reverse(iter, &tracepoint_module_list, list) {
+		BUG_ON(iter == tp_mod);	/* Should never be in the list twice */
+		if (iter < tp_mod) {
+			/* We belong to the location right after iter. */
+			list_add(&tp_mod->list, &iter->list);
+			goto module_added;
+		}
+	}
+	/* We belong to the beginning of the list */
+	list_add(&tp_mod->list, &tracepoint_module_list);
+module_added:
+	tracepoint_update_probe_range(mod->tracepoints_ptrs,
+		mod->tracepoints_ptrs + mod->num_tracepoints);
+end:
+	mutex_unlock(&tracepoints_mutex);
+	return ret;
+}
+
+static int tracepoint_module_going(struct module *mod)
+{
+	struct tp_module *pos;
+
+	mutex_lock(&tracepoints_mutex);
+	tracepoint_update_probe_range(mod->tracepoints_ptrs,
+		mod->tracepoints_ptrs + mod->num_tracepoints);
+	list_for_each_entry(pos, &tracepoint_module_list, list) {
+		if (pos->tracepoints_ptrs == mod->tracepoints_ptrs) {
+			list_del(&pos->list);
+			kfree(pos);
+			break;
+		}
+	}
+	/*
+	 * In the case of modules that were tainted at "coming", we'll simply
+	 * walk through the list without finding it. We cannot use the "tainted"
+	 * flag on "going", in case a module taints the kernel only after being
+	 * loaded.
+	 */
+	mutex_unlock(&tracepoints_mutex);
+	return 0;
+}
 
 int tracepoint_module_notify(struct notifier_block *self,
 			     unsigned long val, void *data)
 {
 	struct module *mod = data;
+	int ret = 0;
 
 	switch (val) {
 	case MODULE_STATE_COMING:
+		ret = tracepoint_module_coming(mod);
+		break;
+	case MODULE_STATE_LIVE:
+		break;
 	case MODULE_STATE_GOING:
-		tracepoint_update_probe_range(mod->tracepoints_ptrs,
-			mod->tracepoints_ptrs + mod->num_tracepoints);
+		ret = tracepoint_module_going(mod);
 		break;
 	}
-	return 0;
+	return ret;
 }
 
 struct notifier_block tracepoint_module_nb = {
@@ -598,7 +724,6 @@ static int init_tracepoints(void)
 	return register_module_notifier(&tracepoint_module_nb);
 }
 __initcall(init_tracepoints);
-
 #endif /* CONFIG_MODULES */
 
 #ifdef CONFIG_HAVE_SYSCALL_TRACEPOINTS

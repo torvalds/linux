@@ -21,8 +21,6 @@
 #include <mach/hardware.h>
 #include <plat/orion_nand.h>
 
-static const char *part_probes[] = { "cmdlinepart", NULL };
-
 static void orion_nand_cmd_ctrl(struct mtd_info *mtd, int cmd, unsigned int ctrl)
 {
 	struct nand_chip *nc = mtd->priv;
@@ -81,8 +79,6 @@ static int __init orion_nand_probe(struct platform_device *pdev)
 	struct resource *res;
 	void __iomem *io_base;
 	int ret = 0;
-	struct mtd_partition *partitions = NULL;
-	int num_part = 0;
 
 	nc = kzalloc(sizeof(struct nand_chip) + sizeof(struct mtd_info), GFP_KERNEL);
 	if (!nc) {
@@ -132,17 +128,9 @@ static int __init orion_nand_probe(struct platform_device *pdev)
 		goto no_dev;
 	}
 
-#ifdef CONFIG_MTD_CMDLINE_PARTS
 	mtd->name = "orion_nand";
-	num_part = parse_mtd_partitions(mtd, part_probes, &partitions, 0);
-#endif
-	/* If cmdline partitions have been passed, let them be used */
-	if (num_part <= 0) {
-		num_part = board->nr_parts;
-		partitions = board->parts;
-	}
-
-	ret = mtd_device_register(mtd, partitions, num_part);
+	ret = mtd_device_parse_register(mtd, NULL, 0,
+			board->parts, board->nr_parts);
 	if (ret) {
 		nand_release(mtd);
 		goto no_dev;

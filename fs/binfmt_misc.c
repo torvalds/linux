@@ -521,7 +521,7 @@ static void kill_node(Node *e)
 	write_unlock(&entries_lock);
 
 	if (dentry) {
-		dentry->d_inode->i_nlink--;
+		drop_nlink(dentry->d_inode);
 		d_drop(dentry);
 		dput(dentry);
 		simple_release_fs(&bm_mnt, &entry_count);

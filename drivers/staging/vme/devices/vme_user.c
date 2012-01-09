@@ -43,7 +43,7 @@
 static DEFINE_MUTEX(vme_user_mutex);
 static const char driver_name[] = "vme_user";
 
-static int bus[USER_BUS_MAX];
+static int bus[VME_USER_BUS_MAX];
 static unsigned int bus_num;
 
 /* Currently Documentation/devices.txt defines the following for VME:
@@ -116,7 +116,7 @@ static struct driver_stats statistics;
 
 static struct cdev *vme_user_cdev;		/* Character device */
 static struct class *vme_user_sysfs_class;	/* Sysfs class */
-static struct device *vme_user_bridge;		/* Pointer to bridge device */
+static struct vme_dev *vme_user_bridge;		/* Pointer to user device */
 
 
 static const int type[VME_DEVS] = {	MASTER_MINOR,	MASTER_MINOR,
@@ -135,8 +135,9 @@ static ssize_t vme_user_write(struct file *, const char __user *, size_t,
 static loff_t vme_user_llseek(struct file *, loff_t, int);
 static long vme_user_unlocked_ioctl(struct file *, unsigned int, unsigned long);
 
-static int __devinit vme_user_probe(struct device *, int, int);
-static int __devexit vme_user_remove(struct device *, int, int);
+static int vme_user_match(struct vme_dev *);
+static int __devinit vme_user_probe(struct vme_dev *);
+static int __devexit vme_user_remove(struct vme_dev *);
 
 static const struct file_operations vme_user_fops = {
 	.open = vme_user_open,
@@ -620,6 +621,7 @@ static void buf_unalloc(int num)
 
 static struct vme_driver vme_user_driver = {
 	.name = driver_name,
+	.match = vme_user_match,
 	.probe = vme_user_probe,
 	.remove = __devexit_p(vme_user_remove),
 };
@@ -628,8 +630,6 @@ static struct vme_driver vme_user_driver = {
 static int __init vme_user_init(void)
 {
 	int retval = 0;
-	int i;
-	struct vme_device_id *ids;
 
 	printk(KERN_INFO "VME User Space Access Driver\n");
 
@@ -643,47 +643,34 @@ static int __init vme_user_init(void)
 	/* Let's start by supporting one bus, we can support more than one
 	 * in future revisions if that ever becomes necessary.
 	 */
-	if (bus_num > USER_BUS_MAX) {
+	if (bus_num > VME_USER_BUS_MAX) {
 		printk(KERN_ERR "%s: Driver only able to handle %d buses\n",
-			driver_name, USER_BUS_MAX);
-		bus_num = USER_BUS_MAX;
+			driver_name, VME_USER_BUS_MAX);
+		bus_num = VME_USER_BUS_MAX;
 	}
 
-
-	/* Dynamically create the bind table based on module parameters */
-	ids = kmalloc(sizeof(struct vme_device_id) * (bus_num + 1), GFP_KERNEL);
-	if (ids == NULL) {
-		printk(KERN_ERR "%s: Unable to allocate ID table\n",
-			driver_name);
-		retval = -ENOMEM;
-		goto err_id;
-	}
-
-	memset(ids, 0, (sizeof(struct vme_device_id) * (bus_num + 1)));
-
-	for (i = 0; i < bus_num; i++) {
-		ids[i].bus = bus[i];
-		/*
-		 * We register the driver against the slot occupied by *this*
-		 * card, since it's really a low level way of controlling
-		 * the VME bridge
-		 */
-		ids[i].slot = VME_SLOT_CURRENT;
-	}
-
-	vme_user_driver.bind_table = ids;
-
-	retval = vme_register_driver(&vme_user_driver);
+	/*
+	 * Here we just register the maximum number of devices we can and
+	 * leave vme_user_match() to allow only 1 to go through to probe().
+	 * This way, if we later want to allow multiple user access devices,
+	 * we just change the code in vme_user_match().
+	 */
+	retval = vme_register_driver(&vme_user_driver, VME_MAX_SLOTS);
 	if (retval != 0)
 		goto err_reg;
 
 	return retval;
 
 err_reg:
-	kfree(ids);
-err_id:
 err_nocard:
 	return retval;
+}
+
+static int vme_user_match(struct vme_dev *vdev)
+{
+	if (vdev->num >= VME_USER_BUS_MAX)
+		return 0;
+	return 1;
 }
 
 /*
@@ -691,8 +678,7 @@ err_nocard:
  * as practical. We will therefore reserve the buffers and request the images
  * here so that we don't have to do it later.
  */
-static int __devinit vme_user_probe(struct device *dev, int cur_bus,
-	int cur_slot)
+static int __devinit vme_user_probe(struct vme_dev *vdev)
 {
 	int i, err;
 	char name[12];
@@ -704,7 +690,7 @@ static int __devinit vme_user_probe(struct device *dev, int cur_bus,
 		err = -EINVAL;
 		goto err_dev;
 	}
-	vme_user_bridge = dev;
+	vme_user_bridge = vdev;
 
 	/* Initialise descriptors */
 	for (i = 0; i < VME_DEVS; i++) {
@@ -867,8 +853,7 @@ err_dev:
 	return err;
 }
 
-static int __devexit vme_user_remove(struct device *dev, int cur_bus,
-	int cur_slot)
+static int __devexit vme_user_remove(struct vme_dev *dev)
 {
 	int i;
 
@@ -900,8 +885,6 @@ static int __devexit vme_user_remove(struct device *dev, int cur_bus,
 static void __exit vme_user_exit(void)
 {
 	vme_unregister_driver(&vme_user_driver);
-
-	kfree(vme_user_driver.bind_table);
 }
 
 

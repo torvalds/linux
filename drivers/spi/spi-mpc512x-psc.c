@@ -559,18 +559,7 @@ static struct platform_driver mpc512x_psc_spi_of_driver = {
 		.of_match_table = mpc512x_psc_spi_of_match,
 	},
 };
-
-static int __init mpc512x_psc_spi_init(void)
-{
-	return platform_driver_register(&mpc512x_psc_spi_of_driver);
-}
-module_init(mpc512x_psc_spi_init);
-
-static void __exit mpc512x_psc_spi_exit(void)
-{
-	platform_driver_unregister(&mpc512x_psc_spi_of_driver);
-}
-module_exit(mpc512x_psc_spi_exit);
+module_platform_driver(mpc512x_psc_spi_of_driver);
 
 MODULE_AUTHOR("John Rigby");
 MODULE_DESCRIPTION("MPC512x PSC SPI Driver");

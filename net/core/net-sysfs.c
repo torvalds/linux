@@ -20,6 +20,7 @@
 #include <linux/rtnetlink.h>
 #include <linux/wireless.h>
 #include <linux/vmalloc.h>
+#include <linux/export.h>
 #include <net/wext.h>
 
 #include "net-sysfs.h"
@@ -147,7 +148,7 @@ static ssize_t show_speed(struct device *dev,
 
 	if (netif_running(netdev)) {
 		struct ethtool_cmd cmd;
-		if (!dev_ethtool_get_settings(netdev, &cmd))
+		if (!__ethtool_get_settings(netdev, &cmd))
 			ret = sprintf(buf, fmt_udec, ethtool_cmd_speed(&cmd));
 	}
 	rtnl_unlock();
@@ -165,7 +166,7 @@ static ssize_t show_duplex(struct device *dev,
 
 	if (netif_running(netdev)) {
 		struct ethtool_cmd cmd;
-		if (!dev_ethtool_get_settings(netdev, &cmd))
+		if (!__ethtool_get_settings(netdev, &cmd))
 			ret = sprintf(buf, "%s\n",
 				      cmd.duplex ? "full" : "half");
 	}
@@ -712,13 +713,13 @@ static void rx_queue_release(struct kobject *kobj)
 	struct rps_dev_flow_table *flow_table;
 
 
-	map = rcu_dereference_raw(queue->rps_map);
+	map = rcu_dereference_protected(queue->rps_map, 1);
 	if (map) {
 		RCU_INIT_POINTER(queue->rps_map, NULL);
 		kfree_rcu(map, rcu);
 	}
 
-	flow_table = rcu_dereference_raw(queue->rps_flow_table);
+	flow_table = rcu_dereference_protected(queue->rps_flow_table, 1);
 	if (flow_table) {
 		RCU_INIT_POINTER(queue->rps_flow_table, NULL);
 		call_rcu(&flow_table->rcu, rps_dev_flow_table_release);
@@ -987,10 +988,10 @@ static ssize_t store_xps_map(struct netdev_queue *queue,
 	}
 
 	if (nonempty)
-		rcu_assign_pointer(dev->xps_maps, new_dev_maps);
+		RCU_INIT_POINTER(dev->xps_maps, new_dev_maps);
 	else {
 		kfree(new_dev_maps);
-		rcu_assign_pointer(dev->xps_maps, NULL);
+		RCU_INIT_POINTER(dev->xps_maps, NULL);
 	}
 
 	if (dev_maps)

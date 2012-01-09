@@ -8,15 +8,18 @@
 #include <linux/mm.h>
 #include <asm/errno.h>
 
-#if defined(CONFIG_PM_SLEEP) && defined(CONFIG_VT) && defined(CONFIG_VT_CONSOLE)
+#ifdef CONFIG_VT
 extern void pm_set_vt_switch(int);
-extern int pm_prepare_console(void);
-extern void pm_restore_console(void);
 #else
 static inline void pm_set_vt_switch(int do_switch)
 {
 }
+#endif
 
+#ifdef CONFIG_VT_CONSOLE_SLEEP
+extern int pm_prepare_console(void);
+extern void pm_restore_console(void);
+#else
 static inline int pm_prepare_console(void)
 {
 	return 0;
@@ -33,6 +36,58 @@ typedef int __bitwise suspend_state_t;
 #define PM_SUSPEND_STANDBY	((__force suspend_state_t) 1)
 #define PM_SUSPEND_MEM		((__force suspend_state_t) 3)
 #define PM_SUSPEND_MAX		((__force suspend_state_t) 4)
+
+enum suspend_stat_step {
+	SUSPEND_FREEZE = 1,
+	SUSPEND_PREPARE,
+	SUSPEND_SUSPEND,
+	SUSPEND_SUSPEND_NOIRQ,
+	SUSPEND_RESUME_NOIRQ,
+	SUSPEND_RESUME
+};
+
+struct suspend_stats {
+	int	success;
+	int	fail;
+	int	failed_freeze;
+	int	failed_prepare;
+	int	failed_suspend;
+	int	failed_suspend_noirq;
+	int	failed_resume;
+	int	failed_resume_noirq;
+#define	REC_FAILED_NUM	2
+	int	last_failed_dev;
+	char	failed_devs[REC_FAILED_NUM][40];
+	int	last_failed_errno;
+	int	errno[REC_FAILED_NUM];
+	int	last_failed_step;
+	enum suspend_stat_step	failed_steps[REC_FAILED_NUM];
+};
+
+extern struct suspend_stats suspend_stats;
+
+static inline void dpm_save_failed_dev(const char *name)
+{
+	strlcpy(suspend_stats.failed_devs[suspend_stats.last_failed_dev],
+		name,
+		sizeof(suspend_stats.failed_devs[0]));
+	suspend_stats.last_failed_dev++;
+	suspend_stats.last_failed_dev %= REC_FAILED_NUM;
+}
+
+static inline void dpm_save_failed_errno(int err)
+{
+	suspend_stats.errno[suspend_stats.last_failed_errno] = err;
+	suspend_stats.last_failed_errno++;
+	suspend_stats.last_failed_errno %= REC_FAILED_NUM;
+}
+
+static inline void dpm_save_failed_step(enum suspend_stat_step step)
+{
+	suspend_stats.failed_steps[suspend_stats.last_failed_step] = step;
+	suspend_stats.last_failed_step++;
+	suspend_stats.last_failed_step %= REC_FAILED_NUM;
+}
 
 /**
  * struct platform_suspend_ops - Callbacks for managing platform dependent
@@ -333,5 +388,39 @@ static inline void unlock_system_sleep(void)
 	mutex_unlock(&pm_mutex);
 }
 #endif
+
+#ifdef CONFIG_ARCH_SAVE_PAGE_KEYS
+/*
+ * The ARCH_SAVE_PAGE_KEYS functions can be used by an architecture
+ * to save/restore additional information to/from the array of page
+ * frame numbers in the hibernation image. For s390 this is used to
+ * save and restore the storage key for each page that is included
+ * in the hibernation image.
+ */
+unsigned long page_key_additional_pages(unsigned long pages);
+int page_key_alloc(unsigned long pages);
+void page_key_free(void);
+void page_key_read(unsigned long *pfn);
+void page_key_memorize(unsigned long *pfn);
+void page_key_write(void *address);
+
+#else /* !CONFIG_ARCH_SAVE_PAGE_KEYS */
+
+static inline unsigned long page_key_additional_pages(unsigned long pages)
+{
+	return 0;
+}
+
+static inline int  page_key_alloc(unsigned long pages)
+{
+	return 0;
+}
+
+static inline void page_key_free(void) {}
+static inline void page_key_read(unsigned long *pfn) {}
+static inline void page_key_memorize(unsigned long *pfn) {}
+static inline void page_key_write(void *address) {}
+
+#endif /* !CONFIG_ARCH_SAVE_PAGE_KEYS */
 
 #endif /* _LINUX_SUSPEND_H */

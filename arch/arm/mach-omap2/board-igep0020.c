@@ -32,7 +32,7 @@
 #include <plat/gpmc.h>
 #include <plat/usb.h>
 #include <video/omapdss.h>
-#include <video/omap-panel-generic-dpi.h>
+#include <video/omap-panel-dvi.h>
 #include <plat/onenand.h>
 
 #include "mux.h"
@@ -455,16 +455,16 @@ static void igep2_disable_dvi(struct omap_dss_device *dssdev)
 	gpio_direction_output(IGEP2_GPIO_DVI_PUP, 0);
 }
 
-static struct panel_generic_dpi_data dvi_panel = {
-	.name			= "generic",
+static struct panel_dvi_platform_data dvi_panel = {
 	.platform_enable	= igep2_enable_dvi,
 	.platform_disable	= igep2_disable_dvi,
+	.i2c_bus_num = 3,
 };
 
 static struct omap_dss_device igep2_dvi_device = {
 	.type			= OMAP_DISPLAY_TYPE_DPI,
 	.name			= "dvi",
-	.driver_name		= "generic_dpi_panel",
+	.driver_name		= "dvi",
 	.data			= &dvi_panel,
 	.phy.dpi.data_lines	= 24,
 };
@@ -490,13 +490,6 @@ static void __init igep2_display_init(void)
 static struct platform_device *igep_devices[] __initdata = {
 	&igep_vwlan_device,
 };
-
-static void __init igep_init_early(void)
-{
-	omap2_init_common_infrastructure();
-	omap2_init_common_devices(m65kxxxxam_sdrc_params,
-				  m65kxxxxam_sdrc_params);
-}
 
 static int igep2_keymap[] = {
 	KEY(0, 0, KEY_LEFT),
@@ -650,6 +643,8 @@ static void __init igep_init(void)
 	igep_i2c_init();
 	platform_add_devices(igep_devices, ARRAY_SIZE(igep_devices));
 	omap_serial_init();
+	omap_sdrc_init(m65kxxxxam_sdrc_params,
+				  m65kxxxxam_sdrc_params);
 	usb_musb_init(NULL);
 
 	igep_flash_init();
@@ -672,20 +667,20 @@ static void __init igep_init(void)
 }
 
 MACHINE_START(IGEP0020, "IGEP v2 board")
-	.boot_params	= 0x80000100,
+	.atag_offset	= 0x100,
 	.reserve	= omap_reserve,
 	.map_io		= omap3_map_io,
-	.init_early	= igep_init_early,
+	.init_early	= omap35xx_init_early,
 	.init_irq	= omap3_init_irq,
 	.init_machine	= igep_init,
 	.timer		= &omap3_timer,
 MACHINE_END
 
 MACHINE_START(IGEP0030, "IGEP OMAP3 module")
-	.boot_params	= 0x80000100,
+	.atag_offset	= 0x100,
 	.reserve	= omap_reserve,
 	.map_io		= omap3_map_io,
-	.init_early	= igep_init_early,
+	.init_early	= omap35xx_init_early,
 	.init_irq	= omap3_init_irq,
 	.init_machine	= igep_init,
 	.timer		= &omap3_timer,

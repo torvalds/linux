@@ -38,6 +38,7 @@
 #include <linux/stddef.h>
 #include <linux/spinlock.h>
 #include <linux/mISDNif.h>
+#include <linux/export.h>
 #include "core.h"
 
 static u_int *debug;

@@ -26,6 +26,7 @@
  */
 
 #include <linux/pci.h>
+#include <linux/export.h>
 #include <asm/pci-bridge.h>
 #include <asm/ppc-pci.h>
 #include <asm/firmware.h>

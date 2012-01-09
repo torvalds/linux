@@ -72,6 +72,19 @@ OPTIONS
 	CPUs are specified with -: 0-2. Default is to report samples on all
 	CPUs.
 
+--asm-raw::
+	Show raw instruction encoding of assembly instructions.
+
+--source::
+	Interleave source code with assembly code. Enabled by default,
+	disable with --no-source.
+
+--symfs=<directory>::
+        Look for files with symbols relative to this directory.
+
+-M::
+--disassembler-style=:: Set disassembler style for objdump.
+
 SEE ALSO
 --------
 linkperf:perf-record[1], linkperf:perf-report[1]

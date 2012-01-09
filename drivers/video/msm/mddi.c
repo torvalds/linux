@@ -715,7 +715,7 @@ static int __devinit mddi_probe(struct platform_device *pdev)
 
 	mddi->int_enable = 0;
 	mddi_writel(mddi->int_enable, INTEN);
-	ret = request_irq(mddi->irq, mddi_isr, IRQF_DISABLED, "mddi",
+	ret = request_irq(mddi->irq, mddi_isr, 0, "mddi",
 			  &mddi->client_data);
 	if (ret) {
 		printk(KERN_ERR "mddi: failed to request enable irq!\n");

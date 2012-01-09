@@ -37,7 +37,6 @@
  *		     SLPM value = same as normal
  *
  * PIN_CFG	   - default config with alternate function
- * PIN_CFG_PULL	   - default config with alternate function and pull up/down
  */
 
 typedef unsigned long pin_cfg_t;
@@ -132,10 +131,6 @@ typedef unsigned long pin_cfg_t;
 #define PIN_CFG_OUTPUT(num, alt, val)		\
 	(PIN_CFG_DEFAULT |\
 	 (PIN_NUM(num) | PIN_##alt | PIN_OUTPUT_##val))
-
-#define PIN_CFG_PULL(num, alt, pull)	\
-	((PIN_CFG_DEFAULT & ~PIN_PULL_MASK) |\
-	 (PIN_NUM(num) | PIN_##alt | PIN_PULL_##pull))
 
 extern int nmk_config_pin(pin_cfg_t cfg, bool sleep);
 extern int nmk_config_pins(pin_cfg_t *cfgs, int num);

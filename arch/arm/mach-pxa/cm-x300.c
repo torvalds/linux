@@ -424,8 +424,9 @@ static struct mtd_partition cm_x300_nand_partitions[] = {
 static struct pxa3xx_nand_platform_data cm_x300_nand_info = {
 	.enable_arbiter	= 1,
 	.keep_config	= 1,
-	.parts		= cm_x300_nand_partitions,
-	.nr_parts	= ARRAY_SIZE(cm_x300_nand_partitions),
+	.num_cs		= 1,
+	.parts[0]	= cm_x300_nand_partitions,
+	.nr_parts[0]	= ARRAY_SIZE(cm_x300_nand_partitions),
 };
 
 static void __init cm_x300_init_nand(void)
@@ -775,7 +776,6 @@ static struct gpio cm_x300_wi2wi_gpios[] __initdata = {
 
 static void __init cm_x300_init_wi2wi(void)
 {
-	int bt_reset, wlan_en;
 	int err;
 
 	if (system_rev < 130) {
@@ -791,12 +791,11 @@ static void __init cm_x300_init_wi2wi(void)
 	}
 
 	udelay(10);
-	gpio_set_value(bt_reset, 0);
+	gpio_set_value(cm_x300_wi2wi_gpios[1].gpio, 0);
 	udelay(10);
-	gpio_set_value(bt_reset, 1);
+	gpio_set_value(cm_x300_wi2wi_gpios[1].gpio, 1);
 
-	gpio_free(wlan_en);
-	gpio_free(bt_reset);
+	gpio_free_array(ARRAY_AND_SIZE(cm_x300_wi2wi_gpios));
 }
 
 /* MFP */
@@ -839,8 +838,8 @@ static void __init cm_x300_init(void)
 	cm_x300_init_bl();
 }
 
-static void __init cm_x300_fixup(struct machine_desc *mdesc, struct tag *tags,
-				 char **cmdline, struct meminfo *mi)
+static void __init cm_x300_fixup(struct tag *tags, char **cmdline,
+				 struct meminfo *mi)
 {
 	/* Make sure that mi->bank[0].start = PHYS_ADDR */
 	for (; tags->hdr.size; tags = tag_next(tags))
@@ -852,7 +851,7 @@ static void __init cm_x300_fixup(struct machine_desc *mdesc, struct tag *tags,
 }
 
 MACHINE_START(CM_X300, "CM-X300 module")
-	.boot_params	= 0xa0000100,
+	.atag_offset	= 0x100,
 	.map_io		= pxa3xx_map_io,
 	.init_irq	= pxa3xx_init_irq,
 	.handle_irq	= pxa3xx_handle_irq,

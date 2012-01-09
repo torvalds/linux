@@ -297,10 +297,6 @@ void ipv6_local_rxpmtu(struct sock *sk, struct flowi6 *fl6, u32 mtu)
 	ipv6_addr_copy(&iph->daddr, &fl6->daddr);
 
 	mtu_info = IP6CBMTU(skb);
-	if (!mtu_info) {
-		kfree_skb(skb);
-		return;
-	}
 
 	mtu_info->ip6m_mtu = mtu;
 	mtu_info->ip6m_addr.sin6_family = AF_INET6;
@@ -599,7 +595,7 @@ int datagram_recv_ctl(struct sock *sk, struct msghdr *msg, struct sk_buff *skb)
 	return 0;
 }
 
-int datagram_send_ctl(struct net *net,
+int datagram_send_ctl(struct net *net, struct sock *sk,
 		      struct msghdr *msg, struct flowi6 *fl6,
 		      struct ipv6_txoptions *opt,
 		      int *hlimit, int *tclass, int *dontfrag)
@@ -658,7 +654,8 @@ int datagram_send_ctl(struct net *net,
 
 			if (addr_type != IPV6_ADDR_ANY) {
 				int strict = __ipv6_addr_src_scope(addr_type) <= IPV6_ADDR_SCOPE_LINKLOCAL;
-				if (!ipv6_chk_addr(net, &src_info->ipi6_addr,
+				if (!inet_sk(sk)->transparent &&
+				    !ipv6_chk_addr(net, &src_info->ipi6_addr,
 						   strict ? dev : NULL, 0))
 					err = -EINVAL;
 				else

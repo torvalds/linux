@@ -259,14 +259,13 @@ static int lapbeth_set_mac_address(struct net_device *dev, void *addr)
 }
 
 
-static struct lapb_register_struct lapbeth_callbacks = {
+static const struct lapb_register_struct lapbeth_callbacks = {
 	.connect_confirmation    = lapbeth_connected,
 	.connect_indication      = lapbeth_connected,
 	.disconnect_confirmation = lapbeth_disconnected,
 	.disconnect_indication   = lapbeth_disconnected,
 	.data_indication         = lapbeth_data_indication,
 	.data_transmit           = lapbeth_data_transmit,
-
 };
 
 /*

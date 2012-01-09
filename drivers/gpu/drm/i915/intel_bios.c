@@ -1,5 +1,5 @@
 /*
- * Copyright © 2006 Intel Corporation
+ * Copyright Â© 2006 Intel Corporation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -309,6 +309,13 @@ parse_general_features(struct drm_i915_private *dev_priv,
 		dev_priv->lvds_use_ssc = general->enable_ssc;
 		dev_priv->lvds_ssc_freq =
 			intel_bios_ssc_frequency(dev, general->ssc_freq);
+		dev_priv->display_clock_mode = general->display_clock_mode;
+		DRM_DEBUG_KMS("BDB_GENERAL_FEATURES int_tv_support %d int_crt_support %d lvds_use_ssc %d lvds_ssc_freq %d display_clock_mode %d\n",
+			      dev_priv->int_tv_support,
+			      dev_priv->int_crt_support,
+			      dev_priv->lvds_use_ssc,
+			      dev_priv->lvds_ssc_freq,
+			      dev_priv->display_clock_mode);
 	}
 }
 
@@ -381,7 +388,7 @@ parse_sdvo_device_mapping(struct drm_i915_private *dev_priv,
 		if (p_child->dvo_port != DEVICE_PORT_DVOB &&
 			p_child->dvo_port != DEVICE_PORT_DVOC) {
 			/* skip the incorrect SDVO port */
-			DRM_DEBUG_KMS("Incorrect SDVO port. Skip it \n");
+			DRM_DEBUG_KMS("Incorrect SDVO port. Skip it\n");
 			continue;
 		}
 		DRM_DEBUG_KMS("the SDVO device with slave addr %2x is found on"
@@ -396,15 +403,13 @@ parse_sdvo_device_mapping(struct drm_i915_private *dev_priv,
 			p_mapping->dvo_wiring = p_child->dvo_wiring;
 			p_mapping->ddc_pin = p_child->ddc_pin;
 			p_mapping->i2c_pin = p_child->i2c_pin;
-			p_mapping->i2c_speed = p_child->i2c_speed;
 			p_mapping->initialized = 1;
-			DRM_DEBUG_KMS("SDVO device: dvo=%x, addr=%x, wiring=%d, ddc_pin=%d, i2c_pin=%d, i2c_speed=%d\n",
+			DRM_DEBUG_KMS("SDVO device: dvo=%x, addr=%x, wiring=%d, ddc_pin=%d, i2c_pin=%d\n",
 				      p_mapping->dvo_port,
 				      p_mapping->slave_addr,
 				      p_mapping->dvo_wiring,
 				      p_mapping->ddc_pin,
-				      p_mapping->i2c_pin,
-				      p_mapping->i2c_speed);
+				      p_mapping->i2c_pin);
 		} else {
 			DRM_DEBUG_KMS("Maybe one SDVO port is shared by "
 					 "two SDVO device.\n");
@@ -564,7 +569,7 @@ parse_device_mapping(struct drm_i915_private *dev_priv,
 		count++;
 	}
 	if (!count) {
-		DRM_DEBUG_KMS("no child dev is parsed from VBT \n");
+		DRM_DEBUG_KMS("no child dev is parsed from VBT\n");
 		return;
 	}
 	dev_priv->child_dev = kzalloc(sizeof(*p_child) * count, GFP_KERNEL);
@@ -610,7 +615,7 @@ init_vbt_defaults(struct drm_i915_private *dev_priv)
 	/* Default to using SSC */
 	dev_priv->lvds_use_ssc = 1;
 	dev_priv->lvds_ssc_freq = intel_bios_ssc_frequency(dev, 1);
-	DRM_DEBUG("Set default to SSC at %dMHz\n", dev_priv->lvds_ssc_freq);
+	DRM_DEBUG_KMS("Set default to SSC at %dMHz\n", dev_priv->lvds_ssc_freq);
 
 	/* eDP data */
 	dev_priv->edp.bpp = 18;
@@ -639,7 +644,7 @@ intel_parse_bios(struct drm_device *dev)
 	if (dev_priv->opregion.vbt) {
 		struct vbt_header *vbt = dev_priv->opregion.vbt;
 		if (memcmp(vbt->signature, "$VBT", 4) == 0) {
-			DRM_DEBUG_DRIVER("Using VBT from OpRegion: %20s\n",
+			DRM_DEBUG_KMS("Using VBT from OpRegion: %20s\n",
 					 vbt->signature);
 			bdb = (struct bdb_header *)((char *)vbt + vbt->bdb_offset);
 		} else

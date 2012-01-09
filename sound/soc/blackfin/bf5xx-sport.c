@@ -33,6 +33,7 @@
 #include <linux/dma-mapping.h>
 #include <linux/gpio.h>
 #include <linux/bug.h>
+#include <linux/module.h>
 #include <asm/portmux.h>
 #include <asm/dma.h>
 #include <asm/blackfin.h>

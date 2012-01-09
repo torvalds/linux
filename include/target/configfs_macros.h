@@ -30,8 +30,8 @@
  * Added CONFIGFS_EATTR() macros from original configfs.h macros
  * Copright (C) 2008-2009 Nicholas A. Bellinger <nab@linux-iscsi.org>
  *
- * Please read Documentation/filesystems/configfs.txt before using the
- * configfs interface, ESPECIALLY the parts about reference counts and
+ * Please read Documentation/filesystems/configfs/configfs.txt before using
+ * the configfs interface, ESPECIALLY the parts about reference counts and
  * item destructors.
  */
 

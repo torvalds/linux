@@ -25,7 +25,6 @@
 
 #include <linux/types.h>
 #include <linux/list.h>
-#include <linux/module.h>
 #include <linux/atomic.h>
 #include <linux/if.h>
 #include <linux/skbuff.h>
@@ -41,6 +40,8 @@ const char *print_ssid(char *buf, const char *ssid, u8 ssid_len);
 enum {
 	IEEE80211_CRYPTO_TKIP_COUNTERMEASURES = (1 << 0),
 };
+
+struct module;
 
 struct lib80211_crypto_ops {
 	const char *name;
@@ -117,10 +118,7 @@ void lib80211_crypt_info_free(struct lib80211_crypt_info *info);
 int lib80211_register_crypto_ops(struct lib80211_crypto_ops *ops);
 int lib80211_unregister_crypto_ops(struct lib80211_crypto_ops *ops);
 struct lib80211_crypto_ops *lib80211_get_crypto_ops(const char *name);
-void lib80211_crypt_deinit_entries(struct lib80211_crypt_info *, int);
-void lib80211_crypt_deinit_handler(unsigned long);
 void lib80211_crypt_delayed_deinit(struct lib80211_crypt_info *info,
 				    struct lib80211_crypt_data **crypt);
-void lib80211_crypt_quiescing(struct lib80211_crypt_info *info);
 
 #endif /* LIB80211_H */

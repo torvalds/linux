@@ -350,7 +350,7 @@ int tty_port_close_start(struct tty_port *port,
 		tty_driver_flush_buffer(tty);
 	if (test_bit(ASYNCB_INITIALIZED, &port->flags) &&
 			port->closing_wait != ASYNC_CLOSING_WAIT_NONE)
-		tty_wait_until_sent(tty, port->closing_wait);
+		tty_wait_until_sent_from_close(tty, port->closing_wait);
 	if (port->drain_delay) {
 		unsigned int bps = tty_get_baud_rate(tty);
 		long timeout;

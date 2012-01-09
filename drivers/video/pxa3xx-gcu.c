@@ -31,8 +31,6 @@
  */
 
 #include <linux/module.h>
-#include <linux/version.h>
-
 #include <linux/platform_device.h>
 #include <linux/dma-mapping.h>
 #include <linux/miscdevice.h>
@@ -678,7 +676,7 @@ pxa3xx_gcu_probe(struct platform_device *dev)
 	}
 
 	ret = request_irq(irq, pxa3xx_gcu_handle_irq,
-			  IRQF_DISABLED, DRV_NAME, priv);
+			  0, DRV_NAME, priv);
 	if (ret) {
 		dev_err(&dev->dev, "request_irq failed\n");
 		ret = -EBUSY;

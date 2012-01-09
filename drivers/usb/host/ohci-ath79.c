@@ -111,7 +111,7 @@ static int ohci_ath79_probe(struct platform_device *pdev)
 
 	ohci_hcd_init(hcd_to_ohci(hcd));
 
-	ret = usb_add_hcd(hcd, irq, IRQF_DISABLED);
+	ret = usb_add_hcd(hcd, irq, 0);
 	if (ret)
 		goto err_stop_hcd;
 

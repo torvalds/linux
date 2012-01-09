@@ -21,6 +21,7 @@
 #include <linux/virtio_config.h>
 #include <linux/device.h>
 #include <linux/slab.h>
+#include <linux/module.h>
 
 /* virtio guest is communicating with a virtual "device" that actually runs on
  * a host processor.  Memory barriers are used to control SMP effects. */
@@ -528,5 +529,15 @@ void vring_transport_features(struct virtio_device *vdev)
 	}
 }
 EXPORT_SYMBOL_GPL(vring_transport_features);
+
+/* return the size of the vring within the virtqueue */
+unsigned int virtqueue_get_vring_size(struct virtqueue *_vq)
+{
+
+	struct vring_virtqueue *vq = to_vvq(_vq);
+
+	return vq->vring.num;
+}
+EXPORT_SYMBOL_GPL(virtqueue_get_vring_size);
 
 MODULE_LICENSE("GPL");

@@ -10,6 +10,7 @@
 #include <linux/types.h>
 #include <linux/slab.h>
 #include <linux/pci.h>
+#include <linux/export.h>
 #include <asm/sn/addrs.h>
 #include <asm/sn/geo.h>
 #include <asm/sn/pcibr_provider.h>

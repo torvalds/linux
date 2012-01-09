@@ -149,7 +149,7 @@ static struct dentry *v9fs_mount(struct file_system_type *fs_type, int flags,
 	else
 		sb->s_d_op = &v9fs_dentry_operations;
 
-	inode = v9fs_get_inode(sb, S_IFDIR | mode);
+	inode = v9fs_get_inode(sb, S_IFDIR | mode, 0);
 	if (IS_ERR(inode)) {
 		retval = PTR_ERR(inode);
 		goto release_sb;

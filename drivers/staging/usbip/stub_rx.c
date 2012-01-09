@@ -175,12 +175,11 @@ static int tweak_reset_device_cmd(struct urb *urb)
 	dev_info(&urb->dev->dev, "usb_queue_reset_device\n");
 
 	/*
-	 * With the implementation of pre_reset and post_reset the driver no 
+	 * With the implementation of pre_reset and post_reset the driver no
 	 * longer unbinds. This allows the use of synchronous reset.
 	 */
 
-	if (usb_lock_device_for_reset(sdev->udev, sdev->interface)<0)
-	{
+	if (usb_lock_device_for_reset(sdev->udev, sdev->interface) < 0) {
 		dev_err(&urb->dev->dev, "could not obtain lock to reset device\n");
 		return 0;
 	}

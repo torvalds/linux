@@ -224,6 +224,11 @@ static int ehci_pci_setup(struct usb_hcd *hcd)
 			pci_dev_put(p_smbus);
 		}
 		break;
+	case PCI_VENDOR_ID_NETMOS:
+		/* MosChip frame-index-register bug */
+		ehci_info(ehci, "applying MosChip frame-index workaround\n");
+		ehci->frame_index_bug = 1;
+		break;
 	}
 
 	/* optional debug port, normally in the first BAR */
@@ -439,7 +444,7 @@ static int ehci_pci_resume(struct usb_hcd *hcd, bool hibernated)
 	/* here we "know" root ports should always stay powered */
 	ehci_port_power(ehci, 1);
 
-	hcd->state = HC_STATE_SUSPENDED;
+	ehci->rh_state = EHCI_RH_SUSPENDED;
 	return 0;
 }
 #endif

@@ -127,6 +127,8 @@ static struct dvb_usb_device_properties a800_properties = {
 	.num_adapters = 1,
 	.adapter = {
 		{
+		.num_frontends = 1,
+		.fe = {{
 			.caps = DVB_USB_ADAP_HAS_PID_FILTER | DVB_USB_ADAP_PID_FILTER_CAN_BE_TURNED_OFF,
 			.pid_filter_count = 32,
 			.streaming_ctrl   = dibusb2_0_streaming_ctrl,
@@ -147,7 +149,7 @@ static struct dvb_usb_device_properties a800_properties = {
 					}
 				}
 			},
-
+		}},
 			.size_of_priv     = sizeof(struct dibusb_state),
 		},
 	},

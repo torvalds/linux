@@ -1965,8 +1965,9 @@ static int __sys_sendmsg(struct socket *sock, struct msghdr __user *msg,
 	 * used_address->name_len is initialized to UINT_MAX so that the first
 	 * destination address never matches.
 	 */
-	if (used_address && used_address->name_len == msg_sys->msg_namelen &&
-	    !memcmp(&used_address->name, msg->msg_name,
+	if (used_address && msg_sys->msg_name &&
+	    used_address->name_len == msg_sys->msg_namelen &&
+	    !memcmp(&used_address->name, msg_sys->msg_name,
 		    used_address->name_len)) {
 		err = sock_sendmsg_nosec(sock, msg_sys, total_len);
 		goto out_freectl;
@@ -1978,8 +1979,9 @@ static int __sys_sendmsg(struct socket *sock, struct msghdr __user *msg,
 	 */
 	if (used_address && err >= 0) {
 		used_address->name_len = msg_sys->msg_namelen;
-		memcpy(&used_address->name, msg->msg_name,
-		       used_address->name_len);
+		if (msg_sys->msg_name)
+			memcpy(&used_address->name, msg_sys->msg_name,
+			       used_address->name_len);
 	}
 
 out_freectl:
@@ -2470,7 +2472,7 @@ int sock_register(const struct net_proto_family *ops)
 				      lockdep_is_held(&net_family_lock)))
 		err = -EEXIST;
 	else {
-		rcu_assign_pointer(net_families[ops->family], ops);
+		RCU_INIT_POINTER(net_families[ops->family], ops);
 		err = 0;
 	}
 	spin_unlock(&net_family_lock);
@@ -2498,7 +2500,7 @@ void sock_unregister(int family)
 	BUG_ON(family < 0 || family >= NPROTO);
 
 	spin_lock(&net_family_lock);
-	rcu_assign_pointer(net_families[family], NULL);
+	RCU_INIT_POINTER(net_families[family], NULL);
 	spin_unlock(&net_family_lock);
 
 	synchronize_rcu();

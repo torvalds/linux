@@ -77,7 +77,6 @@ enum isci_status {
 
 /**
  * struct isci_port - isci direct attached sas port object
- * @event: counts bcns and port stop events (for bcn filtering)
  * @ready_exit: several states constitute 'ready'. When exiting ready we
  *              need to take extra port-teardown actions that are
  *              skipped when exiting to another 'ready' state.
@@ -92,10 +91,6 @@ enum isci_status {
  */
 struct isci_port {
 	enum isci_status status;
-	#define IPORT_BCN_BLOCKED 0
-	#define IPORT_BCN_PENDING 1
-	unsigned long flags;
-	atomic_t event;
 	struct isci_host *isci_host;
 	struct asd_sas_port sas_port;
 	struct list_head remote_dev_list;
@@ -109,6 +104,7 @@ struct isci_port {
 	u8 logical_port_index;
 	u8 physical_port_index;
 	u8 active_phy_mask;
+	u8 last_active_phy;
 	u16 reserved_rni;
 	u16 reserved_tag;
 	u32 started_request_count;

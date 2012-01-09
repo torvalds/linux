@@ -10,6 +10,7 @@
 #include <linux/skbuff.h>
 #include <linux/debugfs.h>
 #include <linux/ieee80211.h>
+#include <linux/export.h>
 #include <net/mac80211.h>
 #include "rc80211_minstrel.h"
 #include "rc80211_minstrel_ht.h"

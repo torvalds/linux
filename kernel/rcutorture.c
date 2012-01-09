@@ -73,7 +73,7 @@ module_param(nreaders, int, 0444);
 MODULE_PARM_DESC(nreaders, "Number of RCU reader threads");
 module_param(nfakewriters, int, 0444);
 MODULE_PARM_DESC(nfakewriters, "Number of RCU fake writer threads");
-module_param(stat_interval, int, 0444);
+module_param(stat_interval, int, 0644);
 MODULE_PARM_DESC(stat_interval, "Number of seconds between stats printk()s");
 module_param(verbose, bool, 0444);
 MODULE_PARM_DESC(verbose, "Enable verbose debugging printk()s");
@@ -480,30 +480,6 @@ static void rcu_bh_torture_deferred_free(struct rcu_torture *p)
 	call_rcu_bh(&p->rtort_rcu, rcu_torture_cb);
 }
 
-struct rcu_bh_torture_synchronize {
-	struct rcu_head head;
-	struct completion completion;
-};
-
-static void rcu_bh_torture_wakeme_after_cb(struct rcu_head *head)
-{
-	struct rcu_bh_torture_synchronize *rcu;
-
-	rcu = container_of(head, struct rcu_bh_torture_synchronize, head);
-	complete(&rcu->completion);
-}
-
-static void rcu_bh_torture_synchronize(void)
-{
-	struct rcu_bh_torture_synchronize rcu;
-
-	init_rcu_head_on_stack(&rcu.head);
-	init_completion(&rcu.completion);
-	call_rcu_bh(&rcu.head, rcu_bh_torture_wakeme_after_cb);
-	wait_for_completion(&rcu.completion);
-	destroy_rcu_head_on_stack(&rcu.head);
-}
-
 static struct rcu_torture_ops rcu_bh_ops = {
 	.init		= NULL,
 	.cleanup	= NULL,
@@ -512,7 +488,7 @@ static struct rcu_torture_ops rcu_bh_ops = {
 	.readunlock	= rcu_bh_torture_read_unlock,
 	.completed	= rcu_bh_torture_completed,
 	.deferred_free	= rcu_bh_torture_deferred_free,
-	.sync		= rcu_bh_torture_synchronize,
+	.sync		= synchronize_rcu_bh,
 	.cb_barrier	= rcu_barrier_bh,
 	.fqs		= rcu_bh_force_quiescent_state,
 	.stats		= NULL,
@@ -528,12 +504,28 @@ static struct rcu_torture_ops rcu_bh_sync_ops = {
 	.readunlock	= rcu_bh_torture_read_unlock,
 	.completed	= rcu_bh_torture_completed,
 	.deferred_free	= rcu_sync_torture_deferred_free,
-	.sync		= rcu_bh_torture_synchronize,
+	.sync		= synchronize_rcu_bh,
 	.cb_barrier	= NULL,
 	.fqs		= rcu_bh_force_quiescent_state,
 	.stats		= NULL,
 	.irq_capable	= 1,
 	.name		= "rcu_bh_sync"
+};
+
+static struct rcu_torture_ops rcu_bh_expedited_ops = {
+	.init		= rcu_sync_torture_init,
+	.cleanup	= NULL,
+	.readlock	= rcu_bh_torture_read_lock,
+	.read_delay	= rcu_read_delay,  /* just reuse rcu's version. */
+	.readunlock	= rcu_bh_torture_read_unlock,
+	.completed	= rcu_bh_torture_completed,
+	.deferred_free	= rcu_sync_torture_deferred_free,
+	.sync		= synchronize_rcu_bh_expedited,
+	.cb_barrier	= NULL,
+	.fqs		= rcu_bh_force_quiescent_state,
+	.stats		= NULL,
+	.irq_capable	= 1,
+	.name		= "rcu_bh_expedited"
 };
 
 /*
@@ -659,11 +651,6 @@ static void rcu_sched_torture_deferred_free(struct rcu_torture *p)
 	call_rcu_sched(&p->rtort_rcu, rcu_torture_cb);
 }
 
-static void sched_torture_synchronize(void)
-{
-	synchronize_sched();
-}
-
 static struct rcu_torture_ops sched_ops = {
 	.init		= rcu_sync_torture_init,
 	.cleanup	= NULL,
@@ -672,7 +659,7 @@ static struct rcu_torture_ops sched_ops = {
 	.readunlock	= sched_torture_read_unlock,
 	.completed	= rcu_no_completed,
 	.deferred_free	= rcu_sched_torture_deferred_free,
-	.sync		= sched_torture_synchronize,
+	.sync		= synchronize_sched,
 	.cb_barrier	= rcu_barrier_sched,
 	.fqs		= rcu_sched_force_quiescent_state,
 	.stats		= NULL,
@@ -688,7 +675,7 @@ static struct rcu_torture_ops sched_sync_ops = {
 	.readunlock	= sched_torture_read_unlock,
 	.completed	= rcu_no_completed,
 	.deferred_free	= rcu_sync_torture_deferred_free,
-	.sync		= sched_torture_synchronize,
+	.sync		= synchronize_sched,
 	.cb_barrier	= NULL,
 	.fqs		= rcu_sched_force_quiescent_state,
 	.stats		= NULL,
@@ -754,7 +741,7 @@ static int rcu_torture_boost(void *arg)
 	do {
 		/* Wait for the next test interval. */
 		oldstarttime = boost_starttime;
-		while (jiffies - oldstarttime > ULONG_MAX / 2) {
+		while (ULONG_CMP_LT(jiffies, oldstarttime)) {
 			schedule_timeout_uninterruptible(1);
 			rcu_stutter_wait("rcu_torture_boost");
 			if (kthread_should_stop() ||
@@ -765,7 +752,7 @@ static int rcu_torture_boost(void *arg)
 		/* Do one boost-test interval. */
 		endtime = oldstarttime + test_boost_duration * HZ;
 		call_rcu_time = jiffies;
-		while (jiffies - endtime > ULONG_MAX / 2) {
+		while (ULONG_CMP_LT(jiffies, endtime)) {
 			/* If we don't have a callback in flight, post one. */
 			if (!rbi.inflight) {
 				smp_mb(); /* RCU core before ->inflight = 1. */
@@ -792,7 +779,8 @@ static int rcu_torture_boost(void *arg)
 		 * interval.  Besides, we are running at RT priority,
 		 * so delays should be relatively rare.
 		 */
-		while (oldstarttime == boost_starttime) {
+		while (oldstarttime == boost_starttime &&
+		       !kthread_should_stop()) {
 			if (mutex_trylock(&boost_mutex)) {
 				boost_starttime = jiffies +
 						  test_boost_interval * HZ;
@@ -809,11 +797,11 @@ checkwait:	rcu_stutter_wait("rcu_torture_boost");
 
 	/* Clean up and exit. */
 	VERBOSE_PRINTK_STRING("rcu_torture_boost task stopping");
-	destroy_rcu_head_on_stack(&rbi.rcu);
 	rcutorture_shutdown_absorb("rcu_torture_boost");
 	while (!kthread_should_stop() || rbi.inflight)
 		schedule_timeout_uninterruptible(1);
 	smp_mb(); /* order accesses to ->inflight before stack-frame death. */
+	destroy_rcu_head_on_stack(&rbi.rcu);
 	return 0;
 }
 
@@ -831,11 +819,13 @@ rcu_torture_fqs(void *arg)
 	VERBOSE_PRINTK_STRING("rcu_torture_fqs task started");
 	do {
 		fqs_resume_time = jiffies + fqs_stutter * HZ;
-		while (jiffies - fqs_resume_time > LONG_MAX) {
+		while (ULONG_CMP_LT(jiffies, fqs_resume_time) &&
+		       !kthread_should_stop()) {
 			schedule_timeout_interruptible(1);
 		}
 		fqs_burst_remaining = fqs_duration;
-		while (fqs_burst_remaining > 0) {
+		while (fqs_burst_remaining > 0 &&
+		       !kthread_should_stop()) {
 			cur_ops->fqs();
 			udelay(fqs_holdoff);
 			fqs_burst_remaining -= fqs_holdoff;
@@ -1280,8 +1270,9 @@ static int rcutorture_booster_init(int cpu)
 	/* Don't allow time recalculation while creating a new task. */
 	mutex_lock(&boost_mutex);
 	VERBOSE_PRINTK_STRING("Creating rcu_torture_boost task");
-	boost_tasks[cpu] = kthread_create(rcu_torture_boost, NULL,
-					  "rcu_torture_boost");
+	boost_tasks[cpu] = kthread_create_on_node(rcu_torture_boost, NULL,
+						  cpu_to_node(cpu),
+						  "rcu_torture_boost");
 	if (IS_ERR(boost_tasks[cpu])) {
 		retval = PTR_ERR(boost_tasks[cpu]);
 		VERBOSE_PRINTK_STRING("rcu_torture_boost task create failed");
@@ -1424,7 +1415,7 @@ rcu_torture_init(void)
 	int firsterr = 0;
 	static struct rcu_torture_ops *torture_ops[] =
 		{ &rcu_ops, &rcu_sync_ops, &rcu_expedited_ops,
-		  &rcu_bh_ops, &rcu_bh_sync_ops,
+		  &rcu_bh_ops, &rcu_bh_sync_ops, &rcu_bh_expedited_ops,
 		  &srcu_ops, &srcu_expedited_ops,
 		  &sched_ops, &sched_sync_ops, &sched_expedited_ops, };
 

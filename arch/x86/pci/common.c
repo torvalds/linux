@@ -33,8 +33,8 @@ int noioapicreroute = 1;
 int pcibios_last_bus = -1;
 unsigned long pirq_table_addr;
 struct pci_bus *pci_root_bus;
-struct pci_raw_ops *raw_pci_ops;
-struct pci_raw_ops *raw_pci_ext_ops;
+const struct pci_raw_ops *__read_mostly raw_pci_ops;
+const struct pci_raw_ops *__read_mostly raw_pci_ext_ops;
 
 int raw_pci_read(unsigned int domain, unsigned int bus, unsigned int devfn,
 						int reg, int len, u32 *val)

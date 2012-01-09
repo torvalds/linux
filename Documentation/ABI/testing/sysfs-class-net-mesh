@@ -22,6 +22,14 @@ Description:
                 mesh will be fragmented or silently discarded if the
                 packet size exceeds the outgoing interface MTU.
 
+What:		/sys/class/net/<mesh_iface>/mesh/ap_isolation
+Date:		May 2011
+Contact:	Antonio Quartulli <ordex@autistici.org>
+Description:
+		Indicates whether the data traffic going from a
+		wireless client to another wireless client will be
+		silently dropped.
+
 What:           /sys/class/net/<mesh_iface>/mesh/gw_bandwidth
 Date:           October 2010
 Contact:        Marek Lindner <lindner_marek@yahoo.de>

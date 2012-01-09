@@ -79,8 +79,6 @@ static int t5325_dai_init(struct snd_soc_pcm_runtime *rtd)
 	snd_soc_dapm_enable_pin(dapm, "Headphone Jack");
 	snd_soc_dapm_enable_pin(dapm, "Speaker");
 
-	snd_soc_dapm_sync(dapm);
-
 	return 0;
 }
 

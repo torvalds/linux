@@ -10,11 +10,9 @@
 #include <linux/limits.h>
 #include <sys/socket.h>
 #include <sys/wait.h>
-#include "kern_constants.h"
 #include "kern_util.h"
 #include "os.h"
 #include "um_malloc.h"
-#include "user.h"
 
 struct helper_data {
 	void (*pre_exec)(void*);

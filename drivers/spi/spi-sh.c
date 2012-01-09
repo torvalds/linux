@@ -484,7 +484,7 @@ static int __devinit spi_sh_probe(struct platform_device *pdev)
 		goto error2;
 	}
 
-	ret = request_irq(irq, spi_sh_irq, IRQF_DISABLED, "spi_sh", ss);
+	ret = request_irq(irq, spi_sh_irq, 0, "spi_sh", ss);
 	if (ret < 0) {
 		dev_err(&pdev->dev, "request_irq error\n");
 		goto error3;
@@ -524,18 +524,7 @@ static struct platform_driver spi_sh_driver = {
 		.owner = THIS_MODULE,
 	},
 };
-
-static int __init spi_sh_init(void)
-{
-	return platform_driver_register(&spi_sh_driver);
-}
-module_init(spi_sh_init);
-
-static void __exit spi_sh_exit(void)
-{
-	platform_driver_unregister(&spi_sh_driver);
-}
-module_exit(spi_sh_exit);
+module_platform_driver(spi_sh_driver);
 
 MODULE_DESCRIPTION("SH SPI bus driver");
 MODULE_LICENSE("GPL");

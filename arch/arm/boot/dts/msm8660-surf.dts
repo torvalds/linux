@@ -1,0 +1,24 @@
+/dts-v1/;
+
+/include/ "skeleton.dtsi"
+
+/ {
+	model = "Qualcomm MSM8660 SURF";
+	compatible = "qcom,msm8660-surf", "qcom,msm8660";
+	interrupt-parent = <&intc>;
+
+	intc: interrupt-controller@02080000 {
+		compatible = "qcom,msm-8660-qgic";
+		interrupt-controller;
+		#interrupt-cells = <1>;
+		reg = < 0x02080000 0x1000 >,
+		      < 0x02081000 0x1000 >;
+	};
+
+	serial@19c400000 {
+		compatible = "qcom,msm-hsuart", "qcom,msm-uart";
+		reg = <0x19c40000 0x1000>,
+		      <0x19c00000 0x1000>;
+		interrupts = <195>;
+	};
+};

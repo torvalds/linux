@@ -64,18 +64,26 @@ nouveau_pm_perflvl_set(struct drm_device *dev, struct nouveau_pm_level *perflvl)
 	if (perflvl == pm->cur)
 		return 0;
 
-	if (pm->voltage.supported && pm->voltage_set && perflvl->voltage) {
-		ret = pm->voltage_set(dev, perflvl->voltage);
+	if (pm->voltage.supported && pm->voltage_set && perflvl->volt_min) {
+		ret = pm->voltage_set(dev, perflvl->volt_min);
 		if (ret) {
 			NV_ERROR(dev, "voltage_set %d failed: %d\n",
-				 perflvl->voltage, ret);
+				 perflvl->volt_min, ret);
 		}
 	}
 
-	nouveau_pm_clock_set(dev, perflvl, PLL_CORE, perflvl->core);
-	nouveau_pm_clock_set(dev, perflvl, PLL_SHADER, perflvl->shader);
-	nouveau_pm_clock_set(dev, perflvl, PLL_MEMORY, perflvl->memory);
-	nouveau_pm_clock_set(dev, perflvl, PLL_UNK05, perflvl->unk05);
+	if (pm->clocks_pre) {
+		void *state = pm->clocks_pre(dev, perflvl);
+		if (IS_ERR(state))
+			return PTR_ERR(state);
+		pm->clocks_set(dev, state);
+	} else
+	if (pm->clock_set) {
+		nouveau_pm_clock_set(dev, perflvl, PLL_CORE, perflvl->core);
+		nouveau_pm_clock_set(dev, perflvl, PLL_SHADER, perflvl->shader);
+		nouveau_pm_clock_set(dev, perflvl, PLL_MEMORY, perflvl->memory);
+		nouveau_pm_clock_set(dev, perflvl, PLL_UNK05, perflvl->unk05);
+	}
 
 	pm->cur = perflvl;
 	return 0;
@@ -91,9 +99,6 @@ nouveau_pm_profile_set(struct drm_device *dev, const char *profile)
 	/* safety precaution, for now */
 	if (nouveau_perflvl_wr != 7777)
 		return -EPERM;
-
-	if (!pm->clock_set)
-		return -EINVAL;
 
 	if (!strncmp(profile, "boot", 4))
 		perflvl = &pm->boot;
@@ -123,31 +128,37 @@ nouveau_pm_perflvl_get(struct drm_device *dev, struct nouveau_pm_level *perflvl)
 	struct nouveau_pm_engine *pm = &dev_priv->engine.pm;
 	int ret;
 
-	if (!pm->clock_get)
-		return -EINVAL;
-
 	memset(perflvl, 0, sizeof(*perflvl));
 
-	ret = pm->clock_get(dev, PLL_CORE);
-	if (ret > 0)
-		perflvl->core = ret;
+	if (pm->clocks_get) {
+		ret = pm->clocks_get(dev, perflvl);
+		if (ret)
+			return ret;
+	} else
+	if (pm->clock_get) {
+		ret = pm->clock_get(dev, PLL_CORE);
+		if (ret > 0)
+			perflvl->core = ret;
 
-	ret = pm->clock_get(dev, PLL_MEMORY);
-	if (ret > 0)
-		perflvl->memory = ret;
+		ret = pm->clock_get(dev, PLL_MEMORY);
+		if (ret > 0)
+			perflvl->memory = ret;
 
-	ret = pm->clock_get(dev, PLL_SHADER);
-	if (ret > 0)
-		perflvl->shader = ret;
+		ret = pm->clock_get(dev, PLL_SHADER);
+		if (ret > 0)
+			perflvl->shader = ret;
 
-	ret = pm->clock_get(dev, PLL_UNK05);
-	if (ret > 0)
-		perflvl->unk05 = ret;
+		ret = pm->clock_get(dev, PLL_UNK05);
+		if (ret > 0)
+			perflvl->unk05 = ret;
+	}
 
 	if (pm->voltage.supported && pm->voltage_get) {
 		ret = pm->voltage_get(dev);
-		if (ret > 0)
-			perflvl->voltage = ret;
+		if (ret > 0) {
+			perflvl->volt_min = ret;
+			perflvl->volt_max = ret;
+		}
 	}
 
 	return 0;
@@ -156,7 +167,7 @@ nouveau_pm_perflvl_get(struct drm_device *dev, struct nouveau_pm_level *perflvl)
 static void
 nouveau_pm_perflvl_info(struct nouveau_pm_level *perflvl, char *ptr, int len)
 {
-	char c[16], s[16], v[16], f[16], t[16];
+	char c[16], s[16], v[32], f[16], t[16], m[16];
 
 	c[0] = '\0';
 	if (perflvl->core)
@@ -166,9 +177,19 @@ nouveau_pm_perflvl_info(struct nouveau_pm_level *perflvl, char *ptr, int len)
 	if (perflvl->shader)
 		snprintf(s, sizeof(s), " shader %dMHz", perflvl->shader / 1000);
 
+	m[0] = '\0';
+	if (perflvl->memory)
+		snprintf(m, sizeof(m), " memory %dMHz", perflvl->memory / 1000);
+
 	v[0] = '\0';
-	if (perflvl->voltage)
-		snprintf(v, sizeof(v), " voltage %dmV", perflvl->voltage * 10);
+	if (perflvl->volt_min && perflvl->volt_min != perflvl->volt_max) {
+		snprintf(v, sizeof(v), " voltage %dmV-%dmV",
+			 perflvl->volt_min / 1000, perflvl->volt_max / 1000);
+	} else
+	if (perflvl->volt_min) {
+		snprintf(v, sizeof(v), " voltage %dmV",
+			 perflvl->volt_min / 1000);
+	}
 
 	f[0] = '\0';
 	if (perflvl->fanspeed)
@@ -178,8 +199,7 @@ nouveau_pm_perflvl_info(struct nouveau_pm_level *perflvl, char *ptr, int len)
 	if (perflvl->timing)
 		snprintf(t, sizeof(t), " timing %d", perflvl->timing->id);
 
-	snprintf(ptr, len, "memory %dMHz%s%s%s%s%s\n", perflvl->memory / 1000,
-		 c, s, v, f, t);
+	snprintf(ptr, len, "%s%s%s%s%s%s\n", c, s, m, t, v, f);
 }
 
 static ssize_t
@@ -190,7 +210,7 @@ nouveau_pm_get_perflvl_info(struct device *d,
 	char *ptr = buf;
 	int len = PAGE_SIZE;
 
-	snprintf(ptr, len, "%d: ", perflvl->id);
+	snprintf(ptr, len, "%d:", perflvl->id);
 	ptr += strlen(buf);
 	len -= strlen(buf);
 
@@ -211,9 +231,9 @@ nouveau_pm_get_perflvl(struct device *d, struct device_attribute *a, char *buf)
 	if (!pm->cur)
 		snprintf(ptr, len, "setting: boot\n");
 	else if (pm->cur == &pm->boot)
-		snprintf(ptr, len, "setting: boot\nc: ");
+		snprintf(ptr, len, "setting: boot\nc:");
 	else
-		snprintf(ptr, len, "setting: static %d\nc: ", pm->cur->id);
+		snprintf(ptr, len, "setting: static %d\nc:", pm->cur->id);
 	ptr += strlen(buf);
 	len -= strlen(buf);
 
@@ -292,7 +312,7 @@ nouveau_sysfs_fini(struct drm_device *dev)
 	}
 }
 
-#ifdef CONFIG_HWMON
+#if defined(CONFIG_HWMON) || (defined(MODULE) && defined(CONFIG_HWMON_MODULE))
 static ssize_t
 nouveau_hwmon_show_temp(struct device *d, struct device_attribute *a, char *buf)
 {
@@ -409,7 +429,7 @@ static const struct attribute_group hwmon_attrgroup = {
 static int
 nouveau_hwmon_init(struct drm_device *dev)
 {
-#ifdef CONFIG_HWMON
+#if defined(CONFIG_HWMON) || (defined(MODULE) && defined(CONFIG_HWMON_MODULE))
 	struct drm_nouveau_private *dev_priv = dev->dev_private;
 	struct nouveau_pm_engine *pm = &dev_priv->engine.pm;
 	struct device *hwmon_dev;
@@ -442,7 +462,7 @@ nouveau_hwmon_init(struct drm_device *dev)
 static void
 nouveau_hwmon_fini(struct drm_device *dev)
 {
-#ifdef CONFIG_HWMON
+#if defined(CONFIG_HWMON) || (defined(MODULE) && defined(CONFIG_HWMON_MODULE))
 	struct drm_nouveau_private *dev_priv = dev->dev_private;
 	struct nouveau_pm_engine *pm = &dev_priv->engine.pm;
 
@@ -488,7 +508,7 @@ nouveau_pm_init(struct drm_device *dev)
 	NV_INFO(dev, "%d available performance level(s)\n", pm->nr_perflvl);
 	for (i = 0; i < pm->nr_perflvl; i++) {
 		nouveau_pm_perflvl_info(&pm->perflvl[i], info, sizeof(info));
-		NV_INFO(dev, "%d: %s", pm->perflvl[i].id, info);
+		NV_INFO(dev, "%d:%s", pm->perflvl[i].id, info);
 	}
 
 	/* determine current ("boot") performance level */
@@ -498,7 +518,7 @@ nouveau_pm_init(struct drm_device *dev)
 		pm->cur = &pm->boot;
 
 		nouveau_pm_perflvl_info(&pm->boot, info, sizeof(info));
-		NV_INFO(dev, "c: %s", info);
+		NV_INFO(dev, "c:%s", info);
 	}
 
 	/* switch performance levels now if requested */

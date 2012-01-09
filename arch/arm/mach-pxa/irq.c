@@ -11,7 +11,6 @@
  *  it under the terms of the GNU General Public License version 2 as
  *  published by the Free Software Foundation.
  */
-
 #include <linux/init.h>
 #include <linux/module.h>
 #include <linux/interrupt.h>
@@ -19,13 +18,15 @@
 #include <linux/io.h>
 #include <linux/irq.h>
 
+#include <asm/exception.h>
+
 #include <mach/hardware.h>
 #include <mach/irqs.h>
-#include <mach/gpio.h>
+#include <mach/gpio-pxa.h>
 
 #include "generic.h"
 
-#define IRQ_BASE		(void __iomem *)io_p2v(0x40d00000)
+#define IRQ_BASE		io_p2v(0x40d00000)
 
 #define ICIP			(0x000)
 #define ICMR			(0x004)
@@ -63,7 +64,7 @@ static inline void __iomem *irq_base(int i)
 		0x40d00130,
 	};
 
-	return (void __iomem *)io_p2v(phys_base[i]);
+	return io_p2v(phys_base[i]);
 }
 
 void pxa_mask_irq(struct irq_data *d)

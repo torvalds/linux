@@ -101,20 +101,24 @@ int cpu_fpu_mask = DEC_CPU_IRQ_MASK(DEC_CPU_INR_FPU);
 static struct irqaction ioirq = {
 	.handler = no_action,
 	.name = "cascade",
+	.flags = IRQF_NO_THREAD,
 };
 static struct irqaction fpuirq = {
 	.handler = no_action,
 	.name = "fpu",
+	.flags = IRQF_NO_THREAD,
 };
 
 static struct irqaction busirq = {
 	.flags = IRQF_DISABLED,
 	.name = "bus error",
+	.flags = IRQF_NO_THREAD,
 };
 
 static struct irqaction haltirq = {
 	.handler = dec_intr_halt,
 	.name = "halt",
+	.flags = IRQF_NO_THREAD,
 };
 
 

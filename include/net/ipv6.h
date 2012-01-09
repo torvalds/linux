@@ -486,7 +486,8 @@ extern int			ip6_rcv_finish(struct sk_buff *skb);
 extern int			ip6_xmit(struct sock *sk,
 					 struct sk_buff *skb,
 					 struct flowi6 *fl6,
-					 struct ipv6_txoptions *opt);
+					 struct ipv6_txoptions *opt,
+					 int tclass);
 
 extern int			ip6_nd_hdr(struct sock *sk,
 					   struct sk_buff *skb,

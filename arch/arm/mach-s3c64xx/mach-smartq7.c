@@ -22,8 +22,8 @@
 
 #include <mach/map.h>
 #include <mach/regs-gpio.h>
-#include <mach/s3c6410.h>
 
+#include <plat/s3c6410.h>
 #include <plat/cpu.h>
 #include <plat/devs.h>
 #include <plat/fb.h>
@@ -162,7 +162,7 @@ static void __init smartq7_machine_init(void)
 
 MACHINE_START(SMARTQ7, "SmartQ 7")
 	/* Maintainer: Maurus Cuelenaere <mcuelenaere AT gmail DOT com> */
-	.boot_params	= S3C64XX_PA_SDRAM + 0x100,
+	.atag_offset	= 0x100,
 	.init_irq	= s3c6410_init_irq,
 	.map_io		= smartq_map_io,
 	.init_machine	= smartq7_machine_init,

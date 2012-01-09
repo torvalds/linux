@@ -22,6 +22,7 @@
 #include <linux/delay.h>
 #include <linux/slab.h>
 #include <linux/pci.h>
+#include <linux/module.h>
 #include <sound/core.h>
 #include "hda_codec.h"
 #include "hda_local.h"
@@ -236,6 +237,15 @@ static int cs_dig_playback_pcm_cleanup(struct hda_pcm_stream *hinfo,
 	return snd_hda_multi_out_dig_cleanup(codec, &spec->multiout);
 }
 
+static void cs_update_input_select(struct hda_codec *codec)
+{
+	struct cs_spec *spec = codec->spec;
+	if (spec->cur_adc)
+		snd_hda_codec_write(codec, spec->cur_adc, 0,
+				    AC_VERB_SET_CONNECT_SEL,
+				    spec->adc_idx[spec->cur_input]);
+}
+
 /*
  * Analog capture
  */
@@ -249,6 +259,7 @@ static int cs_capture_pcm_prepare(struct hda_pcm_stream *hinfo,
 	spec->cur_adc = spec->adc_nid[spec->cur_input];
 	spec->cur_adc_stream_tag = stream_tag;
 	spec->cur_adc_format = format;
+	cs_update_input_select(codec);
 	snd_hda_codec_setup_stream(codec, spec->cur_adc, stream_tag, 0, format);
 	return 0;
 }
@@ -535,7 +546,7 @@ static int add_volume(struct hda_codec *codec, const char *name,
 		      int index, unsigned int pval, int dir,
 		      struct snd_kcontrol **kctlp)
 {
-	char tmp[32];
+	char tmp[44];
 	struct snd_kcontrol_new knew =
 		HDA_CODEC_VOLUME_IDX(tmp, index, 0, 0, HDA_OUTPUT);
 	knew.private_value = pval;
@@ -688,10 +699,8 @@ static int change_cur_input(struct hda_codec *codec, unsigned int idx,
 					   spec->cur_adc_stream_tag, 0,
 					   spec->cur_adc_format);
 	}
-	snd_hda_codec_write(codec, spec->cur_adc, 0,
-			    AC_VERB_SET_CONNECT_SEL,
-			    spec->adc_idx[idx]);
 	spec->cur_input = idx;
+	cs_update_input_select(codec);
 	return 1;
 }
 
@@ -972,10 +981,7 @@ static void cs_automic(struct hda_codec *codec)
 		} else  {
 			spec->cur_input = spec->last_input;
 		}
-
-		snd_hda_codec_write_cache(codec, spec->cur_adc, 0,
-					AC_VERB_SET_CONNECT_SEL,
-					spec->adc_idx[spec->cur_input]);
+		cs_update_input_select(codec);
 	} else {
 		if (present)
 			change_cur_input(codec, spec->automic_idx, 0);
@@ -1072,9 +1078,7 @@ static void init_input(struct hda_codec *codec)
 			cs_automic(codec);
 		else  {
 			spec->cur_adc = spec->adc_nid[spec->cur_input];
-			snd_hda_codec_write(codec, spec->cur_adc, 0,
-					AC_VERB_SET_CONNECT_SEL,
-					spec->adc_idx[spec->cur_input]);
+			cs_update_input_select(codec);
 		}
 	} else {
 		change_cur_input(codec, spec->cur_input, 1);

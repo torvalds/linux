@@ -188,7 +188,7 @@ struct blkio_policy_node {
 	union {
 		unsigned int weight;
 		/*
-		 * Rate read/write in terms of byptes per second
+		 * Rate read/write in terms of bytes per second
 		 * Whether this rate represents read or write is determined
 		 * by file type "fileid".
 		 */

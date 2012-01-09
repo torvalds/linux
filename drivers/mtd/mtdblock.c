@@ -44,7 +44,7 @@ struct mtdblk_dev {
 	enum { STATE_EMPTY, STATE_CLEAN, STATE_DIRTY } cache_state;
 };
 
-static struct mutex mtdblks_lock;
+static DEFINE_MUTEX(mtdblks_lock);
 
 /*
  * Cache stuff...
@@ -119,7 +119,7 @@ static int write_cached_data (struct mtdblk_dev *mtdblk)
 	if (mtdblk->cache_state != STATE_DIRTY)
 		return 0;
 
-	DEBUG(MTD_DEBUG_LEVEL2, "mtdblock: writing cached data for \"%s\" "
+	pr_debug("mtdblock: writing cached data for \"%s\" "
 			"at 0x%lx, size 0x%x\n", mtd->name,
 			mtdblk->cache_offset, mtdblk->cache_size);
 
@@ -148,7 +148,7 @@ static int do_cached_write (struct mtdblk_dev *mtdblk, unsigned long pos,
 	size_t retlen;
 	int ret;
 
-	DEBUG(MTD_DEBUG_LEVEL2, "mtdblock: write on \"%s\" at 0x%lx, size 0x%x\n",
+	pr_debug("mtdblock: write on \"%s\" at 0x%lx, size 0x%x\n",
 		mtd->name, pos, len);
 
 	if (!sect_size)
@@ -218,7 +218,7 @@ static int do_cached_read (struct mtdblk_dev *mtdblk, unsigned long pos,
 	size_t retlen;
 	int ret;
 
-	DEBUG(MTD_DEBUG_LEVEL2, "mtdblock: read on \"%s\" at 0x%lx, size 0x%x\n",
+	pr_debug("mtdblock: read on \"%s\" at 0x%lx, size 0x%x\n",
 			mtd->name, pos, len);
 
 	if (!sect_size)
@@ -283,7 +283,7 @@ static int mtdblock_open(struct mtd_blktrans_dev *mbd)
 {
 	struct mtdblk_dev *mtdblk = container_of(mbd, struct mtdblk_dev, mbd);
 
-	DEBUG(MTD_DEBUG_LEVEL1,"mtdblock_open\n");
+	pr_debug("mtdblock_open\n");
 
 	mutex_lock(&mtdblks_lock);
 	if (mtdblk->count) {
@@ -303,7 +303,7 @@ static int mtdblock_open(struct mtd_blktrans_dev *mbd)
 
 	mutex_unlock(&mtdblks_lock);
 
-	DEBUG(MTD_DEBUG_LEVEL1, "ok\n");
+	pr_debug("ok\n");
 
 	return 0;
 }
@@ -312,7 +312,7 @@ static int mtdblock_release(struct mtd_blktrans_dev *mbd)
 {
 	struct mtdblk_dev *mtdblk = container_of(mbd, struct mtdblk_dev, mbd);
 
-   	DEBUG(MTD_DEBUG_LEVEL1, "mtdblock_release\n");
+	pr_debug("mtdblock_release\n");
 
 	mutex_lock(&mtdblks_lock);
 
@@ -329,7 +329,7 @@ static int mtdblock_release(struct mtd_blktrans_dev *mbd)
 
 	mutex_unlock(&mtdblks_lock);
 
-	DEBUG(MTD_DEBUG_LEVEL1, "ok\n");
+	pr_debug("ok\n");
 
 	return 0;
 }
@@ -389,8 +389,6 @@ static struct mtd_blktrans_ops mtdblock_tr = {
 
 static int __init init_mtdblock(void)
 {
-	mutex_init(&mtdblks_lock);
-
 	return register_mtd_blktrans(&mtdblock_tr);
 }
 

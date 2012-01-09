@@ -82,6 +82,7 @@
 
 #define IPR_SUBS_DEV_ID_57B4    0x033B
 #define IPR_SUBS_DEV_ID_57B2    0x035F
+#define IPR_SUBS_DEV_ID_57C3    0x0353
 #define IPR_SUBS_DEV_ID_57C4    0x0354
 #define IPR_SUBS_DEV_ID_57C6    0x0357
 #define IPR_SUBS_DEV_ID_57CC    0x035C
@@ -208,7 +209,7 @@
 #define IPR_CANCEL_ALL_TIMEOUT		(ipr_fastfail ? 10 * HZ : 30 * HZ)
 #define IPR_ABORT_TASK_TIMEOUT		(ipr_fastfail ? 10 * HZ : 30 * HZ)
 #define IPR_INTERNAL_TIMEOUT			(ipr_fastfail ? 10 * HZ : 30 * HZ)
-#define IPR_WRITE_BUFFER_TIMEOUT		(10 * 60 * HZ)
+#define IPR_WRITE_BUFFER_TIMEOUT		(30 * 60 * HZ)
 #define IPR_SET_SUP_DEVICE_TIMEOUT		(2 * 60 * HZ)
 #define IPR_REQUEST_SENSE_TIMEOUT		(10 * HZ)
 #define IPR_OPERATIONAL_TIMEOUT		(5 * 60)
@@ -1360,6 +1361,7 @@ enum ipr_sdt_state {
 	INACTIVE,
 	WAIT_FOR_DUMP,
 	GET_DUMP,
+	READ_DUMP,
 	ABORT_DUMP,
 	DUMP_OBTAINED
 };
@@ -1384,6 +1386,7 @@ struct ipr_ioa_cfg {
 	u8 needs_warm_reset:1;
 	u8 msi_received:1;
 	u8 sis64:1;
+	u8 dump_timeout:1;
 
 	u8 revid;
 

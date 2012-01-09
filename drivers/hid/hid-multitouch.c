@@ -47,10 +47,11 @@ MODULE_LICENSE("GPL");
 #define MT_QUIRK_SLOT_IS_CONTACTID	(1 << 1)
 #define MT_QUIRK_CYPRESS		(1 << 2)
 #define MT_QUIRK_SLOT_IS_CONTACTNUMBER	(1 << 3)
-#define MT_QUIRK_VALID_IS_INRANGE	(1 << 4)
-#define MT_QUIRK_VALID_IS_CONFIDENCE	(1 << 5)
-#define MT_QUIRK_EGALAX_XYZ_FIXUP	(1 << 6)
-#define MT_QUIRK_SLOT_IS_CONTACTID_MINUS_ONE	(1 << 7)
+#define MT_QUIRK_ALWAYS_VALID		(1 << 4)
+#define MT_QUIRK_VALID_IS_INRANGE	(1 << 5)
+#define MT_QUIRK_VALID_IS_CONFIDENCE	(1 << 6)
+#define MT_QUIRK_EGALAX_XYZ_FIXUP	(1 << 7)
+#define MT_QUIRK_SLOT_IS_CONTACTID_MINUS_ONE	(1 << 8)
 
 struct mt_slot {
 	__s32 x, y, p, w, h;
@@ -86,11 +87,12 @@ struct mt_class {
 /* classes of device behavior */
 #define MT_CLS_DEFAULT				0x0001
 
-#define MT_CLS_CONFIDENCE			0x0002
-#define MT_CLS_CONFIDENCE_MINUS_ONE		0x0003
-#define MT_CLS_DUAL_INRANGE_CONTACTID		0x0004
-#define MT_CLS_DUAL_INRANGE_CONTACTNUMBER	0x0005
-#define MT_CLS_DUAL_NSMU_CONTACTID		0x0006
+#define MT_CLS_SERIAL				0x0002
+#define MT_CLS_CONFIDENCE			0x0003
+#define MT_CLS_CONFIDENCE_MINUS_ONE		0x0004
+#define MT_CLS_DUAL_INRANGE_CONTACTID		0x0005
+#define MT_CLS_DUAL_INRANGE_CONTACTNUMBER	0x0006
+#define MT_CLS_DUAL_NSMU_CONTACTID		0x0007
 
 /* vendor specific classes */
 #define MT_CLS_3M				0x0101
@@ -134,6 +136,8 @@ static int find_slot_from_contactid(struct mt_device *td)
 struct mt_class mt_classes[] = {
 	{ .name = MT_CLS_DEFAULT,
 		.quirks = MT_QUIRK_NOT_SEEN_MEANS_UP },
+	{ .name = MT_CLS_SERIAL,
+		.quirks = MT_QUIRK_ALWAYS_VALID},
 	{ .name = MT_CLS_CONFIDENCE,
 		.quirks = MT_QUIRK_VALID_IS_CONFIDENCE },
 	{ .name = MT_CLS_CONFIDENCE_MINUS_ONE,
@@ -212,6 +216,16 @@ static int mt_input_mapping(struct hid_device *hdev, struct hid_input *hi,
 	struct mt_device *td = hid_get_drvdata(hdev);
 	struct mt_class *cls = td->mtclass;
 	__s32 quirks = cls->quirks;
+
+	/* Only map fields from TouchScreen or TouchPad collections.
+         * We need to ignore fields that belong to other collections
+         * such as Mouse that might have the same GenericDesktop usages. */
+	if (field->application == HID_DG_TOUCHSCREEN)
+		set_bit(INPUT_PROP_DIRECT, hi->input->propbit);
+	else if (field->application == HID_DG_TOUCHPAD)
+		set_bit(INPUT_PROP_POINTER, hi->input->propbit);
+	else
+		return 0;
 
 	switch (usage->hid & HID_USAGE_PAGE) {
 
@@ -435,7 +449,9 @@ static int mt_event(struct hid_device *hid, struct hid_field *field,
 	if (hid->claimed & HID_CLAIMED_INPUT && td->slots) {
 		switch (usage->hid) {
 		case HID_DG_INRANGE:
-			if (quirks & MT_QUIRK_VALID_IS_INRANGE)
+			if (quirks & MT_QUIRK_ALWAYS_VALID)
+				td->curvalid = true;
+			else if (quirks & MT_QUIRK_VALID_IS_INRANGE)
 				td->curvalid = value;
 			break;
 		case HID_DG_TIPSWITCH:
@@ -662,6 +678,11 @@ static const struct hid_device_id mt_devices[] = {
 		HID_USB_DEVICE(USB_VENDOR_ID_GOODTOUCH,
 			USB_DEVICE_ID_GOODTOUCH_000f) },
 
+	/* Ideacom panel */
+	{ .driver_data = MT_CLS_SERIAL,
+		HID_USB_DEVICE(USB_VENDOR_ID_IDEACOM,
+			USB_DEVICE_ID_IDEACOM_IDC6650) },
+
 	/* Ilitek dual touch panel */
 	{  .driver_data = MT_CLS_DEFAULT,
 		HID_USB_DEVICE(USB_VENDOR_ID_ILITEK,
@@ -671,6 +692,11 @@ static const struct hid_device_id mt_devices[] = {
 	{ .driver_data = MT_CLS_DUAL_INRANGE_CONTACTID,
 		HID_USB_DEVICE(USB_VENDOR_ID_IRTOUCHSYSTEMS,
 			USB_DEVICE_ID_IRTOUCH_INFRARED_USB) },
+
+	/* LG Display panels */
+	{ .driver_data = MT_CLS_DEFAULT,
+		HID_USB_DEVICE(USB_VENDOR_ID_LG,
+			USB_DEVICE_ID_LG_MULTITOUCH) },
 
 	/* Lumio panels */
 	{ .driver_data = MT_CLS_CONFIDENCE_MINUS_ONE,

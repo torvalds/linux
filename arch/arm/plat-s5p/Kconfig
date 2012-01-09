@@ -7,7 +7,7 @@
 
 config PLAT_S5P
 	bool
-	depends on (ARCH_S5P64X0 || ARCH_S5PC100 || ARCH_S5PV210 || ARCH_EXYNOS4)
+	depends on (ARCH_S5P64X0 || ARCH_S5PC100 || ARCH_S5PV210 || ARCH_EXYNOS)
 	default y
 	select ARM_VIC if !ARCH_EXYNOS4
 	select ARM_GIC if ARCH_EXYNOS4
@@ -16,13 +16,9 @@ config PLAT_S5P
 	select S3C_GPIO_TRACK
 	select S5P_GPIO_DRVSTR
 	select SAMSUNG_GPIOLIB_4BIT
-	select S3C_GPIO_CFG_S3C64XX
-	select S3C_GPIO_PULL_UPDOWN
-	select S3C_GPIO_CFG_S3C24XX
 	select PLAT_SAMSUNG
 	select SAMSUNG_CLKSRC
 	select SAMSUNG_IRQ_VIC_TIMER
-	select SAMSUNG_IRQ_UART
 	help
 	  Base platform code for Samsung's S5P series SoC.
 
@@ -43,6 +39,12 @@ config S5P_HRT
 	help
 	  Use the High Resolution timer support
 
+config S5P_PM
+	bool
+	help
+	  Common code for power management support on S5P and newer SoCs
+	  Note: Do not select this for S5P6440 and S5P6450.
+
 comment "System MMU"
 
 config S5P_SYSTEM_MMU
@@ -50,6 +52,12 @@ config S5P_SYSTEM_MMU
 	depends on ARCH_EXYNOS4
 	help
 	  Say Y here if you want to enable System MMU
+
+config S5P_SLEEP
+	bool
+	help
+	  Internal config node to apply common S5P sleep management code.
+	  Can be selected by S5P and newer SoCs with similar sleep procedure.
 
 config S5P_DEV_FIMC0
 	bool
@@ -76,6 +84,11 @@ config S5P_DEV_FIMD0
 	help
 	  Compile in platform device definitions for FIMD controller 0
 
+config S5P_DEV_I2C_HDMIPHY
+	bool
+	help
+	  Compile in platform device definitions for I2C HDMIPHY controller
+
 config S5P_DEV_MFC
 	bool
 	help
@@ -95,6 +108,11 @@ config S5P_DEV_CSIS1
 	bool
 	help
 	  Compile in platform device definitions for MIPI-CSIS channel 1
+
+config S5P_DEV_TV
+	bool
+	help
+	  Compile in platform device definition for TV interface
 
 config S5P_DEV_USB_EHCI
 	bool

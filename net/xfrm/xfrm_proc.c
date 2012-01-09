@@ -12,6 +12,7 @@
  */
 #include <linux/proc_fs.h>
 #include <linux/seq_file.h>
+#include <linux/export.h>
 #include <net/snmp.h>
 #include <net/xfrm.h>
 

@@ -17,6 +17,7 @@ config SND_SOC_ALL_CODECS
 	select SND_SOC_AD193X if SND_SOC_I2C_AND_SPI
 	select SND_SOC_AD1980 if SND_SOC_AC97_BUS
 	select SND_SOC_AD73311
+	select SND_SOC_ADAU1373 if I2C
 	select SND_SOC_ADAV80X
 	select SND_SOC_ADS117X
 	select SND_SOC_AK4104 if SPI_MASTER
@@ -39,6 +40,7 @@ config SND_SOC_ALL_CODECS
 	select SND_SOC_MAX9850 if I2C
 	select SND_SOC_MAX9877 if I2C
 	select SND_SOC_PCM3008
+	select SND_SOC_RT5631 if I2C
 	select SND_SOC_SGTL5000 if I2C
 	select SND_SOC_SN95031 if INTEL_SCU_IPC
 	select SND_SOC_SPDIF
@@ -47,7 +49,7 @@ config SND_SOC_ALL_CODECS
 	select SND_SOC_STAC9766 if SND_SOC_AC97_BUS
 	select SND_SOC_TLV320AIC23 if I2C
 	select SND_SOC_TLV320AIC26 if SPI_MASTER
-	select SND_SOC_TVL320AIC32X4 if I2C
+	select SND_SOC_TLV320AIC32X4 if I2C
 	select SND_SOC_TLV320AIC3X if I2C
 	select SND_SOC_TPA6130A2 if I2C
 	select SND_SOC_TLV320DAC33 if I2C
@@ -58,6 +60,7 @@ config SND_SOC_ALL_CODECS
 	select SND_SOC_WL1273 if MFD_WL1273_CORE
 	select SND_SOC_WM1250_EV1 if I2C
 	select SND_SOC_WM2000 if I2C
+	select SND_SOC_WM5100 if I2C
 	select SND_SOC_WM8350 if MFD_WM8350
 	select SND_SOC_WM8400 if MFD_WM8400
 	select SND_SOC_WM8510 if SND_SOC_I2C_AND_SPI
@@ -139,6 +142,9 @@ config SND_SOC_ADAU1701
 	select SIGMA
 	tristate
 
+config SND_SOC_ADAU1373
+	tristate
+
 config SND_SOC_ADAV80X
 	tristate
 
@@ -214,6 +220,9 @@ config SND_SOC_MAX9850
 config SND_SOC_PCM3008
        tristate
 
+config SND_SOC_RT5631
+	tristate
+
 #Freescale sgtl5000 codec
 config SND_SOC_SGTL5000
 	tristate
@@ -240,7 +249,7 @@ config SND_SOC_TLV320AIC26
 	tristate "TI TLV320AIC26 Codec support" if SND_SOC_OF_SIMPLE
 	depends on SPI
 
-config SND_SOC_TVL320AIC32X4
+config SND_SOC_TLV320AIC32X4
 	tristate
 
 config SND_SOC_TLV320AIC3X
@@ -267,6 +276,9 @@ config SND_SOC_WL1273
 	tristate
 
 config SND_SOC_WM1250_EV1
+	tristate
+
+config SND_SOC_WM5100
 	tristate
 
 config SND_SOC_WM8350

@@ -222,7 +222,6 @@
 		VMLINUX_SYMBOL(__start___tracepoints_ptrs) = .;		\
 		*(__tracepoints_ptrs)	/* Tracepoints: pointer array */\
 		VMLINUX_SYMBOL(__stop___tracepoints_ptrs) = .;		\
-		*(__markers_strings)	/* Markers: strings */		\
 		*(__tracepoints_strings)/* Tracepoints: strings */	\
 	}								\
 									\

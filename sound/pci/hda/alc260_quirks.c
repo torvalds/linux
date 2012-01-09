@@ -7,9 +7,6 @@
 enum {
 	ALC260_AUTO,
 	ALC260_BASIC,
-	ALC260_HP,
-	ALC260_HP_DC7600,
-	ALC260_HP_3013,
 	ALC260_FUJITSU_S702X,
 	ALC260_ACER,
 	ALC260_WILL,
@@ -142,8 +139,6 @@ static const struct hda_channel_mode alc260_modes[1] = {
 /* Mixer combinations
  *
  * basic: base_output + input + pc_beep + capture
- * HP: base_output + input + capture_alt
- * HP_3013: hp_3013 + input + capture
  * fujitsu: fujitsu + capture
  * acer: acer + capture
  */
@@ -169,145 +164,6 @@ static const struct snd_kcontrol_new alc260_input_mixer[] = {
 	HDA_CODEC_MUTE("Front Mic Playback Switch", 0x07, 0x01, HDA_INPUT),
 	{ } /* end */
 };
-
-/* update HP, line and mono out pins according to the master switch */
-static void alc260_hp_master_update(struct hda_codec *codec)
-{
-	update_speakers(codec);
-}
-
-static int alc260_hp_master_sw_get(struct snd_kcontrol *kcontrol,
-				   struct snd_ctl_elem_value *ucontrol)
-{
-	struct hda_codec *codec = snd_kcontrol_chip(kcontrol);
-	struct alc_spec *spec = codec->spec;
-	*ucontrol->value.integer.value = !spec->master_mute;
-	return 0;
-}
-
-static int alc260_hp_master_sw_put(struct snd_kcontrol *kcontrol,
-				   struct snd_ctl_elem_value *ucontrol)
-{
-	struct hda_codec *codec = snd_kcontrol_chip(kcontrol);
-	struct alc_spec *spec = codec->spec;
-	int val = !*ucontrol->value.integer.value;
-
-	if (val == spec->master_mute)
-		return 0;
-	spec->master_mute = val;
-	alc260_hp_master_update(codec);
-	return 1;
-}
-
-static const struct snd_kcontrol_new alc260_hp_output_mixer[] = {
-	{
-		.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
-		.name = "Master Playback Switch",
-		.subdevice = HDA_SUBDEV_NID_FLAG | 0x11,
-		.info = snd_ctl_boolean_mono_info,
-		.get = alc260_hp_master_sw_get,
-		.put = alc260_hp_master_sw_put,
-	},
-	HDA_CODEC_VOLUME("Front Playback Volume", 0x08, 0x0, HDA_OUTPUT),
-	HDA_BIND_MUTE("Front Playback Switch", 0x08, 2, HDA_INPUT),
-	HDA_CODEC_VOLUME("Headphone Playback Volume", 0x09, 0x0, HDA_OUTPUT),
-	HDA_BIND_MUTE("Headphone Playback Switch", 0x09, 2, HDA_INPUT),
-	HDA_CODEC_VOLUME_MONO("Speaker Playback Volume", 0x0a, 1, 0x0,
-			      HDA_OUTPUT),
-	HDA_BIND_MUTE_MONO("Speaker Playback Switch", 0x0a, 1, 2, HDA_INPUT),
-	{ } /* end */
-};
-
-static const struct hda_verb alc260_hp_unsol_verbs[] = {
-	{0x10, AC_VERB_SET_UNSOLICITED_ENABLE, AC_USRSP_EN | ALC_HP_EVENT},
-	{},
-};
-
-static void alc260_hp_setup(struct hda_codec *codec)
-{
-	struct alc_spec *spec = codec->spec;
-
-	spec->autocfg.hp_pins[0] = 0x0f;
-	spec->autocfg.speaker_pins[0] = 0x10;
-	spec->autocfg.speaker_pins[1] = 0x11;
-	spec->automute = 1;
-	spec->automute_mode = ALC_AUTOMUTE_PIN;
-}
-
-static const struct snd_kcontrol_new alc260_hp_3013_mixer[] = {
-	{
-		.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
-		.name = "Master Playback Switch",
-		.subdevice = HDA_SUBDEV_NID_FLAG | 0x11,
-		.info = snd_ctl_boolean_mono_info,
-		.get = alc260_hp_master_sw_get,
-		.put = alc260_hp_master_sw_put,
-	},
-	HDA_CODEC_VOLUME("Front Playback Volume", 0x09, 0x0, HDA_OUTPUT),
-	HDA_CODEC_MUTE("Front Playback Switch", 0x10, 0x0, HDA_OUTPUT),
-	HDA_CODEC_VOLUME("Aux-In Playback Volume", 0x07, 0x06, HDA_INPUT),
-	HDA_CODEC_MUTE("Aux-In Playback Switch", 0x07, 0x06, HDA_INPUT),
-	HDA_CODEC_VOLUME("Headphone Playback Volume", 0x08, 0x0, HDA_OUTPUT),
-	HDA_CODEC_MUTE("Headphone Playback Switch", 0x15, 0x0, HDA_OUTPUT),
-	HDA_CODEC_VOLUME_MONO("Speaker Playback Volume", 0x0a, 1, 0x0, HDA_OUTPUT),
-	HDA_CODEC_MUTE_MONO("Speaker Playback Switch", 0x11, 1, 0x0, HDA_OUTPUT),
-	{ } /* end */
-};
-
-static void alc260_hp_3013_setup(struct hda_codec *codec)
-{
-	struct alc_spec *spec = codec->spec;
-
-	spec->autocfg.hp_pins[0] = 0x15;
-	spec->autocfg.speaker_pins[0] = 0x10;
-	spec->autocfg.speaker_pins[1] = 0x11;
-	spec->automute = 1;
-	spec->automute_mode = ALC_AUTOMUTE_PIN;
-}
-
-static const struct hda_bind_ctls alc260_dc7600_bind_master_vol = {
-	.ops = &snd_hda_bind_vol,
-	.values = {
-		HDA_COMPOSE_AMP_VAL(0x08, 3, 0, HDA_OUTPUT),
-		HDA_COMPOSE_AMP_VAL(0x09, 3, 0, HDA_OUTPUT),
-		HDA_COMPOSE_AMP_VAL(0x0a, 3, 0, HDA_OUTPUT),
-		0
-	},
-};
-
-static const struct hda_bind_ctls alc260_dc7600_bind_switch = {
-	.ops = &snd_hda_bind_sw,
-	.values = {
-		HDA_COMPOSE_AMP_VAL(0x11, 3, 0, HDA_OUTPUT),
-		HDA_COMPOSE_AMP_VAL(0x15, 3, 0, HDA_OUTPUT),
-		0
-	},
-};
-
-static const struct snd_kcontrol_new alc260_hp_dc7600_mixer[] = {
-	HDA_BIND_VOL("Master Playback Volume", &alc260_dc7600_bind_master_vol),
-	HDA_BIND_SW("LineOut Playback Switch", &alc260_dc7600_bind_switch),
-	HDA_CODEC_MUTE("Speaker Playback Switch", 0x0f, 0x0, HDA_OUTPUT),
-	HDA_CODEC_MUTE("Headphone Playback Switch", 0x10, 0x0, HDA_OUTPUT),
-	{ } /* end */
-};
-
-static const struct hda_verb alc260_hp_3013_unsol_verbs[] = {
-	{0x15, AC_VERB_SET_UNSOLICITED_ENABLE, AC_USRSP_EN | ALC_HP_EVENT},
-	{},
-};
-
-static void alc260_hp_3012_setup(struct hda_codec *codec)
-{
-	struct alc_spec *spec = codec->spec;
-
-	spec->autocfg.hp_pins[0] = 0x10;
-	spec->autocfg.speaker_pins[0] = 0x0f;
-	spec->autocfg.speaker_pins[1] = 0x11;
-	spec->autocfg.speaker_pins[2] = 0x15;
-	spec->automute = 1;
-	spec->automute_mode = ALC_AUTOMUTE_PIN;
-}
 
 /* Fujitsu S702x series laptops.  ALC260 pin usage: Mic/Line jack = 0x12,
  * HP jack = 0x14, CD audio =  0x16, internal speaker = 0x10.
@@ -477,106 +333,6 @@ static const struct hda_verb alc260_init_verbs[] = {
 	/* mute Mono out path */
 	{0x0a, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_MUTE(0)},
 	{0x0a, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_MUTE(1)},
-	{ }
-};
-
-#if 0 /* should be identical with alc260_init_verbs? */
-static const struct hda_verb alc260_hp_init_verbs[] = {
-	/* Headphone and output */
-	{0x10, AC_VERB_SET_PIN_WIDGET_CONTROL, 0xc0},
-	/* mono output */
-	{0x11, AC_VERB_SET_PIN_WIDGET_CONTROL, 0x40},
-	/* Mic1 (rear panel) pin widget for input and vref at 80% */
-	{0x12, AC_VERB_SET_PIN_WIDGET_CONTROL, 0x24},
-	/* Mic2 (front panel) pin widget for input and vref at 80% */
-	{0x13, AC_VERB_SET_PIN_WIDGET_CONTROL, 0x24},
-	/* Line In pin widget for input */
-	{0x14, AC_VERB_SET_PIN_WIDGET_CONTROL, 0x20},
-	/* Line-2 pin widget for output */
-	{0x15, AC_VERB_SET_PIN_WIDGET_CONTROL, 0x40},
-	/* CD pin widget for input */
-	{0x16, AC_VERB_SET_PIN_WIDGET_CONTROL, 0x20},
-	/* unmute amp left and right */
-	{0x04, AC_VERB_SET_AMP_GAIN_MUTE, 0x7000},
-	/* set connection select to line in (default select for this ADC) */
-	{0x04, AC_VERB_SET_CONNECT_SEL, 0x02},
-	/* unmute Line-Out mixer amp left and right (volume = 0) */
-	{0x08, AC_VERB_SET_AMP_GAIN_MUTE, 0xb000},
-	/* mute pin widget amp left and right (no gain on this amp) */
-	{0x15, AC_VERB_SET_AMP_GAIN_MUTE, 0x0000},
-	/* unmute HP mixer amp left and right (volume = 0) */
-	{0x09, AC_VERB_SET_AMP_GAIN_MUTE, 0xb000},
-	/* mute pin widget amp left and right (no gain on this amp) */
-	{0x10, AC_VERB_SET_AMP_GAIN_MUTE, 0x0000},
-	/* Amp Indexes: CD = 0x04, Line In 1 = 0x02, Mic 1 = 0x00 &
-	 * Line In 2 = 0x03
-	 */
-	/* mute analog inputs */
-	{0x07, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_MUTE(0)},
-	{0x07, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_MUTE(1)},
-	{0x07, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_MUTE(2)},
-	{0x07, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_MUTE(3)},
-	{0x07, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_MUTE(4)},
-	/* Amp Indexes: DAC = 0x01 & mixer = 0x00 */
-	/* Unmute Front out path */
-	{0x08, AC_VERB_SET_AMP_GAIN_MUTE, (0x7000 | (0x00 << 8))},
-	{0x08, AC_VERB_SET_AMP_GAIN_MUTE, (0x7000 | (0x01 << 8))},
-	/* Unmute Headphone out path */
-	{0x09, AC_VERB_SET_AMP_GAIN_MUTE, (0x7000 | (0x00 << 8))},
-	{0x09, AC_VERB_SET_AMP_GAIN_MUTE, (0x7000 | (0x01 << 8))},
-	/* Unmute Mono out path */
-	{0x0a, AC_VERB_SET_AMP_GAIN_MUTE, (0x7000 | (0x00 << 8))},
-	{0x0a, AC_VERB_SET_AMP_GAIN_MUTE, (0x7000 | (0x01 << 8))},
-	{ }
-};
-#endif
-
-static const struct hda_verb alc260_hp_3013_init_verbs[] = {
-	/* Line out and output */
-	{0x10, AC_VERB_SET_PIN_WIDGET_CONTROL, 0x40},
-	/* mono output */
-	{0x11, AC_VERB_SET_PIN_WIDGET_CONTROL, 0x40},
-	/* Mic1 (rear panel) pin widget for input and vref at 80% */
-	{0x12, AC_VERB_SET_PIN_WIDGET_CONTROL, 0x24},
-	/* Mic2 (front panel) pin widget for input and vref at 80% */
-	{0x13, AC_VERB_SET_PIN_WIDGET_CONTROL, 0x24},
-	/* Line In pin widget for input */
-	{0x14, AC_VERB_SET_PIN_WIDGET_CONTROL, 0x20},
-	/* Headphone pin widget for output */
-	{0x15, AC_VERB_SET_PIN_WIDGET_CONTROL, 0xc0},
-	/* CD pin widget for input */
-	{0x16, AC_VERB_SET_PIN_WIDGET_CONTROL, 0x20},
-	/* unmute amp left and right */
-	{0x04, AC_VERB_SET_AMP_GAIN_MUTE, 0x7000},
-	/* set connection select to line in (default select for this ADC) */
-	{0x04, AC_VERB_SET_CONNECT_SEL, 0x02},
-	/* unmute Line-Out mixer amp left and right (volume = 0) */
-	{0x08, AC_VERB_SET_AMP_GAIN_MUTE, 0xb000},
-	/* mute pin widget amp left and right (no gain on this amp) */
-	{0x15, AC_VERB_SET_AMP_GAIN_MUTE, 0x0000},
-	/* unmute HP mixer amp left and right (volume = 0) */
-	{0x09, AC_VERB_SET_AMP_GAIN_MUTE, 0xb000},
-	/* mute pin widget amp left and right (no gain on this amp) */
-	{0x10, AC_VERB_SET_AMP_GAIN_MUTE, 0x0000},
-	/* Amp Indexes: CD = 0x04, Line In 1 = 0x02, Mic 1 = 0x00 &
-	 * Line In 2 = 0x03
-	 */
-	/* mute analog inputs */
-	{0x07, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_MUTE(0)},
-	{0x07, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_MUTE(1)},
-	{0x07, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_MUTE(2)},
-	{0x07, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_MUTE(3)},
-	{0x07, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_MUTE(4)},
-	/* Amp Indexes: DAC = 0x01 & mixer = 0x00 */
-	/* Unmute Front out path */
-	{0x08, AC_VERB_SET_AMP_GAIN_MUTE, (0x7000 | (0x00 << 8))},
-	{0x08, AC_VERB_SET_AMP_GAIN_MUTE, (0x7000 | (0x01 << 8))},
-	/* Unmute Headphone out path */
-	{0x09, AC_VERB_SET_AMP_GAIN_MUTE, (0x7000 | (0x00 << 8))},
-	{0x09, AC_VERB_SET_AMP_GAIN_MUTE, (0x7000 | (0x01 << 8))},
-	/* Unmute Mono out path */
-	{0x0a, AC_VERB_SET_AMP_GAIN_MUTE, (0x7000 | (0x00 << 8))},
-	{0x0a, AC_VERB_SET_AMP_GAIN_MUTE, (0x7000 | (0x01 << 8))},
 	{ }
 };
 
@@ -1093,9 +849,6 @@ static const struct hda_verb alc260_test_init_verbs[] = {
  */
 static const char * const alc260_models[ALC260_MODEL_LAST] = {
 	[ALC260_BASIC]		= "basic",
-	[ALC260_HP]		= "hp",
-	[ALC260_HP_3013]	= "hp-3013",
-	[ALC260_HP_DC7600]	= "hp-dc7600",
 	[ALC260_FUJITSU_S702X]	= "fujitsu",
 	[ALC260_ACER]		= "acer",
 	[ALC260_WILL]		= "will",
@@ -1112,15 +865,6 @@ static const struct snd_pci_quirk alc260_cfg_tbl[] = {
 	SND_PCI_QUIRK(0x1025, 0x007f, "Acer", ALC260_WILL),
 	SND_PCI_QUIRK(0x1025, 0x008f, "Acer", ALC260_ACER),
 	SND_PCI_QUIRK(0x1509, 0x4540, "Favorit 100XS", ALC260_FAVORIT100),
-	SND_PCI_QUIRK(0x103c, 0x2808, "HP d5700", ALC260_HP_3013),
-	SND_PCI_QUIRK(0x103c, 0x280a, "HP d5750", ALC260_AUTO), /* no quirk */
-	SND_PCI_QUIRK(0x103c, 0x3010, "HP", ALC260_HP_3013),
-	SND_PCI_QUIRK(0x103c, 0x3011, "HP", ALC260_HP_3013),
-	SND_PCI_QUIRK(0x103c, 0x3012, "HP", ALC260_HP_DC7600),
-	SND_PCI_QUIRK(0x103c, 0x3013, "HP", ALC260_HP_3013),
-	SND_PCI_QUIRK(0x103c, 0x3014, "HP", ALC260_HP),
-	SND_PCI_QUIRK(0x103c, 0x3015, "HP", ALC260_HP),
-	SND_PCI_QUIRK(0x103c, 0x3016, "HP", ALC260_HP),
 	SND_PCI_QUIRK(0x104d, 0x81bb, "Sony VAIO", ALC260_BASIC),
 	SND_PCI_QUIRK(0x104d, 0x81cc, "Sony VAIO", ALC260_BASIC),
 	SND_PCI_QUIRK(0x104d, 0x81cd, "Sony VAIO", ALC260_BASIC),
@@ -1143,54 +887,6 @@ static const struct alc_config_preset alc260_presets[] = {
 		.num_channel_mode = ARRAY_SIZE(alc260_modes),
 		.channel_mode = alc260_modes,
 		.input_mux = &alc260_capture_source,
-	},
-	[ALC260_HP] = {
-		.mixers = { alc260_hp_output_mixer,
-			    alc260_input_mixer },
-		.init_verbs = { alc260_init_verbs,
-				alc260_hp_unsol_verbs },
-		.num_dacs = ARRAY_SIZE(alc260_dac_nids),
-		.dac_nids = alc260_dac_nids,
-		.num_adc_nids = ARRAY_SIZE(alc260_adc_nids_alt),
-		.adc_nids = alc260_adc_nids_alt,
-		.num_channel_mode = ARRAY_SIZE(alc260_modes),
-		.channel_mode = alc260_modes,
-		.input_mux = &alc260_capture_source,
-		.unsol_event = alc_sku_unsol_event,
-		.setup = alc260_hp_setup,
-		.init_hook = alc_inithook,
-	},
-	[ALC260_HP_DC7600] = {
-		.mixers = { alc260_hp_dc7600_mixer,
-			    alc260_input_mixer },
-		.init_verbs = { alc260_init_verbs,
-				alc260_hp_dc7600_verbs },
-		.num_dacs = ARRAY_SIZE(alc260_dac_nids),
-		.dac_nids = alc260_dac_nids,
-		.num_adc_nids = ARRAY_SIZE(alc260_adc_nids_alt),
-		.adc_nids = alc260_adc_nids_alt,
-		.num_channel_mode = ARRAY_SIZE(alc260_modes),
-		.channel_mode = alc260_modes,
-		.input_mux = &alc260_capture_source,
-		.unsol_event = alc_sku_unsol_event,
-		.setup = alc260_hp_3012_setup,
-		.init_hook = alc_inithook,
-	},
-	[ALC260_HP_3013] = {
-		.mixers = { alc260_hp_3013_mixer,
-			    alc260_input_mixer },
-		.init_verbs = { alc260_hp_3013_init_verbs,
-				alc260_hp_3013_unsol_verbs },
-		.num_dacs = ARRAY_SIZE(alc260_dac_nids),
-		.dac_nids = alc260_dac_nids,
-		.num_adc_nids = ARRAY_SIZE(alc260_adc_nids_alt),
-		.adc_nids = alc260_adc_nids_alt,
-		.num_channel_mode = ARRAY_SIZE(alc260_modes),
-		.channel_mode = alc260_modes,
-		.input_mux = &alc260_capture_source,
-		.unsol_event = alc_sku_unsol_event,
-		.setup = alc260_hp_3013_setup,
-		.init_hook = alc_inithook,
 	},
 	[ALC260_FUJITSU_S702X] = {
 		.mixers = { alc260_fujitsu_mixer },

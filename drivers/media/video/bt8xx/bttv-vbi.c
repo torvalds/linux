@@ -23,6 +23,8 @@
     Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
 */
 
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
 #include <linux/module.h>
 #include <linux/errno.h>
 #include <linux/fs.h>
@@ -65,8 +67,11 @@ MODULE_PARM_DESC(vbi_debug,"vbi code debug messages, default is 0 (no)");
 #ifdef dprintk
 # undef dprintk
 #endif
-#define dprintk(fmt, arg...)	if (vbi_debug) \
-	printk(KERN_DEBUG "bttv%d/vbi: " fmt, btv->c.nr , ## arg)
+#define dprintk(fmt, ...)						\
+do {									\
+	if (vbi_debug)							\
+		pr_debug("%d: " fmt, btv->c.nr, ##__VA_ARGS__);		\
+} while (0)
 
 #define IMAGE_SIZE(fmt) \
 	(((fmt)->count[0] + (fmt)->count[1]) * (fmt)->samples_per_line)

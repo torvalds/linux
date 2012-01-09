@@ -16,16 +16,6 @@
 
 #ifdef __HAVE_ARCH_PTE_SPECIAL
 
-static inline void get_huge_page_tail(struct page *page)
-{
-	/*
-	 * __split_huge_page_refcount() cannot run
-	 * from under us.
-	 */
-	VM_BUG_ON(atomic_read(&page->_count) < 0);
-	atomic_inc(&page->_count);
-}
-
 /*
  * The performance critical leaf functions are made noinline otherwise gcc
  * inlines everything into a single function which results in too much
@@ -57,8 +47,6 @@ static noinline int gup_pte_range(pmd_t pmd, unsigned long addr,
 			put_page(page);
 			return 0;
 		}
-		if (PageTail(page))
-			get_huge_page_tail(page);
 		pages[*nr] = page;
 		(*nr)++;
 

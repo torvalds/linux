@@ -7,6 +7,7 @@
 #include <linux/kernel.h>
 #include <linux/platform_device.h>
 #include <linux/slab.h>
+#include <linux/export.h>
 
 /* Number of bytes to reserve for the iomem resource */
 #define ATMEL_TC_IOMEM_SIZE	256

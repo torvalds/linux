@@ -229,7 +229,7 @@ static int bt819_status(struct v4l2_subdev *sd, u32 *pstatus, v4l2_std_id *pstd)
 	if (pstd)
 		*pstd = std;
 	if (pstatus)
-		*pstatus = status;
+		*pstatus = res;
 
 	v4l2_dbg(1, debug, sd, "get status %x\n", status);
 	return 0;

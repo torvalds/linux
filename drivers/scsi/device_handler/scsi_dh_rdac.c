@@ -1,5 +1,5 @@
 /*
- * Engenio/LSI RDAC SCSI Device Handler
+ * LSI/Engenio/NetApp E-Series RDAC SCSI Device Handler
  *
  * Copyright (C) 2005 Mike Christie. All rights reserved.
  * Copyright (C) Chandra Seetharaman, IBM Corp. 2007
@@ -24,6 +24,7 @@
 #include <scsi/scsi_dh.h>
 #include <linux/workqueue.h>
 #include <linux/slab.h>
+#include <linux/module.h>
 
 #define RDAC_NAME "rdac"
 #define RDAC_RETRY_COUNT 5
@@ -795,6 +796,7 @@ static const struct scsi_dh_devlist rdac_dev_list[] = {
 	{"IBM", "3526"},
 	{"SGI", "TP9400"},
 	{"SGI", "TP9500"},
+	{"SGI", "TP9700"},
 	{"SGI", "IS"},
 	{"STK", "OPENstorage D280"},
 	{"SUN", "CSM200_R"},
@@ -814,6 +816,7 @@ static const struct scsi_dh_devlist rdac_dev_list[] = {
 	{"SUN", "CSM100_R_FC"},
 	{"SUN", "STK6580_6780"},
 	{"SUN", "SUN_6180"},
+	{"SUN", "ArrayStorage"},
 	{NULL, NULL},
 };
 
@@ -945,7 +948,7 @@ static void __exit rdac_exit(void)
 module_init(rdac_init);
 module_exit(rdac_exit);
 
-MODULE_DESCRIPTION("Multipath LSI/Engenio RDAC driver");
+MODULE_DESCRIPTION("Multipath LSI/Engenio/NetApp E-Series RDAC driver");
 MODULE_AUTHOR("Mike Christie, Chandra Seetharaman");
 MODULE_VERSION("01.00.0000.0000");
 MODULE_LICENSE("GPL");

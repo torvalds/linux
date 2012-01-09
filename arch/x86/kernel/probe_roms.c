@@ -10,9 +10,9 @@
 #include <linux/dmi.h>
 #include <linux/pfn.h>
 #include <linux/pci.h>
+#include <linux/export.h>
+
 #include <asm/pci-direct.h>
-
-
 #include <asm/e820.h>
 #include <asm/mmzone.h>
 #include <asm/setup.h>

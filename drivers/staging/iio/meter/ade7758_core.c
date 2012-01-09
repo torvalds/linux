@@ -8,7 +8,6 @@
 
 #include <linux/interrupt.h>
 #include <linux/irq.h>
-#include <linux/gpio.h>
 #include <linux/delay.h>
 #include <linux/mutex.h>
 #include <linux/device.h>
@@ -17,10 +16,11 @@
 #include <linux/slab.h>
 #include <linux/sysfs.h>
 #include <linux/list.h>
+#include <linux/module.h>
 
 #include "../iio.h"
 #include "../sysfs.h"
-#include "../ring_generic.h"
+#include "../buffer_generic.h"
 #include "meter.h"
 #include "ade7758.h"
 
@@ -583,8 +583,8 @@ out:
 }
 
 static IIO_DEV_ATTR_TEMP_RAW(ade7758_read_8bit);
-static IIO_CONST_ATTR(temp_offset, "129 C");
-static IIO_CONST_ATTR(temp_scale, "4 C");
+static IIO_CONST_ATTR(in_temp_offset, "129 C");
+static IIO_CONST_ATTR(in_temp_scale, "4 C");
 
 static IIO_DEV_ATTR_AWATTHR(ade7758_read_16bit,
 		ADE7758_AWATTHR);
@@ -614,9 +614,9 @@ static IIO_DEV_ATTR_RESET(ade7758_write_reset);
 static IIO_CONST_ATTR_SAMP_FREQ_AVAIL("26040 13020 6510 3255");
 
 static struct attribute *ade7758_attributes[] = {
-	&iio_dev_attr_temp_raw.dev_attr.attr,
-	&iio_const_attr_temp_offset.dev_attr.attr,
-	&iio_const_attr_temp_scale.dev_attr.attr,
+	&iio_dev_attr_in_temp_raw.dev_attr.attr,
+	&iio_const_attr_in_temp_offset.dev_attr.attr,
+	&iio_const_attr_in_temp_scale.dev_attr.attr,
 	&iio_dev_attr_sampling_frequency.dev_attr.attr,
 	&iio_const_attr_sampling_frequency_available.dev_attr.attr,
 	&iio_dev_attr_reset.dev_attr.attr,
@@ -662,7 +662,7 @@ static const struct attribute_group ade7758_attribute_group = {
 };
 
 static struct iio_chan_spec ade7758_channels[] = {
-	IIO_CHAN(IIO_IN, 0, 1, 0, "raw", 0, 0,
+	IIO_CHAN(IIO_VOLTAGE, 0, 1, 0, "raw", 0, 0,
 		(1 << IIO_CHAN_INFO_SCALE_SHARED),
 		AD7758_WT(AD7758_PHASE_A, AD7758_VOLTAGE),
 		0, IIO_ST('s', 24, 32, 0), 0),
@@ -682,7 +682,7 @@ static struct iio_chan_spec ade7758_channels[] = {
 		(1 << IIO_CHAN_INFO_SCALE_SHARED),
 		AD7758_WT(AD7758_PHASE_A, AD7758_REACT_PWR),
 		4, IIO_ST('s', 24, 32, 0), 0),
-	IIO_CHAN(IIO_IN, 0, 1, 0, "raw", 1, 0,
+	IIO_CHAN(IIO_VOLTAGE, 0, 1, 0, "raw", 1, 0,
 		(1 << IIO_CHAN_INFO_SCALE_SHARED),
 		AD7758_WT(AD7758_PHASE_B, AD7758_VOLTAGE),
 		5, IIO_ST('s', 24, 32, 0), 0),
@@ -702,7 +702,7 @@ static struct iio_chan_spec ade7758_channels[] = {
 		(1 << IIO_CHAN_INFO_SCALE_SHARED),
 		AD7758_WT(AD7758_PHASE_B, AD7758_REACT_PWR),
 		9, IIO_ST('s', 24, 32, 0), 0),
-	IIO_CHAN(IIO_IN, 0, 1, 0, "raw", 2, 0,
+	IIO_CHAN(IIO_VOLTAGE, 0, 1, 0, "raw", 2, 0,
 		(1 << IIO_CHAN_INFO_SCALE_SHARED),
 		AD7758_WT(AD7758_PHASE_C, AD7758_VOLTAGE),
 		10, IIO_ST('s', 24, 32, 0), 0),
@@ -732,7 +732,7 @@ static const struct iio_info ade7758_info = {
 
 static int __devinit ade7758_probe(struct spi_device *spi)
 {
-	int i, ret, regdone = 0;
+	int i, ret;
 	struct ade7758_state *st;
 	struct iio_dev *indio_dev = iio_allocate_device(sizeof(*st));
 
@@ -766,7 +766,7 @@ static int __devinit ade7758_probe(struct spi_device *spi)
 	indio_dev->modes = INDIO_DIRECT_MODE;
 
 	for (i = 0; i < AD7758_NUM_WAVESRC; i++)
-		st->available_scan_masks[i] = 1 << i;
+		set_bit(i, &st->available_scan_masks[i]);
 
 	indio_dev->available_scan_masks = st->available_scan_masks;
 
@@ -774,14 +774,9 @@ static int __devinit ade7758_probe(struct spi_device *spi)
 	if (ret)
 		goto error_free_tx;
 
-	ret = iio_device_register(indio_dev);
-	if (ret)
-		goto error_unreg_ring_funcs;
-	regdone = 1;
-
-	ret = iio_ring_buffer_register_ex(indio_dev->ring, 0,
-					  &ade7758_channels[0],
-					  ARRAY_SIZE(ade7758_channels));
+	ret = iio_buffer_register(indio_dev,
+				  &ade7758_channels[0],
+				  ARRAY_SIZE(ade7758_channels));
 	if (ret) {
 		dev_err(&spi->dev, "failed to initialize the ring\n");
 		goto error_unreg_ring_funcs;
@@ -795,16 +790,20 @@ static int __devinit ade7758_probe(struct spi_device *spi)
 	if (spi->irq) {
 		ret = ade7758_probe_trigger(indio_dev);
 		if (ret)
-			goto error_remove_trigger;
+			goto error_uninitialize_ring;
 	}
+
+	ret = iio_device_register(indio_dev);
+	if (ret)
+		goto error_remove_trigger;
 
 	return 0;
 
 error_remove_trigger:
-	if (indio_dev->modes & INDIO_RING_TRIGGERED)
+	if (indio_dev->modes & INDIO_BUFFER_TRIGGERED)
 		ade7758_remove_trigger(indio_dev);
 error_uninitialize_ring:
-	ade7758_uninitialize_ring(indio_dev->ring);
+	ade7758_uninitialize_ring(indio_dev);
 error_unreg_ring_funcs:
 	ade7758_unconfigure_ring(indio_dev);
 error_free_tx:
@@ -812,10 +811,7 @@ error_free_tx:
 error_free_rx:
 	kfree(st->rx);
 error_free_dev:
-	if (regdone)
-		iio_device_unregister(indio_dev);
-	else
-		iio_free_device(indio_dev);
+	iio_free_device(indio_dev);
 error_ret:
 	return ret;
 }
@@ -826,18 +822,19 @@ static int ade7758_remove(struct spi_device *spi)
 	struct ade7758_state *st = iio_priv(indio_dev);
 	int ret;
 
+	iio_device_unregister(indio_dev);
 	ret = ade7758_stop_device(&indio_dev->dev);
 	if (ret)
 		goto err_ret;
 
 	ade7758_remove_trigger(indio_dev);
-	ade7758_uninitialize_ring(indio_dev->ring);
+	ade7758_uninitialize_ring(indio_dev);
 	ade7758_unconfigure_ring(indio_dev);
 	kfree(st->tx);
 	kfree(st->rx);
-	iio_device_unregister(indio_dev);
 
-	return 0;
+	iio_free_device(indio_dev);
+
 err_ret:
 	return ret;
 }

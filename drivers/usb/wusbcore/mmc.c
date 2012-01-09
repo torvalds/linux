@@ -38,6 +38,7 @@
  */
 #include <linux/usb/wusb.h>
 #include <linux/slab.h>
+#include <linux/export.h>
 #include "wusbhc.h"
 
 /* Initialize the MMCIEs handling mechanism */

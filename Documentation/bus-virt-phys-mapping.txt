@@ -1,6 +1,6 @@
 [ NOTE: The virt_to_bus() and bus_to_virt() functions have been
 	superseded by the functionality provided by the PCI DMA interface
-	(see Documentation/PCI/PCI-DMA-mapping.txt).  They continue
+	(see Documentation/DMA-API-HOWTO.txt).  They continue
 	to be documented below for historical purposes, but new code
 	must not use them. --davidm 00/12/12 ]
 

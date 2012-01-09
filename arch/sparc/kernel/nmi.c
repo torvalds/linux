@@ -10,7 +10,7 @@
 #include <linux/init.h>
 #include <linux/percpu.h>
 #include <linux/nmi.h>
-#include <linux/module.h>
+#include <linux/export.h>
 #include <linux/kprobes.h>
 #include <linux/kernel_stat.h>
 #include <linux/reboot.h>

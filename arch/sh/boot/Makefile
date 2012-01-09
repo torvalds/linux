@@ -19,6 +19,7 @@ CONFIG_MEMORY_START	?= 0x0c000000
 CONFIG_BOOT_LINK_OFFSET	?= 0x00800000
 CONFIG_ZERO_PAGE_OFFSET	?= 0x00001000
 CONFIG_ENTRY_OFFSET	?= 0x00001000
+CONFIG_PHYSICAL_START	?= $(CONFIG_MEMORY_START)
 
 suffix-y := bin
 suffix-$(CONFIG_KERNEL_GZIP)	:= gz
@@ -48,7 +49,7 @@ $(obj)/romimage/vmlinux: $(obj)/zImage FORCE
 	$(Q)$(MAKE) $(build)=$(obj)/romimage $@
 
 KERNEL_MEMORY	:= $(shell /bin/bash -c 'printf "0x%08x" \
-		     $$[$(CONFIG_MEMORY_START) & 0x1fffffff]')
+		     $$[$(CONFIG_PHYSICAL_START) & 0x1fffffff]')
 
 KERNEL_LOAD	:= $(shell /bin/bash -c 'printf "0x%08x" \
 		     $$[$(CONFIG_PAGE_OFFSET)  + \
@@ -114,4 +115,5 @@ $(obj)/uImage: $(obj)/uImage.$(suffix-y)
 	@echo '  Image $@ is ready'
 
 export CONFIG_PAGE_OFFSET CONFIG_MEMORY_START CONFIG_BOOT_LINK_OFFSET \
-       CONFIG_ZERO_PAGE_OFFSET CONFIG_ENTRY_OFFSET KERNEL_MEMORY suffix-y
+       CONFIG_PHYSICAL_START CONFIG_ZERO_PAGE_OFFSET CONFIG_ENTRY_OFFSET \
+       KERNEL_MEMORY suffix-y

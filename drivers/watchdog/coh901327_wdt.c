@@ -429,7 +429,7 @@ static int __init coh901327_probe(struct platform_device *pdev)
 	writew(U300_WDOG_SR_RESET_STATUS_RESET, virtbase + U300_WDOG_SR);
 
 	irq = platform_get_irq(pdev, 0);
-	if (request_irq(irq, coh901327_interrupt, IRQF_DISABLED,
+	if (request_irq(irq, coh901327_interrupt, 0,
 			DRV_NAME " Bark", pdev)) {
 		ret = -EIO;
 		goto out_no_irq;

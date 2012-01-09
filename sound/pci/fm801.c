@@ -25,7 +25,7 @@
 #include <linux/interrupt.h>
 #include <linux/pci.h>
 #include <linux/slab.h>
-#include <linux/moduleparam.h>
+#include <linux/module.h>
 #include <sound/core.h>
 #include <sound/pcm.h>
 #include <sound/tlv.h>
@@ -68,6 +68,7 @@ MODULE_PARM_DESC(enable, "Enable FM801 soundcard.");
 module_param_array(tea575x_tuner, int, NULL, 0444);
 MODULE_PARM_DESC(tea575x_tuner, "TEA575x tuner access method (0 = auto, 1 = SF256-PCS, 2=SF256-PCP, 3=SF64-PCR, 8=disable, +16=tuner-only).");
 
+#define TUNER_DISABLED		(1<<3)
 #define TUNER_ONLY		(1<<4)
 #define TUNER_TYPE_MASK		(~TUNER_ONLY & 0xFFFF)
 
@@ -728,11 +729,14 @@ static struct snd_fm801_tea575x_gpio snd_fm801_tea575x_gpios[] = {
 	{ .data = 2, .clk = 0, .wren = 1, .most = 3, .name = "SF64-PCR" },
 };
 
+#define get_tea575x_gpio(chip) \
+	(&snd_fm801_tea575x_gpios[((chip)->tea575x_tuner & TUNER_TYPE_MASK) - 1])
+
 static void snd_fm801_tea575x_set_pins(struct snd_tea575x *tea, u8 pins)
 {
 	struct fm801 *chip = tea->private_data;
 	unsigned short reg = inw(FM801_REG(chip, GPIO_CTRL));
-	struct snd_fm801_tea575x_gpio gpio = snd_fm801_tea575x_gpios[(chip->tea575x_tuner & TUNER_TYPE_MASK) - 1];
+	struct snd_fm801_tea575x_gpio gpio = *get_tea575x_gpio(chip);
 
 	reg &= ~(FM801_GPIO_GP(gpio.data) |
 		 FM801_GPIO_GP(gpio.clk) |
@@ -750,7 +754,7 @@ static u8 snd_fm801_tea575x_get_pins(struct snd_tea575x *tea)
 {
 	struct fm801 *chip = tea->private_data;
 	unsigned short reg = inw(FM801_REG(chip, GPIO_CTRL));
-	struct snd_fm801_tea575x_gpio gpio = snd_fm801_tea575x_gpios[(chip->tea575x_tuner & TUNER_TYPE_MASK) - 1];
+	struct snd_fm801_tea575x_gpio gpio = *get_tea575x_gpio(chip);
 
 	return  (reg & FM801_GPIO_GP(gpio.data)) ? TEA575X_DATA : 0 |
 		(reg & FM801_GPIO_GP(gpio.most)) ? TEA575X_MOST : 0;
@@ -760,7 +764,7 @@ static void snd_fm801_tea575x_set_direction(struct snd_tea575x *tea, bool output
 {
 	struct fm801 *chip = tea->private_data;
 	unsigned short reg = inw(FM801_REG(chip, GPIO_CTRL));
-	struct snd_fm801_tea575x_gpio gpio = snd_fm801_tea575x_gpios[(chip->tea575x_tuner & TUNER_TYPE_MASK) - 1];
+	struct snd_fm801_tea575x_gpio gpio = *get_tea575x_gpio(chip);
 
 	/* use GPIO lines and set write enable bit */
 	reg |= FM801_GPIO_GS(gpio.data) |
@@ -1150,7 +1154,8 @@ static int snd_fm801_free(struct fm801 *chip)
 
       __end_hw:
 #ifdef CONFIG_SND_FM801_TEA575X_BOOL
-	snd_tea575x_exit(&chip->tea);
+	if (!(chip->tea575x_tuner & TUNER_DISABLED))
+		snd_tea575x_exit(&chip->tea);
 #endif
 	if (chip->irq >= 0)
 		free_irq(chip->irq, chip);
@@ -1236,7 +1241,6 @@ static int __devinit snd_fm801_create(struct snd_card *card,
 	    (tea575x_tuner & TUNER_TYPE_MASK) < 4) {
 		if (snd_tea575x_init(&chip->tea)) {
 			snd_printk(KERN_ERR "TEA575x radio not found\n");
-			snd_fm801_free(chip);
 			return -ENODEV;
 		}
 	} else if ((tea575x_tuner & TUNER_TYPE_MASK) == 0) {
@@ -1245,17 +1249,19 @@ static int __devinit snd_fm801_create(struct snd_card *card,
 			chip->tea575x_tuner = tea575x_tuner;
 			if (!snd_tea575x_init(&chip->tea)) {
 				snd_printk(KERN_INFO "detected TEA575x radio type %s\n",
-					snd_fm801_tea575x_gpios[tea575x_tuner - 1].name);
+					   get_tea575x_gpio(chip)->name);
 				break;
 			}
 		}
 		if (tea575x_tuner == 4) {
 			snd_printk(KERN_ERR "TEA575x radio not found\n");
-			snd_fm801_free(chip);
-			return -ENODEV;
+			chip->tea575x_tuner = TUNER_DISABLED;
 		}
 	}
-	strlcpy(chip->tea.card, snd_fm801_tea575x_gpios[(tea575x_tuner & TUNER_TYPE_MASK) - 1].name, sizeof(chip->tea.card));
+	if (!(chip->tea575x_tuner & TUNER_DISABLED)) {
+		strlcpy(chip->tea.card, get_tea575x_gpio(chip)->name,
+			sizeof(chip->tea.card));
+	}
 #endif
 
 	*rchip = chip;
@@ -1306,8 +1312,9 @@ static int __devinit snd_card_fm801_probe(struct pci_dev *pci,
 	}
 	if ((err = snd_mpu401_uart_new(card, 0, MPU401_HW_FM801,
 				       FM801_REG(chip, MPU401_DATA),
-				       MPU401_INFO_INTEGRATED,
-				       chip->irq, 0, &chip->rmidi)) < 0) {
+				       MPU401_INFO_INTEGRATED |
+				       MPU401_INFO_IRQ_HOOK,
+				       -1, &chip->rmidi)) < 0) {
 		snd_card_free(card);
 		return err;
 	}

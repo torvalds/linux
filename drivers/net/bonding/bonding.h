@@ -222,7 +222,6 @@ struct bonding {
 			       struct slave *);
 	rwlock_t lock;
 	rwlock_t curr_slave_lock;
-	s8       kill_timers;
 	u8	 send_peer_notif;
 	s8	 setup_by_slave;
 	s8       igmp_retrans;
@@ -234,7 +233,6 @@ struct bonding {
 	struct   netdev_hw_addr_list mc_list;
 	int      (*xmit_hash_policy)(struct sk_buff *, int);
 	__be32   master_ip;
-	u16      flags;
 	u16      rr_tx_counter;
 	struct   ad_bond_info ad_info;
 	struct   alb_bond_info alb_info;
@@ -380,11 +378,13 @@ static inline bool bond_is_slave_inactive(struct slave *slave)
 	return slave->inactive;
 }
 
+struct bond_net;
+
 struct vlan_entry *bond_next_vlan(struct bonding *bond, struct vlan_entry *curr);
 int bond_dev_queue_xmit(struct bonding *bond, struct sk_buff *skb, struct net_device *slave_dev);
 int bond_create(struct net *net, const char *name);
-int bond_create_sysfs(void);
-void bond_destroy_sysfs(void);
+int bond_create_sysfs(struct bond_net *net);
+void bond_destroy_sysfs(struct bond_net *net);
 void bond_prepare_sysfs_group(struct bonding *bond);
 int bond_create_slave_symlinks(struct net_device *master, struct net_device *slave);
 void bond_destroy_slave_symlinks(struct net_device *master, struct net_device *slave);
@@ -410,6 +410,7 @@ struct bond_net {
 #ifdef CONFIG_PROC_FS
 	struct proc_dir_entry *	proc_dir;
 #endif
+	struct class_attribute	class_attr_bonding_masters;
 };
 
 #ifdef CONFIG_PROC_FS

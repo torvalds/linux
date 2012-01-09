@@ -727,72 +727,22 @@ static void cxd2820r_release(struct dvb_frontend *fe)
 	struct cxd2820r_priv *priv = fe->demodulator_priv;
 	dbg("%s", __func__);
 
-	if (fe->ops.info.type == FE_OFDM) {
-		i2c_del_adapter(&priv->tuner_i2c_adapter);
+	if (fe->ops.info.type == FE_OFDM)
 		kfree(priv);
-	}
 
 	return;
 }
 
-static u32 cxd2820r_tuner_i2c_func(struct i2c_adapter *adapter)
-{
-	return I2C_FUNC_I2C;
-}
-
-static int cxd2820r_tuner_i2c_xfer(struct i2c_adapter *i2c_adap,
-	struct i2c_msg msg[], int num)
-{
-	struct cxd2820r_priv *priv = i2c_get_adapdata(i2c_adap);
-	int ret;
-	u8 *obuf = kmalloc(msg[0].len + 2, GFP_KERNEL);
-	struct i2c_msg msg2[2] = {
-		{
-			.addr = priv->cfg.i2c_address,
-			.flags = 0,
-			.len = msg[0].len + 2,
-			.buf = obuf,
-		}, {
-			.addr = priv->cfg.i2c_address,
-			.flags = I2C_M_RD,
-			.len = msg[1].len,
-			.buf = msg[1].buf,
-		}
-	};
-
-	if (!obuf)
-		return -ENOMEM;
-
-	obuf[0] = 0x09;
-	obuf[1] = (msg[0].addr << 1);
-	if (num == 2) { /* I2C read */
-		obuf[1] = (msg[0].addr << 1) | I2C_M_RD; /* I2C RD flag */
-		msg2[0].len = msg[0].len + 2 - 1; /* '-1' maybe HW bug ? */
-	}
-	memcpy(&obuf[2], msg[0].buf, msg[0].len);
-
-	ret = i2c_transfer(priv->i2c, msg2, num);
-	if (ret < 0)
-		warn("tuner i2c failed ret:%d", ret);
-
-	kfree(obuf);
-
-	return ret;
-}
-
-static struct i2c_algorithm cxd2820r_tuner_i2c_algo = {
-	.master_xfer   = cxd2820r_tuner_i2c_xfer,
-	.functionality = cxd2820r_tuner_i2c_func,
-};
-
-struct i2c_adapter *cxd2820r_get_tuner_i2c_adapter(struct dvb_frontend *fe)
+static int cxd2820r_i2c_gate_ctrl(struct dvb_frontend *fe, int enable)
 {
 	struct cxd2820r_priv *priv = fe->demodulator_priv;
-	return &priv->tuner_i2c_adapter;
-}
-EXPORT_SYMBOL(cxd2820r_get_tuner_i2c_adapter);
+	dbg("%s: %d", __func__, enable);
 
-static struct dvb_frontend_ops cxd2820r_ops[2];
+	/* Bit 0 of reg 0xdb in bank 0x00 controls I2C repeater */
+	return cxd2820r_wr_reg_mask(priv, 0xdb, enable ? 1 : 0, 0x1);
+}
+
+static const struct dvb_frontend_ops cxd2820r_ops[2];
 
 struct dvb_frontend *cxd2820r_attach(const struct cxd2820r_config *cfg,
 	struct i2c_adapter *i2c, struct dvb_frontend *fe)
@@ -831,18 +781,6 @@ struct dvb_frontend *cxd2820r_attach(const struct cxd2820r_config *cfg,
 		priv->fe[0].demodulator_priv = priv;
 		priv->fe[1].demodulator_priv = priv;
 
-		/* create tuner i2c adapter */
-		strlcpy(priv->tuner_i2c_adapter.name,
-			"CXD2820R tuner I2C adapter",
-			sizeof(priv->tuner_i2c_adapter.name));
-		priv->tuner_i2c_adapter.algo = &cxd2820r_tuner_i2c_algo;
-		priv->tuner_i2c_adapter.algo_data = NULL;
-		i2c_set_adapdata(&priv->tuner_i2c_adapter, priv);
-		if (i2c_add_adapter(&priv->tuner_i2c_adapter) < 0) {
-			err("tuner I2C bus could not be initialized");
-			goto error;
-		}
-
 		return &priv->fe[0];
 
 	} else {
@@ -858,7 +796,7 @@ error:
 }
 EXPORT_SYMBOL(cxd2820r_attach);
 
-static struct dvb_frontend_ops cxd2820r_ops[2] = {
+static const struct dvb_frontend_ops cxd2820r_ops[2] = {
 	{
 		/* DVB-T/T2 */
 		.info = {
@@ -883,6 +821,7 @@ static struct dvb_frontend_ops cxd2820r_ops[2] = {
 		.sleep = cxd2820r_sleep,
 
 		.get_tune_settings = cxd2820r_get_tune_settings,
+		.i2c_gate_ctrl = cxd2820r_i2c_gate_ctrl,
 
 		.get_frontend = cxd2820r_get_frontend,
 
@@ -911,6 +850,7 @@ static struct dvb_frontend_ops cxd2820r_ops[2] = {
 		.sleep = cxd2820r_sleep,
 
 		.get_tune_settings = cxd2820r_get_tune_settings,
+		.i2c_gate_ctrl = cxd2820r_i2c_gate_ctrl,
 
 		.set_frontend = cxd2820r_set_frontend,
 		.get_frontend = cxd2820r_get_frontend,

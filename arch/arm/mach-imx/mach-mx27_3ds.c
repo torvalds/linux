@@ -241,7 +241,7 @@ static struct regulator_init_data gpo_init = {
 };
 
 static struct regulator_consumer_supply vmmc1_consumers[] = {
-	REGULATOR_SUPPLY("lcd_2v8", NULL),
+	REGULATOR_SUPPLY("vcore", "spi0.0"),
 };
 
 static struct regulator_init_data vmmc1_init = {
@@ -257,7 +257,7 @@ static struct regulator_init_data vmmc1_init = {
 };
 
 static struct regulator_consumer_supply vgen_consumers[] = {
-	REGULATOR_SUPPLY("vdd_lcdio", NULL),
+	REGULATOR_SUPPLY("vdd", "spi0.0"),
 };
 
 static struct regulator_init_data vgen_init = {
@@ -293,8 +293,7 @@ static struct mc13xxx_platform_data mc13783_pdata = {
 		.num_regulators = ARRAY_SIZE(mx27_3ds_regulators),
 
 	},
-	.flags  = MC13783_USE_REGULATOR | MC13783_USE_TOUCHSCREEN |
-	MC13783_USE_RTC,
+	.flags  = MC13XXX_USE_TOUCHSCREEN | MC13XXX_USE_RTC,
 };
 
 /* SPI */
@@ -348,8 +347,6 @@ static const struct imx_fb_platform_data mx27_3ds_fb_data __initconst = {
 static struct l4f00242t03_pdata mx27_3ds_lcd_pdata = {
 	.reset_gpio		= LCD_RESET,
 	.data_enable_gpio	= LCD_ENABLE,
-	.core_supply		= "lcd_2v8",
-	.io_supply		= "vdd_lcdio",
 };
 
 static struct spi_board_info mx27_3ds_spi_devs[] __initdata = {
@@ -359,7 +356,7 @@ static struct spi_board_info mx27_3ds_spi_devs[] __initdata = {
 		.bus_num	= 1,
 		.chip_select	= 0, /* SS0 */
 		.platform_data	= &mc13783_pdata,
-		.irq = gpio_to_irq(PMIC_INT),
+		.irq = IMX_GPIO_TO_IRQ(PMIC_INT),
 		.mode = SPI_CS_HIGH,
 	}, {
 		.modalias	= "l4f00242t03",
@@ -421,10 +418,11 @@ static struct sys_timer mx27pdk_timer = {
 
 MACHINE_START(MX27_3DS, "Freescale MX27PDK")
 	/* maintainer: Freescale Semiconductor, Inc. */
-	.boot_params = MX27_PHYS_OFFSET + 0x100,
+	.atag_offset = 0x100,
 	.map_io = mx27_map_io,
 	.init_early = imx27_init_early,
 	.init_irq = mx27_init_irq,
+	.handle_irq = imx27_handle_irq,
 	.timer = &mx27pdk_timer,
 	.init_machine = mx27pdk_init,
 MACHINE_END

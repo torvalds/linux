@@ -15,6 +15,7 @@
 #include <linux/rcupdate.h>
 #include <linux/rtnetlink.h>
 #include <linux/slab.h>
+#include <linux/export.h>
 #include <net/mac80211.h>
 #include "ieee80211_i.h"
 #include "driver-ops.h"
@@ -464,7 +465,7 @@ int ieee80211_key_link(struct ieee80211_key *key,
 		 * some hardware cannot handle TKIP with QoS, so
 		 * we indicate whether QoS could be in use.
 		 */
-		if (test_sta_flags(sta, WLAN_STA_WME))
+		if (test_sta_flag(sta, WLAN_STA_WME))
 			key->conf.flags |= IEEE80211_KEY_FLAG_WMM_STA;
 	} else {
 		if (sdata->vif.type == NL80211_IFTYPE_STATION) {
@@ -478,7 +479,7 @@ int ieee80211_key_link(struct ieee80211_key *key,
 			/* same here, the AP could be using QoS */
 			ap = sta_info_get(key->sdata, key->sdata->u.mgd.bssid);
 			if (ap) {
-				if (test_sta_flags(ap, WLAN_STA_WME))
+				if (test_sta_flag(ap, WLAN_STA_WME))
 					key->conf.flags |=
 						IEEE80211_KEY_FLAG_WMM_STA;
 			}

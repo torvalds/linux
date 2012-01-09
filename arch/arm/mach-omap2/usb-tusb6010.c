@@ -8,11 +8,13 @@
  * published by the Free Software Foundation.
  */
 
+#include <linux/string.h>
 #include <linux/types.h>
 #include <linux/errno.h>
 #include <linux/delay.h>
 #include <linux/platform_device.h>
 #include <linux/gpio.h>
+#include <linux/export.h>
 
 #include <linux/usb/musb.h>
 

@@ -159,7 +159,7 @@ int macii_init(void)
 	err = macii_init_via();
 	if (err) goto out;
 
-	err = request_irq(IRQ_MAC_ADB, macii_interrupt, IRQ_FLG_LOCK, "ADB",
+	err = request_irq(IRQ_MAC_ADB, macii_interrupt, 0, "ADB",
 			  macii_interrupt);
 	if (err) goto out;
 

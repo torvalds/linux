@@ -2145,9 +2145,12 @@ static void spin(struct pktgen_dev *pkt_dev, ktime_t spin_until)
 	}
 
 	start_time = ktime_now();
-	if (remaining < 100000)
-		ndelay(remaining);	/* really small just spin */
-	else {
+	if (remaining < 100000) {
+		/* for small delays (<100us), just loop until limit is reached */
+		do {
+			end_time = ktime_now();
+		} while (ktime_lt(end_time, spin_until));
+	} else {
 		/* see do_nanosleep */
 		hrtimer_init_sleeper(&t, current);
 		do {
@@ -2162,8 +2165,8 @@ static void spin(struct pktgen_dev *pkt_dev, ktime_t spin_until)
 			hrtimer_cancel(&t.timer);
 		} while (t.task && pkt_dev->running && !signal_pending(current));
 		__set_current_state(TASK_RUNNING);
+		end_time = ktime_now();
 	}
-	end_time = ktime_now();
 
 	pkt_dev->idle_acc += ktime_to_ns(ktime_sub(end_time, start_time));
 	pkt_dev->next_tx = ktime_add_ns(spin_until, pkt_dev->delay);
@@ -2602,18 +2605,18 @@ static void pktgen_finalize_skb(struct pktgen_dev *pkt_dev, struct sk_buff *skb,
 				if (!pkt_dev->page)
 					break;
 			}
-			skb_shinfo(skb)->frags[i].page = pkt_dev->page;
 			get_page(pkt_dev->page);
+			skb_frag_set_page(skb, i, pkt_dev->page);
 			skb_shinfo(skb)->frags[i].page_offset = 0;
 			/*last fragment, fill rest of data*/
 			if (i == (frags - 1))
-				skb_shinfo(skb)->frags[i].size =
-				    (datalen < PAGE_SIZE ? datalen : PAGE_SIZE);
+				skb_frag_size_set(&skb_shinfo(skb)->frags[i],
+				    (datalen < PAGE_SIZE ? datalen : PAGE_SIZE));
 			else
-				skb_shinfo(skb)->frags[i].size = frag_len;
-			datalen -= skb_shinfo(skb)->frags[i].size;
-			skb->len += skb_shinfo(skb)->frags[i].size;
-			skb->data_len += skb_shinfo(skb)->frags[i].size;
+				skb_frag_size_set(&skb_shinfo(skb)->frags[i], frag_len);
+			datalen -= skb_frag_size(&skb_shinfo(skb)->frags[i]);
+			skb->len += skb_frag_size(&skb_shinfo(skb)->frags[i]);
+			skb->data_len += skb_frag_size(&skb_shinfo(skb)->frags[i]);
 			i++;
 			skb_shinfo(skb)->nr_frags = i;
 		}

@@ -277,7 +277,7 @@ static int __devinit ehci_orion_drv_probe(struct platform_device *pdev)
 		printk(KERN_WARNING "Orion ehci -USB phy version isn't supported.\n");
 	}
 
-	err = usb_add_hcd(hcd, irq, IRQF_SHARED | IRQF_DISABLED);
+	err = usb_add_hcd(hcd, irq, IRQF_SHARED);
 	if (err)
 		goto err4;
 

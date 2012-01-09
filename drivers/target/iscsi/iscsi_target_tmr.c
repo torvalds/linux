@@ -250,7 +250,7 @@ static int iscsit_task_reassign_complete_write(
 	 * so if we have received all DataOUT we can safety ignore Initiator.
 	 */
 	if (cmd->cmd_flags & ICF_GOT_LAST_DATAOUT) {
-		if (!atomic_read(&cmd->transport_sent)) {
+		if (!atomic_read(&cmd->se_cmd.t_transport_sent)) {
 			pr_debug("WRITE ITT: 0x%08x: t_state: %d"
 				" never sent to transport\n",
 				cmd->init_task_tag, cmd->se_cmd.t_state);
@@ -314,11 +314,11 @@ static int iscsit_task_reassign_complete_read(
 		cmd->acked_data_sn = (tmr_req->exp_data_sn - 1);
 	}
 
-	if (!atomic_read(&cmd->transport_sent)) {
+	if (!atomic_read(&cmd->se_cmd.t_transport_sent)) {
 		pr_debug("READ ITT: 0x%08x: t_state: %d never sent to"
 			" transport\n", cmd->init_task_tag,
 			cmd->se_cmd.t_state);
-		transport_generic_handle_cdb(se_cmd);
+		transport_handle_cdb_direct(se_cmd);
 		return 0;
 	}
 

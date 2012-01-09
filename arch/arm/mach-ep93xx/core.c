@@ -33,11 +33,13 @@
 #include <linux/i2c.h>
 #include <linux/i2c-gpio.h>
 #include <linux/spi/spi.h>
+#include <linux/export.h>
 
 #include <mach/hardware.h>
 #include <mach/fb.h>
 #include <mach/ep93xx_keypad.h>
 #include <mach/ep93xx_spi.h>
+#include <mach/gpio-ep93xx.h>
 
 #include <asm/mach/map.h>
 #include <asm/mach/time.h>

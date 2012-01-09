@@ -17,41 +17,12 @@
 #ifndef __ASM_ARCH_MXC_SYSTEM_H__
 #define __ASM_ARCH_MXC_SYSTEM_H__
 
-#include <mach/hardware.h>
-#include <mach/common.h>
-
-extern void mx5_cpu_lp_set(enum mxc_cpu_pwr_mode mode);
+extern void (*imx_idle)(void);
 
 static inline void arch_idle(void)
 {
-	/* fix i.MX31 errata TLSbo65953 and i.MX35 errata ENGcm09472 */
-	if (cpu_is_mx31() || cpu_is_mx35()) {
-		unsigned long reg = 0;
-		__asm__ __volatile__(
-			/* disable I and D cache */
-			"mrc p15, 0, %0, c1, c0, 0\n"
-			"bic %0, %0, #0x00001000\n"
-			"bic %0, %0, #0x00000004\n"
-			"mcr p15, 0, %0, c1, c0, 0\n"
-			/* invalidate I cache */
-			"mov %0, #0\n"
-			"mcr p15, 0, %0, c7, c5, 0\n"
-			/* clear and invalidate D cache */
-			"mov %0, #0\n"
-			"mcr p15, 0, %0, c7, c14, 0\n"
-			/* WFI */
-			"mov %0, #0\n"
-			"mcr p15, 0, %0, c7, c0, 4\n"
-			"nop\n" "nop\n" "nop\n" "nop\n"
-			"nop\n" "nop\n" "nop\n"
-			/* enable I and D cache */
-			"mrc p15, 0, %0, c1, c0, 0\n"
-			"orr %0, %0, #0x00001000\n"
-			"orr %0, %0, #0x00000004\n"
-			"mcr p15, 0, %0, c1, c0, 0\n"
-			: "=r" (reg));
-	} else if (cpu_is_mx51())
-		mx5_cpu_lp_set(WAIT_UNCLOCKED_POWER_OFF);
+	if (imx_idle != NULL)
+		(imx_idle)();
 	else
 		cpu_do_idle();
 }

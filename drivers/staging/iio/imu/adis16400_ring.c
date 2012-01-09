@@ -1,21 +1,14 @@
 #include <linux/interrupt.h>
-#include <linux/irq.h>
-#include <linux/gpio.h>
-#include <linux/workqueue.h>
 #include <linux/mutex.h>
-#include <linux/device.h>
 #include <linux/kernel.h>
 #include <linux/spi/spi.h>
 #include <linux/slab.h>
-#include <linux/sysfs.h>
-#include <linux/list.h>
 #include <linux/bitops.h>
+#include <linux/export.h>
 
 #include "../iio.h"
-#include "../sysfs.h"
 #include "../ring_sw.h"
-#include "../accel/accel.h"
-#include "../trigger.h"
+#include "../trigger_consumer.h"
 #include "adis16400.h"
 
 /**
@@ -87,13 +80,13 @@ static int adis16350_spi_read_all(struct device *dev, u8 *rx)
 	int i, j = 0, ret;
 	struct spi_transfer *xfers;
 
-	xfers = kzalloc(sizeof(*xfers)*indio_dev->ring->scan_count + 1,
+	xfers = kzalloc(sizeof(*xfers)*indio_dev->buffer->scan_count + 1,
 			GFP_KERNEL);
 	if (xfers == NULL)
 		return -ENOMEM;
 
 	for (i = 0; i < ARRAY_SIZE(read_all_tx_array); i++)
-		if (indio_dev->ring->scan_mask & (1 << i)) {
+		if (test_bit(i, indio_dev->buffer->scan_mask)) {
 			xfers[j].tx_buf = &read_all_tx_array[i];
 			xfers[j].bits_per_word = 16;
 			xfers[j].len = 2;
@@ -104,7 +97,7 @@ static int adis16350_spi_read_all(struct device *dev, u8 *rx)
 	xfers[j].len = 2;
 
 	spi_message_init(&msg);
-	for (j = 0; j < indio_dev->ring->scan_count + 1; j++)
+	for (j = 0; j < indio_dev->buffer->scan_count + 1; j++)
 		spi_message_add_tail(&xfers[j], &msg);
 
 	ret = spi_sync(st->us, &msg);
@@ -119,13 +112,14 @@ static int adis16350_spi_read_all(struct device *dev, u8 *rx)
 static irqreturn_t adis16400_trigger_handler(int irq, void *p)
 {
 	struct iio_poll_func *pf = p;
-	struct iio_dev *indio_dev = pf->private_data;
+	struct iio_dev *indio_dev = pf->indio_dev;
 	struct adis16400_state *st = iio_priv(indio_dev);
-	struct iio_ring_buffer *ring = indio_dev->ring;
+	struct iio_buffer *ring = indio_dev->buffer;
 	int i = 0, j, ret = 0;
 	s16 *data;
 	size_t datasize = ring->access->get_bytes_per_datum(ring);
-	unsigned long mask = ring->scan_mask;
+	/* Asumption that long is enough for maximum channels */
+	unsigned long mask = *ring->scan_mask;
 
 	data = kmalloc(datasize , GFP_KERNEL);
 	if (data == NULL) {
@@ -144,7 +138,7 @@ static irqreturn_t adis16400_trigger_handler(int irq, void *p)
 			ret = adis16400_spi_read_burst(&indio_dev->dev, st->rx);
 			if (ret < 0)
 				goto err;
-			for (; i < indio_dev->ring->scan_count; i++) {
+			for (; i < indio_dev->buffer->scan_count; i++) {
 				j = __ffs(mask);
 				mask &= ~(1 << j);
 				data[i] = be16_to_cpup(
@@ -155,7 +149,7 @@ static irqreturn_t adis16400_trigger_handler(int irq, void *p)
 	/* Guaranteed to be aligned with 8 byte boundary */
 	if (ring->scan_timestamp)
 		*((s64 *)(data + ((i + 3)/4)*4)) = pf->timestamp;
-	ring->access->store_to(indio_dev->ring, (u8 *) data, pf->timestamp);
+	ring->access->store_to(indio_dev->buffer, (u8 *) data, pf->timestamp);
 
 	iio_trigger_notify_done(indio_dev->trig);
 
@@ -170,36 +164,32 @@ err:
 void adis16400_unconfigure_ring(struct iio_dev *indio_dev)
 {
 	iio_dealloc_pollfunc(indio_dev->pollfunc);
-	iio_sw_rb_free(indio_dev->ring);
+	iio_sw_rb_free(indio_dev->buffer);
 }
 
-static const struct iio_ring_setup_ops adis16400_ring_setup_ops = {
-	.preenable = &iio_sw_ring_preenable,
-	.postenable = &iio_triggered_ring_postenable,
-	.predisable = &iio_triggered_ring_predisable,
+static const struct iio_buffer_setup_ops adis16400_ring_setup_ops = {
+	.preenable = &iio_sw_buffer_preenable,
+	.postenable = &iio_triggered_buffer_postenable,
+	.predisable = &iio_triggered_buffer_predisable,
 };
 
 int adis16400_configure_ring(struct iio_dev *indio_dev)
 {
 	int ret = 0;
-	struct adis16400_state *st = iio_priv(indio_dev);
-	struct iio_ring_buffer *ring;
+	struct iio_buffer *ring;
 
 	ring = iio_sw_rb_allocate(indio_dev);
 	if (!ring) {
 		ret = -ENOMEM;
 		return ret;
 	}
-	indio_dev->ring = ring;
+	indio_dev->buffer = ring;
 	/* Effectively select the ring buffer implementation */
 	ring->access = &ring_sw_access_funcs;
 	ring->bpe = 2;
 	ring->scan_timestamp = true;
 	ring->setup_ops = &adis16400_ring_setup_ops;
 	ring->owner = THIS_MODULE;
-	/* Set default scan mode */
-	ring->scan_mask = st->variant->default_scan_mask;
-	ring->scan_count = hweight_long(st->variant->default_scan_mask);
 
 	indio_dev->pollfunc = iio_alloc_pollfunc(&iio_pollfunc_store_time,
 						 &adis16400_trigger_handler,
@@ -213,9 +203,9 @@ int adis16400_configure_ring(struct iio_dev *indio_dev)
 		goto error_iio_sw_rb_free;
 	}
 
-	indio_dev->modes |= INDIO_RING_TRIGGERED;
+	indio_dev->modes |= INDIO_BUFFER_TRIGGERED;
 	return 0;
 error_iio_sw_rb_free:
-	iio_sw_rb_free(indio_dev->ring);
+	iio_sw_rb_free(indio_dev->buffer);
 	return ret;
 }

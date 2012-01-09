@@ -349,7 +349,7 @@ static int name##_set_rate(struct clk *clk, unsigned long rate)		\
 									\
 		reg = __raw_readl(CLKCTRL_BASE_ADDR + HW_CLKCTRL_##fr);	\
 		reg &= ~BM_CLKCTRL_##fr##_##fs##FRAC;			\
-		reg |= frac;						\
+		reg |= frac << BP_CLKCTRL_##fr##_##fs##FRAC;		\
 		__raw_writel(reg, CLKCTRL_BASE_ADDR + HW_CLKCTRL_##fr);	\
 	}								\
 									\
@@ -640,6 +640,8 @@ static struct clk_lookup lookups[] = {
 	_REGISTER_CLOCK(NULL, "lradc", lradc_clk)
 	_REGISTER_CLOCK(NULL, "spdif", spdif_clk)
 	_REGISTER_CLOCK("imx28-fb", NULL, lcdif_clk)
+	_REGISTER_CLOCK("mxs-saif.0", NULL, saif0_clk)
+	_REGISTER_CLOCK("mxs-saif.1", NULL, saif1_clk)
 };
 
 static int clk_misc_init(void)
@@ -708,11 +710,11 @@ static int clk_misc_init(void)
 
 	/* SAIF has to use frac div for functional operation */
 	reg = __raw_readl(CLKCTRL_BASE_ADDR + HW_CLKCTRL_SAIF0);
-	reg &= ~BM_CLKCTRL_SAIF0_DIV_FRAC_EN;
+	reg |= BM_CLKCTRL_SAIF0_DIV_FRAC_EN;
 	__raw_writel(reg, CLKCTRL_BASE_ADDR + HW_CLKCTRL_SAIF0);
 
 	reg = __raw_readl(CLKCTRL_BASE_ADDR + HW_CLKCTRL_SAIF1);
-	reg &= ~BM_CLKCTRL_SAIF1_DIV_FRAC_EN;
+	reg |= BM_CLKCTRL_SAIF1_DIV_FRAC_EN;
 	__raw_writel(reg, CLKCTRL_BASE_ADDR + HW_CLKCTRL_SAIF1);
 
 	/*
@@ -738,11 +740,17 @@ static int clk_misc_init(void)
 	__raw_writel(BM_CLKCTRL_CPU_INTERRUPT_WAIT,
 			CLKCTRL_BASE_ADDR + HW_CLKCTRL_CPU_SET);
 
-	/* Extra fec clock setting */
-	reg = __raw_readl(CLKCTRL_BASE_ADDR + HW_CLKCTRL_ENET);
-	reg &= ~BM_CLKCTRL_ENET_SLEEP;
-	reg |= BM_CLKCTRL_ENET_CLK_OUT_EN;
-	__raw_writel(reg, CLKCTRL_BASE_ADDR + HW_CLKCTRL_ENET);
+	/*
+	 * Extra fec clock setting
+	 * The DENX M28 uses an external clock source
+	 * and the clock output must not be enabled
+	 */
+	if (!machine_is_m28evk()) {
+		reg = __raw_readl(CLKCTRL_BASE_ADDR + HW_CLKCTRL_ENET);
+		reg &= ~BM_CLKCTRL_ENET_SLEEP;
+		reg |= BM_CLKCTRL_ENET_CLK_OUT_EN;
+		__raw_writel(reg, CLKCTRL_BASE_ADDR + HW_CLKCTRL_ENET);
+	}
 
 	/*
 	 * 480 MHz seems too high to be ssp clock source directly,
@@ -774,6 +782,8 @@ int __init mx28_clocks_init(void)
 	clk_enable(&uart_clk);
 
 	clk_set_parent(&lcdif_clk, &ref_pix_clk);
+	clk_set_parent(&saif0_clk, &pll0_clk);
+	clk_set_parent(&saif1_clk, &pll0_clk);
 
 	clkdev_add_table(lookups, ARRAY_SIZE(lookups));
 

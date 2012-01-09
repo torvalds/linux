@@ -1,7 +1,7 @@
 #
 # Light sensors
 #
-comment "Light sensors"
+menu "Light sensors"
 
 config SENSORS_ISL29018
         tristate "ISL 29018 light and proximity sensor"
@@ -30,3 +30,5 @@ config TSL2583
 	help
 	 Provides support for the TAOS tsl2580, tsl2581 and tsl2583 devices.
 	 Access ALS data via iio, sysfs.
+
+endmenu

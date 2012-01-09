@@ -62,12 +62,13 @@ struct rt_signal_frame {
 
 static int _sigpause_common(old_sigset_t set)
 {
-	set &= _BLOCKABLE;
-	spin_lock_irq(&current->sighand->siglock);
+	sigset_t blocked;
+
 	current->saved_sigmask = current->blocked;
-	siginitset(&current->blocked, set);
-	recalc_sigpending();
-	spin_unlock_irq(&current->sighand->siglock);
+
+	set &= _BLOCKABLE;
+	siginitset(&blocked, set);
+	set_current_blocked(&blocked);
 
 	current->state = TASK_INTERRUPTIBLE;
 	schedule();
@@ -139,10 +140,7 @@ asmlinkage void do_sigreturn(struct pt_regs *regs)
 		goto segv_and_exit;
 
 	sigdelsetmask(&set, ~_BLOCKABLE);
-	spin_lock_irq(&current->sighand->siglock);
-	current->blocked = set;
-	recalc_sigpending();
-	spin_unlock_irq(&current->sighand->siglock);
+	set_current_blocked(&set);
 	return;
 
 segv_and_exit:
@@ -209,10 +207,7 @@ asmlinkage void do_rt_sigreturn(struct pt_regs *regs)
 	}
 
 	sigdelsetmask(&set, ~_BLOCKABLE);
-	spin_lock_irq(&current->sighand->siglock);
-	current->blocked = set;
-	recalc_sigpending();
-	spin_unlock_irq(&current->sighand->siglock);
+	set_current_blocked(&set);
 	return;
 segv:
 	force_sig(SIGSEGV, current);
@@ -470,6 +465,7 @@ static inline int
 handle_signal(unsigned long signr, struct k_sigaction *ka,
 	      siginfo_t *info, sigset_t *oldset, struct pt_regs *regs)
 {
+	sigset_t blocked;
 	int err;
 
 	if (ka->sa.sa_flags & SA_SIGINFO)
@@ -480,12 +476,10 @@ handle_signal(unsigned long signr, struct k_sigaction *ka,
 	if (err)
 		return err;
 
-	spin_lock_irq(&current->sighand->siglock);
-	sigorsets(&current->blocked,&current->blocked,&ka->sa.sa_mask);
+	sigorsets(&blocked, &current->blocked, &ka->sa.sa_mask);
 	if (!(ka->sa.sa_flags & SA_NOMASK))
-		sigaddset(&current->blocked, signr);
-	recalc_sigpending();
-	spin_unlock_irq(&current->sighand->siglock);
+		sigaddset(&blocked, signr);
+	set_current_blocked(&blocked);
 
 	tracehook_signal_handler(signr, info, ka, regs, 0);
 
@@ -525,10 +519,26 @@ static void do_signal(struct pt_regs *regs, unsigned long orig_i0)
 	siginfo_t info;
 	int signr;
 
+	/* It's a lot of work and synchronization to add a new ptrace
+	 * register for GDB to save and restore in order to get
+	 * orig_i0 correct for syscall restarts when debugging.
+	 *
+	 * Although it should be the case that most of the global
+	 * registers are volatile across a system call, glibc already
+	 * depends upon that fact that we preserve them.  So we can't
+	 * just use any global register to save away the orig_i0 value.
+	 *
+	 * In particular %g2, %g3, %g4, and %g5 are all assumed to be
+	 * preserved across a system call trap by various pieces of
+	 * code in glibc.
+	 *
+	 * %g7 is used as the "thread register".   %g6 is not used in
+	 * any fixed manner.  %g6 is used as a scratch register and
+	 * a compiler temporary, but it's value is never used across
+	 * a system call.  Therefore %g6 is usable for orig_i0 storage.
+	 */
 	if (pt_regs_is_syscall(regs) && (regs->psr & PSR_C))
-		restart_syscall = 1;
-	else
-		restart_syscall = 0;
+		regs->u_regs[UREG_G6] = orig_i0;
 
 	if (test_thread_flag(TIF_RESTORE_SIGMASK))
 		oldset = &current->saved_sigmask;
@@ -541,8 +551,12 @@ static void do_signal(struct pt_regs *regs, unsigned long orig_i0)
 	 * the software "in syscall" bit, directing us to not perform
 	 * a syscall restart.
 	 */
-	if (restart_syscall && !pt_regs_is_syscall(regs))
-		restart_syscall = 0;
+	restart_syscall = 0;
+	if (pt_regs_is_syscall(regs) && (regs->psr & PSR_C)) {
+		restart_syscall = 1;
+		orig_i0 = regs->u_regs[UREG_G6];
+	}
+
 
 	if (signr > 0) {
 		if (restart_syscall)
@@ -581,7 +595,7 @@ static void do_signal(struct pt_regs *regs, unsigned long orig_i0)
 	 */
 	if (test_thread_flag(TIF_RESTORE_SIGMASK)) {
 		clear_thread_flag(TIF_RESTORE_SIGMASK);
-		sigprocmask(SIG_SETMASK, &current->saved_sigmask, NULL);
+		set_current_blocked(&current->saved_sigmask);
 	}
 }
 

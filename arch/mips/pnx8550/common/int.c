@@ -167,7 +167,7 @@ static struct irq_chip level_irq_type = {
 
 static struct irqaction gic_action = {
 	.handler =	no_action,
-	.flags =	IRQF_DISABLED,
+	.flags =	IRQF_DISABLED | IRQF_NO_THREAD,
 	.name =		"GIC",
 };
 

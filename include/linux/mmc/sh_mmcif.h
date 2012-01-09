@@ -41,7 +41,9 @@ struct sh_mmcif_plat_data {
 	void (*set_pwr)(struct platform_device *pdev, int state);
 	void (*down_pwr)(struct platform_device *pdev);
 	int (*get_cd)(struct platform_device *pdef);
-	struct sh_mmcif_dma	*dma;
+	struct sh_mmcif_dma	*dma;		/* Deprecated. Instead */
+	unsigned int		slave_id_tx;	/* use embedded slave_id_[tr]x */
+	unsigned int		slave_id_rx;
 	u8			sup_pclk;	/* 1 :SH7757, 0: SH7724/SH7372 */
 	unsigned long		caps;
 	u32			ocr;

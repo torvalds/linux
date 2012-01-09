@@ -41,7 +41,7 @@ config EDAC_DEBUG
 
 config EDAC_DECODE_MCE
 	tristate "Decode MCEs in human-readable form (only on AMD for now)"
-	depends on CPU_SUP_AMD && X86_MCE
+	depends on CPU_SUP_AMD && X86_MCE_AMD
 	default y
 	---help---
 	  Enable this option if you want to decode Machine Check Exceptions
@@ -70,9 +70,6 @@ config EDAC_MM_EDAC
 	  errors).  EDAC will also try to decode where these errors
 	  occurred so that a particular failing memory module can be
 	  replaced.  If unsure, select 'Y'.
-
-config EDAC_MCE
-	bool
 
 config EDAC_AMD64
 	tristate "AMD64 (Opteron, Athlon64) K8, F10h"
@@ -173,8 +170,7 @@ config EDAC_I5400
 
 config EDAC_I7CORE
 	tristate "Intel i7 Core (Nehalem) processors"
-	depends on EDAC_MM_EDAC && PCI && X86
-	select EDAC_MCE
+	depends on EDAC_MM_EDAC && PCI && X86 && X86_MCE_INTEL
 	help
 	  Support for error detection and correction the Intel
 	  i7 Core (Nehalem) Integrated Memory Controller that exists on
@@ -215,6 +211,14 @@ config EDAC_I7300
 	help
 	  Support for error detection and correction the Intel
 	  Clarksboro MCH (Intel 7300 chipset).
+
+config EDAC_SBRIDGE
+	tristate "Intel Sandy-Bridge Integrated MC"
+	depends on EDAC_MM_EDAC && PCI && X86_64 && X86_MCE_INTEL
+	depends on EXPERIMENTAL
+	help
+	  Support for error detection and correction the Intel
+	  Sandy Bridge Integrated Memory Controller.
 
 config EDAC_MPC85XX
 	tristate "Freescale MPC83xx / MPC85xx"

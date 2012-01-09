@@ -11,7 +11,7 @@
  *
 */
 
-		.macro	addruart, rp, rv
+		.macro	addruart, rp, rv, tmp
 		mov	\rp, #0x00010000
 		orr	\rp, \rp, #0x00000fe0
 		orr	\rv, \rp, #0xe0000000	@ virtual

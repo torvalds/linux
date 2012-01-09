@@ -732,16 +732,19 @@ static int davinci_mcasp_hw_params(struct snd_pcm_substream *substream,
 		davinci_hw_param(dev, substream->stream);
 
 	switch (params_format(params)) {
+	case SNDRV_PCM_FORMAT_U8:
 	case SNDRV_PCM_FORMAT_S8:
 		dma_params->data_type = 1;
 		word_length = DAVINCI_AUDIO_WORD_8;
 		break;
 
+	case SNDRV_PCM_FORMAT_U16_LE:
 	case SNDRV_PCM_FORMAT_S16_LE:
 		dma_params->data_type = 2;
 		word_length = DAVINCI_AUDIO_WORD_16;
 		break;
 
+	case SNDRV_PCM_FORMAT_U32_LE:
 	case SNDRV_PCM_FORMAT_S32_LE:
 		dma_params->data_type = 4;
 		word_length = DAVINCI_AUDIO_WORD_32;
@@ -818,6 +821,13 @@ static struct snd_soc_dai_ops davinci_mcasp_dai_ops = {
 
 };
 
+#define DAVINCI_MCASP_PCM_FMTS (SNDRV_PCM_FMTBIT_S8 | \
+				SNDRV_PCM_FMTBIT_U8 | \
+				SNDRV_PCM_FMTBIT_S16_LE | \
+				SNDRV_PCM_FMTBIT_U16_LE | \
+				SNDRV_PCM_FMTBIT_S32_LE | \
+				SNDRV_PCM_FMTBIT_U32_LE)
+
 static struct snd_soc_dai_driver davinci_mcasp_dai[] = {
 	{
 		.name		= "davinci-mcasp.0",
@@ -825,17 +835,13 @@ static struct snd_soc_dai_driver davinci_mcasp_dai[] = {
 			.channels_min	= 2,
 			.channels_max 	= 2,
 			.rates 		= DAVINCI_MCASP_RATES,
-			.formats 	= SNDRV_PCM_FMTBIT_S8 |
-						SNDRV_PCM_FMTBIT_S16_LE |
-						SNDRV_PCM_FMTBIT_S32_LE,
+			.formats	= DAVINCI_MCASP_PCM_FMTS,
 		},
 		.capture 	= {
 			.channels_min 	= 2,
 			.channels_max 	= 2,
 			.rates 		= DAVINCI_MCASP_RATES,
-			.formats	= SNDRV_PCM_FMTBIT_S8 |
-						SNDRV_PCM_FMTBIT_S16_LE |
-						SNDRV_PCM_FMTBIT_S32_LE,
+			.formats	= DAVINCI_MCASP_PCM_FMTS,
 		},
 		.ops 		= &davinci_mcasp_dai_ops,
 
@@ -846,7 +852,7 @@ static struct snd_soc_dai_driver davinci_mcasp_dai[] = {
 			.channels_min	= 1,
 			.channels_max	= 384,
 			.rates		= DAVINCI_MCASP_RATES,
-			.formats	= SNDRV_PCM_FMTBIT_S16_LE,
+			.formats	= DAVINCI_MCASP_PCM_FMTS,
 		},
 		.ops 		= &davinci_mcasp_dai_ops,
 	},

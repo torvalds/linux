@@ -32,7 +32,7 @@ enum bus_reset_handling {
 	SUCCEED_ON_BUS_RESET,
 };
 
-static __attribute__((format(printf, 2, 3)))
+static __printf(2, 3)
 void cmp_error(struct cmp_connection *c, const char *fmt, ...)
 {
 	va_list va;

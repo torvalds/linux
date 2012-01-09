@@ -11,6 +11,7 @@
  */
 
 #include <media/rc-map.h>
+#include <linux/module.h>
 
 /* Table for Leadtek Winfast Remote Controls - used by both bttv and cx88 */
 

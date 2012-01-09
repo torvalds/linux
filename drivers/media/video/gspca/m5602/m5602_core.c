@@ -16,6 +16,8 @@
  *
  */
 
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
 #include "m5602_ov9650.h"
 #include "m5602_ov7660.h"
 #include "m5602_mt9m111.h"
@@ -192,10 +194,9 @@ static void m5602_dump_bridge(struct sd *sd)
 	for (i = 0; i < 0x80; i++) {
 		unsigned char val = 0;
 		m5602_read_bridge(sd, i, &val);
-		info("ALi m5602 address 0x%x contains 0x%x", i, val);
+		pr_info("ALi m5602 address 0x%x contains 0x%x\n", i, val);
 	}
-	info("Warning: The ALi m5602 webcam probably won't work "
-		"until it's power cycled");
+	pr_info("Warning: The ALi m5602 webcam probably won't work until it's power cycled\n");
 }
 
 static int m5602_probe_sensor(struct sd *sd)
@@ -231,7 +232,7 @@ static int m5602_probe_sensor(struct sd *sd)
 		return 0;
 
 	/* More sensor probe function goes here */
-	info("Failed to find a sensor");
+	pr_info("Failed to find a sensor\n");
 	sd->sensor = NULL;
 	return -ENODEV;
 }

@@ -13,7 +13,7 @@
 #include <linux/platform_device.h>
 #include <linux/amba/bus.h>
 
-#include <plat/gpio.h>
+#include <plat/gpio-nomadik.h>
 
 #include <mach/hardware.h>
 

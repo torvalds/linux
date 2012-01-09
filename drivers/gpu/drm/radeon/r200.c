@@ -84,7 +84,7 @@ static int r200_get_vtx_size_0(uint32_t vtx_fmt_0)
 int r200_copy_dma(struct radeon_device *rdev,
 		  uint64_t src_offset,
 		  uint64_t dst_offset,
-		  unsigned num_pages,
+		  unsigned num_gpu_pages,
 		  struct radeon_fence *fence)
 {
 	uint32_t size;
@@ -93,7 +93,7 @@ int r200_copy_dma(struct radeon_device *rdev,
 	int r = 0;
 
 	/* radeon pitch is /64 */
-	size = num_pages << PAGE_SHIFT;
+	size = num_gpu_pages << RADEON_GPU_PAGE_SHIFT;
 	num_loops = DIV_ROUND_UP(size, 0x1FFFFF);
 	r = radeon_ring_lock(rdev, num_loops * 4 + 64);
 	if (r) {

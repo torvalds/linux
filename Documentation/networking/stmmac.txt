@@ -76,7 +76,16 @@ core.
 
 4.5) DMA descriptors
 Driver handles both normal and enhanced descriptors. The latter has been only
-tested on DWC Ether MAC 10/100/1000 Universal version 3.41a.
+tested on DWC Ether MAC 10/100/1000 Universal version 3.41a and later.
+
+STMMAC supports DMA descriptor to operate both in dual buffer (RING)
+and linked-list(CHAINED) mode. In RING each descriptor points to two
+data buffer pointers whereas in CHAINED mode they point to only one data
+buffer pointer. RING mode is the default.
+
+In CHAINED mode each descriptor will have pointer to next descriptor in
+the list, hence creating the explicit chaining in the descriptor itself,
+whereas such explicit chaining is not possible in RING mode.
 
 4.6) Ethtool support
 Ethtool is supported. Driver statistics and internal errors can be taken using:
@@ -235,7 +244,38 @@ reset procedure etc).
  o enh_desc.c: functions for handling enhanced descriptors
  o norm_desc.c: functions for handling normal descriptors
 
-5) TODO:
+5) Debug Information
+
+The driver exports many information i.e. internal statistics,
+debug information, MAC and DMA registers etc.
+
+These can be read in several ways depending on the
+type of the information actually needed.
+
+For example a user can be use the ethtool support
+to get statistics: e.g. using: ethtool -S ethX
+(that shows the Management counters (MMC) if supported)
+or sees the MAC/DMA registers: e.g. using: ethtool -d ethX
+
+Compiling the Kernel with CONFIG_DEBUG_FS and enabling the
+STMMAC_DEBUG_FS option the driver will export the following
+debugfs entries:
+
+/sys/kernel/debug/stmmaceth/descriptors_status
+  To show the DMA TX/RX descriptor rings
+
+Developer can also use the "debug" module parameter to get
+further debug information.
+
+In the end, there are other macros (that cannot be enabled
+via menuconfig) to turn-on the RX/TX DMA debugging,
+specific MAC core debug printk etc. Others to enable the
+debug in the TX and RX processes.
+All these are only useful during the developing stage
+and should never enabled inside the code for general usage.
+In fact, these can generate an huge amount of debug messages.
+
+6) TODO:
  o XGMAC is not supported.
  o Review the timer optimisation code to use an embedded device that will be
   available in new chip generations.

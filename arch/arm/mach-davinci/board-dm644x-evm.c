@@ -23,6 +23,7 @@
 #include <linux/phy.h>
 #include <linux/clk.h>
 #include <linux/videodev2.h>
+#include <linux/export.h>
 
 #include <media/tvp514x.h>
 
@@ -150,7 +151,7 @@ static struct davinci_nand_pdata davinci_evm_nandflash_data = {
 	.parts		= davinci_evm_nandflash_partition,
 	.nr_parts	= ARRAY_SIZE(davinci_evm_nandflash_partition),
 	.ecc_mode	= NAND_ECC_HW,
-	.options	= NAND_USE_FLASH_BBT,
+	.bbt_options	= NAND_BBT_USE_FLASH,
 	.timing		= &davinci_evm_nandflash_timing,
 };
 
@@ -712,7 +713,7 @@ static __init void davinci_evm_init(void)
 
 MACHINE_START(DAVINCI_EVM, "DaVinci DM644x EVM")
 	/* Maintainer: MontaVista Software <source@mvista.com> */
-	.boot_params  = (DAVINCI_DDR_BASE + 0x100),
+	.atag_offset  = 0x100,
 	.map_io	      = davinci_evm_map_io,
 	.init_irq     = davinci_irq_init,
 	.timer	      = &davinci_timer,

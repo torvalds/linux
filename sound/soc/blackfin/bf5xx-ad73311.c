@@ -128,7 +128,7 @@ static int snd_ad73311_configure(void)
 	return 0;
 }
 
-static int bf5xx_probe(struct platform_device *pdev)
+static int bf5xx_probe(struct snd_soc_card *card)
 {
 	int err;
 	if (gpio_request(GPIO_SE, "AD73311_SE")) {

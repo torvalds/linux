@@ -32,6 +32,7 @@
 
 #include <linux/module.h>
 #include <linux/tty.h>
+#include <linux/tty_flip.h>
 #include <linux/ioport.h>
 #include <linux/init.h>
 #include <linux/console.h>

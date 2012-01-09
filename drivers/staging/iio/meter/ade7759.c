@@ -8,7 +8,6 @@
 
 #include <linux/interrupt.h>
 #include <linux/irq.h>
-#include <linux/gpio.h>
 #include <linux/delay.h>
 #include <linux/mutex.h>
 #include <linux/device.h>
@@ -17,6 +16,7 @@
 #include <linux/slab.h>
 #include <linux/sysfs.h>
 #include <linux/list.h>
+#include <linux/module.h>
 
 #include "../iio.h"
 #include "../sysfs.h"
@@ -412,8 +412,8 @@ out:
 	return ret ? ret : len;
 }
 static IIO_DEV_ATTR_TEMP_RAW(ade7759_read_8bit);
-static IIO_CONST_ATTR(temp_offset, "70 C");
-static IIO_CONST_ATTR(temp_scale, "1 C");
+static IIO_CONST_ATTR(in_temp_offset, "70 C");
+static IIO_CONST_ATTR(in_temp_scale, "1 C");
 
 static IIO_DEV_ATTR_SAMP_FREQ(S_IWUSR | S_IRUGO,
 		ade7759_read_frequency,
@@ -424,9 +424,9 @@ static IIO_DEV_ATTR_RESET(ade7759_write_reset);
 static IIO_CONST_ATTR_SAMP_FREQ_AVAIL("27900 14000 7000 3500");
 
 static struct attribute *ade7759_attributes[] = {
-	&iio_dev_attr_temp_raw.dev_attr.attr,
-	&iio_const_attr_temp_offset.dev_attr.attr,
-	&iio_const_attr_temp_scale.dev_attr.attr,
+	&iio_dev_attr_in_temp_raw.dev_attr.attr,
+	&iio_const_attr_in_temp_offset.dev_attr.attr,
+	&iio_const_attr_in_temp_scale.dev_attr.attr,
 	&iio_dev_attr_sampling_frequency.dev_attr.attr,
 	&iio_const_attr_sampling_frequency_available.dev_attr.attr,
 	&iio_dev_attr_reset.dev_attr.attr,
@@ -479,19 +479,17 @@ static int __devinit ade7759_probe(struct spi_device *spi)
 	indio_dev->info = &ade7759_info;
 	indio_dev->modes = INDIO_DIRECT_MODE;
 
+	/* Get the device into a sane initial state */
+	ret = ade7759_initial_setup(indio_dev);
+	if (ret)
+		goto error_free_dev;
+
 	ret = iio_device_register(indio_dev);
 	if (ret)
 		goto error_free_dev;
 
-	/* Get the device into a sane initial state */
-	ret = ade7759_initial_setup(indio_dev);
-	if (ret)
-		goto error_unreg_dev;
 	return 0;
 
-
-error_unreg_dev:
-	iio_device_unregister(indio_dev);
 error_free_dev:
 	iio_free_device(indio_dev);
 error_ret:
@@ -504,11 +502,12 @@ static int ade7759_remove(struct spi_device *spi)
 	int ret;
 	struct iio_dev *indio_dev = spi_get_drvdata(spi);
 
+	iio_device_unregister(indio_dev);
 	ret = ade7759_stop_device(&(indio_dev->dev));
 	if (ret)
 		goto err_ret;
 
-	iio_device_unregister(indio_dev);
+	iio_free_device(indio_dev);
 
 err_ret:
 	return ret;

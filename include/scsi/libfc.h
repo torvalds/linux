@@ -281,9 +281,6 @@ struct fc_seq_els_data {
  * @timer:           The command timer
  * @tm_done:         Completion indicator
  * @wait_for_comp:   Indicator to wait for completion of the I/O (in jiffies)
- * @start_time:      Timestamp indicating the start of the I/O (in jiffies)
- * @end_time:        Timestamp indicating the end of the I/O (in jiffies)
- * @last_pkt_time:   Timestamp of the last frame received (in jiffies)
  * @data_len:        The length of the data
  * @cdb_cmd:         The CDB command
  * @xfer_len:        The transfer length
@@ -304,50 +301,46 @@ struct fc_seq_els_data {
  * @recov_seq:       The sequence for REC or SRR
  */
 struct fc_fcp_pkt {
-	/* Housekeeping information */
-	struct fc_lport   *lp;
-	u16		  state;
-	atomic_t	  ref_cnt;
 	spinlock_t	  scsi_pkt_lock;
+	atomic_t	  ref_cnt;
+
+	/* SCSI command and data transfer information */
+	u32		  data_len;
 
 	/* SCSI I/O related information */
 	struct scsi_cmnd  *cmd;
 	struct list_head  list;
 
-	/* Timeout related information */
-	struct timer_list timer;
-	struct completion tm_done;
-	int	          wait_for_comp;
-	unsigned long	  start_time;
-	unsigned long	  end_time;
-	unsigned long	  last_pkt_time;
-
-	/* SCSI command and data transfer information */
-	u32		  data_len;
-
-	/* Transport related veriables */
-	struct fcp_cmnd   cdb_cmd;
-	size_t		  xfer_len;
-	u16		  xfer_ddp;
-	u32		  xfer_contig_end;
-	u16		  max_payload;
+	/* Housekeeping information */
+	struct fc_lport   *lp;
+	u8		  state;
 
 	/* SCSI/FCP return status */
-	u32		  io_status;
 	u8		  cdb_status;
 	u8		  status_code;
 	u8		  scsi_comp_flags;
+	u32		  io_status;
 	u32		  req_flags;
 	u32		  scsi_resid;
+
+	/* Transport related veriables */
+	size_t		  xfer_len;
+	struct fcp_cmnd   cdb_cmd;
+	u32		  xfer_contig_end;
+	u16		  max_payload;
+	u16		  xfer_ddp;
 
 	/* Associated structures */
 	struct fc_rport	  *rport;
 	struct fc_seq	  *seq_ptr;
 
-	/* Error Processing information */
-	u8		  recov_retry;
+	/* Timeout/error related information */
+	struct timer_list timer;
+	int	          wait_for_comp;
+	u32		  recov_retry;
 	struct fc_seq	  *recov_seq;
-};
+	struct completion tm_done;
+} ____cacheline_aligned_in_smp;
 
 /*
  * Structure and function definitions for managing Fibre Channel Exchanges
@@ -413,35 +406,32 @@ struct fc_seq {
  *	sequence allocation
  */
 struct fc_exch {
-	struct fc_exch_mgr  *em;
-	struct fc_exch_pool *pool;
-	u32		    state;
-	u16		    xid;
-	struct list_head    ex_list;
 	spinlock_t	    ex_lock;
 	atomic_t	    ex_refcnt;
-	struct delayed_work timeout_work;
+	enum fc_class	    class;
+	struct fc_exch_mgr  *em;
+	struct fc_exch_pool *pool;
+	struct list_head    ex_list;
 	struct fc_lport	    *lp;
+	u32		    esb_stat;
+	u8		    state;
+	u8		    fh_type;
+	u8		    seq_id;
+	u8		    encaps;
+	u16		    xid;
 	u16		    oxid;
 	u16		    rxid;
 	u32		    oid;
 	u32		    sid;
 	u32		    did;
-	u32		    esb_stat;
 	u32		    r_a_tov;
-	u8		    seq_id;
-	u8		    encaps;
 	u32		    f_ctl;
-	u8		    fh_type;
-	enum fc_class	    class;
-	struct fc_seq	    seq;
-
+	struct fc_seq       seq;
 	void		    (*resp)(struct fc_seq *, struct fc_frame *, void *);
 	void		    *arg;
-
 	void		    (*destructor)(struct fc_seq *, void *);
-
-};
+	struct delayed_work timeout_work;
+} ____cacheline_aligned_in_smp;
 #define	fc_seq_exch(sp) container_of(sp, struct fc_exch, seq)
 
 

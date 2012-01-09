@@ -17,7 +17,7 @@
 #include <mach/zynq_soc.h>
 #include <mach/uart.h>
 
-		.macro	addruart, rp, rv
+		.macro	addruart, rp, rv, tmp
 		ldr	\rp, =LL_UART_PADDR	@ physical
 		ldr	\rv, =LL_UART_VADDR	@ virtual
 		.endm

@@ -55,11 +55,6 @@ or in the same directory as the C source code. For example to find a url
 about the USB mass storage driver see the 
 /usr/src/linux/drivers/usb/storage directory.
 
-The Linux kernel source Documentation/DocBook/scsidrivers.tmpl file
-refers to this file. With the appropriate DocBook tool-set, this permits
-users to generate html, ps and pdf renderings of information within this
-file (e.g. the interface functions).
-
 Driver structure
 ================
 Traditionally an LLD for the SCSI subsystem has been at least two files in

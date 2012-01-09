@@ -75,7 +75,7 @@ uint32_t r100_pll_rreg(struct radeon_device *rdev, uint32_t reg);
 int r100_copy_blit(struct radeon_device *rdev,
 		   uint64_t src_offset,
 		   uint64_t dst_offset,
-		   unsigned num_pages,
+		   unsigned num_gpu_pages,
 		   struct radeon_fence *fence);
 int r100_set_surface_reg(struct radeon_device *rdev, int reg,
 			 uint32_t tiling_flags, uint32_t pitch,
@@ -143,7 +143,7 @@ extern void r100_post_page_flip(struct radeon_device *rdev, int crtc);
 extern int r200_copy_dma(struct radeon_device *rdev,
 			 uint64_t src_offset,
 			 uint64_t dst_offset,
-			 unsigned num_pages,
+			 unsigned num_gpu_pages,
 			 struct radeon_fence *fence);
 void r200_set_safe_registers(struct radeon_device *rdev);
 
@@ -311,7 +311,7 @@ void r600_ring_ib_execute(struct radeon_device *rdev, struct radeon_ib *ib);
 int r600_ring_test(struct radeon_device *rdev);
 int r600_copy_blit(struct radeon_device *rdev,
 		   uint64_t src_offset, uint64_t dst_offset,
-		   unsigned num_pages, struct radeon_fence *fence);
+		   unsigned num_gpu_pages, struct radeon_fence *fence);
 void r600_hpd_init(struct radeon_device *rdev);
 void r600_hpd_fini(struct radeon_device *rdev);
 bool r600_hpd_sense(struct radeon_device *rdev, enum radeon_hpd_id hpd);
@@ -364,11 +364,11 @@ void r600_hdmi_init(struct drm_encoder *encoder);
 int r600_hdmi_buffer_status_changed(struct drm_encoder *encoder);
 void r600_hdmi_update_audio_settings(struct drm_encoder *encoder);
 /* r600 blit */
-int r600_blit_prepare_copy(struct radeon_device *rdev, int size_bytes);
+int r600_blit_prepare_copy(struct radeon_device *rdev, unsigned num_gpu_pages);
 void r600_blit_done_copy(struct radeon_device *rdev, struct radeon_fence *fence);
 void r600_kms_blit_copy(struct radeon_device *rdev,
 			u64 src_gpu_addr, u64 dst_gpu_addr,
-			int size_bytes);
+			unsigned num_gpu_pages);
 
 /*
  * rv770,rv730,rv710,rv740
@@ -401,9 +401,6 @@ bool evergreen_gpu_is_lockup(struct radeon_device *rdev);
 int evergreen_asic_reset(struct radeon_device *rdev);
 void evergreen_bandwidth_update(struct radeon_device *rdev);
 void evergreen_ring_ib_execute(struct radeon_device *rdev, struct radeon_ib *ib);
-int evergreen_copy_blit(struct radeon_device *rdev,
-			uint64_t src_offset, uint64_t dst_offset,
-			unsigned num_pages, struct radeon_fence *fence);
 void evergreen_hpd_init(struct radeon_device *rdev);
 void evergreen_hpd_fini(struct radeon_device *rdev);
 bool evergreen_hpd_sense(struct radeon_device *rdev, enum radeon_hpd_id hpd);
@@ -416,18 +413,12 @@ extern int evergreen_cs_parse(struct radeon_cs_parser *p);
 extern void evergreen_pm_misc(struct radeon_device *rdev);
 extern void evergreen_pm_prepare(struct radeon_device *rdev);
 extern void evergreen_pm_finish(struct radeon_device *rdev);
+extern void sumo_pm_init_profile(struct radeon_device *rdev);
 extern void evergreen_pre_page_flip(struct radeon_device *rdev, int crtc);
 extern u32 evergreen_page_flip(struct radeon_device *rdev, int crtc, u64 crtc_base);
 extern void evergreen_post_page_flip(struct radeon_device *rdev, int crtc);
 void evergreen_disable_interrupt_state(struct radeon_device *rdev);
 int evergreen_blit_init(struct radeon_device *rdev);
-void evergreen_blit_fini(struct radeon_device *rdev);
-/* evergreen blit */
-int evergreen_blit_prepare_copy(struct radeon_device *rdev, int size_bytes);
-void evergreen_blit_done_copy(struct radeon_device *rdev, struct radeon_fence *fence);
-void evergreen_kms_blit_copy(struct radeon_device *rdev,
-			     u64 src_gpu_addr, u64 dst_gpu_addr,
-			     int size_bytes);
 
 /*
  * cayman

@@ -82,16 +82,28 @@ static void dvb_usb_data_complete_204(struct usb_data_stream *stream, u8 *buffer
 
 int dvb_usb_adapter_stream_init(struct dvb_usb_adapter *adap)
 {
-	adap->stream.udev      = adap->dev->udev;
-	if (adap->props.caps & DVB_USB_ADAP_RECEIVES_204_BYTE_TS)
-		adap->stream.complete = dvb_usb_data_complete_204;
-	else
-	adap->stream.complete  = dvb_usb_data_complete;
-	adap->stream.user_priv = adap;
-	return usb_urb_init(&adap->stream, &adap->props.stream);
+	int i, ret = 0;
+	for (i = 0; i < adap->props.num_frontends; i++) {
+
+		adap->fe_adap[i].stream.udev      = adap->dev->udev;
+		if (adap->props.fe[i].caps & DVB_USB_ADAP_RECEIVES_204_BYTE_TS)
+			adap->fe_adap[i].stream.complete =
+				dvb_usb_data_complete_204;
+		else
+		adap->fe_adap[i].stream.complete  = dvb_usb_data_complete;
+		adap->fe_adap[i].stream.user_priv = adap;
+		ret = usb_urb_init(&adap->fe_adap[i].stream,
+				   &adap->props.fe[i].stream);
+		if (ret < 0)
+			break;
+	}
+	return ret;
 }
 
 int dvb_usb_adapter_stream_exit(struct dvb_usb_adapter *adap)
 {
-	return usb_urb_exit(&adap->stream);
+	int i;
+	for (i = 0; i < adap->props.num_frontends; i++)
+		usb_urb_exit(&adap->fe_adap[i].stream);
+	return 0;
 }

@@ -71,6 +71,7 @@
 #include <linux/timer.h>
 #include <linux/workqueue.h>
 #include <linux/input.h>
+#include <linux/semaphore.h>
 
 /*
  * We parse each description item into this structure. Short items data
@@ -312,6 +313,7 @@ struct hid_item {
 #define HID_QUIRK_BADPAD			0x00000020
 #define HID_QUIRK_MULTI_INPUT			0x00000040
 #define HID_QUIRK_HIDINPUT_FORCE		0x00000080
+#define HID_QUIRK_MULTITOUCH			0x00000100
 #define HID_QUIRK_SKIP_OUTPUT_REPORTS		0x00010000
 #define HID_QUIRK_FULLSPEED_INTERVAL		0x10000000
 #define HID_QUIRK_NO_INIT_REPORTS		0x20000000
@@ -475,6 +477,7 @@ struct hid_device {							/* device report descriptor */
 	unsigned country;						/* HID country */
 	struct hid_report_enum report_enum[HID_REPORT_TYPES];
 
+	struct semaphore driver_lock;					/* protects the current driver */
 	struct device dev;						/* device */
 	struct hid_driver *driver;
 	struct hid_ll_driver *ll_driver;
@@ -694,10 +697,11 @@ extern void hid_destroy_device(struct hid_device *);
 
 extern int __must_check __hid_register_driver(struct hid_driver *,
 		struct module *, const char *mod_name);
-static inline int __must_check hid_register_driver(struct hid_driver *driver)
-{
-	return __hid_register_driver(driver, THIS_MODULE, KBUILD_MODNAME);
-}
+
+/* use a define to avoid include chaining to get THIS_MODULE & friends */
+#define hid_register_driver(driver) \
+	__hid_register_driver(driver, THIS_MODULE, KBUILD_MODNAME)
+
 extern void hid_unregister_driver(struct hid_driver *);
 
 extern void hidinput_hid_event(struct hid_device *, struct hid_field *, struct hid_usage *, __s32);

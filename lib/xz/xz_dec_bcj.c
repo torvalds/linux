@@ -441,8 +441,12 @@ XZ_EXTERN enum xz_ret xz_dec_bcj_run(struct xz_dec_bcj *s,
 	 * next filter in the chain. Apply the BCJ filter on the new data
 	 * in the output buffer. If everything cannot be filtered, copy it
 	 * to temp and rewind the output buffer position accordingly.
+	 *
+	 * This needs to be always run when temp.size == 0 to handle a special
+	 * case where the output buffer is full and the next filter has no
+	 * more output coming but hasn't returned XZ_STREAM_END yet.
 	 */
-	if (s->temp.size < b->out_size - b->out_pos) {
+	if (s->temp.size < b->out_size - b->out_pos || s->temp.size == 0) {
 		out_start = b->out_pos;
 		memcpy(b->out + b->out_pos, s->temp.buf, s->temp.size);
 		b->out_pos += s->temp.size;
@@ -465,16 +469,25 @@ XZ_EXTERN enum xz_ret xz_dec_bcj_run(struct xz_dec_bcj *s,
 		s->temp.size = b->out_pos - out_start;
 		b->out_pos -= s->temp.size;
 		memcpy(s->temp.buf, b->out + b->out_pos, s->temp.size);
+
+		/*
+		 * If there wasn't enough input to the next filter to fill
+		 * the output buffer with unfiltered data, there's no point
+		 * to try decoding more data to temp.
+		 */
+		if (b->out_pos + s->temp.size < b->out_size)
+			return XZ_OK;
 	}
 
 	/*
-	 * If we have unfiltered data in temp, try to fill by decoding more
-	 * data from the next filter. Apply the BCJ filter on temp. Then we
-	 * hopefully can fill the actual output buffer by copying filtered
-	 * data from temp. A mix of filtered and unfiltered data may be left
-	 * in temp; it will be taken care on the next call to this function.
+	 * We have unfiltered data in temp. If the output buffer isn't full
+	 * yet, try to fill the temp buffer by decoding more data from the
+	 * next filter. Apply the BCJ filter on temp. Then we hopefully can
+	 * fill the actual output buffer by copying filtered data from temp.
+	 * A mix of filtered and unfiltered data may be left in temp; it will
+	 * be taken care on the next call to this function.
 	 */
-	if (s->temp.size > 0) {
+	if (b->out_pos < b->out_size) {
 		/* Make b->out{,_pos,_size} temporarily point to s->temp. */
 		s->out = b->out;
 		s->out_pos = b->out_pos;

@@ -188,8 +188,7 @@ irqreturn_t bfin_gptmr0_interrupt(int irq, void *dev_id)
 
 static struct irqaction gptmr0_irq = {
 	.name		= "Blackfin GPTimer0",
-	.flags		= IRQF_DISABLED | IRQF_TIMER | \
-			  IRQF_IRQPOLL | IRQF_PERCPU,
+	.flags		= IRQF_TIMER | IRQF_IRQPOLL | IRQF_PERCPU,
 	.handler	= bfin_gptmr0_interrupt,
 };
 
@@ -297,8 +296,7 @@ irqreturn_t bfin_coretmr_interrupt(int irq, void *dev_id)
 
 static struct irqaction coretmr_irq = {
 	.name		= "Blackfin CoreTimer",
-	.flags		= IRQF_DISABLED | IRQF_TIMER | \
-			  IRQF_IRQPOLL | IRQF_PERCPU,
+	.flags		= IRQF_TIMER | IRQF_IRQPOLL | IRQF_PERCPU,
 	.handler	= bfin_coretmr_interrupt,
 };
 

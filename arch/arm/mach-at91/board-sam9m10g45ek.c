@@ -14,6 +14,7 @@
  */
 
 #include <linux/types.h>
+#include <linux/gpio.h>
 #include <linux/init.h>
 #include <linux/mm.h>
 #include <linux/module.h>
@@ -38,7 +39,6 @@
 #include <asm/mach/irq.h>
 
 #include <mach/board.h>
-#include <mach/gpio.h>
 #include <mach/at91sam9_smc.h>
 #include <mach/at91_shdwc.h>
 #include <mach/system_rev.h>
@@ -137,19 +137,14 @@ static struct mtd_partition __initdata ek_nand_partition[] = {
 	},
 };
 
-static struct mtd_partition * __init nand_partitions(int size, int *num_partitions)
-{
-	*num_partitions = ARRAY_SIZE(ek_nand_partition);
-	return ek_nand_partition;
-}
-
 /* det_pin is not connected */
 static struct atmel_nand_data __initdata ek_nand_data = {
 	.ale		= 21,
 	.cle		= 22,
 	.rdy_pin	= AT91_PIN_PC8,
 	.enable_pin	= AT91_PIN_PC14,
-	.partition_info	= nand_partitions,
+	.parts		= ek_nand_partition,
+	.num_parts	= ARRAY_SIZE(ek_nand_partition),
 };
 
 static struct sam9_smc_config __initdata ek_nand_smc_config = {

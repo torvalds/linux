@@ -12,7 +12,7 @@
 */
 #include <mach/hardware.h>
 
-		.macro	addruart, rp, rv
+		.macro	addruart, rp, rv, tmp
 		mrc	p15, 0, \rp, c1, c0
 		tst	\rp, #1			@ MMU enabled?
 		moveq	\rp, #0x80000000	@ physical base address

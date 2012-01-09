@@ -1,0 +1,47 @@
+#
+# Myricom device configuration
+#
+
+config NET_VENDOR_MYRI
+	bool "Myricom devices"
+	default y
+	depends on PCI && INET
+	---help---
+	  If you have a network (Ethernet) card belonging to this class, say
+	  Y and read the Ethernet-HOWTO, available from
+	  <http://www.tldp.org/docs.html#howto>.
+
+	  Note that the answer to this question doesn't directly affect the
+	  kernel: saying N will just cause the configurator to skip all
+	  the questions about Myricom cards. If you say Y, you will be asked for
+	  your specific card in the following questions.
+
+if NET_VENDOR_MYRI
+
+config MYRI10GE
+	tristate "Myricom Myri-10G Ethernet support"
+	depends on PCI && INET
+	select FW_LOADER
+	select CRC32
+	select INET_LRO
+	---help---
+	  This driver supports Myricom Myri-10G Dual Protocol interface in
+	  Ethernet mode. If the eeprom on your board is not recent enough,
+	  you will need a newer firmware image.
+	  You may get this image or more information, at:
+
+	  <http://www.myri.com/scs/download-Myri10GE.html>
+
+	  To compile this driver as a module, choose M here. The module
+	  will be called myri10ge.
+
+config MYRI10GE_DCA
+	bool "Direct Cache Access (DCA) Support"
+	default y
+	depends on MYRI10GE && DCA && !(MYRI10GE=y && DCA=m)
+	---help---
+	  Say Y here if you want to use Direct Cache Access (DCA) in the
+	  driver.  DCA is a method for warming the CPU cache before data
+	  is used, with the intent of lessening the impact of cache misses.
+
+endif # NET_VENDOR_MYRI

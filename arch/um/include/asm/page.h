@@ -19,7 +19,7 @@
 struct page;
 
 #include <linux/types.h>
-#include <sysdep/vm-flags.h>
+#include <asm/vm-flags.h>
 
 /*
  * These are used to make use of C type-checking..
