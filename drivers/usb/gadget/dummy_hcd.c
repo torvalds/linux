@@ -801,7 +801,7 @@ static int dummy_set_selfpowered (struct usb_gadget *_gadget, int value)
 	return 0;
 }
 
-static void dummy_udc_udpate_ep0(struct dummy *dum)
+static void dummy_udc_update_ep0(struct dummy *dum)
 {
 	if (dum->gadget.speed == USB_SPEED_SUPER)
 		dum->ep[0].ep.maxpacket = 9;
@@ -825,7 +825,7 @@ static int dummy_pullup (struct usb_gadget *_gadget, int value)
 					dum->driver->max_speed);
 		else
 			dum->gadget.speed = USB_SPEED_FULL;
-		dummy_udc_udpate_ep0(dum);
+		dummy_udc_update_ep0(dum);
 
 		if (dum->gadget.speed < dum->driver->max_speed)
 			dev_dbg(udc_dev(dum), "This device can perform faster"
