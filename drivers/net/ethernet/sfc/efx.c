@@ -798,16 +798,14 @@ void efx_link_status_changed(struct efx_nic *efx)
 	}
 
 	/* Status message for kernel log */
-	if (link_state->up) {
+	if (link_state->up)
 		netif_info(efx, link, efx->net_dev,
 			   "link up at %uMbps %s-duplex (MTU %d)%s\n",
 			   link_state->speed, link_state->fd ? "full" : "half",
 			   efx->net_dev->mtu,
 			   (efx->promiscuous ? " [PROMISC]" : ""));
-	} else {
+	else
 		netif_info(efx, link, efx->net_dev, "link down\n");
-	}
-
 }
 
 void efx_link_set_advertising(struct efx_nic *efx, u32 advertising)
@@ -1741,7 +1739,8 @@ static int efx_net_stop(struct net_device *net_dev)
 }
 
 /* Context: process, dev_base_lock or RTNL held, non-blocking. */
-static struct rtnl_link_stats64 *efx_net_stats(struct net_device *net_dev, struct rtnl_link_stats64 *stats)
+static struct rtnl_link_stats64 *efx_net_stats(struct net_device *net_dev,
+					       struct rtnl_link_stats64 *stats)
 {
 	struct efx_nic *efx = netdev_priv(net_dev);
 	struct efx_mac_stats *mac_stats = &efx->mac_stats;
