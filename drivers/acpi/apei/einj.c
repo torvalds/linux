@@ -276,7 +276,7 @@ static int einj_check_trigger_header(struct acpi_einj_trigger *trigger_tab)
 	if (trigger_tab->header_size != sizeof(struct acpi_einj_trigger))
 		return -EINVAL;
 	if (trigger_tab->table_size > PAGE_SIZE ||
-	    trigger_tab->table_size <= trigger_tab->header_size)
+	    trigger_tab->table_size < trigger_tab->header_size)
 		return -EINVAL;
 	if (trigger_tab->entry_count !=
 	    (trigger_tab->table_size - trigger_tab->header_size) /
@@ -340,6 +340,11 @@ static int __einj_error_trigger(u64 trigger_paddr, u32 type,
 			   "The trigger error action table is invalid\n");
 		goto out_rel_header;
 	}
+
+	/* No action structures in the TRIGGER_ERROR table, nothing to do */
+	if (!trigger_tab->entry_count)
+		goto out_rel_header;
+
 	rc = -EIO;
 	table_size = trigger_tab->table_size;
 	r = request_mem_region(trigger_paddr + sizeof(*trigger_tab),
