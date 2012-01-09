@@ -39,6 +39,7 @@
 #include <linux/usb.h>
 #include <linux/usb/gadget.h>
 #include <linux/usb/hcd.h>
+#include <linux/scatterlist.h>
 
 #include <asm/byteorder.h>
 #include <asm/io.h>
@@ -147,6 +148,8 @@ static const char *const ep_name [] = {
 struct urbp {
 	struct urb		*urb;
 	struct list_head	urbp_list;
+	struct sg_mapping_iter	miter;
+	u32			miter_started;
 };
 
 
@@ -1077,13 +1080,11 @@ static int dummy_urb_enqueue (
 	unsigned long	flags;
 	int		rc;
 
-	if (!urb->transfer_buffer && urb->transfer_buffer_length)
-		return -EINVAL;
-
 	urbp = kmalloc (sizeof *urbp, mem_flags);
 	if (!urbp)
 		return -ENOMEM;
 	urbp->urb = urb;
+	urbp->miter_started = 0;
 
 	dum_hcd = hcd_to_dummy_hcd(hcd);
 	spin_lock_irqsave(&dum_hcd->dum->lock, flags);
@@ -1137,17 +1138,66 @@ static int dummy_perform_transfer(struct urb *urb, struct dummy_request *req,
 		u32 len)
 {
 	void *ubuf, *rbuf;
+	struct urbp *urbp = urb->hcpriv;
 	int to_host;
+	struct sg_mapping_iter *miter = &urbp->miter;
+	u32 trans = 0;
+	u32 this_sg;
+	bool next_sg;
 
 	to_host = usb_pipein(urb->pipe);
 	rbuf = req->req.buf + req->req.actual;
-	ubuf = urb->transfer_buffer + urb->actual_length;
 
-	if (to_host)
-		memcpy(ubuf, rbuf, len);
-	else
-		memcpy(rbuf, ubuf, len);
-	return len;
+	if (!urb->num_sgs) {
+		ubuf = urb->transfer_buffer + urb->actual_length;
+		if (to_host)
+			memcpy(ubuf, rbuf, len);
+		else
+			memcpy(rbuf, ubuf, len);
+		return len;
+	}
+
+	if (!urbp->miter_started) {
+		u32 flags = SG_MITER_ATOMIC;
+
+		if (to_host)
+			flags |= SG_MITER_TO_SG;
+		else
+			flags |= SG_MITER_FROM_SG;
+
+		sg_miter_start(miter, urb->sg, urb->num_sgs, flags);
+		urbp->miter_started = 1;
+	}
+	next_sg = sg_miter_next(miter);
+	if (next_sg == false) {
+		WARN_ON_ONCE(1);
+		return -EINVAL;
+	}
+	do {
+		ubuf = miter->addr;
+		this_sg = min_t(u32, len, miter->length);
+		miter->consumed = this_sg;
+		trans += this_sg;
+
+		if (to_host)
+			memcpy(ubuf, rbuf, this_sg);
+		else
+			memcpy(rbuf, ubuf, this_sg);
+		len -= this_sg;
+
+		if (!len)
+			break;
+		next_sg = sg_miter_next(miter);
+		if (next_sg == false) {
+			WARN_ON_ONCE(1);
+			return -EINVAL;
+		}
+
+		rbuf += this_sg;
+	} while (1);
+
+	sg_miter_stop(miter);
+	return trans;
 }
 
 /* transfer up to a frame's worth; caller must own lock */
@@ -1198,10 +1248,13 @@ top:
 			len = dummy_perform_transfer(urb, req, len);
 
 			ep->last_io = jiffies;
-
-			limit -= len;
-			urb->actual_length += len;
-			req->req.actual += len;
+			if (len < 0) {
+				req->req.status = len;
+			} else {
+				limit -= len;
+				urb->actual_length += len;
+				req->req.actual += len;
+			}
 		}
 
 		/* short packets terminate, maybe with overflow/underflow.
@@ -2212,6 +2265,7 @@ static int dummy_h_get_frame (struct usb_hcd *hcd)
 
 static int dummy_setup(struct usb_hcd *hcd)
 {
+	hcd->self.sg_tablesize = ~0;
 	if (usb_hcd_is_primary_hcd(hcd)) {
 		the_controller.hs_hcd = hcd_to_dummy_hcd(hcd);
 		the_controller.hs_hcd->dum = &the_controller;
