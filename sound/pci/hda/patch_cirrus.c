@@ -79,6 +79,7 @@ enum {
 	CS420X_MBP53,
 	CS420X_MBP55,
 	CS420X_IMAC27,
+	CS420X_IMAC27_122,
 	CS420X_APPLE,
 	CS420X_AUTO,
 	CS420X_MODELS
@@ -1290,6 +1291,7 @@ static const char * const cs420x_models[CS420X_MODELS] = {
 	[CS420X_MBP53] = "mbp53",
 	[CS420X_MBP55] = "mbp55",
 	[CS420X_IMAC27] = "imac27",
+	[CS420X_IMAC27_122] = "imac27_122",
 	[CS420X_APPLE] = "apple",
 	[CS420X_AUTO] = "auto",
 };
@@ -1306,6 +1308,7 @@ static const struct snd_pci_quirk cs420x_cfg_tbl[] = {
 };
 
 static const struct snd_pci_quirk cs420x_codec_cfg_tbl[] = {
+	SND_PCI_QUIRK(0x106b, 0x2000, "iMac 12,2", CS420X_IMAC27_122),
 	SND_PCI_QUIRK_VENDOR(0x106b, "Apple", CS420X_APPLE),
 	{} /* terminator */
 };
@@ -1401,6 +1404,12 @@ static int patch_cs420x(struct hda_codec *codec)
 	case CS420X_MBP55:
 	case CS420X_APPLE:
 		spec->gpio_eapd_hp = 2; /* GPIO1 = headphones */
+		spec->gpio_eapd_speaker = 8; /* GPIO3 = speakers */
+		spec->gpio_mask = spec->gpio_dir =
+			spec->gpio_eapd_hp | spec->gpio_eapd_speaker;
+		break;
+	case CS420X_IMAC27_122:
+		spec->gpio_eapd_hp = 4; /* GPIO2 = headphones */
 		spec->gpio_eapd_speaker = 8; /* GPIO3 = speakers */
 		spec->gpio_mask = spec->gpio_dir =
 			spec->gpio_eapd_hp | spec->gpio_eapd_speaker;
