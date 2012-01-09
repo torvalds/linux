@@ -31,6 +31,7 @@ config SPARC
 
 config SPARC32
 	def_bool !64BIT
+	select GENERIC_ATOMIC64
 
 config SPARC64
 	def_bool 64BIT
@@ -383,9 +384,7 @@ config SCHED_MC
 	  making when dealing with multi-core CPU chips at a cost of slightly
 	  increased overhead in some places. If unsure say N here.
 
-if SPARC64
 source "kernel/Kconfig.preempt"
-endif
 
 config CMDLINE_BOOL
 	bool "Default bootloader kernel arguments"
