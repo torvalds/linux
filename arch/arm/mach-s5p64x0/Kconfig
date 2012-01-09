@@ -36,6 +36,11 @@ config S5P64X0_SETUP_I2C1
 	help
 	  Common setup code for i2c bus 1.
 
+config S5P64X0_SETUP_SPI
+	bool
+	help
+	  Common setup code for SPI GPIO configurations
+
 # machine support
 
 config MACH_SMDK6440
@@ -45,7 +50,6 @@ config MACH_SMDK6440
 	select S3C_DEV_I2C1
 	select S3C_DEV_RTC
 	select S3C_DEV_WDT
-	select S3C64XX_DEV_SPI
 	select SAMSUNG_DEV_ADC
 	select SAMSUNG_DEV_BACKLIGHT
 	select SAMSUNG_DEV_PWM
@@ -62,7 +66,6 @@ config MACH_SMDK6450
 	select S3C_DEV_I2C1
 	select S3C_DEV_RTC
 	select S3C_DEV_WDT
-	select S3C64XX_DEV_SPI
 	select SAMSUNG_DEV_ADC
 	select SAMSUNG_DEV_BACKLIGHT
 	select SAMSUNG_DEV_PWM
