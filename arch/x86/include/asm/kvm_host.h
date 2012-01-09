@@ -478,6 +478,12 @@ struct kvm_vcpu_arch {
 		u32 id;
 		bool send_user_only;
 	} apf;
+
+	/* OSVW MSRs (AMD only) */
+	struct {
+		u64 length;
+		u64 status;
+	} osvw;
 };
 
 struct kvm_arch {

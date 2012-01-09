@@ -110,6 +110,12 @@ struct nested_state {
 #define MSRPM_OFFSETS	16
 static u32 msrpm_offsets[MSRPM_OFFSETS] __read_mostly;
 
+/*
+ * Set osvw_len to higher value when updated Revision Guides
+ * are published and we know what the new status bits are
+ */
+static uint64_t osvw_len = 4, osvw_status;
+
 struct vcpu_svm {
 	struct kvm_vcpu vcpu;
 	struct vmcb *vmcb;
@@ -556,6 +562,27 @@ static void svm_init_erratum_383(void)
 	erratum_383_found = true;
 }
 
+static void svm_init_osvw(struct kvm_vcpu *vcpu)
+{
+	/*
+	 * Guests should see errata 400 and 415 as fixed (assuming that
+	 * HLT and IO instructions are intercepted).
+	 */
+	vcpu->arch.osvw.length = (osvw_len >= 3) ? (osvw_len) : 3;
+	vcpu->arch.osvw.status = osvw_status & ~(6ULL);
+
+	/*
+	 * By increasing VCPU's osvw.length to 3 we are telling the guest that
+	 * all osvw.status bits inside that length, including bit 0 (which is
+	 * reserved for erratum 298), are valid. However, if host processor's
+	 * osvw_len is 0 then osvw_status[0] carries no information. We need to
+	 * be conservative here and therefore we tell the guest that erratum 298
+	 * is present (because we really don't know).
+	 */
+	if (osvw_len == 0 && boot_cpu_data.x86 == 0x10)
+		vcpu->arch.osvw.status |= 1;
+}
+
 static int has_svm(void)
 {
 	const char *msg;
@@ -619,6 +646,36 @@ static int svm_hardware_enable(void *garbage)
 		wrmsrl(MSR_AMD64_TSC_RATIO, TSC_RATIO_DEFAULT);
 		__get_cpu_var(current_tsc_ratio) = TSC_RATIO_DEFAULT;
 	}
+
+
+	/*
+	 * Get OSVW bits.
+	 *
+	 * Note that it is possible to have a system with mixed processor
+	 * revisions and therefore different OSVW bits. If bits are not the same
+	 * on different processors then choose the worst case (i.e. if erratum
+	 * is present on one processor and not on another then assume that the
+	 * erratum is present everywhere).
+	 */
+	if (cpu_has(&boot_cpu_data, X86_FEATURE_OSVW)) {
+		uint64_t len, status = 0;
+		int err;
+
+		len = native_read_msr_safe(MSR_AMD64_OSVW_ID_LENGTH, &err);
+		if (!err)
+			status = native_read_msr_safe(MSR_AMD64_OSVW_STATUS,
+						      &err);
+
+		if (err)
+			osvw_status = osvw_len = 0;
+		else {
+			if (len < osvw_len)
+				osvw_len = len;
+			osvw_status |= status;
+			osvw_status &= (1ULL << osvw_len) - 1;
+		}
+	} else
+		osvw_status = osvw_len = 0;
 
 	svm_init_erratum_383();
 
@@ -1185,6 +1242,8 @@ static struct kvm_vcpu *svm_create_vcpu(struct kvm *kvm, unsigned int id)
 	svm->vcpu.arch.apic_base = 0xfee00000 | MSR_IA32_APICBASE_ENABLE;
 	if (kvm_vcpu_is_bsp(&svm->vcpu))
 		svm->vcpu.arch.apic_base |= MSR_IA32_APICBASE_BSP;
+
+	svm_init_osvw(&svm->vcpu);
 
 	return &svm->vcpu;
 
