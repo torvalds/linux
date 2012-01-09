@@ -390,8 +390,8 @@ static int omap_modeset_init(struct drm_device *dev)
 
 	dump_video_chains();
 
-	dev->mode_config.min_width = 256;
-	dev->mode_config.min_height = 256;
+	dev->mode_config.min_width = 32;
+	dev->mode_config.min_height = 32;
 
 	/* note: eventually will need some cpu_is_omapXYZ() type stuff here
 	 * to fill in these limits properly on different OMAP generations..
