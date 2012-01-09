@@ -13,45 +13,11 @@
 #include <linux/spi/spi.h>
 
 #include "../iio.h"
-#include "../buffer_generic.h"
+#include "../buffer.h"
 #include "../ring_sw.h"
 #include "../trigger_consumer.h"
 
 #include "ad7887.h"
-
-int ad7887_scan_from_ring(struct ad7887_state *st, int channum)
-{
-	struct iio_buffer *ring = iio_priv_to_dev(st)->buffer;
-	int count = 0, ret;
-	u16 *ring_data;
-
-	if (!(test_bit(channum, ring->scan_mask))) {
-		ret = -EBUSY;
-		goto error_ret;
-	}
-
-	ring_data = kmalloc(ring->access->get_bytes_per_datum(ring),
-			    GFP_KERNEL);
-	if (ring_data == NULL) {
-		ret = -ENOMEM;
-		goto error_ret;
-	}
-	ret = ring->access->read_last(ring, (u8 *) ring_data);
-	if (ret)
-		goto error_free_ring_data;
-
-	/* for single channel scan the result is stored with zero offset */
-	if ((test_bit(1, ring->scan_mask) || test_bit(0, ring->scan_mask)) &&
-	    (channum == 1))
-		count = 1;
-
-	ret = be16_to_cpu(ring_data[count]);
-
-error_free_ring_data:
-	kfree(ring_data);
-error_ret:
-	return ret;
-}
 
 /**
  * ad7887_ring_preenable() setup the parameters of the ring before enabling
@@ -65,7 +31,8 @@ static int ad7887_ring_preenable(struct iio_dev *indio_dev)
 	struct ad7887_state *st = iio_priv(indio_dev);
 	struct iio_buffer *ring = indio_dev->buffer;
 
-	st->d_size = ring->scan_count *
+	st->d_size = bitmap_weight(indio_dev->active_scan_mask,
+				   indio_dev->masklength) *
 		st->chip_info->channel[0].scan_type.storagebits / 8;
 
 	if (ring->scan_timestamp) {
@@ -80,7 +47,7 @@ static int ad7887_ring_preenable(struct iio_dev *indio_dev)
 			set_bytes_per_datum(indio_dev->buffer, st->d_size);
 
 	/* We know this is a single long so can 'cheat' */
-	switch (*ring->scan_mask) {
+	switch (*indio_dev->active_scan_mask) {
 	case (1 << 0):
 		st->ring_msg = &st->msg[AD7887_CH0];
 		break;
@@ -121,7 +88,8 @@ static irqreturn_t ad7887_trigger_handler(int irq, void *p)
 	__u8 *buf;
 	int b_sent;
 
-	unsigned int bytes = ring->scan_count *
+	unsigned int bytes = bitmap_weight(indio_dev->active_scan_mask,
+					   indio_dev->masklength) *
 		st->chip_info->channel[0].scan_type.storagebits / 8;
 
 	buf = kzalloc(st->d_size, GFP_KERNEL);
@@ -176,7 +144,7 @@ int ad7887_register_ring_funcs_and_init(struct iio_dev *indio_dev)
 		goto error_deallocate_sw_rb;
 	}
 	/* Ring buffer functions - here trigger setup related */
-	indio_dev->buffer->setup_ops = &ad7887_ring_setup_ops;
+	indio_dev->setup_ops = &ad7887_ring_setup_ops;
 
 	/* Flag that polled ring buffering is possible */
 	indio_dev->modes |= INDIO_BUFFER_TRIGGERED;

@@ -2771,8 +2771,8 @@ static int __init rs_360_init(void)
 			*/
 			/* cpm_install_handler(IRQ_MACHSPEC | state->irq, rs_360_interrupt, info);  */
 			/*request_irq(IRQ_MACHSPEC | state->irq, rs_360_interrupt, */
-			request_irq(state->irq, rs_360_interrupt,
-						IRQ_FLG_LOCK, "ttyS", (void *)info);
+			request_irq(state->irq, rs_360_interrupt, 0, "ttyS",
+				    (void *)info);
 
 			/* Set up the baud rate generator.
 			*/
