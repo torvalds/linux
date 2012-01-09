@@ -186,8 +186,6 @@ static dma_cookie_t imxdma_tx_submit(struct dma_async_tx_descriptor *tx)
 
 	cookie = imxdma_assign_cookie(imxdmac);
 
-	imx_dma_enable(imxdmac->imxdma_channel);
-
 	spin_unlock_irq(&imxdmac->lock);
 
 	return cookie;
@@ -332,9 +330,10 @@ static struct dma_async_tx_descriptor *imxdma_prep_dma_cyclic(
 
 static void imxdma_issue_pending(struct dma_chan *chan)
 {
-	/*
-	 * Nothing to do. We only have a single descriptor
-	 */
+	struct imxdma_channel *imxdmac = to_imxdma_chan(chan);
+
+	if (imxdmac->status == DMA_IN_PROGRESS)
+		imx_dma_enable(imxdmac->imxdma_channel);
 }
 
 static int __init imxdma_probe(struct platform_device *pdev)
