@@ -946,6 +946,7 @@ static int tda18271_set_params(struct dvb_frontend *fe)
 		map = &std_map->atsc_6;
 		bw = 6000000;
 		break;
+	case SYS_ISDBT:
 	case SYS_DVBT:
 	case SYS_DVBT2:
 		if (bw <= 6000000) {
