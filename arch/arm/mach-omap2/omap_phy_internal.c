@@ -260,3 +260,38 @@ void am35x_set_mode(u8 musb_mode)
 
 	omap_ctrl_writel(devconf2, AM35XX_CONTROL_DEVCONF2);
 }
+
+void ti81xx_musb_phy_power(u8 on)
+{
+	void __iomem *scm_base = NULL;
+	u32 usbphycfg;
+
+	scm_base = ioremap(TI81XX_SCM_BASE, SZ_2K);
+	if (!scm_base) {
+		pr_err("system control module ioremap failed\n");
+		return;
+	}
+
+	usbphycfg = __raw_readl(scm_base + USBCTRL0);
+
+	if (on) {
+		if (cpu_is_ti816x()) {
+			usbphycfg |= TI816X_USBPHY0_NORMAL_MODE;
+			usbphycfg &= ~TI816X_USBPHY_REFCLK_OSC;
+		} else if (cpu_is_ti814x()) {
+			usbphycfg &= ~(USBPHY_CM_PWRDN | USBPHY_OTG_PWRDN
+				| USBPHY_DPINPUT | USBPHY_DMINPUT);
+			usbphycfg |= (USBPHY_OTGVDET_EN | USBPHY_OTGSESSEND_EN
+				| USBPHY_DPOPBUFCTL | USBPHY_DMOPBUFCTL);
+		}
+	} else {
+		if (cpu_is_ti816x())
+			usbphycfg &= ~TI816X_USBPHY0_NORMAL_MODE;
+		else if (cpu_is_ti814x())
+			usbphycfg |= USBPHY_CM_PWRDN | USBPHY_OTG_PWRDN;
+
+	}
+	__raw_writel(usbphycfg, scm_base + USBCTRL0);
+
+	iounmap(scm_base);
+}

@@ -37,7 +37,6 @@
 #include <asm/sizes.h>
 #include <asm/mach/pci.h>
 
-#include <mach/pinmux.h>
 #include <mach/iomap.h>
 #include <mach/clk.h>
 #include <mach/powergate.h>

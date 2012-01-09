@@ -35,20 +35,19 @@
 				};
 
 				esdhc@70008000 { /* ESDHC2 */
-					cd-gpios = <&gpio0 6 0>; /* GPIO1_6 */
-					wp-gpios = <&gpio0 5 0>; /* GPIO1_5 */
+					cd-gpios = <&gpio1 6 0>;
+					wp-gpios = <&gpio1 5 0>;
 					status = "okay";
 				};
 
-				uart2: uart@7000c000 { /* UART3 */
+				uart3: uart@7000c000 {
 					fsl,uart-has-rtscts;
 					status = "okay";
 				};
 
 				ecspi@70010000 { /* ECSPI1 */
 					fsl,spi-num-chipselects = <2>;
-					cs-gpios = <&gpio3 24 0>, /* GPIO4_24 */
-						   <&gpio3 25 0>; /* GPIO4_25 */
+					cs-gpios = <&gpio4 24 0>, <&gpio4 25 0>;
 					status = "okay";
 
 					pmic: mc13892@0 {
@@ -57,7 +56,7 @@
 						compatible = "fsl,mc13892";
 						spi-max-frequency = <6000000>;
 						reg = <0>;
-						mc13xxx-irq-gpios = <&gpio0 8 0>; /* GPIO1_8 */
+						mc13xxx-irq-gpios = <&gpio1 8 0>;
 						fsl,mc13xxx-uses-regulator;
 					};
 
@@ -91,12 +90,12 @@
 				reg = <0x73fa8000 0x4000>;
 			};
 
-			uart0: uart@73fbc000 {
+			uart1: uart@73fbc000 {
 				fsl,uart-has-rtscts;
 				status = "okay";
 			};
 
-			uart1: uart@73fc0000 {
+			uart2: uart@73fc0000 {
 				status = "okay";
 			};
 		};
@@ -127,7 +126,7 @@
 
 		power {
 			label = "Power Button";
-			gpios = <&gpio1 21 0>;
+			gpios = <&gpio2 21 0>;
 			linux,code = <116>; /* KEY_POWER */
 			gpio-key,wakeup;
 		};
