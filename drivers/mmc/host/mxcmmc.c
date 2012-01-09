@@ -267,6 +267,7 @@ static int mxcmci_setup_data(struct mxcmci_host *host, struct mmc_data *data)
 	wmb();
 
 	dmaengine_submit(host->desc);
+	dma_async_issue_pending(host->dma);
 
 	return 0;
 }
