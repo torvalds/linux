@@ -726,11 +726,9 @@ efx_handle_tx_event(struct efx_channel *channel, efx_qword_t *event)
 		tx_queue = efx_channel_get_tx_queue(
 			channel, tx_ev_q_label % EFX_TXQ_TYPES);
 
-		if (efx_dev_registered(efx))
-			netif_tx_lock(efx->net_dev);
+		netif_tx_lock(efx->net_dev);
 		efx_notify_tx_desc(tx_queue);
-		if (efx_dev_registered(efx))
-			netif_tx_unlock(efx->net_dev);
+		netif_tx_unlock(efx->net_dev);
 	} else if (EFX_QWORD_FIELD(*event, FSF_AZ_TX_EV_PKT_ERR) &&
 		   EFX_WORKAROUND_10727(efx)) {
 		efx_schedule_reset(efx, RESET_TYPE_TX_DESC_FETCH);

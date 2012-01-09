@@ -855,10 +855,8 @@ int __efx_reconfigure_port(struct efx_nic *efx)
 	WARN_ON(!mutex_is_locked(&efx->mac_lock));
 
 	/* Serialise the promiscuous flag with efx_set_multicast_list. */
-	if (efx_dev_registered(efx)) {
-		netif_addr_lock_bh(efx->net_dev);
-		netif_addr_unlock_bh(efx->net_dev);
-	}
+	netif_addr_lock_bh(efx->net_dev);
+	netif_addr_unlock_bh(efx->net_dev);
 
 	/* Disable PHY transmit in mac level loopbacks */
 	phy_mode = efx->phy_mode;
@@ -981,10 +979,8 @@ static void efx_stop_port(struct efx_nic *efx)
 	mutex_unlock(&efx->mac_lock);
 
 	/* Serialise against efx_set_multicast_list() */
-	if (efx_dev_registered(efx)) {
-		netif_addr_lock_bh(efx->net_dev);
-		netif_addr_unlock_bh(efx->net_dev);
-	}
+	netif_addr_lock_bh(efx->net_dev);
+	netif_addr_unlock_bh(efx->net_dev);
 }
 
 static void efx_fini_port(struct efx_nic *efx)
@@ -1394,14 +1390,14 @@ static void efx_start_all(struct efx_nic *efx)
 		return;
 	if ((efx->state != STATE_RUNNING) && (efx->state != STATE_INIT))
 		return;
-	if (efx_dev_registered(efx) && !netif_running(efx->net_dev))
+	if (!netif_running(efx->net_dev))
 		return;
 
 	/* Mark the port as enabled so port reconfigurations can start, then
 	 * restart the transmit interface early so the watchdog timer stops */
 	efx_start_port(efx);
 
-	if (efx_dev_registered(efx) && netif_device_present(efx->net_dev))
+	if (netif_device_present(efx->net_dev))
 		netif_tx_wake_all_queues(efx->net_dev);
 
 	efx_for_each_channel(channel, efx)
@@ -1492,11 +1488,9 @@ static void efx_stop_all(struct efx_nic *efx)
 
 	/* Stop the kernel transmit interface late, so the watchdog
 	 * timer isn't ticking over the flush */
-	if (efx_dev_registered(efx)) {
-		netif_tx_stop_all_queues(efx->net_dev);
-		netif_tx_lock_bh(efx->net_dev);
-		netif_tx_unlock_bh(efx->net_dev);
-	}
+	netif_tx_stop_all_queues(efx->net_dev);
+	netif_tx_lock_bh(efx->net_dev);
+	netif_tx_unlock_bh(efx->net_dev);
 }
 
 static void efx_remove_all(struct efx_nic *efx)
@@ -2018,11 +2012,9 @@ static void efx_unregister_netdev(struct efx_nic *efx)
 			efx_release_tx_buffers(tx_queue);
 	}
 
-	if (efx_dev_registered(efx)) {
-		strlcpy(efx->name, pci_name(efx->pci_dev), sizeof(efx->name));
-		device_remove_file(&efx->pci_dev->dev, &dev_attr_phy_type);
-		unregister_netdev(efx->net_dev);
-	}
+	strlcpy(efx->name, pci_name(efx->pci_dev), sizeof(efx->name));
+	device_remove_file(&efx->pci_dev->dev, &dev_attr_phy_type);
+	unregister_netdev(efx->net_dev);
 }
 
 /**************************************************************************
@@ -2438,7 +2430,7 @@ static int efx_pci_probe_main(struct efx_nic *efx)
 /* NIC initialisation
  *
  * This is called at module load (or hotplug insertion,
- * theoretically).  It sets up PCI mappings, tests and resets the NIC,
+ * theoretically).  It sets up PCI mappings, resets the NIC,
  * sets up and registers the network devices with the kernel and hooks
  * the interrupt service routine.  It does not prepare the device for
  * transmission; this is left to the first time one of the network

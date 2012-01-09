@@ -446,10 +446,8 @@ void efx_xmit_done(struct efx_tx_queue *tx_queue, unsigned int index)
 	    likely(efx->port_enabled) &&
 	    likely(netif_device_present(efx->net_dev))) {
 		fill_level = tx_queue->insert_count - tx_queue->read_count;
-		if (fill_level < EFX_TXQ_THRESHOLD(efx)) {
-			EFX_BUG_ON_PARANOID(!efx_dev_registered(efx));
+		if (fill_level < EFX_TXQ_THRESHOLD(efx))
 			netif_tx_wake_queue(tx_queue->core_txq);
-		}
 	}
 
 	/* Check whether the hardware queue is now empty */

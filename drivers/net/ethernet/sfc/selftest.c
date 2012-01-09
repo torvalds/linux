@@ -397,11 +397,9 @@ static int efx_begin_loopback(struct efx_tx_queue *tx_queue)
 		 * interrupt handler. */
 		smp_wmb();
 
-		if (efx_dev_registered(efx))
-			netif_tx_lock_bh(efx->net_dev);
+		netif_tx_lock_bh(efx->net_dev);
 		rc = efx_enqueue_skb(tx_queue, skb);
-		if (efx_dev_registered(efx))
-			netif_tx_unlock_bh(efx->net_dev);
+		netif_tx_unlock_bh(efx->net_dev);
 
 		if (rc != NETDEV_TX_OK) {
 			netif_err(efx, drv, efx->net_dev,
@@ -442,8 +440,7 @@ static int efx_end_loopback(struct efx_tx_queue *tx_queue,
 	int tx_done = 0, rx_good, rx_bad;
 	int i, rc = 0;
 
-	if (efx_dev_registered(efx))
-		netif_tx_lock_bh(efx->net_dev);
+	netif_tx_lock_bh(efx->net_dev);
 
 	/* Count the number of tx completions, and decrement the refcnt. Any
 	 * skbs not already completed will be free'd when the queue is flushed */
@@ -454,8 +451,7 @@ static int efx_end_loopback(struct efx_tx_queue *tx_queue,
 		dev_kfree_skb_any(skb);
 	}
 
-	if (efx_dev_registered(efx))
-		netif_tx_unlock_bh(efx->net_dev);
+	netif_tx_unlock_bh(efx->net_dev);
 
 	/* Check TX completion and received packet counts */
 	rx_good = atomic_read(&state->rx_good);
