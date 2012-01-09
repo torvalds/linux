@@ -251,11 +251,9 @@ static int oprofilefs_fill_super(struct super_block *sb, void *data, int silent)
 		return -ENOMEM;
 	root_inode->i_op = &simple_dir_inode_operations;
 	root_inode->i_fop = &simple_dir_operations;
-	root_dentry = d_alloc_root(root_inode);
-	if (!root_dentry) {
-		iput(root_inode);
+	root_dentry = d_make_root(root_inode);
+	if (!root_dentry)
 		return -ENOMEM;
-	}
 
 	sb->s_root = root_dentry;
 

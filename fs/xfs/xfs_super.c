@@ -1362,10 +1362,10 @@ xfs_fs_fill_super(
 		error = EINVAL;
 		goto out_syncd_stop;
 	}
-	sb->s_root = d_alloc_root(root);
+	sb->s_root = d_make_root(root);
 	if (!sb->s_root) {
 		error = ENOMEM;
-		goto out_iput;
+		goto out_syncd_stop;
 	}
 
 	return 0;
@@ -1384,8 +1384,6 @@ xfs_fs_fill_super(
  out:
 	return -error;
 
- out_iput:
-	iput(root);
  out_syncd_stop:
 	xfs_syncd_stop(mp);
  out_unmount:

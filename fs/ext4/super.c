@@ -3735,9 +3735,8 @@ no_journal:
 		iput(root);
 		goto failed_mount4;
 	}
-	sb->s_root = d_alloc_root(root);
+	sb->s_root = d_make_root(root);
 	if (!sb->s_root) {
-		iput(root);
 		ext4_msg(sb, KERN_ERR, "get root dentry failed");
 		ret = -ENOMEM;
 		goto failed_mount4;

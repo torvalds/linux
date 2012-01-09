@@ -341,9 +341,8 @@ static int complete_read_super(struct super_block *sb, int silent, int size)
 		printk("SysV FS: get root inode failed\n");
 		return 0;
 	}
-	sb->s_root = d_alloc_root(root_inode);
+	sb->s_root = d_make_root(root_inode);
 	if (!sb->s_root) {
-		iput(root_inode);
 		printk("SysV FS: get root dentry failed\n");
 		return 0;
 	}

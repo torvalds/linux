@@ -213,9 +213,8 @@ static int coda_fill_super(struct super_block *sb, void *data, int silent)
 
 	printk("coda_read_super: rootinode is %ld dev %s\n", 
 	       root->i_ino, root->i_sb->s_id);
-	sb->s_root = d_alloc_root(root);
+	sb->s_root = d_make_root(root);
 	if (!sb->s_root) {
-		iput(root);
 		error = -EINVAL;
 		goto error;
 	}

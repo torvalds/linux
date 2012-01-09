@@ -315,11 +315,9 @@ static int logfs_get_sb_final(struct super_block *sb)
 	if (IS_ERR(rootdir))
 		goto fail;
 
-	sb->s_root = d_alloc_root(rootdir);
-	if (!sb->s_root) {
-		iput(rootdir);
+	sb->s_root = d_make_root(rootdir);
+	if (!sb->s_root)
 		goto fail;
-	}
 
 	/* at that point we know that ->put_super() will be called */
 	super->s_erase_page = alloc_pages(GFP_KERNEL, 0);

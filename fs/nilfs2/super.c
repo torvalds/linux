@@ -917,9 +917,8 @@ static int nilfs_get_root_dentry(struct super_block *sb,
 	if (root->cno == NILFS_CPTREE_CURRENT_CNO) {
 		dentry = d_find_alias(inode);
 		if (!dentry) {
-			dentry = d_alloc_root(inode);
+			dentry = d_make_root(inode);
 			if (!dentry) {
-				iput(inode);
 				ret = -ENOMEM;
 				goto failed_dentry;
 			}

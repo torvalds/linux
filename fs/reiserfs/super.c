@@ -1874,11 +1874,9 @@ static int reiserfs_fill_super(struct super_block *s, void *data, int silent)
 		unlock_new_inode(root_inode);
 	}
 
-	s->s_root = d_alloc_root(root_inode);
-	if (!s->s_root) {
-		iput(root_inode);
+	s->s_root = d_make_root(root_inode);
+	if (!s->s_root)
 		goto error;
-	}
 	// define and initialize hash function
 	sbi->s_hash_function = hash_function(s);
 	if (sbi->s_hash_function == NULL) {

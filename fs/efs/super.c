@@ -317,10 +317,9 @@ static int efs_fill_super(struct super_block *s, void *d, int silent)
 		goto out_no_fs;
 	}
 
-	s->s_root = d_alloc_root(root);
+	s->s_root = d_make_root(root);
 	if (!(s->s_root)) {
 		printk(KERN_ERR "EFS: get root dentry failed\n");
-		iput(root);
 		ret = -ENOMEM;
 		goto out_no_fs;
 	}

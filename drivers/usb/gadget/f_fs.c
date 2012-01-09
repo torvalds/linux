@@ -1063,13 +1063,9 @@ static int ffs_sb_fill(struct super_block *sb, void *_data, int silent)
 				  &simple_dir_operations,
 				  &simple_dir_inode_operations,
 				  &data->perms);
-	if (unlikely(!inode))
+	sb->s_root = d_make_root(inode);
+	if (unlikely(!sb->s_root))
 		goto Enomem;
-	sb->s_root = d_alloc_root(inode);
-	if (unlikely(!sb->s_root)) {
-		iput(inode);
-		goto Enomem;
-	}
 
 	/* EP0 file */
 	if (unlikely(!ffs_sb_create_file(sb, "ep0", ffs,

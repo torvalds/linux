@@ -2059,10 +2059,8 @@ gadgetfs_fill_super (struct super_block *sb, void *opts, int silent)
 	if (!inode)
 		goto Enomem;
 	inode->i_op = &simple_dir_inode_operations;
-	if (!(sb->s_root = d_alloc_root (inode))) {
-		iput(inode);
+	if (!(sb->s_root = d_make_root (inode)))
 		goto Enomem;
-	}
 
 	/* the ep0 file is named after the controller we expect;
 	 * user mode code can use it for sanity checks, like we do.

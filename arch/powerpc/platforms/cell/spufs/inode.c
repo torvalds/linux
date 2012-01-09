@@ -757,9 +757,9 @@ spufs_create_root(struct super_block *sb, void *data)
 		goto out_iput;
 
 	ret = -ENOMEM;
-	sb->s_root = d_alloc_root(inode);
+	sb->s_root = d_make_root(inode);
 	if (!sb->s_root)
-		goto out_iput;
+		goto out;
 
 	return 0;
 out_iput:

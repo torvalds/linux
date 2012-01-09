@@ -1472,7 +1472,6 @@ static int cgroup_get_rootdir(struct super_block *sb)
 
 	struct inode *inode =
 		cgroup_new_inode(S_IFDIR | S_IRUGO | S_IXUGO | S_IWUSR, sb);
-	struct dentry *dentry;
 
 	if (!inode)
 		return -ENOMEM;
@@ -1481,12 +1480,9 @@ static int cgroup_get_rootdir(struct super_block *sb)
 	inode->i_op = &cgroup_dir_inode_operations;
 	/* directories start off with i_nlink == 2 (for "." entry) */
 	inc_nlink(inode);
-	dentry = d_alloc_root(inode);
-	if (!dentry) {
-		iput(inode);
+	sb->s_root = d_make_root(inode);
+	if (!sb->s_root)
 		return -ENOMEM;
-	}
-	sb->s_root = dentry;
 	/* for everything else we want ->d_op set */
 	sb->s_d_op = &cgroup_dops;
 	return 0;

@@ -2037,10 +2037,9 @@ static int udf_fill_super(struct super_block *sb, void *options, int silent)
 	}
 
 	/* Allocate a dentry for the root inode */
-	sb->s_root = d_alloc_root(inode);
+	sb->s_root = d_make_root(inode);
 	if (!sb->s_root) {
 		udf_err(sb, "Couldn't allocate root dentry\n");
-		iput(inode);
 		goto error_out;
 	}
 	sb->s_maxbytes = MAX_LFS_FILESIZE;

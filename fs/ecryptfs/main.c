@@ -550,9 +550,8 @@ static struct dentry *ecryptfs_mount(struct file_system_type *fs_type, int flags
 	if (IS_ERR(inode))
 		goto out_free;
 
-	s->s_root = d_alloc_root(inode);
+	s->s_root = d_make_root(inode);
 	if (!s->s_root) {
-		iput(inode);
 		rc = -ENOMEM;
 		goto out_free;
 	}

@@ -2232,14 +2232,12 @@ int shmem_fill_super(struct super_block *sb, void *data, int silent)
 		goto failed;
 	inode->i_uid = sbinfo->uid;
 	inode->i_gid = sbinfo->gid;
-	root = d_alloc_root(inode);
+	root = d_make_root(inode);
 	if (!root)
-		goto failed_iput;
+		goto failed;
 	sb->s_root = root;
 	return 0;
 
-failed_iput:
-	iput(inode);
 failed:
 	shmem_put_super(sb);
 	return err;

@@ -819,9 +819,8 @@ static int exofs_fill_super(struct super_block *sb, void *data, int silent)
 		ret = PTR_ERR(root);
 		goto free_sbi;
 	}
-	sb->s_root = d_alloc_root(root);
+	sb->s_root = d_make_root(root);
 	if (!sb->s_root) {
-		iput(root);
 		EXOFS_ERR("ERROR: get root inode failed\n");
 		ret = -ENOMEM;
 		goto free_sbi;
