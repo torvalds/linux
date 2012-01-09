@@ -495,7 +495,8 @@ struct hid_device {							/* device report descriptor */
 	struct power_supply battery;
 	__s32 battery_min;
 	__s32 battery_max;
-	__s32 battery_val;
+	__s32 battery_report_type;
+	__s32 battery_report_id;
 #endif
 
 	unsigned int status;						/* see STAT flags above */
@@ -737,6 +738,8 @@ int hid_parse_report(struct hid_device *hid, __u8 *start, unsigned size);
 int hid_check_keys_pressed(struct hid_device *hid);
 int hid_connect(struct hid_device *hid, unsigned int connect_mask);
 void hid_disconnect(struct hid_device *hid);
+const struct hid_device_id *hid_match_id(struct hid_device *hdev,
+					 const struct hid_device_id *id);
 
 /**
  * hid_map_usage - map usage input bits
