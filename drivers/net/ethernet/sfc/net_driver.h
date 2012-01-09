@@ -791,15 +791,6 @@ static inline int efx_dev_registered(struct efx_nic *efx)
 	return efx->net_dev->reg_state == NETREG_REGISTERED;
 }
 
-/* Net device name, for inclusion in log messages if it has been registered.
- * Use efx->name not efx->net_dev->name so that races with (un)registration
- * are harmless.
- */
-static inline const char *efx_dev_name(struct efx_nic *efx)
-{
-	return efx_dev_registered(efx) ? efx->name : "";
-}
-
 static inline unsigned int efx_port_num(struct efx_nic *efx)
 {
 	return efx->net_dev->dev_id;
