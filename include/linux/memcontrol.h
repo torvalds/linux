@@ -390,7 +390,6 @@ enum {
 	OVER_LIMIT,
 };
 
-#ifdef CONFIG_INET
 struct sock;
 #ifdef CONFIG_CGROUP_MEM_RES_CTLR_KMEM
 void sock_update_memcg(struct sock *sk);
@@ -403,6 +402,5 @@ static inline void sock_release_memcg(struct sock *sk)
 {
 }
 #endif /* CONFIG_CGROUP_MEM_RES_CTLR_KMEM */
-#endif /* CONFIG_INET */
 #endif /* _LINUX_MEMCONTROL_H */
 
