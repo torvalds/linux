@@ -31,6 +31,29 @@ ENTRY(omap_smc1)
 	ldmfd   sp!, {r2-r12, pc}
 ENDPROC(omap_smc1)
 
+/**
+ * u32 omap_smc2(u32 id, u32 falg, u32 pargs)
+ * Low level common routine for secure HAL and PPA APIs.
+ * @id: Application ID of HAL APIs
+ * @flag: Flag to indicate the criticality of operation
+ * @pargs: Physical address of parameter list starting
+ *	    with number of parametrs
+ */
+ENTRY(omap_smc2)
+	stmfd   sp!, {r4-r12, lr}
+	mov	r3, r2
+	mov	r2, r1
+	mov	r1, #0x0	@ Process ID
+	mov	r6, #0xff
+	mov	r12, #0x00	@ Secure Service ID
+	mov	r7, #0
+	mcr	p15, 0, r7, c7, c5, 6
+	dsb
+	dmb
+	smc	#0
+	ldmfd   sp!, {r4-r12, pc}
+ENDPROC(omap_smc2)
+
 ENTRY(omap_modify_auxcoreboot0)
 	stmfd   sp!, {r1-r12, lr}
 	ldr	r12, =0x104

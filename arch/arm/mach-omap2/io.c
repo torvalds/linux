@@ -254,6 +254,15 @@ static struct map_desc omap44xx_io_desc[] __initdata = {
 		.length		= L4_EMU_44XX_SIZE,
 		.type		= MT_DEVICE,
 	},
+#ifdef CONFIG_OMAP4_ERRATA_I688
+	{
+		.virtual	= OMAP4_SRAM_VA,
+		.pfn		= __phys_to_pfn(OMAP4_SRAM_PA),
+		.length		= PAGE_SIZE,
+		.type		= MT_MEMORY_SO,
+	},
+#endif
+
 };
 #endif
 

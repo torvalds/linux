@@ -136,6 +136,7 @@
 #include <linux/list.h>
 #include <linux/mutex.h>
 #include <linux/spinlock.h>
+#include <linux/slab.h>
 
 #include "common.h"
 #include <plat/cpu.h>
@@ -378,6 +379,51 @@ static int _set_module_autoidle(struct omap_hwmod *oh, u8 autoidle,
 	*v |= autoidle << autoidle_shift;
 
 	return 0;
+}
+
+/**
+ * _set_idle_ioring_wakeup - enable/disable IO pad wakeup on hwmod idle for mux
+ * @oh: struct omap_hwmod *
+ * @set_wake: bool value indicating to set (true) or clear (false) wakeup enable
+ *
+ * Set or clear the I/O pad wakeup flag in the mux entries for the
+ * hwmod @oh.  This function changes the @oh->mux->pads_dynamic array
+ * in memory.  If the hwmod is currently idled, and the new idle
+ * values don't match the previous ones, this function will also
+ * update the SCM PADCTRL registers.  Otherwise, if the hwmod is not
+ * currently idled, this function won't touch the hardware: the new
+ * mux settings are written to the SCM PADCTRL registers when the
+ * hwmod is idled.  No return value.
+ */
+static void _set_idle_ioring_wakeup(struct omap_hwmod *oh, bool set_wake)
+{
+	struct omap_device_pad *pad;
+	bool change = false;
+	u16 prev_idle;
+	int j;
+
+	if (!oh->mux || !oh->mux->enabled)
+		return;
+
+	for (j = 0; j < oh->mux->nr_pads_dynamic; j++) {
+		pad = oh->mux->pads_dynamic[j];
+
+		if (!(pad->flags & OMAP_DEVICE_PAD_WAKEUP))
+			continue;
+
+		prev_idle = pad->idle;
+
+		if (set_wake)
+			pad->idle |= OMAP_WAKEUP_EN;
+		else
+			pad->idle &= ~OMAP_WAKEUP_EN;
+
+		if (prev_idle != pad->idle)
+			change = true;
+	}
+
+	if (change && oh->_state == _HWMOD_STATE_IDLE)
+		omap_hwmod_mux(oh->mux, _HWMOD_STATE_IDLE);
 }
 
 /**
@@ -1449,6 +1495,25 @@ static int _enable(struct omap_hwmod *oh)
 
 	pr_debug("omap_hwmod: %s: enabling\n", oh->name);
 
+	/*
+	 * hwmods with HWMOD_INIT_NO_IDLE flag set are left
+	 * in enabled state at init.
+	 * Now that someone is really trying to enable them,
+	 * just ensure that the hwmod mux is set.
+	 */
+	if (oh->_int_flags & _HWMOD_SKIP_ENABLE) {
+		/*
+		 * If the caller has mux data populated, do the mux'ing
+		 * which wouldn't have been done as part of the _enable()
+		 * done during setup.
+		 */
+		if (oh->mux)
+			omap_hwmod_mux(oh->mux, _HWMOD_STATE_ENABLED);
+
+		oh->_int_flags &= ~_HWMOD_SKIP_ENABLE;
+		return 0;
+	}
+
 	if (oh->_state != _HWMOD_STATE_INITIALIZED &&
 	    oh->_state != _HWMOD_STATE_IDLE &&
 	    oh->_state != _HWMOD_STATE_DISABLED) {
@@ -1744,8 +1809,10 @@ static int _setup(struct omap_hwmod *oh, void *data)
 	 * it should be set by the core code as a runtime flag during startup
 	 */
 	if ((oh->flags & HWMOD_INIT_NO_IDLE) &&
-	    (postsetup_state == _HWMOD_STATE_IDLE))
+	    (postsetup_state == _HWMOD_STATE_IDLE)) {
+		oh->_int_flags |= _HWMOD_SKIP_ENABLE;
 		postsetup_state = _HWMOD_STATE_ENABLED;
+	}
 
 	if (postsetup_state == _HWMOD_STATE_IDLE)
 		_idle(oh);
@@ -2416,6 +2483,7 @@ int omap_hwmod_enable_wakeup(struct omap_hwmod *oh)
 	v = oh->_sysc_cache;
 	_enable_wakeup(oh, &v);
 	_write_sysconfig(v, oh);
+	_set_idle_ioring_wakeup(oh, true);
 	spin_unlock_irqrestore(&oh->_lock, flags);
 
 	return 0;
@@ -2446,6 +2514,7 @@ int omap_hwmod_disable_wakeup(struct omap_hwmod *oh)
 	v = oh->_sysc_cache;
 	_disable_wakeup(oh, &v);
 	_write_sysconfig(v, oh);
+	_set_idle_ioring_wakeup(oh, false);
 	spin_unlock_irqrestore(&oh->_lock, flags);
 
 	return 0;
@@ -2659,6 +2728,60 @@ int omap_hwmod_no_setup_reset(struct omap_hwmod *oh)
 	}
 
 	oh->flags |= HWMOD_INIT_NO_RESET;
+
+	return 0;
+}
+
+/**
+ * omap_hwmod_pad_route_irq - route an I/O pad wakeup to a particular MPU IRQ
+ * @oh: struct omap_hwmod * containing hwmod mux entries
+ * @pad_idx: array index in oh->mux of the hwmod mux entry to route wakeup
+ * @irq_idx: the hwmod mpu_irqs array index of the IRQ to trigger on wakeup
+ *
+ * When an I/O pad wakeup arrives for the dynamic or wakeup hwmod mux
+ * entry number @pad_idx for the hwmod @oh, trigger the interrupt
+ * service routine for the hwmod's mpu_irqs array index @irq_idx.  If
+ * this function is not called for a given pad_idx, then the ISR
+ * associated with @oh's first MPU IRQ will be triggered when an I/O
+ * pad wakeup occurs on that pad.  Note that @pad_idx is the index of
+ * the _dynamic or wakeup_ entry: if there are other entries not
+ * marked with OMAP_DEVICE_PAD_WAKEUP or OMAP_DEVICE_PAD_REMUX, these
+ * entries are NOT COUNTED in the dynamic pad index.  This function
+ * must be called separately for each pad that requires its interrupt
+ * to be re-routed this way.  Returns -EINVAL if there is an argument
+ * problem or if @oh does not have hwmod mux entries or MPU IRQs;
+ * returns -ENOMEM if memory cannot be allocated; or 0 upon success.
+ *
+ * XXX This function interface is fragile.  Rather than using array
+ * indexes, which are subject to unpredictable change, it should be
+ * using hwmod IRQ names, and some other stable key for the hwmod mux
+ * pad records.
+ */
+int omap_hwmod_pad_route_irq(struct omap_hwmod *oh, int pad_idx, int irq_idx)
+{
+	int nr_irqs;
+
+	might_sleep();
+
+	if (!oh || !oh->mux || !oh->mpu_irqs || pad_idx < 0 ||
+	    pad_idx >= oh->mux->nr_pads_dynamic)
+		return -EINVAL;
+
+	/* Check the number of available mpu_irqs */
+	for (nr_irqs = 0; oh->mpu_irqs[nr_irqs].irq >= 0; nr_irqs++)
+		;
+
+	if (irq_idx >= nr_irqs)
+		return -EINVAL;
+
+	if (!oh->mux->irqs) {
+		/* XXX What frees this? */
+		oh->mux->irqs = kzalloc(sizeof(int) * oh->mux->nr_pads_dynamic,
+			GFP_KERNEL);
+		if (!oh->mux->irqs)
+			return -ENOMEM;
+	}
+	oh->mux->irqs[pad_idx] = irq_idx;
 
 	return 0;
 }
