@@ -838,6 +838,8 @@ static int exofs_fill_super(struct super_block *sb, void *data, int silent)
 	ret = bdi_setup_and_register(&sbi->bdi, "exofs", BDI_CAP_MAP_COPY);
 	if (ret) {
 		EXOFS_DBGMSG("Failed to bdi_setup_and_register\n");
+		dput(sb->s_root);
+		sb->s_root = NULL;
 		goto free_sbi;
 	}
 
