@@ -808,6 +808,7 @@ nouveau_pm_init(struct drm_device *dev)
 	ret = nouveau_pm_perflvl_get(dev, &pm->boot);
 	if (ret == 0) {
 		strncpy(pm->boot.name, "boot", 4);
+		pm->boot.timing = &pm->memtimings.boot;
 		pm->cur = &pm->boot;
 
 		nouveau_pm_perflvl_info(&pm->boot, info, sizeof(info));

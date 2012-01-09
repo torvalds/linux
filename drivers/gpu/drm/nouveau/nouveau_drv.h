@@ -432,25 +432,26 @@ struct nouveau_pm_voltage {
 	int nr_level;
 };
 
+/* Exclusive upper limits */
+#define NV_MEM_CL_DDR2_MAX 8
+#define NV_MEM_WR_DDR2_MAX 9
+#define NV_MEM_CL_DDR3_MAX 17
+#define NV_MEM_WR_DDR3_MAX 17
+#define NV_MEM_CL_GDDR3_MAX 16
+#define NV_MEM_WR_GDDR3_MAX 18
+#define NV_MEM_CL_GDDR5_MAX 21
+#define NV_MEM_WR_GDDR5_MAX 20
+
 struct nouveau_pm_memtiming {
 	int id;
-	u32 reg_0; /* 0x10f290 on Fermi, 0x100220 for older */
-	u32 reg_1;
-	u32 reg_2;
-	u32 reg_3;
-	u32 reg_4;
-	u32 reg_5;
-	u32 reg_6;
-	u32 reg_7;
-	u32 reg_8;
-	/* To be written to 0x1002c0 */
-	u8 CL;
-	u8 WR;
+
+	u32 reg[9];
+	u32 mr[4];
+
 	u8 tCWL;
 
-	bool odt;
-	bool dll_disable;
-	bool ron_pull;
+	u8 odt;
+	u8 drive_strength;
 };
 
 struct nouveau_pm_tbl_header {
@@ -527,8 +528,10 @@ struct nouveau_pm_threshold_temp {
 
 struct nouveau_pm_memtimings {
 	bool supported;
+	struct nouveau_pm_memtiming boot;
 	struct nouveau_pm_memtiming *timing;
 	int nr_timing;
+	int nr_timing_valid;
 };
 
 struct nouveau_pm_fan {
@@ -796,6 +799,7 @@ struct drm_nouveau_private {
 	} vram_type;
 	uint64_t vram_size;
 	uint64_t vram_sys_base;
+	bool vram_rank_B;
 
 	uint64_t fb_available_size;
 	uint64_t fb_mappable_pages;
@@ -927,10 +931,6 @@ extern void nv10_mem_put_tile_region(struct drm_device *dev,
 				     struct nouveau_fence *fence);
 extern const struct ttm_mem_type_manager_func nouveau_vram_manager;
 extern const struct ttm_mem_type_manager_func nouveau_gart_manager;
-void nv30_mem_timing_entry(struct drm_device *dev,
-			   struct nouveau_pm_tbl_header *hdr,
-			   struct nouveau_pm_tbl_entry *e, uint8_t magic_number,
-			   struct nouveau_pm_memtiming *timing);
 
 /* nouveau_notifier.c */
 extern int  nouveau_notifier_init_channel(struct nouveau_channel *);

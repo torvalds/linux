@@ -207,6 +207,7 @@ nv50_vram_init(struct drm_device *dev)
 		break;
 	}
 
+	dev_priv->vram_rank_B = (nv_rd32(dev, NV04_PFB_CFG0) & 0x100) >> 8;
 	dev_priv->vram_size  = nv_rd32(dev, 0x10020c);
 	dev_priv->vram_size |= (dev_priv->vram_size & 0xff) << 32;
 	dev_priv->vram_size &= 0xffffffff00ULL;
