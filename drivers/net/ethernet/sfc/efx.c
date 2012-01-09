@@ -364,7 +364,7 @@ static int efx_probe_eventq(struct efx_channel *channel)
 	struct efx_nic *efx = channel->efx;
 	unsigned long entries;
 
-	netif_dbg(channel->efx, probe, channel->efx->net_dev,
+	netif_dbg(efx, probe, efx->net_dev,
 		  "chan %d create event queue\n", channel->channel);
 
 	/* Build an event queue with room for one event per tx and rx buffer,
@@ -1971,7 +1971,7 @@ static int efx_register_netdev(struct efx_nic *efx)
 	}
 
 	/* Always start with carrier off; PHY events will detect the link */
-	netif_carrier_off(efx->net_dev);
+	netif_carrier_off(net_dev);
 
 	rtnl_unlock();
 
