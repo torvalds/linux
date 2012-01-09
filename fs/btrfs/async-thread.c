@@ -563,8 +563,8 @@ static struct btrfs_worker_thread *find_worker(struct btrfs_workers *workers)
 	struct list_head *fallback;
 	int ret;
 
-again:
 	spin_lock_irqsave(&workers->lock, flags);
+again:
 	worker = next_worker(workers);
 
 	if (!worker) {
@@ -579,6 +579,7 @@ again:
 			spin_unlock_irqrestore(&workers->lock, flags);
 			/* we're below the limit, start another worker */
 			ret = __btrfs_start_workers(workers);
+			spin_lock_irqsave(&workers->lock, flags);
 			if (ret)
 				goto fallback;
 			goto again;

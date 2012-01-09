@@ -17,6 +17,8 @@ choice
 
 config ARCH_EXYNOS4
 	bool "SAMSUNG EXYNOS4"
+	select HAVE_SMP
+	select MIGHT_HAVE_CACHE_L2X0
 	help
 	  Samsung EXYNOS4 SoCs based systems
 

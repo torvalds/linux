@@ -82,13 +82,10 @@ static struct platform_driver sdhci_dove_driver = {
 	.driver		= {
 		.name	= "sdhci-dove",
 		.owner	= THIS_MODULE,
+		.pm	= SDHCI_PLTFM_PMOPS,
 	},
 	.probe		= sdhci_dove_probe,
 	.remove		= __devexit_p(sdhci_dove_remove),
-#ifdef CONFIG_PM
-	.suspend	= sdhci_pltfm_suspend,
-	.resume		= sdhci_pltfm_resume,
-#endif
 };
 
 static int __init sdhci_dove_init(void)

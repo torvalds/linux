@@ -773,22 +773,24 @@ int qla4xxx_start_firmware(struct scsi_qla_host *ha)
  * be freed so that when login happens from user space there are free DDB
  * indices available.
  **/
-static void qla4xxx_free_ddb_index(struct scsi_qla_host *ha)
+void qla4xxx_free_ddb_index(struct scsi_qla_host *ha)
 {
 	int max_ddbs;
 	int ret;
 	uint32_t idx = 0, next_idx = 0;
 	uint32_t state = 0, conn_err = 0;
 
-	max_ddbs =  is_qla40XX(ha) ? MAX_PRST_DEV_DB_ENTRIES :
+	max_ddbs =  is_qla40XX(ha) ? MAX_DEV_DB_ENTRIES_40XX :
 				     MAX_DEV_DB_ENTRIES;
 
 	for (idx = 0; idx < max_ddbs; idx = next_idx) {
 		ret = qla4xxx_get_fwddb_entry(ha, idx, NULL, 0, NULL,
 					      &next_idx, &state, &conn_err,
 						NULL, NULL);
-		if (ret == QLA_ERROR)
+		if (ret == QLA_ERROR) {
+			next_idx++;
 			continue;
+		}
 		if (state == DDB_DS_NO_CONNECTION_ACTIVE ||
 		    state == DDB_DS_SESSION_FAILED) {
 			DEBUG2(ql4_printk(KERN_INFO, ha,
@@ -804,7 +806,6 @@ static void qla4xxx_free_ddb_index(struct scsi_qla_host *ha)
 	}
 }
 
-
 /**
  * qla4xxx_initialize_adapter - initiailizes hba
  * @ha: Pointer to host adapter structure.
@@ -812,7 +813,7 @@ static void qla4xxx_free_ddb_index(struct scsi_qla_host *ha)
  * This routine parforms all of the steps necessary to initialize the adapter.
  *
  **/
-int qla4xxx_initialize_adapter(struct scsi_qla_host *ha)
+int qla4xxx_initialize_adapter(struct scsi_qla_host *ha, int is_reset)
 {
 	int status = QLA_ERROR;
 
@@ -840,7 +841,8 @@ int qla4xxx_initialize_adapter(struct scsi_qla_host *ha)
 	if (status == QLA_ERROR)
 		goto exit_init_hba;
 
-	qla4xxx_free_ddb_index(ha);
+	if (is_reset == RESET_ADAPTER)
+		qla4xxx_build_ddb_list(ha, is_reset);
 
 	set_bit(AF_ONLINE, &ha->flags);
 exit_init_hba:
@@ -855,37 +857,11 @@ exit_init_hba:
 	return status;
 }
 
-/**
- * qla4xxx_process_ddb_changed - process ddb state change
- * @ha - Pointer to host adapter structure.
- * @fw_ddb_index - Firmware's device database index
- * @state - Device state
- *
- * This routine processes a Decive Database Changed AEN Event.
- **/
-int qla4xxx_process_ddb_changed(struct scsi_qla_host *ha, uint32_t fw_ddb_index,
-		uint32_t state, uint32_t conn_err)
+int qla4xxx_ddb_change(struct scsi_qla_host *ha, uint32_t fw_ddb_index,
+		       struct ddb_entry *ddb_entry, uint32_t state)
 {
-	struct ddb_entry * ddb_entry;
 	uint32_t old_fw_ddb_device_state;
 	int status = QLA_ERROR;
-
-	/* check for out of range index */
-	if (fw_ddb_index >= MAX_DDB_ENTRIES)
-		goto exit_ddb_event;
-
-	/* Get the corresponging ddb entry */
-	ddb_entry = qla4xxx_lookup_ddb_by_fw_index(ha, fw_ddb_index);
-	/* Device does not currently exist in our database. */
-	if (ddb_entry == NULL) {
-		ql4_printk(KERN_ERR, ha, "%s: No ddb_entry at FW index [%d]\n",
-			   __func__, fw_ddb_index);
-
-		if (state == DDB_DS_NO_CONNECTION_ACTIVE)
-			clear_bit(fw_ddb_index, ha->ddb_idx_map);
-
-		goto exit_ddb_event;
-	}
 
 	old_fw_ddb_device_state = ddb_entry->fw_ddb_device_state;
 	DEBUG2(ql4_printk(KERN_INFO, ha,
@@ -900,9 +876,7 @@ int qla4xxx_process_ddb_changed(struct scsi_qla_host *ha, uint32_t fw_ddb_index,
 		switch (state) {
 		case DDB_DS_SESSION_ACTIVE:
 		case DDB_DS_DISCOVERY:
-			iscsi_conn_start(ddb_entry->conn);
-			iscsi_conn_login_event(ddb_entry->conn,
-					       ISCSI_CONN_STATE_LOGGED_IN);
+			ddb_entry->unblock_sess(ddb_entry->sess);
 			qla4xxx_update_session_conn_param(ha, ddb_entry);
 			status = QLA_SUCCESS;
 			break;
@@ -936,9 +910,7 @@ int qla4xxx_process_ddb_changed(struct scsi_qla_host *ha, uint32_t fw_ddb_index,
 		switch (state) {
 		case DDB_DS_SESSION_ACTIVE:
 		case DDB_DS_DISCOVERY:
-			iscsi_conn_start(ddb_entry->conn);
-			iscsi_conn_login_event(ddb_entry->conn,
-					       ISCSI_CONN_STATE_LOGGED_IN);
+			ddb_entry->unblock_sess(ddb_entry->sess);
 			qla4xxx_update_session_conn_param(ha, ddb_entry);
 			status = QLA_SUCCESS;
 			break;
@@ -954,7 +926,198 @@ int qla4xxx_process_ddb_changed(struct scsi_qla_host *ha, uint32_t fw_ddb_index,
 				__func__));
 		break;
 	}
+	return status;
+}
+
+void qla4xxx_arm_relogin_timer(struct ddb_entry *ddb_entry)
+{
+	/*
+	 * This triggers a relogin.  After the relogin_timer
+	 * expires, the relogin gets scheduled.  We must wait a
+	 * minimum amount of time since receiving an 0x8014 AEN
+	 * with failed device_state or a logout response before
+	 * we can issue another relogin.
+	 *
+	 * Firmware pads this timeout: (time2wait +1).
+	 * Driver retry to login should be longer than F/W.
+	 * Otherwise F/W will fail
+	 * set_ddb() mbx cmd with 0x4005 since it still
+	 * counting down its time2wait.
+	 */
+	atomic_set(&ddb_entry->relogin_timer, 0);
+	atomic_set(&ddb_entry->retry_relogin_timer,
+		   ddb_entry->default_time2wait + 4);
+
+}
+
+int qla4xxx_flash_ddb_change(struct scsi_qla_host *ha, uint32_t fw_ddb_index,
+			     struct ddb_entry *ddb_entry, uint32_t state)
+{
+	uint32_t old_fw_ddb_device_state;
+	int status = QLA_ERROR;
+
+	old_fw_ddb_device_state = ddb_entry->fw_ddb_device_state;
+	DEBUG2(ql4_printk(KERN_INFO, ha,
+			  "%s: DDB - old state = 0x%x, new state = 0x%x for "
+			  "index [%d]\n", __func__,
+			  ddb_entry->fw_ddb_device_state, state, fw_ddb_index));
+
+	ddb_entry->fw_ddb_device_state = state;
+
+	switch (old_fw_ddb_device_state) {
+	case DDB_DS_LOGIN_IN_PROCESS:
+	case DDB_DS_NO_CONNECTION_ACTIVE:
+		switch (state) {
+		case DDB_DS_SESSION_ACTIVE:
+			ddb_entry->unblock_sess(ddb_entry->sess);
+			qla4xxx_update_session_conn_fwddb_param(ha, ddb_entry);
+			status = QLA_SUCCESS;
+			break;
+		case DDB_DS_SESSION_FAILED:
+			iscsi_block_session(ddb_entry->sess);
+			if (!test_bit(DF_RELOGIN, &ddb_entry->flags))
+				qla4xxx_arm_relogin_timer(ddb_entry);
+			status = QLA_SUCCESS;
+			break;
+		}
+		break;
+	case DDB_DS_SESSION_ACTIVE:
+		switch (state) {
+		case DDB_DS_SESSION_FAILED:
+			iscsi_block_session(ddb_entry->sess);
+			if (!test_bit(DF_RELOGIN, &ddb_entry->flags))
+				qla4xxx_arm_relogin_timer(ddb_entry);
+			status = QLA_SUCCESS;
+			break;
+		}
+		break;
+	case DDB_DS_SESSION_FAILED:
+		switch (state) {
+		case DDB_DS_SESSION_ACTIVE:
+			ddb_entry->unblock_sess(ddb_entry->sess);
+			qla4xxx_update_session_conn_fwddb_param(ha, ddb_entry);
+			status = QLA_SUCCESS;
+			break;
+		case DDB_DS_SESSION_FAILED:
+			if (!test_bit(DF_RELOGIN, &ddb_entry->flags))
+				qla4xxx_arm_relogin_timer(ddb_entry);
+			status = QLA_SUCCESS;
+			break;
+		}
+		break;
+	default:
+		DEBUG2(ql4_printk(KERN_INFO, ha, "%s: Unknown Event\n",
+				  __func__));
+		break;
+	}
+	return status;
+}
+
+/**
+ * qla4xxx_process_ddb_changed - process ddb state change
+ * @ha - Pointer to host adapter structure.
+ * @fw_ddb_index - Firmware's device database index
+ * @state - Device state
+ *
+ * This routine processes a Decive Database Changed AEN Event.
+ **/
+int qla4xxx_process_ddb_changed(struct scsi_qla_host *ha,
+				uint32_t fw_ddb_index,
+				uint32_t state, uint32_t conn_err)
+{
+	struct ddb_entry *ddb_entry;
+	int status = QLA_ERROR;
+
+	/* check for out of range index */
+	if (fw_ddb_index >= MAX_DDB_ENTRIES)
+		goto exit_ddb_event;
+
+	/* Get the corresponging ddb entry */
+	ddb_entry = qla4xxx_lookup_ddb_by_fw_index(ha, fw_ddb_index);
+	/* Device does not currently exist in our database. */
+	if (ddb_entry == NULL) {
+		ql4_printk(KERN_ERR, ha, "%s: No ddb_entry at FW index [%d]\n",
+			   __func__, fw_ddb_index);
+
+		if (state == DDB_DS_NO_CONNECTION_ACTIVE)
+			clear_bit(fw_ddb_index, ha->ddb_idx_map);
+
+		goto exit_ddb_event;
+	}
+
+	ddb_entry->ddb_change(ha, fw_ddb_index, ddb_entry, state);
 
 exit_ddb_event:
 	return status;
 }
+
+/**
+ * qla4xxx_login_flash_ddb - Login to target (DDB)
+ * @cls_session: Pointer to the session to login
+ *
+ * This routine logins to the target.
+ * Issues setddb and conn open mbx
+ **/
+void qla4xxx_login_flash_ddb(struct iscsi_cls_session *cls_session)
+{
+	struct iscsi_session *sess;
+	struct ddb_entry *ddb_entry;
+	struct scsi_qla_host *ha;
+	struct dev_db_entry *fw_ddb_entry = NULL;
+	dma_addr_t fw_ddb_dma;
+	uint32_t mbx_sts = 0;
+	int ret;
+
+	sess = cls_session->dd_data;
+	ddb_entry = sess->dd_data;
+	ha =  ddb_entry->ha;
+
+	if (!test_bit(AF_LINK_UP, &ha->flags))
+		return;
+
+	if (ddb_entry->ddb_type != FLASH_DDB) {
+		DEBUG2(ql4_printk(KERN_INFO, ha,
+				  "Skipping login to non FLASH DB"));
+		goto exit_login;
+	}
+
+	fw_ddb_entry = dma_pool_alloc(ha->fw_ddb_dma_pool, GFP_KERNEL,
+				      &fw_ddb_dma);
+	if (fw_ddb_entry == NULL) {
+		DEBUG2(ql4_printk(KERN_ERR, ha, "Out of memory\n"));
+		goto exit_login;
+	}
+
+	if (ddb_entry->fw_ddb_index == INVALID_ENTRY) {
+		ret = qla4xxx_get_ddb_index(ha, &ddb_entry->fw_ddb_index);
+		if (ret == QLA_ERROR)
+			goto exit_login;
+
+		ha->fw_ddb_index_map[ddb_entry->fw_ddb_index] = ddb_entry;
+		ha->tot_ddbs++;
+	}
+
+	memcpy(fw_ddb_entry, &ddb_entry->fw_ddb_entry,
+	       sizeof(struct dev_db_entry));
+	ddb_entry->sess->target_id = ddb_entry->fw_ddb_index;
+
+	ret = qla4xxx_set_ddb_entry(ha, ddb_entry->fw_ddb_index,
+				    fw_ddb_dma, &mbx_sts);
+	if (ret == QLA_ERROR) {
+		DEBUG2(ql4_printk(KERN_ERR, ha, "Set DDB failed\n"));
+		goto exit_login;
+	}
+
+	ddb_entry->fw_ddb_device_state = DDB_DS_LOGIN_IN_PROCESS;
+	ret = qla4xxx_conn_open(ha, ddb_entry->fw_ddb_index);
+	if (ret == QLA_ERROR) {
+		ql4_printk(KERN_ERR, ha, "%s: Login failed: %s\n", __func__,
+			   sess->targetname);
+		goto exit_login;
+	}
+
+exit_login:
+	if (fw_ddb_entry)
+		dma_pool_free(ha->fw_ddb_dma_pool, fw_ddb_entry, fw_ddb_dma);
+}
+

@@ -42,6 +42,7 @@
 #include <plat/clock.h>
 #include <plat/pll.h>
 #include <plat/pm.h>
+#include <plat/watchdog-reset.h>
 
 #include <plat/gpio-core.h>
 #include <plat/gpio-cfg.h>
@@ -188,4 +189,16 @@ int __init s3c2410a_init(void)
 {
 	s3c2410_sysdev.cls = &s3c2410a_sysclass;
 	return s3c2410_init();
+}
+
+void s3c2410_restart(char mode, const char *cmd)
+{
+	if (mode == 's') {
+		soft_restart(0);
+	}
+
+	arch_wdt_reset();
+
+	/* we'll take a jump through zero as a poor second */
+	soft_restart(0);
 }

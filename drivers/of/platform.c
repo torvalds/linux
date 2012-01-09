@@ -314,7 +314,7 @@ static const struct of_dev_auxdata *of_dev_lookup(const struct of_dev_auxdata *l
 	if (!lookup)
 		return NULL;
 
-	for(; lookup->name != NULL; lookup++) {
+	for(; lookup->compatible != NULL; lookup++) {
 		if (!of_device_is_compatible(np, lookup->compatible))
 			continue;
 		if (of_address_to_resource(np, 0, &res))

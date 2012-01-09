@@ -43,7 +43,7 @@
 
 #include <plat/board.h>
 #include <plat/usb.h>
-#include <plat/common.h>
+#include "common.h"
 #include <plat/mcspi.h>
 #include <video/omapdss.h>
 #include <video/omap-panel-dvi.h>
@@ -681,6 +681,8 @@ MACHINE_START(OMAP3EVM, "OMAP3 EVM")
 	.map_io		= omap3_map_io,
 	.init_early	= omap35xx_init_early,
 	.init_irq	= omap3_init_irq,
+	.handle_irq	= omap3_intc_handle_irq,
 	.init_machine	= omap3_evm_init,
 	.timer		= &omap3_timer,
+	.restart	= omap_prcm_restart,
 MACHINE_END

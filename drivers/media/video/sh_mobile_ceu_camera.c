@@ -566,8 +566,10 @@ static int sh_mobile_ceu_add_device(struct soc_camera_device *icd)
 	ret = sh_mobile_ceu_soft_reset(pcdev);
 
 	csi2_sd = find_csi2(pcdev);
-	if (csi2_sd)
-		csi2_sd->grp_id = (long)icd;
+	if (csi2_sd) {
+		csi2_sd->grp_id = soc_camera_grp_id(icd);
+		v4l2_set_subdev_hostdata(csi2_sd, icd);
+	}
 
 	ret = v4l2_subdev_call(csi2_sd, core, s_power, 1);
 	if (ret < 0 && ret != -ENOIOCTLCMD && ret != -ENODEV) {
@@ -768,7 +770,7 @@ static struct v4l2_subdev *find_bus_subdev(struct sh_mobile_ceu_dev *pcdev,
 {
 	if (pcdev->csi2_pdev) {
 		struct v4l2_subdev *csi2_sd = find_csi2(pcdev);
-		if (csi2_sd && csi2_sd->grp_id == (u32)icd)
+		if (csi2_sd && csi2_sd->grp_id == soc_camera_grp_id(icd))
 			return csi2_sd;
 	}
 
@@ -1089,8 +1091,9 @@ static int sh_mobile_ceu_get_formats(struct soc_camera_device *icd, unsigned int
 			/* Try 2560x1920, 1280x960, 640x480, 320x240 */
 			mf.width	= 2560 >> shift;
 			mf.height	= 1920 >> shift;
-			ret = v4l2_device_call_until_err(sd->v4l2_dev, (long)icd, video,
-							 s_mbus_fmt, &mf);
+			ret = v4l2_device_call_until_err(sd->v4l2_dev,
+					soc_camera_grp_id(icd), video,
+					s_mbus_fmt, &mf);
 			if (ret < 0)
 				return ret;
 			shift++;
@@ -1389,7 +1392,8 @@ static int client_s_fmt(struct soc_camera_device *icd,
 	bool ceu_1to1;
 	int ret;
 
-	ret = v4l2_device_call_until_err(sd->v4l2_dev, (long)icd, video,
+	ret = v4l2_device_call_until_err(sd->v4l2_dev,
+					 soc_camera_grp_id(icd), video,
 					 s_mbus_fmt, mf);
 	if (ret < 0)
 		return ret;
@@ -1426,8 +1430,9 @@ static int client_s_fmt(struct soc_camera_device *icd,
 		tmp_h = min(2 * tmp_h, max_height);
 		mf->width = tmp_w;
 		mf->height = tmp_h;
-		ret = v4l2_device_call_until_err(sd->v4l2_dev, (long)icd, video,
-						 s_mbus_fmt, mf);
+		ret = v4l2_device_call_until_err(sd->v4l2_dev,
+					soc_camera_grp_id(icd), video,
+					s_mbus_fmt, mf);
 		dev_geo(dev, "Camera scaled to %ux%u\n",
 			mf->width, mf->height);
 		if (ret < 0) {
@@ -1580,8 +1585,9 @@ static int sh_mobile_ceu_set_crop(struct soc_camera_device *icd,
 	}
 
 	if (interm_width < icd->user_width || interm_height < icd->user_height) {
-		ret = v4l2_device_call_until_err(sd->v4l2_dev, (int)icd, video,
-						 s_mbus_fmt, &mf);
+		ret = v4l2_device_call_until_err(sd->v4l2_dev,
+					soc_camera_grp_id(icd), video,
+					s_mbus_fmt, &mf);
 		if (ret < 0)
 			return ret;
 
@@ -1867,7 +1873,8 @@ static int sh_mobile_ceu_try_fmt(struct soc_camera_device *icd,
 	mf.code		= xlate->code;
 	mf.colorspace	= pix->colorspace;
 
-	ret = v4l2_device_call_until_err(sd->v4l2_dev, (long)icd, video, try_mbus_fmt, &mf);
+	ret = v4l2_device_call_until_err(sd->v4l2_dev, soc_camera_grp_id(icd),
+					 video, try_mbus_fmt, &mf);
 	if (ret < 0)
 		return ret;
 
@@ -1891,8 +1898,9 @@ static int sh_mobile_ceu_try_fmt(struct soc_camera_device *icd,
 			 */
 			mf.width = 2560;
 			mf.height = 1920;
-			ret = v4l2_device_call_until_err(sd->v4l2_dev, (long)icd, video,
-							 try_mbus_fmt, &mf);
+			ret = v4l2_device_call_until_err(sd->v4l2_dev,
+					soc_camera_grp_id(icd), video,
+					try_mbus_fmt, &mf);
 			if (ret < 0) {
 				/* Shouldn't actually happen... */
 				dev_err(icd->parent,

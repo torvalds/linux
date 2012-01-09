@@ -312,4 +312,5 @@ MACHINE_START(MX21ADS, "Freescale i.MX21ADS")
 	.handle_irq = imx21_handle_irq,
 	.timer = &mx21ads_timer,
 	.init_machine = mx21ads_board_init,
+	.restart	= mxc_restart,
 MACHINE_END

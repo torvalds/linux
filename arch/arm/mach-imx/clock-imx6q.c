@@ -1931,14 +1931,12 @@ int imx6q_set_lpm(enum mxc_cpu_pwr_mode mode)
 		val |= 0x1 << BP_CLPCR_LPM;
 		val &= ~BM_CLPCR_VSTBY;
 		val &= ~BM_CLPCR_SBYOS;
-		val |= BM_CLPCR_BYP_MMDC_CH1_LPM_HS;
 		break;
 	case STOP_POWER_OFF:
 		val |= 0x2 << BP_CLPCR_LPM;
 		val |= 0x3 << BP_CLPCR_STBY_COUNT;
 		val |= BM_CLPCR_VSTBY;
 		val |= BM_CLPCR_SBYOS;
-		val |= BM_CLPCR_BYP_MMDC_CH1_LPM_HS;
 		break;
 	default:
 		return -EINVAL;

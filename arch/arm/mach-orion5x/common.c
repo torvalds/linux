@@ -18,6 +18,7 @@
 #include <linux/mbus.h>
 #include <linux/mv643xx_i2c.h>
 #include <linux/ata_platform.h>
+#include <linux/delay.h>
 #include <net/dsa.h>
 #include <asm/page.h>
 #include <asm/setup.h>
@@ -302,6 +303,17 @@ void __init orion5x_init(void)
 	 * Register watchdog driver
 	 */
 	orion5x_wdt_init();
+}
+
+void orion5x_restart(char mode, const char *cmd)
+{
+	/*
+	 * Enable and issue soft reset
+	 */
+	orion5x_setbits(RSTOUTn_MASK, (1 << 2));
+	orion5x_setbits(CPU_SOFT_RESET, 1);
+	mdelay(200);
+	orion5x_clrbits(CPU_SOFT_RESET, 1);
 }
 
 /*

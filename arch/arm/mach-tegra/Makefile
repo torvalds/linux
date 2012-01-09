@@ -18,20 +18,20 @@ obj-$(CONFIG_CPU_FREQ)                  += cpu-tegra.o
 obj-$(CONFIG_TEGRA_PCI)			+= pcie.o
 obj-$(CONFIG_USB_SUPPORT)		+= usb_phy.o
 
-obj-${CONFIG_MACH_HARMONY}              += board-harmony.o
-obj-${CONFIG_MACH_HARMONY}              += board-harmony-pinmux.o
-obj-${CONFIG_MACH_HARMONY}              += board-harmony-pcie.o
-obj-${CONFIG_MACH_HARMONY}              += board-harmony-power.o
+obj-$(CONFIG_MACH_HARMONY)              += board-harmony.o
+obj-$(CONFIG_MACH_HARMONY)              += board-harmony-pinmux.o
+obj-$(CONFIG_MACH_HARMONY)              += board-harmony-pcie.o
+obj-$(CONFIG_MACH_HARMONY)              += board-harmony-power.o
 
-obj-${CONFIG_MACH_PAZ00}		+= board-paz00.o
-obj-${CONFIG_MACH_PAZ00}		+= board-paz00-pinmux.o
+obj-$(CONFIG_MACH_PAZ00)		+= board-paz00.o
+obj-$(CONFIG_MACH_PAZ00)		+= board-paz00-pinmux.o
 
-obj-${CONFIG_MACH_SEABOARD}             += board-seaboard.o
-obj-${CONFIG_MACH_SEABOARD}             += board-seaboard-pinmux.o
+obj-$(CONFIG_MACH_SEABOARD)             += board-seaboard.o
+obj-$(CONFIG_MACH_SEABOARD)             += board-seaboard-pinmux.o
 
-obj-${CONFIG_MACH_TEGRA_DT}             += board-dt.o
-obj-${CONFIG_MACH_TEGRA_DT}             += board-harmony-pinmux.o
-obj-${CONFIG_MACH_TEGRA_DT}             += board-seaboard-pinmux.o
+obj-$(CONFIG_MACH_TEGRA_DT)             += board-dt.o
+obj-$(CONFIG_MACH_TEGRA_DT)             += board-harmony-pinmux.o
+obj-$(CONFIG_MACH_TEGRA_DT)             += board-seaboard-pinmux.o
 
-obj-${CONFIG_MACH_TRIMSLICE}            += board-trimslice.o
-obj-${CONFIG_MACH_TRIMSLICE}            += board-trimslice-pinmux.o
+obj-$(CONFIG_MACH_TRIMSLICE)            += board-trimslice.o
+obj-$(CONFIG_MACH_TRIMSLICE)            += board-trimslice-pinmux.o

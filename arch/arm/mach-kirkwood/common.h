@@ -50,6 +50,7 @@ void kirkwood_uart1_init(void);
 void kirkwood_nand_init(struct mtd_partition *parts, int nr_parts, int delay);
 void kirkwood_nand_init_rnb(struct mtd_partition *parts, int nr_parts, int (*dev_ready)(struct mtd_info *));
 void kirkwood_audio_init(void);
+void kirkwood_restart(char, const char *);
 
 extern int kirkwood_tclk;
 extern struct sys_timer kirkwood_timer;
