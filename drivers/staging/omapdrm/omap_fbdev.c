@@ -377,11 +377,11 @@ void omap_fbdev_free(struct drm_device *dev)
 
 	fbdev = to_omap_fbdev(priv->fbdev);
 
-	kfree(fbdev);
-
 	/* this will free the backing object */
 	if (fbdev->fb)
 		fbdev->fb->funcs->destroy(fbdev->fb);
+
+	kfree(fbdev);
 
 	priv->fbdev = NULL;
 }
