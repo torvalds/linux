@@ -363,4 +363,5 @@ MACHINE_START(M28EVK, "DENX M28 EVK")
 	.init_irq	= mx28_init_irq,
 	.timer		= &m28evk_timer,
 	.init_machine	= m28evk_init,
+	.restart	= mxs_restart,
 MACHINE_END

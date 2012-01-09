@@ -273,6 +273,17 @@ EXPORT_SYMBOL_GPL(rtnl_unregister_all);
 
 static LIST_HEAD(link_ops);
 
+static const struct rtnl_link_ops *rtnl_link_ops_get(const char *kind)
+{
+	const struct rtnl_link_ops *ops;
+
+	list_for_each_entry(ops, &link_ops, list) {
+		if (!strcmp(ops->kind, kind))
+			return ops;
+	}
+	return NULL;
+}
+
 /**
  * __rtnl_link_register - Register rtnl_link_ops with rtnetlink.
  * @ops: struct rtnl_link_ops * to register
@@ -285,6 +296,9 @@ static LIST_HEAD(link_ops);
  */
 int __rtnl_link_register(struct rtnl_link_ops *ops)
 {
+	if (rtnl_link_ops_get(ops->kind))
+		return -EEXIST;
+
 	if (!ops->dellink)
 		ops->dellink = unregister_netdevice_queue;
 
@@ -350,17 +364,6 @@ void rtnl_link_unregister(struct rtnl_link_ops *ops)
 	rtnl_unlock();
 }
 EXPORT_SYMBOL_GPL(rtnl_link_unregister);
-
-static const struct rtnl_link_ops *rtnl_link_ops_get(const char *kind)
-{
-	const struct rtnl_link_ops *ops;
-
-	list_for_each_entry(ops, &link_ops, list) {
-		if (!strcmp(ops->kind, kind))
-			return ops;
-	}
-	return NULL;
-}
 
 static size_t rtnl_link_get_size(const struct net_device *dev)
 {

@@ -244,7 +244,7 @@ static ssize_t set_temp_min(struct device *dev, struct device_attribute *da,
 	struct emc2103_data *data = i2c_get_clientdata(client);
 	long val;
 
-	int result = strict_strtol(buf, 10, &val);
+	int result = kstrtol(buf, 10, &val);
 	if (result < 0)
 		return -EINVAL;
 
@@ -268,7 +268,7 @@ static ssize_t set_temp_max(struct device *dev, struct device_attribute *da,
 	struct emc2103_data *data = i2c_get_clientdata(client);
 	long val;
 
-	int result = strict_strtol(buf, 10, &val);
+	int result = kstrtol(buf, 10, &val);
 	if (result < 0)
 		return -EINVAL;
 
@@ -314,7 +314,7 @@ static ssize_t set_fan_div(struct device *dev, struct device_attribute *da,
 	int new_range_bits, old_div = 8 / data->fan_multiplier;
 	long new_div;
 
-	int status = strict_strtol(buf, 10, &new_div);
+	int status = kstrtol(buf, 10, &new_div);
 	if (status < 0)
 		return -EINVAL;
 
@@ -388,7 +388,7 @@ static ssize_t set_fan_target(struct device *dev, struct device_attribute *da,
 	struct i2c_client *client = to_i2c_client(dev);
 	long rpm_target;
 
-	int result = strict_strtol(buf, 10, &rpm_target);
+	int result = kstrtol(buf, 10, &rpm_target);
 	if (result < 0)
 		return -EINVAL;
 
@@ -434,7 +434,7 @@ static ssize_t set_pwm_enable(struct device *dev, struct device_attribute *da,
 	long new_value;
 	u8 conf_reg;
 
-	int result = strict_strtol(buf, 10, &new_value);
+	int result = kstrtol(buf, 10, &new_value);
 	if (result < 0)
 		return -EINVAL;
 

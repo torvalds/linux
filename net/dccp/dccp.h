@@ -39,7 +39,7 @@
 						  "%s: " fmt, __func__, ##a)
 
 #ifdef CONFIG_IP_DCCP_DEBUG
-extern int dccp_debug;
+extern bool dccp_debug;
 #define dccp_pr_debug(format, a...)	  DCCP_PR_DEBUG(dccp_debug, format, ##a)
 #define dccp_pr_debug_cat(format, a...)   DCCP_PRINTK(dccp_debug, format, ##a)
 #define dccp_debug(fmt, a...)		  dccp_pr_debug_cat(KERN_DEBUG fmt, ##a)
@@ -357,7 +357,7 @@ static inline int dccp_bad_service_code(const struct sock *sk,
 struct dccp_skb_cb {
 	union {
 		struct inet_skb_parm	h4;
-#if defined(CONFIG_IPV6) || defined (CONFIG_IPV6_MODULE)
+#if IS_ENABLED(CONFIG_IPV6)
 		struct inet6_skb_parm	h6;
 #endif
 	} header;

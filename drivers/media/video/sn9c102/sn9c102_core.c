@@ -3420,27 +3420,4 @@ static struct usb_driver sn9c102_usb_driver = {
 	.disconnect = sn9c102_usb_disconnect,
 };
 
-/*****************************************************************************/
-
-static int __init sn9c102_module_init(void)
-{
-	int err = 0;
-
-	KDBG(2, SN9C102_MODULE_NAME " v" SN9C102_MODULE_VERSION);
-	KDBG(3, SN9C102_MODULE_AUTHOR);
-
-	if ((err = usb_register(&sn9c102_usb_driver)))
-		KDBG(1, "usb_register() failed");
-
-	return err;
-}
-
-
-static void __exit sn9c102_module_exit(void)
-{
-	usb_deregister(&sn9c102_usb_driver);
-}
-
-
-module_init(sn9c102_module_init);
-module_exit(sn9c102_module_exit);
+module_usb_driver(sn9c102_usb_driver);

@@ -27,7 +27,8 @@
 #include <plat/pll.h>
 #include <plat/s5p-clock.h>
 #include <plat/clock-clksrc.h>
-#include <plat/s5pc100.h>
+
+#include "common.h"
 
 static struct clk s5p_clk_otgphy = {
 	.name		= "otg_phy",

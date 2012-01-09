@@ -38,6 +38,8 @@
 #include <plat/iic.h>
 #include <plat/cpu.h>
 
+#include "common.h"
+
 static struct map_desc otom11_iodesc[] __initdata = {
   /* Device area */
 	{ (u32)OTOM_VA_CS8900A_BASE, OTOM_PA_CS8900A_BASE, SZ_16M, MT_DEVICE },
@@ -121,4 +123,5 @@ MACHINE_START(OTOM, "Nex Vision - Otom 1.1")
 	.init_machine	= otom11_init,
 	.init_irq	= s3c24xx_init_irq,
 	.timer		= &s3c24xx_timer,
+	.restart	= s3c2410_restart,
 MACHINE_END

@@ -1067,7 +1067,7 @@ b43legacy_radio_interference_mitigation_enable(struct b43legacy_wldev *dev,
 		if (b43legacy_phy_read(dev, 0x0033) & 0x0800)
 			break;
 
-		phy->aci_enable = 1;
+		phy->aci_enable = true;
 
 		phy_stacksave(B43legacy_PHY_RADIO_BITFIELD);
 		phy_stacksave(B43legacy_PHY_G_CRS);
@@ -1279,7 +1279,7 @@ b43legacy_radio_interference_mitigation_disable(struct b43legacy_wldev *dev,
 		if (!(b43legacy_phy_read(dev, 0x0033) & 0x0800))
 			break;
 
-		phy->aci_enable = 0;
+		phy->aci_enable = false;
 
 		phy_stackrestore(B43legacy_PHY_RADIO_BITFIELD);
 		phy_stackrestore(B43legacy_PHY_G_CRS);
@@ -1346,10 +1346,10 @@ int b43legacy_radio_set_interference_mitigation(struct b43legacy_wldev *dev,
 	    (phy->rev == 0) || (!phy->gmode))
 		return -ENODEV;
 
-	phy->aci_wlan_automatic = 0;
+	phy->aci_wlan_automatic = false;
 	switch (mode) {
 	case B43legacy_RADIO_INTERFMODE_AUTOWLAN:
-		phy->aci_wlan_automatic = 1;
+		phy->aci_wlan_automatic = true;
 		if (phy->aci_enable)
 			mode = B43legacy_RADIO_INTERFMODE_MANUALWLAN;
 		else
@@ -1371,8 +1371,8 @@ int b43legacy_radio_set_interference_mitigation(struct b43legacy_wldev *dev,
 								currentmode);
 
 	if (mode == B43legacy_RADIO_INTERFMODE_NONE) {
-		phy->aci_enable = 0;
-		phy->aci_hw_rssi = 0;
+		phy->aci_enable = false;
+		phy->aci_hw_rssi = false;
 	} else
 		b43legacy_radio_interference_mitigation_enable(dev, mode);
 	phy->interfmode = mode;
@@ -2102,7 +2102,7 @@ void b43legacy_radio_turn_on(struct b43legacy_wldev *dev)
 					    phy->radio_off_context.rfover);
 			b43legacy_phy_write(dev, B43legacy_PHY_RFOVERVAL,
 					    phy->radio_off_context.rfoverval);
-			phy->radio_off_context.valid = 0;
+			phy->radio_off_context.valid = false;
 		}
 		channel = phy->channel;
 		err = b43legacy_radio_selectchannel(dev,
@@ -2113,7 +2113,7 @@ void b43legacy_radio_turn_on(struct b43legacy_wldev *dev)
 	default:
 		B43legacy_BUG_ON(1);
 	}
-	phy->radio_on = 1;
+	phy->radio_on = true;
 }
 
 void b43legacy_radio_turn_off(struct b43legacy_wldev *dev, bool force)
@@ -2131,14 +2131,14 @@ void b43legacy_radio_turn_off(struct b43legacy_wldev *dev, bool force)
 		if (!force) {
 			phy->radio_off_context.rfover = rfover;
 			phy->radio_off_context.rfoverval = rfoverval;
-			phy->radio_off_context.valid = 1;
+			phy->radio_off_context.valid = true;
 		}
 		b43legacy_phy_write(dev, B43legacy_PHY_RFOVER, rfover | 0x008C);
 		b43legacy_phy_write(dev, B43legacy_PHY_RFOVERVAL,
 				    rfoverval & 0xFF73);
 	} else
 		b43legacy_phy_write(dev, 0x0015, 0xAA00);
-	phy->radio_on = 0;
+	phy->radio_on = false;
 	b43legacydbg(dev->wl, "Radio initialized\n");
 }
 

@@ -193,17 +193,7 @@ static struct platform_driver adp5520_gpio_driver = {
 	.remove		= __devexit_p(adp5520_gpio_remove),
 };
 
-static int __init adp5520_gpio_init(void)
-{
-	return platform_driver_register(&adp5520_gpio_driver);
-}
-module_init(adp5520_gpio_init);
-
-static void __exit adp5520_gpio_exit(void)
-{
-	platform_driver_unregister(&adp5520_gpio_driver);
-}
-module_exit(adp5520_gpio_exit);
+module_platform_driver(adp5520_gpio_driver);
 
 MODULE_AUTHOR("Michael Hennerich <hennerich@blackfin.uclinux.org>");
 MODULE_DESCRIPTION("GPIO ADP5520 Driver");

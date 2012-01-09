@@ -18,6 +18,9 @@ void bcma_bus_unregister(struct bcma_bus *bus);
 int __init bcma_bus_early_register(struct bcma_bus *bus,
 				   struct bcma_device *core_cc,
 				   struct bcma_device *core_mips);
+#ifdef CONFIG_PM
+int bcma_bus_resume(struct bcma_bus *bus);
+#endif
 
 /* scan.c */
 int bcma_bus_scan(struct bcma_bus *bus);

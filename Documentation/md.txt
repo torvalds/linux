@@ -357,14 +357,14 @@ Each directory contains:
         written to, that device.
 
       state
-        A file recording the current state of the device in the array
+	A file recording the current state of the device in the array
 	which can be a comma separated list of
 	      faulty   - device has been kicked from active use due to
-                         a detected fault or it has unacknowledged bad
-                         blocks
+			 a detected fault, or it has unacknowledged bad
+			 blocks
 	      in_sync  - device is a fully in-sync member of the array
 	      writemostly - device will only be subject to read
-		         requests if there are no other options.
+			 requests if there are no other options.
 			 This applies only to raid1 arrays.
 	      blocked  - device has failed, and the failure hasn't been
 			 acknowledged yet by the metadata handler.
@@ -374,6 +374,13 @@ Each directory contains:
 			 This includes spares that are in the process
 			 of being recovered to
 	      write_error - device has ever seen a write error.
+	      want_replacement - device is (mostly) working but probably
+			 should be replaced, either due to errors or
+			 due to user request.
+	      replacement - device is a replacement for another active
+			 device with same raid_disk.
+
+
 	This list may grow in future.
 	This can be written to.
 	Writing "faulty"  simulates a failure on the device.
@@ -386,6 +393,13 @@ Each directory contains:
 	Writing "in_sync" sets the in_sync flag.
 	Writing "write_error" sets writeerrorseen flag.
 	Writing "-write_error" clears writeerrorseen flag.
+	Writing "want_replacement" is allowed at any time except to a
+		replacement device or a spare.  It sets the flag.
+	Writing "-want_replacement" is allowed at any time.  It clears
+		the flag.
+	Writing "replacement" or "-replacement" is only allowed before
+		starting the array.  It sets or clears the flag.
+
 
 	This file responds to select/poll. Any change to 'faulty'
 	or 'blocked' causes an event.

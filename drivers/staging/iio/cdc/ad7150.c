@@ -657,20 +657,8 @@ static struct i2c_driver ad7150_driver = {
 	.remove = __devexit_p(ad7150_remove),
 	.id_table = ad7150_id,
 };
-
-static __init int ad7150_init(void)
-{
-	return i2c_add_driver(&ad7150_driver);
-}
-
-static __exit void ad7150_exit(void)
-{
-	i2c_del_driver(&ad7150_driver);
-}
+module_i2c_driver(ad7150_driver);
 
 MODULE_AUTHOR("Barry Song <21cnbao@gmail.com>");
 MODULE_DESCRIPTION("Analog Devices AD7150/1/6 capacitive sensor driver");
 MODULE_LICENSE("GPL v2");
-
-module_init(ad7150_init);
-module_exit(ad7150_exit);

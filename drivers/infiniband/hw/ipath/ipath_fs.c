@@ -46,7 +46,7 @@
 static struct super_block *ipath_super;
 
 static int ipathfs_mknod(struct inode *dir, struct dentry *dentry,
-			 int mode, const struct file_operations *fops,
+			 umode_t mode, const struct file_operations *fops,
 			 void *data)
 {
 	int error;
@@ -61,7 +61,7 @@ static int ipathfs_mknod(struct inode *dir, struct dentry *dentry,
 	inode->i_mode = mode;
 	inode->i_atime = inode->i_mtime = inode->i_ctime = CURRENT_TIME;
 	inode->i_private = data;
-	if ((mode & S_IFMT) == S_IFDIR) {
+	if (S_ISDIR(mode)) {
 		inode->i_op = &simple_dir_inode_operations;
 		inc_nlink(inode);
 		inc_nlink(dir);
@@ -76,7 +76,7 @@ bail:
 	return error;
 }
 
-static int create_file(const char *name, mode_t mode,
+static int create_file(const char *name, umode_t mode,
 		       struct dentry *parent, struct dentry **dentry,
 		       const struct file_operations *fops, void *data)
 {

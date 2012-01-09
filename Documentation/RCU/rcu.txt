@@ -38,11 +38,11 @@ o	How can the updater tell when a grace period has completed
 
 	Preemptible variants of RCU (CONFIG_TREE_PREEMPT_RCU) get the
 	same effect, but require that the readers manipulate CPU-local
-	counters.  These counters allow limited types of blocking
-	within RCU read-side critical sections.  SRCU also uses
-	CPU-local counters, and permits general blocking within
-	RCU read-side critical sections.  These two variants of
-	RCU detect grace periods by sampling these counters.
+	counters.  These counters allow limited types of blocking within
+	RCU read-side critical sections.  SRCU also uses CPU-local
+	counters, and permits general blocking within RCU read-side
+	critical sections.  These variants of RCU detect grace periods
+	by sampling these counters.
 
 o	If I am running on a uniprocessor kernel, which can only do one
 	thing at a time, why should I wait for a grace period?

@@ -395,7 +395,7 @@ static void netbk_gop_frag_copy(struct xenvif *vif, struct sk_buff *skb,
 	struct gnttab_copy *copy_gop;
 	struct netbk_rx_meta *meta;
 	/*
-	 * These variables a used iff get_page_ext returns true,
+	 * These variables are used iff get_page_ext returns true,
 	 * in which case they are guaranteed to be initialized.
 	 */
 	unsigned int uninitialized_var(group), uninitialized_var(idx);
@@ -940,8 +940,6 @@ static struct gnttab_copy *xen_netbk_get_requests(struct xen_netbk *netbk,
 		if (!page)
 			return NULL;
 
-		netbk->mmap_pages[pending_idx] = page;
-
 		gop->source.u.ref = txp->gref;
 		gop->source.domid = vif->domid;
 		gop->source.offset = txp->offset;
@@ -1335,8 +1333,6 @@ static unsigned xen_netbk_tx_build_gops(struct xen_netbk *netbk)
 			netbk_tx_err(vif, &txreq, idx);
 			continue;
 		}
-
-		netbk->mmap_pages[pending_idx] = page;
 
 		gop->source.u.ref = txreq.gref;
 		gop->source.domid = vif->domid;

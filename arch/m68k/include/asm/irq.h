@@ -25,7 +25,8 @@
 #define NR_IRQS	0
 #endif
 
-#ifdef CONFIG_MMU
+#if defined(CONFIG_M68020) || defined(CONFIG_M68030) || \
+    defined(CONFIG_M68040) || defined(CONFIG_M68060)
 
 /*
  * Interrupt source definitions
@@ -80,7 +81,7 @@ extern unsigned int irq_canonicalize(unsigned int irq);
 
 #else
 #define irq_canonicalize(irq)  (irq)
-#endif /* CONFIG_MMU */
+#endif /* !(CONFIG_M68020 || CONFIG_M68030 || CONFIG_M68040 || CONFIG_M68060) */
 
 asmlinkage void do_IRQ(int irq, struct pt_regs *regs);
 extern atomic_t irq_err_count;

@@ -317,18 +317,7 @@ static struct spi_driver ad5624r_driver = {
 	.remove = __devexit_p(ad5624r_remove),
 	.id_table = ad5624r_id,
 };
-
-static __init int ad5624r_spi_init(void)
-{
-	return spi_register_driver(&ad5624r_driver);
-}
-module_init(ad5624r_spi_init);
-
-static __exit void ad5624r_spi_exit(void)
-{
-	spi_unregister_driver(&ad5624r_driver);
-}
-module_exit(ad5624r_spi_exit);
+module_spi_driver(ad5624r_driver);
 
 MODULE_AUTHOR("Barry Song <21cnbao@gmail.com>");
 MODULE_DESCRIPTION("Analog Devices AD5624/44/64R DAC spi driver");

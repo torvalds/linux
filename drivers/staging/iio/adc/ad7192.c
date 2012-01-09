@@ -838,14 +838,14 @@ static struct attribute *ad7192_attributes[] = {
 	NULL
 };
 
-static mode_t ad7192_attr_is_visible(struct kobject *kobj,
+static umode_t ad7192_attr_is_visible(struct kobject *kobj,
 				     struct attribute *attr, int n)
 {
 	struct device *dev = container_of(kobj, struct device, kobj);
 	struct iio_dev *indio_dev = dev_get_drvdata(dev);
 	struct ad7192_state *st = iio_priv(indio_dev);
 
-	mode_t mode = attr->mode;
+	umode_t mode = attr->mode;
 
 	if ((st->devid != ID_AD7195) &&
 		(attr == &iio_dev_attr_ac_excitation_en.dev_attr.attr))
@@ -1161,18 +1161,7 @@ static struct spi_driver ad7192_driver = {
 	.remove		= __devexit_p(ad7192_remove),
 	.id_table	= ad7192_id,
 };
-
-static int __init ad7192_init(void)
-{
-	return spi_register_driver(&ad7192_driver);
-}
-module_init(ad7192_init);
-
-static void __exit ad7192_exit(void)
-{
-	spi_unregister_driver(&ad7192_driver);
-}
-module_exit(ad7192_exit);
+module_spi_driver(ad7192_driver);
 
 MODULE_AUTHOR("Michael Hennerich <hennerich@blackfin.uclinux.org>");
 MODULE_DESCRIPTION("Analog Devices AD7190, AD7192, AD7195 ADC");

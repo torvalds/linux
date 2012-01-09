@@ -30,14 +30,14 @@
 #include "coda_int.h"
 
 /* dir inode-ops */
-static int coda_create(struct inode *dir, struct dentry *new, int mode, struct nameidata *nd);
+static int coda_create(struct inode *dir, struct dentry *new, umode_t mode, struct nameidata *nd);
 static struct dentry *coda_lookup(struct inode *dir, struct dentry *target, struct nameidata *nd);
 static int coda_link(struct dentry *old_dentry, struct inode *dir_inode, 
 		     struct dentry *entry);
 static int coda_unlink(struct inode *dir_inode, struct dentry *entry);
 static int coda_symlink(struct inode *dir_inode, struct dentry *entry,
 			const char *symname);
-static int coda_mkdir(struct inode *dir_inode, struct dentry *entry, int mode);
+static int coda_mkdir(struct inode *dir_inode, struct dentry *entry, umode_t mode);
 static int coda_rmdir(struct inode *dir_inode, struct dentry *entry);
 static int coda_rename(struct inode *old_inode, struct dentry *old_dentry, 
                        struct inode *new_inode, struct dentry *new_dentry);
@@ -191,7 +191,7 @@ static inline void coda_dir_drop_nlink(struct inode *dir)
 }
 
 /* creation routines: create, mknod, mkdir, link, symlink */
-static int coda_create(struct inode *dir, struct dentry *de, int mode, struct nameidata *nd)
+static int coda_create(struct inode *dir, struct dentry *de, umode_t mode, struct nameidata *nd)
 {
 	int error;
 	const char *name=de->d_name.name;
@@ -223,7 +223,7 @@ err_out:
 	return error;
 }
 
-static int coda_mkdir(struct inode *dir, struct dentry *de, int mode)
+static int coda_mkdir(struct inode *dir, struct dentry *de, umode_t mode)
 {
 	struct inode *inode;
 	struct coda_vattr attrs;

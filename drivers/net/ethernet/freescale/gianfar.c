@@ -734,7 +734,7 @@ static int gfar_of_init(struct platform_device *ofdev, struct net_device **pdev)
 
 	mac_addr = of_get_mac_address(np);
 	if (mac_addr)
-		memcpy(dev->dev_addr, mac_addr, MAC_ADDR_LEN);
+		memcpy(dev->dev_addr, mac_addr, ETH_ALEN);
 
 	if (model && !strcasecmp(model, "TSEC"))
 		priv->device_flags =
@@ -2306,7 +2306,7 @@ void gfar_check_rx_parser_mode(struct gfar_private *priv)
 }
 
 /* Enables and disables VLAN insertion/extraction */
-void gfar_vlan_mode(struct net_device *dev, u32 features)
+void gfar_vlan_mode(struct net_device *dev, netdev_features_t features)
 {
 	struct gfar_private *priv = netdev_priv(dev);
 	struct gfar __iomem *regs = NULL;
@@ -3114,7 +3114,7 @@ static void gfar_set_multi(struct net_device *dev)
 static void gfar_clear_exact_match(struct net_device *dev)
 {
 	int idx;
-	static const u8 zero_arr[MAC_ADDR_LEN] = {0, 0, 0, 0, 0, 0};
+	static const u8 zero_arr[ETH_ALEN] = {0, 0, 0, 0, 0, 0};
 
 	for(idx = 1;idx < GFAR_EM_NUM + 1;idx++)
 		gfar_set_mac_for_addr(dev, idx, zero_arr);
@@ -3137,7 +3137,7 @@ static void gfar_set_hash_for_addr(struct net_device *dev, u8 *addr)
 {
 	u32 tempval;
 	struct gfar_private *priv = netdev_priv(dev);
-	u32 result = ether_crc(MAC_ADDR_LEN, addr);
+	u32 result = ether_crc(ETH_ALEN, addr);
 	int width = priv->hash_width;
 	u8 whichbit = (result >> (32 - width)) & 0x1f;
 	u8 whichreg = result >> (32 - width + 5);
@@ -3158,7 +3158,7 @@ static void gfar_set_mac_for_addr(struct net_device *dev, int num,
 	struct gfar_private *priv = netdev_priv(dev);
 	struct gfar __iomem *regs = priv->gfargrp[0].regs;
 	int idx;
-	char tmpbuf[MAC_ADDR_LEN];
+	char tmpbuf[ETH_ALEN];
 	u32 tempval;
 	u32 __iomem *macptr = &regs->macstnaddr1;
 
@@ -3166,8 +3166,8 @@ static void gfar_set_mac_for_addr(struct net_device *dev, int num,
 
 	/* Now copy it into the mac registers backwards, cuz */
 	/* little endian is silly */
-	for (idx = 0; idx < MAC_ADDR_LEN; idx++)
-		tmpbuf[MAC_ADDR_LEN - 1 - idx] = addr[idx];
+	for (idx = 0; idx < ETH_ALEN; idx++)
+		tmpbuf[ETH_ALEN - 1 - idx] = addr[idx];
 
 	gfar_write(macptr, *((u32 *) (tmpbuf)));
 
@@ -3281,16 +3281,4 @@ static struct platform_driver gfar_driver = {
 	.remove = gfar_remove,
 };
 
-static int __init gfar_init(void)
-{
-	return platform_driver_register(&gfar_driver);
-}
-
-static void __exit gfar_exit(void)
-{
-	platform_driver_unregister(&gfar_driver);
-}
-
-module_init(gfar_init);
-module_exit(gfar_exit);
-
+module_platform_driver(gfar_driver);

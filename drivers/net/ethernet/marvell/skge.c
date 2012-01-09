@@ -394,10 +394,10 @@ static void skge_get_drvinfo(struct net_device *dev,
 {
 	struct skge_port *skge = netdev_priv(dev);
 
-	strcpy(info->driver, DRV_NAME);
-	strcpy(info->version, DRV_VERSION);
-	strcpy(info->fw_version, "N/A");
-	strcpy(info->bus_info, pci_name(skge->hw->pdev));
+	strlcpy(info->driver, DRV_NAME, sizeof(info->driver));
+	strlcpy(info->version, DRV_VERSION, sizeof(info->version));
+	strlcpy(info->bus_info, pci_name(skge->hw->pdev),
+		sizeof(info->bus_info));
 }
 
 static const struct skge_stat {
@@ -4042,7 +4042,7 @@ static void __devexit skge_remove(struct pci_dev *pdev)
 	pci_set_drvdata(pdev, NULL);
 }
 
-#ifdef CONFIG_PM
+#ifdef CONFIG_PM_SLEEP
 static int skge_suspend(struct device *dev)
 {
 	struct pci_dev *pdev = to_pci_dev(dev);
@@ -4104,7 +4104,7 @@ static SIMPLE_DEV_PM_OPS(skge_pm_ops, skge_suspend, skge_resume);
 #else
 
 #define SKGE_PM_OPS NULL
-#endif
+#endif /* CONFIG_PM_SLEEP */
 
 static void skge_shutdown(struct pci_dev *pdev)
 {

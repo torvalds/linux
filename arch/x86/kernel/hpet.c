@@ -2,7 +2,6 @@
 #include <linux/clockchips.h>
 #include <linux/interrupt.h>
 #include <linux/export.h>
-#include <linux/sysdev.h>
 #include <linux/delay.h>
 #include <linux/errno.h>
 #include <linux/i8253.h>
@@ -32,8 +31,6 @@
 #define HPET_MIN_CYCLES			128
 #define HPET_MIN_PROG_DELTA		(HPET_MIN_CYCLES + (HPET_MIN_CYCLES >> 1))
 
-#define EVT_TO_HPET_DEV(evt) container_of(evt, struct hpet_dev, evt)
-
 /*
  * HPET address is set in acpi/boot.c, when an ACPI entry exists
  */
@@ -54,6 +51,11 @@ struct hpet_dev {
 	unsigned int			flags;
 	char				name[10];
 };
+
+inline struct hpet_dev *EVT_TO_HPET_DEV(struct clock_event_device *evtdev)
+{
+	return container_of(evtdev, struct hpet_dev, evt);
+}
 
 inline unsigned int hpet_readl(unsigned int a)
 {

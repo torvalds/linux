@@ -378,7 +378,7 @@ static const struct file_operations hfsplus_file_operations = {
 	.unlocked_ioctl = hfsplus_ioctl,
 };
 
-struct inode *hfsplus_new_inode(struct super_block *sb, int mode)
+struct inode *hfsplus_new_inode(struct super_block *sb, umode_t mode)
 {
 	struct hfsplus_sb_info *sbi = HFSPLUS_SB(sb);
 	struct inode *inode = new_inode(sb);

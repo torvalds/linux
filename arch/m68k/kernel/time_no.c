@@ -26,6 +26,9 @@
 
 #define	TICK_SIZE (tick_nsec / 1000)
 
+/* machine dependent timer functions */
+void (*mach_gettod)(int*, int*, int*, int*, int*, int*);
+
 static inline int set_rtc_mmss(unsigned long nowtime)
 {
 	if (mach_set_clock_mmss)

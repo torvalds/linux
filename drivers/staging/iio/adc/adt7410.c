@@ -844,21 +844,9 @@ static struct i2c_driver adt7410_driver = {
 	.remove = __devexit_p(adt7410_remove),
 	.id_table = adt7410_id,
 };
-
-static __init int adt7410_init(void)
-{
-	return i2c_add_driver(&adt7410_driver);
-}
-
-static __exit void adt7410_exit(void)
-{
-	i2c_del_driver(&adt7410_driver);
-}
+module_i2c_driver(adt7410_driver);
 
 MODULE_AUTHOR("Sonic Zhang <sonic.zhang@analog.com>");
 MODULE_DESCRIPTION("Analog Devices ADT7410 digital"
 			" temperature sensor driver");
 MODULE_LICENSE("GPL v2");
-
-module_init(adt7410_init);
-module_exit(adt7410_exit);

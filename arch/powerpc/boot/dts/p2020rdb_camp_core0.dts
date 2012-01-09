@@ -14,28 +14,16 @@
  * option) any later version.
  */
 
-/include/ "p2020si.dtsi"
+/include/ "p2020rdb.dts"
 
 / {
 	model = "fsl,P2020RDB";
 	compatible = "fsl,P2020RDB", "fsl,MPC85XXRDB-CAMP";
 
-	aliases {
-		ethernet1 = &enet1;
-		ethernet2 = &enet2;
-		serial0 = &serial0;
-		pci0 = &pci0;
-	};
-
 	cpus {
 		PowerPC,P2020@1 {
-		status = "disabled";
+			status = "disabled";
 		};
-
-	};
-
-	memory {
-		device_type = "memory";
 	};
 
 	localbus@ffe05000 {
@@ -43,114 +31,17 @@
 	};
 
 	soc@ffe00000 {
-		i2c@3000 {
-			rtc@68 {
-				compatible = "dallas,ds1339";
-				reg = <0x68>;
-			};
-		};
-
 		serial1: serial@4600 {
 			status = "disabled";
-		};
-
-		spi@7000 {
-
-			fsl_m25p80@0 {
-				#address-cells = <1>;
-				#size-cells = <1>;
-				compatible = "fsl,espi-flash";
-				reg = <0>;
-				linux,modalias = "fsl_m25p80";
-				modal = "s25sl128b";
-				spi-max-frequency = <50000000>;
-				mode = <0>;
-
-				partition@0 {
-					/* 512KB for u-boot Bootloader Image */
-					reg = <0x0 0x00080000>;
-					label = "SPI (RO) U-Boot Image";
-					read-only;
-				};
-
-				partition@80000 {
-					/* 512KB for DTB Image */
-					reg = <0x00080000 0x00080000>;
-					label = "SPI (RO) DTB Image";
-					read-only;
-				};
-
-				partition@100000 {
-					/* 4MB for Linux Kernel Image */
-					reg = <0x00100000 0x00400000>;
-					label = "SPI (RO) Linux Kernel Image";
-					read-only;
-				};
-
-				partition@500000 {
-					/* 4MB for Compressed RFS Image */
-					reg = <0x00500000 0x00400000>;
-					label = "SPI (RO) Compressed RFS Image";
-					read-only;
-				};
-
-				partition@900000 {
-					/* 7MB for JFFS2 based RFS */
-					reg = <0x00900000 0x00700000>;
-					label = "SPI (RW) JFFS2 RFS";
-				};
-			};
 		};
 
 		dma@c300 {
 			status = "disabled";
 		};
 
-		usb@22000 {
-			phy_type = "ulpi";
-		};
-
-		mdio@24520 {
-
-			phy0: ethernet-phy@0 {
-				interrupt-parent = <&mpic>;
-				interrupts = <3 1>;
-				reg = <0x0>;
-			};
-			phy1: ethernet-phy@1 {
-				interrupt-parent = <&mpic>;
-				interrupts = <3 1>;
-				reg = <0x1>;
-			};
-		};
-
-		mdio@25520 {
-			tbi0: tbi-phy@11 {
-				reg = <0x11>;
-				device_type = "tbi-phy";
-			};
-		};
-
-		mdio@26520 {
-			status = "disabled";
-		};
-
 		enet0: ethernet@24000 {
 			status = "disabled";
 		};
-
-		enet1: ethernet@25000 {
-			tbi-handle = <&tbi0>;
-			phy-handle = <&phy0>;
-			phy-connection-type = "sgmii";
-
-		};
-
-		enet2: ethernet@26000 {
-			phy-handle = <&phy1>;
-			phy-connection-type = "rgmii-id";
-		};
-
 
 		mpic: pic@40000 {
 			protected-sources = <
@@ -164,38 +55,10 @@
 		msi@41600 {
 			status = "disabled";
 		};
-
-
 	};
 
 	pci0: pcie@ffe08000 {
 		status = "disabled";
-	};
-
-	pci1: pcie@ffe09000 {
-		ranges = <0x2000000 0x0 0xa0000000 0 0xa0000000 0x0 0x20000000
-			  0x1000000 0x0 0x00000000 0 0xffc10000 0x0 0x10000>;
-		interrupt-map-mask = <0xf800 0x0 0x0 0x7>;
-		interrupt-map = <
-			/* IDSEL 0x0 */
-			0000 0x0 0x0 0x1 &mpic 0x4 0x1
-			0000 0x0 0x0 0x2 &mpic 0x5 0x1
-			0000 0x0 0x0 0x3 &mpic 0x6 0x1
-			0000 0x0 0x0 0x4 &mpic 0x7 0x1
-			>;
-		pcie@0 {
-			reg = <0x0 0x0 0x0 0x0 0x0>;
-			#size-cells = <2>;
-			#address-cells = <3>;
-			device_type = "pci";
-			ranges = <0x2000000 0x0 0xa0000000
-				  0x2000000 0x0 0xa0000000
-				  0x0 0x20000000
-
-				  0x1000000 0x0 0x0
-				  0x1000000 0x0 0x0
-				  0x0 0x100000>;
-		};
 	};
 
 	pci2: pcie@ffe0a000 {

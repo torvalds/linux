@@ -405,6 +405,7 @@ __ipq_rcv_skb(struct sk_buff *skb)
 	int status, type, pid, flags;
 	unsigned int nlmsglen, skblen;
 	struct nlmsghdr *nlh;
+	bool enable_timestamp = false;
 
 	skblen = skb->len;
 	if (skblen < sizeof(*nlh))
@@ -442,11 +443,13 @@ __ipq_rcv_skb(struct sk_buff *skb)
 			RCV_SKB_FAIL(-EBUSY);
 		}
 	} else {
-		net_enable_timestamp();
+		enable_timestamp = true;
 		peer_pid = pid;
 	}
 
 	spin_unlock_bh(&queue_lock);
+	if (enable_timestamp)
+		net_enable_timestamp();
 
 	status = ipq_receive_peer(NLMSG_DATA(nlh), type,
 				  nlmsglen - NLMSG_LENGTH(0));

@@ -23,7 +23,7 @@
 
 obj-$(CONFIG_ATH6KL) := ath6kl.o
 ath6kl-y += debug.o
-ath6kl-y += htc_hif.o
+ath6kl-y += hif.o
 ath6kl-y += htc.o
 ath6kl-y += bmi.o
 ath6kl-y += cfg80211.o

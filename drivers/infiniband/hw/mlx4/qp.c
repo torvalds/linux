@@ -962,7 +962,7 @@ static int mlx4_set_path(struct mlx4_ib_dev *dev, const struct ib_ah_attr *ah,
 
 	if (is_eth) {
 		path->sched_queue = MLX4_IB_DEFAULT_SCHED_QUEUE |
-			((port - 1) << 6) | ((ah->sl & 7) << 3) | ((ah->sl & 8) >> 1);
+			((port - 1) << 6) | ((ah->sl & 7) << 3);
 
 		if (!(ah->ah_flags & IB_AH_GRH))
 			return -1;
@@ -1437,7 +1437,7 @@ static int build_mlx_header(struct mlx4_ib_sqp *sqp, struct ib_send_wr *wr,
 			u16 pcp;
 
 			sqp->ud_header.vlan.type = cpu_to_be16(MLX4_IB_IBOE_ETHERTYPE);
-			pcp = (be32_to_cpu(ah->av.ib.sl_tclass_flowlabel) >> 27 & 3) << 13;
+			pcp = (be32_to_cpu(ah->av.ib.sl_tclass_flowlabel) >> 29) << 13;
 			sqp->ud_header.vlan.tag = cpu_to_be16(vlan | pcp);
 		}
 	} else {

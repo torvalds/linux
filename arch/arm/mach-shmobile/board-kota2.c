@@ -551,7 +551,7 @@ MACHINE_START(KOTA2, "kota2")
 	.map_io		= kota2_map_io,
 	.nr_irqs	= NR_IRQS_LEGACY,
 	.init_irq	= sh73a0_init_irq,
-	.handle_irq	= shmobile_handle_irq_gic,
+	.handle_irq	= gic_handle_irq,
 	.init_machine	= kota2_init,
 	.timer		= &kota2_timer,
 MACHINE_END

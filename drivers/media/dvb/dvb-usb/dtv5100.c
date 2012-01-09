@@ -217,26 +217,7 @@ static struct usb_driver dtv5100_driver = {
 	.id_table	= dtv5100_table,
 };
 
-/* module stuff */
-static int __init dtv5100_module_init(void)
-{
-	int ret;
-
-	ret = usb_register(&dtv5100_driver);
-	if (ret)
-		err("usb_register failed. Error number %d", ret);
-
-	return ret;
-}
-
-static void __exit dtv5100_module_exit(void)
-{
-	/* deregister this driver from the USB subsystem */
-	usb_deregister(&dtv5100_driver);
-}
-
-module_init(dtv5100_module_init);
-module_exit(dtv5100_module_exit);
+module_usb_driver(dtv5100_driver);
 
 MODULE_AUTHOR(DRIVER_AUTHOR);
 MODULE_DESCRIPTION(DRIVER_DESC);

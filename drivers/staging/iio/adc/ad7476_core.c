@@ -248,18 +248,7 @@ static struct spi_driver ad7476_driver = {
 	.remove		= __devexit_p(ad7476_remove),
 	.id_table	= ad7476_id,
 };
-
-static int __init ad7476_init(void)
-{
-	return spi_register_driver(&ad7476_driver);
-}
-module_init(ad7476_init);
-
-static void __exit ad7476_exit(void)
-{
-	spi_unregister_driver(&ad7476_driver);
-}
-module_exit(ad7476_exit);
+module_spi_driver(ad7476_driver);
 
 MODULE_AUTHOR("Michael Hennerich <hennerich@blackfin.uclinux.org>");
 MODULE_DESCRIPTION("Analog Devices AD7475/6/7/8(A) AD7466/7/8 ADC");

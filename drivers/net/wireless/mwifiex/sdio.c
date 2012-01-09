@@ -256,10 +256,13 @@ static int mwifiex_sdio_resume(struct device *dev)
 
 /* Device ID for SD8787 */
 #define SDIO_DEVICE_ID_MARVELL_8787   (0x9119)
+/* Device ID for SD8797 */
+#define SDIO_DEVICE_ID_MARVELL_8797   (0x9129)
 
 /* WLAN IDs */
 static const struct sdio_device_id mwifiex_ids[] = {
 	{SDIO_DEVICE(SDIO_VENDOR_ID_MARVELL, SDIO_DEVICE_ID_MARVELL_8787)},
+	{SDIO_DEVICE(SDIO_VENDOR_ID_MARVELL, SDIO_DEVICE_ID_MARVELL_8797)},
 	{},
 };
 
@@ -1084,7 +1087,7 @@ static int mwifiex_sdio_card_to_host_mp_aggr(struct mwifiex_adapter *adapter,
 					   (adapter->ioport | 0x1000 |
 					    (card->mpa_rx.ports << 4)) +
 					   card->mpa_rx.start_port, 1))
-			return -1;
+			goto error;
 
 		curr_ptr = card->mpa_rx.buf;
 
@@ -1127,12 +1130,29 @@ rx_curr_single:
 		if (mwifiex_sdio_card_to_host(adapter, &pkt_type,
 					      skb->data, skb->len,
 					      adapter->ioport + port))
-			return -1;
+			goto error;
 
 		mwifiex_decode_rx_packet(adapter, skb, pkt_type);
 	}
 
 	return 0;
+
+error:
+	if (MP_RX_AGGR_IN_PROGRESS(card)) {
+		/* Multiport-aggregation transfer failed - cleanup */
+		for (pind = 0; pind < card->mpa_rx.pkt_cnt; pind++) {
+			/* copy pkt to deaggr buf */
+			skb_deaggr = card->mpa_rx.skb_arr[pind];
+			dev_kfree_skb_any(skb_deaggr);
+		}
+		MP_RX_AGGR_BUF_RESET(card);
+	}
+
+	if (f_do_rx_cur)
+		/* Single transfer pending. Free curr buff also */
+		dev_kfree_skb_any(skb);
+
+	return -1;
 }
 
 /*
@@ -1268,7 +1288,6 @@ static int mwifiex_process_int_status(struct mwifiex_adapter *adapter)
 
 				dev_dbg(adapter->dev,
 						"info: CFG reg val =%x\n", cr);
-				dev_kfree_skb_any(skb);
 				return -1;
 			}
 		}
@@ -1573,7 +1592,16 @@ static int mwifiex_register_dev(struct mwifiex_adapter *adapter)
 	sdio_set_drvdata(func, card);
 
 	adapter->dev = &func->dev;
-	strcpy(adapter->fw_name, SD8787_DEFAULT_FW_NAME);
+
+	switch (func->device) {
+	case SDIO_DEVICE_ID_MARVELL_8797:
+		strcpy(adapter->fw_name, SD8797_DEFAULT_FW_NAME);
+		break;
+	case SDIO_DEVICE_ID_MARVELL_8787:
+	default:
+		strcpy(adapter->fw_name, SD8787_DEFAULT_FW_NAME);
+		break;
+	}
 
 	return 0;
 
@@ -1630,14 +1658,14 @@ static int mwifiex_init_sdio(struct mwifiex_adapter *adapter)
 	card->mpa_tx.pkt_cnt = 0;
 	card->mpa_tx.start_port = 0;
 
-	card->mpa_tx.enabled = 0;
+	card->mpa_tx.enabled = 1;
 	card->mpa_tx.pkt_aggr_limit = SDIO_MP_AGGR_DEF_PKT_LIMIT;
 
 	card->mpa_rx.buf_len = 0;
 	card->mpa_rx.pkt_cnt = 0;
 	card->mpa_rx.start_port = 0;
 
-	card->mpa_rx.enabled = 0;
+	card->mpa_rx.enabled = 1;
 	card->mpa_rx.pkt_aggr_limit = SDIO_MP_AGGR_DEF_PKT_LIMIT;
 
 	/* Allocate buffers for SDIO MP-A */
@@ -1774,4 +1802,5 @@ MODULE_AUTHOR("Marvell International Ltd.");
 MODULE_DESCRIPTION("Marvell WiFi-Ex SDIO Driver version " SDIO_VERSION);
 MODULE_VERSION(SDIO_VERSION);
 MODULE_LICENSE("GPL v2");
-MODULE_FIRMWARE("mrvl/sd8787_uapsta.bin");
+MODULE_FIRMWARE(SD8787_DEFAULT_FW_NAME);
+MODULE_FIRMWARE(SD8797_DEFAULT_FW_NAME);

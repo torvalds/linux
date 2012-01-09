@@ -47,13 +47,13 @@ static int nfs_opendir(struct inode *, struct file *);
 static int nfs_closedir(struct inode *, struct file *);
 static int nfs_readdir(struct file *, void *, filldir_t);
 static struct dentry *nfs_lookup(struct inode *, struct dentry *, struct nameidata *);
-static int nfs_create(struct inode *, struct dentry *, int, struct nameidata *);
-static int nfs_mkdir(struct inode *, struct dentry *, int);
+static int nfs_create(struct inode *, struct dentry *, umode_t, struct nameidata *);
+static int nfs_mkdir(struct inode *, struct dentry *, umode_t);
 static int nfs_rmdir(struct inode *, struct dentry *);
 static int nfs_unlink(struct inode *, struct dentry *);
 static int nfs_symlink(struct inode *, struct dentry *, const char *);
 static int nfs_link(struct dentry *, struct inode *, struct dentry *);
-static int nfs_mknod(struct inode *, struct dentry *, int, dev_t);
+static int nfs_mknod(struct inode *, struct dentry *, umode_t, dev_t);
 static int nfs_rename(struct inode *, struct dentry *,
 		      struct inode *, struct dentry *);
 static int nfs_fsync_dir(struct file *, loff_t, loff_t, int);
@@ -112,7 +112,7 @@ const struct inode_operations nfs3_dir_inode_operations = {
 #ifdef CONFIG_NFS_V4
 
 static struct dentry *nfs_atomic_lookup(struct inode *, struct dentry *, struct nameidata *);
-static int nfs_open_create(struct inode *dir, struct dentry *dentry, int mode, struct nameidata *nd);
+static int nfs_open_create(struct inode *dir, struct dentry *dentry, umode_t mode, struct nameidata *nd);
 const struct inode_operations nfs4_dir_inode_operations = {
 	.create		= nfs_open_create,
 	.lookup		= nfs_atomic_lookup,
@@ -1368,18 +1368,7 @@ static fmode_t flags_to_mode(int flags)
 
 static struct nfs_open_context *create_nfs_open_context(struct dentry *dentry, int open_flags)
 {
-	struct nfs_open_context *ctx;
-	struct rpc_cred *cred;
-	fmode_t fmode = flags_to_mode(open_flags);
-
-	cred = rpc_lookup_cred();
-	if (IS_ERR(cred))
-		return ERR_CAST(cred);
-	ctx = alloc_nfs_open_context(dentry, cred, fmode);
-	put_rpccred(cred);
-	if (ctx == NULL)
-		return ERR_PTR(-ENOMEM);
-	return ctx;
+	return alloc_nfs_open_context(dentry, flags_to_mode(open_flags));
 }
 
 static int do_open(struct inode *inode, struct file *filp)
@@ -1584,8 +1573,8 @@ no_open:
 	return nfs_lookup_revalidate(dentry, nd);
 }
 
-static int nfs_open_create(struct inode *dir, struct dentry *dentry, int mode,
-		struct nameidata *nd)
+static int nfs_open_create(struct inode *dir, struct dentry *dentry,
+		umode_t mode, struct nameidata *nd)
 {
 	struct nfs_open_context *ctx = NULL;
 	struct iattr attr;
@@ -1675,8 +1664,8 @@ out_error:
  * that the operation succeeded on the server, but an error in the
  * reply path made it appear to have failed.
  */
-static int nfs_create(struct inode *dir, struct dentry *dentry, int mode,
-		struct nameidata *nd)
+static int nfs_create(struct inode *dir, struct dentry *dentry,
+		umode_t mode, struct nameidata *nd)
 {
 	struct iattr attr;
 	int error;
@@ -1704,7 +1693,7 @@ out_err:
  * See comments for nfs_proc_create regarding failed operations.
  */
 static int
-nfs_mknod(struct inode *dir, struct dentry *dentry, int mode, dev_t rdev)
+nfs_mknod(struct inode *dir, struct dentry *dentry, umode_t mode, dev_t rdev)
 {
 	struct iattr attr;
 	int status;
@@ -1730,7 +1719,7 @@ out_err:
 /*
  * See comments for nfs_proc_create regarding failed operations.
  */
-static int nfs_mkdir(struct inode *dir, struct dentry *dentry, int mode)
+static int nfs_mkdir(struct inode *dir, struct dentry *dentry, umode_t mode)
 {
 	struct iattr attr;
 	int error;

@@ -19,7 +19,7 @@ OPTIONS
 -------
 -i::
 --input=::
-        Input file name. (default: perf.data)
+        Input file name. (default: perf.data unless stdin is a fifo)
 
 -v::
 --verbose::
@@ -39,7 +39,7 @@ OPTIONS
 -T::
 --threads::
 	Show per-thread event counters
--C::
+-c::
 --comms=::
 	Only consider symbols in these comms. CSV that understands
 	file://filename entries.
@@ -80,9 +80,10 @@ OPTIONS
 --dump-raw-trace::
         Dump raw trace in ASCII.
 
--g [type,min,order]::
+-g [type,min[,limit],order]::
 --call-graph::
-        Display call chains using type, min percent threshold and order.
+        Display call chains using type, min percent threshold, optional print
+	limit and order.
 	type can be either:
 	- flat: single column, linear exposure of call chains.
 	- graph: use a graph tree, displaying absolute overhead rates.
@@ -128,7 +129,7 @@ OPTIONS
 --symfs=<directory>::
         Look for files with symbols relative to this directory.
 
--c::
+-C::
 --cpu:: Only report samples for the list of CPUs provided. Multiple CPUs can
 	be provided as a comma-separated list with no space: 0,1. Ranges of
 	CPUs are specified with -: 0-2. Default is to report samples on all

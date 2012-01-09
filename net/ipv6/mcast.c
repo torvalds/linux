@@ -155,14 +155,14 @@ int ipv6_sock_mc_join(struct sock *sk, int ifindex, const struct in6_addr *addr)
 		return -ENOMEM;
 
 	mc_lst->next = NULL;
-	ipv6_addr_copy(&mc_lst->addr, addr);
+	mc_lst->addr = *addr;
 
 	rcu_read_lock();
 	if (ifindex == 0) {
 		struct rt6_info *rt;
 		rt = rt6_lookup(net, addr, NULL, 0, 0);
 		if (rt) {
-			dev = rt->rt6i_dev;
+			dev = rt->dst.dev;
 			dst_release(&rt->dst);
 		}
 	} else
@@ -256,7 +256,7 @@ static struct inet6_dev *ip6_mc_find_dev_rcu(struct net *net,
 		struct rt6_info *rt = rt6_lookup(net, group, NULL, 0, 0);
 
 		if (rt) {
-			dev = rt->rt6i_dev;
+			dev = rt->dst.dev;
 			dev_hold(dev);
 			dst_release(&rt->dst);
 		}
@@ -858,7 +858,7 @@ int ipv6_dev_mc_inc(struct net_device *dev, const struct in6_addr *addr)
 
 	setup_timer(&mc->mca_timer, igmp6_timer_handler, (unsigned long)mc);
 
-	ipv6_addr_copy(&mc->mca_addr, addr);
+	mc->mca_addr = *addr;
 	mc->idev = idev; /* (reference taken) */
 	mc->mca_users = 1;
 	/* mca_stamp should be updated upon changes */
@@ -1343,13 +1343,15 @@ static struct sk_buff *mld_newpack(struct net_device *dev, int size)
 	struct mld2_report *pmr;
 	struct in6_addr addr_buf;
 	const struct in6_addr *saddr;
+	int hlen = LL_RESERVED_SPACE(dev);
+	int tlen = dev->needed_tailroom;
 	int err;
 	u8 ra[8] = { IPPROTO_ICMPV6, 0,
 		     IPV6_TLV_ROUTERALERT, 2, 0, 0,
 		     IPV6_TLV_PADN, 0 };
 
 	/* we assume size > sizeof(ra) here */
-	size += LL_ALLOCATED_SPACE(dev);
+	size += hlen + tlen;
 	/* limit our allocations to order-0 page */
 	size = min_t(int, size, SKB_MAX_ORDER(0, 0));
 	skb = sock_alloc_send_skb(sk, size, 1, &err);
@@ -1357,7 +1359,7 @@ static struct sk_buff *mld_newpack(struct net_device *dev, int size)
 	if (!skb)
 		return NULL;
 
-	skb_reserve(skb, LL_RESERVED_SPACE(dev));
+	skb_reserve(skb, hlen);
 
 	if (ipv6_get_lladdr(dev, &addr_buf, IFA_F_TENTATIVE)) {
 		/* <draft-ietf-magma-mld-source-05.txt>:
@@ -1408,18 +1410,11 @@ static void mld_sendpack(struct sk_buff *skb)
 					   csum_partial(skb_transport_header(skb),
 							mldlen, 0));
 
-	dst = icmp6_dst_alloc(skb->dev, NULL, &ipv6_hdr(skb)->daddr);
-
-	if (!dst) {
-		err = -ENOMEM;
-		goto err_out;
-	}
-
 	icmpv6_flow_init(net->ipv6.igmp_sk, &fl6, ICMPV6_MLD2_REPORT,
 			 &ipv6_hdr(skb)->saddr, &ipv6_hdr(skb)->daddr,
 			 skb->dev->ifindex);
+	dst = icmp6_dst_alloc(skb->dev, NULL, &fl6);
 
-	dst = xfrm_lookup(net, dst, flowi6_to_flowi(&fl6), NULL, 0);
 	err = 0;
 	if (IS_ERR(dst)) {
 		err = PTR_ERR(dst);
@@ -1723,6 +1718,8 @@ static void igmp6_send(struct in6_addr *addr, struct net_device *dev, int type)
 	struct mld_msg *hdr;
 	const struct in6_addr *snd_addr, *saddr;
 	struct in6_addr addr_buf;
+	int hlen = LL_RESERVED_SPACE(dev);
+	int tlen = dev->needed_tailroom;
 	int err, len, payload_len, full_len;
 	u8 ra[8] = { IPPROTO_ICMPV6, 0,
 		     IPV6_TLV_ROUTERALERT, 2, 0, 0,
@@ -1744,7 +1741,7 @@ static void igmp6_send(struct in6_addr *addr, struct net_device *dev, int type)
 		      IPSTATS_MIB_OUT, full_len);
 	rcu_read_unlock();
 
-	skb = sock_alloc_send_skb(sk, LL_ALLOCATED_SPACE(dev) + full_len, 1, &err);
+	skb = sock_alloc_send_skb(sk, hlen + tlen + full_len, 1, &err);
 
 	if (skb == NULL) {
 		rcu_read_lock();
@@ -1754,7 +1751,7 @@ static void igmp6_send(struct in6_addr *addr, struct net_device *dev, int type)
 		return;
 	}
 
-	skb_reserve(skb, LL_RESERVED_SPACE(dev));
+	skb_reserve(skb, hlen);
 
 	if (ipv6_get_lladdr(dev, &addr_buf, IFA_F_TENTATIVE)) {
 		/* <draft-ietf-magma-mld-source-05.txt>:
@@ -1772,7 +1769,7 @@ static void igmp6_send(struct in6_addr *addr, struct net_device *dev, int type)
 	hdr = (struct mld_msg *) skb_put(skb, sizeof(struct mld_msg));
 	memset(hdr, 0, sizeof(struct mld_msg));
 	hdr->mld_type = type;
-	ipv6_addr_copy(&hdr->mld_mca, addr);
+	hdr->mld_mca = *addr;
 
 	hdr->mld_cksum = csum_ipv6_magic(saddr, snd_addr, len,
 					 IPPROTO_ICMPV6,
@@ -1781,17 +1778,10 @@ static void igmp6_send(struct in6_addr *addr, struct net_device *dev, int type)
 	rcu_read_lock();
 	idev = __in6_dev_get(skb->dev);
 
-	dst = icmp6_dst_alloc(skb->dev, NULL, &ipv6_hdr(skb)->daddr);
-	if (!dst) {
-		err = -ENOMEM;
-		goto err_out;
-	}
-
 	icmpv6_flow_init(sk, &fl6, type,
 			 &ipv6_hdr(skb)->saddr, &ipv6_hdr(skb)->daddr,
 			 skb->dev->ifindex);
-
-	dst = xfrm_lookup(net, dst, flowi6_to_flowi(&fl6), NULL, 0);
+	dst = icmp6_dst_alloc(skb->dev, NULL, &fl6);
 	if (IS_ERR(dst)) {
 		err = PTR_ERR(dst);
 		goto err_out;
@@ -1914,7 +1904,7 @@ static int ip6_mc_del_src(struct inet6_dev *idev, const struct in6_addr *pmca,
  * Add multicast single-source filter to the interface list
  */
 static int ip6_mc_add1_src(struct ifmcaddr6 *pmc, int sfmode,
-	const struct in6_addr *psfsrc, int delta)
+	const struct in6_addr *psfsrc)
 {
 	struct ip6_sf_list *psf, *psf_prev;
 
@@ -2045,7 +2035,7 @@ static int ip6_mc_add_src(struct inet6_dev *idev, const struct in6_addr *pmca,
 		pmc->mca_sfcount[sfmode]++;
 	err = 0;
 	for (i=0; i<sfcount; i++) {
-		err = ip6_mc_add1_src(pmc, sfmode, &psfsrc[i], delta);
+		err = ip6_mc_add1_src(pmc, sfmode, &psfsrc[i]);
 		if (err)
 			break;
 	}

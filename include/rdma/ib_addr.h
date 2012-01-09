@@ -281,7 +281,7 @@ static inline u16 rdma_get_vlan_id(union ib_gid *dgid)
 static inline struct net_device *rdma_vlan_dev_real_dev(const struct net_device *dev)
 {
 	return dev->priv_flags & IFF_802_1Q_VLAN ?
-		vlan_dev_real_dev(dev) : 0;
+		vlan_dev_real_dev(dev) : NULL;
 }
 
 #endif /* IB_ADDR_H */

@@ -148,7 +148,7 @@ int Media_D_ReadSector(struct us_data *us, DWORD start,WORD count,BYTE *buf)
 {
 	WORD len, bn;
 
-	//if (Check_D_MediaPower())        ; 在 6250 don't care
+	//if (Check_D_MediaPower())        ; 礎b 6250 don't care
 	//    return(ErrCode);
 	//if (Check_D_MediaFmt(fdoExt))    ;
 	//    return(ErrCode);
@@ -594,7 +594,7 @@ int Media_D_OneSectWriteFlush(PFDO_DEVICE_EXTENSION fdoExt)
 //    if (Check_D_CardStsChg())
 //        MediaChange = ERROR;
 //    //usleep(56*1024);
-//    if ((!Check_D_CntPower())&&(!MediaChange))  // 有 power & Media 沒被 change, 則 return success
+//    if ((!Check_D_CntPower())&&(!MediaChange))  // 礎糧 power & Media 穡S糧Q change, 竄h return success
 //        return(SMSUCCESS);
 //    //usleep(56*1024);
 //

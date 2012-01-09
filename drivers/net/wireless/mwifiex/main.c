@@ -401,7 +401,7 @@ mwifiex_fill_buffer(struct sk_buff *skb)
 static int
 mwifiex_open(struct net_device *dev)
 {
-	netif_start_queue(dev);
+	netif_tx_start_all_queues(dev);
 	return 0;
 }
 
@@ -465,8 +465,8 @@ mwifiex_hard_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	atomic_inc(&priv->adapter->tx_pending);
 
 	if (atomic_read(&priv->adapter->tx_pending) >= MAX_TX_PENDING) {
-		netif_stop_queue(priv->netdev);
-		dev->trans_start = jiffies;
+		mwifiex_set_trans_start(dev);
+		mwifiex_stop_net_dev_queue(priv->netdev, priv->adapter);
 	}
 
 	queue_work(priv->adapter->workqueue, &priv->adapter->main_work);
@@ -533,7 +533,7 @@ mwifiex_tx_timeout(struct net_device *dev)
 
 	dev_err(priv->adapter->dev, "%lu : Tx timeout, bss_index=%d\n",
 				jiffies, priv->bss_index);
-	dev->trans_start = jiffies;
+	mwifiex_set_trans_start(dev);
 	priv->num_tx_timeout++;
 }
 
@@ -586,8 +586,6 @@ void mwifiex_init_priv_params(struct mwifiex_private *priv,
 	priv->media_connected = false;
 	memset(&priv->nick_name, 0, sizeof(priv->nick_name));
 	priv->num_tx_timeout = 0;
-	priv->workqueue = create_singlethread_workqueue("cfg80211_wq");
-	INIT_WORK(&priv->cfg_workqueue, mwifiex_cfg80211_results);
 	memcpy(dev->dev_addr, priv->curr_addr, ETH_ALEN);
 }
 
@@ -793,7 +791,8 @@ int mwifiex_remove_card(struct mwifiex_adapter *adapter, struct semaphore *sem)
 		priv = adapter->priv[i];
 		if (priv && priv->netdev) {
 			if (!netif_queue_stopped(priv->netdev))
-				netif_stop_queue(priv->netdev);
+				mwifiex_stop_net_dev_queue(priv->netdev,
+								adapter);
 			if (netif_carrier_ok(priv->netdev))
 				netif_carrier_off(priv->netdev);
 		}

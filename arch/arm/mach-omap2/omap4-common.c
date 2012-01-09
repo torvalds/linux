@@ -22,17 +22,18 @@
 #include <plat/irqs.h>
 
 #include <mach/hardware.h>
-#include <mach/omap4-common.h>
+
+#include "common.h"
 
 #ifdef CONFIG_CACHE_L2X0
 void __iomem *l2cache_base;
 #endif
 
-void __iomem *gic_dist_base_addr;
-
-
 void __init gic_init_irq(void)
 {
+	void __iomem *omap_irq_base;
+	void __iomem *gic_dist_base_addr;
+
 	/* Static mapping, never released */
 	gic_dist_base_addr = ioremap(OMAP44XX_GIC_DIST_BASE, SZ_4K);
 	BUG_ON(!gic_dist_base_addr);

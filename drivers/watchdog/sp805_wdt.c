@@ -359,6 +359,8 @@ static struct amba_id sp805_wdt_ids[] = {
 	{ 0, 0 },
 };
 
+MODULE_DEVICE_TABLE(amba, sp805_wdt_ids);
+
 static struct amba_driver sp805_wdt_driver = {
 	.drv = {
 		.name	= MODULE_NAME,

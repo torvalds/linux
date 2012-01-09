@@ -384,7 +384,6 @@ static void ceph_i_callback(struct rcu_head *head)
 	struct inode *inode = container_of(head, struct inode, i_rcu);
 	struct ceph_inode_info *ci = ceph_inode(inode);
 
-	INIT_LIST_HEAD(&inode->i_dentry);
 	kmem_cache_free(ceph_inode_cachep, ci);
 }
 

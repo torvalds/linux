@@ -312,7 +312,7 @@ void tracing_reset_current(int cpu);
 void tracing_reset_current_online_cpus(void);
 int tracing_open_generic(struct inode *inode, struct file *filp);
 struct dentry *trace_create_file(const char *name,
-				 mode_t mode,
+				 umode_t mode,
 				 struct dentry *parent,
 				 void *data,
 				 const struct file_operations *fops);
@@ -370,6 +370,7 @@ void trace_graph_function(struct trace_array *tr,
 		    unsigned long ip,
 		    unsigned long parent_ip,
 		    unsigned long flags, int pc);
+void trace_latency_header(struct seq_file *m);
 void trace_default_header(struct seq_file *m);
 void print_trace_header(struct seq_file *m, struct trace_iterator *iter);
 int trace_empty(struct trace_iterator *iter);
@@ -654,6 +655,7 @@ enum trace_iterator_flags {
 	TRACE_ITER_RECORD_CMD		= 0x100000,
 	TRACE_ITER_OVERWRITE		= 0x200000,
 	TRACE_ITER_STOP_ON_FREE		= 0x400000,
+	TRACE_ITER_IRQ_INFO		= 0x800000,
 };
 
 /*

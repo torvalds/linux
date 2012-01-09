@@ -285,7 +285,7 @@ int dcd_enumerate_object(s32 index, enum dsp_dcdobjtype obj_type,
 			enum_refs = 0;
 
 			/*
-			 * TODO: Revisit, this is not an errror case but code
+			 * TODO: Revisit, this is not an error case but code
 			 * expects non-zero value.
 			 */
 			status = ENODATA;

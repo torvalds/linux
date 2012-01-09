@@ -20,8 +20,7 @@
 #include <asm/mach/arch.h>
 
 #include <plat/board.h>
-#include <plat/common.h>
-#include <mach/omap4-common.h>
+#include "common.h"
 #include "common-board-devices.h"
 
 /*
@@ -107,6 +106,7 @@ DT_MACHINE_START(OMAP242X_DT, "Generic OMAP2420 (Flattened Device Tree)")
 	.init_machine	= omap_generic_init,
 	.timer		= &omap2_timer,
 	.dt_compat	= omap242x_boards_compat,
+	.restart	= omap_prcm_restart,
 MACHINE_END
 #endif
 
@@ -122,9 +122,11 @@ DT_MACHINE_START(OMAP243X_DT, "Generic OMAP2430 (Flattened Device Tree)")
 	.map_io		= omap243x_map_io,
 	.init_early	= omap2430_init_early,
 	.init_irq	= omap2_init_irq,
+	.handle_irq	= omap2_intc_handle_irq,
 	.init_machine	= omap_generic_init,
 	.timer		= &omap2_timer,
 	.dt_compat	= omap243x_boards_compat,
+	.restart	= omap_prcm_restart,
 MACHINE_END
 #endif
 
@@ -143,6 +145,7 @@ DT_MACHINE_START(OMAP3_DT, "Generic OMAP3 (Flattened Device Tree)")
 	.init_machine	= omap3_init,
 	.timer		= &omap3_timer,
 	.dt_compat	= omap3_boards_compat,
+	.restart	= omap_prcm_restart,
 MACHINE_END
 #endif
 
@@ -161,5 +164,6 @@ DT_MACHINE_START(OMAP4_DT, "Generic OMAP4 (Flattened Device Tree)")
 	.init_machine	= omap4_init,
 	.timer		= &omap4_timer,
 	.dt_compat	= omap4_boards_compat,
+	.restart	= omap_prcm_restart,
 MACHINE_END
 #endif

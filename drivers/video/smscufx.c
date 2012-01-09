@@ -1792,24 +1792,7 @@ static struct usb_driver ufx_driver = {
 	.id_table = id_table,
 };
 
-static int __init ufx_module_init(void)
-{
-	int res;
-
-	res = usb_register(&ufx_driver);
-	if (res)
-		err("usb_register failed. Error number %d", res);
-
-	return res;
-}
-
-static void __exit ufx_module_exit(void)
-{
-	usb_deregister(&ufx_driver);
-}
-
-module_init(ufx_module_init);
-module_exit(ufx_module_exit);
+module_usb_driver(ufx_driver);
 
 static void ufx_urb_completion(struct urb *urb)
 {

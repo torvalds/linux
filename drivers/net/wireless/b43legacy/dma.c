@@ -715,7 +715,7 @@ struct b43legacy_dmaring *b43legacy_setup_dmaring(struct b43legacy_wldev *dev,
 	ring->mmio_base = b43legacy_dmacontroller_base(type, controller_index);
 	ring->index = controller_index;
 	if (for_tx) {
-		ring->tx = 1;
+		ring->tx = true;
 		ring->current_slot = -1;
 	} else {
 		if (ring->index == 0) {
@@ -727,7 +727,6 @@ struct b43legacy_dmaring *b43legacy_setup_dmaring(struct b43legacy_wldev *dev,
 		} else
 			B43legacy_WARN_ON(1);
 	}
-	spin_lock_init(&ring->lock);
 #ifdef CONFIG_B43LEGACY_DEBUG
 	ring->last_injected_overflow = jiffies;
 #endif
@@ -806,7 +805,7 @@ void b43legacy_dma_free(struct b43legacy_wldev *dev)
 static int b43legacy_dma_set_mask(struct b43legacy_wldev *dev, u64 mask)
 {
 	u64 orig_mask = mask;
-	bool fallback = 0;
+	bool fallback = false;
 	int err;
 
 	/* Try to set the DMA mask. If it fails, try falling back to a
@@ -820,12 +819,12 @@ static int b43legacy_dma_set_mask(struct b43legacy_wldev *dev, u64 mask)
 		}
 		if (mask == DMA_BIT_MASK(64)) {
 			mask = DMA_BIT_MASK(32);
-			fallback = 1;
+			fallback = true;
 			continue;
 		}
 		if (mask == DMA_BIT_MASK(32)) {
 			mask = DMA_BIT_MASK(30);
-			fallback = 1;
+			fallback = true;
 			continue;
 		}
 		b43legacyerr(dev->wl, "The machine/kernel does not support "
@@ -858,7 +857,7 @@ int b43legacy_dma_init(struct b43legacy_wldev *dev)
 #ifdef CONFIG_B43LEGACY_PIO
 		b43legacywarn(dev->wl, "DMA for this device not supported. "
 			"Falling back to PIO\n");
-		dev->__using_pio = 1;
+		dev->__using_pio = true;
 		return -EAGAIN;
 #else
 		b43legacyerr(dev->wl, "DMA for this device not supported and "
@@ -1068,7 +1067,7 @@ static int dma_tx_fragment(struct b43legacy_dmaring *ring,
 	memset(meta, 0, sizeof(*meta));
 
 	meta->skb = skb;
-	meta->is_last_fragment = 1;
+	meta->is_last_fragment = true;
 
 	meta->dmaaddr = map_descbuffer(ring, skb->data, skb->len, 1);
 	/* create a bounce buffer in zone_dma on mapping failure. */
@@ -1144,10 +1143,8 @@ int b43legacy_dma_tx(struct b43legacy_wldev *dev,
 {
 	struct b43legacy_dmaring *ring;
 	int err = 0;
-	unsigned long flags;
 
 	ring = priority_to_txring(dev, skb_get_queue_mapping(skb));
-	spin_lock_irqsave(&ring->lock, flags);
 	B43legacy_WARN_ON(!ring->tx);
 
 	if (unlikely(ring->stopped)) {
@@ -1157,16 +1154,14 @@ int b43legacy_dma_tx(struct b43legacy_wldev *dev,
 		 * For now, just refuse the transmit. */
 		if (b43legacy_debug(dev, B43legacy_DBG_DMAVERBOSE))
 			b43legacyerr(dev->wl, "Packet after queue stopped\n");
-		err = -ENOSPC;
-		goto out_unlock;
+		return -ENOSPC;
 	}
 
 	if (unlikely(WARN_ON(free_slots(ring) < SLOTS_PER_PACKET))) {
 		/* If we get here, we have a real error with the queue
 		 * full, but queues not stopped. */
 		b43legacyerr(dev->wl, "DMA queue overflow\n");
-		err = -ENOSPC;
-		goto out_unlock;
+		return -ENOSPC;
 	}
 
 	/* dma_tx_fragment might reallocate the skb, so invalidate pointers pointing
@@ -1176,25 +1171,23 @@ int b43legacy_dma_tx(struct b43legacy_wldev *dev,
 		/* Drop this packet, as we don't have the encryption key
 		 * anymore and must not transmit it unencrypted. */
 		dev_kfree_skb_any(skb);
-		err = 0;
-		goto out_unlock;
+		return 0;
 	}
 	if (unlikely(err)) {
 		b43legacyerr(dev->wl, "DMA tx mapping failure\n");
-		goto out_unlock;
+		return err;
 	}
 	if ((free_slots(ring) < SLOTS_PER_PACKET) ||
 	    should_inject_overflow(ring)) {
 		/* This TX ring is full. */
-		ieee80211_stop_queue(dev->wl->hw, txring_to_priority(ring));
-		ring->stopped = 1;
+		unsigned int skb_mapping = skb_get_queue_mapping(skb);
+		ieee80211_stop_queue(dev->wl->hw, skb_mapping);
+		dev->wl->tx_queue_stopped[skb_mapping] = 1;
+		ring->stopped = true;
 		if (b43legacy_debug(dev, B43legacy_DBG_DMAVERBOSE))
 			b43legacydbg(dev->wl, "Stopped TX ring %d\n",
 			       ring->index);
 	}
-out_unlock:
-	spin_unlock_irqrestore(&ring->lock, flags);
-
 	return err;
 }
 
@@ -1205,14 +1198,29 @@ void b43legacy_dma_handle_txstatus(struct b43legacy_wldev *dev,
 	struct b43legacy_dmadesc_meta *meta;
 	int retry_limit;
 	int slot;
+	int firstused;
 
 	ring = parse_cookie(dev, status->cookie, &slot);
 	if (unlikely(!ring))
 		return;
-	B43legacy_WARN_ON(!irqs_disabled());
-	spin_lock(&ring->lock);
-
 	B43legacy_WARN_ON(!ring->tx);
+
+	/* Sanity check: TX packets are processed in-order on one ring.
+	 * Check if the slot deduced from the cookie really is the first
+	 * used slot. */
+	firstused = ring->current_slot - ring->used_slots + 1;
+	if (firstused < 0)
+		firstused = ring->nr_slots + firstused;
+	if (unlikely(slot != firstused)) {
+		/* This possibly is a firmware bug and will result in
+		 * malfunction, memory leaks and/or stall of DMA functionality.
+		 */
+		b43legacydbg(dev->wl, "Out of order TX status report on DMA "
+			     "ring %d. Expected %d, but got %d\n",
+			     ring->index, firstused, slot);
+		return;
+	}
+
 	while (1) {
 		B43legacy_WARN_ON(!(slot >= 0 && slot < ring->nr_slots));
 		op32_idx2desc(ring, slot, &meta);
@@ -1285,14 +1293,21 @@ void b43legacy_dma_handle_txstatus(struct b43legacy_wldev *dev,
 	dev->stats.last_tx = jiffies;
 	if (ring->stopped) {
 		B43legacy_WARN_ON(free_slots(ring) < SLOTS_PER_PACKET);
-		ieee80211_wake_queue(dev->wl->hw, txring_to_priority(ring));
-		ring->stopped = 0;
-		if (b43legacy_debug(dev, B43legacy_DBG_DMAVERBOSE))
-			b43legacydbg(dev->wl, "Woke up TX ring %d\n",
-			       ring->index);
+		ring->stopped = false;
 	}
 
-	spin_unlock(&ring->lock);
+	if (dev->wl->tx_queue_stopped[ring->queue_prio]) {
+		dev->wl->tx_queue_stopped[ring->queue_prio] = 0;
+	} else {
+		/* If the driver queue is running wake the corresponding
+		 * mac80211 queue. */
+		ieee80211_wake_queue(dev->wl->hw, ring->queue_prio);
+		if (b43legacy_debug(dev, B43legacy_DBG_DMAVERBOSE))
+			b43legacydbg(dev->wl, "Woke up TX ring %d\n",
+				     ring->index);
+	}
+	/* Add work to the queue. */
+	ieee80211_queue_work(dev->wl->hw, &dev->wl->tx_work);
 }
 
 static void dma_rx(struct b43legacy_dmaring *ring,
@@ -1415,22 +1430,14 @@ void b43legacy_dma_rx(struct b43legacy_dmaring *ring)
 
 static void b43legacy_dma_tx_suspend_ring(struct b43legacy_dmaring *ring)
 {
-	unsigned long flags;
-
-	spin_lock_irqsave(&ring->lock, flags);
 	B43legacy_WARN_ON(!ring->tx);
 	op32_tx_suspend(ring);
-	spin_unlock_irqrestore(&ring->lock, flags);
 }
 
 static void b43legacy_dma_tx_resume_ring(struct b43legacy_dmaring *ring)
 {
-	unsigned long flags;
-
-	spin_lock_irqsave(&ring->lock, flags);
 	B43legacy_WARN_ON(!ring->tx);
 	op32_tx_resume(ring);
-	spin_unlock_irqrestore(&ring->lock, flags);
 }
 
 void b43legacy_dma_tx_suspend(struct b43legacy_wldev *dev)

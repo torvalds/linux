@@ -23,6 +23,8 @@
 #include <asm/hw_irq.h>
 #include <asm/ppc-pci.h>
 #include <asm/mpic.h>
+#include <asm/fsl_hcalls.h>
+
 #include "fsl_msi.h"
 #include "fsl_pci.h"
 
@@ -148,14 +150,49 @@ static void fsl_compose_msi_msg(struct pci_dev *pdev, int hwirq,
 
 static int fsl_setup_msi_irqs(struct pci_dev *pdev, int nvec, int type)
 {
+	struct pci_controller *hose = pci_bus_to_host(pdev->bus);
+	struct device_node *np;
+	phandle phandle = 0;
 	int rc, hwirq = -ENOMEM;
 	unsigned int virq;
 	struct msi_desc *entry;
 	struct msi_msg msg;
 	struct fsl_msi *msi_data;
 
+	/*
+	 * If the PCI node has an fsl,msi property, then we need to use it
+	 * to find the specific MSI.
+	 */
+	np = of_parse_phandle(hose->dn, "fsl,msi", 0);
+	if (np) {
+		if (of_device_is_compatible(np, "fsl,mpic-msi") ||
+		    of_device_is_compatible(np, "fsl,vmpic-msi"))
+			phandle = np->phandle;
+		else {
+			dev_err(&pdev->dev,
+				"node %s has an invalid fsl,msi phandle %u\n",
+				hose->dn->full_name, np->phandle);
+			return -EINVAL;
+		}
+	}
+
 	list_for_each_entry(entry, &pdev->msi_list, list) {
+		/*
+		 * Loop over all the MSI devices until we find one that has an
+		 * available interrupt.
+		 */
 		list_for_each_entry(msi_data, &msi_head, list) {
+			/*
+			 * If the PCI node has an fsl,msi property, then we
+			 * restrict our search to the corresponding MSI node.
+			 * The simplest way is to skip over MSI nodes with the
+			 * wrong phandle. Under the Freescale hypervisor, this
+			 * has the additional benefit of skipping over MSI
+			 * nodes that are not mapped in the PAMU.
+			 */
+			if (phandle && (phandle != msi_data->phandle))
+				continue;
+
 			hwirq = msi_bitmap_alloc_hwirqs(&msi_data->bitmap, 1);
 			if (hwirq >= 0)
 				break;
@@ -163,16 +200,14 @@ static int fsl_setup_msi_irqs(struct pci_dev *pdev, int nvec, int type)
 
 		if (hwirq < 0) {
 			rc = hwirq;
-			pr_debug("%s: fail allocating msi interrupt\n",
-					__func__);
+			dev_err(&pdev->dev, "could not allocate MSI interrupt\n");
 			goto out_free;
 		}
 
 		virq = irq_create_mapping(msi_data->irqhost, hwirq);
 
 		if (virq == NO_IRQ) {
-			pr_debug("%s: fail mapping hwirq 0x%x\n",
-					__func__, hwirq);
+			dev_err(&pdev->dev, "fail mapping hwirq %i\n", hwirq);
 			msi_bitmap_free_hwirqs(&msi_data->bitmap, hwirq, 1);
 			rc = -ENOSPC;
 			goto out_free;
@@ -201,6 +236,7 @@ static void fsl_msi_cascade(unsigned int irq, struct irq_desc *desc)
 	u32 intr_index;
 	u32 have_shift = 0;
 	struct fsl_msi_cascade_data *cascade_data;
+	unsigned int ret;
 
 	cascade_data = irq_get_handler_data(irq);
 	msi_data = cascade_data->msi_data;
@@ -232,6 +268,14 @@ static void fsl_msi_cascade(unsigned int irq, struct irq_desc *desc)
 	case FSL_PIC_IP_IPIC:
 		msir_value = fsl_msi_read(msi_data->msi_regs, msir_index * 0x4);
 		break;
+	case FSL_PIC_IP_VMPIC:
+		ret = fh_vmpic_get_msir(virq_to_hw(irq), &msir_value);
+		if (ret) {
+			pr_err("fsl-msi: fh_vmpic_get_msir() failed for "
+			       "irq %u (ret=%u)\n", irq, ret);
+			msir_value = 0;
+		}
+		break;
 	}
 
 	while (msir_value) {
@@ -249,6 +293,7 @@ static void fsl_msi_cascade(unsigned int irq, struct irq_desc *desc)
 
 	switch (msi_data->feature & FSL_PIC_IP_MASK) {
 	case FSL_PIC_IP_MPIC:
+	case FSL_PIC_IP_VMPIC:
 		chip->irq_eoi(idata);
 		break;
 	case FSL_PIC_IP_IPIC:
@@ -278,7 +323,8 @@ static int fsl_of_msi_remove(struct platform_device *ofdev)
 	}
 	if (msi->bitmap.bitmap)
 		msi_bitmap_free(&msi->bitmap);
-	iounmap(msi->msi_regs);
+	if ((msi->feature & FSL_PIC_IP_MASK) != FSL_PIC_IP_VMPIC)
+		iounmap(msi->msi_regs);
 	kfree(msi);
 
 	return 0;
@@ -350,25 +396,37 @@ static int __devinit fsl_of_msi_probe(struct platform_device *dev)
 		goto error_out;
 	}
 
-	/* Get the MSI reg base */
-	err = of_address_to_resource(dev->dev.of_node, 0, &res);
-	if (err) {
-		dev_err(&dev->dev, "%s resource error!\n",
+	/*
+	 * Under the Freescale hypervisor, the msi nodes don't have a 'reg'
+	 * property.  Instead, we use hypercalls to access the MSI.
+	 */
+	if ((features->fsl_pic_ip & FSL_PIC_IP_MASK) != FSL_PIC_IP_VMPIC) {
+		err = of_address_to_resource(dev->dev.of_node, 0, &res);
+		if (err) {
+			dev_err(&dev->dev, "invalid resource for node %s\n",
 				dev->dev.of_node->full_name);
-		goto error_out;
-	}
+			goto error_out;
+		}
 
-	msi->msi_regs = ioremap(res.start, resource_size(&res));
-	if (!msi->msi_regs) {
-		dev_err(&dev->dev, "ioremap problem failed\n");
-		goto error_out;
+		msi->msi_regs = ioremap(res.start, resource_size(&res));
+		if (!msi->msi_regs) {
+			dev_err(&dev->dev, "could not map node %s\n",
+				dev->dev.of_node->full_name);
+			goto error_out;
+		}
+		msi->msiir_offset =
+			features->msiir_offset + (res.start & 0xfffff);
 	}
 
 	msi->feature = features->fsl_pic_ip;
 
 	msi->irqhost->host_data = msi;
 
-	msi->msiir_offset = features->msiir_offset + (res.start & 0xfffff);
+	/*
+	 * Remember the phandle, so that we can match with any PCI nodes
+	 * that have an "fsl,msi" property.
+	 */
+	msi->phandle = dev->dev.of_node->phandle;
 
 	rc = fsl_msi_init_allocator(msi);
 	if (rc) {
@@ -437,6 +495,11 @@ static const struct fsl_msi_feature ipic_msi_feature = {
 	.msiir_offset = 0x38,
 };
 
+static const struct fsl_msi_feature vmpic_msi_feature = {
+	.fsl_pic_ip = FSL_PIC_IP_VMPIC,
+	.msiir_offset = 0,
+};
+
 static const struct of_device_id fsl_of_msi_ids[] = {
 	{
 		.compatible = "fsl,mpic-msi",
@@ -445,6 +508,10 @@ static const struct of_device_id fsl_of_msi_ids[] = {
 	{
 		.compatible = "fsl,ipic-msi",
 		.data = (void *)&ipic_msi_feature,
+	},
+	{
+		.compatible = "fsl,vmpic-msi",
+		.data = (void *)&vmpic_msi_feature,
 	},
 	{}
 };

@@ -182,7 +182,7 @@ static const struct gpio_keys_platform_data mx51_efikamx_powerkey_data __initcon
 	.nbuttons = ARRAY_SIZE(mx51_efikamx_powerkey),
 };
 
-void mx51_efikamx_reset(void)
+static void mx51_efikamx_restart(char mode, const char *cmd)
 {
 	if (system_rev == 0x11)
 		gpio_direction_output(EFIKAMX_RESET1_1, 0);
@@ -292,4 +292,5 @@ MACHINE_START(MX51_EFIKAMX, "Genesi EfikaMX nettop")
 	.handle_irq = imx51_handle_irq,
 	.timer = &mx51_efikamx_timer,
 	.init_machine = mx51_efikamx_init,
+	.restart = mx51_efikamx_restart,
 MACHINE_END

@@ -401,4 +401,8 @@
 #include <asm/smsc911x.h>
 #endif
 
+#ifdef CONFIG_SMSC_PHY
+#include <linux/smscphy.h>
+#endif
+
 #endif				/* __SMSC911X_H__ */

@@ -214,7 +214,7 @@ char __devinit *pcibios_setup(char *str)
  * If the interrupt is used, then gets the interrupt line from the
  * openfirmware and sets it in the pci_dev and pci_config line.
  */
-int pci_read_irq_line(struct pci_dev *pci_dev)
+static int pci_read_irq_line(struct pci_dev *pci_dev)
 {
 	struct of_irq oirq;
 	unsigned int virq;
@@ -283,7 +283,6 @@ int pci_read_irq_line(struct pci_dev *pci_dev)
 
 	return 0;
 }
-EXPORT_SYMBOL(pci_read_irq_line);
 
 /*
  * Platform support for /proc/bus/pci/X/Y mmap()s,
@@ -921,18 +920,22 @@ static void __devinit pcibios_fixup_resources(struct pci_dev *dev)
 		struct resource *res = dev->resource + i;
 		if (!res->flags)
 			continue;
-		/* On platforms that have PCI_PROBE_ONLY set, we don't
-		 * consider 0 as an unassigned BAR value. It's technically
-		 * a valid value, but linux doesn't like it... so when we can
-		 * re-assign things, we do so, but if we can't, we keep it
-		 * around and hope for the best...
+
+		/* If we're going to re-assign everything, we mark all resources
+		 * as unset (and 0-base them). In addition, we mark BARs starting
+		 * at 0 as unset as well, except if PCI_PROBE_ONLY is also set
+		 * since in that case, we don't want to re-assign anything
 		 */
-		if (res->start == 0 && !pci_has_flag(PCI_PROBE_ONLY)) {
-			pr_debug("PCI:%s Resource %d %016llx-%016llx [%x] is unassigned\n",
-				 pci_name(dev), i,
-				 (unsigned long long)res->start,
-				 (unsigned long long)res->end,
-				 (unsigned int)res->flags);
+		if (pci_has_flag(PCI_REASSIGN_ALL_RSRC) ||
+		    (res->start == 0 && !pci_has_flag(PCI_PROBE_ONLY))) {
+			/* Only print message if not re-assigning */
+			if (!pci_has_flag(PCI_REASSIGN_ALL_RSRC))
+				pr_debug("PCI:%s Resource %d %016llx-%016llx [%x] "
+					 "is unassigned\n",
+					 pci_name(dev), i,
+					 (unsigned long long)res->start,
+					 (unsigned long long)res->end,
+					 (unsigned int)res->flags);
 			res->end -= res->start;
 			res->start = 0;
 			res->flags |= IORESOURCE_UNSET;
@@ -1041,6 +1044,16 @@ static void __devinit pcibios_fixup_bridge(struct pci_bus *bus)
 			continue;
 		if (i >= 3 && bus->self->transparent)
 			continue;
+
+		/* If we are going to re-assign everything, mark the resource
+		 * as unset and move it down to 0
+		 */
+		if (pci_has_flag(PCI_REASSIGN_ALL_RSRC)) {
+			res->flags |= IORESOURCE_UNSET;
+			res->end -= res->start;
+			res->start = 0;
+			continue;
+		}
 
 		pr_debug("PCI:%s Bus rsrc %d %016llx-%016llx [%x] fixup...\n",
 			 pci_name(dev), i,
@@ -1262,18 +1275,15 @@ void pcibios_allocate_bus_resources(struct pci_bus *bus)
 	pci_bus_for_each_resource(bus, res, i) {
 		if (!res || !res->flags || res->start > res->end || res->parent)
 			continue;
+
+		/* If the resource was left unset at this point, we clear it */
+		if (res->flags & IORESOURCE_UNSET)
+			goto clear_resource;
+
 		if (bus->parent == NULL)
 			pr = (res->flags & IORESOURCE_IO) ?
 				&ioport_resource : &iomem_resource;
 		else {
-			/* Don't bother with non-root busses when
-			 * re-assigning all resources. We clear the
-			 * resource flags as if they were colliding
-			 * and as such ensure proper re-allocation
-			 * later.
-			 */
-			if (pci_has_flag(PCI_REASSIGN_ALL_RSRC))
-				goto clear_resource;
 			pr = pci_find_parent_resource(bus->self, res);
 			if (pr == res) {
 				/* this happens when the generic PCI
@@ -1304,9 +1314,9 @@ void pcibios_allocate_bus_resources(struct pci_bus *bus)
 			if (reparent_resources(pr, res) == 0)
 				continue;
 		}
-		printk(KERN_WARNING "PCI: Cannot allocate resource region "
-		       "%d of PCI bridge %d, will remap\n", i, bus->number);
-clear_resource:
+		pr_warning("PCI: Cannot allocate resource region "
+			   "%d of PCI bridge %d, will remap\n", i, bus->number);
+	clear_resource:
 		res->start = res->end = 0;
 		res->flags = 0;
 	}
@@ -1451,16 +1461,11 @@ void __init pcibios_resource_survey(void)
 {
 	struct pci_bus *b;
 
-	/* Allocate and assign resources. If we re-assign everything, then
-	 * we skip the allocate phase
-	 */
+	/* Allocate and assign resources */
 	list_for_each_entry(b, &pci_root_buses, node)
 		pcibios_allocate_bus_resources(b);
-
-	if (!pci_has_flag(PCI_REASSIGN_ALL_RSRC)) {
-		pcibios_allocate_resources(0);
-		pcibios_allocate_resources(1);
-	}
+	pcibios_allocate_resources(0);
+	pcibios_allocate_resources(1);
 
 	/* Before we start assigning unassigned resource, we try to reserve
 	 * the low IO area and the VGA memory area if they intersect the
@@ -1732,6 +1737,12 @@ void __devinit pcibios_scan_phb(struct pci_controller *hose)
 	if (mode == PCI_PROBE_NORMAL)
 		hose->last_busno = bus->subordinate = pci_scan_child_bus(bus);
 
+	/* Platform gets a chance to do some global fixups before
+	 * we proceed to resource allocation
+	 */
+	if (ppc_md.pcibios_fixup_phb)
+		ppc_md.pcibios_fixup_phb(hose);
+
 	/* Configure PCI Express settings */
 	if (bus && !pci_has_flag(PCI_PROBE_ONLY)) {
 		struct pci_bus *child;
@@ -1747,10 +1758,13 @@ void __devinit pcibios_scan_phb(struct pci_controller *hose)
 static void fixup_hide_host_resource_fsl(struct pci_dev *dev)
 {
 	int i, class = dev->class >> 8;
+	/* When configured as agent, programing interface = 1 */
+	int prog_if = dev->class & 0xf;
 
 	if ((class == PCI_CLASS_PROCESSOR_POWERPC ||
 	     class == PCI_CLASS_BRIDGE_OTHER) &&
 		(dev->hdr_type == PCI_HEADER_TYPE_NORMAL) &&
+		(prog_if == 0) &&
 		(dev->bus->parent == NULL)) {
 		for (i = 0; i < DEVICE_COUNT_RESOURCE; i++) {
 			dev->resource[i].start = 0;

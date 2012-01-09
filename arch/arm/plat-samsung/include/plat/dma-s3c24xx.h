@@ -12,7 +12,7 @@
 
 #include <plat/dma-core.h>
 
-extern struct sysdev_class dma_sysclass;
+extern struct bus_type dma_subsys;
 extern struct s3c2410_dma_chan s3c2410_chans[S3C_DMA_CHANNELS];
 
 #define DMA_CH_VALID		(1<<31)

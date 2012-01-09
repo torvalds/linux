@@ -205,14 +205,14 @@ static struct attribute *ad7606_attributes[] = {
 	NULL,
 };
 
-static mode_t ad7606_attr_is_visible(struct kobject *kobj,
+static umode_t ad7606_attr_is_visible(struct kobject *kobj,
 				     struct attribute *attr, int n)
 {
 	struct device *dev = container_of(kobj, struct device, kobj);
 	struct iio_dev *indio_dev = dev_get_drvdata(dev);
 	struct ad7606_state *st = iio_priv(indio_dev);
 
-	mode_t mode = attr->mode;
+	umode_t mode = attr->mode;
 
 	if (!(gpio_is_valid(st->pdata->gpio_os0) &&
 	      gpio_is_valid(st->pdata->gpio_os1) &&
