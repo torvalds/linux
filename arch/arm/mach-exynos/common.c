@@ -17,6 +17,8 @@
 #include <linux/gpio.h>
 #include <linux/sched.h>
 #include <linux/serial_core.h>
+#include <linux/of.h>
+#include <linux/of_irq.h>
 
 #include <asm/proc-fns.h>
 #include <asm/exception.h>
@@ -385,6 +387,13 @@ static void __init combiner_init(unsigned int combiner_nr, void __iomem *base,
 	}
 }
 
+#ifdef CONFIG_OF
+static const struct of_device_id exynos4_dt_irq_match[] = {
+	{ .compatible = "arm,cortex-a9-gic", .data = gic_of_init, },
+	{},
+};
+#endif
+
 void __init exynos4_init_irq(void)
 {
 	int irq;
@@ -392,7 +401,12 @@ void __init exynos4_init_irq(void)
 
 	gic_bank_offset = soc_is_exynos4412() ? 0x4000 : 0x8000;
 
-	gic_init_bases(0, IRQ_PPI(0), S5P_VA_GIC_DIST, S5P_VA_GIC_CPU, gic_bank_offset);
+	if (!of_have_populated_dt())
+		gic_init_bases(0, IRQ_PPI(0), S5P_VA_GIC_DIST, S5P_VA_GIC_CPU, gic_bank_offset);
+#ifdef CONFIG_OF
+	else
+		of_irq_init(exynos4_dt_irq_match);
+#endif
 
 	for (irq = 0; irq < MAX_COMBINER_NR; irq++) {
 
@@ -460,15 +474,6 @@ int __init exynos_init(void)
 	return device_register(&exynos4_dev);
 }
 
-static struct s3c24xx_uart_clksrc exynos4_serial_clocks[] = {
-	[0] = {
-		.name		= "uclk1",
-		.divisor	= 1,
-		.min_baud	= 0,
-		.max_baud	= 0,
-	},
-};
-
 /* uart registration process */
 
 void __init exynos4_init_uarts(struct s3c2410_uartcfg *cfg, int no)
@@ -476,16 +481,10 @@ void __init exynos4_init_uarts(struct s3c2410_uartcfg *cfg, int no)
 	struct s3c2410_uartcfg *tcfg = cfg;
 	u32 ucnt;
 
-	for (ucnt = 0; ucnt < no; ucnt++, tcfg++) {
-		if (!tcfg->clocks) {
-			tcfg->has_fracval = 1;
-			tcfg->clocks = exynos4_serial_clocks;
-			tcfg->clocks_size = ARRAY_SIZE(exynos4_serial_clocks);
-		}
-		tcfg->flags |= NO_NEED_CHECK_CLKSRC;
-	}
+	for (ucnt = 0; ucnt < no; ucnt++, tcfg++)
+		tcfg->has_fracval = 1;
 
-	s3c24xx_init_uartdevs("s5pv210-uart", s5p_uart_resources, cfg, no);
+	s3c24xx_init_uartdevs("exynos4210-uart", s5p_uart_resources, cfg, no);
 }
 
 static DEFINE_SPINLOCK(eint_lock);

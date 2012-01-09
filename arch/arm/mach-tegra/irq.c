@@ -21,6 +21,7 @@
 #include <linux/interrupt.h>
 #include <linux/irq.h>
 #include <linux/io.h>
+#include <linux/of.h>
 
 #include <asm/hardware/gic.h>
 
@@ -125,6 +126,11 @@ void __init tegra_init_irq(void)
 	gic_arch_extn.irq_unmask = tegra_unmask;
 	gic_arch_extn.irq_retrigger = tegra_retrigger;
 
-	gic_init(0, 29, IO_ADDRESS(TEGRA_ARM_INT_DIST_BASE),
-		 IO_ADDRESS(TEGRA_ARM_PERIF_BASE + 0x100));
+	/*
+	 * Check if there is a devicetree present, since the GIC will be
+	 * initialized elsewhere under DT.
+	 */
+	if (!of_have_populated_dt())
+		gic_init(0, 29, IO_ADDRESS(TEGRA_ARM_INT_DIST_BASE),
+			IO_ADDRESS(TEGRA_ARM_PERIF_BASE + 0x100));
 }

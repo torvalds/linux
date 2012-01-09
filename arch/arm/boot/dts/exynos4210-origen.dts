@@ -1,0 +1,137 @@
+/*
+ * Samsung's Exynos4210 based Origen board device tree source
+ *
+ * Copyright (c) 2010-2011 Samsung Electronics Co., Ltd.
+ *		http://www.samsung.com
+ * Copyright (c) 2010-2011 Linaro Ltd.
+ *		www.linaro.org
+ *
+ * Device tree source file for Insignal's Origen board which is based on
+ * Samsung's Exynos4210 SoC.
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License version 2 as
+ * published by the Free Software Foundation.
+*/
+
+/dts-v1/;
+/include/ "exynos4210.dtsi"
+
+/ {
+	model = "Insignal Origen evaluation board based on Exynos4210";
+	compatible = "insignal,origen", "samsung,exynos4210";
+
+	memory {
+		reg = <0x40000000 0x40000000>;
+	};
+
+	chosen {
+		bootargs ="root=/dev/ram0 rw ramdisk=8192 initrd=0x41000000,8M console=ttySAC2,115200 init=/linuxrc";
+	};
+
+	sdhci@12530000 {
+		samsung,sdhci-bus-width = <4>;
+		linux,mmc_cap_4_bit_data;
+		samsung,sdhci-cd-internal;
+		gpio-cd = <&gpk2 2 2 3 3>;
+		gpios = <&gpk2 0 2 0 3>,
+			<&gpk2 1 2 0 3>,
+			<&gpk2 3 2 3 3>,
+			<&gpk2 4 2 3 3>,
+			<&gpk2 5 2 3 3>,
+			<&gpk2 6 2 3 3>;
+	};
+
+	sdhci@12510000 {
+		samsung,sdhci-bus-width = <4>;
+		linux,mmc_cap_4_bit_data;
+		samsung,sdhci-cd-internal;
+		gpio-cd = <&gpk0 2 2 3 3>;
+		gpios = <&gpk0 0 2 0 3>,
+			<&gpk0 1 2 0 3>,
+			<&gpk0 3 2 3 3>,
+			<&gpk0 4 2 3 3>,
+			<&gpk0 5 2 3 3>,
+			<&gpk0 6 2 3 3>;
+	};
+
+	gpio_keys {
+		compatible = "gpio-keys";
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		up {
+			label = "Up";
+			gpios = <&gpx2 0 0 0 2>;
+			linux,code = <103>;
+		};
+
+		down {
+			label = "Down";
+			gpios = <&gpx2 1 0 0 2>;
+			linux,code = <108>;
+		};
+
+		back {
+			label = "Back";
+			gpios = <&gpx1 7 0 0 2>;
+			linux,code = <158>;
+		};
+
+		home {
+			label = "Home";
+			gpios = <&gpx1 6 0 0 2>;
+			linux,code = <102>;
+		};
+
+		menu {
+			label = "Menu";
+			gpios = <&gpx1 5 0 0 2>;
+			linux,code = <139>;
+		};
+	};
+
+	keypad@100A0000 {
+		status = "disabled";
+	};
+
+	sdhci@12520000 {
+		status = "disabled";
+	};
+
+	sdhci@12540000 {
+		status = "disabled";
+	};
+
+	i2c@13860000 {
+		status = "disabled";
+	};
+
+	i2c@13870000 {
+		status = "disabled";
+	};
+
+	i2c@13880000 {
+		status = "disabled";
+	};
+
+	i2c@13890000 {
+		status = "disabled";
+	};
+
+	i2c@138A0000 {
+		status = "disabled";
+	};
+
+	i2c@138B0000 {
+		status = "disabled";
+	};
+
+	i2c@138C0000 {
+		status = "disabled";
+	};
+
+	i2c@138D0000 {
+		status = "disabled";
+	};
+};

@@ -297,13 +297,6 @@ static struct clksrc_clk clk_usb_bus_host = {
 
 static struct clksrc_clk clksrc_clks[] = {
 	{
-		/* ART baud-rate clock sourced from esysclk via a divisor */
-		.clk	= {
-			.name		= "uartclk",
-			.parent		= &clk_esysclk.clk,
-		},
-		.reg_div = { .reg = S3C2443_CLKDIV1, .size = 4, .shift = 8 },
-	}, {
 		/* camera interface bus-clock, divided down from esysclk */
 		.clk	= {
 			.name		= "camif-upll",	/* same as 2440 name */
@@ -321,6 +314,15 @@ static struct clksrc_clk clksrc_clks[] = {
 		},
 		.reg_div = { .reg = S3C2443_CLKDIV1, .size = 8, .shift = 16 },
 	},
+};
+
+static struct clksrc_clk clk_esys_uart = {
+	/* ART baud-rate clock sourced from esysclk via a divisor */
+	.clk	= {
+		.name		= "uartclk",
+		.parent		= &clk_esysclk.clk,
+	},
+	.reg_div = { .reg = S3C2443_CLKDIV1, .size = 4, .shift = 8 },
 };
 
 static struct clk clk_i2s_ext = {
@@ -589,6 +591,12 @@ static struct clksrc_clk *clksrcs[] __initdata = {
 	&clk_arm,
 };
 
+static struct clk_lookup s3c2443_clk_lookup[] = {
+	CLKDEV_INIT(NULL, "clk_uart_baud1", &s3c24xx_uclk),
+	CLKDEV_INIT(NULL, "clk_uart_baud2", &clk_p),
+	CLKDEV_INIT(NULL, "clk_uart_baud3", &clk_esys_uart.clk),
+};
+
 void __init s3c2443_common_init_clocks(int xtal, pll_fn get_mpll,
 				       unsigned int *divs, int nr_divs,
 				       int divmask)
@@ -618,6 +626,7 @@ void __init s3c2443_common_init_clocks(int xtal, pll_fn get_mpll,
 	/* See s3c2443/etc notes on disabling clocks at init time */
 	s3c_register_clocks(init_clocks_off, ARRAY_SIZE(init_clocks_off));
 	s3c_disable_clocks(init_clocks_off, ARRAY_SIZE(init_clocks_off));
+	clkdev_add_table(s3c2443_clk_lookup, ARRAY_SIZE(s3c2443_clk_lookup));
 
 	s3c2443_common_setup_clocks(get_mpll);
 }
