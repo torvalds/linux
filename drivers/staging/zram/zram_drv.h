@@ -18,7 +18,7 @@
 #include <linux/spinlock.h>
 #include <linux/mutex.h>
 
-#include "xvmalloc.h"
+#include "../zsmalloc/zsmalloc.h"
 
 /*
  * Some arbitrary value. This is just to catch
@@ -51,7 +51,7 @@ static const size_t max_zpage_size = PAGE_SIZE / 4 * 3;
 
 /*
  * NOTE: max_zpage_size must be less than or equal to:
- *   XV_MAX_ALLOC_SIZE - sizeof(struct zobj_header)
+ *   ZS_MAX_ALLOC_SIZE - sizeof(struct zobj_header)
  * otherwise, xv_malloc() would always return failure.
  */
 
@@ -81,8 +81,8 @@ enum zram_pageflags {
 
 /* Allocated for each disk page */
 struct table {
-	struct page *page;
-	u16 offset;
+	void *handle;
+	u16 size;	/* object size (excluding header) */
 	u8 count;	/* object ref count (not yet used) */
 	u8 flags;
 } __attribute__((aligned(4)));
@@ -102,7 +102,7 @@ struct zram_stats {
 };
 
 struct zram {
-	struct xv_pool *mem_pool;
+	struct zs_pool *mem_pool;
 	void *compress_workmem;
 	void *compress_buffer;
 	struct table *table;
