@@ -223,7 +223,7 @@ static void ohci_at91_usb_set_power(struct at91_usbh_data *pdata, int port, int 
 	if (port < 0 || port >= 2)
 		return;
 
-	if (pdata->vbus_pin[port] <= 0)
+	if (!gpio_is_valid(pdata->vbus_pin[port]))
 		return;
 
 	gpio_set_value(pdata->vbus_pin[port], !pdata->vbus_pin_inverted ^ enable);
@@ -234,7 +234,7 @@ static int ohci_at91_usb_get_power(struct at91_usbh_data *pdata, int port)
 	if (port < 0 || port >= 2)
 		return -EINVAL;
 
-	if (pdata->vbus_pin[port] <= 0)
+	if (!gpio_is_valid(pdata->vbus_pin[port]))
 		return -EINVAL;
 
 	return gpio_get_value(pdata->vbus_pin[port]) ^ !pdata->vbus_pin_inverted;
@@ -465,7 +465,7 @@ static int ohci_hcd_at91_drv_probe(struct platform_device *pdev)
 
 	if (pdata) {
 		for (i = 0; i < ARRAY_SIZE(pdata->vbus_pin); i++) {
-			if (pdata->vbus_pin[i] <= 0)
+			if (!gpio_is_valid(pdata->vbus_pin[i]))
 				continue;
 			gpio_request(pdata->vbus_pin[i], "ohci_vbus");
 			ohci_at91_usb_set_power(pdata, i, 1);
@@ -474,7 +474,7 @@ static int ohci_hcd_at91_drv_probe(struct platform_device *pdev)
 		for (i = 0; i < ARRAY_SIZE(pdata->overcurrent_pin); i++) {
 			int ret;
 
-			if (pdata->overcurrent_pin[i] <= 0)
+			if (!gpio_is_valid(pdata->overcurrent_pin[i]))
 				continue;
 			gpio_request(pdata->overcurrent_pin[i], "ohci_overcurrent");
 
@@ -499,14 +499,14 @@ static int ohci_hcd_at91_drv_remove(struct platform_device *pdev)
 
 	if (pdata) {
 		for (i = 0; i < ARRAY_SIZE(pdata->vbus_pin); i++) {
-			if (pdata->vbus_pin[i] <= 0)
+			if (!gpio_is_valid(pdata->vbus_pin[i]))
 				continue;
 			ohci_at91_usb_set_power(pdata, i, 0);
 			gpio_free(pdata->vbus_pin[i]);
 		}
 
 		for (i = 0; i < ARRAY_SIZE(pdata->overcurrent_pin); i++) {
-			if (pdata->overcurrent_pin[i] <= 0)
+			if (!gpio_is_valid(pdata->overcurrent_pin[i]))
 				continue;
 			free_irq(gpio_to_irq(pdata->overcurrent_pin[i]), pdev);
 			gpio_free(pdata->overcurrent_pin[i]);

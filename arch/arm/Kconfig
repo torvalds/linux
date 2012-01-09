@@ -658,6 +658,7 @@ config ARCH_PICOXCELL
 	select HAVE_SCHED_CLOCK
 	select HAVE_TCM
 	select NO_IOPORT
+	select SPARSE_IRQ
 	select USE_OF
 	help
 	  This enables support for systems based on the Picochip picoXcell
@@ -892,7 +893,6 @@ config ARCH_U300
 	select HAVE_MACH_CLKDEV
 	select GENERIC_GPIO
 	select ARCH_REQUIRE_GPIOLIB
-	select NEED_MACH_MEMORY_H
 	help
 	  Support for ST-Ericsson U300 series mobile platforms.
 
