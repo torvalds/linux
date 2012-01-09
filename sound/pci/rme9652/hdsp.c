@@ -2640,8 +2640,7 @@ static int snd_hdsp_info_pref_sync_ref(struct snd_kcontrol *kcontrol, struct snd
 		uinfo->value.enumerated.items = 3;
 		break;
 	default:
-		uinfo->value.enumerated.items = 0;
-		break;
+		return -EINVAL;
 	}
 
 	if (uinfo->value.enumerated.item >= uinfo->value.enumerated.items)
