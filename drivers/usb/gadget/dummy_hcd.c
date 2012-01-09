@@ -1133,6 +1133,23 @@ static int dummy_urb_dequeue(struct usb_hcd *hcd, struct urb *urb, int status)
 	return rc;
 }
 
+static int dummy_perform_transfer(struct urb *urb, struct dummy_request *req,
+		u32 len)
+{
+	void *ubuf, *rbuf;
+	int to_host;
+
+	to_host = usb_pipein(urb->pipe);
+	rbuf = req->req.buf + req->req.actual;
+	ubuf = urb->transfer_buffer + urb->actual_length;
+
+	if (to_host)
+		memcpy(ubuf, rbuf, len);
+	else
+		memcpy(rbuf, ubuf, len);
+	return len;
+}
+
 /* transfer up to a frame's worth; caller must own lock */
 static int
 transfer(struct dummy *dum, struct urb *urb, struct dummy_ep *ep, int limit,
@@ -1164,8 +1181,6 @@ top:
 		if (unlikely (len == 0))
 			is_short = 1;
 		else {
-			char		*ubuf, *rbuf;
-
 			/* not enough bandwidth left? */
 			if (limit < ep->ep.maxpacket && limit < len)
 				break;
@@ -1180,13 +1195,8 @@ top:
 			}
 			is_short = (len % ep->ep.maxpacket) != 0;
 
-			/* else transfer packet(s) */
-			ubuf = urb->transfer_buffer + urb->actual_length;
-			rbuf = req->req.buf + req->req.actual;
-			if (to_host)
-				memcpy (ubuf, rbuf, len);
-			else
-				memcpy (rbuf, ubuf, len);
+			len = dummy_perform_transfer(urb, req, len);
+
 			ep->last_io = jiffies;
 
 			limit -= len;
