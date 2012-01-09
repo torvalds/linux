@@ -70,6 +70,8 @@
 
 #include <sound/uda1380.h>
 
+#include "common.h"
+
 #define H1940_LATCH		((void __force __iomem *)0xF8000000)
 
 #define H1940_PA_LATCH		S3C2410_CS2
@@ -751,4 +753,5 @@ MACHINE_START(H1940, "IPAQ-H1940")
 	.init_irq	= h1940_init_irq,
 	.init_machine	= h1940_init,
 	.timer		= &s3c24xx_timer,
+	.restart	= s3c2410_restart,
 MACHINE_END

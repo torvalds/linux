@@ -126,4 +126,5 @@ MACHINE_START(DSM320, "D-Link DSM-320 Wireless Media Player")
 	.init_irq	= ks8695_init_irq,
 	.init_machine	= dsm320_init,
 	.timer		= &ks8695_timer,
+	.restart	= ks8695_restart,
 MACHINE_END

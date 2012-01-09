@@ -259,5 +259,6 @@ MACHINE_START(COLIBRI320, "Toradex Colibri PXA320")
 	.init_irq	= pxa3xx_init_irq,
 	.handle_irq	= pxa3xx_handle_irq,
 	.timer		= &pxa_timer,
+	.restart	= pxa_restart,
 MACHINE_END
 

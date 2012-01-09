@@ -33,9 +33,11 @@
 #include <mach/regs-serial.h>
 #include <mach/regs-clock.h>
 #include <mach/regs-ebi.h>
+#include <mach/regs-timer.h>
 
 #include "cpu.h"
 #include "clock.h"
+#include "nuc9xx.h"
 
 /* Initial IO mappings */
 
@@ -222,3 +224,17 @@ void __init nuc900_init_clocks(void)
 	clkdev_add_table(nuc900_clkregs, ARRAY_SIZE(nuc900_clkregs));
 }
 
+#define	WTCR	(TMR_BA + 0x1C)
+#define	WTCLK	(1 << 10)
+#define	WTE	(1 << 7)
+#define	WTRE	(1 << 1)
+
+void nuc9xx_restart(char mode, const char *cmd)
+{
+	if (mode == 's') {
+		/* Jump into ROM at address 0 */
+		soft_restart(0);
+	} else {
+		__raw_writel(WTE | WTRE | WTCLK, WTCR);
+	}
+}

@@ -283,6 +283,7 @@ static int sriov_enable(struct pci_dev *dev, int nr_virtfn)
 	struct resource *res;
 	struct pci_dev *pdev;
 	struct pci_sriov *iov = dev->sriov;
+	int bars = 0;
 
 	if (!nr_virtfn)
 		return 0;
@@ -307,6 +308,7 @@ static int sriov_enable(struct pci_dev *dev, int nr_virtfn)
 
 	nres = 0;
 	for (i = 0; i < PCI_SRIOV_NUM_BARS; i++) {
+		bars |= (1 << (i + PCI_IOV_RESOURCES));
 		res = dev->resource + PCI_IOV_RESOURCES + i;
 		if (res->parent)
 			nres++;
@@ -321,6 +323,11 @@ static int sriov_enable(struct pci_dev *dev, int nr_virtfn)
 
 	if (virtfn_bus(dev, nr_virtfn - 1) > dev->bus->subordinate) {
 		dev_err(&dev->dev, "SR-IOV: bus number out of range\n");
+		return -ENOMEM;
+	}
+
+	if (pci_enable_resources(dev, bars)) {
+		dev_err(&dev->dev, "SR-IOV: IOV BARS not allocated\n");
 		return -ENOMEM;
 	}
 

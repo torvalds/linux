@@ -696,13 +696,13 @@ static void mioa701_machine_exit(void);
 static void mioa701_poweroff(void)
 {
 	mioa701_machine_exit();
-	arm_machine_restart('s', NULL);
+	pxa_restart('s', NULL);
 }
 
 static void mioa701_restart(char c, const char *cmd)
 {
 	mioa701_machine_exit();
-	arm_machine_restart('s', cmd);
+	pxa_restart('s', cmd);
 }
 
 static struct gpio global_gpios[] = {
@@ -734,7 +734,6 @@ static void __init mioa701_machine_init(void)
 	pxa_set_udc_info(&mioa701_udc_info);
 	pxa_set_ac97_info(&mioa701_ac97_info);
 	pm_power_off = mioa701_poweroff;
-	arm_pm_restart = mioa701_restart;
 	platform_add_devices(devices, ARRAY_SIZE(devices));
 	gsm_init();
 
@@ -752,9 +751,11 @@ static void mioa701_machine_exit(void)
 
 MACHINE_START(MIOA701, "MIO A701")
 	.atag_offset	= 0x100,
+	.restart_mode	= 's',
 	.map_io		= &pxa27x_map_io,
 	.init_irq	= &pxa27x_init_irq,
 	.handle_irq	= &pxa27x_handle_irq,
 	.init_machine	= mioa701_machine_init,
 	.timer		= &pxa_timer,
+	.restart	= mioa701_restart,
 MACHINE_END

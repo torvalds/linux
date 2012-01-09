@@ -495,4 +495,5 @@ MACHINE_START(TAVOREVB, "PXA930 Evaluation Board (aka TavorEVB)")
 	.handle_irq       = pxa3xx_handle_irq,
 	.timer          = &pxa_timer,
 	.init_machine   = tavorevb_init,
+	.restart	= pxa_restart,
 MACHINE_END

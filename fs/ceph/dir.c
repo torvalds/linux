@@ -1094,42 +1094,19 @@ static int ceph_snapdir_d_revalidate(struct dentry *dentry,
 /*
  * Set/clear/test dir complete flag on the dir's dentry.
  */
-static struct dentry * __d_find_any_alias(struct inode *inode)
-{
-	struct dentry *alias;
-
-	if (list_empty(&inode->i_dentry))
-		return NULL;
-	alias = list_first_entry(&inode->i_dentry, struct dentry, d_alias);
-	return alias;
-}
-
 void ceph_dir_set_complete(struct inode *inode)
 {
-	struct dentry *dentry = __d_find_any_alias(inode);
-	
-	if (dentry && ceph_dentry(dentry)) {
-		dout(" marking %p (%p) complete\n", inode, dentry);
-		set_bit(CEPH_D_COMPLETE, &ceph_dentry(dentry)->flags);
-	}
+	/* not yet implemented */
 }
 
 void ceph_dir_clear_complete(struct inode *inode)
 {
-	struct dentry *dentry = __d_find_any_alias(inode);
-
-	if (dentry && ceph_dentry(dentry)) {
-		dout(" marking %p (%p) NOT complete\n", inode, dentry);
-		clear_bit(CEPH_D_COMPLETE, &ceph_dentry(dentry)->flags);
-	}
+	/* not yet implemented */
 }
 
 bool ceph_dir_test_complete(struct inode *inode)
 {
-	struct dentry *dentry = __d_find_any_alias(inode);
-
-	if (dentry && ceph_dentry(dentry))
-		return test_bit(CEPH_D_COMPLETE, &ceph_dentry(dentry)->flags);
+	/* not yet implemented */
 	return false;
 }
 

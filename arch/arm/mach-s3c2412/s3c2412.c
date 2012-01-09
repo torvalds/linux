@@ -32,7 +32,6 @@
 #include <asm/proc-fns.h>
 #include <asm/irq.h>
 
-#include <mach/reset.h>
 #include <mach/idle.h>
 
 #include <plat/cpu-freq.h>
@@ -131,8 +130,11 @@ static void s3c2412_idle(void)
 	cpu_do_idle();
 }
 
-static void s3c2412_hard_reset(void)
+void s3c2412_restart(char mode, const char *cmd)
 {
+	if (mode == 's')
+		soft_restart(0);
+
 	/* errata "Watch-dog/Software Reset Problem" specifies that
 	 * this reset must be done with the SYSCLK sourced from
 	 * EXTCLK instead of FOUT to avoid a glitch in the reset
@@ -163,10 +165,6 @@ void __init s3c2412_map_io(void)
 	/* set our idle function */
 
 	s3c24xx_idle = s3c2412_idle;
-
-	/* set custom reset hook */
-
-	s3c24xx_reset_hook = s3c2412_hard_reset;
 
 	/* register our io-tables */
 

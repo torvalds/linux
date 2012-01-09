@@ -21,13 +21,13 @@
 #include <linux/pwm_backlight.h>
 
 #include <asm/mach/arch.h>
+#include <asm/hardware/gic.h>
 #include <asm/mach-types.h>
 
 #include <video/platform_lcd.h>
 #include <plat/regs-serial.h>
 #include <plat/regs-srom.h>
 #include <plat/regs-fb-v4.h>
-#include <plat/exynos4.h>
 #include <plat/cpu.h>
 #include <plat/devs.h>
 #include <plat/fb.h>
@@ -42,6 +42,8 @@
 #include <plat/clock.h>
 
 #include <mach/map.h>
+
+#include "common.h"
 
 /* Following are default values for UCON, ULCON and UFCON UART registers */
 #define SMDKV310_UCON_DEFAULT	(S3C2410_UCON_TXILEVEL |	\
@@ -129,9 +131,7 @@ static void lcd_lte480wv_set_power(struct plat_lcd_data *pd,
 		gpio_free(EXYNOS4_GPD0(1));
 #endif
 		/* fire nRESET on power up */
-		gpio_request(EXYNOS4_GPX0(6), "GPX0");
-
-		gpio_direction_output(EXYNOS4_GPX0(6), 1);
+		gpio_request_one(EXYNOS4_GPX0(6), GPIOF_OUT_INIT_HIGH, "GPX0");
 		mdelay(100);
 
 		gpio_set_value(EXYNOS4_GPX0(6), 0);
@@ -332,7 +332,7 @@ static void s5p_tv_setup(void)
 
 static void __init smdkv310_map_io(void)
 {
-	s5p_init_io(NULL, 0, S5P_VA_CHIPID);
+	exynos_init_io(NULL, 0);
 	s3c24xx_init_clocks(24000000);
 	s3c24xx_init_uarts(smdkv310_uartcfgs, ARRAY_SIZE(smdkv310_uartcfgs));
 }
@@ -375,9 +375,11 @@ MACHINE_START(SMDKV310, "SMDKV310")
 	.atag_offset	= 0x100,
 	.init_irq	= exynos4_init_irq,
 	.map_io		= smdkv310_map_io,
+	.handle_irq	= gic_handle_irq,
 	.init_machine	= smdkv310_machine_init,
 	.timer		= &exynos4_timer,
 	.reserve	= &smdkv310_reserve,
+	.restart	= exynos4_restart,
 MACHINE_END
 
 MACHINE_START(SMDKC210, "SMDKC210")
@@ -385,6 +387,8 @@ MACHINE_START(SMDKC210, "SMDKC210")
 	.atag_offset	= 0x100,
 	.init_irq	= exynos4_init_irq,
 	.map_io		= smdkv310_map_io,
+	.handle_irq	= gic_handle_irq,
 	.init_machine	= smdkv310_machine_init,
 	.timer		= &exynos4_timer,
+	.restart	= exynos4_restart,
 MACHINE_END

@@ -135,7 +135,7 @@ nla_put_failure:
 static inline int
 ctnetlink_dump_timeout(struct sk_buff *skb, const struct nf_conn *ct)
 {
-	long timeout = (ct->timeout.expires - jiffies) / HZ;
+	long timeout = ((long)ct->timeout.expires - (long)jiffies) / HZ;
 
 	if (timeout < 0)
 		timeout = 0;
@@ -1358,12 +1358,15 @@ ctnetlink_create_conntrack(struct net *net, u16 zone,
 						    nf_ct_protonum(ct));
 		if (helper == NULL) {
 			rcu_read_unlock();
+			spin_unlock_bh(&nf_conntrack_lock);
 #ifdef CONFIG_MODULES
 			if (request_module("nfct-helper-%s", helpname) < 0) {
+				spin_lock_bh(&nf_conntrack_lock);
 				err = -EOPNOTSUPP;
 				goto err1;
 			}
 
+			spin_lock_bh(&nf_conntrack_lock);
 			rcu_read_lock();
 			helper = __nf_conntrack_helper_find(helpname,
 							    nf_ct_l3num(ct),
@@ -1638,7 +1641,7 @@ ctnetlink_exp_dump_expect(struct sk_buff *skb,
 			  const struct nf_conntrack_expect *exp)
 {
 	struct nf_conn *master = exp->master;
-	long timeout = (exp->timeout.expires - jiffies) / HZ;
+	long timeout = ((long)exp->timeout.expires - (long)jiffies) / HZ;
 	struct nf_conn_help *help;
 
 	if (timeout < 0)
@@ -1869,25 +1872,30 @@ ctnetlink_get_expect(struct sock *ctnl, struct sk_buff *skb,
 
 	err = -ENOMEM;
 	skb2 = nlmsg_new(NLMSG_DEFAULT_SIZE, GFP_KERNEL);
-	if (skb2 == NULL)
+	if (skb2 == NULL) {
+		nf_ct_expect_put(exp);
 		goto out;
+	}
 
 	rcu_read_lock();
 	err = ctnetlink_exp_fill_info(skb2, NETLINK_CB(skb).pid,
 				      nlh->nlmsg_seq, IPCTNL_MSG_EXP_NEW, exp);
 	rcu_read_unlock();
+	nf_ct_expect_put(exp);
 	if (err <= 0)
 		goto free;
 
-	nf_ct_expect_put(exp);
+	err = netlink_unicast(ctnl, skb2, NETLINK_CB(skb).pid, MSG_DONTWAIT);
+	if (err < 0)
+		goto out;
 
-	return netlink_unicast(ctnl, skb2, NETLINK_CB(skb).pid, MSG_DONTWAIT);
+	return 0;
 
 free:
 	kfree_skb(skb2);
 out:
-	nf_ct_expect_put(exp);
-	return err;
+	/* this avoids a loop in nfnetlink. */
+	return err == -EAGAIN ? -ENOBUFS : err;
 }
 
 static int

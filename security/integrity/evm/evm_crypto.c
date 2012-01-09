@@ -27,20 +27,35 @@ static int evmkey_len = MAX_KEY_SIZE;
 
 struct crypto_shash *hmac_tfm;
 
+static DEFINE_MUTEX(mutex);
+
 static struct shash_desc *init_desc(void)
 {
 	int rc;
 	struct shash_desc *desc;
 
 	if (hmac_tfm == NULL) {
+		mutex_lock(&mutex);
+		if (hmac_tfm)
+			goto out;
 		hmac_tfm = crypto_alloc_shash(evm_hmac, 0, CRYPTO_ALG_ASYNC);
 		if (IS_ERR(hmac_tfm)) {
 			pr_err("Can not allocate %s (reason: %ld)\n",
 			       evm_hmac, PTR_ERR(hmac_tfm));
 			rc = PTR_ERR(hmac_tfm);
 			hmac_tfm = NULL;
+			mutex_unlock(&mutex);
 			return ERR_PTR(rc);
 		}
+		rc = crypto_shash_setkey(hmac_tfm, evmkey, evmkey_len);
+		if (rc) {
+			crypto_free_shash(hmac_tfm);
+			hmac_tfm = NULL;
+			mutex_unlock(&mutex);
+			return ERR_PTR(rc);
+		}
+out:
+		mutex_unlock(&mutex);
 	}
 
 	desc = kmalloc(sizeof(*desc) + crypto_shash_descsize(hmac_tfm),
@@ -51,11 +66,7 @@ static struct shash_desc *init_desc(void)
 	desc->tfm = hmac_tfm;
 	desc->flags = CRYPTO_TFM_REQ_MAY_SLEEP;
 
-	rc = crypto_shash_setkey(hmac_tfm, evmkey, evmkey_len);
-	if (rc)
-		goto out;
 	rc = crypto_shash_init(desc);
-out:
 	if (rc) {
 		kfree(desc);
 		return ERR_PTR(rc);

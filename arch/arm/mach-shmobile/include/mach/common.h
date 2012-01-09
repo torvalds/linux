@@ -7,7 +7,6 @@ extern void shmobile_secondary_vector(void);
 struct clk;
 extern int clk_init(void);
 extern void shmobile_handle_irq_intc(struct pt_regs *);
-extern void shmobile_handle_irq_gic(struct pt_regs *);
 extern struct platform_suspend_ops shmobile_suspend_ops;
 struct cpuidle_driver;
 extern void (*shmobile_cpuidle_modes[])(void);

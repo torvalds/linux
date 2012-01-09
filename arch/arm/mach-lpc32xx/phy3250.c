@@ -388,4 +388,5 @@ MACHINE_START(PHY3250, "Phytec 3250 board with the LPC3250 Microcontroller")
 	.init_irq	= lpc32xx_init_irq,
 	.timer		= &lpc32xx_timer,
 	.init_machine	= phy3250_board_init,
+	.restart	= lpc23xx_restart,
 MACHINE_END

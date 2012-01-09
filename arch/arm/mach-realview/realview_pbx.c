@@ -98,8 +98,8 @@ static struct map_desc realview_pbx_io_desc[] __initdata = {
 
 static struct map_desc realview_local_io_desc[] __initdata = {
 	{
-		.virtual        = IO_ADDRESS(REALVIEW_PBX_TILE_GIC_CPU_BASE),
-		.pfn            = __phys_to_pfn(REALVIEW_PBX_TILE_GIC_CPU_BASE),
+		.virtual        = IO_ADDRESS(REALVIEW_PBX_TILE_SCU_BASE),
+		.pfn            = __phys_to_pfn(REALVIEW_PBX_TILE_SCU_BASE),
 		.length         = SZ_4K,
 		.type           = MT_DEVICE,
 	}, {
@@ -339,7 +339,7 @@ static void realview_pbx_fixup(struct tag *tags, char **from,
 #endif
 }
 
-static void realview_pbx_reset(char mode)
+static void realview_pbx_restart(char mode, const char *cmd)
 {
 	void __iomem *reset_ctrl = __io_address(REALVIEW_SYS_RESETCTL);
 	void __iomem *lock_ctrl = __io_address(REALVIEW_SYS_LOCK);
@@ -351,6 +351,7 @@ static void realview_pbx_reset(char mode)
 	__raw_writel(REALVIEW_SYS_LOCK_VAL, lock_ctrl);
 	__raw_writel(0x00F0, reset_ctrl);
 	__raw_writel(0x00F4, reset_ctrl);
+	dsb();
 }
 
 static void __init realview_pbx_init(void)
@@ -388,7 +389,6 @@ static void __init realview_pbx_init(void)
 #ifdef CONFIG_LEDS
 	leds_event = realview_leds_event;
 #endif
-	realview_reset = realview_pbx_reset;
 }
 
 MACHINE_START(REALVIEW_PBX, "ARM-RealView PBX")
@@ -399,8 +399,10 @@ MACHINE_START(REALVIEW_PBX, "ARM-RealView PBX")
 	.init_early	= realview_init_early,
 	.init_irq	= gic_init_irq,
 	.timer		= &realview_pbx_timer,
+	.handle_irq	= gic_handle_irq,
 	.init_machine	= realview_pbx_init,
 #ifdef CONFIG_ZONE_DMA
 	.dma_zone_size	= SZ_256M,
 #endif
+	.restart	= realview_pbx_restart,
 MACHINE_END
