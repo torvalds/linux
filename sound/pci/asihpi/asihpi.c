@@ -2259,6 +2259,9 @@ static int snd_asihpi_cmode_info(struct snd_kcontrol *kcontrol,
 			valid_modes++;
 			}
 
+	if (!valid_modes)
+		return -EINVAL;
+
 	uinfo->type = SNDRV_CTL_ELEM_TYPE_ENUMERATED;
 	uinfo->count = 1;
 	uinfo->value.enumerated.items = valid_modes;
