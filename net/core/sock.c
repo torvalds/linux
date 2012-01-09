@@ -112,6 +112,7 @@
 #include <linux/highmem.h>
 #include <linux/user_namespace.h>
 #include <linux/jump_label.h>
+#include <linux/memcontrol.h>
 
 #include <asm/uaccess.h>
 #include <asm/system.h>
