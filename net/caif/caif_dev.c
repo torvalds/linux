@@ -76,12 +76,12 @@ static struct caif_device_entry_list *caif_device_list(struct net *net)
 
 static void caifd_put(struct caif_device_entry *e)
 {
-	irqsafe_cpu_dec(*e->pcpu_refcnt);
+	this_cpu_dec(*e->pcpu_refcnt);
 }
 
 static void caifd_hold(struct caif_device_entry *e)
 {
-	irqsafe_cpu_inc(*e->pcpu_refcnt);
+	this_cpu_inc(*e->pcpu_refcnt);
 }
 
 static int caifd_refcnt_read(struct caif_device_entry *e)
