@@ -54,6 +54,8 @@ static struct macb_platform_data __initdata eco920_eth_data = {
 
 static struct at91_usbh_data __initdata eco920_usbh_data = {
 	.ports		= 1,
+	.vbus_pin	= {-EINVAL, -EINVAL},
+	.overcurrent_pin= {-EINVAL, -EINVAL},
 };
 
 static struct at91_udc_data __initdata eco920_udc_data = {
@@ -64,6 +66,9 @@ static struct at91_udc_data __initdata eco920_udc_data = {
 static struct at91_mmc_data __initdata eco920_mmc_data = {
 	.slot_b		= 0,
 	.wire4		= 0,
+	.det_pin	= -EINVAL,
+	.wp_pin		= -EINVAL,
+	.vcc_pin	= -EINVAL,
 };
 
 static struct physmap_flash_data eco920_flash_data = {

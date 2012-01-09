@@ -70,6 +70,8 @@ static struct macb_platform_data rsi_ews_eth_data __initdata = {
  */
 static struct at91_usbh_data rsi_ews_usbh_data __initdata = {
 	.ports		= 1,
+	.vbus_pin	= {-EINVAL, -EINVAL},
+	.overcurrent_pin= {-EINVAL, -EINVAL},
 };
 
 /*

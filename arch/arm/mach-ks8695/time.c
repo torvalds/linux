@@ -109,3 +109,21 @@ struct sys_timer ks8695_timer = {
 	.offset		= ks8695_gettimeoffset,
 	.resume		= ks8695_timer_setup,
 };
+
+void ks8695_restart(char mode, const char *cmd)
+{
+	unsigned int reg;
+
+	if (mode == 's')
+		soft_restart(0);
+
+	/* disable timer0 */
+	reg = __raw_readl(KS8695_TMR_VA + KS8695_TMCON);
+	__raw_writel(reg & ~TMCON_T0EN, KS8695_TMR_VA + KS8695_TMCON);
+
+	/* enable watchdog mode */
+	__raw_writel((10 << 8) | T0TC_WATCHDOG, KS8695_TMR_VA + KS8695_T0TC);
+
+	/* re-enable timer0 */
+	__raw_writel(reg | TMCON_T0EN, KS8695_TMR_VA + KS8695_TMCON);
+}

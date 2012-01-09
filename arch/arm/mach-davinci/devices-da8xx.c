@@ -363,6 +363,11 @@ struct platform_device da8xx_wdt_device = {
 	.resource	= da8xx_watchdog_resources,
 };
 
+void da8xx_restart(char mode, const char *cmd)
+{
+	davinci_watchdog_reset(&da8xx_wdt_device);
+}
+
 int __init da8xx_register_watchdog(void)
 {
 	return platform_device_register(&da8xx_wdt_device);

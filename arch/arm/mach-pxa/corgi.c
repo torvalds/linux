@@ -655,7 +655,7 @@ static void corgi_poweroff(void)
 		/* Green LED off tells the bootloader to halt */
 		gpio_set_value(CORGI_GPIO_LED_GREEN, 0);
 
-	arm_machine_restart('h', NULL);
+	pxa_restart('h', NULL);
 }
 
 static void corgi_restart(char mode, const char *cmd)
@@ -664,13 +664,12 @@ static void corgi_restart(char mode, const char *cmd)
 		/* Green LED on tells the bootloader to reboot */
 		gpio_set_value(CORGI_GPIO_LED_GREEN, 1);
 
-	arm_machine_restart('h', cmd);
+	pxa_restart('h', cmd);
 }
 
 static void __init corgi_init(void)
 {
 	pm_power_off = corgi_poweroff;
-	arm_pm_restart = corgi_restart;
 
 	/* Stop 3.6MHz and drive HIGH to PCMCIA and CS */
 	PCFR |= PCFR_OPDE;
@@ -726,6 +725,7 @@ MACHINE_START(CORGI, "SHARP Corgi")
 	.handle_irq	= pxa25x_handle_irq,
 	.init_machine	= corgi_init,
 	.timer		= &pxa_timer,
+	.restart	= corgi_restart,
 MACHINE_END
 #endif
 
@@ -737,6 +737,7 @@ MACHINE_START(SHEPHERD, "SHARP Shepherd")
 	.handle_irq	= pxa25x_handle_irq,
 	.init_machine	= corgi_init,
 	.timer		= &pxa_timer,
+	.restart	= corgi_restart,
 MACHINE_END
 #endif
 
@@ -748,6 +749,7 @@ MACHINE_START(HUSKY, "SHARP Husky")
 	.handle_irq	= pxa25x_handle_irq,
 	.init_machine	= corgi_init,
 	.timer		= &pxa_timer,
+	.restart	= corgi_restart,
 MACHINE_END
 #endif
 

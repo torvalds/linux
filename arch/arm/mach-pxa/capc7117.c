@@ -153,5 +153,6 @@ MACHINE_START(CAPC7117,
 	.init_irq = pxa3xx_init_irq,
 	.handle_irq = pxa3xx_handle_irq,
 	.timer = &pxa_timer,
-	.init_machine = capc7117_init
+	.init_machine = capc7117_init,
+	.restart	= pxa_restart,
 MACHINE_END

@@ -220,4 +220,5 @@ MACHINE_START(BROWNSTONE, "Brownstone Development Platform")
 	.init_irq	= mmp2_init_irq,
 	.timer		= &mmp2_timer,
 	.init_machine	= brownstone_init,
+	.restart	= mmp_restart,
 MACHINE_END

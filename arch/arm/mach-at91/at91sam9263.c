@@ -11,7 +11,6 @@
  */
 
 #include <linux/module.h>
-#include <linux/pm.h>
 
 #include <asm/irq.h>
 #include <asm/mach/arch.h>
@@ -19,11 +18,11 @@
 #include <mach/at91sam9263.h>
 #include <mach/at91_pmc.h>
 #include <mach/at91_rstc.h>
-#include <mach/at91_shdwc.h>
 
 #include "soc.h"
 #include "generic.h"
 #include "clock.h"
+#include "sam9_smc.h"
 
 /* --------------------------------------------------------------------
  *  Clocks
@@ -193,6 +192,11 @@ static struct clk_lookup periph_clocks_lookups[] = {
 	CLKDEV_CON_DEV_ID("t0_clk", "atmel_tcb.0", &tcb_clk),
 	/* fake hclk clock */
 	CLKDEV_CON_DEV_ID("hclk", "at91_ohci", &ohci_clk),
+	CLKDEV_CON_ID("pioA", &pioA_clk),
+	CLKDEV_CON_ID("pioB", &pioB_clk),
+	CLKDEV_CON_ID("pioC", &pioCDE_clk),
+	CLKDEV_CON_ID("pioD", &pioCDE_clk),
+	CLKDEV_CON_ID("pioE", &pioCDE_clk),
 };
 
 static struct clk_lookup usart_clocks_lookups[] = {
@@ -265,35 +269,24 @@ void __init at91sam9263_set_console_clock(int id)
  *  GPIO
  * -------------------------------------------------------------------- */
 
-static struct at91_gpio_bank at91sam9263_gpio[] = {
+static struct at91_gpio_bank at91sam9263_gpio[] __initdata = {
 	{
 		.id		= AT91SAM9263_ID_PIOA,
-		.offset		= AT91_PIOA,
-		.clock		= &pioA_clk,
+		.regbase	= AT91SAM9263_BASE_PIOA,
 	}, {
 		.id		= AT91SAM9263_ID_PIOB,
-		.offset		= AT91_PIOB,
-		.clock		= &pioB_clk,
+		.regbase	= AT91SAM9263_BASE_PIOB,
 	}, {
 		.id		= AT91SAM9263_ID_PIOCDE,
-		.offset		= AT91_PIOC,
-		.clock		= &pioCDE_clk,
+		.regbase	= AT91SAM9263_BASE_PIOC,
 	}, {
 		.id		= AT91SAM9263_ID_PIOCDE,
-		.offset		= AT91_PIOD,
-		.clock		= &pioCDE_clk,
+		.regbase	= AT91SAM9263_BASE_PIOD,
 	}, {
 		.id		= AT91SAM9263_ID_PIOCDE,
-		.offset		= AT91_PIOE,
-		.clock		= &pioCDE_clk,
+		.regbase	= AT91SAM9263_BASE_PIOE,
 	}
 };
-
-static void at91sam9263_poweroff(void)
-{
-	at91_sys_write(AT91_SHDW_CR, AT91_SHDW_KEY | AT91_SHDW_SHDW);
-}
-
 
 /* --------------------------------------------------------------------
  *  AT91SAM9263 processor initialization
@@ -305,10 +298,17 @@ static void __init at91sam9263_map_io(void)
 	at91_init_sram(1, AT91SAM9263_SRAM1_BASE, AT91SAM9263_SRAM1_SIZE);
 }
 
+static void __init at91sam9263_ioremap_registers(void)
+{
+	at91_ioremap_shdwc(AT91SAM9263_BASE_SHDWC);
+	at91sam926x_ioremap_pit(AT91SAM9263_BASE_PIT);
+	at91sam9_ioremap_smc(0, AT91SAM9263_BASE_SMC0);
+	at91sam9_ioremap_smc(1, AT91SAM9263_BASE_SMC1);
+}
+
 static void __init at91sam9263_initialize(void)
 {
-	at91_arch_reset = at91sam9_alt_reset;
-	pm_power_off = at91sam9263_poweroff;
+	arm_pm_restart = at91sam9_alt_restart;
 	at91_extern_irq = (1 << AT91SAM9263_ID_IRQ0) | (1 << AT91SAM9263_ID_IRQ1);
 
 	/* Register GPIO subsystem */
@@ -360,6 +360,7 @@ static unsigned int at91sam9263_default_irq_priority[NR_AIC_IRQS] __initdata = {
 struct at91_init_soc __initdata at91sam9263_soc = {
 	.map_io = at91sam9263_map_io,
 	.default_irq_priority = at91sam9263_default_irq_priority,
+	.ioremap_registers = at91sam9263_ioremap_registers,
 	.register_clocks = at91sam9263_register_clocks,
 	.init = at91sam9263_initialize,
 };

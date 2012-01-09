@@ -505,4 +505,5 @@ MACHINE_START(LOGICPD_PXA270, "LogicPD PXA270 Card Engine")
 	.handle_irq	= pxa27x_handle_irq,
 	.timer		= &pxa_timer,
 	.init_machine	= lpd270_init,
+	.restart	= pxa_restart,
 MACHINE_END

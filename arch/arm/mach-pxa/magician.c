@@ -760,4 +760,5 @@ MACHINE_START(MAGICIAN, "HTC Magician")
 	.handle_irq = pxa27x_handle_irq,
 	.init_machine = magician_init,
 	.timer = &pxa_timer,
+	.restart	= pxa_restart,
 MACHINE_END

@@ -225,6 +225,7 @@ ENTRY(cpu_arm7_set_pte_ext)
  * Params  : r0 = address to jump to
  * Notes   : This sets up everything for a reset
  */
+		.pushsection	.idmap.text, "ax"
 ENTRY(cpu_arm6_reset)
 ENTRY(cpu_arm7_reset)
 		mov	r1, #0
@@ -235,6 +236,9 @@ ENTRY(cpu_arm7_reset)
 		mov	r1, #0x30
 		mcr	p15, 0, r1, c1, c0, 0		@ turn off MMU etc
 		mov	pc, r0
+ENDPROC(cpu_arm6_reset)
+ENDPROC(cpu_arm7_reset)
+		.popsection
 
 		__CPUINIT
 

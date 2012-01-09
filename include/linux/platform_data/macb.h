@@ -10,7 +10,7 @@
 
 struct macb_platform_data {
 	u32		phy_mask;
-	u8		phy_irq_pin;	/* PHY IRQ */
+	int		phy_irq_pin;	/* PHY IRQ */
 	u8		is_rmii;	/* using RMII interface? */
 };
 

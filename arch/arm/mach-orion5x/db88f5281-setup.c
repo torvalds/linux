@@ -364,4 +364,5 @@ MACHINE_START(DB88F5281, "Marvell Orion-2 Development Board")
 	.init_early	= orion5x_init_early,
 	.init_irq	= orion5x_init_irq,
 	.timer		= &orion5x_timer,
+	.restart	= orion5x_restart,
 MACHINE_END

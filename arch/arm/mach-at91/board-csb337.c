@@ -65,11 +65,13 @@ static struct macb_platform_data __initdata csb337_eth_data = {
 
 static struct at91_usbh_data __initdata csb337_usbh_data = {
 	.ports		= 2,
+	.vbus_pin	= {-EINVAL, -EINVAL},
+	.overcurrent_pin= {-EINVAL, -EINVAL},
 };
 
 static struct at91_udc_data __initdata csb337_udc_data = {
-	// this has no VBUS sensing pin
 	.pullup_pin	= AT91_PIN_PA24,
+	.vbus_pin	= -EINVAL,
 };
 
 static struct i2c_board_info __initdata csb337_i2c_devices[] = {
@@ -98,6 +100,7 @@ static struct at91_mmc_data __initdata csb337_mmc_data = {
 	.slot_b		= 0,
 	.wire4		= 1,
 	.wp_pin		= AT91_PIN_PD6,
+	.vcc_pin	= -EINVAL,
 };
 
 static struct spi_board_info csb337_spi_devices[] = {

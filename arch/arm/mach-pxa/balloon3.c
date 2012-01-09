@@ -829,4 +829,5 @@ MACHINE_START(BALLOON3, "Balloon3")
 	.timer		= &pxa_timer,
 	.init_machine	= balloon3_init,
 	.atag_offset	= 0x100,
+	.restart	= pxa_restart,
 MACHINE_END
