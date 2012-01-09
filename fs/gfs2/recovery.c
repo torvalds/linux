@@ -516,7 +516,9 @@ void gfs2_recover_func(struct work_struct *work)
 		if (error)
 			goto fail_gunlock_ji;
 
-		if (test_bit(SDF_JOURNAL_CHECKED, &sdp->sd_flags)) {
+		if (test_bit(SDF_RORECOVERY, &sdp->sd_flags)) {
+			ro = 1;
+		} else if (test_bit(SDF_JOURNAL_CHECKED, &sdp->sd_flags)) {
 			if (!test_bit(SDF_JOURNAL_LIVE, &sdp->sd_flags))
 				ro = 1;
 		} else {
