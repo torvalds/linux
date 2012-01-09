@@ -398,6 +398,7 @@ static int idma_new(struct snd_soc_pcm_runtime *rtd)
 	if (pcm->streams[SNDRV_PCM_STREAM_PLAYBACK].substream) {
 		ret = preallocate_idma_buffer(pcm,
 				SNDRV_PCM_STREAM_PLAYBACK);
+	}
 
 	return ret;
 }
