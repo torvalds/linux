@@ -30,7 +30,7 @@ MODULE_PARM_DESC(debug, "Turn on/off frontend debugging (default:off).");
 static int hd29l2_wr_regs(struct hd29l2_priv *priv, u8 reg, u8 *val, int len)
 {
 	int ret;
-	u8 buf[2+len];
+	u8 buf[2 + len];
 	struct i2c_msg msg[1] = {
 		{
 			.addr = priv->cfg.i2c_addr,
@@ -476,7 +476,7 @@ static enum dvbfe_search hd29l2_search(struct dvb_frontend *fe)
 
 	/* ensure modulation validy */
 	/* 0=QAM4_NR, 1=QAM4, 2=QAM16, 3=QAM32, 4=QAM64 */
-	if (modulation > 4) {
+	if (modulation > (ARRAY_SIZE(reg_mod_vals_tab[0].val) - 1)) {
 		dbg("%s: modulation=%d not valid", __func__, modulation);
 		goto err;
 	}
@@ -735,7 +735,7 @@ static int hd29l2_init(struct dvb_frontend *fe)
 	/* reset demod */
 	/* it is recommended to HW reset chip using RST_N pin */
 	if (fe->callback) {
-		ret = fe->callback(fe, 0, 0, 0);
+		ret = fe->callback(fe, DVB_FRONTEND_COMPONENT_DEMOD, 0, 0);
 		if (ret)
 			goto err;
 
