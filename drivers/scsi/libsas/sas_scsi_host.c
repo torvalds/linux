@@ -1028,9 +1028,6 @@ void sas_target_destroy(struct scsi_target *starget)
 	if (!found_dev)
 		return;
 
-	if (dev_is_sata(found_dev))
-		ata_sas_port_destroy(found_dev->sata_dev.ap);
-
 	starget->hostdata = NULL;
 	sas_put_device(found_dev);
 }

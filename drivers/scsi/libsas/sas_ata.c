@@ -661,8 +661,13 @@ static void async_sas_ata_eh(void *data, async_cookie_t cookie)
 	struct ata_port *ap = dev->sata_dev.ap;
 	struct sas_ha_struct *ha = dev->port->ha;
 
+	/* hold a reference over eh since we may be racing with final
+	 * remove once all commands are completed
+	 */
+	kref_get(&dev->kref);
 	ata_port_printk(ap, KERN_DEBUG, "sas eh calling libata port error handler");
 	ata_scsi_port_error_handler(ha->core.shost, ap);
+	sas_put_device(dev);
 }
 
 void sas_ata_strategy_handler(struct Scsi_Host *shost)
