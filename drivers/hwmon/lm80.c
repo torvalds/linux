@@ -108,6 +108,7 @@ static inline long TEMP_FROM_REG(u16 temp)
 struct lm80_data {
 	struct device *hwmon_dev;
 	struct mutex update_lock;
+	char error;		/* !=0 if error occurred during last update */
 	char valid;		/* !=0 if following fields are valid */
 	unsigned long last_updated;	/* In jiffies */
 
@@ -595,6 +596,9 @@ static struct lm80_data *lm80_update_device(struct device *dev)
 
 	mutex_lock(&data->update_lock);
 
+	if (data->error)
+		lm80_init_client(client);
+
 	if (time_after(jiffies, data->last_updated + 2 * HZ) || !data->valid) {
 		dev_dbg(&client->dev, "Starting lm80 update\n");
 		for (i = 0; i <= 6; i++) {
@@ -678,12 +682,14 @@ static struct lm80_data *lm80_update_device(struct device *dev)
 
 		data->last_updated = jiffies;
 		data->valid = 1;
+		data->error = 0;
 	}
 	goto done;
 
 abort:
 	ret = ERR_PTR(rv);
 	data->valid = 0;
+	data->error = 1;
 
 done:
 	mutex_unlock(&data->update_lock);
