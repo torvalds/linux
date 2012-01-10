@@ -46,7 +46,6 @@ MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Andy Adamson <andros@citi.umich.edu>");
 MODULE_DESCRIPTION("The NFSv4.1 pNFS Block layout driver");
 
-struct rpc_pipe *bl_device_pipe;
 wait_queue_head_t bl_wq;
 
 static void print_page(struct page *page)
@@ -1071,6 +1070,37 @@ static void nfs4blocklayout_unregister_net(struct net *net,
 	}
 }
 
+static int nfs4blocklayout_net_init(struct net *net)
+{
+	struct nfs_net *nn = net_generic(net, nfs_net_id);
+	struct dentry *dentry;
+
+	nn->bl_device_pipe = rpc_mkpipe_data(&bl_upcall_ops, 0);
+	if (IS_ERR(nn->bl_device_pipe))
+		return PTR_ERR(nn->bl_device_pipe);
+	dentry = nfs4blocklayout_register_net(net, nn->bl_device_pipe);
+	if (IS_ERR(dentry)) {
+		rpc_destroy_pipe_data(nn->bl_device_pipe);
+		return PTR_ERR(dentry);
+	}
+	nn->bl_device_pipe->dentry = dentry;
+	return 0;
+}
+
+static void nfs4blocklayout_net_exit(struct net *net)
+{
+	struct nfs_net *nn = net_generic(net, nfs_net_id);
+
+	nfs4blocklayout_unregister_net(net, nn->bl_device_pipe);
+	rpc_destroy_pipe_data(nn->bl_device_pipe);
+	nn->bl_device_pipe = NULL;
+}
+
+static struct pernet_operations nfs4blocklayout_net_ops = {
+	.init = nfs4blocklayout_net_init,
+	.exit = nfs4blocklayout_net_exit,
+};
+
 static int __init nfs4blocklayout_init(void)
 {
 	struct vfsmount *mnt;
@@ -1089,24 +1119,12 @@ static int __init nfs4blocklayout_init(void)
 		ret = PTR_ERR(mnt);
 		goto out_remove;
 	}
-	bl_device_pipe = rpc_mkpipe_data(&bl_upcall_ops, 0);
-	if (IS_ERR(bl_device_pipe)) {
-		ret = PTR_ERR(bl_device_pipe);
-		goto out_putrpc;
-	}
-	bl_device_pipe->dentry = nfs4blocklayout_register_net(&init_net,
-							      bl_device_pipe);
-	if (IS_ERR(bl_device_pipe->dentry)) {
-		ret = PTR_ERR(bl_device_pipe->dentry);
-		goto out_destroy_pipe;
-	}
+	ret = register_pernet_subsys(&nfs4blocklayout_net_ops);
+	if (ret)
+		goto out_remove;
 out:
 	return ret;
 
-out_destroy_pipe:
-	rpc_destroy_pipe_data(bl_device_pipe);
-out_putrpc:
-	rpc_put_mount();
 out_remove:
 	pnfs_unregister_layoutdriver(&blocklayout_type);
 	return ret;
@@ -1117,10 +1135,8 @@ static void __exit nfs4blocklayout_exit(void)
 	dprintk("%s: NFSv4 Block Layout Driver Unregistering...\n",
 	       __func__);
 
+	unregister_pernet_subsys(&nfs4blocklayout_net_ops);
 	pnfs_unregister_layoutdriver(&blocklayout_type);
-	nfs4blocklayout_unregister_net(&init_net, bl_device_pipe);
-	rpc_destroy_pipe_data(bl_device_pipe);
-	rpc_put_mount();
 }
 
 MODULE_ALIAS("nfs-layouttype4-3");

@@ -37,6 +37,7 @@
 #include <linux/sunrpc/rpc_pipe_fs.h>
 
 #include "../pnfs.h"
+#include "../netns.h"
 
 #define PAGE_CACHE_SECTORS (PAGE_CACHE_SIZE >> SECTOR_SHIFT)
 #define PAGE_CACHE_SECTOR_SHIFT (PAGE_CACHE_SHIFT - SECTOR_SHIFT)
@@ -50,6 +51,7 @@ struct pnfs_block_dev {
 	struct list_head		bm_node;
 	struct nfs4_deviceid		bm_mdevid;    /* associated devid */
 	struct block_device		*bm_mdev;     /* meta device itself */
+	struct net			*net;
 };
 
 enum exstate4 {
@@ -161,7 +163,6 @@ struct bl_msg_hdr {
 	u16 totallen; /* length of entire message, including hdr itself */
 };
 
-extern struct rpc_pipe *bl_device_pipe;
 extern wait_queue_head_t bl_wq;
 
 #define BL_DEVICE_UMOUNT               0x0 /* Umount--delete devices */

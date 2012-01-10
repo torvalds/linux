@@ -120,6 +120,8 @@ nfs4_blk_decode_device(struct nfs_server *server,
 	DECLARE_WAITQUEUE(wq, current);
 	struct bl_dev_msg *reply = &bl_mount_reply;
 	int offset, len, i, rc;
+	struct net *net = server->nfs_client->net;
+	struct nfs_net *nn = net_generic(net, nfs_net_id);
 
 	dprintk("%s CREATING PIPEFS MESSAGE\n", __func__);
 	dprintk("%s: deviceid: %s, mincount: %d\n", __func__, dev->dev_id.data,
@@ -146,7 +148,7 @@ nfs4_blk_decode_device(struct nfs_server *server,
 
 	dprintk("%s CALLING USERSPACE DAEMON\n", __func__);
 	add_wait_queue(&bl_wq, &wq);
-	rc = rpc_queue_upcall(bl_device_pipe, &msg);
+	rc = rpc_queue_upcall(nn->bl_device_pipe, &msg);
 	if (rc < 0) {
 		remove_wait_queue(&bl_wq, &wq);
 		rv = ERR_PTR(rc);
@@ -181,6 +183,7 @@ nfs4_blk_decode_device(struct nfs_server *server,
 
 	rv->bm_mdev = bd;
 	memcpy(&rv->bm_mdevid, &dev->dev_id, sizeof(struct nfs4_deviceid));
+	rv->net = net;
 	dprintk("%s Created device %s with bd_block_size %u\n",
 		__func__,
 		bd->bd_disk->disk_name,
