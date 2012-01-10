@@ -8,6 +8,7 @@ config SCORE
        select HAVE_MEMBLOCK
        select HAVE_MEMBLOCK_NODE_MAP
        select ARCH_DISCARD_MEMBLOCK
+       select GENERIC_CPU_DEVICES
 
 choice
 	prompt "System type"

@@ -15,6 +15,7 @@ config OPENRISC
 	select GENERIC_IRQ_PROBE
 	select GENERIC_IRQ_SHOW
 	select GENERIC_IOMAP
+	select GENERIC_CPU_DEVICES
 
 config MMU
 	def_bool y
