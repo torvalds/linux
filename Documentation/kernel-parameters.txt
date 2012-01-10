@@ -1634,12 +1634,17 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
 			The default is to return 64-bit inode numbers.
 
 	nfs.nfs4_disable_idmapping=
-			[NFSv4] When set, this option disables the NFSv4
-			idmapper on the client, but only if the mount
-			is using the 'sec=sys' security flavour. This may
-			make migration from legacy NFSv2/v3 systems easier
-			provided that the server has the appropriate support.
-			The default is to always enable NFSv4 idmapping.
+			[NFSv4] When set to the default of '1', this option
+			ensures that both the RPC level authentication
+			scheme and the NFS level operations agree to use
+			numeric uids/gids if the mount is using the
+			'sec=sys' security flavour. In effect it is
+			disabling idmapping, which can make migration from
+			legacy NFSv2/v3 systems to NFSv4 easier.
+			Servers that do not support this mode of operation
+			will be autodetected by the client, and it will fall
+			back to using the idmapper.
+			To turn off this behaviour, set the value to '0'.
 
 	nmi_debug=	[KNL,AVR32,SH] Specify one or more actions to take
 			when a NMI is triggered.

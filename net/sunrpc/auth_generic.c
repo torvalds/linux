@@ -41,15 +41,17 @@ EXPORT_SYMBOL_GPL(rpc_lookup_cred);
 /*
  * Public call interface for looking up machine creds.
  */
-struct rpc_cred *rpc_lookup_machine_cred(void)
+struct rpc_cred *rpc_lookup_machine_cred(const char *service_name)
 {
 	struct auth_cred acred = {
 		.uid = RPC_MACHINE_CRED_USERID,
 		.gid = RPC_MACHINE_CRED_GROUPID,
+		.principal = service_name,
 		.machine_cred = 1,
 	};
 
-	dprintk("RPC:       looking up machine cred\n");
+	dprintk("RPC:       looking up machine cred for service %s\n",
+			service_name);
 	return generic_auth.au_ops->lookup_cred(&generic_auth, &acred, 0);
 }
 EXPORT_SYMBOL_GPL(rpc_lookup_machine_cred);
