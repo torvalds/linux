@@ -831,6 +831,8 @@
 #define	PACKET3_STRMOUT_BUFFER_UPDATE			0x34
 #define	PACKET3_INDIRECT_BUFFER_MP			0x38
 #define	PACKET3_MEM_SEMAPHORE				0x39
+#              define PACKET3_SEM_SEL_SIGNAL	    (0x6 << 29)
+#              define PACKET3_SEM_SEL_WAIT	    (0x7 << 29)
 #define	PACKET3_MPEG_INDEX				0x3A
 #define	PACKET3_WAIT_REG_MEM				0x3C
 #define	PACKET3_MEM_WRITE				0x3D
