@@ -3436,9 +3436,10 @@ void scan_mapping_unevictable_pages(struct address_space *mapping)
 static void warn_scan_unevictable_pages(void)
 {
 	printk_once(KERN_WARNING
-		    "The scan_unevictable_pages sysctl/node-interface has been "
+		    "%s: The scan_unevictable_pages sysctl/node-interface has been "
 		    "disabled for lack of a legitimate use case.  If you have "
-		    "one, please send an email to linux-mm@kvack.org.\n");
+		    "one, please send an email to linux-mm@kvack.org.\n",
+		    current->comm);
 }
 
 /*
