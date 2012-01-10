@@ -3208,6 +3208,7 @@ static inline void hci_le_adv_report_evt(struct hci_dev *hdev,
 {
 	u8 num_reports = skb->data[0];
 	void *ptr = &skb->data[1];
+	s8 rssi;
 
 	hci_dev_lock(hdev);
 
@@ -3215,6 +3216,10 @@ static inline void hci_le_adv_report_evt(struct hci_dev *hdev,
 		struct hci_ev_le_advertising_info *ev = ptr;
 
 		hci_add_adv_entry(hdev, ev);
+
+		rssi = ev->data[ev->length];
+		mgmt_device_found(hdev, &ev->bdaddr, LE_LINK, ev->bdaddr_type,
+					NULL, rssi, 0, ev->data, ev->length);
 
 		ptr += sizeof(*ev) + ev->length + 1;
 	}
