@@ -1224,7 +1224,9 @@ sub possible {
 			case|
 			else|
 			asm|__asm__|
-			do
+			do|
+			\#|
+			\#\#|
 		)(?:\s|$)|
 		^(?:typedef|struct|enum)\b
 	    )}x;
