@@ -1415,6 +1415,6 @@ struct hci_inquiry_req {
 };
 #define IREQ_CACHE_FLUSH 0x0001
 
-extern int enable_hs;
+extern bool enable_hs;
 
 #endif /* __HCI_H */
