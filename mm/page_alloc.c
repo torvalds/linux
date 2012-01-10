@@ -1735,6 +1735,35 @@ zonelist_scan:
 		if ((alloc_flags & ALLOC_CPUSET) &&
 			!cpuset_zone_allowed_softwall(zone, gfp_mask))
 				continue;
+		/*
+		 * When allocating a page cache page for writing, we
+		 * want to get it from a zone that is within its dirty
+		 * limit, such that no single zone holds more than its
+		 * proportional share of globally allowed dirty pages.
+		 * The dirty limits take into account the zone's
+		 * lowmem reserves and high watermark so that kswapd
+		 * should be able to balance it without having to
+		 * write pages from its LRU list.
+		 *
+		 * This may look like it could increase pressure on
+		 * lower zones by failing allocations in higher zones
+		 * before they are full.  But the pages that do spill
+		 * over are limited as the lower zones are protected
+		 * by this very same mechanism.  It should not become
+		 * a practical burden to them.
+		 *
+		 * XXX: For now, allow allocations to potentially
+		 * exceed the per-zone dirty limit in the slowpath
+		 * (ALLOC_WMARK_LOW unset) before going into reclaim,
+		 * which is important when on a NUMA setup the allowed
+		 * zones are together not big enough to reach the
+		 * global limit.  The proper fix for these situations
+		 * will require awareness of zones in the
+		 * dirty-throttling and the flusher threads.
+		 */
+		if ((alloc_flags & ALLOC_WMARK_LOW) &&
+		    (gfp_mask & __GFP_WRITE) && !zone_dirty_ok(zone))
+			goto this_zone_full;
 
 		BUILD_BUG_ON(ALLOC_NO_WATERMARKS < NR_WMARK);
 		if (!(alloc_flags & ALLOC_NO_WATERMARKS)) {

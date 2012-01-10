@@ -147,6 +147,24 @@ static struct prop_descriptor vm_completions;
  * clamping level.
  */
 
+/*
+ * In a memory zone, there is a certain amount of pages we consider
+ * available for the page cache, which is essentially the number of
+ * free and reclaimable pages, minus some zone reserves to protect
+ * lowmem and the ability to uphold the zone's watermarks without
+ * requiring writeback.
+ *
+ * This number of dirtyable pages is the base value of which the
+ * user-configurable dirty ratio is the effictive number of pages that
+ * are allowed to be actually dirtied.  Per individual zone, or
+ * globally by using the sum of dirtyable pages over all zones.
+ *
+ * Because the user is allowed to specify the dirty limit globally as
+ * absolute number of bytes, calculating the per-zone dirty limit can
+ * require translating the configured limit into a percentage of
+ * global dirtyable memory first.
+ */
+
 static unsigned long highmem_dirtyable_memory(unsigned long total)
 {
 #ifdef CONFIG_HIGHMEM
@@ -230,6 +248,70 @@ void global_dirty_limits(unsigned long *pbackground, unsigned long *pdirty)
 	*pbackground = background;
 	*pdirty = dirty;
 	trace_global_dirty_state(background, dirty);
+}
+
+/**
+ * zone_dirtyable_memory - number of dirtyable pages in a zone
+ * @zone: the zone
+ *
+ * Returns the zone's number of pages potentially available for dirty
+ * page cache.  This is the base value for the per-zone dirty limits.
+ */
+static unsigned long zone_dirtyable_memory(struct zone *zone)
+{
+	/*
+	 * The effective global number of dirtyable pages may exclude
+	 * highmem as a big-picture measure to keep the ratio between
+	 * dirty memory and lowmem reasonable.
+	 *
+	 * But this function is purely about the individual zone and a
+	 * highmem zone can hold its share of dirty pages, so we don't
+	 * care about vm_highmem_is_dirtyable here.
+	 */
+	return zone_page_state(zone, NR_FREE_PAGES) +
+	       zone_reclaimable_pages(zone) -
+	       zone->dirty_balance_reserve;
+}
+
+/**
+ * zone_dirty_limit - maximum number of dirty pages allowed in a zone
+ * @zone: the zone
+ *
+ * Returns the maximum number of dirty pages allowed in a zone, based
+ * on the zone's dirtyable memory.
+ */
+static unsigned long zone_dirty_limit(struct zone *zone)
+{
+	unsigned long zone_memory = zone_dirtyable_memory(zone);
+	struct task_struct *tsk = current;
+	unsigned long dirty;
+
+	if (vm_dirty_bytes)
+		dirty = DIV_ROUND_UP(vm_dirty_bytes, PAGE_SIZE) *
+			zone_memory / global_dirtyable_memory();
+	else
+		dirty = vm_dirty_ratio * zone_memory / 100;
+
+	if (tsk->flags & PF_LESS_THROTTLE || rt_task(tsk))
+		dirty += dirty / 4;
+
+	return dirty;
+}
+
+/**
+ * zone_dirty_ok - tells whether a zone is within its dirty limits
+ * @zone: the zone to check
+ *
+ * Returns %true when the dirty pages in @zone are within the zone's
+ * dirty limit, %false if the limit is exceeded.
+ */
+bool zone_dirty_ok(struct zone *zone)
+{
+	unsigned long limit = zone_dirty_limit(zone);
+
+	return zone_page_state(zone, NR_FILE_DIRTY) +
+	       zone_page_state(zone, NR_UNSTABLE_NFS) +
+	       zone_page_state(zone, NR_WRITEBACK) <= limit;
 }
 
 /*
