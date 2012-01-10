@@ -1726,6 +1726,6 @@ static void __exit nvme_exit(void)
 
 MODULE_AUTHOR("Matthew Wilcox <willy@linux.intel.com>");
 MODULE_LICENSE("GPL");
-MODULE_VERSION("0.7");
+MODULE_VERSION("0.8");
 module_init(nvme_init);
 module_exit(nvme_exit);
