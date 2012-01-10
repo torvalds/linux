@@ -3856,8 +3856,7 @@ L:	keyrings@linux-nfs.org
 S:	Supported
 F:	Documentation/security/keys-trusted-encrypted.txt
 F:	include/keys/encrypted-type.h
-F:	security/keys/encrypted.c
-F:	security/keys/encrypted.h
+F:	security/keys/encrypted-keys/
 
 KGDB / KDB /debug_core
 M:	Jason Wessel <jason.wessel@windriver.com>
