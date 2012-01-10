@@ -663,9 +663,9 @@ static const struct attribute_group hwmon_pwm_fan_attrgroup = {
 static int
 nouveau_hwmon_init(struct drm_device *dev)
 {
-#if defined(CONFIG_HWMON) || (defined(MODULE) && defined(CONFIG_HWMON_MODULE))
 	struct drm_nouveau_private *dev_priv = dev->dev_private;
 	struct nouveau_pm_engine *pm = &dev_priv->engine.pm;
+#if defined(CONFIG_HWMON) || (defined(MODULE) && defined(CONFIG_HWMON_MODULE))
 	struct device *hwmon_dev;
 	int ret = 0;
 
