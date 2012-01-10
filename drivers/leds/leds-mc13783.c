@@ -275,7 +275,7 @@ static int __devinit mc13783_led_probe(struct platform_device *pdev)
 		return -ENODEV;
 	}
 
-	if (pdata->num_leds < 1 || pdata->num_leds > MC13783_LED_MAX) {
+	if (pdata->num_leds < 1 || pdata->num_leds > (MC13783_LED_MAX + 1)) {
 		dev_err(&pdev->dev, "Invalid led count %d\n", pdata->num_leds);
 		return -EINVAL;
 	}
