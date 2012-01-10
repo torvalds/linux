@@ -31,11 +31,14 @@ struct pwc_dec23_private
 {
 	struct mutex lock;
 
+	unsigned char last_cmd, last_cmd_valid;
+
   unsigned int scalebits;
   unsigned int nbitsmask, nbits; /* Number of bits of a color in the compressed stream */
 
   unsigned int reservoir;
   unsigned int nbits_in_reservoir;
+
   const unsigned char *stream;
   int temp_colors[16];
 

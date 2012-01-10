@@ -301,6 +301,9 @@ void pwc_dec23_init(struct pwc_device *pdev, unsigned char *cmd)
 
 	mutex_init(&pdec->lock);
 
+	if (pdec->last_cmd_valid && pdec->last_cmd == cmd[2])
+		return;
+
 	if (DEVICE_USE_CODEC3(pdev->type)) {
 		flags = cmd[2] & 0x18;
 		if (flags == 8)
@@ -347,6 +350,9 @@ void pwc_dec23_init(struct pwc_device *pdev, unsigned char *cmd)
 	for (i=0; i<MAX_OUTER_CROP_VALUE; i++)
 		pwc_crop_table[MAX_OUTER_CROP_VALUE+256+i] = 255;
 #endif
+
+	pdec->last_cmd = cmd[2];
+	pdec->last_cmd_valid = 1;
 }
 
 /*
