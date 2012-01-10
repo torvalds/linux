@@ -212,9 +212,7 @@ struct isp_device {
 	unsigned int sbl_resources;
 	unsigned int subclk_resources;
 
-	struct omap_iommu *iommu;
 	struct iommu_domain *domain;
-	struct device *iommu_dev;
 
 	struct isp_platform_callback platform_cb;
 };
