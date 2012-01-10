@@ -37,6 +37,11 @@ static void __init shmobile_smp_prepare_cpus(void)
 		sh73a0_smp_prepare_cpus();
 }
 
+int shmobile_platform_cpu_kill(unsigned int cpu)
+{
+	return 1;
+}
+
 void __cpuinit platform_secondary_init(unsigned int cpu)
 {
 	trace_hardirqs_off();
