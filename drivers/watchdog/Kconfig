@@ -314,13 +314,6 @@ config NUC900_WATCHDOG
 	  To compile this driver as a module, choose M here: the
 	  module will be called nuc900_wdt.
 
-config ADX_WATCHDOG
-	tristate "Avionic Design Xanthos watchdog"
-	depends on ARCH_PXA_ADX
-	help
-	  Say Y here if you want support for the watchdog timer on Avionic
-	  Design Xanthos boards.
-
 config TS72XX_WATCHDOG
 	tristate "TS-72XX SBC Watchdog"
 	depends on MACH_TS72XX

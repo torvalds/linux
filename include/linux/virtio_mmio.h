@@ -63,7 +63,7 @@
 #define VIRTIO_MMIO_GUEST_FEATURES	0x020
 
 /* Activated features set selector - Write Only */
-#define VIRTIO_MMIO_GUEST_FEATURES_SET	0x024
+#define VIRTIO_MMIO_GUEST_FEATURES_SEL	0x024
 
 /* Guest's memory page size in bytes - Write Only */
 #define VIRTIO_MMIO_GUEST_PAGE_SIZE	0x028

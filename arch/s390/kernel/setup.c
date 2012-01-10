@@ -211,6 +211,8 @@ static void __init setup_zfcpdump(unsigned int console_devno)
 
 	if (ipl_info.type != IPL_TYPE_FCP_DUMP)
 		return;
+	if (OLDMEM_BASE)
+		return;
 	if (console_devno != -1)
 		sprintf(str, " cio_ignore=all,!0.0.%04x,!0.0.%04x",
 			ipl_info.data.fcp.dev_id.devno, console_devno);
@@ -482,7 +484,7 @@ static void __init setup_memory_end(void)
 
 
 #ifdef CONFIG_ZFCPDUMP
-	if (ipl_info.type == IPL_TYPE_FCP_DUMP) {
+	if (ipl_info.type == IPL_TYPE_FCP_DUMP && !OLDMEM_BASE) {
 		memory_end = ZFCPDUMP_HSA_SIZE;
 		memory_end_set = 1;
 	}

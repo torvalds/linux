@@ -255,12 +255,6 @@ checkbin:
 		echo 'disable kernel modules' ; \
 		false ; \
 	fi
-	@if ! /bin/echo dssall | $(AS) -many -o $(TOUT) >/dev/null 2>&1 ; then \
-		echo -n '*** ${VERSION}.${PATCHLEVEL} kernels no longer build ' ; \
-		echo 'correctly with old versions of binutils.' ; \
-		echo '*** Please upgrade your binutils to 2.12.1 or newer' ; \
-		false ; \
-	fi
 
 CLEAN_FILES += $(TOUT)
 

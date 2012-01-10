@@ -297,10 +297,18 @@ static int hdmi_update_eld(struct hdmi_eld *e,
 					buf + ELD_FIXED_BYTES + mnl + 3 * i);
 	}
 
+	/*
+	 * HDMI sink's ELD info cannot always be retrieved for now, e.g.
+	 * in console or for audio devices. Assume the highest speakers
+	 * configuration, to _not_ prohibit multi-channel audio playback.
+	 */
+	if (!e->spk_alloc)
+		e->spk_alloc = 0xffff;
+
+	e->eld_valid = true;
 	return 0;
 
 out_fail:
-	e->eld_ver = 0;
 	return -EINVAL;
 }
 
@@ -322,9 +330,6 @@ int snd_hdmi_get_eld(struct hdmi_eld *eld,
 	 * ELD size is initialized to zero in caller function. If no errors and
 	 * ELD is valid, actual eld_size is assigned in hdmi_update_eld()
 	 */
-
-	if (!eld->eld_valid)
-		return -ENOENT;
 
 	size = snd_hdmi_get_eld_size(codec, nid);
 	if (size == 0) {

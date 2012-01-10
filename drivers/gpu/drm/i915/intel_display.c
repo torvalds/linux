@@ -2933,7 +2933,8 @@ static void ironlake_pch_enable(struct drm_crtc *crtc)
 
 	/* For PCH DP, enable TRANS_DP_CTL */
 	if (HAS_PCH_CPT(dev) &&
-	    intel_pipe_has_type(crtc, INTEL_OUTPUT_DISPLAYPORT)) {
+	    (intel_pipe_has_type(crtc, INTEL_OUTPUT_DISPLAYPORT) ||
+	     intel_pipe_has_type(crtc, INTEL_OUTPUT_EDP))) {
 		u32 bpc = (I915_READ(PIPECONF(pipe)) & PIPE_BPC_MASK) >> 5;
 		reg = TRANS_DP_CTL(pipe);
 		temp = I915_READ(reg);
@@ -4711,7 +4712,7 @@ static bool intel_choose_pipe_bpp_dither(struct drm_crtc *crtc,
 				lvds_bpc = 6;
 
 			if (lvds_bpc < display_bpc) {
-				DRM_DEBUG_DRIVER("clamping display bpc (was %d) to LVDS (%d)\n", display_bpc, lvds_bpc);
+				DRM_DEBUG_KMS("clamping display bpc (was %d) to LVDS (%d)\n", display_bpc, lvds_bpc);
 				display_bpc = lvds_bpc;
 			}
 			continue;
@@ -4722,7 +4723,7 @@ static bool intel_choose_pipe_bpp_dither(struct drm_crtc *crtc,
 			unsigned int edp_bpc = dev_priv->edp.bpp / 3;
 
 			if (edp_bpc < display_bpc) {
-				DRM_DEBUG_DRIVER("clamping display bpc (was %d) to eDP (%d)\n", display_bpc, edp_bpc);
+				DRM_DEBUG_KMS("clamping display bpc (was %d) to eDP (%d)\n", display_bpc, edp_bpc);
 				display_bpc = edp_bpc;
 			}
 			continue;
@@ -4737,7 +4738,7 @@ static bool intel_choose_pipe_bpp_dither(struct drm_crtc *crtc,
 			/* Don't use an invalid EDID bpc value */
 			if (connector->display_info.bpc &&
 			    connector->display_info.bpc < display_bpc) {
-				DRM_DEBUG_DRIVER("clamping display bpc (was %d) to EDID reported max of %d\n", display_bpc, connector->display_info.bpc);
+				DRM_DEBUG_KMS("clamping display bpc (was %d) to EDID reported max of %d\n", display_bpc, connector->display_info.bpc);
 				display_bpc = connector->display_info.bpc;
 			}
 		}
@@ -4748,10 +4749,10 @@ static bool intel_choose_pipe_bpp_dither(struct drm_crtc *crtc,
 		 */
 		if (intel_encoder->type == INTEL_OUTPUT_HDMI) {
 			if (display_bpc > 8 && display_bpc < 12) {
-				DRM_DEBUG_DRIVER("forcing bpc to 12 for HDMI\n");
+				DRM_DEBUG_KMS("forcing bpc to 12 for HDMI\n");
 				display_bpc = 12;
 			} else {
-				DRM_DEBUG_DRIVER("forcing bpc to 8 for HDMI\n");
+				DRM_DEBUG_KMS("forcing bpc to 8 for HDMI\n");
 				display_bpc = 8;
 			}
 		}
@@ -4789,8 +4790,8 @@ static bool intel_choose_pipe_bpp_dither(struct drm_crtc *crtc,
 
 	display_bpc = min(display_bpc, bpc);
 
-	DRM_DEBUG_DRIVER("setting pipe bpc to %d (max display bpc %d)\n",
-			 bpc, display_bpc);
+	DRM_DEBUG_KMS("setting pipe bpc to %d (max display bpc %d)\n",
+		      bpc, display_bpc);
 
 	*pipe_bpp = display_bpc * 3;
 
@@ -5671,7 +5672,7 @@ static int ironlake_crtc_mode_set(struct drm_crtc *crtc,
 	pipeconf &= ~PIPECONF_DITHER_TYPE_MASK;
 	if ((is_lvds && dev_priv->lvds_dither) || dither) {
 		pipeconf |= PIPECONF_DITHER_EN;
-		pipeconf |= PIPECONF_DITHER_TYPE_ST1;
+		pipeconf |= PIPECONF_DITHER_TYPE_SP;
 	}
 	if (is_dp || intel_encoder_is_pch_edp(&has_edp_encoder->base)) {
 		intel_dp_set_m_n(crtc, mode, adjusted_mode);
@@ -8147,6 +8148,20 @@ static void gen6_init_clock_gating(struct drm_device *dev)
 	I915_WRITE(WM3_LP_ILK, 0);
 	I915_WRITE(WM2_LP_ILK, 0);
 	I915_WRITE(WM1_LP_ILK, 0);
+
+	/* According to the BSpec vol1g, bit 12 (RCPBUNIT) clock
+	 * gating disable must be set.  Failure to set it results in
+	 * flickering pixels due to Z write ordering failures after
+	 * some amount of runtime in the Mesa "fire" demo, and Unigine
+	 * Sanctuary and Tropics, and apparently anything else with
+	 * alpha test or pixel discard.
+	 *
+	 * According to the spec, bit 11 (RCCUNIT) must also be set,
+	 * but we didn't debug actual testcases to find it out.
+	 */
+	I915_WRITE(GEN6_UCGCTL2,
+		   GEN6_RCPBUNIT_CLOCK_GATE_DISABLE |
+		   GEN6_RCCUNIT_CLOCK_GATE_DISABLE);
 
 	/*
 	 * According to the spec the following bits should be

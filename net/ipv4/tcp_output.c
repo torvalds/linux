@@ -1382,7 +1382,7 @@ static inline int tcp_minshall_check(const struct tcp_sock *tp)
 /* Return 0, if packet can be sent now without violation Nagle's rules:
  * 1. It is full sized.
  * 2. Or it contains FIN. (already checked by caller)
- * 3. Or TCP_NODELAY was set.
+ * 3. Or TCP_CORK is not set, and TCP_NODELAY is set.
  * 4. Or TCP_CORK is not set, and all sent packets are ACKed.
  *    With Minshall's modification: all sent small packets are ACKed.
  */

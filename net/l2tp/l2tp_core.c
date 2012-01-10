@@ -756,9 +756,6 @@ static int l2tp_udp_recv_core(struct l2tp_tunnel *tunnel, struct sk_buff *skb,
 		goto error;
 	}
 
-	/* Point to L2TP header */
-	optr = ptr = skb->data;
-
 	/* Trace packet contents, if enabled */
 	if (tunnel->debug & L2TP_MSG_DATA) {
 		length = min(32u, skb->len);
@@ -769,11 +766,14 @@ static int l2tp_udp_recv_core(struct l2tp_tunnel *tunnel, struct sk_buff *skb,
 
 		offset = 0;
 		do {
-			printk(" %02X", ptr[offset]);
+			printk(" %02X", skb->data[offset]);
 		} while (++offset < length);
 
 		printk("\n");
 	}
+
+	/* Point to L2TP header */
+	optr = ptr = skb->data;
 
 	/* Get L2TP header flags */
 	hdrflags = ntohs(*(__be16 *) ptr);

@@ -5380,7 +5380,7 @@ static int bnx2x_func_hw_init(struct bnx2x *bp,
 	rc = drv->init_fw(bp);
 	if (rc) {
 		BNX2X_ERR("Error loading firmware\n");
-		goto fw_init_err;
+		goto init_err;
 	}
 
 	/* Handle the beginning of COMMON_XXX pases separatelly... */
@@ -5388,25 +5388,25 @@ static int bnx2x_func_hw_init(struct bnx2x *bp,
 	case FW_MSG_CODE_DRV_LOAD_COMMON_CHIP:
 		rc = bnx2x_func_init_cmn_chip(bp, drv);
 		if (rc)
-			goto init_hw_err;
+			goto init_err;
 
 		break;
 	case FW_MSG_CODE_DRV_LOAD_COMMON:
 		rc = bnx2x_func_init_cmn(bp, drv);
 		if (rc)
-			goto init_hw_err;
+			goto init_err;
 
 		break;
 	case FW_MSG_CODE_DRV_LOAD_PORT:
 		rc = bnx2x_func_init_port(bp, drv);
 		if (rc)
-			goto init_hw_err;
+			goto init_err;
 
 		break;
 	case FW_MSG_CODE_DRV_LOAD_FUNCTION:
 		rc = bnx2x_func_init_func(bp, drv);
 		if (rc)
-			goto init_hw_err;
+			goto init_err;
 
 		break;
 	default:
@@ -5414,10 +5414,7 @@ static int bnx2x_func_hw_init(struct bnx2x *bp,
 		rc = -EINVAL;
 	}
 
-init_hw_err:
-	drv->release_fw(bp);
-
-fw_init_err:
+init_err:
 	drv->gunzip_end(bp);
 
 	/* In case of success, complete the comand immediatelly: no ramrods

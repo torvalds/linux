@@ -2802,6 +2802,11 @@ _scsih_error_recovery_delete_devices(struct MPT2SAS_ADAPTER *ioc)
 
 	if (ioc->is_driver_loading)
 		return;
+
+	fw_event = kzalloc(sizeof(struct fw_event_work), GFP_ATOMIC);
+	if (!fw_event)
+		return;
+
 	fw_event->event = MPT2SAS_REMOVE_UNRESPONDING_DEVICES;
 	fw_event->ioc = ioc;
 	_scsih_fw_event_add(ioc, fw_event);

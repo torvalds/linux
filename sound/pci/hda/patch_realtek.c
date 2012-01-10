@@ -1452,7 +1452,7 @@ static void alc_apply_fixup(struct hda_codec *codec, int action)
 		switch (fix->type) {
 		case ALC_FIXUP_SKU:
 			if (action != ALC_FIXUP_ACT_PRE_PROBE || !fix->v.sku)
-				break;;
+				break;
 			snd_printdd(KERN_INFO "hda_codec: %s: "
 				    "Apply sku override for %s\n",
 				    codec->chip_name, modelname);

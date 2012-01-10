@@ -20,7 +20,7 @@ ip_no_pmtu_disc - BOOLEAN
 	default FALSE
 
 min_pmtu - INTEGER
-	default 562 - minimum discovered Path MTU
+	default 552 - minimum discovered Path MTU
 
 route/max_size - INTEGER
 	Maximum number of routes allowed in the kernel.  Increase

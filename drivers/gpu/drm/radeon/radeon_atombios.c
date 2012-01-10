@@ -62,6 +62,87 @@ union atom_supported_devices {
 	struct _ATOM_SUPPORTED_DEVICES_INFO_2d1 info_2d1;
 };
 
+static void radeon_lookup_i2c_gpio_quirks(struct radeon_device *rdev,
+					  ATOM_GPIO_I2C_ASSIGMENT *gpio,
+					  u8 index)
+{
+	/* r4xx mask is technically not used by the hw, so patch in the legacy mask bits */
+	if ((rdev->family == CHIP_R420) ||
+	    (rdev->family == CHIP_R423) ||
+	    (rdev->family == CHIP_RV410)) {
+		if ((le16_to_cpu(gpio->usClkMaskRegisterIndex) == 0x0018) ||
+		    (le16_to_cpu(gpio->usClkMaskRegisterIndex) == 0x0019) ||
+		    (le16_to_cpu(gpio->usClkMaskRegisterIndex) == 0x001a)) {
+			gpio->ucClkMaskShift = 0x19;
+			gpio->ucDataMaskShift = 0x18;
+		}
+	}
+
+	/* some evergreen boards have bad data for this entry */
+	if (ASIC_IS_DCE4(rdev)) {
+		if ((index == 7) &&
+		    (le16_to_cpu(gpio->usClkMaskRegisterIndex) == 0x1936) &&
+		    (gpio->sucI2cId.ucAccess == 0)) {
+			gpio->sucI2cId.ucAccess = 0x97;
+			gpio->ucDataMaskShift = 8;
+			gpio->ucDataEnShift = 8;
+			gpio->ucDataY_Shift = 8;
+			gpio->ucDataA_Shift = 8;
+		}
+	}
+
+	/* some DCE3 boards have bad data for this entry */
+	if (ASIC_IS_DCE3(rdev)) {
+		if ((index == 4) &&
+		    (le16_to_cpu(gpio->usClkMaskRegisterIndex) == 0x1fda) &&
+		    (gpio->sucI2cId.ucAccess == 0x94))
+			gpio->sucI2cId.ucAccess = 0x14;
+	}
+}
+
+static struct radeon_i2c_bus_rec radeon_get_bus_rec_for_i2c_gpio(ATOM_GPIO_I2C_ASSIGMENT *gpio)
+{
+	struct radeon_i2c_bus_rec i2c;
+
+	memset(&i2c, 0, sizeof(struct radeon_i2c_bus_rec));
+
+	i2c.mask_clk_reg = le16_to_cpu(gpio->usClkMaskRegisterIndex) * 4;
+	i2c.mask_data_reg = le16_to_cpu(gpio->usDataMaskRegisterIndex) * 4;
+	i2c.en_clk_reg = le16_to_cpu(gpio->usClkEnRegisterIndex) * 4;
+	i2c.en_data_reg = le16_to_cpu(gpio->usDataEnRegisterIndex) * 4;
+	i2c.y_clk_reg = le16_to_cpu(gpio->usClkY_RegisterIndex) * 4;
+	i2c.y_data_reg = le16_to_cpu(gpio->usDataY_RegisterIndex) * 4;
+	i2c.a_clk_reg = le16_to_cpu(gpio->usClkA_RegisterIndex) * 4;
+	i2c.a_data_reg = le16_to_cpu(gpio->usDataA_RegisterIndex) * 4;
+	i2c.mask_clk_mask = (1 << gpio->ucClkMaskShift);
+	i2c.mask_data_mask = (1 << gpio->ucDataMaskShift);
+	i2c.en_clk_mask = (1 << gpio->ucClkEnShift);
+	i2c.en_data_mask = (1 << gpio->ucDataEnShift);
+	i2c.y_clk_mask = (1 << gpio->ucClkY_Shift);
+	i2c.y_data_mask = (1 << gpio->ucDataY_Shift);
+	i2c.a_clk_mask = (1 << gpio->ucClkA_Shift);
+	i2c.a_data_mask = (1 << gpio->ucDataA_Shift);
+
+	if (gpio->sucI2cId.sbfAccess.bfHW_Capable)
+		i2c.hw_capable = true;
+	else
+		i2c.hw_capable = false;
+
+	if (gpio->sucI2cId.ucAccess == 0xa0)
+		i2c.mm_i2c = true;
+	else
+		i2c.mm_i2c = false;
+
+	i2c.i2c_id = gpio->sucI2cId.ucAccess;
+
+	if (i2c.mask_clk_reg)
+		i2c.valid = true;
+	else
+		i2c.valid = false;
+
+	return i2c;
+}
+
 static struct radeon_i2c_bus_rec radeon_lookup_i2c_gpio(struct radeon_device *rdev,
 							       uint8_t id)
 {
@@ -85,59 +166,10 @@ static struct radeon_i2c_bus_rec radeon_lookup_i2c_gpio(struct radeon_device *rd
 		for (i = 0; i < num_indices; i++) {
 			gpio = &i2c_info->asGPIO_Info[i];
 
-			/* some evergreen boards have bad data for this entry */
-			if (ASIC_IS_DCE4(rdev)) {
-				if ((i == 7) &&
-				    (le16_to_cpu(gpio->usClkMaskRegisterIndex) == 0x1936) &&
-				    (gpio->sucI2cId.ucAccess == 0)) {
-					gpio->sucI2cId.ucAccess = 0x97;
-					gpio->ucDataMaskShift = 8;
-					gpio->ucDataEnShift = 8;
-					gpio->ucDataY_Shift = 8;
-					gpio->ucDataA_Shift = 8;
-				}
-			}
-
-			/* some DCE3 boards have bad data for this entry */
-			if (ASIC_IS_DCE3(rdev)) {
-				if ((i == 4) &&
-				    (le16_to_cpu(gpio->usClkMaskRegisterIndex) == 0x1fda) &&
-				    (gpio->sucI2cId.ucAccess == 0x94))
-					gpio->sucI2cId.ucAccess = 0x14;
-			}
+			radeon_lookup_i2c_gpio_quirks(rdev, gpio, i);
 
 			if (gpio->sucI2cId.ucAccess == id) {
-				i2c.mask_clk_reg = le16_to_cpu(gpio->usClkMaskRegisterIndex) * 4;
-				i2c.mask_data_reg = le16_to_cpu(gpio->usDataMaskRegisterIndex) * 4;
-				i2c.en_clk_reg = le16_to_cpu(gpio->usClkEnRegisterIndex) * 4;
-				i2c.en_data_reg = le16_to_cpu(gpio->usDataEnRegisterIndex) * 4;
-				i2c.y_clk_reg = le16_to_cpu(gpio->usClkY_RegisterIndex) * 4;
-				i2c.y_data_reg = le16_to_cpu(gpio->usDataY_RegisterIndex) * 4;
-				i2c.a_clk_reg = le16_to_cpu(gpio->usClkA_RegisterIndex) * 4;
-				i2c.a_data_reg = le16_to_cpu(gpio->usDataA_RegisterIndex) * 4;
-				i2c.mask_clk_mask = (1 << gpio->ucClkMaskShift);
-				i2c.mask_data_mask = (1 << gpio->ucDataMaskShift);
-				i2c.en_clk_mask = (1 << gpio->ucClkEnShift);
-				i2c.en_data_mask = (1 << gpio->ucDataEnShift);
-				i2c.y_clk_mask = (1 << gpio->ucClkY_Shift);
-				i2c.y_data_mask = (1 << gpio->ucDataY_Shift);
-				i2c.a_clk_mask = (1 << gpio->ucClkA_Shift);
-				i2c.a_data_mask = (1 << gpio->ucDataA_Shift);
-
-				if (gpio->sucI2cId.sbfAccess.bfHW_Capable)
-					i2c.hw_capable = true;
-				else
-					i2c.hw_capable = false;
-
-				if (gpio->sucI2cId.ucAccess == 0xa0)
-					i2c.mm_i2c = true;
-				else
-					i2c.mm_i2c = false;
-
-				i2c.i2c_id = gpio->sucI2cId.ucAccess;
-
-				if (i2c.mask_clk_reg)
-					i2c.valid = true;
+				i2c = radeon_get_bus_rec_for_i2c_gpio(gpio);
 				break;
 			}
 		}
@@ -157,8 +189,6 @@ void radeon_atombios_i2c_init(struct radeon_device *rdev)
 	int i, num_indices;
 	char stmp[32];
 
-	memset(&i2c, 0, sizeof(struct radeon_i2c_bus_rec));
-
 	if (atom_parse_data_header(ctx, index, &size, NULL, NULL, &data_offset)) {
 		i2c_info = (struct _ATOM_GPIO_I2C_INFO *)(ctx->bios + data_offset);
 
@@ -167,60 +197,12 @@ void radeon_atombios_i2c_init(struct radeon_device *rdev)
 
 		for (i = 0; i < num_indices; i++) {
 			gpio = &i2c_info->asGPIO_Info[i];
-			i2c.valid = false;
 
-			/* some evergreen boards have bad data for this entry */
-			if (ASIC_IS_DCE4(rdev)) {
-				if ((i == 7) &&
-				    (le16_to_cpu(gpio->usClkMaskRegisterIndex) == 0x1936) &&
-				    (gpio->sucI2cId.ucAccess == 0)) {
-					gpio->sucI2cId.ucAccess = 0x97;
-					gpio->ucDataMaskShift = 8;
-					gpio->ucDataEnShift = 8;
-					gpio->ucDataY_Shift = 8;
-					gpio->ucDataA_Shift = 8;
-				}
-			}
+			radeon_lookup_i2c_gpio_quirks(rdev, gpio, i);
 
-			/* some DCE3 boards have bad data for this entry */
-			if (ASIC_IS_DCE3(rdev)) {
-				if ((i == 4) &&
-				    (le16_to_cpu(gpio->usClkMaskRegisterIndex) == 0x1fda) &&
-				    (gpio->sucI2cId.ucAccess == 0x94))
-					gpio->sucI2cId.ucAccess = 0x14;
-			}
+			i2c = radeon_get_bus_rec_for_i2c_gpio(gpio);
 
-			i2c.mask_clk_reg = le16_to_cpu(gpio->usClkMaskRegisterIndex) * 4;
-			i2c.mask_data_reg = le16_to_cpu(gpio->usDataMaskRegisterIndex) * 4;
-			i2c.en_clk_reg = le16_to_cpu(gpio->usClkEnRegisterIndex) * 4;
-			i2c.en_data_reg = le16_to_cpu(gpio->usDataEnRegisterIndex) * 4;
-			i2c.y_clk_reg = le16_to_cpu(gpio->usClkY_RegisterIndex) * 4;
-			i2c.y_data_reg = le16_to_cpu(gpio->usDataY_RegisterIndex) * 4;
-			i2c.a_clk_reg = le16_to_cpu(gpio->usClkA_RegisterIndex) * 4;
-			i2c.a_data_reg = le16_to_cpu(gpio->usDataA_RegisterIndex) * 4;
-			i2c.mask_clk_mask = (1 << gpio->ucClkMaskShift);
-			i2c.mask_data_mask = (1 << gpio->ucDataMaskShift);
-			i2c.en_clk_mask = (1 << gpio->ucClkEnShift);
-			i2c.en_data_mask = (1 << gpio->ucDataEnShift);
-			i2c.y_clk_mask = (1 << gpio->ucClkY_Shift);
-			i2c.y_data_mask = (1 << gpio->ucDataY_Shift);
-			i2c.a_clk_mask = (1 << gpio->ucClkA_Shift);
-			i2c.a_data_mask = (1 << gpio->ucDataA_Shift);
-
-			if (gpio->sucI2cId.sbfAccess.bfHW_Capable)
-				i2c.hw_capable = true;
-			else
-				i2c.hw_capable = false;
-
-			if (gpio->sucI2cId.ucAccess == 0xa0)
-				i2c.mm_i2c = true;
-			else
-				i2c.mm_i2c = false;
-
-			i2c.i2c_id = gpio->sucI2cId.ucAccess;
-
-			if (i2c.mask_clk_reg) {
-				i2c.valid = true;
+			if (i2c.valid) {
 				sprintf(stmp, "0x%x", i2c.i2c_id);
 				rdev->i2c_bus[i] = radeon_i2c_create(rdev->ddev, &i2c, stmp);
 			}
@@ -1996,14 +1978,14 @@ static int radeon_atombios_parse_power_table_1_3(struct radeon_device *rdev)
 		return state_index;
 	/* last mode is usually default, array is low to high */
 	for (i = 0; i < num_modes; i++) {
+		rdev->pm.power_state[state_index].clock_info =
+			kzalloc(sizeof(struct radeon_pm_clock_info) * 1, GFP_KERNEL);
+		if (!rdev->pm.power_state[state_index].clock_info)
+			return state_index;
+		rdev->pm.power_state[state_index].num_clock_modes = 1;
 		rdev->pm.power_state[state_index].clock_info[0].voltage.type = VOLTAGE_NONE;
 		switch (frev) {
 		case 1:
-			rdev->pm.power_state[state_index].clock_info =
-				kzalloc(sizeof(struct radeon_pm_clock_info) * 1, GFP_KERNEL);
-			if (!rdev->pm.power_state[state_index].clock_info)
-				return state_index;
-			rdev->pm.power_state[state_index].num_clock_modes = 1;
 			rdev->pm.power_state[state_index].clock_info[0].mclk =
 				le16_to_cpu(power_info->info.asPowerPlayInfo[i].usMemoryClock);
 			rdev->pm.power_state[state_index].clock_info[0].sclk =
@@ -2039,11 +2021,6 @@ static int radeon_atombios_parse_power_table_1_3(struct radeon_device *rdev)
 			state_index++;
 			break;
 		case 2:
-			rdev->pm.power_state[state_index].clock_info =
-				kzalloc(sizeof(struct radeon_pm_clock_info) * 1, GFP_KERNEL);
-			if (!rdev->pm.power_state[state_index].clock_info)
-				return state_index;
-			rdev->pm.power_state[state_index].num_clock_modes = 1;
 			rdev->pm.power_state[state_index].clock_info[0].mclk =
 				le32_to_cpu(power_info->info_2.asPowerPlayInfo[i].ulMemoryClock);
 			rdev->pm.power_state[state_index].clock_info[0].sclk =
@@ -2080,11 +2057,6 @@ static int radeon_atombios_parse_power_table_1_3(struct radeon_device *rdev)
 			state_index++;
 			break;
 		case 3:
-			rdev->pm.power_state[state_index].clock_info =
-				kzalloc(sizeof(struct radeon_pm_clock_info) * 1, GFP_KERNEL);
-			if (!rdev->pm.power_state[state_index].clock_info)
-				return state_index;
-			rdev->pm.power_state[state_index].num_clock_modes = 1;
 			rdev->pm.power_state[state_index].clock_info[0].mclk =
 				le32_to_cpu(power_info->info_3.asPowerPlayInfo[i].ulMemoryClock);
 			rdev->pm.power_state[state_index].clock_info[0].sclk =

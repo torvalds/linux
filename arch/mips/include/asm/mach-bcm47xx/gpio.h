@@ -36,6 +36,8 @@ static inline int gpio_get_value(unsigned gpio)
 	return -EINVAL;
 }
 
+#define gpio_get_value_cansleep	gpio_get_value
+
 static inline void gpio_set_value(unsigned gpio, int value)
 {
 	switch (bcm47xx_bus_type) {
@@ -53,6 +55,19 @@ static inline void gpio_set_value(unsigned gpio, int value)
 #endif
 	}
 }
+
+#define gpio_set_value_cansleep gpio_set_value
+
+static inline int gpio_cansleep(unsigned gpio)
+{
+	return 0;
+}
+
+static inline int gpio_is_valid(unsigned gpio)
+{
+	return gpio < (BCM47XX_EXTIF_GPIO_LINES + BCM47XX_CHIPCO_GPIO_LINES);
+}
+
 
 static inline int gpio_direction_input(unsigned gpio)
 {
@@ -136,8 +151,5 @@ static inline int gpio_polarity(unsigned gpio, int value)
 	return -EINVAL;
 }
 
-
-/* cansleep wrappers */
-#include <asm-generic/gpio.h>
 
 #endif /* __BCM47XX_GPIO_H */

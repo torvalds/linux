@@ -128,7 +128,6 @@ unsigned long global_dirty_limit;
  *
  */
 static struct prop_descriptor vm_completions;
-static struct prop_descriptor vm_dirties;
 
 /*
  * couple the period to the dirty_ratio:
@@ -154,7 +153,6 @@ static void update_completion_period(void)
 {
 	int shift = calc_period_shift();
 	prop_change_shift(&vm_completions, shift);
-	prop_change_shift(&vm_dirties, shift);
 
 	writeback_set_ratelimit();
 }
@@ -234,11 +232,6 @@ void bdi_writeout_inc(struct backing_dev_info *bdi)
 	local_irq_restore(flags);
 }
 EXPORT_SYMBOL_GPL(bdi_writeout_inc);
-
-void task_dirty_inc(struct task_struct *tsk)
-{
-	prop_inc_single(&vm_dirties, &tsk->dirties);
-}
 
 /*
  * Obtain an accurate fraction of the BDI's portion.
@@ -1133,17 +1126,17 @@ pause:
 					  pages_dirtied,
 					  pause,
 					  start_time);
-		__set_current_state(TASK_UNINTERRUPTIBLE);
+		__set_current_state(TASK_KILLABLE);
 		io_schedule_timeout(pause);
 
-		dirty_thresh = hard_dirty_limit(dirty_thresh);
 		/*
-		 * max-pause area. If dirty exceeded but still within this
-		 * area, no need to sleep for more than 200ms: (a) 8 pages per
-		 * 200ms is typically more than enough to curb heavy dirtiers;
-		 * (b) the pause time limit makes the dirtiers more responsive.
+		 * This is typically equal to (nr_dirty < dirty_thresh) and can
+		 * also keep "1000+ dd on a slow USB stick" under control.
 		 */
-		if (nr_dirty < dirty_thresh)
+		if (task_ratelimit)
+			break;
+
+		if (fatal_signal_pending(current))
 			break;
 	}
 
@@ -1395,7 +1388,6 @@ void __init page_writeback_init(void)
 
 	shift = calc_period_shift();
 	prop_descriptor_init(&vm_completions, shift);
-	prop_descriptor_init(&vm_dirties, shift);
 }
 
 /**
@@ -1724,7 +1716,6 @@ void account_page_dirtied(struct page *page, struct address_space *mapping)
 		__inc_zone_page_state(page, NR_DIRTIED);
 		__inc_bdi_stat(mapping->backing_dev_info, BDI_RECLAIMABLE);
 		__inc_bdi_stat(mapping->backing_dev_info, BDI_DIRTIED);
-		task_dirty_inc(current);
 		task_io_account_write(PAGE_CACHE_SIZE);
 	}
 }

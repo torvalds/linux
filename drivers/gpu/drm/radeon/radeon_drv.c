@@ -53,9 +53,10 @@
  *   2.9.0 - r600 tiling (s3tc,rgtc) working, SET_PREDICATION packet 3 on r600 + eg, backend query
  *   2.10.0 - fusion 2D tiling
  *   2.11.0 - backend map, initial compute support for the CS checker
+ *   2.12.0 - RADEON_CS_KEEP_TILING_FLAGS
  */
 #define KMS_DRIVER_MAJOR	2
-#define KMS_DRIVER_MINOR	11
+#define KMS_DRIVER_MINOR	12
 #define KMS_DRIVER_PATCHLEVEL	0
 int radeon_driver_load_kms(struct drm_device *dev, unsigned long flags);
 int radeon_driver_unload_kms(struct drm_device *dev);

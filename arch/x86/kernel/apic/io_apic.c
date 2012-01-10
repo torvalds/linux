@@ -193,10 +193,8 @@ int __init arch_early_irq_init(void)
 	struct irq_cfg *cfg;
 	int count, node, i;
 
-	if (!legacy_pic->nr_legacy_irqs) {
-		nr_irqs_gsi = 0;
+	if (!legacy_pic->nr_legacy_irqs)
 		io_apic_irqs = ~0UL;
-	}
 
 	for (i = 0; i < nr_ioapics; i++) {
 		ioapics[i].saved_registers =
@@ -1696,6 +1694,7 @@ __apicdebuginit(void) print_IO_APICs(void)
 	int ioapic_idx;
 	struct irq_cfg *cfg;
 	unsigned int irq;
+	struct irq_chip *chip;
 
 	printk(KERN_DEBUG "number of MP IRQ sources: %d.\n", mp_irq_entries);
 	for (ioapic_idx = 0; ioapic_idx < nr_ioapics; ioapic_idx++)
@@ -1715,6 +1714,10 @@ __apicdebuginit(void) print_IO_APICs(void)
 	printk(KERN_DEBUG "IRQ to pin mappings:\n");
 	for_each_active_irq(irq) {
 		struct irq_pin_list *entry;
+
+		chip = irq_get_chip(irq);
+		if (chip != &ioapic_chip)
+			continue;
 
 		cfg = irq_get_chip_data(irq);
 		if (!cfg)

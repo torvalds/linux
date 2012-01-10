@@ -126,6 +126,9 @@ struct drm_i915_master_private {
 	struct _drm_i915_sarea *sarea_priv;
 };
 #define I915_FENCE_REG_NONE -1
+#define I915_MAX_NUM_FENCES 16
+/* 16 fences + sign bit for FENCE_REG_NONE */
+#define I915_MAX_NUM_FENCE_BITS 5
 
 struct drm_i915_fence_reg {
 	struct list_head lru_list;
@@ -168,7 +171,7 @@ struct drm_i915_error_state {
 	u32 instdone1;
 	u32 seqno;
 	u64 bbaddr;
-	u64 fence[16];
+	u64 fence[I915_MAX_NUM_FENCES];
 	struct timeval time;
 	struct drm_i915_error_object {
 		int page_count;
@@ -182,7 +185,7 @@ struct drm_i915_error_state {
 		u32 gtt_offset;
 		u32 read_domains;
 		u32 write_domain;
-		s32 fence_reg:5;
+		s32 fence_reg:I915_MAX_NUM_FENCE_BITS;
 		s32 pinned:2;
 		u32 tiling:2;
 		u32 dirty:1;
@@ -375,7 +378,7 @@ typedef struct drm_i915_private {
 	struct notifier_block lid_notifier;
 
 	int crt_ddc_pin;
-	struct drm_i915_fence_reg fence_regs[16]; /* assume 965 */
+	struct drm_i915_fence_reg fence_regs[I915_MAX_NUM_FENCES]; /* assume 965 */
 	int fence_reg_start; /* 4 if userland hasn't ioctl'd us yet */
 	int num_fence_regs; /* 8 on pre-965, 16 otherwise */
 
@@ -506,7 +509,7 @@ typedef struct drm_i915_private {
 	u8 saveAR[21];
 	u8 saveDACMASK;
 	u8 saveCR[37];
-	uint64_t saveFENCE[16];
+	uint64_t saveFENCE[I915_MAX_NUM_FENCES];
 	u32 saveCURACNTR;
 	u32 saveCURAPOS;
 	u32 saveCURABASE;
@@ -777,10 +780,8 @@ struct drm_i915_gem_object {
 	 * Fence register bits (if any) for this object.  Will be set
 	 * as needed when mapped into the GTT.
 	 * Protected by dev->struct_mutex.
-	 *
-	 * Size: 4 bits for 16 fences + sign (for FENCE_REG_NONE)
 	 */
-	signed int fence_reg:5;
+	signed int fence_reg:I915_MAX_NUM_FENCE_BITS;
 
 	/**
 	 * Advice: are the backing pages purgeable?
@@ -999,10 +1000,10 @@ extern int i915_panel_ignore_lid __read_mostly;
 extern unsigned int i915_powersave __read_mostly;
 extern unsigned int i915_semaphores __read_mostly;
 extern unsigned int i915_lvds_downclock __read_mostly;
-extern unsigned int i915_panel_use_ssc __read_mostly;
+extern int i915_panel_use_ssc __read_mostly;
 extern int i915_vbt_sdvo_panel_type __read_mostly;
 extern unsigned int i915_enable_rc6 __read_mostly;
-extern unsigned int i915_enable_fbc __read_mostly;
+extern int i915_enable_fbc __read_mostly;
 extern bool i915_enable_hangcheck __read_mostly;
 
 extern int i915_suspend(struct drm_device *dev, pm_message_t state);

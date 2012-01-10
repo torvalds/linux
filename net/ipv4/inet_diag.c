@@ -133,8 +133,8 @@ static int inet_csk_diag_fill(struct sock *sk,
 			       &np->rcv_saddr);
 		ipv6_addr_copy((struct in6_addr *)r->id.idiag_dst,
 			       &np->daddr);
-		if (ext & (1 << (INET_DIAG_TOS - 1)))
-			RTA_PUT_U8(skb, INET_DIAG_TOS, np->tclass);
+		if (ext & (1 << (INET_DIAG_TCLASS - 1)))
+			RTA_PUT_U8(skb, INET_DIAG_TCLASS, np->tclass);
 	}
 #endif
 

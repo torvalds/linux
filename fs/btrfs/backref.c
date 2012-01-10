@@ -683,7 +683,7 @@ static int inode_to_path(u64 inum, struct btrfs_inode_ref *iref,
 		return PTR_ERR(fspath);
 
 	if (fspath > fspath_min) {
-		ipath->fspath->val[i] = (u64)fspath;
+		ipath->fspath->val[i] = (u64)(unsigned long)fspath;
 		++ipath->fspath->elem_cnt;
 		ipath->fspath->bytes_left = fspath - fspath_min;
 	} else {

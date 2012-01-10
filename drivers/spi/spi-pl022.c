@@ -2184,6 +2184,12 @@ pl022_probe(struct amba_device *adev, const struct amba_id *id)
 		goto  err_clk_prep;
 	}
 
+	status = clk_enable(pl022->clk);
+	if (status) {
+		dev_err(&adev->dev, "could not enable SSP/SPI bus clock\n");
+		goto err_no_clk_en;
+	}
+
 	/* Disable SSP */
 	writew((readw(SSP_CR1(pl022->virtbase)) & (~SSP_CR1_MASK_SSE)),
 	       SSP_CR1(pl022->virtbase));
@@ -2237,6 +2243,8 @@ pl022_probe(struct amba_device *adev, const struct amba_id *id)
 
 	free_irq(adev->irq[0], pl022);
  err_no_irq:
+	clk_disable(pl022->clk);
+ err_no_clk_en:
 	clk_unprepare(pl022->clk);
  err_clk_prep:
 	clk_put(pl022->clk);

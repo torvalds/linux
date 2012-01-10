@@ -114,11 +114,11 @@ static struct grant_map *gntdev_alloc_map(struct gntdev_priv *priv, int count)
 	if (NULL == add)
 		return NULL;
 
-	add->grants    = kzalloc(sizeof(add->grants[0])    * count, GFP_KERNEL);
-	add->map_ops   = kzalloc(sizeof(add->map_ops[0])   * count, GFP_KERNEL);
-	add->unmap_ops = kzalloc(sizeof(add->unmap_ops[0]) * count, GFP_KERNEL);
-	add->kmap_ops  = kzalloc(sizeof(add->kmap_ops[0])  * count, GFP_KERNEL);
-	add->pages     = kzalloc(sizeof(add->pages[0])     * count, GFP_KERNEL);
+	add->grants    = kcalloc(count, sizeof(add->grants[0]), GFP_KERNEL);
+	add->map_ops   = kcalloc(count, sizeof(add->map_ops[0]), GFP_KERNEL);
+	add->unmap_ops = kcalloc(count, sizeof(add->unmap_ops[0]), GFP_KERNEL);
+	add->kmap_ops  = kcalloc(count, sizeof(add->kmap_ops[0]), GFP_KERNEL);
+	add->pages     = kcalloc(count, sizeof(add->pages[0]), GFP_KERNEL);
 	if (NULL == add->grants    ||
 	    NULL == add->map_ops   ||
 	    NULL == add->unmap_ops ||
