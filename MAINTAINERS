@@ -914,7 +914,6 @@ M:	Lennert Buytenhek <kernel@wantstofly.org>
 M:	Nicolas Pitre <nico@fluxnic.net>
 L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
 S:	Odd Fixes
-F:	arch/arm/mach-loki/
 F:	arch/arm/mach-kirkwood/
 F:	arch/arm/mach-mv78xx0/
 F:	arch/arm/mach-orion5x/
@@ -1076,8 +1075,8 @@ L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
 S:	Maintained
 F:	arch/arm/mach-s5pv210/mach-aquila.c
 F:	arch/arm/mach-s5pv210/mach-goni.c
-F:	arch/arm/mach-exynos4/mach-universal_c210.c
-F:	arch/arm/mach-exynos4/mach-nuri.c
+F:	arch/arm/mach-exynos/mach-universal_c210.c
+F:	arch/arm/mach-exynos/mach-nuri.c
 
 ARM/SAMSUNG S5P SERIES FIMC SUPPORT
 M:	Kyungmin Park <kyungmin.park@samsung.com>
@@ -1105,7 +1104,6 @@ M:	Tomasz Stanislawski <t.stanislaws@samsung.com>
 L:	linux-arm-kernel@lists.infradead.org
 L:	linux-media@vger.kernel.org
 S:	Maintained
-F:	arch/arm/plat-s5p/dev-tv.c
 F:	drivers/media/video/s5p-tv/
 
 ARM/SHMOBILE ARM ARCHITECTURE
@@ -1140,7 +1138,6 @@ L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
 W:	http://www.mcuos.com
 S:	Maintained
 F:	arch/arm/mach-w90x900/
-F:	arch/arm/mach-nuc93x/
 F:	drivers/input/keyboard/w90p910_keypad.c
 F:	drivers/input/touchscreen/w90p910_ts.c
 F:	drivers/watchdog/nuc900_wdt.c
@@ -6180,9 +6177,7 @@ M:	Viresh Kumar <viresh.kumar@st.com>
 W:	http://www.st.com/spear
 S:	Maintained
 F:	arch/arm/mach-spear*/clock.c
-F:	arch/arm/mach-spear*/include/mach/clkdev.h
 F:	arch/arm/plat-spear/clock.c
-F:	arch/arm/plat-spear/include/plat/clkdev.h
 F:	arch/arm/plat-spear/include/plat/clock.h
 
 SPEAR PAD MULTIPLEXING SUPPORT
