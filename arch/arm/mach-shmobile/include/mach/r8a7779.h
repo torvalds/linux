@@ -1,6 +1,9 @@
 #ifndef __ASM_R8A7779_H__
 #define __ASM_R8A7779_H__
 
+#include <linux/sh_clk.h>
+#include <linux/pm_domain.h>
+
 /* Pin Function Controller:
  * GPIO_FN_xx - GPIO used to select pin function
  * GPIO_GP_x_x - GPIO mapped to real I/O pin on CPU
@@ -321,5 +324,37 @@ enum {
 	GPIO_FN_RX4_B, GPIO_FN_SIM_CLK_B, GPIO_FN_VI1_G7, GPIO_FN_VI3_DATA7,
 	GPIO_FN_GPS_MAG, GPIO_FN_FCE, GPIO_FN_SCK4_B,
 };
+
+struct platform_device;
+
+struct r8a7779_pm_ch {
+	unsigned long chan_offs;
+	unsigned int chan_bit;
+	unsigned int isr_bit;
+};
+
+struct r8a7779_pm_domain {
+	struct generic_pm_domain genpd;
+	struct r8a7779_pm_ch ch;
+};
+
+static inline struct r8a7779_pm_ch *to_r8a7779_ch(struct generic_pm_domain *d)
+{
+	return &container_of(d, struct r8a7779_pm_domain, genpd)->ch;
+}
+
+#ifdef CONFIG_PM
+extern struct r8a7779_pm_domain r8a7779_sh4a;
+extern struct r8a7779_pm_domain r8a7779_sgx;
+extern struct r8a7779_pm_domain r8a7779_vdp1;
+extern struct r8a7779_pm_domain r8a7779_impx3;
+
+extern void r8a7779_init_pm_domain(struct r8a7779_pm_domain *r8a7779_pd);
+extern void r8a7779_add_device_to_domain(struct r8a7779_pm_domain *r8a7779_pd,
+					struct platform_device *pdev);
+#else
+#define r8a7779_init_pm_domain(pd) do { } while (0)
+#define r8a7779_add_device_to_domain(pd, pdev) do { } while (0)
+#endif /* CONFIG_PM */
 
 #endif /* __ASM_R8A7779_H__ */
