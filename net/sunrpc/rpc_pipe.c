@@ -18,7 +18,6 @@
 #include <linux/kernel.h>
 
 #include <asm/ioctls.h>
-#include <linux/fs.h>
 #include <linux/poll.h>
 #include <linux/wait.h>
 #include <linux/seq_file.h>
@@ -36,9 +35,6 @@
 #define RPCDBG_FACILITY RPCDBG_DEBUG
 
 #define NET_NAME(net)	((net == &init_net) ? " (init_net)" : "")
-
-static struct vfsmount *rpc_mnt __read_mostly;
-static int rpc_mount_count;
 
 static struct file_system_type rpc_pipe_fs_type;
 
@@ -448,23 +444,6 @@ struct rpc_filelist {
 	const struct file_operations *i_fop;
 	umode_t mode;
 };
-
-struct vfsmount *rpc_get_mount(void)
-{
-	int err;
-
-	err = simple_pin_fs(&rpc_pipe_fs_type, &rpc_mnt, &rpc_mount_count);
-	if (err != 0)
-		return ERR_PTR(err);
-	return rpc_mnt;
-}
-EXPORT_SYMBOL_GPL(rpc_get_mount);
-
-void rpc_put_mount(void)
-{
-	simple_release_fs(&rpc_mnt, &rpc_mount_count);
-}
-EXPORT_SYMBOL_GPL(rpc_put_mount);
 
 static int rpc_delete_dentry(const struct dentry *dentry)
 {
