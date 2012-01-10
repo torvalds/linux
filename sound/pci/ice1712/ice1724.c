@@ -2282,7 +2282,7 @@ static int __devinit snd_vt1724_read_eeprom(struct snd_ice1712 *ice,
 		}
 	}
 	for (tbl = card_tables; *tbl; tbl++) {
-		for (c = *tbl; c->subvendor; c++) {
+		for (c = *tbl; c->name; c++) {
 			if (modelname && c->model &&
 			    !strcmp(modelname, c->model)) {
 				printk(KERN_INFO "ice1724: Using board model %s\n",
@@ -2591,8 +2591,10 @@ static int __devinit snd_vt1724_probe(struct pci_dev *pci,
 	ice->ext_clock_count = 0;
 
 	for (tbl = card_tables; *tbl; tbl++) {
-		for (c = *tbl; c->subvendor; c++) {
-			if (c->subvendor == ice->eeprom.subvendor) {
+		for (c = *tbl; c->name; c++) {
+			if ((model[dev] && c->model &&
+			     !strcmp(model[dev], c->model)) ||
+			    (c->subvendor == ice->eeprom.subvendor)) {
 				strcpy(card->shortname, c->name);
 				if (c->driver) /* specific driver? */
 					strcpy(card->driver, c->driver);
