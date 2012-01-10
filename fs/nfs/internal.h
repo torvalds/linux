@@ -138,6 +138,7 @@ struct nfs_mount_request {
 	int			noresvport;
 	unsigned int		*auth_flav_len;
 	rpc_authflavor_t	*auth_flavs;
+	struct net		*net;
 };
 
 extern int nfs_mount(struct nfs_mount_request *info);
