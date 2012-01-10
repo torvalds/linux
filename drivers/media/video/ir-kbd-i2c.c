@@ -498,11 +498,3 @@ static void __exit ir_fini(void)
 
 module_init(ir_init);
 module_exit(ir_fini);
-
-/*
- * Overrides for Emacs so that we follow Linus's tabbing style.
- * ---------------------------------------------------------------------------
- * Local variables:
- * c-basic-offset: 8
- * End:
- */

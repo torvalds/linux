@@ -166,6 +166,9 @@ int cx231xx_send_usb_command(struct cx231xx_i2c *i2c_bus,
 	u8 _i2c_nostop = 0;
 	u8 _i2c_reserve = 0;
 
+	if (dev->state & DEV_DISCONNECTED)
+		return -ENODEV;
+
 	/* Get the I2C period, nostop and reserve parameters */
 	_i2c_period = i2c_bus->i2c_period;
 	_i2c_nostop = i2c_bus->i2c_nostop;

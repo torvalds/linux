@@ -621,6 +621,7 @@ struct cx231xx {
 
 	/* For I2C IR support */
 	struct IR_i2c_init_data    init_data;
+	struct i2c_client          *ir_i2c_client;
 
 	unsigned int stream_on:1;	/* Locks streams */
 	unsigned int vbi_stream_on:1;	/* Locks streams for VBI */

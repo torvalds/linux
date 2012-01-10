@@ -843,15 +843,25 @@ void cx231xx_release_resources(struct cx231xx *dev)
 
 	cx231xx_remove_from_devlist(dev);
 
+	cx231xx_ir_exit(dev);
+
 	/* Release I2C buses */
 	cx231xx_dev_uninit(dev);
 
-	cx231xx_ir_exit(dev);
+	/* delete v4l2 device */
+	v4l2_device_unregister(&dev->v4l2_dev);
 
 	usb_put_dev(dev->udev);
 
 	/* Mark device as unused */
 	cx231xx_devused &= ~(1 << dev->devno);
+
+	kfree(dev->video_mode.alt_max_pkt_size);
+	kfree(dev->vbi_mode.alt_max_pkt_size);
+	kfree(dev->sliced_cc_mode.alt_max_pkt_size);
+	kfree(dev->ts1_mode.alt_max_pkt_size);
+	kfree(dev);
+	dev = NULL;
 }
 
 /*
@@ -1329,9 +1339,6 @@ static void cx231xx_usb_disconnect(struct usb_interface *interface)
 
 	flush_request_modules(dev);
 
-	/* delete v4l2 device */
-	v4l2_device_unregister(&dev->v4l2_dev);
-
 	/* wait until all current v4l2 io is finished then deallocate
 	   resources */
 	mutex_lock(&dev->lock);
@@ -1344,6 +1351,9 @@ static void cx231xx_usb_disconnect(struct usb_interface *interface)
 		     "deallocation are deferred on close.\n",
 		     video_device_node_name(dev->vdev));
 
+		/* Even having users, it is safe to remove the RC i2c driver */
+		cx231xx_ir_exit(dev);
+
 		dev->state |= DEV_MISCONFIGURED;
 		if (dev->USE_ISO)
 			cx231xx_uninit_isoc(dev);
@@ -1354,21 +1364,14 @@ static void cx231xx_usb_disconnect(struct usb_interface *interface)
 		wake_up_interruptible(&dev->wait_stream);
 	} else {
 		dev->state |= DEV_DISCONNECTED;
-		cx231xx_release_resources(dev);
 	}
 
 	cx231xx_close_extension(dev);
 
 	mutex_unlock(&dev->lock);
 
-	if (!dev->users) {
-		kfree(dev->video_mode.alt_max_pkt_size);
-		kfree(dev->vbi_mode.alt_max_pkt_size);
-		kfree(dev->sliced_cc_mode.alt_max_pkt_size);
-		kfree(dev->ts1_mode.alt_max_pkt_size);
-		kfree(dev);
-		dev = NULL;
-	}
+	if (!dev->users)
+		cx231xx_release_resources(dev);
 }
 
 static struct usb_driver cx231xx_usb_driver = {
