@@ -883,26 +883,4 @@ static struct platform_driver vpbe_driver = {
 	.remove = vpbe_remove,
 };
 
-/**
- * vpbe_init: initialize the vpbe driver
- *
- * This function registers device and driver to the kernel
- */
-static __init int vpbe_init(void)
-{
-	return platform_driver_register(&vpbe_driver);
-}
-
-/**
- * vpbe_cleanup : cleanup function for vpbe driver
- *
- * This will un-registers the device and driver to the kernel
- */
-static void vpbe_cleanup(void)
-{
-	platform_driver_unregister(&vpbe_driver);
-}
-
-/* Function for module initialization and cleanup */
-module_init(vpbe_init);
-module_exit(vpbe_cleanup);
+module_platform_driver(vpbe_driver);

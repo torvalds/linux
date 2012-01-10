@@ -1286,19 +1286,7 @@ static struct platform_driver mx3_camera_driver = {
 	.remove		= __devexit_p(mx3_camera_remove),
 };
 
-
-static int __init mx3_camera_init(void)
-{
-	return platform_driver_register(&mx3_camera_driver);
-}
-
-static void __exit mx3_camera_exit(void)
-{
-	platform_driver_unregister(&mx3_camera_driver);
-}
-
-module_init(mx3_camera_init);
-module_exit(mx3_camera_exit);
+module_platform_driver(mx3_camera_driver);
 
 MODULE_DESCRIPTION("i.MX3x SoC Camera Host driver");
 MODULE_AUTHOR("Guennadi Liakhovetski <lg@denx.de>");

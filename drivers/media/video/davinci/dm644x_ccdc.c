@@ -1078,15 +1078,4 @@ static struct platform_driver dm644x_ccdc_driver = {
 	.probe = dm644x_ccdc_probe,
 };
 
-static int __init dm644x_ccdc_init(void)
-{
-	return platform_driver_register(&dm644x_ccdc_driver);
-}
-
-static void __exit dm644x_ccdc_exit(void)
-{
-	platform_driver_unregister(&dm644x_ccdc_driver);
-}
-
-module_init(dm644x_ccdc_init);
-module_exit(dm644x_ccdc_exit);
+module_platform_driver(dm644x_ccdc_driver);

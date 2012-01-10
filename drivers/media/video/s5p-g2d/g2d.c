@@ -803,21 +803,7 @@ static struct platform_driver g2d_pdrv = {
 	},
 };
 
-static void __exit g2d_exit(void)
-{
-	platform_driver_unregister(&g2d_pdrv);
-};
-
-static int  __init g2d_init(void)
-{
-	int ret = 0;
-
-	ret = platform_driver_register(&g2d_pdrv);
-	return ret;
-};
-
-module_init(g2d_init);
-module_exit(g2d_exit);
+module_platform_driver(g2d_pdrv);
 
 MODULE_AUTHOR("Kamil Debski <k.debski@samsung.com>");
 MODULE_DESCRIPTION("S5P G2D 2d graphics accelerator driver");

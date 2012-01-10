@@ -700,23 +700,7 @@ static struct platform_driver venc_driver = {
 	},
 };
 
-static int venc_init(void)
-{
-	if (platform_driver_register(&venc_driver)) {
-		printk(KERN_ERR "Unable to register venc driver\n");
-		return -ENODEV;
-	}
-	return 0;
-}
-
-static void venc_exit(void)
-{
-	platform_driver_unregister(&venc_driver);
-	return;
-}
-
-module_init(venc_init);
-module_exit(venc_exit);
+module_platform_driver(venc_driver);
 
 MODULE_LICENSE("GPL");
 MODULE_DESCRIPTION("VPBE VENC Driver");

@@ -2247,24 +2247,7 @@ static struct platform_driver omap3isp_driver = {
 	},
 };
 
-/*
- * isp_init - ISP module initialization.
- */
-static int __init isp_init(void)
-{
-	return platform_driver_register(&omap3isp_driver);
-}
-
-/*
- * isp_cleanup - ISP module cleanup.
- */
-static void __exit isp_cleanup(void)
-{
-	platform_driver_unregister(&omap3isp_driver);
-}
-
-module_init(isp_init);
-module_exit(isp_cleanup);
+module_platform_driver(omap3isp_driver);
 
 MODULE_AUTHOR("Nokia Corporation");
 MODULE_DESCRIPTION("TI OMAP3 ISP driver");

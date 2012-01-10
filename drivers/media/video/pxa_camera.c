@@ -1852,19 +1852,7 @@ static struct platform_driver pxa_camera_driver = {
 	.remove		= __devexit_p(pxa_camera_remove),
 };
 
-
-static int __init pxa_camera_init(void)
-{
-	return platform_driver_register(&pxa_camera_driver);
-}
-
-static void __exit pxa_camera_exit(void)
-{
-	platform_driver_unregister(&pxa_camera_driver);
-}
-
-module_init(pxa_camera_init);
-module_exit(pxa_camera_exit);
+module_platform_driver(pxa_camera_driver);
 
 MODULE_DESCRIPTION("PXA27x SoC Camera Host driver");
 MODULE_AUTHOR("Guennadi Liakhovetski <kernel@pengutronix.de>");

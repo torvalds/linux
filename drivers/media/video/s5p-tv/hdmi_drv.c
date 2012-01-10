@@ -1016,28 +1016,4 @@ static struct platform_driver hdmi_driver __refdata = {
 	}
 };
 
-/* D R I V E R   I N I T I A L I Z A T I O N */
-
-static int __init hdmi_init(void)
-{
-	int ret;
-	static const char banner[] __initdata = KERN_INFO \
-		"Samsung HDMI output driver, "
-		"(c) 2010-2011 Samsung Electronics Co., Ltd.\n";
-	printk(banner);
-
-	ret = platform_driver_register(&hdmi_driver);
-	if (ret)
-		printk(KERN_ERR "HDMI platform driver register failed\n");
-
-	return ret;
-}
-module_init(hdmi_init);
-
-static void __exit hdmi_exit(void)
-{
-	platform_driver_unregister(&hdmi_driver);
-}
-module_exit(hdmi_exit);
-
-
+module_platform_driver(hdmi_driver);

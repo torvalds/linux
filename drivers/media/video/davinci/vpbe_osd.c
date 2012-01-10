@@ -1599,23 +1599,7 @@ static struct platform_driver osd_driver = {
 	},
 };
 
-static int osd_init(void)
-{
-	if (platform_driver_register(&osd_driver)) {
-		printk(KERN_ERR "Unable to register davinci osd driver\n");
-		return -ENODEV;
-	}
-
-	return 0;
-}
-
-static void osd_exit(void)
-{
-	platform_driver_unregister(&osd_driver);
-}
-
-module_init(osd_init);
-module_exit(osd_exit);
+module_platform_driver(osd_driver);
 
 MODULE_LICENSE("GPL");
 MODULE_DESCRIPTION("DaVinci OSD Manager Driver");

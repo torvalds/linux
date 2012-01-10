@@ -1713,17 +1713,7 @@ static struct platform_driver omap1_cam_driver = {
 	.remove		= __exit_p(omap1_cam_remove),
 };
 
-static int __init omap1_cam_init(void)
-{
-	return platform_driver_register(&omap1_cam_driver);
-}
-module_init(omap1_cam_init);
-
-static void __exit omap1_cam_exit(void)
-{
-	platform_driver_unregister(&omap1_cam_driver);
-}
-module_exit(omap1_cam_exit);
+module_platform_driver(omap1_cam_driver);
 
 module_param(sg_mode, bool, 0644);
 MODULE_PARM_DESC(sg_mode, "videobuf mode, 0: dma-contig (default), 1: dma-sg");

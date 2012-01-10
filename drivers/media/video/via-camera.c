@@ -1500,14 +1500,4 @@ static struct platform_driver viacam_driver = {
 	.remove = viacam_remove,
 };
 
-static int viacam_init(void)
-{
-	return platform_driver_register(&viacam_driver);
-}
-module_init(viacam_init);
-
-static void viacam_exit(void)
-{
-	platform_driver_unregister(&viacam_driver);
-}
-module_exit(viacam_exit);
+module_platform_driver(viacam_driver);
