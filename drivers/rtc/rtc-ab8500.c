@@ -258,6 +258,109 @@ static int ab8500_rtc_set_alarm(struct device *dev, struct rtc_wkalrm *alarm)
 	return ab8500_rtc_irq_enable(dev, alarm->enabled);
 }
 
+
+static int ab8500_rtc_set_calibration(struct device *dev, int calibration)
+{
+	int retval;
+	u8  rtccal = 0;
+
+	/*
+	 * Check that the calibration value (which is in units of 0.5
+	 * parts-per-million) is in the AB8500's range for RtcCalibration
+	 * register. -128 (0x80) is not permitted because the AB8500 uses
+	 * a sign-bit rather than two's complement, so 0x80 is just another
+	 * representation of zero.
+	 */
+	if ((calibration < -127) || (calibration > 127)) {
+		dev_err(dev, "RtcCalibration value outside permitted range\n");
+		return -EINVAL;
+	}
+
+	/*
+	 * The AB8500 uses sign (in bit7) and magnitude (in bits0-7)
+	 * so need to convert to this sort of representation before writing
+	 * into RtcCalibration register...
+	 */
+	if (calibration >= 0)
+		rtccal = 0x7F & calibration;
+	else
+		rtccal = ~(calibration - 1) | 0x80;
+
+	retval = abx500_set_register_interruptible(dev, AB8500_RTC,
+			AB8500_RTC_CALIB_REG, rtccal);
+
+	return retval;
+}
+
+static int ab8500_rtc_get_calibration(struct device *dev, int *calibration)
+{
+	int retval;
+	u8  rtccal = 0;
+
+	retval =  abx500_get_register_interruptible(dev, AB8500_RTC,
+			AB8500_RTC_CALIB_REG, &rtccal);
+	if (retval >= 0) {
+		/*
+		 * The AB8500 uses sign (in bit7) and magnitude (in bits0-7)
+		 * so need to convert value from RtcCalibration register into
+		 * a two's complement signed value...
+		 */
+		if (rtccal & 0x80)
+			*calibration = 0 - (rtccal & 0x7F);
+		else
+			*calibration = 0x7F & rtccal;
+	}
+
+	return retval;
+}
+
+static ssize_t ab8500_sysfs_store_rtc_calibration(struct device *dev,
+				struct device_attribute *attr,
+				const char *buf, size_t count)
+{
+	int retval;
+	int calibration = 0;
+
+	if (sscanf(buf, " %i ", &calibration) != 1) {
+		dev_err(dev, "Failed to store RTC calibration attribute\n");
+		return -EINVAL;
+	}
+
+	retval = ab8500_rtc_set_calibration(dev, calibration);
+
+	return retval ? retval : count;
+}
+
+static ssize_t ab8500_sysfs_show_rtc_calibration(struct device *dev,
+				struct device_attribute *attr, char *buf)
+{
+	int  retval = 0;
+	int  calibration = 0;
+
+	retval = ab8500_rtc_get_calibration(dev, &calibration);
+	if (retval < 0) {
+		dev_err(dev, "Failed to read RTC calibration attribute\n");
+		sprintf(buf, "0\n");
+		return retval;
+	}
+
+	return sprintf(buf, "%d\n", calibration);
+}
+
+static DEVICE_ATTR(rtc_calibration, S_IRUGO | S_IWUSR,
+		   ab8500_sysfs_show_rtc_calibration,
+		   ab8500_sysfs_store_rtc_calibration);
+
+static int ab8500_sysfs_rtc_register(struct device *dev)
+{
+	return device_create_file(dev, &dev_attr_rtc_calibration);
+}
+
+static void ab8500_sysfs_rtc_unregister(struct device *dev)
+{
+	device_remove_file(dev, &dev_attr_rtc_calibration);
+}
+
 static irqreturn_t rtc_alarm_handler(int irq, void *data)
 {
 	struct rtc_device *rtc = data;
@@ -327,6 +430,13 @@ static int __devinit ab8500_rtc_probe(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, rtc);
 
+
+	err = ab8500_sysfs_rtc_register(&pdev->dev);
+	if (err) {
+		dev_err(&pdev->dev, "sysfs RTC failed to register\n");
+		return err;
+	}
+
 	return 0;
 }
 
@@ -334,6 +444,8 @@ static int __devexit ab8500_rtc_remove(struct platform_device *pdev)
 {
 	struct rtc_device *rtc = platform_get_drvdata(pdev);
 	int irq = platform_get_irq_byname(pdev, "ALARM");
+
+	ab8500_sysfs_rtc_unregister(&pdev->dev);
 
 	free_irq(irq, rtc);
 	rtc_device_unregister(rtc);
