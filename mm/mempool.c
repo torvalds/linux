@@ -224,28 +224,31 @@ repeat_alloc:
 	if (likely(pool->curr_nr)) {
 		element = remove_element(pool);
 		spin_unlock_irqrestore(&pool->lock, flags);
+		/* paired with rmb in mempool_free(), read comment there */
+		smp_wmb();
 		return element;
 	}
-	spin_unlock_irqrestore(&pool->lock, flags);
 
 	/* We must not sleep in the GFP_ATOMIC case */
-	if (!(gfp_mask & __GFP_WAIT))
+	if (!(gfp_mask & __GFP_WAIT)) {
+		spin_unlock_irqrestore(&pool->lock, flags);
 		return NULL;
+	}
 
-	/* Now start performing page reclaim */
+	/* Let's wait for someone else to return an element to @pool */
 	gfp_temp = gfp_mask;
 	init_wait(&wait);
 	prepare_to_wait(&pool->wait, &wait, TASK_UNINTERRUPTIBLE);
-	smp_mb();
-	if (!pool->curr_nr) {
-		/*
-		 * FIXME: this should be io_schedule().  The timeout is there
-		 * as a workaround for some DM problems in 2.6.18.
-		 */
-		io_schedule_timeout(5*HZ);
-	}
-	finish_wait(&pool->wait, &wait);
 
+	spin_unlock_irqrestore(&pool->lock, flags);
+
+	/*
+	 * FIXME: this should be io_schedule().  The timeout is there as a
+	 * workaround for some DM problems in 2.6.18.
+	 */
+	io_schedule_timeout(5*HZ);
+
+	finish_wait(&pool->wait, &wait);
 	goto repeat_alloc;
 }
 EXPORT_SYMBOL(mempool_alloc);
@@ -265,7 +268,39 @@ void mempool_free(void *element, mempool_t *pool)
 	if (unlikely(element == NULL))
 		return;
 
-	smp_mb();
+	/*
+	 * Paired with the wmb in mempool_alloc().  The preceding read is
+	 * for @element and the following @pool->curr_nr.  This ensures
+	 * that the visible value of @pool->curr_nr is from after the
+	 * allocation of @element.  This is necessary for fringe cases
+	 * where @element was passed to this task without going through
+	 * barriers.
+	 *
+	 * For example, assume @p is %NULL at the beginning and one task
+	 * performs "p = mempool_alloc(...);" while another task is doing
+	 * "while (!p) cpu_relax(); mempool_free(p, ...);".  This function
+	 * may end up using curr_nr value which is from before allocation
+	 * of @p without the following rmb.
+	 */
+	smp_rmb();
+
+	/*
+	 * For correctness, we need a test which is guaranteed to trigger
+	 * if curr_nr + #allocated == min_nr.  Testing curr_nr < min_nr
+	 * without locking achieves that and refilling as soon as possible
+	 * is desirable.
+	 *
+	 * Because curr_nr visible here is always a value after the
+	 * allocation of @element, any task which decremented curr_nr below
+	 * min_nr is guaranteed to see curr_nr < min_nr unless curr_nr gets
+	 * incremented to min_nr afterwards.  If curr_nr gets incremented
+	 * to min_nr after the allocation of @element, the elements
+	 * allocated after that are subject to the same guarantee.
+	 *
+	 * Waiters happen iff curr_nr is 0 and the above guarantee also
+	 * ensures that there will be frees which return elements to the
+	 * pool waking up the waiters.
+	 */
 	if (pool->curr_nr < pool->min_nr) {
 		spin_lock_irqsave(&pool->lock, flags);
 		if (pool->curr_nr < pool->min_nr) {
