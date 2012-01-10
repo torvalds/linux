@@ -246,8 +246,8 @@ struct scsi_target {
 	unsigned int		single_lun:1;	/* Indicates we should only
 						 * allow I/O to one of the luns
 						 * for the device at a time. */
-	unsigned int		pdt_1f_for_no_lun;	/* PDT = 0x1f */
-						/* means no lun present */
+	unsigned int		pdt_1f_for_no_lun:1;	/* PDT = 0x1f
+						 * means no lun present. */
 	/* commands actually active on LLD. protected by host lock. */
 	unsigned int		target_busy;
 	/*
