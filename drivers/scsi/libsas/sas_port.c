@@ -167,9 +167,7 @@ void sas_deform_port(struct asd_sas_phy *phy, int gone)
 		dev->pathways--;
 
 	if (port->num_phys == 1) {
-		if (dev && gone)
-			set_bit(SAS_DEV_GONE, &dev->state);
-		sas_unregister_domain_devices(port);
+		sas_unregister_domain_devices(port, gone);
 		sas_port_delete(port->port);
 		port->port = NULL;
 	} else {
