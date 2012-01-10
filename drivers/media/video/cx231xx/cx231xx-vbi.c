@@ -93,7 +93,7 @@ static inline int cx231xx_isoc_vbi_copy(struct cx231xx *dev, struct urb *urb)
 	if (!dev)
 		return 0;
 
-	if ((dev->state & DEV_DISCONNECTED) || (dev->state & DEV_MISCONFIGURED))
+	if (dev->state & DEV_DISCONNECTED)
 		return 0;
 
 	if (urb->status < 0) {

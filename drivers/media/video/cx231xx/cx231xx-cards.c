@@ -1337,6 +1337,8 @@ static void cx231xx_usb_disconnect(struct usb_interface *interface)
 	if (!dev->udev)
 		return;
 
+	dev->state |= DEV_DISCONNECTED;
+
 	flush_request_modules(dev);
 
 	/* wait until all current v4l2 io is finished then deallocate
@@ -1354,16 +1356,13 @@ static void cx231xx_usb_disconnect(struct usb_interface *interface)
 		/* Even having users, it is safe to remove the RC i2c driver */
 		cx231xx_ir_exit(dev);
 
-		dev->state |= DEV_MISCONFIGURED;
 		if (dev->USE_ISO)
 			cx231xx_uninit_isoc(dev);
 		else
 			cx231xx_uninit_bulk(dev);
-		dev->state |= DEV_DISCONNECTED;
 		wake_up_interruptible(&dev->wait_frame);
 		wake_up_interruptible(&dev->wait_stream);
 	} else {
-		dev->state |= DEV_DISCONNECTED;
 	}
 
 	cx231xx_close_extension(dev);

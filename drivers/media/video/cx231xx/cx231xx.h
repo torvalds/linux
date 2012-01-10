@@ -377,7 +377,6 @@ struct cx231xx_board {
 enum cx231xx_dev_state {
 	DEV_INITIALIZED = 0x01,
 	DEV_DISCONNECTED = 0x02,
-	DEV_MISCONFIGURED = 0x04,
 };
 
 enum AFE_MODE {
