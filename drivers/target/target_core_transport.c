@@ -1255,32 +1255,34 @@ static void core_setup_task_attr_emulation(struct se_device *dev)
 static void scsi_dump_inquiry(struct se_device *dev)
 {
 	struct t10_wwn *wwn = &dev->se_sub_dev->t10_wwn;
+	char buf[17];
 	int i, device_type;
 	/*
 	 * Print Linux/SCSI style INQUIRY formatting to the kernel ring buffer
 	 */
-	pr_debug("  Vendor: ");
 	for (i = 0; i < 8; i++)
 		if (wwn->vendor[i] >= 0x20)
-			pr_debug("%c", wwn->vendor[i]);
+			buf[i] = wwn->vendor[i];
 		else
-			pr_debug(" ");
+			buf[i] = ' ';
+	buf[i] = '\0';
+	pr_debug("  Vendor: %s\n", buf);
 
-	pr_debug("  Model: ");
 	for (i = 0; i < 16; i++)
 		if (wwn->model[i] >= 0x20)
-			pr_debug("%c", wwn->model[i]);
+			buf[i] = wwn->model[i];
 		else
-			pr_debug(" ");
+			buf[i] = ' ';
+	buf[i] = '\0';
+	pr_debug("  Model: %s\n", buf);
 
-	pr_debug("  Revision: ");
 	for (i = 0; i < 4; i++)
 		if (wwn->revision[i] >= 0x20)
-			pr_debug("%c", wwn->revision[i]);
+			buf[i] = wwn->revision[i];
 		else
-			pr_debug(" ");
-
-	pr_debug("\n");
+			buf[i] = ' ';
+	buf[i] = '\0';
+	pr_debug("  Revision: %s\n", buf);
 
 	device_type = dev->transport->get_device_type(dev);
 	pr_debug("  Type:   %s ", scsi_device_type(device_type));
