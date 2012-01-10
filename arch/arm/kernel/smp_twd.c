@@ -87,11 +87,16 @@ int twd_timer_ack(void)
 	return 0;
 }
 
-void twd_timer_stop(struct clock_event_device *clk)
+static void twd_timer_stop(struct clock_event_device *clk)
 {
 	twd_set_mode(CLOCK_EVT_MODE_UNUSED, clk);
 	disable_percpu_irq(clk->irq);
 }
+
+/* Temporary hack to be removed when all TWD users are converted to
+   the new registration interface */
+void local_timer_stop(struct clock_event_device *clk)
+	__attribute__ ((alias ("twd_timer_stop")));
 
 #ifdef CONFIG_CPU_FREQ
 
