@@ -49,7 +49,7 @@ struct coda_file_info {
 #define C_DYING       0x4   /* from venus (which died) */
 #define C_PURGE       0x8
 
-int coda_cnode_make(struct inode **, struct CodaFid *, struct super_block *);
+struct inode *coda_cnode_make(struct CodaFid *, struct super_block *);
 struct inode *coda_iget(struct super_block *sb, struct CodaFid *fid, struct coda_vattr *attr);
 struct inode *coda_cnode_makectl(struct super_block *sb);
 struct inode *coda_fid_to_inode(struct CodaFid *fid, struct super_block *sb);

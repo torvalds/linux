@@ -88,24 +88,21 @@ struct inode * coda_iget(struct super_block * sb, struct CodaFid * fid,
    - link the two up if this is needed
    - fill in the attributes
 */
-int coda_cnode_make(struct inode **inode, struct CodaFid *fid, struct super_block *sb)
+struct inode *coda_cnode_make(struct CodaFid *fid, struct super_block *sb)
 {
         struct coda_vattr attr;
+	struct inode *inode;
         int error;
         
 	/* We get inode numbers from Venus -- see venus source */
 	error = venus_getattr(sb, fid, &attr);
-	if ( error ) {
-	    *inode = NULL;
-	    return error;
-	} 
+	if (error)
+		return ERR_PTR(error);
 
-	*inode = coda_iget(sb, fid, &attr);
-	if ( IS_ERR(*inode) ) {
+	inode = coda_iget(sb, fid, &attr);
+	if (IS_ERR(inode))
 		printk("coda_cnode_make: coda_iget failed\n");
-                return PTR_ERR(*inode);
-        }
-	return 0;
+	return inode;
 }
 
 
