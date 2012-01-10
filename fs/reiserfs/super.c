@@ -1826,6 +1826,17 @@ static int reiserfs_fill_super(struct super_block *s, void *data, int silent)
 		printk("reiserfs: using flush barriers\n");
 	}
 
+	// set_device_ro(s->s_dev, 1) ;
+	if (journal_init(s, jdev_name, old_format, commit_max_age)) {
+		SWARN(silent, s, "sh-2022",
+		      "unable to initialize journal space");
+		goto error_unlocked;
+	} else {
+		jinit_done = 1;	/* once this is set, journal_release must be called
+				 ** if we error out of the mount
+				 */
+	}
+
 	/*
 	 * This path assumed to be called with the BKL in the old times.
 	 * Now we have inherited the big reiserfs lock from it and many
@@ -1836,16 +1847,6 @@ static int reiserfs_fill_super(struct super_block *s, void *data, int silent)
 	 */
 	reiserfs_write_lock(s);
 
-	// set_device_ro(s->s_dev, 1) ;
-	if (journal_init(s, jdev_name, old_format, commit_max_age)) {
-		SWARN(silent, s, "sh-2022",
-		      "unable to initialize journal space");
-		goto error;
-	} else {
-		jinit_done = 1;	/* once this is set, journal_release must be called
-				 ** if we error out of the mount
-				 */
-	}
 	if (reread_meta_blocks(s)) {
 		SWARN(silent, s, "jmacd-9",
 		      "unable to reread meta blocks after journal init");
