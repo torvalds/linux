@@ -320,11 +320,12 @@ int core_free_device_list_for_node(
 void core_dec_lacl_count(struct se_node_acl *se_nacl, struct se_cmd *se_cmd)
 {
 	struct se_dev_entry *deve;
+	unsigned long flags;
 
-	spin_lock_irq(&se_nacl->device_list_lock);
+	spin_lock_irqsave(&se_nacl->device_list_lock, flags);
 	deve = &se_nacl->device_list[se_cmd->orig_fe_lun];
 	deve->deve_cmds--;
-	spin_unlock_irq(&se_nacl->device_list_lock);
+	spin_unlock_irqrestore(&se_nacl->device_list_lock, flags);
 }
 
 void core_update_device_list_access(
