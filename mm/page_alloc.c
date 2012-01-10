@@ -2319,16 +2319,6 @@ unsigned long get_zeroed_page(gfp_t gfp_mask)
 }
 EXPORT_SYMBOL(get_zeroed_page);
 
-void __pagevec_free(struct pagevec *pvec)
-{
-	int i = pagevec_count(pvec);
-
-	while (--i >= 0) {
-		trace_mm_pagevec_free(pvec->pages[i], pvec->cold);
-		free_hot_cold_page(pvec->pages[i], pvec->cold);
-	}
-}
-
 void __free_pages(struct page *page, unsigned int order)
 {
 	if (put_page_testzero(page)) {
