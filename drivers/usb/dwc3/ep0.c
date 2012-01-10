@@ -126,7 +126,6 @@ static int __dwc3_gadget_ep0_queue(struct dwc3_ep *dep,
 		struct dwc3_request *req)
 {
 	struct dwc3		*dwc = dep->dwc;
-	u32			type;
 	int			ret = 0;
 
 	req->request.actual	= 0;
