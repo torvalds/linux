@@ -295,17 +295,7 @@ static struct platform_driver wm8350_led_driver = {
 	.shutdown = wm8350_led_shutdown,
 };
 
-static int __devinit wm8350_led_init(void)
-{
-	return platform_driver_register(&wm8350_led_driver);
-}
-module_init(wm8350_led_init);
-
-static void wm8350_led_exit(void)
-{
-	platform_driver_unregister(&wm8350_led_driver);
-}
-module_exit(wm8350_led_exit);
+module_platform_driver(wm8350_led_driver);
 
 MODULE_AUTHOR("Mark Brown");
 MODULE_DESCRIPTION("WM8350 LED driver");

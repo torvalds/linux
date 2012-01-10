@@ -385,17 +385,7 @@ static struct platform_driver mc13783_led_driver = {
 	.remove		= __devexit_p(mc13783_led_remove),
 };
 
-static int __init mc13783_led_init(void)
-{
-	return platform_driver_register(&mc13783_led_driver);
-}
-module_init(mc13783_led_init);
-
-static void __exit mc13783_led_exit(void)
-{
-	platform_driver_unregister(&mc13783_led_driver);
-}
-module_exit(mc13783_led_exit);
+module_platform_driver(mc13783_led_driver);
 
 MODULE_DESCRIPTION("LEDs driver for Freescale MC13783 PMIC");
 MODULE_AUTHOR("Philippe Retornaz <philippe.retornaz@epfl.ch>");

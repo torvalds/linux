@@ -325,17 +325,7 @@ static struct platform_driver wm831x_status_driver = {
 	.remove = wm831x_status_remove,
 };
 
-static int __devinit wm831x_status_init(void)
-{
-	return platform_driver_register(&wm831x_status_driver);
-}
-module_init(wm831x_status_init);
-
-static void wm831x_status_exit(void)
-{
-	platform_driver_unregister(&wm831x_status_driver);
-}
-module_exit(wm831x_status_exit);
+module_platform_driver(wm831x_status_driver);
 
 MODULE_AUTHOR("Mark Brown <broonie@opensource.wolfsonmicro.com>");
 MODULE_DESCRIPTION("WM831x status LED driver");

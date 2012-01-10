@@ -429,21 +429,10 @@ static struct platform_driver netxbig_led_driver = {
 		.owner	= THIS_MODULE,
 	},
 };
-MODULE_ALIAS("platform:leds-netxbig");
 
-static int __init netxbig_led_init(void)
-{
-	return platform_driver_register(&netxbig_led_driver);
-}
-
-static void __exit netxbig_led_exit(void)
-{
-	platform_driver_unregister(&netxbig_led_driver);
-}
-
-module_init(netxbig_led_init);
-module_exit(netxbig_led_exit);
+module_platform_driver(netxbig_led_driver);
 
 MODULE_AUTHOR("Simon Guinot <sguinot@lacie.com>");
 MODULE_DESCRIPTION("LED driver for LaCie xBig Network boards");
 MODULE_LICENSE("GPL");
+MODULE_ALIAS("platform:leds-netxbig");
