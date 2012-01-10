@@ -983,6 +983,7 @@ static int ath6kl_cfg80211_add_key(struct wiphy *wiphy, struct net_device *ndev,
 	struct ath6kl *ar = ath6kl_priv(ndev);
 	struct ath6kl_vif *vif = netdev_priv(ndev);
 	struct ath6kl_key *key = NULL;
+	int seq_len;
 	u8 key_usage;
 	u8 key_type;
 
@@ -1011,23 +1012,21 @@ static int ath6kl_cfg80211_add_key(struct wiphy *wiphy, struct net_device *ndev,
 	else
 		key_usage = GROUP_USAGE;
 
-	if (params) {
-		int seq_len = params->seq_len;
-		if (params->cipher == WLAN_CIPHER_SUITE_SMS4 &&
-		    seq_len > ATH6KL_KEY_SEQ_LEN) {
-			/* Only first half of the WPI PN is configured */
-			seq_len = ATH6KL_KEY_SEQ_LEN;
-		}
-		if (params->key_len > WLAN_MAX_KEY_LEN ||
-		    seq_len > sizeof(key->seq))
-			return -EINVAL;
-
-		key->key_len = params->key_len;
-		memcpy(key->key, params->key, key->key_len);
-		key->seq_len = seq_len;
-		memcpy(key->seq, params->seq, key->seq_len);
-		key->cipher = params->cipher;
+	seq_len = params->seq_len;
+	if (params->cipher == WLAN_CIPHER_SUITE_SMS4 &&
+	    seq_len > ATH6KL_KEY_SEQ_LEN) {
+		/* Only first half of the WPI PN is configured */
+		seq_len = ATH6KL_KEY_SEQ_LEN;
 	}
+	if (params->key_len > WLAN_MAX_KEY_LEN ||
+	    seq_len > sizeof(key->seq))
+		return -EINVAL;
+
+	key->key_len = params->key_len;
+	memcpy(key->key, params->key, key->key_len);
+	key->seq_len = seq_len;
+	memcpy(key->seq, params->seq, key->seq_len);
+	key->cipher = params->cipher;
 
 	switch (key->cipher) {
 	case WLAN_CIPHER_SUITE_WEP40:
