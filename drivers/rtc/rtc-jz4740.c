@@ -345,7 +345,7 @@ static const struct dev_pm_ops jz4740_pm_ops = {
 #define JZ4740_RTC_PM_OPS NULL
 #endif  /* CONFIG_PM */
 
-struct platform_driver jz4740_rtc_driver = {
+static struct platform_driver jz4740_rtc_driver = {
 	.probe	 = jz4740_rtc_probe,
 	.remove	 = __devexit_p(jz4740_rtc_remove),
 	.driver	 = {
