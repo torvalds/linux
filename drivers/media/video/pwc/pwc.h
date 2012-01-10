@@ -369,7 +369,7 @@ void pwc_construct(struct pwc_device *pdev);
 /** Functions in pwc-ctrl.c */
 /* Request a certain video mode. Returns < 0 if not possible */
 extern int pwc_set_video_mode(struct pwc_device *pdev, int width, int height,
-			      int pixfmt, int frames, int *compression);
+	int pixfmt, int frames, int *compression, int send_to_cam);
 extern unsigned int pwc_get_fps(struct pwc_device *pdev, unsigned int index, unsigned int size);
 extern int pwc_set_leds(struct pwc_device *pdev, int on_value, int off_value);
 extern int pwc_get_cmos_sensor(struct pwc_device *pdev, int *sensor);

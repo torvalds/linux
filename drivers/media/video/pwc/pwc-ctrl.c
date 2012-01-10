@@ -169,10 +169,10 @@ int send_control_msg(struct pwc_device *pdev,
 }
 
 static int set_video_mode_Nala(struct pwc_device *pdev, int size, int pixfmt,
-			       int frames, int *compression)
+			       int frames, int *compression, int send_to_cam)
 {
 	unsigned char buf[3];
-	int ret, fps;
+	int fps, ret = 0;
 	struct Nala_table_entry *pEntry;
 	int frames2frames[31] =
 	{ /* closest match of framerate */
@@ -207,7 +207,8 @@ static int set_video_mode_Nala(struct pwc_device *pdev, int size, int pixfmt,
 		return -EINVAL;
 
 	memcpy(buf, pEntry->mode, 3);
-	ret = send_video_command(pdev, pdev->vendpoint, buf, 3);
+	if (send_to_cam)
+		ret = send_video_command(pdev, pdev->vendpoint, buf, 3);
 	if (ret < 0) {
 		PWC_DEBUG_MODULE("Failed to send video command... %d\n", ret);
 		return ret;
@@ -246,11 +247,11 @@ static int set_video_mode_Nala(struct pwc_device *pdev, int size, int pixfmt,
 
 
 static int set_video_mode_Timon(struct pwc_device *pdev, int size, int pixfmt,
-				int frames, int *compression)
+				int frames, int *compression, int send_to_cam)
 {
 	unsigned char buf[13];
 	const struct Timon_table_entry *pChoose;
-	int ret, fps;
+	int fps, ret = 0;
 
 	if (size >= PSZ_MAX || *compression < 0 || *compression > 3)
 		return -EINVAL;
@@ -274,7 +275,8 @@ static int set_video_mode_Timon(struct pwc_device *pdev, int size, int pixfmt,
 		return -ENOENT; /* Not supported. */
 
 	memcpy(buf, pChoose->mode, 13);
-	ret = send_video_command(pdev, pdev->vendpoint, buf, 13);
+	if (send_to_cam)
+		ret = send_video_command(pdev, pdev->vendpoint, buf, 13);
 	if (ret < 0)
 		return ret;
 
@@ -300,10 +302,10 @@ static int set_video_mode_Timon(struct pwc_device *pdev, int size, int pixfmt,
 
 
 static int set_video_mode_Kiara(struct pwc_device *pdev, int size, int pixfmt,
-				int frames, int *compression)
+				int frames, int *compression, int send_to_cam)
 {
 	const struct Kiara_table_entry *pChoose = NULL;
-	int fps, ret;
+	int fps, ret = 0;
 	unsigned char buf[12];
 
 	if (size >= PSZ_MAX || *compression < 0 || *compression > 3)
@@ -332,7 +334,8 @@ static int set_video_mode_Kiara(struct pwc_device *pdev, int size, int pixfmt,
 	memcpy(buf, pChoose->mode, 12);
 
 	/* Firmware bug: video endpoint is 5, but commands are sent to endpoint 4 */
-	ret = send_video_command(pdev, 4 /* pdev->vendpoint */, buf, 12);
+	if (send_to_cam)
+		ret = send_video_command(pdev, 4, buf, 12);
 	if (ret < 0)
 		return ret;
 
@@ -358,7 +361,7 @@ static int set_video_mode_Kiara(struct pwc_device *pdev, int size, int pixfmt,
 }
 
 int pwc_set_video_mode(struct pwc_device *pdev, int width, int height,
-	int pixfmt, int frames, int *compression)
+	int pixfmt, int frames, int *compression, int send_to_cam)
 {
 	int ret, size;
 
@@ -369,13 +372,13 @@ int pwc_set_video_mode(struct pwc_device *pdev, int width, int height,
 
 	if (DEVICE_USE_CODEC1(pdev->type)) {
 		ret = set_video_mode_Nala(pdev, size, pixfmt, frames,
-					  compression);
+					  compression, send_to_cam);
 	} else if (DEVICE_USE_CODEC3(pdev->type)) {
 		ret = set_video_mode_Kiara(pdev, size, pixfmt, frames,
-					   compression);
+					   compression, send_to_cam);
 	} else {
 		ret = set_video_mode_Timon(pdev, size, pixfmt, frames,
-					   compression);
+					   compression, send_to_cam);
 	}
 	if (ret < 0) {
 		PWC_ERROR("Failed to set video mode %s@%d fps; return code = %d\n", size2name[size], frames, ret);
