@@ -114,8 +114,6 @@ struct mt9p031 {
 	struct mt9p031_platform_data *pdata;
 	struct mutex power_lock; /* lock to protect power_count */
 	int power_count;
-	u16 xskip;
-	u16 yskip;
 
 	const struct mt9p031_pll_divs *pll;
 
@@ -784,8 +782,6 @@ static int mt9p031_open(struct v4l2_subdev *subdev, struct v4l2_subdev_fh *fh)
 	format->field = V4L2_FIELD_NONE;
 	format->colorspace = V4L2_COLORSPACE_SRGB;
 
-	mt9p031->xskip = 1;
-	mt9p031->yskip = 1;
 	return mt9p031_set_power(subdev, 1);
 }
 
