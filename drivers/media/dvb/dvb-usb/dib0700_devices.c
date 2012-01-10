@@ -3105,6 +3105,38 @@ static int stk7070pd_frontend_attach1(struct dvb_usb_adapter *adap)
 	return adap->fe_adap[0].fe == NULL ? -ENODEV : 0;
 }
 
+/**
+ * novatd_frontend_attach - Nova-TD specific attach
+ *
+ * Nova-TD has GPIO0, 1 and 2 for LEDs. So do not fiddle with them except for
+ * information purposes.
+ */
+static int novatd_frontend_attach(struct dvb_usb_adapter *adap)
+{
+	struct dvb_usb_device *dev = adap->dev;
+
+	if (adap->id == 0) {
+		stk7070pd_init(dev);
+
+		/* turn the power LED on, the other two off (just in case) */
+		dib0700_set_gpio(dev, GPIO0, GPIO_OUT, 0);
+		dib0700_set_gpio(dev, GPIO1, GPIO_OUT, 0);
+		dib0700_set_gpio(dev, GPIO2, GPIO_OUT, 1);
+
+		if (dib7000p_i2c_enumeration(&dev->i2c_adap, 2, 18,
+					     stk7070pd_dib7000p_config) != 0) {
+			err("%s: dib7000p_i2c_enumeration failed.  Cannot continue\n",
+			    __func__);
+			return -ENODEV;
+		}
+	}
+
+	adap->fe_adap[0].fe = dvb_attach(dib7000p_attach, &dev->i2c_adap,
+			adap->id == 0 ? 0x80 : 0x82,
+			&stk7070pd_dib7000p_config[adap->id]);
+	return adap->fe_adap[0].fe == NULL ? -ENODEV : 0;
+}
+
 /* S5H1411 */
 static struct s5h1411_config pinnacle_801e_config = {
 	.output_mode   = S5H1411_PARALLEL_OUTPUT,
@@ -3876,7 +3908,7 @@ struct dvb_usb_device_properties dib0700_devices[] = {
 				.pid_filter_count = 32,
 				.pid_filter       = stk70x0p_pid_filter,
 				.pid_filter_ctrl  = stk70x0p_pid_filter_ctrl,
-				.frontend_attach  = stk7070pd_frontend_attach0,
+				.frontend_attach  = novatd_frontend_attach,
 				.tuner_attach     = dib7070p_tuner_attach,
 
 				DIB0700_DEFAULT_STREAMING_CONFIG(0x02),
@@ -3889,7 +3921,7 @@ struct dvb_usb_device_properties dib0700_devices[] = {
 				.pid_filter_count = 32,
 				.pid_filter       = stk70x0p_pid_filter,
 				.pid_filter_ctrl  = stk70x0p_pid_filter_ctrl,
-				.frontend_attach  = stk7070pd_frontend_attach1,
+				.frontend_attach  = novatd_frontend_attach,
 				.tuner_attach     = dib7070p_tuner_attach,
 
 				DIB0700_DEFAULT_STREAMING_CONFIG(0x03),
