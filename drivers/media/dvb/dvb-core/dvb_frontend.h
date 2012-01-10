@@ -384,6 +384,7 @@ struct dvb_frontend {
 	void *analog_demod_priv;
 	struct dtv_frontend_properties dtv_property_cache;
 #define DVB_FRONTEND_COMPONENT_TUNER 0
+#define DVB_FRONTEND_COMPONENT_DEMOD 1
 	int (*callback)(void *adapter_priv, int component, int cmd, int arg);
 	int id;
 };
