@@ -673,21 +673,7 @@ static struct platform_driver s3c_rtc_driver = {
 	},
 };
 
-static char __initdata banner[] = "S3C24XX RTC, (c) 2004,2006 Simtec Electronics\n";
-
-static int __init s3c_rtc_init(void)
-{
-	printk(banner);
-	return platform_driver_register(&s3c_rtc_driver);
-}
-
-static void __exit s3c_rtc_exit(void)
-{
-	platform_driver_unregister(&s3c_rtc_driver);
-}
-
-module_init(s3c_rtc_init);
-module_exit(s3c_rtc_exit);
+module_platform_driver(s3c_rtc_driver);
 
 MODULE_DESCRIPTION("Samsung S3C RTC Driver");
 MODULE_AUTHOR("Ben Dooks <ben@simtec.co.uk>");

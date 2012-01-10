@@ -463,18 +463,8 @@ static struct platform_driver ab8500_rtc_driver = {
 	.remove = __devexit_p(ab8500_rtc_remove),
 };
 
-static int __init ab8500_rtc_init(void)
-{
-	return platform_driver_register(&ab8500_rtc_driver);
-}
+module_platform_driver(ab8500_rtc_driver);
 
-static void __exit ab8500_rtc_exit(void)
-{
-	platform_driver_unregister(&ab8500_rtc_driver);
-}
-
-module_init(ab8500_rtc_init);
-module_exit(ab8500_rtc_exit);
 MODULE_AUTHOR("Virupax Sadashivpetimath <virupax.sadashivpetimath@stericsson.com>");
 MODULE_DESCRIPTION("AB8500 RTC Driver");
 MODULE_LICENSE("GPL v2");

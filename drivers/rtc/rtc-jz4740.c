@@ -355,17 +355,7 @@ struct platform_driver jz4740_rtc_driver = {
 	},
 };
 
-static int __init jz4740_rtc_init(void)
-{
-	return platform_driver_register(&jz4740_rtc_driver);
-}
-module_init(jz4740_rtc_init);
-
-static void __exit jz4740_rtc_exit(void)
-{
-	platform_driver_unregister(&jz4740_rtc_driver);
-}
-module_exit(jz4740_rtc_exit);
+module_platform_driver(jz4740_rtc_driver);
 
 MODULE_AUTHOR("Lars-Peter Clausen <lars@metafoo.de>");
 MODULE_LICENSE("GPL");
