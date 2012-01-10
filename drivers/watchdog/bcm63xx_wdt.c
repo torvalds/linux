@@ -311,18 +311,7 @@ static struct platform_driver bcm63xx_wdt = {
 	}
 };
 
-static int __init bcm63xx_wdt_init(void)
-{
-	return platform_driver_register(&bcm63xx_wdt);
-}
-
-static void __exit bcm63xx_wdt_exit(void)
-{
-	platform_driver_unregister(&bcm63xx_wdt);
-}
-
-module_init(bcm63xx_wdt_init);
-module_exit(bcm63xx_wdt_exit);
+module_platform_driver(bcm63xx_wdt);
 
 MODULE_AUTHOR("Miguel Gaio <miguel.gaio@efixo.com>");
 MODULE_AUTHOR("Florian Fainelli <florian@openwrt.org>");
