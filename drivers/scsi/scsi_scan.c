@@ -1295,6 +1295,7 @@ EXPORT_SYMBOL(int_to_scsilun);
  *   LUNs even if it's older than SCSI-3.
  *   If BLIST_NOREPORTLUN is set, return 1 always.
  *   If BLIST_NOLUN is set, return 0 always.
+ *   If starget->no_report_luns is set, return 1 always.
  *
  * Return:
  *     0: scan completed (or no memory, so further scanning is futile)
@@ -1321,6 +1322,7 @@ static int scsi_report_lun_scan(struct scsi_target *starget, int bflags,
 	 * Only support SCSI-3 and up devices if BLIST_NOREPORTLUN is not set.
 	 * Also allow SCSI-2 if BLIST_REPORTLUN2 is set and host adapter does
 	 * support more than 8 LUNs.
+	 * Don't attempt if the target doesn't support REPORT LUNS.
 	 */
 	if (bflags & BLIST_NOREPORTLUN)
 		return 1;
@@ -1332,6 +1334,8 @@ static int scsi_report_lun_scan(struct scsi_target *starget, int bflags,
 		return 1;
 	if (bflags & BLIST_NOLUN)
 		return 0;
+	if (starget->no_report_luns)
+		return 1;
 
 	if (!(sdev = scsi_device_lookup_by_target(starget, 0))) {
 		sdev = scsi_alloc_sdev(starget, 0, NULL);
