@@ -168,8 +168,8 @@ int send_control_msg(struct pwc_device *pdev,
 		request, value, pdev->vcinterface, buf, buflen);
 }
 
-static int set_video_mode_Nala(struct pwc_device *pdev, int size, int frames,
-			       int *compression)
+static int set_video_mode_Nala(struct pwc_device *pdev, int size, int pixfmt,
+			       int frames, int *compression)
 {
 	unsigned char buf[3];
 	int ret, fps;
@@ -212,14 +212,14 @@ static int set_video_mode_Nala(struct pwc_device *pdev, int size, int frames,
 		PWC_DEBUG_MODULE("Failed to send video command... %d\n", ret);
 		return ret;
 	}
-	if (pEntry->compressed && pdev->pixfmt == V4L2_PIX_FMT_YUV420) {
+	if (pEntry->compressed && pixfmt == V4L2_PIX_FMT_YUV420)
 		pwc_dec1_init(pdev, buf);
-	}
 
 	pdev->cmd_len = 3;
 	memcpy(pdev->cmd_buf, buf, 3);
 
 	/* Set various parameters */
+	pdev->pixfmt = pixfmt;
 	pdev->vframes = frames;
 	pdev->valternate = pEntry->alternate;
 	pdev->width  = pwc_image_sizes[size][0];
@@ -245,8 +245,8 @@ static int set_video_mode_Nala(struct pwc_device *pdev, int size, int frames,
 }
 
 
-static int set_video_mode_Timon(struct pwc_device *pdev, int size, int frames,
-	int *compression)
+static int set_video_mode_Timon(struct pwc_device *pdev, int size, int pixfmt,
+				int frames, int *compression)
 {
 	unsigned char buf[13];
 	const struct Timon_table_entry *pChoose;
@@ -278,14 +278,14 @@ static int set_video_mode_Timon(struct pwc_device *pdev, int size, int frames,
 	if (ret < 0)
 		return ret;
 
-	if (pChoose->bandlength > 0 && pdev->pixfmt == V4L2_PIX_FMT_YUV420) {
+	if (pChoose->bandlength > 0 && pixfmt == V4L2_PIX_FMT_YUV420)
 		pwc_dec23_init(pdev, buf);
-	}
 
 	pdev->cmd_len = 13;
 	memcpy(pdev->cmd_buf, buf, 13);
 
 	/* Set various parameters */
+	pdev->pixfmt = pixfmt;
 	pdev->vframes = (fps + 1) * 5;
 	pdev->valternate = pChoose->alternate;
 	pdev->width  = pwc_image_sizes[size][0];
@@ -299,8 +299,8 @@ static int set_video_mode_Timon(struct pwc_device *pdev, int size, int frames,
 }
 
 
-static int set_video_mode_Kiara(struct pwc_device *pdev, int size, int frames,
-	int *compression)
+static int set_video_mode_Kiara(struct pwc_device *pdev, int size, int pixfmt,
+				int frames, int *compression)
 {
 	const struct Kiara_table_entry *pChoose = NULL;
 	int fps, ret;
@@ -336,13 +336,13 @@ static int set_video_mode_Kiara(struct pwc_device *pdev, int size, int frames,
 	if (ret < 0)
 		return ret;
 
-	if (pChoose->bandlength > 0 && pdev->pixfmt == V4L2_PIX_FMT_YUV420) {
+	if (pChoose->bandlength > 0 && pixfmt == V4L2_PIX_FMT_YUV420)
 		pwc_dec23_init(pdev, buf);
-	}
 
 	pdev->cmd_len = 12;
 	memcpy(pdev->cmd_buf, buf, 12);
 	/* All set and go */
+	pdev->pixfmt = pixfmt;
 	pdev->vframes = (fps + 1) * 5;
 	pdev->valternate = pChoose->alternate;
 	pdev->width  = pwc_image_sizes[size][0];
@@ -358,23 +358,24 @@ static int set_video_mode_Kiara(struct pwc_device *pdev, int size, int frames,
 }
 
 int pwc_set_video_mode(struct pwc_device *pdev, int width, int height,
-	int frames, int *compression)
+	int pixfmt, int frames, int *compression)
 {
 	int ret, size;
 
 	PWC_DEBUG_FLOW("set_video_mode(%dx%d @ %d, pixfmt %08x).\n",
-		       width, height, frames, pdev->pixfmt);
+		       width, height, frames, pixfmt);
 	size = pwc_get_size(pdev, width, height);
 	PWC_TRACE("decode_size = %d.\n", size);
 
 	if (DEVICE_USE_CODEC1(pdev->type)) {
-		ret = set_video_mode_Nala(pdev, size, frames, compression);
-
+		ret = set_video_mode_Nala(pdev, size, pixfmt, frames,
+					  compression);
 	} else if (DEVICE_USE_CODEC3(pdev->type)) {
-		ret = set_video_mode_Kiara(pdev, size, frames, compression);
-
+		ret = set_video_mode_Kiara(pdev, size, pixfmt, frames,
+					   compression);
 	} else {
-		ret = set_video_mode_Timon(pdev, size, frames, compression);
+		ret = set_video_mode_Timon(pdev, size, pixfmt, frames,
+					   compression);
 	}
 	if (ret < 0) {
 		PWC_ERROR("Failed to set video mode %s@%d fps; return code = %d\n", size2name[size], frames, ret);

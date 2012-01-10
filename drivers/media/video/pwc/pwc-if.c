@@ -386,7 +386,7 @@ retry:
 	/* We first try with low compression and then retry with a higher
 	   compression setting if there is not enough bandwidth. */
 	ret = pwc_set_video_mode(pdev, pdev->width, pdev->height,
-				 pdev->vframes, &compression);
+				 pdev->pixfmt, pdev->vframes, &compression);
 
 	/* Get the current alternate interface, adjust packet size */
 	intf = usb_ifnum_to_if(udev, 0);
@@ -1128,7 +1128,8 @@ static int usb_pwc_probe(struct usb_interface *intf, const struct usb_device_id 
 	pwc_set_leds(pdev, 0, 0);
 
 	/* Setup intial videomode */
-	rc = pwc_set_video_mode(pdev, MAX_WIDTH, MAX_HEIGHT, 30, &compression);
+	rc = pwc_set_video_mode(pdev, MAX_WIDTH, MAX_HEIGHT,
+				V4L2_PIX_FMT_YUV420, 30, &compression);
 	if (rc)
 		goto err_free_mem;
 

@@ -493,16 +493,11 @@ static int pwc_s_fmt_vid_cap(struct file *file, void *fh, struct v4l2_format *f)
 			(pixelformat>>24)&255);
 
 	ret = pwc_set_video_mode(pdev, f->fmt.pix.width, f->fmt.pix.height,
-				 30, &compression);
+				 pixelformat, 30, &compression);
 
 	PWC_DEBUG_IOCTL("pwc_set_video_mode(), return=%d\n", ret);
 
-	if (ret == 0) {
-		pdev->pixfmt = pixelformat;
-		pwc_vidioc_fill_fmt(f, pdev->width, pdev->height,
-				    pdev->pixfmt);
-	}
-
+	pwc_vidioc_fill_fmt(f, pdev->width, pdev->height, pdev->pixfmt);
 leave:
 	mutex_unlock(&pdev->udevlock);
 	return ret;
@@ -1141,8 +1136,8 @@ static int pwc_s_parm(struct file *file, void *fh,
 		goto leave;
 	}
 
-	ret = pwc_set_video_mode(pdev, pdev->width, pdev->height, fps,
-				 &compression);
+	ret = pwc_set_video_mode(pdev, pdev->width, pdev->height, pdev->pixfmt,
+				 fps, &compression);
 
 	pwc_g_parm(file, fh, parm);
 
