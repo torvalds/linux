@@ -237,9 +237,9 @@ static unsigned int serio_raw_poll(struct file *file, poll_table *wait)
 
 	mask = serio_raw->dead ? POLLHUP | POLLERR : POLLOUT | POLLWRNORM;
 	if (serio_raw->head != serio_raw->tail)
-		return POLLIN | POLLRDNORM;
+		mask |= POLLIN | POLLRDNORM;
 
-	return 0;
+	return mask;
 }
 
 static const struct file_operations serio_raw_fops = {
