@@ -399,7 +399,7 @@ static int wm831x_rtc_probe(struct platform_device *pdev)
 	int alm_irq = platform_get_irq_byname(pdev, "ALM");
 	int ret = 0;
 
-	wm831x_rtc = kzalloc(sizeof(*wm831x_rtc), GFP_KERNEL);
+	wm831x_rtc = devm_kzalloc(&pdev->dev, sizeof(*wm831x_rtc), GFP_KERNEL);
 	if (wm831x_rtc == NULL)
 		return -ENOMEM;
 
@@ -434,7 +434,6 @@ static int wm831x_rtc_probe(struct platform_device *pdev)
 	return 0;
 
 err:
-	kfree(wm831x_rtc);
 	return ret;
 }
 
@@ -445,7 +444,6 @@ static int __devexit wm831x_rtc_remove(struct platform_device *pdev)
 
 	free_irq(alm_irq, wm831x_rtc);
 	rtc_device_unregister(wm831x_rtc->rtc);
-	kfree(wm831x_rtc);
 
 	return 0;
 }
