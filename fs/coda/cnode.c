@@ -156,19 +156,16 @@ struct inode *coda_fid_to_inode(struct CodaFid *fid, struct super_block *sb)
 }
 
 /* the CONTROL inode is made without asking attributes from Venus */
-int coda_cnode_makectl(struct inode **inode, struct super_block *sb)
+struct inode *coda_cnode_makectl(struct super_block *sb)
 {
-	int error = -ENOMEM;
-
-	*inode = new_inode(sb);
-	if (*inode) {
-		(*inode)->i_ino = CTL_INO;
-		(*inode)->i_op = &coda_ioctl_inode_operations;
-		(*inode)->i_fop = &coda_ioctl_operations;
-		(*inode)->i_mode = 0444;
-		error = 0;
+	struct inode *inode = new_inode(sb);
+	if (inode) {
+		inode->i_ino = CTL_INO;
+		inode->i_op = &coda_ioctl_inode_operations;
+		inode->i_fop = &coda_ioctl_operations;
+		inode->i_mode = 0444;
+		return inode;
 	}
-
-	return error;
+	return ERR_PTR(-ENOMEM);
 }
 

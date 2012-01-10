@@ -111,7 +111,7 @@ static struct dentry *coda_lookup(struct inode *dir, struct dentry *entry, struc
 
 	/* control object, create inode on the fly */
 	if (coda_isroot(dir) && coda_iscontrol(name, length)) {
-		error = coda_cnode_makectl(&inode, dir->i_sb);
+		inode = coda_cnode_makectl(dir->i_sb);
 		type = CODA_NOCACHE;
 		goto exit;
 	}
@@ -125,7 +125,7 @@ static struct dentry *coda_lookup(struct inode *dir, struct dentry *entry, struc
 		return ERR_PTR(error);
 
 exit:
-	if (inode && (type & CODA_NOCACHE))
+	if (inode && !IS_ERR(inode) && (type & CODA_NOCACHE))
 		coda_flag_inode(inode, C_VATTR | C_PURGE);
 
 	return d_splice_alias(inode, entry);

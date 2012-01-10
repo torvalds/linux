@@ -51,7 +51,7 @@ struct coda_file_info {
 
 int coda_cnode_make(struct inode **, struct CodaFid *, struct super_block *);
 struct inode *coda_iget(struct super_block *sb, struct CodaFid *fid, struct coda_vattr *attr);
-int coda_cnode_makectl(struct inode **inode, struct super_block *sb);
+struct inode *coda_cnode_makectl(struct super_block *sb);
 struct inode *coda_fid_to_inode(struct CodaFid *fid, struct super_block *sb);
 void coda_replace_fid(struct inode *, struct CodaFid *, struct CodaFid *);
 
