@@ -157,18 +157,7 @@ static struct platform_driver platform_lcd_driver = {
 	.resume         = platform_lcd_resume,
 };
 
-static int __init platform_lcd_init(void)
-{
-	return platform_driver_register(&platform_lcd_driver);
-}
-
-static void __exit platform_lcd_cleanup(void)
-{
-	platform_driver_unregister(&platform_lcd_driver);
-}
-
-module_init(platform_lcd_init);
-module_exit(platform_lcd_cleanup);
+module_platform_driver(platform_lcd_driver);
 
 MODULE_AUTHOR("Ben Dooks <ben-linux@fluff.org>");
 MODULE_LICENSE("GPL v2");

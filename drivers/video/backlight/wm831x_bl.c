@@ -236,17 +236,7 @@ static struct platform_driver wm831x_backlight_driver = {
 	.remove		= wm831x_backlight_remove,
 };
 
-static int __init wm831x_backlight_init(void)
-{
-	return platform_driver_register(&wm831x_backlight_driver);
-}
-module_init(wm831x_backlight_init);
-
-static void __exit wm831x_backlight_exit(void)
-{
-	platform_driver_unregister(&wm831x_backlight_driver);
-}
-module_exit(wm831x_backlight_exit);
+module_platform_driver(wm831x_backlight_driver);
 
 MODULE_DESCRIPTION("Backlight Driver for WM831x PMICs");
 MODULE_AUTHOR("Mark Brown <broonie@opensource.wolfsonmicro.com");

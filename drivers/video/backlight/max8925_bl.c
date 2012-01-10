@@ -188,17 +188,7 @@ static struct platform_driver max8925_backlight_driver = {
 	.remove		= __devexit_p(max8925_backlight_remove),
 };
 
-static int __init max8925_backlight_init(void)
-{
-	return platform_driver_register(&max8925_backlight_driver);
-}
-module_init(max8925_backlight_init);
-
-static void __exit max8925_backlight_exit(void)
-{
-	platform_driver_unregister(&max8925_backlight_driver);
-};
-module_exit(max8925_backlight_exit);
+module_platform_driver(max8925_backlight_driver);
 
 MODULE_DESCRIPTION("Backlight Driver for Maxim MAX8925");
 MODULE_AUTHOR("Haojian Zhuang <haojian.zhuang@marvell.com>");
