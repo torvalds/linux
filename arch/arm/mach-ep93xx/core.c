@@ -46,6 +46,7 @@
 
 #include <asm/hardware/vic.h>
 
+#include "soc.h"
 
 /*************************************************************************
  * Static I/O mappings that are needed for all EP93xx platforms
