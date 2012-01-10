@@ -730,32 +730,23 @@ static void __free_pages_ok(struct page *page, unsigned int order)
 	local_irq_restore(flags);
 }
 
-/*
- * permit the bootmem allocator to evade page validation on high-order frees
- */
 void __meminit __free_pages_bootmem(struct page *page, unsigned int order)
 {
-	if (order == 0) {
-		__ClearPageReserved(page);
-		set_page_count(page, 0);
-		set_page_refcounted(page);
-		__free_page(page);
-	} else {
-		int loop;
+	unsigned int nr_pages = 1 << order;
+	unsigned int loop;
 
-		prefetchw(page);
-		for (loop = 0; loop < (1 << order); loop++) {
-			struct page *p = &page[loop];
+	prefetchw(page);
+	for (loop = 0; loop < nr_pages; loop++) {
+		struct page *p = &page[loop];
 
-			if (loop + 1 < (1 << order))
-				prefetchw(p + 1);
-			__ClearPageReserved(p);
-			set_page_count(p, 0);
-		}
-
-		set_page_refcounted(page);
-		__free_pages(page, order);
+		if (loop + 1 < nr_pages)
+			prefetchw(p + 1);
+		__ClearPageReserved(p);
+		set_page_count(p, 0);
 	}
+
+	set_page_refcounted(page);
+	__free_pages(page, order);
 }
 
 
