@@ -333,8 +333,7 @@ static int hd29l2_read_ucblocks(struct dvb_frontend *fe, u32 *ucblocks)
 	return 0;
 }
 
-static enum dvbfe_search hd29l2_search(struct dvb_frontend *fe,
-	struct dvb_frontend_parameters *p)
+static enum dvbfe_search hd29l2_search(struct dvb_frontend *fe)
 {
 	int ret, i;
 	struct hd29l2_priv *priv = fe->demodulator_priv;
@@ -356,7 +355,7 @@ static enum dvbfe_search hd29l2_search(struct dvb_frontend *fe,
 
 	/* program tuner */
 	if (fe->ops.tuner_ops.set_params)
-		fe->ops.tuner_ops.set_params(fe, p);
+		fe->ops.tuner_ops.set_params(fe);
 
 	/* get and program IF */
 	if (fe->ops.tuner_ops.get_if_frequency)
@@ -552,8 +551,7 @@ static int hd29l2_get_frontend_algo(struct dvb_frontend *fe)
 	return DVBFE_ALGO_CUSTOM;
 }
 
-static int hd29l2_get_frontend(struct dvb_frontend *fe,
-	struct dvb_frontend_parameters *p)
+static int hd29l2_get_frontend(struct dvb_frontend *fe)
 {
 	int ret;
 	struct hd29l2_priv *priv = fe->demodulator_priv;
@@ -822,9 +820,9 @@ err:
 EXPORT_SYMBOL(hd29l2_attach);
 
 static struct dvb_frontend_ops hd29l2_ops = {
+	.delsys = { SYS_DVBT },
 	.info = {
 		.name = "HDIC HD29L2 DMB-TH",
-		.type = FE_OFDM,
 		.frequency_min = 474000000,
 		.frequency_max = 858000000,
 		.frequency_stepsize = 10000,
