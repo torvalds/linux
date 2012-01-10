@@ -220,7 +220,7 @@ static ssize_t serio_raw_write(struct file *file, const char __user *buffer,
 			goto out;
 		}
 		written++;
-	};
+	}
 
 out:
 	mutex_unlock(&serio_raw_mutex);
