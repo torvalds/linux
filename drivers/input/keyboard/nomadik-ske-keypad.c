@@ -379,7 +379,7 @@ static const struct dev_pm_ops ske_keypad_dev_pm_ops = {
 };
 #endif
 
-struct platform_driver ske_keypad_driver = {
+static struct platform_driver ske_keypad_driver = {
 	.driver = {
 		.name = "nmk-ske-keypad",
 		.owner  = THIS_MODULE,
@@ -390,18 +390,7 @@ struct platform_driver ske_keypad_driver = {
 	.probe = ske_keypad_probe,
 	.remove = __devexit_p(ske_keypad_remove),
 };
-
-static int __init ske_keypad_init(void)
-{
-	return platform_driver_probe(&ske_keypad_driver, ske_keypad_probe);
-}
-module_init(ske_keypad_init);
-
-static void __exit ske_keypad_exit(void)
-{
-	platform_driver_unregister(&ske_keypad_driver);
-}
-module_exit(ske_keypad_exit);
+module_platform_driver(ske_keypad_driver);
 
 MODULE_LICENSE("GPL v2");
 MODULE_AUTHOR("Naveen Kumar <naveen.gaddipati@stericsson.com> / Sundar Iyer <sundar.iyer@stericsson.com>");

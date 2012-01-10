@@ -278,21 +278,9 @@ static struct platform_driver twl4030_vibra_driver = {
 #endif
 	},
 };
-
-static int __init twl4030_vibra_init(void)
-{
-	return platform_driver_register(&twl4030_vibra_driver);
-}
-module_init(twl4030_vibra_init);
-
-static void __exit twl4030_vibra_exit(void)
-{
-	platform_driver_unregister(&twl4030_vibra_driver);
-}
-module_exit(twl4030_vibra_exit);
+module_platform_driver(twl4030_vibra_driver);
 
 MODULE_ALIAS("platform:twl4030-vibra");
-
 MODULE_DESCRIPTION("TWL4030 Vibra driver");
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Nokia Corporation");

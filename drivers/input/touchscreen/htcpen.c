@@ -47,12 +47,6 @@ static int invert_y;
 module_param(invert_y, bool, 0644);
 MODULE_PARM_DESC(invert_y, "If set, Y axis is inverted");
 
-static struct pnp_device_id pnp_ids[] = {
-	{ .id = "PNP0cc0" },
-	{ .id = "" }
-};
-MODULE_DEVICE_TABLE(pnp, pnp_ids);
-
 static irqreturn_t htcpen_interrupt(int irq, void *handle)
 {
 	struct input_dev *htcpen_dev = handle;
@@ -237,6 +231,7 @@ static struct dmi_system_id __initdata htcshift_dmi_table[] = {
 	},
 	{ }
 };
+MODULE_DEVICE_TABLE(dmi, htcshift_dmi_table);
 
 static int __init htcpen_isa_init(void)
 {
