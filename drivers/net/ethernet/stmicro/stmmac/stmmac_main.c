@@ -772,7 +772,7 @@ static void stmmac_mmc_setup(struct stmmac_priv *priv)
 		dwmac_mmc_ctrl(priv->ioaddr, mode);
 		memset(&priv->mmc, 0, sizeof(struct stmmac_counters));
 	} else
-		pr_info(" No MAC Management Counters available");
+		pr_info(" No MAC Management Counters available\n");
 }
 
 static u32 stmmac_get_synopsys_id(struct stmmac_priv *priv)
