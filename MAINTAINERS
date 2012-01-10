@@ -1618,7 +1618,7 @@ BT8XXGPIO DRIVER
 M:	Michael Buesch <m@bues.ch>
 W:	http://bu3sch.de/btgpio.php
 S:	Maintained
-F:	drivers/gpio/bt8xxgpio.c
+F:	drivers/gpio/gpio-bt8xx.c
 
 BTRFS FILE SYSTEM
 M:	Chris Mason <chris.mason@oracle.com>
