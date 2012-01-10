@@ -909,7 +909,6 @@ static int dvb_frontend_clear_cache(struct dvb_frontend *fe)
 
 	c->state = DTV_CLEAR;
 
-	c->delivery_system = fe->ops.delsys[0];
 	dprintk("%s() Clearing cache for delivery system %d\n", __func__,
 		c->delivery_system);
 
@@ -2377,6 +2376,8 @@ int dvb_register_frontend(struct dvb_adapter* dvb,
 	 * Initialize the cache to the proper values according with the
 	 * first supported delivery system (ops->delsys[0])
 	 */
+
+        fe->dtv_property_cache.delivery_system = fe->ops.delsys[0];
 	dvb_frontend_clear_cache(fe);
 
 	mutex_unlock(&frontend_mutex);
