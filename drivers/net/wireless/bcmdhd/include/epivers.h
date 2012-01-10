@@ -44,6 +44,6 @@
 #define EPI_VERSION_DEV		5.90.125
 
 
-#define	EPI_VERSION_STR		"5.90.125.94"
+#define	EPI_VERSION_STR		"5.90.125.94.1"
 
 #endif 

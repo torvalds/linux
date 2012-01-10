@@ -1489,7 +1489,7 @@ dhd_arp_get_arp_hostip_table(dhd_pub_t *dhd, void *buf, int buflen)
 		return -1;
 
 	iov_len = bcm_mkiovar("arp_hostip", 0, 0, buf, buflen);
-	retcode = dhd_wl_ioctl_cmd(dhd, WLC_GET_VAR, buf, buflen, TRUE, 0);
+	retcode = dhd_wl_ioctl_cmd(dhd, WLC_GET_VAR, buf, buflen, FALSE, 0);
 
 	if (retcode) {
 		DHD_TRACE(("%s: ioctl WLC_GET_VAR error %d\n",
@@ -1902,6 +1902,7 @@ dhd_pno_set(dhd_pub_t *dhd, wlc_ssid_t* ssids_local, int nssid, ushort scan_fr,
 	if ((!dhd) && (!ssids_local)) {
 		DHD_ERROR(("%s error exit\n", __FUNCTION__));
 		err = -1;
+		return err;
 	}
 
 	if (dhd_check_ap_wfd_mode_set(dhd) == TRUE)
@@ -2155,14 +2156,14 @@ wl_iw_parse_channel_list_tlv(char** list_str, uint16* channel_list,
 int
 wl_iw_parse_ssid_list_tlv(char** list_str, wlc_ssid_t* ssid, int max, int *bytes_left)
 {
-	char* str =  *list_str;
+	char* str;
 	int idx = 0;
 
 	if ((list_str == NULL) || (*list_str == NULL) || (*bytes_left < 0)) {
 		DHD_ERROR(("%s error paramters\n", __FUNCTION__));
 		return -1;
 	}
-
+	str = *list_str;
 	while (*bytes_left > 0) {
 
 		if (str[0] != CSCAN_TLV_TYPE_SSID_IE) {

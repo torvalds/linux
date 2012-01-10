@@ -181,11 +181,9 @@ static int bcmsdh_sdmmc_resume(struct device *pdev)
 {
 	struct sdio_func *func = dev_to_sdio_func(pdev);
 
-	if (func->num != 2)
-		return 0;
 	dhd_mmc_suspend = FALSE;
 #if defined(OOB_INTR_ONLY)
-	if (dhd_os_check_if_up(bcmsdh_get_drvdata()))
+	if ((func->num == 2) && dhd_os_check_if_up(bcmsdh_get_drvdata()))
 		bcmsdh_oob_intr_set(1);
 #endif
 	smp_mb();

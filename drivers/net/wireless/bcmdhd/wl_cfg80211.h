@@ -2,13 +2,13 @@
  * Linux cfg80211 driver
  *
  * Copyright (C) 1999-2011, Broadcom Corporation
- * 
+ *
  *         Unless you and Broadcom execute a separate written software license
  * agreement governing use of this software, this software is licensed to you
  * under the terms of the GNU General Public License version 2 (the "GPL"),
  * available at http://www.broadcom.com/licenses/GPLv2.php, with the
  * following added to such license:
- * 
+ *
  *      As a special exception, the copyright holders of this software give you
  * permission to link this software with independent modules, and to copy and
  * distribute the resulting executable under terms of your choice, provided that
@@ -16,7 +16,7 @@
  * the license of that module.  An independent module is a module which is not
  * derived from this software.  The special exception does not apply to any
  * modifications of the software.
- * 
+ *
  *      Notwithstanding the above, under no circumstances may you combine this
  * software in any way with any other Broadcom software provided under a license
  * other than the GPL, without Broadcom's express prior written consent.
@@ -452,6 +452,7 @@ static inline s32 alloc_idx_vwdev(struct wl_priv *wl)
 		if (wl->vwdev[i] == NULL)
 				return i;
 	}
+	WL_ERR((" *********alloc_idx_vwdev failed (%d) \n", -1));
 	return -1;
 }
 
@@ -462,6 +463,7 @@ static inline s32 get_idx_vwdev_by_netdev(struct wl_priv *wl, struct net_device 
 		if ((wl->vwdev[i] != NULL) && (wl->vwdev[i]->netdev == ndev))
 				return i;
 	}
+	WL_ERR((" *********get_idx_vwdev_by_netdev failed (%d) \n", -1));
 	return -1;
 }
 
@@ -531,6 +533,7 @@ extern s32 wl_cfg80211_down(void);	/* dongle down */
 extern s32 wl_cfg80211_notify_ifadd(struct net_device *net, s32 idx, s32 bssidx,
 int (*_net_attach)(dhd_pub_t *dhdp, int ifidx));
 extern s32 wl_cfg80211_notify_ifdel(struct net_device *ndev);
+extern s32 wl_cfg80211_post_del(void *ndev);
 extern s32 wl_cfg80211_is_progress_ifadd(void);
 extern s32 wl_cfg80211_is_progress_ifchange(void);
 extern s32 wl_cfg80211_is_progress_ifadd(void);

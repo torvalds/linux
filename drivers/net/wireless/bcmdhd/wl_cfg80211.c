@@ -16,7 +16,7 @@
  * the license of that module.  An independent module is a module which is not
  * derived from this software.  The special exception does not apply to any
  * modifications of the software.
- * 
+ *
  *      Notwithstanding the above, under no circumstances may you combine this
  * software in any way with any other Broadcom software provided under a license
  * other than the GPL, without Broadcom's express prior written consent.
@@ -589,7 +589,7 @@ static const u32 __wl_cipher_suites[] = {
 	WLAN_CIPHER_SUITE_WEP104,
 	WLAN_CIPHER_SUITE_TKIP,
 	WLAN_CIPHER_SUITE_CCMP,
-	WLAN_CIPHER_SUITE_AES_CMAC,
+	WLAN_CIPHER_SUITE_AES_CMAC
 };
 
 /* There isn't a lot of sense in it, but you can transmit anything you like */
@@ -844,8 +844,10 @@ wl_cfg80211_add_virtual_iface(struct wiphy *wiphy, char *name,
 		wl_set_p2p_status(wl, IF_ADD);
 		err = wl_cfgp2p_ifadd(wl, &wl->p2p->int_addr, htod32(wlif_type), chspec);
 
-		if (unlikely(err))
+		if (unlikely(err)) {
+			WL_ERR((" virtual iface add failed (%d) \n", err));
 			return ERR_PTR(-ENOMEM);
+		}
 
 		timeout = wait_event_interruptible_timeout(wl->dongle_event_wait,
 			(wl_get_p2p_status(wl, IF_ADD) == false),
@@ -860,7 +862,7 @@ wl_cfg80211_add_virtual_iface(struct wiphy *wiphy, char *name,
 			}
 			vwdev->wiphy = wl->wdev->wiphy;
 			WL_INFO((" virtual interface(%s) is created memalloc done \n",
-			wl->p2p->vir_ifname));
+				wl->p2p->vir_ifname));
 			index = alloc_idx_vwdev(wl);
 			wl->vwdev[index] = vwdev;
 			vwdev->iftype =
@@ -873,6 +875,8 @@ wl_cfg80211_add_virtual_iface(struct wiphy *wiphy, char *name,
 			wl_set_drv_status(wl, READY);
 			wl->p2p->vif_created = true;
 			set_mode_by_netdev(wl, _ndev, mode);
+			WL_DBG((" virtual interface(%s) wl->wdev %p wl->wdev->netdev %p vwdev %p vwdev->netdev %p\n",
+				wl->p2p->vir_ifname, wl->wdev, wl->wdev->netdev, vwdev, vwdev->netdev));
 			net_attach =  wl_to_p2p_bss_private(wl, P2PAPI_BSSCFG_CONNECTION);
 			if (rtnl_is_locked()) {
 				rtnl_unlock();
@@ -927,10 +931,14 @@ wl_cfg80211_del_virtual_iface(struct wiphy *wiphy, struct net_device *dev)
 			* ifconfig <inter> down and up sequnce, which will reload the fw
 			* however we should cleanup the linux network virtual interfaces
 			*/
-				dhd_pub_t *dhd = (dhd_pub_t *)(wl->pub);
-				WL_ERR(("Firmware returned an error from p2p_ifdel\n"));
-				WL_ERR(("try to remove linux virtual interface %s\n", dev->name));
-				dhd_del_if(dhd->info, dhd_net2idx(dhd->info, dev));
+			/* Request framework to RESET and clean up */
+				struct net_device *ndev = wl_to_prmry_ndev(wl);
+				WL_ERR(("Firmware returned an error (%d) from p2p_ifdel"
+					"HANG Notification sent to %s dev %p wdev %p ndev %p\n", ret, ndev->name, dev, wl->wdev, wl_to_prmry_ndev(wl)));
+				wl_cfg80211_hang(ndev, WLAN_REASON_UNSPECIFIED);
+			}
+			else {
+				WL_ERR(("Firmware success from p2p_ifdel dev %p wdev %p ndev %p", dev, wl->wdev, wl_to_prmry_ndev(wl)));
 			}
 
 			/* Wait for any pending scan req to get aborted from the sysioc context */
@@ -1035,7 +1043,7 @@ int (*_net_attach)(dhd_pub_t *dhdp, int ifidx))
 		WL_ERR(("net is NULL\n"));
 		return 0;
 	}
-	if (wl->p2p_supported) {
+	if (wl->p2p_supported && wl_get_p2p_status(wl, IF_ADD)) {
 		WL_DBG(("IF_ADD event called from dongle, old interface name: %s,"
 			"new name: %s\n", ndev->name, wl->p2p->vir_ifname));
 		/* Assign the net device to CONNECT BSSCFG */
@@ -1047,6 +1055,8 @@ int (*_net_attach)(dhd_pub_t *dhdp, int ifidx))
 		wl_clr_p2p_status(wl, IF_ADD);
 
 		wake_up_interruptible(&wl->dongle_event_wait);
+	} else {
+		ret = BCME_NOTREADY;
 	}
 	return ret;
 }
@@ -1063,7 +1073,8 @@ wl_cfg80211_notify_ifdel(struct net_device *ndev)
 		return 0;
 	}
 
-	if (p2p_is_on(wl) && wl->p2p->vif_created) {
+	if (p2p_is_on(wl) && wl->p2p->vif_created &&
+		wl_get_p2p_status(wl, IF_DELETING)) {
 		if (wl->scan_request) {
 			/* Abort any pending scan requests */
 			wl->escan_info.escan_state = WL_ESCAN_STATE_IDLE;
@@ -1093,6 +1104,18 @@ wl_cfg80211_notify_ifdel(struct net_device *ndev)
 	/* Wake up any waiting thread */
 	wake_up_interruptible(&wl->dongle_event_wait);
 
+	return 0;
+}
+
+s32 wl_cfg80211_post_del(void* ndev)
+{
+	int index;
+	struct wl_priv *wl = wlcfg_drv_priv;
+	index = get_idx_vwdev_by_netdev(wl, (struct net_device *)ndev);
+	WL_DBG(("index : %d\n", index));
+	if (index >= 0) {
+		free_vwdev_by_index(wl, index);
+	}
 	return 0;
 }
 
@@ -1130,8 +1153,8 @@ wl_cfg80211_notify_ifchange(void)
 
 static void wl_scan_prep(struct wl_scan_params *params, struct cfg80211_scan_request *request)
 {
-	u32 n_ssids = request->n_ssids;
-	u32 n_channels = request->n_channels;
+	u32 n_ssids;
+	u32 n_channels;
 	u16 channel;
 	chanspec_t chanspec;
 	s32 i, offset;
@@ -1159,6 +1182,12 @@ static void wl_scan_prep(struct wl_scan_params *params, struct cfg80211_scan_req
 	params->active_time = htod32(params->active_time);
 	params->passive_time = htod32(params->passive_time);
 	params->home_time = htod32(params->home_time);
+
+	if (!request)
+		return;
+
+	n_ssids = request->n_ssids;
+	n_channels = request->n_channels;
 
 	/* Copy channel array if applicable */
 	WL_SCAN(("### List of channelspecs to scan ###\n"));
@@ -1248,8 +1277,7 @@ wl_run_iscan(struct wl_iscan_ctrl *iscan, struct cfg80211_scan_request *request,
 		return -ENOMEM;
 	}
 
-	if (request != NULL)
-		wl_scan_prep(&params->params, request);
+	wl_scan_prep(&params->params, request);
 
 	params->version = htod32(ISCAN_REQ_VERSION);
 	params->action = htod16(action);
@@ -1340,8 +1368,7 @@ wl_run_escan(struct wl_priv *wl, struct net_device *ndev,
 			goto exit;
 		}
 
-		if (request != NULL)
-			wl_scan_prep(&params->params, request);
+		wl_scan_prep(&params->params, request);
 		params->version = htod32(ESCAN_REQ_VERSION);
 		params->action =  htod16(action);
 		params->sync_id = htod16(0x1234);
@@ -1461,7 +1488,7 @@ __wl_cfg80211_scan(struct wiphy *wiphy, struct net_device *ndev,
 			(int)wl->status));
 		return -EAGAIN;
 	}
-	if (request->n_ssids > WL_SCAN_PARAMS_SSID_MAX) {
+	if (request && request->n_ssids > WL_SCAN_PARAMS_SSID_MAX) {
 		WL_ERR(("n_ssids > WL_SCAN_PARAMS_SSID_MAX\n"));
 		return -EOPNOTSUPP;
 	}
@@ -4155,6 +4182,7 @@ static s32 wl_inform_single_bss(struct wl_priv *wl, struct wl_bss_info *bi)
 	struct wl_cfg80211_bss_info *notif_bss_info;
 	struct wl_scan_req *sr = wl_to_sr(wl);
 	struct beacon_proberesp *beacon_proberesp;
+	struct cfg80211_bss *cbss = NULL;
 	s32 mgmt_type;
 	s32 signal;
 	u32 freq;
@@ -4213,13 +4241,15 @@ static s32 wl_inform_single_bss(struct wl_priv *wl, struct wl_bss_info *bi)
 
 	signal = notif_bss_info->rssi * 100;
 
-	if (unlikely(!cfg80211_inform_bss_frame(wiphy, channel, mgmt,
-		le16_to_cpu(notif_bss_info->frame_len),
-		signal, GFP_KERNEL))) {
+	cbss = cfg80211_inform_bss_frame(wiphy, channel, mgmt,
+		le16_to_cpu(notif_bss_info->frame_len), signal, GFP_KERNEL);
+	if (unlikely(!cbss)) {
 		WL_ERR(("cfg80211_inform_bss_frame error\n"));
 		kfree(notif_bss_info);
 		return -EINVAL;
 	}
+
+	cfg80211_put_bss(cbss);
 	kfree(notif_bss_info);
 
 	return err;
