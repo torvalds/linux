@@ -1094,7 +1094,7 @@ static struct dentry *nfs4blocklayout_register_net(struct net *net,
 
 	pipefs_sb = rpc_get_sb_net(net);
 	if (!pipefs_sb)
-		return ERR_PTR(-ENOENT);
+		return NULL;
 	dentry = nfs4blocklayout_register_sb(pipefs_sb, pipe);
 	rpc_put_sb_net(net);
 	return dentry;
@@ -1145,7 +1145,6 @@ static struct pernet_operations nfs4blocklayout_net_ops = {
 
 static int __init nfs4blocklayout_init(void)
 {
-	struct vfsmount *mnt;
 	int ret;
 
 	dprintk("%s: NFSv4 Block Layout Driver Registering...\n", __func__);
@@ -1155,12 +1154,6 @@ static int __init nfs4blocklayout_init(void)
 		goto out;
 
 	init_waitqueue_head(&bl_wq);
-
-	mnt = rpc_get_mount();
-	if (IS_ERR(mnt)) {
-		ret = PTR_ERR(mnt);
-		goto out_remove;
-	}
 	ret = rpc_pipefs_notifier_register(&nfs4blocklayout_block);
 	if (ret)
 		goto out_remove;
