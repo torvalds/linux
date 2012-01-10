@@ -1032,6 +1032,7 @@ struct ctl_table_header
 			struct list_head ctl_entry;
 			int used;
 			int count;
+			int nreg;
 		};
 		struct rcu_head rcu;
 	};

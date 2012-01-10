@@ -29,8 +29,9 @@ static struct ctl_table root_table[1];
 static struct ctl_table_root sysctl_table_root;
 static struct ctl_table_header root_table_header = {
 	{{.count = 1,
-	.ctl_table = root_table,
-	.ctl_entry = LIST_HEAD_INIT(sysctl_table_root.default_set.list),}},
+	  .nreg = 1,
+	  .ctl_table = root_table,
+	  .ctl_entry = LIST_HEAD_INIT(sysctl_table_root.default_set.list),}},
 	.root = &sysctl_table_root,
 	.set = &sysctl_table_root.default_set,
 };
@@ -938,6 +939,7 @@ struct ctl_table_header *__register_sysctl_table(
 	header->unregistering = NULL;
 	header->root = root;
 	header->count = 1;
+	header->nreg = 1;
 	if (sysctl_check_table(path, table))
 		goto fail;
 
@@ -1192,6 +1194,20 @@ struct ctl_table_header *register_sysctl_table(struct ctl_table *table)
 }
 EXPORT_SYMBOL(register_sysctl_table);
 
+static void drop_sysctl_table(struct ctl_table_header *header)
+{
+	if (--header->nreg)
+		return;
+
+	start_unregistering(header);
+	if (!--header->parent->count) {
+		WARN_ON(1);
+		kfree_rcu(header->parent, rcu);
+	}
+	if (!--header->count)
+		kfree_rcu(header, rcu);
+}
+
 /**
  * unregister_sysctl_table - unregister a sysctl table hierarchy
  * @header: the header returned from register_sysctl_table
@@ -1224,13 +1240,7 @@ void unregister_sysctl_table(struct ctl_table_header * header)
 	}
 
 	spin_lock(&sysctl_lock);
-	start_unregistering(header);
-	if (!--header->parent->count) {
-		WARN_ON(1);
-		kfree_rcu(header->parent, rcu);
-	}
-	if (!--header->count)
-		kfree_rcu(header, rcu);
+	drop_sysctl_table(header);
 	spin_unlock(&sysctl_lock);
 }
 EXPORT_SYMBOL(unregister_sysctl_table);
