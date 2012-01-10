@@ -350,15 +350,6 @@ Who: 	anybody or Florian Mickler <florian@mickler.org>
 
 ----------------------------
 
-What:	KVM paravirt mmu host support
-When:	January 2011
-Why:	The paravirt mmu host support is slower than non-paravirt mmu, both
-	on newer and older hardware.  It is already not exposed to the guest,
-	and kept only for live migration purposes.
-Who:	Avi Kivity <avi@redhat.com>
-
-----------------------------
-
 What:	iwlwifi 50XX module parameters
 When:	3.0
 Why:	The "..50" modules parameters were used to configure 5000 series and
