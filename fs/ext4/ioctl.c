@@ -18,6 +18,8 @@
 #include "ext4_jbd2.h"
 #include "ext4.h"
 
+#define MAX_32_NUM ((((unsigned long long) 1) << 32) - 1)
+
 long ext4_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 {
 	struct inode *inode = filp->f_dentry->d_inode;
@@ -186,19 +188,22 @@ setversion_out:
 		if (err)
 			return err;
 
-		if (get_user(n_blocks_count, (__u32 __user *)arg))
-			return -EFAULT;
+		if (get_user(n_blocks_count, (__u32 __user *)arg)) {
+			err = -EFAULT;
+			goto group_extend_out;
+		}
 
 		if (EXT4_HAS_RO_COMPAT_FEATURE(sb,
 			       EXT4_FEATURE_RO_COMPAT_BIGALLOC)) {
 			ext4_msg(sb, KERN_ERR,
 				 "Online resizing not supported with bigalloc");
-			return -EOPNOTSUPP;
+			err = -EOPNOTSUPP;
+			goto group_extend_out;
 		}
 
 		err = mnt_want_write_file(filp);
 		if (err)
-			return err;
+			goto group_extend_out;
 
 		err = ext4_group_extend(sb, EXT4_SB(sb)->s_es, n_blocks_count);
 		if (EXT4_SB(sb)->s_journal) {
@@ -209,8 +214,8 @@ setversion_out:
 		if (err == 0)
 			err = err2;
 		mnt_drop_write_file(filp);
+group_extend_out:
 		ext4_resize_end(sb);
-
 		return err;
 	}
 
@@ -251,8 +256,7 @@ setversion_out:
 		err = ext4_move_extents(filp, donor_filp, me.orig_start,
 					me.donor_start, me.len, &me.moved_len);
 		mnt_drop_write_file(filp);
-		if (me.moved_len > 0)
-			file_remove_suid(donor_filp);
+		mnt_drop_write(filp->f_path.mnt);
 
 		if (copy_to_user((struct move_extent __user *)arg,
 				 &me, sizeof(me)))
@@ -271,19 +275,22 @@ mext_out:
 			return err;
 
 		if (copy_from_user(&input, (struct ext4_new_group_input __user *)arg,
-				sizeof(input)))
-			return -EFAULT;
+				sizeof(input))) {
+			err = -EFAULT;
+			goto group_add_out;
+		}
 
 		if (EXT4_HAS_RO_COMPAT_FEATURE(sb,
 			       EXT4_FEATURE_RO_COMPAT_BIGALLOC)) {
 			ext4_msg(sb, KERN_ERR,
 				 "Online resizing not supported with bigalloc");
-			return -EOPNOTSUPP;
+			err = -EOPNOTSUPP;
+			goto group_add_out;
 		}
 
 		err = mnt_want_write_file(filp);
 		if (err)
-			return err;
+			goto group_add_out;
 
 		err = ext4_group_add(sb, &input);
 		if (EXT4_SB(sb)->s_journal) {
@@ -294,8 +301,8 @@ mext_out:
 		if (err == 0)
 			err = err2;
 		mnt_drop_write_file(filp);
+group_add_out:
 		ext4_resize_end(sb);
-
 		return err;
 	}
 
@@ -332,6 +339,60 @@ mext_out:
 			return err;
 		err = ext4_alloc_da_blocks(inode);
 		mnt_drop_write_file(filp);
+		return err;
+	}
+
+	case EXT4_IOC_RESIZE_FS: {
+		ext4_fsblk_t n_blocks_count;
+		struct super_block *sb = inode->i_sb;
+		int err = 0, err2 = 0;
+
+		if (EXT4_HAS_RO_COMPAT_FEATURE(sb,
+			       EXT4_FEATURE_RO_COMPAT_BIGALLOC)) {
+			ext4_msg(sb, KERN_ERR,
+				 "Online resizing not (yet) supported with bigalloc");
+			return -EOPNOTSUPP;
+		}
+
+		if (EXT4_HAS_INCOMPAT_FEATURE(sb,
+			       EXT4_FEATURE_INCOMPAT_META_BG)) {
+			ext4_msg(sb, KERN_ERR,
+				 "Online resizing not (yet) supported with meta_bg");
+			return -EOPNOTSUPP;
+		}
+
+		if (copy_from_user(&n_blocks_count, (__u64 __user *)arg,
+				   sizeof(__u64))) {
+			return -EFAULT;
+		}
+
+		if (n_blocks_count > MAX_32_NUM &&
+		    !EXT4_HAS_INCOMPAT_FEATURE(sb,
+					       EXT4_FEATURE_INCOMPAT_64BIT)) {
+			ext4_msg(sb, KERN_ERR,
+				 "File system only supports 32-bit block numbers");
+			return -EOPNOTSUPP;
+		}
+
+		err = ext4_resize_begin(sb);
+		if (err)
+			return err;
+
+		err = mnt_want_write(filp->f_path.mnt);
+		if (err)
+			goto resizefs_out;
+
+		err = ext4_resize_fs(sb, n_blocks_count);
+		if (EXT4_SB(sb)->s_journal) {
+			jbd2_journal_lock_updates(EXT4_SB(sb)->s_journal);
+			err2 = jbd2_journal_flush(EXT4_SB(sb)->s_journal);
+			jbd2_journal_unlock_updates(EXT4_SB(sb)->s_journal);
+		}
+		if (err == 0)
+			err = err2;
+		mnt_drop_write(filp->f_path.mnt);
+resizefs_out:
+		ext4_resize_end(sb);
 		return err;
 	}
 
@@ -433,6 +494,7 @@ long ext4_compat_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 	}
 	case EXT4_IOC_MOVE_EXT:
 	case FITRIM:
+	case EXT4_IOC_RESIZE_FS:
 		break;
 	default:
 		return -ENOIOCTLCMD;
