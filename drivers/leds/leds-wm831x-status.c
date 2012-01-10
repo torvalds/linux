@@ -237,7 +237,8 @@ static int wm831x_status_probe(struct platform_device *pdev)
 		goto err;
 	}
 
-	drvdata = kzalloc(sizeof(struct wm831x_status), GFP_KERNEL);
+	drvdata = devm_kzalloc(&pdev->dev, sizeof(struct wm831x_status),
+			       GFP_KERNEL);
 	if (!drvdata)
 		return -ENOMEM;
 	dev_set_drvdata(&pdev->dev, drvdata);
@@ -300,7 +301,6 @@ static int wm831x_status_probe(struct platform_device *pdev)
 
 err_led:
 	led_classdev_unregister(&drvdata->cdev);
-	kfree(drvdata);
 err:
 	return ret;
 }
@@ -311,7 +311,6 @@ static int wm831x_status_remove(struct platform_device *pdev)
 
 	device_remove_file(drvdata->cdev.dev, &dev_attr_src);
 	led_classdev_unregister(&drvdata->cdev);
-	kfree(drvdata);
 
 	return 0;
 }
