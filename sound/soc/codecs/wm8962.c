@@ -4155,7 +4155,6 @@ static const struct regmap_config wm8962_regmap = {
 	.cache_type = REGCACHE_RBTREE,
 };
 
-#if defined(CONFIG_I2C) || defined(CONFIG_I2C_MODULE)
 static __devinit int wm8962_i2c_probe(struct i2c_client *i2c,
 				      const struct i2c_device_id *id)
 {
@@ -4284,27 +4283,16 @@ static struct i2c_driver wm8962_i2c_driver = {
 	.remove =   __devexit_p(wm8962_i2c_remove),
 	.id_table = wm8962_i2c_id,
 };
-#endif
 
 static int __init wm8962_modinit(void)
 {
-	int ret;
-#if defined(CONFIG_I2C) || defined(CONFIG_I2C_MODULE)
-	ret = i2c_add_driver(&wm8962_i2c_driver);
-	if (ret != 0) {
-		printk(KERN_ERR "Failed to register WM8962 I2C driver: %d\n",
-		       ret);
-	}
-#endif
-	return 0;
+	return i2c_add_driver(&wm8962_i2c_driver);
 }
 module_init(wm8962_modinit);
 
 static void __exit wm8962_exit(void)
 {
-#if defined(CONFIG_I2C) || defined(CONFIG_I2C_MODULE)
 	i2c_del_driver(&wm8962_i2c_driver);
-#endif
 }
 module_exit(wm8962_exit);
 
