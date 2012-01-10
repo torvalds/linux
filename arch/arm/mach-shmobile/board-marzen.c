@@ -151,7 +151,7 @@ MACHINE_START(MARZEN, "marzen")
 	.init_early	= marzen_init_early,
 	.nr_irqs	= NR_IRQS_LEGACY,
 	.init_irq	= r8a7779_init_irq,
-	.handle_irq	= shmobile_handle_irq_gic,
+	.handle_irq	= gic_handle_irq,
 	.init_machine	= marzen_init,
 	.timer		= &marzen_timer,
 MACHINE_END
