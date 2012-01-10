@@ -246,6 +246,8 @@ static void __cpuinit smp_store_cpu_info(unsigned int cpuid)
 	store_cpu_topology(cpuid);
 }
 
+static void percpu_timer_setup(void);
+
 /*
  * This is the secondary CPU boot entry.  We're using this CPUs
  * idle thread stack, but a set of temporary page tables.
@@ -472,21 +474,7 @@ int local_timer_register(struct local_timer_ops *ops)
 }
 #endif
 
-int __cpuinit __attribute__ ((weak)) local_timer_setup(struct clock_event_device *clk)
-{
-	if (lt_ops)
-		return lt_ops->setup(clk);
-
-	return -ENXIO;
-}
-
-void __attribute__ ((weak)) local_timer_stop(struct clock_event_device *clk)
-{
-	if (lt_ops)
-		lt_ops->stop(clk);
-}
-
-void __cpuinit percpu_timer_setup(void)
+static void __cpuinit percpu_timer_setup(void)
 {
 	unsigned int cpu = smp_processor_id();
 	struct clock_event_device *evt = &per_cpu(percpu_clockevent, cpu);
@@ -494,7 +482,7 @@ void __cpuinit percpu_timer_setup(void)
 	evt->cpumask = cpumask_of(cpu);
 	evt->broadcast = smp_timer_broadcast;
 
-	if (local_timer_setup(evt))
+	if (!lt_ops || lt_ops->setup(evt))
 		broadcast_timer_setup(evt);
 }
 
@@ -509,7 +497,8 @@ static void percpu_timer_stop(void)
 	unsigned int cpu = smp_processor_id();
 	struct clock_event_device *evt = &per_cpu(percpu_clockevent, cpu);
 
-	local_timer_stop(evt);
+	if (lt_ops)
+		lt_ops->stop(evt);
 }
 #endif
 

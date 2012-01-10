@@ -19,38 +19,12 @@ struct local_timer_ops {
 	void (*stop)(struct clock_event_device *);
 };
 
-/*
- * Setup a per-cpu timer, whether it be a local timer or dummy broadcast
- */
-void percpu_timer_setup(void);
-
 #ifdef CONFIG_LOCAL_TIMERS
-/*
- * Stop the local timer
- */
-void local_timer_stop(struct clock_event_device *);
-
-/*
- * Setup a local timer interrupt for a CPU.
- */
-int local_timer_setup(struct clock_event_device *);
-
 /*
  * Register a local timer driver
  */
 int local_timer_register(struct local_timer_ops *);
-
 #else
-
-static inline int local_timer_setup(struct clock_event_device *evt)
-{
-	return -ENXIO;
-}
-
-static inline void local_timer_stop(struct clock_event_device *evt)
-{
-}
-
 static inline int local_timer_register(struct local_timer_ops *ops)
 {
 	return -ENXIO;
