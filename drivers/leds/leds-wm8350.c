@@ -227,7 +227,7 @@ static int wm8350_led_probe(struct platform_device *pdev)
 		goto err_isink;
 	}
 
-	led = kzalloc(sizeof(*led), GFP_KERNEL);
+	led = devm_kzalloc(&pdev->dev, sizeof(*led), GFP_KERNEL);
 	if (led == NULL) {
 		ret = -ENOMEM;
 		goto err_dcdc;
@@ -259,12 +259,10 @@ static int wm8350_led_probe(struct platform_device *pdev)
 
 	ret = led_classdev_register(&pdev->dev, &led->cdev);
 	if (ret < 0)
-		goto err_led;
+		goto err_dcdc;
 
 	return 0;
 
- err_led:
-	kfree(led);
  err_dcdc:
 	regulator_put(dcdc);
  err_isink:
@@ -281,7 +279,6 @@ static int wm8350_led_remove(struct platform_device *pdev)
 	wm8350_led_disable(led);
 	regulator_put(led->dcdc);
 	regulator_put(led->isink);
-	kfree(led);
 	return 0;
 }
 
