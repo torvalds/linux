@@ -584,10 +584,11 @@ void ath6kl_connect_event(struct ath6kl_vif *vif, u16 channel, u8 *bssid,
 	memcpy(vif->bssid, bssid, sizeof(vif->bssid));
 	vif->bss_ch = channel;
 
-	if ((vif->nw_type == INFRA_NETWORK))
+	if ((vif->nw_type == INFRA_NETWORK)) {
+		ar->listen_intvl_b = listen_int;
 		ath6kl_wmi_listeninterval_cmd(ar->wmi, vif->fw_vif_idx,
-					      ar->listen_intvl_t,
-					      ar->listen_intvl_b);
+					      0, ar->listen_intvl_b);
+	}
 
 	netif_wake_queue(vif->ndev);
 

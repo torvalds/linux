@@ -2725,8 +2725,7 @@ struct ath6kl *ath6kl_core_alloc(struct device *dev)
 	clear_bit(SKIP_SCAN, &ar->flag);
 	clear_bit(DESTROY_IN_PROGRESS, &ar->flag);
 
-	ar->listen_intvl_t = A_DEFAULT_LISTEN_INTERVAL;
-	ar->listen_intvl_b = 0;
+	ar->listen_intvl_b = A_DEFAULT_LISTEN_INTERVAL;
 	ar->tx_pwr = 0;
 
 	ar->intra_bss = 1;

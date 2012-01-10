@@ -1505,57 +1505,46 @@ static const struct file_operations fops_bgscan_int = {
 };
 
 static ssize_t ath6kl_listen_int_write(struct file *file,
-						const char __user *user_buf,
-						size_t count, loff_t *ppos)
+				       const char __user *user_buf,
+				       size_t count, loff_t *ppos)
 {
 	struct ath6kl *ar = file->private_data;
-	u16 listen_int_t, listen_int_b;
+	struct ath6kl_vif *vif;
+	u16 listen_interval;
 	char buf[32];
-	char *sptr, *token;
 	ssize_t len;
+
+	vif = ath6kl_vif_first(ar);
+	if (!vif)
+		return -EIO;
 
 	len = min(count, sizeof(buf) - 1);
 	if (copy_from_user(buf, user_buf, len))
 		return -EFAULT;
 
 	buf[len] = '\0';
-	sptr = buf;
-
-	token = strsep(&sptr, " ");
-	if (!token)
+	if (kstrtou16(buf, 0, &listen_interval))
 		return -EINVAL;
 
-	if (kstrtou16(token, 0, &listen_int_t))
+	if ((listen_interval < 1) || (listen_interval > 50))
 		return -EINVAL;
 
-	if (kstrtou16(sptr, 0, &listen_int_b))
-		return -EINVAL;
-
-	if ((listen_int_t < 15) || (listen_int_t > 5000))
-		return -EINVAL;
-
-	if ((listen_int_b < 1) || (listen_int_b > 50))
-		return -EINVAL;
-
-	ar->listen_intvl_t = listen_int_t;
-	ar->listen_intvl_b = listen_int_b;
-
-	ath6kl_wmi_listeninterval_cmd(ar->wmi, 0, ar->listen_intvl_t,
+	ar->listen_intvl_b = listen_interval;
+	ath6kl_wmi_listeninterval_cmd(ar->wmi, vif->fw_vif_idx, 0,
 				      ar->listen_intvl_b);
 
 	return count;
 }
 
 static ssize_t ath6kl_listen_int_read(struct file *file,
-						char __user *user_buf,
-						size_t count, loff_t *ppos)
+				      char __user *user_buf,
+				      size_t count, loff_t *ppos)
 {
 	struct ath6kl *ar = file->private_data;
 	char buf[32];
 	int len;
 
-	len = scnprintf(buf, sizeof(buf), "%u %u\n", ar->listen_intvl_t,
-					ar->listen_intvl_b);
+	len = scnprintf(buf, sizeof(buf), "%u\n", ar->listen_intvl_b);
 
 	return simple_read_from_buffer(user_buf, count, ppos, buf, len);
 }
@@ -1709,6 +1698,9 @@ int ath6kl_debug_init(struct ath6kl *ar)
 
 	debugfs_create_file("bgscan_interval", S_IWUSR,
 				ar->debugfs_phy, ar, &fops_bgscan_int);
+
+	debugfs_create_file("listen_interval", S_IRUSR | S_IWUSR,
+			    ar->debugfs_phy, ar, &fops_listen_int);
 
 	debugfs_create_file("power_params", S_IWUSR, ar->debugfs_phy, ar,
 						&fops_power_params);

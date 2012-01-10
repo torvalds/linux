@@ -55,7 +55,7 @@
 #define MAX_DEFAULT_SEND_QUEUE_DEPTH      (MAX_DEF_COOKIE_NUM / WMM_NUM_AC)
 
 #define DISCON_TIMER_INTVAL               10000  /* in msec */
-#define A_DEFAULT_LISTEN_INTERVAL         100
+#define A_DEFAULT_LISTEN_INTERVAL         1      /* beacon intervals */
 #define A_MAX_WOW_LISTEN_INTERVAL         1000
 
 /* includes also the null byte */
@@ -534,7 +534,6 @@ struct ath6kl {
 	spinlock_t lock;
 	struct semaphore sem;
 	u16 listen_intvl_b;
-	u16 listen_intvl_t;
 	u8 lrssi_roam_threshold;
 	struct ath6kl_version version;
 	u32 target_type;
