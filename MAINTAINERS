@@ -1659,7 +1659,7 @@ L:	linux-media@vger.kernel.org
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/mchehab/linux-2.6.git
 S:	Maintained
 F:	Documentation/video4linux/cafe_ccic
-F:	drivers/media/video/cafe_ccic*
+F:	drivers/media/video/marvell-ccic/
 
 CAIF NETWORK LAYER
 M:	Sjur Braendeland <sjur.brandeland@stericsson.com>
