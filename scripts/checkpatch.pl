@@ -1373,6 +1373,7 @@ sub process {
 	my %suppress_ifbraces;
 	my %suppress_whiletrailers;
 	my %suppress_export;
+	my $suppress_statement = 0;
 
 	# Pre-scan the patch sanitizing the lines.
 	# Pre-scan the patch looking for any __setup documentation.
@@ -1482,6 +1483,7 @@ sub process {
 			%suppress_ifbraces = ();
 			%suppress_whiletrailers = ();
 			%suppress_export = ();
+			$suppress_statement = 0;
 			next;
 
 # track the line number as we move through the hunk, note that
@@ -1809,13 +1811,23 @@ sub process {
 # Check for potential 'bare' types
 		my ($stat, $cond, $line_nr_next, $remain_next, $off_next,
 		    $realline_next);
-		if ($realcnt && $line =~ /.\s*\S/) {
+#print "LINE<$line>\n";
+		if ($linenr >= $suppress_statement &&
+		    $realcnt && $line =~ /.\s*\S/) {
 			($stat, $cond, $line_nr_next, $remain_next, $off_next) =
 				ctx_statement_block($linenr, $realcnt, 0);
 			$stat =~ s/\n./\n /g;
 			$cond =~ s/\n./\n /g;
 
-#print "stat<$stat>\n";
+#print "linenr<$linenr> <$stat>\n";
+			# If this statement has no statement boundaries within
+			# it there is no point in retrying a statement scan
+			# until we hit end of it.
+			my $frag = $stat; $frag =~ s/;+\s*$//;
+			if ($frag !~ /(?:{|;)/) {
+#print "skip<$line_nr_next>\n";
+				$suppress_statement = $line_nr_next;
+			}
 
 			# Find the real next line.
 			$realline_next = $line_nr_next;
@@ -1942,6 +1954,9 @@ sub process {
 
 # Check relative indent for conditionals and blocks.
 		if ($line =~ /\b(?:(?:if|while|for)\s*\(|do\b)/ && $line !~ /^.\s*#/ && $line !~ /\}\s*while\s*/) {
+			($stat, $cond, $line_nr_next, $remain_next, $off_next) =
+				ctx_statement_block($linenr, $realcnt, 0)
+					if (!defined $stat);
 			my ($s, $c) = ($stat, $cond);
 
 			substr($s, 0, length($c), '');
@@ -2620,6 +2635,9 @@ sub process {
 # Check for illegal assignment in if conditional -- and check for trailing
 # statements after the conditional.
 		if ($line =~ /do\s*(?!{)/) {
+			($stat, $cond, $line_nr_next, $remain_next, $off_next) =
+				ctx_statement_block($linenr, $realcnt, 0)
+					if (!defined $stat);
 			my ($stat_next) = ctx_statement_block($line_nr_next,
 						$remain_next, $off_next);
 			$stat_next =~ s/\n./\n /g;
