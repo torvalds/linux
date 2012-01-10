@@ -74,14 +74,16 @@ static int __devinit da9052_i2c_probe(struct i2c_client *client,
 
 	ret = da9052_i2c_enable_multiwrite(da9052);
 	if (ret < 0)
-		goto err;
+		goto err_regmap;
 
 	ret = da9052_device_init(da9052, id->driver_data);
 	if (ret != 0)
-		goto err;
+		goto err_regmap;
 
 	return 0;
 
+err_regmap:
+	regmap_exit(da9052->regmap);
 err:
 	kfree(da9052);
 	return ret;
@@ -92,6 +94,7 @@ static int da9052_i2c_remove(struct i2c_client *client)
 	struct da9052 *da9052 = i2c_get_clientdata(client);
 
 	da9052_device_exit(da9052);
+	regmap_exit(da9052->regmap);
 	kfree(da9052);
 
 	return 0;
