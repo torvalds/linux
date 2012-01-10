@@ -75,7 +75,7 @@ struct intel_limit {
 	intel_range_t   dot, vco, n, m, m1, m2, p, p1;
 	intel_p2_t	    p2;
 	bool (* find_pll)(const intel_limit_t *, struct drm_crtc *,
-			int, int, intel_clock_t *);
+			int, int, intel_clock_t *, intel_clock_t *);
 };
 
 /* FDI */
@@ -83,17 +83,21 @@ struct intel_limit {
 
 static bool
 intel_find_best_PLL(const intel_limit_t *limit, struct drm_crtc *crtc,
-		    int target, int refclk, intel_clock_t *best_clock);
+		    int target, int refclk, intel_clock_t *match_clock,
+		    intel_clock_t *best_clock);
 static bool
 intel_g4x_find_best_PLL(const intel_limit_t *limit, struct drm_crtc *crtc,
-			int target, int refclk, intel_clock_t *best_clock);
+			int target, int refclk, intel_clock_t *match_clock,
+			intel_clock_t *best_clock);
 
 static bool
 intel_find_pll_g4x_dp(const intel_limit_t *, struct drm_crtc *crtc,
-		      int target, int refclk, intel_clock_t *best_clock);
+		      int target, int refclk, intel_clock_t *match_clock,
+		      intel_clock_t *best_clock);
 static bool
 intel_find_pll_ironlake_dp(const intel_limit_t *, struct drm_crtc *crtc,
-			   int target, int refclk, intel_clock_t *best_clock);
+			   int target, int refclk, intel_clock_t *match_clock,
+			   intel_clock_t *best_clock);
 
 static inline u32 /* units of 100MHz */
 intel_fdi_link_freq(struct drm_device *dev)
@@ -515,7 +519,8 @@ static bool intel_PLL_is_valid(struct drm_device *dev,
 
 static bool
 intel_find_best_PLL(const intel_limit_t *limit, struct drm_crtc *crtc,
-		    int target, int refclk, intel_clock_t *best_clock)
+		    int target, int refclk, intel_clock_t *match_clock,
+		    intel_clock_t *best_clock)
 
 {
 	struct drm_device *dev = crtc->dev;
@@ -562,6 +567,9 @@ intel_find_best_PLL(const intel_limit_t *limit, struct drm_crtc *crtc,
 					if (!intel_PLL_is_valid(dev, limit,
 								&clock))
 						continue;
+					if (match_clock &&
+					    clock.p != match_clock->p)
+						continue;
 
 					this_err = abs(clock.dot - target);
 					if (this_err < err) {
@@ -578,7 +586,8 @@ intel_find_best_PLL(const intel_limit_t *limit, struct drm_crtc *crtc,
 
 static bool
 intel_g4x_find_best_PLL(const intel_limit_t *limit, struct drm_crtc *crtc,
-			int target, int refclk, intel_clock_t *best_clock)
+			int target, int refclk, intel_clock_t *match_clock,
+			intel_clock_t *best_clock)
 {
 	struct drm_device *dev = crtc->dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
@@ -625,6 +634,9 @@ intel_g4x_find_best_PLL(const intel_limit_t *limit, struct drm_crtc *crtc,
 					if (!intel_PLL_is_valid(dev, limit,
 								&clock))
 						continue;
+					if (match_clock &&
+					    clock.p != match_clock->p)
+						continue;
 
 					this_err = abs(clock.dot - target);
 					if (this_err < err_most) {
@@ -642,7 +654,8 @@ intel_g4x_find_best_PLL(const intel_limit_t *limit, struct drm_crtc *crtc,
 
 static bool
 intel_find_pll_ironlake_dp(const intel_limit_t *limit, struct drm_crtc *crtc,
-			   int target, int refclk, intel_clock_t *best_clock)
+			   int target, int refclk, intel_clock_t *match_clock,
+			   intel_clock_t *best_clock)
 {
 	struct drm_device *dev = crtc->dev;
 	intel_clock_t clock;
@@ -668,7 +681,8 @@ intel_find_pll_ironlake_dp(const intel_limit_t *limit, struct drm_crtc *crtc,
 /* DisplayPort has only two frequencies, 162MHz and 270MHz */
 static bool
 intel_find_pll_g4x_dp(const intel_limit_t *limit, struct drm_crtc *crtc,
-		      int target, int refclk, intel_clock_t *best_clock)
+		      int target, int refclk, intel_clock_t *match_clock,
+		      intel_clock_t *best_clock)
 {
 	intel_clock_t clock;
 	if (target < 200000) {
@@ -5038,7 +5052,8 @@ static int i9xx_crtc_mode_set(struct drm_crtc *crtc,
 	 * reflck * (5 * (m1 + 2) + (m2 + 2)) / (n + 2) / p1 / p2.
 	 */
 	limit = intel_limit(crtc, refclk);
-	ok = limit->find_pll(limit, crtc, adjusted_mode->clock, refclk, &clock);
+	ok = limit->find_pll(limit, crtc, adjusted_mode->clock, refclk, NULL,
+			     &clock);
 	if (!ok) {
 		DRM_ERROR("Couldn't find PLL settings for mode!\n");
 		return -EINVAL;
@@ -5048,21 +5063,17 @@ static int i9xx_crtc_mode_set(struct drm_crtc *crtc,
 	intel_crtc_update_cursor(crtc, true);
 
 	if (is_lvds && dev_priv->lvds_downclock_avail) {
+		/*
+		 * Ensure we match the reduced clock's P to the target clock.
+		 * If the clocks don't match, we can't switch the display clock
+		 * by using the FP0/FP1. In such case we will disable the LVDS
+		 * downclock feature.
+		*/
 		has_reduced_clock = limit->find_pll(limit, crtc,
 						    dev_priv->lvds_downclock,
 						    refclk,
+						    &clock,
 						    &reduced_clock);
-		if (has_reduced_clock && (clock.p != reduced_clock.p)) {
-			/*
-			 * If the different P is found, it means that we can't
-			 * switch the display clock by using the FP0/FP1.
-			 * In such case we will disable the LVDS downclock
-			 * feature.
-			 */
-			DRM_DEBUG_KMS("Different P is found for "
-				      "LVDS clock/downclock\n");
-			has_reduced_clock = 0;
-		}
 	}
 	/* SDVO TV has fixed PLL values depend on its clock range,
 	   this mirrors vbios setting. */
@@ -5583,7 +5594,8 @@ static int ironlake_crtc_mode_set(struct drm_crtc *crtc,
 	 * reflck * (5 * (m1 + 2) + (m2 + 2)) / (n + 2) / p1 / p2.
 	 */
 	limit = intel_limit(crtc, refclk);
-	ok = limit->find_pll(limit, crtc, adjusted_mode->clock, refclk, &clock);
+	ok = limit->find_pll(limit, crtc, adjusted_mode->clock, refclk, NULL,
+			     &clock);
 	if (!ok) {
 		DRM_ERROR("Couldn't find PLL settings for mode!\n");
 		return -EINVAL;
@@ -5593,21 +5605,17 @@ static int ironlake_crtc_mode_set(struct drm_crtc *crtc,
 	intel_crtc_update_cursor(crtc, true);
 
 	if (is_lvds && dev_priv->lvds_downclock_avail) {
+		/*
+		 * Ensure we match the reduced clock's P to the target clock.
+		 * If the clocks don't match, we can't switch the display clock
+		 * by using the FP0/FP1. In such case we will disable the LVDS
+		 * downclock feature.
+		*/
 		has_reduced_clock = limit->find_pll(limit, crtc,
 						    dev_priv->lvds_downclock,
 						    refclk,
+						    &clock,
 						    &reduced_clock);
-		if (has_reduced_clock && (clock.p != reduced_clock.p)) {
-			/*
-			 * If the different P is found, it means that we can't
-			 * switch the display clock by using the FP0/FP1.
-			 * In such case we will disable the LVDS downclock
-			 * feature.
-			 */
-			DRM_DEBUG_KMS("Different P is found for "
-				      "LVDS clock/downclock\n");
-			has_reduced_clock = 0;
-		}
 	}
 	/* SDVO TV has fixed PLL values depend on its clock range,
 	   this mirrors vbios setting. */
