@@ -55,6 +55,8 @@ struct extent_buffer;
 	{ BTRFS_BLOCK_GROUP_DUP,	"DUP"}, \
 	{ BTRFS_BLOCK_GROUP_RAID10,	"RAID10"}
 
+#define BTRFS_UUID_SIZE 16
+
 TRACE_EVENT(btrfs_transaction_commit,
 
 	TP_PROTO(struct btrfs_root *root),
@@ -630,6 +632,34 @@ TRACE_EVENT(btrfs_cow_block,
 		  __entry->buf_level,
 		  (unsigned long long)__entry->cow_start,
 		  __entry->cow_level)
+);
+
+TRACE_EVENT(btrfs_space_reservation,
+
+	TP_PROTO(struct btrfs_fs_info *fs_info, char *type, u64 val,
+		 u64 bytes, int reserve),
+
+	TP_ARGS(fs_info, type, val, bytes, reserve),
+
+	TP_STRUCT__entry(
+		__array(	u8,	fsid,	BTRFS_UUID_SIZE	)
+		__string(	type,	type			)
+		__field(	u64,	val			)
+		__field(	u64,	bytes			)
+		__field(	int,	reserve			)
+	),
+
+	TP_fast_assign(
+		memcpy(__entry->fsid, fs_info->fsid, BTRFS_UUID_SIZE);
+		__assign_str(type, type);
+		__entry->val		= val;
+		__entry->bytes		= bytes;
+		__entry->reserve	= reserve;
+	),
+
+	TP_printk("%pU: %s: %Lu %s %Lu", __entry->fsid, __get_str(type),
+		  __entry->val, __entry->reserve ? "reserve" : "release",
+		  __entry->bytes)
 );
 
 DECLARE_EVENT_CLASS(btrfs__reserved_extent,

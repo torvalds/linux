@@ -326,6 +326,8 @@ again:
 	}
 
 	if (num_bytes) {
+		trace_btrfs_space_reservation(root->fs_info, "transaction",
+					      (u64)h, num_bytes, 1);
 		h->block_rsv = &root->fs_info->trans_block_rsv;
 		h->bytes_reserved = num_bytes;
 	}
