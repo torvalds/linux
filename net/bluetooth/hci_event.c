@@ -1608,7 +1608,8 @@ static inline void hci_inquiry_result_evt(struct hci_dev *hdev, struct sk_buff *
 
 		name_known = hci_inquiry_cache_update(hdev, &data, false);
 		mgmt_device_found(hdev, &info->bdaddr, ACL_LINK, 0x00,
-					info->dev_class, 0, !name_known, NULL);
+					info->dev_class, 0, !name_known,
+					NULL, 0);
 	}
 
 	hci_dev_unlock(hdev);
@@ -2705,7 +2706,7 @@ static inline void hci_inquiry_result_with_rssi_evt(struct hci_dev *hdev, struct
 								false);
 			mgmt_device_found(hdev, &info->bdaddr, ACL_LINK, 0x00,
 						info->dev_class, info->rssi,
-						!name_known, NULL);
+						!name_known, NULL, 0);
 		}
 	} else {
 		struct inquiry_info_with_rssi *info = (void *) (skb->data + 1);
@@ -2723,7 +2724,7 @@ static inline void hci_inquiry_result_with_rssi_evt(struct hci_dev *hdev, struct
 								false);
 			mgmt_device_found(hdev, &info->bdaddr, ACL_LINK, 0x00,
 						info->dev_class, info->rssi,
-						!name_known, NULL);
+						!name_known, NULL, 0);
 		}
 	}
 
@@ -2900,7 +2901,8 @@ static inline void hci_extended_inquiry_result_evt(struct hci_dev *hdev, struct 
 		name_known = hci_inquiry_cache_update(hdev, &data, name_known);
 		mgmt_device_found(hdev, &info->bdaddr, ACL_LINK, 0x00,
 						info->dev_class, info->rssi,
-						!name_known, info->data);
+						!name_known, info->data,
+						sizeof(info->data));
 	}
 
 	hci_dev_unlock(hdev);

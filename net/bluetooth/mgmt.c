@@ -2780,9 +2780,12 @@ int mgmt_read_local_oob_data_reply_complete(struct hci_dev *hdev, u8 *hash,
 
 int mgmt_device_found(struct hci_dev *hdev, bdaddr_t *bdaddr, u8 link_type,
 				u8 addr_type, u8 *dev_class, s8 rssi,
-				u8 cfm_name, u8 *eir)
+				u8 cfm_name, u8 *eir, u8 eir_len)
 {
 	struct mgmt_ev_device_found ev;
+
+	if (eir_len > sizeof(ev.eir))
+		return -EINVAL;
 
 	memset(&ev, 0, sizeof(ev));
 
@@ -2792,7 +2795,7 @@ int mgmt_device_found(struct hci_dev *hdev, bdaddr_t *bdaddr, u8 link_type,
 	ev.confirm_name = cfm_name;
 
 	if (eir)
-		memcpy(ev.eir, eir, sizeof(ev.eir));
+		memcpy(ev.eir, eir, eir_len);
 
 	if (dev_class)
 		memcpy(ev.dev_class, dev_class, sizeof(ev.dev_class));
