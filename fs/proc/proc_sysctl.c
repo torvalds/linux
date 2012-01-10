@@ -42,6 +42,21 @@ static struct ctl_table_root sysctl_table_root = {
 
 static DEFINE_SPINLOCK(sysctl_lock);
 
+static void init_header(struct ctl_table_header *head,
+	struct ctl_table_root *root, struct ctl_table_set *set,
+	struct ctl_table *table)
+{
+	head->ctl_table_arg = table;
+	INIT_LIST_HEAD(&head->ctl_entry);
+	head->used = 0;
+	head->count = 1;
+	head->nreg = 1;
+	head->unregistering = NULL;
+	head->root = root;
+	head->set = set;
+	head->parent = NULL;
+}
+
 /* called under sysctl_lock */
 static int use_table(struct ctl_table_header *p)
 {
@@ -932,14 +947,8 @@ struct ctl_table_header *__register_sysctl_table(
 		new_name += namelen + 1;
 	}
 	*prevp = table;
-	header->ctl_table_arg = table;
 
-	INIT_LIST_HEAD(&header->ctl_entry);
-	header->used = 0;
-	header->unregistering = NULL;
-	header->root = root;
-	header->count = 1;
-	header->nreg = 1;
+	init_header(header, root, NULL, table);
 	if (sysctl_check_table(path, table))
 		goto fail;
 
