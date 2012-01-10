@@ -394,7 +394,7 @@ static enum dvbfe_search hd29l2_search(struct dvb_frontend *fe)
 	if (ret)
 		goto err;
 
-	dbg("%s: if_ctl=%x", __func__, if_ctl);
+	dbg("%s: if_freq=%d if_ctl=%x", __func__, if_freq, if_ctl);
 
 	if (auto_mode) {
 		/*
