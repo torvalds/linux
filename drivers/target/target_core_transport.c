@@ -1701,6 +1701,8 @@ void target_submit_cmd(struct se_cmd *se_cmd, struct se_session *se_sess,
 	 */
 	transport_init_se_cmd(se_cmd, se_tpg->se_tpg_tfo, se_sess,
 				data_length, data_dir, task_attr, sense);
+	if (flags & TARGET_SCF_UNKNOWN_SIZE)
+		se_cmd->unknown_data_length = 1;
 	/*
 	 * Obtain struct se_cmd->cmd_kref reference and add new cmd to
 	 * se_sess->sess_cmd_list.  A second kref_get here is necessary
@@ -3141,6 +3143,9 @@ static int transport_generic_cmd_sequencer(
 			cmd->se_tfo->get_fabric_name(), cdb[0]);
 		goto out_unsupported_cdb;
 	}
+
+	if (cmd->unknown_data_length)
+		cmd->data_length = size;
 
 	if (size != cmd->data_length) {
 		pr_warn("TARGET_CORE[%s]: Expected Transfer Length:"

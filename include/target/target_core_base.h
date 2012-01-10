@@ -233,6 +233,7 @@ enum tcm_sense_reason_table {
 enum target_sc_flags_table {
 	TARGET_SCF_BIDI_OP		= 0x01,
 	TARGET_SCF_ACK_KREF		= 0x02,
+	TARGET_SCF_UNKNOWN_SIZE		= 0x04,
 };
 
 /* fabric independent task management function values */
@@ -537,6 +538,7 @@ struct se_cmd {
 	/* Used to signal cmd->se_tfo->check_release_cmd() usage per cmd */
 	unsigned		check_release:1;
 	unsigned		cmd_wait_set:1;
+	unsigned		unknown_data_length:1;
 	/* See se_cmd_flags_table */
 	u32			se_cmd_flags;
 	u32			se_ordered_id;
