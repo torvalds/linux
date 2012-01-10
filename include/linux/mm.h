@@ -1482,6 +1482,18 @@ static inline unsigned long vma_pages(struct vm_area_struct *vma)
 	return (vma->vm_end - vma->vm_start) >> PAGE_SHIFT;
 }
 
+/* Look up the first VMA which exactly match the interval vm_start ... vm_end */
+static inline struct vm_area_struct *find_exact_vma(struct mm_struct *mm,
+				unsigned long vm_start, unsigned long vm_end)
+{
+	struct vm_area_struct *vma = find_vma(mm, vm_start);
+
+	if (vma && (vma->vm_start != vm_start || vma->vm_end != vm_end))
+		vma = NULL;
+
+	return vma;
+}
+
 #ifdef CONFIG_MMU
 pgprot_t vm_get_page_prot(unsigned long vm_flags);
 #else

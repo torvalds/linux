@@ -83,6 +83,7 @@
 #include <linux/pid_namespace.h>
 #include <linux/fs_struct.h>
 #include <linux/slab.h>
+#include <linux/flex_array.h>
 #ifdef CONFIG_HARDWALL
 #include <asm/hardwall.h>
 #endif
@@ -133,6 +134,8 @@ struct pid_entry {
 	NOD(NAME, (S_IFREG|(MODE)), 			\
 		NULL, &proc_single_file_operations,	\
 		{ .proc_show = show } )
+
+static int proc_fd_permission(struct inode *inode, int mask);
 
 /*
  * Count the number of hardlinks for the pid_entry table, excluding the .
@@ -2046,6 +2049,355 @@ static const struct file_operations proc_fd_operations = {
 	.llseek		= default_llseek,
 };
 
+#ifdef CONFIG_CHECKPOINT_RESTORE
+
+/*
+ * dname_to_vma_addr - maps a dentry name into two unsigned longs
+ * which represent vma start and end addresses.
+ */
+static int dname_to_vma_addr(struct dentry *dentry,
+			     unsigned long *start, unsigned long *end)
+{
+	if (sscanf(dentry->d_name.name, "%lx-%lx", start, end) != 2)
+		return -EINVAL;
+
+	return 0;
+}
+
+static int map_files_d_revalidate(struct dentry *dentry, struct nameidata *nd)
+{
+	unsigned long vm_start, vm_end;
+	bool exact_vma_exists = false;
+	struct mm_struct *mm = NULL;
+	struct task_struct *task;
+	const struct cred *cred;
+	struct inode *inode;
+	int status = 0;
+
+	if (nd && nd->flags & LOOKUP_RCU)
+		return -ECHILD;
+
+	if (!capable(CAP_SYS_ADMIN)) {
+		status = -EACCES;
+		goto out_notask;
+	}
+
+	inode = dentry->d_inode;
+	task = get_proc_task(inode);
+	if (!task)
+		goto out_notask;
+
+	if (!ptrace_may_access(task, PTRACE_MODE_READ))
+		goto out;
+
+	mm = get_task_mm(task);
+	if (!mm)
+		goto out;
+
+	if (!dname_to_vma_addr(dentry, &vm_start, &vm_end)) {
+		down_read(&mm->mmap_sem);
+		exact_vma_exists = !!find_exact_vma(mm, vm_start, vm_end);
+		up_read(&mm->mmap_sem);
+	}
+
+	mmput(mm);
+
+	if (exact_vma_exists) {
+		if (task_dumpable(task)) {
+			rcu_read_lock();
+			cred = __task_cred(task);
+			inode->i_uid = cred->euid;
+			inode->i_gid = cred->egid;
+			rcu_read_unlock();
+		} else {
+			inode->i_uid = 0;
+			inode->i_gid = 0;
+		}
+		security_task_to_inode(task, inode);
+		status = 1;
+	}
+
+out:
+	put_task_struct(task);
+
+out_notask:
+	if (status <= 0)
+		d_drop(dentry);
+
+	return status;
+}
+
+static const struct dentry_operations tid_map_files_dentry_operations = {
+	.d_revalidate	= map_files_d_revalidate,
+	.d_delete	= pid_delete_dentry,
+};
+
+static int proc_map_files_get_link(struct dentry *dentry, struct path *path)
+{
+	unsigned long vm_start, vm_end;
+	struct vm_area_struct *vma;
+	struct task_struct *task;
+	struct mm_struct *mm;
+	int rc;
+
+	rc = -ENOENT;
+	task = get_proc_task(dentry->d_inode);
+	if (!task)
+		goto out;
+
+	mm = get_task_mm(task);
+	put_task_struct(task);
+	if (!mm)
+		goto out;
+
+	rc = dname_to_vma_addr(dentry, &vm_start, &vm_end);
+	if (rc)
+		goto out_mmput;
+
+	down_read(&mm->mmap_sem);
+	vma = find_exact_vma(mm, vm_start, vm_end);
+	if (vma && vma->vm_file) {
+		*path = vma->vm_file->f_path;
+		path_get(path);
+		rc = 0;
+	}
+	up_read(&mm->mmap_sem);
+
+out_mmput:
+	mmput(mm);
+out:
+	return rc;
+}
+
+struct map_files_info {
+	struct file	*file;
+	unsigned long	len;
+	unsigned char	name[4*sizeof(long)+2]; /* max: %lx-%lx\0 */
+};
+
+static struct dentry *
+proc_map_files_instantiate(struct inode *dir, struct dentry *dentry,
+			   struct task_struct *task, const void *ptr)
+{
+	const struct file *file = ptr;
+	struct proc_inode *ei;
+	struct inode *inode;
+
+	if (!file)
+		return ERR_PTR(-ENOENT);
+
+	inode = proc_pid_make_inode(dir->i_sb, task);
+	if (!inode)
+		return ERR_PTR(-ENOENT);
+
+	ei = PROC_I(inode);
+	ei->op.proc_get_link = proc_map_files_get_link;
+
+	inode->i_op = &proc_pid_link_inode_operations;
+	inode->i_size = 64;
+	inode->i_mode = S_IFLNK;
+
+	if (file->f_mode & FMODE_READ)
+		inode->i_mode |= S_IRUSR;
+	if (file->f_mode & FMODE_WRITE)
+		inode->i_mode |= S_IWUSR;
+
+	d_set_d_op(dentry, &tid_map_files_dentry_operations);
+	d_add(dentry, inode);
+
+	return NULL;
+}
+
+static struct dentry *proc_map_files_lookup(struct inode *dir,
+		struct dentry *dentry, struct nameidata *nd)
+{
+	unsigned long vm_start, vm_end;
+	struct vm_area_struct *vma;
+	struct task_struct *task;
+	struct dentry *result;
+	struct mm_struct *mm;
+
+	result = ERR_PTR(-EACCES);
+	if (!capable(CAP_SYS_ADMIN))
+		goto out;
+
+	result = ERR_PTR(-ENOENT);
+	task = get_proc_task(dir);
+	if (!task)
+		goto out;
+
+	result = ERR_PTR(-EACCES);
+	if (lock_trace(task))
+		goto out_put_task;
+
+	result = ERR_PTR(-ENOENT);
+	if (dname_to_vma_addr(dentry, &vm_start, &vm_end))
+		goto out_unlock;
+
+	mm = get_task_mm(task);
+	if (!mm)
+		goto out_unlock;
+
+	down_read(&mm->mmap_sem);
+	vma = find_exact_vma(mm, vm_start, vm_end);
+	if (!vma)
+		goto out_no_vma;
+
+	result = proc_map_files_instantiate(dir, dentry, task, vma->vm_file);
+
+out_no_vma:
+	up_read(&mm->mmap_sem);
+	mmput(mm);
+out_unlock:
+	unlock_trace(task);
+out_put_task:
+	put_task_struct(task);
+out:
+	return result;
+}
+
+static const struct inode_operations proc_map_files_inode_operations = {
+	.lookup		= proc_map_files_lookup,
+	.permission	= proc_fd_permission,
+	.setattr	= proc_setattr,
+};
+
+static int
+proc_map_files_readdir(struct file *filp, void *dirent, filldir_t filldir)
+{
+	struct dentry *dentry = filp->f_path.dentry;
+	struct inode *inode = dentry->d_inode;
+	struct vm_area_struct *vma;
+	struct task_struct *task;
+	struct mm_struct *mm;
+	ino_t ino;
+	int ret;
+
+	ret = -EACCES;
+	if (!capable(CAP_SYS_ADMIN))
+		goto out;
+
+	ret = -ENOENT;
+	task = get_proc_task(inode);
+	if (!task)
+		goto out;
+
+	ret = -EACCES;
+	if (lock_trace(task))
+		goto out_put_task;
+
+	ret = 0;
+	switch (filp->f_pos) {
+	case 0:
+		ino = inode->i_ino;
+		if (filldir(dirent, ".", 1, 0, ino, DT_DIR) < 0)
+			goto out_unlock;
+		filp->f_pos++;
+	case 1:
+		ino = parent_ino(dentry);
+		if (filldir(dirent, "..", 2, 1, ino, DT_DIR) < 0)
+			goto out_unlock;
+		filp->f_pos++;
+	default:
+	{
+		unsigned long nr_files, pos, i;
+		struct flex_array *fa = NULL;
+		struct map_files_info info;
+		struct map_files_info *p;
+
+		mm = get_task_mm(task);
+		if (!mm)
+			goto out_unlock;
+		down_read(&mm->mmap_sem);
+
+		nr_files = 0;
+
+		/*
+		 * We need two passes here:
+		 *
+		 *  1) Collect vmas of mapped files with mmap_sem taken
+		 *  2) Release mmap_sem and instantiate entries
+		 *
+		 * otherwise we get lockdep complained, since filldir()
+		 * routine might require mmap_sem taken in might_fault().
+		 */
+
+		for (vma = mm->mmap, pos = 2; vma; vma = vma->vm_next) {
+			if (vma->vm_file && ++pos > filp->f_pos)
+				nr_files++;
+		}
+
+		if (nr_files) {
+			fa = flex_array_alloc(sizeof(info), nr_files,
+						GFP_KERNEL);
+			if (!fa || flex_array_prealloc(fa, 0, nr_files,
+							GFP_KERNEL)) {
+				ret = -ENOMEM;
+				if (fa)
+					flex_array_free(fa);
+				up_read(&mm->mmap_sem);
+				mmput(mm);
+				goto out_unlock;
+			}
+			for (i = 0, vma = mm->mmap, pos = 2; vma;
+					vma = vma->vm_next) {
+				if (!vma->vm_file)
+					continue;
+				if (++pos <= filp->f_pos)
+					continue;
+
+				get_file(vma->vm_file);
+				info.file = vma->vm_file;
+				info.len = snprintf(info.name,
+						sizeof(info.name), "%lx-%lx",
+						vma->vm_start, vma->vm_end);
+				if (flex_array_put(fa, i++, &info, GFP_KERNEL))
+					BUG();
+			}
+		}
+		up_read(&mm->mmap_sem);
+
+		for (i = 0; i < nr_files; i++) {
+			p = flex_array_get(fa, i);
+			ret = proc_fill_cache(filp, dirent, filldir,
+					      p->name, p->len,
+					      proc_map_files_instantiate,
+					      task, p->file);
+			if (ret)
+				break;
+			filp->f_pos++;
+			fput(p->file);
+		}
+		for (; i < nr_files; i++) {
+			/*
+			 * In case of error don't forget
+			 * to put rest of file refs.
+			 */
+			p = flex_array_get(fa, i);
+			fput(p->file);
+		}
+		if (fa)
+			flex_array_free(fa);
+		mmput(mm);
+	}
+	}
+
+out_unlock:
+	unlock_trace(task);
+out_put_task:
+	put_task_struct(task);
+out:
+	return ret;
+}
+
+static const struct file_operations proc_map_files_operations = {
+	.read		= generic_read_dir,
+	.readdir	= proc_map_files_readdir,
+	.llseek		= default_llseek,
+};
+
+#endif /* CONFIG_CHECKPOINT_RESTORE */
+
 /*
  * /proc/pid/fd needs a special permission handler so that a process can still
  * access /proc/self/fd after it has executed a setuid().
@@ -2661,6 +3013,9 @@ static const struct inode_operations proc_task_inode_operations;
 static const struct pid_entry tgid_base_stuff[] = {
 	DIR("task",       S_IRUGO|S_IXUGO, proc_task_inode_operations, proc_task_operations),
 	DIR("fd",         S_IRUSR|S_IXUSR, proc_fd_inode_operations, proc_fd_operations),
+#ifdef CONFIG_CHECKPOINT_RESTORE
+	DIR("map_files",  S_IRUSR|S_IXUSR, proc_map_files_inode_operations, proc_map_files_operations),
+#endif
 	DIR("fdinfo",     S_IRUSR|S_IXUSR, proc_fdinfo_inode_operations, proc_fdinfo_operations),
 	DIR("ns",	  S_IRUSR|S_IXUGO, proc_ns_dir_inode_operations, proc_ns_dir_operations),
 #ifdef CONFIG_NET
