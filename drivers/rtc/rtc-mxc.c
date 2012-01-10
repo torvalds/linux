@@ -290,6 +290,17 @@ static int mxc_rtc_read_time(struct device *dev, struct rtc_time *tm)
  */
 static int mxc_rtc_set_mmss(struct device *dev, unsigned long time)
 {
+	/*
+	 * TTC_DAYR register is 9-bit in MX1 SoC, save time and day of year only
+	 */
+	if (cpu_is_mx1()) {
+		struct rtc_time tm;
+
+		rtc_time_to_tm(time, &tm);
+		tm.tm_year = 70;
+		rtc_tm_to_time(&tm, &time);
+	}
+
 	/* Avoid roll-over from reading the different registers */
 	do {
 		set_alarm_or_time(dev, MXC_RTC_TIME, time);
