@@ -7,6 +7,7 @@
  */
 
 #include <linux/kernel.h>
+#include <linux/module.h>
 #include <linux/sched.h>
 #include <linux/slab.h>
 #include <linux/string.h>
@@ -18,6 +19,7 @@
 #include <linux/highmem.h>
 #include <linux/pagemap.h>
 #include <linux/seq_file.h>
+#include <linux/miscdevice.h>
 
 #include <asm/pgalloc.h>
 #include <asm/pgtable.h>
@@ -31,6 +33,10 @@
 #include <xen/features.h>
 #include <xen/page.h>
 #include <xen/xen-ops.h>
+
+#include "privcmd.h"
+
+MODULE_LICENSE("GPL");
 
 #ifndef HAVE_ARCH_PRIVCMD_MMAP
 static int privcmd_enforce_singleshot_mapping(struct vm_area_struct *vma);
@@ -359,7 +365,6 @@ static long privcmd_ioctl(struct file *file,
 	return ret;
 }
 
-#ifndef HAVE_ARCH_PRIVCMD_MMAP
 static int privcmd_fault(struct vm_area_struct *vma, struct vm_fault *vmf)
 {
 	printk(KERN_DEBUG "privcmd_fault: vma=%p %lx-%lx, pgoff=%lx, uv=%p\n",
@@ -392,9 +397,39 @@ static int privcmd_enforce_singleshot_mapping(struct vm_area_struct *vma)
 {
 	return (xchg(&vma->vm_private_data, (void *)1) == NULL);
 }
-#endif
 
-const struct file_operations privcmd_file_ops = {
+const struct file_operations xen_privcmd_fops = {
+	.owner = THIS_MODULE,
 	.unlocked_ioctl = privcmd_ioctl,
 	.mmap = privcmd_mmap,
 };
+EXPORT_SYMBOL_GPL(xen_privcmd_fops);
+
+static struct miscdevice privcmd_dev = {
+	.minor = MISC_DYNAMIC_MINOR,
+	.name = "xen/privcmd",
+	.fops = &xen_privcmd_fops,
+};
+
+static int __init privcmd_init(void)
+{
+	int err;
+
+	if (!xen_domain())
+		return -ENODEV;
+
+	err = misc_register(&privcmd_dev);
+	if (err != 0) {
+		printk(KERN_ERR "Could not register Xen privcmd device\n");
+		return err;
+	}
+	return 0;
+}
+
+static void __exit privcmd_exit(void)
+{
+	misc_deregister(&privcmd_dev);
+}
+
+module_init(privcmd_init);
+module_exit(privcmd_exit);

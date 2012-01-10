@@ -1,7 +1,9 @@
-/*
- * Private include for xenbus communications.
+/******************************************************************************
+ * evtchn.h
  *
- * Copyright (C) 2005 Rusty Russell, IBM Corporation
+ * Interface to /dev/xen/xenbus_backend.
+ *
+ * Copyright (c) 2011 Bastian Blank <waldi@debian.org>
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License version 2
@@ -28,23 +30,12 @@
  * IN THE SOFTWARE.
  */
 
-#ifndef _XENBUS_COMMS_H
-#define _XENBUS_COMMS_H
+#ifndef __LINUX_XEN_XENBUS_DEV_H__
+#define __LINUX_XEN_XENBUS_DEV_H__
 
-#include <linux/fs.h>
+#include <linux/ioctl.h>
 
-int xs_init(void);
-int xb_init_comms(void);
+#define IOCTL_XENBUS_BACKEND_EVTCHN			\
+	_IOC(_IOC_NONE, 'B', 0, 0)
 
-/* Low level routines. */
-int xb_write(const void *data, unsigned len);
-int xb_read(void *data, unsigned len);
-int xb_data_to_read(void);
-int xb_wait_for_data_to_read(void);
-int xs_input_avail(void);
-extern struct xenstore_domain_interface *xen_store_interface;
-extern int xen_store_evtchn;
-
-extern const struct file_operations xen_xenbus_fops;
-
-#endif /* _XENBUS_COMMS_H */
+#endif /* __LINUX_XEN_XENBUS_DEV_H__ */
