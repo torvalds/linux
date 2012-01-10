@@ -2609,7 +2609,7 @@ sub process {
 			# Flatten any parentheses
 			$value =~ s/\(/ \(/g;
 			$value =~ s/\)/\) /g;
-			while ($value =~ s/\[[^\{\}]*\]/1/ ||
+			while ($value =~ s/\[[^\[\]]*\]/1/ ||
 			       $value !~ /(?:$Ident|-?$Constant)\s*
 					     $Compare\s*
 					     (?:$Ident|-?$Constant)/x &&
