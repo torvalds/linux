@@ -688,8 +688,7 @@ static int __devinit bd2802_probe(struct i2c_client *client,
 	i2c_set_clientdata(client, led);
 
 	/* Configure RESET GPIO (L: RESET, H: RESET cancel) */
-	gpio_request(pdata->reset_gpio, "RGB_RESETB");
-	gpio_direction_output(pdata->reset_gpio, 1);
+	gpio_request_one(pdata->reset_gpio, GPIOF_OUT_INIT_HIGH, "RGB_RESETB");
 
 	/* Tacss = min 0.1ms */
 	udelay(100);
