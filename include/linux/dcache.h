@@ -207,6 +207,7 @@ struct dentry_operations {
 
 #define DCACHE_CANT_MOUNT	0x0100
 #define DCACHE_GENOCIDE		0x0200
+#define DCACHE_SHRINK_LIST	0x0400
 
 #define DCACHE_OP_HASH		0x1000
 #define DCACHE_OP_COMPARE	0x2000
