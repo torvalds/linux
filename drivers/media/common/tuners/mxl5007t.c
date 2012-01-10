@@ -644,8 +644,10 @@ static int mxl5007t_set_params(struct dvb_frontend *fe)
 			break;
 		case 7000000:
 			bw = MxL_BW_7MHz;
+			break;
 		case 8000000:
 			bw = MxL_BW_8MHz;
+			break;
 		default:
 			return -EINVAL;
 		}
