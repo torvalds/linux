@@ -459,6 +459,33 @@ static void __cpuinit broadcast_timer_setup(struct clock_event_device *evt)
 	clockevents_register_device(evt);
 }
 
+static struct local_timer_ops *lt_ops;
+
+#ifdef CONFIG_LOCAL_TIMERS
+int local_timer_register(struct local_timer_ops *ops)
+{
+	if (lt_ops)
+		return -EBUSY;
+
+	lt_ops = ops;
+	return 0;
+}
+#endif
+
+int __cpuinit __attribute__ ((weak)) local_timer_setup(struct clock_event_device *clk)
+{
+	if (lt_ops)
+		return lt_ops->setup(clk);
+
+	return -ENXIO;
+}
+
+void __attribute__ ((weak)) local_timer_stop(struct clock_event_device *clk)
+{
+	if (lt_ops)
+		lt_ops->stop(clk);
+}
+
 void __cpuinit percpu_timer_setup(void)
 {
 	unsigned int cpu = smp_processor_id();
