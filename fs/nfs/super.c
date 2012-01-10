@@ -52,6 +52,7 @@
 #include <linux/nfs_xdr.h>
 #include <linux/magic.h>
 #include <linux/parser.h>
+#include <linux/nsproxy.h>
 
 #include <asm/system.h>
 #include <asm/uaccess.h>
@@ -1106,6 +1107,8 @@ static int nfs_parse_mount_options(char *raw,
 		goto out_security_failure;
 
 	free_secdata(secdata);
+
+	mnt->net = current->nsproxy->net_ns;
 
 	while ((p = strsep(&raw, ",")) != NULL) {
 		substring_t args[MAX_OPT_ARGS];

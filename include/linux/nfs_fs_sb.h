@@ -85,6 +85,7 @@ struct nfs_client {
 #endif
 
 	struct server_scope	*server_scope;	/* from exchange_id */
+	struct net		*net;
 };
 
 /*
