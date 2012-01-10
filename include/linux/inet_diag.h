@@ -22,7 +22,7 @@ struct inet_diag_sockid {
 
 /* Request structure */
 
-struct inet_diag_req_compat {
+struct inet_diag_req {
 	__u8	idiag_family;		/* Family of addresses. */
 	__u8	idiag_src_len;
 	__u8	idiag_dst_len;

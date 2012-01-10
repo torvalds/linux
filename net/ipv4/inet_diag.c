@@ -909,10 +909,10 @@ static inline int inet_diag_type2proto(int type)
 
 static int inet_diag_dump_compat(struct sk_buff *skb, struct netlink_callback *cb)
 {
-	struct inet_diag_req_compat *rc = NLMSG_DATA(cb->nlh);
+	struct inet_diag_req *rc = NLMSG_DATA(cb->nlh);
 	struct inet_diag_req_v2 req;
 	struct nlattr *bc = NULL;
-	int hdrlen = sizeof(struct inet_diag_req_compat);
+	int hdrlen = sizeof(struct inet_diag_req);
 
 	req.sdiag_family = AF_UNSPEC; /* compatibility */
 	req.sdiag_protocol = inet_diag_type2proto(cb->nlh->nlmsg_type);
@@ -929,7 +929,7 @@ static int inet_diag_dump_compat(struct sk_buff *skb, struct netlink_callback *c
 static int inet_diag_get_exact_compat(struct sk_buff *in_skb,
 			       const struct nlmsghdr *nlh)
 {
-	struct inet_diag_req_compat *rc = NLMSG_DATA(nlh);
+	struct inet_diag_req *rc = NLMSG_DATA(nlh);
 	struct inet_diag_req_v2 req;
 
 	req.sdiag_family = rc->idiag_family;
@@ -943,7 +943,7 @@ static int inet_diag_get_exact_compat(struct sk_buff *in_skb,
 
 static int inet_diag_rcv_msg_compat(struct sk_buff *skb, struct nlmsghdr *nlh)
 {
-	int hdrlen = sizeof(struct inet_diag_req_compat);
+	int hdrlen = sizeof(struct inet_diag_req);
 
 	if (nlh->nlmsg_type >= INET_DIAG_GETSOCK_MAX ||
 	    nlmsg_len(nlh) < hdrlen)
