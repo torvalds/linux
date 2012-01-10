@@ -6,7 +6,7 @@
  *          Title:  MPI IOC, Port, Event, FW Download, and FW Upload messages
  *  Creation Date:  October 11, 2006
  *
- *  mpi2_ioc.h Version:  02.00.17
+ *  mpi2_ioc.h Version:  02.00.19
  *
  *  Version History
  *  ---------------
@@ -110,6 +110,13 @@
  *                      Added Temperature Threshold Event.
  *                      Added Host Message Event.
  *                      Added Send Host Message request and reply.
+ *  05-25-11  02.00.18  For Extended Image Header, added
+ *                      MPI2_EXT_IMAGE_TYPE_MIN_PRODUCT_SPECIFIC and
+ *                      MPI2_EXT_IMAGE_TYPE_MAX_PRODUCT_SPECIFIC defines.
+ *                      Deprecated MPI2_EXT_IMAGE_TYPE_MAX define.
+ *  08-24-11  02.00.19  Added PhysicalPort field to
+ *                      MPI2_EVENT_DATA_SAS_DEVICE_STATUS_CHANGE structure.
+ *                      Marked MPI2_PM_CONTROL_FEATURE_PCIE_LINK as obsolete.
  *  --------------------------------------------------------------------------
  */
 
@@ -578,7 +585,7 @@ typedef struct _MPI2_EVENT_DATA_SAS_DEVICE_STATUS_CHANGE
 {
     U16                     TaskTag;                        /* 0x00 */
     U8                      ReasonCode;                     /* 0x02 */
-    U8                      Reserved1;                      /* 0x03 */
+	U8                      PhysicalPort;                   /* 0x03 */
     U8                      ASC;                            /* 0x04 */
     U8                      ASCQ;                           /* 0x05 */
     U16                     DevHandle;                      /* 0x06 */
@@ -1366,16 +1373,18 @@ typedef struct _MPI2_EXT_IMAGE_HEADER
 #define MPI2_EXT_IMAGE_HEADER_SIZE              (0x40)
 
 /* defines for the ImageType field */
-#define MPI2_EXT_IMAGE_TYPE_UNSPECIFIED         (0x00)
-#define MPI2_EXT_IMAGE_TYPE_FW                  (0x01)
-#define MPI2_EXT_IMAGE_TYPE_NVDATA              (0x03)
-#define MPI2_EXT_IMAGE_TYPE_BOOTLOADER          (0x04)
-#define MPI2_EXT_IMAGE_TYPE_INITIALIZATION      (0x05)
-#define MPI2_EXT_IMAGE_TYPE_FLASH_LAYOUT        (0x06)
-#define MPI2_EXT_IMAGE_TYPE_SUPPORTED_DEVICES   (0x07)
-#define MPI2_EXT_IMAGE_TYPE_MEGARAID            (0x08)
-
-#define MPI2_EXT_IMAGE_TYPE_MAX                 (MPI2_EXT_IMAGE_TYPE_MEGARAID)
+#define MPI2_EXT_IMAGE_TYPE_UNSPECIFIED				(0x00)
+#define MPI2_EXT_IMAGE_TYPE_FW						(0x01)
+#define MPI2_EXT_IMAGE_TYPE_NVDATA					(0x03)
+#define MPI2_EXT_IMAGE_TYPE_BOOTLOADER				(0x04)
+#define MPI2_EXT_IMAGE_TYPE_INITIALIZATION			(0x05)
+#define MPI2_EXT_IMAGE_TYPE_FLASH_LAYOUT			(0x06)
+#define MPI2_EXT_IMAGE_TYPE_SUPPORTED_DEVICES		(0x07)
+#define MPI2_EXT_IMAGE_TYPE_MEGARAID				(0x08)
+#define MPI2_EXT_IMAGE_TYPE_MIN_PRODUCT_SPECIFIC    (0x80)
+#define MPI2_EXT_IMAGE_TYPE_MAX_PRODUCT_SPECIFIC    (0xFF)
+#define MPI2_EXT_IMAGE_TYPE_MAX                   \
+	(MPI2_EXT_IMAGE_TYPE_MAX_PRODUCT_SPECIFIC)	/* deprecated */
 
 
 
@@ -1568,7 +1577,7 @@ typedef struct _MPI2_PWR_MGMT_CONTROL_REQUEST {
 /* defines for the Feature field */
 #define MPI2_PM_CONTROL_FEATURE_DA_PHY_POWER_COND       (0x01)
 #define MPI2_PM_CONTROL_FEATURE_PORT_WIDTH_MODULATION   (0x02)
-#define MPI2_PM_CONTROL_FEATURE_PCIE_LINK               (0x03)
+#define MPI2_PM_CONTROL_FEATURE_PCIE_LINK               (0x03) /* obsolete */
 #define MPI2_PM_CONTROL_FEATURE_IOC_SPEED               (0x04)
 #define MPI2_PM_CONTROL_FEATURE_MIN_PRODUCT_SPECIFIC    (0x80)
 #define MPI2_PM_CONTROL_FEATURE_MAX_PRODUCT_SPECIFIC    (0xFF)
@@ -1597,14 +1606,14 @@ typedef struct _MPI2_PWR_MGMT_CONTROL_REQUEST {
 
 /* parameter usage for the MPI2_PM_CONTROL_FEATURE_PCIE_LINK Feature */
 /* Parameter1 indicates desired PCIe link speed using these defines */
-#define MPI2_PM_CONTROL_PARAM1_PCIE_2_5_GBPS            (0x00)
-#define MPI2_PM_CONTROL_PARAM1_PCIE_5_0_GBPS            (0x01)
-#define MPI2_PM_CONTROL_PARAM1_PCIE_8_0_GBPS            (0x02)
+#define MPI2_PM_CONTROL_PARAM1_PCIE_2_5_GBPS            (0x00) /* obsolete */
+#define MPI2_PM_CONTROL_PARAM1_PCIE_5_0_GBPS            (0x01) /* obsolete */
+#define MPI2_PM_CONTROL_PARAM1_PCIE_8_0_GBPS            (0x02) /* obsolete */
 /* Parameter2 indicates desired PCIe link width using these defines */
-#define MPI2_PM_CONTROL_PARAM2_WIDTH_X1                 (0x01)
-#define MPI2_PM_CONTROL_PARAM2_WIDTH_X2                 (0x02)
-#define MPI2_PM_CONTROL_PARAM2_WIDTH_X4                 (0x04)
-#define MPI2_PM_CONTROL_PARAM2_WIDTH_X8                 (0x08)
+#define MPI2_PM_CONTROL_PARAM2_WIDTH_X1                 (0x01) /* obsolete */
+#define MPI2_PM_CONTROL_PARAM2_WIDTH_X2                 (0x02) /* obsolete */
+#define MPI2_PM_CONTROL_PARAM2_WIDTH_X4                 (0x04) /* obsolete */
+#define MPI2_PM_CONTROL_PARAM2_WIDTH_X8                 (0x08) /* obsolete */
 /* Parameter3 and Parameter4 are reserved */
 
 /* parameter usage for the MPI2_PM_CONTROL_FEATURE_IOC_SPEED Feature */
