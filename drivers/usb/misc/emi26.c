@@ -37,9 +37,6 @@ static int emi26_set_reset(struct usb_device *dev, unsigned char reset_bit);
 static int emi26_load_firmware (struct usb_device *dev);
 static int emi26_probe(struct usb_interface *intf, const struct usb_device_id *id);
 static void emi26_disconnect(struct usb_interface *intf);
-static int __init emi26_init (void);
-static void __exit emi26_exit (void);
-
 
 /* thanks to drivers/usb/serial/keyspan_pda.c code */
 static int emi26_writememory (struct usb_device *dev, int address,
