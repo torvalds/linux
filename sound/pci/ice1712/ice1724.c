@@ -2185,6 +2185,40 @@ static struct snd_kcontrol_new snd_vt1724_mixer_pro_peak __devinitdata = {
 
 static struct snd_ice1712_card_info no_matched __devinitdata;
 
+
+/*
+  ooAoo cards with no controls
+*/
+static unsigned char ooaoo_sq210_eeprom[] __devinitdata = {
+	[ICE_EEP2_SYSCONF]     = 0x4c,	/* 49MHz crystal, no mpu401, no ADC,
+					   1xDACs */
+	[ICE_EEP2_ACLINK]      = 0x80,	/* I2S */
+	[ICE_EEP2_I2S]         = 0x78,	/* no volume, 96k, 24bit, 192k */
+	[ICE_EEP2_SPDIF]       = 0xc1,	/* out-en, out-int, out-ext */
+	[ICE_EEP2_GPIO_DIR]    = 0x00,	/* no GPIOs are used */
+	[ICE_EEP2_GPIO_DIR1]   = 0x00,
+	[ICE_EEP2_GPIO_DIR2]   = 0x00,
+	[ICE_EEP2_GPIO_MASK]   = 0xff,
+	[ICE_EEP2_GPIO_MASK1]  = 0xff,
+	[ICE_EEP2_GPIO_MASK2]  = 0xff,
+
+	[ICE_EEP2_GPIO_STATE]  = 0x00, /* inputs */
+	[ICE_EEP2_GPIO_STATE1] = 0x00, /* all 1, but GPIO_CPLD_RW
+					  and GPIO15 always zero */
+	[ICE_EEP2_GPIO_STATE2] = 0x00, /* inputs */
+};
+
+
+struct snd_ice1712_card_info snd_vt1724_ooaoo_cards[] __devinitdata = {
+	{
+		.name = "ooAoo SQ210a",
+		.model = "sq210a",
+		.eeprom_size = sizeof(ooaoo_sq210_eeprom),
+		.eeprom_data = ooaoo_sq210_eeprom,
+	},
+	{ } /* terminator */
+};
+
 static struct snd_ice1712_card_info *card_tables[] __devinitdata = {
 	snd_vt1724_revo_cards,
 	snd_vt1724_amp_cards,
@@ -2199,6 +2233,7 @@ static struct snd_ice1712_card_info *card_tables[] __devinitdata = {
 	snd_vt1724_wtm_cards,
 	snd_vt1724_se_cards,
 	snd_vt1724_qtet_cards,
+	snd_vt1724_ooaoo_cards,
 	NULL,
 };
 
