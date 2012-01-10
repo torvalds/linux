@@ -19,6 +19,15 @@
 #include <linux/mfd/wm831x/pdata.h>
 #include <linux/mfd/wm831x/status.h>
 
+struct light_state_t {
+	unsigned int color;
+
+	int mode;
+	int onms;
+	int offms;
+
+	int brightness;
+};
 
 struct wm831x_status {
 	struct led_classdev cdev;
@@ -156,6 +165,102 @@ static int wm831x_status_blink_set(struct led_classdev *led_cdev,
 	return ret;
 }
 
+static ssize_t wm831x_status_blink_store(struct device *dev,
+				       struct device_attribute *attr,
+				       const char *buf, size_t size)
+{
+	struct led_classdev *led_cdev = dev_get_drvdata(dev);
+	struct wm831x_status *led = to_wm831x_status(led_cdev);
+	struct light_state_t *light_state = NULL;
+	unsigned long flags;
+	int ret = 0;
+    enum led_brightness value;
+	unsigned int delay_on, delay_off, mode, color;
+
+	if (size != sizeof (struct light_state_t)) {
+		printk("%s: set led blink err\n", __func__);
+		return -1;
+	}
+
+	light_state = (struct light_state_t *)buf;
+	if (light_state) {
+		led->src = 3;
+
+		value = light_state->brightness;
+		delay_on = light_state->onms;
+		delay_off = light_state->offms;
+		mode = light_state->mode;
+		color = light_state->color;
+
+		//printk("%s: color = %#x delay_on = %d delya_off = %d brightness = %d mode = %d\n",
+		//		__func__, color, delay_on, delay_off, value, mode);
+		if (delay_on == 0 && delay_off == 0) {
+			delay_on = 250;
+			delay_off = 250;
+		}
+
+		spin_lock_irqsave(&led->value_lock, flags);
+
+		switch (delay_on) {
+		case 1000:
+			led->blink_time = 0;
+			break;
+		case 500:
+		case 250:
+			led->blink_time = 1;
+			break;
+		case 125:
+			led->blink_time = 2;
+			break;
+		case 62:
+		case 63:
+			/* Actually 62.5ms */
+			led->blink_time = 3;
+			break;
+		default:
+			ret = -EINVAL;
+			break;
+		}
+
+		if (ret == 0) {
+			switch (delay_off / delay_on) {
+			case 1:
+				led->blink_cyc = 0;
+				break;
+			case 3:
+				led->blink_cyc = 1;
+				break;
+			case 4:
+				led->blink_cyc = 2;
+				break;
+			case 8:
+				led->blink_cyc = 3;
+				break;
+			default:
+				ret = -EINVAL;
+				break;
+			}
+		}
+
+		if (ret == 0)
+			led->blink = 1;
+		else
+			led->blink = 0;
+		
+		//set led brightness
+		led->brightness = mode;
+		if (led->brightness == LED_OFF)
+			led->blink = 0;
+
+		schedule_work(&led->work);
+
+		spin_unlock_irqrestore(&led->value_lock, flags);
+	}
+
+	return size;
+}
+static DEVICE_ATTR(blink, 0777, NULL, wm831x_status_blink_store);
+
 static const char *led_src_texts[] = {
 	"otp",
 	"power",
@@ -262,6 +367,8 @@ static int wm831x_status_probe(struct platform_device *pdev)
 	/* We cache the configuration register and read startup values
 	 * from it. */
 	drvdata->reg_val = wm831x_reg_read(wm831x, drvdata->reg);
+	if (drvdata->reg == WM831X_STATUS_LED_2)
+		wm831x_reg_write(wm831x, drvdata->reg, 0xc027);
 
 	if (drvdata->reg_val & WM831X_LED_MODE_MASK)
 		drvdata->brightness = LED_FULL;
@@ -289,6 +396,11 @@ static int wm831x_status_probe(struct platform_device *pdev)
 		dev_err(&pdev->dev, "Failed to register LED: %d\n", ret);
 		goto err_led;
 	}
+
+	ret = device_create_file(drvdata->cdev.dev, &dev_attr_blink);
+	if (ret != 0)
+		dev_err(&pdev->dev,
+			"LED no blink function: %d\n", ret);
 
 	ret = device_create_file(drvdata->cdev.dev, &dev_attr_src);
 	if (ret != 0)
