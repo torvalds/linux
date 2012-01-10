@@ -45,9 +45,9 @@ int ima_must_appraise(struct inode *inode, enum ima_hooks func, int mask)
 static void ima_fix_xattr(struct dentry *dentry,
 			  struct integrity_iint_cache *iint)
 {
-	iint->digest[0] = IMA_XATTR_DIGEST;
-	__vfs_setxattr_noperm(dentry, XATTR_NAME_IMA,
-			      iint->digest, IMA_DIGEST_SIZE + 1, 0);
+	iint->ima_xattr.type = IMA_XATTR_DIGEST;
+	__vfs_setxattr_noperm(dentry, XATTR_NAME_IMA, (u8 *)&iint->ima_xattr,
+			      sizeof iint->ima_xattr, 0);
 }
 
 /*
@@ -63,7 +63,7 @@ int ima_appraise_measurement(struct integrity_iint_cache *iint,
 {
 	struct dentry *dentry = file->f_dentry;
 	struct inode *inode = dentry->d_inode;
-	u8 xattr_value[IMA_DIGEST_SIZE];
+	struct evm_ima_xattr_data xattr_value;
 	enum integrity_status status = INTEGRITY_UNKNOWN;
 	const char *op = "appraise_data";
 	char *cause = "unknown";
@@ -77,8 +77,8 @@ int ima_appraise_measurement(struct integrity_iint_cache *iint,
 	if (iint->flags & IMA_APPRAISED)
 		return iint->ima_status;
 
-	rc = inode->i_op->getxattr(dentry, XATTR_NAME_IMA, xattr_value,
-				   IMA_DIGEST_SIZE);
+	rc = inode->i_op->getxattr(dentry, XATTR_NAME_IMA, (u8 *)&xattr_value,
+				   sizeof xattr_value);
 	if (rc <= 0) {
 		if (rc && rc != -ENODATA)
 			goto out;
@@ -89,7 +89,8 @@ int ima_appraise_measurement(struct integrity_iint_cache *iint,
 		goto out;
 	}
 
-	status = evm_verifyxattr(dentry, XATTR_NAME_IMA, xattr_value, rc, iint);
+	status = evm_verifyxattr(dentry, XATTR_NAME_IMA, (u8 *)&xattr_value,
+				 rc, iint);
 	if ((status != INTEGRITY_PASS) && (status != INTEGRITY_UNKNOWN)) {
 		if ((status == INTEGRITY_NOLABEL)
 		    || (status == INTEGRITY_NOXATTRS))
@@ -99,14 +100,16 @@ int ima_appraise_measurement(struct integrity_iint_cache *iint,
 		goto out;
 	}
 
-	rc = memcmp(xattr_value, iint->digest, IMA_DIGEST_SIZE);
+	rc = memcmp(xattr_value.digest, iint->ima_xattr.digest,
+		    IMA_DIGEST_SIZE);
 	if (rc) {
 		status = INTEGRITY_FAIL;
 		cause = "invalid-hash";
 		print_hex_dump_bytes("security.ima: ", DUMP_PREFIX_NONE,
-				     xattr_value, IMA_DIGEST_SIZE);
+				     &xattr_value, sizeof xattr_value);
 		print_hex_dump_bytes("collected: ", DUMP_PREFIX_NONE,
-				     iint->digest, IMA_DIGEST_SIZE);
+				     (u8 *)&iint->ima_xattr,
+				     sizeof iint->ima_xattr);
 		goto out;
 	}
 	status = INTEGRITY_PASS;

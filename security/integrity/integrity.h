@@ -39,7 +39,7 @@ struct integrity_iint_cache {
 	struct inode *inode;	/* back pointer to inode in question */
 	u64 version;		/* track inode changes */
 	unsigned char flags;
-	u8 digest[SHA1_DIGEST_SIZE];
+	struct evm_ima_xattr_data ima_xattr;
 	enum integrity_status ima_status;
 	enum integrity_status evm_status;
 };
