@@ -651,7 +651,7 @@ static int __devinit pmic_probe(struct spi_device *spi)
 			hw->desc[i].n_voltages = 1;
 
 		hw->rdev[i] = regulator_register(&hw->desc[i], dev,
-						 init_data, hw);
+						 init_data, hw, NULL);
 		if (IS_ERR(hw->rdev[i])) {
 			ret = PTR_ERR(hw->rdev[i]);
 			hw->rdev[i] = NULL;

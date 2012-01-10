@@ -599,7 +599,7 @@ int tps6507x_pmic_probe(struct platform_device *pdev)
 		tps->desc[i].owner = THIS_MODULE;
 
 		rdev = regulator_register(&tps->desc[i],
-					tps6507x_dev->dev, init_data, tps);
+					tps6507x_dev->dev, init_data, tps, NULL);
 		if (IS_ERR(rdev)) {
 			dev_err(tps6507x_dev->dev,
 				"failed to register %s regulator\n",

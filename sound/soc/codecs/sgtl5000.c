@@ -833,7 +833,7 @@ static int ldo_regulator_register(struct snd_soc_codec *codec,
 	ldo->voltage = voltage;
 
 	ldo->dev = regulator_register(&ldo->desc, codec->dev,
-					  init_data, ldo);
+					  init_data, ldo, NULL);
 	if (IS_ERR(ldo->dev)) {
 		int ret = PTR_ERR(ldo->dev);
 
