@@ -20,12 +20,6 @@
 
 #include <linux/ioport.h>
 
-struct clock_event_device;
-
-extern void __iomem *twd_base;
-
-int twd_timer_setup(struct clock_event_device *);
-
 struct twd_local_timer {
 	struct resource	res[2];
 };
