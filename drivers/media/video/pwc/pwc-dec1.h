@@ -34,6 +34,6 @@ struct pwc_dec1_private
 	int version;
 };
 
-void pwc_dec1_init(struct pwc_device *pdev, void *buffer);
+void pwc_dec1_init(struct pwc_device *pdev, const unsigned char *cmd);
 
 #endif

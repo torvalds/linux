@@ -772,33 +772,33 @@ static int pwc_set_autogain_expo(struct pwc_device *pdev)
 static int pwc_set_motor(struct pwc_device *pdev)
 {
 	int ret;
-	u8 buf[4];
 
-	buf[0] = 0;
+	pdev->ctrl_buf[0] = 0;
 	if (pdev->motor_pan_reset->is_new)
-		buf[0] |= 0x01;
+		pdev->ctrl_buf[0] |= 0x01;
 	if (pdev->motor_tilt_reset->is_new)
-		buf[0] |= 0x02;
+		pdev->ctrl_buf[0] |= 0x02;
 	if (pdev->motor_pan_reset->is_new || pdev->motor_tilt_reset->is_new) {
 		ret = send_control_msg(pdev, SET_MPT_CTL,
-				       PT_RESET_CONTROL_FORMATTER, buf, 1);
+				       PT_RESET_CONTROL_FORMATTER,
+				       pdev->ctrl_buf, 1);
 		if (ret < 0)
 			return ret;
 	}
 
-	memset(buf, 0, sizeof(buf));
+	memset(pdev->ctrl_buf, 0, 4);
 	if (pdev->motor_pan->is_new) {
-		buf[0] = pdev->motor_pan->val & 0xFF;
-		buf[1] = (pdev->motor_pan->val >> 8);
+		pdev->ctrl_buf[0] = pdev->motor_pan->val & 0xFF;
+		pdev->ctrl_buf[1] = (pdev->motor_pan->val >> 8);
 	}
 	if (pdev->motor_tilt->is_new) {
-		buf[2] = pdev->motor_tilt->val & 0xFF;
-		buf[3] = (pdev->motor_tilt->val >> 8);
+		pdev->ctrl_buf[2] = pdev->motor_tilt->val & 0xFF;
+		pdev->ctrl_buf[3] = (pdev->motor_tilt->val >> 8);
 	}
 	if (pdev->motor_pan->is_new || pdev->motor_tilt->is_new) {
 		ret = send_control_msg(pdev, SET_MPT_CTL,
 				       PT_RELATIVE_CONTROL_FORMATTER,
-				       buf, sizeof(buf));
+				       pdev->ctrl_buf, 4);
 		if (ret < 0)
 			return ret;
 	}

@@ -104,47 +104,16 @@ static struct Nala_table_entry Nala_table[PSZ_MAX][PWC_FPS_MAX_NALA] =
 
 /****************************************************************************/
 
-static int _send_control_msg(struct pwc_device *pdev,
-	u8 request, u16 value, int index, void *buf, int buflen)
-{
-	int rc;
-	void *kbuf = NULL;
-
-	if (buflen) {
-		kbuf = kmemdup(buf, buflen, GFP_KERNEL); /* not allowed on stack */
-		if (kbuf == NULL)
-			return -ENOMEM;
-	}
-
-	rc = usb_control_msg(pdev->udev, usb_sndctrlpipe(pdev->udev, 0),
-		request,
-		USB_DIR_OUT | USB_TYPE_VENDOR | USB_RECIP_DEVICE,
-		value,
-		index,
-		kbuf, buflen, USB_CTRL_SET_TIMEOUT);
-
-	kfree(kbuf);
-	return rc;
-}
-
 static int recv_control_msg(struct pwc_device *pdev,
-	u8 request, u16 value, void *buf, int buflen)
+	u8 request, u16 value, int recv_count)
 {
 	int rc;
-	void *kbuf = kmalloc(buflen, GFP_KERNEL); /* not allowed on stack */
-
-	if (kbuf == NULL)
-		return -ENOMEM;
 
 	rc = usb_control_msg(pdev->udev, usb_rcvctrlpipe(pdev->udev, 0),
 		request,
 		USB_DIR_IN | USB_TYPE_VENDOR | USB_RECIP_DEVICE,
-		value,
-		pdev->vcinterface,
-		kbuf, buflen, USB_CTRL_GET_TIMEOUT);
-	memcpy(buf, kbuf, buflen);
-	kfree(kbuf);
-
+		value, pdev->vcinterface,
+		pdev->ctrl_buf, recv_count, USB_CTRL_GET_TIMEOUT);
 	if (rc < 0)
 		PWC_ERROR("recv_control_msg error %d req %02x val %04x\n",
 			  rc, request, value);
@@ -152,26 +121,38 @@ static int recv_control_msg(struct pwc_device *pdev,
 }
 
 static inline int send_video_command(struct pwc_device *pdev,
-	int index, void *buf, int buflen)
+	int index, const unsigned char *buf, int buflen)
 {
-	return _send_control_msg(pdev,
-		SET_EP_STREAM_CTL,
-		VIDEO_OUTPUT_CONTROL_FORMATTER,
-		index,
-		buf, buflen);
+	int rc;
+
+	memcpy(pdev->ctrl_buf, buf, buflen);
+
+	rc = usb_control_msg(pdev->udev, usb_sndctrlpipe(pdev->udev, 0),
+			SET_EP_STREAM_CTL,
+			USB_DIR_OUT | USB_TYPE_VENDOR | USB_RECIP_DEVICE,
+			VIDEO_OUTPUT_CONTROL_FORMATTER, index,
+			pdev->ctrl_buf, buflen, USB_CTRL_SET_TIMEOUT);
+	if (rc >= 0)
+		memcpy(pdev->cmd_buf, buf, buflen);
+	else
+		PWC_ERROR("send_video_command error %d\n", rc);
+
+	return rc;
 }
 
 int send_control_msg(struct pwc_device *pdev,
 	u8 request, u16 value, void *buf, int buflen)
 {
-	return _send_control_msg(pdev,
-		request, value, pdev->vcinterface, buf, buflen);
+	return usb_control_msg(pdev->udev, usb_sndctrlpipe(pdev->udev, 0),
+			request,
+			USB_DIR_OUT | USB_TYPE_VENDOR | USB_RECIP_DEVICE,
+			value, pdev->vcinterface,
+			buf, buflen, USB_CTRL_SET_TIMEOUT);
 }
 
 static int set_video_mode_Nala(struct pwc_device *pdev, int size, int pixfmt,
 			       int frames, int *compression, int send_to_cam)
 {
-	unsigned char buf[3];
 	int fps, ret = 0;
 	struct Nala_table_entry *pEntry;
 	int frames2frames[31] =
@@ -206,18 +187,14 @@ static int set_video_mode_Nala(struct pwc_device *pdev, int size, int pixfmt,
 	if (pEntry->alternate == 0)
 		return -EINVAL;
 
-	memcpy(buf, pEntry->mode, 3);
 	if (send_to_cam)
-		ret = send_video_command(pdev, pdev->vendpoint, buf, 3);
-	if (ret < 0) {
-		PWC_DEBUG_MODULE("Failed to send video command... %d\n", ret);
+		ret = send_video_command(pdev, pdev->vendpoint,
+					 pEntry->mode, 3);
+	if (ret < 0)
 		return ret;
-	}
-	if (pEntry->compressed && pixfmt == V4L2_PIX_FMT_YUV420)
-		pwc_dec1_init(pdev, buf);
 
-	pdev->cmd_len = 3;
-	memcpy(pdev->cmd_buf, buf, 3);
+	if (pEntry->compressed && pixfmt == V4L2_PIX_FMT_YUV420)
+		pwc_dec1_init(pdev, pEntry->mode);
 
 	/* Set various parameters */
 	pdev->pixfmt = pixfmt;
@@ -249,7 +226,6 @@ static int set_video_mode_Nala(struct pwc_device *pdev, int size, int pixfmt,
 static int set_video_mode_Timon(struct pwc_device *pdev, int size, int pixfmt,
 				int frames, int *compression, int send_to_cam)
 {
-	unsigned char buf[13];
 	const struct Timon_table_entry *pChoose;
 	int fps, ret = 0;
 
@@ -274,17 +250,14 @@ static int set_video_mode_Timon(struct pwc_device *pdev, int size, int pixfmt,
 	if (pChoose == NULL || pChoose->alternate == 0)
 		return -ENOENT; /* Not supported. */
 
-	memcpy(buf, pChoose->mode, 13);
 	if (send_to_cam)
-		ret = send_video_command(pdev, pdev->vendpoint, buf, 13);
+		ret = send_video_command(pdev, pdev->vendpoint,
+					 pChoose->mode, 13);
 	if (ret < 0)
 		return ret;
 
 	if (pChoose->bandlength > 0 && pixfmt == V4L2_PIX_FMT_YUV420)
-		pwc_dec23_init(pdev, buf);
-
-	pdev->cmd_len = 13;
-	memcpy(pdev->cmd_buf, buf, 13);
+		pwc_dec23_init(pdev, pChoose->mode);
 
 	/* Set various parameters */
 	pdev->pixfmt = pixfmt;
@@ -306,7 +279,6 @@ static int set_video_mode_Kiara(struct pwc_device *pdev, int size, int pixfmt,
 {
 	const struct Kiara_table_entry *pChoose = NULL;
 	int fps, ret = 0;
-	unsigned char buf[12];
 
 	if (size >= PSZ_MAX || *compression < 0 || *compression > 3)
 		return -EINVAL;
@@ -328,22 +300,15 @@ static int set_video_mode_Kiara(struct pwc_device *pdev, int size, int pixfmt,
 	if (pChoose == NULL || pChoose->alternate == 0)
 		return -ENOENT; /* Not supported. */
 
-	PWC_TRACE("Using alternate setting %d.\n", pChoose->alternate);
-
-	/* usb_control_msg won't take staticly allocated arrays as argument?? */
-	memcpy(buf, pChoose->mode, 12);
-
 	/* Firmware bug: video endpoint is 5, but commands are sent to endpoint 4 */
 	if (send_to_cam)
-		ret = send_video_command(pdev, 4, buf, 12);
+		ret = send_video_command(pdev, 4, pChoose->mode, 12);
 	if (ret < 0)
 		return ret;
 
 	if (pChoose->bandlength > 0 && pixfmt == V4L2_PIX_FMT_YUV420)
-		pwc_dec23_init(pdev, buf);
+		pwc_dec23_init(pdev, pChoose->mode);
 
-	pdev->cmd_len = 12;
-	memcpy(pdev->cmd_buf, buf, 12);
 	/* All set and go */
 	pdev->pixfmt = pixfmt;
 	pdev->vframes = (fps + 1) * 5;
@@ -445,13 +410,12 @@ unsigned int pwc_get_fps(struct pwc_device *pdev, unsigned int index, unsigned i
 int pwc_get_u8_ctrl(struct pwc_device *pdev, u8 request, u16 value, int *data)
 {
 	int ret;
-	u8 buf;
 
-	ret = recv_control_msg(pdev, request, value, &buf, sizeof(buf));
+	ret = recv_control_msg(pdev, request, value, 1);
 	if (ret < 0)
 		return ret;
 
-	*data = buf;
+	*data = pdev->ctrl_buf[0];
 	return 0;
 }
 
@@ -459,7 +423,8 @@ int pwc_set_u8_ctrl(struct pwc_device *pdev, u8 request, u16 value, u8 data)
 {
 	int ret;
 
-	ret = send_control_msg(pdev, request, value, &data, sizeof(data));
+	pdev->ctrl_buf[0] = data;
+	ret = send_control_msg(pdev, request, value, pdev->ctrl_buf, 1);
 	if (ret < 0)
 		return ret;
 
@@ -469,37 +434,34 @@ int pwc_set_u8_ctrl(struct pwc_device *pdev, u8 request, u16 value, u8 data)
 int pwc_get_s8_ctrl(struct pwc_device *pdev, u8 request, u16 value, int *data)
 {
 	int ret;
-	s8 buf;
 
-	ret = recv_control_msg(pdev, request, value, &buf, sizeof(buf));
+	ret = recv_control_msg(pdev, request, value, 1);
 	if (ret < 0)
 		return ret;
 
-	*data = buf;
+	*data = ((s8 *)pdev->ctrl_buf)[0];
 	return 0;
 }
 
 int pwc_get_u16_ctrl(struct pwc_device *pdev, u8 request, u16 value, int *data)
 {
 	int ret;
-	u8 buf[2];
 
-	ret = recv_control_msg(pdev, request, value, buf, sizeof(buf));
+	ret = recv_control_msg(pdev, request, value, 2);
 	if (ret < 0)
 		return ret;
 
-	*data = (buf[1] << 8) | buf[0];
+	*data = (pdev->ctrl_buf[1] << 8) | pdev->ctrl_buf[0];
 	return 0;
 }
 
 int pwc_set_u16_ctrl(struct pwc_device *pdev, u8 request, u16 value, u16 data)
 {
 	int ret;
-	u8 buf[2];
 
-	buf[0] = data & 0xff;
-	buf[1] = data >> 8;
-	ret = send_control_msg(pdev, request, value, buf, sizeof(buf));
+	pdev->ctrl_buf[0] = data & 0xff;
+	pdev->ctrl_buf[1] = data >> 8;
+	ret = send_control_msg(pdev, request, value, pdev->ctrl_buf, 2);
 	if (ret < 0)
 		return ret;
 
@@ -520,7 +482,6 @@ int pwc_button_ctrl(struct pwc_device *pdev, u16 value)
 /* POWER */
 void pwc_camera_power(struct pwc_device *pdev, int power)
 {
-	char buf;
 	int r;
 
 	if (!pdev->power_save)
@@ -530,13 +491,11 @@ void pwc_camera_power(struct pwc_device *pdev, int power)
 		return;	/* Not supported by Nala or Timon < release 6 */
 
 	if (power)
-		buf = 0x00; /* active */
+		pdev->ctrl_buf[0] = 0x00; /* active */
 	else
-		buf = 0xFF; /* power save */
-	r = send_control_msg(pdev,
-		SET_STATUS_CTL, SET_POWER_SAVE_MODE_FORMATTER,
-		&buf, sizeof(buf));
-
+		pdev->ctrl_buf[0] = 0xFF; /* power save */
+	r = send_control_msg(pdev, SET_STATUS_CTL,
+		SET_POWER_SAVE_MODE_FORMATTER, pdev->ctrl_buf, 1);
 	if (r < 0)
 		PWC_ERROR("Failed to power %s camera (%d)\n",
 			  power ? "on" : "off", r);
@@ -544,7 +503,6 @@ void pwc_camera_power(struct pwc_device *pdev, int power)
 
 int pwc_set_leds(struct pwc_device *pdev, int on_value, int off_value)
 {
-	unsigned char buf[2];
 	int r;
 
 	if (pdev->type < 730)
@@ -560,11 +518,11 @@ int pwc_set_leds(struct pwc_device *pdev, int on_value, int off_value)
 	if (off_value > 0xff)
 		off_value = 0xff;
 
-	buf[0] = on_value;
-	buf[1] = off_value;
+	pdev->ctrl_buf[0] = on_value;
+	pdev->ctrl_buf[1] = off_value;
 
 	r = send_control_msg(pdev,
-		SET_STATUS_CTL, LED_FORMATTER, &buf, sizeof(buf));
+		SET_STATUS_CTL, LED_FORMATTER, pdev->ctrl_buf, 2);
 	if (r < 0)
 		PWC_ERROR("Failed to set LED on/off time (%d)\n", r);
 
@@ -574,7 +532,6 @@ int pwc_set_leds(struct pwc_device *pdev, int on_value, int off_value)
 #ifdef CONFIG_USB_PWC_DEBUG
 int pwc_get_cmos_sensor(struct pwc_device *pdev, int *sensor)
 {
-	unsigned char buf;
 	int ret = -1, request;
 
 	if (pdev->type < 675)
@@ -584,14 +541,13 @@ int pwc_get_cmos_sensor(struct pwc_device *pdev, int *sensor)
 	else
 		request = SENSOR_TYPE_FORMATTER2;
 
-	ret = recv_control_msg(pdev,
-		GET_STATUS_CTL, request, &buf, sizeof(buf));
+	ret = recv_control_msg(pdev, GET_STATUS_CTL, request, 1);
 	if (ret < 0)
 		return ret;
 	if (pdev->type < 675)
-		*sensor = buf | 0x100;
+		*sensor = pdev->ctrl_buf[0] | 0x100;
 	else
-		*sensor = buf;
+		*sensor = pdev->ctrl_buf[0];
 	return 0;
 }
 #endif

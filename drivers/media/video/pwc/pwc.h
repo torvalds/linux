@@ -134,9 +134,6 @@
 #define DEVICE_USE_CODEC3(x) ((x)>=700)
 #define DEVICE_USE_CODEC23(x) ((x)>=675)
 
-/* from pwc-dec.h */
-#define PWCX_FLAG_PLANAR        0x0001
-
 /* Request types: video */
 #define SET_LUM_CTL			0x01
 #define GET_LUM_CTL			0x02
@@ -250,8 +247,8 @@ struct pwc_device
 	char vmirror;		/* for ToUCaM series */
 	char power_save;	/* Do powersaving for this cam */
 
-	int cmd_len;
 	unsigned char cmd_buf[13];
+	unsigned char *ctrl_buf;
 
 	struct urb *urbs[MAX_ISO_BUFS];
 	char iso_init;

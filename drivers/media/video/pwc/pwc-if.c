@@ -605,6 +605,7 @@ static void pwc_video_release(struct v4l2_device *v)
 
 	v4l2_ctrl_handler_free(&pdev->ctrl_handler);
 
+	kfree(pdev->ctrl_buf);
 	kfree(pdev);
 }
 
@@ -1115,6 +1116,14 @@ static int usb_pwc_probe(struct usb_interface *intf, const struct usb_device_id 
 	if (hint < MAX_DEV_HINTS)
 		device_hint[hint].pdev = pdev;
 
+	/* Allocate USB command buffers */
+	pdev->ctrl_buf = kmalloc(sizeof(pdev->cmd_buf), GFP_KERNEL);
+	if (!pdev->ctrl_buf) {
+		PWC_ERROR("Oops, could not allocate memory for pwc_device.\n");
+		rc = -ENOMEM;
+		goto err_free_mem;
+	}
+
 #ifdef CONFIG_USB_PWC_DEBUG
 	/* Query sensor type */
 	if (pwc_get_cmos_sensor(pdev, &rc) >= 0) {
@@ -1199,6 +1208,7 @@ err_free_controls:
 err_free_mem:
 	if (hint < MAX_DEV_HINTS)
 		device_hint[hint].pdev = NULL;
+	kfree(pdev->ctrl_buf);
 	kfree(pdev);
 	return rc;
 }

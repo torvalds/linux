@@ -54,7 +54,7 @@ struct pwc_dec23_private
 
 };
 
-void pwc_dec23_init(struct pwc_device *pdev, unsigned char *cmd);
+void pwc_dec23_init(struct pwc_device *pdev, const unsigned char *cmd);
 void pwc_dec23_decompress(struct pwc_device *pdev,
 			  const void *src,
 			  void *dst);

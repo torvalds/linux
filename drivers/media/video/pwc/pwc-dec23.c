@@ -294,7 +294,7 @@ static unsigned char pwc_crop_table[256 + 2*MAX_OUTER_CROP_VALUE];
 
 
 /* If the type or the command change, we rebuild the lookup table */
-void pwc_dec23_init(struct pwc_device *pdev, unsigned char *cmd)
+void pwc_dec23_init(struct pwc_device *pdev, const unsigned char *cmd)
 {
 	int flags, version, shift, i;
 	struct pwc_dec23_private *pdec = &pdev->dec23;
