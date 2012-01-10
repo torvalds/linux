@@ -3105,6 +3105,35 @@ static int stk7070pd_frontend_attach1(struct dvb_usb_adapter *adap)
 	return adap->fe_adap[0].fe == NULL ? -ENODEV : 0;
 }
 
+static int novatd_read_status_override(struct dvb_frontend *fe,
+		fe_status_t *stat)
+{
+	struct dvb_usb_adapter *adap = fe->dvb->priv;
+	struct dvb_usb_device *dev = adap->dev;
+	struct dib0700_state *state = dev->priv;
+	int ret;
+
+	ret = state->read_status(fe, stat);
+
+	if (!ret)
+		dib0700_set_gpio(dev, adap->id == 0 ? GPIO1 : GPIO0, GPIO_OUT,
+				!!(*stat & FE_HAS_LOCK));
+
+	return ret;
+}
+
+static int novatd_sleep_override(struct dvb_frontend* fe)
+{
+	struct dvb_usb_adapter *adap = fe->dvb->priv;
+	struct dvb_usb_device *dev = adap->dev;
+	struct dib0700_state *state = dev->priv;
+
+	/* turn off LED */
+	dib0700_set_gpio(dev, adap->id == 0 ? GPIO1 : GPIO0, GPIO_OUT, 0);
+
+	return state->sleep(fe);
+}
+
 /**
  * novatd_frontend_attach - Nova-TD specific attach
  *
@@ -3114,6 +3143,7 @@ static int stk7070pd_frontend_attach1(struct dvb_usb_adapter *adap)
 static int novatd_frontend_attach(struct dvb_usb_adapter *adap)
 {
 	struct dvb_usb_device *dev = adap->dev;
+	struct dib0700_state *st = dev->priv;
 
 	if (adap->id == 0) {
 		stk7070pd_init(dev);
@@ -3134,7 +3164,16 @@ static int novatd_frontend_attach(struct dvb_usb_adapter *adap)
 	adap->fe_adap[0].fe = dvb_attach(dib7000p_attach, &dev->i2c_adap,
 			adap->id == 0 ? 0x80 : 0x82,
 			&stk7070pd_dib7000p_config[adap->id]);
-	return adap->fe_adap[0].fe == NULL ? -ENODEV : 0;
+
+	if (adap->fe_adap[0].fe == NULL)
+		return -ENODEV;
+
+	st->read_status = adap->fe_adap[0].fe->ops.read_status;
+	adap->fe_adap[0].fe->ops.read_status = novatd_read_status_override;
+	st->sleep = adap->fe_adap[0].fe->ops.sleep;
+	adap->fe_adap[0].fe->ops.sleep = novatd_sleep_override;
+
+	return 0;
 }
 
 /* S5H1411 */
