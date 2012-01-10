@@ -525,7 +525,7 @@ static int it913x_fe_read_snr(struct dvb_frontend *fe, u16 *snr)
 
 	ret = it913x_read_reg(state, 0x2c, reg, sizeof(reg));
 
-	snr_val = (u32)(reg[2] << 16) | (reg[1] < 8) | reg[0];
+	snr_val = (u32)(reg[2] << 16) | (reg[1] << 8) | reg[0];
 
 	ret |= it913x_read_reg(state, 0xf78b, reg, 1);
 	if (reg[0])
