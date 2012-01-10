@@ -2050,6 +2050,9 @@ static void rcu_prepare_for_idle(int cpu)
  *	number, be warned: Setting RCU_IDLE_GP_DELAY too high can hang your
  *	system.  And if you are -that- concerned about energy efficiency,
  *	just power the system down and be done with it!
+ * RCU_IDLE_LAZY_GP_DELAY gives the number of jiffies that a CPU is
+ *	permitted to sleep in dyntick-idle mode with only lazy RCU
+ *	callbacks pending.  Setting this too high can OOM your system.
  *
  * The values below work well in practice.  If future workloads require
  * adjustment, they can be converted into kernel config parameters, though
@@ -2058,11 +2061,13 @@ static void rcu_prepare_for_idle(int cpu)
 #define RCU_IDLE_FLUSHES 5		/* Number of dyntick-idle tries. */
 #define RCU_IDLE_OPT_FLUSHES 3		/* Optional dyntick-idle tries. */
 #define RCU_IDLE_GP_DELAY 6		/* Roughly one grace period. */
+#define RCU_IDLE_LAZY_GP_DELAY (6 * HZ)	/* Roughly six seconds. */
 
 static DEFINE_PER_CPU(int, rcu_dyntick_drain);
 static DEFINE_PER_CPU(unsigned long, rcu_dyntick_holdoff);
 static DEFINE_PER_CPU(struct hrtimer, rcu_idle_gp_timer);
-static ktime_t rcu_idle_gp_wait;
+static ktime_t rcu_idle_gp_wait;	/* If some non-lazy callbacks. */
+static ktime_t rcu_idle_lazy_gp_wait;	/* If only lazy callbacks. */
 
 /*
  * Allow the CPU to enter dyntick-idle mode if either: (1) There are no
@@ -2151,6 +2156,8 @@ static void rcu_prepare_for_idle_init(int cpu)
 		unsigned int upj = jiffies_to_usecs(RCU_IDLE_GP_DELAY);
 
 		rcu_idle_gp_wait = ns_to_ktime(upj * (u64)1000);
+		upj = jiffies_to_usecs(RCU_IDLE_LAZY_GP_DELAY);
+		rcu_idle_lazy_gp_wait = ns_to_ktime(upj * (u64)1000);
 		firsttime = 0;
 	}
 }
@@ -2225,6 +2232,9 @@ static void rcu_prepare_for_idle(int cpu)
 		if (rcu_cpu_has_nonlazy_callbacks(cpu))
 			hrtimer_start(&per_cpu(rcu_idle_gp_timer, cpu),
 				      rcu_idle_gp_wait, HRTIMER_MODE_REL);
+		else
+			hrtimer_start(&per_cpu(rcu_idle_gp_timer, cpu),
+				      rcu_idle_lazy_gp_wait, HRTIMER_MODE_REL);
 		return; /* Nothing more to do immediately. */
 	} else if (--per_cpu(rcu_dyntick_drain, cpu) <= 0) {
 		/* We have hit the limit, so time to give up. */
