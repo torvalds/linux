@@ -770,7 +770,6 @@ static int ath6kl_sdio_config(struct ath6kl *ar)
 	if (ret) {
 		ath6kl_err("Set sdio block size %d failed: %d)\n",
 			   HIF_MBOX_BLOCK_SIZE, ret);
-		sdio_release_host(func);
 		goto out;
 	}
 
