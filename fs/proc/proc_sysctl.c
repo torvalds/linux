@@ -57,6 +57,17 @@ static void init_header(struct ctl_table_header *head,
 	head->parent = NULL;
 }
 
+static void erase_header(struct ctl_table_header *head)
+{
+	list_del_init(&head->ctl_entry);
+}
+
+static void insert_header(struct ctl_table_header *header)
+{
+	header->parent->count++;
+	list_add_tail(&header->ctl_entry, &header->set->list);
+}
+
 /* called under sysctl_lock */
 static int use_table(struct ctl_table_header *p)
 {
@@ -96,7 +107,7 @@ static void start_unregistering(struct ctl_table_header *p)
 	 * do not remove from the list until nobody holds it; walking the
 	 * list in do_sysctl() relies on that.
 	 */
-	list_del_init(&p->ctl_entry);
+	erase_header(p);
 }
 
 static void sysctl_head_get(struct ctl_table_header *head)
@@ -974,8 +985,7 @@ struct ctl_table_header *__register_sysctl_table(
 	}
 	if (sysctl_check_dups(namespaces, header, path, table))
 		goto fail_locked;
-	header->parent->count++;
-	list_add_tail(&header->ctl_entry, &header->set->list);
+	insert_header(header);
 	spin_unlock(&sysctl_lock);
 
 	return header;
