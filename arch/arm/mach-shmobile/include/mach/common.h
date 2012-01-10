@@ -68,4 +68,10 @@ extern void r8a7779_clock_init(void);
 extern void r8a7779_pinmux_init(void);
 extern void r8a7779_pm_init(void);
 
+extern unsigned int r8a7779_get_core_count(void);
+extern int r8a7779_platform_cpu_kill(unsigned int cpu);
+extern void r8a7779_secondary_init(unsigned int cpu);
+extern int r8a7779_boot_secondary(unsigned int cpu);
+extern void r8a7779_smp_prepare_cpus(void);
+
 #endif /* __ARCH_MACH_COMMON_H */

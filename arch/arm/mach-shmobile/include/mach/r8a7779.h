@@ -343,6 +343,9 @@ static inline struct r8a7779_pm_ch *to_r8a7779_ch(struct generic_pm_domain *d)
 	return &container_of(d, struct r8a7779_pm_domain, genpd)->ch;
 }
 
+extern int r8a7779_sysc_power_down(struct r8a7779_pm_ch *r8a7779_ch);
+extern int r8a7779_sysc_power_up(struct r8a7779_pm_ch *r8a7779_ch);
+
 #ifdef CONFIG_PM
 extern struct r8a7779_pm_domain r8a7779_sh4a;
 extern struct r8a7779_pm_domain r8a7779_sgx;

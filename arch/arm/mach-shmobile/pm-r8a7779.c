@@ -48,7 +48,9 @@ static void __iomem *r8a7779_sysc_base;
 #define SYSCISR_RETRIES 1000
 #define SYSCISR_DELAY_US 1
 
-#ifdef CONFIG_PM
+#if defined(CONFIG_PM) || defined(CONFIG_SMP)
+
+static DEFINE_SPINLOCK(r8a7779_sysc_lock); /* SMP CPUs + I/O devices */
 
 static int r8a7779_sysc_pwr_on_off(struct r8a7779_pm_ch *r8a7779_ch,
 				   int sr_bit, int reg_offs)
@@ -86,8 +88,11 @@ static int r8a7779_sysc_update(struct r8a7779_pm_ch *r8a7779_ch,
 	unsigned int isr_mask = 1 << r8a7779_ch->isr_bit;
 	unsigned int chan_mask = 1 << r8a7779_ch->chan_bit;
 	unsigned int status;
+	unsigned long flags;
 	int ret = 0;
 	int k;
+
+	spin_lock_irqsave(&r8a7779_sysc_lock, flags);
 
 	iowrite32(isr_mask, r8a7779_sysc_base + SYSCISCR);
 
@@ -112,6 +117,8 @@ static int r8a7779_sysc_update(struct r8a7779_pm_ch *r8a7779_ch,
 	iowrite32(isr_mask, r8a7779_sysc_base + SYSCISCR);
 
  out:
+	spin_unlock_irqrestore(&r8a7779_sysc_lock, flags);
+
 	pr_debug("r8a7779 power domain %d: %02x %02x %02x %02x %02x -> %d\n",
 		 r8a7779_ch->isr_bit, ioread32(r8a7779_sysc_base + PWRSR0),
 		 ioread32(r8a7779_sysc_base + PWRSR1),
@@ -121,12 +128,12 @@ static int r8a7779_sysc_update(struct r8a7779_pm_ch *r8a7779_ch,
 	return ret;
 }
 
-static int r8a7779_sysc_power_down(struct r8a7779_pm_ch *r8a7779_ch)
+int r8a7779_sysc_power_down(struct r8a7779_pm_ch *r8a7779_ch)
 {
 	return r8a7779_sysc_update(r8a7779_ch, r8a7779_sysc_pwr_off);
 }
 
-static int r8a7779_sysc_power_up(struct r8a7779_pm_ch *r8a7779_ch)
+int r8a7779_sysc_power_up(struct r8a7779_pm_ch *r8a7779_ch)
 {
 	return r8a7779_sysc_update(r8a7779_ch, r8a7779_sysc_pwr_on);
 }
@@ -141,6 +148,14 @@ static void __init r8a7779_sysc_init(void)
 	iowrite32(0x0131000e, r8a7779_sysc_base + SYSCIER);
 	iowrite32(0, r8a7779_sysc_base + SYSCIMR);
 }
+
+#else /* CONFIG_PM || CONFIG_SMP */
+
+static inline void r8a7779_sysc_init(void) {}
+
+#endif /* CONFIG_PM || CONFIG_SMP */
+
+#ifdef CONFIG_PM
 
 static int pd_power_down(struct generic_pm_domain *genpd)
 {
@@ -223,13 +238,12 @@ struct r8a7779_pm_domain r8a7779_impx3 = {
 	}
 };
 
-#else /* CONFIG_PM */
-
-static inline void r8a7779_sysc_init(void) {}
-
 #endif /* CONFIG_PM */
 
 void __init r8a7779_pm_init(void)
 {
-	r8a7779_sysc_init();
+	static int once;
+
+	if (!once++)
+		r8a7779_sysc_init();
 }
