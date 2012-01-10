@@ -1169,7 +1169,6 @@ L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
 S:	Maintained
 F:	arch/arm/mach-ux500/
 F:	drivers/dma/ste_dma40*
-F:	drivers/mfd/ab3550*
 F:	drivers/mfd/abx500*
 F:	drivers/mfd/ab8500*
 F:	drivers/mfd/stmpe*
