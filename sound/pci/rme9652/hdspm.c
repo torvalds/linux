@@ -6783,6 +6783,25 @@ static int __devinit snd_hdspm_create(struct snd_card *card,
 	tasklet_init(&hdspm->midi_tasklet,
 			hdspm_midi_tasklet, (unsigned long) hdspm);
 
+
+	if (hdspm->io_type != MADIface) {
+		hdspm->serial = (hdspm_read(hdspm,
+				HDSPM_midiStatusIn0)>>8) & 0xFFFFFF;
+		/* id contains either a user-provided value or the default
+		 * NULL. If it's the default, we're safe to
+		 * fill card->id with the serial number.
+		 *
+		 * If the serial number is 0xFFFFFF, then we're dealing with
+		 * an old PCI revision that comes without a sane number. In
+		 * this case, we don't set card->id to avoid collisions
+		 * when running with multiple cards.
+		 */
+		if (NULL == id[hdspm->dev] && hdspm->serial != 0xFFFFFF) {
+			sprintf(card->id, "HDSPMx%06x", hdspm->serial);
+			snd_card_set_id(card, card->id);
+		}
+	}
+
 	snd_printdd("create alsa devices.\n");
 	err = snd_hdspm_create_alsa_devices(card, hdspm);
 	if (err < 0)
@@ -6867,8 +6886,6 @@ static int __devinit snd_hdspm_probe(struct pci_dev *pci,
 	}
 
 	if (hdspm->io_type != MADIface) {
-		hdspm->serial = (hdspm_read(hdspm,
-				HDSPM_midiStatusIn0)>>8) & 0xFFFFFF;
 		sprintf(card->shortname, "%s_%x",
 			hdspm->card_name,
 			hdspm->serial);
