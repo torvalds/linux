@@ -3066,19 +3066,25 @@ static struct dib7000p_config stk7070pd_dib7000p_config[2] = {
 	}
 };
 
+static void stk7070pd_init(struct dvb_usb_device *dev)
+{
+	dib0700_set_gpio(dev, GPIO6, GPIO_OUT, 1);
+	msleep(10);
+	dib0700_set_gpio(dev, GPIO9, GPIO_OUT, 1);
+	dib0700_set_gpio(dev, GPIO4, GPIO_OUT, 1);
+	dib0700_set_gpio(dev, GPIO7, GPIO_OUT, 1);
+	dib0700_set_gpio(dev, GPIO10, GPIO_OUT, 0);
+
+	dib0700_ctrl_clock(dev, 72, 1);
+
+	msleep(10);
+	dib0700_set_gpio(dev, GPIO10, GPIO_OUT, 1);
+}
+
 static int stk7070pd_frontend_attach0(struct dvb_usb_adapter *adap)
 {
-	dib0700_set_gpio(adap->dev, GPIO6, GPIO_OUT, 1);
-	msleep(10);
-	dib0700_set_gpio(adap->dev, GPIO9, GPIO_OUT, 1);
-	dib0700_set_gpio(adap->dev, GPIO4, GPIO_OUT, 1);
-	dib0700_set_gpio(adap->dev, GPIO7, GPIO_OUT, 1);
-	dib0700_set_gpio(adap->dev, GPIO10, GPIO_OUT, 0);
+	stk7070pd_init(adap->dev);
 
-	dib0700_ctrl_clock(adap->dev, 72, 1);
-
-	msleep(10);
-	dib0700_set_gpio(adap->dev, GPIO10, GPIO_OUT, 1);
 	msleep(10);
 	dib0700_set_gpio(adap->dev, GPIO0, GPIO_OUT, 1);
 
