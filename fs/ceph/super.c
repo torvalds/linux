@@ -636,19 +636,26 @@ static struct dentry *open_root_dentry(struct ceph_fs_client *fsc,
 	req->r_num_caps = 2;
 	err = ceph_mdsc_do_request(mdsc, NULL, req);
 	if (err == 0) {
+		struct inode *inode = req->r_target_inode;
+		req->r_target_inode = NULL;
 		dout("open_root_inode success\n");
-		if (ceph_ino(req->r_target_inode) == CEPH_INO_ROOT &&
+		if (ceph_ino(inode) == CEPH_INO_ROOT &&
 		    fsc->sb->s_root == NULL) {
-			root = d_alloc_root(req->r_target_inode);
+			root = d_alloc_root(inode);
+			if (!root) {
+				iput(inode);
+				root = ERR_PTR(-ENOMEM);
+				goto out;
+			}
 			ceph_init_dentry(root);
 		} else {
-			root = d_obtain_alias(req->r_target_inode);
+			root = d_obtain_alias(inode);
 		}
-		req->r_target_inode = NULL;
 		dout("open_root_inode success, root dentry is %p\n", root);
 	} else {
 		root = ERR_PTR(err);
 	}
+out:
 	ceph_mdsc_put_request(req);
 	return root;
 }
