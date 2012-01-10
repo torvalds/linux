@@ -185,7 +185,10 @@ static ssize_t set_in_##suffix(struct device *dev, \
 	int nr = to_sensor_dev_attr(attr)->index; \
 	struct i2c_client *client = to_i2c_client(dev); \
 	struct lm80_data *data = i2c_get_clientdata(client); \
-	long val = simple_strtol(buf, NULL, 10); \
+	long val; \
+	int err = kstrtol(buf, 10, &val); \
+	if (err < 0) \
+		return err; \
 \
 	mutex_lock(&data->update_lock);\
 	data->value[nr] = IN_TO_REG(val); \
@@ -226,7 +229,10 @@ static ssize_t set_fan_min(struct device *dev, struct device_attribute *attr,
 	int nr = to_sensor_dev_attr(attr)->index;
 	struct i2c_client *client = to_i2c_client(dev);
 	struct lm80_data *data = i2c_get_clientdata(client);
-	long val = simple_strtoul(buf, NULL, 10);
+	unsigned long val;
+	int err = kstrtoul(buf, 10, &val);
+	if (err < 0)
+		return err;
 
 	mutex_lock(&data->update_lock);
 	data->fan_min[nr] = FAN_TO_REG(val, DIV_FROM_REG(data->fan_div[nr]));
@@ -245,8 +251,11 @@ static ssize_t set_fan_div(struct device *dev, struct device_attribute *attr,
 	int nr = to_sensor_dev_attr(attr)->index;
 	struct i2c_client *client = to_i2c_client(dev);
 	struct lm80_data *data = i2c_get_clientdata(client);
-	unsigned long min, val = simple_strtoul(buf, NULL, 10);
+	unsigned long min, val;
 	u8 reg;
+	int err = kstrtoul(buf, 10, &val);
+	if (err < 0)
+		return err;
 
 	/* Save fan_min */
 	mutex_lock(&data->update_lock);
@@ -314,7 +323,10 @@ static ssize_t set_temp_##suffix(struct device *dev, \
 { \
 	struct i2c_client *client = to_i2c_client(dev); \
 	struct lm80_data *data = i2c_get_clientdata(client); \
-	long val = simple_strtoul(buf, NULL, 10); \
+	long val; \
+	int err = kstrtol(buf, 10, &val); \
+	if (err < 0) \
+		return err; \
 \
 	mutex_lock(&data->update_lock); \
 	data->value = TEMP_LIMIT_TO_REG(val); \
