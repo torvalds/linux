@@ -78,8 +78,6 @@ static const char* host_info(struct Scsi_Host *host)
 
 static int slave_alloc (struct scsi_device *sdev)
 {
-	struct us_data *us = host_to_us(sdev->host);
-
 	/*
 	 * Set the INQUIRY transfer length to 36.  We don't use any of
 	 * the extra data and many devices choke if asked for more or
@@ -103,18 +101,6 @@ static int slave_alloc (struct scsi_device *sdev)
 	 * will require changes to the block layer.
 	 */
 	blk_queue_update_dma_alignment(sdev->request_queue, (512 - 1));
-
-	/*
-	 * The UFI spec treates the Peripheral Qualifier bits in an
-	 * INQUIRY result as reserved and requires devices to set them
-	 * to 0.  However the SCSI spec requires these bits to be set
-	 * to 3 to indicate when a LUN is not present.
-	 *
-	 * Let the scanning code know if this target merely sets
-	 * Peripheral Device Type to 0x1f to indicate no LUN.
-	 */
-	if (us->subclass == USB_SC_UFI)
-		sdev->sdev_target->pdt_1f_for_no_lun = 1;
 
 	return 0;
 }
@@ -278,6 +264,8 @@ static int slave_configure(struct scsi_device *sdev)
 
 static int target_alloc(struct scsi_target *starget)
 {
+	struct us_data *us = host_to_us(dev_to_shost(starget->dev.parent));
+
 	/*
 	 * Some USB drives don't support REPORT LUNS, even though they
 	 * report a SCSI revision level above 2.  Tell the SCSI layer
@@ -285,6 +273,19 @@ static int target_alloc(struct scsi_target *starget)
 	 * scan instead.
 	 */
 	starget->no_report_luns = 1;
+
+	/*
+	 * The UFI spec treats the Peripheral Qualifier bits in an
+	 * INQUIRY result as reserved and requires devices to set them
+	 * to 0.  However the SCSI spec requires these bits to be set
+	 * to 3 to indicate when a LUN is not present.
+	 *
+	 * Let the scanning code know if this target merely sets
+	 * Peripheral Device Type to 0x1f to indicate no LUN.
+	 */
+	if (us->subclass == USB_SC_UFI)
+		starget->pdt_1f_for_no_lun = 1;
+
 	return 0;
 }
 
