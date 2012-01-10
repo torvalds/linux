@@ -35,6 +35,10 @@
 #include "iwl-io.h"
 #include "iwl-trans-pcie-int.h"
 
+#ifdef CONFIG_IWLWIFI_IDI
+#include "iwl-amfh.h"
+#endif
+
 /******************************************************************************
  *
  * RX path functions
@@ -1100,8 +1104,11 @@ void iwl_irq_tasklet(struct iwl_trans *trans)
 		/* Disable periodic interrupt; we use it as just a one-shot. */
 		iwl_write8(bus(trans), CSR_INT_PERIODIC_REG,
 			    CSR_INT_PERIODIC_DIS);
+#ifdef CONFIG_IWLWIFI_IDI
+		iwl_amfh_rx_handler();
+#else
 		iwl_rx_handle(trans);
-
+#endif
 		/*
 		 * Enable periodic interrupt in 8 msec only if we received
 		 * real RX interrupt (instead of just periodic int), to catch
@@ -1123,7 +1130,11 @@ void iwl_irq_tasklet(struct iwl_trans *trans)
 		isr_stats->tx++;
 		handled |= CSR_INT_BIT_FH_TX;
 		/* Wake up uCode load routine, now that load is complete */
+#ifdef CONFIG_IWLWIFI_IDI
+		trans->shrd->trans->ucode_write_complete = 1;
+#else
 		trans->ucode_write_complete = 1;
+#endif
 		wake_up(&trans->shrd->wait_command_queue);
 	}
 

@@ -647,8 +647,10 @@ static int iwl_nic_init(struct iwl_trans *trans)
 
 	iwl_nic_config(priv(trans));
 
+#ifndef CONFIG_IWLWIFI_IDI
 	/* Allocate the RX queue, or reset if it is already allocated */
 	iwl_rx_init(trans);
+#endif
 
 	/* Allocate or reset and init all Tx and Command queues */
 	if (iwl_tx_init(trans))
@@ -1016,8 +1018,9 @@ static void iwl_trans_pcie_stop_device(struct iwl_trans *trans)
 	 */
 	if (test_bit(STATUS_DEVICE_ENABLED, &trans->shrd->status)) {
 		iwl_trans_tx_stop(trans);
+#ifndef CONFIG_IWLWIFI_IDI
 		iwl_trans_rx_stop(trans);
-
+#endif
 		/* Power-down device's busmaster DMA clocks */
 		iwl_write_prph(bus(trans), APMG_CLK_DIS_REG,
 			       APMG_CLK_VAL_DMA_CLK_RQT);
@@ -1298,7 +1301,9 @@ static void iwl_trans_pcie_free(struct iwl_trans *trans)
 {
 	iwl_calib_free_results(trans);
 	iwl_trans_pcie_tx_free(trans);
+#ifndef CONFIG_IWLWIFI_IDI
 	iwl_trans_pcie_rx_free(trans);
+#endif
 	free_irq(bus(trans)->irq, trans);
 	iwl_free_isr_ict(trans);
 	trans->shrd->trans = NULL;

@@ -383,6 +383,7 @@ static inline int iwl_trans_resume(struct iwl_trans *trans)
 * Transport layers implementations
 ******************************************************/
 extern const struct iwl_trans_ops trans_ops_pcie;
+extern const struct iwl_trans_ops trans_ops_idi;
 
 int iwl_alloc_fw_desc(struct iwl_bus *bus, struct fw_desc *desc,
 		      const void *data, size_t len);

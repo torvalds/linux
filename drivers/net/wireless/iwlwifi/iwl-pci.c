@@ -454,7 +454,11 @@ static int iwl_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	bus->irq = pdev->irq;
 	bus->ops = &bus_ops_pci;
 
+#ifdef CONFIG_IWLWIFI_IDI
+	err = iwl_probe(bus, &trans_ops_idi, cfg);
+#else
 	err = iwl_probe(bus, &trans_ops_pcie, cfg);
+#endif
 	if (err)
 		goto out_disable_msi;
 	return 0;
