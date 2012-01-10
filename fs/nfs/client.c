@@ -52,8 +52,8 @@
 
 #define NFSDBG_FACILITY		NFSDBG_CLIENT
 
-static DEFINE_SPINLOCK(nfs_client_lock);
-static LIST_HEAD(nfs_client_list);
+DEFINE_SPINLOCK(nfs_client_lock);
+LIST_HEAD(nfs_client_list);
 static LIST_HEAD(nfs_volume_list);
 static DECLARE_WAIT_QUEUE_HEAD(nfs_client_active_wq);
 #ifdef CONFIG_NFS_V4

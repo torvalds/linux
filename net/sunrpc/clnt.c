@@ -222,6 +222,7 @@ static int rpc_pipefs_event(struct notifier_block *nb, unsigned long event,
 
 static struct notifier_block rpc_clients_block = {
 	.notifier_call	= rpc_pipefs_event,
+	.priority	= SUNRPC_PIPEFS_RPC_PRIO,
 };
 
 int rpc_clients_notifier_register(void)

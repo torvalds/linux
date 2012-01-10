@@ -616,6 +616,22 @@ static int __rpc_rmdir(struct inode *dir, struct dentry *dentry)
 	return ret;
 }
 
+int rpc_rmdir(struct dentry *dentry)
+{
+	struct dentry *parent;
+	struct inode *dir;
+	int error;
+
+	parent = dget_parent(dentry);
+	dir = parent->d_inode;
+	mutex_lock_nested(&dir->i_mutex, I_MUTEX_PARENT);
+	error = __rpc_rmdir(dir, dentry);
+	mutex_unlock(&dir->i_mutex);
+	dput(parent);
+	return error;
+}
+EXPORT_SYMBOL_GPL(rpc_rmdir);
+
 static int __rpc_unlink(struct inode *dir, struct dentry *dentry)
 {
 	int ret;

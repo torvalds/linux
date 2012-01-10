@@ -377,6 +377,7 @@ int nfs_map_gid_to_group(const struct nfs_server *server, __u32 gid, char *buf, 
 #include <linux/nfs_fs.h>
 
 #include "nfs4_fs.h"
+#include "internal.h"
 
 #define IDMAP_HASH_SZ          128
 
@@ -528,6 +529,80 @@ nfs_idmap_delete(struct nfs_client *clp)
 	rpc_destroy_pipe_data(idmap->idmap_pipe);
 	clp->cl_idmap = NULL;
 	kfree(idmap);
+}
+
+static int __rpc_pipefs_event(struct nfs_client *clp, unsigned long event,
+			      struct super_block *sb)
+{
+	int err = 0;
+
+	switch (event) {
+	case RPC_PIPEFS_MOUNT:
+		BUG_ON(clp->cl_rpcclient->cl_dentry == NULL);
+		err = __nfs_idmap_register(clp->cl_rpcclient->cl_dentry,
+						clp->cl_idmap,
+						clp->cl_idmap->idmap_pipe);
+		break;
+	case RPC_PIPEFS_UMOUNT:
+		if (clp->cl_idmap->idmap_pipe) {
+			struct dentry *parent;
+
+			parent = clp->cl_idmap->idmap_pipe->dentry->d_parent;
+			__nfs_idmap_unregister(clp->cl_idmap->idmap_pipe);
+			/*
+			 * Note: This is a dirty hack. SUNRPC hook has been
+			 * called already but simple_rmdir() call for the
+			 * directory returned with error because of idmap pipe
+			 * inside. Thus now we have to remove this directory
+			 * here.
+			 */
+			if (rpc_rmdir(parent))
+				printk(KERN_ERR "%s: failed to remove clnt dir!\n", __func__);
+		}
+		break;
+	default:
+		printk(KERN_ERR "%s: unknown event: %ld\n", __func__, event);
+		return -ENOTSUPP;
+	}
+	return err;
+}
+
+static int rpc_pipefs_event(struct notifier_block *nb, unsigned long event,
+			    void *ptr)
+{
+	struct super_block *sb = ptr;
+	struct nfs_client *clp;
+	int error = 0;
+
+	spin_lock(&nfs_client_lock);
+	list_for_each_entry(clp, &nfs_client_list, cl_share_link) {
+		if (clp->net != sb->s_fs_info)
+			continue;
+		if (clp->rpc_ops != &nfs_v4_clientops)
+			continue;
+		error = __rpc_pipefs_event(clp, event, sb);
+		if (error)
+			break;
+	}
+	spin_unlock(&nfs_client_lock);
+	return error;
+}
+
+#define PIPEFS_NFS_PRIO		1
+
+static struct notifier_block nfs_idmap_block = {
+	.notifier_call	= rpc_pipefs_event,
+	.priority	= SUNRPC_PIPEFS_NFS_PRIO,
+};
+
+int nfs_idmap_init(void)
+{
+	return rpc_pipefs_notifier_register(&nfs_idmap_block);
+}
+
+void nfs_idmap_quit(void)
+{
+	rpc_pipefs_notifier_unregister(&nfs_idmap_block);
 }
 
 /*
