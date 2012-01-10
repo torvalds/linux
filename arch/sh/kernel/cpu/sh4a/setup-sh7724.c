@@ -214,7 +214,7 @@ static struct resource sh7724_dmae0_resources[] = {
 		.flags	= IORESOURCE_MEM,
 	},
 	{
-		/* DMA error IRQ */
+		.name	= "error_irq",
 		.start	= 78,
 		.end	= 78,
 		.flags	= IORESOURCE_IRQ,
@@ -248,7 +248,7 @@ static struct resource sh7724_dmae1_resources[] = {
 		.flags	= IORESOURCE_MEM,
 	},
 	{
-		/* DMA error IRQ */
+		.name	= "error_irq",
 		.start	= 74,
 		.end	= 74,
 		.flags	= IORESOURCE_IRQ,
