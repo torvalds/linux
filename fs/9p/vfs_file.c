@@ -61,7 +61,7 @@ int v9fs_file_open(struct inode *inode, struct file *file)
 	struct p9_fid *fid;
 	int omode;
 
-	P9_DPRINTK(P9_DEBUG_VFS, "inode: %p file: %p\n", inode, file);
+	p9_debug(P9_DEBUG_VFS, "inode: %p file: %p\n", inode, file);
 	v9inode = V9FS_I(inode);
 	v9ses = v9fs_inode2v9ses(inode);
 	if (v9fs_proto_dotl(v9ses))
@@ -135,7 +135,7 @@ static int v9fs_file_lock(struct file *filp, int cmd, struct file_lock *fl)
 	int res = 0;
 	struct inode *inode = filp->f_path.dentry->d_inode;
 
-	P9_DPRINTK(P9_DEBUG_VFS, "filp: %p lock: %p\n", filp, fl);
+	p9_debug(P9_DEBUG_VFS, "filp: %p lock: %p\n", filp, fl);
 
 	/* No mandatory locks */
 	if (__mandatory_lock(inode) && fl->fl_type != F_UNLCK)
@@ -204,7 +204,8 @@ static int v9fs_file_do_lock(struct file *filp, int cmd, struct file_lock *fl)
 			break;
 		if (status == P9_LOCK_BLOCKED && !IS_SETLKW(cmd))
 			break;
-		schedule_timeout_interruptible(P9_LOCK_TIMEOUT);
+		if (schedule_timeout_interruptible(P9_LOCK_TIMEOUT) != 0)
+			break;
 	}
 
 	/* map 9p status to VFS status */
@@ -304,8 +305,8 @@ static int v9fs_file_lock_dotl(struct file *filp, int cmd, struct file_lock *fl)
 	struct inode *inode = filp->f_path.dentry->d_inode;
 	int ret = -ENOLCK;
 
-	P9_DPRINTK(P9_DEBUG_VFS, "filp: %p cmd:%d lock: %p name: %s\n", filp,
-				cmd, fl, filp->f_path.dentry->d_name.name);
+	p9_debug(P9_DEBUG_VFS, "filp: %p cmd:%d lock: %p name: %s\n",
+		 filp, cmd, fl, filp->f_path.dentry->d_name.name);
 
 	/* No mandatory locks */
 	if (__mandatory_lock(inode) && fl->fl_type != F_UNLCK)
@@ -340,8 +341,8 @@ static int v9fs_file_flock_dotl(struct file *filp, int cmd,
 	struct inode *inode = filp->f_path.dentry->d_inode;
 	int ret = -ENOLCK;
 
-	P9_DPRINTK(P9_DEBUG_VFS, "filp: %p cmd:%d lock: %p name: %s\n", filp,
-				cmd, fl, filp->f_path.dentry->d_name.name);
+	p9_debug(P9_DEBUG_VFS, "filp: %p cmd:%d lock: %p name: %s\n",
+		 filp, cmd, fl, filp->f_path.dentry->d_name.name);
 
 	/* No mandatory locks */
 	if (__mandatory_lock(inode) && fl->fl_type != F_UNLCK)
@@ -384,8 +385,8 @@ v9fs_fid_readn(struct p9_fid *fid, char *data, char __user *udata, u32 count,
 {
 	int n, total, size;
 
-	P9_DPRINTK(P9_DEBUG_VFS, "fid %d offset %llu count %d\n", fid->fid,
-		   (long long unsigned) offset, count);
+	p9_debug(P9_DEBUG_VFS, "fid %d offset %llu count %d\n",
+		 fid->fid, (long long unsigned)offset, count);
 	n = 0;
 	total = 0;
 	size = fid->iounit ? fid->iounit : fid->clnt->msize - P9_IOHDRSZ;
@@ -443,7 +444,7 @@ v9fs_file_read(struct file *filp, char __user *udata, size_t count,
 	struct p9_fid *fid;
 	size_t size;
 
-	P9_DPRINTK(P9_DEBUG_VFS, "count %zu offset %lld\n", count, *offset);
+	p9_debug(P9_DEBUG_VFS, "count %zu offset %lld\n", count, *offset);
 	fid = filp->private_data;
 
 	size = fid->iounit ? fid->iounit : fid->clnt->msize - P9_IOHDRSZ;
@@ -470,8 +471,8 @@ v9fs_file_write_internal(struct inode *inode, struct p9_fid *fid,
 	loff_t origin = *offset;
 	unsigned long pg_start, pg_end;
 
-	P9_DPRINTK(P9_DEBUG_VFS, "data %p count %d offset %x\n", data,
-		(int)count, (int)*offset);
+	p9_debug(P9_DEBUG_VFS, "data %p count %d offset %x\n",
+		 data, (int)count, (int)*offset);
 
 	clnt = fid->clnt;
 	do {
@@ -552,7 +553,7 @@ static int v9fs_file_fsync(struct file *filp, loff_t start, loff_t end,
 		return retval;
 
 	mutex_lock(&inode->i_mutex);
-	P9_DPRINTK(P9_DEBUG_VFS, "filp %p datasync %x\n", filp, datasync);
+	p9_debug(P9_DEBUG_VFS, "filp %p datasync %x\n", filp, datasync);
 
 	fid = filp->private_data;
 	v9fs_blank_wstat(&wstat);
@@ -575,8 +576,7 @@ int v9fs_file_fsync_dotl(struct file *filp, loff_t start, loff_t end,
 		return retval;
 
 	mutex_lock(&inode->i_mutex);
-	P9_DPRINTK(P9_DEBUG_VFS, "v9fs_file_fsync_dotl: filp %p datasync %x\n",
-			filp, datasync);
+	p9_debug(P9_DEBUG_VFS, "filp %p datasync %x\n", filp, datasync);
 
 	fid = filp->private_data;
 
@@ -607,8 +607,8 @@ v9fs_vm_page_mkwrite(struct vm_area_struct *vma, struct vm_fault *vmf)
 	struct inode *inode = filp->f_path.dentry->d_inode;
 
 
-	P9_DPRINTK(P9_DEBUG_VFS, "page %p fid %lx\n",
-		   page, (unsigned long)filp->private_data);
+	p9_debug(P9_DEBUG_VFS, "page %p fid %lx\n",
+		 page, (unsigned long)filp->private_data);
 
 	v9inode = V9FS_I(inode);
 	/* make sure the cache has finished storing the page */
