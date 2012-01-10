@@ -2208,7 +2208,10 @@ static int via_auto_create_loopback_switch(struct hda_codec *codec)
 {
 	struct via_spec *spec = codec->spec;
 
-	if (!spec->aa_mix_nid || !spec->out_mix_path.depth)
+	if (!spec->aa_mix_nid)
+		return 0; /* no loopback switching available */
+	if (!(spec->out_mix_path.depth || spec->hp_mix_path.depth ||
+	      spec->speaker_path.depth))
 		return 0; /* no loopback switching available */
 	if (!via_clone_control(spec, &via_aamix_ctl_enum))
 		return -ENOMEM;
