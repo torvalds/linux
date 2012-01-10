@@ -1315,8 +1315,10 @@ static struct nvme_ns *nvme_alloc_ns(struct nvme_dev *dev, int nsid,
 	ns->queue = blk_alloc_queue(GFP_KERNEL);
 	if (!ns->queue)
 		goto out_free_ns;
-	ns->queue->queue_flags = QUEUE_FLAG_DEFAULT | QUEUE_FLAG_NOMERGES |
-				QUEUE_FLAG_NONROT | QUEUE_FLAG_DISCARD;
+	ns->queue->queue_flags = QUEUE_FLAG_DEFAULT;
+	queue_flag_set_unlocked(QUEUE_FLAG_NOMERGES, ns->queue);
+	queue_flag_set_unlocked(QUEUE_FLAG_NONROT, ns->queue);
+/*	queue_flag_set_unlocked(QUEUE_FLAG_DISCARD, ns->queue); */
 	blk_queue_make_request(ns->queue, nvme_make_request);
 	ns->dev = dev;
 	ns->queue->queuedata = ns;
