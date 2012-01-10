@@ -1844,6 +1844,25 @@ static struct caam_alg_template driver_algs[] = {
 		.alg_op = OP_ALG_ALGSEL_SHA1 | OP_ALG_AAI_HMAC,
 	},
 	{
+		.name = "authenc(hmac(sha224),cbc(aes))",
+		.driver_name = "authenc-hmac-sha224-cbc-aes-caam",
+		.blocksize = AES_BLOCK_SIZE,
+		.template_aead = {
+			.setkey = aead_setkey,
+			.setauthsize = aead_setauthsize,
+			.encrypt = aead_encrypt,
+			.decrypt = aead_decrypt,
+			.givencrypt = aead_givencrypt,
+			.geniv = "<built-in>",
+			.ivsize = AES_BLOCK_SIZE,
+			.maxauthsize = SHA224_DIGEST_SIZE,
+			},
+		.class1_alg_type = OP_ALG_ALGSEL_AES | OP_ALG_AAI_CBC,
+		.class2_alg_type = OP_ALG_ALGSEL_SHA224 |
+				   OP_ALG_AAI_HMAC_PRECOMP,
+		.alg_op = OP_ALG_ALGSEL_SHA224 | OP_ALG_AAI_HMAC,
+	},
+	{
 		.name = "authenc(hmac(sha256),cbc(aes))",
 		.driver_name = "authenc-hmac-sha256-cbc-aes-caam",
 		.blocksize = AES_BLOCK_SIZE,
@@ -1863,6 +1882,26 @@ static struct caam_alg_template driver_algs[] = {
 				   OP_ALG_AAI_HMAC_PRECOMP,
 		.alg_op = OP_ALG_ALGSEL_SHA256 | OP_ALG_AAI_HMAC,
 	},
+	{
+		.name = "authenc(hmac(sha384),cbc(aes))",
+		.driver_name = "authenc-hmac-sha384-cbc-aes-caam",
+		.blocksize = AES_BLOCK_SIZE,
+		.template_aead = {
+			.setkey = aead_setkey,
+			.setauthsize = aead_setauthsize,
+			.encrypt = aead_encrypt,
+			.decrypt = aead_decrypt,
+			.givencrypt = aead_givencrypt,
+			.geniv = "<built-in>",
+			.ivsize = AES_BLOCK_SIZE,
+			.maxauthsize = SHA384_DIGEST_SIZE,
+			},
+		.class1_alg_type = OP_ALG_ALGSEL_AES | OP_ALG_AAI_CBC,
+		.class2_alg_type = OP_ALG_ALGSEL_SHA384 |
+				   OP_ALG_AAI_HMAC_PRECOMP,
+		.alg_op = OP_ALG_ALGSEL_SHA384 | OP_ALG_AAI_HMAC,
+	},
+
 	{
 		.name = "authenc(hmac(sha512),cbc(aes))",
 		.driver_name = "authenc-hmac-sha512-cbc-aes-caam",
@@ -1922,6 +1961,25 @@ static struct caam_alg_template driver_algs[] = {
 		.alg_op = OP_ALG_ALGSEL_SHA1 | OP_ALG_AAI_HMAC,
 	},
 	{
+		.name = "authenc(hmac(sha224),cbc(des3_ede))",
+		.driver_name = "authenc-hmac-sha224-cbc-des3_ede-caam",
+		.blocksize = DES3_EDE_BLOCK_SIZE,
+		.template_aead = {
+			.setkey = aead_setkey,
+			.setauthsize = aead_setauthsize,
+			.encrypt = aead_encrypt,
+			.decrypt = aead_decrypt,
+			.givencrypt = aead_givencrypt,
+			.geniv = "<built-in>",
+			.ivsize = DES3_EDE_BLOCK_SIZE,
+			.maxauthsize = SHA224_DIGEST_SIZE,
+			},
+		.class1_alg_type = OP_ALG_ALGSEL_3DES | OP_ALG_AAI_CBC,
+		.class2_alg_type = OP_ALG_ALGSEL_SHA224 |
+				   OP_ALG_AAI_HMAC_PRECOMP,
+		.alg_op = OP_ALG_ALGSEL_SHA224 | OP_ALG_AAI_HMAC,
+	},
+	{
 		.name = "authenc(hmac(sha256),cbc(des3_ede))",
 		.driver_name = "authenc-hmac-sha256-cbc-des3_ede-caam",
 		.blocksize = DES3_EDE_BLOCK_SIZE,
@@ -1940,6 +1998,25 @@ static struct caam_alg_template driver_algs[] = {
 		.class2_alg_type = OP_ALG_ALGSEL_SHA256 |
 				   OP_ALG_AAI_HMAC_PRECOMP,
 		.alg_op = OP_ALG_ALGSEL_SHA256 | OP_ALG_AAI_HMAC,
+	},
+	{
+		.name = "authenc(hmac(sha384),cbc(des3_ede))",
+		.driver_name = "authenc-hmac-sha384-cbc-des3_ede-caam",
+		.blocksize = DES3_EDE_BLOCK_SIZE,
+		.template_aead = {
+			.setkey = aead_setkey,
+			.setauthsize = aead_setauthsize,
+			.encrypt = aead_encrypt,
+			.decrypt = aead_decrypt,
+			.givencrypt = aead_givencrypt,
+			.geniv = "<built-in>",
+			.ivsize = DES3_EDE_BLOCK_SIZE,
+			.maxauthsize = SHA384_DIGEST_SIZE,
+			},
+		.class1_alg_type = OP_ALG_ALGSEL_3DES | OP_ALG_AAI_CBC,
+		.class2_alg_type = OP_ALG_ALGSEL_SHA384 |
+				   OP_ALG_AAI_HMAC_PRECOMP,
+		.alg_op = OP_ALG_ALGSEL_SHA384 | OP_ALG_AAI_HMAC,
 	},
 	{
 		.name = "authenc(hmac(sha512),cbc(des3_ede))",
@@ -2000,6 +2077,25 @@ static struct caam_alg_template driver_algs[] = {
 		.alg_op = OP_ALG_ALGSEL_SHA1 | OP_ALG_AAI_HMAC,
 	},
 	{
+		.name = "authenc(hmac(sha224),cbc(des))",
+		.driver_name = "authenc-hmac-sha224-cbc-des-caam",
+		.blocksize = DES_BLOCK_SIZE,
+		.template_aead = {
+			.setkey = aead_setkey,
+			.setauthsize = aead_setauthsize,
+			.encrypt = aead_encrypt,
+			.decrypt = aead_decrypt,
+			.givencrypt = aead_givencrypt,
+			.geniv = "<built-in>",
+			.ivsize = DES_BLOCK_SIZE,
+			.maxauthsize = SHA224_DIGEST_SIZE,
+			},
+		.class1_alg_type = OP_ALG_ALGSEL_DES | OP_ALG_AAI_CBC,
+		.class2_alg_type = OP_ALG_ALGSEL_SHA224 |
+				   OP_ALG_AAI_HMAC_PRECOMP,
+		.alg_op = OP_ALG_ALGSEL_SHA224 | OP_ALG_AAI_HMAC,
+	},
+	{
 		.name = "authenc(hmac(sha256),cbc(des))",
 		.driver_name = "authenc-hmac-sha256-cbc-des-caam",
 		.blocksize = DES_BLOCK_SIZE,
@@ -2018,6 +2114,25 @@ static struct caam_alg_template driver_algs[] = {
 		.class2_alg_type = OP_ALG_ALGSEL_SHA256 |
 				   OP_ALG_AAI_HMAC_PRECOMP,
 		.alg_op = OP_ALG_ALGSEL_SHA256 | OP_ALG_AAI_HMAC,
+	},
+	{
+		.name = "authenc(hmac(sha384),cbc(des))",
+		.driver_name = "authenc-hmac-sha384-cbc-des-caam",
+		.blocksize = DES_BLOCK_SIZE,
+		.template_aead = {
+			.setkey = aead_setkey,
+			.setauthsize = aead_setauthsize,
+			.encrypt = aead_encrypt,
+			.decrypt = aead_decrypt,
+			.givencrypt = aead_givencrypt,
+			.geniv = "<built-in>",
+			.ivsize = DES_BLOCK_SIZE,
+			.maxauthsize = SHA384_DIGEST_SIZE,
+			},
+		.class1_alg_type = OP_ALG_ALGSEL_DES | OP_ALG_AAI_CBC,
+		.class2_alg_type = OP_ALG_ALGSEL_SHA384 |
+				   OP_ALG_AAI_HMAC_PRECOMP,
+		.alg_op = OP_ALG_ALGSEL_SHA384 | OP_ALG_AAI_HMAC,
 	},
 	{
 		.name = "authenc(hmac(sha512),cbc(des))",
