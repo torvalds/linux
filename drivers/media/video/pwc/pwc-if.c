@@ -132,7 +132,7 @@ static struct usb_driver pwc_driver = {
 	int pwc_trace = PWC_DEBUG_LEVEL;
 #endif
 static int power_save = -1;
-static int led_on = 100, led_off; /* defaults to LED that is on while in use */
+static int leds[2] = { 100, 0 };
 
 /***/
 
@@ -737,7 +737,7 @@ static int start_streaming(struct vb2_queue *vq, unsigned int count)
 
 	/* Turn on camera and set LEDS on */
 	pwc_camera_power(pdev, 1);
-	pwc_set_leds(pdev, led_on, led_off);
+	pwc_set_leds(pdev, leds[0], leds[1]);
 
 	r = pwc_isoc_init(pdev);
 	if (r) {
@@ -1209,7 +1209,6 @@ static void usb_pwc_disconnect(struct usb_interface *intf)
  * Initialization code & module stuff
  */
 
-static int leds[2] = { -1, -1 };
 static unsigned int leds_nargs;
 
 #ifdef CONFIG_USB_PWC_DEBUG
@@ -1232,11 +1231,6 @@ MODULE_VERSION( PWC_VERSION );
 
 static int __init usb_pwc_init(void)
 {
-	if (leds[0] >= 0)
-		led_on = leds[0];
-	if (leds[1] >= 0)
-		led_off = leds[1];
-
 	return usb_register(&pwc_driver);
 }
 
