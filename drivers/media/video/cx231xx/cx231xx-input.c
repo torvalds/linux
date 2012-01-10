@@ -27,12 +27,16 @@
 static int get_key_isdbt(struct IR_i2c *ir, u32 *ir_key,
 			 u32 *ir_raw)
 {
+	int	rc;
 	u8	cmd, scancode;
 
 	dev_dbg(&ir->rc->input_dev->dev, "%s\n", __func__);
 
 		/* poll IR chip */
-	if (1 != i2c_master_recv(ir->c, &cmd, 1))
+	rc = i2c_master_recv(ir->c, &cmd, 1);
+	if (rc < 0)
+		return rc;
+	if (rc != 1)
 		return -EIO;
 
 	/* it seems that 0xFE indicates that a button is still hold
