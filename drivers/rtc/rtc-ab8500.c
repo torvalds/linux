@@ -90,7 +90,7 @@ static int ab8500_rtc_read_time(struct device *dev, struct rtc_time *tm)
 
 	/* Early AB8500 chips will not clear the rtc read request bit */
 	if (abx500_get_chip_id(dev) == 0) {
-		msleep(1);
+		usleep_range(1000, 1000);
 	} else {
 		/* Wait for some cycles after enabling the rtc read in ab8500 */
 		while (time_before(jiffies, timeout)) {
@@ -102,7 +102,7 @@ static int ab8500_rtc_read_time(struct device *dev, struct rtc_time *tm)
 			if (!(value & RTC_READ_REQUEST))
 				break;
 
-			msleep(1);
+			usleep_range(1000, 5000);
 		}
 	}
 
@@ -295,7 +295,7 @@ static int __devinit ab8500_rtc_probe(struct platform_device *pdev)
 		return err;
 
 	/* Wait for reset by the PorRtc */
-	msleep(1);
+	usleep_range(1000, 5000);
 
 	err = abx500_get_register_interruptible(&pdev->dev, AB8500_RTC,
 		AB8500_RTC_STAT_REG, &rtc_ctrl);
