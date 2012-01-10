@@ -897,26 +897,7 @@ static struct platform_driver mpc52xx_ata_of_platform_driver = {
 	},
 };
 
-
-/* ======================================================================== */
-/* Module                                                                   */
-/* ======================================================================== */
-
-static int __init
-mpc52xx_ata_init(void)
-{
-	printk(KERN_INFO "ata: MPC52xx IDE/ATA libata driver\n");
-	return platform_driver_register(&mpc52xx_ata_of_platform_driver);
-}
-
-static void __exit
-mpc52xx_ata_exit(void)
-{
-	platform_driver_unregister(&mpc52xx_ata_of_platform_driver);
-}
-
-module_init(mpc52xx_ata_init);
-module_exit(mpc52xx_ata_exit);
+module_platform_driver(mpc52xx_ata_of_platform_driver);
 
 MODULE_AUTHOR("Sylvain Munaut <tnt@246tNt.com>");
 MODULE_DESCRIPTION("Freescale MPC52xx IDE/ATA libata driver");
