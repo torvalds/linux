@@ -813,17 +813,7 @@ static struct i2c_driver bd2802_i2c_driver = {
 	.id_table	= bd2802_id,
 };
 
-static int __init bd2802_init(void)
-{
-	return i2c_add_driver(&bd2802_i2c_driver);
-}
-module_init(bd2802_init);
-
-static void __exit bd2802_exit(void)
-{
-	i2c_del_driver(&bd2802_i2c_driver);
-}
-module_exit(bd2802_exit);
+module_i2c_driver(bd2802_i2c_driver);
 
 MODULE_AUTHOR("Kim Kyuwon <q1.kim@samsung.com>");
 MODULE_DESCRIPTION("BD2802 LED driver");
