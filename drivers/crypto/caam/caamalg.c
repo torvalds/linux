@@ -2401,12 +2401,12 @@ static int __init caam_algapi_init(void)
 			dev_warn(ctrldev, "%s alg registration failed\n",
 				t_alg->crypto_alg.cra_driver_name);
 			kfree(t_alg);
-		} else {
+		} else
 			list_add_tail(&t_alg->entry, &priv->alg_list);
-			dev_info(ctrldev, "%s\n",
-				 t_alg->crypto_alg.cra_driver_name);
-		}
 	}
+	if (!list_empty(&priv->alg_list))
+		dev_info(ctrldev, "%s algorithms registered in /proc/crypto\n",
+			 (char *)of_get_property(dev_node, "compatible", NULL));
 
 	return err;
 }
