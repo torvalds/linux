@@ -1602,6 +1602,10 @@ rcu_torture_cleanup(void)
 		cur_ops->cleanup();
 	if (atomic_read(&n_rcu_torture_error))
 		rcu_torture_print_module_parms(cur_ops, "End of test: FAILURE");
+	else if (n_online_successes != n_online_attempts ||
+		 n_offline_successes != n_offline_attempts)
+		rcu_torture_print_module_parms(cur_ops,
+					       "End of test: RCU_HOTPLUG");
 	else
 		rcu_torture_print_module_parms(cur_ops, "End of test: SUCCESS");
 }
