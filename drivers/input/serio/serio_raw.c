@@ -224,7 +224,7 @@ static ssize_t serio_raw_write(struct file *file, const char __user *buffer,
 
 out:
 	mutex_unlock(&serio_raw_mutex);
-	return written;
+	return written ?: retval;
 }
 
 static unsigned int serio_raw_poll(struct file *file, poll_table *wait)
