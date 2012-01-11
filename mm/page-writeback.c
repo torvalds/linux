@@ -42,6 +42,12 @@
 #define MAX_PAUSE		max(HZ/5, 1)
 
 /*
+ * Try to keep balance_dirty_pages() call intervals higher than this many pages
+ * by raising pause time to max_pause when falls below it.
+ */
+#define DIRTY_POLL_THRESH	(128 >> (PAGE_SHIFT - 10))
+
+/*
  * Estimate write bandwidth at 200ms intervals.
  */
 #define BANDWIDTH_INTERVAL	max(HZ/5, 1)
@@ -898,6 +904,11 @@ static void bdi_update_dirty_ratelimit(struct backing_dev_info *bdi,
 	 */
 	balanced_dirty_ratelimit = div_u64((u64)task_ratelimit * write_bw,
 					   dirty_rate | 1);
+	/*
+	 * balanced_dirty_ratelimit ~= (write_bw / N) <= write_bw
+	 */
+	if (unlikely(balanced_dirty_ratelimit > write_bw))
+		balanced_dirty_ratelimit = write_bw;
 
 	/*
 	 * We could safely do this and return immediately:
@@ -1044,25 +1055,11 @@ static unsigned long dirty_poll_interval(unsigned long dirty,
 	return 1;
 }
 
-static unsigned long bdi_max_pause(struct backing_dev_info *bdi,
-				   unsigned long bdi_dirty)
+static long bdi_max_pause(struct backing_dev_info *bdi,
+			  unsigned long bdi_dirty)
 {
-	unsigned long bw = bdi->avg_write_bandwidth;
-	unsigned long hi = ilog2(bw);
-	unsigned long lo = ilog2(bdi->dirty_ratelimit);
-	unsigned long t;
-
-	/* target for 20ms max pause on 1-dd case */
-	t = HZ / 50;
-
-	/*
-	 * Scale up pause time for concurrent dirtiers in order to reduce CPU
-	 * overheads.
-	 *
-	 * (N * 20ms) on 2^N concurrent tasks.
-	 */
-	if (hi > lo)
-		t += (hi - lo) * (20 * HZ) / 1024;
+	long bw = bdi->avg_write_bandwidth;
+	long t;
 
 	/*
 	 * Limit pause time for small memory systems. If sleeping for too long
@@ -1071,13 +1068,85 @@ static unsigned long bdi_max_pause(struct backing_dev_info *bdi,
 	 *
 	 * 8 serves as the safety ratio.
 	 */
-	t = min(t, bdi_dirty * HZ / (8 * bw + 1));
+	t = bdi_dirty / (1 + bw / roundup_pow_of_two(1 + HZ / 8));
+	t++;
+
+	return min_t(long, t, MAX_PAUSE);
+}
+
+static long bdi_min_pause(struct backing_dev_info *bdi,
+			  long max_pause,
+			  unsigned long task_ratelimit,
+			  unsigned long dirty_ratelimit,
+			  int *nr_dirtied_pause)
+{
+	long hi = ilog2(bdi->avg_write_bandwidth);
+	long lo = ilog2(bdi->dirty_ratelimit);
+	long t;		/* target pause */
+	long pause;	/* estimated next pause */
+	int pages;	/* target nr_dirtied_pause */
+
+	/* target for 10ms pause on 1-dd case */
+	t = max(1, HZ / 100);
 
 	/*
-	 * The pause time will be settled within range (max_pause/4, max_pause).
-	 * Apply a minimal value of 4 to get a non-zero max_pause/4.
+	 * Scale up pause time for concurrent dirtiers in order to reduce CPU
+	 * overheads.
+	 *
+	 * (N * 10ms) on 2^N concurrent tasks.
 	 */
-	return clamp_val(t, 4, MAX_PAUSE);
+	if (hi > lo)
+		t += (hi - lo) * (10 * HZ) / 1024;
+
+	/*
+	 * This is a bit convoluted. We try to base the next nr_dirtied_pause
+	 * on the much more stable dirty_ratelimit. However the next pause time
+	 * will be computed based on task_ratelimit and the two rate limits may
+	 * depart considerably at some time. Especially if task_ratelimit goes
+	 * below dirty_ratelimit/2 and the target pause is max_pause, the next
+	 * pause time will be max_pause*2 _trimmed down_ to max_pause.  As a
+	 * result task_ratelimit won't be executed faithfully, which could
+	 * eventually bring down dirty_ratelimit.
+	 *
+	 * We apply two rules to fix it up:
+	 * 1) try to estimate the next pause time and if necessary, use a lower
+	 *    nr_dirtied_pause so as not to exceed max_pause. When this happens,
+	 *    nr_dirtied_pause will be "dancing" with task_ratelimit.
+	 * 2) limit the target pause time to max_pause/2, so that the normal
+	 *    small fluctuations of task_ratelimit won't trigger rule (1) and
+	 *    nr_dirtied_pause will remain as stable as dirty_ratelimit.
+	 */
+	t = min(t, 1 + max_pause / 2);
+	pages = dirty_ratelimit * t / roundup_pow_of_two(HZ);
+
+	/*
+	 * Tiny nr_dirtied_pause is found to hurt I/O performance in the test
+	 * case fio-mmap-randwrite-64k, which does 16*{sync read, async write}.
+	 * When the 16 consecutive reads are often interrupted by some dirty
+	 * throttling pause during the async writes, cfq will go into idles
+	 * (deadline is fine). So push nr_dirtied_pause as high as possible
+	 * until reaches DIRTY_POLL_THRESH=32 pages.
+	 */
+	if (pages < DIRTY_POLL_THRESH) {
+		t = max_pause;
+		pages = dirty_ratelimit * t / roundup_pow_of_two(HZ);
+		if (pages > DIRTY_POLL_THRESH) {
+			pages = DIRTY_POLL_THRESH;
+			t = HZ * DIRTY_POLL_THRESH / dirty_ratelimit;
+		}
+	}
+
+	pause = HZ * pages / (task_ratelimit + 1);
+	if (pause > max_pause) {
+		t = max_pause;
+		pages = task_ratelimit * t / roundup_pow_of_two(HZ);
+	}
+
+	*nr_dirtied_pause = pages;
+	/*
+	 * The minimal pause time will normally be half the target pause time.
+	 */
+	return pages >= DIRTY_POLL_THRESH ? 1 + t / 2 : t;
 }
 
 /*
@@ -1098,16 +1167,21 @@ static void balance_dirty_pages(struct address_space *mapping,
 	unsigned long background_thresh;
 	unsigned long dirty_thresh;
 	unsigned long bdi_thresh;
-	long pause = 0;
-	long uninitialized_var(max_pause);
+	long period;
+	long pause;
+	long max_pause;
+	long min_pause;
+	int nr_dirtied_pause;
 	bool dirty_exceeded = false;
 	unsigned long task_ratelimit;
-	unsigned long uninitialized_var(dirty_ratelimit);
+	unsigned long dirty_ratelimit;
 	unsigned long pos_ratio;
 	struct backing_dev_info *bdi = mapping->backing_dev_info;
 	unsigned long start_time = jiffies;
 
 	for (;;) {
+		unsigned long now = jiffies;
+
 		/*
 		 * Unstable writes are a feature of certain networked
 		 * filesystems (i.e. NFS) in which data may have been
@@ -1127,8 +1201,13 @@ static void balance_dirty_pages(struct address_space *mapping,
 		 */
 		freerun = dirty_freerun_ceiling(dirty_thresh,
 						background_thresh);
-		if (nr_dirty <= freerun)
+		if (nr_dirty <= freerun) {
+			current->dirty_paused_when = now;
+			current->nr_dirtied = 0;
+			current->nr_dirtied_pause =
+				dirty_poll_interval(nr_dirty, dirty_thresh);
 			break;
+		}
 
 		if (unlikely(!writeback_in_progress(bdi)))
 			bdi_start_background_writeback(bdi);
@@ -1168,7 +1247,7 @@ static void balance_dirty_pages(struct address_space *mapping,
 				    bdi_stat(bdi, BDI_WRITEBACK);
 		}
 
-		dirty_exceeded = (bdi_dirty > bdi_thresh) ||
+		dirty_exceeded = (bdi_dirty > bdi_thresh) &&
 				  (nr_dirty > dirty_thresh);
 		if (dirty_exceeded && !bdi->dirty_exceeded)
 			bdi->dirty_exceeded = 1;
@@ -1177,20 +1256,34 @@ static void balance_dirty_pages(struct address_space *mapping,
 				     nr_dirty, bdi_thresh, bdi_dirty,
 				     start_time);
 
-		max_pause = bdi_max_pause(bdi, bdi_dirty);
-
 		dirty_ratelimit = bdi->dirty_ratelimit;
 		pos_ratio = bdi_position_ratio(bdi, dirty_thresh,
 					       background_thresh, nr_dirty,
 					       bdi_thresh, bdi_dirty);
 		task_ratelimit = ((u64)dirty_ratelimit * pos_ratio) >>
 							RATELIMIT_CALC_SHIFT;
+		max_pause = bdi_max_pause(bdi, bdi_dirty);
+		min_pause = bdi_min_pause(bdi, max_pause,
+					  task_ratelimit, dirty_ratelimit,
+					  &nr_dirtied_pause);
+
 		if (unlikely(task_ratelimit == 0)) {
+			period = max_pause;
 			pause = max_pause;
 			goto pause;
 		}
-		pause = HZ * pages_dirtied / task_ratelimit;
-		if (unlikely(pause <= 0)) {
+		period = HZ * pages_dirtied / task_ratelimit;
+		pause = period;
+		if (current->dirty_paused_when)
+			pause -= now - current->dirty_paused_when;
+		/*
+		 * For less than 1s think time (ext3/4 may block the dirtier
+		 * for up to 800ms from time to time on 1-HDD; so does xfs,
+		 * however at much less frequency), try to compensate it in
+		 * future periods by updating the virtual time; otherwise just
+		 * do a reset, as it may be a light dirtier.
+		 */
+		if (pause < min_pause) {
 			trace_balance_dirty_pages(bdi,
 						  dirty_thresh,
 						  background_thresh,
@@ -1200,12 +1293,24 @@ static void balance_dirty_pages(struct address_space *mapping,
 						  dirty_ratelimit,
 						  task_ratelimit,
 						  pages_dirtied,
-						  pause,
+						  period,
+						  min(pause, 0L),
 						  start_time);
-			pause = 1; /* avoid resetting nr_dirtied_pause below */
+			if (pause < -HZ) {
+				current->dirty_paused_when = now;
+				current->nr_dirtied = 0;
+			} else if (period) {
+				current->dirty_paused_when += period;
+				current->nr_dirtied = 0;
+			} else if (current->nr_dirtied_pause <= pages_dirtied)
+				current->nr_dirtied_pause += pages_dirtied;
 			break;
 		}
-		pause = min(pause, max_pause);
+		if (unlikely(pause > max_pause)) {
+			/* for occasional dropped task_ratelimit */
+			now += min(pause - max_pause, max_pause);
+			pause = max_pause;
+		}
 
 pause:
 		trace_balance_dirty_pages(bdi,
@@ -1217,10 +1322,15 @@ pause:
 					  dirty_ratelimit,
 					  task_ratelimit,
 					  pages_dirtied,
+					  period,
 					  pause,
 					  start_time);
 		__set_current_state(TASK_KILLABLE);
 		io_schedule_timeout(pause);
+
+		current->dirty_paused_when = now + pause;
+		current->nr_dirtied = 0;
+		current->nr_dirtied_pause = nr_dirtied_pause;
 
 		/*
 		 * This is typically equal to (nr_dirty < dirty_thresh) and can
@@ -1248,23 +1358,6 @@ pause:
 
 	if (!dirty_exceeded && bdi->dirty_exceeded)
 		bdi->dirty_exceeded = 0;
-
-	current->nr_dirtied = 0;
-	if (pause == 0) { /* in freerun area */
-		current->nr_dirtied_pause =
-				dirty_poll_interval(nr_dirty, dirty_thresh);
-	} else if (pause <= max_pause / 4 &&
-		   pages_dirtied >= current->nr_dirtied_pause) {
-		current->nr_dirtied_pause = clamp_val(
-					dirty_ratelimit * (max_pause / 2) / HZ,
-					pages_dirtied + pages_dirtied / 8,
-					pages_dirtied * 4);
-	} else if (pause >= max_pause) {
-		current->nr_dirtied_pause = 1 | clamp_val(
-					dirty_ratelimit * (max_pause / 2) / HZ,
-					pages_dirtied / 4,
-					pages_dirtied - pages_dirtied / 8);
-	}
 
 	if (writeback_in_progress(bdi))
 		return;
@@ -1296,6 +1389,22 @@ void set_page_dirty_balance(struct page *page, int page_mkwrite)
 
 static DEFINE_PER_CPU(int, bdp_ratelimits);
 
+/*
+ * Normal tasks are throttled by
+ *	loop {
+ *		dirty tsk->nr_dirtied_pause pages;
+ *		take a snap in balance_dirty_pages();
+ *	}
+ * However there is a worst case. If every task exit immediately when dirtied
+ * (tsk->nr_dirtied_pause - 1) pages, balance_dirty_pages() will never be
+ * called to throttle the page dirties. The solution is to save the not yet
+ * throttled page dirties in dirty_throttle_leaks on task exit and charge them
+ * randomly into the running tasks. This works well for the above worst case,
+ * as the new task will pick up and accumulate the old task's leaked dirty
+ * count and eventually get throttled.
+ */
+DEFINE_PER_CPU(int, dirty_throttle_leaks) = 0;
+
 /**
  * balance_dirty_pages_ratelimited_nr - balance dirty memory state
  * @mapping: address_space which was dirtied
@@ -1324,8 +1433,6 @@ void balance_dirty_pages_ratelimited_nr(struct address_space *mapping,
 	if (bdi->dirty_exceeded)
 		ratelimit = min(ratelimit, 32 >> (PAGE_SHIFT - 10));
 
-	current->nr_dirtied += nr_pages_dirtied;
-
 	preempt_disable();
 	/*
 	 * This prevents one CPU to accumulate too many dirtied pages without
@@ -1336,12 +1443,20 @@ void balance_dirty_pages_ratelimited_nr(struct address_space *mapping,
 	p =  &__get_cpu_var(bdp_ratelimits);
 	if (unlikely(current->nr_dirtied >= ratelimit))
 		*p = 0;
-	else {
-		*p += nr_pages_dirtied;
-		if (unlikely(*p >= ratelimit_pages)) {
-			*p = 0;
-			ratelimit = 0;
-		}
+	else if (unlikely(*p >= ratelimit_pages)) {
+		*p = 0;
+		ratelimit = 0;
+	}
+	/*
+	 * Pick up the dirtied pages by the exited tasks. This avoids lots of
+	 * short-lived tasks (eg. gcc invocations in a kernel build) escaping
+	 * the dirty throttling and livelock other long-run dirtiers.
+	 */
+	p = &__get_cpu_var(dirty_throttle_leaks);
+	if (*p > 0 && current->nr_dirtied < ratelimit) {
+		nr_pages_dirtied = min(*p, ratelimit - current->nr_dirtied);
+		*p -= nr_pages_dirtied;
+		current->nr_dirtied += nr_pages_dirtied;
 	}
 	preempt_enable();
 
@@ -1823,6 +1938,8 @@ void account_page_dirtied(struct page *page, struct address_space *mapping)
 		__inc_bdi_stat(mapping->backing_dev_info, BDI_RECLAIMABLE);
 		__inc_bdi_stat(mapping->backing_dev_info, BDI_DIRTIED);
 		task_io_account_write(PAGE_CACHE_SIZE);
+		current->nr_dirtied++;
+		this_cpu_inc(bdp_ratelimits);
 	}
 }
 EXPORT_SYMBOL(account_page_dirtied);
@@ -1883,6 +2000,24 @@ int __set_page_dirty_nobuffers(struct page *page)
 EXPORT_SYMBOL(__set_page_dirty_nobuffers);
 
 /*
+ * Call this whenever redirtying a page, to de-account the dirty counters
+ * (NR_DIRTIED, BDI_DIRTIED, tsk->nr_dirtied), so that they match the written
+ * counters (NR_WRITTEN, BDI_WRITTEN) in long term. The mismatches will lead to
+ * systematic errors in balanced_dirty_ratelimit and the dirty pages position
+ * control.
+ */
+void account_page_redirty(struct page *page)
+{
+	struct address_space *mapping = page->mapping;
+	if (mapping && mapping_cap_account_dirty(mapping)) {
+		current->nr_dirtied--;
+		dec_zone_page_state(page, NR_DIRTIED);
+		dec_bdi_stat(mapping->backing_dev_info, BDI_DIRTIED);
+	}
+}
+EXPORT_SYMBOL(account_page_redirty);
+
+/*
  * When a writepage implementation decides that it doesn't want to write this
  * page for some reason, it should redirty the locked page via
  * redirty_page_for_writepage() and it should then unlock the page and return 0
@@ -1890,6 +2025,7 @@ EXPORT_SYMBOL(__set_page_dirty_nobuffers);
 int redirty_page_for_writepage(struct writeback_control *wbc, struct page *page)
 {
 	wbc->pages_skipped++;
+	account_page_redirty(page);
 	return __set_page_dirty_nobuffers(page);
 }
 EXPORT_SYMBOL(redirty_page_for_writepage);
