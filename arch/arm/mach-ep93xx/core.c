@@ -205,7 +205,6 @@ void ep93xx_syscon_swlocked_write(unsigned int val, void __iomem *reg)
 
 	spin_unlock_irqrestore(&syscon_swlock, flags);
 }
-EXPORT_SYMBOL(ep93xx_syscon_swlocked_write);
 
 void ep93xx_devcfg_set_clear(unsigned int set_bits, unsigned int clear_bits)
 {
@@ -222,7 +221,6 @@ void ep93xx_devcfg_set_clear(unsigned int set_bits, unsigned int clear_bits)
 
 	spin_unlock_irqrestore(&syscon_swlock, flags);
 }
-EXPORT_SYMBOL(ep93xx_devcfg_set_clear);
 
 /**
  * ep93xx_chip_revision() - returns the EP93xx chip revision
