@@ -51,6 +51,7 @@
 #define MMC_READ_SINGLE_BLOCK    17   /* adtc [31:0] data addr   R1  */
 #define MMC_READ_MULTIPLE_BLOCK  18   /* adtc [31:0] data addr   R1  */
 #define MMC_SEND_TUNING_BLOCK    19   /* adtc                    R1  */
+#define MMC_SEND_TUNING_BLOCK_HS200	21	/* adtc R1  */
 
   /* class 3 */
 #define MMC_WRITE_DAT_UNTIL_STOP 20   /* adtc [31:0] data addr   R1  */
@@ -339,13 +340,76 @@ struct _mmc_csd {
 
 #define EXT_CSD_CARD_TYPE_26	(1<<0)	/* Card can run at 26MHz */
 #define EXT_CSD_CARD_TYPE_52	(1<<1)	/* Card can run at 52MHz */
-#define EXT_CSD_CARD_TYPE_MASK	0xF	/* Mask out reserved bits */
+#define EXT_CSD_CARD_TYPE_MASK	0x3F	/* Mask out reserved bits */
 #define EXT_CSD_CARD_TYPE_DDR_1_8V  (1<<2)   /* Card can run at 52MHz */
 					     /* DDR mode @1.8V or 3V I/O */
 #define EXT_CSD_CARD_TYPE_DDR_1_2V  (1<<3)   /* Card can run at 52MHz */
 					     /* DDR mode @1.2V I/O */
 #define EXT_CSD_CARD_TYPE_DDR_52       (EXT_CSD_CARD_TYPE_DDR_1_8V  \
 					| EXT_CSD_CARD_TYPE_DDR_1_2V)
+#define EXT_CSD_CARD_TYPE_SDR_1_8V	(1<<4)	/* Card can run at 200MHz */
+#define EXT_CSD_CARD_TYPE_SDR_1_2V	(1<<5)	/* Card can run at 200MHz */
+						/* SDR mode @1.2V I/O */
+
+#define EXT_CSD_CARD_TYPE_SDR_200	(EXT_CSD_CARD_TYPE_SDR_1_8V | \
+					 EXT_CSD_CARD_TYPE_SDR_1_2V)
+
+#define EXT_CSD_CARD_TYPE_SDR_ALL	(EXT_CSD_CARD_TYPE_SDR_200 | \
+					 EXT_CSD_CARD_TYPE_52 | \
+					 EXT_CSD_CARD_TYPE_26)
+
+#define	EXT_CSD_CARD_TYPE_SDR_1_2V_ALL	(EXT_CSD_CARD_TYPE_SDR_1_2V | \
+					 EXT_CSD_CARD_TYPE_52 | \
+					 EXT_CSD_CARD_TYPE_26)
+
+#define	EXT_CSD_CARD_TYPE_SDR_1_8V_ALL	(EXT_CSD_CARD_TYPE_SDR_1_8V | \
+					 EXT_CSD_CARD_TYPE_52 | \
+					 EXT_CSD_CARD_TYPE_26)
+
+#define EXT_CSD_CARD_TYPE_SDR_1_2V_DDR_1_8V	(EXT_CSD_CARD_TYPE_SDR_1_2V | \
+						 EXT_CSD_CARD_TYPE_DDR_1_8V | \
+						 EXT_CSD_CARD_TYPE_52 | \
+						 EXT_CSD_CARD_TYPE_26)
+
+#define EXT_CSD_CARD_TYPE_SDR_1_8V_DDR_1_8V	(EXT_CSD_CARD_TYPE_SDR_1_8V | \
+						 EXT_CSD_CARD_TYPE_DDR_1_8V | \
+						 EXT_CSD_CARD_TYPE_52 | \
+						 EXT_CSD_CARD_TYPE_26)
+
+#define EXT_CSD_CARD_TYPE_SDR_1_2V_DDR_1_2V	(EXT_CSD_CARD_TYPE_SDR_1_2V | \
+						 EXT_CSD_CARD_TYPE_DDR_1_2V | \
+						 EXT_CSD_CARD_TYPE_52 | \
+						 EXT_CSD_CARD_TYPE_26)
+
+#define EXT_CSD_CARD_TYPE_SDR_1_8V_DDR_1_2V	(EXT_CSD_CARD_TYPE_SDR_1_8V | \
+						 EXT_CSD_CARD_TYPE_DDR_1_2V | \
+						 EXT_CSD_CARD_TYPE_52 | \
+						 EXT_CSD_CARD_TYPE_26)
+
+#define EXT_CSD_CARD_TYPE_SDR_1_2V_DDR_52	(EXT_CSD_CARD_TYPE_SDR_1_2V | \
+						 EXT_CSD_CARD_TYPE_DDR_52 | \
+						 EXT_CSD_CARD_TYPE_52 | \
+						 EXT_CSD_CARD_TYPE_26)
+
+#define EXT_CSD_CARD_TYPE_SDR_1_8V_DDR_52	(EXT_CSD_CARD_TYPE_SDR_1_8V | \
+						 EXT_CSD_CARD_TYPE_DDR_52 | \
+						 EXT_CSD_CARD_TYPE_52 | \
+						 EXT_CSD_CARD_TYPE_26)
+
+#define EXT_CSD_CARD_TYPE_SDR_ALL_DDR_1_8V	(EXT_CSD_CARD_TYPE_SDR_200 | \
+						 EXT_CSD_CARD_TYPE_DDR_1_8V | \
+						 EXT_CSD_CARD_TYPE_52 | \
+						 EXT_CSD_CARD_TYPE_26)
+
+#define EXT_CSD_CARD_TYPE_SDR_ALL_DDR_1_2V	(EXT_CSD_CARD_TYPE_SDR_200 | \
+						 EXT_CSD_CARD_TYPE_DDR_1_2V | \
+						 EXT_CSD_CARD_TYPE_52 | \
+						 EXT_CSD_CARD_TYPE_26)
+
+#define EXT_CSD_CARD_TYPE_SDR_ALL_DDR_52	(EXT_CSD_CARD_TYPE_SDR_200 | \
+						 EXT_CSD_CARD_TYPE_DDR_52 | \
+						 EXT_CSD_CARD_TYPE_52 | \
+						 EXT_CSD_CARD_TYPE_26)
 
 #define EXT_CSD_BUS_WIDTH_1	0	/* Card is in 1 bit mode */
 #define EXT_CSD_BUS_WIDTH_4	1	/* Card is in 4 bit mode */
