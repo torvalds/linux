@@ -257,6 +257,9 @@ static int validate_request(struct autofs_wait_queue **wait,
 	struct autofs_wait_queue *wq;
 	struct autofs_info *ino;
 
+	if (sbi->catatonic)
+		return -ENOENT;
+
 	/* Wait in progress, continue; */
 	wq = autofs4_find_wait(sbi, qstr);
 	if (wq) {
@@ -288,6 +291,9 @@ static int validate_request(struct autofs_wait_queue **wait,
 			schedule_timeout_interruptible(HZ/10);
 			if (mutex_lock_interruptible(&sbi->wq_mutex))
 				return -EINTR;
+
+			if (sbi->catatonic)
+				return -ENOENT;
 
 			wq = autofs4_find_wait(sbi, qstr);
 			if (wq) {
@@ -389,7 +395,7 @@ int autofs4_wait(struct autofs_sb_info *sbi, struct dentry *dentry,
 
 	ret = validate_request(&wq, sbi, &qstr, dentry, notify);
 	if (ret <= 0) {
-		if (ret == 0)
+		if (ret != -EINTR)
 			mutex_unlock(&sbi->wq_mutex);
 		kfree(qstr.name);
 		return ret;
