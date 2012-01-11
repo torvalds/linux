@@ -134,7 +134,7 @@ static void __init ath79_detect_sys_type(void)
 		break;
 
 	default:
-		panic("ath79: unknown SoC, id:0x%08x\n", id);
+		panic("ath79: unknown SoC, id:0x%08x", id);
 	}
 
 	sprintf(ath79_sys_type, "Atheros AR%s rev %u", chip, rev);

@@ -19,12 +19,6 @@
 #include <asm-generic/pgtable-nopmd.h>
 
 /*
- * - add_wired_entry() add a fixed TLB entry, and move wired register
- */
-extern void add_wired_entry(unsigned long entrylo0, unsigned long entrylo1,
-			       unsigned long entryhi, unsigned long pagemask);
-
-/*
  * - add_temporary_entry() add a temporary TLB entry. We use TLB entries
  *	starting at the top and working down. This is for populating the
  *	TLB before trap_init() puts the TLB miss handler in place. It

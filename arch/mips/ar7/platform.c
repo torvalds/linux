@@ -536,7 +536,7 @@ static int __init ar7_register_uarts(void)
 
 	bus_clk = clk_get(NULL, "bus");
 	if (IS_ERR(bus_clk))
-		panic("unable to get bus clk\n");
+		panic("unable to get bus clk");
 
 	uart_port.type		= PORT_AR7;
 	uart_port.uartclk	= clk_get_rate(bus_clk) / 2;

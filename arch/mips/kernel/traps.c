@@ -400,7 +400,7 @@ void __noreturn die(const char *str, struct pt_regs *regs)
 		panic("Fatal exception in interrupt");
 
 	if (panic_on_oops) {
-		printk(KERN_EMERG "Fatal exception: panic in 5 seconds\n");
+		printk(KERN_EMERG "Fatal exception: panic in 5 seconds");
 		ssleep(5);
 		panic("Fatal exception");
 	}
@@ -1150,7 +1150,7 @@ asmlinkage void do_mt(struct pt_regs *regs)
 asmlinkage void do_dsp(struct pt_regs *regs)
 {
 	if (cpu_has_dsp)
-		panic("Unexpected DSP exception\n");
+		panic("Unexpected DSP exception");
 
 	force_sig(SIGILL, current);
 }
