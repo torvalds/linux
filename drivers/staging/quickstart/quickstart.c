@@ -240,21 +240,24 @@ static int quickstart_acpi_ghid(struct quickstart_acpi *quickstart)
 	return ret;
 }
 
-static int quickstart_acpi_config(struct quickstart_acpi *quickstart, char *bid)
+static int quickstart_acpi_config(struct quickstart_acpi *quickstart)
 {
-	int len = strlen(bid);
+	char *bid = acpi_device_bid(quickstart->device);
+	char *name;
 	int ret;
+
+	name = kmalloc(strlen(bid) + 1, GFP_KERNEL);
+	if (!name)
+		return -ENOMEM;
 
 	/* Add button to list */
 	ret = quickstart_btnlst_add(&quickstart->btn);
-	if (ret)
+	if (ret < 0) {
+		kfree(name);
 		return ret;
-
-	quickstart->btn->name = kzalloc(len + 1, GFP_KERNEL);
-	if (!quickstart->btn->name) {
-		quickstart_btnlst_free();
-		return -ENOMEM;
 	}
+
+	quickstart->btn->name = name;
 	strcpy(quickstart->btn->name, bid);
 
 	return 0;
@@ -280,7 +283,7 @@ static int quickstart_acpi_add(struct acpi_device *device)
 	device->driver_data = quickstart;
 
 	/* Add button to list and initialize some stuff */
-	ret = quickstart_acpi_config(quickstart, acpi_device_bid(device));
+	ret = quickstart_acpi_config(quickstart);
 	if (ret < 0)
 		goto fail_config;
 
