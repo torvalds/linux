@@ -1397,9 +1397,23 @@ int wl1271_plt_stop(struct wl1271 *wl)
 
 	wl1271_notice("power down");
 
+	/*
+	 * Interrupts must be disabled before setting the state to OFF.
+	 * Otherwise, the interrupt handler might be called and exit without
+	 * reading the interrupt status.
+	 */
+	wl1271_disable_interrupts(wl);
 	mutex_lock(&wl->mutex);
 	if (wl->state != WL1271_STATE_PLT) {
 		mutex_unlock(&wl->mutex);
+
+		/*
+		 * This will not necessarily enable interrupts as interrupts
+		 * may have been disabled when op_stop was called. It will,
+		 * however, balance the above call to disable_interrupts().
+		 */
+		wl1271_enable_interrupts(wl);
+
 		wl1271_error("cannot power down because not in PLT "
 			     "state: %d", wl->state);
 		ret = -EBUSY;
@@ -1411,7 +1425,6 @@ int wl1271_plt_stop(struct wl1271 *wl)
 
 	mutex_unlock(&wl->mutex);
 
-	wl1271_disable_interrupts(wl);
 	wl1271_flush_deferred_work(wl);
 	cancel_work_sync(&wl->netstack_work);
 	cancel_work_sync(&wl->recovery_work);
@@ -1773,11 +1786,25 @@ static void wl1271_op_stop(struct ieee80211_hw *hw)
 
 	wl1271_debug(DEBUG_MAC80211, "mac80211 stop");
 
+	/*
+	 * Interrupts must be disabled before setting the state to OFF.
+	 * Otherwise, the interrupt handler might be called and exit without
+	 * reading the interrupt status.
+	 */
+	wl1271_disable_interrupts(wl);
 	mutex_lock(&wl->mutex);
 	if (wl->state == WL1271_STATE_OFF) {
 		mutex_unlock(&wl->mutex);
+
+		/*
+		 * This will not necessarily enable interrupts as interrupts
+		 * may have been disabled when op_stop was called. It will,
+		 * however, balance the above call to disable_interrupts().
+		 */
+		wl1271_enable_interrupts(wl);
 		return;
 	}
+
 	/*
 	 * this must be before the cancel_work calls below, so that the work
 	 * functions don't perform further work.
@@ -1789,7 +1816,6 @@ static void wl1271_op_stop(struct ieee80211_hw *hw)
 	list_del(&wl->list);
 	mutex_unlock(&wl_list_mutex);
 
-	wl1271_disable_interrupts(wl);
 	wl1271_flush_deferred_work(wl);
 	cancel_delayed_work_sync(&wl->scan_complete_work);
 	cancel_work_sync(&wl->netstack_work);
