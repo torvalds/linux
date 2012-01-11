@@ -327,7 +327,7 @@ static inline void __iomem *ioremap(phys_addr_t offset, unsigned long size)
 #define ioremap_wc ioremap_nocache
 #endif
 
-static inline void iounmap(void *addr)
+static inline void iounmap(void __iomem *addr)
 {
 }
 #endif /* CONFIG_MMU */
