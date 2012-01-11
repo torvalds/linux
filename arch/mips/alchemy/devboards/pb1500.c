@@ -1,41 +1,37 @@
 /*
- * Copyright 2000, 2008 MontaVista Software Inc.
- * Author: MontaVista Software, Inc. <source@mvista.com>
+ * Pb1500 board support.
  *
- *  This program is free software; you can redistribute  it and/or modify it
- *  under  the terms of  the GNU General  Public License as published by the
- *  Free Software Foundation;  either version 2 of the  License, or (at your
- *  option) any later version.
+ * Copyright (C) 2009 Manuel Lauss
  *
- *  THIS  SOFTWARE  IS PROVIDED   ``AS  IS'' AND   ANY  EXPRESS OR IMPLIED
- *  WARRANTIES,   INCLUDING, BUT NOT  LIMITED  TO, THE IMPLIED WARRANTIES OF
- *  MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.  IN
- *  NO  EVENT  SHALL   THE AUTHOR  BE    LIABLE FOR ANY   DIRECT, INDIRECT,
- *  INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
- *  NOT LIMITED   TO, PROCUREMENT OF  SUBSTITUTE GOODS  OR SERVICES; LOSS OF
- *  USE, DATA,  OR PROFITS; OR  BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON
- *  ANY THEORY OF LIABILITY, WHETHER IN  CONTRACT, STRICT LIABILITY, OR TORT
- *  (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
- *  THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; either version 2 of the License, or
+ * (at your option) any later version.
  *
- *  You should have received a copy of the  GNU General Public License along
- *  with this program; if not, write  to the Free Software Foundation, Inc.,
- *  675 Mass Ave, Cambridge, MA 02139, USA.
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program; if not, write to the Free Software
+ * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
  */
 
 #include <linux/delay.h>
+#include <linux/dma-mapping.h>
 #include <linux/gpio.h>
 #include <linux/init.h>
 #include <linux/interrupt.h>
-
+#include <linux/platform_device.h>
 #include <asm/mach-au1x00/au1000.h>
 #include <asm/mach-db1x00/bcsr.h>
-
 #include <prom.h>
+#include "platform.h"
 
 const char *get_system_type(void)
 {
-	return "Alchemy Pb1500";
+	return "PB1500";
 }
 
 void __init board_setup(void)
@@ -123,17 +119,80 @@ void __init board_setup(void)
 	}
 }
 
-static int __init pb1500_init_irq(void)
+/******************************************************************************/
+
+static int pb1500_map_pci_irq(const struct pci_dev *d, u8 slot, u8 pin)
 {
-	irq_set_irq_type(AU1500_GPIO9_INT, IRQF_TRIGGER_LOW);   /* CD0# */
-	irq_set_irq_type(AU1500_GPIO10_INT, IRQF_TRIGGER_LOW);  /* CARD0 */
-	irq_set_irq_type(AU1500_GPIO11_INT, IRQF_TRIGGER_LOW);  /* STSCHG0# */
+	if ((slot < 12) || (slot > 13) || pin == 0)
+		return -1;
+	if (slot == 12)
+		return (pin == 1) ? AU1500_PCI_INTA : 0xff;
+	if (slot == 13) {
+		switch (pin) {
+		case 1: return AU1500_PCI_INTA;
+		case 2: return AU1500_PCI_INTB;
+		case 3: return AU1500_PCI_INTC;
+		case 4: return AU1500_PCI_INTD;
+		}
+	}
+	return -1;
+}
+
+static struct resource alchemy_pci_host_res[] = {
+	[0] = {
+		.start	= AU1500_PCI_PHYS_ADDR,
+		.end	= AU1500_PCI_PHYS_ADDR + 0xfff,
+		.flags	= IORESOURCE_MEM,
+	},
+};
+
+static struct alchemy_pci_platdata pb1500_pci_pd = {
+	.board_map_irq	= pb1500_map_pci_irq,
+	.pci_cfg_set	= PCI_CONFIG_AEN | PCI_CONFIG_R2H | PCI_CONFIG_R1H |
+			  PCI_CONFIG_CH |
+#if defined(__MIPSEB__)
+			  PCI_CONFIG_SIC_HWA_DAT | PCI_CONFIG_SM,
+#else
+			  0,
+#endif
+};
+
+static struct platform_device pb1500_pci_host = {
+	.dev.platform_data = &pb1500_pci_pd,
+	.name		= "alchemy-pci",
+	.id		= 0,
+	.num_resources	= ARRAY_SIZE(alchemy_pci_host_res),
+	.resource	= alchemy_pci_host_res,
+};
+
+static int __init pb1500_dev_init(void)
+{
+	int swapped;
+
+	irq_set_irq_type(AU1500_GPIO9_INT,   IRQF_TRIGGER_LOW);   /* CD0# */
+	irq_set_irq_type(AU1500_GPIO10_INT,  IRQF_TRIGGER_LOW);  /* CARD0 */
+	irq_set_irq_type(AU1500_GPIO11_INT,  IRQF_TRIGGER_LOW);  /* STSCHG0# */
 	irq_set_irq_type(AU1500_GPIO204_INT, IRQF_TRIGGER_HIGH);
 	irq_set_irq_type(AU1500_GPIO201_INT, IRQF_TRIGGER_LOW);
 	irq_set_irq_type(AU1500_GPIO202_INT, IRQF_TRIGGER_LOW);
 	irq_set_irq_type(AU1500_GPIO203_INT, IRQF_TRIGGER_LOW);
 	irq_set_irq_type(AU1500_GPIO205_INT, IRQF_TRIGGER_LOW);
 
+	/* PCMCIA. single socket, identical to Pb1100 */
+	db1x_register_pcmcia_socket(
+		AU1000_PCMCIA_ATTR_PHYS_ADDR,
+		AU1000_PCMCIA_ATTR_PHYS_ADDR + 0x000400000 - 1,
+		AU1000_PCMCIA_MEM_PHYS_ADDR,
+		AU1000_PCMCIA_MEM_PHYS_ADDR  + 0x000400000 - 1,
+		AU1000_PCMCIA_IO_PHYS_ADDR,
+		AU1000_PCMCIA_IO_PHYS_ADDR   + 0x000010000 - 1,
+		AU1500_GPIO11_INT, AU1500_GPIO9_INT,	 /* card / insert */
+		/*AU1500_GPIO10_INT*/0, 0, 0); /* stschg / eject / id */
+
+	swapped = bcsr_read(BCSR_STATUS) &  BCSR_STATUS_DB1000_SWAPBOOT;
+	db1x_register_norflash(64 * 1024 * 1024, 4, swapped);
+	platform_device_register(&pb1500_pci_host);
+
 	return 0;
 }
-arch_initcall(pb1500_init_irq);
+arch_initcall(pb1500_dev_init);

@@ -1,5 +1,5 @@
 /*
- * MTX-1 platform devices registration
+ * MTX-1 platform devices registration (Au1500)
  *
  * Copyright (C) 2007-2009, Florian Fainelli <florian@openwrt.org>
  *
@@ -19,6 +19,8 @@
  */
 
 #include <linux/init.h>
+#include <linux/interrupt.h>
+#include <linux/kernel.h>
 #include <linux/platform_device.h>
 #include <linux/leds.h>
 #include <linux/gpio.h>
@@ -27,8 +29,85 @@
 #include <linux/mtd/partitions.h>
 #include <linux/mtd/physmap.h>
 #include <mtd/mtd-abi.h>
-
+#include <asm/bootinfo.h>
+#include <asm/reboot.h>
+#include <asm/mach-au1x00/au1000.h>
 #include <asm/mach-au1x00/au1xxx_eth.h>
+#include <prom.h>
+
+const char *get_system_type(void)
+{
+	return "MTX-1";
+}
+
+void __init prom_init(void)
+{
+	unsigned char *memsize_str;
+	unsigned long memsize;
+
+	prom_argc = fw_arg0;
+	prom_argv = (char **)fw_arg1;
+	prom_envp = (char **)fw_arg2;
+
+	prom_init_cmdline();
+
+	memsize_str = prom_getenv("memsize");
+	if (!memsize_str)
+		memsize = 0x04000000;
+	else
+		strict_strtoul(memsize_str, 0, &memsize);
+	add_memory_region(0, memsize, BOOT_MEM_RAM);
+}
+
+void prom_putchar(unsigned char c)
+{
+	alchemy_uart_putchar(AU1000_UART0_PHYS_ADDR, c);
+}
+
+static void mtx1_reset(char *c)
+{
+	/* Jump to the reset vector */
+	__asm__ __volatile__("jr\t%0" : : "r"(0xbfc00000));
+}
+
+static void mtx1_power_off(void)
+{
+	while (1)
+		asm volatile (
+		"	.set	mips32					\n"
+		"	wait						\n"
+		"	.set	mips0					\n");
+}
+
+void __init board_setup(void)
+{
+#if defined(CONFIG_USB_OHCI_HCD) || defined(CONFIG_USB_OHCI_HCD_MODULE)
+	/* Enable USB power switch */
+	alchemy_gpio_direction_output(204, 0);
+#endif /* defined(CONFIG_USB_OHCI_HCD) || defined(CONFIG_USB_OHCI_HCD_MODULE) */
+
+	/* Initialize sys_pinfunc */
+	au_writel(SYS_PF_NI2, SYS_PINFUNC);
+
+	/* Initialize GPIO */
+	au_writel(~0, KSEG1ADDR(AU1000_SYS_PHYS_ADDR) + SYS_TRIOUTCLR);
+	alchemy_gpio_direction_output(0, 0);	/* Disable M66EN (PCI 66MHz) */
+	alchemy_gpio_direction_output(3, 1);	/* Disable PCI CLKRUN# */
+	alchemy_gpio_direction_output(1, 1);	/* Enable EXT_IO3 */
+	alchemy_gpio_direction_output(5, 0);	/* Disable eth PHY TX_ER */
+
+	/* Enable LED and set it to green */
+	alchemy_gpio_direction_output(211, 1);	/* green on */
+	alchemy_gpio_direction_output(212, 0);	/* red off */
+
+	pm_power_off = mtx1_power_off;
+	_machine_halt = mtx1_power_off;
+	_machine_restart = mtx1_reset;
+
+	printk(KERN_INFO "4G Systems MTX-1 Board\n");
+}
+
+/******************************************************************************/
 
 static struct gpio_keys_button mtx1_gpio_button[] = {
 	{
@@ -195,7 +274,6 @@ static struct platform_device mtx1_pci_host = {
 	.resource	= alchemy_pci_host_res,
 };
 
-
 static struct __initdata platform_device * mtx1_devs[] = {
 	&mtx1_pci_host,
 	&mtx1_gpio_leds,
@@ -206,12 +284,18 @@ static struct __initdata platform_device * mtx1_devs[] = {
 
 static struct au1000_eth_platform_data mtx1_au1000_eth0_pdata = {
 	.phy_search_highest_addr	= 1,
-	.phy1_search_mac0 		= 1,
+	.phy1_search_mac0		= 1,
 };
 
 static int __init mtx1_register_devices(void)
 {
 	int rc;
+
+	irq_set_irq_type(AU1500_GPIO204_INT, IRQ_TYPE_LEVEL_HIGH);
+	irq_set_irq_type(AU1500_GPIO201_INT, IRQ_TYPE_LEVEL_LOW);
+	irq_set_irq_type(AU1500_GPIO202_INT, IRQ_TYPE_LEVEL_LOW);
+	irq_set_irq_type(AU1500_GPIO203_INT, IRQ_TYPE_LEVEL_LOW);
+	irq_set_irq_type(AU1500_GPIO205_INT, IRQ_TYPE_LEVEL_LOW);
 
 	au1xxx_override_eth_cfg(0, &mtx1_au1000_eth0_pdata);
 
@@ -226,5 +310,4 @@ static int __init mtx1_register_devices(void)
 out:
 	return platform_add_devices(mtx1_devs, ARRAY_SIZE(mtx1_devs));
 }
-
 arch_initcall(mtx1_register_devices);

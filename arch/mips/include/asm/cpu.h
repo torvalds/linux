@@ -169,6 +169,7 @@
 #define PRID_IMP_NETLOGIC_XLS412B	0x4c00
 #define PRID_IMP_NETLOGIC_XLS408B	0x4e00
 #define PRID_IMP_NETLOGIC_XLS404B	0x4f00
+#define PRID_IMP_NETLOGIC_AU13XX	0x8000
 
 /*
  * Definitions for 7:0 on legacy processors

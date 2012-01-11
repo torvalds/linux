@@ -1,5 +1,5 @@
 /*
- * GPR board platform device registration
+ * GPR board platform device registration (Au1550)
  *
  * Copyright (C) 2010 Wolfgang Grandegger <wg@denx.de>
  *
@@ -18,16 +18,89 @@
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
  */
 
+#include <linux/delay.h>
 #include <linux/init.h>
+#include <linux/interrupt.h>
+#include <linux/kernel.h>
 #include <linux/platform_device.h>
+#include <linux/pm.h>
 #include <linux/mtd/partitions.h>
 #include <linux/mtd/physmap.h>
 #include <linux/leds.h>
 #include <linux/gpio.h>
 #include <linux/i2c.h>
 #include <linux/i2c-gpio.h>
-
+#include <asm/bootinfo.h>
+#include <asm/reboot.h>
 #include <asm/mach-au1x00/au1000.h>
+#include <prom.h>
+
+const char *get_system_type(void)
+{
+	return "GPR";
+}
+
+void __init prom_init(void)
+{
+	unsigned char *memsize_str;
+	unsigned long memsize;
+
+	prom_argc = fw_arg0;
+	prom_argv = (char **)fw_arg1;
+	prom_envp = (char **)fw_arg2;
+
+	prom_init_cmdline();
+
+	memsize_str = prom_getenv("memsize");
+	if (!memsize_str)
+		memsize = 0x04000000;
+	else
+		strict_strtoul(memsize_str, 0, &memsize);
+	add_memory_region(0, memsize, BOOT_MEM_RAM);
+}
+
+void prom_putchar(unsigned char c)
+{
+	alchemy_uart_putchar(AU1000_UART0_PHYS_ADDR, c);
+}
+
+static void gpr_reset(char *c)
+{
+	/* switch System-LED to orange (red# and green# on) */
+	alchemy_gpio_direction_output(4, 0);
+	alchemy_gpio_direction_output(5, 0);
+
+	/* trigger watchdog to reset board in 200ms */
+	printk(KERN_EMERG "Triggering watchdog soft reset...\n");
+	raw_local_irq_disable();
+	alchemy_gpio_direction_output(1, 0);
+	udelay(1);
+	alchemy_gpio_set_value(1, 1);
+	while (1)
+		cpu_wait();
+}
+
+static void gpr_power_off(void)
+{
+	while (1)
+		cpu_wait();
+}
+
+void __init board_setup(void)
+{
+	printk(KERN_INFO "Trapeze ITS GPR board\n");
+
+	pm_power_off = gpr_power_off;
+	_machine_halt = gpr_power_off;
+	_machine_restart = gpr_reset;
+
+	/* Enable UART1/3 */
+	alchemy_uart_enable(AU1000_UART3_PHYS_ADDR);
+	alchemy_uart_enable(AU1000_UART1_PHYS_ADDR);
+
+	/* Take away Reset of UMTS-card */
+	alchemy_gpio_direction_output(215, 1);
+}
 
 /*
  * Watchdog
@@ -152,7 +225,7 @@ static struct i2c_gpio_platform_data gpr_i2c_data = {
 	.scl_is_open_drain	= 1,
 	.udelay			= 2,		/* ~100 kHz */
 	.timeout		= HZ,
- };
+};
 
 static struct platform_device gpr_i2c_device = {
 	.name			= "i2c-gpio",
@@ -184,7 +257,7 @@ static int gpr_map_pci_irq(const struct pci_dev *d, u8 slot, u8 pin)
 	else if ((slot == 0) && (pin == 2))
 		return AU1550_PCI_INTB;
 
-	return -1;
+	return 0xff;
 }
 
 static struct alchemy_pci_platdata gpr_pci_pd = {
