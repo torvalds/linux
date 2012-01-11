@@ -87,6 +87,7 @@ config GPIO_GENERIC_PLATFORM
 
 config GPIO_IT8761E
 	tristate "IT8761E GPIO support"
+	depends on X86  # unconditional access to IO space.
 	help
 	  Say yes here to support GPIO functionality of IT8761E super I/O chip.
 
