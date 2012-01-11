@@ -322,8 +322,7 @@ static void kvm_s390_vcpu_initial_reset(struct kvm_vcpu *vcpu)
 	/* this equals initial cpu reset in pop, but we don't switch to ESA */
 	vcpu->arch.sie_block->gpsw.mask = 0UL;
 	vcpu->arch.sie_block->gpsw.addr = 0UL;
-	vcpu->arch.sie_block->prefix    = 0UL;
-	vcpu->arch.sie_block->ihcpu     = 0xffff;
+	kvm_s390_set_prefix(vcpu, 0);
 	vcpu->arch.sie_block->cputm     = 0UL;
 	vcpu->arch.sie_block->ckc       = 0UL;
 	vcpu->arch.sie_block->todpr     = 0;

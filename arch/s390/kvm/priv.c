@@ -56,8 +56,7 @@ static int handle_set_prefix(struct kvm_vcpu *vcpu)
 		goto out;
 	}
 
-	vcpu->arch.sie_block->prefix = address;
-	vcpu->arch.sie_block->ihcpu = 0xffff;
+	kvm_s390_set_prefix(vcpu, address);
 
 	VCPU_EVENT(vcpu, 5, "setting prefix to %x", address);
 out:

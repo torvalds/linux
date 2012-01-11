@@ -58,6 +58,13 @@ static inline int kvm_is_ucontrol(struct kvm *kvm)
 	return 0;
 #endif
 }
+
+static inline void kvm_s390_set_prefix(struct kvm_vcpu *vcpu, u32 prefix)
+{
+	vcpu->arch.sie_block->prefix = prefix & 0x7fffe000u;
+	vcpu->arch.sie_block->ihcpu  = 0xffff;
+}
+
 int kvm_s390_handle_wait(struct kvm_vcpu *vcpu);
 enum hrtimer_restart kvm_s390_idle_wakeup(struct hrtimer *timer);
 void kvm_s390_tasklet(unsigned long parm);
