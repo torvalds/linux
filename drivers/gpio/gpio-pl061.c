@@ -352,7 +352,12 @@ static int pl061_resume(struct device *dev)
 	return 0;
 }
 
-static SIMPLE_DEV_PM_OPS(pl061_dev_pm_ops, pl061_suspend, pl061_resume);
+static const struct dev_pm_ops pl061_dev_pm_ops = {
+	.suspend = pl061_suspend,
+	.resume = pl061_resume,
+	.freeze = pl061_suspend,
+	.restore = pl061_resume,
+};
 #endif
 
 static struct amba_id pl061_ids[] = {
