@@ -13,6 +13,7 @@
 #include <linux/types.h>
 #include <linux/module.h>
 #include <linux/usb.h>
+#include <linux/usb/hcd.h>
 #include <linux/usb/storage.h>
 
 #include <scsi/scsi.h>
@@ -621,22 +622,34 @@ static int uas_is_interface(struct usb_host_interface *intf)
 		intf->desc.bInterfaceProtocol == USB_PR_UAS);
 }
 
+static int uas_isnt_supported(struct usb_device *udev)
+{
+	struct usb_hcd *hcd = bus_to_hcd(udev->bus);
+
+	dev_warn(&udev->dev, "The driver for the USB controller %s does not "
+			"support scatter-gather which is\n",
+			hcd->driver->description);
+	dev_warn(&udev->dev, "required by the UAS driver. Please try an"
+			"alternative USB controller if you wish to use UAS.\n");
+	return -ENODEV;
+}
+
 static int uas_switch_interface(struct usb_device *udev,
 						struct usb_interface *intf)
 {
 	int i;
-
-	if (uas_is_interface(intf->cur_altsetting))
-		return 0;
+	int sg_supported = udev->bus->sg_tablesize != 0;
 
 	for (i = 0; i < intf->num_altsetting; i++) {
 		struct usb_host_interface *alt = &intf->altsetting[i];
-		if (alt == intf->cur_altsetting)
-			continue;
-		if (uas_is_interface(alt))
+
+		if (uas_is_interface(alt)) {
+			if (!sg_supported)
+				return uas_isnt_supported(udev);
 			return usb_set_interface(udev,
 						alt->desc.bInterfaceNumber,
 						alt->desc.bAlternateSetting);
+		}
 	}
 
 	return -ENODEV;
