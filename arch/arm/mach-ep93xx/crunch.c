@@ -19,6 +19,8 @@
 #include <mach/ep93xx-regs.h>
 #include <asm/thread_notify.h>
 
+#include "soc.h"
+
 struct crunch_state *crunch_owner;
 
 void crunch_task_release(struct thread_info *thread)
