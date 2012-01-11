@@ -1034,7 +1034,7 @@ int device_add(struct device *dev)
 	device_pm_add(dev);
 
 	/* Notify clients of device addition.  This call must come
-	 * after dpm_sysf_add() and before kobject_uevent().
+	 * after dpm_sysfs_add() and before kobject_uevent().
 	 */
 	if (dev->bus)
 		blocking_notifier_call_chain(&dev->bus->p->bus_notifier,
