@@ -104,7 +104,6 @@ int transport_lookup_cmd_lun(struct se_cmd *se_cmd, u32 unpacked_lun)
 		se_cmd->se_lun = deve->se_lun;
 		se_cmd->pr_res_key = deve->pr_res_key;
 		se_cmd->orig_fe_lun = unpacked_lun;
-		se_cmd->se_orig_obj_ptr = se_cmd->se_lun->lun_se_dev;
 		se_cmd->se_cmd_flags |= SCF_SE_LUN_CMD;
 	}
 	spin_unlock_irqrestore(&se_sess->se_node_acl->device_list_lock, flags);
@@ -137,7 +136,6 @@ int transport_lookup_cmd_lun(struct se_cmd *se_cmd, u32 unpacked_lun)
 		se_lun = &se_sess->se_tpg->tpg_virt_lun0;
 		se_cmd->se_lun = &se_sess->se_tpg->tpg_virt_lun0;
 		se_cmd->orig_fe_lun = 0;
-		se_cmd->se_orig_obj_ptr = se_cmd->se_lun->lun_se_dev;
 		se_cmd->se_cmd_flags |= SCF_SE_LUN_CMD;
 	}
 	/*
@@ -200,7 +198,6 @@ int transport_lookup_tmr_lun(struct se_cmd *se_cmd, u32 unpacked_lun)
 		se_lun = deve->se_lun;
 		se_cmd->pr_res_key = deve->pr_res_key;
 		se_cmd->orig_fe_lun = unpacked_lun;
-		se_cmd->se_orig_obj_ptr = se_cmd->se_dev;
 	}
 	spin_unlock_irqrestore(&se_sess->se_node_acl->device_list_lock, flags);
 
@@ -708,7 +705,7 @@ done:
 
 	se_task->task_scsi_status = GOOD;
 	transport_complete_task(se_task, 1);
-	return PYX_TRANSPORT_SENT_TO_TRANSPORT;
+	return 0;
 }
 
 /*	se_release_device_for_hba():
@@ -957,8 +954,12 @@ int se_dev_set_emulate_dpo(struct se_device *dev, int flag)
 		return -EINVAL;
 	}
 
-	pr_err("dpo_emulated not supported\n");
-	return -EINVAL;
+	if (flag) {
+		pr_err("dpo_emulated not supported\n");
+		return -EINVAL;
+	}
+
+	return 0;
 }
 
 int se_dev_set_emulate_fua_write(struct se_device *dev, int flag)
@@ -968,7 +969,7 @@ int se_dev_set_emulate_fua_write(struct se_device *dev, int flag)
 		return -EINVAL;
 	}
 
-	if (dev->transport->fua_write_emulated == 0) {
+	if (flag && dev->transport->fua_write_emulated == 0) {
 		pr_err("fua_write_emulated not supported\n");
 		return -EINVAL;
 	}
@@ -985,8 +986,12 @@ int se_dev_set_emulate_fua_read(struct se_device *dev, int flag)
 		return -EINVAL;
 	}
 
-	pr_err("ua read emulated not supported\n");
-	return -EINVAL;
+	if (flag) {
+		pr_err("ua read emulated not supported\n");
+		return -EINVAL;
+	}
+
+	return 0;
 }
 
 int se_dev_set_emulate_write_cache(struct se_device *dev, int flag)
@@ -995,7 +1000,7 @@ int se_dev_set_emulate_write_cache(struct se_device *dev, int flag)
 		pr_err("Illegal value %d\n", flag);
 		return -EINVAL;
 	}
-	if (dev->transport->write_cache_emulated == 0) {
+	if (flag && dev->transport->write_cache_emulated == 0) {
 		pr_err("write_cache_emulated not supported\n");
 		return -EINVAL;
 	}
@@ -1056,7 +1061,7 @@ int se_dev_set_emulate_tpu(struct se_device *dev, int flag)
 	 * We expect this value to be non-zero when generic Block Layer
 	 * Discard supported is detected iblock_create_virtdevice().
 	 */
-	if (!dev->se_sub_dev->se_dev_attrib.max_unmap_block_desc_count) {
+	if (flag && !dev->se_sub_dev->se_dev_attrib.max_unmap_block_desc_count) {
 		pr_err("Generic Block Discard not supported\n");
 		return -ENOSYS;
 	}
@@ -1077,7 +1082,7 @@ int se_dev_set_emulate_tpws(struct se_device *dev, int flag)
 	 * We expect this value to be non-zero when generic Block Layer
 	 * Discard supported is detected iblock_create_virtdevice().
 	 */
-	if (!dev->se_sub_dev->se_dev_attrib.max_unmap_block_desc_count) {
+	if (flag && !dev->se_sub_dev->se_dev_attrib.max_unmap_block_desc_count) {
 		pr_err("Generic Block Discard not supported\n");
 		return -ENOSYS;
 	}
@@ -1587,7 +1592,6 @@ int core_dev_setup_virtual_lun0(void)
 		ret = -ENOMEM;
 		goto out;
 	}
-	INIT_LIST_HEAD(&se_dev->se_dev_node);
 	INIT_LIST_HEAD(&se_dev->t10_wwn.t10_vpd_list);
 	spin_lock_init(&se_dev->t10_wwn.t10_vpd_lock);
 	INIT_LIST_HEAD(&se_dev->t10_pr.registration_list);

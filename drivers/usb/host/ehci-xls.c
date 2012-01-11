@@ -19,7 +19,7 @@ static int ehci_xls_setup(struct usb_hcd *hcd)
 
 	ehci->caps = hcd->regs;
 	ehci->regs = hcd->regs +
-		HC_LENGTH(ehci_readl(ehci, &ehci->caps->hc_capbase));
+		HC_LENGTH(ehci, ehci_readl(ehci, &ehci->caps->hc_capbase));
 	dbg_hcs_params(ehci, "reset");
 	dbg_hcc_params(ehci, "reset");
 

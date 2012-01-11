@@ -22,6 +22,7 @@
 #include <linux/io.h>
 #include <mach/common.h>
 #include <asm/mach/irq.h>
+#include <asm/exception.h>
 #include <mach/hardware.h>
 
 #include "irq-common.h"

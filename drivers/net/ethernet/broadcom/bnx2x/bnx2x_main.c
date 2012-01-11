@@ -10548,33 +10548,38 @@ do {									\
 
 int bnx2x_init_firmware(struct bnx2x *bp)
 {
-	const char *fw_file_name;
 	struct bnx2x_fw_file_hdr *fw_hdr;
 	int rc;
 
-	if (CHIP_IS_E1(bp))
-		fw_file_name = FW_FILE_NAME_E1;
-	else if (CHIP_IS_E1H(bp))
-		fw_file_name = FW_FILE_NAME_E1H;
-	else if (!CHIP_IS_E1x(bp))
-		fw_file_name = FW_FILE_NAME_E2;
-	else {
-		BNX2X_ERR("Unsupported chip revision\n");
-		return -EINVAL;
-	}
 
-	BNX2X_DEV_INFO("Loading %s\n", fw_file_name);
+	if (!bp->firmware) {
+		const char *fw_file_name;
 
-	rc = request_firmware(&bp->firmware, fw_file_name, &bp->pdev->dev);
-	if (rc) {
-		BNX2X_ERR("Can't load firmware file %s\n", fw_file_name);
-		goto request_firmware_exit;
-	}
+		if (CHIP_IS_E1(bp))
+			fw_file_name = FW_FILE_NAME_E1;
+		else if (CHIP_IS_E1H(bp))
+			fw_file_name = FW_FILE_NAME_E1H;
+		else if (!CHIP_IS_E1x(bp))
+			fw_file_name = FW_FILE_NAME_E2;
+		else {
+			BNX2X_ERR("Unsupported chip revision\n");
+			return -EINVAL;
+		}
+		BNX2X_DEV_INFO("Loading %s\n", fw_file_name);
 
-	rc = bnx2x_check_firmware(bp);
-	if (rc) {
-		BNX2X_ERR("Corrupt firmware file %s\n", fw_file_name);
-		goto request_firmware_exit;
+		rc = request_firmware(&bp->firmware, fw_file_name,
+				      &bp->pdev->dev);
+		if (rc) {
+			BNX2X_ERR("Can't load firmware file %s\n",
+				  fw_file_name);
+			goto request_firmware_exit;
+		}
+
+		rc = bnx2x_check_firmware(bp);
+		if (rc) {
+			BNX2X_ERR("Corrupt firmware file %s\n", fw_file_name);
+			goto request_firmware_exit;
+		}
 	}
 
 	fw_hdr = (struct bnx2x_fw_file_hdr *)bp->firmware->data;
@@ -10630,6 +10635,7 @@ static void bnx2x_release_firmware(struct bnx2x *bp)
 	kfree(bp->init_ops);
 	kfree(bp->init_data);
 	release_firmware(bp->firmware);
+	bp->firmware = NULL;
 }
 
 
@@ -10924,6 +10930,8 @@ static void __devexit bnx2x_remove_one(struct pci_dev *pdev)
 
 	if (bp->doorbells)
 		iounmap(bp->doorbells);
+
+	bnx2x_release_firmware(bp);
 
 	bnx2x_free_mem_bp(bp);
 

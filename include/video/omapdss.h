@@ -307,15 +307,8 @@ struct omap_dss_board_info {
 	void (*dsi_disable_pads)(int dsi_id, unsigned lane_mask);
 };
 
-#if defined(CONFIG_OMAP2_DSS_MODULE) || defined(CONFIG_OMAP2_DSS)
 /* Init with the board info */
 extern int omap_display_init(struct omap_dss_board_info *board_data);
-#else
-static inline int omap_display_init(struct omap_dss_board_info *board_data)
-{
-	return 0;
-}
-#endif
 
 struct omap_display_platform_data {
 	struct omap_dss_board_info *board_data;

@@ -209,6 +209,9 @@ ring_buffer_init(struct ring_buffer *rb, long watermark, int flags)
 		rb->writable = 1;
 
 	atomic_set(&rb->refcount, 1);
+
+	INIT_LIST_HEAD(&rb->event_list);
+	spin_lock_init(&rb->event_lock);
 }
 
 #ifndef CONFIG_PERF_USE_VMALLOC

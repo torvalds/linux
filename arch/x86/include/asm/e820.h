@@ -53,6 +53,13 @@
  */
 #define E820_RESERVED_KERN        128
 
+/*
+ * Address ranges that need to be mapped by the kernel direct
+ * mapping. This is used to make sure regions such as
+ * EFI_RUNTIME_SERVICES_DATA are directly mapped. See setup_arch().
+ */
+#define E820_RESERVED_EFI         129
+
 #ifndef __ASSEMBLY__
 #include <linux/types.h>
 struct e820entry {
@@ -115,6 +122,7 @@ static inline void early_memtest(unsigned long start, unsigned long end)
 }
 #endif
 
+extern unsigned long e820_end_pfn(unsigned long limit_pfn, unsigned type);
 extern unsigned long e820_end_of_ram_pfn(void);
 extern unsigned long e820_end_of_low_ram_pfn(void);
 extern u64 early_reserve_e820(u64 startt, u64 sizet, u64 align);

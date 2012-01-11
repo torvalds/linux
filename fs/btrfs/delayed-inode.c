@@ -617,12 +617,14 @@ static void btrfs_delayed_item_release_metadata(struct btrfs_root *root,
 static int btrfs_delayed_inode_reserve_metadata(
 					struct btrfs_trans_handle *trans,
 					struct btrfs_root *root,
+					struct inode *inode,
 					struct btrfs_delayed_node *node)
 {
 	struct btrfs_block_rsv *src_rsv;
 	struct btrfs_block_rsv *dst_rsv;
 	u64 num_bytes;
 	int ret;
+	int release = false;
 
 	src_rsv = trans->block_rsv;
 	dst_rsv = &root->fs_info->delayed_block_rsv;
@@ -652,11 +654,64 @@ static int btrfs_delayed_inode_reserve_metadata(
 		if (!ret)
 			node->bytes_reserved = num_bytes;
 		return ret;
+	} else if (src_rsv == &root->fs_info->delalloc_block_rsv) {
+		spin_lock(&BTRFS_I(inode)->lock);
+		if (BTRFS_I(inode)->delalloc_meta_reserved) {
+			BTRFS_I(inode)->delalloc_meta_reserved = 0;
+			spin_unlock(&BTRFS_I(inode)->lock);
+			release = true;
+			goto migrate;
+		}
+		spin_unlock(&BTRFS_I(inode)->lock);
+
+		/* Ok we didn't have space pre-reserved.  This shouldn't happen
+		 * too often but it can happen if we do delalloc to an existing
+		 * inode which gets dirtied because of the time update, and then
+		 * isn't touched again until after the transaction commits and
+		 * then we try to write out the data.  First try to be nice and
+		 * reserve something strictly for us.  If not be a pain and try
+		 * to steal from the delalloc block rsv.
+		 */
+		ret = btrfs_block_rsv_add_noflush(root, dst_rsv, num_bytes);
+		if (!ret)
+			goto out;
+
+		ret = btrfs_block_rsv_migrate(src_rsv, dst_rsv, num_bytes);
+		if (!ret)
+			goto out;
+
+		/*
+		 * Ok this is a problem, let's just steal from the global rsv
+		 * since this really shouldn't happen that often.
+		 */
+		WARN_ON(1);
+		ret = btrfs_block_rsv_migrate(&root->fs_info->global_block_rsv,
+					      dst_rsv, num_bytes);
+		goto out;
 	}
 
+migrate:
 	ret = btrfs_block_rsv_migrate(src_rsv, dst_rsv, num_bytes);
+
+out:
+	/*
+	 * Migrate only takes a reservation, it doesn't touch the size of the
+	 * block_rsv.  This is to simplify people who don't normally have things
+	 * migrated from their block rsv.  If they go to release their
+	 * reservation, that will decrease the size as well, so if migrate
+	 * reduced size we'd end up with a negative size.  But for the
+	 * delalloc_meta_reserved stuff we will only know to drop 1 reservation,
+	 * but we could in fact do this reserve/migrate dance several times
+	 * between the time we did the original reservation and we'd clean it
+	 * up.  So to take care of this, release the space for the meta
+	 * reservation here.  I think it may be time for a documentation page on
+	 * how block rsvs. work.
+	 */
 	if (!ret)
 		node->bytes_reserved = num_bytes;
+
+	if (release)
+		btrfs_block_rsv_release(root, src_rsv, num_bytes);
 
 	return ret;
 }
@@ -1708,7 +1763,8 @@ int btrfs_delayed_update_inode(struct btrfs_trans_handle *trans,
 		goto release_node;
 	}
 
-	ret = btrfs_delayed_inode_reserve_metadata(trans, root, delayed_node);
+	ret = btrfs_delayed_inode_reserve_metadata(trans, root, inode,
+						   delayed_node);
 	if (ret)
 		goto release_node;
 

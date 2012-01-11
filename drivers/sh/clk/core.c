@@ -25,7 +25,6 @@
 #include <linux/seq_file.h>
 #include <linux/err.h>
 #include <linux/io.h>
-#include <linux/debugfs.h>
 #include <linux/cpufreq.h>
 #include <linux/clk.h>
 #include <linux/sh_clk.h>
@@ -173,6 +172,26 @@ long clk_rate_div_range_round(struct clk *clk, unsigned int div_min,
 	return clk_rate_round_helper(&div_range_round);
 }
 
+static long clk_rate_mult_range_iter(unsigned int pos,
+				      struct clk_rate_round_data *rounder)
+{
+	return clk_get_rate(rounder->arg) * pos;
+}
+
+long clk_rate_mult_range_round(struct clk *clk, unsigned int mult_min,
+			       unsigned int mult_max, unsigned long rate)
+{
+	struct clk_rate_round_data mult_range_round = {
+		.min	= mult_min,
+		.max	= mult_max,
+		.func	= clk_rate_mult_range_iter,
+		.arg	= clk_get_parent(clk),
+		.rate	= rate,
+	};
+
+	return clk_rate_round_helper(&mult_range_round);
+}
+
 int clk_rate_table_find(struct clk *clk,
 			struct cpufreq_frequency_table *freq_table,
 			unsigned long rate)
@@ -204,9 +223,6 @@ int clk_reparent(struct clk *child, struct clk *parent)
 	if (parent)
 		list_add(&child->sibling, &parent->children);
 	child->parent = parent;
-
-	/* now do the debugfs renaming to reattach the child
-	   to the proper parent */
 
 	return 0;
 }
@@ -664,89 +680,6 @@ static int __init clk_syscore_init(void)
 }
 subsys_initcall(clk_syscore_init);
 #endif
-
-/*
- *	debugfs support to trace clock tree hierarchy and attributes
- */
-static struct dentry *clk_debugfs_root;
-
-static int clk_debugfs_register_one(struct clk *c)
-{
-	int err;
-	struct dentry *d;
-	struct clk *pa = c->parent;
-	char s[255];
-	char *p = s;
-
-	p += sprintf(p, "%p", c);
-	d = debugfs_create_dir(s, pa ? pa->dentry : clk_debugfs_root);
-	if (!d)
-		return -ENOMEM;
-	c->dentry = d;
-
-	d = debugfs_create_u8("usecount", S_IRUGO, c->dentry, (u8 *)&c->usecount);
-	if (!d) {
-		err = -ENOMEM;
-		goto err_out;
-	}
-	d = debugfs_create_u32("rate", S_IRUGO, c->dentry, (u32 *)&c->rate);
-	if (!d) {
-		err = -ENOMEM;
-		goto err_out;
-	}
-	d = debugfs_create_x32("flags", S_IRUGO, c->dentry, (u32 *)&c->flags);
-	if (!d) {
-		err = -ENOMEM;
-		goto err_out;
-	}
-	return 0;
-
-err_out:
-	debugfs_remove_recursive(c->dentry);
-	return err;
-}
-
-static int clk_debugfs_register(struct clk *c)
-{
-	int err;
-	struct clk *pa = c->parent;
-
-	if (pa && !pa->dentry) {
-		err = clk_debugfs_register(pa);
-		if (err)
-			return err;
-	}
-
-	if (!c->dentry) {
-		err = clk_debugfs_register_one(c);
-		if (err)
-			return err;
-	}
-	return 0;
-}
-
-static int __init clk_debugfs_init(void)
-{
-	struct clk *c;
-	struct dentry *d;
-	int err;
-
-	d = debugfs_create_dir("clock", NULL);
-	if (!d)
-		return -ENOMEM;
-	clk_debugfs_root = d;
-
-	list_for_each_entry(c, &clock_list, node) {
-		err = clk_debugfs_register(c);
-		if (err)
-			goto err_out;
-	}
-	return 0;
-err_out:
-	debugfs_remove_recursive(clk_debugfs_root);
-	return err;
-}
-late_initcall(clk_debugfs_init);
 
 static int __init clk_late_init(void)
 {

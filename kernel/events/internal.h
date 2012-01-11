@@ -22,6 +22,9 @@ struct ring_buffer {
 	local_t				lost;		/* nr records lost   */
 
 	long				watermark;	/* wakeup watermark  */
+	/* poll crap */
+	spinlock_t			event_lock;
+	struct list_head		event_list;
 
 	struct perf_event_mmap_page	*user_page;
 	void				*data_pages[0];

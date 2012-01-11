@@ -31,10 +31,19 @@ enum mrst_cpu_type {
 };
 
 extern enum mrst_cpu_type __mrst_cpu_chip;
+
+#ifdef CONFIG_X86_INTEL_MID
+
 static inline enum mrst_cpu_type mrst_identify_cpu(void)
 {
 	return __mrst_cpu_chip;
 }
+
+#else /* !CONFIG_X86_INTEL_MID */
+
+#define mrst_identify_cpu()    (0)
+
+#endif /* !CONFIG_X86_INTEL_MID */
 
 enum mrst_timer_options {
 	MRST_TIMER_DEFAULT,
@@ -43,6 +52,13 @@ enum mrst_timer_options {
 };
 
 extern enum mrst_timer_options mrst_timer_options;
+
+/*
+ * Penwell uses spread spectrum clock, so the freq number is not exactly
+ * the same as reported by MSR based on SDM.
+ */
+#define PENWELL_FSB_FREQ_83SKU         83200
+#define PENWELL_FSB_FREQ_100SKU        99840
 
 #define SFI_MTMR_MAX_NUM 8
 #define SFI_MRTC_MAX	8

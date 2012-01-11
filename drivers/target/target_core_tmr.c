@@ -345,10 +345,6 @@ static void core_tmr_drain_cmd_list(
 			" %d t_fe_count: %d\n", (preempt_and_abort_list) ?
 			"Preempt" : "", cmd, cmd->t_state,
 			atomic_read(&cmd->t_fe_count));
-		/*
-		 * Signal that the command has failed via cmd->se_cmd_flags,
-		 */
-		transport_new_cmd_failure(cmd);
 
 		core_tmr_handle_tas_abort(tmr_nacl, cmd, tas,
 				atomic_read(&cmd->t_fe_count));

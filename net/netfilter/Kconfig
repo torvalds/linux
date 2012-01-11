@@ -201,7 +201,6 @@ config NF_CONNTRACK_BROADCAST
 
 config NF_CONNTRACK_NETBIOS_NS
 	tristate "NetBIOS name service protocol support"
-	depends on NETFILTER_ADVANCED
 	select NF_CONNTRACK_BROADCAST
 	help
 	  NetBIOS name service requests are sent as broadcast messages from an
@@ -542,7 +541,6 @@ config NETFILTER_XT_TARGET_NOTRACK
 	tristate  '"NOTRACK" target support'
 	depends on IP_NF_RAW || IP6_NF_RAW
 	depends on NF_CONNTRACK
-	depends on NETFILTER_ADVANCED
 	help
 	  The NOTRACK target allows a select rule to specify
 	  which packets *not* to enter the conntrack/NAT

@@ -57,12 +57,14 @@ read_pll_2(struct drm_device *dev, u32 reg)
 	int P = (ctrl & 0x00070000) >> 16;
 	u32 ref = 27000, clk = 0;
 
-	if (ctrl & 0x80000000)
+	if ((ctrl & 0x80000000) && M1) {
 		clk = ref * N1 / M1;
-
-	if (!(ctrl & 0x00000100)) {
-		if (ctrl & 0x40000000)
-			clk = clk * N2 / M2;
+		if ((ctrl & 0x40000100) == 0x40000000) {
+			if (M2)
+				clk = clk * N2 / M2;
+			else
+				clk = 0;
+		}
 	}
 
 	return clk >> P;
@@ -177,6 +179,11 @@ nv40_pm_clocks_pre(struct drm_device *dev, struct nouveau_pm_level *perflvl)
 	}
 
 	/* memory clock */
+	if (!perflvl->memory) {
+		info->mpll_ctrl = 0x00000000;
+		goto out;
+	}
+
 	ret = nv40_calc_pll(dev, 0x004020, &pll, perflvl->memory,
 			    &N1, &M1, &N2, &M2, &log2P);
 	if (ret < 0)
@@ -263,6 +270,9 @@ nv40_pm_clocks_set(struct drm_device *dev, void *pre_state)
 	nv_mask(dev, 0x004008, 0xc007ffff, info->spll);
 	mdelay(5);
 	nv_mask(dev, 0x00c040, 0x00000333, info->ctrl);
+
+	if (!info->mpll_ctrl)
+		goto resume;
 
 	/* wait for vblank start on active crtcs, disable memory access */
 	for (i = 0; i < 2; i++) {

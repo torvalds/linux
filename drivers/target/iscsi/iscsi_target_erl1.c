@@ -938,8 +938,7 @@ int iscsit_execute_cmd(struct iscsi_cmd *cmd, int ooo)
 		 * handle the SCF_SCSI_RESERVATION_CONFLICT case here as well.
 		 */
 		if (se_cmd->se_cmd_flags & SCF_SCSI_CDB_EXCEPTION) {
-			if (se_cmd->se_cmd_flags &
-					SCF_SCSI_RESERVATION_CONFLICT) {
+			if (se_cmd->scsi_sense_reason == TCM_RESERVATION_CONFLICT) {
 				cmd->i_state = ISTATE_SEND_STATUS;
 				spin_unlock_bh(&cmd->istate_lock);
 				iscsit_add_cmd_to_response_queue(cmd, cmd->conn,

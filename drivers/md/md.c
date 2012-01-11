@@ -570,7 +570,7 @@ static void mddev_put(struct mddev *mddev)
 	    mddev->ctime == 0 && !mddev->hold_active) {
 		/* Array is not configured at all, and not held active,
 		 * so destroy it */
-		list_del(&mddev->all_mddevs);
+		list_del_init(&mddev->all_mddevs);
 		bs = mddev->bio_set;
 		mddev->bio_set = NULL;
 		if (mddev->gendisk) {
@@ -2546,7 +2546,8 @@ state_show(struct md_rdev *rdev, char *page)
 		sep = ",";
 	}
 	if (test_bit(Blocked, &rdev->flags) ||
-	    rdev->badblocks.unacked_exist) {
+	    (rdev->badblocks.unacked_exist
+	     && !test_bit(Faulty, &rdev->flags))) {
 		len += sprintf(page+len, "%sblocked", sep);
 		sep = ",";
 	}
@@ -3788,6 +3789,8 @@ array_state_store(struct mddev *mddev, const char *buf, size_t len)
 	if (err)
 		return err;
 	else {
+		if (mddev->hold_active == UNTIL_IOCTL)
+			mddev->hold_active = 0;
 		sysfs_notify_dirent_safe(mddev->sysfs_state);
 		return len;
 	}
@@ -4487,11 +4490,20 @@ md_attr_show(struct kobject *kobj, struct attribute *attr, char *page)
 
 	if (!entry->show)
 		return -EIO;
+	spin_lock(&all_mddevs_lock);
+	if (list_empty(&mddev->all_mddevs)) {
+		spin_unlock(&all_mddevs_lock);
+		return -EBUSY;
+	}
+	mddev_get(mddev);
+	spin_unlock(&all_mddevs_lock);
+
 	rv = mddev_lock(mddev);
 	if (!rv) {
 		rv = entry->show(mddev, page);
 		mddev_unlock(mddev);
 	}
+	mddev_put(mddev);
 	return rv;
 }
 
@@ -4507,13 +4519,19 @@ md_attr_store(struct kobject *kobj, struct attribute *attr,
 		return -EIO;
 	if (!capable(CAP_SYS_ADMIN))
 		return -EACCES;
+	spin_lock(&all_mddevs_lock);
+	if (list_empty(&mddev->all_mddevs)) {
+		spin_unlock(&all_mddevs_lock);
+		return -EBUSY;
+	}
+	mddev_get(mddev);
+	spin_unlock(&all_mddevs_lock);
 	rv = mddev_lock(mddev);
-	if (mddev->hold_active == UNTIL_IOCTL)
-		mddev->hold_active = 0;
 	if (!rv) {
 		rv = entry->store(mddev, page, length);
 		mddev_unlock(mddev);
 	}
+	mddev_put(mddev);
 	return rv;
 }
 
@@ -7840,6 +7858,7 @@ int rdev_set_badblocks(struct md_rdev *rdev, sector_t s, int sectors,
 				  s + rdev->data_offset, sectors, acknowledged);
 	if (rv) {
 		/* Make sure they get written out promptly */
+		sysfs_notify_dirent_safe(rdev->sysfs_state);
 		set_bit(MD_CHANGE_CLEAN, &rdev->mddev->flags);
 		md_wakeup_thread(rdev->mddev->thread);
 	}

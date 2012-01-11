@@ -12,6 +12,8 @@
 #include <linux/init.h>
 #include <linux/cpuidle.h>
 #include <linux/io.h>
+#include <linux/export.h>
+#include <linux/time.h>
 
 #include <asm/proc-fns.h>
 

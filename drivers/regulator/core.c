@@ -2799,8 +2799,8 @@ void regulator_unregister(struct regulator_dev *rdev)
 	list_del(&rdev->list);
 	if (rdev->supply)
 		regulator_put(rdev->supply);
-	device_unregister(&rdev->dev);
 	kfree(rdev->constraints);
+	device_unregister(&rdev->dev);
 	mutex_unlock(&regulator_list_mutex);
 }
 EXPORT_SYMBOL_GPL(regulator_unregister);

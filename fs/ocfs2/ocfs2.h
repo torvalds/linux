@@ -836,18 +836,65 @@ static inline unsigned int ocfs2_clusters_to_megabytes(struct super_block *sb,
 
 static inline void _ocfs2_set_bit(unsigned int bit, unsigned long *bitmap)
 {
-	__test_and_set_bit_le(bit, bitmap);
+	__set_bit_le(bit, bitmap);
 }
 #define ocfs2_set_bit(bit, addr) _ocfs2_set_bit((bit), (unsigned long *)(addr))
 
 static inline void _ocfs2_clear_bit(unsigned int bit, unsigned long *bitmap)
 {
-	__test_and_clear_bit_le(bit, bitmap);
+	__clear_bit_le(bit, bitmap);
 }
 #define ocfs2_clear_bit(bit, addr) _ocfs2_clear_bit((bit), (unsigned long *)(addr))
 
 #define ocfs2_test_bit test_bit_le
 #define ocfs2_find_next_zero_bit find_next_zero_bit_le
 #define ocfs2_find_next_bit find_next_bit_le
+
+static inline void *correct_addr_and_bit_unaligned(int *bit, void *addr)
+{
+#if BITS_PER_LONG == 64
+	*bit += ((unsigned long) addr & 7UL) << 3;
+	addr = (void *) ((unsigned long) addr & ~7UL);
+#elif BITS_PER_LONG == 32
+	*bit += ((unsigned long) addr & 3UL) << 3;
+	addr = (void *) ((unsigned long) addr & ~3UL);
+#else
+#error "how many bits you are?!"
+#endif
+	return addr;
+}
+
+static inline void ocfs2_set_bit_unaligned(int bit, void *bitmap)
+{
+	bitmap = correct_addr_and_bit_unaligned(&bit, bitmap);
+	ocfs2_set_bit(bit, bitmap);
+}
+
+static inline void ocfs2_clear_bit_unaligned(int bit, void *bitmap)
+{
+	bitmap = correct_addr_and_bit_unaligned(&bit, bitmap);
+	ocfs2_clear_bit(bit, bitmap);
+}
+
+static inline int ocfs2_test_bit_unaligned(int bit, void *bitmap)
+{
+	bitmap = correct_addr_and_bit_unaligned(&bit, bitmap);
+	return ocfs2_test_bit(bit, bitmap);
+}
+
+static inline int ocfs2_find_next_zero_bit_unaligned(void *bitmap, int max,
+							int start)
+{
+	int fix = 0, ret, tmpmax;
+	bitmap = correct_addr_and_bit_unaligned(&fix, bitmap);
+	tmpmax = max + fix;
+	start += fix;
+
+	ret = ocfs2_find_next_zero_bit(bitmap, tmpmax, start) - fix;
+	if (ret > max)
+		return max;
+	return ret;
+}
+
 #endif  /* OCFS2_H */
 

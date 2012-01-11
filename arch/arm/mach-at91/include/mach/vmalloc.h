@@ -21,6 +21,8 @@
 #ifndef __ASM_ARCH_VMALLOC_H
 #define __ASM_ARCH_VMALLOC_H
 
+#include <mach/hardware.h>
+
 #define VMALLOC_END		(AT91_VIRT_BASE & PGDIR_MASK)
 
 #endif

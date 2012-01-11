@@ -321,12 +321,10 @@ static int stmmac_init_phy(struct net_device *dev)
 	}
 
 	/* Stop Advertising 1000BASE Capability if interface is not GMII */
-	if ((interface) && ((interface == PHY_INTERFACE_MODE_MII) ||
-	    (interface == PHY_INTERFACE_MODE_RMII))) {
-		phydev->supported &= (PHY_BASIC_FEATURES | SUPPORTED_Pause |
-				      SUPPORTED_Asym_Pause);
-		phydev->advertising = phydev->supported;
-	}
+	if ((interface == PHY_INTERFACE_MODE_MII) ||
+	    (interface == PHY_INTERFACE_MODE_RMII))
+		phydev->advertising &= ~(SUPPORTED_1000baseT_Half |
+					 SUPPORTED_1000baseT_Full);
 
 	/*
 	 * Broken HW is sometimes missing the pull-up resistor on the
@@ -783,10 +781,15 @@ static void stmmac_mmc_setup(struct stmmac_priv *priv)
 	unsigned int mode = MMC_CNTRL_RESET_ON_READ | MMC_CNTRL_COUNTER_RESET |
 			    MMC_CNTRL_PRESET | MMC_CNTRL_FULL_HALF_PRESET;
 
-	/* Do not manage MMC IRQ (FIXME) */
+	/* Mask MMC irq, counters are managed in SW and registers
+	 * are cleared on each READ eventually. */
 	dwmac_mmc_intr_all_mask(priv->ioaddr);
-	dwmac_mmc_ctrl(priv->ioaddr, mode);
-	memset(&priv->mmc, 0, sizeof(struct stmmac_counters));
+
+	if (priv->dma_cap.rmon) {
+		dwmac_mmc_ctrl(priv->ioaddr, mode);
+		memset(&priv->mmc, 0, sizeof(struct stmmac_counters));
+	} else
+		pr_info(" No MAC Management Counters available");
 }
 
 static u32 stmmac_get_synopsys_id(struct stmmac_priv *priv)
@@ -807,8 +810,29 @@ static u32 stmmac_get_synopsys_id(struct stmmac_priv *priv)
 	return 0;
 }
 
-/* New GMAC chips support a new register to indicate the
- * presence of the optional feature/functions.
+/**
+ * stmmac_selec_desc_mode
+ * @dev : device pointer
+ * Description: select the Enhanced/Alternate or Normal descriptors */
+static void stmmac_selec_desc_mode(struct stmmac_priv *priv)
+{
+	if (priv->plat->enh_desc) {
+		pr_info(" Enhanced/Alternate descriptors\n");
+		priv->hw->desc = &enh_desc_ops;
+	} else {
+		pr_info(" Normal descriptors\n");
+		priv->hw->desc = &ndesc_ops;
+	}
+}
+
+/**
+ * stmmac_get_hw_features
+ * @priv : private device pointer
+ * Description:
+ *  new GMAC chip generations have a new register to indicate the
+ *  presence of the optional feature/functions.
+ *  This can be also used to override the value passed through the
+ *  platform and necessary for old MAC10/100 and GMAC chips.
  */
 static int stmmac_get_hw_features(struct stmmac_priv *priv)
 {
@@ -829,7 +853,7 @@ static int stmmac_get_hw_features(struct stmmac_priv *priv)
 			(hw_cap & DMA_HW_FEAT_RWKSEL) >> 9;
 		priv->dma_cap.pmt_magic_frame =
 			(hw_cap & DMA_HW_FEAT_MGKSEL) >> 10;
-		/*MMC*/
+		/* MMC */
 		priv->dma_cap.rmon = (hw_cap & DMA_HW_FEAT_MMCSEL) >> 11;
 		/* IEEE 1588-2002*/
 		priv->dma_cap.time_stamp =
@@ -857,8 +881,7 @@ static int stmmac_get_hw_features(struct stmmac_priv *priv)
 		priv->dma_cap.enh_desc =
 			(hw_cap & DMA_HW_FEAT_ENHDESSEL) >> 24;
 
-	} else
-		pr_debug("\tNo HW DMA feature register supported");
+	}
 
 	return hw_cap;
 }
@@ -913,6 +936,44 @@ static int stmmac_open(struct net_device *dev)
 		goto open_error;
 	}
 
+	stmmac_get_synopsys_id(priv);
+
+	priv->hw_cap_support = stmmac_get_hw_features(priv);
+
+	if (priv->hw_cap_support) {
+		pr_info(" Support DMA HW capability register");
+
+		/* We can override some gmac/dma configuration fields: e.g.
+		 * enh_desc, tx_coe (e.g. that are passed through the
+		 * platform) with the values from the HW capability
+		 * register (if supported).
+		 */
+		priv->plat->enh_desc = priv->dma_cap.enh_desc;
+		priv->plat->tx_coe = priv->dma_cap.tx_coe;
+		priv->plat->pmt = priv->dma_cap.pmt_remote_wake_up;
+
+		/* By default disable wol on magic frame if not supported */
+		if (!priv->dma_cap.pmt_magic_frame)
+			priv->wolopts &= ~WAKE_MAGIC;
+
+	} else
+		pr_info(" No HW DMA feature register supported");
+
+	/* Select the enhnaced/normal descriptor structures */
+	stmmac_selec_desc_mode(priv);
+
+	/* PMT module is not integrated in all the MAC devices. */
+	if (priv->plat->pmt) {
+		pr_info(" Remote wake-up capable\n");
+		device_set_wakeup_capable(priv->device, 1);
+	}
+
+	priv->rx_coe = priv->hw->mac->rx_coe(priv->ioaddr);
+	if (priv->rx_coe)
+		pr_info(" Checksum Offload Engine supported\n");
+	if (priv->plat->tx_coe)
+		pr_info(" Checksum insertion supported\n");
+
 	/* Create and initialize the TX/RX descriptors chains. */
 	priv->dma_tx_size = STMMAC_ALIGN(dma_txsize);
 	priv->dma_rx_size = STMMAC_ALIGN(dma_rxsize);
@@ -935,15 +996,6 @@ static int stmmac_open(struct net_device *dev)
 	/* Initialize the MAC Core */
 	priv->hw->mac->core_init(priv->ioaddr);
 
-	stmmac_get_synopsys_id(priv);
-
-	stmmac_get_hw_features(priv);
-
-	priv->rx_coe = priv->hw->mac->rx_coe(priv->ioaddr);
-	if (priv->rx_coe)
-		pr_info("stmmac: Rx Checksum Offload Engine supported\n");
-	if (priv->plat->tx_coe)
-		pr_info("\tTX Checksum insertion supported\n");
 	netdev_update_features(dev);
 
 	/* Request the IRQ lines */
@@ -965,8 +1017,7 @@ static int stmmac_open(struct net_device *dev)
 	memset(&priv->xstats, 0, sizeof(struct stmmac_extra_stats));
 	priv->xstats.threshold = tc;
 
-	if (priv->dma_cap.rmon)
-		stmmac_mmc_setup(priv);
+	stmmac_mmc_setup(priv);
 
 	/* Start the ball rolling... */
 	DBG(probe, DEBUG, "%s: DMA RX/TX processes started...\n", dev->name);
@@ -1489,9 +1540,7 @@ static int stmmac_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
 	if (!priv->phydev)
 		return -EINVAL;
 
-	spin_lock(&priv->lock);
 	ret = phy_mii_ioctl(priv->phydev, rq, cmd);
-	spin_unlock(&priv->lock);
 
 	return ret;
 }
@@ -1558,7 +1607,7 @@ static int stmmac_sysfs_dma_cap_read(struct seq_file *seq, void *v)
 	struct net_device *dev = seq->private;
 	struct stmmac_priv *priv = netdev_priv(dev);
 
-	if (!stmmac_get_hw_features(priv)) {
+	if (!priv->hw_cap_support) {
 		seq_printf(seq, "DMA HW features not supported\n");
 		return 0;
 	}
@@ -1766,12 +1815,6 @@ static int stmmac_mac_device_setup(struct net_device *dev)
 	if (!device)
 		return -ENOMEM;
 
-	if (priv->plat->enh_desc) {
-		device->desc = &enh_desc_ops;
-		pr_info("\tEnhanced descriptor structure\n");
-	} else
-		device->desc = &ndesc_ops;
-
 	priv->hw = device;
 	priv->hw->ring = &ring_mode_ops;
 
@@ -1845,11 +1888,6 @@ static int stmmac_dvr_probe(struct platform_device *pdev)
 
 	priv->ioaddr = addr;
 
-	/* PMT module is not integrated in all the MAC devices. */
-	if (plat_dat->pmt) {
-		pr_info("\tPMT module supported\n");
-		device_set_wakeup_capable(&pdev->dev, 1);
-	}
 	/*
 	 * On some platforms e.g. SPEAr the wake up irq differs from the mac irq
 	 * The external wake up irq can be passed through the platform code
@@ -1861,7 +1899,6 @@ static int stmmac_dvr_probe(struct platform_device *pdev)
 	priv->wol_irq = platform_get_irq_byname(pdev, "eth_wake_irq");
 	if (priv->wol_irq == -ENXIO)
 		priv->wol_irq = ndev->irq;
-
 
 	platform_set_drvdata(pdev, ndev);
 
@@ -1875,7 +1912,7 @@ static int stmmac_dvr_probe(struct platform_device *pdev)
 			goto out_free_ndev;
 	}
 
-	/* MAC HW revice detection */
+	/* MAC HW device detection */
 	ret = stmmac_mac_device_setup(ndev);
 	if (ret < 0)
 		goto out_plat_exit;
@@ -1978,12 +2015,13 @@ static int stmmac_suspend(struct device *dev)
 	if (!ndev || !netif_running(ndev))
 		return 0;
 
+	if (priv->phydev)
+		phy_stop(priv->phydev);
+
 	spin_lock(&priv->lock);
 
 	netif_device_detach(ndev);
 	netif_stop_queue(ndev);
-	if (priv->phydev)
-		phy_stop(priv->phydev);
 
 #ifdef CONFIG_STMMAC_TIMER
 	priv->tm->timer_stop();
@@ -2041,12 +2079,13 @@ static int stmmac_resume(struct device *dev)
 #endif
 	napi_enable(&priv->napi);
 
-	if (priv->phydev)
-		phy_start(priv->phydev);
-
 	netif_start_queue(ndev);
 
 	spin_unlock(&priv->lock);
+
+	if (priv->phydev)
+		phy_start(priv->phydev);
+
 	return 0;
 }
 

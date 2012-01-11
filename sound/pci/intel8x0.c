@@ -1077,6 +1077,13 @@ static snd_pcm_uframes_t snd_intel8x0_pcm_pointer(struct snd_pcm_substream *subs
 		}
 		if (civ != igetbyte(chip, ichdev->reg_offset + ICH_REG_OFF_CIV))
 			continue;
+
+		/* IO read operation is very expensive inside virtual machine
+		 * as it is emulated. The probability that subsequent PICB read
+		 * will return different result is high enough to loop till
+		 * timeout here.
+		 * Same CIV is strict enough condition to be sure that PICB
+		 * is valid inside VM on emulated card. */
 		if (chip->inside_vm)
 			break;
 		if (ptr1 == igetword(chip, ichdev->reg_offset + ichdev->roff_picb))
@@ -2930,6 +2937,45 @@ static unsigned int sis_codec_bits[3] = {
 	ICH_PCR, ICH_SCR, ICH_SIS_TCR
 };
 
+static int __devinit snd_intel8x0_inside_vm(struct pci_dev *pci)
+{
+	int result  = inside_vm;
+	char *msg   = NULL;
+
+	/* check module parameter first (override detection) */
+	if (result >= 0) {
+		msg = result ? "enable (forced) VM" : "disable (forced) VM";
+		goto fini;
+	}
+
+	/* detect KVM and Parallels virtual environments */
+	result = kvm_para_available();
+#ifdef X86_FEATURE_HYPERVISOR
+	result = result || boot_cpu_has(X86_FEATURE_HYPERVISOR);
+#endif
+	if (!result)
+		goto fini;
+
+	/* check for known (emulated) devices */
+	if (pci->subsystem_vendor == 0x1af4 &&
+	    pci->subsystem_device == 0x1100) {
+		/* KVM emulated sound, PCI SSID: 1af4:1100 */
+		msg = "enable KVM";
+	} else if (pci->subsystem_vendor == 0x1ab8) {
+		/* Parallels VM emulated sound, PCI SSID: 1ab8:xxxx */
+		msg = "enable Parallels VM";
+	} else {
+		msg = "disable (unknown or VT-d) VM";
+		result = 0;
+	}
+
+fini:
+	if (msg != NULL)
+		printk(KERN_INFO "intel8x0: %s optimization\n", msg);
+
+	return result;
+}
+
 static int __devinit snd_intel8x0_create(struct snd_card *card,
 					 struct pci_dev *pci,
 					 unsigned long device_type,
@@ -2997,9 +3043,7 @@ static int __devinit snd_intel8x0_create(struct snd_card *card,
 	if (xbox)
 		chip->xbox = 1;
 
-	chip->inside_vm = inside_vm;
-	if (inside_vm)
-		printk(KERN_INFO "intel8x0: enable KVM optimization\n");
+	chip->inside_vm = snd_intel8x0_inside_vm(pci);
 
 	if (pci->vendor == PCI_VENDOR_ID_INTEL &&
 	    pci->device == PCI_DEVICE_ID_INTEL_440MX)
@@ -3241,14 +3285,6 @@ static int __devinit snd_intel8x0_probe(struct pci_dev *pci,
 			buggy_irq = 1;
 		else
 			buggy_irq = 0;
-	}
-
-	if (inside_vm < 0) {
-		/* detect KVM and Parallels virtual environments */
-		inside_vm = kvm_para_available();
-#if defined(__i386__) || defined(__x86_64__)
-		inside_vm = inside_vm || boot_cpu_has(X86_FEATURE_HYPERVISOR);
-#endif
 	}
 
 	if ((err = snd_intel8x0_create(card, pci, pci_id->driver_data,

@@ -13,6 +13,7 @@
  * TODO: Event handling with irq_chip. Waiting for PRCMU fw support.
  */
 
+#include <linux/module.h>
 #include <linux/mutex.h>
 #include <linux/err.h>
 #include <linux/platform_device.h>

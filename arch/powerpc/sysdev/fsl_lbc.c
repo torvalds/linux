@@ -328,6 +328,7 @@ static int __devinit fsl_lbc_ctrl_probe(struct platform_device *dev)
 err:
 	iounmap(fsl_lbc_ctrl_dev->regs);
 	kfree(fsl_lbc_ctrl_dev);
+	fsl_lbc_ctrl_dev = NULL;
 	return ret;
 }
 

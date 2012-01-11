@@ -122,3 +122,5 @@ static int __init ci13xxx_msm_init(void)
 	return platform_driver_register(&ci13xxx_msm_driver);
 }
 module_init(ci13xxx_msm_init);
+
+MODULE_LICENSE("GPL v2");

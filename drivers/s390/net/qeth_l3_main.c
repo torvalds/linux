@@ -2756,11 +2756,13 @@ int inline qeth_l3_get_cast_type(struct qeth_card *card, struct sk_buff *skb)
 	struct neighbour *n = NULL;
 	struct dst_entry *dst;
 
+	rcu_read_lock();
 	dst = skb_dst(skb);
 	if (dst)
 		n = dst_get_neighbour(dst);
 	if (n) {
 		cast_type = n->type;
+		rcu_read_unlock();
 		if ((cast_type == RTN_BROADCAST) ||
 		    (cast_type == RTN_MULTICAST) ||
 		    (cast_type == RTN_ANYCAST))
@@ -2768,6 +2770,8 @@ int inline qeth_l3_get_cast_type(struct qeth_card *card, struct sk_buff *skb)
 		else
 			return RTN_UNSPEC;
 	}
+	rcu_read_unlock();
+
 	/* try something else */
 	if (skb->protocol == ETH_P_IPV6)
 		return (skb_network_header(skb)[24] == 0xff) ?
@@ -2847,6 +2851,8 @@ static void qeth_l3_fill_header(struct qeth_card *card, struct qeth_hdr *hdr,
 	}
 
 	hdr->hdr.l3.length = skb->len - sizeof(struct qeth_hdr);
+
+	rcu_read_lock();
 	dst = skb_dst(skb);
 	if (dst)
 		n = dst_get_neighbour(dst);
@@ -2893,6 +2899,7 @@ static void qeth_l3_fill_header(struct qeth_card *card, struct qeth_hdr *hdr,
 				QETH_CAST_UNICAST | QETH_HDR_PASSTHRU;
 		}
 	}
+	rcu_read_unlock();
 }
 
 static inline void qeth_l3_hdr_csum(struct qeth_card *card,

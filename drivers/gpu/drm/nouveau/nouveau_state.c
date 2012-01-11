@@ -579,6 +579,14 @@ nouveau_card_init(struct drm_device *dev)
 	if (ret)
 		goto out_display_early;
 
+	/* workaround an odd issue on nvc1 by disabling the device's
+	 * nosnoop capability.  hopefully won't cause issues until a
+	 * better fix is found - assuming there is one...
+	 */
+	if (dev_priv->chipset == 0xc1) {
+		nv_mask(dev, 0x00088080, 0x00000800, 0x00000000);
+	}
+
 	nouveau_pm_init(dev);
 
 	ret = engine->vram.init(dev);
@@ -1102,12 +1110,13 @@ int nouveau_load(struct drm_device *dev, unsigned long flags)
 	dev_priv->noaccel = !!nouveau_noaccel;
 	if (nouveau_noaccel == -1) {
 		switch (dev_priv->chipset) {
-		case 0xc1: /* known broken */
-		case 0xc8: /* never tested */
+#if 0
+		case 0xXX: /* known broken */
 			NV_INFO(dev, "acceleration disabled by default, pass "
 				     "noaccel=0 to force enable\n");
 			dev_priv->noaccel = true;
 			break;
+#endif
 		default:
 			dev_priv->noaccel = false;
 			break;

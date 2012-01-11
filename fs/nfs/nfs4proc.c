@@ -2464,8 +2464,7 @@ static int nfs4_proc_lookup(struct rpc_clnt *clnt, struct inode *dir, struct qst
 		case -NFS4ERR_BADNAME:
 			return -ENOENT;
 		case -NFS4ERR_MOVED:
-			err = nfs4_get_referral(dir, name, fattr, fhandle);
-			break;
+			return nfs4_get_referral(dir, name, fattr, fhandle);
 		case -NFS4ERR_WRONGSEC:
 			nfs_fixup_secinfo_attributes(fattr, fhandle);
 		}
@@ -6253,6 +6252,7 @@ const struct nfs_rpc_ops nfs_v4_clientops = {
 	.dentry_ops	= &nfs4_dentry_operations,
 	.dir_inode_ops	= &nfs4_dir_inode_operations,
 	.file_inode_ops	= &nfs4_file_inode_operations,
+	.file_ops	= &nfs4_file_operations,
 	.getroot	= nfs4_proc_get_root,
 	.getattr	= nfs4_proc_getattr,
 	.setattr	= nfs4_proc_setattr,

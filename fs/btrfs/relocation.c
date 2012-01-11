@@ -1174,6 +1174,8 @@ static int clone_backref_node(struct btrfs_trans_handle *trans,
 			list_add_tail(&new_edge->list[UPPER],
 				      &new_node->lower);
 		}
+	} else {
+		list_add_tail(&new_node->lower, &cache->leaves);
 	}
 
 	rb_node = tree_insert(&cache->rb_root, new_node->bytenr,

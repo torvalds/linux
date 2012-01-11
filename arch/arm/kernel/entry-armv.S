@@ -497,7 +497,7 @@ ENDPROC(__und_usr)
 	.popsection
 	.pushsection __ex_table,"a"
 	.long	1b, 4b
-#if __LINUX_ARM_ARCH__ >= 7
+#if CONFIG_ARM_THUMB && __LINUX_ARM_ARCH__ >= 6 && CONFIG_CPU_V7
 	.long	2b, 4b
 	.long	3b, 4b
 #endif

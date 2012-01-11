@@ -195,51 +195,6 @@ void css_sch_device_unregister(struct subchannel *sch)
 }
 EXPORT_SYMBOL_GPL(css_sch_device_unregister);
 
-static void css_sch_todo(struct work_struct *work)
-{
-	struct subchannel *sch;
-	enum sch_todo todo;
-
-	sch = container_of(work, struct subchannel, todo_work);
-	/* Find out todo. */
-	spin_lock_irq(sch->lock);
-	todo = sch->todo;
-	CIO_MSG_EVENT(4, "sch_todo: sch=0.%x.%04x, todo=%d\n", sch->schid.ssid,
-		      sch->schid.sch_no, todo);
-	sch->todo = SCH_TODO_NOTHING;
-	spin_unlock_irq(sch->lock);
-	/* Perform todo. */
-	if (todo == SCH_TODO_UNREG)
-		css_sch_device_unregister(sch);
-	/* Release workqueue ref. */
-	put_device(&sch->dev);
-}
-
-/**
- * css_sched_sch_todo - schedule a subchannel operation
- * @sch: subchannel
- * @todo: todo
- *
- * Schedule the operation identified by @todo to be performed on the slow path
- * workqueue. Do nothing if another operation with higher priority is already
- * scheduled. Needs to be called with subchannel lock held.
- */
-void css_sched_sch_todo(struct subchannel *sch, enum sch_todo todo)
-{
-	CIO_MSG_EVENT(4, "sch_todo: sched sch=0.%x.%04x todo=%d\n",
-		      sch->schid.ssid, sch->schid.sch_no, todo);
-	if (sch->todo >= todo)
-		return;
-	/* Get workqueue ref. */
-	if (!get_device(&sch->dev))
-		return;
-	sch->todo = todo;
-	if (!queue_work(cio_work_q, &sch->todo_work)) {
-		/* Already queued, release workqueue ref. */
-		put_device(&sch->dev);
-	}
-}
-
 static void ssd_from_pmcw(struct chsc_ssd_info *ssd, struct pmcw *pmcw)
 {
 	int i;
@@ -464,6 +419,65 @@ static void css_evaluate_subchannel(struct subchannel_id schid, int slow)
 		ret = css_evaluate_new_subchannel(schid, slow);
 	if (ret == -EAGAIN)
 		css_schedule_eval(schid);
+}
+
+/**
+ * css_sched_sch_todo - schedule a subchannel operation
+ * @sch: subchannel
+ * @todo: todo
+ *
+ * Schedule the operation identified by @todo to be performed on the slow path
+ * workqueue. Do nothing if another operation with higher priority is already
+ * scheduled. Needs to be called with subchannel lock held.
+ */
+void css_sched_sch_todo(struct subchannel *sch, enum sch_todo todo)
+{
+	CIO_MSG_EVENT(4, "sch_todo: sched sch=0.%x.%04x todo=%d\n",
+		      sch->schid.ssid, sch->schid.sch_no, todo);
+	if (sch->todo >= todo)
+		return;
+	/* Get workqueue ref. */
+	if (!get_device(&sch->dev))
+		return;
+	sch->todo = todo;
+	if (!queue_work(cio_work_q, &sch->todo_work)) {
+		/* Already queued, release workqueue ref. */
+		put_device(&sch->dev);
+	}
+}
+
+static void css_sch_todo(struct work_struct *work)
+{
+	struct subchannel *sch;
+	enum sch_todo todo;
+	int ret;
+
+	sch = container_of(work, struct subchannel, todo_work);
+	/* Find out todo. */
+	spin_lock_irq(sch->lock);
+	todo = sch->todo;
+	CIO_MSG_EVENT(4, "sch_todo: sch=0.%x.%04x, todo=%d\n", sch->schid.ssid,
+		      sch->schid.sch_no, todo);
+	sch->todo = SCH_TODO_NOTHING;
+	spin_unlock_irq(sch->lock);
+	/* Perform todo. */
+	switch (todo) {
+	case SCH_TODO_NOTHING:
+		break;
+	case SCH_TODO_EVAL:
+		ret = css_evaluate_known_subchannel(sch, 1);
+		if (ret == -EAGAIN) {
+			spin_lock_irq(sch->lock);
+			css_sched_sch_todo(sch, todo);
+			spin_unlock_irq(sch->lock);
+		}
+		break;
+	case SCH_TODO_UNREG:
+		css_sch_device_unregister(sch);
+		break;
+	}
+	/* Release workqueue ref. */
+	put_device(&sch->dev);
 }
 
 static struct idset *slow_subchannel_set;

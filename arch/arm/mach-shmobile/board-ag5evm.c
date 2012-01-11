@@ -515,14 +515,14 @@ static void __init ag5evm_init(void)
 	/* enable MMCIF */
 	gpio_request(GPIO_FN_MMCCLK0, NULL);
 	gpio_request(GPIO_FN_MMCCMD0_PU, NULL);
-	gpio_request(GPIO_FN_MMCD0_0, NULL);
-	gpio_request(GPIO_FN_MMCD0_1, NULL);
-	gpio_request(GPIO_FN_MMCD0_2, NULL);
-	gpio_request(GPIO_FN_MMCD0_3, NULL);
-	gpio_request(GPIO_FN_MMCD0_4, NULL);
-	gpio_request(GPIO_FN_MMCD0_5, NULL);
-	gpio_request(GPIO_FN_MMCD0_6, NULL);
-	gpio_request(GPIO_FN_MMCD0_7, NULL);
+	gpio_request(GPIO_FN_MMCD0_0_PU, NULL);
+	gpio_request(GPIO_FN_MMCD0_1_PU, NULL);
+	gpio_request(GPIO_FN_MMCD0_2_PU, NULL);
+	gpio_request(GPIO_FN_MMCD0_3_PU, NULL);
+	gpio_request(GPIO_FN_MMCD0_4_PU, NULL);
+	gpio_request(GPIO_FN_MMCD0_5_PU, NULL);
+	gpio_request(GPIO_FN_MMCD0_6_PU, NULL);
+	gpio_request(GPIO_FN_MMCD0_7_PU, NULL);
 	gpio_request(GPIO_PORT208, NULL); /* Reset */
 	gpio_direction_output(GPIO_PORT208, 1);
 

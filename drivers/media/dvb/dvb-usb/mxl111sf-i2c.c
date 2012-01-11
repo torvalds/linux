@@ -398,7 +398,6 @@ static int mxl111sf_i2c_readagain(struct mxl111sf_state *state,
 	u8 i2c_r_data[24];
 	u8 i = 0;
 	u8 fifo_status = 0;
-	int ret;
 	int status = 0;
 
 	mxl_i2c("read %d bytes", count);
@@ -418,7 +417,7 @@ static int mxl111sf_i2c_readagain(struct mxl111sf_state *state,
 		i2c_w_data[4+(i*3)] = 0x00;
 	}
 
-	ret = mxl111sf_i2c_get_data(state, 0, i2c_w_data, i2c_r_data);
+	mxl111sf_i2c_get_data(state, 0, i2c_w_data, i2c_r_data);
 
 	/* Check for I2C NACK status */
 	if (mxl111sf_i2c_check_status(state) == 1) {

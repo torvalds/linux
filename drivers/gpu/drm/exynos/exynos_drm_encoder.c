@@ -53,15 +53,36 @@ static void exynos_drm_encoder_dpms(struct drm_encoder *encoder, int mode)
 	struct drm_device *dev = encoder->dev;
 	struct drm_connector *connector;
 	struct exynos_drm_manager *manager = exynos_drm_get_manager(encoder);
+	struct exynos_drm_manager_ops *manager_ops = manager->ops;
 
 	DRM_DEBUG_KMS("%s, encoder dpms: %d\n", __FILE__, mode);
 
+	switch (mode) {
+	case DRM_MODE_DPMS_ON:
+		if (manager_ops && manager_ops->commit)
+			manager_ops->commit(manager->dev);
+		break;
+	case DRM_MODE_DPMS_STANDBY:
+	case DRM_MODE_DPMS_SUSPEND:
+	case DRM_MODE_DPMS_OFF:
+		/* TODO */
+		if (manager_ops && manager_ops->disable)
+			manager_ops->disable(manager->dev);
+		break;
+	default:
+		DRM_ERROR("unspecified mode %d\n", mode);
+		break;
+	}
+
 	list_for_each_entry(connector, &dev->mode_config.connector_list, head) {
 		if (connector->encoder == encoder) {
-			struct exynos_drm_display *display = manager->display;
+			struct exynos_drm_display_ops *display_ops =
+							manager->display_ops;
 
-			if (display && display->power_on)
-				display->power_on(manager->dev, mode);
+			DRM_DEBUG_KMS("connector[%d] dpms[%d]\n",
+					connector->base.id, mode);
+			if (display_ops && display_ops->power_on)
+				display_ops->power_on(manager->dev, mode);
 		}
 	}
 }
@@ -116,15 +137,11 @@ static void exynos_drm_encoder_commit(struct drm_encoder *encoder)
 {
 	struct exynos_drm_manager *manager = exynos_drm_get_manager(encoder);
 	struct exynos_drm_manager_ops *manager_ops = manager->ops;
-	struct exynos_drm_overlay_ops *overlay_ops = manager->overlay_ops;
 
 	DRM_DEBUG_KMS("%s\n", __FILE__);
 
 	if (manager_ops && manager_ops->commit)
 		manager_ops->commit(manager->dev);
-
-	if (overlay_ops && overlay_ops->commit)
-		overlay_ops->commit(manager->dev);
 }
 
 static struct drm_crtc *
@@ -208,10 +225,23 @@ void exynos_drm_fn_encoder(struct drm_crtc *crtc, void *data,
 {
 	struct drm_device *dev = crtc->dev;
 	struct drm_encoder *encoder;
+	struct exynos_drm_private *private = dev->dev_private;
+	struct exynos_drm_manager *manager;
 
 	list_for_each_entry(encoder, &dev->mode_config.encoder_list, head) {
-		if (encoder->crtc != crtc)
-			continue;
+		/*
+		 * if crtc is detached from encoder, check pipe,
+		 * otherwise check crtc attached to encoder
+		 */
+		if (!encoder->crtc) {
+			manager = to_exynos_encoder(encoder)->manager;
+			if (manager->pipe < 0 ||
+					private->crtc[manager->pipe] != crtc)
+				continue;
+		} else {
+			if (encoder->crtc != crtc)
+				continue;
+		}
 
 		fn(encoder, data);
 	}
@@ -250,8 +280,18 @@ void exynos_drm_encoder_crtc_commit(struct drm_encoder *encoder, void *data)
 	struct exynos_drm_manager *manager =
 		to_exynos_encoder(encoder)->manager;
 	struct exynos_drm_overlay_ops *overlay_ops = manager->overlay_ops;
+	int crtc = *(int *)data;
 
-	overlay_ops->commit(manager->dev);
+	DRM_DEBUG_KMS("%s\n", __FILE__);
+
+	/*
+	 * when crtc is detached from encoder, this pipe is used
+	 * to select manager operation
+	 */
+	manager->pipe = crtc;
+
+	if (overlay_ops && overlay_ops->commit)
+		overlay_ops->commit(manager->dev);
 }
 
 void exynos_drm_encoder_crtc_mode_set(struct drm_encoder *encoder, void *data)
@@ -261,7 +301,28 @@ void exynos_drm_encoder_crtc_mode_set(struct drm_encoder *encoder, void *data)
 	struct exynos_drm_overlay_ops *overlay_ops = manager->overlay_ops;
 	struct exynos_drm_overlay *overlay = data;
 
-	overlay_ops->mode_set(manager->dev, overlay);
+	if (overlay_ops && overlay_ops->mode_set)
+		overlay_ops->mode_set(manager->dev, overlay);
+}
+
+void exynos_drm_encoder_crtc_disable(struct drm_encoder *encoder, void *data)
+{
+	struct exynos_drm_manager *manager =
+		to_exynos_encoder(encoder)->manager;
+	struct exynos_drm_overlay_ops *overlay_ops = manager->overlay_ops;
+
+	DRM_DEBUG_KMS("\n");
+
+	if (overlay_ops && overlay_ops->disable)
+		overlay_ops->disable(manager->dev);
+
+	/*
+	 * crtc is already detached from encoder and last
+	 * function for detaching is properly done, so
+	 * clear pipe from manager to prevent repeated call
+	 */
+	if (!encoder->crtc)
+		manager->pipe = -1;
 }
 
 MODULE_AUTHOR("Inki Dae <inki.dae@samsung.com>");

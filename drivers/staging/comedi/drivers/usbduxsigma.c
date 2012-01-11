@@ -1,4 +1,4 @@
-#define DRIVER_VERSION "v0.5"
+#define DRIVER_VERSION "v0.6"
 #define DRIVER_AUTHOR "Bernd Porr, BerndPorr@f2s.com"
 #define DRIVER_DESC "Stirling/ITL USB-DUX SIGMA -- Bernd.Porr@f2s.com"
 /*
@@ -25,7 +25,7 @@ Driver: usbduxsigma
 Description: University of Stirling USB DAQ & INCITE Technology Limited
 Devices: [ITL] USB-DUX (usbduxsigma.o)
 Author: Bernd Porr <BerndPorr@f2s.com>
-Updated: 21 Jul 2011
+Updated: 8 Nov 2011
 Status: testing
 */
 /*
@@ -44,6 +44,7 @@ Status: testing
  *   0.3: proper vendor ID and driver name
  *   0.4: fixed D/A voltage range
  *   0.5: various bug fixes, health check at startup
+ *   0.6: corrected wrong input range
  */
 
 /* generates loads of debug info */
@@ -175,7 +176,7 @@ Status: testing
 /* comedi constants */
 static const struct comedi_lrange range_usbdux_ai_range = { 1, {
 								BIP_RANGE
-								(2.65)
+								(2.65/2.0)
 								}
 };
 

@@ -1021,6 +1021,7 @@ static int __devinit rtsx_probe(struct pci_dev *pci,
 	th = kthread_create(rtsx_scan_thread, dev, "rtsx-scan");
 	if (IS_ERR(th)) {
 		printk(KERN_ERR "Unable to start the device-scanning thread\n");
+		complete(&dev->scanning_done);
 		quiesce_and_remove_host(dev);
 		err = PTR_ERR(th);
 		goto errout;

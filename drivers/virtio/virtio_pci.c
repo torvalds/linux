@@ -169,11 +169,29 @@ static void vp_set_status(struct virtio_device *vdev, u8 status)
 	iowrite8(status, vp_dev->ioaddr + VIRTIO_PCI_STATUS);
 }
 
+/* wait for pending irq handlers */
+static void vp_synchronize_vectors(struct virtio_device *vdev)
+{
+	struct virtio_pci_device *vp_dev = to_vp_device(vdev);
+	int i;
+
+	if (vp_dev->intx_enabled)
+		synchronize_irq(vp_dev->pci_dev->irq);
+
+	for (i = 0; i < vp_dev->msix_vectors; ++i)
+		synchronize_irq(vp_dev->msix_entries[i].vector);
+}
+
 static void vp_reset(struct virtio_device *vdev)
 {
 	struct virtio_pci_device *vp_dev = to_vp_device(vdev);
 	/* 0 status means a reset. */
 	iowrite8(0, vp_dev->ioaddr + VIRTIO_PCI_STATUS);
+	/* Flush out the status write, and flush in device writes,
+	 * including MSi-X interrupts, if any. */
+	ioread8(vp_dev->ioaddr + VIRTIO_PCI_STATUS);
+	/* Flush pending VQ/configuration callbacks. */
+	vp_synchronize_vectors(vdev);
 }
 
 /* the notify function used when creating a virt queue */
@@ -594,11 +612,11 @@ static struct virtio_config_ops virtio_pci_config_ops = {
 
 static void virtio_pci_release_dev(struct device *_d)
 {
-	struct virtio_device *dev = container_of(_d, struct virtio_device,
-						 dev);
-	struct virtio_pci_device *vp_dev = to_vp_device(dev);
-
-	kfree(vp_dev);
+	/*
+	 * No need for a release method as we allocate/free
+	 * all devices together with the pci devices.
+	 * Provide an empty one to avoid getting a warning from core.
+	 */
 }
 
 /* the PCI probing function */
@@ -686,6 +704,7 @@ static void __devexit virtio_pci_remove(struct pci_dev *pci_dev)
 	pci_iounmap(pci_dev, vp_dev->ioaddr);
 	pci_release_regions(pci_dev);
 	pci_disable_device(pci_dev);
+	kfree(vp_dev);
 }
 
 #ifdef CONFIG_PM

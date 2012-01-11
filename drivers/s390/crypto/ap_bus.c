@@ -1271,18 +1271,16 @@ ap_config_timeout(unsigned long ptr)
 }
 
 /**
- * ap_schedule_poll_timer(): Schedule poll timer.
+ * __ap_schedule_poll_timer(): Schedule poll timer.
  *
  * Set up the timer to run the poll tasklet
  */
-static inline void ap_schedule_poll_timer(void)
+static inline void __ap_schedule_poll_timer(void)
 {
 	ktime_t hr_time;
 
 	spin_lock_bh(&ap_poll_timer_lock);
-	if (ap_using_interrupts() || ap_suspend_flag)
-		goto out;
-	if (hrtimer_is_queued(&ap_poll_timer))
+	if (hrtimer_is_queued(&ap_poll_timer) || ap_suspend_flag)
 		goto out;
 	if (ktime_to_ns(hrtimer_expires_remaining(&ap_poll_timer)) <= 0) {
 		hr_time = ktime_set(0, poll_timeout);
@@ -1291,6 +1289,18 @@ static inline void ap_schedule_poll_timer(void)
 	}
 out:
 	spin_unlock_bh(&ap_poll_timer_lock);
+}
+
+/**
+ * ap_schedule_poll_timer(): Schedule poll timer.
+ *
+ * Set up the timer to run the poll tasklet
+ */
+static inline void ap_schedule_poll_timer(void)
+{
+	if (ap_using_interrupts())
+		return;
+	__ap_schedule_poll_timer();
 }
 
 /**
@@ -1374,8 +1384,9 @@ static int ap_poll_write(struct ap_device *ap_dev, unsigned long *flags)
 			*flags |= 1;
 		*flags |= 2;
 		break;
-	case AP_RESPONSE_Q_FULL:
 	case AP_RESPONSE_RESET_IN_PROGRESS:
+		__ap_schedule_poll_timer();
+	case AP_RESPONSE_Q_FULL:
 		*flags |= 2;
 		break;
 	case AP_RESPONSE_MESSAGE_TOO_BIG:
@@ -1541,6 +1552,8 @@ static void ap_reset(struct ap_device *ap_dev)
 	rc = ap_init_queue(ap_dev->qid);
 	if (rc == -ENODEV)
 		ap_dev->unregistered = 1;
+	else
+		__ap_schedule_poll_timer();
 }
 
 static int __ap_poll_device(struct ap_device *ap_dev, unsigned long *flags)

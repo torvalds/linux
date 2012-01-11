@@ -28,20 +28,13 @@ asmlinkage void __exception_irq_entry gic_handle_irq(struct pt_regs *regs)
 		if (irqnr == 1023)
 			break;
 
-		if (irqnr > 29 && irqnr < 1021)
+		if (irqnr > 15 && irqnr < 1021)
 			handle_IRQ(irqnr, regs);
 #ifdef CONFIG_SMP
-		else if (irqnr < 16) {
+		else {
 			writel_relaxed(irqstat, gic_cpu_base_addr +
 						GIC_CPU_EOI);
 			handle_IPI(irqnr, regs);
-		}
-#endif
-#ifdef CONFIG_LOCAL_TIMERS
-		else if (irqnr == 29) {
-			writel_relaxed(irqstat, gic_cpu_base_addr +
-						GIC_CPU_EOI);
-			handle_local_timer(regs);
 		}
 #endif
 	} while (1);

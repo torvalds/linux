@@ -4,7 +4,7 @@
  * (C) 2001 by Jay Schulist <jschlst@samba.org>
  * (C) 2002-2006 by Harald Welte <laforge@gnumonks.org>
  * (C) 2003 by Patrick Mchardy <kaber@trash.net>
- * (C) 2005-2008 by Pablo Neira Ayuso <pablo@netfilter.org>
+ * (C) 2005-2011 by Pablo Neira Ayuso <pablo@netfilter.org>
  *
  * Initial connection tracking via netlink development funded and
  * generally made possible by Network Robots, Inc. (www.networkrobots.com)
@@ -2163,6 +2163,54 @@ MODULE_ALIAS("ip_conntrack_netlink");
 MODULE_ALIAS_NFNL_SUBSYS(NFNL_SUBSYS_CTNETLINK);
 MODULE_ALIAS_NFNL_SUBSYS(NFNL_SUBSYS_CTNETLINK_EXP);
 
+static int __net_init ctnetlink_net_init(struct net *net)
+{
+#ifdef CONFIG_NF_CONNTRACK_EVENTS
+	int ret;
+
+	ret = nf_conntrack_register_notifier(net, &ctnl_notifier);
+	if (ret < 0) {
+		pr_err("ctnetlink_init: cannot register notifier.\n");
+		goto err_out;
+	}
+
+	ret = nf_ct_expect_register_notifier(net, &ctnl_notifier_exp);
+	if (ret < 0) {
+		pr_err("ctnetlink_init: cannot expect register notifier.\n");
+		goto err_unreg_notifier;
+	}
+#endif
+	return 0;
+
+#ifdef CONFIG_NF_CONNTRACK_EVENTS
+err_unreg_notifier:
+	nf_conntrack_unregister_notifier(net, &ctnl_notifier);
+err_out:
+	return ret;
+#endif
+}
+
+static void ctnetlink_net_exit(struct net *net)
+{
+#ifdef CONFIG_NF_CONNTRACK_EVENTS
+	nf_ct_expect_unregister_notifier(net, &ctnl_notifier_exp);
+	nf_conntrack_unregister_notifier(net, &ctnl_notifier);
+#endif
+}
+
+static void __net_exit ctnetlink_net_exit_batch(struct list_head *net_exit_list)
+{
+	struct net *net;
+
+	list_for_each_entry(net, net_exit_list, exit_list)
+		ctnetlink_net_exit(net);
+}
+
+static struct pernet_operations ctnetlink_net_ops = {
+	.init		= ctnetlink_net_init,
+	.exit_batch	= ctnetlink_net_exit_batch,
+};
+
 static int __init ctnetlink_init(void)
 {
 	int ret;
@@ -2180,28 +2228,15 @@ static int __init ctnetlink_init(void)
 		goto err_unreg_subsys;
 	}
 
-#ifdef CONFIG_NF_CONNTRACK_EVENTS
-	ret = nf_conntrack_register_notifier(&ctnl_notifier);
-	if (ret < 0) {
-		pr_err("ctnetlink_init: cannot register notifier.\n");
+	if (register_pernet_subsys(&ctnetlink_net_ops)) {
+		pr_err("ctnetlink_init: cannot register pernet operations\n");
 		goto err_unreg_exp_subsys;
 	}
 
-	ret = nf_ct_expect_register_notifier(&ctnl_notifier_exp);
-	if (ret < 0) {
-		pr_err("ctnetlink_init: cannot expect register notifier.\n");
-		goto err_unreg_notifier;
-	}
-#endif
-
 	return 0;
 
-#ifdef CONFIG_NF_CONNTRACK_EVENTS
-err_unreg_notifier:
-	nf_conntrack_unregister_notifier(&ctnl_notifier);
 err_unreg_exp_subsys:
 	nfnetlink_subsys_unregister(&ctnl_exp_subsys);
-#endif
 err_unreg_subsys:
 	nfnetlink_subsys_unregister(&ctnl_subsys);
 err_out:
@@ -2213,11 +2248,7 @@ static void __exit ctnetlink_exit(void)
 	pr_info("ctnetlink: unregistering from nfnetlink.\n");
 
 	nf_ct_remove_userspace_expectations();
-#ifdef CONFIG_NF_CONNTRACK_EVENTS
-	nf_ct_expect_unregister_notifier(&ctnl_notifier_exp);
-	nf_conntrack_unregister_notifier(&ctnl_notifier);
-#endif
-
+	unregister_pernet_subsys(&ctnetlink_net_ops);
 	nfnetlink_subsys_unregister(&ctnl_exp_subsys);
 	nfnetlink_subsys_unregister(&ctnl_subsys);
 }

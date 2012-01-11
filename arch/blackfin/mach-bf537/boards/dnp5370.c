@@ -12,6 +12,7 @@
  */
 
 #include <linux/device.h>
+#include <linux/export.h>
 #include <linux/kernel.h>
 #include <linux/platform_device.h>
 #include <linux/io.h>
@@ -49,7 +50,6 @@ static struct platform_device rtc_device = {
 
 #if defined(CONFIG_BFIN_MAC) || defined(CONFIG_BFIN_MAC_MODULE)
 #include <linux/bfin_mac.h>
-#include <linux/export.h>
 static const unsigned short bfin_mac_peripherals[] = P_RMII0;
 
 static struct bfin_phydev_platform_data bfin_phydev_data[] = {
@@ -237,8 +237,13 @@ static struct resource bfin_uart0_resources[] = {
 		.flags = IORESOURCE_MEM,
 	},
 	{
+		.start = IRQ_UART0_TX,
+		.end = IRQ_UART0_TX,
+		.flags = IORESOURCE_IRQ,
+	},
+	{
 		.start = IRQ_UART0_RX,
-		.end = IRQ_UART0_RX+1,
+		.end = IRQ_UART0_RX,
 		.flags = IORESOURCE_IRQ,
 	},
 	{
@@ -281,8 +286,13 @@ static struct resource bfin_uart1_resources[] = {
 		.flags = IORESOURCE_MEM,
 	},
 	{
+		.start = IRQ_UART1_TX,
+		.end   = IRQ_UART1_TX,
+		.flags = IORESOURCE_IRQ,
+	},
+	{
 		.start = IRQ_UART1_RX,
-		.end   = IRQ_UART1_RX+1,
+		.end   = IRQ_UART1_RX,
 		.flags = IORESOURCE_IRQ,
 	},
 	{

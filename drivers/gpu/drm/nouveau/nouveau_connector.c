@@ -710,7 +710,7 @@ nouveau_connector_mode_valid(struct drm_connector *connector,
 	case OUTPUT_DP:
 		max_clock  = nv_encoder->dp.link_nr;
 		max_clock *= nv_encoder->dp.link_bw;
-		clock = clock * nouveau_connector_bpp(connector) / 8;
+		clock = clock * nouveau_connector_bpp(connector) / 10;
 		break;
 	default:
 		BUG_ON(1);

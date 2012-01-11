@@ -15,8 +15,8 @@
 #define	DEFAULT_PRIORITY	5
 
 /*
- * Mark IPIs as higher priority so we can take them inside interrupts that
- * arent marked IRQF_DISABLED
+ * Mark IPIs as higher priority so we can take them inside interrupts
+ * FIXME: still true now?
  */
 #define IPI_PRIORITY		4
 

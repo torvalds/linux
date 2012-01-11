@@ -16,6 +16,8 @@
 
 #include <linux/kernel.h>
 #include <linux/gpio.h>
+#include <linux/of.h>
+
 #include <mach/pinmux.h>
 
 #include "gpio-names.h"
@@ -161,7 +163,9 @@ static struct tegra_gpio_table gpio_table[] = {
 
 void harmony_pinmux_init(void)
 {
-	platform_add_devices(pinmux_devices, ARRAY_SIZE(pinmux_devices));
+	if (!of_machine_is_compatible("nvidia,tegra20"))
+		platform_add_devices(pinmux_devices,
+					ARRAY_SIZE(pinmux_devices));
 
 	tegra_pinmux_config_table(harmony_pinmux, ARRAY_SIZE(harmony_pinmux));
 

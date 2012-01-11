@@ -2586,10 +2586,8 @@ static int s3c_hsotg_start(struct usb_gadget_driver *driver,
 		return -EINVAL;
 	}
 
-	if (driver->speed != USB_SPEED_HIGH &&
-	    driver->speed != USB_SPEED_FULL) {
+	if (driver->speed < USB_SPEED_FULL)
 		dev_err(hsotg->dev, "%s: bad speed\n", __func__);
-	}
 
 	if (!bind || !driver->setup) {
 		dev_err(hsotg->dev, "%s: missing entry points\n", __func__);

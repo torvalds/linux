@@ -140,7 +140,7 @@ int vmw_present_ioctl(struct drm_device *dev, void *data,
 		goto out_clips;
 	}
 
-	clips = kzalloc(num_clips * sizeof(*clips), GFP_KERNEL);
+	clips = kcalloc(num_clips, sizeof(*clips), GFP_KERNEL);
 	if (clips == NULL) {
 		DRM_ERROR("Failed to allocate clip rect list.\n");
 		ret = -ENOMEM;
@@ -232,7 +232,7 @@ int vmw_present_readback_ioctl(struct drm_device *dev, void *data,
 		goto out_clips;
 	}
 
-	clips = kzalloc(num_clips * sizeof(*clips), GFP_KERNEL);
+	clips = kcalloc(num_clips, sizeof(*clips), GFP_KERNEL);
 	if (clips == NULL) {
 		DRM_ERROR("Failed to allocate clip rect list.\n");
 		ret = -ENOMEM;

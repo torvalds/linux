@@ -2316,6 +2316,17 @@ static int iwlagn_mac_set_key(struct ieee80211_hw *hw, enum set_key_cmd cmd,
 		return -EOPNOTSUPP;
 	}
 
+	switch (key->cipher) {
+	case WLAN_CIPHER_SUITE_TKIP:
+		key->flags |= IEEE80211_KEY_FLAG_GENERATE_MMIC;
+		/* fall through */
+	case WLAN_CIPHER_SUITE_CCMP:
+		key->flags |= IEEE80211_KEY_FLAG_GENERATE_IV;
+		break;
+	default:
+		break;
+	}
+
 	/*
 	 * We could program these keys into the hardware as well, but we
 	 * don't expect much multicast traffic in IBSS and having keys
@@ -2599,21 +2610,9 @@ static void iwlagn_mac_channel_switch(struct ieee80211_hw *hw,
 
 	/* Configure HT40 channels */
 	ctx->ht.enabled = conf_is_ht(conf);
-	if (ctx->ht.enabled) {
-		if (conf_is_ht40_minus(conf)) {
-			ctx->ht.extension_chan_offset =
-				IEEE80211_HT_PARAM_CHA_SEC_BELOW;
-			ctx->ht.is_40mhz = true;
-		} else if (conf_is_ht40_plus(conf)) {
-			ctx->ht.extension_chan_offset =
-				IEEE80211_HT_PARAM_CHA_SEC_ABOVE;
-			ctx->ht.is_40mhz = true;
-		} else {
-			ctx->ht.extension_chan_offset =
-				IEEE80211_HT_PARAM_CHA_SEC_NONE;
-			ctx->ht.is_40mhz = false;
-		}
-	} else
+	if (ctx->ht.enabled)
+		iwlagn_config_ht40(conf, ctx);
+	else
 		ctx->ht.is_40mhz = false;
 
 	if ((le16_to_cpu(ctx->staging.channel) != ch))
@@ -3499,9 +3498,10 @@ MODULE_PARM_DESC(plcp_check, "Check plcp health (default: 1 [enabled])");
 module_param_named(ack_check, iwlagn_mod_params.ack_check, bool, S_IRUGO);
 MODULE_PARM_DESC(ack_check, "Check ack health (default: 0 [disabled])");
 
-module_param_named(wd_disable, iwlagn_mod_params.wd_disable, bool, S_IRUGO);
+module_param_named(wd_disable, iwlagn_mod_params.wd_disable, int, S_IRUGO);
 MODULE_PARM_DESC(wd_disable,
-		"Disable stuck queue watchdog timer (default: 0 [enabled])");
+		"Disable stuck queue watchdog timer 0=system default, "
+		"1=disable, 2=enable (default: 0)");
 
 /*
  * set bt_coex_active to true, uCode will do kill/defer

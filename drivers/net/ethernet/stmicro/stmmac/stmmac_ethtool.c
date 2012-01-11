@@ -430,6 +430,12 @@ static int stmmac_set_wol(struct net_device *dev, struct ethtool_wolinfo *wol)
 	struct stmmac_priv *priv = netdev_priv(dev);
 	u32 support = WAKE_MAGIC | WAKE_UCAST;
 
+	/* By default almost all GMAC devices support the WoL via
+	 * magic frame but we can disable it if the HW capability
+	 * register shows no support for pmt_magic_frame. */
+	if ((priv->hw_cap_support) && (!priv->dma_cap.pmt_magic_frame))
+		wol->wolopts &= ~WAKE_MAGIC;
+
 	if (!device_can_wakeup(priv->device))
 		return -EINVAL;
 

@@ -1810,11 +1810,23 @@ void iwl_setup_watchdog(struct iwl_priv *priv)
 {
 	unsigned int timeout = priv->cfg->base_params->wd_timeout;
 
-	if (timeout && !iwlagn_mod_params.wd_disable)
-		mod_timer(&priv->watchdog,
-			  jiffies + msecs_to_jiffies(IWL_WD_TICK(timeout)));
-	else
-		del_timer(&priv->watchdog);
+	if (!iwlagn_mod_params.wd_disable) {
+		/* use system default */
+		if (timeout && !priv->cfg->base_params->wd_disable)
+			mod_timer(&priv->watchdog,
+				jiffies +
+				msecs_to_jiffies(IWL_WD_TICK(timeout)));
+		else
+			del_timer(&priv->watchdog);
+	} else {
+		/* module parameter overwrite default configuration */
+		if (timeout && iwlagn_mod_params.wd_disable == 2)
+			mod_timer(&priv->watchdog,
+				jiffies +
+				msecs_to_jiffies(IWL_WD_TICK(timeout)));
+		else
+			del_timer(&priv->watchdog);
+	}
 }
 
 /**
