@@ -19,6 +19,13 @@ config RATIONAL
 config GENERIC_FIND_FIRST_BIT
 	bool
 
+config GENERIC_PCI_IOMAP
+	bool
+
+config GENERIC_IOMAP
+	bool
+	select GENERIC_PCI_IOMAP
+
 config CRC_CCITT
 	tristate "CRC-CCITT functions"
 	help

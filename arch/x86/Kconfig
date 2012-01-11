@@ -78,6 +78,7 @@ config X86
 	select HAVE_BPF_JIT if (X86_64 && NET)
 	select CLKEVT_I8253
 	select ARCH_HAVE_NMI_SAFE_CMPXCHG
+	select GENERIC_IOMAP
 
 config INSTRUCTION_DECODER
 	def_bool (KPROBES || PERF_EVENTS)
@@ -142,9 +143,6 @@ config NEED_SG_DMA_LENGTH
 
 config GENERIC_ISA_DMA
 	def_bool ISA_DMA_API
-
-config GENERIC_IOMAP
-	def_bool y
 
 config GENERIC_BUG
 	def_bool y
