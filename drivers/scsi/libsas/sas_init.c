@@ -196,6 +196,27 @@ static int sas_get_linkerrors(struct sas_phy *phy)
 	return sas_smp_get_phy_events(phy);
 }
 
+int sas_try_ata_reset(struct asd_sas_phy *asd_phy)
+{
+	struct domain_device *dev = NULL;
+
+	/* try to route user requested link resets through libata */
+	if (asd_phy->port)
+		dev = asd_phy->port->port_dev;
+
+	/* validate that dev has been probed */
+	if (dev)
+		dev = sas_find_dev_by_rphy(dev->rphy);
+
+	if (dev && dev_is_sata(dev)) {
+		sas_ata_schedule_reset(dev);
+		sas_ata_wait_eh(dev);
+		return 0;
+	}
+
+	return -ENODEV;
+}
+
 /**
  * transport_sas_phy_reset - reset a phy and permit libata to manage the link
  *
@@ -204,7 +225,6 @@ static int sas_get_linkerrors(struct sas_phy *phy)
  */
 static int transport_sas_phy_reset(struct sas_phy *phy, int hard_reset)
 {
-	int ret;
 	enum phy_func reset_type;
 
 	if (hard_reset)
@@ -218,21 +238,10 @@ static int transport_sas_phy_reset(struct sas_phy *phy, int hard_reset)
 		struct asd_sas_phy *asd_phy = sas_ha->sas_phy[phy->number];
 		struct sas_internal *i =
 			to_sas_internal(sas_ha->core.shost->transportt);
-		struct domain_device *dev = NULL;
 
-		if (asd_phy->port)
-			dev = asd_phy->port->port_dev;
-
-		/* validate that dev has been probed */
-		if (dev)
-			dev = sas_find_dev_by_rphy(dev->rphy);
-
-		if (dev && dev_is_sata(dev) && !hard_reset) {
-			sas_ata_schedule_reset(dev);
-			sas_ata_wait_eh(dev);
-			ret = 0;
-		} else
-			ret = i->dft->lldd_control_phy(asd_phy, reset_type, NULL);
+		if (!hard_reset && sas_try_ata_reset(asd_phy) == 0)
+			return 0;
+		return i->dft->lldd_control_phy(asd_phy, reset_type, NULL);
 	} else {
 		struct sas_rphy *rphy = dev_to_rphy(phy->dev.parent);
 		struct domain_device *ddev = sas_find_dev_by_rphy(rphy);
@@ -241,12 +250,10 @@ static int transport_sas_phy_reset(struct sas_phy *phy, int hard_reset)
 		if (ata_dev && !hard_reset) {
 			sas_ata_schedule_reset(ata_dev);
 			sas_ata_wait_eh(ata_dev);
-			ret = 0;
+			return 0;
 		} else
-			ret = sas_smp_phy_control(ddev, phy->number, reset_type, NULL);
+			return sas_smp_phy_control(ddev, phy->number, reset_type, NULL);
 	}
-
-	return ret;
 }
 
 static int sas_phy_enable(struct sas_phy *phy, int enable)

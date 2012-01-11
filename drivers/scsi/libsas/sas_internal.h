@@ -92,6 +92,7 @@ struct domain_device *sas_find_dev_by_rphy(struct sas_rphy *rphy);
 struct domain_device *sas_ex_to_ata(struct domain_device *ex_dev, int phy_id);
 int sas_get_phy_attached_sas_addr(struct domain_device *dev, int phy_id,
 				  u8 *attached_sas_addr);
+int sas_try_ata_reset(struct asd_sas_phy *phy);
 void sas_hae_reset(struct work_struct *work);
 
 void sas_free_device(struct kref *kref);
