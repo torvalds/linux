@@ -1270,24 +1270,64 @@ static void rcu_cleanup_dying_cpu(struct rcu_state *rsp)
 	struct rcu_data *receive_rdp = per_cpu_ptr(rsp->rda, receive_cpu);
 	struct rcu_node *rnp = rdp->mynode; /* For dying CPU. */
 
-	/* Move callbacks to some other CPU. */
+	/* First, adjust the counts. */
+	if (rdp->nxtlist != NULL) {
+		receive_rdp->qlen_lazy += rdp->qlen_lazy;
+		receive_rdp->qlen += rdp->qlen;
+		rdp->qlen_lazy = 0;
+		rdp->qlen = 0;
+	}
+
+	/*
+	 * Next, move ready-to-invoke callbacks to be invoked on some
+	 * other CPU.  These will not be required to pass through another
+	 * grace period:  They are done, regardless of CPU.
+	 */
+	if (rdp->nxtlist != NULL &&
+	    rdp->nxttail[RCU_DONE_TAIL] != &rdp->nxtlist) {
+		struct rcu_head *oldhead;
+		struct rcu_head **oldtail;
+		struct rcu_head **newtail;
+
+		oldhead = rdp->nxtlist;
+		oldtail = receive_rdp->nxttail[RCU_DONE_TAIL];
+		rdp->nxtlist = *rdp->nxttail[RCU_DONE_TAIL];
+		*rdp->nxttail[RCU_DONE_TAIL] = *oldtail;
+		*receive_rdp->nxttail[RCU_DONE_TAIL] = oldhead;
+		newtail = rdp->nxttail[RCU_DONE_TAIL];
+		for (i = RCU_DONE_TAIL; i < RCU_NEXT_SIZE; i++) {
+			if (receive_rdp->nxttail[i] == oldtail)
+				receive_rdp->nxttail[i] = newtail;
+			if (rdp->nxttail[i] == newtail)
+				rdp->nxttail[i] = &rdp->nxtlist;
+		}
+	}
+
+	/*
+	 * Finally, put the rest of the callbacks at the end of the list.
+	 * The ones that made it partway through get to start over:  We
+	 * cannot assume that grace periods are synchronized across CPUs.
+	 * (We could splice RCU_WAIT_TAIL into RCU_NEXT_READY_TAIL, but
+	 * this does not seem compelling.  Not yet, anyway.)
+	 */
 	if (rdp->nxtlist != NULL) {
 		*receive_rdp->nxttail[RCU_NEXT_TAIL] = rdp->nxtlist;
 		receive_rdp->nxttail[RCU_NEXT_TAIL] =
 				rdp->nxttail[RCU_NEXT_TAIL];
-		receive_rdp->qlen_lazy += rdp->qlen_lazy;
-		receive_rdp->qlen += rdp->qlen;
 		receive_rdp->n_cbs_adopted += rdp->qlen;
 		rdp->n_cbs_orphaned += rdp->qlen;
 
 		rdp->nxtlist = NULL;
 		for (i = 0; i < RCU_NEXT_SIZE; i++)
 			rdp->nxttail[i] = &rdp->nxtlist;
-		rdp->qlen_lazy = 0;
-		rdp->qlen = 0;
 	}
 
-	/* Record a quiescent state for the dying CPU. */
+	/*
+	 * Record a quiescent state for the dying CPU.  This is safe
+	 * only because we have already cleared out the callbacks.
+	 * (Otherwise, the RCU core might try to schedule the invocation
+	 * of callbacks on this now-offline CPU, which would be bad.)
+	 */
 	mask = rdp->grpmask;	/* rnp->grplo is constant. */
 	trace_rcu_grace_period(rsp->name,
 			       rnp->gpnum + 1 - !!(rnp->qsmask & mask),
