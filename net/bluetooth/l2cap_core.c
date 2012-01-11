@@ -3927,15 +3927,15 @@ static inline int l2cap_data_channel_iframe(struct l2cap_chan *chan, u32 rx_cont
 		__skb_queue_head_init(&chan->srej_q);
 		l2cap_add_to_srej_queue(chan, skb, tx_seq, sar);
 
-		set_bit(CONN_SEND_PBIT, &chan->conn_state);
+		/* Set P-bit only if there are some I-frames to ack. */
+		if (__clear_ack_timer(chan))
+			set_bit(CONN_SEND_PBIT, &chan->conn_state);
 
 		err = l2cap_send_srejframe(chan, tx_seq);
 		if (err < 0) {
 			l2cap_send_disconn_req(chan->conn, chan, -err);
 			return err;
 		}
-
-		__clear_ack_timer(chan);
 	}
 	return 0;
 
