@@ -777,12 +777,12 @@ static int gss_pipes_dentries_create(struct rpc_auth *auth)
 	gss_auth = container_of(auth, struct gss_auth, rpc_auth);
 	clnt = gss_auth->client;
 
-	gss_auth->pipe[1]->dentry = rpc_mkpipe_dentry(clnt->cl_path.dentry,
+	gss_auth->pipe[1]->dentry = rpc_mkpipe_dentry(clnt->cl_dentry,
 						      "gssd",
 						      clnt, gss_auth->pipe[1]);
 	if (IS_ERR(gss_auth->pipe[1]->dentry))
 		return PTR_ERR(gss_auth->pipe[1]->dentry);
-	gss_auth->pipe[0]->dentry = rpc_mkpipe_dentry(clnt->cl_path.dentry,
+	gss_auth->pipe[0]->dentry = rpc_mkpipe_dentry(clnt->cl_dentry,
 						      gss_auth->mech->gm_name,
 						      clnt, gss_auth->pipe[0]);
 	if (IS_ERR(gss_auth->pipe[0]->dentry)) {
@@ -804,7 +804,7 @@ static void gss_pipes_dentries_destroy_net(struct rpc_clnt *clnt,
 
 	sb = rpc_get_sb_net(net);
 	if (sb) {
-		if (clnt->cl_path.dentry)
+		if (clnt->cl_dentry)
 			gss_pipes_dentries_destroy(auth);
 		rpc_put_sb_net(net);
 	}
@@ -819,7 +819,7 @@ static int gss_pipes_dentries_create_net(struct rpc_clnt *clnt,
 
 	sb = rpc_get_sb_net(net);
 	if (sb) {
-		if (clnt->cl_path.dentry)
+		if (clnt->cl_dentry)
 			err = gss_pipes_dentries_create(auth);
 		rpc_put_sb_net(net);
 	}

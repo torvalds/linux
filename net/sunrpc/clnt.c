@@ -98,12 +98,12 @@ static void rpc_unregister_client(struct rpc_clnt *clnt)
 
 static void __rpc_clnt_remove_pipedir(struct rpc_clnt *clnt)
 {
-	if (clnt->cl_path.dentry) {
+	if (clnt->cl_dentry) {
 		if (clnt->cl_auth && clnt->cl_auth->au_ops->pipes_destroy)
 			clnt->cl_auth->au_ops->pipes_destroy(clnt->cl_auth);
-		rpc_remove_client_dir(clnt->cl_path.dentry);
+		rpc_remove_client_dir(clnt->cl_dentry);
 	}
-	clnt->cl_path.dentry = NULL;
+	clnt->cl_dentry = NULL;
 }
 
 static void rpc_clnt_remove_pipedir(struct rpc_clnt *clnt)
@@ -154,20 +154,19 @@ static int
 rpc_setup_pipedir(struct rpc_clnt *clnt, char *dir_name)
 {
 	struct super_block *pipefs_sb;
-	struct path path;
+	struct dentry *dentry;
 
-	clnt->cl_path.mnt = ERR_PTR(-ENOENT);
-	clnt->cl_path.dentry = NULL;
+	clnt->cl_dentry = NULL;
 	if (dir_name == NULL)
 		return 0;
 	pipefs_sb = rpc_get_sb_net(clnt->cl_xprt->xprt_net);
 	if (!pipefs_sb)
 		return 0;
-	path.dentry = rpc_setup_pipedir_sb(pipefs_sb, clnt, dir_name);
+	dentry = rpc_setup_pipedir_sb(pipefs_sb, clnt, dir_name);
 	rpc_put_sb_net(clnt->cl_xprt->xprt_net);
-	if (IS_ERR(path.dentry))
-		return PTR_ERR(path.dentry);
-	clnt->cl_path = path;
+	if (IS_ERR(dentry))
+		return PTR_ERR(dentry);
+	clnt->cl_dentry = dentry;
 	return 0;
 }
 
@@ -186,7 +185,7 @@ static int __rpc_pipefs_event(struct rpc_clnt *clnt, unsigned long event,
 		BUG_ON(dentry == NULL);
 		if (IS_ERR(dentry))
 			return PTR_ERR(dentry);
-		clnt->cl_path.dentry = dentry;
+		clnt->cl_dentry = dentry;
 		if (clnt->cl_auth->au_ops->pipes_create) {
 			err = clnt->cl_auth->au_ops->pipes_create(clnt->cl_auth);
 			if (err)

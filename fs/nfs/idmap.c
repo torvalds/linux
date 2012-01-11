@@ -451,8 +451,8 @@ nfs_idmap_new(struct nfs_client *clp)
 		return error;
 	}
 
-	if (clp->cl_rpcclient->cl_path.dentry)
-		pipe->dentry = rpc_mkpipe_dentry(clp->cl_rpcclient->cl_path.dentry,
+	if (clp->cl_rpcclient->cl_dentry)
+		pipe->dentry = rpc_mkpipe_dentry(clp->cl_rpcclient->cl_dentry,
 				"idmap", idmap, pipe);
 	if (IS_ERR(pipe->dentry)) {
 		error = PTR_ERR(pipe->dentry);
