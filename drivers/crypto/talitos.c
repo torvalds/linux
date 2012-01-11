@@ -99,6 +99,8 @@ struct talitos_request {
 
 /* per-channel fifo management */
 struct talitos_channel {
+	void __iomem *reg;
+
 	/* request fifo */
 	struct talitos_request *fifo;
 
@@ -120,7 +122,7 @@ struct talitos_private {
 	struct device *dev;
 	struct platform_device *ofdev;
 	void __iomem *reg;
-	int irq;
+	int irq[2];
 
 	/* SEC version geometry (from device tree node) */
 	unsigned int num_channels;
@@ -144,7 +146,7 @@ struct talitos_private {
 	atomic_t last_chan ____cacheline_aligned;
 
 	/* request callback tasklet */
-	struct tasklet_struct done_task;
+	struct tasklet_struct done_task[2];
 
 	/* list of registered algorithms */
 	struct list_head alg_list;
@@ -157,6 +159,7 @@ struct talitos_private {
 #define TALITOS_FTR_SRC_LINK_TBL_LEN_INCLUDES_EXTENT 0x00000001
 #define TALITOS_FTR_HW_AUTH_CHECK 0x00000002
 #define TALITOS_FTR_SHA224_HWINIT 0x00000004
+#define TALITOS_FTR_HMAC_OK 0x00000008
 
 static void to_talitos_ptr(struct talitos_ptr *talitos_ptr, dma_addr_t dma_addr)
 {
@@ -196,9 +199,9 @@ static int reset_channel(struct device *dev, int ch)
 	struct talitos_private *priv = dev_get_drvdata(dev);
 	unsigned int timeout = TALITOS_TIMEOUT;
 
-	setbits32(priv->reg + TALITOS_CCCR(ch), TALITOS_CCCR_RESET);
+	setbits32(priv->chan[ch].reg + TALITOS_CCCR, TALITOS_CCCR_RESET);
 
-	while ((in_be32(priv->reg + TALITOS_CCCR(ch)) & TALITOS_CCCR_RESET)
+	while ((in_be32(priv->chan[ch].reg + TALITOS_CCCR) & TALITOS_CCCR_RESET)
 	       && --timeout)
 		cpu_relax();
 
@@ -208,12 +211,12 @@ static int reset_channel(struct device *dev, int ch)
 	}
 
 	/* set 36-bit addressing, done writeback enable and done IRQ enable */
-	setbits32(priv->reg + TALITOS_CCCR_LO(ch), TALITOS_CCCR_LO_EAE |
+	setbits32(priv->chan[ch].reg + TALITOS_CCCR_LO, TALITOS_CCCR_LO_EAE |
 		  TALITOS_CCCR_LO_CDWE | TALITOS_CCCR_LO_CDIE);
 
 	/* and ICCR writeback, if available */
 	if (priv->features & TALITOS_FTR_HW_AUTH_CHECK)
-		setbits32(priv->reg + TALITOS_CCCR_LO(ch),
+		setbits32(priv->chan[ch].reg + TALITOS_CCCR_LO,
 		          TALITOS_CCCR_LO_IWSE);
 
 	return 0;
@@ -223,12 +226,18 @@ static int reset_device(struct device *dev)
 {
 	struct talitos_private *priv = dev_get_drvdata(dev);
 	unsigned int timeout = TALITOS_TIMEOUT;
+	u32 mcr = TALITOS_MCR_SWR;
 
-	setbits32(priv->reg + TALITOS_MCR, TALITOS_MCR_SWR);
+	setbits32(priv->reg + TALITOS_MCR, mcr);
 
 	while ((in_be32(priv->reg + TALITOS_MCR) & TALITOS_MCR_SWR)
 	       && --timeout)
 		cpu_relax();
+
+	if (priv->irq[1]) {
+		mcr = TALITOS_MCR_RCA1 | TALITOS_MCR_RCA3;
+		setbits32(priv->reg + TALITOS_MCR, mcr);
+	}
 
 	if (timeout == 0) {
 		dev_err(dev, "failed to reset device\n");
@@ -327,8 +336,9 @@ static int talitos_submit(struct device *dev, int ch, struct talitos_desc *desc,
 
 	/* GO! */
 	wmb();
-	out_be32(priv->reg + TALITOS_FF(ch), upper_32_bits(request->dma_desc));
-	out_be32(priv->reg + TALITOS_FF_LO(ch),
+	out_be32(priv->chan[ch].reg + TALITOS_FF,
+		 upper_32_bits(request->dma_desc));
+	out_be32(priv->chan[ch].reg + TALITOS_FF_LO,
 		 lower_32_bits(request->dma_desc));
 
 	spin_unlock_irqrestore(&priv->chan[ch].head_lock, flags);
@@ -397,21 +407,32 @@ static void flush_channel(struct device *dev, int ch, int error, int reset_ch)
 /*
  * process completed requests for channels that have done status
  */
-static void talitos_done(unsigned long data)
-{
-	struct device *dev = (struct device *)data;
-	struct talitos_private *priv = dev_get_drvdata(dev);
-	int ch;
-
-	for (ch = 0; ch < priv->num_channels; ch++)
-		flush_channel(dev, ch, 0, 0);
-
-	/* At this point, all completed channels have been processed.
-	 * Unmask done interrupts for channels completed later on.
-	 */
-	setbits32(priv->reg + TALITOS_IMR, TALITOS_IMR_INIT);
-	setbits32(priv->reg + TALITOS_IMR_LO, TALITOS_IMR_LO_INIT);
+#define DEF_TALITOS_DONE(name, ch_done_mask)				\
+static void talitos_done_##name(unsigned long data)			\
+{									\
+	struct device *dev = (struct device *)data;			\
+	struct talitos_private *priv = dev_get_drvdata(dev);		\
+									\
+	if (ch_done_mask & 1)						\
+		flush_channel(dev, 0, 0, 0);				\
+	if (priv->num_channels == 1)					\
+		goto out;						\
+	if (ch_done_mask & (1 << 2))					\
+		flush_channel(dev, 1, 0, 0);				\
+	if (ch_done_mask & (1 << 4))					\
+		flush_channel(dev, 2, 0, 0);				\
+	if (ch_done_mask & (1 << 6))					\
+		flush_channel(dev, 3, 0, 0);				\
+									\
+out:									\
+	/* At this point, all completed channels have been processed */	\
+	/* Unmask done interrupts for channels completed later on. */	\
+	setbits32(priv->reg + TALITOS_IMR, ch_done_mask);		\
+	setbits32(priv->reg + TALITOS_IMR_LO, TALITOS_IMR_LO_INIT);	\
 }
+DEF_TALITOS_DONE(4ch, TALITOS_ISR_4CHDONE)
+DEF_TALITOS_DONE(ch0_2, TALITOS_ISR_CH_0_2_DONE)
+DEF_TALITOS_DONE(ch1_3, TALITOS_ISR_CH_1_3_DONE)
 
 /*
  * locate current (offending) descriptor
@@ -422,7 +443,7 @@ static u32 current_desc_hdr(struct device *dev, int ch)
 	int tail = priv->chan[ch].tail;
 	dma_addr_t cur_desc;
 
-	cur_desc = in_be32(priv->reg + TALITOS_CDPR_LO(ch));
+	cur_desc = in_be32(priv->chan[ch].reg + TALITOS_CDPR_LO);
 
 	while (priv->chan[ch].fifo[tail].dma_desc != cur_desc) {
 		tail = (tail + 1) & (priv->fifo_len - 1);
@@ -444,7 +465,7 @@ static void report_eu_error(struct device *dev, int ch, u32 desc_hdr)
 	int i;
 
 	if (!desc_hdr)
-		desc_hdr = in_be32(priv->reg + TALITOS_DESCBUF(ch));
+		desc_hdr = in_be32(priv->chan[ch].reg + TALITOS_DESCBUF);
 
 	switch (desc_hdr & DESC_HDR_SEL0_MASK) {
 	case DESC_HDR_SEL0_AFEU:
@@ -506,16 +527,15 @@ static void report_eu_error(struct device *dev, int ch, u32 desc_hdr)
 
 	for (i = 0; i < 8; i++)
 		dev_err(dev, "DESCBUF 0x%08x_%08x\n",
-			in_be32(priv->reg + TALITOS_DESCBUF(ch) + 8*i),
-			in_be32(priv->reg + TALITOS_DESCBUF_LO(ch) + 8*i));
+			in_be32(priv->chan[ch].reg + TALITOS_DESCBUF + 8*i),
+			in_be32(priv->chan[ch].reg + TALITOS_DESCBUF_LO + 8*i));
 }
 
 /*
  * recover from error interrupts
  */
-static void talitos_error(unsigned long data, u32 isr, u32 isr_lo)
+static void talitos_error(struct device *dev, u32 isr, u32 isr_lo)
 {
-	struct device *dev = (struct device *)data;
 	struct talitos_private *priv = dev_get_drvdata(dev);
 	unsigned int timeout = TALITOS_TIMEOUT;
 	int ch, error, reset_dev = 0, reset_ch = 0;
@@ -528,8 +548,8 @@ static void talitos_error(unsigned long data, u32 isr, u32 isr_lo)
 
 		error = -EINVAL;
 
-		v = in_be32(priv->reg + TALITOS_CCPSR(ch));
-		v_lo = in_be32(priv->reg + TALITOS_CCPSR_LO(ch));
+		v = in_be32(priv->chan[ch].reg + TALITOS_CCPSR);
+		v_lo = in_be32(priv->chan[ch].reg + TALITOS_CCPSR_LO);
 
 		if (v_lo & TALITOS_CCPSR_LO_DOF) {
 			dev_err(dev, "double fetch fifo overflow error\n");
@@ -567,10 +587,10 @@ static void talitos_error(unsigned long data, u32 isr, u32 isr_lo)
 		if (reset_ch) {
 			reset_channel(dev, ch);
 		} else {
-			setbits32(priv->reg + TALITOS_CCCR(ch),
+			setbits32(priv->chan[ch].reg + TALITOS_CCCR,
 				  TALITOS_CCCR_CONT);
-			setbits32(priv->reg + TALITOS_CCCR_LO(ch), 0);
-			while ((in_be32(priv->reg + TALITOS_CCCR(ch)) &
+			setbits32(priv->chan[ch].reg + TALITOS_CCCR_LO, 0);
+			while ((in_be32(priv->chan[ch].reg + TALITOS_CCCR) &
 			       TALITOS_CCCR_CONT) && --timeout)
 				cpu_relax();
 			if (timeout == 0) {
@@ -580,7 +600,7 @@ static void talitos_error(unsigned long data, u32 isr, u32 isr_lo)
 			}
 		}
 	}
-	if (reset_dev || isr & ~TALITOS_ISR_CHERR || isr_lo) {
+	if (reset_dev || isr & ~TALITOS_ISR_4CHERR || isr_lo) {
 		dev_err(dev, "done overflow, internal time out, or rngu error: "
 		        "ISR 0x%08x_%08x\n", isr, isr_lo);
 
@@ -593,30 +613,35 @@ static void talitos_error(unsigned long data, u32 isr, u32 isr_lo)
 	}
 }
 
-static irqreturn_t talitos_interrupt(int irq, void *data)
-{
-	struct device *dev = data;
-	struct talitos_private *priv = dev_get_drvdata(dev);
-	u32 isr, isr_lo;
-
-	isr = in_be32(priv->reg + TALITOS_ISR);
-	isr_lo = in_be32(priv->reg + TALITOS_ISR_LO);
-	/* Acknowledge interrupt */
-	out_be32(priv->reg + TALITOS_ICR, isr);
-	out_be32(priv->reg + TALITOS_ICR_LO, isr_lo);
-
-	if (unlikely((isr & ~TALITOS_ISR_CHDONE) || isr_lo))
-		talitos_error((unsigned long)data, isr, isr_lo);
-	else
-		if (likely(isr & TALITOS_ISR_CHDONE)) {
-			/* mask further done interrupts. */
-			clrbits32(priv->reg + TALITOS_IMR, TALITOS_IMR_DONE);
-			/* done_task will unmask done interrupts at exit */
-			tasklet_schedule(&priv->done_task);
-		}
-
-	return (isr || isr_lo) ? IRQ_HANDLED : IRQ_NONE;
+#define DEF_TALITOS_INTERRUPT(name, ch_done_mask, ch_err_mask, tlet)	       \
+static irqreturn_t talitos_interrupt_##name(int irq, void *data)	       \
+{									       \
+	struct device *dev = data;					       \
+	struct talitos_private *priv = dev_get_drvdata(dev);		       \
+	u32 isr, isr_lo;						       \
+									       \
+	isr = in_be32(priv->reg + TALITOS_ISR);				       \
+	isr_lo = in_be32(priv->reg + TALITOS_ISR_LO);			       \
+	/* Acknowledge interrupt */					       \
+	out_be32(priv->reg + TALITOS_ICR, isr & (ch_done_mask | ch_err_mask)); \
+	out_be32(priv->reg + TALITOS_ICR_LO, isr_lo);			       \
+									       \
+	if (unlikely((isr & ~TALITOS_ISR_4CHDONE) & ch_err_mask || isr_lo))    \
+		talitos_error(dev, isr, isr_lo);			       \
+	else								       \
+		if (likely(isr & ch_done_mask)) {			       \
+			/* mask further done interrupts. */		       \
+			clrbits32(priv->reg + TALITOS_IMR, ch_done_mask);      \
+			/* done_task will unmask done interrupts at exit */    \
+			tasklet_schedule(&priv->done_task[tlet]);	       \
+		}							       \
+									       \
+	return (isr & (ch_done_mask | ch_err_mask) || isr_lo) ? IRQ_HANDLED :  \
+								IRQ_NONE;      \
 }
+DEF_TALITOS_INTERRUPT(4ch, TALITOS_ISR_4CHDONE, TALITOS_ISR_4CHERR, 0)
+DEF_TALITOS_INTERRUPT(ch0_2, TALITOS_ISR_CH_0_2_DONE, TALITOS_ISR_CH_0_2_ERR, 0)
+DEF_TALITOS_INTERRUPT(ch1_3, TALITOS_ISR_CH_1_3_DONE, TALITOS_ISR_CH_1_3_ERR, 1)
 
 /*
  * hwrng
@@ -1874,6 +1899,97 @@ static int ahash_digest(struct ahash_request *areq)
 	return ahash_process_req(areq, areq->nbytes);
 }
 
+struct keyhash_result {
+	struct completion completion;
+	int err;
+};
+
+static void keyhash_complete(struct crypto_async_request *req, int err)
+{
+	struct keyhash_result *res = req->data;
+
+	if (err == -EINPROGRESS)
+		return;
+
+	res->err = err;
+	complete(&res->completion);
+}
+
+static int keyhash(struct crypto_ahash *tfm, const u8 *key, unsigned int keylen,
+		   u8 *hash)
+{
+	struct talitos_ctx *ctx = crypto_tfm_ctx(crypto_ahash_tfm(tfm));
+
+	struct scatterlist sg[1];
+	struct ahash_request *req;
+	struct keyhash_result hresult;
+	int ret;
+
+	init_completion(&hresult.completion);
+
+	req = ahash_request_alloc(tfm, GFP_KERNEL);
+	if (!req)
+		return -ENOMEM;
+
+	/* Keep tfm keylen == 0 during hash of the long key */
+	ctx->keylen = 0;
+	ahash_request_set_callback(req, CRYPTO_TFM_REQ_MAY_BACKLOG,
+				   keyhash_complete, &hresult);
+
+	sg_init_one(&sg[0], key, keylen);
+
+	ahash_request_set_crypt(req, sg, hash, keylen);
+	ret = crypto_ahash_digest(req);
+	switch (ret) {
+	case 0:
+		break;
+	case -EINPROGRESS:
+	case -EBUSY:
+		ret = wait_for_completion_interruptible(
+			&hresult.completion);
+		if (!ret)
+			ret = hresult.err;
+		break;
+	default:
+		break;
+	}
+	ahash_request_free(req);
+
+	return ret;
+}
+
+static int ahash_setkey(struct crypto_ahash *tfm, const u8 *key,
+			unsigned int keylen)
+{
+	struct talitos_ctx *ctx = crypto_tfm_ctx(crypto_ahash_tfm(tfm));
+	unsigned int blocksize =
+			crypto_tfm_alg_blocksize(crypto_ahash_tfm(tfm));
+	unsigned int digestsize = crypto_ahash_digestsize(tfm);
+	unsigned int keysize = keylen;
+	u8 hash[SHA512_DIGEST_SIZE];
+	int ret;
+
+	if (keylen <= blocksize)
+		memcpy(ctx->key, key, keysize);
+	else {
+		/* Must get the hash of the long key */
+		ret = keyhash(tfm, key, keylen, hash);
+
+		if (ret) {
+			crypto_ahash_set_flags(tfm, CRYPTO_TFM_RES_BAD_KEY_LEN);
+			return -EINVAL;
+		}
+
+		keysize = digestsize;
+		memcpy(ctx->key, hash, digestsize);
+	}
+
+	ctx->keylen = keysize;
+
+	return 0;
+}
+
+
 struct talitos_alg_template {
 	u32 type;
 	union {
@@ -2217,6 +2333,138 @@ static struct talitos_alg_template driver_algs[] = {
 				     DESC_HDR_SEL0_MDEUB |
 				     DESC_HDR_MODE0_MDEUB_SHA512,
 	},
+	{	.type = CRYPTO_ALG_TYPE_AHASH,
+		.alg.hash = {
+			.init = ahash_init,
+			.update = ahash_update,
+			.final = ahash_final,
+			.finup = ahash_finup,
+			.digest = ahash_digest,
+			.setkey = ahash_setkey,
+			.halg.digestsize = MD5_DIGEST_SIZE,
+			.halg.base = {
+				.cra_name = "hmac(md5)",
+				.cra_driver_name = "hmac-md5-talitos",
+				.cra_blocksize = MD5_BLOCK_SIZE,
+				.cra_flags = CRYPTO_ALG_TYPE_AHASH |
+					     CRYPTO_ALG_ASYNC,
+				.cra_type = &crypto_ahash_type
+			}
+		},
+		.desc_hdr_template = DESC_HDR_TYPE_COMMON_NONSNOOP_NO_AFEU |
+				     DESC_HDR_SEL0_MDEUA |
+				     DESC_HDR_MODE0_MDEU_MD5,
+	},
+	{	.type = CRYPTO_ALG_TYPE_AHASH,
+		.alg.hash = {
+			.init = ahash_init,
+			.update = ahash_update,
+			.final = ahash_final,
+			.finup = ahash_finup,
+			.digest = ahash_digest,
+			.setkey = ahash_setkey,
+			.halg.digestsize = SHA1_DIGEST_SIZE,
+			.halg.base = {
+				.cra_name = "hmac(sha1)",
+				.cra_driver_name = "hmac-sha1-talitos",
+				.cra_blocksize = SHA1_BLOCK_SIZE,
+				.cra_flags = CRYPTO_ALG_TYPE_AHASH |
+					     CRYPTO_ALG_ASYNC,
+				.cra_type = &crypto_ahash_type
+			}
+		},
+		.desc_hdr_template = DESC_HDR_TYPE_COMMON_NONSNOOP_NO_AFEU |
+				     DESC_HDR_SEL0_MDEUA |
+				     DESC_HDR_MODE0_MDEU_SHA1,
+	},
+	{	.type = CRYPTO_ALG_TYPE_AHASH,
+		.alg.hash = {
+			.init = ahash_init,
+			.update = ahash_update,
+			.final = ahash_final,
+			.finup = ahash_finup,
+			.digest = ahash_digest,
+			.setkey = ahash_setkey,
+			.halg.digestsize = SHA224_DIGEST_SIZE,
+			.halg.base = {
+				.cra_name = "hmac(sha224)",
+				.cra_driver_name = "hmac-sha224-talitos",
+				.cra_blocksize = SHA224_BLOCK_SIZE,
+				.cra_flags = CRYPTO_ALG_TYPE_AHASH |
+					     CRYPTO_ALG_ASYNC,
+				.cra_type = &crypto_ahash_type
+			}
+		},
+		.desc_hdr_template = DESC_HDR_TYPE_COMMON_NONSNOOP_NO_AFEU |
+				     DESC_HDR_SEL0_MDEUA |
+				     DESC_HDR_MODE0_MDEU_SHA224,
+	},
+	{	.type = CRYPTO_ALG_TYPE_AHASH,
+		.alg.hash = {
+			.init = ahash_init,
+			.update = ahash_update,
+			.final = ahash_final,
+			.finup = ahash_finup,
+			.digest = ahash_digest,
+			.setkey = ahash_setkey,
+			.halg.digestsize = SHA256_DIGEST_SIZE,
+			.halg.base = {
+				.cra_name = "hmac(sha256)",
+				.cra_driver_name = "hmac-sha256-talitos",
+				.cra_blocksize = SHA256_BLOCK_SIZE,
+				.cra_flags = CRYPTO_ALG_TYPE_AHASH |
+					     CRYPTO_ALG_ASYNC,
+				.cra_type = &crypto_ahash_type
+			}
+		},
+		.desc_hdr_template = DESC_HDR_TYPE_COMMON_NONSNOOP_NO_AFEU |
+				     DESC_HDR_SEL0_MDEUA |
+				     DESC_HDR_MODE0_MDEU_SHA256,
+	},
+	{	.type = CRYPTO_ALG_TYPE_AHASH,
+		.alg.hash = {
+			.init = ahash_init,
+			.update = ahash_update,
+			.final = ahash_final,
+			.finup = ahash_finup,
+			.digest = ahash_digest,
+			.setkey = ahash_setkey,
+			.halg.digestsize = SHA384_DIGEST_SIZE,
+			.halg.base = {
+				.cra_name = "hmac(sha384)",
+				.cra_driver_name = "hmac-sha384-talitos",
+				.cra_blocksize = SHA384_BLOCK_SIZE,
+				.cra_flags = CRYPTO_ALG_TYPE_AHASH |
+					     CRYPTO_ALG_ASYNC,
+				.cra_type = &crypto_ahash_type
+			}
+		},
+		.desc_hdr_template = DESC_HDR_TYPE_COMMON_NONSNOOP_NO_AFEU |
+				     DESC_HDR_SEL0_MDEUB |
+				     DESC_HDR_MODE0_MDEUB_SHA384,
+	},
+	{	.type = CRYPTO_ALG_TYPE_AHASH,
+		.alg.hash = {
+			.init = ahash_init,
+			.update = ahash_update,
+			.final = ahash_final,
+			.finup = ahash_finup,
+			.digest = ahash_digest,
+			.setkey = ahash_setkey,
+			.halg.digestsize = SHA512_DIGEST_SIZE,
+			.halg.base = {
+				.cra_name = "hmac(sha512)",
+				.cra_driver_name = "hmac-sha512-talitos",
+				.cra_blocksize = SHA512_BLOCK_SIZE,
+				.cra_flags = CRYPTO_ALG_TYPE_AHASH |
+					     CRYPTO_ALG_ASYNC,
+				.cra_type = &crypto_ahash_type
+			}
+		},
+		.desc_hdr_template = DESC_HDR_TYPE_COMMON_NONSNOOP_NO_AFEU |
+				     DESC_HDR_SEL0_MDEUB |
+				     DESC_HDR_MODE0_MDEUB_SHA512,
+	}
 };
 
 struct talitos_crypto_alg {
@@ -2331,12 +2579,15 @@ static int talitos_remove(struct platform_device *ofdev)
 
 	kfree(priv->chan);
 
-	if (priv->irq != NO_IRQ) {
-		free_irq(priv->irq, dev);
-		irq_dispose_mapping(priv->irq);
-	}
+	for (i = 0; i < 2; i++)
+		if (priv->irq[i]) {
+			free_irq(priv->irq[i], dev);
+			irq_dispose_mapping(priv->irq[i]);
+		}
 
-	tasklet_kill(&priv->done_task);
+	tasklet_kill(&priv->done_task[0]);
+	if (priv->irq[1])
+		tasklet_kill(&priv->done_task[1]);
 
 	iounmap(priv->reg);
 
@@ -2373,8 +2624,14 @@ static struct talitos_crypto_alg *talitos_alg_alloc(struct device *dev,
 	case CRYPTO_ALG_TYPE_AHASH:
 		alg = &t_alg->algt.alg.hash.halg.base;
 		alg->cra_init = talitos_cra_init_ahash;
+		if (!(priv->features & TALITOS_FTR_HMAC_OK) &&
+		    !strncmp(alg->cra_name, "hmac", 4)) {
+			kfree(t_alg);
+			return ERR_PTR(-ENOTSUPP);
+		}
 		if (!(priv->features & TALITOS_FTR_SHA224_HWINIT) &&
-		    !strcmp(alg->cra_name, "sha224")) {
+		    (!strcmp(alg->cra_name, "sha224") ||
+		     !strcmp(alg->cra_name, "hmac(sha224)"))) {
 			t_alg->algt.alg.hash.init = ahash_init_sha224_swinit;
 			t_alg->algt.desc_hdr_template =
 					DESC_HDR_TYPE_COMMON_NONSNOOP_NO_AFEU |
@@ -2397,6 +2654,54 @@ static struct talitos_crypto_alg *talitos_alg_alloc(struct device *dev,
 	return t_alg;
 }
 
+static int talitos_probe_irq(struct platform_device *ofdev)
+{
+	struct device *dev = &ofdev->dev;
+	struct device_node *np = ofdev->dev.of_node;
+	struct talitos_private *priv = dev_get_drvdata(dev);
+	int err;
+
+	priv->irq[0] = irq_of_parse_and_map(np, 0);
+	if (!priv->irq[0]) {
+		dev_err(dev, "failed to map irq\n");
+		return -EINVAL;
+	}
+
+	priv->irq[1] = irq_of_parse_and_map(np, 1);
+
+	/* get the primary irq line */
+	if (!priv->irq[1]) {
+		err = request_irq(priv->irq[0], talitos_interrupt_4ch, 0,
+				  dev_driver_string(dev), dev);
+		goto primary_out;
+	}
+
+	err = request_irq(priv->irq[0], talitos_interrupt_ch0_2, 0,
+			  dev_driver_string(dev), dev);
+	if (err)
+		goto primary_out;
+
+	/* get the secondary irq line */
+	err = request_irq(priv->irq[1], talitos_interrupt_ch1_3, 0,
+			  dev_driver_string(dev), dev);
+	if (err) {
+		dev_err(dev, "failed to request secondary irq\n");
+		irq_dispose_mapping(priv->irq[1]);
+		priv->irq[1] = 0;
+	}
+
+	return err;
+
+primary_out:
+	if (err) {
+		dev_err(dev, "failed to request primary irq\n");
+		irq_dispose_mapping(priv->irq[0]);
+		priv->irq[0] = 0;
+	}
+
+	return err;
+}
+
 static int talitos_probe(struct platform_device *ofdev)
 {
 	struct device *dev = &ofdev->dev;
@@ -2413,27 +2718,21 @@ static int talitos_probe(struct platform_device *ofdev)
 
 	priv->ofdev = ofdev;
 
-	tasklet_init(&priv->done_task, talitos_done, (unsigned long)dev);
+	err = talitos_probe_irq(ofdev);
+	if (err)
+		goto err_out;
+
+	if (!priv->irq[1]) {
+		tasklet_init(&priv->done_task[0], talitos_done_4ch,
+			     (unsigned long)dev);
+	} else {
+		tasklet_init(&priv->done_task[0], talitos_done_ch0_2,
+			     (unsigned long)dev);
+		tasklet_init(&priv->done_task[1], talitos_done_ch1_3,
+			     (unsigned long)dev);
+	}
 
 	INIT_LIST_HEAD(&priv->alg_list);
-
-	priv->irq = irq_of_parse_and_map(np, 0);
-
-	if (priv->irq == NO_IRQ) {
-		dev_err(dev, "failed to map irq\n");
-		err = -EINVAL;
-		goto err_out;
-	}
-
-	/* get the irq line */
-	err = request_irq(priv->irq, talitos_interrupt, 0,
-			  dev_driver_string(dev), dev);
-	if (err) {
-		dev_err(dev, "failed to request irq %d\n", priv->irq);
-		irq_dispose_mapping(priv->irq);
-		priv->irq = NO_IRQ;
-		goto err_out;
-	}
 
 	priv->reg = of_iomap(np, 0);
 	if (!priv->reg) {
@@ -2471,7 +2770,8 @@ static int talitos_probe(struct platform_device *ofdev)
 
 	if (of_device_is_compatible(np, "fsl,sec2.1"))
 		priv->features |= TALITOS_FTR_HW_AUTH_CHECK |
-				  TALITOS_FTR_SHA224_HWINIT;
+				  TALITOS_FTR_SHA224_HWINIT |
+				  TALITOS_FTR_HMAC_OK;
 
 	priv->chan = kzalloc(sizeof(struct talitos_channel) *
 			     priv->num_channels, GFP_KERNEL);
@@ -2479,6 +2779,12 @@ static int talitos_probe(struct platform_device *ofdev)
 		dev_err(dev, "failed to allocate channel management space\n");
 		err = -ENOMEM;
 		goto err_out;
+	}
+
+	for (i = 0; i < priv->num_channels; i++) {
+		priv->chan[i].reg = priv->reg + TALITOS_CH_STRIDE * (i + 1);
+		if (!priv->irq[1] || !(i & 1))
+			priv->chan[i].reg += TALITOS_CH_BASE_OFFSET;
 	}
 
 	for (i = 0; i < priv->num_channels; i++) {
@@ -2530,6 +2836,8 @@ static int talitos_probe(struct platform_device *ofdev)
 			t_alg = talitos_alg_alloc(dev, &driver_algs[i]);
 			if (IS_ERR(t_alg)) {
 				err = PTR_ERR(t_alg);
+				if (err == -ENOTSUPP)
+					continue;
 				goto err_out;
 			}
 
@@ -2551,12 +2859,13 @@ static int talitos_probe(struct platform_device *ofdev)
 				dev_err(dev, "%s alg registration failed\n",
 					name);
 				kfree(t_alg);
-			} else {
+			} else
 				list_add_tail(&t_alg->entry, &priv->alg_list);
-				dev_info(dev, "%s\n", name);
-			}
 		}
 	}
+	if (!list_empty(&priv->alg_list))
+		dev_info(dev, "%s algorithms registered in /proc/crypto\n",
+			 (char *)of_get_property(np, "compatible", NULL));
 
 	return 0;
 
@@ -2584,17 +2893,7 @@ static struct platform_driver talitos_driver = {
 	.remove = talitos_remove,
 };
 
-static int __init talitos_init(void)
-{
-	return platform_driver_register(&talitos_driver);
-}
-module_init(talitos_init);
-
-static void __exit talitos_exit(void)
-{
-	platform_driver_unregister(&talitos_driver);
-}
-module_exit(talitos_exit);
+module_platform_driver(talitos_driver);
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Kim Phillips <kim.phillips@freescale.com>");
