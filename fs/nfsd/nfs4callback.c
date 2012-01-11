@@ -622,7 +622,7 @@ static struct rpc_program cb_program = {
 	.nrvers			= ARRAY_SIZE(nfs_cb_version),
 	.version		= nfs_cb_version,
 	.stats			= &cb_stats,
-	.pipe_dir_name		= "/nfsd4_cb",
+	.pipe_dir_name		= "nfsd4_cb",
 };
 
 static int max_cb_time(void)
