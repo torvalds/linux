@@ -25,6 +25,7 @@
 #include <linux/slab.h>
 #include <linux/irq.h>
 #include <linux/dma-mapping.h>
+#include <linux/platform_data/clk-nomadik.h>
 
 #include <plat/gpio-nomadik.h>
 #include <mach/hardware.h>
@@ -35,7 +36,6 @@
 #include <asm/cacheflush.h>
 #include <asm/hardware/cache-l2x0.h>
 
-#include "clock.h"
 #include "cpu-8815.h"
 
 /* The 8815 has 4 GPIO blocks, let's register them immediately */
@@ -123,7 +123,7 @@ void __init cpu8815_init_irq(void)
 	 * Init clocks here so that they are available for system timer
 	 * initialization.
 	 */
-	clk_init();
+	nomadik_clk_init();
 }
 
 /*

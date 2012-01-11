@@ -912,7 +912,7 @@ config ARCH_NOMADIK
 	select ARM_AMBA
 	select ARM_VIC
 	select CPU_ARM926T
-	select CLKDEV_LOOKUP
+	select COMMON_CLK
 	select GENERIC_CLOCKEVENTS
 	select PINCTRL
 	select MIGHT_HAVE_CACHE_L2X0
