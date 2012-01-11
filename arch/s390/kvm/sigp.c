@@ -48,7 +48,7 @@
 
 
 static int __sigp_sense(struct kvm_vcpu *vcpu, u16 cpu_addr,
-			unsigned long *reg)
+			u64 *reg)
 {
 	struct kvm_s390_float_interrupt *fi = &vcpu->kvm->arch.float_int;
 	int rc;
@@ -220,7 +220,7 @@ static int __sigp_set_arch(struct kvm_vcpu *vcpu, u32 parameter)
 }
 
 static int __sigp_set_prefix(struct kvm_vcpu *vcpu, u16 cpu_addr, u32 address,
-			     unsigned long *reg)
+			     u64 *reg)
 {
 	struct kvm_s390_float_interrupt *fi = &vcpu->kvm->arch.float_int;
 	struct kvm_s390_local_interrupt *li = NULL;
@@ -278,7 +278,7 @@ out_fi:
 }
 
 static int __sigp_sense_running(struct kvm_vcpu *vcpu, u16 cpu_addr,
-				unsigned long *reg)
+				u64 *reg)
 {
 	int rc;
 	struct kvm_s390_float_interrupt *fi = &vcpu->kvm->arch.float_int;
@@ -316,7 +316,7 @@ int kvm_s390_handle_sigp(struct kvm_vcpu *vcpu)
 	int base2 = vcpu->arch.sie_block->ipb >> 28;
 	int disp2 = ((vcpu->arch.sie_block->ipb & 0x0fff0000) >> 16);
 	u32 parameter;
-	u16 cpu_addr = vcpu->arch.guest_gprs[r3];
+	u16 cpu_addr = vcpu->run->s.regs.gprs[r3];
 	u8 order_code;
 	int rc;
 
@@ -327,18 +327,18 @@ int kvm_s390_handle_sigp(struct kvm_vcpu *vcpu)
 
 	order_code = disp2;
 	if (base2)
-		order_code += vcpu->arch.guest_gprs[base2];
+		order_code += vcpu->run->s.regs.gprs[base2];
 
 	if (r1 % 2)
-		parameter = vcpu->arch.guest_gprs[r1];
+		parameter = vcpu->run->s.regs.gprs[r1];
 	else
-		parameter = vcpu->arch.guest_gprs[r1 + 1];
+		parameter = vcpu->run->s.regs.gprs[r1 + 1];
 
 	switch (order_code) {
 	case SIGP_SENSE:
 		vcpu->stat.instruction_sigp_sense++;
 		rc = __sigp_sense(vcpu, cpu_addr,
-				  &vcpu->arch.guest_gprs[r1]);
+				  &vcpu->run->s.regs.gprs[r1]);
 		break;
 	case SIGP_EXTERNAL_CALL:
 		vcpu->stat.instruction_sigp_external_call++;
@@ -363,12 +363,12 @@ int kvm_s390_handle_sigp(struct kvm_vcpu *vcpu)
 	case SIGP_SET_PREFIX:
 		vcpu->stat.instruction_sigp_prefix++;
 		rc = __sigp_set_prefix(vcpu, cpu_addr, parameter,
-				       &vcpu->arch.guest_gprs[r1]);
+				       &vcpu->run->s.regs.gprs[r1]);
 		break;
 	case SIGP_SENSE_RUNNING:
 		vcpu->stat.instruction_sigp_sense_running++;
 		rc = __sigp_sense_running(vcpu, cpu_addr,
-					  &vcpu->arch.guest_gprs[r1]);
+					  &vcpu->run->s.regs.gprs[r1]);
 		break;
 	case SIGP_RESTART:
 		vcpu->stat.instruction_sigp_restart++;

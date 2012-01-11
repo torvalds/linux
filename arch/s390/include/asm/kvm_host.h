@@ -228,7 +228,6 @@ struct kvm_s390_float_interrupt {
 
 struct kvm_vcpu_arch {
 	struct kvm_s390_sie_block *sie_block;
-	unsigned long	  guest_gprs[16];
 	s390_fp_regs      host_fpregs;
 	unsigned int      host_acrs[NUM_ACRS];
 	s390_fp_regs      guest_fpregs;
@@ -254,5 +253,5 @@ struct kvm_arch{
 	struct gmap *gmap;
 };
 
-extern int sie64a(struct kvm_s390_sie_block *, unsigned long *);
+extern int sie64a(struct kvm_s390_sie_block *, u64 *);
 #endif

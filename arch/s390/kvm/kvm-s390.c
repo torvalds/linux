@@ -289,7 +289,7 @@ int kvm_arch_vcpu_init(struct kvm_vcpu *vcpu)
 	}
 
 	vcpu->arch.gmap = vcpu->kvm->arch.gmap;
-	vcpu->run->kvm_valid_regs = KVM_SYNC_PREFIX;
+	vcpu->run->kvm_valid_regs = KVM_SYNC_PREFIX | KVM_SYNC_GPRS;
 	return 0;
 }
 
@@ -428,13 +428,13 @@ static int kvm_arch_vcpu_ioctl_initial_reset(struct kvm_vcpu *vcpu)
 
 int kvm_arch_vcpu_ioctl_set_regs(struct kvm_vcpu *vcpu, struct kvm_regs *regs)
 {
-	memcpy(&vcpu->arch.guest_gprs, &regs->gprs, sizeof(regs->gprs));
+	memcpy(&vcpu->run->s.regs.gprs, &regs->gprs, sizeof(regs->gprs));
 	return 0;
 }
 
 int kvm_arch_vcpu_ioctl_get_regs(struct kvm_vcpu *vcpu, struct kvm_regs *regs)
 {
-	memcpy(&regs->gprs, &vcpu->arch.guest_gprs, sizeof(regs->gprs));
+	memcpy(&regs->gprs, &vcpu->run->s.regs.gprs, sizeof(regs->gprs));
 	return 0;
 }
 
@@ -511,7 +511,7 @@ static int __vcpu_run(struct kvm_vcpu *vcpu)
 {
 	int rc;
 
-	memcpy(&vcpu->arch.sie_block->gg14, &vcpu->arch.guest_gprs[14], 16);
+	memcpy(&vcpu->arch.sie_block->gg14, &vcpu->run->s.regs.gprs[14], 16);
 
 	if (need_resched())
 		schedule();
@@ -528,7 +528,7 @@ static int __vcpu_run(struct kvm_vcpu *vcpu)
 	local_irq_enable();
 	VCPU_EVENT(vcpu, 6, "entering sie flags %x",
 		   atomic_read(&vcpu->arch.sie_block->cpuflags));
-	rc = sie64a(vcpu->arch.sie_block, vcpu->arch.guest_gprs);
+	rc = sie64a(vcpu->arch.sie_block, vcpu->run->s.regs.gprs);
 	if (rc) {
 		if (kvm_is_ucontrol(vcpu->kvm)) {
 			rc = SIE_INTERCEPT_UCONTROL;
@@ -544,7 +544,7 @@ static int __vcpu_run(struct kvm_vcpu *vcpu)
 	kvm_guest_exit();
 	local_irq_enable();
 
-	memcpy(&vcpu->arch.guest_gprs[14], &vcpu->arch.sie_block->gg14, 16);
+	memcpy(&vcpu->run->s.regs.gprs[14], &vcpu->arch.sie_block->gg14, 16);
 	return rc;
 }
 
@@ -673,7 +673,7 @@ int kvm_s390_vcpu_store_status(struct kvm_vcpu *vcpu, unsigned long addr)
 		return -EFAULT;
 
 	if (__guestcopy(vcpu, addr + offsetof(struct save_area, gp_regs),
-			vcpu->arch.guest_gprs, 128, prefix))
+			vcpu->run->s.regs.gprs, 128, prefix))
 		return -EFAULT;
 
 	if (__guestcopy(vcpu, addr + offsetof(struct save_area, psw),
