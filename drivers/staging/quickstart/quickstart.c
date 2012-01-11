@@ -309,13 +309,15 @@ fail_config:
 
 static int quickstart_acpi_remove(struct acpi_device *device, int type)
 {
-	acpi_status status = 0;
-	struct quickstart_acpi *quickstart = NULL;
+	acpi_status status;
+	struct quickstart_acpi *quickstart;
 
-	if (!device || !acpi_driver_data(device))
+	if (!device)
 		return -EINVAL;
 
 	quickstart = acpi_driver_data(device);
+	if (!quickstart)
+		return -EINVAL;
 
 	status = acpi_remove_notify_handler(device->handle, ACPI_ALL_NOTIFY,
 						quickstart_acpi_notify);
