@@ -56,14 +56,13 @@ void autofs4_catatonic_mode(struct autofs_sb_info *sbi)
 	mutex_unlock(&sbi->wq_mutex);
 }
 
-static int autofs4_write(struct file *file, const void *addr, int bytes)
+static int autofs4_write(struct autofs_sb_info *sbi,
+			 struct file *file, const void *addr, int bytes)
 {
 	unsigned long sigpipe, flags;
 	mm_segment_t fs;
 	const char *data = (const char *)addr;
 	ssize_t wr = 0;
-
-	/** WARNING: this is not safe for writing more than PIPE_BUF bytes! **/
 
 	sigpipe = sigismember(&current->pending.signal, SIGPIPE);
 
@@ -71,11 +70,13 @@ static int autofs4_write(struct file *file, const void *addr, int bytes)
 	fs = get_fs();
 	set_fs(KERNEL_DS);
 
+	mutex_lock(&sbi->pipe_mutex);
 	while (bytes &&
 	       (wr = file->f_op->write(file,data,bytes,&file->f_pos)) > 0) {
 		data += wr;
 		bytes -= wr;
 	}
+	mutex_lock(&sbi->pipe_mutex);
 
 	set_fs(fs);
 
@@ -179,7 +180,7 @@ static void autofs4_notify_daemon(struct autofs_sb_info *sbi,
 
 	mutex_unlock(&sbi->wq_mutex);
 
-	if (autofs4_write(pipe, &pkt, pktsz))
+	if (autofs4_write(sbi, pipe, &pkt, pktsz))
 		autofs4_catatonic_mode(sbi);
 	fput(pipe);
 }

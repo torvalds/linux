@@ -116,6 +116,7 @@ struct autofs_sb_info {
 	int needs_reghost;
 	struct super_block *sb;
 	struct mutex wq_mutex;
+	struct mutex pipe_mutex;
 	spinlock_t fs_lock;
 	struct autofs_wait_queue *queues; /* Wait queue pointer */
 	spinlock_t lookup_lock;
