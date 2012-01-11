@@ -2217,6 +2217,7 @@ static int preview_link_setup(struct media_entity *entity,
 /* media operations */
 static const struct media_entity_operations preview_media_ops = {
 	.link_setup = preview_link_setup,
+	.link_validate = v4l2_subdev_link_validate,
 };
 
 void omap3isp_preview_unregister_entities(struct isp_prev_device *prev)

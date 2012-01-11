@@ -998,6 +998,7 @@ static int ccp2_link_setup(struct media_entity *entity,
 /* media operations */
 static const struct media_entity_operations ccp2_media_ops = {
 	.link_setup = ccp2_link_setup,
+	.link_validate = v4l2_subdev_link_validate,
 };
 
 /*
