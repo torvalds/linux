@@ -578,7 +578,6 @@ rpc_free_client(struct rpc_clnt *clnt)
 {
 	dprintk("RPC:       destroying %s client for %s\n",
 			clnt->cl_protname, clnt->cl_server);
-	rpc_clnt_remove_pipedir(clnt);
 	if (clnt->cl_parent != clnt) {
 		rpc_release_client(clnt->cl_parent);
 		goto out_free;
@@ -587,6 +586,7 @@ rpc_free_client(struct rpc_clnt *clnt)
 		kfree(clnt->cl_server);
 out_free:
 	rpc_unregister_client(clnt);
+	rpc_clnt_remove_pipedir(clnt);
 	rpc_free_iostats(clnt->cl_metrics);
 	kfree(clnt->cl_principal);
 	clnt->cl_metrics = NULL;
