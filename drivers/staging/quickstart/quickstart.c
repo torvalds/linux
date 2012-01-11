@@ -191,14 +191,11 @@ static void quickstart_acpi_notify(acpi_handle handle, u32 event, void *data)
 	return;
 }
 
-static void quickstart_acpi_ghid(struct quickstart_acpi *quickstart)
+static int quickstart_acpi_ghid(struct quickstart_acpi *quickstart)
 {
 	acpi_status status;
 	struct acpi_buffer buffer = { ACPI_ALLOCATE_BUFFER, NULL };
-	uint32_t usageid = 0;
-
-	if (!quickstart)
-		return;
+	int ret = 0;
 
 	/*
 	 * This returns a buffer telling the button usage ID,
@@ -206,24 +203,41 @@ static void quickstart_acpi_ghid(struct quickstart_acpi *quickstart)
 	 */
 	status = acpi_evaluate_object(quickstart->device->handle, "GHID", NULL,
 								&buffer);
-	if (ACPI_FAILURE(status) || !buffer.pointer) {
+	if (ACPI_FAILURE(status)) {
 		printk(KERN_ERR "quickstart: %s GHID method failed.\n",
 						quickstart->btn->name);
-		return;
+		return -EINVAL;
 	}
-
-	if (buffer.length < 8)
-		return;
 
 	/*
 	 * <<The GHID method can return a BYTE, WORD, or DWORD.
 	 * The value must be encoded in little-endian byte
 	 * order (least significant byte first).>>
 	 */
-	usageid = *((uint32_t *)(buffer.pointer + (buffer.length - 8)));
-	quickstart->btn->id = usageid;
+	switch (buffer.length) {
+	case 1:
+		quickstart->btn->id = *(uint8_t *)buffer.pointer;
+		break;
+	case 2:
+		quickstart->btn->id = *(uint16_t *)buffer.pointer;
+		break;
+	case 4:
+		quickstart->btn->id = *(uint32_t *)buffer.pointer;
+		break;
+	case 8:
+		quickstart->btn->id = *(uint64_t *)buffer.pointer;
+		break;
+	default:
+		printk(KERN_ERR "quickstart: %s GHID method returned buffer "
+				"of unexpected length %u\n",
+				quickstart->btn->name, buffer.length);
+		ret = -EINVAL;
+		break;
+	}
 
 	kfree(buffer.pointer);
+
+	return ret;
 }
 
 static int quickstart_acpi_config(struct quickstart_acpi *quickstart, char *bid)
