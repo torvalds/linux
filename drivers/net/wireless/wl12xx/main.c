@@ -1391,13 +1391,15 @@ out:
 	return ret;
 }
 
-static int __wl1271_plt_stop(struct wl1271 *wl)
+int wl1271_plt_stop(struct wl1271 *wl)
 {
 	int ret = 0;
 
 	wl1271_notice("power down");
 
+	mutex_lock(&wl->mutex);
 	if (wl->state != WL1271_STATE_PLT) {
+		mutex_unlock(&wl->mutex);
 		wl1271_error("cannot power down because not in PLT "
 			     "state: %d", wl->state);
 		ret = -EBUSY;
@@ -1410,22 +1412,12 @@ static int __wl1271_plt_stop(struct wl1271 *wl)
 	wl->rx_counter = 0;
 
 	mutex_unlock(&wl->mutex);
+
 	wl1271_disable_interrupts(wl);
 	wl1271_flush_deferred_work(wl);
 	cancel_work_sync(&wl->netstack_work);
 	cancel_work_sync(&wl->recovery_work);
-	mutex_lock(&wl->mutex);
 out:
-	return ret;
-}
-
-int wl1271_plt_stop(struct wl1271 *wl)
-{
-	int ret;
-
-	mutex_lock(&wl->mutex);
-	ret = __wl1271_plt_stop(wl);
-	mutex_unlock(&wl->mutex);
 	return ret;
 }
 
@@ -4881,7 +4873,7 @@ static int wl1271_register_hw(struct wl1271 *wl)
 static void wl1271_unregister_hw(struct wl1271 *wl)
 {
 	if (wl->state == WL1271_STATE_PLT)
-		__wl1271_plt_stop(wl);
+		wl1271_plt_stop(wl);
 
 	unregister_netdevice_notifier(&wl1271_dev_notifier);
 	ieee80211_unregister_hw(wl->hw);
