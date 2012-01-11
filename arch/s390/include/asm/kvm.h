@@ -43,9 +43,11 @@ struct kvm_guest_debug_arch {
 
 #define KVM_SYNC_PREFIX (1UL << 0)
 #define KVM_SYNC_GPRS   (1UL << 1)
+#define KVM_SYNC_ACRS   (1UL << 2)
 /* definition of registers in kvm_run */
 struct kvm_sync_regs {
 	__u64 prefix;	/* prefix register */
 	__u64 gprs[16];	/* general purpose registers */
+	__u32 acrs[16];	/* access registers */
 };
 #endif

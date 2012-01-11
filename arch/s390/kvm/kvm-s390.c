@@ -289,7 +289,9 @@ int kvm_arch_vcpu_init(struct kvm_vcpu *vcpu)
 	}
 
 	vcpu->arch.gmap = vcpu->kvm->arch.gmap;
-	vcpu->run->kvm_valid_regs = KVM_SYNC_PREFIX | KVM_SYNC_GPRS;
+	vcpu->run->kvm_valid_regs = KVM_SYNC_PREFIX |
+				    KVM_SYNC_GPRS |
+				    KVM_SYNC_ACRS;
 	return 0;
 }
 
@@ -304,7 +306,7 @@ void kvm_arch_vcpu_load(struct kvm_vcpu *vcpu, int cpu)
 	save_access_regs(vcpu->arch.host_acrs);
 	vcpu->arch.guest_fpregs.fpc &= FPC_VALID_MASK;
 	restore_fp_regs(&vcpu->arch.guest_fpregs);
-	restore_access_regs(vcpu->arch.guest_acrs);
+	restore_access_regs(vcpu->run->s.regs.acrs);
 	gmap_enable(vcpu->arch.gmap);
 	atomic_set_mask(CPUSTAT_RUNNING, &vcpu->arch.sie_block->cpuflags);
 }
@@ -314,7 +316,7 @@ void kvm_arch_vcpu_put(struct kvm_vcpu *vcpu)
 	atomic_clear_mask(CPUSTAT_RUNNING, &vcpu->arch.sie_block->cpuflags);
 	gmap_disable(vcpu->arch.gmap);
 	save_fp_regs(&vcpu->arch.guest_fpregs);
-	save_access_regs(vcpu->arch.guest_acrs);
+	save_access_regs(vcpu->run->s.regs.acrs);
 	restore_fp_regs(&vcpu->arch.host_fpregs);
 	restore_access_regs(vcpu->arch.host_acrs);
 }
@@ -441,16 +443,16 @@ int kvm_arch_vcpu_ioctl_get_regs(struct kvm_vcpu *vcpu, struct kvm_regs *regs)
 int kvm_arch_vcpu_ioctl_set_sregs(struct kvm_vcpu *vcpu,
 				  struct kvm_sregs *sregs)
 {
-	memcpy(&vcpu->arch.guest_acrs, &sregs->acrs, sizeof(sregs->acrs));
+	memcpy(&vcpu->run->s.regs.acrs, &sregs->acrs, sizeof(sregs->acrs));
 	memcpy(&vcpu->arch.sie_block->gcr, &sregs->crs, sizeof(sregs->crs));
-	restore_access_regs(vcpu->arch.guest_acrs);
+	restore_access_regs(vcpu->run->s.regs.acrs);
 	return 0;
 }
 
 int kvm_arch_vcpu_ioctl_get_sregs(struct kvm_vcpu *vcpu,
 				  struct kvm_sregs *sregs)
 {
-	memcpy(&sregs->acrs, &vcpu->arch.guest_acrs, sizeof(sregs->acrs));
+	memcpy(&sregs->acrs, &vcpu->run->s.regs.acrs, sizeof(sregs->acrs));
 	memcpy(&sregs->crs, &vcpu->arch.sie_block->gcr, sizeof(sregs->crs));
 	return 0;
 }
@@ -702,7 +704,7 @@ int kvm_s390_vcpu_store_status(struct kvm_vcpu *vcpu, unsigned long addr)
 		return -EFAULT;
 
 	if (__guestcopy(vcpu, addr + offsetof(struct save_area, acc_regs),
-			&vcpu->arch.guest_acrs, 64, prefix))
+			&vcpu->run->s.regs.acrs, 64, prefix))
 		return -EFAULT;
 
 	if (__guestcopy(vcpu,
