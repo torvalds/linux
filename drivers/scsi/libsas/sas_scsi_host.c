@@ -678,7 +678,8 @@ void sas_scsi_recover_host(struct Scsi_Host *shost)
 	shost->host_eh_scheduled = 0;
 	spin_unlock_irqrestore(shost->host_lock, flags);
 
-	SAS_DPRINTK("Enter %s\n", __func__);
+	SAS_DPRINTK("Enter %s busy: %d failed: %d\n",
+		    __func__, shost->host_busy, shost->host_failed);
 	/*
 	 * Deal with commands that still have SAS tasks (i.e. they didn't
 	 * complete via the normal sas_task completion mechanism)
@@ -693,9 +694,9 @@ void sas_scsi_recover_host(struct Scsi_Host *shost)
 	 * scsi_unjam_host does, but we skip scsi_eh_abort_cmds because any
 	 * command we see here has no sas_task and is thus unknown to the HA.
 	 */
-	if (!sas_ata_eh(shost, &eh_work_q, &ha->eh_done_q))
-		if (!scsi_eh_get_sense(&eh_work_q, &ha->eh_done_q))
-			scsi_eh_ready_devs(shost, &eh_work_q, &ha->eh_done_q);
+	sas_ata_eh(shost, &eh_work_q, &ha->eh_done_q);
+	if (!scsi_eh_get_sense(&eh_work_q, &ha->eh_done_q))
+		scsi_eh_ready_devs(shost, &eh_work_q, &ha->eh_done_q);
 
 out:
 	clear_bit(SAS_HA_FROZEN, &ha->state);
@@ -707,8 +708,8 @@ out:
 
 	scsi_eh_flush_done_q(&ha->eh_done_q);
 
-	SAS_DPRINTK("--- Exit %s\n", __func__);
-	return;
+	SAS_DPRINTK("--- Exit %s: busy: %d failed: %d\n",
+		    __func__, shost->host_busy, shost->host_failed);
 }
 
 enum blk_eh_timer_return sas_scsi_timed_out(struct scsi_cmnd *cmd)

@@ -41,8 +41,8 @@ int sas_ata_init_host_and_port(struct domain_device *found_dev,
 
 void sas_ata_task_abort(struct sas_task *task);
 void sas_ata_strategy_handler(struct Scsi_Host *shost);
-int sas_ata_eh(struct Scsi_Host *shost, struct list_head *work_q,
-	       struct list_head *done_q);
+void sas_ata_eh(struct Scsi_Host *shost, struct list_head *work_q,
+		struct list_head *done_q);
 void sas_probe_sata(struct work_struct *work);
 void sas_ata_schedule_reset(struct domain_device *dev);
 void sas_ata_wait_eh(struct domain_device *dev);
@@ -66,10 +66,9 @@ static inline void sas_ata_strategy_handler(struct Scsi_Host *shost)
 {
 }
 
-static inline int sas_ata_eh(struct Scsi_Host *shost, struct list_head *work_q,
-			     struct list_head *done_q)
+static inline void sas_ata_eh(struct Scsi_Host *shost, struct list_head *work_q,
+			      struct list_head *done_q)
 {
-	return 0;
 }
 
 static inline void sas_probe_sata(struct work_struct *work)

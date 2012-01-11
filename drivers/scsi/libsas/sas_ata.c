@@ -699,10 +699,9 @@ void sas_ata_strategy_handler(struct Scsi_Host *shost)
 	sas_enable_revalidation(sas_ha);
 }
 
-int sas_ata_eh(struct Scsi_Host *shost, struct list_head *work_q,
-	       struct list_head *done_q)
+void sas_ata_eh(struct Scsi_Host *shost, struct list_head *work_q,
+		struct list_head *done_q)
 {
-	int rtn = 0;
 	struct scsi_cmnd *cmd, *n;
 	struct ata_port *ap;
 
@@ -719,7 +718,6 @@ int sas_ata_eh(struct Scsi_Host *shost, struct list_head *work_q,
 			if (ap && ap != ddev->sata_dev.ap)
 				continue;
 			ap = ddev->sata_dev.ap;
-			rtn = 1;
 			list_move(&cmd->eh_entry, &sata_q);
 		}
 
@@ -741,8 +739,6 @@ int sas_ata_eh(struct Scsi_Host *shost, struct list_head *work_q,
 				list_del_init(sata_q.next);
 		}
 	} while (ap);
-
-	return rtn;
 }
 
 void sas_ata_schedule_reset(struct domain_device *dev)
