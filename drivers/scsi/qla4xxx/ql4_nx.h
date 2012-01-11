@@ -39,6 +39,9 @@ enum {
 	QLA82XX_TEMP_PANIC	/* Fatal error, hardware has shut down. */
 };
 
+#define CRB_NIU_XG_PAUSE_CTL_P0		0x1
+#define CRB_NIU_XG_PAUSE_CTL_P1		0x8
+
 #define QLA82XX_HW_H0_CH_HUB_ADR	0x05
 #define QLA82XX_HW_H1_CH_HUB_ADR	0x0E
 #define QLA82XX_HW_H2_CH_HUB_ADR	0x03

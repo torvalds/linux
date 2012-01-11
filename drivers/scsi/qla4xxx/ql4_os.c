@@ -2080,6 +2080,11 @@ void qla4_8xxx_watchdog(struct scsi_qla_host *ha)
 		dev_state = qla4_8xxx_rd_32(ha, QLA82XX_CRB_DEV_STATE);
 
 		if (qla4_8xxx_check_temp(ha)) {
+			ql4_printk(KERN_INFO, ha, "disabling pause"
+				   " transmit on port 0 & 1.\n");
+			qla4_8xxx_wr_32(ha, QLA82XX_CRB_NIU + 0x98,
+					CRB_NIU_XG_PAUSE_CTL_P0 |
+					CRB_NIU_XG_PAUSE_CTL_P1);
 			set_bit(DPC_HA_UNRECOVERABLE, &ha->dpc_flags);
 			qla4xxx_wake_dpc(ha);
 		} else if (dev_state == QLA82XX_DEV_NEED_RESET &&
@@ -2099,6 +2104,11 @@ void qla4_8xxx_watchdog(struct scsi_qla_host *ha)
 		} else  {
 			/* Check firmware health */
 			if (qla4_8xxx_check_fw_alive(ha)) {
+				ql4_printk(KERN_INFO, ha, "disabling pause"
+					   " transmit on port 0 & 1.\n");
+				qla4_8xxx_wr_32(ha, QLA82XX_CRB_NIU + 0x98,
+						CRB_NIU_XG_PAUSE_CTL_P0 |
+						CRB_NIU_XG_PAUSE_CTL_P1);
 				halt_status = qla4_8xxx_rd_32(ha,
 						QLA82XX_PEG_HALT_STATUS1);
 
