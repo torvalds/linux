@@ -180,15 +180,19 @@ static void quickstart_acpi_notify(acpi_handle handle, u32 event, void *data)
 	if (!quickstart)
 		return;
 
-	if (event == QUICKSTART_EVENT_WAKE)
+	switch (event) {
+	case QUICKSTART_EVENT_WAKE:
 		quickstart_data.pressed = quickstart->btn;
-	else if (event == QUICKSTART_EVENT_RUNTIME) {
+		break;
+	case QUICKSTART_EVENT_RUNTIME:
 		input_report_key(quickstart_input, quickstart->btn->id, 1);
 		input_sync(quickstart_input);
 		input_report_key(quickstart_input, quickstart->btn->id, 0);
 		input_sync(quickstart_input);
+		break;
+	default:
+		break;
 	}
-	return;
 }
 
 static int quickstart_acpi_ghid(struct quickstart_acpi *quickstart)
