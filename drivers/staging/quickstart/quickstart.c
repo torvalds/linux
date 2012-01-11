@@ -71,7 +71,7 @@ static struct quickstart_driver_data {
 	struct quickstart_btn *pressed;
 } quickstart_data;
 
-struct input_dev *quickstart_input;
+static struct input_dev *quickstart_input;
 
 /* Platform driver functions */
 static ssize_t quickstart_buttons_show(struct device *dev,
