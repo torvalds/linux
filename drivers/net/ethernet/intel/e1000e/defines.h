@@ -126,6 +126,13 @@
     E1000_RXDEXT_STATERR_CXE |            \
     E1000_RXDEXT_STATERR_RXE)
 
+#define E1000_MRQC_RSS_FIELD_MASK              0xFFFF0000
+#define E1000_MRQC_RSS_FIELD_IPV4_TCP          0x00010000
+#define E1000_MRQC_RSS_FIELD_IPV4              0x00020000
+#define E1000_MRQC_RSS_FIELD_IPV6_TCP_EX       0x00040000
+#define E1000_MRQC_RSS_FIELD_IPV6              0x00100000
+#define E1000_MRQC_RSS_FIELD_IPV6_TCP          0x00200000
+
 #define E1000_RXDPS_HDRSTAT_HDRSP              0x00008000
 
 /* Management Control */
@@ -326,6 +333,7 @@
 /* Receive Checksum Control */
 #define E1000_RXCSUM_TUOFL     0x00000200   /* TCP / UDP checksum offload */
 #define E1000_RXCSUM_IPPCSE    0x00001000   /* IP payload checksum enable */
+#define E1000_RXCSUM_PCSD      0x00002000   /* packet checksum disabled */
 
 /* Header split receive */
 #define E1000_RFCTL_NFSW_DIS            0x00000040

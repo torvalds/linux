@@ -845,6 +845,13 @@ check_page:
 	}
 }
 
+static inline void e1000_rx_hash(struct net_device *netdev, __le32 rss,
+				 struct sk_buff *skb)
+{
+	if (netdev->features & NETIF_F_RXHASH)
+		skb->rxhash = le32_to_cpu(rss);
+}
+
 /**
  * e1000_clean_rx_irq - Send received data up the network stack; legacy
  * @adapter: board private structure
@@ -963,6 +970,8 @@ static bool e1000_clean_rx_irq(struct e1000_adapter *adapter,
 		/* Receive Checksum Offload */
 		e1000_rx_checksum(adapter, staterr,
 				  rx_desc->wb.lower.hi_dword.csum_ip.csum, skb);
+
+		e1000_rx_hash(netdev, rx_desc->wb.lower.hi_dword.rss, skb);
 
 		e1000_receive_skb(adapter, netdev, skb, staterr,
 				  rx_desc->wb.upper.vlan);
@@ -1325,6 +1334,8 @@ copydone:
 		e1000_rx_checksum(adapter, staterr,
 				  rx_desc->wb.lower.hi_dword.csum_ip.csum, skb);
 
+		e1000_rx_hash(netdev, rx_desc->wb.lower.hi_dword.rss, skb);
+
 		if (rx_desc->wb.upper.header_status &
 			   cpu_to_le16(E1000_RXDPS_HDRSTAT_HDRSP))
 			adapter->rx_hdr_split++;
@@ -1496,6 +1507,8 @@ static bool e1000_clean_jumbo_rx_irq(struct e1000_adapter *adapter,
 		/* Receive Checksum Offload XXX recompute due to CRC strip? */
 		e1000_rx_checksum(adapter, staterr,
 				  rx_desc->wb.lower.hi_dword.csum_ip.csum, skb);
+
+		e1000_rx_hash(netdev, rx_desc->wb.lower.hi_dword.rss, skb);
 
 		/* probably a little skewed due to removing CRC */
 		total_rx_bytes += skb->len;
@@ -3271,6 +3284,42 @@ static void e1000e_set_rx_mode(struct net_device *netdev)
 		e1000e_vlan_strip_disable(adapter);
 }
 
+static void e1000e_setup_rss_hash(struct e1000_adapter *adapter)
+{
+	struct e1000_hw *hw = &adapter->hw;
+	u32 mrqc, rxcsum;
+	int i;
+	static const u32 rsskey[10] = {
+		0xda565a6d, 0xc20e5b25, 0x3d256741, 0xb08fa343, 0xcb2bcad0,
+		0xb4307bae, 0xa32dcb77, 0x0cf23080, 0x3bb7426a, 0xfa01acbe
+	};
+
+	/* Fill out hash function seed */
+	for (i = 0; i < 10; i++)
+		ew32(RSSRK(i), rsskey[i]);
+
+	/* Direct all traffic to queue 0 */
+	for (i = 0; i < 32; i++)
+		ew32(RETA(i), 0);
+
+	/*
+	 * Disable raw packet checksumming so that RSS hash is placed in
+	 * descriptor on writeback.
+	 */
+	rxcsum = er32(RXCSUM);
+	rxcsum |= E1000_RXCSUM_PCSD;
+
+	ew32(RXCSUM, rxcsum);
+
+	mrqc = (E1000_MRQC_RSS_FIELD_IPV4 |
+		E1000_MRQC_RSS_FIELD_IPV4_TCP |
+		E1000_MRQC_RSS_FIELD_IPV6 |
+		E1000_MRQC_RSS_FIELD_IPV6_TCP |
+		E1000_MRQC_RSS_FIELD_IPV6_TCP_EX);
+
+	ew32(MRQC, mrqc);
+}
+
 /**
  * e1000_configure - configure the hardware for Rx and Tx
  * @adapter: private board structure
@@ -3283,6 +3332,9 @@ static void e1000_configure(struct e1000_adapter *adapter)
 	e1000_init_manageability_pt(adapter);
 
 	e1000_configure_tx(adapter);
+
+	if (adapter->netdev->features & NETIF_F_RXHASH)
+		e1000e_setup_rss_hash(adapter);
 	e1000_setup_rctl(adapter);
 	e1000_configure_rx(adapter);
 	adapter->alloc_rx_buf(adapter, e1000_desc_unused(adapter->rx_ring),
@@ -5168,10 +5220,22 @@ static int e1000_change_mtu(struct net_device *netdev, int new_mtu)
 	int max_frame = new_mtu + ETH_HLEN + ETH_FCS_LEN;
 
 	/* Jumbo frame support */
-	if ((max_frame > ETH_FRAME_LEN + ETH_FCS_LEN) &&
-	    !(adapter->flags & FLAG_HAS_JUMBO_FRAMES)) {
-		e_err("Jumbo Frames not supported.\n");
-		return -EINVAL;
+	if (max_frame > ETH_FRAME_LEN + ETH_FCS_LEN) {
+		if (!(adapter->flags & FLAG_HAS_JUMBO_FRAMES)) {
+			e_err("Jumbo Frames not supported.\n");
+			return -EINVAL;
+		}
+
+		/*
+		 * IP payload checksum (enabled with jumbos/packet-split when
+		 * Rx checksum is enabled) and generation of RSS hash is
+		 * mutually exclusive in the hardware.
+		 */
+		if ((netdev->features & NETIF_F_RXCSUM) &&
+		    (netdev->features & NETIF_F_RXHASH)) {
+			e_err("Jumbo frames cannot be enabled when both receive checksum offload and receive hashing are enabled.  Disable one of the receive offload features before enabling jumbos.\n");
+			return -EINVAL;
+		}
 	}
 
 	/* Supported frame sizes */
@@ -5934,7 +5998,7 @@ static void e1000_eeprom_checks(struct e1000_adapter *adapter)
 }
 
 static int e1000_set_features(struct net_device *netdev,
-	netdev_features_t features)
+			      netdev_features_t features)
 {
 	struct e1000_adapter *adapter = netdev_priv(netdev);
 	netdev_features_t changed = features ^ netdev->features;
@@ -5943,8 +6007,21 @@ static int e1000_set_features(struct net_device *netdev,
 		adapter->flags |= FLAG_TSO_FORCE;
 
 	if (!(changed & (NETIF_F_HW_VLAN_RX | NETIF_F_HW_VLAN_TX |
-			 NETIF_F_RXCSUM)))
+			 NETIF_F_RXCSUM | NETIF_F_RXHASH)))
 		return 0;
+
+	/*
+	 * IP payload checksum (enabled with jumbos/packet-split when Rx
+	 * checksum is enabled) and generation of RSS hash is mutually
+	 * exclusive in the hardware.
+	 */
+	if (adapter->rx_ps_pages &&
+	    (features & NETIF_F_RXCSUM) && (features & NETIF_F_RXHASH)) {
+		e_err("Enabling both receive checksum offload and receive hashing is not possible with jumbo frames.  Disable jumbos or enable only one of the receive offload features.\n");
+		return -EINVAL;
+	}
+
+	netdev->features = features;
 
 	if (netif_running(netdev))
 		e1000e_reinit_locked(adapter);
@@ -6136,6 +6213,7 @@ static int __devinit e1000_probe(struct pci_dev *pdev,
 			    NETIF_F_HW_VLAN_TX |
 			    NETIF_F_TSO |
 			    NETIF_F_TSO6 |
+			    NETIF_F_RXHASH |
 			    NETIF_F_RXCSUM |
 			    NETIF_F_HW_CSUM);
 

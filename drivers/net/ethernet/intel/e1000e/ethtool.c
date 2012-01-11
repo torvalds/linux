@@ -1955,6 +1955,53 @@ static void e1000_get_strings(struct net_device *netdev, u32 stringset,
 	}
 }
 
+static int e1000_get_rxnfc(struct net_device *netdev,
+			   struct ethtool_rxnfc *info, u32 *rule_locs)
+{
+	info->data = 0;
+
+	switch (info->cmd) {
+	case ETHTOOL_GRXFH: {
+		struct e1000_adapter *adapter = netdev_priv(netdev);
+		struct e1000_hw *hw = &adapter->hw;
+		u32 mrqc = er32(MRQC);
+
+		if (!(mrqc & E1000_MRQC_RSS_FIELD_MASK))
+			return 0;
+
+		switch (info->flow_type) {
+		case TCP_V4_FLOW:
+			if (mrqc & E1000_MRQC_RSS_FIELD_IPV4_TCP)
+				info->data |= RXH_L4_B_0_1 | RXH_L4_B_2_3;
+			/* fall through */
+		case UDP_V4_FLOW:
+		case SCTP_V4_FLOW:
+		case AH_ESP_V4_FLOW:
+		case IPV4_FLOW:
+			if (mrqc & E1000_MRQC_RSS_FIELD_IPV4)
+				info->data |= RXH_IP_SRC | RXH_IP_DST;
+			break;
+		case TCP_V6_FLOW:
+			if (mrqc & E1000_MRQC_RSS_FIELD_IPV6_TCP)
+				info->data |= RXH_L4_B_0_1 | RXH_L4_B_2_3;
+			/* fall through */
+		case UDP_V6_FLOW:
+		case SCTP_V6_FLOW:
+		case AH_ESP_V6_FLOW:
+		case IPV6_FLOW:
+			if (mrqc & E1000_MRQC_RSS_FIELD_IPV6)
+				info->data |= RXH_IP_SRC | RXH_IP_DST;
+			break;
+		default:
+			break;
+		}
+		return 0;
+	}
+	default:
+		return -EOPNOTSUPP;
+	}
+}
+
 static const struct ethtool_ops e1000_ethtool_ops = {
 	.get_settings		= e1000_get_settings,
 	.set_settings		= e1000_set_settings,
@@ -1981,6 +2028,7 @@ static const struct ethtool_ops e1000_ethtool_ops = {
 	.get_sset_count		= e1000e_get_sset_count,
 	.get_coalesce		= e1000_get_coalesce,
 	.set_coalesce		= e1000_set_coalesce,
+	.get_rxnfc		= e1000_get_rxnfc,
 };
 
 void e1000e_set_ethtool_ops(struct net_device *netdev)
