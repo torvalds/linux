@@ -762,8 +762,10 @@ static void gss_pipes_dentries_destroy(struct rpc_auth *auth)
 	struct gss_auth *gss_auth;
 
 	gss_auth = container_of(auth, struct gss_auth, rpc_auth);
-	rpc_unlink(gss_auth->pipe[0]->dentry);
-	rpc_unlink(gss_auth->pipe[1]->dentry);
+	if (gss_auth->pipe[0]->dentry)
+		rpc_unlink(gss_auth->pipe[0]->dentry);
+	if (gss_auth->pipe[1]->dentry)
+		rpc_unlink(gss_auth->pipe[1]->dentry);
 }
 
 static int gss_pipes_dentries_create(struct rpc_auth *auth)
@@ -1614,7 +1616,9 @@ static const struct rpc_authops authgss_ops = {
 	.create		= gss_create,
 	.destroy	= gss_destroy,
 	.lookup_cred	= gss_lookup_cred,
-	.crcreate	= gss_create_cred
+	.crcreate	= gss_create_cred,
+	.pipes_create	= gss_pipes_dentries_create,
+	.pipes_destroy	= gss_pipes_dentries_destroy,
 };
 
 static const struct rpc_credops gss_credops = {

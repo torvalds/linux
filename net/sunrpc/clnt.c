@@ -98,8 +98,11 @@ static void rpc_unregister_client(struct rpc_clnt *clnt)
 
 static void __rpc_clnt_remove_pipedir(struct rpc_clnt *clnt)
 {
-	if (clnt->cl_path.dentry)
+	if (clnt->cl_path.dentry) {
+		if (clnt->cl_auth && clnt->cl_auth->au_ops->pipes_destroy)
+			clnt->cl_auth->au_ops->pipes_destroy(clnt->cl_auth);
 		rpc_remove_client_dir(clnt->cl_path.dentry);
+	}
 	clnt->cl_path.dentry = NULL;
 }
 
@@ -179,6 +182,70 @@ rpc_setup_pipedir(struct rpc_clnt *clnt, char *dir_name)
 	}
 	clnt->cl_path = path;
 	return 0;
+}
+
+static int __rpc_pipefs_event(struct rpc_clnt *clnt, unsigned long event,
+				struct super_block *sb)
+{
+	struct dentry *dentry;
+	int err = 0;
+
+	switch (event) {
+	case RPC_PIPEFS_MOUNT:
+		if (clnt->cl_program->pipe_dir_name == NULL)
+			break;
+		dentry = rpc_setup_pipedir_sb(sb, clnt,
+					      clnt->cl_program->pipe_dir_name);
+		BUG_ON(dentry == NULL);
+		if (IS_ERR(dentry))
+			return PTR_ERR(dentry);
+		clnt->cl_path.dentry = dentry;
+		if (clnt->cl_auth->au_ops->pipes_create) {
+			err = clnt->cl_auth->au_ops->pipes_create(clnt->cl_auth);
+			if (err)
+				__rpc_clnt_remove_pipedir(clnt);
+		}
+		break;
+	case RPC_PIPEFS_UMOUNT:
+		__rpc_clnt_remove_pipedir(clnt);
+		break;
+	default:
+		printk(KERN_ERR "%s: unknown event: %ld\n", __func__, event);
+		return -ENOTSUPP;
+	}
+	return err;
+}
+
+static int rpc_pipefs_event(struct notifier_block *nb, unsigned long event,
+			    void *ptr)
+{
+	struct super_block *sb = ptr;
+	struct rpc_clnt *clnt;
+	int error = 0;
+	struct sunrpc_net *sn = net_generic(sb->s_fs_info, sunrpc_net_id);
+
+	spin_lock(&sn->rpc_client_lock);
+	list_for_each_entry(clnt, &sn->all_clients, cl_clients) {
+		error = __rpc_pipefs_event(clnt, event, sb);
+		if (error)
+			break;
+	}
+	spin_unlock(&sn->rpc_client_lock);
+	return error;
+}
+
+static struct notifier_block rpc_clients_block = {
+	.notifier_call	= rpc_pipefs_event,
+};
+
+int rpc_clients_notifier_register(void)
+{
+	return rpc_pipefs_notifier_register(&rpc_clients_block);
+}
+
+void rpc_clients_notifier_unregister(void)
+{
+	return rpc_pipefs_notifier_unregister(&rpc_clients_block);
 }
 
 static struct rpc_clnt * rpc_new_client(const struct rpc_create_args *args, struct rpc_xprt *xprt)

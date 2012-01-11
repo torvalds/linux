@@ -937,7 +937,7 @@ struct dentry *rpc_create_client_dir(struct dentry *dentry,
 
 /**
  * rpc_remove_client_dir - Remove a directory created with rpc_create_client_dir()
- * @dentry: directory to remove
+ * @clnt: rpc client
  */
 int rpc_remove_client_dir(struct dentry *dentry)
 {
@@ -1188,17 +1188,24 @@ int register_rpc_pipefs(void)
 				init_once);
 	if (!rpc_inode_cachep)
 		return -ENOMEM;
+	err = rpc_clients_notifier_register();
+	if (err)
+		goto err_notifier;
 	err = register_filesystem(&rpc_pipe_fs_type);
-	if (err) {
-		kmem_cache_destroy(rpc_inode_cachep);
-		return err;
-	}
-
+	if (err)
+		goto err_register;
 	return 0;
+
+err_register:
+	rpc_clients_notifier_unregister();
+err_notifier:
+	kmem_cache_destroy(rpc_inode_cachep);
+	return err;
 }
 
 void unregister_rpc_pipefs(void)
 {
+	rpc_clients_notifier_unregister();
 	kmem_cache_destroy(rpc_inode_cachep);
 	unregister_filesystem(&rpc_pipe_fs_type);
 }
