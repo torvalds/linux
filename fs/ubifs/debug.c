@@ -103,8 +103,8 @@ static const char *get_dent_type(int type)
 	}
 }
 
-static void sprintf_key(const struct ubifs_info *c, const union ubifs_key *key,
-			char *buffer)
+static void snprintf_key(const struct ubifs_info *c, const union ubifs_key *key,
+			 char *buffer, int len)
 {
 	char *p = buffer;
 	int type = key_type(c, key);
@@ -112,44 +112,46 @@ static void sprintf_key(const struct ubifs_info *c, const union ubifs_key *key,
 	if (c->key_fmt == UBIFS_SIMPLE_KEY_FMT) {
 		switch (type) {
 		case UBIFS_INO_KEY:
-			sprintf(p, "(%lu, %s)", (unsigned long)key_inum(c, key),
-			       get_key_type(type));
+			len -= snprintf(p, len, "(%lu, %s)",
+					(unsigned long)key_inum(c, key),
+					get_key_type(type));
 			break;
 		case UBIFS_DENT_KEY:
 		case UBIFS_XENT_KEY:
-			sprintf(p, "(%lu, %s, %#08x)",
-				(unsigned long)key_inum(c, key),
-				get_key_type(type), key_hash(c, key));
+			len -= snprintf(p, len, "(%lu, %s, %#08x)",
+					(unsigned long)key_inum(c, key),
+					get_key_type(type), key_hash(c, key));
 			break;
 		case UBIFS_DATA_KEY:
-			sprintf(p, "(%lu, %s, %u)",
-				(unsigned long)key_inum(c, key),
-				get_key_type(type), key_block(c, key));
+			len -= snprintf(p, len, "(%lu, %s, %u)",
+					(unsigned long)key_inum(c, key),
+					get_key_type(type), key_block(c, key));
 			break;
 		case UBIFS_TRUN_KEY:
-			sprintf(p, "(%lu, %s)",
-				(unsigned long)key_inum(c, key),
-				get_key_type(type));
+			len -= snprintf(p, len, "(%lu, %s)",
+					(unsigned long)key_inum(c, key),
+					get_key_type(type));
 			break;
 		default:
-			sprintf(p, "(bad key type: %#08x, %#08x)",
-				key->u32[0], key->u32[1]);
+			len -= snprintf(p, len, "(bad key type: %#08x, %#08x)",
+					key->u32[0], key->u32[1]);
 		}
 	} else
-		sprintf(p, "bad key format %d", c->key_fmt);
+		len -= snprintf(p, len, "bad key format %d", c->key_fmt);
+	ubifs_assert(len > 0);
 }
 
 const char *dbg_key_str0(const struct ubifs_info *c, const union ubifs_key *key)
 {
 	/* dbg_lock must be held */
-	sprintf_key(c, key, dbg_key_buf0);
+	snprintf_key(c, key, dbg_key_buf0, sizeof(dbg_key_buf0) - 1);
 	return dbg_key_buf0;
 }
 
 const char *dbg_key_str1(const struct ubifs_info *c, const union ubifs_key *key)
 {
 	/* dbg_lock must be held */
-	sprintf_key(c, key, dbg_key_buf1);
+	snprintf_key(c, key, dbg_key_buf1, sizeof(dbg_key_buf1) - 1);
 	return dbg_key_buf1;
 }
 
