@@ -92,7 +92,7 @@ static struct clock_event_device au1x_rtcmatch2_clockdev = {
 
 static struct irqaction au1x_rtcmatch2_irqaction = {
 	.handler	= au1x_rtcmatch2_irq,
-	.flags		= IRQF_DISABLED | IRQF_TIMER,
+	.flags		= IRQF_TIMER,
 	.name		= "timer",
 	.dev_id		= &au1x_rtcmatch2_clockdev,
 };

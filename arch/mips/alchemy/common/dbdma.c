@@ -1019,8 +1019,7 @@ static int __init dbdma_setup(unsigned int irq, dbdev_tab_t *idtable)
 	dbdma_gptr->ddma_inten = 0xffff;
 	au_sync();
 
-	ret = request_irq(irq, dbdma_interrupt, IRQF_DISABLED, "dbdma",
-			  (void *)dbdma_gptr);
+	ret = request_irq(irq, dbdma_interrupt, 0, "dbdma", (void *)dbdma_gptr);
 	if (ret)
 		printk(KERN_ERR "Cannot grab DBDMA interrupt!\n");
 	else {

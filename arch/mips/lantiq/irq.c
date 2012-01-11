@@ -240,7 +240,6 @@ out:
 
 static struct irqaction cascade = {
 	.handler = no_action,
-	.flags = IRQF_DISABLED,
 	.name = "cascade",
 };
 

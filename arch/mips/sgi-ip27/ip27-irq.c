@@ -116,7 +116,7 @@ static int ms1bit(unsigned long x)
 }
 
 /*
- * This code is unnecessarily complex, because we do IRQF_DISABLED
+ * This code is unnecessarily complex, because we do
  * intr enabling. Basically, once we grab the set of intrs we need
  * to service, we must mask _all_ these interrupts; firstly, to make
  * sure the same intr does not intr again, causing recursion that
