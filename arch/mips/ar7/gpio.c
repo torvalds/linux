@@ -217,7 +217,7 @@ struct titan_gpio_cfg {
 	u32 func;
 };
 
-static struct titan_gpio_cfg titan_gpio_table[] = {
+static const struct titan_gpio_cfg titan_gpio_table[] = {
 	/* reg, start bit, mux value */
 	{4, 24, 1},
 	{4, 26, 1},
