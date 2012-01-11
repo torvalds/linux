@@ -74,6 +74,24 @@ static struct snd_soc_ops mx27vis_aic32x4_snd_ops = {
 	.hw_params	= mx27vis_aic32x4_hw_params,
 };
 
+static const struct snd_kcontrol_new mx27vis_aic32x4_controls[] = {
+	SOC_DAPM_PIN_SWITCH("External Mic"),
+};
+
+static const struct snd_soc_dapm_widget aic32x4_dapm_widgets[] = {
+	SND_SOC_DAPM_MIC("External Mic", NULL),
+};
+
+static const struct snd_soc_dapm_route aic32x4_dapm_routes[] = {
+	{"Mic Bias", NULL, "External Mic"},
+	{"IN1_R", NULL, "Mic Bias"},
+	{"IN2_R", NULL, "Mic Bias"},
+	{"IN3_R", NULL, "Mic Bias"},
+	{"IN1_L", NULL, "Mic Bias"},
+	{"IN2_L", NULL, "Mic Bias"},
+	{"IN3_L", NULL, "Mic Bias"},
+};
+
 static struct snd_soc_dai_link mx27vis_aic32x4_dai = {
 	.name		= "tlv320aic32x4",
 	.stream_name	= "TLV320AIC32X4",
@@ -89,6 +107,12 @@ static struct snd_soc_card mx27vis_aic32x4 = {
 	.owner		= THIS_MODULE,
 	.dai_link	= &mx27vis_aic32x4_dai,
 	.num_links	= 1,
+	.controls	= mx27vis_aic32x4_controls,
+	.num_controls	= ARRAY_SIZE(mx27vis_aic32x4_controls),
+	.dapm_widgets	= aic32x4_dapm_widgets,
+	.num_dapm_widgets = ARRAY_SIZE(aic32x4_dapm_widgets),
+	.dapm_routes	= aic32x4_dapm_routes,
+	.num_dapm_routes = ARRAY_SIZE(aic32x4_dapm_routes),
 };
 
 static struct platform_device *mx27vis_aic32x4_snd_device;
