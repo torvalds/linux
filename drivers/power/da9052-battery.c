@@ -634,6 +634,7 @@ static int __devexit da9052_bat_remove(struct platform_device *pdev)
 		free_irq(bat->da9052->irq_base + irq, bat);
 	}
 	power_supply_unregister(&bat->psy);
+	kfree(bat);
 
 	return 0;
 }
