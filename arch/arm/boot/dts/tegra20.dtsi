@@ -69,14 +69,14 @@
 		compatible = "nvidia,tegra20-i2s";
 		reg = <0x70002800 0x200>;
 		interrupts = < 0 13 0x04 >;
-		dma-channel = < 2 >;
+		nvidia,dma-request-selector = < &apbdma 2 >;
 	};
 
 	i2s@70002a00 {
 		compatible = "nvidia,tegra20-i2s";
 		reg = <0x70002a00 0x200>;
 		interrupts = < 0 3 0x04 >;
-		dma-channel = < 1 >;
+		nvidia,dma-request-selector = < &apbdma 1 >;
 	};
 
 	das@70000c00 {
