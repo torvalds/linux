@@ -110,6 +110,13 @@ static void autofs4_notify_daemon(struct autofs_sb_info *sbi,
 
 	pkt.hdr.proto_version = sbi->version;
 	pkt.hdr.type = type;
+	mutex_lock(&sbi->wq_mutex);
+
+	/* Check if we have become catatonic */
+	if (sbi->catatonic) {
+		mutex_unlock(&sbi->wq_mutex);
+		return;
+	}
 	switch (type) {
 	/* Kernel protocol v4 missing and expire packets */
 	case autofs_ptype_missing:
@@ -163,22 +170,18 @@ static void autofs4_notify_daemon(struct autofs_sb_info *sbi,
 	}
 	default:
 		printk("autofs4_notify_daemon: bad type %d!\n", type);
+		mutex_unlock(&sbi->wq_mutex);
 		return;
 	}
 
-	/* Check if we have become catatonic */
-	mutex_lock(&sbi->wq_mutex);
-	if (!sbi->catatonic) {
-		pipe = sbi->pipe;
-		get_file(pipe);
-	}
+	pipe = sbi->pipe;
+	get_file(pipe);
+
 	mutex_unlock(&sbi->wq_mutex);
 
-	if (pipe) {
-		if (autofs4_write(pipe, &pkt, pktsz))
-			autofs4_catatonic_mode(sbi);
-		fput(pipe);
-	}
+	if (autofs4_write(pipe, &pkt, pktsz))
+		autofs4_catatonic_mode(sbi);
+	fput(pipe);
 }
 
 static int autofs4_getpath(struct autofs_sb_info *sbi,
