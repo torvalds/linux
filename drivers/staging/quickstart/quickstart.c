@@ -80,7 +80,7 @@ static ssize_t quickstart_buttons_show(struct device *dev,
 		return snprintf(buf, PAGE_SIZE, "none");
 
 	list_for_each_entry(b, &buttons, list) {
-		count += snprintf(buf + count, PAGE_SIZE - count, "%d\t%s\n",
+		count += snprintf(buf + count, PAGE_SIZE - count, "%u\t%s\n",
 							b->id, b->name);
 
 		if (count >= PAGE_SIZE) {
