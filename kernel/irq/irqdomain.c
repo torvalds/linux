@@ -722,13 +722,6 @@ struct irq_domain_ops irq_domain_simple_ops = {
 EXPORT_SYMBOL_GPL(irq_domain_simple_ops);
 
 #ifdef CONFIG_OF_IRQ
-void irq_domain_add_simple(struct device_node *controller, int irq_base)
-{
-	irq_domain_add_legacy(controller, 32, irq_base, 0,
-			      &irq_domain_simple_ops, NULL);
-}
-EXPORT_SYMBOL_GPL(irq_domain_add_simple);
-
 void irq_domain_generate_simple(const struct of_device_id *match,
 				u64 phys_base, unsigned int irq_start)
 {
@@ -737,7 +730,8 @@ void irq_domain_generate_simple(const struct of_device_id *match,
 		(unsigned long long) phys_base, (int) irq_start);
 	node = of_find_matching_node_by_address(NULL, match, phys_base);
 	if (node)
-		irq_domain_add_simple(node, irq_start);
+		irq_domain_add_legacy(node, 32, irq_start, 0,
+				      &irq_domain_simple_ops, NULL);
 }
 EXPORT_SYMBOL_GPL(irq_domain_generate_simple);
 #endif

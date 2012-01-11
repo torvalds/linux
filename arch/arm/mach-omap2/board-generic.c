@@ -67,7 +67,7 @@ static void __init omap_generic_init(void)
 {
 	struct device_node *node = of_find_matching_node(NULL, intc_match);
 	if (node)
-		irq_domain_add_simple(node, 0);
+		irq_domain_add_legacy(node, 32, 0, 0, &irq_domain_simple_ops, NULL);
 
 	omap_sdrc_init(NULL, NULL);
 

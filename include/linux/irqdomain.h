@@ -164,7 +164,6 @@ extern unsigned int irq_linear_revmap(struct irq_domain *host,
 
 extern struct irq_domain_ops irq_domain_simple_ops;
 #if defined(CONFIG_OF_IRQ)
-extern void irq_domain_add_simple(struct device_node *controller, int irq_base);
 extern void irq_domain_generate_simple(const struct of_device_id *match,
 					u64 phys_base, unsigned int irq_start);
 #else /* CONFIG_OF_IRQ */
