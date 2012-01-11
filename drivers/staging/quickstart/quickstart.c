@@ -43,9 +43,6 @@ MODULE_LICENSE("GPL");
 
 #define QUICKSTART_PF_DRIVER_NAME	"quickstart"
 #define QUICKSTART_PF_DEVICE_NAME	"quickstart"
-#define QUICKSTART_PF_DEVATTR_NAME	"pressed_button"
-
-#define QUICKSTART_MAX_BTN_NAME_LEN	16
 
 /*
  * There will be two events:
