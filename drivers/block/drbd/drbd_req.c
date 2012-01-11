@@ -569,6 +569,7 @@ int __req_mod(struct drbd_request *req, enum drbd_req_event what,
 		drbd_queue_work(&mdev->data.work, &req->w);
 		break;
 
+	case read_retry_remote_canceled:
 	case send_canceled:
 	case send_failed:
 		/* real cleanup will be done from tl_clear.  just update flags
@@ -610,9 +611,6 @@ int __req_mod(struct drbd_request *req, enum drbd_req_event what,
 		_req_may_be_done_not_susp(req, m);
 		break;
 
-	case read_retry_remote_canceled:
-		req->rq_state &= ~RQ_NET_QUEUED;
-		/* fall through, in case we raced with drbd_disconnect */
 	case connection_lost_while_pending:
 		/* transfer log cleanup after connection loss */
 		/* assert something? */
