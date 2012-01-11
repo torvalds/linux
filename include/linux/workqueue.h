@@ -297,32 +297,50 @@ extern struct workqueue_struct *system_unbound_wq;
 extern struct workqueue_struct *system_freezable_wq;
 
 extern struct workqueue_struct *
-__alloc_workqueue_key(const char *name, unsigned int flags, int max_active,
-		      struct lock_class_key *key, const char *lock_name);
+__alloc_workqueue_key(const char *fmt, unsigned int flags, int max_active,
+	struct lock_class_key *key, const char *lock_name, ...) __printf(1, 6);
 
+/**
+ * alloc_workqueue - allocate a workqueue
+ * @fmt: printf format for the name of the workqueue
+ * @flags: WQ_* flags
+ * @max_active: max in-flight work items, 0 for default
+ * @args: args for @fmt
+ *
+ * Allocate a workqueue with the specified parameters.  For detailed
+ * information on WQ_* flags, please refer to Documentation/workqueue.txt.
+ *
+ * The __lock_name macro dance is to guarantee that single lock_class_key
+ * doesn't end up with different namesm, which isn't allowed by lockdep.
+ *
+ * RETURNS:
+ * Pointer to the allocated workqueue on success, %NULL on failure.
+ */
 #ifdef CONFIG_LOCKDEP
-#define alloc_workqueue(name, flags, max_active)		\
+#define alloc_workqueue(fmt, flags, max_active, args...)	\
 ({								\
 	static struct lock_class_key __key;			\
 	const char *__lock_name;				\
 								\
-	if (__builtin_constant_p(name))				\
-		__lock_name = (name);				\
+	if (__builtin_constant_p(fmt))				\
+		__lock_name = (fmt);				\
 	else							\
-		__lock_name = #name;				\
+		__lock_name = #fmt;				\
 								\
-	__alloc_workqueue_key((name), (flags), (max_active),	\
-			      &__key, __lock_name);		\
+	__alloc_workqueue_key((fmt), (flags), (max_active),	\
+			      &__key, __lock_name, ##args);	\
 })
 #else
-#define alloc_workqueue(name, flags, max_active)		\
-	__alloc_workqueue_key((name), (flags), (max_active), NULL, NULL)
+#define alloc_workqueue(fmt, flags, max_active, args...)	\
+	__alloc_workqueue_key((fmt), (flags), (max_active),	\
+			      NULL, NULL, ##args)
 #endif
 
 /**
  * alloc_ordered_workqueue - allocate an ordered workqueue
- * @name: name of the workqueue
+ * @fmt: printf format for the name of the workqueue
  * @flags: WQ_* flags (only WQ_FREEZABLE and WQ_MEM_RECLAIM are meaningful)
+ * @args: args for @fmt
  *
  * Allocate an ordered workqueue.  An ordered workqueue executes at
  * most one work item at any given time in the queued order.  They are
@@ -331,11 +349,8 @@ __alloc_workqueue_key(const char *name, unsigned int flags, int max_active,
  * RETURNS:
  * Pointer to the allocated workqueue on success, %NULL on failure.
  */
-static inline struct workqueue_struct *
-alloc_ordered_workqueue(const char *name, unsigned int flags)
-{
-	return alloc_workqueue(name, WQ_UNBOUND | flags, 1);
-}
+#define alloc_ordered_workqueue(fmt, flags, args...)		\
+	alloc_workqueue(fmt, WQ_UNBOUND | (flags), 1, ##args)
 
 #define create_workqueue(name)					\
 	alloc_workqueue((name), WQ_MEM_RECLAIM, 1)
