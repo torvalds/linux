@@ -65,14 +65,14 @@
 		interrupts = < 0 53 0x04 >;
 	};
 
-	i2s@70002800 {
+	tegra_i2s1: i2s@70002800 {
 		compatible = "nvidia,tegra20-i2s";
 		reg = <0x70002800 0x200>;
 		interrupts = < 0 13 0x04 >;
 		nvidia,dma-request-selector = < &apbdma 2 >;
 	};
 
-	i2s@70002a00 {
+	tegra_i2s2: i2s@70002a00 {
 		compatible = "nvidia,tegra20-i2s";
 		reg = <0x70002a00 0x200>;
 		interrupts = < 0 3 0x04 >;
