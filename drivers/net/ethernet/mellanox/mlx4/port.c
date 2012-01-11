@@ -766,10 +766,18 @@ int mlx4_SET_PORT_wrapper(struct mlx4_dev *dev, int slave,
 				    vhcr->op_modifier, inbox);
 }
 
+/* bit locations for set port command with zero op modifier */
+enum {
+	MLX4_SET_PORT_VL_CAP	 = 4, /* bits 7:4 */
+	MLX4_SET_PORT_MTU_CAP	 = 12, /* bits 15:12 */
+	MLX4_CHANGE_PORT_VL_CAP	 = 21,
+	MLX4_CHANGE_PORT_MTU_CAP = 22,
+};
+
 int mlx4_SET_PORT(struct mlx4_dev *dev, u8 port)
 {
 	struct mlx4_cmd_mailbox *mailbox;
-	int err;
+	int err, vl_cap;
 
 	if (dev->caps.port_type[port] == MLX4_PORT_TYPE_ETH)
 		return 0;
@@ -781,8 +789,19 @@ int mlx4_SET_PORT(struct mlx4_dev *dev, u8 port)
 	memset(mailbox->buf, 0, 256);
 
 	((__be32 *) mailbox->buf)[1] = dev->caps.ib_port_def_cap[port];
-	err = mlx4_cmd(dev, mailbox->dma, port, 0, MLX4_CMD_SET_PORT,
-		       MLX4_CMD_TIME_CLASS_B, MLX4_CMD_WRAPPED);
+
+	/* IB VL CAP enum isn't used by the firmware, just numerical values */
+	for (vl_cap = 8; vl_cap >= 1; vl_cap >>= 1) {
+		((__be32 *) mailbox->buf)[0] = cpu_to_be32(
+			(1 << MLX4_CHANGE_PORT_MTU_CAP) |
+			(1 << MLX4_CHANGE_PORT_VL_CAP)  |
+			(dev->caps.port_ib_mtu[port] << MLX4_SET_PORT_MTU_CAP) |
+			(vl_cap << MLX4_SET_PORT_VL_CAP));
+		err = mlx4_cmd(dev, mailbox->dma, port, 0, MLX4_CMD_SET_PORT,
+				MLX4_CMD_TIME_CLASS_B, MLX4_CMD_WRAPPED);
+		if (err != -ENOMEM)
+			break;
+	}
 
 	mlx4_free_cmd_mailbox(dev, mailbox);
 	return err;

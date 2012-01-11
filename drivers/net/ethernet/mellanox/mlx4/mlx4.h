@@ -686,6 +686,8 @@ struct mlx4_port_info {
 	char			dev_name[16];
 	struct device_attribute port_attr;
 	enum mlx4_port_type	tmp_type;
+	char			dev_mtu_name[16];
+	struct device_attribute port_mtu_attr;
 	struct mlx4_mac_table	mac_table;
 	struct radix_tree_root	mac_tree;
 	struct mlx4_vlan_table	vlan_table;
