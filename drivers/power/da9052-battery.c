@@ -612,6 +612,7 @@ static s32 __devinit da9052_bat_probe(struct platform_device *pdev)
 	 if (ret)
 		goto err;
 
+	platform_set_drvdata(pdev, bat);
 	return 0;
 
 err:
