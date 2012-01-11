@@ -35,43 +35,44 @@ static struct kmem_cache *srb_cachep;
 int ql4xdisablesysfsboot = 1;
 module_param(ql4xdisablesysfsboot, int, S_IRUGO | S_IWUSR);
 MODULE_PARM_DESC(ql4xdisablesysfsboot,
-		"Set to disable exporting boot targets to sysfs\n"
-		" 0 - Export boot targets\n"
-		" 1 - Do not export boot targets (Default)");
+		 " Set to disable exporting boot targets to sysfs.\n"
+		 "\t\t  0 - Export boot targets\n"
+		 "\t\t  1 - Do not export boot targets (Default)");
 
 int ql4xdontresethba = 0;
 module_param(ql4xdontresethba, int, S_IRUGO | S_IWUSR);
 MODULE_PARM_DESC(ql4xdontresethba,
-		"Don't reset the HBA for driver recovery \n"
-		" 0 - It will reset HBA (Default)\n"
-		" 1 - It will NOT reset HBA");
+		 " Don't reset the HBA for driver recovery.\n"
+		 "\t\t  0 - It will reset HBA (Default)\n"
+		 "\t\t  1 - It will NOT reset HBA");
 
-int ql4xextended_error_logging = 0; /* 0 = off, 1 = log errors */
+int ql4xextended_error_logging;
 module_param(ql4xextended_error_logging, int, S_IRUGO | S_IWUSR);
 MODULE_PARM_DESC(ql4xextended_error_logging,
-		 "Option to enable extended error logging, "
-		 "Default is 0 - no logging, 1 - debug logging");
+		 " Option to enable extended error logging.\n"
+		 "\t\t  0 - no logging (Default)\n"
+		 "\t\t  2 - debug logging");
 
 int ql4xenablemsix = 1;
 module_param(ql4xenablemsix, int, S_IRUGO|S_IWUSR);
 MODULE_PARM_DESC(ql4xenablemsix,
-		"Set to enable MSI or MSI-X interrupt mechanism.\n"
-		" 0 = enable INTx interrupt mechanism.\n"
-		" 1 = enable MSI-X interrupt mechanism (Default).\n"
-		" 2 = enable MSI interrupt mechanism.");
+		 " Set to enable MSI or MSI-X interrupt mechanism.\n"
+		 "\t\t  0 = enable INTx interrupt mechanism.\n"
+		 "\t\t  1 = enable MSI-X interrupt mechanism (Default).\n"
+		 "\t\t  2 = enable MSI interrupt mechanism.");
 
 #define QL4_DEF_QDEPTH 32
 static int ql4xmaxqdepth = QL4_DEF_QDEPTH;
 module_param(ql4xmaxqdepth, int, S_IRUGO | S_IWUSR);
 MODULE_PARM_DESC(ql4xmaxqdepth,
-		"Maximum queue depth to report for target devices.\n"
-		" Default: 32.");
+		 " Maximum queue depth to report for target devices.\n"
+		 "\t\t  Default: 32.");
 
 static int ql4xsess_recovery_tmo = QL4_SESS_RECOVERY_TMO;
 module_param(ql4xsess_recovery_tmo, int, S_IRUGO);
 MODULE_PARM_DESC(ql4xsess_recovery_tmo,
 		"Target Session Recovery Timeout.\n"
-		" Default: 120 sec.");
+		"\t\t  Default: 120 sec.");
 
 static int qla4xxx_wait_for_hba_online(struct scsi_qla_host *ha);
 /*
