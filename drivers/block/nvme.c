@@ -840,12 +840,26 @@ static int nvme_identify(struct nvme_dev *dev, unsigned nsid, unsigned cns,
 }
 
 static int nvme_get_features(struct nvme_dev *dev, unsigned fid,
-			unsigned dword11, dma_addr_t dma_addr, u32 *result)
+				unsigned dword11, dma_addr_t dma_addr)
 {
 	struct nvme_command c;
 
 	memset(&c, 0, sizeof(c));
 	c.features.opcode = nvme_admin_get_features;
+	c.features.prp1 = cpu_to_le64(dma_addr);
+	c.features.fid = cpu_to_le32(fid);
+	c.features.dword11 = cpu_to_le32(dword11);
+
+	return nvme_submit_admin_cmd(dev, &c, NULL);
+}
+
+static int nvme_set_features(struct nvme_dev *dev, unsigned fid,
+			unsigned dword11, dma_addr_t dma_addr, u32 *result)
+{
+	struct nvme_command c;
+
+	memset(&c, 0, sizeof(c));
+	c.features.opcode = nvme_admin_set_features;
 	c.features.prp1 = cpu_to_le64(dma_addr);
 	c.features.fid = cpu_to_le32(fid);
 	c.features.dword11 = cpu_to_le32(dword11);
@@ -1365,7 +1379,7 @@ static int set_queue_count(struct nvme_dev *dev, int count)
 	u32 result;
 	u32 q_count = (count - 1) | ((count - 1) << 16);
 
-	status = nvme_get_features(dev, NVME_FEAT_NUM_QUEUES, q_count, 0,
+	status = nvme_set_features(dev, NVME_FEAT_NUM_QUEUES, q_count, 0,
 								&result);
 	if (status)
 		return -EIO;
@@ -1482,7 +1496,7 @@ static int __devinit nvme_dev_add(struct nvme_dev *dev)
 			continue;
 
 		res = nvme_get_features(dev, NVME_FEAT_LBA_RANGE, i,
-							dma_addr + 4096, NULL);
+							dma_addr + 4096);
 		if (res)
 			continue;
 
