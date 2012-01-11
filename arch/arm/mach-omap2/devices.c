@@ -28,7 +28,6 @@
 #include <plat/board.h>
 #include <plat/mcbsp.h>
 #include <plat/mmc.h>
-#include <plat/iommu.h>
 #include <plat/dma.h>
 #include <plat/omap_hwmod.h>
 #include <plat/omap_device.h>
@@ -128,6 +127,10 @@ static struct platform_device omap2cam_device = {
 };
 #endif
 
+#if defined(CONFIG_IOMMU_API)
+
+#include <plat/iommu.h>
+
 static struct resource omap3isp_resources[] = {
 	{
 		.start		= OMAP3430_ISP_BASE,
@@ -223,6 +226,15 @@ int omap3_init_camera(struct isp_platform_data *pdata)
 
 	return platform_device_register(&omap3isp_device);
 }
+
+#else /* !CONFIG_IOMMU_API */
+
+int omap3_init_camera(struct isp_platform_data *pdata)
+{
+	return 0;
+}
+
+#endif
 
 static inline void omap_init_camera(void)
 {
