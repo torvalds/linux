@@ -1478,7 +1478,7 @@ static int l2cap_retransmit_frames(struct l2cap_chan *chan)
 	return ret;
 }
 
-static void l2cap_send_ack(struct l2cap_chan *chan)
+static void __l2cap_send_ack(struct l2cap_chan *chan)
 {
 	u32 control = 0;
 
@@ -1496,6 +1496,12 @@ static void l2cap_send_ack(struct l2cap_chan *chan)
 
 	control |= __set_ctrl_super(chan, L2CAP_SUPER_RR);
 	l2cap_send_sframe(chan, control);
+}
+
+static void l2cap_send_ack(struct l2cap_chan *chan)
+{
+	__clear_ack_timer(chan);
+	__l2cap_send_ack(chan);
 }
 
 static void l2cap_send_srejtail(struct l2cap_chan *chan)
@@ -1988,7 +1994,7 @@ static void l2cap_ack_timeout(struct work_struct *work)
 	BT_DBG("chan %p", chan);
 
 	lock_sock(chan->sk);
-	l2cap_send_ack(chan);
+	__l2cap_send_ack(chan);
 	release_sock(chan->sk);
 }
 
