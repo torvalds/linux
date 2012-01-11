@@ -66,11 +66,10 @@
 #define MTU_PCELL2	0xff8
 #define MTU_PCELL3	0xffC
 
+static void __iomem *mtu_base;
 static bool clkevt_periodic;
 static u32 clk_prescale;
 static u32 nmdk_cycle;		/* write-once */
-
-void __iomem *mtu_base; /* Assigned by machine code */
 
 #ifdef CONFIG_NOMADIK_MTU_SCHED_CLOCK
 /*
@@ -183,11 +182,12 @@ void nmdk_clksrc_reset(void)
 	       mtu_base + MTU_CR(0));
 }
 
-void __init nmdk_timer_init(void)
+void __init nmdk_timer_init(void __iomem *base)
 {
 	unsigned long rate;
 	struct clk *clk0;
 
+	mtu_base = base;
 	clk0 = clk_get_sys("mtu0", NULL);
 	BUG_ON(IS_ERR(clk0));
 
