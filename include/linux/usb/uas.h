@@ -47,6 +47,14 @@ struct sense_iu {
 	__u8 sense[SCSI_SENSE_BUFFERSIZE];
 };
 
+struct usb_pipe_usage_descriptor {
+	__u8  bLength;
+	__u8  bDescriptorType;
+
+	__u8  bPipeID;
+	__u8  Reserved;
+} __attribute__((__packed__));
+
 enum {
 	CMD_PIPE_ID		= 1,
 	STATUS_PIPE_ID		= 2,
