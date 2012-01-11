@@ -132,6 +132,7 @@ int kvm_dev_ioctl_check_extension(long ext)
 #ifdef CONFIG_KVM_S390_UCONTROL
 	case KVM_CAP_S390_UCONTROL:
 #endif
+	case KVM_CAP_SYNC_REGS:
 		r = 1;
 		break;
 	default:
@@ -288,6 +289,7 @@ int kvm_arch_vcpu_init(struct kvm_vcpu *vcpu)
 	}
 
 	vcpu->arch.gmap = vcpu->kvm->arch.gmap;
+	vcpu->run->kvm_valid_regs = KVM_SYNC_PREFIX;
 	return 0;
 }
 
@@ -572,6 +574,10 @@ rerun_vcpu:
 
 	vcpu->arch.sie_block->gpsw.mask = kvm_run->psw_mask;
 	vcpu->arch.sie_block->gpsw.addr = kvm_run->psw_addr;
+	if (kvm_run->kvm_dirty_regs & KVM_SYNC_PREFIX) {
+		kvm_run->kvm_dirty_regs &= ~KVM_SYNC_PREFIX;
+		kvm_s390_set_prefix(vcpu, kvm_run->s.regs.prefix);
+	}
 
 	might_fault();
 
@@ -620,6 +626,7 @@ rerun_vcpu:
 
 	kvm_run->psw_mask     = vcpu->arch.sie_block->gpsw.mask;
 	kvm_run->psw_addr     = vcpu->arch.sie_block->gpsw.addr;
+	kvm_run->s.regs.prefix = vcpu->arch.sie_block->prefix;
 
 	if (vcpu->sigset_active)
 		sigprocmask(SIG_SETMASK, &sigsaved, NULL);
