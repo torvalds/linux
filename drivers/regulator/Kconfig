@@ -275,6 +275,15 @@ config REGULATOR_TPS6507X
 	  three step-down converters and two general-purpose LDO voltage regulators.
 	  It supports TI's software based Class-2 SmartReflex implementation.
 
+config REGULATOR_TPS65217
+	tristate "TI TPS65217 Power regulators"
+	depends on MFD_TPS65217
+	help
+	  This driver supports TPS65217 voltage regulator chips. TPS65217
+	  provides three step-down converters and four general-purpose LDO
+	  voltage regulators. It supports software based voltage control
+	  for different voltage domains
+
 config REGULATOR_TPS65912
 	tristate "TI TPS65912 Power regulator"
 	depends on (MFD_TPS65912_I2C || MFD_TPS65912_SPI)
