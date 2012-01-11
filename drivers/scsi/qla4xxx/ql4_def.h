@@ -671,6 +671,7 @@ struct scsi_qla_host {
 	uint16_t pri_ddb_idx;
 	uint16_t sec_ddb_idx;
 	int is_reset;
+	uint16_t temperature;
 };
 
 struct ql4_task_data {

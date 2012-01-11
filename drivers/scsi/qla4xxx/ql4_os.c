@@ -1972,6 +1972,42 @@ mem_alloc_error_exit:
 }
 
 /**
+ * qla4_8xxx_check_temp - Check the ISP82XX temperature.
+ * @ha: adapter block pointer.
+ *
+ * Note: The caller should not hold the idc lock.
+ **/
+static int qla4_8xxx_check_temp(struct scsi_qla_host *ha)
+{
+	uint32_t temp, temp_state, temp_val;
+	int status = QLA_SUCCESS;
+
+	temp = qla4_8xxx_rd_32(ha, CRB_TEMP_STATE);
+
+	temp_state = qla82xx_get_temp_state(temp);
+	temp_val = qla82xx_get_temp_val(temp);
+
+	if (temp_state == QLA82XX_TEMP_PANIC) {
+		ql4_printk(KERN_WARNING, ha, "Device temperature %d degrees C"
+			   " exceeds maximum allowed. Hardware has been shut"
+			   " down.\n", temp_val);
+		status = QLA_ERROR;
+	} else if (temp_state == QLA82XX_TEMP_WARN) {
+		if (ha->temperature == QLA82XX_TEMP_NORMAL)
+			ql4_printk(KERN_WARNING, ha, "Device temperature %d"
+				   " degrees C exceeds operating range."
+				   " Immediate action needed.\n", temp_val);
+	} else {
+		if (ha->temperature == QLA82XX_TEMP_WARN)
+			ql4_printk(KERN_INFO, ha, "Device temperature is"
+				   " now %d degrees C in normal range.\n",
+				   temp_val);
+	}
+	ha->temperature = temp_state;
+	return status;
+}
+
+/**
  * qla4_8xxx_check_fw_alive  - Check firmware health
  * @ha: Pointer to host adapter structure.
  *
@@ -2042,7 +2078,11 @@ void qla4_8xxx_watchdog(struct scsi_qla_host *ha)
 	    test_bit(DPC_RESET_HA, &ha->dpc_flags) ||
 	    test_bit(DPC_RETRY_RESET_HA, &ha->dpc_flags))) {
 		dev_state = qla4_8xxx_rd_32(ha, QLA82XX_CRB_DEV_STATE);
-		if (dev_state == QLA82XX_DEV_NEED_RESET &&
+
+		if (qla4_8xxx_check_temp(ha)) {
+			set_bit(DPC_HA_UNRECOVERABLE, &ha->dpc_flags);
+			qla4xxx_wake_dpc(ha);
+		} else if (dev_state == QLA82XX_DEV_NEED_RESET &&
 		    !test_bit(DPC_RESET_HA, &ha->dpc_flags)) {
 			if (!ql4xdontresethba) {
 				ql4_printk(KERN_INFO, ha, "%s: HW State: "
