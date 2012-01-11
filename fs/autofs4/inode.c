@@ -225,6 +225,7 @@ int autofs4_fill_super(struct super_block *s, void *data, int silent)
 	sbi->min_proto = 0;
 	sbi->max_proto = 0;
 	mutex_init(&sbi->wq_mutex);
+	mutex_init(&sbi->pipe_mutex);
 	spin_lock_init(&sbi->fs_lock);
 	sbi->queues = NULL;
 	spin_lock_init(&sbi->lookup_lock);
