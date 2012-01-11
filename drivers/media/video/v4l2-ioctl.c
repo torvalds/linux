@@ -540,10 +540,12 @@ static long __video_do_ioctl(struct file *file,
 		if (!ret)
 			dbgarg(cmd, "driver=%s, card=%s, bus=%s, "
 					"version=0x%08x, "
-					"capabilities=0x%08x\n",
+					"capabilities=0x%08x, "
+					"device_caps=0x%08x\n",
 					cap->driver, cap->card, cap->bus_info,
 					cap->version,
-					cap->capabilities);
+					cap->capabilities,
+					cap->device_caps);
 		break;
 	}
 

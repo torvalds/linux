@@ -124,12 +124,35 @@ printf ("Version: %u.%u.%u\n",
 	  <row>
 	    <entry>__u32</entry>
 	    <entry><structfield>capabilities</structfield></entry>
-	    <entry>Device capabilities, see <xref
-		linkend="device-capabilities" />.</entry>
+	    <entry>Available capabilities of the physical device as a whole, see <xref
+		linkend="device-capabilities" />. The same physical device can export
+		multiple devices in /dev (e.g. /dev/videoX, /dev/vbiY and /dev/radioZ).
+		The <structfield>capabilities</structfield> field should contain a union
+		of all capabilities available around the several V4L2 devices exported
+		to userspace.
+		For all those devices the <structfield>capabilities</structfield> field
+		returns the same set of	capabilities. This allows applications to open
+		just one of the devices (typically the video device) and discover whether
+		video, vbi and/or radio are also supported.
+	    </entry>
 	  </row>
 	  <row>
 	    <entry>__u32</entry>
-	    <entry><structfield>reserved</structfield>[4]</entry>
+	    <entry><structfield>device_caps</structfield></entry>
+	    <entry>Device capabilities of the opened device, see <xref
+		linkend="device-capabilities" />. Should contain the available capabilities
+		of that specific device node. So, for example, <structfield>device_caps</structfield>
+		of a radio device will only contain radio related capabilities and
+		no video or vbi capabilities. This field is only set if the <structfield>capabilities</structfield>
+		field contains the <constant>V4L2_CAP_DEVICE_CAPS</constant> capability.
+		Only the <structfield>capabilities</structfield> field can have the
+		<constant>V4L2_CAP_DEVICE_CAPS</constant> capability, <structfield>device_caps</structfield>
+		will never set <constant>V4L2_CAP_DEVICE_CAPS</constant>.
+	    </entry>
+	  </row>
+	  <row>
+	    <entry>__u32</entry>
+	    <entry><structfield>reserved</structfield>[3]</entry>
 	    <entry>Reserved for future extensions. Drivers must set
 this array to zero.</entry>
 	  </row>
@@ -275,6 +298,13 @@ linkend="async">asynchronous</link> I/O methods.</entry>
 	    <entry>0x04000000</entry>
 	    <entry>The device supports the <link
 linkend="mmap">streaming</link> I/O method.</entry>
+	  </row>
+	  <row>
+	    <entry><constant>V4L2_CAP_DEVICE_CAPS</constant></entry>
+	    <entry>0x80000000</entry>
+	    <entry>The driver fills the <structfield>device_caps</structfield>
+	    field. This capability can only appear in the <structfield>capabilities</structfield>
+	    field and never in the <structfield>device_caps</structfield> field.</entry>
 	  </row>
 	</tbody>
       </tgroup>
