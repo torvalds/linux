@@ -1996,6 +1996,8 @@ static void l2cap_ack_timeout(struct work_struct *work)
 	lock_sock(chan->sk);
 	__l2cap_send_ack(chan);
 	release_sock(chan->sk);
+
+	l2cap_chan_put(chan);
 }
 
 static inline void l2cap_ertm_init(struct l2cap_chan *chan)
