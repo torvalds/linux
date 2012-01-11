@@ -103,20 +103,12 @@ struct btrfs_inode {
 	 */
 	u64 delalloc_bytes;
 
-	/* total number of bytes that may be used for this inode for
-	 * delalloc
-	 */
-	u64 reserved_bytes;
-
 	/*
 	 * the size of the file stored in the metadata on disk.  data=ordered
 	 * means the in-memory i_size might be larger than the size on disk
 	 * because not all the blocks are written yet.
 	 */
 	u64 disk_i_size;
-
-	/* flags field from the on disk inode */
-	u32 flags;
 
 	/*
 	 * if this is a directory then index_cnt is the counter for the index
@@ -130,6 +122,15 @@ struct btrfs_inode {
 	 * details
 	 */
 	u64 last_unlink_trans;
+
+	/*
+	 * Number of bytes outstanding that are going to need csums.  This is
+	 * used in ENOSPC accounting.
+	 */
+	u64 csum_bytes;
+
+	/* flags field from the on disk inode */
+	u32 flags;
 
 	/*
 	 * Counters to keep track of the number of extent item's we may use due
@@ -146,14 +147,12 @@ struct btrfs_inode {
 	 * the btrfs file release call will add this inode to the
 	 * ordered operations list so that we make sure to flush out any
 	 * new data the application may have written before commit.
-	 *
-	 * yes, its silly to have a single bitflag, but we might grow more
-	 * of these.
 	 */
 	unsigned ordered_data_close:1;
 	unsigned orphan_meta_reserved:1;
 	unsigned dummy_inode:1;
 	unsigned in_defrag:1;
+	unsigned delalloc_meta_reserved:1;
 
 	/*
 	 * always compress this one file
