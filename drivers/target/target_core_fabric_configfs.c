@@ -766,9 +766,9 @@ static int target_fabric_port_link(
 
 	lun_p = core_dev_add_lun(se_tpg, dev->se_hba, dev,
 				lun->unpacked_lun);
-	if (IS_ERR(lun_p) || !lun_p) {
+	if (IS_ERR(lun_p)) {
 		pr_err("core_dev_add_lun() failed\n");
-		ret = -EINVAL;
+		ret = PTR_ERR(lun_p);
 		goto out;
 	}
 
