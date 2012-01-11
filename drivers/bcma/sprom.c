@@ -271,6 +271,7 @@ int bcma_sprom_get(struct bcma_bus *bus)
 	 * TODO: understand this condition and use it */
 	offset = (bus->chipinfo.id == 0x4331) ? BCMA_CC_SPROM :
 		BCMA_CC_SPROM_PCIE6;
+	pr_debug("SPROM offset 0x%x\n", offset);
 	bcma_sprom_read(bus, offset, sprom);
 
 	if (bus->chipinfo.id == 0x4331)
