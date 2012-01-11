@@ -400,7 +400,7 @@ static int atmel_lcdfb_check_var(struct fb_var_screeninfo *var,
 	var->lower_margin = min_t(u32, var->lower_margin,
 			ATMEL_LCDC_VFP);
 	var->right_margin = min_t(u32, var->right_margin,
-			(ATMEL_LCDC_HFP >> ATMEL_LCDC_HFP_OFFSET) + 2);
+			(ATMEL_LCDC_HFP >> ATMEL_LCDC_HFP_OFFSET) + 1);
 	var->hsync_len = min_t(u32, var->hsync_len,
 			(ATMEL_LCDC_HPW >> ATMEL_LCDC_HPW_OFFSET) + 1);
 	var->left_margin = min_t(u32, var->left_margin,
@@ -585,7 +585,7 @@ static int atmel_lcdfb_set_par(struct fb_info *info)
 	lcdc_writel(sinfo, ATMEL_LCDC_TIM1, value);
 
 	/* Horizontal timing */
-	value = (info->var.right_margin - 2) << ATMEL_LCDC_HFP_OFFSET;
+	value = (info->var.right_margin - 1) << ATMEL_LCDC_HFP_OFFSET;
 	value |= (info->var.hsync_len - 1) << ATMEL_LCDC_HPW_OFFSET;
 	value |= (info->var.left_margin - 1);
 	dev_dbg(info->device, "  * LCDTIM2 = %08lx\n", value);
