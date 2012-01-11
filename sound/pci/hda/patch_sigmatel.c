@@ -4236,6 +4236,27 @@ static void stac_store_hints(struct hda_codec *codec)
 	}
 }
 
+static void stac_issue_unsol_events(struct hda_codec *codec, int num_pins,
+				    const hda_nid_t *pins)
+{
+	while (num_pins--)
+		stac_issue_unsol_event(codec, *pins++);
+}
+
+/* fake event to set up pins */
+static void stac_fake_hp_events(struct hda_codec *codec)
+{
+	struct sigmatel_spec *spec = codec->spec;
+
+	if (spec->autocfg.hp_outs)
+		stac_issue_unsol_events(codec, spec->autocfg.hp_outs,
+					spec->autocfg.hp_pins);
+	if (spec->autocfg.line_outs &&
+	    spec->autocfg.line_out_pins[0] != spec->autocfg.hp_pins[0])
+		stac_issue_unsol_events(codec, spec->autocfg.line_outs,
+					spec->autocfg.line_out_pins);
+}
+
 static int stac92xx_init(struct hda_codec *codec)
 {
 	struct sigmatel_spec *spec = codec->spec;
@@ -4286,10 +4307,7 @@ static int stac92xx_init(struct hda_codec *codec)
 		stac92xx_auto_set_pinctl(codec, spec->autocfg.line_out_pins[0],
 				AC_PINCTL_OUT_EN);
 		/* fake event to set up pins */
-		if (cfg->hp_pins[0])
-			stac_issue_unsol_event(codec, cfg->hp_pins[0]);
-		else if (cfg->line_out_pins[0])
-			stac_issue_unsol_event(codec, cfg->line_out_pins[0]);
+		stac_fake_hp_events(codec);
 	} else {
 		stac92xx_auto_init_multi_out(codec);
 		stac92xx_auto_init_hp_out(codec);
@@ -4948,19 +4966,11 @@ static void stac927x_proc_hook(struct snd_info_buffer *buffer,
 #ifdef CONFIG_PM
 static int stac92xx_resume(struct hda_codec *codec)
 {
-	struct sigmatel_spec *spec = codec->spec;
-
 	stac92xx_init(codec);
 	snd_hda_codec_resume_amp(codec);
 	snd_hda_codec_resume_cache(codec);
 	/* fake event to set up pins again to override cached values */
-	if (spec->hp_detect) {
-		if (spec->autocfg.hp_pins[0])
-			stac_issue_unsol_event(codec, spec->autocfg.hp_pins[0]);
-		else if (spec->autocfg.line_out_pins[0])
-			stac_issue_unsol_event(codec,
-					       spec->autocfg.line_out_pins[0]);
-	}
+	stac_fake_hp_events(codec);
 	return 0;
 }
 
