@@ -200,12 +200,12 @@ struct devfreq_simple_ondemand_data {
 static struct devfreq *devfreq_add_device(struct device *dev,
 					  struct devfreq_dev_profile *profile,
 					  struct devfreq_governor *governor,
-					  void *data);
+					  void *data)
 {
 	return NULL;
 }
 
-static int devfreq_remove_device(struct devfreq *devfreq);
+static int devfreq_remove_device(struct devfreq *devfreq)
 {
 	return 0;
 }
