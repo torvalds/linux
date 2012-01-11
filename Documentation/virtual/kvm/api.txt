@@ -1771,6 +1771,29 @@ developer registration required to access it).
 		/* Fix the size of the union. */
 		char padding[256];
 	};
+
+	/*
+	 * shared registers between kvm and userspace.
+	 * kvm_valid_regs specifies the register classes set by the host
+	 * kvm_dirty_regs specified the register classes dirtied by userspace
+	 * struct kvm_sync_regs is architecture specific, as well as the
+	 * bits for kvm_valid_regs and kvm_dirty_regs
+	 */
+	__u64 kvm_valid_regs;
+	__u64 kvm_dirty_regs;
+	union {
+		struct kvm_sync_regs regs;
+		char padding[1024];
+	} s;
+
+If KVM_CAP_SYNC_REGS is defined, these fields allow userspace to access
+certain guest registers without having to call SET/GET_*REGS. Thus we can
+avoid some system call overhead if userspace has to handle the exit.
+Userspace can query the validity of the structure by checking
+kvm_valid_regs for specific bits. These bits are architecture specific
+and usually define the validity of a groups of registers. (e.g. one bit
+ for general purpose registers)
+
 };
 
 6. Capabilities that can be enabled

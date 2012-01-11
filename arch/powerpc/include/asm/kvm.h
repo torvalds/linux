@@ -265,6 +265,10 @@ struct kvm_debug_exit_arch {
 struct kvm_guest_debug_arch {
 };
 
+/* definition of registers in kvm_run */
+struct kvm_sync_regs {
+};
+
 #define KVM_REG_MASK		0x001f
 #define KVM_REG_EXT_MASK	0xffe0
 #define KVM_REG_GPR		0x0000

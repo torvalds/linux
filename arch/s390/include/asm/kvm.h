@@ -41,4 +41,7 @@ struct kvm_debug_exit_arch {
 struct kvm_guest_debug_arch {
 };
 
+/* definition of registers in kvm_run */
+struct kvm_sync_regs {
+};
 #endif
