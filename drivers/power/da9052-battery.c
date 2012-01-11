@@ -647,18 +647,7 @@ static struct platform_driver da9052_bat_driver = {
 		.owner = THIS_MODULE,
 	},
 };
-
-static int __init da9052_bat_init(void)
-{
-	return platform_driver_register(&da9052_bat_driver);
-}
-module_init(da9052_bat_init);
-
-static void __exit da9052_bat_exit(void)
-{
-	platform_driver_unregister(&da9052_bat_driver);
-}
-module_exit(da9052_bat_exit);
+module_platform_driver(da9052_bat_driver);
 
 MODULE_DESCRIPTION("DA9052 BAT Device Driver");
 MODULE_AUTHOR("David Dajun Chen <dchen@diasemi.com>");
