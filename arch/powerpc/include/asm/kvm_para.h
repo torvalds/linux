@@ -22,6 +22,16 @@
 
 #include <linux/types.h>
 
+/*
+ * Additions to this struct must only occur at the end, and should be
+ * accompanied by a KVM_MAGIC_FEAT flag to advertise that they are present
+ * (albeit not necessarily relevant to the current target hardware platform).
+ *
+ * Struct fields are always 32 or 64 bit aligned, depending on them being 32
+ * or 64 bit wide respectively.
+ *
+ * See Documentation/virtual/kvm/ppc-pv.txt
+ */
 struct kvm_vcpu_arch_shared {
 	__u64 scratch1;
 	__u64 scratch2;
