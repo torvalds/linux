@@ -1336,34 +1336,37 @@ int usb_suspend(struct device *dev, pm_message_t msg)
 }
 
 /* The device lock is held by the PM core */
+int usb_resume_complete(struct device *dev)
+{
+	struct usb_device *udev = to_usb_device(dev);
+
+	/* For PM complete calls, all we do is rebind interfaces
+	 * whose needs_binding flag is set
+	 */
+	if (udev->state != USB_STATE_NOTATTACHED)
+		do_rebind_interfaces(udev);
+	return 0;
+}
+
+/* The device lock is held by the PM core */
 int usb_resume(struct device *dev, pm_message_t msg)
 {
 	struct usb_device	*udev = to_usb_device(dev);
 	int			status;
 
-	/* For PM complete calls, all we do is rebind interfaces
-	 * whose needs_binding flag is set
-	 */
-	if (msg.event == PM_EVENT_ON) {
-		if (udev->state != USB_STATE_NOTATTACHED)
-			do_rebind_interfaces(udev);
-		status = 0;
-
-	/* For all other calls, take the device back to full power and
+	/* For all calls, take the device back to full power and
 	 * tell the PM core in case it was autosuspended previously.
 	 * Unbind the interfaces that will need rebinding later,
 	 * because they fail to support reset_resume.
 	 * (This can't be done in usb_resume_interface()
-         * above because it doesn't own the right set of locks.)
+	 * above because it doesn't own the right set of locks.)
 	 */
-	} else {
-		status = usb_resume_both(udev, msg);
-		if (status == 0) {
-			pm_runtime_disable(dev);
-			pm_runtime_set_active(dev);
-			pm_runtime_enable(dev);
-			unbind_no_reset_resume_drivers_interfaces(udev);
-		}
+	status = usb_resume_both(udev, msg);
+	if (status == 0) {
+		pm_runtime_disable(dev);
+		pm_runtime_set_active(dev);
+		pm_runtime_enable(dev);
+		unbind_no_reset_resume_drivers_interfaces(udev);
 	}
 
 	/* Avoid PM error messages for devices disconnected while suspended
