@@ -547,7 +547,7 @@ static void ieee80211_handle_pwr_constr(struct ieee80211_sub_if_data *sdata,
 	if (pwr_constr_elem_len != 1)
 		return;
 
-	if ((*pwr_constr_elem <= conf->channel->max_power) &&
+	if ((*pwr_constr_elem <= conf->channel->max_reg_power) &&
 	    (*pwr_constr_elem != sdata->local->power_constr_level)) {
 		sdata->local->power_constr_level = *pwr_constr_elem;
 		ieee80211_hw_config(sdata->local, 0);
