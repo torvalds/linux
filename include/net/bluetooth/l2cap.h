@@ -616,11 +616,16 @@ static inline void l2cap_set_timer(struct l2cap_chan *chan,
 	schedule_delayed_work(work, timeout);
 }
 
-static inline void l2cap_clear_timer(struct l2cap_chan *chan,
+static inline bool l2cap_clear_timer(struct l2cap_chan *chan,
 					struct delayed_work *work)
 {
-	if (__cancel_delayed_work(work))
+	bool ret;
+
+	ret = __cancel_delayed_work(work);
+	if (ret)
 		l2cap_chan_put(chan);
+
+	return ret;
 }
 
 #define __set_chan_timer(c, t) l2cap_set_timer(c, &c->chan_timer, (t))
