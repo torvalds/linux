@@ -61,57 +61,17 @@ struct quickstart_btn {
 	struct quickstart_btn *next;
 };
 
+struct quickstart_acpi {
+	struct acpi_device *device;
+	struct quickstart_btn *btn;
+};
+
 static struct quickstart_driver_data {
 	struct quickstart_btn *btn_lst;
 	struct quickstart_btn *pressed;
 } quickstart_data;
 
-/* ACPI driver structs */
-struct quickstart_acpi {
-	struct acpi_device *device;
-	struct quickstart_btn *btn;
-};
-static int quickstart_acpi_add(struct acpi_device *device);
-static int quickstart_acpi_remove(struct acpi_device *device, int type);
-static const struct acpi_device_id quickstart_device_ids[] = {
-	{QUICKSTART_ACPI_HID, 0},
-	{"", 0},
-};
-
-static struct acpi_driver quickstart_acpi_driver = {
-	.name = "quickstart",
-	.class = QUICKSTART_ACPI_CLASS,
-	.ids = quickstart_device_ids,
-	.ops = {
-			.add = quickstart_acpi_add,
-			.remove = quickstart_acpi_remove,
-		},
-};
-
-/* Input device structs */
 struct input_dev *quickstart_input;
-
-/* Platform driver structs */
-static ssize_t quickstart_buttons_show(struct device *dev,
-					struct device_attribute *attr,
-					char *buf);
-static ssize_t quickstart_pressed_button_show(struct device *dev,
-					struct device_attribute *attr,
-					char *buf);
-static ssize_t quickstart_pressed_button_store(struct device *dev,
-					struct device_attribute *attr,
-					 const char *buf,
-					 size_t count);
-static DEVICE_ATTR(pressed_button, 0666, quickstart_pressed_button_show,
-					 quickstart_pressed_button_store);
-static DEVICE_ATTR(buttons, 0444, quickstart_buttons_show, NULL);
-static struct platform_device *pf_device;
-static struct platform_driver pf_driver = {
-	.driver = {
-		.name = QUICKSTART_PF_DRIVER_NAME,
-		.owner = THIS_MODULE,
-	}
-};
 
 /* Platform driver functions */
 static ssize_t quickstart_buttons_show(struct device *dev,
@@ -352,6 +312,33 @@ static int quickstart_acpi_remove(struct acpi_device *device, int type)
 
 	return 0;
 }
+
+/* Platform driver structs */
+static DEVICE_ATTR(pressed_button, 0666, quickstart_pressed_button_show,
+					 quickstart_pressed_button_store);
+static DEVICE_ATTR(buttons, 0444, quickstart_buttons_show, NULL);
+static struct platform_device *pf_device;
+static struct platform_driver pf_driver = {
+	.driver = {
+		.name = QUICKSTART_PF_DRIVER_NAME,
+		.owner = THIS_MODULE,
+	}
+};
+
+static const struct acpi_device_id quickstart_device_ids[] = {
+	{QUICKSTART_ACPI_HID, 0},
+	{"", 0},
+};
+
+static struct acpi_driver quickstart_acpi_driver = {
+	.name = "quickstart",
+	.class = QUICKSTART_ACPI_CLASS,
+	.ids = quickstart_device_ids,
+	.ops = {
+			.add = quickstart_acpi_add,
+			.remove = quickstart_acpi_remove,
+		},
+};
 
 /* Module functions */
 static void quickstart_exit(void)
