@@ -518,6 +518,7 @@ enum ib_wc_flags {
 	IB_WC_GRH		= 1,
 	IB_WC_WITH_IMM		= (1<<1),
 	IB_WC_WITH_INVALIDATE	= (1<<2),
+	IB_WC_IP_CSUM_OK	= (1<<3),
 };
 
 struct ib_wc {
@@ -538,7 +539,6 @@ struct ib_wc {
 	u8			sl;
 	u8			dlid_path_bits;
 	u8			port_num;	/* valid only for DR SMPs on switches */
-	int			csum_ok;
 };
 
 enum ib_cq_notify_flags {
