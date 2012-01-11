@@ -226,6 +226,7 @@ static struct snd_soc_dai_link sdp4430_dai[] = {
 /* Audio machine driver */
 static struct snd_soc_card snd_soc_sdp4430 = {
 	.name = "SDP4430",
+	.owner = THIS_MODULE,
 	.dai_link = sdp4430_dai,
 	.num_links = ARRAY_SIZE(sdp4430_dai),
 
