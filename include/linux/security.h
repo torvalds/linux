@@ -590,6 +590,8 @@ static inline void security_free_mnt_opts(struct security_mnt_opts *opts)
  *	@reqprot contains the protection requested by the application.
  *	@prot contains the protection that will be applied by the kernel.
  *	@flags contains the operational flags.
+ *	@addr contains virtual address that will be used for the operation.
+ *	@addr_only contains a boolean: 0 if file-backed VMA, otherwise 1.
  *	Return 0 if permission is granted.
  * @file_mprotect:
  *	Check permissions before changing memory access permissions.
@@ -2043,7 +2045,7 @@ static inline void security_inode_free(struct inode *inode)
 static inline int security_inode_init_security(struct inode *inode,
 						struct inode *dir,
 						const struct qstr *qstr,
-						initxattrs initxattrs,
+						const initxattrs initxattrs,
 						void *fs_data)
 {
 	return 0;
