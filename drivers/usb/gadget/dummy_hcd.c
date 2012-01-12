@@ -447,7 +447,7 @@ dummy_enable (struct usb_ep *_ep, const struct usb_endpoint_descriptor *desc)
 	 * especially for "ep9out" style fixed function ones.)
 	 */
 	retval = -EINVAL;
-	switch (desc->bmAttributes & 0x03) {
+	switch (usb_endpoint_type(desc)) {
 	case USB_ENDPOINT_XFER_BULK:
 		if (strstr (ep->ep.name, "-iso")
 				|| strstr (ep->ep.name, "-int")) {
@@ -531,7 +531,7 @@ dummy_enable (struct usb_ep *_ep, const struct usb_endpoint_descriptor *desc)
 		desc->bEndpointAddress & 0x0f,
 		(desc->bEndpointAddress & USB_DIR_IN) ? "in" : "out",
 		({ char *val;
-		 switch (desc->bmAttributes & 0x03) {
+		 switch (usb_endpoint_type(desc)) {
 		 case USB_ENDPOINT_XFER_BULK:
 			 val = "bulk";
 			 break;
@@ -1439,7 +1439,7 @@ static int periodic_bytes (struct dummy *dum, struct dummy_ep *ep)
 		limit += limit * tmp;
 	}
 	if (dum->gadget.speed == USB_SPEED_SUPER) {
-		switch (ep->desc->bmAttributes & 0x03) {
+		switch (usb_endpoint_type(ep->desc)) {
 		case USB_ENDPOINT_XFER_ISOC:
 			/* Sec. 4.4.8.2 USB3.0 Spec */
 			limit = 3 * 16 * 1024 * 8;
