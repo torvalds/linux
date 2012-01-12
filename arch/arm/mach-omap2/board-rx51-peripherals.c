@@ -945,6 +945,9 @@ static struct i2c_board_info __initdata rx51_peripherals_i2c_board_info_2[] = {
 	},
 #endif
 	{
+		I2C_BOARD_INFO("bq27200", 0x55),
+	},
+	{
 		I2C_BOARD_INFO("tpa6130a2", 0x60),
 		.platform_data = &rx51_tpa6130a2_data,
 	}
