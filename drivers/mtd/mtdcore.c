@@ -107,7 +107,7 @@ static LIST_HEAD(mtd_notifiers);
  */
 static void mtd_release(struct device *dev)
 {
-	struct mtd_info *mtd = dev_get_drvdata(dev);
+	struct mtd_info __maybe_unused *mtd = dev_get_drvdata(dev);
 	dev_t index = MTD_DEVT(mtd->index);
 
 	/* remove /dev/mtdXro node if needed */
