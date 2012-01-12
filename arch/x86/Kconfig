@@ -420,18 +420,40 @@ config X86_MRST
 	depends on PCI
 	depends on PCI_GOANY
 	depends on X86_IO_APIC
+	select X86_INTEL_MID
+	select SFI
+	select DW_APB_TIMER
 	select APB_TIMER
 	select I2C
 	select SPI
 	select INTEL_SCU_IPC
 	select X86_PLATFORM_DEVICES
-	select X86_INTEL_MID
 	---help---
 	  Moorestown is Intel's Low Power Intel Architecture (LPIA) based Moblin
 	  Internet Device(MID) platform. Moorestown consists of two chips:
 	  Lincroft (CPU core, graphics, and memory controller) and Langwell IOH.
 	  Unlike standard x86 PCs, Moorestown does not have many legacy devices
 	  nor standard legacy replacement devices/features. e.g. Moorestown does
+	  not contain i8259, i8254, HPET, legacy BIOS, most of the io ports.
+
+config X86_MDFLD
+       bool "Medfield MID platform"
+	depends on PCI
+	depends on PCI_GOANY
+	depends on X86_IO_APIC
+	select X86_INTEL_MID
+	select SFI
+	select DW_APB_TIMER
+	select APB_TIMER
+	select I2C
+	select SPI
+	select INTEL_SCU_IPC
+	select X86_PLATFORM_DEVICES
+	---help---
+	  Medfield is Intel's Low Power Intel Architecture (LPIA) based Moblin
+	  Internet Device(MID) platform. 
+	  Unlike standard x86 PCs, Medfield does not have many legacy devices
+	  nor standard legacy replacement devices/features. e.g. Medfield does
 	  not contain i8259, i8254, HPET, legacy BIOS, most of the io ports.
 
 endif
@@ -631,7 +653,7 @@ config X86_SUMMIT_NUMA
 
 config X86_CYCLONE_TIMER
 	def_bool y
-	depends on X86_32_NON_STANDARD
+	depends on X86_SUMMIT
 
 source "arch/x86/Kconfig.cpu"
 
@@ -659,9 +681,10 @@ config HPET_EMULATE_RTC
 	depends on HPET_TIMER && (RTC=y || RTC=m || RTC_DRV_CMOS=m || RTC_DRV_CMOS=y)
 
 config APB_TIMER
-       def_bool y if MRST
-       prompt "Langwell APB Timer Support" if X86_MRST
+       def_bool y if X86_INTEL_MID
+       prompt "Intel MID APB Timer Support" if X86_INTEL_MID
        select DW_APB_TIMER
+       depends on X86_INTEL_MID && SFI
        help
          APB timer is the replacement for 8254, HPET on X86 MID platforms.
          The APBT provides a stable time base on SMP

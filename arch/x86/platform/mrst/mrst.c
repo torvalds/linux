@@ -848,8 +848,7 @@ static void __init sfi_handle_ipc_dev(struct sfi_device_table_entry *entry)
 	if (mrst_has_msic())
 		return;
 
-	/* ID as IRQ is a hack that will go away */
-	pdev = platform_device_alloc(entry->name, entry->irq);
+	pdev = platform_device_alloc(entry->name, 0);
 	if (pdev == NULL) {
 		pr_err("out of memory for SFI platform device '%s'.\n",
 			entry->name);
@@ -1030,6 +1029,7 @@ static int __init pb_keys_init(void)
 	num = sizeof(gpio_button) / sizeof(struct gpio_keys_button);
 	for (i = 0; i < num; i++) {
 		gb[i].gpio = get_gpio_by_name(gb[i].desc);
+		pr_debug("info[%2d]: name = %s, gpio = %d\n", i, gb[i].desc, gb[i].gpio);
 		if (gb[i].gpio == -1)
 			continue;
 

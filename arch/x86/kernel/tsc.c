@@ -995,3 +995,23 @@ void __init tsc_init(void)
 	check_system_tsc_reliable();
 }
 
+#ifdef CONFIG_SMP
+/*
+ * If we have a constant TSC and are using the TSC for the delay loop,
+ * we can skip clock calibration if another cpu in the same socket has already
+ * been calibrated. This assumes that CONSTANT_TSC applies to all
+ * cpus in the socket - this should be a safe assumption.
+ */
+unsigned long __cpuinit calibrate_delay_is_known(void)
+{
+	int i, cpu = smp_processor_id();
+
+	if (!tsc_disabled && !cpu_has(&cpu_data(cpu), X86_FEATURE_CONSTANT_TSC))
+		return 0;
+
+	for_each_online_cpu(i)
+		if (cpu_data(i).phys_proc_id == cpu_data(cpu).phys_proc_id)
+			return cpu_data(i).loops_per_jiffy;
+	return 0;
+}
+#endif

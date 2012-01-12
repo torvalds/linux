@@ -43,9 +43,9 @@ config EARLY_PRINTK
 	  with klogd/syslogd or the X server. You should normally N here,
 	  unless you want to debug such a crash.
 
-config EARLY_PRINTK_MRST
-	bool "Early printk for MRST platform support"
-	depends on EARLY_PRINTK && X86_MRST
+config EARLY_PRINTK_INTEL_MID
+	bool "Early printk for Intel MID platform support"
+	depends on EARLY_PRINTK && X86_INTEL_MID
 
 config EARLY_PRINTK_DBGP
 	bool "Early printk via EHCI debug port"
