@@ -44,6 +44,7 @@ static int tx_lpm;
 static int max_rate = 4000000;
 
 struct sa1100_buf {
+	struct device		*dev;
 	struct sk_buff		*skb;
 	struct scatterlist	sg;
 	dma_regs_t		*regs;
@@ -99,7 +100,7 @@ static int sa1100_irda_rx_alloc(struct sa1100_irda *si)
 	skb_reserve(si->dma_rx.skb, 1);
 
 	sg_set_buf(&si->dma_rx.sg, si->dma_rx.skb->data, HPSIR_MAX_RXLEN);
-	if (dma_map_sg(si->dev, &si->dma_rx.sg, 1, DMA_FROM_DEVICE) == 0) {
+	if (dma_map_sg(si->dma_rx.dev, &si->dma_rx.sg, 1, DMA_FROM_DEVICE) == 0) {
 		dev_kfree_skb_any(si->dma_rx.skb);
 		return -ENOMEM;
 	}
@@ -295,7 +296,7 @@ static void sa1100_irda_firtxdma_irq(void *id)
 	/* Account and free the packet. */
 	skb = si->dma_tx.skb;
 	if (skb) {
-		dma_unmap_sg(si->dev, &si->dma_tx.sg, 1,
+		dma_unmap_sg(si->dma_tx.dev, &si->dma_tx.sg, 1,
 			     DMA_TO_DEVICE);
 		dev->stats.tx_packets ++;
 		dev->stats.tx_bytes += skb->len;
@@ -317,7 +318,7 @@ static int sa1100_irda_fir_tx_start(struct sk_buff *skb, struct net_device *dev,
 
 	si->dma_tx.skb = skb;
 	sg_set_buf(&si->dma_tx.sg, skb->data, skb->len);
-	if (dma_map_sg(si->dev, &si->dma_tx.sg, 1, DMA_TO_DEVICE) == 0) {
+	if (dma_map_sg(si->dma_tx.dev, &si->dma_tx.sg, 1, DMA_TO_DEVICE) == 0) {
 		si->dma_tx.skb = NULL;
 		netif_wake_queue(dev);
 		dev->stats.tx_dropped++;
@@ -359,7 +360,7 @@ static void sa1100_irda_fir_error(struct sa1100_irda *si, struct net_device *dev
 	len = dma_addr - sg_dma_address(&si->dma_rx.sg);
 	if (len > HPSIR_MAX_RXLEN)
 		len = HPSIR_MAX_RXLEN;
-	dma_unmap_sg(si->dev, &si->dma_rx.sg, 1, DMA_FROM_DEVICE);
+	dma_unmap_sg(si->dma_rx.dev, &si->dma_rx.sg, 1, DMA_FROM_DEVICE);
 
 	do {
 		/*
@@ -407,7 +408,7 @@ static void sa1100_irda_fir_error(struct sa1100_irda *si, struct net_device *dev
 		 * Remap the buffer - it was previously mapped, and we
 		 * hope that this succeeds.
 		 */
-		dma_map_sg(si->dev, &si->dma_rx.sg, 1, DMA_FROM_DEVICE);
+		dma_map_sg(si->dma_rx.dev, &si->dma_rx.sg, 1, DMA_FROM_DEVICE);
 	}
 }
 
@@ -726,6 +727,9 @@ static int sa1100_irda_start(struct net_device *dev)
 	if (err)
 		goto err_tx_dma;
 
+	si->dma_rx.dev = si->dev;
+	si->dma_tx.dev = si->dev;
+
 	/*
 	 * Setup the serial port for the specified speed.
 	 */
@@ -783,7 +787,7 @@ static int sa1100_irda_stop(struct net_device *dev)
 	 */
 	skb = si->dma_rx.skb;
 	if (skb) {
-		dma_unmap_sg(si->dev, &si->dma_rx.sg, 1,
+		dma_unmap_sg(si->dma_rx.dev, &si->dma_rx.sg, 1,
 			     DMA_FROM_DEVICE);
 		dev_kfree_skb(skb);
 		si->dma_rx.skb = NULL;
@@ -791,7 +795,7 @@ static int sa1100_irda_stop(struct net_device *dev)
 
 	skb = si->dma_tx.skb;
 	if (skb) {
-		dma_unmap_sg(si->dev, &si->dma_tx.sg, 1,
+		dma_unmap_sg(si->dma_tx.dev, &si->dma_tx.sg, 1,
 			     DMA_TO_DEVICE);
 		dev_kfree_skb(skb);
 		si->dma_tx.skb = NULL;
