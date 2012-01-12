@@ -44,6 +44,9 @@ struct hwblk_info {
 	int nr_hwblks;
 };
 
+#if !defined(CONFIG_CPU_SUBTYPE_SH7722) && \
+    !defined(CONFIG_CPU_SUBTYPE_SH7723) && \
+    !defined(CONFIG_CPU_SUBTYPE_SH7724)
 /* Should be defined by processor-specific code */
 int arch_hwblk_init(void);
 int arch_hwblk_sleep_mode(void);
@@ -66,5 +69,7 @@ void hwblk_cnt_dec(struct hwblk_info *info, int hwblk, int cnt);
 }
 
 int sh_hwblk_clk_register(struct clk *clks, int nr);
-
+#else
+#define hwblk_init() 0
+#endif
 #endif /* __ASM_SH_HWBLK_H */

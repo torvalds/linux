@@ -18,4 +18,7 @@ obj-$(CONFIG_ARCH_SHMOBILE)	+= shmobile/
 obj-$(CONFIG_SH_ADC)		+= adc.o
 obj-$(CONFIG_SH_CLK_CPG_LEGACY)	+= clock-cpg.o
 
-obj-y	+= irq/ init.o clock.o fpu.o hwblk.o proc.o
+obj-y	+= irq/ init.o clock.o fpu.o proc.o
+ifneq ($(CONFIG_CPU_SUBTYPE_SH7722)$(CONFIG_CPU_SUBTYPE_SH7723)$(CONFIG_CPU_SUBTYPE_SH7724),y)
+obj-y	+= hwblk.o
+endif
