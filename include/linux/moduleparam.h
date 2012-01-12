@@ -367,6 +367,12 @@ extern int param_set_invbool(const char *val, const struct kernel_param *kp);
 extern int param_get_invbool(char *buffer, const struct kernel_param *kp);
 #define param_check_invbool(name, p) __param_check(name, p, bool)
 
+/* An int, which can only be set like a bool (though it shows as an int). */
+extern struct kernel_param_ops param_ops_bint;
+extern int param_set_bint(const char *val, const struct kernel_param *kp);
+#define param_get_bint param_get_int
+#define param_check_bint param_check_int
+
 /**
  * module_param_array - a parameter which is an array of some type
  * @name: the name of the array variable
