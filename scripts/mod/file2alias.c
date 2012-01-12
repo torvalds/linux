@@ -28,6 +28,7 @@ typedef Elf64_Addr	kernel_ulong_t;
 #endif
 
 #include <ctype.h>
+#include <stdbool.h>
 
 typedef uint32_t	__u32;
 typedef uint16_t	__u16;
@@ -948,15 +949,13 @@ static int do_amba_entry(const char *filename,
 	return 1;
 }
 
-/* Ignore any prefix, eg. some architectures prepend _ */
-static inline int sym_is(const char *symbol, const char *name)
+/* Does namelen bytes of name exactly match the symbol? */
+static bool sym_is(const char *name, unsigned namelen, const char *symbol)
 {
-	const char *match;
+	if (namelen != strlen(symbol))
+		return false;
 
-	match = strstr(symbol, name);
-	if (!match)
-		return 0;
-	return match[strlen(name)] == '\0';
+	return memcmp(name, symbol, namelen) == 0;
 }
 
 static void do_table(void *symval, unsigned long size,
@@ -981,6 +980,43 @@ static void do_table(void *symval, unsigned long size,
 	}
 }
 
+/* This array collects all instances that use the generic do_table above */
+struct devtable_switch {
+	const char *device_id; /* name of table, __mod_<name>_device_table. */
+	unsigned long id_size;
+	void *function;
+};
+
+static const struct devtable_switch devtable_switch[] = {
+	{ "acpi", sizeof(struct acpi_device_id), do_acpi_entry },
+	{ "amba", sizeof(struct amba_id), do_amba_entry },
+	{ "ap", sizeof(struct ap_device_id), do_ap_entry },
+	{ "bcma", sizeof(struct bcma_device_id), do_bcma_entry },
+	{ "ccw", sizeof(struct ccw_device_id), do_ccw_entry },
+	{ "css", sizeof(struct css_device_id), do_css_entry },
+	{ "dmi", sizeof(struct dmi_system_id), do_dmi_entry },
+	{ "eisa", sizeof(struct eisa_device_id), do_eisa_entry },
+	{ "hid", sizeof(struct hid_device_id), do_hid_entry },
+	{ "i2c", sizeof(struct i2c_device_id), do_i2c_entry },
+	{ "ieee1394", sizeof(struct ieee1394_device_id), do_ieee1394_entry },
+	{ "input", sizeof(struct input_device_id), do_input_entry },
+	{ "isa", sizeof(struct isapnp_device_id), do_isapnp_entry },
+	{ "mdio", sizeof(struct mdio_device_id), do_mdio_entry },
+	{ "of", sizeof(struct of_device_id), do_of_entry },
+	{ "parisc", sizeof(struct parisc_device_id), do_parisc_entry },
+	{ "pci", sizeof(struct pci_device_id), do_pci_entry },
+	{ "pcmcia", sizeof(struct pcmcia_device_id), do_pcmcia_entry },
+	{ "platform", sizeof(struct platform_device_id), do_platform_entry },
+	{ "sdio", sizeof(struct sdio_device_id), do_sdio_entry },
+	{ "serio", sizeof(struct serio_device_id), do_serio_entry },
+	{ "spi", sizeof(struct spi_device_id), do_spi_entry },
+	{ "ssb", sizeof(struct ssb_device_id), do_ssb_entry },
+	{ "vio", sizeof(struct vio_device_id), do_vio_entry },
+	{ "virtio", sizeof(struct virtio_device_id), do_virtio_entry },
+	{ "vmbus", sizeof(struct hv_vmbus_device_id), do_vmbus_entry },
+	{ "zorro", sizeof(struct zorro_device_id), do_zorro_entry },
+};
+
 /* Create MODULE_ALIAS() statements.
  * At this time, we cannot write the actual output C source yet,
  * so we write into the mod->dev_table_buf buffer. */
@@ -989,10 +1025,24 @@ void handle_moddevtable(struct module *mod, struct elf_info *info,
 {
 	void *symval;
 	char *zeros = NULL;
+	const char *name;
+	unsigned int namelen;
 
 	/* We're looking for a section relative symbol */
 	if (!sym->st_shndx || get_secindex(info, sym) >= info->num_sections)
 		return;
+
+	/* All our symbols are of form <prefix>__mod_XXX_device_table. */
+	name = strstr(symname, "__mod_");
+	if (!name)
+		return;
+	name += strlen("__mod_");
+	namelen = strlen(name);
+	if (namelen < strlen("_device_table"))
+		return;
+	if (strcmp(name + namelen - strlen("_device_table"), "_device_table"))
+		return;
+	namelen -= strlen("_device_table");
 
 	/* Handle all-NULL symbols allocated into .bss */
 	if (info->sechdrs[get_secindex(info, sym)].sh_type & SHT_NOBITS) {
@@ -1004,121 +1054,25 @@ void handle_moddevtable(struct module *mod, struct elf_info *info,
 			+ sym->st_value;
 	}
 
-	if (sym_is(symname, "__mod_pci_device_table"))
-		do_table(symval, sym->st_size,
-			 sizeof(struct pci_device_id), "pci",
-			 do_pci_entry, mod);
-	else if (sym_is(symname, "__mod_usb_device_table"))
-		/* special case to handle bcdDevice ranges */
+	/* First handle the "special" cases */
+	if (sym_is(name, namelen, "usb"))
 		do_usb_table(symval, sym->st_size, mod);
-	else if (sym_is(symname, "__mod_hid_device_table"))
-		do_table(symval, sym->st_size,
-			 sizeof(struct hid_device_id), "hid",
-			 do_hid_entry, mod);
-	else if (sym_is(symname, "__mod_ieee1394_device_table"))
-		do_table(symval, sym->st_size,
-			 sizeof(struct ieee1394_device_id), "ieee1394",
-			 do_ieee1394_entry, mod);
-	else if (sym_is(symname, "__mod_ccw_device_table"))
-		do_table(symval, sym->st_size,
-			 sizeof(struct ccw_device_id), "ccw",
-			 do_ccw_entry, mod);
-	else if (sym_is(symname, "__mod_ap_device_table"))
-		do_table(symval, sym->st_size,
-			 sizeof(struct ap_device_id), "ap",
-			 do_ap_entry, mod);
-	else if (sym_is(symname, "__mod_css_device_table"))
-		do_table(symval, sym->st_size,
-			 sizeof(struct css_device_id), "css",
-			 do_css_entry, mod);
-	else if (sym_is(symname, "__mod_serio_device_table"))
-		do_table(symval, sym->st_size,
-			 sizeof(struct serio_device_id), "serio",
-			 do_serio_entry, mod);
-	else if (sym_is(symname, "__mod_acpi_device_table"))
-		do_table(symval, sym->st_size,
-			 sizeof(struct acpi_device_id), "acpi",
-			 do_acpi_entry, mod);
-	else if (sym_is(symname, "__mod_pnp_device_table"))
+	else if (sym_is(name, namelen, "pnp"))
 		do_pnp_device_entry(symval, sym->st_size, mod);
-	else if (sym_is(symname, "__mod_pnp_card_device_table"))
+	else if (sym_is(name, namelen, "pnp_card"))
 		do_pnp_card_entries(symval, sym->st_size, mod);
-	else if (sym_is(symname, "__mod_pcmcia_device_table"))
-		do_table(symval, sym->st_size,
-			 sizeof(struct pcmcia_device_id), "pcmcia",
-			 do_pcmcia_entry, mod);
-        else if (sym_is(symname, "__mod_of_device_table"))
-		do_table(symval, sym->st_size,
-			 sizeof(struct of_device_id), "of",
-			 do_of_entry, mod);
-        else if (sym_is(symname, "__mod_vio_device_table"))
-		do_table(symval, sym->st_size,
-			 sizeof(struct vio_device_id), "vio",
-			 do_vio_entry, mod);
-	else if (sym_is(symname, "__mod_input_device_table"))
-		do_table(symval, sym->st_size,
-			 sizeof(struct input_device_id), "input",
-			 do_input_entry, mod);
-	else if (sym_is(symname, "__mod_eisa_device_table"))
-		do_table(symval, sym->st_size,
-			 sizeof(struct eisa_device_id), "eisa",
-			 do_eisa_entry, mod);
-	else if (sym_is(symname, "__mod_parisc_device_table"))
-		do_table(symval, sym->st_size,
-			 sizeof(struct parisc_device_id), "parisc",
-			 do_parisc_entry, mod);
-	else if (sym_is(symname, "__mod_sdio_device_table"))
-		do_table(symval, sym->st_size,
-			 sizeof(struct sdio_device_id), "sdio",
-			 do_sdio_entry, mod);
-	else if (sym_is(symname, "__mod_ssb_device_table"))
-		do_table(symval, sym->st_size,
-			 sizeof(struct ssb_device_id), "ssb",
-			 do_ssb_entry, mod);
-	else if (sym_is(symname, "__mod_bcma_device_table"))
-		do_table(symval, sym->st_size,
-			 sizeof(struct bcma_device_id), "bcma",
-			 do_bcma_entry, mod);
-	else if (sym_is(symname, "__mod_virtio_device_table"))
-		do_table(symval, sym->st_size,
-			 sizeof(struct virtio_device_id), "virtio",
-			 do_virtio_entry, mod);
-	else if (sym_is(symname, "__mod_vmbus_device_table"))
-		do_table(symval, sym->st_size,
-			 sizeof(struct hv_vmbus_device_id), "vmbus",
-			 do_vmbus_entry, mod);
-	else if (sym_is(symname, "__mod_i2c_device_table"))
-		do_table(symval, sym->st_size,
-			 sizeof(struct i2c_device_id), "i2c",
-			 do_i2c_entry, mod);
-	else if (sym_is(symname, "__mod_spi_device_table"))
-		do_table(symval, sym->st_size,
-			 sizeof(struct spi_device_id), "spi",
-			 do_spi_entry, mod);
-	else if (sym_is(symname, "__mod_dmi_device_table"))
-		do_table(symval, sym->st_size,
-			 sizeof(struct dmi_system_id), "dmi",
-			 do_dmi_entry, mod);
-	else if (sym_is(symname, "__mod_platform_device_table"))
-		do_table(symval, sym->st_size,
-			 sizeof(struct platform_device_id), "platform",
-			 do_platform_entry, mod);
-	else if (sym_is(symname, "__mod_mdio_device_table"))
-		do_table(symval, sym->st_size,
-			 sizeof(struct mdio_device_id), "mdio",
-			 do_mdio_entry, mod);
-	else if (sym_is(symname, "__mod_zorro_device_table"))
-		do_table(symval, sym->st_size,
-			 sizeof(struct zorro_device_id), "zorro",
-			 do_zorro_entry, mod);
-	else if (sym_is(symname, "__mod_isapnp_device_table"))
-		do_table(symval, sym->st_size,
-			sizeof(struct isapnp_device_id), "isa",
-			do_isapnp_entry, mod);
-	else if (sym_is(symname, "__mod_amba_device_table"))
-		do_table(symval, sym->st_size,
-			sizeof(struct amba_id), "amba",
-			do_amba_entry, mod);
+	else {
+		const struct devtable_switch *p = devtable_switch;
+		unsigned int i;
+
+		for (i = 0; i < ARRAY_SIZE(devtable_switch); i++, p++) {
+			if (sym_is(name, namelen, p->device_id)) {
+				do_table(symval, sym->st_size, p->id_size,
+					 p->device_id, p->function, mod);
+				break;
+			}
+		}
+	}
 	free(zeros);
 }
 
