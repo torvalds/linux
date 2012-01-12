@@ -43,32 +43,18 @@
 #include <scsi/scsi_dbg.h>
 
 
+/*
+ * We setup a mempool to allocate request structures for this driver
+ * on a per-lun basis. The following define specifies the number of
+ * elements in the pool.
+ */
+
 #define STORVSC_MIN_BUF_NR				64
-#define STORVSC_RING_BUFFER_SIZE			(20*PAGE_SIZE)
-static int storvsc_ringbuffer_size = STORVSC_RING_BUFFER_SIZE;
+static int storvsc_ringbuffer_size = (20 * PAGE_SIZE);
 
 module_param(storvsc_ringbuffer_size, int, S_IRUGO);
 MODULE_PARM_DESC(storvsc_ringbuffer_size, "Ring buffer size (bytes)");
 
-/*
- * To alert the user that structure sizes may be mismatched even though the
- * protocol versions match.
- */
-
-
-#define REVISION_STRING(REVISION_) #REVISION_
-#define FILL_VMSTOR_REVISION(RESULT_LVALUE_)				\
-	do {								\
-		char *revision_string					\
-			= REVISION_STRING($Rev : 6 $) + 6;		\
-		RESULT_LVALUE_ = 0;					\
-		while (*revision_string >= '0'				\
-			&& *revision_string <= '9') {			\
-			RESULT_LVALUE_ *= 10;				\
-			RESULT_LVALUE_ += *revision_string - '0';	\
-			revision_string++;				\
-		}							\
-	} while (0)
 
 /*
  * Major/minor macros.  Minor version is in LSB, meaning that earlier flat
@@ -79,7 +65,6 @@ MODULE_PARM_DESC(storvsc_ringbuffer_size, "Ring buffer size (bytes)");
 #define VMSTOR_PROTOCOL_MINOR(VERSION_)		(((VERSION_))      & 0xff)
 #define VMSTOR_PROTOCOL_VERSION(MAJOR_, MINOR_)	((((MAJOR_) & 0xff) << 8) | \
 						 (((MINOR_) & 0xff)))
-#define VMSTOR_INVALID_PROTOCOL_VERSION		(-1)
 
 /*
  * Version history:
@@ -136,26 +121,26 @@ enum vstor_packet_operation {
 #define MAX_DATA_BUF_LEN_WITH_PADDING		0x14
 
 struct vmscsi_request {
-	unsigned short length;
-	unsigned char srb_status;
-	unsigned char scsi_status;
+	u16 length;
+	u8 srb_status;
+	u8 scsi_status;
 
-	unsigned char port_number;
-	unsigned char path_id;
-	unsigned char target_id;
-	unsigned char lun;
+	u8  port_number;
+	u8  path_id;
+	u8  target_id;
+	u8  lun;
 
-	unsigned char cdb_length;
-	unsigned char sense_info_length;
-	unsigned char data_in;
-	unsigned char reserved;
+	u8  cdb_length;
+	u8  sense_info_length;
+	u8  data_in;
+	u8  reserved;
 
-	unsigned int data_transfer_length;
+	u32 data_transfer_length;
 
 	union {
-		unsigned char cdb[CDB16GENERIC_LENGTH];
-		unsigned char sense_data[SENSE_BUFFER_SIZE];
-		unsigned char reserved_array[MAX_DATA_BUF_LEN_WITH_PADDING];
+		u8 cdb[CDB16GENERIC_LENGTH];
+		u8 sense_data[SENSE_BUFFER_SIZE];
+		u8 reserved_array[MAX_DATA_BUF_LEN_WITH_PADDING];
 	};
 } __attribute((packed));
 
@@ -165,18 +150,21 @@ struct vmscsi_request {
  * properties of the channel.
  */
 struct vmstorage_channel_properties {
-	unsigned short protocol_version;
-	unsigned char path_id;
-	unsigned char target_id;
+	u16 protocol_version;
+	u8  path_id;
+	u8 target_id;
 
 	/* Note: port number is only really known on the client side */
-	unsigned int port_number;
-	unsigned int flags;
-	unsigned int max_transfer_bytes;
+	u32  port_number;
+	u32  flags;
+	u32   max_transfer_bytes;
 
-	/*  This id is unique for each channel and will correspond with */
-	/*  vendor specific data in the inquirydata */
-	unsigned long long unique_id;
+	/*
+	 * This id is unique for each channel and will correspond with
+	 * vendor specific data in the inquiry data.
+	 */
+
+	u64  unique_id;
 } __packed;
 
 /*  This structure is sent during the storage protocol negotiations. */
@@ -189,6 +177,7 @@ struct vmstorage_protocol_version {
 	 * (See FILL_VMSTOR_REVISION macro above).  Mismatch does not
 	 * definitely indicate incompatibility--but it does indicate mismatched
 	 * builds.
+	 * This is only used on the windows side. Just set it to 0.
 	 */
 	unsigned short revision;
 } __packed;
@@ -202,10 +191,10 @@ struct vstor_packet {
 	enum vstor_packet_operation operation;
 
 	/*  Flags - see below for values */
-	unsigned int flags;
+	u32 flags;
 
 	/* Status of the request returned from the server side. */
-	unsigned int status;
+	u32 status;
 
 	/* Data payload area */
 	union {
@@ -232,11 +221,6 @@ struct vstor_packet {
 
 #define REQUEST_COMPLETION_FLAG	0x1
 
-/*  This is the set of flags that the vsc can set in any packets it sends */
-#define VSC_LEGAL_FLAGS		(REQUEST_COMPLETION_FLAG)
-
-
-
 #define STORVSC_MAX_IO_REQUESTS				128
 
 /*
@@ -252,7 +236,7 @@ struct vstor_packet {
 
 /* Matches Windows-end */
 enum storvsc_request_type {
-	WRITE_TYPE,
+	WRITE_TYPE = 0,
 	READ_TYPE,
 	UNKNOWN_TYPE,
 };
@@ -704,7 +688,7 @@ static int storvsc_channel_init(struct hv_device *device)
 	vstor_packet->flags = REQUEST_COMPLETION_FLAG;
 
 	vstor_packet->version.major_minor = VMSTOR_PROTOCOL_VERSION_CURRENT;
-	FILL_VMSTOR_REVISION(vstor_packet->version.revision);
+	vstor_packet->version.revision = 0;
 
 	ret = vmbus_sendpacket(device->channel, vstor_packet,
 			       sizeof(struct vstor_packet),
