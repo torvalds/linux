@@ -146,14 +146,19 @@ static struct bio *bl_alloc_init_bio(int npg, sector_t isect,
 {
 	struct bio *bio;
 
+	npg = min(npg, BIO_MAX_PAGES);
 	bio = bio_alloc(GFP_NOIO, npg);
-	if (!bio)
-		return NULL;
+	if (!bio && (current->flags & PF_MEMALLOC)) {
+		while (!bio && (npg /= 2))
+			bio = bio_alloc(GFP_NOIO, npg);
+	}
 
-	bio->bi_sector = isect - be->be_f_offset + be->be_v_offset;
-	bio->bi_bdev = be->be_mdev;
-	bio->bi_end_io = end_io;
-	bio->bi_private = par;
+	if (bio) {
+		bio->bi_sector = isect - be->be_f_offset + be->be_v_offset;
+		bio->bi_bdev = be->be_mdev;
+		bio->bi_end_io = end_io;
+		bio->bi_private = par;
+	}
 	return bio;
 }
 
