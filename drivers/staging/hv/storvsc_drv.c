@@ -375,6 +375,21 @@ done:
 	kfree(wrk);
 }
 
+/*
+ * We can get incoming messages from the host that are not in response to
+ * messages that we have sent out. An example of this would be messages
+ * received by the guest to notify dynamic addition/removal of LUNs. To
+ * deal with potential race conditions where the driver may be in the
+ * midst of being unloaded when we might receive an unsolicited message
+ * from the host, we have implemented a mechanism to gurantee sequential
+ * consistency:
+ *
+ * 1) Once the device is marked as being destroyed, we will fail all
+ *    outgoing messages.
+ * 2) We permit incoming messages when the device is being destroyed,
+ *    only to properly account for messages already sent out.
+ */
+
 static inline struct storvsc_device *get_out_stor_device(
 					struct hv_device *device)
 {
@@ -569,7 +584,7 @@ static void storvsc_on_io_completion(struct hv_device *device,
 	 */
 
 	if ((stor_pkt->vm_srb.cdb[0] == INQUIRY) ||
-		(stor_pkt->vm_srb.cdb[0] == MODE_SENSE)) {
+	   (stor_pkt->vm_srb.cdb[0] == MODE_SENSE)) {
 		vstor_packet->vm_srb.scsi_status = 0;
 		vstor_packet->vm_srb.srb_status = SRB_STATUS_SUCCESS;
 	}
