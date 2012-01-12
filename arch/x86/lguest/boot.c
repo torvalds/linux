@@ -856,18 +856,23 @@ static void __init lguest_init_IRQ(void)
 }
 
 /*
- * With CONFIG_SPARSE_IRQ, interrupt descriptors are allocated as-needed, so
- * rather than set them in lguest_init_IRQ we are called here every time an
- * lguest device needs an interrupt.
- *
- * FIXME: irq_alloc_desc_at() can fail due to lack of memory, we should
- * pass that up!
+ * Interrupt descriptors are allocated as-needed, but low-numbered ones are
+ * reserved by the generic x86 code.  So we ignore irq_alloc_desc_at if it
+ * tells us the irq is already used: other errors (ie. ENOMEM) we take
+ * seriously.
  */
-void lguest_setup_irq(unsigned int irq)
+int lguest_setup_irq(unsigned int irq)
 {
-	irq_alloc_desc_at(irq, 0);
+	int err;
+
+	/* Returns -ve error or vector number. */
+	err = irq_alloc_desc_at(irq, 0);
+	if (err < 0 && err != -EEXIST)
+		return err;
+
 	irq_set_chip_and_handler_name(irq, &lguest_irq_controller,
 				      handle_level_irq, "level");
+	return 0;
 }
 
 /*
