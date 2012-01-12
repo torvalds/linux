@@ -213,11 +213,7 @@ static struct platform_driver neponset_device_driver = {
 };
 
 static struct resource neponset_resources[] = {
-	[0] = {
-		.start	= 0x10000000,
-		.end	= 0x17ffffff,
-		.flags	= IORESOURCE_MEM,
-	},
+	[0] = DEFINE_RES_MEM(0x10000000, 0x08000000),
 };
 
 static struct platform_device neponset_device = {
@@ -228,16 +224,8 @@ static struct platform_device neponset_device = {
 };
 
 static struct resource sa1111_resources[] = {
-	[0] = {
-		.start	= 0x40000000,
-		.end	= 0x40001fff,
-		.flags	= IORESOURCE_MEM,
-	},
-	[1] = {
-		.start	= IRQ_NEPONSET_SA1111,
-		.end	= IRQ_NEPONSET_SA1111,
-		.flags	= IORESOURCE_IRQ,
-	},
+	[0] = DEFINE_RES_MEM(0x40000000, SZ_8K),
+	[1] = DEFINE_RES_IRQ(IRQ_NEPONSET_SA1111),
 };
 
 static struct sa1111_platform_data sa1111_info = {
@@ -259,23 +247,10 @@ static struct platform_device sa1111_device = {
 };
 
 static struct resource smc91x_resources[] = {
-	[0] = {
-		.name	= "smc91x-regs",
-		.start	= SA1100_CS3_PHYS,
-		.end	= SA1100_CS3_PHYS + 0x01ffffff,
-		.flags	= IORESOURCE_MEM,
-	},
-	[1] = {
-		.start	= IRQ_NEPONSET_SMC9196,
-		.end	= IRQ_NEPONSET_SMC9196,
-		.flags	= IORESOURCE_IRQ,
-	},
-	[2] = {
-		.name	= "smc91x-attrib",
-		.start	= SA1100_CS3_PHYS + 0x02000000,
-		.end	= SA1100_CS3_PHYS + 0x03ffffff,
-		.flags	= IORESOURCE_MEM,
-	},
+	[0] = DEFINE_RES_MEM_NAMED(SA1100_CS3_PHYS, 0x02000000, "smc91x-regs"),
+	[1] = DEFINE_RES_IRQ(IRQ_NEPONSET_SMC9196),
+	[2] = DEFINE_RES_MEM_NAMED(SA1100_CS3_PHYS + 0x02000000,
+			0x02000000, "smc91x-attrib"),
 };
 
 static struct platform_device smc91x_device = {

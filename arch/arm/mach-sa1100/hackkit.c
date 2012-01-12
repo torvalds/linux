@@ -179,11 +179,8 @@ static struct flash_platform_data hackkit_flash_data = {
 	.nr_parts	= ARRAY_SIZE(hackkit_partitions),
 };
 
-static struct resource hackkit_flash_resource = {
-	.start		= SA1100_CS0_PHYS,
-	.end		= SA1100_CS0_PHYS + SZ_32M - 1,
-	.flags		= IORESOURCE_MEM,
-};
+static struct resource hackkit_flash_resource =
+	DEFINE_RES_MEM(SA1100_CS0_PHYS, SZ_32M);
 
 static void __init hackkit_init(void)
 {

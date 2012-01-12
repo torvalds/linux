@@ -58,15 +58,8 @@ static struct flash_platform_data nanoengine_flash_data = {
 };
 
 static struct resource nanoengine_flash_resources[] = {
-	{
-		.start	= SA1100_CS0_PHYS,
-		.end	= SA1100_CS0_PHYS + SZ_32M - 1,
-		.flags	= IORESOURCE_MEM,
-	}, {
-		.start	= SA1100_CS1_PHYS,
-		.end	= SA1100_CS1_PHYS + SZ_32M - 1,
-		.flags	= IORESOURCE_MEM,
-	}
+	DEFINE_RES_MEM(SA1100_CS0_PHYS, SZ_32M),
+	DEFINE_RES_MEM(SA1100_CS1_PHYS, SZ_32M),
 };
 
 static struct map_desc nanoengine_io_desc[] __initdata = {

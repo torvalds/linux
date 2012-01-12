@@ -39,16 +39,8 @@
 #include "generic.h"
 
 static struct resource sa1111_resources[] = {
-	[0] = {
-		.start		= BADGE4_SA1111_BASE,
-		.end		= BADGE4_SA1111_BASE + 0x00001fff,
-		.flags		= IORESOURCE_MEM,
-	},
-	[1] = {
-		.start		= BADGE4_IRQ_GPIO_SA1111,
-		.end		= BADGE4_IRQ_GPIO_SA1111,
-		.flags		= IORESOURCE_IRQ,
-	},
+	[0] = DEFINE_RES_MEM(BADGE4_SA1111_BASE, 0x2000),
+	[1] = DEFINE_RES_IRQ(BADGE4_IRQ_GPIO_SA1111),
 };
 
 static struct sa1111_platform_data sa1111_info = {
@@ -121,11 +113,8 @@ static struct flash_platform_data badge4_flash_data = {
 	.nr_parts	= ARRAY_SIZE(badge4_partitions),
 };
 
-static struct resource badge4_flash_resource = {
-	.start		= SA1100_CS0_PHYS,
-	.end		= SA1100_CS0_PHYS + SZ_64M - 1,
-	.flags		= IORESOURCE_MEM,
-};
+static struct resource badge4_flash_resource =
+	DEFINE_RES_MEM(SA1100_CS0_PHYS, SZ_64M);
 
 static int five_v_on __initdata = 0;
 

@@ -176,15 +176,8 @@ static struct flash_platform_data simpad_flash_data = {
 
 
 static struct resource simpad_flash_resources [] = {
-	{
-		.start     = SA1100_CS0_PHYS,
-		.end       = SA1100_CS0_PHYS + SZ_16M -1,
-		.flags     = IORESOURCE_MEM,
-	}, {
-		.start     = SA1100_CS1_PHYS,
-		.end       = SA1100_CS1_PHYS + SZ_16M -1,
-		.flags     = IORESOURCE_MEM,
-	}
+	DEFINE_RES_MEM(SA1100_CS0_PHYS, SZ_16M),
+	DEFINE_RES_MEM(SA1100_CS1_PHYS, SZ_16M),
 };
 
 static struct mcp_plat_data simpad_mcp_data = {

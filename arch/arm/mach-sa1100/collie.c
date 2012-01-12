@@ -48,11 +48,7 @@
 #include "generic.h"
 
 static struct resource collie_scoop_resources[] = {
-	[0] = {
-		.start		= 0x40800000,
-		.end		= 0x40800fff,
-		.flags		= IORESOURCE_MEM,
-	},
+	[0] = DEFINE_RES_MEM(0x40800000, SZ_4K),
 };
 
 static struct scoop_config collie_scoop_setup = {
@@ -221,16 +217,8 @@ device_initcall(collie_uart_init);
 
 
 static struct resource locomo_resources[] = {
-	[0] = {
-		.start		= 0x40000000,
-		.end		= 0x40001fff,
-		.flags		= IORESOURCE_MEM,
-	},
-	[1] = {
-		.start		= IRQ_GPIO25,
-		.end		= IRQ_GPIO25,
-		.flags		= IORESOURCE_IRQ,
-	},
+	[0] = DEFINE_RES_MEM(0x40000000, SZ_8K),
+	[1] = DEFINE_RES_IRQ(IRQ_GPIO25),
 };
 
 static struct locomo_platform_data locomo_info = {
@@ -303,11 +291,7 @@ static struct flash_platform_data collie_flash_data = {
 };
 
 static struct resource collie_flash_resources[] = {
-	{
-		.start	= SA1100_CS0_PHYS,
-		.end	= SA1100_CS0_PHYS + SZ_32M - 1,
-		.flags	= IORESOURCE_MEM,
-	}
+	DEFINE_RES_MEM(SA1100_CS0_PHYS, SZ_32M),
 };
 
 static void __init collie_init(void)

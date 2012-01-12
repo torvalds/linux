@@ -33,11 +33,7 @@
 #include "generic.h"
 
 static struct resource cerfuart2_resources[] = {
-	[0] = {
-		.start	= 0x80030000,
-		.end	= 0x8003ffff,
-		.flags	= IORESOURCE_MEM,
-	},
+	[0] = DEFINE_RES_MEM(0x80030000, SZ_64K),
 };
 
 static struct platform_device cerfuart2_device = {
@@ -87,11 +83,8 @@ static struct flash_platform_data cerf_flash_data = {
 	.nr_parts	= ARRAY_SIZE(cerf_partitions),
 };
 
-static struct resource cerf_flash_resource = {
-	.start		= SA1100_CS0_PHYS,
-	.end		= SA1100_CS0_PHYS + SZ_32M - 1,
-	.flags		= IORESOURCE_MEM,
-};
+static struct resource cerf_flash_resource =
+	DEFINE_RES_MEM(SA1100_CS0_PHYS, SZ_32M);
 
 static void __init cerf_init_irq(void)
 {

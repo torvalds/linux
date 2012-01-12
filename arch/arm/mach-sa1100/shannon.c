@@ -46,11 +46,8 @@ static struct flash_platform_data shannon_flash_data = {
 	.nr_parts	= ARRAY_SIZE(shannon_partitions),
 };
 
-static struct resource shannon_flash_resource = {
-	.start		= SA1100_CS0_PHYS,
-	.end		= SA1100_CS0_PHYS + SZ_4M - 1,
-	.flags		= IORESOURCE_MEM,
-};
+static struct resource shannon_flash_resource =
+	DEFINE_RES_MEM(SA1100_CS0_PHYS, SZ_4M);
 
 static struct mcp_plat_data shannon_mcp_data = {
 	.mccr0		= MCCR0_ADM,

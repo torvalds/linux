@@ -174,16 +174,8 @@ static struct s1d13xxxfb_pdata s1d13xxxfb_data = {
 };
 
 static struct resource s1d13xxxfb_resources[] = {
-	[0] = {
-		.start	= EPSONFBSTART,
-		.end	= EPSONFBSTART + EPSONFBLEN - 1,
-		.flags	= IORESOURCE_MEM,
-	},
-	[1] = {
-		.start	= EPSONREGSTART,
-		.end	= EPSONREGSTART + EPSONREGLEN - 1,
-		.flags	= IORESOURCE_MEM,
-	}
+	[0] = DEFINE_RES_MEM(EPSONFBSTART, EPSONFBLEN),
+	[1] = DEFINE_RES_MEM(EPSONREGSTART, EPSONREGLEN),
 };
 
 static struct platform_device s1d13xxxfb_device = {
@@ -197,16 +189,8 @@ static struct platform_device s1d13xxxfb_device = {
 };
 
 static struct resource sa1111_resources[] = {
-	[0] = {
-		.start		= SA1111REGSTART,
-		.end		= SA1111REGSTART + SA1111REGLEN - 1,
-		.flags		= IORESOURCE_MEM,
-	},
-	[1] = {
-		.start		= IRQ_GPIO1,
-		.end		= IRQ_GPIO1,
-		.flags		= IORESOURCE_IRQ,
-	},
+	[0] = DEFINE_RES_MEM(SA1111REGSTART, SA1111REGLEN),
+	[1] = DEFINE_RES_IRQ(IRQ_GPIO1),
 };
 
 static struct sa1111_platform_data sa1111_info = {
@@ -352,11 +336,8 @@ static struct flash_platform_data jornada720_flash_data = {
 	.nr_parts	= ARRAY_SIZE(jornada720_partitions),
 };
 
-static struct resource jornada720_flash_resource = {
-	.start		= SA1100_CS0_PHYS,
-	.end		= SA1100_CS0_PHYS + SZ_32M - 1,
-	.flags		= IORESOURCE_MEM,
-};
+static struct resource jornada720_flash_resource =
+	DEFINE_RES_MEM(SA1100_CS0_PHYS, SZ_32M);
 
 static void __init jornada720_mach_init(void)
 {

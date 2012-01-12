@@ -149,16 +149,8 @@ static void sa11x0_register_device(struct platform_device *dev, void *data)
 
 
 static struct resource sa11x0udc_resources[] = {
-	[0] = {
-		.start	= __PREG(Ser0UDCCR),
-		.end	= __PREG(Ser0UDCCR) + 0xffff,
-		.flags	= IORESOURCE_MEM,
-	},
-	[1] = {
-		.start	= IRQ_Ser0UDC,
-		.end	= IRQ_Ser0UDC,
-		.flags	= IORESOURCE_IRQ,
-	},
+	[0] = DEFINE_RES_MEM(__PREG(Ser0UDCCR), SZ_64K),
+	[1] = DEFINE_RES_IRQ(IRQ_Ser0UDC),
 };
 
 static u64 sa11x0udc_dma_mask = 0xffffffffUL;
@@ -175,16 +167,8 @@ static struct platform_device sa11x0udc_device = {
 };
 
 static struct resource sa11x0uart1_resources[] = {
-	[0] = {
-		.start	= __PREG(Ser1UTCR0),
-		.end	= __PREG(Ser1UTCR0) + 0xffff,
-		.flags	= IORESOURCE_MEM,
-	},
-	[1] = {
-		.start	= IRQ_Ser1UART,
-		.end	= IRQ_Ser1UART,
-		.flags	= IORESOURCE_IRQ,
-	},
+	[0] = DEFINE_RES_MEM(__PREG(Ser1UTCR0), SZ_64K),
+	[1] = DEFINE_RES_IRQ(IRQ_Ser1UART),
 };
 
 static struct platform_device sa11x0uart1_device = {
@@ -195,16 +179,8 @@ static struct platform_device sa11x0uart1_device = {
 };
 
 static struct resource sa11x0uart3_resources[] = {
-	[0] = {
-		.start	= __PREG(Ser3UTCR0),
-		.end	= __PREG(Ser3UTCR0) + 0xffff,
-		.flags	= IORESOURCE_MEM,
-	},
-	[1] = {
-		.start	= IRQ_Ser3UART,
-		.end	= IRQ_Ser3UART,
-		.flags	= IORESOURCE_IRQ,
-	},
+	[0] = DEFINE_RES_MEM(__PREG(Ser3UTCR0), SZ_64K),
+	[1] = DEFINE_RES_IRQ(IRQ_Ser3UART),
 };
 
 static struct platform_device sa11x0uart3_device = {
@@ -215,16 +191,8 @@ static struct platform_device sa11x0uart3_device = {
 };
 
 static struct resource sa11x0mcp_resources[] = {
-	[0] = {
-		.start	= __PREG(Ser4MCCR0),
-		.end	= __PREG(Ser4MCCR0) + 0xffff,
-		.flags	= IORESOURCE_MEM,
-	},
-	[1] = {
-		.start	= IRQ_Ser4MCP,
-		.end	= IRQ_Ser4MCP,
-		.flags	= IORESOURCE_IRQ,
-	},
+	[0] = DEFINE_RES_MEM(__PREG(Ser4MCCR0), SZ_64K),
+	[1] = DEFINE_RES_IRQ(IRQ_Ser4MCP),
 };
 
 static u64 sa11x0mcp_dma_mask = 0xffffffffUL;
@@ -246,16 +214,8 @@ void sa11x0_register_mcp(struct mcp_plat_data *data)
 }
 
 static struct resource sa11x0ssp_resources[] = {
-	[0] = {
-		.start	= 0x80070000,
-		.end	= 0x8007ffff,
-		.flags	= IORESOURCE_MEM,
-	},
-	[1] = {
-		.start	= IRQ_Ser4SSP,
-		.end	= IRQ_Ser4SSP,
-		.flags	= IORESOURCE_IRQ,
-	},
+	[0] = DEFINE_RES_MEM(0x80070000, SZ_64K),
+	[1] = DEFINE_RES_IRQ(IRQ_Ser4SSP),
 };
 
 static u64 sa11x0ssp_dma_mask = 0xffffffffUL;
@@ -272,16 +232,8 @@ static struct platform_device sa11x0ssp_device = {
 };
 
 static struct resource sa11x0fb_resources[] = {
-	[0] = {
-		.start	= 0xb0100000,
-		.end	= 0xb010ffff,
-		.flags	= IORESOURCE_MEM,
-	},
-	[1] = {
-		.start	= IRQ_LCD,
-		.end	= IRQ_LCD,
-		.flags	= IORESOURCE_IRQ,
-	},
+	[0] = DEFINE_RES_MEM(0xb0100000, SZ_64K),
+	[1] = DEFINE_RES_IRQ(IRQ_LCD),
 };
 
 static struct platform_device sa11x0fb_device = {
@@ -314,23 +266,10 @@ void sa11x0_register_mtd(struct flash_platform_data *flash,
 }
 
 static struct resource sa11x0ir_resources[] = {
-	{
-		.start	= __PREG(Ser2UTCR0),
-		.end	= __PREG(Ser2UTCR0) + 0x24 - 1,
-		.flags	= IORESOURCE_MEM,
-	}, {
-		.start	= __PREG(Ser2HSCR0),
-		.end	= __PREG(Ser2HSCR0) + 0x1c - 1,
-		.flags	= IORESOURCE_MEM,
-	}, {
-		.start	= __PREG(Ser2HSCR2),
-		.end	= __PREG(Ser2HSCR2) + 0x04 - 1,
-		.flags	= IORESOURCE_MEM,
-	}, {
-		.start	= IRQ_Ser2ICP,
-		.end	= IRQ_Ser2ICP,
-		.flags	= IORESOURCE_IRQ,
-	}
+	DEFINE_RES_MEM(__PREG(Ser2UTCR0), 0x24),
+	DEFINE_RES_MEM(__PREG(Ser2HSCR0), 0x1c),
+	DEFINE_RES_MEM(__PREG(Ser2HSCR2), 0x04),
+	DEFINE_RES_IRQ(IRQ_Ser2ICP),
 };
 
 static struct platform_device sa11x0ir_device = {
