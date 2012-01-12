@@ -174,33 +174,6 @@ static int _preload_range(struct pnfs_inval_markings *marks,
 	return status;
 }
 
-static void set_needs_init(sector_t *array, sector_t offset)
-{
-	sector_t *p = array;
-
-	dprintk("%s enter\n", __func__);
-	if (!p)
-		return;
-	while (*p < offset)
-		p++;
-	if (*p == offset)
-		return;
-	else if (*p == ~0) {
-		*p++ = offset;
-		*p = ~0;
-		return;
-	} else {
-		sector_t *save = p;
-		dprintk("%s Adding %llu\n", __func__, (u64)offset);
-		while (*p != ~0)
-			p++;
-		p++;
-		memmove(save + 1, save, (char *)p - (char *)save);
-		*save = offset;
-		return;
-	}
-}
-
 /* We are relying on page lock to serialize this */
 int bl_is_sector_init(struct pnfs_inval_markings *marks, sector_t isect)
 {
@@ -256,28 +229,15 @@ static int is_range_written(struct pnfs_inval_markings *marks,
 
 /* Marks sectors in [offest, offset_length) as having been initialized.
  * All lengths are step-aligned, where step is min(pagesize, blocksize).
- * Notes where partial block is initialized, and helps prepare it for
- * complete initialization later.
+ * Currently assumes offset is page-aligned
  */
-/* Currently assumes offset is page-aligned */
 int bl_mark_sectors_init(struct pnfs_inval_markings *marks,
-			     sector_t offset, sector_t length,
-			     sector_t **pages)
+			     sector_t offset, sector_t length)
 {
-	sector_t s, start, end;
-	sector_t *array = NULL; /* Pages to mark */
+	sector_t start, end;
 
 	dprintk("%s(offset=%llu,len=%llu) enter\n",
 		__func__, (u64)offset, (u64)length);
-	s = max((sector_t) 3,
-		2 * (marks->im_block_size / (PAGE_CACHE_SECTORS)));
-	dprintk("%s set max=%llu\n", __func__, (u64)s);
-	if (pages) {
-		array = kmalloc(s * sizeof(sector_t), GFP_NOFS);
-		if (!array)
-			goto outerr;
-		array[0] = ~0;
-	}
 
 	start = normalize(offset, marks->im_block_size);
 	end = normalize_up(offset + length, marks->im_block_size);
@@ -285,41 +245,15 @@ int bl_mark_sectors_init(struct pnfs_inval_markings *marks,
 		goto outerr;
 
 	spin_lock(&marks->im_lock);
-
-	for (s = normalize_up(start, PAGE_CACHE_SECTORS);
-	     s < offset; s += PAGE_CACHE_SECTORS) {
-		dprintk("%s pre-area pages\n", __func__);
-		/* Portion of used block is not initialized */
-		if (!_has_tag(&marks->im_tree, s, EXTENT_INITIALIZED))
-			set_needs_init(array, s);
-	}
 	if (_set_range(&marks->im_tree, EXTENT_INITIALIZED, offset, length))
 		goto out_unlock;
-	for (s = normalize_up(offset + length, PAGE_CACHE_SECTORS);
-	     s < end; s += PAGE_CACHE_SECTORS) {
-		dprintk("%s post-area pages\n", __func__);
-		if (!_has_tag(&marks->im_tree, s, EXTENT_INITIALIZED))
-			set_needs_init(array, s);
-	}
-
 	spin_unlock(&marks->im_lock);
 
-	if (pages) {
-		if (array[0] == ~0) {
-			kfree(array);
-			*pages = NULL;
-		} else
-			*pages = array;
-	}
 	return 0;
 
- out_unlock:
+out_unlock:
 	spin_unlock(&marks->im_lock);
- outerr:
-	if (pages) {
-		kfree(array);
-		*pages = NULL;
-	}
+outerr:
 	return -ENOMEM;
 }
 

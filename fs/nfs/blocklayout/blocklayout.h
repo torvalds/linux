@@ -186,8 +186,7 @@ struct pnfs_block_extent *
 bl_find_get_extent(struct pnfs_block_layout *bl, sector_t isect,
 		struct pnfs_block_extent **cow_read);
 int bl_mark_sectors_init(struct pnfs_inval_markings *marks,
-			     sector_t offset, sector_t length,
-			     sector_t **pages);
+			     sector_t offset, sector_t length);
 void bl_put_extent(struct pnfs_block_extent *be);
 struct pnfs_block_extent *bl_alloc_extent(void);
 int bl_is_sector_init(struct pnfs_inval_markings *marks, sector_t isect);
