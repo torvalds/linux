@@ -829,7 +829,7 @@ pl330_probe(struct amba_device *adev, const struct amba_id *id)
 	if (IS_ERR(pdmac->clk)) {
 		dev_err(&adev->dev, "Cannot get operation clock.\n");
 		ret = -EINVAL;
-		goto probe_err1;
+		goto probe_err2;
 	}
 
 	amba_set_drvdata(adev, pdmac);
@@ -843,11 +843,11 @@ pl330_probe(struct amba_device *adev, const struct amba_id *id)
 	ret = request_irq(irq, pl330_irq_handler, 0,
 			dev_name(&adev->dev), pi);
 	if (ret)
-		goto probe_err2;
+		goto probe_err3;
 
 	ret = pl330_add(pi);
 	if (ret)
-		goto probe_err3;
+		goto probe_err4;
 
 	INIT_LIST_HEAD(&pdmac->desc_pool);
 	spin_lock_init(&pdmac->pool_lock);
@@ -904,7 +904,7 @@ pl330_probe(struct amba_device *adev, const struct amba_id *id)
 	ret = dma_async_device_register(pd);
 	if (ret) {
 		dev_err(&adev->dev, "unable to register DMAC\n");
-		goto probe_err4;
+		goto probe_err5;
 	}
 
 	dev_info(&adev->dev,
@@ -917,10 +917,15 @@ pl330_probe(struct amba_device *adev, const struct amba_id *id)
 
 	return 0;
 
-probe_err4:
+probe_err5:
 	pl330_del(pi);
-probe_err3:
+probe_err4:
 	free_irq(irq, pi);
+probe_err3:
+#ifndef CONFIG_PM_RUNTIME
+	clk_disable(pdmac->clk);
+#endif
+	clk_put(pdmac->clk);
 probe_err2:
 	iounmap(pi->base);
 probe_err1:
