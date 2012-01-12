@@ -21,25 +21,6 @@
 #include <asm/synch.h>
 #include <asm/ppc-opcode.h>
 
-/*
- * Since this file is built in even if KVM is a module, we need
- * a local copy of this function for the case where kvm_main.c is
- * modular.
- */
-static struct kvm_memory_slot *builtin_gfn_to_memslot(struct kvm *kvm,
-						gfn_t gfn)
-{
-	struct kvm_memslots *slots;
-	struct kvm_memory_slot *memslot;
-
-	slots = kvm_memslots(kvm);
-	kvm_for_each_memslot(memslot, slots)
-		if (gfn >= memslot->base_gfn &&
-		      gfn < memslot->base_gfn + memslot->npages)
-			return memslot;
-	return NULL;
-}
-
 /* Translate address of a vmalloc'd thing to a linear map address */
 static void *real_vmalloc_addr(void *x)
 {
@@ -99,7 +80,7 @@ static void remove_revmap_chain(struct kvm *kvm, long pte_index,
 	rcbits = hpte_r & (HPTE_R_R | HPTE_R_C);
 	ptel = rev->guest_rpte |= rcbits;
 	gfn = hpte_rpn(ptel, hpte_page_size(hpte_v, ptel));
-	memslot = builtin_gfn_to_memslot(kvm, gfn);
+	memslot = __gfn_to_memslot(kvm_memslots(kvm), gfn);
 	if (!memslot || (memslot->flags & KVM_MEMSLOT_INVALID))
 		return;
 
@@ -181,7 +162,7 @@ long kvmppc_h_enter(struct kvm_vcpu *vcpu, unsigned long flags,
 	/* Find the memslot (if any) for this address */
 	gpa = (ptel & HPTE_R_RPN) & ~(psize - 1);
 	gfn = gpa >> PAGE_SHIFT;
-	memslot = builtin_gfn_to_memslot(kvm, gfn);
+	memslot = __gfn_to_memslot(kvm_memslots(kvm), gfn);
 	pa = 0;
 	is_io = ~0ul;
 	rmap = NULL;

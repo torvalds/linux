@@ -640,19 +640,6 @@ static int kvm_create_dirty_bitmap(struct kvm_memory_slot *memslot)
 }
 #endif /* !CONFIG_S390 */
 
-static struct kvm_memory_slot *
-search_memslots(struct kvm_memslots *slots, gfn_t gfn)
-{
-	struct kvm_memory_slot *memslot;
-
-	kvm_for_each_memslot(memslot, slots)
-		if (gfn >= memslot->base_gfn &&
-		      gfn < memslot->base_gfn + memslot->npages)
-			return memslot;
-
-	return NULL;
-}
-
 static int cmp_memslot(const void *slot1, const void *slot2)
 {
 	struct kvm_memory_slot *s1, *s2;
@@ -1030,12 +1017,6 @@ int kvm_is_error_hva(unsigned long addr)
 	return addr == bad_hva();
 }
 EXPORT_SYMBOL_GPL(kvm_is_error_hva);
-
-static struct kvm_memory_slot *__gfn_to_memslot(struct kvm_memslots *slots,
-						gfn_t gfn)
-{
-	return search_memslots(slots, gfn);
-}
 
 struct kvm_memory_slot *gfn_to_memslot(struct kvm *kvm, gfn_t gfn)
 {
@@ -1459,7 +1440,7 @@ int kvm_gfn_to_hva_cache_init(struct kvm *kvm, struct gfn_to_hva_cache *ghc,
 
 	ghc->gpa = gpa;
 	ghc->generation = slots->generation;
-	ghc->memslot = __gfn_to_memslot(slots, gfn);
+	ghc->memslot = gfn_to_memslot(kvm, gfn);
 	ghc->hva = gfn_to_hva_many(ghc->memslot, gfn, NULL);
 	if (!kvm_is_error_hva(ghc->hva))
 		ghc->hva += offset;
