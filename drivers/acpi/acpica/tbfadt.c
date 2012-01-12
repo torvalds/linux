@@ -63,14 +63,15 @@ static void acpi_tb_setup_fadt_registers(void);
 
 typedef struct acpi_fadt_info {
 	char *name;
-	u8 address64;
-	u8 address32;
-	u8 length;
+	u16 address64;
+	u16 address32;
+	u16 length;
 	u8 default_length;
 	u8 type;
 
 } acpi_fadt_info;
 
+#define ACPI_FADT_OPTIONAL          0
 #define ACPI_FADT_REQUIRED          1
 #define ACPI_FADT_SEPARATE_LENGTH   2
 
@@ -87,7 +88,7 @@ static struct acpi_fadt_info fadt_info_table[] = {
 	 ACPI_FADT_OFFSET(pm1b_event_block),
 	 ACPI_FADT_OFFSET(pm1_event_length),
 	 ACPI_PM1_REGISTER_WIDTH * 2,	/* Enable + Status register */
-	 0},
+	 ACPI_FADT_OPTIONAL},
 
 	{"Pm1aControlBlock",
 	 ACPI_FADT_OFFSET(xpm1a_control_block),
@@ -101,7 +102,7 @@ static struct acpi_fadt_info fadt_info_table[] = {
 	 ACPI_FADT_OFFSET(pm1b_control_block),
 	 ACPI_FADT_OFFSET(pm1_control_length),
 	 ACPI_PM1_REGISTER_WIDTH,
-	 0},
+	 ACPI_FADT_OPTIONAL},
 
 	{"Pm2ControlBlock",
 	 ACPI_FADT_OFFSET(xpm2_control_block),
@@ -139,7 +140,7 @@ static struct acpi_fadt_info fadt_info_table[] = {
 
 typedef struct acpi_fadt_pm_info {
 	struct acpi_generic_address *target;
-	u8 source;
+	u16 source;
 	u8 register_num;
 
 } acpi_fadt_pm_info;
