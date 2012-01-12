@@ -350,17 +350,11 @@ extern int param_set_charp(const char *val, const struct kernel_param *kp);
 extern int param_get_charp(char *buffer, const struct kernel_param *kp);
 #define param_check_charp(name, p) __param_check(name, p, char *)
 
-/* For historical reasons "bool" parameters can be (unsigned) "int". */
+/* We used to allow int as well as bool.  We're taking that away! */
 extern struct kernel_param_ops param_ops_bool;
 extern int param_set_bool(const char *val, const struct kernel_param *kp);
 extern int param_get_bool(char *buffer, const struct kernel_param *kp);
-#define param_check_bool(name, p)					\
-	static inline void __check_##name(void)				\
-	{								\
-		BUILD_BUG_ON(!__same_type((p), bool *) &&		\
-			     !__same_type((p), unsigned int *) &&	\
-			     !__same_type((p), int *));			\
-	}
+#define param_check_bool(name, p) __param_check(name, p, bool)
 
 extern struct kernel_param_ops param_ops_invbool;
 extern int param_set_invbool(const char *val, const struct kernel_param *kp);
