@@ -858,6 +858,8 @@ drm_conntype_from_dcb(enum dcb_connector_type dcb)
 	case DCB_CONNECTOR_DVI_D    : return DRM_MODE_CONNECTOR_DVID;
 	case DCB_CONNECTOR_LVDS     :
 	case DCB_CONNECTOR_LVDS_SPWG: return DRM_MODE_CONNECTOR_LVDS;
+	case DCB_CONNECTOR_DMS59_DP0:
+	case DCB_CONNECTOR_DMS59_DP1:
 	case DCB_CONNECTOR_DP       : return DRM_MODE_CONNECTOR_DisplayPort;
 	case DCB_CONNECTOR_eDP      : return DRM_MODE_CONNECTOR_eDP;
 	case DCB_CONNECTOR_HDMI_0   :
@@ -1002,7 +1004,9 @@ nouveau_connector_create(struct drm_device *dev, int index)
 	     nv_connector->type == DCB_CONNECTOR_DVI_I ||
 	     nv_connector->type == DCB_CONNECTOR_HDMI_0 ||
 	     nv_connector->type == DCB_CONNECTOR_HDMI_1 ||
-	     nv_connector->type == DCB_CONNECTOR_DP)) {
+	     nv_connector->type == DCB_CONNECTOR_DP ||
+	     nv_connector->type == DCB_CONNECTOR_DMS59_DP0 ||
+	     nv_connector->type == DCB_CONNECTOR_DMS59_DP1)) {
 		drm_connector_attach_property(connector,
 					      disp->underscan_property,
 					      UNDERSCAN_OFF);
