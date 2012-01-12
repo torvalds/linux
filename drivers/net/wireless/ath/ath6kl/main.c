@@ -255,7 +255,7 @@ int ath6kl_read_fwlogs(struct ath6kl *ar)
 	struct ath6kl_dbglog_hdr debug_hdr;
 	struct ath6kl_dbglog_buf debug_buf;
 	u32 address, length, dropped, firstbuf, debug_hdr_addr;
-	int ret = 0, loop;
+	int ret, loop;
 	u8 *buf;
 
 	buf = kmalloc(ATH6KL_FWLOG_PAYLOAD_SIZE, GFP_KERNEL);
