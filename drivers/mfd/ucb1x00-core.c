@@ -29,7 +29,6 @@
 #include <linux/gpio.h>
 #include <linux/semaphore.h>
 
-#include <mach/dma.h>
 #include <mach/hardware.h>
 
 static DEFINE_MUTEX(ucb1x00_mutex);

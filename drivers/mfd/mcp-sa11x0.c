@@ -20,7 +20,6 @@
 #include <linux/platform_device.h>
 #include <linux/mfd/mcp.h>
 
-#include <mach/dma.h>
 #include <mach/hardware.h>
 #include <asm/mach-types.h>
 #include <asm/system.h>
@@ -158,10 +157,6 @@ static int mcp_sa11x0_probe(struct platform_device *pdev)
 	mcp->owner		= THIS_MODULE;
 	mcp->ops		= &mcp_sa11x0;
 	mcp->sclk_rate		= data->sclk_rate;
-	mcp->dma_audio_rd	= DMA_Ser4MCP0Rd;
-	mcp->dma_audio_wr	= DMA_Ser4MCP0Wr;
-	mcp->dma_telco_rd	= DMA_Ser4MCP1Rd;
-	mcp->dma_telco_wr	= DMA_Ser4MCP1Wr;
 	mcp->gpio_base		= data->gpio_base;
 
 	platform_set_drvdata(pdev, mcp);

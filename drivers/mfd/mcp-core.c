@@ -19,7 +19,6 @@
 #include <linux/string.h>
 #include <linux/mfd/mcp.h>
 
-#include <mach/dma.h>
 #include <asm/system.h>
 
 

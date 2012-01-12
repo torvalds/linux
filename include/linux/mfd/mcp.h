@@ -10,8 +10,6 @@
 #ifndef MCP_H
 #define MCP_H
 
-#include <mach/dma.h>
-
 struct mcp_ops;
 
 struct mcp {
@@ -21,10 +19,6 @@ struct mcp {
 	int		use_count;
 	unsigned int	sclk_rate;
 	unsigned int	rw_timeout;
-	dma_device_t	dma_audio_rd;
-	dma_device_t	dma_audio_wr;
-	dma_device_t	dma_telco_rd;
-	dma_device_t	dma_telco_wr;
 	struct device	attached_device;
 	int		gpio_base;
 };

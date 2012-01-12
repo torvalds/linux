@@ -32,7 +32,6 @@
 #include <linux/kthread.h>
 #include <linux/mfd/ucb1x00.h>
 
-#include <mach/dma.h>
 #include <mach/collie.h>
 #include <asm/mach-types.h>
 
