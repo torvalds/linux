@@ -46,7 +46,7 @@
 
 /* memory space (line 52 of HP's doc) */
 #define SA1111REGSTART	0x40000000
-#define SA1111REGLEN	0x00001fff
+#define SA1111REGLEN	0x00002000
 #define EPSONREGSTART	0x48000000
 #define EPSONREGLEN	0x00100000
 #define EPSONFBSTART	0x48200000
@@ -176,12 +176,12 @@ static struct s1d13xxxfb_pdata s1d13xxxfb_data = {
 static struct resource s1d13xxxfb_resources[] = {
 	[0] = {
 		.start	= EPSONFBSTART,
-		.end	= EPSONFBSTART + EPSONFBLEN,
+		.end	= EPSONFBSTART + EPSONFBLEN - 1,
 		.flags	= IORESOURCE_MEM,
 	},
 	[1] = {
 		.start	= EPSONREGSTART,
-		.end	= EPSONREGSTART + EPSONREGLEN,
+		.end	= EPSONREGSTART + EPSONREGLEN - 1,
 		.flags	= IORESOURCE_MEM,
 	}
 };
@@ -199,7 +199,7 @@ static struct platform_device s1d13xxxfb_device = {
 static struct resource sa1111_resources[] = {
 	[0] = {
 		.start		= SA1111REGSTART,
-		.end		= SA1111REGSTART + SA1111REGLEN,
+		.end		= SA1111REGSTART + SA1111REGLEN - 1,
 		.flags		= IORESOURCE_MEM,
 	},
 	[1] = {

@@ -181,7 +181,7 @@ static struct flash_platform_data hackkit_flash_data = {
 
 static struct resource hackkit_flash_resource = {
 	.start		= SA1100_CS0_PHYS,
-	.end		= SA1100_CS0_PHYS + SZ_32M,
+	.end		= SA1100_CS0_PHYS + SZ_32M - 1,
 	.flags		= IORESOURCE_MEM,
 };
 
