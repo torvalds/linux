@@ -395,6 +395,11 @@ void __devinit pcibios_fixup_bus(struct pci_bus *bus)
 	/* Nothing needs to be done. */
 }
 
+void pcibios_set_master(struct pci_dev *dev)
+{
+	/* No special bus mastering setup handling. */
+}
+
 /*
  * This can be called from the generic PCI layer, but doesn't need to
  * do anything.

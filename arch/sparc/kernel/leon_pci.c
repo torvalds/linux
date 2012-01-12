@@ -19,22 +19,22 @@
  */
 void leon_pci_init(struct platform_device *ofdev, struct leon_pci_info *info)
 {
+	LIST_HEAD(resources);
 	struct pci_bus *root_bus;
 
-	root_bus = pci_scan_bus_parented(&ofdev->dev, 0, info->ops, info);
+	pci_add_resource(&resources, &info->io_space);
+	pci_add_resource(&resources, &info->mem_space);
+
+	root_bus = pci_scan_root_bus(&ofdev->dev, 0, info->ops, info,
+				     &resources);
 	if (root_bus) {
-		root_bus->resource[0] = &info->io_space;
-		root_bus->resource[1] = &info->mem_space;
-		root_bus->resource[2] = NULL;
-
-		/* Init all PCI devices into PCI tree */
-		pci_bus_add_devices(root_bus);
-
 		/* Setup IRQs of all devices using custom routines */
 		pci_fixup_irqs(pci_common_swizzle, info->map_irq);
 
 		/* Assign devices with resources */
 		pci_assign_unassigned_resources();
+	} else {
+		pci_free_resource_list(&resources);
 	}
 }
 
@@ -82,15 +82,6 @@ void __devinit pcibios_fixup_bus(struct pci_bus *pbus)
 	struct pci_dev *dev;
 	int i, has_io, has_mem;
 	u16 cmd;
-
-	/* Generic PCI bus probing sets these to point at
-	 * &io{port,mem}_resouce which is wrong for us.
-	 */
-	if (pbus->self == NULL) {
-		pbus->resource[0] = &info->io_space;
-		pbus->resource[1] = &info->mem_space;
-		pbus->resource[2] = NULL;
-	}
 
 	list_for_each_entry(dev, &pbus->devices, bus_list) {
 		/*

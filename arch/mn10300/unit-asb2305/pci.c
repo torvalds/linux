@@ -380,11 +380,6 @@ void __devinit pcibios_fixup_bus(struct pci_bus *bus)
 {
 	struct pci_dev *dev;
 
-	if (bus->number == 0) {
-		bus->resource[0] = &pci_ioport_resource;
-		bus->resource[1] = &pci_iomem_resource;
-	}
-
 	if (bus->self) {
 		pci_read_bridge_bases(bus);
 		pcibios_fixup_device_resources(bus->self);
@@ -402,6 +397,8 @@ void __devinit pcibios_fixup_bus(struct pci_bus *bus)
  */
 static int __init pcibios_init(void)
 {
+	LIST_HEAD(resources);
+
 	ioport_resource.start	= 0xA0000000;
 	ioport_resource.end	= 0xDFFFFFFF;
 	iomem_resource.start	= 0xA0000000;
@@ -423,7 +420,10 @@ static int __init pcibios_init(void)
 	printk(KERN_INFO "PCI: Probing PCI hardware [mempage %08x]\n",
 	       MEM_PAGING_REG);
 
-	pci_root_bus = pci_scan_bus(0, &pci_direct_ampci, NULL);
+	pci_add_resource(&resources, &pci_ioport_resource);
+	pci_add_resource(&resources, &pci_iomem_resource);
+	pci_root_bus = pci_scan_root_bus(NULL, 0, &pci_direct_ampci, NULL,
+					 &resources);
 
 	pcibios_irq_init();
 	pcibios_fixup_irqs();

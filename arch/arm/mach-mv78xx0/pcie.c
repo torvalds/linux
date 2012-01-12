@@ -155,9 +155,8 @@ static int __init mv78xx0_pcie_setup(int nr, struct pci_sys_data *sys)
 	orion_pcie_set_local_bus_nr(pp->base, sys->busnr);
 	orion_pcie_setup(pp->base);
 
-	sys->resource[0] = &pp->res[0];
-	sys->resource[1] = &pp->res[1];
-	sys->resource[2] = NULL;
+	pci_add_resource(&sys->resources, &pp->res[0]);
+	pci_add_resource(&sys->resources, &pp->res[1]);
 
 	return 1;
 }
@@ -251,7 +250,8 @@ mv78xx0_pcie_scan_bus(int nr, struct pci_sys_data *sys)
 	struct pci_bus *bus;
 
 	if (nr < num_pcie_ports) {
-		bus = pci_scan_bus(sys->busnr, &pcie_ops, sys);
+		bus = pci_scan_root_bus(NULL, sys->busnr, &pcie_ops, sys,
+					&sys->resources);
 	} else {
 		bus = NULL;
 		BUG();
