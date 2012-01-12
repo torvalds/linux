@@ -1489,6 +1489,13 @@ config EFI
 	  resultant kernel should continue to boot on existing non-EFI
 	  platforms.
 
+config EFI_STUB
+       bool "EFI stub support"
+       depends on EFI
+       ---help---
+          This kernel feature allows a bzImage to be loaded directly
+	  by EFI firmware without the use of a bootloader.
+
 config SECCOMP
 	def_bool y
 	prompt "Enable seccomp to safely compute untrusted bytecode"
