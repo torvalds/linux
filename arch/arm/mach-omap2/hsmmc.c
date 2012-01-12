@@ -175,11 +175,12 @@ static void hsmmc2_select_input_clk_src(struct omap_mmc_platform_data *mmc)
 {
 	u32 reg;
 
-	if (mmc->slots[0].internal_clock) {
-		reg = omap_ctrl_readl(control_devconf1_offset);
+	reg = omap_ctrl_readl(control_devconf1_offset);
+	if (mmc->slots[0].internal_clock)
 		reg |= OMAP2_MMCSDIO2ADPCLKISEL;
-		omap_ctrl_writel(reg, control_devconf1_offset);
-	}
+	else
+		reg &= ~OMAP2_MMCSDIO2ADPCLKISEL;
+	omap_ctrl_writel(reg, control_devconf1_offset);
 }
 
 static void hsmmc2_before_set_reg(struct device *dev, int slot,
