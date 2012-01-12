@@ -1083,22 +1083,6 @@ static unsigned int copy_to_bounce_buffer(struct scatterlist *orig_sgl,
 	return total_copied;
 }
 
-
-static int storvsc_remove(struct hv_device *dev)
-{
-	struct storvsc_device *stor_device = hv_get_drvdata(dev);
-	struct Scsi_Host *host = stor_device->host;
-
-	scsi_remove_host(host);
-
-	scsi_host_put(host);
-
-	storvsc_dev_remove(dev);
-
-	return 0;
-}
-
-
 static int storvsc_get_chs(struct scsi_device *sdev, struct block_device * bdev,
 			   sector_t capacity, int *info)
 {
@@ -1524,6 +1508,18 @@ err_out1:
 err_out0:
 	scsi_host_put(host);
 	return ret;
+}
+
+static int storvsc_remove(struct hv_device *dev)
+{
+	struct storvsc_device *stor_device = hv_get_drvdata(dev);
+	struct Scsi_Host *host = stor_device->host;
+
+	scsi_remove_host(host);
+	storvsc_dev_remove(dev);
+	scsi_host_put(host);
+
+	return 0;
 }
 
 static struct hv_driver storvsc_drv = {
