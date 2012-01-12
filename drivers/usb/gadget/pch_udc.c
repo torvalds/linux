@@ -2511,11 +2511,15 @@ static void pch_udc_svc_cfg_interrupt(struct pch_udc_dev *dev)
 static void pch_udc_dev_isr(struct pch_udc_dev *dev, u32 dev_intr)
 {
 	/* USB Reset Interrupt */
-	if (dev_intr & UDC_DEVINT_UR)
+	if (dev_intr & UDC_DEVINT_UR) {
 		pch_udc_svc_ur_interrupt(dev);
+		dev_dbg(&dev->pdev->dev, "USB_RESET\n");
+	}
 	/* Enumeration Done Interrupt */
-	if (dev_intr & UDC_DEVINT_ENUM)
+	if (dev_intr & UDC_DEVINT_ENUM) {
 		pch_udc_svc_enum_interrupt(dev);
+		dev_dbg(&dev->pdev->dev, "USB_ENUM\n");
+	}
 	/* Set Interface Interrupt */
 	if (dev_intr & UDC_DEVINT_SI)
 		pch_udc_svc_intf_interrupt(dev);
