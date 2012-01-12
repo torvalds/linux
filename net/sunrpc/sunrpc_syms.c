@@ -29,6 +29,7 @@ int sunrpc_net_id;
 static __net_init int sunrpc_init_net(struct net *net)
 {
 	int err;
+	struct sunrpc_net *sn = net_generic(net, sunrpc_net_id);
 
 	err = rpc_proc_init(net);
 	if (err)
@@ -39,6 +40,8 @@ static __net_init int sunrpc_init_net(struct net *net)
 		goto err_ipmap;
 
 	rpc_pipefs_init_net(net);
+	INIT_LIST_HEAD(&sn->all_clients);
+	spin_lock_init(&sn->rpc_client_lock);
 	return 0;
 
 err_ipmap:

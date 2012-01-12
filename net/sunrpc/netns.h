@@ -12,6 +12,9 @@ struct sunrpc_net {
 
 	struct super_block *pipefs_sb;
 	struct mutex pipefs_sb_lock;
+
+	struct list_head all_clients;
+	spinlock_t rpc_client_lock;
 };
 
 extern int sunrpc_net_id;
