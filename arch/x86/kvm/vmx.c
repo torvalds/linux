@@ -51,29 +51,29 @@
 MODULE_AUTHOR("Qumranet");
 MODULE_LICENSE("GPL");
 
-static int __read_mostly enable_vpid = 1;
+static bool __read_mostly enable_vpid = 1;
 module_param_named(vpid, enable_vpid, bool, 0444);
 
-static int __read_mostly flexpriority_enabled = 1;
+static bool __read_mostly flexpriority_enabled = 1;
 module_param_named(flexpriority, flexpriority_enabled, bool, S_IRUGO);
 
-static int __read_mostly enable_ept = 1;
+static bool __read_mostly enable_ept = 1;
 module_param_named(ept, enable_ept, bool, S_IRUGO);
 
-static int __read_mostly enable_unrestricted_guest = 1;
+static bool __read_mostly enable_unrestricted_guest = 1;
 module_param_named(unrestricted_guest,
 			enable_unrestricted_guest, bool, S_IRUGO);
 
-static int __read_mostly emulate_invalid_guest_state = 0;
+static bool __read_mostly emulate_invalid_guest_state = 0;
 module_param(emulate_invalid_guest_state, bool, S_IRUGO);
 
-static int __read_mostly vmm_exclusive = 1;
+static bool __read_mostly vmm_exclusive = 1;
 module_param(vmm_exclusive, bool, S_IRUGO);
 
-static int __read_mostly yield_on_hlt = 1;
+static bool __read_mostly yield_on_hlt = 1;
 module_param(yield_on_hlt, bool, S_IRUGO);
 
-static int __read_mostly fasteoi = 1;
+static bool __read_mostly fasteoi = 1;
 module_param(fasteoi, bool, S_IRUGO);
 
 /*
@@ -81,7 +81,7 @@ module_param(fasteoi, bool, S_IRUGO);
  * VMX and be a hypervisor for its own guests. If nested=0, guests may not
  * use VMX instructions.
  */
-static int __read_mostly nested = 0;
+static bool __read_mostly nested = 0;
 module_param(nested, bool, S_IRUGO);
 
 #define KVM_GUEST_CR0_MASK_UNRESTRICTED_GUEST				\
