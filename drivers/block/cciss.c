@@ -1716,7 +1716,7 @@ static int cciss_ioctl(struct block_device *bdev, fmode_t mode,
 	case CCISS_BIG_PASSTHRU:
 		return cciss_bigpassthru(h, argp);
 
-	/* scsi_cmd_ioctl handles these, below, though some are not */
+	/* scsi_cmd_blk_ioctl handles these, below, though some are not */
 	/* very meaningful for cciss.  SG_IO is the main one people want. */
 
 	case SG_GET_VERSION_NUM:
@@ -1727,9 +1727,9 @@ static int cciss_ioctl(struct block_device *bdev, fmode_t mode,
 	case SG_EMULATED_HOST:
 	case SG_IO:
 	case SCSI_IOCTL_SEND_COMMAND:
-		return scsi_cmd_ioctl(disk->queue, disk, mode, cmd, argp);
+		return scsi_cmd_blk_ioctl(bdev, mode, cmd, argp);
 
-	/* scsi_cmd_ioctl would normally handle these, below, but */
+	/* scsi_cmd_blk_ioctl would normally handle these, below, but */
 	/* they aren't a good fit for cciss, as CD-ROMs are */
 	/* not supported, and we don't have any bus/target/lun */
 	/* which we present to the kernel. */
