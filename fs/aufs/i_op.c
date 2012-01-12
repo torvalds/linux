@@ -697,8 +697,7 @@ static int aufs_setattr(struct dentry *dentry, struct iattr *ia)
 	a->h_path.mnt = au_sbr_mnt(sb, a->btgt);
 	if ((ia->ia_valid & (ATTR_MODE | ATTR_CTIME))
 	    == (ATTR_MODE | ATTR_CTIME)) {
-		err = security_path_chmod(a->h_path.dentry, a->h_path.mnt,
-					  ia->ia_mode);
+		err = security_path_chmod(&a->h_path, ia->ia_mode);
 		if (unlikely(err))
 			goto out_unlock;
 	} else if ((ia->ia_valid & (ATTR_UID | ATTR_GID))

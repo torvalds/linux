@@ -163,7 +163,7 @@ static void au_show_wbr_create(struct seq_file *m, int v,
 	}
 }
 
-static int au_show_xino(struct seq_file *seq, struct vfsmount *mnt)
+static int au_show_xino(struct seq_file *seq, struct super_block *sb)
 {
 #ifdef CONFIG_SYSFS
 	return 0;
@@ -171,7 +171,6 @@ static int au_show_xino(struct seq_file *seq, struct vfsmount *mnt)
 	int err;
 	const int len = sizeof(AUFS_XINO_FNAME) - 1;
 	aufs_bindex_t bindex, brid;
-	struct super_block *sb;
 	struct qstr *name;
 	struct file *f;
 	struct dentry *d, *h_root;
@@ -180,7 +179,6 @@ static int au_show_xino(struct seq_file *seq, struct vfsmount *mnt)
 	AuRwMustAnyLock(&sbinfo->si_rwsem);
 
 	err = 0;
-	sb = mnt->mnt_sb;
 	f = au_sbi(sb)->si_xib;
 	if (!f)
 		goto out;
@@ -210,7 +208,7 @@ out:
 }
 
 /* seq_file will re-call me in case of too long string */
-static int aufs_show_options(struct seq_file *m, struct vfsmount *mnt)
+static int aufs_show_options(struct seq_file *m, struct dentry *dentry)
 {
 	int err;
 	unsigned int mnt_flags, v;
@@ -235,14 +233,14 @@ static int aufs_show_options(struct seq_file *m, struct vfsmount *mnt)
 } while (0)
 
 	/* lock free root dinfo */
-	sb = mnt->mnt_sb;
+	sb = dentry->d_sb;
 	si_noflush_read_lock(sb);
 	sbinfo = au_sbi(sb);
 	seq_printf(m, ",si=%lx", sysaufs_si_id(sbinfo));
 
 	mnt_flags = au_mntflags(sb);
 	if (au_opt_test(mnt_flags, XINO)) {
-		err = au_show_xino(m, mnt);
+		err = au_show_xino(m, sb);
 		if (unlikely(err))
 			goto out;
 	} else
