@@ -1759,6 +1759,7 @@ nv44_graph_class(struct drm_device *dev)
 #define NV_MEM_ACCESS_RW (NV_MEM_ACCESS_RO | NV_MEM_ACCESS_WO)
 #define NV_MEM_ACCESS_SYS 4
 #define NV_MEM_ACCESS_VM  8
+#define NV_MEM_ACCESS_NOSNOOP 16
 
 #define NV_MEM_TARGET_VRAM        0
 #define NV_MEM_TARGET_PCI         1
