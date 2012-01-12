@@ -114,13 +114,9 @@ enum vstor_packet_operation {
  * this remains the same across the write regardless of 32/64 bit
  * note: it's patterned off the SCSI_PASS_THROUGH structure
  */
-#define CDB16GENERIC_LENGTH			0x10
-
-#ifndef SENSE_BUFFER_SIZE
-#define SENSE_BUFFER_SIZE			0x12
-#endif
-
-#define MAX_DATA_BUF_LEN_WITH_PADDING		0x14
+#define STORVSC_MAX_CMD_LEN			0x10
+#define STORVSC_SENSE_BUFFER_SIZE		0x12
+#define STORVSC_MAX_BUF_LEN_WITH_PADDING	0x14
 
 struct vmscsi_request {
 	u16 length;
@@ -140,9 +136,9 @@ struct vmscsi_request {
 	u32 data_transfer_length;
 
 	union {
-		u8 cdb[CDB16GENERIC_LENGTH];
-		u8 sense_data[SENSE_BUFFER_SIZE];
-		u8 reserved_array[MAX_DATA_BUF_LEN_WITH_PADDING];
+		u8 cdb[STORVSC_MAX_CMD_LEN];
+		u8 sense_data[STORVSC_SENSE_BUFFER_SIZE];
+		u8 reserved_array[STORVSC_MAX_BUF_LEN_WITH_PADDING];
 	};
 } __attribute((packed));
 
@@ -234,7 +230,6 @@ struct vstor_packet {
 #define STORVSC_MAX_LUNS_PER_TARGET			64
 #define STORVSC_MAX_TARGETS				1
 #define STORVSC_MAX_CHANNELS				1
-#define STORVSC_MAX_CMD_LEN				16
 
 /* Matches Windows-end */
 enum storvsc_request_type {
@@ -1074,7 +1069,7 @@ static int storvsc_do_io(struct hv_device *device,
 	vstor_packet->vm_srb.length = sizeof(struct vmscsi_request);
 
 
-	vstor_packet->vm_srb.sense_info_length = SENSE_BUFFER_SIZE;
+	vstor_packet->vm_srb.sense_info_length = STORVSC_SENSE_BUFFER_SIZE;
 
 
 	vstor_packet->vm_srb.data_transfer_length =
