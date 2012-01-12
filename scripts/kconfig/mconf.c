@@ -830,6 +830,7 @@ static int handle_exit(void)
 		fprintf(stderr, _("\n\n"
 				  "Your configuration changes were NOT saved."
 				  "\n\n"));
+		res = 0;
 	}
 
 	return res;
