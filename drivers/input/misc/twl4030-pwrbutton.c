@@ -107,25 +107,14 @@ static int __exit twl4030_pwrbutton_remove(struct platform_device *pdev)
 }
 
 static struct platform_driver twl4030_pwrbutton_driver = {
+	.probe		= twl4030_pwrbutton_probe,
 	.remove		= __exit_p(twl4030_pwrbutton_remove),
 	.driver		= {
 		.name	= "twl4030_pwrbutton",
 		.owner	= THIS_MODULE,
 	},
 };
-
-static int __init twl4030_pwrbutton_init(void)
-{
-	return platform_driver_probe(&twl4030_pwrbutton_driver,
-			twl4030_pwrbutton_probe);
-}
-module_init(twl4030_pwrbutton_init);
-
-static void __exit twl4030_pwrbutton_exit(void)
-{
-	platform_driver_unregister(&twl4030_pwrbutton_driver);
-}
-module_exit(twl4030_pwrbutton_exit);
+module_platform_driver(twl4030_pwrbutton_driver);
 
 MODULE_ALIAS("platform:twl4030_pwrbutton");
 MODULE_DESCRIPTION("Triton2 Power Button");

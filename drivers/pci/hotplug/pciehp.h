@@ -45,7 +45,6 @@ extern int pciehp_poll_time;
 extern int pciehp_debug;
 extern int pciehp_force;
 extern struct workqueue_struct *pciehp_wq;
-extern struct workqueue_struct *pciehp_ordered_wq;
 
 #define dbg(format, arg...)						\
 do {									\

@@ -610,8 +610,7 @@ static void __init universal_tsp_init(void)
 
 	/* TSP_LDO_ON: XMDMADDR_11 */
 	gpio = EXYNOS4_GPE2(3);
-	gpio_request(gpio, "TSP_LDO_ON");
-	gpio_direction_output(gpio, 1);
+	gpio_request_one(gpio, GPIOF_OUT_INIT_HIGH, "TSP_LDO_ON");
 	gpio_export(gpio, 0);
 
 	/* TSP_INT: XMDMADDR_7 */
@@ -671,8 +670,7 @@ static void __init universal_touchkey_init(void)
 	i2c_gpio12_devs[0].irq = gpio_to_irq(gpio);
 
 	gpio = EXYNOS4_GPE3(3);			/* XMDMDATA_3 */
-	gpio_request(gpio, "3_TOUCH_EN");
-	gpio_direction_output(gpio, 1);
+	gpio_request_one(gpio, GPIOF_OUT_INIT_HIGH, "3_TOUCH_EN");
 }
 
 static struct s3c2410_platform_i2c universal_i2c0_platdata __initdata = {
@@ -1002,9 +1000,7 @@ static void __init universal_map_io(void)
 void s5p_tv_setup(void)
 {
 	/* direct HPD to HDMI chip */
-	gpio_request(EXYNOS4_GPX3(7), "hpd-plug");
-
-	gpio_direction_input(EXYNOS4_GPX3(7));
+	gpio_request_one(EXYNOS4_GPX3(7), GPIOF_IN, "hpd-plug");
 	s3c_gpio_cfgpin(EXYNOS4_GPX3(7), S3C_GPIO_SFN(0x3));
 	s3c_gpio_setpull(EXYNOS4_GPX3(7), S3C_GPIO_PULL_NONE);
 

@@ -266,7 +266,7 @@ bool gma_power_begin(struct drm_device *dev, bool force_on)
 	ret = gma_resume_pci(dev->pdev);
 	if (ret == 0) {
 		/* FIXME: we want to defer this for Medfield/Oaktrail */
-		gma_resume_display(dev);
+		gma_resume_display(dev->pdev);
 		psb_irq_preinstall(dev);
 		psb_irq_postinstall(dev);
 		pm_runtime_get(&dev->pdev->dev);

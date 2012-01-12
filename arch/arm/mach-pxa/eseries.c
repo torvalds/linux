@@ -119,8 +119,8 @@ struct resource eseries_tmio_resources[] = {
 		.flags  = IORESOURCE_MEM,
 	},
 	[1] = {
-		.start  = IRQ_GPIO(GPIO_ESERIES_TMIO_IRQ),
-		.end    = IRQ_GPIO(GPIO_ESERIES_TMIO_IRQ),
+		.start  = PXA_GPIO_TO_IRQ(GPIO_ESERIES_TMIO_IRQ),
+		.end    = PXA_GPIO_TO_IRQ(GPIO_ESERIES_TMIO_IRQ),
 		.flags  = IORESOURCE_IRQ,
 	},
 };

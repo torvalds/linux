@@ -17,6 +17,7 @@
 
 #include "../iio.h"
 #include "../sysfs.h"
+#include "../events.h"
 
 /*
  * ADT7410 registers definition

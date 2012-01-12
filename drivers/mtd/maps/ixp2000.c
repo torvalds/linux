@@ -246,18 +246,8 @@ static struct platform_driver ixp2000_flash_driver = {
 	},
 };
 
-static int __init ixp2000_flash_init(void)
-{
-	return platform_driver_register(&ixp2000_flash_driver);
-}
+module_platform_driver(ixp2000_flash_driver);
 
-static void __exit ixp2000_flash_exit(void)
-{
-	platform_driver_unregister(&ixp2000_flash_driver);
-}
-
-module_init(ixp2000_flash_init);
-module_exit(ixp2000_flash_exit);
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Deepak Saxena <dsaxena@plexity.net>");
 MODULE_ALIAS("platform:IXP2000-Flash");

@@ -29,8 +29,8 @@
 		aips@50000000 { /* AIPS1 */
 			spba@50000000 {
 				esdhc@50004000 { /* ESDHC1 */
-					cd-gpios = <&gpio2 13 0>; /* GPIO3_13 */
-					wp-gpios = <&gpio3 11 0>; /* GPIO4_11 */
+					cd-gpios = <&gpio3 13 0>;
+					wp-gpios = <&gpio4 11 0>;
 					status = "okay";
 				};
 
@@ -39,15 +39,14 @@
 					status = "okay";
 				};
 
-				uart2: uart@5000c000 { /* UART3 */
+				uart3: uart@5000c000 {
 					fsl,uart-has-rtscts;
 					status = "okay";
 				};
 
 				ecspi@50010000 { /* ECSPI1 */
 					fsl,spi-num-chipselects = <2>;
-					cs-gpios = <&gpio1 30 0>, /* GPIO2_30 */
-						   <&gpio2 19 0>; /* GPIO3_19 */
+					cs-gpios = <&gpio2 30 0>, <&gpio3 19 0>;
 					status = "okay";
 
 					zigbee: mc1323@0 {
@@ -91,11 +90,11 @@
 				reg = <0x53fa8000 0x4000>;
 			};
 
-			uart0: uart@53fbc000 { /* UART1 */
+			uart1: uart@53fbc000 {
 				status = "okay";
 			};
 
-			uart1: uart@53fc0000 { /* UART2 */
+			uart2: uart@53fc0000 {
 				status = "okay";
 			};
 		};
@@ -145,7 +144,7 @@
 
 			fec@63fec000 {
 				phy-mode = "rmii";
-				phy-reset-gpios = <&gpio6 6 0>; /* GPIO7_6 */
+				phy-reset-gpios = <&gpio7 6 0>;
 				status = "okay";
 			};
 		};
@@ -156,13 +155,13 @@
 
 		volume-up {
 			label = "Volume Up";
-			gpios = <&gpio1 14 0>; /* GPIO2_14 */
+			gpios = <&gpio2 14 0>;
 			linux,code = <115>; /* KEY_VOLUMEUP */
 		};
 
 		volume-down {
 			label = "Volume Down";
-			gpios = <&gpio1 15 0>; /* GPIO2_15 */
+			gpios = <&gpio2 15 0>;
 			linux,code = <114>; /* KEY_VOLUMEDOWN */
 		};
 	};

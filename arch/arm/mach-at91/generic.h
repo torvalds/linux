@@ -29,6 +29,7 @@ extern void __init at91_aic_init(unsigned int priority[]);
  /* Timer */
 struct sys_timer;
 extern struct sys_timer at91rm9200_timer;
+extern void at91sam926x_ioremap_pit(u32 addr);
 extern struct sys_timer at91sam926x_timer;
 extern struct sys_timer at91x40_timer;
 
@@ -59,14 +60,16 @@ extern void at91_irq_resume(void);
 /* reset */
 extern void at91sam9_alt_restart(char, const char *);
 
+/* shutdown */
+extern void at91_ioremap_shdwc(u32 base_addr);
+
  /* GPIO */
 #define AT91RM9200_PQFP		3	/* AT91RM9200 PQFP package has 3 banks */
 #define AT91RM9200_BGA		4	/* AT91RM9200 BGA package has 4 banks */
 
 struct at91_gpio_bank {
 	unsigned short id;		/* peripheral ID */
-	unsigned long offset;		/* offset from system peripheral base */
-	struct clk *clock;		/* associated clock */
+	unsigned long regbase;		/* offset from system peripheral base */
 };
 extern void __init at91_gpio_init(struct at91_gpio_bank *, int nr_banks);
 extern void __init at91_gpio_irq_setup(void);

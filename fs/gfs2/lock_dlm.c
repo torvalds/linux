@@ -195,10 +195,10 @@ static int gdlm_mount(struct gfs2_sbd *sdp, const char *fsname)
 		return -EINVAL;
 	}
 
-	error = dlm_new_lockspace(fsname, strlen(fsname), &ls->ls_dlm,
+	error = dlm_new_lockspace(fsname, NULL, 
 				  DLM_LSFL_FS | DLM_LSFL_NEWEXCL |
 				  (ls->ls_nodir ? DLM_LSFL_NODIR : 0),
-				  GDLM_LVB_SIZE);
+				  GDLM_LVB_SIZE, NULL, NULL, NULL, &ls->ls_dlm);
 	if (error)
 		printk(KERN_ERR "dlm_new_lockspace error %d", error);
 

@@ -170,8 +170,8 @@ struct kvm_sregs {
 			} ppc64;
 			struct {
 				__u32 sr[16];
-				__u64 ibat[8]; 
-				__u64 dbat[8]; 
+				__u64 ibat[8];
+				__u64 dbat[8];
 			} ppc32;
 		} s;
 		struct {

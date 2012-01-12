@@ -418,14 +418,6 @@ static void bfin_set_dmamode(struct ata_port *ap, struct ata_device *adev)
 					(tcyc_tdvs<<8 | tdvs));
 				ATAPI_SET_ULTRA_TIM_2(base, (tmli<<8 | tss));
 				ATAPI_SET_ULTRA_TIM_3(base, (trp<<8 | tzah));
-
-				/* Enable host ATAPI Untra DMA interrupts */
-				ATAPI_SET_INT_MASK(base,
-					ATAPI_GET_INT_MASK(base)
-					| UDMAIN_DONE_MASK
-					| UDMAOUT_DONE_MASK
-					| UDMAIN_TERM_MASK
-					| UDMAOUT_TERM_MASK);
 			}
 		}
 	}
@@ -470,10 +462,6 @@ static void bfin_set_dmamode(struct ata_port *ap, struct ata_device *adev)
 			ATAPI_SET_MULTI_TIM_0(base, (tm<<8 | td));
 			ATAPI_SET_MULTI_TIM_1(base, (tkr<<8 | tkw));
 			ATAPI_SET_MULTI_TIM_2(base, (teoc<<8 | th));
-
-			/* Enable host ATAPI Multi DMA interrupts */
-			ATAPI_SET_INT_MASK(base, ATAPI_GET_INT_MASK(base)
-				| MULTI_DONE_MASK | MULTI_TERM_MASK);
 			SSYNC();
 		}
 	}
@@ -1153,15 +1141,11 @@ static unsigned char bfin_bmdma_status(struct ata_port *ap)
 {
 	unsigned char host_stat = 0;
 	void __iomem *base = (void __iomem *)ap->ioaddr.ctl_addr;
-	unsigned short int_status = ATAPI_GET_INT_STATUS(base);
 
-	if (ATAPI_GET_STATUS(base) & (MULTI_XFER_ON|ULTRA_XFER_ON))
+	if (ATAPI_GET_STATUS(base) & (MULTI_XFER_ON | ULTRA_XFER_ON))
 		host_stat |= ATA_DMA_ACTIVE;
-	if (int_status & (MULTI_DONE_INT|UDMAIN_DONE_INT|UDMAOUT_DONE_INT|
-		ATAPI_DEV_INT))
+	if (ATAPI_GET_INT_STATUS(base) & ATAPI_DEV_INT)
 		host_stat |= ATA_DMA_INTR;
-	if (int_status & (MULTI_TERM_INT|UDMAIN_TERM_INT|UDMAOUT_TERM_INT))
-		host_stat |= ATA_DMA_ERR|ATA_DMA_INTR;
 
 	dev_dbg(ap->dev, "ATAPI: host_stat=0x%x\n", host_stat);
 

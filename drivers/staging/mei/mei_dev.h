@@ -23,13 +23,6 @@
 #include "hw.h"
 
 /*
- * MEI Char Driver Minors
- */
-#define MEI_MINORS_BASE	1
-#define MEI_MINORS_COUNT	1
-#define MEI_MINOR_NUMBER	1
-
-/*
  * watch dog definition
  */
 #define MEI_WATCHDOG_DATA_SIZE         16
@@ -42,11 +35,6 @@
  */
 extern struct pci_dev *mei_device;
 
-/*
- * AMT Watchdog Device
- */
-#define INTEL_AMT_WATCHDOG_ID "INTCAMT"
-extern struct watchdog_device amt_wd_dev;
 
 /*
  * AMTHI Client UUID
@@ -175,7 +163,6 @@ struct mei_cl {
 
 struct mei_io_list {
 	struct mei_cl_cb mei_cb;
-	int status;
 };
 
 /* MEI private device struct */

@@ -1610,7 +1610,7 @@ fec_probe(struct platform_device *pdev)
 		ret = PTR_ERR(fep->clk);
 		goto failed_clk;
 	}
-	clk_enable(fep->clk);
+	clk_prepare_enable(fep->clk);
 
 	ret = fec_enet_init(ndev);
 	if (ret)
@@ -1633,7 +1633,7 @@ failed_register:
 	fec_enet_mii_remove(fep);
 failed_mii_init:
 failed_init:
-	clk_disable(fep->clk);
+	clk_disable_unprepare(fep->clk);
 	clk_put(fep->clk);
 failed_clk:
 	for (i = 0; i < FEC_IRQ_NUM; i++) {
@@ -1666,7 +1666,7 @@ fec_drv_remove(struct platform_device *pdev)
 		if (irq > 0)
 			free_irq(irq, ndev);
 	}
-	clk_disable(fep->clk);
+	clk_disable_unprepare(fep->clk);
 	clk_put(fep->clk);
 	iounmap(fep->hwp);
 	free_netdev(ndev);
@@ -1691,7 +1691,7 @@ fec_suspend(struct device *dev)
 		fec_stop(ndev);
 		netif_device_detach(ndev);
 	}
-	clk_disable(fep->clk);
+	clk_disable_unprepare(fep->clk);
 
 	return 0;
 }
@@ -1702,7 +1702,7 @@ fec_resume(struct device *dev)
 	struct net_device *ndev = dev_get_drvdata(dev);
 	struct fec_enet_private *fep = netdev_priv(ndev);
 
-	clk_enable(fep->clk);
+	clk_prepare_enable(fep->clk);
 	if (netif_running(ndev)) {
 		fec_restart(ndev, fep->full_duplex);
 		netif_device_attach(ndev);

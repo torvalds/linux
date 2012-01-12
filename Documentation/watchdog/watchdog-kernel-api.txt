@@ -1,6 +1,6 @@
 The Linux WatchDog Timer Driver Core kernel API.
 ===============================================
-Last reviewed: 22-Jul-2011
+Last reviewed: 29-Nov-2011
 
 Wim Van Sebroeck <wim@iguana.be>
 
@@ -141,6 +141,14 @@ bit-operations. The status bits that are defined are:
   (This bit should only be used by the WatchDog Timer Driver Core).
 * WDOG_NO_WAY_OUT: this bit stores the nowayout setting for the watchdog.
   If this bit is set then the watchdog timer will not be able to stop.
+
+  To set the WDOG_NO_WAY_OUT status bit (before registering your watchdog
+  timer device) you can either:
+  * set it statically in your watchdog_device struct with
+	.status = WATCHDOG_NOWAYOUT_INIT_STATUS,
+    (this will set the value the same as CONFIG_WATCHDOG_NOWAYOUT) or
+  * use the following helper function:
+  static inline void watchdog_set_nowayout(struct watchdog_device *wdd, int nowayout)
 
 Note: The WatchDog Timer Driver Core supports the magic close feature and
 the nowayout feature. To use the magic close feature you must set the

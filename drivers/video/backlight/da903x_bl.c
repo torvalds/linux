@@ -199,17 +199,7 @@ static struct platform_driver da903x_backlight_driver = {
 	.remove		= da903x_backlight_remove,
 };
 
-static int __init da903x_backlight_init(void)
-{
-	return platform_driver_register(&da903x_backlight_driver);
-}
-module_init(da903x_backlight_init);
-
-static void __exit da903x_backlight_exit(void)
-{
-	platform_driver_unregister(&da903x_backlight_driver);
-}
-module_exit(da903x_backlight_exit);
+module_platform_driver(da903x_backlight_driver);
 
 MODULE_DESCRIPTION("Backlight Driver for Dialog Semiconductor DA9030/DA9034");
 MODULE_AUTHOR("Eric Miao <eric.miao@marvell.com>"

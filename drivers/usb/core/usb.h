@@ -132,20 +132,6 @@ static inline int is_usb_device_driver(struct device_driver *drv)
 			for_devices;
 }
 
-/* translate USB error codes to codes user space understands */
-static inline int usb_translate_errors(int error_code)
-{
-	switch (error_code) {
-	case 0:
-	case -ENOMEM:
-	case -ENODEV:
-		return error_code;
-	default:
-		return -EIO;
-	}
-}
-
-
 /* for labeling diagnostics */
 extern const char *usbcore_name;
 
