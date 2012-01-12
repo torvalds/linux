@@ -161,7 +161,8 @@ void __cleancache_invalidate_page(struct address_space *mapping,
 	if (pool_id >= 0) {
 		VM_BUG_ON(!PageLocked(page));
 		if (cleancache_get_key(mapping->host, &key) >= 0) {
-			(*cleancache_ops.flush_page)(pool_id, key, page->index);
+			(*cleancache_ops.invalidate_page)(pool_id,
+							  key, page->index);
 			cleancache_flushes++;
 		}
 	}
@@ -179,7 +180,7 @@ void __cleancache_invalidate_inode(struct address_space *mapping)
 	struct cleancache_filekey key = { .u.key = { 0 } };
 
 	if (pool_id >= 0 && cleancache_get_key(mapping->host, &key) >= 0)
-		(*cleancache_ops.flush_inode)(pool_id, key);
+		(*cleancache_ops.invalidate_inode)(pool_id, key);
 }
 EXPORT_SYMBOL(__cleancache_invalidate_inode);
 
@@ -193,7 +194,7 @@ void __cleancache_invalidate_fs(struct super_block *sb)
 	if (sb->cleancache_poolid >= 0) {
 		int old_poolid = sb->cleancache_poolid;
 		sb->cleancache_poolid = -1;
-		(*cleancache_ops.flush_fs)(old_poolid);
+		(*cleancache_ops.invalidate_fs)(old_poolid);
 	}
 }
 EXPORT_SYMBOL(__cleancache_invalidate_fs);

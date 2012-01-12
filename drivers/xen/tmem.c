@@ -242,9 +242,9 @@ __setup("nocleancache", no_cleancache);
 static struct cleancache_ops tmem_cleancache_ops = {
 	.put_page = tmem_cleancache_put_page,
 	.get_page = tmem_cleancache_get_page,
-	.flush_page = tmem_cleancache_flush_page,
-	.flush_inode = tmem_cleancache_flush_inode,
-	.flush_fs = tmem_cleancache_flush_fs,
+	.invalidate_page = tmem_cleancache_flush_page,
+	.invalidate_inode = tmem_cleancache_flush_inode,
+	.invalidate_fs = tmem_cleancache_flush_fs,
 	.init_shared_fs = tmem_cleancache_init_shared_fs,
 	.init_fs = tmem_cleancache_init_fs
 };
@@ -369,8 +369,8 @@ __setup("nofrontswap", no_frontswap);
 static struct frontswap_ops tmem_frontswap_ops = {
 	.put_page = tmem_frontswap_put_page,
 	.get_page = tmem_frontswap_get_page,
-	.flush_page = tmem_frontswap_flush_page,
-	.flush_area = tmem_frontswap_flush_area,
+	.invalidate_page = tmem_frontswap_flush_page,
+	.invalidate_area = tmem_frontswap_flush_area,
 	.init = tmem_frontswap_init
 };
 #endif
