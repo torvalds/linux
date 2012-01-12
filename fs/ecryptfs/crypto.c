@@ -1590,8 +1590,8 @@ int ecryptfs_read_and_validate_xattr_region(struct dentry *dentry,
  */
 int ecryptfs_read_metadata(struct dentry *ecryptfs_dentry)
 {
-	int rc = 0;
-	char *page_virt = NULL;
+	int rc;
+	char *page_virt;
 	struct inode *ecryptfs_inode = ecryptfs_dentry->d_inode;
 	struct ecryptfs_crypt_stat *crypt_stat =
 	    &ecryptfs_inode_to_private(ecryptfs_inode)->crypt_stat;
@@ -1616,6 +1616,7 @@ int ecryptfs_read_metadata(struct dentry *ecryptfs_dentry)
 						ecryptfs_dentry,
 						ECRYPTFS_VALIDATE_HEADER_SIZE);
 	if (rc) {
+		/* metadata is not in the file header, so try xattrs */
 		memset(page_virt, 0, PAGE_CACHE_SIZE);
 		rc = ecryptfs_read_xattr_region(page_virt, ecryptfs_inode);
 		if (rc) {
