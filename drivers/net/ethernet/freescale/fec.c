@@ -476,6 +476,7 @@ fec_restart(struct net_device *ndev, int duplex)
 	} else {
 #ifdef FEC_MIIGSK_ENR
 		if (id_entry->driver_data & FEC_QUIRK_USE_GASKET) {
+			u32 cfgr;
 			/* disable the gasket and wait */
 			writel(0, fep->hwp + FEC_MIIGSK_ENR);
 			while (readl(fep->hwp + FEC_MIIGSK_ENR) & 4)
@@ -486,9 +487,11 @@ fec_restart(struct net_device *ndev, int duplex)
 			 *   RMII, 50 MHz, no loopback, no echo
 			 *   MII, 25 MHz, no loopback, no echo
 			 */
-			writel((fep->phy_interface == PHY_INTERFACE_MODE_RMII) ?
-					1 : 0, fep->hwp + FEC_MIIGSK_CFGR);
-
+			cfgr = (fep->phy_interface == PHY_INTERFACE_MODE_RMII)
+				? BM_MIIGSK_CFGR_RMII : BM_MIIGSK_CFGR_MII;
+			if (fep->phy_dev && fep->phy_dev->speed == SPEED_10)
+				cfgr |= BM_MIIGSK_CFGR_FRCONT_10M;
+			writel(cfgr, fep->hwp + FEC_MIIGSK_CFGR);
 
 			/* re-enable the gasket */
 			writel(2, fep->hwp + FEC_MIIGSK_ENR);
