@@ -21,11 +21,12 @@
  */
 
 #include <linux/exportfs.h>
-#include <linux/mnt_namespace.h>
+#include <linux/fs_struct.h>
 #include <linux/namei.h>
 #include <linux/nsproxy.h>
 #include <linux/random.h>
 #include <linux/writeback.h>
+#include "../fs/mount.h"
 #include "aufs.h"
 
 union conv {
@@ -279,18 +280,16 @@ static int au_compare_mnt(struct vfsmount *mnt, void *arg)
 static struct vfsmount *au_mnt_get(struct super_block *sb)
 {
 	int err;
+	struct path root;
 	struct au_compare_mnt_args args = {
 		.sb = sb
 	};
-	struct mnt_namespace *ns;
 
+	get_fs_root(current->fs, &root);
 	br_read_lock(vfsmount_lock);
-	/* no get/put ?? */
-	AuDebugOn(!current->nsproxy);
-	ns = current->nsproxy->mnt_ns;
-	AuDebugOn(!ns);
-	err = iterate_mounts(au_compare_mnt, &args, ns->root);
+	err = iterate_mounts(au_compare_mnt, &args, root.mnt);
 	br_read_unlock(vfsmount_lock);
+	path_put(&root);
 	AuDebugOn(!err);
 	AuDebugOn(!args.mnt);
 	return args.mnt;
