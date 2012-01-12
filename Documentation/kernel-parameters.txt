@@ -2395,6 +2395,12 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
 
 	slram=		[HW,MTD]
 
+	slab_max_order=	[MM, SLAB]
+			Determines the maximum allowed order for slabs.
+			A high setting may cause OOMs due to memory
+			fragmentation.  Defaults to 1 for systems with
+			more than 32MB of RAM, 0 otherwise.
+
 	slub_debug[=options[,slabs]]	[MM, SLUB]
 			Enabling slub_debug allows one to determine the
 			culprit if slab objects become corrupted. Enabling

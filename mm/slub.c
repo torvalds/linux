@@ -570,7 +570,7 @@ static void slab_bug(struct kmem_cache *s, char *fmt, ...)
 	va_end(args);
 	printk(KERN_ERR "========================================"
 			"=====================================\n");
-	printk(KERN_ERR "BUG %s: %s\n", s->name, buf);
+	printk(KERN_ERR "BUG %s (%s): %s\n", s->name, print_tainted(), buf);
 	printk(KERN_ERR "----------------------------------------"
 			"-------------------------------------\n\n");
 }
@@ -1901,11 +1901,14 @@ static void unfreeze_partials(struct kmem_cache *s)
 			}
 
 			if (l != m) {
-				if (l == M_PARTIAL)
+				if (l == M_PARTIAL) {
 					remove_partial(n, page);
-				else
+					stat(s, FREE_REMOVE_PARTIAL);
+				} else {
 					add_partial(n, page,
 						DEACTIVATE_TO_TAIL);
+					stat(s, FREE_ADD_PARTIAL);
+				}
 
 				l = m;
 			}
@@ -2124,6 +2127,37 @@ static inline void *new_slab_objects(struct kmem_cache *s, gfp_t flags,
 }
 
 /*
+ * Check the page->freelist of a page and either transfer the freelist to the per cpu freelist
+ * or deactivate the page.
+ *
+ * The page is still frozen if the return value is not NULL.
+ *
+ * If this function returns NULL then the page has been unfrozen.
+ */
+static inline void *get_freelist(struct kmem_cache *s, struct page *page)
+{
+	struct page new;
+	unsigned long counters;
+	void *freelist;
+
+	do {
+		freelist = page->freelist;
+		counters = page->counters;
+		new.counters = counters;
+		VM_BUG_ON(!new.frozen);
+
+		new.inuse = page->objects;
+		new.frozen = freelist != NULL;
+
+	} while (!cmpxchg_double_slab(s, page,
+		freelist, counters,
+		NULL, new.counters,
+		"get_freelist"));
+
+	return freelist;
+}
+
+/*
  * Slow path. The lockless freelist is empty or we need to perform
  * debugging duties.
  *
@@ -2144,8 +2178,6 @@ static void *__slab_alloc(struct kmem_cache *s, gfp_t gfpflags, int node,
 {
 	void **object;
 	unsigned long flags;
-	struct page new;
-	unsigned long counters;
 
 	local_irq_save(flags);
 #ifdef CONFIG_PREEMPT
@@ -2166,31 +2198,14 @@ redo:
 		goto new_slab;
 	}
 
+	/* must check again c->freelist in case of cpu migration or IRQ */
+	object = c->freelist;
+	if (object)
+		goto load_freelist;
+
 	stat(s, ALLOC_SLOWPATH);
 
-	do {
-		object = c->page->freelist;
-		counters = c->page->counters;
-		new.counters = counters;
-		VM_BUG_ON(!new.frozen);
-
-		/*
-		 * If there is no object left then we use this loop to
-		 * deactivate the slab which is simple since no objects
-		 * are left in the slab and therefore we do not need to
-		 * put the page back onto the partial list.
-		 *
-		 * If there are objects left then we retrieve them
-		 * and use them to refill the per cpu queue.
-		 */
-
-		new.inuse = c->page->objects;
-		new.frozen = object != NULL;
-
-	} while (!__cmpxchg_double_slab(s, c->page,
-			object, counters,
-			NULL, new.counters,
-			"__slab_alloc"));
+	object = get_freelist(s, c->page);
 
 	if (!object) {
 		c->page = NULL;
@@ -3028,7 +3043,9 @@ static int kmem_cache_open(struct kmem_cache *s,
 	 *    per node list when we run out of per cpu objects. We only fetch 50%
 	 *    to keep some capacity around for frees.
 	 */
-	if (s->size >= PAGE_SIZE)
+	if (kmem_cache_debug(s))
+		s->cpu_partial = 0;
+	else if (s->size >= PAGE_SIZE)
 		s->cpu_partial = 2;
 	else if (s->size >= 1024)
 		s->cpu_partial = 6;
@@ -4637,6 +4654,8 @@ static ssize_t cpu_partial_store(struct kmem_cache *s, const char *buf,
 	err = strict_strtoul(buf, 10, &objects);
 	if (err)
 		return err;
+	if (objects && kmem_cache_debug(s))
+		return -EINVAL;
 
 	s->cpu_partial = objects;
 	flush_all(s);
