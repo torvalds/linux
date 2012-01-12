@@ -2915,8 +2915,10 @@ static int pch_udc_probe(struct pci_dev *pdev,
 	}
 	pch_udc = dev;
 	/* initialize the hardware */
-	if (pch_udc_pcd_init(dev))
+	if (pch_udc_pcd_init(dev)) {
+		retval = -ENODEV;
 		goto finished;
+	}
 	if (request_irq(pdev->irq, pch_udc_isr, IRQF_SHARED, KBUILD_MODNAME,
 			dev)) {
 		dev_err(&pdev->dev, "%s: request_irq(%d) fail\n", __func__,
