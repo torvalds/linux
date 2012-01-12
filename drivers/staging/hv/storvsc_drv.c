@@ -257,6 +257,16 @@ enum storvsc_request_type {
 	UNKNOWN_TYPE,
 };
 
+/*
+ * SRB status codes and masks; a subset of the codes used here.
+ */
+
+#define SRB_STATUS_AUTOSENSE_VALID	0x80
+#define SRB_STATUS_INVALID_LUN	0x20
+#define SRB_STATUS_SUCCESS	0x01
+#define SRB_STATUS_ERROR	0x04
+
+
 
 struct hv_storvsc_request {
 	struct hv_device *device;
@@ -561,7 +571,7 @@ static void storvsc_on_io_completion(struct hv_device *device,
 	if ((stor_pkt->vm_srb.cdb[0] == INQUIRY) ||
 		(stor_pkt->vm_srb.cdb[0] == MODE_SENSE)) {
 		vstor_packet->vm_srb.scsi_status = 0;
-		vstor_packet->vm_srb.srb_status = 0x1;
+		vstor_packet->vm_srb.srb_status = SRB_STATUS_SUCCESS;
 	}
 
 
@@ -572,7 +582,7 @@ static void storvsc_on_io_completion(struct hv_device *device,
 	vstor_packet->vm_srb.sense_info_length;
 
 	if (vstor_packet->vm_srb.scsi_status != 0 ||
-		vstor_packet->vm_srb.srb_status != 1){
+		vstor_packet->vm_srb.srb_status != SRB_STATUS_SUCCESS){
 		dev_warn(&device->device,
 			 "cmd 0x%x scsi status 0x%x srb status 0x%x\n",
 			 stor_pkt->vm_srb.cdb[0],
@@ -582,7 +592,8 @@ static void storvsc_on_io_completion(struct hv_device *device,
 
 	if ((vstor_packet->vm_srb.scsi_status & 0xFF) == 0x02) {
 		/* CHECK_CONDITION */
-		if (vstor_packet->vm_srb.srb_status & 0x80) {
+		if (vstor_packet->vm_srb.srb_status &
+			SRB_STATUS_AUTOSENSE_VALID) {
 			/* autosense data available */
 			dev_warn(&device->device,
 				 "stor pkt %p autosense data valid - len %d\n",
@@ -1191,7 +1202,7 @@ static void storvsc_command_completion(struct hv_storvsc_request *request)
 	 * error recovery strategies would have already been
 	 * deployed on the host side.
 	 */
-	if (vm_srb->srb_status == 0x4)
+	if (vm_srb->srb_status == SRB_STATUS_ERROR)
 		scmnd->result = DID_TARGET_FAILURE << 16;
 	else
 		scmnd->result = vm_srb->scsi_status;
@@ -1199,7 +1210,7 @@ static void storvsc_command_completion(struct hv_storvsc_request *request)
 	/*
 	 * If the LUN is invalid; remove the device.
 	 */
-	if (vm_srb->srb_status == 0x20) {
+	if (vm_srb->srb_status == SRB_STATUS_INVALID_LUN) {
 		struct storvsc_device *stor_dev;
 		struct hv_device *dev = host_dev->dev;
 		struct Scsi_Host *host;
