@@ -1739,7 +1739,7 @@ static struct wm8994_pdata wm8994_platform_data = {
 struct rk_headset_pdata rk_headset_info = {
 	.Headset_gpio		= RK29_PIN4_PD2,
 	.headset_in_type= HEADSET_IN_HIGH,
-	.Hook_gpio = 0,//Detection Headset--Must be set
+	.Hook_gpio = RK29_PIN6_PB6,//Detection Headset--Must be set
 	.hook_key_code = KEY_MEDIA,
 };
 

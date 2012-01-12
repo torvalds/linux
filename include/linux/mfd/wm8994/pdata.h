@@ -128,7 +128,8 @@ struct wm8994_pdata {
 
 	struct wm8994_ldo_pdata ldo[WM8994_NUM_LDO];
 	
-	int irq_base;  /** Base IRQ number for WM8994, required for IRQs */
+	/** Base IRQ number for WM8994, required for IRQs */
+	int irq_base;  	//do not use
 
         int num_drc_cfgs;
         struct wm8994_drc_cfg *drc_cfgs;
@@ -150,24 +151,24 @@ struct wm8994_pdata {
 
         /* LINEOUT can be differential or single ended */
         unsigned int lineout1_diff:1;
-        unsigned int lineout2_diff:1;
+        unsigned int lineout2_diff:1;//do not use
 
         /* Common mode feedback */
         unsigned int lineout1fb:1;
-        unsigned int lineout2fb:1;
+        unsigned int lineout2fb:1;//do not use
 
 	/* IRQ for microphone detection if brought out directly as a
 	 * signal.
 	 */
-	int micdet_irq;
+	int micdet_irq;//do not use
 
         /* WM8994 microphone biases: 0=0.9*AVDD1 1=0.65*AVVD1 */
-        unsigned int micbias1_lvl:1;
-        unsigned int micbias2_lvl:1;
+        unsigned int micbias1_lvl:1;//do not use
+        unsigned int micbias2_lvl:1;//do not use
 
         /* WM8994 jack detect threashold levels, see datasheet for values */
-        unsigned int jd_scthr:2;
-        unsigned int jd_thr:2;
+        unsigned int jd_scthr:2;//do not use
+        unsigned int jd_thr:2;//do not use
 
 	/* WM8958 microphone bias configuration */
 	int micbias[2];

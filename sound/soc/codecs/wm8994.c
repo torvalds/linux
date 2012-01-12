@@ -204,6 +204,25 @@ static unsigned int wm8994_read(struct snd_soc_codec *codec,
 	return val;
 }
 
+int wm8994_set_status(void)
+{
+	struct wm8994_priv *wm8994 = NULL;
+//	DBG("%s::%d\n",__FUNCTION__,__LINE__);
+
+	if(wm8994_codec == NULL )
+		return -1;
+	
+	wm8994 = snd_soc_codec_get_drvdata(wm8994_codec);
+
+	if(wm8994 == NULL)
+		return -1;
+	
+	return snd_soc_test_bits(wm8994_codec, WM8994_POWER_MANAGEMENT_1,
+			WM8994_MICB2_ENA ,
+			WM8994_MICB2_ENA);
+}
+EXPORT_SYMBOL_GPL(wm8994_set_status);
+
 static int configure_aif_clock(struct snd_soc_codec *codec, int aif)
 {
 	struct wm8994_priv *wm8994 = snd_soc_codec_get_drvdata(codec);
@@ -1577,9 +1596,9 @@ static const struct snd_soc_dapm_route intercon[] = {
 	
 	{ "IN1L PGA", NULL , "MICBIAS2" },
 	{ "IN1R PGA", NULL , "MICBIAS1" },
-	{ "MICBIAS2", NULL , "IN1LP"},
+	{ "MICBIAS2", NULL , "IN1LP"},//headset
 	{ "MICBIAS2", NULL , "IN1LN"},
-	{ "MICBIAS1", NULL , "IN1RP"},
+	{ "MICBIAS1", NULL , "IN1RP"},//mainMIC
 	{ "MICBIAS1", NULL , "IN1RN"},
 	
 };
@@ -2208,6 +2227,10 @@ static int wm8994_hw_params(struct snd_pcm_substream *substream,
 	int id = dai->id - 1;
 
 	int i, cur_val, best_val, bclk_rate, best;
+	
+	snd_soc_update_bits(codec, WM8994_POWER_MANAGEMENT_1,
+			WM8994_MICB2_ENA ,
+			WM8994_MICB2_ENA);
 
 	switch (dai->id) {
 	case 1:
