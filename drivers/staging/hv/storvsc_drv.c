@@ -81,18 +81,6 @@ static inline u16 storvsc_get_version(u8 major, u8 minor)
 #define VMSTOR_CURRENT_MINOR  2
 
 
-/*
- * This will get replaced with the max transfer length that is possible on
- * the host adapter.
- * The max transfer length will be published when we offer a vmbus channel.
- */
-
-#define MAX_TRANSFER_LENGTH	0x40000
-#define DEFAULT_PACKET_SIZE (sizeof(struct vmdata_gpa_direct) +	\
-			sizeof(struct vstor_packet) +		\
-			sizesizeof(u64) * (MAX_TRANSFER_LENGTH / PAGE_SIZE)))
-
-
 /*  Packet structure describing virtual storage requests. */
 enum vstor_packet_operation {
 	VSTOR_OPERATION_COMPLETE_IO		= 1,
