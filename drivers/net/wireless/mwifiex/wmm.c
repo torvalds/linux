@@ -603,7 +603,8 @@ mwifiex_wmm_add_buf_txqueue(struct mwifiex_adapter *adapter,
 			    struct sk_buff *skb)
 {
 	struct mwifiex_txinfo *tx_info = MWIFIEX_SKB_TXCB(skb);
-	struct mwifiex_private *priv = adapter->priv[tx_info->bss_index];
+	struct mwifiex_private *priv = mwifiex_get_priv_by_id(adapter,
+			tx_info->bss_num, tx_info->bss_type);
 	u32 tid;
 	struct mwifiex_ra_list_tbl *ra_list;
 	u8 ra[ETH_ALEN], tid_down;
