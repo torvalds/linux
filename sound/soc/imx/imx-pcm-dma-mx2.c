@@ -88,11 +88,13 @@ static int imx_ssi_dma_alloc(struct snd_pcm_substream *substream,
 	iprtd->dma_data.dma_request = dma_params->dma;
 
 	/* Try to grab a DMA channel */
-	dma_cap_zero(mask);
-	dma_cap_set(DMA_SLAVE, mask);
-	iprtd->dma_chan = dma_request_channel(mask, filter, iprtd);
-	if (!iprtd->dma_chan)
-		return -EINVAL;
+	if (!iprtd->dma_chan) {
+		dma_cap_zero(mask);
+		dma_cap_set(DMA_SLAVE, mask);
+		iprtd->dma_chan = dma_request_channel(mask, filter, iprtd);
+		if (!iprtd->dma_chan)
+			return -EINVAL;
+	}
 
 	switch (params_format(params)) {
 	case SNDRV_PCM_FORMAT_S16_LE:
