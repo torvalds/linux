@@ -272,7 +272,8 @@ req_retry:
 	in = pack_sg_list(chan->sg, out,
 			  VIRTQUEUE_NUM, req->rc->sdata, req->rc->capacity);
 
-	err = virtqueue_add_buf(chan->vq, chan->sg, out, in, req->tc);
+	err = virtqueue_add_buf(chan->vq, chan->sg, out, in, req->tc,
+				GFP_ATOMIC);
 	if (err < 0) {
 		if (err == -ENOSPC) {
 			chan->ring_bufs_avail = 0;
@@ -414,7 +415,8 @@ req_retry_pinned:
 		in += pack_sg_list_p(chan->sg, out + in, VIRTQUEUE_NUM,
 				     in_pages, in_nr_pages, uidata, inlen);
 
-	err = virtqueue_add_buf(chan->vq, chan->sg, out, in, req->tc);
+	err = virtqueue_add_buf(chan->vq, chan->sg, out, in, req->tc,
+				GFP_ATOMIC);
 	if (err < 0) {
 		if (err == -ENOSPC) {
 			chan->ring_bufs_avail = 0;
