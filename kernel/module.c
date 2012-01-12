@@ -138,7 +138,6 @@ struct load_info {
 	unsigned long len;
 	Elf_Shdr *sechdrs;
 	char *secstrings, *strtab;
-	unsigned long *strmap;
 	unsigned long symoffs, stroffs;
 	struct _ddebug *debug;
 	unsigned int num_debug;
@@ -2178,12 +2177,19 @@ static bool is_core_symbol(const Elf_Sym *src, const Elf_Shdr *sechdrs,
 	return true;
 }
 
+/*
+ * We only allocate and copy the strings needed by the parts of symtab
+ * we keep.  This is simple, but has the effect of making multiple
+ * copies of duplicates.  We could be more sophisticated, see
+ * linux-kernel thread starting with
+ * <73defb5e4bca04a6431392cc341112b1@localhost>.
+ */
 static void layout_symtab(struct module *mod, struct load_info *info)
 {
 	Elf_Shdr *symsect = info->sechdrs + info->index.sym;
 	Elf_Shdr *strsect = info->sechdrs + info->index.str;
 	const Elf_Sym *src;
-	unsigned int i, nsrc, ndst;
+	unsigned int i, nsrc, ndst, strtab_size;
 
 	/* Put symbol section at end of init part of module. */
 	symsect->sh_flags |= SHF_ALLOC;
@@ -2194,38 +2200,23 @@ static void layout_symtab(struct module *mod, struct load_info *info)
 	src = (void *)info->hdr + symsect->sh_offset;
 	nsrc = symsect->sh_size / sizeof(*src);
 
-	/*
-	 * info->strmap has a '1' bit for each byte of .strtab we want to
-	 * keep resident in mod->core_strtab.  Everything else in .strtab
-	 * is unreferenced by the symbols in mod->core_symtab, and will be
-	 * discarded when add_kallsyms() compacts the string table.
-	 */
-	for (ndst = i = 1; i < nsrc; ++i, ++src)
+	/* Compute total space required for the core symbols' strtab. */
+	for (ndst = i = strtab_size = 1; i < nsrc; ++i, ++src)
 		if (is_core_symbol(src, info->sechdrs, info->hdr->e_shnum)) {
-			unsigned int j = src->st_name;
-
-			while (!__test_and_set_bit(j, info->strmap)
-			       && info->strtab[j])
-				++j;
-			++ndst;
+			strtab_size += strlen(&info->strtab[src->st_name]) + 1;
+			ndst++;
 		}
 
 	/* Append room for core symbols at end of core part. */
 	info->symoffs = ALIGN(mod->core_size, symsect->sh_addralign ?: 1);
-	mod->core_size = info->symoffs + ndst * sizeof(Elf_Sym);
+	info->stroffs = mod->core_size = info->symoffs + ndst * sizeof(Elf_Sym);
+	mod->core_size += strtab_size;
 
 	/* Put string table section at end of init part of module. */
 	strsect->sh_flags |= SHF_ALLOC;
 	strsect->sh_entsize = get_offset(mod, &mod->init_size, strsect,
 					 info->index.str) | INIT_OFFSET_MASK;
 	DEBUGP("\t%s\n", info->secstrings + strsect->sh_name);
-
-	/* Append room for core symbols' strings at end of core part. */
-	info->stroffs = mod->core_size;
-
-	/* First strtab byte (and first symtab entry) are zeroes. */
-	__set_bit(0, info->strmap);
-	mod->core_size += bitmap_weight(info->strmap, strsect->sh_size);
 }
 
 static void add_kallsyms(struct module *mod, const struct load_info *info)
@@ -2246,22 +2237,19 @@ static void add_kallsyms(struct module *mod, const struct load_info *info)
 		mod->symtab[i].st_info = elf_type(&mod->symtab[i], info);
 
 	mod->core_symtab = dst = mod->module_core + info->symoffs;
+	mod->core_strtab = s = mod->module_core + info->stroffs;
 	src = mod->symtab;
 	*dst = *src;
+	*s++ = 0;
 	for (ndst = i = 1; i < mod->num_symtab; ++i, ++src) {
 		if (!is_core_symbol(src, info->sechdrs, info->hdr->e_shnum))
 			continue;
+
 		dst[ndst] = *src;
-		dst[ndst].st_name = bitmap_weight(info->strmap,
-						  dst[ndst].st_name);
-		++ndst;
+		dst[ndst++].st_name = s - mod->core_strtab;
+		s += strlcpy(s, &mod->strtab[src->st_name], KSYM_NAME_LEN) + 1;
 	}
 	mod->core_num_syms = ndst;
-
-	mod->core_strtab = s = mod->module_core + info->stroffs;
-	for (*s = 0, i = 1; i < info->sechdrs[info->index.str].sh_size; ++i)
-		if (test_bit(i, info->strmap))
-			*++s = mod->strtab[i];
 }
 #else
 static inline void layout_symtab(struct module *mod, struct load_info *info)
@@ -2751,27 +2739,18 @@ static struct module *layout_and_allocate(struct load_info *info)
 	   this is done generically; there doesn't appear to be any
 	   special cases for the architectures. */
 	layout_sections(mod, info);
-
-	info->strmap = kzalloc(BITS_TO_LONGS(info->sechdrs[info->index.str].sh_size)
-			 * sizeof(long), GFP_KERNEL);
-	if (!info->strmap) {
-		err = -ENOMEM;
-		goto free_percpu;
-	}
 	layout_symtab(mod, info);
 
 	/* Allocate and move to the final place */
 	err = move_module(mod, info);
 	if (err)
-		goto free_strmap;
+		goto free_percpu;
 
 	/* Module has been copied to its final place now: return it. */
 	mod = (void *)info->sechdrs[info->index.mod].sh_addr;
 	kmemleak_load_module(mod, info);
 	return mod;
 
-free_strmap:
-	kfree(info->strmap);
 free_percpu:
 	percpu_modfree(mod);
 out:
@@ -2781,7 +2760,6 @@ out:
 /* mod is no longer valid after this! */
 static void module_deallocate(struct module *mod, struct load_info *info)
 {
-	kfree(info->strmap);
 	percpu_modfree(mod);
 	module_free(mod, mod->module_init);
 	module_free(mod, mod->module_core);
@@ -2911,8 +2889,7 @@ static struct module *load_module(void __user *umod,
 	if (err < 0)
 		goto unlink;
 
-	/* Get rid of temporary copy and strmap. */
-	kfree(info.strmap);
+	/* Get rid of temporary copy. */
 	free_copy(&info);
 
 	/* Done! */
