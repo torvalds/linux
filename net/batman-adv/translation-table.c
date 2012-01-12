@@ -603,7 +603,7 @@ int tt_global_seq_print_text(struct seq_file *seq, void *offset)
 						       struct tt_global_entry,
 						       common);
 			seq_printf(seq, " * %pM  (%3u) via %pM     (%3u)   "
-					"[%c%c%c]\n",
+					"[%c%c]\n",
 					tt_global_entry->common.addr,
 					tt_global_entry->ttvn,
 					tt_global_entry->orig_node->orig,
@@ -612,8 +612,6 @@ int tt_global_seq_print_text(struct seq_file *seq, void *offset)
 						last_ttvn),
 					(tt_global_entry->common.flags &
 					 TT_CLIENT_ROAM ? 'R' : '.'),
-					(tt_global_entry->common.flags &
-					 TT_CLIENT_PENDING ? 'X' : '.'),
 					(tt_global_entry->common.flags &
 					 TT_CLIENT_WIFI ? 'W' : '.'));
 		}
@@ -836,11 +834,6 @@ struct orig_node *transtable_search(struct bat_priv *bat_priv,
 		goto out;
 
 	if (!atomic_inc_not_zero(&tt_global_entry->orig_node->refcount))
-		goto out;
-
-	/* A global client marked as PENDING has already moved from that
-	 * originator */
-	if (tt_global_entry->common.flags & TT_CLIENT_PENDING)
 		goto out;
 
 	orig_node = tt_global_entry->orig_node;
