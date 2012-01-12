@@ -630,6 +630,15 @@ union acpi_generic_state {
 
 typedef acpi_status(*ACPI_EXECUTE_OP) (struct acpi_walk_state * walk_state);
 
+/* Address Range info block */
+
+struct acpi_address_range {
+	struct acpi_address_range *next;
+	struct acpi_namespace_node *region_node;
+	acpi_physical_address start_address;
+	acpi_physical_address end_address;
+};
+
 /*****************************************************************************
  *
  * Parser typedefs and structs

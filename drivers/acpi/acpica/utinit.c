@@ -92,6 +92,7 @@ static void acpi_ut_terminate(void)
 		gpe_xrupt_info = next_gpe_xrupt_info;
 	}
 
+	acpi_ut_delete_address_lists();
 	return_VOID;
 }
 

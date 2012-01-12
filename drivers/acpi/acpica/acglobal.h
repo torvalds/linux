@@ -306,6 +306,8 @@ ACPI_EXTERN u8 acpi_gbl_acpi_hardware_present;
 ACPI_EXTERN u8 acpi_gbl_events_initialized;
 ACPI_EXTERN u8 acpi_gbl_osi_data;
 ACPI_EXTERN struct acpi_interface_info *acpi_gbl_supported_interfaces;
+ACPI_EXTERN struct acpi_address_range
+    *acpi_gbl_address_range_list[ACPI_ADDRESS_RANGE_MAX];
 
 #ifndef DEFINE_ACPI_GLOBALS
 

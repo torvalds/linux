@@ -135,6 +135,7 @@ acpi-y +=		\
 	tbxfroot.o
 
 acpi-y +=		\
+	utaddress.o	\
 	utalloc.o	\
 	utcopy.o	\
 	utdebug.o	\

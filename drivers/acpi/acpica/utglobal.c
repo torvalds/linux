@@ -264,6 +264,12 @@ acpi_status acpi_ut_init_globals(void)
 		return_ACPI_STATUS(status);
 	}
 
+	/* Address Range lists */
+
+	for (i = 0; i < ACPI_ADDRESS_RANGE_MAX; i++) {
+		acpi_gbl_address_range_list[i] = NULL;
+	}
+
 	/* Mutex locked flags */
 
 	for (i = 0; i < ACPI_NUM_MUTEX; i++) {

@@ -215,11 +215,14 @@ static void acpi_ut_delete_internal_obj(union acpi_operand_object *object)
 		ACPI_DEBUG_PRINT((ACPI_DB_ALLOCATIONS,
 				  "***** Region %p\n", object));
 
-		/* Invalidate the region address/length via the host OS */
-
-		acpi_os_invalidate_address(object->region.space_id,
-					  object->region.address,
-					  (acpi_size) object->region.length);
+		/*
+		 * Update address_range list. However, only permanent regions
+		 * are installed in this list. (Not created within a method)
+		 */
+		if (!(object->region.node->flags & ANOBJ_TEMPORARY)) {
+			acpi_ut_remove_address_range(object->region.space_id,
+						     object->region.node);
+		}
 
 		second_desc = acpi_ns_get_secondary_object(object);
 		if (second_desc) {
