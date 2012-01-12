@@ -742,15 +742,19 @@ static __devinit int s5m8767_pmic_probe(struct platform_device *pdev)
 		case 15:
 			s5m_reg_update(s5m8767->iodev, S5M8767_REG_DVSRAMP,
 					0xc0, 0xf0);
+			break;
 		case 25:
 			s5m_reg_update(s5m8767->iodev, S5M8767_REG_DVSRAMP,
 					0xd0, 0xf0);
+			break;
 		case 50:
 			s5m_reg_update(s5m8767->iodev, S5M8767_REG_DVSRAMP,
 					0xe0, 0xf0);
+			break;
 		case 100:
 			s5m_reg_update(s5m8767->iodev, S5M8767_REG_DVSRAMP,
 					0xf0, 0xf0);
+			break;
 		default:
 			s5m_reg_update(s5m8767->iodev, S5M8767_REG_DVSRAMP,
 					0x90, 0xf0);
