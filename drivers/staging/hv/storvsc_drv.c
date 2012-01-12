@@ -50,8 +50,10 @@ static int storvsc_ringbuffer_size = STORVSC_RING_BUFFER_SIZE;
 module_param(storvsc_ringbuffer_size, int, S_IRUGO);
 MODULE_PARM_DESC(storvsc_ringbuffer_size, "Ring buffer size (bytes)");
 
-/* to alert the user that structure sizes may be mismatched even though the */
-/* protocol versions match. */
+/*
+ * To alert the user that structure sizes may be mismatched even though the
+ * protocol versions match.
+ */
 
 
 #define REVISION_STRING(REVISION_) #REVISION_
@@ -68,26 +70,36 @@ MODULE_PARM_DESC(storvsc_ringbuffer_size, "Ring buffer size (bytes)");
 		}							\
 	} while (0)
 
-/* Major/minor macros.  Minor version is in LSB, meaning that earlier flat */
-/* version numbers will be interpreted as "0.x" (i.e., 1 becomes 0.1). */
+/*
+ * Major/minor macros.  Minor version is in LSB, meaning that earlier flat
+ * version numbers will be interpreted as "0.x" (i.e., 1 becomes 0.1).
+ */
+
 #define VMSTOR_PROTOCOL_MAJOR(VERSION_)		(((VERSION_) >> 8) & 0xff)
 #define VMSTOR_PROTOCOL_MINOR(VERSION_)		(((VERSION_))      & 0xff)
 #define VMSTOR_PROTOCOL_VERSION(MAJOR_, MINOR_)	((((MAJOR_) & 0xff) << 8) | \
 						 (((MINOR_) & 0xff)))
 #define VMSTOR_INVALID_PROTOCOL_VERSION		(-1)
 
-/* Version history: */
-/* V1 Beta                    0.1 */
-/* V1 RC < 2008/1/31          1.0 */
-/* V1 RC > 2008/1/31          2.0 */
+/*
+ * Version history:
+ * V1 Beta: 0.1
+ * V1 RC < 2008/1/31: 1.0
+ * V1 RC > 2008/1/31:  2.0
+ * Win7: 4.2
+ */
+
 #define VMSTOR_PROTOCOL_VERSION_CURRENT VMSTOR_PROTOCOL_VERSION(4, 2)
 
 
 
 
-/*  This will get replaced with the max transfer length that is possible on */
-/*  the host adapter. */
-/*  The max transfer length will be published when we offer a vmbus channel. */
+/*
+ * This will get replaced with the max transfer length that is possible on
+ * the host adapter.
+ * The max transfer length will be published when we offer a vmbus channel.
+ */
+
 #define MAX_TRANSFER_LENGTH	0x40000
 #define DEFAULT_PACKET_SIZE (sizeof(struct vmdata_gpa_direct) +	\
 			sizeof(struct vstor_packet) +		\
@@ -211,18 +223,19 @@ struct vstor_packet {
 	};
 } __packed;
 
-/* Packet flags */
 /*
+ * Packet Flags:
+ *
  * This flag indicates that the server should send back a completion for this
  * packet.
  */
+
 #define REQUEST_COMPLETION_FLAG	0x1
 
 /*  This is the set of flags that the vsc can set in any packets it sends */
 #define VSC_LEGAL_FLAGS		(REQUEST_COMPLETION_FLAG)
 
 
-/* Defines */
 
 #define STORVSC_MAX_IO_REQUESTS				128
 
@@ -674,7 +687,6 @@ static int storvsc_connect_to_vsp(struct hv_device *device, u32 ring_size)
 
 	memset(&props, 0, sizeof(struct vmstorage_channel_properties));
 
-	/* Open the channel */
 	ret = vmbus_open(device->channel,
 			 ring_size,
 			 ring_size,
@@ -1154,9 +1166,6 @@ static int storvsc_host_reset(struct hv_device *device)
 }
 
 
-/*
- * storvsc_host_reset_handler - Reset the scsi HBA
- */
 static int storvsc_host_reset_handler(struct scsi_cmnd *scmnd)
 {
 	struct hv_host_device *host_dev = shost_priv(scmnd->device->host);
@@ -1166,9 +1175,6 @@ static int storvsc_host_reset_handler(struct scsi_cmnd *scmnd)
 }
 
 
-/*
- * storvsc_command_completion - Command completion processing
- */
 static void storvsc_command_completion(struct hv_storvsc_request *request)
 {
 	struct storvsc_cmd_request *cmd_request =
@@ -1262,9 +1268,6 @@ static bool storvsc_check_scsi_cmd(struct scsi_cmnd *scmnd)
 	return allowed;
 }
 
-/*
- * storvsc_queuecommand - Initiate command processing
- */
 static int storvsc_queuecommand(struct Scsi_Host *host, struct scsi_cmnd *scmnd)
 {
 	int ret;
@@ -1407,7 +1410,6 @@ retry_request:
 	return ret;
 }
 
-/* Scsi driver */
 static struct scsi_host_template scsi_driver = {
 	.module	=		THIS_MODULE,
 	.name =			"storvsc_host_t",
@@ -1447,11 +1449,6 @@ static const struct hv_vmbus_device_id id_table[] = {
 };
 
 MODULE_DEVICE_TABLE(vmbus, id_table);
-
-
-/*
- * storvsc_probe - Add a new device for this driver
- */
 
 static int storvsc_probe(struct hv_device *device,
 			const struct hv_vmbus_device_id *dev_id)
@@ -1541,8 +1538,6 @@ err_out0:
 	scsi_host_put(host);
 	return ret;
 }
-
-/* The one and only one */
 
 static struct hv_driver storvsc_drv = {
 	.name = KBUILD_MODNAME,
