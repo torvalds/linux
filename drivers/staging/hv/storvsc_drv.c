@@ -1122,8 +1122,11 @@ static int storvsc_get_chs(struct scsi_device *sdev, struct block_device * bdev,
 	return 0;
 }
 
-static int storvsc_host_reset(struct hv_device *device)
+static int storvsc_host_reset_handler(struct scsi_cmnd *scmnd)
 {
+	struct hv_host_device *host_dev = shost_priv(scmnd->device->host);
+	struct hv_device *device = host_dev->dev;
+
 	struct storvsc_device *stor_device;
 	struct hv_storvsc_request *request;
 	struct vstor_packet *vstor_packet;
@@ -1162,15 +1165,6 @@ static int storvsc_host_reset(struct hv_device *device)
 	 */
 
 	return SUCCESS;
-}
-
-
-static int storvsc_host_reset_handler(struct scsi_cmnd *scmnd)
-{
-	struct hv_host_device *host_dev = shost_priv(scmnd->device->host);
-	struct hv_device *dev = host_dev->dev;
-
-	return storvsc_host_reset(dev);
 }
 
 
