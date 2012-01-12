@@ -877,7 +877,7 @@ static int sa1100_irda_probe(struct platform_device *pdev)
 	err = sa1100_irda_init_iobuf(&si->rx_buff, 14384);
 	if (err)
 		goto err_mem_5;
-	err = sa1100_irda_init_iobuf(&si->tx_buff, 4000);
+	err = sa1100_irda_init_iobuf(&si->tx_buff, IRDA_SIR_MAX_FRAME);
 	if (err)
 		goto err_mem_5;
 
