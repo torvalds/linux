@@ -454,8 +454,6 @@ static netdev_tx_t ipip_tunnel_xmit(struct sk_buff *skb, struct net_device *dev)
 			dev->stats.tx_fifo_errors++;
 			goto tx_error;
 		}
-		if ((dst = rt->rt_gateway) == 0)
-			goto tx_error_icmp;
 	}
 
 	rt = ip_route_output_ports(dev_net(dev), &fl4, NULL,
