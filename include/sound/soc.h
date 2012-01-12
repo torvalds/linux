@@ -847,7 +847,7 @@ struct snd_soc_card {
 
 /* SoC machine DAI configuration, glues a codec and cpu DAI together */
 struct snd_soc_pcm_runtime {
-	struct device dev;
+	struct device *dev;
 	struct snd_soc_card *card;
 	struct snd_soc_dai_link *dai_link;
 	struct mutex pcm_mutex;
@@ -933,12 +933,12 @@ static inline void *snd_soc_platform_get_drvdata(struct snd_soc_platform *platfo
 static inline void snd_soc_pcm_set_drvdata(struct snd_soc_pcm_runtime *rtd,
 		void *data)
 {
-	dev_set_drvdata(&rtd->dev, data);
+	dev_set_drvdata(rtd->dev, data);
 }
 
 static inline void *snd_soc_pcm_get_drvdata(struct snd_soc_pcm_runtime *rtd)
 {
-	return dev_get_drvdata(&rtd->dev);
+	return dev_get_drvdata(rtd->dev);
 }
 
 static inline void snd_soc_initialize_card_lists(struct snd_soc_card *card)

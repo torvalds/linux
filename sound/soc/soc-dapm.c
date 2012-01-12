@@ -1738,8 +1738,7 @@ static int dapm_mixer_update_power(struct snd_soc_dapm_widget *widget,
 static ssize_t dapm_widget_show(struct device *dev,
 	struct device_attribute *attr, char *buf)
 {
-	struct snd_soc_pcm_runtime *rtd =
-			container_of(dev, struct snd_soc_pcm_runtime, dev);
+	struct snd_soc_pcm_runtime *rtd = dev_get_drvdata(dev);
 	struct snd_soc_codec *codec =rtd->codec;
 	struct snd_soc_dapm_widget *w;
 	int count = 0;

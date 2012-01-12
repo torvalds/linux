@@ -268,6 +268,7 @@ static int wm8994_suspend(struct device *dev)
 	wm8994_reg_write(wm8994, WM8994_SOFTWARE_RESET,
 			 wm8994_reg_read(wm8994, WM8994_SOFTWARE_RESET));
 
+	regcache_cache_only(wm8994->regmap, true);
 	regcache_mark_dirty(wm8994->regmap);
 
 	wm8994->suspended = true;
@@ -298,6 +299,7 @@ static int wm8994_resume(struct device *dev)
 		return ret;
 	}
 
+	regcache_cache_only(wm8994->regmap, false);
 	ret = regcache_sync(wm8994->regmap);
 	if (ret != 0) {
 		dev_err(dev, "Failed to restore register map: %d\n", ret);

@@ -446,13 +446,12 @@ static void sst_pcm_free(struct snd_pcm *pcm)
 
 static int sst_pcm_new(struct snd_soc_pcm_runtime *rtd)
 {
-	struct snd_soc_dai *dai = rtd->cpu_dai;
 	struct snd_pcm *pcm = rtd->pcm;
 	int retval = 0;
 
 	pr_debug("sst_pcm_new called\n");
-	if (dai->driver->playback.channels_min ||
-			dai->driver->capture.channels_min) {
+	if (pcm->streams[SNDRV_PCM_STREAM_PLAYBACK].substream ||
+			pcm->streams[SNDRV_PCM_STREAM_CAPTURE].substream) {
 		retval =  snd_pcm_lib_preallocate_pages_for_all(pcm,
 			SNDRV_DMA_TYPE_CONTINUOUS,
 			snd_dma_continuous_data(GFP_KERNEL),
