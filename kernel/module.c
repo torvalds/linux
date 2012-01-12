@@ -842,6 +842,26 @@ out:
 	return ret;
 }
 
+static size_t module_flags_taint(struct module *mod, char *buf)
+{
+	size_t l = 0;
+
+	if (mod->taints & (1 << TAINT_PROPRIETARY_MODULE))
+		buf[l++] = 'P';
+	if (mod->taints & (1 << TAINT_OOT_MODULE))
+		buf[l++] = 'O';
+	if (mod->taints & (1 << TAINT_FORCED_MODULE))
+		buf[l++] = 'F';
+	if (mod->taints & (1 << TAINT_CRAP))
+		buf[l++] = 'C';
+	/*
+	 * TAINT_FORCED_RMMOD: could be added.
+	 * TAINT_UNSAFE_SMP, TAINT_MACHINE_CHECK, TAINT_BAD_PAGE don't
+	 * apply to modules.
+	 */
+	return l;
+}
+
 static inline void print_unload_info(struct seq_file *m, struct module *mod)
 {
 	struct module_use *use;
@@ -900,10 +920,8 @@ static ssize_t show_refcnt(struct module_attribute *mattr,
 	return sprintf(buffer, "%lu\n", module_refcount(mk->mod));
 }
 
-static struct module_attribute refcnt = {
-	.attr = { .name = "refcnt", .mode = 0444 },
-	.show = show_refcnt,
-};
+static struct module_attribute modinfo_refcnt =
+	__ATTR(refcnt, 0444, show_refcnt, NULL);
 
 void module_put(struct module *module)
 {
@@ -963,10 +981,8 @@ static ssize_t show_initstate(struct module_attribute *mattr,
 	return sprintf(buffer, "%s\n", state);
 }
 
-static struct module_attribute initstate = {
-	.attr = { .name = "initstate", .mode = 0444 },
-	.show = show_initstate,
-};
+static struct module_attribute modinfo_initstate =
+	__ATTR(initstate, 0444, show_initstate, NULL);
 
 static ssize_t store_uevent(struct module_attribute *mattr,
 			    struct module_kobject *mk,
@@ -979,18 +995,50 @@ static ssize_t store_uevent(struct module_attribute *mattr,
 	return count;
 }
 
-struct module_attribute module_uevent = {
-	.attr = { .name = "uevent", .mode = 0200 },
-	.store = store_uevent,
-};
+struct module_attribute module_uevent =
+	__ATTR(uevent, 0200, NULL, store_uevent);
+
+static ssize_t show_coresize(struct module_attribute *mattr,
+			     struct module_kobject *mk, char *buffer)
+{
+	return sprintf(buffer, "%u\n", mk->mod->core_size);
+}
+
+static struct module_attribute modinfo_coresize =
+	__ATTR(coresize, 0444, show_coresize, NULL);
+
+static ssize_t show_initsize(struct module_attribute *mattr,
+			     struct module_kobject *mk, char *buffer)
+{
+	return sprintf(buffer, "%u\n", mk->mod->init_size);
+}
+
+static struct module_attribute modinfo_initsize =
+	__ATTR(initsize, 0444, show_initsize, NULL);
+
+static ssize_t show_taint(struct module_attribute *mattr,
+			  struct module_kobject *mk, char *buffer)
+{
+	size_t l;
+
+	l = module_flags_taint(mk->mod, buffer);
+	buffer[l++] = '\n';
+	return l;
+}
+
+static struct module_attribute modinfo_taint =
+	__ATTR(taint, 0444, show_taint, NULL);
 
 static struct module_attribute *modinfo_attrs[] = {
+	&module_uevent,
 	&modinfo_version,
 	&modinfo_srcversion,
-	&initstate,
-	&module_uevent,
+	&modinfo_initstate,
+	&modinfo_coresize,
+	&modinfo_initsize,
+	&modinfo_taint,
 #ifdef CONFIG_MODULE_UNLOAD
-	&refcnt,
+	&modinfo_refcnt,
 #endif
 	NULL,
 };
@@ -3236,20 +3284,7 @@ static char *module_flags(struct module *mod, char *buf)
 	    mod->state == MODULE_STATE_GOING ||
 	    mod->state == MODULE_STATE_COMING) {
 		buf[bx++] = '(';
-		if (mod->taints & (1 << TAINT_PROPRIETARY_MODULE))
-			buf[bx++] = 'P';
-		else if (mod->taints & (1 << TAINT_OOT_MODULE))
-			buf[bx++] = 'O';
-		if (mod->taints & (1 << TAINT_FORCED_MODULE))
-			buf[bx++] = 'F';
-		if (mod->taints & (1 << TAINT_CRAP))
-			buf[bx++] = 'C';
-		/*
-		 * TAINT_FORCED_RMMOD: could be added.
-		 * TAINT_UNSAFE_SMP, TAINT_MACHINE_CHECK, TAINT_BAD_PAGE don't
-		 * apply to modules.
-		 */
-
+		bx += module_flags_taint(mod, buf + bx);
 		/* Show a - for module-is-being-unloaded */
 		if (mod->state == MODULE_STATE_GOING)
 			buf[bx++] = '-';
