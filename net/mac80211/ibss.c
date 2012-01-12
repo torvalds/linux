@@ -265,9 +265,9 @@ static struct sta_info *ieee80211_ibss_finish_sta(struct sta_info *sta,
 		    addr, sdata->name);
 #endif
 
-	sta_info_move_state(sta, IEEE80211_STA_AUTH);
-	sta_info_move_state(sta, IEEE80211_STA_ASSOC);
-	sta_info_move_state(sta, IEEE80211_STA_AUTHORIZED);
+	sta_info_pre_move_state(sta, IEEE80211_STA_AUTH);
+	sta_info_pre_move_state(sta, IEEE80211_STA_ASSOC);
+	sta_info_pre_move_state(sta, IEEE80211_STA_AUTHORIZED);
 
 	rate_control_rate_init(sta);
 
