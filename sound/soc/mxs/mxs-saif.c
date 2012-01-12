@@ -550,7 +550,7 @@ static int mxs_saif_trigger(struct snd_pcm_substream *substream, int cmd,
 	(SNDRV_PCM_FMTBIT_S16_LE | SNDRV_PCM_FMTBIT_S20_3LE | \
 	SNDRV_PCM_FMTBIT_S24_LE)
 
-static struct snd_soc_dai_ops mxs_saif_dai_ops = {
+static const struct snd_soc_dai_ops mxs_saif_dai_ops = {
 	.startup = mxs_saif_startup,
 	.trigger = mxs_saif_trigger,
 	.prepare = mxs_saif_prepare,
@@ -779,18 +779,8 @@ static struct platform_driver mxs_saif_driver = {
 	},
 };
 
-static int __init mxs_saif_init(void)
-{
-	return platform_driver_register(&mxs_saif_driver);
-}
+module_platform_driver(mxs_saif_driver);
 
-static void __exit mxs_saif_exit(void)
-{
-	platform_driver_unregister(&mxs_saif_driver);
-}
-
-module_init(mxs_saif_init);
-module_exit(mxs_saif_exit);
 MODULE_AUTHOR("Freescale Semiconductor, Inc.");
 MODULE_DESCRIPTION("MXS ASoC SAIF driver");
 MODULE_LICENSE("GPL");

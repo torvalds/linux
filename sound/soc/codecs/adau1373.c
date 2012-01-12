@@ -1321,7 +1321,7 @@ static int adau1373_remove(struct snd_soc_codec *codec)
 	return 0;
 }
 
-static int adau1373_suspend(struct snd_soc_codec *codec, pm_message_t state)
+static int adau1373_suspend(struct snd_soc_codec *codec)
 {
 	return adau1373_set_bias_level(codec, SND_SOC_BIAS_OFF);
 }
@@ -1360,7 +1360,7 @@ static int __devinit adau1373_i2c_probe(struct i2c_client *client,
 	struct adau1373 *adau1373;
 	int ret;
 
-	adau1373 = kzalloc(sizeof(*adau1373), GFP_KERNEL);
+	adau1373 = devm_kzalloc(&client->dev, sizeof(*adau1373), GFP_KERNEL);
 	if (!adau1373)
 		return -ENOMEM;
 
@@ -1368,16 +1368,12 @@ static int __devinit adau1373_i2c_probe(struct i2c_client *client,
 
 	ret = snd_soc_register_codec(&client->dev, &adau1373_codec_driver,
 			adau1373_dai_driver, ARRAY_SIZE(adau1373_dai_driver));
-	if (ret < 0)
-		kfree(adau1373);
-
 	return ret;
 }
 
 static int __devexit adau1373_i2c_remove(struct i2c_client *client)
 {
 	snd_soc_unregister_codec(&client->dev);
-	kfree(dev_get_drvdata(&client->dev));
 	return 0;
 }
 

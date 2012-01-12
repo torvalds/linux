@@ -45,6 +45,7 @@ static struct snd_soc_dai_link db1200_ac97_dai = {
 
 static struct snd_soc_card db1200_ac97_machine = {
 	.name		= "DB1200_AC97",
+	.owner		= THIS_MODULE,
 	.dai_link	= &db1200_ac97_dai,
 	.num_links	= 1,
 };
@@ -94,6 +95,7 @@ static struct snd_soc_dai_link db1200_i2s_dai = {
 
 static struct snd_soc_card db1200_i2s_machine = {
 	.name		= "DB1200_I2S",
+	.owner		= THIS_MODULE,
 	.dai_link	= &db1200_i2s_dai,
 	.num_links	= 1,
 };
@@ -133,18 +135,7 @@ static struct platform_driver db1200_audio_driver = {
 	.remove		= __devexit_p(db1200_audio_remove),
 };
 
-static int __init db1200_audio_load(void)
-{
-	return platform_driver_register(&db1200_audio_driver);
-}
-
-static void __exit db1200_audio_unload(void)
-{
-	platform_driver_unregister(&db1200_audio_driver);
-}
-
-module_init(db1200_audio_load);
-module_exit(db1200_audio_unload);
+module_platform_driver(db1200_audio_driver);
 
 MODULE_LICENSE("GPL");
 MODULE_DESCRIPTION("DB1200 ASoC audio support");

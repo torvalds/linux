@@ -528,12 +528,18 @@ static struct platform_device e740_t7l66xb_device = {
 	.resource      = eseries_tmio_resources,
 };
 
+static struct platform_device e740_audio_device = {
+	.name		= "e740-audio",
+	.id		= -1,
+};
+
 /* ----------------------------------------------------------------------- */
 
 static struct platform_device *e740_devices[] __initdata = {
 	&e740_fb_device,
 	&e740_t7l66xb_device,
 	&e7xx_gpio_vbus,
+	&e740_audio_device,
 };
 
 static void __init e740_init(void)
@@ -722,12 +728,18 @@ static struct platform_device e750_tc6393xb_device = {
 	.resource      = eseries_tmio_resources,
 };
 
+static struct platform_device e750_audio_device = {
+	.name		= "e750-audio",
+	.id		= -1,
+};
+
 /* ------------------------------------------------------------- */
 
 static struct platform_device *e750_devices[] __initdata = {
 	&e750_fb_device,
 	&e750_tc6393xb_device,
 	&e7xx_gpio_vbus,
+	&e750_audio_device,
 };
 
 static void __init e750_init(void)
@@ -929,12 +941,18 @@ static struct platform_device e800_tc6393xb_device = {
 	.resource      = eseries_tmio_resources,
 };
 
+static struct platform_device e800_audio_device = {
+	.name		= "e800-audio",
+	.id		= -1,
+};
+
 /* ----------------------------------------------------------------------- */
 
 static struct platform_device *e800_devices[] __initdata = {
 	&e800_fb_device,
 	&e800_tc6393xb_device,
 	&e800_gpio_vbus,
+	&e800_audio_device,
 };
 
 static void __init e800_init(void)

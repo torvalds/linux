@@ -172,11 +172,11 @@ static struct wm8903_platform_data wm8903_pdata = {
 	.micdet_delay = 100,
 	.gpio_base = SEABOARD_GPIO_WM8903(0),
 	.gpio_cfg = {
-		WM8903_GPIO_NO_CONFIG,
-		WM8903_GPIO_NO_CONFIG,
 		0,
-		WM8903_GPIO_NO_CONFIG,
-		WM8903_GPIO_NO_CONFIG,
+		0,
+		WM8903_GPIO_CONFIG_ZERO,
+		0,
+		0,
 	},
 };
 

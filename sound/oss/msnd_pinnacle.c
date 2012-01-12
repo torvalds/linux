@@ -1701,7 +1701,7 @@ static int joystick_io __initdata =	CONFIG_MSNDPIN_JOYSTICK_IO;
 #ifndef CONFIG_MSNDPIN_DIGITAL
 #  define CONFIG_MSNDPIN_DIGITAL	0
 #endif
-static int digital __initdata =		CONFIG_MSNDPIN_DIGITAL;
+static bool digital __initdata =	CONFIG_MSNDPIN_DIGITAL;
 
 #endif /* MSND_CLASSIC */
 

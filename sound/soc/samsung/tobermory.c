@@ -1,5 +1,5 @@
 /*
- * Speyside with WM8962 audio support
+ * Tobermory audio support
  *
  * Copyright 2011 Wolfson Microelectronics
  *
@@ -19,7 +19,7 @@
 
 static int sample_rate = 44100;
 
-static int speyside_wm8962_set_bias_level(struct snd_soc_card *card,
+static int tobermory_set_bias_level(struct snd_soc_card *card,
 					  struct snd_soc_dapm_context *dapm,
 					  enum snd_soc_bias_level level)
 {
@@ -56,7 +56,7 @@ static int speyside_wm8962_set_bias_level(struct snd_soc_card *card,
 	return 0;
 }
 
-static int speyside_wm8962_set_bias_level_post(struct snd_soc_card *card,
+static int tobermory_set_bias_level_post(struct snd_soc_card *card,
 					       struct snd_soc_dapm_context *dapm,
 					       enum snd_soc_bias_level level)
 {
@@ -92,7 +92,7 @@ static int speyside_wm8962_set_bias_level_post(struct snd_soc_card *card,
 	return 0;
 }
 
-static int speyside_wm8962_hw_params(struct snd_pcm_substream *substream,
+static int tobermory_hw_params(struct snd_pcm_substream *substream,
 			      struct snd_pcm_hw_params *params)
 {
 	sample_rate = params_rate(params);
@@ -100,11 +100,11 @@ static int speyside_wm8962_hw_params(struct snd_pcm_substream *substream,
 	return 0;
 }
 
-static struct snd_soc_ops speyside_wm8962_ops = {
-	.hw_params = speyside_wm8962_hw_params,
+static struct snd_soc_ops tobermory_ops = {
+	.hw_params = tobermory_hw_params,
 };
 
-static struct snd_soc_dai_link speyside_wm8962_dai[] = {
+static struct snd_soc_dai_link tobermory_dai[] = {
 	{
 		.name = "CPU",
 		.stream_name = "CPU",
@@ -114,7 +114,7 @@ static struct snd_soc_dai_link speyside_wm8962_dai[] = {
 		.codec_name = "wm8962.1-001a",
 		.dai_fmt = SND_SOC_DAIFMT_I2S | SND_SOC_DAIFMT_NB_NF
 				| SND_SOC_DAIFMT_CBM_CFM,
-		.ops = &speyside_wm8962_ops,
+		.ops = &tobermory_ops,
 	},
 };
 
@@ -152,10 +152,10 @@ static struct snd_soc_dapm_route audio_paths[] = {
 	{ "DMICDAT", NULL, "DMIC" },
 };
 
-static struct snd_soc_jack speyside_wm8962_headset;
+static struct snd_soc_jack tobermory_headset;
 
 /* Headset jack detection DAPM pins */
-static struct snd_soc_jack_pin speyside_wm8962_headset_pins[] = {
+static struct snd_soc_jack_pin tobermory_headset_pins[] = {
 	{
 		.pin = "Headset Mic",
 		.mask = SND_JACK_MICROPHONE,
@@ -166,7 +166,7 @@ static struct snd_soc_jack_pin speyside_wm8962_headset_pins[] = {
 	},
 };
 
-static int speyside_wm8962_late_probe(struct snd_soc_card *card)
+static int tobermory_late_probe(struct snd_soc_card *card)
 {
 	struct snd_soc_codec *codec = card->rtd[0].codec;
 	struct snd_soc_dai *codec_dai = card->rtd[0].codec_dai;
@@ -179,28 +179,29 @@ static int speyside_wm8962_late_probe(struct snd_soc_card *card)
 
 	ret = snd_soc_jack_new(codec, "Headset",
 			       SND_JACK_HEADSET | SND_JACK_BTN_0,
-			       &speyside_wm8962_headset);
+			       &tobermory_headset);
 	if (ret)
 		return ret;
 
-	ret = snd_soc_jack_add_pins(&speyside_wm8962_headset,
-				    ARRAY_SIZE(speyside_wm8962_headset_pins),
-				    speyside_wm8962_headset_pins);
+	ret = snd_soc_jack_add_pins(&tobermory_headset,
+				    ARRAY_SIZE(tobermory_headset_pins),
+				    tobermory_headset_pins);
 	if (ret)
 		return ret;
 
-	wm8962_mic_detect(codec, &speyside_wm8962_headset);
+	wm8962_mic_detect(codec, &tobermory_headset);
 
 	return 0;
 }
 
-static struct snd_soc_card speyside_wm8962 = {
-	.name = "Speyside WM8962",
-	.dai_link = speyside_wm8962_dai,
-	.num_links = ARRAY_SIZE(speyside_wm8962_dai),
+static struct snd_soc_card tobermory = {
+	.name = "Tobermory",
+	.owner = THIS_MODULE,
+	.dai_link = tobermory_dai,
+	.num_links = ARRAY_SIZE(tobermory_dai),
 
-	.set_bias_level = speyside_wm8962_set_bias_level,
-	.set_bias_level_post = speyside_wm8962_set_bias_level_post,
+	.set_bias_level = tobermory_set_bias_level,
+	.set_bias_level_post = tobermory_set_bias_level_post,
 
 	.controls = controls,
 	.num_controls = ARRAY_SIZE(controls),
@@ -208,13 +209,14 @@ static struct snd_soc_card speyside_wm8962 = {
 	.num_dapm_widgets = ARRAY_SIZE(widgets),
 	.dapm_routes = audio_paths,
 	.num_dapm_routes = ARRAY_SIZE(audio_paths),
+	.fully_routed = true,
 
-	.late_probe = speyside_wm8962_late_probe,
+	.late_probe = tobermory_late_probe,
 };
 
-static __devinit int speyside_wm8962_probe(struct platform_device *pdev)
+static __devinit int tobermory_probe(struct platform_device *pdev)
 {
-	struct snd_soc_card *card = &speyside_wm8962;
+	struct snd_soc_card *card = &tobermory;
 	int ret;
 
 	card->dev = &pdev->dev;
@@ -229,7 +231,7 @@ static __devinit int speyside_wm8962_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int __devexit speyside_wm8962_remove(struct platform_device *pdev)
+static int __devexit tobermory_remove(struct platform_device *pdev)
 {
 	struct snd_soc_card *card = platform_get_drvdata(pdev);
 
@@ -238,29 +240,19 @@ static int __devexit speyside_wm8962_remove(struct platform_device *pdev)
 	return 0;
 }
 
-static struct platform_driver speyside_wm8962_driver = {
+static struct platform_driver tobermory_driver = {
 	.driver = {
-		.name = "speyside-wm8962",
+		.name = "tobermory",
 		.owner = THIS_MODULE,
 		.pm = &snd_soc_pm_ops,
 	},
-	.probe = speyside_wm8962_probe,
-	.remove = __devexit_p(speyside_wm8962_remove),
+	.probe = tobermory_probe,
+	.remove = __devexit_p(tobermory_remove),
 };
 
-static int __init speyside_wm8962_audio_init(void)
-{
-	return platform_driver_register(&speyside_wm8962_driver);
-}
-module_init(speyside_wm8962_audio_init);
+module_platform_driver(tobermory_driver);
 
-static void __exit speyside_wm8962_audio_exit(void)
-{
-	platform_driver_unregister(&speyside_wm8962_driver);
-}
-module_exit(speyside_wm8962_audio_exit);
-
-MODULE_DESCRIPTION("Speyside WM8962 audio support");
+MODULE_DESCRIPTION("Tobermory audio support");
 MODULE_AUTHOR("Mark Brown <broonie@opensource.wolfsonmicro.com>");
 MODULE_LICENSE("GPL");
-MODULE_ALIAS("platform:speyside-wm8962");
+MODULE_ALIAS("platform:tobermory");

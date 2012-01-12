@@ -11,8 +11,50 @@
 #include <linux/firmware.h>
 #include <linux/kernel.h>
 #include <linux/i2c.h>
+#include <linux/regmap.h>
 #include <linux/module.h>
-#include <linux/sigma.h>
+
+#include "sigmadsp.h"
+
+#define SIGMA_MAGIC "ADISIGM"
+
+struct sigma_firmware_header {
+	unsigned char magic[7];
+	u8 version;
+	__le32 crc;
+} __packed;
+
+enum {
+	SIGMA_ACTION_WRITEXBYTES = 0,
+	SIGMA_ACTION_WRITESINGLE,
+	SIGMA_ACTION_WRITESAFELOAD,
+	SIGMA_ACTION_DELAY,
+	SIGMA_ACTION_PLLWAIT,
+	SIGMA_ACTION_NOOP,
+	SIGMA_ACTION_END,
+};
+
+struct sigma_action {
+	u8 instr;
+	u8 len_hi;
+	__le16 len;
+	__be16 addr;
+	unsigned char payload[];
+} __packed;
+
+struct sigma_firmware {
+	const struct firmware *fw;
+	size_t pos;
+
+	void *control_data;
+	int (*write)(void *control_data, const struct sigma_action *sa,
+			size_t len);
+};
+
+static inline u32 sigma_action_len(struct sigma_action *sa)
+{
+	return (sa->len_hi << 16) | le16_to_cpu(sa->len);
+}
 
 static size_t sigma_action_size(struct sigma_action *sa)
 {
@@ -38,7 +80,7 @@ static size_t sigma_action_size(struct sigma_action *sa)
  * the firmware should be stopped after this action, 1 otherwise.
  */
 static int
-process_sigma_action(struct i2c_client *client, struct sigma_action *sa)
+process_sigma_action(struct sigma_firmware *ssfw, struct sigma_action *sa)
 {
 	size_t len = sigma_action_len(sa);
 	int ret;
@@ -50,7 +92,7 @@ process_sigma_action(struct i2c_client *client, struct sigma_action *sa)
 	case SIGMA_ACTION_WRITEXBYTES:
 	case SIGMA_ACTION_WRITESINGLE:
 	case SIGMA_ACTION_WRITESAFELOAD:
-		ret = i2c_master_send(client, (void *)&sa->addr, len);
+		ret = ssfw->write(ssfw->control_data, sa, len);
 		if (ret < 0)
 			return -EINVAL;
 		break;
@@ -68,7 +110,7 @@ process_sigma_action(struct i2c_client *client, struct sigma_action *sa)
 }
 
 static int
-process_sigma_actions(struct i2c_client *client, struct sigma_firmware *ssfw)
+process_sigma_actions(struct sigma_firmware *ssfw)
 {
 	struct sigma_action *sa;
 	size_t size;
@@ -82,7 +124,7 @@ process_sigma_actions(struct i2c_client *client, struct sigma_firmware *ssfw)
 		if (ssfw->pos > ssfw->fw->size || size == 0)
 			break;
 
-		ret = process_sigma_action(client, sa);
+		ret = process_sigma_action(ssfw, sa);
 
 		pr_debug("%s: action returned %i\n", __func__, ret);
 
@@ -96,23 +138,23 @@ process_sigma_actions(struct i2c_client *client, struct sigma_firmware *ssfw)
 	return 0;
 }
 
-int process_sigma_firmware(struct i2c_client *client, const char *name)
+static int _process_sigma_firmware(struct device *dev,
+	struct sigma_firmware *ssfw, const char *name)
 {
 	int ret;
 	struct sigma_firmware_header *ssfw_head;
-	struct sigma_firmware ssfw;
 	const struct firmware *fw;
 	u32 crc;
 
 	pr_debug("%s: loading firmware %s\n", __func__, name);
 
 	/* first load the blob */
-	ret = request_firmware(&fw, name, &client->dev);
+	ret = request_firmware(&fw, name, dev);
 	if (ret) {
 		pr_debug("%s: request_firmware() failed with %i\n", __func__, ret);
 		return ret;
 	}
-	ssfw.fw = fw;
+	ssfw->fw = fw;
 
 	/* then verify the header */
 	ret = -EINVAL;
@@ -123,23 +165,30 @@ int process_sigma_firmware(struct i2c_client *client, const char *name)
 	 * purposes and having the limit makes it easier to avoid integer
 	 * overflows later in the loading process.
 	 */
-	if (fw->size < sizeof(*ssfw_head) || fw->size >= 0x4000000)
+	if (fw->size < sizeof(*ssfw_head) || fw->size >= 0x4000000) {
+		dev_err(dev, "Failed to load firmware: Invalid size\n");
 		goto done;
+	}
 
 	ssfw_head = (void *)fw->data;
-	if (memcmp(ssfw_head->magic, SIGMA_MAGIC, ARRAY_SIZE(ssfw_head->magic)))
+	if (memcmp(ssfw_head->magic, SIGMA_MAGIC, ARRAY_SIZE(ssfw_head->magic))) {
+		dev_err(dev, "Failed to load firmware: Invalid magic\n");
 		goto done;
+	}
 
 	crc = crc32(0, fw->data + sizeof(*ssfw_head),
 			fw->size - sizeof(*ssfw_head));
 	pr_debug("%s: crc=%x\n", __func__, crc);
-	if (crc != le32_to_cpu(ssfw_head->crc))
+	if (crc != le32_to_cpu(ssfw_head->crc)) {
+		dev_err(dev, "Failed to load firmware: Wrong crc checksum: expected %x got %x\n",
+			le32_to_cpu(ssfw_head->crc), crc);
 		goto done;
+	}
 
-	ssfw.pos = sizeof(*ssfw_head);
+	ssfw->pos = sizeof(*ssfw_head);
 
 	/* finally process all of the actions */
-	ret = process_sigma_actions(client, &ssfw);
+	ret = process_sigma_actions(ssfw);
 
  done:
 	release_firmware(fw);
@@ -148,6 +197,50 @@ int process_sigma_firmware(struct i2c_client *client, const char *name)
 
 	return ret;
 }
+
+#if IS_ENABLED(CONFIG_I2C)
+
+static int sigma_action_write_i2c(void *control_data,
+	const struct sigma_action *sa, size_t len)
+{
+	return i2c_master_send(control_data, (const unsigned char *)&sa->addr,
+		len);
+}
+
+int process_sigma_firmware(struct i2c_client *client, const char *name)
+{
+	struct sigma_firmware ssfw;
+
+	ssfw.control_data = client;
+	ssfw.write = sigma_action_write_i2c;
+
+	return _process_sigma_firmware(&client->dev, &ssfw, name);
+}
 EXPORT_SYMBOL(process_sigma_firmware);
+
+#endif
+
+#if IS_ENABLED(CONFIG_REGMAP)
+
+static int sigma_action_write_regmap(void *control_data,
+	const struct sigma_action *sa, size_t len)
+{
+	return regmap_raw_write(control_data, le16_to_cpu(sa->addr),
+		sa->payload, len - 2);
+}
+
+int process_sigma_firmware_regmap(struct device *dev, struct regmap *regmap,
+	const char *name)
+{
+	struct sigma_firmware ssfw;
+
+	ssfw.control_data = regmap;
+	ssfw.write = sigma_action_write_regmap;
+
+	return _process_sigma_firmware(dev, &ssfw, name);
+}
+EXPORT_SYMBOL(process_sigma_firmware_regmap);
+
+#endif
 
 MODULE_LICENSE("GPL");

@@ -121,18 +121,6 @@ static int poodle_hw_params(struct snd_pcm_substream *substream,
 		break;
 	}
 
-	/* set codec DAI configuration */
-	ret = snd_soc_dai_set_fmt(codec_dai, SND_SOC_DAIFMT_I2S |
-		SND_SOC_DAIFMT_NB_NF | SND_SOC_DAIFMT_CBS_CFS);
-	if (ret < 0)
-		return ret;
-
-	/* set cpu DAI configuration */
-	ret = snd_soc_dai_set_fmt(cpu_dai, SND_SOC_DAIFMT_I2S |
-		SND_SOC_DAIFMT_NB_NF | SND_SOC_DAIFMT_CBS_CFS);
-	if (ret < 0)
-		return ret;
-
 	/* set the codec system clock for DAC and ADC */
 	ret = snd_soc_dai_set_sysclk(codec_dai, WM8731_SYSCLK_XTAL, clk,
 		SND_SOC_CLOCK_IN);
@@ -214,7 +202,7 @@ SND_SOC_DAPM_SPK("Ext Spk", poodle_amp_event),
 };
 
 /* Corgi machine connections to the codec pins */
-static const struct snd_soc_dapm_route audio_map[] = {
+static const struct snd_soc_dapm_route poodle_audio_map[] = {
 
 	/* headphone connected to LHPOUT1, RHPOUT1 */
 	{"Headphone Jack", NULL, "LHPOUT"},
@@ -246,24 +234,10 @@ static int poodle_wm8731_init(struct snd_soc_pcm_runtime *rtd)
 {
 	struct snd_soc_codec *codec = rtd->codec;
 	struct snd_soc_dapm_context *dapm = &codec->dapm;
-	int err;
 
 	snd_soc_dapm_nc_pin(dapm, "LLINEIN");
 	snd_soc_dapm_nc_pin(dapm, "RLINEIN");
 	snd_soc_dapm_enable_pin(dapm, "MICIN");
-
-	/* Add poodle specific controls */
-	err = snd_soc_add_controls(codec, wm8731_poodle_controls,
-				ARRAY_SIZE(wm8731_poodle_controls));
-	if (err < 0)
-		return err;
-
-	/* Add poodle specific widgets */
-	snd_soc_dapm_new_controls(dapm, wm8731_dapm_widgets,
-				  ARRAY_SIZE(wm8731_dapm_widgets));
-
-	/* Set up poodle specific audio path audio_map */
-	snd_soc_dapm_add_routes(dapm, audio_map, ARRAY_SIZE(audio_map));
 
 	return 0;
 }
@@ -277,25 +251,30 @@ static struct snd_soc_dai_link poodle_dai = {
 	.platform_name = "pxa-pcm-audio",
 	.codec_name = "wm8731.0-001b",
 	.init = poodle_wm8731_init,
+	.dai_fmt = SND_SOC_DAIFMT_I2S | SND_SOC_DAIFMT_NB_NF |
+		   SND_SOC_DAIFMT_CBS_CFS,
 	.ops = &poodle_ops,
 };
 
 /* poodle audio machine driver */
-static struct snd_soc_card snd_soc_poodle = {
+static struct snd_soc_card poodle = {
 	.name = "Poodle",
 	.dai_link = &poodle_dai,
 	.num_links = 1,
 	.owner = THIS_MODULE,
+
+	.controls = wm8731_poodle_controls,
+	.num_controls = ARRAY_SIZE(wm8731_poodle_controls),
+	.dapm_widgets = wm8731_dapm_widgets,
+	.num_dapm_widgets = ARRAY_SIZE(wm8731_dapm_widgets),
+	.dapm_routes = poodle_audio_map,
+	.num_dapm_routes = ARRAY_SIZE(poodle_audio_map),
 };
 
-static struct platform_device *poodle_snd_device;
-
-static int __init poodle_init(void)
+static int __devinit poodle_probe(struct platform_device *pdev)
 {
+	struct snd_soc_card *card = &poodle;
 	int ret;
-
-	if (!machine_is_poodle())
-		return -ENODEV;
 
 	locomo_gpio_set_dir(&poodle_locomo_device.dev,
 		POODLE_LOCOMO_GPIO_AMP_ON, 0);
@@ -305,28 +284,36 @@ static int __init poodle_init(void)
 	locomo_gpio_set_dir(&poodle_locomo_device.dev,
 		POODLE_LOCOMO_GPIO_MUTE_R, 0);
 
-	poodle_snd_device = platform_device_alloc("soc-audio", -1);
-	if (!poodle_snd_device)
-		return -ENOMEM;
+	card->dev = &pdev->dev;
 
-	platform_set_drvdata(poodle_snd_device, &snd_soc_poodle);
-	ret = platform_device_add(poodle_snd_device);
-
+	ret = snd_soc_register_card(card);
 	if (ret)
-		platform_device_put(poodle_snd_device);
-
+		dev_err(&pdev->dev, "snd_soc_register_card() failed: %d\n",
+			ret);
 	return ret;
 }
 
-static void __exit poodle_exit(void)
+static int __devexit poodle_remove(struct platform_device *pdev)
 {
-	platform_device_unregister(poodle_snd_device);
+	struct snd_soc_card *card = platform_get_drvdata(pdev);
+
+	snd_soc_unregister_card(card);
+	return 0;
 }
 
-module_init(poodle_init);
-module_exit(poodle_exit);
+static struct platform_driver poodle_driver = {
+	.driver		= {
+		.name	= "poodle-audio",
+		.owner	= THIS_MODULE,
+	},
+	.probe		= poodle_probe,
+	.remove		= __devexit_p(poodle_remove),
+};
+
+module_platform_driver(poodle_driver);
 
 /* Module information */
 MODULE_AUTHOR("Richard Purdie");
 MODULE_DESCRIPTION("ALSA SoC Poodle");
 MODULE_LICENSE("GPL");
+MODULE_ALIAS("platform:poodle-audio");

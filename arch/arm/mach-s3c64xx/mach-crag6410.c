@@ -286,8 +286,8 @@ static struct platform_device lowland_device = {
 	.id		= -1,
 };
 
-static struct platform_device speyside_wm8962_device = {
-	.name		= "speyside-wm8962",
+static struct platform_device tobermory_device = {
+	.name		= "tobermory",
 	.id		= -1,
 };
 
@@ -347,7 +347,7 @@ static struct platform_device *crag6410_devices[] __initdata = {
 	&crag6410_lcd_powerdev,
 	&crag6410_backlight_device,
 	&speyside_device,
-	&speyside_wm8962_device,
+	&tobermory_device,
 	&littlemill_device,
 	&lowland_device,
 	&wallvdd_device,

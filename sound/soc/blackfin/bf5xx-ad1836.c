@@ -91,6 +91,7 @@ static struct snd_soc_dai_link bf5xx_ad1836_dai[] = {
 
 static struct snd_soc_card bf5xx_ad1836 = {
 	.name = "bfin-ad1836",
+	.owner = THIS_MODULE,
 	.dai_link = &bf5xx_ad1836_dai[CONFIG_SND_BF5XX_SPORT_NUM],
 	.num_links = 1,
 };
