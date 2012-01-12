@@ -576,11 +576,19 @@ static struct s3c2410_platform_i2c i2c0_pdata = {
 	.frequency = 400000,
 };
 
+static struct regulator_consumer_supply pvdd_1v2_consumers[] __initdata = {
+	REGULATOR_SUPPLY("DCVDD", "spi0.0"),
+	REGULATOR_SUPPLY("AVDD", "spi0.0"),
+};
+
 static struct regulator_init_data pvdd_1v2 __initdata = {
 	.constraints = {
 		.name = "PVDD_1V2",
-		.always_on = 1,
+		.valid_ops_mask = REGULATOR_CHANGE_STATUS,
 	},
+
+	.consumer_supplies = pvdd_1v2_consumers,
+	.num_consumer_supplies = ARRAY_SIZE(pvdd_1v2_consumers),
 };
 
 static struct regulator_consumer_supply pvdd_1v8_consumers[] __initdata = {
@@ -594,6 +602,7 @@ static struct regulator_consumer_supply pvdd_1v8_consumers[] __initdata = {
 	REGULATOR_SUPPLY("AVDD2", "1-001a"),
 	REGULATOR_SUPPLY("DCVDD", "1-001a"),
 	REGULATOR_SUPPLY("AVDD", "1-001a"),
+	REGULATOR_SUPPLY("DBVDD", "spi0.0"),
 };
 
 static struct regulator_init_data pvdd_1v8 __initdata = {
