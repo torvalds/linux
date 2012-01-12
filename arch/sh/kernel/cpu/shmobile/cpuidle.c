@@ -17,7 +17,6 @@
 #include <linux/export.h>
 #include <asm/suspend.h>
 #include <asm/uaccess.h>
-#include <asm/hwblk.h>
 
 static unsigned long cpuidle_mode[] = {
 	SUSP_SH_SLEEP, /* regular sleep mode */
@@ -29,7 +28,7 @@ static int cpuidle_sleep_enter(struct cpuidle_device *dev,
 				struct cpuidle_driver *drv,
 				int index)
 {
-	unsigned long allowed_mode = arch_hwblk_sleep_mode();
+	unsigned long allowed_mode = SUSP_SH_SLEEP;
 	ktime_t before, after;
 	int requested_state = index;
 	int allowed_state;

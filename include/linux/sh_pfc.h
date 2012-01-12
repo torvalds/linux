@@ -55,6 +55,7 @@ struct pinmux_cfg_reg {
 struct pinmux_data_reg {
 	unsigned long reg, reg_width, reg_shadow;
 	pinmux_enum_t *enum_ids;
+	void __iomem *mapped_reg;
 };
 
 #define PINMUX_DATA_REG(name, r, r_width) \
@@ -73,6 +74,12 @@ struct pinmux_range {
 	pinmux_enum_t begin;
 	pinmux_enum_t end;
 	pinmux_enum_t force;
+};
+
+struct pfc_window {
+	phys_addr_t phys;
+	void __iomem *virt;
+	unsigned long size;
 };
 
 struct pinmux_info {
@@ -97,6 +104,10 @@ struct pinmux_info {
 
 	struct pinmux_irq *gpio_irq;
 	unsigned int gpio_irq_size;
+
+	struct resource *resource;
+	unsigned int num_resources;
+	struct pfc_window *window;
 
 	struct gpio_chip chip;
 };
