@@ -480,6 +480,7 @@ static const struct i2c_device_id lp8727_ids[] = {
 	{"lp8727", 0},
 	{ }
 };
+MODULE_DEVICE_TABLE(i2c, lp8727_ids);
 
 static struct i2c_driver lp8727_driver = {
 	.driver = {
