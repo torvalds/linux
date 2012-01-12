@@ -276,7 +276,6 @@ struct hv_storvsc_request {
 
 	unsigned char *sense_buffer;
 	void *context;
-	void (*on_io_completion)(struct hv_storvsc_request *request);
 	struct hv_multipage_buffer data_buffer;
 
 	struct vstor_packet vstor_packet;
@@ -436,6 +435,227 @@ get_in_err:
 
 }
 
+static void destroy_bounce_buffer(struct scatterlist *sgl,
+				  unsigned int sg_count)
+{
+	int i;
+	struct page *page_buf;
+
+	for (i = 0; i < sg_count; i++) {
+		page_buf = sg_page((&sgl[i]));
+		if (page_buf != NULL)
+			__free_page(page_buf);
+	}
+
+	kfree(sgl);
+}
+
+static int do_bounce_buffer(struct scatterlist *sgl, unsigned int sg_count)
+{
+	int i;
+
+	/* No need to check */
+	if (sg_count < 2)
+		return -1;
+
+	/* We have at least 2 sg entries */
+	for (i = 0; i < sg_count; i++) {
+		if (i == 0) {
+			/* make sure 1st one does not have hole */
+			if (sgl[i].offset + sgl[i].length != PAGE_SIZE)
+				return i;
+		} else if (i == sg_count - 1) {
+			/* make sure last one does not have hole */
+			if (sgl[i].offset != 0)
+				return i;
+		} else {
+			/* make sure no hole in the middle */
+			if (sgl[i].length != PAGE_SIZE || sgl[i].offset != 0)
+				return i;
+		}
+	}
+	return -1;
+}
+
+static struct scatterlist *create_bounce_buffer(struct scatterlist *sgl,
+						unsigned int sg_count,
+						unsigned int len,
+						int write)
+{
+	int i;
+	int num_pages;
+	struct scatterlist *bounce_sgl;
+	struct page *page_buf;
+	unsigned int buf_len = ((write == WRITE_TYPE) ? 0 : PAGE_SIZE);
+
+	num_pages = ALIGN(len, PAGE_SIZE) >> PAGE_SHIFT;
+
+	bounce_sgl = kcalloc(num_pages, sizeof(struct scatterlist), GFP_ATOMIC);
+	if (!bounce_sgl)
+		return NULL;
+
+	for (i = 0; i < num_pages; i++) {
+		page_buf = alloc_page(GFP_ATOMIC);
+		if (!page_buf)
+			goto cleanup;
+		sg_set_page(&bounce_sgl[i], page_buf, buf_len, 0);
+	}
+
+	return bounce_sgl;
+
+cleanup:
+	destroy_bounce_buffer(bounce_sgl, num_pages);
+	return NULL;
+}
+
+/* Assume the original sgl has enough room */
+static unsigned int copy_from_bounce_buffer(struct scatterlist *orig_sgl,
+					    struct scatterlist *bounce_sgl,
+					    unsigned int orig_sgl_count,
+					    unsigned int bounce_sgl_count)
+{
+	int i;
+	int j = 0;
+	unsigned long src, dest;
+	unsigned int srclen, destlen, copylen;
+	unsigned int total_copied = 0;
+	unsigned long bounce_addr = 0;
+	unsigned long dest_addr = 0;
+	unsigned long flags;
+
+	local_irq_save(flags);
+
+	for (i = 0; i < orig_sgl_count; i++) {
+		dest_addr = (unsigned long)kmap_atomic(sg_page((&orig_sgl[i])),
+					KM_IRQ0) + orig_sgl[i].offset;
+		dest = dest_addr;
+		destlen = orig_sgl[i].length;
+
+		if (bounce_addr == 0)
+			bounce_addr =
+			(unsigned long)kmap_atomic(sg_page((&bounce_sgl[j])),
+							KM_IRQ0);
+
+		while (destlen) {
+			src = bounce_addr + bounce_sgl[j].offset;
+			srclen = bounce_sgl[j].length - bounce_sgl[j].offset;
+
+			copylen = min(srclen, destlen);
+			memcpy((void *)dest, (void *)src, copylen);
+
+			total_copied += copylen;
+			bounce_sgl[j].offset += copylen;
+			destlen -= copylen;
+			dest += copylen;
+
+			if (bounce_sgl[j].offset == bounce_sgl[j].length) {
+				/* full */
+				kunmap_atomic((void *)bounce_addr, KM_IRQ0);
+				j++;
+
+				/*
+				 * It is possible that the number of elements
+				 * in the bounce buffer may not be equal to
+				 * the number of elements in the original
+				 * scatter list. Handle this correctly.
+				 */
+
+				if (j == bounce_sgl_count) {
+					/*
+					 * We are done; cleanup and return.
+					 */
+					kunmap_atomic((void *)(dest_addr -
+							orig_sgl[i].offset),
+							KM_IRQ0);
+					local_irq_restore(flags);
+					return total_copied;
+				}
+
+				/* if we need to use another bounce buffer */
+				if (destlen || i != orig_sgl_count - 1)
+					bounce_addr =
+					(unsigned long)kmap_atomic(
+					sg_page((&bounce_sgl[j])), KM_IRQ0);
+			} else if (destlen == 0 && i == orig_sgl_count - 1) {
+				/* unmap the last bounce that is < PAGE_SIZE */
+				kunmap_atomic((void *)bounce_addr, KM_IRQ0);
+			}
+		}
+
+		kunmap_atomic((void *)(dest_addr - orig_sgl[i].offset),
+			      KM_IRQ0);
+	}
+
+	local_irq_restore(flags);
+
+	return total_copied;
+}
+
+/* Assume the bounce_sgl has enough room ie using the create_bounce_buffer() */
+static unsigned int copy_to_bounce_buffer(struct scatterlist *orig_sgl,
+					  struct scatterlist *bounce_sgl,
+					  unsigned int orig_sgl_count)
+{
+	int i;
+	int j = 0;
+	unsigned long src, dest;
+	unsigned int srclen, destlen, copylen;
+	unsigned int total_copied = 0;
+	unsigned long bounce_addr = 0;
+	unsigned long src_addr = 0;
+	unsigned long flags;
+
+	local_irq_save(flags);
+
+	for (i = 0; i < orig_sgl_count; i++) {
+		src_addr = (unsigned long)kmap_atomic(sg_page((&orig_sgl[i])),
+				KM_IRQ0) + orig_sgl[i].offset;
+		src = src_addr;
+		srclen = orig_sgl[i].length;
+
+		if (bounce_addr == 0)
+			bounce_addr =
+			(unsigned long)kmap_atomic(sg_page((&bounce_sgl[j])),
+						KM_IRQ0);
+
+		while (srclen) {
+			/* assume bounce offset always == 0 */
+			dest = bounce_addr + bounce_sgl[j].length;
+			destlen = PAGE_SIZE - bounce_sgl[j].length;
+
+			copylen = min(srclen, destlen);
+			memcpy((void *)dest, (void *)src, copylen);
+
+			total_copied += copylen;
+			bounce_sgl[j].length += copylen;
+			srclen -= copylen;
+			src += copylen;
+
+			if (bounce_sgl[j].length == PAGE_SIZE) {
+				/* full..move to next entry */
+				kunmap_atomic((void *)bounce_addr, KM_IRQ0);
+				j++;
+
+				/* if we need to use another bounce buffer */
+				if (srclen || i != orig_sgl_count - 1)
+					bounce_addr =
+					(unsigned long)kmap_atomic(
+					sg_page((&bounce_sgl[j])), KM_IRQ0);
+
+			} else if (srclen == 0 && i == orig_sgl_count - 1) {
+				/* unmap the last bounce that is < PAGE_SIZE */
+				kunmap_atomic((void *)bounce_addr, KM_IRQ0);
+			}
+		}
+
+		kunmap_atomic((void *)(src_addr - orig_sgl[i].offset), KM_IRQ0);
+	}
+
+	local_irq_restore(flags);
+
+	return total_copied;
+}
+
 static int storvsc_channel_init(struct hv_device *device)
 {
 	struct storvsc_device *stor_device;
@@ -562,6 +782,83 @@ cleanup:
 	return ret;
 }
 
+
+static void storvsc_command_completion(struct hv_storvsc_request *request)
+{
+	struct storvsc_cmd_request *cmd_request =
+		(struct storvsc_cmd_request *)request->context;
+	struct scsi_cmnd *scmnd = cmd_request->cmd;
+	struct hv_host_device *host_dev = shost_priv(scmnd->device->host);
+	void (*scsi_done_fn)(struct scsi_cmnd *);
+	struct scsi_sense_hdr sense_hdr;
+	struct vmscsi_request *vm_srb;
+	struct storvsc_scan_work *wrk;
+	struct stor_mem_pools *memp = scmnd->device->hostdata;
+
+	vm_srb = &request->vstor_packet.vm_srb;
+	if (cmd_request->bounce_sgl_count) {
+		if (vm_srb->data_in == READ_TYPE)
+			copy_from_bounce_buffer(scsi_sglist(scmnd),
+					cmd_request->bounce_sgl,
+					scsi_sg_count(scmnd),
+					cmd_request->bounce_sgl_count);
+		destroy_bounce_buffer(cmd_request->bounce_sgl,
+					cmd_request->bounce_sgl_count);
+	}
+
+	/*
+	 * If there is an error; offline the device since all
+	 * error recovery strategies would have already been
+	 * deployed on the host side.
+	 */
+	if (vm_srb->srb_status == SRB_STATUS_ERROR)
+		scmnd->result = DID_TARGET_FAILURE << 16;
+	else
+		scmnd->result = vm_srb->scsi_status;
+
+	/*
+	 * If the LUN is invalid; remove the device.
+	 */
+	if (vm_srb->srb_status == SRB_STATUS_INVALID_LUN) {
+		struct storvsc_device *stor_dev;
+		struct hv_device *dev = host_dev->dev;
+		struct Scsi_Host *host;
+
+		stor_dev = get_in_stor_device(dev);
+		host = stor_dev->host;
+
+		wrk = kmalloc(sizeof(struct storvsc_scan_work),
+				GFP_ATOMIC);
+		if (!wrk) {
+			scmnd->result = DID_TARGET_FAILURE << 16;
+		} else {
+			wrk->host = host;
+			wrk->lun = vm_srb->lun;
+			INIT_WORK(&wrk->work, storvsc_remove_lun);
+			schedule_work(&wrk->work);
+		}
+	}
+
+	if (scmnd->result) {
+		if (scsi_normalize_sense(scmnd->sense_buffer,
+				SCSI_SENSE_BUFFERSIZE, &sense_hdr))
+			scsi_print_sense_hdr("storvsc", &sense_hdr);
+	}
+
+	scsi_set_resid(scmnd,
+		request->data_buffer.len -
+		vm_srb->data_transfer_length);
+
+	scsi_done_fn = scmnd->scsi_done;
+
+	scmnd->host_scribble = NULL;
+	scmnd->scsi_done = NULL;
+
+	scsi_done_fn(scmnd);
+
+	mempool_free(cmd_request, memp->request_mempool);
+}
+
 static void storvsc_on_io_completion(struct hv_device *device,
 				  struct vstor_packet *vstor_packet,
 				  struct hv_storvsc_request *request)
@@ -625,7 +922,7 @@ static void storvsc_on_io_completion(struct hv_device *device,
 	stor_pkt->vm_srb.data_transfer_length =
 	vstor_packet->vm_srb.data_transfer_length;
 
-	request->on_io_completion(request);
+	storvsc_command_completion(request);
 
 	if (atomic_dec_and_test(&stor_device->num_outstanding_req) &&
 		stor_device->drain_notify)
@@ -875,229 +1172,6 @@ static int storvsc_device_configure(struct scsi_device *sdevice)
 	return 0;
 }
 
-static void destroy_bounce_buffer(struct scatterlist *sgl,
-				  unsigned int sg_count)
-{
-	int i;
-	struct page *page_buf;
-
-	for (i = 0; i < sg_count; i++) {
-		page_buf = sg_page((&sgl[i]));
-		if (page_buf != NULL)
-			__free_page(page_buf);
-	}
-
-	kfree(sgl);
-}
-
-static int do_bounce_buffer(struct scatterlist *sgl, unsigned int sg_count)
-{
-	int i;
-
-	/* No need to check */
-	if (sg_count < 2)
-		return -1;
-
-	/* We have at least 2 sg entries */
-	for (i = 0; i < sg_count; i++) {
-		if (i == 0) {
-			/* make sure 1st one does not have hole */
-			if (sgl[i].offset + sgl[i].length != PAGE_SIZE)
-				return i;
-		} else if (i == sg_count - 1) {
-			/* make sure last one does not have hole */
-			if (sgl[i].offset != 0)
-				return i;
-		} else {
-			/* make sure no hole in the middle */
-			if (sgl[i].length != PAGE_SIZE || sgl[i].offset != 0)
-				return i;
-		}
-	}
-	return -1;
-}
-
-static struct scatterlist *create_bounce_buffer(struct scatterlist *sgl,
-						unsigned int sg_count,
-						unsigned int len,
-						int write)
-{
-	int i;
-	int num_pages;
-	struct scatterlist *bounce_sgl;
-	struct page *page_buf;
-	unsigned int buf_len = ((write == WRITE_TYPE) ? 0 : PAGE_SIZE);
-
-	num_pages = ALIGN(len, PAGE_SIZE) >> PAGE_SHIFT;
-
-	bounce_sgl = kcalloc(num_pages, sizeof(struct scatterlist), GFP_ATOMIC);
-	if (!bounce_sgl)
-		return NULL;
-
-	for (i = 0; i < num_pages; i++) {
-		page_buf = alloc_page(GFP_ATOMIC);
-		if (!page_buf)
-			goto cleanup;
-		sg_set_page(&bounce_sgl[i], page_buf, buf_len, 0);
-	}
-
-	return bounce_sgl;
-
-cleanup:
-	destroy_bounce_buffer(bounce_sgl, num_pages);
-	return NULL;
-}
-
-
-/* Assume the original sgl has enough room */
-static unsigned int copy_from_bounce_buffer(struct scatterlist *orig_sgl,
-					    struct scatterlist *bounce_sgl,
-					    unsigned int orig_sgl_count,
-					    unsigned int bounce_sgl_count)
-{
-	int i;
-	int j = 0;
-	unsigned long src, dest;
-	unsigned int srclen, destlen, copylen;
-	unsigned int total_copied = 0;
-	unsigned long bounce_addr = 0;
-	unsigned long dest_addr = 0;
-	unsigned long flags;
-
-	local_irq_save(flags);
-
-	for (i = 0; i < orig_sgl_count; i++) {
-		dest_addr = (unsigned long)kmap_atomic(sg_page((&orig_sgl[i])),
-					KM_IRQ0) + orig_sgl[i].offset;
-		dest = dest_addr;
-		destlen = orig_sgl[i].length;
-
-		if (bounce_addr == 0)
-			bounce_addr =
-			(unsigned long)kmap_atomic(sg_page((&bounce_sgl[j])),
-							KM_IRQ0);
-
-		while (destlen) {
-			src = bounce_addr + bounce_sgl[j].offset;
-			srclen = bounce_sgl[j].length - bounce_sgl[j].offset;
-
-			copylen = min(srclen, destlen);
-			memcpy((void *)dest, (void *)src, copylen);
-
-			total_copied += copylen;
-			bounce_sgl[j].offset += copylen;
-			destlen -= copylen;
-			dest += copylen;
-
-			if (bounce_sgl[j].offset == bounce_sgl[j].length) {
-				/* full */
-				kunmap_atomic((void *)bounce_addr, KM_IRQ0);
-				j++;
-
-				/*
-				 * It is possible that the number of elements
-				 * in the bounce buffer may not be equal to
-				 * the number of elements in the original
-				 * scatter list. Handle this correctly.
-				 */
-
-				if (j == bounce_sgl_count) {
-					/*
-					 * We are done; cleanup and return.
-					 */
-					kunmap_atomic((void *)(dest_addr -
-							orig_sgl[i].offset),
-							KM_IRQ0);
-					local_irq_restore(flags);
-					return total_copied;
-				}
-
-				/* if we need to use another bounce buffer */
-				if (destlen || i != orig_sgl_count - 1)
-					bounce_addr =
-					(unsigned long)kmap_atomic(
-					sg_page((&bounce_sgl[j])), KM_IRQ0);
-			} else if (destlen == 0 && i == orig_sgl_count - 1) {
-				/* unmap the last bounce that is < PAGE_SIZE */
-				kunmap_atomic((void *)bounce_addr, KM_IRQ0);
-			}
-		}
-
-		kunmap_atomic((void *)(dest_addr - orig_sgl[i].offset),
-			      KM_IRQ0);
-	}
-
-	local_irq_restore(flags);
-
-	return total_copied;
-}
-
-
-/* Assume the bounce_sgl has enough room ie using the create_bounce_buffer() */
-static unsigned int copy_to_bounce_buffer(struct scatterlist *orig_sgl,
-					  struct scatterlist *bounce_sgl,
-					  unsigned int orig_sgl_count)
-{
-	int i;
-	int j = 0;
-	unsigned long src, dest;
-	unsigned int srclen, destlen, copylen;
-	unsigned int total_copied = 0;
-	unsigned long bounce_addr = 0;
-	unsigned long src_addr = 0;
-	unsigned long flags;
-
-	local_irq_save(flags);
-
-	for (i = 0; i < orig_sgl_count; i++) {
-		src_addr = (unsigned long)kmap_atomic(sg_page((&orig_sgl[i])),
-				KM_IRQ0) + orig_sgl[i].offset;
-		src = src_addr;
-		srclen = orig_sgl[i].length;
-
-		if (bounce_addr == 0)
-			bounce_addr =
-			(unsigned long)kmap_atomic(sg_page((&bounce_sgl[j])),
-						KM_IRQ0);
-
-		while (srclen) {
-			/* assume bounce offset always == 0 */
-			dest = bounce_addr + bounce_sgl[j].length;
-			destlen = PAGE_SIZE - bounce_sgl[j].length;
-
-			copylen = min(srclen, destlen);
-			memcpy((void *)dest, (void *)src, copylen);
-
-			total_copied += copylen;
-			bounce_sgl[j].length += copylen;
-			srclen -= copylen;
-			src += copylen;
-
-			if (bounce_sgl[j].length == PAGE_SIZE) {
-				/* full..move to next entry */
-				kunmap_atomic((void *)bounce_addr, KM_IRQ0);
-				j++;
-
-				/* if we need to use another bounce buffer */
-				if (srclen || i != orig_sgl_count - 1)
-					bounce_addr =
-					(unsigned long)kmap_atomic(
-					sg_page((&bounce_sgl[j])), KM_IRQ0);
-
-			} else if (srclen == 0 && i == orig_sgl_count - 1) {
-				/* unmap the last bounce that is < PAGE_SIZE */
-				kunmap_atomic((void *)bounce_addr, KM_IRQ0);
-			}
-		}
-
-		kunmap_atomic((void *)(src_addr - orig_sgl[i].offset), KM_IRQ0);
-	}
-
-	local_irq_restore(flags);
-
-	return total_copied;
-}
-
 static int storvsc_get_chs(struct scsi_device *sdev, struct block_device * bdev,
 			   sector_t capacity, int *info)
 {
@@ -1164,83 +1238,6 @@ static int storvsc_host_reset_handler(struct scsi_cmnd *scmnd)
 	 */
 
 	return SUCCESS;
-}
-
-
-static void storvsc_command_completion(struct hv_storvsc_request *request)
-{
-	struct storvsc_cmd_request *cmd_request =
-		(struct storvsc_cmd_request *)request->context;
-	struct scsi_cmnd *scmnd = cmd_request->cmd;
-	struct hv_host_device *host_dev = shost_priv(scmnd->device->host);
-	void (*scsi_done_fn)(struct scsi_cmnd *);
-	struct scsi_sense_hdr sense_hdr;
-	struct vmscsi_request *vm_srb;
-	struct storvsc_scan_work *wrk;
-	struct stor_mem_pools *memp = scmnd->device->hostdata;
-
-	vm_srb = &request->vstor_packet.vm_srb;
-	if (cmd_request->bounce_sgl_count) {
-		if (vm_srb->data_in == READ_TYPE)
-			copy_from_bounce_buffer(scsi_sglist(scmnd),
-					cmd_request->bounce_sgl,
-					scsi_sg_count(scmnd),
-					cmd_request->bounce_sgl_count);
-		destroy_bounce_buffer(cmd_request->bounce_sgl,
-					cmd_request->bounce_sgl_count);
-	}
-
-	/*
-	 * If there is an error; offline the device since all
-	 * error recovery strategies would have already been
-	 * deployed on the host side.
-	 */
-	if (vm_srb->srb_status == SRB_STATUS_ERROR)
-		scmnd->result = DID_TARGET_FAILURE << 16;
-	else
-		scmnd->result = vm_srb->scsi_status;
-
-	/*
-	 * If the LUN is invalid; remove the device.
-	 */
-	if (vm_srb->srb_status == SRB_STATUS_INVALID_LUN) {
-		struct storvsc_device *stor_dev;
-		struct hv_device *dev = host_dev->dev;
-		struct Scsi_Host *host;
-
-		stor_dev = get_in_stor_device(dev);
-		host = stor_dev->host;
-
-		wrk = kmalloc(sizeof(struct storvsc_scan_work),
-				GFP_ATOMIC);
-		if (!wrk) {
-			scmnd->result = DID_TARGET_FAILURE << 16;
-		} else {
-			wrk->host = host;
-			wrk->lun = vm_srb->lun;
-			INIT_WORK(&wrk->work, storvsc_remove_lun);
-			schedule_work(&wrk->work);
-		}
-	}
-
-	if (scmnd->result) {
-		if (scsi_normalize_sense(scmnd->sense_buffer,
-				SCSI_SENSE_BUFFERSIZE, &sense_hdr))
-			scsi_print_sense_hdr("storvsc", &sense_hdr);
-	}
-
-	scsi_set_resid(scmnd,
-		request->data_buffer.len -
-		vm_srb->data_transfer_length);
-
-	scsi_done_fn = scmnd->scsi_done;
-
-	scmnd->host_scribble = NULL;
-	scmnd->scsi_done = NULL;
-
-	scsi_done_fn(scmnd);
-
-	mempool_free(cmd_request, memp->request_mempool);
 }
 
 static bool storvsc_scsi_cmd_ok(struct scsi_cmnd *scmnd)
@@ -1318,7 +1315,6 @@ static int storvsc_queuecommand(struct Scsi_Host *host, struct scsi_cmnd *scmnd)
 		break;
 	}
 
-	request->on_io_completion = storvsc_command_completion;
 	request->context = cmd_request;/* scmnd; */
 
 	vm_srb->port_number = host_dev->port;
