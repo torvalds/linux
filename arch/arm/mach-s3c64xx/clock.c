@@ -202,6 +202,15 @@ static struct clk init_clocks_off[] = {
 		.enable		= s3c64xx_sclk_ctrl,
 		.ctrlbit	= S3C_CLKCON_SCLK_MMC2_48,
 	}, {
+		.name		= "ac97",
+		.parent		= &clk_p,
+		.ctrlbit	= S3C_CLKCON_PCLK_AC97,
+	}, {
+		.name		= "cfcon",
+		.parent		= &clk_h,
+		.enable		= s3c64xx_hclk_ctrl,
+		.ctrlbit	= S3C_CLKCON_HCLK_IHOST,
+	}, {
 		.name		= "dma0",
 		.parent		= &clk_h,
 		.enable		= s3c64xx_hclk_ctrl,
@@ -284,16 +293,7 @@ static struct clk init_clocks[] = {
 		.name		= "watchdog",
 		.parent		= &clk_p,
 		.ctrlbit	= S3C_CLKCON_PCLK_WDT,
-	}, {
-		.name		= "ac97",
-		.parent		= &clk_p,
-		.ctrlbit	= S3C_CLKCON_PCLK_AC97,
-	}, {
-		.name		= "cfcon",
-		.parent		= &clk_h,
-		.enable		= s3c64xx_hclk_ctrl,
-		.ctrlbit	= S3C_CLKCON_HCLK_IHOST,
-	}
+	},
 };
 
 static struct clk clk_hsmmc0 = {
