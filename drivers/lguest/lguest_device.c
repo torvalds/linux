@@ -292,10 +292,12 @@ static struct virtqueue *lg_find_vq(struct virtio_device *vdev,
 
 	/*
 	 * OK, tell virtio_ring.c to set up a virtqueue now we know its size
-	 * and we've got a pointer to its pages.
+	 * and we've got a pointer to its pages.  Note that we set weak_barriers
+	 * to 'true': the host just a(nother) SMP CPU, so we only need inter-cpu
+	 * barriers.
 	 */
-	vq = vring_new_virtqueue(lvq->config.num, LGUEST_VRING_ALIGN,
-				 vdev, lvq->pages, lg_notify, callback, name);
+	vq = vring_new_virtqueue(lvq->config.num, LGUEST_VRING_ALIGN, vdev,
+				 true, lvq->pages, lg_notify, callback, name);
 	if (!vq) {
 		err = -ENOMEM;
 		goto unmap;
