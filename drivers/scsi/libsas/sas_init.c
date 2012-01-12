@@ -160,18 +160,22 @@ Undo_phys:
 
 int sas_unregister_ha(struct sas_ha_struct *sas_ha)
 {
-	unsigned long flags;
-
 	/* Set the state to unregistered to avoid further unchained
-	 * events to be queued
+	 * events to be queued, and flush any in-progress drainers
 	 */
-	spin_lock_irqsave(&sas_ha->state_lock, flags);
+	mutex_lock(&sas_ha->drain_mutex);
+	spin_lock_irq(&sas_ha->state_lock);
 	clear_bit(SAS_HA_REGISTERED, &sas_ha->state);
-	spin_unlock_irqrestore(&sas_ha->state_lock, flags);
-	sas_drain_work(sas_ha);
+	spin_unlock_irq(&sas_ha->state_lock);
+	__sas_drain_work(sas_ha);
+	mutex_unlock(&sas_ha->drain_mutex);
 
 	sas_unregister_ports(sas_ha);
-	sas_drain_work(sas_ha);
+
+	/* flush unregistration work */
+	mutex_lock(&sas_ha->drain_mutex);
+	__sas_drain_work(sas_ha);
+	mutex_unlock(&sas_ha->drain_mutex);
 
 	if (sas_ha->lldd_max_execute_num > 1) {
 		sas_shutdown_queue(sas_ha);
