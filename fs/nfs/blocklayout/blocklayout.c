@@ -490,6 +490,55 @@ cleanup:
 	return ret;
 }
 
+/* Find or create a zeroing page marked being writeback.
+ * Return ERR_PTR on error, NULL to indicate skip this page and page itself
+ * to indicate write out.
+ */
+static struct page *
+bl_find_get_zeroing_page(struct inode *inode, pgoff_t index,
+			struct pnfs_block_extent *cow_read)
+{
+	struct page *page;
+	int locked = 0;
+	page = find_get_page(inode->i_mapping, index);
+	if (page)
+		goto check_page;
+
+	page = find_or_create_page(inode->i_mapping, index, GFP_NOFS);
+	if (unlikely(!page)) {
+		dprintk("%s oom\n", __func__);
+		return ERR_PTR(-ENOMEM);
+	}
+	locked = 1;
+
+check_page:
+	/* PageDirty: Other will write this out
+	 * PageWriteback: Other is writing this out
+	 * PageUptodate: It was read before
+	 */
+	if (PageDirty(page) || PageWriteback(page)) {
+		print_page(page);
+		if (locked)
+			unlock_page(page);
+		page_cache_release(page);
+		return NULL;
+	}
+
+	if (!locked) {
+		lock_page(page);
+		locked = 1;
+		goto check_page;
+	}
+	if (!PageUptodate(page)) {
+		/* New page, readin or zero it */
+		init_page_for_write(page, cow_read);
+	}
+	set_page_writeback(page);
+	unlock_page(page);
+
+	return page;
+}
+
 static enum pnfs_try_status
 bl_write_pagelist(struct nfs_write_data *wdata, int sync)
 {
@@ -549,32 +598,13 @@ fill_invalid_ext:
 			dprintk("%s zero %dth page: index %lu isect %llu\n",
 				__func__, npg_zero, index,
 				(unsigned long long)isect);
-			page =
-			    find_or_create_page(wdata->inode->i_mapping, index,
-						GFP_NOFS);
-			if (!page) {
-				dprintk("%s oom\n", __func__);
-				wdata->pnfs_error = -ENOMEM;
+			page = bl_find_get_zeroing_page(wdata->inode, index,
+							cow_read);
+			if (unlikely(IS_ERR(page))) {
+				wdata->pnfs_error = PTR_ERR(page);
 				goto out;
-			}
-
-			/* PageDirty: Other will write this out
-			 * PageWriteback: Other is writing this out
-			 * PageUptodate: It was read before
-			 * sector_initialized: already written out
-			 */
-			if (PageDirty(page) || PageWriteback(page)) {
-				print_page(page);
-				unlock_page(page);
-				page_cache_release(page);
+			} else if (page == NULL)
 				goto next_page;
-			}
-			if (!PageUptodate(page)) {
-				/* New page, readin or zero it */
-				init_page_for_write(page, cow_read);
-			}
-			set_page_writeback(page);
-			unlock_page(page);
 
 			ret = bl_mark_sectors_init(be->be_inval, isect,
 						       PAGE_CACHE_SECTORS);
