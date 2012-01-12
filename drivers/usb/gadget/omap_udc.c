@@ -98,7 +98,7 @@ module_param (fifo_mode, uint, 0);
 MODULE_PARM_DESC (fifo_mode, "endpoint configuration");
 
 #ifdef	USE_DMA
-static unsigned use_dma = 1;
+static bool use_dma = 1;
 
 /* "modprobe omap_udc use_dma=y", or else as a kernel
  * boot parameter "omap_udc:use_dma=y"

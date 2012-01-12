@@ -148,7 +148,7 @@ static volatile int xdc_busy;
 static struct timer_list xd_watchdog_int;
 
 static volatile u_char xd_error;
-static int nodma = XD_DONT_USE_DMA;
+static bool nodma = XD_DONT_USE_DMA;
 
 static struct request_queue *xd_queue;
 

@@ -340,8 +340,8 @@ struct dsi_packet_sent_handler_data {
 static struct platform_device *dsi_pdev_map[MAX_NUM_DSI];
 
 #ifdef DEBUG
-static unsigned int dsi_perf;
-module_param_named(dsi_perf, dsi_perf, bool, 0644);
+static bool dsi_perf;
+module_param(dsi_perf, bool, 0644);
 #endif
 
 static inline struct dsi_data *dsi_get_dsidrv_data(struct platform_device *dsidev)

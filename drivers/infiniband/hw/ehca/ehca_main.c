@@ -59,16 +59,16 @@ MODULE_AUTHOR("Christoph Raisch <raisch@de.ibm.com>");
 MODULE_DESCRIPTION("IBM eServer HCA InfiniBand Device Driver");
 MODULE_VERSION(HCAD_VERSION);
 
-static int ehca_open_aqp1     = 0;
+static bool ehca_open_aqp1    = 0;
 static int ehca_hw_level      = 0;
-static int ehca_poll_all_eqs  = 1;
+static bool ehca_poll_all_eqs = 1;
 
 int ehca_debug_level   = 0;
 int ehca_nr_ports      = -1;
-int ehca_use_hp_mr     = 0;
+bool ehca_use_hp_mr    = 0;
 int ehca_port_act_time = 30;
 int ehca_static_rate   = -1;
-int ehca_scaling_code  = 0;
+bool ehca_scaling_code = 0;
 int ehca_lock_hcalls   = -1;
 int ehca_max_cq        = -1;
 int ehca_max_qp        = -1;

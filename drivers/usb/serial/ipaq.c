@@ -34,7 +34,7 @@
 #define DRIVER_DESC "USB PocketPC PDA driver"
 
 static __u16 product, vendor;
-static int debug;
+static bool debug;
 static int connect_retries = KP_RETRIES;
 static int initial_wait;
 

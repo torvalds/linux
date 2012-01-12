@@ -396,7 +396,7 @@ static inline void mmc_set_disable_delay(struct mmc_host *host,
 }
 
 /* Module parameter */
-extern int mmc_assume_removable;
+extern bool mmc_assume_removable;
 
 static inline int mmc_card_is_removable(struct mmc_host *host)
 {

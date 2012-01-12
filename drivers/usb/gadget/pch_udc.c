@@ -359,7 +359,7 @@ struct pch_udc_dev {
 static const char	ep0_string[] = "ep0in";
 static DEFINE_SPINLOCK(udc_stall_spinlock);	/* stall spin lock */
 struct pch_udc_dev *pch_udc;		/* pointer to device object */
-static int speed_fs;
+static bool speed_fs;
 module_param_named(speed_fs, speed_fs, bool, S_IRUGO);
 MODULE_PARM_DESC(speed_fs, "true for Full speed operation");
 

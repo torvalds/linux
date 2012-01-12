@@ -38,11 +38,11 @@
 #include "stk-webcam.h"
 
 
-static int hflip = 1;
+static bool hflip = 1;
 module_param(hflip, bool, 0444);
 MODULE_PARM_DESC(hflip, "Horizontal image flip (mirror). Defaults to 1");
 
-static int vflip = 1;
+static bool vflip = 1;
 module_param(vflip, bool, 0444);
 MODULE_PARM_DESC(vflip, "Vertical image flip. Defaults to 1");
 

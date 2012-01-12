@@ -63,8 +63,8 @@
 
 /*** Global Variables ***/
 
-static int debug;
-static int check_pselecd;
+static bool debug;
+static bool check_pselecd;
 
 unsigned int irq = LIRC_IRQ;
 unsigned int io = LIRC_PORT;

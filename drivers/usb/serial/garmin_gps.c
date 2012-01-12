@@ -42,7 +42,7 @@
 static int initial_mode = 1;
 
 /* debug flag */
-static int debug;
+static bool debug;
 
 #define GARMIN_VENDOR_ID             0x091E
 

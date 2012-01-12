@@ -46,10 +46,10 @@
 #include "cypress_m8.h"
 
 
-static int debug;
-static int stats;
+static bool debug;
+static bool stats;
 static int interval;
-static int unstable_bauds;
+static bool unstable_bauds;
 
 /*
  * Version Information

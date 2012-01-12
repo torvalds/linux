@@ -255,7 +255,7 @@ out:
 	return size;
 }
 
-static int itpm;
+static bool itpm;
 module_param(itpm, bool, 0444);
 MODULE_PARM_DESC(itpm, "Force iTPM workarounds (found on some Lenovo laptops)");
 
@@ -500,7 +500,7 @@ static irqreturn_t tis_int_handler(int dummy, void *dev_id)
 	return IRQ_HANDLED;
 }
 
-static int interrupts = 1;
+static bool interrupts = 1;
 module_param(interrupts, bool, 0444);
 MODULE_PARM_DESC(interrupts, "Enable interrupts");
 
@@ -828,7 +828,7 @@ static struct platform_driver tis_drv = {
 
 static struct platform_device *pdev;
 
-static int force;
+static bool force;
 module_param(force, bool, 0444);
 MODULE_PARM_DESC(force, "Force device probe rather than using ACPI entry");
 static int __init init_tis(void)

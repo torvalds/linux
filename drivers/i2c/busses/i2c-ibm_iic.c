@@ -51,11 +51,11 @@
 MODULE_DESCRIPTION("IBM IIC driver v" DRIVER_VERSION);
 MODULE_LICENSE("GPL");
 
-static int iic_force_poll;
+static bool iic_force_poll;
 module_param(iic_force_poll, bool, 0);
 MODULE_PARM_DESC(iic_force_poll, "Force polling mode");
 
-static int iic_force_fast;
+static bool iic_force_fast;
 module_param(iic_force_fast, bool, 0);
 MODULE_PARM_DESC(iic_force_fast, "Force fast mode (400 kHz)");
 

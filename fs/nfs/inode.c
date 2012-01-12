@@ -57,7 +57,7 @@
 #define NFS_64_BIT_INODE_NUMBERS_ENABLED	1
 
 /* Default is to see 64-bit inode numbers */
-static int enable_ino64 = NFS_64_BIT_INODE_NUMBERS_ENABLED;
+static bool enable_ino64 = NFS_64_BIT_INODE_NUMBERS_ENABLED;
 
 static void nfs_invalidate_inode(struct inode *);
 static int nfs_update_inode(struct inode *, struct nfs_fattr *);

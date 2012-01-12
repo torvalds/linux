@@ -52,7 +52,7 @@ struct highlander_i2c_dev {
 	size_t			buf_len;
 };
 
-static int iic_force_poll, iic_force_normal;
+static bool iic_force_poll, iic_force_normal;
 static int iic_timeout = 1000, iic_read_delay;
 
 static inline void highlander_i2c_irq_enable(struct highlander_i2c_dev *dev)

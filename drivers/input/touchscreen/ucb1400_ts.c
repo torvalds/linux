@@ -30,7 +30,7 @@
 
 #define UCB1400_TS_POLL_PERIOD	10 /* ms */
 
-static int adcsync;
+static bool adcsync;
 static int ts_delay = 55; /* us */
 static int ts_delay_pressure;	/* us */
 

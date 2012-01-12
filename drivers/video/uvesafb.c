@@ -44,11 +44,11 @@ static struct fb_fix_screeninfo uvesafb_fix __devinitdata = {
 };
 
 static int mtrr		__devinitdata = 3; /* enable mtrr by default */
-static int blank	= 1;		   /* enable blanking by default */
+static bool blank	= 1;		   /* enable blanking by default */
 static int ypan		= 1; 		 /* 0: scroll, 1: ypan, 2: ywrap */
 static bool pmi_setpal	__devinitdata = true; /* use PMI for palette changes */
-static int nocrtc	__devinitdata; /* ignore CRTC settings */
-static int noedid	__devinitdata; /* don't try DDC transfers */
+static bool nocrtc	__devinitdata; /* ignore CRTC settings */
+static bool noedid	__devinitdata; /* don't try DDC transfers */
 static int vram_remap	__devinitdata; /* set amt. of memory to be used */
 static int vram_total	__devinitdata; /* set total amount of memory */
 static u16 maxclk	__devinitdata; /* maximum pixel clock */
