@@ -725,9 +725,9 @@ static int try_stop_module(struct module *mod, int flags, int *forced)
 	}
 }
 
-unsigned int module_refcount(struct module *mod)
+unsigned long module_refcount(struct module *mod)
 {
-	unsigned int incs = 0, decs = 0;
+	unsigned long incs = 0, decs = 0;
 	int cpu;
 
 	for_each_possible_cpu(cpu)
@@ -853,7 +853,7 @@ static inline void print_unload_info(struct seq_file *m, struct module *mod)
 	struct module_use *use;
 	int printed_something = 0;
 
-	seq_printf(m, " %u ", module_refcount(mod));
+	seq_printf(m, " %lu ", module_refcount(mod));
 
 	/* Always include a trailing , so userspace can differentiate
            between this and the old multi-field proc format. */
@@ -903,7 +903,7 @@ EXPORT_SYMBOL_GPL(symbol_put_addr);
 static ssize_t show_refcnt(struct module_attribute *mattr,
 			   struct module_kobject *mk, char *buffer)
 {
-	return sprintf(buffer, "%u\n", module_refcount(mk->mod));
+	return sprintf(buffer, "%lu\n", module_refcount(mk->mod));
 }
 
 static struct module_attribute refcnt = {
