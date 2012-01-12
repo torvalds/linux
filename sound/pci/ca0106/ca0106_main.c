@@ -156,7 +156,7 @@ MODULE_SUPPORTED_DEVICE("{{Creative,SB CA0106 chip}}");
 // module parameters (see "Module Parameters")
 static int index[SNDRV_CARDS] = SNDRV_DEFAULT_IDX;
 static char *id[SNDRV_CARDS] = SNDRV_DEFAULT_STR;
-static int enable[SNDRV_CARDS] = SNDRV_DEFAULT_ENABLE_PNP;
+static bool enable[SNDRV_CARDS] = SNDRV_DEFAULT_ENABLE_PNP;
 static uint subsystem[SNDRV_CARDS]; /* Force card subsystem model */
 
 module_param_array(index, int, NULL, 0444);

@@ -155,6 +155,16 @@ config SND_DYNAMIC_MINORS
 
 	  If you are unsure about this, say N here.
 
+config SND_COMPRESS_OFFLOAD
+	tristate "ALSA Compressed audio offload support"
+	default n
+	help
+	  If you want support for offloading compressed audio and have such
+	  a hardware, then you should say Y here and also to the DSP driver
+	  of your platform.
+
+	  If you are unsure about this, say N here.
+
 config SND_SUPPORT_OLD_API
 	bool "Support old ALSA API"
 	default y
