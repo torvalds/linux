@@ -791,18 +791,6 @@ static int storvsc_do_io(struct hv_device *device,
 	return ret;
 }
 
-static void storvsc_get_ide_info(struct hv_device *dev, int *target, int *path)
-{
-	*target =
-		dev->dev_instance.b[5] << 8 | dev->dev_instance.b[4];
-
-	*path =
-		dev->dev_instance.b[3] << 24 |
-		dev->dev_instance.b[2] << 16 |
-		dev->dev_instance.b[1] << 8  | dev->dev_instance.b[0];
-}
-
-
 static int storvsc_device_alloc(struct scsi_device *sdevice)
 {
 	struct stor_mem_pools *memp;
@@ -1457,7 +1445,6 @@ static int storvsc_probe(struct hv_device *device,
 	struct Scsi_Host *host;
 	struct hv_host_device *host_dev;
 	bool dev_is_ide = ((dev_id->driver_data == IDE_GUID) ? true : false);
-	int path = 0;
 	int target = 0;
 	struct storvsc_device *stor_device;
 
@@ -1490,9 +1477,6 @@ static int storvsc_probe(struct hv_device *device,
 	if (ret)
 		goto err_out1;
 
-	if (dev_is_ide)
-		storvsc_get_ide_info(device, &target, &path);
-
 	host_dev->path = stor_device->path_id;
 	host_dev->target = stor_device->target_id;
 
@@ -1512,12 +1496,14 @@ static int storvsc_probe(struct hv_device *device,
 
 	if (!dev_is_ide) {
 		scsi_scan_host(host);
-		return 0;
-	}
-	ret = scsi_add_device(host, 0, target, 0);
-	if (ret) {
-		scsi_remove_host(host);
-		goto err_out2;
+	} else {
+		target = (device->dev_instance.b[5] << 8 |
+			 device->dev_instance.b[4]);
+		ret = scsi_add_device(host, 0, target, 0);
+		if (ret) {
+			scsi_remove_host(host);
+			goto err_out2;
+		}
 	}
 	return 0;
 
