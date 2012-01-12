@@ -449,7 +449,7 @@ static void rcu_report_exp_rnp(struct rcu_state *rsp, struct rcu_node *rnp,
 			       bool wake);
 #endif /* #if defined(CONFIG_HOTPLUG_CPU) || defined(CONFIG_TREE_PREEMPT_RCU) */
 static int rcu_preempt_pending(int cpu);
-static int rcu_preempt_needs_cpu(int cpu);
+static int rcu_preempt_cpu_has_callbacks(int cpu);
 static void __cpuinit rcu_preempt_init_percpu_data(int cpu);
 static void rcu_preempt_cleanup_dying_cpu(void);
 static void __init __rcu_init_preempt(void);
