@@ -131,7 +131,7 @@ static mh_filter_t __rcu *mh_filter __read_mostly;
 
 int rawv6_mh_filter_register(mh_filter_t filter)
 {
-	RCU_INIT_POINTER(mh_filter, filter);
+	rcu_assign_pointer(mh_filter, filter);
 	return 0;
 }
 EXPORT_SYMBOL(rawv6_mh_filter_register);
