@@ -157,10 +157,10 @@ static int _preload_range(struct pnfs_inval_markings *marks,
 			goto out_cleanup;
 	}
 
-	spin_lock(&marks->im_lock);
+	spin_lock_bh(&marks->im_lock);
 	for (s = start; s < end; s += tree->mtt_step_size)
 		used += _add_entry(tree, s, INTERNAL_EXISTS, storage[used]);
-	spin_unlock(&marks->im_lock);
+	spin_unlock_bh(&marks->im_lock);
 
 	status = 0;
 
@@ -179,9 +179,9 @@ int bl_is_sector_init(struct pnfs_inval_markings *marks, sector_t isect)
 {
 	int rv;
 
-	spin_lock(&marks->im_lock);
+	spin_lock_bh(&marks->im_lock);
 	rv = _has_tag(&marks->im_tree, isect, EXTENT_INITIALIZED);
-	spin_unlock(&marks->im_lock);
+	spin_unlock_bh(&marks->im_lock);
 	return rv;
 }
 
@@ -221,9 +221,9 @@ static int is_range_written(struct pnfs_inval_markings *marks,
 {
 	int rv;
 
-	spin_lock(&marks->im_lock);
+	spin_lock_bh(&marks->im_lock);
 	rv = _range_has_tag(&marks->im_tree, start, end, EXTENT_WRITTEN);
-	spin_unlock(&marks->im_lock);
+	spin_unlock_bh(&marks->im_lock);
 	return rv;
 }
 
@@ -244,15 +244,15 @@ int bl_mark_sectors_init(struct pnfs_inval_markings *marks,
 	if (_preload_range(marks, start, end - start))
 		goto outerr;
 
-	spin_lock(&marks->im_lock);
+	spin_lock_bh(&marks->im_lock);
 	if (_set_range(&marks->im_tree, EXTENT_INITIALIZED, offset, length))
 		goto out_unlock;
-	spin_unlock(&marks->im_lock);
+	spin_unlock_bh(&marks->im_lock);
 
 	return 0;
 
 out_unlock:
-	spin_unlock(&marks->im_lock);
+	spin_unlock_bh(&marks->im_lock);
 outerr:
 	return -ENOMEM;
 }
@@ -267,9 +267,9 @@ static int mark_written_sectors(struct pnfs_inval_markings *marks,
 
 	dprintk("%s(offset=%llu,len=%llu) enter\n", __func__,
 		(u64)offset, (u64)length);
-	spin_lock(&marks->im_lock);
+	spin_lock_bh(&marks->im_lock);
 	status = _set_range(&marks->im_tree, EXTENT_WRITTEN, offset, length);
-	spin_unlock(&marks->im_lock);
+	spin_unlock_bh(&marks->im_lock);
 	return status;
 }
 
@@ -369,19 +369,17 @@ static void add_to_commitlist(struct pnfs_block_layout *bl,
 
 /* Note the range described by offset, length is guaranteed to be contained
  * within be.
+ * new will be freed, either by this function or add_to_commitlist if they
+ * decide not to use it, or after LAYOUTCOMMIT uses it in the commitlist.
  */
 int bl_mark_for_commit(struct pnfs_block_extent *be,
-		    sector_t offset, sector_t length)
+		    sector_t offset, sector_t length,
+		    struct pnfs_block_short_extent *new)
 {
 	sector_t new_end, end = offset + length;
-	struct pnfs_block_short_extent *new;
 	struct pnfs_block_layout *bl = container_of(be->be_inval,
 						    struct pnfs_block_layout,
 						    bl_inval);
-
-	new = kmalloc(sizeof(*new), GFP_NOFS);
-	if (!new)
-		return -ENOMEM;
 
 	mark_written_sectors(be->be_inval, offset, length);
 	/* We want to add the range to commit list, but it must be
@@ -412,9 +410,6 @@ int bl_mark_for_commit(struct pnfs_block_extent *be,
 	new->bse_mdev = be->be_mdev;
 
 	spin_lock(&bl->bl_ext_lock);
-	/* new will be freed, either by add_to_commitlist if it decides not
-	 * to use it, or after LAYOUTCOMMIT uses it in the commitlist.
-	 */
 	add_to_commitlist(bl, new);
 	spin_unlock(&bl->bl_ext_lock);
 	return 0;
@@ -861,4 +856,54 @@ clean_pnfs_block_layoutupdate(struct pnfs_block_layout *bl,
 			spin_unlock(&bl->bl_ext_lock);
 		}
 	}
+}
+
+int bl_push_one_short_extent(struct pnfs_inval_markings *marks)
+{
+	struct pnfs_block_short_extent *new;
+
+	new = kmalloc(sizeof(*new), GFP_NOFS);
+	if (unlikely(!new))
+		return -ENOMEM;
+
+	spin_lock_bh(&marks->im_lock);
+	list_add(&new->bse_node, &marks->im_extents);
+	spin_unlock_bh(&marks->im_lock);
+
+	return 0;
+}
+
+struct pnfs_block_short_extent *
+bl_pop_one_short_extent(struct pnfs_inval_markings *marks)
+{
+	struct pnfs_block_short_extent *rv = NULL;
+
+	spin_lock_bh(&marks->im_lock);
+	if (!list_empty(&marks->im_extents)) {
+		rv = list_entry((&marks->im_extents)->next,
+				struct pnfs_block_short_extent, bse_node);
+		list_del_init(&rv->bse_node);
+	}
+	spin_unlock_bh(&marks->im_lock);
+
+	return rv;
+}
+
+void bl_free_short_extents(struct pnfs_inval_markings *marks, int num_to_free)
+{
+	struct pnfs_block_short_extent *se = NULL, *tmp;
+
+	if (num_to_free <= 0)
+		return;
+
+	spin_lock(&marks->im_lock);
+	list_for_each_entry_safe(se, tmp, &marks->im_extents, bse_node) {
+		list_del(&se->bse_node);
+		kfree(se);
+		if (--num_to_free == 0)
+			break;
+	}
+	spin_unlock(&marks->im_lock);
+
+	BUG_ON(num_to_free > 0);
 }

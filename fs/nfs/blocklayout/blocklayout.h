@@ -70,6 +70,7 @@ struct pnfs_inval_markings {
 	spinlock_t	im_lock;
 	struct my_tree	im_tree;	/* Sectors that need LAYOUTCOMMIT */
 	sector_t	im_block_size;	/* Server blocksize in sectors */
+	struct list_head im_extents;	/* Short extents for INVAL->RW conversion */
 };
 
 struct pnfs_inval_tracking {
@@ -105,6 +106,7 @@ BL_INIT_INVAL_MARKS(struct pnfs_inval_markings *marks, sector_t blocksize)
 {
 	spin_lock_init(&marks->im_lock);
 	INIT_LIST_HEAD(&marks->im_tree.mtt_stub);
+	INIT_LIST_HEAD(&marks->im_extents);
 	marks->im_block_size = blocksize;
 	marks->im_tree.mtt_step_size = min((sector_t)PAGE_CACHE_SECTORS,
 					   blocksize);
@@ -199,6 +201,11 @@ void clean_pnfs_block_layoutupdate(struct pnfs_block_layout *bl,
 int bl_add_merge_extent(struct pnfs_block_layout *bl,
 			 struct pnfs_block_extent *new);
 int bl_mark_for_commit(struct pnfs_block_extent *be,
-			sector_t offset, sector_t length);
+			sector_t offset, sector_t length,
+			struct pnfs_block_short_extent *new);
+int bl_push_one_short_extent(struct pnfs_inval_markings *marks);
+struct pnfs_block_short_extent *
+bl_pop_one_short_extent(struct pnfs_inval_markings *marks);
+void bl_free_short_extents(struct pnfs_inval_markings *marks, int num_to_free);
 
 #endif /* FS_NFS_NFS4BLOCKLAYOUT_H */
