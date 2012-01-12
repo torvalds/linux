@@ -275,7 +275,7 @@ struct hv_storvsc_request {
 	struct completion wait_event;
 
 	unsigned char *sense_buffer;
-	void *context;
+	struct storvsc_cmd_request  *cmd;
 	struct hv_multipage_buffer data_buffer;
 
 	struct vstor_packet vstor_packet;
@@ -785,8 +785,7 @@ cleanup:
 
 static void storvsc_command_completion(struct hv_storvsc_request *request)
 {
-	struct storvsc_cmd_request *cmd_request =
-		(struct storvsc_cmd_request *)request->context;
+	struct storvsc_cmd_request *cmd_request = request->cmd;
 	struct scsi_cmnd *scmnd = cmd_request->cmd;
 	struct hv_host_device *host_dev = shost_priv(scmnd->device->host);
 	void (*scsi_done_fn)(struct scsi_cmnd *);
@@ -1315,7 +1314,7 @@ static int storvsc_queuecommand(struct Scsi_Host *host, struct scsi_cmnd *scmnd)
 		break;
 	}
 
-	request->context = cmd_request;/* scmnd; */
+	request->cmd = cmd_request;
 
 	vm_srb->port_number = host_dev->port;
 	vm_srb->path_id = scmnd->device->channel;
