@@ -835,4 +835,3 @@ module_exit(s5m8767_pmic_exit);
 MODULE_AUTHOR("Sangbeom Kim <sbkim73@samsung.com>");
 MODULE_DESCRIPTION("SAMSUNG S5M8767 Regulator Driver");
 MODULE_LICENSE("GPL");
-MODULE_ALIAS("platform:s5m8767-pmic");
