@@ -1075,6 +1075,10 @@ static int sd_ioctl(struct block_device *bdev, fmode_t mode,
 	SCSI_LOG_IOCTL(1, sd_printk(KERN_INFO, sdkp, "sd_ioctl: disk=%s, "
 				    "cmd=0x%x\n", disk->disk_name, cmd));
 
+	error = scsi_verify_blk_ioctl(bdev, cmd);
+	if (error < 0)
+		return error;
+
 	/*
 	 * If we are in the middle of error recovery, don't let anyone
 	 * else try and use this device.  Also, if error recovery fails, it
@@ -1267,6 +1271,11 @@ static int sd_compat_ioctl(struct block_device *bdev, fmode_t mode,
 			   unsigned int cmd, unsigned long arg)
 {
 	struct scsi_device *sdev = scsi_disk(bdev->bd_disk)->device;
+	int ret;
+
+	ret = scsi_verify_blk_ioctl(bdev, cmd);
+	if (ret < 0)
+		return ret;
 
 	/*
 	 * If we are in the middle of error recovery, don't let anyone
@@ -1278,8 +1287,6 @@ static int sd_compat_ioctl(struct block_device *bdev, fmode_t mode,
 		return -ENODEV;
 	       
 	if (sdev->host->hostt->compat_ioctl) {
-		int ret;
-
 		ret = sdev->host->hostt->compat_ioctl(sdev, cmd, (void __user *)arg);
 
 		return ret;
