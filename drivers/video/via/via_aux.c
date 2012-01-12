@@ -60,9 +60,29 @@ void via_aux_free(struct via_aux_bus *bus)
 		return;
 
 	list_for_each_entry_safe(pos, n, &bus->drivers, chain) {
+		if (pos->cleanup)
+			pos->cleanup(pos);
+
 		list_del(&pos->chain);
+		kfree(pos->data);
 		kfree(pos);
 	}
 
 	kfree(bus);
+}
+
+const struct fb_videomode *via_aux_get_preferred_mode(struct via_aux_bus *bus)
+{
+	struct via_aux_drv *pos;
+	const struct fb_videomode *mode = NULL;
+
+	if (!bus)
+		return NULL;
+
+	list_for_each_entry(pos, &bus->drivers, chain) {
+		if (pos->get_preferred_mode)
+			mode = pos->get_preferred_mode(pos);
+	}
+
+	return mode;
 }

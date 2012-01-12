@@ -1671,12 +1671,23 @@ static void viafb_remove_proc(struct viafb_shared *shared)
 }
 #undef IS_VT1636
 
-static int parse_mode(const char *str, u32 *xres, u32 *yres)
+static int parse_mode(const char *str, u32 devices, u32 *xres, u32 *yres)
 {
+	const struct fb_videomode *mode = NULL;
 	char *ptr;
 
 	if (!str) {
-		if (machine_is_olpc()) {
+		if (devices == VIA_CRT)
+			mode = via_aux_get_preferred_mode(
+				viaparinfo->shared->i2c_26);
+		else if (devices == VIA_DVP1)
+			mode = via_aux_get_preferred_mode(
+				viaparinfo->shared->i2c_31);
+
+		if (mode) {
+			*xres = mode->xres;
+			*yres = mode->yres;
+		} else if (machine_is_olpc()) {
 			*xres = 1200;
 			*yres = 900;
 		} else {
@@ -1829,10 +1840,11 @@ int __devinit via_fb_pci_probe(struct viafb_dev *vdev)
 			viafb_second_size * 1024 * 1024;
 	}
 
-	parse_mode(viafb_mode, &default_xres, &default_yres);
+	parse_mode(viafb_mode, viaparinfo->shared->iga1_devices,
+		&default_xres, &default_yres);
 	if (viafb_SAMM_ON == 1)
-		parse_mode(viafb_mode1, &viafb_second_xres,
-			&viafb_second_yres);
+		parse_mode(viafb_mode1, viaparinfo->shared->iga2_devices,
+			&viafb_second_xres, &viafb_second_yres);
 
 	default_var.xres = default_xres;
 	default_var.yres = default_yres;
@@ -2060,9 +2072,9 @@ int __init viafb_init(void)
 	if (r < 0)
 		return r;
 #endif
-	if (parse_mode(viafb_mode, &dummy_x, &dummy_y)
+	if (parse_mode(viafb_mode, 0, &dummy_x, &dummy_y)
 		|| !viafb_get_best_mode(dummy_x, dummy_y, viafb_refresh)
-		|| parse_mode(viafb_mode1, &dummy_x, &dummy_y)
+		|| parse_mode(viafb_mode1, 0, &dummy_x, &dummy_y)
 		|| !viafb_get_best_mode(dummy_x, dummy_y, viafb_refresh1)
 		|| viafb_bpp < 0 || viafb_bpp > 32
 		|| viafb_bpp1 < 0 || viafb_bpp1 > 32

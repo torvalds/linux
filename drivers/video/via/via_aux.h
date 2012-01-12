@@ -27,6 +27,7 @@
 
 #include <linux/list.h>
 #include <linux/i2c.h>
+#include <linux/fb.h>
 
 
 struct via_aux_bus {
@@ -42,11 +43,16 @@ struct via_aux_drv {
 
 	const char *name;	/* human readable name of the driver */
 	void *data;		/* private data of this driver */
+
+	void (*cleanup)(struct via_aux_drv *drv);
+	const struct fb_videomode* (*get_preferred_mode)
+		(struct via_aux_drv *drv);
 };
 
 
 struct via_aux_bus *via_aux_probe(struct i2c_adapter *adap);
 void via_aux_free(struct via_aux_bus *bus);
+const struct fb_videomode *via_aux_get_preferred_mode(struct via_aux_bus *bus);
 
 
 static inline bool via_aux_add(struct via_aux_drv *drv)
