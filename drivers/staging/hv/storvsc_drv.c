@@ -1239,13 +1239,16 @@ static void storvsc_command_completion(struct hv_storvsc_request *request)
 	mempool_free(cmd_request, memp->request_mempool);
 }
 
-static bool storvsc_check_scsi_cmd(struct scsi_cmnd *scmnd)
+static bool storvsc_scsi_cmd_ok(struct scsi_cmnd *scmnd)
 {
 	bool allowed = true;
 	u8 scsi_op = scmnd->cmnd[0];
 
 	switch (scsi_op) {
-	/* smartd sends this command, which will offline the device */
+	/*
+	 * smartd sends this command and the host does not handle
+	 * this. So, don't send it.
+	 */
 	case SET_WINDOW:
 		scmnd->result = ILLEGAL_REQUEST << 16;
 		allowed = false;
@@ -1270,32 +1273,26 @@ static int storvsc_queuecommand(struct Scsi_Host *host, struct scsi_cmnd *scmnd)
 	struct vmscsi_request *vm_srb;
 	struct stor_mem_pools *memp = scmnd->device->hostdata;
 
-	if (storvsc_check_scsi_cmd(scmnd) == false) {
+	if (!storvsc_scsi_cmd_ok(scmnd)) {
 		scmnd->scsi_done(scmnd);
 		return 0;
-	}
-
-	/* If retrying, no need to prep the cmd */
-	if (scmnd->host_scribble) {
-
-		cmd_request =
-			(struct storvsc_cmd_request *)scmnd->host_scribble;
-
-		goto retry_request;
 	}
 
 	request_size = sizeof(struct storvsc_cmd_request);
 
 	cmd_request = mempool_alloc(memp->request_mempool,
 				       GFP_ATOMIC);
+
+	/*
+	 * We might be invoked in an interrupt context; hence
+	 * mempool_alloc() can fail.
+	 */
 	if (!cmd_request)
 		return SCSI_MLQUEUE_DEVICE_BUSY;
 
 	memset(cmd_request, 0, sizeof(struct storvsc_cmd_request));
 
 	/* Setup the cmd request */
-	cmd_request->bounce_sgl_count = 0;
-	cmd_request->bounce_sgl = NULL;
 	cmd_request->cmd = scmnd;
 
 	scmnd->host_scribble = (unsigned char *)cmd_request;
@@ -1344,11 +1341,8 @@ static int storvsc_queuecommand(struct Scsi_Host *host, struct scsi_cmnd *scmnd)
 						     scsi_bufflen(scmnd),
 						     vm_srb->data_in);
 			if (!cmd_request->bounce_sgl) {
-				scmnd->host_scribble = NULL;
-				mempool_free(cmd_request,
-						memp->request_mempool);
-
-				return SCSI_MLQUEUE_HOST_BUSY;
+				ret = SCSI_MLQUEUE_HOST_BUSY;
+				goto queue_error;
 			}
 
 			cmd_request->bounce_sgl_count =
@@ -1377,24 +1371,26 @@ static int storvsc_queuecommand(struct Scsi_Host *host, struct scsi_cmnd *scmnd)
 			virt_to_phys(scsi_sglist(scmnd)) >> PAGE_SHIFT;
 	}
 
-retry_request:
 	/* Invokes the vsc to start an IO */
 	ret = storvsc_do_io(dev, &cmd_request->request);
 
 	if (ret == -EAGAIN) {
 		/* no more space */
 
-		if (cmd_request->bounce_sgl_count)
+		if (cmd_request->bounce_sgl_count) {
 			destroy_bounce_buffer(cmd_request->bounce_sgl,
 					cmd_request->bounce_sgl_count);
 
-		mempool_free(cmd_request, memp->request_mempool);
-
-		scmnd->host_scribble = NULL;
-
-		ret = SCSI_MLQUEUE_DEVICE_BUSY;
+			ret = SCSI_MLQUEUE_DEVICE_BUSY;
+			goto queue_error;
+		}
 	}
 
+	return 0;
+
+queue_error:
+	mempool_free(cmd_request, memp->request_mempool);
+	scmnd->host_scribble = NULL;
 	return ret;
 }
 
