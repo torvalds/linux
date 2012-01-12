@@ -139,11 +139,13 @@ static int _set_range(struct my_tree *tree, int32_t tag, u64 s, u64 length)
 }
 
 /* Ensure that future operations on given range of tree will not malloc */
-static int _preload_range(struct my_tree *tree, u64 offset, u64 length)
+static int _preload_range(struct pnfs_inval_markings *marks,
+		u64 offset, u64 length)
 {
 	u64 start, end, s;
 	int count, i, used = 0, status = -ENOMEM;
 	struct pnfs_inval_tracking **storage;
+	struct my_tree  *tree = &marks->im_tree;
 
 	dprintk("%s(%llu, %llu) enter\n", __func__, offset, length);
 	start = normalize(offset, tree->mtt_step_size);
@@ -161,12 +163,11 @@ static int _preload_range(struct my_tree *tree, u64 offset, u64 length)
 			goto out_cleanup;
 	}
 
-	/* Now need lock - HOW??? */
-
+	spin_lock(&marks->im_lock);
 	for (s = start; s < end; s += tree->mtt_step_size)
 		used += _add_entry(tree, s, INTERNAL_EXISTS, storage[used]);
+	spin_unlock(&marks->im_lock);
 
-	/* Unlock - HOW??? */
 	status = 0;
 
  out_cleanup:
@@ -286,7 +287,7 @@ int bl_mark_sectors_init(struct pnfs_inval_markings *marks,
 
 	start = normalize(offset, marks->im_block_size);
 	end = normalize_up(offset + length, marks->im_block_size);
-	if (_preload_range(&marks->im_tree, start, end - start))
+	if (_preload_range(marks, start, end - start))
 		goto outerr;
 
 	spin_lock(&marks->im_lock);
