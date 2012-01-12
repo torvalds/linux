@@ -215,14 +215,14 @@ struct simple_arg {
 	int type;
 	union {
 		struct {
-			int mode;
+			umode_t mode;
 			struct nameidata *nd;
 		} c;
 		struct {
 			const char *symname;
 		} s;
 		struct {
-			int mode;
+			umode_t mode;
 			dev_t dev;
 		} m;
 	} u;
@@ -309,7 +309,7 @@ out:
 	return err;
 }
 
-int aufs_mknod(struct inode *dir, struct dentry *dentry, int mode, dev_t dev)
+int aufs_mknod(struct inode *dir, struct dentry *dentry, umode_t mode, dev_t dev)
 {
 	struct simple_arg arg = {
 		.type = Mknod,
@@ -330,7 +330,7 @@ int aufs_symlink(struct inode *dir, struct dentry *dentry, const char *symname)
 	return add_simple(dir, dentry, &arg);
 }
 
-int aufs_create(struct inode *dir, struct dentry *dentry, int mode,
+int aufs_create(struct inode *dir, struct dentry *dentry, umode_t mode,
 		struct nameidata *nd)
 {
 	struct simple_arg arg = {
@@ -602,7 +602,7 @@ out:
 	return err;
 }
 
-int aufs_mkdir(struct inode *dir, struct dentry *dentry, int mode)
+int aufs_mkdir(struct inode *dir, struct dentry *dentry, umode_t mode)
 {
 	int err, rerr;
 	aufs_bindex_t bindex;
