@@ -49,7 +49,7 @@
 #include <linux/virtio_rng.h>
 #include <linux/virtio_ring.h>
 #include <asm/bootparam.h>
-#include "../../../include/linux/lguest_launcher.h"
+#include "../../include/linux/lguest_launcher.h"
 /*L:110
  * We can ignore the 43 include files we need for this program, but I do want
  * to draw attention to the use of kernel-style types.
