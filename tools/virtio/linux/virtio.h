@@ -186,21 +186,12 @@ struct virtqueue {
 #endif
 
 /* Interfaces exported by virtio_ring. */
-int virtqueue_add_buf_gfp(struct virtqueue *vq,
-			  struct scatterlist sg[],
-			  unsigned int out_num,
-			  unsigned int in_num,
-			  void *data,
-			  gfp_t gfp);
-
-static inline int virtqueue_add_buf(struct virtqueue *vq,
-				    struct scatterlist sg[],
-				    unsigned int out_num,
-				    unsigned int in_num,
-				    void *data)
-{
-	return virtqueue_add_buf_gfp(vq, sg, out_num, in_num, data, GFP_ATOMIC);
-}
+int virtqueue_add_buf(struct virtqueue *vq,
+		      struct scatterlist sg[],
+		      unsigned int out_num,
+		      unsigned int in_num,
+		      void *data,
+		      gfp_t gfp);
 
 void virtqueue_kick(struct virtqueue *vq);
 

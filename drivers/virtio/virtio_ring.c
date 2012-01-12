@@ -167,7 +167,7 @@ static int vring_add_indirect(struct vring_virtqueue *vq,
 }
 
 /**
- * virtqueue_add_buf_gfp - expose buffer to other end
+ * virtqueue_add_buf - expose buffer to other end
  * @vq: the struct virtqueue we're talking about.
  * @sg: the description of the buffer(s).
  * @out_num: the number of sg readable by other side
@@ -183,12 +183,12 @@ static int vring_add_indirect(struct vring_virtqueue *vq,
  * positive return values as "available": indirect buffers mean that
  * we can put an entire sg[] array inside a single queue entry.
  */
-int virtqueue_add_buf_gfp(struct virtqueue *_vq,
-			  struct scatterlist sg[],
-			  unsigned int out,
-			  unsigned int in,
-			  void *data,
-			  gfp_t gfp)
+int virtqueue_add_buf(struct virtqueue *_vq,
+		      struct scatterlist sg[],
+		      unsigned int out,
+		      unsigned int in,
+		      void *data,
+		      gfp_t gfp)
 {
 	struct vring_virtqueue *vq = to_vvq(_vq);
 	unsigned int i, avail, uninitialized_var(prev);
@@ -259,13 +259,13 @@ add_head:
 
 	return vq->num_free;
 }
-EXPORT_SYMBOL_GPL(virtqueue_add_buf_gfp);
+EXPORT_SYMBOL_GPL(virtqueue_add_buf);
 
 /**
  * virtqueue_kick - update after add_buf
  * @vq: the struct virtqueue
  *
- * After one or more virtqueue_add_buf_gfp calls, invoke this to kick
+ * After one or more virtqueue_add_buf calls, invoke this to kick
  * the other side.
  *
  * Caller must ensure we don't call this with other virtqueue
@@ -341,7 +341,7 @@ static inline bool more_used(const struct vring_virtqueue *vq)
  * operations at the same time (except where noted).
  *
  * Returns NULL if there are no used buffers, or the "data" token
- * handed to virtqueue_add_buf_gfp().
+ * handed to virtqueue_add_buf().
  */
 void *virtqueue_get_buf(struct virtqueue *_vq, unsigned int *len)
 {
@@ -490,7 +490,7 @@ EXPORT_SYMBOL_GPL(virtqueue_enable_cb_delayed);
  * virtqueue_detach_unused_buf - detach first unused buffer
  * @vq: the struct virtqueue we're talking about.
  *
- * Returns NULL or the "data" token handed to virtqueue_add_buf_gfp().
+ * Returns NULL or the "data" token handed to virtqueue_add_buf().
  * This is not valid on an active queue; it is useful only for device
  * shutdown.
  */
