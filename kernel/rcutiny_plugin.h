@@ -914,7 +914,8 @@ static void rcu_preempt_process_callbacks(void)
 static void invoke_rcu_callbacks(void)
 {
 	have_rcu_kthread_work = 1;
-	wake_up(&rcu_kthread_wq);
+	if (rcu_kthread_task != NULL)
+		wake_up(&rcu_kthread_wq);
 }
 
 #ifdef CONFIG_RCU_TRACE
@@ -975,12 +976,16 @@ early_initcall(rcu_spawn_kthreads);
 
 #else /* #ifdef CONFIG_RCU_BOOST */
 
+/* Hold off callback invocation until early_initcall() time. */
+static int rcu_scheduler_fully_active __read_mostly;
+
 /*
  * Start up softirq processing of callbacks.
  */
 void invoke_rcu_callbacks(void)
 {
-	raise_softirq(RCU_SOFTIRQ);
+	if (rcu_scheduler_fully_active)
+		raise_softirq(RCU_SOFTIRQ);
 }
 
 #ifdef CONFIG_RCU_TRACE
@@ -995,10 +1000,14 @@ static bool rcu_is_callbacks_kthread(void)
 
 #endif /* #ifdef CONFIG_RCU_TRACE */
 
-void rcu_init(void)
+static int __init rcu_scheduler_really_started(void)
 {
+	rcu_scheduler_fully_active = 1;
 	open_softirq(RCU_SOFTIRQ, rcu_process_callbacks);
+	raise_softirq(RCU_SOFTIRQ);  /* Invoke any callbacks from early boot. */
+	return 0;
 }
+early_initcall(rcu_scheduler_really_started);
 
 #endif /* #else #ifdef CONFIG_RCU_BOOST */
 
