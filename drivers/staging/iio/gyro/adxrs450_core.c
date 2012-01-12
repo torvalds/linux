@@ -381,18 +381,7 @@ static struct spi_driver adxrs450_driver = {
 	.probe = adxrs450_probe,
 	.remove = __devexit_p(adxrs450_remove),
 };
-
-static __init int adxrs450_init(void)
-{
-	return spi_register_driver(&adxrs450_driver);
-}
-module_init(adxrs450_init);
-
-static __exit void adxrs450_exit(void)
-{
-	spi_unregister_driver(&adxrs450_driver);
-}
-module_exit(adxrs450_exit);
+module_spi_driver(adxrs450_driver);
 
 MODULE_AUTHOR("Cliff Cai <cliff.cai@xxxxxxxxxx>");
 MODULE_DESCRIPTION("Analog Devices ADXRS450 Gyroscope SPI driver");

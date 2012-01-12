@@ -927,15 +927,4 @@ static struct usb_driver iowarrior_driver = {
 	.id_table = iowarrior_ids,
 };
 
-static int __init iowarrior_init(void)
-{
-	return usb_register(&iowarrior_driver);
-}
-
-static void __exit iowarrior_exit(void)
-{
-	usb_deregister(&iowarrior_driver);
-}
-
-module_init(iowarrior_init);
-module_exit(iowarrior_exit);
+module_usb_driver(iowarrior_driver);

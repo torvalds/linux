@@ -16,6 +16,7 @@
 #define _DEBUGFS_H_
 
 #include <linux/fs.h>
+#include <linux/seq_file.h>
 
 #include <linux/types.h>
 
@@ -24,6 +25,17 @@ struct file_operations;
 struct debugfs_blob_wrapper {
 	void *data;
 	unsigned long size;
+};
+
+struct debugfs_reg32 {
+	char *name;
+	unsigned long offset;
+};
+
+struct debugfs_regset32 {
+	struct debugfs_reg32 *regs;
+	int nregs;
+	void __iomem *base;
 };
 
 extern struct dentry *arch_debugfs_dir;
@@ -73,6 +85,13 @@ struct dentry *debugfs_create_bool(const char *name, mode_t mode,
 struct dentry *debugfs_create_blob(const char *name, mode_t mode,
 				  struct dentry *parent,
 				  struct debugfs_blob_wrapper *blob);
+
+struct dentry *debugfs_create_regset32(const char *name, mode_t mode,
+				     struct dentry *parent,
+				     struct debugfs_regset32 *regset);
+
+int debugfs_print_regs32(struct seq_file *s, const struct debugfs_reg32 *regs,
+			 int nregs, void __iomem *base, char *prefix);
 
 bool debugfs_initialized(void);
 
@@ -184,6 +203,13 @@ static inline struct dentry *debugfs_create_bool(const char *name, mode_t mode,
 static inline struct dentry *debugfs_create_blob(const char *name, mode_t mode,
 				  struct dentry *parent,
 				  struct debugfs_blob_wrapper *blob)
+{
+	return ERR_PTR(-ENODEV);
+}
+
+static inline struct dentry *debugfs_create_regset32(const char *name,
+				   mode_t mode, struct dentry *parent,
+				   struct debugfs_regset32 *regset)
 {
 	return ERR_PTR(-ENODEV);
 }

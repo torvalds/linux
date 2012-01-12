@@ -788,20 +788,8 @@ static struct i2c_driver ad7746_driver = {
 	.remove = __devexit_p(ad7746_remove),
 	.id_table = ad7746_id,
 };
-
-static __init int ad7746_init(void)
-{
-	return i2c_add_driver(&ad7746_driver);
-}
-
-static __exit void ad7746_exit(void)
-{
-	i2c_del_driver(&ad7746_driver);
-}
+module_i2c_driver(ad7746_driver);
 
 MODULE_AUTHOR("Michael Hennerich <hennerich@blackfin.uclinux.org>");
 MODULE_DESCRIPTION("Analog Devices AD7746/5/7 capacitive sensor driver");
 MODULE_LICENSE("GPL v2");
-
-module_init(ad7746_init);
-module_exit(ad7746_exit);

@@ -753,15 +753,4 @@ static struct usb_driver datafab_driver = {
 	.soft_unbind =	1,
 };
 
-static int __init datafab_init(void)
-{
-	return usb_register(&datafab_driver);
-}
-
-static void __exit datafab_exit(void)
-{
-	usb_deregister(&datafab_driver);
-}
-
-module_init(datafab_init);
-module_exit(datafab_exit);
+module_usb_driver(datafab_driver);

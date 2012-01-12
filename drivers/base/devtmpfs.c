@@ -413,10 +413,9 @@ static int devtmpfsd(void *p)
 			}
 			spin_lock(&req_lock);
 		}
-		set_current_state(TASK_INTERRUPTIBLE);
+		__set_current_state(TASK_INTERRUPTIBLE);
 		spin_unlock(&req_lock);
 		schedule();
-		__set_current_state(TASK_RUNNING);
 	}
 	return 0;
 out:

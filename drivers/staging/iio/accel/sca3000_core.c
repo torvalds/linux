@@ -1250,18 +1250,7 @@ static struct spi_driver sca3000_driver = {
 	.remove = __devexit_p(sca3000_remove),
 	.id_table = sca3000_id,
 };
-
-static __init int sca3000_init(void)
-{
-	return spi_register_driver(&sca3000_driver);
-}
-module_init(sca3000_init);
-
-static __exit void sca3000_exit(void)
-{
-	spi_unregister_driver(&sca3000_driver);
-}
-module_exit(sca3000_exit);
+module_spi_driver(sca3000_driver);
 
 MODULE_AUTHOR("Jonathan Cameron <jic23@cam.ac.uk>");
 MODULE_DESCRIPTION("VTI SCA3000 Series Accelerometers SPI driver");

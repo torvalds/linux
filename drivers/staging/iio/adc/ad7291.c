@@ -700,20 +700,8 @@ static struct i2c_driver ad7291_driver = {
 	.remove = __devexit_p(ad7291_remove),
 	.id_table = ad7291_id,
 };
-
-static __init int ad7291_init(void)
-{
-	return i2c_add_driver(&ad7291_driver);
-}
-
-static __exit void ad7291_exit(void)
-{
-	i2c_del_driver(&ad7291_driver);
-}
+module_i2c_driver(ad7291_driver);
 
 MODULE_AUTHOR("Sonic Zhang <sonic.zhang@analog.com>");
 MODULE_DESCRIPTION("Analog Devices AD7291 ADC driver");
 MODULE_LICENSE("GPL v2");
-
-module_init(ad7291_init);
-module_exit(ad7291_exit);

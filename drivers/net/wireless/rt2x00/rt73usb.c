@@ -2528,15 +2528,4 @@ static struct usb_driver rt73usb_driver = {
 	.resume		= rt2x00usb_resume,
 };
 
-static int __init rt73usb_init(void)
-{
-	return usb_register(&rt73usb_driver);
-}
-
-static void __exit rt73usb_exit(void)
-{
-	usb_deregister(&rt73usb_driver);
-}
-
-module_init(rt73usb_init);
-module_exit(rt73usb_exit);
+module_usb_driver(rt73usb_driver);

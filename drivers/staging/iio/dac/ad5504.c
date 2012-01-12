@@ -377,18 +377,7 @@ static struct spi_driver ad5504_driver = {
 	.remove = __devexit_p(ad5504_remove),
 	.id_table = ad5504_id,
 };
-
-static __init int ad5504_spi_init(void)
-{
-	return spi_register_driver(&ad5504_driver);
-}
-module_init(ad5504_spi_init);
-
-static __exit void ad5504_spi_exit(void)
-{
-	spi_unregister_driver(&ad5504_driver);
-}
-module_exit(ad5504_spi_exit);
+module_spi_driver(ad5504_driver);
 
 MODULE_AUTHOR("Michael Hennerich <hennerich@blackfin.uclinux.org>");
 MODULE_DESCRIPTION("Analog Devices AD5501/AD5501 DAC");

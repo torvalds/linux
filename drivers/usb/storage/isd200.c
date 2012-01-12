@@ -1568,15 +1568,4 @@ static struct usb_driver isd200_driver = {
 	.soft_unbind =	1,
 };
 
-static int __init isd200_init(void)
-{
-	return usb_register(&isd200_driver);
-}
-
-static void __exit isd200_exit(void)
-{
-	usb_deregister(&isd200_driver);
-}
-
-module_init(isd200_init);
-module_exit(isd200_exit);
+module_usb_driver(isd200_driver);

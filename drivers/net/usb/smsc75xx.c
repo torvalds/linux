@@ -1237,17 +1237,7 @@ static struct usb_driver smsc75xx_driver = {
 	.disconnect	= usbnet_disconnect,
 };
 
-static int __init smsc75xx_init(void)
-{
-	return usb_register(&smsc75xx_driver);
-}
-module_init(smsc75xx_init);
-
-static void __exit smsc75xx_exit(void)
-{
-	usb_deregister(&smsc75xx_driver);
-}
-module_exit(smsc75xx_exit);
+module_usb_driver(smsc75xx_driver);
 
 MODULE_AUTHOR("Nancy Lin");
 MODULE_AUTHOR("Steve Glendinning <steve.glendinning@smsc.com>");

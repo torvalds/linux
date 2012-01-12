@@ -356,15 +356,4 @@ static struct usb_driver rtl8192cu_driver = {
 #endif
 };
 
-static int __init rtl8192cu_init(void)
-{
-	return usb_register(&rtl8192cu_driver);
-}
-
-static void __exit rtl8192cu_exit(void)
-{
-	usb_deregister(&rtl8192cu_driver);
-}
-
-module_init(rtl8192cu_init);
-module_exit(rtl8192cu_exit);
+module_usb_driver(rtl8192cu_driver);
