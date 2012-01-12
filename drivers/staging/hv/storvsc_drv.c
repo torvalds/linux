@@ -42,32 +42,12 @@
 #include <scsi/scsi_devinfo.h>
 #include <scsi/scsi_dbg.h>
 
-
 /*
- * We setup a mempool to allocate request structures for this driver
- * on a per-lun basis. The following define specifies the number of
- * elements in the pool.
+ * All wire protocol details (storage protocol between the guest and the host)
+ * are consolidated here.
+ *
+ * Begin protocol definitions.
  */
-
-#define STORVSC_MIN_BUF_NR				64
-static int storvsc_ringbuffer_size = (20 * PAGE_SIZE);
-
-module_param(storvsc_ringbuffer_size, int, S_IRUGO);
-MODULE_PARM_DESC(storvsc_ringbuffer_size, "Ring buffer size (bytes)");
-
-
-/*
- * Major/minor macros.  Minor version is in LSB, meaning that earlier flat
- * version numbers will be interpreted as "0.x" (i.e., 1 becomes 0.1).
- */
-
-static inline u16 storvsc_get_version(u8 major, u8 minor)
-{
-	u16 version;
-
-	version = ((major << 8) | minor);
-	return version;
-}
 
 /*
  * Version history:
@@ -207,18 +187,6 @@ struct vstor_packet {
 
 #define REQUEST_COMPLETION_FLAG	0x1
 
-#define STORVSC_MAX_IO_REQUESTS				128
-
-/*
- * In Hyper-V, each port/path/target maps to 1 scsi host adapter.  In
- * reality, the path/target is not used (ie always set to 0) so our
- * scsi host adapter essentially has 1 bus with 1 target that contains
- * up to 256 luns.
- */
-#define STORVSC_MAX_LUNS_PER_TARGET			64
-#define STORVSC_MAX_TARGETS				1
-#define STORVSC_MAX_CHANNELS				1
-
 /* Matches Windows-end */
 enum storvsc_request_type {
 	WRITE_TYPE = 0,
@@ -234,6 +202,36 @@ enum storvsc_request_type {
 #define SRB_STATUS_INVALID_LUN	0x20
 #define SRB_STATUS_SUCCESS	0x01
 #define SRB_STATUS_ERROR	0x04
+
+/*
+ * This is the end of Protocol specific defines.
+ */
+
+
+/*
+ * We setup a mempool to allocate request structures for this driver
+ * on a per-lun basis. The following define specifies the number of
+ * elements in the pool.
+ */
+
+#define STORVSC_MIN_BUF_NR				64
+static int storvsc_ringbuffer_size = (20 * PAGE_SIZE);
+
+module_param(storvsc_ringbuffer_size, int, S_IRUGO);
+MODULE_PARM_DESC(storvsc_ringbuffer_size, "Ring buffer size (bytes)");
+
+#define STORVSC_MAX_IO_REQUESTS				128
+
+/*
+ * In Hyper-V, each port/path/target maps to 1 scsi host adapter.  In
+ * reality, the path/target is not used (ie always set to 0) so our
+ * scsi host adapter essentially has 1 bus with 1 target that contains
+ * up to 256 luns.
+ */
+#define STORVSC_MAX_LUNS_PER_TARGET			64
+#define STORVSC_MAX_TARGETS				1
+#define STORVSC_MAX_CHANNELS				1
+
 
 
 struct storvsc_cmd_request {
@@ -334,6 +332,19 @@ static void storvsc_remove_lun(struct work_struct *work)
 
 done:
 	kfree(wrk);
+}
+
+/*
+ * Major/minor macros.  Minor version is in LSB, meaning that earlier flat
+ * version numbers will be interpreted as "0.x" (i.e., 1 becomes 0.1).
+ */
+
+static inline u16 storvsc_get_version(u8 major, u8 minor)
+{
+	u16 version;
+
+	version = ((major << 8) | minor);
+	return version;
 }
 
 /*
