@@ -149,8 +149,7 @@ enum wmi_msg_type {
 #define WMI_DATA_HDR_PS_MASK        0x1
 #define WMI_DATA_HDR_PS_SHIFT       5
 
-#define WMI_DATA_HDR_MORE_MASK      0x1
-#define WMI_DATA_HDR_MORE_SHIFT     5
+#define WMI_DATA_HDR_MORE	0x20
 
 enum wmi_data_hdr_data_type {
 	WMI_DATA_HDR_DATA_TYPE_802_3 = 0,
@@ -158,6 +157,13 @@ enum wmi_data_hdr_data_type {
 
 	/* used to be used for the PAL */
 	WMI_DATA_HDR_DATA_TYPE_ACL,
+};
+
+/* Bitmap of data header flags */
+enum wmi_data_hdr_flags {
+	WMI_DATA_HDR_FLAGS_MORE = 0x1,
+	WMI_DATA_HDR_FLAGS_EOSP = 0x2,
+	WMI_DATA_HDR_FLAGS_UAPSD = 0x4,
 };
 
 #define WMI_DATA_HDR_DATA_TYPE_MASK     0x3
@@ -173,7 +179,11 @@ enum wmi_data_hdr_data_type {
 #define WMI_DATA_HDR_META_MASK      0x7
 #define WMI_DATA_HDR_META_SHIFT     13
 
+/* Macros for operating on WMI_DATA_HDR (info3) field */
 #define WMI_DATA_HDR_IF_IDX_MASK    0xF
+
+#define WMI_DATA_HDR_TRIG	    0x10
+#define WMI_DATA_HDR_EOSP	    0x10
 
 struct wmi_data_hdr {
 	s8 rssi;
@@ -203,7 +213,8 @@ struct wmi_data_hdr {
 	/*
 	 * usage of info3, 16-bit:
 	 * b3:b0	- Interface index
-	 * b15:b4	- Reserved
+	 * b4		- uAPSD trigger in rx & EOSP in tx
+	 * b15:b5	- Reserved
 	 */
 	__le16 info3;
 } __packed;
@@ -2116,6 +2127,19 @@ struct wmi_rx_frame_format_cmd {
 } __packed;
 
 /* AP mode events */
+struct wmi_ap_set_apsd_cmd {
+	u8 enable;
+} __packed;
+
+enum wmi_ap_apsd_buffered_traffic_flags {
+	WMI_AP_APSD_NO_DELIVERY_FRAMES =  0x1,
+};
+
+struct wmi_ap_apsd_buffered_traffic_cmd {
+	__le16 aid;
+	__le16 bitmap;
+	__le32 flags;
+} __packed;
 
 /* WMI_PS_POLL_EVENT */
 struct wmi_pspoll_event {
@@ -2332,7 +2356,7 @@ enum htc_endpoint_id ath6kl_wmi_get_control_ep(struct wmi *wmi);
 void ath6kl_wmi_set_control_ep(struct wmi *wmi, enum htc_endpoint_id ep_id);
 int ath6kl_wmi_dix_2_dot3(struct wmi *wmi, struct sk_buff *skb);
 int ath6kl_wmi_data_hdr_add(struct wmi *wmi, struct sk_buff *skb,
-			    u8 msg_type, bool more_data,
+			    u8 msg_type, u32 flags,
 			    enum wmi_data_hdr_data_type data_type,
 			    u8 meta_ver, void *tx_meta_info, u8 if_idx);
 
@@ -2446,7 +2470,16 @@ int ath6kl_wmi_set_roam_mode_cmd(struct wmi *wmi, enum wmi_roam_mode mode);
 int ath6kl_wmi_mcast_filter_cmd(struct wmi *wmi, u8 if_idx, bool mc_all_on);
 int ath6kl_wmi_add_del_mcast_filter_cmd(struct wmi *wmi, u8 if_idx,
 					u8 *filter, bool add_filter);
+/* AP mode uAPSD */
+int ath6kl_wmi_ap_set_apsd(struct wmi *wmi, u8 if_idx, u8 enable);
 
+int ath6kl_wmi_set_apsd_bfrd_traf(struct wmi *wmi,
+						u8 if_idx, u16 aid,
+						u16 bitmap, u32 flags);
+
+u8 ath6kl_wmi_get_traffic_class(u8 user_priority);
+
+u8 ath6kl_wmi_determine_user_priority(u8 *pkt, u32 layer2_pri);
 /* AP mode */
 int ath6kl_wmi_ap_profile_commit(struct wmi *wmip, u8 if_idx,
 				 struct wmi_connect_cmd *p);

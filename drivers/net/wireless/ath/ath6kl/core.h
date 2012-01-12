@@ -44,6 +44,10 @@
 #define ATH6KL_MAX_ENDPOINTS   4
 #define MAX_NODE_NUM           15
 
+#define ATH6KL_APSD_ALL_FRAME		0xFFFF
+#define ATH6KL_APSD_NUM_OF_AC		0x4
+#define ATH6KL_APSD_FRAME_MASK		0xF
+
 /* Extra bytes for htc header alignment */
 #define ATH6KL_HTC_ALIGN_BYTES 3
 
@@ -146,6 +150,8 @@ struct ath6kl_fw_ie {
 #define STA_PS_AWAKE		BIT(0)
 #define	STA_PS_SLEEP		BIT(1)
 #define	STA_PS_POLLED		BIT(2)
+#define STA_PS_APSD_TRIGGER     BIT(3)
+#define STA_PS_APSD_EOSP        BIT(4)
 
 /* HTC TX packet tagging definitions */
 #define ATH6KL_CONTROL_PKT_TAG    HTC_TX_PACKET_TAG_USER_DEFINED
@@ -282,6 +288,8 @@ struct ath6kl_sta {
 	u8 wpa_ie[ATH6KL_MAX_IE];
 	struct sk_buff_head psq;
 	spinlock_t psq_lock;
+	u8 apsd_info;
+	struct sk_buff_head apsdq;
 };
 
 struct ath6kl_version {
@@ -714,7 +722,7 @@ void ath6kl_connect_event(struct ath6kl_vif *vif, u16 channel,
 void ath6kl_connect_ap_mode_bss(struct ath6kl_vif *vif, u16 channel);
 void ath6kl_connect_ap_mode_sta(struct ath6kl_vif *vif, u16 aid, u8 *mac_addr,
 				u8 keymgmt, u8 ucipher, u8 auth,
-				u8 assoc_req_len, u8 *assoc_info);
+				u8 assoc_req_len, u8 *assoc_info, u8 apsd_info);
 void ath6kl_disconnect_event(struct ath6kl_vif *vif, u8 reason,
 			     u8 *bssid, u8 assoc_resp_len,
 			     u8 *assoc_info, u16 prot_reason_status);

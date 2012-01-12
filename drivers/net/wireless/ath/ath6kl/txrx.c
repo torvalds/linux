@@ -77,12 +77,120 @@ static u8 ath6kl_ibss_map_epid(struct sk_buff *skb, struct net_device *dev,
 	return ar->node_map[ep_map].ep_id;
 }
 
+static bool ath6kl_process_uapsdq(struct ath6kl_sta *conn,
+				struct ath6kl_vif *vif,
+				struct sk_buff *skb,
+				u32 *flags)
+{
+	struct ath6kl *ar = vif->ar;
+	bool is_apsdq_empty = false;
+	struct ethhdr *datap = (struct ethhdr *) skb->data;
+	u8 up, traffic_class, *ip_hdr;
+	u16 ether_type;
+	struct ath6kl_llc_snap_hdr *llc_hdr;
+
+	if (conn->sta_flags & STA_PS_APSD_TRIGGER) {
+		/*
+		 * This tx is because of a uAPSD trigger, determine
+		 * more and EOSP bit. Set EOSP if queue is empty
+		 * or sufficient frames are delivered for this trigger.
+		 */
+		spin_lock_bh(&conn->psq_lock);
+		if (!skb_queue_empty(&conn->apsdq))
+			*flags |= WMI_DATA_HDR_FLAGS_MORE;
+		else if (conn->sta_flags & STA_PS_APSD_EOSP)
+			*flags |= WMI_DATA_HDR_FLAGS_EOSP;
+		*flags |= WMI_DATA_HDR_FLAGS_UAPSD;
+		spin_unlock_bh(&conn->psq_lock);
+		return false;
+	} else if (!conn->apsd_info)
+		return false;
+
+	if (test_bit(WMM_ENABLED, &vif->flags)) {
+		ether_type = be16_to_cpu(datap->h_proto);
+		if (is_ethertype(ether_type)) {
+			/* packet is in DIX format  */
+			ip_hdr = (u8 *)(datap + 1);
+		} else {
+			/* packet is in 802.3 format */
+			llc_hdr = (struct ath6kl_llc_snap_hdr *)
+							(datap + 1);
+			ether_type = be16_to_cpu(llc_hdr->eth_type);
+			ip_hdr = (u8 *)(llc_hdr + 1);
+		}
+
+		if (ether_type == IP_ETHERTYPE)
+			up = ath6kl_wmi_determine_user_priority(
+							ip_hdr, 0);
+	} else {
+		up = 0;
+	}
+
+	traffic_class = ath6kl_wmi_get_traffic_class(up);
+
+	if ((conn->apsd_info & (1 << traffic_class)) == 0)
+		return false;
+
+	/* Queue the frames if the STA is sleeping */
+	spin_lock_bh(&conn->psq_lock);
+	is_apsdq_empty = skb_queue_empty(&conn->apsdq);
+	skb_queue_tail(&conn->apsdq, skb);
+	spin_unlock_bh(&conn->psq_lock);
+
+	/*
+	 * If this is the first pkt getting queued
+	 * for this STA, update the PVB for this STA
+	 */
+	if (is_apsdq_empty) {
+		ath6kl_wmi_set_apsd_bfrd_traf(ar->wmi,
+				vif->fw_vif_idx,
+				conn->aid, 1, 0);
+	}
+	*flags |= WMI_DATA_HDR_FLAGS_UAPSD;
+
+	return true;
+}
+
+static bool ath6kl_process_psq(struct ath6kl_sta *conn,
+				struct ath6kl_vif *vif,
+				struct sk_buff *skb,
+				u32 *flags)
+{
+	bool is_psq_empty = false;
+	struct ath6kl *ar = vif->ar;
+
+	if (conn->sta_flags & STA_PS_POLLED) {
+		spin_lock_bh(&conn->psq_lock);
+		if (!skb_queue_empty(&conn->psq))
+			*flags |= WMI_DATA_HDR_FLAGS_MORE;
+		spin_unlock_bh(&conn->psq_lock);
+		return false;
+	}
+
+	/* Queue the frames if the STA is sleeping */
+	spin_lock_bh(&conn->psq_lock);
+	is_psq_empty = skb_queue_empty(&conn->psq);
+	skb_queue_tail(&conn->psq, skb);
+	spin_unlock_bh(&conn->psq_lock);
+
+	/*
+	 * If this is the first pkt getting queued
+	 * for this STA, update the PVB for this
+	 * STA.
+	 */
+	if (is_psq_empty)
+		ath6kl_wmi_set_pvb_cmd(ar->wmi,
+				       vif->fw_vif_idx,
+				       conn->aid, 1);
+	return true;
+}
+
 static bool ath6kl_powersave_ap(struct ath6kl_vif *vif, struct sk_buff *skb,
-				bool *more_data)
+				u32 *flags)
 {
 	struct ethhdr *datap = (struct ethhdr *) skb->data;
 	struct ath6kl_sta *conn = NULL;
-	bool ps_queued = false, is_psq_empty = false;
+	bool ps_queued = false;
 	struct ath6kl *ar = vif->ar;
 
 	if (is_multicast_ether_addr(datap->h_dest)) {
@@ -128,7 +236,7 @@ static bool ath6kl_powersave_ap(struct ath6kl_vif *vif, struct sk_buff *skb,
 				 */
 				spin_lock_bh(&ar->mcastpsq_lock);
 				if (!skb_queue_empty(&ar->mcastpsq))
-					*more_data = true;
+					*flags |= WMI_DATA_HDR_FLAGS_MORE;
 				spin_unlock_bh(&ar->mcastpsq_lock);
 			}
 		}
@@ -142,37 +250,13 @@ static bool ath6kl_powersave_ap(struct ath6kl_vif *vif, struct sk_buff *skb,
 		}
 
 		if (conn->sta_flags & STA_PS_SLEEP) {
-			if (!(conn->sta_flags & STA_PS_POLLED)) {
-				/* Queue the frames if the STA is sleeping */
-				spin_lock_bh(&conn->psq_lock);
-				is_psq_empty = skb_queue_empty(&conn->psq);
-				skb_queue_tail(&conn->psq, skb);
-				spin_unlock_bh(&conn->psq_lock);
-
-				/*
-				 * If this is the first pkt getting queued
-				 * for this STA, update the PVB for this
-				 * STA.
-				 */
-				if (is_psq_empty)
-					ath6kl_wmi_set_pvb_cmd(ar->wmi,
-							       vif->fw_vif_idx,
-							       conn->aid, 1);
-
-				ps_queued = true;
-			} else {
-				/*
-				 * This tx is because of a PsPoll.
-				 * Determine if MoreData bit has to be set.
-				 */
-				spin_lock_bh(&conn->psq_lock);
-				if (!skb_queue_empty(&conn->psq))
-					*more_data = true;
-				spin_unlock_bh(&conn->psq_lock);
-			}
+			ps_queued = ath6kl_process_uapsdq(conn,
+						vif, skb, flags);
+			if (!(*flags & WMI_DATA_HDR_FLAGS_UAPSD))
+				ps_queued = ath6kl_process_psq(conn,
+						vif, skb, flags);
 		}
 	}
-
 	return ps_queued;
 }
 
@@ -242,12 +326,13 @@ int ath6kl_data_tx(struct sk_buff *skb, struct net_device *dev)
 	u32 map_no = 0;
 	u16 htc_tag = ATH6KL_DATA_PKT_TAG;
 	u8 ac = 99 ; /* initialize to unmapped ac */
-	bool chk_adhoc_ps_mapping = false, more_data = false;
+	bool chk_adhoc_ps_mapping = false;
 	int ret;
 	struct wmi_tx_meta_v2 meta_v2;
 	void *meta;
 	u8 csum_start = 0, csum_dest = 0, csum = skb->ip_summed;
 	u8 meta_ver = 0;
+	u32 flags = 0;
 
 	ath6kl_dbg(ATH6KL_DBG_WLAN_TX,
 		   "%s: skb=0x%p, data=0x%p, len=0x%x\n", __func__,
@@ -264,7 +349,7 @@ int ath6kl_data_tx(struct sk_buff *skb, struct net_device *dev)
 
 	/* AP mode Power saving processing */
 	if (vif->nw_type == AP_NETWORK) {
-		if (ath6kl_powersave_ap(vif, skb, &more_data))
+		if (ath6kl_powersave_ap(vif, skb, &flags))
 			return 0;
 	}
 
@@ -308,7 +393,7 @@ int ath6kl_data_tx(struct sk_buff *skb, struct net_device *dev)
 		}
 
 		ret = ath6kl_wmi_data_hdr_add(ar->wmi, skb,
-				DATA_MSGTYPE, more_data, 0,
+				DATA_MSGTYPE, flags, 0,
 				meta_ver,
 				meta, vif->fw_vif_idx);
 
@@ -1093,6 +1178,76 @@ static bool aggr_process_recv_frm(struct aggr_info *agg_info, u8 tid,
 	return is_queued;
 }
 
+static void ath6kl_uapsd_trigger_frame_rx(struct ath6kl_vif *vif,
+						 struct ath6kl_sta *conn)
+{
+	struct ath6kl *ar = vif->ar;
+	bool is_apsdq_empty, is_apsdq_empty_at_start;
+	u32 num_frames_to_deliver, flags;
+	struct sk_buff *skb = NULL;
+
+	/*
+	 * If the APSD q for this STA is not empty, dequeue and
+	 * send a pkt from the head of the q. Also update the
+	 * More data bit in the WMI_DATA_HDR if there are
+	 * more pkts for this STA in the APSD q.
+	 * If there are no more pkts for this STA,
+	 * update the APSD bitmap for this STA.
+	 */
+
+	num_frames_to_deliver = (conn->apsd_info >> ATH6KL_APSD_NUM_OF_AC) &
+						    ATH6KL_APSD_FRAME_MASK;
+	/*
+	 * Number of frames to send in a service period is
+	 * indicated by the station
+	 * in the QOS_INFO of the association request
+	 * If it is zero, send all frames
+	 */
+	if (!num_frames_to_deliver)
+		num_frames_to_deliver = ATH6KL_APSD_ALL_FRAME;
+
+	spin_lock_bh(&conn->psq_lock);
+	is_apsdq_empty = skb_queue_empty(&conn->apsdq);
+	spin_unlock_bh(&conn->psq_lock);
+	is_apsdq_empty_at_start = is_apsdq_empty;
+
+	while ((!is_apsdq_empty) && (num_frames_to_deliver)) {
+
+		spin_lock_bh(&conn->psq_lock);
+		skb = skb_dequeue(&conn->apsdq);
+		is_apsdq_empty = skb_queue_empty(&conn->apsdq);
+		spin_unlock_bh(&conn->psq_lock);
+
+		/*
+		 * Set the STA flag to Trigger delivery,
+		 * so that the frame will go out
+		 */
+		conn->sta_flags |= STA_PS_APSD_TRIGGER;
+		num_frames_to_deliver--;
+
+		/* Last frame in the service period, set EOSP or queue empty */
+		if ((is_apsdq_empty) || (!num_frames_to_deliver))
+			conn->sta_flags |= STA_PS_APSD_EOSP;
+
+		ath6kl_data_tx(skb, vif->ndev);
+		conn->sta_flags &= ~(STA_PS_APSD_TRIGGER);
+		conn->sta_flags &= ~(STA_PS_APSD_EOSP);
+	}
+
+	if (is_apsdq_empty) {
+		if (is_apsdq_empty_at_start)
+			flags = WMI_AP_APSD_NO_DELIVERY_FRAMES;
+		else
+			flags = 0;
+
+		ath6kl_wmi_set_apsd_bfrd_traf(ar->wmi,
+				vif->fw_vif_idx,
+				conn->aid, 0, flags);
+	}
+
+	return;
+}
+
 void ath6kl_rx(struct htc_target *target, struct htc_packet *packet)
 {
 	struct ath6kl *ar = target->dev->ar;
@@ -1104,6 +1259,7 @@ void ath6kl_rx(struct htc_target *target, struct htc_packet *packet)
 	int status = packet->status;
 	enum htc_endpoint_id ept = packet->endpoint;
 	bool is_amsdu, prev_ps, ps_state = false;
+	bool trig_state = false;
 	struct ath6kl_sta *conn = NULL;
 	struct sk_buff *skb1 = NULL;
 	struct ethhdr *datap = NULL;
@@ -1197,6 +1353,7 @@ void ath6kl_rx(struct htc_target *target, struct htc_packet *packet)
 			      WMI_DATA_HDR_PS_MASK);
 
 		offset = sizeof(struct wmi_data_hdr);
+		trig_state = !!(le16_to_cpu(dhdr->info3) & WMI_DATA_HDR_TRIG);
 
 		switch (meta_type) {
 		case 0:
@@ -1235,18 +1392,36 @@ void ath6kl_rx(struct htc_target *target, struct htc_packet *packet)
 		else
 			conn->sta_flags &= ~STA_PS_SLEEP;
 
+		/* Accept trigger only when the station is in sleep */
+		if ((conn->sta_flags & STA_PS_SLEEP) && trig_state)
+			ath6kl_uapsd_trigger_frame_rx(vif, conn);
+
 		if (prev_ps ^ !!(conn->sta_flags & STA_PS_SLEEP)) {
 			if (!(conn->sta_flags & STA_PS_SLEEP)) {
 				struct sk_buff *skbuff = NULL;
+				bool is_apsdq_empty;
 
 				spin_lock_bh(&conn->psq_lock);
-				while ((skbuff = skb_dequeue(&conn->psq))
-				       != NULL) {
+				while ((skbuff = skb_dequeue(&conn->psq))) {
+					spin_unlock_bh(&conn->psq_lock);
+					ath6kl_data_tx(skbuff, vif->ndev);
+					spin_lock_bh(&conn->psq_lock);
+				}
+
+				is_apsdq_empty = skb_queue_empty(&conn->apsdq);
+				while ((skbuff = skb_dequeue(&conn->apsdq))) {
 					spin_unlock_bh(&conn->psq_lock);
 					ath6kl_data_tx(skbuff, vif->ndev);
 					spin_lock_bh(&conn->psq_lock);
 				}
 				spin_unlock_bh(&conn->psq_lock);
+
+				if (!is_apsdq_empty)
+					ath6kl_wmi_set_apsd_bfrd_traf(
+							ar->wmi,
+							vif->fw_vif_idx,
+							conn->aid, 0, 0);
+
 				/* Clear the PVB for this STA */
 				ath6kl_wmi_set_pvb_cmd(ar->wmi, vif->fw_vif_idx,
 						       conn->aid, 0);

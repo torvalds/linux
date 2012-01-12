@@ -53,7 +53,8 @@ struct ath6kl_sta *ath6kl_find_sta_by_aid(struct ath6kl *ar, u8 aid)
 }
 
 static void ath6kl_add_new_sta(struct ath6kl *ar, u8 *mac, u16 aid, u8 *wpaie,
-			size_t ielen, u8 keymgmt, u8 ucipher, u8 auth)
+			       size_t ielen, u8 keymgmt, u8 ucipher, u8 auth,
+			       u8 apsd_info)
 {
 	struct ath6kl_sta *sta;
 	u8 free_slot;
@@ -68,6 +69,7 @@ static void ath6kl_add_new_sta(struct ath6kl *ar, u8 *mac, u16 aid, u8 *wpaie,
 	sta->keymgmt = keymgmt;
 	sta->ucipher = ucipher;
 	sta->auth = auth;
+	sta->apsd_info = apsd_info;
 
 	ar->sta_list_index = ar->sta_list_index | (1 << free_slot);
 	ar->ap_stats.sta[free_slot].aid = cpu_to_le32(aid);
@@ -80,6 +82,7 @@ static void ath6kl_sta_cleanup(struct ath6kl *ar, u8 i)
 	/* empty the queued pkts in the PS queue if any */
 	spin_lock_bh(&sta->psq_lock);
 	skb_queue_purge(&sta->psq);
+	skb_queue_purge(&sta->apsdq);
 	spin_unlock_bh(&sta->psq_lock);
 
 	memset(&ar->ap_stats.sta[sta->aid - 1], 0,
@@ -425,7 +428,7 @@ void ath6kl_connect_ap_mode_bss(struct ath6kl_vif *vif, u16 channel)
 
 void ath6kl_connect_ap_mode_sta(struct ath6kl_vif *vif, u16 aid, u8 *mac_addr,
 				u8 keymgmt, u8 ucipher, u8 auth,
-				u8 assoc_req_len, u8 *assoc_info)
+				u8 assoc_req_len, u8 *assoc_info, u8 apsd_info)
 {
 	struct ath6kl *ar = vif->ar;
 	u8 *ies = NULL, *wpa_ie = NULL, *pos;
@@ -483,7 +486,7 @@ void ath6kl_connect_ap_mode_sta(struct ath6kl_vif *vif, u16 aid, u8 *mac_addr,
 
 	ath6kl_add_new_sta(ar, mac_addr, aid, wpa_ie,
 			   wpa_ie ? 2 + wpa_ie[1] : 0,
-			   keymgmt, ucipher, auth);
+			   keymgmt, ucipher, auth, apsd_info);
 
 	/* send event to application */
 	memset(&sinfo, 0, sizeof(sinfo));

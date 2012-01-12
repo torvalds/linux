@@ -2253,6 +2253,11 @@ static int ath6kl_ap_beacon(struct wiphy *wiphy, struct net_device *dev,
 	p.dot11_auth_mode = vif->dot11_auth_mode;
 	p.ch = cpu_to_le16(vif->next_chan);
 
+	/* Enable uAPSD support by default */
+	res = ath6kl_wmi_ap_set_apsd(ar->wmi, vif->fw_vif_idx, true);
+	if (res < 0)
+		return res;
+
 	if (vif->wdev.iftype == NL80211_IFTYPE_P2P_GO) {
 		p.nw_subtype = SUBTYPE_P2PGO;
 	} else {
@@ -2740,6 +2745,7 @@ struct ath6kl *ath6kl_core_alloc(struct device *dev)
 	for (ctr = 0; ctr < AP_MAX_NUM_STA; ctr++) {
 		spin_lock_init(&ar->sta_list[ctr].psq_lock);
 		skb_queue_head_init(&ar->sta_list[ctr].psq);
+		skb_queue_head_init(&ar->sta_list[ctr].apsdq);
 	}
 
 	skb_queue_head_init(&ar->mcastpsq);
