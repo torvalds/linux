@@ -58,7 +58,12 @@ void au_cpup_attr_nlink(struct inode *inode, int force)
 	    && au_plink_test(inode))
 		return;
 
-	set_nlink(inode, h_inode->i_nlink);
+	/*
+	 * 0 can happen in revalidating.
+	 * h_inode->i_mutex is not held, but it is harmless since once i_nlink
+	 * reaches 0, it will never become positive.
+	 */
+	vfsub_set_nlink(inode, h_inode->i_nlink);
 
 	/*
 	 * fewer nlink makes find(1) noisy, but larger nlink doesn't.

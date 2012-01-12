@@ -763,7 +763,8 @@ static void au_refresh_iattr(struct inode *inode, struct kstat *st,
 		n = inode->i_nlink;
 		n -= nlink;
 		n += st->nlink;
-		set_nlink(inode, n);
+		/* 0 can happen */
+		vfsub_set_nlink(inode, n);
 	}
 
 	spin_lock(&inode->i_lock);
