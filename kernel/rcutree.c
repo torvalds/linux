@@ -366,6 +366,17 @@ static void rcu_idle_enter_common(struct rcu_dynticks *rdtp, long long oldval)
 	atomic_inc(&rdtp->dynticks);
 	smp_mb__after_atomic_inc();  /* Force ordering with next sojourn. */
 	WARN_ON_ONCE(atomic_read(&rdtp->dynticks) & 0x1);
+
+	/*
+	 * The idle task is not permitted to enter the idle loop while
+	 * in an RCU read-side critical section.
+	 */
+	rcu_lockdep_assert(!lock_is_held(&rcu_lock_map),
+			   "Illegal idle entry in RCU read-side critical section.");
+	rcu_lockdep_assert(!lock_is_held(&rcu_bh_lock_map),
+			   "Illegal idle entry in RCU-bh read-side critical section.");
+	rcu_lockdep_assert(!lock_is_held(&rcu_sched_lock_map),
+			   "Illegal idle entry in RCU-sched read-side critical section.");
 }
 
 /**
