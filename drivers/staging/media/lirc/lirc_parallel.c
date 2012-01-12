@@ -752,4 +752,4 @@ module_param(debug, bool, S_IRUGO | S_IWUSR);
 MODULE_PARM_DESC(debug, "Enable debugging messages");
 
 module_param(check_pselecd, bool, S_IRUGO | S_IWUSR);
-MODULE_PARM_DESC(debug, "Check for printer (default: 0)");
+MODULE_PARM_DESC(check_pselecd, "Check for printer (default: 0)");
