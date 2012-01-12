@@ -263,7 +263,7 @@ module_param(probeonly, bool, 0);
 MODULE_PARM_DESC(probeonly, "Do a minimal probe (debug)");
 module_param(idonly, bool, 0);
 MODULE_PARM_DESC(idonly, "Just identify without doing anything else (debug)");
-module_param(bailearly, bool, 0);
+module_param(bailearly, int, 0);
 MODULE_PARM_DESC(bailearly, "Bail out early, depending on value (debug)");
 module_param(mode, charp, S_IRUGO);
 MODULE_PARM_DESC(mode,
