@@ -1298,19 +1298,70 @@ queue_max_integrity_segments(struct request_queue *q)
 
 #else /* CONFIG_BLK_DEV_INTEGRITY */
 
-#define blk_integrity_rq(rq)			(0)
-#define blk_rq_count_integrity_sg(a, b)		(0)
-#define blk_rq_map_integrity_sg(a, b, c)	(0)
-#define bdev_get_integrity(a)			(0)
-#define blk_get_integrity(a)			(0)
-#define blk_integrity_compare(a, b)		(0)
-#define blk_integrity_register(a, b)		(0)
-#define blk_integrity_unregister(a)		do { } while (0)
-#define blk_queue_max_integrity_segments(a, b)	do { } while (0)
-#define queue_max_integrity_segments(a)		(0)
-#define blk_integrity_merge_rq(a, b, c)		(0)
-#define blk_integrity_merge_bio(a, b, c)	(0)
-#define blk_integrity_is_initialized(a)		(0)
+struct bio;
+struct block_device;
+struct gendisk;
+struct blk_integrity;
+
+static inline int blk_integrity_rq(struct request *rq)
+{
+	return 0;
+}
+static inline int blk_rq_count_integrity_sg(struct request_queue *q,
+					    struct bio *b)
+{
+	return 0;
+}
+static inline int blk_rq_map_integrity_sg(struct request_queue *q,
+					  struct bio *b,
+					  struct scatterlist *s)
+{
+	return 0;
+}
+static inline struct blk_integrity *bdev_get_integrity(struct block_device *b)
+{
+	return 0;
+}
+static inline struct blk_integrity *blk_get_integrity(struct gendisk *disk)
+{
+	return NULL;
+}
+static inline int blk_integrity_compare(struct gendisk *a, struct gendisk *b)
+{
+	return 0;
+}
+static inline int blk_integrity_register(struct gendisk *d,
+					 struct blk_integrity *b)
+{
+	return 0;
+}
+static inline void blk_integrity_unregister(struct gendisk *d)
+{
+}
+static inline void blk_queue_max_integrity_segments(struct request_queue *q,
+						    unsigned int segs)
+{
+}
+static inline unsigned short queue_max_integrity_segments(struct request_queue *q)
+{
+	return 0;
+}
+static inline int blk_integrity_merge_rq(struct request_queue *rq,
+					 struct request *r1,
+					 struct request *r2)
+{
+	return 0;
+}
+static inline int blk_integrity_merge_bio(struct request_queue *rq,
+					  struct request *r,
+					  struct bio *b)
+{
+	return 0;
+}
+static inline bool blk_integrity_is_initialized(struct gendisk *g)
+{
+	return 0;
+}
 
 #endif /* CONFIG_BLK_DEV_INTEGRITY */
 
