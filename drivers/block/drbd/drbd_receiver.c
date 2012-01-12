@@ -466,6 +466,7 @@ static int drbd_accept(struct drbd_conf *mdev, const char **what,
 		goto out;
 	}
 	(*newsock)->ops  = sock->ops;
+	__module_get((*newsock)->ops->owner);
 
 out:
 	return err;
