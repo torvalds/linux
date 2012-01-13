@@ -402,7 +402,7 @@ static struct ceph_mds_session *register_session(struct ceph_mds_client *mdsc,
 
 	spin_lock_init(&s->s_gen_ttl_lock);
 	s->s_cap_gen = 0;
-	s->s_cap_ttl = 0;
+	s->s_cap_ttl = jiffies - 1;
 
 	spin_lock_init(&s->s_cap_lock);
 	s->s_renew_requested = 0;
@@ -1083,8 +1083,7 @@ static void renewed_caps(struct ceph_mds_client *mdsc,
 	int wake = 0;
 
 	spin_lock(&session->s_cap_lock);
-	was_stale = is_renew && (session->s_cap_ttl == 0 ||
-				 time_after_eq(jiffies, session->s_cap_ttl));
+	was_stale = is_renew && time_after_eq(jiffies, session->s_cap_ttl);
 
 	session->s_cap_ttl = session->s_renew_requested +
 		mdsc->mdsmap->m_session_timeout*HZ;
@@ -2332,7 +2331,7 @@ static void handle_session(struct ceph_mds_session *session,
 			session->s_mds);
 		spin_lock(&session->s_gen_ttl_lock);
 		session->s_cap_gen++;
-		session->s_cap_ttl = 0;
+		session->s_cap_ttl = jiffies - 1;
 		spin_unlock(&session->s_gen_ttl_lock);
 		send_renew_caps(mdsc, session);
 		break;
