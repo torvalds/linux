@@ -2845,7 +2845,7 @@ static void __unlink_end_trans(struct btrfs_trans_handle *trans,
 		BUG_ON(!root->fs_info->enospc_unlink);
 		root->fs_info->enospc_unlink = 0;
 	}
-	btrfs_end_transaction_throttle(trans, root);
+	btrfs_end_transaction(trans, root);
 }
 
 static int btrfs_unlink(struct inode *dir, struct dentry *dentry)
@@ -3434,7 +3434,7 @@ static int btrfs_setsize(struct inode *inode, loff_t newsize)
 		i_size_write(inode, newsize);
 		btrfs_ordered_update_i_size(inode, i_size_read(inode), NULL);
 		ret = btrfs_update_inode(trans, root, inode);
-		btrfs_end_transaction_throttle(trans, root);
+		btrfs_end_transaction(trans, root);
 	} else {
 
 		/*
@@ -4655,7 +4655,7 @@ static int btrfs_mknod(struct inode *dir, struct dentry *dentry,
 	}
 out_unlock:
 	nr = trans->blocks_used;
-	btrfs_end_transaction_throttle(trans, root);
+	btrfs_end_transaction(trans, root);
 	btrfs_btree_balance_dirty(root, nr);
 	if (drop_inode) {
 		inode_dec_link_count(inode);
@@ -4723,7 +4723,7 @@ static int btrfs_create(struct inode *dir, struct dentry *dentry,
 	}
 out_unlock:
 	nr = trans->blocks_used;
-	btrfs_end_transaction_throttle(trans, root);
+	btrfs_end_transaction(trans, root);
 	if (drop_inode) {
 		inode_dec_link_count(inode);
 		iput(inode);
@@ -4782,7 +4782,7 @@ static int btrfs_link(struct dentry *old_dentry, struct inode *dir,
 	}
 
 	nr = trans->blocks_used;
-	btrfs_end_transaction_throttle(trans, root);
+	btrfs_end_transaction(trans, root);
 fail:
 	if (drop_inode) {
 		inode_dec_link_count(inode);
@@ -4848,7 +4848,7 @@ static int btrfs_mkdir(struct inode *dir, struct dentry *dentry, int mode)
 
 out_fail:
 	nr = trans->blocks_used;
-	btrfs_end_transaction_throttle(trans, root);
+	btrfs_end_transaction(trans, root);
 	if (drop_on_err)
 		iput(inode);
 	btrfs_btree_balance_dirty(root, nr);
@@ -6668,7 +6668,7 @@ end_trans:
 			err = ret;
 
 		nr = trans->blocks_used;
-		ret = btrfs_end_transaction_throttle(trans, root);
+		ret = btrfs_end_transaction(trans, root);
 		btrfs_btree_balance_dirty(root, nr);
 	}
 
@@ -7075,7 +7075,7 @@ static int btrfs_rename(struct inode *old_dir, struct dentry *old_dentry,
 		btrfs_end_log_trans(root);
 	}
 out_fail:
-	btrfs_end_transaction_throttle(trans, root);
+	btrfs_end_transaction(trans, root);
 out_notrans:
 	if (old_ino == BTRFS_FIRST_FREE_OBJECTID)
 		up_read(&root->fs_info->subvol_sem);
@@ -7247,7 +7247,7 @@ out_unlock:
 	if (!err)
 		d_instantiate(dentry, inode);
 	nr = trans->blocks_used;
-	btrfs_end_transaction_throttle(trans, root);
+	btrfs_end_transaction(trans, root);
 	if (drop_inode) {
 		inode_dec_link_count(inode);
 		iput(inode);
