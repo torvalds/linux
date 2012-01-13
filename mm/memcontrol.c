@@ -4960,7 +4960,7 @@ static int mem_cgroup_soft_limit_tree_init(void)
 			tmp = -1;
 		rtpn = kzalloc_node(sizeof(*rtpn), GFP_KERNEL, tmp);
 		if (!rtpn)
-			return 1;
+			goto err_cleanup;
 
 		soft_limit_tree.rb_tree_per_node[node] = rtpn;
 
@@ -4971,6 +4971,16 @@ static int mem_cgroup_soft_limit_tree_init(void)
 		}
 	}
 	return 0;
+
+err_cleanup:
+	for_each_node_state(node, N_POSSIBLE) {
+		if (!soft_limit_tree.rb_tree_per_node[node])
+			break;
+		kfree(soft_limit_tree.rb_tree_per_node[node]);
+		soft_limit_tree.rb_tree_per_node[node] = NULL;
+	}
+	return 1;
+
 }
 
 static struct cgroup_subsys_state * __ref
