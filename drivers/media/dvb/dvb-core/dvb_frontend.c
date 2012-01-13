@@ -904,8 +904,11 @@ static int dvb_frontend_clear_cache(struct dvb_frontend *fe)
 {
 	struct dtv_frontend_properties *c = &fe->dtv_property_cache;
 	int i;
+	u32 delsys;
 
+	delsys = c->delivery_system;
 	memset(c, 0, sizeof(struct dtv_frontend_properties));
+	c->delivery_system = delsys;
 
 	c->state = DTV_CLEAR;
 
