@@ -39,11 +39,6 @@
 /* Offset for the firmware version within the TCPM */
 #define PRCMU_FW_VERSION_OFFSET 0xA4
 
-/* PRCMU project numbers, defined by PRCMU FW */
-#define PRCMU_PROJECT_ID_8500V1_0 1
-#define PRCMU_PROJECT_ID_8500V2_0 2
-#define PRCMU_PROJECT_ID_8400V2_0 3
-
 /* Index of different voltages to be used when accessing AVSData */
 #define PRCM_AVS_BASE		0x2FC
 #define PRCM_AVS_VBB_RET	(PRCM_AVS_BASE + 0x0)
@@ -265,6 +260,11 @@
 #define WAKEUP_BIT_GPIO6 BIT(29)
 #define WAKEUP_BIT_GPIO7 BIT(30)
 #define WAKEUP_BIT_GPIO8 BIT(31)
+
+static struct {
+	bool valid;
+	struct prcmu_fw_version version;
+} fw_info;
 
 /*
  * This vector maps irq numbers to the bits in the bit field used in
@@ -522,14 +522,6 @@ static const char *hwacc_ret_regulator_name[NUM_HW_ACC] = {
 
 #define PRCMU_PLLDSI_LOCKP_LOCKED	0x3
 
-static struct {
-	u8 project_number;
-	u8 api_version;
-	u8 func_version;
-	u8 errata;
-} prcmu_version;
-
-
 int db8500_prcmu_enable_dsipll(void)
 {
 	int i;
@@ -617,6 +609,11 @@ void prcmu_disable_spi2(void)
 	reg = readl(PRCM_GPIOCR);
 	writel(reg & ~PRCM_GPIOCR_SPI2_SELECT, PRCM_GPIOCR);
 	spin_unlock_irqrestore(&gpiocr_lock, flags);
+}
+
+struct prcmu_fw_version *prcmu_get_fw_version(void)
+{
+	return fw_info.valid ? &fw_info.version : NULL;
 }
 
 bool prcmu_has_arm_maxopp(void)
@@ -2077,6 +2074,22 @@ static struct irq_chip prcmu_irq_chip = {
 	.irq_unmask	= prcmu_irq_unmask,
 };
 
+static char *fw_project_name(u8 project)
+{
+	switch (project) {
+	case PRCMU_FW_PROJECT_U8500:
+		return "U8500";
+	case PRCMU_FW_PROJECT_U8500_C2:
+		return "U8500 C2";
+	case PRCMU_FW_PROJECT_U9500:
+		return "U9500";
+	case PRCMU_FW_PROJECT_U9500_C2:
+		return "U9500 C2";
+	default:
+		return "Unknown";
+	}
+}
+
 void __init db8500_prcmu_early_init(void)
 {
 	unsigned int i;
@@ -2086,11 +2099,13 @@ void __init db8500_prcmu_early_init(void)
 		if (tcpm_base != NULL) {
 			u32 version;
 			version = readl(tcpm_base + PRCMU_FW_VERSION_OFFSET);
-			prcmu_version.project_number = version & 0xFF;
-			prcmu_version.api_version = (version >> 8) & 0xFF;
-			prcmu_version.func_version = (version >> 16) & 0xFF;
-			prcmu_version.errata = (version >> 24) & 0xFF;
-			pr_info("PRCMU firmware version %d.%d.%d\n",
+			fw_info.version.project = version & 0xFF;
+			fw_info.version.api_version = (version >> 8) & 0xFF;
+			fw_info.version.func_version = (version >> 16) & 0xFF;
+			fw_info.version.errata = (version >> 24) & 0xFF;
+			fw_info.valid = true;
+			pr_info("PRCMU firmware: %s, version %d.%d.%d\n",
+				fw_project_name(fw_info.version.project),
 				(version >> 8) & 0xFF, (version >> 16) & 0xFF,
 				(version >> 24) & 0xFF);
 			iounmap(tcpm_base);
