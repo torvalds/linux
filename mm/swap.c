@@ -53,7 +53,7 @@ static void __page_cache_release(struct page *page)
 		spin_lock_irqsave(&zone->lru_lock, flags);
 		VM_BUG_ON(!PageLRU(page));
 		__ClearPageLRU(page);
-		del_page_from_lru(zone, page);
+		del_page_from_lru_list(zone, page, page_off_lru(page));
 		spin_unlock_irqrestore(&zone->lru_lock, flags);
 	}
 }
@@ -617,7 +617,7 @@ void release_pages(struct page **pages, int nr, int cold)
 			}
 			VM_BUG_ON(!PageLRU(page));
 			__ClearPageLRU(page);
-			del_page_from_lru(zone, page);
+			del_page_from_lru_list(zone, page, page_off_lru(page));
 		}
 
 		list_add(&page->lru, &pages_to_free);
