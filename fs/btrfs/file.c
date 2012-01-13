@@ -1273,7 +1273,6 @@ static noinline ssize_t __btrfs_buffered_write(struct file *file,
 						   dirty_pages);
 		if (dirty_pages < (root->leafsize >> PAGE_CACHE_SHIFT) + 1)
 			btrfs_btree_balance_dirty(root, 1);
-		btrfs_throttle(root);
 
 		pos += copied;
 		num_written += copied;
