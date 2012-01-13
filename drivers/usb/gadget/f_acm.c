@@ -5,7 +5,7 @@
  * Copyright (C) 2008 by David Brownell
  * Copyright (C) 2008 by Nokia Corporation
  * Copyright (C) 2009 by Samsung Electronics
- * Author: Michal Nazarewicz (m.nazarewicz@samsung.com)
+ * Author: Michal Nazarewicz (mina86@mina86.com)
  *
  * This software is distributed under the terms of the GNU General
  * Public License ("GPL") as published by the Free Software Foundation,
