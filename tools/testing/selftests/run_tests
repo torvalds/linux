@@ -1,6 +1,6 @@
 #!/bin/bash
 
-TARGETS=
+TARGETS=breakpoints
 
 for TARGET in $TARGETS
 do
