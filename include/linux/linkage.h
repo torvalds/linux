@@ -88,6 +88,4 @@
 
 #endif
 
-#define ATTRIB_NORET  __attribute__((noreturn))
-
 #endif
