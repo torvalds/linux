@@ -39,7 +39,10 @@ static int rk29_aif1_hw_params(struct snd_pcm_substream *substream,
 	struct snd_soc_dai *codec_dai = rtd->codec_dai;
 	struct snd_soc_dai *cpu_dai = rtd->cpu_dai;
 	unsigned int pll_out = 0; 
+	int div_bclk,div_mclk;
 	int ret;
+	struct clk	*general_pll;
+
 
 	DBG("Enter::%s----%d\n",__FUNCTION__,__LINE__);
 
@@ -89,18 +92,65 @@ static int rk29_aif1_hw_params(struct snd_pcm_substream *substream,
 			return -EINVAL;
 	}
 
-	DBG("Enter:%s, %d, rate=%d,pll_out = %d\n",__FUNCTION__,__LINE__,params_rate(params),pll_out);
+//	DBG("Enter:%s, %d, rate=%d,pll_out = %d\n",__FUNCTION__,__LINE__,params_rate(params),pll_out);
 #if defined (CONFIG_SND_RK29_CODEC_SOC_SLAVE)	
+	general_pll=clk_get(NULL, "general_pll");
+	if(clk_get_rate(general_pll)>260000000)
+	{
+		div_bclk=(pll_out/4)/params_rate(params)-1;
+		div_mclk=3;
+	}
+	else if(clk_get_rate(general_pll)>130000000)
+	{
+		div_bclk=(pll_out/2)/params_rate(params)-1;
+		div_mclk=1;
+	}
+	else
+	{//96M
+		pll_out=pll_out/4;
+		div_bclk=(pll_out)/params_rate(params)-1;
+		div_mclk=0;
+	}
+
+	DBG("func is%s,gpll=%ld,pll_out=%d,div_mclk=%d\n",
+			__FUNCTION__,clk_get_rate(general_pll),pll_out,div_mclk);
+	
 	ret = snd_soc_dai_set_sysclk(cpu_dai, 0, pll_out, 0);
 	if(ret < 0)
 	{
 		DBG("rk29_hw_params_wm8994:failed to set the cpu sysclk for codec side\n"); 
 		return ret;
 	}
-	ret = snd_soc_dai_set_sysclk(codec_dai, WM8994_SYSCLK_MCLK1, pll_out, 0);
-	if (ret < 0) {
-		DBG("rk29_hw_params_wm8994:failed to set the sysclk for codec side\n"); 
-		return ret;
+	snd_soc_dai_set_clkdiv(cpu_dai, ROCKCHIP_DIV_BCLK,div_bclk);
+	snd_soc_dai_set_clkdiv(cpu_dai, ROCKCHIP_DIV_MCLK, div_mclk);
+	DBG("Enter:%s, %d, LRCK=%d\n",__FUNCTION__,__LINE__,(pll_out/4)/params_rate(params));
+
+	if(div_mclk== 3)
+	{//MCLK == 11289600 or 12288000
+		ret = snd_soc_dai_set_sysclk(codec_dai, WM8994_SYSCLK_MCLK1, pll_out, 0);
+		if (ret < 0) {
+			DBG("rk29_hw_params_wm8994:failed to set the sysclk for codec side\n"); 
+			return ret;
+		}
+	}
+	else
+	{
+		/* set the codec FLL */
+		ret = snd_soc_dai_set_pll(codec_dai, WM8994_FLL1, WM8994_FLL_SRC_MCLK1, pll_out,
+				params_rate(params) * 256);
+		if (ret < 0)
+		{
+			printk("%s: snd_soc_dai_set_pll err =%d\n",__FUNCTION__,ret);
+			return ret;
+		}
+		/* set the codec system clock */
+		ret = snd_soc_dai_set_sysclk(codec_dai, WM8994_SYSCLK_FLL1,
+				params_rate(params) * 256, SND_SOC_CLOCK_IN);
+		if (ret < 0)
+		{
+			printk("%s: snd_soc_dai_set_sysclk err =%d\n",__FUNCTION__,ret);
+			return ret;
+		}
 	}
 #elif defined (CONFIG_SND_RK29_CODEC_SOC_MASTER)
 	
@@ -116,7 +166,10 @@ static int rk29_aif2_hw_params(struct snd_pcm_substream *substream,
 	struct snd_soc_dai *codec_dai = rtd->codec_dai;
 	struct snd_soc_dai *cpu_dai = rtd->cpu_dai;
 	unsigned int pll_out = 0; 
-	int ret = 0;
+	int div_bclk,div_mclk;
+	int ret;
+	struct clk	*general_pll;
+
 	//change to 8Khz
 //	params->intervals[SNDRV_PCM_HW_PARAM_RATE - SNDRV_PCM_HW_PARAM_FIRST_INTERVAL].min = 8000;	
 
@@ -135,14 +188,42 @@ static int rk29_aif2_hw_params(struct snd_pcm_substream *substream,
 	}
 	switch(params_rate(params)) {
 		case 8000:
-		case 44100:		
+		case 16000:
+		case 24000:
+		case 32000:
+		case 48000:
+			pll_out = 12288000;
+			break;
+		case 11025:
+		case 22050:
+		case 44100:
 			pll_out = 11289600;
 			break;
 		default:
 			DBG("Enter:%s, %d, Error rate=%d\n",__FUNCTION__,__LINE__,params_rate(params));
 			return -EINVAL;
-			break;
 	}
+	
+	general_pll=clk_get(NULL, "general_pll");
+	if(clk_get_rate(general_pll)>260000000)
+	{
+		div_bclk=(pll_out/4)/params_rate(params)-1;
+		div_mclk=3;
+	}
+	else if(clk_get_rate(general_pll)>130000000)
+	{
+		div_bclk=(pll_out/2)/params_rate(params)-1;
+		div_mclk=1;
+	}
+	else
+	{//96M
+		pll_out=pll_out/4;
+		div_bclk=(pll_out)/params_rate(params)-1;
+		div_mclk=0;
+	}
+
+	DBG("func is%s,gpll=%ld,pll_out=%d,div_mclk=%d\n",
+			__FUNCTION__,clk_get_rate(general_pll),pll_out,div_mclk);
 	
 	ret = snd_soc_dai_set_sysclk(cpu_dai, 0, pll_out, 0);
 	if(ret < 0)
@@ -150,7 +231,10 @@ static int rk29_aif2_hw_params(struct snd_pcm_substream *substream,
 		DBG("rk29_hw_params_wm8994:failed to set the cpu sysclk for codec side\n"); 
 		return ret;
 	}
-	
+	snd_soc_dai_set_clkdiv(cpu_dai, ROCKCHIP_DIV_BCLK,div_bclk);
+	snd_soc_dai_set_clkdiv(cpu_dai, ROCKCHIP_DIV_MCLK, div_mclk);
+	DBG("Enter:%s, %d, LRCK=%d\n",__FUNCTION__,__LINE__,(pll_out/4)/params_rate(params));
+
 	/* set the codec FLL */
 	ret = snd_soc_dai_set_pll(codec_dai, WM8994_FLL2, WM8994_FLL_SRC_MCLK1, pll_out,
 			8000 * 256);
@@ -167,7 +251,6 @@ static int rk29_aif2_hw_params(struct snd_pcm_substream *substream,
 		printk("%s: snd_soc_dai_set_sysclk err =%d\n",__FUNCTION__,ret);
 		return ret;
 	}
-	
 
 	return ret;
 }
@@ -179,9 +262,9 @@ static int rk29_aif3_hw_params(struct snd_pcm_substream *substream,
 	struct snd_soc_dai *codec_dai = rtd->codec_dai;
 	struct snd_soc_dai *cpu_dai = rtd->cpu_dai;
 	unsigned int pll_out = 0; 
-	int div_bclk,div_mclk;
+//	int div_bclk,div_mclk;
 	int ret;
-	struct clk	*general_pll;
+//	struct clk	*general_pll;
 
 	DBG("Enter::%s----%d\n",__FUNCTION__,__LINE__);
 

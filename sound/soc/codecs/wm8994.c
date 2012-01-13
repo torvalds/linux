@@ -1957,6 +1957,7 @@ static int wm8994_set_bias_level(struct snd_soc_codec *codec,
 {
 	struct wm8994 *control = codec->control_data;
 	struct wm8994_priv *wm8994 = snd_soc_codec_get_drvdata(codec);
+//	DBG("Enter %s::%s---%d\n",__FILE__,__FUNCTION__,__LINE__);
 
 	switch (level) {
 	case SND_SOC_BIAS_ON:
@@ -1969,6 +1970,7 @@ static int wm8994_set_bias_level(struct snd_soc_codec *codec,
 		break;
 
 	case SND_SOC_BIAS_STANDBY:
+		printk("standby wm8994\n");
 		if (codec->dapm.bias_level == SND_SOC_BIAS_OFF) {
 			pm_runtime_get_sync(codec->dev);
 
@@ -2588,7 +2590,8 @@ static int wm8994_suspend(struct snd_soc_codec *codec, pm_message_t state)
 	struct wm8994_priv *wm8994 = snd_soc_codec_get_drvdata(codec);
 	struct wm8994 *control = codec->control_data;
 	int i, ret;
-
+	
+//	printk("on wm8994.c wm8994_suspend\n");
 	switch (control->type) {
 	case WM8994:
 		snd_soc_update_bits(codec, WM8994_MICBIAS, WM8994_MICD_ENA, 0);
@@ -2619,7 +2622,8 @@ static int wm8994_resume(struct snd_soc_codec *codec)
 	struct wm8994 *control = codec->control_data;
 	int i, ret;
 	unsigned int val, mask;
-
+	
+//	printk("on wm8994.c wm8994_resume\n");
 	if (wm8994->revision < 4) {
 		/* force a HW read */
 		val = wm8994_reg_read(codec->control_data,
