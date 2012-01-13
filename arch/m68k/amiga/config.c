@@ -511,7 +511,7 @@ static unsigned long amiga_gettimeoffset(void)
 	return ticks + offset;
 }
 
-static NORET_TYPE void amiga_reset(void)
+static void amiga_reset(void)
     ATTRIB_NORET;
 
 static void amiga_reset(void)
