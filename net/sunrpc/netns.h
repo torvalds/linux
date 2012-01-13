@@ -15,6 +15,11 @@ struct sunrpc_net {
 
 	struct list_head all_clients;
 	spinlock_t rpc_client_lock;
+
+	struct rpc_clnt *rpcb_local_clnt;
+	struct rpc_clnt *rpcb_local_clnt4;
+	spinlock_t rpcb_clnt_lock;
+	unsigned int rpcb_users;
 };
 
 extern int sunrpc_net_id;
