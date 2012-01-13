@@ -909,7 +909,7 @@ static void dispc_configure_burst_sizes(void)
 		dispc_ovl_set_burst_size(i, burst_size);
 }
 
-u32 dispc_ovl_get_burst_size(enum omap_plane plane)
+static u32 dispc_ovl_get_burst_size(enum omap_plane plane)
 {
 	unsigned unit = dss_feat_get_burst_size_unit();
 	/* burst multiplier is always x8 (see dispc_configure_burst_sizes()) */
@@ -1018,7 +1018,7 @@ static void dispc_read_plane_fifo_sizes(void)
 	}
 }
 
-u32 dispc_ovl_get_fifo_size(enum omap_plane plane)
+static u32 dispc_ovl_get_fifo_size(enum omap_plane plane)
 {
 	return dispc.fifo_size[plane];
 }
@@ -1061,6 +1061,24 @@ void dispc_enable_fifomerge(bool enable)
 
 	DSSDBG("FIFO merge %s\n", enable ? "enabled" : "disabled");
 	REG_FLD_MOD(DISPC_CONFIG, enable ? 1 : 0, 14, 14);
+}
+
+void dispc_ovl_compute_fifo_thresholds(enum omap_plane plane,
+		u32 *fifo_low, u32 *fifo_high, bool use_fifomerge)
+{
+	/*
+	 * All sizes are in bytes. Both the buffer and burst are made of
+	 * buffer_units, and the fifo thresholds must be buffer_unit aligned.
+	 */
+
+	unsigned buf_unit = dss_feat_get_buffer_size_unit();
+	unsigned fifo_size, burst_size;
+
+	burst_size = dispc_ovl_get_burst_size(plane);
+	fifo_size = dispc_ovl_get_fifo_size(plane);
+
+	*fifo_low = fifo_size - burst_size;
+	*fifo_high = fifo_size - buf_unit;
 }
 
 static void dispc_ovl_set_fir(enum omap_plane plane,

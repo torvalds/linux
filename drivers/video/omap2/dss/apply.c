@@ -907,7 +907,6 @@ static void dss_ovl_setup_fifo(struct omap_overlay *ovl,
 {
 	struct ovl_priv_data *op = get_ovl_priv(ovl);
 	struct omap_dss_device *dssdev;
-	u32 size, burst_size;
 	u32 fifo_low, fifo_high;
 
 	if (!op->enabled && !op->enabling)
@@ -915,37 +914,8 @@ static void dss_ovl_setup_fifo(struct omap_overlay *ovl,
 
 	dssdev = ovl->manager->device;
 
-	if (use_fifo_merge) {
-		int i;
-
-		size = 0;
-
-		for (i = 0; i < omap_dss_get_num_overlays(); ++i)
-			size += dispc_ovl_get_fifo_size(i);
-	} else {
-		size = dispc_ovl_get_fifo_size(ovl->id);
-	}
-
-	burst_size = dispc_ovl_get_burst_size(ovl->id);
-
-	switch (dssdev->type) {
-	case OMAP_DISPLAY_TYPE_DPI:
-	case OMAP_DISPLAY_TYPE_DBI:
-	case OMAP_DISPLAY_TYPE_SDI:
-	case OMAP_DISPLAY_TYPE_VENC:
-	case OMAP_DISPLAY_TYPE_HDMI:
-		default_get_overlay_fifo_thresholds(ovl->id, size,
-				burst_size, &fifo_low, &fifo_high);
-		break;
-#ifdef CONFIG_OMAP2_DSS_DSI
-	case OMAP_DISPLAY_TYPE_DSI:
-		dsi_get_overlay_fifo_thresholds(ovl->id, size,
-				burst_size, &fifo_low, &fifo_high);
-		break;
-#endif
-	default:
-		BUG();
-	}
+	dispc_ovl_compute_fifo_thresholds(ovl->id, &fifo_low, &fifo_high,
+			use_fifo_merge);
 
 	dss_apply_ovl_fifo_thresholds(ovl, fifo_low, fifo_high);
 }

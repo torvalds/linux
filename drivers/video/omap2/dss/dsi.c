@@ -4524,14 +4524,6 @@ int omapdss_dsi_enable_te(struct omap_dss_device *dssdev, bool enable)
 }
 EXPORT_SYMBOL(omapdss_dsi_enable_te);
 
-void dsi_get_overlay_fifo_thresholds(enum omap_plane plane,
-		u32 fifo_size, u32 burst_size,
-		u32 *fifo_low, u32 *fifo_high)
-{
-	*fifo_high = fifo_size - burst_size;
-	*fifo_low = fifo_size - burst_size * 2;
-}
-
 int dsi_init_display(struct omap_dss_device *dssdev)
 {
 	struct platform_device *dsidev = dsi_get_dsidev_from_dssdev(dssdev);
