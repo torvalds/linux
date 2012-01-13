@@ -58,6 +58,7 @@ enum dss_feat_id {
 	FEAT_FIR_COEF_V			= 1 << 25,
 	FEAT_ALPHA_FIXED_ZORDER		= 1 << 26,
 	FEAT_ALPHA_FREE_ZORDER		= 1 << 27,
+	FEAT_FIFO_MERGE			= 1 << 28,
 };
 
 /* DSS register field id */
