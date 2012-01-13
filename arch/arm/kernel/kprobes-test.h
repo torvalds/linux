@@ -149,23 +149,31 @@ struct test_arg_end {
 	"1:	"instruction"				\n\t"	\
 	"	nop					\n\t"
 
-#define TEST_BRANCH_F(instruction, xtra_dist)			\
+#define TEST_BRANCH_F(instruction)				\
 	TEST_INSTRUCTION(instruction)				\
-	".if "#xtra_dist"				\n\t"	\
-	"	b	99f				\n\t"	\
-	".space "#xtra_dist"				\n\t"	\
-	".endif						\n\t"	\
 	"	b	99f				\n\t"	\
 	"2:	nop					\n\t"
 
-#define TEST_BRANCH_B(instruction, xtra_dist)			\
+#define TEST_BRANCH_B(instruction)				\
 	"	b	50f				\n\t"	\
 	"	b	99f				\n\t"	\
 	"2:	nop					\n\t"	\
 	"	b	99f				\n\t"	\
-	".if "#xtra_dist"				\n\t"	\
-	".space "#xtra_dist"				\n\t"	\
-	".endif						\n\t"	\
+	TEST_INSTRUCTION(instruction)
+
+#define TEST_BRANCH_FX(instruction, codex)			\
+	TEST_INSTRUCTION(instruction)				\
+	"	b	99f				\n\t"	\
+	codex"						\n\t"	\
+	"	b	99f				\n\t"	\
+	"2:	nop					\n\t"
+
+#define TEST_BRANCH_BX(instruction, codex)			\
+	"	b	50f				\n\t"	\
+	"	b	99f				\n\t"	\
+	"2:	nop					\n\t"	\
+	"	b	99f				\n\t"	\
+	codex"						\n\t"	\
 	TEST_INSTRUCTION(instruction)
 
 #define TESTCASE_END						\
@@ -301,47 +309,60 @@ struct test_arg_end {
 	TESTCASE_START(code1 #reg1 code2)	\
 	TEST_ARG_PTR(reg1, val1)		\
 	TEST_ARG_END("")			\
-	TEST_BRANCH_F(code1 #reg1 code2, 0)	\
+	TEST_BRANCH_F(code1 #reg1 code2)	\
 	TESTCASE_END
 
-#define TEST_BF_X(code, xtra_dist)		\
+#define TEST_BF(code)				\
 	TESTCASE_START(code)			\
 	TEST_ARG_END("")			\
-	TEST_BRANCH_F(code, xtra_dist)		\
+	TEST_BRANCH_F(code)			\
 	TESTCASE_END
 
-#define TEST_BB_X(code, xtra_dist)		\
+#define TEST_BB(code)				\
 	TESTCASE_START(code)			\
 	TEST_ARG_END("")			\
-	TEST_BRANCH_B(code, xtra_dist)		\
+	TEST_BRANCH_B(code)			\
 	TESTCASE_END
 
-#define TEST_BF_RX(code1, reg, val, code2, xtra_dist)	\
-	TESTCASE_START(code1 #reg code2)		\
-	TEST_ARG_REG(reg, val)				\
-	TEST_ARG_END("")				\
-	TEST_BRANCH_F(code1 #reg code2, xtra_dist)	\
+#define TEST_BF_R(code1, reg, val, code2)	\
+	TESTCASE_START(code1 #reg code2)	\
+	TEST_ARG_REG(reg, val)			\
+	TEST_ARG_END("")			\
+	TEST_BRANCH_F(code1 #reg code2)		\
 	TESTCASE_END
 
-#define TEST_BB_RX(code1, reg, val, code2, xtra_dist)	\
-	TESTCASE_START(code1 #reg code2)		\
-	TEST_ARG_REG(reg, val)				\
-	TEST_ARG_END("")				\
-	TEST_BRANCH_B(code1 #reg code2, xtra_dist)	\
+#define TEST_BB_R(code1, reg, val, code2)	\
+	TESTCASE_START(code1 #reg code2)	\
+	TEST_ARG_REG(reg, val)			\
+	TEST_ARG_END("")			\
+	TEST_BRANCH_B(code1 #reg code2)		\
 	TESTCASE_END
-
-#define TEST_BF(code)	TEST_BF_X(code, 0)
-#define TEST_BB(code)	TEST_BB_X(code, 0)
-
-#define TEST_BF_R(code1, reg, val, code2) TEST_BF_RX(code1, reg, val, code2, 0)
-#define TEST_BB_R(code1, reg, val, code2) TEST_BB_RX(code1, reg, val, code2, 0)
 
 #define TEST_BF_RR(code1, reg1, val1, code2, reg2, val2, code3)	\
 	TESTCASE_START(code1 #reg1 code2 #reg2 code3)		\
 	TEST_ARG_REG(reg1, val1)				\
 	TEST_ARG_REG(reg2, val2)				\
 	TEST_ARG_END("")					\
-	TEST_BRANCH_F(code1 #reg1 code2 #reg2 code3, 0)		\
+	TEST_BRANCH_F(code1 #reg1 code2 #reg2 code3)		\
+	TESTCASE_END
+
+#define TEST_BF_X(code, codex)			\
+	TESTCASE_START(code)			\
+	TEST_ARG_END("")			\
+	TEST_BRANCH_FX(code, codex)		\
+	TESTCASE_END
+
+#define TEST_BB_X(code, codex)			\
+	TESTCASE_START(code)			\
+	TEST_ARG_END("")			\
+	TEST_BRANCH_BX(code, codex)		\
+	TESTCASE_END
+
+#define TEST_BF_RX(code1, reg, val, code2, codex)	\
+	TESTCASE_START(code1 #reg code2)		\
+	TEST_ARG_REG(reg, val)				\
+	TEST_ARG_END("")				\
+	TEST_BRANCH_FX(code1 #reg code2, codex)		\
 	TESTCASE_END
 
 #define TEST_X(code, codex)			\
@@ -370,6 +391,25 @@ struct test_arg_end {
 	"	b	99f		\n\t"					\
 	"	"codex"			\n\t"					\
 	TESTCASE_END
+
+
+/*
+ * Macros for defining space directives spread over multiple lines.
+ * These are required so the compiler guesses better the length of inline asm
+ * code and will spill the literal pool early enough to avoid generating PC
+ * relative loads with out of range offsets.
+ */
+#define TWICE(x)	x x
+#define SPACE_0x8	TWICE(".space 4\n\t")
+#define SPACE_0x10	TWICE(SPACE_0x8)
+#define SPACE_0x20	TWICE(SPACE_0x10)
+#define SPACE_0x40	TWICE(SPACE_0x20)
+#define SPACE_0x80	TWICE(SPACE_0x40)
+#define SPACE_0x100	TWICE(SPACE_0x80)
+#define SPACE_0x200	TWICE(SPACE_0x100)
+#define SPACE_0x400	TWICE(SPACE_0x200)
+#define SPACE_0x800	TWICE(SPACE_0x400)
+#define SPACE_0x1000	TWICE(SPACE_0x800)
 
 
 /* Various values used in test cases... */

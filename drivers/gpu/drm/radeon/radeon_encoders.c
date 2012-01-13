@@ -233,13 +233,12 @@ u16 radeon_encoder_get_dp_bridge_encoder_id(struct drm_encoder *encoder)
 		switch (radeon_encoder->encoder_id) {
 		case ENCODER_OBJECT_ID_TRAVIS:
 		case ENCODER_OBJECT_ID_NUTMEG:
-			return true;
+			return radeon_encoder->encoder_id;
 		default:
-			return false;
+			return ENCODER_OBJECT_ID_NONE;
 		}
 	}
-
-	return false;
+	return ENCODER_OBJECT_ID_NONE;
 }
 
 void radeon_panel_mode_fixup(struct drm_encoder *encoder,

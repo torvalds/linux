@@ -102,7 +102,7 @@ void __init prom_init(void)
 
 	/* Get the boot parameters */
 	for (i = 1; i < argc; i++) {
-		if (strlen(arcs_cmdline) + strlen(arg[i] + 1) >=
+		if (strlen(arcs_cmdline) + strlen(arg[i]) + 1 >=
 		    sizeof(arcs_cmdline))
 			break;
 

@@ -3,11 +3,15 @@
 
 #include <linux/notifier.h>
 
-#define IPCMSG_VRTC	0xFA	 /* Set vRTC device */
+#define IPCMSG_WARM_RESET	0xF0
+#define IPCMSG_COLD_RESET	0xF1
+#define IPCMSG_SOFT_RESET	0xF2
+#define IPCMSG_COLD_BOOT	0xF3
 
-/* Command id associated with message IPCMSG_VRTC */
-#define IPC_CMD_VRTC_SETTIME      1 /* Set time */
-#define IPC_CMD_VRTC_SETALARM     2 /* Set alarm */
+#define IPCMSG_VRTC		0xFA	 /* Set vRTC device */
+	/* Command id associated with message IPCMSG_VRTC */
+	#define IPC_CMD_VRTC_SETTIME      1 /* Set time */
+	#define IPC_CMD_VRTC_SETALARM     2 /* Set alarm */
 
 /* Read single register */
 int intel_scu_ipc_ioread8(u16 addr, u8 *data);

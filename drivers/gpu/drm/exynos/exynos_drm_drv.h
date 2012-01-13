@@ -29,6 +29,7 @@
 #ifndef _EXYNOS_DRM_DRV_H_
 #define _EXYNOS_DRM_DRV_H_
 
+#include <linux/module.h>
 #include "drm.h"
 
 #define MAX_CRTC	2
@@ -79,8 +80,8 @@ struct exynos_drm_overlay_ops {
  * @scan_flag: interlace or progressive way.
  *	(it could be DRM_MODE_FLAG_*)
  * @bpp: pixel size.(in bit)
- * @paddr: bus(accessed by dma) physical memory address to this overlay
- *		and this is physically continuous.
+ * @dma_addr: bus(accessed by dma) address to the memory region allocated
+ *	for a overlay.
  * @vaddr: virtual memory addresss to this overlay.
  * @default_win: a window to be enabled.
  * @color_key: color key on or off.
@@ -108,7 +109,7 @@ struct exynos_drm_overlay {
 	unsigned int scan_flag;
 	unsigned int bpp;
 	unsigned int pitch;
-	dma_addr_t paddr;
+	dma_addr_t dma_addr;
 	void __iomem *vaddr;
 
 	bool default_win;
@@ -130,7 +131,7 @@ struct exynos_drm_overlay {
  * @check_timing: check if timing is valid or not.
  * @power_on: display device on or off.
  */
-struct exynos_drm_display {
+struct exynos_drm_display_ops {
 	enum exynos_drm_output_type type;
 	bool (*is_connected)(struct device *dev);
 	int (*get_edid)(struct device *dev, struct drm_connector *connector,
@@ -146,12 +147,14 @@ struct exynos_drm_display {
  * @mode_set: convert drm_display_mode to hw specific display mode and
  *	      would be called by encoder->mode_set().
  * @commit: set current hw specific display mode to hw.
+ * @disable: disable hardware specific display mode.
  * @enable_vblank: specific driver callback for enabling vblank interrupt.
  * @disable_vblank: specific driver callback for disabling vblank interrupt.
  */
 struct exynos_drm_manager_ops {
 	void (*mode_set)(struct device *subdrv_dev, void *mode);
 	void (*commit)(struct device *subdrv_dev);
+	void (*disable)(struct device *subdrv_dev);
 	int (*enable_vblank)(struct device *subdrv_dev);
 	void (*disable_vblank)(struct device *subdrv_dev);
 };
@@ -178,7 +181,7 @@ struct exynos_drm_manager {
 	int pipe;
 	struct exynos_drm_manager_ops *ops;
 	struct exynos_drm_overlay_ops *overlay_ops;
-	struct exynos_drm_display *display;
+	struct exynos_drm_display_ops *display_ops;
 };
 
 /*

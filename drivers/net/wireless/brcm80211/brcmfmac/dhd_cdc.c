@@ -82,13 +82,14 @@ struct brcmf_proto_bdc_header {
 
 
 #define RETRIES 2 /* # of retries to retrieve matching dcmd response */
-#define BUS_HEADER_LEN	(16+BRCMF_SDALIGN) /* Must be atleast SDPCM_RESERVE
+#define BUS_HEADER_LEN	(16+64)		/* Must be atleast SDPCM_RESERVE
 					 * (amount of header tha might be added)
 					 * plus any space that might be needed
-					 * for alignment padding.
+					 * for bus alignment padding.
 					 */
-#define ROUND_UP_MARGIN	2048	/* Biggest SDIO block size possible for
+#define ROUND_UP_MARGIN	2048	/* Biggest bus block size possible for
 				 * round off at the end of buffer
+				 * Currently is SDIO
 				 */
 
 struct brcmf_proto {
@@ -116,8 +117,9 @@ static int brcmf_proto_cdc_msg(struct brcmf_pub *drvr)
 		len = CDC_MAX_MSG_SIZE;
 
 	/* Send request */
-	return brcmf_sdbrcm_bus_txctl(drvr->dev, (unsigned char *)&prot->msg,
-				      len);
+	return drvr->bus_if->brcmf_bus_txctl(drvr->dev,
+					     (unsigned char *)&prot->msg,
+					     len);
 }
 
 static int brcmf_proto_cdc_cmplt(struct brcmf_pub *drvr, u32 id, u32 len)
@@ -128,7 +130,7 @@ static int brcmf_proto_cdc_cmplt(struct brcmf_pub *drvr, u32 id, u32 len)
 	brcmf_dbg(TRACE, "Enter\n");
 
 	do {
-		ret = brcmf_sdbrcm_bus_rxctl(drvr->dev,
+		ret = drvr->bus_if->brcmf_bus_rxctl(drvr->dev,
 				(unsigned char *)&prot->msg,
 				len + sizeof(struct brcmf_proto_cdc_dcmd));
 		if (ret < 0)
@@ -284,7 +286,7 @@ brcmf_proto_dcmd(struct brcmf_pub *drvr, int ifidx, struct brcmf_dcmd *dcmd,
 		brcmf_dbg(ERROR, "bus is down. we have nothing to do.\n");
 		return ret;
 	}
-	brcmf_os_proto_block(drvr);
+	mutex_lock(&drvr->proto_block);
 
 	brcmf_dbg(TRACE, "Enter\n");
 
@@ -338,7 +340,7 @@ brcmf_proto_dcmd(struct brcmf_pub *drvr, int ifidx, struct brcmf_dcmd *dcmd,
 	prot->pending = false;
 
 done:
-	brcmf_os_proto_unblock(drvr);
+	mutex_unlock(&drvr->proto_block);
 
 	return ret;
 }
@@ -376,10 +378,12 @@ void brcmf_proto_hdrpush(struct brcmf_pub *drvr, int ifidx,
 	BDC_SET_IF_IDX(h, ifidx);
 }
 
-int brcmf_proto_hdrpull(struct brcmf_pub *drvr, int *ifidx,
+int brcmf_proto_hdrpull(struct device *dev, int *ifidx,
 			struct sk_buff *pktbuf)
 {
 	struct brcmf_proto_bdc_header *h;
+	struct brcmf_bus *bus_if = dev_get_drvdata(dev);
+	struct brcmf_pub *drvr = bus_if->drvr;
 
 	brcmf_dbg(TRACE, "Enter\n");
 
@@ -435,7 +439,7 @@ int brcmf_proto_attach(struct brcmf_pub *drvr)
 
 	drvr->prot = cdc;
 	drvr->hdrlen += BDC_HEADER_LEN;
-	drvr->maxctl = BRCMF_DCMD_MAXLEN +
+	drvr->bus_if->maxctl = BRCMF_DCMD_MAXLEN +
 			sizeof(struct brcmf_proto_cdc_dcmd) + ROUND_UP_MARGIN;
 	return 0;
 
@@ -451,18 +455,6 @@ void brcmf_proto_detach(struct brcmf_pub *drvr)
 	drvr->prot = NULL;
 }
 
-void brcmf_proto_dstats(struct brcmf_pub *drvr)
-{
-	/* No stats from dongle added yet, copy bus stats */
-	drvr->dstats.tx_packets = drvr->tx_packets;
-	drvr->dstats.tx_errors = drvr->tx_errors;
-	drvr->dstats.rx_packets = drvr->rx_packets;
-	drvr->dstats.rx_errors = drvr->rx_errors;
-	drvr->dstats.rx_dropped = drvr->rx_dropped;
-	drvr->dstats.multicast = drvr->rx_multicast;
-	return;
-}
-
 int brcmf_proto_init(struct brcmf_pub *drvr)
 {
 	int ret = 0;
@@ -470,19 +462,19 @@ int brcmf_proto_init(struct brcmf_pub *drvr)
 
 	brcmf_dbg(TRACE, "Enter\n");
 
-	brcmf_os_proto_block(drvr);
+	mutex_lock(&drvr->proto_block);
 
 	/* Get the device MAC address */
 	strcpy(buf, "cur_etheraddr");
 	ret = brcmf_proto_cdc_query_dcmd(drvr, 0, BRCMF_C_GET_VAR,
 					  buf, sizeof(buf));
 	if (ret < 0) {
-		brcmf_os_proto_unblock(drvr);
+		mutex_unlock(&drvr->proto_block);
 		return ret;
 	}
 	memcpy(drvr->mac, buf, ETH_ALEN);
 
-	brcmf_os_proto_unblock(drvr);
+	mutex_unlock(&drvr->proto_block);
 
 	ret = brcmf_c_preinit_dcmds(drvr);
 

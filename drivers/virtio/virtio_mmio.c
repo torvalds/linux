@@ -118,7 +118,7 @@ static void vm_finalize_features(struct virtio_device *vdev)
 	vring_transport_features(vdev);
 
 	for (i = 0; i < ARRAY_SIZE(vdev->features); i++) {
-		writel(i, vm_dev->base + VIRTIO_MMIO_GUEST_FEATURES_SET);
+		writel(i, vm_dev->base + VIRTIO_MMIO_GUEST_FEATURES_SEL);
 		writel(vdev->features[i],
 				vm_dev->base + VIRTIO_MMIO_GUEST_FEATURES);
 	}
@@ -361,7 +361,12 @@ static int vm_find_vqs(struct virtio_device *vdev, unsigned nvqs,
 	return 0;
 }
 
+static const char *vm_bus_name(struct virtio_device *vdev)
+{
+	struct virtio_mmio_device *vm_dev = to_virtio_mmio_device(vdev);
 
+	return vm_dev->pdev->name;
+}
 
 static struct virtio_config_ops virtio_mmio_config_ops = {
 	.get		= vm_get,
@@ -373,6 +378,7 @@ static struct virtio_config_ops virtio_mmio_config_ops = {
 	.del_vqs	= vm_del_vqs,
 	.get_features	= vm_get_features,
 	.finalize_features = vm_finalize_features,
+	.bus_name	= vm_bus_name,
 };
 
 

@@ -52,7 +52,7 @@ int __init davinci_psc_is_clk_active(unsigned int ctlr, unsigned int id)
 void davinci_psc_config(unsigned int domain, unsigned int ctlr,
 		unsigned int id, bool enable, u32 flags)
 {
-	u32 epcpr, ptcmd, ptstat, pdstat, pdctl1, mdstat, mdctl;
+	u32 epcpr, ptcmd, ptstat, pdstat, pdctl, mdstat, mdctl;
 	void __iomem *psc_base;
 	struct davinci_soc_info *soc_info = &davinci_soc_info;
 	u32 next_state = PSC_STATE_ENABLE;
@@ -79,11 +79,11 @@ void davinci_psc_config(unsigned int domain, unsigned int ctlr,
 		mdctl |= MDCTL_FORCE;
 	__raw_writel(mdctl, psc_base + MDCTL + 4 * id);
 
-	pdstat = __raw_readl(psc_base + PDSTAT);
-	if ((pdstat & 0x00000001) == 0) {
-		pdctl1 = __raw_readl(psc_base + PDCTL1);
-		pdctl1 |= 0x1;
-		__raw_writel(pdctl1, psc_base + PDCTL1);
+	pdstat = __raw_readl(psc_base + PDSTAT + 4 * domain);
+	if ((pdstat & PDSTAT_STATE_MASK) == 0) {
+		pdctl = __raw_readl(psc_base + PDCTL + 4 * domain);
+		pdctl |= PDCTL_NEXT;
+		__raw_writel(pdctl, psc_base + PDCTL + 4 * domain);
 
 		ptcmd = 1 << domain;
 		__raw_writel(ptcmd, psc_base + PTCMD);
@@ -92,9 +92,9 @@ void davinci_psc_config(unsigned int domain, unsigned int ctlr,
 			epcpr = __raw_readl(psc_base + EPCPR);
 		} while ((((epcpr >> domain) & 1) == 0));
 
-		pdctl1 = __raw_readl(psc_base + PDCTL1);
-		pdctl1 |= 0x100;
-		__raw_writel(pdctl1, psc_base + PDCTL1);
+		pdctl = __raw_readl(psc_base + PDCTL + 4 * domain);
+		pdctl |= PDCTL_EPCGOOD;
+		__raw_writel(pdctl, psc_base + PDCTL + 4 * domain);
 	} else {
 		ptcmd = 1 << domain;
 		__raw_writel(ptcmd, psc_base + PTCMD);

@@ -200,7 +200,7 @@ int ft_write_pending(struct se_cmd *se_cmd)
 	lport = ep->lp;
 	fp = fc_frame_alloc(lport, sizeof(*txrdy));
 	if (!fp)
-		return PYX_TRANSPORT_OUT_OF_MEMORY_RESOURCES;
+		return -ENOMEM; /* Signal QUEUE_FULL */
 
 	txrdy = fc_frame_payload_get(fp, sizeof(*txrdy));
 	memset(txrdy, 0, sizeof(*txrdy));

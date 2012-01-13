@@ -708,7 +708,7 @@ static int mac80211_hwsim_start(struct ieee80211_hw *hw)
 {
 	struct mac80211_hwsim_data *data = hw->priv;
 	wiphy_debug(hw->wiphy, "%s\n", __func__);
-	data->started = 1;
+	data->started = true;
 	return 0;
 }
 
@@ -716,7 +716,7 @@ static int mac80211_hwsim_start(struct ieee80211_hw *hw)
 static void mac80211_hwsim_stop(struct ieee80211_hw *hw)
 {
 	struct mac80211_hwsim_data *data = hw->priv;
-	data->started = 0;
+	data->started = false;
 	del_timer(&data->beacon_timer);
 	wiphy_debug(hw->wiphy, "%s\n", __func__);
 }

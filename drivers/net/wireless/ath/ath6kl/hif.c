@@ -689,11 +689,6 @@ int ath6kl_hif_setup(struct ath6kl_device *dev)
 	ath6kl_dbg(ATH6KL_DBG_HIF, "hif block size %d mbox addr 0x%x\n",
 		   dev->htc_cnxt->block_sz, dev->ar->mbox_info.htc_addr);
 
-	/* usb doesn't support enabling interrupts */
-	/* FIXME: remove check once USB support is implemented */
-	if (dev->ar->hif_type == ATH6KL_HIF_TYPE_USB)
-		return 0;
-
 	status = ath6kl_hif_disable_intrs(dev);
 
 fail_setup:

@@ -343,8 +343,8 @@ void __ceph_destroy_xattrs(struct ceph_inode_info *ci)
 }
 
 static int __build_xattrs(struct inode *inode)
-	__releases(inode->i_lock)
-	__acquires(inode->i_lock)
+	__releases(ci->i_ceph_lock)
+	__acquires(ci->i_ceph_lock)
 {
 	u32 namelen;
 	u32 numattr = 0;
@@ -372,7 +372,7 @@ start:
 		end = p + ci->i_xattrs.blob->vec.iov_len;
 		ceph_decode_32_safe(&p, end, numattr, bad);
 		xattr_version = ci->i_xattrs.version;
-		spin_unlock(&inode->i_lock);
+		spin_unlock(&ci->i_ceph_lock);
 
 		xattrs = kcalloc(numattr, sizeof(struct ceph_xattr *),
 				 GFP_NOFS);
@@ -387,7 +387,7 @@ start:
 				goto bad_lock;
 		}
 
-		spin_lock(&inode->i_lock);
+		spin_lock(&ci->i_ceph_lock);
 		if (ci->i_xattrs.version != xattr_version) {
 			/* lost a race, retry */
 			for (i = 0; i < numattr; i++)
@@ -418,7 +418,7 @@ start:
 
 	return err;
 bad_lock:
-	spin_lock(&inode->i_lock);
+	spin_lock(&ci->i_ceph_lock);
 bad:
 	if (xattrs) {
 		for (i = 0; i < numattr; i++)
@@ -512,7 +512,7 @@ ssize_t ceph_getxattr(struct dentry *dentry, const char *name, void *value,
 	if (vxattrs)
 		vxattr = ceph_match_vxattr(vxattrs, name);
 
-	spin_lock(&inode->i_lock);
+	spin_lock(&ci->i_ceph_lock);
 	dout("getxattr %p ver=%lld index_ver=%lld\n", inode,
 	     ci->i_xattrs.version, ci->i_xattrs.index_version);
 
@@ -520,14 +520,14 @@ ssize_t ceph_getxattr(struct dentry *dentry, const char *name, void *value,
 	    (ci->i_xattrs.index_version >= ci->i_xattrs.version)) {
 		goto get_xattr;
 	} else {
-		spin_unlock(&inode->i_lock);
+		spin_unlock(&ci->i_ceph_lock);
 		/* get xattrs from mds (if we don't already have them) */
 		err = ceph_do_getattr(inode, CEPH_STAT_CAP_XATTR);
 		if (err)
 			return err;
 	}
 
-	spin_lock(&inode->i_lock);
+	spin_lock(&ci->i_ceph_lock);
 
 	if (vxattr && vxattr->readonly) {
 		err = vxattr->getxattr_cb(ci, value, size);
@@ -558,7 +558,7 @@ get_xattr:
 	memcpy(value, xattr->val, xattr->val_len);
 
 out:
-	spin_unlock(&inode->i_lock);
+	spin_unlock(&ci->i_ceph_lock);
 	return err;
 }
 
@@ -573,7 +573,7 @@ ssize_t ceph_listxattr(struct dentry *dentry, char *names, size_t size)
 	u32 len;
 	int i;
 
-	spin_lock(&inode->i_lock);
+	spin_lock(&ci->i_ceph_lock);
 	dout("listxattr %p ver=%lld index_ver=%lld\n", inode,
 	     ci->i_xattrs.version, ci->i_xattrs.index_version);
 
@@ -581,13 +581,13 @@ ssize_t ceph_listxattr(struct dentry *dentry, char *names, size_t size)
 	    (ci->i_xattrs.index_version >= ci->i_xattrs.version)) {
 		goto list_xattr;
 	} else {
-		spin_unlock(&inode->i_lock);
+		spin_unlock(&ci->i_ceph_lock);
 		err = ceph_do_getattr(inode, CEPH_STAT_CAP_XATTR);
 		if (err)
 			return err;
 	}
 
-	spin_lock(&inode->i_lock);
+	spin_lock(&ci->i_ceph_lock);
 
 	err = __build_xattrs(inode);
 	if (err < 0)
@@ -619,7 +619,7 @@ list_xattr:
 		}
 
 out:
-	spin_unlock(&inode->i_lock);
+	spin_unlock(&ci->i_ceph_lock);
 	return err;
 }
 
@@ -739,7 +739,7 @@ int ceph_setxattr(struct dentry *dentry, const char *name,
 	if (!xattr)
 		goto out;
 
-	spin_lock(&inode->i_lock);
+	spin_lock(&ci->i_ceph_lock);
 retry:
 	issued = __ceph_caps_issued(ci, NULL);
 	if (!(issued & CEPH_CAP_XATTR_EXCL))
@@ -752,12 +752,12 @@ retry:
 	    required_blob_size > ci->i_xattrs.prealloc_blob->alloc_len) {
 		struct ceph_buffer *blob = NULL;
 
-		spin_unlock(&inode->i_lock);
+		spin_unlock(&ci->i_ceph_lock);
 		dout(" preaallocating new blob size=%d\n", required_blob_size);
 		blob = ceph_buffer_new(required_blob_size, GFP_NOFS);
 		if (!blob)
 			goto out;
-		spin_lock(&inode->i_lock);
+		spin_lock(&ci->i_ceph_lock);
 		if (ci->i_xattrs.prealloc_blob)
 			ceph_buffer_put(ci->i_xattrs.prealloc_blob);
 		ci->i_xattrs.prealloc_blob = blob;
@@ -770,13 +770,13 @@ retry:
 	dirty = __ceph_mark_dirty_caps(ci, CEPH_CAP_XATTR_EXCL);
 	ci->i_xattrs.dirty = true;
 	inode->i_ctime = CURRENT_TIME;
-	spin_unlock(&inode->i_lock);
+	spin_unlock(&ci->i_ceph_lock);
 	if (dirty)
 		__mark_inode_dirty(inode, dirty);
 	return err;
 
 do_sync:
-	spin_unlock(&inode->i_lock);
+	spin_unlock(&ci->i_ceph_lock);
 	err = ceph_sync_setxattr(dentry, name, value, size, flags);
 out:
 	kfree(newname);
@@ -833,7 +833,7 @@ int ceph_removexattr(struct dentry *dentry, const char *name)
 			return -EOPNOTSUPP;
 	}
 
-	spin_lock(&inode->i_lock);
+	spin_lock(&ci->i_ceph_lock);
 	__build_xattrs(inode);
 	issued = __ceph_caps_issued(ci, NULL);
 	dout("removexattr %p issued %s\n", inode, ceph_cap_string(issued));
@@ -846,12 +846,12 @@ int ceph_removexattr(struct dentry *dentry, const char *name)
 	ci->i_xattrs.dirty = true;
 	inode->i_ctime = CURRENT_TIME;
 
-	spin_unlock(&inode->i_lock);
+	spin_unlock(&ci->i_ceph_lock);
 	if (dirty)
 		__mark_inode_dirty(inode, dirty);
 	return err;
 do_sync:
-	spin_unlock(&inode->i_lock);
+	spin_unlock(&ci->i_ceph_lock);
 	err = ceph_send_removexattr(dentry, name);
 	return err;
 }

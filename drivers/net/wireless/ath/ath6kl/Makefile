@@ -21,30 +21,17 @@
 # Author(s): ="Atheros"
 #------------------------------------------------------------------------------
 
-obj-$(CONFIG_ATH6KL_SDIO) := ath6kl_sdio.o
-ath6kl_sdio-y += debug.o
-ath6kl_sdio-y += hif.o
-ath6kl_sdio-y += htc.o
-ath6kl_sdio-y += bmi.o
-ath6kl_sdio-y += cfg80211.o
-ath6kl_sdio-y += init.o
-ath6kl_sdio-y += main.o
-ath6kl_sdio-y += txrx.o
-ath6kl_sdio-y += wmi.o
-ath6kl_sdio-y += sdio.o
-ath6kl_sdio-$(CONFIG_NL80211_TESTMODE) += testmode.o
-
-obj-$(CONFIG_ATH6KL_USB) += ath6kl_usb.o
-ath6kl_usb-y += debug.o
-ath6kl_usb-y += hif.o
-ath6kl_usb-y += htc.o
-ath6kl_usb-y += bmi.o
-ath6kl_usb-y += cfg80211.o
-ath6kl_usb-y += init.o
-ath6kl_usb-y += main.o
-ath6kl_usb-y += txrx.o
-ath6kl_usb-y += wmi.o
-ath6kl_usb-y += usb.o
-ath6kl_usb-$(CONFIG_NL80211_TESTMODE) += testmode.o
+obj-$(CONFIG_ATH6KL) := ath6kl.o
+ath6kl-y += debug.o
+ath6kl-y += hif.o
+ath6kl-y += htc.o
+ath6kl-y += bmi.o
+ath6kl-y += cfg80211.o
+ath6kl-y += init.o
+ath6kl-y += main.o
+ath6kl-y += txrx.o
+ath6kl-y += wmi.o
+ath6kl-y += sdio.o
+ath6kl-$(CONFIG_NL80211_TESTMODE) += testmode.o
 
 ccflags-y += -D__CHECK_ENDIAN__

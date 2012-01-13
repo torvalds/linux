@@ -680,13 +680,13 @@ il3945_hw_txq_free_tfd(struct il_priv *il, struct il_tx_queue *txq)
 void
 il3945_hw_build_tx_cmd_rate(struct il_priv *il, struct il_device_cmd *cmd,
 			    struct ieee80211_tx_info *info,
-			    struct ieee80211_hdr *hdr, int sta_id, int tx_id)
+			    struct ieee80211_hdr *hdr, int sta_id)
 {
 	u16 hw_value = ieee80211_get_tx_rate(il->hw, info)->hw_value;
-	u16 rate_idx = min(hw_value & 0xffff, RATE_COUNT_3945);
+	u16 rate_idx = min(hw_value & 0xffff, RATE_COUNT_3945 - 1);
 	u16 rate_mask;
 	int rate;
-	u8 rts_retry_limit;
+	const u8 rts_retry_limit = 7;
 	u8 data_retry_limit;
 	__le32 tx_flags;
 	__le16 fc = hdr->frame_control;
@@ -705,15 +705,8 @@ il3945_hw_build_tx_cmd_rate(struct il_priv *il, struct il_device_cmd *cmd,
 	else
 		data_retry_limit = IL_DEFAULT_TX_RETRY;
 	tx_cmd->data_retry_limit = data_retry_limit;
-
-	if (tx_id >= IL39_CMD_QUEUE_NUM)
-		rts_retry_limit = 3;
-	else
-		rts_retry_limit = 7;
-
-	if (data_retry_limit < rts_retry_limit)
-		rts_retry_limit = data_retry_limit;
-	tx_cmd->rts_retry_limit = rts_retry_limit;
+	/* Set retry limit on RTS packets */
+	tx_cmd->rts_retry_limit = min(data_retry_limit, rts_retry_limit);
 
 	tx_cmd->rate = rate;
 	tx_cmd->tx_flags = tx_flags;
@@ -2331,8 +2324,7 @@ il3945_init_hw_rate_table(struct il_priv *il)
 	for (i = 0; i < ARRAY_SIZE(il3945_rates); i++) {
 		idx = il3945_rates[i].table_rs_idx;
 
-		table[idx].rate_n_flags =
-		    il3945_hw_set_rate_n_flags(il3945_rates[i].plcp, 0);
+		table[idx].rate_n_flags = cpu_to_le16(il3945_rates[i].plcp);
 		table[idx].try_cnt = il->retry_rate;
 		prev_idx = il3945_get_prev_ieee_rate(i);
 		table[idx].next_rate_idx = il3945_rates[prev_idx].table_rs_idx;

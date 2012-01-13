@@ -101,6 +101,11 @@ o	A CPU-bound real-time task in a CONFIG_PREEMPT_RT kernel that
 	CONFIG_TREE_PREEMPT_RCU case, you might see stall-warning
 	messages.
 
+o	A hardware or software issue shuts off the scheduler-clock
+	interrupt on a CPU that is not in dyntick-idle mode.  This
+	problem really has happened, and seems to be most likely to
+	result in RCU CPU stall warnings for CONFIG_NO_HZ=n kernels.
+
 o	A bug in the RCU implementation.
 
 o	A hardware failure.  This is quite unlikely, but has occurred
@@ -109,12 +114,11 @@ o	A hardware failure.  This is quite unlikely, but has occurred
 	This resulted in a series of RCU CPU stall warnings, eventually
 	leading the realization that the CPU had failed.
 
-The RCU, RCU-sched, and RCU-bh implementations have CPU stall
-warning.  SRCU does not have its own CPU stall warnings, but its
-calls to synchronize_sched() will result in RCU-sched detecting
-RCU-sched-related CPU stalls.  Please note that RCU only detects
-CPU stalls when there is a grace period in progress.  No grace period,
-no CPU stall warnings.
+The RCU, RCU-sched, and RCU-bh implementations have CPU stall warning.
+SRCU does not have its own CPU stall warnings, but its calls to
+synchronize_sched() will result in RCU-sched detecting RCU-sched-related
+CPU stalls.  Please note that RCU only detects CPU stalls when there is
+a grace period in progress.  No grace period, no CPU stall warnings.
 
 To diagnose the cause of the stall, inspect the stack traces.
 The offending function will usually be near the top of the stack.

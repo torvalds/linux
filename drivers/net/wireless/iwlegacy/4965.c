@@ -2114,24 +2114,6 @@ il4965_hdl_tx(struct il_priv *il, struct il_rx_buf *rxb)
 	spin_unlock_irqrestore(&il->sta_lock, flags);
 }
 
-static void
-il4965_hdl_beacon(struct il_priv *il, struct il_rx_buf *rxb)
-{
-	struct il_rx_pkt *pkt = rxb_addr(rxb);
-	struct il4965_beacon_notif *beacon = (void *)pkt->u.raw;
-	u8 rate __maybe_unused =
-	    il4965_hw_get_rate(beacon->beacon_notify_hdr.rate_n_flags);
-
-	D_RX("beacon status %#x, retries:%d ibssmgr:%d "
-	     "tsf:0x%.8x%.8x rate:%d\n",
-	     le32_to_cpu(beacon->beacon_notify_hdr.u.status) & TX_STATUS_MSK,
-	     beacon->beacon_notify_hdr.failure_frame,
-	     le32_to_cpu(beacon->ibss_mgr_status),
-	     le32_to_cpu(beacon->high_tsf), le32_to_cpu(beacon->low_tsf), rate);
-
-	il->ibss_manager = le32_to_cpu(beacon->ibss_mgr_status);
-}
-
 /* Set up 4965-specific Rx frame reply handlers */
 static void
 il4965_handler_setup(struct il_priv *il)
@@ -2140,7 +2122,6 @@ il4965_handler_setup(struct il_priv *il)
 	il->handlers[N_RX] = il4965_hdl_rx;
 	/* Tx response */
 	il->handlers[C_TX] = il4965_hdl_tx;
-	il->handlers[N_BEACON] = il4965_hdl_beacon;
 }
 
 static struct il_hcmd_ops il4965_hcmd = {

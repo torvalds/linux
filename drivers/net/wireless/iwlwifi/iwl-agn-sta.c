@@ -130,25 +130,15 @@ int iwl_add_sta_callback(struct iwl_priv *priv, struct iwl_rx_mem_buffer *rxb,
 	return iwl_process_add_sta_resp(priv, addsta, pkt);
 }
 
-static u16 iwlagn_build_addsta_hcmd(const struct iwl_addsta_cmd *cmd, u8 *data)
-{
-	u16 size = (u16)sizeof(struct iwl_addsta_cmd);
-	struct iwl_addsta_cmd *addsta = (struct iwl_addsta_cmd *)data;
-	memcpy(addsta, cmd, size);
-	/* resrved in agn */
-	addsta->legacy_reserved = cpu_to_le16(0);
-	return size;
-}
-
 int iwl_send_add_sta(struct iwl_priv *priv,
 		     struct iwl_addsta_cmd *sta, u8 flags)
 {
 	int ret = 0;
-	u8 data[sizeof(*sta)];
 	struct iwl_host_cmd cmd = {
 		.id = REPLY_ADD_STA,
 		.flags = flags,
-		.data = { data, },
+		.data = { sta, },
+		.len = { sizeof(*sta), },
 	};
 	u8 sta_id __maybe_unused = sta->sta.sta_id;
 
@@ -160,7 +150,6 @@ int iwl_send_add_sta(struct iwl_priv *priv,
 		might_sleep();
 	}
 
-	cmd.len[0] = iwlagn_build_addsta_hcmd(sta, data);
 	ret = iwl_trans_send_cmd(trans(priv), &cmd);
 
 	if (ret || (flags & CMD_ASYNC))
@@ -463,6 +452,7 @@ int iwl_remove_station(struct iwl_priv *priv, const u8 sta_id,
 		       const u8 *addr)
 {
 	unsigned long flags;
+	u8 tid;
 
 	if (!iwl_is_ready(priv->shrd)) {
 		IWL_DEBUG_INFO(priv,
@@ -500,6 +490,10 @@ int iwl_remove_station(struct iwl_priv *priv, const u8 sta_id,
 		kfree(priv->stations[sta_id].lq);
 		priv->stations[sta_id].lq = NULL;
 	}
+
+	for (tid = 0; tid < IWL_MAX_TID_COUNT; tid++)
+		memset(&priv->tid_data[sta_id][tid], 0,
+			sizeof(priv->tid_data[sta_id][tid]));
 
 	priv->stations[sta_id].used &= ~IWL_STA_DRIVER_ACTIVE;
 

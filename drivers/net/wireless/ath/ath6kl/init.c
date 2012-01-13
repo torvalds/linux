@@ -444,7 +444,7 @@ static int ath6kl_target_config_wlan_params(struct ath6kl *ar, int idx)
 			ath6kl_dbg(ATH6KL_DBG_TRC, "failed to request P2P "
 				   "capabilities (%d) - assuming P2P not "
 				   "supported\n", ret);
-			ar->p2p = 0;
+			ar->p2p = false;
 		}
 	}
 

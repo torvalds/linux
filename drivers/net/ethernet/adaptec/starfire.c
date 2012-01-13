@@ -607,7 +607,7 @@ static const struct ethtool_ops ethtool_ops;
 
 
 #ifdef VLAN_SUPPORT
-static void netdev_vlan_rx_add_vid(struct net_device *dev, unsigned short vid)
+static int netdev_vlan_rx_add_vid(struct net_device *dev, unsigned short vid)
 {
 	struct netdev_private *np = netdev_priv(dev);
 
@@ -617,9 +617,11 @@ static void netdev_vlan_rx_add_vid(struct net_device *dev, unsigned short vid)
 	set_bit(vid, np->active_vlans);
 	set_rx_mode(dev);
 	spin_unlock(&np->lock);
+
+	return 0;
 }
 
-static void netdev_vlan_rx_kill_vid(struct net_device *dev, unsigned short vid)
+static int netdev_vlan_rx_kill_vid(struct net_device *dev, unsigned short vid)
 {
 	struct netdev_private *np = netdev_priv(dev);
 
@@ -629,6 +631,8 @@ static void netdev_vlan_rx_kill_vid(struct net_device *dev, unsigned short vid)
 	clear_bit(vid, np->active_vlans);
 	set_rx_mode(dev);
 	spin_unlock(&np->lock);
+
+	return 0;
 }
 #endif /* VLAN_SUPPORT */
 
@@ -1842,9 +1846,9 @@ static int check_if_running(struct net_device *dev)
 static void get_drvinfo(struct net_device *dev, struct ethtool_drvinfo *info)
 {
 	struct netdev_private *np = netdev_priv(dev);
-	strcpy(info->driver, DRV_NAME);
-	strcpy(info->version, DRV_VERSION);
-	strcpy(info->bus_info, pci_name(np->pci_dev));
+	strlcpy(info->driver, DRV_NAME, sizeof(info->driver));
+	strlcpy(info->version, DRV_VERSION, sizeof(info->version));
+	strlcpy(info->bus_info, pci_name(np->pci_dev), sizeof(info->bus_info));
 }
 
 static int get_settings(struct net_device *dev, struct ethtool_cmd *ecmd)

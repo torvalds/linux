@@ -554,10 +554,8 @@ static void nfc_llcp_recv_connect(struct nfc_llcp_local *local,
 				goto enqueue;
 			}
 		}
-
+		mutex_unlock(&local->socket_lock);
 	}
-
-	mutex_unlock(&local->socket_lock);
 
 	reason = LLCP_DM_NOBOUND;
 	goto fail;
@@ -956,7 +954,7 @@ void nfc_llcp_unregister_device(struct nfc_dev *dev)
 	skb_queue_purge(&local->tx_queue);
 	destroy_workqueue(local->tx_wq);
 	destroy_workqueue(local->rx_wq);
-	kfree(local->rx_pending);
+	kfree_skb(local->rx_pending);
 	kfree(local);
 }
 

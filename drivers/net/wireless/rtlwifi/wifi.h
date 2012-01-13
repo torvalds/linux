@@ -1488,7 +1488,7 @@ struct rtl_intf_ops {
 
 struct rtl_mod_params {
 	/* default: 0 = using hardware encryption */
-	int sw_crypto;
+	bool sw_crypto;
 
 	/* default: 0 = DBG_EMERG (0)*/
 	int debug;
@@ -1547,6 +1547,7 @@ struct rtl_locks {
 	struct mutex ps_mutex;
 
 	/*spin lock */
+	spinlock_t ips_lock;
 	spinlock_t irq_th_lock;
 	spinlock_t h2c_lock;
 	spinlock_t rf_ps_lock;

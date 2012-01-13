@@ -171,7 +171,7 @@ static int ipoib_stop(struct net_device *dev)
 	return 0;
 }
 
-static u32 ipoib_fix_features(struct net_device *dev, u32 features)
+static netdev_features_t ipoib_fix_features(struct net_device *dev, netdev_features_t features)
 {
 	struct ipoib_dev_priv *priv = netdev_priv(dev);
 
@@ -432,7 +432,7 @@ static void path_rec_completion(int status,
 
 	spin_lock_irqsave(&priv->lock, flags);
 
-	if (ah) {
+	if (!IS_ERR_OR_NULL(ah)) {
 		path->pathrec = *pathrec;
 
 		old_ah   = path->ah;
@@ -555,15 +555,14 @@ static int path_rec_start(struct net_device *dev,
 	return 0;
 }
 
-static void neigh_add_path(struct sk_buff *skb, struct net_device *dev)
+/* called with rcu_read_lock */
+static void neigh_add_path(struct sk_buff *skb, struct neighbour *n, struct net_device *dev)
 {
 	struct ipoib_dev_priv *priv = netdev_priv(dev);
 	struct ipoib_path *path;
 	struct ipoib_neigh *neigh;
-	struct neighbour *n;
 	unsigned long flags;
 
-	n = dst_get_neighbour(skb_dst(skb));
 	neigh = ipoib_neigh_alloc(n, skb->dev);
 	if (!neigh) {
 		++dev->stats.tx_dropped;
@@ -636,16 +635,14 @@ err_drop:
 	spin_unlock_irqrestore(&priv->lock, flags);
 }
 
-static void ipoib_path_lookup(struct sk_buff *skb, struct net_device *dev)
+/* called with rcu_read_lock */
+static void ipoib_path_lookup(struct sk_buff *skb, struct neighbour *n, struct net_device *dev)
 {
 	struct ipoib_dev_priv *priv = netdev_priv(skb->dev);
-	struct dst_entry *dst = skb_dst(skb);
-	struct neighbour *n;
 
 	/* Look up path record for unicasts */
-	n = dst_get_neighbour(dst);
 	if (n->ha[4] != 0xff) {
-		neigh_add_path(skb, dev);
+		neigh_add_path(skb, n, dev);
 		return;
 	}
 
@@ -720,13 +717,19 @@ static int ipoib_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	struct neighbour *n = NULL;
 	unsigned long flags;
 
-	if (likely(skb_dst(skb)))
-		n = dst_get_neighbour(skb_dst(skb));
-
+	rcu_read_lock();
+	if (likely(skb_dst(skb))) {
+		n = dst_get_neighbour_noref(skb_dst(skb));
+		if (!n) {
+			++dev->stats.tx_dropped;
+			dev_kfree_skb_any(skb);
+			goto unlock;
+		}
+	}
 	if (likely(n)) {
 		if (unlikely(!*to_ipoib_neigh(n))) {
-			ipoib_path_lookup(skb, dev);
-			return NETDEV_TX_OK;
+			ipoib_path_lookup(skb, n, dev);
+			goto unlock;
 		}
 
 		neigh = *to_ipoib_neigh(n);
@@ -748,18 +751,18 @@ static int ipoib_start_xmit(struct sk_buff *skb, struct net_device *dev)
 			list_del(&neigh->list);
 			ipoib_neigh_free(dev, neigh);
 			spin_unlock_irqrestore(&priv->lock, flags);
-			ipoib_path_lookup(skb, dev);
-			return NETDEV_TX_OK;
+			ipoib_path_lookup(skb, n, dev);
+			goto unlock;
 		}
 
 		if (ipoib_cm_get(neigh)) {
 			if (ipoib_cm_up(neigh)) {
 				ipoib_cm_send(dev, skb, ipoib_cm_get(neigh));
-				return NETDEV_TX_OK;
+				goto unlock;
 			}
 		} else if (neigh->ah) {
 			ipoib_send(dev, skb, neigh->ah, IPOIB_QPN(n->ha));
-			return NETDEV_TX_OK;
+			goto unlock;
 		}
 
 		if (skb_queue_len(&neigh->queue) < IPOIB_MAX_PATH_REC_QUEUE) {
@@ -793,13 +796,14 @@ static int ipoib_start_xmit(struct sk_buff *skb, struct net_device *dev)
 					   phdr->hwaddr + 4);
 				dev_kfree_skb_any(skb);
 				++dev->stats.tx_dropped;
-				return NETDEV_TX_OK;
+				goto unlock;
 			}
 
 			unicast_arp_send(skb, dev, phdr);
 		}
 	}
-
+unlock:
+	rcu_read_unlock();
 	return NETDEV_TX_OK;
 }
 
@@ -837,7 +841,7 @@ static int ipoib_hard_header(struct sk_buff *skb,
 	dst = skb_dst(skb);
 	n = NULL;
 	if (dst)
-		n = dst_get_neighbour(dst);
+		n = dst_get_neighbour_noref_raw(dst);
 	if ((!dst || !n) && daddr) {
 		struct ipoib_pseudoheader *phdr =
 			(struct ipoib_pseudoheader *) skb_push(skb, sizeof *phdr);
@@ -1217,6 +1221,8 @@ static struct net_device *ipoib_add_port(const char *format,
 	/* MTU will be reset when mcast join happens */
 	priv->dev->mtu  = IPOIB_UD_MTU(priv->max_ib_mtu);
 	priv->mcast_mtu  = priv->admin_mtu = priv->dev->mtu;
+
+	priv->dev->neigh_priv_len = sizeof(struct ipoib_neigh);
 
 	result = ib_query_pkey(hca, port, 0, &priv->pkey);
 	if (result) {

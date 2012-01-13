@@ -455,4 +455,5 @@ MACHINE_START(ASSABET, "Intel-Assabet")
 #ifdef CONFIG_SA1111
 	.dma_zone_size	= SZ_1M,
 #endif
+	.restart	= sa11x0_restart,
 MACHINE_END

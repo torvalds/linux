@@ -239,8 +239,7 @@ extern unsigned int il3945_hw_get_beacon_cmd(struct il_priv *il,
 					     u8 rate);
 void il3945_hw_build_tx_cmd_rate(struct il_priv *il, struct il_device_cmd *cmd,
 				 struct ieee80211_tx_info *info,
-				 struct ieee80211_hdr *hdr, int sta_id,
-				 int tx_id);
+				 struct ieee80211_hdr *hdr, int sta_id);
 extern int il3945_hw_reg_send_txpower(struct il_priv *il);
 extern int il3945_hw_reg_set_txpower(struct il_priv *il, s8 power);
 extern void il3945_hdl_stats(struct il_priv *il, struct il_rx_buf *rxb);
@@ -475,24 +474,6 @@ il3945_hw_valid_rtc_data_addr(u32 addr)
 struct il3945_shared {
 	__le32 tx_base_ptr[8];
 } __packed;
-
-static inline u8
-il3945_hw_get_rate(__le16 rate_n_flags)
-{
-	return le16_to_cpu(rate_n_flags) & 0xFF;
-}
-
-static inline u16
-il3945_hw_get_rate_n_flags(__le16 rate_n_flags)
-{
-	return le16_to_cpu(rate_n_flags);
-}
-
-static inline __le16
-il3945_hw_set_rate_n_flags(u8 rate, u16 flags)
-{
-	return cpu_to_le16((u16) rate | flags);
-}
 
 /************************************/
 /* iwl3945 Flow Handler Definitions */

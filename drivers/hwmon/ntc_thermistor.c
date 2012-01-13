@@ -432,19 +432,7 @@ static struct platform_driver ntc_thermistor_driver = {
 	.id_table = ntc_thermistor_id,
 };
 
-static int __init ntc_thermistor_init(void)
-{
-	return platform_driver_register(&ntc_thermistor_driver);
-}
-
-module_init(ntc_thermistor_init);
-
-static void __exit ntc_thermistor_cleanup(void)
-{
-	platform_driver_unregister(&ntc_thermistor_driver);
-}
-
-module_exit(ntc_thermistor_cleanup);
+module_platform_driver(ntc_thermistor_driver);
 
 MODULE_DESCRIPTION("NTC Thermistor Driver");
 MODULE_AUTHOR("MyungJoo Ham <myungjoo.ham@samsung.com>");

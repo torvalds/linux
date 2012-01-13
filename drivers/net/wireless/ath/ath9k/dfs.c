@@ -66,7 +66,7 @@ ath9k_postprocess_radar_event(struct ath_softc *sc,
 	u8 rssi;
 	u16 dur;
 
-	ath_dbg(ath9k_hw_common(sc->sc_ah), ATH_DBG_DFS,
+	ath_dbg(ath9k_hw_common(sc->sc_ah), DFS,
 		"pulse_bw_info=0x%x, pri,ext len/rssi=(%u/%u, %u/%u)\n",
 		are->pulse_bw_info,
 		are->pulse_length_pri, are->rssi,
@@ -161,7 +161,7 @@ void ath9k_dfs_process_phyerr(struct ath_softc *sc, void *data,
 
 	if ((!(rs->rs_phyerr != ATH9K_PHYERR_RADAR)) &&
 	    (!(rs->rs_phyerr != ATH9K_PHYERR_FALSE_RADAR_EXT))) {
-		ath_dbg(common, ATH_DBG_DFS,
+		ath_dbg(common, DFS,
 			"Error: rs_phyer=0x%x not a radar error\n",
 			rs->rs_phyerr);
 		return;
@@ -190,7 +190,7 @@ void ath9k_dfs_process_phyerr(struct ath_softc *sc, void *data,
 	ard.pulse_length_ext = vdata_end[-2];
 	ard.pulse_length_pri = vdata_end[-3];
 
-	ath_dbg(common, ATH_DBG_DFS,
+	ath_dbg(common, DFS,
 		"bw_info=%d, length_pri=%d, length_ext=%d, "
 		"rssi_pri=%d, rssi_ext=%d\n",
 		ard.pulse_bw_info, ard.pulse_length_pri, ard.pulse_length_ext,
@@ -200,7 +200,7 @@ void ath9k_dfs_process_phyerr(struct ath_softc *sc, void *data,
 	drp.ts = mactime;
 	if (ath9k_postprocess_radar_event(sc, &ard, &drp)) {
 		static u64 last_ts;
-		ath_dbg(common, ATH_DBG_DFS,
+		ath_dbg(common, DFS,
 			"ath9k_dfs_process_phyerr: channel=%d, ts=%llu, "
 			"width=%d, rssi=%d, delta_ts=%llu\n",
 			drp.freq, drp.ts, drp.width, drp.rssi, drp.ts-last_ts);

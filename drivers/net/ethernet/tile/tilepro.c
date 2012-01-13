@@ -926,7 +926,7 @@ static int tile_net_poll(struct napi_struct *napi, int budget)
 		goto done;
 
 	/* Re-enable the ingress interrupt. */
-	enable_percpu_irq(priv->intr_id);
+	enable_percpu_irq(priv->intr_id, 0);
 
 	/* HACK: Avoid the "rotting packet" problem (see above). */
 	if (qup->__packet_receive_read !=
@@ -1256,7 +1256,7 @@ static void tile_net_stop_aux(struct net_device *dev)
 			  sizeof(dummy), NETIO_IPP_STOP_SHIM_OFF) < 0)
 		panic("Failed to stop LIPP/LEPP!\n");
 
-	priv->partly_opened = 0;
+	priv->partly_opened = false;
 }
 
 
@@ -1296,7 +1296,7 @@ static void tile_net_open_enable(void *dev_ptr)
 	info->napi_enabled = true;
 
 	/* Enable the ingress interrupt. */
-	enable_percpu_irq(priv->intr_id);
+	enable_percpu_irq(priv->intr_id, 0);
 }
 
 
@@ -1507,7 +1507,7 @@ static int tile_net_open(struct net_device *dev)
 		       priv->network_cpus_count, priv->network_cpus_credits);
 #endif
 
-		priv->partly_opened = 1;
+		priv->partly_opened = true;
 
 	} else {
 		/* FIXME: Is this possible? */
@@ -1697,7 +1697,7 @@ static unsigned int tile_net_tx_frags(lepp_frag_t *frags,
 	for (i = 0; i < sh->nr_frags; i++) {
 
 		skb_frag_t *f = &sh->frags[i];
-		unsigned long pfn = page_to_pfn(f->page);
+		unsigned long pfn = page_to_pfn(skb_frag_page(f));
 
 		/* FIXME: Compute "hash_for_home" properly. */
 		/* ISSUE: The hypervisor checks CHIP_HAS_REV1_DMA_PACKETS(). */
@@ -1706,7 +1706,7 @@ static unsigned int tile_net_tx_frags(lepp_frag_t *frags,
 		/* FIXME: Hmmm. */
 		if (!hash_default) {
 			void *va = pfn_to_kaddr(pfn) + f->page_offset;
-			BUG_ON(PageHighMem(f->page));
+			BUG_ON(PageHighMem(skb_frag_page(f)));
 			finv_buffer_remote(va, f->size, 0);
 		}
 
@@ -2260,8 +2260,7 @@ static int tile_net_get_mac(struct net_device *dev)
 	return 0;
 }
 
-
-static struct net_device_ops tile_net_ops = {
+static const struct net_device_ops tile_net_ops = {
 	.ndo_open = tile_net_open,
 	.ndo_stop = tile_net_stop,
 	.ndo_start_xmit = tile_net_tx,

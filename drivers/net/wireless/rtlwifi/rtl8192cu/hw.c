@@ -2436,7 +2436,7 @@ bool rtl92cu_gpio_radio_on_off_checking(struct ieee80211_hw *hw, u8 * valid)
 			 "%x\n", ppsc->hwradiooff, e_rfpowerstate_toset));
 	}
 	if (actuallyset) {
-		ppsc->hwradiooff = 1;
+		ppsc->hwradiooff = true;
 		if (e_rfpowerstate_toset == ERFON) {
 			if ((ppsc->reg_rfps_level  & RT_RF_OFF_LEVL_ASPM) &&
 			     RT_IN_PS_LEVEL(ppsc, RT_RF_OFF_LEVL_ASPM))

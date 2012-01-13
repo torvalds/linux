@@ -486,28 +486,6 @@ struct task_struct *__switch_to(struct task_struct *prev,
 	new_thread = &new->thread;
 	old_thread = &current->thread;
 
-#if defined(CONFIG_PPC_BOOK3E_64)
-	/* XXX Current Book3E code doesn't deal with kernel side DBCR0,
-	 * we always hold the user values, so we set it now.
-	 *
-	 * However, we ensure the kernel MSR:DE is appropriately cleared too
-	 * to avoid spurrious single step exceptions in the kernel.
-	 *
-	 * This will have to change to merge with the ppc32 code at some point,
-	 * but I don't like much what ppc32 is doing today so there's some
-	 * thinking needed there
-	 */
-	if ((new_thread->dbcr0 | old_thread->dbcr0) & DBCR0_IDM) {
-		u32 dbcr0;
-
-		mtmsr(mfmsr() & ~MSR_DE);
-		isync();
-		dbcr0 = mfspr(SPRN_DBCR0);
-		dbcr0 = (dbcr0 & DBCR0_EDM) | new_thread->dbcr0;
-		mtspr(SPRN_DBCR0, dbcr0);
-	}
-#endif /* CONFIG_PPC64_BOOK3E */
-
 #ifdef CONFIG_PPC64
 	/*
 	 * Collect processor utilization data per process
@@ -606,16 +584,32 @@ static struct regbit {
 	unsigned long bit;
 	const char *name;
 } msr_bits[] = {
+#if defined(CONFIG_PPC64) && !defined(CONFIG_BOOKE)
+	{MSR_SF,	"SF"},
+	{MSR_HV,	"HV"},
+#endif
+	{MSR_VEC,	"VEC"},
+	{MSR_VSX,	"VSX"},
+#ifdef CONFIG_BOOKE
+	{MSR_CE,	"CE"},
+#endif
 	{MSR_EE,	"EE"},
 	{MSR_PR,	"PR"},
 	{MSR_FP,	"FP"},
-	{MSR_VEC,	"VEC"},
-	{MSR_VSX,	"VSX"},
 	{MSR_ME,	"ME"},
-	{MSR_CE,	"CE"},
+#ifdef CONFIG_BOOKE
 	{MSR_DE,	"DE"},
+#else
+	{MSR_SE,	"SE"},
+	{MSR_BE,	"BE"},
+#endif
 	{MSR_IR,	"IR"},
 	{MSR_DR,	"DR"},
+	{MSR_PMM,	"PMM"},
+#ifndef CONFIG_BOOKE
+	{MSR_RI,	"RI"},
+	{MSR_LE,	"LE"},
+#endif
 	{0,		NULL}
 };
 
@@ -657,7 +651,7 @@ void show_regs(struct pt_regs * regs)
 	if ((regs->trap != 0xc00) && cpu_has_feature(CPU_FTR_CFAR))
 		printk("CFAR: "REG"\n", regs->orig_gpr3);
 	if (trap == 0x300 || trap == 0x600)
-#ifdef CONFIG_PPC_ADV_DEBUG_REGS
+#if defined(CONFIG_4xx) || defined(CONFIG_BOOKE)
 		printk("DEAR: "REG", ESR: "REG"\n", regs->dar, regs->dsisr);
 #else
 		printk("DAR: "REG", DSISR: %08lx\n", regs->dar, regs->dsisr);

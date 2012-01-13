@@ -2383,6 +2383,8 @@ xfs_bmap_btalloc(
 	int		tryagain;
 	int		error;
 
+	ASSERT(ap->length);
+
 	mp = ap->ip->i_mount;
 	align = ap->userdata ? xfs_get_extsz_hint(ap->ip) : 0;
 	if (unlikely(align)) {
@@ -4629,6 +4631,8 @@ xfs_bmapi_allocate(
 	int			error;
 	int			rt;
 
+	ASSERT(bma->length > 0);
+
 	rt = (whichfork == XFS_DATA_FORK) && XFS_IS_REALTIME_INODE(bma->ip);
 
 	/*
@@ -4849,6 +4853,7 @@ xfs_bmapi_write(
 	ASSERT(*nmap <= XFS_BMAP_MAX_NMAP);
 	ASSERT(!(flags & XFS_BMAPI_IGSTATE));
 	ASSERT(tp != NULL);
+	ASSERT(len > 0);
 
 	whichfork = (flags & XFS_BMAPI_ATTRFORK) ?
 		XFS_ATTR_FORK : XFS_DATA_FORK;
@@ -4918,9 +4923,22 @@ xfs_bmapi_write(
 			bma.eof = eof;
 			bma.conv = !!(flags & XFS_BMAPI_CONVERT);
 			bma.wasdel = wasdelay;
-			bma.length = len;
 			bma.offset = bno;
 
+			/*
+			 * There's a 32/64 bit type mismatch between the
+			 * allocation length request (which can be 64 bits in
+			 * length) and the bma length request, which is
+			 * xfs_extlen_t and therefore 32 bits. Hence we have to
+			 * check for 32-bit overflows and handle them here.
+			 */
+			if (len > (xfs_filblks_t)MAXEXTLEN)
+				bma.length = MAXEXTLEN;
+			else
+				bma.length = len;
+
+			ASSERT(len > 0);
+			ASSERT(bma.length > 0);
 			error = xfs_bmapi_allocate(&bma, flags);
 			if (error)
 				goto error0;

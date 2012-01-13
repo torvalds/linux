@@ -372,15 +372,13 @@ static ssize_t iwl_dbgfs_stations_read(struct file *file, char __user *user_buf,
 				 i, station->sta.sta.addr,
 				 station->sta.station_flags_msk);
 		pos += scnprintf(buf + pos, bufsz - pos,
-				"TID\tseq_num\ttxq_id\ttfds\trate_n_flags\n");
+				"TID\tseq_num\trate_n_flags\n");
 
 		for (j = 0; j < IWL_MAX_TID_COUNT; j++) {
-			tid_data = &priv->shrd->tid_data[i][j];
+			tid_data = &priv->tid_data[i][j];
 			pos += scnprintf(buf + pos, bufsz - pos,
-				"%d:\t%#x\t%#x\t%u\t%#x",
+				"%d:\t%#x\t%#x",
 				j, tid_data->seq_number,
-				tid_data->agg.txq_id,
-				tid_data->tfds_in_queue,
 				tid_data->agg.rate_n_flags);
 
 			if (tid_data->agg.wait_for_ba)
@@ -408,7 +406,7 @@ static ssize_t iwl_dbgfs_nvm_read(struct file *file,
 	const u8 *ptr;
 	char *buf;
 	u16 eeprom_ver;
-	size_t eeprom_len = priv->cfg->base_params->eeprom_size;
+	size_t eeprom_len = cfg(priv)->base_params->eeprom_size;
 	buf_size = 4 * eeprom_len + 256;
 
 	if (eeprom_len % 16) {
@@ -1542,15 +1540,15 @@ static ssize_t iwl_dbgfs_ucode_tx_stats_read(struct file *file,
 	if (tx->tx_power.ant_a || tx->tx_power.ant_b || tx->tx_power.ant_c) {
 		pos += scnprintf(buf + pos, bufsz - pos,
 			"tx power: (1/2 dB step)\n");
-		if ((priv->cfg->valid_tx_ant & ANT_A) && tx->tx_power.ant_a)
+		if ((cfg(priv)->valid_tx_ant & ANT_A) && tx->tx_power.ant_a)
 			pos += scnprintf(buf + pos, bufsz - pos,
 					fmt_hex, "antenna A:",
 					tx->tx_power.ant_a);
-		if ((priv->cfg->valid_tx_ant & ANT_B) && tx->tx_power.ant_b)
+		if ((cfg(priv)->valid_tx_ant & ANT_B) && tx->tx_power.ant_b)
 			pos += scnprintf(buf + pos, bufsz - pos,
 					fmt_hex, "antenna B:",
 					tx->tx_power.ant_b);
-		if ((priv->cfg->valid_tx_ant & ANT_C) && tx->tx_power.ant_c)
+		if ((cfg(priv)->valid_tx_ant & ANT_C) && tx->tx_power.ant_c)
 			pos += scnprintf(buf + pos, bufsz - pos,
 					fmt_hex, "antenna C:",
 					tx->tx_power.ant_c);
@@ -2221,7 +2219,7 @@ static ssize_t iwl_dbgfs_plcp_delta_read(struct file *file,
 	const size_t bufsz = sizeof(buf);
 
 	pos += scnprintf(buf + pos, bufsz - pos, "%u\n",
-			priv->cfg->base_params->plcp_delta_threshold);
+			cfg(priv)->base_params->plcp_delta_threshold);
 
 	return simple_read_from_buffer(user_buf, count, ppos, buf, pos);
 }
@@ -2243,10 +2241,10 @@ static ssize_t iwl_dbgfs_plcp_delta_write(struct file *file,
 		return -EINVAL;
 	if ((plcp < IWL_MAX_PLCP_ERR_THRESHOLD_MIN) ||
 		(plcp > IWL_MAX_PLCP_ERR_THRESHOLD_MAX))
-		priv->cfg->base_params->plcp_delta_threshold =
+		cfg(priv)->base_params->plcp_delta_threshold =
 			IWL_MAX_PLCP_ERR_THRESHOLD_DISABLE;
 	else
-		priv->cfg->base_params->plcp_delta_threshold = plcp;
+		cfg(priv)->base_params->plcp_delta_threshold = plcp;
 	return count;
 }
 
@@ -2348,7 +2346,7 @@ static ssize_t iwl_dbgfs_wd_timeout_write(struct file *file,
 	if (timeout < 0 || timeout > IWL_MAX_WD_TIMEOUT)
 		timeout = IWL_DEF_WD_TIMEOUT;
 
-	priv->cfg->base_params->wd_timeout = timeout;
+	cfg(priv)->base_params->wd_timeout = timeout;
 	iwl_setup_watchdog(priv);
 	return count;
 }
@@ -2408,10 +2406,10 @@ static ssize_t iwl_dbgfs_protection_mode_read(struct file *file,
 	char buf[40];
 	const size_t bufsz = sizeof(buf);
 
-	if (priv->cfg->ht_params)
+	if (cfg(priv)->ht_params)
 		pos += scnprintf(buf + pos, bufsz - pos,
 			 "use %s for aggregation\n",
-			 (priv->cfg->ht_params->use_rts_for_aggregation) ?
+			 (cfg(priv)->ht_params->use_rts_for_aggregation) ?
 				"rts/cts" : "cts-to-self");
 	else
 		pos += scnprintf(buf + pos, bufsz - pos, "N/A");
@@ -2428,7 +2426,7 @@ static ssize_t iwl_dbgfs_protection_mode_write(struct file *file,
 	int buf_size;
 	int rts;
 
-	if (!priv->cfg->ht_params)
+	if (!cfg(priv)->ht_params)
 		return -EINVAL;
 
 	memset(buf, 0, sizeof(buf));
@@ -2438,9 +2436,9 @@ static ssize_t iwl_dbgfs_protection_mode_write(struct file *file,
 	if (sscanf(buf, "%d", &rts) != 1)
 		return -EINVAL;
 	if (rts)
-		priv->cfg->ht_params->use_rts_for_aggregation = true;
+		cfg(priv)->ht_params->use_rts_for_aggregation = true;
 	else
-		priv->cfg->ht_params->use_rts_for_aggregation = false;
+		cfg(priv)->ht_params->use_rts_for_aggregation = false;
 	return count;
 }
 

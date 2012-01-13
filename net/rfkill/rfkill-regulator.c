@@ -36,12 +36,12 @@ static int rfkill_regulator_set_block(void *data, bool blocked)
 	if (blocked) {
 		if (rfkill_data->reg_enabled) {
 			regulator_disable(rfkill_data->vcc);
-			rfkill_data->reg_enabled = 0;
+			rfkill_data->reg_enabled = false;
 		}
 	} else {
 		if (!rfkill_data->reg_enabled) {
 			regulator_enable(rfkill_data->vcc);
-			rfkill_data->reg_enabled = 1;
+			rfkill_data->reg_enabled = true;
 		}
 	}
 
@@ -96,7 +96,7 @@ static int __devinit rfkill_regulator_probe(struct platform_device *pdev)
 
 	if (regulator_is_enabled(vcc)) {
 		dev_dbg(&pdev->dev, "Regulator already enabled\n");
-		rfkill_data->reg_enabled = 1;
+		rfkill_data->reg_enabled = true;
 	}
 	rfkill_data->vcc = vcc;
 	rfkill_data->rf_kill = rf_kill;

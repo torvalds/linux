@@ -160,8 +160,6 @@ Include Files
 Defines
 ---------------------------------------------------------------------------- */
 
-#define ETHER_ADDR_LEN			ETH_ALEN
-					/* 6 bytes in an Ethernet Address */
 #define MACE_LADRF_LEN			8
 					/* 8 bytes in Logical Address Filter */
 
@@ -600,7 +598,7 @@ static int mace_init(mace_private *lp, unsigned int ioaddr, char *enet_addr)
   	}
   }
   /* Set PADR register */
-  for (i = 0; i < ETHER_ADDR_LEN; i++)
+  for (i = 0; i < ETH_ALEN; i++)
     mace_write(lp, ioaddr, MACE_PADR, enet_addr[i]);
 
   /* MAC Configuration Control Register should be written last */
@@ -639,11 +637,11 @@ static int nmclan_config(struct pcmcia_device *link)
 
   /* Read the ethernet address from the CIS. */
   len = pcmcia_get_tuple(link, 0x80, &buf);
-  if (!buf || len < ETHER_ADDR_LEN) {
+  if (!buf || len < ETH_ALEN) {
 	  kfree(buf);
 	  goto failed;
   }
-  memcpy(dev->dev_addr, buf, ETHER_ADDR_LEN);
+  memcpy(dev->dev_addr, buf, ETH_ALEN);
   kfree(buf);
 
   /* Verify configuration by reading the MACE ID. */
@@ -822,9 +820,10 @@ static int mace_close(struct net_device *dev)
 static void netdev_get_drvinfo(struct net_device *dev,
 			       struct ethtool_drvinfo *info)
 {
-	strcpy(info->driver, DRV_NAME);
-	strcpy(info->version, DRV_VERSION);
-	sprintf(info->bus_info, "PCMCIA 0x%lx", dev->base_addr);
+	strlcpy(info->driver, DRV_NAME, sizeof(info->driver));
+	strlcpy(info->version, DRV_VERSION, sizeof(info->version));
+	snprintf(info->bus_info, sizeof(info->bus_info),
+		"PCMCIA 0x%lx", dev->base_addr);
 }
 
 static const struct ethtool_ops netdev_ethtool_ops = {
@@ -1420,7 +1419,7 @@ Output
 static void set_multicast_list(struct net_device *dev)
 {
   mace_private *lp = netdev_priv(dev);
-  int adr[ETHER_ADDR_LEN] = {0}; /* Ethernet address */
+  int adr[ETH_ALEN] = {0}; /* Ethernet address */
   struct netdev_hw_addr *ha;
 
 #ifdef PCMCIA_DEBUG
@@ -1442,7 +1441,7 @@ static void set_multicast_list(struct net_device *dev)
     /* Calculate multicast logical address filter */
     memset(lp->multicast_ladrf, 0, MACE_LADRF_LEN);
     netdev_for_each_mc_addr(ha, dev) {
-      memcpy(adr, ha->addr, ETHER_ADDR_LEN);
+      memcpy(adr, ha->addr, ETH_ALEN);
       BuildLAF(lp->multicast_ladrf, adr);
     }
   }

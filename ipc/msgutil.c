@@ -27,11 +27,6 @@ DEFINE_SPINLOCK(mq_lock);
  */
 struct ipc_namespace init_ipc_ns = {
 	.count		= ATOMIC_INIT(1),
-#ifdef CONFIG_POSIX_MQUEUE
-	.mq_queues_max   = DFLT_QUEUESMAX,
-	.mq_msg_max      = DFLT_MSGMAX,
-	.mq_msgsize_max  = DFLT_MSGSIZEMAX,
-#endif
 	.user_ns = &init_user_ns,
 };
 

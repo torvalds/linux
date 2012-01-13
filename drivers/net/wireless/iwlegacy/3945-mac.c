@@ -570,8 +570,7 @@ il3945_tx_skb(struct il_priv *il, struct sk_buff *skb)
 	/* TODO need this for burst mode later on */
 	il3945_build_tx_cmd_basic(il, out_cmd, info, hdr, sta_id);
 
-	/* set is_hcca to 0; it probably will never be implemented */
-	il3945_hw_build_tx_cmd_rate(il, out_cmd, info, hdr, sta_id, 0);
+	il3945_hw_build_tx_cmd_rate(il, out_cmd, info, hdr, sta_id);
 
 	/* Total # bytes to be transmitted */
 	len = (u16) skb->len;
@@ -2624,12 +2623,12 @@ il3945_request_scan(struct il_priv *il, struct ieee80211_vif *vif)
 	}
 
 	/*
-	 * If active scaning is requested but a certain channel
-	 * is marked passive, we can do active scanning if we
-	 * detect transmissions.
+	 * If active scaning is requested but a certain channel is marked
+	 * passive, we can do active scanning if we detect transmissions. For
+	 * passive only scanning disable switching to active on any channel.
 	 */
 	scan->good_CRC_th =
-	    is_active ? IL_GOOD_CRC_TH_DEFAULT : IL_GOOD_CRC_TH_DISABLED;
+	    is_active ? IL_GOOD_CRC_TH_DEFAULT : IL_GOOD_CRC_TH_NEVER;
 
 	len =
 	    il_fill_probe_req(il, (struct ieee80211_mgmt *)scan->data,

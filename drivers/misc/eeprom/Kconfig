@@ -85,7 +85,7 @@ config EEPROM_93XX46
 
 config EEPROM_DIGSY_MTC_CFG
 	bool "DigsyMTC display configuration EEPROMs device"
-	depends on PPC_MPC5200_GPIO && GPIOLIB && SPI_GPIO
+	depends on GPIO_MPC5200 && SPI_GPIO
 	help
 	  This option enables access to display configuration EEPROMs
 	  on digsy_mtc board. You have to additionally select Microwire

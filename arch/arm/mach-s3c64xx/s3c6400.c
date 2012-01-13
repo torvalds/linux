@@ -38,7 +38,8 @@
 #include <plat/sdhci.h>
 #include <plat/iic-core.h>
 #include <plat/onenand-core.h>
-#include <plat/s3c6400.h>
+
+#include "common.h"
 
 void __init s3c6400_map_io(void)
 {
@@ -60,7 +61,7 @@ void __init s3c6400_map_io(void)
 void __init s3c6400_init_clocks(int xtal)
 {
 	s3c64xx_register_clocks(xtal, S3C6400_CLKDIV0_ARM_MASK);
-	s3c6400_setup_clocks();
+	s3c64xx_setup_clocks();
 }
 
 void __init s3c6400_init_irq(void)
@@ -70,7 +71,7 @@ void __init s3c6400_init_irq(void)
 	s3c64xx_init_irq(~0 & ~(0xf << 5), ~0);
 }
 
-struct sysdev_class s3c6400_sysclass = {
+static struct sysdev_class s3c6400_sysclass = {
 	.name	= "s3c6400-core",
 };
 

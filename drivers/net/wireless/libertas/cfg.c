@@ -731,9 +731,11 @@ static void lbs_scan_worker(struct work_struct *work)
 		le16_to_cpu(scan_cmd->hdr.size),
 		lbs_ret_scan, 0);
 
-	if (priv->scan_channel >= priv->scan_req->n_channels)
+	if (priv->scan_channel >= priv->scan_req->n_channels) {
 		/* Mark scan done */
+		cancel_delayed_work(&priv->scan_work);
 		lbs_scan_done(priv);
+	}
 
 	/* Restart network */
 	if (carrier)
@@ -762,11 +764,11 @@ static void _internal_start_scan(struct lbs_private *priv, bool internal,
 		request->n_ssids, request->n_channels, request->ie_len);
 
 	priv->scan_channel = 0;
-	queue_delayed_work(priv->work_thread, &priv->scan_work,
-		msecs_to_jiffies(50));
-
 	priv->scan_req = request;
 	priv->internal_scan = internal;
+
+	queue_delayed_work(priv->work_thread, &priv->scan_work,
+		msecs_to_jiffies(50));
 
 	lbs_deb_leave(LBS_DEB_CFG80211);
 }

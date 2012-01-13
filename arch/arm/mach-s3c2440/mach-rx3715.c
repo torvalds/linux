@@ -51,6 +51,8 @@
 #include <plat/cpu.h>
 #include <plat/pm.h>
 
+#include "common.h"
+
 static struct map_desc rx3715_iodesc[] __initdata = {
 	/* dump ISA space somewhere unused */
 
@@ -224,4 +226,5 @@ MACHINE_START(RX3715, "IPAQ-RX3715")
 	.init_irq	= rx3715_init_irq,
 	.init_machine	= rx3715_init_machine,
 	.timer		= &s3c24xx_timer,
+	.restart	= s3c2440_restart,
 MACHINE_END

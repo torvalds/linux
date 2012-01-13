@@ -24,6 +24,7 @@
 
 #include <linux/sched.h>
 #include <linux/cpuidle.h>
+#include <linux/export.h>
 
 #include <plat/prcm.h>
 #include <plat/irqs.h>
@@ -33,6 +34,7 @@
 
 #include "pm.h"
 #include "control.h"
+#include "common.h"
 
 #ifdef CONFIG_CPU_IDLE
 

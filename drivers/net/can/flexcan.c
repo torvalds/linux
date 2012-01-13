@@ -1060,20 +1060,7 @@ static struct platform_driver flexcan_driver = {
 	.remove = __devexit_p(flexcan_remove),
 };
 
-static int __init flexcan_init(void)
-{
-	pr_info("%s netdevice driver\n", DRV_NAME);
-	return platform_driver_register(&flexcan_driver);
-}
-
-static void __exit flexcan_exit(void)
-{
-	platform_driver_unregister(&flexcan_driver);
-	pr_info("%s: driver removed\n", DRV_NAME);
-}
-
-module_init(flexcan_init);
-module_exit(flexcan_exit);
+module_platform_driver(flexcan_driver);
 
 MODULE_AUTHOR("Sascha Hauer <kernel@pengutronix.de>, "
 	      "Marc Kleine-Budde <kernel@pengutronix.de>");

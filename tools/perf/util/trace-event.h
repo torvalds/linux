@@ -3,7 +3,11 @@
 
 #include <stdbool.h>
 #include "parse-events.h"
-#include "session.h"
+
+struct machine;
+struct perf_sample;
+union perf_event;
+struct thread;
 
 #define __unused __attribute__((unused))
 
@@ -292,7 +296,7 @@ struct scripting_ops {
 	void (*process_event) (union perf_event *event,
 			       struct perf_sample *sample,
 			       struct perf_evsel *evsel,
-			       struct perf_session *session,
+			       struct machine *machine,
 			       struct thread *thread);
 	int (*generate_script) (const char *outfile);
 };

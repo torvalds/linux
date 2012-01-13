@@ -59,7 +59,7 @@ static ssize_t jz4740_hwmon_read_adcin(struct device *dev,
 {
 	struct jz4740_hwmon *hwmon = dev_get_drvdata(dev);
 	struct completion *completion = &hwmon->read_completion;
-	unsigned long t;
+	long t;
 	unsigned long val;
 	int ret;
 
@@ -203,7 +203,7 @@ static int __devexit jz4740_hwmon_remove(struct platform_device *pdev)
 	return 0;
 }
 
-struct platform_driver jz4740_hwmon_driver = {
+static struct platform_driver jz4740_hwmon_driver = {
 	.probe	= jz4740_hwmon_probe,
 	.remove = __devexit_p(jz4740_hwmon_remove),
 	.driver = {
@@ -212,17 +212,7 @@ struct platform_driver jz4740_hwmon_driver = {
 	},
 };
 
-static int __init jz4740_hwmon_init(void)
-{
-	return platform_driver_register(&jz4740_hwmon_driver);
-}
-module_init(jz4740_hwmon_init);
-
-static void __exit jz4740_hwmon_exit(void)
-{
-	platform_driver_unregister(&jz4740_hwmon_driver);
-}
-module_exit(jz4740_hwmon_exit);
+module_platform_driver(jz4740_hwmon_driver);
 
 MODULE_DESCRIPTION("JZ4740 SoC HWMON driver");
 MODULE_AUTHOR("Lars-Peter Clausen <lars@metafoo.de>");

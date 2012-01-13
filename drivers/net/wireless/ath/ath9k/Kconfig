@@ -81,6 +81,14 @@ config ATH9K_RATE_CONTROL
 	  Say Y, if you want to use the ath9k specific rate control
 	  module instead of minstrel_ht.
 
+config ATH9K_BTCOEX_SUPPORT
+	bool "Atheros ath9k bluetooth coexistence support"
+	depends on ATH9K
+	default y
+	---help---
+	  Say Y, if you want to use the ath9k radios together with
+	  Bluetooth modules in the same system.
+
 config ATH9K_HTC
        tristate "Atheros HTC based wireless cards support"
        depends on USB && MAC80211

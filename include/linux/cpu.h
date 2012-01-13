@@ -27,6 +27,7 @@ struct cpu {
 
 extern int register_cpu(struct cpu *cpu, int num);
 extern struct sys_device *get_cpu_sysdev(unsigned cpu);
+extern bool cpu_is_hotpluggable(unsigned cpu);
 
 extern int cpu_add_sysdev_attr(struct sysdev_attribute *attr);
 extern void cpu_remove_sysdev_attr(struct sysdev_attribute *attr);

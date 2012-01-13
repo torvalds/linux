@@ -100,6 +100,16 @@ config XILINX_VIRTEX_GENERIC_BOARD
 	  Most Virtex designs should use this unless it needs to do some
 	  special configuration at board probe time.
 
+config OBS600
+	bool "OpenBlockS 600"
+	depends on 40x
+	default n
+	select 405EX
+	select PPC40x_SIMPLE
+	help
+	  This option enables support for PlatHome OpenBlockS 600 server
+
+
 config PPC40x_SIMPLE
 	bool "Simple PowerPC 40x board support"
 	depends on 40x
@@ -186,3 +196,14 @@ config IBM405_ERR51
 #	bool
 #	depends on !STB03xxx && PPC4xx_DMA
 #	default y
+#
+
+config APM8018X
+	bool "APM8018X"
+	depends on 40x
+	default n
+	select PPC40x_SIMPLE
+	help
+	  This option enables support for the AppliedMicro APM8018X evaluation
+	  board.
+

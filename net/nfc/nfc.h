@@ -60,11 +60,11 @@ void nfc_llcp_exit(void);
 
 #else
 
-void nfc_llcp_mac_is_down(struct nfc_dev *dev)
+static inline void nfc_llcp_mac_is_down(struct nfc_dev *dev)
 {
 }
 
-void nfc_llcp_mac_is_up(struct nfc_dev *dev, u32 target_idx,
+static inline void nfc_llcp_mac_is_up(struct nfc_dev *dev, u32 target_idx,
 			u8 comm_mode, u8 rf_mode)
 {
 }

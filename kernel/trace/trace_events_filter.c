@@ -27,6 +27,12 @@
 #include "trace.h"
 #include "trace_output.h"
 
+#define DEFAULT_SYS_FILTER_MESSAGE					\
+	"### global filter ###\n"					\
+	"# Use this to set filters for multiple events.\n"		\
+	"# Only events with the given fields will be affected.\n"	\
+	"# If no events are modified, an error message will be displayed here"
+
 enum filter_op_ids
 {
 	OP_OR,
@@ -646,7 +652,7 @@ void print_subsystem_event_filter(struct event_subsystem *system,
 	if (filter && filter->filter_string)
 		trace_seq_printf(s, "%s\n", filter->filter_string);
 	else
-		trace_seq_printf(s, "none\n");
+		trace_seq_printf(s, DEFAULT_SYS_FILTER_MESSAGE "\n");
 	mutex_unlock(&event_mutex);
 }
 
@@ -1649,13 +1655,18 @@ static int replace_system_preds(struct event_subsystem *system,
 		 */
 		err = replace_preds(call, NULL, ps, filter_string, true);
 		if (err)
-			goto fail;
+			call->flags |= TRACE_EVENT_FL_NO_SET_FILTER;
+		else
+			call->flags &= ~TRACE_EVENT_FL_NO_SET_FILTER;
 	}
 
 	list_for_each_entry(call, &ftrace_events, list) {
 		struct event_filter *filter;
 
 		if (strcmp(call->class->system, system->name) != 0)
+			continue;
+
+		if (call->flags & TRACE_EVENT_FL_NO_SET_FILTER)
 			continue;
 
 		filter_item = kzalloc(sizeof(*filter_item), GFP_KERNEL);
@@ -1686,7 +1697,7 @@ static int replace_system_preds(struct event_subsystem *system,
 		 * replace the filter for the call.
 		 */
 		filter = call->filter;
-		call->filter = filter_item->filter;
+		rcu_assign_pointer(call->filter, filter_item->filter);
 		filter_item->filter = filter;
 
 		fail = false;
@@ -1741,7 +1752,7 @@ int apply_event_filter(struct ftrace_event_call *call, char *filter_string)
 		filter = call->filter;
 		if (!filter)
 			goto out_unlock;
-		call->filter = NULL;
+		RCU_INIT_POINTER(call->filter, NULL);
 		/* Make sure the filter is not being used */
 		synchronize_sched();
 		__free_filter(filter);
@@ -1782,7 +1793,7 @@ out:
 	 * string
 	 */
 	tmp = call->filter;
-	call->filter = filter;
+	rcu_assign_pointer(call->filter, filter);
 	if (tmp) {
 		/* Make sure the call is done with the filter */
 		synchronize_sched();
@@ -1833,7 +1844,10 @@ int apply_subsystem_event_filter(struct event_subsystem *system,
 	if (!filter)
 		goto out;
 
-	replace_filter_string(filter, filter_string);
+	/* System filters just show a default message */
+	kfree(filter->filter_string);
+	filter->filter_string = NULL;
+
 	/*
 	 * No event actually uses the system filter
 	 * we can free it without synchronize_sched().
@@ -1843,14 +1857,12 @@ int apply_subsystem_event_filter(struct event_subsystem *system,
 
 	parse_init(ps, filter_ops, filter_string);
 	err = filter_parse(ps);
-	if (err) {
-		append_filter_err(ps, system->filter);
-		goto out;
-	}
+	if (err)
+		goto err_filter;
 
 	err = replace_system_preds(system, ps, filter_string);
 	if (err)
-		append_filter_err(ps, system->filter);
+		goto err_filter;
 
 out:
 	filter_opstack_clear(ps);
@@ -1860,6 +1872,11 @@ out_unlock:
 	mutex_unlock(&event_mutex);
 
 	return err;
+
+err_filter:
+	replace_filter_string(filter, filter_string);
+	append_filter_err(ps, system->filter);
+	goto out;
 }
 
 #ifdef CONFIG_PERF_EVENTS

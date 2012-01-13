@@ -31,9 +31,8 @@
 #include <brcmu_utils.h>
 #include <brcmu_wifi.h>
 #include "sdio_host.h"
-#include "dhd.h"
 #include "dhd_dbg.h"
-#include "wl_cfg80211.h"
+#include "dhd_bus.h"
 
 #define SDIO_VENDOR_ID_BROADCOM		0x02d0
 
@@ -488,6 +487,7 @@ static int brcmf_ops_sdio_probe(struct sdio_func *func,
 		sdiodev->bus_if = bus_if;
 		bus_if->bus_priv = sdiodev;
 		bus_if->type = SDIO_BUS;
+		bus_if->align = BRCMF_SDALIGN;
 		dev_set_drvdata(&func->card->dev, sdiodev);
 
 		atomic_set(&sdiodev->suspend, false);

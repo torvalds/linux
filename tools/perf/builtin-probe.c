@@ -46,7 +46,6 @@
 
 #define DEFAULT_VAR_FILTER "!__k???tab_* & !__crc_*"
 #define DEFAULT_FUNC_FILTER "!_*"
-#define MAX_PATH_LEN 256
 
 /* Session management structure */
 static struct {
