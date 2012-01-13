@@ -1135,7 +1135,7 @@ static int brcms_pci_suspend(struct pci_dev *pdev)
 	return pci_set_power_state(pdev, PCI_D3hot);
 }
 
-static int brcms_suspend(struct bcma_device *pdev, pm_message_t state)
+static int brcms_suspend(struct bcma_device *pdev)
 {
 	struct brcms_info *wl;
 	struct ieee80211_hw *hw;
