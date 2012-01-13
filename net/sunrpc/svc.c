@@ -382,10 +382,10 @@ static int svc_rpcb_setup(struct svc_serv *serv, struct net *net)
 	return 0;
 }
 
-void svc_rpcb_cleanup(struct svc_serv *serv)
+void svc_rpcb_cleanup(struct svc_serv *serv, struct net *net)
 {
-	svc_unregister(serv, &init_net);
-	rpcb_put_local(&init_net);
+	svc_unregister(serv, net);
+	rpcb_put_local(net);
 }
 EXPORT_SYMBOL_GPL(svc_rpcb_cleanup);
 
@@ -411,7 +411,7 @@ static int svc_uses_rpcbind(struct svc_serv *serv)
  */
 static struct svc_serv *
 __svc_create(struct svc_program *prog, unsigned int bufsize, int npools,
-	     void (*shutdown)(struct svc_serv *serv))
+	     void (*shutdown)(struct svc_serv *serv, struct net *net))
 {
 	struct svc_serv	*serv;
 	unsigned int vers;
@@ -485,7 +485,7 @@ __svc_create(struct svc_program *prog, unsigned int bufsize, int npools,
 
 struct svc_serv *
 svc_create(struct svc_program *prog, unsigned int bufsize,
-	   void (*shutdown)(struct svc_serv *serv))
+	   void (*shutdown)(struct svc_serv *serv, struct net *net))
 {
 	return __svc_create(prog, bufsize, /*npools*/1, shutdown);
 }
@@ -493,7 +493,7 @@ EXPORT_SYMBOL_GPL(svc_create);
 
 struct svc_serv *
 svc_create_pooled(struct svc_program *prog, unsigned int bufsize,
-		  void (*shutdown)(struct svc_serv *serv),
+		  void (*shutdown)(struct svc_serv *serv, struct net *net),
 		  svc_thread_fn func, struct module *mod)
 {
 	struct svc_serv *serv;
@@ -542,7 +542,7 @@ svc_destroy(struct svc_serv *serv)
 	svc_close_all(serv);
 
 	if (serv->sv_shutdown)
-		serv->sv_shutdown(serv);
+		serv->sv_shutdown(serv, current->nsproxy->net_ns);
 
 	cache_clean_deferred(serv);
 
