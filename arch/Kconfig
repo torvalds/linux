@@ -193,4 +193,7 @@ config HAVE_ALIGNED_STRUCT_PAGE
 	  on a struct page for better performance. However selecting this
 	  might increase the size of a struct page by a word.
 
+config HAVE_CMPXCHG_LOCAL
+	bool
+
 source "kernel/gcov/Kconfig"
