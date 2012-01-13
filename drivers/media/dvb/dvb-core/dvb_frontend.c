@@ -1413,6 +1413,15 @@ static int set_delivery_system(struct dvb_frontend *fe, u32 desired_system)
 	struct dtv_frontend_properties *c = &fe->dtv_property_cache;
 	enum dvbv3_emulation_type type;
 
+	/*
+	 * It was reported that some old DVBv5 applications were
+	 * filling delivery_system with SYS_UNDEFINED. If this happens,
+	 * assume that the application wants to use the first supported
+	 * delivery system.
+	 */
+	if (c->delivery_system == SYS_UNDEFINED)
+	        c->delivery_system = fe->ops.delsys[0];
+
 	if (desired_system == SYS_UNDEFINED) {
 		/*
 		 * A DVBv3 call doesn't know what's the desired system.
