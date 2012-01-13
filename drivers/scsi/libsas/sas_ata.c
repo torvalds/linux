@@ -278,26 +278,84 @@ static struct sas_internal *dev_to_sas_internal(struct domain_device *dev)
 	return to_sas_internal(dev->port->ha->core.shost->transportt);
 }
 
+static void sas_get_ata_command_set(struct domain_device *dev);
+
+int sas_get_ata_info(struct domain_device *dev, struct ex_phy *phy)
+{
+	if (phy->attached_tproto & SAS_PROTOCOL_STP)
+		dev->tproto = phy->attached_tproto;
+	if (phy->attached_sata_dev)
+		dev->tproto |= SATA_DEV;
+
+	if (phy->attached_dev_type == SATA_PENDING)
+		dev->dev_type = SATA_PENDING;
+	else {
+		int res;
+
+		dev->dev_type = SATA_DEV;
+		res = sas_get_report_phy_sata(dev->parent, phy->phy_id,
+					      &dev->sata_dev.rps_resp);
+		if (res) {
+			SAS_DPRINTK("report phy sata to %016llx:0x%x returned "
+				    "0x%x\n", SAS_ADDR(dev->parent->sas_addr),
+				    phy->phy_id, res);
+			return res;
+		}
+		memcpy(dev->frame_rcvd, &dev->sata_dev.rps_resp.rps.fis,
+		       sizeof(struct dev_to_host_fis));
+		/* TODO switch to ata_dev_classify() */
+		sas_get_ata_command_set(dev);
+	}
+	return 0;
+}
+
+static int sas_ata_clear_pending(struct domain_device *dev, struct ex_phy *phy)
+{
+	int res;
+
+	/* we weren't pending, so successfully end the reset sequence now */
+	if (dev->dev_type != SATA_PENDING)
+		return 1;
+
+	/* hmmm, if this succeeds do we need to repost the domain_device to the
+	 * lldd so it can pick up new parameters?
+	 */
+	res = sas_get_ata_info(dev, phy);
+	if (res)
+		return 0; /* retry */
+	else
+		return 1;
+}
+
 static int smp_ata_check_ready(struct ata_link *link)
 {
 	int res;
-	u8 addr[8];
 	struct ata_port *ap = link->ap;
 	struct domain_device *dev = ap->private_data;
 	struct domain_device *ex_dev = dev->parent;
 	struct sas_phy *phy = sas_get_local_phy(dev);
+	struct ex_phy *ex_phy = &ex_dev->ex_dev.ex_phy[phy->number];
 
-	res = sas_get_phy_attached_sas_addr(ex_dev, phy->number, addr);
+	res = sas_ex_phy_discover(ex_dev, phy->number);
 	sas_put_local_phy(phy);
+
 	/* break the wait early if the expander is unreachable,
 	 * otherwise keep polling
 	 */
 	if (res == -ECOMM)
 		return res;
-	if (res != SMP_RESP_FUNC_ACC || SAS_ADDR(addr) == 0)
+	if (res != SMP_RESP_FUNC_ACC)
 		return 0;
-	else
-		return 1;
+
+	switch (ex_phy->attached_dev_type) {
+	case SATA_PENDING:
+		return 0;
+	case SAS_END_DEV:
+		if (ex_phy->attached_sata_dev)
+			return sas_ata_clear_pending(dev, ex_phy);
+	default:
+		return -ENODEV;
+	}
 }
 
 static int local_ata_check_ready(struct ata_link *link)
@@ -583,6 +641,9 @@ static void sas_get_ata_command_set(struct domain_device *dev)
 {
 	struct dev_to_host_fis *fis =
 		(struct dev_to_host_fis *) dev->frame_rcvd;
+
+	if (dev->dev_type == SATA_PENDING)
+		return;
 
 	if ((fis->sector_count == 1 && /* ATA */
 	     fis->lbal         == 1 &&

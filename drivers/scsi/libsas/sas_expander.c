@@ -183,13 +183,27 @@ static char sas_route_char(struct domain_device *dev, struct ex_phy *phy)
 	}
 }
 
-static void sas_set_ex_phy(struct domain_device *dev, int phy_id,
-			   void *disc_resp)
+static enum sas_dev_type to_dev_type(struct discover_resp *dr)
 {
+	/* This is detecting a failure to transmit initial dev to host
+	 * FIS as described in section J.5 of sas-2 r16
+	 */
+	if (dr->attached_dev_type == NO_DEVICE && dr->attached_sata_dev &&
+	    dr->linkrate >= SAS_LINK_RATE_1_5_GBPS)
+		return SATA_PENDING;
+	else
+		return dr->attached_dev_type;
+}
+
+static void sas_set_ex_phy(struct domain_device *dev, int phy_id, void *rsp)
+{
+	enum sas_dev_type dev_type;
+	enum sas_linkrate linkrate;
+	u8 sas_addr[SAS_ADDR_SIZE];
+	struct smp_resp *resp = rsp;
+	struct discover_resp *dr = &resp->disc;
 	struct expander_device *ex = &dev->ex_dev;
 	struct ex_phy *phy = &ex->ex_phy[phy_id];
-	struct smp_resp *resp = disc_resp;
-	struct discover_resp *dr = &resp->disc;
 	struct sas_rphy *rphy = dev->rphy;
 	bool new_phy = !phy->phy;
 	char *type;
@@ -213,8 +227,13 @@ static void sas_set_ex_phy(struct domain_device *dev, int phy_id,
 		break;
 	}
 
+	/* check if anything important changed to squelch debug */
+	dev_type = phy->attached_dev_type;
+	linkrate  = phy->linkrate;
+	memcpy(sas_addr, phy->attached_sas_addr, SAS_ADDR_SIZE);
+
+	phy->attached_dev_type = to_dev_type(dr);
 	phy->phy_id = phy_id;
-	phy->attached_dev_type = dr->attached_dev_type;
 	phy->linkrate = dr->linkrate;
 	phy->attached_sata_host = dr->attached_sata_host;
 	phy->attached_sata_dev  = dr->attached_sata_dev;
@@ -229,7 +248,7 @@ static void sas_set_ex_phy(struct domain_device *dev, int phy_id,
 	phy->last_da_index = -1;
 
 	phy->phy->identify.sas_address = SAS_ADDR(phy->attached_sas_addr);
-	phy->phy->identify.device_type = phy->attached_dev_type;
+	phy->phy->identify.device_type = dr->attached_dev_type;
 	phy->phy->identify.initiator_port_protocols = phy->attached_iproto;
 	phy->phy->identify.target_port_protocols = phy->attached_tproto;
 	phy->phy->identify.phy_identifier = phy_id;
@@ -246,6 +265,9 @@ static void sas_set_ex_phy(struct domain_device *dev, int phy_id,
 		}
 
 	switch (phy->attached_dev_type) {
+	case SATA_PENDING:
+		type = "stp pending";
+		break;
 	case NO_DEVICE:
 		type = "no device";
 		break;
@@ -269,6 +291,16 @@ static void sas_set_ex_phy(struct domain_device *dev, int phy_id,
 	default:
 		type = "unknown";
 	}
+
+	/* this routine is polled by libata error recovery so filter
+	 * unimportant messages
+	 */
+	if (new_phy || phy->attached_dev_type != dev_type ||
+	    phy->linkrate != linkrate ||
+	    SAS_ADDR(phy->attached_sas_addr) != SAS_ADDR(sas_addr))
+		/* pass */;
+	else
+		return;
 
 	SAS_DPRINTK("ex %016llx phy%02d:%c:%X attached: %016llx (%s)\n",
 		    SAS_ADDR(dev->sas_addr), phy->phy_id,
@@ -304,50 +336,25 @@ struct domain_device *sas_ex_to_ata(struct domain_device *ex_dev, int phy_id)
 static int sas_ex_phy_discover_helper(struct domain_device *dev, u8 *disc_req,
 				      u8 *disc_resp, int single)
 {
-	struct domain_device *ata_dev = sas_ex_to_ata(dev, single);
-	int i, res;
+	struct discover_resp *dr;
+	int res;
 
 	disc_req[9] = single;
-	for (i = 1 ; i < 3; i++) {
-		struct discover_resp *dr;
 
-		res = smp_execute_task(dev, disc_req, DISCOVER_REQ_SIZE,
-				       disc_resp, DISCOVER_RESP_SIZE);
-		if (res)
-			return res;
-		dr = &((struct smp_resp *)disc_resp)->disc;
-		if (memcmp(dev->sas_addr, dr->attached_sas_addr,
-			  SAS_ADDR_SIZE) == 0) {
-			sas_printk("Found loopback topology, just ignore it!\n");
-			return 0;
-		}
-
-		/* This is detecting a failure to transmit initial
-		 * dev to host FIS as described in section J.5 of
-		 * sas-2 r16
-		 */
-		if (!(dr->attached_dev_type == 0 &&
-		      dr->attached_sata_dev))
-			break;
-
-		/* In order to generate the dev to host FIS, we send a
-		 * link reset to the expander port.  If a device was
-		 * previously detected on this port we ask libata to
-		 * manage the reset and link recovery.
-		 */
-		if (ata_dev) {
-			sas_ata_schedule_reset(ata_dev);
-			break;
-		}
-		sas_smp_phy_control(dev, single, PHY_FUNC_LINK_RESET, NULL);
-		/* Wait for the reset to trigger the negotiation */
-		msleep(500);
+	res = smp_execute_task(dev, disc_req, DISCOVER_REQ_SIZE,
+			       disc_resp, DISCOVER_RESP_SIZE);
+	if (res)
+		return res;
+	dr = &((struct smp_resp *)disc_resp)->disc;
+	if (memcmp(dev->sas_addr, dr->attached_sas_addr, SAS_ADDR_SIZE) == 0) {
+		sas_printk("Found loopback topology, just ignore it!\n");
+		return 0;
 	}
 	sas_set_ex_phy(dev, single, disc_resp);
 	return 0;
 }
 
-static int sas_ex_phy_discover(struct domain_device *dev, int single)
+int sas_ex_phy_discover(struct domain_device *dev, int single)
 {
 	struct expander_device *ex = &dev->ex_dev;
 	int  res = 0;
@@ -652,9 +659,8 @@ int sas_smp_get_phy_events(struct sas_phy *phy)
 #define RPS_REQ_SIZE  16
 #define RPS_RESP_SIZE 60
 
-static int sas_get_report_phy_sata(struct domain_device *dev,
-					  int phy_id,
-					  struct smp_resp *rps_resp)
+int sas_get_report_phy_sata(struct domain_device *dev, int phy_id,
+			    struct smp_resp *rps_resp)
 {
 	int res;
 	u8 *rps_req = alloc_smp_req(RPS_REQ_SIZE);
@@ -764,21 +770,9 @@ static struct domain_device *sas_ex_discover_end_dev(
 
 #ifdef CONFIG_SCSI_SAS_ATA
 	if ((phy->attached_tproto & SAS_PROTOCOL_STP) || phy->attached_sata_dev) {
-		child->dev_type = SATA_DEV;
-		if (phy->attached_tproto & SAS_PROTOCOL_STP)
-			child->tproto = phy->attached_tproto;
-		if (phy->attached_sata_dev)
-			child->tproto |= SATA_DEV;
-		res = sas_get_report_phy_sata(parent, phy_id,
-					      &child->sata_dev.rps_resp);
-		if (res) {
-			SAS_DPRINTK("report phy sata to %016llx:0x%x returned "
-				    "0x%x\n", SAS_ADDR(parent->sas_addr),
-				    phy_id, res);
+		res = sas_get_ata_info(child, phy);
+		if (res)
 			goto out_free;
-		}
-		memcpy(child->frame_rcvd, &child->sata_dev.rps_resp.rps.fis,
-		       sizeof(struct dev_to_host_fis));
 
 		rphy = sas_end_device_alloc(phy->port);
 		if (unlikely(!rphy))
@@ -993,7 +987,8 @@ static int sas_ex_discover_dev(struct domain_device *dev, int phy_id)
 
 	if (ex_phy->attached_dev_type != SAS_END_DEV &&
 	    ex_phy->attached_dev_type != FANOUT_DEV &&
-	    ex_phy->attached_dev_type != EDGE_DEV) {
+	    ex_phy->attached_dev_type != EDGE_DEV &&
+	    ex_phy->attached_dev_type != SATA_PENDING) {
 		SAS_DPRINTK("unknown device type(0x%x) attached to ex %016llx "
 			    "phy 0x%x\n", ex_phy->attached_dev_type,
 			    SAS_ADDR(dev->sas_addr),
@@ -1019,6 +1014,7 @@ static int sas_ex_discover_dev(struct domain_device *dev, int phy_id)
 
 	switch (ex_phy->attached_dev_type) {
 	case SAS_END_DEV:
+	case SATA_PENDING:
 		child = sas_ex_discover_end_dev(dev, phy_id);
 		break;
 	case FANOUT_DEV:
@@ -1688,8 +1684,8 @@ static int sas_get_phy_change_count(struct domain_device *dev,
 	return res;
 }
 
-int sas_get_phy_attached_sas_addr(struct domain_device *dev, int phy_id,
-				  u8 *attached_sas_addr)
+static int sas_get_phy_attached_dev(struct domain_device *dev, int phy_id,
+				    u8 *sas_addr, enum sas_dev_type *type)
 {
 	int res;
 	struct smp_resp *disc_resp;
@@ -1701,10 +1697,11 @@ int sas_get_phy_attached_sas_addr(struct domain_device *dev, int phy_id,
 	dr = &disc_resp->disc;
 
 	res = sas_get_phy_discover(dev, phy_id, disc_resp);
-	if (!res) {
-		memcpy(attached_sas_addr,disc_resp->disc.attached_sas_addr,8);
-		if (dr->attached_dev_type == 0)
-			memset(attached_sas_addr, 0, 8);
+	if (res == 0) {
+		memcpy(sas_addr, disc_resp->disc.attached_sas_addr, 8);
+		*type = to_dev_type(dr);
+		if (*type == 0)
+			memset(sas_addr, 0, 8);
 	}
 	kfree(disc_resp);
 	return res;
@@ -1953,39 +1950,62 @@ out:
 	return res;
 }
 
+static bool dev_type_flutter(enum sas_dev_type new, enum sas_dev_type old)
+{
+	if (old == new)
+		return true;
+
+	/* treat device directed resets as flutter, if we went
+	 * SAS_END_DEV to SATA_PENDING the link needs recovery
+	 */
+	if ((old == SATA_PENDING && new == SAS_END_DEV) ||
+	    (old == SAS_END_DEV && new == SATA_PENDING))
+		return true;
+
+	return false;
+}
+
 static int sas_rediscover_dev(struct domain_device *dev, int phy_id, bool last)
 {
 	struct expander_device *ex = &dev->ex_dev;
 	struct ex_phy *phy = &ex->ex_phy[phy_id];
-	u8 attached_sas_addr[8];
+	enum sas_dev_type type = NO_DEVICE;
+	u8 sas_addr[8];
 	int res;
 
-	res = sas_get_phy_attached_sas_addr(dev, phy_id, attached_sas_addr);
+	res = sas_get_phy_attached_dev(dev, phy_id, sas_addr, &type);
 	switch (res) {
 	case SMP_RESP_NO_PHY:
 		phy->phy_state = PHY_NOT_PRESENT;
 		sas_unregister_devs_sas_addr(dev, phy_id, last);
-		goto out; break;
+		return res;
 	case SMP_RESP_PHY_VACANT:
 		phy->phy_state = PHY_VACANT;
 		sas_unregister_devs_sas_addr(dev, phy_id, last);
-		goto out; break;
+		return res;
 	case SMP_RESP_FUNC_ACC:
 		break;
 	}
 
-	if (SAS_ADDR(attached_sas_addr) == 0) {
+	if (SAS_ADDR(sas_addr) == 0) {
 		phy->phy_state = PHY_EMPTY;
 		sas_unregister_devs_sas_addr(dev, phy_id, last);
-	} else if (SAS_ADDR(attached_sas_addr) ==
-		   SAS_ADDR(phy->attached_sas_addr)) {
-		SAS_DPRINTK("ex %016llx phy 0x%x broadcast flutter\n",
-			    SAS_ADDR(dev->sas_addr), phy_id);
+		return res;
+	} else if (SAS_ADDR(sas_addr) == SAS_ADDR(phy->attached_sas_addr) &&
+		   dev_type_flutter(type, phy->attached_dev_type)) {
+		struct domain_device *ata_dev = sas_ex_to_ata(dev, phy_id);
+		char *action = "";
+
 		sas_ex_phy_discover(dev, phy_id);
-	} else
-		res = sas_discover_new(dev, phy_id);
-out:
-	return res;
+
+		if (ata_dev && phy->attached_dev_type == SATA_PENDING)
+			action = ", needs recovery";
+		SAS_DPRINTK("ex %016llx phy 0x%x broadcast flutter%s\n",
+			    SAS_ADDR(dev->sas_addr), phy_id, action);
+		return res;
+	}
+
+	return sas_discover_new(dev, phy_id);
 }
 
 /**

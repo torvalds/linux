@@ -33,9 +33,10 @@
 static inline int dev_is_sata(struct domain_device *dev)
 {
 	return dev->dev_type == SATA_DEV || dev->dev_type == SATA_PM ||
-	       dev->dev_type == SATA_PM_PORT;
+	       dev->dev_type == SATA_PM_PORT || dev->dev_type == SATA_PENDING;
 }
 
+int sas_get_ata_info(struct domain_device *dev, struct ex_phy *phy);
 int sas_ata_init_host_and_port(struct domain_device *found_dev,
 			       struct scsi_target *starget);
 
@@ -81,6 +82,11 @@ static inline void sas_ata_schedule_reset(struct domain_device *dev)
 
 static inline void sas_ata_wait_eh(struct domain_device *dev)
 {
+}
+
+static inline int sas_get_ata_info(struct domain_device *dev, struct ex_phy *phy)
+{
+	return 0;
 }
 #endif
 

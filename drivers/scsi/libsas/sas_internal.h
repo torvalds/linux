@@ -91,8 +91,9 @@ int sas_smp_get_phy_events(struct sas_phy *phy);
 void sas_device_set_phy(struct domain_device *dev, struct sas_port *port);
 struct domain_device *sas_find_dev_by_rphy(struct sas_rphy *rphy);
 struct domain_device *sas_ex_to_ata(struct domain_device *ex_dev, int phy_id);
-int sas_get_phy_attached_sas_addr(struct domain_device *dev, int phy_id,
-				  u8 *attached_sas_addr);
+int sas_ex_phy_discover(struct domain_device *dev, int single);
+int sas_get_report_phy_sata(struct domain_device *dev, int phy_id,
+			    struct smp_resp *rps_resp);
 int sas_try_ata_reset(struct asd_sas_phy *phy);
 void sas_hae_reset(struct work_struct *work);
 
@@ -122,6 +123,7 @@ static inline void sas_fill_in_rphy(struct domain_device *dev,
 	case SATA_DEV:
 		/* FIXME: need sata device type */
 	case SAS_END_DEV:
+	case SATA_PENDING:
 		rphy->identify.device_type = SAS_END_DEVICE;
 		break;
 	case EDGE_DEV:
