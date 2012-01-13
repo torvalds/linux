@@ -314,12 +314,6 @@ struct rcu_data {
 #else
 #define RCU_STALL_DELAY_DELTA	       0
 #endif
-
-#define RCU_SECONDS_TILL_STALL_CHECK   (CONFIG_RCU_CPU_STALL_TIMEOUT * HZ + \
-					RCU_STALL_DELAY_DELTA)
-						/* for rsp->jiffies_stall */
-#define RCU_SECONDS_TILL_STALL_RECHECK (3 * RCU_SECONDS_TILL_STALL_CHECK + 30)
-						/* for rsp->jiffies_stall */
 #define RCU_STALL_RAT_DELAY		2	/* Allow other CPUs time */
 						/*  to take at least one */
 						/*  scheduling clock irq */
