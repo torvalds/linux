@@ -175,9 +175,9 @@ static int rpcb_get_local(struct net *net)
 	return cnt;
 }
 
-void rpcb_put_local(void)
+void rpcb_put_local(struct net *net)
 {
-	struct sunrpc_net *sn = net_generic(&init_net, sunrpc_net_id);
+	struct sunrpc_net *sn = net_generic(net, sunrpc_net_id);
 	struct rpc_clnt *clnt = sn->rpcb_local_clnt;
 	struct rpc_clnt *clnt4 = sn->rpcb_local_clnt4;
 	int shutdown;
@@ -323,11 +323,10 @@ out:
  * Returns zero on success, otherwise a negative errno value
  * is returned.
  */
-int rpcb_create_local(void)
+int rpcb_create_local(struct net *net)
 {
 	static DEFINE_MUTEX(rpcb_create_local_mutex);
 	int result = 0;
-	struct net *net = &init_net;
 
 	if (rpcb_get_local(net))
 		return result;

@@ -372,7 +372,7 @@ static int svc_rpcb_setup(struct svc_serv *serv)
 {
 	int err;
 
-	err = rpcb_create_local();
+	err = rpcb_create_local(&init_net);
 	if (err)
 		return err;
 
@@ -384,7 +384,7 @@ static int svc_rpcb_setup(struct svc_serv *serv)
 void svc_rpcb_cleanup(struct svc_serv *serv)
 {
 	svc_unregister(serv);
-	rpcb_put_local();
+	rpcb_put_local(&init_net);
 }
 EXPORT_SYMBOL_GPL(svc_rpcb_cleanup);
 

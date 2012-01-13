@@ -136,8 +136,8 @@ void		rpc_shutdown_client(struct rpc_clnt *);
 void		rpc_release_client(struct rpc_clnt *);
 void		rpc_task_release_client(struct rpc_task *);
 
-int		rpcb_create_local(void);
-void		rpcb_put_local(void);
+int		rpcb_create_local(struct net *);
+void		rpcb_put_local(struct net *);
 int		rpcb_register(struct net *, u32, u32, int, unsigned short);
 int		rpcb_v4_register(struct net *net, const u32 program,
 				 const u32 version,
