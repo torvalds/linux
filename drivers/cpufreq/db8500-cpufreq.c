@@ -22,11 +22,11 @@ static struct cpufreq_frequency_table freq_table[] = {
 	},
 	[1] = {
 		.index = 1,
-		.frequency = 300000,
+		.frequency = 400000,
 	},
 	[2] = {
 		.index = 2,
-		.frequency = 600000,
+		.frequency = 800000,
 	},
 	[3] = {
 		/* Used for MAX_OPP, if available */
@@ -113,12 +113,9 @@ static int __cpuinit db8500_cpufreq_init(struct cpufreq_policy *policy)
 
 	BUILD_BUG_ON(ARRAY_SIZE(idx2opp) + 1 != ARRAY_SIZE(freq_table));
 
-	if (!prcmu_is_u8400()) {
-		freq_table[1].frequency = 400000;
-		freq_table[2].frequency = 800000;
-		if (prcmu_has_arm_maxopp())
-			freq_table[3].frequency = 1000000;
-	}
+	if (prcmu_has_arm_maxopp())
+		freq_table[3].frequency = 1000000;
+
 	pr_info("db8500-cpufreq : Available frequencies:\n");
 	for (i = 0; freq_table[i].frequency != CPUFREQ_TABLE_END; i++)
 		pr_info("  %d Mhz\n", freq_table[i].frequency/1000);

@@ -500,7 +500,6 @@ int prcmu_set_rc_a2p(enum romcode_write);
 enum romcode_read prcmu_get_rc_p2a(void);
 enum ap_pwrst prcmu_get_xp70_current_state(void);
 bool prcmu_has_arm_maxopp(void);
-bool prcmu_is_u8400(void);
 int prcmu_set_ape_opp(u8 opp);
 int prcmu_get_ape_opp(void);
 int prcmu_request_ape_opp_100_voltage(bool enable);
@@ -570,11 +569,6 @@ static inline enum ap_pwrst prcmu_get_xp70_current_state(void)
 }
 
 static inline bool prcmu_has_arm_maxopp(void)
-{
-	return false;
-}
-
-static inline bool prcmu_is_u8400(void)
 {
 	return false;
 }
