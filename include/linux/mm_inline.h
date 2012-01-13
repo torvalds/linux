@@ -22,21 +22,21 @@ static inline int page_is_file_cache(struct page *page)
 }
 
 static inline void
-add_page_to_lru_list(struct zone *zone, struct page *page, enum lru_list l)
+add_page_to_lru_list(struct zone *zone, struct page *page, enum lru_list lru)
 {
 	struct lruvec *lruvec;
 
-	lruvec = mem_cgroup_lru_add_list(zone, page, l);
-	list_add(&page->lru, &lruvec->lists[l]);
-	__mod_zone_page_state(zone, NR_LRU_BASE + l, hpage_nr_pages(page));
+	lruvec = mem_cgroup_lru_add_list(zone, page, lru);
+	list_add(&page->lru, &lruvec->lists[lru]);
+	__mod_zone_page_state(zone, NR_LRU_BASE + lru, hpage_nr_pages(page));
 }
 
 static inline void
-del_page_from_lru_list(struct zone *zone, struct page *page, enum lru_list l)
+del_page_from_lru_list(struct zone *zone, struct page *page, enum lru_list lru)
 {
-	mem_cgroup_lru_del_list(page, l);
+	mem_cgroup_lru_del_list(page, lru);
 	list_del(&page->lru);
-	__mod_zone_page_state(zone, NR_LRU_BASE + l, -hpage_nr_pages(page));
+	__mod_zone_page_state(zone, NR_LRU_BASE + lru, -hpage_nr_pages(page));
 }
 
 /**
@@ -57,21 +57,21 @@ static inline enum lru_list page_lru_base_type(struct page *page)
 static inline void
 del_page_from_lru(struct zone *zone, struct page *page)
 {
-	enum lru_list l;
+	enum lru_list lru;
 
 	if (PageUnevictable(page)) {
 		__ClearPageUnevictable(page);
-		l = LRU_UNEVICTABLE;
+		lru = LRU_UNEVICTABLE;
 	} else {
-		l = page_lru_base_type(page);
+		lru = page_lru_base_type(page);
 		if (PageActive(page)) {
 			__ClearPageActive(page);
-			l += LRU_ACTIVE;
+			lru += LRU_ACTIVE;
 		}
 	}
-	mem_cgroup_lru_del_list(page, l);
+	mem_cgroup_lru_del_list(page, lru);
 	list_del(&page->lru);
-	__mod_zone_page_state(zone, NR_LRU_BASE + l, -hpage_nr_pages(page));
+	__mod_zone_page_state(zone, NR_LRU_BASE + lru, -hpage_nr_pages(page));
 }
 
 /**
