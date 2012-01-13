@@ -125,8 +125,8 @@ static int __init ramoops_probe(struct platform_device *pdev)
 		goto fail3;
 	}
 
-	rounddown_pow_of_two(pdata->mem_size);
-	rounddown_pow_of_two(pdata->record_size);
+	pdata->mem_size = rounddown_pow_of_two(pdata->mem_size);
+	pdata->record_size = rounddown_pow_of_two(pdata->record_size);
 
 	/* Check for the minimum memory size */
 	if (pdata->mem_size < MIN_MEM_SIZE &&
