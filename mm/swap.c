@@ -650,6 +650,7 @@ void __pagevec_release(struct pagevec *pvec)
 
 EXPORT_SYMBOL(__pagevec_release);
 
+#ifdef CONFIG_TRANSPARENT_HUGEPAGE
 /* used by __split_huge_page_refcount() */
 void lru_add_page_tail(struct zone* zone,
 		       struct page *page, struct page *page_tail)
@@ -666,8 +667,6 @@ void lru_add_page_tail(struct zone* zone,
 	SetPageLRU(page_tail);
 
 	if (page_evictable(page_tail, NULL)) {
-		struct lruvec *lruvec;
-
 		if (PageActive(page)) {
 			SetPageActive(page_tail);
 			active = 1;
@@ -677,18 +676,28 @@ void lru_add_page_tail(struct zone* zone,
 			lru = LRU_INACTIVE_ANON;
 		}
 		update_page_reclaim_stat(zone, page_tail, file, active);
-		lruvec = mem_cgroup_lru_add_list(zone, page_tail, lru);
-		if (likely(PageLRU(page)))
-			list_add(&page_tail->lru, page->lru.prev);
-		else
-			list_add(&page_tail->lru, lruvec->lists[lru].prev);
-		__mod_zone_page_state(zone, NR_LRU_BASE + lru,
-				      hpage_nr_pages(page_tail));
 	} else {
 		SetPageUnevictable(page_tail);
-		add_page_to_lru_list(zone, page_tail, LRU_UNEVICTABLE);
+		lru = LRU_UNEVICTABLE;
+	}
+
+	if (likely(PageLRU(page)))
+		list_add_tail(&page_tail->lru, &page->lru);
+	else {
+		struct list_head *list_head;
+		/*
+		 * Head page has not yet been counted, as an hpage,
+		 * so we must account for each subpage individually.
+		 *
+		 * Use the standard add function to put page_tail on the list,
+		 * but then correct its position so they all end up in order.
+		 */
+		add_page_to_lru_list(zone, page_tail, lru);
+		list_head = page_tail->lru.prev;
+		list_move_tail(&page_tail->lru, list_head);
 	}
 }
+#endif /* CONFIG_TRANSPARENT_HUGEPAGE */
 
 static void ____pagevec_lru_add_fn(struct page *page, void *arg)
 {

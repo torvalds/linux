@@ -1071,6 +1071,7 @@ void mem_cgroup_lru_del_list(struct page *page, enum lru_list lru)
 	VM_BUG_ON(!memcg);
 	mz = page_cgroup_zoneinfo(memcg, page);
 	/* huge page split is done under lru_lock. so, we have no races. */
+	VM_BUG_ON(MEM_CGROUP_ZSTAT(mz, lru) < (1 << compound_order(page)));
 	MEM_CGROUP_ZSTAT(mz, lru) -= 1 << compound_order(page);
 }
 
@@ -2465,9 +2466,7 @@ static void __mem_cgroup_commit_charge(struct mem_cgroup *memcg,
 void mem_cgroup_split_huge_fixup(struct page *head)
 {
 	struct page_cgroup *head_pc = lookup_page_cgroup(head);
-	struct mem_cgroup_per_zone *mz;
 	struct page_cgroup *pc;
-	enum lru_list lru;
 	int i;
 
 	if (mem_cgroup_disabled())
@@ -2478,15 +2477,8 @@ void mem_cgroup_split_huge_fixup(struct page *head)
 		smp_wmb();/* see __commit_charge() */
 		pc->flags = head_pc->flags & ~PCGF_NOCOPY_AT_SPLIT;
 	}
-	/*
-	 * Tail pages will be added to LRU.
-	 * We hold lru_lock,then,reduce counter directly.
-	 */
-	lru = page_lru(head);
-	mz = page_cgroup_zoneinfo(head_pc->mem_cgroup, head);
-	MEM_CGROUP_ZSTAT(mz, lru) -= HPAGE_PMD_NR - 1;
 }
-#endif
+#endif /* CONFIG_TRANSPARENT_HUGEPAGE */
 
 /**
  * mem_cgroup_move_account - move account of the page
