@@ -634,69 +634,6 @@ static struct pccard_operations soc_common_pcmcia_operations = {
 };
 
 
-int soc_pcmcia_request_irqs(struct soc_pcmcia_socket *skt,
-			    struct pcmcia_irqs *irqs, int nr)
-{
-	int i, res = 0;
-
-	for (i = 0; i < nr; i++) {
-		if (irqs[i].sock != skt->nr)
-			continue;
-		res = request_irq(irqs[i].irq, soc_common_pcmcia_interrupt,
-				  IRQF_DISABLED, irqs[i].str, skt);
-		if (res)
-			break;
-		irq_set_irq_type(irqs[i].irq, IRQ_TYPE_NONE);
-	}
-
-	if (res) {
-		printk(KERN_ERR "PCMCIA: request for IRQ%d failed (%d)\n",
-			irqs[i].irq, res);
-
-		while (i--)
-			if (irqs[i].sock == skt->nr)
-				free_irq(irqs[i].irq, skt);
-	}
-	return res;
-}
-EXPORT_SYMBOL(soc_pcmcia_request_irqs);
-
-void soc_pcmcia_free_irqs(struct soc_pcmcia_socket *skt,
-			  struct pcmcia_irqs *irqs, int nr)
-{
-	int i;
-
-	for (i = 0; i < nr; i++)
-		if (irqs[i].sock == skt->nr)
-			free_irq(irqs[i].irq, skt);
-}
-EXPORT_SYMBOL(soc_pcmcia_free_irqs);
-
-void soc_pcmcia_disable_irqs(struct soc_pcmcia_socket *skt,
-			     struct pcmcia_irqs *irqs, int nr)
-{
-	int i;
-
-	for (i = 0; i < nr; i++)
-		if (irqs[i].sock == skt->nr)
-			irq_set_irq_type(irqs[i].irq, IRQ_TYPE_NONE);
-}
-EXPORT_SYMBOL(soc_pcmcia_disable_irqs);
-
-void soc_pcmcia_enable_irqs(struct soc_pcmcia_socket *skt,
-			    struct pcmcia_irqs *irqs, int nr)
-{
-	int i;
-
-	for (i = 0; i < nr; i++)
-		if (irqs[i].sock == skt->nr) {
-			irq_set_irq_type(irqs[i].irq, IRQ_TYPE_EDGE_RISING);
-			irq_set_irq_type(irqs[i].irq, IRQ_TYPE_EDGE_BOTH);
-		}
-}
-EXPORT_SYMBOL(soc_pcmcia_enable_irqs);
-
-
 static LIST_HEAD(soc_pcmcia_sockets);
 static DEFINE_MUTEX(soc_pcmcia_sockets_lock);
 
