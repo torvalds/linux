@@ -361,13 +361,6 @@ config DVB_USB_EC168
 	help
 	  Say Y here to support the E3C EC168 DVB-T USB2.0 receiver.
 
-config DVB_USB_HDIC
-	tristate "HDIC HD29L2 reference design"
-	depends on DVB_USB
-	select DVB_HD29L2 if !DVB_FE_CUSTOMISE
-	help
-	  Say Y here to support the HDIC HD29L2 reference design.
-
 config DVB_USB_AZ6027
 	tristate "Azurewave DVB-S/S2 USB2.0 AZ6027 support"
 	depends on DVB_USB
