@@ -242,7 +242,7 @@ static int bcma_host_pci_suspend(struct device *dev)
 
 	bus->mapped_core = NULL;
 
-	return 0;
+	return bcma_bus_suspend(bus);
 }
 
 static int bcma_host_pci_resume(struct device *dev)
