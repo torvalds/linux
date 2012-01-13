@@ -73,7 +73,7 @@ static int l2cap_build_conf_req(struct l2cap_chan *chan, void *data);
 static void l2cap_send_disconn_req(struct l2cap_conn *conn,
 				struct l2cap_chan *chan, int err);
 
-static int l2cap_ertm_data_rcv(struct sock *sk, struct sk_buff *skb);
+static int l2cap_ertm_data_rcv(struct l2cap_chan *chan, struct sk_buff *skb);
 
 /* ---- L2CAP channels ---- */
 
@@ -4138,9 +4138,8 @@ static inline int l2cap_data_channel_sframe(struct l2cap_chan *chan, u32 rx_cont
 	return 0;
 }
 
-static int l2cap_ertm_data_rcv(struct sock *sk, struct sk_buff *skb)
+int l2cap_ertm_data_rcv(struct l2cap_chan *chan, struct sk_buff *skb)
 {
-	struct l2cap_chan *chan = l2cap_pi(sk)->chan;
 	u32 control;
 	u16 req_seq;
 	int len, next_tx_seq_offset, req_seq_offset;
@@ -4241,7 +4240,7 @@ static inline int l2cap_data_channel(struct l2cap_conn *conn, u16 cid, struct sk
 		break;
 
 	case L2CAP_MODE_ERTM:
-		l2cap_ertm_data_rcv(sk, skb);
+		l2cap_ertm_data_rcv(chan, skb);
 
 		goto done;
 
