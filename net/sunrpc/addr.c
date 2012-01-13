@@ -230,6 +230,7 @@ static size_t rpc_pton6(struct net *net, const char *buf, const size_t buflen,
 
 /**
  * rpc_pton - Construct a sockaddr in @sap
+ * @net: applicable network namespace
  * @buf: C string containing presentation format IP address
  * @buflen: length of presentation address in bytes
  * @sap: buffer into which to plant socket address
@@ -242,14 +243,14 @@ static size_t rpc_pton6(struct net *net, const char *buf, const size_t buflen,
  * socket address, if successful.  Returns zero if an error
  * occurred.
  */
-size_t rpc_pton(const char *buf, const size_t buflen,
+size_t rpc_pton(struct net *net, const char *buf, const size_t buflen,
 		struct sockaddr *sap, const size_t salen)
 {
 	unsigned int i;
 
 	for (i = 0; i < buflen; i++)
 		if (buf[i] == ':')
-			return rpc_pton6(&init_net, buf, buflen, sap, salen);
+			return rpc_pton6(net, buf, buflen, sap, salen);
 	return rpc_pton4(buf, buflen, sap, salen);
 }
 EXPORT_SYMBOL_GPL(rpc_pton);
@@ -340,7 +341,7 @@ size_t rpc_uaddr2sockaddr(const char *uaddr, const size_t uaddr_len,
 	port = (unsigned short)((porthi << 8) | portlo);
 
 	*c = '\0';
-	if (rpc_pton(buf, strlen(buf), sap, salen) == 0)
+	if (rpc_pton(&init_net, buf, strlen(buf), sap, salen) == 0)
 		return 0;
 
 	switch (sap->sa_family) {

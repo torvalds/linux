@@ -20,7 +20,7 @@ ssize_t nfs_dns_resolve_name(struct net *net, char *name, size_t namelen,
 
 	ip_len = dns_query(NULL, name, namelen, NULL, &ip_addr, NULL);
 	if (ip_len > 0)
-		ret = rpc_pton(ip_addr, ip_len, sa, salen);
+		ret = rpc_pton(&init_net, ip_addr, ip_len, sa, salen);
 	else
 		ret = -ESRCH;
 	kfree(ip_addr);
@@ -224,7 +224,7 @@ static int nfs_dns_parse(struct cache_detail *cd, char *buf, int buflen)
 	len = qword_get(&buf, buf1, sizeof(buf1));
 	if (len <= 0)
 		goto out;
-	key.addrlen = rpc_pton(buf1, len,
+	key.addrlen = rpc_pton(&init_net, buf1, len,
 			(struct sockaddr *)&key.addr,
 			sizeof(key.addr));
 

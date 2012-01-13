@@ -457,7 +457,7 @@ decode_ds_addr(struct xdr_stream *streamp, gfp_t gfp_flags)
 
 	INIT_LIST_HEAD(&da->da_node);
 
-	if (!rpc_pton(buf, portstr-buf, (struct sockaddr *)&da->da_addr,
+	if (!rpc_pton(&init_net, buf, portstr-buf, (struct sockaddr *)&da->da_addr,
 		      sizeof(da->da_addr))) {
 		dprintk("%s: error parsing address %s\n", __func__, buf);
 		goto out_free_da;

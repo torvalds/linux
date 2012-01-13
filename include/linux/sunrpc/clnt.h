@@ -163,7 +163,7 @@ size_t		rpc_peeraddr(struct rpc_clnt *, struct sockaddr *, size_t);
 const char	*rpc_peeraddr2str(struct rpc_clnt *, enum rpc_display_format_t);
 
 size_t		rpc_ntop(const struct sockaddr *, char *, const size_t);
-size_t		rpc_pton(const char *, const size_t,
+size_t		rpc_pton(struct net *, const char *, const size_t,
 			 struct sockaddr *, const size_t);
 char *		rpc_sockaddr2uaddr(const struct sockaddr *, gfp_t);
 size_t		rpc_uaddr2sockaddr(const char *, const size_t,
