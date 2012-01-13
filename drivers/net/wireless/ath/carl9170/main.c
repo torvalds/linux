@@ -1934,10 +1934,6 @@ int carl9170_register(struct ar9170 *ar)
 	if (err)
 		return err;
 
-	err = carl9170_fw_fix_eeprom(ar);
-	if (err)
-		return err;
-
 	err = carl9170_parse_eeprom(ar);
 	if (err)
 		return err;

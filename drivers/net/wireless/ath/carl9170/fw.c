@@ -389,39 +389,6 @@ carl9170_find_fw_desc(struct ar9170 *ar, const __u8 *fw_data, const size_t len)
 	return (void *)&fw_data[scan - found];
 }
 
-int carl9170_fw_fix_eeprom(struct ar9170 *ar)
-{
-	const struct carl9170fw_fix_desc *fix_desc = NULL;
-	unsigned int i, n, off;
-	u32 *data = (void *)&ar->eeprom;
-
-	fix_desc = carl9170_fw_find_desc(ar, FIX_MAGIC,
-		sizeof(*fix_desc), CARL9170FW_FIX_DESC_CUR_VER);
-
-	if (!fix_desc)
-		return 0;
-
-	n = (le16_to_cpu(fix_desc->head.length) - sizeof(*fix_desc)) /
-	    sizeof(struct carl9170fw_fix_entry);
-
-	for (i = 0; i < n; i++) {
-		off = le32_to_cpu(fix_desc->data[i].address) -
-		      AR9170_EEPROM_START;
-
-		if (off >= sizeof(struct ar9170_eeprom) || (off & 3)) {
-			dev_err(&ar->udev->dev, "Skip invalid entry %d\n", i);
-			continue;
-		}
-
-		data[off / sizeof(*data)] &=
-			le32_to_cpu(fix_desc->data[i].mask);
-		data[off / sizeof(*data)] |=
-			le32_to_cpu(fix_desc->data[i].value);
-	}
-
-	return 0;
-}
-
 int carl9170_parse_firmware(struct ar9170 *ar)
 {
 	const struct carl9170fw_desc_head *fw_desc = NULL;

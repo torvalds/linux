@@ -593,7 +593,6 @@ int carl9170_get_noisefloor(struct ar9170 *ar);
 
 /* FW */
 int carl9170_parse_firmware(struct ar9170 *ar);
-int carl9170_fw_fix_eeprom(struct ar9170 *ar);
 
 extern struct ieee80211_rate __carl9170_ratetable[];
 extern int modparam_noht;
