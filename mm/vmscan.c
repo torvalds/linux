@@ -1136,25 +1136,36 @@ int __isolate_lru_page(struct page *page, isolate_mode_t mode, int file)
  * Appropriate locks must be held before calling this function.
  *
  * @nr_to_scan:	The number of pages to look through on the list.
- * @src:	The LRU list to pull pages off.
+ * @mz:		The mem_cgroup_zone to pull pages from.
  * @dst:	The temp list to put pages on to.
- * @scanned:	The number of pages that were scanned.
+ * @nr_scanned:	The number of pages that were scanned.
  * @order:	The caller's attempted allocation order
  * @mode:	One of the LRU isolation modes
+ * @active:	True [1] if isolating active pages
  * @file:	True [1] if isolating file [!anon] pages
  *
  * returns how many pages were moved onto *@dst.
  */
 static unsigned long isolate_lru_pages(unsigned long nr_to_scan,
-		struct list_head *src, struct list_head *dst,
-		unsigned long *scanned, int order, isolate_mode_t mode,
-		int file)
+		struct mem_cgroup_zone *mz, struct list_head *dst,
+		unsigned long *nr_scanned, int order, isolate_mode_t mode,
+		int active, int file)
 {
+	struct lruvec *lruvec;
+	struct list_head *src;
 	unsigned long nr_taken = 0;
 	unsigned long nr_lumpy_taken = 0;
 	unsigned long nr_lumpy_dirty = 0;
 	unsigned long nr_lumpy_failed = 0;
 	unsigned long scan;
+	int lru = LRU_BASE;
+
+	lruvec = mem_cgroup_zone_lruvec(mz->zone, mz->mem_cgroup);
+	if (active)
+		lru += LRU_ACTIVE;
+	if (file)
+		lru += LRU_FILE;
+	src = &lruvec->lists[lru];
 
 	for (scan = 0; scan < nr_to_scan && !list_empty(src); scan++) {
 		struct page *page;
@@ -1263,7 +1274,7 @@ static unsigned long isolate_lru_pages(unsigned long nr_to_scan,
 			nr_lumpy_failed++;
 	}
 
-	*scanned = scan;
+	*nr_scanned = scan;
 
 	trace_mm_vmscan_lru_isolate(order,
 			nr_to_scan, scan,
@@ -1271,23 +1282,6 @@ static unsigned long isolate_lru_pages(unsigned long nr_to_scan,
 			nr_lumpy_taken, nr_lumpy_dirty, nr_lumpy_failed,
 			mode, file);
 	return nr_taken;
-}
-
-static unsigned long isolate_pages(unsigned long nr, struct mem_cgroup_zone *mz,
-				   struct list_head *dst,
-				   unsigned long *scanned, int order,
-				   isolate_mode_t mode, int active, int file)
-{
-	struct lruvec *lruvec;
-	int lru = LRU_BASE;
-
-	lruvec = mem_cgroup_zone_lruvec(mz->zone, mz->mem_cgroup);
-	if (active)
-		lru += LRU_ACTIVE;
-	if (file)
-		lru += LRU_FILE;
-	return isolate_lru_pages(nr, &lruvec->lists[lru], dst,
-				 scanned, order, mode, file);
 }
 
 /*
@@ -1559,9 +1553,9 @@ shrink_inactive_list(unsigned long nr_to_scan, struct mem_cgroup_zone *mz,
 
 	spin_lock_irq(&zone->lru_lock);
 
-	nr_taken = isolate_pages(nr_to_scan, mz, &page_list,
-				 &nr_scanned, sc->order,
-				 reclaim_mode, 0, file);
+	nr_taken = isolate_lru_pages(nr_to_scan, mz, &page_list,
+				     &nr_scanned, sc->order,
+				     reclaim_mode, 0, file);
 	if (global_reclaim(sc)) {
 		zone->pages_scanned += nr_scanned;
 		if (current_is_kswapd())
@@ -1700,13 +1694,13 @@ static void move_active_pages_to_lru(struct zone *zone,
 		__count_vm_events(PGDEACTIVATE, pgmoved);
 }
 
-static void shrink_active_list(unsigned long nr_pages,
+static void shrink_active_list(unsigned long nr_to_scan,
 			       struct mem_cgroup_zone *mz,
 			       struct scan_control *sc,
 			       int priority, int file)
 {
 	unsigned long nr_taken;
-	unsigned long pgscanned;
+	unsigned long nr_scanned;
 	unsigned long vm_flags;
 	LIST_HEAD(l_hold);	/* The pages which were snipped off */
 	LIST_HEAD(l_active);
@@ -1726,16 +1720,15 @@ static void shrink_active_list(unsigned long nr_pages,
 
 	spin_lock_irq(&zone->lru_lock);
 
-	nr_taken = isolate_pages(nr_pages, mz, &l_hold,
-				 &pgscanned, sc->order,
-				 reclaim_mode, 1, file);
-
+	nr_taken = isolate_lru_pages(nr_to_scan, mz, &l_hold,
+				     &nr_scanned, sc->order,
+				     reclaim_mode, 1, file);
 	if (global_reclaim(sc))
-		zone->pages_scanned += pgscanned;
+		zone->pages_scanned += nr_scanned;
 
 	reclaim_stat->recent_scanned[file] += nr_taken;
 
-	__count_zone_vm_events(PGREFILL, zone, pgscanned);
+	__count_zone_vm_events(PGREFILL, zone, nr_scanned);
 	if (file)
 		__mod_zone_page_state(zone, NR_ACTIVE_FILE, -nr_taken);
 	else
