@@ -81,6 +81,13 @@ static int sa1100_irda_set_speed(struct sa1100_irda *, int);
 
 #define HPSIR_MAX_RXLEN		2047
 
+static struct dma_slave_config sa1100_irda_sir_tx = {
+	.direction	= DMA_TO_DEVICE,
+	.dst_addr	= __PREG(Ser2UTDR),
+	.dst_addr_width	= DMA_SLAVE_BUSWIDTH_1_BYTE,
+	.dst_maxburst	= 4,
+};
+
 static struct dma_slave_config sa1100_irda_fir_rx = {
 	.direction	= DMA_FROM_DEVICE,
 	.src_addr	= __PREG(Ser2HSDR),
@@ -215,6 +222,36 @@ static void sa1100_irda_check_speed(struct sa1100_irda *si)
 /*
  * HP-SIR format support.
  */
+static void sa1100_irda_sirtxdma_irq(void *id)
+{
+	struct net_device *dev = id;
+	struct sa1100_irda *si = netdev_priv(dev);
+
+	dma_unmap_sg(si->dma_tx.dev, &si->dma_tx.sg, 1, DMA_TO_DEVICE);
+	dev_kfree_skb(si->dma_tx.skb);
+	si->dma_tx.skb = NULL;
+
+	dev->stats.tx_packets++;
+	dev->stats.tx_bytes += sg_dma_len(&si->dma_tx.sg);
+
+	/* We need to ensure that the transmitter has finished. */
+	do
+		rmb();
+	while (Ser2UTSR1 & UTSR1_TBY);
+
+	/*
+	 * Ok, we've finished transmitting.  Now enable the receiver.
+	 * Sometimes we get a receive IRQ immediately after a transmit...
+	 */
+	Ser2UTSR0 = UTSR0_REB | UTSR0_RBB | UTSR0_RID;
+	Ser2UTCR3 = UTCR3_RIE | UTCR3_RXE | UTCR3_TXE;
+
+	sa1100_irda_check_speed(si);
+
+	/* I'm hungry! */
+	netif_wake_queue(dev);
+}
+
 static int sa1100_irda_sir_tx_start(struct sk_buff *skb, struct net_device *dev,
 	struct sa1100_irda *si)
 {
@@ -222,14 +259,22 @@ static int sa1100_irda_sir_tx_start(struct sk_buff *skb, struct net_device *dev,
 	si->tx_buff.len  = async_wrap_skb(skb, si->tx_buff.data,
 					  si->tx_buff.truesize);
 
-	/*
-	 * Set the transmit interrupt enable.  This will fire off an
-	 * interrupt immediately.  Note that we disable the receiver
-	 * so we won't get spurious characters received.
-	 */
-	Ser2UTCR3 = UTCR3_TIE | UTCR3_TXE;
+	si->dma_tx.skb = skb;
+	sg_set_buf(&si->dma_tx.sg, si->tx_buff.data, si->tx_buff.len);
+	if (dma_map_sg(si->dma_tx.dev, &si->dma_tx.sg, 1, DMA_TO_DEVICE) == 0) {
+		si->dma_tx.skb = NULL;
+		netif_wake_queue(dev);
+		dev->stats.tx_dropped++;
+		return NETDEV_TX_OK;
+	}
 
-	dev_kfree_skb(skb);
+	sa1100_irda_dma_start(&si->dma_tx, DMA_MEM_TO_DEV, sa1100_irda_sirtxdma_irq, dev);
+
+	/*
+	 * The mean turn-around time is enforced by XBOF padding,
+	 * so we don't have to do anything special here.
+	 */
+	Ser2UTCR3 = UTCR3_TXE;
 
 	return NETDEV_TX_OK;
 }
@@ -286,43 +331,6 @@ static irqreturn_t sa1100_irda_sir_irq(struct net_device *dev, struct sa1100_ird
 					  Ser2UTDR);
 		} while (Ser2UTSR1 & UTSR1_RNE);
 
-	}
-
-	if (status & UTSR0_TFS && si->tx_buff.len) {
-		/*
-		 * Transmitter FIFO is not full
-		 */
-		do {
-			Ser2UTDR = *si->tx_buff.data++;
-			si->tx_buff.len -= 1;
-		} while (Ser2UTSR1 & UTSR1_TNF && si->tx_buff.len);
-
-		if (si->tx_buff.len == 0) {
-			dev->stats.tx_packets++;
-			dev->stats.tx_bytes += si->tx_buff.data -
-					      si->tx_buff.head;
-
-			/*
-			 * We need to ensure that the transmitter has
-			 * finished.
-			 */
-			do
-				rmb();
-			while (Ser2UTSR1 & UTSR1_TBY);
-
-			/*
-			 * Ok, we've finished transmitting.  Now enable
-			 * the receiver.  Sometimes we get a receive IRQ
-			 * immediately after a transmit...
-			 */
-			Ser2UTSR0 = UTSR0_REB | UTSR0_RBB | UTSR0_RID;
-			Ser2UTCR3 = UTCR3_RIE | UTCR3_RXE | UTCR3_TXE;
-
-			sa1100_irda_check_speed(si);
-
-			/* I'm hungry! */
-			netif_wake_queue(dev);
-		}
 	}
 
 	return IRQ_HANDLED;
@@ -545,8 +553,11 @@ static int sa1100_irda_set_speed(struct sa1100_irda *si, int speed)
 		brd = 3686400 / (16 * speed) - 1;
 
 		/* Stop the receive DMA, and configure transmit. */
-		if (IS_FIR(si))
+		if (IS_FIR(si)) {
 			dmaengine_terminate_all(si->dma_rx.chan);
+			dmaengine_slave_config(si->dma_tx.chan,
+						&sa1100_irda_sir_tx);
+		}
 
 		local_irq_save(flags);
 
@@ -574,6 +585,10 @@ static int sa1100_irda_set_speed(struct sa1100_irda *si, int speed)
 		break;
 
 	case 4000000:
+		if (!IS_FIR(si))
+			dmaengine_slave_config(si->dma_tx.chan,
+						&sa1100_irda_fir_tx);
+
 		local_irq_save(flags);
 
 		Ser2HSSR0 = 0xff;
