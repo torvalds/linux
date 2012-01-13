@@ -973,7 +973,7 @@ static int dentry_lease_is_valid(struct dentry *dentry)
 
 	spin_lock(&dentry->d_lock);
 	di = ceph_dentry(dentry);
-	if (di && di->lease_session) {
+	if (di->lease_session) {
 		s = di->lease_session;
 		spin_lock(&s->s_cap_lock);
 		gen = s->s_cap_gen;
@@ -1072,13 +1072,11 @@ static void ceph_d_release(struct dentry *dentry)
 	struct ceph_dentry_info *di = ceph_dentry(dentry);
 
 	dout("d_release %p\n", dentry);
-	if (di) {
-		ceph_dentry_lru_del(dentry);
-		if (di->lease_session)
-			ceph_put_mds_session(di->lease_session);
-		kmem_cache_free(ceph_dentry_cachep, di);
-		dentry->d_fsdata = NULL;
-	}
+	ceph_dentry_lru_del(dentry);
+	if (di->lease_session)
+		ceph_put_mds_session(di->lease_session);
+	kmem_cache_free(ceph_dentry_cachep, di);
+	dentry->d_fsdata = NULL;
 }
 
 static int ceph_snapdir_d_revalidate(struct dentry *dentry,
@@ -1096,17 +1094,36 @@ static int ceph_snapdir_d_revalidate(struct dentry *dentry,
  */
 void ceph_dir_set_complete(struct inode *inode)
 {
-	/* not yet implemented */
+	struct dentry *dentry = d_find_any_alias(inode);
+	
+	if (dentry && ceph_dentry(dentry) &&
+	    ceph_test_mount_opt(ceph_sb_to_client(dentry->d_sb), DCACHE)) {
+		dout(" marking %p (%p) complete\n", inode, dentry);
+		set_bit(CEPH_D_COMPLETE, &ceph_dentry(dentry)->flags);
+	}
+	dput(dentry);
 }
 
 void ceph_dir_clear_complete(struct inode *inode)
 {
-	/* not yet implemented */
+	struct dentry *dentry = d_find_any_alias(inode);
+
+	if (dentry && ceph_dentry(dentry)) {
+		dout(" marking %p (%p) complete\n", inode, dentry);
+		set_bit(CEPH_D_COMPLETE, &ceph_dentry(dentry)->flags);
+	}
+	dput(dentry);
 }
 
 bool ceph_dir_test_complete(struct inode *inode)
 {
-	/* not yet implemented */
+	struct dentry *dentry = d_find_any_alias(inode);
+
+	if (dentry && ceph_dentry(dentry)) {
+		dout(" marking %p (%p) NOT complete\n", inode, dentry);
+		clear_bit(CEPH_D_COMPLETE, &ceph_dentry(dentry)->flags);
+	}
+	dput(dentry);
 	return false;
 }
 
@@ -1220,6 +1237,7 @@ static int ceph_dir_fsync(struct file *file, loff_t start, loff_t end,
 	do {
 		ceph_mdsc_get_request(req);
 		spin_unlock(&ci->i_unsafe_lock);
+
 		dout("dir_fsync %p wait on tid %llu (until %llu)\n",
 		     inode, req->r_tid, last_tid);
 		if (req->r_timeout) {
@@ -1232,9 +1250,9 @@ static int ceph_dir_fsync(struct file *file, loff_t start, loff_t end,
 		} else {
 			wait_for_completion(&req->r_safe_completion);
 		}
-		spin_lock(&ci->i_unsafe_lock);
 		ceph_mdsc_put_request(req);
 
+		spin_lock(&ci->i_unsafe_lock);
 		if (ret || list_empty(head))
 			break;
 		req = list_entry(head->next,
@@ -1259,13 +1277,11 @@ void ceph_dentry_lru_add(struct dentry *dn)
 
 	dout("dentry_lru_add %p %p '%.*s'\n", di, dn,
 	     dn->d_name.len, dn->d_name.name);
-	if (di) {
-		mdsc = ceph_sb_to_client(dn->d_sb)->mdsc;
-		spin_lock(&mdsc->dentry_lru_lock);
-		list_add_tail(&di->lru, &mdsc->dentry_lru);
-		mdsc->num_dentry++;
-		spin_unlock(&mdsc->dentry_lru_lock);
-	}
+	mdsc = ceph_sb_to_client(dn->d_sb)->mdsc;
+	spin_lock(&mdsc->dentry_lru_lock);
+	list_add_tail(&di->lru, &mdsc->dentry_lru);
+	mdsc->num_dentry++;
+	spin_unlock(&mdsc->dentry_lru_lock);
 }
 
 void ceph_dentry_lru_touch(struct dentry *dn)
@@ -1275,12 +1291,10 @@ void ceph_dentry_lru_touch(struct dentry *dn)
 
 	dout("dentry_lru_touch %p %p '%.*s' (offset %lld)\n", di, dn,
 	     dn->d_name.len, dn->d_name.name, di->offset);
-	if (di) {
-		mdsc = ceph_sb_to_client(dn->d_sb)->mdsc;
-		spin_lock(&mdsc->dentry_lru_lock);
-		list_move_tail(&di->lru, &mdsc->dentry_lru);
-		spin_unlock(&mdsc->dentry_lru_lock);
-	}
+	mdsc = ceph_sb_to_client(dn->d_sb)->mdsc;
+	spin_lock(&mdsc->dentry_lru_lock);
+	list_move_tail(&di->lru, &mdsc->dentry_lru);
+	spin_unlock(&mdsc->dentry_lru_lock);
 }
 
 void ceph_dentry_lru_del(struct dentry *dn)
@@ -1290,13 +1304,11 @@ void ceph_dentry_lru_del(struct dentry *dn)
 
 	dout("dentry_lru_del %p %p '%.*s'\n", di, dn,
 	     dn->d_name.len, dn->d_name.name);
-	if (di) {
-		mdsc = ceph_sb_to_client(dn->d_sb)->mdsc;
-		spin_lock(&mdsc->dentry_lru_lock);
-		list_del_init(&di->lru);
-		mdsc->num_dentry--;
-		spin_unlock(&mdsc->dentry_lru_lock);
-	}
+	mdsc = ceph_sb_to_client(dn->d_sb)->mdsc;
+	spin_lock(&mdsc->dentry_lru_lock);
+	list_del_init(&di->lru);
+	mdsc->num_dentry--;
+	spin_unlock(&mdsc->dentry_lru_lock);
 }
 
 /*
