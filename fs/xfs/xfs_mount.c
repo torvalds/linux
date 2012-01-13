@@ -158,7 +158,7 @@ xfs_uuid_mount(
 
  out_duplicate:
 	mutex_unlock(&xfs_uuid_table_mutex);
-	xfs_warn(mp, "Filesystem has duplicate UUID - can't mount");
+	xfs_warn(mp, "Filesystem has duplicate UUID %pU - can't mount", uuid);
 	return XFS_ERROR(EINVAL);
 }
 
