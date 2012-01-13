@@ -124,22 +124,6 @@ static void *__meminit alloc_page_cgroup(size_t size, int nid)
 	return addr;
 }
 
-#ifdef CONFIG_MEMORY_HOTPLUG
-static void free_page_cgroup(void *addr)
-{
-	if (is_vmalloc_addr(addr)) {
-		vfree(addr);
-	} else {
-		struct page *page = virt_to_page(addr);
-		size_t table_size =
-			sizeof(struct page_cgroup) * PAGES_PER_SECTION;
-
-		BUG_ON(PageReserved(page));
-		free_pages_exact(addr, table_size);
-	}
-}
-#endif
-
 static int __meminit init_section_page_cgroup(unsigned long pfn, int nid)
 {
 	struct mem_section *section;
@@ -176,6 +160,20 @@ static int __meminit init_section_page_cgroup(unsigned long pfn, int nid)
 	return 0;
 }
 #ifdef CONFIG_MEMORY_HOTPLUG
+static void free_page_cgroup(void *addr)
+{
+	if (is_vmalloc_addr(addr)) {
+		vfree(addr);
+	} else {
+		struct page *page = virt_to_page(addr);
+		size_t table_size =
+			sizeof(struct page_cgroup) * PAGES_PER_SECTION;
+
+		BUG_ON(PageReserved(page));
+		free_pages_exact(addr, table_size);
+	}
+}
+
 void __free_page_cgroup(unsigned long pfn)
 {
 	struct mem_section *ms;
