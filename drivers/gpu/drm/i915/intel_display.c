@@ -9028,12 +9028,9 @@ void intel_modeset_init(struct drm_device *dev)
 
 	for (i = 0; i < dev_priv->num_pipe; i++) {
 		intel_crtc_init(dev, i);
-		if (HAS_PCH_SPLIT(dev)) {
-			ret = intel_plane_init(dev, i);
-			if (ret)
-				DRM_ERROR("plane %d init failed: %d\n",
-					  i, ret);
-		}
+		ret = intel_plane_init(dev, i);
+		if (ret)
+			DRM_DEBUG_KMS("plane %d init failed: %d\n", i, ret);
 	}
 
 	/* Just disable it once at startup */
