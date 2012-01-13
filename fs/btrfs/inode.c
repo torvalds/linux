@@ -2239,14 +2239,7 @@ int btrfs_orphan_cleanup(struct btrfs_root *root)
 				continue;
 			}
 			nr_truncate++;
-			/*
-			 * Need to hold the imutex for reservation purposes, not
-			 * a huge deal here but I have a WARN_ON in
-			 * btrfs_delalloc_reserve_space to catch offenders.
-			 */
-			mutex_lock(&inode->i_mutex);
 			ret = btrfs_truncate(inode);
-			mutex_unlock(&inode->i_mutex);
 		} else {
 			nr_unlink++;
 		}
@@ -6411,10 +6404,7 @@ int btrfs_page_mkwrite(struct vm_area_struct *vma, struct vm_fault *vmf)
 	u64 page_start;
 	u64 page_end;
 
-	/* Need this to keep space reservations serialized */
-	mutex_lock(&inode->i_mutex);
 	ret  = btrfs_delalloc_reserve_space(inode, PAGE_CACHE_SIZE);
-	mutex_unlock(&inode->i_mutex);
 	if (!ret)
 		ret = btrfs_update_time(vma->vm_file);
 	if (ret) {
@@ -6758,6 +6748,7 @@ struct inode *btrfs_alloc_inode(struct super_block *sb)
 	extent_io_tree_init(&ei->io_tree, &inode->i_data);
 	extent_io_tree_init(&ei->io_failure_tree, &inode->i_data);
 	mutex_init(&ei->log_mutex);
+	mutex_init(&ei->delalloc_mutex);
 	btrfs_ordered_inode_tree_init(&ei->ordered_tree);
 	INIT_LIST_HEAD(&ei->i_orphan);
 	INIT_LIST_HEAD(&ei->delalloc_inodes);

@@ -4345,12 +4345,11 @@ int btrfs_delalloc_reserve_metadata(struct inode *inode, u64 num_bytes)
 	/* Need to be holding the i_mutex here if we aren't free space cache */
 	if (btrfs_is_free_space_inode(root, inode))
 		flush = 0;
-	else
-		WARN_ON(!mutex_is_locked(&inode->i_mutex));
 
 	if (flush && btrfs_transaction_in_commit(root->fs_info))
 		schedule_timeout(1);
 
+	mutex_lock(&BTRFS_I(inode)->delalloc_mutex);
 	num_bytes = ALIGN(num_bytes, root->sectorsize);
 
 	spin_lock(&BTRFS_I(inode)->lock);
@@ -4405,6 +4404,7 @@ int btrfs_delalloc_reserve_metadata(struct inode *inode, u64 num_bytes)
 						      btrfs_ino(inode),
 						      to_free, 0);
 		}
+		mutex_unlock(&BTRFS_I(inode)->delalloc_mutex);
 		return ret;
 	}
 
@@ -4415,6 +4415,7 @@ int btrfs_delalloc_reserve_metadata(struct inode *inode, u64 num_bytes)
 	}
 	BTRFS_I(inode)->reserved_extents += nr_extents;
 	spin_unlock(&BTRFS_I(inode)->lock);
+	mutex_unlock(&BTRFS_I(inode)->delalloc_mutex);
 
 	if (to_reserve)
 		trace_btrfs_space_reservation(root->fs_info,"delalloc",

@@ -868,10 +868,8 @@ static int cluster_pages_for_defrag(struct inode *inode,
 		return 0;
 	file_end = (isize - 1) >> PAGE_CACHE_SHIFT;
 
-	mutex_lock(&inode->i_mutex);
 	ret = btrfs_delalloc_reserve_space(inode,
 					   num_pages << PAGE_CACHE_SHIFT);
-	mutex_unlock(&inode->i_mutex);
 	if (ret)
 		return ret;
 again:
