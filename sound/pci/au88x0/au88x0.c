@@ -274,7 +274,8 @@ snd_vortex_probe(struct pci_dev *pci, const struct pci_device_id *pci_id)
 		return err;
 	}
 	// ADB pcm.
-	if ((err = snd_vortex_new_pcm(chip, VORTEX_PCM_ADB, NR_ADB)) < 0) {
+	err = snd_vortex_new_pcm(chip, VORTEX_PCM_ADB, NR_PCM);
+	if (err < 0) {
 		snd_card_free(card);
 		return err;
 	}
