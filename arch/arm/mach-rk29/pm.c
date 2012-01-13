@@ -358,13 +358,15 @@ extern void vfp_save_state(void *location, u32 fpexc);
 extern void vfp_load_state(void *location, u32 fpexc);
 // extern  __sramdata u64  saveptr[33];
 static u32  saveptr[2][60]={};
-void  neon_powerdomain_off(void)
+static void  neon_powerdomain_off(void)
 {
 	int ret,i=0;
 	int *p;
+	 u32 fpexc;
 	p=&saveptr[0][0];
 	
-	 unsigned int fpexc = fmrx(FPEXC);  //get neon Logic gate
+	
+	 fpexc= fmrx(FPEXC);  //get neon Logic gate
 	 
     	fmxr(FPEXC, fpexc | FPEXC_EN);  //open neon Logic gate
   	for(i=0;i<36;i++){
@@ -377,17 +379,18 @@ void  neon_powerdomain_off(void)
 	pmu_write(PMU_PG_CON,ret|(0x1<<1));          //powerdomain off neon
 	printk("neon powerdomain is off\n");
 }
-void   neon_powerdomain_on(void)
+static void   neon_powerdomain_on(void)
 {
 	int ret,i=0;
 	int *p;
+	unsigned int fpexc ;
 	p=&saveptr[0][0];
 	
 	ret=pmu_read(PMU_PG_CON);                   //get power domain state
 	pmu_write(PMU_PG_CON,ret&~(0x1<<1));                //powerdomain on neon
 	mdelay(4);
 	
-	unsigned int fpexc = fmrx(FPEXC);              //get neon Logic gate
+	fpexc = fmrx(FPEXC);              //get neon Logic gate
 	fmxr(FPEXC, fpexc | FPEXC_EN);                   //open neon Logic gate
 	for(i=0;i<36;i++){
 	vfp_load_state(p,fpexc);   //recovery neon reg, 32 D reg,2 control reg
@@ -397,6 +400,7 @@ void   neon_powerdomain_on(void)
 	printk("neon powerdomain is on\n");
 }
 #endif
+/*******************************neon powermain***********************/
 
 void pm_gpio_suspend(void);
 void pm_gpio_resume(void);

@@ -9,6 +9,64 @@
 
 #include <asm/vfp.h>
 
+
+#define GRF_GPIO0_DIR     0x000
+#define GRF_GPIO1_DIR     0x004
+#define GRF_GPIO2_DIR     0x008
+#define GRF_GPIO3_DIR     0x00c
+#define GRF_GPIO4_DIR     0x010
+#define GRF_GPIO5_DIR     0x014
+
+
+#define GRF_GPIO0_DO      0x018
+#define GRF_GPIO1_DO      0x01c
+#define GRF_GPIO2_DO      0x020
+#define GRF_GPIO3_DO      0x024
+#define GRF_GPIO4_DO      0x028
+#define GRF_GPIO5_DO      0x02c
+
+#define GRF_GPIO0_EN      0x030
+#define GRF_GPIO1_EN      0x034
+#define GRF_GPIO2_EN      0x038
+#define GRF_GPIO3_EN      0x03c
+#define GRF_GPIO4_EN      0x040
+#define GRF_GPIO5_EN      0x044
+
+
+#define GRF_GPIO0L_IOMUX  0x048
+#define GRF_GPIO0H_IOMUX  0x04c
+#define GRF_GPIO1L_IOMUX  0x050
+#define GRF_GPIO1H_IOMUX  0x054
+#define GRF_GPIO2L_IOMUX  0x058
+#define GRF_GPIO2H_IOMUX  0x05c
+#define GRF_GPIO3L_IOMUX  0x060
+#define GRF_GPIO3H_IOMUX  0x064
+#define GRF_GPIO4L_IOMUX  0x068
+#define GRF_GPIO4H_IOMUX  0x06c
+#define GRF_GPIO5L_IOMUX  0x070
+#define GRF_GPIO5H_IOMUX  0x074
+
+typedef struct GPIO_IOMUX
+{
+    unsigned int GPIOL_IOMUX;
+    unsigned int GPIOH_IOMUX;
+}GPIO_IOMUX_PM;
+
+//GRF Registers
+typedef  struct REG_FILE_GRF
+{
+   unsigned int GRF_GPIO_DIR[6];
+   unsigned int GRF_GPIO_DO[6];
+   unsigned int GRF_GPIO_EN[6];
+   GPIO_IOMUX_PM GRF_GPIO_IOMUX[6];
+   unsigned int GRF_GPIO_PULL[7];
+} GRF_REG_SAVE;
+
+
+int __sramdata crumode;
+ u32 __sramdata gpio2_pull,gpio6_pull;
+ 
+
 #if 1
 void __sramfunc sram_printch(char byte);
 void __sramfunc printhex(unsigned int hex);
@@ -113,7 +171,7 @@ DATE_END,
 
 #define SPI_GATE1_MASK 0xCF
 
-void  interface_ctr_reg_pread()
+void  interface_ctr_reg_pread(void)
 {	
 	unsigned int temp,temp2; 
 	
@@ -384,6 +442,8 @@ RK29_GPIO6_BASE
 void __sramfunc pm_gpio_set(unsigned gpio,eGPIOPinDirection_t direction,eGPIOPinLevel_t level)
 {
 	unsigned group,pin,value;
+
+	gpio -= PIN_BASE;  //must add
 	group=gpio/32;
 	pin=gpio%32;
 	if(group>6||pin>31)
@@ -417,63 +477,10 @@ void __sramfunc pm_gpio_set(unsigned gpio,eGPIOPinDirection_t direction,eGPIOPin
 #endif
 /*****************************************gpio ctr*********************************************/
 #if defined(CONFIG_RK29_GPIO_SUSPEND)
-#define GRF_GPIO0_DIR     0x000
-#define GRF_GPIO1_DIR     0x004
-#define GRF_GPIO2_DIR     0x008
-#define GRF_GPIO3_DIR     0x00c
-#define GRF_GPIO4_DIR     0x010
-#define GRF_GPIO5_DIR     0x014
-
-
-#define GRF_GPIO0_DO      0x018
-#define GRF_GPIO1_DO      0x01c
-#define GRF_GPIO2_DO      0x020
-#define GRF_GPIO3_DO      0x024
-#define GRF_GPIO4_DO      0x028
-#define GRF_GPIO5_DO      0x02c
-
-#define GRF_GPIO0_EN      0x030
-#define GRF_GPIO1_EN      0x034
-#define GRF_GPIO2_EN      0x038
-#define GRF_GPIO3_EN      0x03c
-#define GRF_GPIO4_EN      0x040
-#define GRF_GPIO5_EN      0x044
-
-
-#define GRF_GPIO0L_IOMUX  0x048
-#define GRF_GPIO0H_IOMUX  0x04c
-#define GRF_GPIO1L_IOMUX  0x050
-#define GRF_GPIO1H_IOMUX  0x054
-#define GRF_GPIO2L_IOMUX  0x058
-#define GRF_GPIO2H_IOMUX  0x05c
-#define GRF_GPIO3L_IOMUX  0x060
-#define GRF_GPIO3H_IOMUX  0x064
-#define GRF_GPIO4L_IOMUX  0x068
-#define GRF_GPIO4H_IOMUX  0x06c
-#define GRF_GPIO5L_IOMUX  0x070
-#define GRF_GPIO5H_IOMUX  0x074
-
-typedef struct GPIO_IOMUX
-{
-    unsigned int GPIOL_IOMUX;
-    unsigned int GPIOH_IOMUX;
-}GPIO_IOMUX_PM;
-
-//GRF Registers
-typedef  struct REG_FILE_GRF
-{
-   unsigned int GRF_GPIO_DIR[6];
-   unsigned int GRF_GPIO_DO[6];
-   unsigned int GRF_GPIO_EN[6];
-   GPIO_IOMUX_PM GRF_GPIO_IOMUX[6];
-   unsigned int GRF_GPIO_PULL[7];
-} GRF_REG_SAVE;
-
 
 static GRF_REG_SAVE  pm_grf;
-int __sramdata crumode;
- u32 __sramdata gpio2_pull,gpio6_pull;
-//static GRF_REG_SAVE __sramdata pm_grf;
+
+
 static void  pm_keygpio_prepare(void)
 {
 	gpio6_pull = grf_readl(GRF_GPIO6_PULL);
@@ -584,74 +591,11 @@ void pm_gpio_suspend(void)
 void pm_gpio_resume(void)
 {}
 #endif
-/*************************************neon powerdomain******************************/
-#define vfpreg(_vfp_) #_vfp_
 
-#define fmrx(_vfp_) ({			\
-	u32 __v;			\
-	asm("mrc p10, 7, %0, " vfpreg(_vfp_) ", cr0, 0 @ fmrx	%0, " #_vfp_	\
-	    : "=r" (__v) : : "cc");	\
-	__v;				\
- })
-
-#define fmxr(_vfp_,_var_)		\
-	asm("mcr p10, 7, %0, " vfpreg(_vfp_) ", cr0, 0 @ fmxr	" #_vfp_ ", %0"	\
-	   : : "r" (_var_) : "cc")
-
-#define pmu_read(offset)		readl(RK29_PMU_BASE + (offset))
-#define pmu_write(offset, value)	writel((value), RK29_PMU_BASE + (offset))
-#define PMU_PG_CON 0x10
-extern void vfp_save_state(void *location, u32 fpexc);
-extern void vfp_load_state(void *location, u32 fpexc);
- static u64 __sramdata saveptr[33]={};
-void  neon_powerdomain_off(void)
-{
-	int ret,i=0;
-	int *p;
-	p=&saveptr;
-	 unsigned int fpexc = fmrx(FPEXC);  //get neon Logic gate
-
-	fmxr(FPEXC, fpexc | FPEXC_EN);  //open neon Logic gate
-	for(i=0;i<34;i++){
-	vfp_save_state(p,fpexc);                        //save neon reg,32 D reg,2 control reg
-	p++;
-	}
-	fmxr(FPEXC, fpexc & ~FPEXC_EN);    //close neon Logic gate
-
-	 ret=pmu_read(PMU_PG_CON);                   //get power domain state
-	pmu_write(PMU_PG_CON,ret|(0x1<<1));          //powerdomain off neon
-
-}
-void   neon_powerdomain_on(void)
-{
-	int ret,i=0;
-	int *p;
-	p=&saveptr;
-
-	ret=pmu_read(PMU_PG_CON);                   //get power domain state
-	pmu_write(PMU_PG_CON,ret&~(0x1<<1));                //powerdomain on neon
-	sram_udelay(5000,24);
-
-	unsigned int fpexc = fmrx(FPEXC);              //get neon Logic gate
-	fmxr(FPEXC, fpexc | FPEXC_EN);                   //open neon Logic gate
-	for(i=0;i<34;i++){
-	vfp_load_state(p,fpexc);   //recovery neon reg, 32 D reg,2 control reg
-	p++;
-	}
-	fmxr(FPEXC, fpexc | FPEXC_EN);	    //open neon Logic gate
-
-}
-
-
-
-
-/*************************************************32k**************************************/
 
 #ifdef CONFIG_RK29_CLK_SWITCH_TO_32K
-//static int __sramdata crumode;
 void __sramfunc pm_clk_switch_32k(void)
 {
-	int vol;
 	sram_printch('7');
 
 	#ifndef CONFIG_MACH_RK29_A22
