@@ -80,6 +80,29 @@ enum prcmu_wakeup_index {
 #define EPOD_STATE_ON_CLK_OFF	0x03
 #define EPOD_STATE_ON		0x04
 
+/* DB5500 CLKOUT IDs */
+enum {
+	DB5500_CLKOUT0 = 0,
+	DB5500_CLKOUT1,
+};
+
+/* DB5500 CLKOUTx sources */
+enum {
+	DB5500_CLKOUT_REF_CLK_SEL0,
+	DB5500_CLKOUT_RTC_CLK0_SEL0,
+	DB5500_CLKOUT_ULP_CLK_SEL0,
+	DB5500_CLKOUT_STATIC0,
+	DB5500_CLKOUT_REFCLK,
+	DB5500_CLKOUT_ULPCLK,
+	DB5500_CLKOUT_ARMCLK,
+	DB5500_CLKOUT_SYSACC0CLK,
+	DB5500_CLKOUT_SOC0PLLCLK,
+	DB5500_CLKOUT_SOC1PLLCLK,
+	DB5500_CLKOUT_DDRPLLCLK,
+	DB5500_CLKOUT_TVCLK,
+	DB5500_CLKOUT_IRDACLK,
+};
+
 /*
  * CLKOUT sources
  */
@@ -111,6 +134,7 @@ enum prcmu_clock {
 	PRCMU_MSP1CLK,
 	PRCMU_I2CCLK,
 	PRCMU_SDMMCCLK,
+	PRCMU_SPARE1CLK,
 	PRCMU_SLIMCLK,
 	PRCMU_PER1CLK,
 	PRCMU_PER2CLK,
@@ -139,12 +163,20 @@ enum prcmu_clock {
 	PRCMU_IRRCCLK,
 	PRCMU_SIACLK,
 	PRCMU_SVACLK,
+	PRCMU_ACLK,
 	PRCMU_NUM_REG_CLOCKS,
 	PRCMU_SYSCLK = PRCMU_NUM_REG_CLOCKS,
+	PRCMU_CDCLK,
 	PRCMU_TIMCLK,
 	PRCMU_PLLSOC0,
 	PRCMU_PLLSOC1,
 	PRCMU_PLLDDR,
+	PRCMU_PLLDSI,
+	PRCMU_DSI0CLK,
+	PRCMU_DSI1CLK,
+	PRCMU_DSI0ESCCLK,
+	PRCMU_DSI1ESCCLK,
+	PRCMU_DSI2ESCCLK,
 };
 
 /**
@@ -512,6 +544,21 @@ static inline int prcmu_config_clkout(u8 clkout, u8 source, u8 div)
 }
 
 static inline int prcmu_request_clock(u8 clock, bool enable)
+{
+	return 0;
+}
+
+static inline long prcmu_round_clock_rate(u8 clock, unsigned long rate)
+{
+	return 0;
+}
+
+static inline int prcmu_set_clock_rate(u8 clock, unsigned long rate)
+{
+	return 0;
+}
+
+static inline unsigned long prcmu_clock_rate(u8 clock)
 {
 	return 0;
 }
