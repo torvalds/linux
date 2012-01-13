@@ -853,83 +853,76 @@ struct mem_cgroup *try_get_mem_cgroup_from_mm(struct mm_struct *mm)
 	return memcg;
 }
 
-/* The caller has to guarantee "mem" exists before calling this */
-static struct mem_cgroup *mem_cgroup_start_loop(struct mem_cgroup *memcg)
+static struct mem_cgroup *mem_cgroup_iter(struct mem_cgroup *root,
+					  struct mem_cgroup *prev,
+					  bool reclaim)
 {
-	struct cgroup_subsys_state *css;
-	int found;
-
-	if (!memcg) /* ROOT cgroup has the smallest ID */
-		return root_mem_cgroup; /*css_put/get against root is ignored*/
-	if (!memcg->use_hierarchy) {
-		if (css_tryget(&memcg->css))
-			return memcg;
-		return NULL;
-	}
-	rcu_read_lock();
-	/*
-	 * searching a memory cgroup which has the smallest ID under given
-	 * ROOT cgroup. (ID >= 1)
-	 */
-	css = css_get_next(&mem_cgroup_subsys, 1, &memcg->css, &found);
-	if (css && css_tryget(css))
-		memcg = container_of(css, struct mem_cgroup, css);
-	else
-		memcg = NULL;
-	rcu_read_unlock();
-	return memcg;
-}
-
-static struct mem_cgroup *mem_cgroup_get_next(struct mem_cgroup *iter,
-					struct mem_cgroup *root,
-					bool cond)
-{
-	int nextid = css_id(&iter->css) + 1;
-	int found;
-	int hierarchy_used;
-	struct cgroup_subsys_state *css;
-
-	hierarchy_used = iter->use_hierarchy;
-
-	css_put(&iter->css);
-	/* If no ROOT, walk all, ignore hierarchy */
-	if (!cond || (root && !hierarchy_used))
-		return NULL;
+	struct mem_cgroup *memcg = NULL;
+	int id = 0;
 
 	if (!root)
 		root = root_mem_cgroup;
 
-	do {
-		iter = NULL;
+	if (prev && !reclaim)
+		id = css_id(&prev->css);
+
+	if (prev && prev != root)
+		css_put(&prev->css);
+
+	if (!root->use_hierarchy && root != root_mem_cgroup) {
+		if (prev)
+			return NULL;
+		return root;
+	}
+
+	while (!memcg) {
+		struct cgroup_subsys_state *css;
+
+		if (reclaim)
+			id = root->last_scanned_child;
+
 		rcu_read_lock();
-
-		css = css_get_next(&mem_cgroup_subsys, nextid,
-				&root->css, &found);
-		if (css && css_tryget(css))
-			iter = container_of(css, struct mem_cgroup, css);
+		css = css_get_next(&mem_cgroup_subsys, id + 1, &root->css, &id);
+		if (css) {
+			if (css == &root->css || css_tryget(css))
+				memcg = container_of(css,
+						     struct mem_cgroup, css);
+		} else
+			id = 0;
 		rcu_read_unlock();
-		/* If css is NULL, no more cgroups will be found */
-		nextid = found + 1;
-	} while (css && !iter);
 
-	return iter;
+		if (reclaim)
+			root->last_scanned_child = id;
+
+		if (prev && !css)
+			return NULL;
+	}
+	return memcg;
 }
+
+static void mem_cgroup_iter_break(struct mem_cgroup *root,
+				  struct mem_cgroup *prev)
+{
+	if (!root)
+		root = root_mem_cgroup;
+	if (prev && prev != root)
+		css_put(&prev->css);
+}
+
 /*
- * for_eacn_mem_cgroup_tree() for visiting all cgroup under tree. Please
- * be careful that "break" loop is not allowed. We have reference count.
- * Instead of that modify "cond" to be false and "continue" to exit the loop.
+ * Iteration constructs for visiting all cgroups (under a tree).  If
+ * loops are exited prematurely (break), mem_cgroup_iter_break() must
+ * be used for reference counting.
  */
-#define for_each_mem_cgroup_tree_cond(iter, root, cond)	\
-	for (iter = mem_cgroup_start_loop(root);\
-	     iter != NULL;\
-	     iter = mem_cgroup_get_next(iter, root, cond))
+#define for_each_mem_cgroup_tree(iter, root)		\
+	for (iter = mem_cgroup_iter(root, NULL, false);	\
+	     iter != NULL;				\
+	     iter = mem_cgroup_iter(root, iter, false))
 
-#define for_each_mem_cgroup_tree(iter, root) \
-	for_each_mem_cgroup_tree_cond(iter, root, true)
-
-#define for_each_mem_cgroup_all(iter) \
-	for_each_mem_cgroup_tree_cond(iter, NULL, true)
-
+#define for_each_mem_cgroup(iter)			\
+	for (iter = mem_cgroup_iter(NULL, NULL, false);	\
+	     iter != NULL;				\
+	     iter = mem_cgroup_iter(NULL, iter, false))
 
 static inline bool mem_cgroup_is_root(struct mem_cgroup *memcg)
 {
@@ -1536,43 +1529,6 @@ u64 mem_cgroup_get_limit(struct mem_cgroup *memcg)
 	return min(limit, memsw);
 }
 
-/*
- * Visit the first child (need not be the first child as per the ordering
- * of the cgroup list, since we track last_scanned_child) of @mem and use
- * that to reclaim free pages from.
- */
-static struct mem_cgroup *
-mem_cgroup_select_victim(struct mem_cgroup *root_memcg)
-{
-	struct mem_cgroup *ret = NULL;
-	struct cgroup_subsys_state *css;
-	int nextid, found;
-
-	if (!root_memcg->use_hierarchy) {
-		css_get(&root_memcg->css);
-		ret = root_memcg;
-	}
-
-	while (!ret) {
-		rcu_read_lock();
-		nextid = root_memcg->last_scanned_child + 1;
-		css = css_get_next(&mem_cgroup_subsys, nextid, &root_memcg->css,
-				   &found);
-		if (css && css_tryget(css))
-			ret = container_of(css, struct mem_cgroup, css);
-
-		rcu_read_unlock();
-		/* Updates scanning parameter */
-		if (!css) {
-			/* this means start scan from ID:1 */
-			root_memcg->last_scanned_child = 0;
-		} else
-			root_memcg->last_scanned_child = found;
-	}
-
-	return ret;
-}
-
 /**
  * test_mem_cgroup_node_reclaimable
  * @mem: the target memcg
@@ -1728,7 +1684,7 @@ static int mem_cgroup_hierarchical_reclaim(struct mem_cgroup *root_memcg,
 						unsigned long reclaim_options,
 						unsigned long *total_scanned)
 {
-	struct mem_cgroup *victim;
+	struct mem_cgroup *victim = NULL;
 	int ret, total = 0;
 	int loop = 0;
 	bool noswap = reclaim_options & MEM_CGROUP_RECLAIM_NOSWAP;
@@ -1744,8 +1700,8 @@ static int mem_cgroup_hierarchical_reclaim(struct mem_cgroup *root_memcg,
 		noswap = true;
 
 	while (1) {
-		victim = mem_cgroup_select_victim(root_memcg);
-		if (victim == root_memcg) {
+		victim = mem_cgroup_iter(root_memcg, victim, true);
+		if (!victim) {
 			loop++;
 			/*
 			 * We are not draining per cpu cached charges during
@@ -1761,10 +1717,8 @@ static int mem_cgroup_hierarchical_reclaim(struct mem_cgroup *root_memcg,
 				 * anything, it might because there are
 				 * no reclaimable pages under this hierarchy
 				 */
-				if (!check_soft || !total) {
-					css_put(&victim->css);
+				if (!check_soft || !total)
 					break;
-				}
 				/*
 				 * We want to do more targeted reclaim.
 				 * excess >> 2 is not to excessive so as to
@@ -1772,15 +1726,13 @@ static int mem_cgroup_hierarchical_reclaim(struct mem_cgroup *root_memcg,
 				 * coming back to reclaim from this cgroup
 				 */
 				if (total >= (excess >> 2) ||
-					(loop > MEM_CGROUP_MAX_RECLAIM_LOOPS)) {
-					css_put(&victim->css);
+					(loop > MEM_CGROUP_MAX_RECLAIM_LOOPS))
 					break;
-				}
 			}
+			continue;
 		}
 		if (!mem_cgroup_reclaimable(victim, noswap)) {
 			/* this cgroup's local usage == 0 */
-			css_put(&victim->css);
 			continue;
 		}
 		/* we use swappiness of local cgroup */
@@ -1791,21 +1743,21 @@ static int mem_cgroup_hierarchical_reclaim(struct mem_cgroup *root_memcg,
 		} else
 			ret = try_to_free_mem_cgroup_pages(victim, gfp_mask,
 						noswap);
-		css_put(&victim->css);
+		total += ret;
 		/*
 		 * At shrinking usage, we can't check we should stop here or
 		 * reclaim more. It's depends on callers. last_scanned_child
 		 * will work enough for keeping fairness under tree.
 		 */
 		if (shrink)
-			return ret;
-		total += ret;
+			break;
 		if (check_soft) {
 			if (!res_counter_soft_limit_excess(&root_memcg->res))
-				return total;
+				break;
 		} else if (mem_cgroup_margin(root_memcg))
-			return total;
+			break;
 	}
+	mem_cgroup_iter_break(root_memcg, victim);
 	return total;
 }
 
@@ -1817,16 +1769,16 @@ static int mem_cgroup_hierarchical_reclaim(struct mem_cgroup *root_memcg,
 static bool mem_cgroup_oom_lock(struct mem_cgroup *memcg)
 {
 	struct mem_cgroup *iter, *failed = NULL;
-	bool cond = true;
 
-	for_each_mem_cgroup_tree_cond(iter, memcg, cond) {
+	for_each_mem_cgroup_tree(iter, memcg) {
 		if (iter->oom_lock) {
 			/*
 			 * this subtree of our hierarchy is already locked
 			 * so we cannot give a lock.
 			 */
 			failed = iter;
-			cond = false;
+			mem_cgroup_iter_break(memcg, iter);
+			break;
 		} else
 			iter->oom_lock = true;
 	}
@@ -1838,11 +1790,10 @@ static bool mem_cgroup_oom_lock(struct mem_cgroup *memcg)
 	 * OK, we failed to lock the whole subtree so we have to clean up
 	 * what we set up to the failing subtree
 	 */
-	cond = true;
-	for_each_mem_cgroup_tree_cond(iter, memcg, cond) {
+	for_each_mem_cgroup_tree(iter, memcg) {
 		if (iter == failed) {
-			cond = false;
-			continue;
+			mem_cgroup_iter_break(memcg, iter);
+			break;
 		}
 		iter->oom_lock = false;
 	}
@@ -2238,7 +2189,7 @@ static int __cpuinit memcg_cpu_hotplug_callback(struct notifier_block *nb,
 	struct mem_cgroup *iter;
 
 	if ((action == CPU_ONLINE)) {
-		for_each_mem_cgroup_all(iter)
+		for_each_mem_cgroup(iter)
 			synchronize_mem_cgroup_on_move(iter, cpu);
 		return NOTIFY_OK;
 	}
@@ -2246,7 +2197,7 @@ static int __cpuinit memcg_cpu_hotplug_callback(struct notifier_block *nb,
 	if ((action != CPU_DEAD) || action != CPU_DEAD_FROZEN)
 		return NOTIFY_OK;
 
-	for_each_mem_cgroup_all(iter)
+	for_each_mem_cgroup(iter)
 		mem_cgroup_drain_pcp_counter(iter, cpu);
 
 	stock = &per_cpu(memcg_stock, cpu);
