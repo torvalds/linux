@@ -581,6 +581,13 @@ Table of Ext4 specific ioctls
 			      behaviour may change in the future as it is
 			      not necessary and has been done this way only
 			      for sake of simplicity.
+
+ EXT4_IOC_RESIZE_FS	      Resize the filesystem to a new size.  The number
+			      of blocks of resized filesystem is passed in via
+			      64 bit integer argument.  The kernel allocates
+			      bitmaps and inode table, the userspace tool thus
+			      just passes the new number of blocks.
+
 ..............................................................................
 
 References

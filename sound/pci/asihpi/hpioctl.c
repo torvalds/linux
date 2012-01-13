@@ -21,6 +21,7 @@ Common Linux HPI ioctl and module probe/remove functions
 #define SOURCEFILE_NAME "hpioctl.c"
 
 #include "hpi_internal.h"
+#include "hpi_version.h"
 #include "hpimsginit.h"
 #include "hpidebug.h"
 #include "hpimsgx.h"
@@ -65,9 +66,7 @@ static struct hpi_adapter adapters[HPI_MAX_ADAPTERS];
 static void hpi_send_recv_f(struct hpi_message *phm, struct hpi_response *phr,
 	struct file *file)
 {
-	int adapter = phm->adapter_index;
-
-	if ((adapter >= HPI_MAX_ADAPTERS || adapter < 0)
+	if ((phm->adapter_index >= HPI_MAX_ADAPTERS)
 		&& (phm->object != HPI_OBJ_SUBSYSTEM))
 		phr->error = HPI_ERROR_INVALID_OBJ_INDEX;
 	else
@@ -178,19 +177,14 @@ long asihpi_hpi_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 	} else {
 		u16 __user *ptr = NULL;
 		u32 size = 0;
-		u32 adapter_present;
 		/* -1=no data 0=read from user mem, 1=write to user mem */
 		int wrflag = -1;
-		struct hpi_adapter *pa;
+		struct hpi_adapter *pa = NULL;
 
-		if (hm->h.adapter_index < HPI_MAX_ADAPTERS) {
+		if (hm->h.adapter_index < ARRAY_SIZE(adapters))
 			pa = &adapters[hm->h.adapter_index];
-			adapter_present = pa->type;
-		} else {
-			adapter_present = 0;
-		}
 
-		if (!adapter_present) {
+		if (!pa || !pa->adapter || !pa->adapter->type) {
 			hpi_init_response(&hr->r0, hm->h.object,
 				hm->h.function, HPI_ERROR_BAD_ADAPTER_NUMBER);
 
@@ -317,6 +311,7 @@ int __devinit asihpi_adapter_probe(struct pci_dev *pci_dev,
 	const struct pci_device_id *pci_id)
 {
 	int idx, nm;
+	int adapter_index;
 	unsigned int memlen;
 	struct hpi_message hm;
 	struct hpi_response hr;
@@ -345,8 +340,6 @@ int __devinit asihpi_adapter_probe(struct pci_dev *pci_dev,
 
 	hm.adapter_index = HPI_ADAPTER_INDEX_INVALID;
 
-	adapter.pci = pci_dev;
-
 	nm = HPI_MAX_ADAPTER_MEM_SPACES;
 
 	for (idx = 0; idx < nm; idx++) {
@@ -355,18 +348,16 @@ int __devinit asihpi_adapter_probe(struct pci_dev *pci_dev,
 
 		if (pci_resource_flags(pci_dev, idx) & IORESOURCE_MEM) {
 			memlen = pci_resource_len(pci_dev, idx);
-			adapter.ap_remapped_mem_base[idx] =
+			pci.ap_mem_base[idx] =
 				ioremap(pci_resource_start(pci_dev, idx),
 				memlen);
-			if (!adapter.ap_remapped_mem_base[idx]) {
+			if (!pci.ap_mem_base[idx]) {
 				HPI_DEBUG_LOG(ERROR,
 					"ioremap failed, aborting\n");
 				/* unmap previously mapped pci mem space */
 				goto err;
 			}
 		}
-
-		pci.ap_mem_base[idx] = adapter.ap_remapped_mem_base[idx];
 	}
 
 	pci.pci_dev = pci_dev;
@@ -377,6 +368,9 @@ int __devinit asihpi_adapter_probe(struct pci_dev *pci_dev,
 	hpi_send_recv_ex(&hm, &hr, HOWNER_KERNEL);
 	if (hr.error)
 		goto err;
+
+	adapter_index = hr.u.s.adapter_index;
+	adapter.adapter = hpi_find_adapter(adapter_index);
 
 	if (prealloc_stream_buf) {
 		adapter.p_buffer = vmalloc(prealloc_stream_buf);
@@ -389,36 +383,32 @@ int __devinit asihpi_adapter_probe(struct pci_dev *pci_dev,
 		}
 	}
 
-	adapter.index = hr.u.s.adapter_index;
-	adapter.type = hr.u.s.adapter_type;
-
 	hpi_init_message_response(&hm, &hr, HPI_OBJ_ADAPTER,
 		HPI_ADAPTER_OPEN);
-	hm.adapter_index = adapter.index;
+	hm.adapter_index = adapter.adapter->index;
 	hpi_send_recv_ex(&hm, &hr, HOWNER_KERNEL);
 
 	if (hr.error)
 		goto err;
 
-	adapter.snd_card_asihpi = NULL;
 	/* WARNING can't init mutex in 'adapter'
 	 * and then copy it to adapters[] ?!?!
 	 */
-	adapters[adapter.index] = adapter;
-	mutex_init(&adapters[adapter.index].mutex);
-	pci_set_drvdata(pci_dev, &adapters[adapter.index]);
+	adapters[adapter_index] = adapter;
+	mutex_init(&adapters[adapter_index].mutex);
+	pci_set_drvdata(pci_dev, &adapters[adapter_index]);
 
 	dev_printk(KERN_INFO, &pci_dev->dev,
-		"probe succeeded for ASI%04X HPI index %d\n", adapter.type,
-		adapter.index);
+		"probe succeeded for ASI%04X HPI index %d\n",
+		adapter.adapter->type, adapter_index);
 
 	return 0;
 
 err:
 	for (idx = 0; idx < HPI_MAX_ADAPTER_MEM_SPACES; idx++) {
-		if (adapter.ap_remapped_mem_base[idx]) {
-			iounmap(adapter.ap_remapped_mem_base[idx]);
-			adapter.ap_remapped_mem_base[idx] = NULL;
+		if (pci.ap_mem_base[idx]) {
+			iounmap(pci.ap_mem_base[idx]);
+			pci.ap_mem_base[idx] = NULL;
 		}
 	}
 
@@ -437,19 +427,20 @@ void __devexit asihpi_adapter_remove(struct pci_dev *pci_dev)
 	struct hpi_message hm;
 	struct hpi_response hr;
 	struct hpi_adapter *pa;
+	struct hpi_pci pci;
+
 	pa = pci_get_drvdata(pci_dev);
+	pci = pa->adapter->pci;
 
 	hpi_init_message_response(&hm, &hr, HPI_OBJ_ADAPTER,
 		HPI_ADAPTER_DELETE);
-	hm.adapter_index = pa->index;
+	hm.adapter_index = pa->adapter->index;
 	hpi_send_recv_ex(&hm, &hr, HOWNER_KERNEL);
 
 	/* unmap PCI memory space, mapped during device init. */
 	for (idx = 0; idx < HPI_MAX_ADAPTER_MEM_SPACES; idx++) {
-		if (pa->ap_remapped_mem_base[idx]) {
-			iounmap(pa->ap_remapped_mem_base[idx]);
-			pa->ap_remapped_mem_base[idx] = NULL;
-		}
+		if (pci.ap_mem_base[idx])
+			iounmap(pci.ap_mem_base[idx]);
 	}
 
 	if (pa->p_buffer)
@@ -461,7 +452,7 @@ void __devexit asihpi_adapter_remove(struct pci_dev *pci_dev)
 			"remove %04x:%04x,%04x:%04x,%04x," " HPI index %d.\n",
 			pci_dev->vendor, pci_dev->device,
 			pci_dev->subsystem_vendor, pci_dev->subsystem_device,
-			pci_dev->devfn, pa->index);
+			pci_dev->devfn, pa->adapter->index);
 
 	memset(pa, 0, sizeof(*pa));
 }

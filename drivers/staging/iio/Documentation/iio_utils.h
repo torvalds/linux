@@ -13,6 +13,7 @@
 #include <ctype.h>
 #include <stdio.h>
 #include <stdint.h>
+#include <dirent.h>
 
 #define IIO_MAX_NAME_LENGTH 30
 
@@ -73,6 +74,7 @@ struct iio_channel_info {
 	unsigned bits_used;
 	unsigned shift;
 	uint64_t mask;
+	unsigned be;
 	unsigned is_signed;
 	unsigned enabled;
 	unsigned location;
@@ -83,6 +85,7 @@ struct iio_channel_info {
  * @is_signed: output whether channel is signed
  * @bytes: output how many bytes the channel storage occupies
  * @mask: output a bit mask for the raw data
+ * @be: big endian
  * @device_dir: the iio device directory
  * @name: the channel name
  * @generic_name: the channel type name
@@ -92,6 +95,7 @@ inline int iioutils_get_type(unsigned *is_signed,
 			     unsigned *bits_used,
 			     unsigned *shift,
 			     uint64_t *mask,
+			     unsigned *be,
 			     const char *device_dir,
 			     const char *name,
 			     const char *generic_name)
@@ -100,7 +104,7 @@ inline int iioutils_get_type(unsigned *is_signed,
 	int ret;
 	DIR *dp;
 	char *scan_el_dir, *builtname, *builtname_generic, *filename = 0;
-	char signchar;
+	char signchar, endianchar;
 	unsigned padint;
 	const struct dirent *ent;
 
@@ -144,9 +148,18 @@ inline int iioutils_get_type(unsigned *is_signed,
 				ret = -errno;
 				goto error_free_filename;
 			}
-			fscanf(sysfsfp,
-			       "%c%u/%u>>%u", &signchar, bits_used,
-			       &padint, shift);
+
+			ret = fscanf(sysfsfp,
+				     "%ce:%c%u/%u>>%u",
+				     &endianchar,
+				     &signchar,
+				     bits_used,
+				     &padint, shift);
+			if (ret < 0) {
+				printf("failed to pass scan type description\n");
+				return ret;
+			}
+			*be = (endianchar == 'b');
 			*bytes = padint / 8;
 			if (*bits_used == 64)
 				*mask = ~0;
@@ -156,6 +169,10 @@ inline int iioutils_get_type(unsigned *is_signed,
 				*is_signed = 1;
 			else
 				*is_signed = 0;
+			fclose(sysfsfp);
+			free(filename);
+
+			filename = 0;
 		}
 error_free_filename:
 	if (filename)
@@ -386,6 +403,7 @@ inline int build_channel_array(const char *device_dir,
 						&current->bits_used,
 						&current->shift,
 						&current->mask,
+						&current->be,
 						device_dir,
 						current->name,
 						current->generic_name);

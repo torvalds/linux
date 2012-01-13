@@ -924,27 +924,7 @@ static struct usb_driver if_usb_driver = {
 	.resume = if_usb_resume,
 };
 
-static int __init if_usb_init_module(void)
-{
-	int ret = 0;
-
-	lbtf_deb_enter(LBTF_DEB_MAIN);
-
-	ret = usb_register(&if_usb_driver);
-
-	lbtf_deb_leave_args(LBTF_DEB_MAIN, "ret %d", ret);
-	return ret;
-}
-
-static void __exit if_usb_exit_module(void)
-{
-	lbtf_deb_enter(LBTF_DEB_MAIN);
-	usb_deregister(&if_usb_driver);
-	lbtf_deb_leave(LBTF_DEB_MAIN);
-}
-
-module_init(if_usb_init_module);
-module_exit(if_usb_exit_module);
+module_usb_driver(if_usb_driver);
 
 MODULE_DESCRIPTION("8388 USB WLAN Thinfirm Driver");
 MODULE_AUTHOR("Cozybit Inc.");

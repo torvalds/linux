@@ -357,6 +357,7 @@ miss:
 	}
 	return NULL;
 }
+EXPORT_SYMBOL_GPL(btree_get_prev);
 
 static int getpos(struct btree_geo *geo, unsigned long *node,
 		unsigned long *key)

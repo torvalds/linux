@@ -1604,7 +1604,7 @@ tsi108_init_one(struct platform_device *pdev)
 	data->phyregs = ioremap(einfo->phyregs, 0x400);
 	if (NULL == data->phyregs) {
 		err = -ENOMEM;
-		goto regs_fail;
+		goto phyregs_fail;
 	}
 /* MII setup */
 	data->mii_if.dev = dev;
@@ -1663,8 +1663,10 @@ tsi108_init_one(struct platform_device *pdev)
 	return 0;
 
 register_fail:
-	iounmap(data->regs);
 	iounmap(data->phyregs);
+
+phyregs_fail:
+	iounmap(data->regs);
 
 regs_fail:
 	free_netdev(dev);

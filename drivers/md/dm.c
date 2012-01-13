@@ -14,7 +14,6 @@
 #include <linux/moduleparam.h>
 #include <linux/blkpg.h>
 #include <linux/bio.h>
-#include <linux/buffer_head.h>
 #include <linux/mempool.h>
 #include <linux/slab.h>
 #include <linux/idr.h>

@@ -78,4 +78,16 @@ struct sh_fsi_platform_info {
 	int (*set_rate)(struct device *dev, int is_porta, int rate, int enable);
 };
 
+/*
+ * for fsi-ak4642
+ */
+struct fsi_ak4642_info {
+	const char *name;
+	const char *card;
+	const char *cpu_dai;
+	const char *codec;
+	const char *platform;
+	int id;
+};
+
 #endif /* __SOUND_FSI_H */

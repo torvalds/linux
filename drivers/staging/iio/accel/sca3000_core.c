@@ -20,7 +20,8 @@
 #include <linux/module.h>
 #include "../iio.h"
 #include "../sysfs.h"
-#include "../buffer_generic.h"
+#include "../events.h"
+#include "../buffer.h"
 
 #include "sca3000.h"
 
@@ -381,13 +382,17 @@ sca3000_store_measurement_mode(struct device *dev,
 	struct iio_dev *indio_dev = dev_get_drvdata(dev);
 	struct sca3000_state *st = iio_priv(indio_dev);
 	int ret;
-	int mask = 0x03;
-	long val;
+	u8 mask = 0x03;
+	u8 val;
 
 	mutex_lock(&st->lock);
-	ret = strict_strtol(buf, 10, &val);
+	ret = kstrtou8(buf, 10, &val);
 	if (ret)
 		goto error_ret;
+	if (val > 3) {
+		ret = -EINVAL;
+		goto error_ret;
+	}
 	ret = sca3000_read_data_short(st, SCA3000_REG_ADDR_MODE, 1);
 	if (ret)
 		goto error_ret;
@@ -424,7 +429,7 @@ static IIO_DEVICE_ATTR(measurement_mode, S_IRUGO | S_IWUSR,
 static IIO_DEVICE_ATTR(revision, S_IRUGO, sca3000_show_rev, NULL, 0);
 
 #define SCA3000_INFO_MASK			\
-	(1 << IIO_CHAN_INFO_SCALE_SHARED)
+	IIO_CHAN_INFO_SCALE_SHARED_BIT
 #define SCA3000_EVENT_MASK					\
 	(IIO_EV_BIT(IIO_EV_TYPE_MAG, IIO_EV_DIR_RISING))
 
@@ -474,7 +479,7 @@ static int sca3000_read_raw(struct iio_dev *indio_dev,
 			(sizeof(*val)*8 - 13);
 		mutex_unlock(&st->lock);
 		return IIO_VAL_INT;
-	case (1 << IIO_CHAN_INFO_SCALE_SHARED):
+	case IIO_CHAN_INFO_SCALE:
 		*val = 0;
 		if (chan->type == IIO_ACCEL)
 			*val2 = st->info->scale;
@@ -1161,9 +1166,9 @@ static int __devinit sca3000_probe(struct spi_device *spi)
 	if (ret < 0)
 		goto error_unregister_dev;
 	if (indio_dev->buffer) {
-		iio_scan_mask_set(indio_dev->buffer, 0);
-		iio_scan_mask_set(indio_dev->buffer, 1);
-		iio_scan_mask_set(indio_dev->buffer, 2);
+		iio_scan_mask_set(indio_dev, indio_dev->buffer, 0);
+		iio_scan_mask_set(indio_dev, indio_dev->buffer, 1);
+		iio_scan_mask_set(indio_dev, indio_dev->buffer, 2);
 	}
 
 	if (spi->irq) {
@@ -1240,6 +1245,7 @@ static const struct spi_device_id sca3000_id[] = {
 	{"sca3000_e05", e05},
 	{}
 };
+MODULE_DEVICE_TABLE(spi, sca3000_id);
 
 static struct spi_driver sca3000_driver = {
 	.driver = {
@@ -1250,18 +1256,7 @@ static struct spi_driver sca3000_driver = {
 	.remove = __devexit_p(sca3000_remove),
 	.id_table = sca3000_id,
 };
-
-static __init int sca3000_init(void)
-{
-	return spi_register_driver(&sca3000_driver);
-}
-module_init(sca3000_init);
-
-static __exit void sca3000_exit(void)
-{
-	spi_unregister_driver(&sca3000_driver);
-}
-module_exit(sca3000_exit);
+module_spi_driver(sca3000_driver);
 
 MODULE_AUTHOR("Jonathan Cameron <jic23@cam.ac.uk>");
 MODULE_DESCRIPTION("VTI SCA3000 Series Accelerometers SPI driver");

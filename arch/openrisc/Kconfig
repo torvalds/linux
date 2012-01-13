@@ -15,6 +15,7 @@ config OPENRISC
 	select GENERIC_IRQ_PROBE
 	select GENERIC_IRQ_SHOW
 	select GENERIC_IOMAP
+	select GENERIC_CPU_DEVICES
 
 config MMU
 	def_bool y
@@ -36,9 +37,6 @@ config RWSEM_XCHGADD_ALGORITHM
 	def_bool n
 
 config GENERIC_HWEIGHT
-	def_bool y
-
-config GENERIC_IOMAP
 	def_bool y
 
 config NO_IOPORT

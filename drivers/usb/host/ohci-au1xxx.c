@@ -173,12 +173,9 @@ static int ohci_hcd_au1xxx_drv_suspend(struct device *dev)
 	 * mark HW unaccessible, bail out if RH has been resumed. Use
 	 * the spinlock to properly synchronize with possible pending
 	 * RH suspend or resume activity.
-	 *
-	 * This is still racy as hcd->state is manipulated outside of
-	 * any locks =P But that will be a different fix.
 	 */
 	spin_lock_irqsave(&ohci->lock, flags);
-	if (hcd->state != HC_STATE_SUSPENDED) {
+	if (ohci->rh_state != OHCI_RH_SUSPENDED) {
 		rc = -EINVAL;
 		goto bail;
 	}

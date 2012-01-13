@@ -109,7 +109,7 @@ struct eth_addr {
 	u8 addr[6];
 };
 static struct eth_addr __initdata hw_addr[2];
-static struct eth_platform_data __initdata eth_data[2];
+static struct macb_platform_data __initdata eth_data[2];
 
 static struct spi_board_info spi0_board_info[] __initdata = {
 	{

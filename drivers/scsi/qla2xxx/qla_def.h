@@ -271,6 +271,7 @@ struct srb_iocb {
 struct srb_ctx {
 	uint16_t type;
 	char *name;
+	int iocbs;
 	union {
 		struct srb_iocb *iocb_cmd;
 		struct fc_bsg_job *bsg_job;
@@ -2244,6 +2245,7 @@ struct isp_operations {
 	int (*get_flash_version) (struct scsi_qla_host *, void *);
 	int (*start_scsi) (srb_t *);
 	int (*abort_isp) (struct scsi_qla_host *);
+	int (*iospace_config)(struct qla_hw_data*);
 };
 
 /* MSI-X Support *************************************************************/
@@ -2977,10 +2979,6 @@ typedef struct scsi_qla_host {
 #define QLA_VHA_MARK_NOT_BUSY(__vha) do {		     \
 	atomic_dec(&__vha->vref_count);			     \
 } while (0)
-
-
-#define qla_printk(level, ha, format, arg...) \
-	dev_printk(level , &((ha)->pdev->dev) , format , ## arg)
 
 /*
  * qla2x00 local function return status codes

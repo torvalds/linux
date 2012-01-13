@@ -225,26 +225,7 @@ static struct usb_driver nova_t_driver = {
 	.id_table	= nova_t_table,
 };
 
-/* module stuff */
-static int __init nova_t_module_init(void)
-{
-	int result;
-	if ((result = usb_register(&nova_t_driver))) {
-		err("usb_register failed. Error number %d",result);
-		return result;
-	}
-
-	return 0;
-}
-
-static void __exit nova_t_module_exit(void)
-{
-	/* deregister this driver from the USB subsystem */
-	usb_deregister(&nova_t_driver);
-}
-
-module_init (nova_t_module_init);
-module_exit (nova_t_module_exit);
+module_usb_driver(nova_t_driver);
 
 MODULE_AUTHOR("Patrick Boettcher <patrick.boettcher@desy.de>");
 MODULE_DESCRIPTION("Hauppauge WinTV-NOVA-T usb2");

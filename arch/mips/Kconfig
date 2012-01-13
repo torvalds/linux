@@ -16,6 +16,7 @@ config MIPS
 	select HAVE_FUNCTION_GRAPH_TRACER
 	select HAVE_KPROBES
 	select HAVE_KRETPROBES
+	select ARCH_BINFMT_ELF_RANDOMIZE_PIE
 	select RTC_LIB if !MACH_LOONGSON
 	select GENERIC_ATOMIC64 if !64BIT
 	select HAVE_DMA_ATTRS
@@ -68,7 +69,6 @@ config AR7
 	select SYS_SUPPORTS_LITTLE_ENDIAN
 	select SYS_SUPPORTS_ZBOOT_UART16550
 	select ARCH_REQUIRE_GPIOLIB
-	select GCD
 	select VLYNQ
 	help
 	  Support for the Texas Instruments AR7 System-on-a-Chip
@@ -2317,6 +2317,7 @@ config PCI
 	bool "Support for PCI controller"
 	depends on HW_HAS_PCI
 	select PCI_DOMAINS
+	select GENERIC_PCI_IOMAP
 	help
 	  Find out whether you have a PCI motherboard. PCI is the name of a
 	  bus system, i.e. the way the CPU talks to the other stuff inside
@@ -2368,10 +2369,6 @@ config TC
 	  <http://www.computer-refuge.org/classiccmp/ftp.digital.com/pub/DEC/TriAdd/>
 	  Linux driver support status is documented at:
 	  <http://www.linux-mips.org/wiki/DECstation>
-
-#config ACCESSBUS
-#	bool "Access.Bus support"
-#	depends on TC
 
 config MMU
 	bool

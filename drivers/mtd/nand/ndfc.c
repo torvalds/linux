@@ -294,18 +294,7 @@ static struct platform_driver ndfc_driver = {
 	.remove = __devexit_p(ndfc_remove),
 };
 
-static int __init ndfc_nand_init(void)
-{
-	return platform_driver_register(&ndfc_driver);
-}
-
-static void __exit ndfc_nand_exit(void)
-{
-	platform_driver_unregister(&ndfc_driver);
-}
-
-module_init(ndfc_nand_init);
-module_exit(ndfc_nand_exit);
+module_platform_driver(ndfc_driver);
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Thomas Gleixner <tglx@linutronix.de>");

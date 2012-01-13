@@ -254,7 +254,7 @@ static ssize_t set_limit(struct device *dev, struct device_attribute *attr,
 	int index = to_sensor_dev_attr(attr)->index;
 	unsigned long val;
 
-	if (strict_strtoul(buf, 10, &val) < 0)
+	if (kstrtoul(buf, 10, &val) < 0)
 		return -EINVAL;
 
 	val /= 1000;
@@ -279,7 +279,7 @@ static ssize_t set_crit_hyst(struct device *dev, struct device_attribute *attr,
 	struct lm95245_data *data = i2c_get_clientdata(client);
 	unsigned long val;
 
-	if (strict_strtoul(buf, 10, &val) < 0)
+	if (kstrtoul(buf, 10, &val) < 0)
 		return -EINVAL;
 
 	val /= 1000;
@@ -316,7 +316,7 @@ static ssize_t set_type(struct device *dev, struct device_attribute *attr,
 	struct lm95245_data *data = i2c_get_clientdata(client);
 	unsigned long val;
 
-	if (strict_strtoul(buf, 10, &val) < 0)
+	if (kstrtoul(buf, 10, &val) < 0)
 		return -EINVAL;
 	if (val != 1 && val != 2)
 		return -EINVAL;
@@ -363,7 +363,7 @@ static ssize_t set_interval(struct device *dev, struct device_attribute *attr,
 	struct lm95245_data *data = i2c_get_clientdata(client);
 	unsigned long val;
 
-	if (strict_strtoul(buf, 10, &val) < 0)
+	if (kstrtoul(buf, 10, &val) < 0)
 		return -EINVAL;
 
 	mutex_lock(&data->update_lock);

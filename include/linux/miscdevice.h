@@ -54,7 +54,7 @@ struct miscdevice  {
 	struct device *parent;
 	struct device *this_device;
 	const char *nodename;
-	mode_t mode;
+	umode_t mode;
 };
 
 extern int misc_register(struct miscdevice * misc);

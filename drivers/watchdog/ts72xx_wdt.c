@@ -506,17 +506,7 @@ static struct platform_driver ts72xx_wdt_driver = {
 	},
 };
 
-static __init int ts72xx_wdt_init(void)
-{
-	return platform_driver_register(&ts72xx_wdt_driver);
-}
-module_init(ts72xx_wdt_init);
-
-static __exit void ts72xx_wdt_exit(void)
-{
-	platform_driver_unregister(&ts72xx_wdt_driver);
-}
-module_exit(ts72xx_wdt_exit);
+module_platform_driver(ts72xx_wdt_driver);
 
 MODULE_AUTHOR("Mika Westerberg <mika.westerberg@iki.fi>");
 MODULE_DESCRIPTION("TS-72xx SBC Watchdog");

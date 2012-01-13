@@ -1,0 +1,88 @@
+* Samsung's Keypad Controller device tree bindings
+
+Samsung's Keypad controller is used to interface a SoC with a matrix-type
+keypad device. The keypad controller supports multiple row and column lines.
+A key can be placed at each intersection of a unique row and a unique column.
+The keypad controller can sense a key-press and key-release and report the
+event using a interrupt to the cpu.
+
+Required SoC Specific Properties:
+- compatible: should be one of the following
+  - "samsung,s3c6410-keypad": For controllers compatible with s3c6410 keypad
+    controller.
+  - "samsung,s5pv210-keypad": For controllers compatible with s5pv210 keypad
+    controller.
+
+- reg: physical base address of the controller and length of memory mapped
+  region.
+
+- interrupts: The interrupt number to the cpu.
+
+Required Board Specific Properties:
+- samsung,keypad-num-rows: Number of row lines connected to the keypad
+  controller.
+
+- samsung,keypad-num-columns: Number of column lines connected to the
+  keypad controller.
+
+- row-gpios: List of gpios used as row lines. The gpio specifier for
+  this property depends on the gpio controller to which these row lines
+  are connected.
+
+- col-gpios: List of gpios used as column lines. The gpio specifier for
+  this property depends on the gpio controller to which these column
+  lines are connected.
+
+- Keys represented as child nodes: Each key connected to the keypad
+  controller is represented as a child node to the keypad controller
+  device node and should include the following properties.
+  - keypad,row: the row number to which the key is connected.
+  - keypad,column: the column number to which the key is connected.
+  - linux,code: the key-code to be reported when the key is pressed
+    and released.
+
+Optional Properties specific to linux:
+- linux,keypad-no-autorepeat: do no enable autorepeat feature.
+- linux,keypad-wakeup: use any event on keypad as wakeup event.
+
+
+Example:
+	keypad@100A0000 {
+		compatible = "samsung,s5pv210-keypad";
+		reg = <0x100A0000 0x100>;
+		interrupts = <173>;
+		samsung,keypad-num-rows = <2>;
+		samsung,keypad-num-columns = <8>;
+		linux,input-no-autorepeat;
+		linux,input-wakeup;
+
+		row-gpios = <&gpx2 0 3 3 0
+			     &gpx2 1 3 3 0>;
+
+		col-gpios = <&gpx1 0 3 0 0
+			     &gpx1 1 3 0 0
+			     &gpx1 2 3 0 0
+			     &gpx1 3 3 0 0
+			     &gpx1 4 3 0 0
+			     &gpx1 5 3 0 0
+			     &gpx1 6 3 0 0
+			     &gpx1 7 3 0 0>;
+
+		key_1 {
+			keypad,row = <0>;
+			keypad,column = <3>;
+			linux,code = <2>;
+		};
+
+		key_2 {
+			keypad,row = <0>;
+			keypad,column = <4>;
+			linux,code = <3>;
+		};
+
+		key_3 {
+			keypad,row = <0>;
+			keypad,column = <5>;
+			linux,code = <4>;
+		};
+	};

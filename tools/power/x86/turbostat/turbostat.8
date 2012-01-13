@@ -38,8 +38,8 @@ displays the statistics gathered since it was forked.
 .PP
 .SH FIELD DESCRIPTIONS
 .nf
-\fBpkg\fP processor package number.
-\fBcore\fP processor core number.
+\fBpk\fP processor package number.
+\fBcr\fP processor core number.
 \fBCPU\fP Linux CPU (logical processor) number.
 \fB%c0\fP percent of the interval that the CPU retired instructions.
 \fBGHz\fP average clock rate while the CPU was in c0 state.
@@ -58,7 +58,7 @@ Subsequent rows show per-CPU statistics.
 
 .nf
 [root@x980]# ./turbostat
-core CPU   %c0   GHz  TSC   %c1    %c3    %c6   %pc3   %pc6
+cr   CPU   %c0   GHz  TSC   %c1    %c3    %c6   %pc3   %pc6
           0.04 1.62 3.38   0.11   0.00  99.85   0.00  95.07
   0   0   0.04 1.62 3.38   0.06   0.00  99.90   0.00  95.07
   0   6   0.02 1.62 3.38   0.08   0.00  99.90   0.00  95.07
@@ -102,7 +102,7 @@ until ^C while the other CPUs are mostly idle:
 .nf
 [root@x980 lenb]# ./turbostat cat /dev/zero > /dev/null
 
-^Ccore CPU   %c0   GHz  TSC   %c1    %c3    %c6   %pc3   %pc6
+^Ccr   CPU   %c0   GHz  TSC   %c1    %c3    %c6   %pc3   %pc6
            8.49 3.63 3.38  16.23   0.66  74.63   0.00   0.00
    0   0   1.22 3.62 3.38  32.18   0.00  66.60   0.00   0.00
    0   6   0.40 3.61 3.38  33.00   0.00  66.60   0.00   0.00

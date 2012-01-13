@@ -13,12 +13,15 @@
 #include <linux/interrupt.h>
 #include <linux/irq.h>
 #include <linux/io.h>
-#include <linux/sysdev.h>
+#include <linux/device.h>
 #include <linux/gpio.h>
 #include <linux/sched.h>
 #include <linux/serial_core.h>
+#include <linux/of.h>
+#include <linux/of_irq.h>
 
 #include <asm/proc-fns.h>
+#include <asm/exception.h>
 #include <asm/hardware/cache-l2x0.h>
 #include <asm/hardware/gic.h>
 #include <asm/mach/map.h>
@@ -42,8 +45,6 @@
 #include <plat/regs-serial.h>
 
 #include "common.h"
-
-unsigned int gic_bank_offset __read_mostly;
 
 static const char name_exynos4210[] = "EXYNOS4210";
 static const char name_exynos4212[] = "EXYNOS4212";
@@ -386,27 +387,26 @@ static void __init combiner_init(unsigned int combiner_nr, void __iomem *base,
 	}
 }
 
-static void exynos4_gic_irq_fix_base(struct irq_data *d)
-{
-	struct gic_chip_data *gic_data = irq_data_get_irq_chip_data(d);
-
-	gic_data->cpu_base = S5P_VA_GIC_CPU +
-			    (gic_bank_offset * smp_processor_id());
-
-	gic_data->dist_base = S5P_VA_GIC_DIST +
-			    (gic_bank_offset * smp_processor_id());
-}
+#ifdef CONFIG_OF
+static const struct of_device_id exynos4_dt_irq_match[] = {
+	{ .compatible = "arm,cortex-a9-gic", .data = gic_of_init, },
+	{},
+};
+#endif
 
 void __init exynos4_init_irq(void)
 {
 	int irq;
+	unsigned int gic_bank_offset;
 
 	gic_bank_offset = soc_is_exynos4412() ? 0x4000 : 0x8000;
 
-	gic_init(0, IRQ_PPI(0), S5P_VA_GIC_DIST, S5P_VA_GIC_CPU);
-	gic_arch_extn.irq_eoi = exynos4_gic_irq_fix_base;
-	gic_arch_extn.irq_unmask = exynos4_gic_irq_fix_base;
-	gic_arch_extn.irq_mask = exynos4_gic_irq_fix_base;
+	if (!of_have_populated_dt())
+		gic_init_bases(0, IRQ_PPI(0), S5P_VA_GIC_DIST, S5P_VA_GIC_CPU, gic_bank_offset);
+#ifdef CONFIG_OF
+	else
+		of_irq_init(exynos4_dt_irq_match);
+#endif
 
 	for (irq = 0; irq < MAX_COMBINER_NR; irq++) {
 
@@ -423,17 +423,18 @@ void __init exynos4_init_irq(void)
 	s5p_init_irq(NULL, 0);
 }
 
-struct sysdev_class exynos4_sysclass = {
-	.name	= "exynos4-core",
+struct bus_type exynos4_subsys = {
+	.name		= "exynos4-core",
+	.dev_name	= "exynos4-core",
 };
 
-static struct sys_device exynos4_sysdev = {
-	.cls	= &exynos4_sysclass,
+static struct device exynos4_dev = {
+	.bus	= &exynos4_subsys,
 };
 
 static int __init exynos4_core_init(void)
 {
-	return sysdev_class_register(&exynos4_sysclass);
+	return subsys_system_register(&exynos4_subsys, NULL);
 }
 core_initcall(exynos4_core_init);
 
@@ -470,17 +471,8 @@ int __init exynos_init(void)
 	/* set idle function */
 	pm_idle = exynos_idle;
 
-	return sysdev_register(&exynos4_sysdev);
+	return device_register(&exynos4_dev);
 }
-
-static struct s3c24xx_uart_clksrc exynos4_serial_clocks[] = {
-	[0] = {
-		.name		= "uclk1",
-		.divisor	= 1,
-		.min_baud	= 0,
-		.max_baud	= 0,
-	},
-};
 
 /* uart registration process */
 
@@ -489,16 +481,10 @@ void __init exynos4_init_uarts(struct s3c2410_uartcfg *cfg, int no)
 	struct s3c2410_uartcfg *tcfg = cfg;
 	u32 ucnt;
 
-	for (ucnt = 0; ucnt < no; ucnt++, tcfg++) {
-		if (!tcfg->clocks) {
-			tcfg->has_fracval = 1;
-			tcfg->clocks = exynos4_serial_clocks;
-			tcfg->clocks_size = ARRAY_SIZE(exynos4_serial_clocks);
-		}
-		tcfg->flags |= NO_NEED_CHECK_CLKSRC;
-	}
+	for (ucnt = 0; ucnt < no; ucnt++, tcfg++)
+		tcfg->has_fracval = 1;
 
-	s3c24xx_init_uartdevs("s5pv210-uart", s5p_uart_resources, cfg, no);
+	s3c24xx_init_uartdevs("exynos4210-uart", s5p_uart_resources, cfg, no);
 }
 
 static DEFINE_SPINLOCK(eint_lock);

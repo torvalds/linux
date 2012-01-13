@@ -6,6 +6,7 @@ config M68K
 	select HAVE_GENERIC_HARDIRQS
 	select GENERIC_IRQ_SHOW
 	select ARCH_HAVE_NMI_SAFE_CMPXCHG if RMW_INSNS
+	select GENERIC_CPU_DEVICES
 
 config RWSEM_GENERIC_SPINLOCK
 	bool
@@ -36,9 +37,6 @@ config GENERIC_HWEIGHT
 config GENERIC_CALIBRATE_DELAY
 	bool
 	default y
-
-config GENERIC_IOMAP
-	def_bool MMU
 
 config GENERIC_CSUM
 	bool
@@ -81,6 +79,7 @@ source "kernel/Kconfig.freezer"
 config MMU
 	bool "MMU-based Paged Memory Management Support"
 	default y
+	select GENERIC_IOMAP
 	help
 	  Select if you want MMU-based virtualised addressing space
 	  support by paged memory management. If unsure, say 'Y'.

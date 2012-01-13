@@ -300,12 +300,13 @@ TRACE_EVENT(balance_dirty_pages,
 		 unsigned long dirty_ratelimit,
 		 unsigned long task_ratelimit,
 		 unsigned long dirtied,
+		 unsigned long period,
 		 long pause,
 		 unsigned long start_time),
 
 	TP_ARGS(bdi, thresh, bg_thresh, dirty, bdi_thresh, bdi_dirty,
 		dirty_ratelimit, task_ratelimit,
-		dirtied, pause, start_time),
+		dirtied, period, pause, start_time),
 
 	TP_STRUCT__entry(
 		__array(	 char,	bdi, 32)
@@ -320,6 +321,8 @@ TRACE_EVENT(balance_dirty_pages,
 		__field(unsigned int,	dirtied_pause)
 		__field(unsigned long,	paused)
 		__field(	 long,	pause)
+		__field(unsigned long,	period)
+		__field(	 long,	think)
 	),
 
 	TP_fast_assign(
@@ -336,6 +339,9 @@ TRACE_EVENT(balance_dirty_pages,
 		__entry->task_ratelimit	= KBps(task_ratelimit);
 		__entry->dirtied	= dirtied;
 		__entry->dirtied_pause	= current->nr_dirtied_pause;
+		__entry->think		= current->dirty_paused_when == 0 ? 0 :
+			 (long)(jiffies - current->dirty_paused_when) * 1000/HZ;
+		__entry->period		= period * 1000 / HZ;
 		__entry->pause		= pause * 1000 / HZ;
 		__entry->paused		= (jiffies - start_time) * 1000 / HZ;
 	),
@@ -346,7 +352,7 @@ TRACE_EVENT(balance_dirty_pages,
 		  "bdi_setpoint=%lu bdi_dirty=%lu "
 		  "dirty_ratelimit=%lu task_ratelimit=%lu "
 		  "dirtied=%u dirtied_pause=%u "
-		  "paused=%lu pause=%ld",
+		  "paused=%lu pause=%ld period=%lu think=%ld",
 		  __entry->bdi,
 		  __entry->limit,
 		  __entry->setpoint,
@@ -358,7 +364,9 @@ TRACE_EVENT(balance_dirty_pages,
 		  __entry->dirtied,
 		  __entry->dirtied_pause,
 		  __entry->paused,	/* ms */
-		  __entry->pause	/* ms */
+		  __entry->pause,	/* ms */
+		  __entry->period,	/* ms */
+		  __entry->think	/* ms */
 	  )
 );
 

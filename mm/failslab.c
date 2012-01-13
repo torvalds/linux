@@ -35,7 +35,7 @@ __setup("failslab=", setup_failslab);
 static int __init failslab_debugfs_init(void)
 {
 	struct dentry *dir;
-	mode_t mode = S_IFREG | S_IRUSR | S_IWUSR;
+	umode_t mode = S_IFREG | S_IRUSR | S_IWUSR;
 
 	dir = fault_create_debugfs_attr("failslab", NULL, &failslab.attr);
 	if (IS_ERR(dir))

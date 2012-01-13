@@ -613,7 +613,7 @@ static void frontend_changed(struct xenbus_device *dev,
 	case XenbusStateConnected:
 		/*
 		 * Ensure we connect even when two watches fire in
-		 * close successsion and we miss the intermediate value
+		 * close succession and we miss the intermediate value
 		 * of frontend_state.
 		 */
 		if (dev->state == XenbusStateConnected)
@@ -787,17 +787,14 @@ static const struct xenbus_device_id xen_blkbk_ids[] = {
 };
 
 
-static struct xenbus_driver xen_blkbk = {
-	.name = "vbd",
-	.owner = THIS_MODULE,
-	.ids = xen_blkbk_ids,
+static DEFINE_XENBUS_DRIVER(xen_blkbk, ,
 	.probe = xen_blkbk_probe,
 	.remove = xen_blkbk_remove,
 	.otherend_changed = frontend_changed
-};
+);
 
 
 int xen_blkif_xenbus_init(void)
 {
-	return xenbus_register_backend(&xen_blkbk);
+	return xenbus_register_backend(&xen_blkbk_driver);
 }

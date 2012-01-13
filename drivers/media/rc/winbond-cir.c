@@ -1176,6 +1176,6 @@ wbcir_exit(void)
 module_init(wbcir_init);
 module_exit(wbcir_exit);
 
-MODULE_AUTHOR("David Härdeman <david@hardeman.nu>");
+MODULE_AUTHOR("David HÃ¤rdeman <david@hardeman.nu>");
 MODULE_DESCRIPTION("Winbond SuperI/O Consumer IR Driver");
 MODULE_LICENSE("GPL");

@@ -9,6 +9,7 @@
  *
  */
 
+#include <linux/slab.h>
 #include <sound/core.h>
 #include <sound/pcm.h>
 #include <sound/pcm_params.h>
@@ -191,12 +192,9 @@ static int submit_audio_out_urb(struct snd_line6_pcm *line6pcm)
 	urb_frames = urb_size / bytes_per_frame;
 	urb_out->transfer_buffer =
 	    line6pcm->buffer_out +
-	    line6pcm->max_packet_size * line6pcm->index_out;
+	    index * LINE6_ISO_PACKETS * line6pcm->max_packet_size;
 	urb_out->transfer_buffer_length = urb_size;
 	urb_out->context = line6pcm;
-
-	if (++line6pcm->index_out == LINE6_ISO_BUFFERS)
-		line6pcm->index_out = 0;
 
 	if (test_bit(BIT_PCM_ALSA_PLAYBACK, &line6pcm->flags) &&
 	    !test_bit(BIT_PAUSE_PLAYBACK, &line6pcm->flags)) {
@@ -222,18 +220,10 @@ static int submit_audio_out_urb(struct snd_line6_pcm *line6pcm)
 			} else
 				dev_err(line6pcm->line6->ifcdev, "driver bug: len = %d\n", len);	/* this is somewhat paranoid */
 		} else {
-#if LINE6_REUSE_DMA_AREA_FOR_PLAYBACK
-			/* set the buffer pointer */
-			urb_out->transfer_buffer =
-			    runtime->dma_area +
-			    line6pcm->pos_out * bytes_per_frame;
-#else
-			/* copy data */
 			memcpy(urb_out->transfer_buffer,
 			       runtime->dma_area +
 			       line6pcm->pos_out * bytes_per_frame,
 			       urb_out->transfer_buffer_length);
-#endif
 		}
 
 		line6pcm->pos_out += urb_frames;
@@ -361,6 +351,31 @@ void line6_unlink_wait_clear_audio_out_urbs(struct snd_line6_pcm *line6pcm)
 	wait_clear_audio_out_urbs(line6pcm);
 }
 
+int line6_alloc_playback_buffer(struct snd_line6_pcm *line6pcm)
+{
+	/* We may be invoked multiple times in a row so allocate once only */
+	if (line6pcm->buffer_out)
+		return 0;
+
+	line6pcm->buffer_out =
+		kmalloc(LINE6_ISO_BUFFERS * LINE6_ISO_PACKETS *
+			line6pcm->max_packet_size, GFP_KERNEL);
+
+	if (!line6pcm->buffer_out) {
+		dev_err(line6pcm->line6->ifcdev,
+			"cannot malloc playback buffer\n");
+		return -ENOMEM;
+	}
+
+	return 0;
+}
+
+void line6_free_playback_buffer(struct snd_line6_pcm *line6pcm)
+{
+	kfree(line6pcm->buffer_out);
+	line6pcm->buffer_out = NULL;
+}
+
 /*
 	Callback for completed playback URB.
 */
@@ -469,6 +484,13 @@ static int snd_line6_playback_hw_params(struct snd_pcm_substream *substream,
 	}
 	/* -- [FD] end */
 
+	if ((line6pcm->flags & MASK_PLAYBACK) == 0) {
+		ret = line6_alloc_playback_buffer(line6pcm);
+
+		if (ret < 0)
+			return ret;
+	}
+
 	ret = snd_pcm_lib_malloc_pages(substream,
 				       params_buffer_bytes(hw_params));
 	if (ret < 0)
@@ -481,6 +503,13 @@ static int snd_line6_playback_hw_params(struct snd_pcm_substream *substream,
 /* hw_free playback callback */
 static int snd_line6_playback_hw_free(struct snd_pcm_substream *substream)
 {
+	struct snd_line6_pcm *line6pcm = snd_pcm_substream_chip(substream);
+
+	if ((line6pcm->flags & MASK_PLAYBACK) == 0) {
+		line6_unlink_wait_clear_audio_out_urbs(line6pcm);
+		line6_free_playback_buffer(line6pcm);
+	}
+
 	return snd_pcm_lib_free_pages(substream);
 }
 

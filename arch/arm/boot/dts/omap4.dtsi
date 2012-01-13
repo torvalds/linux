@@ -21,6 +21,10 @@
 	interrupt-parent = <&gic>;
 
 	aliases {
+		serial0 = &uart1;
+		serial1 = &uart2;
+		serial2 = &uart3;
+		serial3 = &uart4;
 	};
 
 	cpus {
@@ -98,6 +102,30 @@
 			#interrupt-cells = <1>;
 			reg = <0x48241000 0x1000>,
 			      <0x48240100 0x0100>;
+		};
+
+		uart1: serial@0x4806a000 {
+			compatible = "ti,omap4-uart";
+			ti,hwmods = "uart1";
+			clock-frequency = <48000000>;
+		};
+
+		uart2: serial@0x4806c000 {
+			compatible = "ti,omap4-uart";
+			ti,hwmods = "uart2";
+			clock-frequency = <48000000>;
+		};
+
+		uart3: serial@0x48020000 {
+			compatible = "ti,omap4-uart";
+			ti,hwmods = "uart3";
+			clock-frequency = <48000000>;
+		};
+
+		uart4: serial@0x4806e000 {
+			compatible = "ti,omap4-uart";
+			ti,hwmods = "uart4";
+			clock-frequency = <48000000>;
 		};
 	};
 };

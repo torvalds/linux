@@ -481,7 +481,7 @@ void		xfs_inode_free(struct xfs_inode *ip);
 /*
  * xfs_inode.c prototypes.
  */
-int		xfs_ialloc(struct xfs_trans *, xfs_inode_t *, mode_t,
+int		xfs_ialloc(struct xfs_trans *, xfs_inode_t *, umode_t,
 			   xfs_nlink_t, xfs_dev_t, prid_t, int,
 			   struct xfs_buf **, boolean_t *, xfs_inode_t **);
 

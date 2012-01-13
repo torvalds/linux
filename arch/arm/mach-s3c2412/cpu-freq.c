@@ -16,7 +16,7 @@
 #include <linux/interrupt.h>
 #include <linux/ioport.h>
 #include <linux/cpufreq.h>
-#include <linux/sysdev.h>
+#include <linux/device.h>
 #include <linux/delay.h>
 #include <linux/clk.h>
 #include <linux/err.h>
@@ -194,7 +194,7 @@ static struct s3c_cpufreq_info s3c2412_cpufreq_info = {
 	.debug_io_show  = s3c_cpufreq_debugfs_call(s3c2412_iotiming_debugfs),
 };
 
-static int s3c2412_cpufreq_add(struct sys_device *sysdev)
+static int s3c2412_cpufreq_add(struct device *dev)
 {
 	unsigned long fclk_rate;
 
@@ -244,14 +244,15 @@ err_fclk:
 	return -ENOENT;
 }
 
-static struct sysdev_driver s3c2412_cpufreq_driver = {
-	.add		= s3c2412_cpufreq_add,
+static struct subsys_interface s3c2412_cpufreq_interface = {
+	.name		= "s3c2412_cpufreq",
+	.subsys		= &s3c2412_subsys,
+	.add_dev	= s3c2412_cpufreq_add,
 };
 
 static int s3c2412_cpufreq_init(void)
 {
-	return sysdev_driver_register(&s3c2412_sysclass,
-				      &s3c2412_cpufreq_driver);
+	return subsys_interface_register(&s3c2412_cpufreq_interface);
 }
 
 arch_initcall(s3c2412_cpufreq_init);

@@ -147,11 +147,11 @@ nfsd4_create_clid_dir(struct nfs4_client *clp)
 	status = -EEXIST;
 	if (dentry->d_inode)
 		goto out_put;
-	status = mnt_want_write(rec_file->f_path.mnt);
+	status = mnt_want_write_file(rec_file);
 	if (status)
 		goto out_put;
 	status = vfs_mkdir(dir->d_inode, dentry, S_IRWXU);
-	mnt_drop_write(rec_file->f_path.mnt);
+	mnt_drop_write_file(rec_file);
 out_put:
 	dput(dentry);
 out_unlock:
@@ -268,7 +268,7 @@ nfsd4_remove_clid_dir(struct nfs4_client *clp)
 	if (!rec_file || !clp->cl_firststate)
 		return;
 
-	status = mnt_want_write(rec_file->f_path.mnt);
+	status = mnt_want_write_file(rec_file);
 	if (status)
 		goto out;
 	clp->cl_firststate = 0;
@@ -281,7 +281,7 @@ nfsd4_remove_clid_dir(struct nfs4_client *clp)
 	nfs4_reset_creds(original_cred);
 	if (status == 0)
 		vfs_fsync(rec_file, 0);
-	mnt_drop_write(rec_file->f_path.mnt);
+	mnt_drop_write_file(rec_file);
 out:
 	if (status)
 		printk("NFSD: Failed to remove expired client state directory"
@@ -311,13 +311,13 @@ nfsd4_recdir_purge_old(void) {
 
 	if (!rec_file)
 		return;
-	status = mnt_want_write(rec_file->f_path.mnt);
+	status = mnt_want_write_file(rec_file);
 	if (status)
 		goto out;
 	status = nfsd4_list_rec_dir(purge_old);
 	if (status == 0)
 		vfs_fsync(rec_file, 0);
-	mnt_drop_write(rec_file->f_path.mnt);
+	mnt_drop_write_file(rec_file);
 out:
 	if (status)
 		printk("nfsd4: failed to purge old clients from recovery"

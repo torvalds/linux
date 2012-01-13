@@ -827,8 +827,8 @@ static int user_cluster_connect(struct ocfs2_cluster_connection *conn)
 		goto out;
 	}
 
-	rc = dlm_new_lockspace(conn->cc_name, strlen(conn->cc_name),
-			       &fsdlm, DLM_LSFL_FS, DLM_LVB_LEN);
+	rc = dlm_new_lockspace(conn->cc_name, NULL, DLM_LSFL_FS, DLM_LVB_LEN,
+			       NULL, NULL, NULL, &fsdlm);
 	if (rc) {
 		ocfs2_live_connection_drop(control);
 		goto out;

@@ -18,8 +18,8 @@
 #include <linux/slab.h>
 #include <mach/coh901318.h>
 #include <mach/dma_channels.h>
-#include <mach/gpio-u300.h>
 
+#include "u300-gpio.h"
 #include "mmc.h"
 
 static struct mmci_platform_data mmc0_plat_data = {

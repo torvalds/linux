@@ -21,7 +21,8 @@
 
 #include "iio.h"
 #include "sysfs.h"
-#include "buffer_generic.h"
+#include "events.h"
+#include "buffer.h"
 #include "iio_simple_dummy.h"
 
 /*
@@ -76,13 +77,13 @@ static struct iio_chan_spec iio_dummy_channels[] = {
 		 * Offset for userspace to apply prior to scale
 		 * when converting to standard units (microvolts)
 		 */
-		(1 << IIO_CHAN_INFO_OFFSET_SEPARATE) |
+		IIO_CHAN_INFO_OFFSET_SEPARATE_BIT |
 		/*
 		 * in_voltage0_scale
 		 * Multipler for userspace to apply post offset
 		 * when converting to standard units (microvolts)
 		 */
-		(1 << IIO_CHAN_INFO_SCALE_SEPARATE),
+		IIO_CHAN_INFO_SCALE_SEPARATE_BIT,
 		/* The ordering of elements in the buffer via an enum */
 		.scan_index = voltage0,
 		.scan_type = { /* Description of storage in buffer */
@@ -117,7 +118,7 @@ static struct iio_chan_spec iio_dummy_channels[] = {
 		 * Shared version of scale - shared by differential
 		 * input channels of type IIO_VOLTAGE.
 		 */
-		(1 << IIO_CHAN_INFO_SCALE_SHARED),
+		IIO_CHAN_INFO_SCALE_SHARED_BIT,
 		.scan_index = diffvoltage1m2,
 		.scan_type = { /* Description of storage in buffer */
 			.sign = 's', /* signed */
@@ -134,7 +135,7 @@ static struct iio_chan_spec iio_dummy_channels[] = {
 		.channel = 3,
 		.channel2 = 4,
 		.info_mask =
-		(1 << IIO_CHAN_INFO_SCALE_SHARED),
+		IIO_CHAN_INFO_SCALE_SHARED_BIT,
 		.scan_index = diffvoltage3m4,
 		.scan_type = {
 			.sign = 's',
@@ -159,7 +160,7 @@ static struct iio_chan_spec iio_dummy_channels[] = {
 		 * seeing the readings. Typically part of hardware
 		 * calibration.
 		 */
-		(1 << IIO_CHAN_INFO_CALIBBIAS_SEPARATE),
+		IIO_CHAN_INFO_CALIBBIAS_SEPARATE_BIT,
 		.scan_index = accelx,
 		.scan_type = { /* Description of storage in buffer */
 			.sign = 's', /* signed */
@@ -228,29 +229,32 @@ static int iio_dummy_read_raw(struct iio_dev *indio_dev,
 			break;
 		}
 		break;
-	case (1 << IIO_CHAN_INFO_OFFSET_SEPARATE):
+	case IIO_CHAN_INFO_OFFSET:
 		/* only single ended adc -> 7 */
 		*val = 7;
 		ret = IIO_VAL_INT;
 		break;
-	case (1 << IIO_CHAN_INFO_SCALE_SEPARATE):
-		/* only single ended adc -> 0.001333 */
-		*val = 0;
-		*val2 = 1333;
-		ret = IIO_VAL_INT_PLUS_MICRO;
+	case IIO_CHAN_INFO_SCALE:
+		switch (chan->differential) {
+		case 0:
+			/* only single ended adc -> 0.001333 */
+			*val = 0;
+			*val2 = 1333;
+			ret = IIO_VAL_INT_PLUS_MICRO;
+			break;
+		case 1:
+			/* all differential adc channels -> 0.000001344 */
+			*val = 0;
+			*val2 = 1344;
+			ret = IIO_VAL_INT_PLUS_NANO;
+		}
 		break;
-	case (1 << IIO_CHAN_INFO_SCALE_SHARED):
-		/* all differential adc channels -> 0.000001344 */
-		*val = 0;
-		*val2 = 1344;
-		ret = IIO_VAL_INT_PLUS_NANO;
-		break;
-	case (1 << IIO_CHAN_INFO_CALIBBIAS_SEPARATE):
+	case IIO_CHAN_INFO_CALIBBIAS:
 		/* only the acceleration axis - read from cache */
 		*val = st->accel_calibbias;
 		ret = IIO_VAL_INT;
 		break;
-	case (1 << IIO_CHAN_INFO_CALIBSCALE_SEPARATE):
+	case IIO_CHAN_INFO_CALIBSCALE:
 		*val = st->accel_calibscale->val;
 		*val2 = st->accel_calibscale->val2;
 		ret = IIO_VAL_INT_PLUS_MICRO;
@@ -295,7 +299,7 @@ static int iio_dummy_write_raw(struct iio_dev *indio_dev,
 		st->dac_val = val;
 		mutex_unlock(&st->lock);
 		return 0;
-	case (1 << IIO_CHAN_INFO_CALIBBIAS_SEPARATE):
+	case IIO_CHAN_INFO_CALIBBIAS:
 		mutex_lock(&st->lock);
 		/* Compare against table - hard matching here */
 		for (i = 0; i < ARRAY_SIZE(dummy_scales); i++)
@@ -514,7 +518,8 @@ static __init int iio_dummy_init(void)
 		return -EINVAL;
 	}
 	/* Fake a bus */
-	iio_dummy_devs = kzalloc(sizeof(*iio_dummy_devs)*instances, GFP_KERNEL);
+	iio_dummy_devs = kcalloc(instances, sizeof(*iio_dummy_devs),
+				 GFP_KERNEL);
 	/* Here we have no actual device so call probe */
 	for (i = 0; i < instances; i++) {
 		ret = iio_dummy_probe(i);

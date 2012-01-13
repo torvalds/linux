@@ -446,7 +446,7 @@ static int __cpuinit acpi_processor_add(struct acpi_device *device)
 {
 	struct acpi_processor *pr = NULL;
 	int result = 0;
-	struct sys_device *sysdev;
+	struct device *dev;
 
 	pr = kzalloc(sizeof(struct acpi_processor), GFP_KERNEL);
 	if (!pr)
@@ -491,8 +491,8 @@ static int __cpuinit acpi_processor_add(struct acpi_device *device)
 
 	per_cpu(processors, pr->id) = pr;
 
-	sysdev = get_cpu_sysdev(pr->id);
-	if (sysfs_create_link(&device->dev.kobj, &sysdev->kobj, "sysdev")) {
+	dev = get_cpu_device(pr->id);
+	if (sysfs_create_link(&device->dev.kobj, &dev->kobj, "sysdev")) {
 		result = -EFAULT;
 		goto err_free_cpumask;
 	}

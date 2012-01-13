@@ -524,22 +524,7 @@ static struct usb_driver sd_driver = {
 
 /*====================== Init and Exit module functions ====================*/
 
-static int __init sd_mod_init(void)
-{
-	PDEBUG(D_PROBE, "driver startup - version %s", DRIVER_VERSION);
-
-	if (usb_register(&sd_driver) < 0)
-		return -1;
-	return 0;
-}
-
-static void __exit sd_mod_exit(void)
-{
-	usb_deregister(&sd_driver);
-}
-
-module_init(sd_mod_init);
-module_exit(sd_mod_exit);
+module_usb_driver(sd_driver);
 
 /*==========================================================================*/
 

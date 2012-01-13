@@ -16,6 +16,7 @@ config ARM
 	select HAVE_FTRACE_MCOUNT_RECORD if (!XIP_KERNEL)
 	select HAVE_DYNAMIC_FTRACE if (!XIP_KERNEL)
 	select HAVE_FUNCTION_GRAPH_TRACER if (!THUMB2_KERNEL)
+	select ARCH_BINFMT_ELF_RANDOMIZE_PIE
 	select HAVE_GENERIC_DMA_COHERENT
 	select HAVE_KERNEL_GZIP
 	select HAVE_KERNEL_LZO
@@ -30,6 +31,7 @@ config ARM
 	select HAVE_SPARSE_IRQ
 	select GENERIC_IRQ_SHOW
 	select CPU_PM if (SUSPEND || CPU_IDLE)
+	select GENERIC_PCI_IOMAP
 	help
 	  The ARM series is a line of low-power-consumption RISC chip designs
 	  licensed by ARM Ltd and targeted at embedded applications and
@@ -447,6 +449,7 @@ config ARCH_MXS
 	select ARCH_REQUIRE_GPIOLIB
 	select CLKDEV_LOOKUP
 	select CLKSRC_MMIO
+	select HAVE_CLK_PREPARE
 	help
 	  Support for Freescale MXS-based family of processors
 
@@ -597,6 +600,7 @@ config ARCH_MMP
 	select ARCH_REQUIRE_GPIOLIB
 	select CLKDEV_LOOKUP
 	select GENERIC_CLOCKEVENTS
+	select GPIO_PXA
 	select HAVE_SCHED_CLOCK
 	select TICK_ONESHOT
 	select PLAT_PXA
@@ -658,6 +662,7 @@ config ARCH_PICOXCELL
 	select HAVE_SCHED_CLOCK
 	select HAVE_TCM
 	select NO_IOPORT
+	select SPARSE_IRQ
 	select USE_OF
 	help
 	  This enables support for systems based on the Picochip picoXcell
@@ -681,6 +686,7 @@ config ARCH_PXA
 	select CLKSRC_MMIO
 	select ARCH_REQUIRE_GPIOLIB
 	select GENERIC_CLOCKEVENTS
+	select GPIO_PXA
 	select HAVE_SCHED_CLOCK
 	select TICK_ONESHOT
 	select PLAT_PXA
@@ -748,7 +754,7 @@ config ARCH_SA1100
 	select ARCH_HAS_CPUFREQ
 	select CPU_FREQ
 	select GENERIC_CLOCKEVENTS
-	select HAVE_CLK
+	select CLKDEV_LOOKUP
 	select HAVE_SCHED_CLOCK
 	select TICK_ONESHOT
 	select ARCH_REQUIRE_GPIOLIB
@@ -892,7 +898,6 @@ config ARCH_U300
 	select HAVE_MACH_CLKDEV
 	select GENERIC_GPIO
 	select ARCH_REQUIRE_GPIOLIB
-	select NEED_MACH_MEMORY_H
 	help
 	  Support for ST-Ericsson U300 series mobile platforms.
 
@@ -1140,10 +1145,9 @@ config IWMMXT
 	  Enable support for iWMMXt context switching at run time if
 	  running on a CPU that supports it.
 
-#  bool 'Use XScale PMU as timer source' CONFIG_XSCALE_PMU_TIMER
 config XSCALE_PMU
 	bool
-	depends on CPU_XSCALE && !XSCALE_PMU_TIMER
+	depends on CPU_XSCALE
 	default y
 
 config CPU_HAS_PMU

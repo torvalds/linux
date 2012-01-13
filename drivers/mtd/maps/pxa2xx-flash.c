@@ -125,8 +125,8 @@ static void pxa2xx_flash_shutdown(struct platform_device *dev)
 {
 	struct pxa2xx_flash_info *info = platform_get_drvdata(dev);
 
-	if (info && info->mtd->suspend(info->mtd) == 0)
-		info->mtd->resume(info->mtd);
+	if (info && mtd_suspend(info->mtd) == 0)
+		mtd_resume(info->mtd);
 }
 #else
 #define pxa2xx_flash_shutdown NULL
@@ -142,18 +142,7 @@ static struct platform_driver pxa2xx_flash_driver = {
 	.shutdown	= pxa2xx_flash_shutdown,
 };
 
-static int __init init_pxa2xx_flash(void)
-{
-	return platform_driver_register(&pxa2xx_flash_driver);
-}
-
-static void __exit cleanup_pxa2xx_flash(void)
-{
-	platform_driver_unregister(&pxa2xx_flash_driver);
-}
-
-module_init(init_pxa2xx_flash);
-module_exit(cleanup_pxa2xx_flash);
+module_platform_driver(pxa2xx_flash_driver);
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Nicolas Pitre <nico@fluxnic.net>");

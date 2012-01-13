@@ -113,7 +113,7 @@ static inline void append_dec_shr_done(u32 *desc)
 
 	jump_cmd = append_jump(desc, JUMP_CLASS_CLASS1 | JUMP_TEST_ALL);
 	set_jump_tgt_here(desc, jump_cmd);
-	append_cmd(desc, SET_OK_PROP_ERRORS | CMD_LOAD);
+	append_cmd(desc, SET_OK_NO_PROP_ERRORS | CMD_LOAD);
 }
 
 /*
@@ -213,7 +213,7 @@ static void init_sh_desc_key_aead(u32 *desc, struct caam_ctx *ctx,
 	set_jump_tgt_here(desc, key_jump_cmd);
 
 	/* Propagate errors from shared to job descriptor */
-	append_cmd(desc, SET_OK_PROP_ERRORS | CMD_LOAD);
+	append_cmd(desc, SET_OK_NO_PROP_ERRORS | CMD_LOAD);
 }
 
 static int aead_set_sh_desc(struct crypto_aead *aead)
@@ -310,7 +310,7 @@ static int aead_set_sh_desc(struct crypto_aead *aead)
 	/* Only propagate error immediately if shared */
 	jump_cmd = append_jump(desc, JUMP_TEST_ALL);
 	set_jump_tgt_here(desc, key_jump_cmd);
-	append_cmd(desc, SET_OK_PROP_ERRORS | CMD_LOAD);
+	append_cmd(desc, SET_OK_NO_PROP_ERRORS | CMD_LOAD);
 	set_jump_tgt_here(desc, jump_cmd);
 
 	/* Class 2 operation */
@@ -683,7 +683,7 @@ static int ablkcipher_setkey(struct crypto_ablkcipher *ablkcipher,
 	set_jump_tgt_here(desc, key_jump_cmd);
 
 	/* Propagate errors from shared to job descriptor */
-	append_cmd(desc, SET_OK_PROP_ERRORS | CMD_LOAD);
+	append_cmd(desc, SET_OK_NO_PROP_ERRORS | CMD_LOAD);
 
 	/* Load iv */
 	append_cmd(desc, CMD_SEQ_LOAD | LDST_SRCDST_BYTE_CONTEXT |
@@ -724,7 +724,7 @@ static int ablkcipher_setkey(struct crypto_ablkcipher *ablkcipher,
 	/* For aead, only propagate error immediately if shared */
 	jump_cmd = append_jump(desc, JUMP_TEST_ALL);
 	set_jump_tgt_here(desc, key_jump_cmd);
-	append_cmd(desc, SET_OK_PROP_ERRORS | CMD_LOAD);
+	append_cmd(desc, SET_OK_NO_PROP_ERRORS | CMD_LOAD);
 	set_jump_tgt_here(desc, jump_cmd);
 
 	/* load IV */
@@ -1806,6 +1806,25 @@ struct caam_alg_template {
 static struct caam_alg_template driver_algs[] = {
 	/* single-pass ipsec_esp descriptor */
 	{
+		.name = "authenc(hmac(md5),cbc(aes))",
+		.driver_name = "authenc-hmac-md5-cbc-aes-caam",
+		.blocksize = AES_BLOCK_SIZE,
+		.type = CRYPTO_ALG_TYPE_AEAD,
+		.template_aead = {
+			.setkey = aead_setkey,
+			.setauthsize = aead_setauthsize,
+			.encrypt = aead_encrypt,
+			.decrypt = aead_decrypt,
+			.givencrypt = aead_givencrypt,
+			.geniv = "<built-in>",
+			.ivsize = AES_BLOCK_SIZE,
+			.maxauthsize = MD5_DIGEST_SIZE,
+			},
+		.class1_alg_type = OP_ALG_ALGSEL_AES | OP_ALG_AAI_CBC,
+		.class2_alg_type = OP_ALG_ALGSEL_MD5 | OP_ALG_AAI_HMAC_PRECOMP,
+		.alg_op = OP_ALG_ALGSEL_MD5 | OP_ALG_AAI_HMAC,
+	},
+	{
 		.name = "authenc(hmac(sha1),cbc(aes))",
 		.driver_name = "authenc-hmac-sha1-cbc-aes-caam",
 		.blocksize = AES_BLOCK_SIZE,
@@ -1865,6 +1884,25 @@ static struct caam_alg_template driver_algs[] = {
 		.alg_op = OP_ALG_ALGSEL_SHA512 | OP_ALG_AAI_HMAC,
 	},
 	{
+		.name = "authenc(hmac(md5),cbc(des3_ede))",
+		.driver_name = "authenc-hmac-md5-cbc-des3_ede-caam",
+		.blocksize = DES3_EDE_BLOCK_SIZE,
+		.type = CRYPTO_ALG_TYPE_AEAD,
+		.template_aead = {
+			.setkey = aead_setkey,
+			.setauthsize = aead_setauthsize,
+			.encrypt = aead_encrypt,
+			.decrypt = aead_decrypt,
+			.givencrypt = aead_givencrypt,
+			.geniv = "<built-in>",
+			.ivsize = DES3_EDE_BLOCK_SIZE,
+			.maxauthsize = MD5_DIGEST_SIZE,
+			},
+		.class1_alg_type = OP_ALG_ALGSEL_3DES | OP_ALG_AAI_CBC,
+		.class2_alg_type = OP_ALG_ALGSEL_MD5 | OP_ALG_AAI_HMAC_PRECOMP,
+		.alg_op = OP_ALG_ALGSEL_MD5 | OP_ALG_AAI_HMAC,
+	},
+	{
 		.name = "authenc(hmac(sha1),cbc(des3_ede))",
 		.driver_name = "authenc-hmac-sha1-cbc-des3_ede-caam",
 		.blocksize = DES3_EDE_BLOCK_SIZE,
@@ -1922,6 +1960,25 @@ static struct caam_alg_template driver_algs[] = {
 		.class2_alg_type = OP_ALG_ALGSEL_SHA512 |
 				   OP_ALG_AAI_HMAC_PRECOMP,
 		.alg_op = OP_ALG_ALGSEL_SHA512 | OP_ALG_AAI_HMAC,
+	},
+	{
+		.name = "authenc(hmac(md5),cbc(des))",
+		.driver_name = "authenc-hmac-md5-cbc-des-caam",
+		.blocksize = DES_BLOCK_SIZE,
+		.type = CRYPTO_ALG_TYPE_AEAD,
+		.template_aead = {
+			.setkey = aead_setkey,
+			.setauthsize = aead_setauthsize,
+			.encrypt = aead_encrypt,
+			.decrypt = aead_decrypt,
+			.givencrypt = aead_givencrypt,
+			.geniv = "<built-in>",
+			.ivsize = DES_BLOCK_SIZE,
+			.maxauthsize = MD5_DIGEST_SIZE,
+			},
+		.class1_alg_type = OP_ALG_ALGSEL_DES | OP_ALG_AAI_CBC,
+		.class2_alg_type = OP_ALG_ALGSEL_MD5 | OP_ALG_AAI_HMAC_PRECOMP,
+		.alg_op = OP_ALG_ALGSEL_MD5 | OP_ALG_AAI_HMAC,
 	},
 	{
 		.name = "authenc(hmac(sha1),cbc(des))",

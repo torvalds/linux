@@ -199,7 +199,8 @@ static inline void red_set_parms(struct red_parms *p,
 	p->Scell_log	= Scell_log;
 	p->Scell_max	= (255 << Scell_log);
 
-	memcpy(p->Stab, stab, sizeof(p->Stab));
+	if (stab)
+		memcpy(p->Stab, stab, sizeof(p->Stab));
 }
 
 static inline int red_is_idling(const struct red_vars *v)

@@ -1466,6 +1466,31 @@ is supported; 2 if the processor requires all virtual machines to have
 an RMA, or 1 if the processor can use an RMA but doesn't require it,
 because it supports the Virtual RMA (VRMA) facility.
 
+4.64 KVM_NMI
+
+Capability: KVM_CAP_USER_NMI
+Architectures: x86
+Type: vcpu ioctl
+Parameters: none
+Returns: 0 on success, -1 on error
+
+Queues an NMI on the thread's vcpu.  Note this is well defined only
+when KVM_CREATE_IRQCHIP has not been called, since this is an interface
+between the virtual cpu core and virtual local APIC.  After KVM_CREATE_IRQCHIP
+has been called, this interface is completely emulated within the kernel.
+
+To use this to emulate the LINT1 input with KVM_CREATE_IRQCHIP, use the
+following algorithm:
+
+  - pause the vpcu
+  - read the local APIC's state (KVM_GET_LAPIC)
+  - check whether changing LINT1 will queue an NMI (see the LVT entry for LINT1)
+  - if so, issue KVM_NMI
+  - resume the vcpu
+
+Some guests configure the LINT1 NMI input to cause a panic, aiding in
+debugging.
+
 5. The kvm_run structure
 
 Application code obtains a pointer to the kvm_run structure by

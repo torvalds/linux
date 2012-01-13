@@ -34,8 +34,6 @@
 #include "../codecs/wm9712.h"
 #include "pxa2xx-ac97.h"
 
-static struct snd_soc_card tosa;
-
 #define TOSA_HP        0
 #define TOSA_MIC_INT   1
 #define TOSA_HEADSET   2
@@ -236,70 +234,56 @@ static struct snd_soc_dai_link tosa_dai[] = {
 },
 };
 
-static int tosa_probe(struct snd_soc_card *card)
+static struct snd_soc_card tosa = {
+	.name = "Tosa",
+	.owner = THIS_MODULE,
+	.dai_link = tosa_dai,
+	.num_links = ARRAY_SIZE(tosa_dai),
+};
+
+static int __devinit tosa_probe(struct platform_device *pdev)
 {
+	struct snd_soc_card *card = &tosa;
 	int ret;
 
-	ret = gpio_request(TOSA_GPIO_L_MUTE, "Headphone Jack");
+	ret = gpio_request_one(TOSA_GPIO_L_MUTE, GPIOF_OUT_INIT_LOW,
+			       "Headphone Jack");
 	if (ret)
 		return ret;
-	ret = gpio_direction_output(TOSA_GPIO_L_MUTE, 0);
-	if (ret)
-		gpio_free(TOSA_GPIO_L_MUTE);
 
+	card->dev = &pdev->dev;
+
+	ret = snd_soc_register_card(card);
+	if (ret) {
+		dev_err(&pdev->dev, "snd_soc_register_card() failed: %d\n",
+			ret);
+		gpio_free(TOSA_GPIO_L_MUTE);
+	}
 	return ret;
 }
 
-static int tosa_remove(struct snd_soc_card *card)
+static int __devexit tosa_remove(struct platform_device *pdev)
 {
+	struct snd_soc_card *card = platform_get_drvdata(pdev);
+
 	gpio_free(TOSA_GPIO_L_MUTE);
+	snd_soc_unregister_card(card);
 	return 0;
 }
 
-static struct snd_soc_card tosa = {
-	.name = "Tosa",
-	.dai_link = tosa_dai,
-	.num_links = ARRAY_SIZE(tosa_dai),
-	.probe = tosa_probe,
-	.remove = tosa_remove,
+static struct platform_driver tosa_driver = {
+	.driver		= {
+		.name	= "tosa-audio",
+		.owner	= THIS_MODULE,
+	},
+	.probe		= tosa_probe,
+	.remove		= __devexit_p(tosa_remove),
 };
 
-static struct platform_device *tosa_snd_device;
-
-static int __init tosa_init(void)
-{
-	int ret;
-
-	if (!machine_is_tosa())
-		return -ENODEV;
-
-	tosa_snd_device = platform_device_alloc("soc-audio", -1);
-	if (!tosa_snd_device) {
-		ret = -ENOMEM;
-		goto err_alloc;
-	}
-
-	platform_set_drvdata(tosa_snd_device, &tosa);
-	ret = platform_device_add(tosa_snd_device);
-
-	if (!ret)
-		return 0;
-
-	platform_device_put(tosa_snd_device);
-
-err_alloc:
-	return ret;
-}
-
-static void __exit tosa_exit(void)
-{
-	platform_device_unregister(tosa_snd_device);
-}
-
-module_init(tosa_init);
-module_exit(tosa_exit);
+module_platform_driver(tosa_driver);
 
 /* Module information */
 MODULE_AUTHOR("Richard Purdie");
 MODULE_DESCRIPTION("ALSA SoC Tosa");
 MODULE_LICENSE("GPL");
+MODULE_ALIAS("platform:tosa-audio");

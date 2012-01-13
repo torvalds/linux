@@ -2250,6 +2250,7 @@ static const struct nla_policy sta_flags_policy[NL80211_STA_FLAG_MAX + 1] = {
 };
 
 static int parse_station_flags(struct genl_info *info,
+			       enum nl80211_iftype iftype,
 			       struct station_parameters *params)
 {
 	struct nlattr *flags[NL80211_STA_FLAG_MAX + 1];
@@ -2283,8 +2284,33 @@ static int parse_station_flags(struct genl_info *info,
 			     nla, sta_flags_policy))
 		return -EINVAL;
 
-	params->sta_flags_mask = (1 << __NL80211_STA_FLAG_AFTER_LAST) - 1;
-	params->sta_flags_mask &= ~1;
+	/*
+	 * Only allow certain flags for interface types so that
+	 * other attributes are silently ignored. Remember that
+	 * this is backward compatibility code with old userspace
+	 * and shouldn't be hit in other cases anyway.
+	 */
+	switch (iftype) {
+	case NL80211_IFTYPE_AP:
+	case NL80211_IFTYPE_AP_VLAN:
+	case NL80211_IFTYPE_P2P_GO:
+		params->sta_flags_mask = BIT(NL80211_STA_FLAG_AUTHORIZED) |
+					 BIT(NL80211_STA_FLAG_SHORT_PREAMBLE) |
+					 BIT(NL80211_STA_FLAG_WME) |
+					 BIT(NL80211_STA_FLAG_MFP);
+		break;
+	case NL80211_IFTYPE_P2P_CLIENT:
+	case NL80211_IFTYPE_STATION:
+		params->sta_flags_mask = BIT(NL80211_STA_FLAG_AUTHORIZED) |
+					 BIT(NL80211_STA_FLAG_TDLS_PEER);
+		break;
+	case NL80211_IFTYPE_MESH_POINT:
+		params->sta_flags_mask = BIT(NL80211_STA_FLAG_AUTHENTICATED) |
+					 BIT(NL80211_STA_FLAG_MFP) |
+					 BIT(NL80211_STA_FLAG_AUTHORIZED);
+	default:
+		return -EINVAL;
+	}
 
 	for (flag = 1; flag <= NL80211_STA_FLAG_MAX; flag++)
 		if (flags[flag])
@@ -2585,7 +2611,7 @@ static int nl80211_set_station(struct sk_buff *skb, struct genl_info *info)
 	if (!rdev->ops->change_station)
 		return -EOPNOTSUPP;
 
-	if (parse_station_flags(info, &params))
+	if (parse_station_flags(info, dev->ieee80211_ptr->iftype, &params))
 		return -EINVAL;
 
 	if (info->attrs[NL80211_ATTR_STA_PLINK_ACTION])
@@ -2731,7 +2757,7 @@ static int nl80211_new_station(struct sk_buff *skb, struct genl_info *info)
 	if (!rdev->ops->add_station)
 		return -EOPNOTSUPP;
 
-	if (parse_station_flags(info, &params))
+	if (parse_station_flags(info, dev->ieee80211_ptr->iftype, &params))
 		return -EINVAL;
 
 	switch (dev->ieee80211_ptr->iftype) {

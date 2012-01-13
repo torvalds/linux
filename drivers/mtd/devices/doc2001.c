@@ -343,25 +343,17 @@ void DoCMil_init(struct mtd_info *mtd)
 
 	mtd->type = MTD_NANDFLASH;
 	mtd->flags = MTD_CAP_NANDFLASH;
-	mtd->size = 0;
 
 	/* FIXME: erase size is not always 8KiB */
 	mtd->erasesize = 0x2000;
-
 	mtd->writesize = 512;
 	mtd->oobsize = 16;
 	mtd->owner = THIS_MODULE;
 	mtd->erase = doc_erase;
-	mtd->point = NULL;
-	mtd->unpoint = NULL;
 	mtd->read = doc_read;
 	mtd->write = doc_write;
 	mtd->read_oob = doc_read_oob;
 	mtd->write_oob = doc_write_oob;
-	mtd->sync = NULL;
-
-	this->totlen = 0;
-	this->numchips = 0;
 	this->curfloor = -1;
 	this->curchip = -1;
 

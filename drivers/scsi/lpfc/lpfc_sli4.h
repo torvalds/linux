@@ -291,7 +291,7 @@ struct lpfc_bmbx {
 #define LPFC_RQE_SIZE		8
 
 #define LPFC_EQE_DEF_COUNT	1024
-#define LPFC_CQE_DEF_COUNT      256
+#define LPFC_CQE_DEF_COUNT      1024
 #define LPFC_WQE_DEF_COUNT      256
 #define LPFC_MQE_DEF_COUNT      16
 #define LPFC_RQE_DEF_COUNT	512
@@ -420,7 +420,16 @@ struct lpfc_sli4_hba {
 			void __iomem *STATUSregaddr;
 			void __iomem *CTRLregaddr;
 			void __iomem *ERR1regaddr;
+#define SLIPORT_ERR1_REG_ERR_CODE_1		0x1
+#define SLIPORT_ERR1_REG_ERR_CODE_2		0x2
 			void __iomem *ERR2regaddr;
+#define SLIPORT_ERR2_REG_FW_RESTART		0x0
+#define SLIPORT_ERR2_REG_FUNC_PROVISON		0x1
+#define SLIPORT_ERR2_REG_FORCED_DUMP		0x2
+#define SLIPORT_ERR2_REG_FAILURE_EQ		0x3
+#define SLIPORT_ERR2_REG_FAILURE_CQ		0x4
+#define SLIPORT_ERR2_REG_FAILURE_BUS		0x5
+#define SLIPORT_ERR2_REG_FAILURE_RQ		0x6
 		} if_type2;
 	} u;
 

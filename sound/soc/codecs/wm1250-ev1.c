@@ -116,7 +116,7 @@ static int __devinit wm1250_ev1_pdata(struct i2c_client *i2c)
 	if (!pdata)
 		return 0;
 
-	wm1250 = kzalloc(sizeof(*wm1250), GFP_KERNEL);
+	wm1250 = devm_kzalloc(&i2c->dev, sizeof(*wm1250), GFP_KERNEL);
 	if (!wm1250) {
 		dev_err(&i2c->dev, "Unable to allocate private data\n");
 		ret = -ENOMEM;
@@ -134,15 +134,13 @@ static int __devinit wm1250_ev1_pdata(struct i2c_client *i2c)
 	ret = gpio_request_array(wm1250->gpios, ARRAY_SIZE(wm1250->gpios));
 	if (ret != 0) {
 		dev_err(&i2c->dev, "Failed to get GPIOs: %d\n", ret);
-		goto err_alloc;
+		goto err;
 	}
 
 	dev_set_drvdata(&i2c->dev, wm1250);
 
 	return ret;
 
-err_alloc:
-	kfree(wm1250);
 err:
 	return ret;
 }
@@ -151,10 +149,8 @@ static void wm1250_ev1_free(struct i2c_client *i2c)
 {
 	struct wm1250_priv *wm1250 = dev_get_drvdata(&i2c->dev);
 
-	if (wm1250) {
+	if (wm1250)
 		gpio_free_array(wm1250->gpios, ARRAY_SIZE(wm1250->gpios));
-		kfree(wm1250);
-	}
 }
 
 static int __devinit wm1250_ev1_probe(struct i2c_client *i2c,

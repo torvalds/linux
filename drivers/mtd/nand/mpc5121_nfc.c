@@ -879,19 +879,7 @@ static struct platform_driver mpc5121_nfc_driver = {
 	},
 };
 
-static int __init mpc5121_nfc_init(void)
-{
-	return platform_driver_register(&mpc5121_nfc_driver);
-}
-
-module_init(mpc5121_nfc_init);
-
-static void __exit mpc5121_nfc_cleanup(void)
-{
-	platform_driver_unregister(&mpc5121_nfc_driver);
-}
-
-module_exit(mpc5121_nfc_cleanup);
+module_platform_driver(mpc5121_nfc_driver);
 
 MODULE_AUTHOR("Freescale Semiconductor, Inc.");
 MODULE_DESCRIPTION("MPC5121 NAND MTD driver");

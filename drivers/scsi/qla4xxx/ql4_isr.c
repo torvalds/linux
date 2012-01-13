@@ -123,13 +123,13 @@ static void qla4xxx_status_entry(struct scsi_qla_host *ha,
 
 	srb = qla4xxx_del_from_active_array(ha, le32_to_cpu(sts_entry->handle));
 	if (!srb) {
-		DEBUG2(printk(KERN_WARNING "scsi%ld: %s: Status Entry invalid "
-			      "handle 0x%x, sp=%p. This cmd may have already "
-			      "been completed.\n", ha->host_no, __func__,
-			      le32_to_cpu(sts_entry->handle), srb));
-		ql4_printk(KERN_WARNING, ha, "%s invalid status entry:"
-		    " handle=0x%0x\n", __func__, sts_entry->handle);
-		set_bit(DPC_RESET_HA, &ha->dpc_flags);
+		ql4_printk(KERN_WARNING, ha, "%s invalid status entry: "
+			   "handle=0x%0x, srb=%p\n", __func__,
+			   sts_entry->handle, srb);
+		if (is_qla8022(ha))
+			set_bit(DPC_RESET_HA_FW_CONTEXT, &ha->dpc_flags);
+		else
+			set_bit(DPC_RESET_HA, &ha->dpc_flags);
 		return;
 	}
 
@@ -563,7 +563,11 @@ static void qla4xxx_isr_decode_mailbox(struct scsi_qla_host * ha,
 		case MBOX_ASTS_DHCP_LEASE_EXPIRED:
 			DEBUG2(printk("scsi%ld: AEN %04x, ERROR Status, "
 				      "Reset HA\n", ha->host_no, mbox_status));
-			set_bit(DPC_RESET_HA, &ha->dpc_flags);
+			if (is_qla8022(ha))
+				set_bit(DPC_RESET_HA_FW_CONTEXT,
+					&ha->dpc_flags);
+			else
+				set_bit(DPC_RESET_HA, &ha->dpc_flags);
 			break;
 
 		case MBOX_ASTS_LINK_UP:
@@ -617,9 +621,13 @@ static void qla4xxx_isr_decode_mailbox(struct scsi_qla_host * ha,
 			    (mbox_sts[2] == ACB_STATE_ACQUIRING)))
 				set_bit(DPC_GET_DHCP_IP_ADDR, &ha->dpc_flags);
 			else if ((mbox_sts[3] == ACB_STATE_ACQUIRING) &&
-			    (mbox_sts[2] == ACB_STATE_VALID))
-				set_bit(DPC_RESET_HA, &ha->dpc_flags);
-			else if ((mbox_sts[3] == ACB_STATE_UNCONFIGURED))
+				 (mbox_sts[2] == ACB_STATE_VALID)) {
+				if (is_qla8022(ha))
+					set_bit(DPC_RESET_HA_FW_CONTEXT,
+						&ha->dpc_flags);
+				else
+					set_bit(DPC_RESET_HA, &ha->dpc_flags);
+			} else if ((mbox_sts[3] == ACB_STATE_UNCONFIGURED))
 				complete(&ha->disable_acb_comp);
 			break;
 

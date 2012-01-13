@@ -532,21 +532,18 @@ int xenbus_printf(struct xenbus_transaction t,
 {
 	va_list ap;
 	int ret;
-#define PRINTF_BUFFER_SIZE 4096
-	char *printf_buffer;
-
-	printf_buffer = kmalloc(PRINTF_BUFFER_SIZE, GFP_NOIO | __GFP_HIGH);
-	if (printf_buffer == NULL)
-		return -ENOMEM;
+	char *buf;
 
 	va_start(ap, fmt);
-	ret = vsnprintf(printf_buffer, PRINTF_BUFFER_SIZE, fmt, ap);
+	buf = kvasprintf(GFP_NOIO | __GFP_HIGH, fmt, ap);
 	va_end(ap);
 
-	BUG_ON(ret > PRINTF_BUFFER_SIZE-1);
-	ret = xenbus_write(t, dir, node, printf_buffer);
+	if (!buf)
+		return -ENOMEM;
 
-	kfree(printf_buffer);
+	ret = xenbus_write(t, dir, node, buf);
+
+	kfree(buf);
 
 	return ret;
 }
@@ -798,6 +795,12 @@ static int process_msg(void)
 	err = xb_read(&msg->hdr, sizeof(msg->hdr));
 	if (err) {
 		kfree(msg);
+		goto out;
+	}
+
+	if (msg->hdr.len > XENSTORE_PAYLOAD_MAX) {
+		kfree(msg);
+		err = -EINVAL;
 		goto out;
 	}
 
