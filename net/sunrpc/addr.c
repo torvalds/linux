@@ -198,7 +198,7 @@ static int rpc_parse_scope_id(struct net *net, const char *buf,
 	return 0;
 }
 
-static size_t rpc_pton6(const char *buf, const size_t buflen,
+static size_t rpc_pton6(struct net *net, const char *buf, const size_t buflen,
 			struct sockaddr *sap, const size_t salen)
 {
 	struct sockaddr_in6 *sin6 = (struct sockaddr_in6 *)sap;
@@ -214,14 +214,14 @@ static size_t rpc_pton6(const char *buf, const size_t buflen,
 	if (in6_pton(buf, buflen, addr, IPV6_SCOPE_DELIMITER, &delim) == 0)
 		return 0;
 
-	if (!rpc_parse_scope_id(&init_net, buf, buflen, delim, sin6))
+	if (!rpc_parse_scope_id(net, buf, buflen, delim, sin6))
 		return 0;
 
 	sin6->sin6_family = AF_INET6;
 	return sizeof(struct sockaddr_in6);
 }
 #else
-static size_t rpc_pton6(const char *buf, const size_t buflen,
+static size_t rpc_pton6(struct net *net, const char *buf, const size_t buflen,
 			struct sockaddr *sap, const size_t salen)
 {
 	return 0;
@@ -249,7 +249,7 @@ size_t rpc_pton(const char *buf, const size_t buflen,
 
 	for (i = 0; i < buflen; i++)
 		if (buf[i] == ':')
-			return rpc_pton6(buf, buflen, sap, salen);
+			return rpc_pton6(&init_net, buf, buflen, sap, salen);
 	return rpc_pton4(buf, buflen, sap, salen);
 }
 EXPORT_SYMBOL_GPL(rpc_pton);
