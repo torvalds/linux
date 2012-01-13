@@ -1031,8 +1031,6 @@ void mem_cgroup_del_lru_list(struct page *page, enum lru_list lru)
 	mz = page_cgroup_zoneinfo(pc->mem_cgroup, page);
 	/* huge page split is done under lru_lock. so, we have no races. */
 	MEM_CGROUP_ZSTAT(mz, lru) -= 1 << compound_order(page);
-	if (mem_cgroup_is_root(pc->mem_cgroup))
-		return;
 	VM_BUG_ON(list_empty(&pc->lru));
 	list_del_init(&pc->lru);
 }
@@ -1057,13 +1055,11 @@ void mem_cgroup_rotate_reclaimable_page(struct page *page)
 		return;
 
 	pc = lookup_page_cgroup(page);
-	/* unused or root page is not rotated. */
+	/* unused page is not rotated. */
 	if (!PageCgroupUsed(pc))
 		return;
 	/* Ensure pc->mem_cgroup is visible after reading PCG_USED. */
 	smp_rmb();
-	if (mem_cgroup_is_root(pc->mem_cgroup))
-		return;
 	mz = page_cgroup_zoneinfo(pc->mem_cgroup, page);
 	list_move_tail(&pc->lru, &mz->lists[lru]);
 }
@@ -1077,13 +1073,11 @@ void mem_cgroup_rotate_lru_list(struct page *page, enum lru_list lru)
 		return;
 
 	pc = lookup_page_cgroup(page);
-	/* unused or root page is not rotated. */
+	/* unused page is not rotated. */
 	if (!PageCgroupUsed(pc))
 		return;
 	/* Ensure pc->mem_cgroup is visible after reading PCG_USED. */
 	smp_rmb();
-	if (mem_cgroup_is_root(pc->mem_cgroup))
-		return;
 	mz = page_cgroup_zoneinfo(pc->mem_cgroup, page);
 	list_move(&pc->lru, &mz->lists[lru]);
 }
@@ -1115,8 +1109,6 @@ void mem_cgroup_add_lru_list(struct page *page, enum lru_list lru)
 	/* huge page split is done under lru_lock. so, we have no races. */
 	MEM_CGROUP_ZSTAT(mz, lru) += 1 << compound_order(page);
 	SetPageCgroupAcctLRU(pc);
-	if (mem_cgroup_is_root(pc->mem_cgroup))
-		return;
 	list_add(&pc->lru, &mz->lists[lru]);
 }
 
