@@ -22,7 +22,6 @@ struct pagevec {
 
 void __pagevec_release(struct pagevec *pvec);
 void ____pagevec_lru_add(struct pagevec *pvec, enum lru_list lru);
-void pagevec_strip(struct pagevec *pvec);
 unsigned pagevec_lookup(struct pagevec *pvec, struct address_space *mapping,
 		pgoff_t start, unsigned nr_pages);
 unsigned pagevec_lookup_tag(struct pagevec *pvec,
@@ -58,7 +57,6 @@ static inline unsigned pagevec_add(struct pagevec *pvec, struct page *page)
 	pvec->pages[pvec->nr++] = page;
 	return pagevec_space(pvec);
 }
-
 
 static inline void pagevec_release(struct pagevec *pvec)
 {

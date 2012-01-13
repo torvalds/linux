@@ -1398,11 +1398,9 @@ putback_lru_pages(struct mem_cgroup_zone *mz, struct scan_control *sc,
 		  struct list_head *page_list)
 {
 	struct page *page;
-	struct pagevec pvec;
+	LIST_HEAD(pages_to_free);
 	struct zone *zone = mz->zone;
 	struct zone_reclaim_stat *reclaim_stat = get_reclaim_stat(mz);
-
-	pagevec_init(&pvec, 1);
 
 	/*
 	 * Put back any unfreeable pages.
@@ -1427,17 +1425,24 @@ putback_lru_pages(struct mem_cgroup_zone *mz, struct scan_control *sc,
 			int numpages = hpage_nr_pages(page);
 			reclaim_stat->recent_rotated[file] += numpages;
 		}
-		if (!pagevec_add(&pvec, page)) {
-			spin_unlock_irq(&zone->lru_lock);
-			__pagevec_release(&pvec);
-			spin_lock_irq(&zone->lru_lock);
+		if (put_page_testzero(page)) {
+			__ClearPageLRU(page);
+			__ClearPageActive(page);
+			del_page_from_lru_list(zone, page, lru);
+
+			if (unlikely(PageCompound(page))) {
+				spin_unlock_irq(&zone->lru_lock);
+				(*get_compound_page_dtor(page))(page);
+				spin_lock_irq(&zone->lru_lock);
+			} else
+				list_add(&page->lru, &pages_to_free);
 		}
 	}
 	__mod_zone_page_state(zone, NR_ISOLATED_ANON, -nr_anon);
 	__mod_zone_page_state(zone, NR_ISOLATED_FILE, -nr_file);
 
 	spin_unlock_irq(&zone->lru_lock);
-	pagevec_release(&pvec);
+	free_hot_cold_page_list(&pages_to_free, 1);
 }
 
 static noinline_for_stack void
@@ -1647,13 +1652,23 @@ shrink_inactive_list(unsigned long nr_to_scan, struct mem_cgroup_zone *mz,
 
 static void move_active_pages_to_lru(struct zone *zone,
 				     struct list_head *list,
+				     struct list_head *pages_to_free,
 				     enum lru_list lru)
 {
 	unsigned long pgmoved = 0;
-	struct pagevec pvec;
 	struct page *page;
 
-	pagevec_init(&pvec, 1);
+	if (buffer_heads_over_limit) {
+		spin_unlock_irq(&zone->lru_lock);
+		list_for_each_entry(page, list, lru) {
+			if (page_has_private(page) && trylock_page(page)) {
+				if (page_has_private(page))
+					try_to_release_page(page, 0);
+				unlock_page(page);
+			}
+		}
+		spin_lock_irq(&zone->lru_lock);
+	}
 
 	while (!list_empty(list)) {
 		struct lruvec *lruvec;
@@ -1667,12 +1682,17 @@ static void move_active_pages_to_lru(struct zone *zone,
 		list_move(&page->lru, &lruvec->lists[lru]);
 		pgmoved += hpage_nr_pages(page);
 
-		if (!pagevec_add(&pvec, page) || list_empty(list)) {
-			spin_unlock_irq(&zone->lru_lock);
-			if (buffer_heads_over_limit)
-				pagevec_strip(&pvec);
-			__pagevec_release(&pvec);
-			spin_lock_irq(&zone->lru_lock);
+		if (put_page_testzero(page)) {
+			__ClearPageLRU(page);
+			__ClearPageActive(page);
+			del_page_from_lru_list(zone, page, lru);
+
+			if (unlikely(PageCompound(page))) {
+				spin_unlock_irq(&zone->lru_lock);
+				(*get_compound_page_dtor(page))(page);
+				spin_lock_irq(&zone->lru_lock);
+			} else
+				list_add(&page->lru, pages_to_free);
 		}
 	}
 	__mod_zone_page_state(zone, NR_LRU_BASE + lru, pgmoved);
@@ -1766,12 +1786,14 @@ static void shrink_active_list(unsigned long nr_pages,
 	 */
 	reclaim_stat->recent_rotated[file] += nr_rotated;
 
-	move_active_pages_to_lru(zone, &l_active,
+	move_active_pages_to_lru(zone, &l_active, &l_hold,
 						LRU_ACTIVE + file * LRU_FILE);
-	move_active_pages_to_lru(zone, &l_inactive,
+	move_active_pages_to_lru(zone, &l_inactive, &l_hold,
 						LRU_BASE   + file * LRU_FILE);
 	__mod_zone_page_state(zone, NR_ISOLATED_ANON + file, -nr_taken);
 	spin_unlock_irq(&zone->lru_lock);
+
+	free_hot_cold_page_list(&l_hold, 1);
 }
 
 #ifdef CONFIG_SWAP
