@@ -54,14 +54,12 @@ static struct workqueue_struct *goodix_wq;
 
 static const char *gt818_ts_name = "Goodix Capacitive TouchScreen";
 
-static struct point_queue finger_list;
+//static struct point_queue finger_list;
 
 struct i2c_client * i2c_connect_client = NULL;
 
 //EXPORT_SYMBOL(i2c_connect_client);
 
-static struct proc_dir_entry *goodix_proc_entry;
-	
 #ifdef CONFIG_HAS_EARLYSUSPEND
 static void goodix_ts_early_suspend(struct early_suspend *h);
 static void goodix_ts_late_resume(struct early_suspend *h);
@@ -235,7 +233,6 @@ static void goodix_ts_work_func(struct work_struct *work)
 
 	u8  finger = 0;
 	u8  key = 0;
-	u8 retry = 0;
 	unsigned int  count = 0;
 	unsigned int position = 0;	
 	int temp = 0;
@@ -407,7 +404,7 @@ XFER_ERROR:
 		enable_irq(ts->client->irq);
 
 }
-
+#if 0
 static int test_suspend_resume(struct gt818_ts_data *ts){
 	while(1){
 		ts->power(ts, 0);
@@ -417,7 +414,7 @@ static int test_suspend_resume(struct gt818_ts_data *ts){
 	}
 	return 0;
 }
-
+#endif
 
 static enum hrtimer_restart goodix_ts_timer_func(struct hrtimer *timer)
 {
@@ -502,7 +499,6 @@ static int goodix_ts_probe(struct i2c_client *client, const struct i2c_device_id
 {
 	int ret = 0;
 	int retry=0;
-	u8 goodix_id[3] = {0,0xff,0};
 	struct gt818_ts_data *ts;
 
 	struct gt818_platform_data *pdata;
@@ -564,6 +560,7 @@ static int goodix_ts_probe(struct i2c_client *client, const struct i2c_device_id
 		dev_err(&client->dev, "Warnning: I2C communication might be ERROR!\n");
 		goto err_i2c_failed;
 	}	
+
 #endif
 
 	for(retry = 0; retry < 3; retry++)
@@ -718,7 +715,6 @@ err_i2c_failed:
 	kfree(ts);
 err_alloc_data_failed:
 err_check_functionality_failed:
-err_create_proc_entry:
 	return ret;
 }
 

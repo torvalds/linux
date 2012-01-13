@@ -41,7 +41,7 @@
 
 
 
-#define SHUTDOWN_PORT 	pdata->gpio_reset			//SHUTDOWN¹Ü½ÅºÅ
+#define SHUTDOWN_PORT 	pdata->gpio_reset			//SHUTDOWNï¿½Ü½Åºï¿½
 #define INT_PORT  		pdata->gpio_pendown
 
 #ifdef INT_PORT
@@ -55,7 +55,7 @@
 
 #define FLAG_UP		0
 #define FLAG_DOWN	1
-//set GT801 PLUS trigger mode,Ö»ÄÜÉèÖÃ0»ò1 
+//set GT801 PLUS trigger mode,Ö»ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½0ï¿½ï¿½1 
 #define INT_TRIGGER		1
 #define POLL_TIME		10	//actual query spacing interval:POLL_TIME+6
 
@@ -65,8 +65,6 @@
 #else
 	#define MAX_FINGER_NUM	1	
 #endif
-
-#define swap(x, y) do { typeof(x) z = x; x = y; y = z; } while (0)
 
 #define READ_TOUCH_ADDR_H 	0x07
 #define READ_TOUCH_ADDR_L 	0x12
