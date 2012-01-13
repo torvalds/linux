@@ -11,6 +11,24 @@
 #define __MFD_DB8500_PRCMU_H
 
 #include <linux/interrupt.h>
+#include <linux/bitops.h>
+
+/*
+ * Registers
+ */
+#define DB8500_PRCM_GPIOCR 0x138
+#define DB8500_PRCM_GPIOCR_DBG_UARTMOD_CMD0	BIT(0)
+#define DB8500_PRCM_GPIOCR_DBG_STM_APE_CMD	BIT(9)
+#define DB8500_PRCM_GPIOCR_DBG_STM_MOD_CMD1	BIT(11)
+#define DB8500_PRCM_GPIOCR_SPI2_SELECT		BIT(23)
+
+#define DB8500_PRCM_LINE_VALUE 0x170
+#define DB8500_PRCM_LINE_VALUE_HSI_CAWAKE0	BIT(3)
+
+#define DB8500_PRCM_DSI_SW_RESET 0x324
+#define DB8500_PRCM_DSI_SW_RESET_DSI0_SW_RESETN BIT(0)
+#define DB8500_PRCM_DSI_SW_RESET_DSI1_SW_RESETN BIT(1)
+#define DB8500_PRCM_DSI_SW_RESET_DSI2_SW_RESETN BIT(2)
 
 /* This portion previously known as <mach/prcmu-fw-defs_v1.h> */
 
@@ -552,8 +570,6 @@ int prcmu_abb_write(u8 slave, u8 reg, u8 *value, u8 size);
 void prcmu_ac_wake_req(void);
 void prcmu_ac_sleep_req(void);
 void db8500_prcmu_modem_reset(void);
-void prcmu_enable_spi2(void);
-void prcmu_disable_spi2(void);
 
 int db8500_prcmu_config_a9wdog(u8 num, bool sleep_auto_off);
 int db8500_prcmu_enable_a9wdog(u8 id);
@@ -581,6 +597,10 @@ int db8500_prcmu_set_ape_opp(u8 opp);
 int db8500_prcmu_get_ape_opp(void);
 int db8500_prcmu_set_ddr_opp(u8 opp);
 int db8500_prcmu_get_ddr_opp(void);
+
+u32 db8500_prcmu_read(unsigned int reg);
+void db8500_prcmu_write(unsigned int reg, u32 value);
+void db8500_prcmu_write_masked(unsigned int reg, u32 mask, u32 value);
 
 #else /* !CONFIG_MFD_DB8500_PRCMU */
 
@@ -703,16 +723,6 @@ static inline void db8500_prcmu_modem_reset(void) {}
 
 static inline void db8500_prcmu_system_reset(u16 reset_code) {}
 
-static inline int prcmu_enable_spi2(void)
-{
-	return 0;
-}
-
-static inline int prcmu_disable_spi2(void)
-{
-	return 0;
-}
-
 static inline int db8500_prcmu_set_power_state(u8 state, bool keep_ulp_clk,
 	bool keep_ap_pll)
 {
@@ -804,6 +814,16 @@ static inline int db8500_prcmu_get_arm_opp(void)
 {
 	return 0;
 }
+
+static inline u32 db8500_prcmu_read(unsigned int reg)
+{
+	return 0;
+}
+
+static inline void db8500_prcmu_write(unsigned int reg, u32 value) {}
+
+static inline void db8500_prcmu_write_masked(unsigned int reg, u32 mask,
+	u32 value) {}
 
 #endif /* !CONFIG_MFD_DB8500_PRCMU */
 

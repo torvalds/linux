@@ -480,6 +480,30 @@ static inline int prcmu_stop_temp_sense(void)
 		return  db8500_prcmu_stop_temp_sense();
 }
 
+static inline u32 prcmu_read(unsigned int reg)
+{
+	if (cpu_is_u5500())
+		return -EINVAL;
+	else
+		return db8500_prcmu_read(reg);
+}
+
+static inline void prcmu_write(unsigned int reg, u32 value)
+{
+	if (cpu_is_u5500())
+		return;
+	else
+		db8500_prcmu_write(reg, value);
+}
+
+static inline void prcmu_write_masked(unsigned int reg, u32 mask, u32 value)
+{
+	if (cpu_is_u5500())
+		return;
+	else
+		db8500_prcmu_write_masked(reg, mask, value);
+}
+
 static inline int prcmu_enable_a9wdog(u8 id)
 {
 	if (cpu_is_u5500())
@@ -667,6 +691,104 @@ static inline int prcmu_stop_temp_sense(void)
 {
 	return 0;
 }
+
+static inline u32 prcmu_read(unsigned int reg)
+{
+	return 0;
+}
+
+static inline void prcmu_write(unsigned int reg, u32 value) {}
+
+static inline void prcmu_write_masked(unsigned int reg, u32 mask, u32 value) {}
+
+#endif
+
+static inline void prcmu_set(unsigned int reg, u32 bits)
+{
+	prcmu_write_masked(reg, bits, bits);
+}
+
+static inline void prcmu_clear(unsigned int reg, u32 bits)
+{
+	prcmu_write_masked(reg, bits, 0);
+}
+
+#if defined(CONFIG_UX500_SOC_DB8500) || defined(CONFIG_UX500_SOC_DB5500)
+
+/**
+ * prcmu_enable_spi2 - Enables pin muxing for SPI2 on OtherAlternateC1.
+ */
+static inline void prcmu_enable_spi2(void)
+{
+	if (cpu_is_u8500())
+		prcmu_set(DB8500_PRCM_GPIOCR, DB8500_PRCM_GPIOCR_SPI2_SELECT);
+}
+
+/**
+ * prcmu_disable_spi2 - Disables pin muxing for SPI2 on OtherAlternateC1.
+ */
+static inline void prcmu_disable_spi2(void)
+{
+	if (cpu_is_u8500())
+		prcmu_clear(DB8500_PRCM_GPIOCR, DB8500_PRCM_GPIOCR_SPI2_SELECT);
+}
+
+/**
+ * prcmu_enable_stm_mod_uart - Enables pin muxing for STMMOD
+ * and UARTMOD on OtherAlternateC3.
+ */
+static inline void prcmu_enable_stm_mod_uart(void)
+{
+	if (cpu_is_u8500()) {
+		prcmu_set(DB8500_PRCM_GPIOCR,
+			(DB8500_PRCM_GPIOCR_DBG_STM_MOD_CMD1 |
+			 DB8500_PRCM_GPIOCR_DBG_UARTMOD_CMD0));
+	}
+}
+
+/**
+ * prcmu_disable_stm_mod_uart - Disables pin muxing for STMMOD
+ * and UARTMOD on OtherAlternateC3.
+ */
+static inline void prcmu_disable_stm_mod_uart(void)
+{
+	if (cpu_is_u8500()) {
+		prcmu_clear(DB8500_PRCM_GPIOCR,
+			(DB8500_PRCM_GPIOCR_DBG_STM_MOD_CMD1 |
+			 DB8500_PRCM_GPIOCR_DBG_UARTMOD_CMD0));
+	}
+}
+
+/**
+ * prcmu_enable_stm_ape - Enables pin muxing for STM APE on OtherAlternateC1.
+ */
+static inline void prcmu_enable_stm_ape(void)
+{
+	if (cpu_is_u8500()) {
+		prcmu_set(DB8500_PRCM_GPIOCR,
+			DB8500_PRCM_GPIOCR_DBG_STM_APE_CMD);
+	}
+}
+
+/**
+ * prcmu_disable_stm_ape - Disables pin muxing for STM APE on OtherAlternateC1.
+ */
+static inline void prcmu_disable_stm_ape(void)
+{
+	if (cpu_is_u8500()) {
+		prcmu_clear(DB8500_PRCM_GPIOCR,
+			DB8500_PRCM_GPIOCR_DBG_STM_APE_CMD);
+	}
+}
+
+#else
+
+static inline void prcmu_enable_spi2(void) {}
+static inline void prcmu_disable_spi2(void) {}
+static inline void prcmu_enable_stm_mod_uart(void) {}
+static inline void prcmu_disable_stm_mod_uart(void) {}
+static inline void prcmu_enable_stm_ape(void) {}
+static inline void prcmu_disable_stm_ape(void) {}
 
 #endif
 
