@@ -378,7 +378,7 @@ void __lru_cache_add(struct page *page, enum lru_list lru)
 
 	page_cache_get(page);
 	if (!pagevec_add(pvec, page))
-		____pagevec_lru_add(pvec, lru);
+		__pagevec_lru_add(pvec, lru);
 	put_cpu_var(lru_add_pvecs);
 }
 EXPORT_SYMBOL(__lru_cache_add);
@@ -506,7 +506,7 @@ static void drain_cpu_pagevecs(int cpu)
 	for_each_lru(lru) {
 		pvec = &pvecs[lru - LRU_BASE];
 		if (pagevec_count(pvec))
-			____pagevec_lru_add(pvec, lru);
+			__pagevec_lru_add(pvec, lru);
 	}
 
 	pvec = &per_cpu(lru_rotate_pvecs, cpu);
@@ -698,7 +698,7 @@ void lru_add_page_tail(struct zone* zone,
 }
 #endif /* CONFIG_TRANSPARENT_HUGEPAGE */
 
-static void ____pagevec_lru_add_fn(struct page *page, void *arg)
+static void __pagevec_lru_add_fn(struct page *page, void *arg)
 {
 	enum lru_list lru = (enum lru_list)arg;
 	struct zone *zone = page_zone(page);
@@ -720,14 +720,14 @@ static void ____pagevec_lru_add_fn(struct page *page, void *arg)
  * Add the passed pages to the LRU, then drop the caller's refcount
  * on them.  Reinitialises the caller's pagevec.
  */
-void ____pagevec_lru_add(struct pagevec *pvec, enum lru_list lru)
+void __pagevec_lru_add(struct pagevec *pvec, enum lru_list lru)
 {
 	VM_BUG_ON(is_unevictable_lru(lru));
 
-	pagevec_lru_move_fn(pvec, ____pagevec_lru_add_fn, (void *)lru);
+	pagevec_lru_move_fn(pvec, __pagevec_lru_add_fn, (void *)lru);
 }
 
-EXPORT_SYMBOL(____pagevec_lru_add);
+EXPORT_SYMBOL(__pagevec_lru_add);
 
 /**
  * pagevec_lookup - gang pagecache lookup
