@@ -1039,13 +1039,13 @@ void dispc_ovl_set_fifo_threshold(enum omap_plane plane, u32 low, u32 high)
 	dss_feat_get_reg_field(FEAT_REG_FIFOHIGHTHRESHOLD, &hi_start, &hi_end);
 	dss_feat_get_reg_field(FEAT_REG_FIFOLOWTHRESHOLD, &lo_start, &lo_end);
 
-	DSSDBG("fifo(%d) low/high old %u/%u, new %u/%u\n",
+	DSSDBG("fifo(%d) threshold (bytes), old %u/%u, new %u/%u\n",
 			plane,
 			REG_GET(DISPC_OVL_FIFO_THRESHOLD(plane),
-				lo_start, lo_end),
+				lo_start, lo_end) * unit,
 			REG_GET(DISPC_OVL_FIFO_THRESHOLD(plane),
-				hi_start, hi_end),
-			low, high);
+				hi_start, hi_end) * unit,
+			low * unit, high * unit);
 
 	dispc_write_reg(DISPC_OVL_FIFO_THRESHOLD(plane),
 			FLD_VAL(high, hi_start, hi_end) |
