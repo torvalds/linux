@@ -136,6 +136,14 @@ config REGULATOR_MAX8998
 	  via I2C bus. The provided regulator is suitable for S3C6410
 	  and S5PC1XX chips to control VCC_CORE and VCC_USIM voltages.
 
+config REGULATOR_S5M8767
+	tristate "Samsung S5M8767A voltage regulator"
+	depends on MFD_S5M_CORE
+	help
+	 This driver supports a Samsung S5M8767A voltage output regulator
+	 via I2C bus. S5M8767A have 9 Bucks and 28 LDOs output and
+	 supports DVS mode with 8bits of output voltage control.
+
 config REGULATOR_TWL4030
 	bool "TI TWL4030/TWL5030/TWL6030/TPS659x0 PMIC"
 	depends on TWL4030_CORE
