@@ -88,6 +88,7 @@ struct dummy_ep {
 	unsigned			wedged : 1;
 	unsigned			already_seen : 1;
 	unsigned			setup_stage : 1;
+	unsigned			stream_en:1;
 };
 
 struct dummy_request {
@@ -169,6 +170,8 @@ struct dummy_hcd {
 
 	struct usb_device		*udev;
 	struct list_head		urbp_list;
+	u32				stream_en_ep;
+	u8				num_stream[30 / 2];
 
 	unsigned			active:1;
 	unsigned			old_active:1;
@@ -514,8 +517,16 @@ dummy_enable (struct usb_ep *_ep, const struct usb_endpoint_descriptor *desc)
 
 	_ep->maxpacket = max;
 	ep->desc = desc;
+	if (usb_ss_max_streams(_ep->comp_desc)) {
+		if (!usb_endpoint_xfer_bulk(desc)) {
+			dev_err(udc_dev(dum), "Can't enable stream support on "
+					"non-bulk ep %s\n", _ep->name);
+			return -EINVAL;
+		}
+		ep->stream_en = 1;
+	}
 
-	dev_dbg (udc_dev(dum), "enabled %s (ep%d%s-%s) maxpacket %d\n",
+	dev_dbg(udc_dev(dum), "enabled %s (ep%d%s-%s) maxpacket %d stream %s\n",
 		_ep->name,
 		desc->bEndpointAddress & 0x0f,
 		(desc->bEndpointAddress & USB_DIR_IN) ? "in" : "out",
@@ -534,7 +545,7 @@ dummy_enable (struct usb_ep *_ep, const struct usb_endpoint_descriptor *desc)
 			 val = "ctrl";
 			 break;
 		 }; val; }),
-		max);
+		max, ep->stream_en ? "enabled" : "disabled");
 
 	/* at this point real hardware should be NAKing transfers
 	 * to that endpoint, until a buffer is queued to it.
@@ -559,6 +570,7 @@ static int dummy_disable (struct usb_ep *_ep)
 
 	spin_lock_irqsave (&dum->lock, flags);
 	ep->desc = NULL;
+	ep->stream_en = 0;
 	retval = 0;
 	nuke (dum, ep);
 	spin_unlock_irqrestore (&dum->lock, flags);
@@ -1058,6 +1070,16 @@ static struct platform_driver dummy_udc_driver = {
 
 /*-------------------------------------------------------------------------*/
 
+static unsigned int dummy_get_ep_idx(const struct usb_endpoint_descriptor *desc)
+{
+	unsigned int index;
+
+	index = usb_endpoint_num(desc) << 1;
+	if (usb_endpoint_dir_in(desc))
+		index |= 1;
+	return index;
+}
+
 /* MASTER/HOST SIDE DRIVER
  *
  * this uses the hcd framework to hook up to host side drivers.
@@ -1069,6 +1091,81 @@ static struct platform_driver dummy_udc_driver = {
  * the host with reads from the device, and so on, based on the
  * usb 2.0 rules.
  */
+
+static int dummy_ep_stream_en(struct dummy_hcd *dum_hcd, struct urb *urb)
+{
+	const struct usb_endpoint_descriptor *desc = &urb->ep->desc;
+	u32 index;
+
+	if (!usb_endpoint_xfer_bulk(desc))
+		return 0;
+
+	index = dummy_get_ep_idx(desc);
+	return (1 << index) & dum_hcd->stream_en_ep;
+}
+
+/*
+ * The max stream number is saved as a nibble so for the 30 possible endpoints
+ * we only 15 bytes of memory. Therefore we are limited to max 16 streams (0
+ * means we use only 1 stream). The maximum according to the spec is 16bit so
+ * if the 16 stream limit is about to go, the array size should be incremented
+ * to 30 elements of type u16.
+ */
+static int get_max_streams_for_pipe(struct dummy_hcd *dum_hcd,
+		unsigned int pipe)
+{
+	int max_streams;
+
+	max_streams = dum_hcd->num_stream[usb_pipeendpoint(pipe)];
+	if (usb_pipeout(pipe))
+		max_streams >>= 4;
+	else
+		max_streams &= 0xf;
+	max_streams++;
+	return max_streams;
+}
+
+static void set_max_streams_for_pipe(struct dummy_hcd *dum_hcd,
+		unsigned int pipe, unsigned int streams)
+{
+	int max_streams;
+
+	streams--;
+	max_streams = dum_hcd->num_stream[usb_pipeendpoint(pipe)];
+	if (usb_pipeout(pipe)) {
+		streams <<= 4;
+		max_streams &= 0xf;
+	} else {
+		max_streams &= 0xf0;
+	}
+	max_streams |= streams;
+	dum_hcd->num_stream[usb_pipeendpoint(pipe)] = max_streams;
+}
+
+static int dummy_validate_stream(struct dummy_hcd *dum_hcd, struct urb *urb)
+{
+	unsigned int max_streams;
+	int enabled;
+
+	enabled = dummy_ep_stream_en(dum_hcd, urb);
+	if (!urb->stream_id) {
+		if (enabled)
+			return -EINVAL;
+		return 0;
+	}
+	if (!enabled)
+		return -EINVAL;
+
+	max_streams = get_max_streams_for_pipe(dum_hcd,
+			usb_pipeendpoint(urb->pipe));
+	if (urb->stream_id > max_streams) {
+		dev_err(dummy_dev(dum_hcd), "Stream id %d is out of range.\n",
+				urb->stream_id);
+		BUG();
+		return -EINVAL;
+	}
+	return 0;
+}
 
 static int dummy_urb_enqueue (
 	struct usb_hcd			*hcd,
@@ -1088,6 +1185,13 @@ static int dummy_urb_enqueue (
 
 	dum_hcd = hcd_to_dummy_hcd(hcd);
 	spin_lock_irqsave(&dum_hcd->dum->lock, flags);
+
+	rc = dummy_validate_stream(dum_hcd, urb);
+	if (rc) {
+		kfree(urbp);
+		goto done;
+	}
+
 	rc = usb_hcd_link_urb_to_ep(hcd, urb);
 	if (rc) {
 		kfree(urbp);
@@ -1201,10 +1305,10 @@ static int dummy_perform_transfer(struct urb *urb, struct dummy_request *req,
 }
 
 /* transfer up to a frame's worth; caller must own lock */
-static int
-transfer(struct dummy *dum, struct urb *urb, struct dummy_ep *ep, int limit,
-		int *status)
+static int transfer(struct dummy_hcd *dum_hcd, struct urb *urb,
+		struct dummy_ep *ep, int limit, int *status)
 {
+	struct dummy		*dum = dum_hcd->dum;
 	struct dummy_request	*req;
 
 top:
@@ -1213,6 +1317,11 @@ top:
 		unsigned	host_len, dev_len, len;
 		int		is_short, to_host;
 		int		rescan = 0;
+
+		if (dummy_ep_stream_en(dum_hcd, urb)) {
+			if ((urb->stream_id != req->req.stream_id))
+				continue;
+		}
 
 		/* 1..N packets of ep->ep.maxpacket each ... the last one
 		 * may be short (including zero length).
@@ -1744,7 +1853,7 @@ restart:
 		default:
 		treat_control_like_bulk:
 			ep->last_io = jiffies;
-			total = transfer(dum, urb, ep, limit, &status);
+			total = transfer(dum_hcd, urb, ep, limit, &status);
 			break;
 		}
 
@@ -2201,6 +2310,7 @@ static int dummy_start_ss(struct dummy_hcd *dum_hcd)
 	dum_hcd->timer.function = dummy_timer;
 	dum_hcd->timer.data = (unsigned long)dum_hcd;
 	dum_hcd->rh_state = DUMMY_RH_RUNNING;
+	dum_hcd->stream_en_ep = 0;
 	INIT_LIST_HEAD(&dum_hcd->urbp_list);
 	dummy_hcd_to_hcd(dum_hcd)->power_budget = POWER_BUDGET;
 	dummy_hcd_to_hcd(dum_hcd)->state = HC_STATE_RUNNING;
@@ -2290,11 +2400,46 @@ static int dummy_alloc_streams(struct usb_hcd *hcd, struct usb_device *udev,
 	struct usb_host_endpoint **eps, unsigned int num_eps,
 	unsigned int num_streams, gfp_t mem_flags)
 {
-	if (hcd->speed != HCD_USB3)
-		dev_dbg(dummy_dev(hcd_to_dummy_hcd(hcd)),
-			"%s() - ERROR! Not supported for USB2.0 roothub\n",
-			__func__);
-	return 0;
+	struct dummy_hcd *dum_hcd = hcd_to_dummy_hcd(hcd);
+	unsigned long flags;
+	int max_stream;
+	int ret_streams = num_streams;
+	unsigned int index;
+	unsigned int i;
+
+	if (!num_eps)
+		return -EINVAL;
+
+	spin_lock_irqsave(&dum_hcd->dum->lock, flags);
+	for (i = 0; i < num_eps; i++) {
+		index = dummy_get_ep_idx(&eps[i]->desc);
+		if ((1 << index) & dum_hcd->stream_en_ep) {
+			ret_streams = -EINVAL;
+			goto out;
+		}
+		max_stream = usb_ss_max_streams(&eps[i]->ss_ep_comp);
+		if (!max_stream) {
+			ret_streams = -EINVAL;
+			goto out;
+		}
+		if (max_stream < ret_streams) {
+			dev_dbg(dummy_dev(dum_hcd), "Ep 0x%x only supports %u "
+					"stream IDs.\n",
+					eps[i]->desc.bEndpointAddress,
+					max_stream);
+			ret_streams = max_stream;
+		}
+	}
+
+	for (i = 0; i < num_eps; i++) {
+		index = dummy_get_ep_idx(&eps[i]->desc);
+		dum_hcd->stream_en_ep |= 1 << index;
+		set_max_streams_for_pipe(dum_hcd,
+				usb_endpoint_num(&eps[i]->desc), ret_streams);
+	}
+out:
+	spin_unlock_irqrestore(&dum_hcd->dum->lock, flags);
+	return ret_streams;
 }
 
 /* Reverts a group of bulk endpoints back to not using stream IDs. */
@@ -2302,11 +2447,31 @@ static int dummy_free_streams(struct usb_hcd *hcd, struct usb_device *udev,
 	struct usb_host_endpoint **eps, unsigned int num_eps,
 	gfp_t mem_flags)
 {
-	if (hcd->speed != HCD_USB3)
-		dev_dbg(dummy_dev(hcd_to_dummy_hcd(hcd)),
-			"%s() - ERROR! Not supported for USB2.0 roothub\n",
-			__func__);
-	return 0;
+	struct dummy_hcd *dum_hcd = hcd_to_dummy_hcd(hcd);
+	unsigned long flags;
+	int ret;
+	unsigned int index;
+	unsigned int i;
+
+	spin_lock_irqsave(&dum_hcd->dum->lock, flags);
+	for (i = 0; i < num_eps; i++) {
+		index = dummy_get_ep_idx(&eps[i]->desc);
+		if (!((1 << index) & dum_hcd->stream_en_ep)) {
+			ret = -EINVAL;
+			goto out;
+		}
+	}
+
+	for (i = 0; i < num_eps; i++) {
+		index = dummy_get_ep_idx(&eps[i]->desc);
+		dum_hcd->stream_en_ep &= ~(1 << index);
+		set_max_streams_for_pipe(dum_hcd,
+				usb_endpoint_num(&eps[i]->desc), 0);
+	}
+	ret = 0;
+out:
+	spin_unlock_irqrestore(&dum_hcd->dum->lock, flags);
+	return ret;
 }
 
 static struct hc_driver dummy_hcd = {
