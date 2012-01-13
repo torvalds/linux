@@ -487,41 +487,68 @@ static struct attribute_group khugepaged_attr_group = {
 	.attrs = khugepaged_attr,
 	.name = "khugepaged",
 };
+
+static int __init hugepage_init_sysfs(struct kobject **hugepage_kobj)
+{
+	int err;
+
+	*hugepage_kobj = kobject_create_and_add("transparent_hugepage", mm_kobj);
+	if (unlikely(!*hugepage_kobj)) {
+		printk(KERN_ERR "hugepage: failed kobject create\n");
+		return -ENOMEM;
+	}
+
+	err = sysfs_create_group(*hugepage_kobj, &hugepage_attr_group);
+	if (err) {
+		printk(KERN_ERR "hugepage: failed register hugeage group\n");
+		goto delete_obj;
+	}
+
+	err = sysfs_create_group(*hugepage_kobj, &khugepaged_attr_group);
+	if (err) {
+		printk(KERN_ERR "hugepage: failed register hugeage group\n");
+		goto remove_hp_group;
+	}
+
+	return 0;
+
+remove_hp_group:
+	sysfs_remove_group(*hugepage_kobj, &hugepage_attr_group);
+delete_obj:
+	kobject_put(*hugepage_kobj);
+	return err;
+}
+
+static void __init hugepage_exit_sysfs(struct kobject *hugepage_kobj)
+{
+	sysfs_remove_group(hugepage_kobj, &khugepaged_attr_group);
+	sysfs_remove_group(hugepage_kobj, &hugepage_attr_group);
+	kobject_put(hugepage_kobj);
+}
+#else
+static inline int hugepage_init_sysfs(struct kobject **hugepage_kobj)
+{
+	return 0;
+}
+
+static inline void hugepage_exit_sysfs(struct kobject *hugepage_kobj)
+{
+}
 #endif /* CONFIG_SYSFS */
 
 static int __init hugepage_init(void)
 {
 	int err;
-#ifdef CONFIG_SYSFS
-	static struct kobject *hugepage_kobj;
-#endif
+	struct kobject *hugepage_kobj;
 
-	err = -EINVAL;
 	if (!has_transparent_hugepage()) {
 		transparent_hugepage_flags = 0;
-		goto out;
+		return -EINVAL;
 	}
 
-#ifdef CONFIG_SYSFS
-	err = -ENOMEM;
-	hugepage_kobj = kobject_create_and_add("transparent_hugepage", mm_kobj);
-	if (unlikely(!hugepage_kobj)) {
-		printk(KERN_ERR "hugepage: failed kobject create\n");
-		goto out;
-	}
-
-	err = sysfs_create_group(hugepage_kobj, &hugepage_attr_group);
-	if (err) {
-		printk(KERN_ERR "hugepage: failed register hugeage group\n");
-		goto out;
-	}
-
-	err = sysfs_create_group(hugepage_kobj, &khugepaged_attr_group);
-	if (err) {
-		printk(KERN_ERR "hugepage: failed register hugeage group\n");
-		goto out;
-	}
-#endif
+	err = hugepage_init_sysfs(&hugepage_kobj);
+	if (err)
+		return err;
 
 	err = khugepaged_slab_init();
 	if (err)
@@ -545,7 +572,9 @@ static int __init hugepage_init(void)
 
 	set_recommended_min_free_kbytes();
 
+	return 0;
 out:
+	hugepage_exit_sysfs(hugepage_kobj);
 	return err;
 }
 module_init(hugepage_init)
