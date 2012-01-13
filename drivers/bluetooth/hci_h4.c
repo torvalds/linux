@@ -146,7 +146,7 @@ static inline int h4_check_data_len(struct h4_struct *h4, int len)
 	}
 #ifdef CONFIG_BT_HCIBCM4325  
 	bcm4325_sleep(1);
-#endif;	
+#endif	
 	h4->rx_state = H4_W4_PACKET_TYPE;
 	h4->rx_skb   = NULL;
 	h4->rx_count = 0;

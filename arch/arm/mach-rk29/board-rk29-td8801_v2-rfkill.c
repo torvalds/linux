@@ -139,13 +139,13 @@ static irqreturn_t bcm4329_wake_host_irq(int irq, void *dev)
 #ifdef CONFIG_BT_HCIBCM4325
 int bcm4325_sleep(int bSleep)
 {
-//	printk("*************bt enter sleep***************\n");
+    //printk("*************bt enter sleep***************\n");
     if (bSleep)
     gpio_set_value(BT_GPIO_WAKE_UP, GPIO_LOW);   //low represent bt device may enter sleep
     else
     gpio_set_value(BT_GPIO_WAKE_UP, GPIO_HIGH);  //high represent bt device must be awake
-
-	//printk("sleep=%d\n",bSleep);
+    //printk("sleep=%d\n",bSleep);
+    return 0;
 }
 #endif
 

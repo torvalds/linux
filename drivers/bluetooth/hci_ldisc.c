@@ -140,7 +140,7 @@ restart:
 /*added by Barry,for broadcom 4325*/
 #ifdef CONFIG_BT_HCIBCM4325  
 	bcm4325_sleep(0);
-#endif;
+#endif
 	while ((skb = hci_uart_dequeue(hu))) {
 		int len;
 
