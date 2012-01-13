@@ -30,12 +30,13 @@
 #include <linux/delay.h>
 #include <linux/platform_device.h>
 #include <linux/dma-mapping.h>
+#include <linux/dmaengine.h>
+#include <linux/sa11x0-dma.h>
 
 #include <net/irda/irda.h>
 #include <net/irda/wrapper.h>
 #include <net/irda/irda_device.h>
 
-#include <mach/dma.h>
 #include <mach/hardware.h>
 #include <asm/mach/irda.h>
 
@@ -47,7 +48,8 @@ struct sa1100_buf {
 	struct device		*dev;
 	struct sk_buff		*skb;
 	struct scatterlist	sg;
-	dma_regs_t		*regs;
+	struct dma_chan		*chan;
+	dma_cookie_t		cookie;
 };
 
 struct sa1100_irda {
@@ -78,6 +80,75 @@ static int sa1100_irda_set_speed(struct sa1100_irda *, int);
 #define IS_FIR(si)		((si)->speed >= 4000000)
 
 #define HPSIR_MAX_RXLEN		2047
+
+static struct dma_slave_config sa1100_irda_fir_rx = {
+	.direction	= DMA_FROM_DEVICE,
+	.src_addr	= __PREG(Ser2HSDR),
+	.src_addr_width	= DMA_SLAVE_BUSWIDTH_1_BYTE,
+	.src_maxburst	= 8,
+};
+
+static struct dma_slave_config sa1100_irda_fir_tx = {
+	.direction	= DMA_TO_DEVICE,
+	.dst_addr	= __PREG(Ser2HSDR),
+	.dst_addr_width	= DMA_SLAVE_BUSWIDTH_1_BYTE,
+	.dst_maxburst	= 8,
+};
+
+static unsigned sa1100_irda_dma_xferred(struct sa1100_buf *buf)
+{
+	struct dma_chan *chan = buf->chan;
+	struct dma_tx_state state;
+	enum dma_status status;
+
+	status = chan->device->device_tx_status(chan, buf->cookie, &state);
+	if (status != DMA_PAUSED)
+		return 0;
+
+	return sg_dma_len(&buf->sg) - state.residue;
+}
+
+static int sa1100_irda_dma_request(struct device *dev, struct sa1100_buf *buf,
+	const char *name, struct dma_slave_config *cfg)
+{
+	dma_cap_mask_t m;
+	int ret;
+
+	dma_cap_zero(m);
+	dma_cap_set(DMA_SLAVE, m);
+
+	buf->chan = dma_request_channel(m, sa11x0_dma_filter_fn, (void *)name);
+	if (!buf->chan) {
+		dev_err(dev, "unable to request DMA channel for %s\n",
+			name);
+		return -ENOENT;
+	}
+
+	ret = dmaengine_slave_config(buf->chan, cfg);
+	if (ret)
+		dev_warn(dev, "DMA slave_config for %s returned %d\n",
+			name, ret);
+
+	buf->dev = buf->chan->device->dev;
+
+	return 0;
+}
+
+static void sa1100_irda_dma_start(struct sa1100_buf *buf,
+	enum dma_transfer_direction dir, dma_async_tx_callback cb, void *cb_p)
+{
+	struct dma_async_tx_descriptor *desc;
+	struct dma_chan *chan = buf->chan;
+
+	desc = chan->device->device_prep_slave_sg(chan, &buf->sg, 1, dir,
+			DMA_PREP_INTERRUPT | DMA_CTRL_ACK);
+	if (desc) {
+		desc->callback = cb;
+		desc->callback_param = cb_p;
+		buf->cookie = dmaengine_submit(desc);
+		dma_async_issue_pending(chan);
+	}
+}
 
 /*
  * Allocate and map the receive buffer, unless it is already allocated.
@@ -127,9 +198,9 @@ static void sa1100_irda_rx_dma_start(struct sa1100_irda *si)
 	/*
 	 * Enable the DMA, receiver and receive interrupt.
 	 */
-	sa1100_clear_dma(si->dma_rx.regs);
-	sa1100_start_dma(si->dma_rx.regs, sg_dma_address(&si->dma_rx.sg),
-			 sg_dma_len(&si->dma_rx.sg));
+	dmaengine_terminate_all(si->dma_rx.chan);
+	sa1100_irda_dma_start(&si->dma_rx, DMA_DEV_TO_MEM, NULL, NULL);
+
 	Ser2HSCR0 = HSCR0_HSSP | HSCR0_RXE;
 }
 
@@ -326,8 +397,7 @@ static int sa1100_irda_fir_tx_start(struct sk_buff *skb, struct net_device *dev,
 		return NETDEV_TX_OK;
 	}
 
-	sa1100_start_dma(si->dma_tx.regs, sg_dma_address(&si->dma_tx.sg),
-			 sg_dma_len(&si->dma_tx.sg));
+	sa1100_irda_dma_start(&si->dma_tx, DMA_MEM_TO_DEV, sa1100_irda_firtxdma_irq, dev);
 
 	/*
 	 * If we have a mean turn-around time, impose the specified
@@ -345,7 +415,6 @@ static int sa1100_irda_fir_tx_start(struct sk_buff *skb, struct net_device *dev,
 static void sa1100_irda_fir_error(struct sa1100_irda *si, struct net_device *dev)
 {
 	struct sk_buff *skb = si->dma_rx.skb;
-	dma_addr_t dma_addr;
 	unsigned int len, stat, data;
 
 	if (!skb) {
@@ -356,8 +425,7 @@ static void sa1100_irda_fir_error(struct sa1100_irda *si, struct net_device *dev
 	/*
 	 * Get the current data position.
 	 */
-	dma_addr = sa1100_get_dma_pos(si->dma_rx.regs);
-	len = dma_addr - sg_dma_address(&si->dma_rx.sg);
+	len = sa1100_irda_dma_xferred(&si->dma_rx);
 	if (len > HPSIR_MAX_RXLEN)
 		len = HPSIR_MAX_RXLEN;
 	dma_unmap_sg(si->dma_rx.dev, &si->dma_rx.sg, 1, DMA_FROM_DEVICE);
@@ -421,7 +489,7 @@ static irqreturn_t sa1100_irda_fir_irq(struct net_device *dev, struct sa1100_ird
 	/*
 	 * Stop RX DMA
 	 */
-	sa1100_stop_dma(si->dma_rx.regs);
+	dmaengine_pause(si->dma_rx.chan);
 
 	/*
 	 * Framing error - we throw away the packet completely.
@@ -476,11 +544,9 @@ static int sa1100_irda_set_speed(struct sa1100_irda *si, int speed)
 	case 57600:	case 115200:
 		brd = 3686400 / (16 * speed) - 1;
 
-		/*
-		 * Stop the receive DMA.
-		 */
+		/* Stop the receive DMA, and configure transmit. */
 		if (IS_FIR(si))
-			sa1100_stop_dma(si->dma_rx.regs);
+			dmaengine_terminate_all(si->dma_rx.chan);
 
 		local_irq_save(flags);
 
@@ -698,8 +764,8 @@ static void sa1100_irda_shutdown(struct sa1100_irda *si)
 	/*
 	 * Stop all DMA activity.
 	 */
-	sa1100_stop_dma(si->dma_rx.regs);
-	sa1100_stop_dma(si->dma_tx.regs);
+	dmaengine_terminate_all(si->dma_rx.chan);
+	dmaengine_terminate_all(si->dma_tx.chan);
 
 	/* Disable the port. */
 	Ser2UTCR3 = 0;
@@ -716,19 +782,15 @@ static int sa1100_irda_start(struct net_device *dev)
 
 	si->speed = 9600;
 
-	err = sa1100_request_dma(DMA_Ser2HSSPRd, "IrDA receive",
-				 NULL, NULL, &si->dma_rx.regs);
+	err = sa1100_irda_dma_request(si->dev, &si->dma_rx, "Ser2ICPRc",
+				&sa1100_irda_fir_rx);
 	if (err)
 		goto err_rx_dma;
 
-	err = sa1100_request_dma(DMA_Ser2HSSPWr, "IrDA transmit",
-				 sa1100_irda_firtxdma_irq, dev,
-				 &si->dma_tx.regs);
+	err = sa1100_irda_dma_request(si->dev, &si->dma_tx, "Ser2ICPTr",
+				&sa1100_irda_sir_tx);
 	if (err)
 		goto err_tx_dma;
-
-	si->dma_rx.dev = si->dev;
-	si->dma_tx.dev = si->dev;
 
 	/*
 	 * Setup the serial port for the specified speed.
@@ -764,9 +826,9 @@ err_irlap:
 	si->open = 0;
 	sa1100_irda_shutdown(si);
 err_startup:
-	sa1100_free_dma(si->dma_tx.regs);
+	dma_release_channel(si->dma_tx.chan);
 err_tx_dma:
-	sa1100_free_dma(si->dma_rx.regs);
+	dma_release_channel(si->dma_rx.chan);
 err_rx_dma:
 	return err;
 }
@@ -810,8 +872,8 @@ static int sa1100_irda_stop(struct net_device *dev)
 	/*
 	 * Free resources
 	 */
-	sa1100_free_dma(si->dma_tx.regs);
-	sa1100_free_dma(si->dma_rx.regs);
+	dma_release_channel(si->dma_tx.chan);
+	dma_release_channel(si->dma_rx.chan);
 	free_irq(dev->irq, dev);
 
 	sa1100_set_power(si, 0);
