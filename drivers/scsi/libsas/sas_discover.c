@@ -281,8 +281,6 @@ static void sas_destruct_devices(struct work_struct *work)
 		sas_rphy_delete(dev->rphy);
 		dev->rphy = NULL;
 		sas_unregister_common_dev(port, dev);
-
-		sas_put_device(dev);
 	}
 }
 
