@@ -3759,6 +3759,11 @@ transport_allocate_control_task(struct se_cmd *cmd)
 	struct se_task *task;
 	unsigned long flags;
 
+	/* Workaround for handling zero-length control CDBs */
+	if ((cmd->se_cmd_flags & SCF_SCSI_CONTROL_SG_IO_CDB) &&
+	    !cmd->data_length)
+		return 0;
+
 	task = transport_generic_get_task(cmd, cmd->data_direction);
 	if (!task)
 		return -ENOMEM;
@@ -3830,6 +3835,14 @@ int transport_generic_new_cmd(struct se_cmd *cmd)
 	else if (!task_cdbs && (cmd->se_cmd_flags & SCF_SCSI_DATA_SG_IO_CDB)) {
 		cmd->t_state = TRANSPORT_COMPLETE;
 		atomic_set(&cmd->t_transport_active, 1);
+
+		if (cmd->t_task_cdb[0] == REQUEST_SENSE) {
+			u8 ua_asc = 0, ua_ascq = 0;
+
+			core_scsi3_ua_clear_for_request_sense(cmd,
+					&ua_asc, &ua_ascq);
+		}
+
 		INIT_WORK(&cmd->work, target_complete_ok_work);
 		queue_work(target_completion_wq, &cmd->work);
 		return 0;
