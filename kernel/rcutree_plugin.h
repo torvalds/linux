@@ -1858,16 +1858,6 @@ static void __cpuinit rcu_prepare_kthreads(int cpu)
 
 #endif /* #else #ifdef CONFIG_RCU_BOOST */
 
-#ifndef CONFIG_SMP
-
-void synchronize_sched_expedited(void)
-{
-	cond_resched();
-}
-EXPORT_SYMBOL_GPL(synchronize_sched_expedited);
-
-#else /* #ifndef CONFIG_SMP */
-
 static atomic_t sync_sched_expedited_started = ATOMIC_INIT(0);
 static atomic_t sync_sched_expedited_done = ATOMIC_INIT(0);
 
@@ -1981,8 +1971,6 @@ void synchronize_sched_expedited(void)
 	put_online_cpus();
 }
 EXPORT_SYMBOL_GPL(synchronize_sched_expedited);
-
-#endif /* #else #ifndef CONFIG_SMP */
 
 #if !defined(CONFIG_RCU_FAST_NO_HZ)
 

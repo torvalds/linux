@@ -301,8 +301,6 @@ static struct rcu_node *rcu_get_root(struct rcu_state *rsp)
 	return &rsp->node[0];
 }
 
-#ifdef CONFIG_SMP
-
 /*
  * If the specified CPU is offline, tell the caller that it is in
  * a quiescent state.  Otherwise, whack it with a reschedule IPI.
@@ -338,8 +336,6 @@ static int rcu_implicit_offline_qs(struct rcu_data *rdp)
 	rdp->resched_ipi++;
 	return 0;
 }
-
-#endif /* #ifdef CONFIG_SMP */
 
 /*
  * rcu_idle_enter_common - inform RCU that current CPU is moving towards idle
@@ -606,8 +602,6 @@ int rcu_is_cpu_rrupt_from_idle(void)
 	return __get_cpu_var(rcu_dynticks).dynticks_nesting <= 1;
 }
 
-#ifdef CONFIG_SMP
-
 /*
  * Snapshot the specified CPU's dynticks counter so that we can later
  * credit them with an implicit quiescent state.  Return 1 if this CPU
@@ -650,8 +644,6 @@ static int rcu_implicit_dynticks_qs(struct rcu_data *rdp)
 	/* Go check for the CPU being offline. */
 	return rcu_implicit_offline_qs(rdp);
 }
-
-#endif /* #ifdef CONFIG_SMP */
 
 static void record_gp_stall_check_time(struct rcu_state *rsp)
 {
@@ -1517,8 +1509,6 @@ void rcu_check_callbacks(int cpu, int user)
 	trace_rcu_utilization("End scheduler-tick");
 }
 
-#ifdef CONFIG_SMP
-
 /*
  * Scan the leaf rcu_node structures, processing dyntick state for any that
  * have not yet encountered a quiescent state, using the function specified.
@@ -1640,15 +1630,6 @@ unlock_fqs_ret:
 	raw_spin_unlock_irqrestore(&rsp->fqslock, flags);
 	trace_rcu_utilization("End fqs");
 }
-
-#else /* #ifdef CONFIG_SMP */
-
-static void force_quiescent_state(struct rcu_state *rsp, int relaxed)
-{
-	set_need_resched();
-}
-
-#endif /* #else #ifdef CONFIG_SMP */
 
 /*
  * This does the RCU core processing work for the specified rcu_state
