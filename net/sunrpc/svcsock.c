@@ -1409,7 +1409,8 @@ static struct svc_sock *svc_setup_socket(struct svc_serv *serv,
 
 	/* Register socket with portmapper */
 	if (*errp >= 0 && pmap_register)
-		*errp = svc_register(serv, inet->sk_family, inet->sk_protocol,
+		*errp = svc_register(serv, sock->sk->sk_net, inet->sk_family,
+				     inet->sk_protocol,
 				     ntohs(inet_sk(inet)->inet_sport));
 
 	if (*errp < 0) {

@@ -30,7 +30,7 @@
 
 #define RPCDBG_FACILITY	RPCDBG_SVCDSP
 
-static void svc_unregister(const struct svc_serv *serv);
+static void svc_unregister(const struct svc_serv *serv, struct net *net);
 
 #define svc_serv_is_pooled(serv)    ((serv)->sv_function)
 
@@ -377,13 +377,13 @@ static int svc_rpcb_setup(struct svc_serv *serv)
 		return err;
 
 	/* Remove any stale portmap registrations */
-	svc_unregister(serv);
+	svc_unregister(serv, &init_net);
 	return 0;
 }
 
 void svc_rpcb_cleanup(struct svc_serv *serv)
 {
-	svc_unregister(serv);
+	svc_unregister(serv, &init_net);
 	rpcb_put_local(&init_net);
 }
 EXPORT_SYMBOL_GPL(svc_rpcb_cleanup);
@@ -795,7 +795,8 @@ EXPORT_SYMBOL_GPL(svc_exit_thread);
  * Returns zero on success; a negative errno value is returned
  * if any error occurs.
  */
-static int __svc_rpcb_register4(const u32 program, const u32 version,
+static int __svc_rpcb_register4(struct net *net, const u32 program,
+				const u32 version,
 				const unsigned short protocol,
 				const unsigned short port)
 {
@@ -818,7 +819,7 @@ static int __svc_rpcb_register4(const u32 program, const u32 version,
 		return -ENOPROTOOPT;
 	}
 
-	error = rpcb_v4_register(&init_net, program, version,
+	error = rpcb_v4_register(net, program, version,
 					(const struct sockaddr *)&sin, netid);
 
 	/*
@@ -826,7 +827,7 @@ static int __svc_rpcb_register4(const u32 program, const u32 version,
 	 * registration request with the legacy rpcbind v2 protocol.
 	 */
 	if (error == -EPROTONOSUPPORT)
-		error = rpcb_register(&init_net, program, version, protocol, port);
+		error = rpcb_register(net, program, version, protocol, port);
 
 	return error;
 }
@@ -842,7 +843,8 @@ static int __svc_rpcb_register4(const u32 program, const u32 version,
  * Returns zero on success; a negative errno value is returned
  * if any error occurs.
  */
-static int __svc_rpcb_register6(const u32 program, const u32 version,
+static int __svc_rpcb_register6(struct net *net, const u32 program,
+				const u32 version,
 				const unsigned short protocol,
 				const unsigned short port)
 {
@@ -865,7 +867,7 @@ static int __svc_rpcb_register6(const u32 program, const u32 version,
 		return -ENOPROTOOPT;
 	}
 
-	error = rpcb_v4_register(&init_net, program, version,
+	error = rpcb_v4_register(net, program, version,
 					(const struct sockaddr *)&sin6, netid);
 
 	/*
@@ -885,7 +887,7 @@ static int __svc_rpcb_register6(const u32 program, const u32 version,
  * Returns zero on success; a negative errno value is returned
  * if any error occurs.
  */
-static int __svc_register(const char *progname,
+static int __svc_register(struct net *net, const char *progname,
 			  const u32 program, const u32 version,
 			  const int family,
 			  const unsigned short protocol,
@@ -895,12 +897,12 @@ static int __svc_register(const char *progname,
 
 	switch (family) {
 	case PF_INET:
-		error = __svc_rpcb_register4(program, version,
+		error = __svc_rpcb_register4(net, program, version,
 						protocol, port);
 		break;
 #if IS_ENABLED(CONFIG_IPV6)
 	case PF_INET6:
-		error = __svc_rpcb_register6(program, version,
+		error = __svc_rpcb_register6(net, program, version,
 						protocol, port);
 #endif
 	}
@@ -914,14 +916,16 @@ static int __svc_register(const char *progname,
 /**
  * svc_register - register an RPC service with the local portmapper
  * @serv: svc_serv struct for the service to register
+ * @net: net namespace for the service to register
  * @family: protocol family of service's listener socket
  * @proto: transport protocol number to advertise
  * @port: port to advertise
  *
  * Service is registered for any address in the passed-in protocol family
  */
-int svc_register(const struct svc_serv *serv, const int family,
-		 const unsigned short proto, const unsigned short port)
+int svc_register(const struct svc_serv *serv, struct net *net,
+		 const int family, const unsigned short proto,
+		 const unsigned short port)
 {
 	struct svc_program	*progp;
 	unsigned int		i;
@@ -946,7 +950,7 @@ int svc_register(const struct svc_serv *serv, const int family,
 			if (progp->pg_vers[i]->vs_hidden)
 				continue;
 
-			error = __svc_register(progp->pg_name, progp->pg_prog,
+			error = __svc_register(net, progp->pg_name, progp->pg_prog,
 						i, family, proto, port);
 			if (error < 0)
 				break;
@@ -963,19 +967,19 @@ int svc_register(const struct svc_serv *serv, const int family,
  * any "inet6" entries anyway.  So a PMAP_UNSET should be sufficient
  * in this case to clear all existing entries for [program, version].
  */
-static void __svc_unregister(const u32 program, const u32 version,
+static void __svc_unregister(struct net *net, const u32 program, const u32 version,
 			     const char *progname)
 {
 	int error;
 
-	error = rpcb_v4_register(&init_net, program, version, NULL, "");
+	error = rpcb_v4_register(net, program, version, NULL, "");
 
 	/*
 	 * User space didn't support rpcbind v4, so retry this
 	 * request with the legacy rpcbind v2 protocol.
 	 */
 	if (error == -EPROTONOSUPPORT)
-		error = rpcb_register(&init_net, program, version, 0, 0);
+		error = rpcb_register(net, program, version, 0, 0);
 
 	dprintk("svc: %s(%sv%u), error %d\n",
 			__func__, progname, version, error);
@@ -989,7 +993,7 @@ static void __svc_unregister(const u32 program, const u32 version,
  * The result of unregistration is reported via dprintk for those who want
  * verification of the result, but is otherwise not important.
  */
-static void svc_unregister(const struct svc_serv *serv)
+static void svc_unregister(const struct svc_serv *serv, struct net *net)
 {
 	struct svc_program *progp;
 	unsigned long flags;
@@ -1006,7 +1010,7 @@ static void svc_unregister(const struct svc_serv *serv)
 
 			dprintk("svc: attempting to unregister %sv%u\n",
 				progp->pg_name, i);
-			__svc_unregister(progp->pg_prog, i, progp->pg_name);
+			__svc_unregister(net, progp->pg_prog, i, progp->pg_name);
 		}
 	}
 
