@@ -818,7 +818,7 @@ static int __svc_rpcb_register4(const u32 program, const u32 version,
 		return -ENOPROTOOPT;
 	}
 
-	error = rpcb_v4_register(program, version,
+	error = rpcb_v4_register(&init_net, program, version,
 					(const struct sockaddr *)&sin, netid);
 
 	/*
@@ -826,7 +826,7 @@ static int __svc_rpcb_register4(const u32 program, const u32 version,
 	 * registration request with the legacy rpcbind v2 protocol.
 	 */
 	if (error == -EPROTONOSUPPORT)
-		error = rpcb_register(program, version, protocol, port);
+		error = rpcb_register(&init_net, program, version, protocol, port);
 
 	return error;
 }
@@ -865,7 +865,7 @@ static int __svc_rpcb_register6(const u32 program, const u32 version,
 		return -ENOPROTOOPT;
 	}
 
-	error = rpcb_v4_register(program, version,
+	error = rpcb_v4_register(&init_net, program, version,
 					(const struct sockaddr *)&sin6, netid);
 
 	/*
@@ -968,14 +968,14 @@ static void __svc_unregister(const u32 program, const u32 version,
 {
 	int error;
 
-	error = rpcb_v4_register(program, version, NULL, "");
+	error = rpcb_v4_register(&init_net, program, version, NULL, "");
 
 	/*
 	 * User space didn't support rpcbind v4, so retry this
 	 * request with the legacy rpcbind v2 protocol.
 	 */
 	if (error == -EPROTONOSUPPORT)
-		error = rpcb_register(program, version, 0, 0);
+		error = rpcb_register(&init_net, program, version, 0, 0);
 
 	dprintk("svc: %s(%sv%u), error %d\n",
 			__func__, progname, version, error);

@@ -138,8 +138,9 @@ void		rpc_task_release_client(struct rpc_task *);
 
 int		rpcb_create_local(void);
 void		rpcb_put_local(void);
-int		rpcb_register(u32, u32, int, unsigned short);
-int		rpcb_v4_register(const u32 program, const u32 version,
+int		rpcb_register(struct net *, u32, u32, int, unsigned short);
+int		rpcb_v4_register(struct net *net, const u32 program,
+				 const u32 version,
 				 const struct sockaddr *address,
 				 const char *netid);
 void		rpcb_getport_async(struct rpc_task *);

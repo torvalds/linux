@@ -425,7 +425,7 @@ static int rpcb_register_call(struct rpc_clnt *clnt, struct rpc_message *msg)
  * IN6ADDR_ANY (ie available for all AF_INET and AF_INET6
  * addresses).
  */
-int rpcb_register(u32 prog, u32 vers, int prot, unsigned short port)
+int rpcb_register(struct net *net, u32 prog, u32 vers, int prot, unsigned short port)
 {
 	struct rpcbind_args map = {
 		.r_prog		= prog,
@@ -436,7 +436,7 @@ int rpcb_register(u32 prog, u32 vers, int prot, unsigned short port)
 	struct rpc_message msg = {
 		.rpc_argp	= &map,
 	};
-	struct sunrpc_net *sn = net_generic(&init_net, sunrpc_net_id);
+	struct sunrpc_net *sn = net_generic(net, sunrpc_net_id);
 
 	dprintk("RPC:       %sregistering (%u, %u, %d, %u) with local "
 			"rpcbind\n", (port ? "" : "un"),
@@ -563,7 +563,7 @@ static int rpcb_unregister_all_protofamilies(struct sunrpc_net *sn,
  * service on any IPv4 address, but not on IPv6.  The latter
  * advertises the service on all IPv4 and IPv6 addresses.
  */
-int rpcb_v4_register(const u32 program, const u32 version,
+int rpcb_v4_register(struct net *net, const u32 program, const u32 version,
 		     const struct sockaddr *address, const char *netid)
 {
 	struct rpcbind_args map = {
@@ -575,7 +575,7 @@ int rpcb_v4_register(const u32 program, const u32 version,
 	struct rpc_message msg = {
 		.rpc_argp	= &map,
 	};
-	struct sunrpc_net *sn = net_generic(&init_net, sunrpc_net_id);
+	struct sunrpc_net *sn = net_generic(net, sunrpc_net_id);
 
 	if (sn->rpcb_local_clnt4 == NULL)
 		return -EPROTONOSUPPORT;
