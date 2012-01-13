@@ -873,11 +873,11 @@ static int sdma_alloc_chan_resources(struct dma_chan *chan)
 
 	sdmac->peripheral_type = data->peripheral_type;
 	sdmac->event_id0 = data->dma_request;
-	ret = sdma_set_channel_priority(sdmac, prio);
+	ret = sdma_request_channel(sdmac);
 	if (ret)
 		return ret;
 
-	ret = sdma_request_channel(sdmac);
+	ret = sdma_set_channel_priority(sdmac, prio);
 	if (ret)
 		return ret;
 
