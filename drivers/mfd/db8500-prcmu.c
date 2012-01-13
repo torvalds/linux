@@ -884,23 +884,23 @@ int db8500_prcmu_get_arm_opp(void)
 }
 
 /**
- * prcmu_get_ddr_opp - get the current DDR OPP
+ * db8500_prcmu_get_ddr_opp - get the current DDR OPP
  *
  * Returns: the current DDR OPP
  */
-int prcmu_get_ddr_opp(void)
+int db8500_prcmu_get_ddr_opp(void)
 {
 	return readb(PRCM_DDR_SUBSYS_APE_MINBW);
 }
 
 /**
- * set_ddr_opp - set the appropriate DDR OPP
+ * db8500_set_ddr_opp - set the appropriate DDR OPP
  * @opp: The new DDR operating point to which transition is to be made
  * Returns: 0 on success, non-zero on failure
  *
  * This function sets the operating point of the DDR.
  */
-int prcmu_set_ddr_opp(u8 opp)
+int db8500_prcmu_set_ddr_opp(u8 opp)
 {
 	if (opp < DDR_100_OPP || opp > DDR_25_OPP)
 		return -EINVAL;
@@ -911,13 +911,13 @@ int prcmu_set_ddr_opp(u8 opp)
 	return 0;
 }
 /**
- * set_ape_opp - set the appropriate APE OPP
+ * db8500_set_ape_opp - set the appropriate APE OPP
  * @opp: The new APE operating point to which transition is to be made
  * Returns: 0 on success, non-zero on failure
  *
  * This function sets the operating point of the APE.
  */
-int prcmu_set_ape_opp(u8 opp)
+int db8500_prcmu_set_ape_opp(u8 opp)
 {
 	int r = 0;
 
@@ -943,11 +943,11 @@ int prcmu_set_ape_opp(u8 opp)
 }
 
 /**
- * prcmu_get_ape_opp - get the current APE OPP
+ * db8500_prcmu_get_ape_opp - get the current APE OPP
  *
  * Returns: the current APE OPP
  */
-int prcmu_get_ape_opp(void)
+int db8500_prcmu_get_ape_opp(void)
 {
 	return readb(tcdm_base + PRCM_ACK_MB1_CURRENT_APE_OPP);
 }
@@ -1451,7 +1451,7 @@ int db8500_prcmu_config_esram0_deep_sleep(u8 state)
 	return 0;
 }
 
-int prcmu_config_hotdog(u8 threshold)
+int db8500_prcmu_config_hotdog(u8 threshold)
 {
 	mutex_lock(&mb4_transfer.lock);
 
@@ -1469,7 +1469,7 @@ int prcmu_config_hotdog(u8 threshold)
 	return 0;
 }
 
-int prcmu_config_hotmon(u8 low, u8 high)
+int db8500_prcmu_config_hotmon(u8 low, u8 high)
 {
 	mutex_lock(&mb4_transfer.lock);
 
@@ -1508,7 +1508,7 @@ static int config_hot_period(u16 val)
 	return 0;
 }
 
-int prcmu_start_temp_sense(u16 cycles32k)
+int db8500_prcmu_start_temp_sense(u16 cycles32k)
 {
 	if (cycles32k == 0xFFFF)
 		return -EINVAL;
@@ -1516,7 +1516,7 @@ int prcmu_start_temp_sense(u16 cycles32k)
 	return config_hot_period(cycles32k);
 }
 
-int prcmu_stop_temp_sense(void)
+int db8500_prcmu_stop_temp_sense(void)
 {
 	return config_hot_period(0xFFFF);
 }
@@ -1545,7 +1545,7 @@ static int prcmu_a9wdog(u8 cmd, u8 d0, u8 d1, u8 d2, u8 d3)
 
 }
 
-int prcmu_config_a9wdog(u8 num, bool sleep_auto_off)
+int db8500_prcmu_config_a9wdog(u8 num, bool sleep_auto_off)
 {
 	BUG_ON(num == 0 || num > 0xf);
 	return prcmu_a9wdog(MB4H_A9WDOG_CONF, num, 0, 0,
@@ -1553,17 +1553,17 @@ int prcmu_config_a9wdog(u8 num, bool sleep_auto_off)
 			    A9WDOG_AUTO_OFF_DIS);
 }
 
-int prcmu_enable_a9wdog(u8 id)
+int db8500_prcmu_enable_a9wdog(u8 id)
 {
 	return prcmu_a9wdog(MB4H_A9WDOG_EN, id, 0, 0, 0);
 }
 
-int prcmu_disable_a9wdog(u8 id)
+int db8500_prcmu_disable_a9wdog(u8 id)
 {
 	return prcmu_a9wdog(MB4H_A9WDOG_DIS, id, 0, 0, 0);
 }
 
-int prcmu_kick_a9wdog(u8 id)
+int db8500_prcmu_kick_a9wdog(u8 id)
 {
 	return prcmu_a9wdog(MB4H_A9WDOG_KICK, id, 0, 0, 0);
 }
@@ -1572,7 +1572,7 @@ int prcmu_kick_a9wdog(u8 id)
  * timeout is 28 bit, in ms.
  */
 #define MAX_WATCHDOG_TIMEOUT 131000
-int prcmu_load_a9wdog(u8 id, u32 timeout)
+int db8500_prcmu_load_a9wdog(u8 id, u32 timeout)
 {
 	if (timeout > MAX_WATCHDOG_TIMEOUT)
 		/*
@@ -1825,9 +1825,9 @@ u16 db8500_prcmu_get_reset_code(void)
 }
 
 /**
- * prcmu_reset_modem - ask the PRCMU to reset modem
+ * db8500_prcmu_reset_modem - ask the PRCMU to reset modem
  */
-void prcmu_modem_reset(void)
+void db8500_prcmu_modem_reset(void)
 {
 	mutex_lock(&mb1_transfer.lock);
 
@@ -2147,7 +2147,7 @@ void __init db8500_prcmu_early_init(void)
 	}
 }
 
-static void __init db8500_prcmu_init_clkforce(void)
+static void __init init_prcm_registers(void)
 {
 	u32 val;
 
@@ -2405,7 +2405,7 @@ static int __init db8500_prcmu_probe(struct platform_device *pdev)
 	if (ux500_is_svp())
 		return -ENODEV;
 
-	db8500_prcmu_init_clkforce();
+	init_prcm_registers();
 
 	/* Clean up the mailbox interrupts after pre-kernel code. */
 	writel(ALL_MBOX_BITS, PRCM_ARM_IT1_CLR);

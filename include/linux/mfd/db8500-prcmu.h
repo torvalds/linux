@@ -512,13 +512,9 @@ int prcmu_set_rc_a2p(enum romcode_write);
 enum romcode_read prcmu_get_rc_p2a(void);
 enum ap_pwrst prcmu_get_xp70_current_state(void);
 bool prcmu_has_arm_maxopp(void);
-int prcmu_set_ape_opp(u8 opp);
-int prcmu_get_ape_opp(void);
 struct prcmu_fw_version *prcmu_get_fw_version(void);
 int prcmu_request_ape_opp_100_voltage(bool enable);
 int prcmu_release_usb_wakeup_state(void);
-int prcmu_set_ddr_opp(u8 opp);
-int prcmu_get_ddr_opp(void);
 /* NOTE! Use regulator framework instead */
 int prcmu_set_hwacc(u16 hw_acc_dev, u8 state);
 void prcmu_configure_auto_pm(struct prcmu_auto_pm_config *sleep,
@@ -527,24 +523,24 @@ bool prcmu_is_auto_pm_enabled(void);
 
 int prcmu_config_clkout(u8 clkout, u8 source, u8 div);
 int prcmu_set_clock_divider(u8 clock, u8 divider);
-int prcmu_config_hotdog(u8 threshold);
-int prcmu_config_hotmon(u8 low, u8 high);
-int prcmu_start_temp_sense(u16 cycles32k);
-int prcmu_stop_temp_sense(void);
+int db8500_prcmu_config_hotdog(u8 threshold);
+int db8500_prcmu_config_hotmon(u8 low, u8 high);
+int db8500_prcmu_start_temp_sense(u16 cycles32k);
+int db8500_prcmu_stop_temp_sense(void);
 int prcmu_abb_read(u8 slave, u8 reg, u8 *value, u8 size);
 int prcmu_abb_write(u8 slave, u8 reg, u8 *value, u8 size);
 
 void prcmu_ac_wake_req(void);
 void prcmu_ac_sleep_req(void);
-void prcmu_modem_reset(void);
+void db8500_prcmu_modem_reset(void);
 void prcmu_enable_spi2(void);
 void prcmu_disable_spi2(void);
 
-int prcmu_config_a9wdog(u8 num, bool sleep_auto_off);
-int prcmu_enable_a9wdog(u8 id);
-int prcmu_disable_a9wdog(u8 id);
-int prcmu_kick_a9wdog(u8 id);
-int prcmu_load_a9wdog(u8 id, u32 val);
+int db8500_prcmu_config_a9wdog(u8 num, bool sleep_auto_off);
+int db8500_prcmu_enable_a9wdog(u8 id);
+int db8500_prcmu_disable_a9wdog(u8 id);
+int db8500_prcmu_kick_a9wdog(u8 id);
+int db8500_prcmu_load_a9wdog(u8 id, u32 val);
 
 void db8500_prcmu_system_reset(u16 reset_code);
 int db8500_prcmu_set_power_state(u8 state, bool keep_ulp_clk, bool keep_ap_pll);
@@ -561,6 +557,10 @@ u16 db8500_prcmu_get_reset_code(void);
 bool db8500_prcmu_is_ac_wake_requested(void);
 int db8500_prcmu_set_arm_opp(u8 opp);
 int db8500_prcmu_get_arm_opp(void);
+int db8500_prcmu_set_ape_opp(u8 opp);
+int db8500_prcmu_get_ape_opp(void);
+int db8500_prcmu_set_ddr_opp(u8 opp);
+int db8500_prcmu_get_ddr_opp(void);
 
 #else /* !CONFIG_MFD_DB8500_PRCMU */
 
@@ -591,12 +591,12 @@ static inline struct prcmu_fw_version *prcmu_get_fw_version(void)
 	return NULL;
 }
 
-static inline int prcmu_set_ape_opp(u8 opp)
+static inline int db8500_prcmu_set_ape_opp(u8 opp)
 {
 	return 0;
 }
 
-static inline int prcmu_get_ape_opp(void)
+static inline int db8500_prcmu_get_ape_opp(void)
 {
 	return APE_100_OPP;
 }
@@ -611,12 +611,12 @@ static inline int prcmu_release_usb_wakeup_state(void)
 	return 0;
 }
 
-static inline int prcmu_set_ddr_opp(u8 opp)
+static inline int db8500_prcmu_set_ddr_opp(u8 opp)
 {
 	return 0;
 }
 
-static inline int prcmu_get_ddr_opp(void)
+static inline int db8500_prcmu_get_ddr_opp(void)
 {
 	return DDR_100_OPP;
 }
@@ -625,7 +625,6 @@ static inline int prcmu_set_hwacc(u16 hw_acc_dev, u8 state)
 {
 	return 0;
 }
-
 static inline void prcmu_configure_auto_pm(struct prcmu_auto_pm_config *sleep,
 	struct prcmu_auto_pm_config *idle)
 {
@@ -646,22 +645,22 @@ static inline int prcmu_set_clock_divider(u8 clock, u8 divider)
 	return 0;
 }
 
-static inline int prcmu_config_hotdog(u8 threshold)
+static inline int db8500_prcmu_config_hotdog(u8 threshold)
 {
 	return 0;
 }
 
-static inline int prcmu_config_hotmon(u8 low, u8 high)
+static inline int db8500_prcmu_config_hotmon(u8 low, u8 high)
 {
 	return 0;
 }
 
-static inline int prcmu_start_temp_sense(u16 cycles32k)
+static inline int db8500_prcmu_start_temp_sense(u16 cycles32k)
 {
 	return 0;
 }
 
-static inline int prcmu_stop_temp_sense(void)
+static inline int db8500_prcmu_stop_temp_sense(void)
 {
 	return 0;
 }
@@ -680,7 +679,9 @@ static inline void prcmu_ac_wake_req(void) {}
 
 static inline void prcmu_ac_sleep_req(void) {}
 
-static inline void prcmu_modem_reset(void) {}
+static inline void db8500_prcmu_modem_reset(void) {}
+
+static inline void db8500_prcmu_system_reset(u16 reset_code) {}
 
 static inline int prcmu_enable_spi2(void)
 {
@@ -691,8 +692,6 @@ static inline int prcmu_disable_spi2(void)
 {
 	return 0;
 }
-
-static inline void db8500_prcmu_system_reset(u16 reset_code) {}
 
 static inline int db8500_prcmu_set_power_state(u8 state, bool keep_ulp_clk,
 	bool keep_ap_pll)
@@ -741,27 +740,27 @@ static inline u16 db8500_prcmu_get_reset_code(void)
 	return 0;
 }
 
-static inline int prcmu_config_a9wdog(u8 num, bool sleep_auto_off)
+static inline int db8500_prcmu_config_a9wdog(u8 num, bool sleep_auto_off)
 {
 	return 0;
 }
 
-static inline int prcmu_enable_a9wdog(u8 id)
+static inline int db8500_prcmu_enable_a9wdog(u8 id)
 {
 	return 0;
 }
 
-static inline int prcmu_disable_a9wdog(u8 id)
+static inline int db8500_prcmu_disable_a9wdog(u8 id)
 {
 	return 0;
 }
 
-static inline int prcmu_kick_a9wdog(u8 id)
+static inline int db8500_prcmu_kick_a9wdog(u8 id)
 {
 	return 0;
 }
 
-static inline int prcmu_load_a9wdog(u8 id, u32 val)
+static inline int db8500_prcmu_load_a9wdog(u8 id, u32 val)
 {
 	return 0;
 }
