@@ -33,7 +33,7 @@ __add_page_to_lru_list(struct zone *zone, struct page *page, enum lru_list l,
 static inline void
 add_page_to_lru_list(struct zone *zone, struct page *page, enum lru_list l)
 {
-	__add_page_to_lru_list(zone, page, l, &zone->lru[l].list);
+	__add_page_to_lru_list(zone, page, l, &zone->lruvec.lists[l]);
 }
 
 static inline void
