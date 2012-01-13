@@ -20,6 +20,7 @@
 #include <linux/module.h>
 #include <linux/kthread.h>
 #include <linux/slab.h>
+#include <linux/nsproxy.h>
 
 #include <linux/sunrpc/types.h>
 #include <linux/sunrpc/xdr.h>
@@ -368,16 +369,16 @@ svc_pool_for_cpu(struct svc_serv *serv, int cpu)
 	return &serv->sv_pools[pidx % serv->sv_nrpools];
 }
 
-static int svc_rpcb_setup(struct svc_serv *serv)
+static int svc_rpcb_setup(struct svc_serv *serv, struct net *net)
 {
 	int err;
 
-	err = rpcb_create_local(&init_net);
+	err = rpcb_create_local(net);
 	if (err)
 		return err;
 
 	/* Remove any stale portmap registrations */
-	svc_unregister(serv, &init_net);
+	svc_unregister(serv, net);
 	return 0;
 }
 
@@ -470,7 +471,7 @@ __svc_create(struct svc_program *prog, unsigned int bufsize, int npools,
 	}
 
 	if (svc_uses_rpcbind(serv)) {
-	       	if (svc_rpcb_setup(serv) < 0) {
+		if (svc_rpcb_setup(serv, current->nsproxy->net_ns) < 0) {
 			kfree(serv->sv_pools);
 			kfree(serv);
 			return NULL;
