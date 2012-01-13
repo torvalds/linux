@@ -568,7 +568,8 @@ static int hugetlbfs_set_page_dirty(struct page *page)
 }
 
 static int hugetlbfs_migrate_page(struct address_space *mapping,
-				struct page *newpage, struct page *page)
+				struct page *newpage, struct page *page,
+				bool sync)
 {
 	int rc;
 
