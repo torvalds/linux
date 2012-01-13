@@ -309,7 +309,7 @@ struct paca_struct kexec_paca;
 /* Our assembly helper, in kexec_stub.S */
 extern void kexec_sequence(void *newstack, unsigned long start,
 			   void *image, void *control,
-			   void (*clear_all)(void)) ATTRIB_NORET;
+			   void (*clear_all)(void)) __noreturn;
 
 /* too late to fail here */
 void default_machine_kexec(struct kimage *image)

@@ -187,15 +187,15 @@ extern struct atomic_notifier_head panic_notifier_list;
 extern long (*panic_blink)(int state);
 __printf(1, 2)
 void panic(const char *fmt, ...)
-	ATTRIB_NORET __cold;
+	__noreturn __cold;
 extern void oops_enter(void);
 extern void oops_exit(void);
 void print_oops_end_marker(void);
 extern int oops_may_print(void);
 void do_exit(long error_code)
-	ATTRIB_NORET;
+	__noreturn;
 void complete_and_exit(struct completion *, long)
-	ATTRIB_NORET;
+	__noreturn;
 
 /* Internal, do not use. */
 int __must_check _kstrtoul(const char *s, unsigned int base, unsigned long *res);

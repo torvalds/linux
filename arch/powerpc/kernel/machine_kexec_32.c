@@ -19,7 +19,7 @@
 typedef void (*relocate_new_kernel_t)(
 				unsigned long indirection_page,
 				unsigned long reboot_code_buffer,
-				unsigned long start_address) ATTRIB_NORET;
+				unsigned long start_address) __noreturn;
 
 /*
  * This is a generic machine_kexec function suitable at least for
