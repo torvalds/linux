@@ -1005,9 +1005,17 @@ type_pf_ttest_cidrs(struct ip_set *set, struct type_pf_elem *d, u32 timeout)
 		n = hbucket(t, key);
 		for (i = 0; i < n->pos; i++) {
 			data = ahash_tdata(n, i);
+#ifdef IP_SET_HASH_WITH_MULTI
+			if (type_pf_data_equal(data, d, &multi)) {
+				if (!type_pf_data_expired(data))
+					return type_pf_data_match(data);
+				multi = 0;
+			}
+#else
 			if (type_pf_data_equal(data, d, &multi) &&
 			    !type_pf_data_expired(data))
 				return type_pf_data_match(data);
+#endif
 		}
 	}
 	return 0;
