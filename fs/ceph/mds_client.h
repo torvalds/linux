@@ -117,10 +117,13 @@ struct ceph_mds_session {
 	void             *s_authorizer_buf, *s_authorizer_reply_buf;
 	size_t            s_authorizer_buf_len, s_authorizer_reply_buf_len;
 
-	/* protected by s_cap_lock */
-	spinlock_t        s_cap_lock;
+	/* protected by s_gen_ttl_lock */
+	spinlock_t        s_gen_ttl_lock;
 	u32               s_cap_gen;  /* inc each time we get mds stale msg */
 	unsigned long     s_cap_ttl;  /* when session caps expire */
+
+	/* protected by s_cap_lock */
+	spinlock_t        s_cap_lock;
 	struct list_head  s_caps;     /* all caps issued by this session */
 	int               s_nr_caps, s_trim_caps;
 	int               s_num_cap_releases;

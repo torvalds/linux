@@ -400,9 +400,11 @@ static struct ceph_mds_session *register_session(struct ceph_mds_client *mdsc,
 	s->s_con.peer_name.type = CEPH_ENTITY_TYPE_MDS;
 	s->s_con.peer_name.num = cpu_to_le64(mds);
 
-	spin_lock_init(&s->s_cap_lock);
+	spin_lock_init(&s->s_gen_ttl_lock);
 	s->s_cap_gen = 0;
 	s->s_cap_ttl = 0;
+
+	spin_lock_init(&s->s_cap_lock);
 	s->s_renew_requested = 0;
 	s->s_renew_seq = 0;
 	INIT_LIST_HEAD(&s->s_caps);
@@ -2328,10 +2330,10 @@ static void handle_session(struct ceph_mds_session *session,
 	case CEPH_SESSION_STALE:
 		pr_info("mds%d caps went stale, renewing\n",
 			session->s_mds);
-		spin_lock(&session->s_cap_lock);
+		spin_lock(&session->s_gen_ttl_lock);
 		session->s_cap_gen++;
 		session->s_cap_ttl = 0;
-		spin_unlock(&session->s_cap_lock);
+		spin_unlock(&session->s_gen_ttl_lock);
 		send_renew_caps(mdsc, session);
 		break;
 
