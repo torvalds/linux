@@ -390,7 +390,7 @@ int phonet_route_add(struct net_device *dev, u8 daddr)
 	daddr = daddr >> 2;
 	mutex_lock(&routes->lock);
 	if (routes->table[daddr] == NULL) {
-		RCU_INIT_POINTER(routes->table[daddr], dev);
+		rcu_assign_pointer(routes->table[daddr], dev);
 		dev_hold(dev);
 		err = 0;
 	}

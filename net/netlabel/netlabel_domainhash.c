@@ -282,7 +282,7 @@ int __init netlbl_domhsh_init(u32 size)
 		INIT_LIST_HEAD(&hsh_tbl->tbl[iter]);
 
 	spin_lock(&netlbl_domhsh_lock);
-	RCU_INIT_POINTER(netlbl_domhsh, hsh_tbl);
+	rcu_assign_pointer(netlbl_domhsh, hsh_tbl);
 	spin_unlock(&netlbl_domhsh_lock);
 
 	return 0;
@@ -330,7 +330,7 @@ int netlbl_domhsh_add(struct netlbl_dom_map *entry,
 				    &rcu_dereference(netlbl_domhsh)->tbl[bkt]);
 		} else {
 			INIT_LIST_HEAD(&entry->list);
-			RCU_INIT_POINTER(netlbl_domhsh_def, entry);
+			rcu_assign_pointer(netlbl_domhsh_def, entry);
 		}
 
 		if (entry->type == NETLBL_NLTYPE_ADDRSELECT) {
