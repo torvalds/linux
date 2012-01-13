@@ -237,11 +237,14 @@ static void bcma_host_pci_remove(struct pci_dev *dev)
 #ifdef CONFIG_PM
 static int bcma_host_pci_suspend(struct pci_dev *dev, pm_message_t state)
 {
+	struct bcma_bus *bus = pci_get_drvdata(dev);
+
 	/* Host specific */
 	pci_save_state(dev);
 	pci_disable_device(dev);
 	pci_set_power_state(dev, pci_choose_state(dev, state));
 
+	bus->mapped_core = NULL;
 	return 0;
 }
 
