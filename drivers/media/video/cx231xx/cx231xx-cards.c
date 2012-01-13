@@ -1052,7 +1052,7 @@ static int cx231xx_usb_probe(struct usb_interface *interface,
 	dev = kzalloc(sizeof(*dev), GFP_KERNEL);
 	if (dev == NULL) {
 		cx231xx_err(DRIVER_NAME ": out of memory!\n");
-		clear_bit(dev->devno, &cx231xx_devused);
+		clear_bit(nr, &cx231xx_devused);
 		return -ENOMEM;
 	}
 
