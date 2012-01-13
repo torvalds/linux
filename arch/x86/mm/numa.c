@@ -110,7 +110,7 @@ void __cpuinit numa_clear_node(int cpu)
  * Allocate node_to_cpumask_map based on number of available nodes
  * Requires node_possible_map to be valid.
  *
- * Note: node_to_cpumask() is not valid until after this is done.
+ * Note: cpumask_of_node() is not valid until after this is done.
  * (Use CONFIG_DEBUG_PER_CPU_MAPS to check this.)
  */
 void __init setup_node_to_cpumask_map(void)
