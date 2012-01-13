@@ -654,6 +654,8 @@ static int proc_pid_permission(struct inode *inode, int mask)
 	bool has_perms;
 
 	task = get_proc_task(inode);
+	if (!task)
+		return -ESRCH;
 	has_perms = has_pid_permissions(pid, task, 1);
 	put_task_struct(task);
 
