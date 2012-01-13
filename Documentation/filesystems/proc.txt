@@ -307,6 +307,9 @@ Table 1-4: Contents of the stat files (as of 2.6.30-rc7)
   blkio_ticks   time spent waiting for block IO
   gtime         guest time of the task in jiffies
   cgtime        guest time of the task children in jiffies
+  start_data    address above which program data+bss is placed
+  end_data      address below which program data+bss is placed
+  start_brk     address above which program heap can be expanded with brk()
 ..............................................................................
 
 The /proc/PID/maps file containing the currently mapped memory regions and
