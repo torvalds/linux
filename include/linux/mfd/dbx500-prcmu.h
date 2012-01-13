@@ -185,12 +185,14 @@ enum prcmu_clock {
  * @APE_NO_CHANGE: The APE operating point is unchanged
  * @APE_100_OPP: The new APE operating point is ape100opp
  * @APE_50_OPP: 50%
+ * @APE_50_PARTLY_25_OPP: 50%, except some clocks at 25%.
  */
 enum ape_opp {
 	APE_OPP_INIT = 0x00,
 	APE_NO_CHANGE = 0x01,
 	APE_100_OPP = 0x02,
-	APE_50_OPP = 0x03
+	APE_50_OPP = 0x03,
+	APE_50_PARTLY_25_OPP = 0xFF,
 };
 
 /**
@@ -269,6 +271,14 @@ static inline int prcmu_set_power_state(u8 state, bool keep_ulp_clk,
 	else
 		return db8500_prcmu_set_power_state(state, keep_ulp_clk,
 			keep_ap_pll);
+}
+
+static inline u8 prcmu_get_power_state_result(void)
+{
+	if (cpu_is_u5500())
+		return -EINVAL;
+	else
+		return db8500_prcmu_get_power_state_result();
 }
 
 static inline int prcmu_set_epod(u16 epod_id, u8 epod_state)
@@ -663,9 +673,10 @@ static inline int prcmu_stop_temp_sense(void)
 /* PRCMU QoS APE OPP class */
 #define PRCMU_QOS_APE_OPP 1
 #define PRCMU_QOS_DDR_OPP 2
+#define PRCMU_QOS_ARM_OPP 3
 #define PRCMU_QOS_DEFAULT_VALUE -1
 
-#ifdef CONFIG_UX500_PRCMU_QOS_POWER
+#ifdef CONFIG_DBX500_PRCMU_QOS_POWER
 
 unsigned long prcmu_qos_get_cpufreq_opp_delay(void);
 void prcmu_qos_set_cpufreq_opp_delay(unsigned long);

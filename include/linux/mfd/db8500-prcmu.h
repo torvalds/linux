@@ -457,6 +457,25 @@ enum hw_acc_dev {
 	NUM_HW_ACC
 };
 
+/**
+ * enum prcmu_power_status - results from set_power_state
+ * @PRCMU_SLEEP_OK: Sleep went ok
+ * @PRCMU_DEEP_SLEEP_OK: DeepSleep went ok
+ * @PRCMU_IDLE_OK: Idle went ok
+ * @PRCMU_DEEPIDLE_OK: DeepIdle went ok
+ * @PRCMU_PRCMU2ARMPENDINGIT_ER: Pending interrupt detected
+ * @PRCMU_ARMPENDINGIT_ER: Pending interrupt detected
+ *
+ */
+enum prcmu_power_status {
+	PRCMU_SLEEP_OK			= 0xf3,
+	PRCMU_DEEP_SLEEP_OK		= 0xf6,
+	PRCMU_IDLE_OK			= 0xf0,
+	PRCMU_DEEPIDLE_OK		= 0xe3,
+	PRCMU_PRCMU2ARMPENDINGIT_ER	= 0x91,
+	PRCMU_ARMPENDINGIT_ER		= 0x93,
+};
+
 /*
  * Definitions for autonomous power management configuration.
  */
@@ -544,6 +563,7 @@ int db8500_prcmu_load_a9wdog(u8 id, u32 val);
 
 void db8500_prcmu_system_reset(u16 reset_code);
 int db8500_prcmu_set_power_state(u8 state, bool keep_ulp_clk, bool keep_ap_pll);
+u8 db8500_prcmu_get_power_state_result(void);
 void db8500_prcmu_enable_wakeups(u32 wakeups);
 int db8500_prcmu_set_epod(u16 epod_id, u8 epod_state);
 int db8500_prcmu_request_clock(u8 clock, bool enable);
@@ -695,6 +715,11 @@ static inline int prcmu_disable_spi2(void)
 
 static inline int db8500_prcmu_set_power_state(u8 state, bool keep_ulp_clk,
 	bool keep_ap_pll)
+{
+	return 0;
+}
+
+static inline u8 db8500_prcmu_get_power_state_result(void)
 {
 	return 0;
 }
