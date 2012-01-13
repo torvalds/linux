@@ -1850,7 +1850,8 @@ static void get_scan_count(struct zone *zone, struct scan_control *sc,
 	unsigned long nr_force_scan[2];
 
 	/* kswapd does zone balancing and needs to scan this zone */
-	if (scanning_global_lru(sc) && current_is_kswapd())
+	if (scanning_global_lru(sc) && current_is_kswapd() &&
+	    zone->all_unreclaimable)
 		force_scan = true;
 	/* memcg may have small limit and need to avoid priority drop */
 	if (!scanning_global_lru(sc))
