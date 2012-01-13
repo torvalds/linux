@@ -681,7 +681,7 @@ void lru_add_page_tail(struct zone* zone,
 		if (likely(PageLRU(page)))
 			list_add(&page_tail->lru, page->lru.prev);
 		else
-			list_add(&page_tail->lru, &lruvec->lists[lru]);
+			list_add(&page_tail->lru, lruvec->lists[lru].prev);
 		__mod_zone_page_state(zone, NR_LRU_BASE + lru,
 				      hpage_nr_pages(page_tail));
 	} else {
