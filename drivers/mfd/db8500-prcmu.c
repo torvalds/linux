@@ -2184,16 +2184,8 @@ int db8500_prcmu_kick_a9wdog(u8 id)
 /*
  * timeout is 28 bit, in ms.
  */
-#define MAX_WATCHDOG_TIMEOUT 131000
 int db8500_prcmu_load_a9wdog(u8 id, u32 timeout)
 {
-	if (timeout > MAX_WATCHDOG_TIMEOUT)
-		/*
-		 * Due to calculation bug in prcmu fw, timeouts
-		 * can't be bigger than 131 seconds.
-		 */
-		return -EINVAL;
-
 	return prcmu_a9wdog(MB4H_A9WDOG_LOAD,
 			    (id & A9WDOG_ID_MASK) |
 			    /*
