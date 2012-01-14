@@ -11,6 +11,7 @@ struct modem_dev
 
 /* 耳机数据结构体 */
 struct rk29_mu509_data {
+	struct device *dev;
 	int (*io_init)(void);
 	int (*io_deinit)(void);
 	unsigned int bp_power;

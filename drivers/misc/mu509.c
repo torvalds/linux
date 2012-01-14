@@ -100,8 +100,8 @@ static int mu509_open(struct inode *inode, struct file *file)
 {
 	//MODEMDBG("-------------%s\n",__FUNCTION__);
 	struct rk29_mu509_data *pdata = gpdata;
-	struct platform_data *pdev = container_of(pdata, struct device, platform_data);
-	device_init_wakeup(&pdev, 1);
+//	struct platform_data *pdev = container_of(pdata, struct device, platform_data);
+	device_init_wakeup(pdata->dev, 1);
 	return 0;
 }
 
@@ -191,6 +191,8 @@ static int mu509_probe(struct platform_device *pdev)
 	struct modem_dev *mu509_data = NULL;
 	int result, irq = 0;	
 	//MODEMDBG("-------------%s\n",__FUNCTION__);
+	
+	pdata->dev = &pdev->dev;
 	if(pdata->io_init)
 		pdata->io_init();
 	gpio_set_value(pdata->bp_reset, GPIO_HIGH);
