@@ -178,6 +178,8 @@
 #include <linux/mutex.h>
 #include <linux/io.h>
 
+#include <video/sa1100fb.h>
+
 #include <mach/hardware.h>
 #include <asm/mach-types.h>
 #include <mach/assabet.h>
@@ -1388,7 +1390,9 @@ static struct sa1100fb_info * __devinit sa1100fb_init_fbinfo(struct device *dev)
 	fbi->rgb[RGB_8]		= &rgb_8;
 	fbi->rgb[RGB_16]	= &def_rgb_16;
 
-	inf = sa1100fb_get_machine_info(fbi);
+	inf = dev->platform_data;
+	if (!inf)
+		inf = sa1100fb_get_machine_info(fbi);
 
 	/*
 	 * People just don't seem to get this.  We don't support
