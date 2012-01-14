@@ -406,14 +406,13 @@ ecryptfs_miscdev_write(struct file *file, const char __user *buf,
 	__be32 counter_nbo;
 	u32 seq;
 	size_t packet_size, packet_size_length, i;
-	ssize_t sz = 0;
 	char *data;
 	uid_t euid = current_euid();
 	unsigned char packet_size_peek[3];
-	int rc;
+	ssize_t rc;
 
 	if (count == 0) {
-		goto out;
+		return 0;
 	} else if (count == (1 + 4)) {
 		/* Likely a harmless MSG_HELO or MSG_QUIT - no packet length */
 		goto memdup;
@@ -439,7 +438,7 @@ ecryptfs_miscdev_write(struct file *file, const char __user *buf,
 					  &packet_size_length);
 	if (rc) {
 		printk(KERN_WARNING "%s: Error parsing packet length; "
-		       "rc = [%d]\n", __func__, rc);
+		       "rc = [%zd]\n", __func__, rc);
 		return rc;
 	}
 
@@ -454,9 +453,8 @@ memdup:
 	if (IS_ERR(data)) {
 		printk(KERN_ERR "%s: memdup_user returned error [%ld]\n",
 		       __func__, PTR_ERR(data));
-		goto out;
+		return PTR_ERR(data);
 	}
-	sz = count;
 	i = 0;
 	switch (data[i++]) {
 	case ECRYPTFS_MSG_RESPONSE:
@@ -467,6 +465,7 @@ memdup:
 			       __func__,
 			       (1 + 4 + 1 + sizeof(struct ecryptfs_message)),
 			       count);
+			rc = -EINVAL;
 			goto out_free;
 		}
 		memcpy(&counter_nbo, &data[i], 4);
@@ -475,10 +474,12 @@ memdup:
 		rc = ecryptfs_miscdev_response(&data[i], packet_size,
 					       euid, current_user_ns(),
 					       task_pid(current), seq);
-		if (rc)
+		if (rc) {
 			printk(KERN_WARNING "%s: Failed to deliver miscdev "
-			       "response to requesting operation; rc = [%d]\n",
+			       "response to requesting operation; rc = [%zd]\n",
 			       __func__, rc);
+			goto out_free;
+		}
 		break;
 	case ECRYPTFS_MSG_HELO:
 	case ECRYPTFS_MSG_QUIT:
@@ -487,12 +488,13 @@ memdup:
 		ecryptfs_printk(KERN_WARNING, "Dropping miscdev "
 				"message of unrecognized type [%d]\n",
 				data[0]);
-		break;
+		rc = -EINVAL;
+		goto out_free;
 	}
+	rc = count;
 out_free:
 	kfree(data);
-out:
-	return sz;
+	return rc;
 }
 
 
