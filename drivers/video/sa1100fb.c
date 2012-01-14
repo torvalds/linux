@@ -227,7 +227,7 @@ static struct sa1100fb_rgb def_rgb_16 = {
  * takes an RGB666 signal, but we provide it with an RGB565 signal
  * instead (def_rgb_16).
  */
-static struct sa1100fb_mach_info lq039q2ds54_info __initdata = {
+static struct sa1100fb_mach_info lq039q2ds54_info __devinitdata = {
 	.pixclock	= 171521,	.bpp		= 16,
 	.xres		= 320,		.yres		= 240,
 
@@ -241,7 +241,7 @@ static struct sa1100fb_mach_info lq039q2ds54_info __initdata = {
 	.lccr3		= LCCR3_OutEnH | LCCR3_PixRsEdg | LCCR3_ACBsDiv(2),
 };
 #else
-static struct sa1100fb_mach_info pal_info __initdata = {
+static struct sa1100fb_mach_info pal_info __devinitdata = {
 	.pixclock	= 67797,	.bpp		= 16,
 	.xres		= 640,		.yres		= 512,
 
@@ -256,7 +256,7 @@ static struct sa1100fb_mach_info pal_info __initdata = {
 #endif
 
 #ifdef CONFIG_SA1100_H3600
-static struct sa1100fb_mach_info h3600_info __initdata = {
+static struct sa1100fb_mach_info h3600_info __devinitdata = {
 	.pixclock	= 174757, 	.bpp		= 16,
 	.xres		= 320,		.yres		= 240,
 
@@ -279,7 +279,7 @@ static struct sa1100fb_rgb h3600_rgb_16 = {
 #endif
 
 #ifdef CONFIG_SA1100_H3100
-static struct sa1100fb_mach_info h3100_info __initdata = {
+static struct sa1100fb_mach_info h3100_info __devinitdata = {
 	.pixclock	= 406977, 	.bpp		= 4,
 	.xres		= 320,		.yres		= 240,
 
@@ -297,7 +297,7 @@ static struct sa1100fb_mach_info h3100_info __initdata = {
 #endif
 
 #ifdef CONFIG_SA1100_COLLIE
-static struct sa1100fb_mach_info collie_info __initdata = {
+static struct sa1100fb_mach_info collie_info __devinitdata = {
 	.pixclock	= 171521,	.bpp		= 16,
 	.xres		= 320,		.yres		= 240,
 
@@ -313,7 +313,7 @@ static struct sa1100fb_mach_info collie_info __initdata = {
 #endif
 
 #ifdef LART_GREY_LCD
-static struct sa1100fb_mach_info lart_grey_info __initdata = {
+static struct sa1100fb_mach_info lart_grey_info __devinitdata = {
 	.pixclock	= 150000,	.bpp		= 4,
 	.xres		= 320,		.yres		= 240,
 
@@ -329,7 +329,7 @@ static struct sa1100fb_mach_info lart_grey_info __initdata = {
 };
 #endif
 #ifdef LART_COLOR_LCD
-static struct sa1100fb_mach_info lart_color_info __initdata = {
+static struct sa1100fb_mach_info lart_color_info __devinitdata = {
 	.pixclock	= 150000,	.bpp		= 16,
 	.xres		= 320,		.yres		= 240,
 
@@ -342,7 +342,7 @@ static struct sa1100fb_mach_info lart_color_info __initdata = {
 };
 #endif
 #ifdef LART_VIDEO_OUT
-static struct sa1100fb_mach_info lart_video_info __initdata = {
+static struct sa1100fb_mach_info lart_video_info __devinitdata = {
 	.pixclock	= 39721,	.bpp		= 16,
 	.xres		= 640,		.yres		= 480,
 
@@ -358,7 +358,7 @@ static struct sa1100fb_mach_info lart_video_info __initdata = {
 #endif
 
 #ifdef LART_KIT01_LCD
-static struct sa1100fb_mach_info lart_kit01_info __initdata = {
+static struct sa1100fb_mach_info lart_kit01_info __devinitdata = {
 	.pixclock	= 63291,	.bpp		= 16,
 	.xres		= 640,		.yres		= 480,
 
@@ -372,7 +372,7 @@ static struct sa1100fb_mach_info lart_kit01_info __initdata = {
 #endif
 
 #ifdef CONFIG_SA1100_SHANNON
-static struct sa1100fb_mach_info shannon_info __initdata = {
+static struct sa1100fb_mach_info shannon_info __devinitdata = {
 	.pixclock	= 152500,	.bpp		= 8,
 	.xres		= 640,		.yres		= 480,
 
@@ -389,7 +389,7 @@ static struct sa1100fb_mach_info shannon_info __initdata = {
 
 
 
-static struct sa1100fb_mach_info * __init
+static struct sa1100fb_mach_info * __devinit
 sa1100fb_get_machine_info(struct sa1100fb_info *fbi)
 {
 	struct sa1100fb_mach_info *inf = NULL;
@@ -1318,7 +1318,7 @@ static int sa1100fb_resume(struct platform_device *dev)
  *      cache.  Once this area is remapped, all virtual memory
  *      access to the video memory should occur at the new region.
  */
-static int __init sa1100fb_map_video_memory(struct sa1100fb_info *fbi)
+static int __devinit sa1100fb_map_video_memory(struct sa1100fb_info *fbi)
 {
 	/*
 	 * We reserve one page for the palette, plus the size
@@ -1344,7 +1344,7 @@ static int __init sa1100fb_map_video_memory(struct sa1100fb_info *fbi)
 }
 
 /* Fake monspecs to fill in fbinfo structure */
-static struct fb_monspecs monspecs __initdata = {
+static struct fb_monspecs monspecs __devinitdata = {
 	.hfmin	= 30000,
 	.hfmax	= 70000,
 	.vfmin	= 50,
@@ -1352,7 +1352,7 @@ static struct fb_monspecs monspecs __initdata = {
 };
 
 
-static struct sa1100fb_info * __init sa1100fb_init_fbinfo(struct device *dev)
+static struct sa1100fb_info * __devinit sa1100fb_init_fbinfo(struct device *dev)
 {
 	struct sa1100fb_mach_info *inf;
 	struct sa1100fb_info *fbi;
