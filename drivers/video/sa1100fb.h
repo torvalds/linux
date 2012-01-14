@@ -23,10 +23,6 @@ struct sa1100fb_info {
 	struct device		*dev;
 	const struct sa1100fb_rgb *rgb[NR_RGB];
 
-	u_int			max_bpp;
-	u_int			max_xres;
-	u_int			max_yres;
-
 	/*
 	 * These are the addresses we mapped
 	 * the framebuffer memory region to.
@@ -43,12 +39,6 @@ struct sa1100fb_info {
 
 	dma_addr_t		dbar1;
 	dma_addr_t		dbar2;
-
-	u_int			lccr0;
-	u_int			lccr3;
-	u_int			cmap_inverse:1,
-				cmap_static:1,
-				unused:30;
 
 	u_int			reg_lccr0;
 	u_int			reg_lccr1;
