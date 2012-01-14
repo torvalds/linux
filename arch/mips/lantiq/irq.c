@@ -240,7 +240,6 @@ out:
 
 static struct irqaction cascade = {
 	.handler = no_action,
-	.flags = IRQF_DISABLED,
 	.name = "cascade",
 };
 
@@ -249,28 +248,28 @@ void __init arch_init_irq(void)
 	int i;
 
 	if (insert_resource(&iomem_resource, &ltq_icu_resource) < 0)
-		panic("Failed to insert icu memory\n");
+		panic("Failed to insert icu memory");
 
 	if (request_mem_region(ltq_icu_resource.start,
 			resource_size(&ltq_icu_resource), "icu") < 0)
-		panic("Failed to request icu memory\n");
+		panic("Failed to request icu memory");
 
 	ltq_icu_membase = ioremap_nocache(ltq_icu_resource.start,
 				resource_size(&ltq_icu_resource));
 	if (!ltq_icu_membase)
-		panic("Failed to remap icu memory\n");
+		panic("Failed to remap icu memory");
 
 	if (insert_resource(&iomem_resource, &ltq_eiu_resource) < 0)
-		panic("Failed to insert eiu memory\n");
+		panic("Failed to insert eiu memory");
 
 	if (request_mem_region(ltq_eiu_resource.start,
 			resource_size(&ltq_eiu_resource), "eiu") < 0)
-		panic("Failed to request eiu memory\n");
+		panic("Failed to request eiu memory");
 
 	ltq_eiu_membase = ioremap_nocache(ltq_eiu_resource.start,
 				resource_size(&ltq_eiu_resource));
 	if (!ltq_eiu_membase)
-		panic("Failed to remap eiu memory\n");
+		panic("Failed to remap eiu memory");
 
 	/* make sure all irqs are turned off by default */
 	for (i = 0; i < 5; i++)

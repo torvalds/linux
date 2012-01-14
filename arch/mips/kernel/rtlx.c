@@ -473,7 +473,6 @@ static const struct file_operations rtlx_fops = {
 
 static struct irqaction rtlx_irq = {
 	.handler	= rtlx_interrupt,
-	.flags		= IRQF_DISABLED,
 	.name		= "RTLX",
 };
 
