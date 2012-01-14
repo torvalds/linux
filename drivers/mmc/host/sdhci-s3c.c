@@ -80,7 +80,7 @@ static void sdhci_s3c_check_sclk(struct sdhci_host *host)
 
 		tmp &= ~S3C_SDHCI_CTRL2_SELBASECLK_MASK;
 		tmp |= ourhost->cur_clk << S3C_SDHCI_CTRL2_SELBASECLK_SHIFT;
-		writel(tmp, host->ioaddr + 0x80);
+		writel(tmp, host->ioaddr + S3C_SDHCI_CONTROL2);
 	}
 }
 
@@ -521,6 +521,9 @@ static int __devinit sdhci_s3c_probe(struct platform_device *pdev)
 	if (pdata->host_caps)
 		host->mmc->caps |= pdata->host_caps;
 
+	if (pdata->pm_caps)
+		host->mmc->pm_caps |= pdata->pm_caps;
+
 	host->quirks |= (SDHCI_QUIRK_32BIT_DMA_ADDR |
 			 SDHCI_QUIRK_32BIT_DMA_SIZE);
 
@@ -654,18 +657,7 @@ static struct platform_driver sdhci_s3c_driver = {
 	},
 };
 
-static int __init sdhci_s3c_init(void)
-{
-	return platform_driver_register(&sdhci_s3c_driver);
-}
-
-static void __exit sdhci_s3c_exit(void)
-{
-	platform_driver_unregister(&sdhci_s3c_driver);
-}
-
-module_init(sdhci_s3c_init);
-module_exit(sdhci_s3c_exit);
+module_platform_driver(sdhci_s3c_driver);
 
 MODULE_DESCRIPTION("Samsung SDHCI (HSMMC) glue");
 MODULE_AUTHOR("Ben Dooks, <ben@simtec.co.uk>");
