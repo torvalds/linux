@@ -21,8 +21,6 @@
 #include <linux/percpu.h>
 #include <asm/byteorder.h>
 
-static DEFINE_PER_CPU(u64[80], msg_schedule);
-
 static inline u64 Ch(u64 x, u64 y, u64 z)
 {
         return z ^ (x & (y ^ z));
@@ -89,7 +87,7 @@ sha512_transform(u64 *state, const u8 *input)
 	u64 a, b, c, d, e, f, g, h, t1, t2;
 
 	int i;
-	u64 *W = get_cpu_var(msg_schedule);
+	u64 W[80];
 
 	/* load the input */
         for (i = 0; i < 16; i++)
@@ -128,8 +126,6 @@ sha512_transform(u64 *state, const u8 *input)
 
 	/* erase our data */
 	a = b = c = d = e = f = g = h = t1 = t2 = 0;
-	memset(W, 0, sizeof(__get_cpu_var(msg_schedule)));
-	put_cpu_var(msg_schedule);
 }
 
 static int
