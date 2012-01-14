@@ -30,6 +30,8 @@
  * SOFTWARE.
  */
 
+#define pr_fmt(fmt) PFX fmt
+
 #include <linux/module.h>
 #include <linux/init.h>
 #include <linux/slab.h>
@@ -165,7 +167,7 @@ static void srp_free_iu(struct srp_host *host, struct srp_iu *iu)
 
 static void srp_qp_event(struct ib_event *event, void *context)
 {
-	printk(KERN_ERR PFX "QP event %d\n", event->event);
+	pr_debug("QP event %d\n", event->event);
 }
 
 static int srp_init_qp(struct srp_target_port *target,
@@ -1989,7 +1991,7 @@ static int srp_parse_options(const char *buf, struct srp_target_port *target)
 				goto out;
 			}
 			if (strlen(p) != 32) {
-				printk(KERN_WARNING PFX "bad dest GID parameter '%s'\n", p);
+				pr_warn("bad dest GID parameter '%s'\n", p);
 				kfree(p);
 				goto out;
 			}
@@ -2004,7 +2006,7 @@ static int srp_parse_options(const char *buf, struct srp_target_port *target)
 
 		case SRP_OPT_PKEY:
 			if (match_hex(args, &token)) {
-				printk(KERN_WARNING PFX "bad P_Key parameter '%s'\n", p);
+				pr_warn("bad P_Key parameter '%s'\n", p);
 				goto out;
 			}
 			target->path.pkey = cpu_to_be16(token);
@@ -2023,7 +2025,7 @@ static int srp_parse_options(const char *buf, struct srp_target_port *target)
 
 		case SRP_OPT_MAX_SECT:
 			if (match_int(args, &token)) {
-				printk(KERN_WARNING PFX "bad max sect parameter '%s'\n", p);
+				pr_warn("bad max sect parameter '%s'\n", p);
 				goto out;
 			}
 			target->scsi_host->max_sectors = token;
@@ -2031,7 +2033,8 @@ static int srp_parse_options(const char *buf, struct srp_target_port *target)
 
 		case SRP_OPT_MAX_CMD_PER_LUN:
 			if (match_int(args, &token)) {
-				printk(KERN_WARNING PFX "bad max cmd_per_lun parameter '%s'\n", p);
+				pr_warn("bad max cmd_per_lun parameter '%s'\n",
+					p);
 				goto out;
 			}
 			target->scsi_host->cmd_per_lun = min(token, SRP_CMD_SQ_SIZE);
@@ -2039,14 +2042,14 @@ static int srp_parse_options(const char *buf, struct srp_target_port *target)
 
 		case SRP_OPT_IO_CLASS:
 			if (match_hex(args, &token)) {
-				printk(KERN_WARNING PFX "bad  IO class parameter '%s' \n", p);
+				pr_warn("bad IO class parameter '%s'\n", p);
 				goto out;
 			}
 			if (token != SRP_REV10_IB_IO_CLASS &&
 			    token != SRP_REV16A_IB_IO_CLASS) {
-				printk(KERN_WARNING PFX "unknown IO class parameter value"
-				       " %x specified (use %x or %x).\n",
-				       token, SRP_REV10_IB_IO_CLASS, SRP_REV16A_IB_IO_CLASS);
+				pr_warn("unknown IO class parameter value %x specified (use %x or %x).\n",
+					token, SRP_REV10_IB_IO_CLASS,
+					SRP_REV16A_IB_IO_CLASS);
 				goto out;
 			}
 			target->io_class = token;
@@ -2064,7 +2067,8 @@ static int srp_parse_options(const char *buf, struct srp_target_port *target)
 
 		case SRP_OPT_CMD_SG_ENTRIES:
 			if (match_int(args, &token) || token < 1 || token > 255) {
-				printk(KERN_WARNING PFX "bad max cmd_sg_entries parameter '%s'\n", p);
+				pr_warn("bad max cmd_sg_entries parameter '%s'\n",
+					p);
 				goto out;
 			}
 			target->cmd_sg_cnt = token;
@@ -2072,7 +2076,7 @@ static int srp_parse_options(const char *buf, struct srp_target_port *target)
 
 		case SRP_OPT_ALLOW_EXT_SG:
 			if (match_int(args, &token)) {
-				printk(KERN_WARNING PFX "bad allow_ext_sg parameter '%s'\n", p);
+				pr_warn("bad allow_ext_sg parameter '%s'\n", p);
 				goto out;
 			}
 			target->allow_ext_sg = !!token;
@@ -2081,15 +2085,16 @@ static int srp_parse_options(const char *buf, struct srp_target_port *target)
 		case SRP_OPT_SG_TABLESIZE:
 			if (match_int(args, &token) || token < 1 ||
 					token > SCSI_MAX_SG_CHAIN_SEGMENTS) {
-				printk(KERN_WARNING PFX "bad max sg_tablesize parameter '%s'\n", p);
+				pr_warn("bad max sg_tablesize parameter '%s'\n",
+					p);
 				goto out;
 			}
 			target->sg_tablesize = token;
 			break;
 
 		default:
-			printk(KERN_WARNING PFX "unknown parameter or missing value "
-			       "'%s' in target creation request\n", p);
+			pr_warn("unknown parameter or missing value '%s' in target creation request\n",
+				p);
 			goto out;
 		}
 	}
@@ -2100,9 +2105,8 @@ static int srp_parse_options(const char *buf, struct srp_target_port *target)
 		for (i = 0; i < ARRAY_SIZE(srp_opt_tokens); ++i)
 			if ((srp_opt_tokens[i].token & SRP_OPT_ALL) &&
 			    !(srp_opt_tokens[i].token & opt_mask))
-				printk(KERN_WARNING PFX "target creation request is "
-				       "missing parameter '%s'\n",
-				       srp_opt_tokens[i].pattern);
+				pr_warn("target creation request is missing parameter '%s'\n",
+					srp_opt_tokens[i].pattern);
 
 out:
 	kfree(options);
@@ -2149,7 +2153,7 @@ static ssize_t srp_create_target(struct device *dev,
 
 	if (!host->srp_dev->fmr_pool && !target->allow_ext_sg &&
 				target->cmd_sg_cnt < target->sg_tablesize) {
-		printk(KERN_WARNING PFX "No FMR pool and no external indirect descriptors, limiting sg_tablesize to cmd_sg_cnt\n");
+		pr_warn("No FMR pool and no external indirect descriptors, limiting sg_tablesize to cmd_sg_cnt\n");
 		target->sg_tablesize = target->cmd_sg_cnt;
 	}
 
@@ -2309,8 +2313,7 @@ static void srp_add_one(struct ib_device *device)
 		return;
 
 	if (ib_query_device(device, dev_attr)) {
-		printk(KERN_WARNING PFX "Query device failed for %s\n",
-		       device->name);
+		pr_warn("Query device failed for %s\n", device->name);
 		goto free_attr;
 	}
 
@@ -2459,7 +2462,7 @@ static int __init srp_init_module(void)
 	BUILD_BUG_ON(FIELD_SIZEOF(struct ib_wc, wr_id) < sizeof(void *));
 
 	if (srp_sg_tablesize) {
-		printk(KERN_WARNING PFX "srp_sg_tablesize is deprecated, please use cmd_sg_entries\n");
+		pr_warn("srp_sg_tablesize is deprecated, please use cmd_sg_entries\n");
 		if (!cmd_sg_entries)
 			cmd_sg_entries = srp_sg_tablesize;
 	}
@@ -2468,14 +2471,15 @@ static int __init srp_init_module(void)
 		cmd_sg_entries = SRP_DEF_SG_TABLESIZE;
 
 	if (cmd_sg_entries > 255) {
-		printk(KERN_WARNING PFX "Clamping cmd_sg_entries to 255\n");
+		pr_warn("Clamping cmd_sg_entries to 255\n");
 		cmd_sg_entries = 255;
 	}
 
 	if (!indirect_sg_entries)
 		indirect_sg_entries = cmd_sg_entries;
 	else if (indirect_sg_entries < cmd_sg_entries) {
-		printk(KERN_WARNING PFX "Bumping up indirect_sg_entries to match cmd_sg_entries (%u)\n", cmd_sg_entries);
+		pr_warn("Bumping up indirect_sg_entries to match cmd_sg_entries (%u)\n",
+			cmd_sg_entries);
 		indirect_sg_entries = cmd_sg_entries;
 	}
 
@@ -2486,7 +2490,7 @@ static int __init srp_init_module(void)
 
 	ret = class_register(&srp_class);
 	if (ret) {
-		printk(KERN_ERR PFX "couldn't register class infiniband_srp\n");
+		pr_err("couldn't register class infiniband_srp\n");
 		srp_release_transport(ib_srp_transport_template);
 		return ret;
 	}
@@ -2495,7 +2499,7 @@ static int __init srp_init_module(void)
 
 	ret = ib_register_client(&srp_client);
 	if (ret) {
-		printk(KERN_ERR PFX "couldn't register IB client\n");
+		pr_err("couldn't register IB client\n");
 		srp_release_transport(ib_srp_transport_template);
 		ib_sa_unregister_client(&srp_sa_client);
 		class_unregister(&srp_class);
