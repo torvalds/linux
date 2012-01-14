@@ -1064,6 +1064,7 @@ static struct platform_driver sa1111_device_driver = {
 	.resume		= sa1111_resume,
 	.driver		= {
 		.name	= "sa1111",
+		.owner	= THIS_MODULE,
 	},
 };
 
