@@ -156,7 +156,7 @@ static int rk29_gpio_to_uart(int uart_id)
 
 }
 
-static int  get_bp_statue(struct platform_device *pdev)
+/*static int  get_bp_statue(struct platform_device *pdev)
 {
 	struct rk2818_23d_data *pdata = pdev->dev.platform_data;
 	
@@ -164,7 +164,7 @@ static int  get_bp_statue(struct platform_device *pdev)
 		return SLEEP;
 	else
 		return READY;
-}
+}*/
 static void ap_sleep(struct platform_device *pdev)
 {
 	struct rk2818_23d_data *pdata = pdev->dev.platform_data;
@@ -183,7 +183,7 @@ static void ap_wakeup(struct platform_device *pdev)
 static void ap_wakeup_bp(struct platform_device *pdev, int wake)//low to wakeup bp
 {
 	struct rk2818_23d_data *pdata = pdev->dev.platform_data;
-        struct modem_dev *mt6223d_data = platform_get_drvdata(pdev);
+        //struct modem_dev *mt6223d_data = platform_get_drvdata(pdev);
 	MODEMDBG("ap_wakeup_bp\n");
 
 	gpio_set_value(pdata->ap_bp_wakeup, wake);  // phc
@@ -192,12 +192,12 @@ static void ap_wakeup_bp(struct platform_device *pdev, int wake)//low to wakeup 
 
 static void bpwakeup_work_func_work(struct work_struct *work)
 {
-	struct modem_dev *bdata = container_of(work, struct modem_dev, work);
+	//struct modem_dev *bdata = container_of(work, struct modem_dev, work);
 	
 	MODEMDBG("%s\n", __FUNCTION__);
 	
 }
-/*  */
+/*  
 static irqreturn_t  bpwakeup_work_func(int irq, void *data)
 {
 	struct modem_dev *mt6223d_data = (struct modem_dev *)data;
@@ -206,6 +206,8 @@ static irqreturn_t  bpwakeup_work_func(int irq, void *data)
 	schedule_work(&mt6223d_data->work);
 	return IRQ_HANDLED;
 }
+
+
 static irqreturn_t  bp_apwakeup_work_func(int irq, void *data)
 {
 	//struct modem_dev *dev = &mtk23d_misc;
@@ -214,10 +216,11 @@ static irqreturn_t  bp_apwakeup_work_func(int irq, void *data)
 	//wake_up_interruptible(&dev->wakeup);
 	return IRQ_HANDLED;
 }
+*/
 
 static irqreturn_t BBwakeup_isr(int irq, void *dev_id)
 {
-	struct rk2818_23d_data *pdata = dev_id;
+	//struct rk2818_23d_data *pdata = dev_id;
 	
 	MODEMDBG("%s \n", __FUNCTION__);
 	//if(irq != gpio_to_irq(RK29_PIN1_PC0))
@@ -241,7 +244,7 @@ static irqreturn_t BBwakeup_isr(int irq, void *dev_id)
 int modem_poweron_off(int on_off)
 {
 	struct rk2818_23d_data *pdata = gpdata;
-	int result, error = 0, irq = 0;	
+	int  error = 0, irq = 0;	
 	
   if(on_off)
 	{
@@ -287,13 +290,14 @@ int modem_poweron_off(int on_off)
 			msleep(500);
 			gpio_set_value(pdata->bp_reset, pdata->bp_reset_active_low? GPIO_LOW:GPIO_HIGH); 
   }
+  return 0;
 }
 static int power_on =1;
 static int mtk23d_open(struct inode *inode, struct file *file)
 {
 	struct rk2818_23d_data *pdata = gpdata;
 	MODEMDBG("modem_open\n");
-	int ret = 0;
+
 	if(power_on)
 	{
 		power_on = 0;
@@ -313,10 +317,11 @@ static int mtk23d_release(struct inode *inode, struct file *file)
 //extern char imei_value[16]; // phc, no find 'imei_value' in rk29 project
 //char imei_value[16] = {0,1,2,3,4,5,6,7,8,9,0,1,2,3,4,5};
 
-static int mtk23d_ioctl(struct inode *inode,struct file *file, unsigned int cmd, unsigned long arg)
+
+static long mtk23d_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 {
 	struct rk2818_23d_data *pdata = gpdata;
-	int i,ret;
+	int ret;
 	void __user *argp = (void __user *)arg;
 	
 	char SectorBuffer[512];
@@ -413,7 +418,7 @@ static int mtk23d_probe(struct platform_device *pdev)
 {
 	struct rk2818_23d_data *pdata = gpdata = pdev->dev.platform_data;
 	struct modem_dev *mt6223d_data = NULL;
-	int result, error = 0, irq = 0;	
+	int result=1;	
 	
 	MODEMDBG("mtk23d_probe\n");
 
@@ -513,13 +518,13 @@ err5:
 	gpio_free(pdata->bp_statue);
 err6:
 	kfree(mt6223d_data);
-ret:
+
 	return result;
 }
 
-int mtk23d_suspend(struct platform_device *pdev)
+int mtk23d_suspend(struct platform_device *pdev, pm_message_t state)
 {
-	int irq, error;
+	int irq;
 	struct rk2818_23d_data *pdata = pdev->dev.platform_data;
 	
 	MODEMDBG("%s \n", __FUNCTION__);
@@ -563,7 +568,7 @@ int mtk23d_resume(struct platform_device *pdev)
 	return 0;
 }
 
-void mtk23d_shutdown(struct platform_device *pdev, pm_message_t state)
+void mtk23d_shutdown(struct platform_device *pdev)
 {
 	struct rk2818_23d_data *pdata = pdev->dev.platform_data;
 	struct modem_dev *mt6223d_data = platform_get_drvdata(pdev);
@@ -593,9 +598,10 @@ static struct platform_driver mtk23d_driver = {
 	},
 };
 
+
 static int __init mtk23d_init(void)
 {
-	MODEMDBG("mtk23d_init ret=%d\n");
+	//MODEMDBG("mtk23d_init ret=%d\n");
 	return platform_driver_register(&mtk23d_driver);
 }
 
