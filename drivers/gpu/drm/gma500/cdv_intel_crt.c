@@ -66,6 +66,7 @@ static void cdv_intel_crt_dpms(struct drm_encoder *encoder, int mode)
 static int cdv_intel_crt_mode_valid(struct drm_connector *connector,
 				struct drm_display_mode *mode)
 {
+	struct drm_psb_private *dev_priv = connector->dev->dev_private;
 	int max_clock = 0;
 	if (mode->flags & DRM_MODE_FLAG_DBLSCAN)
 		return MODE_NO_DBLESCAN;
@@ -81,6 +82,11 @@ static int cdv_intel_crt_mode_valid(struct drm_connector *connector,
 
 	if (mode->hdisplay > 1680 || mode->vdisplay > 1050)
 		return MODE_PANEL;
+
+	/* We assume worst case scenario of 32 bpp here, since we don't know */
+	if ((ALIGN(mode->hdisplay * 4, 64) * mode->vdisplay) >
+	    dev_priv->vram_stolen_size)
+		return MODE_MEM;
 
 	return MODE_OK;
 }
