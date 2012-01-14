@@ -622,9 +622,7 @@ static int exynos4_bus_setvolt(struct busfreq_data *data, struct opp *opp,
 static int exynos4_bus_target(struct device *dev, unsigned long *_freq)
 {
 	int err = 0;
-	struct platform_device *pdev = container_of(dev, struct platform_device,
-						    dev);
-	struct busfreq_data *data = platform_get_drvdata(pdev);
+	struct busfreq_data *data = dev_get_drvdata(dev);
 	struct opp *opp = devfreq_recommended_opp(dev, _freq);
 	unsigned long old_freq = opp_get_freq(data->curr_opp);
 	unsigned long freq = opp_get_freq(opp);
@@ -689,9 +687,7 @@ static int exynos4_get_busier_dmc(struct busfreq_data *data)
 static int exynos4_bus_get_dev_status(struct device *dev,
 				      struct devfreq_dev_status *stat)
 {
-	struct platform_device *pdev = container_of(dev, struct platform_device,
-						    dev);
-	struct busfreq_data *data = platform_get_drvdata(pdev);
+	struct busfreq_data *data = dev_get_drvdata(dev);
 	int busier_dmc;
 	int cycles_x2 = 2; /* 2 x cycles */
 	void __iomem *addr;
@@ -739,9 +735,7 @@ static int exynos4_bus_get_dev_status(struct device *dev,
 
 static void exynos4_bus_exit(struct device *dev)
 {
-	struct platform_device *pdev = container_of(dev, struct platform_device,
-						    dev);
-	struct busfreq_data *data = platform_get_drvdata(pdev);
+	struct busfreq_data *data = dev_get_drvdata(dev);
 
 	devfreq_unregister_opp_notifier(dev, data->devfreq);
 }
@@ -1087,9 +1081,7 @@ static __devexit int exynos4_busfreq_remove(struct platform_device *pdev)
 
 static int exynos4_busfreq_resume(struct device *dev)
 {
-	struct platform_device *pdev = container_of(dev, struct platform_device,
-						    dev);
-	struct busfreq_data *data = platform_get_drvdata(pdev);
+	struct busfreq_data *data = dev_get_drvdata(dev);
 
 	busfreq_mon_reset(data);
 	return 0;
