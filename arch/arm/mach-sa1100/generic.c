@@ -126,6 +126,17 @@ static void sa1100_power_off(void)
 	PMCR = PMCR_SF;
 }
 
+void sa11x0_restart(char mode, const char *cmd)
+{
+	if (mode == 's') {
+		/* Jump into ROM at address 0 */
+		soft_restart(0);
+	} else {
+		/* Use on-chip reset capability */
+		RSRR = RSRR_SWR;
+	}
+}
+
 static void sa11x0_register_device(struct platform_device *dev, void *data)
 {
 	int err;
@@ -334,9 +345,29 @@ void sa11x0_register_irda(struct irda_platform_data *irda)
 	sa11x0_register_device(&sa11x0ir_device, irda);
 }
 
+static struct resource sa11x0rtc_resources[] = {
+	[0] = {
+		.start	= 0x90010000,
+		.end	= 0x900100ff,
+		.flags	= IORESOURCE_MEM,
+	},
+	[1] = {
+		.start	= IRQ_RTC1Hz,
+		.end	= IRQ_RTC1Hz,
+		.flags	= IORESOURCE_IRQ,
+	},
+	[2] = {
+		.start	= IRQ_RTCAlrm,
+		.end	= IRQ_RTCAlrm,
+		.flags	= IORESOURCE_IRQ,
+	},
+};
+
 static struct platform_device sa11x0rtc_device = {
 	.name		= "sa1100-rtc",
 	.id		= -1,
+	.resource	= sa11x0rtc_resources,
+	.num_resources	= ARRAY_SIZE(sa11x0rtc_resources),
 };
 
 static struct platform_device *sa11x0_devices[] __initdata = {

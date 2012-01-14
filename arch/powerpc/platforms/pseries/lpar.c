@@ -554,7 +554,10 @@ void __trace_hcall_entry(unsigned long opcode, unsigned long *args)
 		goto out;
 
 	(*depth)++;
+	preempt_disable();
 	trace_hcall_entry(opcode, args);
+	if (opcode == H_CEDE)
+		rcu_idle_enter();
 	(*depth)--;
 
 out:
@@ -575,7 +578,10 @@ void __trace_hcall_exit(long opcode, unsigned long retval,
 		goto out;
 
 	(*depth)++;
+	if (opcode == H_CEDE)
+		rcu_idle_exit();
 	trace_hcall_exit(opcode, retval, retbuf);
+	preempt_enable();
 	(*depth)--;
 
 out:

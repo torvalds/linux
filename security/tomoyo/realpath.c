@@ -4,15 +4,8 @@
  * Copyright (C) 2005-2011  NTT DATA CORPORATION
  */
 
-#include <linux/types.h>
-#include <linux/mount.h>
-#include <linux/mnt_namespace.h>
-#include <linux/fs_struct.h>
-#include <linux/magic.h>
-#include <linux/slab.h>
-#include <net/sock.h>
 #include "common.h"
-#include "../../fs/internal.h"
+#include <linux/magic.h>
 
 /**
  * tomoyo_encode2 - Encode binary string to ascii string.

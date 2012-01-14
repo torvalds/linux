@@ -665,6 +665,8 @@ static void atom_op_delay(atom_exec_context *ctx, int *ptr, int arg)
 	SDEBUG("   count: %d\n", count);
 	if (arg == ATOM_UNIT_MICROSEC)
 		udelay(count);
+	else if (!drm_can_sleep())
+		mdelay(count);
 	else
 		msleep(count);
 }

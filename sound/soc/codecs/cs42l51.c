@@ -22,7 +22,6 @@
  */
 
 #include <linux/module.h>
-#include <linux/platform_device.h>
 #include <linux/slab.h>
 #include <sound/core.h>
 #include <sound/soc.h>
@@ -175,21 +174,18 @@ static const struct snd_kcontrol_new cs42l51_snd_controls[] = {
 static int cs42l51_pdn_event(struct snd_soc_dapm_widget *w,
 		struct snd_kcontrol *kcontrol, int event)
 {
-	unsigned long value;
-
-	value = snd_soc_read(w->codec, CS42L51_POWER_CTL1);
-	value &= ~CS42L51_POWER_CTL1_PDN;
-
 	switch (event) {
 	case SND_SOC_DAPM_PRE_PMD:
-		value |= CS42L51_POWER_CTL1_PDN;
+		snd_soc_update_bits(w->codec, CS42L51_POWER_CTL1,
+				    CS42L51_POWER_CTL1_PDN,
+				    CS42L51_POWER_CTL1_PDN);
 		break;
 	default:
 	case SND_SOC_DAPM_POST_PMD:
+		snd_soc_update_bits(w->codec, CS42L51_POWER_CTL1,
+				    CS42L51_POWER_CTL1_PDN, 0);
 		break;
 	}
-	snd_soc_update_bits(w->codec, CS42L51_POWER_CTL1,
-		CS42L51_POWER_CTL1_PDN, value);
 
 	return 0;
 }
@@ -486,7 +482,7 @@ static int cs42l51_dai_mute(struct snd_soc_dai *dai, int mute)
 	return snd_soc_write(codec, CS42L51_DAC_OUT_CTL, reg);
 }
 
-static struct snd_soc_dai_ops cs42l51_dai_ops = {
+static const struct snd_soc_dai_ops cs42l51_dai_ops = {
 	.hw_params      = cs42l51_hw_params,
 	.set_sysclk     = cs42l51_set_dai_sysclk,
 	.set_fmt        = cs42l51_set_dai_fmt,
@@ -515,7 +511,6 @@ static struct snd_soc_dai_driver cs42l51_dai = {
 static int cs42l51_probe(struct snd_soc_codec *codec)
 {
 	struct cs42l51_private *cs42l51 = snd_soc_codec_get_drvdata(codec);
-	struct snd_soc_dapm_context *dapm = &codec->dapm;
 	int ret, reg;
 
 	ret = cs42l51_fill_cache(codec);
@@ -543,20 +538,20 @@ static int cs42l51_probe(struct snd_soc_codec *codec)
 	if (ret < 0)
 		return ret;
 
-	snd_soc_add_controls(codec, cs42l51_snd_controls,
-		ARRAY_SIZE(cs42l51_snd_controls));
-	snd_soc_dapm_new_controls(dapm, cs42l51_dapm_widgets,
-		ARRAY_SIZE(cs42l51_dapm_widgets));
-	snd_soc_dapm_add_routes(dapm, cs42l51_routes,
-		ARRAY_SIZE(cs42l51_routes));
-
 	return 0;
 }
 
 static struct snd_soc_codec_driver soc_codec_device_cs42l51 = {
-	.probe =	cs42l51_probe,
+	.probe = cs42l51_probe,
 	.reg_cache_size = CS42L51_NUMREGS + 1,
 	.reg_word_size = sizeof(u8),
+
+	.controls = cs42l51_snd_controls,
+	.num_controls = ARRAY_SIZE(cs42l51_snd_controls),
+	.dapm_widgets = cs42l51_dapm_widgets,
+	.num_dapm_widgets = ARRAY_SIZE(cs42l51_dapm_widgets),
+	.dapm_routes = cs42l51_routes,
+	.num_dapm_routes = ARRAY_SIZE(cs42l51_routes),
 };
 
 static int cs42l51_i2c_probe(struct i2c_client *i2c_client,
@@ -582,7 +577,8 @@ static int cs42l51_i2c_probe(struct i2c_client *i2c_client,
 	dev_info(&i2c_client->dev, "found device cs42l51 rev %d\n",
 				ret & 7);
 
-	cs42l51 = kzalloc(sizeof(struct cs42l51_private), GFP_KERNEL);
+	cs42l51 = devm_kzalloc(&i2c_client->dev, sizeof(struct cs42l51_private),
+			       GFP_KERNEL);
 	if (!cs42l51) {
 		dev_err(&i2c_client->dev, "could not allocate codec\n");
 		return -ENOMEM;
@@ -593,18 +589,13 @@ static int cs42l51_i2c_probe(struct i2c_client *i2c_client,
 
 	ret =  snd_soc_register_codec(&i2c_client->dev,
 			&soc_codec_device_cs42l51, &cs42l51_dai, 1);
-	if (ret < 0)
-		kfree(cs42l51);
 error:
 	return ret;
 }
 
 static int cs42l51_i2c_remove(struct i2c_client *client)
 {
-	struct cs42l51_private *cs42l51 = i2c_get_clientdata(client);
-
 	snd_soc_unregister_codec(&client->dev);
-	kfree(cs42l51);
 	return 0;
 }
 

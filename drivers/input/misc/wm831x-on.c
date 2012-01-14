@@ -145,18 +145,7 @@ static struct platform_driver wm831x_on_driver = {
 		.owner	= THIS_MODULE,
 	},
 };
-
-static int __init wm831x_on_init(void)
-{
-	return platform_driver_register(&wm831x_on_driver);
-}
-module_init(wm831x_on_init);
-
-static void __exit wm831x_on_exit(void)
-{
-	platform_driver_unregister(&wm831x_on_driver);
-}
-module_exit(wm831x_on_exit);
+module_platform_driver(wm831x_on_driver);
 
 MODULE_ALIAS("platform:wm831x-on");
 MODULE_DESCRIPTION("WM831x ON pin");

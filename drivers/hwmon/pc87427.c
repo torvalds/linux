@@ -418,7 +418,7 @@ static ssize_t set_fan_min(struct device *dev, struct device_attribute
 	unsigned long val;
 	int iobase = data->address[LD_FAN];
 
-	if (strict_strtoul(buf, 10, &val) < 0)
+	if (kstrtoul(buf, 10, &val) < 0)
 		return -EINVAL;
 
 	mutex_lock(&data->lock);
@@ -572,7 +572,7 @@ static ssize_t set_pwm_enable(struct device *dev, struct device_attribute
 	int nr = to_sensor_dev_attr(devattr)->index;
 	unsigned long val;
 
-	if (strict_strtoul(buf, 10, &val) < 0 || val > 2)
+	if (kstrtoul(buf, 10, &val) < 0 || val > 2)
 		return -EINVAL;
 	/* Can't go to automatic mode if it isn't configured */
 	if (val == 2 && !(data->pwm_auto_ok & (1 << nr)))
@@ -604,7 +604,7 @@ static ssize_t set_pwm(struct device *dev, struct device_attribute
 	int iobase = data->address[LD_FAN];
 	u8 mode;
 
-	if (strict_strtoul(buf, 10, &val) < 0 || val > 0xff)
+	if (kstrtoul(buf, 10, &val) < 0 || val > 0xff)
 		return -EINVAL;
 
 	mutex_lock(&data->lock);

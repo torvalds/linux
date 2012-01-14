@@ -577,19 +577,9 @@ static struct spi_driver ade7753_driver = {
 	.probe = ade7753_probe,
 	.remove = __devexit_p(ade7753_remove),
 };
-
-static __init int ade7753_init(void)
-{
-	return spi_register_driver(&ade7753_driver);
-}
-module_init(ade7753_init);
-
-static __exit void ade7753_exit(void)
-{
-	spi_unregister_driver(&ade7753_driver);
-}
-module_exit(ade7753_exit);
+module_spi_driver(ade7753_driver);
 
 MODULE_AUTHOR("Barry Song <21cnbao@gmail.com>");
 MODULE_DESCRIPTION("Analog Devices ADE7753/6 Single-Phase Multifunction Meter");
 MODULE_LICENSE("GPL v2");
+MODULE_ALIAS("spi:ade7753");

@@ -238,10 +238,6 @@ static int pl061_probe(struct amba_device *dev, const struct amba_id *id)
 	int ret, irq, i;
 	static DECLARE_BITMAP(init_irq, NR_IRQS);
 
-	pdata = dev->dev.platform_data;
-	if (pdata == NULL)
-		return -ENODEV;
-
 	chip = kzalloc(sizeof(*chip), GFP_KERNEL);
 	if (chip == NULL)
 		return -ENOMEM;
@@ -349,6 +345,8 @@ static struct amba_id pl061_ids[] = {
 	},
 	{ 0, 0 },
 };
+
+MODULE_DEVICE_TABLE(amba, pl061_ids);
 
 static struct amba_driver pl061_gpio_driver = {
 	.drv = {

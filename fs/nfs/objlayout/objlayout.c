@@ -254,6 +254,8 @@ objlayout_read_done(struct objlayout_io_res *oir, ssize_t status, bool sync)
 	oir->status = rdata->task.tk_status = status;
 	if (status >= 0)
 		rdata->res.count = status;
+	else
+		rdata->pnfs_error = status;
 	objlayout_iodone(oir);
 	/* must not use oir after this point */
 
@@ -334,6 +336,8 @@ objlayout_write_done(struct objlayout_io_res *oir, ssize_t status, bool sync)
 	if (status >= 0) {
 		wdata->res.count = status;
 		wdata->verf.committed = oir->committed;
+	} else {
+		wdata->pnfs_error = status;
 	}
 	objlayout_iodone(oir);
 	/* must not use oir after this point */

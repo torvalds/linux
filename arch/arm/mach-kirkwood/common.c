@@ -12,7 +12,6 @@
 #include <linux/init.h>
 #include <linux/platform_device.h>
 #include <linux/serial_8250.h>
-#include <linux/mbus.h>
 #include <linux/ata_platform.h>
 #include <linux/mtd/nand.h>
 #include <linux/dma-mapping.h>
@@ -30,6 +29,7 @@
 #include <plat/orion_nand.h>
 #include <plat/common.h>
 #include <plat/time.h>
+#include <plat/addr-map.h>
 #include "common.h"
 
 /*****************************************************************************
@@ -73,8 +73,7 @@ unsigned int kirkwood_clk_ctrl = CGC_DUNIT | CGC_RESERVED;
 void __init kirkwood_ehci_init(void)
 {
 	kirkwood_clk_ctrl |= CGC_USB0;
-	orion_ehci_init(&kirkwood_mbus_dram_info,
-			USB_PHYS_BASE, IRQ_KIRKWOOD_USB);
+	orion_ehci_init(USB_PHYS_BASE, IRQ_KIRKWOOD_USB);
 }
 
 
@@ -85,7 +84,7 @@ void __init kirkwood_ge00_init(struct mv643xx_eth_platform_data *eth_data)
 {
 	kirkwood_clk_ctrl |= CGC_GE0;
 
-	orion_ge00_init(eth_data, &kirkwood_mbus_dram_info,
+	orion_ge00_init(eth_data,
 			GE00_PHYS_BASE, IRQ_KIRKWOOD_GE00_SUM,
 			IRQ_KIRKWOOD_GE00_ERR, kirkwood_tclk);
 }
@@ -99,7 +98,7 @@ void __init kirkwood_ge01_init(struct mv643xx_eth_platform_data *eth_data)
 
 	kirkwood_clk_ctrl |= CGC_GE1;
 
-	orion_ge01_init(eth_data, &kirkwood_mbus_dram_info,
+	orion_ge01_init(eth_data,
 			GE01_PHYS_BASE, IRQ_KIRKWOOD_GE01_SUM,
 			IRQ_KIRKWOOD_GE01_ERR, kirkwood_tclk);
 }
@@ -178,8 +177,7 @@ void __init kirkwood_sata_init(struct mv_sata_platform_data *sata_data)
 	if (sata_data->n_ports > 1)
 		kirkwood_clk_ctrl |= CGC_SATA1;
 
-	orion_sata_init(sata_data, &kirkwood_mbus_dram_info,
-			SATA_PHYS_BASE, IRQ_KIRKWOOD_SATA);
+	orion_sata_init(sata_data, SATA_PHYS_BASE, IRQ_KIRKWOOD_SATA);
 }
 
 
@@ -221,7 +219,6 @@ void __init kirkwood_sdio_init(struct mvsdio_platform_data *mvsdio_data)
 		mvsdio_data->clock = 100000000;
 	else
 		mvsdio_data->clock = 200000000;
-	mvsdio_data->dram = &kirkwood_mbus_dram_info;
 	kirkwood_clk_ctrl |= CGC_SDIO;
 	kirkwood_sdio.dev.platform_data = mvsdio_data;
 	platform_device_register(&kirkwood_sdio);
@@ -285,8 +282,7 @@ static void __init kirkwood_xor0_init(void)
 {
 	kirkwood_clk_ctrl |= CGC_XOR0;
 
-	orion_xor0_init(&kirkwood_mbus_dram_info,
-			XOR0_PHYS_BASE, XOR0_HIGH_PHYS_BASE,
+	orion_xor0_init(XOR0_PHYS_BASE, XOR0_HIGH_PHYS_BASE,
 			IRQ_KIRKWOOD_XOR_00, IRQ_KIRKWOOD_XOR_01);
 }
 
@@ -364,7 +360,6 @@ static struct resource kirkwood_i2s_resources[] = {
 };
 
 static struct kirkwood_asoc_platform_data kirkwood_i2s_data = {
-	.dram        = &kirkwood_mbus_dram_info,
 	.burst       = 128,
 };
 
@@ -430,6 +425,8 @@ static char * __init kirkwood_id(void)
 	} else if (dev == MV88F6282_DEV_ID) {
 		if (rev == MV88F6282_REV_A0)
 			return "MV88F6282-Rev-A0";
+		else if (rev == MV88F6282_REV_A1)
+			return "MV88F6282-Rev-A1";
 		else
 			return "MV88F6282-Rev-Unsupported";
 	} else {
@@ -534,3 +531,19 @@ static int __init kirkwood_clock_gate(void)
 	return 0;
 }
 late_initcall(kirkwood_clock_gate);
+
+void kirkwood_restart(char mode, const char *cmd)
+{
+	/*
+	 * Enable soft reset to assert RSTOUTn.
+	 */
+	writel(SOFT_RESET_OUT_EN, RSTOUTn_MASK);
+
+	/*
+	 * Assert soft reset.
+	 */
+	writel(SOFT_RESET, SYSTEM_SOFT_RESET);
+
+	while (1)
+		;
+}

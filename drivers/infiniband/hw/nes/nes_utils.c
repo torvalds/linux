@@ -56,7 +56,7 @@ static u16 nes_read16_eeprom(void __iomem *addr, u16 offset);
 u32 mh_detected;
 u32 mh_pauses_sent;
 
-u32 nes_set_pau(struct nes_device *nesdev)
+static u32 nes_set_pau(struct nes_device *nesdev)
 {
 	u32 ret = 0;
 	u32 counter;

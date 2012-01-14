@@ -45,8 +45,8 @@ struct cfcnfg_phyinfo {
 	/* Interface index */
 	int ifindex;
 
-	/* Use Start of frame extension */
-	bool use_stx;
+	/* Protocol head room added for CAIF link layer */
+	int head_room;
 
 	/* Use Start of frame checksum */
 	bool use_fcs;
@@ -187,11 +187,11 @@ int caif_disconnect_client(struct net *net, struct cflayer *adap_layer)
 	if (channel_id != 0) {
 		struct cflayer *servl;
 		servl = cfmuxl_remove_uplayer(cfg->mux, channel_id);
+		cfctrl_linkdown_req(cfg->ctrl, channel_id, adap_layer);
 		if (servl != NULL)
 			layer_set_up(servl, NULL);
 	} else
 		pr_debug("nothing to disconnect\n");
-	cfctrl_linkdown_req(cfg->ctrl, channel_id, adap_layer);
 
 	/* Do RCU sync before initiating cleanup */
 	synchronize_rcu();
@@ -350,9 +350,7 @@ int caif_connect_client(struct net *net, struct caif_connect_request *conn_req,
 
 	*ifindex = phy->ifindex;
 	*proto_tail = 2;
-	*proto_head =
-
-	protohead[param.linktype] + (phy->use_stx ? 1 : 0);
+	*proto_head = protohead[param.linktype] + phy->head_room;
 
 	rcu_read_unlock();
 
@@ -460,13 +458,13 @@ unlock:
 }
 
 void
-cfcnfg_add_phy_layer(struct cfcnfg *cnfg, enum cfcnfg_phy_type phy_type,
+cfcnfg_add_phy_layer(struct cfcnfg *cnfg,
 		     struct net_device *dev, struct cflayer *phy_layer,
 		     enum cfcnfg_phy_preference pref,
-		     bool fcs, bool stx)
+		     struct cflayer *link_support,
+		     bool fcs, int head_room)
 {
 	struct cflayer *frml;
-	struct cflayer *phy_driver = NULL;
 	struct cfcnfg_phyinfo *phyinfo = NULL;
 	int i;
 	u8 phyid;
@@ -482,26 +480,13 @@ cfcnfg_add_phy_layer(struct cfcnfg *cnfg, enum cfcnfg_phy_type phy_type,
 			goto got_phyid;
 	}
 	pr_warn("Too many CAIF Link Layers (max 6)\n");
-	goto out_err;
+	goto out;
 
 got_phyid:
 	phyinfo = kzalloc(sizeof(struct cfcnfg_phyinfo), GFP_ATOMIC);
 	if (!phyinfo)
 		goto out_err;
 
-	switch (phy_type) {
-	case CFPHYTYPE_FRAG:
-		phy_driver =
-		    cfserl_create(CFPHYTYPE_FRAG, phyid, stx);
-		if (!phy_driver)
-			goto out_err;
-		break;
-	case CFPHYTYPE_CAIF:
-		phy_driver = NULL;
-		break;
-	default:
-		goto out_err;
-	}
 	phy_layer->id = phyid;
 	phyinfo->pref = pref;
 	phyinfo->id = phyid;
@@ -509,7 +494,7 @@ got_phyid:
 	phyinfo->dev_info.dev = dev;
 	phyinfo->phy_layer = phy_layer;
 	phyinfo->ifindex = dev->ifindex;
-	phyinfo->use_stx = stx;
+	phyinfo->head_room = head_room;
 	phyinfo->use_fcs = fcs;
 
 	frml = cffrml_create(phyid, fcs);
@@ -519,23 +504,23 @@ got_phyid:
 	phyinfo->frm_layer = frml;
 	layer_set_up(frml, cnfg->mux);
 
-	if (phy_driver != NULL) {
-		phy_driver->id = phyid;
-		layer_set_dn(frml, phy_driver);
-		layer_set_up(phy_driver, frml);
-		layer_set_dn(phy_driver, phy_layer);
-		layer_set_up(phy_layer, phy_driver);
+	if (link_support != NULL) {
+		link_support->id = phyid;
+		layer_set_dn(frml, link_support);
+		layer_set_up(link_support, frml);
+		layer_set_dn(link_support, phy_layer);
+		layer_set_up(phy_layer, link_support);
 	} else {
 		layer_set_dn(frml, phy_layer);
 		layer_set_up(phy_layer, frml);
 	}
 
 	list_add_rcu(&phyinfo->node, &cnfg->phys);
+out:
 	mutex_unlock(&cnfg->lock);
 	return;
 
 out_err:
-	kfree(phy_driver);
 	kfree(phyinfo);
 	mutex_unlock(&cnfg->lock);
 }

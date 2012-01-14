@@ -32,7 +32,6 @@
 #include <linux/completion.h>
 #include <linux/kobject.h>
 #include <linux/platform_device.h>
-#include <linux/sysdev.h>
 #include <linux/workqueue.h>
 #include <linux/edac.h>
 
@@ -243,8 +242,8 @@ struct edac_device_ctl_info {
 	 */
 	struct edac_dev_sysfs_attribute *sysfs_attributes;
 
-	/* pointer to main 'edac' class in sysfs */
-	struct sysdev_class *edac_class;
+	/* pointer to main 'edac' subsys in sysfs */
+	struct bus_type *edac_subsys;
 
 	/* the internal state of this controller instance */
 	int op_state;
@@ -342,7 +341,7 @@ struct edac_pci_ctl_info {
 
 	int pci_idx;
 
-	struct sysdev_class *edac_class;	/* pointer to class */
+	struct bus_type *edac_subsys;	/* pointer to subsystem */
 
 	/* the internal state of this controller instance */
 	int op_state;

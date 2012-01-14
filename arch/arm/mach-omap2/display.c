@@ -22,12 +22,13 @@
 #include <linux/io.h>
 #include <linux/clk.h>
 #include <linux/err.h>
+#include <linux/delay.h>
 
 #include <video/omapdss.h>
 #include <plat/omap_hwmod.h>
 #include <plat/omap_device.h>
 #include <plat/omap-pm.h>
-#include <plat/common.h>
+#include "common.h"
 
 #include "control.h"
 #include "display.h"

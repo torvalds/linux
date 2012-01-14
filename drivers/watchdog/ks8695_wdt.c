@@ -42,7 +42,7 @@ MODULE_PARM_DESC(nowayout, "Watchdog cannot be stopped once started (default="
 
 
 static unsigned long ks8695wdt_busy;
-static spinlock_t ks8695_lock;
+static DEFINE_SPINLOCK(ks8695_lock);
 
 /* ......................................................................... */
 
@@ -288,7 +288,6 @@ static struct platform_driver ks8695wdt_driver = {
 
 static int __init ks8695_wdt_init(void)
 {
-	spin_lock_init(&ks8695_lock);
 	/* Check that the heartbeat value is within range;
 	   if not reset to the default */
 	if (ks8695_wdt_settimeout(wdt_time)) {

@@ -110,7 +110,7 @@ static struct gpio_led yl9200_leds[] = {
 /*
  * Ethernet
  */
-static struct at91_eth_data __initdata yl9200_eth_data = {
+static struct macb_platform_data __initdata yl9200_eth_data = {
 	.phy_irq_pin		= AT91_PIN_PB28,
 	.is_rmii		= 1,
 };
@@ -120,6 +120,8 @@ static struct at91_eth_data __initdata yl9200_eth_data = {
  */
 static struct at91_usbh_data __initdata yl9200_usbh_data = {
 	.ports			= 1,	/* PQFP version of AT91RM9200 */
+	.vbus_pin		= {-EINVAL, -EINVAL},
+	.overcurrent_pin= {-EINVAL, -EINVAL},
 };
 
 /*
@@ -137,8 +139,9 @@ static struct at91_udc_data __initdata yl9200_udc_data = {
  */
 static struct at91_mmc_data __initdata yl9200_mmc_data = {
 	.det_pin	= AT91_PIN_PB9,
-	// .wp_pin	= ... not connected
 	.wire4		= 1,
+	.wp_pin		= -EINVAL,
+	.vcc_pin	= -EINVAL,
 };
 
 /*
@@ -175,7 +178,7 @@ static struct mtd_partition __initdata yl9200_nand_partition[] = {
 static struct atmel_nand_data __initdata yl9200_nand_data = {
 	.ale		= 6,
 	.cle		= 7,
-	// .det_pin	= ... not connected
+	.det_pin	= -EINVAL,
 	.rdy_pin	= AT91_PIN_PC14,	/* R/!B (Sheet10) */
 	.enable_pin	= AT91_PIN_PC15,	/* !CE  (Sheet10) */
 	.parts		= yl9200_nand_partition,

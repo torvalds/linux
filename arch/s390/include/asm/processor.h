@@ -80,8 +80,6 @@ struct thread_struct {
 	unsigned int  acrs[NUM_ACRS];
         unsigned long ksp;              /* kernel stack pointer             */
 	mm_segment_t mm_segment;
-        unsigned long prot_addr;        /* address of protection-excep.     */
-        unsigned int trap_no;
 	unsigned long gmap_addr;	/* address of last gmap fault. */
 	struct per_regs per_user;	/* User specified PER registers */
 	struct per_event per_event;	/* Cause of the last PER trap */

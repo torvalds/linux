@@ -25,17 +25,17 @@ int symbol__annotate_init(struct map *map __used, struct symbol *sym)
 	return 0;
 }
 
-int symbol__alloc_hist(struct symbol *sym, int nevents)
+int symbol__alloc_hist(struct symbol *sym)
 {
 	struct annotation *notes = symbol__annotation(sym);
 	size_t sizeof_sym_hist = (sizeof(struct sym_hist) +
 				  (sym->end - sym->start) * sizeof(u64));
 
-	notes->src = zalloc(sizeof(*notes->src) + nevents * sizeof_sym_hist);
+	notes->src = zalloc(sizeof(*notes->src) + symbol_conf.nr_events * sizeof_sym_hist);
 	if (notes->src == NULL)
 		return -1;
 	notes->src->sizeof_sym_hist = sizeof_sym_hist;
-	notes->src->nr_histograms   = nevents;
+	notes->src->nr_histograms   = symbol_conf.nr_events;
 	INIT_LIST_HEAD(&notes->src->source);
 	return 0;
 }
@@ -334,7 +334,7 @@ fallback:
 		 disassembler_style ? "-M " : "",
 		 disassembler_style ? disassembler_style : "",
 		 map__rip_2objdump(map, sym->start),
-		 map__rip_2objdump(map, sym->end),
+		 map__rip_2objdump(map, sym->end+1),
 		 symbol_conf.annotate_asm_raw ? "" : "--no-show-raw",
 		 symbol_conf.annotate_src ? "-S" : "",
 		 symfs_filename, filename);

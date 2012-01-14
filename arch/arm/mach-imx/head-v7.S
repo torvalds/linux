@@ -16,7 +16,6 @@
 #include <asm/hardware/cache-l2x0.h>
 
 	.section ".text.head", "ax"
-	__CPUINIT
 
 /*
  * The secondary kernel init calls v7_flush_dcache_all before it enables
@@ -33,6 +32,7 @@
  */
 ENTRY(v7_invalidate_l1)
 	mov	r0, #0
+	mcr	p15, 0, r0, c7, c5, 0	@ invalidate I cache
 	mcr	p15, 2, r0, c0, c0, 0
 	mrc	p15, 1, r0, c0, c0, 0
 
@@ -71,6 +71,7 @@ ENTRY(v7_secondary_startup)
 ENDPROC(v7_secondary_startup)
 #endif
 
+#ifdef CONFIG_PM
 /*
  * The following code is located into the .data section.  This is to
  * allow phys_l2x0_saved_regs to be accessed with a relative load
@@ -79,6 +80,7 @@ ENDPROC(v7_secondary_startup)
 	.data
 	.align
 
+#ifdef CONFIG_CACHE_L2X0
 	.macro	pl310_resume
 	ldr	r2, phys_l2x0_saved_regs
 	ldr	r0, [r2, #L2X0_R_PHY_BASE]	@ get physical base of l2x0
@@ -88,12 +90,17 @@ ENDPROC(v7_secondary_startup)
 	str	r1, [r0, #L2X0_CTRL]		@ re-enable L2
 	.endm
 
+	.globl	phys_l2x0_saved_regs
+phys_l2x0_saved_regs:
+        .long   0
+#else
+	.macro	pl310_resume
+	.endm
+#endif
+
 ENTRY(v7_cpu_resume)
 	bl	v7_invalidate_l1
 	pl310_resume
 	b	cpu_resume
 ENDPROC(v7_cpu_resume)
-
-	.globl	phys_l2x0_saved_regs
-phys_l2x0_saved_regs:
-        .long   0
+#endif

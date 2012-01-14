@@ -492,7 +492,7 @@ static struct mc13xxx_platform_data mc13783_pdata = {
 		.regulators = mx31_3ds_regulators,
 		.num_regulators = ARRAY_SIZE(mx31_3ds_regulators),
 	},
-	.flags  = MC13XXX_USE_TOUCHSCREEN,
+	.flags  = MC13XXX_USE_TOUCHSCREEN | MC13XXX_USE_RTC,
 };
 
 /* SPI */
@@ -770,4 +770,5 @@ MACHINE_START(MX31_3DS, "Freescale MX31PDK (3DS)")
 	.timer = &mx31_3ds_timer,
 	.init_machine = mx31_3ds_init,
 	.reserve = mx31_3ds_reserve,
+	.restart	= mxc_restart,
 MACHINE_END

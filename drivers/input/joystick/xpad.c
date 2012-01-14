@@ -1041,18 +1041,7 @@ static struct usb_driver xpad_driver = {
 	.id_table	= xpad_table,
 };
 
-static int __init usb_xpad_init(void)
-{
-	return usb_register(&xpad_driver);
-}
-
-static void __exit usb_xpad_exit(void)
-{
-	usb_deregister(&xpad_driver);
-}
-
-module_init(usb_xpad_init);
-module_exit(usb_xpad_exit);
+module_usb_driver(xpad_driver);
 
 MODULE_AUTHOR(DRIVER_AUTHOR);
 MODULE_DESCRIPTION(DRIVER_DESC);

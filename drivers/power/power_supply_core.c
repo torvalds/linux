@@ -98,7 +98,9 @@ static int __power_supply_is_system_supplied(struct device *dev, void *data)
 {
 	union power_supply_propval ret = {0,};
 	struct power_supply *psy = dev_get_drvdata(dev);
+	unsigned int *count = data;
 
+	(*count)++;
 	if (psy->type != POWER_SUPPLY_TYPE_BATTERY) {
 		if (psy->get_property(psy, POWER_SUPPLY_PROP_ONLINE, &ret))
 			return 0;
@@ -111,9 +113,17 @@ static int __power_supply_is_system_supplied(struct device *dev, void *data)
 int power_supply_is_system_supplied(void)
 {
 	int error;
+	unsigned int count = 0;
 
-	error = class_for_each_device(power_supply_class, NULL, NULL,
+	error = class_for_each_device(power_supply_class, NULL, &count,
 				      __power_supply_is_system_supplied);
+
+	/*
+	 * If no power class device was found at all, most probably we are
+	 * running on a desktop system, so assume we are on mains power.
+	 */
+	if (count == 0)
+		return 1;
 
 	return error;
 }
@@ -146,6 +156,12 @@ struct power_supply *power_supply_get_by_name(char *name)
 	return dev ? dev_get_drvdata(dev) : NULL;
 }
 EXPORT_SYMBOL_GPL(power_supply_get_by_name);
+
+int power_supply_powers(struct power_supply *psy, struct device *dev)
+{
+	return sysfs_create_link(&psy->dev->kobj, &dev->kobj, "powers");
+}
+EXPORT_SYMBOL_GPL(power_supply_powers);
 
 static void power_supply_dev_release(struct device *dev)
 {
@@ -202,6 +218,7 @@ EXPORT_SYMBOL_GPL(power_supply_register);
 void power_supply_unregister(struct power_supply *psy)
 {
 	cancel_work_sync(&psy->changed_work);
+	sysfs_remove_link(&psy->dev->kobj, "powers");
 	power_supply_remove_triggers(psy);
 	device_unregister(psy->dev);
 }

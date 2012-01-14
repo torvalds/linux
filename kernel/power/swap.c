@@ -18,7 +18,6 @@
 #include <linux/bitops.h>
 #include <linux/genhd.h>
 #include <linux/device.h>
-#include <linux/buffer_head.h>
 #include <linux/bio.h>
 #include <linux/blkdev.h>
 #include <linux/swap.h>

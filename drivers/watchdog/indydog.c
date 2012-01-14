@@ -28,7 +28,7 @@
 
 #define PFX "indydog: "
 static unsigned long indydog_alive;
-static spinlock_t indydog_lock;
+static DEFINE_SPINLOCK(indydog_lock);
 
 #define WATCHDOG_TIMEOUT 30		/* 30 sec default timeout */
 
@@ -184,8 +184,6 @@ static char banner[] __initdata =
 static int __init watchdog_init(void)
 {
 	int ret;
-
-	spin_lock_init(&indydog_lock);
 
 	ret = register_reboot_notifier(&indydog_notifier);
 	if (ret) {

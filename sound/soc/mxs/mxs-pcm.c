@@ -346,14 +346,7 @@ static struct platform_driver mxs_pcm_driver = {
 	.remove = __devexit_p(mxs_soc_platform_remove),
 };
 
-static int __init snd_mxs_pcm_init(void)
-{
-	return platform_driver_register(&mxs_pcm_driver);
-}
-module_init(snd_mxs_pcm_init);
+module_platform_driver(mxs_pcm_driver);
 
-static void __exit snd_mxs_pcm_exit(void)
-{
-	platform_driver_unregister(&mxs_pcm_driver);
-}
-module_exit(snd_mxs_pcm_exit);
+MODULE_LICENSE("GPL");
+MODULE_ALIAS("platform:mxs-pcm-audio");

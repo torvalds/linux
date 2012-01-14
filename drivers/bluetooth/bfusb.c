@@ -751,9 +751,7 @@ static void bfusb_disconnect(struct usb_interface *intf)
 
 	bfusb_close(hdev);
 
-	if (hci_unregister_dev(hdev) < 0)
-		BT_ERR("Can't unregister HCI device %s", hdev->name);
-
+	hci_unregister_dev(hdev);
 	hci_free_dev(hdev);
 }
 
@@ -764,26 +762,7 @@ static struct usb_driver bfusb_driver = {
 	.id_table	= bfusb_table,
 };
 
-static int __init bfusb_init(void)
-{
-	int err;
-
-	BT_INFO("BlueFRITZ! USB driver ver %s", VERSION);
-
-	err = usb_register(&bfusb_driver);
-	if (err < 0)
-		BT_ERR("Failed to register BlueFRITZ! USB driver");
-
-	return err;
-}
-
-static void __exit bfusb_exit(void)
-{
-	usb_deregister(&bfusb_driver);
-}
-
-module_init(bfusb_init);
-module_exit(bfusb_exit);
+module_usb_driver(bfusb_driver);
 
 MODULE_AUTHOR("Marcel Holtmann <marcel@holtmann.org>");
 MODULE_DESCRIPTION("BlueFRITZ! USB driver ver " VERSION);

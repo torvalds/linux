@@ -487,10 +487,10 @@ int acpi_pci_irq_enable(struct pci_dev *dev)
 	else
 		link_desc[0] = '\0';
 
-	dev_info(&dev->dev, "PCI INT %c%s -> GSI %u (%s, %s) -> IRQ %d\n",
-		 pin_name(pin), link_desc, gsi,
-		 (triggering == ACPI_LEVEL_SENSITIVE) ? "level" : "edge",
-		 (polarity == ACPI_ACTIVE_LOW) ? "low" : "high", dev->irq);
+	dev_dbg(&dev->dev, "PCI INT %c%s -> GSI %u (%s, %s) -> IRQ %d\n",
+		pin_name(pin), link_desc, gsi,
+		(triggering == ACPI_LEVEL_SENSITIVE) ? "level" : "edge",
+		(polarity == ACPI_ACTIVE_LOW) ? "low" : "high", dev->irq);
 
 	return 0;
 }
@@ -524,6 +524,6 @@ void acpi_pci_irq_disable(struct pci_dev *dev)
 	 * (e.g. PCI_UNDEFINED_IRQ).
 	 */
 
-	dev_info(&dev->dev, "PCI INT %c disabled\n", pin_name(pin));
+	dev_dbg(&dev->dev, "PCI INT %c disabled\n", pin_name(pin));
 	acpi_unregister_gsi(gsi);
 }

@@ -664,18 +664,7 @@ static struct platform_driver mrstouch_driver = {
 	.probe		= mrstouch_probe,
 	.remove		= __devexit_p(mrstouch_remove),
 };
-
-static int __init mrstouch_init(void)
-{
-	return platform_driver_register(&mrstouch_driver);
-}
-module_init(mrstouch_init);
-
-static void __exit mrstouch_exit(void)
-{
-	platform_driver_unregister(&mrstouch_driver);
-}
-module_exit(mrstouch_exit);
+module_platform_driver(mrstouch_driver);
 
 MODULE_AUTHOR("Sreedhara Murthy. D.S, sreedhara.ds@intel.com");
 MODULE_DESCRIPTION("Intel Moorestown Resistive Touch Screen Driver");

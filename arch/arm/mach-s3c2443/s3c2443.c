@@ -19,7 +19,7 @@
 #include <linux/gpio.h>
 #include <linux/platform_device.h>
 #include <linux/serial_core.h>
-#include <linux/sysdev.h>
+#include <linux/device.h>
 #include <linux/clk.h>
 #include <linux/io.h>
 
@@ -31,7 +31,6 @@
 #include <asm/irq.h>
 
 #include <mach/regs-s3c2443-clock.h>
-#include <mach/reset.h>
 
 #include <plat/gpio-core.h>
 #include <plat/gpio-cfg.h>
@@ -49,24 +48,26 @@ static struct map_desc s3c2443_iodesc[] __initdata = {
 	IODESC_ENT(TIMER),
 };
 
-struct sysdev_class s3c2443_sysclass = {
+struct bus_type s3c2443_subsys = {
 	.name = "s3c2443-core",
+	.dev_name = "s3c2443-core",
 };
 
-static struct sys_device s3c2443_sysdev = {
-	.cls		= &s3c2443_sysclass,
+static struct device s3c2443_dev = {
+	.bus		= &s3c2443_subsys,
 };
 
-static void s3c2443_hard_reset(void)
+void s3c2443_restart(char mode, const char *cmd)
 {
+	if (mode == 's')
+		soft_restart(0);
+
 	__raw_writel(S3C2443_SWRST_RESET, S3C2443_SWRST);
 }
 
 int __init s3c2443_init(void)
 {
 	printk("S3C2443: Initialising architecture\n");
-
-	s3c24xx_reset_hook = s3c2443_hard_reset;
 
 	s3c_nand_setname("s3c2412-nand");
 	s3c_fb_setname("s3c2443-fb");
@@ -77,7 +78,7 @@ int __init s3c2443_init(void)
 	s3c_device_wdt.resource[1].start = IRQ_S3C2443_WDT;
 	s3c_device_wdt.resource[1].end   = IRQ_S3C2443_WDT;
 
-	return sysdev_register(&s3c2443_sysdev);
+	return device_register(&s3c2443_dev);
 }
 
 void __init s3c2443_init_uarts(struct s3c2410_uartcfg *cfg, int no)
@@ -99,7 +100,7 @@ void __init s3c2443_map_io(void)
 	iotable_init(s3c2443_iodesc, ARRAY_SIZE(s3c2443_iodesc));
 }
 
-/* need to register class before we actually register the device, and
+/* need to register the subsystem before we actually register the device, and
  * we also need to ensure that it has been initialised before any of the
  * drivers even try to use it (even if not on an s3c2443 based system)
  * as a driver which may support both 2443 and 2440 may try and use it.
@@ -107,7 +108,7 @@ void __init s3c2443_map_io(void)
 
 static int __init s3c2443_core_init(void)
 {
-	return sysdev_class_register(&s3c2443_sysclass);
+	return subsys_system_register(&s3c2443_subsys, NULL);
 }
 
 core_initcall(s3c2443_core_init);

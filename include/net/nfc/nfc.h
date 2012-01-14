@@ -52,6 +52,9 @@ struct nfc_ops {
 	int (*dev_down)(struct nfc_dev *dev);
 	int (*start_poll)(struct nfc_dev *dev, u32 protocols);
 	void (*stop_poll)(struct nfc_dev *dev);
+	int (*dep_link_up)(struct nfc_dev *dev, int target_idx,
+				u8 comm_mode, u8 rf_mode);
+	int (*dep_link_down)(struct nfc_dev *dev);
 	int (*activate_target)(struct nfc_dev *dev, u32 target_idx,
 							u32 protocol);
 	void (*deactivate_target)(struct nfc_dev *dev, u32 target_idx);
@@ -60,11 +63,17 @@ struct nfc_ops {
 							void *cb_context);
 };
 
+#define NFC_TARGET_IDX_ANY -1
+#define NFC_MAX_GT_LEN 48
+#define NFC_MAX_NFCID1_LEN 10
+
 struct nfc_target {
 	u32 idx;
 	u32 supported_protocols;
 	u16 sens_res;
 	u8 sel_res;
+	u8 nfcid1_len;
+	u8 nfcid1[NFC_MAX_NFCID1_LEN];
 };
 
 struct nfc_genl_data {
@@ -83,6 +92,8 @@ struct nfc_dev {
 	bool dev_up;
 	bool polling;
 	bool remote_activated;
+	bool dep_link_up;
+	u32 dep_rf_mode;
 	struct nfc_genl_data genl_data;
 	u32 supported_protocols;
 
@@ -157,9 +168,20 @@ static inline const char *nfc_device_name(struct nfc_dev *dev)
 	return dev_name(&dev->dev);
 }
 
-struct sk_buff *nfc_alloc_skb(unsigned int size, gfp_t gfp);
+struct sk_buff *nfc_alloc_send_skb(struct nfc_dev *dev, struct sock *sk,
+					unsigned int flags, unsigned int size,
+					unsigned int *err);
+struct sk_buff *nfc_alloc_recv_skb(unsigned int size, gfp_t gfp);
+
+int nfc_set_remote_general_bytes(struct nfc_dev *dev,
+					u8 *gt, u8 gt_len);
+
+u8 *nfc_get_local_general_bytes(struct nfc_dev *dev, u8 *gt_len);
 
 int nfc_targets_found(struct nfc_dev *dev, struct nfc_target *targets,
 							int ntargets);
+
+int nfc_dep_link_is_up(struct nfc_dev *dev, u32 target_idx,
+		       u8 comm_mode, u8 rf_mode);
 
 #endif /* __NET_NFC_H */

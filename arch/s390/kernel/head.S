@@ -329,8 +329,8 @@ iplstart:
 #
 # reset files in VM reader
 #
-	stidp	__LC_SAVE_AREA		# store cpuid
-	tm	__LC_SAVE_AREA,0xff	# running VM ?
+	stidp	__LC_SAVE_AREA_SYNC	# store cpuid
+	tm	__LC_SAVE_AREA_SYNC,0xff# running VM ?
 	bno	.Lnoreset
 	la	%r2,.Lreset
 	lhi	%r3,26

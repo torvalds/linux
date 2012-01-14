@@ -86,6 +86,7 @@ config XEN_BACKEND
 
 config XENFS
 	tristate "Xen filesystem"
+	select XEN_PRIVCMD
 	default y
 	help
 	  The xen filesystem provides a way for domains to share
@@ -171,4 +172,10 @@ config XEN_PCIDEV_BACKEND
 	  xen-pciback.hide=(03:00.0)(04:00.0)
 
 	  If in doubt, say m.
+
+config XEN_PRIVCMD
+	tristate
+	depends on XEN
+	default m
+
 endmenu

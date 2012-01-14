@@ -12,6 +12,9 @@ struct mirror_info {
  * pool was allocated for, so they know how much to allocate and free.
  * mddev->raid_disks cannot be used, as it can change while a pool is active
  * These two datums are stored in a kmalloced struct.
+ * The 'raid_disks' here is twice the raid_disks in r1conf.
+ * This allows space for each 'real' device can have a replacement in the
+ * second half of the array.
  */
 
 struct pool_info {
@@ -21,7 +24,9 @@ struct pool_info {
 
 struct r1conf {
 	struct mddev		*mddev;
-	struct mirror_info		*mirrors;
+	struct mirror_info	*mirrors;	/* twice 'raid_disks' to
+						 * allow for replacements.
+						 */
 	int			raid_disks;
 
 	/* When choose the best device for a read (read_balance())

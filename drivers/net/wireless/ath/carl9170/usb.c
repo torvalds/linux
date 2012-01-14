@@ -1161,15 +1161,4 @@ static struct usb_driver carl9170_driver = {
 #endif /* CONFIG_PM */
 };
 
-static int __init carl9170_usb_init(void)
-{
-	return usb_register(&carl9170_driver);
-}
-
-static void __exit carl9170_usb_exit(void)
-{
-	usb_deregister(&carl9170_driver);
-}
-
-module_init(carl9170_usb_init);
-module_exit(carl9170_usb_exit);
+module_usb_driver(carl9170_driver);

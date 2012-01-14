@@ -106,7 +106,7 @@ OPTIONS
 
 -i::
 --input=::
-        Input file name.
+        Input file name. (default: perf.data unless stdin is a fifo)
 
 -d::
 --debug-mode::
@@ -182,11 +182,16 @@ OPTIONS
 --hide-call-graph::
         When printing symbols do not display call chain.
 
--c::
+-C::
 --cpu:: Only report samples for the list of CPUs provided. Multiple CPUs can
 	be provided as a comma-separated list with no space: 0,1. Ranges of
 	CPUs are specified with -: 0-2. Default is to report samples on all
 	CPUs.
+
+-c::
+--comms=::
+	Only display events for these comms. CSV that understands
+	file://filename entries.
 
 -I::
 --show-info::

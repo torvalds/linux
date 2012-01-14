@@ -93,6 +93,7 @@ config REGULATOR_MAX1586
 config REGULATOR_MAX8649
 	tristate "Maxim 8649 voltage regulator"
 	depends on I2C
+	select REGMAP_I2C
 	help
 	  This driver controls a Maxim 8649 voltage output regulator via
 	  I2C bus.
@@ -176,6 +177,13 @@ config REGULATOR_DA903X
 	help
 	  Say y here to support the BUCKs and LDOs regulators found on
 	  Dialog Semiconductor DA9030/DA9034 PMIC.
+
+config REGULATOR_DA9052
+	tristate "Dialog DA9052/DA9053 regulators"
+	depends on PMIC_DA9052
+	help
+	  This driver supports the voltage regulators of DA9052-BC and
+	  DA9053-AA/Bx PMIC.
 
 config REGULATOR_PCF50633
 	tristate "PCF50633 regulator driver"

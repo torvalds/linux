@@ -75,7 +75,7 @@ int __devinit pnv_smp_kick_cpu(int nr)
 	/* On OPAL v2 the CPU are still spinning inside OPAL itself,
 	 * get them back now
 	 */
-	if (firmware_has_feature(FW_FEATURE_OPALv2)) {
+	if (!paca[nr].cpu_start && firmware_has_feature(FW_FEATURE_OPALv2)) {
 		pr_devel("OPAL: Starting CPU %d (HW 0x%x)...\n", nr, pcpu);
 		rc = opal_start_cpu(pcpu, start_here);
 		if (rc != OPAL_SUCCESS)

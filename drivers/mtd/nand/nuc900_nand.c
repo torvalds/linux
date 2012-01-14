@@ -364,18 +364,7 @@ static struct platform_driver nuc900_nand_driver = {
 	},
 };
 
-static int __init nuc900_nand_init(void)
-{
-	return platform_driver_register(&nuc900_nand_driver);
-}
-
-static void __exit nuc900_nand_exit(void)
-{
-	platform_driver_unregister(&nuc900_nand_driver);
-}
-
-module_init(nuc900_nand_init);
-module_exit(nuc900_nand_exit);
+module_platform_driver(nuc900_nand_driver);
 
 MODULE_AUTHOR("Wan ZongShun <mcuos.com@gmail.com>");
 MODULE_DESCRIPTION("w90p910/NUC9xx nand driver!");

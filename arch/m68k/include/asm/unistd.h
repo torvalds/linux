@@ -132,10 +132,10 @@
 #define __NR_adjtimex		124
 #define __NR_mprotect		125
 #define __NR_sigprocmask	126
-/*#define __NR_create_module	127*/
+#define __NR_create_module	127
 #define __NR_init_module	128
 #define __NR_delete_module	129
-/*#define __NR_get_kernel_syms	130*/
+#define __NR_get_kernel_syms	130
 #define __NR_quotactl		131
 #define __NR_getpgid		132
 #define __NR_fchdir		133
@@ -172,7 +172,7 @@
 #define __NR_setresuid		164
 #define __NR_getresuid		165
 #define __NR_getpagesize	166
-/*#define __NR_query_module	167*/
+#define __NR_query_module	167
 #define __NR_poll		168
 #define __NR_nfsservctl		169
 #define __NR_setresgid		170
@@ -193,8 +193,8 @@
 #define __NR_capset		185
 #define __NR_sigaltstack	186
 #define __NR_sendfile		187
-/*#define __NR_getpmsg		188*/	/* some people actually want streams */
-/*#define __NR_putpmsg		189*/	/* some people actually want streams */
+#define __NR_getpmsg		188	/* some people actually want streams */
+#define __NR_putpmsg		189	/* some people actually want streams */
 #define __NR_vfork		190
 #define __NR_ugetrlimit		191
 #define __NR_mmap2		192

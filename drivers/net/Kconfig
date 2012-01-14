@@ -125,6 +125,8 @@ config IFB
 	  'ifb1' etc.
 	  Look at the iproute2 documentation directory for usage etc
 
+source "drivers/net/team/Kconfig"
+
 config MACVLAN
 	tristate "MAC-VLAN support (EXPERIMENTAL)"
 	depends on EXPERIMENTAL
@@ -241,6 +243,8 @@ source "drivers/atm/Kconfig"
 
 source "drivers/net/caif/Kconfig"
 
+source "drivers/net/dsa/Kconfig"
+
 source "drivers/net/ethernet/Kconfig"
 
 source "drivers/net/fddi/Kconfig"
@@ -337,5 +341,7 @@ config VMXNET3
 	  This driver supports VMware's vmxnet3 virtual ethernet NIC.
 	  To compile this driver as a module, choose M here: the
 	  module will be called vmxnet3.
+
+source "drivers/net/hyperv/Kconfig"
 
 endif # NETDEVICES

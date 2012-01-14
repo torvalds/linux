@@ -21,9 +21,9 @@
 #include <linux/clk.h>
 #include <linux/slab.h>
 #include <linux/interrupt.h>
+#include <linux/module.h>
 #include <linux/mtd/gpmi-nand.h>
 #include <linux/mtd/partitions.h>
-
 #include "gpmi-nand.h"
 
 /* add our owner bbt descriptor */

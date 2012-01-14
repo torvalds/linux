@@ -148,7 +148,7 @@ struct pcpu_tstats {
 	unsigned long	rx_bytes;
 	unsigned long	tx_packets;
 	unsigned long	tx_bytes;
-};
+} __attribute__((aligned(4*sizeof(unsigned long))));
 
 static struct net_device_stats *ipip_get_stats(struct net_device *dev)
 {
@@ -284,6 +284,8 @@ static struct ip_tunnel * ipip_tunnel_locate(struct net *net,
 
 	if (register_netdevice(dev) < 0)
 		goto failed_free;
+
+	strcpy(nt->parms.name, dev->name);
 
 	dev_hold(dev);
 	ipip_tunnel_link(ipn, nt);
@@ -759,7 +761,6 @@ static int ipip_tunnel_init(struct net_device *dev)
 	struct ip_tunnel *tunnel = netdev_priv(dev);
 
 	tunnel->dev = dev;
-	strcpy(tunnel->parms.name, dev->name);
 
 	memcpy(dev->dev_addr, &tunnel->parms.iph.saddr, 4);
 	memcpy(dev->broadcast, &tunnel->parms.iph.daddr, 4);
@@ -825,6 +826,7 @@ static void ipip_destroy_tunnels(struct ipip_net *ipn, struct list_head *head)
 static int __net_init ipip_init_net(struct net *net)
 {
 	struct ipip_net *ipn = net_generic(net, ipip_net_id);
+	struct ip_tunnel *t;
 	int err;
 
 	ipn->tunnels[0] = ipn->tunnels_wc;
@@ -848,6 +850,9 @@ static int __net_init ipip_init_net(struct net *net)
 	if ((err = register_netdev(ipn->fb_tunnel_dev)))
 		goto err_reg_dev;
 
+	t = netdev_priv(ipn->fb_tunnel_dev);
+
+	strcpy(t->parms.name, ipn->fb_tunnel_dev->name);
 	return 0;
 
 err_reg_dev:

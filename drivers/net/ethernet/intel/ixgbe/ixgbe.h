@@ -560,6 +560,7 @@ extern int ixgbe_copy_dcb_cfg(struct ixgbe_dcb_config *src_dcb_cfg,
 
 extern char ixgbe_driver_name[];
 extern const char ixgbe_driver_version[];
+extern char ixgbe_default_device_descr[];
 
 extern void ixgbe_up(struct ixgbe_adapter *adapter);
 extern void ixgbe_down(struct ixgbe_adapter *adapter);
@@ -627,6 +628,8 @@ extern u8 ixgbe_fcoe_getapp(struct ixgbe_adapter *adapter);
 extern u8 ixgbe_fcoe_setapp(struct ixgbe_adapter *adapter, u8 up);
 #endif /* CONFIG_IXGBE_DCB */
 extern int ixgbe_fcoe_get_wwn(struct net_device *netdev, u64 *wwn, int type);
+extern int ixgbe_fcoe_get_hbainfo(struct net_device *netdev,
+				  struct netdev_fcoe_hbainfo *info);
 #endif /* IXGBE_FCOE */
 
 #endif /* _IXGBE_H_ */

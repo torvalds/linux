@@ -502,21 +502,20 @@ static int pl2303_open(struct tty_struct *tty, struct usb_serial_port *port)
 	if (tty)
 		pl2303_set_termios(tty, port, &tmp_termios);
 
-	dbg("%s - submitting read urb", __func__);
-	result = usb_serial_generic_submit_read_urb(port, GFP_KERNEL);
-	if (result) {
-		pl2303_close(port);
-		return -EPROTO;
-	}
-
 	dbg("%s - submitting interrupt urb", __func__);
 	result = usb_submit_urb(port->interrupt_in_urb, GFP_KERNEL);
 	if (result) {
 		dev_err(&port->dev, "%s - failed submitting interrupt urb,"
 			" error %d\n", __func__, result);
-		pl2303_close(port);
-		return -EPROTO;
+		return result;
 	}
+
+	result = usb_serial_generic_open(tty, port);
+	if (result) {
+		usb_kill_urb(port->interrupt_in_urb);
+		return result;
+	}
+
 	port->port.drain_delay = 256;
 	return 0;
 }

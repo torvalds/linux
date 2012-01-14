@@ -45,6 +45,12 @@
 #define PUSH_FINISHED 2
 
 /*
+ * Out-of-range value for link sequence numbers
+ */
+
+#define INVALID_LINK_SEQ 0x10000
+
+/*
  * Link states
  */
 
@@ -61,7 +67,7 @@
 #define MAX_PKT_DEFAULT 1500
 
 /**
- * struct link - TIPC link data structure
+ * struct tipc_link - TIPC link data structure
  * @addr: network address of link's peer node
  * @name: link name character string
  * @media_addr: media address to use when sending messages over link
@@ -109,7 +115,7 @@
  * @stats: collects statistics regarding link activity
  */
 
-struct link {
+struct tipc_link {
 	u32 addr;
 	char name[TIPC_MAX_LINK_NAME];
 	struct tipc_media_addr media_addr;
@@ -207,24 +213,24 @@ struct link {
 
 struct tipc_port;
 
-struct link *tipc_link_create(struct tipc_node *n_ptr,
+struct tipc_link *tipc_link_create(struct tipc_node *n_ptr,
 			      struct tipc_bearer *b_ptr,
 			      const struct tipc_media_addr *media_addr);
-void tipc_link_delete(struct link *l_ptr);
-void tipc_link_changeover(struct link *l_ptr);
-void tipc_link_send_duplicate(struct link *l_ptr, struct link *dest);
-void tipc_link_reset_fragments(struct link *l_ptr);
-int tipc_link_is_up(struct link *l_ptr);
-int tipc_link_is_active(struct link *l_ptr);
-u32 tipc_link_push_packet(struct link *l_ptr);
-void tipc_link_stop(struct link *l_ptr);
+void tipc_link_delete(struct tipc_link *l_ptr);
+void tipc_link_changeover(struct tipc_link *l_ptr);
+void tipc_link_send_duplicate(struct tipc_link *l_ptr, struct tipc_link *dest);
+void tipc_link_reset_fragments(struct tipc_link *l_ptr);
+int tipc_link_is_up(struct tipc_link *l_ptr);
+int tipc_link_is_active(struct tipc_link *l_ptr);
+u32 tipc_link_push_packet(struct tipc_link *l_ptr);
+void tipc_link_stop(struct tipc_link *l_ptr);
 struct sk_buff *tipc_link_cmd_config(const void *req_tlv_area, int req_tlv_space, u16 cmd);
 struct sk_buff *tipc_link_cmd_show_stats(const void *req_tlv_area, int req_tlv_space);
 struct sk_buff *tipc_link_cmd_reset_stats(const void *req_tlv_area, int req_tlv_space);
-void tipc_link_reset(struct link *l_ptr);
+void tipc_link_reset(struct tipc_link *l_ptr);
 int tipc_link_send(struct sk_buff *buf, u32 dest, u32 selector);
 void tipc_link_send_names(struct list_head *message_list, u32 dest);
-int tipc_link_send_buf(struct link *l_ptr, struct sk_buff *buf);
+int tipc_link_send_buf(struct tipc_link *l_ptr, struct sk_buff *buf);
 u32 tipc_link_get_max_pkt(u32 dest, u32 selector);
 int tipc_link_send_sections_fast(struct tipc_port *sender,
 				 struct iovec const *msg_sect,
@@ -235,18 +241,25 @@ void tipc_link_recv_bundle(struct sk_buff *buf);
 int  tipc_link_recv_fragment(struct sk_buff **pending,
 			     struct sk_buff **fb,
 			     struct tipc_msg **msg);
-void tipc_link_send_proto_msg(struct link *l_ptr, u32 msg_typ, int prob, u32 gap,
-			      u32 tolerance, u32 priority, u32 acked_mtu);
-void tipc_link_push_queue(struct link *l_ptr);
+void tipc_link_send_proto_msg(struct tipc_link *l_ptr, u32 msg_typ, int prob,
+			      u32 gap, u32 tolerance, u32 priority,
+			      u32 acked_mtu);
+void tipc_link_push_queue(struct tipc_link *l_ptr);
 u32 tipc_link_defer_pkt(struct sk_buff **head, struct sk_buff **tail,
 		   struct sk_buff *buf);
-void tipc_link_wakeup_ports(struct link *l_ptr, int all);
-void tipc_link_set_queue_limits(struct link *l_ptr, u32 window);
-void tipc_link_retransmit(struct link *l_ptr, struct sk_buff *start, u32 retransmits);
+void tipc_link_wakeup_ports(struct tipc_link *l_ptr, int all);
+void tipc_link_set_queue_limits(struct tipc_link *l_ptr, u32 window);
+void tipc_link_retransmit(struct tipc_link *l_ptr,
+			  struct sk_buff *start, u32 retransmits);
 
 /*
  * Link sequence number manipulation routines (uses modulo 2**16 arithmetic)
  */
+
+static inline u32 buf_seqno(struct sk_buff *buf)
+{
+	return msg_seqno(buf_msg(buf));
+}
 
 static inline u32 mod(u32 x)
 {
@@ -282,32 +295,32 @@ static inline u32 lesser(u32 left, u32 right)
  * Link status checking routines
  */
 
-static inline int link_working_working(struct link *l_ptr)
+static inline int link_working_working(struct tipc_link *l_ptr)
 {
 	return l_ptr->state == WORKING_WORKING;
 }
 
-static inline int link_working_unknown(struct link *l_ptr)
+static inline int link_working_unknown(struct tipc_link *l_ptr)
 {
 	return l_ptr->state == WORKING_UNKNOWN;
 }
 
-static inline int link_reset_unknown(struct link *l_ptr)
+static inline int link_reset_unknown(struct tipc_link *l_ptr)
 {
 	return l_ptr->state == RESET_UNKNOWN;
 }
 
-static inline int link_reset_reset(struct link *l_ptr)
+static inline int link_reset_reset(struct tipc_link *l_ptr)
 {
 	return l_ptr->state == RESET_RESET;
 }
 
-static inline int link_blocked(struct link *l_ptr)
+static inline int link_blocked(struct tipc_link *l_ptr)
 {
 	return l_ptr->exp_msg_count || l_ptr->blocked;
 }
 
-static inline int link_congested(struct link *l_ptr)
+static inline int link_congested(struct tipc_link *l_ptr)
 {
 	return l_ptr->out_queue_size >= l_ptr->queue_limit[0];
 }

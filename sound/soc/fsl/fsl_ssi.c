@@ -514,7 +514,7 @@ static void fsl_ssi_shutdown(struct snd_pcm_substream *substream,
 	}
 }
 
-static struct snd_soc_dai_ops fsl_ssi_dai_ops = {
+static const struct snd_soc_dai_ops fsl_ssi_dai_ops = {
 	.startup	= fsl_ssi_startup,
 	.hw_params	= fsl_ssi_hw_params,
 	.shutdown	= fsl_ssi_shutdown,
@@ -793,20 +793,7 @@ static struct platform_driver fsl_ssi_driver = {
 	.remove = fsl_ssi_remove,
 };
 
-static int __init fsl_ssi_init(void)
-{
-	printk(KERN_INFO "Freescale Synchronous Serial Interface (SSI) ASoC Driver\n");
-
-	return platform_driver_register(&fsl_ssi_driver);
-}
-
-static void __exit fsl_ssi_exit(void)
-{
-	platform_driver_unregister(&fsl_ssi_driver);
-}
-
-module_init(fsl_ssi_init);
-module_exit(fsl_ssi_exit);
+module_platform_driver(fsl_ssi_driver);
 
 MODULE_AUTHOR("Timur Tabi <timur@freescale.com>");
 MODULE_DESCRIPTION("Freescale Synchronous Serial Interface (SSI) ASoC Driver");

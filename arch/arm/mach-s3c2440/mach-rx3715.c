@@ -20,7 +20,7 @@
 #include <linux/init.h>
 #include <linux/tty.h>
 #include <linux/console.h>
-#include <linux/sysdev.h>
+#include <linux/device.h>
 #include <linux/platform_device.h>
 #include <linux/serial_core.h>
 #include <linux/serial.h>
@@ -51,6 +51,8 @@
 #include <plat/cpu.h>
 #include <plat/pm.h>
 
+#include "common.h"
+
 static struct map_desc rx3715_iodesc[] __initdata = {
 	/* dump ISA space somewhere unused */
 
@@ -67,16 +69,6 @@ static struct map_desc rx3715_iodesc[] __initdata = {
 	},
 };
 
-
-static struct s3c24xx_uart_clksrc rx3715_serial_clocks[] = {
-	[0] = {
-		.name		= "fclk",
-		.divisor	= 0,
-		.min_baud	= 0,
-		.max_baud	= 0,
-	}
-};
-
 static struct s3c2410_uartcfg rx3715_uartcfgs[] = {
 	[0] = {
 		.hwport	     = 0,
@@ -84,8 +76,7 @@ static struct s3c2410_uartcfg rx3715_uartcfgs[] = {
 		.ucon	     = 0x3c5,
 		.ulcon	     = 0x03,
 		.ufcon	     = 0x51,
-		.clocks	     = rx3715_serial_clocks,
-		.clocks_size = ARRAY_SIZE(rx3715_serial_clocks),
+		.clk_sel	= S3C2410_UCON_CLKSEL3,
 	},
 	[1] = {
 		.hwport	     = 1,
@@ -93,8 +84,7 @@ static struct s3c2410_uartcfg rx3715_uartcfgs[] = {
 		.ucon	     = 0x3c5,
 		.ulcon	     = 0x03,
 		.ufcon	     = 0x00,
-		.clocks	     = rx3715_serial_clocks,
-		.clocks_size = ARRAY_SIZE(rx3715_serial_clocks),
+		.clk_sel	= S3C2410_UCON_CLKSEL3,
 	},
 	/* IR port */
 	[2] = {
@@ -103,8 +93,7 @@ static struct s3c2410_uartcfg rx3715_uartcfgs[] = {
 		.ucon	     = 0x3c5,
 		.ulcon	     = 0x43,
 		.ufcon	     = 0x51,
-		.clocks	     = rx3715_serial_clocks,
-		.clocks_size = ARRAY_SIZE(rx3715_serial_clocks),
+		.clk_sel	= S3C2410_UCON_CLKSEL3,
 	}
 };
 
@@ -224,4 +213,5 @@ MACHINE_START(RX3715, "IPAQ-RX3715")
 	.init_irq	= rx3715_init_irq,
 	.init_machine	= rx3715_init_machine,
 	.timer		= &s3c24xx_timer,
+	.restart	= s3c2440_restart,
 MACHINE_END

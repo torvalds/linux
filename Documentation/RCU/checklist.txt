@@ -328,6 +328,12 @@ over a rather long period of time, but improvements are always welcome!
 	RCU rather than SRCU, because RCU is almost always faster and
 	easier to use than is SRCU.
 
+	If you need to enter your read-side critical section in a
+	hardirq or exception handler, and then exit that same read-side
+	critical section in the task that was interrupted, then you need
+	to srcu_read_lock_raw() and srcu_read_unlock_raw(), which avoid
+	the lockdep checking that would otherwise this practice illegal.
+
 	Also unlike other forms of RCU, explicit initialization
 	and cleanup is required via init_srcu_struct() and
 	cleanup_srcu_struct().	These are passed a "struct srcu_struct"

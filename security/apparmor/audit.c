@@ -133,7 +133,7 @@ static void audit_pre(struct audit_buffer *ab, void *ca)
 		struct aa_profile *profile = sa->aad.profile;
 		pid_t pid;
 		rcu_read_lock();
-		pid = tsk->real_parent->pid;
+		pid = rcu_dereference(tsk->real_parent)->pid;
 		rcu_read_unlock();
 		audit_log_format(ab, " parent=%d", pid);
 		if (profile->ns != root_ns) {

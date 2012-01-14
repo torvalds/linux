@@ -30,6 +30,11 @@
 			usart1: serial@fff90000 {
 				status = "okay";
 			};
+
+			macb0: ethernet@fffbc000 {
+				phy-mode = "rmii";
+				status = "okay";
+			};
 		};
 	};
 };

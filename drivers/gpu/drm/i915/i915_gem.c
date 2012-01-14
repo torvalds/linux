@@ -2006,9 +2006,9 @@ i915_wait_request(struct intel_ring_buffer *ring,
 					   || atomic_read(&dev_priv->mm.wedged));
 
 			ring->irq_put(ring);
-		} else if (wait_for(i915_seqno_passed(ring->get_seqno(ring),
-						      seqno) ||
-				    atomic_read(&dev_priv->mm.wedged), 3000))
+		} else if (wait_for_atomic(i915_seqno_passed(ring->get_seqno(ring),
+							     seqno) ||
+					   atomic_read(&dev_priv->mm.wedged), 3000))
 			ret = -EBUSY;
 		ring->waiting_seqno = 0;
 
@@ -2026,13 +2026,8 @@ i915_wait_request(struct intel_ring_buffer *ring,
 	 * to handle this, the waiter on a request often wants an associated
 	 * buffer to have made it to the inactive list, and we would need
 	 * a separate wait queue to handle that.
-	 *
-	 * To avoid a recursion with the ilk VT-d workaround (that calls
-	 * gpu_idle when unbinding objects with interruptible==false) don't
-	 * retire requests in that case (because it might call unbind if the
-	 * active list holds the last reference to the object).
 	 */
-	if (ret == 0 && dev_priv->mm.interruptible)
+	if (ret == 0)
 		i915_gem_retire_requests_ring(ring);
 
 	return ret;
@@ -3314,6 +3309,10 @@ i915_gem_ring_throttle(struct drm_device *dev, struct drm_file *file)
 
 			if (ret == 0 && atomic_read(&dev_priv->mm.wedged))
 				ret = -EIO;
+		} else if (wait_for_atomic(i915_seqno_passed(ring->get_seqno(ring),
+							     seqno) ||
+				    atomic_read(&dev_priv->mm.wedged), 3000)) {
+			ret = -EBUSY;
 		}
 	}
 

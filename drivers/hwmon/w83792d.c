@@ -749,7 +749,7 @@ store_chassis_clear(struct device *dev, struct device_attribute *attr,
 	unsigned long val;
 	u8 reg;
 
-	if (strict_strtoul(buf, 10, &val) || val != 0)
+	if (kstrtoul(buf, 10, &val) || val != 0)
 		return -EINVAL;
 
 	mutex_lock(&data->update_lock);
