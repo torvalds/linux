@@ -756,11 +756,12 @@ bool fcoe_oem_match(struct fc_frame *fp)
 	if (fc_fcp_is_read(fr_fsp(fp)) &&
 	    (fr_fsp(fp)->data_len > fcoe_ddp_min))
 		return true;
-	else if (!(ntoh24(fh->fh_f_ctl) & FC_FC_EX_CTX)) {
+	else if ((fr_fsp(fp) == NULL) &&
+		 (fh->fh_r_ctl == FC_RCTL_DD_UNSOL_CMD) &&
+		 (ntohs(fh->fh_rx_id) == FC_XID_UNKNOWN)) {
 		fcp = fc_frame_payload_get(fp, sizeof(*fcp));
-		if (ntohs(fh->fh_rx_id) == FC_XID_UNKNOWN &&
-		    fcp && (ntohl(fcp->fc_dl) > fcoe_ddp_min) &&
-		    (fcp->fc_flags & FCP_CFL_WRDATA))
+		if ((fcp->fc_flags & FCP_CFL_WRDATA) &&
+		    (ntohl(fcp->fc_dl) > fcoe_ddp_min))
 			return true;
 	}
 	return false;
