@@ -2407,6 +2407,7 @@ static struct usb_driver ene_ub6250_driver = {
 	.post_reset =	usb_stor_post_reset,
 	.id_table =	ene_ub6250_usb_ids,
 	.soft_unbind =	1,
+	.no_dynamic_id = 1,
 };
 
 module_usb_driver(ene_ub6250_driver);

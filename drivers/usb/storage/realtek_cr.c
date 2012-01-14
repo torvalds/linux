@@ -1100,6 +1100,7 @@ static struct usb_driver realtek_cr_driver = {
 	.id_table = realtek_cr_ids,
 	.soft_unbind = 1,
 	.supports_autosuspend = 1,
+	.no_dynamic_id = 1,
 };
 
 module_usb_driver(realtek_cr_driver);
