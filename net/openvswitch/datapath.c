@@ -36,7 +36,6 @@
 #include <linux/rcupdate.h>
 #include <linux/tcp.h>
 #include <linux/udp.h>
-#include <linux/version.h>
 #include <linux/ethtool.h>
 #include <linux/wait.h>
 #include <asm/system.h>
