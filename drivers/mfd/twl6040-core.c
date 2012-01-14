@@ -282,6 +282,7 @@ int twl6040_power(struct twl6040 *twl6040, int on)
 		/* Default PLL configuration after power up */
 		twl6040->pll = TWL6040_SYSCLK_SEL_LPPLL;
 		twl6040->sysclk = 19200000;
+		twl6040->mclk = 32768;
 	} else {
 		/* already powered-down */
 		if (!twl6040->power_count) {
@@ -305,6 +306,7 @@ int twl6040_power(struct twl6040 *twl6040, int on)
 			twl6040_power_down(twl6040);
 		}
 		twl6040->sysclk = 0;
+		twl6040->mclk = 0;
 	}
 
 out:
@@ -421,6 +423,7 @@ int twl6040_set_pll(struct twl6040 *twl6040, int pll_id,
 	}
 
 	twl6040->sysclk = freq_out;
+	twl6040->mclk = freq_in;
 	twl6040->pll = pll_id;
 
 pll_out:
