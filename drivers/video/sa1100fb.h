@@ -65,6 +65,8 @@ struct sa1100fb_info {
 	struct notifier_block	freq_transition;
 	struct notifier_block	freq_policy;
 #endif
+
+	const struct sa1100fb_mach_info *inf;
 };
 
 #define TO_INF(ptr,member)	container_of(ptr,struct sa1100fb_info,member)

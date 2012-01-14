@@ -79,6 +79,8 @@ static struct sa1100fb_mach_info h3600_lcd_info = {
 	.lccr3		= LCCR3_OutEnH | LCCR3_PixRsEdg | LCCR3_ACBsDiv(2),
 
 	.rgb[RGB_16] = &h3600_rgb_16,
+
+	.lcd_power = h3600_lcd_power,
 };
 
 
@@ -146,7 +148,6 @@ static void __init h3600_mach_init(void)
 	h3xxx_init_gpio(h3600_default_gpio, ARRAY_SIZE(h3600_default_gpio));
 	h3xxx_mach_init();
 
-	sa1100fb_lcd_power = h3600_lcd_power;
 	sa11x0_register_lcd(&h3600_lcd_info);
 	sa11x0_register_irda(&h3600_irda_data);
 }

@@ -194,9 +194,6 @@
 
 #include "sa1100fb.h"
 
-extern void (*sa1100fb_backlight_power)(int on);
-extern void (*sa1100fb_lcd_power)(int on);
-
 static const struct sa1100fb_rgb rgb_4 = {
 	.red	= { .offset = 0,  .length = 4, },
 	.green	= { .offset = 0,  .length = 4, },
@@ -426,22 +423,10 @@ sa1100fb_check_var(struct fb_var_screeninfo *var, struct fb_info *info)
 	return 0;
 }
 
-static inline void sa1100fb_set_truecolor(u_int is_true_color)
+static void sa1100fb_set_visual(struct sa1100fb_info *fbi, u32 visual)
 {
-	if (machine_is_assabet()) {
-#if 1		// phase 4 or newer Assabet's
-		if (is_true_color)
-			ASSABET_BCR_set(ASSABET_BCR_LCD_12RGB);
-		else
-			ASSABET_BCR_clear(ASSABET_BCR_LCD_12RGB);
-#else
-		// older Assabet's
-		if (is_true_color)
-			ASSABET_BCR_clear(ASSABET_BCR_LCD_12RGB);
-		else
-			ASSABET_BCR_set(ASSABET_BCR_LCD_12RGB);
-#endif
-	}
+	if (fbi->inf->set_visual)
+		fbi->inf->set_visual(visual);
 }
 
 /*
@@ -483,7 +468,7 @@ static int sa1100fb_set_par(struct fb_info *info)
 	/*
 	 * Set (any) board control register to handle new color depth
 	 */
-	sa1100fb_set_truecolor(fbi->fb.fix.visual == FB_VISUAL_TRUECOLOR);
+	sa1100fb_set_visual(fbi, fbi->fb.fix.visual);
 	sa1100fb_activate_var(var, fbi);
 
 	return 0;
@@ -740,16 +725,16 @@ static inline void __sa1100fb_backlight_power(struct sa1100fb_info *fbi, int on)
 {
 	dev_dbg(fbi->dev, "backlight o%s\n", on ? "n" : "ff");
 
-	if (sa1100fb_backlight_power)
-		sa1100fb_backlight_power(on);
+	if (fbi->inf->backlight_power)
+		fbi->inf->backlight_power(on);
 }
 
 static inline void __sa1100fb_lcd_power(struct sa1100fb_info *fbi, int on)
 {
 	dev_dbg(fbi->dev, "LCD power o%s\n", on ? "n" : "ff");
 
-	if (sa1100fb_lcd_power)
-		sa1100fb_lcd_power(on);
+	if (fbi->inf->lcd_power)
+		fbi->inf->lcd_power(on);
 }
 
 static void sa1100fb_setup_gpio(struct sa1100fb_info *fbi)
@@ -1197,6 +1182,7 @@ static struct sa1100fb_info * __devinit sa1100fb_init_fbinfo(struct device *dev)
 	fbi->task_state			= (u_char)-1;
 	fbi->fb.fix.smem_len		= fbi->max_xres * fbi->max_yres *
 					  fbi->max_bpp / 8;
+	fbi->inf			= inf;
 
 	/* Copy the RGB bitfield overrides */
 	for (i = 0; i < NR_RGB; i++)

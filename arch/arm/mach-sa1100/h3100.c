@@ -52,6 +52,8 @@ static struct sa1100fb_mach_info h3100_lcd_info = {
 
 	.lccr0		= LCCR0_Mono | LCCR0_4PixMono | LCCR0_Sngl | LCCR0_Pas,
 	.lccr3		= LCCR3_OutEnH | LCCR3_PixRsEdg | LCCR3_ACBsDiv(2),
+
+	.lcd_power = h3100_lcd_power,
 };
 
 static void __init h3100_map_io(void)
@@ -96,7 +98,6 @@ static void __init h3100_mach_init(void)
 	h3xxx_init_gpio(h3100_default_gpio, ARRAY_SIZE(h3100_default_gpio));
 	h3xxx_mach_init();
 
-	sa1100fb_lcd_power = h3100_lcd_power;
 	sa11x0_register_lcd(&h3100_lcd_info);
 	sa11x0_register_irda(&h3100_irda_data);
 }

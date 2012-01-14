@@ -374,12 +374,6 @@ static int __init sa1100_init(void)
 
 arch_initcall(sa1100_init);
 
-void (*sa1100fb_backlight_power)(int on);
-void (*sa1100fb_lcd_power)(int on);
-
-EXPORT_SYMBOL(sa1100fb_backlight_power);
-EXPORT_SYMBOL(sa1100fb_lcd_power);
-
 
 /*
  * Common I/O mapping:

@@ -71,33 +71,6 @@ void ASSABET_BCR_frob(unsigned int mask, unsigned int val)
 
 EXPORT_SYMBOL(ASSABET_BCR_frob);
 
-static void assabet_backlight_power(int on)
-{
-#ifndef ASSABET_PAL_VIDEO
-	if (on)
-		ASSABET_BCR_set(ASSABET_BCR_LIGHT_ON);
-	else
-#endif
-		ASSABET_BCR_clear(ASSABET_BCR_LIGHT_ON);
-}
-
-/*
- * Turn on/off the backlight.  When turning the backlight on,
- * we wait 500us after turning it on so we don't cause the
- * supplies to droop when we enable the LCD controller (and
- * cause a hard reset.)
- */
-static void assabet_lcd_power(int on)
-{
-#ifndef ASSABET_PAL_VIDEO
-	if (on) {
-		ASSABET_BCR_set(ASSABET_BCR_LCD_ON);
-		udelay(500);
-	} else
-#endif
-		ASSABET_BCR_clear(ASSABET_BCR_LCD_ON);
-}
-
 
 /*
  * Assabet flash support code.
@@ -206,7 +179,49 @@ static struct mcp_plat_data assabet_mcp_data = {
 	.sclk_rate	= 11981000,
 };
 
+static void assabet_lcd_set_visual(u32 visual)
+{
+	u_int is_true_color = visual == FB_VISUAL_TRUECOLOR;
+
+	if (machine_is_assabet()) {
+#if 1		// phase 4 or newer Assabet's
+		if (is_true_color)
+			ASSABET_BCR_set(ASSABET_BCR_LCD_12RGB);
+		else
+			ASSABET_BCR_clear(ASSABET_BCR_LCD_12RGB);
+#else
+		// older Assabet's
+		if (is_true_color)
+			ASSABET_BCR_clear(ASSABET_BCR_LCD_12RGB);
+		else
+			ASSABET_BCR_set(ASSABET_BCR_LCD_12RGB);
+#endif
+	}
+}
+
 #ifndef ASSABET_PAL_VIDEO
+static void assabet_lcd_backlight_power(int on)
+{
+	if (on)
+		ASSABET_BCR_set(ASSABET_BCR_LIGHT_ON);
+	else
+		ASSABET_BCR_clear(ASSABET_BCR_LIGHT_ON);
+}
+
+/*
+ * Turn on/off the backlight.  When turning the backlight on, we wait
+ * 500us after turning it on so we don't cause the supplies to droop
+ * when we enable the LCD controller (and cause a hard reset.)
+ */
+static void assabet_lcd_power(int on)
+{
+	if (on) {
+		ASSABET_BCR_set(ASSABET_BCR_LCD_ON);
+		udelay(500);
+	} else
+		ASSABET_BCR_clear(ASSABET_BCR_LCD_ON);
+}
+
 /*
  * The assabet uses a sharp LQ039Q2DS54 LCD module.  It is actually
  * takes an RGB666 signal, but we provide it with an RGB565 signal
@@ -224,8 +239,22 @@ static struct sa1100fb_mach_info lq039q2ds54_info = {
 
 	.lccr0		= LCCR0_Color | LCCR0_Sngl | LCCR0_Act,
 	.lccr3		= LCCR3_OutEnH | LCCR3_PixRsEdg | LCCR3_ACBsDiv(2),
+
+	.backlight_power = assabet_lcd_backlight_power,
+	.lcd_power = assabet_lcd_power,
+	.set_visual = assabet_lcd_set_visual,
 };
 #else
+static void assabet_pal_backlight_power(int on)
+{
+	ASSABET_BCR_clear(ASSABET_BCR_LIGHT_ON);
+}
+
+static void assabet_pal_power(int on)
+{
+	ASSABET_BCR_clear(ASSABET_BCR_LCD_ON);
+}
+
 static struct sa1100fb_mach_info pal_info = {
 	.pixclock	= 67797,	.bpp		= 16,
 	.xres		= 640,		.yres		= 512,
@@ -236,6 +265,10 @@ static struct sa1100fb_mach_info pal_info = {
 
 	.lccr0		= LCCR0_Color | LCCR0_Sngl | LCCR0_Act,
 	.lccr3		= LCCR3_OutEnH | LCCR3_PixRsEdg | LCCR3_ACBsDiv(512),
+
+	.backlight_power = assabet_pal_backlight_power,
+	.lcd_power = assabet_pal_power,
+	.set_visual = assabet_lcd_set_visual,
 };
 #endif
 
@@ -265,9 +298,6 @@ static void __init assabet_init(void)
 	PSDR = 0;
 	PPDR |= PPC_TXD3 | PPC_TXD1;
 	PPSR |= PPC_TXD3 | PPC_TXD1;
-
-	sa1100fb_lcd_power = assabet_lcd_power;
-	sa1100fb_backlight_power = assabet_backlight_power;
 
 	if (machine_has_neponset()) {
 		/*

@@ -54,6 +54,10 @@ struct sa1100fb_mach_info {
 
 	/* Overrides for the default RGB maps */
 	const struct sa1100fb_rgb *rgb[NR_RGB];
+
+	void (*backlight_power)(int);
+	void (*lcd_power)(int);
+	void (*set_visual)(u32);
 };
 
 #endif
