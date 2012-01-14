@@ -9,6 +9,8 @@
 #include <linux/mtd/mtd.h>
 #include <linux/mtd/partitions.h>
 
+#include <video/sa1100fb.h>
+
 #include <mach/hardware.h>
 #include <asm/mach-types.h>
 #include <asm/setup.h>
@@ -57,8 +59,23 @@ static struct mcp_plat_data shannon_mcp_data = {
 	.sclk_rate	= 11981000,
 };
 
+static struct sa1100fb_mach_info shannon_lcd_info = {
+	.pixclock	= 152500,	.bpp		= 8,
+	.xres		= 640,		.yres		= 480,
+
+	.hsync_len	= 4,		.vsync_len	= 3,
+	.left_margin	= 2,		.upper_margin	= 0,
+	.right_margin	= 1,		.lower_margin	= 0,
+
+	.sync		= FB_SYNC_HOR_HIGH_ACT | FB_SYNC_VERT_HIGH_ACT,
+
+	.lccr0		= LCCR0_Color | LCCR0_Dual | LCCR0_Pas,
+	.lccr3		= LCCR3_ACBsDiv(512),
+};
+
 static void __init shannon_init(void)
 {
+	sa11x0_register_lcd(&shannon_lcd_info);
 	sa11x0_register_mtd(&shannon_flash_data, &shannon_flash_resource, 1);
 	sa11x0_register_mcp(&shannon_mcp_data);
 }

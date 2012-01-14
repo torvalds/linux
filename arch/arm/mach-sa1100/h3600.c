@@ -14,6 +14,8 @@
 #include <linux/kernel.h>
 #include <linux/gpio.h>
 
+#include <video/sa1100fb.h>
+
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
 #include <asm/mach/irda.h>
@@ -56,11 +58,33 @@ err2:	gpio_free(H3XXX_EGPIO_LCD_ON);
 err1:	return;
 }
 
+static const struct sa1100fb_rgb h3600_rgb_16 = {
+	.red	= { .offset = 12, .length = 4, },
+	.green	= { .offset = 7,  .length = 4, },
+	.blue	= { .offset = 1,  .length = 4, },
+	.transp	= { .offset = 0,  .length = 0, },
+};
+
+static struct sa1100fb_mach_info h3600_lcd_info = {
+	.pixclock	= 174757, 	.bpp		= 16,
+	.xres		= 320,		.yres		= 240,
+
+	.hsync_len	= 3,		.vsync_len	= 3,
+	.left_margin	= 12,		.upper_margin	= 10,
+	.right_margin	= 17,		.lower_margin	= 1,
+
+	.cmap_static	= 1,
+
+	.lccr0		= LCCR0_Color | LCCR0_Sngl | LCCR0_Act,
+	.lccr3		= LCCR3_OutEnH | LCCR3_PixRsEdg | LCCR3_ACBsDiv(2),
+
+	.rgb[RGB_16] = &h3600_rgb_16,
+};
+
+
 static void __init h3600_map_io(void)
 {
 	h3xxx_map_io();
-
-	sa1100fb_lcd_power = h3600_lcd_power;
 }
 
 /*
@@ -121,6 +145,9 @@ static void __init h3600_mach_init(void)
 {
 	h3xxx_init_gpio(h3600_default_gpio, ARRAY_SIZE(h3600_default_gpio));
 	h3xxx_mach_init();
+
+	sa1100fb_lcd_power = h3600_lcd_power;
+	sa11x0_register_lcd(&h3600_lcd_info);
 	sa11x0_register_irda(&h3600_irda_data);
 }
 

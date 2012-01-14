@@ -40,3 +40,6 @@ void sa11x0_register_irda(struct irda_platform_data *irda);
 
 struct mcp_plat_data;
 void sa11x0_register_mcp(struct mcp_plat_data *data);
+
+struct sa1100fb_mach_info;
+void sa11x0_register_lcd(struct sa1100fb_mach_info *inf);

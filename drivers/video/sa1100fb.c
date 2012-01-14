@@ -218,235 +218,7 @@ static const struct sa1100fb_rgb def_rgb_16 = {
 	.transp	= { .offset = 0,  .length = 0, },
 };
 
-#ifdef CONFIG_SA1100_ASSABET
-#ifndef ASSABET_PAL_VIDEO
-/*
- * The assabet uses a sharp LQ039Q2DS54 LCD module.  It is actually
- * takes an RGB666 signal, but we provide it with an RGB565 signal
- * instead (def_rgb_16).
- */
-static struct sa1100fb_mach_info lq039q2ds54_info __devinitdata = {
-	.pixclock	= 171521,	.bpp		= 16,
-	.xres		= 320,		.yres		= 240,
 
-	.hsync_len	= 5,		.vsync_len	= 1,
-	.left_margin	= 61,		.upper_margin	= 3,
-	.right_margin	= 9,		.lower_margin	= 0,
-
-	.sync		= FB_SYNC_HOR_HIGH_ACT | FB_SYNC_VERT_HIGH_ACT,
-
-	.lccr0		= LCCR0_Color | LCCR0_Sngl | LCCR0_Act,
-	.lccr3		= LCCR3_OutEnH | LCCR3_PixRsEdg | LCCR3_ACBsDiv(2),
-};
-#else
-static struct sa1100fb_mach_info pal_info __devinitdata = {
-	.pixclock	= 67797,	.bpp		= 16,
-	.xres		= 640,		.yres		= 512,
-
-	.hsync_len	= 64,		.vsync_len	= 6,
-	.left_margin	= 125,		.upper_margin	= 70,
-	.right_margin	= 115,		.lower_margin	= 36,
-
-	.lccr0		= LCCR0_Color | LCCR0_Sngl | LCCR0_Act,
-	.lccr3		= LCCR3_OutEnH | LCCR3_PixRsEdg | LCCR3_ACBsDiv(512),
-};
-#endif
-#endif
-
-#ifdef CONFIG_SA1100_H3600
-static const struct sa1100fb_rgb h3600_rgb_16 = {
-	.red	= { .offset = 12, .length = 4, },
-	.green	= { .offset = 7,  .length = 4, },
-	.blue	= { .offset = 1,  .length = 4, },
-	.transp	= { .offset = 0,  .length = 0, },
-};
-
-static struct sa1100fb_mach_info h3600_info __devinitdata = {
-	.pixclock	= 174757, 	.bpp		= 16,
-	.xres		= 320,		.yres		= 240,
-
-	.hsync_len	= 3,		.vsync_len	= 3,
-	.left_margin	= 12,		.upper_margin	= 10,
-	.right_margin	= 17,		.lower_margin	= 1,
-
-	.cmap_static	= 1,
-
-	.lccr0		= LCCR0_Color | LCCR0_Sngl | LCCR0_Act,
-	.lccr3		= LCCR3_OutEnH | LCCR3_PixRsEdg | LCCR3_ACBsDiv(2),
-
-	.rgb[RGB_16] = &h3600_rgb_16,
-};
-#endif
-
-#ifdef CONFIG_SA1100_H3100
-static struct sa1100fb_mach_info h3100_info __devinitdata = {
-	.pixclock	= 406977, 	.bpp		= 4,
-	.xres		= 320,		.yres		= 240,
-
-	.hsync_len	= 26,		.vsync_len	= 41,
-	.left_margin	= 4,		.upper_margin	= 0,
-	.right_margin	= 4,		.lower_margin	= 0,
-
-	.sync		= FB_SYNC_HOR_HIGH_ACT | FB_SYNC_VERT_HIGH_ACT,
-	.cmap_greyscale	= 1,
-	.cmap_inverse	= 1,
-
-	.lccr0		= LCCR0_Mono | LCCR0_4PixMono | LCCR0_Sngl | LCCR0_Pas,
-	.lccr3		= LCCR3_OutEnH | LCCR3_PixRsEdg | LCCR3_ACBsDiv(2),
-};
-#endif
-
-#ifdef CONFIG_SA1100_COLLIE
-static struct sa1100fb_mach_info collie_info __devinitdata = {
-	.pixclock	= 171521,	.bpp		= 16,
-	.xres		= 320,		.yres		= 240,
-
-	.hsync_len	= 5,		.vsync_len	= 1,
-	.left_margin	= 11,		.upper_margin	= 2,
-	.right_margin	= 30,		.lower_margin	= 0,
-
-	.sync		= FB_SYNC_HOR_HIGH_ACT | FB_SYNC_VERT_HIGH_ACT,
-
-	.lccr0		= LCCR0_Color | LCCR0_Sngl | LCCR0_Act,
-	.lccr3		= LCCR3_OutEnH | LCCR3_PixRsEdg | LCCR3_ACBsDiv(2),
-};
-#endif
-
-#ifdef LART_GREY_LCD
-static struct sa1100fb_mach_info lart_grey_info __devinitdata = {
-	.pixclock	= 150000,	.bpp		= 4,
-	.xres		= 320,		.yres		= 240,
-
-	.hsync_len	= 1,		.vsync_len	= 1,
-	.left_margin	= 4,		.upper_margin	= 0,
-	.right_margin	= 2,		.lower_margin	= 0,
-
-	.cmap_greyscale	= 1,
-	.sync		= FB_SYNC_HOR_HIGH_ACT | FB_SYNC_VERT_HIGH_ACT,
-
-	.lccr0		= LCCR0_Mono | LCCR0_Sngl | LCCR0_Pas | LCCR0_4PixMono,
-	.lccr3		= LCCR3_OutEnH | LCCR3_PixRsEdg | LCCR3_ACBsDiv(512),
-};
-#endif
-#ifdef LART_COLOR_LCD
-static struct sa1100fb_mach_info lart_color_info __devinitdata = {
-	.pixclock	= 150000,	.bpp		= 16,
-	.xres		= 320,		.yres		= 240,
-
-	.hsync_len	= 2,		.vsync_len	= 3,
-	.left_margin	= 69,		.upper_margin	= 14,
-	.right_margin	= 8,		.lower_margin	= 4,
-
-	.lccr0		= LCCR0_Color | LCCR0_Sngl | LCCR0_Act,
-	.lccr3		= LCCR3_OutEnH | LCCR3_PixFlEdg | LCCR3_ACBsDiv(512),
-};
-#endif
-#ifdef LART_VIDEO_OUT
-static struct sa1100fb_mach_info lart_video_info __devinitdata = {
-	.pixclock	= 39721,	.bpp		= 16,
-	.xres		= 640,		.yres		= 480,
-
-	.hsync_len	= 95,		.vsync_len	= 2,
-	.left_margin	= 40,		.upper_margin	= 32,
-	.right_margin	= 24,		.lower_margin	= 11,
-
-	.sync		= FB_SYNC_HOR_HIGH_ACT | FB_SYNC_VERT_HIGH_ACT,
-
-	.lccr0		= LCCR0_Color | LCCR0_Sngl | LCCR0_Act,
-	.lccr3		= LCCR3_OutEnL | LCCR3_PixFlEdg | LCCR3_ACBsDiv(512),
-};
-#endif
-
-#ifdef LART_KIT01_LCD
-static struct sa1100fb_mach_info lart_kit01_info __devinitdata = {
-	.pixclock	= 63291,	.bpp		= 16,
-	.xres		= 640,		.yres		= 480,
-
-	.hsync_len	= 64,		.vsync_len	= 3,
-	.left_margin	= 122,		.upper_margin	= 45,
-	.right_margin	= 10,		.lower_margin	= 10,
-
-	.lccr0		= LCCR0_Color | LCCR0_Sngl | LCCR0_Act,
-	.lccr3		= LCCR3_OutEnH | LCCR3_PixFlEdg
-};
-#endif
-
-#ifdef CONFIG_SA1100_SHANNON
-static struct sa1100fb_mach_info shannon_info __devinitdata = {
-	.pixclock	= 152500,	.bpp		= 8,
-	.xres		= 640,		.yres		= 480,
-
-	.hsync_len	= 4,		.vsync_len	= 3,
-	.left_margin	= 2,		.upper_margin	= 0,
-	.right_margin	= 1,		.lower_margin	= 0,
-
-	.sync		= FB_SYNC_HOR_HIGH_ACT | FB_SYNC_VERT_HIGH_ACT,
-
-	.lccr0		= LCCR0_Color | LCCR0_Dual | LCCR0_Pas,
-	.lccr3		= LCCR3_ACBsDiv(512),
-};
-#endif
-
-
-
-static struct sa1100fb_mach_info * __devinit
-sa1100fb_get_machine_info(struct sa1100fb_info *fbi)
-{
-	struct sa1100fb_mach_info *inf = NULL;
-
-	/*
-	 *            R        G       B       T
-	 * default  {11,5}, { 5,6}, { 0,5}, { 0,0}
-	 * h3600    {12,4}, { 7,4}, { 1,4}, { 0,0}
-	 * freebird { 8,4}, { 4,4}, { 0,4}, {12,4}
-	 */
-#ifdef CONFIG_SA1100_ASSABET
-	if (machine_is_assabet()) {
-#ifndef ASSABET_PAL_VIDEO
-		inf = &lq039q2ds54_info;
-#else
-		inf = &pal_info;
-#endif
-	}
-#endif
-#ifdef CONFIG_SA1100_H3100
-	if (machine_is_h3100()) {
-		inf = &h3100_info;
-	}
-#endif
-#ifdef CONFIG_SA1100_H3600
-	if (machine_is_h3600()) {
-		inf = &h3600_info;
-	}
-#endif
-#ifdef CONFIG_SA1100_COLLIE
-	if (machine_is_collie()) {
-		inf = &collie_info;
-	}
-#endif
-#ifdef CONFIG_SA1100_LART
-	if (machine_is_lart()) {
-#ifdef LART_GREY_LCD
-		inf = &lart_grey_info;
-#endif
-#ifdef LART_COLOR_LCD
-		inf = &lart_color_info;
-#endif
-#ifdef LART_VIDEO_OUT
-		inf = &lart_video_info;
-#endif
-#ifdef LART_KIT01_LCD
-		inf = &lart_kit01_info;
-#endif
-	}
-#endif
-#ifdef CONFIG_SA1100_SHANNON
-	if (machine_is_shannon()) {
-		inf = &shannon_info;
-	}
-#endif
-	return inf;
-}
 
 static int sa1100fb_activate_var(struct fb_var_screeninfo *var, struct sa1100fb_info *);
 static void set_ctrlr_state(struct sa1100fb_info *fbi, u_int state);
@@ -1353,7 +1125,7 @@ static struct fb_monspecs monspecs __devinitdata = {
 
 static struct sa1100fb_info * __devinit sa1100fb_init_fbinfo(struct device *dev)
 {
-	struct sa1100fb_mach_info *inf;
+	struct sa1100fb_mach_info *inf = dev->platform_data;
 	struct sa1100fb_info *fbi;
 	unsigned i;
 
@@ -1389,10 +1161,6 @@ static struct sa1100fb_info * __devinit sa1100fb_init_fbinfo(struct device *dev)
 	fbi->rgb[RGB_4]		= &rgb_4;
 	fbi->rgb[RGB_8]		= &rgb_8;
 	fbi->rgb[RGB_16]	= &def_rgb_16;
-
-	inf = dev->platform_data;
-	if (!inf)
-		inf = sa1100fb_get_machine_info(fbi);
 
 	/*
 	 * People just don't seem to get this.  We don't support
@@ -1446,6 +1214,11 @@ static int __devinit sa1100fb_probe(struct platform_device *pdev)
 {
 	struct sa1100fb_info *fbi;
 	int ret, irq;
+
+	if (!pdev->dev.platform_data) {
+		dev_err(&pdev->dev, "no platform LCD data\n");
+		return -EINVAL;
+	}
 
 	irq = platform_get_irq(pdev, 0);
 	if (irq < 0)

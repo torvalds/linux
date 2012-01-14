@@ -19,6 +19,8 @@
 #include <linux/ioport.h>
 #include <linux/platform_device.h>
 
+#include <video/sa1100fb.h>
+
 #include <asm/div64.h>
 #include <mach/hardware.h>
 #include <asm/system.h>
@@ -294,6 +296,11 @@ static struct platform_device sa11x0fb_device = {
 	.resource	= sa11x0fb_resources,
 };
 
+void sa11x0_register_lcd(struct sa1100fb_mach_info *inf)
+{
+	sa11x0_register_device(&sa11x0fb_device, inf);
+}
+
 static struct platform_device sa11x0pcmcia_device = {
 	.name		= "sa11x0-pcmcia",
 	.id		= -1,
@@ -356,7 +363,6 @@ static struct platform_device *sa11x0_devices[] __initdata = {
 	&sa11x0uart3_device,
 	&sa11x0ssp_device,
 	&sa11x0pcmcia_device,
-	&sa11x0fb_device,
 	&sa11x0rtc_device,
 };
 

@@ -14,6 +14,8 @@
 #include <linux/kernel.h>
 #include <linux/gpio.h>
 
+#include <video/sa1100fb.h>
+
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
 #include <asm/mach/irda.h>
@@ -36,12 +38,25 @@ static void h3100_lcd_power(int enable)
 	}
 }
 
+static struct sa1100fb_mach_info h3100_lcd_info = {
+	.pixclock	= 406977, 	.bpp		= 4,
+	.xres		= 320,		.yres		= 240,
+
+	.hsync_len	= 26,		.vsync_len	= 41,
+	.left_margin	= 4,		.upper_margin	= 0,
+	.right_margin	= 4,		.lower_margin	= 0,
+
+	.sync		= FB_SYNC_HOR_HIGH_ACT | FB_SYNC_VERT_HIGH_ACT,
+	.cmap_greyscale	= 1,
+	.cmap_inverse	= 1,
+
+	.lccr0		= LCCR0_Mono | LCCR0_4PixMono | LCCR0_Sngl | LCCR0_Pas,
+	.lccr3		= LCCR3_OutEnH | LCCR3_PixRsEdg | LCCR3_ACBsDiv(2),
+};
 
 static void __init h3100_map_io(void)
 {
 	h3xxx_map_io();
-
-	sa1100fb_lcd_power = h3100_lcd_power;
 
 	/* Older bootldrs put GPIO2-9 in alternate mode on the
 	   assumption that they are used for video */
@@ -80,6 +95,9 @@ static void __init h3100_mach_init(void)
 {
 	h3xxx_init_gpio(h3100_default_gpio, ARRAY_SIZE(h3100_default_gpio));
 	h3xxx_mach_init();
+
+	sa1100fb_lcd_power = h3100_lcd_power;
+	sa11x0_register_lcd(&h3100_lcd_info);
 	sa11x0_register_irda(&h3100_irda_data);
 }
 

@@ -20,6 +20,8 @@
 #include <linux/delay.h>
 #include <linux/mm.h>
 
+#include <video/sa1100fb.h>
+
 #include <mach/hardware.h>
 #include <asm/mach-types.h>
 #include <asm/irq.h>
@@ -204,6 +206,39 @@ static struct mcp_plat_data assabet_mcp_data = {
 	.sclk_rate	= 11981000,
 };
 
+#ifndef ASSABET_PAL_VIDEO
+/*
+ * The assabet uses a sharp LQ039Q2DS54 LCD module.  It is actually
+ * takes an RGB666 signal, but we provide it with an RGB565 signal
+ * instead (def_rgb_16).
+ */
+static struct sa1100fb_mach_info lq039q2ds54_info = {
+	.pixclock	= 171521,	.bpp		= 16,
+	.xres		= 320,		.yres		= 240,
+
+	.hsync_len	= 5,		.vsync_len	= 1,
+	.left_margin	= 61,		.upper_margin	= 3,
+	.right_margin	= 9,		.lower_margin	= 0,
+
+	.sync		= FB_SYNC_HOR_HIGH_ACT | FB_SYNC_VERT_HIGH_ACT,
+
+	.lccr0		= LCCR0_Color | LCCR0_Sngl | LCCR0_Act,
+	.lccr3		= LCCR3_OutEnH | LCCR3_PixRsEdg | LCCR3_ACBsDiv(2),
+};
+#else
+static struct sa1100fb_mach_info pal_info = {
+	.pixclock	= 67797,	.bpp		= 16,
+	.xres		= 640,		.yres		= 512,
+
+	.hsync_len	= 64,		.vsync_len	= 6,
+	.left_margin	= 125,		.upper_margin	= 70,
+	.right_margin	= 115,		.lower_margin	= 36,
+
+	.lccr0		= LCCR0_Color | LCCR0_Sngl | LCCR0_Act,
+	.lccr3		= LCCR3_OutEnH | LCCR3_PixRsEdg | LCCR3_ACBsDiv(512),
+};
+#endif
+
 static void __init assabet_init(void)
 {
 	/*
@@ -249,6 +284,11 @@ static void __init assabet_init(void)
 #endif
 	}
 
+#ifndef ASSABET_PAL_VIDEO
+	sa11x0_register_lcd(&lq039q2ds54_info);
+#else
+	sa11x0_register_lcd(&pal_video);
+#endif
 	sa11x0_register_mtd(&assabet_flash_data, assabet_flash_resources,
 			    ARRAY_SIZE(assabet_flash_resources));
 	sa11x0_register_irda(&assabet_irda_data);
