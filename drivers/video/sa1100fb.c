@@ -199,21 +199,21 @@
 extern void (*sa1100fb_backlight_power)(int on);
 extern void (*sa1100fb_lcd_power)(int on);
 
-static struct sa1100fb_rgb rgb_4 = {
+static const struct sa1100fb_rgb rgb_4 = {
 	.red	= { .offset = 0,  .length = 4, },
 	.green	= { .offset = 0,  .length = 4, },
 	.blue	= { .offset = 0,  .length = 4, },
 	.transp	= { .offset = 0,  .length = 0, },
 };
 
-static struct sa1100fb_rgb rgb_8 = {
+static const struct sa1100fb_rgb rgb_8 = {
 	.red	= { .offset = 0,  .length = 8, },
 	.green	= { .offset = 0,  .length = 8, },
 	.blue	= { .offset = 0,  .length = 8, },
 	.transp	= { .offset = 0,  .length = 0, },
 };
 
-static struct sa1100fb_rgb def_rgb_16 = {
+static const struct sa1100fb_rgb def_rgb_16 = {
 	.red	= { .offset = 11, .length = 5, },
 	.green	= { .offset = 5,  .length = 6, },
 	.blue	= { .offset = 0,  .length = 5, },
@@ -270,7 +270,7 @@ static struct sa1100fb_mach_info h3600_info __devinitdata = {
 	.lccr3		= LCCR3_OutEnH | LCCR3_PixRsEdg | LCCR3_ACBsDiv(2),
 };
 
-static struct sa1100fb_rgb h3600_rgb_16 = {
+static const struct sa1100fb_rgb h3600_rgb_16 = {
 	.red	= { .offset = 12, .length = 4, },
 	.green	= { .offset = 7,  .length = 4, },
 	.blue	= { .offset = 1,  .length = 4, },

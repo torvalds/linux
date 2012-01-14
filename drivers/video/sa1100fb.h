@@ -65,7 +65,7 @@ struct sa1100fb_lcd_reg {
 struct sa1100fb_info {
 	struct fb_info		fb;
 	struct device		*dev;
-	struct sa1100fb_rgb	*rgb[NR_RGB];
+	const struct sa1100fb_rgb *rgb[NR_RGB];
 
 	u_int			max_bpp;
 	u_int			max_xres;
