@@ -333,7 +333,6 @@ null;
 int fts_read_data(void)
 {
 	struct FTS_TS_DATA_T *data = i2c_get_clientdata(this_client);
-	struct FTS_TS_EVENT_T *event = &data->event;
 	u8 buf[32] = {0};
 	static int key_id=0x80;
 
@@ -401,8 +400,6 @@ int fts_read_data(void)
 						_st_finger_infos[id].i2_y= (int16_t)y;
 						_st_finger_infos[id].ui2_id  = size;
 						_si_touch_num ++;
-						printk("\n--report x position  is  %d,pressure=%d----\n",_st_finger_infos[id].i2_x, pressure);
-						printk("\n--report y position  is  %d,pressure=%d----\n",_st_finger_infos[id].i2_y, pressure);
 					}  
 #if 0
 
@@ -471,12 +468,19 @@ int fts_read_data(void)
 				{
 //					printk("[TSP]id=%d up\n",  id);  
 				}
+				
+//				printk("\n--report x position  is  %d,pressure=%d----\n",_st_finger_infos[id].i2_x, touch_event);
+//				printk("\n--report y position  is  %d,pressure=%d----\n",_st_finger_infos[id].i2_y, touch_event);
 
 
 				for( i= 0; i<CFG_MAX_POINT_NUM; ++i )
 				{
+					if(_st_finger_infos[i].down_num > 1000)//5*5*40
+						_st_finger_infos[i].u2_pressure = 0;
+//					printk("point_idx = [%d],updown=%d,down_num=%d\n",i,_st_finger_infos[i].u2_pressure,_st_finger_infos[i].down_num );
 					if(_st_finger_infos[i].u2_pressure == 1)//down
 					{
+						_st_finger_infos[i].down_num++;
 						input_mt_slot(data->input_dev, i);
 						input_mt_report_slot_state(data->input_dev, MT_TOOL_FINGER, true);					
 						input_report_abs(data->input_dev, ABS_MT_TOUCH_MAJOR, 1);
@@ -485,13 +489,14 @@ int fts_read_data(void)
 					}
 					else if(_st_finger_infos[i].u2_pressure == 0)//up
 					{
+						_st_finger_infos[i].down_num = 0;
 						input_mt_slot(data->input_dev, i);
 						input_mt_report_slot_state(data->input_dev, MT_TOOL_FINGER, false);
 					}
 //					else
 //						printk("[%s]invalid pressure value %d\n",__FUNCTION__,_st_finger_infos[i].u2_pressure);
 
-					input_sync(data->input_dev);
+//					input_sync(data->input_dev);
 
 					if(_st_finger_infos[i].u2_pressure == 0 )
 					{
@@ -501,12 +506,13 @@ int fts_read_data(void)
 				}
 
 				input_sync(data->input_dev);
-
+/*
 				if (_si_touch_num == 0 )
 				{
 					fts_ts_release();
 				}
 				_si_touch_num = 0;
+*/
 			}    
 
 		}	
@@ -518,37 +524,8 @@ int fts_read_data(void)
 		}
 
 		i_count ++;
-	}while( id != 0xf && i_count < 12);
+	}while( id != 0xf && i_count < CFG_MAX_POINT_NUM);
 
-	event->touch_point = touch_point_num;        
-	if (event->touch_point == 0) 
-		return 1; 
-
-	switch (event->touch_point) {
-		case 5:
-			event->x5           = touch_info[4].i2_x;
-			event->y5           = touch_info[4].i2_y;
-			event->pressure5 = touch_info[4].u2_pressure;
-		case 4:
-			event->x4          = touch_info[3].i2_x;
-			event->y4          = touch_info[3].i2_y;
-			event->pressure4= touch_info[3].u2_pressure;
-		case 3:
-			event->x3          = touch_info[2].i2_x;
-			event->y3          = touch_info[2].i2_y;
-			event->pressure3= touch_info[2].u2_pressure;
-		case 2:
-			event->x2          = touch_info[1].i2_x;
-			event->y2          = touch_info[1].i2_y;
-			event->pressure2= touch_info[1].u2_pressure;
-		case 1:
-			event->x1          = touch_info[0].i2_x;
-			event->y1          = touch_info[0].i2_y;
-			event->pressure1= touch_info[0].u2_pressure;
-			break;
-		default:
-			return -1;
-	}
 
 	return 0;
 }

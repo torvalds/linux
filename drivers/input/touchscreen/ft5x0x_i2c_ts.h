@@ -49,6 +49,7 @@ typedef unsigned char         FTS_BOOL;
      short    u2_pressure;    /* ***pressure information, valid from 0 -63 **********/
      short    i2_x;                /*********** X coordinate, 0 - 2047 ****************/
      short    i2_y;                /* **********Y coordinate, 0 - 2047 ****************/
+     short    down_num;
  } REPORT_FINGER_INFO_T;
 
 
