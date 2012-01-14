@@ -18,6 +18,7 @@
 #include "idmap.h"
 #include "nfsd.h"
 #include "cache.h"
+#include "fault_inject.h"
 
 /*
  *	We have a single directory with several nodes in it.
@@ -1128,9 +1129,13 @@ static int __init init_nfsd(void)
 	int retval;
 	printk(KERN_INFO "Installing knfsd (copyright (C) 1996 okir@monad.swb.de).\n");
 
-	retval = nfs4_state_init(); /* nfs4 locking state */
+	retval = nfsd4_init_slabs();
 	if (retval)
 		return retval;
+	nfs4_state_init();
+	retval = nfsd_fault_inject_init(); /* nfsd fault injection controls */
+	if (retval)
+		goto out_free_slabs;
 	nfsd_stat_init();	/* Statistics */
 	retval = nfsd_reply_cache_init();
 	if (retval)
@@ -1161,6 +1166,8 @@ out_free_cache:
 	nfsd_reply_cache_shutdown();
 out_free_stat:
 	nfsd_stat_shutdown();
+	nfsd_fault_inject_cleanup();
+out_free_slabs:
 	nfsd4_free_slabs();
 	return retval;
 }
@@ -1175,6 +1182,7 @@ static void __exit exit_nfsd(void)
 	nfsd_lockd_shutdown();
 	nfsd_idmap_shutdown();
 	nfsd4_free_slabs();
+	nfsd_fault_inject_cleanup();
 	unregister_filesystem(&nfsd_fs_type);
 }
 
