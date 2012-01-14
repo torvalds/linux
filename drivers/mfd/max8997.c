@@ -43,7 +43,8 @@ static struct mfd_cell max8997_devs[] = {
 	{ .name = "max8997-battery", },
 	{ .name = "max8997-haptic", },
 	{ .name = "max8997-muic", },
-	{ .name = "max8997-flash", },
+	{ .name = "max8997-led", .id = 1 },
+	{ .name = "max8997-led", .id = 2 },
 };
 
 int max8997_read_reg(struct i2c_client *i2c, u8 reg, u8 *dest)

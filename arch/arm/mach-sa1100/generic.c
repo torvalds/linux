@@ -217,10 +217,15 @@ static struct platform_device sa11x0uart3_device = {
 static struct resource sa11x0mcp_resources[] = {
 	[0] = {
 		.start	= __PREG(Ser4MCCR0),
-		.end	= __PREG(Ser4MCCR0) + 0xffff,
+		.end	= __PREG(Ser4MCCR0) + 0x1C - 1,
 		.flags	= IORESOURCE_MEM,
 	},
 	[1] = {
+		.start	= __PREG(Ser4MCCR1),
+		.end	= __PREG(Ser4MCCR1) + 0x4 - 1,
+		.flags	= IORESOURCE_MEM,
+	},
+	[2] = {
 		.start	= IRQ_Ser4MCP,
 		.end	= IRQ_Ser4MCP,
 		.flags	= IORESOURCE_IRQ,
