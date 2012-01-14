@@ -51,7 +51,6 @@ static void palmtc_pcmcia_socket_state(struct soc_pcmcia_socket *skt,
 					struct pcmcia_state *state)
 {
 	state->detect = 1; /* always inserted */
-	state->wrprot = 0;
 	state->vs_3v  = 1;
 	state->vs_Xv  = 0;
 }

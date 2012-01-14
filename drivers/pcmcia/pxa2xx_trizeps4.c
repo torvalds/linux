@@ -75,7 +75,6 @@ static void trizeps_pcmcia_socket_state(struct soc_pcmcia_socket *skt,
 		state->bvd2   = (status & ConXS_CFSR_BVD2) ? 1 : 0;
 		state->vs_3v  = (status & ConXS_CFSR_VS1) ? 0 : 1;
 		state->vs_Xv  = (status & ConXS_CFSR_VS2) ? 0 : 1;
-		state->wrprot = 0;	/* not available */
 		break;
 
 #ifndef CONFIG_MACH_TRIZEPS_CONXS
@@ -87,7 +86,6 @@ static void trizeps_pcmcia_socket_state(struct soc_pcmcia_socket *skt,
 		state->bvd2   = 0;
 		state->vs_3v  = 0;
 		state->vs_Xv  = 0;
-		state->wrprot = 0;
 		break;
 
 #endif

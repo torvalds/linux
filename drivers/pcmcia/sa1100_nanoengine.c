@@ -106,7 +106,6 @@ static void nanoengine_pcmcia_socket_state(
 
 	state->bvd1 = 1;
 	state->bvd2 = 1;
-	state->wrprot = 0; /* Not available */
 	state->vs_3v = 1; /* Can only apply 3.3V */
 	state->vs_Xv = 0;
 }

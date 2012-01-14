@@ -46,7 +46,6 @@ simpad_pcmcia_socket_state(struct soc_pcmcia_socket *skt,
 
 	state->bvd1 = 1; /* Might be cs3reg & PCMCIA_BVD1 */
 	state->bvd2 = 1; /* Might be cs3reg & PCMCIA_BVD2 */
-	state->wrprot=0; /* Not available on Simpad. */
 
 	if ((cs3reg & (PCMCIA_VS1|PCMCIA_VS2)) ==
 			(PCMCIA_VS1|PCMCIA_VS2)) {

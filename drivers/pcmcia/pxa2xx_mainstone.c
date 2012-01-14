@@ -83,7 +83,6 @@ static void mst_pcmcia_socket_state(struct soc_pcmcia_socket *skt,
 	state->bvd2   = (status & MST_PCMCIA_nSPKR_BVD2) ? 1 : 0;
 	state->vs_3v  = (status & MST_PCMCIA_nVS1) ? 0 : 1;
 	state->vs_Xv  = (status & MST_PCMCIA_nVS2) ? 0 : 1;
-	state->wrprot = 0;  /* not available */
 }
 
 static int mst_pcmcia_configure_socket(struct soc_pcmcia_socket *skt,

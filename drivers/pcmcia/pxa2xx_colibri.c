@@ -84,7 +84,6 @@ static void colibri_pcmcia_socket_state(struct soc_pcmcia_socket *skt,
 	state->ready  = !!gpio_get_value(colibri_pcmcia_gpios[READY].gpio);
 	state->bvd1   = !!gpio_get_value(colibri_pcmcia_gpios[BVD1].gpio);
 	state->bvd2   = !!gpio_get_value(colibri_pcmcia_gpios[BVD2].gpio);
-	state->wrprot = 0;
 	state->vs_3v  = 1;
 	state->vs_Xv  = 0;
 }

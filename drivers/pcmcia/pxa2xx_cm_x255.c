@@ -58,7 +58,6 @@ static void cmx255_pcmcia_socket_state(struct soc_pcmcia_socket *skt,
 {
 	state->vs_3v  = 0;
 	state->vs_Xv  = 0;
-	state->wrprot = 0;  /* not available */
 }
 
 

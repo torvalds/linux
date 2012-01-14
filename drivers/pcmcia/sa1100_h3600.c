@@ -96,7 +96,6 @@ h3600_pcmcia_socket_state(struct soc_pcmcia_socket *skt, struct pcmcia_state *st
 {
 	state->bvd1 = 0;
 	state->bvd2 = 0;
-	state->wrprot = 0; /* Not available on H3600. */
 	state->vs_3v = 0;
 	state->vs_Xv = 0;
 }

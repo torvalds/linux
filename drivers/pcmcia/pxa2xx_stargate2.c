@@ -54,7 +54,6 @@ static void sg2_pcmcia_socket_state(struct soc_pcmcia_socket *skt,
 	state->bvd2   = 0; /* not available */
 	state->vs_3v  = 1; /* not available - voltage detect for card */
 	state->vs_Xv  = 0; /* not available */
-	state->wrprot = 0; /* not available - write protect */
 }
 
 static int sg2_pcmcia_configure_socket(struct soc_pcmcia_socket *skt,

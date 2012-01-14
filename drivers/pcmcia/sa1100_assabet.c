@@ -34,7 +34,6 @@ static int assabet_pcmcia_hw_init(struct soc_pcmcia_socket *skt)
 static void
 assabet_pcmcia_socket_state(struct soc_pcmcia_socket *skt, struct pcmcia_state *state)
 {
-	state->wrprot = 0; /* Not available on Assabet. */
 	state->vs_3v  = 1; /* Can only apply 3.3V on Assabet. */
 	state->vs_Xv  = 0;
 }
