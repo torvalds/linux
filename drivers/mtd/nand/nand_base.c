@@ -430,13 +430,17 @@ static int nand_default_block_markbad(struct mtd_info *mtd, loff_t ofs)
 		/*
 		 * Write to first two pages if necessary. If we write to more
 		 * than one location, the first error encountered quits the
-		 * procedure. We write two bytes per location, so we dont have
-		 * to mess with 16 bit access.
+		 * procedure.
 		 */
-		ops.len = ops.ooblen = 2;
 		ops.datbuf = NULL;
 		ops.oobbuf = buf;
-		ops.ooboffs = chip->badblockpos & ~0x01;
+		ops.ooboffs = chip->badblockpos;
+		if (chip->options & NAND_BUSWIDTH_16) {
+			ops.ooboffs &= ~0x01;
+			ops.len = ops.ooblen = 2;
+		} else {
+			ops.len = ops.ooblen = 1;
+		}
 		ops.mode = MTD_OPS_PLACE_OOB;
 		do {
 			ret = nand_do_write_oob(mtd, ofs, &ops);
