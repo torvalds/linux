@@ -150,6 +150,7 @@ enum ipset_cmd_flags {
 	IPSET_FLAG_LIST_SETNAME	= (1 << IPSET_FLAG_BIT_LIST_SETNAME),
 	IPSET_FLAG_BIT_LIST_HEADER = 2,
 	IPSET_FLAG_LIST_HEADER	= (1 << IPSET_FLAG_BIT_LIST_HEADER),
+	IPSET_FLAG_CMD_MAX = 15,	/* Lower half */
 };
 
 /* Flags at CADT attribute level */
@@ -158,6 +159,9 @@ enum ipset_cadt_flags {
 	IPSET_FLAG_BEFORE	= (1 << IPSET_FLAG_BIT_BEFORE),
 	IPSET_FLAG_BIT_PHYSDEV	= 1,
 	IPSET_FLAG_PHYSDEV	= (1 << IPSET_FLAG_BIT_PHYSDEV),
+	IPSET_FLAG_BIT_NOMATCH	= 2,
+	IPSET_FLAG_NOMATCH	= (1 << IPSET_FLAG_BIT_NOMATCH),
+	IPSET_FLAG_CADT_MAX	= 15,	/* Upper half */
 };
 
 /* Commands with settype-specific attributes */

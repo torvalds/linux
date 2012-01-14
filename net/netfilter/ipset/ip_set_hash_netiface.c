@@ -163,7 +163,8 @@ struct hash_netiface4_elem_hashed {
 	__be32 ip;
 	u8 physdev;
 	u8 cidr;
-	u16 padding;
+	u8 nomatch;
+	u8 padding;
 };
 
 #define HKEY_DATALEN	sizeof(struct hash_netiface4_elem_hashed)
@@ -173,7 +174,8 @@ struct hash_netiface4_elem {
 	__be32 ip;
 	u8 physdev;
 	u8 cidr;
-	u16 padding;
+	u8 nomatch;
+	u8 padding;
 	const char *iface;
 };
 
@@ -182,7 +184,8 @@ struct hash_netiface4_telem {
 	__be32 ip;
 	u8 physdev;
 	u8 cidr;
-	u16 padding;
+	u8 nomatch;
+	u8 padding;
 	const char *iface;
 	unsigned long timeout;
 };
@@ -207,11 +210,25 @@ hash_netiface4_data_isnull(const struct hash_netiface4_elem *elem)
 
 static inline void
 hash_netiface4_data_copy(struct hash_netiface4_elem *dst,
-			 const struct hash_netiface4_elem *src) {
+			 const struct hash_netiface4_elem *src)
+{
 	dst->ip = src->ip;
 	dst->cidr = src->cidr;
 	dst->physdev = src->physdev;
 	dst->iface = src->iface;
+	dst->nomatch = src->nomatch;
+}
+
+static inline void
+hash_netiface4_data_flags(struct hash_netiface4_elem *dst, u32 flags)
+{
+	dst->nomatch = flags & IPSET_FLAG_NOMATCH;
+}
+
+static inline bool
+hash_netiface4_data_match(const struct hash_netiface4_elem *elem)
+{
+	return !elem->nomatch;
 }
 
 static inline void
@@ -233,11 +250,13 @@ hash_netiface4_data_list(struct sk_buff *skb,
 {
 	u32 flags = data->physdev ? IPSET_FLAG_PHYSDEV : 0;
 
+	if (data->nomatch)
+		flags |= IPSET_FLAG_NOMATCH;
 	NLA_PUT_IPADDR4(skb, IPSET_ATTR_IP, data->ip);
 	NLA_PUT_U8(skb, IPSET_ATTR_CIDR, data->cidr);
 	NLA_PUT_STRING(skb, IPSET_ATTR_IFACE, data->iface);
 	if (flags)
-		NLA_PUT_NET32(skb, IPSET_ATTR_CADT_FLAGS, flags);
+		NLA_PUT_NET32(skb, IPSET_ATTR_CADT_FLAGS, htonl(flags));
 	return 0;
 
 nla_put_failure:
@@ -252,11 +271,13 @@ hash_netiface4_data_tlist(struct sk_buff *skb,
 		(const struct hash_netiface4_telem *)data;
 	u32 flags = data->physdev ? IPSET_FLAG_PHYSDEV : 0;
 
+	if (data->nomatch)
+		flags |= IPSET_FLAG_NOMATCH;
 	NLA_PUT_IPADDR4(skb, IPSET_ATTR_IP, data->ip);
 	NLA_PUT_U8(skb, IPSET_ATTR_CIDR, data->cidr);
 	NLA_PUT_STRING(skb, IPSET_ATTR_IFACE, data->iface);
 	if (flags)
-		NLA_PUT_NET32(skb, IPSET_ATTR_CADT_FLAGS, flags);
+		NLA_PUT_NET32(skb, IPSET_ATTR_CADT_FLAGS, htonl(flags));
 	NLA_PUT_NET32(skb, IPSET_ATTR_TIMEOUT,
 		      htonl(ip_set_timeout_get(tdata->timeout)));
 
@@ -361,7 +382,7 @@ hash_netiface4_uadt(struct ip_set *set, struct nlattr *tb[],
 
 	if (tb[IPSET_ATTR_CIDR]) {
 		data.cidr = nla_get_u8(tb[IPSET_ATTR_CIDR]);
-		if (!data.cidr)
+		if (!data.cidr || data.cidr > HOST_MASK)
 			return -IPSET_ERR_INVALID_CIDR;
 	}
 
@@ -387,6 +408,8 @@ hash_netiface4_uadt(struct ip_set *set, struct nlattr *tb[],
 		u32 cadt_flags = ip_set_get_h32(tb[IPSET_ATTR_CADT_FLAGS]);
 		if (cadt_flags & IPSET_FLAG_PHYSDEV)
 			data.physdev = 1;
+		if (adt == IPSET_ADD && (cadt_flags & IPSET_FLAG_NOMATCH))
+			flags |= (cadt_flags << 16);
 	}
 
 	if (adt == IPSET_TEST || !tb[IPSET_ATTR_IP_TO]) {
@@ -440,7 +463,8 @@ struct hash_netiface6_elem_hashed {
 	union nf_inet_addr ip;
 	u8 physdev;
 	u8 cidr;
-	u16 padding;
+	u8 nomatch;
+	u8 padding;
 };
 
 #define HKEY_DATALEN	sizeof(struct hash_netiface6_elem_hashed)
@@ -449,7 +473,8 @@ struct hash_netiface6_elem {
 	union nf_inet_addr ip;
 	u8 physdev;
 	u8 cidr;
-	u16 padding;
+	u8 nomatch;
+	u8 padding;
 	const char *iface;
 };
 
@@ -457,7 +482,8 @@ struct hash_netiface6_telem {
 	union nf_inet_addr ip;
 	u8 physdev;
 	u8 cidr;
-	u16 padding;
+	u8 nomatch;
+	u8 padding;
 	const char *iface;
 	unsigned long timeout;
 };
@@ -488,8 +514,21 @@ hash_netiface6_data_copy(struct hash_netiface6_elem *dst,
 }
 
 static inline void
+hash_netiface6_data_flags(struct hash_netiface6_elem *dst, u32 flags)
+{
+	dst->nomatch = flags & IPSET_FLAG_NOMATCH;
+}
+
+static inline bool
+hash_netiface6_data_match(const struct hash_netiface6_elem *elem)
+{
+	return !elem->nomatch;
+}
+
+static inline void
 hash_netiface6_data_zero_out(struct hash_netiface6_elem *elem)
 {
+	elem->cidr = 0;
 }
 
 static inline void
@@ -514,11 +553,13 @@ hash_netiface6_data_list(struct sk_buff *skb,
 {
 	u32 flags = data->physdev ? IPSET_FLAG_PHYSDEV : 0;
 
+	if (data->nomatch)
+		flags |= IPSET_FLAG_NOMATCH;
 	NLA_PUT_IPADDR6(skb, IPSET_ATTR_IP, &data->ip);
 	NLA_PUT_U8(skb, IPSET_ATTR_CIDR, data->cidr);
 	NLA_PUT_STRING(skb, IPSET_ATTR_IFACE, data->iface);
 	if (flags)
-		NLA_PUT_NET32(skb, IPSET_ATTR_CADT_FLAGS, flags);
+		NLA_PUT_NET32(skb, IPSET_ATTR_CADT_FLAGS, htonl(flags));
 	return 0;
 
 nla_put_failure:
@@ -533,11 +574,13 @@ hash_netiface6_data_tlist(struct sk_buff *skb,
 		(const struct hash_netiface6_telem *)data;
 	u32 flags = data->physdev ? IPSET_FLAG_PHYSDEV : 0;
 
+	if (data->nomatch)
+		flags |= IPSET_FLAG_NOMATCH;
 	NLA_PUT_IPADDR6(skb, IPSET_ATTR_IP, &e->ip);
 	NLA_PUT_U8(skb, IPSET_ATTR_CIDR, data->cidr);
 	NLA_PUT_STRING(skb, IPSET_ATTR_IFACE, data->iface);
 	if (flags)
-		NLA_PUT_NET32(skb, IPSET_ATTR_CADT_FLAGS, flags);
+		NLA_PUT_NET32(skb, IPSET_ATTR_CADT_FLAGS, htonl(flags));
 	NLA_PUT_NET32(skb, IPSET_ATTR_TIMEOUT,
 		      htonl(ip_set_timeout_get(e->timeout)));
 	return 0;
@@ -636,7 +679,7 @@ hash_netiface6_uadt(struct ip_set *set, struct nlattr *tb[],
 
 	if (tb[IPSET_ATTR_CIDR])
 		data.cidr = nla_get_u8(tb[IPSET_ATTR_CIDR]);
-	if (!data.cidr)
+	if (!data.cidr || data.cidr > HOST_MASK)
 		return -IPSET_ERR_INVALID_CIDR;
 	ip6_netmask(&data.ip, data.cidr);
 
@@ -662,6 +705,8 @@ hash_netiface6_uadt(struct ip_set *set, struct nlattr *tb[],
 		u32 cadt_flags = ip_set_get_h32(tb[IPSET_ATTR_CADT_FLAGS]);
 		if (cadt_flags & IPSET_FLAG_PHYSDEV)
 			data.physdev = 1;
+		if (adt == IPSET_ADD && (cadt_flags & IPSET_FLAG_NOMATCH))
+			flags |= (cadt_flags << 16);
 	}
 
 	ret = adtfn(set, &data, timeout, flags);
@@ -748,6 +793,7 @@ static struct ip_set_type hash_netiface_type __read_mostly = {
 	.dimension	= IPSET_DIM_TWO,
 	.family		= NFPROTO_UNSPEC,
 	.revision_min	= 0,
+	.revision_max	= 1,	/* nomatch flag support added */
 	.create		= hash_netiface_create,
 	.create_policy	= {
 		[IPSET_ATTR_HASHSIZE]	= { .type = NLA_U32 },
