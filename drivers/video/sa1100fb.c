@@ -252,6 +252,13 @@ static struct sa1100fb_mach_info pal_info __devinitdata = {
 #endif
 
 #ifdef CONFIG_SA1100_H3600
+static const struct sa1100fb_rgb h3600_rgb_16 = {
+	.red	= { .offset = 12, .length = 4, },
+	.green	= { .offset = 7,  .length = 4, },
+	.blue	= { .offset = 1,  .length = 4, },
+	.transp	= { .offset = 0,  .length = 0, },
+};
+
 static struct sa1100fb_mach_info h3600_info __devinitdata = {
 	.pixclock	= 174757, 	.bpp		= 16,
 	.xres		= 320,		.yres		= 240,
@@ -264,13 +271,8 @@ static struct sa1100fb_mach_info h3600_info __devinitdata = {
 
 	.lccr0		= LCCR0_Color | LCCR0_Sngl | LCCR0_Act,
 	.lccr3		= LCCR3_OutEnH | LCCR3_PixRsEdg | LCCR3_ACBsDiv(2),
-};
 
-static const struct sa1100fb_rgb h3600_rgb_16 = {
-	.red	= { .offset = 12, .length = 4, },
-	.green	= { .offset = 7,  .length = 4, },
-	.blue	= { .offset = 1,  .length = 4, },
-	.transp	= { .offset = 0,  .length = 0, },
+	.rgb[RGB_16] = &h3600_rgb_16,
 };
 #endif
 
@@ -413,7 +415,6 @@ sa1100fb_get_machine_info(struct sa1100fb_info *fbi)
 #ifdef CONFIG_SA1100_H3600
 	if (machine_is_h3600()) {
 		inf = &h3600_info;
-		fbi->rgb[RGB_16] = &h3600_rgb_16;
 	}
 #endif
 #ifdef CONFIG_SA1100_COLLIE
@@ -1352,6 +1353,7 @@ static struct sa1100fb_info * __devinit sa1100fb_init_fbinfo(struct device *dev)
 {
 	struct sa1100fb_mach_info *inf;
 	struct sa1100fb_info *fbi;
+	unsigned i;
 
 	fbi = kmalloc(sizeof(struct sa1100fb_info) + sizeof(u32) * 16,
 		      GFP_KERNEL);
@@ -1423,6 +1425,11 @@ static struct sa1100fb_info * __devinit sa1100fb_init_fbinfo(struct device *dev)
 	fbi->task_state			= (u_char)-1;
 	fbi->fb.fix.smem_len		= fbi->max_xres * fbi->max_yres *
 					  fbi->max_bpp / 8;
+
+	/* Copy the RGB bitfield overrides */
+	for (i = 0; i < NR_RGB; i++)
+		if (inf->rgb[i])
+			fbi->rgb[i] = inf->rgb[i];
 
 	init_waitqueue_head(&fbi->ctrlr_wait);
 	INIT_WORK(&fbi->task, sa1100fb_task);
