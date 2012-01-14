@@ -2133,6 +2133,13 @@ config ALIX
 
 	  Note: You have to set alix.force=1 for boards with Award BIOS.
 
+config GEOS
+	bool "Traverse Technologies GEOS System Support (LEDS, GPIO, etc)"
+	select GPIOLIB
+	depends on DMI
+	---help---
+	  This option enables system support for the Traverse Technologies GEOS.
+
 endif # X86_32
 
 config AMD_NB
