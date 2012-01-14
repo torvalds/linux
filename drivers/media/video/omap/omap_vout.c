@@ -70,9 +70,9 @@ static u32 video1_numbuffers = 3;
 static u32 video2_numbuffers = 3;
 static u32 video1_bufsize = OMAP_VOUT_MAX_BUF_SIZE;
 static u32 video2_bufsize = OMAP_VOUT_MAX_BUF_SIZE;
-static u32 vid1_static_vrfb_alloc;
-static u32 vid2_static_vrfb_alloc;
-static int debug;
+static bool vid1_static_vrfb_alloc;
+static bool vid2_static_vrfb_alloc;
+static bool debug;
 
 /* Module parameters */
 module_param(video1_numbuffers, uint, S_IRUGO);

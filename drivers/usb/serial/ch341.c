@@ -70,7 +70,7 @@
 #define CH341_NBREAK_BITS_REG2 0x40
 
 
-static int debug;
+static bool debug;
 
 static const struct usb_device_id id_table[] = {
 	{ USB_DEVICE(0x4348, 0x5523) },

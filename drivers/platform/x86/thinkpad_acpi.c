@@ -378,13 +378,13 @@ static unsigned int bright_maxlvl;	/* 0 = unknown */
 
 #ifdef CONFIG_THINKPAD_ACPI_DEBUGFACILITIES
 static int dbg_wlswemul;
-static int tpacpi_wlsw_emulstate;
+static bool tpacpi_wlsw_emulstate;
 static int dbg_bluetoothemul;
-static int tpacpi_bluetooth_emulstate;
+static bool tpacpi_bluetooth_emulstate;
 static int dbg_wwanemul;
-static int tpacpi_wwan_emulstate;
+static bool tpacpi_wwan_emulstate;
 static int dbg_uwbemul;
-static int tpacpi_uwb_emulstate;
+static bool tpacpi_uwb_emulstate;
 #endif
 
 
@@ -6444,7 +6444,7 @@ static struct ibm_struct brightness_driver_data = {
 
 static int alsa_index = ~((1 << (SNDRV_CARDS - 3)) - 1); /* last three slots */
 static char *alsa_id = "ThinkPadEC";
-static int alsa_enable = SNDRV_DEFAULT_ENABLE1;
+static bool alsa_enable = SNDRV_DEFAULT_ENABLE1;
 
 struct tpacpi_alsa_data {
 	struct snd_card *card;
@@ -6487,7 +6487,7 @@ static enum tpacpi_volume_access_mode volume_mode =
 	TPACPI_VOL_MODE_MAX;
 
 static enum tpacpi_volume_capabilities volume_capabilities;
-static int volume_control_allowed;
+static bool volume_control_allowed;
 
 /*
  * Used to syncronize writers to TP_EC_AUDIO and
@@ -7265,7 +7265,7 @@ enum fan_control_commands {
 						 * and also watchdog cmd */
 };
 
-static int fan_control_allowed;
+static bool fan_control_allowed;
 
 static enum fan_status_access_mode fan_status_access_mode;
 static enum fan_control_access_mode fan_control_access_mode;
@@ -8437,7 +8437,7 @@ static struct proc_dir_entry *proc_dir;
  * Module and infrastructure proble, init and exit handling
  */
 
-static int force_load;
+static bool force_load;
 
 #ifdef CONFIG_THINKPAD_ACPI_DEBUG
 static const char * __init str_supported(int is_supported)

@@ -34,9 +34,9 @@
 
 
 #ifdef CONFIG_USB_SERIAL_DEBUG
-static int debug = 1;
+static bool debug = 1;
 #else
-static int debug;
+static bool debug;
 #endif
 
 /*
@@ -65,7 +65,7 @@ static int clockmode = 1;
 static int cdmode = 1;
 static int iuu_cardin;
 static int iuu_cardout;
-static int xmas;
+static bool xmas;
 static int vcc_default = 5;
 
 static void read_rxcmd_callback(struct urb *urb);

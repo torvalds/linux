@@ -191,7 +191,7 @@ static const struct divisor_table_entry divisor_table[] = {
 };
 
 /* local variables */
-static int debug;
+static bool debug;
 
 static atomic_t CmdUrbs;	/* Number of outstanding Command Write Urbs */
 

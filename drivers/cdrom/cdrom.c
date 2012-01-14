@@ -285,17 +285,17 @@
 #include <asm/uaccess.h>
 
 /* used to tell the module to turn on full debugging messages */
-static int debug;
+static bool debug;
 /* used to keep tray locked at all times */
 static int keeplocked;
 /* default compatibility mode */
-static int autoclose=1;
-static int autoeject;
-static int lockdoor = 1;
+static bool autoclose=1;
+static bool autoeject;
+static bool lockdoor = 1;
 /* will we ever get to use this... sigh. */
-static int check_media_type;
+static bool check_media_type;
 /* automatically restart mrw format */
-static int mrw_format_restart = 1;
+static bool mrw_format_restart = 1;
 module_param(debug, bool, 0);
 module_param(autoclose, bool, 0);
 module_param(autoeject, bool, 0);

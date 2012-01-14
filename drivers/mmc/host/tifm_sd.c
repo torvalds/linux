@@ -22,8 +22,8 @@
 #define DRIVER_NAME "tifm_sd"
 #define DRIVER_VERSION "0.8"
 
-static int no_dma = 0;
-static int fixed_timeout = 0;
+static bool no_dma = 0;
+static bool fixed_timeout = 0;
 module_param(no_dma, bool, 0644);
 module_param(fixed_timeout, bool, 0644);
 

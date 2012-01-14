@@ -40,10 +40,10 @@
 
 #define MY_NAME	"pciehp"
 
-extern int pciehp_poll_mode;
+extern bool pciehp_poll_mode;
 extern int pciehp_poll_time;
-extern int pciehp_debug;
-extern int pciehp_force;
+extern bool pciehp_debug;
+extern bool pciehp_force;
 extern struct workqueue_struct *pciehp_wq;
 
 #define dbg(format, arg...)						\

@@ -74,7 +74,7 @@ enum {
 #endif
 
 #ifdef MMU_DEBUG
-static int dbg = 0;
+static bool dbg = 0;
 module_param(dbg, bool, 0644);
 #endif
 

@@ -118,7 +118,7 @@ struct ghes_estatus_cache {
 	struct rcu_head rcu;
 };
 
-int ghes_disable;
+bool ghes_disable;
 module_param_named(disable, ghes_disable, bool, 0);
 
 static int ghes_panic_timeout	__read_mostly = 30;
