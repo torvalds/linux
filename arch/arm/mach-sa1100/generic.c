@@ -291,7 +291,7 @@ static struct platform_device sa11x0rtc_device = {
 };
 
 static struct resource sa11x0dma_resources[] = {
-	DEFINE_RES_MEM(__PREG(DDAR(0)), 6 * DMASp),
+	DEFINE_RES_MEM(DMA_PHYS, DMA_SIZE),
 	DEFINE_RES_IRQ(IRQ_DMA0),
 	DEFINE_RES_IRQ(IRQ_DMA1),
 	DEFINE_RES_IRQ(IRQ_DMA2),
