@@ -182,15 +182,12 @@
 
 #include <mach/hardware.h>
 #include <asm/mach-types.h>
-#include <mach/assabet.h>
 #include <mach/shannon.h>
 
 /*
  * Complain if VAR is out of range.
  */
 #define DEBUG_VAR 1
-
-#undef ASSABET_PAL_VIDEO
 
 #include "sa1100fb.h"
 
@@ -1228,11 +1225,6 @@ static int __devinit sa1100fb_probe(struct platform_device *pdev)
 		dev_err(&pdev->dev, "request_irq failed: %d\n", ret);
 		goto failed;
 	}
-
-#ifdef ASSABET_PAL_VIDEO
-	if (machine_is_assabet())
-		ASSABET_BCR_clear(ASSABET_BCR_LCD_ON);
-#endif
 
 	/*
 	 * This makes sure that our colour bitfield
