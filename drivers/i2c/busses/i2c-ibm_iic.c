@@ -815,15 +815,4 @@ static struct platform_driver ibm_iic_driver = {
 	.remove	= __devexit_p(iic_remove),
 };
 
-static int __init iic_init(void)
-{
-	return platform_driver_register(&ibm_iic_driver);
-}
-
-static void __exit iic_exit(void)
-{
-	platform_driver_unregister(&ibm_iic_driver);
-}
-
-module_init(iic_init);
-module_exit(iic_exit);
+module_platform_driver(ibm_iic_driver);
