@@ -130,15 +130,6 @@ struct sa1100fb_info {
 #define SA1100_NAME	"SA1100"
 
 /*
- *  Debug macros 
- */
-#if DEBUG
-#  define DPRINTK(fmt, args...)	printk("%s: " fmt, __func__ , ## args)
-#else
-#  define DPRINTK(fmt, args...)
-#endif
-
-/*
  * Minimum X and Y resolutions
  */
 #define MIN_XRES	64
