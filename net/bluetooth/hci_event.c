@@ -2842,31 +2842,6 @@ static inline void hci_sniff_subrate_evt(struct hci_dev *hdev, struct sk_buff *s
 	BT_DBG("%s status %d", hdev->name, ev->status);
 }
 
-static inline bool eir_has_data_type(u8 *data, size_t data_len, u8 type)
-{
-	u8 field_len;
-	size_t parsed;
-
-	for (parsed = 0; parsed < data_len - 1; parsed += field_len) {
-		field_len = data[0];
-
-		if (field_len == 0)
-			break;
-
-		parsed += field_len + 1;
-
-		if (parsed > data_len)
-			break;
-
-		if (data[1] == type)
-			return true;
-
-		data += field_len + 1;
-	}
-
-	return false;
-}
-
 static inline void hci_extended_inquiry_result_evt(struct hci_dev *hdev, struct sk_buff *skb)
 {
 	struct inquiry_data data;
