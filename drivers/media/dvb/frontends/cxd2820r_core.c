@@ -476,10 +476,10 @@ static enum dvbfe_search cxd2820r_search(struct dvb_frontend *fe)
 	dbg("%s: delsys=%d", __func__, fe->dtv_property_cache.delivery_system);
 
 	/* switch between DVB-T and DVB-T2 when tune fails */
-	if (priv->last_tune_failed && (priv->delivery_system != SYS_DVBC_ANNEX_A)) {
+	if (priv->last_tune_failed) {
 		if (priv->delivery_system == SYS_DVBT)
 			c->delivery_system = SYS_DVBT2;
-		else
+		else if (priv->delivery_system == SYS_DVBT2)
 			c->delivery_system = SYS_DVBT;
 	}
 
