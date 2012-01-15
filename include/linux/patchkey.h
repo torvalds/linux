@@ -32,7 +32,8 @@
 #  else
 #    error "could not determine byte order"
 #  endif
-#elif defined(__BYTE_ORDER)
+#else
+#if defined(__BYTE_ORDER)
 #  if __BYTE_ORDER == __BIG_ENDIAN
 #    define _PATCHKEY(id) (0xfd00|id)
 #  elif __BYTE_ORDER == __LITTLE_ENDIAN
@@ -40,6 +41,7 @@
 #  else
 #    error "could not determine byte order"
 #  endif
+#endif
 #endif
 
 #endif /* _LINUX_PATCHKEY_H */
