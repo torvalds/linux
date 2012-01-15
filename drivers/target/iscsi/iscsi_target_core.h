@@ -561,8 +561,8 @@ struct iscsi_conn {
 	struct hash_desc	conn_tx_hash;
 	/* Used for scheduling TX and RX connection kthreads */
 	cpumask_var_t		conn_cpumask;
-	int			conn_rx_reset_cpumask:1;
-	int			conn_tx_reset_cpumask:1;
+	unsigned int		conn_rx_reset_cpumask:1;
+	unsigned int		conn_tx_reset_cpumask:1;
 	/* list_head of struct iscsi_cmd for this connection */
 	struct list_head	conn_cmd_list;
 	struct list_head	immed_queue_list;
