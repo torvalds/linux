@@ -5858,9 +5858,8 @@ void brcms_c_print_txdesc(struct d11txh *txh)
 	struct ieee80211_rts rts = txh->rts_frame;
 
 	/* add plcp header along with txh descriptor */
-	pr_debug("Raw TxDesc + plcp header:\n");
-	print_hex_dump_bytes("", DUMP_PREFIX_OFFSET,
-			     txh, sizeof(struct d11txh) + 48);
+	brcmu_dbg_hex_dump(txh, sizeof(struct d11txh) + 48,
+			   "Raw TxDesc + plcp header:\n");
 
 	pr_debug("TxCtlLow: %04x ", mtcl);
 	pr_debug("TxCtlHigh: %04x ", mtch);
@@ -5986,9 +5985,7 @@ void brcms_c_print_rxh(struct d11rxhdr *rxh)
 		{0, NULL}
 	};
 
-	pr_debug("Raw RxDesc:\n");
-	print_hex_dump_bytes("", DUMP_PREFIX_OFFSET, rxh,
-			     sizeof(struct d11rxhdr));
+	brcmu_dbg_hex_dump(rxh, sizeof(struct d11rxhdr), "Raw RxDesc:\n");
 
 	brcms_c_format_flags(macstat_flags, macstatus1, flagstr, 64);
 
