@@ -111,8 +111,11 @@ int perf_evlist__add_default(struct perf_evlist *evlist)
 		.type = PERF_TYPE_HARDWARE,
 		.config = PERF_COUNT_HW_CPU_CYCLES,
 	};
-	struct perf_evsel *evsel = perf_evsel__new(&attr, 0);
+	struct perf_evsel *evsel;
 
+	event_attr_init(&attr);
+
+	evsel = perf_evsel__new(&attr, 0);
 	if (evsel == NULL)
 		goto error;
 

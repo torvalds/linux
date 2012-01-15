@@ -1396,7 +1396,7 @@ int cmd_test(int argc, const char **argv, const char *prefix __used)
 	NULL,
 	};
 	const struct option test_options[] = {
-	OPT_INTEGER('v', "verbose", &verbose,
+	OPT_INCR('v', "verbose", &verbose,
 		    "be more verbose (show symbol address, etc)"),
 	OPT_END()
 	};
