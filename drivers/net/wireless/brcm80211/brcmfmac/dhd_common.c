@@ -399,10 +399,10 @@ brcmf_c_show_host_event(struct brcmf_event_msg *event, void *event_data)
 		p = (char *)&buf[sizeof(struct msgtrace_hdr)];
 		while ((s = strstr(p, "\n")) != NULL) {
 			*s = '\0';
-			printk(KERN_DEBUG"%s\n", p);
+			pr_debug("%s\n", p);
 			p = s + 1;
 		}
-		printk(KERN_DEBUG "%s\n", p);
+		pr_debug("%s\n", p);
 
 		/* Reset datalen to avoid display below */
 		datalen = 0;

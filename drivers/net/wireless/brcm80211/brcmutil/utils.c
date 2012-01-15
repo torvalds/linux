@@ -247,7 +247,7 @@ void brcmu_prpkt(const char *msg, struct sk_buff *p0)
 	struct sk_buff *p;
 
 	if (msg && (msg[0] != '\0'))
-		printk(KERN_DEBUG "%s:\n", msg);
+		pr_debug("%s:\n", msg);
 
 	for (p = p0; p; p = p->next)
 		print_hex_dump_bytes("", DUMP_PREFIX_OFFSET, p->data, p->len);

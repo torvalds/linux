@@ -2137,6 +2137,7 @@ static int brcmf_sdbrcm_txpkt(struct brcmf_sdio *bus, struct sk_buff *pkt,
 
 #ifdef DEBUG
 	tx_packets[pkt->priority]++;
+#endif
 
 	brcmf_dbg_hex_dump(BRCMF_BYTES_ON() &&
 			   ((BRCMF_CTL_ON() && chan == SDPCM_CONTROL_CHANNEL) ||
@@ -2149,7 +2150,6 @@ static int brcmf_sdbrcm_txpkt(struct brcmf_sdio *bus, struct sk_buff *pkt,
 			       chan != SDPCM_CONTROL_CHANNEL))) &&
 			   BRCMF_HDRS_ON(),
 			   frame, min_t(u16, len, 16), "TxHdr:\n");
-#endif
 
 	/* Raise len to next SDIO block to eliminate tail command */
 	if (bus->roundup && bus->blocksize && (len > bus->blocksize)) {
@@ -2806,7 +2806,7 @@ static int brcmf_sdbrcm_readconsole(struct brcmf_sdio *bus)
 			if (line[n - 1] == '\r')
 				n--;
 			line[n] = 0;
-			printk(KERN_DEBUG "CONSOLE: %s\n", line);
+			pr_debug("CONSOLE: %s\n", line);
 		}
 	}
 break2:
@@ -3676,11 +3676,8 @@ brcmf_sdbrcm_probe_attach(struct brcmf_sdio *bus, u32 regsva)
 	if (brcmf_sdcard_set_sbaddr_window(bus->sdiodev, SI_ENUM_BASE))
 		brcmf_dbg(ERROR, "FAILED to return to SI_ENUM_BASE\n");
 
-#ifdef DEBUG
-	printk(KERN_DEBUG "F1 signature read @0x18000000=0x%4x\n",
-	       brcmf_sdcard_reg_read(bus->sdiodev, SI_ENUM_BASE, 4));
-
-#endif				/* DEBUG */
+	pr_debug("F1 signature read @0x18000000=0x%4x\n",
+		 brcmf_sdcard_reg_read(bus->sdiodev, SI_ENUM_BASE, 4));
 
 	/*
 	 * Force PLL off until brcmf_sdio_chip_attach()
