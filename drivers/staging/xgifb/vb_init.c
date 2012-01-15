@@ -3,8 +3,8 @@
 #include <linux/pci.h>
 #include <linux/vmalloc.h>
 
-#include "vgatypes.h"
 #include "XGIfb.h"
+#include "vgatypes.h"
 
 #include "vb_def.h"
 #include "vb_struct.h"

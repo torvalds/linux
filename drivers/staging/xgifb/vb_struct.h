@@ -10,6 +10,7 @@ struct XGI_LCDDataStruct {
 	unsigned short LCDVT;
 };
 
+#include "../../video/sis/vstruct.h"
 
 struct XGI_LVDSCRT1HDataStruct {
 	unsigned char Reg[8];
