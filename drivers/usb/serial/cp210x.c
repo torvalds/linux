@@ -279,7 +279,7 @@ static int cp210x_get_config(struct usb_serial_port *port, u8 request,
 
 	if (result != size) {
 		dbg("%s - Unable to send config request, "
-				"request=0x%x size=%d result=%d\n",
+				"request=0x%x size=%d result=%d",
 				__func__, request, size, result);
 		if (result > 0)
 			result = -EPROTO;
@@ -333,7 +333,7 @@ static int cp210x_set_config(struct usb_serial_port *port, u8 request,
 
 	if ((size > 2 && result != size) || result < 0) {
 		dbg("%s - Unable to send request, "
-				"request=0x%x size=%d result=%d\n",
+				"request=0x%x size=%d result=%d",
 				__func__, request, size, result);
 		if (result > 0)
 			result = -EPROTO;
@@ -636,13 +636,13 @@ static void cp210x_set_termios(struct tty_struct *tty,
 		default:
 			dbg("cp210x driver does not "
 					"support the number of bits requested,"
-					" using 8 bit mode\n");
+					" using 8 bit mode");
 				bits |= BITS_DATA_8;
 				break;
 		}
 		if (cp210x_set_config(port, CP210X_SET_LINE_CTL, &bits, 2))
 			dbg("Number of data bits requested "
-					"not supported by device\n");
+					"not supported by device");
 	}
 
 	if ((cflag     & (PARENB|PARODD|CMSPAR)) !=
@@ -669,8 +669,7 @@ static void cp210x_set_termios(struct tty_struct *tty,
 			}
 		}
 		if (cp210x_set_config(port, CP210X_SET_LINE_CTL, &bits, 2))
-			dbg("Parity mode not supported "
-					"by device\n");
+			dbg("Parity mode not supported by device");
 	}
 
 	if ((cflag & CSTOPB) != (old_cflag & CSTOPB)) {
@@ -685,7 +684,7 @@ static void cp210x_set_termios(struct tty_struct *tty,
 		}
 		if (cp210x_set_config(port, CP210X_SET_LINE_CTL, &bits, 2))
 			dbg("Number of stop bits requested "
-					"not supported by device\n");
+					"not supported by device");
 	}
 
 	if ((cflag & CRTSCTS) != (old_cflag & CRTSCTS)) {
