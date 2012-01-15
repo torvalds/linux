@@ -408,6 +408,10 @@ static int cp210x_open(struct tty_struct *tty, struct usb_serial_port *port)
 	/* Configure the termios structure */
 	cp210x_get_termios(tty, port);
 
+	/* The baud rate must be initialised on cp2104 */
+	if (tty)
+		cp210x_change_speed(tty, port, NULL);
+
 	return usb_serial_generic_open(tty, port);
 }
 
