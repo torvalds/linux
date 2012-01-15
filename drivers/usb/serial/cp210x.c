@@ -388,10 +388,10 @@ static unsigned int cp210x_quantise_baudrate(unsigned int baud) {
 	else if (baud <= 491520)   baud = 460800;
 	else if (baud <= 567138)   baud = 500000;
 	else if (baud <= 670254)   baud = 576000;
-	else if (baud <= 1053257)  baud = 921600;
-	else if (baud <= 1474560)  baud = 1228800;
-	else if (baud <= 2457600)  baud = 1843200;
-	else                       baud = 3686400;
+	else if (baud < 1000000)
+		baud = 921600;
+	else if (baud > 2000000)
+		baud = 2000000;
 	return baud;
 }
 
@@ -611,7 +611,8 @@ static void cp210x_change_speed(struct tty_struct *tty,
 
 	baud = tty->termios->c_ospeed;
 
-	/* This maps the requested rate to a rate valid on cp2102 or cp2103.
+	/* This maps the requested rate to a rate valid on cp2102 or cp2103,
+	 * or to an arbitrary rate in [1M,2M].
 	 *
 	 * NOTE: B0 is not implemented.
 	 */
