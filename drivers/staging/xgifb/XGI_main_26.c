@@ -526,12 +526,6 @@ static int XGIfb_validate_mode(struct xgifb_video_info *xgifb_info, int myindex)
 			xres = 1600;
 			yres = 1200;
 			break;
-		/* case LCD_320x480: */ /* TW: FSTN */
-			/*
-			xres =  320;
-			yres =  480;
-			break;
-			*/
 		default:
 			xres = 0;
 			yres = 0;
@@ -2117,10 +2111,6 @@ static int __devinit xgifb_probe(struct pci_dev *pdev,
 			reg = xgifb_reg_get(XGICR, IND_XGI_LCD_PANEL);
 			reg &= 0x0f;
 			hw_info->ulCRT2LCDType = XGI310paneltype[reg];
-
-		} else {
-			/* TW: FSTN/DSTN */
-			hw_info->ulCRT2LCDType = LCD_320x480;
 		}
 	}
 
