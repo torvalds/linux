@@ -368,7 +368,8 @@ struct mgmt_ev_device_found {
 	__u8 dev_class[3];
 	__s8 rssi;
 	__u8 confirm_name;
-	__u8 eir[HCI_MAX_EIR_LENGTH];
+	__le16 eir_len;
+	__u8 eir[0];
 } __packed;
 
 #define MGMT_EV_REMOTE_NAME		0x0012

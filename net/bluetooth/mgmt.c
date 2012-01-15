@@ -2782,27 +2782,29 @@ int mgmt_read_local_oob_data_reply_complete(struct hci_dev *hdev, u8 *hash,
 
 int mgmt_device_found(struct hci_dev *hdev, bdaddr_t *bdaddr, u8 link_type,
 				u8 addr_type, u8 *dev_class, s8 rssi,
-				u8 cfm_name, u8 *eir, u8 eir_len)
+				u8 cfm_name, u8 *eir, u16 eir_len)
 {
-	struct mgmt_ev_device_found ev;
+	char buf[512];
+	struct mgmt_ev_device_found *ev = (void *) buf;
+	size_t ev_size = sizeof(*ev) + eir_len;
 
-	if (eir_len > sizeof(ev.eir))
+	if (ev_size > sizeof(buf))
 		return -EINVAL;
 
-	memset(&ev, 0, sizeof(ev));
+	bacpy(&ev->addr.bdaddr, bdaddr);
+	ev->addr.type = link_to_mgmt(link_type, addr_type);
+	ev->rssi = rssi;
+	ev->confirm_name = cfm_name;
 
-	bacpy(&ev.addr.bdaddr, bdaddr);
-	ev.addr.type = link_to_mgmt(link_type, addr_type);
-	ev.rssi = rssi;
-	ev.confirm_name = cfm_name;
-
-	if (eir)
-		memcpy(ev.eir, eir, eir_len);
+	if (eir_len > 0) {
+		put_unaligned_le16(eir_len, &ev->eir_len);
+		memcpy(ev->eir, eir, eir_len);
+	}
 
 	if (dev_class)
-		memcpy(ev.dev_class, dev_class, sizeof(ev.dev_class));
+		memcpy(ev->dev_class, dev_class, sizeof(ev->dev_class));
 
-	return mgmt_event(MGMT_EV_DEVICE_FOUND, hdev, &ev, sizeof(ev), NULL);
+	return mgmt_event(MGMT_EV_DEVICE_FOUND, hdev, ev, ev_size, NULL);
 }
 
 int mgmt_remote_name(struct hci_dev *hdev, bdaddr_t *bdaddr, u8 *name)
