@@ -293,11 +293,11 @@ const u8 prio2fifo[NUMPRIO] = {
 
 /* debug/trace */
 uint brcm_msg_level =
-#if defined(BCMDBG)
+#if defined(DEBUG)
 	LOG_ERROR_VAL;
 #else
 	0;
-#endif				/* BCMDBG */
+#endif				/* DEBUG */
 
 /* TX FIFO number to WME/802.1E Access Category */
 static const u8 wme_fifo2ac[] = {
@@ -342,14 +342,14 @@ static const u16 xmtfifo_sz[][NFIFO] = {
 	{9, 58, 22, 14, 14, 5},
 };
 
-#ifdef BCMDBG
+#ifdef DEBUG
 static const char * const fifo_names[] = {
 	"AC_BK", "AC_BE", "AC_VI", "AC_VO", "BCMC", "ATIM" };
 #else
 static const char fifo_names[6][0];
 #endif
 
-#ifdef BCMDBG
+#ifdef DEBUG
 /* pointer to most recently allocated wl/wlc */
 static struct brcms_c_info *wlc_info_dbg = (struct brcms_c_info *) (NULL);
 #endif
@@ -3075,30 +3075,30 @@ static void brcms_c_statsupd(struct brcms_c_info *wlc)
 {
 	int i;
 	struct macstat macstats;
-#ifdef BCMDBG
+#ifdef DEBUG
 	u16 delta;
 	u16 rxf0ovfl;
 	u16 txfunfl[NFIFO];
-#endif				/* BCMDBG */
+#endif				/* DEBUG */
 
 	/* if driver down, make no sense to update stats */
 	if (!wlc->pub->up)
 		return;
 
-#ifdef BCMDBG
+#ifdef DEBUG
 	/* save last rx fifo 0 overflow count */
 	rxf0ovfl = wlc->core->macstat_snapshot->rxf0ovfl;
 
 	/* save last tx fifo  underflow count */
 	for (i = 0; i < NFIFO; i++)
 		txfunfl[i] = wlc->core->macstat_snapshot->txfunfl[i];
-#endif				/* BCMDBG */
+#endif				/* DEBUG */
 
 	/* Read mac stats from contiguous shared memory */
 	brcms_b_copyfrom_objmem(wlc->hw, M_UCODE_MACSTAT, &macstats,
 				sizeof(struct macstat), OBJADDR_SHM_SEL);
 
-#ifdef BCMDBG
+#ifdef DEBUG
 	/* check for rx fifo 0 overflow */
 	delta = (u16) (wlc->core->macstat_snapshot->rxf0ovfl - rxf0ovfl);
 	if (delta)
@@ -3114,7 +3114,7 @@ static void brcms_c_statsupd(struct brcms_c_info *wlc)
 			wiphy_err(wlc->wiphy, "wl%d: %u tx fifo %d underflows!"
 				  "\n", wlc->pub->unit, delta, i);
 	}
-#endif				/* BCMDBG */
+#endif				/* DEBUG */
 
 	/* merge counters from dma module */
 	for (i = 0; i < NFIFO; i++) {
@@ -5765,7 +5765,7 @@ int brcms_c_module_unregister(struct brcms_pub *pub, const char *name,
 	return -ENODATA;
 }
 
-#ifdef BCMDBG
+#ifdef DEBUG
 static const char * const supr_reason[] = {
 	"None", "PMQ Entry", "Flush request",
 	"Previous frag failure", "Channel mismatch",
@@ -5790,11 +5790,11 @@ static void brcms_c_print_txs_status(u16 s)
 	printk(KERN_DEBUG "    [1]  %d  acked\n",
 	       ((s & TX_STATUS_ACK_RCV) ? 1 : 0));
 }
-#endif				/* BCMDBG */
+#endif				/* DEBUG */
 
 void brcms_c_print_txstatus(struct tx_status *txs)
 {
-#if defined(BCMDBG)
+#if defined(DEBUG)
 	u16 s = txs->status;
 	u16 ackphyrxsh = txs->ackphyrxsh;
 
@@ -5814,7 +5814,7 @@ void brcms_c_print_txstatus(struct tx_status *txs)
 	printk(KERN_DEBUG "RxAckSQ: %04x",
 	       (ackphyrxsh & PRXS1_SQ_MASK) >> PRXS1_SQ_SHIFT);
 	printk(KERN_DEBUG "\n");
-#endif				/* defined(BCMDBG) */
+#endif				/* defined(DEBUG) */
 }
 
 bool brcms_c_chipmatch(u16 vendor, u16 device)
@@ -5837,7 +5837,7 @@ bool brcms_c_chipmatch(u16 vendor, u16 device)
 	return false;
 }
 
-#if defined(BCMDBG)
+#if defined(DEBUG)
 void brcms_c_print_txdesc(struct d11txh *txh)
 {
 	u16 mtcl = le16_to_cpu(txh->MacTxControlLow);
@@ -5919,9 +5919,9 @@ void brcms_c_print_txdesc(struct d11txh *txh)
 			     (u8 *)&rts, sizeof(txh->rts_frame));
 	printk(KERN_DEBUG "\n");
 }
-#endif				/* defined(BCMDBG) */
+#endif				/* defined(DEBUG) */
 
-#if defined(BCMDBG)
+#if defined(DEBUG)
 static int
 brcms_c_format_flags(const struct brcms_c_bit_desc *bd, u32 flags, char *buf,
 		     int len)
@@ -5975,9 +5975,9 @@ brcms_c_format_flags(const struct brcms_c_bit_desc *bd, u32 flags, char *buf,
 
 	return (int)(p - buf);
 }
-#endif				/* defined(BCMDBG) */
+#endif				/* defined(DEBUG) */
 
-#if defined(BCMDBG)
+#if defined(DEBUG)
 void brcms_c_print_rxh(struct d11rxhdr *rxh)
 {
 	u16 len = rxh->RxFrameSize;
@@ -6016,7 +6016,7 @@ void brcms_c_print_rxh(struct d11rxhdr *rxh)
 	       (macstatus2 & RXS_AGGTYPE_MASK));
 	printk(KERN_DEBUG "RxTSFTime:       %04x\n", rxh->RxTSFTime);
 }
-#endif				/* defined(BCMDBG) */
+#endif				/* defined(DEBUG) */
 
 u16 brcms_b_rate_shm_offset(struct brcms_hardware *wlc_hw, u8 rate)
 {
@@ -8346,7 +8346,7 @@ brcms_c_attach(struct brcms_info *wl, struct bcma_device *core, uint unit,
 	wlc->wiphy = wl->wiphy;
 	pub = wlc->pub;
 
-#if defined(BCMDBG)
+#if defined(DEBUG)
 	wlc_info_dbg = wlc;
 #endif
 

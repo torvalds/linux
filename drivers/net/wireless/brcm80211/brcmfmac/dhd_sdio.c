@@ -40,7 +40,7 @@
 
 #define DCMD_RESP_TIMEOUT  2000	/* In milli second */
 
-#ifdef BCMDBG
+#ifdef DEBUG
 
 #define BRCMF_TRAP_INFO_SIZE	80
 
@@ -84,7 +84,7 @@ struct rte_console {
 	char cbuf[CBUF_LEN];
 };
 
-#endif				/* BCMDBG */
+#endif				/* DEBUG */
 #include <chipcommon.h>
 
 #include "dhd_bus.h"
@@ -416,7 +416,7 @@ struct sdpcmd_regs {
 	u16 PAD[0x80];
 };
 
-#ifdef BCMDBG
+#ifdef DEBUG
 /* Device console log buffer state */
 struct brcmf_console {
 	uint count;		/* Poll interval msec counter */
@@ -426,7 +426,7 @@ struct brcmf_console {
 	u8 *buf;		/* Log buffer (host copy) */
 	uint last;		/* Last buffer read index */
 };
-#endif				/* BCMDBG */
+#endif				/* DEBUG */
 
 struct sdpcm_shared {
 	u32 flags;
@@ -507,11 +507,11 @@ struct brcmf_sdio {
 	uint polltick;		/* Tick counter */
 	uint pollcnt;		/* Count of active polls */
 
-#ifdef BCMDBG
+#ifdef DEBUG
 	uint console_interval;
 	struct brcmf_console console;	/* Console output polling support */
 	uint console_addr;	/* Console address from shared struct */
-#endif				/* BCMDBG */
+#endif				/* DEBUG */
 
 	uint regfails;		/* Count of R_REG failures */
 
@@ -587,10 +587,10 @@ struct brcmf_sdio {
 #define CLK_PENDING	2	/* Not used yet */
 #define CLK_AVAIL	3
 
-#ifdef BCMDBG
+#ifdef DEBUG
 static int qcount[NUMPRIO];
 static int tx_packets[NUMPRIO];
-#endif				/* BCMDBG */
+#endif				/* DEBUG */
 
 #define SDIO_DRIVE_STRENGTH	6	/* in milliamps */
 
@@ -764,12 +764,12 @@ static int brcmf_sdbrcm_htclk(struct brcmf_sdio *bus, bool on, bool pendok)
 		bus->clkstate = CLK_AVAIL;
 		brcmf_dbg(INFO, "CLKCTL: turned ON\n");
 
-#if defined(BCMDBG)
+#if defined(DEBUG)
 		if (bus->alp_only != true) {
 			if (SBSDIO_ALPONLY(clkctl))
 				brcmf_dbg(ERROR, "HT Clock should be on\n");
 		}
-#endif				/* defined (BCMDBG) */
+#endif				/* defined (DEBUG) */
 
 		bus->activity = true;
 	} else {
@@ -814,9 +814,9 @@ static int brcmf_sdbrcm_sdclk(struct brcmf_sdio *bus, bool on)
 /* Transition SD and backplane clock readiness */
 static int brcmf_sdbrcm_clkctl(struct brcmf_sdio *bus, uint target, bool pendok)
 {
-#ifdef BCMDBG
+#ifdef DEBUG
 	uint oldstate = bus->clkstate;
-#endif				/* BCMDBG */
+#endif				/* DEBUG */
 
 	brcmf_dbg(TRACE, "Enter\n");
 
@@ -861,9 +861,9 @@ static int brcmf_sdbrcm_clkctl(struct brcmf_sdio *bus, uint target, bool pendok)
 		brcmf_sdbrcm_wd_timer(bus, 0);
 		break;
 	}
-#ifdef BCMDBG
+#ifdef DEBUG
 	brcmf_dbg(INFO, "%d -> %d\n", oldstate, bus->clkstate);
-#endif				/* BCMDBG */
+#endif				/* DEBUG */
 
 	return 0;
 }
@@ -1279,7 +1279,7 @@ static u8 brcmf_sdbrcm_rxglom(struct brcmf_sdio *bus, u8 rxseq)
 			}
 			return 0;
 		}
-#ifdef BCMDBG
+#ifdef DEBUG
 		if (BRCMF_GLOM_ON()) {
 			printk(KERN_DEBUG "SUPERFRAME:\n");
 			print_hex_dump_bytes("", DUMP_PREFIX_OFFSET,
@@ -1362,7 +1362,7 @@ static u8 brcmf_sdbrcm_rxglom(struct brcmf_sdio *bus, u8 rxseq)
 			check = get_unaligned_le16(dptr + sizeof(u16));
 			chan = SDPCM_PACKET_CHANNEL(&dptr[SDPCM_FRAMETAG_LEN]);
 			doff = SDPCM_DOFFSET_VALUE(&dptr[SDPCM_FRAMETAG_LEN]);
-#ifdef BCMDBG
+#ifdef DEBUG
 			if (BRCMF_GLOM_ON()) {
 				printk(KERN_DEBUG "subframe:\n");
 				print_hex_dump_bytes("", DUMP_PREFIX_OFFSET,
@@ -1433,7 +1433,7 @@ static u8 brcmf_sdbrcm_rxglom(struct brcmf_sdio *bus, u8 rxseq)
 			}
 			rxseq++;
 
-#ifdef BCMDBG
+#ifdef DEBUG
 			if (BRCMF_BYTES_ON() && BRCMF_DATA_ON()) {
 				printk(KERN_DEBUG "Rx Subframe Data:\n");
 				print_hex_dump_bytes("", DUMP_PREFIX_OFFSET,
@@ -1457,7 +1457,7 @@ static u8 brcmf_sdbrcm_rxglom(struct brcmf_sdio *bus, u8 rxseq)
 				continue;
 			}
 
-#ifdef BCMDBG
+#ifdef DEBUG
 			if (BRCMF_GLOM_ON()) {
 				brcmf_dbg(GLOM, "subframe %d to stack, %p (%p/%d) nxt/lnk %p/%p\n",
 					  bus->glom.qlen, pfirst, pfirst->data,
@@ -1467,7 +1467,7 @@ static u8 brcmf_sdbrcm_rxglom(struct brcmf_sdio *bus, u8 rxseq)
 						pfirst->data,
 						min_t(int, pfirst->len, 32));
 			}
-#endif				/* BCMDBG */
+#endif				/* DEBUG */
 		}
 		/* sent any remaining packets up */
 		if (bus->glom.qlen) {
@@ -1584,7 +1584,7 @@ brcmf_sdbrcm_read_control(struct brcmf_sdio *bus, u8 *hdr, uint len, uint doff)
 
 gotpkt:
 
-#ifdef BCMDBG
+#ifdef DEBUG
 	if (BRCMF_BYTES_ON() && BRCMF_CTL_ON()) {
 		printk(KERN_DEBUG "RxCtrl:\n");
 		print_hex_dump_bytes("", DUMP_PREFIX_OFFSET, bus->rxctl, len);
@@ -1818,7 +1818,7 @@ brcmf_sdbrcm_readframes(struct brcmf_sdio *bus, uint maxframes, bool *finished)
 			}
 			bus->tx_max = txmax;
 
-#ifdef BCMDBG
+#ifdef DEBUG
 			if (BRCMF_BYTES_ON() && BRCMF_DATA_ON()) {
 				printk(KERN_DEBUG "Rx Data:\n");
 				print_hex_dump_bytes("", DUMP_PREFIX_OFFSET,
@@ -1865,7 +1865,7 @@ brcmf_sdbrcm_readframes(struct brcmf_sdio *bus, uint maxframes, bool *finished)
 			brcmf_sdbrcm_rxfail(bus, true, true);
 			continue;
 		}
-#ifdef BCMDBG
+#ifdef DEBUG
 		if (BRCMF_BYTES_ON() || BRCMF_HDRS_ON()) {
 			printk(KERN_DEBUG "RxHdr:\n");
 			print_hex_dump_bytes("", DUMP_PREFIX_OFFSET,
@@ -2024,7 +2024,7 @@ brcmf_sdbrcm_readframes(struct brcmf_sdio *bus, uint maxframes, bool *finished)
 		skb_push(pkt, BRCMF_FIRSTREAD);
 		memcpy(pkt->data, bus->rxhdr, BRCMF_FIRSTREAD);
 
-#ifdef BCMDBG
+#ifdef DEBUG
 		if (BRCMF_BYTES_ON() && BRCMF_DATA_ON()) {
 			printk(KERN_DEBUG "Rx Data:\n");
 			print_hex_dump_bytes("", DUMP_PREFIX_OFFSET,
@@ -2038,7 +2038,7 @@ deliver:
 			if (SDPCM_GLOMDESC(&bus->rxhdr[SDPCM_FRAMETAG_LEN])) {
 				brcmf_dbg(GLOM, "glom descriptor, %d bytes:\n",
 					  len);
-#ifdef BCMDBG
+#ifdef DEBUG
 				if (BRCMF_GLOM_ON()) {
 					printk(KERN_DEBUG "Glom Data:\n");
 					print_hex_dump_bytes("",
@@ -2078,13 +2078,13 @@ deliver:
 		down(&bus->sdsem);
 	}
 	rxcount = maxframes - rxleft;
-#ifdef BCMDBG
+#ifdef DEBUG
 	/* Message if we hit the limit */
 	if (!rxleft)
 		brcmf_dbg(DATA, "hit rx limit of %d frames\n",
 			  maxframes);
 	else
-#endif				/* BCMDBG */
+#endif				/* DEBUG */
 		brcmf_dbg(DATA, "processed %d frames\n", rxcount);
 	/* Back off rxseq if awaiting rtx, update rx_seq */
 	if (bus->rxskip)
@@ -2176,7 +2176,7 @@ static int brcmf_sdbrcm_txpkt(struct brcmf_sdio *bus, struct sk_buff *pkt,
 	put_unaligned_le32(swheader, frame + SDPCM_FRAMETAG_LEN);
 	put_unaligned_le32(0, frame + SDPCM_FRAMETAG_LEN + sizeof(swheader));
 
-#ifdef BCMDBG
+#ifdef DEBUG
 	tx_packets[pkt->priority]++;
 	if (BRCMF_BYTES_ON() &&
 	    (((BRCMF_CTL_ON() && (chan == SDPCM_CONTROL_CHANNEL)) ||
@@ -2410,7 +2410,7 @@ static bool brcmf_sdbrcm_dpc(struct brcmf_sdio *bus)
 		int err;
 		u8 clkctl, devctl = 0;
 
-#ifdef BCMDBG
+#ifdef DEBUG
 		/* Check for inconsistent device control */
 		devctl = brcmf_sdcard_cfg_read(bus->sdiodev, SDIO_FUNC_1,
 					       SBSDIO_DEVICE_CTL, &err);
@@ -2418,7 +2418,7 @@ static bool brcmf_sdbrcm_dpc(struct brcmf_sdio *bus)
 			brcmf_dbg(ERROR, "error reading DEVCTL: %d\n", err);
 			bus->sdiodev->bus_if->state = BRCMF_BUS_DOWN;
 		}
-#endif				/* BCMDBG */
+#endif				/* DEBUG */
 
 		/* Read CSR, if clock on switch to AVAIL, else ignore */
 		clkctl = brcmf_sdcard_cfg_read(bus->sdiodev, SDIO_FUNC_1,
@@ -2701,7 +2701,7 @@ static int brcmf_sdbrcm_bus_txdata(struct device *dev, struct sk_buff *pkt)
 		brcmf_txflowcontrol(bus->sdiodev->dev, 0, ON);
 	}
 
-#ifdef BCMDBG
+#ifdef DEBUG
 	if (pktq_plen(&bus->txq, prec) > qcount[prec])
 		qcount[prec] = pktq_plen(&bus->txq, prec);
 #endif
@@ -2774,7 +2774,7 @@ xfer_done:
 	return bcmerror;
 }
 
-#ifdef BCMDBG
+#ifdef DEBUG
 #define CONSOLE_LINE_MAX	192
 
 static int brcmf_sdbrcm_readconsole(struct brcmf_sdio *bus)
@@ -2852,7 +2852,7 @@ break2:
 
 	return 0;
 }
-#endif				/* BCMDBG */
+#endif				/* DEBUG */
 
 static int brcmf_tx_frame(struct brcmf_sdio *bus, u8 *frame, u16 len)
 {
@@ -2982,7 +2982,7 @@ brcmf_sdbrcm_bus_txctl(struct device *dev, unsigned char *msg, uint msglen)
 	}
 
 	if (ret == -1) {
-#ifdef BCMDBG
+#ifdef DEBUG
 		if (BRCMF_BYTES_ON() && BRCMF_CTL_ON()) {
 			printk(KERN_DEBUG "Tx Frame:\n");
 			print_hex_dump_bytes("", DUMP_PREFIX_OFFSET,
@@ -3096,9 +3096,9 @@ static int brcmf_sdbrcm_write_vars(struct brcmf_sdio *bus)
 	u8 *vbuffer;
 	u32 varsizew;
 	__le32 varsizew_le;
-#ifdef BCMDBG
+#ifdef DEBUG
 	char *nvram_ularray;
-#endif				/* BCMDBG */
+#endif				/* DEBUG */
 
 	/* Even if there are no vars are to be written, we still
 		 need to set the ramsize. */
@@ -3115,7 +3115,7 @@ static int brcmf_sdbrcm_write_vars(struct brcmf_sdio *bus)
 		/* Write the vars list */
 		bcmerror =
 		    brcmf_sdbrcm_membytes(bus, true, varaddr, vbuffer, varsize);
-#ifdef BCMDBG
+#ifdef DEBUG
 		/* Verify NVRAM bytes */
 		brcmf_dbg(INFO, "Compare NVRAM dl & ul; varsize=%d\n", varsize);
 		nvram_ularray = kmalloc(varsize, GFP_ATOMIC);
@@ -3142,7 +3142,7 @@ static int brcmf_sdbrcm_write_vars(struct brcmf_sdio *bus)
 			brcmf_dbg(ERROR, "Download/Upload/Compare of NVRAM ok\n");
 
 		kfree(nvram_ularray);
-#endif				/* BCMDBG */
+#endif				/* DEBUG */
 
 		kfree(vbuffer);
 	}
@@ -3569,9 +3569,9 @@ void brcmf_sdbrcm_isr(void *arg)
 
 static bool brcmf_sdbrcm_bus_watchdog(struct brcmf_sdio *bus)
 {
-#ifdef BCMDBG
+#ifdef DEBUG
 	struct brcmf_bus *bus_if = dev_get_drvdata(bus->sdiodev->dev);
-#endif	/* BCMDBG */
+#endif	/* DEBUG */
 
 	brcmf_dbg(TIMER, "Enter\n");
 
@@ -3616,7 +3616,7 @@ static bool brcmf_sdbrcm_bus_watchdog(struct brcmf_sdio *bus)
 		/* Update interrupt tracking */
 		bus->lastintrs = bus->intrcount;
 	}
-#ifdef BCMDBG
+#ifdef DEBUG
 	/* Poll for console output periodically */
 	if (bus_if->state == BRCMF_BUS_DATA &&
 	    bus->console_interval != 0) {
@@ -3630,7 +3630,7 @@ static bool brcmf_sdbrcm_bus_watchdog(struct brcmf_sdio *bus)
 				bus->console_interval = 0;
 		}
 	}
-#endif				/* BCMDBG */
+#endif				/* DEBUG */
 
 	/* On idle timeout clear activity flag and/or turn off clock */
 	if ((bus->idletime > 0) && (bus->clkstate == CLK_AVAIL)) {
@@ -3721,11 +3721,11 @@ brcmf_sdbrcm_probe_attach(struct brcmf_sdio *bus, u32 regsva)
 	if (brcmf_sdcard_set_sbaddr_window(bus->sdiodev, SI_ENUM_BASE))
 		brcmf_dbg(ERROR, "FAILED to return to SI_ENUM_BASE\n");
 
-#ifdef BCMDBG
+#ifdef DEBUG
 	printk(KERN_DEBUG "F1 signature read @0x18000000=0x%4x\n",
 	       brcmf_sdcard_reg_read(bus->sdiodev, SI_ENUM_BASE, 4));
 
-#endif				/* BCMDBG */
+#endif				/* DEBUG */
 
 	/*
 	 * Force PLL off until brcmf_sdio_chip_attach()

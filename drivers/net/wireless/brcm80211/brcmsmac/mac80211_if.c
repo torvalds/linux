@@ -96,10 +96,10 @@ static struct bcma_device_id brcms_coreid_table[] = {
 };
 MODULE_DEVICE_TABLE(bcma, brcms_coreid_table);
 
-#ifdef BCMDBG
+#ifdef DEBUG
 static int msglevel = 0xdeadbeef;
 module_param(msglevel, int, 0);
-#endif				/* BCMDBG */
+#endif				/* DEBUG */
 
 static struct ieee80211_channel brcms_2ghz_chantable[] = {
 	CHAN2GHZ(1, 2412, IEEE80211_CHAN_NO_HT40MINUS),
@@ -857,7 +857,7 @@ static void brcms_free(struct brcms_info *wl)
 	/* free timers */
 	for (t = wl->timers; t; t = next) {
 		next = t->next;
-#ifdef BCMDBG
+#ifdef DEBUG
 		kfree(t->name);
 #endif
 		kfree(t);
@@ -1177,10 +1177,10 @@ static int __init brcms_module_init(void)
 {
 	int error = -ENODEV;
 
-#ifdef BCMDBG
+#ifdef DEBUG
 	if (msglevel != 0xdeadbeef)
 		brcm_msg_level = msglevel;
-#endif				/* BCMDBG */
+#endif				/* DEBUG */
 
 	error = bcma_driver_register(&brcms_bcma_driver);
 	printk(KERN_ERR "%s: register returned %d\n", __func__, error);
@@ -1367,7 +1367,7 @@ struct brcms_timer *brcms_init_timer(struct brcms_info *wl,
 	t->next = wl->timers;
 	wl->timers = t;
 
-#ifdef BCMDBG
+#ifdef DEBUG
 	t->name = kmalloc(strlen(name) + 1, GFP_ATOMIC);
 	if (t->name)
 		strcpy(t->name, name);
@@ -1386,7 +1386,7 @@ void brcms_add_timer(struct brcms_timer *t, uint ms, int periodic)
 {
 	struct ieee80211_hw *hw = t->wl->pub->ieee_hw;
 
-#ifdef BCMDBG
+#ifdef DEBUG
 	if (t->set)
 		wiphy_err(hw->wiphy, "%s: Already set. Name: %s, per %d\n",
 			  __func__, t->name, periodic);
@@ -1431,7 +1431,7 @@ void brcms_free_timer(struct brcms_timer *t)
 
 	if (wl->timers == t) {
 		wl->timers = wl->timers->next;
-#ifdef BCMDBG
+#ifdef DEBUG
 		kfree(t->name);
 #endif
 		kfree(t);
@@ -1443,7 +1443,7 @@ void brcms_free_timer(struct brcms_timer *t)
 	while (tmp) {
 		if (tmp->next == t) {
 			tmp->next = t->next;
-#ifdef BCMDBG
+#ifdef DEBUG
 			kfree(t->name);
 #endif
 			kfree(t);

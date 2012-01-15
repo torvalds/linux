@@ -38,7 +38,7 @@
 #define BRCMF_PKT_FILTER_PATTERN_FIXED_LEN	\
 	offsetof(struct brcmf_pkt_filter_pattern_le, mask_and_pattern)
 
-#ifdef BCMDBG
+#ifdef DEBUG
 static const char brcmf_version[] =
 	"Dongle Host Driver, version " BRCMF_VERSION_STR "\nCompiled on "
 	__DATE__ " at " __TIME__;
@@ -133,7 +133,7 @@ bool brcmf_c_prec_enq(struct device *dev, struct pktq *q,
 	return p != NULL;
 }
 
-#ifdef BCMDBG
+#ifdef DEBUG
 static void
 brcmf_c_show_host_event(struct brcmf_event_msg *event, void *event_data)
 {
@@ -430,7 +430,7 @@ brcmf_c_show_host_event(struct brcmf_event_msg *event, void *event_data)
 		brcmf_dbg(EVENT, "\n");
 	}
 }
-#endif				/* BCMDBG */
+#endif				/* DEBUG */
 
 int
 brcmf_c_host_event(struct brcmf_pub *drvr, int *ifidx, void *pktdata,
@@ -518,9 +518,9 @@ brcmf_c_host_event(struct brcmf_pub *drvr, int *ifidx, void *pktdata,
 		break;
 	}
 
-#ifdef BCMDBG
+#ifdef DEBUG
 	brcmf_c_show_host_event(event, event_data);
-#endif				/* BCMDBG */
+#endif				/* DEBUG */
 
 	return 0;
 }

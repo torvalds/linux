@@ -176,10 +176,10 @@ struct ipv4_addr;
 
 /* externs */
 /* format/print */
-#ifdef BCMDBG
+#ifdef DEBUG
 extern void brcmu_prpkt(const char *msg, struct sk_buff *p0);
 #else
 #define brcmu_prpkt(a, b)
-#endif				/* BCMDBG */
+#endif				/* DEBUG */
 
 #endif				/* _BRCMU_UTILS_H_ */

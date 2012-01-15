@@ -32,7 +32,7 @@
 #define BRCMF_BTA_VAL	0x1000
 #define BRCMF_ISCAN_VAL 0x2000
 
-#if defined(BCMDBG)
+#if defined(DEBUG)
 
 #define brcmf_dbg(level, fmt, ...)					\
 do {									\
@@ -56,7 +56,7 @@ do {									\
 #define BRCMF_BYTES_ON()	(brcmf_msg_level & BRCMF_BYTES_VAL)
 #define BRCMF_GLOM_ON()		(brcmf_msg_level & BRCMF_GLOM_VAL)
 
-#else	/* (defined BCMDBG) || (defined BCMDBG) */
+#else	/* (defined DEBUG) || (defined DEBUG) */
 
 #define brcmf_dbg(level, fmt, ...) no_printk(fmt, ##__VA_ARGS__)
 
@@ -66,7 +66,7 @@ do {									\
 #define BRCMF_BYTES_ON()	0
 #define BRCMF_GLOM_ON()		0
 
-#endif				/* defined(BCMDBG) */
+#endif				/* defined(DEBUG) */
 
 extern int brcmf_msg_level;
 

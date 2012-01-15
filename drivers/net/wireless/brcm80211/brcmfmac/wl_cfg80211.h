@@ -42,7 +42,7 @@ do {								\
 	}							\
 } while (0)
 
-#if (defined BCMDBG)
+#if (defined DEBUG)
 #define	WL_INFO(fmt, args...)					\
 do {								\
 	if (brcmf_dbg_level & WL_DBG_INFO) {			\
@@ -83,12 +83,12 @@ do {								\
 	}							\
 } while (0)
 
-#else /* (defined BCMDBG) */
+#else /* (defined DEBUG) */
 #define	WL_INFO(fmt, args...)
 #define	WL_TRACE(fmt, args...)
 #define	WL_SCAN(fmt, args...)
 #define	WL_CONN(fmt, args...)
-#endif /* (defined BCMDBG) */
+#endif /* (defined DEBUG) */
 
 #define WL_NUM_SCAN_MAX		1
 #define WL_NUM_PMKIDS_MAX	MAXPMKID	/* will be used

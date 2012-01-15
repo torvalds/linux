@@ -240,7 +240,7 @@ struct sk_buff *brcmu_pktq_mdeq(struct pktq *pq, uint prec_bmp,
 }
 EXPORT_SYMBOL(brcmu_pktq_mdeq);
 
-#if defined(BCMDBG)
+#if defined(DEBUG)
 /* pretty hex print a pkt buffer chain */
 void brcmu_prpkt(const char *msg, struct sk_buff *p0)
 {
@@ -253,4 +253,4 @@ void brcmu_prpkt(const char *msg, struct sk_buff *p0)
 		print_hex_dump_bytes("", DUMP_PREFIX_OFFSET, p->data, p->len);
 }
 EXPORT_SYMBOL(brcmu_prpkt);
-#endif				/* defined(BCMDBG) */
+#endif				/* defined(DEBUG) */

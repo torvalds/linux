@@ -1146,7 +1146,7 @@ int brcmf_netdev_wait_pend8021x(struct net_device *ndev)
 	return pend;
 }
 
-#ifdef BCMDBG
+#ifdef DEBUG
 int brcmf_write_to_file(struct brcmf_pub *drvr, const u8 *buf, int size)
 {
 	int ret = 0;
@@ -1180,4 +1180,4 @@ exit:
 
 	return ret;
 }
-#endif				/* BCMDBG */
+#endif				/* DEBUG */
