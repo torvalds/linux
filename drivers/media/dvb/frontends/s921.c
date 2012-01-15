@@ -262,9 +262,9 @@ static int s921_i2c_readreg(struct s921_state *state, u8 i2c_addr, u8 reg)
 	s921_i2c_writeregdata(state, state->config->demod_address, \
 	regdata, ARRAY_SIZE(regdata))
 
-static int s921_pll_tune(struct dvb_frontend *fe,
-	struct dvb_frontend_parameters *p)
+static int s921_pll_tune(struct dvb_frontend *fe)
 {
+	struct dtv_frontend_properties *p = &fe->dtv_property_cache;
 	struct s921_state *state = fe->demodulator_priv;
 	int band, rc, i;
 	unsigned long f_offset;
@@ -414,9 +414,9 @@ static int s921_read_signal_strength(struct dvb_frontend *fe, u16 *strength)
 	return 0;
 }
 
-static int s921_set_frontend(struct dvb_frontend *fe,
-	struct dvb_frontend_parameters *p)
+static int s921_set_frontend(struct dvb_frontend *fe)
 {
+	struct dtv_frontend_properties *p = &fe->dtv_property_cache;
 	struct s921_state *state = fe->demodulator_priv;
 	int rc;
 
@@ -424,7 +424,7 @@ static int s921_set_frontend(struct dvb_frontend *fe,
 
 	/* FIXME: We don't know how to use non-auto mode */
 
-	rc = s921_pll_tune(fe, p);
+	rc = s921_pll_tune(fe);
 	if (rc < 0)
 		return rc;
 
@@ -433,19 +433,20 @@ static int s921_set_frontend(struct dvb_frontend *fe,
 	return 0;
 }
 
-static int s921_get_frontend(struct dvb_frontend *fe,
-	struct dvb_frontend_parameters *p)
+static int s921_get_frontend(struct dvb_frontend *fe)
 {
+	struct dtv_frontend_properties *p = &fe->dtv_property_cache;
 	struct s921_state *state = fe->demodulator_priv;
 
 	/* FIXME: Probably it is possible to get it from regs f1 and f2 */
 	p->frequency = state->currentfreq;
+	p->delivery_system = SYS_ISDBT;
 
 	return 0;
 }
 
 static int s921_tune(struct dvb_frontend *fe,
-			struct dvb_frontend_parameters *params,
+			bool re_tune,
 			unsigned int mode_flags,
 			unsigned int *delay,
 			fe_status_t *status)
@@ -454,8 +455,8 @@ static int s921_tune(struct dvb_frontend *fe,
 
 	dprintk("\n");
 
-	if (params != NULL)
-		rc = s921_set_frontend(fe, params);
+	if (re_tune)
+		rc = s921_set_frontend(fe);
 
 	if (!(mode_flags & FE_TUNE_MODE_ONESHOT))
 		s921_read_status(fe, status);
@@ -510,10 +511,10 @@ rcor:
 EXPORT_SYMBOL(s921_attach);
 
 static struct dvb_frontend_ops s921_ops = {
+	.delsys = { SYS_ISDBT },
 	/* Use dib8000 values per default */
 	.info = {
 		.name = "Sharp S921",
-		.type = FE_OFDM,
 		.frequency_min = 470000000,
 		/*
 		 * Max should be 770MHz instead, according with Sharp docs,

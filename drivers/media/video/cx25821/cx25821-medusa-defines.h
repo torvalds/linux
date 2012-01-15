@@ -23,7 +23,7 @@
 #ifndef _MEDUSA_DEF_H_
 #define _MEDUSA_DEF_H_
 
-/* Video deocder that we supported */
+/* Video decoder that we supported */
 #define VDEC_A		0
 #define VDEC_B		1
 #define VDEC_C		2
@@ -34,9 +34,9 @@
 #define VDEC_H		7
 
 /* end of display sequence */
-#define END_OF_SEQ					0xF;
+#define END_OF_SEQ	0xF;
 
 /* registry string size */
-#define MAX_REGISTRY_SZ					40;
+#define MAX_REGISTRY_SZ	40;
 
 #endif

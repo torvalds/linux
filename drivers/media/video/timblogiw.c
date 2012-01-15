@@ -872,20 +872,7 @@ static struct platform_driver timblogiw_platform_driver = {
 	.remove		= __devexit_p(timblogiw_remove),
 };
 
-/* Module functions */
-
-static int __init timblogiw_init(void)
-{
-	return platform_driver_register(&timblogiw_platform_driver);
-}
-
-static void __exit timblogiw_exit(void)
-{
-	platform_driver_unregister(&timblogiw_platform_driver);
-}
-
-module_init(timblogiw_init);
-module_exit(timblogiw_exit);
+module_platform_driver(timblogiw_platform_driver);
 
 MODULE_DESCRIPTION(TIMBLOGIWIN_NAME);
 MODULE_AUTHOR("Pelagicore AB <info@pelagicore.com>");

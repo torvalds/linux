@@ -524,10 +524,50 @@ static int omapvid_apply_changes(struct omap_vout_device *vout)
 	return 0;
 }
 
+static int omapvid_handle_interlace_display(struct omap_vout_device *vout,
+		unsigned int irqstatus, struct timeval timevalue)
+{
+	u32 fid;
+
+	if (vout->first_int) {
+		vout->first_int = 0;
+		goto err;
+	}
+
+	if (irqstatus & DISPC_IRQ_EVSYNC_ODD)
+		fid = 1;
+	else if (irqstatus & DISPC_IRQ_EVSYNC_EVEN)
+		fid = 0;
+	else
+		goto err;
+
+	vout->field_id ^= 1;
+	if (fid != vout->field_id) {
+		if (fid == 0)
+			vout->field_id = fid;
+	} else if (0 == fid) {
+		if (vout->cur_frm == vout->next_frm)
+			goto err;
+
+		vout->cur_frm->ts = timevalue;
+		vout->cur_frm->state = VIDEOBUF_DONE;
+		wake_up_interruptible(&vout->cur_frm->done);
+		vout->cur_frm = vout->next_frm;
+	} else {
+		if (list_empty(&vout->dma_queue) ||
+				(vout->cur_frm != vout->next_frm))
+			goto err;
+	}
+
+	return vout->field_id;
+err:
+	return 0;
+}
+
 static void omap_vout_isr(void *arg, unsigned int irqstatus)
 {
-	int ret;
-	u32 addr, fid;
+	int ret, fid, mgr_id;
+	u32 addr, irq;
 	struct omap_overlay *ovl;
 	struct timeval timevalue;
 	struct omapvideo_info *ovid;
@@ -543,111 +583,72 @@ static void omap_vout_isr(void *arg, unsigned int irqstatus)
 	if (!ovl->manager || !ovl->manager->device)
 		return;
 
+	mgr_id = ovl->manager->id;
 	cur_display = ovl->manager->device;
 
 	spin_lock(&vout->vbq_lock);
 	do_gettimeofday(&timevalue);
 
-	if (cur_display->type != OMAP_DISPLAY_TYPE_VENC) {
-		switch (cur_display->type) {
-		case OMAP_DISPLAY_TYPE_DPI:
-			if (!(irqstatus & (DISPC_IRQ_VSYNC | DISPC_IRQ_VSYNC2)))
-				goto vout_isr_err;
-			break;
-		case OMAP_DISPLAY_TYPE_HDMI:
-			if (!(irqstatus & DISPC_IRQ_EVSYNC_EVEN))
-				goto vout_isr_err;
-			break;
-		default:
-			goto vout_isr_err;
-		}
-		if (!vout->first_int && (vout->cur_frm != vout->next_frm)) {
-			vout->cur_frm->ts = timevalue;
-			vout->cur_frm->state = VIDEOBUF_DONE;
-			wake_up_interruptible(&vout->cur_frm->done);
-			vout->cur_frm = vout->next_frm;
-		}
-		vout->first_int = 0;
-		if (list_empty(&vout->dma_queue))
-			goto vout_isr_err;
-
-		vout->next_frm = list_entry(vout->dma_queue.next,
-				struct videobuf_buffer, queue);
-		list_del(&vout->next_frm->queue);
-
-		vout->next_frm->state = VIDEOBUF_ACTIVE;
-
-		addr = (unsigned long) vout->queued_buf_addr[vout->next_frm->i]
-			+ vout->cropped_offset;
-
-		/* First save the configuration in ovelray structure */
-		ret = omapvid_init(vout, addr);
-		if (ret)
-			printk(KERN_ERR VOUT_NAME
-				"failed to set overlay info\n");
-		/* Enable the pipeline and set the Go bit */
-		ret = omapvid_apply_changes(vout);
-		if (ret)
-			printk(KERN_ERR VOUT_NAME "failed to change mode\n");
-	} else {
-
-		if (vout->first_int) {
-			vout->first_int = 0;
-			goto vout_isr_err;
-		}
-		if (irqstatus & DISPC_IRQ_EVSYNC_ODD)
-			fid = 1;
-		else if (irqstatus & DISPC_IRQ_EVSYNC_EVEN)
-			fid = 0;
+	switch (cur_display->type) {
+	case OMAP_DISPLAY_TYPE_DSI:
+	case OMAP_DISPLAY_TYPE_DPI:
+		if (mgr_id == OMAP_DSS_CHANNEL_LCD)
+			irq = DISPC_IRQ_VSYNC;
+		else if (mgr_id == OMAP_DSS_CHANNEL_LCD2)
+			irq = DISPC_IRQ_VSYNC2;
 		else
 			goto vout_isr_err;
 
-		vout->field_id ^= 1;
-		if (fid != vout->field_id) {
-			if (0 == fid)
-				vout->field_id = fid;
-
+		if (!(irqstatus & irq))
 			goto vout_isr_err;
-		}
-		if (0 == fid) {
-			if (vout->cur_frm == vout->next_frm)
-				goto vout_isr_err;
-
-			vout->cur_frm->ts = timevalue;
-			vout->cur_frm->state = VIDEOBUF_DONE;
-			wake_up_interruptible(&vout->cur_frm->done);
-			vout->cur_frm = vout->next_frm;
-		} else if (1 == fid) {
-			if (list_empty(&vout->dma_queue) ||
-					(vout->cur_frm != vout->next_frm))
-				goto vout_isr_err;
-
-			vout->next_frm = list_entry(vout->dma_queue.next,
-					struct videobuf_buffer, queue);
-			list_del(&vout->next_frm->queue);
-
-			vout->next_frm->state = VIDEOBUF_ACTIVE;
-			addr = (unsigned long)
-				vout->queued_buf_addr[vout->next_frm->i] +
-				vout->cropped_offset;
-			/* First save the configuration in ovelray structure */
-			ret = omapvid_init(vout, addr);
-			if (ret)
-				printk(KERN_ERR VOUT_NAME
-						"failed to set overlay info\n");
-			/* Enable the pipeline and set the Go bit */
-			ret = omapvid_apply_changes(vout);
-			if (ret)
-				printk(KERN_ERR VOUT_NAME
-						"failed to change mode\n");
-		}
-
+		break;
+	case OMAP_DISPLAY_TYPE_VENC:
+		fid = omapvid_handle_interlace_display(vout, irqstatus,
+				timevalue);
+		if (!fid)
+			goto vout_isr_err;
+		break;
+	case OMAP_DISPLAY_TYPE_HDMI:
+		if (!(irqstatus & DISPC_IRQ_EVSYNC_EVEN))
+			goto vout_isr_err;
+		break;
+	default:
+		goto vout_isr_err;
 	}
+
+	if (!vout->first_int && (vout->cur_frm != vout->next_frm)) {
+		vout->cur_frm->ts = timevalue;
+		vout->cur_frm->state = VIDEOBUF_DONE;
+		wake_up_interruptible(&vout->cur_frm->done);
+		vout->cur_frm = vout->next_frm;
+	}
+
+	vout->first_int = 0;
+	if (list_empty(&vout->dma_queue))
+		goto vout_isr_err;
+
+	vout->next_frm = list_entry(vout->dma_queue.next,
+			struct videobuf_buffer, queue);
+	list_del(&vout->next_frm->queue);
+
+	vout->next_frm->state = VIDEOBUF_ACTIVE;
+
+	addr = (unsigned long) vout->queued_buf_addr[vout->next_frm->i]
+		+ vout->cropped_offset;
+
+	/* First save the configuration in ovelray structure */
+	ret = omapvid_init(vout, addr);
+	if (ret)
+		printk(KERN_ERR VOUT_NAME
+			"failed to set overlay info\n");
+	/* Enable the pipeline and set the Go bit */
+	ret = omapvid_apply_changes(vout);
+	if (ret)
+		printk(KERN_ERR VOUT_NAME "failed to change mode\n");
 
 vout_isr_err:
 	spin_unlock(&vout->vbq_lock);
 }
-
 
 /* Video buffer call backs */
 
@@ -664,9 +665,13 @@ static int omap_vout_buffer_setup(struct videobuf_queue *q, unsigned int *count,
 	u32 phy_addr = 0, virt_addr = 0;
 	struct omap_vout_device *vout = q->priv_data;
 	struct omapvideo_info *ovid = &vout->vid_info;
+	int vid_max_buf_size;
 
 	if (!vout)
 		return -EINVAL;
+
+	vid_max_buf_size = vout->vid == OMAP_VIDEO1 ? video1_bufsize :
+		video2_bufsize;
 
 	if (V4L2_BUF_TYPE_VIDEO_OUTPUT != q->type)
 		return -EINVAL;
@@ -690,7 +695,7 @@ static int omap_vout_buffer_setup(struct videobuf_queue *q, unsigned int *count,
 		video1_numbuffers : video2_numbuffers;
 
 	/* Check the size of the buffer */
-	if (*size > vout->buffer_size) {
+	if (*size > vid_max_buf_size) {
 		v4l2_err(&vout->vid_dev->v4l2_dev,
 				"buffer allocation mismatch [%u] [%u]\n",
 				*size, vout->buffer_size);

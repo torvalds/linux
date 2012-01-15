@@ -1038,7 +1038,7 @@ static void resizer_isr_buffer(struct isp_res_device *res)
 	/* Complete the output buffer and, if reading from memory, the input
 	 * buffer.
 	 */
-	buffer = omap3isp_video_buffer_next(&res->video_out, res->error);
+	buffer = omap3isp_video_buffer_next(&res->video_out);
 	if (buffer != NULL) {
 		resizer_set_outaddr(res, buffer->isp_addr);
 		restart = 1;
@@ -1047,7 +1047,7 @@ static void resizer_isr_buffer(struct isp_res_device *res)
 	pipe->state |= ISP_PIPELINE_IDLE_OUTPUT;
 
 	if (res->input == RESIZER_INPUT_MEMORY) {
-		buffer = omap3isp_video_buffer_next(&res->video_in, 0);
+		buffer = omap3isp_video_buffer_next(&res->video_in);
 		if (buffer != NULL)
 			resizer_set_inaddr(res, buffer->isp_addr);
 		pipe->state |= ISP_PIPELINE_IDLE_INPUT;
@@ -1064,8 +1064,6 @@ static void resizer_isr_buffer(struct isp_res_device *res)
 		if (restart)
 			resizer_enable_oneshot(res);
 	}
-
-	res->error = 0;
 }
 
 /*
@@ -1154,7 +1152,6 @@ static int resizer_set_stream(struct v4l2_subdev *sd, int enable)
 
 		omap3isp_subclk_enable(isp, OMAP3_ISP_SUBCLK_RESIZER);
 		resizer_configure(res);
-		res->error = 0;
 		resizer_print_status(res);
 	}
 

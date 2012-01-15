@@ -502,33 +502,33 @@ static int philips_su1278_ty_ci_set_symbol_rate(struct dvb_frontend *fe, u32 sra
 	return 0;
 }
 
-static int philips_su1278_ty_ci_tuner_set_params(struct dvb_frontend *fe,
-						 struct dvb_frontend_parameters *params)
+static int philips_su1278_ty_ci_tuner_set_params(struct dvb_frontend *fe)
 {
+	struct dtv_frontend_properties *c = &fe->dtv_property_cache;
 	u32 div;
 	u8 buf[4];
 	struct budget *budget = (struct budget *) fe->dvb->priv;
 	struct i2c_msg msg = {.addr = 0x61,.flags = 0,.buf = buf,.len = sizeof(buf) };
 
-	if ((params->frequency < 950000) || (params->frequency > 2150000))
+	if ((c->frequency < 950000) || (c->frequency > 2150000))
 		return -EINVAL;
 
-	div = (params->frequency + (125 - 1)) / 125;	// round correctly
+	div = (c->frequency + (125 - 1)) / 125;	/* round correctly */
 	buf[0] = (div >> 8) & 0x7f;
 	buf[1] = div & 0xff;
 	buf[2] = 0x80 | ((div & 0x18000) >> 10) | 4;
 	buf[3] = 0x20;
 
-	if (params->u.qpsk.symbol_rate < 4000000)
+	if (c->symbol_rate < 4000000)
 		buf[3] |= 1;
 
-	if (params->frequency < 1250000)
+	if (c->frequency < 1250000)
 		buf[3] |= 0;
-	else if (params->frequency < 1550000)
+	else if (c->frequency < 1550000)
 		buf[3] |= 0x40;
-	else if (params->frequency < 2050000)
+	else if (c->frequency < 2050000)
 		buf[3] |= 0x80;
-	else if (params->frequency < 2150000)
+	else if (c->frequency < 2150000)
 		buf[3] |= 0xC0;
 
 	if (fe->ops.i2c_gate_ctrl)
@@ -617,8 +617,9 @@ static struct stv0299_config cinergy_1200s_1894_0010_config = {
 	.set_symbol_rate = philips_su1278_ty_ci_set_symbol_rate,
 };
 
-static int philips_cu1216_tuner_set_params(struct dvb_frontend *fe, struct dvb_frontend_parameters *params)
+static int philips_cu1216_tuner_set_params(struct dvb_frontend *fe)
 {
+	struct dtv_frontend_properties *c = &fe->dtv_property_cache;
 	struct budget *budget = (struct budget *) fe->dvb->priv;
 	u8 buf[6];
 	struct i2c_msg msg = {.addr = 0x60,.flags = 0,.buf = buf,.len = sizeof(buf) };
@@ -627,13 +628,13 @@ static int philips_cu1216_tuner_set_params(struct dvb_frontend *fe, struct dvb_f
 #define CU1216_IF 36125000
 #define TUNER_MUL 62500
 
-	u32 div = (params->frequency + CU1216_IF + TUNER_MUL / 2) / TUNER_MUL;
+	u32 div = (c->frequency + CU1216_IF + TUNER_MUL / 2) / TUNER_MUL;
 
 	buf[0] = (div >> 8) & 0x7f;
 	buf[1] = div & 0xff;
 	buf[2] = 0xce;
-	buf[3] = (params->frequency < 150000000 ? 0x01 :
-		  params->frequency < 445000000 ? 0x02 : 0x04);
+	buf[3] = (c->frequency < 150000000 ? 0x01 :
+		  c->frequency < 445000000 ? 0x02 : 0x04);
 	buf[4] = 0xde;
 	buf[5] = 0x20;
 
@@ -697,8 +698,9 @@ static int philips_tu1216_tuner_init(struct dvb_frontend *fe)
 	return 0;
 }
 
-static int philips_tu1216_tuner_set_params(struct dvb_frontend *fe, struct dvb_frontend_parameters *params)
+static int philips_tu1216_tuner_set_params(struct dvb_frontend *fe)
 {
+	struct dtv_frontend_properties *c = &fe->dtv_property_cache;
 	struct budget *budget = (struct budget *) fe->dvb->priv;
 	u8 tuner_buf[4];
 	struct i2c_msg tuner_msg = {.addr = 0x60,.flags = 0,.buf = tuner_buf,.len =
@@ -707,7 +709,7 @@ static int philips_tu1216_tuner_set_params(struct dvb_frontend *fe, struct dvb_f
 	u8 band, cp, filter;
 
 	// determine charge pump
-	tuner_frequency = params->frequency + 36166000;
+	tuner_frequency = c->frequency + 36166000;
 	if (tuner_frequency < 87000000)
 		return -EINVAL;
 	else if (tuner_frequency < 130000000)
@@ -732,28 +734,28 @@ static int philips_tu1216_tuner_set_params(struct dvb_frontend *fe, struct dvb_f
 		return -EINVAL;
 
 	// determine band
-	if (params->frequency < 49000000)
+	if (c->frequency < 49000000)
 		return -EINVAL;
-	else if (params->frequency < 161000000)
+	else if (c->frequency < 161000000)
 		band = 1;
-	else if (params->frequency < 444000000)
+	else if (c->frequency < 444000000)
 		band = 2;
-	else if (params->frequency < 861000000)
+	else if (c->frequency < 861000000)
 		band = 4;
 	else
 		return -EINVAL;
 
 	// setup PLL filter
-	switch (params->u.ofdm.bandwidth) {
-	case BANDWIDTH_6_MHZ:
+	switch (c->bandwidth_hz) {
+	case 6000000:
 		filter = 0;
 		break;
 
-	case BANDWIDTH_7_MHZ:
+	case 7000000:
 		filter = 0;
 		break;
 
-	case BANDWIDTH_8_MHZ:
+	case 8000000:
 		filter = 1;
 		break;
 
@@ -763,7 +765,7 @@ static int philips_tu1216_tuner_set_params(struct dvb_frontend *fe, struct dvb_f
 
 	// calculate divisor
 	// ((36166000+((1000000/6)/2)) + Finput)/(1000000/6)
-	tuner_frequency = (((params->frequency / 1000) * 6) + 217496) / 1000;
+	tuner_frequency = (((c->frequency / 1000) * 6) + 217496) / 1000;
 
 	// setup tuner buffer
 	tuner_buf[0] = (tuner_frequency >> 8) & 0x7f;

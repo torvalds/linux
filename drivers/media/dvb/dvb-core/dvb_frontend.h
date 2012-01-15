@@ -42,11 +42,16 @@
 
 #include "dvbdev.h"
 
+/*
+ * Maximum number of Delivery systems per frontend. It
+ * should be smaller or equal to 32
+ */
+#define MAX_DELSYS	8
+
 struct dvb_frontend_tune_settings {
 	int min_delay_ms;
 	int step_size;
 	int max_drift;
-	struct dvb_frontend_parameters parameters;
 };
 
 struct dvb_frontend;
@@ -198,11 +203,11 @@ struct dvb_tuner_ops {
 	int (*sleep)(struct dvb_frontend *fe);
 
 	/** This is for simple PLLs - set all parameters in one go. */
-	int (*set_params)(struct dvb_frontend *fe, struct dvb_frontend_parameters *p);
+	int (*set_params)(struct dvb_frontend *fe);
 	int (*set_analog_params)(struct dvb_frontend *fe, struct analog_parameters *p);
 
 	/** This is support for demods like the mt352 - fills out the supplied buffer with what to write. */
-	int (*calc_regs)(struct dvb_frontend *fe, struct dvb_frontend_parameters *p, u8 *buf, int buf_len);
+	int (*calc_regs)(struct dvb_frontend *fe, u8 *buf, int buf_len);
 
 	/** This is to allow setting tuner-specific configs */
 	int (*set_config)(struct dvb_frontend *fe, void *priv_cfg);
@@ -250,9 +255,13 @@ struct analog_demod_ops {
 	int (*set_config)(struct dvb_frontend *fe, void *priv_cfg);
 };
 
+struct dtv_frontend_properties;
+
 struct dvb_frontend_ops {
 
 	struct dvb_frontend_info info;
+
+	u8 delsys[MAX_DELSYS];
 
 	void (*release)(struct dvb_frontend* fe);
 	void (*release_sec)(struct dvb_frontend* fe);
@@ -264,7 +273,7 @@ struct dvb_frontend_ops {
 
 	/* if this is set, it overrides the default swzigzag */
 	int (*tune)(struct dvb_frontend* fe,
-		    struct dvb_frontend_parameters* params,
+		    bool re_tune,
 		    unsigned int mode_flags,
 		    unsigned int *delay,
 		    fe_status_t *status);
@@ -272,10 +281,10 @@ struct dvb_frontend_ops {
 	enum dvbfe_algo (*get_frontend_algo)(struct dvb_frontend *fe);
 
 	/* these two are only used for the swzigzag code */
-	int (*set_frontend)(struct dvb_frontend* fe, struct dvb_frontend_parameters* params);
+	int (*set_frontend)(struct dvb_frontend *fe);
 	int (*get_tune_settings)(struct dvb_frontend* fe, struct dvb_frontend_tune_settings* settings);
 
-	int (*get_frontend)(struct dvb_frontend* fe, struct dvb_frontend_parameters* params);
+	int (*get_frontend)(struct dvb_frontend *fe);
 
 	int (*read_status)(struct dvb_frontend* fe, fe_status_t* status);
 	int (*read_ber)(struct dvb_frontend* fe, u32* ber);
@@ -297,8 +306,7 @@ struct dvb_frontend_ops {
 	/* These callbacks are for devices that implement their own
 	 * tuning algorithms, rather than a simple swzigzag
 	 */
-	enum dvbfe_search (*search)(struct dvb_frontend *fe, struct dvb_frontend_parameters *p);
-	int (*track)(struct dvb_frontend *fe, struct dvb_frontend_parameters *p);
+	enum dvbfe_search (*search)(struct dvb_frontend *fe);
 
 	struct dvb_tuner_ops tuner_ops;
 	struct analog_demod_ops analog_ops;
@@ -307,6 +315,7 @@ struct dvb_frontend_ops {
 	int (*get_property)(struct dvb_frontend* fe, struct dtv_property* tvp);
 };
 
+#ifdef __DVB_CORE__
 #define MAX_EVENT 8
 
 struct dvb_fe_events {
@@ -317,6 +326,7 @@ struct dvb_fe_events {
 	wait_queue_head_t	  wait_queue;
 	struct mutex		  mtx;
 };
+#endif
 
 struct dtv_frontend_properties {
 
@@ -374,6 +384,7 @@ struct dvb_frontend {
 	void *analog_demod_priv;
 	struct dtv_frontend_properties dtv_property_cache;
 #define DVB_FRONTEND_COMPONENT_TUNER 0
+#define DVB_FRONTEND_COMPONENT_DEMOD 1
 	int (*callback)(void *adapter_priv, int component, int cmd, int arg);
 	int id;
 };

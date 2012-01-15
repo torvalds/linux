@@ -118,12 +118,12 @@ static struct mt352_config digitv_mt352_config = {
 	.demod_init = digitv_mt352_demod_init,
 };
 
-static int digitv_nxt6000_tuner_set_params(struct dvb_frontend *fe, struct dvb_frontend_parameters *fep)
+static int digitv_nxt6000_tuner_set_params(struct dvb_frontend *fe)
 {
 	struct dvb_usb_adapter *adap = fe->dvb->priv;
 	u8 b[5];
 
-	fe->ops.tuner_ops.calc_regs(fe, fep, b, sizeof(b));
+	fe->ops.tuner_ops.calc_regs(fe, b, sizeof(b));
 	if (fe->ops.i2c_gate_ctrl)
 		fe->ops.i2c_gate_ctrl(fe, 1);
 	return digitv_ctrl_msg(adap->dev, USB_WRITE_TUNER, 0, &b[1], 4, NULL, 0);

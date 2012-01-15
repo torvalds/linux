@@ -377,8 +377,8 @@ static int stk_prepare_iso(struct stk_camera *dev)
 	if (dev->isobufs)
 		STK_ERROR("isobufs already allocated. Bad\n");
 	else
-		dev->isobufs = kzalloc(MAX_ISO_BUFS * sizeof(*dev->isobufs),
-					GFP_KERNEL);
+		dev->isobufs = kcalloc(MAX_ISO_BUFS, sizeof(*dev->isobufs),
+				       GFP_KERNEL);
 	if (dev->isobufs == NULL) {
 		STK_ERROR("Unable to allocate iso buffers\n");
 		return -ENOMEM;

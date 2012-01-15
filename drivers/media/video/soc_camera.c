@@ -487,7 +487,7 @@ static int soc_camera_set_fmt(struct soc_camera_device *icd,
 		icd->user_width, icd->user_height);
 
 	/* set physical bus parameters */
-	return ici->ops->set_bus_param(icd, pix->pixelformat);
+	return ici->ops->set_bus_param(icd);
 }
 
 static int soc_camera_open(struct file *file)
@@ -600,9 +600,9 @@ static int soc_camera_close(struct file *file)
 		pm_runtime_suspend(&icd->vdev->dev);
 		pm_runtime_disable(&icd->vdev->dev);
 
-		ici->ops->remove(icd);
 		if (ici->ops->init_videobuf2)
 			vb2_queue_release(&icd->vb2_vidq);
+		ici->ops->remove(icd);
 
 		soc_camera_power_off(icd, icl);
 	}
