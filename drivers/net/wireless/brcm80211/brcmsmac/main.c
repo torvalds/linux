@@ -14,6 +14,8 @@
  * CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
 #include <linux/pci_ids.h>
 #include <linux/if_ether.h>
 #include <net/mac80211.h>
@@ -5807,7 +5809,7 @@ void brcms_c_print_txstatus(struct tx_status *txs)
 bool brcms_c_chipmatch(u16 vendor, u16 device)
 {
 	if (vendor != PCI_VENDOR_ID_BROADCOM) {
-		pr_err("chipmatch: unknown vendor id %04x\n", vendor);
+		pr_err("unknown vendor id %04x\n", vendor);
 		return false;
 	}
 
@@ -5820,7 +5822,7 @@ bool brcms_c_chipmatch(u16 vendor, u16 device)
 	if ((device == BCM43236_D11N_ID) || (device == BCM43236_D11N2G_ID))
 		return true;
 
-	pr_err("chipmatch: unknown device id %04x\n", device);
+	pr_err("unknown device id %04x\n", device);
 	return false;
 }
 

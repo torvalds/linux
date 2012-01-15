@@ -15,6 +15,7 @@
  */
 
 #define __UNDEF_NO_VERSION__
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
 #include <linux/etherdevice.h>
 #include <linux/sched.h>
@@ -1121,8 +1122,7 @@ static int __devinit brcms_bcma_probe(struct bcma_device *pdev)
 
 	wl = brcms_attach(pdev);
 	if (!wl) {
-		pr_err("%s: %s: brcms_attach failed!\n", KBUILD_MODNAME,
-		       __func__);
+		pr_err("%s: brcms_attach failed!\n", __func__);
 		return -ENODEV;
 	}
 	return 0;
@@ -1183,7 +1183,7 @@ static int __init brcms_module_init(void)
 #endif				/* DEBUG */
 
 	error = bcma_driver_register(&brcms_bcma_driver);
-	printk(KERN_ERR "%s: register returned %d\n", __func__, error);
+	pr_err("%s: register returned %d\n", __func__, error);
 	if (!error)
 		return 0;
 

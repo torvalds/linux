@@ -14,6 +14,8 @@
  * CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
 #include <linux/types.h>
 #include <linux/kernel.h>
 #include <linux/kthread.h>
@@ -3896,8 +3898,7 @@ void *brcmf_sdbrcm_probe(u32 regsva, struct brcmf_sdio_dev *sdiodev)
 	bus->watchdog_tsk = kthread_run(brcmf_sdbrcm_watchdog_thread,
 					bus, "brcmf_watchdog");
 	if (IS_ERR(bus->watchdog_tsk)) {
-		printk(KERN_WARNING
-		       "brcmf_watchdog thread failed to start\n");
+		pr_warn("brcmf_watchdog thread failed to start\n");
 		bus->watchdog_tsk = NULL;
 	}
 	/* Initialize DPC thread */
@@ -3905,8 +3906,7 @@ void *brcmf_sdbrcm_probe(u32 regsva, struct brcmf_sdio_dev *sdiodev)
 	bus->dpc_tsk = kthread_run(brcmf_sdbrcm_dpc_thread,
 				   bus, "brcmf_dpc");
 	if (IS_ERR(bus->dpc_tsk)) {
-		printk(KERN_WARNING
-		       "brcmf_dpc thread failed to start\n");
+		pr_warn("brcmf_dpc thread failed to start\n");
 		bus->dpc_tsk = NULL;
 	}
 
