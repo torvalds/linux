@@ -202,6 +202,7 @@ static void mv_otg_init_irq(struct mv_otg *mvotg)
 
 static void mv_otg_start_host(struct mv_otg *mvotg, int on)
 {
+#ifdef CONFIG_USB
 	struct otg_transceiver *otg = &mvotg->otg;
 	struct usb_hcd *hcd;
 
@@ -216,6 +217,7 @@ static void mv_otg_start_host(struct mv_otg *mvotg, int on)
 		usb_add_hcd(hcd, hcd->irq, IRQF_SHARED);
 	else
 		usb_remove_hcd(hcd);
+#endif /* CONFIG_USB */
 }
 
 static void mv_otg_start_periphrals(struct mv_otg *mvotg, int on)
