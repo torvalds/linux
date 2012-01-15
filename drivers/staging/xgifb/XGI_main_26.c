@@ -805,27 +805,27 @@ static void XGIfb_pre_setmode(struct xgifb_video_info *xgifb_info)
 
 	switch (xgifb_info->display2) {
 	case XGIFB_DISP_CRT:
-		cr30 = (XGI_VB_OUTPUT_CRT2 | XGI_SIMULTANEOUS_VIEW_ENABLE);
-		cr31 |= XGI_DRIVER_MODE;
+		cr30 = (SIS_VB_OUTPUT_CRT2 | SIS_SIMULTANEOUS_VIEW_ENABLE);
+		cr31 |= SIS_DRIVER_MODE;
 		break;
 	case XGIFB_DISP_LCD:
-		cr30 = (XGI_VB_OUTPUT_LCD | XGI_SIMULTANEOUS_VIEW_ENABLE);
-		cr31 |= XGI_DRIVER_MODE;
+		cr30 = (SIS_VB_OUTPUT_LCD | SIS_SIMULTANEOUS_VIEW_ENABLE);
+		cr31 |= SIS_DRIVER_MODE;
 		break;
 	case XGIFB_DISP_TV:
 		if (xgifb_info->TV_type == TVMODE_HIVISION)
-			cr30 = (XGI_VB_OUTPUT_HIVISION
-					| XGI_SIMULTANEOUS_VIEW_ENABLE);
+			cr30 = (SIS_VB_OUTPUT_HIVISION
+					| SIS_SIMULTANEOUS_VIEW_ENABLE);
 		else if (xgifb_info->TV_plug == TVPLUG_SVIDEO)
-			cr30 = (XGI_VB_OUTPUT_SVIDEO
-					| XGI_SIMULTANEOUS_VIEW_ENABLE);
+			cr30 = (SIS_VB_OUTPUT_SVIDEO
+					| SIS_SIMULTANEOUS_VIEW_ENABLE);
 		else if (xgifb_info->TV_plug == TVPLUG_COMPOSITE)
-			cr30 = (XGI_VB_OUTPUT_COMPOSITE
-					| XGI_SIMULTANEOUS_VIEW_ENABLE);
+			cr30 = (SIS_VB_OUTPUT_COMPOSITE
+					| SIS_SIMULTANEOUS_VIEW_ENABLE);
 		else if (xgifb_info->TV_plug == TVPLUG_SCART)
-			cr30 = (XGI_VB_OUTPUT_SCART
-					| XGI_SIMULTANEOUS_VIEW_ENABLE);
-		cr31 |= XGI_DRIVER_MODE;
+			cr30 = (SIS_VB_OUTPUT_SCART
+					| SIS_SIMULTANEOUS_VIEW_ENABLE);
+		cr31 |= SIS_DRIVER_MODE;
 
 		if (XGIfb_tvmode == 1 || xgifb_info->TV_type == TVMODE_PAL)
 			cr31 |= 0x01;
@@ -834,7 +834,7 @@ static void XGIfb_pre_setmode(struct xgifb_video_info *xgifb_info)
 		break;
 	default: /* disable CRT2 */
 		cr30 = 0x00;
-		cr31 |= (XGI_DRIVER_MODE | XGI_VB_OUTPUT_DISABLE);
+		cr31 |= (SIS_DRIVER_MODE | SIS_VB_OUTPUT_DISABLE);
 	}
 
 	xgifb_reg_set(XGICR, IND_XGI_SCRATCH_REG_CR30, cr30);
@@ -848,7 +848,7 @@ static void XGIfb_post_setmode(struct xgifb_video_info *xgifb_info)
 	u8 reg;
 	unsigned char doit = 1;
 	/*
-	xgifb_reg_set(XGISR,IND_XGI_PASSWORD,XGI_PASSWORD);
+	xgifb_reg_set(XGISR,IND_SIS_PASSWORD,SIS_PASSWORD);
 	xgifb_reg_set(XGICR, 0x13, 0x00);
 	xgifb_reg_and_or(XGISR,0x0E, 0xF0, 0x01);
 	*test*
@@ -884,7 +884,7 @@ static void XGIfb_post_setmode(struct xgifb_video_info *xgifb_info)
 		reg |= 0x80;
 	xgifb_reg_set(XGICR, 0x17, reg);
 
-	xgifb_reg_and(XGISR, IND_XGI_RAMDAC_CONTROL, ~0x04);
+	xgifb_reg_and(XGISR, IND_SIS_RAMDAC_CONTROL, ~0x04);
 
 	if (xgifb_info->display2 == XGIFB_DISP_TV &&
 	    xgifb_info->hasVB == HASVB_301) {
@@ -917,7 +917,7 @@ static void XGIfb_post_setmode(struct xgifb_video_info *xgifb_info)
 				break;
 			}
 			xgifb_reg_or(XGIPART1,
-				     IND_XGI_CRT2_WRITE_ENABLE_315,
+				     SIS_CRT2_WENABLE_315,
 				     0x01);
 
 			if (xgifb_info->TV_type == TVMODE_NTSC) {
@@ -1178,7 +1178,7 @@ static int XGIfb_do_set_var(struct fb_var_screeninfo *var, int isactive,
 		info->fix.line_length = ((info->var.xres_virtual
 				* info->var.bits_per_pixel) >> 6);
 
-		xgifb_reg_set(XGISR, IND_XGI_PASSWORD, XGI_PASSWORD);
+		xgifb_reg_set(XGISR, IND_SIS_PASSWORD, SIS_PASSWORD);
 
 		xgifb_reg_set(XGICR, 0x13, (info->fix.line_length & 0x00ff));
 		xgifb_reg_set(XGISR,
@@ -1267,7 +1267,7 @@ static int XGIfb_pan_var(struct fb_var_screeninfo *var, struct fb_info *info)
 		break;
 	}
 
-	xgifb_reg_set(XGISR, IND_XGI_PASSWORD, XGI_PASSWORD);
+	xgifb_reg_set(XGISR, IND_SIS_PASSWORD, SIS_PASSWORD);
 
 	xgifb_reg_set(XGICR, 0x0D, base & 0xFF);
 	xgifb_reg_set(XGICR, 0x0C, (base >> 8) & 0xFF);
@@ -1276,7 +1276,7 @@ static int XGIfb_pan_var(struct fb_var_screeninfo *var, struct fb_info *info)
 	xgifb_reg_and_or(XGISR, 0x37, 0xDF, (base >> 21) & 0x04);
 
 	if (xgifb_info->display2 != XGIFB_DISP_NONE) {
-		xgifb_reg_or(XGIPART1, IND_XGI_CRT2_WRITE_ENABLE_315, 0x01);
+		xgifb_reg_or(XGIPART1, SIS_CRT2_WENABLE_315, 0x01);
 		xgifb_reg_set(XGIPART1, 0x06, (base & 0xFF));
 		xgifb_reg_set(XGIPART1, 0x05, ((base >> 8) & 0xFF));
 		xgifb_reg_set(XGIPART1, 0x04, ((base >> 16) & 0xFF));
@@ -1381,7 +1381,7 @@ static int XGIfb_get_fix(struct fb_fix_screeninfo *fix, int con,
 	fix->line_length = xgifb_info->video_linelength;
 	fix->mmio_start = xgifb_info->mmio_base;
 	fix->mmio_len = xgifb_info->mmio_size;
-	fix->accel = FB_ACCEL_XGI_XABRE;
+	fix->accel = FB_ACCEL_SIS_XABRE;
 
 	DEBUGPRN("end of get_fix");
 	return 0;
@@ -1628,9 +1628,9 @@ static int XGIfb_get_dram_size(struct xgifb_video_info *xgifb_info)
 
 	/* xorg driver sets 32MB * 1 channel */
 	if (xgifb_info->chip == XG27)
-		xgifb_reg_set(XGISR, IND_XGI_DRAM_SIZE, 0x51);
+		xgifb_reg_set(XGISR, IND_SIS_DRAM_SIZE, 0x51);
 
-	reg = xgifb_reg_get(XGISR, IND_XGI_DRAM_SIZE);
+	reg = xgifb_reg_get(XGISR, IND_SIS_DRAM_SIZE);
 	switch ((reg & XGI_DRAM_SIZE_MASK) >> 4) {
 	case XGI_DRAM_SIZE_1MB:
 		xgifb_info->video_size = 0x100000;
@@ -1730,7 +1730,7 @@ static void XGIfb_detect_VB(struct xgifb_video_info *xgifb_info)
 
 	cr32 = xgifb_reg_get(XGICR, IND_XGI_SCRATCH_REG_CR32);
 
-	if ((cr32 & XGI_CRT1) && !XGIfb_crt1off)
+	if ((cr32 & SIS_CRT1) && !XGIfb_crt1off)
 		XGIfb_crt1off = 0;
 	else {
 		if (cr32 & 0x5F)
@@ -1740,11 +1740,11 @@ static void XGIfb_detect_VB(struct xgifb_video_info *xgifb_info)
 	}
 
 	if (!xgifb_info->display2_force) {
-		if (cr32 & XGI_VB_TV)
+		if (cr32 & SIS_VB_TV)
 			xgifb_info->display2 = XGIFB_DISP_TV;
-		else if (cr32 & XGI_VB_LCD)
+		else if (cr32 & SIS_VB_LCD)
 			xgifb_info->display2 = XGIFB_DISP_LCD;
-		else if (cr32 & XGI_VB_CRT2)
+		else if (cr32 & SIS_VB_CRT2)
 			xgifb_info->display2 = XGIFB_DISP_CRT;
 		else
 			xgifb_info->display2 = XGIFB_DISP_NONE;
@@ -1753,14 +1753,14 @@ static void XGIfb_detect_VB(struct xgifb_video_info *xgifb_info)
 	if (XGIfb_tvplug != -1)
 		/* PR/TW: Override with option */
 		xgifb_info->TV_plug = XGIfb_tvplug;
-	else if (cr32 & XGI_VB_HIVISION) {
+	else if (cr32 & SIS_VB_HIVISION) {
 		xgifb_info->TV_type = TVMODE_HIVISION;
 		xgifb_info->TV_plug = TVPLUG_SVIDEO;
-	} else if (cr32 & XGI_VB_SVIDEO)
+	} else if (cr32 & SIS_VB_SVIDEO)
 		xgifb_info->TV_plug = TVPLUG_SVIDEO;
-	else if (cr32 & XGI_VB_COMPOSITE)
+	else if (cr32 & SIS_VB_COMPOSITE)
 		xgifb_info->TV_plug = TVPLUG_COMPOSITE;
-	else if (cr32 & XGI_VB_SCART)
+	else if (cr32 & SIS_VB_SCART)
 		xgifb_info->TV_plug = TVPLUG_SCART;
 
 	if (xgifb_info->TV_type == 0) {
@@ -1805,11 +1805,11 @@ static void XGIfb_get_VB_type(struct xgifb_video_info *xgifb_info)
 
 	if (!XGIfb_has_VB(xgifb_info)) {
 		reg = xgifb_reg_get(XGICR, IND_XGI_SCRATCH_REG_CR37);
-		switch ((reg & XGI_EXTERNAL_CHIP_MASK) >> 1) {
-		case XGI310_EXTERNAL_CHIP_LVDS:
+		switch ((reg & SIS_EXTERNAL_CHIP_MASK) >> 1) {
+		case SIS_EXTERNAL_CHIP_LVDS:
 			xgifb_info->hasVB = HASVB_LVDS;
 			break;
-		case XGI310_EXTERNAL_CHIP_LVDS_CHRONTEL:
+		case SIS_EXTERNAL_CHIP_LVDS_CHRONTEL:
 			xgifb_info->hasVB = HASVB_LVDS_CHRONTEL;
 			break;
 		default:
@@ -1927,8 +1927,8 @@ static int __devinit xgifb_probe(struct pci_dev *pdev,
 
 	XGIRegInit(&xgifb_info->dev_info, (unsigned long)hw_info->pjIOAddress);
 
-	xgifb_reg_set(XGISR, IND_XGI_PASSWORD, XGI_PASSWORD);
-	reg1 = xgifb_reg_get(XGISR, IND_XGI_PASSWORD);
+	xgifb_reg_set(XGISR, IND_SIS_PASSWORD, SIS_PASSWORD);
+	reg1 = xgifb_reg_get(XGISR, IND_SIS_PASSWORD);
 
 	if (reg1 != 0xa1) { /*I/O error */
 		printk("\nXGIfb: I/O error!!!");
@@ -1937,7 +1937,7 @@ static int __devinit xgifb_probe(struct pci_dev *pdev,
 	}
 
 	switch (xgifb_info->chip_id) {
-	case PCI_DEVICE_ID_XG_20:
+	case PCI_DEVICE_ID_XGI_20:
 		xgifb_reg_or(XGICR, Index_CR_GPIO_Reg3, GPIOG_EN);
 		CR48 = xgifb_reg_get(XGICR, Index_CR_GPIO_Reg1);
 		if (CR48&GPIOG_READ)
@@ -1945,16 +1945,16 @@ static int __devinit xgifb_probe(struct pci_dev *pdev,
 		else
 			xgifb_info->chip = XG20;
 		break;
-	case PCI_DEVICE_ID_XG_40:
+	case PCI_DEVICE_ID_XGI_40:
 		xgifb_info->chip = XG40;
 		break;
-	case PCI_DEVICE_ID_XG_41:
+	case PCI_DEVICE_ID_XGI_41:
 		xgifb_info->chip = XG41;
 		break;
-	case PCI_DEVICE_ID_XG_42:
+	case PCI_DEVICE_ID_XGI_42:
 		xgifb_info->chip = XG42;
 		break;
-	case PCI_DEVICE_ID_XG_27:
+	case PCI_DEVICE_ID_XGI_27:
 		xgifb_info->chip = XG27;
 		break;
 	default:
@@ -1973,10 +1973,10 @@ static int __devinit xgifb_probe(struct pci_dev *pdev,
 
 	/* Enable PCI_LINEAR_ADDRESSING and MMIO_ENABLE  */
 	xgifb_reg_or(XGISR,
-		     IND_XGI_PCI_ADDRESS_SET,
-		     (XGI_PCI_ADDR_ENABLE | XGI_MEM_MAP_IO_ENABLE));
+		     IND_SIS_PCI_ADDRESS_SET,
+		     (SIS_PCI_ADDR_ENABLE | SIS_MEM_MAP_IO_ENABLE));
 	/* Enable 2D accelerator engine */
-	xgifb_reg_or(XGISR, IND_XGI_MODULE_ENABLE, XGI_ENABLE_2D);
+	xgifb_reg_or(XGISR, IND_SIS_MODULE_ENABLE, SIS_ENABLE_2D);
 
 	hw_info->ulVideoMemorySize = xgifb_info->video_size;
 

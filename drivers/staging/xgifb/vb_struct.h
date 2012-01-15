@@ -351,7 +351,7 @@ struct vb_device_info {
 	unsigned char  *pCRT2Data_4_D;
 	unsigned char  *pCRT2Data_4_E;
 	unsigned char  *pCRT2Data_4_10;
-	struct XGI_MCLKDataStruct  *MCLKData;
+	struct SiS_MCLKData  *MCLKData;
 	struct XGI_ECLKDataStruct  *ECLKData;
 
 	unsigned char   *XGI_TVDelayList;
@@ -381,15 +381,15 @@ struct vb_device_info {
 	struct XGI_TimingVStruct  *TimingV;
 
 	struct XGI_StStruct          *SModeIDTable;
-	struct XGI_StandTableStruct  *StandTable;
+	struct SiS_StandTable_S  *StandTable;
 	struct XGI_ExtStruct         *EModeIDTable;
 	struct XGI_Ext2Struct        *RefIndex;
 	/* XGINew_CRT1TableStruct *CRT1Table; */
 	struct XGI_CRT1TableStruct    *XGINEWUB_CRT1Table;
-	struct XGI_VCLKDataStruct    *VCLKData;
-	struct XGI_VBVCLKDataStruct  *VBVCLKData;
-	struct XGI_StResInfoStruct   *StResInfo;
-	struct XGI_ModeResInfoStruct *ModeResInfo;
+	struct SiS_VCLKData    *VCLKData;
+	struct SiS_VBVCLKData  *VBVCLKData;
+	struct SiS_StResInfo_S   *StResInfo;
+	struct SiS_ModeResInfo_S *ModeResInfo;
 	struct XGI_XG21CRT1Struct	  *UpdateCRT1;
 
 	int ram_type;

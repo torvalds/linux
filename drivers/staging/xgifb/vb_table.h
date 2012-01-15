@@ -1,5 +1,5 @@
 /* yilin modify for xgi20 */
-static struct XGI_MCLKDataStruct XGI340New_MCLKData[] = {
+static struct SiS_MCLKData XGI340New_MCLKData[] = {
 	{0x16, 0x01, 0x01, 166},
 	{0x19, 0x02, 0x01, 124},
 	{0x7C, 0x08, 0x01, 200},
@@ -10,7 +10,7 @@ static struct XGI_MCLKDataStruct XGI340New_MCLKData[] = {
 	{0x5c, 0x23, 0x01, 166}
 };
 
-static struct XGI_MCLKDataStruct XGI27New_MCLKData[] = {
+static struct SiS_MCLKData XGI27New_MCLKData[] = {
 	{0x5c, 0x23, 0x01, 166},
 	{0x19, 0x02, 0x01, 124},
 	{0x7C, 0x08, 0x80, 200},
@@ -296,7 +296,7 @@ static struct XGI_ExtStruct XGI330_EModeIDTable[] = {
 		0x00, 0x00, 0x00, 0x00, 0x00}
 };
 
-static struct XGI_StandTableStruct XGI330_StandTable[] = {
+static struct SiS_StandTable_S XGI330_StandTable[] = {
 /* MD_0_200 */
 	{
 		0x28, 0x18, 0x08, 0x0800,
@@ -2729,7 +2729,7 @@ static unsigned char XGI330_ScreenOffset[] = {
 	0x57, 0x48
 };
 
-static struct XGI_StResInfoStruct XGI330_StResInfo[] = {
+static struct SiS_StResInfo_S XGI330_StResInfo[] = {
 	{640, 400},
 	{640, 350},
 	{720, 400},
@@ -2737,7 +2737,7 @@ static struct XGI_StResInfoStruct XGI330_StResInfo[] = {
 	{640, 480}
 };
 
-static struct XGI_ModeResInfoStruct XGI330_ModeResInfo[] = {
+static struct SiS_ModeResInfo_S XGI330_ModeResInfo[] = {
 	{ 320,  200, 8,  8},
 	{ 320,  240, 8,  8},
 	{ 320,  400, 8,  8},
