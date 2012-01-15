@@ -1556,7 +1556,6 @@ static void nf_conntrack_sip_fini(void)
 static int __init nf_conntrack_sip_init(void)
 {
 	int i, j, ret;
-	char *tmpname;
 
 	if (ports_c == 0)
 		ports[ports_c++] = SIP_PORT;
@@ -1584,12 +1583,10 @@ static int __init nf_conntrack_sip_init(void)
 			sip[i][j].expect_class_max = SIP_EXPECT_MAX;
 			sip[i][j].me = THIS_MODULE;
 
-			tmpname = &sip_names[i][j][0];
 			if (ports[i] == SIP_PORT)
-				sprintf(tmpname, "sip");
+				sprintf(sip_names[i][j], "sip");
 			else
-				sprintf(tmpname, "sip-%u", i);
-			sip[i][j].name = tmpname;
+				sprintf(sip_names[i][j], "sip-%u", i);
 
 			pr_debug("port #%u: %u\n", i, ports[i]);
 

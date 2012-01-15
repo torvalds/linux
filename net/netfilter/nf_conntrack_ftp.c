@@ -512,7 +512,6 @@ out_update_nl:
 }
 
 static struct nf_conntrack_helper ftp[MAX_PORTS][2] __read_mostly;
-static char ftp_names[MAX_PORTS][2][sizeof("ftp-65535")] __read_mostly;
 
 static const struct nf_conntrack_expect_policy ftp_exp_policy = {
 	.max_expected	= 1,
@@ -541,7 +540,6 @@ static void nf_conntrack_ftp_fini(void)
 static int __init nf_conntrack_ftp_init(void)
 {
 	int i, j = -1, ret = 0;
-	char *tmpname;
 
 	ftp_buffer = kmalloc(65536, GFP_KERNEL);
 	if (!ftp_buffer)
@@ -561,12 +559,10 @@ static int __init nf_conntrack_ftp_init(void)
 			ftp[i][j].expect_policy = &ftp_exp_policy;
 			ftp[i][j].me = THIS_MODULE;
 			ftp[i][j].help = help;
-			tmpname = &ftp_names[i][j][0];
 			if (ports[i] == FTP_PORT)
-				sprintf(tmpname, "ftp");
+				sprintf(ftp[i][j].name, "ftp");
 			else
-				sprintf(tmpname, "ftp-%d", ports[i]);
-			ftp[i][j].name = tmpname;
+				sprintf(ftp[i][j].name, "ftp-%d", ports[i]);
 
 			pr_debug("nf_ct_ftp: registering helper for pf: %d "
 				 "port: %d\n",

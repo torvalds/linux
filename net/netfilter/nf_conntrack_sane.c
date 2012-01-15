@@ -163,7 +163,6 @@ out:
 }
 
 static struct nf_conntrack_helper sane[MAX_PORTS][2] __read_mostly;
-static char sane_names[MAX_PORTS][2][sizeof("sane-65535")] __read_mostly;
 
 static const struct nf_conntrack_expect_policy sane_exp_policy = {
 	.max_expected	= 1,
@@ -190,7 +189,6 @@ static void nf_conntrack_sane_fini(void)
 static int __init nf_conntrack_sane_init(void)
 {
 	int i, j = -1, ret = 0;
-	char *tmpname;
 
 	sane_buffer = kmalloc(65536, GFP_KERNEL);
 	if (!sane_buffer)
@@ -210,12 +208,10 @@ static int __init nf_conntrack_sane_init(void)
 			sane[i][j].expect_policy = &sane_exp_policy;
 			sane[i][j].me = THIS_MODULE;
 			sane[i][j].help = help;
-			tmpname = &sane_names[i][j][0];
 			if (ports[i] == SANE_PORT)
-				sprintf(tmpname, "sane");
+				sprintf(sane[i][j].name, "sane");
 			else
-				sprintf(tmpname, "sane-%d", ports[i]);
-			sane[i][j].name = tmpname;
+				sprintf(sane[i][j].name, "sane-%d", ports[i]);
 
 			pr_debug("nf_ct_sane: registering helper for pf: %d "
 				 "port: %d\n",
