@@ -328,9 +328,9 @@ struct mgmt_ev_new_link_key {
 	struct mgmt_link_key_info key;
 } __packed;
 
-#define MGMT_EV_CONNECTED		0x000A
+#define MGMT_EV_DEVICE_CONNECTED	0x000A
 
-#define MGMT_EV_DISCONNECTED		0x000B
+#define MGMT_EV_DEVICE_DISCONNECTED	0x000B
 
 #define MGMT_EV_CONNECT_FAILED		0x000C
 struct mgmt_ev_connect_failed {

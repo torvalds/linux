@@ -1643,7 +1643,7 @@ static inline void hci_conn_complete_evt(struct hci_dev *hdev, struct sk_buff *s
 			conn->state = BT_CONFIG;
 			hci_conn_hold(conn);
 			conn->disc_timeout = HCI_DISCONN_TIMEOUT;
-			mgmt_connected(hdev, &ev->bdaddr, conn->type,
+			mgmt_device_connected(hdev, &ev->bdaddr, conn->type,
 							conn->dst_type);
 		} else
 			conn->state = BT_CONNECTED;
@@ -1789,7 +1789,7 @@ static inline void hci_disconn_complete_evt(struct hci_dev *hdev, struct sk_buff
 		if (ev->status != 0)
 			mgmt_disconnect_failed(hdev, &conn->dst, ev->status);
 		else
-			mgmt_disconnected(hdev, &conn->dst, conn->type,
+			mgmt_device_disconnected(hdev, &conn->dst, conn->type,
 							conn->dst_type);
 	}
 
@@ -3188,7 +3188,7 @@ static inline void hci_le_conn_complete_evt(struct hci_dev *hdev, struct sk_buff
 		goto unlock;
 	}
 
-	mgmt_connected(hdev, &ev->bdaddr, conn->type, conn->dst_type);
+	mgmt_device_connected(hdev, &ev->bdaddr, conn->type, conn->dst_type);
 
 	conn->sec_level = BT_SECURITY_LOW;
 	conn->handle = __le16_to_cpu(ev->handle);

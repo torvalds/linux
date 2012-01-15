@@ -2464,7 +2464,7 @@ int mgmt_new_link_key(struct hci_dev *hdev, struct link_key *key,
 	return mgmt_event(MGMT_EV_NEW_LINK_KEY, hdev, &ev, sizeof(ev), NULL);
 }
 
-int mgmt_connected(struct hci_dev *hdev, bdaddr_t *bdaddr, u8 link_type,
+int mgmt_device_connected(struct hci_dev *hdev, bdaddr_t *bdaddr, u8 link_type,
 								u8 addr_type)
 {
 	struct mgmt_addr_info ev;
@@ -2472,7 +2472,8 @@ int mgmt_connected(struct hci_dev *hdev, bdaddr_t *bdaddr, u8 link_type,
 	bacpy(&ev.bdaddr, bdaddr);
 	ev.type = link_to_mgmt(link_type, addr_type);
 
-	return mgmt_event(MGMT_EV_CONNECTED, hdev, &ev, sizeof(ev), NULL);
+	return mgmt_event(MGMT_EV_DEVICE_CONNECTED, hdev, &ev, sizeof(ev),
+									NULL);
 }
 
 static void disconnect_rsp(struct pending_cmd *cmd, void *data)
@@ -2509,8 +2510,8 @@ static void remove_keys_rsp(struct pending_cmd *cmd, void *data)
 	mgmt_pending_remove(cmd);
 }
 
-int mgmt_disconnected(struct hci_dev *hdev, bdaddr_t *bdaddr, u8 link_type,
-								u8 addr_type)
+int mgmt_device_disconnected(struct hci_dev *hdev, bdaddr_t *bdaddr,
+						u8 link_type, u8 addr_type)
 {
 	struct mgmt_addr_info ev;
 	struct sock *sk = NULL;
@@ -2521,7 +2522,8 @@ int mgmt_disconnected(struct hci_dev *hdev, bdaddr_t *bdaddr, u8 link_type,
 	bacpy(&ev.bdaddr, bdaddr);
 	ev.type = link_to_mgmt(link_type, addr_type);
 
-	err = mgmt_event(MGMT_EV_DISCONNECTED, hdev, &ev, sizeof(ev), sk);
+	err = mgmt_event(MGMT_EV_DEVICE_DISCONNECTED, hdev, &ev, sizeof(ev),
+									sk);
 
 	if (sk)
 		sock_put(sk);

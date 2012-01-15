@@ -896,10 +896,10 @@ int mgmt_connectable(struct hci_dev *hdev, u8 connectable);
 int mgmt_write_scan_failed(struct hci_dev *hdev, u8 scan, u8 status);
 int mgmt_new_link_key(struct hci_dev *hdev, struct link_key *key,
 								u8 persistent);
-int mgmt_connected(struct hci_dev *hdev, bdaddr_t *bdaddr, u8 link_type,
+int mgmt_device_connected(struct hci_dev *hdev, bdaddr_t *bdaddr, u8 link_type,
 								u8 addr_type);
-int mgmt_disconnected(struct hci_dev *hdev, bdaddr_t *bdaddr, u8 link_type,
-								u8 addr_type);
+int mgmt_device_disconnected(struct hci_dev *hdev, bdaddr_t *bdaddr,
+						u8 link_type, u8 addr_type);
 int mgmt_disconnect_failed(struct hci_dev *hdev, bdaddr_t *bdaddr, u8 status);
 int mgmt_connect_failed(struct hci_dev *hdev, bdaddr_t *bdaddr, u8 link_type,
 						u8 addr_type, u8 status);
