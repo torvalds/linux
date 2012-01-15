@@ -410,13 +410,10 @@ static int cp210x_open(struct tty_struct *tty, struct usb_serial_port *port)
 		return result;
 	}
 
-	result = usb_serial_generic_open(tty, port);
-	if (result)
-		return result;
-
 	/* Configure the termios structure */
 	cp210x_get_termios(tty, port);
-	return 0;
+
+	return usb_serial_generic_open(tty, port);
 }
 
 static void cp210x_close(struct usb_serial_port *port)
