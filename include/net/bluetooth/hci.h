@@ -296,6 +296,9 @@ enum {
 #define EIR_NAME_SHORT		0x08 /* shortened local name */
 #define EIR_NAME_COMPLETE	0x09 /* complete local name */
 #define EIR_TX_POWER		0x0A /* transmit power level */
+#define EIR_CLASS_OF_DEV	0x0D /* Class of Device */
+#define EIR_SSP_HASH_C		0x0E /* Simple Pairing Hash C */
+#define EIR_SSP_RAND_R		0x0F /* Simple Pairing Randomizer R */
 #define EIR_DEVICE_ID		0x10 /* device ID */
 
 /* -----  HCI Commands ---- */
