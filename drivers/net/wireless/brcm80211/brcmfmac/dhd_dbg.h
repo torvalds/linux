@@ -39,13 +39,13 @@ do {									\
 	if (BRCMF_ERROR_VAL == BRCMF_##level##_VAL) {			\
 		if (brcmf_msg_level & BRCMF_##level##_VAL) {		\
 			if (net_ratelimit())				\
-				printk(KERN_DEBUG "%s: " fmt,		\
-				       __func__, ##__VA_ARGS__);	\
+				pr_debug("%s: " fmt,			\
+					 __func__, ##__VA_ARGS__);	\
 		}							\
 	} else {							\
 		if (brcmf_msg_level & BRCMF_##level##_VAL) {		\
-			printk(KERN_DEBUG "%s: " fmt,			\
-			       __func__, ##__VA_ARGS__);		\
+			pr_debug("%s: " fmt,				\
+				 __func__, ##__VA_ARGS__);		\
 		}							\
 	}								\
 } while (0)
