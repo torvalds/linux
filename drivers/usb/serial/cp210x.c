@@ -393,8 +393,6 @@ static unsigned int cp210x_quantise_baudrate(unsigned int baud) {
 
 static int cp210x_open(struct tty_struct *tty, struct usb_serial_port *port)
 {
-	int result;
-
 	dbg("%s - port %d", __func__, port->number);
 
 	if (cp210x_set_config_single(port, CP210X_IFC_ENABLE, UART_ENABLE)) {
@@ -403,13 +401,10 @@ static int cp210x_open(struct tty_struct *tty, struct usb_serial_port *port)
 		return -EPROTO;
 	}
 
-	result = usb_serial_generic_open(tty, port);
-	if (result)
-		return result;
-
 	/* Configure the termios structure */
 	cp210x_get_termios(tty, port);
-	return 0;
+
+	return usb_serial_generic_open(tty, port);
 }
 
 static void cp210x_close(struct usb_serial_port *port)
