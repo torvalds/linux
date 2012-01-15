@@ -447,7 +447,7 @@ static int __devinit tps65217_regulator_probe(struct platform_device *pdev)
 	tps->info[pdev->id] = info;
 
 	rdev = regulator_register(&regulators[pdev->id], &pdev->dev,
-				  pdev->dev.platform_data, tps);
+				  pdev->dev.platform_data, tps, NULL);
 	if (IS_ERR(rdev))
 		return PTR_ERR(rdev);
 
