@@ -576,7 +576,8 @@ static void cp210x_set_termios(struct tty_struct *tty,
 		struct usb_serial_port *port, struct ktermios *old_termios)
 {
 	unsigned int cflag, old_cflag;
-	unsigned int baud = 0, bits;
+	u32 baud;
+	unsigned int bits;
 	unsigned int modem_ctl[4];
 
 	dbg("%s - port %d", __func__, port->number);
@@ -593,7 +594,7 @@ static void cp210x_set_termios(struct tty_struct *tty,
 	if (baud != tty_termios_baud_rate(old_termios) && baud != 0) {
 		dbg("%s - Setting baud rate to %d baud", __func__,
 				baud);
-		if (cp210x_set_config(port, CP210X_SET_BAUDRATE, &baud, 4)) {
+		if (cp210x_set_config(port, CP210X_SET_BAUDRATE, &baud, sizeof(baud))) {
 			dbg("Baud rate requested not supported by device");
 			baud = tty_termios_baud_rate(old_termios);
 		}
