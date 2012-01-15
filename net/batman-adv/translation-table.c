@@ -206,6 +206,8 @@ void tt_local_add(struct net_device *soft_iface, const uint8_t *addr,
 
 	if (tt_local_entry) {
 		tt_local_entry->last_seen = jiffies;
+		/* possibly unset the TT_CLIENT_PENDING flag */
+		tt_local_entry->common.flags &= ~TT_CLIENT_PENDING;
 		goto out;
 	}
 
