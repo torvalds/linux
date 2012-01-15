@@ -492,6 +492,7 @@ static enum dvbfe_search cxd2820r_search(struct dvb_frontend *fe)
 	/* frontend lock wait loop count */
 	switch (priv->delivery_system) {
 	case SYS_DVBT:
+	case SYS_DVBC_ANNEX_A:
 		i = 20;
 		break;
 	case SYS_DVBT2:
