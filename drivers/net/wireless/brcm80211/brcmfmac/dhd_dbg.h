@@ -68,6 +68,12 @@ do {									\
 
 #endif				/* defined(DEBUG) */
 
+#define brcmf_dbg_hex_dump(test, data, len, fmt, ...)			\
+do {									\
+	if (test)							\
+		brcmu_dbg_hex_dump(data, len, fmt, ##__VA_ARGS__);	\
+} while (0)
+
 extern int brcmf_msg_level;
 
 #endif				/* _BRCMF_DBG_H_ */
