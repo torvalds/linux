@@ -428,7 +428,7 @@ static int __devinit ioh_gpio_probe(struct pci_dev *pdev,
 	}
 
 	base = pci_iomap(pdev, 1, 0);
-	if (base == 0) {
+	if (!base) {
 		dev_err(&pdev->dev, "%s : pci_iomap failed", __func__);
 		ret = -ENOMEM;
 		goto err_iomap;
