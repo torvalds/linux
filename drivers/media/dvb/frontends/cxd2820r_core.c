@@ -309,9 +309,14 @@ static int cxd2820r_read_status(struct dvb_frontend *fe, fe_status_t *status)
 
 static int cxd2820r_get_frontend(struct dvb_frontend *fe)
 {
+	struct cxd2820r_priv *priv = fe->demodulator_priv;
 	int ret;
 
 	dbg("%s: delsys=%d", __func__, fe->dtv_property_cache.delivery_system);
+
+	if (priv->delivery_system == SYS_UNDEFINED)
+		return 0;
+
 	switch (fe->dtv_property_cache.delivery_system) {
 	case SYS_DVBT:
 		ret = cxd2820r_get_frontend_t(fe);
