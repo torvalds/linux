@@ -296,6 +296,8 @@ int blkdev_ioctl(struct block_device *bdev, fmode_t mode, unsigned cmd,
 		return put_uint(arg, bdev_discard_zeroes_data(bdev));
 	case BLKSECTGET:
 		return put_ushort(arg, queue_max_sectors(bdev_get_queue(bdev)));
+	case BLKROTATIONAL:
+		return put_ushort(arg, !blk_queue_nonrot(bdev_get_queue(bdev)));
 	case BLKRASET:
 	case BLKFRASET:
 		if(!capable(CAP_SYS_ADMIN))
