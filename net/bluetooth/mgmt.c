@@ -2786,23 +2786,29 @@ int mgmt_device_found(struct hci_dev *hdev, bdaddr_t *bdaddr, u8 link_type,
 {
 	char buf[512];
 	struct mgmt_ev_device_found *ev = (void *) buf;
-	size_t ev_size = sizeof(*ev) + eir_len;
+	size_t ev_size;
 
-	if (ev_size > sizeof(buf))
+	/* Leave 5 bytes for a potential CoD field */
+	if (sizeof(*ev) + eir_len + 5 > sizeof(buf))
 		return -EINVAL;
+
+	memset(buf, 0, sizeof(buf));
 
 	bacpy(&ev->addr.bdaddr, bdaddr);
 	ev->addr.type = link_to_mgmt(link_type, addr_type);
 	ev->rssi = rssi;
 	ev->confirm_name = cfm_name;
 
-	if (eir_len > 0) {
-		put_unaligned_le16(eir_len, &ev->eir_len);
+	if (eir_len > 0)
 		memcpy(ev->eir, eir, eir_len);
-	}
 
-	if (dev_class)
-		memcpy(ev->dev_class, dev_class, sizeof(ev->dev_class));
+	if (dev_class && !eir_has_data_type(ev->eir, eir_len, EIR_CLASS_OF_DEV))
+		eir_len = eir_append_data(ev->eir, eir_len, EIR_CLASS_OF_DEV,
+								dev_class, 3);
+
+	put_unaligned_le16(eir_len, &ev->eir_len);
+
+	ev_size = sizeof(*ev) + eir_len;
 
 	return mgmt_event(MGMT_EV_DEVICE_FOUND, hdev, ev, ev_size, NULL);
 }
