@@ -3072,6 +3072,11 @@ void update_ioctl_balance_args(struct btrfs_fs_info *fs_info,
 
 	bargs->flags = bctl->flags;
 
+	if (atomic_read(&fs_info->balance_running))
+		bargs->state |= BTRFS_BALANCE_STATE_RUNNING;
+	if (atomic_read(&fs_info->balance_pause_req))
+		bargs->state |= BTRFS_BALANCE_STATE_PAUSE_REQ;
+
 	memcpy(&bargs->data, &bctl->data, sizeof(bargs->data));
 	memcpy(&bargs->meta, &bctl->meta, sizeof(bargs->meta));
 	memcpy(&bargs->sys, &bctl->sys, sizeof(bargs->sys));
@@ -3103,6 +3108,11 @@ static long btrfs_ioctl_balance(struct btrfs_root *root, void __user *arg)
 		bargs = NULL;
 	}
 
+	if (fs_info->balance_ctl) {
+		ret = -EINPROGRESS;
+		goto out_bargs;
+	}
+
 	bctl = kzalloc(sizeof(*bctl), GFP_NOFS);
 	if (!bctl) {
 		ret = -ENOMEM;
@@ -3123,7 +3133,8 @@ static long btrfs_ioctl_balance(struct btrfs_root *root, void __user *arg)
 
 	ret = btrfs_balance(bctl, bargs);
 	/*
-	 * bctl is freed in __cancel_balance
+	 * bctl is freed in __cancel_balance or in free_fs_info if
+	 * restriper was paused all the way until unmount
 	 */
 	if (arg) {
 		if (copy_to_user(arg, bargs, sizeof(*bargs)))
@@ -3136,6 +3147,19 @@ out:
 	mutex_unlock(&fs_info->balance_mutex);
 	mutex_unlock(&fs_info->volume_mutex);
 	return ret;
+}
+
+static long btrfs_ioctl_balance_ctl(struct btrfs_root *root, int cmd)
+{
+	if (!capable(CAP_SYS_ADMIN))
+		return -EPERM;
+
+	switch (cmd) {
+	case BTRFS_BALANCE_CTL_PAUSE:
+		return btrfs_pause_balance(root->fs_info);
+	}
+
+	return -EINVAL;
 }
 
 long btrfs_ioctl(struct file *file, unsigned int
@@ -3216,6 +3240,8 @@ long btrfs_ioctl(struct file *file, unsigned int
 		return btrfs_ioctl_scrub_progress(root, argp);
 	case BTRFS_IOC_BALANCE_V2:
 		return btrfs_ioctl_balance(root, argp);
+	case BTRFS_IOC_BALANCE_CTL:
+		return btrfs_ioctl_balance_ctl(root, arg);
 	}
 
 	return -ENOTTY;

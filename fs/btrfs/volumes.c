@@ -2492,6 +2492,11 @@ static int __btrfs_balance(struct btrfs_fs_info *fs_info)
 	key.type = BTRFS_CHUNK_ITEM_KEY;
 
 	while (1) {
+		if (atomic_read(&fs_info->balance_pause_req)) {
+			ret = -ECANCELED;
+			goto error;
+		}
+
 		ret = btrfs_search_slot(NULL, chunk_root, &key, path, 0, 0);
 		if (ret < 0)
 			goto error;
@@ -2553,6 +2558,11 @@ error:
 	return ret;
 }
 
+static inline int balance_need_close(struct btrfs_fs_info *fs_info)
+{
+	return atomic_read(&fs_info->balance_pause_req) == 0;
+}
+
 static void __cancel_balance(struct btrfs_fs_info *fs_info)
 {
 	int ret;
@@ -2575,7 +2585,8 @@ int btrfs_balance(struct btrfs_balance_control *bctl,
 	u64 allowed;
 	int ret;
 
-	if (btrfs_fs_closing(fs_info)) {
+	if (btrfs_fs_closing(fs_info) ||
+	    atomic_read(&fs_info->balance_pause_req)) {
 		ret = -EINVAL;
 		goto out;
 	}
@@ -2680,18 +2691,25 @@ do_balance:
 		spin_unlock(&fs_info->balance_lock);
 	}
 
+	atomic_inc(&fs_info->balance_running);
 	mutex_unlock(&fs_info->balance_mutex);
 
 	ret = __btrfs_balance(fs_info);
 
 	mutex_lock(&fs_info->balance_mutex);
+	atomic_dec(&fs_info->balance_running);
 
 	if (bargs) {
 		memset(bargs, 0, sizeof(*bargs));
 		update_ioctl_balance_args(fs_info, bargs);
 	}
 
-	__cancel_balance(fs_info);
+	if ((ret && ret != -ECANCELED && ret != -ENOSPC) ||
+	    balance_need_close(fs_info)) {
+		__cancel_balance(fs_info);
+	}
+
+	wake_up(&fs_info->balance_wait_q);
 
 	return ret;
 out:
@@ -2782,6 +2800,35 @@ out_bctl:
 	kfree(bctl);
 out:
 	btrfs_free_path(path);
+	return ret;
+}
+
+int btrfs_pause_balance(struct btrfs_fs_info *fs_info)
+{
+	int ret = 0;
+
+	mutex_lock(&fs_info->balance_mutex);
+	if (!fs_info->balance_ctl) {
+		mutex_unlock(&fs_info->balance_mutex);
+		return -ENOTCONN;
+	}
+
+	if (atomic_read(&fs_info->balance_running)) {
+		atomic_inc(&fs_info->balance_pause_req);
+		mutex_unlock(&fs_info->balance_mutex);
+
+		wait_event(fs_info->balance_wait_q,
+			   atomic_read(&fs_info->balance_running) == 0);
+
+		mutex_lock(&fs_info->balance_mutex);
+		/* we are good with balance_ctl ripped off from under us */
+		BUG_ON(atomic_read(&fs_info->balance_running));
+		atomic_dec(&fs_info->balance_pause_req);
+	} else {
+		ret = -ENOTCONN;
+	}
+
+	mutex_unlock(&fs_info->balance_mutex);
 	return ret;
 }
 
