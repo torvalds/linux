@@ -2536,6 +2536,24 @@ static inline void free_fs_info(struct btrfs_fs_info *fs_info)
 	kfree(fs_info->super_for_commit);
 	kfree(fs_info);
 }
+/**
+ * profile_is_valid - tests whether a given profile is valid and reduced
+ * @flags: profile to validate
+ * @extended: if true @flags is treated as an extended profile
+ */
+static inline int profile_is_valid(u64 flags, int extended)
+{
+	u64 mask = ~BTRFS_BLOCK_GROUP_PROFILE_MASK;
+
+	flags &= ~BTRFS_BLOCK_GROUP_TYPE_MASK;
+	if (extended)
+		mask &= ~BTRFS_AVAIL_ALLOC_BIT_SINGLE;
+
+	if (flags & mask)
+		return 0;
+	/* true if zero or exactly one bit set */
+	return (flags & (~flags + 1)) == flags;
+}
 
 /* root-item.c */
 int btrfs_find_root_ref(struct btrfs_root *tree_root,
