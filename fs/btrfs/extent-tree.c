@@ -7469,6 +7469,22 @@ int btrfs_make_block_group(struct btrfs_trans_handle *trans,
 	return 0;
 }
 
+static void clear_avail_alloc_bits(struct btrfs_fs_info *fs_info, u64 flags)
+{
+	u64 extra_flags = flags & BTRFS_BLOCK_GROUP_PROFILE_MASK;
+
+	/* chunk -> extended profile */
+	if (extra_flags == 0)
+		extra_flags = BTRFS_AVAIL_ALLOC_BIT_SINGLE;
+
+	if (flags & BTRFS_BLOCK_GROUP_DATA)
+		fs_info->avail_data_alloc_bits &= ~extra_flags;
+	if (flags & BTRFS_BLOCK_GROUP_METADATA)
+		fs_info->avail_metadata_alloc_bits &= ~extra_flags;
+	if (flags & BTRFS_BLOCK_GROUP_SYSTEM)
+		fs_info->avail_system_alloc_bits &= ~extra_flags;
+}
+
 int btrfs_remove_block_group(struct btrfs_trans_handle *trans,
 			     struct btrfs_root *root, u64 group_start)
 {
@@ -7479,6 +7495,7 @@ int btrfs_remove_block_group(struct btrfs_trans_handle *trans,
 	struct btrfs_key key;
 	struct inode *inode;
 	int ret;
+	int index;
 	int factor;
 
 	root = root->fs_info->extent_root;
@@ -7494,6 +7511,7 @@ int btrfs_remove_block_group(struct btrfs_trans_handle *trans,
 	free_excluded_extents(root, block_group);
 
 	memcpy(&key, &block_group->key, sizeof(key));
+	index = get_block_group_index(block_group);
 	if (block_group->flags & (BTRFS_BLOCK_GROUP_DUP |
 				  BTRFS_BLOCK_GROUP_RAID1 |
 				  BTRFS_BLOCK_GROUP_RAID10))
@@ -7568,6 +7586,8 @@ int btrfs_remove_block_group(struct btrfs_trans_handle *trans,
 	 * are still on the list after taking the semaphore
 	 */
 	list_del_init(&block_group->list);
+	if (list_empty(&block_group->space_info->block_groups[index]))
+		clear_avail_alloc_bits(root->fs_info, block_group->flags);
 	up_write(&block_group->space_info->groups_sem);
 
 	if (block_group->cached == BTRFS_CACHE_STARTED)
