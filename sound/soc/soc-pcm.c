@@ -63,6 +63,39 @@ static int soc_pcm_apply_symmetry(struct snd_pcm_substream *substream,
 }
 
 /*
+ * List of sample sizes that might go over the bus for parameter
+ * application.  There ought to be a wildcard sample size for things
+ * like the DAC/ADC resolution to use but there isn't right now.
+ */
+static int sample_sizes[] = {
+	8, 16, 24, 32,
+};
+
+static void soc_pcm_apply_msb(struct snd_pcm_substream *substream,
+			      struct snd_soc_dai *dai)
+{
+	int ret, i, bits;
+
+	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK)
+		bits = dai->driver->playback.sig_bits;
+	else
+		bits = dai->driver->capture.sig_bits;
+
+	if (!bits)
+		return;
+
+	for (i = 0; i < ARRAY_SIZE(sample_sizes); i++) {
+		ret = snd_pcm_hw_constraint_msbits(substream->runtime,
+						   0, sample_sizes[i],
+						   bits);
+		if (ret != 0)
+			dev_warn(dai->dev,
+				 "Failed to set MSB %d/%d: %d\n",
+				 bits, sample_sizes[i], ret);
+	}
+}
+
+/*
  * Called by ALSA when a PCM substream is opened, the runtime->hw record is
  * then initialized and any private data can be allocated. This also calls
  * startup for the cpu DAI, platform, machine and codec DAI.
@@ -186,6 +219,9 @@ static int soc_pcm_open(struct snd_pcm_substream *substream)
 				codec_dai->name, cpu_dai->name);
 		goto config_err;
 	}
+
+	soc_pcm_apply_msb(substream, codec_dai);
+	soc_pcm_apply_msb(substream, cpu_dai);
 
 	/* Symmetry only applies if we've already got an active stream. */
 	if (cpu_dai->active) {
