@@ -138,6 +138,20 @@ static struct sa1100_port_fns neponset_port_fns __devinitdata = {
 	.get_mctrl	= neponset_get_mctrl,
 };
 
+/*
+ * Yes, we really do not have any kind of masking or unmasking
+ */
+static void nochip_noop(struct irq_data *irq)
+{
+}
+
+static struct irq_chip nochip = {
+	.name = "neponset",
+	.irq_ack = nochip_noop,
+	.irq_mask = nochip_noop,
+	.irq_unmask = nochip_noop,
+};
+
 static int __devinit neponset_probe(struct platform_device *dev)
 {
 	sa1100_register_uart_fns(&neponset_port_fns);
@@ -161,10 +175,13 @@ static int __devinit neponset_probe(struct platform_device *dev)
 	 * Setup other Neponset IRQs.  SA1111 will be done by the
 	 * generic SA1111 code.
 	 */
-	irq_set_handler(IRQ_NEPONSET_SMC9196, handle_simple_irq);
+	irq_set_chip_and_handler(IRQ_NEPONSET_SMC9196, &nochip,
+		handle_simple_irq);
 	set_irq_flags(IRQ_NEPONSET_SMC9196, IRQF_VALID | IRQF_PROBE);
-	irq_set_handler(IRQ_NEPONSET_USAR, handle_simple_irq);
+	irq_set_chip_and_handler(IRQ_NEPONSET_USAR, &nochip,
+		handle_simple_irq);
 	set_irq_flags(IRQ_NEPONSET_USAR, IRQF_VALID | IRQF_PROBE);
+	irq_set_chip(IRQ_NEPONSET_SA1111, &nochip);
 
 	/*
 	 * Disable GPIO 0/1 drivers so the buttons work on the module.
