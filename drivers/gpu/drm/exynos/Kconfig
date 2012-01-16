@@ -13,7 +13,7 @@ config DRM_EXYNOS
 
 config DRM_EXYNOS_FIMD
 	tristate "Exynos DRM FIMD"
-	depends on DRM_EXYNOS
+	depends on DRM_EXYNOS && !FB_S3C
 	default n
 	help
 	  Choose this option if you want to use Exynos FIMD for DRM.
