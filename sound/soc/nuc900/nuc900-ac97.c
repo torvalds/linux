@@ -366,7 +366,7 @@ static int __devinit nuc900_ac97_drvprobe(struct platform_device *pdev)
 		goto out3;
 
 	/* enbale ac97 multifunction pin */
-	mfp_set_groupg(nuc900_audio->dev, "nuc900-audio");
+	mfp_set_groupg(nuc900_audio->dev, NULL);
 
 	return 0;
 

@@ -20,6 +20,7 @@
 #include <asm/hardware/gic.h>
 #include <asm/hardware/cache-l2x0.h>
 #include <asm/mach/map.h>
+#include <asm/memblock.h>
 
 #include <plat/irqs.h>
 #include <plat/sram.h>
@@ -61,13 +62,8 @@ static int __init omap_barriers_init(void)
 		return -ENODEV;
 
 	size = ALIGN(PAGE_SIZE, SZ_1M);
-	paddr = memblock_alloc(size, SZ_1M);
-	if (!paddr) {
-		pr_err("%s: failed to reserve 4 Kbytes\n", __func__);
-		return -ENOMEM;
-	}
-	memblock_free(paddr, size);
-	memblock_remove(paddr, size);
+	paddr = arm_memblock_steal(size, SZ_1M);
+
 	dram_io_desc[0].virtual = OMAP4_DRAM_BARRIER_VA;
 	dram_io_desc[0].pfn = __phys_to_pfn(paddr);
 	dram_io_desc[0].length = size;
