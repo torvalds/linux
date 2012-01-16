@@ -317,6 +317,28 @@ static int local_ata_check_ready(struct ata_link *link)
 	}
 }
 
+static int sas_ata_printk(const char *level, const struct domain_device *ddev,
+			  const char *fmt, ...)
+{
+	struct ata_port *ap = ddev->sata_dev.ap;
+	struct device *dev = &ddev->rphy->dev;
+	struct va_format vaf;
+	va_list args;
+	int r;
+
+	va_start(args, fmt);
+
+	vaf.fmt = fmt;
+	vaf.va = &args;
+
+	r = printk("%ssas: ata%u: %s: %pV",
+		   level, ap->print_id, dev_name(dev), &vaf);
+
+	va_end(args);
+
+	return r;
+}
+
 static int sas_ata_hard_reset(struct ata_link *link, unsigned int *class,
 			      unsigned long deadline)
 {
@@ -333,7 +355,7 @@ static int sas_ata_hard_reset(struct ata_link *link, unsigned int *class,
 	res = i->dft->lldd_I_T_nexus_reset(dev);
 
 	if (res != TMF_RESP_FUNC_COMPLETE)
-		SAS_DPRINTK("%s: Unable to reset ata device?\n", __func__);
+		sas_ata_printk(KERN_DEBUG, dev, "Unable to reset ata device?\n");
 
 	phy = sas_get_local_phy(dev);
 	if (scsi_is_sas_phy_local(phy))
@@ -344,7 +366,7 @@ static int sas_ata_hard_reset(struct ata_link *link, unsigned int *class,
 
 	ret = ata_wait_after_reset(link, deadline, check_ready);
 	if (ret && ret != -EAGAIN)
-		ata_link_err(link, "COMRESET failed (errno=%d)\n", ret);
+		sas_ata_printk(KERN_ERR, dev, "reset failed (errno=%d)\n", ret);
 
 	/* XXX: if the class changes during the reset the upper layer
 	 * should be informed, if the device has gone away we assume
@@ -665,7 +687,7 @@ static void async_sas_ata_eh(void *data, async_cookie_t cookie)
 	 * remove once all commands are completed
 	 */
 	kref_get(&dev->kref);
-	ata_port_printk(ap, KERN_DEBUG, "sas eh calling libata port error handler");
+	sas_ata_printk(KERN_DEBUG, dev, "dev error handler\n");
 	ata_scsi_port_error_handler(ha->core.shost, ap);
 	sas_put_device(dev);
 }
@@ -703,26 +725,27 @@ void sas_ata_eh(struct Scsi_Host *shost, struct list_head *work_q,
 		struct list_head *done_q)
 {
 	struct scsi_cmnd *cmd, *n;
-	struct ata_port *ap;
+	struct domain_device *eh_dev;
 
 	do {
 		LIST_HEAD(sata_q);
-
-		ap = NULL;
+		eh_dev = NULL;
 
 		list_for_each_entry_safe(cmd, n, work_q, eh_entry) {
 			struct domain_device *ddev = cmd_to_domain_dev(cmd);
 
 			if (!dev_is_sata(ddev) || TO_SAS_TASK(cmd))
 				continue;
-			if (ap && ap != ddev->sata_dev.ap)
+			if (eh_dev && eh_dev != ddev)
 				continue;
-			ap = ddev->sata_dev.ap;
+			eh_dev = ddev;
 			list_move(&cmd->eh_entry, &sata_q);
 		}
 
 		if (!list_empty(&sata_q)) {
-			ata_port_printk(ap, KERN_DEBUG, "sas eh calling libata cmd error handler\n");
+			struct ata_port *ap = eh_dev->sata_dev.ap;
+
+			sas_ata_printk(KERN_DEBUG, eh_dev, "cmd error handler\n");
 			ata_scsi_cmd_error_handler(shost, ap, &sata_q);
 			/*
 			 * ata's error handler may leave the cmd on the list
@@ -738,7 +761,7 @@ void sas_ata_eh(struct Scsi_Host *shost, struct list_head *work_q,
 			while (!list_empty(&sata_q))
 				list_del_init(sata_q.next);
 		}
-	} while (ap);
+	} while (eh_dev);
 }
 
 void sas_ata_schedule_reset(struct domain_device *dev)

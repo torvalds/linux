@@ -166,7 +166,22 @@ static inline void *alloc_smp_resp(int size)
 	return kzalloc(size, GFP_KERNEL);
 }
 
-/* ---------- Expander configuration ---------- */
+static char sas_route_char(struct domain_device *dev, struct ex_phy *phy)
+{
+	switch (phy->routing_attr) {
+	case TABLE_ROUTING:
+		if (dev->ex_dev.t2t_supp)
+			return 'U';
+		else
+			return 'T';
+	case DIRECT_ROUTING:
+		return 'D';
+	case SUBTRACTIVE_ROUTING:
+		return 'S';
+	default:
+		return '?';
+	}
+}
 
 static void sas_set_ex_phy(struct domain_device *dev, int phy_id,
 			   void *disc_resp)
@@ -176,9 +191,10 @@ static void sas_set_ex_phy(struct domain_device *dev, int phy_id,
 	struct smp_resp *resp = disc_resp;
 	struct discover_resp *dr = &resp->disc;
 	struct sas_rphy *rphy = dev->rphy;
-	int rediscover = (phy->phy != NULL);
+	bool new_phy = !phy->phy;
+	char *type;
 
-	if (!rediscover) {
+	if (new_phy) {
 		phy->phy = sas_phy_alloc(&rphy->dev, phy_id);
 
 		/* FIXME: error_handling */
@@ -223,20 +239,41 @@ static void sas_set_ex_phy(struct domain_device *dev, int phy_id,
 	phy->phy->maximum_linkrate = dr->pmax_linkrate;
 	phy->phy->negotiated_linkrate = phy->linkrate;
 
-	if (!rediscover)
+	if (new_phy)
 		if (sas_phy_add(phy->phy)) {
 			sas_phy_free(phy->phy);
 			return;
 		}
 
-	SAS_DPRINTK("ex %016llx phy%02d:%c attached: %016llx\n",
-		    SAS_ADDR(dev->sas_addr), phy->phy_id,
-		    phy->routing_attr == TABLE_ROUTING ? 'T' :
-		    phy->routing_attr == DIRECT_ROUTING ? 'D' :
-		    phy->routing_attr == SUBTRACTIVE_ROUTING ? 'S' : '?',
-		    SAS_ADDR(phy->attached_sas_addr));
+	switch (phy->attached_dev_type) {
+	case NO_DEVICE:
+		type = "no device";
+		break;
+	case SAS_END_DEV:
+		if (phy->attached_iproto) {
+			if (phy->attached_tproto)
+				type = "host+target";
+			else
+				type = "host";
+		} else {
+			if (dr->attached_sata_dev)
+				type = "stp";
+			else
+				type = "ssp";
+		}
+		break;
+	case EDGE_DEV:
+	case FANOUT_DEV:
+		type = "smp";
+		break;
+	default:
+		type = "unknown";
+	}
 
-	return;
+	SAS_DPRINTK("ex %016llx phy%02d:%c:%X attached: %016llx (%s)\n",
+		    SAS_ADDR(dev->sas_addr), phy->phy_id,
+		    sas_route_char(dev, phy), phy->linkrate,
+		    SAS_ADDR(phy->attached_sas_addr), type);
 }
 
 /* check if we have an existing attached ata device on this expander phy */
@@ -1176,32 +1213,25 @@ static void sas_print_parent_topology_bug(struct domain_device *child,
 						 struct ex_phy *parent_phy,
 						 struct ex_phy *child_phy)
 {
-	static const char ra_char[] = {
-		[DIRECT_ROUTING] = 'D',
-		[SUBTRACTIVE_ROUTING] = 'S',
-		[TABLE_ROUTING] = 'T',
-	};
 	static const char *ex_type[] = {
 		[EDGE_DEV] = "edge",
 		[FANOUT_DEV] = "fanout",
 	};
 	struct domain_device *parent = child->parent;
 
-	sas_printk("%s ex %016llx (T2T supp:%d) phy 0x%x <--> %s ex %016llx "
-		   "(T2T supp:%d) phy 0x%x has %c:%c routing link!\n",
+	sas_printk("%s ex %016llx phy 0x%x <--> %s ex %016llx "
+		   "phy 0x%x has %c:%c routing link!\n",
 
 		   ex_type[parent->dev_type],
 		   SAS_ADDR(parent->sas_addr),
-		   parent->ex_dev.t2t_supp,
 		   parent_phy->phy_id,
 
 		   ex_type[child->dev_type],
 		   SAS_ADDR(child->sas_addr),
-		   child->ex_dev.t2t_supp,
 		   child_phy->phy_id,
 
-		   ra_char[parent_phy->routing_attr],
-		   ra_char[child_phy->routing_attr]);
+		   sas_route_char(parent, parent_phy),
+		   sas_route_char(child, child_phy));
 }
 
 static int sas_check_eeds(struct domain_device *child,
