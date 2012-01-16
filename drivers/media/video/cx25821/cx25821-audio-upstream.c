@@ -107,7 +107,7 @@ static __le32 *cx25821_risc_field_upstream_audio(struct cx25821_dev *dev,
 {
 	unsigned int line;
 	struct sram_channel *sram_ch =
-	   dev->channels[dev->_audio_upstream_channel].sram_channels;
+		dev->channels[dev->_audio_upstream_channel].sram_channels;
 	int offset = 0;
 
 	/* scan lines */
@@ -175,10 +175,8 @@ int cx25821_risc_buffer_upstream_audio(struct cx25821_dev *dev,
 		}
 
 		rp = cx25821_risc_field_upstream_audio(dev, rp,
-						       dev->
-						       _audiodata_buf_phys_addr
-						       + databuf_offset, bpl,
-						       fifo_enable);
+				dev->_audiodata_buf_phys_addr + databuf_offset,
+				bpl, fifo_enable);
 
 		if (USE_RISC_NOOP_AUDIO) {
 			for (i = 0; i < NUM_NO_OPS; i++)
@@ -193,7 +191,7 @@ int cx25821_risc_buffer_upstream_audio(struct cx25821_dev *dev,
 
 		/* Recalculate virtual address based on frame index */
 		rp = dev->_risc_virt_addr + RISC_SYNC_INSTRUCTION_SIZE / 4 +
-		    (AUDIO_RISC_DMA_BUF_SIZE * (frame + 1) / 4);
+			(AUDIO_RISC_DMA_BUF_SIZE * (frame + 1) / 4);
 	}
 
 	return 0;
@@ -218,7 +216,7 @@ void cx25821_free_memory_audio(struct cx25821_dev *dev)
 void cx25821_stop_upstream_audio(struct cx25821_dev *dev)
 {
 	struct sram_channel *sram_ch =
-	   dev->channels[AUDIO_UPSTREAM_SRAM_CHANNEL_B].sram_channels;
+		dev->channels[AUDIO_UPSTREAM_SRAM_CHANNEL_B].sram_channels;
 	u32 tmp = 0;
 
 	if (!dev->_audio_is_running) {
@@ -286,14 +284,14 @@ int cx25821_get_audio_data(struct cx25821_dev *dev,
 	} else {
 		if (!(myfile->f_op)) {
 			pr_err("%s(): File has no file operations registered!\n",
-			       __func__);
+				__func__);
 			filp_close(myfile, NULL);
 			return -EIO;
 		}
 
 		if (!myfile->f_op->read) {
 			pr_err("%s(): File has no READ operations registered!\n",
-			       __func__);
+				__func__);
 			filp_close(myfile, NULL);
 			return -EIO;
 		}
@@ -305,14 +303,14 @@ int cx25821_get_audio_data(struct cx25821_dev *dev,
 		for (i = 0; i < dev->_audio_lines_count; i++) {
 			pos = file_offset;
 
-			vfs_read_retval =
-			    vfs_read(myfile, mybuf, line_size, &pos);
+			vfs_read_retval = vfs_read(myfile, mybuf, line_size,
+									&pos);
 
 			if (vfs_read_retval > 0 && vfs_read_retval == line_size
 			    && dev->_audiodata_buf_virt_addr != NULL) {
 				memcpy((void *)(dev->_audiodata_buf_virt_addr +
 						frame_offset / 4), mybuf,
-				       vfs_read_retval);
+					vfs_read_retval);
 			}
 
 			file_offset += vfs_read_retval;
@@ -328,8 +326,8 @@ int cx25821_get_audio_data(struct cx25821_dev *dev,
 		if (i > 0)
 			dev->_audioframe_count++;
 
-		dev->_audiofile_status =
-		    (vfs_read_retval == line_size) ? IN_PROGRESS : END_OF_FILE;
+		dev->_audiofile_status = (vfs_read_retval == line_size) ?
+						IN_PROGRESS : END_OF_FILE;
 
 		set_fs(old_fs);
 		filp_close(myfile, NULL);
@@ -340,12 +338,12 @@ int cx25821_get_audio_data(struct cx25821_dev *dev,
 
 static void cx25821_audioups_handler(struct work_struct *work)
 {
-	struct cx25821_dev *dev =
-	    container_of(work, struct cx25821_dev, _audio_work_entry);
+	struct cx25821_dev *dev = container_of(work, struct cx25821_dev,
+			_audio_work_entry);
 
 	if (!dev) {
 		pr_err("ERROR %s(): since container_of(work_struct) FAILED!\n",
-		       __func__);
+			__func__);
 		return;
 	}
 
@@ -370,19 +368,19 @@ int cx25821_openfile_audio(struct cx25821_dev *dev,
 	if (IS_ERR(myfile)) {
 		const int open_errno = -PTR_ERR(myfile);
 		pr_err("%s(): ERROR opening file(%s) with errno = %d!\n",
-		       __func__, dev->_audiofilename, open_errno);
+			__func__, dev->_audiofilename, open_errno);
 		return PTR_ERR(myfile);
 	} else {
 		if (!(myfile->f_op)) {
 			pr_err("%s(): File has no file operations registered!\n",
-			       __func__);
+				__func__);
 			filp_close(myfile, NULL);
 			return -EIO;
 		}
 
 		if (!myfile->f_op->read) {
 			pr_err("%s(): File has no READ operations registered!\n",
-			       __func__);
+				__func__);
 			filp_close(myfile, NULL);
 			return -EIO;
 		}
@@ -395,12 +393,12 @@ int cx25821_openfile_audio(struct cx25821_dev *dev,
 			for (i = 0; i < dev->_audio_lines_count; i++) {
 				pos = offset;
 
-				vfs_read_retval =
-				    vfs_read(myfile, mybuf, line_size, &pos);
+				vfs_read_retval = vfs_read(myfile, mybuf,
+						line_size, &pos);
 
-				if (vfs_read_retval > 0
-				    && vfs_read_retval == line_size
-				    && dev->_audiodata_buf_virt_addr != NULL) {
+				if (vfs_read_retval > 0 &&
+				    vfs_read_retval == line_size &&
+				    dev->_audiodata_buf_virt_addr != NULL) {
 					memcpy((void *)(dev->
 							_audiodata_buf_virt_addr
 							+ offset / 4), mybuf,
@@ -423,8 +421,8 @@ int cx25821_openfile_audio(struct cx25821_dev *dev,
 				break;
 		}
 
-		dev->_audiofile_status =
-		    (vfs_read_retval == line_size) ? IN_PROGRESS : END_OF_FILE;
+		dev->_audiofile_status = (vfs_read_retval == line_size) ?
+						IN_PROGRESS : END_OF_FILE;
 
 		set_fs(old_fs);
 		myfile->f_pos = 0;
@@ -444,9 +442,8 @@ static int cx25821_audio_upstream_buffer_prepare(struct cx25821_dev *dev,
 
 	cx25821_free_memory_audio(dev);
 
-	dev->_risc_virt_addr =
-	    pci_alloc_consistent(dev->pci, dev->audio_upstream_riscbuf_size,
-				 &dma_addr);
+	dev->_risc_virt_addr = pci_alloc_consistent(dev->pci,
+			dev->audio_upstream_riscbuf_size, &dma_addr);
 	dev->_risc_virt_start_addr = dev->_risc_virt_addr;
 	dev->_risc_phys_start_addr = dma_addr;
 	dev->_risc_phys_addr = dma_addr;
@@ -454,22 +451,21 @@ static int cx25821_audio_upstream_buffer_prepare(struct cx25821_dev *dev,
 
 	if (!dev->_risc_virt_addr) {
 		printk(KERN_DEBUG
-		       pr_fmt("ERROR: pci_alloc_consistent() FAILED to allocate memory for RISC program! Returning\n"));
+			pr_fmt("ERROR: pci_alloc_consistent() FAILED to allocate memory for RISC program! Returning\n"));
 		return -ENOMEM;
 	}
 	/* Clear out memory at address */
 	memset(dev->_risc_virt_addr, 0, dev->_audiorisc_size);
 
 	/* For Audio Data buffer allocation */
-	dev->_audiodata_buf_virt_addr =
-	    pci_alloc_consistent(dev->pci, dev->audio_upstream_databuf_size,
-				 &data_dma_addr);
+	dev->_audiodata_buf_virt_addr = pci_alloc_consistent(dev->pci,
+			dev->audio_upstream_databuf_size, &data_dma_addr);
 	dev->_audiodata_buf_phys_addr = data_dma_addr;
 	dev->_audiodata_buf_size = dev->audio_upstream_databuf_size;
 
 	if (!dev->_audiodata_buf_virt_addr) {
 		printk(KERN_DEBUG
-		       pr_fmt("ERROR: pci_alloc_consistent() FAILED to allocate memory for data buffer! Returning\n"));
+			pr_fmt("ERROR: pci_alloc_consistent() FAILED to allocate memory for data buffer! Returning\n"));
 		return -ENOMEM;
 	}
 	/* Clear out memory at address */
@@ -480,12 +476,11 @@ static int cx25821_audio_upstream_buffer_prepare(struct cx25821_dev *dev,
 		return ret;
 
 	/* Creating RISC programs */
-	ret =
-	    cx25821_risc_buffer_upstream_audio(dev, dev->pci, bpl,
-					       dev->_audio_lines_count);
+	ret = cx25821_risc_buffer_upstream_audio(dev, dev->pci, bpl,
+						dev->_audio_lines_count);
 	if (ret < 0) {
 		printk(KERN_DEBUG
-		       pr_fmt("ERROR creating audio upstream RISC programs!\n"));
+			pr_fmt("ERROR creating audio upstream RISC programs!\n"));
 		goto error;
 	}
 
@@ -533,9 +528,9 @@ int cx25821_audio_upstream_irq(struct cx25821_dev *dev, int chan_num,
 
 			if (dev->_risc_virt_start_addr != NULL) {
 				risc_phys_jump_addr =
-				    dev->_risc_phys_start_addr +
-				    RISC_SYNC_INSTRUCTION_SIZE +
-				    AUDIO_RISC_DMA_BUF_SIZE;
+					dev->_risc_phys_start_addr +
+					RISC_SYNC_INSTRUCTION_SIZE +
+					AUDIO_RISC_DMA_BUF_SIZE;
 
 				rp = cx25821_risc_field_upstream_audio(dev,
 						dev->_risc_virt_start_addr + 1,
@@ -632,7 +627,7 @@ static void cx25821_wait_fifo_enable(struct cx25821_dev *dev,
 		/* 10 millisecond timeout */
 		if (count++ > 1000) {
 			pr_err("ERROR: %s() fifo is NOT turned on. Timeout!\n",
-			       __func__);
+				__func__);
 			return;
 		}
 
@@ -661,9 +656,9 @@ int cx25821_start_audio_dma_upstream(struct cx25821_dev *dev,
 
 	/* Set the input mode to 16-bit */
 	tmp = cx_read(sram_ch->aud_cfg);
-	tmp |=
-	    FLD_AUD_SRC_ENABLE | FLD_AUD_DST_PK_MODE | FLD_AUD_CLK_ENABLE |
-	    FLD_AUD_MASTER_MODE | FLD_AUD_CLK_SELECT_PLL_D | FLD_AUD_SONY_MODE;
+	tmp |= FLD_AUD_SRC_ENABLE | FLD_AUD_DST_PK_MODE | FLD_AUD_CLK_ENABLE |
+		FLD_AUD_MASTER_MODE | FLD_AUD_CLK_SELECT_PLL_D |
+		FLD_AUD_SONY_MODE;
 	cx_write(sram_ch->aud_cfg, tmp);
 
 	/* Read and write back the interrupt status register to clear it */
@@ -678,12 +673,11 @@ int cx25821_start_audio_dma_upstream(struct cx25821_dev *dev,
 	tmp = cx_read(sram_ch->int_msk);
 	cx_write(sram_ch->int_msk, tmp |= _intr_msk);
 
-	err =
-	    request_irq(dev->pci->irq, cx25821_upstream_irq_audio,
+	err = request_irq(dev->pci->irq, cx25821_upstream_irq_audio,
 			IRQF_SHARED, dev->name, dev);
 	if (err < 0) {
-		pr_err("%s: can't get upstream IRQ %d\n",
-		       dev->name, dev->pci->irq);
+		pr_err("%s: can't get upstream IRQ %d\n", dev->name,
+				dev->pci->irq);
 		goto fail_irq;
 	}
 
@@ -726,7 +720,7 @@ int cx25821_audio_upstream_init(struct cx25821_dev *dev, int channel_select)
 
 	if (!dev->_irq_audio_queues) {
 		printk(KERN_DEBUG
-		       pr_fmt("ERROR: create_singlethread_workqueue() for Audio FAILED!\n"));
+			pr_fmt("ERROR: create_singlethread_workqueue() for Audio FAILED!\n"));
 		return -ENOMEM;
 	}
 
@@ -739,33 +733,30 @@ int cx25821_audio_upstream_init(struct cx25821_dev *dev, int channel_select)
 
 	if (dev->input_audiofilename) {
 		str_length = strlen(dev->input_audiofilename);
-		dev->_audiofilename = kmalloc(str_length + 1, GFP_KERNEL);
+		dev->_audiofilename = kmemdup(dev->input_audiofilename,
+					      str_length + 1, GFP_KERNEL);
 
 		if (!dev->_audiofilename)
 			goto error;
-
-		memcpy(dev->_audiofilename, dev->input_audiofilename,
-		       str_length + 1);
 
 		/* Default if filename is empty string */
 		if (strcmp(dev->input_audiofilename, "") == 0)
 			dev->_audiofilename = "/root/audioGOOD.wav";
 	} else {
 		str_length = strlen(_defaultAudioName);
-		dev->_audiofilename = kmalloc(str_length + 1, GFP_KERNEL);
+		dev->_audiofilename = kmemdup(_defaultAudioName,
+					      str_length + 1, GFP_KERNEL);
 
 		if (!dev->_audiofilename)
 			goto error;
-
-		memcpy(dev->_audiofilename, _defaultAudioName, str_length + 1);
 	}
 
 	retval = cx25821_sram_channel_setup_upstream_audio(dev, sram_ch,
 							_line_size, 0);
 
 	dev->audio_upstream_riscbuf_size =
-	    AUDIO_RISC_DMA_BUF_SIZE * NUM_AUDIO_PROGS +
-	    RISC_SYNC_INSTRUCTION_SIZE;
+		AUDIO_RISC_DMA_BUF_SIZE * NUM_AUDIO_PROGS +
+		RISC_SYNC_INSTRUCTION_SIZE;
 	dev->audio_upstream_databuf_size = AUDIO_DATA_BUF_SZ * NUM_AUDIO_PROGS;
 
 	/* Allocating buffers and prepare RISC program */
@@ -773,7 +764,7 @@ int cx25821_audio_upstream_init(struct cx25821_dev *dev, int channel_select)
 							_line_size);
 	if (retval < 0) {
 		pr_err("%s: Failed to set up Audio upstream buffers!\n",
-		       dev->name);
+			dev->name);
 		goto error;
 	}
 	/* Start RISC engine */

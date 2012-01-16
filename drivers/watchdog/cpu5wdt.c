@@ -39,7 +39,7 @@
 static int verbose;
 static int port = 0x91;
 static int ticks = 10000;
-static spinlock_t cpu5wdt_lock;
+static DEFINE_SPINLOCK(cpu5wdt_lock);
 
 #define PFX			"cpu5wdt: "
 
@@ -223,7 +223,6 @@ static int __devinit cpu5wdt_init(void)
 				"port=0x%x, verbose=%i\n", port, verbose);
 
 	init_completion(&cpu5wdt_device.stop);
-	spin_lock_init(&cpu5wdt_lock);
 	cpu5wdt_device.queue = 0;
 	setup_timer(&cpu5wdt_device.timer, cpu5wdt_trigger, 0);
 	cpu5wdt_device.default_ticks = ticks;

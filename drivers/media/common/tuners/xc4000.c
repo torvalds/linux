@@ -758,7 +758,7 @@ static int xc4000_fwupload(struct dvb_frontend *fe)
 		n_array, fname, name,
 		priv->firm_version >> 8, priv->firm_version & 0xff);
 
-	priv->firm = kzalloc(sizeof(*priv->firm) * n_array, GFP_KERNEL);
+	priv->firm = kcalloc(n_array, sizeof(*priv->firm), GFP_KERNEL);
 	if (priv->firm == NULL) {
 		printk(KERN_ERR "Not enough memory to load firmware file.\n");
 		rc = -ENOMEM;
@@ -1121,83 +1121,62 @@ static void xc_debug_dump(struct xc4000_priv *priv)
 	dprintk(1, "*** Quality (0:<8dB, 7:>56dB) = %d\n", quality);
 }
 
-static int xc4000_set_params(struct dvb_frontend *fe,
-	struct dvb_frontend_parameters *params)
+static int xc4000_set_params(struct dvb_frontend *fe)
 {
+	struct dtv_frontend_properties *c = &fe->dtv_property_cache;
+	u32 delsys = c->delivery_system;
+	u32 bw = c->bandwidth_hz;
 	struct xc4000_priv *priv = fe->tuner_priv;
 	unsigned int type;
 	int	ret = -EREMOTEIO;
 
-	dprintk(1, "%s() frequency=%d (Hz)\n", __func__, params->frequency);
+	dprintk(1, "%s() frequency=%d (Hz)\n", __func__, c->frequency);
 
 	mutex_lock(&priv->lock);
 
-	if (fe->ops.info.type == FE_ATSC) {
-		dprintk(1, "%s() ATSC\n", __func__);
-		switch (params->u.vsb.modulation) {
-		case VSB_8:
-		case VSB_16:
-			dprintk(1, "%s() VSB modulation\n", __func__);
-			priv->rf_mode = XC_RF_MODE_AIR;
-			priv->freq_hz = params->frequency - 1750000;
-			priv->bandwidth = BANDWIDTH_6_MHZ;
-			priv->video_standard = XC4000_DTV6;
-			type = DTV6;
-			break;
-		case QAM_64:
-		case QAM_256:
-		case QAM_AUTO:
-			dprintk(1, "%s() QAM modulation\n", __func__);
-			priv->rf_mode = XC_RF_MODE_CABLE;
-			priv->freq_hz = params->frequency - 1750000;
-			priv->bandwidth = BANDWIDTH_6_MHZ;
-			priv->video_standard = XC4000_DTV6;
-			type = DTV6;
-			break;
-		default:
-			ret = -EINVAL;
-			goto fail;
-		}
-	} else if (fe->ops.info.type == FE_OFDM) {
+	switch (delsys) {
+	case SYS_ATSC:
+		dprintk(1, "%s() VSB modulation\n", __func__);
+		priv->rf_mode = XC_RF_MODE_AIR;
+		priv->freq_hz = c->frequency - 1750000;
+		priv->video_standard = XC4000_DTV6;
+		type = DTV6;
+		break;
+	case SYS_DVBC_ANNEX_B:
+		dprintk(1, "%s() QAM modulation\n", __func__);
+		priv->rf_mode = XC_RF_MODE_CABLE;
+		priv->freq_hz = c->frequency - 1750000;
+		priv->video_standard = XC4000_DTV6;
+		type = DTV6;
+		break;
+	case SYS_DVBT:
+	case SYS_DVBT2:
 		dprintk(1, "%s() OFDM\n", __func__);
-		switch (params->u.ofdm.bandwidth) {
-		case BANDWIDTH_6_MHZ:
-			priv->bandwidth = BANDWIDTH_6_MHZ;
-			priv->video_standard = XC4000_DTV6;
-			priv->freq_hz = params->frequency - 1750000;
-			type = DTV6;
-			break;
-		case BANDWIDTH_7_MHZ:
-			priv->bandwidth = BANDWIDTH_7_MHZ;
-			priv->video_standard = XC4000_DTV7;
-			priv->freq_hz = params->frequency - 2250000;
-			type = DTV7;
-			break;
-		case BANDWIDTH_8_MHZ:
-			priv->bandwidth = BANDWIDTH_8_MHZ;
-			priv->video_standard = XC4000_DTV8;
-			priv->freq_hz = params->frequency - 2750000;
-			type = DTV8;
-			break;
-		case BANDWIDTH_AUTO:
-			if (params->frequency < 400000000) {
-				priv->bandwidth = BANDWIDTH_7_MHZ;
-				priv->freq_hz = params->frequency - 2250000;
+		if (bw == 0) {
+			if (c->frequency < 400000000) {
+				priv->freq_hz = c->frequency - 2250000;
 			} else {
-				priv->bandwidth = BANDWIDTH_8_MHZ;
-				priv->freq_hz = params->frequency - 2750000;
+				priv->freq_hz = c->frequency - 2750000;
 			}
 			priv->video_standard = XC4000_DTV7_8;
 			type = DTV78;
-			break;
-		default:
-			printk(KERN_ERR "xc4000 bandwidth not set!\n");
-			ret = -EINVAL;
-			goto fail;
+		} else if (bw <= 6000000) {
+			priv->video_standard = XC4000_DTV6;
+			priv->freq_hz = c->frequency - 1750000;
+			type = DTV6;
+		} else if (bw <= 7000000) {
+			priv->video_standard = XC4000_DTV7;
+			priv->freq_hz = c->frequency - 2250000;
+			type = DTV7;
+		} else {
+			priv->video_standard = XC4000_DTV8;
+			priv->freq_hz = c->frequency - 2750000;
+			type = DTV8;
 		}
 		priv->rf_mode = XC_RF_MODE_AIR;
-	} else {
-		printk(KERN_ERR "xc4000 modulation type not supported!\n");
+		break;
+	default:
+		printk(KERN_ERR "xc4000 delivery system not supported!\n");
 		ret = -EINVAL;
 		goto fail;
 	}
@@ -1208,6 +1187,8 @@ static int xc4000_set_params(struct dvb_frontend *fe,
 	/* Make sure the correct firmware type is loaded */
 	if (check_firmware(fe, type, 0, priv->if_khz) != 0)
 		goto fail;
+
+	priv->bandwidth = c->bandwidth_hz;
 
 	ret = xc_set_signal_source(priv, priv->rf_mode);
 	if (ret != 0) {
@@ -1605,7 +1586,7 @@ struct dvb_frontend *xc4000_attach(struct dvb_frontend *fe,
 		break;
 	case 1:
 		/* new tuner instance */
-		priv->bandwidth = BANDWIDTH_6_MHZ;
+		priv->bandwidth = 6000000;
 		/* set default configuration */
 		priv->if_khz = 4560;
 		priv->default_pm = 0;

@@ -33,16 +33,6 @@ static int snappercl15_hw_params(struct snd_pcm_substream *substream,
 	struct snd_soc_dai *cpu_dai = rtd->cpu_dai;
 	int err;
 
-	err = snd_soc_dai_set_fmt(codec_dai, SND_SOC_DAIFMT_I2S |
-				  SND_SOC_DAIFMT_NB_IF |
-				  SND_SOC_DAIFMT_CBS_CFS);
-
-	err = snd_soc_dai_set_fmt(cpu_dai, SND_SOC_DAIFMT_I2S | 
-				  SND_SOC_DAIFMT_NB_IF |		  
-				  SND_SOC_DAIFMT_CBS_CFS);
-	if (err)
-		return err;
-
 	err = snd_soc_dai_set_sysclk(codec_dai, 0, CODEC_CLOCK, 
 				     SND_SOC_CLOCK_IN);
 	if (err)
@@ -96,11 +86,14 @@ static struct snd_soc_dai_link snappercl15_dai = {
 	.codec_name	= "tlv320aic23-codec.0-001a",
 	.platform_name	=  "ep93xx-pcm-audio",
 	.init		= snappercl15_tlv320aic23_init,
+	.dai_fmt	= SND_SOC_DAIFMT_I2S | SND_SOC_DAIFMT_NB_IF |
+			  SND_SOC_DAIFMT_CBS_CFS,
 	.ops		= &snappercl15_ops,
 };
 
 static struct snd_soc_card snd_soc_snappercl15 = {
 	.name		= "Snapper CL15",
+	.owner		= THIS_MODULE,
 	.dai_link	= &snappercl15_dai,
 	.num_links	= 1,
 };
@@ -147,18 +140,7 @@ static struct platform_driver snappercl15_driver = {
 	.remove		= __devexit_p(snappercl15_remove),
 };
 
-static int __init snappercl15_init(void)
-{
-	return platform_driver_register(&snappercl15_driver);
-}
-
-static void __exit snappercl15_exit(void)
-{
-	platform_driver_unregister(&snappercl15_driver);
-}
-
-module_init(snappercl15_init);
-module_exit(snappercl15_exit);
+module_platform_driver(snappercl15_driver);
 
 MODULE_AUTHOR("Ryan Mallon");
 MODULE_DESCRIPTION("ALSA SoC Snapper CL15");

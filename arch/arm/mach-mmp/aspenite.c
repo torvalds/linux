@@ -120,8 +120,8 @@ static struct resource smc91x_resources[] = {
 		.flags	= IORESOURCE_MEM,
 	},
 	[1] = {
-		.start	= gpio_to_irq(27),
-		.end	= gpio_to_irq(27),
+		.start	= MMP_GPIO_TO_IRQ(27),
+		.end	= MMP_GPIO_TO_IRQ(27),
 		.flags	= IORESOURCE_IRQ | IORESOURCE_IRQ_HIGHEDGE,
 	}
 };
@@ -232,6 +232,7 @@ static void __init common_init(void)
 	pxa168_add_nand(&aspenite_nand_info);
 	pxa168_add_fb(&aspenite_lcd_info);
 	pxa168_add_keypad(&aspenite_keypad_info);
+	platform_device_register(&pxa168_device_gpio);
 
 	/* off-chip devices */
 	platform_device_register(&smc91x_device);

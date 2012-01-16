@@ -713,7 +713,7 @@ static int mxs_mmc_probe(struct platform_device *pdev)
 		ret = PTR_ERR(host->clk);
 		goto out_iounmap;
 	}
-	clk_enable(host->clk);
+	clk_prepare_enable(host->clk);
 
 	mxs_mmc_reset(host);
 
@@ -772,7 +772,7 @@ out_free_dma:
 	if (host->dmach)
 		dma_release_channel(host->dmach);
 out_clk_put:
-	clk_disable(host->clk);
+	clk_disable_unprepare(host->clk);
 	clk_put(host->clk);
 out_iounmap:
 	iounmap(host->base);
@@ -798,7 +798,7 @@ static int mxs_mmc_remove(struct platform_device *pdev)
 	if (host->dmach)
 		dma_release_channel(host->dmach);
 
-	clk_disable(host->clk);
+	clk_disable_unprepare(host->clk);
 	clk_put(host->clk);
 
 	iounmap(host->base);
@@ -819,7 +819,7 @@ static int mxs_mmc_suspend(struct device *dev)
 
 	ret = mmc_suspend_host(mmc);
 
-	clk_disable(host->clk);
+	clk_disable_unprepare(host->clk);
 
 	return ret;
 }
@@ -830,7 +830,7 @@ static int mxs_mmc_resume(struct device *dev)
 	struct mxs_mmc_host *host = mmc_priv(mmc);
 	int ret = 0;
 
-	clk_enable(host->clk);
+	clk_prepare_enable(host->clk);
 
 	ret = mmc_resume_host(mmc);
 
@@ -855,18 +855,7 @@ static struct platform_driver mxs_mmc_driver = {
 	},
 };
 
-static int __init mxs_mmc_init(void)
-{
-	return platform_driver_register(&mxs_mmc_driver);
-}
-
-static void __exit mxs_mmc_exit(void)
-{
-	platform_driver_unregister(&mxs_mmc_driver);
-}
-
-module_init(mxs_mmc_init);
-module_exit(mxs_mmc_exit);
+module_platform_driver(mxs_mmc_driver);
 
 MODULE_DESCRIPTION("FREESCALE MXS MMC peripheral");
 MODULE_AUTHOR("Freescale Semiconductor");

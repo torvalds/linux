@@ -42,6 +42,7 @@
 #include <plat/clock.h>
 
 #include <mach/map.h>
+#include <mach/ohci.h>
 
 #include "common.h"
 
@@ -131,9 +132,7 @@ static void lcd_lte480wv_set_power(struct plat_lcd_data *pd,
 		gpio_free(EXYNOS4_GPD0(1));
 #endif
 		/* fire nRESET on power up */
-		gpio_request(EXYNOS4_GPX0(6), "GPX0");
-
-		gpio_direction_output(EXYNOS4_GPX0(6), 1);
+		gpio_request_one(EXYNOS4_GPX0(6), GPIOF_OUT_INIT_HIGH, "GPX0");
 		mdelay(100);
 
 		gpio_set_value(EXYNOS4_GPX0(6), 0);
@@ -247,6 +246,16 @@ static void __init smdkv310_ehci_init(void)
 	s5p_ehci_set_platdata(pdata);
 }
 
+/* USB OHCI */
+static struct exynos4_ohci_platdata smdkv310_ohci_pdata;
+
+static void __init smdkv310_ohci_init(void)
+{
+	struct exynos4_ohci_platdata *pdata = &smdkv310_ohci_pdata;
+
+	exynos4_ohci_set_platdata(pdata);
+}
+
 static struct platform_device *smdkv310_devices[] __initdata = {
 	&s3c_device_hsmmc0,
 	&s3c_device_hsmmc1,
@@ -263,6 +272,7 @@ static struct platform_device *smdkv310_devices[] __initdata = {
 	&s5p_device_fimc3,
 	&exynos4_device_ac97,
 	&exynos4_device_i2s0,
+	&exynos4_device_ohci,
 	&samsung_device_keypad,
 	&s5p_device_mfc,
 	&s5p_device_mfc_l,
@@ -365,6 +375,7 @@ static void __init smdkv310_machine_init(void)
 	s5p_fimd0_set_platdata(&smdkv310_lcd0_pdata);
 
 	smdkv310_ehci_init();
+	smdkv310_ohci_init();
 	clk_xusbxti.rate = 24000000;
 
 	platform_add_devices(smdkv310_devices, ARRAY_SIZE(smdkv310_devices));

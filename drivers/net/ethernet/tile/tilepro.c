@@ -2260,8 +2260,7 @@ static int tile_net_get_mac(struct net_device *dev)
 	return 0;
 }
 
-
-static struct net_device_ops tile_net_ops = {
+static const struct net_device_ops tile_net_ops = {
 	.ndo_open = tile_net_open,
 	.ndo_stop = tile_net_stop,
 	.ndo_start_xmit = tile_net_tx,

@@ -93,17 +93,7 @@ static struct platform_driver sdhci_hlwd_driver = {
 	.remove = __devexit_p(sdhci_hlwd_remove),
 };
 
-static int __init sdhci_hlwd_init(void)
-{
-	return platform_driver_register(&sdhci_hlwd_driver);
-}
-module_init(sdhci_hlwd_init);
-
-static void __exit sdhci_hlwd_exit(void)
-{
-	platform_driver_unregister(&sdhci_hlwd_driver);
-}
-module_exit(sdhci_hlwd_exit);
+module_platform_driver(sdhci_hlwd_driver);
 
 MODULE_DESCRIPTION("Nintendo Wii SDHCI OF driver");
 MODULE_AUTHOR("The GameCube Linux Team, Albert Herranz");

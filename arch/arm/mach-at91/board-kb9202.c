@@ -69,13 +69,15 @@ static void __init kb9202_init_early(void)
 	at91_set_serial_console(0);
 }
 
-static struct at91_eth_data __initdata kb9202_eth_data = {
+static struct macb_platform_data __initdata kb9202_eth_data = {
 	.phy_irq_pin	= AT91_PIN_PB29,
 	.is_rmii	= 0,
 };
 
 static struct at91_usbh_data __initdata kb9202_usbh_data = {
 	.ports		= 1,
+	.vbus_pin	= {-EINVAL, -EINVAL},
+	.overcurrent_pin= {-EINVAL, -EINVAL},
 };
 
 static struct at91_udc_data __initdata kb9202_udc_data = {
@@ -87,6 +89,8 @@ static struct at91_mmc_data __initdata kb9202_mmc_data = {
 	.det_pin	= AT91_PIN_PB2,
 	.slot_b		= 0,
 	.wire4		= 1,
+	.wp_pin		= -EINVAL,
+	.vcc_pin	= -EINVAL,
 };
 
 static struct mtd_partition __initdata kb9202_nand_partition[] = {
@@ -100,7 +104,7 @@ static struct mtd_partition __initdata kb9202_nand_partition[] = {
 static struct atmel_nand_data __initdata kb9202_nand_data = {
 	.ale		= 22,
 	.cle		= 21,
-	// .det_pin	= ... not there
+	.det_pin	= -EINVAL,
 	.rdy_pin	= AT91_PIN_PC29,
 	.enable_pin	= AT91_PIN_PC28,
 	.parts		= kb9202_nand_partition,

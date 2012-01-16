@@ -657,7 +657,6 @@ struct caam_full {
 	u64 rsvd[512];
 	struct caam_assurance assure;
 	struct caam_queue_if qi;
-	struct caam_deco *deco;
 };
 
 #endif /* REGS_H */

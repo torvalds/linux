@@ -101,10 +101,8 @@ static const struct pc263_board pc263_boards[] = {
 
 #ifdef CONFIG_COMEDI_PCI
 static DEFINE_PCI_DEVICE_TABLE(pc263_pci_table) = {
-	{
-	PCI_VENDOR_ID_AMPLICON, PCI_DEVICE_ID_AMPLICON_PCI263,
-		    PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0}, {
-	0}
+	{ PCI_DEVICE(PCI_VENDOR_ID_AMPLICON, PCI_DEVICE_ID_AMPLICON_PCI263) },
+	{0}
 };
 
 MODULE_DEVICE_TABLE(pci, pc263_pci_table);

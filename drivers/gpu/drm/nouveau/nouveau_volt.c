@@ -26,6 +26,7 @@
 
 #include "nouveau_drv.h"
 #include "nouveau_pm.h"
+#include "nouveau_gpio.h"
 
 static const enum dcb_gpio_tag vidtag[] = { 0x04, 0x05, 0x06, 0x1a, 0x73 };
 static int nr_vidtag = sizeof(vidtag) / sizeof(vidtag[0]);
@@ -34,7 +35,6 @@ int
 nouveau_voltage_gpio_get(struct drm_device *dev)
 {
 	struct drm_nouveau_private *dev_priv = dev->dev_private;
-	struct nouveau_gpio_engine *gpio = &dev_priv->engine.gpio;
 	struct nouveau_pm_voltage *volt = &dev_priv->engine.pm.voltage;
 	u8 vid = 0;
 	int i;
@@ -43,7 +43,7 @@ nouveau_voltage_gpio_get(struct drm_device *dev)
 		if (!(volt->vid_mask & (1 << i)))
 			continue;
 
-		vid |= gpio->get(dev, vidtag[i]) << i;
+		vid |= nouveau_gpio_func_get(dev, vidtag[i]) << i;
 	}
 
 	return nouveau_volt_lvl_lookup(dev, vid);
@@ -53,7 +53,6 @@ int
 nouveau_voltage_gpio_set(struct drm_device *dev, int voltage)
 {
 	struct drm_nouveau_private *dev_priv = dev->dev_private;
-	struct nouveau_gpio_engine *gpio = &dev_priv->engine.gpio;
 	struct nouveau_pm_voltage *volt = &dev_priv->engine.pm.voltage;
 	int vid, i;
 
@@ -65,7 +64,7 @@ nouveau_voltage_gpio_set(struct drm_device *dev, int voltage)
 		if (!(volt->vid_mask & (1 << i)))
 			continue;
 
-		gpio->set(dev, vidtag[i], !!(vid & (1 << i)));
+		nouveau_gpio_func_set(dev, vidtag[i], !!(vid & (1 << i)));
 	}
 
 	return 0;
@@ -117,10 +116,10 @@ nouveau_volt_init(struct drm_device *dev)
 			return;
 
 		if (P.version == 1)
-			volt = ROMPTR(bios, P.data[16]);
+			volt = ROMPTR(dev, P.data[16]);
 		else
 		if (P.version == 2)
-			volt = ROMPTR(bios, P.data[12]);
+			volt = ROMPTR(dev, P.data[12]);
 		else {
 			NV_WARN(dev, "unknown volt for BIT P %d\n", P.version);
 		}
@@ -130,7 +129,7 @@ nouveau_volt_init(struct drm_device *dev)
 			return;
 		}
 
-		volt = ROMPTR(bios, bios->data[bios->offset + 0x98]);
+		volt = ROMPTR(dev, bios->data[bios->offset + 0x98]);
 	}
 
 	if (!volt) {
@@ -194,7 +193,7 @@ nouveau_volt_init(struct drm_device *dev)
 			return;
 		}
 
-		if (!nouveau_bios_gpio_entry(dev, vidtag[i])) {
+		if (!nouveau_gpio_func_valid(dev, vidtag[i])) {
 			NV_DEBUG(dev, "vid bit %d has no gpio tag\n", i);
 			return;
 		}

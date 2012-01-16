@@ -334,9 +334,10 @@ typedef enum fe_rolloff {
 		<title>fe_delivery_system type</title>
 		<para>Possible values: </para>
 <programlisting>
+
 typedef enum fe_delivery_system {
 	SYS_UNDEFINED,
-	SYS_DVBC_ANNEX_AC,
+	SYS_DVBC_ANNEX_A,
 	SYS_DVBC_ANNEX_B,
 	SYS_DVBT,
 	SYS_DSS,
@@ -353,6 +354,7 @@ typedef enum fe_delivery_system {
 	SYS_DAB,
 	SYS_DVBT2,
 	SYS_TURBO,
+	SYS_DVBC_ANNEX_C,
 } fe_delivery_system_t;
 </programlisting>
 		</section>
@@ -647,6 +649,18 @@ typedef enum fe_hierarchy {
 			many data types via a single multiplex. The API will soon support this
 			at which point this section will be expanded.</para>
 	</section>
+	<section id="DTV_ENUM_DELSYS">
+		<title><constant>DTV_ENUM_DELSYS</constant></title>
+		<para>A Multi standard frontend needs to advertise the delivery systems provided.
+			Applications need to enumerate the provided delivery systems, before using
+			any other operation with the frontend. Prior to it's introduction,
+			FE_GET_INFO was used to determine a frontend type. A frontend which
+			provides more than a single delivery system, FE_GET_INFO doesn't help much.
+			Applications which intends to use a multistandard frontend must enumerate
+			the delivery systems associated with it, rather than trying to use
+			FE_GET_INFO. In the case of a legacy frontend, the result is just the same
+			as with FE_GET_INFO, but in a more structured format </para>
+	</section>
 </section>
 	<section id="frontend-property-terrestrial-systems">
 	<title>Properties used on terrestrial delivery systems</title>
@@ -767,7 +781,8 @@ typedef enum fe_hierarchy {
 	<title>Properties used on cable delivery systems</title>
 	<section id="dvbc-params">
 		<title>DVB-C delivery system</title>
-		<para>The DVB-C Annex-A/C is the widely used cable standard. Transmission uses QAM modulation.</para>
+		<para>The DVB-C Annex-A is the widely used cable standard. Transmission uses QAM modulation.</para>
+		<para>The DVB-C Annex-C is optimized for 6MHz, and is used in Japan. It supports a subset of the Annex A modulation types, and a roll-off of 0.13, instead of 0.15</para>
 		<para>The following parameters are valid for DVB-C Annex A/C:</para>
 		<itemizedlist mark='opencircle'>
 			<listitem><para><link linkend="DTV-API-VERSION"><constant>DTV_API_VERSION</constant></link></para></listitem>

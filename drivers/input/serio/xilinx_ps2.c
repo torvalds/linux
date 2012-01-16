@@ -253,7 +253,7 @@ static int __devinit xps2_of_probe(struct platform_device *ofdev)
 	}
 
 	/* Get IRQ for the device */
-	if (of_irq_to_resource(ofdev->dev.of_node, 0, &r_irq) == NO_IRQ) {
+	if (!of_irq_to_resource(ofdev->dev.of_node, 0, &r_irq)) {
 		dev_err(dev, "no IRQ found\n");
 		return -ENODEV;
 	}
@@ -369,19 +369,7 @@ static struct platform_driver xps2_of_driver = {
 	.probe		= xps2_of_probe,
 	.remove		= __devexit_p(xps2_of_remove),
 };
-
-static int __init xps2_init(void)
-{
-	return platform_driver_register(&xps2_of_driver);
-}
-
-static void __exit xps2_cleanup(void)
-{
-	platform_driver_unregister(&xps2_of_driver);
-}
-
-module_init(xps2_init);
-module_exit(xps2_cleanup);
+module_platform_driver(xps2_of_driver);
 
 MODULE_AUTHOR("Xilinx, Inc.");
 MODULE_DESCRIPTION("Xilinx XPS PS/2 driver");

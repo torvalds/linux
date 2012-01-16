@@ -850,7 +850,7 @@ static int mgsl_device_count;
  * .text section address and breakpoint on module load.
  * This is useful for use with gdb and add-symbol-file command.
  */
-static int break_on_load;
+static bool break_on_load;
 
 /*
  * Driver major number, defaults to zero to get auto

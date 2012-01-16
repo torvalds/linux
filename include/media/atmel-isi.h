@@ -110,10 +110,12 @@ struct isi_platform_data {
 	u8 hsync_act_low;
 	u8 vsync_act_low;
 	u8 pclk_act_falling;
-	u8 isi_full_mode;
+	u8 full_mode;
 	u32 data_width_flags;
 	/* Using for ISI_CFG1 */
 	u32 frate;
+	/* Using for ISI_MCK */
+	u32 mck_hz;
 };
 
 #endif /* __ATMEL_ISI_H__ */

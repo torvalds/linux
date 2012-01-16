@@ -603,11 +603,11 @@ static const struct abituguru3_motherboard_info abituguru3_motherboards[] = {
 
 
 /* Insmod parameters */
-static int force;
+static bool force;
 module_param(force, bool, 0);
 MODULE_PARM_DESC(force, "Set to one to force detection.");
 /* Default verbose is 1, since this driver is still in the testing phase */
-static int verbose = 1;
+static bool verbose = 1;
 module_param(verbose, bool, 0644);
 MODULE_PARM_DESC(verbose, "Enable/disable verbose error reporting");
 

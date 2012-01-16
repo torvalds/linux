@@ -56,7 +56,7 @@ static struct usbhs_pkt_handle usbhsf_null_handler = {
 void usbhs_pkt_push(struct usbhs_pipe *pipe, struct usbhs_pkt *pkt,
 		    void (*done)(struct usbhs_priv *priv,
 				 struct usbhs_pkt *pkt),
-		    void *buf, int len, int zero)
+		    void *buf, int len, int zero, int sequence)
 {
 	struct usbhs_priv *priv = usbhs_pipe_to_priv(pipe);
 	struct device *dev = usbhs_priv_to_dev(priv);
@@ -90,6 +90,7 @@ void usbhs_pkt_push(struct usbhs_pipe *pipe, struct usbhs_pkt *pkt,
 	pkt->zero	= zero;
 	pkt->actual	= 0;
 	pkt->done	= done;
+	pkt->sequence	= sequence;
 
 	usbhs_unlock(priv, flags);
 	/********************  spin unlock ******************/
@@ -481,6 +482,9 @@ static int usbhsf_pio_try_push(struct usbhs_pkt *pkt, int *is_done)
 	int i, ret, len;
 	int is_short;
 
+	usbhs_pipe_data_sequence(pipe, pkt->sequence);
+	pkt->sequence = -1; /* -1 sequence will be ignored */
+
 	ret = usbhsf_fifo_select(pipe, fifo, 1);
 	if (ret < 0)
 		return 0;
@@ -584,6 +588,8 @@ static int usbhsf_prepare_pop(struct usbhs_pkt *pkt, int *is_done)
 	/*
 	 * pipe enable to prepare packet receive
 	 */
+	usbhs_pipe_data_sequence(pipe, pkt->sequence);
+	pkt->sequence = -1; /* -1 sequence will be ignored */
 
 	usbhs_pipe_enable(pipe);
 	usbhsf_rx_irq_ctrl(pipe, 1);
@@ -641,6 +647,7 @@ static int usbhsf_pio_try_pop(struct usbhs_pkt *pkt, int *is_done)
 	 * "Operation" - "FIFO Buffer Memory" - "FIFO Port Function"
 	 */
 	if (0 == rcv_len) {
+		pkt->zero = 1;
 		usbhsf_fifo_clear(pipe, fifo);
 		goto usbhs_fifo_read_end;
 	}

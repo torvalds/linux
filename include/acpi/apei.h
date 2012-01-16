@@ -16,10 +16,10 @@
 
 #ifdef __KERNEL__
 
-extern int hest_disable;
+extern bool hest_disable;
 extern int erst_disable;
 #ifdef CONFIG_ACPI_APEI_GHES
-extern int ghes_disable;
+extern bool ghes_disable;
 #else
 #define ghes_disable 1
 #endif

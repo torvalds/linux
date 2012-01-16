@@ -263,7 +263,7 @@ struct moschip_port {
 };
 
 
-static int debug;
+static bool debug;
 
 /*
  * mos7840_set_reg_sync
@@ -791,8 +791,6 @@ static void mos7840_bulk_in_callback(struct urb *urb)
 		return;
 	}
 
-
-	mos7840_port->read_urb->dev = serial->dev;
 
 	mos7840_port->read_urb_busy = true;
 	retval = usb_submit_urb(mos7840_port->read_urb, GFP_ATOMIC);
@@ -2058,7 +2056,6 @@ static void mos7840_change_port_settings(struct tty_struct *tty,
 	mos7840_set_uart_reg(port, INTERRUPT_ENABLE_REGISTER, Data);
 
 	if (mos7840_port->read_urb_busy == false) {
-		mos7840_port->read_urb->dev = serial->dev;
 		mos7840_port->read_urb_busy = true;
 		status = usb_submit_urb(mos7840_port->read_urb, GFP_ATOMIC);
 		if (status) {
@@ -2130,7 +2127,6 @@ static void mos7840_set_termios(struct tty_struct *tty,
 	}
 
 	if (mos7840_port->read_urb_busy == false) {
-		mos7840_port->read_urb->dev = serial->dev;
 		mos7840_port->read_urb_busy = true;
 		status = usb_submit_urb(mos7840_port->read_urb, GFP_ATOMIC);
 		if (status) {

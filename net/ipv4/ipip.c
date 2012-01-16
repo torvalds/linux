@@ -231,7 +231,7 @@ static void ipip_tunnel_unlink(struct ipip_net *ipn, struct ip_tunnel *t)
 	     (iter = rtnl_dereference(*tp)) != NULL;
 	     tp = &iter->next) {
 		if (t == iter) {
-			RCU_INIT_POINTER(*tp, t->next);
+			rcu_assign_pointer(*tp, t->next);
 			break;
 		}
 	}
@@ -241,8 +241,8 @@ static void ipip_tunnel_link(struct ipip_net *ipn, struct ip_tunnel *t)
 {
 	struct ip_tunnel __rcu **tp = ipip_bucket(ipn, t);
 
-	RCU_INIT_POINTER(t->next, rtnl_dereference(*tp));
-	RCU_INIT_POINTER(*tp, t);
+	rcu_assign_pointer(t->next, rtnl_dereference(*tp));
+	rcu_assign_pointer(*tp, t);
 }
 
 static struct ip_tunnel * ipip_tunnel_locate(struct net *net,
@@ -792,7 +792,7 @@ static int __net_init ipip_fb_tunnel_init(struct net_device *dev)
 		return -ENOMEM;
 
 	dev_hold(dev);
-	RCU_INIT_POINTER(ipn->tunnels_wc[0], tunnel);
+	rcu_assign_pointer(ipn->tunnels_wc[0], tunnel);
 	return 0;
 }
 

@@ -141,11 +141,17 @@ int dvb_usb_adapter_dvb_init(struct dvb_usb_adapter *adap, short *adapter_nums)
 		goto err_dmx_dev;
 	}
 
-	dvb_net_init(&adap->dvb_adap, &adap->dvb_net, &adap->demux.dmx);
+	if ((ret = dvb_net_init(&adap->dvb_adap, &adap->dvb_net,
+						&adap->demux.dmx)) < 0) {
+		err("dvb_net_init failed: error %d",ret);
+		goto err_net_init;
+	}
 
 	adap->state |= DVB_USB_ADAP_STATE_DVB;
 	return 0;
 
+err_net_init:
+	dvb_dmxdev_release(&adap->dmxdev);
 err_dmx_dev:
 	dvb_dmx_release(&adap->demux);
 err_dmx:

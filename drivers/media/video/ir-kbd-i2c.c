@@ -244,7 +244,7 @@ static int get_key_avermedia_cardbus(struct IR_i2c *ir,
 
 /* ----------------------------------------------------------------------- */
 
-static void ir_key_poll(struct IR_i2c *ir)
+static int ir_key_poll(struct IR_i2c *ir)
 {
 	static u32 ir_key, ir_raw;
 	int rc;
@@ -253,20 +253,28 @@ static void ir_key_poll(struct IR_i2c *ir)
 	rc = ir->get_key(ir, &ir_key, &ir_raw);
 	if (rc < 0) {
 		dprintk(2,"error\n");
-		return;
+		return rc;
 	}
 
 	if (rc) {
 		dprintk(1, "%s: keycode = 0x%04x\n", __func__, ir_key);
 		rc_keydown(ir->rc, ir_key, 0);
 	}
+	return 0;
 }
 
 static void ir_work(struct work_struct *work)
 {
+	int rc;
 	struct IR_i2c *ir = container_of(work, struct IR_i2c, work.work);
 
-	ir_key_poll(ir);
+	rc = ir_key_poll(ir);
+	if (rc == -ENODEV) {
+		rc_unregister_device(ir->rc);
+		ir->rc = NULL;
+		return;
+	}
+
 	schedule_delayed_work(&ir->work, msecs_to_jiffies(ir->polling_interval));
 }
 
@@ -446,7 +454,8 @@ static int ir_remove(struct i2c_client *client)
 	cancel_delayed_work_sync(&ir->work);
 
 	/* unregister device */
-	rc_unregister_device(ir->rc);
+	if (ir->rc)
+		rc_unregister_device(ir->rc);
 
 	/* free memory */
 	kfree(ir);
@@ -489,11 +498,3 @@ static void __exit ir_fini(void)
 
 module_init(ir_init);
 module_exit(ir_fini);
-
-/*
- * Overrides for Emacs so that we follow Linus's tabbing style.
- * ---------------------------------------------------------------------------
- * Local variables:
- * c-basic-offset: 8
- * End:
- */

@@ -453,10 +453,6 @@ static int resume_common(struct device *dev, int event)
 
 	pci_set_master(pci_dev);
 
-	clear_bit(HCD_FLAG_SAW_IRQ, &hcd->flags);
-	if (hcd->shared_hcd)
-		clear_bit(HCD_FLAG_SAW_IRQ, &hcd->shared_hcd->flags);
-
 	if (hcd->driver->pci_resume && !HCD_DEAD(hcd)) {
 		if (event != PM_EVENT_AUTO_RESUME)
 			wait_for_companions(pci_dev, hcd);

@@ -1,0 +1,96 @@
+
+/ {
+	#address-cells = <1>;
+	#size-cells = <1>;
+
+	cpus {
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		cpu@0 {
+			device_type = "cpu";
+			model = "ti,c64x+";
+			reg = <0>;
+		};
+	};
+
+	soc {
+		compatible = "simple-bus";
+		model = "tms320c6455";
+		#address-cells = <1>;
+		#size-cells = <1>;
+		ranges;
+
+		core_pic: interrupt-controller {
+			  interrupt-controller;
+			  #interrupt-cells = <1>;
+			  compatible = "ti,c64x+core-pic";
+		};
+
+		/*
+		 * Megamodule interrupt controller
+		 */
+		megamod_pic: interrupt-controller@1800000 {
+		       compatible = "ti,c64x+megamod-pic";
+		       interrupt-controller;
+		       #interrupt-cells = <1>;
+		       reg = <0x1800000 0x1000>;
+		       interrupt-parent = <&core_pic>;
+		};
+
+		cache-controller@1840000 {
+			compatible = "ti,c64x+cache";
+			reg = <0x01840000 0x8400>;
+		};
+
+		emifa@70000000 {
+			compatible = "ti,c64x+emifa", "simple-bus";
+			#address-cells = <2>;
+			#size-cells = <1>;
+			reg = <0x70000000 0x100>;
+			ranges = <0x2 0x0 0xa0000000 0x00000008
+			          0x3 0x0 0xb0000000 0x00400000
+				  0x4 0x0 0xc0000000 0x10000000
+				  0x5 0x0 0xD0000000 0x10000000>;
+
+			ti,dscr-dev-enable = <13>;
+			ti,emifa-burst-priority = <255>;
+			ti,emifa-ce-config = <0x00240120
+					      0x00240120
+					      0x00240122
+					      0x00240122>;
+		};
+
+		timer1: timer@2980000 {
+			compatible = "ti,c64x+timer64";
+			reg = <0x2980000 0x40>;
+			ti,dscr-dev-enable = <4>;
+		};
+
+		clock-controller@029a0000 {
+			compatible = "ti,c6455-pll", "ti,c64x+pll";
+			reg = <0x029a0000 0x200>;
+			ti,c64x+pll-bypass-delay = <1440>;
+			ti,c64x+pll-reset-delay = <15360>;
+			ti,c64x+pll-lock-delay = <24000>;
+		};
+
+		device-state-config-regs@2a80000 {
+			compatible = "ti,c64x+dscr";
+			reg = <0x02a80000 0x41000>;
+
+			ti,dscr-devstat = <0>;
+			ti,dscr-silicon-rev = <8 28 0xf>;
+			ti,dscr-rmii-resets = <0 0x40020 0x00040000>;
+
+			ti,dscr-locked-regs = <0x40008 0x40004 0x0f0a0b00>;
+			ti,dscr-devstate-ctl-regs =
+				 <0 12 0x40008 1 0  0  2
+				  12 1 0x40008 3 0 30  2
+				  13 2 0x4002c 1 0xffffffff 0 1>;
+			ti,dscr-devstate-stat-regs =
+				<0 10 0x40014 1 0  0  3
+				 10 2 0x40018 1 0  0  3>;
+		};
+	};
+};

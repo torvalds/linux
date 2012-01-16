@@ -76,8 +76,8 @@ MODULE_PARM_DESC(video_nr,
 		 "\none and for every other camera."
 		 "\n");
 
-static short force_munmap[] = {[0 ... ET61X251_MAX_DEVICES-1] =
-			       ET61X251_FORCE_MUNMAP};
+static bool force_munmap[] = {[0 ... ET61X251_MAX_DEVICES-1] =
+			      ET61X251_FORCE_MUNMAP};
 module_param_array(force_munmap, bool, NULL, 0444);
 MODULE_PARM_DESC(force_munmap,
 		 "\n<0|1[,...]> Force the application to unmap previously"

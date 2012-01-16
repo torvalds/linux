@@ -174,15 +174,8 @@ extern int page_is_ram(unsigned long pfn);
 
 #define	virt_addr_valid(vaddr)	(pfn_valid(virt_to_pfn(vaddr)))
 
-
-#  ifndef CONFIG_MMU
-#  define __pa(vaddr)	((unsigned long) (vaddr))
-#  define __va(paddr)	((void *) (paddr))
-#  else /* CONFIG_MMU */
-#  define __pa(x)	__virt_to_phys((unsigned long)(x))
-#  define __va(x)	((void *)__phys_to_virt((unsigned long)(x)))
-#  endif /* CONFIG_MMU */
-
+# define __pa(x)	__virt_to_phys((unsigned long)(x))
+# define __va(x)	((void *)__phys_to_virt((unsigned long)(x)))
 
 /* Convert between virtual and physical address for MMU. */
 /* Handle MicroBlaze processor with virtual memory. */

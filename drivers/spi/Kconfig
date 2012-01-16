@@ -87,12 +87,12 @@ config SPI_BFIN_SPORT
 	  Enable support for a SPI bus via the Blackfin SPORT peripheral.
 
 config SPI_AU1550
-	tristate "Au1550/Au12x0 SPI Controller"
+	tristate "Au1550/Au1200/Au1300 SPI Controller"
 	depends on MIPS_ALCHEMY && EXPERIMENTAL
 	select SPI_BITBANG
 	help
 	  If you say yes to this option, support will be included for the
-	  Au1550 SPI controller (may also work with Au1200,Au1210,Au1250).
+	  PSC SPI controller found on Au1550, Au1200 and Au1300 series.
 
 config SPI_BITBANG
 	tristate "Utilities for Bitbanging SPI masters"
@@ -332,8 +332,7 @@ config SPI_STMP3XXX
 
 config SPI_TEGRA
 	tristate "Nvidia Tegra SPI controller"
-	depends on ARCH_TEGRA
-	select TEGRA_SYSTEM_DMA
+	depends on ARCH_TEGRA && TEGRA_SYSTEM_DMA
 	help
 	  SPI driver for NVidia Tegra SoCs
 

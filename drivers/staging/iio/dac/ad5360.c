@@ -103,10 +103,10 @@ enum ad5360_type {
 	.type = IIO_VOLTAGE,					\
 	.indexed = 1,						\
 	.output = 1,						\
-	.info_mask = (1 << IIO_CHAN_INFO_SCALE_SEPARATE) |	\
-		(1 << IIO_CHAN_INFO_OFFSET_SEPARATE) |		\
-		(1 << IIO_CHAN_INFO_CALIBSCALE_SEPARATE) |	\
-		(1 << IIO_CHAN_INFO_CALIBBIAS_SEPARATE),	\
+	.info_mask = IIO_CHAN_INFO_SCALE_SEPARATE_BIT |	\
+		IIO_CHAN_INFO_OFFSET_SEPARATE_BIT |		\
+		IIO_CHAN_INFO_CALIBSCALE_SEPARATE_BIT |	\
+		IIO_CHAN_INFO_CALIBBIAS_SEPARATE_BIT,	\
 	.scan_type = IIO_ST('u', (bits), 16, 16 - (bits))	\
 }
 
@@ -326,21 +326,21 @@ static int ad5360_write_raw(struct iio_dev *indio_dev,
 		return ad5360_write(indio_dev, AD5360_CMD_WRITE_DATA,
 				 chan->address, val, chan->scan_type.shift);
 
-	case (1 << IIO_CHAN_INFO_CALIBBIAS_SEPARATE):
+	case IIO_CHAN_INFO_CALIBBIAS:
 		if (val >= max_val || val < 0)
 			return -EINVAL;
 
 		return ad5360_write(indio_dev, AD5360_CMD_WRITE_OFFSET,
 				 chan->address, val, chan->scan_type.shift);
 
-	case (1 << IIO_CHAN_INFO_CALIBSCALE_SEPARATE):
+	case IIO_CHAN_INFO_CALIBSCALE:
 		if (val >= max_val || val < 0)
 			return -EINVAL;
 
 		return ad5360_write(indio_dev, AD5360_CMD_WRITE_GAIN,
 				 chan->address, val, chan->scan_type.shift);
 
-	case (1 << IIO_CHAN_INFO_OFFSET_SEPARATE):
+	case IIO_CHAN_INFO_OFFSET:
 		if (val <= -max_val || val > 0)
 			return -EINVAL;
 
@@ -371,8 +371,8 @@ static int ad5360_read_raw(struct iio_dev *indio_dev,
 			   long m)
 {
 	struct ad5360_state *st = iio_priv(indio_dev);
-	unsigned long scale_uv;
 	unsigned int ofs_index;
+	int scale_uv;
 	int ret;
 
 	switch (m) {
@@ -383,7 +383,7 @@ static int ad5360_read_raw(struct iio_dev *indio_dev,
 			return ret;
 		*val = ret >> chan->scan_type.shift;
 		return IIO_VAL_INT;
-	case (1 << IIO_CHAN_INFO_SCALE_SEPARATE):
+	case IIO_CHAN_INFO_SCALE:
 		/* vout = 4 * vref * dac_code */
 		scale_uv = ad5360_get_channel_vref(st, chan->channel) * 4 * 100;
 		if (scale_uv < 0)
@@ -393,21 +393,21 @@ static int ad5360_read_raw(struct iio_dev *indio_dev,
 		*val =  scale_uv / 100000;
 		*val2 = (scale_uv % 100000) * 10;
 		return IIO_VAL_INT_PLUS_MICRO;
-	case (1 << IIO_CHAN_INFO_CALIBBIAS_SEPARATE):
+	case IIO_CHAN_INFO_CALIBBIAS:
 		ret = ad5360_read(indio_dev, AD5360_READBACK_OFFSET,
 			chan->address);
 		if (ret < 0)
 			return ret;
 		*val = ret;
 		return IIO_VAL_INT;
-	case (1 << IIO_CHAN_INFO_CALIBSCALE_SEPARATE):
+	case IIO_CHAN_INFO_CALIBSCALE:
 		ret = ad5360_read(indio_dev, AD5360_READBACK_GAIN,
 			chan->address);
 		if (ret < 0)
 			return ret;
 		*val = ret;
 		return IIO_VAL_INT;
-	case (1 << IIO_CHAN_INFO_OFFSET_SEPARATE):
+	case IIO_CHAN_INFO_OFFSET:
 		ofs_index = ad5360_get_channel_vref_index(st, chan->channel);
 		ret = ad5360_read(indio_dev, AD5360_READBACK_SF,
 			AD5360_REG_SF_OFS(ofs_index));

@@ -9,31 +9,6 @@
  * driver
  *
  * Please report both successes and troubles to the author at omninet@kroah.com
- *
- * (05/30/2001) gkh
- *	switched from using spinlock to a semaphore, which fixes lots of
- *	problems.
- *
- * (04/08/2001) gb
- *	Identify version on module load.
- *
- * (11/01/2000) Adam J. Richter
- *	usb_device_id table support
- *
- * (10/05/2000) gkh
- *	Fixed bug with urb->dev not being set properly, now that the usb
- *	core needs it.
- *
- * (08/28/2000) gkh
- *	Added locks for SMP safeness.
- *	Fixed MOD_INC and MOD_DEC logic and the ability to open a port more
- *	than once.
- *	Fixed potential race in omninet_write_bulk_callback
- *
- * (07/19/2000) gkh
- *	Added module_init and module_exit functions to handle the fact that this
- *	driver is a loadable module now.
- *
  */
 
 #include <linux/kernel.h>
@@ -44,12 +19,11 @@
 #include <linux/tty_driver.h>
 #include <linux/tty_flip.h>
 #include <linux/module.h>
-#include <linux/spinlock.h>
 #include <linux/uaccess.h>
 #include <linux/usb.h>
 #include <linux/usb/serial.h>
 
-static int debug;
+static bool debug;
 
 /*
  * Version Information
@@ -174,12 +148,6 @@ static int omninet_open(struct tty_struct *tty, struct usb_serial_port *port)
 	tty_port_tty_set(&wport->port, tty);
 
 	/* Start reading from the device */
-	usb_fill_bulk_urb(port->read_urb, serial->dev,
-			usb_rcvbulkpipe(serial->dev,
-				port->bulk_in_endpointAddress),
-			port->read_urb->transfer_buffer,
-			port->read_urb->transfer_buffer_length,
-			omninet_read_bulk_callback, port);
 	result = usb_submit_urb(port->read_urb, GFP_KERNEL);
 	if (result)
 		dev_err(&port->dev,
@@ -236,11 +204,6 @@ static void omninet_read_bulk_callback(struct urb *urb)
 	}
 
 	/* Continue trying to always read  */
-	usb_fill_bulk_urb(urb, port->serial->dev,
-			usb_rcvbulkpipe(port->serial->dev,
-					port->bulk_in_endpointAddress),
-			urb->transfer_buffer, urb->transfer_buffer_length,
-			omninet_read_bulk_callback, port);
 	result = usb_submit_urb(urb, GFP_ATOMIC);
 	if (result)
 		dev_err(&port->dev,
@@ -267,14 +230,10 @@ static int omninet_write(struct tty_struct *tty, struct usb_serial_port *port,
 		return 0;
 	}
 
-	spin_lock_bh(&wport->lock);
-	if (wport->write_urb_busy) {
-		spin_unlock_bh(&wport->lock);
+	if (!test_and_clear_bit(0, &port->write_urbs_free)) {
 		dbg("%s - already writing", __func__);
 		return 0;
 	}
-	wport->write_urb_busy = 1;
-	spin_unlock_bh(&wport->lock);
 
 	count = (count > OMNINET_BULKOUTSIZE) ? OMNINET_BULKOUTSIZE : count;
 
@@ -292,10 +251,9 @@ static int omninet_write(struct tty_struct *tty, struct usb_serial_port *port,
 	/* send the data out the bulk port, always 64 bytes */
 	wport->write_urb->transfer_buffer_length = 64;
 
-	wport->write_urb->dev = serial->dev;
 	result = usb_submit_urb(wport->write_urb, GFP_ATOMIC);
 	if (result) {
-		wport->write_urb_busy = 0;
+		set_bit(0, &wport->write_urbs_free);
 		dev_err(&port->dev,
 			"%s - failed submitting write urb, error %d\n",
 			__func__, result);
@@ -314,8 +272,7 @@ static int omninet_write_room(struct tty_struct *tty)
 
 	int room = 0; /* Default: no room */
 
-	/* FIXME: no consistent locking for write_urb_busy */
-	if (wport->write_urb_busy)
+	if (test_bit(0, &wport->write_urbs_free))
 		room = wport->bulk_out_size - OMNINET_HEADERLEN;
 
 	dbg("%s - returns %d", __func__, room);
@@ -332,7 +289,7 @@ static void omninet_write_bulk_callback(struct urb *urb)
 
 	dbg("%s - port %0x", __func__, port->number);
 
-	port->write_urb_busy = 0;
+	set_bit(0, &port->write_urbs_free);
 	if (status) {
 		dbg("%s - nonzero write bulk status received: %d",
 		    __func__, status);

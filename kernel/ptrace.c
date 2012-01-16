@@ -172,6 +172,14 @@ int ptrace_check_attach(struct task_struct *child, bool ignore_state)
 	return ret;
 }
 
+static int ptrace_has_cap(struct user_namespace *ns, unsigned int mode)
+{
+	if (mode & PTRACE_MODE_NOAUDIT)
+		return has_ns_capability_noaudit(current, ns, CAP_SYS_PTRACE);
+	else
+		return has_ns_capability(current, ns, CAP_SYS_PTRACE);
+}
+
 int __ptrace_may_access(struct task_struct *task, unsigned int mode)
 {
 	const struct cred *cred = current_cred(), *tcred;
@@ -198,7 +206,7 @@ int __ptrace_may_access(struct task_struct *task, unsigned int mode)
 	     cred->gid == tcred->sgid &&
 	     cred->gid == tcred->gid))
 		goto ok;
-	if (ns_capable(tcred->user->user_ns, CAP_SYS_PTRACE))
+	if (ptrace_has_cap(tcred->user->user_ns, mode))
 		goto ok;
 	rcu_read_unlock();
 	return -EPERM;
@@ -207,7 +215,7 @@ ok:
 	smp_rmb();
 	if (task->mm)
 		dumpable = get_dumpable(task->mm);
-	if (!dumpable && !task_ns_capable(task, CAP_SYS_PTRACE))
+	if (!dumpable  && !ptrace_has_cap(task_user_ns(task), mode))
 		return -EPERM;
 
 	return security_ptrace_access_check(task, mode);
@@ -277,7 +285,7 @@ static int ptrace_attach(struct task_struct *task, long request,
 	task->ptrace = PT_PTRACED;
 	if (seize)
 		task->ptrace |= PT_SEIZED;
-	if (task_ns_capable(task, CAP_SYS_PTRACE))
+	if (ns_capable(task_user_ns(task), CAP_SYS_PTRACE))
 		task->ptrace |= PT_PTRACE_CAP;
 
 	__ptrace_link(task, current);

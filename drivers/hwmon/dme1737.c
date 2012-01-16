@@ -45,7 +45,7 @@
 static struct platform_device *pdev;
 
 /* Module load parameters */
-static int force_start;
+static bool force_start;
 module_param(force_start, bool, 0);
 MODULE_PARM_DESC(force_start, "Force the chip to start monitoring inputs");
 
@@ -53,7 +53,7 @@ static unsigned short force_id;
 module_param(force_id, ushort, 0);
 MODULE_PARM_DESC(force_id, "Override the detected device ID");
 
-static int probe_all_addr;
+static bool probe_all_addr;
 module_param(probe_all_addr, bool, 0);
 MODULE_PARM_DESC(probe_all_addr, "Include probing of non-standard LPC "
 		 "addresses");

@@ -17,13 +17,13 @@
 
 /* PPI: Private Peripheral Interrupt */
 
-#define IRQ_PPI(x)		S5P_IRQ(x+16)
+#define IRQ_PPI(x)		(x+16)
 
 #define IRQ_MCT_LOCALTIMER	IRQ_PPI(12)
 
 /* SPI: Shared Peripheral Interrupt */
 
-#define IRQ_SPI(x)		S5P_IRQ(x+32)
+#define IRQ_SPI(x)		(x+32)
 
 #define IRQ_EINT0		IRQ_SPI(16)
 #define IRQ_EINT1		IRQ_SPI(17)
@@ -72,6 +72,9 @@
 #define IRQ_IIC5		IRQ_SPI(63)
 #define IRQ_IIC6		IRQ_SPI(64)
 #define IRQ_IIC7		IRQ_SPI(65)
+#define IRQ_SPI0		IRQ_SPI(66)
+#define IRQ_SPI1		IRQ_SPI(67)
+#define IRQ_SPI2		IRQ_SPI(68)
 
 #define IRQ_USB_HOST		IRQ_SPI(70)
 #define IRQ_USB_HSOTG		IRQ_SPI(71)
@@ -163,7 +166,9 @@
 #define IRQ_GPIO2_NR_GROUPS	9
 #define IRQ_GPIO_END		(S5P_GPIOINT_BASE + S5P_GPIOINT_COUNT)
 
+#define IRQ_TIMER_BASE		(IRQ_GPIO_END + 64)
+
 /* Set the default NR_IRQS */
-#define NR_IRQS			(IRQ_GPIO_END + 64)
+#define NR_IRQS			(IRQ_TIMER_BASE + IRQ_TIMER_COUNT)
 
 #endif /* __ASM_ARCH_IRQS_H */

@@ -48,18 +48,6 @@ static int edb93xx_hw_params(struct snd_pcm_substream *substream,
 	else
 		mclk_rate = rate * 64 * 2;
 
-	err = snd_soc_dai_set_fmt(codec_dai, SND_SOC_DAIFMT_I2S |
-				  SND_SOC_DAIFMT_NB_IF |
-				  SND_SOC_DAIFMT_CBS_CFS);
-	if (err)
-		return err;
-
-	err = snd_soc_dai_set_fmt(cpu_dai, SND_SOC_DAIFMT_I2S |
-				  SND_SOC_DAIFMT_NB_IF |
-				  SND_SOC_DAIFMT_CBS_CFS);
-	if (err)
-		return err;
-
 	err = snd_soc_dai_set_sysclk(codec_dai, 0, mclk_rate,
 				     SND_SOC_CLOCK_IN);
 	if (err)
@@ -80,11 +68,14 @@ static struct snd_soc_dai_link edb93xx_dai = {
 	.cpu_dai_name	= "ep93xx-i2s",
 	.codec_name	= "spi0.0",
 	.codec_dai_name	= "cs4271-hifi",
+	.dai_fmt	= SND_SOC_DAIFMT_I2S | SND_SOC_DAIFMT_NB_IF |
+			  SND_SOC_DAIFMT_CBS_CFS,
 	.ops		= &edb93xx_ops,
 };
 
 static struct snd_soc_card snd_soc_edb93xx = {
 	.name		= "EDB93XX",
+	.owner		= THIS_MODULE,
 	.dai_link	= &edb93xx_dai,
 	.num_links	= 1,
 };
@@ -131,17 +122,7 @@ static struct platform_driver edb93xx_driver = {
 	.remove		= __devexit_p(edb93xx_remove),
 };
 
-static int __init edb93xx_init(void)
-{
-	return platform_driver_register(&edb93xx_driver);
-}
-module_init(edb93xx_init);
-
-static void __exit edb93xx_exit(void)
-{
-	platform_driver_unregister(&edb93xx_driver);
-}
-module_exit(edb93xx_exit);
+module_platform_driver(edb93xx_driver);
 
 MODULE_AUTHOR("Alexander Sverdlin <subaparts@yandex.ru>");
 MODULE_DESCRIPTION("ALSA SoC EDB93xx");

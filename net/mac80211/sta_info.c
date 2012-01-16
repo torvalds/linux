@@ -73,7 +73,7 @@ static int sta_info_hash_del(struct ieee80211_local *local,
 	if (!s)
 		return -ENOENT;
 	if (s == sta) {
-		RCU_INIT_POINTER(local->sta_hash[STA_HASH(sta->sta.addr)],
+		rcu_assign_pointer(local->sta_hash[STA_HASH(sta->sta.addr)],
 				   s->hnext);
 		return 0;
 	}
@@ -83,7 +83,7 @@ static int sta_info_hash_del(struct ieee80211_local *local,
 		s = rcu_dereference_protected(s->hnext,
 					lockdep_is_held(&local->sta_mtx));
 	if (rcu_access_pointer(s->hnext)) {
-		RCU_INIT_POINTER(s->hnext, sta->hnext);
+		rcu_assign_pointer(s->hnext, sta->hnext);
 		return 0;
 	}
 
@@ -226,7 +226,7 @@ static void sta_info_hash_add(struct ieee80211_local *local,
 {
 	lockdep_assert_held(&local->sta_mtx);
 	sta->hnext = local->sta_hash[STA_HASH(sta->sta.addr)];
-	RCU_INIT_POINTER(local->sta_hash[STA_HASH(sta->sta.addr)], sta);
+	rcu_assign_pointer(local->sta_hash[STA_HASH(sta->sta.addr)], sta);
 }
 
 static void sta_unblock(struct work_struct *wk)

@@ -166,6 +166,9 @@ int cx231xx_send_usb_command(struct cx231xx_i2c *i2c_bus,
 	u8 _i2c_nostop = 0;
 	u8 _i2c_reserve = 0;
 
+	if (dev->state & DEV_DISCONNECTED)
+		return -ENODEV;
+
 	/* Get the I2C period, nostop and reserve parameters */
 	_i2c_period = i2c_bus->i2c_period;
 	_i2c_nostop = i2c_bus->i2c_nostop;
@@ -1071,7 +1074,7 @@ int cx231xx_init_isoc(struct cx231xx *dev, int max_packets,
 				 sb_size, cx231xx_isoc_irq_callback, dma_q, 1);
 
 		urb->number_of_packets = max_packets;
-		urb->transfer_flags = URB_ISO_ASAP;
+		urb->transfer_flags = URB_ISO_ASAP | URB_NO_TRANSFER_DMA_MAP;
 
 		k = 0;
 		for (j = 0; j < max_packets; j++) {
@@ -1182,7 +1185,7 @@ int cx231xx_init_bulk(struct cx231xx *dev, int max_packets,
 			return -ENOMEM;
 		}
 		dev->video_mode.bulk_ctl.urb[i] = urb;
-		urb->transfer_flags = 0;
+		urb->transfer_flags = URB_NO_TRANSFER_DMA_MAP;
 
 		dev->video_mode.bulk_ctl.transfer_buffer[i] =
 		    usb_alloc_coherent(dev->udev, sb_size, GFP_KERNEL,

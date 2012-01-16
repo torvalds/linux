@@ -128,28 +128,11 @@ static inline int is_zero_pfn(unsigned long pfn)
  * effect, this also makes sure that 64 bit module code cannot be used
  * as system call address.
  */
-
 extern unsigned long VMALLOC_START;
+extern unsigned long VMALLOC_END;
+extern struct page *vmemmap;
 
-#ifndef __s390x__
-#define VMALLOC_SIZE	(96UL << 20)
-#define VMALLOC_END	0x7e000000UL
-#define VMEM_MAP_END	0x80000000UL
-#else /* __s390x__ */
-#define VMALLOC_SIZE	(128UL << 30)
-#define VMALLOC_END	0x3e000000000UL
-#define VMEM_MAP_END	0x40000000000UL
-#endif /* __s390x__ */
-
-/*
- * VMEM_MAX_PHYS is the highest physical address that can be added to the 1:1
- * mapping. This needs to be calculated at compile time since the size of the
- * VMEM_MAP is static but the size of struct page can change.
- */
-#define VMEM_MAX_PAGES	((VMEM_MAP_END - VMALLOC_END) / sizeof(struct page))
-#define VMEM_MAX_PFN	min(VMALLOC_START >> PAGE_SHIFT, VMEM_MAX_PAGES)
-#define VMEM_MAX_PHYS	((VMEM_MAX_PFN << PAGE_SHIFT) & ~((16 << 20) - 1))
-#define vmemmap		((struct page *) VMALLOC_END)
+#define VMEM_MAX_PHYS ((unsigned long) vmemmap)
 
 /*
  * A 31 bit pagetable entry of S390 has following format:

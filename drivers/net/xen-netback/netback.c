@@ -1634,7 +1634,7 @@ static int __init netback_init(void)
 	int rc = 0;
 	int group;
 
-	if (!xen_pv_domain())
+	if (!xen_domain())
 		return -ENODEV;
 
 	xen_netbk_group_nr = num_online_cpus();

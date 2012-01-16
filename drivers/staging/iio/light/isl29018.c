@@ -362,8 +362,7 @@ static int isl29018_write_raw(struct iio_dev *indio_dev,
 	int ret = -EINVAL;
 
 	mutex_lock(&chip->lock);
-	if (mask == (1 << IIO_CHAN_INFO_CALIBSCALE_SEPARATE) &&
-	    chan->type == IIO_LIGHT) {
+	if (mask == IIO_CHAN_INFO_CALIBSCALE && chan->type == IIO_LIGHT) {
 		chip->lux_scale = val;
 		ret = 0;
 	}
@@ -402,7 +401,7 @@ static int isl29018_read_raw(struct iio_dev *indio_dev,
 		if (!ret)
 			ret = IIO_VAL_INT;
 		break;
-	case (1 << IIO_CHAN_INFO_CALIBSCALE_SEPARATE):
+	case IIO_CHAN_INFO_CALIBSCALE:
 		if (chan->type == IIO_LIGHT) {
 			*val = chip->lux_scale;
 			ret = IIO_VAL_INT;
@@ -421,7 +420,7 @@ static const struct iio_chan_spec isl29018_channels[] = {
 		.indexed = 1,
 		.channel = 0,
 		.processed_val = IIO_PROCESSED,
-		.info_mask = (1 << IIO_CHAN_INFO_CALIBSCALE_SEPARATE),
+		.info_mask = IIO_CHAN_INFO_CALIBSCALE_SEPARATE_BIT,
 	}, {
 		.type = IIO_INTENSITY,
 		.modified = 1,

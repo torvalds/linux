@@ -46,11 +46,10 @@ static int tm6000_i2c_send_regs(struct tm6000_core *dev, unsigned char addr,
 				__u8 reg, char *buf, int len)
 {
 	int rc;
-	unsigned int tsleep;
 	unsigned int i2c_packet_limit = 16;
 
 	if (dev->dev_type == TM6010)
-		i2c_packet_limit = 64;
+		i2c_packet_limit = 80;
 
 	if (!buf)
 		return -1;
@@ -70,10 +69,6 @@ static int tm6000_i2c_send_regs(struct tm6000_core *dev, unsigned char addr,
 		/* release mutex */
 		return rc;
 	}
-
-	/* Calculate delay time, 14000us for 64 bytes */
-	tsleep = ((len * 200) + 200 + 1000) / 1000;
-	msleep(tsleep);
 
 	/* release mutex */
 	return rc;
@@ -145,7 +140,6 @@ static int tm6000_i2c_recv_regs16(struct tm6000_core *dev, unsigned char addr,
 			return rc;
 		}
 
-		msleep(1400 / 1000);
 		rc = tm6000_read_write_usb(dev, USB_DIR_IN | USB_TYPE_VENDOR |
 			USB_RECIP_DEVICE, REQ_35_AFTEK_TUNER_READ,
 			reg, 0, buf, len);

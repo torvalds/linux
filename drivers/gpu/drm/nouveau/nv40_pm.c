@@ -222,7 +222,7 @@ nv40_pm_gr_idle(void *data)
 	return true;
 }
 
-void
+int
 nv40_pm_clocks_set(struct drm_device *dev, void *pre_state)
 {
 	struct drm_nouveau_private *dev_priv = dev->dev_private;
@@ -231,7 +231,7 @@ nv40_pm_clocks_set(struct drm_device *dev, void *pre_state)
 	struct bit_entry M;
 	u32 crtc_mask = 0;
 	u8 sr1[2];
-	int i;
+	int i, ret = -EAGAIN;
 
 	/* determine which CRTCs are active, fetch VGA_SR1 for each */
 	for (i = 0; i < 2; i++) {
@@ -262,6 +262,8 @@ nv40_pm_clocks_set(struct drm_device *dev, void *pre_state)
 
 	if (!nv_wait_cb(dev, nv40_pm_gr_idle, dev))
 		goto resume;
+
+	ret = 0;
 
 	/* set engine clocks */
 	nv_mask(dev, 0x00c040, 0x00000333, 0x00000000);
@@ -345,4 +347,48 @@ resume:
 	spin_unlock_irqrestore(&dev_priv->context_switch_lock, flags);
 
 	kfree(info);
+	return ret;
+}
+
+int
+nv40_pm_pwm_get(struct drm_device *dev, int line, u32 *divs, u32 *duty)
+{
+	if (line == 2) {
+		u32 reg = nv_rd32(dev, 0x0010f0);
+		if (reg & 0x80000000) {
+			*duty = (reg & 0x7fff0000) >> 16;
+			*divs = (reg & 0x00007fff);
+			return 0;
+		}
+	} else
+	if (line == 9) {
+		u32 reg = nv_rd32(dev, 0x0015f4);
+		if (reg & 0x80000000) {
+			*divs = nv_rd32(dev, 0x0015f8);
+			*duty = (reg & 0x7fffffff);
+			return 0;
+		}
+	} else {
+		NV_ERROR(dev, "unknown pwm ctrl for gpio %d\n", line);
+		return -ENODEV;
+	}
+
+	return -EINVAL;
+}
+
+int
+nv40_pm_pwm_set(struct drm_device *dev, int line, u32 divs, u32 duty)
+{
+	if (line == 2) {
+		nv_wr32(dev, 0x0010f0, 0x80000000 | (duty << 16) | divs);
+	} else
+	if (line == 9) {
+		nv_wr32(dev, 0x0015f8, divs);
+		nv_wr32(dev, 0x0015f4, duty | 0x80000000);
+	} else {
+		NV_ERROR(dev, "unknown pwm ctrl for gpio %d\n", line);
+		return -ENODEV;
+	}
+
+	return 0;
 }

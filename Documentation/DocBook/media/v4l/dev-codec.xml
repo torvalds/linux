@@ -16,11 +16,3 @@ Applications send data to be converted to the driver through a
 I/O.</para>
 
   <para>[to do]</para>
-
-  <!--
-Local Variables:
-mode: sgml
-sgml-parent-document: "v4l2.sgml"
-indent-tabs-mode: nil
-End:
-  -->

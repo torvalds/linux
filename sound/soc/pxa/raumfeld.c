@@ -260,6 +260,7 @@ static struct snd_soc_dai_link snd_soc_raumfeld_speaker_dai[] =
 
 static struct snd_soc_card snd_soc_raumfeld_connector = {
 	.name		= "Raumfeld Connector",
+	.owner		= THIS_MODULE,
 	.dai_link	= snd_soc_raumfeld_connector_dai,
 	.num_links	= ARRAY_SIZE(snd_soc_raumfeld_connector_dai),
 	.suspend_post	= raumfeld_analog_suspend,
@@ -268,6 +269,7 @@ static struct snd_soc_card snd_soc_raumfeld_connector = {
 
 static struct snd_soc_card snd_soc_raumfeld_speaker = {
 	.name		= "Raumfeld Speaker",
+	.owner		= THIS_MODULE,
 	.dai_link	= snd_soc_raumfeld_speaker_dai,
 	.num_links	= ARRAY_SIZE(snd_soc_raumfeld_speaker_dai),
 	.suspend_post	= raumfeld_analog_suspend,

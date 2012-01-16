@@ -225,21 +225,10 @@ static struct platform_driver c67x00_driver = {
 		.name = "c67x00",
 	},
 };
-MODULE_ALIAS("platform:c67x00");
 
-static int __init c67x00_init(void)
-{
-	return platform_driver_register(&c67x00_driver);
-}
-
-static void __exit c67x00_exit(void)
-{
-	platform_driver_unregister(&c67x00_driver);
-}
-
-module_init(c67x00_init);
-module_exit(c67x00_exit);
+module_platform_driver(c67x00_driver);
 
 MODULE_AUTHOR("Peter Korsgaard, Jan Veldeman, Grant Likely");
 MODULE_DESCRIPTION("Cypress C67X00 USB Controller Driver");
 MODULE_LICENSE("GPL");
+MODULE_ALIAS("platform:c67x00");

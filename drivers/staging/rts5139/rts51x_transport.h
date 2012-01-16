@@ -28,7 +28,6 @@
 #define __RTS51X_TRANSPORT_H
 
 #include <linux/kernel.h>
-#include <linux/version.h>
 
 #include "rts51x.h"
 #include "rts51x_chip.h"

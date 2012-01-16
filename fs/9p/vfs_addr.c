@@ -56,7 +56,7 @@ static int v9fs_fid_readpage(struct p9_fid *fid, struct page *page)
 	struct inode *inode;
 
 	inode = page->mapping->host;
-	P9_DPRINTK(P9_DEBUG_VFS, "\n");
+	p9_debug(P9_DEBUG_VFS, "\n");
 
 	BUG_ON(!PageLocked(page));
 
@@ -116,14 +116,14 @@ static int v9fs_vfs_readpages(struct file *filp, struct address_space *mapping,
 	struct inode *inode;
 
 	inode = mapping->host;
-	P9_DPRINTK(P9_DEBUG_VFS, "inode: %p file: %p\n", inode, filp);
+	p9_debug(P9_DEBUG_VFS, "inode: %p file: %p\n", inode, filp);
 
 	ret = v9fs_readpages_from_fscache(inode, mapping, pages, &nr_pages);
 	if (ret == 0)
 		return ret;
 
 	ret = read_cache_pages(mapping, pages, (void *)v9fs_vfs_readpage, filp);
-	P9_DPRINTK(P9_DEBUG_VFS, "  = %d\n", ret);
+	p9_debug(P9_DEBUG_VFS, "  = %d\n", ret);
 	return ret;
 }
 
@@ -263,10 +263,9 @@ v9fs_direct_IO(int rw, struct kiocb *iocb, const struct iovec *iov,
 	 * Now that we do caching with cache mode enabled, We need
 	 * to support direct IO
 	 */
-	P9_DPRINTK(P9_DEBUG_VFS, "v9fs_direct_IO: v9fs_direct_IO (%s) "
-			"off/no(%lld/%lu) EINVAL\n",
-			iocb->ki_filp->f_path.dentry->d_name.name,
-			(long long) pos, nr_segs);
+	p9_debug(P9_DEBUG_VFS, "v9fs_direct_IO: v9fs_direct_IO (%s) off/no(%lld/%lu) EINVAL\n",
+		 iocb->ki_filp->f_path.dentry->d_name.name,
+		 (long long)pos, nr_segs);
 
 	return -EINVAL;
 }

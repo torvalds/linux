@@ -146,10 +146,10 @@ static inline void superio_exit(void)
 #define IT87_SIO_BEEP_PIN_REG	0xf6	/* Beep pin mapping */
 
 /* Update battery voltage after every reading if true */
-static int update_vbat;
+static bool update_vbat;
 
 /* Not all BIOSes properly configure the PWM registers */
-static int fix_pwm_polarity;
+static bool fix_pwm_polarity;
 
 /* Many IT87 constants specified below */
 

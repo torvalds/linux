@@ -21,7 +21,6 @@
 #include <linux/ioport.h>
 #include <linux/init.h>
 #include <linux/pci.h>
-#include <linux/vmalloc.h>
 #include <linux/vt_kern.h>
 #include <linux/capability.h>
 #include <linux/fs.h>
@@ -46,8 +45,7 @@
 #define GPIOG_EN    (1<<6)
 #define GPIOG_READ  (1<<1)
 
-#define XGIFB_ROM_SIZE	65536
-
+static char *forcecrt2type;
 static char *mode;
 static int vesa = -1;
 static unsigned int refresh_rate;
@@ -159,7 +157,6 @@ static int XGIfb_mode_rate_to_dclock(struct vb_device_info *XGI_Pr,
 
 	/* unsigned long  temp = 0; */
 	int Clock;
-	XGI_Pr->ROMAddr = HwDeviceExtension->pjVirtualRomBase;
 	InitTo330Pointer(HwDeviceExtension->jChipType, XGI_Pr);
 
 	RefreshRateTableIndex = XGI_GetRatePtrCRT2(HwDeviceExtension, ModeNo,
@@ -199,7 +196,6 @@ static int XGIfb_mode_rate_to_ddata(struct vb_device_info *XGI_Pr,
 	unsigned char sr_data, cr_data, cr_data2;
 	unsigned long cr_data3;
 	int A, B, C, D, E, F, temp, j;
-	XGI_Pr->ROMAddr = HwDeviceExtension->pjVirtualRomBase;
 	InitTo330Pointer(HwDeviceExtension->jChipType, XGI_Pr);
 	RefreshRateTableIndex = XGI_GetRatePtrCRT2(HwDeviceExtension, ModeNo,
 			ModeIdIndex, XGI_Pr);
@@ -387,7 +383,7 @@ static void XGIRegInit(struct vb_device_info *XGI_Pr, unsigned long BaseAddr)
 
 /* ------------------ Internal helper routines ----------------- */
 
-static int XGIfb_GetXG21DefaultLVDSModeIdx(void)
+static int XGIfb_GetXG21DefaultLVDSModeIdx(struct xgifb_video_info *xgifb_info)
 {
 
 	int found_mode = 0;
@@ -396,11 +392,11 @@ static int XGIfb_GetXG21DefaultLVDSModeIdx(void)
 	found_mode = 0;
 	while ((XGIbios_mode[XGIfb_mode_idx].mode_no != 0)
 			&& (XGIbios_mode[XGIfb_mode_idx].xres
-					<= XGI21_LCDCapList[0].LVDSHDE)) {
+					<= xgifb_info->lvds_data.LVDSHDE)) {
 		if ((XGIbios_mode[XGIfb_mode_idx].xres
-				== XGI21_LCDCapList[0].LVDSHDE)
+				== xgifb_info->lvds_data.LVDSHDE)
 				&& (XGIbios_mode[XGIfb_mode_idx].yres
-						== XGI21_LCDCapList[0].LVDSVDE)
+					== xgifb_info->lvds_data.LVDSVDE)
 				&& (XGIbios_mode[XGIfb_mode_idx].bpp == 8)) {
 			found_mode = 1;
 			break;
@@ -456,51 +452,6 @@ invalid:
 		printk(KERN_INFO "XGIfb: Invalid VESA mode 0x%x'\n", vesamode);
 }
 
-static int XGIfb_GetXG21LVDSData(struct xgifb_video_info *xgifb_info)
-{
-	u8 tmp;
-	void __iomem *data = xgifb_info->mmio_vbase + 0x20000;
-	int i, j, k;
-
-	tmp = xgifb_reg_get(XGISR, 0x1e);
-	xgifb_reg_set(XGISR, 0x1e, tmp | 4);
-
-	if ((readb(data) == 0x55) &&
-	    (readb(data + 1) == 0xAA) &&
-	    (readb(data + 0x65) & 0x1)) {
-		i = readw(data + 0x316);
-		j = readb(data + i - 1);
-		if (j == 0xff)
-			j = 1;
-
-		k = 0;
-		do {
-			XGI21_LCDCapList[k].LVDS_Capability = readw(data + i);
-			XGI21_LCDCapList[k].LVDSHT = readw(data + i + 2);
-			XGI21_LCDCapList[k].LVDSVT = readw(data + i + 4);
-			XGI21_LCDCapList[k].LVDSHDE = readw(data + i + 6);
-			XGI21_LCDCapList[k].LVDSVDE = readw(data + i + 8);
-			XGI21_LCDCapList[k].LVDSHFP = readw(data + i + 10);
-			XGI21_LCDCapList[k].LVDSVFP = readw(data + i + 12);
-			XGI21_LCDCapList[k].LVDSHSYNC = readw(data + i + 14);
-			XGI21_LCDCapList[k].LVDSVSYNC = readw(data + i + 16);
-			XGI21_LCDCapList[k].VCLKData1 = readb(data + i + 18);
-			XGI21_LCDCapList[k].VCLKData2 = readb(data + i + 19);
-			XGI21_LCDCapList[k].PSC_S1 = readb(data + i + 20);
-			XGI21_LCDCapList[k].PSC_S2 = readb(data + i + 21);
-			XGI21_LCDCapList[k].PSC_S3 = readb(data + i + 22);
-			XGI21_LCDCapList[k].PSC_S4 = readb(data + i + 23);
-			XGI21_LCDCapList[k].PSC_S5 = readb(data + i + 24);
-			i += 25;
-			j--;
-			k++;
-		} while ((j > 0) && (k < (sizeof(XGI21_LCDCapList)
-				/ sizeof(struct XGI21_LVDSCapStruct))));
-		return 1;
-	}
-	return 0;
-}
-
 static int XGIfb_validate_mode(struct xgifb_video_info *xgifb_info, int myindex)
 {
 	u16 xres, yres;
@@ -508,8 +459,8 @@ static int XGIfb_validate_mode(struct xgifb_video_info *xgifb_info, int myindex)
 
 	if (xgifb_info->chip == XG21) {
 		if (xgifb_info->display2 == XGIFB_DISP_LCD) {
-			xres = XGI21_LCDCapList[0].LVDSHDE;
-			yres = XGI21_LCDCapList[0].LVDSVDE;
+			xres = xgifb_info->lvds_data.LVDSHDE;
+			yres = xgifb_info->lvds_data.LVDSVDE;
 			if (XGIbios_mode[myindex].xres > xres)
 				return -1;
 			if (XGIbios_mode[myindex].yres > yres)
@@ -1223,7 +1174,7 @@ static int XGIfb_do_set_var(struct fb_var_screeninfo *var, int isactive,
 	if (isactive) {
 
 		XGIfb_pre_setmode(xgifb_info);
-		if (XGISetModeNew(hw_info,
+		if (XGISetModeNew(xgifb_info, hw_info,
 				  XGIbios_mode[xgifb_info->mode_idx].mode_no)
 					== 0) {
 			printk(KERN_ERR "XGIfb: Setting mode[0x%x] failed\n",
@@ -1794,17 +1745,16 @@ static void XGIfb_detect_VB(struct xgifb_video_info *xgifb_info)
 			XGIfb_crt1off = 0;
 	}
 
-	if (XGIfb_crt2type != -1)
-		/* TW: Override with option */
-		xgifb_info->display2 = XGIfb_crt2type;
-	else if (cr32 & XGI_VB_TV)
-		xgifb_info->display2 = XGIFB_DISP_TV;
-	else if (cr32 & XGI_VB_LCD)
-		xgifb_info->display2 = XGIFB_DISP_LCD;
-	else if (cr32 & XGI_VB_CRT2)
-		xgifb_info->display2 = XGIFB_DISP_CRT;
-	else
-		xgifb_info->display2 = XGIFB_DISP_NONE;
+	if (!xgifb_info->display2_force) {
+		if (cr32 & XGI_VB_TV)
+			xgifb_info->display2 = XGIFB_DISP_TV;
+		else if (cr32 & XGI_VB_LCD)
+			xgifb_info->display2 = XGIFB_DISP_LCD;
+		else if (cr32 & XGI_VB_CRT2)
+			xgifb_info->display2 = XGIFB_DISP_CRT;
+		else
+			xgifb_info->display2 = XGIFB_DISP_NONE;
+	}
 
 	if (XGIfb_tvplug != -1)
 		/* PR/TW: Override with option */
@@ -1925,35 +1875,11 @@ static int __init XGIfb_setup(char *options)
 			XGIfb_crt2type = XGIFB_DISP_LCD;
 		} else if (!strncmp(this_opt, "noypan", 6)) {
 			XGIfb_ypan = 0;
-		} else if (!strncmp(this_opt, "userom:", 7)) {
-			XGIfb_userom = xgifb_optval(this_opt, 7);
 		} else {
 			mode = this_opt;
 		}
 	}
 	return 0;
-}
-
-static unsigned char *xgifb_copy_rom(struct pci_dev *dev)
-{
-	void __iomem *rom_address;
-	unsigned char *rom_copy;
-	size_t rom_size;
-
-	rom_address = pci_map_rom(dev, &rom_size);
-	if (rom_address == NULL)
-		return NULL;
-
-	rom_copy = vzalloc(XGIFB_ROM_SIZE);
-	if (rom_copy == NULL)
-		goto done;
-
-	rom_size = min_t(size_t, rom_size, XGIFB_ROM_SIZE);
-	memcpy_fromio(rom_copy, rom_address, rom_size);
-
-done:
-	pci_unmap_rom(dev, rom_address);
-	return rom_copy;
 }
 
 static int __devinit xgifb_probe(struct pci_dev *pdev,
@@ -1962,7 +1888,6 @@ static int __devinit xgifb_probe(struct pci_dev *pdev,
 	u8 reg, reg1;
 	u8 CR48, CR38;
 	int ret;
-	bool xgi21_drvlcdcaplist = false;
 	struct fb_info *fb_info;
 	struct xgifb_video_info *xgifb_info;
 	struct xgi_hw_device_info *hw_info;
@@ -1999,6 +1924,11 @@ static int __devinit xgifb_probe(struct pci_dev *pdev,
 	if (pci_enable_device(pdev)) {
 		ret = -EIO;
 		goto error;
+	}
+
+	if (XGIfb_crt2type != -1) {
+		xgifb_info->display2 = XGIfb_crt2type;
+		xgifb_info->display2_force = true;
 	}
 
 	XGIRegInit(&xgifb_info->dev_info, (unsigned long)hw_info->pjIOAddress);
@@ -2040,18 +1970,6 @@ static int __devinit xgifb_probe(struct pci_dev *pdev,
 
 	printk("XGIfb:chipid = %x\n", xgifb_info->chip);
 	hw_info->jChipType = xgifb_info->chip;
-
-	if ((xgifb_info->chip == XG21) || (XGIfb_userom)) {
-		hw_info->pjVirtualRomBase = xgifb_copy_rom(pdev);
-		if (hw_info->pjVirtualRomBase)
-			printk(KERN_INFO "XGIfb: Video ROM found and mapped to %p\n",
-			       hw_info->pjVirtualRomBase);
-		else
-			printk(KERN_INFO "XGIfb: Video ROM not found\n");
-	} else {
-		hw_info->pjVirtualRomBase = NULL;
-		printk(KERN_INFO "XGIfb: Video ROM usage disabled\n");
-	}
 
 	if (XGIfb_get_dram_size(xgifb_info)) {
 		printk(KERN_INFO "XGIfb: Fatal error: Unable to determine RAM size.\n");
@@ -2117,8 +2035,6 @@ static int __devinit xgifb_probe(struct pci_dev *pdev,
 		CR38 = xgifb_reg_get(XGICR, 0x38);
 		if ((CR38&0xE0) == 0xC0) {
 			xgifb_info->display2 = XGIFB_DISP_LCD;
-			if (!XGIfb_GetXG21LVDSData(xgifb_info))
-				xgi21_drvlcdcaplist = true;
 		} else if ((CR38&0xE0) == 0x60) {
 			xgifb_info->hasVB = HASVB_CHRONTEL;
 		} else {
@@ -2193,6 +2109,8 @@ static int __devinit xgifb_probe(struct pci_dev *pdev,
 
 	if (xgifb_info->hasVB != HASVB_NONE)
 		XGIfb_detect_VB(xgifb_info);
+	else if (xgifb_info->chip != XG21)
+		xgifb_info->display2 = XGIFB_DISP_NONE;
 
 	if (xgifb_info->display2 == XGIFB_DISP_LCD) {
 		if (!enable_dstn) {
@@ -2254,7 +2172,7 @@ static int __devinit xgifb_probe(struct pci_dev *pdev,
 		if (xgifb_info->display2 == XGIFB_DISP_LCD &&
 		    xgifb_info->chip == XG21)
 			xgifb_info->mode_idx =
-				XGIfb_GetXG21DefaultLVDSModeIdx();
+				XGIfb_GetXG21DefaultLVDSModeIdx(xgifb_info);
 		else
 			xgifb_info->mode_idx = DEFAULT_MODE;
 	}
@@ -2262,21 +2180,6 @@ static int __devinit xgifb_probe(struct pci_dev *pdev,
 	if (xgifb_info->mode_idx < 0) {
 		dev_err(&pdev->dev, "no supported video mode found\n");
 		goto error_1;
-	}
-
-	if (xgi21_drvlcdcaplist) {
-		int m;
-
-		for (m = 0; m < ARRAY_SIZE(XGI21_LCDCapList); m++)
-			if ((XGI21_LCDCapList[m].LVDSHDE ==
-				XGIbios_mode[xgifb_info->mode_idx].xres) &&
-			    (XGI21_LCDCapList[m].LVDSVDE ==
-				XGIbios_mode[xgifb_info->mode_idx].yres)) {
-				xgifb_reg_set(xgifb_info->dev_info.P3d4,
-					      0x36,
-					      m);
-				break;
-			}
 	}
 
 	/* yilin set default refresh rate */
@@ -2418,7 +2321,6 @@ error_1:
 error_0:
 	release_mem_region(xgifb_info->video_base, xgifb_info->video_size);
 error:
-	vfree(hw_info->pjVirtualRomBase);
 	framebuffer_release(fb_info);
 	return ret;
 }
@@ -2442,7 +2344,6 @@ static void __devexit xgifb_remove(struct pci_dev *pdev)
 	iounmap(xgifb_info->video_vbase);
 	release_mem_region(xgifb_info->mmio_base, xgifb_info->mmio_size);
 	release_mem_region(xgifb_info->video_base, xgifb_info->video_size);
-	vfree(xgifb_info->hw_info.pjVirtualRomBase);
 	framebuffer_release(fb_info);
 	pci_set_drvdata(pdev, NULL);
 }
@@ -2458,6 +2359,8 @@ static int __init xgifb_init(void)
 {
 	char *option = NULL;
 
+	if (forcecrt2type != NULL)
+		XGIfb_search_crt2type(forcecrt2type);
 	if (fb_get_options("xgifb", &option))
 		return -ENODEV;
 	XGIfb_setup(option);
@@ -2480,6 +2383,11 @@ MODULE_AUTHOR("XGITECH , Others");
 module_param(mode, charp, 0);
 module_param(vesa, int, 0);
 module_param(filter, int, 0);
+module_param(forcecrt2type, charp, 0);
+
+MODULE_PARM_DESC(forcecrt2type,
+	"\nForce the second display output type. Possible values are NONE,\n"
+	"LCD, TV, VGA, SVIDEO or COMPOSITE.\n");
 
 MODULE_PARM_DESC(mode,
 	"\nSelects the desired default display mode in the format XxYxDepth,\n"

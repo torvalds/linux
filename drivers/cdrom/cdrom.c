@@ -285,17 +285,17 @@
 #include <asm/uaccess.h>
 
 /* used to tell the module to turn on full debugging messages */
-static int debug;
+static bool debug;
 /* used to keep tray locked at all times */
 static int keeplocked;
 /* default compatibility mode */
-static int autoclose=1;
-static int autoeject;
-static int lockdoor = 1;
+static bool autoclose=1;
+static bool autoeject;
+static bool lockdoor = 1;
 /* will we ever get to use this... sigh. */
-static int check_media_type;
+static bool check_media_type;
 /* automatically restart mrw format */
-static int mrw_format_restart = 1;
+static bool mrw_format_restart = 1;
 module_param(debug, bool, 0);
 module_param(autoclose, bool, 0);
 module_param(autoeject, bool, 0);
@@ -2746,12 +2746,11 @@ int cdrom_ioctl(struct cdrom_device_info *cdi, struct block_device *bdev,
 {
 	void __user *argp = (void __user *)arg;
 	int ret;
-	struct gendisk *disk = bdev->bd_disk;
 
 	/*
 	 * Try the generic SCSI command ioctl's first.
 	 */
-	ret = scsi_cmd_ioctl(disk->queue, disk, mode, cmd, argp);
+	ret = scsi_cmd_blk_ioctl(bdev, mode, cmd, argp);
 	if (ret != -ENOTTY)
 		return ret;
 
