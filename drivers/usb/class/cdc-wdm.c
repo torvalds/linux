@@ -256,14 +256,8 @@ static void free_urbs(struct wdm_device *desc)
 
 static void cleanup(struct wdm_device *desc)
 {
-	usb_free_coherent(interface_to_usbdev(desc->intf),
-			  desc->wMaxPacketSize,
-			  desc->sbuf,
-			  desc->validity->transfer_dma);
-	usb_free_coherent(interface_to_usbdev(desc->intf),
-			  desc->bMaxPacketSize0,
-			  desc->inbuf,
-			  desc->response->transfer_dma);
+	kfree(desc->sbuf);
+	kfree(desc->inbuf);
 	kfree(desc->orq);
 	kfree(desc->irq);
 	kfree(desc->ubuf);
@@ -688,19 +682,13 @@ next_desc:
 	if (!desc->ubuf)
 		goto err;
 
-	desc->sbuf = usb_alloc_coherent(interface_to_usbdev(intf),
-					desc->wMaxPacketSize,
-					GFP_KERNEL,
-					&desc->validity->transfer_dma);
+	desc->sbuf = kmalloc(desc->wMaxPacketSize, GFP_KERNEL);
 	if (!desc->sbuf)
 		goto err;
 
-	desc->inbuf = usb_alloc_coherent(interface_to_usbdev(intf),
-					 desc->wMaxCommand,
-					 GFP_KERNEL,
-					 &desc->response->transfer_dma);
+	desc->inbuf = kmalloc(desc->wMaxCommand, GFP_KERNEL);
 	if (!desc->inbuf)
-		goto err2;
+		goto err;
 
 	usb_fill_int_urb(
 		desc->validity,
@@ -712,7 +700,6 @@ next_desc:
 		desc,
 		ep->bInterval
 	);
-	desc->validity->transfer_flags |= URB_NO_TRANSFER_DMA_MAP;
 
 	desc->irq->bRequestType = (USB_DIR_IN | USB_TYPE_CLASS | USB_RECIP_INTERFACE);
 	desc->irq->bRequest = USB_CDC_GET_ENCAPSULATED_RESPONSE;
@@ -731,30 +718,22 @@ next_desc:
 		wdm_in_callback,
 		desc
 	);
-	desc->response->transfer_flags |= URB_NO_TRANSFER_DMA_MAP;
 
 	usb_set_intfdata(intf, desc);
 	rv = usb_register_dev(intf, &wdm_class);
 	if (rv < 0)
-		goto err3;
+		goto err2;
 	else
 		dev_info(&intf->dev, "cdc-wdm%d: USB WDM device\n",
 			intf->minor - WDM_MINOR_BASE);
 out:
 	return rv;
-err3:
-	usb_set_intfdata(intf, NULL);
-	usb_free_coherent(interface_to_usbdev(desc->intf),
-			  desc->bMaxPacketSize0,
-			desc->inbuf,
-			desc->response->transfer_dma);
 err2:
-	usb_free_coherent(interface_to_usbdev(desc->intf),
-			  desc->wMaxPacketSize,
-			  desc->sbuf,
-			  desc->validity->transfer_dma);
+	usb_set_intfdata(intf, NULL);
 err:
 	free_urbs(desc);
+	kfree(desc->inbuf);
+	kfree(desc->sbuf);
 	kfree(desc->ubuf);
 	kfree(desc->orq);
 	kfree(desc->irq);
