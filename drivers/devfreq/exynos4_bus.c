@@ -1124,4 +1124,3 @@ module_exit(exynos4_busfreq_exit);
 MODULE_LICENSE("GPL");
 MODULE_DESCRIPTION("EXYNOS4 busfreq driver with devfreq framework");
 MODULE_AUTHOR("MyungJoo Ham <myungjoo.ham@samsung.com>");
-MODULE_ALIAS("exynos4-busfreq");
