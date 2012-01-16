@@ -78,13 +78,8 @@ jornada720_pcmcia_configure_socket(struct soc_pcmcia_socket *skt, const socket_s
 	}
 
 	ret = sa1111_pcmcia_configure_socket(skt, state);
-	if (ret == 0) {
-		unsigned long flags;
-
-		local_irq_save(flags);
+	if (ret == 0)
 		sa1111_set_io(s->dev, pa_dwr_mask, pa_dwr_set);
-		local_irq_restore(flags);
-	}
 
 	return ret;
 }
