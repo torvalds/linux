@@ -312,7 +312,7 @@ endif
 # If the user is running make -s (silent mode), suppress echoing of
 # commands
 
-ifneq ($(findstring s,$(MAKEFLAGS)),)
+ifneq ($(filter s% -s%,$(MAKEFLAGS)),)
   quiet=silent_
 endif
 
