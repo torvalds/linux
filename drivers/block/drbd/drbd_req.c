@@ -786,6 +786,7 @@ static int drbd_make_request_common(struct drbd_conf *mdev, struct bio *bio, uns
 	int local, remote, send_oos = 0;
 	int err = -EIO;
 	int ret = 0;
+	union drbd_state s;
 
 	/* allocate outside of all locks; */
 	req = drbd_req_new(mdev, bio);
@@ -847,8 +848,9 @@ static int drbd_make_request_common(struct drbd_conf *mdev, struct bio *bio, uns
 		drbd_al_begin_io(mdev, sector);
 	}
 
-	remote = remote && drbd_should_do_remote(mdev->state);
-	send_oos = rw == WRITE && drbd_should_send_oos(mdev->state);
+	s = mdev->state;
+	remote = remote && drbd_should_do_remote(s);
+	send_oos = rw == WRITE && drbd_should_send_oos(s);
 	D_ASSERT(!(remote && send_oos));
 
 	if (!(local || remote) && !is_susp(mdev->state)) {
