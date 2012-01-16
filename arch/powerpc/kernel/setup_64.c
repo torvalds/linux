@@ -598,7 +598,7 @@ void __init setup_arch(char **cmdline_p)
 	/* Initialize the MMU context management stuff */
 	mmu_context_init();
 
-	kvm_rma_init();
+	kvm_linear_init();
 
 	ppc64_boot_msg(0x15, "Setup Done");
 }

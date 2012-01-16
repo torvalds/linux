@@ -173,12 +173,13 @@ struct kvmppc_spapr_tce_table {
 	struct page *pages[0];
 };
 
-struct kvmppc_rma_info {
+struct kvmppc_linear_info {
 	void		*base_virt;
 	unsigned long	 base_pfn;
 	unsigned long	 npages;
 	struct list_head list;
-	atomic_t 	 use_count;
+	atomic_t	 use_count;
+	int		 type;
 };
 
 /*
@@ -224,7 +225,7 @@ struct kvm_arch {
 	int tlbie_lock;
 	unsigned long lpcr;
 	unsigned long rmor;
-	struct kvmppc_rma_info *rma;
+	struct kvmppc_linear_info *rma;
 	unsigned long vrma_slb_v;
 	int rma_setup_done;
 	int using_mmu_notifiers;
