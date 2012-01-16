@@ -132,32 +132,8 @@
 #define SKPCR_DCLKEN	(1<<7)
 #define SKPCR_PWMCLKEN	(1<<8)
 
-/*
- * USB Host controller
- */
+/* USB Host controller */
 #define SA1111_USB		0x0400
-
-/*
- * Offsets from SA1111_USB_BASE
- */
-#define SA1111_USB_STATUS	0x0118
-#define SA1111_USB_RESET	0x011c
-#define SA1111_USB_IRQTEST	0x0120
-
-#define USB_RESET_FORCEIFRESET	(1 << 0)
-#define USB_RESET_FORCEHCRESET	(1 << 1)
-#define USB_RESET_CLKGENRESET	(1 << 2)
-#define USB_RESET_SIMSCALEDOWN	(1 << 3)
-#define USB_RESET_USBINTTEST	(1 << 4)
-#define USB_RESET_SLEEPSTBYEN	(1 << 5)
-#define USB_RESET_PWRSENSELOW	(1 << 6)
-#define USB_RESET_PWRCTRLLOW	(1 << 7)
-
-#define USB_STATUS_IRQHCIRMTWKUP  (1 <<  7)
-#define USB_STATUS_IRQHCIBUFFACC  (1 <<  8)
-#define USB_STATUS_NIRQHCIM       (1 <<  9)
-#define USB_STATUS_NHCIMFCLR      (1 << 10)
-#define USB_STATUS_USBPWRSENSE    (1 << 11)
 
 /*
  * Serial Audio Controller
