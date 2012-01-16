@@ -782,7 +782,7 @@ static ssize_t pmbus_set_sensor(struct device *dev,
 	int ret;
 	u16 regval;
 
-	if (strict_strtol(buf, 10, &val) < 0)
+	if (kstrtol(buf, 10, &val) < 0)
 		return -EINVAL;
 
 	mutex_lock(&data->update_lock);
