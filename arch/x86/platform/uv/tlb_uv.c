@@ -1218,6 +1218,7 @@ void uv_bau_message_interrupt(struct pt_regs *regs)
 	struct ptc_stats *stat;
 	struct msg_desc msgdesc;
 
+	ack_APIC_irq();
 	time_start = get_cycles();
 
 	bcp = &per_cpu(bau_control, smp_processor_id());
@@ -1247,8 +1248,6 @@ void uv_bau_message_interrupt(struct pt_regs *regs)
 		stat->d_nomsg++;
 	else if (count > 1)
 		stat->d_multmsg++;
-
-	ack_APIC_irq();
 }
 
 /*
