@@ -42,6 +42,8 @@
 #define vectors_high()	(0)
 #endif
 
+#ifdef CONFIG_CPU_CP15
+
 extern unsigned long cr_no_alignment;	/* defined in entry-armv.S */
 extern unsigned long cr_alignment;	/* defined in entry-armv.S */
 
@@ -82,6 +84,18 @@ static inline void set_copro_access(unsigned int val)
 	isb();
 }
 
-#endif
+#else /* ifdef CONFIG_CPU_CP15 */
+
+/*
+ * cr_alignment and cr_no_alignment are tightly coupled to cp15 (at least in the
+ * minds of the developers). Yielding 0 for machines without a cp15 (and making
+ * it read-only) is fine for most cases and saves quite some #ifdeffery.
+ */
+#define cr_no_alignment	UL(0)
+#define cr_alignment	UL(0)
+
+#endif /* ifdef CONFIG_CPU_CP15 / else */
+
+#endif /* ifndef __ASSEMBLY__ */
 
 #endif
