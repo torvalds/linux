@@ -2150,6 +2150,23 @@ static int chunk_usage_filter(struct btrfs_fs_info *fs_info, u64 chunk_offset,
 	return ret;
 }
 
+static int chunk_devid_filter(struct extent_buffer *leaf,
+			      struct btrfs_chunk *chunk,
+			      struct btrfs_balance_args *bargs)
+{
+	struct btrfs_stripe *stripe;
+	int num_stripes = btrfs_chunk_num_stripes(leaf, chunk);
+	int i;
+
+	for (i = 0; i < num_stripes; i++) {
+		stripe = btrfs_stripe_nr(chunk, i);
+		if (btrfs_stripe_devid(leaf, stripe) == bargs->devid)
+			return 0;
+	}
+
+	return 1;
+}
+
 static int should_balance_chunk(struct btrfs_root *root,
 				struct extent_buffer *leaf,
 				struct btrfs_chunk *chunk, u64 chunk_offset)
@@ -2180,6 +2197,12 @@ static int should_balance_chunk(struct btrfs_root *root,
 	/* usage filter */
 	if ((bargs->flags & BTRFS_BALANCE_ARGS_USAGE) &&
 	    chunk_usage_filter(bctl->fs_info, chunk_offset, bargs)) {
+		return 0;
+	}
+
+	/* devid filter */
+	if ((bargs->flags & BTRFS_BALANCE_ARGS_DEVID) &&
+	    chunk_devid_filter(leaf, chunk, bargs)) {
 		return 0;
 	}
 
