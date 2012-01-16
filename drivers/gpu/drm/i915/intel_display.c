@@ -944,18 +944,23 @@ void assert_pipe(struct drm_i915_private *dev_priv,
 	     pipe_name(pipe), state_string(state), state_string(cur_state));
 }
 
-static void assert_plane_enabled(struct drm_i915_private *dev_priv,
-				 enum plane plane)
+static void assert_plane(struct drm_i915_private *dev_priv,
+			 enum plane plane, bool state)
 {
 	int reg;
 	u32 val;
+	bool cur_state;
 
 	reg = DSPCNTR(plane);
 	val = I915_READ(reg);
-	WARN(!(val & DISPLAY_PLANE_ENABLE),
-	     "plane %c assertion failure, should be active but is disabled\n",
-	     plane_name(plane));
+	cur_state = !!(val & DISPLAY_PLANE_ENABLE);
+	WARN(cur_state != state,
+	     "plane %c assertion failure (expected %s, current %s)\n",
+	     plane_name(plane), state_string(state), state_string(cur_state));
 }
+
+#define assert_plane_enabled(d, p) assert_plane(d, p, true)
+#define assert_plane_disabled(d, p) assert_plane(d, p, false)
 
 static void assert_planes_disabled(struct drm_i915_private *dev_priv,
 				   enum pipe pipe)
@@ -3335,6 +3340,8 @@ static void intel_crtc_disable(struct drm_crtc *crtc)
 	struct drm_device *dev = crtc->dev;
 
 	crtc_funcs->dpms(crtc, DRM_MODE_DPMS_OFF);
+	assert_plane_disabled(dev->dev_private, to_intel_crtc(crtc)->plane);
+	assert_pipe_disabled(dev->dev_private, to_intel_crtc(crtc)->pipe);
 
 	if (crtc->fb) {
 		mutex_lock(&dev->struct_mutex);
