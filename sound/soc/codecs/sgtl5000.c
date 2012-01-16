@@ -1248,7 +1248,7 @@ static int sgtl5000_enable_regulators(struct snd_soc_codec *codec)
 	}
 
 	rev = (reg & SGTL5000_REVID_MASK) >> SGTL5000_REVID_SHIFT;
-	dev_info(codec->dev, "sgtl5000 revision %d\n", rev);
+	dev_info(codec->dev, "sgtl5000 revision 0x%x\n", rev);
 
 	/*
 	 * workaround for revision 0x11 and later,
