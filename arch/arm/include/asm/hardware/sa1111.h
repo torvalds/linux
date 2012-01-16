@@ -327,22 +327,6 @@
  *    PC_SSR		GPIO Block C Sleep State
  */
 
-#define _PA_DDR		_SA1111( 0x1000 )
-#define _PA_DRR		_SA1111( 0x1004 )
-#define _PA_DWR		_SA1111( 0x1004 )
-#define _PA_SDR		_SA1111( 0x1008 )
-#define _PA_SSR		_SA1111( 0x100c )
-#define _PB_DDR		_SA1111( 0x1010 )
-#define _PB_DRR		_SA1111( 0x1014 )
-#define _PB_DWR		_SA1111( 0x1014 )
-#define _PB_SDR		_SA1111( 0x1018 )
-#define _PB_SSR		_SA1111( 0x101c )
-#define _PC_DDR		_SA1111( 0x1020 )
-#define _PC_DRR		_SA1111( 0x1024 )
-#define _PC_DWR		_SA1111( 0x1024 )
-#define _PC_SDR		_SA1111( 0x1028 )
-#define _PC_SSR		_SA1111( 0x102c )
-
 #define SA1111_GPIO	0x1000
 
 #define SA1111_GPIO_PADDR	(0x000)
