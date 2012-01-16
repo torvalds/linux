@@ -1264,7 +1264,8 @@ static int hci_outgoing_auth_needed(struct hci_dev *hdev,
 
 	/* Only request authentication for SSP connections or non-SSP
 	 * devices with sec_level HIGH or if MITM protection is requested */
-	if (!(hdev->ssp_mode > 0 && conn->ssp_mode > 0) &&
+	if (!(hdev->ssp_mode > 0 &&
+			test_bit(HCI_CONN_SSP_ENABLED, &conn->flags)) &&
 				conn->pending_sec_level != BT_SECURITY_HIGH &&
 				!(conn->auth_type & 0x01))
 		return 0;
@@ -1838,7 +1839,8 @@ static inline void hci_auth_complete_evt(struct hci_dev *hdev, struct sk_buff *s
 		goto unlock;
 
 	if (!ev->status) {
-		if (!(conn->ssp_mode > 0 && hdev->ssp_mode > 0) &&
+		if (!(test_bit(HCI_CONN_SSP_ENABLED, &conn->flags) &&
+							hdev->ssp_mode > 0) &&
 				test_bit(HCI_CONN_REAUTH_PEND,	&conn->flags)) {
 			BT_INFO("re-auth of legacy device is not possible.");
 		} else {
@@ -1853,7 +1855,8 @@ static inline void hci_auth_complete_evt(struct hci_dev *hdev, struct sk_buff *s
 	clear_bit(HCI_CONN_REAUTH_PEND, &conn->flags);
 
 	if (conn->state == BT_CONFIG) {
-		if (!ev->status && hdev->ssp_mode > 0 && conn->ssp_mode > 0) {
+		if (!ev->status && hdev->ssp_mode > 0 &&
+				test_bit(HCI_CONN_SSP_ENABLED, &conn->flags)) {
 			struct hci_cp_set_conn_encrypt cp;
 			cp.handle  = ev->handle;
 			cp.encrypt = 0x01;
@@ -2505,9 +2508,9 @@ static inline void hci_mode_change_evt(struct hci_dev *hdev, struct sk_buff *skb
 
 		if (!test_and_clear_bit(HCI_CONN_MODE_CHANGE_PEND, &conn->flags)) {
 			if (conn->mode == HCI_CM_ACTIVE)
-				conn->power_save = 1;
+				set_bit(HCI_CONN_POWER_SAVE, &conn->flags);
 			else
-				conn->power_save = 0;
+				clear_bit(HCI_CONN_POWER_SAVE, &conn->flags);
 		}
 
 		if (test_and_clear_bit(HCI_CONN_SCO_SETUP_PEND, &conn->flags))
@@ -2780,7 +2783,8 @@ static inline void hci_remote_ext_features_evt(struct hci_dev *hdev, struct sk_b
 		if (ie)
 			ie->data.ssp_mode = (ev->features[0] & 0x01);
 
-		conn->ssp_mode = (ev->features[0] & 0x01);
+		if (ev->features[0] & 0x01)
+			set_bit(HCI_CONN_SSP_ENABLED, &conn->flags);
 	}
 
 	if (conn->state != BT_CONFIG)
@@ -2962,7 +2966,7 @@ static inline void hci_io_capa_request_evt(struct hci_dev *hdev, struct sk_buff 
 		conn->auth_type = hci_get_auth_req(conn);
 		cp.authentication = conn->auth_type;
 
-		if ((conn->out == 0x01 || conn->remote_oob == 0x01) &&
+		if ((conn->out || test_bit(HCI_CONN_REMOTE_OOB, &conn->flags)) &&
 				hci_find_remote_oob_data(hdev, &conn->dst))
 			cp.oob_data = 0x01;
 		else
@@ -2998,8 +3002,9 @@ static inline void hci_io_capa_reply_evt(struct hci_dev *hdev, struct sk_buff *s
 		goto unlock;
 
 	conn->remote_cap = ev->capability;
-	conn->remote_oob = ev->oob_data;
 	conn->remote_auth = ev->authentication;
+	if (ev->oob_data)
+		set_bit(HCI_CONN_REMOTE_OOB, &conn->flags);
 
 unlock:
 	hci_dev_unlock(hdev);

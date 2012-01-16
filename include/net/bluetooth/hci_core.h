@@ -286,7 +286,6 @@ struct hci_conn {
 	__u8		attempt;
 	__u8		dev_class[3];
 	__u8		features[8];
-	__u8		ssp_mode;
 	__u16		interval;
 	__u16		pkt_type;
 	__u16		link_policy;
@@ -298,12 +297,10 @@ struct hci_conn {
 	__u8		pin_length;
 	__u8		enc_key_size;
 	__u8		io_capability;
-	__u8		power_save;
 	__u16		disc_timeout;
 	unsigned long	flags;
 
 	__u8		remote_cap;
-	__u8		remote_oob;
 	__u8		remote_auth;
 
 	unsigned int	sent;
@@ -410,6 +407,9 @@ enum {
 	HCI_CONN_SCO_SETUP_PEND,
 	HCI_CONN_LE_SMP_PEND,
 	HCI_CONN_MGMT_CONNECTED,
+	HCI_CONN_SSP_ENABLED,
+	HCI_CONN_POWER_SAVE,
+	HCI_CONN_REMOTE_OOB,
 };
 
 static inline void hci_conn_hash_init(struct hci_dev *hdev)

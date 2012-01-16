@@ -105,7 +105,8 @@ void hci_acl_connect(struct hci_conn *conn)
 		}
 
 		memcpy(conn->dev_class, ie->data.dev_class, 3);
-		conn->ssp_mode = ie->data.ssp_mode;
+		if (ie->data.ssp_mode > 0)
+			set_bit(HCI_CONN_SSP_ENABLED, &conn->flags);
 	}
 
 	cp.pkt_type = cpu_to_le16(conn->pkt_type);
@@ -386,7 +387,7 @@ struct hci_conn *hci_conn_add(struct hci_dev *hdev, int type, bdaddr_t *dst)
 	conn->remote_auth = 0xff;
 	conn->key_type = 0xff;
 
-	conn->power_save = 1;
+	set_bit(HCI_CONN_POWER_SAVE, &conn->flags);
 	conn->disc_timeout = HCI_DISCONN_TIMEOUT;
 
 	switch (type) {
@@ -586,7 +587,7 @@ struct hci_conn *hci_connect(struct hci_dev *hdev, int type, bdaddr_t *dst, __u8
 
 	if (acl->state == BT_CONNECTED &&
 			(sco->state == BT_OPEN || sco->state == BT_CLOSED)) {
-		acl->power_save = 1;
+		set_bit(HCI_CONN_POWER_SAVE, &acl->flags);
 		hci_conn_enter_active_mode(acl, BT_POWER_FORCE_ACTIVE_ON);
 
 		if (test_bit(HCI_CONN_MODE_CHANGE_PEND, &acl->flags)) {
@@ -607,7 +608,8 @@ int hci_conn_check_link_mode(struct hci_conn *conn)
 {
 	BT_DBG("conn %p", conn);
 
-	if (conn->ssp_mode > 0 && conn->hdev->ssp_mode > 0 &&
+	if (test_bit(HCI_CONN_SSP_ENABLED, &conn->flags) &&
+					conn->hdev->ssp_mode > 0 &&
 					!(conn->link_mode & HCI_LM_ENCRYPT))
 		return 0;
 
@@ -671,7 +673,8 @@ int hci_conn_security(struct hci_conn *conn, __u8 sec_level, __u8 auth_type)
 	/* For non 2.1 devices and low security level we don't need the link
 	   key. */
 	if (sec_level == BT_SECURITY_LOW &&
-				(!conn->ssp_mode || !conn->hdev->ssp_mode))
+			(!test_bit(HCI_CONN_SSP_ENABLED, &conn->flags) ||
+							!conn->hdev->ssp_mode))
 		return 1;
 
 	/* For other security levels we need the link key. */
@@ -778,7 +781,7 @@ void hci_conn_enter_active_mode(struct hci_conn *conn, __u8 force_active)
 	if (conn->mode != HCI_CM_SNIFF)
 		goto timer;
 
-	if (!conn->power_save && !force_active)
+	if (!test_bit(HCI_CONN_POWER_SAVE, &conn->flags) && !force_active)
 		goto timer;
 
 	if (!test_and_set_bit(HCI_CONN_MODE_CHANGE_PEND, &conn->flags)) {
