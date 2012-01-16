@@ -69,4 +69,5 @@ The LM64 is effectively an LM63 with GPIO lines. The driver does not
 support these GPIO lines at present.
 
 The LM96163 is an enhanced version of LM63 with improved temperature accuracy
-and better PWM resolution.
+and better PWM resolution. For LM96163, the external temperature sensor type is
+configurable as CPU embedded diode(1) or 3904 transistor(2).
