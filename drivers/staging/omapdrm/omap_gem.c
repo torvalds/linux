@@ -1034,6 +1034,11 @@ void omap_gem_free_object(struct drm_gem_object *obj)
 		drm_gem_free_mmap_offset(obj);
 	}
 
+	/* this means the object is still pinned.. which really should
+	 * not happen.  I think..
+	 */
+	WARN_ON(omap_obj->paddr_cnt > 0);
+
 	/* don't free externally allocated backing memory */
 	if (!(omap_obj->flags & OMAP_BO_EXT_MEM)) {
 		if (omap_obj->pages) {

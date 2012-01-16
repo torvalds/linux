@@ -59,14 +59,20 @@ static const struct format formats[] = {
 	{ OMAP_DSS_COLOR_UYVY,        DRM_FORMAT_UYVY,     {{2, 1}}, true },
 };
 
+/* per-plane info for the fb: */
+struct plane {
+	struct drm_gem_object *bo;
+	uint32_t pitch;
+	uint32_t offset;
+	dma_addr_t paddr;
+};
+
 #define to_omap_framebuffer(x) container_of(x, struct omap_framebuffer, base)
 
 struct omap_framebuffer {
 	struct drm_framebuffer base;
-	struct drm_gem_object *bo;
-	int size;
-	dma_addr_t paddr;
 	const struct format *format;
+	struct plane planes[4];
 };
 
 static int omap_framebuffer_create_handle(struct drm_framebuffer *fb,
@@ -74,22 +80,23 @@ static int omap_framebuffer_create_handle(struct drm_framebuffer *fb,
 		unsigned int *handle)
 {
 	struct omap_framebuffer *omap_fb = to_omap_framebuffer(fb);
-    return drm_gem_handle_create(file_priv, omap_fb->bo, handle);
+	return drm_gem_handle_create(file_priv,
+			omap_fb->planes[0].bo, handle);
 }
 
 static void omap_framebuffer_destroy(struct drm_framebuffer *fb)
 {
-	struct drm_device *dev = fb->dev;
 	struct omap_framebuffer *omap_fb = to_omap_framebuffer(fb);
+	int i, n = drm_format_num_planes(omap_fb->format->pixel_format);
 
 	DBG("destroy: FB ID: %d (%p)", fb->base.id, fb);
 
 	drm_framebuffer_cleanup(fb);
 
-	if (omap_fb->bo) {
-		if (omap_fb->paddr && omap_gem_put_paddr(omap_fb->bo))
-			dev_err(dev->dev, "could not unmap!\n");
-		drm_gem_object_unreference_unlocked(omap_fb->bo);
+	for (i = 0; i < n; i++) {
+		struct plane *plane = &omap_fb->planes[i];
+		if (plane->bo)
+			drm_gem_object_unreference_unlocked(plane->bo);
 	}
 
 	kfree(omap_fb);
@@ -116,37 +123,76 @@ static const struct drm_framebuffer_funcs omap_framebuffer_funcs = {
 	.dirty = omap_framebuffer_dirty,
 };
 
-/* returns the buffer size */
-int omap_framebuffer_get_buffer(struct drm_framebuffer *fb, int x, int y,
-		void **vaddr, dma_addr_t *paddr, unsigned int *screen_width)
+/* pins buffer in preparation for scanout */
+int omap_framebuffer_pin(struct drm_framebuffer *fb)
 {
 	struct omap_framebuffer *omap_fb = to_omap_framebuffer(fb);
-	int bpp = fb->bits_per_pixel / 8;
-	unsigned long offset;
+	int ret, i, n = drm_format_num_planes(omap_fb->format->pixel_format);
 
-	offset = (x * bpp) + (y * fb->pitches[0]);
-
-	if (vaddr) {
-		void *bo_vaddr = omap_gem_vaddr(omap_fb->bo);
-		/* note: we can only count on having a vaddr for buffers that
-		 * are allocated physically contiguously to begin with (ie.
-		 * dma_alloc_coherent()).  But this should be ok because it
-		 * is only used by legacy fbdev
-		 */
-		BUG_ON(IS_ERR_OR_NULL(bo_vaddr));
-		*vaddr = bo_vaddr + offset;
+	for (i = 0; i < n; i++) {
+		struct plane *plane = &omap_fb->planes[i];
+		ret = omap_gem_get_paddr(plane->bo, &plane->paddr, true);
+		if (ret)
+			goto fail;
 	}
 
-	*paddr = omap_fb->paddr + offset;
-	*screen_width = fb->pitches[0] / bpp;
+	return 0;
 
-	return omap_fb->size - offset;
+fail:
+	while (--i > 0) {
+		struct plane *plane = &omap_fb->planes[i];
+		omap_gem_put_paddr(plane->bo);
+	}
+	return ret;
 }
 
-struct drm_gem_object *omap_framebuffer_bo(struct drm_framebuffer *fb)
+/* releases buffer when done with scanout */
+void omap_framebuffer_unpin(struct drm_framebuffer *fb)
 {
 	struct omap_framebuffer *omap_fb = to_omap_framebuffer(fb);
-	return omap_fb->bo;
+	int i, n = drm_format_num_planes(omap_fb->format->pixel_format);
+
+	for (i = 0; i < n; i++) {
+		struct plane *plane = &omap_fb->planes[i];
+		omap_gem_put_paddr(plane->bo);
+	}
+}
+
+/* update ovl info for scanout, handles cases of multi-planar fb's, etc.
+ */
+void omap_framebuffer_update_scanout(struct drm_framebuffer *fb, int x, int y,
+		struct omap_overlay_info *info)
+{
+	struct omap_framebuffer *omap_fb = to_omap_framebuffer(fb);
+	const struct format *format = omap_fb->format;
+	struct plane *plane = &omap_fb->planes[0];
+	unsigned int offset;
+
+	offset = plane->offset +
+			(x * format->planes[0].stride_bpp) +
+			(y * plane->pitch / format->planes[0].sub_y);
+
+	info->color_mode   = format->dss_format;
+	info->paddr        = plane->paddr + offset;
+	info->screen_width = plane->pitch / format->planes[0].stride_bpp;
+
+	if (format->dss_format == OMAP_DSS_COLOR_NV12) {
+		plane = &omap_fb->planes[1];
+		offset = plane->offset +
+				(x * format->planes[1].stride_bpp) +
+				(y * plane->pitch / format->planes[1].sub_y);
+		info->p_uv_addr = plane->paddr + offset;
+	} else {
+		info->p_uv_addr = 0;
+	}
+}
+
+struct drm_gem_object *omap_framebuffer_bo(struct drm_framebuffer *fb, int p)
+{
+	struct omap_framebuffer *omap_fb = to_omap_framebuffer(fb);
+	if (p >= drm_format_num_planes(omap_fb->format->pixel_format))
+		return NULL;
+	return omap_fb->planes[p].bo;
 }
 
 /* iterate thru all the connectors, returning ones that are attached
@@ -231,7 +277,7 @@ struct drm_framebuffer *omap_framebuffer_init(struct drm_device *dev,
 	struct omap_framebuffer *omap_fb;
 	struct drm_framebuffer *fb = NULL;
 	const struct format *format = NULL;
-	int i, size, ret;
+	int ret, i, n = drm_format_num_planes(mode_cmd->pixel_format);
 
 	DBG("create framebuffer: dev=%p, mode_cmd=%p (%dx%d@%4.4s)",
 			dev, mode_cmd, mode_cmd->width, mode_cmd->height,
@@ -251,10 +297,6 @@ struct drm_framebuffer *omap_framebuffer_init(struct drm_device *dev,
 		goto fail;
 	}
 
-	/* in case someone tries to feed us a completely bogus stride: */
-	mode_cmd->pitches[0] = align_pitch(mode_cmd->pitches[0],
-			mode_cmd->width, format->planes[0].stride_bpp);
-
 	omap_fb = kzalloc(sizeof(*omap_fb), GFP_KERNEL);
 	if (!omap_fb) {
 		dev_err(dev->dev, "could not allocate fb\n");
@@ -271,21 +313,32 @@ struct drm_framebuffer *omap_framebuffer_init(struct drm_device *dev,
 
 	DBG("create: FB ID: %d (%p)", fb->base.id, fb);
 
-	size = PAGE_ALIGN(mode_cmd->pitches[0] * mode_cmd->height);
+	omap_fb->format = format;
 
-	if (size > bos[0]->size) {
-		dev_err(dev->dev, "provided buffer object is too small!\n");
-		ret = -EINVAL;
-		goto fail;
-	}
+	for (i = 0; i < n; i++) {
+		struct plane *plane = &omap_fb->planes[i];
+		int size, pitch = mode_cmd->pitches[i];
 
-	omap_fb->bo = bos[0];
-	omap_fb->size = size;
+		if (pitch < (mode_cmd->width * format->planes[i].stride_bpp)) {
+			dev_err(dev->dev, "provided buffer pitch is too small! %d < %d\n",
+					pitch, mode_cmd->width * format->planes[i].stride_bpp);
+			ret = -EINVAL;
+			goto fail;
+		}
 
-	ret = omap_gem_get_paddr(bos[0], &omap_fb->paddr, true);
-	if (ret) {
-		dev_err(dev->dev, "could not map (paddr)!\n");
-		goto fail;
+		size = pitch * mode_cmd->height / format->planes[i].sub_y;
+
+		if (size > (bos[i]->size - mode_cmd->offsets[i])) {
+			dev_err(dev->dev, "provided buffer object is too small! %d < %d\n",
+					bos[i]->size - mode_cmd->offsets[i], size);
+			ret = -EINVAL;
+			goto fail;
+		}
+
+		plane->bo     = bos[i];
+		plane->offset = mode_cmd->offsets[i];
+		plane->pitch  = mode_cmd->pitches[i];
+		plane->paddr  = pitch;
 	}
 
 	drm_helper_mode_fill_fb_struct(fb, mode_cmd);

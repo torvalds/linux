@@ -40,6 +40,9 @@ struct omap_plane {
 	 * fractional positions:
 	 */
 	unsigned int src_x, src_y;
+
+	/* last fb that we pinned: */
+	struct drm_framebuffer *pinned_fb;
 };
 
 
@@ -55,7 +58,8 @@ static int commit(struct drm_plane *plane)
 	DBG("%s", ovl->name);
 	DBG("%dx%d -> %dx%d (%d)", info->width, info->height, info->out_width,
 			info->out_height, info->screen_width);
-	DBG("%d,%d %08x", info->pos_x, info->pos_y, info->paddr);
+	DBG("%d,%d %08x %08x", info->pos_x, info->pos_y,
+			info->paddr, info->p_uv_addr);
 
 	/* NOTE: do we want to do this at all here, or just wait
 	 * for dpms(ON) since other CRTC's may not have their mode
@@ -133,6 +137,23 @@ static void update_manager(struct drm_plane *plane)
 	}
 }
 
+/* update which fb (if any) is pinned for scanout */
+static int update_pin(struct drm_plane *plane, struct drm_framebuffer *fb)
+{
+	struct omap_plane *omap_plane = to_omap_plane(plane);
+	int ret = 0;
+
+	if (omap_plane->pinned_fb != fb) {
+		if (omap_plane->pinned_fb)
+			omap_framebuffer_unpin(omap_plane->pinned_fb);
+		omap_plane->pinned_fb = fb;
+		if (fb)
+			ret = omap_framebuffer_pin(fb);
+	}
+
+	return ret;
+}
+
 /* update parameters that are dependent on the framebuffer dimensions and
  * position within the fb that this plane scans out from. This is called
  * when framebuffer or x,y base may have changed.
@@ -140,19 +161,23 @@ static void update_manager(struct drm_plane *plane)
 static void update_scanout(struct drm_plane *plane)
 {
 	struct omap_plane *omap_plane = to_omap_plane(plane);
-	unsigned int screen_width; /* really means "pitch" */
-	dma_addr_t paddr;
+	struct omap_overlay_info *info = &omap_plane->info;
+	int ret;
 
-	omap_framebuffer_get_buffer(plane->fb,
+	ret = update_pin(plane, plane->fb);
+	if (ret) {
+		dev_err(plane->dev->dev,
+			"could not pin fb: %d\n", ret);
+		omap_plane->info.enabled = false;
+	}
+
+	omap_framebuffer_update_scanout(plane->fb,
+			omap_plane->src_x, omap_plane->src_y, info);
+
+	DBG("%s: %d,%d: %08x %08x (%d)", omap_plane->ovl->name,
 			omap_plane->src_x, omap_plane->src_y,
-			NULL, &paddr, &screen_width);
-
-	DBG("%s: %d,%d: %08x (%d)", omap_plane->ovl->name,
-			omap_plane->src_x, omap_plane->src_y,
-			(u32)paddr, screen_width);
-
-	omap_plane->info.paddr = paddr;
-	omap_plane->info.screen_width = screen_width;
+			(u32)info->paddr, (u32)info->p_uv_addr,
+			info->screen_width);
 }
 
 static int omap_plane_update(struct drm_plane *plane,
@@ -219,6 +244,7 @@ int omap_plane_dpms(struct drm_plane *plane, int mode)
 		omap_plane->info.enabled = true;
 	} else {
 		omap_plane->info.enabled = false;
+		update_pin(plane, NULL);
 	}
 
 	return commit(plane);
@@ -290,11 +316,6 @@ struct drm_plane *omap_plane_init(struct drm_device *dev,
 		omap_plane->info.zorder = 0;
 	else
 		omap_plane->info.zorder = 1;
-
-	/* TODO color mode should come from fb.. this will come in a
-	 * subsequent patch
-	 */
-	omap_plane->info.color_mode = OMAP_DSS_COLOR_RGB24U;
 
 	update_manager(plane);
 

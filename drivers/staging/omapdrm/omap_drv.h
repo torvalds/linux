@@ -90,9 +90,11 @@ struct drm_framebuffer *omap_framebuffer_create(struct drm_device *dev,
 		struct drm_file *file, struct drm_mode_fb_cmd2 *mode_cmd);
 struct drm_framebuffer *omap_framebuffer_init(struct drm_device *dev,
 		struct drm_mode_fb_cmd2 *mode_cmd, struct drm_gem_object **bos);
-struct drm_gem_object *omap_framebuffer_bo(struct drm_framebuffer *fb);
-int omap_framebuffer_get_buffer(struct drm_framebuffer *fb, int x, int y,
-		void **vaddr, dma_addr_t *paddr, unsigned int *screen_width);
+struct drm_gem_object *omap_framebuffer_bo(struct drm_framebuffer *fb, int p);
+int omap_framebuffer_pin(struct drm_framebuffer *fb);
+void omap_framebuffer_unpin(struct drm_framebuffer *fb);
+void omap_framebuffer_update_scanout(struct drm_framebuffer *fb, int x, int y,
+		struct omap_overlay_info *info);
 struct drm_connector *omap_framebuffer_get_next_connector(
 		struct drm_framebuffer *fb, struct drm_connector *from);
 void omap_framebuffer_flush(struct drm_framebuffer *fb,
