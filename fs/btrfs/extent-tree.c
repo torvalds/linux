@@ -618,8 +618,7 @@ static struct btrfs_space_info *__find_space_info(struct btrfs_fs_info *info,
 	struct list_head *head = &info->space_info;
 	struct btrfs_space_info *found;
 
-	flags &= BTRFS_BLOCK_GROUP_DATA | BTRFS_BLOCK_GROUP_SYSTEM |
-		 BTRFS_BLOCK_GROUP_METADATA;
+	flags &= BTRFS_BLOCK_GROUP_TYPE_MASK;
 
 	rcu_read_lock();
 	list_for_each_entry_rcu(found, head, list) {
@@ -2993,9 +2992,7 @@ static int update_space_info(struct btrfs_fs_info *info, u64 flags,
 		INIT_LIST_HEAD(&found->block_groups[i]);
 	init_rwsem(&found->groups_sem);
 	spin_lock_init(&found->lock);
-	found->flags = flags & (BTRFS_BLOCK_GROUP_DATA |
-				BTRFS_BLOCK_GROUP_SYSTEM |
-				BTRFS_BLOCK_GROUP_METADATA);
+	found->flags = flags & BTRFS_BLOCK_GROUP_TYPE_MASK;
 	found->total_bytes = total_bytes;
 	found->disk_total = total_bytes * factor;
 	found->bytes_used = bytes_used;
@@ -3016,10 +3013,7 @@ static int update_space_info(struct btrfs_fs_info *info, u64 flags,
 
 static void set_avail_alloc_bits(struct btrfs_fs_info *fs_info, u64 flags)
 {
-	u64 extra_flags = flags & (BTRFS_BLOCK_GROUP_RAID0 |
-				   BTRFS_BLOCK_GROUP_RAID1 |
-				   BTRFS_BLOCK_GROUP_RAID10 |
-				   BTRFS_BLOCK_GROUP_DUP);
+	u64 extra_flags = flags & BTRFS_BLOCK_GROUP_PROFILE_MASK;
 	if (extra_flags) {
 		if (flags & BTRFS_BLOCK_GROUP_DATA)
 			fs_info->avail_data_alloc_bits |= extra_flags;
