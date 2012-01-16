@@ -2221,6 +2221,23 @@ static int chunk_vrange_filter(struct extent_buffer *leaf,
 	return 1;
 }
 
+static int chunk_soft_convert_filter(u64 chunk_profile,
+				     struct btrfs_balance_args *bargs)
+{
+	if (!(bargs->flags & BTRFS_BALANCE_ARGS_CONVERT))
+		return 0;
+
+	chunk_profile &= BTRFS_BLOCK_GROUP_PROFILE_MASK;
+
+	if (chunk_profile == 0)
+		chunk_profile = BTRFS_AVAIL_ALLOC_BIT_SINGLE;
+
+	if (bargs->target & chunk_profile)
+		return 1;
+
+	return 0;
+}
+
 static int should_balance_chunk(struct btrfs_root *root,
 				struct extent_buffer *leaf,
 				struct btrfs_chunk *chunk, u64 chunk_offset)
@@ -2269,6 +2286,12 @@ static int should_balance_chunk(struct btrfs_root *root,
 	/* vrange filter */
 	if ((bargs->flags & BTRFS_BALANCE_ARGS_VRANGE) &&
 	    chunk_vrange_filter(leaf, chunk, chunk_offset, bargs)) {
+		return 0;
+	}
+
+	/* soft profile changing mode */
+	if ((bargs->flags & BTRFS_BALANCE_ARGS_SOFT) &&
+	    chunk_soft_convert_filter(chunk_type, bargs)) {
 		return 0;
 	}
 
