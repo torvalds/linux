@@ -2102,6 +2102,24 @@ static void unset_balance_control(struct btrfs_fs_info *fs_info)
 	kfree(bctl);
 }
 
+/*
+ * Balance filters.  Return 1 if chunk should be filtered out
+ * (should not be balanced).
+ */
+static int chunk_profiles_filter(u64 chunk_profile,
+				 struct btrfs_balance_args *bargs)
+{
+	chunk_profile &= BTRFS_BLOCK_GROUP_PROFILE_MASK;
+
+	if (chunk_profile == 0)
+		chunk_profile = BTRFS_AVAIL_ALLOC_BIT_SINGLE;
+
+	if (bargs->profiles & chunk_profile)
+		return 0;
+
+	return 1;
+}
+
 static int should_balance_chunk(struct btrfs_root *root,
 				struct extent_buffer *leaf,
 				struct btrfs_chunk *chunk, u64 chunk_offset)
@@ -2122,6 +2140,12 @@ static int should_balance_chunk(struct btrfs_root *root,
 		bargs = &bctl->sys;
 	else if (chunk_type & BTRFS_BLOCK_GROUP_METADATA)
 		bargs = &bctl->meta;
+
+	/* profiles filter */
+	if ((bargs->flags & BTRFS_BALANCE_ARGS_PROFILES) &&
+	    chunk_profiles_filter(chunk_type, bargs)) {
+		return 0;
+	}
 
 	return 1;
 }
