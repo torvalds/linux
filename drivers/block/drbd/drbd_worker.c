@@ -244,6 +244,7 @@ void drbd_endio_pri(struct bio *bio, int error)
 	spin_lock_irqsave(&mdev->req_lock, flags);
 	__req_mod(req, what, &m);
 	spin_unlock_irqrestore(&mdev->req_lock, flags);
+	put_ldev(mdev);
 
 	if (m.bio)
 		complete_master_bio(mdev, &m);
