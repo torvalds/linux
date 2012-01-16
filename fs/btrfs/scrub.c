@@ -309,7 +309,7 @@ static void scrub_print_warning(const char *errstr, struct scrub_bio *sbio,
 	u8 ref_level;
 	unsigned long ptr = 0;
 	const int bufsize = 4096;
-	u64 extent_offset;
+	u64 extent_item_pos;
 
 	path = btrfs_alloc_path();
 
@@ -329,12 +329,13 @@ static void scrub_print_warning(const char *errstr, struct scrub_bio *sbio,
 	if (ret < 0)
 		goto out;
 
-	extent_offset = swarn.logical - found_key.objectid;
+	extent_item_pos = swarn.logical - found_key.objectid;
 	swarn.extent_item_size = found_key.offset;
 
 	eb = path->nodes[0];
 	ei = btrfs_item_ptr(eb, path->slots[0], struct btrfs_extent_item);
 	item_size = btrfs_item_size_nr(eb, path->slots[0]);
+	btrfs_release_path(path);
 
 	if (ret & BTRFS_EXTENT_FLAG_TREE_BLOCK) {
 		do {
@@ -351,7 +352,7 @@ static void scrub_print_warning(const char *errstr, struct scrub_bio *sbio,
 	} else {
 		swarn.path = path;
 		iterate_extent_inodes(fs_info, path, found_key.objectid,
-					extent_offset,
+					extent_item_pos,
 					scrub_print_warning_inode, &swarn);
 	}
 
