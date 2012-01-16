@@ -122,7 +122,7 @@ static void sas_form_port(struct asd_sas_phy *phy)
 	spin_unlock_irqrestore(&sas_ha->phy_port_lock, flags);
 
 	if (!port->port) {
-		port->port = sas_port_alloc(phy->phy->dev.parent, port->id);
+		port->port = sas_port_alloc(phy->phy->dev.parent, phy->id);
 		BUG_ON(!port->port);
 		sas_port_add(port->port);
 	}
