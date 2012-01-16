@@ -2707,15 +2707,19 @@ static int balance_kthread(void *data)
 	struct btrfs_balance_control *bctl =
 			(struct btrfs_balance_control *)data;
 	struct btrfs_fs_info *fs_info = bctl->fs_info;
-	int ret;
+	int ret = 0;
 
 	mutex_lock(&fs_info->volume_mutex);
 	mutex_lock(&fs_info->balance_mutex);
 
 	set_balance_control(bctl);
 
-	printk(KERN_INFO "btrfs: continuing balance\n");
-	ret = btrfs_balance(bctl, NULL);
+	if (btrfs_test_opt(fs_info->tree_root, SKIP_BALANCE)) {
+		printk(KERN_INFO "btrfs: force skipping balance\n");
+	} else {
+		printk(KERN_INFO "btrfs: continuing balance\n");
+		ret = btrfs_balance(bctl, NULL);
+	}
 
 	mutex_unlock(&fs_info->balance_mutex);
 	mutex_unlock(&fs_info->volume_mutex);
