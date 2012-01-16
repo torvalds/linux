@@ -85,7 +85,7 @@ static int commit(struct drm_plane *plane)
 		}
 	}
 
-	if (info->enabled) {
+	if (ovl->is_enabled(ovl)) {
 		omap_framebuffer_flush(plane->fb, info->pos_x, info->pos_y,
 				info->out_width, info->out_height);
 	}
@@ -115,7 +115,7 @@ static void update_manager(struct drm_plane *plane)
 	}
 
 	if (ovl->manager != mgr) {
-		bool enabled = omap_plane->info.enabled;
+		bool enabled = ovl->is_enabled(ovl);
 
 		/* don't switch things around with enabled overlays: */
 		if (enabled)
@@ -168,7 +168,8 @@ static void update_scanout(struct drm_plane *plane)
 	if (ret) {
 		dev_err(plane->dev->dev,
 			"could not pin fb: %d\n", ret);
-		omap_plane->info.enabled = false;
+		omap_plane_dpms(plane, DRM_MODE_DPMS_OFF);
+		return;
 	}
 
 	omap_framebuffer_update_scanout(plane->fb,
@@ -180,7 +181,7 @@ static void update_scanout(struct drm_plane *plane)
 			info->screen_width);
 }
 
-static int omap_plane_update(struct drm_plane *plane,
+int omap_plane_mode_set(struct drm_plane *plane,
 		struct drm_crtc *crtc, struct drm_framebuffer *fb,
 		int crtc_x, int crtc_y,
 		unsigned int crtc_w, unsigned int crtc_h,
@@ -195,7 +196,6 @@ static int omap_plane_update(struct drm_plane *plane,
 	src_w = src_w >> 16;
 	src_h = src_h >> 16;
 
-	omap_plane->info.enabled = true;
 	omap_plane->info.pos_x = crtc_x;
 	omap_plane->info.pos_y = crtc_y;
 	omap_plane->info.out_width = crtc_w;
@@ -214,9 +214,20 @@ static int omap_plane_update(struct drm_plane *plane,
 
 	update_scanout(plane);
 	update_manager(plane);
-	commit(plane);
 
 	return 0;
+}
+
+static int omap_plane_update(struct drm_plane *plane,
+		struct drm_crtc *crtc, struct drm_framebuffer *fb,
+		int crtc_x, int crtc_y,
+		unsigned int crtc_w, unsigned int crtc_h,
+		uint32_t src_x, uint32_t src_y,
+		uint32_t src_w, uint32_t src_h)
+{
+	omap_plane_mode_set(plane, crtc, fb, crtc_x, crtc_y, crtc_w, crtc_h,
+			src_x, src_y, src_w, src_h);
+	return omap_plane_dpms(plane, DRM_MODE_DPMS_ON);
 }
 
 static int omap_plane_disable(struct drm_plane *plane)
@@ -236,18 +247,22 @@ static void omap_plane_destroy(struct drm_plane *plane)
 int omap_plane_dpms(struct drm_plane *plane, int mode)
 {
 	struct omap_plane *omap_plane = to_omap_plane(plane);
+	struct omap_overlay *ovl = omap_plane->ovl;
+	int r;
 
 	DBG("%s: %d", omap_plane->ovl->name, mode);
 
 	if (mode == DRM_MODE_DPMS_ON) {
 		update_scanout(plane);
-		omap_plane->info.enabled = true;
+		r = commit(plane);
+		if (!r)
+			r = ovl->enable(ovl);
 	} else {
-		omap_plane->info.enabled = false;
+		r = ovl->disable(ovl);
 		update_pin(plane, NULL);
 	}
 
-	return commit(plane);
+	return r;
 }
 
 static const struct drm_plane_funcs omap_plane_funcs = {

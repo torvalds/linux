@@ -81,7 +81,7 @@ static int omap_crtc_mode_set(struct drm_crtc *crtc,
 	struct omap_crtc *omap_crtc = to_omap_crtc(crtc);
 	struct drm_plane *plane = omap_crtc->plane;
 
-	return plane->funcs->update_plane(plane, crtc, crtc->fb,
+	return omap_plane_mode_set(plane, crtc, crtc->fb,
 			0, 0, mode->hdisplay, mode->vdisplay,
 			x << 16, y << 16,
 			mode->hdisplay << 16, mode->vdisplay << 16);
