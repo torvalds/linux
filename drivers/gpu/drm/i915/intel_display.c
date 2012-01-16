@@ -4548,6 +4548,7 @@ void sandybridge_update_wm(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	int latency = SNB_READ_WM0_LATENCY() * 100;	/* In unit 0.1us */
+	u32 val;
 	int fbc_wm, plane_wm, cursor_wm;
 	unsigned int enabled;
 
@@ -4556,8 +4557,10 @@ void sandybridge_update_wm(struct drm_device *dev)
 			    &sandybridge_display_wm_info, latency,
 			    &sandybridge_cursor_wm_info, latency,
 			    &plane_wm, &cursor_wm)) {
-		I915_WRITE(WM0_PIPEA_ILK,
-			   (plane_wm << WM0_PIPE_PLANE_SHIFT) | cursor_wm);
+		val = I915_READ(WM0_PIPEA_ILK);
+		val &= ~(WM0_PIPE_PLANE_MASK | WM0_PIPE_CURSOR_MASK);
+		I915_WRITE(WM0_PIPEA_ILK, val |
+			   ((plane_wm << WM0_PIPE_PLANE_SHIFT) | cursor_wm));
 		DRM_DEBUG_KMS("FIFO watermarks For pipe A -"
 			      " plane %d, " "cursor: %d\n",
 			      plane_wm, cursor_wm);
@@ -4568,8 +4571,10 @@ void sandybridge_update_wm(struct drm_device *dev)
 			    &sandybridge_display_wm_info, latency,
 			    &sandybridge_cursor_wm_info, latency,
 			    &plane_wm, &cursor_wm)) {
-		I915_WRITE(WM0_PIPEB_ILK,
-			   (plane_wm << WM0_PIPE_PLANE_SHIFT) | cursor_wm);
+		val = I915_READ(WM0_PIPEB_ILK);
+		val &= ~(WM0_PIPE_PLANE_MASK | WM0_PIPE_CURSOR_MASK);
+		I915_WRITE(WM0_PIPEB_ILK, val |
+			   ((plane_wm << WM0_PIPE_PLANE_SHIFT) | cursor_wm));
 		DRM_DEBUG_KMS("FIFO watermarks For pipe B -"
 			      " plane %d, cursor: %d\n",
 			      plane_wm, cursor_wm);
@@ -4582,8 +4587,10 @@ void sandybridge_update_wm(struct drm_device *dev)
 			    &sandybridge_display_wm_info, latency,
 			    &sandybridge_cursor_wm_info, latency,
 			    &plane_wm, &cursor_wm)) {
-		I915_WRITE(WM0_PIPEC_IVB,
-			   (plane_wm << WM0_PIPE_PLANE_SHIFT) | cursor_wm);
+		val = I915_READ(WM0_PIPEC_IVB);
+		val &= ~(WM0_PIPE_PLANE_MASK | WM0_PIPE_CURSOR_MASK);
+		I915_WRITE(WM0_PIPEC_IVB, val |
+			   ((plane_wm << WM0_PIPE_PLANE_SHIFT) | cursor_wm));
 		DRM_DEBUG_KMS("FIFO watermarks For pipe C -"
 			      " plane %d, cursor: %d\n",
 			      plane_wm, cursor_wm);
@@ -4727,6 +4734,7 @@ static void sandybridge_update_sprite_wm(struct drm_device *dev, int pipe,
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	int latency = SNB_READ_WM0_LATENCY() * 100;	/* In unit 0.1us */
+	u32 val;
 	int sprite_wm, reg;
 	int ret;
 
@@ -4753,7 +4761,9 @@ static void sandybridge_update_sprite_wm(struct drm_device *dev, int pipe,
 		return;
 	}
 
-	I915_WRITE(reg, I915_READ(reg) | (sprite_wm << WM0_PIPE_SPRITE_SHIFT));
+	val = I915_READ(reg);
+	val &= ~WM0_PIPE_SPRITE_MASK;
+	I915_WRITE(reg, val | (sprite_wm << WM0_PIPE_SPRITE_SHIFT));
 	DRM_DEBUG_KMS("sprite watermarks For pipe %d - %d\n", pipe, sprite_wm);
 
 
