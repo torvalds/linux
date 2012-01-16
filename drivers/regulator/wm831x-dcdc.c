@@ -424,7 +424,7 @@ static u16 wm831x_dcdc_ilim[] = {
 	125, 250, 375, 500, 625, 750, 875, 1000
 };
 
-static int wm831x_buckv_set_voltage_step(struct regulator_dev * rdev, int min_uV, int max_uV)
+static int wm831x_buckv_set_voltage_step(struct regulator_dev * rdev, int min_uV, int max_uV, unsigned *selector)
 {
 	int old_vol;
 	int new_min_uV,new_max_uV;
@@ -773,7 +773,7 @@ static int wm831x_buckp_set_voltage_int(struct regulator_dev *rdev, int reg,
 }
 
 static int wm831x_buckp_set_voltage(struct regulator_dev *rdev,
-				    int min_uV, int max_uV)
+				    int min_uV, int max_uV, unsigned *selector)
 {
 	struct wm831x_dcdc *dcdc = rdev_get_drvdata(rdev);
 	u16 reg = dcdc->base + WM831X_DCDC_ON_CONFIG;

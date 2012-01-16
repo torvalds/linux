@@ -1751,9 +1751,8 @@ int wm831x_device_suspend(struct wm831x *wm831x)
 }
 void wm831x_enter_sleep(void){
 #if 1//def CONFIG_RK2818_SOC_PM
-	struct regulator *dcdc;
+	struct regulator *dcdc = regulator_get(NULL, "dcdc1");
 	int i;		
-	dcdc=regulator_get(NULL, "dcdc1");
 	struct wm831x_dcdc *dc = regulator_get_drvdata(dcdc);
 	struct wm831x *wm831x = dc->wm831x;
 	if(wm831x){
@@ -1773,8 +1772,7 @@ EXPORT_SYMBOL_GPL(wm831x_enter_sleep);
 
 void wm831x_exit_sleep(void){
 #if 1//def CONFIG_RK2818_SOC_PM
-	struct regulator *dcdc;
-	dcdc=regulator_get(NULL, "dcdc1");
+	struct regulator *dcdc = regulator_get(NULL, "dcdc1");
 	struct wm831x_dcdc *dc = regulator_get_drvdata(dcdc);
 	struct wm831x *wm831x = dc->wm831x;
 	if(wm831x){

@@ -139,7 +139,7 @@ static int wm831x_gp_ldo_set_voltage_int(struct regulator_dev *rdev, int reg,
 }
 
 static int wm831x_gp_ldo_set_voltage(struct regulator_dev *rdev,
-				     int min_uV, int max_uV)
+				     int min_uV, int max_uV, unsigned *selector)
 {
 	struct wm831x_ldo *ldo = rdev_get_drvdata(rdev);
 	int reg = ldo->base + WM831X_LDO_ON_CONTROL;
@@ -451,7 +451,7 @@ static int wm831x_aldo_set_voltage_int(struct regulator_dev *rdev, int reg,
 }
 
 static int wm831x_aldo_set_voltage(struct regulator_dev *rdev,
-				     int min_uV, int max_uV)
+				     int min_uV, int max_uV, unsigned *selector)
 {
 	struct wm831x_ldo *ldo = rdev_get_drvdata(rdev);
 	int reg = ldo->base + WM831X_LDO_ON_CONTROL;
@@ -700,7 +700,7 @@ static int wm831x_alive_ldo_set_voltage_int(struct regulator_dev *rdev,
 }
 
 static int wm831x_alive_ldo_set_voltage(struct regulator_dev *rdev,
-				     int min_uV, int max_uV)
+				     int min_uV, int max_uV, unsigned *selector)
 {
 	struct wm831x_ldo *ldo = rdev_get_drvdata(rdev);
 	int reg = ldo->base + WM831X_ALIVE_LDO_ON_CONTROL;
@@ -830,7 +830,7 @@ static __devexit int wm831x_alive_ldo_remove(struct platform_device *pdev)
 	return 0;
 }
 
-static __devexit int wm831x_alive_ldo_shutdown(struct platform_device *pdev)	/*ZMF*/
+static __devexit void wm831x_alive_ldo_shutdown(struct platform_device *pdev)	/*ZMF*/
 {
 	//struct wm831x_ldo *ldo = platform_get_drvdata(pdev);
 #if 0
@@ -881,7 +881,6 @@ static __devexit int wm831x_alive_ldo_shutdown(struct platform_device *pdev)	/*Z
 	regulator_disable(ldo);						
 	regulator_put(ldo);
 #endif
-	return 0;
 }
 
 static struct platform_driver wm831x_alive_ldo_driver = {

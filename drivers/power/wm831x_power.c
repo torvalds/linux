@@ -1063,7 +1063,7 @@ static __devinit int wm831x_power_probe(struct platform_device *pdev)
 	struct power_supply *usb;
 	struct power_supply *battery;
 	struct power_supply *wall;
-	int ret, irq, i;
+	int ret, irq;
 
 	power = kzalloc(sizeof(struct wm831x_power), GFP_KERNEL);
 	if (power == NULL)
@@ -1195,7 +1195,7 @@ err_kmalloc:
 static __devexit int wm831x_power_remove(struct platform_device *pdev)
 {
 	struct wm831x_power *wm831x_power = platform_get_drvdata(pdev);
-	int irq, i;
+	int irq;
 #ifdef CONFIG_WM831X_WITH_BATTERY
 	for (i = 0; i < ARRAY_SIZE(wm831x_bat_irqs); i++) {
 		irq = platform_get_irq_byname(pdev, wm831x_bat_irqs[i]);

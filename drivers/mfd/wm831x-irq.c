@@ -501,7 +501,7 @@ static void wm831x_handle_worker(struct work_struct *work)
  * interrupts enabled to interact with the chip. */
 static void wm831x_irq_worker(struct work_struct *work)
 {
-	struct wm831x *wm831x = container_of(work, struct wm831x, irq_work);
+	struct wm831x *wm831x = container_of(to_delayed_work(work), struct wm831x, irq_work);
 	unsigned int i;
 	int primary;
 	int status_regs[WM831X_NUM_IRQ_REGS] = { 0 };
@@ -509,10 +509,10 @@ static void wm831x_irq_worker(struct work_struct *work)
 	int *status;
 	unsigned long flags;
 	struct wm831x_handle_irq *hd;
-	int ret;
 
 #if (WM831X_IRQ_TYPE != IRQF_TRIGGER_LOW)
-	/*mask wm831x irq at first*/
+	/*mask wm831x irq at first*/	
+	int ret;
 	ret = wm831x_set_bits(wm831x, WM831X_IRQ_CONFIG,
 			      WM831X_IRQ_IM_MASK, WM831X_IRQ_IM_EANBLE);
 	if (ret < 0) {
