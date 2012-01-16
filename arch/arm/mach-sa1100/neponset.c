@@ -20,6 +20,15 @@
 #include <asm/hardware/sa1111.h>
 #include <asm/sizes.h>
 
+void neponset_ncr_frob(unsigned int mask, unsigned int val)
+{
+	unsigned long flags;
+
+	local_irq_save(flags);
+	NCR_0 = (NCR_0 & ~mask) | val;
+	local_irq_restore(flags);
+}
+
 /*
  * Install handler for Neponset IRQ.  Note that we have to loop here
  * since the ETHERNET and USAR IRQs are level based, and we need to

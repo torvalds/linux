@@ -71,4 +71,8 @@
 #define NCR_A0VPP		(1<<5)
 #define NCR_A1VPP		(1<<6)
 
+void neponset_ncr_frob(unsigned int, unsigned int);
+#define neponset_ncr_set(v)	neponset_ncr_frob(0, v)
+#define neponset_ncr_clear(v)	neponset_ncr_frob(v, 0)
+
 #endif
