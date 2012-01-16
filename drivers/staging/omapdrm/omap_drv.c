@@ -708,6 +708,18 @@ static struct vm_operations_struct omap_gem_vm_ops = {
 	.close = drm_gem_vm_close,
 };
 
+static const struct file_operations omapdriver_fops = {
+		.owner = THIS_MODULE,
+		.open = drm_open,
+		.unlocked_ioctl = drm_ioctl,
+		.release = drm_release,
+		.mmap = omap_gem_mmap,
+		.poll = drm_poll,
+		.fasync = drm_fasync,
+		.read = drm_read,
+		.llseek = noop_llseek,
+};
+
 static struct drm_driver omap_drm_driver = {
 		.driver_features =
 				DRIVER_HAVE_IRQ | DRIVER_MODESET | DRIVER_GEM,
@@ -738,17 +750,7 @@ static struct drm_driver omap_drm_driver = {
 		.dumb_destroy = omap_gem_dumb_destroy,
 		.ioctls = ioctls,
 		.num_ioctls = DRM_OMAP_NUM_IOCTLS,
-		.fops = {
-				.owner = THIS_MODULE,
-				.open = drm_open,
-				.unlocked_ioctl = drm_ioctl,
-				.release = drm_release,
-				.mmap = omap_gem_mmap,
-				.poll = drm_poll,
-				.fasync = drm_fasync,
-				.read = drm_read,
-				.llseek = noop_llseek,
-		},
+		.fops = &omapdriver_fops,
 		.name = DRIVER_NAME,
 		.desc = DRIVER_DESC,
 		.date = DRIVER_DATE,
