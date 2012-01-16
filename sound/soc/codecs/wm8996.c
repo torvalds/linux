@@ -3086,6 +3086,7 @@ static struct snd_soc_dai_driver wm8996_dai[] = {
 			.channels_max = 6,
 			.rates = WM8996_RATES,
 			.formats = WM8996_FORMATS,
+			.sig_bits = 24,
 		},
 		.capture = {
 			 .stream_name = "AIF1 Capture",
@@ -3093,6 +3094,7 @@ static struct snd_soc_dai_driver wm8996_dai[] = {
 			 .channels_max = 6,
 			 .rates = WM8996_RATES,
 			 .formats = WM8996_FORMATS,
+			 .sig_bits = 24,
 		 },
 		.ops = &wm8996_dai_ops,
 	},
@@ -3104,6 +3106,7 @@ static struct snd_soc_dai_driver wm8996_dai[] = {
 			.channels_max = 2,
 			.rates = WM8996_RATES,
 			.formats = WM8996_FORMATS,
+			.sig_bits = 24,
 		},
 		.capture = {
 			 .stream_name = "AIF2 Capture",
@@ -3111,6 +3114,7 @@ static struct snd_soc_dai_driver wm8996_dai[] = {
 			 .channels_max = 2,
 			 .rates = WM8996_RATES,
 			 .formats = WM8996_FORMATS,
+			.sig_bits = 24,
 		 },
 		.ops = &wm8996_dai_ops,
 	},
