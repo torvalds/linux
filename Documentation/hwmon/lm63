@@ -66,7 +66,8 @@ supported either.
 
 The lm63 driver will not update its values more frequently than configured with
 the update_interval sysfs attribute; reading them more often will do no harm,
-but will return 'old' values.
+but will return 'old' values. Values in the automatic fan control lookup table
+(attributes pwm1_auto_*) have their own independent lifetime of 5 seconds.
 
 The LM64 is effectively an LM63 with GPIO lines. The driver does not
 support these GPIO lines at present.
