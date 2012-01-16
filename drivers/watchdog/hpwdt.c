@@ -216,7 +216,7 @@ static int __devinit cru_detect(unsigned long map_entry,
 
 	cmn_regs.u1.reax = CRU_BIOS_SIGNATURE_VALUE;
 
-	set_memory_x((unsigned long)bios32_entrypoint, (2 * PAGE_SIZE));
+	set_memory_x((unsigned long)bios32_map, 2);
 	asminline_call(&cmn_regs, bios32_entrypoint);
 
 	if (cmn_regs.u1.ral != 0) {
@@ -235,7 +235,8 @@ static int __devinit cru_detect(unsigned long map_entry,
 			cru_rom_addr =
 				ioremap(cru_physical_address, cru_length);
 			if (cru_rom_addr) {
-				set_memory_x((unsigned long)cru_rom_addr, cru_length);
+				set_memory_x((unsigned long)cru_rom_addr & PAGE_MASK,
+					(cru_length + PAGE_SIZE - 1) >> PAGE_SHIFT);
 				retval = 0;
 			}
 		}
