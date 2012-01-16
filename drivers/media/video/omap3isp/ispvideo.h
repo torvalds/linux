@@ -104,6 +104,9 @@ struct isp_pipeline {
 	bool do_propagation; /* of frame number */
 	bool error;
 	struct v4l2_fract max_timeperframe;
+	struct v4l2_subdev *external;
+	unsigned int external_rate;
+	unsigned int external_bpp;
 };
 
 #define to_isp_pipeline(__e) \
