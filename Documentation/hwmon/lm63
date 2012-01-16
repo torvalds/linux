@@ -61,9 +61,9 @@ PWM modes: manual and automatic. Automatic mode is not fully implemented yet
 (you cannot define your custom PWM/temperature curve), and mode change isn't
 supported either.
 
-The lm63 driver will not update its values more frequently than every
-second; reading them more often will do no harm, but will return 'old'
-values.
+The lm63 driver will not update its values more frequently than configured with
+the update_interval sysfs attribute; reading them more often will do no harm,
+but will return 'old' values.
 
 The LM64 is effectively an LM63 with GPIO lines. The driver does not
 support these GPIO lines at present.
