@@ -23,6 +23,7 @@
 #include <linux/random.h>
 #include <linux/iocontext.h>
 #include <linux/capability.h>
+#include <linux/kthread.h>
 #include <asm/div64.h>
 #include "compat.h"
 #include "ctree.h"
@@ -2165,6 +2166,46 @@ out:
 }
 
 /*
+ * This is a heuristic used to reduce the number of chunks balanced on
+ * resume after balance was interrupted.
+ */
+static void update_balance_args(struct btrfs_balance_control *bctl)
+{
+	/*
+	 * Turn on soft mode for chunk types that were being converted.
+	 */
+	if (bctl->data.flags & BTRFS_BALANCE_ARGS_CONVERT)
+		bctl->data.flags |= BTRFS_BALANCE_ARGS_SOFT;
+	if (bctl->sys.flags & BTRFS_BALANCE_ARGS_CONVERT)
+		bctl->sys.flags |= BTRFS_BALANCE_ARGS_SOFT;
+	if (bctl->meta.flags & BTRFS_BALANCE_ARGS_CONVERT)
+		bctl->meta.flags |= BTRFS_BALANCE_ARGS_SOFT;
+
+	/*
+	 * Turn on usage filter if is not already used.  The idea is
+	 * that chunks that we have already balanced should be
+	 * reasonably full.  Don't do it for chunks that are being
+	 * converted - that will keep us from relocating unconverted
+	 * (albeit full) chunks.
+	 */
+	if (!(bctl->data.flags & BTRFS_BALANCE_ARGS_USAGE) &&
+	    !(bctl->data.flags & BTRFS_BALANCE_ARGS_CONVERT)) {
+		bctl->data.flags |= BTRFS_BALANCE_ARGS_USAGE;
+		bctl->data.usage = 90;
+	}
+	if (!(bctl->sys.flags & BTRFS_BALANCE_ARGS_USAGE) &&
+	    !(bctl->sys.flags & BTRFS_BALANCE_ARGS_CONVERT)) {
+		bctl->sys.flags |= BTRFS_BALANCE_ARGS_USAGE;
+		bctl->sys.usage = 90;
+	}
+	if (!(bctl->meta.flags & BTRFS_BALANCE_ARGS_USAGE) &&
+	    !(bctl->meta.flags & BTRFS_BALANCE_ARGS_CONVERT)) {
+		bctl->meta.flags |= BTRFS_BALANCE_ARGS_USAGE;
+		bctl->meta.usage = 90;
+	}
+}
+
+/*
  * Should be called with both balance and volume mutexes held to
  * serialize other volume operations (add_dev/rm_dev/resize) with
  * restriper.  Same goes for unset_balance_control.
@@ -2626,10 +2667,18 @@ int btrfs_balance(struct btrfs_balance_control *bctl,
 
 do_balance:
 	ret = insert_balance_item(fs_info->tree_root, bctl);
-	if (ret)
+	if (ret && ret != -EEXIST)
 		goto out;
 
-	set_balance_control(bctl);
+	if (!(bctl->flags & BTRFS_BALANCE_RESUME)) {
+		BUG_ON(ret == -EEXIST);
+		set_balance_control(bctl);
+	} else {
+		BUG_ON(ret != -EEXIST);
+		spin_lock(&fs_info->balance_lock);
+		update_balance_args(bctl);
+		spin_unlock(&fs_info->balance_lock);
+	}
 
 	mutex_unlock(&fs_info->balance_mutex);
 
@@ -2646,7 +2695,89 @@ do_balance:
 
 	return ret;
 out:
+	if (bctl->flags & BTRFS_BALANCE_RESUME)
+		__cancel_balance(fs_info);
+	else
+		kfree(bctl);
+	return ret;
+}
+
+static int balance_kthread(void *data)
+{
+	struct btrfs_balance_control *bctl =
+			(struct btrfs_balance_control *)data;
+	struct btrfs_fs_info *fs_info = bctl->fs_info;
+	int ret;
+
+	mutex_lock(&fs_info->volume_mutex);
+	mutex_lock(&fs_info->balance_mutex);
+
+	set_balance_control(bctl);
+
+	printk(KERN_INFO "btrfs: continuing balance\n");
+	ret = btrfs_balance(bctl, NULL);
+
+	mutex_unlock(&fs_info->balance_mutex);
+	mutex_unlock(&fs_info->volume_mutex);
+	return ret;
+}
+
+int btrfs_recover_balance(struct btrfs_root *tree_root)
+{
+	struct task_struct *tsk;
+	struct btrfs_balance_control *bctl;
+	struct btrfs_balance_item *item;
+	struct btrfs_disk_balance_args disk_bargs;
+	struct btrfs_path *path;
+	struct extent_buffer *leaf;
+	struct btrfs_key key;
+	int ret;
+
+	path = btrfs_alloc_path();
+	if (!path)
+		return -ENOMEM;
+
+	bctl = kzalloc(sizeof(*bctl), GFP_NOFS);
+	if (!bctl) {
+		ret = -ENOMEM;
+		goto out;
+	}
+
+	key.objectid = BTRFS_BALANCE_OBJECTID;
+	key.type = BTRFS_BALANCE_ITEM_KEY;
+	key.offset = 0;
+
+	ret = btrfs_search_slot(NULL, tree_root, &key, path, 0, 0);
+	if (ret < 0)
+		goto out_bctl;
+	if (ret > 0) { /* ret = -ENOENT; */
+		ret = 0;
+		goto out_bctl;
+	}
+
+	leaf = path->nodes[0];
+	item = btrfs_item_ptr(leaf, path->slots[0], struct btrfs_balance_item);
+
+	bctl->fs_info = tree_root->fs_info;
+	bctl->flags = btrfs_balance_flags(leaf, item) | BTRFS_BALANCE_RESUME;
+
+	btrfs_balance_data(leaf, item, &disk_bargs);
+	btrfs_disk_balance_args_to_cpu(&bctl->data, &disk_bargs);
+	btrfs_balance_meta(leaf, item, &disk_bargs);
+	btrfs_disk_balance_args_to_cpu(&bctl->meta, &disk_bargs);
+	btrfs_balance_sys(leaf, item, &disk_bargs);
+	btrfs_disk_balance_args_to_cpu(&bctl->sys, &disk_bargs);
+
+	tsk = kthread_run(balance_kthread, bctl, "btrfs-balance");
+	if (IS_ERR(tsk))
+		ret = PTR_ERR(tsk);
+	else
+		goto out;
+
+out_bctl:
 	kfree(bctl);
+out:
+	btrfs_free_path(path);
 	return ret;
 }
 
