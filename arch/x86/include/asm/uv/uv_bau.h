@@ -167,6 +167,7 @@
 #define FLUSH_RETRY_TIMEOUT		2
 #define FLUSH_GIVEUP			3
 #define FLUSH_COMPLETE			4
+#define FLUSH_RETRY_BUSYBUG		5
 
 /*
  * tuning the action when the numalink network is extremely delayed
@@ -463,7 +464,6 @@ struct bau_pq_entry {
 struct msg_desc {
 	struct bau_pq_entry	*msg;
 	int			msg_slot;
-	int			swack_slot;
 	struct bau_pq_entry	*queue_first;
 	struct bau_pq_entry	*queue_last;
 };
@@ -517,6 +517,9 @@ struct ptc_stats {
 	unsigned long	s_retry_messages;	/* retry broadcasts */
 	unsigned long	s_bau_reenabled;	/* for bau enable/disable */
 	unsigned long	s_bau_disabled;		/* for bau enable/disable */
+	unsigned long	s_uv2_wars;		/* uv2 workaround, perm. busy */
+	unsigned long	s_uv2_wars_hw;		/* uv2 workaround, hiwater */
+	unsigned long	s_uv2_war_waits;	/* uv2 workaround, long waits */
 	/* destination statistics */
 	unsigned long	d_alltlb;		/* times all tlb's on this
 						   cpu were flushed */
@@ -593,6 +596,8 @@ struct bau_control {
 	short			cpus_in_socket;
 	short			cpus_in_uvhub;
 	short			partition_base_pnode;
+	short			using_desc; /* an index, like uvhub_cpu */
+	unsigned int		inuse_map;
 	unsigned short		message_number;
 	unsigned short		uvhub_quiesce;
 	short			socket_acknowledge_count[DEST_Q_SIZE];
@@ -610,6 +615,7 @@ struct bau_control {
 	int			cong_response_us;
 	int			cong_reps;
 	int			cong_period;
+	unsigned long		clocks_per_100_usec;
 	cycles_t		period_time;
 	long			period_requests;
 	struct hub_and_pnode	*thp;
@@ -668,6 +674,11 @@ static inline unsigned long read_mmr_misc_control(int pnode)
 static inline void write_mmr_sw_ack(unsigned long mr)
 {
 	uv_write_local_mmr(UVH_LB_BAU_INTD_SOFTWARE_ACKNOWLEDGE_ALIAS, mr);
+}
+
+static inline void write_gmmr_sw_ack(int pnode, unsigned long mr)
+{
+	write_gmmr(pnode, UVH_LB_BAU_INTD_SOFTWARE_ACKNOWLEDGE_ALIAS, mr);
 }
 
 static inline unsigned long read_mmr_sw_ack(void)
