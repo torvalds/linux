@@ -569,7 +569,7 @@ static int iwlagn_request_scan(struct iwl_priv *priv, struct ieee80211_vif *vif)
 	struct iwl_scan_cmd *scan;
 	struct iwl_rxon_context *ctx = &priv->contexts[IWL_RXON_CTX_BSS];
 	u32 rate_flags = 0;
-	u16 cmd_len;
+	u16 cmd_len = 0;
 	u16 rx_chain = 0;
 	enum ieee80211_band band;
 	u8 n_probes = 0;
