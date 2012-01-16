@@ -200,6 +200,7 @@ struct map_lookup {
  * Balance filters
  */
 #define BTRFS_BALANCE_ARGS_PROFILES	(1ULL << 0)
+#define BTRFS_BALANCE_ARGS_USAGE	(1ULL << 1)
 
 struct btrfs_balance_args;
 struct btrfs_balance_control {
