@@ -796,6 +796,9 @@ static void lm63_init_client(struct i2c_client *client)
 		i2c_smbus_write_byte_data(client, LM63_REG_CONFIG1,
 					  data->config);
 	}
+	/* Tachometer is always enabled on LM64 */
+	if (data->kind == lm64)
+		data->config |= 0x04;
 
 	/* We may need pwm1_freq before ever updating the client data */
 	data->pwm1_freq = i2c_smbus_read_byte_data(client, LM63_REG_PWM_FREQ);
@@ -836,9 +839,10 @@ static void lm63_init_client(struct i2c_client *client)
 	}
 
 	/* Show some debug info about the LM63 configuration */
-	dev_dbg(&client->dev, "Alert/tach pin configured for %s\n",
-		(data->config & 0x04) ? "tachometer input" :
-		"alert output");
+	if (data->kind == lm63)
+		dev_dbg(&client->dev, "Alert/tach pin configured for %s\n",
+			(data->config & 0x04) ? "tachometer input" :
+			"alert output");
 	dev_dbg(&client->dev, "PWM clock %s kHz, output frequency %u Hz\n",
 		(data->config_fan & 0x08) ? "1.4" : "360",
 		((data->config_fan & 0x08) ? 700 : 180000) / data->pwm1_freq);

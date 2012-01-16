@@ -54,7 +54,10 @@ value for measuring the speed of the fan. It can measure fan speeds down to
 Note that the pin used for fan monitoring is shared with an alert out
 function. Depending on how the board designer wanted to use the chip, fan
 speed monitoring will or will not be possible. The proper chip configuration
-is left to the BIOS, and the driver will blindly trust it.
+is left to the BIOS, and the driver will blindly trust it. Only the original
+LM63 suffers from this limitation, the LM64 and LM96163 have separate pins
+for fan monitoring and alert out. On the LM64, monitoring is always enabled;
+on the LM96163 it can be disabled.
 
 A PWM output can be used to control the speed of the fan. The LM63 has two
 PWM modes: manual and automatic. Automatic mode is not fully implemented yet
