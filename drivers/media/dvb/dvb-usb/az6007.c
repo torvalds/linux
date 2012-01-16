@@ -82,7 +82,7 @@ static int drxk_gate_ctrl(struct dvb_frontend *fe, int enable)
 	if (!adap)
 		return -EINVAL;
 
-	st = adap->priv;
+	st = adap->dev->priv;
 
 	if (!st)
 		return -EINVAL;
@@ -288,7 +288,7 @@ static int az6007_led_on_off(struct usb_interface *intf, int onoff)
 
 static int az6007_frontend_attach(struct dvb_usb_adapter *adap)
 {
-	struct az6007_device_state *st = adap->priv;
+	struct az6007_device_state *st = adap->dev->priv;
 
 	BUG_ON(!st);
 
@@ -311,7 +311,7 @@ static int az6007_frontend_attach(struct dvb_usb_adapter *adap)
 
 static int az6007_tuner_attach(struct dvb_usb_adapter *adap)
 {
-	struct az6007_device_state *st = adap->priv;
+	struct az6007_device_state *st = adap->dev->priv;
 
 	if (st->tuner_attached)
 		return 0;
@@ -516,8 +516,8 @@ static struct dvb_usb_device_properties az6007_properties = {
 	.usb_ctrl = CYPRESS_FX2,
 	.firmware            = "dvb-usb-terratec-h7-az6007.fw",
 	.no_reconnect        = 1,
-
-	.identify_state		= az6007_identify_state,
+	.size_of_priv        = sizeof(struct az6007_device_state),
+	.identify_state	     = az6007_identify_state,
 	.num_adapters = 1,
 	.adapter = {
 		{
@@ -538,7 +538,6 @@ static struct dvb_usb_device_properties az6007_properties = {
 					}
 				}
 			},
-			.size_of_priv     = sizeof(struct az6007_device_state),
 		}}
 	} },
 	.power_ctrl       = az6007_power_ctrl,
