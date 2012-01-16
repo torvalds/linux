@@ -304,7 +304,6 @@ static int isp_video_validate_pipeline(struct isp_pipeline *pipe)
 	struct v4l2_subdev *subdev;
 	int ret;
 
-	pipe->max_rate = pipe->l3_ick;
 	pipe->entities = 0;
 
 	subdev = isp_video_remote_subdev(pipe->output, NULL);
@@ -997,6 +996,12 @@ isp_video_streamon(struct file *file, void *fh, enum v4l2_buf_type type)
 	 */
 	pipe = video->video.entity.pipe
 	     ? to_isp_pipeline(&video->video.entity) : &video->pipe;
+
+	if (video->isp->pdata->set_constraints)
+		video->isp->pdata->set_constraints(video->isp, true);
+	pipe->l3_ick = clk_get_rate(video->isp->clock[ISP_CLK_L3_ICK]);
+	pipe->max_rate = pipe->l3_ick;
+
 	media_entity_pipeline_start(&video->video.entity, &pipe->pipe);
 
 	/* Verify that the currently configured format matches the output of
@@ -1028,10 +1033,6 @@ isp_video_streamon(struct file *file, void *fh, enum v4l2_buf_type type)
 		pipe->input = video;
 		pipe->output = far_end;
 	}
-
-	if (video->isp->pdata->set_constraints)
-		video->isp->pdata->set_constraints(video->isp, true);
-	pipe->l3_ick = clk_get_rate(video->isp->clock[ISP_CLK_L3_ICK]);
 
 	/* Validate the pipeline and update its state. */
 	ret = isp_video_validate_pipeline(pipe);
@@ -1078,9 +1079,9 @@ isp_video_streamon(struct file *file, void *fh, enum v4l2_buf_type type)
 error:
 	if (ret < 0) {
 		omap3isp_video_queue_streamoff(&vfh->queue);
+		media_entity_pipeline_stop(&video->video.entity);
 		if (video->isp->pdata->set_constraints)
 			video->isp->pdata->set_constraints(video->isp, false);
-		media_entity_pipeline_stop(&video->video.entity);
 		/* The DMA queue must be emptied here, otherwise CCDC interrupts
 		 * that will get triggered the next time the CCDC is powered up
 		 * will try to access buffers that might have been freed but
