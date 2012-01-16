@@ -111,6 +111,7 @@ struct btrfs_ioctl_fs_info_args {
 
 /* balance control ioctl modes */
 #define BTRFS_BALANCE_CTL_PAUSE		1
+#define BTRFS_BALANCE_CTL_CANCEL	2
 
 /*
  * this is packed, because it should be exactly the same as its disk
@@ -142,6 +143,7 @@ struct btrfs_balance_progress {
 
 #define BTRFS_BALANCE_STATE_RUNNING	(1ULL << 0)
 #define BTRFS_BALANCE_STATE_PAUSE_REQ	(1ULL << 1)
+#define BTRFS_BALANCE_STATE_CANCEL_REQ	(1ULL << 2)
 
 struct btrfs_ioctl_balance_args {
 	__u64 flags;				/* in/out */

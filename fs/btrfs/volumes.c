@@ -2492,7 +2492,8 @@ static int __btrfs_balance(struct btrfs_fs_info *fs_info)
 	key.type = BTRFS_CHUNK_ITEM_KEY;
 
 	while (1) {
-		if (atomic_read(&fs_info->balance_pause_req)) {
+		if (atomic_read(&fs_info->balance_pause_req) ||
+		    atomic_read(&fs_info->balance_cancel_req)) {
 			ret = -ECANCELED;
 			goto error;
 		}
@@ -2560,7 +2561,10 @@ error:
 
 static inline int balance_need_close(struct btrfs_fs_info *fs_info)
 {
-	return atomic_read(&fs_info->balance_pause_req) == 0;
+	/* cancel requested || normal exit path */
+	return atomic_read(&fs_info->balance_cancel_req) ||
+		(atomic_read(&fs_info->balance_pause_req) == 0 &&
+		 atomic_read(&fs_info->balance_cancel_req) == 0);
 }
 
 static void __cancel_balance(struct btrfs_fs_info *fs_info)
@@ -2586,7 +2590,8 @@ int btrfs_balance(struct btrfs_balance_control *bctl,
 	int ret;
 
 	if (btrfs_fs_closing(fs_info) ||
-	    atomic_read(&fs_info->balance_pause_req)) {
+	    atomic_read(&fs_info->balance_pause_req) ||
+	    atomic_read(&fs_info->balance_cancel_req)) {
 		ret = -EINVAL;
 		goto out;
 	}
@@ -2830,6 +2835,42 @@ int btrfs_pause_balance(struct btrfs_fs_info *fs_info)
 
 	mutex_unlock(&fs_info->balance_mutex);
 	return ret;
+}
+
+int btrfs_cancel_balance(struct btrfs_fs_info *fs_info)
+{
+	mutex_lock(&fs_info->balance_mutex);
+	if (!fs_info->balance_ctl) {
+		mutex_unlock(&fs_info->balance_mutex);
+		return -ENOTCONN;
+	}
+
+	atomic_inc(&fs_info->balance_cancel_req);
+	/*
+	 * if we are running just wait and return, balance item is
+	 * deleted in btrfs_balance in this case
+	 */
+	if (atomic_read(&fs_info->balance_running)) {
+		mutex_unlock(&fs_info->balance_mutex);
+		wait_event(fs_info->balance_wait_q,
+			   atomic_read(&fs_info->balance_running) == 0);
+		mutex_lock(&fs_info->balance_mutex);
+	} else {
+		/* __cancel_balance needs volume_mutex */
+		mutex_unlock(&fs_info->balance_mutex);
+		mutex_lock(&fs_info->volume_mutex);
+		mutex_lock(&fs_info->balance_mutex);
+
+		if (fs_info->balance_ctl)
+			__cancel_balance(fs_info);
+
+		mutex_unlock(&fs_info->volume_mutex);
+	}
+
+	BUG_ON(fs_info->balance_ctl || atomic_read(&fs_info->balance_running));
+	atomic_dec(&fs_info->balance_cancel_req);
+	mutex_unlock(&fs_info->balance_mutex);
+	return 0;
 }
 
 /*

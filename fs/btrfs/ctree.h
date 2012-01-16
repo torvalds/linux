@@ -1216,6 +1216,7 @@ struct btrfs_fs_info {
 	struct mutex balance_mutex;
 	atomic_t balance_running;
 	atomic_t balance_pause_req;
+	atomic_t balance_cancel_req;
 	struct btrfs_balance_control *balance_ctl;
 	wait_queue_head_t balance_wait_q;
 

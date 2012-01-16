@@ -2006,6 +2006,7 @@ struct btrfs_root *open_ctree(struct super_block *sb,
 	mutex_init(&fs_info->balance_mutex);
 	atomic_set(&fs_info->balance_running, 0);
 	atomic_set(&fs_info->balance_pause_req, 0);
+	atomic_set(&fs_info->balance_cancel_req, 0);
 	fs_info->balance_ctl = NULL;
 	init_waitqueue_head(&fs_info->balance_wait_q);
 
