@@ -130,6 +130,8 @@ extern long kvm_vm_ioctl_allocate_rma(struct kvm *kvm,
 				struct kvm_allocate_rma *rma);
 extern struct kvmppc_linear_info *kvm_alloc_rma(void);
 extern void kvm_release_rma(struct kvmppc_linear_info *ri);
+extern struct kvmppc_linear_info *kvm_alloc_hpt(void);
+extern void kvm_release_hpt(struct kvmppc_linear_info *li);
 extern int kvmppc_core_init_vm(struct kvm *kvm);
 extern void kvmppc_core_destroy_vm(struct kvm *kvm);
 extern int kvmppc_core_prepare_memory_region(struct kvm *kvm,

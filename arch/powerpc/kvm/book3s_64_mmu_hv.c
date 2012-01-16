@@ -44,10 +44,20 @@ long kvmppc_alloc_hpt(struct kvm *kvm)
 	unsigned long hpt;
 	unsigned long lpid;
 	struct revmap_entry *rev;
+	struct kvmppc_linear_info *li;
 
 	/* Allocate guest's hashed page table */
-	hpt = __get_free_pages(GFP_KERNEL|__GFP_ZERO|__GFP_REPEAT|__GFP_NOWARN,
-			       HPT_ORDER - PAGE_SHIFT);
+	li = kvm_alloc_hpt();
+	if (li) {
+		/* using preallocated memory */
+		hpt = (ulong)li->base_virt;
+		kvm->arch.hpt_li = li;
+	} else {
+		/* using dynamic memory */
+		hpt = __get_free_pages(GFP_KERNEL|__GFP_ZERO|__GFP_REPEAT|
+				       __GFP_NOWARN, HPT_ORDER - PAGE_SHIFT);
+	}
+
 	if (!hpt) {
 		pr_err("kvm_alloc_hpt: Couldn't alloc HPT\n");
 		return -ENOMEM;
@@ -88,7 +98,10 @@ void kvmppc_free_hpt(struct kvm *kvm)
 {
 	clear_bit(kvm->arch.lpid, lpid_inuse);
 	vfree(kvm->arch.revmap);
-	free_pages(kvm->arch.hpt_virt, HPT_ORDER - PAGE_SHIFT);
+	if (kvm->arch.hpt_li)
+		kvm_release_hpt(kvm->arch.hpt_li);
+	else
+		free_pages(kvm->arch.hpt_virt, HPT_ORDER - PAGE_SHIFT);
 }
 
 /* Bits in first HPTE dword for pagesize 4k, 64k or 16M */

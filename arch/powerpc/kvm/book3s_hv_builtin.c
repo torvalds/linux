@@ -19,6 +19,7 @@
 #include <asm/kvm_book3s.h>
 
 #define KVM_LINEAR_RMA		0
+#define KVM_LINEAR_HPT		1
 
 static void __init kvm_linear_init_one(ulong size, int count, int type);
 static struct kvmppc_linear_info *kvm_alloc_linear(int type);
@@ -97,6 +98,39 @@ void kvm_release_rma(struct kvmppc_linear_info *ri)
 }
 EXPORT_SYMBOL_GPL(kvm_release_rma);
 
+/*************** HPT *************/
+
+/*
+ * This maintains a list of big linear HPT tables that contain the GVA->HPA
+ * memory mappings. If we don't reserve those early on, we might not be able
+ * to get a big (usually 16MB) linear memory region from the kernel anymore.
+ */
+
+static unsigned long kvm_hpt_count;
+
+static int __init early_parse_hpt_count(char *p)
+{
+	if (!p)
+		return 1;
+
+	kvm_hpt_count = simple_strtoul(p, NULL, 0);
+
+	return 0;
+}
+early_param("kvm_hpt_count", early_parse_hpt_count);
+
+struct kvmppc_linear_info *kvm_alloc_hpt(void)
+{
+	return kvm_alloc_linear(KVM_LINEAR_HPT);
+}
+EXPORT_SYMBOL_GPL(kvm_alloc_hpt);
+
+void kvm_release_hpt(struct kvmppc_linear_info *li)
+{
+	kvm_release_linear(li);
+}
+EXPORT_SYMBOL_GPL(kvm_release_hpt);
+
 /*************** generic *************/
 
 static LIST_HEAD(free_linears);
@@ -114,7 +148,7 @@ static void __init kvm_linear_init_one(ulong size, int count, int type)
 	if (!count)
 		return;
 
-	typestr = (type == KVM_LINEAR_RMA) ? "RMA" : "";
+	typestr = (type == KVM_LINEAR_RMA) ? "RMA" : "HPT";
 
 	npages = size >> PAGE_SHIFT;
 	linear_info = alloc_bootmem(count * sizeof(struct kvmppc_linear_info));
@@ -173,6 +207,9 @@ static void kvm_release_linear(struct kvmppc_linear_info *ri)
  */
 void __init kvm_linear_init(void)
 {
+	/* HPT */
+	kvm_linear_init_one(1 << HPT_ORDER, kvm_hpt_count, KVM_LINEAR_HPT);
+
 	/* RMA */
 	/* Only do this on PPC970 in HV mode */
 	if (!cpu_has_feature(CPU_FTR_HVMODE) ||
