@@ -3106,6 +3106,20 @@ static long btrfs_ioctl_balance(struct btrfs_root *root, void __user *arg)
 			ret = PTR_ERR(bargs);
 			goto out;
 		}
+
+		if (bargs->flags & BTRFS_BALANCE_RESUME) {
+			if (!fs_info->balance_ctl) {
+				ret = -ENOTCONN;
+				goto out_bargs;
+			}
+
+			bctl = fs_info->balance_ctl;
+			spin_lock(&fs_info->balance_lock);
+			bctl->flags |= BTRFS_BALANCE_RESUME;
+			spin_unlock(&fs_info->balance_lock);
+
+			goto do_balance;
+		}
 	} else {
 		bargs = NULL;
 	}
@@ -3133,6 +3147,7 @@ static long btrfs_ioctl_balance(struct btrfs_root *root, void __user *arg)
 		bctl->flags |= BTRFS_BALANCE_TYPE_MASK;
 	}
 
+do_balance:
 	ret = btrfs_balance(bctl, bargs);
 	/*
 	 * bctl is freed in __cancel_balance or in free_fs_info if
