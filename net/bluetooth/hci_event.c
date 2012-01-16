@@ -2965,7 +2965,10 @@ static inline void hci_io_capa_request_evt(struct hci_dev *hdev, struct sk_buff 
 		struct hci_cp_io_capability_reply cp;
 
 		bacpy(&cp.bdaddr, &ev->bdaddr);
-		cp.capability = conn->io_capability;
+		/* Change the IO capability from KeyboardDisplay
+		 * to DisplayYesNo as it is not supported by BT spec. */
+		cp.capability = (conn->io_capability == 0x04) ?
+						0x01 : conn->io_capability;
 		conn->auth_type = hci_get_auth_req(conn);
 		cp.authentication = conn->auth_type;
 
