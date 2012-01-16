@@ -1154,7 +1154,7 @@ static inline void hci_cs_create_conn(struct hci_dev *hdev, __u8 status)
 		if (!conn) {
 			conn = hci_conn_add(hdev, ACL_LINK, &cp->bdaddr);
 			if (conn) {
-				conn->out = 1;
+				conn->out = true;
 				conn->link_mode |= HCI_LM_MASTER;
 			} else
 				BT_ERR("No memory for new connection");
@@ -1526,7 +1526,7 @@ static void hci_cs_le_create_conn(struct hci_dev *hdev, __u8 status)
 			conn = hci_conn_add(hdev, LE_LINK, &cp->peer_addr);
 			if (conn) {
 				conn->dst_type = cp->peer_addr_type;
-				conn->out = 1;
+				conn->out = true;
 			} else {
 				BT_ERR("No memory for new connection");
 			}

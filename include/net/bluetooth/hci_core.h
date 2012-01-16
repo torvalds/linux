@@ -282,7 +282,7 @@ struct hci_conn {
 	__u16		state;
 	__u8		mode;
 	__u8		type;
-	__u8		out;
+	bool		out;
 	__u8		attempt;
 	__u8		dev_class[3];
 	__u8		features[8];
