@@ -166,6 +166,8 @@ enum {
 	Opt_space_cache, Opt_clear_cache, Opt_user_subvol_rm_allowed,
 	Opt_enospc_debug, Opt_subvolrootid, Opt_defrag, Opt_inode_cache,
 	Opt_no_space_cache, Opt_recovery, Opt_skip_balance,
+	Opt_check_integrity, Opt_check_integrity_including_extent_data,
+	Opt_check_integrity_print_mask,
 	Opt_err,
 };
 
@@ -202,6 +204,9 @@ static match_table_t tokens = {
 	{Opt_no_space_cache, "nospace_cache"},
 	{Opt_recovery, "recovery"},
 	{Opt_skip_balance, "skip_balance"},
+	{Opt_check_integrity, "check_int"},
+	{Opt_check_integrity_including_extent_data, "check_int_data"},
+	{Opt_check_integrity_print_mask, "check_int_print_mask=%d"},
 	{Opt_err, NULL},
 };
 
@@ -403,6 +408,37 @@ int btrfs_parse_options(struct btrfs_root *root, char *options)
 		case Opt_skip_balance:
 			btrfs_set_opt(info->mount_opt, SKIP_BALANCE);
 			break;
+#ifdef CONFIG_BTRFS_FS_CHECK_INTEGRITY
+		case Opt_check_integrity_including_extent_data:
+			printk(KERN_INFO "btrfs: enabling check integrity"
+			       " including extent data\n");
+			btrfs_set_opt(info->mount_opt,
+				      CHECK_INTEGRITY_INCLUDING_EXTENT_DATA);
+			btrfs_set_opt(info->mount_opt, CHECK_INTEGRITY);
+			break;
+		case Opt_check_integrity:
+			printk(KERN_INFO "btrfs: enabling check integrity\n");
+			btrfs_set_opt(info->mount_opt, CHECK_INTEGRITY);
+			break;
+		case Opt_check_integrity_print_mask:
+			intarg = 0;
+			match_int(&args[0], &intarg);
+			if (intarg) {
+				info->check_integrity_print_mask = intarg;
+				printk(KERN_INFO "btrfs:"
+				       " check_integrity_print_mask 0x%x\n",
+				       info->check_integrity_print_mask);
+			}
+			break;
+#else
+		case Opt_check_integrity_including_extent_data:
+		case Opt_check_integrity:
+		case Opt_check_integrity_print_mask:
+			printk(KERN_ERR "btrfs: support for check_integrity*"
+			       " not compiled in!\n");
+			ret = -EINVAL;
+			goto out;
+#endif
 		case Opt_err:
 			printk(KERN_INFO "btrfs: unrecognized mount option "
 			       "'%s'\n", p);

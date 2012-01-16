@@ -11,3 +11,4 @@ btrfs-y += super.o ctree.o extent-tree.o print-tree.o root-tree.o dir-item.o \
 	   reada.o backref.o ulist.o
 
 btrfs-$(CONFIG_BTRFS_FS_POSIX_ACL) += acl.o
+btrfs-$(CONFIG_BTRFS_FS_CHECK_INTEGRITY) += check-integrity.o
