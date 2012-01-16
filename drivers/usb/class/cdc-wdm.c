@@ -467,7 +467,9 @@ retry:
 	for (i = 0; i < desc->length - cntr; i++)
 		desc->ubuf[i] = desc->ubuf[i + cntr];
 
+	spin_lock_irq(&desc->iuspin);
 	desc->length -= cntr;
+	spin_unlock_irq(&desc->iuspin);
 	/* in case we had outstanding data */
 	if (!desc->length)
 		clear_bit(WDM_READ, &desc->flags);
