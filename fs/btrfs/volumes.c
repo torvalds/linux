@@ -2438,6 +2438,75 @@ int btrfs_balance(struct btrfs_balance_control *bctl,
 		}
 	}
 
+	/*
+	 * Profile changing sanity checks.  Skip them if a simple
+	 * balance is requested.
+	 */
+	if (!((bctl->data.flags | bctl->sys.flags | bctl->meta.flags) &
+	      BTRFS_BALANCE_ARGS_CONVERT))
+		goto do_balance;
+
+	allowed = BTRFS_AVAIL_ALLOC_BIT_SINGLE;
+	if (fs_info->fs_devices->num_devices == 1)
+		allowed |= BTRFS_BLOCK_GROUP_DUP;
+	else if (fs_info->fs_devices->num_devices < 4)
+		allowed |= (BTRFS_BLOCK_GROUP_RAID0 | BTRFS_BLOCK_GROUP_RAID1);
+	else
+		allowed |= (BTRFS_BLOCK_GROUP_RAID0 | BTRFS_BLOCK_GROUP_RAID1 |
+				BTRFS_BLOCK_GROUP_RAID10);
+
+	if (!profile_is_valid(bctl->data.target, 1) ||
+	    bctl->data.target & ~allowed) {
+		printk(KERN_ERR "btrfs: unable to start balance with target "
+		       "data profile %llu\n",
+		       (unsigned long long)bctl->data.target);
+		ret = -EINVAL;
+		goto out;
+	}
+	if (!profile_is_valid(bctl->meta.target, 1) ||
+	    bctl->meta.target & ~allowed) {
+		printk(KERN_ERR "btrfs: unable to start balance with target "
+		       "metadata profile %llu\n",
+		       (unsigned long long)bctl->meta.target);
+		ret = -EINVAL;
+		goto out;
+	}
+	if (!profile_is_valid(bctl->sys.target, 1) ||
+	    bctl->sys.target & ~allowed) {
+		printk(KERN_ERR "btrfs: unable to start balance with target "
+		       "system profile %llu\n",
+		       (unsigned long long)bctl->sys.target);
+		ret = -EINVAL;
+		goto out;
+	}
+
+	if (bctl->data.target & BTRFS_BLOCK_GROUP_DUP) {
+		printk(KERN_ERR "btrfs: dup for data is not allowed\n");
+		ret = -EINVAL;
+		goto out;
+	}
+
+	/* allow to reduce meta or sys integrity only if force set */
+	allowed = BTRFS_BLOCK_GROUP_DUP | BTRFS_BLOCK_GROUP_RAID1 |
+			BTRFS_BLOCK_GROUP_RAID10;
+	if (((bctl->sys.flags & BTRFS_BALANCE_ARGS_CONVERT) &&
+	     (fs_info->avail_system_alloc_bits & allowed) &&
+	     !(bctl->sys.target & allowed)) ||
+	    ((bctl->meta.flags & BTRFS_BALANCE_ARGS_CONVERT) &&
+	     (fs_info->avail_metadata_alloc_bits & allowed) &&
+	     !(bctl->meta.target & allowed))) {
+		if (bctl->flags & BTRFS_BALANCE_FORCE) {
+			printk(KERN_INFO "btrfs: force reducing metadata "
+			       "integrity\n");
+		} else {
+			printk(KERN_ERR "btrfs: balance will reduce metadata "
+			       "integrity, use force if you want this\n");
+			ret = -EINVAL;
+			goto out;
+		}
+	}
+
+do_balance:
 	set_balance_control(bctl);
 
 	mutex_unlock(&fs_info->balance_mutex);

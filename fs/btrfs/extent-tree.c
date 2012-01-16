@@ -3030,7 +3030,9 @@ static void set_avail_alloc_bits(struct btrfs_fs_info *fs_info, u64 flags)
 /*
  * @flags: available profiles in extended format (see ctree.h)
  *
- * Returns reduced profile in chunk format.
+ * Returns reduced profile in chunk format.  If profile changing is in
+ * progress (either running or paused) picks the target profile (if it's
+ * already available), otherwise falls back to plain reducing.
  */
 u64 btrfs_reduce_alloc_profile(struct btrfs_root *root, u64 flags)
 {
@@ -3041,6 +3043,34 @@ u64 btrfs_reduce_alloc_profile(struct btrfs_root *root, u64 flags)
 	 */
 	u64 num_devices = root->fs_info->fs_devices->rw_devices +
 		root->fs_info->fs_devices->missing_devices;
+
+	/* pick restriper's target profile if it's available */
+	spin_lock(&root->fs_info->balance_lock);
+	if (root->fs_info->balance_ctl) {
+		struct btrfs_balance_control *bctl = root->fs_info->balance_ctl;
+		u64 tgt = 0;
+
+		if ((flags & BTRFS_BLOCK_GROUP_DATA) &&
+		    (bctl->data.flags & BTRFS_BALANCE_ARGS_CONVERT) &&
+		    (flags & bctl->data.target)) {
+			tgt = BTRFS_BLOCK_GROUP_DATA | bctl->data.target;
+		} else if ((flags & BTRFS_BLOCK_GROUP_SYSTEM) &&
+			   (bctl->sys.flags & BTRFS_BALANCE_ARGS_CONVERT) &&
+			   (flags & bctl->sys.target)) {
+			tgt = BTRFS_BLOCK_GROUP_SYSTEM | bctl->sys.target;
+		} else if ((flags & BTRFS_BLOCK_GROUP_METADATA) &&
+			   (bctl->meta.flags & BTRFS_BALANCE_ARGS_CONVERT) &&
+			   (flags & bctl->meta.target)) {
+			tgt = BTRFS_BLOCK_GROUP_METADATA | bctl->meta.target;
+		}
+
+		if (tgt) {
+			spin_unlock(&root->fs_info->balance_lock);
+			flags = tgt;
+			goto out;
+		}
+	}
+	spin_unlock(&root->fs_info->balance_lock);
 
 	if (num_devices == 1)
 		flags &= ~(BTRFS_BLOCK_GROUP_RAID1 | BTRFS_BLOCK_GROUP_RAID0);
@@ -3065,6 +3095,7 @@ u64 btrfs_reduce_alloc_profile(struct btrfs_root *root, u64 flags)
 		flags &= ~BTRFS_BLOCK_GROUP_RAID0;
 	}
 
+out:
 	/* extended -> chunk profile */
 	flags &= ~BTRFS_AVAIL_ALLOC_BIT_SINGLE;
 	return flags;
@@ -6794,6 +6825,29 @@ static u64 update_block_group_flags(struct btrfs_root *root, u64 flags)
 	u64 num_devices;
 	u64 stripped = BTRFS_BLOCK_GROUP_RAID0 |
 		BTRFS_BLOCK_GROUP_RAID1 | BTRFS_BLOCK_GROUP_RAID10;
+
+	if (root->fs_info->balance_ctl) {
+		struct btrfs_balance_control *bctl = root->fs_info->balance_ctl;
+		u64 tgt = 0;
+
+		/* pick restriper's target profile and return */
+		if (flags & BTRFS_BLOCK_GROUP_DATA &&
+		    bctl->data.flags & BTRFS_BALANCE_ARGS_CONVERT) {
+			tgt = BTRFS_BLOCK_GROUP_DATA | bctl->data.target;
+		} else if (flags & BTRFS_BLOCK_GROUP_SYSTEM &&
+			   bctl->sys.flags & BTRFS_BALANCE_ARGS_CONVERT) {
+			tgt = BTRFS_BLOCK_GROUP_SYSTEM | bctl->sys.target;
+		} else if (flags & BTRFS_BLOCK_GROUP_METADATA &&
+			   bctl->meta.flags & BTRFS_BALANCE_ARGS_CONVERT) {
+			tgt = BTRFS_BLOCK_GROUP_METADATA | bctl->meta.target;
+		}
+
+		if (tgt) {
+			/* extended -> chunk profile */
+			tgt &= ~BTRFS_AVAIL_ALLOC_BIT_SINGLE;
+			return tgt;
+		}
+	}
 
 	/*
 	 * we add in the count of missing devices because we want
