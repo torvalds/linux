@@ -103,7 +103,7 @@ neponset_pcmcia_configure_socket(struct soc_pcmcia_socket *skt, const socket_sta
 		sa1111_set_io(s->dev, pa_dwr_mask, pa_dwr_set);
 	}
 
-	return 0;
+	return ret;
 }
 
 static struct pcmcia_low_level neponset_pcmcia_ops = {
