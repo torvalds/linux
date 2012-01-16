@@ -573,7 +573,7 @@ static int wait_completion(struct bau_desc *bau_desc,
 		right_shift = ((cpu - UV_CPUS_PER_AS) * UV_ACT_STATUS_SIZE);
 	}
 
-	if (is_uv1_hub())
+	if (bcp->uvhub_version == 1)
 		return uv1_wait_completion(bau_desc, mmr_offset, right_shift,
 								bcp, try);
 	else
@@ -757,15 +757,22 @@ int uv_flush_send_and_wait(struct bau_desc *bau_desc,
 {
 	int seq_number = 0;
 	int completion_stat = 0;
+	int uv1 = 0;
 	long try = 0;
 	unsigned long index;
 	cycles_t time1;
 	cycles_t time2;
 	struct ptc_stats *stat = bcp->statp;
 	struct bau_control *hmaster = bcp->uvhub_master;
+	struct uv1_bau_msg_header *uv1_hdr = NULL;
+	struct uv2_bau_msg_header *uv2_hdr = NULL;
 
-	if (is_uv1_hub())
+	if (bcp->uvhub_version == 1) {
+		uv1 = 1;
 		uv1_throttle(hmaster, stat);
+		uv1_hdr = &bau_desc->header.uv1_hdr;
+	} else
+		uv2_hdr = &bau_desc->header.uv2_hdr;
 
 	while (hmaster->uvhub_quiesce)
 		cpu_relax();
@@ -773,14 +780,23 @@ int uv_flush_send_and_wait(struct bau_desc *bau_desc,
 	time1 = get_cycles();
 	do {
 		if (try == 0) {
-			bau_desc->header.msg_type = MSG_REGULAR;
+			if (uv1)
+				uv1_hdr->msg_type = MSG_REGULAR;
+			else
+				uv2_hdr->msg_type = MSG_REGULAR;
 			seq_number = bcp->message_number++;
 		} else {
-			bau_desc->header.msg_type = MSG_RETRY;
+			if (uv1)
+				uv1_hdr->msg_type = MSG_RETRY;
+			else
+				uv2_hdr->msg_type = MSG_RETRY;
 			stat->s_retry_messages++;
 		}
 
-		bau_desc->header.sequence = seq_number;
+		if (uv1)
+			uv1_hdr->sequence = seq_number;
+		else
+			uv2_hdr->sequence = seq_number;
 		index = (1UL << AS_PUSH_SHIFT) | bcp->uvhub_cpu;
 		bcp->send_message = get_cycles();
 
@@ -967,7 +983,7 @@ const struct cpumask *uv_flush_tlb_others(const struct cpumask *cpumask,
 		stat->s_ntargself++;
 
 	bau_desc = bcp->descriptor_base;
-	bau_desc += ITEMS_PER_DESC * bcp->uvhub_cpu;
+	bau_desc += (ITEMS_PER_DESC * bcp->uvhub_cpu);
 	bau_uvhubs_clear(&bau_desc->distribution, UV_DISTRIBUTION_SIZE);
 	if (set_distrib_bits(flush_mask, bcp, bau_desc, &locals, &remotes))
 		return NULL;
@@ -1083,7 +1099,7 @@ static void __init enable_timeouts(void)
 		 */
 		mmr_image |= (1L << SOFTACK_MSHIFT);
 		if (is_uv2_hub()) {
-			mmr_image |= (1L << UV2_LEG_SHFT);
+			mmr_image &= ~(1L << UV2_LEG_SHFT);
 			mmr_image |= (1L << UV2_EXT_SHFT);
 		}
 		write_mmr_misc_control(pnode, mmr_image);
@@ -1432,12 +1448,15 @@ static void activation_descriptor_init(int node, int pnode, int base_pnode)
 {
 	int i;
 	int cpu;
+	int uv1 = 0;
 	unsigned long gpa;
 	unsigned long m;
 	unsigned long n;
 	size_t dsize;
 	struct bau_desc *bau_desc;
 	struct bau_desc *bd2;
+	struct uv1_bau_msg_header *uv1_hdr;
+	struct uv2_bau_msg_header *uv2_hdr;
 	struct bau_control *bcp;
 
 	/*
@@ -1451,6 +1470,8 @@ static void activation_descriptor_init(int node, int pnode, int base_pnode)
 	gpa = uv_gpa(bau_desc);
 	n = uv_gpa_to_gnode(gpa);
 	m = uv_gpa_to_offset(gpa);
+	if (is_uv1_hub())
+		uv1 = 1;
 
 	/* the 14-bit pnode */
 	write_mmr_descriptor_base(pnode, (n << UV_DESC_PSHIFT | m));
@@ -1461,21 +1482,33 @@ static void activation_descriptor_init(int node, int pnode, int base_pnode)
 	 */
 	for (i = 0, bd2 = bau_desc; i < (ADP_SZ * ITEMS_PER_DESC); i++, bd2++) {
 		memset(bd2, 0, sizeof(struct bau_desc));
-		bd2->header.swack_flag =	1;
-		/*
-		 * The base_dest_nasid set in the message header is the nasid
-		 * of the first uvhub in the partition. The bit map will
-		 * indicate destination pnode numbers relative to that base.
-		 * They may not be consecutive if nasid striding is being used.
-		 */
-		bd2->header.base_dest_nasid =	UV_PNODE_TO_NASID(base_pnode);
-		bd2->header.dest_subnodeid =	UV_LB_SUBNODEID;
-		bd2->header.command =		UV_NET_ENDPOINT_INTD;
-		bd2->header.int_both =		1;
-		/*
-		 * all others need to be set to zero:
-		 *   fairness chaining multilevel count replied_to
-		 */
+		if (uv1) {
+			uv1_hdr = &bd2->header.uv1_hdr;
+			uv1_hdr->swack_flag =	1;
+			/*
+			 * The base_dest_nasid set in the message header
+			 * is the nasid of the first uvhub in the partition.
+			 * The bit map will indicate destination pnode numbers
+			 * relative to that base. They may not be consecutive
+			 * if nasid striding is being used.
+			 */
+			uv1_hdr->base_dest_nasid =
+						UV_PNODE_TO_NASID(base_pnode);
+			uv1_hdr->dest_subnodeid =	UV_LB_SUBNODEID;
+			uv1_hdr->command =		UV_NET_ENDPOINT_INTD;
+			uv1_hdr->int_both =		1;
+			/*
+			 * all others need to be set to zero:
+			 *   fairness chaining multilevel count replied_to
+			 */
+		} else {
+			uv2_hdr = &bd2->header.uv2_hdr;
+			uv2_hdr->swack_flag =	1;
+			uv2_hdr->base_dest_nasid =
+						UV_PNODE_TO_NASID(base_pnode);
+			uv2_hdr->dest_subnodeid =	UV_LB_SUBNODEID;
+			uv2_hdr->command =		UV_NET_ENDPOINT_INTD;
+		}
 	}
 	for_each_present_cpu(cpu) {
 		if (pnode != uv_blade_to_pnode(uv_cpu_to_blade_id(cpu)))
@@ -1728,6 +1761,14 @@ static int scan_sock(struct socket_desc *sdp, struct uvhub_desc *bdp,
 		bcp->cpus_in_socket = sdp->num_cpus;
 		bcp->socket_master = *smasterp;
 		bcp->uvhub = bdp->uvhub;
+		if (is_uv1_hub())
+			bcp->uvhub_version = 1;
+		else if (is_uv2_hub())
+			bcp->uvhub_version = 2;
+		else {
+			printk(KERN_EMERG "uvhub version not 1 or 2\n");
+			return 1;
+		}
 		bcp->uvhub_master = *hmasterp;
 		bcp->uvhub_cpu = uv_cpu_hub_info(cpu)->blade_processor_id;
 		if (bcp->uvhub_cpu >= MAX_CPUS_PER_UVHUB) {
@@ -1867,7 +1908,8 @@ static int __init uv_bau_init(void)
 			val = 1L << 63;
 			write_gmmr_activation(pnode, val);
 			mmr = 1; /* should be 1 to broadcast to both sockets */
-			write_mmr_data_broadcast(pnode, mmr);
+			if (!is_uv1_hub())
+				write_mmr_data_broadcast(pnode, mmr);
 		}
 	}
 
