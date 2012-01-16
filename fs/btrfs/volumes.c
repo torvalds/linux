@@ -2752,8 +2752,7 @@ static noinline int init_first_rw_device(struct btrfs_trans_handle *trans,
 		return ret;
 
 	alloc_profile = BTRFS_BLOCK_GROUP_METADATA |
-			(fs_info->metadata_alloc_profile &
-			 fs_info->avail_metadata_alloc_bits);
+				fs_info->avail_metadata_alloc_bits;
 	alloc_profile = btrfs_reduce_alloc_profile(root, alloc_profile);
 
 	ret = __btrfs_alloc_chunk(trans, extent_root, &map, &chunk_size,
@@ -2763,8 +2762,7 @@ static noinline int init_first_rw_device(struct btrfs_trans_handle *trans,
 	sys_chunk_offset = chunk_offset + chunk_size;
 
 	alloc_profile = BTRFS_BLOCK_GROUP_SYSTEM |
-			(fs_info->system_alloc_profile &
-			 fs_info->avail_system_alloc_bits);
+				fs_info->avail_system_alloc_bits;
 	alloc_profile = btrfs_reduce_alloc_profile(root, alloc_profile);
 
 	ret = __btrfs_alloc_chunk(trans, extent_root, &sys_map,

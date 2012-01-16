@@ -1135,9 +1135,6 @@ struct btrfs_fs_info {
 	u64 avail_data_alloc_bits;
 	u64 avail_metadata_alloc_bits;
 	u64 avail_system_alloc_bits;
-	u64 data_alloc_profile;
-	u64 metadata_alloc_profile;
-	u64 system_alloc_profile;
 
 	unsigned data_chunk_allocations;
 	unsigned metadata_ratio;
