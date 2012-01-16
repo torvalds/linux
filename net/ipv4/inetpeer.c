@@ -136,7 +136,7 @@ static int addr_compare(const struct inetpeer_addr *a,
 	for (i = 0; i < n; i++) {
 		if (a->addr.a6[i] == b->addr.a6[i])
 			continue;
-		if (a->addr.a6[i] < b->addr.a6[i])
+		if ((__force u32)a->addr.a6[i] < (__force u32)b->addr.a6[i])
 			return -1;
 		return 1;
 	}
