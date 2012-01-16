@@ -860,8 +860,7 @@ static void write_sse_reg(struct x86_emulate_ctxt *ctxt, sse128_t *data,
 }
 
 static void decode_register_operand(struct x86_emulate_ctxt *ctxt,
-				    struct operand *op,
-				    int inhibit_bytereg)
+				    struct operand *op)
 {
 	unsigned reg = ctxt->modrm_reg;
 	int highbyte_regs = ctxt->rex_prefix == 0;
@@ -878,7 +877,7 @@ static void decode_register_operand(struct x86_emulate_ctxt *ctxt,
 	}
 
 	op->type = OP_REG;
-	if ((ctxt->d & ByteOp) && !inhibit_bytereg) {
+	if (ctxt->d & ByteOp) {
 		op->addr.reg = decode_register(reg, ctxt->regs, highbyte_regs);
 		op->bytes = 1;
 	} else {
@@ -3516,13 +3515,13 @@ static struct opcode twobyte_table[256] = {
 	I(DstMem | SrcReg | ModRM | BitOp | Lock, em_btr),
 	I(DstReg | SrcMemFAddr | ModRM | Src2FS, em_lseg),
 	I(DstReg | SrcMemFAddr | ModRM | Src2GS, em_lseg),
-	D(ByteOp | DstReg | SrcMem | ModRM | Mov), D(DstReg | SrcMem16 | ModRM | Mov),
+	D(DstReg | SrcMem8 | ModRM | Mov), D(DstReg | SrcMem16 | ModRM | Mov),
 	/* 0xB8 - 0xBF */
 	N, N,
 	G(BitOp, group8),
 	I(DstMem | SrcReg | ModRM | BitOp | Lock | PageTable, em_btc),
 	I(DstReg | SrcMem | ModRM, em_bsf), I(DstReg | SrcMem | ModRM, em_bsr),
-	D(ByteOp | DstReg | SrcMem | ModRM | Mov), D(DstReg | SrcMem16 | ModRM | Mov),
+	D(DstReg | SrcMem8 | ModRM | Mov), D(DstReg | SrcMem16 | ModRM | Mov),
 	/* 0xC0 - 0xCF */
 	D2bv(DstMem | SrcReg | ModRM | Lock),
 	N, D(DstMem | SrcReg | ModRM | Mov),
@@ -3604,9 +3603,7 @@ static int decode_operand(struct x86_emulate_ctxt *ctxt, struct operand *op,
 
 	switch (d) {
 	case OpReg:
-		decode_register_operand(ctxt, op,
-			 op == &ctxt->dst &&
-			 ctxt->twobyte && (ctxt->b == 0xb6 || ctxt->b == 0xb7));
+		decode_register_operand(ctxt, op);
 		break;
 	case OpImmUByte:
 		rc = decode_imm(ctxt, op, 1, false);
