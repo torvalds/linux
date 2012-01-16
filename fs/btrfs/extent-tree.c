@@ -3014,16 +3014,24 @@ static int update_space_info(struct btrfs_fs_info *info, u64 flags,
 static void set_avail_alloc_bits(struct btrfs_fs_info *fs_info, u64 flags)
 {
 	u64 extra_flags = flags & BTRFS_BLOCK_GROUP_PROFILE_MASK;
-	if (extra_flags) {
-		if (flags & BTRFS_BLOCK_GROUP_DATA)
-			fs_info->avail_data_alloc_bits |= extra_flags;
-		if (flags & BTRFS_BLOCK_GROUP_METADATA)
-			fs_info->avail_metadata_alloc_bits |= extra_flags;
-		if (flags & BTRFS_BLOCK_GROUP_SYSTEM)
-			fs_info->avail_system_alloc_bits |= extra_flags;
-	}
+
+	/* chunk -> extended profile */
+	if (extra_flags == 0)
+		extra_flags = BTRFS_AVAIL_ALLOC_BIT_SINGLE;
+
+	if (flags & BTRFS_BLOCK_GROUP_DATA)
+		fs_info->avail_data_alloc_bits |= extra_flags;
+	if (flags & BTRFS_BLOCK_GROUP_METADATA)
+		fs_info->avail_metadata_alloc_bits |= extra_flags;
+	if (flags & BTRFS_BLOCK_GROUP_SYSTEM)
+		fs_info->avail_system_alloc_bits |= extra_flags;
 }
 
+/*
+ * @flags: available profiles in extended format (see ctree.h)
+ *
+ * Returns reduced profile in chunk format.
+ */
 u64 btrfs_reduce_alloc_profile(struct btrfs_root *root, u64 flags)
 {
 	/*
@@ -3053,8 +3061,12 @@ u64 btrfs_reduce_alloc_profile(struct btrfs_root *root, u64 flags)
 	if ((flags & BTRFS_BLOCK_GROUP_RAID0) &&
 	    ((flags & BTRFS_BLOCK_GROUP_RAID1) |
 	     (flags & BTRFS_BLOCK_GROUP_RAID10) |
-	     (flags & BTRFS_BLOCK_GROUP_DUP)))
+	     (flags & BTRFS_BLOCK_GROUP_DUP))) {
 		flags &= ~BTRFS_BLOCK_GROUP_RAID0;
+	}
+
+	/* extended -> chunk profile */
+	flags &= ~BTRFS_AVAIL_ALLOC_BIT_SINGLE;
 	return flags;
 }
 
