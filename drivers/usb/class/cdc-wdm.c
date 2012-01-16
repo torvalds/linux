@@ -159,11 +159,9 @@ static void wdm_int_callback(struct urb *urb)
 	int rv = 0;
 	int status = urb->status;
 	struct wdm_device *desc;
-	struct usb_ctrlrequest *req;
 	struct usb_cdc_notification *dr;
 
 	desc = urb->context;
-	req = desc->irq;
 	dr = (struct usb_cdc_notification *)desc->sbuf;
 
 	if (status) {
@@ -210,24 +208,6 @@ static void wdm_int_callback(struct urb *urb)
 		goto exit;
 	}
 
-	req->bRequestType = (USB_DIR_IN | USB_TYPE_CLASS | USB_RECIP_INTERFACE);
-	req->bRequest = USB_CDC_GET_ENCAPSULATED_RESPONSE;
-	req->wValue = 0;
-	req->wIndex = desc->inum;
-	req->wLength = cpu_to_le16(desc->wMaxCommand);
-
-	usb_fill_control_urb(
-		desc->response,
-		interface_to_usbdev(desc->intf),
-		/* using common endpoint 0 */
-		usb_rcvctrlpipe(interface_to_usbdev(desc->intf), 0),
-		(unsigned char *)req,
-		desc->inbuf,
-		desc->wMaxCommand,
-		wdm_in_callback,
-		desc
-	);
-	desc->response->transfer_flags |= URB_NO_TRANSFER_DMA_MAP;
 	spin_lock(&desc->iuspin);
 	clear_bit(WDM_READ, &desc->flags);
 	set_bit(WDM_RESPONDING, &desc->flags);
@@ -733,6 +713,25 @@ next_desc:
 		ep->bInterval
 	);
 	desc->validity->transfer_flags |= URB_NO_TRANSFER_DMA_MAP;
+
+	desc->irq->bRequestType = (USB_DIR_IN | USB_TYPE_CLASS | USB_RECIP_INTERFACE);
+	desc->irq->bRequest = USB_CDC_GET_ENCAPSULATED_RESPONSE;
+	desc->irq->wValue = 0;
+	desc->irq->wIndex = desc->inum;
+	desc->irq->wLength = cpu_to_le16(desc->wMaxCommand);
+
+	usb_fill_control_urb(
+		desc->response,
+		interface_to_usbdev(desc->intf),
+		/* using common endpoint 0 */
+		usb_rcvctrlpipe(interface_to_usbdev(desc->intf), 0),
+		(unsigned char *)desc->irq,
+		desc->inbuf,
+		desc->wMaxCommand,
+		wdm_in_callback,
+		desc
+	);
+	desc->response->transfer_flags |= URB_NO_TRANSFER_DMA_MAP;
 
 	usb_set_intfdata(intf, desc);
 	rv = usb_register_dev(intf, &wdm_class);
