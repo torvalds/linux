@@ -46,6 +46,12 @@ static int __init powersave_off(char *arg)
 }
 __setup("powersave=off", powersave_off);
 
+#if defined(CONFIG_PPC_PSERIES) && defined(CONFIG_TRACEPOINTS)
+static const bool idle_uses_rcu = 1;
+#else
+static const bool idle_uses_rcu;
+#endif
+
 /*
  * The body of the idle task.
  */
@@ -56,7 +62,10 @@ void cpu_idle(void)
 
 	set_thread_flag(TIF_POLLING_NRFLAG);
 	while (1) {
-		tick_nohz_stop_sched_tick(1);
+		tick_nohz_idle_enter();
+		if (!idle_uses_rcu)
+			rcu_idle_enter();
+
 		while (!need_resched() && !cpu_should_die()) {
 			ppc64_runlatch_off();
 
@@ -93,7 +102,9 @@ void cpu_idle(void)
 
 		HMT_medium();
 		ppc64_runlatch_on();
-		tick_nohz_restart_sched_tick();
+		if (!idle_uses_rcu)
+			rcu_idle_exit();
+		tick_nohz_idle_exit();
 		preempt_enable_no_resched();
 		if (cpu_should_die())
 			cpu_die();
