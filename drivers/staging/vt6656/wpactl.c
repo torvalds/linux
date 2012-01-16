@@ -902,6 +902,7 @@ int wpa_ioctl(PSDevice pDevice, struct iw_point *p)
 	default:
 		DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "wpa_ioctl: unknown cmd=%d\n",
 			param->cmd);
+		kfree(param);
 		return -EOPNOTSUPP;
 	}
 
