@@ -47,6 +47,7 @@
 #include <linux/err.h>
 #include <linux/mutex.h>
 #include <linux/sysfs.h>
+#include <linux/types.h>
 
 /*
  * Addresses to scan
@@ -91,6 +92,8 @@ static const unsigned short normal_i2c[] = { 0x18, 0x4c, 0x4e, I2C_CLIENT_END };
 #define LM63_REG_MAN_ID			0xFE
 #define LM63_REG_CHIP_ID		0xFF
 
+#define LM96163_REG_CONFIG_ENHANCED	0x45
+
 /*
  * Conversions and various macros
  * For tachometer counts, the LM63 uses 16-bit values.
@@ -134,7 +137,7 @@ static struct lm63_data *lm63_update_device(struct device *dev);
 static int lm63_detect(struct i2c_client *client, struct i2c_board_info *info);
 static void lm63_init_client(struct i2c_client *client);
 
-enum chips { lm63, lm64 };
+enum chips { lm63, lm64, lm96163 };
 
 /*
  * Driver data (common to all clients)
@@ -143,6 +146,7 @@ enum chips { lm63, lm64 };
 static const struct i2c_device_id lm63_id[] = {
 	{ "lm63", lm63 },
 	{ "lm64", lm64 },
+	{ "lm96163", lm96163 },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, lm63_id);
@@ -186,6 +190,7 @@ struct lm63_data {
 			   3: remote offset */
 	u8 temp2_crit_hyst;
 	u8 alarms;
+	bool pwm_highres;
 };
 
 /*
@@ -226,9 +231,16 @@ static ssize_t show_pwm1(struct device *dev, struct device_attribute *dummy,
 			 char *buf)
 {
 	struct lm63_data *data = lm63_update_device(dev);
-	return sprintf(buf, "%d\n", data->pwm1_value >= 2 * data->pwm1_freq ?
+	int pwm;
+
+	if (data->pwm_highres)
+		pwm = data->pwm1_value;
+	else
+		pwm = data->pwm1_value >= 2 * data->pwm1_freq ?
 		       255 : (data->pwm1_value * 255 + data->pwm1_freq) /
-		       (2 * data->pwm1_freq));
+		       (2 * data->pwm1_freq);
+
+	return sprintf(buf, "%d\n", pwm);
 }
 
 static ssize_t set_pwm1(struct device *dev, struct device_attribute *dummy,
@@ -246,9 +258,9 @@ static ssize_t set_pwm1(struct device *dev, struct device_attribute *dummy,
 	if (err)
 		return err;
 
+	val = SENSORS_LIMIT(val, 0, 255);
 	mutex_lock(&data->update_lock);
-	data->pwm1_value = val <= 0 ? 0 :
-			   val >= 255 ? 2 * data->pwm1_freq :
+	data->pwm1_value = data->pwm_highres ? val :
 			   (val * data->pwm1_freq * 2 + 127) / 255;
 	i2c_smbus_write_byte_data(client, LM63_REG_PWM_VALUE, data->pwm1_value);
 	mutex_unlock(&data->update_lock);
@@ -522,6 +534,8 @@ static int lm63_detect(struct i2c_client *new_client,
 		strlcpy(info->type, "lm63", I2C_NAME_SIZE);
 	else if (chip_id == 0x51 && (address == 0x18 || address == 0x4e))
 		strlcpy(info->type, "lm64", I2C_NAME_SIZE);
+	else if (chip_id == 0x49 && address == 0x4c)
+		strlcpy(info->type, "lm96163", I2C_NAME_SIZE);
 	else
 		return -ENODEV;
 
@@ -604,6 +618,23 @@ static void lm63_init_client(struct i2c_client *client)
 	data->pwm1_freq = i2c_smbus_read_byte_data(client, LM63_REG_PWM_FREQ);
 	if (data->pwm1_freq == 0)
 		data->pwm1_freq = 1;
+
+	/*
+	 * For LM96163, check if high resolution PWM is enabled.
+	 * Also, check if unsigned temperature format is enabled
+	 * and display a warning message if it is.
+	 */
+	if (data->kind == lm96163) {
+		u8 config_enhanced
+		  = i2c_smbus_read_byte_data(client,
+					     LM96163_REG_CONFIG_ENHANCED);
+		if ((config_enhanced & 0x10)
+		    && !(data->config_fan & 0x08) && data->pwm1_freq == 8)
+			data->pwm_highres = true;
+		if (config_enhanced & 0x08)
+			dev_warn(&client->dev,
+				 "Unsigned format for High and Crit setpoints enabled but not supported by driver\n");
+	}
 
 	/* Show some debug info about the LM63 configuration */
 	dev_dbg(&client->dev, "Alert/tach pin configured for %s\n",

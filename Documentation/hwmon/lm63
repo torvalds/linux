@@ -12,6 +12,11 @@ Supported chips:
     Addresses scanned: I2C 0x18 and 0x4e
     Datasheet: Publicly available at the National Semiconductor website
                http://www.national.com/pf/LM/LM64.html
+  * National Semiconductor LM96163
+    Prefix: 'lm96163'
+    Addresses scanned: I2C 0x4c
+    Datasheet: Publicly available at the National Semiconductor website
+               http://www.national.com/pf/LM/LM96163.html
 
 Author: Jean Delvare <khali@linux-fr.org>
 
@@ -62,3 +67,6 @@ values.
 
 The LM64 is effectively an LM63 with GPIO lines. The driver does not
 support these GPIO lines at present.
+
+The LM96163 is an enhanced version of LM63 with improved temperature accuracy
+and better PWM resolution.
