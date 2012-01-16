@@ -22,10 +22,42 @@
 #include "drm_crtc.h"
 #include "drm_crtc_helper.h"
 
-
 /*
  * framebuffer funcs
  */
+
+/* per-format info: */
+struct format {
+	enum omap_color_mode dss_format;
+	uint32_t pixel_format;
+	struct {
+		int stride_bpp;           /* this times width is stride */
+		int sub_y;                /* sub-sample in y dimension */
+	} planes[4];
+	bool yuv;
+};
+
+static const struct format formats[] = {
+	/* 16bpp [A]RGB: */
+	{ OMAP_DSS_COLOR_RGB16,       DRM_FORMAT_RGB565,   {{2, 1}}, false }, /* RGB16-565 */
+	{ OMAP_DSS_COLOR_RGB12U,      DRM_FORMAT_RGBX4444, {{2, 1}}, false }, /* RGB12x-4444 */
+	{ OMAP_DSS_COLOR_RGBX16,      DRM_FORMAT_XRGB4444, {{2, 1}}, false }, /* xRGB12-4444 */
+	{ OMAP_DSS_COLOR_RGBA16,      DRM_FORMAT_RGBA4444, {{2, 1}}, false }, /* RGBA12-4444 */
+	{ OMAP_DSS_COLOR_ARGB16,      DRM_FORMAT_ARGB4444, {{2, 1}}, false }, /* ARGB16-4444 */
+	{ OMAP_DSS_COLOR_XRGB16_1555, DRM_FORMAT_XRGB1555, {{2, 1}}, false }, /* xRGB15-1555 */
+	{ OMAP_DSS_COLOR_ARGB16_1555, DRM_FORMAT_ARGB1555, {{2, 1}}, false }, /* ARGB16-1555 */
+	/* 24bpp RGB: */
+	{ OMAP_DSS_COLOR_RGB24P,      DRM_FORMAT_RGB888,   {{3, 1}}, false }, /* RGB24-888 */
+	/* 32bpp [A]RGB: */
+	{ OMAP_DSS_COLOR_RGBX32,      DRM_FORMAT_RGBX8888, {{4, 1}}, false }, /* RGBx24-8888 */
+	{ OMAP_DSS_COLOR_RGB24U,      DRM_FORMAT_XRGB8888, {{4, 1}}, false }, /* xRGB24-8888 */
+	{ OMAP_DSS_COLOR_RGBA32,      DRM_FORMAT_RGBA8888, {{4, 1}}, false }, /* RGBA32-8888 */
+	{ OMAP_DSS_COLOR_ARGB32,      DRM_FORMAT_ARGB8888, {{4, 1}}, false }, /* ARGB32-8888 */
+	/* YUV: */
+	{ OMAP_DSS_COLOR_NV12,        DRM_FORMAT_NV12,     {{1, 1}, {1, 2}}, true },
+	{ OMAP_DSS_COLOR_YUV2,        DRM_FORMAT_YUYV,     {{2, 1}}, true },
+	{ OMAP_DSS_COLOR_UYVY,        DRM_FORMAT_UYVY,     {{2, 1}}, true },
+};
 
 #define to_omap_framebuffer(x) container_of(x, struct omap_framebuffer, base)
 
@@ -34,6 +66,7 @@ struct omap_framebuffer {
 	struct drm_gem_object *bo;
 	int size;
 	dma_addr_t paddr;
+	const struct format *format;
 };
 
 static int omap_framebuffer_create_handle(struct drm_framebuffer *fb,
@@ -91,7 +124,7 @@ int omap_framebuffer_get_buffer(struct drm_framebuffer *fb, int x, int y,
 	int bpp = fb->bits_per_pixel / 8;
 	unsigned long offset;
 
-	offset = (x * bpp) + (y * fb->pitch);
+	offset = (x * bpp) + (y * fb->pitches[0]);
 
 	if (vaddr) {
 		void *bo_vaddr = omap_gem_vaddr(omap_fb->bo);
@@ -105,7 +138,7 @@ int omap_framebuffer_get_buffer(struct drm_framebuffer *fb, int x, int y,
 	}
 
 	*paddr = omap_fb->paddr + offset;
-	*screen_width = fb->pitch / bpp;
+	*screen_width = fb->pitches[0] / bpp;
 
 	return omap_fb->size - offset;
 }
@@ -171,39 +204,61 @@ void omap_framebuffer_flush(struct drm_framebuffer *fb,
 }
 
 struct drm_framebuffer *omap_framebuffer_create(struct drm_device *dev,
-		struct drm_file *file, struct drm_mode_fb_cmd *mode_cmd)
+		struct drm_file *file, struct drm_mode_fb_cmd2 *mode_cmd)
 {
-	struct drm_gem_object *bo;
+	struct drm_gem_object *bos[4];
 	struct drm_framebuffer *fb;
-	bo = drm_gem_object_lookup(dev, file, mode_cmd->handle);
-	if (!bo) {
-		return ERR_PTR(-ENOENT);
-	}
-	fb = omap_framebuffer_init(dev, mode_cmd, bo);
-	if (!fb) {
-		return ERR_PTR(-ENOMEM);
+	int ret;
+
+	ret = objects_lookup(dev, file, mode_cmd->pixel_format,
+			bos, mode_cmd->handles);
+	if (ret)
+		return ERR_PTR(ret);
+
+	fb = omap_framebuffer_init(dev, mode_cmd, bos);
+	if (IS_ERR(fb)) {
+		int i, n = drm_format_num_planes(mode_cmd->pixel_format);
+		for (i = 0; i < n; i++)
+			drm_gem_object_unreference_unlocked(bos[i]);
+		return fb;
 	}
 	return fb;
 }
 
 struct drm_framebuffer *omap_framebuffer_init(struct drm_device *dev,
-		struct drm_mode_fb_cmd *mode_cmd, struct drm_gem_object *bo)
+		struct drm_mode_fb_cmd2 *mode_cmd, struct drm_gem_object **bos)
 {
 	struct omap_framebuffer *omap_fb;
 	struct drm_framebuffer *fb = NULL;
-	int size, ret;
+	const struct format *format = NULL;
+	int i, size, ret;
 
-	DBG("create framebuffer: dev=%p, mode_cmd=%p (%dx%d@%d)",
+	DBG("create framebuffer: dev=%p, mode_cmd=%p (%dx%d@%4.4s)",
 			dev, mode_cmd, mode_cmd->width, mode_cmd->height,
-			mode_cmd->bpp);
+			(char *)&mode_cmd->pixel_format);
+
+	for (i = 0; i < ARRAY_SIZE(formats); i++) {
+		if (formats[i].pixel_format == mode_cmd->pixel_format) {
+			format = &formats[i];
+			break;
+		}
+	}
+
+	if (!format) {
+		dev_err(dev->dev, "unsupported pixel format: %4.4s\n",
+				(char *)&mode_cmd->pixel_format);
+		ret = -EINVAL;
+		goto fail;
+	}
 
 	/* in case someone tries to feed us a completely bogus stride: */
-	mode_cmd->pitch = align_pitch(mode_cmd->pitch,
-			mode_cmd->width, mode_cmd->bpp);
+	mode_cmd->pitches[0] = align_pitch(mode_cmd->pitches[0],
+			mode_cmd->width, format->planes[0].stride_bpp);
 
 	omap_fb = kzalloc(sizeof(*omap_fb), GFP_KERNEL);
 	if (!omap_fb) {
 		dev_err(dev->dev, "could not allocate fb\n");
+		ret = -ENOMEM;
 		goto fail;
 	}
 
@@ -216,17 +271,19 @@ struct drm_framebuffer *omap_framebuffer_init(struct drm_device *dev,
 
 	DBG("create: FB ID: %d (%p)", fb->base.id, fb);
 
-	size = PAGE_ALIGN(mode_cmd->pitch * mode_cmd->height);
+	size = PAGE_ALIGN(mode_cmd->pitches[0] * mode_cmd->height);
 
-	if (size > bo->size) {
+	if (size > bos[0]->size) {
 		dev_err(dev->dev, "provided buffer object is too small!\n");
+		ret = -EINVAL;
 		goto fail;
 	}
 
-	omap_fb->bo = bo;
+	omap_fb->bo = bos[0];
 	omap_fb->size = size;
 
-	if (omap_gem_get_paddr(bo, &omap_fb->paddr, true)) {
+	ret = omap_gem_get_paddr(bos[0], &omap_fb->paddr, true);
+	if (ret) {
 		dev_err(dev->dev, "could not map (paddr)!\n");
 		goto fail;
 	}
@@ -239,5 +296,5 @@ fail:
 	if (fb) {
 		omap_framebuffer_destroy(fb);
 	}
-	return NULL;
+	return ERR_PTR(ret);
 }
