@@ -51,7 +51,10 @@
 
 /*
  * Addresses to scan
- * Address is fully defined internally and cannot be changed.
+ * Address is fully defined internally and cannot be changed except for
+ * LM64 which has one pin dedicated to address selection.
+ * LM63 and LM96163 have address 0x4c.
+ * LM64 can have address 0x18 or 0x4e.
  */
 
 static const unsigned short normal_i2c[] = { 0x18, 0x4c, 0x4e, I2C_CLIENT_END };
