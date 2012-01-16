@@ -80,7 +80,6 @@ struct wdm_device {
 	u16			bufsize;
 	u16			wMaxCommand;
 	u16			wMaxPacketSize;
-	u16			bMaxPacketSize0;
 	__le16			inum;
 	int			reslength;
 	int			length;
@@ -597,7 +596,6 @@ static void wdm_rxwork(struct work_struct *work)
 static int wdm_probe(struct usb_interface *intf, const struct usb_device_id *id)
 {
 	int rv = -EINVAL;
-	struct usb_device *udev = interface_to_usbdev(intf);
 	struct wdm_device *desc;
 	struct usb_host_interface *iface;
 	struct usb_endpoint_descriptor *ep;
@@ -657,7 +655,6 @@ next_desc:
 		goto err;
 
 	desc->wMaxPacketSize = usb_endpoint_maxp(ep);
-	desc->bMaxPacketSize0 = udev->descriptor.bMaxPacketSize0;
 
 	desc->orq = kmalloc(sizeof(struct usb_ctrlrequest), GFP_KERNEL);
 	if (!desc->orq)
@@ -709,7 +706,7 @@ next_desc:
 
 	usb_fill_control_urb(
 		desc->response,
-		interface_to_usbdev(desc->intf),
+		interface_to_usbdev(intf),
 		/* using common endpoint 0 */
 		usb_rcvctrlpipe(interface_to_usbdev(desc->intf), 0),
 		(unsigned char *)desc->irq,
