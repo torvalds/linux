@@ -635,13 +635,15 @@ static int uv2_wait_completion(struct bau_desc *bau_desc,
 		 * our message and its state will stay IDLE.
 		 */
 		if ((descriptor_stat == UV2H_DESC_SOURCE_TIMEOUT) ||
-		    (descriptor_stat == UV2H_DESC_DEST_STRONG_NACK) ||
 		    (descriptor_stat == UV2H_DESC_DEST_PUT_ERR)) {
 			stat->s_stimeout++;
 			return FLUSH_GIVEUP;
+		} else if (descriptor_stat == UV2H_DESC_DEST_STRONG_NACK) {
+			stat->s_strongnacks++;
+			bcp->conseccompletes = 0;
+			return FLUSH_GIVEUP;
 		} else if (descriptor_stat == UV2H_DESC_DEST_TIMEOUT) {
 			stat->s_dtimeout++;
-			ttm = get_cycles();
 			bcp->conseccompletes = 0;
 			return FLUSH_RETRY_TIMEOUT;
 		} else {
@@ -1346,7 +1348,7 @@ static int ptc_seq_show(struct seq_file *file, void *data)
 		seq_printf(file,
 			"remotehub numuvhubs numuvhubs16 numuvhubs8 ");
 		seq_printf(file,
-			"numuvhubs4 numuvhubs2 numuvhubs1 dto retries rok ");
+		    "numuvhubs4 numuvhubs2 numuvhubs1 dto snacks retries rok ");
 		seq_printf(file,
 			"resetp resett giveup sto bz throt swack recv rtime ");
 		seq_printf(file,
@@ -1364,10 +1366,10 @@ static int ptc_seq_show(struct seq_file *file, void *data)
 			   stat->s_ntargremotes, stat->s_ntargcpu,
 			   stat->s_ntarglocaluvhub, stat->s_ntargremoteuvhub,
 			   stat->s_ntarguvhub, stat->s_ntarguvhub16);
-		seq_printf(file, "%ld %ld %ld %ld %ld ",
+		seq_printf(file, "%ld %ld %ld %ld %ld %ld ",
 			   stat->s_ntarguvhub8, stat->s_ntarguvhub4,
 			   stat->s_ntarguvhub2, stat->s_ntarguvhub1,
-			   stat->s_dtimeout);
+			   stat->s_dtimeout, stat->s_strongnacks);
 		seq_printf(file, "%ld %ld %ld %ld %ld %ld %ld %ld ",
 			   stat->s_retry_messages, stat->s_retriesok,
 			   stat->s_resets_plug, stat->s_resets_timeout,

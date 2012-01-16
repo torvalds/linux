@@ -483,6 +483,7 @@ struct ptc_stats {
 						   requests */
 	unsigned long	s_stimeout;		/* source side timeouts */
 	unsigned long	s_dtimeout;		/* destination side timeouts */
+	unsigned long	s_strongnacks;		/* number of strong nack's */
 	unsigned long	s_time;			/* time spent in sending side */
 	unsigned long	s_retriesok;		/* successful retries */
 	unsigned long	s_ntargcpu;		/* total number of cpu's
