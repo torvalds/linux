@@ -300,7 +300,7 @@ struct hci_conn {
 	__u8		io_capability;
 	__u8		power_save;
 	__u16		disc_timeout;
-	unsigned long	pend;
+	unsigned long	flags;
 
 	__u8		remote_cap;
 	__u8		remote_oob;
@@ -764,7 +764,7 @@ static inline void hci_proto_auth_cfm(struct hci_conn *conn, __u8 status)
 	if (conn->type != ACL_LINK && conn->type != LE_LINK)
 		return;
 
-	if (test_bit(HCI_CONN_ENCRYPT_PEND, &conn->pend))
+	if (test_bit(HCI_CONN_ENCRYPT_PEND, &conn->flags))
 		return;
 
 	encrypt = (conn->link_mode & HCI_LM_ENCRYPT) ? 0x01 : 0x00;
@@ -805,7 +805,7 @@ static inline void hci_auth_cfm(struct hci_conn *conn, __u8 status)
 
 	hci_proto_auth_cfm(conn, status);
 
-	if (test_bit(HCI_CONN_ENCRYPT_PEND, &conn->pend))
+	if (test_bit(HCI_CONN_ENCRYPT_PEND, &conn->flags))
 		return;
 
 	encrypt = (conn->link_mode & HCI_LM_ENCRYPT) ? 0x01 : 0x00;

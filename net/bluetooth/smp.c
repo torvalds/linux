@@ -261,7 +261,7 @@ static void smp_failure(struct l2cap_conn *conn, u8 reason, u8 send)
 		smp_send_cmd(conn, SMP_CMD_PAIRING_FAIL, sizeof(reason),
 								&reason);
 
-	clear_bit(HCI_CONN_ENCRYPT_PEND, &conn->hcon->pend);
+	clear_bit(HCI_CONN_ENCRYPT_PEND, &conn->hcon->flags);
 	mgmt_auth_failed(conn->hcon->hdev, conn->dst, reason);
 	cancel_delayed_work_sync(&conn->security_timer);
 	smp_chan_destroy(conn);
@@ -449,7 +449,7 @@ static void random_work(struct work_struct *work)
 		memset(stk + smp->smp_key_size, 0,
 				SMP_MAX_ENC_KEY_SIZE - smp->smp_key_size);
 
-		if (test_and_set_bit(HCI_CONN_ENCRYPT_PEND, &hcon->pend)) {
+		if (test_and_set_bit(HCI_CONN_ENCRYPT_PEND, &hcon->flags)) {
 			reason = SMP_UNSPECIFIED;
 			goto error;
 		}
@@ -506,7 +506,7 @@ void smp_chan_destroy(struct l2cap_conn *conn)
 {
 	struct smp_chan *smp = conn->smp_chan;
 
-	clear_bit(HCI_CONN_LE_SMP_PEND, &conn->hcon->pend);
+	clear_bit(HCI_CONN_LE_SMP_PEND, &conn->hcon->flags);
 
 	if (smp->tfm)
 		crypto_free_blkcipher(smp->tfm);
@@ -571,7 +571,7 @@ static u8 smp_cmd_pairing_req(struct l2cap_conn *conn, struct sk_buff *skb)
 	if (conn->hcon->link_mode & HCI_LM_MASTER)
 		return SMP_CMD_NOTSUPP;
 
-	if (!test_and_set_bit(HCI_CONN_LE_SMP_PEND, &conn->hcon->pend))
+	if (!test_and_set_bit(HCI_CONN_LE_SMP_PEND, &conn->hcon->flags))
 		smp = smp_chan_create(conn);
 
 	smp = conn->smp_chan;
@@ -707,8 +707,7 @@ static u8 smp_ltk_encrypt(struct l2cap_conn *conn)
 	if (!key)
 		return 0;
 
-	if (test_and_set_bit(HCI_CONN_ENCRYPT_PEND,
-					&hcon->pend))
+	if (test_and_set_bit(HCI_CONN_ENCRYPT_PEND, &hcon->flags))
 		return 1;
 
 	master = (void *) key->data;
@@ -733,7 +732,7 @@ static u8 smp_cmd_security_req(struct l2cap_conn *conn, struct sk_buff *skb)
 	if (smp_ltk_encrypt(conn))
 		return 0;
 
-	if (test_and_set_bit(HCI_CONN_LE_SMP_PEND, &hcon->pend))
+	if (test_and_set_bit(HCI_CONN_LE_SMP_PEND, &hcon->flags))
 		return 0;
 
 	smp = smp_chan_create(conn);
@@ -772,7 +771,7 @@ int smp_conn_security(struct l2cap_conn *conn, __u8 sec_level)
 		if (smp_ltk_encrypt(conn))
 			goto done;
 
-	if (test_and_set_bit(HCI_CONN_LE_SMP_PEND, &hcon->pend))
+	if (test_and_set_bit(HCI_CONN_LE_SMP_PEND, &hcon->flags))
 		return 0;
 
 	smp = smp_chan_create(conn);
@@ -908,7 +907,7 @@ int smp_distribute_keys(struct l2cap_conn *conn, __u8 force)
 
 	BT_DBG("conn %p force %d", conn, force);
 
-	if (!test_bit(HCI_CONN_LE_SMP_PEND, &conn->hcon->pend))
+	if (!test_bit(HCI_CONN_LE_SMP_PEND, &conn->hcon->flags))
 		return 0;
 
 	rsp = (void *) &smp->prsp[1];
@@ -982,7 +981,7 @@ int smp_distribute_keys(struct l2cap_conn *conn, __u8 force)
 	}
 
 	if (conn->hcon->out || force) {
-		clear_bit(HCI_CONN_LE_SMP_PEND, &conn->hcon->pend);
+		clear_bit(HCI_CONN_LE_SMP_PEND, &conn->hcon->flags);
 		cancel_delayed_work_sync(&conn->security_timer);
 		smp_chan_destroy(conn);
 	}

@@ -1020,7 +1020,7 @@ static void l2cap_conn_del(struct hci_conn *hcon, int err)
 	if (conn->info_state & L2CAP_INFO_FEAT_MASK_REQ_SENT)
 		__cancel_delayed_work(&conn->info_timer);
 
-	if (test_and_clear_bit(HCI_CONN_LE_SMP_PEND, &hcon->pend)) {
+	if (test_and_clear_bit(HCI_CONN_LE_SMP_PEND, &hcon->flags)) {
 		__cancel_delayed_work(&conn->security_timer);
 		smp_chan_destroy(conn);
 	}
