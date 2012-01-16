@@ -7143,7 +7143,7 @@ int btrfs_can_relocate(struct btrfs_root *root, u64 bytenr)
 		 * space to fit our block group in.
 		 */
 		if (device->total_bytes > device->bytes_used + min_free) {
-			ret = find_free_dev_extent(NULL, device, min_free,
+			ret = find_free_dev_extent(device, min_free,
 						   &dev_offset, NULL);
 			if (!ret)
 				dev_nr++;
@@ -7505,6 +7505,7 @@ int btrfs_make_block_group(struct btrfs_trans_handle *trans,
 	ret = update_space_info(root->fs_info, cache->flags, size, bytes_used,
 				&cache->space_info);
 	BUG_ON(ret);
+	update_global_block_rsv(root->fs_info);
 
 	spin_lock(&cache->space_info->lock);
 	cache->space_info->bytes_readonly += cache->bytes_super;
