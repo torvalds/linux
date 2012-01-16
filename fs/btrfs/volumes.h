@@ -218,6 +218,7 @@ struct map_lookup {
 #define BTRFS_BALANCE_ARGS_SOFT		(1ULL << 9)
 
 struct btrfs_balance_args;
+struct btrfs_balance_progress;
 struct btrfs_balance_control {
 	struct btrfs_fs_info *fs_info;
 
@@ -226,6 +227,8 @@ struct btrfs_balance_control {
 	struct btrfs_balance_args sys;
 
 	u64 flags;
+
+	struct btrfs_balance_progress stat;
 };
 
 int btrfs_account_dev_extents_size(struct btrfs_device *device, u64 start,

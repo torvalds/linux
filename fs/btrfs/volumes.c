@@ -2441,6 +2441,7 @@ static u64 div_factor(u64 num, int factor)
 
 static int __btrfs_balance(struct btrfs_fs_info *fs_info)
 {
+	struct btrfs_balance_control *bctl = fs_info->balance_ctl;
 	struct btrfs_root *chunk_root = fs_info->chunk_root;
 	struct btrfs_root *dev_root = fs_info->dev_root;
 	struct list_head *devices;
@@ -2456,6 +2457,7 @@ static int __btrfs_balance(struct btrfs_fs_info *fs_info)
 	int slot;
 	int ret;
 	int enospc_errors = 0;
+	bool counting = true;
 
 	/* step one make some room on all the devices */
 	devices = &fs_info->fs_devices->devices;
@@ -2487,12 +2489,18 @@ static int __btrfs_balance(struct btrfs_fs_info *fs_info)
 		ret = -ENOMEM;
 		goto error;
 	}
+
+	/* zero out stat counters */
+	spin_lock(&fs_info->balance_lock);
+	memset(&bctl->stat, 0, sizeof(bctl->stat));
+	spin_unlock(&fs_info->balance_lock);
+again:
 	key.objectid = BTRFS_FIRST_CHUNK_TREE_OBJECTID;
 	key.offset = (u64)-1;
 	key.type = BTRFS_CHUNK_ITEM_KEY;
 
 	while (1) {
-		if (atomic_read(&fs_info->balance_pause_req) ||
+		if ((!counting && atomic_read(&fs_info->balance_pause_req)) ||
 		    atomic_read(&fs_info->balance_cancel_req)) {
 			ret = -ECANCELED;
 			goto error;
@@ -2529,11 +2537,24 @@ static int __btrfs_balance(struct btrfs_fs_info *fs_info)
 
 		chunk = btrfs_item_ptr(leaf, slot, struct btrfs_chunk);
 
+		if (!counting) {
+			spin_lock(&fs_info->balance_lock);
+			bctl->stat.considered++;
+			spin_unlock(&fs_info->balance_lock);
+		}
+
 		ret = should_balance_chunk(chunk_root, leaf, chunk,
 					   found_key.offset);
 		btrfs_release_path(path);
 		if (!ret)
 			goto loop;
+
+		if (counting) {
+			spin_lock(&fs_info->balance_lock);
+			bctl->stat.expected++;
+			spin_unlock(&fs_info->balance_lock);
+			goto loop;
+		}
 
 		ret = btrfs_relocate_chunk(chunk_root,
 					   chunk_root->root_key.objectid,
@@ -2541,12 +2562,22 @@ static int __btrfs_balance(struct btrfs_fs_info *fs_info)
 					   found_key.offset);
 		if (ret && ret != -ENOSPC)
 			goto error;
-		if (ret == -ENOSPC)
+		if (ret == -ENOSPC) {
 			enospc_errors++;
+		} else {
+			spin_lock(&fs_info->balance_lock);
+			bctl->stat.completed++;
+			spin_unlock(&fs_info->balance_lock);
+		}
 loop:
 		key.offset = found_key.offset - 1;
 	}
 
+	if (counting) {
+		btrfs_release_path(path);
+		counting = false;
+		goto again;
+	}
 error:
 	btrfs_free_path(path);
 	if (enospc_errors) {
@@ -2576,7 +2607,7 @@ static void __cancel_balance(struct btrfs_fs_info *fs_info)
 	BUG_ON(ret);
 }
 
-void update_ioctl_balance_args(struct btrfs_fs_info *fs_info,
+void update_ioctl_balance_args(struct btrfs_fs_info *fs_info, int lock,
 			       struct btrfs_ioctl_balance_args *bargs);
 
 /*
@@ -2706,7 +2737,7 @@ do_balance:
 
 	if (bargs) {
 		memset(bargs, 0, sizeof(*bargs));
-		update_ioctl_balance_args(fs_info, bargs);
+		update_ioctl_balance_args(fs_info, 0, bargs);
 	}
 
 	if ((ret && ret != -ECANCELED && ret != -ENOSPC) ||

@@ -3065,7 +3065,7 @@ out:
 	return ret;
 }
 
-void update_ioctl_balance_args(struct btrfs_fs_info *fs_info,
+void update_ioctl_balance_args(struct btrfs_fs_info *fs_info, int lock,
 			       struct btrfs_ioctl_balance_args *bargs)
 {
 	struct btrfs_balance_control *bctl = fs_info->balance_ctl;
@@ -3082,6 +3082,14 @@ void update_ioctl_balance_args(struct btrfs_fs_info *fs_info,
 	memcpy(&bargs->data, &bctl->data, sizeof(bargs->data));
 	memcpy(&bargs->meta, &bctl->meta, sizeof(bargs->meta));
 	memcpy(&bargs->sys, &bctl->sys, sizeof(bargs->sys));
+
+	if (lock) {
+		spin_lock(&fs_info->balance_lock);
+		memcpy(&bargs->stat, &bctl->stat, sizeof(bargs->stat));
+		spin_unlock(&fs_info->balance_lock);
+	} else {
+		memcpy(&bargs->stat, &bctl->stat, sizeof(bargs->stat));
+	}
 }
 
 static long btrfs_ioctl_balance(struct btrfs_root *root, void __user *arg)
@@ -3181,6 +3189,39 @@ static long btrfs_ioctl_balance_ctl(struct btrfs_root *root, int cmd)
 	return -EINVAL;
 }
 
+static long btrfs_ioctl_balance_progress(struct btrfs_root *root,
+					 void __user *arg)
+{
+	struct btrfs_fs_info *fs_info = root->fs_info;
+	struct btrfs_ioctl_balance_args *bargs;
+	int ret = 0;
+
+	if (!capable(CAP_SYS_ADMIN))
+		return -EPERM;
+
+	mutex_lock(&fs_info->balance_mutex);
+	if (!fs_info->balance_ctl) {
+		ret = -ENOTCONN;
+		goto out;
+	}
+
+	bargs = kzalloc(sizeof(*bargs), GFP_NOFS);
+	if (!bargs) {
+		ret = -ENOMEM;
+		goto out;
+	}
+
+	update_ioctl_balance_args(fs_info, 1, bargs);
+
+	if (copy_to_user(arg, bargs, sizeof(*bargs)))
+		ret = -EFAULT;
+
+	kfree(bargs);
+out:
+	mutex_unlock(&fs_info->balance_mutex);
+	return ret;
+}
+
 long btrfs_ioctl(struct file *file, unsigned int
 		cmd, unsigned long arg)
 {
@@ -3261,6 +3302,8 @@ long btrfs_ioctl(struct file *file, unsigned int
 		return btrfs_ioctl_balance(root, argp);
 	case BTRFS_IOC_BALANCE_CTL:
 		return btrfs_ioctl_balance_ctl(root, arg);
+	case BTRFS_IOC_BALANCE_PROGRESS:
+		return btrfs_ioctl_balance_progress(root, argp);
 	}
 
 	return -ENOTTY;
