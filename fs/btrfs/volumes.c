@@ -2441,7 +2441,11 @@ static int __btrfs_alloc_chunk(struct btrfs_trans_handle *trans,
 		max_stripe_size = 1024 * 1024 * 1024;
 		max_chunk_size = 10 * max_stripe_size;
 	} else if (type & BTRFS_BLOCK_GROUP_METADATA) {
-		max_stripe_size = 256 * 1024 * 1024;
+		/* for larger filesystems, use larger metadata chunks */
+		if (fs_devices->total_rw_bytes > 50ULL * 1024 * 1024 * 1024)
+			max_stripe_size = 1024 * 1024 * 1024;
+		else
+			max_stripe_size = 256 * 1024 * 1024;
 		max_chunk_size = max_stripe_size;
 	} else if (type & BTRFS_BLOCK_GROUP_SYSTEM) {
 		max_stripe_size = 8 * 1024 * 1024;

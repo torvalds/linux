@@ -2267,9 +2267,7 @@ static noinline int run_clustered_refs(struct btrfs_trans_handle *trans,
 				BUG_ON(ret);
 				kfree(extent_op);
 
-				cond_resched();
-				spin_lock(&delayed_refs->lock);
-				continue;
+				goto next;
 			}
 
 			list_del_init(&locked_ref->cluster);
@@ -2289,7 +2287,11 @@ static noinline int run_clustered_refs(struct btrfs_trans_handle *trans,
 		btrfs_put_delayed_ref(ref);
 		kfree(extent_op);
 		count++;
-
+next:
+		do_chunk_alloc(trans, root->fs_info->extent_root,
+			       2 * 1024 * 1024,
+			       btrfs_get_alloc_profile(root, 0),
+			       CHUNK_ALLOC_NO_FORCE);
 		cond_resched();
 		spin_lock(&delayed_refs->lock);
 	}
@@ -2316,6 +2318,10 @@ int btrfs_run_delayed_refs(struct btrfs_trans_handle *trans,
 
 	if (root == root->fs_info->extent_root)
 		root = root->fs_info->tree_root;
+
+	do_chunk_alloc(trans, root->fs_info->extent_root,
+		       2 * 1024 * 1024, btrfs_get_alloc_profile(root, 0),
+		       CHUNK_ALLOC_NO_FORCE);
 
 	delayed_refs = &trans->transaction->delayed_refs;
 	INIT_LIST_HEAD(&cluster);
@@ -3257,27 +3263,12 @@ static int should_alloc_chunk(struct btrfs_root *root,
 		if (num_bytes - num_allocated < thresh)
 			return 1;
 	}
-
-	/*
-	 * we have two similar checks here, one based on percentage
-	 * and once based on a hard number of 256MB.  The idea
-	 * is that if we have a good amount of free
-	 * room, don't allocate a chunk.  A good mount is
-	 * less than 80% utilized of the chunks we have allocated,
-	 * or more than 256MB free
-	 */
-	if (num_allocated + alloc_bytes + 256 * 1024 * 1024 < num_bytes)
-		return 0;
-
-	if (num_allocated + alloc_bytes < div_factor(num_bytes, 8))
-		return 0;
-
 	thresh = btrfs_super_total_bytes(root->fs_info->super_copy);
 
-	/* 256MB or 5% of the FS */
-	thresh = max_t(u64, 256 * 1024 * 1024, div_factor_fine(thresh, 5));
+	/* 256MB or 2% of the FS */
+	thresh = max_t(u64, 256 * 1024 * 1024, div_factor_fine(thresh, 2));
 
-	if (num_bytes > thresh && sinfo->bytes_used < div_factor(num_bytes, 3))
+	if (num_bytes > thresh && sinfo->bytes_used < div_factor(num_bytes, 8))
 		return 0;
 	return 1;
 }
@@ -5295,15 +5286,6 @@ alloc:
 		if (unlikely(block_group->ro))
 			goto loop;
 
-		spin_lock(&block_group->free_space_ctl->tree_lock);
-		if (cached &&
-		    block_group->free_space_ctl->free_space <
-		    num_bytes + empty_cluster + empty_size) {
-			spin_unlock(&block_group->free_space_ctl->tree_lock);
-			goto loop;
-		}
-		spin_unlock(&block_group->free_space_ctl->tree_lock);
-
 		/*
 		 * Ok we want to try and use the cluster allocator, so
 		 * lets look there
@@ -5349,8 +5331,15 @@ refill_cluster:
 			 * plenty of times and not have found
 			 * anything, so we are likely way too
 			 * fragmented for the clustering stuff to find
-			 * anything.  */
-			if (loop >= LOOP_NO_EMPTY_SIZE) {
+			 * anything.
+			 *
+			 * However, if the cluster is taken from the
+			 * current block group, release the cluster
+			 * first, so that we stand a better chance of
+			 * succeeding in the unclustered
+			 * allocation.  */
+			if (loop >= LOOP_NO_EMPTY_SIZE &&
+			    last_ptr->block_group != block_group) {
 				spin_unlock(&last_ptr->refill_lock);
 				goto unclustered_alloc;
 			}
@@ -5360,6 +5349,11 @@ refill_cluster:
 			 * start over
 			 */
 			btrfs_return_cluster_to_free_space(NULL, last_ptr);
+
+			if (loop >= LOOP_NO_EMPTY_SIZE) {
+				spin_unlock(&last_ptr->refill_lock);
+				goto unclustered_alloc;
+			}
 
 			/* allocate a cluster in this block group */
 			ret = btrfs_find_space_cluster(trans, root,
@@ -5401,6 +5395,15 @@ refill_cluster:
 		}
 
 unclustered_alloc:
+		spin_lock(&block_group->free_space_ctl->tree_lock);
+		if (cached &&
+		    block_group->free_space_ctl->free_space <
+		    num_bytes + empty_cluster + empty_size) {
+			spin_unlock(&block_group->free_space_ctl->tree_lock);
+			goto loop;
+		}
+		spin_unlock(&block_group->free_space_ctl->tree_lock);
+
 		offset = btrfs_find_space_for_alloc(block_group, search_start,
 						    num_bytes, empty_size);
 		/*
@@ -5437,9 +5440,6 @@ checks:
 			btrfs_add_free_space(used_block_group, offset, num_bytes);
 			goto loop;
 		}
-
-		ins->objectid = search_start;
-		ins->offset = num_bytes;
 
 		if (offset < search_start)
 			btrfs_add_free_space(used_block_group, offset,
