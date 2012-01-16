@@ -57,6 +57,7 @@
 #define OpDS              23ull  /* DS */
 #define OpFS              24ull  /* FS */
 #define OpGS              25ull  /* GS */
+#define OpMem8            26ull  /* 8-bit zero extended memory operand */
 
 #define OpBits             5  /* Width of operand field */
 #define OpMask             ((1ull << OpBits) - 1)
@@ -101,6 +102,7 @@
 #define SrcAcc      (OpAcc << SrcShift)
 #define SrcImmU16   (OpImmU16 << SrcShift)
 #define SrcDX       (OpDX << SrcShift)
+#define SrcMem8     (OpMem8 << SrcShift)
 #define SrcMask     (OpMask << SrcShift)
 #define BitOp       (1<<11)
 #define MemAbs      (1<<12)      /* Memory operand is absolute displacement */
@@ -3656,6 +3658,9 @@ static int decode_operand(struct x86_emulate_ctxt *ctxt, struct operand *op,
 	case OpImm:
 		rc = decode_imm(ctxt, op, imm_size(ctxt), true);
 		break;
+	case OpMem8:
+		ctxt->memop.bytes = 1;
+		goto mem_common;
 	case OpMem16:
 		ctxt->memop.bytes = 2;
 		goto mem_common;
