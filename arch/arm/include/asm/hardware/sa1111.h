@@ -409,46 +409,9 @@
 #define SA1111_WAKEPOL0		0x0034
 #define SA1111_WAKEPOL1		0x0038
 
-/*
- * PS/2 Trackpad and Mouse Interfaces
- *
- * Registers
- *    PS2CR		Control Register
- *    PS2STAT		Status Register
- *    PS2DATA		Transmit/Receive Data register
- *    PS2CLKDIV		Clock Division Register
- *    PS2PRECNT		Clock Precount Register
- *    PS2TEST1		Test register 1
- *    PS2TEST2		Test register 2
- *    PS2TEST3		Test register 3
- *    PS2TEST4		Test register 4
- */
-
+/* PS/2 Trackpad and Mouse Interfaces */
 #define SA1111_KBD		0x0a00
 #define SA1111_MSE		0x0c00
-
-/*
- * These are offsets from the above bases.
- */
-#define SA1111_PS2CR		0x0000
-#define SA1111_PS2STAT		0x0004
-#define SA1111_PS2DATA		0x0008
-#define SA1111_PS2CLKDIV	0x000c
-#define SA1111_PS2PRECNT	0x0010
-
-#define PS2CR_ENA		0x08
-#define PS2CR_FKD		0x02
-#define PS2CR_FKC		0x01
-
-#define PS2STAT_STP		0x0100
-#define PS2STAT_TXE		0x0080
-#define PS2STAT_TXB		0x0040
-#define PS2STAT_RXF		0x0020
-#define PS2STAT_RXB		0x0010
-#define PS2STAT_ENA		0x0008
-#define PS2STAT_RXP		0x0004
-#define PS2STAT_KBD		0x0002
-#define PS2STAT_KBC		0x0001
 
 /*
  * PCMCIA Interface
