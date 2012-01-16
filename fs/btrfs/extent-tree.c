@@ -3384,6 +3384,9 @@ static int should_alloc_chunk(struct btrfs_root *root,
 
 	/* 256MB or 2% of the FS */
 	thresh = max_t(u64, 256 * 1024 * 1024, div_factor_fine(thresh, 2));
+	/* system chunks need a much small threshold */
+	if (sinfo->flags & BTRFS_BLOCK_GROUP_SYSTEM)
+		thresh = 32 * 1024 * 1024;
 
 	if (num_bytes > thresh && sinfo->bytes_used < div_factor(num_bytes, 8))
 		return 0;

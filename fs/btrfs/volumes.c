@@ -3166,7 +3166,7 @@ static int __btrfs_alloc_chunk(struct btrfs_trans_handle *trans,
 			max_stripe_size = 256 * 1024 * 1024;
 		max_chunk_size = max_stripe_size;
 	} else if (type & BTRFS_BLOCK_GROUP_SYSTEM) {
-		max_stripe_size = 8 * 1024 * 1024;
+		max_stripe_size = 32 * 1024 * 1024;
 		max_chunk_size = 2 * max_stripe_size;
 	} else {
 		printk(KERN_ERR "btrfs: invalid chunk type 0x%llx requested\n",
