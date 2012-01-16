@@ -689,12 +689,6 @@ static void print_other_cpu_stall(struct rcu_state *rsp)
 		return;
 	}
 	rsp->jiffies_stall = jiffies + 3 * jiffies_till_stall_check() + 3;
-
-	/*
-	 * Now rat on any tasks that got kicked up to the root rcu_node
-	 * due to CPU offlining.
-	 */
-	ndetected = rcu_print_task_stall(rnp);
 	raw_spin_unlock_irqrestore(&rnp->lock, flags);
 
 	/*
@@ -702,8 +696,9 @@ static void print_other_cpu_stall(struct rcu_state *rsp)
 	 * See Documentation/RCU/stallwarn.txt for info on how to debug
 	 * RCU CPU stall warnings.
 	 */
-	printk(KERN_ERR "INFO: %s detected stalls on CPUs/tasks: {",
+	printk(KERN_ERR "INFO: %s detected stalls on CPUs/tasks:",
 	       rsp->name);
+	print_cpu_stall_info_begin();
 	rcu_for_each_leaf_node(rsp, rnp) {
 		raw_spin_lock_irqsave(&rnp->lock, flags);
 		ndetected += rcu_print_task_stall(rnp);
@@ -712,11 +707,22 @@ static void print_other_cpu_stall(struct rcu_state *rsp)
 			continue;
 		for (cpu = 0; cpu <= rnp->grphi - rnp->grplo; cpu++)
 			if (rnp->qsmask & (1UL << cpu)) {
-				printk(" %d", rnp->grplo + cpu);
+				print_cpu_stall_info(rsp, rnp->grplo + cpu);
 				ndetected++;
 			}
 	}
-	printk("} (detected by %d, t=%ld jiffies)\n",
+
+	/*
+	 * Now rat on any tasks that got kicked up to the root rcu_node
+	 * due to CPU offlining.
+	 */
+	rnp = rcu_get_root(rsp);
+	raw_spin_lock_irqsave(&rnp->lock, flags);
+	ndetected = rcu_print_task_stall(rnp);
+	raw_spin_unlock_irqrestore(&rnp->lock, flags);
+
+	print_cpu_stall_info_end();
+	printk(KERN_CONT "(detected by %d, t=%ld jiffies)\n",
 	       smp_processor_id(), (long)(jiffies - rsp->gp_start));
 	if (ndetected == 0)
 		printk(KERN_ERR "INFO: Stall ended before state dump start\n");
@@ -740,8 +746,11 @@ static void print_cpu_stall(struct rcu_state *rsp)
 	 * See Documentation/RCU/stallwarn.txt for info on how to debug
 	 * RCU CPU stall warnings.
 	 */
-	printk(KERN_ERR "INFO: %s detected stall on CPU %d (t=%lu jiffies)\n",
-	       rsp->name, smp_processor_id(), jiffies - rsp->gp_start);
+	printk(KERN_ERR "INFO: %s self-detected stall on CPU", rsp->name);
+	print_cpu_stall_info_begin();
+	print_cpu_stall_info(rsp, smp_processor_id());
+	print_cpu_stall_info_end();
+	printk(KERN_CONT " (t=%lu jiffies)\n", jiffies - rsp->gp_start);
 	if (!trigger_all_cpu_backtrace())
 		dump_stack();
 
@@ -831,6 +840,7 @@ static void __note_new_gpnum(struct rcu_state *rsp, struct rcu_node *rnp, struct
 			rdp->passed_quiesce = 0;
 		} else
 			rdp->qs_pending = 0;
+		zero_cpu_stall_ticks(rdp);
 	}
 }
 
@@ -1496,6 +1506,7 @@ static void rcu_do_batch(struct rcu_state *rsp, struct rcu_data *rdp)
 void rcu_check_callbacks(int cpu, int user)
 {
 	trace_rcu_utilization("Start scheduler-tick");
+	increment_cpu_stall_ticks();
 	if (user || rcu_is_cpu_rrupt_from_idle()) {
 
 		/*

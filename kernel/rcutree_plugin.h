@@ -63,7 +63,10 @@ static void __init rcu_bootup_announce_oddness(void)
 	printk(KERN_INFO "\tRCU torture testing starts during boot.\n");
 #endif
 #if defined(CONFIG_TREE_PREEMPT_RCU) && !defined(CONFIG_RCU_CPU_STALL_VERBOSE)
-	printk(KERN_INFO "\tVerbose stalled-CPUs detection is disabled.\n");
+	printk(KERN_INFO "\tDump stacks of tasks blocking RCU-preempt GP.\n");
+#endif
+#if defined(CONFIG_RCU_CPU_STALL_INFO)
+	printk(KERN_INFO "\tAdditional per-CPU info printed with stalls.\n");
 #endif
 #if NUM_RCU_LVL_4 != 0
 	printk(KERN_INFO "\tExperimental four-level hierarchy is enabled.\n");
@@ -490,6 +493,31 @@ static void rcu_print_detail_task_stall(struct rcu_state *rsp)
 
 #endif /* #else #ifdef CONFIG_RCU_CPU_STALL_VERBOSE */
 
+#ifdef CONFIG_RCU_CPU_STALL_INFO
+
+static void rcu_print_task_stall_begin(struct rcu_node *rnp)
+{
+	printk(KERN_ERR "\tTasks blocked on level-%d rcu_node (CPUs %d-%d):",
+	       rnp->level, rnp->grplo, rnp->grphi);
+}
+
+static void rcu_print_task_stall_end(void)
+{
+	printk(KERN_CONT "\n");
+}
+
+#else /* #ifdef CONFIG_RCU_CPU_STALL_INFO */
+
+static void rcu_print_task_stall_begin(struct rcu_node *rnp)
+{
+}
+
+static void rcu_print_task_stall_end(void)
+{
+}
+
+#endif /* #else #ifdef CONFIG_RCU_CPU_STALL_INFO */
+
 /*
  * Scan the current list of tasks blocked within RCU read-side critical
  * sections, printing out the tid of each.
@@ -501,12 +529,14 @@ static int rcu_print_task_stall(struct rcu_node *rnp)
 
 	if (!rcu_preempt_blocked_readers_cgp(rnp))
 		return 0;
+	rcu_print_task_stall_begin(rnp);
 	t = list_entry(rnp->gp_tasks,
 		       struct task_struct, rcu_node_entry);
 	list_for_each_entry_continue(t, &rnp->blkd_tasks, rcu_node_entry) {
-		printk(" P%d", t->pid);
+		printk(KERN_CONT " P%d", t->pid);
 		ndetected++;
 	}
+	rcu_print_task_stall_end();
 	return ndetected;
 }
 
@@ -2004,7 +2034,7 @@ static void rcu_cleanup_after_idle(int cpu)
 }
 
 /*
- * Do the idle-entry grace-period work, which, because CONFIG_RCU_FAST_NO_HZ=y,
+ * Do the idle-entry grace-period work, which, because CONFIG_RCU_FAST_NO_HZ=n,
  * is nothing.
  */
 static void rcu_prepare_for_idle(int cpu)
@@ -2273,3 +2303,117 @@ static void rcu_prepare_for_idle(int cpu)
 }
 
 #endif /* #else #if !defined(CONFIG_RCU_FAST_NO_HZ) */
+
+#ifdef CONFIG_RCU_CPU_STALL_INFO
+
+#ifdef CONFIG_RCU_FAST_NO_HZ
+
+static void print_cpu_stall_fast_no_hz(char *cp, int cpu)
+{
+	struct hrtimer *hrtp = &per_cpu(rcu_idle_gp_timer, cpu);
+
+	sprintf(cp, "drain=%d %c timer=%lld",
+		per_cpu(rcu_dyntick_drain, cpu),
+		per_cpu(rcu_dyntick_holdoff, cpu) == jiffies ? 'H' : '.',
+		hrtimer_active(hrtp)
+			? ktime_to_us(hrtimer_get_remaining(hrtp))
+			: -1);
+}
+
+#else /* #ifdef CONFIG_RCU_FAST_NO_HZ */
+
+static void print_cpu_stall_fast_no_hz(char *cp, int cpu)
+{
+}
+
+#endif /* #else #ifdef CONFIG_RCU_FAST_NO_HZ */
+
+/* Initiate the stall-info list. */
+static void print_cpu_stall_info_begin(void)
+{
+	printk(KERN_CONT "\n");
+}
+
+/*
+ * Print out diagnostic information for the specified stalled CPU.
+ *
+ * If the specified CPU is aware of the current RCU grace period
+ * (flavor specified by rsp), then print the number of scheduling
+ * clock interrupts the CPU has taken during the time that it has
+ * been aware.  Otherwise, print the number of RCU grace periods
+ * that this CPU is ignorant of, for example, "1" if the CPU was
+ * aware of the previous grace period.
+ *
+ * Also print out idle and (if CONFIG_RCU_FAST_NO_HZ) idle-entry info.
+ */
+static void print_cpu_stall_info(struct rcu_state *rsp, int cpu)
+{
+	char fast_no_hz[72];
+	struct rcu_data *rdp = per_cpu_ptr(rsp->rda, cpu);
+	struct rcu_dynticks *rdtp = rdp->dynticks;
+	char *ticks_title;
+	unsigned long ticks_value;
+
+	if (rsp->gpnum == rdp->gpnum) {
+		ticks_title = "ticks this GP";
+		ticks_value = rdp->ticks_this_gp;
+	} else {
+		ticks_title = "GPs behind";
+		ticks_value = rsp->gpnum - rdp->gpnum;
+	}
+	print_cpu_stall_fast_no_hz(fast_no_hz, cpu);
+	printk(KERN_ERR "\t%d: (%lu %s) idle=%03x/%llx/%d %s\n",
+	       cpu, ticks_value, ticks_title,
+	       atomic_read(&rdtp->dynticks) & 0xfff,
+	       rdtp->dynticks_nesting, rdtp->dynticks_nmi_nesting,
+	       fast_no_hz);
+}
+
+/* Terminate the stall-info list. */
+static void print_cpu_stall_info_end(void)
+{
+	printk(KERN_ERR "\t");
+}
+
+/* Zero ->ticks_this_gp for all flavors of RCU. */
+static void zero_cpu_stall_ticks(struct rcu_data *rdp)
+{
+	rdp->ticks_this_gp = 0;
+}
+
+/* Increment ->ticks_this_gp for all flavors of RCU. */
+static void increment_cpu_stall_ticks(void)
+{
+	__get_cpu_var(rcu_sched_data).ticks_this_gp++;
+	__get_cpu_var(rcu_bh_data).ticks_this_gp++;
+#ifdef CONFIG_TREE_PREEMPT_RCU
+	__get_cpu_var(rcu_preempt_data).ticks_this_gp++;
+#endif /* #ifdef CONFIG_TREE_PREEMPT_RCU */
+}
+
+#else /* #ifdef CONFIG_RCU_CPU_STALL_INFO */
+
+static void print_cpu_stall_info_begin(void)
+{
+	printk(KERN_CONT " {");
+}
+
+static void print_cpu_stall_info(struct rcu_state *rsp, int cpu)
+{
+	printk(KERN_CONT " %d", cpu);
+}
+
+static void print_cpu_stall_info_end(void)
+{
+	printk(KERN_CONT "} ");
+}
+
+static void zero_cpu_stall_ticks(struct rcu_data *rdp)
+{
+}
+
+static void increment_cpu_stall_ticks(void)
+{
+}
+
+#endif /* #else #ifdef CONFIG_RCU_CPU_STALL_INFO */

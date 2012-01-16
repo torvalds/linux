@@ -239,6 +239,12 @@ struct rcu_data {
 	bool		preemptible;	/* Preemptible RCU? */
 	struct rcu_node *mynode;	/* This CPU's leaf of hierarchy */
 	unsigned long grpmask;		/* Mask to apply to leaf qsmask. */
+#ifdef CONFIG_RCU_CPU_STALL_INFO
+	unsigned long	ticks_this_gp;	/* The number of scheduling-clock */
+					/*  ticks this CPU has handled */
+					/*  during and after the last grace */
+					/* period it is aware of. */
+#endif /* #ifdef CONFIG_RCU_CPU_STALL_INFO */
 
 	/* 2) batch handling */
 	/*
@@ -466,5 +472,10 @@ static void __cpuinit rcu_prepare_kthreads(int cpu);
 static void rcu_prepare_for_idle_init(int cpu);
 static void rcu_cleanup_after_idle(int cpu);
 static void rcu_prepare_for_idle(int cpu);
+static void print_cpu_stall_info_begin(void);
+static void print_cpu_stall_info(struct rcu_state *rsp, int cpu);
+static void print_cpu_stall_info_end(void);
+static void zero_cpu_stall_ticks(struct rcu_data *rdp);
+static void increment_cpu_stall_ticks(void);
 
 #endif /* #ifndef RCU_TREE_NONCORE */
