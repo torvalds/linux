@@ -710,9 +710,17 @@ gckHARDWARE_InitializeHardware(
     )
     {
         /* Reset MMU. */
+#if gcdENABLE_MMU_PROTECTING
+		//chenli:logical address added pageTableEntries to store the the physical addresses
         gcmkONERROR(
             gckHARDWARE_SetMMU(Hardware,
-                               Hardware->kernel->mmu->pageTableLogical));
+                               Hardware->kernel->mmu->pageTableLogical + Hardware->kernel->mmu->pageTableEntries));
+#else
+		gcmkONERROR(
+		   gckHARDWARE_SetMMU(Hardware,
+							  Hardware->kernel->mmu->pageTableLogical));
+#endif
+                           
     }
 
     /* Success. */

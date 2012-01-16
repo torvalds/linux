@@ -366,6 +366,11 @@ struct _gckMMU
     gctUINT32_PTR               pageTableLogical;
     gctUINT32                   pageTableEntries;
 
+#if gcdENABLE_MMU_PROTECTING
+	gctPHYS_ADDR                FreePagePhysical;
+	gctUINT32_PTR				FreePageLogical;
+#endif
+
     /* Free entries. */
     gctUINT32                   heapList;
     gctBOOL                     freeNodes;

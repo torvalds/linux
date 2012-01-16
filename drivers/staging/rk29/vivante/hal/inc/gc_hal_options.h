@@ -360,5 +360,15 @@
 #define USE_DMA_COHERENT                    1
 
 
+/*
+	chenli: gcdENABLE_MMU_PROTECTING
+	
+	avoid GPU accessing the freed PageTables
+	gcdENABLE_MMU_PROTECTING:
+	   0 - no use,original code
+	   1 - use
+*/
+#define gcdENABLE_MMU_PROTECTING 1
+
 #endif /* __gc_hal_options_h_ */
 
