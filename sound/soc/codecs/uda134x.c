@@ -452,7 +452,7 @@ SOC_ENUM("PCM Playback De-emphasis", uda134x_mixer_enum[1]),
 SOC_SINGLE("DC Filter Enable Switch", UDA134X_STATUS0, 0, 1, 0),
 };
 
-static struct snd_soc_dai_ops uda134x_dai_ops = {
+static const struct snd_soc_dai_ops uda134x_dai_ops = {
 	.startup	= uda134x_startup,
 	.shutdown	= uda134x_shutdown,
 	.hw_params	= uda134x_hw_params,
@@ -571,8 +571,7 @@ static int uda134x_soc_remove(struct snd_soc_codec *codec)
 }
 
 #if defined(CONFIG_PM)
-static int uda134x_soc_suspend(struct snd_soc_codec *codec,
-						pm_message_t state)
+static int uda134x_soc_suspend(struct snd_soc_codec *codec)
 {
 	uda134x_set_bias_level(codec, SND_SOC_BIAS_STANDBY);
 	uda134x_set_bias_level(codec, SND_SOC_BIAS_OFF);
@@ -625,17 +624,7 @@ static struct platform_driver uda134x_codec_driver = {
 	.remove = __devexit_p(uda134x_codec_remove),
 };
 
-static int __init uda134x_codec_init(void)
-{
-	return platform_driver_register(&uda134x_codec_driver);
-}
-module_init(uda134x_codec_init);
-
-static void __exit uda134x_codec_exit(void)
-{
-	platform_driver_unregister(&uda134x_codec_driver);
-}
-module_exit(uda134x_codec_exit);
+module_platform_driver(uda134x_codec_driver);
 
 MODULE_DESCRIPTION("UDA134X ALSA soc codec driver");
 MODULE_AUTHOR("Zoltan Devai, Christian Pellegrin <chripell@evolware.org>");

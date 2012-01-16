@@ -157,7 +157,6 @@ struct isptables_update {
  * @output: Bitmask of the active output
  * @video_in: Input video entity
  * @video_out: Output video entity
- * @error: A hardware error occurred during capture
  * @params: Module configuration data
  * @shadow_update: If set, update the hardware configured in the next interrupt
  * @underrun: Whether the preview entity has queued buffers on the output
@@ -179,7 +178,6 @@ struct isp_prev_device {
 	unsigned int output;
 	struct isp_video video_in;
 	struct isp_video video_out;
-	unsigned int error;
 
 	struct prev_params params;
 	unsigned int shadow_update:1;

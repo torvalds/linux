@@ -33,7 +33,7 @@ static int palmld_pcmcia_hw_init(struct soc_pcmcia_socket *skt)
 	ret = gpio_request_array(palmld_pcmcia_gpios,
 				ARRAY_SIZE(palmld_pcmcia_gpios));
 
-	skt->socket.pci_irq = IRQ_GPIO(GPIO_NR_PALMLD_PCMCIA_READY);
+	skt->socket.pci_irq = gpio_to_irq(GPIO_NR_PALMLD_PCMCIA_READY);
 
 	return ret;
 }

@@ -87,6 +87,16 @@ config IR_RC5_SZ_DECODER
 	   uses an IR protocol that is almost standard RC-5, but not quite,
 	   as it uses an additional bit).
 
+config IR_SANYO_DECODER
+	tristate "Enable IR raw decoder for the Sanyo protocol"
+	depends on RC_CORE
+	default y
+
+	---help---
+	   Enable this option if you have an infrared remote control which
+	   uses the Sanyo protocol (Sanyo, Aiwa, Chinon remotes),
+	   and you need software decoding support.
+
 config IR_MCE_KBD_DECODER
 	tristate "Enable IR raw decoder for the MCE keyboard/mouse protocol"
 	depends on RC_CORE

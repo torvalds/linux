@@ -71,6 +71,7 @@ void jump_label_inc(struct jump_label_key *key)
 	atomic_inc(&key->enabled);
 	jump_label_unlock();
 }
+EXPORT_SYMBOL_GPL(jump_label_inc);
 
 static void __jump_label_dec(struct jump_label_key *key,
 		unsigned long rate_limit, struct delayed_work *work)
@@ -86,6 +87,7 @@ static void __jump_label_dec(struct jump_label_key *key,
 
 	jump_label_unlock();
 }
+EXPORT_SYMBOL_GPL(jump_label_dec);
 
 static void jump_label_update_timeout(struct work_struct *work)
 {

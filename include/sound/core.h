@@ -62,6 +62,7 @@ typedef int __bitwise snd_device_type_t;
 #define	SNDRV_DEV_BUS		((__force snd_device_type_t) 0x1007)
 #define	SNDRV_DEV_CODEC		((__force snd_device_type_t) 0x1008)
 #define	SNDRV_DEV_JACK          ((__force snd_device_type_t) 0x1009)
+#define	SNDRV_DEV_COMPRESS	((__force snd_device_type_t) 0x100A)
 #define	SNDRV_DEV_LOWLEVEL	((__force snd_device_type_t) 0x2000)
 
 typedef int __bitwise snd_device_state_t;

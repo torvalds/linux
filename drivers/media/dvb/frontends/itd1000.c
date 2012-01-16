@@ -250,13 +250,14 @@ static void itd1000_set_lo(struct itd1000_state *state, u32 freq_khz)
 	itd1000_set_vco(state, freq_khz);
 }
 
-static int itd1000_set_parameters(struct dvb_frontend *fe, struct dvb_frontend_parameters *p)
+static int itd1000_set_parameters(struct dvb_frontend *fe)
 {
+	struct dtv_frontend_properties *c = &fe->dtv_property_cache;
 	struct itd1000_state *state = fe->tuner_priv;
 	u8 pllcon1;
 
-	itd1000_set_lo(state, p->frequency);
-	itd1000_set_lpf_bw(state, p->u.qpsk.symbol_rate);
+	itd1000_set_lo(state, c->frequency);
+	itd1000_set_lpf_bw(state, c->symbol_rate);
 
 	pllcon1 = itd1000_read_reg(state, PLLCON1) & 0x7f;
 	itd1000_write_reg(state, PLLCON1, pllcon1 | (1 << 7));

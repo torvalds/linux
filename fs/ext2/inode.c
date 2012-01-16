@@ -26,7 +26,6 @@
 #include <linux/highuid.h>
 #include <linux/pagemap.h>
 #include <linux/quotaops.h>
-#include <linux/module.h>
 #include <linux/writeback.h>
 #include <linux/buffer_head.h>
 #include <linux/mpage.h>
@@ -35,10 +34,6 @@
 #include "ext2.h"
 #include "acl.h"
 #include "xip.h"
-
-MODULE_AUTHOR("Remy Card and others");
-MODULE_DESCRIPTION("Second Extended Filesystem");
-MODULE_LICENSE("GPL");
 
 static int __ext2_write_inode(struct inode *inode, int do_sync);
 

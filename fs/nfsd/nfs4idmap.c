@@ -36,6 +36,7 @@
 #include <linux/seq_file.h>
 #include <linux/sched.h>
 #include <linux/slab.h>
+#include <net/net_namespace.h>
 #include "idmap.h"
 #include "nfsd.h"
 
@@ -466,20 +467,20 @@ nfsd_idmap_init(void)
 {
 	int rv;
 
-	rv = cache_register(&idtoname_cache);
+	rv = cache_register_net(&idtoname_cache, &init_net);
 	if (rv)
 		return rv;
-	rv = cache_register(&nametoid_cache);
+	rv = cache_register_net(&nametoid_cache, &init_net);
 	if (rv)
-		cache_unregister(&idtoname_cache);
+		cache_unregister_net(&idtoname_cache, &init_net);
 	return rv;
 }
 
 void
 nfsd_idmap_shutdown(void)
 {
-	cache_unregister(&idtoname_cache);
-	cache_unregister(&nametoid_cache);
+	cache_unregister_net(&idtoname_cache, &init_net);
+	cache_unregister_net(&nametoid_cache, &init_net);
 }
 
 static int

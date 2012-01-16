@@ -336,6 +336,23 @@ static struct em28xx_reg_seq pctv_460e[] = {
 	{             -1,   -1,   -1,  -1},
 };
 
+#if 0
+static struct em28xx_reg_seq hauppauge_930c_gpio[] = {
+	{EM2874_R80_GPIO,	0x6f,	0xff,	10},
+	{EM2874_R80_GPIO,	0x4f,	0xff,	10}, /* xc5000 reset */
+	{EM2874_R80_GPIO,	0x6f,	0xff,	10},
+	{EM2874_R80_GPIO,	0x4f,	0xff,	10},
+	{ -1,			-1,	-1,	-1},
+};
+
+static struct em28xx_reg_seq hauppauge_930c_digital[] = {
+	{EM2874_R80_GPIO,	0xf6,	0xff,	10},
+	{EM2874_R80_GPIO,	0xe6,	0xff,	100},
+	{EM2874_R80_GPIO,	0xa6,	0xff,	10},
+	{ -1,			-1,	-1,	-1},
+};
+#endif
+
 /*
  *  Board definitions
  */
@@ -839,6 +856,10 @@ struct em28xx_board em28xx_boards[] = {
 	[EM2870_BOARD_KWORLD_355U] = {
 		.name         = "Kworld 355 U DVB-T",
 		.valid        = EM28XX_BOARD_NOT_VALIDATED,
+		.tuner_type   = TUNER_ABSENT,
+		.tuner_gpio   = default_tuner_gpio,
+		.has_dvb      = 1,
+		.dvb_gpio     = default_digital,
 	},
 	[EM2870_BOARD_PINNACLE_PCTV_DVB] = {
 		.name         = "Pinnacle PCTV DVB-T",
@@ -881,6 +902,37 @@ struct em28xx_board em28xx_boards[] = {
 	},
 	[EM2884_BOARD_TERRATEC_H5] = {
 		.name         = "Terratec Cinergy H5",
+		.has_dvb      = 1,
+#if 0
+		.tuner_type   = TUNER_PHILIPS_TDA8290,
+		.tuner_addr   = 0x41,
+		.dvb_gpio     = terratec_h5_digital, /* FIXME: probably wrong */
+		.tuner_gpio   = terratec_h5_gpio,
+#else
+		.tuner_type   = TUNER_ABSENT,
+#endif
+		.i2c_speed    = EM2874_I2C_SECONDARY_BUS_SELECT |
+				EM28XX_I2C_CLK_WAIT_ENABLE |
+				EM28XX_I2C_FREQ_400_KHZ,
+	},
+	[EM2884_BOARD_HAUPPAUGE_WINTV_HVR_930C] = {
+		.name         = "Hauppauge WinTV HVR 930C",
+		.has_dvb      = 1,
+#if 0 /* FIXME: Add analog support */
+		.tuner_type   = TUNER_XC5000,
+		.tuner_addr   = 0x41,
+		.dvb_gpio     = hauppauge_930c_digital,
+		.tuner_gpio   = hauppauge_930c_gpio,
+#else
+		.tuner_type   = TUNER_ABSENT,
+#endif
+		.ir_codes     = RC_MAP_HAUPPAUGE,
+		.i2c_speed    = EM2874_I2C_SECONDARY_BUS_SELECT |
+				EM28XX_I2C_CLK_WAIT_ENABLE |
+				EM28XX_I2C_FREQ_400_KHZ,
+	},
+	[EM2884_BOARD_CINERGY_HTC_STICK] = {
+		.name         = "Terratec Cinergy HTC Stick",
 		.has_dvb      = 1,
 #if 0
 		.tuner_type   = TUNER_PHILIPS_TDA8290,
@@ -1127,7 +1179,7 @@ struct em28xx_board em28xx_boards[] = {
 		.name         = "Terratec Cinergy 200 USB",
 		.is_em2800    = 1,
 		.has_ir_i2c   = 1,
-		.tuner_type   = TUNER_LG_PAL_NEW_TAPC,
+		.tuner_type   = TUNER_LG_TALN,
 		.tda9887_conf = TDA9887_PRESENT,
 		.decoder      = EM28XX_SAA711X,
 		.input        = { {
@@ -1218,7 +1270,7 @@ struct em28xx_board em28xx_boards[] = {
 	},
 	[EM2820_BOARD_PINNACLE_DVC_90] = {
 		.name         = "Pinnacle Dazzle DVC 90/100/101/107 / Kaiser Baas Video to DVD maker "
-				"/ Kworld DVD Maker 2",
+			       "/ Kworld DVD Maker 2 / Plextor ConvertX PX-AV100U",
 		.tuner_type   = TUNER_ABSENT, /* capture only board */
 		.decoder      = EM28XX_SAA711X,
 		.input        = { {
@@ -1840,6 +1892,22 @@ struct em28xx_board em28xx_boards[] = {
 		.has_dvb       = 1,
 		.ir_codes      = RC_MAP_PINNACLE_PCTV_HD,
 	},
+	/* eb1a:5006 Honestech VIDBOX NW03
+	 * Empia EM2860, Philips SAA7113, Empia EMP202, No Tuner */
+	[EM2860_BOARD_HT_VIDBOX_NW03] = {
+		.name                = "Honestech Vidbox NW03",
+		.tuner_type          = TUNER_ABSENT,
+		.decoder             = EM28XX_SAA711X,
+		.input               = { {
+			.type     = EM28XX_VMUX_COMPOSITE1,
+			.vmux     = SAA7115_COMPOSITE0,
+			.amux     = EM28XX_AMUX_LINE_IN,
+		}, {
+			.type     = EM28XX_VMUX_SVIDEO,
+			.vmux     = SAA7115_SVIDEO3,  /* S-VIDEO needs confirming */
+			.amux     = EM28XX_AMUX_LINE_IN,
+		} },
+	},
 };
 const unsigned int em28xx_bcount = ARRAY_SIZE(em28xx_boards);
 
@@ -1899,6 +1967,8 @@ struct usb_device_id em28xx_id_table[] = {
 			.driver_info = EM2800_BOARD_GRABBEEX_USB2800 },
 	{ USB_DEVICE(0xeb1a, 0xe357),
 			.driver_info = EM2870_BOARD_KWORLD_355U },
+	{ USB_DEVICE(0xeb1a, 0xe359),
+			.driver_info = EM2870_BOARD_KWORLD_355U },
 	{ USB_DEVICE(0x1b80, 0xe302),
 			.driver_info = EM2820_BOARD_PINNACLE_DVC_90 }, /* Kaiser Baas Video to DVD maker */
 	{ USB_DEVICE(0x1b80, 0xe304),
@@ -1914,17 +1984,23 @@ struct usb_device_id em28xx_id_table[] = {
 	{ USB_DEVICE(0x0ccd, 0x0042),
 			.driver_info = EM2882_BOARD_TERRATEC_HYBRID_XS },
 	{ USB_DEVICE(0x0ccd, 0x0043),
+			.driver_info = EM2870_BOARD_TERRATEC_XS },
+	{ USB_DEVICE(0x0ccd, 0x008e),	/* Cinergy HTC USB XS Rev. 1 */
 			.driver_info = EM2884_BOARD_TERRATEC_H5 },
-	{ USB_DEVICE(0x0ccd, 0x10a2),	/* Rev. 1 */
+	{ USB_DEVICE(0x0ccd, 0x00ac),	/* Cinergy HTC USB XS Rev. 2 */
 			.driver_info = EM2884_BOARD_TERRATEC_H5 },
-	{ USB_DEVICE(0x0ccd, 0x10ad),	/* Rev. 2 */
-			.driver_info = EM2880_BOARD_TERRATEC_PRODIGY_XS },
+	{ USB_DEVICE(0x0ccd, 0x10a2),	/* H5 Rev. 1 */
+			.driver_info = EM2884_BOARD_TERRATEC_H5 },
+	{ USB_DEVICE(0x0ccd, 0x10ad),	/* H5 Rev. 2 */
+			.driver_info = EM2884_BOARD_TERRATEC_H5 },
 	{ USB_DEVICE(0x0ccd, 0x0084),
 			.driver_info = EM2860_BOARD_TERRATEC_AV350 },
 	{ USB_DEVICE(0x0ccd, 0x0096),
 			.driver_info = EM2860_BOARD_TERRATEC_GRABBY },
 	{ USB_DEVICE(0x0ccd, 0x10AF),
 			.driver_info = EM2860_BOARD_TERRATEC_GRABBY },
+	{ USB_DEVICE(0x0ccd, 0x00b2),
+			.driver_info = EM2884_BOARD_CINERGY_HTC_STICK },
 	{ USB_DEVICE(0x0fd9, 0x0033),
 			.driver_info = EM2860_BOARD_ELGATO_VIDEO_CAPTURE},
 	{ USB_DEVICE(0x185b, 0x2870),
@@ -1963,6 +2039,8 @@ struct usb_device_id em28xx_id_table[] = {
 			.driver_info = EM2880_BOARD_PINNACLE_PCTV_HD_PRO },
 	{ USB_DEVICE(0x0413, 0x6023),
 			.driver_info = EM2800_BOARD_LEADTEK_WINFAST_USBII },
+	{ USB_DEVICE(0x093b, 0xa003),
+		       .driver_info = EM2820_BOARD_PINNACLE_DVC_90 },
 	{ USB_DEVICE(0x093b, 0xa005),
 			.driver_info = EM2861_BOARD_PLEXTOR_PX_TV100U },
 	{ USB_DEVICE(0x04bb, 0x0515),
@@ -1975,6 +2053,12 @@ struct usb_device_id em28xx_id_table[] = {
 			.driver_info = EM28174_BOARD_PCTV_290E },
 	{ USB_DEVICE(0x2013, 0x024c),
 			.driver_info = EM28174_BOARD_PCTV_460E },
+	{ USB_DEVICE(0x2040, 0x1605),
+			.driver_info = EM2884_BOARD_HAUPPAUGE_WINTV_HVR_930C },
+	{ USB_DEVICE(0xeb1a, 0x5006),
+			.driver_info = EM2860_BOARD_HT_VIDBOX_NW03 },
+	{ USB_DEVICE(0x1b80, 0xe309), /* Sveon STV40 */
+			.driver_info = EM2860_BOARD_EASYCAP },
 	{ },
 };
 MODULE_DEVICE_TABLE(usb, em28xx_id_table);
@@ -2028,10 +2112,10 @@ int em28xx_tuner_callback(void *ptr, int component, int command, int arg)
 	int rc = 0;
 	struct em28xx *dev = ptr;
 
-	if (dev->tuner_type != TUNER_XC2028)
+	if (dev->tuner_type != TUNER_XC2028 && dev->tuner_type != TUNER_XC5000)
 		return 0;
 
-	if (command != XC2028_TUNER_RESET)
+	if (command != XC2028_TUNER_RESET && command != XC5000_TUNER_RESET)
 		return 0;
 
 	rc = em28xx_gpio_set(dev, dev->board.tuner_gpio);
@@ -2203,7 +2287,8 @@ void em28xx_pre_card_setup(struct em28xx *dev)
 	/* Set the initial XCLK and I2C clock values based on the board
 	   definition */
 	em28xx_write_reg(dev, EM28XX_R0F_XCLK, dev->board.xclk & 0x7f);
-	em28xx_write_reg(dev, EM28XX_R06_I2C_CLK, dev->board.i2c_speed);
+	if (!dev->board.is_em2800)
+		em28xx_write_reg(dev, EM28XX_R06_I2C_CLK, dev->board.i2c_speed);
 	msleep(50);
 
 	/* request some modules */
@@ -2832,11 +2917,10 @@ void em28xx_release_resources(struct em28xx *dev)
  * em28xx_init_dev()
  * allocates and inits the device structs, registers i2c bus and v4l device
  */
-static int em28xx_init_dev(struct em28xx **devhandle, struct usb_device *udev,
+static int em28xx_init_dev(struct em28xx *dev, struct usb_device *udev,
 			   struct usb_interface *interface,
 			   int minor)
 {
-	struct em28xx *dev = *devhandle;
 	int retval;
 
 	dev->udev = udev;
@@ -2931,7 +3015,7 @@ static int em28xx_init_dev(struct em28xx **devhandle, struct usb_device *udev,
 
 	if (!dev->board.is_em2800) {
 		/* Resets I2C speed */
-		em28xx_write_reg(dev, EM28XX_R06_I2C_CLK, dev->board.i2c_speed);
+		retval = em28xx_write_reg(dev, EM28XX_R06_I2C_CLK, dev->board.i2c_speed);
 		if (retval < 0) {
 			em28xx_errdev("%s: em28xx_write_reg failed!"
 				      " retval [%d]\n",
@@ -3031,12 +3115,11 @@ unregister_dev:
 static int em28xx_usb_probe(struct usb_interface *interface,
 			    const struct usb_device_id *id)
 {
-	const struct usb_endpoint_descriptor *endpoint;
 	struct usb_device *udev;
 	struct em28xx *dev = NULL;
 	int retval;
-	bool is_audio_only = false, has_audio = false;
-	int i, nr, isoc_pipe;
+	bool has_audio = false, has_video = false, has_dvb = false;
+	int i, nr;
 	const int ifnum = interface->altsetting[0].desc.bInterfaceNumber;
 	char *speed;
 	char descr[255] = "";
@@ -3068,54 +3151,65 @@ static int em28xx_usb_probe(struct usb_interface *interface,
 		goto err;
 	}
 
+	/* allocate memory for our device state and initialize it */
+	dev = kzalloc(sizeof(*dev), GFP_KERNEL);
+	if (dev == NULL) {
+		em28xx_err(DRIVER_NAME ": out of memory!\n");
+		retval = -ENOMEM;
+		goto err;
+	}
+
+	/* compute alternate max packet sizes */
+	dev->alt_max_pkt_size = kmalloc(sizeof(dev->alt_max_pkt_size[0]) *
+					interface->num_altsetting, GFP_KERNEL);
+	if (dev->alt_max_pkt_size == NULL) {
+		em28xx_errdev("out of memory!\n");
+		kfree(dev);
+		retval = -ENOMEM;
+		goto err;
+	}
+
 	/* Get endpoints */
 	for (i = 0; i < interface->num_altsetting; i++) {
 		int ep;
 
 		for (ep = 0; ep < interface->altsetting[i].desc.bNumEndpoints; ep++) {
-			struct usb_host_endpoint	*e;
-			e = &interface->altsetting[i].endpoint[ep];
+			const struct usb_endpoint_descriptor *e;
+			int sizedescr, size;
 
-			if (e->desc.bEndpointAddress == 0x83)
-				has_audio = true;
+			e = &interface->altsetting[i].endpoint[ep].desc;
+
+			sizedescr = le16_to_cpu(e->wMaxPacketSize);
+			size = sizedescr & 0x7ff;
+
+			if (udev->speed == USB_SPEED_HIGH)
+				size = size * hb_mult(sizedescr);
+
+			if (usb_endpoint_xfer_isoc(e) &&
+			    usb_endpoint_dir_in(e)) {
+				switch (e->bEndpointAddress) {
+				case EM28XX_EP_AUDIO:
+					has_audio = true;
+					break;
+				case EM28XX_EP_ANALOG:
+					has_video = true;
+					dev->alt_max_pkt_size[i] = size;
+					break;
+				case EM28XX_EP_DIGITAL:
+					has_dvb = true;
+					if (size > dev->dvb_max_pkt_size) {
+						dev->dvb_max_pkt_size = size;
+						dev->dvb_alt = i;
+					}
+					break;
+				}
+			}
 		}
 	}
 
-	endpoint = &interface->cur_altsetting->endpoint[0].desc;
-
-	/* check if the device has the iso in endpoint at the correct place */
-	if (usb_endpoint_xfer_isoc(endpoint)
-	    &&
-	    (interface->altsetting[1].endpoint[0].desc.wMaxPacketSize == 940)) {
-		/* It's a newer em2874/em2875 device */
-		isoc_pipe = 0;
-	} else {
-		int check_interface = 1;
-		isoc_pipe = 1;
-		endpoint = &interface->cur_altsetting->endpoint[1].desc;
-		if (!usb_endpoint_xfer_isoc(endpoint))
-			check_interface = 0;
-
-		if (usb_endpoint_dir_out(endpoint))
-			check_interface = 0;
-
-		if (!check_interface) {
-			if (has_audio) {
-				is_audio_only = true;
-			} else {
-				em28xx_err(DRIVER_NAME " video device (%04x:%04x): "
-					"interface %i, class %i found.\n",
-					le16_to_cpu(udev->descriptor.idVendor),
-					le16_to_cpu(udev->descriptor.idProduct),
-					ifnum,
-					interface->altsetting[0].desc.bInterfaceClass);
-				em28xx_err(DRIVER_NAME " This is an anciliary "
-					"interface not used by the driver\n");
-
-				retval = -ENODEV;
-				goto err;
-			}
-		}
+	if (!(has_audio || has_video || has_dvb)) {
+		retval = -ENODEV;
+		goto err_free;
 	}
 
 	switch (udev->speed) {
@@ -3141,6 +3235,7 @@ static int em28xx_usb_probe(struct usb_interface *interface,
 			strlcat(descr, " ", sizeof(descr));
 		strlcat(descr, udev->product, sizeof(descr));
 	}
+
 	if (*descr)
 		strlcat(descr, " ", sizeof(descr));
 
@@ -3157,6 +3252,14 @@ static int em28xx_usb_probe(struct usb_interface *interface,
 		printk(KERN_INFO DRIVER_NAME
 		       ": Audio Vendor Class interface %i found\n",
 		       ifnum);
+	if (has_video)
+		printk(KERN_INFO DRIVER_NAME
+		       ": Video interface %i found\n",
+		       ifnum);
+	if (has_dvb)
+		printk(KERN_INFO DRIVER_NAME
+		       ": DVB interface %i found\n",
+		       ifnum);
 
 	/*
 	 * Make sure we have 480 Mbps of bandwidth, otherwise things like
@@ -3168,22 +3271,14 @@ static int em28xx_usb_probe(struct usb_interface *interface,
 		printk(DRIVER_NAME ": Device must be connected to a high-speed"
 		       " USB 2.0 port.\n");
 		retval = -ENODEV;
-		goto err;
-	}
-
-	/* allocate memory for our device state and initialize it */
-	dev = kzalloc(sizeof(*dev), GFP_KERNEL);
-	if (dev == NULL) {
-		em28xx_err(DRIVER_NAME ": out of memory!\n");
-		retval = -ENOMEM;
-		goto err;
+		goto err_free;
 	}
 
 	snprintf(dev->name, sizeof(dev->name), "em28xx #%d", nr);
 	dev->devno = nr;
 	dev->model = id->driver_info;
 	dev->alt   = -1;
-	dev->is_audio_only = is_audio_only;
+	dev->is_audio_only = has_audio && !(has_video || has_dvb);
 	dev->has_alsa_audio = has_audio;
 	dev->audio_ifnum = ifnum;
 
@@ -3196,26 +3291,7 @@ static int em28xx_usb_probe(struct usb_interface *interface,
 		}
 	}
 
-	/* compute alternate max packet sizes */
 	dev->num_alt = interface->num_altsetting;
-	dev->alt_max_pkt_size = kmalloc(32 * dev->num_alt, GFP_KERNEL);
-
-	if (dev->alt_max_pkt_size == NULL) {
-		em28xx_errdev("out of memory!\n");
-		kfree(dev);
-		retval = -ENOMEM;
-		goto err;
-	}
-
-	for (i = 0; i < dev->num_alt ; i++) {
-		u16 tmp = le16_to_cpu(interface->altsetting[i].endpoint[isoc_pipe].desc.wMaxPacketSize);
-		unsigned int size = tmp & 0x7ff;
-
-		if (udev->speed == USB_SPEED_HIGH)
-			size = size * hb_mult(tmp);
-
-		dev->alt_max_pkt_size[i] = size;
-	}
 
 	if ((card[nr] >= 0) && (card[nr] < em28xx_bcount))
 		dev->model = card[nr];
@@ -3226,12 +3302,9 @@ static int em28xx_usb_probe(struct usb_interface *interface,
 	/* allocate device struct */
 	mutex_init(&dev->lock);
 	mutex_lock(&dev->lock);
-	retval = em28xx_init_dev(&dev, udev, interface, nr);
+	retval = em28xx_init_dev(dev, udev, interface, nr);
 	if (retval) {
-		mutex_unlock(&dev->lock);
-		kfree(dev->alt_max_pkt_size);
-		kfree(dev);
-		goto err;
+		goto unlock_and_free;
 	}
 
 	request_modules(dev);
@@ -3249,6 +3322,13 @@ static int em28xx_usb_probe(struct usb_interface *interface,
 	em28xx_init_extension(dev);
 
 	return 0;
+
+unlock_and_free:
+	mutex_unlock(&dev->lock);
+
+err_free:
+	kfree(dev->alt_max_pkt_size);
+	kfree(dev);
 
 err:
 	clear_bit(nr, &em28xx_devused);

@@ -177,14 +177,14 @@ void cffrml_put(struct cflayer *layr)
 {
 	struct cffrml *this = container_obj(layr);
 	if (layr != NULL && this->pcpu_refcnt != NULL)
-		irqsafe_cpu_dec(*this->pcpu_refcnt);
+		this_cpu_dec(*this->pcpu_refcnt);
 }
 
 void cffrml_hold(struct cflayer *layr)
 {
 	struct cffrml *this = container_obj(layr);
 	if (layr != NULL && this->pcpu_refcnt != NULL)
-		irqsafe_cpu_inc(*this->pcpu_refcnt);
+		this_cpu_inc(*this->pcpu_refcnt);
 }
 
 int cffrml_refcnt_read(struct cflayer *layr)

@@ -101,7 +101,7 @@ hardware.
 	Returns the current state of modem control inputs.  The state
 	of the outputs should not be returned, since the core keeps
 	track of their state.  The state information should include:
-		- TIOCM_DCD	state of DCD signal
+		- TIOCM_CAR	state of DCD signal
 		- TIOCM_CTS	state of CTS signal
 		- TIOCM_DSR	state of DSR signal
 		- TIOCM_RI	state of RI signal

@@ -45,7 +45,6 @@
 #include <linux/slab.h>
 #include <linux/tcp.h>
 #include <linux/types.h>
-#include <linux/version.h>
 #include <linux/wireless.h>
 #include <linux/etherdevice.h>
 #include <linux/uaccess.h>
@@ -54,7 +53,9 @@
 #include "rtllib.h"
 
 
-#define DRV_NAME "rtllib_92e"
+u32 rt_global_debug_component = COMP_ERR;
+EXPORT_SYMBOL(rt_global_debug_component);
+
 
 void _setup_timer(struct timer_list *ptimer, void *fun, unsigned long data)
 {
@@ -135,10 +136,6 @@ struct net_device *alloc_rtllib(int sizeof_priv)
 	ieee->host_decrypt = 1;
 	ieee->ieee802_1x = 1; /* Default to supporting 802.1x */
 
-	INIT_LIST_HEAD(&ieee->crypt_deinit_list);
-	_setup_timer(&ieee->crypt_deinit_timer,
-		    rtllib_crypt_deinit_handler,
-		    (unsigned long) ieee);
 	ieee->rtllib_ap_sec_type = rtllib_ap_sec_type;
 
 	spin_lock_init(&ieee->lock);
@@ -147,6 +144,9 @@ struct net_device *alloc_rtllib(int sizeof_priv)
 	spin_lock_init(&ieee->reorder_spinlock);
 	atomic_set(&(ieee->atm_chnlop), 0);
 	atomic_set(&(ieee->atm_swbw), 0);
+
+	/* SAM FIXME */
+	lib80211_crypt_info_init(&ieee->crypt_info, "RTLLIB", &ieee->lock);
 
 	ieee->bHalfNMode = false;
 	ieee->wpa_enabled = 0;
@@ -177,10 +177,6 @@ struct net_device *alloc_rtllib(int sizeof_priv)
 		ieee->last_packet_time[i] = 0;
 	}
 
-	rtllib_tkip_null();
-	rtllib_wep_null();
-	rtllib_ccmp_null();
-
 	return dev;
 
  failed:
@@ -188,32 +184,23 @@ struct net_device *alloc_rtllib(int sizeof_priv)
 		free_netdev(dev);
 	return NULL;
 }
+EXPORT_SYMBOL(alloc_rtllib);
 
 void free_rtllib(struct net_device *dev)
 {
 	struct rtllib_device *ieee = (struct rtllib_device *)
 				      netdev_priv_rsl(dev);
-	int i;
 
 	kfree(ieee->pHTInfo);
 	ieee->pHTInfo = NULL;
 	rtllib_softmac_free(ieee);
-	del_timer_sync(&ieee->crypt_deinit_timer);
-	rtllib_crypt_deinit_entries(ieee, 1);
 
-	for (i = 0; i < WEP_KEYS; i++) {
-		struct rtllib_crypt_data *crypt = ieee->crypt[i];
-		if (crypt) {
-			if (crypt->ops)
-				crypt->ops->deinit(crypt->priv);
-			kfree(crypt);
-			ieee->crypt[i] = NULL;
-		}
-	}
+	lib80211_crypt_info_free(&ieee->crypt_info);
 
 	rtllib_networks_free(ieee);
 	free_netdev(dev);
 }
+EXPORT_SYMBOL(free_rtllib);
 
 u32 rtllib_debug_level;
 static int debug = \
@@ -287,3 +274,8 @@ void __exit rtllib_exit(void)
 		rtllib_proc = NULL;
 	}
 }
+
+module_init(rtllib_init);
+module_exit(rtllib_exit);
+
+MODULE_LICENSE("GPL");

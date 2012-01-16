@@ -2148,8 +2148,6 @@ pdata_err:
 	return r;
 }
 
-MODULE_ALIAS("platform:wl1273_fm_radio");
-
 static struct platform_driver wl1273_fm_radio_driver = {
 	.probe		= wl1273_fm_radio_probe,
 	.remove		= __devexit_p(wl1273_fm_radio_remove),
@@ -2159,20 +2157,9 @@ static struct platform_driver wl1273_fm_radio_driver = {
 	},
 };
 
-static int __init wl1273_fm_module_init(void)
-{
-	pr_info("%s\n", __func__);
-	return platform_driver_register(&wl1273_fm_radio_driver);
-}
-module_init(wl1273_fm_module_init);
-
-static void __exit wl1273_fm_module_exit(void)
-{
-	platform_driver_unregister(&wl1273_fm_radio_driver);
-	pr_info(DRIVER_DESC ", Exiting.\n");
-}
-module_exit(wl1273_fm_module_exit);
+module_platform_driver(wl1273_fm_radio_driver);
 
 MODULE_AUTHOR("Matti Aaltonen <matti.j.aaltonen@nokia.com>");
 MODULE_DESCRIPTION(DRIVER_DESC);
 MODULE_LICENSE("GPL");
+MODULE_ALIAS("platform:wl1273_fm_radio");

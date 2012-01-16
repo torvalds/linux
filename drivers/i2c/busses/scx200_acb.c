@@ -559,7 +559,7 @@ static struct platform_driver scx200_pci_driver = {
 	.remove = __devexit_p(scx200_remove),
 };
 
-static const struct pci_device_id scx200_isa[] __initconst = {
+static DEFINE_PCI_DEVICE_TABLE(scx200_isa) = {
 	{ PCI_DEVICE(PCI_VENDOR_ID_NS, PCI_DEVICE_ID_NS_SCx200_BRIDGE) },
 	{ PCI_DEVICE(PCI_VENDOR_ID_NS, PCI_DEVICE_ID_NS_SC1100_BRIDGE) },
 	{ 0, }

@@ -58,7 +58,7 @@ int radeon_cs_parser_relocs(struct radeon_cs_parser *p)
 
 		duplicate = false;
 		r = (struct drm_radeon_cs_reloc *)&chunk->kdata[i*4];
-		for (j = 0; j < p->nrelocs; j++) {
+		for (j = 0; j < i; j++) {
 			if (r->handle == p->relocs[j].handle) {
 				p->relocs_ptr[i] = &p->relocs[j];
 				duplicate = true;
@@ -84,16 +84,75 @@ int radeon_cs_parser_relocs(struct radeon_cs_parser *p)
 			p->relocs[i].flags = r->flags;
 			radeon_bo_list_add_object(&p->relocs[i].lobj,
 						  &p->validated);
-		}
+
+			if (p->relocs[i].robj->tbo.sync_obj && !(r->flags & RADEON_RELOC_DONT_SYNC)) {
+				struct radeon_fence *fence = p->relocs[i].robj->tbo.sync_obj;
+				if (!radeon_fence_signaled(fence)) {
+					p->sync_to_ring[fence->ring] = true;
+				}
+			}
+		} else
+			p->relocs[i].handle = 0;
 	}
 	return radeon_bo_list_validate(&p->validated);
+}
+
+static int radeon_cs_get_ring(struct radeon_cs_parser *p, u32 ring, s32 priority)
+{
+	p->priority = priority;
+
+	switch (ring) {
+	default:
+		DRM_ERROR("unknown ring id: %d\n", ring);
+		return -EINVAL;
+	case RADEON_CS_RING_GFX:
+		p->ring = RADEON_RING_TYPE_GFX_INDEX;
+		break;
+	case RADEON_CS_RING_COMPUTE:
+		/* for now */
+		p->ring = RADEON_RING_TYPE_GFX_INDEX;
+		break;
+	}
+	return 0;
+}
+
+static int radeon_cs_sync_rings(struct radeon_cs_parser *p)
+{
+	int i, r;
+
+	for (i = 0; i < RADEON_NUM_RINGS; ++i) {
+		/* no need to sync to our own or unused rings */
+		if (i == p->ring || !p->sync_to_ring[i] || !p->rdev->ring[i].ready)
+			continue;
+
+		if (!p->ib->fence->semaphore) {
+			r = radeon_semaphore_create(p->rdev, &p->ib->fence->semaphore);
+			if (r)
+				return r;
+		}
+
+		r = radeon_ring_lock(p->rdev, &p->rdev->ring[i], 3);
+		if (r)
+			return r;
+		radeon_semaphore_emit_signal(p->rdev, i, p->ib->fence->semaphore);
+		radeon_ring_unlock_commit(p->rdev, &p->rdev->ring[i]);
+
+		r = radeon_ring_lock(p->rdev, &p->rdev->ring[p->ring], 3);
+		if (r)
+			return r;
+		radeon_semaphore_emit_wait(p->rdev, p->ring, p->ib->fence->semaphore);
+		radeon_ring_unlock_commit(p->rdev, &p->rdev->ring[p->ring]);
+	}
+	return 0;
 }
 
 int radeon_cs_parser_init(struct radeon_cs_parser *p, void *data)
 {
 	struct drm_radeon_cs *cs = data;
 	uint64_t *chunk_array_ptr;
-	unsigned size, i, flags = 0;
+	unsigned size, i;
+	u32 ring = RADEON_CS_RING_GFX;
+	s32 priority = 0;
 
 	if (!cs->num_chunks) {
 		return 0;
@@ -103,6 +162,7 @@ int radeon_cs_parser_init(struct radeon_cs_parser *p, void *data)
 	p->idx = 0;
 	p->chunk_ib_idx = -1;
 	p->chunk_relocs_idx = -1;
+	p->chunk_flags_idx = -1;
 	p->chunks_array = kcalloc(cs->num_chunks, sizeof(uint64_t), GFP_KERNEL);
 	if (p->chunks_array == NULL) {
 		return -ENOMEM;
@@ -112,6 +172,7 @@ int radeon_cs_parser_init(struct radeon_cs_parser *p, void *data)
 			       sizeof(uint64_t)*cs->num_chunks)) {
 		return -EFAULT;
 	}
+	p->cs_flags = 0;
 	p->nchunks = cs->num_chunks;
 	p->chunks = kcalloc(p->nchunks, sizeof(struct radeon_cs_chunk), GFP_KERNEL);
 	if (p->chunks == NULL) {
@@ -140,16 +201,19 @@ int radeon_cs_parser_init(struct radeon_cs_parser *p, void *data)
 			if (p->chunks[i].length_dw == 0)
 				return -EINVAL;
 		}
-		if (p->chunks[i].chunk_id == RADEON_CHUNK_ID_FLAGS &&
-		    !p->chunks[i].length_dw) {
-			return -EINVAL;
+		if (p->chunks[i].chunk_id == RADEON_CHUNK_ID_FLAGS) {
+			p->chunk_flags_idx = i;
+			/* zero length flags aren't useful */
+			if (p->chunks[i].length_dw == 0)
+				return -EINVAL;
 		}
 
 		p->chunks[i].length_dw = user_chunk.length_dw;
 		p->chunks[i].user_ptr = (void __user *)(unsigned long)user_chunk.chunk_data;
 
 		cdata = (uint32_t *)(unsigned long)user_chunk.chunk_data;
-		if (p->chunks[i].chunk_id != RADEON_CHUNK_ID_IB) {
+		if ((p->chunks[i].chunk_id == RADEON_CHUNK_ID_RELOCS) ||
+		    (p->chunks[i].chunk_id == RADEON_CHUNK_ID_FLAGS)) {
 			size = p->chunks[i].length_dw * sizeof(uint32_t);
 			p->chunks[i].kdata = kmalloc(size, GFP_KERNEL);
 			if (p->chunks[i].kdata == NULL) {
@@ -160,29 +224,58 @@ int radeon_cs_parser_init(struct radeon_cs_parser *p, void *data)
 				return -EFAULT;
 			}
 			if (p->chunks[i].chunk_id == RADEON_CHUNK_ID_FLAGS) {
-				flags = p->chunks[i].kdata[0];
+				p->cs_flags = p->chunks[i].kdata[0];
+				if (p->chunks[i].length_dw > 1)
+					ring = p->chunks[i].kdata[1];
+				if (p->chunks[i].length_dw > 2)
+					priority = (s32)p->chunks[i].kdata[2];
 			}
-		} else {
-			p->chunks[i].kpage[0] = kmalloc(PAGE_SIZE, GFP_KERNEL);
-			p->chunks[i].kpage[1] = kmalloc(PAGE_SIZE, GFP_KERNEL);
-			if (p->chunks[i].kpage[0] == NULL || p->chunks[i].kpage[1] == NULL) {
-				kfree(p->chunks[i].kpage[0]);
-				kfree(p->chunks[i].kpage[1]);
-				return -ENOMEM;
-			}
-			p->chunks[i].kpage_idx[0] = -1;
-			p->chunks[i].kpage_idx[1] = -1;
-			p->chunks[i].last_copied_page = -1;
-			p->chunks[i].last_page_index = ((p->chunks[i].length_dw * 4) - 1) / PAGE_SIZE;
 		}
 	}
-	if (p->chunks[p->chunk_ib_idx].length_dw > (16 * 1024)) {
-		DRM_ERROR("cs IB too big: %d\n",
-			  p->chunks[p->chunk_ib_idx].length_dw);
+
+	if ((p->cs_flags & RADEON_CS_USE_VM) &&
+	    !p->rdev->vm_manager.enabled) {
+		DRM_ERROR("VM not active on asic!\n");
+		if (p->chunk_relocs_idx != -1)
+			kfree(p->chunks[p->chunk_relocs_idx].kdata);
+		if (p->chunk_flags_idx != -1)
+			kfree(p->chunks[p->chunk_flags_idx].kdata);
 		return -EINVAL;
 	}
 
-	p->keep_tiling_flags = (flags & RADEON_CS_KEEP_TILING_FLAGS) != 0;
+	if (radeon_cs_get_ring(p, ring, priority)) {
+		if (p->chunk_relocs_idx != -1)
+			kfree(p->chunks[p->chunk_relocs_idx].kdata);
+		if (p->chunk_flags_idx != -1)
+			kfree(p->chunks[p->chunk_flags_idx].kdata);
+		return -EINVAL;
+	}
+
+
+	/* deal with non-vm */
+	if ((p->chunk_ib_idx != -1) &&
+	    ((p->cs_flags & RADEON_CS_USE_VM) == 0) &&
+	    (p->chunks[p->chunk_ib_idx].chunk_id == RADEON_CHUNK_ID_IB)) {
+		if (p->chunks[p->chunk_ib_idx].length_dw > (16 * 1024)) {
+			DRM_ERROR("cs IB too big: %d\n",
+				  p->chunks[p->chunk_ib_idx].length_dw);
+			return -EINVAL;
+		}
+		p->chunks[p->chunk_ib_idx].kpage[0] = kmalloc(PAGE_SIZE, GFP_KERNEL);
+		p->chunks[p->chunk_ib_idx].kpage[1] = kmalloc(PAGE_SIZE, GFP_KERNEL);
+		if (p->chunks[p->chunk_ib_idx].kpage[0] == NULL ||
+		    p->chunks[p->chunk_ib_idx].kpage[1] == NULL) {
+			kfree(p->chunks[p->chunk_ib_idx].kpage[0]);
+			kfree(p->chunks[p->chunk_ib_idx].kpage[1]);
+			return -ENOMEM;
+		}
+		p->chunks[p->chunk_ib_idx].kpage_idx[0] = -1;
+		p->chunks[p->chunk_ib_idx].kpage_idx[1] = -1;
+		p->chunks[p->chunk_ib_idx].last_copied_page = -1;
+		p->chunks[p->chunk_ib_idx].last_page_index =
+			((p->chunks[p->chunk_ib_idx].length_dw * 4) - 1) / PAGE_SIZE;
+	}
+
 	return 0;
 }
 
@@ -224,11 +317,139 @@ static void radeon_cs_parser_fini(struct radeon_cs_parser *parser, int error)
 	radeon_ib_free(parser->rdev, &parser->ib);
 }
 
+static int radeon_cs_ib_chunk(struct radeon_device *rdev,
+			      struct radeon_cs_parser *parser)
+{
+	struct radeon_cs_chunk *ib_chunk;
+	int r;
+
+	if (parser->chunk_ib_idx == -1)
+		return 0;
+
+	if (parser->cs_flags & RADEON_CS_USE_VM)
+		return 0;
+
+	ib_chunk = &parser->chunks[parser->chunk_ib_idx];
+	/* Copy the packet into the IB, the parser will read from the
+	 * input memory (cached) and write to the IB (which can be
+	 * uncached).
+	 */
+	r =  radeon_ib_get(rdev, parser->ring, &parser->ib,
+			   ib_chunk->length_dw * 4);
+	if (r) {
+		DRM_ERROR("Failed to get ib !\n");
+		return r;
+	}
+	parser->ib->length_dw = ib_chunk->length_dw;
+	r = radeon_cs_parse(parser);
+	if (r || parser->parser_error) {
+		DRM_ERROR("Invalid command stream !\n");
+		return r;
+	}
+	r = radeon_cs_finish_pages(parser);
+	if (r) {
+		DRM_ERROR("Invalid command stream !\n");
+		return r;
+	}
+	r = radeon_cs_sync_rings(parser);
+	if (r) {
+		DRM_ERROR("Failed to synchronize rings !\n");
+	}
+	parser->ib->vm_id = 0;
+	r = radeon_ib_schedule(rdev, parser->ib);
+	if (r) {
+		DRM_ERROR("Failed to schedule IB !\n");
+	}
+	return 0;
+}
+
+static int radeon_bo_vm_update_pte(struct radeon_cs_parser *parser,
+				   struct radeon_vm *vm)
+{
+	struct radeon_bo_list *lobj;
+	struct radeon_bo *bo;
+	int r;
+
+	list_for_each_entry(lobj, &parser->validated, tv.head) {
+		bo = lobj->bo;
+		r = radeon_vm_bo_update_pte(parser->rdev, vm, bo, &bo->tbo.mem);
+		if (r) {
+			return r;
+		}
+	}
+	return 0;
+}
+
+static int radeon_cs_ib_vm_chunk(struct radeon_device *rdev,
+				 struct radeon_cs_parser *parser)
+{
+	struct radeon_cs_chunk *ib_chunk;
+	struct radeon_fpriv *fpriv = parser->filp->driver_priv;
+	struct radeon_vm *vm = &fpriv->vm;
+	int r;
+
+	if (parser->chunk_ib_idx == -1)
+		return 0;
+
+	if ((parser->cs_flags & RADEON_CS_USE_VM) == 0)
+		return 0;
+
+	ib_chunk = &parser->chunks[parser->chunk_ib_idx];
+	if (ib_chunk->length_dw > RADEON_IB_VM_MAX_SIZE) {
+		DRM_ERROR("cs IB too big: %d\n", ib_chunk->length_dw);
+		return -EINVAL;
+	}
+	r =  radeon_ib_get(rdev, parser->ring, &parser->ib,
+			   ib_chunk->length_dw * 4);
+	if (r) {
+		DRM_ERROR("Failed to get ib !\n");
+		return r;
+	}
+	parser->ib->length_dw = ib_chunk->length_dw;
+	/* Copy the packet into the IB */
+	if (DRM_COPY_FROM_USER(parser->ib->ptr, ib_chunk->user_ptr,
+			       ib_chunk->length_dw * 4)) {
+		return -EFAULT;
+	}
+	r = radeon_ring_ib_parse(rdev, parser->ring, parser->ib);
+	if (r) {
+		return r;
+	}
+
+	mutex_lock(&vm->mutex);
+	r = radeon_vm_bind(rdev, vm);
+	if (r) {
+		goto out;
+	}
+	r = radeon_bo_vm_update_pte(parser, vm);
+	if (r) {
+		goto out;
+	}
+	r = radeon_cs_sync_rings(parser);
+	if (r) {
+		DRM_ERROR("Failed to synchronize rings !\n");
+	}
+	parser->ib->vm_id = vm->id;
+	/* ib pool is bind at 0 in virtual address space to gpu_addr is the
+	 * offset inside the pool bo
+	 */
+	parser->ib->gpu_addr = parser->ib->sa_bo.offset;
+	r = radeon_ib_schedule(rdev, parser->ib);
+out:
+	if (!r) {
+		if (vm->fence) {
+			radeon_fence_unref(&vm->fence);
+		}
+		vm->fence = radeon_fence_ref(parser->ib->fence);
+	}
+	mutex_unlock(&fpriv->vm.mutex);
+	return r;
+}
+
 int radeon_cs_ioctl(struct drm_device *dev, void *data, struct drm_file *filp)
 {
 	struct radeon_device *rdev = dev->dev_private;
 	struct radeon_cs_parser parser;
-	struct radeon_cs_chunk *ib_chunk;
 	int r;
 
 	radeon_mutex_lock(&rdev->cs_mutex);
@@ -245,13 +466,6 @@ int radeon_cs_ioctl(struct drm_device *dev, void *data, struct drm_file *filp)
 		radeon_mutex_unlock(&rdev->cs_mutex);
 		return r;
 	}
-	r =  radeon_ib_get(rdev, &parser.ib);
-	if (r) {
-		DRM_ERROR("Failed to get ib !\n");
-		radeon_cs_parser_fini(&parser, r);
-		radeon_mutex_unlock(&rdev->cs_mutex);
-		return r;
-	}
 	r = radeon_cs_parser_relocs(&parser);
 	if (r) {
 		if (r != -ERESTARTSYS)
@@ -260,29 +474,15 @@ int radeon_cs_ioctl(struct drm_device *dev, void *data, struct drm_file *filp)
 		radeon_mutex_unlock(&rdev->cs_mutex);
 		return r;
 	}
-	/* Copy the packet into the IB, the parser will read from the
-	 * input memory (cached) and write to the IB (which can be
-	 * uncached). */
-	ib_chunk = &parser.chunks[parser.chunk_ib_idx];
-	parser.ib->length_dw = ib_chunk->length_dw;
-	r = radeon_cs_parse(&parser);
-	if (r || parser.parser_error) {
-		DRM_ERROR("Invalid command stream !\n");
-		radeon_cs_parser_fini(&parser, r);
-		radeon_mutex_unlock(&rdev->cs_mutex);
-		return r;
-	}
-	r = radeon_cs_finish_pages(&parser);
+	r = radeon_cs_ib_chunk(rdev, &parser);
 	if (r) {
-		DRM_ERROR("Invalid command stream !\n");
-		radeon_cs_parser_fini(&parser, r);
-		radeon_mutex_unlock(&rdev->cs_mutex);
-		return r;
+		goto out;
 	}
-	r = radeon_ib_schedule(rdev, parser.ib);
+	r = radeon_cs_ib_vm_chunk(rdev, &parser);
 	if (r) {
-		DRM_ERROR("Failed to schedule IB !\n");
+		goto out;
 	}
+out:
 	radeon_cs_parser_fini(&parser, r);
 	radeon_mutex_unlock(&rdev->cs_mutex);
 	return r;

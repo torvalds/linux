@@ -118,13 +118,15 @@
 #define PF_NAME		"pf"
 #define PF_UNITS	4
 
+#include <linux/types.h>
+
 /* Here are things one can override from the insmod command.
    Most are autoprobed by paride unless set here.  Verbose is off
    by default.
 
 */
 
-static int verbose = 0;
+static bool verbose = 0;
 static int major = PF_MAJOR;
 static char *name = PF_NAME;
 static int cluster = 64;

@@ -198,7 +198,8 @@ struct otp_info {
 #define MEMISLOCKED		_IOR('M', 23, struct erase_info_user)
 /*
  * Most generic write interface; can write in-band and/or out-of-band in various
- * modes (see "struct mtd_write_req")
+ * modes (see "struct mtd_write_req"). This ioctl is not supported for flashes
+ * without OOB, e.g., NOR flash.
  */
 #define MEMWRITE		_IOWR('M', 24, struct mtd_write_req)
 

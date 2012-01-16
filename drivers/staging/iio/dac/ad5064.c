@@ -91,7 +91,7 @@ enum ad5064_type {
 	.indexed = 1,						\
 	.output = 1,						\
 	.channel = (chan),					\
-	.info_mask = (1 << IIO_CHAN_INFO_SCALE_SEPARATE),	\
+	.info_mask = IIO_CHAN_INFO_SCALE_SEPARATE_BIT,	\
 	.address = AD5064_ADDR_DAC(chan),			\
 	.scan_type = IIO_ST('u', (bits), 16, 20 - (bits))	\
 }
@@ -280,14 +280,14 @@ static int ad5064_read_raw(struct iio_dev *indio_dev,
 			   long m)
 {
 	struct ad5064_state *st = iio_priv(indio_dev);
-	unsigned long scale_uv;
 	unsigned int vref;
+	int scale_uv;
 
 	switch (m) {
 	case 0:
 		*val = st->dac_cache[chan->channel];
 		return IIO_VAL_INT;
-	case (1 << IIO_CHAN_INFO_SCALE_SEPARATE):
+	case IIO_CHAN_INFO_SCALE:
 		vref = st->chip_info->shared_vref ? 0 : chan->channel;
 		scale_uv = regulator_get_voltage(st->vref_reg[vref].consumer);
 		if (scale_uv < 0)

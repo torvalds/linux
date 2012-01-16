@@ -129,33 +129,33 @@ struct linux_xfrm_mib {
 			__this_cpu_inc(mib[0]->mibs[field])
 
 #define SNMP_INC_STATS_USER(mib, field)	\
-			irqsafe_cpu_inc(mib[0]->mibs[field])
+			this_cpu_inc(mib[0]->mibs[field])
 
 #define SNMP_INC_STATS_ATOMIC_LONG(mib, field)	\
 			atomic_long_inc(&mib->mibs[field])
 
 #define SNMP_INC_STATS(mib, field)	\
-			irqsafe_cpu_inc(mib[0]->mibs[field])
+			this_cpu_inc(mib[0]->mibs[field])
 
 #define SNMP_DEC_STATS(mib, field)	\
-			irqsafe_cpu_dec(mib[0]->mibs[field])
+			this_cpu_dec(mib[0]->mibs[field])
 
 #define SNMP_ADD_STATS_BH(mib, field, addend)	\
 			__this_cpu_add(mib[0]->mibs[field], addend)
 
 #define SNMP_ADD_STATS_USER(mib, field, addend)	\
-			irqsafe_cpu_add(mib[0]->mibs[field], addend)
+			this_cpu_add(mib[0]->mibs[field], addend)
 
 #define SNMP_ADD_STATS(mib, field, addend)	\
-			irqsafe_cpu_add(mib[0]->mibs[field], addend)
+			this_cpu_add(mib[0]->mibs[field], addend)
 /*
  * Use "__typeof__(*mib[0]) *ptr" instead of "__typeof__(mib[0]) ptr"
  * to make @ptr a non-percpu pointer.
  */
 #define SNMP_UPD_PO_STATS(mib, basefield, addend)	\
 	do { \
-		irqsafe_cpu_inc(mib[0]->mibs[basefield##PKTS]);		\
-		irqsafe_cpu_add(mib[0]->mibs[basefield##OCTETS], addend);	\
+		this_cpu_inc(mib[0]->mibs[basefield##PKTS]);		\
+		this_cpu_add(mib[0]->mibs[basefield##OCTETS], addend);	\
 	} while (0)
 #define SNMP_UPD_PO_STATS_BH(mib, basefield, addend)	\
 	do { \

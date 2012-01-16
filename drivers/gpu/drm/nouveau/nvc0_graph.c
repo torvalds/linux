@@ -875,14 +875,16 @@ nvc0_graph_create(struct drm_device *dev)
 	case 0xcf: /* 4/0/0/0, 3 */
 		priv->magic_not_rop_nr = 0x03;
 		break;
+	case 0xd9: /* 1/0/0/0, 1 */
+		priv->magic_not_rop_nr = 0x01;
+		break;
 	}
 
 	if (!priv->magic_not_rop_nr) {
 		NV_ERROR(dev, "PGRAPH: unknown config: %d/%d/%d/%d, %d\n",
 			 priv->tp_nr[0], priv->tp_nr[1], priv->tp_nr[2],
 			 priv->tp_nr[3], priv->rop_nr);
-		/* use 0xc3's values... */
-		priv->magic_not_rop_nr = 0x03;
+		priv->magic_not_rop_nr = 0x00;
 	}
 
 	NVOBJ_CLASS(dev, 0x902d, GR); /* 2D */

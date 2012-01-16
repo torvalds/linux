@@ -274,12 +274,12 @@ static int mtdswap_handle_badblock(struct mtdswap_dev *d, struct swap_eb *eb)
 	eb->root = NULL;
 
 	/* badblocks not supported */
-	if (!d->mtd->block_markbad)
+	if (!mtd_can_have_bb(d->mtd))
 		return 1;
 
 	offset = mtdswap_eb_offset(d, eb);
 	dev_warn(d->dev, "Marking bad block at %08llx\n", offset);
-	ret = d->mtd->block_markbad(d->mtd, offset);
+	ret = mtd_block_markbad(d->mtd, offset);
 
 	if (ret) {
 		dev_warn(d->dev, "Mark block bad failed for block at %08llx "
@@ -312,7 +312,7 @@ static int mtdswap_handle_write_error(struct mtdswap_dev *d, struct swap_eb *eb)
 static int mtdswap_read_oob(struct mtdswap_dev *d, loff_t from,
 			struct mtd_oob_ops *ops)
 {
-	int ret = d->mtd->read_oob(d->mtd, from, ops);
+	int ret = mtd_read_oob(d->mtd, from, ops);
 
 	if (mtd_is_bitflip(ret))
 		return ret;
@@ -343,7 +343,7 @@ static int mtdswap_read_markers(struct mtdswap_dev *d, struct swap_eb *eb)
 	offset = mtdswap_eb_offset(d, eb);
 
 	/* Check first if the block is bad. */
-	if (d->mtd->block_isbad && d->mtd->block_isbad(d->mtd, offset))
+	if (mtd_can_have_bb(d->mtd) && mtd_block_isbad(d->mtd, offset))
 		return MTDSWAP_SCANNED_BAD;
 
 	ops.ooblen = 2 * d->mtd->ecclayout->oobavail;
@@ -403,7 +403,7 @@ static int mtdswap_write_marker(struct mtdswap_dev *d, struct swap_eb *eb,
 		offset = mtdswap_eb_offset(d, eb) + d->mtd->writesize;
 	}
 
-	ret = d->mtd->write_oob(d->mtd, offset , &ops);
+	ret = mtd_write_oob(d->mtd, offset, &ops);
 
 	if (ret) {
 		dev_warn(d->dev, "Write OOB failed for block at %08llx "
@@ -567,7 +567,7 @@ retry:
 	erase.len	= mtd->erasesize;
 	erase.priv	= (u_long)&wq;
 
-	ret = mtd->erase(mtd, &erase);
+	ret = mtd_erase(mtd, &erase);
 	if (ret) {
 		if (retries++ < MTDSWAP_ERASE_RETRIES) {
 			dev_warn(d->dev,
@@ -689,7 +689,7 @@ retry:
 		return ret;
 
 	writepos = (loff_t)*bp << PAGE_SHIFT;
-	ret =  mtd->write(mtd, writepos, PAGE_SIZE, &retlen, buf);
+	ret =  mtd_write(mtd, writepos, PAGE_SIZE, &retlen, buf);
 	if (ret == -EIO || mtd_is_eccerr(ret)) {
 		d->curr_write_pos--;
 		eb->active_count--;
@@ -736,7 +736,7 @@ static int mtdswap_move_block(struct mtdswap_dev *d, unsigned int oldblock,
 	retries = 0;
 
 retry:
-	ret = mtd->read(mtd, readpos, PAGE_SIZE, &retlen, d->page_buf);
+	ret = mtd_read(mtd, readpos, PAGE_SIZE, &retlen, d->page_buf);
 
 	if (ret < 0 && !mtd_is_bitflip(ret)) {
 		oldeb = d->eb_data + oldblock / d->pages_per_eblk;
@@ -946,7 +946,7 @@ static unsigned int mtdswap_eblk_passes(struct mtdswap_dev *d,
 			patt = mtdswap_test_patt(test + i);
 			memset(d->page_buf, patt, mtd->writesize);
 			memset(d->oob_buf, patt, mtd->ecclayout->oobavail);
-			ret = mtd->write_oob(mtd, pos, &ops);
+			ret = mtd_write_oob(mtd, pos, &ops);
 			if (ret)
 				goto error;
 
@@ -955,7 +955,7 @@ static unsigned int mtdswap_eblk_passes(struct mtdswap_dev *d,
 
 		pos = base;
 		for (i = 0; i < mtd_pages; i++) {
-			ret = mtd->read_oob(mtd, pos, &ops);
+			ret = mtd_read_oob(mtd, pos, &ops);
 			if (ret)
 				goto error;
 
@@ -1047,8 +1047,7 @@ static int mtdswap_flush(struct mtd_blktrans_dev *dev)
 {
 	struct mtdswap_dev *d = MTDSWAP_MBD_TO_MTDSWAP(dev);
 
-	if (d->mtd->sync)
-		d->mtd->sync(d->mtd);
+	mtd_sync(d->mtd);
 	return 0;
 }
 
@@ -1059,9 +1058,9 @@ static unsigned int mtdswap_badblocks(struct mtd_info *mtd, uint64_t size)
 
 	badcnt = 0;
 
-	if (mtd->block_isbad)
+	if (mtd_can_have_bb(mtd))
 		for (offset = 0; offset < size; offset += mtd->erasesize)
-			if (mtd->block_isbad(mtd, offset))
+			if (mtd_block_isbad(mtd, offset))
 				badcnt++;
 
 	return badcnt;
@@ -1161,7 +1160,7 @@ static int mtdswap_readsect(struct mtd_blktrans_dev *dev,
 	retries = 0;
 
 retry:
-	ret = mtd->read(mtd, readpos, PAGE_SIZE, &retlen, buf);
+	ret = mtd_read(mtd, readpos, PAGE_SIZE, &retlen, buf);
 
 	d->mtd_read_count++;
 	if (mtd_is_bitflip(ret)) {

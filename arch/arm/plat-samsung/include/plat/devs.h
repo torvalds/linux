@@ -39,6 +39,7 @@ extern struct platform_device s3c64xx_device_pcm0;
 extern struct platform_device s3c64xx_device_pcm1;
 extern struct platform_device s3c64xx_device_spi0;
 extern struct platform_device s3c64xx_device_spi1;
+extern struct platform_device s3c64xx_device_spi2;
 
 extern struct platform_device s3c_device_adc;
 extern struct platform_device s3c_device_cfcon;
@@ -98,8 +99,6 @@ extern struct platform_device s5p6450_device_iis1;
 extern struct platform_device s5p6450_device_iis2;
 extern struct platform_device s5p6450_device_pcm0;
 
-extern struct platform_device s5p64x0_device_spi0;
-extern struct platform_device s5p64x0_device_spi1;
 
 extern struct platform_device s5pc100_device_ac97;
 extern struct platform_device s5pc100_device_iis0;
@@ -108,9 +107,6 @@ extern struct platform_device s5pc100_device_iis2;
 extern struct platform_device s5pc100_device_pcm0;
 extern struct platform_device s5pc100_device_pcm1;
 extern struct platform_device s5pc100_device_spdif;
-extern struct platform_device s5pc100_device_spi0;
-extern struct platform_device s5pc100_device_spi1;
-extern struct platform_device s5pc100_device_spi2;
 
 extern struct platform_device s5pv210_device_ac97;
 extern struct platform_device s5pv210_device_iis0;
@@ -120,8 +116,6 @@ extern struct platform_device s5pv210_device_pcm0;
 extern struct platform_device s5pv210_device_pcm1;
 extern struct platform_device s5pv210_device_pcm2;
 extern struct platform_device s5pv210_device_spdif;
-extern struct platform_device s5pv210_device_spi0;
-extern struct platform_device s5pv210_device_spi1;
 
 extern struct platform_device exynos4_device_ac97;
 extern struct platform_device exynos4_device_ahci;
@@ -129,6 +123,7 @@ extern struct platform_device exynos4_device_dwmci;
 extern struct platform_device exynos4_device_i2s0;
 extern struct platform_device exynos4_device_i2s1;
 extern struct platform_device exynos4_device_i2s2;
+extern struct platform_device exynos4_device_ohci;
 extern struct platform_device exynos4_device_pcm0;
 extern struct platform_device exynos4_device_pcm1;
 extern struct platform_device exynos4_device_pcm2;

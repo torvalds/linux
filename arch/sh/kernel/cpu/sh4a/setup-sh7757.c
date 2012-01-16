@@ -465,6 +465,7 @@ static struct resource sh7757_dmae0_resources[] = {
 		.flags	= IORESOURCE_MEM,
 	},
 	{
+		.name	= "error_irq",
 		.start	= 34,
 		.end	= 34,
 		.flags	= IORESOURCE_IRQ | IORESOURCE_IRQ_SHAREABLE,
@@ -486,7 +487,7 @@ static struct resource sh7757_dmae1_resources[] = {
 		.flags	= IORESOURCE_MEM,
 	},
 	{
-		/* DMA error */
+		.name	= "error_irq",
 		.start	= 34,
 		.end	= 34,
 		.flags	= IORESOURCE_IRQ | IORESOURCE_IRQ_SHAREABLE,
@@ -556,7 +557,7 @@ static struct resource sh7757_dmae2_resources[] = {
 		.flags	= IORESOURCE_MEM,
 	},
 	{
-		/* DMA error */
+		.name	= "error_irq",
 		.start	= 323,
 		.end	= 323,
 		.flags	= IORESOURCE_IRQ,
@@ -590,7 +591,7 @@ static struct resource sh7757_dmae3_resources[] = {
 		.flags	= IORESOURCE_MEM,
 	},
 	{
-		/* DMA error */
+		.name	= "error_irq",
 		.start	= 324,
 		.end	= 324,
 		.flags	= IORESOURCE_IRQ,

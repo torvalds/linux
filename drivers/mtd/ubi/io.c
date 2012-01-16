@@ -170,7 +170,7 @@ int ubi_io_read(const struct ubi_device *ubi, void *buf, int pnum, int offset,
 
 	addr = (loff_t)pnum * ubi->peb_size + offset;
 retry:
-	err = ubi->mtd->read(ubi->mtd, addr, len, &read, buf);
+	err = mtd_read(ubi->mtd, addr, len, &read, buf);
 	if (err) {
 		const char *errstr = mtd_is_eccerr(err) ? " (ECC error)" : "";
 
@@ -289,7 +289,7 @@ int ubi_io_write(struct ubi_device *ubi, const void *buf, int pnum, int offset,
 	}
 
 	addr = (loff_t)pnum * ubi->peb_size + offset;
-	err = ubi->mtd->write(ubi->mtd, addr, len, &written, buf);
+	err = mtd_write(ubi->mtd, addr, len, &written, buf);
 	if (err) {
 		ubi_err("error %d while writing %d bytes to PEB %d:%d, written "
 			"%zd bytes", err, len, pnum, offset, written);
@@ -361,7 +361,7 @@ retry:
 	ei.callback = erase_callback;
 	ei.priv     = (unsigned long)&wq;
 
-	err = ubi->mtd->erase(ubi->mtd, &ei);
+	err = mtd_erase(ubi->mtd, &ei);
 	if (err) {
 		if (retries++ < UBI_IO_RETRIES) {
 			dbg_io("error %d while erasing PEB %d, retry",
@@ -525,11 +525,10 @@ static int nor_erase_prepare(struct ubi_device *ubi, int pnum)
 	 * the header comment in scan.c for more information).
 	 */
 	addr = (loff_t)pnum * ubi->peb_size;
-	err = ubi->mtd->write(ubi->mtd, addr, 4, &written, (void *)&data);
+	err = mtd_write(ubi->mtd, addr, 4, &written, (void *)&data);
 	if (!err) {
 		addr += ubi->vid_hdr_aloffset;
-		err = ubi->mtd->write(ubi->mtd, addr, 4, &written,
-				      (void *)&data);
+		err = mtd_write(ubi->mtd, addr, 4, &written, (void *)&data);
 		if (!err)
 			return 0;
 	}
@@ -635,7 +634,7 @@ int ubi_io_is_bad(const struct ubi_device *ubi, int pnum)
 	if (ubi->bad_allowed) {
 		int ret;
 
-		ret = mtd->block_isbad(mtd, (loff_t)pnum * ubi->peb_size);
+		ret = mtd_block_isbad(mtd, (loff_t)pnum * ubi->peb_size);
 		if (ret < 0)
 			ubi_err("error %d while checking if PEB %d is bad",
 				ret, pnum);
@@ -670,7 +669,7 @@ int ubi_io_mark_bad(const struct ubi_device *ubi, int pnum)
 	if (!ubi->bad_allowed)
 		return 0;
 
-	err = mtd->block_markbad(mtd, (loff_t)pnum * ubi->peb_size);
+	err = mtd_block_markbad(mtd, (loff_t)pnum * ubi->peb_size);
 	if (err)
 		ubi_err("cannot mark PEB %d bad, error %d", pnum, err);
 	return err;
@@ -1357,7 +1356,7 @@ int ubi_dbg_check_write(struct ubi_device *ubi, const void *buf, int pnum,
 		return 0;
 	}
 
-	err = ubi->mtd->read(ubi->mtd, addr, len, &read, buf1);
+	err = mtd_read(ubi->mtd, addr, len, &read, buf1);
 	if (err && !mtd_is_bitflip(err))
 		goto out_free;
 
@@ -1421,7 +1420,7 @@ int ubi_dbg_check_all_ff(struct ubi_device *ubi, int pnum, int offset, int len)
 		return 0;
 	}
 
-	err = ubi->mtd->read(ubi->mtd, addr, len, &read, buf);
+	err = mtd_read(ubi->mtd, addr, len, &read, buf);
 	if (err && !mtd_is_bitflip(err)) {
 		ubi_err("error %d while reading %d bytes from PEB %d:%d, "
 			"read %zd bytes", err, len, pnum, offset, read);

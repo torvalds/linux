@@ -404,8 +404,8 @@ static struct pda_power_pdata tosa_power_data = {
 static struct resource tosa_power_resource[] = {
 	{
 		.name		= "ac",
-		.start		= gpio_to_irq(TOSA_GPIO_AC_IN),
-		.end		= gpio_to_irq(TOSA_GPIO_AC_IN),
+		.start		= PXA_GPIO_TO_IRQ(TOSA_GPIO_AC_IN),
+		.end		= PXA_GPIO_TO_IRQ(TOSA_GPIO_AC_IN),
 		.flags		= IORESOURCE_IRQ |
 				  IORESOURCE_IRQ_HIGHEDGE |
 				  IORESOURCE_IRQ_LOWEDGE,
@@ -889,6 +889,11 @@ static struct platform_device wm9712_device = {
 	.id	= -1,
 };
 
+static struct platform_device tosa_audio_device = {
+	.name	= "tosa-audio",
+	.id	= -1,
+};
+
 static struct platform_device *devices[] __initdata = {
 	&tosascoop_device,
 	&tosascoop_jc_device,
@@ -901,6 +906,7 @@ static struct platform_device *devices[] __initdata = {
 	&sharpsl_rom_device,
 	&wm9712_device,
 	&tosa_gpio_vbus,
+	&tosa_audio_device,
 };
 
 static void tosa_poweroff(void)

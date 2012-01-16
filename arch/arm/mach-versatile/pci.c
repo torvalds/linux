@@ -191,7 +191,7 @@ static struct resource pre_mem = {
 	.flags	= IORESOURCE_MEM | IORESOURCE_PREFETCH,
 };
 
-static int __init pci_versatile_setup_resources(struct resource **resource)
+static int __init pci_versatile_setup_resources(struct list_head *resources)
 {
 	int ret = 0;
 
@@ -215,13 +215,13 @@ static int __init pci_versatile_setup_resources(struct resource **resource)
 	}
 
 	/*
-	 * bus->resource[0] is the IO resource for this bus
-	 * bus->resource[1] is the mem resource for this bus
-	 * bus->resource[2] is the prefetch mem resource for this bus
+	 * the IO resource for this bus
+	 * the mem resource for this bus
+	 * the prefetch mem resource for this bus
 	 */
-	resource[0] = &io_mem;
-	resource[1] = &non_mem;
-	resource[2] = &pre_mem;
+	pci_add_resource(resources, &io_mem);
+	pci_add_resource(resources, &non_mem);
+	pci_add_resource(resources, &pre_mem);
 
 	goto out;
 
@@ -250,7 +250,7 @@ int __init pci_versatile_setup(int nr, struct pci_sys_data *sys)
 
 	if (nr == 0) {
 		sys->mem_offset = 0;
-		ret = pci_versatile_setup_resources(sys->resource);
+		ret = pci_versatile_setup_resources(&sys->resources);
 		if (ret < 0) {
 			printk("pci_versatile_setup: resources... oops?\n");
 			goto out;
@@ -306,7 +306,8 @@ int __init pci_versatile_setup(int nr, struct pci_sys_data *sys)
 
 struct pci_bus * __init pci_versatile_scan_bus(int nr, struct pci_sys_data *sys)
 {
-	return pci_scan_bus(sys->busnr, &pci_versatile_ops, sys);
+	return pci_scan_root_bus(NULL, sys->busnr, &pci_versatile_ops, sys,
+				 &sys->resources);
 }
 
 void __init pci_versatile_preinit(void)

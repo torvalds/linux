@@ -220,11 +220,11 @@ static ssize_t serio_raw_write(struct file *file, const char __user *buffer,
 			goto out;
 		}
 		written++;
-	};
+	}
 
 out:
 	mutex_unlock(&serio_raw_mutex);
-	return written;
+	return written ?: retval;
 }
 
 static unsigned int serio_raw_poll(struct file *file, poll_table *wait)
@@ -237,9 +237,9 @@ static unsigned int serio_raw_poll(struct file *file, poll_table *wait)
 
 	mask = serio_raw->dead ? POLLHUP | POLLERR : POLLOUT | POLLWRNORM;
 	if (serio_raw->head != serio_raw->tail)
-		return POLLIN | POLLRDNORM;
+		mask |= POLLIN | POLLRDNORM;
 
-	return 0;
+	return mask;
 }
 
 static const struct file_operations serio_raw_fops = {

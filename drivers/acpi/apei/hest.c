@@ -41,7 +41,7 @@
 
 #define HEST_PFX "HEST: "
 
-int hest_disable;
+bool hest_disable;
 EXPORT_SYMBOL_GPL(hest_disable);
 
 /* HEST table parsing */

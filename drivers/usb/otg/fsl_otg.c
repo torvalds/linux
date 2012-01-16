@@ -1151,18 +1151,7 @@ struct platform_driver fsl_otg_driver = {
 	},
 };
 
-static int __init fsl_usb_otg_init(void)
-{
-	pr_info(DRIVER_INFO "\n");
-	return platform_driver_register(&fsl_otg_driver);
-}
-module_init(fsl_usb_otg_init);
-
-static void __exit fsl_usb_otg_exit(void)
-{
-	platform_driver_unregister(&fsl_otg_driver);
-}
-module_exit(fsl_usb_otg_exit);
+module_platform_driver(fsl_otg_driver);
 
 MODULE_DESCRIPTION(DRIVER_INFO);
 MODULE_AUTHOR(DRIVER_AUTHOR);

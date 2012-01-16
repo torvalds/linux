@@ -72,8 +72,6 @@ source "drivers/staging/octeon/Kconfig"
 
 source "drivers/staging/serqt_usb2/Kconfig"
 
-source "drivers/staging/spectra/Kconfig"
-
 source "drivers/staging/quatech_usb2/Kconfig"
 
 source "drivers/staging/vt6655/Kconfig"
@@ -116,8 +114,6 @@ source "drivers/staging/bcm/Kconfig"
 
 source "drivers/staging/ft1000/Kconfig"
 
-source "drivers/staging/intel_sst/Kconfig"
-
 source "drivers/staging/speakup/Kconfig"
 
 source "drivers/staging/cptm1217/Kconfig"
@@ -131,5 +127,9 @@ source "drivers/staging/mei/Kconfig"
 source "drivers/staging/nvec/Kconfig"
 
 source "drivers/staging/media/Kconfig"
+
+source "drivers/staging/omapdrm/Kconfig"
+
+source "drivers/staging/android/Kconfig"
 
 endif # STAGING

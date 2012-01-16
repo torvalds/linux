@@ -96,12 +96,11 @@ const struct file_operations coda_dir_operations = {
 /* access routines: lookup, readlink, permission */
 static struct dentry *coda_lookup(struct inode *dir, struct dentry *entry, struct nameidata *nd)
 {
-	struct inode *inode = NULL;
-	struct CodaFid resfid = { { 0, } };
-	int type = 0;
-	int error = 0;
+	struct super_block *sb = dir->i_sb;
 	const char *name = entry->d_name.name;
 	size_t length = entry->d_name.len;
+	struct inode *inode;
+	int type = 0;
 
 	if (length > CODA_MAXNAMLEN) {
 		printk(KERN_ERR "name too long: lookup, %s (%*s)\n",
@@ -111,22 +110,20 @@ static struct dentry *coda_lookup(struct inode *dir, struct dentry *entry, struc
 
 	/* control object, create inode on the fly */
 	if (coda_isroot(dir) && coda_iscontrol(name, length)) {
-		error = coda_cnode_makectl(&inode, dir->i_sb);
+		inode = coda_cnode_makectl(sb);
 		type = CODA_NOCACHE;
-		goto exit;
+	} else {
+		struct CodaFid fid = { { 0, } };
+		int error = venus_lookup(sb, coda_i2f(dir), name, length,
+				     &type, &fid);
+		inode = !error ? coda_cnode_make(&fid, sb) : ERR_PTR(error);
 	}
 
-	error = venus_lookup(dir->i_sb, coda_i2f(dir), name, length,
-			     &type, &resfid);
-	if (!error)
-		error = coda_cnode_make(&inode, &resfid, dir->i_sb);
-
-	if (error && error != -ENOENT)
-		return ERR_PTR(error);
-
-exit:
-	if (inode && (type & CODA_NOCACHE))
+	if (!IS_ERR(inode) && (type & CODA_NOCACHE))
 		coda_flag_inode(inode, C_VATTR | C_PURGE);
+
+	if (inode == ERR_PTR(-ENOENT))
+		inode = NULL;
 
 	return d_splice_alias(inode, entry);
 }

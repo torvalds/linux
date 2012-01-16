@@ -29,6 +29,8 @@
  */
 static int mmc_prep_request(struct request_queue *q, struct request *req)
 {
+	struct mmc_queue *mq = q->queuedata;
+
 	/*
 	 * We only like normal block requests and discards.
 	 */
@@ -36,6 +38,9 @@ static int mmc_prep_request(struct request_queue *q, struct request *req)
 		blk_dump_rq_flags(req, "MMC bad request");
 		return BLKPREP_KILL;
 	}
+
+	if (mq && mmc_card_removed(mq->card))
+		return BLKPREP_KILL;
 
 	req->cmd_flags |= REQ_DONTPREP;
 

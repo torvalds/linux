@@ -856,17 +856,6 @@ static struct platform_driver sdum_driver = {
 	.resume = sdum_resume,
 };
 
-int __init sdum_init(void)
-{
-	return platform_driver_register(&sdum_driver);
-}
-
-static void __exit sdum_exit(void)
-{
-	platform_driver_unregister(&sdum_driver);
-};
-
-module_init(sdum_init);
-module_exit(sdum_exit);
+module_platform_driver(sdum_driver);
 
 MODULE_LICENSE("GPL");

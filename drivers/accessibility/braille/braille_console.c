@@ -44,7 +44,7 @@ MODULE_LICENSE("GPL");
  */
 
 /* Emit various sounds */
-static int sound;
+static bool sound;
 module_param(sound, bool, 0);
 MODULE_PARM_DESC(sound, "emit sounds");
 

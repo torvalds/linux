@@ -5,7 +5,6 @@
  * Copyright (C) 2003 by Andreas Gruenbacher, <a.gruenbacher@computer.org>
  */
 
-#include <linux/module.h>
 #include <linux/string.h>
 #include <linux/capability.h>
 #include <linux/fs.h>

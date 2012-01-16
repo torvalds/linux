@@ -918,7 +918,7 @@ struct drm_driver {
 	int dev_priv_size;
 	struct drm_ioctl_desc *ioctls;
 	int num_ioctls;
-	struct file_operations fops;
+	const struct file_operations *fops;
 	union {
 		struct pci_driver *pci;
 		struct platform_device *platform_device;
@@ -1695,6 +1695,14 @@ extern void drm_platform_exit(struct drm_driver *driver, struct platform_device 
 
 extern int drm_get_platform_dev(struct platform_device *pdev,
 				struct drm_driver *driver);
+
+/* returns true if currently okay to sleep */
+static __inline__ bool drm_can_sleep(void)
+{
+	if (in_atomic() || in_dbg_master() || irqs_disabled())
+		return false;
+	return true;
+}
 
 #endif				/* __KERNEL__ */
 #endif

@@ -426,17 +426,34 @@ int journal_restart(handle_t *handle, int nblocks)
  * void journal_lock_updates () - establish a transaction barrier.
  * @journal:  Journal to establish a barrier on.
  *
- * This locks out any further updates from being started, and blocks
- * until all existing updates have completed, returning only once the
- * journal is in a quiescent state with no updates running.
+ * This locks out any further updates from being started, and blocks until all
+ * existing updates have completed, returning only once the journal is in a
+ * quiescent state with no updates running.
  *
- * The journal lock should not be held on entry.
+ * We do not use simple mutex for synchronization as there are syscalls which
+ * want to return with filesystem locked and that trips up lockdep. Also
+ * hibernate needs to lock filesystem but locked mutex then blocks hibernation.
+ * Since locking filesystem is rare operation, we use simple counter and
+ * waitqueue for locking.
  */
 void journal_lock_updates(journal_t *journal)
 {
 	DEFINE_WAIT(wait);
 
+wait:
+	/* Wait for previous locked operation to finish */
+	wait_event(journal->j_wait_transaction_locked,
+		   journal->j_barrier_count == 0);
+
 	spin_lock(&journal->j_state_lock);
+	/*
+	 * Check reliably under the lock whether we are the ones winning the race
+	 * and locking the journal
+	 */
+	if (journal->j_barrier_count > 0) {
+		spin_unlock(&journal->j_state_lock);
+		goto wait;
+	}
 	++journal->j_barrier_count;
 
 	/* Wait until there are no running updates */
@@ -460,14 +477,6 @@ void journal_lock_updates(journal_t *journal)
 		spin_lock(&journal->j_state_lock);
 	}
 	spin_unlock(&journal->j_state_lock);
-
-	/*
-	 * We have now established a barrier against other normal updates, but
-	 * we also need to barrier against other journal_lock_updates() calls
-	 * to make sure that we serialise special journal-locked operations
-	 * too.
-	 */
-	mutex_lock(&journal->j_barrier);
 }
 
 /**
@@ -475,14 +484,11 @@ void journal_lock_updates(journal_t *journal)
  * @journal:  Journal to release the barrier on.
  *
  * Release a transaction barrier obtained with journal_lock_updates().
- *
- * Should be called without the journal lock held.
  */
 void journal_unlock_updates (journal_t *journal)
 {
 	J_ASSERT(journal->j_barrier_count != 0);
 
-	mutex_unlock(&journal->j_barrier);
 	spin_lock(&journal->j_state_lock);
 	--journal->j_barrier_count;
 	spin_unlock(&journal->j_state_lock);

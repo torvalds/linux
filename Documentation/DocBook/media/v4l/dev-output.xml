@@ -104,11 +104,3 @@ linkend="mmap">memory mapping</link> or <link
 linkend="userp">user pointer</link>) I/O. See <xref
 linkend="io" /> for details.</para>
   </section>
-
-  <!--
-Local Variables:
-mode: sgml
-sgml-parent-document: "v4l2.sgml"
-indent-tabs-mode: nil
-End:
-  -->

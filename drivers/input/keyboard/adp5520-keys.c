@@ -202,18 +202,7 @@ static struct platform_driver adp5520_keys_driver = {
 	.probe		= adp5520_keys_probe,
 	.remove		= __devexit_p(adp5520_keys_remove),
 };
-
-static int __init adp5520_keys_init(void)
-{
-	return platform_driver_register(&adp5520_keys_driver);
-}
-module_init(adp5520_keys_init);
-
-static void __exit adp5520_keys_exit(void)
-{
-	platform_driver_unregister(&adp5520_keys_driver);
-}
-module_exit(adp5520_keys_exit);
+module_platform_driver(adp5520_keys_driver);
 
 MODULE_AUTHOR("Michael Hennerich <hennerich@blackfin.uclinux.org>");
 MODULE_DESCRIPTION("Keys ADP5520 Driver");

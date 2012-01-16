@@ -618,7 +618,7 @@ static u32 sierra_net_get_link(struct net_device *net)
 	return sierra_net_get_private(dev)->link_up && netif_running(net);
 }
 
-static struct ethtool_ops sierra_net_ethtool_ops = {
+static const struct ethtool_ops sierra_net_ethtool_ops = {
 	.get_drvinfo = sierra_net_get_drvinfo,
 	.get_link = sierra_net_get_link,
 	.get_msglevel = usbnet_get_msglevel,

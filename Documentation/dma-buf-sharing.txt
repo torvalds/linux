@@ -219,6 +219,10 @@ NOTES:
    If the exporter chooses not to allow an attach() operation once a
    map_dma_buf() API has been called, it simply returns an error.
 
+Miscellaneous notes:
+- Any exporters or users of the dma-buf buffer sharing framework must have
+  a 'select DMA_SHARED_BUFFER' in their respective Kconfigs.
+
 References:
 [1] struct dma_buf_ops in include/linux/dma-buf.h
 [2] All interfaces mentioned above defined in include/linux/dma-buf.h

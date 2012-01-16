@@ -758,6 +758,7 @@ MODULE_DEVICE_TABLE(usb, mxl111sf_table);
 
 
 #define MXL111SF_EP4_BULK_STREAMING_CONFIG		\
+	.size_of_priv = sizeof(struct mxl111sf_adap_state), \
 	.streaming_ctrl = mxl111sf_ep4_streaming_ctrl,	\
 	.stream = {					\
 		.type = USB_BULK,			\
@@ -772,6 +773,7 @@ MODULE_DEVICE_TABLE(usb, mxl111sf_table);
 
 /* FIXME: works for v6 but not v8 silicon */
 #define MXL111SF_EP4_ISOC_STREAMING_CONFIG		\
+	.size_of_priv = sizeof(struct mxl111sf_adap_state), \
 	.streaming_ctrl = mxl111sf_ep4_streaming_ctrl,	\
 	.stream = {					\
 		.type = USB_ISOC,			\
@@ -788,6 +790,7 @@ MODULE_DEVICE_TABLE(usb, mxl111sf_table);
 	}
 
 #define MXL111SF_EP6_BULK_STREAMING_CONFIG		\
+	.size_of_priv = sizeof(struct mxl111sf_adap_state), \
 	.streaming_ctrl = mxl111sf_ep6_streaming_ctrl,	\
 	.stream = {					\
 		.type = USB_BULK,			\
@@ -802,6 +805,7 @@ MODULE_DEVICE_TABLE(usb, mxl111sf_table);
 
 /* FIXME */
 #define MXL111SF_EP6_ISOC_STREAMING_CONFIG		\
+	.size_of_priv = sizeof(struct mxl111sf_adap_state), \
 	.streaming_ctrl = mxl111sf_ep6_streaming_ctrl,	\
 	.stream = {					\
 		.type = USB_ISOC,			\
@@ -839,8 +843,6 @@ static struct dvb_usb_device_properties mxl111sf_dvbt_bulk_properties = {
 		.fe_ioctl_override = mxl111sf_fe_ioctl_override,
 		.num_frontends = 1,
 		.fe = {{
-			.size_of_priv     = sizeof(struct mxl111sf_adap_state),
-
 			.frontend_attach  = mxl111sf_attach_demod,
 			.tuner_attach     = mxl111sf_attach_tuner,
 
@@ -883,8 +885,6 @@ static struct dvb_usb_device_properties mxl111sf_dvbt_isoc_properties = {
 		.fe_ioctl_override = mxl111sf_fe_ioctl_override,
 		.num_frontends = 1,
 		.fe = {{
-			.size_of_priv     = sizeof(struct mxl111sf_adap_state),
-
 			.frontend_attach  = mxl111sf_attach_demod,
 			.tuner_attach     = mxl111sf_attach_tuner,
 
@@ -927,16 +927,12 @@ static struct dvb_usb_device_properties mxl111sf_atsc_bulk_properties = {
 		.fe_ioctl_override = mxl111sf_fe_ioctl_override,
 		.num_frontends = 2,
 		.fe = {{
-			.size_of_priv     = sizeof(struct mxl111sf_adap_state),
-
 			.frontend_attach  = mxl111sf_lgdt3305_frontend_attach,
 			.tuner_attach     = mxl111sf_attach_tuner,
 
 			MXL111SF_EP6_BULK_STREAMING_CONFIG,
 		},
 		{
-			.size_of_priv     = sizeof(struct mxl111sf_adap_state),
-
 			.frontend_attach  = mxl111sf_attach_demod,
 			.tuner_attach     = mxl111sf_attach_tuner,
 
@@ -992,16 +988,12 @@ static struct dvb_usb_device_properties mxl111sf_atsc_isoc_properties = {
 		.fe_ioctl_override = mxl111sf_fe_ioctl_override,
 		.num_frontends = 2,
 		.fe = {{
-			.size_of_priv     = sizeof(struct mxl111sf_adap_state),
-
 			.frontend_attach  = mxl111sf_lgdt3305_frontend_attach,
 			.tuner_attach     = mxl111sf_attach_tuner,
 
 			MXL111SF_EP6_ISOC_STREAMING_CONFIG,
 		},
 		{
-			.size_of_priv     = sizeof(struct mxl111sf_adap_state),
-
 			.frontend_attach  = mxl111sf_attach_demod,
 			.tuner_attach     = mxl111sf_attach_tuner,
 

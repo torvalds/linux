@@ -361,82 +361,51 @@ static int tm6000_set_audio_std(struct tm6000_core *dev)
 		return 0;
 	}
 
-	switch (tm6010_a_mode) {
+	/*
+	 * STD/MN shouldn't be affected by tm6010_a_mode, as there's just one
+	 * audio standard for each V4L2_STD type.
+	 */
+	if ((dev->norm & V4L2_STD_NTSC) == V4L2_STD_NTSC_M_KR) {
+		areg_05 |= 0x04;
+	} else if ((dev->norm & V4L2_STD_NTSC) == V4L2_STD_NTSC_M_JP) {
+		areg_05 |= 0x43;
+	} else if (dev->norm & V4L2_STD_MN) {
+		areg_05 |= 0x22;
+	} else switch (tm6010_a_mode) {
 	/* auto */
 	case 0:
-		switch (dev->norm) {
-		case V4L2_STD_NTSC_M_KR:
+		if ((dev->norm & V4L2_STD_SECAM) == V4L2_STD_SECAM_L)
 			areg_05 |= 0x00;
-			break;
-		case V4L2_STD_NTSC_M_JP:
-			areg_05 |= 0x40;
-			break;
-		case V4L2_STD_NTSC_M:
-		case V4L2_STD_PAL_M:
-		case V4L2_STD_PAL_N:
-			areg_05 |= 0x20;
-			break;
-		case V4L2_STD_PAL_Nc:
-			areg_05 |= 0x60;
-			break;
-		case V4L2_STD_SECAM_L:
-			areg_05 |= 0x00;
-			break;
-		case V4L2_STD_DK:
+		else	/* Other PAL/SECAM standards */
 			areg_05 |= 0x10;
-			break;
-		}
 		break;
 	/* A2 */
 	case 1:
-		switch (dev->norm) {
-		case V4L2_STD_B:
-		case V4L2_STD_GH:
-			areg_05 = 0x05;
-			break;
-		case V4L2_STD_DK:
+		if (dev->norm & V4L2_STD_DK)
 			areg_05 = 0x09;
-			break;
-		}
+		else
+			areg_05 = 0x05;
 		break;
 	/* NICAM */
 	case 2:
-		switch (dev->norm) {
-		case V4L2_STD_B:
-		case V4L2_STD_GH:
-			areg_05 = 0x07;
-			break;
-		case V4L2_STD_DK:
+		if (dev->norm & V4L2_STD_DK) {
 			areg_05 = 0x06;
-			break;
-		case V4L2_STD_PAL_I:
+		} else if (dev->norm & V4L2_STD_PAL_I) {
 			areg_05 = 0x08;
-			break;
-		case V4L2_STD_SECAM_L:
+		} else if (dev->norm & V4L2_STD_SECAM_L) {
 			areg_05 = 0x0a;
 			areg_02 = 0x02;
-			break;
+		} else {
+			areg_05 = 0x07;
 		}
 		nicam_flag = 1;
 		break;
 	/* other */
 	case 3:
-		switch (dev->norm) {
-		/* DK3_A2 */
-		case V4L2_STD_DK:
+		if (dev->norm & V4L2_STD_DK) {
 			areg_05 = 0x0b;
-			break;
-		/* Korea */
-		case V4L2_STD_NTSC_M_KR:
-			areg_05 = 0x04;
-			break;
-		/* EIAJ */
-		case V4L2_STD_NTSC_M_JP:
-			areg_05 = 0x03;
-			break;
-		default:
+		} else {
 			areg_05 = 0x02;
-			break;
 		}
 		break;
 	}
@@ -557,10 +526,16 @@ int tm6000_set_standard(struct tm6000_core *dev)
 		case TM6000_AMUX_ADC1:
 			tm6000_set_reg_mask(dev, TM6010_REQ08_RF0_DAUDIO_INPUT_CONFIG,
 				0x00, 0x0f);
+			/* Mux overflow workaround */
+			tm6000_set_reg_mask(dev, TM6010_REQ07_R07_OUTPUT_CONTROL,
+				0x10, 0xf0);
 			break;
 		case TM6000_AMUX_ADC2:
 			tm6000_set_reg_mask(dev, TM6010_REQ08_RF0_DAUDIO_INPUT_CONFIG,
 				0x08, 0x0f);
+			/* Mux overflow workaround */
+			tm6000_set_reg_mask(dev, TM6010_REQ07_R07_OUTPUT_CONTROL,
+				0x10, 0xf0);
 			break;
 		case TM6000_AMUX_SIF1:
 			reg_08_e2 |= 0x02;
@@ -570,6 +545,9 @@ int tm6000_set_standard(struct tm6000_core *dev)
 			tm6000_set_reg(dev, TM6010_REQ08_RE4_ADC_IN2_SEL, 0xf3);
 			tm6000_set_reg_mask(dev, TM6010_REQ08_RF0_DAUDIO_INPUT_CONFIG,
 				0x02, 0x0f);
+			/* Mux overflow workaround */
+			tm6000_set_reg_mask(dev, TM6010_REQ07_R07_OUTPUT_CONTROL,
+				0x30, 0xf0);
 			break;
 		case TM6000_AMUX_SIF2:
 			reg_08_e2 |= 0x02;
@@ -579,6 +557,9 @@ int tm6000_set_standard(struct tm6000_core *dev)
 			tm6000_set_reg(dev, TM6010_REQ08_RE4_ADC_IN2_SEL, 0xf7);
 			tm6000_set_reg_mask(dev, TM6010_REQ08_RF0_DAUDIO_INPUT_CONFIG,
 				0x02, 0x0f);
+			/* Mux overflow workaround */
+			tm6000_set_reg_mask(dev, TM6010_REQ07_R07_OUTPUT_CONTROL,
+				0x30, 0xf0);
 			break;
 		default:
 			break;

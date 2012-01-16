@@ -26,6 +26,7 @@
 #define __INTEL_DRV_H__
 
 #include <linux/i2c.h>
+#include "i915_drm.h"
 #include "i915_drv.h"
 #include "drm_crtc.h"
 #include "drm_crtc_helper.h"
@@ -39,20 +40,13 @@
 			ret__ = -ETIMEDOUT;				\
 			break;						\
 		}							\
-		if (W && !(in_atomic() || in_dbg_master())) msleep(W);	\
+		if (W && drm_can_sleep()) msleep(W);	\
 	}								\
 	ret__;								\
 })
 
 #define wait_for(COND, MS) _wait_for(COND, MS, 1)
 #define wait_for_atomic(COND, MS) _wait_for(COND, MS, 0)
-
-#define MSLEEP(x) do { \
-	if (in_dbg_master()) \
-		mdelay(x); \
-	else \
-		msleep(x); \
-} while (0)
 
 #define KHz(x) (1000*x)
 #define MHz(x) KHz(1000*x)
@@ -177,10 +171,32 @@ struct intel_crtc {
 	bool use_pll_a;
 };
 
+struct intel_plane {
+	struct drm_plane base;
+	enum pipe pipe;
+	struct drm_i915_gem_object *obj;
+	bool primary_disabled;
+	int max_downscale;
+	u32 lut_r[1024], lut_g[1024], lut_b[1024];
+	void (*update_plane)(struct drm_plane *plane,
+			     struct drm_framebuffer *fb,
+			     struct drm_i915_gem_object *obj,
+			     int crtc_x, int crtc_y,
+			     unsigned int crtc_w, unsigned int crtc_h,
+			     uint32_t x, uint32_t y,
+			     uint32_t src_w, uint32_t src_h);
+	void (*disable_plane)(struct drm_plane *plane);
+	int (*update_colorkey)(struct drm_plane *plane,
+			       struct drm_intel_sprite_colorkey *key);
+	void (*get_colorkey)(struct drm_plane *plane,
+			     struct drm_intel_sprite_colorkey *key);
+};
+
 #define to_intel_crtc(x) container_of(x, struct intel_crtc, base)
 #define to_intel_connector(x) container_of(x, struct intel_connector, base)
 #define to_intel_encoder(x) container_of(x, struct intel_encoder, base)
 #define to_intel_framebuffer(x) container_of(x, struct intel_framebuffer, base)
+#define to_intel_plane(x) container_of(x, struct intel_plane, base)
 
 #define DIP_HEADER_SIZE	5
 
@@ -290,6 +306,7 @@ intel_dp_set_m_n(struct drm_crtc *crtc, struct drm_display_mode *mode,
 extern bool intel_dpd_is_edp(struct drm_device *dev);
 extern void intel_edp_link_config(struct intel_encoder *, int *, int *);
 extern bool intel_encoder_is_pch_edp(struct drm_encoder *encoder);
+extern int intel_plane_init(struct drm_device *dev, enum pipe pipe);
 
 /* intel_panel.c */
 extern void intel_fixed_panel_mode(struct drm_display_mode *fixed_mode,
@@ -360,7 +377,7 @@ extern int intel_pin_and_fence_fb_obj(struct drm_device *dev,
 
 extern int intel_framebuffer_init(struct drm_device *dev,
 				  struct intel_framebuffer *ifb,
-				  struct drm_mode_fb_cmd *mode_cmd,
+				  struct drm_mode_fb_cmd2 *mode_cmd,
 				  struct drm_i915_gem_object *obj);
 extern int intel_fbdev_init(struct drm_device *dev);
 extern void intel_fbdev_fini(struct drm_device *dev);
@@ -380,9 +397,25 @@ extern int intel_overlay_attrs(struct drm_device *dev, void *data,
 extern void intel_fb_output_poll_changed(struct drm_device *dev);
 extern void intel_fb_restore_mode(struct drm_device *dev);
 
+extern void assert_pipe(struct drm_i915_private *dev_priv, enum pipe pipe,
+			bool state);
+#define assert_pipe_enabled(d, p) assert_pipe(d, p, true)
+#define assert_pipe_disabled(d, p) assert_pipe(d, p, false)
+
 extern void intel_init_clock_gating(struct drm_device *dev);
 extern void intel_write_eld(struct drm_encoder *encoder,
 			    struct drm_display_mode *mode);
 extern void intel_cpt_verify_modeset(struct drm_device *dev, int pipe);
+
+/* For use by IVB LP watermark workaround in intel_sprite.c */
+extern void sandybridge_update_wm(struct drm_device *dev);
+extern void intel_update_sprite_watermarks(struct drm_device *dev, int pipe,
+					   uint32_t sprite_width,
+					   int pixel_size);
+
+extern int intel_sprite_set_colorkey(struct drm_device *dev, void *data,
+				     struct drm_file *file_priv);
+extern int intel_sprite_get_colorkey(struct drm_device *dev, void *data,
+				     struct drm_file *file_priv);
 
 #endif /* __INTEL_DRV_H__ */

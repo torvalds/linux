@@ -1282,11 +1282,3 @@ line, top field first. The bottom field is transmitted first.</entry>
 	</mediaobject>
     </figure>
   </section>
-
-  <!--
-Local Variables:
-mode: sgml
-sgml-parent-document: "v4l2.sgml"
-indent-tabs-mode: nil
-End:
-  -->

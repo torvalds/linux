@@ -64,6 +64,32 @@ static const unsigned char usb_kbd_keycode[256] = {
 	150,158,159,128,136,177,178,176,142,152,173,140
 };
 
+
+/**
+ * struct usb_kbd - state of each attached keyboard
+ * @dev:	input device associated with this keyboard
+ * @usbdev:	usb device associated with this keyboard
+ * @old:	data received in the past from the @irq URB representing which
+ *		keys were pressed. By comparing with the current list of keys
+ *		that are pressed, we are able to see key releases.
+ * @irq:	URB for receiving a list of keys that are pressed when a
+ *		new key is pressed or a key that was pressed is released.
+ * @led:	URB for sending LEDs (e.g. numlock, ...)
+ * @newleds:	data that will be sent with the @led URB representing which LEDs
+ 		should be on
+ * @name:	Name of the keyboard. @dev's name field points to this buffer
+ * @phys:	Physical path of the keyboard. @dev's phys field points to this
+ *		buffer
+ * @new:	Buffer for the @irq URB
+ * @cr:		Control request for @led URB
+ * @leds:	Buffer for the @led URB
+ * @new_dma:	DMA address for @irq URB
+ * @leds_dma:	DMA address for @led URB
+ * @leds_lock:	spinlock that protects @leds, @newleds, and @led_urb_submitted
+ * @led_urb_submitted: indicates whether @led is in progress, i.e. it has been
+ *		submitted and its completion handler has not returned yet
+ *		without	resubmitting @led
+ */
 struct usb_kbd {
 	struct input_dev *dev;
 	struct usb_device *usbdev;
@@ -78,6 +104,10 @@ struct usb_kbd {
 	unsigned char *leds;
 	dma_addr_t new_dma;
 	dma_addr_t leds_dma;
+	
+	spinlock_t leds_lock;
+	bool led_urb_submitted;
+
 };
 
 static void usb_kbd_irq(struct urb *urb)
@@ -136,44 +166,66 @@ resubmit:
 static int usb_kbd_event(struct input_dev *dev, unsigned int type,
 			 unsigned int code, int value)
 {
+	unsigned long flags;
 	struct usb_kbd *kbd = input_get_drvdata(dev);
 
 	if (type != EV_LED)
 		return -1;
 
+	spin_lock_irqsave(&kbd->leds_lock, flags);
 	kbd->newleds = (!!test_bit(LED_KANA,    dev->led) << 3) | (!!test_bit(LED_COMPOSE, dev->led) << 3) |
 		       (!!test_bit(LED_SCROLLL, dev->led) << 2) | (!!test_bit(LED_CAPSL,   dev->led) << 1) |
 		       (!!test_bit(LED_NUML,    dev->led));
 
-	if (kbd->led->status == -EINPROGRESS)
+	if (kbd->led_urb_submitted){
+		spin_unlock_irqrestore(&kbd->leds_lock, flags);
 		return 0;
+	}
 
-	if (*(kbd->leds) == kbd->newleds)
+	if (*(kbd->leds) == kbd->newleds){
+		spin_unlock_irqrestore(&kbd->leds_lock, flags);
 		return 0;
+	}
 
 	*(kbd->leds) = kbd->newleds;
+	
 	kbd->led->dev = kbd->usbdev;
 	if (usb_submit_urb(kbd->led, GFP_ATOMIC))
 		pr_err("usb_submit_urb(leds) failed\n");
-
+	else
+		kbd->led_urb_submitted = true;
+	
+	spin_unlock_irqrestore(&kbd->leds_lock, flags);
+	
 	return 0;
 }
 
 static void usb_kbd_led(struct urb *urb)
 {
+	unsigned long flags;
 	struct usb_kbd *kbd = urb->context;
 
 	if (urb->status)
 		hid_warn(urb->dev, "led urb status %d received\n",
 			 urb->status);
 
-	if (*(kbd->leds) == kbd->newleds)
+	spin_lock_irqsave(&kbd->leds_lock, flags);
+
+	if (*(kbd->leds) == kbd->newleds){
+		kbd->led_urb_submitted = false;
+		spin_unlock_irqrestore(&kbd->leds_lock, flags);
 		return;
+	}
 
 	*(kbd->leds) = kbd->newleds;
+	
 	kbd->led->dev = kbd->usbdev;
-	if (usb_submit_urb(kbd->led, GFP_ATOMIC))
+	if (usb_submit_urb(kbd->led, GFP_ATOMIC)){
 		hid_err(urb->dev, "usb_submit_urb(leds) failed\n");
+		kbd->led_urb_submitted = false;
+	}
+	spin_unlock_irqrestore(&kbd->leds_lock, flags);
+	
 }
 
 static int usb_kbd_open(struct input_dev *dev)
@@ -252,6 +304,7 @@ static int usb_kbd_probe(struct usb_interface *iface,
 
 	kbd->usbdev = dev;
 	kbd->dev = input_dev;
+	spin_lock_init(&kbd->leds_lock);
 
 	if (dev->manufacturer)
 		strlcpy(kbd->name, dev->manufacturer, sizeof(kbd->name));
@@ -334,6 +387,7 @@ static void usb_kbd_disconnect(struct usb_interface *intf)
 	if (kbd) {
 		usb_kill_urb(kbd->irq);
 		input_unregister_device(kbd->dev);
+		usb_kill_urb(kbd->led);
 		usb_kbd_free_mem(interface_to_usbdev(intf), kbd);
 		kfree(kbd);
 	}

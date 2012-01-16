@@ -275,7 +275,7 @@ static int aic26_set_fmt(struct snd_soc_dai *codec_dai, unsigned int fmt)
 #define AIC26_FORMATS	(SNDRV_PCM_FMTBIT_S8     | SNDRV_PCM_FMTBIT_S16_BE |\
 			 SNDRV_PCM_FMTBIT_S24_BE | SNDRV_PCM_FMTBIT_S32_BE)
 
-static struct snd_soc_dai_ops aic26_dai_ops = {
+static const struct snd_soc_dai_ops aic26_dai_ops = {
 	.hw_params	= aic26_hw_params,
 	.digital_mute	= aic26_mute,
 	.set_sysclk	= aic26_set_sysclk,
@@ -416,7 +416,7 @@ static int aic26_spi_probe(struct spi_device *spi)
 	dev_dbg(&spi->dev, "probing tlv320aic26 spi device\n");
 
 	/* Allocate driver data */
-	aic26 = kzalloc(sizeof *aic26, GFP_KERNEL);
+	aic26 = devm_kzalloc(&spi->dev, sizeof *aic26, GFP_KERNEL);
 	if (!aic26)
 		return -ENOMEM;
 
@@ -427,18 +427,12 @@ static int aic26_spi_probe(struct spi_device *spi)
 
 	ret = snd_soc_register_codec(&spi->dev,
 			&aic26_soc_codec_dev, &aic26_dai, 1);
-	if (ret < 0)
-		kfree(aic26);
 	return ret;
-
-	dev_dbg(&spi->dev, "SPI device initialized\n");
-	return 0;
 }
 
 static int aic26_spi_remove(struct spi_device *spi)
 {
 	snd_soc_unregister_codec(&spi->dev);
-	kfree(spi_get_drvdata(spi));
 	return 0;
 }
 

@@ -61,7 +61,7 @@
 
 static int index[SNDRV_CARDS] = SNDRV_DEFAULT_IDX;	  /* Index 0-MAX */
 static char *id[SNDRV_CARDS] = SNDRV_DEFAULT_STR;	  /* ID for this card */
-static int enable[SNDRV_CARDS] = SNDRV_DEFAULT_ENABLE_PNP;/* Enable this card */
+static bool enable[SNDRV_CARDS] = SNDRV_DEFAULT_ENABLE_PNP;/* Enable this card */
 
 module_param_array(index, int, NULL, 0444);
 MODULE_PARM_DESC(index, "Index value for RME HDSPM interface.");
@@ -940,6 +940,8 @@ struct hdspm {
 	int texts_autosync_items;
 
 	cycles_t last_interrupt;
+
+	unsigned int serial;
 
 	struct hdspm_peak_rms peak_rms;
 };
@@ -4694,7 +4696,7 @@ snd_hdspm_proc_read_madi(struct snd_info_entry * entry,
 
 	snd_iprintf(buffer, "HW Serial: 0x%06x%06x\n",
 			(hdspm_read(hdspm, HDSPM_midiStatusIn1)>>8) & 0xFFFFFF,
-			(hdspm_read(hdspm, HDSPM_midiStatusIn0)>>8) & 0xFFFFFF);
+			hdspm->serial);
 
 	snd_iprintf(buffer, "IRQ: %d Registers bus: 0x%lx VM: 0x%lx\n",
 			hdspm->irq, hdspm->port, (unsigned long)hdspm->iobase);
@@ -6266,8 +6268,7 @@ static int snd_hdspm_hwdep_ioctl(struct snd_hwdep *hw, struct file *file,
 		hdspm_version.card_type = hdspm->io_type;
 		strncpy(hdspm_version.cardname, hdspm->card_name,
 				sizeof(hdspm_version.cardname));
-		hdspm_version.serial = (hdspm_read(hdspm,
-					HDSPM_midiStatusIn0)>>8) & 0xFFFFFF;
+		hdspm_version.serial = hdspm->serial;
 		hdspm_version.firmware_rev = hdspm->firmware_rev;
 		hdspm_version.addons = 0;
 		if (hdspm->tco)
@@ -6782,6 +6783,25 @@ static int __devinit snd_hdspm_create(struct snd_card *card,
 	tasklet_init(&hdspm->midi_tasklet,
 			hdspm_midi_tasklet, (unsigned long) hdspm);
 
+
+	if (hdspm->io_type != MADIface) {
+		hdspm->serial = (hdspm_read(hdspm,
+				HDSPM_midiStatusIn0)>>8) & 0xFFFFFF;
+		/* id contains either a user-provided value or the default
+		 * NULL. If it's the default, we're safe to
+		 * fill card->id with the serial number.
+		 *
+		 * If the serial number is 0xFFFFFF, then we're dealing with
+		 * an old PCI revision that comes without a sane number. In
+		 * this case, we don't set card->id to avoid collisions
+		 * when running with multiple cards.
+		 */
+		if (NULL == id[hdspm->dev] && hdspm->serial != 0xFFFFFF) {
+			sprintf(card->id, "HDSPMx%06x", hdspm->serial);
+			snd_card_set_id(card, card->id);
+		}
+	}
+
 	snd_printdd("create alsa devices.\n");
 	err = snd_hdspm_create_alsa_devices(card, hdspm);
 	if (err < 0)
@@ -6868,10 +6888,10 @@ static int __devinit snd_hdspm_probe(struct pci_dev *pci,
 	if (hdspm->io_type != MADIface) {
 		sprintf(card->shortname, "%s_%x",
 			hdspm->card_name,
-			(hdspm_read(hdspm, HDSPM_midiStatusIn0)>>8) & 0xFFFFFF);
+			hdspm->serial);
 		sprintf(card->longname, "%s S/N 0x%x at 0x%lx, irq %d",
 			hdspm->card_name,
-			(hdspm_read(hdspm, HDSPM_midiStatusIn0)>>8) & 0xFFFFFF,
+			hdspm->serial,
 			hdspm->port, hdspm->irq);
 	} else {
 		sprintf(card->shortname, "%s", hdspm->card_name);

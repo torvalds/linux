@@ -1452,21 +1452,9 @@ static struct platform_driver fsl_sata_driver = {
 #endif
 };
 
-static int __init sata_fsl_init(void)
-{
-	platform_driver_register(&fsl_sata_driver);
-	return 0;
-}
-
-static void __exit sata_fsl_exit(void)
-{
-	platform_driver_unregister(&fsl_sata_driver);
-}
+module_platform_driver(fsl_sata_driver);
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Ashish Kalra, Freescale Semiconductor");
 MODULE_DESCRIPTION("Freescale 3.0Gbps SATA controller low level driver");
 MODULE_VERSION("1.10");
-
-module_init(sata_fsl_init);
-module_exit(sata_fsl_exit);

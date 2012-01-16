@@ -282,23 +282,24 @@ static int jdvbt90502_set_property(struct dvb_frontend *fe,
 	return r;
 }
 
-static int jdvbt90502_get_frontend(struct dvb_frontend *fe,
-				   struct dvb_frontend_parameters *p)
+static int jdvbt90502_get_frontend(struct dvb_frontend *fe)
 {
+	struct dtv_frontend_properties *p = &fe->dtv_property_cache;
 	p->inversion = INVERSION_AUTO;
-	p->u.ofdm.bandwidth = BANDWIDTH_6_MHZ;
-	p->u.ofdm.code_rate_HP = FEC_AUTO;
-	p->u.ofdm.code_rate_LP = FEC_AUTO;
-	p->u.ofdm.constellation = QAM_64;
-	p->u.ofdm.transmission_mode = TRANSMISSION_MODE_AUTO;
-	p->u.ofdm.guard_interval = GUARD_INTERVAL_AUTO;
-	p->u.ofdm.hierarchy_information = HIERARCHY_AUTO;
+	p->bandwidth_hz = 6000000;
+	p->code_rate_HP = FEC_AUTO;
+	p->code_rate_LP = FEC_AUTO;
+	p->modulation = QAM_64;
+	p->transmission_mode = TRANSMISSION_MODE_AUTO;
+	p->guard_interval = GUARD_INTERVAL_AUTO;
+	p->hierarchy = HIERARCHY_AUTO;
 	return 0;
 }
 
-static int jdvbt90502_set_frontend(struct dvb_frontend *fe,
-				   struct dvb_frontend_parameters *p)
+static int jdvbt90502_set_frontend(struct dvb_frontend *fe)
 {
+	struct dtv_frontend_properties *p = &fe->dtv_property_cache;
+
 	/**
 	 * NOTE: ignore all the parameters except frequency.
 	 *       others should be fixed to the proper value for ISDB-T,
@@ -438,14 +439,12 @@ error:
 }
 
 static struct dvb_frontend_ops jdvbt90502_ops = {
-
+	.delsys = { SYS_ISDBT },
 	.info = {
 		.name			= "Comtech JDVBT90502 ISDB-T",
-		.type			= FE_OFDM,
 		.frequency_min		= 473000000, /* UHF 13ch, center */
 		.frequency_max		= 767142857, /* UHF 62ch, center */
-		.frequency_stepsize	= JDVBT90502_PLL_CLK /
-							JDVBT90502_PLL_DIVIDER,
+		.frequency_stepsize	= JDVBT90502_PLL_CLK / JDVBT90502_PLL_DIVIDER,
 		.frequency_tolerance	= 0,
 
 		/* NOTE: this driver ignores all parameters but frequency. */

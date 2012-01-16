@@ -103,7 +103,7 @@ static int adm1021_remove(struct i2c_client *client);
 static struct adm1021_data *adm1021_update_device(struct device *dev);
 
 /* (amalysh) read only mode, otherwise any limit's writing confuse BIOS */
-static int read_only;
+static bool read_only;
 
 
 static const struct i2c_device_id adm1021_id[] = {

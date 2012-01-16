@@ -99,7 +99,7 @@ static struct comedi_driver driver_das16cs = {
 	.detach = das16cs_detach,
 };
 
-static struct pcmcia_device *cur_dev = NULL;
+static struct pcmcia_device *cur_dev;
 
 static const struct comedi_lrange das16cs_ai_range = { 4, {
 							   RANGE(-10, 10),
@@ -150,7 +150,7 @@ static const struct das16cs_board *das16cs_probe(struct comedi_device *dev,
 			return das16cs_boards + i;
 	}
 
-	printk("unknown board!\n");
+	dev_dbg(dev->hw_dev, "unknown board!\n");
 
 	return NULL;
 }
@@ -163,20 +163,19 @@ static int das16cs_attach(struct comedi_device *dev,
 	int ret;
 	int i;
 
-	printk("comedi%d: cb_das16_cs: ", dev->minor);
+	dev_dbg(dev->hw_dev, "comedi%d: cb_das16_cs: attached\n", dev->minor);
 
 	link = cur_dev;		/* XXX hack */
 	if (!link)
 		return -EIO;
 
 	dev->iobase = link->resource[0]->start;
-	printk("I/O base=0x%04lx ", dev->iobase);
+	dev_dbg(dev->hw_dev, "I/O base=0x%04lx\n", dev->iobase);
 
-	printk("fingerprint:\n");
+	dev_dbg(dev->hw_dev, "fingerprint:\n");
 	for (i = 0; i < 48; i += 2)
-		printk("%04x ", inw(dev->iobase + i));
+		dev_dbg(dev->hw_dev, "%04x\n", inw(dev->iobase + i));
 
-	printk("\n");
 
 	ret = request_irq(link->irq, das16cs_interrupt,
 			  IRQF_SHARED, "cb_das16_cs", dev);
@@ -185,7 +184,7 @@ static int das16cs_attach(struct comedi_device *dev,
 
 	dev->irq = link->irq;
 
-	printk("irq=%u ", dev->irq);
+	dev_dbg(dev->hw_dev, "irq=%u\n", dev->irq);
 
 	dev->board_ptr = das16cs_probe(dev, link);
 	if (!dev->board_ptr)
@@ -252,14 +251,13 @@ static int das16cs_attach(struct comedi_device *dev,
 		s->type = COMEDI_SUBD_UNUSED;
 	}
 
-	printk("attached\n");
 
 	return 1;
 }
 
 static int das16cs_detach(struct comedi_device *dev)
 {
-	printk("comedi%d: das16cs: remove\n", dev->minor);
+	dev_dbg(dev->hw_dev, "comedi%d: das16cs: remove\n", dev->minor);
 
 	if (dev->irq)
 		free_irq(dev->irq, dev);
@@ -312,7 +310,7 @@ static int das16cs_ai_rinsn(struct comedi_device *dev,
 				break;
 		}
 		if (to == TIMEOUT) {
-			printk("cb_das16_cs: ai timeout\n");
+			dev_dbg(dev->hw_dev, "cb_das16_cs: ai timeout\n");
 			return -ETIME;
 		}
 		data[i] = (unsigned short)inw(dev->iobase + 0);

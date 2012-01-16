@@ -2,6 +2,7 @@
  * CPU subsystem support
  */
 
+#include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/init.h>
 #include <linux/sched.h>
@@ -10,6 +11,7 @@
 #include <linux/device.h>
 #include <linux/node.h>
 #include <linux/gfp.h>
+#include <linux/percpu.h>
 
 #include "base.h"
 
@@ -274,16 +276,30 @@ bool cpu_is_hotpluggable(unsigned cpu)
 }
 EXPORT_SYMBOL_GPL(cpu_is_hotpluggable);
 
-int __init cpu_dev_init(void)
-{
-	int err;
+#ifdef CONFIG_GENERIC_CPU_DEVICES
+static DEFINE_PER_CPU(struct cpu, cpu_devices);
+#endif
 
-	err = subsys_system_register(&cpu_subsys, cpu_root_attr_groups);
-	if (err)
-		return err;
+static void __init cpu_dev_register_generic(void)
+{
+#ifdef CONFIG_GENERIC_CPU_DEVICES
+	int i;
+
+	for_each_possible_cpu(i) {
+		if (register_cpu(&per_cpu(cpu_devices, i), i))
+			panic("Failed to register CPU device");
+	}
+#endif
+}
+
+void __init cpu_dev_init(void)
+{
+	if (subsys_system_register(&cpu_subsys, cpu_root_attr_groups))
+		panic("Failed to register CPU subsystem");
+
+	cpu_dev_register_generic();
 
 #if defined(CONFIG_SCHED_MC) || defined(CONFIG_SCHED_SMT)
-	err = sched_create_sysfs_power_savings_entries(cpu_subsys.dev_root);
+	sched_create_sysfs_power_savings_entries(cpu_subsys.dev_root);
 #endif
-	return err;
 }

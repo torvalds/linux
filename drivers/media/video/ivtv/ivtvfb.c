@@ -58,7 +58,7 @@
 /* card parameters */
 static int ivtvfb_card_id = -1;
 static int ivtvfb_debug = 0;
-static int osd_laced;
+static bool osd_laced;
 static int osd_depth;
 static int osd_upper;
 static int osd_left;

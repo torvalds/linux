@@ -16,6 +16,7 @@ config MIPS
 	select HAVE_FUNCTION_GRAPH_TRACER
 	select HAVE_KPROBES
 	select HAVE_KRETPROBES
+	select ARCH_BINFMT_ELF_RANDOMIZE_PIE
 	select RTC_LIB if !MACH_LOONGSON
 	select GENERIC_ATOMIC64 if !64BIT
 	select HAVE_DMA_ATTRS
@@ -718,7 +719,6 @@ config CAVIUM_OCTEON_SIMULATOR
 	select DMA_COHERENT
 	select SYS_SUPPORTS_64BIT_KERNEL
 	select SYS_SUPPORTS_BIG_ENDIAN
-	select SYS_SUPPORTS_HIGHMEM
 	select SYS_SUPPORTS_HOTPLUG_CPU
 	select SYS_HAS_CPU_CAVIUM_OCTEON
 	select HOLES_IN_ZONE
@@ -734,7 +734,6 @@ config CAVIUM_OCTEON_REFERENCE_BOARD
 	select DMA_COHERENT
 	select SYS_SUPPORTS_64BIT_KERNEL
 	select SYS_SUPPORTS_BIG_ENDIAN
-	select SYS_SUPPORTS_HIGHMEM
 	select SYS_SUPPORTS_HOTPLUG_CPU
 	select SYS_HAS_EARLY_PRINTK
 	select SYS_HAS_CPU_CAVIUM_OCTEON
@@ -763,7 +762,6 @@ config NLM_XLR_BOARD
 	depends on EXPERIMENTAL
 	select BOOT_ELF32
 	select NLM_COMMON
-	select NLM_XLR
 	select SYS_HAS_CPU_XLR
 	select SYS_SUPPORTS_SMP
 	select HW_HAS_PCI
@@ -778,12 +776,40 @@ config NLM_XLR_BOARD
 	select CEVT_R4K
 	select CSRC_R4K
 	select IRQ_CPU
+	select ARCH_SUPPORTS_MSI
 	select ZONE_DMA if 64BIT
 	select SYNC_R4K
 	select SYS_HAS_EARLY_PRINTK
 	help
 	  Support for systems based on Netlogic XLR and XLS processors.
 	  Say Y here if you have a XLR or XLS based board.
+
+config NLM_XLP_BOARD
+	bool "Netlogic XLP based systems"
+	depends on EXPERIMENTAL
+	select BOOT_ELF32
+	select NLM_COMMON
+	select SYS_HAS_CPU_XLP
+	select SYS_SUPPORTS_SMP
+	select HW_HAS_PCI
+	select SWAP_IO_SPACE
+	select SYS_SUPPORTS_32BIT_KERNEL
+	select SYS_SUPPORTS_64BIT_KERNEL
+	select 64BIT_PHYS_ADDR
+	select SYS_SUPPORTS_BIG_ENDIAN
+	select SYS_SUPPORTS_LITTLE_ENDIAN
+	select SYS_SUPPORTS_HIGHMEM
+	select DMA_COHERENT
+	select NR_CPUS_DEFAULT_32
+	select CEVT_R4K
+	select CSRC_R4K
+	select IRQ_CPU
+	select ZONE_DMA if 64BIT
+	select SYNC_R4K
+	select SYS_HAS_EARLY_PRINTK
+	help
+	  This board is based on Netlogic XLP Processor.
+	  Say Y here if you have a XLP based board.
 
 endchoice
 
@@ -1415,51 +1441,36 @@ config CPU_CAVIUM_OCTEON
 config CPU_BMIPS3300
 	bool "BMIPS3300"
 	depends on SYS_HAS_CPU_BMIPS3300
-	select DMA_NONCOHERENT
-	select IRQ_CPU
-	select SWAP_IO_SPACE
-	select SYS_SUPPORTS_32BIT_KERNEL
-	select WEAK_ORDERING
+	select CPU_BMIPS
 	help
 	  Broadcom BMIPS3300 processors.
 
 config CPU_BMIPS4350
 	bool "BMIPS4350"
 	depends on SYS_HAS_CPU_BMIPS4350
-	select CPU_SUPPORTS_32BIT_KERNEL
-	select DMA_NONCOHERENT
-	select IRQ_CPU
-	select SWAP_IO_SPACE
+	select CPU_BMIPS
 	select SYS_SUPPORTS_SMP
 	select SYS_SUPPORTS_HOTPLUG_CPU
-	select WEAK_ORDERING
 	help
 	  Broadcom BMIPS4350 ("VIPER") processors.
 
 config CPU_BMIPS4380
 	bool "BMIPS4380"
 	depends on SYS_HAS_CPU_BMIPS4380
-	select CPU_SUPPORTS_32BIT_KERNEL
-	select DMA_NONCOHERENT
-	select IRQ_CPU
-	select SWAP_IO_SPACE
+	select CPU_BMIPS
 	select SYS_SUPPORTS_SMP
 	select SYS_SUPPORTS_HOTPLUG_CPU
-	select WEAK_ORDERING
 	help
 	  Broadcom BMIPS4380 processors.
 
 config CPU_BMIPS5000
 	bool "BMIPS5000"
 	depends on SYS_HAS_CPU_BMIPS5000
-	select CPU_SUPPORTS_32BIT_KERNEL
+	select CPU_BMIPS
 	select CPU_SUPPORTS_HIGHMEM
-	select DMA_NONCOHERENT
-	select IRQ_CPU
-	select SWAP_IO_SPACE
+	select MIPS_CPU_SCACHE
 	select SYS_SUPPORTS_SMP
 	select SYS_SUPPORTS_HOTPLUG_CPU
-	select WEAK_ORDERING
 	help
 	  Broadcom BMIPS5000 processors.
 
@@ -1474,6 +1485,19 @@ config CPU_XLR
 	select CPU_SUPPORTS_HUGEPAGES
 	help
 	  Netlogic Microsystems XLR/XLS processors.
+
+config CPU_XLP
+	bool "Netlogic XLP SoC"
+	depends on SYS_HAS_CPU_XLP
+	select CPU_SUPPORTS_32BIT_KERNEL
+	select CPU_SUPPORTS_64BIT_KERNEL
+	select CPU_SUPPORTS_HIGHMEM
+	select CPU_HAS_LLSC
+	select WEAK_ORDERING
+	select WEAK_REORDERING_BEYOND_LLSC
+	select CPU_HAS_PREFETCH
+	help
+	  Netlogic Microsystems XLP processors.
 endchoice
 
 if CPU_LOONGSON2F
@@ -1519,6 +1543,15 @@ config CPU_LOONGSON2
 	select CPU_SUPPORTS_32BIT_KERNEL
 	select CPU_SUPPORTS_64BIT_KERNEL
 	select CPU_SUPPORTS_HIGHMEM
+
+config CPU_BMIPS
+	bool
+	select CPU_MIPS32
+	select CPU_SUPPORTS_32BIT_KERNEL
+	select DMA_NONCOHERENT
+	select IRQ_CPU
+	select SWAP_IO_SPACE
+	select WEAK_ORDERING
 
 config SYS_HAS_CPU_LOONGSON2E
 	bool
@@ -1605,6 +1638,9 @@ config SYS_HAS_CPU_BMIPS5000
 	bool
 
 config SYS_HAS_CPU_XLR
+	bool
+
+config SYS_HAS_CPU_XLP
 	bool
 
 #
@@ -1994,6 +2030,9 @@ config CPU_HAS_SMARTMIPS
 config CPU_HAS_WB
 	bool
 
+config XKS01
+	bool
+
 #
 # Vectored interrupt mode is an R2 feature
 #
@@ -2316,6 +2355,7 @@ config PCI
 	bool "Support for PCI controller"
 	depends on HW_HAS_PCI
 	select PCI_DOMAINS
+	select GENERIC_PCI_IOMAP
 	help
 	  Find out whether you have a PCI motherboard. PCI is the name of a
 	  bus system, i.e. the way the CPU talks to the other stuff inside

@@ -36,6 +36,7 @@
 #include <linux/init.h>
 #include <linux/screen_info.h>
 #include <linux/vga_switcheroo.h>
+#include <linux/console.h>
 
 #include "drmP.h"
 #include "drm.h"
@@ -281,7 +282,7 @@ nouveau_fbcon_create(struct nouveau_fbdev *nfbdev,
 	struct nouveau_framebuffer *nouveau_fb;
 	struct nouveau_channel *chan;
 	struct nouveau_bo *nvbo;
-	struct drm_mode_fb_cmd mode_cmd;
+	struct drm_mode_fb_cmd2 mode_cmd;
 	struct pci_dev *pdev = dev->pdev;
 	struct device *device = &pdev->dev;
 	int size, ret;
@@ -289,12 +290,13 @@ nouveau_fbcon_create(struct nouveau_fbdev *nfbdev,
 	mode_cmd.width = sizes->surface_width;
 	mode_cmd.height = sizes->surface_height;
 
-	mode_cmd.bpp = sizes->surface_bpp;
-	mode_cmd.pitch = mode_cmd.width * (mode_cmd.bpp >> 3);
-	mode_cmd.pitch = roundup(mode_cmd.pitch, 256);
-	mode_cmd.depth = sizes->surface_depth;
+	mode_cmd.pitches[0] = mode_cmd.width * (sizes->surface_bpp >> 3);
+	mode_cmd.pitches[0] = roundup(mode_cmd.pitches[0], 256);
 
-	size = mode_cmd.pitch * mode_cmd.height;
+	mode_cmd.pixel_format = drm_mode_legacy_fb_format(sizes->surface_bpp,
+							  sizes->surface_depth);
+
+	size = mode_cmd.pitches[0] * mode_cmd.height;
 	size = roundup(size, PAGE_SIZE);
 
 	ret = nouveau_gem_new(dev, size, 0, NOUVEAU_GEM_DOMAIN_VRAM,
@@ -369,7 +371,7 @@ nouveau_fbcon_create(struct nouveau_fbdev *nfbdev,
 	info->screen_base = nvbo_kmap_obj_iovirtual(nouveau_fb->nvbo);
 	info->screen_size = size;
 
-	drm_fb_helper_fill_fix(info, fb->pitch, fb->depth);
+	drm_fb_helper_fill_fix(info, fb->pitches[0], fb->depth);
 	drm_fb_helper_fill_var(info, &nfbdev->helper, sizes->fb_width, sizes->fb_height);
 
 	/* Set aperture base/size for vesafb takeover */
@@ -547,7 +549,13 @@ void nouveau_fbcon_restore_accel(struct drm_device *dev)
 void nouveau_fbcon_set_suspend(struct drm_device *dev, int state)
 {
 	struct drm_nouveau_private *dev_priv = dev->dev_private;
+	console_lock();
+	if (state == 0)
+		nouveau_fbcon_save_disable_accel(dev);
 	fb_set_suspend(dev_priv->nfbdev->helper.fbdev, state);
+	if (state == 1)
+		nouveau_fbcon_restore_accel(dev);
+	console_unlock();
 }
 
 void nouveau_fbcon_zfill_all(struct drm_device *dev)

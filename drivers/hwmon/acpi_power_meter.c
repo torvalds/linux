@@ -58,7 +58,7 @@ ACPI_MODULE_NAME(ACPI_POWER_METER_NAME);
 #define POWER_ALARM_NAME	"power1_alarm"
 
 static int cap_in_hardware;
-static int force_cap_on;
+static bool force_cap_on;
 
 static int can_cap_in_hardware(void)
 {

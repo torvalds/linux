@@ -34,6 +34,7 @@ enum twl6040_trim {
 #define TWL6040_HSF_TRIM_LEFT(x)	(x & 0x0f)
 #define TWL6040_HSF_TRIM_RIGHT(x)	((x >> 4) & 0x0f)
 
+int twl6040_get_dl1_gain(struct snd_soc_codec *codec);
 void twl6040_hs_jack_detect(struct snd_soc_codec *codec,
 			    struct snd_soc_jack *jack, int report);
 int twl6040_get_clk_id(struct snd_soc_codec *codec);

@@ -48,8 +48,8 @@ static const unsigned short normal_i2c[] = { 0x48, 0x49, 0x4a, 0x4b,
 	I2C_CLIENT_END };
 
 /* Module parameters */
-static int se_input = 1; /* Default is SE, 0 == diff */
-static int int_vref = 1; /* Default is internal ref ON */
+static bool se_input = 1; /* Default is SE, 0 == diff */
+static bool int_vref = 1; /* Default is internal ref ON */
 static int vref_mv = ADS7828_INT_VREF_MV; /* set if vref != 2.5V */
 module_param(se_input, bool, S_IRUGO);
 module_param(int_vref, bool, S_IRUGO);

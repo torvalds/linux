@@ -111,6 +111,9 @@ static void cx231xx_audio_isocirq(struct urb *urb)
 	struct snd_pcm_substream *substream;
 	struct snd_pcm_runtime *runtime;
 
+	if (dev->state & DEV_DISCONNECTED)
+		return;
+
 	switch (urb->status) {
 	case 0:		/* success */
 	case -ETIMEDOUT:	/* NAK */
@@ -196,6 +199,9 @@ static void cx231xx_audio_bulkirq(struct urb *urb)
 	struct snd_pcm_substream *substream;
 	struct snd_pcm_runtime *runtime;
 
+	if (dev->state & DEV_DISCONNECTED)
+		return;
+
 	switch (urb->status) {
 	case 0:		/* success */
 	case -ETIMEDOUT:	/* NAK */
@@ -273,6 +279,9 @@ static int cx231xx_init_audio_isoc(struct cx231xx *dev)
 
 	cx231xx_info("%s: Starting ISO AUDIO transfers\n", __func__);
 
+	if (dev->state & DEV_DISCONNECTED)
+		return -ENODEV;
+
 	sb_size = CX231XX_ISO_NUM_AUDIO_PACKETS * dev->adev.max_pkt_size;
 
 	for (i = 0; i < CX231XX_AUDIO_BUFS; i++) {
@@ -298,7 +307,7 @@ static int cx231xx_init_audio_isoc(struct cx231xx *dev)
 		urb->context = dev;
 		urb->pipe = usb_rcvisocpipe(dev->udev,
 						dev->adev.end_point_addr);
-		urb->transfer_flags = URB_ISO_ASAP;
+		urb->transfer_flags = URB_ISO_ASAP | URB_NO_TRANSFER_DMA_MAP;
 		urb->transfer_buffer = dev->adev.transfer_buffer[i];
 		urb->interval = 1;
 		urb->complete = cx231xx_audio_isocirq;
@@ -331,6 +340,9 @@ static int cx231xx_init_audio_bulk(struct cx231xx *dev)
 
 	cx231xx_info("%s: Starting BULK AUDIO transfers\n", __func__);
 
+	if (dev->state & DEV_DISCONNECTED)
+		return -ENODEV;
+
 	sb_size = CX231XX_NUM_AUDIO_PACKETS * dev->adev.max_pkt_size;
 
 	for (i = 0; i < CX231XX_AUDIO_BUFS; i++) {
@@ -356,7 +368,7 @@ static int cx231xx_init_audio_bulk(struct cx231xx *dev)
 		urb->context = dev;
 		urb->pipe = usb_rcvbulkpipe(dev->udev,
 						dev->adev.end_point_addr);
-		urb->transfer_flags = 0;
+		urb->transfer_flags = URB_NO_TRANSFER_DMA_MAP;
 		urb->transfer_buffer = dev->adev.transfer_buffer[i];
 		urb->complete = cx231xx_audio_bulkirq;
 		urb->transfer_buffer_length = sb_size;
@@ -429,6 +441,11 @@ static int snd_cx231xx_capture_open(struct snd_pcm_substream *substream)
 	if (!dev) {
 		cx231xx_errdev("BUG: cx231xx can't find device struct."
 			       " Can't proceed with open\n");
+		return -ENODEV;
+	}
+
+	if (dev->state & DEV_DISCONNECTED) {
+		cx231xx_errdev("Can't open. the device was removed.\n");
 		return -ENODEV;
 	}
 
@@ -570,6 +587,9 @@ static int snd_cx231xx_capture_trigger(struct snd_pcm_substream *substream,
 {
 	struct cx231xx *dev = snd_pcm_substream_chip(substream);
 	int retval;
+
+	if (dev->state & DEV_DISCONNECTED)
+		return -ENODEV;
 
 	spin_lock(&dev->adev.slock);
 	switch (cmd) {

@@ -709,15 +709,9 @@ void __init board_prom_init(void)
 	char cfe_version[32];
 	u32 val;
 
-	/* read base address of boot chip select (0)
-	 * 6345 does not have MPI but boots from standard
-	 * MIPS Flash address */
-	if (BCMCPU_IS_6345())
-		val = 0x1fc00000;
-	else {
-		val = bcm_mpi_readl(MPI_CSBASE_REG(0));
-		val &= MPI_CSBASE_BASE_MASK;
-	}
+	/* read base address of boot chip select (0) */
+	val = bcm_mpi_readl(MPI_CSBASE_REG(0));
+	val &= MPI_CSBASE_BASE_MASK;
 	boot_addr = (u8 *)KSEG1ADDR(val);
 
 	/* dump cfe version */
@@ -797,18 +791,6 @@ void __init board_prom_init(void)
 	}
 
 	bcm_gpio_writel(val, GPIO_MODE_REG);
-
-	/* Generate MAC address for WLAN and
-	 * register our SPROM */
-#ifdef CONFIG_SSB_PCIHOST
-	if (!board_get_mac_address(bcm63xx_sprom.il0mac)) {
-		memcpy(bcm63xx_sprom.et0mac, bcm63xx_sprom.il0mac, ETH_ALEN);
-		memcpy(bcm63xx_sprom.et1mac, bcm63xx_sprom.il0mac, ETH_ALEN);
-		if (ssb_arch_register_fallback_sprom(
-				&bcm63xx_get_fallback_sprom) < 0)
-			printk(KERN_ERR PFX "failed to register fallback SPROM\n");
-	}
-#endif
 }
 
 /*
@@ -834,10 +816,13 @@ static struct mtd_partition mtd_partitions[] = {
 	}
 };
 
+static const char *bcm63xx_part_types[] = { "bcm63xxpart", NULL };
+
 static struct physmap_flash_data flash_data = {
 	.width			= 2,
 	.nr_parts		= ARRAY_SIZE(mtd_partitions),
 	.parts			= mtd_partitions,
+	.part_probe_types	= bcm63xx_part_types,
 };
 
 static struct resource mtd_resources[] = {
@@ -892,13 +877,23 @@ int __init board_register_devices(void)
 	if (board.has_dsp)
 		bcm63xx_dsp_register(&board.dsp);
 
-	/* read base address of boot chip select (0) */
-	if (BCMCPU_IS_6345())
-		val = 0x1fc00000;
-	else {
-		val = bcm_mpi_readl(MPI_CSBASE_REG(0));
-		val &= MPI_CSBASE_BASE_MASK;
+	/* Generate MAC address for WLAN and register our SPROM,
+	 * do this after registering enet devices
+	 */
+#ifdef CONFIG_SSB_PCIHOST
+	if (!board_get_mac_address(bcm63xx_sprom.il0mac)) {
+		memcpy(bcm63xx_sprom.et0mac, bcm63xx_sprom.il0mac, ETH_ALEN);
+		memcpy(bcm63xx_sprom.et1mac, bcm63xx_sprom.il0mac, ETH_ALEN);
+		if (ssb_arch_register_fallback_sprom(
+				&bcm63xx_get_fallback_sprom) < 0)
+			pr_err(PFX "failed to register fallback SPROM\n");
 	}
+#endif
+
+	/* read base address of boot chip select (0) */
+	val = bcm_mpi_readl(MPI_CSBASE_REG(0));
+	val &= MPI_CSBASE_BASE_MASK;
+
 	mtd_resources[0].start = val;
 	mtd_resources[0].end = 0x1FFFFFFF;
 

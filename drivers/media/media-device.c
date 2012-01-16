@@ -108,8 +108,7 @@ static long media_device_enum_entities(struct media_device *mdev,
 	u_ent.group_id = ent->group_id;
 	u_ent.pads = ent->num_pads;
 	u_ent.links = ent->num_links - ent->num_backlinks;
-	u_ent.v4l.major = ent->v4l.major;
-	u_ent.v4l.minor = ent->v4l.minor;
+	memcpy(&u_ent.raw, &ent->info, sizeof(ent->info));
 	if (copy_to_user(uent, &u_ent, sizeof(u_ent)))
 		return -EFAULT;
 	return 0;

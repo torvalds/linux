@@ -1141,7 +1141,7 @@ printer_setup(struct usb_gadget *gadget, const struct usb_ctrlrequest *ctrl)
 				break;
 #ifdef CONFIG_USB_GADGET_DUALSPEED
 			case USB_DT_DEVICE_QUALIFIER:
-				if (!gadget->is_dualspeed)
+				if (!gadget_is_dualspeed(gadget))
 					break;
 				/*
 				 * assumes ep0 uses the same value for both
@@ -1155,7 +1155,7 @@ printer_setup(struct usb_gadget *gadget, const struct usb_ctrlrequest *ctrl)
 				break;
 
 			case USB_DT_OTHER_SPEED_CONFIG:
-				if (!gadget->is_dualspeed)
+				if (!gadget_is_dualspeed(gadget))
 					break;
 				/* FALLTHROUGH */
 #endif /* CONFIG_USB_GADGET_DUALSPEED */
@@ -1535,7 +1535,7 @@ fail:
 /*-------------------------------------------------------------------------*/
 
 static struct usb_gadget_driver printer_driver = {
-	.speed		= DEVSPEED,
+	.max_speed	= DEVSPEED,
 
 	.function	= (char *) driver_desc,
 	.unbind		= printer_unbind,
