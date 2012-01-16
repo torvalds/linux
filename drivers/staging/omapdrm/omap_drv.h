@@ -42,6 +42,8 @@
 struct omap_drm_private {
 	unsigned int num_crtcs;
 	struct drm_crtc *crtcs[8];
+	unsigned int num_planes;
+	struct drm_plane *planes[8];
 	unsigned int num_encoders;
 	struct drm_encoder *encoders[8];
 	unsigned int num_connectors;
@@ -62,7 +64,11 @@ void omap_fbdev_free(struct drm_device *dev);
 
 struct drm_crtc *omap_crtc_init(struct drm_device *dev,
 		struct omap_overlay *ovl, int id);
-struct omap_overlay *omap_crtc_get_overlay(struct drm_crtc *crtc);
+
+struct drm_plane *omap_plane_init(struct drm_device *dev,
+		struct omap_overlay *ovl, unsigned int possible_crtcs,
+		bool priv);
+int omap_plane_dpms(struct drm_plane *plane, int mode);
 
 struct drm_encoder *omap_encoder_init(struct drm_device *dev,
 		struct omap_overlay_manager *mgr);

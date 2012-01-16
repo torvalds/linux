@@ -204,12 +204,6 @@ static int create_crtc(struct drm_device *dev, struct omap_overlay *ovl,
 	struct omap_overlay_manager *mgr = NULL;
 	struct drm_crtc *crtc;
 
-	if (ovl->manager) {
-		DBG("disconnecting %s from %s", ovl->name,
-					ovl->manager->name);
-		ovl->unset_manager(ovl);
-	}
-
 	/* find next best connector, ones with detected connection first
 	 */
 	while (*j < priv->num_connectors && !mgr) {
@@ -245,11 +239,6 @@ static int create_crtc(struct drm_device *dev, struct omap_overlay *ovl,
 		(*j)++;
 	}
 
-	if (mgr) {
-		DBG("connecting %s to %s", ovl->name, mgr->name);
-		ovl->set_manager(ovl, mgr);
-	}
-
 	crtc = omap_crtc_init(dev, ovl, priv->num_crtcs);
 
 	if (!crtc) {
@@ -261,6 +250,26 @@ static int create_crtc(struct drm_device *dev, struct omap_overlay *ovl,
 	BUG_ON(priv->num_crtcs >= ARRAY_SIZE(priv->crtcs));
 
 	priv->crtcs[priv->num_crtcs++] = crtc;
+
+	return 0;
+}
+
+static int create_plane(struct drm_device *dev, struct omap_overlay *ovl,
+		unsigned int possible_crtcs)
+{
+	struct omap_drm_private *priv = dev->dev_private;
+	struct drm_plane *plane =
+			omap_plane_init(dev, ovl, possible_crtcs, false);
+
+	if (!plane) {
+		dev_err(dev->dev, "could not create plane: %s\n",
+				ovl->name);
+		return -ENOMEM;
+	}
+
+	BUG_ON(priv->num_planes >= ARRAY_SIZE(priv->planes));
+
+	priv->planes[priv->num_planes++] = plane;
 
 	return 0;
 }
@@ -332,6 +341,12 @@ static int omap_modeset_init(struct drm_device *dev)
 				omap_dss_get_overlay(kms_pdata->ovl_ids[i]);
 			create_crtc(dev, ovl, &j, connected_connectors);
 		}
+
+		for (i = 0; i < kms_pdata->pln_cnt; i++) {
+			struct omap_overlay *ovl =
+				omap_dss_get_overlay(kms_pdata->pln_ids[i]);
+			create_plane(dev, ovl, (1 << priv->num_crtcs) - 1);
+		}
 	} else {
 		/* otherwise just grab up to CONFIG_DRM_OMAP_NUM_CRTCS and try
 		 * to make educated guesses about everything else
@@ -353,6 +368,12 @@ static int omap_modeset_init(struct drm_device *dev)
 			create_crtc(dev, omap_dss_get_overlay(i),
 					&j, connected_connectors);
 		}
+
+		/* use any remaining overlays as drm planes */
+		for (; i < omap_dss_get_num_overlays(); i++) {
+			struct omap_overlay *ovl = omap_dss_get_overlay(i);
+			create_plane(dev, ovl, (1 << priv->num_crtcs) - 1);
+		}
 	}
 
 	/* for now keep the mapping of CRTCs and encoders static.. */
@@ -361,15 +382,7 @@ static int omap_modeset_init(struct drm_device *dev)
 		struct omap_overlay_manager *mgr =
 				omap_encoder_get_manager(encoder);
 
-		encoder->possible_crtcs = 0;
-
-		for (j = 0; j < priv->num_crtcs; j++) {
-			struct omap_overlay *ovl =
-					omap_crtc_get_overlay(priv->crtcs[j]);
-			if (ovl->manager == mgr) {
-				encoder->possible_crtcs |= (1 << j);
-			}
-		}
+		encoder->possible_crtcs = (1 << priv->num_crtcs) - 1;
 
 		DBG("%s: possible_crtcs=%08x", mgr->name,
 					encoder->possible_crtcs);
