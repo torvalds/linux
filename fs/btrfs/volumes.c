@@ -2207,6 +2207,20 @@ static int chunk_drange_filter(struct extent_buffer *leaf,
 	return 1;
 }
 
+/* [vstart, vend) */
+static int chunk_vrange_filter(struct extent_buffer *leaf,
+			       struct btrfs_chunk *chunk,
+			       u64 chunk_offset,
+			       struct btrfs_balance_args *bargs)
+{
+	if (chunk_offset < bargs->vend &&
+	    chunk_offset + btrfs_chunk_length(leaf, chunk) > bargs->vstart)
+		/* at least part of the chunk is inside this vrange */
+		return 0;
+
+	return 1;
+}
+
 static int should_balance_chunk(struct btrfs_root *root,
 				struct extent_buffer *leaf,
 				struct btrfs_chunk *chunk, u64 chunk_offset)
@@ -2249,6 +2263,12 @@ static int should_balance_chunk(struct btrfs_root *root,
 	/* drange filter, makes sense only with devid filter */
 	if ((bargs->flags & BTRFS_BALANCE_ARGS_DRANGE) &&
 	    chunk_drange_filter(leaf, chunk, chunk_offset, bargs)) {
+		return 0;
+	}
+
+	/* vrange filter */
+	if ((bargs->flags & BTRFS_BALANCE_ARGS_VRANGE) &&
+	    chunk_vrange_filter(leaf, chunk, chunk_offset, bargs)) {
 		return 0;
 	}
 

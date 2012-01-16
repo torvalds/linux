@@ -203,6 +203,7 @@ struct map_lookup {
 #define BTRFS_BALANCE_ARGS_USAGE	(1ULL << 1)
 #define BTRFS_BALANCE_ARGS_DEVID	(1ULL << 2)
 #define BTRFS_BALANCE_ARGS_DRANGE	(1ULL << 3)
+#define BTRFS_BALANCE_ARGS_VRANGE	(1ULL << 4)
 
 struct btrfs_balance_args;
 struct btrfs_balance_control {
