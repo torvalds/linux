@@ -3116,6 +3116,9 @@ static long btrfs_ioctl_balance(struct btrfs_root *root, void __user *arg)
 		memcpy(&bctl->sys, &bargs->sys, sizeof(bctl->sys));
 
 		bctl->flags = bargs->flags;
+	} else {
+		/* balance everything - no filters */
+		bctl->flags |= BTRFS_BALANCE_TYPE_MASK;
 	}
 
 	ret = btrfs_balance(bctl, bargs);

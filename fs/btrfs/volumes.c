@@ -2102,6 +2102,30 @@ static void unset_balance_control(struct btrfs_fs_info *fs_info)
 	kfree(bctl);
 }
 
+static int should_balance_chunk(struct btrfs_root *root,
+				struct extent_buffer *leaf,
+				struct btrfs_chunk *chunk, u64 chunk_offset)
+{
+	struct btrfs_balance_control *bctl = root->fs_info->balance_ctl;
+	struct btrfs_balance_args *bargs = NULL;
+	u64 chunk_type = btrfs_chunk_type(leaf, chunk);
+
+	/* type filter */
+	if (!((chunk_type & BTRFS_BLOCK_GROUP_TYPE_MASK) &
+	      (bctl->flags & BTRFS_BALANCE_TYPE_MASK))) {
+		return 0;
+	}
+
+	if (chunk_type & BTRFS_BLOCK_GROUP_DATA)
+		bargs = &bctl->data;
+	else if (chunk_type & BTRFS_BLOCK_GROUP_SYSTEM)
+		bargs = &bctl->sys;
+	else if (chunk_type & BTRFS_BLOCK_GROUP_METADATA)
+		bargs = &bctl->meta;
+
+	return 1;
+}
+
 static u64 div_factor(u64 num, int factor)
 {
 	if (factor == 10)
@@ -2119,10 +2143,13 @@ static int __btrfs_balance(struct btrfs_fs_info *fs_info)
 	struct btrfs_device *device;
 	u64 old_size;
 	u64 size_to_free;
+	struct btrfs_chunk *chunk;
 	struct btrfs_path *path;
 	struct btrfs_key key;
 	struct btrfs_key found_key;
 	struct btrfs_trans_handle *trans;
+	struct extent_buffer *leaf;
+	int slot;
 	int ret;
 	int enospc_errors = 0;
 
@@ -2179,8 +2206,10 @@ static int __btrfs_balance(struct btrfs_fs_info *fs_info)
 			break;
 		}
 
-		btrfs_item_key_to_cpu(path->nodes[0], &found_key,
-				      path->slots[0]);
+		leaf = path->nodes[0];
+		slot = path->slots[0];
+		btrfs_item_key_to_cpu(leaf, &found_key, slot);
+
 		if (found_key.objectid != key.objectid)
 			break;
 
@@ -2188,7 +2217,14 @@ static int __btrfs_balance(struct btrfs_fs_info *fs_info)
 		if (found_key.offset == 0)
 			break;
 
+		chunk = btrfs_item_ptr(leaf, slot, struct btrfs_chunk);
+
+		ret = should_balance_chunk(chunk_root, leaf, chunk,
+					   found_key.offset);
 		btrfs_release_path(path);
+		if (!ret)
+			goto loop;
+
 		ret = btrfs_relocate_chunk(chunk_root,
 					   chunk_root->root_key.objectid,
 					   found_key.objectid,
@@ -2197,6 +2233,7 @@ static int __btrfs_balance(struct btrfs_fs_info *fs_info)
 			goto error;
 		if (ret == -ENOSPC)
 			enospc_errors++;
+loop:
 		key.offset = found_key.offset - 1;
 	}
 
@@ -2227,11 +2264,29 @@ int btrfs_balance(struct btrfs_balance_control *bctl,
 		  struct btrfs_ioctl_balance_args *bargs)
 {
 	struct btrfs_fs_info *fs_info = bctl->fs_info;
+	u64 allowed;
 	int ret;
 
 	if (btrfs_fs_closing(fs_info)) {
 		ret = -EINVAL;
 		goto out;
+	}
+
+	/*
+	 * In case of mixed groups both data and meta should be picked,
+	 * and identical options should be given for both of them.
+	 */
+	allowed = btrfs_super_incompat_flags(fs_info->super_copy);
+	if ((allowed & BTRFS_FEATURE_INCOMPAT_MIXED_GROUPS) &&
+	    (bctl->flags & (BTRFS_BALANCE_DATA | BTRFS_BALANCE_METADATA))) {
+		if (!(bctl->flags & BTRFS_BALANCE_DATA) ||
+		    !(bctl->flags & BTRFS_BALANCE_METADATA) ||
+		    memcmp(&bctl->data, &bctl->meta, sizeof(bctl->data))) {
+			printk(KERN_ERR "btrfs: with mixed groups data and "
+			       "metadata balance options must be the same\n");
+			ret = -EINVAL;
+			goto out;
+		}
 	}
 
 	set_balance_control(bctl);
