@@ -175,9 +175,6 @@ config PPC_INDIRECT_MMIO
 config PPC_IO_WORKAROUNDS
 	bool
 
-config GENERIC_IOMAP
-	bool
-
 source "drivers/cpufreq/Kconfig"
 
 menu "CPU Frequency drivers"

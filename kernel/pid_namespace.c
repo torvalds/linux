@@ -191,9 +191,40 @@ void zap_pid_ns_processes(struct pid_namespace *pid_ns)
 	return;
 }
 
+static int pid_ns_ctl_handler(struct ctl_table *table, int write,
+		void __user *buffer, size_t *lenp, loff_t *ppos)
+{
+	struct ctl_table tmp = *table;
+
+	if (write && !capable(CAP_SYS_ADMIN))
+		return -EPERM;
+
+	/*
+	 * Writing directly to ns' last_pid field is OK, since this field
+	 * is volatile in a living namespace anyway and a code writing to
+	 * it should synchronize its usage with external means.
+	 */
+
+	tmp.data = &current->nsproxy->pid_ns->last_pid;
+	return proc_dointvec(&tmp, write, buffer, lenp, ppos);
+}
+
+static struct ctl_table pid_ns_ctl_table[] = {
+	{
+		.procname = "ns_last_pid",
+		.maxlen = sizeof(int),
+		.mode = 0666, /* permissions are checked in the handler */
+		.proc_handler = pid_ns_ctl_handler,
+	},
+	{ }
+};
+
+static struct ctl_path kern_path[] = { { .procname = "kernel", }, { } };
+
 static __init int pid_namespaces_init(void)
 {
 	pid_ns_cachep = KMEM_CACHE(pid_namespace, SLAB_PANIC);
+	register_sysctl_paths(kern_path, pid_ns_ctl_table);
 	return 0;
 }
 

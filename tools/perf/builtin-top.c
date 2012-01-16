@@ -235,7 +235,6 @@ static struct hist_entry *perf_evsel__add_hist_entry(struct perf_evsel *evsel,
 	if (he == NULL)
 		return NULL;
 
-	evsel->hists.stats.total_period += sample->period;
 	hists__inc_nr_events(&evsel->hists, PERF_RECORD_SAMPLE);
 	return he;
 }
@@ -888,6 +887,10 @@ try_again:
 			if (err == ENOENT) {
 				ui__warning("The %s event is not supported.\n",
 					    event_name(counter));
+				goto out_err;
+			} else if (err == EMFILE) {
+				ui__warning("Too many events are opened.\n"
+					    "Try again after reducing the number of events\n");
 				goto out_err;
 			}
 

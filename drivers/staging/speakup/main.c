@@ -2268,8 +2268,6 @@ static int __init speakup_init(void)
 		set_mask_bits(0, i, 2);
 
 	set_key_info(key_defaults, key_buf);
-	if (quiet_boot)
-		spk_shut_up |= 0x01;
 
 	/* From here on out, initializations can fail. */
 	err = speakup_add_virtual_keyboard();
@@ -2291,6 +2289,9 @@ static int __init speakup_init(void)
 			if (err)
 				goto error_kobjects;
 		}
+
+	if (quiet_boot)
+		spk_shut_up |= 0x01;
 
 	err = speakup_kobj_init();
 	if (err)

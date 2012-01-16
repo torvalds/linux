@@ -130,7 +130,7 @@ static struct clk dsp_clk = {
 	.name = "dsp",
 	.parent = &pll1_sysclk1,
 	.lpsc = DAVINCI_LPSC_GEM,
-	.flags = PSC_DSP,
+	.domain = DAVINCI_GPSC_DSPDOMAIN,
 	.usecount = 1,			/* REVISIT how to disable? */
 };
 
@@ -145,7 +145,7 @@ static struct clk vicp_clk = {
 	.name = "vicp",
 	.parent = &pll1_sysclk2,
 	.lpsc = DAVINCI_LPSC_IMCOP,
-	.flags = PSC_DSP,
+	.domain = DAVINCI_GPSC_DSPDOMAIN,
 	.usecount = 1,			/* REVISIT how to disable? */
 };
 

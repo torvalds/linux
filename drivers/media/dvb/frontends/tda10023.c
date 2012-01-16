@@ -298,42 +298,80 @@ static int tda10023_init (struct dvb_frontend *fe)
 	return 0;
 }
 
-static int tda10023_set_parameters (struct dvb_frontend *fe,
-			    struct dvb_frontend_parameters *p)
-{
-	struct tda10023_state* state = fe->demodulator_priv;
+struct qam_params {
+	u8 qam, lockthr, mseth, aref, agcrefnyq, eragnyq_thd;
+};
 
-	static int qamvals[6][6] = {
-		//  QAM   LOCKTHR  MSETH   AREF AGCREFNYQ  ERAGCNYQ_THD
-		{ (5<<2),  0x78,    0x8c,   0x96,   0x78,   0x4c  },  // 4 QAM
-		{ (0<<2),  0x87,    0xa2,   0x91,   0x8c,   0x57  },  // 16 QAM
-		{ (1<<2),  0x64,    0x74,   0x96,   0x8c,   0x57  },  // 32 QAM
-		{ (2<<2),  0x46,    0x43,   0x6a,   0x6a,   0x44  },  // 64 QAM
-		{ (3<<2),  0x36,    0x34,   0x7e,   0x78,   0x4c  },  // 128 QAM
-		{ (4<<2),  0x26,    0x23,   0x6c,   0x5c,   0x3c  },  // 256 QAM
+static int tda10023_set_parameters(struct dvb_frontend *fe)
+{
+	struct dtv_frontend_properties *c = &fe->dtv_property_cache;
+	u32 delsys  = c->delivery_system;
+	unsigned qam = c->modulation;
+	bool is_annex_c;
+	struct tda10023_state* state = fe->demodulator_priv;
+	static const struct qam_params qam_params[] = {
+		/* Modulation  QAM    LOCKTHR   MSETH   AREF AGCREFNYQ ERAGCNYQ_THD */
+		[QPSK]    = { (5<<2),  0x78,    0x8c,   0x96,   0x78,   0x4c  },
+		[QAM_16]  = { (0<<2),  0x87,    0xa2,   0x91,   0x8c,   0x57  },
+		[QAM_32]  = { (1<<2),  0x64,    0x74,   0x96,   0x8c,   0x57  },
+		[QAM_64]  = { (2<<2),  0x46,    0x43,   0x6a,   0x6a,   0x44  },
+		[QAM_128] = { (3<<2),  0x36,    0x34,   0x7e,   0x78,   0x4c  },
+		[QAM_256] = { (4<<2),  0x26,    0x23,   0x6c,   0x5c,   0x3c  },
 	};
 
-	int qam = p->u.qam.modulation;
-
-	if (qam < 0 || qam > 5)
+	switch (delsys) {
+	case SYS_DVBC_ANNEX_A:
+		is_annex_c = false;
+		break;
+	case SYS_DVBC_ANNEX_C:
+		is_annex_c = true;
+		break;
+	default:
 		return -EINVAL;
+	}
+
+	/*
+	 * gcc optimizes the code bellow the same way as it would code:
+	 *		 "if (qam > 5) return -EINVAL;"
+	 * Yet, the code is clearer, as it shows what QAM standards are
+	 * supported by the driver, and avoids the usage of magic numbers on
+	 * it.
+	 */
+	switch (qam) {
+	case QPSK:
+	case QAM_16:
+	case QAM_32:
+	case QAM_64:
+	case QAM_128:
+	case QAM_256:
+		break;
+	default:
+		return -EINVAL;
+	}
 
 	if (fe->ops.tuner_ops.set_params) {
-		fe->ops.tuner_ops.set_params(fe, p);
+		fe->ops.tuner_ops.set_params(fe);
 		if (fe->ops.i2c_gate_ctrl) fe->ops.i2c_gate_ctrl(fe, 0);
 	}
 
-	tda10023_set_symbolrate (state, p->u.qam.symbol_rate);
-	tda10023_writereg (state, 0x05, qamvals[qam][1]);
-	tda10023_writereg (state, 0x08, qamvals[qam][2]);
-	tda10023_writereg (state, 0x09, qamvals[qam][3]);
-	tda10023_writereg (state, 0xb4, qamvals[qam][4]);
-	tda10023_writereg (state, 0xb6, qamvals[qam][5]);
+	tda10023_set_symbolrate(state, c->symbol_rate);
+	tda10023_writereg(state, 0x05, qam_params[qam].lockthr);
+	tda10023_writereg(state, 0x08, qam_params[qam].mseth);
+	tda10023_writereg(state, 0x09, qam_params[qam].aref);
+	tda10023_writereg(state, 0xb4, qam_params[qam].agcrefnyq);
+	tda10023_writereg(state, 0xb6, qam_params[qam].eragnyq_thd);
+#if 0
+	tda10023_writereg(state, 0x04, (c->inversion ? 0x12 : 0x32));
+	tda10023_writebit(state, 0x04, 0x60, (c->inversion ? 0 : 0x20));
+#endif
+	tda10023_writebit(state, 0x04, 0x40, 0x40);
 
-//	tda10023_writereg (state, 0x04, (p->inversion?0x12:0x32));
-//	tda10023_writebit (state, 0x04, 0x60, (p->inversion?0:0x20));
-	tda10023_writebit (state, 0x04, 0x40, 0x40);
-	tda10023_setup_reg0 (state, qamvals[qam][0]);
+	if (is_annex_c)
+		tda10023_writebit(state, 0x3d, 0xfc, 0x03);
+	else
+		tda10023_writebit(state, 0x3d, 0xfc, 0x02);
+
+	tda10023_setup_reg0(state, qam_params[qam].qam);
 
 	return 0;
 }
@@ -418,8 +456,9 @@ static int tda10023_read_ucblocks(struct dvb_frontend* fe, u32* ucblocks)
 	return 0;
 }
 
-static int tda10023_get_frontend(struct dvb_frontend* fe, struct dvb_frontend_parameters *p)
+static int tda10023_get_frontend(struct dvb_frontend *fe)
 {
+	struct dtv_frontend_properties *p = &fe->dtv_property_cache;
 	struct tda10023_state* state = fe->demodulator_priv;
 	int sync,inv;
 	s8 afc = 0;
@@ -433,17 +472,17 @@ static int tda10023_get_frontend(struct dvb_frontend* fe, struct dvb_frontend_pa
 		printk(sync & 2 ? "DVB: TDA10023(%d): AFC (%d) %dHz\n" :
 				  "DVB: TDA10023(%d): [AFC (%d) %dHz]\n",
 			state->frontend.dvb->num, afc,
-		       -((s32)p->u.qam.symbol_rate * afc) >> 10);
+		       -((s32)p->symbol_rate * afc) >> 10);
 	}
 
 	p->inversion = (inv&0x20?0:1);
-	p->u.qam.modulation = ((state->reg0 >> 2) & 7) + QAM_16;
+	p->modulation = ((state->reg0 >> 2) & 7) + QAM_16;
 
-	p->u.qam.fec_inner = FEC_NONE;
+	p->fec_inner = FEC_NONE;
 	p->frequency = ((p->frequency + 31250) / 62500) * 62500;
 
 	if (sync & 2)
-		p->frequency -= ((s32)p->u.qam.symbol_rate * afc) >> 10;
+		p->frequency -= ((s32)p->symbol_rate * afc) >> 10;
 
 	return 0;
 }
@@ -534,10 +573,9 @@ error:
 }
 
 static struct dvb_frontend_ops tda10023_ops = {
-
+	.delsys = { SYS_DVBC_ANNEX_A, SYS_DVBC_ANNEX_C },
 	.info = {
 		.name = "Philips TDA10023 DVB-C",
-		.type = FE_QAM,
 		.frequency_stepsize = 62500,
 		.frequency_min =  47000000,
 		.frequency_max = 862000000,
@@ -557,7 +595,6 @@ static struct dvb_frontend_ops tda10023_ops = {
 
 	.set_frontend = tda10023_set_parameters,
 	.get_frontend = tda10023_get_frontend,
-
 	.read_status = tda10023_read_status,
 	.read_ber = tda10023_read_ber,
 	.read_signal_strength = tda10023_read_signal_strength,

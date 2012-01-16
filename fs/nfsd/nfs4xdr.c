@@ -215,10 +215,9 @@ defer_free(struct nfsd4_compoundargs *argp,
 static char *savemem(struct nfsd4_compoundargs *argp, __be32 *p, int nbytes)
 {
 	if (p == argp->tmp) {
-		p = kmalloc(nbytes, GFP_KERNEL);
+		p = kmemdup(argp->tmp, nbytes, GFP_KERNEL);
 		if (!p)
 			return NULL;
-		memcpy(p, argp->tmp, nbytes);
 	} else {
 		BUG_ON(p != argp->tmpp);
 		argp->tmpp = NULL;

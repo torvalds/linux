@@ -1,4 +1,5 @@
-/* Virtio balloon implementation, inspired by Dor Loar and Marcelo
+/*
+ * Virtio balloon implementation, inspired by Dor Laor and Marcelo
  * Tosatti's implementations.
  *
  *  Copyright 2008 Rusty Russell IBM Corporation
@@ -17,7 +18,7 @@
  *  along with this program; if not, write to the Free Software
  *  Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
  */
-//#define DEBUG
+
 #include <linux/virtio.h>
 #include <linux/virtio_balloon.h>
 #include <linux/swap.h>
@@ -87,7 +88,7 @@ static void tell_host(struct virtio_balloon *vb, struct virtqueue *vq)
 	init_completion(&vb->acked);
 
 	/* We should always be able to add one buffer to an empty queue. */
-	if (virtqueue_add_buf(vq, &sg, 1, 0, vb) < 0)
+	if (virtqueue_add_buf(vq, &sg, 1, 0, vb, GFP_KERNEL) < 0)
 		BUG();
 	virtqueue_kick(vq);
 
@@ -148,7 +149,6 @@ static void leak_balloon(struct virtio_balloon *vb, size_t num)
 		vb->pfns[vb->num_pfns] = page_to_balloon_pfn(page);
 		vb->num_pages--;
 	}
-
 
 	/*
 	 * Note that if
@@ -220,7 +220,7 @@ static void stats_handle_request(struct virtio_balloon *vb)
 
 	vq = vb->stats_vq;
 	sg_init_one(&sg, vb->stats, sizeof(vb->stats));
-	if (virtqueue_add_buf(vq, &sg, 1, 0, vb) < 0)
+	if (virtqueue_add_buf(vq, &sg, 1, 0, vb, GFP_KERNEL) < 0)
 		BUG();
 	virtqueue_kick(vq);
 }
@@ -275,13 +275,45 @@ static int balloon(void *_vballoon)
 	return 0;
 }
 
-static int virtballoon_probe(struct virtio_device *vdev)
+static int init_vqs(struct virtio_balloon *vb)
 {
-	struct virtio_balloon *vb;
 	struct virtqueue *vqs[3];
 	vq_callback_t *callbacks[] = { balloon_ack, balloon_ack, stats_request };
 	const char *names[] = { "inflate", "deflate", "stats" };
 	int err, nvqs;
+
+	/*
+	 * We expect two virtqueues: inflate and deflate, and
+	 * optionally stat.
+	 */
+	nvqs = virtio_has_feature(vb->vdev, VIRTIO_BALLOON_F_STATS_VQ) ? 3 : 2;
+	err = vb->vdev->config->find_vqs(vb->vdev, nvqs, vqs, callbacks, names);
+	if (err)
+		return err;
+
+	vb->inflate_vq = vqs[0];
+	vb->deflate_vq = vqs[1];
+	if (virtio_has_feature(vb->vdev, VIRTIO_BALLOON_F_STATS_VQ)) {
+		struct scatterlist sg;
+		vb->stats_vq = vqs[2];
+
+		/*
+		 * Prime this virtqueue with one buffer so the hypervisor can
+		 * use it to signal us later.
+		 */
+		sg_init_one(&sg, vb->stats, sizeof vb->stats);
+		if (virtqueue_add_buf(vb->stats_vq, &sg, 1, 0, vb, GFP_KERNEL)
+		    < 0)
+			BUG();
+		virtqueue_kick(vb->stats_vq);
+	}
+	return 0;
+}
+
+static int virtballoon_probe(struct virtio_device *vdev)
+{
+	struct virtio_balloon *vb;
+	int err;
 
 	vdev->priv = vb = kmalloc(sizeof(*vb), GFP_KERNEL);
 	if (!vb) {
@@ -295,28 +327,9 @@ static int virtballoon_probe(struct virtio_device *vdev)
 	vb->vdev = vdev;
 	vb->need_stats_update = 0;
 
-	/* We expect two virtqueues: inflate and deflate,
-	 * and optionally stat. */
-	nvqs = virtio_has_feature(vb->vdev, VIRTIO_BALLOON_F_STATS_VQ) ? 3 : 2;
-	err = vdev->config->find_vqs(vdev, nvqs, vqs, callbacks, names);
+	err = init_vqs(vb);
 	if (err)
 		goto out_free_vb;
-
-	vb->inflate_vq = vqs[0];
-	vb->deflate_vq = vqs[1];
-	if (virtio_has_feature(vb->vdev, VIRTIO_BALLOON_F_STATS_VQ)) {
-		struct scatterlist sg;
-		vb->stats_vq = vqs[2];
-
-		/*
-		 * Prime this virtqueue with one buffer so the hypervisor can
-		 * use it to signal us later.
-		 */
-		sg_init_one(&sg, vb->stats, sizeof vb->stats);
-		if (virtqueue_add_buf(vb->stats_vq, &sg, 1, 0, vb) < 0)
-			BUG();
-		virtqueue_kick(vb->stats_vq);
-	}
 
 	vb->thread = kthread_run(balloon, vb, "vballoon");
 	if (IS_ERR(vb->thread)) {
@@ -351,6 +364,48 @@ static void __devexit virtballoon_remove(struct virtio_device *vdev)
 	kfree(vb);
 }
 
+#ifdef CONFIG_PM
+static int virtballoon_freeze(struct virtio_device *vdev)
+{
+	/*
+	 * The kthread is already frozen by the PM core before this
+	 * function is called.
+	 */
+
+	/* Ensure we don't get any more requests from the host */
+	vdev->config->reset(vdev);
+	vdev->config->del_vqs(vdev);
+	return 0;
+}
+
+static int virtballoon_thaw(struct virtio_device *vdev)
+{
+	return init_vqs(vdev->priv);
+}
+
+static int virtballoon_restore(struct virtio_device *vdev)
+{
+	struct virtio_balloon *vb = vdev->priv;
+	struct page *page, *page2;
+
+	/* We're starting from a clean slate */
+	vb->num_pages = 0;
+
+	/*
+	 * If a request wasn't complete at the time of freezing, this
+	 * could have been set.
+	 */
+	vb->need_stats_update = 0;
+
+	/* We don't have these pages in the balloon anymore! */
+	list_for_each_entry_safe(page, page2, &vb->pages, lru) {
+		list_del(&page->lru);
+		totalram_pages++;
+	}
+	return init_vqs(vdev->priv);
+}
+#endif
+
 static unsigned int features[] = {
 	VIRTIO_BALLOON_F_MUST_TELL_HOST,
 	VIRTIO_BALLOON_F_STATS_VQ,
@@ -365,6 +420,11 @@ static struct virtio_driver virtio_balloon_driver = {
 	.probe =	virtballoon_probe,
 	.remove =	__devexit_p(virtballoon_remove),
 	.config_changed = virtballoon_changed,
+#ifdef CONFIG_PM
+	.freeze	=	virtballoon_freeze,
+	.restore =	virtballoon_restore,
+	.thaw =		virtballoon_thaw,
+#endif
 };
 
 static int __init init(void)

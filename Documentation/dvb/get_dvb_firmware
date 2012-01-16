@@ -27,8 +27,8 @@ use IO::Handle;
 		"or51211", "or51132_qam", "or51132_vsb", "bluebird",
 		"opera1", "cx231xx", "cx18", "cx23885", "pvrusb2", "mpc718",
 		"af9015", "ngene", "az6027", "lme2510_lg", "lme2510c_s7395",
-		"lme2510c_s7395_old", "drxk", "drxk_terratec_h5", "tda10071",
-		"it9135" );
+		"lme2510c_s7395_old", "drxk", "drxk_terratec_h5",
+		"drxk_hauppauge_hvr930c", "tda10071", "it9135", "it9137");
 
 # Check args
 syntax() if (scalar(@ARGV) != 1);
@@ -644,6 +644,24 @@ sub drxk {
     "$fwfile"
 }
 
+sub drxk_hauppauge_hvr930c {
+    my $url = "http://www.wintvcd.co.uk/drivers/";
+    my $zipfile = "HVR-9x0_5_10_325_28153_SIGNED.zip";
+    my $hash = "83ab82e7e9480ec8bf1ae0155ca63c88";
+    my $tmpdir = tempdir(DIR => "/tmp", CLEANUP => 1);
+    my $drvfile = "HVR-900/emOEM.sys";
+    my $fwfile = "dvb-usb-hauppauge-hvr930c-drxk.fw";
+
+    checkstandard();
+
+    wgetfile($zipfile, $url . $zipfile);
+    verify($zipfile, $hash);
+    unzip($zipfile, $tmpdir);
+    extract("$tmpdir/$drvfile", 0x117b0, 42692, "$fwfile");
+
+    "$fwfile"
+}
+
 sub drxk_terratec_h5 {
     my $url = "http://www.linuxtv.org/downloads/firmware/";
     my $hash = "19000dada8e2741162ccc50cc91fa7f1";
@@ -658,6 +676,26 @@ sub drxk_terratec_h5 {
 }
 
 sub it9135 {
+	my $sourcefile = "dvb-usb-it9135.zip";
+	my $url = "http://www.ite.com.tw/uploads/firmware/v3.6.0.0/$sourcefile";
+	my $hash = "1e55f6c8833f1d0ae067c2bb2953e6a9";
+	my $tmpdir = tempdir(DIR => "/tmp", CLEANUP => 0);
+	my $outfile = "dvb-usb-it9135.fw";
+	my $fwfile1 = "dvb-usb-it9135-01.fw";
+	my $fwfile2 = "dvb-usb-it9135-02.fw";
+
+	checkstandard();
+
+	wgetfile($sourcefile, $url);
+	unzip($sourcefile, $tmpdir);
+	verify("$tmpdir/$outfile", $hash);
+	extract("$tmpdir/$outfile", 64, 8128, "$fwfile1");
+	extract("$tmpdir/$outfile", 12866, 5817, "$fwfile2");
+
+	"$fwfile1 $fwfile2"
+}
+
+sub it9137 {
     my $url = "http://kworld.server261.com/kworld/CD/ITE_TiVme/V1.00/";
     my $zipfile = "Driver_V10.323.1.0412.100412.zip";
     my $hash = "79b597dc648698ed6820845c0c9d0d37";

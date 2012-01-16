@@ -172,10 +172,14 @@ config SYS_HYPERVISOR
 	bool
 	default n
 
+config GENERIC_CPU_DEVICES
+	bool
+	default n
+
 source "drivers/base/regmap/Kconfig"
 
 config DMA_SHARED_BUFFER
-	bool "Buffer framework to be shared between drivers"
+	bool
 	default n
 	select ANON_INODES
 	depends on EXPERIMENTAL

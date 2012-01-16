@@ -23,17 +23,15 @@
 #include "as10x_types.h"
 #include "as10x_cmd.h"
 
-extern int elna_enable;
-
-static void as10x_fe_copy_tps_parameters(struct dvb_frontend_parameters *dst,
+static void as10x_fe_copy_tps_parameters(struct dtv_frontend_properties *dst,
 					 struct as10x_tps *src);
 
 static void as102_fe_copy_tune_parameters(struct as10x_tune_args *dst,
-					  struct dvb_frontend_parameters *src);
+					  struct dtv_frontend_properties *src);
 
-static int as102_fe_set_frontend(struct dvb_frontend *fe,
-				 struct dvb_frontend_parameters *params)
+static int as102_fe_set_frontend(struct dvb_frontend *fe)
 {
+	struct dtv_frontend_properties *p = &fe->dtv_property_cache;
 	int ret = 0;
 	struct as102_dev_t *dev;
 	struct as10x_tune_args tune_args = { 0 };
@@ -47,7 +45,7 @@ static int as102_fe_set_frontend(struct dvb_frontend *fe,
 	if (mutex_lock_interruptible(&dev->bus_adap.lock))
 		return -EBUSY;
 
-	as102_fe_copy_tune_parameters(&tune_args, params);
+	as102_fe_copy_tune_parameters(&tune_args, p);
 
 	/* send abilis command: SET_TUNE */
 	ret =  as10x_cmd_set_tune(&dev->bus_adap, &tune_args);
@@ -60,8 +58,9 @@ static int as102_fe_set_frontend(struct dvb_frontend *fe,
 	return (ret < 0) ? -EINVAL : 0;
 }
 
-static int as102_fe_get_frontend(struct dvb_frontend *fe,
-				 struct dvb_frontend_parameters *p) {
+static int as102_fe_get_frontend(struct dvb_frontend *fe)
+{
+	struct dtv_frontend_properties *p = &fe->dtv_property_cache;
 	int ret = 0;
 	struct as102_dev_t *dev;
 	struct as10x_tps tps = { 0 };
@@ -280,9 +279,9 @@ static int as102_fe_ts_bus_ctrl(struct dvb_frontend *fe, int acquire)
 }
 
 static struct dvb_frontend_ops as102_fe_ops = {
+	.delsys = { SYS_DVBT },
 	.info = {
 		.name			= "Unknown AS102 device",
-		.type			= FE_OFDM,
 		.frequency_min		= 174000000,
 		.frequency_max		= 862000000,
 		.frequency_stepsize	= 166667,
@@ -346,38 +345,36 @@ int as102_dvb_register_fe(struct as102_dev_t *as102_dev,
 	return errno;
 }
 
-static void as10x_fe_copy_tps_parameters(struct dvb_frontend_parameters *dst,
+static void as10x_fe_copy_tps_parameters(struct dtv_frontend_properties *fe_tps,
 					 struct as10x_tps *as10x_tps)
 {
 
-	struct dvb_ofdm_parameters *fe_tps = &dst->u.ofdm;
-
 	/* extract consteallation */
-	switch (as10x_tps->constellation) {
+	switch (as10x_tps->modulation) {
 	case CONST_QPSK:
-		fe_tps->constellation = QPSK;
+		fe_tps->modulation = QPSK;
 		break;
 	case CONST_QAM16:
-		fe_tps->constellation = QAM_16;
+		fe_tps->modulation = QAM_16;
 		break;
 	case CONST_QAM64:
-		fe_tps->constellation = QAM_64;
+		fe_tps->modulation = QAM_64;
 		break;
 	}
 
 	/* extract hierarchy */
 	switch (as10x_tps->hierarchy) {
 	case HIER_NONE:
-		fe_tps->hierarchy_information = HIERARCHY_NONE;
+		fe_tps->hierarchy = HIERARCHY_NONE;
 		break;
 	case HIER_ALPHA_1:
-		fe_tps->hierarchy_information = HIERARCHY_1;
+		fe_tps->hierarchy = HIERARCHY_1;
 		break;
 	case HIER_ALPHA_2:
-		fe_tps->hierarchy_information = HIERARCHY_2;
+		fe_tps->hierarchy = HIERARCHY_2;
 		break;
 	case HIER_ALPHA_4:
-		fe_tps->hierarchy_information = HIERARCHY_4;
+		fe_tps->hierarchy = HIERARCHY_4;
 		break;
 	}
 
@@ -475,7 +472,7 @@ static uint8_t as102_fe_get_code_rate(fe_code_rate_t arg)
 }
 
 static void as102_fe_copy_tune_parameters(struct as10x_tune_args *tune_args,
-			  struct dvb_frontend_parameters *params)
+			  struct dtv_frontend_properties *params)
 {
 
 	/* set frequency */
@@ -484,21 +481,21 @@ static void as102_fe_copy_tune_parameters(struct as10x_tune_args *tune_args,
 	/* fix interleaving_mode */
 	tune_args->interleaving_mode = INTLV_NATIVE;
 
-	switch (params->u.ofdm.bandwidth) {
-	case BANDWIDTH_8_MHZ:
+	switch (params->bandwidth_hz) {
+	case 8000000:
 		tune_args->bandwidth = BW_8_MHZ;
 		break;
-	case BANDWIDTH_7_MHZ:
+	case 7000000:
 		tune_args->bandwidth = BW_7_MHZ;
 		break;
-	case BANDWIDTH_6_MHZ:
+	case 6000000:
 		tune_args->bandwidth = BW_6_MHZ;
 		break;
 	default:
 		tune_args->bandwidth = BW_8_MHZ;
 	}
 
-	switch (params->u.ofdm.guard_interval) {
+	switch (params->guard_interval) {
 	case GUARD_INTERVAL_1_32:
 		tune_args->guard_interval = GUARD_INT_1_32;
 		break;
@@ -517,22 +514,22 @@ static void as102_fe_copy_tune_parameters(struct as10x_tune_args *tune_args,
 		break;
 	}
 
-	switch (params->u.ofdm.constellation) {
+	switch (params->modulation) {
 	case QPSK:
-		tune_args->constellation = CONST_QPSK;
+		tune_args->modulation = CONST_QPSK;
 		break;
 	case QAM_16:
-		tune_args->constellation = CONST_QAM16;
+		tune_args->modulation = CONST_QAM16;
 		break;
 	case QAM_64:
-		tune_args->constellation = CONST_QAM64;
+		tune_args->modulation = CONST_QAM64;
 		break;
 	default:
-		tune_args->constellation = CONST_UNKNOWN;
+		tune_args->modulation = CONST_UNKNOWN;
 		break;
 	}
 
-	switch (params->u.ofdm.transmission_mode) {
+	switch (params->transmission_mode) {
 	case TRANSMISSION_MODE_2K:
 		tune_args->transmission_mode = TRANS_MODE_2K;
 		break;
@@ -543,7 +540,7 @@ static void as102_fe_copy_tune_parameters(struct as10x_tune_args *tune_args,
 		tune_args->transmission_mode = TRANS_MODE_UNKNOWN;
 	}
 
-	switch (params->u.ofdm.hierarchy_information) {
+	switch (params->hierarchy) {
 	case HIERARCHY_NONE:
 		tune_args->hierarchy = HIER_NONE;
 		break;
@@ -571,19 +568,19 @@ static void as102_fe_copy_tune_parameters(struct as10x_tune_args *tune_args,
 	 * if HP/LP are both set to FEC_NONE, HP will be selected.
 	 */
 	if ((tune_args->hierarchy != HIER_NONE) &&
-		       ((params->u.ofdm.code_rate_LP == FEC_NONE) ||
-			(params->u.ofdm.code_rate_HP == FEC_NONE))) {
+		       ((params->code_rate_LP == FEC_NONE) ||
+			(params->code_rate_HP == FEC_NONE))) {
 
-		if (params->u.ofdm.code_rate_LP == FEC_NONE) {
+		if (params->code_rate_LP == FEC_NONE) {
 			tune_args->hier_select = HIER_HIGH_PRIORITY;
 			tune_args->code_rate =
-			   as102_fe_get_code_rate(params->u.ofdm.code_rate_HP);
+			   as102_fe_get_code_rate(params->code_rate_HP);
 		}
 
-		if (params->u.ofdm.code_rate_HP == FEC_NONE) {
+		if (params->code_rate_HP == FEC_NONE) {
 			tune_args->hier_select = HIER_LOW_PRIORITY;
 			tune_args->code_rate =
-			   as102_fe_get_code_rate(params->u.ofdm.code_rate_LP);
+			   as102_fe_get_code_rate(params->code_rate_LP);
 		}
 
 		dprintk(debug, "\thierarchy: 0x%02x  "
@@ -596,8 +593,6 @@ static void as102_fe_copy_tune_parameters(struct as10x_tune_args *tune_args,
 			tune_args->code_rate);
 	} else {
 		tune_args->code_rate =
-			as102_fe_get_code_rate(params->u.ofdm.code_rate_HP);
+			as102_fe_get_code_rate(params->code_rate_HP);
 	}
 }
-
-/* EOF - vim: set textwidth=80 ts=8 sw=8 sts=8 noet: */

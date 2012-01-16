@@ -514,6 +514,11 @@ S: Bessemerstraat 21
 S: Amsterdam
 S: The Netherlands
 
+N: NeilBrown
+E: neil@brown.name
+P: 4096R/566281B9 1BC6 29EB D390 D870 7B5F  497A 39EC 9EDD 5662 81B9
+D: NFSD Maintainer 2000-2007
+
 N: Zach Brown
 E: zab@zabbo.net
 D: maestro pci sound

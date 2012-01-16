@@ -24,7 +24,7 @@
 #include <linux/module.h>
 #include <linux/mm.h>
 #include <linux/kref.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <linux/usb.h>
 
 /* header file for Usb device driver*/
@@ -56,13 +56,11 @@ int elna_enable = 1;
 module_param_named(elna_enable, elna_enable, int, 0644);
 MODULE_PARM_DESC(elna_enable, "Activate eLNA (default: on)");
 
-#ifdef DVB_DEFINE_MOD_OPT_ADAPTER_NR
 DVB_DEFINE_MOD_OPT_ADAPTER_NR(adapter_nr);
-#endif
 
 static void as102_stop_stream(struct as102_dev_t *dev)
 {
-	struct as102_bus_adapter_t *bus_adap;
+	struct as10x_bus_adapter_t *bus_adap;
 
 	if (dev != NULL)
 		bus_adap = &dev->bus_adap;
@@ -85,7 +83,7 @@ static void as102_stop_stream(struct as102_dev_t *dev)
 
 static int as102_start_stream(struct as102_dev_t *dev)
 {
-	struct as102_bus_adapter_t *bus_adap;
+	struct as10x_bus_adapter_t *bus_adap;
 	int ret = -EFAULT;
 
 	if (dev != NULL)
@@ -111,7 +109,7 @@ static int as102_start_stream(struct as102_dev_t *dev)
 static int as10x_pid_filter(struct as102_dev_t *dev,
 			    int index, u16 pid, int onoff) {
 
-	struct as102_bus_adapter_t *bus_adap = &dev->bus_adap;
+	struct as10x_bus_adapter_t *bus_adap = &dev->bus_adap;
 	int ret = -EFAULT;
 
 	ENTER();
@@ -123,22 +121,22 @@ static int as10x_pid_filter(struct as102_dev_t *dev,
 
 	switch (onoff) {
 	case 0:
-	    ret = as10x_cmd_del_PID_filter(bus_adap, (uint16_t) pid);
-	    dprintk(debug, "DEL_PID_FILTER([%02d] 0x%04x) ret = %d\n",
-		    index, pid, ret);
-	    break;
+		ret = as10x_cmd_del_PID_filter(bus_adap, (uint16_t) pid);
+		dprintk(debug, "DEL_PID_FILTER([%02d] 0x%04x) ret = %d\n",
+			index, pid, ret);
+		break;
 	case 1:
 	{
-	    struct as10x_ts_filter filter;
+		struct as10x_ts_filter filter;
 
-	    filter.type = TS_PID_TYPE_TS;
-	    filter.idx = 0xFF;
-	    filter.pid = pid;
+		filter.type = TS_PID_TYPE_TS;
+		filter.idx = 0xFF;
+		filter.pid = pid;
 
-	    ret = as10x_cmd_add_PID_filter(bus_adap, &filter);
-	    dprintk(debug, "ADD_PID_FILTER([%02d -> %02d], 0x%04x) ret = %d\n",
-		    index, filter.idx, filter.pid, ret);
-	    break;
+		ret = as10x_cmd_add_PID_filter(bus_adap, &filter);
+		dprintk(debug, "ADD_PID_FILTER([%02d -> %02d], 0x%04x) ret = %d\n",
+			index, filter.idx, filter.pid, ret);
+		break;
 	}
 	}
 
@@ -159,10 +157,9 @@ static int as102_dvb_dmx_start_feed(struct dvb_demux_feed *dvbdmxfeed)
 	if (mutex_lock_interruptible(&as102_dev->sem))
 		return -ERESTARTSYS;
 
-	if (pid_filtering) {
-		as10x_pid_filter(as102_dev,
-				dvbdmxfeed->index, dvbdmxfeed->pid, 1);
-	}
+	if (pid_filtering)
+		as10x_pid_filter(as102_dev, dvbdmxfeed->index,
+				 dvbdmxfeed->pid, 1);
 
 	if (as102_dev->streaming++ == 0)
 		ret = as102_start_stream(as102_dev);
@@ -185,10 +182,9 @@ static int as102_dvb_dmx_stop_feed(struct dvb_demux_feed *dvbdmxfeed)
 	if (--as102_dev->streaming == 0)
 		as102_stop_stream(as102_dev);
 
-	if (pid_filtering) {
-		as10x_pid_filter(as102_dev,
-				dvbdmxfeed->index, dvbdmxfeed->pid, 0);
-	}
+	if (pid_filtering)
+		as10x_pid_filter(as102_dev, dvbdmxfeed->index,
+				 dvbdmxfeed->pid, 0);
 
 	mutex_unlock(&as102_dev->sem);
 	LEAVE();
@@ -197,27 +193,16 @@ static int as102_dvb_dmx_stop_feed(struct dvb_demux_feed *dvbdmxfeed)
 
 int as102_dvb_register(struct as102_dev_t *as102_dev)
 {
-	int ret = 0;
-	ENTER();
+	struct device *dev = &as102_dev->bus_adap.usb_dev->dev;
+	int ret;
 
 	ret = dvb_register_adapter(&as102_dev->dvb_adap,
-				   as102_dev->name,
-				   THIS_MODULE,
-#if defined(CONFIG_AS102_USB)
-				   &as102_dev->bus_adap.usb_dev->dev
-#elif defined(CONFIG_AS102_SPI)
-				   &as102_dev->bus_adap.spi_dev->dev
-#else
-#error >>> dvb_register_adapter <<<
-#endif
-#ifdef DVB_DEFINE_MOD_OPT_ADAPTER_NR
-				   , adapter_nr
-#endif
-				   );
+			   as102_dev->name, THIS_MODULE,
+			   dev, adapter_nr);
 	if (ret < 0) {
-		err("%s: dvb_register_adapter() failed (errno = %d)",
-		    __func__, ret);
-		goto failed;
+		dev_err(dev, "%s: dvb_register_adapter() failed: %d\n",
+			__func__, ret);
+		return ret;
 	}
 
 	as102_dev->dvb_dmx.priv = as102_dev;
@@ -235,22 +220,22 @@ int as102_dvb_register(struct as102_dev_t *as102_dev)
 
 	ret = dvb_dmx_init(&as102_dev->dvb_dmx);
 	if (ret < 0) {
-		err("%s: dvb_dmx_init() failed (errno = %d)", __func__, ret);
-		goto failed;
+		dev_err(dev, "%s: dvb_dmx_init() failed: %d\n", __func__, ret);
+		goto edmxinit;
 	}
 
 	ret = dvb_dmxdev_init(&as102_dev->dvb_dmxdev, &as102_dev->dvb_adap);
 	if (ret < 0) {
-		err("%s: dvb_dmxdev_init() failed (errno = %d)", __func__,
-		    ret);
-		goto failed;
+		dev_err(dev, "%s: dvb_dmxdev_init() failed: %d\n",
+			__func__, ret);
+		goto edmxdinit;
 	}
 
 	ret = as102_dvb_register_fe(as102_dev, &as102_dev->dvb_fe);
 	if (ret < 0) {
-		err("%s: as102_dvb_register_frontend() failed (errno = %d)",
+		dev_err(dev, "%s: as102_dvb_register_frontend() failed: %d",
 		    __func__, ret);
-		goto failed;
+		goto efereg;
 	}
 
 	/* init bus mutex for token locking */
@@ -259,7 +244,6 @@ int as102_dvb_register(struct as102_dev_t *as102_dev)
 	/* init start / stop stream mutex */
 	mutex_init(&as102_dev->sem);
 
-#if defined(CONFIG_FW_LOADER) || defined(CONFIG_FW_LOADER_MODULE)
 	/*
 	 * try to load as102 firmware. If firmware upload failed, we'll be
 	 * able to upload it later.
@@ -267,18 +251,21 @@ int as102_dvb_register(struct as102_dev_t *as102_dev)
 	if (fw_upload)
 		try_then_request_module(as102_fw_upload(&as102_dev->bus_adap),
 				"firmware_class");
-#endif
 
-failed:
-	LEAVE();
-	/* FIXME: free dvb_XXX */
+	pr_info("Registered device %s", as102_dev->name);
+	return 0;
+
+efereg:
+	dvb_dmxdev_release(&as102_dev->dvb_dmxdev);
+edmxdinit:
+	dvb_dmx_release(&as102_dev->dvb_dmx);
+edmxinit:
+	dvb_unregister_adapter(&as102_dev->dvb_adap);
 	return ret;
 }
 
 void as102_dvb_unregister(struct as102_dev_t *as102_dev)
 {
-	ENTER();
-
 	/* unregister as102 frontend */
 	as102_dvb_unregister_fe(&as102_dev->dvb_fe);
 
@@ -289,28 +276,18 @@ void as102_dvb_unregister(struct as102_dev_t *as102_dev)
 	/* unregister dvb adapter */
 	dvb_unregister_adapter(&as102_dev->dvb_adap);
 
-	LEAVE();
+	pr_info("Unregistered device %s", as102_dev->name);
 }
 
 static int __init as102_driver_init(void)
 {
-	int ret = 0;
-
-	ENTER();
+	int ret;
 
 	/* register this driver with the low level subsystem */
-#if defined(CONFIG_AS102_USB)
 	ret = usb_register(&as102_usb_driver);
 	if (ret)
 		err("usb_register failed (ret = %d)", ret);
-#endif
-#if defined(CONFIG_AS102_SPI)
-	ret = spi_register_driver(&as102_spi_driver);
-	if (ret)
-		printk(KERN_ERR "spi_register failed (ret = %d)", ret);
-#endif
 
-	LEAVE();
 	return ret;
 }
 
@@ -327,15 +304,8 @@ module_init(as102_driver_init);
  */
 static void __exit as102_driver_exit(void)
 {
-	ENTER();
 	/* deregister this driver with the low level bus subsystem */
-#if defined(CONFIG_AS102_USB)
 	usb_deregister(&as102_usb_driver);
-#endif
-#if defined(CONFIG_AS102_SPI)
-	spi_unregister_driver(&as102_spi_driver);
-#endif
-	LEAVE();
 }
 
 /*
@@ -347,5 +317,3 @@ module_exit(as102_driver_exit);
 MODULE_DESCRIPTION(DRIVER_FULL_NAME);
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Pierrick Hascoet <pierrick.hascoet@abilis.com>");
-
-/* EOF - vim: set textwidth=80 ts=8 sw=8 sts=8 noet: */

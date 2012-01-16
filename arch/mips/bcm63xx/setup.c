@@ -63,13 +63,33 @@ static void bcm6348_a1_reboot(void)
 
 void bcm63xx_machine_reboot(void)
 {
-	u32 reg;
+	u32 reg, perf_regs[2] = { 0, 0 };
+	unsigned int i;
 
 	/* mask and clear all external irq */
-	reg = bcm_perf_readl(PERF_EXTIRQ_CFG_REG);
-	reg &= ~EXTIRQ_CFG_MASK_ALL;
-	reg |= EXTIRQ_CFG_CLEAR_ALL;
-	bcm_perf_writel(reg, PERF_EXTIRQ_CFG_REG);
+	switch (bcm63xx_get_cpu_id()) {
+	case BCM6338_CPU_ID:
+		perf_regs[0] = PERF_EXTIRQ_CFG_REG_6338;
+		break;
+	case BCM6348_CPU_ID:
+		perf_regs[0] = PERF_EXTIRQ_CFG_REG_6348;
+		break;
+	case BCM6358_CPU_ID:
+		perf_regs[0] = PERF_EXTIRQ_CFG_REG_6358;
+		break;
+	}
+
+	for (i = 0; i < 2; i++) {
+		reg = bcm_perf_readl(perf_regs[i]);
+		if (BCMCPU_IS_6348()) {
+			reg &= ~EXTIRQ_CFG_MASK_ALL_6348;
+			reg |= EXTIRQ_CFG_CLEAR_ALL_6348;
+		} else {
+			reg &= ~EXTIRQ_CFG_MASK_ALL;
+			reg |= EXTIRQ_CFG_CLEAR_ALL;
+		}
+		bcm_perf_writel(reg, perf_regs[i]);
+	}
 
 	if (BCMCPU_IS_6348() && (bcm63xx_get_cpu_rev() == 0xa1))
 		bcm6348_a1_reboot();
@@ -124,4 +144,4 @@ int __init bcm63xx_register_devices(void)
 	return board_register_devices();
 }
 
-arch_initcall(bcm63xx_register_devices);
+device_initcall(bcm63xx_register_devices);

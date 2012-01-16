@@ -22,6 +22,8 @@
 #include <plat/vram.h>
 #include <plat/dsp.h>
 
+#include <plat/omap-secure.h>
+
 
 #define NO_LENGTH_CHECK 0xffffffff
 
@@ -66,6 +68,7 @@ void __init omap_reserve(void)
 	omapfb_reserve_sdram_memblock();
 	omap_vram_reserve_sdram_memblock();
 	omap_dsp_reserve_sdram_memblock();
+	omap_secure_ram_reserve_memblock();
 }
 
 void __init omap_init_consistent_dma_size(void)

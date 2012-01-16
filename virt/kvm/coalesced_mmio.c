@@ -28,9 +28,15 @@ static int coalesced_mmio_in_range(struct kvm_coalesced_mmio_dev *dev,
 	 * (addr,len) is fully included in
 	 * (zone->addr, zone->size)
 	 */
-
-	return (dev->zone.addr <= addr &&
-		addr + len <= dev->zone.addr + dev->zone.size);
+	if (len < 0)
+		return 0;
+	if (addr + len < addr)
+		return 0;
+	if (addr < dev->zone.addr)
+		return 0;
+	if (addr + len > dev->zone.addr + dev->zone.size)
+		return 0;
+	return 1;
 }
 
 static int coalesced_mmio_has_room(struct kvm_coalesced_mmio_dev *dev)

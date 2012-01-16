@@ -28,6 +28,7 @@
 #include <plat/board.h>
 #include <plat/mcbsp.h>
 #include <plat/mmc.h>
+#include <plat/iommu.h>
 #include <plat/dma.h>
 #include <plat/omap_hwmod.h>
 #include <plat/omap_device.h>
@@ -211,9 +212,15 @@ static struct platform_device omap3isp_device = {
 	.resource	= omap3isp_resources,
 };
 
+static struct omap_iommu_arch_data omap3_isp_iommu = {
+	.name = "isp",
+};
+
 int omap3_init_camera(struct isp_platform_data *pdata)
 {
 	omap3isp_device.dev.platform_data = pdata;
+	omap3isp_device.dev.archdata.iommu = &omap3_isp_iommu;
+
 	return platform_device_register(&omap3isp_device);
 }
 
@@ -334,6 +341,27 @@ static void omap_init_mcpdm(void)
 }
 #else
 static inline void omap_init_mcpdm(void) {}
+#endif
+
+#if defined(CONFIG_SND_OMAP_SOC_DMIC) || \
+		defined(CONFIG_SND_OMAP_SOC_DMIC_MODULE)
+
+static void omap_init_dmic(void)
+{
+	struct omap_hwmod *oh;
+	struct platform_device *pdev;
+
+	oh = omap_hwmod_lookup("dmic");
+	if (!oh) {
+		printk(KERN_ERR "Could not look up mcpdm hw_mod\n");
+		return;
+	}
+
+	pdev = omap_device_build("omap-dmic", -1, oh, NULL, 0, NULL, 0, 0);
+	WARN(IS_ERR(pdev), "Can't build omap_device for omap-dmic.\n");
+}
+#else
+static inline void omap_init_dmic(void) {}
 #endif
 
 #if defined(CONFIG_SPI_OMAP24XX) || defined(CONFIG_SPI_OMAP24XX_MODULE)
@@ -681,6 +709,7 @@ static int __init omap2_init_devices(void)
 	 */
 	omap_init_audio();
 	omap_init_mcpdm();
+	omap_init_dmic();
 	omap_init_camera();
 	omap_init_mbox();
 	omap_init_mcspi();

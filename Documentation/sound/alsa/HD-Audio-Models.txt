@@ -42,19 +42,7 @@ ALC260
 
 ALC262
 ======
-  fujitsu	Fujitsu Laptop
-  benq		Benq ED8
-  benq-t31	Benq T31
-  hippo		Hippo (ATI) with jack detection, Sony UX-90s
-  hippo_1	Hippo (Benq) with jack detection
-  toshiba-s06	Toshiba S06
-  toshiba-rx1	Toshiba RX1
-  tyan		Tyan Thunder n6650W (S2915-E)
-  ultra		Samsung Q1 Ultra Vista model
-  lenovo-3000	Lenovo 3000 y410
-  nec		NEC Versa S9100
-  basic		fixed pin assignment w/o SPDIF
-  auto		auto-config reading BIOS (default)
+  N/A
 
 ALC267/268
 ==========
@@ -350,7 +338,6 @@ STAC92HD83*
   mic-ref	Reference board with power management for ports
   dell-s14	Dell laptop
   dell-vostro-3500	Dell Vostro 3500 laptop
-  hp		HP laptops with (inverted) mute-LED
   hp-dv7-4000	HP dv-7 4000
   auto		BIOS setup (default)
 

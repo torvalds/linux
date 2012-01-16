@@ -291,7 +291,7 @@ static u32 get_current_settings(struct hci_dev *hdev)
 	if (!(hdev->features[4] & LMP_NO_BREDR))
 		settings |= MGMT_SETTING_BREDR;
 
-	if (hdev->extfeatures[0] & LMP_HOST_LE)
+	if (hdev->host_features[0] & LMP_HOST_LE)
 		settings |= MGMT_SETTING_LE;
 
 	if (test_bit(HCI_AUTH, &hdev->flags))
@@ -2756,7 +2756,7 @@ int mgmt_stop_discovery_failed(struct hci_dev *hdev, u8 status)
 	if (!cmd)
 		return -ENOENT;
 
-	err = cmd_status(cmd->sk, hdev->id, cmd->opcode, status);
+	err = cmd_status(cmd->sk, hdev->id, cmd->opcode, mgmt_status(status));
 	mgmt_pending_remove(cmd);
 
 	return err;

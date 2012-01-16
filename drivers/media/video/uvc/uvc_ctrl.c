@@ -878,8 +878,21 @@ static int uvc_ctrl_populate_cache(struct uvc_video_chain *chain,
 				     chain->dev->intfnum, ctrl->info.selector,
 				     uvc_ctrl_data(ctrl, UVC_CTRL_DATA_RES),
 				     ctrl->info.size);
-		if (ret < 0)
-			return ret;
+		if (ret < 0) {
+			if (UVC_ENTITY_TYPE(ctrl->entity) !=
+			    UVC_VC_EXTENSION_UNIT)
+				return ret;
+
+			/* GET_RES is mandatory for XU controls, but some
+			 * cameras still choke on it. Ignore errors and set the
+			 * resolution value to zero.
+			 */
+			uvc_warn_once(chain->dev, UVC_WARN_XU_GET_RES,
+				      "UVC non compliance - GET_RES failed on "
+				      "an XU control. Enabling workaround.\n");
+			memset(uvc_ctrl_data(ctrl, UVC_CTRL_DATA_RES), 0,
+			       ctrl->info.size);
+		}
 	}
 
 	ctrl->cached = 1;
@@ -1861,7 +1874,7 @@ int uvc_ctrl_init_device(struct uvc_device *dev)
 		if (ncontrols == 0)
 			continue;
 
-		entity->controls = kzalloc(ncontrols * sizeof(*ctrl),
+		entity->controls = kcalloc(ncontrols, sizeof(*ctrl),
 					   GFP_KERNEL);
 		if (entity->controls == NULL)
 			return -ENOMEM;

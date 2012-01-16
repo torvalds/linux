@@ -3119,8 +3119,10 @@ static int brcmf_sdbrcm_write_vars(struct brcmf_sdio *bus)
 		/* Verify NVRAM bytes */
 		brcmf_dbg(INFO, "Compare NVRAM dl & ul; varsize=%d\n", varsize);
 		nvram_ularray = kmalloc(varsize, GFP_ATOMIC);
-		if (!nvram_ularray)
+		if (!nvram_ularray) {
+			kfree(vbuffer);
 			return -ENOMEM;
+		}
 
 		/* Upload image to verify downloaded contents. */
 		memset(nvram_ularray, 0xaa, varsize);

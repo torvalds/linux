@@ -230,17 +230,7 @@ static struct platform_driver sharpsl_nand_driver = {
 	.remove		= __devexit_p(sharpsl_nand_remove),
 };
 
-static int __init sharpsl_nand_init(void)
-{
-	return platform_driver_register(&sharpsl_nand_driver);
-}
-module_init(sharpsl_nand_init);
-
-static void __exit sharpsl_nand_exit(void)
-{
-	platform_driver_unregister(&sharpsl_nand_driver);
-}
-module_exit(sharpsl_nand_exit);
+module_platform_driver(sharpsl_nand_driver);
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Richard Purdie <rpurdie@rpsys.net>");

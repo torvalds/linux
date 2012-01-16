@@ -360,7 +360,7 @@ static int __devinit pata_at91_probe(struct platform_device *pdev)
 	ap->flags |= ATA_FLAG_SLAVE_POSS;
 	ap->pio_mask = ATA_PIO4;
 
-	if (!irq) {
+	if (!gpio_is_valid(irq)) {
 		ap->flags |= ATA_FLAG_PIO_POLLING;
 		ata_port_desc(ap, "no IRQ, using PIO polling");
 	}
@@ -414,8 +414,8 @@ static int __devinit pata_at91_probe(struct platform_device *pdev)
 
 	host->private_data = info;
 
-	ret = ata_host_activate(host, irq ? gpio_to_irq(irq) : 0,
-			irq ? ata_sff_interrupt : NULL,
+	return ata_host_activate(host, gpio_is_valid(irq) ? gpio_to_irq(irq) : 0,
+			gpio_is_valid(irq) ? ata_sff_interrupt : NULL,
 			irq_flags, &pata_at91_sht);
 
 	if (!ret)
@@ -454,20 +454,7 @@ static struct platform_driver pata_at91_driver = {
 	},
 };
 
-static int __init pata_at91_init(void)
-{
-	return platform_driver_register(&pata_at91_driver);
-}
-
-static void __exit pata_at91_exit(void)
-{
-	platform_driver_unregister(&pata_at91_driver);
-}
-
-
-module_init(pata_at91_init);
-module_exit(pata_at91_exit);
-
+module_platform_driver(pata_at91_driver);
 
 MODULE_LICENSE("GPL");
 MODULE_DESCRIPTION("Driver for CF in True IDE mode on AT91SAM9260 SoC");

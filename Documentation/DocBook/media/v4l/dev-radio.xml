@@ -47,11 +47,3 @@ depending on the selected frequency. The &VIDIOC-G-TUNER; or
 &VIDIOC-G-MODULATOR; ioctl
 reports the supported frequency range.</para>
   </section>
-
-<!--
-Local Variables:
-mode: sgml
-sgml-parent-document: "v4l2.sgml"
-indent-tabs-mode: nil
-End:
- -->

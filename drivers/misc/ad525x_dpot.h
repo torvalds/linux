@@ -208,12 +208,8 @@ struct ad_dpot_bus_data {
 	const struct ad_dpot_bus_ops *bops;
 };
 
-struct ad_dpot_id {
-	char *name;
-	unsigned long devid;
-};
-
-int ad_dpot_probe(struct device *dev, struct ad_dpot_bus_data *bdata, const struct ad_dpot_id *id);
+int ad_dpot_probe(struct device *dev, struct ad_dpot_bus_data *bdata,
+		  unsigned long devid, const char *name);
 int ad_dpot_remove(struct device *dev);
 
 #endif

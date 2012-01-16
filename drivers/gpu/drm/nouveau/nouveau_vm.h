@@ -89,7 +89,7 @@ void nouveau_vm_map_at(struct nouveau_vma *, u64 offset, struct nouveau_mem *);
 void nouveau_vm_unmap(struct nouveau_vma *);
 void nouveau_vm_unmap_at(struct nouveau_vma *, u64 offset, u64 length);
 void nouveau_vm_map_sg(struct nouveau_vma *, u64 offset, u64 length,
-		       struct nouveau_mem *, dma_addr_t *);
+		       struct nouveau_mem *);
 
 /* nv50_vm.c */
 void nv50_vm_map_pgt(struct nouveau_gpuobj *pgd, u32 pde,

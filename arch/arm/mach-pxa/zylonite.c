@@ -408,8 +408,8 @@ static void __init zylonite_init(void)
 	 * Note: We depend that the bootloader set
 	 * the correct value to MSC register for SMC91x.
 	 */
-	smc91x_resources[1].start = gpio_to_irq(gpio_eth_irq);
-	smc91x_resources[1].end   = gpio_to_irq(gpio_eth_irq);
+	smc91x_resources[1].start = PXA_GPIO_TO_IRQ(gpio_eth_irq);
+	smc91x_resources[1].end   = PXA_GPIO_TO_IRQ(gpio_eth_irq);
 	platform_device_register(&smc91x_device);
 
 	pxa_set_ac97_info(NULL);

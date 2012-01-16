@@ -82,9 +82,9 @@ static void qt1010_dump_regs(struct qt1010_priv *priv)
 	printk(KERN_CONT "\n");
 }
 
-static int qt1010_set_params(struct dvb_frontend *fe,
-			     struct dvb_frontend_parameters *params)
+static int qt1010_set_params(struct dvb_frontend *fe)
 {
+	struct dtv_frontend_properties *c = &fe->dtv_property_cache;
 	struct qt1010_priv *priv;
 	int err;
 	u32 freq, div, mod1, mod2;
@@ -144,13 +144,11 @@ static int qt1010_set_params(struct dvb_frontend *fe,
 #define FREQ2  4000000 /* 4 MHz Quartz oscillator in the stick? */
 
 	priv = fe->tuner_priv;
-	freq = params->frequency;
+	freq = c->frequency;
 	div = (freq + QT1010_OFFSET) / QT1010_STEP;
 	freq = (div * QT1010_STEP) - QT1010_OFFSET;
 	mod1 = (freq + QT1010_OFFSET) % FREQ1;
 	mod2 = (freq + QT1010_OFFSET) % FREQ2;
-	priv->bandwidth =
-		(fe->ops.info.type == FE_OFDM) ? params->u.ofdm.bandwidth : 0;
 	priv->frequency = freq;
 
 	if (fe->ops.i2c_gate_ctrl)
@@ -320,7 +318,7 @@ static u8 qt1010_init_meas2(struct qt1010_priv *priv,
 static int qt1010_init(struct dvb_frontend *fe)
 {
 	struct qt1010_priv *priv = fe->tuner_priv;
-	struct dvb_frontend_parameters params;
+	struct dtv_frontend_properties *c = &fe->dtv_property_cache;
 	int err = 0;
 	u8 i, tmpval, *valptr = NULL;
 
@@ -397,9 +395,9 @@ static int qt1010_init(struct dvb_frontend *fe)
 		if ((err = qt1010_init_meas2(priv, i, &tmpval)))
 			return err;
 
-	params.frequency = 545000000; /* Sigmatek DVB-110 545000000 */
+	c->frequency = 545000000; /* Sigmatek DVB-110 545000000 */
 				      /* MSI Megasky 580 GL861 533000000 */
-	return qt1010_set_params(fe, &params);
+	return qt1010_set_params(fe);
 }
 
 static int qt1010_release(struct dvb_frontend *fe)
@@ -416,10 +414,9 @@ static int qt1010_get_frequency(struct dvb_frontend *fe, u32 *frequency)
 	return 0;
 }
 
-static int qt1010_get_bandwidth(struct dvb_frontend *fe, u32 *bandwidth)
+static int qt1010_get_if_frequency(struct dvb_frontend *fe, u32 *frequency)
 {
-	struct qt1010_priv *priv = fe->tuner_priv;
-	*bandwidth = priv->bandwidth;
+	*frequency = 36125000;
 	return 0;
 }
 
@@ -437,7 +434,7 @@ static const struct dvb_tuner_ops qt1010_tuner_ops = {
 
 	.set_params    = qt1010_set_params,
 	.get_frequency = qt1010_get_frequency,
-	.get_bandwidth = qt1010_get_bandwidth
+	.get_if_frequency = qt1010_get_if_frequency,
 };
 
 struct dvb_frontend * qt1010_attach(struct dvb_frontend *fe,

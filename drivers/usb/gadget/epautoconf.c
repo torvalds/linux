@@ -149,7 +149,7 @@ ep_matches (
 	switch (type) {
 	case USB_ENDPOINT_XFER_INT:
 		/* INT:  limit 64 bytes full speed, 1024 high/super speed */
-		if (!gadget->is_dualspeed && max > 64)
+		if (!gadget_is_dualspeed(gadget) && max > 64)
 			return 0;
 		/* FALLTHROUGH */
 
@@ -157,12 +157,12 @@ ep_matches (
 		/* ISO:  limit 1023 bytes full speed, 1024 high/super speed */
 		if (ep->maxpacket < max)
 			return 0;
-		if (!gadget->is_dualspeed && max > 1023)
+		if (!gadget_is_dualspeed(gadget) && max > 1023)
 			return 0;
 
 		/* BOTH:  "high bandwidth" works only at high speed */
 		if ((desc->wMaxPacketSize & cpu_to_le16(3<<11))) {
-			if (!gadget->is_dualspeed)
+			if (!gadget_is_dualspeed(gadget))
 				return 0;
 			/* configure your hardware with enough buffering!! */
 		}

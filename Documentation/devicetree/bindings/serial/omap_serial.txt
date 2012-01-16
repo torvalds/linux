@@ -1,0 +1,10 @@
+OMAP UART controller
+
+Required properties:
+- compatible : should be "ti,omap2-uart" for OMAP2 controllers
+- compatible : should be "ti,omap3-uart" for OMAP3 controllers
+- compatible : should be "ti,omap4-uart" for OMAP4 controllers
+- ti,hwmods : Must be "uart<n>", n being the instance number (1-based)
+
+Optional properties:
+- clock-frequency : frequency of the clock input to the UART

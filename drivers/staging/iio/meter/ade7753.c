@@ -582,3 +582,4 @@ module_spi_driver(ade7753_driver);
 MODULE_AUTHOR("Barry Song <21cnbao@gmail.com>");
 MODULE_DESCRIPTION("Analog Devices ADE7753/6 Single-Phase Multifunction Meter");
 MODULE_LICENSE("GPL v2");
+MODULE_ALIAS("spi:ade7753");

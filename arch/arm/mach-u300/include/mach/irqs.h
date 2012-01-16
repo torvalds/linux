@@ -110,7 +110,7 @@
 #endif
 
 /* Maximum 8*7 GPIO lines */
-#ifdef CONFIG_GPIO_U300
+#ifdef CONFIG_PINCTRL_COH901
 #define IRQ_U300_GPIO_BASE		(U300_VIC_IRQS_END)
 #define IRQ_U300_GPIO_END		(IRQ_U300_GPIO_BASE + 56)
 #else

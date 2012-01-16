@@ -25,100 +25,6 @@
 static struct vfsmount *mount;
 static int mount_count;
 
-/*
- * TODO:
- *   I think I can get rid of these default_file_ops, but not quite sure...
- */
-static ssize_t default_read_file(struct file *file, char __user *buf,
-				 size_t count, loff_t *ppos)
-{
-	return 0;
-}
-
-static ssize_t default_write_file(struct file *file, const char __user *buf,
-				   size_t count, loff_t *ppos)
-{
-	return count;
-}
-
-static int default_open(struct inode *inode, struct file *file)
-{
-	if (inode->i_private)
-		file->private_data = inode->i_private;
-
-	return 0;
-}
-
-static const struct file_operations default_file_ops = {
-	.read =		default_read_file,
-	.write =	default_write_file,
-	.open =		default_open,
-	.llseek =	noop_llseek,
-};
-
-static struct inode *get_inode(struct super_block *sb, umode_t mode, dev_t dev)
-{
-	struct inode *inode = new_inode(sb);
-
-	if (inode) {
-		inode->i_ino = get_next_ino();
-		inode->i_mode = mode;
-		inode->i_atime = inode->i_mtime = inode->i_ctime = CURRENT_TIME;
-		switch (mode & S_IFMT) {
-		default:
-			init_special_inode(inode, mode, dev);
-			break;
-		case S_IFREG:
-			inode->i_fop = &default_file_ops;
-			break;
-		case S_IFDIR:
-			inode->i_op = &simple_dir_inode_operations;
-			inode->i_fop = &simple_dir_operations;
-
-			/* directory inodes start off with i_nlink == 2 (for "." entry) */
-			inc_nlink(inode);
-			break;
-		}
-	}
-	return inode;
-}
-
-/* SMP-safe */
-static int mknod(struct inode *dir, struct dentry *dentry,
-			 umode_t mode, dev_t dev)
-{
-	struct inode *inode;
-	int error = -ENOMEM;
-
-	if (dentry->d_inode)
-		return -EEXIST;
-
-	inode = get_inode(dir->i_sb, mode, dev);
-	if (inode) {
-		d_instantiate(dentry, inode);
-		dget(dentry);
-		error = 0;
-	}
-	return error;
-}
-
-static int mkdir(struct inode *dir, struct dentry *dentry, umode_t mode)
-{
-	int res;
-
-	mode = (mode & (S_IRWXUGO | S_ISVTX)) | S_IFDIR;
-	res = mknod(dir, dentry, mode, 0);
-	if (!res)
-		inc_nlink(dir);
-	return res;
-}
-
-static int create(struct inode *dir, struct dentry *dentry, umode_t mode)
-{
-	mode = (mode & S_IALLUGO) | S_IFREG;
-	return mknod(dir, dentry, mode, 0);
-}
-
 static inline int positive(struct dentry *dentry)
 {
 	return dentry->d_inode && !d_unhashed(dentry);
@@ -144,38 +50,6 @@ static struct file_system_type fs_type = {
 	.mount =	get_sb,
 	.kill_sb =	kill_litter_super,
 };
-
-static int create_by_name(const char *name, umode_t mode,
-			  struct dentry *parent,
-			  struct dentry **dentry)
-{
-	int error = 0;
-
-	*dentry = NULL;
-
-	/* If the parent is not specified, we create it in the root.
-	 * We need the root dentry to do this, which is in the super
-	 * block. A pointer to that is in the struct vfsmount that we
-	 * have around.
-	 */
-	if (!parent)
-		parent = mount->mnt_root;
-
-	mutex_lock(&parent->d_inode->i_mutex);
-	*dentry = lookup_one_len(name, parent, strlen(name));
-	if (!IS_ERR(*dentry)) {
-		if (S_ISDIR(mode))
-			error = mkdir(parent->d_inode, *dentry, mode);
-		else
-			error = create(parent->d_inode, *dentry, mode);
-		if (error)
-			dput(*dentry);
-	} else
-		error = PTR_ERR(*dentry);
-	mutex_unlock(&parent->d_inode->i_mutex);
-
-	return error;
-}
 
 /**
  * securityfs_create_file - create a file in the securityfs filesystem
@@ -209,31 +83,66 @@ struct dentry *securityfs_create_file(const char *name, umode_t mode,
 				   struct dentry *parent, void *data,
 				   const struct file_operations *fops)
 {
-	struct dentry *dentry = NULL;
+	struct dentry *dentry;
+	int is_dir = S_ISDIR(mode);
+	struct inode *dir, *inode;
 	int error;
+
+	if (!is_dir) {
+		BUG_ON(!fops);
+		mode = (mode & S_IALLUGO) | S_IFREG;
+	}
 
 	pr_debug("securityfs: creating file '%s'\n",name);
 
 	error = simple_pin_fs(&fs_type, &mount, &mount_count);
-	if (error) {
-		dentry = ERR_PTR(error);
-		goto exit;
-	}
+	if (error)
+		return ERR_PTR(error);
 
-	error = create_by_name(name, mode, parent, &dentry);
-	if (error) {
-		dentry = ERR_PTR(error);
-		simple_release_fs(&mount, &mount_count);
-		goto exit;
-	}
+	if (!parent)
+		parent = mount->mnt_root;
+
+	dir = parent->d_inode;
+
+	mutex_lock(&dir->i_mutex);
+	dentry = lookup_one_len(name, parent, strlen(name));
+	if (IS_ERR(dentry))
+		goto out;
 
 	if (dentry->d_inode) {
-		if (fops)
-			dentry->d_inode->i_fop = fops;
-		if (data)
-			dentry->d_inode->i_private = data;
+		error = -EEXIST;
+		goto out1;
 	}
-exit:
+
+	inode = new_inode(dir->i_sb);
+	if (!inode) {
+		error = -ENOMEM;
+		goto out1;
+	}
+
+	inode->i_ino = get_next_ino();
+	inode->i_mode = mode;
+	inode->i_atime = inode->i_mtime = inode->i_ctime = CURRENT_TIME;
+	inode->i_private = data;
+	if (is_dir) {
+		inode->i_op = &simple_dir_inode_operations;
+		inode->i_fop = &simple_dir_operations;
+		inc_nlink(inode);
+		inc_nlink(dir);
+	} else {
+		inode->i_fop = fops;
+	}
+	d_instantiate(dentry, inode);
+	dget(dentry);
+	mutex_unlock(&dir->i_mutex);
+	return dentry;
+
+out1:
+	dput(dentry);
+	dentry = ERR_PTR(error);
+out:
+	mutex_unlock(&dir->i_mutex);
+	simple_release_fs(&mount, &mount_count);
 	return dentry;
 }
 EXPORT_SYMBOL_GPL(securityfs_create_file);

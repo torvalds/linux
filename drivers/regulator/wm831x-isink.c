@@ -162,7 +162,8 @@ static __devinit int wm831x_isink_probe(struct platform_device *pdev)
 	if (pdata == NULL || pdata->isink[id] == NULL)
 		return -ENODEV;
 
-	isink = kzalloc(sizeof(struct wm831x_isink), GFP_KERNEL);
+	isink = devm_kzalloc(&pdev->dev, sizeof(struct wm831x_isink),
+			     GFP_KERNEL);
 	if (isink == NULL) {
 		dev_err(&pdev->dev, "Unable to allocate private data\n");
 		return -ENOMEM;
@@ -189,7 +190,7 @@ static __devinit int wm831x_isink_probe(struct platform_device *pdev)
 	isink->desc.owner = THIS_MODULE;
 
 	isink->regulator = regulator_register(&isink->desc, &pdev->dev,
-					     pdata->isink[id], isink);
+					     pdata->isink[id], isink, NULL);
 	if (IS_ERR(isink->regulator)) {
 		ret = PTR_ERR(isink->regulator);
 		dev_err(wm831x->dev, "Failed to register ISINK%d: %d\n",
@@ -213,7 +214,6 @@ static __devinit int wm831x_isink_probe(struct platform_device *pdev)
 err_regulator:
 	regulator_unregister(isink->regulator);
 err:
-	kfree(isink);
 	return ret;
 }
 
@@ -226,7 +226,6 @@ static __devexit int wm831x_isink_remove(struct platform_device *pdev)
 	free_irq(platform_get_irq(pdev, 0), isink);
 
 	regulator_unregister(isink->regulator);
-	kfree(isink);
 
 	return 0;
 }

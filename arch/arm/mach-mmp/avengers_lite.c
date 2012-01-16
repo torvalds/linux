@@ -38,6 +38,7 @@ static void __init avengers_lite_init(void)
 
 	/* on-chip devices */
 	pxa168_add_uart(2);
+	platform_device_register(&pxa168_device_gpio);
 }
 
 MACHINE_START(AVENGERS_LITE, "PXA168 Avengers lite Development Platform")

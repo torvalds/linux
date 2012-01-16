@@ -40,7 +40,7 @@ int nf_register_queue_handler(u_int8_t pf, const struct nf_queue_handler *qh)
 	else if (old)
 		ret = -EBUSY;
 	else {
-		RCU_INIT_POINTER(queue_handler[pf], qh);
+		rcu_assign_pointer(queue_handler[pf], qh);
 		ret = 0;
 	}
 	mutex_unlock(&queue_handler_mutex);

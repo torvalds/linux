@@ -764,6 +764,22 @@ _initvars_srom_pci(u8 sromrev, u16 *srom, struct list_head *var_list)
 }
 
 /*
+ * The crc check is done on a little-endian array, we need
+ * to switch the bytes around before checking crc (and
+ * then switch it back).
+ */
+static int do_crc_check(u16 *buf, unsigned nwords)
+{
+	u8 crc;
+
+	cpu_to_le16_buf(buf, nwords);
+	crc = crc8(brcms_srom_crc8_table, (void *)buf, nwords << 1, CRC8_INIT_VALUE);
+	le16_to_cpu_buf(buf, nwords);
+
+	return crc == CRC8_GOOD_VALUE(brcms_srom_crc8_table);
+}
+
+/*
  * Read in and validate sprom.
  * Return 0 on success, nonzero on error.
  */
@@ -772,8 +788,6 @@ sprom_read_pci(struct si_pub *sih, u16 *buf, uint nwords, bool check_crc)
 {
 	int err = 0;
 	uint i;
-	u8 *bbuf = (u8 *)buf; /* byte buffer */
-	uint nbytes = nwords << 1;
 	struct bcma_device *core;
 	uint sprom_offset;
 
@@ -786,9 +800,9 @@ sprom_read_pci(struct si_pub *sih, u16 *buf, uint nwords, bool check_crc)
 		sprom_offset = CHIPCREGOFFS(sromotp);
 	}
 
-	/* read the sprom in bytes */
-	for (i = 0; i < nbytes; i++)
-		bbuf[i] = bcma_read8(core, sprom_offset+i);
+	/* read the sprom */
+	for (i = 0; i < nwords; i++)
+		buf[i] = bcma_read16(core, sprom_offset+i*2);
 
 	if (buf[0] == 0xffff)
 		/*
@@ -798,13 +812,8 @@ sprom_read_pci(struct si_pub *sih, u16 *buf, uint nwords, bool check_crc)
 		 */
 		return -ENODATA;
 
-	if (check_crc &&
-	    crc8(brcms_srom_crc8_table, bbuf, nbytes, CRC8_INIT_VALUE) !=
-		 CRC8_GOOD_VALUE(brcms_srom_crc8_table))
+	if (check_crc && !do_crc_check(buf, nwords))
 		err = -EIO;
-	else
-		/* now correct the endianness of the byte array */
-		le16_to_cpu_buf(buf, nwords);
 
 	return err;
 }

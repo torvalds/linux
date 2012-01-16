@@ -230,15 +230,13 @@ static void wait_for_devices(struct xenbus_driver *xendrv)
 			 print_device_status);
 }
 
-int __xenbus_register_frontend(struct xenbus_driver *drv,
-			       struct module *owner, const char *mod_name)
+int xenbus_register_frontend(struct xenbus_driver *drv)
 {
 	int ret;
 
 	drv->read_otherend_details = read_backend_details;
 
-	ret = xenbus_register_driver_common(drv, &xenbus_frontend,
-					    owner, mod_name);
+	ret = xenbus_register_driver_common(drv, &xenbus_frontend);
 	if (ret)
 		return ret;
 
@@ -247,7 +245,7 @@ int __xenbus_register_frontend(struct xenbus_driver *drv,
 
 	return 0;
 }
-EXPORT_SYMBOL_GPL(__xenbus_register_frontend);
+EXPORT_SYMBOL_GPL(xenbus_register_frontend);
 
 static DECLARE_WAIT_QUEUE_HEAD(backend_state_wq);
 static int backend_state;

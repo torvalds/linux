@@ -1004,7 +1004,7 @@ static int __devinit s6gmac_probe(struct platform_device *pdev)
 	mb->write = s6mii_write;
 	mb->reset = s6mii_reset;
 	mb->priv = pd;
-	snprintf(mb->id, MII_BUS_ID_SIZE, "0");
+	snprintf(mb->id, MII_BUS_ID_SIZE, "%s-%x", pdev->name, pdev->id);
 	mb->phy_mask = ~(1 << 0);
 	mb->irq = &pd->mii.irq[0];
 	for (i = 0; i < PHY_MAX_ADDR; i++) {

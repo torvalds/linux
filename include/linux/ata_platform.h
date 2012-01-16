@@ -27,10 +27,7 @@ extern int __devexit __pata_platform_remove(struct device *dev);
 /*
  * Marvell SATA private data
  */
-struct mbus_dram_target_info;
-
 struct mv_sata_platform_data {
-	struct mbus_dram_target_info	*dram;
 	int	n_ports; /* number of sata ports */
 };
 

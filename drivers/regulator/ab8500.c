@@ -16,8 +16,8 @@
 #include <linux/module.h>
 #include <linux/err.h>
 #include <linux/platform_device.h>
-#include <linux/mfd/ab8500.h>
 #include <linux/mfd/abx500.h>
+#include <linux/mfd/abx500/ab8500.h>
 #include <linux/regulator/driver.h>
 #include <linux/regulator/machine.h>
 #include <linux/regulator/ab8500.h>
@@ -822,7 +822,7 @@ static __devinit int ab8500_regulator_probe(struct platform_device *pdev)
 
 		/* register regulator with framework */
 		info->regulator = regulator_register(&info->desc, &pdev->dev,
-				&pdata->regulator[i], info);
+				&pdata->regulator[i], info, NULL);
 		if (IS_ERR(info->regulator)) {
 			err = PTR_ERR(info->regulator);
 			dev_err(&pdev->dev, "failed to register regulator %s\n",

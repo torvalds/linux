@@ -948,8 +948,11 @@ root_found:
 
 	/* get the root dentry */
 	s->s_root = d_alloc_root(inode);
-	if (!(s->s_root))
-		goto out_no_root;
+	if (!(s->s_root)) {
+		iput(inode);
+		error = -ENOMEM;
+		goto out_no_inode;
+	}
 
 	kfree(opt.iocharset);
 

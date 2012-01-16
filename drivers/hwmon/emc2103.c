@@ -55,7 +55,7 @@ static const u8 REG_TEMP_MAX[4] = { 0x34, 0x30, 0x31, 0x32 };
  * it.  Default is to leave the device in the state it's already in (-1).
  * This parameter allows APD mode to be optionally forced on or off */
 static int apd = -1;
-module_param(apd, bool, 0);
+module_param(apd, bint, 0);
 MODULE_PARM_DESC(init, "Set to zero to disable anti-parallel diode mode");
 
 struct temperature {

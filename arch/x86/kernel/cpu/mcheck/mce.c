@@ -2011,7 +2011,7 @@ static __cpuinit int mce_device_create(unsigned int cpu)
 	if (!mce_available(&boot_cpu_data))
 		return -EIO;
 
-	memset(&dev->kobj, 0, sizeof(struct kobject));
+	memset(dev, 0, sizeof(struct device));
 	dev->id  = cpu;
 	dev->bus = &mce_subsys;
 

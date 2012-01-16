@@ -572,7 +572,7 @@ extern void qla2x00_set_model_info(scsi_qla_host_t *, uint8_t *,
     size_t, char *);
 extern int qla82xx_mbx_intr_enable(scsi_qla_host_t *);
 extern int qla82xx_mbx_intr_disable(scsi_qla_host_t *);
-extern void qla82xx_start_iocbs(srb_t *);
+extern void qla82xx_start_iocbs(scsi_qla_host_t *);
 extern int qla82xx_fcoe_ctx_reset(scsi_qla_host_t *);
 extern int qla82xx_check_md_needed(scsi_qla_host_t *);
 extern void qla82xx_chip_reset_cleanup(scsi_qla_host_t *);

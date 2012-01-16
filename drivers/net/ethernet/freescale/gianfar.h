@@ -63,6 +63,9 @@ struct ethtool_rx_list {
 /* Length for FCB */
 #define GMAC_FCB_LEN 8
 
+/* Length for TxPAL */
+#define GMAC_TXPAL_LEN 16
+
 /* Default padding amount */
 #define DEFAULT_PADDING 2
 

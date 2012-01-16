@@ -181,6 +181,7 @@ static struct snd_soc_dai_link mioa701_dai[] = {
 
 static struct snd_soc_card mioa701 = {
 	.name = "MioA701",
+	.owner = THIS_MODULE,
 	.dai_link = mioa701_dai,
 	.num_links = ARRAY_SIZE(mioa701_dai),
 };
@@ -227,18 +228,7 @@ static struct platform_driver mioa701_wm9713_driver = {
 	},
 };
 
-static int __init mioa701_asoc_init(void)
-{
-	return platform_driver_register(&mioa701_wm9713_driver);
-}
-
-static void __exit mioa701_asoc_exit(void)
-{
-	platform_driver_unregister(&mioa701_wm9713_driver);
-}
-
-module_init(mioa701_asoc_init);
-module_exit(mioa701_asoc_exit);
+module_platform_driver(mioa701_wm9713_driver);
 
 /* Module information */
 MODULE_AUTHOR("Robert Jarzmik (rjarzmik@free.fr)");

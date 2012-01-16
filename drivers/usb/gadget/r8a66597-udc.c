@@ -1746,7 +1746,7 @@ static int r8a66597_start(struct usb_gadget *gadget,
 	struct r8a66597 *r8a66597 = gadget_to_r8a66597(gadget);
 
 	if (!driver
-			|| driver->speed < USB_SPEED_HIGH
+			|| driver->max_speed < USB_SPEED_HIGH
 			|| !driver->setup)
 		return -EINVAL;
 	if (!r8a66597)
@@ -1911,7 +1911,7 @@ static int __init r8a66597_probe(struct platform_device *pdev)
 
 	r8a66597->gadget.ops = &r8a66597_gadget_ops;
 	dev_set_name(&r8a66597->gadget.dev, "gadget");
-	r8a66597->gadget.is_dualspeed = 1;
+	r8a66597->gadget.max_speed = USB_SPEED_HIGH;
 	r8a66597->gadget.dev.parent = &pdev->dev;
 	r8a66597->gadget.dev.dma_mask = pdev->dev.dma_mask;
 	r8a66597->gadget.dev.release = pdev->dev.release;

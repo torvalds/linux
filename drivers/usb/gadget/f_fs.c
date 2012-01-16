@@ -1037,7 +1037,6 @@ static int ffs_sb_fill(struct super_block *sb, void *_data, int silent)
 {
 	struct ffs_sb_fill_data *data = _data;
 	struct inode	*inode;
-	struct dentry	*d;
 	struct ffs_data	*ffs;
 
 	ENTER();
@@ -1045,7 +1044,7 @@ static int ffs_sb_fill(struct super_block *sb, void *_data, int silent)
 	/* Initialise data */
 	ffs = ffs_data_new();
 	if (unlikely(!ffs))
-		goto enomem0;
+		goto Enomem;
 
 	ffs->sb              = sb;
 	ffs->dev_name        = data->dev_name;
@@ -1065,26 +1064,21 @@ static int ffs_sb_fill(struct super_block *sb, void *_data, int silent)
 				  &simple_dir_inode_operations,
 				  &data->perms);
 	if (unlikely(!inode))
-		goto enomem1;
-	d = d_alloc_root(inode);
-	if (unlikely(!d))
-		goto enomem2;
-	sb->s_root = d;
+		goto Enomem;
+	sb->s_root = d_alloc_root(inode);
+	if (unlikely(!sb->s_root)) {
+		iput(inode);
+		goto Enomem;
+	}
 
 	/* EP0 file */
 	if (unlikely(!ffs_sb_create_file(sb, "ep0", ffs,
 					 &ffs_ep0_operations, NULL)))
-		goto enomem3;
+		goto Enomem;
 
 	return 0;
 
-enomem3:
-	dput(d);
-enomem2:
-	iput(inode);
-enomem1:
-	ffs_data_put(ffs);
-enomem0:
+Enomem:
 	return -ENOMEM;
 }
 
@@ -1196,14 +1190,11 @@ ffs_fs_mount(struct file_system_type *t, int flags,
 static void
 ffs_fs_kill_sb(struct super_block *sb)
 {
-	void *ptr;
-
 	ENTER();
 
 	kill_litter_super(sb);
-	ptr = xchg(&sb->s_fs_info, NULL);
-	if (ptr)
-		ffs_data_put(ptr);
+	if (sb->s_fs_info)
+		ffs_data_put(sb->s_fs_info);
 }
 
 static struct file_system_type ffs_fs_type = {
@@ -1408,7 +1399,7 @@ static int ffs_epfiles_create(struct ffs_data *ffs)
 	ENTER();
 
 	count = ffs->eps_count;
-	epfiles = kzalloc(count * sizeof *epfiles, GFP_KERNEL);
+	epfiles = kcalloc(count, sizeof(*epfiles), GFP_KERNEL);
 	if (!epfiles)
 		return -ENOMEM;
 

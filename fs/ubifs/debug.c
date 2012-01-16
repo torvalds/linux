@@ -38,9 +38,6 @@
 
 DEFINE_SPINLOCK(dbg_lock);
 
-static char dbg_key_buf0[128];
-static char dbg_key_buf1[128];
-
 static const char *get_key_fmt(int fmt)
 {
 	switch (fmt) {
@@ -103,8 +100,8 @@ static const char *get_dent_type(int type)
 	}
 }
 
-static void sprintf_key(const struct ubifs_info *c, const union ubifs_key *key,
-			char *buffer)
+const char *dbg_snprintf_key(const struct ubifs_info *c,
+			     const union ubifs_key *key, char *buffer, int len)
 {
 	char *p = buffer;
 	int type = key_type(c, key);
@@ -112,45 +109,34 @@ static void sprintf_key(const struct ubifs_info *c, const union ubifs_key *key,
 	if (c->key_fmt == UBIFS_SIMPLE_KEY_FMT) {
 		switch (type) {
 		case UBIFS_INO_KEY:
-			sprintf(p, "(%lu, %s)", (unsigned long)key_inum(c, key),
-			       get_key_type(type));
+			len -= snprintf(p, len, "(%lu, %s)",
+					(unsigned long)key_inum(c, key),
+					get_key_type(type));
 			break;
 		case UBIFS_DENT_KEY:
 		case UBIFS_XENT_KEY:
-			sprintf(p, "(%lu, %s, %#08x)",
-				(unsigned long)key_inum(c, key),
-				get_key_type(type), key_hash(c, key));
+			len -= snprintf(p, len, "(%lu, %s, %#08x)",
+					(unsigned long)key_inum(c, key),
+					get_key_type(type), key_hash(c, key));
 			break;
 		case UBIFS_DATA_KEY:
-			sprintf(p, "(%lu, %s, %u)",
-				(unsigned long)key_inum(c, key),
-				get_key_type(type), key_block(c, key));
+			len -= snprintf(p, len, "(%lu, %s, %u)",
+					(unsigned long)key_inum(c, key),
+					get_key_type(type), key_block(c, key));
 			break;
 		case UBIFS_TRUN_KEY:
-			sprintf(p, "(%lu, %s)",
-				(unsigned long)key_inum(c, key),
-				get_key_type(type));
+			len -= snprintf(p, len, "(%lu, %s)",
+					(unsigned long)key_inum(c, key),
+					get_key_type(type));
 			break;
 		default:
-			sprintf(p, "(bad key type: %#08x, %#08x)",
-				key->u32[0], key->u32[1]);
+			len -= snprintf(p, len, "(bad key type: %#08x, %#08x)",
+					key->u32[0], key->u32[1]);
 		}
 	} else
-		sprintf(p, "bad key format %d", c->key_fmt);
-}
-
-const char *dbg_key_str0(const struct ubifs_info *c, const union ubifs_key *key)
-{
-	/* dbg_lock must be held */
-	sprintf_key(c, key, dbg_key_buf0);
-	return dbg_key_buf0;
-}
-
-const char *dbg_key_str1(const struct ubifs_info *c, const union ubifs_key *key)
-{
-	/* dbg_lock must be held */
-	sprintf_key(c, key, dbg_key_buf1);
-	return dbg_key_buf1;
+		len -= snprintf(p, len, "bad key format %d", c->key_fmt);
+	ubifs_assert(len > 0);
+	return p;
 }
 
 const char *dbg_ntype(int type)
@@ -319,6 +305,7 @@ void dbg_dump_node(const struct ubifs_info *c, const void *node)
 	int i, n;
 	union ubifs_key key;
 	const struct ubifs_ch *ch = node;
+	char key_buf[DBG_KEY_BUF_LEN];
 
 	if (dbg_is_tst_rcvry(c))
 		return;
@@ -474,7 +461,8 @@ void dbg_dump_node(const struct ubifs_info *c, const void *node)
 		const struct ubifs_ino_node *ino = node;
 
 		key_read(c, &ino->key, &key);
-		printk(KERN_DEBUG "\tkey            %s\n", DBGKEY(&key));
+		printk(KERN_DEBUG "\tkey            %s\n",
+		       dbg_snprintf_key(c, &key, key_buf, DBG_KEY_BUF_LEN));
 		printk(KERN_DEBUG "\tcreat_sqnum    %llu\n",
 		       (unsigned long long)le64_to_cpu(ino->creat_sqnum));
 		printk(KERN_DEBUG "\tsize           %llu\n",
@@ -517,7 +505,8 @@ void dbg_dump_node(const struct ubifs_info *c, const void *node)
 		int nlen = le16_to_cpu(dent->nlen);
 
 		key_read(c, &dent->key, &key);
-		printk(KERN_DEBUG "\tkey            %s\n", DBGKEY(&key));
+		printk(KERN_DEBUG "\tkey            %s\n",
+		       dbg_snprintf_key(c, &key, key_buf, DBG_KEY_BUF_LEN));
 		printk(KERN_DEBUG "\tinum           %llu\n",
 		       (unsigned long long)le64_to_cpu(dent->inum));
 		printk(KERN_DEBUG "\ttype           %d\n", (int)dent->type);
@@ -541,7 +530,8 @@ void dbg_dump_node(const struct ubifs_info *c, const void *node)
 		int dlen = le32_to_cpu(ch->len) - UBIFS_DATA_NODE_SZ;
 
 		key_read(c, &dn->key, &key);
-		printk(KERN_DEBUG "\tkey            %s\n", DBGKEY(&key));
+		printk(KERN_DEBUG "\tkey            %s\n",
+		       dbg_snprintf_key(c, &key, key_buf, DBG_KEY_BUF_LEN));
 		printk(KERN_DEBUG "\tsize           %u\n",
 		       le32_to_cpu(dn->size));
 		printk(KERN_DEBUG "\tcompr_typ      %d\n",
@@ -582,7 +572,9 @@ void dbg_dump_node(const struct ubifs_info *c, const void *node)
 			key_read(c, &br->key, &key);
 			printk(KERN_DEBUG "\t%d: LEB %d:%d len %d key %s\n",
 			       i, le32_to_cpu(br->lnum), le32_to_cpu(br->offs),
-			       le32_to_cpu(br->len), DBGKEY(&key));
+			       le32_to_cpu(br->len),
+			       dbg_snprintf_key(c, &key, key_buf,
+						DBG_KEY_BUF_LEN));
 		}
 		break;
 	}
@@ -934,6 +926,7 @@ void dbg_dump_znode(const struct ubifs_info *c,
 {
 	int n;
 	const struct ubifs_zbranch *zbr;
+	char key_buf[DBG_KEY_BUF_LEN];
 
 	spin_lock(&dbg_lock);
 	if (znode->parent)
@@ -958,12 +951,16 @@ void dbg_dump_znode(const struct ubifs_info *c,
 			printk(KERN_DEBUG "\t%d: znode %p LEB %d:%d len %d key "
 					  "%s\n", n, zbr->znode, zbr->lnum,
 					  zbr->offs, zbr->len,
-					  DBGKEY(&zbr->key));
+					  dbg_snprintf_key(c, &zbr->key,
+							   key_buf,
+							   DBG_KEY_BUF_LEN));
 		else
 			printk(KERN_DEBUG "\t%d: LNC %p LEB %d:%d len %d key "
 					  "%s\n", n, zbr->znode, zbr->lnum,
 					  zbr->offs, zbr->len,
-					  DBGKEY(&zbr->key));
+					  dbg_snprintf_key(c, &zbr->key,
+							   key_buf,
+							   DBG_KEY_BUF_LEN));
 	}
 	spin_unlock(&dbg_lock);
 }
@@ -1260,6 +1257,7 @@ static int dbg_check_key_order(struct ubifs_info *c, struct ubifs_zbranch *zbr1,
 	int err, nlen1, nlen2, cmp;
 	struct ubifs_dent_node *dent1, *dent2;
 	union ubifs_key key;
+	char key_buf[DBG_KEY_BUF_LEN];
 
 	ubifs_assert(!keys_cmp(c, &zbr1->key, &zbr2->key));
 	dent1 = kmalloc(UBIFS_MAX_DENT_NODE_SZ, GFP_NOFS);
@@ -1290,9 +1288,11 @@ static int dbg_check_key_order(struct ubifs_info *c, struct ubifs_zbranch *zbr1,
 	key_read(c, &dent1->key, &key);
 	if (keys_cmp(c, &zbr1->key, &key)) {
 		dbg_err("1st entry at %d:%d has key %s", zbr1->lnum,
-			zbr1->offs, DBGKEY(&key));
+			zbr1->offs, dbg_snprintf_key(c, &key, key_buf,
+						     DBG_KEY_BUF_LEN));
 		dbg_err("but it should have key %s according to tnc",
-			DBGKEY(&zbr1->key));
+			dbg_snprintf_key(c, &zbr1->key, key_buf,
+					 DBG_KEY_BUF_LEN));
 		dbg_dump_node(c, dent1);
 		goto out_free;
 	}
@@ -1300,9 +1300,11 @@ static int dbg_check_key_order(struct ubifs_info *c, struct ubifs_zbranch *zbr1,
 	key_read(c, &dent2->key, &key);
 	if (keys_cmp(c, &zbr2->key, &key)) {
 		dbg_err("2nd entry at %d:%d has key %s", zbr1->lnum,
-			zbr1->offs, DBGKEY(&key));
+			zbr1->offs, dbg_snprintf_key(c, &key, key_buf,
+						     DBG_KEY_BUF_LEN));
 		dbg_err("but it should have key %s according to tnc",
-			DBGKEY(&zbr2->key));
+			dbg_snprintf_key(c, &zbr2->key, key_buf,
+					 DBG_KEY_BUF_LEN));
 		dbg_dump_node(c, dent2);
 		goto out_free;
 	}
@@ -1319,7 +1321,7 @@ static int dbg_check_key_order(struct ubifs_info *c, struct ubifs_zbranch *zbr1,
 		dbg_err("2 xent/dent nodes with the same name");
 	else
 		dbg_err("bad order of colliding key %s",
-			DBGKEY(&key));
+			dbg_snprintf_key(c, &key, key_buf, DBG_KEY_BUF_LEN));
 
 	ubifs_msg("first node at %d:%d\n", zbr1->lnum, zbr1->offs);
 	dbg_dump_node(c, dent1);

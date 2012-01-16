@@ -436,6 +436,14 @@ static struct platform_device corgiled_device = {
 };
 
 /*
+ * Corgi Audio
+ */
+static struct platform_device corgi_audio_device = {
+	.name	= "corgi-audio",
+	.id	= -1,
+};
+
+/*
  * MMC/SD Device
  *
  * The card detect interrupt isn't debounced so we delay it by 250ms
@@ -531,7 +539,7 @@ static struct spi_board_info corgi_spi_devices[] = {
 		.chip_select	= 0,
 		.platform_data	= &corgi_ads7846_info,
 		.controller_data= &corgi_ads7846_chip,
-		.irq		= gpio_to_irq(CORGI_GPIO_TP_INT),
+		.irq		= PXA_GPIO_TO_IRQ(CORGI_GPIO_TP_INT),
 	}, {
 		.modalias	= "corgi-lcd",
 		.max_speed_hz	= 50000,
@@ -641,6 +649,7 @@ static struct platform_device *devices[] __initdata = {
 	&corgifb_device,
 	&corgikbd_device,
 	&corgiled_device,
+	&corgi_audio_device,
 	&sharpsl_nand_device,
 	&sharpsl_rom_device,
 };

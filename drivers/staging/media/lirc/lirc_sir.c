@@ -173,7 +173,7 @@ static DEFINE_SPINLOCK(hardware_lock);
 static int rx_buf[RBUF_LEN];
 static unsigned int rx_tail, rx_head;
 
-static int debug;
+static bool debug;
 #define dprintk(fmt, args...)						\
 	do {								\
 		if (debug)						\

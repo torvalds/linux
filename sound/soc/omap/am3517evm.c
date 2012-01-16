@@ -107,6 +107,7 @@ static struct snd_soc_dai_link am3517evm_dai = {
 /* Audio machine driver */
 static struct snd_soc_card snd_soc_am3517evm = {
 	.name = "am3517evm",
+	.owner = THIS_MODULE,
 	.dai_link = &am3517evm_dai,
 	.num_links = 1,
 

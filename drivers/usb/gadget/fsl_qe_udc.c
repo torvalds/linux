@@ -2336,7 +2336,7 @@ static int fsl_qe_start(struct usb_gadget_driver *driver,
 	if (!udc_controller)
 		return -ENODEV;
 
-	if (!driver || driver->speed < USB_SPEED_FULL
+	if (!driver || driver->max_speed < USB_SPEED_FULL
 			|| !bind || !driver->disconnect || !driver->setup)
 		return -EINVAL;
 
@@ -2350,7 +2350,7 @@ static int fsl_qe_start(struct usb_gadget_driver *driver,
 	/* hook up the driver */
 	udc_controller->driver = driver;
 	udc_controller->gadget.dev.driver = &driver->driver;
-	udc_controller->gadget.speed = (enum usb_device_speed)(driver->speed);
+	udc_controller->gadget.speed = driver->max_speed;
 	spin_unlock_irqrestore(&udc_controller->lock, flags);
 
 	retval = bind(&udc_controller->gadget);
@@ -2814,20 +2814,7 @@ static struct platform_driver udc_driver = {
 #endif
 };
 
-static int __init qe_udc_init(void)
-{
-	printk(KERN_INFO "%s: %s, %s\n", driver_name, driver_desc,
-			DRIVER_VERSION);
-	return platform_driver_register(&udc_driver);
-}
-
-static void __exit qe_udc_exit(void)
-{
-	platform_driver_unregister(&udc_driver);
-}
-
-module_init(qe_udc_init);
-module_exit(qe_udc_exit);
+module_platform_driver(udc_driver);
 
 MODULE_DESCRIPTION(DRIVER_DESC);
 MODULE_AUTHOR(DRIVER_AUTHOR);

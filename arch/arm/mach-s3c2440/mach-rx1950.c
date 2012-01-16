@@ -70,15 +70,6 @@
 static struct map_desc rx1950_iodesc[] __initdata = {
 };
 
-static struct s3c24xx_uart_clksrc rx1950_serial_clocks[] = {
-	[0] = {
-	       .name = "fclk",
-	       .divisor = 0x0a,
-	       .min_baud = 0,
-	       .max_baud = 0,
-	},
-};
-
 static struct s3c2410_uartcfg rx1950_uartcfgs[] __initdata = {
 	[0] = {
 	       .hwport = 0,
@@ -86,8 +77,7 @@ static struct s3c2410_uartcfg rx1950_uartcfgs[] __initdata = {
 	       .ucon = 0x3c5,
 	       .ulcon = 0x03,
 	       .ufcon = 0x51,
-	       .clocks = rx1950_serial_clocks,
-	       .clocks_size = ARRAY_SIZE(rx1950_serial_clocks),
+		.clk_sel = S3C2410_UCON_CLKSEL3,
 	},
 	[1] = {
 	       .hwport = 1,
@@ -95,8 +85,7 @@ static struct s3c2410_uartcfg rx1950_uartcfgs[] __initdata = {
 	       .ucon = 0x3c5,
 	       .ulcon = 0x03,
 	       .ufcon = 0x51,
-	       .clocks = rx1950_serial_clocks,
-	       .clocks_size = ARRAY_SIZE(rx1950_serial_clocks),
+		.clk_sel = S3C2410_UCON_CLKSEL3,
 	},
 	/* IR port */
 	[2] = {
@@ -105,8 +94,7 @@ static struct s3c2410_uartcfg rx1950_uartcfgs[] __initdata = {
 	       .ucon = 0x3c5,
 	       .ulcon = 0x43,
 	       .ufcon = 0xf1,
-	       .clocks = rx1950_serial_clocks,
-	       .clocks_size = ARRAY_SIZE(rx1950_serial_clocks),
+		.clk_sel = S3C2410_UCON_CLKSEL3,
 	},
 };
 

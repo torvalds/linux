@@ -49,6 +49,7 @@ static const struct v4l2_ctrl_ops pwc_ctrl_ops = {
 
 enum { awb_indoor, awb_outdoor, awb_fl, awb_manual, awb_auto };
 enum { custom_autocontour, custom_contour, custom_noise_reduction,
+	custom_awb_speed, custom_awb_delay,
 	custom_save_user, custom_restore_user, custom_restore_factory };
 
 const char * const pwc_auto_whitebal_qmenu[] = {
@@ -136,6 +137,26 @@ static const struct v4l2_ctrl_config pwc_restore_factory_cfg = {
 	.id	= PWC_CID_CUSTOM(restore_factory),
 	.type	= V4L2_CTRL_TYPE_BUTTON,
 	.name    = "Restore Factory Settings",
+};
+
+static const struct v4l2_ctrl_config pwc_awb_speed_cfg = {
+	.ops	= &pwc_ctrl_ops,
+	.id	= PWC_CID_CUSTOM(awb_speed),
+	.type	= V4L2_CTRL_TYPE_INTEGER,
+	.name	= "Auto White Balance Speed",
+	.min	= 1,
+	.max	= 32,
+	.step	= 1,
+};
+
+static const struct v4l2_ctrl_config pwc_awb_delay_cfg = {
+	.ops	= &pwc_ctrl_ops,
+	.id	= PWC_CID_CUSTOM(awb_delay),
+	.type	= V4L2_CTRL_TYPE_INTEGER,
+	.name	= "Auto White Balance Delay",
+	.min	= 0,
+	.max	= 63,
+	.step	= 1,
 };
 
 int pwc_init_controls(struct pwc_device *pdev)
@@ -338,6 +359,23 @@ int pwc_init_controls(struct pwc_device *pdev)
 	if (pdev->restore_factory)
 		pdev->restore_factory->flags |= V4L2_CTRL_FLAG_UPDATE;
 
+	/* Auto White Balance speed & delay */
+	r = pwc_get_u8_ctrl(pdev, GET_CHROM_CTL,
+			    AWB_CONTROL_SPEED_FORMATTER, &def);
+	if (r || def < 1 || def > 32)
+		def = 1;
+	cfg = pwc_awb_speed_cfg;
+	cfg.def = def;
+	pdev->awb_speed = v4l2_ctrl_new_custom(hdl, &cfg, NULL);
+
+	r = pwc_get_u8_ctrl(pdev, GET_CHROM_CTL,
+			    AWB_CONTROL_DELAY_FORMATTER, &def);
+	if (r || def > 63)
+		def = 0;
+	cfg = pwc_awb_delay_cfg;
+	cfg.def = def;
+	pdev->awb_delay = v4l2_ctrl_new_custom(hdl, &cfg, NULL);
+
 	if (!(pdev->features & FEATURE_MOTOR_PANTILT))
 		return hdl->error;
 
@@ -357,25 +395,16 @@ int pwc_init_controls(struct pwc_device *pdev)
 	return hdl->error;
 }
 
-static void pwc_vidioc_fill_fmt(const struct pwc_device *pdev, struct v4l2_format *f)
+static void pwc_vidioc_fill_fmt(struct v4l2_format *f,
+	int width, int height, u32 pixfmt)
 {
 	memset(&f->fmt.pix, 0, sizeof(struct v4l2_pix_format));
-	f->fmt.pix.width        = pdev->view.x;
-	f->fmt.pix.height       = pdev->view.y;
+	f->fmt.pix.width        = width;
+	f->fmt.pix.height       = height;
 	f->fmt.pix.field        = V4L2_FIELD_NONE;
-	if (pdev->pixfmt == V4L2_PIX_FMT_YUV420) {
-		f->fmt.pix.pixelformat  = V4L2_PIX_FMT_YUV420;
-		f->fmt.pix.bytesperline = (f->fmt.pix.width * 3)/2;
-		f->fmt.pix.sizeimage = f->fmt.pix.height * f->fmt.pix.bytesperline;
-	} else {
-		/* vbandlength contains 4 lines ...  */
-		f->fmt.pix.bytesperline = pdev->vbandlength/4;
-		f->fmt.pix.sizeimage = pdev->frame_size + sizeof(struct pwc_raw_frame);
-		if (DEVICE_USE_CODEC1(pdev->type))
-			f->fmt.pix.pixelformat  = V4L2_PIX_FMT_PWC1;
-		else
-			f->fmt.pix.pixelformat  = V4L2_PIX_FMT_PWC2;
-	}
+	f->fmt.pix.pixelformat  = pixfmt;
+	f->fmt.pix.bytesperline = f->fmt.pix.width;
+	f->fmt.pix.sizeimage	= f->fmt.pix.height * f->fmt.pix.width * 3 / 2;
 	PWC_DEBUG_IOCTL("pwc_vidioc_fill_fmt() "
 			"width=%d, height=%d, bytesperline=%d, sizeimage=%d, pixelformat=%c%c%c%c\n",
 			f->fmt.pix.width,
@@ -391,6 +420,8 @@ static void pwc_vidioc_fill_fmt(const struct pwc_device *pdev, struct v4l2_forma
 /* ioctl(VIDIOC_TRY_FMT) */
 static int pwc_vidioc_try_fmt(struct pwc_device *pdev, struct v4l2_format *f)
 {
+	int size;
+
 	if (f->type != V4L2_BUF_TYPE_VIDEO_CAPTURE) {
 		PWC_DEBUG_IOCTL("Bad video type must be V4L2_BUF_TYPE_VIDEO_CAPTURE\n");
 		return -EINVAL;
@@ -417,15 +448,11 @@ static int pwc_vidioc_try_fmt(struct pwc_device *pdev, struct v4l2_format *f)
 
 	}
 
-	if (f->fmt.pix.width > pdev->view_max.x)
-		f->fmt.pix.width = pdev->view_max.x;
-	else if (f->fmt.pix.width < pdev->view_min.x)
-		f->fmt.pix.width = pdev->view_min.x;
-
-	if (f->fmt.pix.height > pdev->view_max.y)
-		f->fmt.pix.height = pdev->view_max.y;
-	else if (f->fmt.pix.height < pdev->view_min.y)
-		f->fmt.pix.height = pdev->view_min.y;
+	size = pwc_get_size(pdev, f->fmt.pix.width, f->fmt.pix.height);
+	pwc_vidioc_fill_fmt(f,
+			    pwc_image_sizes[size][0],
+			    pwc_image_sizes[size][1],
+			    f->fmt.pix.pixelformat);
 
 	return 0;
 }
@@ -435,68 +462,50 @@ static int pwc_vidioc_try_fmt(struct pwc_device *pdev, struct v4l2_format *f)
 static int pwc_s_fmt_vid_cap(struct file *file, void *fh, struct v4l2_format *f)
 {
 	struct pwc_device *pdev = video_drvdata(file);
-	int ret, fps, snapshot, compression, pixelformat;
+	int ret, pixelformat, compression = 0;
 
-	if (!pdev->udev)
-		return -ENODEV;
-
-	if (pdev->capt_file != NULL &&
-	    pdev->capt_file != file)
+	if (pwc_test_n_set_capt_file(pdev, file))
 		return -EBUSY;
 
-	pdev->capt_file = file;
-
 	ret = pwc_vidioc_try_fmt(pdev, f);
-	if (ret<0)
+	if (ret < 0)
 		return ret;
 
 	pixelformat = f->fmt.pix.pixelformat;
-	compression = pdev->vcompression;
-	snapshot = 0;
-	fps = pdev->vframes;
-	if (f->fmt.pix.priv) {
-		compression = (f->fmt.pix.priv & PWC_QLT_MASK) >> PWC_QLT_SHIFT;
-		snapshot = !!(f->fmt.pix.priv & PWC_FPS_SNAPSHOT);
-		fps = (f->fmt.pix.priv & PWC_FPS_FRMASK) >> PWC_FPS_SHIFT;
-		if (fps == 0)
-			fps = pdev->vframes;
+
+	mutex_lock(&pdev->udevlock);
+	if (!pdev->udev) {
+		ret = -ENODEV;
+		goto leave;
 	}
 
-	if (pixelformat != V4L2_PIX_FMT_YUV420 &&
-	    pixelformat != V4L2_PIX_FMT_PWC1 &&
-	    pixelformat != V4L2_PIX_FMT_PWC2)
-		return -EINVAL;
-
-	if (vb2_is_streaming(&pdev->vb_queue))
-		return -EBUSY;
+	if (pdev->iso_init) {
+		ret = -EBUSY;
+		goto leave;
+	}
 
 	PWC_DEBUG_IOCTL("Trying to set format to: width=%d height=%d fps=%d "
-			"compression=%d snapshot=%d format=%c%c%c%c\n",
-			f->fmt.pix.width, f->fmt.pix.height, fps,
-			compression, snapshot,
+			"format=%c%c%c%c\n",
+			f->fmt.pix.width, f->fmt.pix.height, pdev->vframes,
 			(pixelformat)&255,
 			(pixelformat>>8)&255,
 			(pixelformat>>16)&255,
 			(pixelformat>>24)&255);
 
-	ret = pwc_set_video_mode(pdev,
-				 f->fmt.pix.width,
-				 f->fmt.pix.height,
-				 fps,
-				 compression,
-				 snapshot);
+	ret = pwc_set_video_mode(pdev, f->fmt.pix.width, f->fmt.pix.height,
+				 pdev->vframes, &compression);
 
 	PWC_DEBUG_IOCTL("pwc_set_video_mode(), return=%d\n", ret);
 
-	if (ret)
-		return ret;
+	if (ret == 0) {
+		pdev->pixfmt = pixelformat;
+		pwc_vidioc_fill_fmt(f, pdev->width, pdev->height,
+				    pdev->pixfmt);
+	}
 
-	pdev->pixfmt = pixelformat;
-
-	pwc_vidioc_fill_fmt(pdev, f);
-
-	return 0;
-
+leave:
+	mutex_unlock(&pdev->udevlock);
+	return ret;
 }
 
 static int pwc_querycap(struct file *file, void *fh, struct v4l2_capability *cap)
@@ -536,30 +545,14 @@ static int pwc_s_input(struct file *file, void *fh, unsigned int i)
 	return i ? -EINVAL : 0;
 }
 
-static int pwc_g_volatile_ctrl(struct v4l2_ctrl *ctrl)
+static int pwc_g_volatile_ctrl_unlocked(struct v4l2_ctrl *ctrl)
 {
 	struct pwc_device *pdev =
 		container_of(ctrl->handler, struct pwc_device, ctrl_handler);
 	int ret = 0;
 
-	/*
-	 * Sometimes it can take quite long for the pwc to complete usb control
-	 * transfers, so release the modlock to give streaming by another
-	 * process / thread the chance to continue with a dqbuf.
-	 */
-	mutex_unlock(&pdev->modlock);
-
-	/*
-	 * Take the udev-lock to protect against the disconnect handler
-	 * completing and setting dev->udev to NULL underneath us. Other code
-	 * does not need to do this since it is protected by the modlock.
-	 */
-	mutex_lock(&pdev->udevlock);
-
-	if (!pdev->udev) {
-		ret = -ENODEV;
-		goto leave;
-	}
+	if (!pdev->udev)
+		return -ENODEV;
 
 	switch (ctrl->id) {
 	case V4L2_CID_AUTO_WHITE_BALANCE:
@@ -624,9 +617,18 @@ static int pwc_g_volatile_ctrl(struct v4l2_ctrl *ctrl)
 	if (ret)
 		PWC_ERROR("g_ctrl %s error %d\n", ctrl->name, ret);
 
-leave:
+	return ret;
+}
+
+static int pwc_g_volatile_ctrl(struct v4l2_ctrl *ctrl)
+{
+	struct pwc_device *pdev =
+		container_of(ctrl->handler, struct pwc_device, ctrl_handler);
+	int ret;
+
+	mutex_lock(&pdev->udevlock);
+	ret = pwc_g_volatile_ctrl_unlocked(ctrl);
 	mutex_unlock(&pdev->udevlock);
-	mutex_lock(&pdev->modlock);
 	return ret;
 }
 
@@ -643,6 +645,15 @@ static int pwc_set_awb(struct pwc_device *pdev)
 
 		if (pdev->auto_white_balance->val != awb_manual)
 			pdev->color_bal_valid = false; /* Force cache update */
+
+		/*
+		 * If this is a preset, update our red / blue balance values
+		 * so that events get generated for the new preset values
+		 */
+		if (pdev->auto_white_balance->val == awb_indoor ||
+		    pdev->auto_white_balance->val == awb_outdoor ||
+		    pdev->auto_white_balance->val == awb_fl)
+			pwc_g_volatile_ctrl_unlocked(pdev->auto_white_balance);
 	}
 	if (pdev->auto_white_balance->val != awb_manual)
 		return 0;
@@ -806,8 +817,6 @@ static int pwc_s_ctrl(struct v4l2_ctrl *ctrl)
 		container_of(ctrl->handler, struct pwc_device, ctrl_handler);
 	int ret = 0;
 
-	/* See the comments on locking in pwc_g_volatile_ctrl */
-	mutex_unlock(&pdev->modlock);
 	mutex_lock(&pdev->udevlock);
 
 	if (!pdev->udev) {
@@ -891,6 +900,16 @@ static int pwc_s_ctrl(struct v4l2_ctrl *ctrl)
 		ret = pwc_button_ctrl(pdev,
 				      RESTORE_FACTORY_DEFAULTS_FORMATTER);
 		break;
+	case PWC_CID_CUSTOM(awb_speed):
+		ret = pwc_set_u8_ctrl(pdev, SET_CHROM_CTL,
+				      AWB_CONTROL_SPEED_FORMATTER,
+				      ctrl->val);
+		break;
+	case PWC_CID_CUSTOM(awb_delay):
+		ret = pwc_set_u8_ctrl(pdev, SET_CHROM_CTL,
+				      AWB_CONTROL_DELAY_FORMATTER,
+				      ctrl->val);
+		break;
 	case V4L2_CID_PAN_RELATIVE:
 		ret = pwc_set_motor(pdev);
 		break;
@@ -903,7 +922,6 @@ static int pwc_s_ctrl(struct v4l2_ctrl *ctrl)
 
 leave:
 	mutex_unlock(&pdev->udevlock);
-	mutex_lock(&pdev->modlock);
 	return ret;
 }
 
@@ -933,9 +951,14 @@ static int pwc_g_fmt_vid_cap(struct file *file, void *fh, struct v4l2_format *f)
 {
 	struct pwc_device *pdev = video_drvdata(file);
 
+	if (f->type != V4L2_BUF_TYPE_VIDEO_CAPTURE)
+		return -EINVAL;
+
+	mutex_lock(&pdev->udevlock); /* To avoid race with s_fmt */
 	PWC_DEBUG_IOCTL("ioctl(VIDIOC_G_FMT) return size %dx%d\n",
-			pdev->image.x, pdev->image.y);
-	pwc_vidioc_fill_fmt(pdev, f);
+			pdev->width, pdev->height);
+	pwc_vidioc_fill_fmt(f, pdev->width, pdev->height, pdev->pixfmt);
+	mutex_unlock(&pdev->udevlock);
 	return 0;
 }
 
@@ -951,11 +974,8 @@ static int pwc_reqbufs(struct file *file, void *fh,
 {
 	struct pwc_device *pdev = video_drvdata(file);
 
-	if (pdev->capt_file != NULL &&
-	    pdev->capt_file != file)
+	if (pwc_test_n_set_capt_file(pdev, file))
 		return -EBUSY;
-
-	pdev->capt_file = file;
 
 	return vb2_reqbufs(&pdev->vb_queue, rb);
 }
@@ -1025,25 +1045,21 @@ static int pwc_enum_framesizes(struct file *file, void *fh,
 	struct pwc_device *pdev = video_drvdata(file);
 	unsigned int i = 0, index = fsize->index;
 
-	if (fsize->pixel_format == V4L2_PIX_FMT_YUV420) {
+	if (fsize->pixel_format == V4L2_PIX_FMT_YUV420 ||
+	    (fsize->pixel_format == V4L2_PIX_FMT_PWC1 &&
+			DEVICE_USE_CODEC1(pdev->type)) ||
+	    (fsize->pixel_format == V4L2_PIX_FMT_PWC2 &&
+			DEVICE_USE_CODEC23(pdev->type))) {
 		for (i = 0; i < PSZ_MAX; i++) {
-			if (pdev->image_mask & (1UL << i)) {
-				if (!index--) {
-					fsize->type = V4L2_FRMSIZE_TYPE_DISCRETE;
-					fsize->discrete.width = pwc_image_sizes[i].x;
-					fsize->discrete.height = pwc_image_sizes[i].y;
-					return 0;
-				}
+			if (!(pdev->image_mask & (1UL << i)))
+				continue;
+			if (!index--) {
+				fsize->type = V4L2_FRMSIZE_TYPE_DISCRETE;
+				fsize->discrete.width = pwc_image_sizes[i][0];
+				fsize->discrete.height = pwc_image_sizes[i][1];
+				return 0;
 			}
 		}
-	} else if (fsize->index == 0 &&
-			((fsize->pixel_format == V4L2_PIX_FMT_PWC1 && DEVICE_USE_CODEC1(pdev->type)) ||
-			 (fsize->pixel_format == V4L2_PIX_FMT_PWC2 && DEVICE_USE_CODEC23(pdev->type)))) {
-
-		fsize->type = V4L2_FRMSIZE_TYPE_DISCRETE;
-		fsize->discrete.width = pdev->abs_max.x;
-		fsize->discrete.height = pdev->abs_max.y;
-		return 0;
 	}
 	return -EINVAL;
 }
@@ -1056,8 +1072,8 @@ static int pwc_enum_frameintervals(struct file *file, void *fh,
 	unsigned int i;
 
 	for (i = 0; i < PSZ_MAX; i++) {
-		if (pwc_image_sizes[i].x == fival->width &&
-				pwc_image_sizes[i].y == fival->height) {
+		if (pwc_image_sizes[i][0] == fival->width &&
+				pwc_image_sizes[i][1] == fival->height) {
 			size = i;
 			break;
 		}
@@ -1086,14 +1102,6 @@ static int pwc_log_status(struct file *file, void *priv)
 	return 0;
 }
 
-static long pwc_default(struct file *file, void *fh, bool valid_prio,
-			int cmd, void *arg)
-{
-	struct pwc_device *pdev = video_drvdata(file);
-
-	return pwc_ioctl(pdev, cmd, arg);
-}
-
 const struct v4l2_ioctl_ops pwc_ioctl_ops = {
 	.vidioc_querycap		    = pwc_querycap,
 	.vidioc_enum_input		    = pwc_enum_input,
@@ -1112,8 +1120,4 @@ const struct v4l2_ioctl_ops pwc_ioctl_ops = {
 	.vidioc_log_status		    = pwc_log_status,
 	.vidioc_enum_framesizes		    = pwc_enum_framesizes,
 	.vidioc_enum_frameintervals	    = pwc_enum_frameintervals,
-	.vidioc_default		    = pwc_default,
 };
-
-
-/* vim: set cino= formatoptions=croql cindent shiftwidth=8 tabstop=8: */
