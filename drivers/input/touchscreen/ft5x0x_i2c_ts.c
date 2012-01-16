@@ -334,12 +334,21 @@ int fts_read_data(void)
 {
 	struct FTS_TS_DATA_T *data = i2c_get_clientdata(this_client);
 	u8 buf[32] = {0};
-	static int key_id=0x80;
+//	static int key_id=0x80;
 
-	int i,id,temp,i_count,ret = -1;
-	int touch_point_num = 0, touch_event, x, y, pressure, size;
-	REPORT_FINGER_INFO_T touch_info[CFG_MAX_POINT_NUM];
+	int id,temp,i_count,ret = -1;
+	int touch_point_num = 0, touch_event, x, y, size;
+//	REPORT_FINGER_INFO_T touch_info[CFG_MAX_POINT_NUM];
 
+
+	buf[0] = 2;
+	ret = fts_i2c_rxdata(buf, 1);
+	if (ret > 0) 
+		touch_point_num = buf[0]&0xf;
+	else
+		printk(KERN_ERR "get fingers failed!\n");
+
+//	printk(KERN_INFO "touch_point_num=%d\n", touch_point_num);
 
 	i_count = 0;
 
@@ -354,7 +363,7 @@ int fts_read_data(void)
 		{
 
 			id = buf[2]>>4;
-			//printk("\n--the id number is %d---\n",id);
+//			printk("\n--the id number is %d---\n",id);
 			touch_event = buf[0]>>6;     
 			if (id >= 0 && id< CFG_MAX_POINT_NUM)  
 			{
@@ -368,7 +377,7 @@ int fts_read_data(void)
 				temp = temp<<8;
 				temp = temp | buf[3];
 				y=temp;
-			#if 1	
+			#if 1
 				{
 					int swap;
 				
@@ -384,9 +393,9 @@ int fts_read_data(void)
 				}
 			#endif
 
-				pressure = buf[4] & 0x3f; 
-				size = buf[5]&0xf0;
-				size = (id<<8)|size;
+				//pressure = buf[4] & 0x3f; 
+				//size = buf[5]&0xf0;
+				//size = (id<<8)|size;
 				touch_event = buf[0]>>6; 
 
 				if (touch_event == 0)  //press down
@@ -401,55 +410,12 @@ int fts_read_data(void)
 						_st_finger_infos[id].ui2_id  = size;
 						_si_touch_num ++;
 					}  
-#if 0
-
-					else if(y>=850 && y<=860)
-					{
-						if (x>=75 && x<=90)
-						{
-							key_id = 0;
-							printk("\n---virtual key 1 press---");		
-						}
-						else if ( x>=185 && x<=200)
-						{
-							key_id = 1;
-							printk("\n---virtual key 2 press---");		
-						}
-						else if (x>=290 && x<=305)
-						{
-							key_id = 2;
-							printk("\n---virtual key 3 press---");		
-						}
-						else if ( x>=405 && x<=420)
-						{
-							key_id = 3;
-							printk("\n---virtual key 4 press---");		
-						}
-
-
-						input_report_key(data->input_dev, tsp_keycodes[key_id], 1);
-						tsp_keystatus[key_id] = KEY_PRESS;
-
-					}
-#endif
 				}   
 
 				else if (touch_event == 1) //up event
 				{
 
 					_st_finger_infos[id].u2_pressure= 0;
-#if 0
-					if(key_id !=0x80)  	
-					{    
-						i=key_id;
-						printk("\n");
-						printk("\n---virtual key %d release---\n",++i);
-						for(i=0;i<8;i++)
-							input_report_key(data->input_dev, tsp_keycodes[key_id], 0);
-
-						key_id=0x80;
-					}
-#endif
 				}
 
 				else if (touch_event == 2) //move
@@ -464,45 +430,40 @@ int fts_read_data(void)
 				else					/*bad event, ignore*/
 					continue;  
 
-				if ( (touch_event==1) )
-				{
-//					printk("[TSP]id=%d up\n",  id);  
-				}
 				
 //				printk("\n--report x position  is  %d,pressure=%d----\n",_st_finger_infos[id].i2_x, touch_event);
 //				printk("\n--report y position  is  %d,pressure=%d----\n",_st_finger_infos[id].i2_y, touch_event);
 
 
-				for( i= 0; i<CFG_MAX_POINT_NUM; ++i )
+				if(_st_finger_infos[id].down_num > touch_point_num*50)//5*40
+				{	
+					_st_finger_infos[id].u2_pressure = 0;
+					printk("point_idx = [%d],updown=%d,down_num=%d\n",id,_st_finger_infos[id].u2_pressure,_st_finger_infos[id].down_num );
+				}
+				
+				if(_st_finger_infos[id].u2_pressure == 1)//down
 				{
-					if(_st_finger_infos[i].down_num > 1000)//5*5*40
-						_st_finger_infos[i].u2_pressure = 0;
-//					printk("point_idx = [%d],updown=%d,down_num=%d\n",i,_st_finger_infos[i].u2_pressure,_st_finger_infos[i].down_num );
-					if(_st_finger_infos[i].u2_pressure == 1)//down
-					{
-						_st_finger_infos[i].down_num++;
-						input_mt_slot(data->input_dev, i);
-						input_mt_report_slot_state(data->input_dev, MT_TOOL_FINGER, true);					
-						input_report_abs(data->input_dev, ABS_MT_TOUCH_MAJOR, 1);
-						input_report_abs(data->input_dev, ABS_MT_POSITION_X,  _st_finger_infos[i].i2_x);
-						input_report_abs(data->input_dev, ABS_MT_POSITION_Y,  _st_finger_infos[i].i2_y);
-					}
-					else if(_st_finger_infos[i].u2_pressure == 0)//up
-					{
-						_st_finger_infos[i].down_num = 0;
-						input_mt_slot(data->input_dev, i);
-						input_mt_report_slot_state(data->input_dev, MT_TOOL_FINGER, false);
-					}
+					_st_finger_infos[id].down_num++;
+					input_mt_slot(data->input_dev, id);
+					input_mt_report_slot_state(data->input_dev, MT_TOOL_FINGER, true);					
+					input_report_abs(data->input_dev, ABS_MT_TOUCH_MAJOR, 1);
+					input_report_abs(data->input_dev, ABS_MT_POSITION_X,  _st_finger_infos[id].i2_x);
+					input_report_abs(data->input_dev, ABS_MT_POSITION_Y,  _st_finger_infos[id].i2_y);
+				}
+				else if(_st_finger_infos[id].u2_pressure == 0)//up
+				{
+					_st_finger_infos[id].down_num = 0;
+					input_mt_slot(data->input_dev, id);
+					input_mt_report_slot_state(data->input_dev, MT_TOOL_FINGER, false);
+				}
 //					else
-//						printk("[%s]invalid pressure value %d\n",__FUNCTION__,_st_finger_infos[i].u2_pressure);
+//						printk("[%s]invalid pressure value %d\n",__FUNCTION__,_st_finger_infos[id].u2_pressure);
 
 //					input_sync(data->input_dev);
 
-					if(_st_finger_infos[i].u2_pressure == 0 )
-					{
-						_st_finger_infos[i].u2_pressure= -1;
-					}
-
+				if(_st_finger_infos[id].u2_pressure == 0 )
+				{
+					_st_finger_infos[id].u2_pressure= -1;
 				}
 
 				input_sync(data->input_dev);
@@ -524,7 +485,7 @@ int fts_read_data(void)
 		}
 
 		i_count ++;
-	}while( id != 0xf && i_count < CFG_MAX_POINT_NUM);
+	} while (/*id != 0xf && */i_count < touch_point_num);
 
 
 	return 0;
@@ -891,23 +852,40 @@ static int fts_ts_probe(struct i2c_client *client, const struct i2c_device_id *i
 
 	struct laibao_platform_data *pdata = client->dev.platform_data;
 
-	client->irq = gpio_to_irq(client->irq);
-	_sui_irq_num = client->irq;
+	printk("[LAIBAO] file(%s), function (%s), --probe start\n", __FILE__, __FUNCTION__);
 	
-	printk("[TSP] file(%s), function (%s), --probe start\n", __FILE__, __FUNCTION__);
-
 	if (!i2c_check_functionality(client->adapter, I2C_FUNC_I2C)) {
 		err = -ENODEV;
 		goto exit_check_functionality_failed;
 	}
 
+	if (pdata->init_platform_hw) {
+		err = pdata->init_platform_hw();
+		if (err < 0) {
+			printk("[LAIBAO] init_platform_hw failed\n");
+			goto exit_init_platform_hw_failed;
+		}
+	}
+	
+	msleep(200);
+	
+	this_client = client;
+	err = i2c_master_reg8_recv(this_client, FT5X0X_REG_FIRMID, &reg_version, 1, 200*1000);
+	if (err < 0) {
+		printk("[LAIBAO] Device not found\n");
+		goto exit_device_not_found;
+	}
+		
+	client->irq = gpio_to_irq(client->irq);
+	_sui_irq_num = client->irq;
+	
 	ft5x0x_ts = kzalloc(sizeof(*ft5x0x_ts), GFP_KERNEL);
 	if (!ft5x0x_ts)    {
 		err = -ENOMEM;
 		goto exit_alloc_data_failed;
 	}
 
-	this_client = client;
+	//this_client = client;
 	ft5x0x_ts->client = client;
 	i2c_set_clientdata(client, ft5x0x_ts);
 
@@ -919,63 +897,59 @@ static int fts_ts_probe(struct i2c_client *client, const struct i2c_device_id *i
 		goto exit_create_singlethread;
 	}
 	
-	if (pdata->init_platform_hw)
-		pdata->init_platform_hw();
-
-
-
 	/***wait CTP to bootup normally***/
-	msleep(200); 
+	//msleep(200); 
 
 	//fts_register_read(FT5X0X_REG_FIRMID, &reg_version,1);
 	i2c_master_reg8_recv(this_client, FT5X0X_REG_FIRMID, &reg_version, 1, 200*1000);
-	printk("[TSP] firmware version = 0x%2x\n", reg_version);
+	printk("[LAIBAO] firmware version = 0x%2x\n", reg_version);
 	//fts_register_read(FT5X0X_REG_REPORT_RATE, &reg_value,1);
 	i2c_master_reg8_recv(this_client, FT5X0X_REG_REPORT_RATE, &reg_value, 1, 200*1000);
-	printk("[TSP]firmware report rate = %dHz\n", reg_value*10);
+	printk("[LAIBAO] firmware report rate = %dHz\n", reg_value*10);
 	//fts_register_read(FT5X0X_REG_THRES, &reg_value,1);
 	i2c_master_reg8_recv(this_client, FT5X0X_REG_THRES, &reg_value, 1, 200*1000);
-	printk("[TSP]firmware threshold = %d\n", reg_value * 4);
+	printk("[LAIBAO] firmware threshold = %d\n", reg_value * 4);
 	//fts_register_read(FT5X0X_REG_NOISE_MODE, &reg_value,1);
 	i2c_master_reg8_recv(this_client, FT5X0X_REG_NOISE_MODE, &reg_value, 1, 200*1000);
-	printk("[TSP]nosie mode = 0x%2x\n", reg_value);
+	printk("[LAIBAO] nosie mode = 0x%2x\n", reg_value);
 
 #if 0
 	if (fts_ctpm_get_upg_ver() != reg_version)  
 	{
-		printk("[TSP] start upgrade new verison 0x%2x\n", fts_ctpm_get_upg_ver());
+		printk("[LAIBAO] start upgrade new verison 0x%2x\n", fts_ctpm_get_upg_ver());
 		msleep(200);
 		err =  fts_ctpm_fw_upgrade_with_i_file();
 		if (err == 0)
 		{
-			printk("[TSP] ugrade successfuly.\n");
+			printk("[LAIBAO] ugrade successfuly.\n");
 			msleep(300);
 			fts_register_read(FT5X0X_REG_FIRMID, &reg_value,1);
 			printk("FTS_DBG from old version 0x%2x to new version = 0x%2x\n", reg_version, reg_value);
 		}
 		else
 		{
-			printk("[TSP]  ugrade fail err=%d, line = %d.\n",
+			printk("[LAIBAO]  ugrade fail err=%d, line = %d.\n",
 					err, __LINE__);
 		}
 		msleep(4000);
 	}
 #endif
-	printk("[TSP]=========================_sui_irq_num = %d   ================\n",_sui_irq_num);
-	printk("[TSP]=========================client->dev.driver->name = %s  ================\n",client->dev.driver->name);
+	printk("[LAIBAO]=========================_sui_irq_num = %d   ================\n",_sui_irq_num);
+	printk("[LAIBAO]=========================client->dev.driver->name = %s  ================\n",client->dev.driver->name);
 	err = request_irq(_sui_irq_num, fts_ts_irq, GPIOEdgelFalling, client->dev.driver->name, ft5x0x_ts);
 
 	if (err < 0) {
-		dev_err(&client->dev, "[TSP]ft5x0x_probe: request irq failed\n");
-		printk("[TSP]=========================err = %d   ================\n",err);	
+		dev_err(&client->dev, "[LAIBAO] ft5x0x_probe: request irq failed\n");
+		printk("[LAIBAO]=========================err = %d   ================\n",err);	
 		goto exit_irq_request_failed;
 	}
 	disable_irq(_sui_irq_num);
-
+	
+	
 	input_dev = input_allocate_device();
 	if (!input_dev) {
 		err = -ENOMEM;
-		dev_err(&client->dev, "[TSP]failed to allocate input device\n");
+		dev_err(&client->dev, "[LAIBAO]failed to allocate input device\n");
 		goto exit_input_dev_alloc_failed;
 	}
 
@@ -1045,7 +1019,7 @@ static int fts_ts_probe(struct i2c_client *client, const struct i2c_device_id *i
 
 
 	enable_irq(_sui_irq_num);    
-	printk("[TSP] file(%s), function (%s), -- end\n", __FILE__, __FUNCTION__);
+	printk("[LAIBAO] file(%s), function (%s), -- end\n", __FILE__, __FUNCTION__);
 	return 0;
 
 exit_input_register_device_failed:
@@ -1056,10 +1030,14 @@ exit_irq_request_failed:
 	cancel_work_sync(&ft5x0x_ts->pen_event_work);
 	destroy_workqueue(ft5x0x_ts->ts_workqueue);
 exit_create_singlethread:
-	printk("[TSP] ==singlethread error =\n");
 	i2c_set_clientdata(client, NULL);
 	kfree(ft5x0x_ts);
 exit_alloc_data_failed:
+exit_device_not_found:
+	if (pdata->exit_platform_hw)
+		pdata->exit_platform_hw();
+
+exit_init_platform_hw_failed:
 exit_check_functionality_failed:
 	return err;
 }
