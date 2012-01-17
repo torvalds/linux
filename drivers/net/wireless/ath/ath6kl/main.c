@@ -1021,7 +1021,8 @@ static struct net_device_stats *ath6kl_get_stats(struct net_device *dev)
 	return &vif->net_stats;
 }
 
-static int ath6kl_set_features(struct net_device *dev, u32 features)
+static int ath6kl_set_features(struct net_device *dev,
+			       netdev_features_t features)
 {
 	struct ath6kl_vif *vif = netdev_priv(dev);
 	struct ath6kl *ar = vif->ar;
