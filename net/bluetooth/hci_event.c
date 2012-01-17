@@ -1286,10 +1286,35 @@ static inline int hci_resolve_name(struct hci_dev *hdev, struct inquiry_entry *e
 	return hci_send_cmd(hdev, HCI_OP_REMOTE_NAME_REQ, sizeof(cp), &cp);
 }
 
-static void hci_resolve_next_name(struct hci_dev *hdev, bdaddr_t *bdaddr)
+static bool hci_resolve_next_name(struct hci_dev *hdev)
 {
 	struct discovery_state *discov = &hdev->discovery;
 	struct inquiry_entry *e;
+
+	if (list_empty(&discov->resolve))
+		return false;
+
+	e = hci_inquiry_cache_lookup_resolve(hdev, BDADDR_ANY, NAME_NEEDED);
+	if (hci_resolve_name(hdev, e) == 0) {
+		e->name_state = NAME_PENDING;
+		return true;
+	}
+
+	return false;
+}
+
+static void hci_check_pending_name(struct hci_dev *hdev, struct hci_conn *conn,
+					bdaddr_t *bdaddr, u8 *name, u8 name_len)
+{
+	struct discovery_state *discov = &hdev->discovery;
+	struct inquiry_entry *e;
+
+	if (conn && !test_and_set_bit(HCI_CONN_MGMT_CONNECTED, &conn->flags))
+		mgmt_device_connected(hdev, bdaddr, ACL_LINK, 0x00,
+					name, name_len, conn->dev_class);
+
+	if (discov->state == DISCOVERY_STOPPED)
+		return;
 
 	if (discov->state == DISCOVERY_STOPPING)
 		goto discov_complete;
@@ -1301,16 +1326,13 @@ static void hci_resolve_next_name(struct hci_dev *hdev, bdaddr_t *bdaddr)
 	if (e) {
 		e->name_state = NAME_KNOWN;
 		list_del(&e->list);
+		if (name)
+			mgmt_remote_name(hdev, bdaddr, ACL_LINK, 0x00,
+					e->data.rssi, name, name_len);
 	}
 
-	if (list_empty(&discov->resolve))
-		goto discov_complete;
-
-	e = hci_inquiry_cache_lookup_resolve(hdev, BDADDR_ANY, NAME_NEEDED);
-	if (hci_resolve_name(hdev, e) == 0) {
-		e->name_state = NAME_PENDING;
+	if (hci_resolve_next_name(hdev))
 		return;
-	}
 
 discov_complete:
 	hci_discovery_set_state(hdev, DISCOVERY_STOPPED);
@@ -1334,10 +1356,11 @@ static void hci_cs_remote_name_req(struct hci_dev *hdev, __u8 status)
 
 	hci_dev_lock(hdev);
 
-	if (test_bit(HCI_MGMT, &hdev->dev_flags))
-		hci_resolve_next_name(hdev, &cp->bdaddr);
-
 	conn = hci_conn_hash_lookup_ba(hdev, ACL_LINK, &cp->bdaddr);
+
+	if (test_bit(HCI_MGMT, &hdev->dev_flags))
+		hci_check_pending_name(hdev, conn, &cp->bdaddr, NULL, 0);
+
 	if (!conn)
 		goto unlock;
 
@@ -1643,8 +1666,6 @@ static inline void hci_conn_complete_evt(struct hci_dev *hdev, struct sk_buff *s
 			conn->state = BT_CONFIG;
 			hci_conn_hold(conn);
 			conn->disc_timeout = HCI_DISCONN_TIMEOUT;
-			mgmt_device_connected(hdev, &ev->bdaddr, conn->type,
-							conn->dst_type);
 		} else
 			conn->state = BT_CONNECTED;
 
@@ -1785,7 +1806,8 @@ static inline void hci_disconn_complete_evt(struct hci_dev *hdev, struct sk_buff
 	if (ev->status == 0)
 		conn->state = BT_CLOSED;
 
-	if (conn->type == ACL_LINK || conn->type == LE_LINK) {
+	if (test_and_clear_bit(HCI_CONN_MGMT_CONNECTED, &conn->flags) &&
+			(conn->type == ACL_LINK || conn->type == LE_LINK)) {
 		if (ev->status != 0)
 			mgmt_disconnect_failed(hdev, &conn->dst, ev->status);
 		else
@@ -1878,14 +1900,18 @@ static inline void hci_remote_name_evt(struct hci_dev *hdev, struct sk_buff *skb
 
 	hci_dev_lock(hdev);
 
-	if (test_bit(HCI_MGMT, &hdev->dev_flags)) {
-		if (ev->status == 0)
-			mgmt_remote_name(hdev, &ev->bdaddr, ev->name);
-
-		hci_resolve_next_name(hdev, &ev->bdaddr);
-	}
-
 	conn = hci_conn_hash_lookup_ba(hdev, ACL_LINK, &ev->bdaddr);
+
+	if (!test_bit(HCI_MGMT, &hdev->dev_flags))
+		goto check_auth;
+
+	if (ev->status == 0)
+		hci_check_pending_name(hdev, conn, &ev->bdaddr, ev->name,
+					strnlen(ev->name, HCI_MAX_NAME_LENGTH));
+	else
+		hci_check_pending_name(hdev, conn, &ev->bdaddr, NULL, 0);
+
+check_auth:
 	if (!conn)
 		goto unlock;
 
@@ -1994,7 +2020,10 @@ static inline void hci_remote_features_evt(struct hci_dev *hdev, struct sk_buff 
 		bacpy(&cp.bdaddr, &conn->dst);
 		cp.pscan_rep_mode = 0x02;
 		hci_send_cmd(hdev, HCI_OP_REMOTE_NAME_REQ, sizeof(cp), &cp);
-	}
+	} else if (!test_and_set_bit(HCI_CONN_MGMT_CONNECTED, &conn->flags))
+		mgmt_device_connected(hdev, &conn->dst, conn->type,
+						conn->dst_type, NULL, 0,
+						conn->dev_class);
 
 	if (!hci_outgoing_auth_needed(hdev, conn)) {
 		conn->state = BT_CONNECTED;
@@ -2763,7 +2792,10 @@ static inline void hci_remote_ext_features_evt(struct hci_dev *hdev, struct sk_b
 		bacpy(&cp.bdaddr, &conn->dst);
 		cp.pscan_rep_mode = 0x02;
 		hci_send_cmd(hdev, HCI_OP_REMOTE_NAME_REQ, sizeof(cp), &cp);
-	}
+	} else if (!test_and_set_bit(HCI_CONN_MGMT_CONNECTED, &conn->flags))
+		mgmt_device_connected(hdev, &conn->dst, conn->type,
+						conn->dst_type, NULL, 0,
+						conn->dev_class);
 
 	if (!hci_outgoing_auth_needed(hdev, conn)) {
 		conn->state = BT_CONNECTED;
@@ -3164,7 +3196,9 @@ static inline void hci_le_conn_complete_evt(struct hci_dev *hdev, struct sk_buff
 		goto unlock;
 	}
 
-	mgmt_device_connected(hdev, &ev->bdaddr, conn->type, conn->dst_type);
+	if (!test_and_set_bit(HCI_CONN_MGMT_CONNECTED, &conn->flags))
+		mgmt_device_connected(hdev, &ev->bdaddr, conn->type,
+						conn->dst_type, NULL, 0, 0);
 
 	conn->sec_level = BT_SECURITY_LOW;
 	conn->handle = __le16_to_cpu(ev->handle);

@@ -1244,7 +1244,6 @@ static int get_connections(struct sock *sk, u16 index)
 	struct mgmt_rp_get_connections *rp;
 	struct hci_dev *hdev;
 	struct hci_conn *c;
-	struct list_head *p;
 	size_t rp_len;
 	u16 count;
 	int i, err;
@@ -1259,8 +1258,9 @@ static int get_connections(struct sock *sk, u16 index)
 	hci_dev_lock(hdev);
 
 	count = 0;
-	list_for_each(p, &hdev->conn_hash.list) {
-		count++;
+	list_for_each_entry(c, &hdev->conn_hash.list, list) {
+		if (test_bit(HCI_CONN_MGMT_CONNECTED, &c->flags))
+			count++;
 	}
 
 	rp_len = sizeof(*rp) + (count * sizeof(struct mgmt_addr_info));
@@ -1274,6 +1274,8 @@ static int get_connections(struct sock *sk, u16 index)
 
 	i = 0;
 	list_for_each_entry(c, &hdev->conn_hash.list, list) {
+		if (!test_bit(HCI_CONN_MGMT_CONNECTED, &c->flags))
+			continue;
 		bacpy(&rp->addr[i].bdaddr, &c->dst);
 		rp->addr[i].type = link_to_mgmt(c->type, c->dst_type);
 		if (rp->addr[i].type == MGMT_ADDR_INVALID)
@@ -2465,15 +2467,28 @@ int mgmt_new_link_key(struct hci_dev *hdev, struct link_key *key,
 }
 
 int mgmt_device_connected(struct hci_dev *hdev, bdaddr_t *bdaddr, u8 link_type,
-								u8 addr_type)
+					u8 addr_type, u8 *name, u8 name_len,
+					u8 *dev_class)
 {
-	struct mgmt_addr_info ev;
+	char buf[512];
+	struct mgmt_ev_device_connected *ev = (void *) buf;
+	u16 eir_len = 0;
 
-	bacpy(&ev.bdaddr, bdaddr);
-	ev.type = link_to_mgmt(link_type, addr_type);
+	bacpy(&ev->addr.bdaddr, bdaddr);
+	ev->addr.type = link_to_mgmt(link_type, addr_type);
 
-	return mgmt_event(MGMT_EV_DEVICE_CONNECTED, hdev, &ev, sizeof(ev),
-									NULL);
+	if (name_len > 0)
+		eir_len = eir_append_data(ev->eir, 0, EIR_NAME_COMPLETE,
+								name, name_len);
+
+	if (dev_class && memcmp(dev_class, "\0\0\0", 3) != 0)
+		eir_len = eir_append_data(&ev->eir[eir_len], eir_len,
+					EIR_CLASS_OF_DEV, dev_class, 3);
+
+	put_unaligned_le16(eir_len, &ev->eir_len);
+
+	return mgmt_event(MGMT_EV_DEVICE_CONNECTED, hdev, buf,
+						sizeof(*ev) + eir_len, NULL);
 }
 
 static void disconnect_rsp(struct pending_cmd *cmd, void *data)
@@ -2813,16 +2828,27 @@ int mgmt_device_found(struct hci_dev *hdev, bdaddr_t *bdaddr, u8 link_type,
 	return mgmt_event(MGMT_EV_DEVICE_FOUND, hdev, ev, ev_size, NULL);
 }
 
-int mgmt_remote_name(struct hci_dev *hdev, bdaddr_t *bdaddr, u8 *name)
+int mgmt_remote_name(struct hci_dev *hdev, bdaddr_t *bdaddr, u8 link_type,
+				u8 addr_type, s8 rssi, u8 *name, u8 name_len)
 {
-	struct mgmt_ev_remote_name ev;
+	struct mgmt_ev_device_found *ev;
+	char buf[sizeof(*ev) + HCI_MAX_NAME_LENGTH + 2];
+	u16 eir_len;
 
-	memset(&ev, 0, sizeof(ev));
+	ev = (struct mgmt_ev_device_found *) buf;
 
-	bacpy(&ev.bdaddr, bdaddr);
-	memcpy(ev.name, name, HCI_MAX_NAME_LENGTH);
+	memset(buf, 0, sizeof(buf));
 
-	return mgmt_event(MGMT_EV_REMOTE_NAME, hdev, &ev, sizeof(ev), NULL);
+	bacpy(&ev->addr.bdaddr, bdaddr);
+	ev->addr.type = link_to_mgmt(link_type, addr_type);
+	ev->rssi = rssi;
+
+	eir_len = eir_append_data(ev->eir, 0, EIR_NAME_COMPLETE, name,
+								name_len);
+
+	put_unaligned_le16(eir_len, &ev->eir_len);
+
+	return mgmt_event(MGMT_EV_DEVICE_FOUND, hdev, &ev, sizeof(ev), NULL);
 }
 
 int mgmt_start_discovery_failed(struct hci_dev *hdev, u8 status)
