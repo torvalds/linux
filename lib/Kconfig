@@ -304,7 +304,8 @@ config MPILIB_EXTRA
 
 config SIGNATURE
 	tristate "In-kernel signature checker"
-	depends on KEYS
+	depends on KEYS && CRYPTO
+	select CRYPTO_SHA1
 	select MPILIB
 	help
 	  Digital signature verification. Currently only RSA is supported.
