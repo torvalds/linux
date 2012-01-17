@@ -1547,6 +1547,7 @@ static struct snd_soc_dai_driver wm8993_dai = {
 		.channels_max = 2,
 		.rates = WM8993_RATES,
 		.formats = WM8993_FORMATS,
+		.sig_bits = 24,
 	},
 	.capture = {
 		 .stream_name = "Capture",
@@ -1554,6 +1555,7 @@ static struct snd_soc_dai_driver wm8993_dai = {
 		 .channels_max = 2,
 		 .rates = WM8993_RATES,
 		 .formats = WM8993_FORMATS,
+		 .sig_bits = 24,
 	 },
 	.ops = &wm8993_ops,
 	.symmetric_rates = 1,
