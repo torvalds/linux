@@ -2502,7 +2502,7 @@ static void bnx2x_update_pfc_nig(struct link_params *params,
 		struct bnx2x_nig_brb_pfc_port_params *nig_params)
 {
 	u32 xcm_mask = 0, ppp_enable = 0, pause_enable = 0, llfc_out_en = 0;
-	u32 llfc_enable = 0, xcm0_out_en = 0, p0_hwpfc_enable = 0;
+	u32 llfc_enable = 0, xcm_out_en = 0, hwpfc_enable = 0;
 	u32 pkt_priority_to_cos = 0;
 	struct bnx2x *bp = params->bp;
 	u8 port = params->port;
@@ -2516,9 +2516,8 @@ static void bnx2x_update_pfc_nig(struct link_params *params,
 	 * MAC control frames (that are not pause packets)
 	 * will be forwarded to the XCM.
 	 */
-	xcm_mask = REG_RD(bp,
-				port ? NIG_REG_LLH1_XCM_MASK :
-				NIG_REG_LLH0_XCM_MASK);
+	xcm_mask = REG_RD(bp, port ? NIG_REG_LLH1_XCM_MASK :
+			  NIG_REG_LLH0_XCM_MASK);
 	/*
 	 * nig params will override non PFC params, since it's possible to
 	 * do transition from PFC to SAFC
@@ -2533,8 +2532,8 @@ static void bnx2x_update_pfc_nig(struct link_params *params,
 		ppp_enable = 1;
 		xcm_mask &= ~(port ? NIG_LLH1_XCM_MASK_REG_LLH1_XCM_MASK_BCN :
 				     NIG_LLH0_XCM_MASK_REG_LLH0_XCM_MASK_BCN);
-		xcm0_out_en = 0;
-		p0_hwpfc_enable = 1;
+		xcm_out_en = 0;
+		hwpfc_enable = 1;
 	} else  {
 		if (nig_params) {
 			llfc_out_en = nig_params->llfc_out_en;
@@ -2545,7 +2544,7 @@ static void bnx2x_update_pfc_nig(struct link_params *params,
 
 		xcm_mask |= (port ? NIG_LLH1_XCM_MASK_REG_LLH1_XCM_MASK_BCN :
 			NIG_LLH0_XCM_MASK_REG_LLH0_XCM_MASK_BCN);
-		xcm0_out_en = 1;
+		xcm_out_en = 1;
 	}
 
 	if (CHIP_IS_E3(bp))
@@ -2564,13 +2563,16 @@ static void bnx2x_update_pfc_nig(struct link_params *params,
 	REG_WR(bp, port ? NIG_REG_LLH1_XCM_MASK :
 	       NIG_REG_LLH0_XCM_MASK, xcm_mask);
 
-	REG_WR(bp,  NIG_REG_LLFC_EGRESS_SRC_ENABLE_0, 0x7);
+	REG_WR(bp, port ? NIG_REG_LLFC_EGRESS_SRC_ENABLE_1 :
+	       NIG_REG_LLFC_EGRESS_SRC_ENABLE_0, 0x7);
 
 	/* output enable for RX_XCM # IF */
-	REG_WR(bp, NIG_REG_XCM0_OUT_EN, xcm0_out_en);
+	REG_WR(bp, port ? NIG_REG_XCM1_OUT_EN :
+	       NIG_REG_XCM0_OUT_EN, xcm_out_en);
 
 	/* HW PFC TX enable */
-	REG_WR(bp, NIG_REG_P0_HWPFC_ENABLE, p0_hwpfc_enable);
+	REG_WR(bp, port ? NIG_REG_P1_HWPFC_ENABLE :
+	       NIG_REG_P0_HWPFC_ENABLE, hwpfc_enable);
 
 	if (nig_params) {
 		u8 i = 0;
