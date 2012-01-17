@@ -771,7 +771,7 @@ static __devinit int s5m8767_pmic_probe(struct platform_device *pdev)
 				(desc->max - desc->min) / desc->step + 1;
 
 		rdev[i] = regulator_register(&regulators[id], s5m8767->dev,
-				pdata->regulators[i].initdata, s5m8767);
+				pdata->regulators[i].initdata, s5m8767, NULL);
 		if (IS_ERR(rdev[i])) {
 			ret = PTR_ERR(rdev[i]);
 			dev_err(s5m8767->dev, "regulator init failed for %d\n",
