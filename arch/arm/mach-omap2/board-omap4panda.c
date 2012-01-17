@@ -674,6 +674,9 @@ void omap4_panda_display_init(void)
 
 	omap4_panda_hdmi_mux_init();
 	omap_display_init(&omap4_panda_dss_data);
+
+	omap_mux_init_gpio(HDMI_GPIO_LS_OE, OMAP_PIN_OUTPUT);
+	omap_mux_init_gpio(HDMI_GPIO_CT_CP_HPD, OMAP_PIN_OUTPUT);
 }
 
 static void __init omap4_panda_init(void)

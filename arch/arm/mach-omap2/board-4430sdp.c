@@ -631,6 +631,9 @@ void omap_4430sdp_display_init(void)
 {
 	sdp4430_hdmi_mux_init();
 	omap_display_init(&sdp4430_dss_data);
+
+	omap_mux_init_gpio(HDMI_GPIO_LS_OE, OMAP_PIN_OUTPUT);
+	omap_mux_init_gpio(HDMI_GPIO_CT_CP_HPD, OMAP_PIN_OUTPUT);
 }
 
 #ifdef CONFIG_OMAP_MUX
