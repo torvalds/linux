@@ -7981,13 +7981,21 @@ int brcms_c_get_curband(struct brcms_c_info *wlc)
 
 void brcms_c_wait_for_tx_completion(struct brcms_c_info *wlc, bool drop)
 {
+	int timeout = 20;
+
 	/* flush packet queue when requested */
 	if (drop)
 		brcmu_pktq_flush(&wlc->pkt_queue->q, false, NULL, NULL);
 
 	/* wait for queue and DMA fifos to run dry */
-	while (!pktq_empty(&wlc->pkt_queue->q) || brcms_txpktpendtot(wlc) > 0)
+	while (!pktq_empty(&wlc->pkt_queue->q) || brcms_txpktpendtot(wlc) > 0) {
 		brcms_msleep(wlc->wl, 1);
+
+		if (--timeout == 0)
+			break;
+	}
+
+	WARN_ON_ONCE(timeout == 0);
 }
 
 void brcms_c_set_beacon_listen_interval(struct brcms_c_info *wlc, u8 interval)
