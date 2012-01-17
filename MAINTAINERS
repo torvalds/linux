@@ -5846,7 +5846,7 @@ F:	drivers/mmc/host/sdhci-spear.c
 SECURITY SUBSYSTEM
 M:	James Morris <jmorris@namei.org>
 L:	linux-security-module@vger.kernel.org (suggested Cc:)
-T:	git git://git.kernel.org/pub/scm/linux/kernel/git/jmorris/security-testing-2.6.git
+T:	git git://git.kernel.org/pub/scm/linux/kernel/git/jmorris/linux-security.git
 W:	http://security.wiki.kernel.org/
 S:	Supported
 F:	security/
