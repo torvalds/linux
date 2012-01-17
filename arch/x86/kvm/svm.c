@@ -182,11 +182,13 @@ static bool npt_enabled = true;
 #else
 static bool npt_enabled;
 #endif
-static int npt = 1;
 
+/* allow nested paging (virtualized MMU) for all guests */
+static int npt = true;
 module_param(npt, int, S_IRUGO);
 
-static int nested = 1;
+/* allow nested virtualization in KVM/SVM */
+static int nested = true;
 module_param(nested, int, S_IRUGO);
 
 static void svm_flush_tlb(struct kvm_vcpu *vcpu);
