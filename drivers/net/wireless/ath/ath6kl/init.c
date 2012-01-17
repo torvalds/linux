@@ -69,6 +69,7 @@ static const struct ath6kl_hw hw_list[] = {
 		.reserved_ram_size		= 512,
 		.refclk_hz			= 26000000,
 		.uarttx_pin			= 8,
+		.testscript_addr		= 0x57ef74,
 
 		.fw = {
 			.dir		= AR6003_HW_2_1_1_FW_DIR,
@@ -76,6 +77,8 @@ static const struct ath6kl_hw hw_list[] = {
 			.fw		= AR6003_HW_2_1_1_FIRMWARE_FILE,
 			.tcmd		= AR6003_HW_2_1_1_TCMD_FIRMWARE_FILE,
 			.patch		= AR6003_HW_2_1_1_PATCH_FILE,
+			.utf		= AR6003_HW_2_1_1_UTF_FIRMWARE_FILE,
+			.testscript	= AR6003_HW_2_1_1_TESTSCRIPT_FILE,
 		},
 
 		.fw_board		= AR6003_HW_2_1_1_BOARD_DATA_FILE,
@@ -620,6 +623,7 @@ void ath6kl_core_cleanup(struct ath6kl *ar)
 	kfree(ar->fw_otp);
 	kfree(ar->fw);
 	kfree(ar->fw_patch);
+	kfree(ar->fw_testscript);
 
 	ath6kl_deinit_ieee80211_hw(ar);
 }
@@ -771,14 +775,25 @@ static int ath6kl_fetch_fw_file(struct ath6kl *ar)
 		return 0;
 
 	if (testmode) {
-		if (ar->hw.fw.tcmd == NULL) {
-			ath6kl_warn("testmode not supported\n");
-			return -EOPNOTSUPP;
+		ath6kl_dbg(ATH6KL_DBG_BOOT, "testmode %d\n",
+				testmode);
+		if (testmode == 2) {
+			if (ar->hw.fw.utf == NULL) {
+				ath6kl_warn("testmode 2 not supported\n");
+				return -EOPNOTSUPP;
+			}
+
+			snprintf(filename, sizeof(filename), "%s/%s",
+				ar->hw.fw.dir, ar->hw.fw.utf);
+		} else {
+			if (ar->hw.fw.tcmd == NULL) {
+				ath6kl_warn("testmode 1 not supported\n");
+				return -EOPNOTSUPP;
+			}
+
+			snprintf(filename, sizeof(filename), "%s/%s",
+				ar->hw.fw.dir, ar->hw.fw.tcmd);
 		}
-
-		snprintf(filename, sizeof(filename), "%s/%s",
-			 ar->hw.fw.dir, ar->hw.fw.tcmd);
-
 		set_bit(TESTMODE, &ar->flag);
 
 		goto get_fw;
@@ -827,6 +842,34 @@ static int ath6kl_fetch_patch_file(struct ath6kl *ar)
 	return 0;
 }
 
+static int ath6kl_fetch_testscript_file(struct ath6kl *ar)
+{
+	char filename[100];
+	int ret;
+
+	if (testmode != 2)
+		return 0;
+
+	if (ar->fw_testscript != NULL)
+		return 0;
+
+	if (ar->hw.fw.testscript == NULL)
+		return 0;
+
+	snprintf(filename, sizeof(filename), "%s/%s",
+		ar->hw.fw.dir, ar->hw.fw.testscript);
+
+	ret = ath6kl_get_fw(ar, filename, &ar->fw_testscript,
+				&ar->fw_testscript_len);
+	if (ret) {
+		ath6kl_err("Failed to get testscript file %s: %d\n",
+			filename, ret);
+		return ret;
+	}
+
+	return 0;
+}
+
 static int ath6kl_fetch_fw_api1(struct ath6kl *ar)
 {
 	int ret;
@@ -840,6 +883,10 @@ static int ath6kl_fetch_fw_api1(struct ath6kl *ar)
 		return ret;
 
 	ret = ath6kl_fetch_patch_file(ar);
+	if (ret)
+		return ret;
+
+	ret = ath6kl_fetch_testscript_file(ar);
 	if (ret)
 		return ret;
 
@@ -1266,6 +1313,50 @@ static int ath6kl_upload_patch(struct ath6kl *ar)
 	return 0;
 }
 
+static int ath6kl_upload_testscript(struct ath6kl *ar)
+{
+	u32 address, param;
+	int ret;
+
+	if (testmode != 2)
+		return 0;
+
+	if (ar->fw_testscript == NULL)
+		return 0;
+
+	address = ar->hw.testscript_addr;
+
+	ath6kl_dbg(ATH6KL_DBG_BOOT, "writing testscript to 0x%x (%zd B)\n",
+		address, ar->fw_testscript_len);
+
+	ret = ath6kl_bmi_write(ar, address, ar->fw_testscript,
+		ar->fw_testscript_len);
+	if (ret) {
+		ath6kl_err("Failed to write testscript file: %d\n", ret);
+		return ret;
+	}
+
+	param = address;
+	ath6kl_bmi_write(ar,
+			ath6kl_get_hi_item_addr(ar,
+			HI_ITEM(hi_ota_testscript)),
+			(unsigned char *) &param, 4);
+
+	param = 4096;
+	ath6kl_bmi_write(ar,
+			ath6kl_get_hi_item_addr(ar,
+			HI_ITEM(hi_end_ram_reserve_sz)),
+			(unsigned char *) &param, 4);
+
+	param = 1;
+	ath6kl_bmi_write(ar,
+			ath6kl_get_hi_item_addr(ar,
+			HI_ITEM(hi_test_apps_related)),
+			(unsigned char *) &param, 4);
+
+	return 0;
+}
+
 static int ath6kl_init_upload(struct ath6kl *ar)
 {
 	u32 param, options, sleep, address;
@@ -1371,6 +1462,11 @@ static int ath6kl_init_upload(struct ath6kl *ar)
 		return status;
 
 	status = ath6kl_upload_patch(ar);
+	if (status)
+		return status;
+
+	/* Download the test script */
+	status = ath6kl_upload_testscript(ar);
 	if (status)
 		return status;
 
