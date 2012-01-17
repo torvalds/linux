@@ -69,6 +69,13 @@ onoff_interval
 		CPU-hotplug operations regardless of what value is
 		specified for onoff_interval.
 
+onoff_holdoff	The number of seconds to wait until starting CPU-hotplug
+		operations.  This would normally only be used when
+		rcutorture was built into the kernel and started
+		automatically at boot time, in which case it is useful
+		in order to avoid confusing boot-time code with CPUs
+		coming and going.
+
 shuffle_interval
 		The number of seconds to keep the test threads affinitied
 		to a particular subset of the CPUs, defaults to 3 seconds.
@@ -277,5 +284,7 @@ The following script may be used to torture RCU:
 
 The output can be manually inspected for the error flag of "!!!".
 One could of course create a more elaborate script that automatically
-checked for such errors.  The "rmmod" command forces a "SUCCESS" or
-"FAILURE" indication to be printk()ed.
+checked for such errors.  The "rmmod" command forces a "SUCCESS",
+"FAILURE", or "RCU_HOTPLUG" indication to be printk()ed.  The first
+two are self-explanatory, while the last indicates that while there
+were no RCU failures, CPU-hotplug problems were detected.
