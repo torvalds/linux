@@ -286,14 +286,13 @@ static int btrfs_ioctl_getversion(struct file *file, int __user *arg)
 
 static noinline int btrfs_ioctl_fitrim(struct file *file, void __user *arg)
 {
-	struct btrfs_root *root = fdentry(file)->d_sb->s_fs_info;
-	struct btrfs_fs_info *fs_info = root->fs_info;
+	struct btrfs_fs_info *fs_info = btrfs_sb(fdentry(file)->d_sb);
 	struct btrfs_device *device;
 	struct request_queue *q;
 	struct fstrim_range range;
 	u64 minlen = ULLONG_MAX;
 	u64 num_devices = 0;
-	u64 total_bytes = btrfs_super_total_bytes(root->fs_info->super_copy);
+	u64 total_bytes = btrfs_super_total_bytes(fs_info->super_copy);
 	int ret;
 
 	if (!capable(CAP_SYS_ADMIN))
@@ -322,7 +321,7 @@ static noinline int btrfs_ioctl_fitrim(struct file *file, void __user *arg)
 
 	range.len = min(range.len, total_bytes - range.start);
 	range.minlen = max(range.minlen, minlen);
-	ret = btrfs_trim_fs(root, &range);
+	ret = btrfs_trim_fs(fs_info->tree_root, &range);
 	if (ret < 0)
 		return ret;
 
