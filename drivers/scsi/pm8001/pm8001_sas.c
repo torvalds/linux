@@ -615,7 +615,7 @@ static int pm8001_dev_found_notify(struct domain_device *dev)
 	wait_for_completion(&completion);
 	if (dev->dev_type == SAS_END_DEV)
 		msleep(50);
-	pm8001_ha->flags |= PM8001F_RUN_TIME ;
+	pm8001_ha->flags = PM8001F_RUN_TIME;
 	return 0;
 found_out:
 	spin_unlock_irqrestore(&pm8001_ha->lock, flags);
