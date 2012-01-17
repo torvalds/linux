@@ -489,8 +489,10 @@ static int nfcwilink_send(struct sk_buff *skb)
 
 	nfc_dev_dbg(&drv->pdev->dev, "send entry, len %d", skb->len);
 
-	if (!test_bit(NFCWILINK_RUNNING, &drv->flags))
-		return -EBUSY;
+	if (!test_bit(NFCWILINK_RUNNING, &drv->flags)) {
+		kfree_skb(skb);
+		return -EINVAL;
+	}
 
 	/* add the ST hdr to the start of the buffer */
 	hdr.len = cpu_to_le16(skb->len);
