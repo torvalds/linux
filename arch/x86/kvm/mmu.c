@@ -988,7 +988,7 @@ static int rmap_add(struct kvm_vcpu *vcpu, u64 *spte, gfn_t gfn)
 	return pte_list_add(vcpu, spte, rmapp);
 }
 
-static u64 *rmap_next(struct kvm *kvm, unsigned long *rmapp, u64 *spte)
+static u64 *rmap_next(unsigned long *rmapp, u64 *spte)
 {
 	return pte_list_next(rmapp, spte);
 }
@@ -1019,7 +1019,7 @@ int kvm_mmu_rmap_write_protect(struct kvm *kvm, u64 gfn,
 	int i, write_protected = 0;
 
 	rmapp = __gfn_to_rmap(gfn, PT_PAGE_TABLE_LEVEL, slot);
-	spte = rmap_next(kvm, rmapp, NULL);
+	spte = rmap_next(rmapp, NULL);
 	while (spte) {
 		BUG_ON(!(*spte & PT_PRESENT_MASK));
 		rmap_printk("rmap_write_protect: spte %p %llx\n", spte, *spte);
@@ -1027,14 +1027,14 @@ int kvm_mmu_rmap_write_protect(struct kvm *kvm, u64 gfn,
 			mmu_spte_update(spte, *spte & ~PT_WRITABLE_MASK);
 			write_protected = 1;
 		}
-		spte = rmap_next(kvm, rmapp, spte);
+		spte = rmap_next(rmapp, spte);
 	}
 
 	/* check for huge page mappings */
 	for (i = PT_DIRECTORY_LEVEL;
 	     i < PT_PAGE_TABLE_LEVEL + KVM_NR_PAGE_SIZES; ++i) {
 		rmapp = __gfn_to_rmap(gfn, i, slot);
-		spte = rmap_next(kvm, rmapp, NULL);
+		spte = rmap_next(rmapp, NULL);
 		while (spte) {
 			BUG_ON(!(*spte & PT_PRESENT_MASK));
 			BUG_ON(!is_large_pte(*spte));
@@ -1045,7 +1045,7 @@ int kvm_mmu_rmap_write_protect(struct kvm *kvm, u64 gfn,
 				spte = NULL;
 				write_protected = 1;
 			}
-			spte = rmap_next(kvm, rmapp, spte);
+			spte = rmap_next(rmapp, spte);
 		}
 	}
 
@@ -1066,7 +1066,7 @@ static int kvm_unmap_rmapp(struct kvm *kvm, unsigned long *rmapp,
 	u64 *spte;
 	int need_tlb_flush = 0;
 
-	while ((spte = rmap_next(kvm, rmapp, NULL))) {
+	while ((spte = rmap_next(rmapp, NULL))) {
 		BUG_ON(!(*spte & PT_PRESENT_MASK));
 		rmap_printk("kvm_rmap_unmap_hva: spte %p %llx\n", spte, *spte);
 		drop_spte(kvm, spte);
@@ -1085,14 +1085,14 @@ static int kvm_set_pte_rmapp(struct kvm *kvm, unsigned long *rmapp,
 
 	WARN_ON(pte_huge(*ptep));
 	new_pfn = pte_pfn(*ptep);
-	spte = rmap_next(kvm, rmapp, NULL);
+	spte = rmap_next(rmapp, NULL);
 	while (spte) {
 		BUG_ON(!is_shadow_present_pte(*spte));
 		rmap_printk("kvm_set_pte_rmapp: spte %p %llx\n", spte, *spte);
 		need_flush = 1;
 		if (pte_write(*ptep)) {
 			drop_spte(kvm, spte);
-			spte = rmap_next(kvm, rmapp, NULL);
+			spte = rmap_next(rmapp, NULL);
 		} else {
 			new_spte = *spte &~ (PT64_BASE_ADDR_MASK);
 			new_spte |= (u64)new_pfn << PAGE_SHIFT;
@@ -1102,7 +1102,7 @@ static int kvm_set_pte_rmapp(struct kvm *kvm, unsigned long *rmapp,
 			new_spte &= ~shadow_accessed_mask;
 			mmu_spte_clear_track_bits(spte);
 			mmu_spte_set(spte, new_spte);
-			spte = rmap_next(kvm, rmapp, spte);
+			spte = rmap_next(rmapp, spte);
 		}
 	}
 	if (need_flush)
@@ -1176,7 +1176,7 @@ static int kvm_age_rmapp(struct kvm *kvm, unsigned long *rmapp,
 	if (!shadow_accessed_mask)
 		return kvm_unmap_rmapp(kvm, rmapp, data);
 
-	spte = rmap_next(kvm, rmapp, NULL);
+	spte = rmap_next(rmapp, NULL);
 	while (spte) {
 		int _young;
 		u64 _spte = *spte;
@@ -1186,7 +1186,7 @@ static int kvm_age_rmapp(struct kvm *kvm, unsigned long *rmapp,
 			young = 1;
 			clear_bit(PT_ACCESSED_SHIFT, (unsigned long *)spte);
 		}
-		spte = rmap_next(kvm, rmapp, spte);
+		spte = rmap_next(rmapp, spte);
 	}
 	return young;
 }
@@ -1205,7 +1205,7 @@ static int kvm_test_age_rmapp(struct kvm *kvm, unsigned long *rmapp,
 	if (!shadow_accessed_mask)
 		goto out;
 
-	spte = rmap_next(kvm, rmapp, NULL);
+	spte = rmap_next(rmapp, NULL);
 	while (spte) {
 		u64 _spte = *spte;
 		BUG_ON(!(_spte & PT_PRESENT_MASK));
@@ -1214,7 +1214,7 @@ static int kvm_test_age_rmapp(struct kvm *kvm, unsigned long *rmapp,
 			young = 1;
 			break;
 		}
-		spte = rmap_next(kvm, rmapp, spte);
+		spte = rmap_next(rmapp, spte);
 	}
 out:
 	return young;
