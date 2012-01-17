@@ -115,19 +115,69 @@ static __u8 *nci_extract_rf_params_nfca_passive_poll(struct nci_dev *ndev,
 	return data;
 }
 
+static __u8 *nci_extract_rf_params_nfcb_passive_poll(struct nci_dev *ndev,
+			struct nci_rf_intf_activated_ntf *ntf, __u8 *data)
+{
+	struct rf_tech_specific_params_nfcb_poll *nfcb_poll;
+
+	nfcb_poll = &ntf->rf_tech_specific_params.nfcb_poll;
+
+	nfcb_poll->sensb_res_len = *data++;
+
+	pr_debug("sensb_res_len %d\n", nfcb_poll->sensb_res_len);
+
+	memcpy(nfcb_poll->sensb_res, data, nfcb_poll->sensb_res_len);
+	data += nfcb_poll->sensb_res_len;
+
+	return data;
+}
+
+static __u8 *nci_extract_rf_params_nfcf_passive_poll(struct nci_dev *ndev,
+			struct nci_rf_intf_activated_ntf *ntf, __u8 *data)
+{
+	struct rf_tech_specific_params_nfcf_poll *nfcf_poll;
+
+	nfcf_poll = &ntf->rf_tech_specific_params.nfcf_poll;
+
+	nfcf_poll->bit_rate = *data++;
+	nfcf_poll->sensf_res_len = *data++;
+
+	pr_debug("bit_rate %d, sensf_res_len %d\n",
+		nfcf_poll->bit_rate, nfcf_poll->sensf_res_len);
+
+	memcpy(nfcf_poll->sensf_res, data, nfcf_poll->sensf_res_len);
+	data += nfcf_poll->sensf_res_len;
+
+	return data;
+}
+
 static int nci_extract_activation_params_iso_dep(struct nci_dev *ndev,
 			struct nci_rf_intf_activated_ntf *ntf, __u8 *data)
 {
 	struct activation_params_nfca_poll_iso_dep *nfca_poll;
+	struct activation_params_nfcb_poll_iso_dep *nfcb_poll;
 
 	switch (ntf->activation_rf_tech_and_mode) {
 	case NCI_NFC_A_PASSIVE_POLL_MODE:
 		nfca_poll = &ntf->activation_params.nfca_poll_iso_dep;
 		nfca_poll->rats_res_len = *data++;
+		pr_debug("rats_res_len %d\n", nfca_poll->rats_res_len);
 		if (nfca_poll->rats_res_len > 0) {
 			memcpy(nfca_poll->rats_res,
 				data,
 				nfca_poll->rats_res_len);
+		}
+		break;
+
+	case NCI_NFC_B_PASSIVE_POLL_MODE:
+		nfcb_poll = &ntf->activation_params.nfcb_poll_iso_dep;
+		nfcb_poll->attrib_res_len = *data++;
+		pr_debug("attrib_res_len %d\n",
+			nfcb_poll->attrib_res_len);
+		if (nfcb_poll->attrib_res_len > 0) {
+			memcpy(nfcb_poll->attrib_res,
+				data,
+				nfcb_poll->attrib_res_len);
 		}
 		break;
 
@@ -145,21 +195,14 @@ static void nci_target_found(struct nci_dev *ndev,
 {
 	struct nfc_target nfc_tgt;
 
-	if (ntf->rf_protocol == NCI_RF_PROTOCOL_T2T)	/* T2T MifareUL */
-		nfc_tgt.supported_protocols = NFC_PROTO_MIFARE_MASK;
-	else if (ntf->rf_protocol == NCI_RF_PROTOCOL_ISO_DEP)	/* 4A */
-		nfc_tgt.supported_protocols = NFC_PROTO_ISO14443_MASK;
-	else
-		nfc_tgt.supported_protocols = 0;
+	memset(&nfc_tgt, 0, sizeof(nfc_tgt));
 
-	nfc_tgt.sens_res = ntf->rf_tech_specific_params.nfca_poll.sens_res;
-	nfc_tgt.sel_res = ntf->rf_tech_specific_params.nfca_poll.sel_res;
-	nfc_tgt.nfcid1_len = ntf->rf_tech_specific_params.nfca_poll.nfcid1_len;
-	if (nfc_tgt.nfcid1_len > 0) {
-		memcpy(nfc_tgt.nfcid1,
-			ntf->rf_tech_specific_params.nfca_poll.nfcid1,
-			nfc_tgt.nfcid1_len);
-	}
+	if (ntf->rf_protocol == NCI_RF_PROTOCOL_T2T)
+		nfc_tgt.supported_protocols = NFC_PROTO_MIFARE_MASK;
+	else if (ntf->rf_protocol == NCI_RF_PROTOCOL_ISO_DEP)
+		nfc_tgt.supported_protocols = NFC_PROTO_ISO14443_MASK;
+	else if (ntf->rf_protocol == NCI_RF_PROTOCOL_T3T)
+		nfc_tgt.supported_protocols = NFC_PROTO_FELICA_MASK;
 
 	if (!(nfc_tgt.supported_protocols & ndev->poll_prots)) {
 		pr_debug("the target found does not have the desired protocol\n");
@@ -168,6 +211,38 @@ static void nci_target_found(struct nci_dev *ndev,
 
 	pr_debug("new target found,  supported_protocols 0x%x\n",
 		 nfc_tgt.supported_protocols);
+
+	if (ntf->activation_rf_tech_and_mode == NCI_NFC_A_PASSIVE_POLL_MODE) {
+		nfc_tgt.sens_res =
+			ntf->rf_tech_specific_params.nfca_poll.sens_res;
+		nfc_tgt.sel_res =
+			ntf->rf_tech_specific_params.nfca_poll.sel_res;
+		nfc_tgt.nfcid1_len =
+			ntf->rf_tech_specific_params.nfca_poll.nfcid1_len;
+		if (nfc_tgt.nfcid1_len > 0) {
+			memcpy(nfc_tgt.nfcid1,
+				ntf->rf_tech_specific_params.nfca_poll.nfcid1,
+				nfc_tgt.nfcid1_len);
+		}
+	} else if (ntf->activation_rf_tech_and_mode ==
+						NCI_NFC_B_PASSIVE_POLL_MODE) {
+		nfc_tgt.sensb_res_len =
+			ntf->rf_tech_specific_params.nfcb_poll.sensb_res_len;
+		if (nfc_tgt.sensb_res_len > 0) {
+			memcpy(nfc_tgt.sensb_res,
+			       ntf->rf_tech_specific_params.nfcb_poll.sensb_res,
+			       nfc_tgt.sensb_res_len);
+		}
+	} else if (ntf->activation_rf_tech_and_mode ==
+						NCI_NFC_F_PASSIVE_POLL_MODE) {
+		nfc_tgt.sensf_res_len =
+			ntf->rf_tech_specific_params.nfcf_poll.sensf_res_len;
+		if (nfc_tgt.sensf_res_len > 0) {
+			memcpy(nfc_tgt.sensf_res,
+			       ntf->rf_tech_specific_params.nfcf_poll.sensf_res,
+			       nfc_tgt.sensf_res_len);
+		}
+	}
 
 	ndev->target_available_prots = nfc_tgt.supported_protocols;
 	ndev->max_data_pkt_payload_size = ntf->max_data_pkt_payload_size;
@@ -212,6 +287,16 @@ static void nci_rf_intf_activated_ntf_packet(struct nci_dev *ndev,
 		switch (ntf.activation_rf_tech_and_mode) {
 		case NCI_NFC_A_PASSIVE_POLL_MODE:
 			data = nci_extract_rf_params_nfca_passive_poll(ndev,
+				&ntf, data);
+			break;
+
+		case NCI_NFC_B_PASSIVE_POLL_MODE:
+			data = nci_extract_rf_params_nfcb_passive_poll(ndev,
+				&ntf, data);
+			break;
+
+		case NCI_NFC_F_PASSIVE_POLL_MODE:
+			data = nci_extract_rf_params_nfcf_passive_poll(ndev,
 				&ntf, data);
 			break;
 

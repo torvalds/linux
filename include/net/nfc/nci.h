@@ -275,9 +275,25 @@ struct rf_tech_specific_params_nfca_poll {
 	__u8	sel_res;
 } __packed;
 
+struct rf_tech_specific_params_nfcb_poll {
+	__u8	sensb_res_len;
+	__u8	sensb_res[12];	/* 11 or 12 Bytes */
+} __packed;
+
+struct rf_tech_specific_params_nfcf_poll {
+	__u8	bit_rate;
+	__u8	sensf_res_len;
+	__u8	sensf_res[18];	/* 16 or 18 Bytes */
+} __packed;
+
 struct activation_params_nfca_poll_iso_dep {
 	__u8	rats_res_len;
 	__u8	rats_res[20];
+};
+
+struct activation_params_nfcb_poll_iso_dep {
+	__u8	attrib_res_len;
+	__u8	attrib_res[50];
 };
 
 struct nci_rf_intf_activated_ntf {
@@ -291,6 +307,8 @@ struct nci_rf_intf_activated_ntf {
 
 	union {
 		struct rf_tech_specific_params_nfca_poll nfca_poll;
+		struct rf_tech_specific_params_nfcb_poll nfcb_poll;
+		struct rf_tech_specific_params_nfcf_poll nfcf_poll;
 	} rf_tech_specific_params;
 
 	__u8	data_exch_rf_tech_and_mode;
@@ -300,6 +318,7 @@ struct nci_rf_intf_activated_ntf {
 
 	union {
 		struct activation_params_nfca_poll_iso_dep nfca_poll_iso_dep;
+		struct activation_params_nfcb_poll_iso_dep nfcb_poll_iso_dep;
 	} activation_params;
 
 } __packed;
