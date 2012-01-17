@@ -23,10 +23,6 @@
 #include "hif-ops.h"
 #include "testmode.h"
 
-static unsigned int ath6kl_p2p;
-
-module_param(ath6kl_p2p, uint, 0644);
-
 #define RATETAB_ENT(_rate, _rateid, _flags) {   \
 	.bitrate    = (_rate),                  \
 	.flags      = (_flags),                 \
@@ -2693,68 +2689,6 @@ void ath6kl_cfg80211_stop_all(struct ath6kl *ar)
 		ath6kl_cfg80211_stop(vif);
 }
 
-struct ath6kl *ath6kl_core_alloc(struct device *dev)
-{
-	struct ath6kl *ar;
-	struct wiphy *wiphy;
-	u8 ctr;
-
-	/* create a new wiphy for use with cfg80211 */
-	wiphy = wiphy_new(&ath6kl_cfg80211_ops, sizeof(struct ath6kl));
-
-	if (!wiphy) {
-		ath6kl_err("couldn't allocate wiphy device\n");
-		return NULL;
-	}
-
-	ar = wiphy_priv(wiphy);
-	ar->p2p = !!ath6kl_p2p;
-	ar->wiphy = wiphy;
-	ar->dev = dev;
-
-	ar->vif_max = 1;
-
-	ar->max_norm_iface = 1;
-
-	spin_lock_init(&ar->lock);
-	spin_lock_init(&ar->mcastpsq_lock);
-	spin_lock_init(&ar->list_lock);
-
-	init_waitqueue_head(&ar->event_wq);
-	sema_init(&ar->sem, 1);
-
-	INIT_LIST_HEAD(&ar->amsdu_rx_buffer_queue);
-	INIT_LIST_HEAD(&ar->vif_list);
-
-	clear_bit(WMI_ENABLED, &ar->flag);
-	clear_bit(SKIP_SCAN, &ar->flag);
-	clear_bit(DESTROY_IN_PROGRESS, &ar->flag);
-
-	ar->listen_intvl_b = A_DEFAULT_LISTEN_INTERVAL;
-	ar->tx_pwr = 0;
-
-	ar->intra_bss = 1;
-	ar->lrssi_roam_threshold = DEF_LRSSI_ROAM_THRESHOLD;
-
-	ar->state = ATH6KL_STATE_OFF;
-
-	memset((u8 *)ar->sta_list, 0,
-	       AP_MAX_NUM_STA * sizeof(struct ath6kl_sta));
-
-	/* Init the PS queues */
-	for (ctr = 0; ctr < AP_MAX_NUM_STA; ctr++) {
-		spin_lock_init(&ar->sta_list[ctr].psq_lock);
-		skb_queue_head_init(&ar->sta_list[ctr].psq);
-		skb_queue_head_init(&ar->sta_list[ctr].apsdq);
-	}
-
-	skb_queue_head_init(&ar->mcastpsq);
-
-	memcpy(ar->ap_country_code, DEF_AP_COUNTRY_CODE, 3);
-
-	return ar;
-}
-
 static int ath6kl_cfg80211_vif_init(struct ath6kl_vif *vif)
 {
 	vif->aggr_cntxt = aggr_init(vif->ndev);
@@ -2910,10 +2844,30 @@ int ath6kl_cfg80211_init(struct ath6kl *ar)
 void ath6kl_cfg80211_cleanup(struct ath6kl *ar)
 {
 	wiphy_unregister(ar->wiphy);
+}
 
-	/*
-	 * FIXME: should be removed as we remove wiphy in
-	 * ath6kl_core_free(). Most likely this causes a use after free.
-	 */
+struct ath6kl *ath6kl_cfg80211_create(void)
+{
+	struct ath6kl *ar;
+	struct wiphy *wiphy;
+
+	/* create a new wiphy for use with cfg80211 */
+	wiphy = wiphy_new(&ath6kl_cfg80211_ops, sizeof(struct ath6kl));
+
+	if (!wiphy) {
+		ath6kl_err("couldn't allocate wiphy device\n");
+		return NULL;
+	}
+
+	ar = wiphy_priv(wiphy);
+	ar->wiphy = wiphy;
+
+	return ar;
+}
+
+/* Note: ar variable must not be accessed after calling this! */
+void ath6kl_cfg80211_destroy(struct ath6kl *ar)
+{
 	wiphy_free(ar->wiphy);
 }
+
