@@ -26,7 +26,7 @@ MODULE_LICENSE("GPL");
 #define CFUSB_ALIGNMENT 4	/* Number of bytes to align. */
 #define CFUSB_MAX_HEADLEN (CFUSB_PAD_DESCR_SZ + CFUSB_ALIGNMENT-1)
 #define STE_USB_VID 0x04cc	/* USB Product ID for ST-Ericsson */
-#define STE_USB_PID_CAIF 0x2306	/* Product id for CAIF Modems */
+#define STE_USB_PID_CAIF 0x230f	/* Product id for CAIF Modems */
 
 struct cfusbl {
 	struct cflayer layer;
