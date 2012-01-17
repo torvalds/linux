@@ -27,10 +27,7 @@ enum ath6kl_cfg_suspend_mode {
 struct net_device *ath6kl_interface_add(struct ath6kl *ar, char *name,
 					enum nl80211_iftype type,
 					u8 fw_vif_idx, u8 nw_type);
-int ath6kl_register_ieee80211_hw(struct ath6kl *ar);
 struct ath6kl *ath6kl_core_alloc(struct device *dev);
-void ath6kl_deinit_ieee80211_hw(struct ath6kl *ar);
-
 void ath6kl_cfg80211_scan_complete_event(struct ath6kl_vif *vif, bool aborted);
 
 void ath6kl_cfg80211_connect_event(struct ath6kl_vif *vif, u16 channel,
@@ -57,5 +54,8 @@ void ath6kl_cfg80211_vif_cleanup(struct ath6kl_vif *vif);
 
 void ath6kl_cfg80211_stop(struct ath6kl_vif *vif);
 void ath6kl_cfg80211_stop_all(struct ath6kl *ar);
+
+int ath6kl_cfg80211_init(struct ath6kl *ar);
+void ath6kl_cfg80211_cleanup(struct ath6kl *ar);
 
 #endif /* ATH6KL_CFG80211_H */

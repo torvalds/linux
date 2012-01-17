@@ -625,7 +625,7 @@ void ath6kl_core_cleanup(struct ath6kl *ar)
 	kfree(ar->fw_patch);
 	kfree(ar->fw_testscript);
 
-	ath6kl_deinit_ieee80211_hw(ar);
+	ath6kl_cfg80211_cleanup(ar);
 }
 
 /* firmware upload */
@@ -1722,7 +1722,7 @@ int ath6kl_core_init(struct ath6kl *ar)
 
 	ath6kl_dbg(ATH6KL_DBG_TRC, "%s: got wmi @ 0x%p.\n", __func__, ar->wmi);
 
-	ret = ath6kl_register_ieee80211_hw(ar);
+	ret = ath6kl_cfg80211_init(ar);
 	if (ret)
 		goto err_node_cleanup;
 
