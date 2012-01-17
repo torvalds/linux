@@ -469,7 +469,7 @@ int ath6kl_configure_target(struct ath6kl *ar)
 	u8 fw_iftype, fw_mode = 0, fw_submode = 0;
 	int i, status;
 
-	param = uart_debug;
+	param = !!(ar->conf_flags & ATH6KL_CONF_UART_DEBUG);
 	if (ath6kl_bmi_write(ar, ath6kl_get_hi_item_addr(ar,
 			     HI_ITEM(hi_serial_enable)), (u8 *)&param, 4)) {
 		ath6kl_err("bmi_write_memory for uart debug failed\n");
@@ -1774,6 +1774,9 @@ int ath6kl_core_init(struct ath6kl *ar)
 
 	if (suspend_cutpower)
 		ar->conf_flags |= ATH6KL_CONF_SUSPEND_CUTPOWER;
+
+	if (uart_debug)
+		ar->conf_flags |= ATH6KL_CONF_UART_DEBUG;
 
 	ar->wiphy->flags |= WIPHY_FLAG_SUPPORTS_FW_ROAM |
 			    WIPHY_FLAG_HAVE_AP_SME |
