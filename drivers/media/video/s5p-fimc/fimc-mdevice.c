@@ -21,7 +21,6 @@
 #include <linux/pm_runtime.h>
 #include <linux/types.h>
 #include <linux/slab.h>
-#include <linux/version.h>
 #include <media/v4l2-ctrls.h>
 #include <media/media-device.h>
 
