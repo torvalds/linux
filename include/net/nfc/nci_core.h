@@ -41,6 +41,7 @@ enum {
 	NCI_DISCOVERY,
 	NCI_POLL_ACTIVE,
 	NCI_DATA_EXCHANGE,
+	NCI_DATA_EXCHANGE_TO,
 };
 
 /* NCI timeouts */
@@ -49,6 +50,7 @@ enum {
 #define NCI_RF_DISC_TIMEOUT			5000
 #define NCI_RF_DEACTIVATE_TIMEOUT		30000
 #define NCI_CMD_TIMEOUT				5000
+#define NCI_DATA_TIMEOUT			700
 
 struct nci_dev;
 
@@ -74,6 +76,7 @@ struct nci_dev {
 	atomic_t		credits_cnt;
 
 	struct timer_list	cmd_timer;
+	struct timer_list	data_timer;
 
 	struct workqueue_struct	*cmd_wq;
 	struct work_struct	cmd_work;

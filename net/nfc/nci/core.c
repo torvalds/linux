@@ -286,6 +286,7 @@ static int nci_close_device(struct nci_dev *ndev)
 
 	if (!test_and_clear_bit(NCI_UP, &ndev->flags)) {
 		del_timer_sync(&ndev->cmd_timer);
+		del_timer_sync(&ndev->data_timer);
 		mutex_unlock(&ndev->req_lock);
 		return 0;
 	}
@@ -329,6 +330,15 @@ static void nci_cmd_timer(unsigned long arg)
 
 	atomic_set(&ndev->cmd_cnt, 1);
 	queue_work(ndev->cmd_wq, &ndev->cmd_work);
+}
+
+/* NCI data exchange timer function */
+static void nci_data_timer(unsigned long arg)
+{
+	struct nci_dev *ndev = (void *) arg;
+
+	set_bit(NCI_DATA_EXCHANGE_TO, &ndev->flags);
+	queue_work(ndev->rx_wq, &ndev->rx_work);
 }
 
 static int nci_dev_up(struct nfc_dev *nfc_dev)
@@ -585,6 +595,8 @@ int nci_register_device(struct nci_dev *ndev)
 
 	setup_timer(&ndev->cmd_timer, nci_cmd_timer,
 			(unsigned long) ndev);
+	setup_timer(&ndev->data_timer, nci_data_timer,
+			(unsigned long) ndev);
 
 	mutex_init(&ndev->req_lock);
 
@@ -722,6 +734,9 @@ static void nci_tx_work(struct work_struct *work)
 			 nci_plen(skb->data));
 
 		nci_send_frame(skb);
+
+		mod_timer(&ndev->data_timer,
+			jiffies + msecs_to_jiffies(NCI_DATA_TIMEOUT));
 	}
 }
 
@@ -752,6 +767,15 @@ static void nci_rx_work(struct work_struct *work)
 			kfree_skb(skb);
 			break;
 		}
+	}
+
+	/* check if a data exchange timout has occurred */
+	if (test_bit(NCI_DATA_EXCHANGE_TO, &ndev->flags)) {
+		/* complete the data exchange transaction, if exists */
+		if (test_bit(NCI_DATA_EXCHANGE, &ndev->flags))
+			nci_data_exchange_complete(ndev, NULL, -ETIMEDOUT);
+
+		clear_bit(NCI_DATA_EXCHANGE_TO, &ndev->flags);
 	}
 }
 
