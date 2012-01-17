@@ -181,13 +181,6 @@ struct kvm_mmu_memory_cache {
 	void *objects[KVM_NR_MEM_OBJS];
 };
 
-#define NR_PTE_CHAIN_ENTRIES 5
-
-struct kvm_pte_chain {
-	u64 *parent_ptes[NR_PTE_CHAIN_ENTRIES];
-	struct hlist_node link;
-};
-
 /*
  * kvm_mmu_page_role, below, is defined as:
  *
