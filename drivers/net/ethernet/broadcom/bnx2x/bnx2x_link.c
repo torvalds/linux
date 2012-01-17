@@ -9814,12 +9814,8 @@ static int bnx2x_848x3_config_init(struct bnx2x_phy *phy,
 	if (phy->type == PORT_HW_CFG_XGXS_EXT_PHY_TYPE_BCM84833) {
 		bnx2x_84833_pair_swap_cfg(phy, params, vars);
 
-		/* AutogrEEEn */
-		if (params->feature_config_flags &
-			FEATURE_CONFIG_AUTOGREEEN_ENABLED)
-			cmd_args[0] = 0x2;
-		else
-			cmd_args[0] = 0x0;
+		/* Keep AutogrEEEn disabled. */
+		cmd_args[0] = 0x0;
 		cmd_args[1] = 0x0;
 		cmd_args[2] = PHY84833_CONSTANT_LATENCY + 1;
 		cmd_args[3] = PHY84833_CONSTANT_LATENCY;
