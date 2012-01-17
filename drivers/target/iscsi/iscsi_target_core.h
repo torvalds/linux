@@ -508,6 +508,7 @@ struct iscsi_conn {
 	u16			cid;
 	/* Remote TCP Port */
 	u16			login_port;
+	u16			local_port;
 	int			net_size;
 	u32			auth_id;
 #define CONNFLAG_SCTP_STRUCT_FILE			0x01
@@ -527,6 +528,7 @@ struct iscsi_conn {
 	unsigned char		bad_hdr[ISCSI_HDR_LEN];
 #define IPV6_ADDRESS_SPACE				48
 	unsigned char		login_ip[IPV6_ADDRESS_SPACE];
+	unsigned char		local_ip[IPV6_ADDRESS_SPACE];
 	int			conn_usage_count;
 	int			conn_waiting_on_uc;
 	atomic_t		check_immediate_queue;
