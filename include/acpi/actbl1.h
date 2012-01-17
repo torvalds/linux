@@ -228,7 +228,8 @@ enum acpi_einj_actions {
 	ACPI_EINJ_EXECUTE_OPERATION = 5,
 	ACPI_EINJ_CHECK_BUSY_STATUS = 6,
 	ACPI_EINJ_GET_COMMAND_STATUS = 7,
-	ACPI_EINJ_ACTION_RESERVED = 8,	/* 8 and greater are reserved */
+	ACPI_EINJ_SET_ERROR_TYPE_WITH_ADDRESS = 8,
+	ACPI_EINJ_ACTION_RESERVED = 9,	/* 9 and greater are reserved */
 	ACPI_EINJ_TRIGGER_ERROR = 0xFF	/* Except for this value */
 };
 
