@@ -526,14 +526,6 @@ struct nouveau_pm_threshold_temp {
 	s16 fan_boost;
 };
 
-struct nouveau_pm_memtimings {
-	bool supported;
-	struct nouveau_pm_memtiming boot;
-	struct nouveau_pm_memtiming *timing;
-	int nr_timing;
-	int nr_timing_valid;
-};
-
 struct nouveau_pm_fan {
 	u32 percent;
 	u32 min_duty;
@@ -546,11 +538,11 @@ struct nouveau_pm_engine {
 	struct nouveau_pm_voltage voltage;
 	struct nouveau_pm_level perflvl[NOUVEAU_PM_MAX_LEVEL];
 	int nr_perflvl;
-	struct nouveau_pm_memtimings memtimings;
 	struct nouveau_pm_temp_sensor_constants sensor_constants;
 	struct nouveau_pm_threshold_temp threshold_temp;
 	struct nouveau_pm_fan fan;
 
+	struct nouveau_pm_memtiming boot_timing;
 	struct nouveau_pm_level boot;
 	struct nouveau_pm_level *cur;
 
@@ -922,6 +914,10 @@ extern int  nouveau_mem_init_agp(struct drm_device *);
 extern int  nouveau_mem_reset_agp(struct drm_device *);
 extern void nouveau_mem_close(struct drm_device *);
 extern bool nouveau_mem_flags_valid(struct drm_device *, u32 tile_flags);
+extern void nouveau_mem_timing_read(struct drm_device *,
+				    struct nouveau_pm_memtiming *);
+extern struct nouveau_pm_memtiming *
+nouveau_mem_timing(struct drm_device *, u32 freq);
 extern int nouveau_mem_vbios_type(struct drm_device *);
 extern struct nouveau_tile_reg *nv10_mem_set_tiling(
 	struct drm_device *dev, uint32_t addr, uint32_t size,

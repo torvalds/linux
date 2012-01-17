@@ -238,6 +238,7 @@ nouveau_pm_perflvl_get(struct drm_device *dev, struct nouveau_pm_level *perflvl)
 	if (ret > 0)
 		perflvl->fanspeed = ret;
 
+	nouveau_mem_timing_read(dev, &perflvl->timing);
 	return 0;
 }
 
@@ -793,8 +794,6 @@ nouveau_pm_init(struct drm_device *dev)
 	char info[256];
 	int ret, i;
 
-	nouveau_mem_timing_init(dev);
-
 	/* parse aux tables from vbios */
 	nouveau_volt_init(dev);
 	nouveau_temp_init(dev);
@@ -807,7 +806,6 @@ nouveau_pm_init(struct drm_device *dev)
 	}
 
 	strncpy(pm->boot.name, "boot", 4);
-	pm->boot.timing = &pm->memtimings.boot;
 	pm->cur = &pm->boot;
 
 	/* add performance levels from vbios */
@@ -857,7 +855,6 @@ nouveau_pm_fini(struct drm_device *dev)
 	nouveau_temp_fini(dev);
 	nouveau_perf_fini(dev);
 	nouveau_volt_fini(dev);
-	nouveau_mem_timing_fini(dev);
 
 #if defined(CONFIG_ACPI) && defined(CONFIG_POWER_SUPPLY)
 	unregister_acpi_notifier(&pm->acpi_nb);

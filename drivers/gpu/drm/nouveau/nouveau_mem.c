@@ -471,13 +471,12 @@ nouveau_mem_gart_init(struct drm_device *dev)
 	return 0;
 }
 
-static void
-nv40_mem_timing_entry(struct drm_device *dev, struct nouveau_pm_tbl_header *hdr,
-		      struct nouveau_pm_tbl_entry *e,
-		      struct nouveau_pm_memtiming *t,
-		      struct nouveau_pm_memtiming *boot)
+static int
+nv40_mem_timing_calc(struct drm_device *dev, u32 freq,
+		     struct nouveau_pm_tbl_entry *e, u8 len,
+		     struct nouveau_pm_memtiming *boot,
+		     struct nouveau_pm_memtiming *t)
 {
-
 	t->reg[0] = (e->tRP << 24 | e->tRAS << 16 | e->tRFC << 8 | e->tRC);
 
 	/* XXX: I don't trust the -1's and +1's... they must come
@@ -495,19 +494,23 @@ nv40_mem_timing_entry(struct drm_device *dev, struct nouveau_pm_tbl_header *hdr,
 
 	NV_DEBUG(dev, "Entry %d: 220: %08x %08x %08x\n", t->id,
 		 t->reg[0], t->reg[1], t->reg[2]);
+	return 0;
 }
 
-static void
-nv50_mem_timing_entry(struct drm_device *dev, struct bit_entry *P,
-		      struct nouveau_pm_tbl_header *hdr,
-		      struct nouveau_pm_tbl_entry *e,
-		      struct nouveau_pm_memtiming *t,
-		      struct nouveau_pm_memtiming *boot)
+static int
+nv50_mem_timing_calc(struct drm_device *dev, u32 freq,
+		     struct nouveau_pm_tbl_entry *e, u8 len,
+		     struct nouveau_pm_memtiming *boot,
+		     struct nouveau_pm_memtiming *t)
 {
 	struct drm_nouveau_private *dev_priv = dev->dev_private;
+	struct bit_entry P;
 	uint8_t unk18 = 1, unk20 = 0, unk21 = 0, tmp7_3;
 
-	switch (min(hdr->entry_len, (u8) 22)) {
+	if (bit_table(dev, 'P', &P))
+		return -EINVAL;
+
+	switch (min(len, (u8) 22)) {
 	case 22:
 		unk21 = e->tUNK_21;
 	case 21:
@@ -537,7 +540,7 @@ nv50_mem_timing_entry(struct drm_device *dev, struct bit_entry *P,
 
 	t->reg[8] = boot->reg[8] & 0xffffff00;
 
-	if (P->version == 1) {
+	if (P.version == 1) {
 		t->reg[1] |= (e->tCL + 2 - (t->tCWL - 1));
 
 		t->reg[3] = (0x14 + e->tCL) << 24 |
@@ -592,13 +595,14 @@ nv50_mem_timing_entry(struct drm_device *dev, struct bit_entry *P,
 	NV_DEBUG(dev, "         230: %08x %08x %08x %08x\n",
 		 t->reg[4], t->reg[5], t->reg[6], t->reg[7]);
 	NV_DEBUG(dev, "         240: %08x\n", t->reg[8]);
+	return 0;
 }
 
-static void
-nvc0_mem_timing_entry(struct drm_device *dev, struct nouveau_pm_tbl_header *hdr,
-		      struct nouveau_pm_tbl_entry *e,
-		      struct nouveau_pm_memtiming *t,
-		      struct nouveau_pm_memtiming *boot)
+static int
+nvc0_mem_timing_calc(struct drm_device *dev, u32 freq,
+		     struct nouveau_pm_tbl_entry *e, u8 len,
+		     struct nouveau_pm_memtiming *boot,
+		     struct nouveau_pm_memtiming *t)
 {
 	if (e->tCWL > 0)
 		t->tCWL = e->tCWL;
@@ -625,20 +629,21 @@ nvc0_mem_timing_entry(struct drm_device *dev, struct nouveau_pm_tbl_header *hdr,
 	NV_DEBUG(dev, "Entry %d: 290: %08x %08x %08x %08x\n", t->id,
 		 t->reg[0], t->reg[1], t->reg[2], t->reg[3]);
 	NV_DEBUG(dev, "         2a0: %08x\n", t->reg[4]);
+	return 0;
 }
 
 /**
  * MR generation methods
  */
 
-static bool
-nouveau_mem_ddr2_mr(struct drm_device *dev, struct nouveau_pm_tbl_header *hdr,
-		    struct nouveau_pm_tbl_entry *e,
-		    struct nouveau_pm_memtiming *t,
-		    struct nouveau_pm_memtiming *boot)
+static int
+nouveau_mem_ddr2_mr(struct drm_device *dev, u32 freq,
+		    struct nouveau_pm_tbl_entry *e, u8 len,
+		    struct nouveau_pm_memtiming *boot,
+		    struct nouveau_pm_memtiming *t)
 {
 	t->drive_strength = 0;
-	if (hdr->entry_len < 15) {
+	if (len < 15) {
 		t->odt = boot->odt;
 	} else {
 		t->odt = e->RAM_FT1 & 0x07;
@@ -646,12 +651,12 @@ nouveau_mem_ddr2_mr(struct drm_device *dev, struct nouveau_pm_tbl_header *hdr,
 
 	if (e->tCL >= NV_MEM_CL_DDR2_MAX) {
 		NV_WARN(dev, "(%u) Invalid tCL: %u", t->id, e->tCL);
-		return false;
+		return -ERANGE;
 	}
 
 	if (e->tWR >= NV_MEM_WR_DDR2_MAX) {
 		NV_WARN(dev, "(%u) Invalid tWR: %u", t->id, e->tWR);
-		return false;
+		return -ERANGE;
 	}
 
 	if (t->odt > 3) {
@@ -668,22 +673,22 @@ nouveau_mem_ddr2_mr(struct drm_device *dev, struct nouveau_pm_tbl_header *hdr,
 		   (t->odt & 0x2) << 5;
 
 	NV_DEBUG(dev, "(%u) MR: %08x", t->id, t->mr[0]);
-	return true;
+	return 0;
 }
 
 uint8_t nv_mem_wr_lut_ddr3[NV_MEM_WR_DDR3_MAX] = {
 	0, 0, 0, 0, 0, 1, 2, 3, 4, 5, 5, 6, 6, 7, 7, 0, 0};
 
-static bool
-nouveau_mem_ddr3_mr(struct drm_device *dev, struct nouveau_pm_tbl_header *hdr,
-		    struct nouveau_pm_tbl_entry *e,
-		    struct nouveau_pm_memtiming *t,
-		    struct nouveau_pm_memtiming *boot)
+static int
+nouveau_mem_ddr3_mr(struct drm_device *dev, u32 freq,
+		    struct nouveau_pm_tbl_entry *e, u8 len,
+		    struct nouveau_pm_memtiming *boot,
+		    struct nouveau_pm_memtiming *t)
 {
 	u8 cl = e->tCL - 4;
 
 	t->drive_strength = 0;
-	if (hdr->entry_len < 15) {
+	if (len < 15) {
 		t->odt = boot->odt;
 	} else {
 		t->odt = e->RAM_FT1 & 0x07;
@@ -691,17 +696,17 @@ nouveau_mem_ddr3_mr(struct drm_device *dev, struct nouveau_pm_tbl_header *hdr,
 
 	if (e->tCL >= NV_MEM_CL_DDR3_MAX || e->tCL < 4) {
 		NV_WARN(dev, "(%u) Invalid tCL: %u", t->id, e->tCL);
-		return false;
+		return -ERANGE;
 	}
 
 	if (e->tWR >= NV_MEM_WR_DDR3_MAX || e->tWR < 4) {
 		NV_WARN(dev, "(%u) Invalid tWR: %u", t->id, e->tWR);
-		return false;
+		return -ERANGE;
 	}
 
 	if (e->tCWL < 5) {
 		NV_WARN(dev, "(%u) Invalid tCWL: %u", t->id, e->tCWL);
-		return false;
+		return -ERANGE;
 	}
 
 	t->mr[0] = (boot->mr[0] & 0x180b) |
@@ -716,7 +721,7 @@ nouveau_mem_ddr3_mr(struct drm_device *dev, struct nouveau_pm_tbl_header *hdr,
 	t->mr[2] = (boot->mr[2] & 0x20ffb7) | (e->tCWL - 5) << 3;
 
 	NV_DEBUG(dev, "(%u) MR: %08x %08x", t->id, t->mr[0], t->mr[2]);
-	return true;
+	return 0;
 }
 
 uint8_t nv_mem_cl_lut_gddr3[NV_MEM_CL_GDDR3_MAX] = {
@@ -724,13 +729,13 @@ uint8_t nv_mem_cl_lut_gddr3[NV_MEM_CL_GDDR3_MAX] = {
 uint8_t nv_mem_wr_lut_gddr3[NV_MEM_WR_GDDR3_MAX] = {
 	0, 0, 0, 0, 0, 2, 3, 8, 9, 10, 11, 0, 0, 1, 1, 0, 3};
 
-static bool
-nouveau_mem_gddr3_mr(struct drm_device *dev, struct nouveau_pm_tbl_header *hdr,
-		     struct nouveau_pm_tbl_entry *e,
-		     struct nouveau_pm_memtiming *t,
-		     struct nouveau_pm_memtiming *boot)
+static int
+nouveau_mem_gddr3_mr(struct drm_device *dev, u32 freq,
+		     struct nouveau_pm_tbl_entry *e, u8 len,
+		     struct nouveau_pm_memtiming *boot,
+		     struct nouveau_pm_memtiming *t)
 {
-	if (hdr->entry_len < 15) {
+	if (len < 15) {
 		t->drive_strength = boot->drive_strength;
 		t->odt = boot->odt;
 	} else {
@@ -740,12 +745,12 @@ nouveau_mem_gddr3_mr(struct drm_device *dev, struct nouveau_pm_tbl_header *hdr,
 
 	if (e->tCL >= NV_MEM_CL_GDDR3_MAX) {
 		NV_WARN(dev, "(%u) Invalid tCL: %u", t->id, e->tCL);
-		return false;
+		return -ERANGE;
 	}
 
 	if (e->tWR >= NV_MEM_WR_GDDR3_MAX) {
 		NV_WARN(dev, "(%u) Invalid tWR: %u", t->id, e->tWR);
-		return false;
+		return -ERANGE;
 	}
 
 	if (t->odt > 3) {
@@ -763,16 +768,16 @@ nouveau_mem_gddr3_mr(struct drm_device *dev, struct nouveau_pm_tbl_header *hdr,
 		   (nv_mem_wr_lut_gddr3[e->tWR] & 0xf) << 4;
 
 	NV_DEBUG(dev, "(%u) MR: %08x %08x", t->id, t->mr[0], t->mr[1]);
-	return true;
+	return 0;
 }
 
-static bool
-nouveau_mem_gddr5_mr(struct drm_device *dev, struct nouveau_pm_tbl_header *hdr,
-		     struct nouveau_pm_tbl_entry *e,
-		     struct nouveau_pm_memtiming *t,
-		     struct nouveau_pm_memtiming *boot)
+static int
+nouveau_mem_gddr5_mr(struct drm_device *dev, u32 freq,
+		     struct nouveau_pm_tbl_entry *e, u8 len,
+		     struct nouveau_pm_memtiming *boot,
+		     struct nouveau_pm_memtiming *t)
 {
-	if (hdr->entry_len < 15) {
+	if (len < 15) {
 		t->drive_strength = boot->drive_strength;
 		t->odt = boot->odt;
 	} else {
@@ -782,12 +787,12 @@ nouveau_mem_gddr5_mr(struct drm_device *dev, struct nouveau_pm_tbl_header *hdr,
 
 	if (e->tCL >= NV_MEM_CL_GDDR5_MAX) {
 		NV_WARN(dev, "(%u) Invalid tCL: %u", t->id, e->tCL);
-		return false;
+		return -ERANGE;
 	}
 
 	if (e->tWR >= NV_MEM_WR_GDDR5_MAX) {
 		NV_WARN(dev, "(%u) Invalid tWR: %u", t->id, e->tWR);
-		return false;
+		return -ERANGE;
 	}
 
 	if (t->odt > 3) {
@@ -804,12 +809,70 @@ nouveau_mem_gddr5_mr(struct drm_device *dev, struct nouveau_pm_tbl_header *hdr,
 		   (t->odt << 2);
 
 	NV_DEBUG(dev, "(%u) MR: %08x %08x", t->id, t->mr[0], t->mr[1]);
-	return true;
+	return 0;
 }
 
-static void
-nouveau_mem_copy_current_timings(struct drm_device *dev,
-				 struct nouveau_pm_memtiming *t)
+struct nouveau_pm_memtiming *
+nouveau_mem_timing(struct drm_device *dev, u32 freq)
+{
+	struct drm_nouveau_private *dev_priv = dev->dev_private;
+	struct nouveau_pm_engine *pm = &dev_priv->engine.pm;
+	struct nouveau_pm_memtiming *boot = &pm->boot_timing;
+	struct nouveau_pm_memtiming *t;
+	struct nouveau_pm_tbl_entry *e;
+	u8 ver, len, *ptr;
+	int ret;
+
+	ptr = nouveau_perf_timing(dev, freq, &ver, &len);
+	if (!ptr || ptr[0] == 0x00)
+		return boot;
+	e = (struct nouveau_pm_tbl_entry *)ptr;
+
+	t = kzalloc(sizeof(*t), GFP_KERNEL);
+	if (t) {
+		t->tCWL = boot->tCWL;
+
+		switch (dev_priv->card_type) {
+		case NV_40:
+			ret = nv40_mem_timing_calc(dev, freq, e, len, boot, t);
+			break;
+		case NV_50:
+			ret = nv50_mem_timing_calc(dev, freq, e, len, boot, t);
+			break;
+		case NV_C0:
+			ret = nvc0_mem_timing_calc(dev, freq, e, len, boot, t);
+			break;
+		default:
+			ret = -ENODEV;
+			break;
+		}
+
+		switch (dev_priv->vram_type * !ret) {
+		case NV_MEM_TYPE_GDDR3:
+			ret = nouveau_mem_gddr3_mr(dev, freq, e, len, boot, t);
+			break;
+		case NV_MEM_TYPE_GDDR5:
+			ret = nouveau_mem_gddr5_mr(dev, freq, e, len, boot, t);
+			break;
+		case NV_MEM_TYPE_DDR2:
+			ret = nouveau_mem_ddr2_mr(dev, freq, e, len, boot, t);
+			break;
+		case NV_MEM_TYPE_DDR3:
+			ret = nouveau_mem_ddr3_mr(dev, freq, e, len, boot, t);
+			break;
+		}
+
+		if (ret) {
+			kfree(t);
+			t = NULL;
+		}
+	}
+
+	return t;
+}
+
+void
+nouveau_mem_timing_read(struct drm_device *dev, struct nouveau_pm_memtiming *t)
 {
 	struct drm_nouveau_private *dev_priv = dev->dev_private;
 	u32 timing_base, timing_regs, mr_base;
@@ -872,212 +935,6 @@ nouveau_mem_copy_current_timings(struct drm_device *dev,
 	default:
 		break;
 	}
-}
-
-static bool
-nouveau_mem_compare_timings(struct drm_device *dev,
-			    struct nouveau_pm_memtiming *t1,
-			    struct nouveau_pm_memtiming *t2)
-{
-	struct drm_nouveau_private *dev_priv = dev->dev_private;
-
-	switch (dev_priv->card_type) {
-	case 0x50:
-		if (t1->reg[8] != t2->reg[8] ||
-		    t1->reg[7] != t2->reg[7] ||
-		    t1->reg[6] != t2->reg[6] ||
-		    t1->reg[5] != t2->reg[5])
-			return false;
-	case 0xC0:
-		if (t1->reg[4] != t2->reg[4] ||
-		    t1->reg[3] != t2->reg[3])
-			return false;
-	case 0x40:
-		if (t1->reg[2] != t2->reg[2] ||
-		    t1->reg[1] != t2->reg[1] ||
-		    t1->reg[0] != t2->reg[0])
-			return false;
-		break;
-	default:
-		return false;
-	}
-
-	/* RSpliet: may generate many false negatives */
-	switch (dev_priv->vram_type) {
-	case NV_MEM_TYPE_GDDR3:
-	case NV_MEM_TYPE_GDDR5:
-		if (t1->mr[0] == t2->mr[0] ||
-		    t1->mr[1] != t2->mr[1])
-			return true;
-		break;
-	case NV_MEM_TYPE_DDR3:
-		if (t1->mr[2] == t2->mr[2])
-			return true;
-	case NV_MEM_TYPE_DDR2:
-		if (t1->mr[0] == t2->mr[0])
-			return true;
-		break;
-	default:
-		return false;
-	}
-
-	return false;
-}
-
-/**
- * Processes the Memory Timing BIOS table, stores generated
- * register values
- * @pre init scripts were run, memtiming regs are initialized
- */
-void
-nouveau_mem_timing_init(struct drm_device *dev)
-{
-	struct drm_nouveau_private *dev_priv = dev->dev_private;
-	struct nouveau_pm_engine *pm = &dev_priv->engine.pm;
-	struct nouveau_pm_memtimings *memtimings = &pm->memtimings;
-	struct nvbios *bios = &dev_priv->vbios;
-	struct bit_entry P;
-	struct nouveau_pm_tbl_header *hdr = NULL;
-	bool valid_generation = false;
-	u8 *entry;
-	int i;
-
-	memtimings->nr_timing = 0;
-	memtimings->nr_timing_valid = 0;
-	memtimings->supported = 0;
-
-	if (dev_priv->card_type < NV_40) {
-		NV_ERROR(dev, "Timing entry format unknown for card_type %x. "
-			 "please contact nouveau developers",
-			 dev_priv->card_type);
-		return;
-	}
-
-	/* Copy the current timings */
-	nouveau_mem_copy_current_timings(dev, &memtimings->boot);
-
-	if (bios->type == NVBIOS_BIT) {
-		if (bit_table(dev, 'P', &P))
-			return;
-
-		if (P.version == 1)
-			hdr = (struct nouveau_pm_tbl_header *) ROMPTR(dev,
-								     P.data[4]);
-		else if (P.version == 2)
-			hdr = (struct nouveau_pm_tbl_header *) ROMPTR(dev,
-								     P.data[8]);
-		else
-			NV_WARN(dev, "unknown mem for BIT P %d\n", P.version);
-	} else {
-		NV_DEBUG(dev, "BMP version too old for memory\n");
-		return;
-	}
-
-	if (!hdr) {
-		NV_DEBUG(dev, "memory timing table pointer invalid\n");
-		return;
-	}
-
-	if (hdr->version != 0x10) {
-		NV_WARN(dev, "memory timing table 0x%02x unknown\n",
-			hdr->version);
-		return;
-	}
-
-	/* validate record length */
-	if (hdr->entry_len < 15) {
-		NV_ERROR(dev, "mem timing table length unknown: %d\n",
-			 hdr->entry_len);
-		return;
-	}
-
-	/* parse vbios entries into common format */
-	memtimings->timing = kcalloc(hdr->entry_cnt,
-				     sizeof(*memtimings->timing), GFP_KERNEL);
-	if (!memtimings->timing)
-		return;
-
-	entry = (u8 *) hdr + hdr->header_len;
-	for (i = 0; i < hdr->entry_cnt; i++, entry += hdr->entry_len) {
-		struct nouveau_pm_memtiming *timing = &pm->memtimings.timing[i];
-		struct nouveau_pm_tbl_entry *entry_struct =
-					  (struct nouveau_pm_tbl_entry *) entry;
-		if (entry[0] == 0)
-			continue;
-		memtimings->nr_timing_valid++;
-
-		timing->id = i;
-		timing->tCWL = memtimings->boot.tCWL;
-
-		/* generate the timngs */
-		if (dev_priv->card_type == NV_40) {
-			nv40_mem_timing_entry(dev, hdr, entry_struct,
-					      &pm->memtimings.timing[i],
-					      &memtimings->boot);
-		} else if (dev_priv->card_type == NV_50) {
-			nv50_mem_timing_entry(dev, &P, hdr, entry_struct,
-					      &pm->memtimings.timing[i],
-					      &memtimings->boot);
-		} else if (dev_priv->card_type == NV_C0) {
-			nvc0_mem_timing_entry(dev, hdr, entry_struct,
-					      &pm->memtimings.timing[i],
-					      &memtimings->boot);
-		}
-
-		/* generate the MR/EMR/...  */
-		switch (dev_priv->vram_type) {
-		case NV_MEM_TYPE_GDDR3:
-			nouveau_mem_gddr3_mr(dev, hdr, entry_struct, timing,
-					     &memtimings->boot);
-			break;
-		case NV_MEM_TYPE_GDDR5:
-			nouveau_mem_gddr5_mr(dev, hdr, entry_struct, timing,
-					     &memtimings->boot);
-			break;
-		case NV_MEM_TYPE_DDR2:
-			nouveau_mem_ddr2_mr(dev, hdr, entry_struct, timing,
-					    &memtimings->boot);
-			break;
-		case NV_MEM_TYPE_DDR3:
-			nouveau_mem_ddr3_mr(dev, hdr, entry_struct, timing,
-					    &memtimings->boot);
-			break;
-		default:
-			valid_generation = false;
-			break;
-		}
-
-		/* some kind of validation */
-		if (nouveau_mem_compare_timings(dev, timing,
-						&memtimings->boot)) {
-			NV_DEBUG(dev, "Copy boot timings from entry %d\n",
-				timing->id);
-			memtimings->boot = *timing;
-			valid_generation = true;
-		}
-	}
-
-	memtimings->nr_timing = hdr->entry_cnt;
-	memtimings->supported = (P.version == 1) && valid_generation;
-
-	/* if there are no timing entries that cannot
-	 * re-generate the current timings
-	 */
-	if (memtimings->nr_timing_valid > 0  && !valid_generation) {
-		NV_INFO(dev,
-			 "Memory timings management may not be working."
-			 " please report to nouveau devs\n");
-	}
-}
-
-void
-nouveau_mem_timing_fini(struct drm_device *dev)
-{
-	struct drm_nouveau_private *dev_priv = dev->dev_private;
-	struct nouveau_pm_memtimings *mem = &dev_priv->engine.pm.memtimings;
-
-	kfree(mem->timing);
-	mem->timing = NULL;
 }
 
 int

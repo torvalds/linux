@@ -89,7 +89,7 @@ nouveau_perf_rammap(struct drm_device *dev, u32 freq,
 {
 	struct drm_nouveau_private *dev_priv = dev->dev_private;
 	struct bit_entry P;
-	u8 *perf, i;
+	u8 *perf, i = 0;
 
 	if (!bit_table(dev, 'P', &P) && P.version == 2) {
 		u8 *rammap = ROMPTR(dev, P.data[4]);
@@ -158,7 +158,7 @@ nouveau_perf_ramcfg(struct drm_device *dev, u32 freq, u8 *ver, u8 *len)
 	return NULL;
 }
 
-static u8 *
+u8 *
 nouveau_perf_timing(struct drm_device *dev, u32 freq, u8 *ver, u8 *len)
 {
 	struct drm_nouveau_private *dev_priv = dev->dev_private;
@@ -384,24 +384,7 @@ nouveau_perf_init(struct drm_device *dev)
 		}
 
 		/* get the corresponding memory timings */
-#if 0
-		if (version == 0x15) {
-			memtimings->timing[i].id = i;
-			nv30_mem_timing_entry(dev, &mt_hdr,
-				     (struct nouveau_pm_tbl_entry *) &entry[41],
-				     0, &memtimings->timing[i]);
-			perflvl->timing = &memtimings->timing[i];
-		} else if (version > 0x15) {
-			/* last 3 args are for < 0x40, ignored for >= 0x40 */
-			perflvl->timing =
-				nouveau_perf_timing(dev, &P,
-						    perflvl->memory / 1000,
-						    entry + perf[3],
-						    perf[5], perf[4]);
-		}
-#else
-		perflvl->timing = NULL;
-#endif
+		perflvl->timing = nouveau_mem_timing(dev, perflvl->memory);
 
 		snprintf(perflvl->name, sizeof(perflvl->name),
 			 "performance_level_%d", i);
