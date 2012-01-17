@@ -478,56 +478,52 @@ static int intel_idle_cpuidle_driver_init(void)
 
 
 /*
- * intel_idle_cpuidle_devices_init()
+ * intel_idle_cpu_init()
  * allocate, initialize, register cpuidle_devices
+ * @cpu: cpu/core to initialize
  */
-static int intel_idle_cpuidle_devices_init(void)
+int intel_idle_cpu_init(int cpu)
 {
-	int i, cstate;
+	int cstate;
 	struct cpuidle_device *dev;
 
-	intel_idle_cpuidle_devices = alloc_percpu(struct cpuidle_device);
-	if (intel_idle_cpuidle_devices == NULL)
-		return -ENOMEM;
+	dev = per_cpu_ptr(intel_idle_cpuidle_devices, cpu);
 
-	for_each_online_cpu(i) {
-		dev = per_cpu_ptr(intel_idle_cpuidle_devices, i);
+	dev->state_count = 1;
 
-		dev->state_count = 1;
+	for (cstate = 1; cstate < MWAIT_MAX_NUM_CSTATES; ++cstate) {
+		int num_substates;
 
-		for (cstate = 1; cstate < MWAIT_MAX_NUM_CSTATES; ++cstate) {
-			int num_substates;
+		if (cstate > max_cstate) {
+			printk(PREFIX "max_cstate %d reached\n",
+			       max_cstate);
+			break;
+		}
 
-			if (cstate > max_cstate) {
-				printk(PREFIX "max_cstate %d reached\n",
-					max_cstate);
-				break;
-			}
+		/* does the state exist in CPUID.MWAIT? */
+		num_substates = (mwait_substates >> ((cstate) * 4))
+			& MWAIT_SUBSTATE_MASK;
+		if (num_substates == 0)
+			continue;
+		/* is the state not enabled? */
+		if (cpuidle_state_table[cstate].enter == NULL)
+			continue;
 
-			/* does the state exist in CPUID.MWAIT? */
-			num_substates = (mwait_substates >> ((cstate) * 4))
-						& MWAIT_SUBSTATE_MASK;
-			if (num_substates == 0)
-				continue;
-			/* is the state not enabled? */
-			if (cpuidle_state_table[cstate].enter == NULL) {
-				continue;
-			}
-
-			dev->states_usage[dev->state_count].driver_data =
-				(void *)get_driver_data(cstate);
+		dev->states_usage[dev->state_count].driver_data =
+			(void *)get_driver_data(cstate);
 
 			dev->state_count += 1;
 		}
+	dev->cpu = cpu;
 
-		dev->cpu = i;
-		if (cpuidle_register_device(dev)) {
-			pr_debug(PREFIX "cpuidle_register_device %d failed!\n",
-				 i);
-			intel_idle_cpuidle_devices_uninit();
-			return -EIO;
-		}
+	if (cpuidle_register_device(dev)) {
+		pr_debug(PREFIX "cpuidle_register_device %d failed!\n", cpu);
+		intel_idle_cpuidle_devices_uninit();
+		return -EIO;
 	}
+
+	if (auto_demotion_disable_flags)
+		smp_call_function_single(cpu, auto_demotion_disable, NULL, 1);
 
 	return 0;
 }
@@ -535,7 +531,7 @@ static int intel_idle_cpuidle_devices_init(void)
 
 static int __init intel_idle_init(void)
 {
-	int retval;
+	int retval, i;
 
 	/* Do not load intel_idle at all for now if idle= is passed */
 	if (boot_option_idle_override != IDLE_NO_OVERRIDE)
@@ -553,10 +549,16 @@ static int __init intel_idle_init(void)
 		return retval;
 	}
 
-	retval = intel_idle_cpuidle_devices_init();
-	if (retval) {
-		cpuidle_unregister_driver(&intel_idle_driver);
-		return retval;
+	intel_idle_cpuidle_devices = alloc_percpu(struct cpuidle_device);
+	if (intel_idle_cpuidle_devices == NULL)
+		return -ENOMEM;
+
+	for_each_online_cpu(i) {
+		retval = intel_idle_cpu_init(i);
+		if (retval) {
+			cpuidle_unregister_driver(&intel_idle_driver);
+			return retval;
+		}
 	}
 
 	return 0;
