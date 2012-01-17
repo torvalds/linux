@@ -854,6 +854,7 @@ static void __exit dib0700_module_exit(void)
 module_init (dib0700_module_init);
 module_exit (dib0700_module_exit);
 
+MODULE_FIRMWARE("dvb-usb-dib0700-1.20.fw");
 MODULE_AUTHOR("Patrick Boettcher <pboettcher@dibcom.fr>");
 MODULE_DESCRIPTION("Driver for devices based on DiBcom DiB0700 - USB bridge");
 MODULE_VERSION("1.0");
