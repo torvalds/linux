@@ -1279,7 +1279,7 @@ static int __init at_dma_probe(struct platform_device *pdev)
 
 		tasklet_init(&atchan->tasklet, atc_tasklet,
 				(unsigned long)atchan);
-		atc_enable_irq(atchan);
+		atc_enable_chan_irq(atdma, i);
 	}
 
 	/* set base routines */
@@ -1348,7 +1348,7 @@ static int __exit at_dma_remove(struct platform_device *pdev)
 		struct at_dma_chan	*atchan = to_at_dma_chan(chan);
 
 		/* Disable interrupts */
-		atc_disable_irq(atchan);
+		atc_disable_chan_irq(atdma, chan->chan_id);
 		tasklet_disable(&atchan->tasklet);
 
 		tasklet_kill(&atchan->tasklet);
