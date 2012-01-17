@@ -7890,7 +7890,8 @@ int intel_framebuffer_init(struct drm_device *dev,
 	case DRM_FORMAT_VYUY:
 		break;
 	default:
-		DRM_ERROR("unsupported pixel format\n");
+		DRM_DEBUG_KMS("unsupported pixel format %u\n",
+				mode_cmd->pixel_format);
 		return -EINVAL;
 	}
 
