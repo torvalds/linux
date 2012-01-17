@@ -646,6 +646,10 @@ static void omap4_panda_panel_disable_hdmi(struct omap_dss_device *dssdev)
 	gpio_free_array(panda_hdmi_gpios, ARRAY_SIZE(panda_hdmi_gpios));
 }
 
+static struct omap_dss_hdmi_data omap4_panda_hdmi_data = {
+	.hpd_gpio = HDMI_GPIO_HPD,
+};
+
 static struct omap_dss_device  omap4_panda_hdmi_device = {
 	.name = "hdmi",
 	.driver_name = "hdmi_panel",
@@ -653,6 +657,7 @@ static struct omap_dss_device  omap4_panda_hdmi_device = {
 	.platform_enable = omap4_panda_panel_enable_hdmi,
 	.platform_disable = omap4_panda_panel_disable_hdmi,
 	.channel = OMAP_DSS_CHANNEL_DIGIT,
+	.data = &omap4_panda_hdmi_data,
 };
 
 static struct omap_dss_device *omap4_panda_dss_devices[] = {
