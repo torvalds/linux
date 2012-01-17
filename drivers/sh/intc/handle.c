@@ -13,7 +13,7 @@
 #include <linux/spinlock.h>
 #include "internals.h"
 
-static unsigned long ack_handle[NR_IRQS];
+static unsigned long ack_handle[INTC_NR_IRQS];
 
 static intc_enum __init intc_grp_id(struct intc_desc *desc,
 				    intc_enum enum_id)

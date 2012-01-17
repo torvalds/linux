@@ -3,6 +3,12 @@
 
 #include <linux/ioport.h>
 
+#ifdef CONFIG_SUPERH
+#define INTC_NR_IRQS	512
+#else
+#define INTC_NR_IRQS	1024
+#endif
+
 /*
  * Convert back and forth between INTEVT and IRQ values.
  */
