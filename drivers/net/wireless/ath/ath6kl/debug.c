@@ -82,31 +82,31 @@ void ath6kl_dump_registers(struct ath6kl_device *dev,
 			   struct ath6kl_irq_enable_reg *irq_enable_reg)
 {
 
-	ath6kl_dbg(ATH6KL_DBG_ANY, ("<------- Register Table -------->\n"));
+	ath6kl_dbg(ATH6KL_DBG_IRQ, ("<------- Register Table -------->\n"));
 
 	if (irq_proc_reg != NULL) {
-		ath6kl_dbg(ATH6KL_DBG_ANY,
+		ath6kl_dbg(ATH6KL_DBG_IRQ,
 			"Host Int status:           0x%x\n",
 			irq_proc_reg->host_int_status);
-		ath6kl_dbg(ATH6KL_DBG_ANY,
+		ath6kl_dbg(ATH6KL_DBG_IRQ,
 			   "CPU Int status:            0x%x\n",
 			irq_proc_reg->cpu_int_status);
-		ath6kl_dbg(ATH6KL_DBG_ANY,
+		ath6kl_dbg(ATH6KL_DBG_IRQ,
 			   "Error Int status:          0x%x\n",
 			irq_proc_reg->error_int_status);
-		ath6kl_dbg(ATH6KL_DBG_ANY,
+		ath6kl_dbg(ATH6KL_DBG_IRQ,
 			   "Counter Int status:        0x%x\n",
 			irq_proc_reg->counter_int_status);
-		ath6kl_dbg(ATH6KL_DBG_ANY,
+		ath6kl_dbg(ATH6KL_DBG_IRQ,
 			   "Mbox Frame:                0x%x\n",
 			irq_proc_reg->mbox_frame);
-		ath6kl_dbg(ATH6KL_DBG_ANY,
+		ath6kl_dbg(ATH6KL_DBG_IRQ,
 			   "Rx Lookahead Valid:        0x%x\n",
 			irq_proc_reg->rx_lkahd_valid);
-		ath6kl_dbg(ATH6KL_DBG_ANY,
+		ath6kl_dbg(ATH6KL_DBG_IRQ,
 			   "Rx Lookahead 0:            0x%x\n",
 			irq_proc_reg->rx_lkahd[0]);
-		ath6kl_dbg(ATH6KL_DBG_ANY,
+		ath6kl_dbg(ATH6KL_DBG_IRQ,
 			   "Rx Lookahead 1:            0x%x\n",
 			irq_proc_reg->rx_lkahd[1]);
 
@@ -115,16 +115,16 @@ void ath6kl_dump_registers(struct ath6kl_device *dev,
 			 * If the target supports GMBOX hardware, dump some
 			 * additional state.
 			 */
-			ath6kl_dbg(ATH6KL_DBG_ANY,
+			ath6kl_dbg(ATH6KL_DBG_IRQ,
 				"GMBOX Host Int status 2:   0x%x\n",
 				irq_proc_reg->host_int_status2);
-			ath6kl_dbg(ATH6KL_DBG_ANY,
+			ath6kl_dbg(ATH6KL_DBG_IRQ,
 				"GMBOX RX Avail:            0x%x\n",
 				irq_proc_reg->gmbox_rx_avail);
-			ath6kl_dbg(ATH6KL_DBG_ANY,
+			ath6kl_dbg(ATH6KL_DBG_IRQ,
 				"GMBOX lookahead alias 0:   0x%x\n",
 				irq_proc_reg->rx_gmbox_lkahd_alias[0]);
-			ath6kl_dbg(ATH6KL_DBG_ANY,
+			ath6kl_dbg(ATH6KL_DBG_IRQ,
 				"GMBOX lookahead alias 1:   0x%x\n",
 				irq_proc_reg->rx_gmbox_lkahd_alias[1]);
 		}
@@ -132,13 +132,13 @@ void ath6kl_dump_registers(struct ath6kl_device *dev,
 	}
 
 	if (irq_enable_reg != NULL) {
-		ath6kl_dbg(ATH6KL_DBG_ANY,
+		ath6kl_dbg(ATH6KL_DBG_IRQ,
 			"Int status Enable:         0x%x\n",
 			irq_enable_reg->int_status_en);
-		ath6kl_dbg(ATH6KL_DBG_ANY, "Counter Int status Enable: 0x%x\n",
+		ath6kl_dbg(ATH6KL_DBG_IRQ, "Counter Int status Enable: 0x%x\n",
 			irq_enable_reg->cntr_int_status_en);
 	}
-	ath6kl_dbg(ATH6KL_DBG_ANY, "<------------------------------->\n");
+	ath6kl_dbg(ATH6KL_DBG_IRQ, "<------------------------------->\n");
 }
 
 static void dump_cred_dist(struct htc_endpoint_credit_dist *ep_dist)
@@ -174,9 +174,6 @@ static void dump_cred_dist(struct htc_endpoint_credit_dist *ep_dist)
 void dump_cred_dist_stats(struct htc_target *target)
 {
 	struct htc_endpoint_credit_dist *ep_list;
-
-	if (!AR_DBG_LVL_CHECK(ATH6KL_DBG_CREDIT))
-		return;
 
 	list_for_each_entry(ep_list, &target->cred_dist_list, list)
 		dump_cred_dist(ep_list);

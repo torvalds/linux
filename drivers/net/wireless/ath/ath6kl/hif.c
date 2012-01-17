@@ -429,9 +429,8 @@ static int proc_pending_irqs(struct ath6kl_device *dev, bool *done)
 		if (status)
 			goto out;
 
-		if (AR_DBG_LVL_CHECK(ATH6KL_DBG_IRQ))
-			ath6kl_dump_registers(dev, &dev->irq_proc_reg,
-					 &dev->irq_en_reg);
+		ath6kl_dump_registers(dev, &dev->irq_proc_reg,
+				      &dev->irq_en_reg);
 
 		/* Update only those registers that are enabled */
 		host_int_status = dev->irq_proc_reg.host_int_status &

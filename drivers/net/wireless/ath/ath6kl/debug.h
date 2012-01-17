@@ -55,8 +55,6 @@ int ath6kl_printk(const char *level, const char *fmt, ...);
 #define ath6kl_warn(fmt, ...)					\
 	ath6kl_printk(KERN_WARNING, fmt, ##__VA_ARGS__)
 
-#define AR_DBG_LVL_CHECK(mask)	(debug_mask & mask)
-
 enum ath6kl_war {
 	ATH6KL_WAR_INVALID_RATE,
 };

@@ -426,9 +426,6 @@ static int ath6kl_wmi_tx_complete_event_rx(u8 *datap, int len)
 	ath6kl_dbg(ATH6KL_DBG_WMI, "comp: %d %d %d\n",
 		   evt->num_msg, evt->msg_len, evt->msg_type);
 
-	if (!AR_DBG_LVL_CHECK(ATH6KL_DBG_WMI))
-		return 0;
-
 	for (index = 0; index < evt->num_msg; index++) {
 		size = sizeof(struct wmi_tx_complete_event) +
 		    (index * sizeof(struct tx_complete_msg_v1));
