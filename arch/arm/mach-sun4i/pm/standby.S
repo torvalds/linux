@@ -1,6 +1,6 @@
 	.globl	standby_bin_start
 standby_bin_start:
-	.incbin	"arch/arm/mach-sun4i/pm/standby/standby.code"
+	.incbin	"arch/arm/mach-sun4i/pm/standby/standby.bin"
 	.globl	standby_bin_end
 standby_bin_end:
 	.align	2
