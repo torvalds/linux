@@ -488,6 +488,7 @@ int pm8001_mem_alloc(struct pci_dev *pdev, void **virt_addr,
 	dma_addr_t *pphys_addr, u32 *pphys_addr_hi, u32 *pphys_addr_lo,
 	u32 mem_size, u32 align);
 
+int pm8001_bar4_shift(struct pm8001_hba_info *pm8001_ha, u32 shiftValue);
 
 /* ctl shared API */
 extern struct device_attribute *pm8001_host_attrs[];

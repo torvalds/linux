@@ -338,26 +338,25 @@ update_outbnd_queue_table(struct pm8001_hba_info *pm8001_ha, int number)
 }
 
 /**
- * bar4_shift - function is called to shift BAR base address
- * @pm8001_ha : our hba card information
+ * pm8001_bar4_shift - function is called to shift BAR base address
+ * @pm8001_ha : our hba card infomation
  * @shiftValue : shifting value in memory bar.
  */
-static int bar4_shift(struct pm8001_hba_info *pm8001_ha, u32 shiftValue)
+int pm8001_bar4_shift(struct pm8001_hba_info *pm8001_ha, u32 shiftValue)
 {
 	u32 regVal;
-	u32 max_wait_count;
+	unsigned long start;
 
 	/* program the inbound AXI translation Lower Address */
 	pm8001_cw32(pm8001_ha, 1, SPC_IBW_AXI_TRANSLATION_LOW, shiftValue);
 
 	/* confirm the setting is written */
-	max_wait_count = 1 * 1000 * 1000;  /* 1 sec */
+	start = jiffies + HZ; /* 1 sec */
 	do {
-		udelay(1);
 		regVal = pm8001_cr32(pm8001_ha, 1, SPC_IBW_AXI_TRANSLATION_LOW);
-	} while ((regVal != shiftValue) && (--max_wait_count));
+	} while ((regVal != shiftValue) && time_before(jiffies, start));
 
-	if (!max_wait_count) {
+	if (regVal != shiftValue) {
 		PM8001_INIT_DBG(pm8001_ha,
 			pm8001_printk("TIMEOUT:SPC_IBW_AXI_TRANSLATION_LOW"
 			" = 0x%x\n", regVal));
@@ -375,6 +374,7 @@ static void __devinit
 mpi_set_phys_g3_with_ssc(struct pm8001_hba_info *pm8001_ha, u32 SSCbit)
 {
 	u32 value, offset, i;
+	unsigned long flags;
 
 #define SAS2_SETTINGS_LOCAL_PHY_0_3_SHIFT_ADDR 0x00030000
 #define SAS2_SETTINGS_LOCAL_PHY_4_7_SHIFT_ADDR 0x00040000
@@ -388,16 +388,23 @@ mpi_set_phys_g3_with_ssc(struct pm8001_hba_info *pm8001_ha, u32 SSCbit)
     * Using shifted destination address 0x3_0000:0x1074 + 0x4000*N (N=0:3)
     * Using shifted destination address 0x4_0000:0x1074 + 0x4000*(N-4) (N=4:7)
     */
-	if (-1 == bar4_shift(pm8001_ha, SAS2_SETTINGS_LOCAL_PHY_0_3_SHIFT_ADDR))
+	spin_lock_irqsave(&pm8001_ha->lock, flags);
+	if (-1 == pm8001_bar4_shift(pm8001_ha,
+				SAS2_SETTINGS_LOCAL_PHY_0_3_SHIFT_ADDR)) {
+		spin_unlock_irqrestore(&pm8001_ha->lock, flags);
 		return;
+	}
 
 	for (i = 0; i < 4; i++) {
 		offset = SAS2_SETTINGS_LOCAL_PHY_0_3_OFFSET + 0x4000 * i;
 		pm8001_cw32(pm8001_ha, 2, offset, 0x80001501);
 	}
 	/* shift membase 3 for SAS2_SETTINGS_LOCAL_PHY 4 - 7 */
-	if (-1 == bar4_shift(pm8001_ha, SAS2_SETTINGS_LOCAL_PHY_4_7_SHIFT_ADDR))
+	if (-1 == pm8001_bar4_shift(pm8001_ha,
+				SAS2_SETTINGS_LOCAL_PHY_4_7_SHIFT_ADDR)) {
+		spin_unlock_irqrestore(&pm8001_ha->lock, flags);
 		return;
+	}
 	for (i = 4; i < 8; i++) {
 		offset = SAS2_SETTINGS_LOCAL_PHY_4_7_OFFSET + 0x4000 * (i-4);
 		pm8001_cw32(pm8001_ha, 2, offset, 0x80001501);
@@ -421,7 +428,8 @@ mpi_set_phys_g3_with_ssc(struct pm8001_hba_info *pm8001_ha, u32 SSCbit)
 	pm8001_cw32(pm8001_ha, 2, 0xd8, 0x8000C016);
 
 	/*set the shifted destination address to 0x0 to avoid error operation */
-	bar4_shift(pm8001_ha, 0x0);
+	pm8001_bar4_shift(pm8001_ha, 0x0);
+	spin_unlock_irqrestore(&pm8001_ha->lock, flags);
 	return;
 }
 
@@ -437,6 +445,7 @@ mpi_set_open_retry_interval_reg(struct pm8001_hba_info *pm8001_ha,
 	u32 offset;
 	u32 value;
 	u32 i;
+	unsigned long flags;
 
 #define OPEN_RETRY_INTERVAL_PHY_0_3_SHIFT_ADDR 0x00030000
 #define OPEN_RETRY_INTERVAL_PHY_4_7_SHIFT_ADDR 0x00040000
@@ -445,24 +454,30 @@ mpi_set_open_retry_interval_reg(struct pm8001_hba_info *pm8001_ha,
 #define OPEN_RETRY_INTERVAL_REG_MASK 0x0000FFFF
 
 	value = interval & OPEN_RETRY_INTERVAL_REG_MASK;
+	spin_lock_irqsave(&pm8001_ha->lock, flags);
 	/* shift bar and set the OPEN_REJECT(RETRY) interval time of PHY 0 -3.*/
-	if (-1 == bar4_shift(pm8001_ha,
-			     OPEN_RETRY_INTERVAL_PHY_0_3_SHIFT_ADDR))
+	if (-1 == pm8001_bar4_shift(pm8001_ha,
+			     OPEN_RETRY_INTERVAL_PHY_0_3_SHIFT_ADDR)) {
+		spin_unlock_irqrestore(&pm8001_ha->lock, flags);
 		return;
+	}
 	for (i = 0; i < 4; i++) {
 		offset = OPEN_RETRY_INTERVAL_PHY_0_3_OFFSET + 0x4000 * i;
 		pm8001_cw32(pm8001_ha, 2, offset, value);
 	}
 
-	if (-1 == bar4_shift(pm8001_ha,
-			     OPEN_RETRY_INTERVAL_PHY_4_7_SHIFT_ADDR))
+	if (-1 == pm8001_bar4_shift(pm8001_ha,
+			     OPEN_RETRY_INTERVAL_PHY_4_7_SHIFT_ADDR)) {
+		spin_unlock_irqrestore(&pm8001_ha->lock, flags);
 		return;
+	}
 	for (i = 4; i < 8; i++) {
 		offset = OPEN_RETRY_INTERVAL_PHY_4_7_OFFSET + 0x4000 * (i-4);
 		pm8001_cw32(pm8001_ha, 2, offset, value);
 	}
 	/*set the shifted destination address to 0x0 to avoid error operation */
-	bar4_shift(pm8001_ha, 0x0);
+	pm8001_bar4_shift(pm8001_ha, 0x0);
+	spin_unlock_irqrestore(&pm8001_ha->lock, flags);
 	return;
 }
 
@@ -688,8 +703,11 @@ static u32 soft_reset_ready_check(struct pm8001_hba_info *pm8001_ha)
 		PM8001_INIT_DBG(pm8001_ha,
 			pm8001_printk("Firmware is ready for reset .\n"));
 	} else {
-	/* Trigger NMI twice via RB6 */
-		if (-1 == bar4_shift(pm8001_ha, RB6_ACCESS_REG)) {
+		unsigned long flags;
+		/* Trigger NMI twice via RB6 */
+		spin_lock_irqsave(&pm8001_ha->lock, flags);
+		if (-1 == pm8001_bar4_shift(pm8001_ha, RB6_ACCESS_REG)) {
+			spin_unlock_irqrestore(&pm8001_ha->lock, flags);
 			PM8001_FAIL_DBG(pm8001_ha,
 				pm8001_printk("Shift Bar4 to 0x%x failed\n",
 					RB6_ACCESS_REG));
@@ -715,8 +733,10 @@ static u32 soft_reset_ready_check(struct pm8001_hba_info *pm8001_ha)
 			PM8001_FAIL_DBG(pm8001_ha,
 				pm8001_printk("SCRATCH_PAD3 value = 0x%x\n",
 				pm8001_cr32(pm8001_ha, 0, MSGU_SCRATCH_PAD_3)));
+			spin_unlock_irqrestore(&pm8001_ha->lock, flags);
 			return -1;
 		}
+		spin_unlock_irqrestore(&pm8001_ha->lock, flags);
 	}
 	return 0;
 }
@@ -733,6 +753,7 @@ pm8001_chip_soft_rst(struct pm8001_hba_info *pm8001_ha, u32 signature)
 	u32	regVal, toggleVal;
 	u32	max_wait_count;
 	u32	regVal1, regVal2, regVal3;
+	unsigned long flags;
 
 	/* step1: Check FW is ready for soft reset */
 	if (soft_reset_ready_check(pm8001_ha) != 0) {
@@ -743,7 +764,9 @@ pm8001_chip_soft_rst(struct pm8001_hba_info *pm8001_ha, u32 signature)
 	/* step 2: clear NMI status register on AAP1 and IOP, write the same
 	value to clear */
 	/* map 0x60000 to BAR4(0x20), BAR2(win) */
-	if (-1 == bar4_shift(pm8001_ha, MBIC_AAP1_ADDR_BASE)) {
+	spin_lock_irqsave(&pm8001_ha->lock, flags);
+	if (-1 == pm8001_bar4_shift(pm8001_ha, MBIC_AAP1_ADDR_BASE)) {
+		spin_unlock_irqrestore(&pm8001_ha->lock, flags);
 		PM8001_FAIL_DBG(pm8001_ha,
 			pm8001_printk("Shift Bar4 to 0x%x failed\n",
 			MBIC_AAP1_ADDR_BASE));
@@ -754,7 +777,8 @@ pm8001_chip_soft_rst(struct pm8001_hba_info *pm8001_ha, u32 signature)
 		pm8001_printk("MBIC - NMI Enable VPE0 (IOP)= 0x%x\n", regVal));
 	pm8001_cw32(pm8001_ha, 2, MBIC_NMI_ENABLE_VPE0_IOP, 0x0);
 	/* map 0x70000 to BAR4(0x20), BAR2(win) */
-	if (-1 == bar4_shift(pm8001_ha, MBIC_IOP_ADDR_BASE)) {
+	if (-1 == pm8001_bar4_shift(pm8001_ha, MBIC_IOP_ADDR_BASE)) {
+		spin_unlock_irqrestore(&pm8001_ha->lock, flags);
 		PM8001_FAIL_DBG(pm8001_ha,
 			pm8001_printk("Shift Bar4 to 0x%x failed\n",
 			MBIC_IOP_ADDR_BASE));
@@ -796,7 +820,8 @@ pm8001_chip_soft_rst(struct pm8001_hba_info *pm8001_ha, u32 signature)
 
 	/* read required registers for confirmming */
 	/* map 0x0700000 to BAR4(0x20), BAR2(win) */
-	if (-1 == bar4_shift(pm8001_ha, GSM_ADDR_BASE)) {
+	if (-1 == pm8001_bar4_shift(pm8001_ha, GSM_ADDR_BASE)) {
+		spin_unlock_irqrestore(&pm8001_ha->lock, flags);
 		PM8001_FAIL_DBG(pm8001_ha,
 			pm8001_printk("Shift Bar4 to 0x%x failed\n",
 			GSM_ADDR_BASE));
@@ -862,7 +887,8 @@ pm8001_chip_soft_rst(struct pm8001_hba_info *pm8001_ha, u32 signature)
 	/* step 5: delay 10 usec */
 	udelay(10);
 	/* step 5-b: set GPIO-0 output control to tristate anyway */
-	if (-1 == bar4_shift(pm8001_ha, GPIO_ADDR_BASE)) {
+	if (-1 == pm8001_bar4_shift(pm8001_ha, GPIO_ADDR_BASE)) {
+		spin_unlock_irqrestore(&pm8001_ha->lock, flags);
 		PM8001_INIT_DBG(pm8001_ha,
 				pm8001_printk("Shift Bar4 to 0x%x failed\n",
 				GPIO_ADDR_BASE));
@@ -878,7 +904,8 @@ pm8001_chip_soft_rst(struct pm8001_hba_info *pm8001_ha, u32 signature)
 
 	/* Step 6: Reset the IOP and AAP1 */
 	/* map 0x00000 to BAR4(0x20), BAR2(win) */
-	if (-1 == bar4_shift(pm8001_ha, SPC_TOP_LEVEL_ADDR_BASE)) {
+	if (-1 == pm8001_bar4_shift(pm8001_ha, SPC_TOP_LEVEL_ADDR_BASE)) {
+		spin_unlock_irqrestore(&pm8001_ha->lock, flags);
 		PM8001_FAIL_DBG(pm8001_ha,
 			pm8001_printk("SPC Shift Bar4 to 0x%x failed\n",
 			SPC_TOP_LEVEL_ADDR_BASE));
@@ -915,7 +942,8 @@ pm8001_chip_soft_rst(struct pm8001_hba_info *pm8001_ha, u32 signature)
 
 	/* step 11: reads and sets the GSM Configuration and Reset Register */
 	/* map 0x0700000 to BAR4(0x20), BAR2(win) */
-	if (-1 == bar4_shift(pm8001_ha, GSM_ADDR_BASE)) {
+	if (-1 == pm8001_bar4_shift(pm8001_ha, GSM_ADDR_BASE)) {
+		spin_unlock_irqrestore(&pm8001_ha->lock, flags);
 		PM8001_FAIL_DBG(pm8001_ha,
 			pm8001_printk("SPC Shift Bar4 to 0x%x failed\n",
 			GSM_ADDR_BASE));
@@ -968,7 +996,8 @@ pm8001_chip_soft_rst(struct pm8001_hba_info *pm8001_ha, u32 signature)
 
 	/* step 13: bring the IOP and AAP1 out of reset */
 	/* map 0x00000 to BAR4(0x20), BAR2(win) */
-	if (-1 == bar4_shift(pm8001_ha, SPC_TOP_LEVEL_ADDR_BASE)) {
+	if (-1 == pm8001_bar4_shift(pm8001_ha, SPC_TOP_LEVEL_ADDR_BASE)) {
+		spin_unlock_irqrestore(&pm8001_ha->lock, flags);
 		PM8001_FAIL_DBG(pm8001_ha,
 			pm8001_printk("Shift Bar4 to 0x%x failed\n",
 			SPC_TOP_LEVEL_ADDR_BASE));
@@ -1010,6 +1039,7 @@ pm8001_chip_soft_rst(struct pm8001_hba_info *pm8001_ha, u32 signature)
 				pm8001_printk("SCRATCH_PAD3 value = 0x%x\n",
 				pm8001_cr32(pm8001_ha, 0,
 				MSGU_SCRATCH_PAD_3)));
+			spin_unlock_irqrestore(&pm8001_ha->lock, flags);
 			return -1;
 		}
 
@@ -1039,9 +1069,12 @@ pm8001_chip_soft_rst(struct pm8001_hba_info *pm8001_ha, u32 signature)
 				pm8001_printk("SCRATCH_PAD3 value = 0x%x\n",
 				pm8001_cr32(pm8001_ha, 0,
 				MSGU_SCRATCH_PAD_3)));
+			spin_unlock_irqrestore(&pm8001_ha->lock, flags);
 			return -1;
 		}
 	}
+	pm8001_bar4_shift(pm8001_ha, 0);
+	spin_unlock_irqrestore(&pm8001_ha->lock, flags);
 
 	PM8001_INIT_DBG(pm8001_ha,
 		pm8001_printk("SPC soft reset Complete\n"));
@@ -1157,8 +1190,8 @@ pm8001_chip_msix_interrupt_disable(struct pm8001_hba_info *pm8001_ha,
 	msi_index = int_vec_idx * MSIX_TABLE_ELEMENT_SIZE;
 	msi_index += MSIX_TABLE_BASE;
 	pm8001_cw32(pm8001_ha, 0,  msi_index, MSIX_INTERRUPT_DISABLE);
-
 }
+
 /**
  * pm8001_chip_interrupt_enable - enable PM8001 chip interrupt
  * @pm8001_ha: our hba card information

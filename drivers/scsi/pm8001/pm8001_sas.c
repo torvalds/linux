@@ -166,6 +166,7 @@ int pm8001_phy_control(struct asd_sas_phy *sas_phy, enum phy_func func,
 	struct pm8001_hba_info *pm8001_ha = NULL;
 	struct sas_phy_linkrates *rates;
 	DECLARE_COMPLETION_ONSTACK(completion);
+	unsigned long flags;
 	pm8001_ha = sas_phy->ha->lldd_ha;
 	pm8001_ha->phy[phy_id].enable_completion = &completion;
 	switch (func) {
@@ -209,8 +210,29 @@ int pm8001_phy_control(struct asd_sas_phy *sas_phy, enum phy_func func,
 	case PHY_FUNC_DISABLE:
 		PM8001_CHIP_DISP->phy_stop_req(pm8001_ha, phy_id);
 		break;
+	case PHY_FUNC_GET_EVENTS:
+		spin_lock_irqsave(&pm8001_ha->lock, flags);
+		if (-1 == pm8001_bar4_shift(pm8001_ha,
+					(phy_id < 4) ? 0x30000 : 0x40000)) {
+			spin_unlock_irqrestore(&pm8001_ha->lock, flags);
+			return -EINVAL;
+		}
+		{
+			struct sas_phy *phy = sas_phy->phy;
+			uint32_t *qp = (uint32_t *)(((char *)
+				pm8001_ha->io_mem[2].memvirtaddr)
+				+ 0x1034 + (0x4000 * (phy_id & 3)));
+
+			phy->invalid_dword_count = qp[0];
+			phy->running_disparity_error_count = qp[1];
+			phy->loss_of_dword_sync_count = qp[3];
+			phy->phy_reset_problem_count = qp[4];
+		}
+		pm8001_bar4_shift(pm8001_ha, 0);
+		spin_unlock_irqrestore(&pm8001_ha->lock, flags);
+		return 0;
 	default:
-		rc = -ENOSYS;
+		rc = -EOPNOTSUPP;
 	}
 	msleep(300);
 	return rc;
