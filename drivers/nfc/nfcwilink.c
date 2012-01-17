@@ -28,6 +28,7 @@
  */
 #include <linux/platform_device.h>
 #include <linux/module.h>
+#include <linux/types.h>
 #include <linux/nfc.h>
 #include <net/nfc/nci.h>
 #include <net/nfc/nci_core.h>
@@ -42,9 +43,9 @@
 #define NFCWILINK_REGISTER_TIMEOUT	8000	/* 8 sec */
 
 struct nfcwilink_hdr {
-	u8 chnl;
-	u8 opcode;
-	u16 len;
+	__u8 chnl;
+	__u8 opcode;
+	__le16 len;
 } __packed;
 
 struct nfcwilink {
@@ -212,7 +213,7 @@ static int nfcwilink_send(struct sk_buff *skb)
 		return -EBUSY;
 
 	/* add the ST hdr to the start of the buffer */
-	hdr.len = skb->len;
+	hdr.len = cpu_to_le16(skb->len);
 	memcpy(skb_push(skb, NFCWILINK_HDR_LEN), &hdr, NFCWILINK_HDR_LEN);
 
 	/* Insert skb to shared transport layer's transmit queue.
@@ -239,7 +240,7 @@ static int nfcwilink_probe(struct platform_device *pdev)
 {
 	static struct nfcwilink *drv;
 	int rc;
-	u32 protocols;
+	__u32 protocols;
 
 	nfc_dev_dbg(&pdev->dev, "probe entry");
 
