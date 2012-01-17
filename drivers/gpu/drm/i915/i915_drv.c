@@ -214,6 +214,7 @@ static const struct intel_device_info intel_sandybridge_d_info = {
 	.need_gfx_hws = 1, .has_hotplug = 1,
 	.has_bsd_ring = 1,
 	.has_blt_ring = 1,
+	.has_llc = 1,
 };
 
 static const struct intel_device_info intel_sandybridge_m_info = {
@@ -222,6 +223,7 @@ static const struct intel_device_info intel_sandybridge_m_info = {
 	.has_fbc = 1,
 	.has_bsd_ring = 1,
 	.has_blt_ring = 1,
+	.has_llc = 1,
 };
 
 static const struct intel_device_info intel_ivybridge_d_info = {
@@ -229,6 +231,7 @@ static const struct intel_device_info intel_ivybridge_d_info = {
 	.need_gfx_hws = 1, .has_hotplug = 1,
 	.has_bsd_ring = 1,
 	.has_blt_ring = 1,
+	.has_llc = 1,
 };
 
 static const struct intel_device_info intel_ivybridge_m_info = {
@@ -237,6 +240,7 @@ static const struct intel_device_info intel_ivybridge_m_info = {
 	.has_fbc = 0,	/* FBC is not enabled on Ivybridge mobile yet */
 	.has_bsd_ring = 1,
 	.has_blt_ring = 1,
+	.has_llc = 1,
 };
 
 static const struct pci_device_id pciidlist[] = {		/* aka */

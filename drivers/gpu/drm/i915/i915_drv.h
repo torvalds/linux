@@ -255,6 +255,7 @@ struct intel_device_info {
 	u8 supports_tv:1;
 	u8 has_bsd_ring:1;
 	u8 has_blt_ring:1;
+	u8 has_llc:1;
 };
 
 enum no_fbc_reason {
@@ -969,6 +970,7 @@ struct drm_i915_file_private {
 
 #define HAS_BSD(dev)            (INTEL_INFO(dev)->has_bsd_ring)
 #define HAS_BLT(dev)            (INTEL_INFO(dev)->has_blt_ring)
+#define HAS_LLC(dev)            (INTEL_INFO(dev)->has_llc)
 #define I915_NEED_GFX_HWS(dev)	(INTEL_INFO(dev)->need_gfx_hws)
 
 #define HAS_OVERLAY(dev)		(INTEL_INFO(dev)->has_overlay)
