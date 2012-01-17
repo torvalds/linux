@@ -2702,7 +2702,7 @@ static __devinit int wm5100_i2c_probe(struct i2c_client *i2c,
 
 	ret = regmap_read(wm5100->regmap, WM5100_SOFTWARE_RESET, &reg);
 	if (ret < 0) {
-		dev_err(&i2c->dev, "Failed to read ID register\n");
+		dev_err(&i2c->dev, "Failed to read ID register: %d\n", ret);
 		goto err_reset;
 	}
 	switch (reg) {
