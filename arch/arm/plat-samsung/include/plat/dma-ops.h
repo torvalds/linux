@@ -14,6 +14,7 @@
 #define __SAMSUNG_DMA_OPS_H_ __FILE__
 
 #include <linux/dmaengine.h>
+#include <mach/dma.h>
 
 struct samsung_dma_prep_info {
 	enum dma_transaction_type cap;
