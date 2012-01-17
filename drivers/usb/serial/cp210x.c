@@ -202,6 +202,8 @@ static struct usb_serial_driver cp210x_device = {
 #define CP210X_EMBED_EVENTS	0x15
 #define CP210X_GET_EVENTSTATE	0x16
 #define CP210X_SET_CHARS	0x19
+#define CP210X_GET_BAUDRATE	0x1D
+#define CP210X_SET_BAUDRATE	0x1E
 
 /* CP210X_IFC_ENABLE */
 #define UART_ENABLE		0x0001
@@ -456,10 +458,7 @@ static void cp210x_get_termios_port(struct usb_serial_port *port,
 
 	dbg("%s - port %d", __func__, port->number);
 
-	cp210x_get_config(port, CP210X_GET_BAUDDIV, &baud, 2);
-	/* Convert to baudrate */
-	if (baud)
-		baud = cp210x_quantise_baudrate((BAUD_RATE_GEN_FREQ + baud/2)/ baud);
+	cp210x_get_config(port, CP210X_GET_BAUDRATE, &baud, 4);
 
 	dbg("%s - baud rate = %d", __func__, baud);
 	*baudp = baud;
@@ -594,8 +593,7 @@ static void cp210x_set_termios(struct tty_struct *tty,
 	if (baud != tty_termios_baud_rate(old_termios) && baud != 0) {
 		dbg("%s - Setting baud rate to %d baud", __func__,
 				baud);
-		if (cp210x_set_config_single(port, CP210X_SET_BAUDDIV,
-					((BAUD_RATE_GEN_FREQ + baud/2) / baud))) {
+		if (cp210x_set_config(port, CP210X_SET_BAUDRATE, &baud, 4)) {
 			dbg("Baud rate requested not supported by device");
 			baud = tty_termios_baud_rate(old_termios);
 		}
