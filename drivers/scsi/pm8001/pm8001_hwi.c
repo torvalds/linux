@@ -622,7 +622,8 @@ static int __devinit pm8001_chip_init(struct pm8001_hba_info *pm8001_ha)
 	update_inbnd_queue_table(pm8001_ha, 0);
 	update_outbnd_queue_table(pm8001_ha, 0);
 	mpi_set_phys_g3_with_ssc(pm8001_ha, 0);
-	mpi_set_open_retry_interval_reg(pm8001_ha, 7);
+	/* 7->130ms, 34->500ms, 119->1.5s */
+	mpi_set_open_retry_interval_reg(pm8001_ha, 119);
 	/* notify firmware update finished and check initialization status */
 	if (0 == mpi_init_check(pm8001_ha)) {
 		PM8001_INIT_DBG(pm8001_ha,
@@ -1421,24 +1422,191 @@ static void pm8001_work_fn(struct work_struct *work)
 	struct pm8001_device *pm8001_dev;
 	struct domain_device *dev;
 
+	/*
+	 * So far, all users of this stash an associated structure here.
+	 * If we get here, and this pointer is null, then the action
+	 * was cancelled. This nullification happens when the device
+	 * goes away.
+	 */
+	pm8001_dev = pw->data; /* Most stash device structure */
+	if ((pm8001_dev == NULL)
+	 || ((pw->handler != IO_XFER_ERROR_BREAK)
+	  && (pm8001_dev->dev_type == NO_DEVICE))) {
+		kfree(pw);
+		return;
+	}
+
 	switch (pw->handler) {
+	case IO_XFER_ERROR_BREAK:
+	{	/* This one stashes the sas_task instead */
+		struct sas_task *t = (struct sas_task *)pm8001_dev;
+		u32 tag;
+		struct pm8001_ccb_info *ccb;
+		struct pm8001_hba_info *pm8001_ha = pw->pm8001_ha;
+		unsigned long flags, flags1;
+		struct task_status_struct *ts;
+		int i;
+
+		if (pm8001_query_task(t) == TMF_RESP_FUNC_SUCC)
+			break; /* Task still on lu */
+		spin_lock_irqsave(&pm8001_ha->lock, flags);
+
+		spin_lock_irqsave(&t->task_state_lock, flags1);
+		if (unlikely((t->task_state_flags & SAS_TASK_STATE_DONE))) {
+			spin_unlock_irqrestore(&t->task_state_lock, flags1);
+			spin_unlock_irqrestore(&pm8001_ha->lock, flags);
+			break; /* Task got completed by another */
+		}
+		spin_unlock_irqrestore(&t->task_state_lock, flags1);
+
+		/* Search for a possible ccb that matches the task */
+		for (i = 0; ccb = NULL, i < PM8001_MAX_CCB; i++) {
+			ccb = &pm8001_ha->ccb_info[i];
+			tag = ccb->ccb_tag;
+			if ((tag != 0xFFFFFFFF) && (ccb->task == t))
+				break;
+		}
+		if (!ccb) {
+			spin_unlock_irqrestore(&pm8001_ha->lock, flags);
+			break; /* Task got freed by another */
+		}
+		ts = &t->task_status;
+		ts->resp = SAS_TASK_COMPLETE;
+		/* Force the midlayer to retry */
+		ts->stat = SAS_QUEUE_FULL;
+		pm8001_dev = ccb->device;
+		if (pm8001_dev)
+			pm8001_dev->running_req--;
+		spin_lock_irqsave(&t->task_state_lock, flags1);
+		t->task_state_flags &= ~SAS_TASK_STATE_PENDING;
+		t->task_state_flags &= ~SAS_TASK_AT_INITIATOR;
+		t->task_state_flags |= SAS_TASK_STATE_DONE;
+		if (unlikely((t->task_state_flags & SAS_TASK_STATE_ABORTED))) {
+			spin_unlock_irqrestore(&t->task_state_lock, flags1);
+			PM8001_FAIL_DBG(pm8001_ha, pm8001_printk("task 0x%p"
+				" done with event 0x%x resp 0x%x stat 0x%x but"
+				" aborted by upper layer!\n",
+				t, pw->handler, ts->resp, ts->stat));
+			pm8001_ccb_task_free(pm8001_ha, t, ccb, tag);
+			spin_unlock_irqrestore(&pm8001_ha->lock, flags);
+		} else {
+			spin_unlock_irqrestore(&t->task_state_lock, flags1);
+			pm8001_ccb_task_free(pm8001_ha, t, ccb, tag);
+			mb();/* in order to force CPU ordering */
+			spin_unlock_irqrestore(&pm8001_ha->lock, flags);
+			t->task_done(t);
+		}
+	}	break;
+	case IO_XFER_OPEN_RETRY_TIMEOUT:
+	{	/* This one stashes the sas_task instead */
+		struct sas_task *t = (struct sas_task *)pm8001_dev;
+		u32 tag;
+		struct pm8001_ccb_info *ccb;
+		struct pm8001_hba_info *pm8001_ha = pw->pm8001_ha;
+		unsigned long flags, flags1;
+		int i, ret = 0;
+
+		PM8001_IO_DBG(pm8001_ha,
+			pm8001_printk("IO_XFER_OPEN_RETRY_TIMEOUT\n"));
+
+		ret = pm8001_query_task(t);
+
+		PM8001_IO_DBG(pm8001_ha,
+			switch (ret) {
+			case TMF_RESP_FUNC_SUCC:
+				pm8001_printk("...Task on lu\n");
+				break;
+
+			case TMF_RESP_FUNC_COMPLETE:
+				pm8001_printk("...Task NOT on lu\n");
+				break;
+
+			default:
+				pm8001_printk("...query task failed!!!\n");
+				break;
+			});
+
+		spin_lock_irqsave(&pm8001_ha->lock, flags);
+
+		spin_lock_irqsave(&t->task_state_lock, flags1);
+
+		if (unlikely((t->task_state_flags & SAS_TASK_STATE_DONE))) {
+			spin_unlock_irqrestore(&t->task_state_lock, flags1);
+			spin_unlock_irqrestore(&pm8001_ha->lock, flags);
+			if (ret == TMF_RESP_FUNC_SUCC) /* task on lu */
+				(void)pm8001_abort_task(t);
+			break; /* Task got completed by another */
+		}
+
+		spin_unlock_irqrestore(&t->task_state_lock, flags1);
+
+		/* Search for a possible ccb that matches the task */
+		for (i = 0; ccb = NULL, i < PM8001_MAX_CCB; i++) {
+			ccb = &pm8001_ha->ccb_info[i];
+			tag = ccb->ccb_tag;
+			if ((tag != 0xFFFFFFFF) && (ccb->task == t))
+				break;
+		}
+		if (!ccb) {
+			spin_unlock_irqrestore(&pm8001_ha->lock, flags);
+			if (ret == TMF_RESP_FUNC_SUCC) /* task on lu */
+				(void)pm8001_abort_task(t);
+			break; /* Task got freed by another */
+		}
+
+		pm8001_dev = ccb->device;
+		dev = pm8001_dev->sas_device;
+
+		switch (ret) {
+		case TMF_RESP_FUNC_SUCC: /* task on lu */
+			ccb->open_retry = 1; /* Snub completion */
+			spin_unlock_irqrestore(&pm8001_ha->lock, flags);
+			ret = pm8001_abort_task(t);
+			ccb->open_retry = 0;
+			switch (ret) {
+			case TMF_RESP_FUNC_SUCC:
+			case TMF_RESP_FUNC_COMPLETE:
+				break;
+			default: /* device misbehavior */
+				ret = TMF_RESP_FUNC_FAILED;
+				PM8001_IO_DBG(pm8001_ha,
+					pm8001_printk("...Reset phy\n"));
+				pm8001_I_T_nexus_reset(dev);
+				break;
+			}
+			break;
+
+		case TMF_RESP_FUNC_COMPLETE: /* task not on lu */
+			spin_unlock_irqrestore(&pm8001_ha->lock, flags);
+			/* Do we need to abort the task locally? */
+			break;
+
+		default: /* device misbehavior */
+			spin_unlock_irqrestore(&pm8001_ha->lock, flags);
+			ret = TMF_RESP_FUNC_FAILED;
+			PM8001_IO_DBG(pm8001_ha,
+				pm8001_printk("...Reset phy\n"));
+			pm8001_I_T_nexus_reset(dev);
+		}
+
+		if (ret == TMF_RESP_FUNC_FAILED)
+			t = NULL;
+		pm8001_open_reject_retry(pm8001_ha, t, pm8001_dev);
+		PM8001_IO_DBG(pm8001_ha, pm8001_printk("...Complete\n"));
+	}	break;
 	case IO_OPEN_CNX_ERROR_IT_NEXUS_LOSS:
-		pm8001_dev = pw->data;
 		dev = pm8001_dev->sas_device;
 		pm8001_I_T_nexus_reset(dev);
 		break;
 	case IO_OPEN_CNX_ERROR_STP_RESOURCES_BUSY:
-		pm8001_dev = pw->data;
 		dev = pm8001_dev->sas_device;
 		pm8001_I_T_nexus_reset(dev);
 		break;
 	case IO_DS_IN_ERROR:
-		pm8001_dev = pw->data;
 		dev = pm8001_dev->sas_device;
 		pm8001_I_T_nexus_reset(dev);
 		break;
 	case IO_DS_NON_OPERATIONAL:
-		pm8001_dev = pw->data;
 		dev = pm8001_dev->sas_device;
 		pm8001_I_T_nexus_reset(dev);
 		break;
@@ -1493,6 +1661,11 @@ mpi_ssp_completion(struct pm8001_hba_info *pm8001_ha , void *piomb)
 	status = le32_to_cpu(psspPayload->status);
 	tag = le32_to_cpu(psspPayload->tag);
 	ccb = &pm8001_ha->ccb_info[tag];
+	if ((status == IO_ABORTED) && ccb->open_retry) {
+		/* Being completed by another */
+		ccb->open_retry = 0;
+		return;
+	}
 	pm8001_dev = ccb->device;
 	param = le32_to_cpu(psspPayload->param);
 
@@ -1548,6 +1721,8 @@ mpi_ssp_completion(struct pm8001_hba_info *pm8001_ha , void *piomb)
 			pm8001_printk("IO_XFER_ERROR_BREAK\n"));
 		ts->resp = SAS_TASK_COMPLETE;
 		ts->stat = SAS_OPEN_REJECT;
+		/* Force the midlayer to retry */
+		ts->open_rej_reason = SAS_OREJ_RSVD_RETRY;
 		break;
 	case IO_XFER_ERROR_PHY_NOT_READY:
 		PM8001_IO_DBG(pm8001_ha,
@@ -1752,9 +1927,8 @@ static void mpi_ssp_event(struct pm8001_hba_info *pm8001_ha , void *piomb)
 	case IO_XFER_ERROR_BREAK:
 		PM8001_IO_DBG(pm8001_ha,
 			pm8001_printk("IO_XFER_ERROR_BREAK\n"));
-		ts->resp = SAS_TASK_COMPLETE;
-		ts->stat = SAS_INTERRUPTED;
-		break;
+		pm8001_handle_event(pm8001_ha, t, IO_XFER_ERROR_BREAK);
+		return;
 	case IO_XFER_ERROR_PHY_NOT_READY:
 		PM8001_IO_DBG(pm8001_ha,
 			pm8001_printk("IO_XFER_ERROR_PHY_NOT_READY\n"));
@@ -1833,10 +2007,8 @@ static void mpi_ssp_event(struct pm8001_hba_info *pm8001_ha , void *piomb)
 	case IO_XFER_OPEN_RETRY_TIMEOUT:
 		PM8001_IO_DBG(pm8001_ha,
 			pm8001_printk("IO_XFER_OPEN_RETRY_TIMEOUT\n"));
-		ts->resp = SAS_TASK_COMPLETE;
-		ts->stat = SAS_OPEN_REJECT;
-		ts->open_rej_reason = SAS_OREJ_RSVD_RETRY;
-		break;
+		pm8001_handle_event(pm8001_ha, t, IO_XFER_OPEN_RETRY_TIMEOUT);
+		return;
 	case IO_XFER_ERROR_UNEXPECTED_PHASE:
 		PM8001_IO_DBG(pm8001_ha,
 			pm8001_printk("IO_XFER_ERROR_UNEXPECTED_PHASE\n"));
