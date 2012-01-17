@@ -15,6 +15,8 @@
  */
 #include "hif.h"
 
+#include <linux/export.h>
+
 #include "core.h"
 #include "target.h"
 #include "hif-ops.h"
@@ -59,6 +61,8 @@ int ath6kl_hif_rw_comp_handler(void *context, int status)
 
 	return 0;
 }
+EXPORT_SYMBOL(ath6kl_hif_rw_comp_handler);
+
 #define REG_DUMP_COUNT_AR6003   60
 #define REGISTER_DUMP_LEN_MAX   60
 
@@ -560,6 +564,7 @@ int ath6kl_hif_intr_bh_handler(struct ath6kl *ar)
 
 	return status;
 }
+EXPORT_SYMBOL(ath6kl_hif_intr_bh_handler);
 
 static int ath6kl_hif_enable_intrs(struct ath6kl_device *dev)
 {

@@ -17,8 +17,10 @@
 
 #include <linux/moduleparam.h>
 #include <linux/errno.h>
+#include <linux/export.h>
 #include <linux/of.h>
 #include <linux/mmc/sdio_func.h>
+
 #include "core.h"
 #include "cfg80211.h"
 #include "target.h"
@@ -1707,3 +1709,4 @@ void ath6kl_stop_txrx(struct ath6kl *ar)
 
 	clear_bit(WLAN_ENABLED, &ar->flag);
 }
+EXPORT_SYMBOL(ath6kl_stop_txrx);

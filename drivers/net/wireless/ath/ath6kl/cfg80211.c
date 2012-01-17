@@ -16,6 +16,7 @@
 
 #include <linux/moduleparam.h>
 #include <linux/inetdevice.h>
+#include <linux/export.h>
 
 #include "core.h"
 #include "cfg80211.h"
@@ -1935,6 +1936,7 @@ int ath6kl_cfg80211_suspend(struct ath6kl *ar,
 
 	return 0;
 }
+EXPORT_SYMBOL(ath6kl_cfg80211_suspend);
 
 int ath6kl_cfg80211_resume(struct ath6kl *ar)
 {
@@ -1986,6 +1988,7 @@ int ath6kl_cfg80211_resume(struct ath6kl *ar)
 
 	return 0;
 }
+EXPORT_SYMBOL(ath6kl_cfg80211_resume);
 
 #ifdef CONFIG_PM
 
