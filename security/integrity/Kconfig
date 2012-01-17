@@ -7,7 +7,7 @@ config INTEGRITY_DIGSIG
 	boolean "Digital signature verification using multiple keyrings"
 	depends on INTEGRITY && KEYS
 	default n
-	select DIGSIG
+	select SIGNATURE
 	help
 	  This option enables digital signature verification support
 	  using multiple keyrings. It defines separate keyrings for each

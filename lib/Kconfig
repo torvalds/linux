@@ -302,7 +302,7 @@ config MPILIB_EXTRA
 	  This code in unnecessary for RSA digital signature verification,
 	  and can be compiled if needed.
 
-config DIGSIG
+config SIGNATURE
 	tristate "In-kernel signature checker"
 	depends on KEYS
 	select MPILIB
