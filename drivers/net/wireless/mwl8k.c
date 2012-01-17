@@ -4066,7 +4066,7 @@ static int mwl8k_cmd_encryption_remove_key(struct ieee80211_hw *hw,
 		goto done;
 
 	if (key->cipher == WLAN_CIPHER_SUITE_WEP40 ||
-			WLAN_CIPHER_SUITE_WEP104)
+			key->cipher == WLAN_CIPHER_SUITE_WEP104)
 		mwl8k_vif->wep_key_conf[key->keyidx].enabled = 0;
 
 	cmd->action = cpu_to_le32(MWL8K_ENCR_REMOVE_KEY);
