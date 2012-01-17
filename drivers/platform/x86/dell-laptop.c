@@ -641,6 +641,7 @@ static void touchpad_led_set(struct led_classdev *led_cdev,
 static struct led_classdev touchpad_led = {
 	.name = "dell-laptop::touchpad",
 	.brightness_set = touchpad_led_set,
+	.flags = LED_CORE_SUSPENDRESUME,
 };
 
 static int __devinit touchpad_led_init(struct device *dev)
