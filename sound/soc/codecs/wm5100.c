@@ -2764,7 +2764,7 @@ static __devinit int wm5100_i2c_probe(struct i2c_client *i2c,
 err_reset:
 	wm5100_free_gpio(i2c);
 	if (wm5100->pdata.reset) {
-		gpio_set_value_cansleep(wm5100->pdata.reset, 1);
+		gpio_set_value_cansleep(wm5100->pdata.reset, 0);
 		gpio_free(wm5100->pdata.reset);
 	}
 err_ldo:
@@ -2797,7 +2797,7 @@ static __devexit int wm5100_i2c_remove(struct i2c_client *client)
 	snd_soc_unregister_codec(&client->dev);
 	wm5100_free_gpio(client);
 	if (wm5100->pdata.reset) {
-		gpio_set_value_cansleep(wm5100->pdata.reset, 1);
+		gpio_set_value_cansleep(wm5100->pdata.reset, 0);
 		gpio_free(wm5100->pdata.reset);
 	}
 	if (wm5100->pdata.ldo_ena) {
