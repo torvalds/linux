@@ -1710,7 +1710,6 @@ static struct snd_soc_codec_driver soc_codec_dev_wm8993 = {
 	.set_bias_level = wm8993_set_bias_level,
 };
 
-#if defined(CONFIG_I2C) || defined(CONFIG_I2C_MODULE)
 static __devinit int wm8993_i2c_probe(struct i2c_client *i2c,
 				      const struct i2c_device_id *id)
 {
@@ -1838,27 +1837,22 @@ static struct i2c_driver wm8993_i2c_driver = {
 	.remove =   __devexit_p(wm8993_i2c_remove),
 	.id_table = wm8993_i2c_id,
 };
-#endif
 
 static int __init wm8993_modinit(void)
 {
 	int ret = 0;
-#if defined(CONFIG_I2C) || defined(CONFIG_I2C_MODULE)
 	ret = i2c_add_driver(&wm8993_i2c_driver);
 	if (ret != 0) {
 		pr_err("WM8993: Unable to register I2C driver: %d\n",
 		       ret);
 	}
-#endif
 	return ret;
 }
 module_init(wm8993_modinit);
 
 static void __exit wm8993_exit(void)
 {
-#if defined(CONFIG_I2C) || defined(CONFIG_I2C_MODULE)
 	i2c_del_driver(&wm8993_i2c_driver);
-#endif
 }
 module_exit(wm8993_exit);
 
