@@ -3763,7 +3763,15 @@ static void bnx2x_warpcore_enable_AN_KR(struct bnx2x_phy *phy,
 	/* Advertise pause */
 	bnx2x_ext_phy_set_pause(params, phy, vars);
 
-	vars->rx_tx_asic_rst = MAX_KR_LINK_RETRY;
+	/*
+	 * Set KR Autoneg Work-Around flag for Warpcore version older than D108
+	 */
+	bnx2x_cl45_read(bp, phy, MDIO_WC_DEVAD,
+			MDIO_WC_REG_UC_INFO_B1_VERSION, &val16);
+	if (val16 < 0xd108) {
+		DP(NETIF_MSG_LINK, "Enable AN KR work-around\n");
+		vars->rx_tx_asic_rst = MAX_KR_LINK_RETRY;
+	}
 
 	bnx2x_cl45_read(bp, phy, MDIO_WC_DEVAD,
 			MDIO_WC_REG_DIGITAL5_MISC7, &val16);
