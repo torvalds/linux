@@ -84,6 +84,11 @@ enum {
 	MLX4_IB_CACHE_LINE_SIZE	= 64,
 };
 
+enum {
+	MLX4_RAW_QP_MTU		= 7,
+	MLX4_RAW_QP_MSGMAX	= 31,
+};
+
 static const __be32 mlx4_ib_opcode[] = {
 	[IB_WR_SEND]				= cpu_to_be32(MLX4_OPCODE_SEND),
 	[IB_WR_LSO]				= cpu_to_be32(MLX4_OPCODE_LSO),
@@ -573,7 +578,12 @@ static int create_qp_common(struct mlx4_ib_dev *dev, struct ib_pd *pd,
 	if (sqpn) {
 		qpn = sqpn;
 	} else {
-		err = mlx4_qp_reserve_range(dev->dev, 1, 1, &qpn);
+		/* Raw packet QPNs must be aligned to 8 bits. If not, the WQE
+		 * BlueFlame setup flow wrongly causes VLAN insertion. */
+		if (init_attr->qp_type == IB_QPT_RAW_PACKET)
+			err = mlx4_qp_reserve_range(dev->dev, 1, 1 << 8, &qpn);
+		else
+			err = mlx4_qp_reserve_range(dev->dev, 1, 1, &qpn);
 		if (err)
 			goto err_wrid;
 	}
@@ -791,6 +801,7 @@ struct ib_qp *mlx4_ib_create_qp(struct ib_pd *pd,
 	case IB_QPT_RC:
 	case IB_QPT_UC:
 	case IB_QPT_UD:
+	case IB_QPT_RAW_PACKET:
 	{
 		qp = kzalloc(sizeof *qp, GFP_KERNEL);
 		if (!qp)
@@ -872,7 +883,8 @@ static int to_mlx4_st(enum ib_qp_type type)
 	case IB_QPT_XRC_INI:
 	case IB_QPT_XRC_TGT:	return MLX4_QP_ST_XRC;
 	case IB_QPT_SMI:
-	case IB_QPT_GSI:	return MLX4_QP_ST_MLX;
+	case IB_QPT_GSI:
+	case IB_QPT_RAW_PACKET:	return MLX4_QP_ST_MLX;
 	default:		return -1;
 	}
 }
@@ -1042,6 +1054,8 @@ static int __mlx4_ib_modify_qp(struct ib_qp *ibqp,
 
 	if (ibqp->qp_type == IB_QPT_GSI || ibqp->qp_type == IB_QPT_SMI)
 		context->mtu_msgmax = (IB_MTU_4096 << 5) | 11;
+	else if (ibqp->qp_type == IB_QPT_RAW_PACKET)
+		context->mtu_msgmax = (MLX4_RAW_QP_MTU << 5) | MLX4_RAW_QP_MSGMAX;
 	else if (ibqp->qp_type == IB_QPT_UD) {
 		if (qp->flags & MLX4_IB_QP_LSO)
 			context->mtu_msgmax = (IB_MTU_4096 << 5) |
@@ -1200,7 +1214,8 @@ static int __mlx4_ib_modify_qp(struct ib_qp *ibqp,
 	if (cur_state == IB_QPS_INIT &&
 	    new_state == IB_QPS_RTR  &&
 	    (ibqp->qp_type == IB_QPT_GSI || ibqp->qp_type == IB_QPT_SMI ||
-	     ibqp->qp_type == IB_QPT_UD)) {
+	     ibqp->qp_type == IB_QPT_UD ||
+	     ibqp->qp_type == IB_QPT_RAW_PACKET)) {
 		context->pri_path.sched_queue = (qp->port - 1) << 6;
 		if (is_qp0(dev, qp))
 			context->pri_path.sched_queue |= MLX4_IB_DEFAULT_QP0_SCHED_QUEUE;
@@ -1318,6 +1333,11 @@ int mlx4_ib_modify_qp(struct ib_qp *ibqp, struct ib_qp_attr *attr,
 	    (attr->port_num == 0 || attr->port_num > dev->dev->caps.num_ports)) {
 		goto out;
 	}
+
+	if ((attr_mask & IB_QP_PORT) && (ibqp->qp_type == IB_QPT_RAW_PACKET) &&
+	    (rdma_port_get_link_layer(&dev->ib_dev, attr->port_num) !=
+	     IB_LINK_LAYER_ETHERNET))
+		goto out;
 
 	if (attr_mask & IB_QP_PKEY_INDEX) {
 		int p = attr_mask & IB_QP_PORT ? attr->port_num : qp->port;
