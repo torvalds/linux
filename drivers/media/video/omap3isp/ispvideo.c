@@ -952,6 +952,81 @@ isp_video_dqbuf(struct file *file, void *fh, struct v4l2_buffer *b)
 					  file->f_flags & O_NONBLOCK);
 }
 
+static int isp_video_check_external_subdevs(struct isp_video *video,
+					    struct isp_pipeline *pipe)
+{
+	struct isp_device *isp = video->isp;
+	struct media_entity *ents[] = {
+		&isp->isp_csi2a.subdev.entity,
+		&isp->isp_csi2c.subdev.entity,
+		&isp->isp_ccp2.subdev.entity,
+		&isp->isp_ccdc.subdev.entity
+	};
+	struct media_pad *source_pad;
+	struct media_entity *source = NULL;
+	struct media_entity *sink;
+	struct v4l2_subdev_format fmt;
+	struct v4l2_ext_controls ctrls;
+	struct v4l2_ext_control ctrl;
+	unsigned int i;
+	int ret = 0;
+
+	for (i = 0; i < ARRAY_SIZE(ents); i++) {
+		/* Is the entity part of the pipeline? */
+		if (!(pipe->entities & (1 << ents[i]->id)))
+			continue;
+
+		/* ISP entities have always sink pad == 0. Find source. */
+		source_pad = media_entity_remote_source(&ents[i]->pads[0]);
+		if (source_pad == NULL)
+			continue;
+
+		source = source_pad->entity;
+		sink = ents[i];
+		break;
+	}
+
+	if (!source) {
+		dev_warn(isp->dev, "can't find source, failing now\n");
+		return ret;
+	}
+
+	if (media_entity_type(source) != MEDIA_ENT_T_V4L2_SUBDEV)
+		return 0;
+
+	pipe->external = media_entity_to_v4l2_subdev(source);
+
+	fmt.pad = source_pad->index;
+	fmt.which = V4L2_SUBDEV_FORMAT_ACTIVE;
+	ret = v4l2_subdev_call(media_entity_to_v4l2_subdev(sink),
+			       pad, get_fmt, NULL, &fmt);
+	if (unlikely(ret < 0)) {
+		dev_warn(isp->dev, "get_fmt returned null!\n");
+		return ret;
+	}
+
+	pipe->external_bpp = omap3isp_video_format_info(fmt.format.code)->bpp;
+
+	memset(&ctrls, 0, sizeof(ctrls));
+	memset(&ctrl, 0, sizeof(ctrl));
+
+	ctrl.id = V4L2_CID_PIXEL_RATE;
+
+	ctrls.count = 1;
+	ctrls.controls = &ctrl;
+
+	ret = v4l2_g_ext_ctrls(pipe->external->ctrl_handler, &ctrls);
+	if (ret < 0) {
+		dev_warn(isp->dev, "no pixel rate control in subdev %s\n",
+			 pipe->external->name);
+		return ret;
+	}
+
+	pipe->external_rate = ctrl.value64;
+
+	return 0;
+}
+
 /*
  * Stream management
  *
@@ -1038,6 +1113,10 @@ isp_video_streamon(struct file *file, void *fh, enum v4l2_buf_type type)
 		state = ISP_PIPELINE_STREAM_OUTPUT | ISP_PIPELINE_IDLE_OUTPUT;
 	else
 		state = ISP_PIPELINE_STREAM_INPUT | ISP_PIPELINE_IDLE_INPUT;
+
+	ret = isp_video_check_external_subdevs(video, pipe);
+	if (ret < 0)
+		goto err_check_format;
 
 	/* Validate the pipeline and update its state. */
 	ret = isp_video_validate_pipeline(pipe);
