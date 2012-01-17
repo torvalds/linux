@@ -11,7 +11,7 @@ OBJ = common.o standby.o stack.o standby_clock.o dram/dram.o dram/dram_init.o   
 
 OUPUTFILE = standby
 
-LD_FILE = standby.xn
+LD_FILE = standby.lds
 CC = $(CROSS_COMPILE)gcc
 
 CFLAGS = -Os -g -march=armv7-a -fno-unwind-tables -fno-asynchronous-unwind-tables -mlittle-endian  -c
