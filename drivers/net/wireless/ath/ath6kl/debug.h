@@ -60,28 +60,11 @@ enum ath6kl_war {
 };
 
 #ifdef CONFIG_ATH6KL_DEBUG
-#define ath6kl_dbg(mask, fmt, ...)					\
-	({								\
-	 int rtn;							\
-	 if (debug_mask & mask)						\
-		rtn = ath6kl_printk(KERN_DEBUG, fmt, ##__VA_ARGS__);	\
-	 else								\
-		rtn = 0;						\
-									\
-	 rtn;								\
-	 })
 
-static inline void ath6kl_dbg_dump(enum ATH6K_DEBUG_MASK mask,
-				   const char *msg, const char *prefix,
-				   const void *buf, size_t len)
-{
-	if (debug_mask & mask) {
-		if (msg)
-			ath6kl_dbg(mask, "%s\n", msg);
-
-		print_hex_dump_bytes(prefix, DUMP_PREFIX_OFFSET, buf, len);
-	}
-}
+void ath6kl_dbg(enum ATH6K_DEBUG_MASK mask, const char *fmt, ...);
+void ath6kl_dbg_dump(enum ATH6K_DEBUG_MASK mask,
+		     const char *msg, const char *prefix,
+		     const void *buf, size_t len);
 
 void ath6kl_dump_registers(struct ath6kl_device *dev,
 			   struct ath6kl_irq_proc_registers *irq_proc_reg,
