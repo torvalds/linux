@@ -329,7 +329,6 @@ typedef struct drm_i915_private {
 
 	int tex_lru_log_granularity;
 	int allow_batchbuffer;
-	struct mem_block *agp_heap;
 	unsigned int sr01, adpa, ppcr, dvob, dvoc, lvds;
 	int vblank_pipe;
 	int num_pipe;
@@ -1075,18 +1074,6 @@ extern void i915_destroy_error_state(struct drm_device *dev);
 #endif
 
 
-/* i915_mem.c */
-extern int i915_mem_alloc(struct drm_device *dev, void *data,
-			  struct drm_file *file_priv);
-extern int i915_mem_free(struct drm_device *dev, void *data,
-			 struct drm_file *file_priv);
-extern int i915_mem_init_heap(struct drm_device *dev, void *data,
-			      struct drm_file *file_priv);
-extern int i915_mem_destroy_heap(struct drm_device *dev, void *data,
-				 struct drm_file *file_priv);
-extern void i915_mem_takedown(struct mem_block **heap);
-extern void i915_mem_release(struct drm_device * dev,
-			     struct drm_file *file_priv, struct mem_block *heap);
 /* i915_gem.c */
 int i915_gem_init_ioctl(struct drm_device *dev, void *data,
 			struct drm_file *file_priv);

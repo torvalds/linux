@@ -2246,18 +2246,12 @@ void i915_driver_lastclose(struct drm_device * dev)
 
 	i915_gem_lastclose(dev);
 
-	if (dev_priv->agp_heap)
-		i915_mem_takedown(&(dev_priv->agp_heap));
-
 	i915_dma_cleanup(dev);
 }
 
 void i915_driver_preclose(struct drm_device * dev, struct drm_file *file_priv)
 {
-	drm_i915_private_t *dev_priv = dev->dev_private;
 	i915_gem_release(dev, file_priv);
-	if (!drm_core_check_feature(dev, DRIVER_MODESET))
-		i915_mem_release(dev, file_priv, dev_priv->agp_heap);
 }
 
 void i915_driver_postclose(struct drm_device *dev, struct drm_file *file)
@@ -2276,11 +2270,11 @@ struct drm_ioctl_desc i915_ioctls[] = {
 	DRM_IOCTL_DEF_DRV(I915_IRQ_WAIT, i915_irq_wait, DRM_AUTH),
 	DRM_IOCTL_DEF_DRV(I915_GETPARAM, i915_getparam, DRM_AUTH),
 	DRM_IOCTL_DEF_DRV(I915_SETPARAM, i915_setparam, DRM_AUTH|DRM_MASTER|DRM_ROOT_ONLY),
-	DRM_IOCTL_DEF_DRV(I915_ALLOC, i915_mem_alloc, DRM_AUTH),
-	DRM_IOCTL_DEF_DRV(I915_FREE, i915_mem_free, DRM_AUTH),
-	DRM_IOCTL_DEF_DRV(I915_INIT_HEAP, i915_mem_init_heap, DRM_AUTH|DRM_MASTER|DRM_ROOT_ONLY),
+	DRM_IOCTL_DEF_DRV(I915_ALLOC, drm_noop, DRM_AUTH),
+	DRM_IOCTL_DEF_DRV(I915_FREE, drm_noop, DRM_AUTH),
+	DRM_IOCTL_DEF_DRV(I915_INIT_HEAP, drm_noop, DRM_AUTH|DRM_MASTER|DRM_ROOT_ONLY),
 	DRM_IOCTL_DEF_DRV(I915_CMDBUFFER, i915_cmdbuffer, DRM_AUTH),
-	DRM_IOCTL_DEF_DRV(I915_DESTROY_HEAP,  i915_mem_destroy_heap, DRM_AUTH|DRM_MASTER|DRM_ROOT_ONLY),
+	DRM_IOCTL_DEF_DRV(I915_DESTROY_HEAP,  drm_noop, DRM_AUTH|DRM_MASTER|DRM_ROOT_ONLY),
 	DRM_IOCTL_DEF_DRV(I915_SET_VBLANK_PIPE,  i915_vblank_pipe_set, DRM_AUTH|DRM_MASTER|DRM_ROOT_ONLY),
 	DRM_IOCTL_DEF_DRV(I915_GET_VBLANK_PIPE,  i915_vblank_pipe_get, DRM_AUTH),
 	DRM_IOCTL_DEF_DRV(I915_VBLANK_SWAP, i915_vblank_swap, DRM_AUTH),
