@@ -2152,7 +2152,7 @@ static int l2cap_parse_conf_rsp(struct l2cap_chan *chan, void *rsp, int len, voi
 	void *ptr = req->data;
 	int type, olen;
 	unsigned long val;
-	struct l2cap_conf_rfc rfc;
+	struct l2cap_conf_rfc rfc = { .mode = L2CAP_MODE_BASIC };
 
 	BT_DBG("chan %p, rsp %p, len %d, req %p", chan, rsp, len, data);
 
@@ -2270,6 +2270,16 @@ static void l2cap_conf_rfc_get(struct l2cap_chan *chan, void *rsp, int len)
 			goto done;
 		}
 	}
+
+	/* Use sane default values in case a misbehaving remote device
+	 * did not send an RFC option.
+	 */
+	rfc.mode = chan->mode;
+	rfc.retrans_timeout = cpu_to_le16(L2CAP_DEFAULT_RETRANS_TO);
+	rfc.monitor_timeout = cpu_to_le16(L2CAP_DEFAULT_MONITOR_TO);
+	rfc.max_pdu_size = cpu_to_le16(chan->imtu);
+
+	BT_ERR("Expected RFC option was not found, using defaults");
 
 done:
 	switch (rfc.mode) {
