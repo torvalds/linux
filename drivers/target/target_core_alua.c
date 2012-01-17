@@ -78,7 +78,7 @@ int target_emulate_report_target_port_groups(struct se_task *task)
 		return -EINVAL;
 	}
 
-	buf = transport_kmap_first_data_page(cmd);
+	buf = transport_kmap_data_sg(cmd);
 
 	spin_lock(&su_dev->t10_alua.tg_pt_gps_lock);
 	list_for_each_entry(tg_pt_gp, &su_dev->t10_alua.tg_pt_gps_list,
@@ -163,7 +163,7 @@ int target_emulate_report_target_port_groups(struct se_task *task)
 	buf[2] = ((rd_len >> 8) & 0xff);
 	buf[3] = (rd_len & 0xff);
 
-	transport_kunmap_first_data_page(cmd);
+	transport_kunmap_data_sg(cmd);
 
 	task->task_scsi_status = GOOD;
 	transport_complete_task(task, 1);
@@ -194,7 +194,7 @@ int target_emulate_set_target_port_groups(struct se_task *task)
 		cmd->scsi_sense_reason = TCM_LOGICAL_UNIT_COMMUNICATION_FAILURE;
 		return -EINVAL;
 	}
-	buf = transport_kmap_first_data_page(cmd);
+	buf = transport_kmap_data_sg(cmd);
 
 	/*
 	 * Determine if explict ALUA via SET_TARGET_PORT_GROUPS is allowed
@@ -351,7 +351,7 @@ int target_emulate_set_target_port_groups(struct se_task *task)
 	}
 
 out:
-	transport_kunmap_first_data_page(cmd);
+	transport_kunmap_data_sg(cmd);
 	task->task_scsi_status = GOOD;
 	transport_complete_task(task, 1);
 	return 0;

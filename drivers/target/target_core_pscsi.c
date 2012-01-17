@@ -693,7 +693,7 @@ static int pscsi_transport_complete(struct se_task *task)
 
 		if (task->task_se_cmd->se_deve->lun_flags &
 				TRANSPORT_LUNFLAGS_READ_ONLY) {
-			unsigned char *buf = transport_kmap_first_data_page(task->task_se_cmd);
+			unsigned char *buf = transport_kmap_data_sg(task->task_se_cmd);
 
 			if (cdb[0] == MODE_SENSE_10) {
 				if (!(buf[3] & 0x80))
@@ -703,7 +703,7 @@ static int pscsi_transport_complete(struct se_task *task)
 					buf[2] |= 0x80;
 			}
 
-			transport_kunmap_first_data_page(task->task_se_cmd);
+			transport_kunmap_data_sg(task->task_se_cmd);
 		}
 	}
 after_mode_sense:

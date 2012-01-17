@@ -657,7 +657,7 @@ int target_report_luns(struct se_task *se_task)
 	unsigned char *buf;
 	u32 cdb_offset = 0, lun_count = 0, offset = 8, i;
 
-	buf = transport_kmap_first_data_page(se_cmd);
+	buf = (unsigned char *) transport_kmap_data_sg(se_cmd);
 
 	/*
 	 * If no struct se_session pointer is present, this struct se_cmd is
@@ -695,7 +695,7 @@ int target_report_luns(struct se_task *se_task)
 	 * See SPC3 r07, page 159.
 	 */
 done:
-	transport_kunmap_first_data_page(se_cmd);
+	transport_kunmap_data_sg(se_cmd);
 	lun_count *= 8;
 	buf[0] = ((lun_count >> 24) & 0xff);
 	buf[1] = ((lun_count >> 16) & 0xff);
