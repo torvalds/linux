@@ -1061,7 +1061,7 @@ attach_cmd:
 	if (ret < 0)
 		return iscsit_add_reject_from_cmd(
 				ISCSI_REASON_BOOKMARK_NO_RESOURCES,
-				1, 1, buf, cmd);
+				1, 0, buf, cmd);
 	/*
 	 * Check the CmdSN against ExpCmdSN/MaxCmdSN here if
 	 * the Immediate Bit is not set, and no Immediate
