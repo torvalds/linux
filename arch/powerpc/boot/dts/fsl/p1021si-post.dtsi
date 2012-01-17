@@ -144,6 +144,10 @@
 /include/ "pq3-usb2-dr-0.dtsi"
 
 /include/ "pq3-esdhc-0.dtsi"
+	sdhc@2e000 {
+		sdhci,auto-cmd12;
+	};
+
 /include/ "pq3-sec3.3-0.dtsi"
 
 /include/ "pq3-mpic.dtsi"
