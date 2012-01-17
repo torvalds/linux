@@ -116,6 +116,8 @@ config PARIDE
 
 source "drivers/block/paride/Kconfig"
 
+source "drivers/block/mtip32xx/Kconfig"
+
 config BLK_CPQ_DA
 	tristate "Compaq SMART2 support"
 	depends on PCI && VIRT_TO_BUS

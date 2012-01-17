@@ -110,6 +110,59 @@ static void __init ar913x_clocks_init(void)
 	ath79_uart_clk.rate = ath79_ahb_clk.rate;
 }
 
+static void __init ar933x_clocks_init(void)
+{
+	u32 clock_ctrl;
+	u32 cpu_config;
+	u32 freq;
+	u32 t;
+
+	t = ath79_reset_rr(AR933X_RESET_REG_BOOTSTRAP);
+	if (t & AR933X_BOOTSTRAP_REF_CLK_40)
+		ath79_ref_clk.rate = (40 * 1000 * 1000);
+	else
+		ath79_ref_clk.rate = (25 * 1000 * 1000);
+
+	clock_ctrl = ath79_pll_rr(AR933X_PLL_CLOCK_CTRL_REG);
+	if (clock_ctrl & AR933X_PLL_CLOCK_CTRL_BYPASS) {
+		ath79_cpu_clk.rate = ath79_ref_clk.rate;
+		ath79_ahb_clk.rate = ath79_ref_clk.rate;
+		ath79_ddr_clk.rate = ath79_ref_clk.rate;
+	} else {
+		cpu_config = ath79_pll_rr(AR933X_PLL_CPU_CONFIG_REG);
+
+		t = (cpu_config >> AR933X_PLL_CPU_CONFIG_REFDIV_SHIFT) &
+		    AR933X_PLL_CPU_CONFIG_REFDIV_MASK;
+		freq = ath79_ref_clk.rate / t;
+
+		t = (cpu_config >> AR933X_PLL_CPU_CONFIG_NINT_SHIFT) &
+		    AR933X_PLL_CPU_CONFIG_NINT_MASK;
+		freq *= t;
+
+		t = (cpu_config >> AR933X_PLL_CPU_CONFIG_OUTDIV_SHIFT) &
+		    AR933X_PLL_CPU_CONFIG_OUTDIV_MASK;
+		if (t == 0)
+			t = 1;
+
+		freq >>= t;
+
+		t = ((clock_ctrl >> AR933X_PLL_CLOCK_CTRL_CPU_DIV_SHIFT) &
+		     AR933X_PLL_CLOCK_CTRL_CPU_DIV_MASK) + 1;
+		ath79_cpu_clk.rate = freq / t;
+
+		t = ((clock_ctrl >> AR933X_PLL_CLOCK_CTRL_DDR_DIV_SHIFT) &
+		      AR933X_PLL_CLOCK_CTRL_DDR_DIV_MASK) + 1;
+		ath79_ddr_clk.rate = freq / t;
+
+		t = ((clock_ctrl >> AR933X_PLL_CLOCK_CTRL_AHB_DIV_SHIFT) &
+		     AR933X_PLL_CLOCK_CTRL_AHB_DIV_MASK) + 1;
+		ath79_ahb_clk.rate = freq / t;
+	}
+
+	ath79_wdt_clk.rate = ath79_ref_clk.rate;
+	ath79_uart_clk.rate = ath79_ref_clk.rate;
+}
+
 void __init ath79_clocks_init(void)
 {
 	if (soc_is_ar71xx())
@@ -118,6 +171,8 @@ void __init ath79_clocks_init(void)
 		ar724x_clocks_init();
 	else if (soc_is_ar913x())
 		ar913x_clocks_init();
+	else if (soc_is_ar933x())
+		ar933x_clocks_init();
 	else
 		BUG();
 

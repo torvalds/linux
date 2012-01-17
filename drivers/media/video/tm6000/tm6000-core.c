@@ -38,6 +38,7 @@ int tm6000_read_write_usb(struct tm6000_core *dev, u8 req_type, u8 req,
 	int          ret, i;
 	unsigned int pipe;
 	u8	     *data = NULL;
+	int delay = 5000;
 
 	mutex_lock(&dev->usb_lock);
 
@@ -88,7 +89,20 @@ int tm6000_read_write_usb(struct tm6000_core *dev, u8 req_type, u8 req,
 	}
 
 	kfree(data);
-	msleep(5);
+
+	if (dev->quirks & TM6000_QUIRK_NO_USB_DELAY)
+		delay = 0;
+
+	if (req == REQ_16_SET_GET_I2C_WR1_RDN && !(req_type & USB_DIR_IN)) {
+		unsigned int tsleep;
+		/* Calculate delay time, 14000us for 64 bytes */
+		tsleep = (len * 200) + 200;
+		if (tsleep < delay)
+			tsleep = delay;
+		usleep_range(tsleep, tsleep + 1000);
+	}
+	else if (delay)
+		usleep_range(delay, delay + 1000);
 
 	mutex_unlock(&dev->usb_lock);
 	return ret;
@@ -125,14 +139,14 @@ int tm6000_set_reg_mask(struct tm6000_core *dev, u8 req, u16 value,
 	u8 new_index;
 
 	rc = tm6000_read_write_usb(dev, USB_DIR_IN | USB_TYPE_VENDOR, req,
-					value, index, buf, 1);
+					value, 0, buf, 1);
 
 	if (rc < 0)
 		return rc;
 
 	new_index = (buf[0] & ~mask) | (index & mask);
 
-	if (new_index == index)
+	if (new_index == buf[0])
 		return 0;
 
 	return tm6000_read_write_usb(dev, USB_DIR_OUT | USB_TYPE_VENDOR,
@@ -536,16 +550,16 @@ static struct reg_init tm6010_init_tab[] = {
 
 	{ TM6010_REQ05_R18_IMASK7, 0x00 },
 
-	{ TM6010_REQ07_RD8_IR_LEADER1, 0xaa },
-	{ TM6010_REQ07_RD8_IR_LEADER0, 0x30 },
-	{ TM6010_REQ07_RD8_IR_PULSE_CNT1, 0x20 },
-	{ TM6010_REQ07_RD8_IR_PULSE_CNT0, 0xd0 },
+	{ TM6010_REQ07_RDC_IR_LEADER1, 0xaa },
+	{ TM6010_REQ07_RDD_IR_LEADER0, 0x30 },
+	{ TM6010_REQ07_RDE_IR_PULSE_CNT1, 0x20 },
+	{ TM6010_REQ07_RDF_IR_PULSE_CNT0, 0xd0 },
 	{ REQ_04_EN_DISABLE_MCU_INT, 0x02, 0x00 },
-	{ TM6010_REQ07_RD8_IR, 0x2f },
+	{ TM6010_REQ07_RD8_IR, 0x0f },
 
 	/* set remote wakeup key:any key wakeup */
 	{ TM6010_REQ07_RE5_REMOTE_WAKEUP,  0xfe },
-	{ TM6010_REQ07_RD8_IR_WAKEUP_SEL,  0xff },
+	{ TM6010_REQ07_RDA_IR_WAKEUP_SEL,  0xff },
 };
 
 int tm6000_init(struct tm6000_core *dev)
@@ -599,55 +613,6 @@ int tm6000_init(struct tm6000_core *dev)
 	return rc;
 }
 
-int tm6000_reset(struct tm6000_core *dev)
-{
-	int pipe;
-	int err;
-
-	msleep(500);
-
-	err = usb_set_interface(dev->udev, dev->isoc_in.bInterfaceNumber, 0);
-	if (err < 0) {
-		tm6000_err("failed to select interface %d, alt. setting 0\n",
-				dev->isoc_in.bInterfaceNumber);
-		return err;
-	}
-
-	err = usb_reset_configuration(dev->udev);
-	if (err < 0) {
-		tm6000_err("failed to reset configuration\n");
-		return err;
-	}
-
-	if ((dev->quirks & TM6000_QUIRK_NO_USB_DELAY) == 0)
-		msleep(5);
-
-	/*
-	 * Not all devices have int_in defined
-	 */
-	if (!dev->int_in.endp)
-		return 0;
-
-	err = usb_set_interface(dev->udev, dev->isoc_in.bInterfaceNumber, 2);
-	if (err < 0) {
-		tm6000_err("failed to select interface %d, alt. setting 2\n",
-				dev->isoc_in.bInterfaceNumber);
-		return err;
-	}
-
-	msleep(5);
-
-	pipe = usb_rcvintpipe(dev->udev,
-			dev->int_in.endp->desc.bEndpointAddress & USB_ENDPOINT_NUMBER_MASK);
-
-	err = usb_clear_halt(dev->udev, pipe);
-	if (err < 0) {
-		tm6000_err("usb_clear_halt failed: %d\n", err);
-		return err;
-	}
-
-	return 0;
-}
 
 int tm6000_set_audio_bitrate(struct tm6000_core *dev, int bitrate)
 {
@@ -696,11 +661,13 @@ int tm6000_set_audio_rinput(struct tm6000_core *dev)
 	if (dev->dev_type == TM6010) {
 		/* Audio crossbar setting, default SIF1 */
 		u8 areg_f0;
+		u8 areg_07 = 0x10;
 
 		switch (dev->rinput.amux) {
 		case TM6000_AMUX_SIF1:
 		case TM6000_AMUX_SIF2:
 			areg_f0 = 0x03;
+			areg_07 = 0x30;
 			break;
 		case TM6000_AMUX_ADC1:
 			areg_f0 = 0x00;
@@ -720,6 +687,9 @@ int tm6000_set_audio_rinput(struct tm6000_core *dev)
 		/* Set audio input crossbar */
 		tm6000_set_reg_mask(dev, TM6010_REQ08_RF0_DAUDIO_INPUT_CONFIG,
 							areg_f0, 0x0f);
+		/* Mux overflow workaround */
+		tm6000_set_reg_mask(dev, TM6010_REQ07_R07_OUTPUT_CONTROL,
+			areg_07, 0xf0);
 	} else {
 		u8 areg_eb;
 		/* Audio setting, default LINE1 */

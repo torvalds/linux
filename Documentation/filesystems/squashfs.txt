@@ -93,8 +93,8 @@ byte alignment:
 
 Compressed data blocks are written to the filesystem as files are read from
 the source directory, and checked for duplicates.  Once all file data has been
-written the completed inode, directory, fragment, export and uid/gid lookup
-tables are written.
+written the completed inode, directory, fragment, export, uid/gid lookup and
+xattr tables are written.
 
 3.1 Compression options
 -----------------------
@@ -151,7 +151,7 @@ in each metadata block.  Directories are sorted in alphabetical order,
 and at lookup the index is scanned linearly looking for the first filename
 alphabetically larger than the filename being looked up.  At this point the
 location of the metadata block the filename is in has been found.
-The general idea of the index is ensure only one metadata block needs to be
+The general idea of the index is to ensure only one metadata block needs to be
 decompressed to do a lookup irrespective of the length of the directory.
 This scheme has the advantage that it doesn't require extra memory overhead
 and doesn't require much extra storage on disk.

@@ -1172,7 +1172,7 @@ ctnetlink_change_helper(struct nf_conn *ct, const struct nlattr * const cda[])
 		return -EOPNOTSUPP;
 	}
 
-	RCU_INIT_POINTER(help->helper, helper);
+	rcu_assign_pointer(help->helper, helper);
 
 	return 0;
 }

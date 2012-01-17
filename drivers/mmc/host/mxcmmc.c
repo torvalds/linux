@@ -1047,18 +1047,7 @@ static struct platform_driver mxcmci_driver = {
 	}
 };
 
-static int __init mxcmci_init(void)
-{
-	return platform_driver_register(&mxcmci_driver);
-}
-
-static void __exit mxcmci_exit(void)
-{
-	platform_driver_unregister(&mxcmci_driver);
-}
-
-module_init(mxcmci_init);
-module_exit(mxcmci_exit);
+module_platform_driver(mxcmci_driver);
 
 MODULE_DESCRIPTION("i.MX Multimedia Card Interface Driver");
 MODULE_AUTHOR("Sascha Hauer, Pengutronix");

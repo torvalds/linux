@@ -1306,6 +1306,10 @@ static ssize_t dvb_ca_en50221_io_write(struct file *file,
 	/* fragment the packets & store in the buffer */
 	while (fragpos < count) {
 		fraglen = ca->slot_info[slot].link_buf_size - 2;
+		if (fraglen < 0)
+			break;
+		if (fraglen > HOST_LINK_BUF_SIZE - 2)
+			fraglen = HOST_LINK_BUF_SIZE - 2;
 		if ((count - fragpos) < fraglen)
 			fraglen = count - fragpos;
 

@@ -1462,6 +1462,8 @@ static int video_release(struct file *file)
 	struct saa6588_command cmd;
 	unsigned long flags;
 
+	saa7134_tvaudio_close(dev);
+
 	/* turn off overlay */
 	if (res_check(fh, RESOURCE_OVERLAY)) {
 		spin_lock_irqsave(&dev->slock,flags);

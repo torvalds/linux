@@ -4666,6 +4666,7 @@ static int md_alloc(dev_t dev, char *name)
 	mddev->queue->queuedata = mddev;
 
 	blk_queue_make_request(mddev->queue, md_make_request);
+	blk_set_stacking_limits(&mddev->queue->limits);
 
 	disk = alloc_disk(1 << shift);
 	if (!disk) {

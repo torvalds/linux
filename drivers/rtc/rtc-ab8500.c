@@ -15,7 +15,7 @@
 #include <linux/platform_device.h>
 #include <linux/rtc.h>
 #include <linux/mfd/abx500.h>
-#include <linux/mfd/ab8500.h>
+#include <linux/mfd/abx500/ab8500.h>
 #include <linux/delay.h>
 
 #define AB8500_RTC_SOFF_STAT_REG	0x00

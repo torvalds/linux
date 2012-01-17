@@ -306,7 +306,8 @@ static void em28xx_ir_handle_key(struct em28xx_IR *ir)
 				   poll_result.rc_data[0],
 				   poll_result.toggle_bit);
 
-		if (ir->dev->chip_id == CHIP_ID_EM2874)
+		if (ir->dev->chip_id == CHIP_ID_EM2874 ||
+		    ir->dev->chip_id == CHIP_ID_EM2884)
 			/* The em2874 clears the readcount field every time the
 			   register is read.  The em2860/2880 datasheet says that it
 			   is supposed to clear the readcount, but it doesn't.  So with
@@ -371,13 +372,15 @@ int em28xx_ir_change_protocol(struct rc_dev *rc_dev, u64 rc_type)
 	case CHIP_ID_EM2883:
 		ir->get_key = default_polling_getkey;
 		break;
+	case CHIP_ID_EM2884:
 	case CHIP_ID_EM2874:
 	case CHIP_ID_EM28174:
 		ir->get_key = em2874_polling_getkey;
 		em28xx_write_regs(dev, EM2874_R50_IR_CONFIG, &ir_config, 1);
 		break;
 	default:
-		printk("Unrecognized em28xx chip id: IR not supported\n");
+		printk("Unrecognized em28xx chip id 0x%02x: IR not supported\n",
+			dev->chip_id);
 		rc = -EINVAL;
 	}
 

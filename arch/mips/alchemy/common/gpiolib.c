@@ -27,6 +27,7 @@
  *	 CONFIG_ALCHEMY_GPIO_INDIRECT=n, otherwise compilation will fail!
  *	au1000 SoC have only one GPIO block : GPIO1
  *	Au1100, Au15x0, Au12x0 have a second one : GPIO2
+ *	Au1300 is totally different: 1 block with up to 128 GPIOs
  */
 
 #include <linux/init.h>
@@ -35,6 +36,7 @@
 #include <linux/types.h>
 #include <linux/gpio.h>
 #include <asm/mach-au1x00/gpio-au1000.h>
+#include <asm/mach-au1x00/gpio-au1300.h>
 
 static int gpio2_get(struct gpio_chip *chip, unsigned offset)
 {
@@ -115,6 +117,43 @@ struct gpio_chip alchemy_gpio_chip[] = {
 	},
 };
 
+static int alchemy_gpic_get(struct gpio_chip *chip, unsigned int off)
+{
+	return au1300_gpio_get_value(off + AU1300_GPIO_BASE);
+}
+
+static void alchemy_gpic_set(struct gpio_chip *chip, unsigned int off, int v)
+{
+	au1300_gpio_set_value(off + AU1300_GPIO_BASE, v);
+}
+
+static int alchemy_gpic_dir_input(struct gpio_chip *chip, unsigned int off)
+{
+	return au1300_gpio_direction_input(off + AU1300_GPIO_BASE);
+}
+
+static int alchemy_gpic_dir_output(struct gpio_chip *chip, unsigned int off,
+				   int v)
+{
+	return au1300_gpio_direction_output(off + AU1300_GPIO_BASE, v);
+}
+
+static int alchemy_gpic_gpio_to_irq(struct gpio_chip *chip, unsigned int off)
+{
+	return au1300_gpio_to_irq(off + AU1300_GPIO_BASE);
+}
+
+static struct gpio_chip au1300_gpiochip = {
+	.label			= "alchemy-gpic",
+	.direction_input	= alchemy_gpic_dir_input,
+	.direction_output	= alchemy_gpic_dir_output,
+	.get			= alchemy_gpic_get,
+	.set			= alchemy_gpic_set,
+	.to_irq			= alchemy_gpic_gpio_to_irq,
+	.base			= AU1300_GPIO_BASE,
+	.ngpio			= AU1300_GPIO_NUM,
+};
+
 static int __init alchemy_gpiochip_init(void)
 {
 	int ret = 0;
@@ -126,6 +165,9 @@ static int __init alchemy_gpiochip_init(void)
 	case ALCHEMY_CPU_AU1500...ALCHEMY_CPU_AU1200:
 		ret = gpiochip_add(&alchemy_gpio_chip[0]);
 		ret |= gpiochip_add(&alchemy_gpio_chip[1]);
+		break;
+	case ALCHEMY_CPU_AU1300:
+		ret = gpiochip_add(&au1300_gpiochip);
 		break;
 	}
 	return ret;

@@ -157,7 +157,7 @@ int __nf_ct_try_assign_helper(struct nf_conn *ct, struct nf_conn *tmpl,
 		memset(&help->help, 0, sizeof(help->help));
 	}
 
-	RCU_INIT_POINTER(help->helper, helper);
+	rcu_assign_pointer(help->helper, helper);
 out:
 	return ret;
 }

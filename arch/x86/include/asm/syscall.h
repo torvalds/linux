@@ -15,6 +15,7 @@
 
 #include <linux/sched.h>
 #include <linux/err.h>
+#include <asm/asm-offsets.h>	/* For NR_syscalls */
 
 extern const unsigned long sys_call_table[];
 

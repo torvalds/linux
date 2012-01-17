@@ -21,13 +21,13 @@
 
 #include "cxd2820r_priv.h"
 
-int cxd2820r_set_frontend_c(struct dvb_frontend *fe,
-	struct dvb_frontend_parameters *params)
+int cxd2820r_set_frontend_c(struct dvb_frontend *fe)
 {
 	struct cxd2820r_priv *priv = fe->demodulator_priv;
 	struct dtv_frontend_properties *c = &fe->dtv_property_cache;
 	int ret, i;
 	u8 buf[2];
+	u32 if_freq;
 	u16 if_ctl;
 	u64 num;
 	struct reg_val_mask tab[] = {
@@ -56,9 +56,9 @@ int cxd2820r_set_frontend_c(struct dvb_frontend *fe,
 
 	/* program tuner */
 	if (fe->ops.tuner_ops.set_params)
-		fe->ops.tuner_ops.set_params(fe, params);
+		fe->ops.tuner_ops.set_params(fe);
 
-	if (priv->delivery_system !=  SYS_DVBC_ANNEX_AC) {
+	if (priv->delivery_system !=  SYS_DVBC_ANNEX_A) {
 		for (i = 0; i < ARRAY_SIZE(tab); i++) {
 			ret = cxd2820r_wr_reg_mask(priv, tab[i].reg,
 				tab[i].val, tab[i].mask);
@@ -67,10 +67,20 @@ int cxd2820r_set_frontend_c(struct dvb_frontend *fe,
 		}
 	}
 
-	priv->delivery_system = SYS_DVBC_ANNEX_AC;
+	priv->delivery_system = SYS_DVBC_ANNEX_A;
 	priv->ber_running = 0; /* tune stops BER counter */
 
-	num = priv->cfg.if_dvbc;
+	/* program IF frequency */
+	if (fe->ops.tuner_ops.get_if_frequency) {
+		ret = fe->ops.tuner_ops.get_if_frequency(fe, &if_freq);
+		if (ret)
+			goto error;
+	} else
+		if_freq = 0;
+
+	dbg("%s: if_freq=%d", __func__, if_freq);
+
+	num = if_freq / 1000; /* Hz => kHz */
 	num *= 0x4000;
 	if_ctl = cxd2820r_div_u64_round_closest(num, 41000);
 	buf[0] = (if_ctl >> 8) & 0x3f;
@@ -94,8 +104,7 @@ error:
 	return ret;
 }
 
-int cxd2820r_get_frontend_c(struct dvb_frontend *fe,
-	struct dvb_frontend_parameters *p)
+int cxd2820r_get_frontend_c(struct dvb_frontend *fe)
 {
 	struct cxd2820r_priv *priv = fe->demodulator_priv;
 	struct dtv_frontend_properties *c = &fe->dtv_property_cache;

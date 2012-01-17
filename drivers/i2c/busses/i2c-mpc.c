@@ -715,18 +715,7 @@ static struct platform_driver mpc_i2c_driver = {
 	},
 };
 
-static int __init fsl_i2c_init(void)
-{
-	return platform_driver_register(&mpc_i2c_driver);
-}
-
-static void __exit fsl_i2c_exit(void)
-{
-	platform_driver_unregister(&mpc_i2c_driver);
-}
-
-module_init(fsl_i2c_init);
-module_exit(fsl_i2c_exit);
+module_platform_driver(mpc_i2c_driver);
 
 MODULE_AUTHOR("Adrian Cox <adrian@humboldt.co.uk>");
 MODULE_DESCRIPTION("I2C-Bus adapter for MPC107 bridge and "

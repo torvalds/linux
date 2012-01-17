@@ -16,7 +16,7 @@
 #define INVALID_EVTCHN_IRQ  (-1)
 struct workqueue_struct *xen_pcibk_wq;
 
-static int __read_mostly passthrough;
+static bool __read_mostly passthrough;
 module_param(passthrough, bool, S_IRUGO);
 MODULE_PARM_DESC(passthrough,
 	"Option to specify how to export PCI topology to guest:\n"\

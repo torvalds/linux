@@ -679,18 +679,7 @@ static struct platform_driver sh_mobile_meram_driver = {
 	.remove		= sh_mobile_meram_remove,
 };
 
-static int __init sh_mobile_meram_init(void)
-{
-	return platform_driver_register(&sh_mobile_meram_driver);
-}
-
-static void __exit sh_mobile_meram_exit(void)
-{
-	platform_driver_unregister(&sh_mobile_meram_driver);
-}
-
-module_init(sh_mobile_meram_init);
-module_exit(sh_mobile_meram_exit);
+module_platform_driver(sh_mobile_meram_driver);
 
 MODULE_DESCRIPTION("SuperH Mobile MERAM driver");
 MODULE_AUTHOR("Damian Hobson-Garcia / Takanari Hayama");

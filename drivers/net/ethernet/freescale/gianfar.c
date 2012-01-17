@@ -1984,7 +1984,8 @@ static inline struct txfcb *gfar_add_fcb(struct sk_buff *skb)
 	return fcb;
 }
 
-static inline void gfar_tx_checksum(struct sk_buff *skb, struct txfcb *fcb)
+static inline void gfar_tx_checksum(struct sk_buff *skb, struct txfcb *fcb,
+		int fcb_length)
 {
 	u8 flags = 0;
 
@@ -2006,7 +2007,7 @@ static inline void gfar_tx_checksum(struct sk_buff *skb, struct txfcb *fcb)
 	 * frame (skb->data) and the start of the IP hdr.
 	 * l4os is the distance between the start of the
 	 * l3 hdr and the l4 hdr */
-	fcb->l3os = (u16)(skb_network_offset(skb) - GMAC_FCB_LEN);
+	fcb->l3os = (u16)(skb_network_offset(skb) - fcb_length);
 	fcb->l4os = skb_network_header_len(skb);
 
 	fcb->flags = flags;
@@ -2046,7 +2047,7 @@ static int gfar_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	int i, rq = 0, do_tstamp = 0;
 	u32 bufaddr;
 	unsigned long flags;
-	unsigned int nr_frags, nr_txbds, length;
+	unsigned int nr_frags, nr_txbds, length, fcb_length = GMAC_FCB_LEN;
 
 	/*
 	 * TOE=1 frames larger than 2500 bytes may see excess delays
@@ -2070,22 +2071,28 @@ static int gfar_start_xmit(struct sk_buff *skb, struct net_device *dev)
 
 	/* check if time stamp should be generated */
 	if (unlikely(skb_shinfo(skb)->tx_flags & SKBTX_HW_TSTAMP &&
-		     priv->hwts_tx_en))
+			priv->hwts_tx_en)) {
 		do_tstamp = 1;
+		fcb_length = GMAC_FCB_LEN + GMAC_TXPAL_LEN;
+	}
 
 	/* make space for additional header when fcb is needed */
 	if (((skb->ip_summed == CHECKSUM_PARTIAL) ||
 			vlan_tx_tag_present(skb) ||
 			unlikely(do_tstamp)) &&
-			(skb_headroom(skb) < GMAC_FCB_LEN)) {
+			(skb_headroom(skb) < fcb_length)) {
 		struct sk_buff *skb_new;
 
-		skb_new = skb_realloc_headroom(skb, GMAC_FCB_LEN);
+		skb_new = skb_realloc_headroom(skb, fcb_length);
 		if (!skb_new) {
 			dev->stats.tx_errors++;
 			kfree_skb(skb);
 			return NETDEV_TX_OK;
 		}
+
+		/* Steal sock reference for processing TX time stamps */
+		swap(skb_new->sk, skb->sk);
+		swap(skb_new->destructor, skb->destructor);
 		kfree_skb(skb);
 		skb = skb_new;
 	}
@@ -2154,6 +2161,12 @@ static int gfar_start_xmit(struct sk_buff *skb, struct net_device *dev)
 		lstatus = txbdp_start->lstatus;
 	}
 
+	/* Add TxPAL between FCB and frame if required */
+	if (unlikely(do_tstamp)) {
+		skb_push(skb, GMAC_TXPAL_LEN);
+		memset(skb->data, 0, GMAC_TXPAL_LEN);
+	}
+
 	/* Set up checksumming */
 	if (CHECKSUM_PARTIAL == skb->ip_summed) {
 		fcb = gfar_add_fcb(skb);
@@ -2164,7 +2177,7 @@ static int gfar_start_xmit(struct sk_buff *skb, struct net_device *dev)
 			skb_checksum_help(skb);
 		} else {
 			lstatus |= BD_LFLAG(TXBD_TOE);
-			gfar_tx_checksum(skb, fcb);
+			gfar_tx_checksum(skb, fcb, fcb_length);
 		}
 	}
 
@@ -2196,9 +2209,9 @@ static int gfar_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	 * the full frame length.
 	 */
 	if (unlikely(do_tstamp)) {
-		txbdp_tstamp->bufPtr = txbdp_start->bufPtr + GMAC_FCB_LEN;
+		txbdp_tstamp->bufPtr = txbdp_start->bufPtr + fcb_length;
 		txbdp_tstamp->lstatus |= BD_LFLAG(TXBD_READY) |
-				(skb_headlen(skb) - GMAC_FCB_LEN);
+				(skb_headlen(skb) - fcb_length);
 		lstatus |= BD_LFLAG(TXBD_CRC | TXBD_READY) | GMAC_FCB_LEN;
 	} else {
 		lstatus |= BD_LFLAG(TXBD_CRC | TXBD_READY) | skb_headlen(skb);
@@ -2490,7 +2503,7 @@ static int gfar_clean_tx_ring(struct gfar_priv_tx_q *tx_queue)
 
 		if (unlikely(skb_shinfo(skb)->tx_flags & SKBTX_IN_PROGRESS)) {
 			next = next_txbd(bdp, base, tx_ring_size);
-			buflen = next->length + GMAC_FCB_LEN;
+			buflen = next->length + GMAC_FCB_LEN + GMAC_TXPAL_LEN;
 		} else
 			buflen = bdp->length;
 
@@ -2502,6 +2515,7 @@ static int gfar_clean_tx_ring(struct gfar_priv_tx_q *tx_queue)
 			u64 *ns = (u64*) (((u32)skb->data + 0x10) & ~0x7);
 			memset(&shhwtstamps, 0, sizeof(shhwtstamps));
 			shhwtstamps.hwtstamp = ns_to_ktime(*ns);
+			skb_pull(skb, GMAC_FCB_LEN + GMAC_TXPAL_LEN);
 			skb_tstamp_tx(skb, &shhwtstamps);
 			bdp->lstatus &= BD_LFLAG(TXBD_WRAP);
 			bdp = next;

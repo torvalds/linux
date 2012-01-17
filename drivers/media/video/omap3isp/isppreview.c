@@ -116,11 +116,11 @@ static struct omap3isp_prev_csc flr_prev_csc = {
 #define PREV_MIN_IN_HEIGHT	8
 #define PREV_MAX_IN_HEIGHT	16384
 
-#define PREV_MIN_OUT_WIDTH	0
-#define PREV_MIN_OUT_HEIGHT	0
-#define PREV_MAX_OUT_WIDTH	1280
-#define PREV_MAX_OUT_WIDTH_ES2	3300
-#define PREV_MAX_OUT_WIDTH_3630	4096
+#define PREV_MIN_OUT_WIDTH		0
+#define PREV_MIN_OUT_HEIGHT		0
+#define PREV_MAX_OUT_WIDTH_REV_1	1280
+#define PREV_MAX_OUT_WIDTH_REV_2	3300
+#define PREV_MAX_OUT_WIDTH_REV_15	4096
 
 /*
  * Coeficient Tables for the submodules in Preview.
@@ -1306,14 +1306,14 @@ static unsigned int preview_max_out_width(struct isp_prev_device *prev)
 
 	switch (isp->revision) {
 	case ISP_REVISION_1_0:
-		return PREV_MAX_OUT_WIDTH;
+		return PREV_MAX_OUT_WIDTH_REV_1;
 
 	case ISP_REVISION_2_0:
 	default:
-		return PREV_MAX_OUT_WIDTH_ES2;
+		return PREV_MAX_OUT_WIDTH_REV_2;
 
 	case ISP_REVISION_15_0:
-		return PREV_MAX_OUT_WIDTH_3630;
+		return PREV_MAX_OUT_WIDTH_REV_15;
 	}
 }
 
@@ -1404,16 +1404,14 @@ static void preview_isr_buffer(struct isp_prev_device *prev)
 	int restart = 0;
 
 	if (prev->input == PREVIEW_INPUT_MEMORY) {
-		buffer = omap3isp_video_buffer_next(&prev->video_in,
-						    prev->error);
+		buffer = omap3isp_video_buffer_next(&prev->video_in);
 		if (buffer != NULL)
 			preview_set_inaddr(prev, buffer->isp_addr);
 		pipe->state |= ISP_PIPELINE_IDLE_INPUT;
 	}
 
 	if (prev->output & PREVIEW_OUTPUT_MEMORY) {
-		buffer = omap3isp_video_buffer_next(&prev->video_out,
-						    prev->error);
+		buffer = omap3isp_video_buffer_next(&prev->video_out);
 		if (buffer != NULL) {
 			preview_set_outaddr(prev, buffer->isp_addr);
 			restart = 1;
@@ -1440,8 +1438,6 @@ static void preview_isr_buffer(struct isp_prev_device *prev)
 	default:
 		return;
 	}
-
-	prev->error = 0;
 }
 
 /*
@@ -1565,7 +1561,6 @@ static int preview_set_stream(struct v4l2_subdev *sd, int enable)
 		omap3isp_subclk_enable(isp, OMAP3_ISP_SUBCLK_PREVIEW);
 		preview_configure(prev);
 		atomic_set(&prev->stopping, 0);
-		prev->error = 0;
 		preview_print_status(prev);
 	}
 

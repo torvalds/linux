@@ -183,9 +183,9 @@ static int mt352_avermedia_xc3028_init(struct dvb_frontend *fe)
 	return 0;
 }
 
-static int mt352_pinnacle_tuner_set_params(struct dvb_frontend* fe,
-					   struct dvb_frontend_parameters* params)
+static int mt352_pinnacle_tuner_set_params(struct dvb_frontend *fe)
 {
+	struct dtv_frontend_properties *c = &fe->dtv_property_cache;
 	u8 off[] = { 0x00, 0xf1};
 	u8 on[]  = { 0x00, 0x71};
 	struct i2c_msg msg = {.addr=0x43, .flags=0, .buf=off, .len = sizeof(off)};
@@ -196,7 +196,7 @@ static int mt352_pinnacle_tuner_set_params(struct dvb_frontend* fe,
 	/* set frequency (mt2050) */
 	f.tuner     = 0;
 	f.type      = V4L2_TUNER_DIGITAL_TV;
-	f.frequency = params->frequency / 1000 * 16 / 1000;
+	f.frequency = c->frequency / 1000 * 16 / 1000;
 	if (fe->ops.i2c_gate_ctrl)
 		fe->ops.i2c_gate_ctrl(fe, 1);
 	i2c_transfer(&dev->i2c_adap, &msg, 1);
@@ -287,8 +287,9 @@ static int philips_tda1004x_request_firmware(struct dvb_frontend *fe,
  * these tuners are tu1216, td1316(a)
  */
 
-static int philips_tda6651_pll_set(struct dvb_frontend *fe, struct dvb_frontend_parameters *params)
+static int philips_tda6651_pll_set(struct dvb_frontend *fe)
 {
+	struct dtv_frontend_properties *c = &fe->dtv_property_cache;
 	struct saa7134_dev *dev = fe->dvb->priv;
 	struct tda1004x_state *state = fe->demodulator_priv;
 	u8 addr = state->config->tuner_address;
@@ -299,7 +300,7 @@ static int philips_tda6651_pll_set(struct dvb_frontend *fe, struct dvb_frontend_
 	u8 band, cp, filter;
 
 	/* determine charge pump */
-	tuner_frequency = params->frequency + 36166000;
+	tuner_frequency = c->frequency + 36166000;
 	if (tuner_frequency < 87000000)
 		return -EINVAL;
 	else if (tuner_frequency < 130000000)
@@ -324,28 +325,28 @@ static int philips_tda6651_pll_set(struct dvb_frontend *fe, struct dvb_frontend_
 		return -EINVAL;
 
 	/* determine band */
-	if (params->frequency < 49000000)
+	if (c->frequency < 49000000)
 		return -EINVAL;
-	else if (params->frequency < 161000000)
+	else if (c->frequency < 161000000)
 		band = 1;
-	else if (params->frequency < 444000000)
+	else if (c->frequency < 444000000)
 		band = 2;
-	else if (params->frequency < 861000000)
+	else if (c->frequency < 861000000)
 		band = 4;
 	else
 		return -EINVAL;
 
 	/* setup PLL filter */
-	switch (params->u.ofdm.bandwidth) {
-	case BANDWIDTH_6_MHZ:
+	switch (c->bandwidth_hz) {
+	case 6000000:
 		filter = 0;
 		break;
 
-	case BANDWIDTH_7_MHZ:
+	case 7000000:
 		filter = 0;
 		break;
 
-	case BANDWIDTH_8_MHZ:
+	case 8000000:
 		filter = 1;
 		break;
 
@@ -356,7 +357,7 @@ static int philips_tda6651_pll_set(struct dvb_frontend *fe, struct dvb_frontend_
 	/* calculate divisor
 	 * ((36166000+((1000000/6)/2)) + Finput)/(1000000/6)
 	 */
-	tuner_frequency = (((params->frequency / 1000) * 6) + 217496) / 1000;
+	tuner_frequency = (((c->frequency / 1000) * 6) + 217496) / 1000;
 
 	/* setup tuner buffer */
 	tuner_buf[0] = (tuner_frequency >> 8) & 0x7f;
@@ -436,9 +437,9 @@ static int philips_td1316_tuner_init(struct dvb_frontend *fe)
 	return 0;
 }
 
-static int philips_td1316_tuner_set_params(struct dvb_frontend *fe, struct dvb_frontend_parameters *params)
+static int philips_td1316_tuner_set_params(struct dvb_frontend *fe)
 {
-	return philips_tda6651_pll_set(fe, params);
+	return philips_tda6651_pll_set(fe);
 }
 
 static int philips_td1316_tuner_sleep(struct dvb_frontend *fe)

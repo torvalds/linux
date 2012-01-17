@@ -11,7 +11,7 @@
  10 -> Hauppauge WinTV HVR 900                  (em2880)        [2040:6500]
  11 -> Terratec Hybrid XS                       (em2880)
  12 -> Kworld PVR TV 2800 RF                    (em2820/em2840)
- 13 -> Terratec Prodigy XS                      (em2880)        [0ccd:0047]
+ 13 -> Terratec Prodigy XS                      (em2880)
  14 -> SIIG AVTuner-PVR / Pixelview Prolink PlayTV USB 2.0 (em2820/em2840)
  15 -> V-Gear PocketTV                          (em2800)
  16 -> Hauppauge WinTV HVR 950                  (em2883)        [2040:6513,2040:6517,2040:651b]
@@ -40,7 +40,7 @@
  39 -> KWorld PVRTV 300U                        (em2861)        [eb1a:e300]
  40 -> Plextor ConvertX PX-TV100U               (em2861)        [093b:a005]
  41 -> Kworld 350 U DVB-T                       (em2870)        [eb1a:e350]
- 42 -> Kworld 355 U DVB-T                       (em2870)        [eb1a:e355,eb1a:e357]
+ 42 -> Kworld 355 U DVB-T                       (em2870)        [eb1a:e355,eb1a:e357,eb1a:e359]
  43 -> Terratec Cinergy T XS                    (em2870)        [0ccd:0043]
  44 -> Terratec Cinergy T XS (MT2060)           (em2870)
  45 -> Pinnacle PCTV DVB-T                      (em2870)
@@ -64,7 +64,7 @@
  64 -> Easy Cap Capture DC-60                   (em2860)
  65 -> IO-DATA GV-MVP/SZ                        (em2820/em2840) [04bb:0515]
  66 -> Empire dual TV                           (em2880)
- 67 -> Terratec Grabby                          (em2860)        [0ccd:0096]
+ 67 -> Terratec Grabby                          (em2860)        [0ccd:0096,0ccd:10AF]
  68 -> Terratec AV350                           (em2860)        [0ccd:0084]
  69 -> KWorld ATSC 315U HDTV TV Box             (em2882)        [eb1a:a313]
  70 -> Evga inDtube                             (em2882)
@@ -76,3 +76,7 @@
  76 -> KWorld PlusTV 340U or UB435-Q (ATSC)     (em2870)        [1b80:a340]
  77 -> EM2874 Leadership ISDBT                  (em2874)
  78 -> PCTV nanoStick T2 290e                   (em28174)
+ 79 -> Terratec Cinergy H5                      (em2884)        [0ccd:10a2,0ccd:10ad]
+ 80 -> PCTV DVB-S2 Stick (460e)                 (em28174)
+ 81 -> Hauppauge WinTV HVR 930C                 (em2884)        [2040:1605]
+ 82 -> Terratec Cinergy HTC Stick               (em2884)        [0ccd:00b2]

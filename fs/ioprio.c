@@ -48,28 +48,12 @@ int set_task_ioprio(struct task_struct *task, int ioprio)
 	if (err)
 		return err;
 
-	task_lock(task);
-	do {
-		ioc = task->io_context;
-		/* see wmb() in current_io_context() */
-		smp_read_barrier_depends();
-		if (ioc)
-			break;
-
-		ioc = alloc_io_context(GFP_ATOMIC, -1);
-		if (!ioc) {
-			err = -ENOMEM;
-			break;
-		}
-		task->io_context = ioc;
-	} while (1);
-
-	if (!err) {
-		ioc->ioprio = ioprio;
-		ioc->ioprio_changed = 1;
+	ioc = get_task_io_context(task, GFP_ATOMIC, NUMA_NO_NODE);
+	if (ioc) {
+		ioc_ioprio_changed(ioc, ioprio);
+		put_io_context(ioc, NULL);
 	}
 
-	task_unlock(task);
 	return err;
 }
 EXPORT_SYMBOL_GPL(set_task_ioprio);

@@ -81,9 +81,9 @@
 #define CONFIG_USB_SERIAL_SAFE_PADDED 0
 #endif
 
-static int debug;
-static int safe = 1;
-static int padded = CONFIG_USB_SERIAL_SAFE_PADDED;
+static bool debug;
+static bool safe = 1;
+static bool padded = CONFIG_USB_SERIAL_SAFE_PADDED;
 
 #define DRIVER_VERSION "v0.1"
 #define DRIVER_AUTHOR "sl@lineo.com, tbr@lineo.com, Johan Hovold <jhovold@gmail.com>"

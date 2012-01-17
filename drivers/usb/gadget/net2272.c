@@ -69,7 +69,7 @@ static const char * const ep_name[] = {
  *
  * If use_dma is disabled, pio will be used instead.
  */
-static int use_dma = 0;
+static bool use_dma = 0;
 module_param(use_dma, bool, 0644);
 
 /*

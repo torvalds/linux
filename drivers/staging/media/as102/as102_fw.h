@@ -20,11 +20,10 @@
 
 extern int dual_tuner;
 
-#pragma pack(1)
 struct as10x_raw_fw_pkt {
 	unsigned char address[4];
 	unsigned char data[MAX_FW_PKT_SIZE - 6];
-};
+} __packed;
 
 struct as10x_fw_pkt_t {
 	union {
@@ -32,11 +31,8 @@ struct as10x_fw_pkt_t {
 		unsigned char length[2];
 	} u;
 	struct as10x_raw_fw_pkt raw;
-};
-#pragma pack()
+} __packed;
 
 #ifdef __KERNEL__
-int as102_fw_upload(struct as102_bus_adapter_t *bus_adap);
+int as102_fw_upload(struct as10x_bus_adapter_t *bus_adap);
 #endif
-
-/* EOF - vim: set textwidth=80 ts=8 sw=8 sts=8 noet: */

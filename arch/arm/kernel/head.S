@@ -99,6 +99,14 @@ ENTRY(stext)
  THUMB( it	eq )		@ force fixup-able long branch encoding
 	beq	__error_p			@ yes, error 'p'
 
+#ifdef CONFIG_ARM_LPAE
+	mrc	p15, 0, r3, c0, c1, 4		@ read ID_MMFR0
+	and	r3, r3, #0xf			@ extract VMSA support
+	cmp	r3, #5				@ long-descriptor translation table format?
+ THUMB( it	lo )				@ force fixup-able long branch encoding
+	blo	__error_p			@ only classic page table format
+#endif
+
 #ifndef CONFIG_XIP_KERNEL
 	adr	r3, 2f
 	ldmia	r3, {r4, r8}

@@ -222,7 +222,8 @@ static struct sh_mmcif_dma sh7757lcr_mmcif_dma = {
 static struct sh_mmcif_plat_data sh_mmcif_plat = {
 	.dma		= &sh7757lcr_mmcif_dma,
 	.sup_pclk	= 0x0f,
-	.caps		= MMC_CAP_4_BIT_DATA | MMC_CAP_8_BIT_DATA,
+	.caps		= MMC_CAP_4_BIT_DATA | MMC_CAP_8_BIT_DATA |
+			  MMC_CAP_NONREMOVABLE,
 	.ocr		= MMC_VDD_32_33 | MMC_VDD_33_34,
 };
 

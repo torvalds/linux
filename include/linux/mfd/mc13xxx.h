@@ -174,6 +174,9 @@ struct mc13xxx_platform_data {
 #define MC13XXX_ADC_MODE_MULT_CHAN	3
 
 #define MC13XXX_ADC0		43
+#define MC13XXX_ADC0_LICELLCON		(1 << 0)
+#define MC13XXX_ADC0_CHRGICON		(1 << 1)
+#define MC13XXX_ADC0_BATICON		(1 << 2)
 #define MC13XXX_ADC0_ADREFEN		(1 << 10)
 #define MC13XXX_ADC0_TSMOD0		(1 << 12)
 #define MC13XXX_ADC0_TSMOD1		(1 << 13)
@@ -184,5 +187,10 @@ struct mc13xxx_platform_data {
 #define MC13XXX_ADC0_TSMOD_MASK		(MC13XXX_ADC0_TSMOD0 | \
 					MC13XXX_ADC0_TSMOD1 | \
 					MC13XXX_ADC0_TSMOD2)
+
+#define MC13XXX_ADC0_CONFIG_MASK	(MC13XXX_ADC0_TSMOD_MASK | \
+					MC13XXX_ADC0_LICELLCON | \
+					MC13XXX_ADC0_CHRGICON | \
+					MC13XXX_ADC0_BATICON)
 
 #endif /* ifndef __LINUX_MFD_MC13XXX_H */

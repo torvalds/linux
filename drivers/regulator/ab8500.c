@@ -16,8 +16,8 @@
 #include <linux/module.h>
 #include <linux/err.h>
 #include <linux/platform_device.h>
-#include <linux/mfd/ab8500.h>
 #include <linux/mfd/abx500.h>
+#include <linux/mfd/abx500/ab8500.h>
 #include <linux/regulator/driver.h>
 #include <linux/regulator/machine.h>
 #include <linux/regulator/ab8500.h>

@@ -337,7 +337,6 @@ static int sd_config(struct gspca_dev *gspca_dev,
 		return -1;
 
 	cam = &gspca_dev->cam;
-	gspca_dev->nbalt = 4;
 
 	switch (sd->sensor) {
 	case ID_MI1320:

@@ -312,10 +312,3 @@ to store the payload and this error code is returned.</para>
   </refsect1>
 </refentry>
 
-<!--
-Local Variables:
-mode: sgml
-sgml-parent-document: "v4l2.sgml"
-indent-tabs-mode: nil
-End:
--->
