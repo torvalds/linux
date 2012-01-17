@@ -1997,10 +1997,16 @@ static int match_session(struct cifs_ses *ses, struct smb_vol *vol)
 			return 0;
 		break;
 	default:
+		/* NULL username means anonymous session */
+		if (ses->user_name == NULL) {
+			if (!vol->nullauth)
+				return 0;
+			break;
+		}
+
 		/* anything else takes username/password */
-		if (ses->user_name == NULL)
-			return 0;
-		if (strncmp(ses->user_name, vol->username,
+		if (strncmp(ses->user_name,
+			    vol->username ? vol->username : "",
 			    MAX_USERNAME_SIZE))
 			return 0;
 		if (strlen(vol->username) != 0 &&
@@ -3167,10 +3173,9 @@ cifs_setup_volume_info(struct smb_vol *volume_info, char *mount_data,
 		return -EINVAL;
 
 	if (volume_info->nullauth) {
-		cFYI(1, "null user");
-		volume_info->username = kzalloc(1, GFP_KERNEL);
-		if (volume_info->username == NULL)
-			return -ENOMEM;
+		cFYI(1, "Anonymous login");
+		kfree(volume_info->username);
+		volume_info->username = NULL;
 	} else if (volume_info->username) {
 		/* BB fixme parse for domain name here */
 		cFYI(1, "Username: %s", volume_info->username);
