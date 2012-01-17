@@ -298,6 +298,13 @@ static struct sta_info *ieee80211_ibss_finish_sta(struct sta_info *sta)
 	/* If it fails, maybe we raced another insertion? */
 	if (sta_info_insert_rcu(sta))
 		return sta_info_get(sdata, addr);
+#ifdef CONFIG_MAC80211_IBSS_DEBUG
+	printk(KERN_DEBUG "TX Auth SA=%pM DA=%pM BSSID=%pM"
+	       "(auth_transaction=1)\n", sdata->vif.addr,
+	       sdata->u.ibss.bssid, addr);
+#endif
+	ieee80211_send_auth(sdata, 1, WLAN_AUTH_OPEN, NULL, 0,
+			    addr, sdata->u.ibss.bssid, NULL, 0, 0);
 	return sta;
 }
 
