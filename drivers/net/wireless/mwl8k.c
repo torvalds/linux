@@ -2777,7 +2777,7 @@ static int mwl8k_cmd_tx_power(struct ieee80211_hw *hw,
 	else if (channel->band == IEEE80211_BAND_5GHZ)
 		cmd->band = cpu_to_le16(0x4);
 
-	cmd->channel = channel->hw_value;
+	cmd->channel = cpu_to_le16(channel->hw_value);
 
 	if (conf->channel_type == NL80211_CHAN_NO_HT ||
 	    conf->channel_type == NL80211_CHAN_HT20) {
