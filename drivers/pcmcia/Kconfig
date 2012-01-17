@@ -183,10 +183,14 @@ config PCMCIA_BCM63XX
 config PCMCIA_SOC_COMMON
 	tristate
 
+config PCMCIA_SA11XX_BASE
+	tristate
+
 config PCMCIA_SA1100
 	tristate "SA1100 support"
 	depends on ARM && ARCH_SA1100 && PCMCIA
 	select PCMCIA_SOC_COMMON
+	select PCMCIA_SA11XX_BASE
 	help
 	  Say Y here to include support for SA11x0-based PCMCIA or CF
 	  sockets, found on HP iPAQs, Yopy, and other StrongARM(R)/
@@ -198,6 +202,7 @@ config PCMCIA_SA1111
 	tristate "SA1111 support"
 	depends on ARM && ARCH_SA1100 && SA1111 && PCMCIA
 	select PCMCIA_SOC_COMMON
+	select PCMCIA_SA11XX_BASE
 	help
 	  Say Y  here to include support for SA1111-based PCMCIA or CF
 	  sockets, found on the Jornada 720, Graphicsmaster and other
