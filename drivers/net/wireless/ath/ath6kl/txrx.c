@@ -85,7 +85,7 @@ static bool ath6kl_process_uapsdq(struct ath6kl_sta *conn,
 	struct ath6kl *ar = vif->ar;
 	bool is_apsdq_empty = false;
 	struct ethhdr *datap = (struct ethhdr *) skb->data;
-	u8 up, traffic_class, *ip_hdr;
+	u8 up = 0, traffic_class, *ip_hdr;
 	u16 ether_type;
 	struct ath6kl_llc_snap_hdr *llc_hdr;
 
@@ -122,8 +122,6 @@ static bool ath6kl_process_uapsdq(struct ath6kl_sta *conn,
 		if (ether_type == IP_ETHERTYPE)
 			up = ath6kl_wmi_determine_user_priority(
 							ip_hdr, 0);
-	} else {
-		up = 0;
 	}
 
 	traffic_class = ath6kl_wmi_get_traffic_class(up);
