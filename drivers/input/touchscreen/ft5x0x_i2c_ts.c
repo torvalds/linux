@@ -205,12 +205,16 @@ static void fts_ts_release(void)
 
 		_st_finger_infos[i].u2_pressure = 0;
 
+		input_mt_slot(data->input_dev, i);
+		input_mt_report_slot_state(data->input_dev, MT_TOOL_FINGER, false);
+
+/*
 		input_report_abs(data->input_dev, ABS_MT_POSITION_X, _st_finger_infos[i].i2_x);
 		input_report_abs(data->input_dev, ABS_MT_POSITION_Y, _st_finger_infos[i].i2_y);
 		input_report_abs(data->input_dev, ABS_MT_TOUCH_MAJOR, _st_finger_infos[i].u2_pressure);
 		input_report_abs(data->input_dev, ABS_MT_TRACKING_ID, _st_finger_infos[i].ui2_id);
 		input_mt_sync(data->input_dev);
-
+*/
 		i_need_sync = 1;
 
 		if ( _st_finger_infos[i].u2_pressure == 0 )
@@ -336,12 +340,11 @@ int fts_read_data(void)
 	u8 buf[32] = {0};
 //	static int key_id=0x80;
 
-	int id,temp,i_count,ret = -1;
-	int touch_point_num = 0, touch_event, x, y, size;
-//	REPORT_FINGER_INFO_T touch_info[CFG_MAX_POINT_NUM];
+	int id,i_count,ret = -1;
+	int touch_point_num = 0, touch_event, x, y;
+	int tmp, swap ,sync_flag = 0;
 
-
-	buf[0] = 2;
+	buf[0] = 2;//ADDR
 	ret = fts_i2c_rxdata(buf, 1);
 	if (ret > 0) 
 		touch_point_num = buf[0]&0xf;
@@ -352,141 +355,100 @@ int fts_read_data(void)
 
 	i_count = 0;
 
-	do 
+	if(touch_point_num != 0)
 	{
-		buf[0] = 3;
-
-		id = 0xe;  
-
-		ret=fts_i2c_rxdata(buf, 6);
-		if (ret > 0)  
+		buf[0] = 3;//ADDR
+		ret=fts_i2c_rxdata(buf, 6*touch_point_num);
+		if(ret >= 0)
 		{
-
-			id = buf[2]>>4;
-//			printk("\n--the id number is %d---\n",id);
-			touch_event = buf[0]>>6;     
-			if (id >= 0 && id< CFG_MAX_POINT_NUM)  
+			do
 			{
-
-				temp = buf[0]& 0x0f;
-				temp = temp<<8;
-				temp = temp | buf[1];
-				x = temp; 
-
-				temp = (buf[2])& 0x0f;
-				temp = temp<<8;
-				temp = temp | buf[3];
-				y=temp;
-			#if 1
-				{
-					int swap;
+				id = buf[2+i_count*6]>>4;
+				if(id <0 || id>CFG_MAX_POINT_NUM)
+					printk("[ERROR] Touch ID readed is illegal!!\n");
 				
-					//x = (768-x)*600/768;
-					//y = y*1024/1024;
+				touch_event = buf[i_count*6]>>6; 
+				x =((buf[i_count*6]& 0x0f)<<8) |buf[i_count*6+1];
+				y =( (buf[i_count*6+2]& 0x0f)<<8) | buf[i_count*6+3];
 
-					swap = x;
-					x = y;
-					y = swap;
-					
-					x = 1024 - x;////////////////////////////
-					y = 600 - y;
+				//adjust value
+				x =  600 - x;
+				y = 1024 - y;	
+#if 1
+				{//swap
+						swap = x;
+						x = y;
+						y = swap;
 				}
-			#endif
-
-				//pressure = buf[4] & 0x3f; 
-				//size = buf[5]&0xf0;
-				//size = (id<<8)|size;
-				touch_event = buf[0]>>6; 
-
-				if (touch_event == 0)  //press down
+#endif
+				if (touch_event == 0) //down
 				{
-					//if(y>=0 && y<850)
-					{
-
-
-						_st_finger_infos[id].u2_pressure= 1;//pressure;
-						_st_finger_infos[id].i2_x= (int16_t)x;
-						_st_finger_infos[id].i2_y= (int16_t)y;
-						_st_finger_infos[id].ui2_id  = size;
-						_si_touch_num ++;
-					}  
-				}   
-
+					_st_finger_infos[i_count].u2_pressure= 1;//pressure;
+					_st_finger_infos[i_count].i2_x= (int16_t)x;
+					_st_finger_infos[i_count].i2_y= (int16_t)y;
+					_si_touch_num ++;
+				}
 				else if (touch_event == 1) //up event
 				{
-
-					_st_finger_infos[id].u2_pressure= 0;
+					_st_finger_infos[i_count].u2_pressure= 0;
 				}
-
 				else if (touch_event == 2) //move
 				{
-//					printk("[TSP]id=%d move\n", id);
-					_st_finger_infos[id].u2_pressure= 1;//pressure;
-					_st_finger_infos[id].i2_x= (int16_t)x;
-					_st_finger_infos[id].i2_y= (int16_t)y;
-					_st_finger_infos[id].ui2_id  = size;
+					_st_finger_infos[i_count].u2_pressure= 1;//pressure;
+					_st_finger_infos[i_count].i2_x= (int16_t)x;
+					_st_finger_infos[i_count].i2_y= (int16_t)y;
 					_si_touch_num ++;
 				}
 				else					/*bad event, ignore*/
+				{
+					printk("Bad event, ignore!!!\n");
 					continue;  
-
-				
-//				printk("\n--report x position  is  %d,pressure=%d----\n",_st_finger_infos[id].i2_x, touch_event);
-//				printk("\n--report y position  is  %d,pressure=%d----\n",_st_finger_infos[id].i2_y, touch_event);
-
-
-				if(_st_finger_infos[id].down_num > touch_point_num*50)//5*40
-				{	
-					_st_finger_infos[id].u2_pressure = 0;
-					printk("point_idx = [%d],updown=%d,down_num=%d\n",id,_st_finger_infos[id].u2_pressure,_st_finger_infos[id].down_num );
 				}
 				
-				if(_st_finger_infos[id].u2_pressure == 1)//down
+				if(_st_finger_infos[i_count].u2_pressure == 1)//down
 				{
-					_st_finger_infos[id].down_num++;
 					input_mt_slot(data->input_dev, id);
 					input_mt_report_slot_state(data->input_dev, MT_TOOL_FINGER, true);					
 					input_report_abs(data->input_dev, ABS_MT_TOUCH_MAJOR, 1);
-					input_report_abs(data->input_dev, ABS_MT_POSITION_X,  _st_finger_infos[id].i2_x);
-					input_report_abs(data->input_dev, ABS_MT_POSITION_Y,  _st_finger_infos[id].i2_y);
+					input_report_abs(data->input_dev, ABS_MT_POSITION_X,  _st_finger_infos[i_count].i2_x);
+					input_report_abs(data->input_dev, ABS_MT_POSITION_Y,  _st_finger_infos[i_count].i2_y);
+					sync_flag = 1;
 				}
-				else if(_st_finger_infos[id].u2_pressure == 0)//up
+				else if(_st_finger_infos[i_count].u2_pressure == 0)//up
 				{
-					_st_finger_infos[id].down_num = 0;
 					input_mt_slot(data->input_dev, id);
 					input_mt_report_slot_state(data->input_dev, MT_TOOL_FINGER, false);
+					sync_flag = 1;
 				}
-//					else
-//						printk("[%s]invalid pressure value %d\n",__FUNCTION__,_st_finger_infos[id].u2_pressure);
+				
 
-//					input_sync(data->input_dev);
-
-				if(_st_finger_infos[id].u2_pressure == 0 )
+				if(_st_finger_infos[i_count].u2_pressure == 0 )
 				{
-					_st_finger_infos[id].u2_pressure= -1;
+					_st_finger_infos[i_count].u2_pressure= -1;
 				}
-
+				
 				input_sync(data->input_dev);
-/*
-				if (_si_touch_num == 0 )
-				{
-					fts_ts_release();
-				}
-				_si_touch_num = 0;
-*/
-			}    
 
-		}	
+				i_count++;
+			}while(i_count < touch_point_num);
+			
+			if(sync_flag)
+				input_sync(data->input_dev);
 
+		}
 		else
 		{
-			printk("[TSP] ERROR: in %s, line %d, ret = %d\n",
+			printk("[LAIBAO] ERROR: in %s, line %d, ret = %d\n",
 					__FUNCTION__, __LINE__, ret);
 		}
+	}
 
-		i_count ++;
-	} while (/*id != 0xf && */i_count < touch_point_num);
-
+	//If touch up or touch number is zero then release touch.
+	if(touch_point_num == 0 || _si_touch_num == 0)
+	{
+		printk("[RELEASE!!!!!!!!!!!!!!!]\n");
+		fts_ts_release();
+	}
 
 	return 0;
 }
