@@ -479,6 +479,95 @@ static void mlx4_en_get_ringparam(struct net_device *dev,
 	param->tx_pending = priv->tx_ring[0].size;
 }
 
+static u32 mlx4_en_get_rxfh_indir_size(struct net_device *dev)
+{
+	struct mlx4_en_priv *priv = netdev_priv(dev);
+
+	return priv->rx_ring_num;
+}
+
+static int mlx4_en_get_rxfh_indir(struct net_device *dev, u32 *ring_index)
+{
+	struct mlx4_en_priv *priv = netdev_priv(dev);
+	struct mlx4_en_rss_map *rss_map = &priv->rss_map;
+	int rss_rings;
+	size_t n = priv->rx_ring_num;
+	int err = 0;
+
+	rss_rings = priv->prof->rss_rings ?: priv->rx_ring_num;
+
+	while (n--) {
+		ring_index[n] = rss_map->qps[n % rss_rings].qpn -
+			rss_map->base_qpn;
+	}
+
+	return err;
+}
+
+static int mlx4_en_set_rxfh_indir(struct net_device *dev,
+		const u32 *ring_index)
+{
+	struct mlx4_en_priv *priv = netdev_priv(dev);
+	struct mlx4_en_dev *mdev = priv->mdev;
+	int port_up = 0;
+	int err = 0;
+	int i;
+	int rss_rings = 0;
+
+	/* Calculate RSS table size and make sure flows are spread evenly
+	 * between rings
+	 */
+	for (i = 0; i < priv->rx_ring_num; i++) {
+		if (i > 0 && !ring_index[i] && !rss_rings)
+			rss_rings = i;
+
+		if (ring_index[i] != (i % (rss_rings ?: priv->rx_ring_num)))
+			return -EINVAL;
+	}
+
+	if (!rss_rings)
+		rss_rings = priv->rx_ring_num;
+
+	/* RSS table size must be an order of 2 */
+	if (!is_power_of_2(rss_rings))
+		return -EINVAL;
+
+	mutex_lock(&mdev->state_lock);
+	if (priv->port_up) {
+		port_up = 1;
+		mlx4_en_stop_port(dev);
+	}
+
+	priv->prof->rss_rings = rss_rings;
+
+	if (port_up) {
+		err = mlx4_en_start_port(dev);
+		if (err)
+			en_err(priv, "Failed starting port\n");
+	}
+
+	mutex_unlock(&mdev->state_lock);
+	return err;
+}
+
+static int mlx4_en_get_rxnfc(struct net_device *dev, struct ethtool_rxnfc *cmd,
+			     u32 *rule_locs)
+{
+	struct mlx4_en_priv *priv = netdev_priv(dev);
+	int err = 0;
+
+	switch (cmd->cmd) {
+	case ETHTOOL_GRXRINGS:
+		cmd->data = priv->rx_ring_num;
+		break;
+	default:
+		err = -EOPNOTSUPP;
+		break;
+	}
+
+	return err;
+}
+
 const struct ethtool_ops mlx4_en_ethtool_ops = {
 	.get_drvinfo = mlx4_en_get_drvinfo,
 	.get_settings = mlx4_en_get_settings,
@@ -498,6 +587,10 @@ const struct ethtool_ops mlx4_en_ethtool_ops = {
 	.set_pauseparam = mlx4_en_set_pauseparam,
 	.get_ringparam = mlx4_en_get_ringparam,
 	.set_ringparam = mlx4_en_set_ringparam,
+	.get_rxnfc = mlx4_en_get_rxnfc,
+	.get_rxfh_indir_size = mlx4_en_get_rxfh_indir_size,
+	.get_rxfh_indir = mlx4_en_get_rxfh_indir,
+	.set_rxfh_indir = mlx4_en_set_rxfh_indir,
 };
 
 
