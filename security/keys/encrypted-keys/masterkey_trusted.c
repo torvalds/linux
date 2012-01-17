@@ -39,7 +39,7 @@ struct key *request_trusted_key(const char *trusted_desc,
 		goto error;
 
 	down_read(&tkey->sem);
-	tpayload = rcu_dereference(tkey->payload.data);
+	tpayload = tkey->payload.data;
 	*master_key = tpayload->key;
 	*master_keylen = tpayload->key_len;
 error:

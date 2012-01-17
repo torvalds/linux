@@ -314,7 +314,7 @@ static struct key *request_user_key(const char *master_desc, u8 **master_key,
 		goto error;
 
 	down_read(&ukey->sem);
-	upayload = rcu_dereference(ukey->payload.data);
+	upayload = ukey->payload.data;
 	*master_key = upayload->data;
 	*master_keylen = upayload->datalen;
 error:
