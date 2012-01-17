@@ -1401,7 +1401,7 @@ static int ath6kl_cfg80211_del_iface(struct wiphy *wiphy,
 
 	ath6kl_cleanup_vif(vif, test_bit(WMI_READY, &ar->flag));
 
-	ath6kl_deinit_if_data(vif);
+	ath6kl_cfg80211_vif_cleanup(vif);
 
 	return 0;
 }
@@ -2806,7 +2806,7 @@ int ath6kl_register_ieee80211_hw(struct ath6kl *ar)
 	return 0;
 }
 
-static int ath6kl_init_if_data(struct ath6kl_vif *vif)
+static int ath6kl_cfg80211_vif_init(struct ath6kl_vif *vif)
 {
 	vif->aggr_cntxt = aggr_init(vif->ndev);
 	if (!vif->aggr_cntxt) {
@@ -2827,7 +2827,7 @@ static int ath6kl_init_if_data(struct ath6kl_vif *vif)
 	return 0;
 }
 
-void ath6kl_deinit_if_data(struct ath6kl_vif *vif)
+void ath6kl_cfg80211_vif_cleanup(struct ath6kl_vif *vif)
 {
 	struct ath6kl *ar = vif->ar;
 	struct ath6kl_mc_filter *mc_filter, *tmp;
@@ -2880,8 +2880,7 @@ struct net_device *ath6kl_interface_add(struct ath6kl *ar, char *name,
 
 	ath6kl_init_control_info(vif);
 
-	/* TODO: Pass interface specific pointer instead of ar */
-	if (ath6kl_init_if_data(vif))
+	if (ath6kl_cfg80211_vif_init(vif))
 		goto err;
 
 	if (register_netdevice(ndev))

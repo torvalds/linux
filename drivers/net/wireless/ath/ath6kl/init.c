@@ -1811,7 +1811,7 @@ err_rxbuf_cleanup:
 	ath6kl_htc_flush_rx_buf(ar->htc_target);
 	ath6kl_cleanup_amsdu_rxbufs(ar);
 	rtnl_lock();
-	ath6kl_deinit_if_data(netdev_priv(ndev));
+	ath6kl_cfg80211_vif_cleanup(netdev_priv(ndev));
 	rtnl_unlock();
 	wiphy_unregister(ar->wiphy);
 err_debug_init:
@@ -1832,6 +1832,7 @@ err_wq:
 	return ret;
 }
 
+/* FIXME: move this to cfg80211.c and rename to ath6kl_cfg80211_vif_stop() */
 void ath6kl_cleanup_vif(struct ath6kl_vif *vif, bool wmi_ready)
 {
 	static u8 bcast_mac[] = {0xff, 0xff, 0xff, 0xff, 0xff, 0xff};
@@ -1877,7 +1878,7 @@ void ath6kl_stop_txrx(struct ath6kl *ar)
 		spin_unlock_bh(&ar->list_lock);
 		ath6kl_cleanup_vif(vif, test_bit(WMI_READY, &ar->flag));
 		rtnl_lock();
-		ath6kl_deinit_if_data(vif);
+		ath6kl_cfg80211_vif_cleanup(vif);
 		rtnl_unlock();
 		spin_lock_bh(&ar->list_lock);
 	}
