@@ -152,6 +152,7 @@ static struct kvmppc_linear_info *kvm_alloc_linear(int type)
 		break;
 	}
 	spin_unlock(&linear_lock);
+	memset(ri->base_virt, 0, ri->npages << PAGE_SHIFT);
 	return ri;
 }
 
