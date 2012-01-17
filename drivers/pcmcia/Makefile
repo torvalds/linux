@@ -40,10 +40,10 @@ obj-$(CONFIG_ELECTRA_CF)			+= electra_cf.o
 obj-$(CONFIG_PCMCIA_ALCHEMY_DEVBOARD)		+= db1xxx_ss.o
 
 sa1111_cs-y					+= sa1111_generic.o
-sa1111_cs-$(CONFIG_ASSABET_NEPONSET)		+= sa1100_neponset.o
-sa1111_cs-$(CONFIG_SA1100_BADGE4)		+= sa1100_badge4.o
-sa1111_cs-$(CONFIG_SA1100_JORNADA720)		+= sa1100_jornada720.o
-sa1111_cs-$(CONFIG_ARCH_LUBBOCK)		+= pxa2xx_lubbock.o
+sa1111_cs-$(CONFIG_ASSABET_NEPONSET)		+= sa1111_neponset.o
+sa1111_cs-$(CONFIG_SA1100_BADGE4)		+= sa1111_badge4.o
+sa1111_cs-$(CONFIG_SA1100_JORNADA720)		+= sa1111_jornada720.o
+sa1111_cs-$(CONFIG_ARCH_LUBBOCK)		+= sa1111_lubbock.o
 
 sa1100_cs-y					+= sa1100_generic.o
 sa1100_cs-$(CONFIG_SA1100_ASSABET)		+= sa1100_assabet.o
