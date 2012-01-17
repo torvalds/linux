@@ -245,7 +245,7 @@ nouveau_pm_perflvl_get(struct drm_device *dev, struct nouveau_pm_level *perflvl)
 static void
 nouveau_pm_perflvl_info(struct nouveau_pm_level *perflvl, char *ptr, int len)
 {
-	char c[16], s[16], v[32], f[16], t[16], m[16];
+	char c[16], s[16], v[32], f[16], m[16];
 
 	c[0] = '\0';
 	if (perflvl->core)
@@ -273,11 +273,7 @@ nouveau_pm_perflvl_info(struct nouveau_pm_level *perflvl, char *ptr, int len)
 	if (perflvl->fanspeed)
 		snprintf(f, sizeof(f), " fanspeed %d%%", perflvl->fanspeed);
 
-	t[0] = '\0';
-	if (perflvl->timing)
-		snprintf(t, sizeof(t), " timing %d", perflvl->timing->id);
-
-	snprintf(ptr, len, "%s%s%s%s%s%s\n", c, s, m, t, v, f);
+	snprintf(ptr, len, "%s%s%s%s%s\n", c, s, m,  v, f);
 }
 
 static ssize_t

@@ -293,7 +293,7 @@ nouveau_perf_init(struct drm_device *dev)
 	struct nouveau_pm_engine *pm = &dev_priv->engine.pm;
 	struct nvbios *bios = &dev_priv->vbios;
 	u8 *perf, ver, hdr, cnt, len;
-	int vid, i = -1;
+	int ret, vid, i = -1;
 
 	if (bios->type == NVBIOS_BMP && bios->data[bios->offset + 6] < 0x25) {
 		legacy_perf_init(dev);
@@ -384,7 +384,12 @@ nouveau_perf_init(struct drm_device *dev)
 		}
 
 		/* get the corresponding memory timings */
-		perflvl->timing = nouveau_mem_timing(dev, perflvl->memory);
+		ret = nouveau_mem_timing_calc(dev, perflvl->memory,
+					          &perflvl->timing);
+		if (ret) {
+			NV_DEBUG(dev, "perflvl %d, bad timing: %d\n", i, ret);
+			continue;
+		}
 
 		snprintf(perflvl->name, sizeof(perflvl->name),
 			 "performance_level_%d", i);

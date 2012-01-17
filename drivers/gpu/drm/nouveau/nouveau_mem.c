@@ -812,63 +812,59 @@ nouveau_mem_gddr5_mr(struct drm_device *dev, u32 freq,
 	return 0;
 }
 
-struct nouveau_pm_memtiming *
-nouveau_mem_timing(struct drm_device *dev, u32 freq)
+int
+nouveau_mem_timing_calc(struct drm_device *dev, u32 freq,
+			struct nouveau_pm_memtiming *t)
 {
 	struct drm_nouveau_private *dev_priv = dev->dev_private;
 	struct nouveau_pm_engine *pm = &dev_priv->engine.pm;
-	struct nouveau_pm_memtiming *boot = &pm->boot_timing;
-	struct nouveau_pm_memtiming *t;
+	struct nouveau_pm_memtiming *boot = &pm->boot.timing;
 	struct nouveau_pm_tbl_entry *e;
 	u8 ver, len, *ptr;
 	int ret;
 
 	ptr = nouveau_perf_timing(dev, freq, &ver, &len);
-	if (!ptr || ptr[0] == 0x00)
-		return boot;
+	if (!ptr || ptr[0] == 0x00) {
+		*t = *boot;
+		return 0;
+	}
 	e = (struct nouveau_pm_tbl_entry *)ptr;
 
-	t = kzalloc(sizeof(*t), GFP_KERNEL);
-	if (t) {
-		t->tCWL = boot->tCWL;
+	t->tCWL = boot->tCWL;
 
-		switch (dev_priv->card_type) {
-		case NV_40:
-			ret = nv40_mem_timing_calc(dev, freq, e, len, boot, t);
-			break;
-		case NV_50:
-			ret = nv50_mem_timing_calc(dev, freq, e, len, boot, t);
-			break;
-		case NV_C0:
-			ret = nvc0_mem_timing_calc(dev, freq, e, len, boot, t);
-			break;
-		default:
-			ret = -ENODEV;
-			break;
-		}
-
-		switch (dev_priv->vram_type * !ret) {
-		case NV_MEM_TYPE_GDDR3:
-			ret = nouveau_mem_gddr3_mr(dev, freq, e, len, boot, t);
-			break;
-		case NV_MEM_TYPE_GDDR5:
-			ret = nouveau_mem_gddr5_mr(dev, freq, e, len, boot, t);
-			break;
-		case NV_MEM_TYPE_DDR2:
-			ret = nouveau_mem_ddr2_mr(dev, freq, e, len, boot, t);
-			break;
-		case NV_MEM_TYPE_DDR3:
-			ret = nouveau_mem_ddr3_mr(dev, freq, e, len, boot, t);
-			break;
-		}
-
-		if (ret) {
-			kfree(t);
-			t = NULL;
-		}
+	switch (dev_priv->card_type) {
+	case NV_40:
+		ret = nv40_mem_timing_calc(dev, freq, e, len, boot, t);
+		break;
+	case NV_50:
+		ret = nv50_mem_timing_calc(dev, freq, e, len, boot, t);
+		break;
+	case NV_C0:
+		ret = nvc0_mem_timing_calc(dev, freq, e, len, boot, t);
+		break;
+	default:
+		ret = -ENODEV;
+		break;
 	}
 
-	return t;
+	switch (dev_priv->vram_type * !ret) {
+	case NV_MEM_TYPE_GDDR3:
+		ret = nouveau_mem_gddr3_mr(dev, freq, e, len, boot, t);
+		break;
+	case NV_MEM_TYPE_GDDR5:
+		ret = nouveau_mem_gddr5_mr(dev, freq, e, len, boot, t);
+		break;
+	case NV_MEM_TYPE_DDR2:
+		ret = nouveau_mem_ddr2_mr(dev, freq, e, len, boot, t);
+		break;
+	case NV_MEM_TYPE_DDR3:
+		ret = nouveau_mem_ddr3_mr(dev, freq, e, len, boot, t);
+		break;
+	default:
+		ret = -EINVAL;
+	}
+
+	return ret;
 }
 
 void
