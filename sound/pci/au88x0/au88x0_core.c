@@ -2050,8 +2050,6 @@ vortex_adb_checkinout(vortex_t * vortex, int resmap[], int out, int restype)
 }
 
 /* Default Connections  */
-static int
-vortex_adb_allocroute(vortex_t * vortex, int dma, int nr_ch, int dir, int type);
 
 static void vortex_connect_default(vortex_t * vortex, int en)
 {
@@ -2111,15 +2109,13 @@ static void vortex_connect_default(vortex_t * vortex, int en)
   Return: Return allocated DMA or same DMA passed as "dma" when dma >= 0.
 */
 static int
-vortex_adb_allocroute(vortex_t * vortex, int dma, int nr_ch, int dir, int type)
+vortex_adb_allocroute(vortex_t *vortex, int dma, int nr_ch, int dir,
+			int type, int subdev)
 {
 	stream_t *stream;
 	int i, en;
+	struct pcm_vol *p;
 	
-	if ((nr_ch == 3)
-	    || ((dir == SNDRV_PCM_STREAM_CAPTURE) && (nr_ch > 2)))
-		return -EBUSY;
-
 	if (dma >= 0) {
 		en = 0;
 		vortex_adb_checkinout(vortex,
@@ -2249,6 +2245,14 @@ vortex_adb_allocroute(vortex_t * vortex, int dma, int nr_ch, int dir, int type)
 							      mix[i % nr_ch],
 							      MIX_DEFIGAIN);
 #endif
+			}
+			if (stream->type == VORTEX_PCM_ADB && en) {
+				p = &vortex->pcm_vol[subdev];
+				p->dma = dma;
+				for (i = 0; i < nr_ch; i++)
+					p->mixin[i] = mix[i];
+				for (i = 0; i < ch_top; i++)
+					p->vol[i] = 0;
 			}
 		}
 #ifndef CHIP_AU8820
