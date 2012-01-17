@@ -9454,13 +9454,10 @@ static int bnx2x_848xx_cmn_config_init(struct bnx2x_phy *phy,
 			 an_1000_val);
 
 	/* set 100 speed advertisement */
-	if (((phy->req_line_speed == SPEED_AUTO_NEG) &&
+	if ((phy->req_line_speed == SPEED_AUTO_NEG) &&
 	     (phy->speed_cap_mask &
 	      (PORT_HW_CFG_SPEED_CAPABILITY_D0_100M_FULL |
-	       PORT_HW_CFG_SPEED_CAPABILITY_D0_100M_HALF)) &&
-	     (phy->supported &
-	      (SUPPORTED_100baseT_Half |
-	       SUPPORTED_100baseT_Full)))) {
+	       PORT_HW_CFG_SPEED_CAPABILITY_D0_100M_HALF))) {
 		an_10_100_val |= (1<<7);
 		/* Enable autoneg and restart autoneg for legacy speeds */
 		autoneg_val |= (1<<9 | 1<<12);
@@ -11527,6 +11524,19 @@ static int bnx2x_populate_ext_phy(struct bnx2x *bp,
 			 SHARED_HW_CFG_MDC_MDIO_ACCESS1_SHIFT);
 	}
 	phy->mdio_ctrl = bnx2x_get_emac_base(bp, mdc_mdio_access, port);
+
+	if ((phy->type == PORT_HW_CFG_XGXS_EXT_PHY_TYPE_BCM84833) &&
+	    (phy->ver_addr)) {
+		/*
+		 * Remove 100Mb link supported for BCM84833 when phy fw
+		 * version lower than or equal to 1.39
+		 */
+		u32 raw_ver = REG_RD(bp, phy->ver_addr);
+		if (((raw_ver & 0x7F) <= 39) &&
+		    (((raw_ver & 0xF80) >> 7) <= 1))
+			phy->supported &= ~(SUPPORTED_100baseT_Half |
+					    SUPPORTED_100baseT_Full);
+	}
 
 	/*
 	 * In case mdc/mdio_access of the external phy is different than the
