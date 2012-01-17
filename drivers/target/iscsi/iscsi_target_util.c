@@ -849,6 +849,17 @@ void iscsit_free_cmd(struct iscsi_cmd *cmd)
 	case ISCSI_OP_SCSI_TMFUNC:
 		transport_generic_free_cmd(&cmd->se_cmd, 1);
 		break;
+	case ISCSI_OP_REJECT:
+		/*
+		 * Handle special case for REJECT when iscsi_add_reject*() has
+		 * overwritten the original iscsi_opcode assignment, and the
+		 * associated cmd->se_cmd needs to be released.
+		 */
+		if (cmd->se_cmd.se_tfo != NULL) {
+			transport_generic_free_cmd(&cmd->se_cmd, 1);
+			break;
+		}
+		/* Fall-through */
 	default:
 		iscsit_release_cmd(cmd);
 		break;
