@@ -2270,10 +2270,10 @@ static int __devinit enic_probe(struct pci_dev *pdev,
 	int using_dac = 0;
 	unsigned int i;
 	int err;
-	int num_pps = 1;
 #ifdef CONFIG_PCI_IOV
 	int pos = 0;
 #endif
+	int num_pps;
 
 	/* Allocate net device structure and initialize.  Private
 	 * instance data is initialized to zero.
@@ -2380,17 +2380,17 @@ static int __devinit enic_probe(struct pci_dev *pdev,
 				goto err_out_vnic_unregister;
 			}
 			enic->priv_flags |= ENIC_SRIOV_ENABLED;
-			num_pps = enic->num_vfs;
 		}
 	}
-
 #endif
+
+	num_pps = enic->num_vfs ? enic->num_vfs : 1;
 	/* Allocate structure for port profiles */
 	enic->pp = kcalloc(num_pps, sizeof(*enic->pp), GFP_KERNEL);
 	if (!enic->pp) {
 		pr_err("port profile alloc failed, aborting\n");
 		err = -ENOMEM;
-		goto err_out_disable_sriov;
+		goto err_out_disable_sriov_pp;
 	}
 
 	/* Issue device open to get device in known state
@@ -2399,7 +2399,7 @@ static int __devinit enic_probe(struct pci_dev *pdev,
 	err = enic_dev_open(enic);
 	if (err) {
 		dev_err(dev, "vNIC dev open failed, aborting\n");
-		goto err_out_free_pp;
+		goto err_out_disable_sriov;
 	}
 
 	/* Setup devcmd lock
@@ -2522,9 +2522,9 @@ err_out_dev_deinit:
 	enic_dev_deinit(enic);
 err_out_dev_close:
 	vnic_dev_close(enic->vdev);
-err_out_free_pp:
-	kfree(enic->pp);
 err_out_disable_sriov:
+	kfree(enic->pp);
+err_out_disable_sriov_pp:
 #ifdef CONFIG_PCI_IOV
 	if (enic_sriov_enabled(enic)) {
 		pci_disable_sriov(pdev);
