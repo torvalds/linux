@@ -781,17 +781,15 @@ static void __init kuser_get_tls_init(unsigned long vectors)
 		memcpy((void *)vectors + 0xfe0, (void *)vectors + 0xfe8, 4);
 }
 
-void __init early_trap_init(void)
+void __init early_trap_init(void *vectors_base)
 {
-#if defined(CONFIG_CPU_USE_DOMAINS)
-	unsigned long vectors = CONFIG_VECTORS_BASE;
-#else
-	unsigned long vectors = (unsigned long)vectors_page;
-#endif
+	unsigned long vectors = (unsigned long)vectors_base;
 	extern char __stubs_start[], __stubs_end[];
 	extern char __vectors_start[], __vectors_end[];
 	extern char __kuser_helper_start[], __kuser_helper_end[];
 	int kuser_sz = __kuser_helper_end - __kuser_helper_start;
+
+	vectors_page = vectors_base;
 
 	/*
 	 * Copy the vectors, stubs and kuser helpers (in entry-armv.S)
