@@ -70,6 +70,7 @@ struct sh_dmae_pdata {
 	unsigned int needs_tend_set:1;
 	unsigned int no_dmars:1;
 	unsigned int chclr_present:1;
+	unsigned int slave_only:1;
 };
 
 /* DMA register */
