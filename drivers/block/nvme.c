@@ -613,11 +613,7 @@ static int nvme_submit_bio_queue(struct nvme_queue *nvmeq, struct nvme_ns *ns,
 	return result;
 }
 
-/*
- * NB: return value of non-zero would mean that we were a stacking driver.
- * make_request must always succeed.
- */
-static int nvme_make_request(struct request_queue *q, struct bio *bio)
+static void nvme_make_request(struct request_queue *q, struct bio *bio)
 {
 	struct nvme_ns *ns = q->queuedata;
 	struct nvme_queue *nvmeq = get_nvmeq(ns->dev);
@@ -634,8 +630,6 @@ static int nvme_make_request(struct request_queue *q, struct bio *bio)
 
 	spin_unlock_irq(&nvmeq->q_lock);
 	put_nvmeq(nvmeq);
-
-	return 0;
 }
 
 static irqreturn_t nvme_process_cq(struct nvme_queue *nvmeq)
