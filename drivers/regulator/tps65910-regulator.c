@@ -175,6 +175,9 @@ static struct tps_info tps65910_regs[] = {
 
 static struct tps_info tps65911_regs[] = {
 	{
+		.name = "VRTC",
+	},
+	{
 		.name = "VIO",
 		.min_uV = 1500000,
 		.max_uV = 3300000,
