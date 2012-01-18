@@ -20,6 +20,9 @@
  * handling file/dir, and address_space operation
  */
 
+#ifdef CONFIG_AUFS_DEBUG
+#include <linux/migrate.h>
+#endif
 #include <linux/pagemap.h>
 #include "aufs.h"
 
@@ -638,7 +641,7 @@ static void aufs_invalidatepage(struct page *page, unsigned long offset)
 static int aufs_releasepage(struct page *page, gfp_t gfp)
 { AuUnsupport(); return 0; }
 static int aufs_migratepage(struct address_space *mapping, struct page *newpage,
-			    struct page *page)
+			    struct page *page, enum migrate_mode mode)
 { AuUnsupport(); return 0; }
 static int aufs_launder_page(struct page *page)
 { AuUnsupport(); return 0; }
