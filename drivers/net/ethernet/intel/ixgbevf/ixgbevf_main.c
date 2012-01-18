@@ -53,7 +53,7 @@
 
 #include "ixgbevf.h"
 
-char ixgbevf_driver_name[] = "ixgbevf";
+const char ixgbevf_driver_name[] = "ixgbevf";
 static const char ixgbevf_driver_string[] =
 	"Intel(R) 10 Gigabit PCI Express Virtual Function Network Driver";
 
