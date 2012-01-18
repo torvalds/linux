@@ -39,6 +39,13 @@
 /* www.candapter.com Ewert Energy Systems CANdapter device */
 #define FTDI_CANDAPTER_PID 0x9F80 /* Product Id */
 
+/*
+ * Texas Instruments XDS100v2 JTAG / BeagleBone A3
+ * http://processors.wiki.ti.com/index.php/XDS100
+ * http://beagleboard.org/bone
+ */
+#define TI_XDS100V2_PID		0xa6d0
+
 #define FTDI_NXTCAM_PID		0xABB8 /* NXTCam for Mindstorms NXT */
 
 /* US Interface Navigator (http://www.usinterface.com/) */
