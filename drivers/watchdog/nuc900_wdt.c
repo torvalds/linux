@@ -72,7 +72,7 @@ struct nuc900_wdt {
 };
 
 static unsigned long nuc900wdt_busy;
-struct nuc900_wdt *nuc900_wdt;
+static struct nuc900_wdt *nuc900_wdt;
 
 static inline void nuc900_wdt_keepalive(void)
 {
