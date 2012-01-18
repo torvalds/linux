@@ -143,11 +143,10 @@ static struct gpio_keys_button gpio_buttons[] = {
 static struct gpio_keys_platform_data gpio_key_info = {
 	.buttons        = gpio_buttons,
 	.nbuttons       = ARRAY_SIZE(gpio_buttons),
-	.poll_interval  = 250, /* polled for now */
 };
 
 static struct platform_device gpio_keys_device = {
-	.name   = "gpio-keys-polled", /* polled for now */
+	.name   = "gpio-keys",
 	.id     = -1,
 	.dev    = {
 		.platform_data  = &gpio_key_info,
