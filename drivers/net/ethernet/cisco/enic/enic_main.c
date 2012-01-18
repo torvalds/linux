@@ -57,11 +57,13 @@
 
 #define PCI_DEVICE_ID_CISCO_VIC_ENET         0x0043  /* ethernet vnic */
 #define PCI_DEVICE_ID_CISCO_VIC_ENET_DYN     0x0044  /* enet dynamic vnic */
+#define PCI_DEVICE_ID_CISCO_VIC_ENET_VF      0x0071  /* enet SRIOV VF */
 
 /* Supported devices */
 static DEFINE_PCI_DEVICE_TABLE(enic_id_table) = {
 	{ PCI_VDEVICE(CISCO, PCI_DEVICE_ID_CISCO_VIC_ENET) },
 	{ PCI_VDEVICE(CISCO, PCI_DEVICE_ID_CISCO_VIC_ENET_DYN) },
+	{ PCI_VDEVICE(CISCO, PCI_DEVICE_ID_CISCO_VIC_ENET_VF) },
 	{ 0, }	/* end of table */
 };
 
@@ -130,6 +132,11 @@ int enic_is_dynamic(struct enic *enic)
 int enic_sriov_enabled(struct enic *enic)
 {
 	return (enic->priv_flags & ENIC_SRIOV_ENABLED) ? 1 : 0;
+}
+
+static int enic_is_sriov_vf(struct enic *enic)
+{
+	return enic->pdev->device == PCI_DEVICE_ID_CISCO_VIC_ENET_VF;
 }
 
 int enic_is_valid_vf(struct enic *enic, int vf)
