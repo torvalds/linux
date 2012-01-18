@@ -21,7 +21,7 @@
 #include <linux/ctype.h>
 #include <scsi/iscsi_proto.h>
 #include <target/target_core_base.h>
-#include <target/target_core_tpg.h>
+#include <target/target_core_fabric.h>
 
 #include "iscsi_target_core.h"
 #include "iscsi_target_parameters.h"
@@ -732,7 +732,7 @@ static void iscsi_initiatorname_tolower(
 	u32 iqn_size = strlen(param_buf), i;
 
 	for (i = 0; i < iqn_size; i++) {
-		c = (char *)&param_buf[i];
+		c = &param_buf[i];
 		if (!isupper(*c))
 			continue;
 

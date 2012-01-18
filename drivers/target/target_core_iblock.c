@@ -42,8 +42,7 @@
 #include <scsi/scsi_host.h>
 
 #include <target/target_core_base.h>
-#include <target/target_core_device.h>
-#include <target/target_core_transport.h>
+#include <target/target_core_backend.h>
 
 #include "target_core_iblock.h"
 
@@ -391,7 +390,7 @@ static ssize_t iblock_set_configfs_dev_params(struct se_hba *hba,
 
 	orig = opts;
 
-	while ((ptr = strsep(&opts, ",")) != NULL) {
+	while ((ptr = strsep(&opts, ",\n")) != NULL) {
 		if (!*ptr)
 			continue;
 
@@ -465,7 +464,7 @@ static ssize_t iblock_show_configfs_dev_params(
 	if (bd) {
 		bl += sprintf(b + bl, "Major: %d Minor: %d  %s\n",
 			MAJOR(bd->bd_dev), MINOR(bd->bd_dev), (!bd->bd_contains) ?
-			"" : (bd->bd_holder == (struct iblock_dev *)ibd) ?
+			"" : (bd->bd_holder == ibd) ?
 			"CLAIMED: IBLOCK" : "CLAIMED: OS");
 	} else {
 		bl += sprintf(b + bl, "Major: 0 Minor: 0\n");
