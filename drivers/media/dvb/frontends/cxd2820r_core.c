@@ -562,7 +562,7 @@ static const struct dvb_frontend_ops cxd2820r_ops = {
 	.delsys = { SYS_DVBT, SYS_DVBT2, SYS_DVBC_ANNEX_A },
 	/* default: DVB-T/T2 */
 	.info = {
-		.name = "Sony CXD2820R (DVB-T/T2)",
+		.name = "Sony CXD2820R",
 
 		.caps =	FE_CAN_FEC_1_2			|
 			FE_CAN_FEC_2_3			|
@@ -572,7 +572,9 @@ static const struct dvb_frontend_ops cxd2820r_ops = {
 			FE_CAN_FEC_AUTO			|
 			FE_CAN_QPSK			|
 			FE_CAN_QAM_16			|
+			FE_CAN_QAM_32			|
 			FE_CAN_QAM_64			|
+			FE_CAN_QAM_128			|
 			FE_CAN_QAM_256			|
 			FE_CAN_QAM_AUTO			|
 			FE_CAN_TRANSMISSION_MODE_AUTO	|
