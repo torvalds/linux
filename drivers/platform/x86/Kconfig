@@ -143,6 +143,23 @@ config FUJITSU_LAPTOP_DEBUG
 
 	  If you are not sure, say N here.
 
+config FUJITSU_TABLET
+       tristate "Fujitsu Tablet Extras"
+       depends on ACPI
+       depends on INPUT
+       ---help---
+         This is a driver for tablets built by Fujitsu:
+
+           * Lifebook P1510/P1610/P1620/Txxxx
+           * Stylistic ST5xxx
+           * Possibly other Fujitsu tablet models
+
+         It adds support for the panel buttons, docking station detection,
+         tablet/notebook mode detection for convertible and
+         orientation detection for docked slates.
+
+         If you have a Fujitsu convertible or slate, say Y or M here.
+
 config AMILO_RFKILL
 	tristate "Fujitsu-Siemens Amilo rfkill support"
 	depends on RFKILL
