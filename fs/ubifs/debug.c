@@ -36,7 +36,7 @@
 
 #ifdef CONFIG_UBIFS_FS_DEBUG
 
-DEFINE_SPINLOCK(dbg_lock);
+static DEFINE_SPINLOCK(dbg_lock);
 
 static const char *get_key_fmt(int fmt)
 {

@@ -164,9 +164,7 @@ struct ubifs_global_debug_info {
 #define dbg_dump_stack() dump_stack()
 
 #define dbg_err(fmt, ...) do {                                                 \
-	spin_lock(&dbg_lock);                                                  \
 	ubifs_err(fmt, ##__VA_ARGS__);                                         \
-	spin_unlock(&dbg_lock);                                                \
 } while (0)
 
 #define ubifs_dbg_msg(type, fmt, ...) \
@@ -217,7 +215,6 @@ struct ubifs_global_debug_info {
 /* Additional recovery messages */
 #define dbg_rcvry(fmt, ...) ubifs_dbg_msg("rcvry", fmt, ##__VA_ARGS__)
 
-extern spinlock_t dbg_lock;
 extern struct ubifs_global_debug_info ubifs_dbg;
 
 static inline int dbg_is_chk_gen(const struct ubifs_info *c)
