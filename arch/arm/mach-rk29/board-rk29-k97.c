@@ -416,6 +416,40 @@ struct platform_device rk29_device_dma_cpy = {
 };
 
 #endif
+#ifdef CONFIG_ADC_RK29
+static struct resource rk29_adc_resource[] = {
+        {
+                .start = IRQ_SARADC,
+                .end   = IRQ_SARADC,
+                .flags = IORESOURCE_IRQ,
+        },
+        {
+                .start = RK29_ADC_PHYS,
+                .end   = RK29_ADC_PHYS + RK29_ADC_SIZE - 1,
+                .flags = IORESOURCE_MEM,
+        },
+
+};
+
+struct platform_device rk29_device_adc = {
+        .name             = "rk29-adc",
+        .id               = -1,
+        .num_resources    = ARRAY_SIZE(rk29_adc_resource),
+        .resource         = rk29_adc_resource,
+};
+
+#endif
+
+#ifdef CONFIG_BATTERY_RK29_ADC
+struct platform_device rk29_adc_device_battery = {
+                .name   = "rk2918-battery",
+                .id     = -1,
+                .dev = {
+                        .platform_data = &rk29_adc_battery_platdata,
+                },
+};
+#endif
+
 
 #if defined(CONFIG_RK29_GPIO_SUSPEND)
 static void key_gpio_pullupdown_enable(void)

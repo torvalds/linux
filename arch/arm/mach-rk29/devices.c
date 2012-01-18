@@ -29,39 +29,8 @@
 #include <mach/board.h>
 #include <mach/loader.h>
 #include "devices.h"
-#ifdef CONFIG_ADC_RK29
-static struct resource rk29_adc_resource[] = {
-	{
-		.start = IRQ_SARADC,
-		.end   = IRQ_SARADC,
-		.flags = IORESOURCE_IRQ,
-	},
-	{
-		.start = RK29_ADC_PHYS,
-		.end   = RK29_ADC_PHYS + RK29_ADC_SIZE - 1,
-		.flags = IORESOURCE_MEM,
-	},
 
-};
 
-struct platform_device rk29_device_adc = {
-	.name		  = "rk29-adc",
-	.id		  = -1,
-	.num_resources	  = ARRAY_SIZE(rk29_adc_resource),
-	.resource	  = rk29_adc_resource,
-};
-
-#endif
-
-#ifdef CONFIG_BATTERY_RK29_ADC
-struct platform_device rk29_adc_device_battery = {
-		.name	= "rk2918-battery",
-		.id 	= -1,
-		.dev = {
-			.platform_data = &rk29_adc_battery_platdata,
-		},
-};
-#endif
 #ifdef CONFIG_RK29_VMAC
 static u64 eth_dmamask = DMA_BIT_MASK(32);
 static struct resource rk29_vmac_resource[] = {
