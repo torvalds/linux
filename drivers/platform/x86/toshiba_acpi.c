@@ -63,6 +63,8 @@ MODULE_AUTHOR("John Belmonte");
 MODULE_DESCRIPTION("Toshiba Laptop ACPI Extras Driver");
 MODULE_LICENSE("GPL");
 
+#define TOSHIBA_WMI_EVENT_GUID "59142400-C6A3-40FA-BADB-8A2652834100"
+
 /* Scan code for Fn key on TOS1900 models */
 #define TOS1900_FN_SCAN		0x6e
 
@@ -1248,6 +1250,14 @@ static struct acpi_driver toshiba_acpi_driver = {
 static int __init toshiba_acpi_init(void)
 {
 	int ret;
+
+	/*
+	 * Machines with this WMI guid aren't supported due to bugs in
+	 * their AML. This check relies on wmi initializing before
+	 * toshiba_acpi to guarantee guids have been identified.
+	 */
+	if (wmi_has_guid(TOSHIBA_WMI_EVENT_GUID))
+		return -ENODEV;
 
 	toshiba_proc_dir = proc_mkdir(PROC_TOSHIBA, acpi_root_dir);
 	if (!toshiba_proc_dir) {
