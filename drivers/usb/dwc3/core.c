@@ -48,6 +48,7 @@
 #include <linux/list.h>
 #include <linux/delay.h>
 #include <linux/dma-mapping.h>
+#include <linux/of.h>
 
 #include <linux/usb/ch9.h>
 #include <linux/usb/gadget.h>
@@ -404,6 +405,7 @@ static void dwc3_core_exit(struct dwc3 *dwc)
 
 static int __devinit dwc3_probe(struct platform_device *pdev)
 {
+	struct device_node	*node = pdev->dev.of_node;
 	struct resource		*res;
 	struct dwc3		*dwc;
 
@@ -468,6 +470,9 @@ static int __devinit dwc3_probe(struct platform_device *pdev)
 		dwc->maximum_speed = DWC3_DCFG_LOWSPEED;
 	else
 		dwc->maximum_speed = DWC3_DCFG_SUPERSPEED;
+
+	if (of_get_property(node, "tx-fifo-resize", NULL))
+		dwc->needs_fifo_resize = true;
 
 	pm_runtime_enable(&pdev->dev);
 	pm_runtime_get_sync(&pdev->dev);

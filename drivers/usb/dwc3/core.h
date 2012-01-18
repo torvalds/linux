@@ -172,6 +172,10 @@
 #define DWC3_GUSB3PIPECTL_PHYSOFTRST (1 << 31)
 #define DWC3_GUSB3PIPECTL_SUSPHY (1 << 17)
 
+/* Global TX Fifo Size Register */
+#define DWC3_GTXFIFOSIZ_TXFDEF(n) ((n) & 0xffff)
+#define DWC3_GTXFIFOSIZ_TXFSTADDR(n) ((n) & 0xffff0000)
+
 /* Global HWPARAMS1 Register */
 #define DWC3_GHWPARAMS1_EN_PWROPT(n)	((n & (3 << 24)) >> 24)
 #define DWC3_GHWPARAMS1_EN_PWROPT_NO	0
@@ -546,8 +550,13 @@ struct dwc3_hwparams {
 #define DWC3_MODE_DRD		2
 #define DWC3_MODE_HUB		3
 
+#define DWC3_MDWIDTH(n)		(((n) & 0xff00) >> 8)
+
 /* HWPARAMS1 */
-#define DWC3_NUM_INT(n)	(((n) & (0x3f << 15)) >> 15)
+#define DWC3_NUM_INT(n)		(((n) & (0x3f << 15)) >> 15)
+
+/* HWPARAMS7 */
+#define DWC3_RAM1_DEPTH(n)	((n) & 0xffff)
 
 struct dwc3_request {
 	struct usb_request	request;
@@ -594,6 +603,8 @@ struct dwc3_request {
  * @ep0_expect_in: true when we expect a DATA IN transfer
  * @start_config_issued: true when StartConfig command has been issued
  * @setup_packet_pending: true when there's a Setup Packet in FIFO. Workaround
+ * @needs_fifo_resize: not all users might want fifo resizing, flag it
+ * @resize_fifos: tells us it's ok to reconfigure our TxFIFO sizes.
  * @ep0_next_event: hold the next expected event
  * @ep0state: state of endpoint zero
  * @link_state: link state
@@ -651,6 +662,8 @@ struct dwc3 {
 	unsigned		start_config_issued:1;
 	unsigned		setup_packet_pending:1;
 	unsigned		delayed_status:1;
+	unsigned		needs_fifo_resize:1;
+	unsigned		resize_fifos:1;
 
 	enum dwc3_ep0_next	ep0_next_event;
 	enum dwc3_ep0_state	ep0state;
@@ -812,6 +825,7 @@ union dwc3_event {
 
 /* prototypes */
 void dwc3_set_mode(struct dwc3 *dwc, u32 mode);
+int dwc3_gadget_resize_tx_fifos(struct dwc3 *dwc);
 
 int dwc3_host_init(struct dwc3 *dwc);
 void dwc3_host_exit(struct dwc3 *dwc);

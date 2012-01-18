@@ -457,8 +457,11 @@ static int dwc3_ep0_set_config(struct dwc3 *dwc, struct usb_ctrlrequest *ctrl)
 	case DWC3_ADDRESS_STATE:
 		ret = dwc3_ep0_delegate_req(dwc, ctrl);
 		/* if the cfg matches and the cfg is non zero */
-		if (cfg && (!ret || (ret == USB_GADGET_DELAYED_STATUS)))
+		if (cfg && (!ret || (ret == USB_GADGET_DELAYED_STATUS))) {
 			dwc->dev_state = DWC3_CONFIGURED_STATE;
+			dwc->resize_fifos = true;
+			dev_dbg(dwc->dev, "resize fifos flag SET\n");
+		}
 		break;
 
 	case DWC3_CONFIGURED_STATE:
@@ -706,6 +709,12 @@ static int dwc3_ep0_start_control_status(struct dwc3_ep *dep)
 static void dwc3_ep0_do_control_status(struct dwc3 *dwc, u32 epnum)
 {
 	struct dwc3_ep		*dep = dwc->eps[epnum];
+
+	if (dwc->resize_fifos) {
+		dev_dbg(dwc->dev, "starting to resize fifos\n");
+		dwc3_gadget_resize_tx_fifos(dwc);
+		dwc->resize_fifos = 0;
+	}
 
 	WARN_ON(dwc3_ep0_start_control_status(dep));
 }
