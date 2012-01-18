@@ -560,7 +560,7 @@ ecard_irq_handler(unsigned int irq, struct irq_desc *desc)
 	for (ec = cards; ec; ec = ec->next) {
 		int pending;
 
-		if (!ec->claimed || ec->irq == NO_IRQ || ec->slot_no == 8)
+		if (!ec->claimed || !ec->irq || ec->slot_no == 8)
 			continue;
 
 		if (ec->ops && ec->ops->irqpending)
@@ -710,8 +710,8 @@ static struct expansion_card *__init ecard_alloc_card(int type, int slot)
 
 	ec->slot_no = slot;
 	ec->easi = type == ECARD_EASI;
-	ec->irq = NO_IRQ;
-	ec->fiq = NO_IRQ;
+	ec->irq = 0;
+	ec->fiq = 0;
 	ec->dma = NO_DMA;
 	ec->ops = &ecard_default_ops;
 
