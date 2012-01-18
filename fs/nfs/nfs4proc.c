@@ -385,17 +385,20 @@ nfs4_free_slot(struct nfs4_slot_table *tbl, u8 free_slotid)
 		free_slotid, tbl->highest_used_slotid);
 }
 
+bool nfs4_set_task_privileged(struct rpc_task *task, void *dummy)
+{
+	rpc_task_set_priority(task, RPC_PRIORITY_PRIVILEGED);
+	return true;
+}
+
 /*
  * Signal state manager thread if session fore channel is drained
  */
 static void nfs4_check_drain_fc_complete(struct nfs4_session *ses)
 {
-	struct rpc_task *task;
-
 	if (!test_bit(NFS4_SESSION_DRAINING, &ses->session_state)) {
-		task = rpc_wake_up_next(&ses->fc_slot_table.slot_tbl_waitq);
-		if (task)
-			rpc_task_set_priority(task, RPC_PRIORITY_PRIVILEGED);
+		rpc_wake_up_first(&ses->fc_slot_table.slot_tbl_waitq,
+				nfs4_set_task_privileged, NULL);
 		return;
 	}
 

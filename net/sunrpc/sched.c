@@ -422,7 +422,7 @@ EXPORT_SYMBOL_GPL(rpc_wake_up_queued_task);
 /*
  * Wake up the next task on a priority queue.
  */
-static struct rpc_task * __rpc_wake_up_next_priority(struct rpc_wait_queue *queue)
+static struct rpc_task *__rpc_find_next_queued_priority(struct rpc_wait_queue *queue)
 {
 	struct list_head *q;
 	struct rpc_task *task;
@@ -467,29 +467,53 @@ new_queue:
 new_owner:
 	rpc_set_waitqueue_owner(queue, task->tk_owner);
 out:
-	rpc_wake_up_task_queue_locked(queue, task);
 	return task;
 }
 
+static struct rpc_task *__rpc_find_next_queued(struct rpc_wait_queue *queue)
+{
+	if (RPC_IS_PRIORITY(queue))
+		return __rpc_find_next_queued_priority(queue);
+	if (!list_empty(&queue->tasks[0]))
+		return list_first_entry(&queue->tasks[0], struct rpc_task, u.tk_wait.list);
+	return NULL;
+}
+
 /*
- * Wake up the next task on the wait queue.
+ * Wake up the first task on the wait queue.
  */
-struct rpc_task * rpc_wake_up_next(struct rpc_wait_queue *queue)
+struct rpc_task *rpc_wake_up_first(struct rpc_wait_queue *queue,
+		bool (*func)(struct rpc_task *, void *), void *data)
 {
 	struct rpc_task	*task = NULL;
 
-	dprintk("RPC:       wake_up_next(%p \"%s\")\n",
+	dprintk("RPC:       wake_up_first(%p \"%s\")\n",
 			queue, rpc_qname(queue));
 	spin_lock_bh(&queue->lock);
-	if (RPC_IS_PRIORITY(queue))
-		task = __rpc_wake_up_next_priority(queue);
-	else {
-		task_for_first(task, &queue->tasks[0])
+	task = __rpc_find_next_queued(queue);
+	if (task != NULL) {
+		if (func(task, data))
 			rpc_wake_up_task_queue_locked(queue, task);
+		else
+			task = NULL;
 	}
 	spin_unlock_bh(&queue->lock);
 
 	return task;
+}
+EXPORT_SYMBOL_GPL(rpc_wake_up_first);
+
+static bool rpc_wake_up_next_func(struct rpc_task *task, void *data)
+{
+	return true;
+}
+
+/*
+ * Wake up the next task on the wait queue.
+*/
+struct rpc_task *rpc_wake_up_next(struct rpc_wait_queue *queue)
+{
+	return rpc_wake_up_first(queue, rpc_wake_up_next_func, NULL);
 }
 EXPORT_SYMBOL_GPL(rpc_wake_up_next);
 
