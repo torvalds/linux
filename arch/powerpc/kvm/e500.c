@@ -229,6 +229,10 @@ static int __init kvmppc_e500_init(void)
 	unsigned long ivor[3];
 	unsigned long max_ivor = 0;
 
+	r = kvmppc_core_check_processor_compat();
+	if (r)
+		return r;
+
 	r = kvmppc_booke_init();
 	if (r)
 		return r;
