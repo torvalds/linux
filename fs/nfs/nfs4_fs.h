@@ -81,11 +81,6 @@ static inline void nfs_confirm_seqid(struct nfs_seqid_counter *seqid, int status
 		seqid->flags |= NFS_SEQID_CONFIRMED;
 }
 
-struct nfs_unique_id {
-	struct rb_node rb_node;
-	__u64 id;
-};
-
 /*
  * NFS4 state_owners and lock_owners are simply labels for ordered
  * sequences of RPC calls. Their sole purpose is to provide once-only
@@ -145,9 +140,9 @@ struct nfs4_lock_state {
 	struct nfs4_state *	ls_state;	/* Pointer to open state */
 #define NFS_LOCK_INITIALIZED 1
 	int			ls_flags;
+	int			ls_id;
 	struct nfs_seqid_counter	ls_seqid;
 	struct rpc_sequence	ls_sequence;
-	struct nfs_unique_id	ls_id;
 	nfs4_stateid		ls_stateid;
 	atomic_t		ls_count;
 	struct nfs4_lock_owner	ls_owner;

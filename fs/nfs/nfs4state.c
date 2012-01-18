@@ -317,62 +317,6 @@ out:
 	return cred;
 }
 
-static void nfs_alloc_unique_id_locked(struct rb_root *root,
-				       struct nfs_unique_id *new,
-				       __u64 minval, int maxbits)
-{
-	struct rb_node **p, *parent;
-	struct nfs_unique_id *pos;
-	__u64 mask = ~0ULL;
-
-	if (maxbits < 64)
-		mask = (1ULL << maxbits) - 1ULL;
-
-	/* Ensure distribution is more or less flat */
-	get_random_bytes(&new->id, sizeof(new->id));
-	new->id &= mask;
-	if (new->id < minval)
-		new->id += minval;
-retry:
-	p = &root->rb_node;
-	parent = NULL;
-
-	while (*p != NULL) {
-		parent = *p;
-		pos = rb_entry(parent, struct nfs_unique_id, rb_node);
-
-		if (new->id < pos->id)
-			p = &(*p)->rb_left;
-		else if (new->id > pos->id)
-			p = &(*p)->rb_right;
-		else
-			goto id_exists;
-	}
-	rb_link_node(&new->rb_node, parent, p);
-	rb_insert_color(&new->rb_node, root);
-	return;
-id_exists:
-	for (;;) {
-		new->id++;
-		if (new->id < minval || (new->id & mask) != new->id) {
-			new->id = minval;
-			break;
-		}
-		parent = rb_next(parent);
-		if (parent == NULL)
-			break;
-		pos = rb_entry(parent, struct nfs_unique_id, rb_node);
-		if (new->id < pos->id)
-			break;
-	}
-	goto retry;
-}
-
-static void nfs_free_unique_id(struct rb_root *root, struct nfs_unique_id *id)
-{
-	rb_erase(&id->rb_node, root);
-}
-
 static struct nfs4_state_owner *
 nfs4_find_state_owner_locked(struct nfs_server *server, struct rpc_cred *cred)
 {
@@ -800,7 +744,6 @@ static struct nfs4_lock_state *nfs4_alloc_lock_state(struct nfs4_state *state, f
 {
 	struct nfs4_lock_state *lsp;
 	struct nfs_server *server = state->owner->so_server;
-	struct nfs_client *clp = server->nfs_client;
 
 	lsp = kzalloc(sizeof(*lsp), GFP_NOFS);
 	if (lsp == NULL)
@@ -820,24 +763,23 @@ static struct nfs4_lock_state *nfs4_alloc_lock_state(struct nfs4_state *state, f
 		lsp->ls_owner.lo_u.posix_owner = fl_owner;
 		break;
 	default:
-		kfree(lsp);
-		return NULL;
+		goto out_free;
 	}
-	spin_lock(&clp->cl_lock);
-	nfs_alloc_unique_id_locked(&server->lockowner_id, &lsp->ls_id, 1, 64);
-	spin_unlock(&clp->cl_lock);
+	lsp->ls_id = ida_simple_get(&server->lockowner_id, 0, 0, GFP_NOFS);
+	if (lsp->ls_id < 0)
+		goto out_free;
 	INIT_LIST_HEAD(&lsp->ls_locks);
 	return lsp;
+out_free:
+	kfree(lsp);
+	return NULL;
 }
 
 static void nfs4_free_lock_state(struct nfs4_lock_state *lsp)
 {
 	struct nfs_server *server = lsp->ls_state->owner->so_server;
-	struct nfs_client *clp = server->nfs_client;
 
-	spin_lock(&clp->cl_lock);
-	nfs_free_unique_id(&server->lockowner_id, &lsp->ls_id);
-	spin_unlock(&clp->cl_lock);
+	ida_simple_remove(&server->lockowner_id, lsp->ls_id);
 	rpc_destroy_wait_queue(&lsp->ls_sequence.wait);
 	kfree(lsp);
 }
