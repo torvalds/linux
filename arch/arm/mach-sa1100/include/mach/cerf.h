@@ -16,7 +16,7 @@
 
 #define CERF_GPIO_CF_BVD2		19
 #define CERF_GPIO_CF_BVD1		20
-#define CERF_GPIO_CF_RESET		GPIO_GPIO (21)
+#define CERF_GPIO_CF_RESET		21
 #define CERF_GPIO_CF_IRQ		22
 #define CERF_GPIO_CF_CD			23
 
