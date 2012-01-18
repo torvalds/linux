@@ -190,6 +190,7 @@
 
 	usb@22000 {
 		phy_type = "ulpi";
+		dr_mode = "host";
 	};
 
 	/* USB2 is shared with localbus. It is used
@@ -197,6 +198,7 @@
 	   appropriate device-tree fixup done by uboot */
 	usb@23000 {
 		phy_type = "ulpi";
+		dr_mode = "host";
 	};
 
 	mdio@24000 {
