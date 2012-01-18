@@ -943,7 +943,7 @@ static int __dwc3_gadget_ep_queue(struct dwc3_ep *dep, struct dwc3_request *req)
 		int start_trans;
 
 		start_trans = 1;
-		if (usb_endpoint_xfer_isoc(dep->endpoint.desc) &&
+		if (usb_endpoint_xfer_isoc(dep->desc) &&
 				dep->flags & DWC3_EP_BUSY)
 			start_trans = 0;
 
