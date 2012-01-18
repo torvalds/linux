@@ -153,17 +153,21 @@ static u32 acpi_osi_handler(acpi_string interface, u32 supported)
 	return supported;
 }
 
-static void __init acpi_request_region (struct acpi_generic_address *addr,
+static void __init acpi_request_region (struct acpi_generic_address *gas,
 	unsigned int length, char *desc)
 {
-	if (!addr->address || !length)
+	u64 addr;
+
+	/* Handle possible alignment issues */
+	memcpy(&addr, &gas->address, sizeof(addr));
+	if (!addr || !length)
 		return;
 
 	/* Resources are never freed */
-	if (addr->space_id == ACPI_ADR_SPACE_SYSTEM_IO)
-		request_region(addr->address, length, desc);
-	else if (addr->space_id == ACPI_ADR_SPACE_SYSTEM_MEMORY)
-		request_mem_region(addr->address, length, desc);
+	if (gas->space_id == ACPI_ADR_SPACE_SYSTEM_IO)
+		request_region(addr, length, desc);
+	else if (gas->space_id == ACPI_ADR_SPACE_SYSTEM_MEMORY)
+		request_mem_region(addr, length, desc);
 }
 
 static int __init acpi_reserve_resources(void)
@@ -414,35 +418,42 @@ void __init early_acpi_os_unmap_memory(void __iomem *virt, acpi_size size)
 		__acpi_unmap_table(virt, size);
 }
 
-static int acpi_os_map_generic_address(struct acpi_generic_address *addr)
+int acpi_os_map_generic_address(struct acpi_generic_address *gas)
 {
+	u64 addr;
 	void __iomem *virt;
 
-	if (addr->space_id != ACPI_ADR_SPACE_SYSTEM_MEMORY)
+	if (gas->space_id != ACPI_ADR_SPACE_SYSTEM_MEMORY)
 		return 0;
 
-	if (!addr->address || !addr->bit_width)
+	/* Handle possible alignment issues */
+	memcpy(&addr, &gas->address, sizeof(addr));
+	if (!addr || !gas->bit_width)
 		return -EINVAL;
 
-	virt = acpi_os_map_memory(addr->address, addr->bit_width / 8);
+	virt = acpi_os_map_memory(addr, gas->bit_width / 8);
 	if (!virt)
 		return -EIO;
 
 	return 0;
 }
+EXPORT_SYMBOL(acpi_os_map_generic_address);
 
-static void acpi_os_unmap_generic_address(struct acpi_generic_address *addr)
+void acpi_os_unmap_generic_address(struct acpi_generic_address *gas)
 {
+	u64 addr;
 	struct acpi_ioremap *map;
 
-	if (addr->space_id != ACPI_ADR_SPACE_SYSTEM_MEMORY)
+	if (gas->space_id != ACPI_ADR_SPACE_SYSTEM_MEMORY)
 		return;
 
-	if (!addr->address || !addr->bit_width)
+	/* Handle possible alignment issues */
+	memcpy(&addr, &gas->address, sizeof(addr));
+	if (!addr || !gas->bit_width)
 		return;
 
 	mutex_lock(&acpi_ioremap_lock);
-	map = acpi_map_lookup(addr->address, addr->bit_width / 8);
+	map = acpi_map_lookup(addr, gas->bit_width / 8);
 	if (!map) {
 		mutex_unlock(&acpi_ioremap_lock);
 		return;
@@ -452,6 +463,7 @@ static void acpi_os_unmap_generic_address(struct acpi_generic_address *addr)
 
 	acpi_os_map_cleanup(map);
 }
+EXPORT_SYMBOL(acpi_os_unmap_generic_address);
 
 #ifdef ACPI_FUTURE_USAGE
 acpi_status

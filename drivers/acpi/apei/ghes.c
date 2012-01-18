@@ -33,6 +33,7 @@
 #include <linux/module.h>
 #include <linux/init.h>
 #include <linux/acpi.h>
+#include <linux/acpi_io.h>
 #include <linux/io.h>
 #include <linux/interrupt.h>
 #include <linux/timer.h>
@@ -48,7 +49,6 @@
 #include <linux/pci.h>
 #include <linux/aer.h>
 #include <acpi/apei.h>
-#include <acpi/atomicio.h>
 #include <acpi/hed.h>
 #include <asm/mce.h>
 #include <asm/tlbflush.h>
@@ -301,7 +301,7 @@ static struct ghes *ghes_new(struct acpi_hest_generic *generic)
 	if (!ghes)
 		return ERR_PTR(-ENOMEM);
 	ghes->generic = generic;
-	rc = acpi_pre_map_gar(&generic->error_status_address);
+	rc = acpi_os_map_generic_address(&generic->error_status_address);
 	if (rc)
 		goto err_free;
 	error_block_length = generic->error_block_length;
@@ -321,7 +321,7 @@ static struct ghes *ghes_new(struct acpi_hest_generic *generic)
 	return ghes;
 
 err_unmap:
-	acpi_post_unmap_gar(&generic->error_status_address);
+	acpi_os_unmap_generic_address(&generic->error_status_address);
 err_free:
 	kfree(ghes);
 	return ERR_PTR(rc);
@@ -330,7 +330,7 @@ err_free:
 static void ghes_fini(struct ghes *ghes)
 {
 	kfree(ghes->estatus);
-	acpi_post_unmap_gar(&ghes->generic->error_status_address);
+	acpi_os_unmap_generic_address(&ghes->generic->error_status_address);
 }
 
 enum {
@@ -401,7 +401,7 @@ static int ghes_read_estatus(struct ghes *ghes, int silent)
 	u32 len;
 	int rc;
 
-	rc = acpi_atomic_read(&buf_paddr, &g->error_status_address);
+	rc = apei_read(&buf_paddr, &g->error_status_address);
 	if (rc) {
 		if (!silent && printk_ratelimit())
 			pr_warning(FW_WARN GHES_PFX
