@@ -53,8 +53,14 @@ struct nfs4_minor_version_ops {
 	const struct nfs4_state_maintenance_ops *state_renewal_ops;
 };
 
+struct nfs_unique_id {
+	struct rb_node rb_node;
+	__u64 id;
+};
+
 #define NFS_SEQID_CONFIRMED 1
 struct nfs_seqid_counter {
+	int owner_id;
 	int flags;
 	u32 counter;
 	spinlock_t lock;		/* Protects the list */
@@ -91,7 +97,6 @@ struct nfs4_state_owner {
 	unsigned long	     so_flags;
 	struct list_head     so_states;
 	struct nfs_seqid_counter so_seqid;
-	int		     so_owner_id;
 };
 
 enum {
@@ -131,7 +136,6 @@ struct nfs4_lock_state {
 	struct nfs4_state *	ls_state;	/* Pointer to open state */
 #define NFS_LOCK_INITIALIZED 1
 	int			ls_flags;
-	int			ls_id;
 	struct nfs_seqid_counter	ls_seqid;
 	nfs4_stateid		ls_stateid;
 	atomic_t		ls_count;

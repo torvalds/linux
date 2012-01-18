@@ -366,7 +366,7 @@ nfs4_insert_state_owner_locked(struct nfs4_state_owner *new)
 			return sp;
 		}
 	}
-	err = ida_get_new(&server->openowner_id, &new->so_owner_id);
+	err = ida_get_new(&server->openowner_id, &new->so_seqid.owner_id);
 	if (err)
 		return ERR_PTR(err);
 	rb_link_node(&new->so_server_node, parent, p);
@@ -381,7 +381,7 @@ nfs4_remove_state_owner_locked(struct nfs4_state_owner *sp)
 
 	if (!RB_EMPTY_NODE(&sp->so_server_node))
 		rb_erase(&sp->so_server_node, &server->state_owners);
-	ida_remove(&server->openowner_id, sp->so_owner_id);
+	ida_remove(&server->openowner_id, sp->so_seqid.owner_id);
 }
 
 static void
@@ -775,8 +775,8 @@ static struct nfs4_lock_state *nfs4_alloc_lock_state(struct nfs4_state *state, f
 	default:
 		goto out_free;
 	}
-	lsp->ls_id = ida_simple_get(&server->lockowner_id, 0, 0, GFP_NOFS);
-	if (lsp->ls_id < 0)
+	lsp->ls_seqid.owner_id = ida_simple_get(&server->lockowner_id, 0, 0, GFP_NOFS);
+	if (lsp->ls_seqid.owner_id < 0)
 		goto out_free;
 	INIT_LIST_HEAD(&lsp->ls_locks);
 	return lsp;
@@ -789,7 +789,7 @@ static void nfs4_free_lock_state(struct nfs4_lock_state *lsp)
 {
 	struct nfs_server *server = lsp->ls_state->owner->so_server;
 
-	ida_simple_remove(&server->lockowner_id, lsp->ls_id);
+	ida_simple_remove(&server->lockowner_id, lsp->ls_seqid.owner_id);
 	nfs4_destroy_seqid_counter(&lsp->ls_seqid);
 	kfree(lsp);
 }
