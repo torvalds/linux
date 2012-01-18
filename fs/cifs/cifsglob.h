@@ -879,6 +879,8 @@ require use of the stronger protocol */
 #define   CIFSSEC_MASK          0xB70B7 /* current flags supported if weak */
 #endif /* UPCALL */
 #else /* do not allow weak pw hash */
+#define   CIFSSEC_MUST_LANMAN	0
+#define   CIFSSEC_MUST_PLNTXT	0
 #ifdef CONFIG_CIFS_UPCALL
 #define   CIFSSEC_MASK          0x8F08F /* flags supported if no weak allowed */
 #else
