@@ -9,10 +9,6 @@
 #include <linux/slab.h>
 #include <linux/export.h>
 
-/* Number of bytes to reserve for the iomem resource */
-#define ATMEL_TC_IOMEM_SIZE	256
-
-
 /*
  * This is a thin library to solve the problem of how to portably allocate
  * one of the TC blocks.  For simplicity, it doesn't currently expect to
@@ -48,6 +44,7 @@ struct atmel_tc *atmel_tc_alloc(unsigned block, const char *name)
 	struct atmel_tc		*tc;
 	struct platform_device	*pdev = NULL;
 	struct resource		*r;
+	size_t			size;
 
 	spin_lock(&tc_list_lock);
 	list_for_each_entry(tc, &tc_list, node) {
@@ -61,11 +58,15 @@ struct atmel_tc *atmel_tc_alloc(unsigned block, const char *name)
 		goto fail;
 
 	r = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	r = request_mem_region(r->start, ATMEL_TC_IOMEM_SIZE, name);
 	if (!r)
 		goto fail;
 
-	tc->regs = ioremap(r->start, ATMEL_TC_IOMEM_SIZE);
+	size = resource_size(r);
+	r = request_mem_region(r->start, size, name);
+	if (!r)
+		goto fail;
+
+	tc->regs = ioremap(r->start, size);
 	if (!tc->regs)
 		goto fail_ioremap;
 
@@ -76,7 +77,7 @@ out:
 	return tc;
 
 fail_ioremap:
-	release_mem_region(r->start, ATMEL_TC_IOMEM_SIZE);
+	release_mem_region(r->start, size);
 fail:
 	tc = NULL;
 	goto out;
@@ -96,7 +97,7 @@ void atmel_tc_free(struct atmel_tc *tc)
 	spin_lock(&tc_list_lock);
 	if (tc->regs) {
 		iounmap(tc->regs);
-		release_mem_region(tc->iomem->start, ATMEL_TC_IOMEM_SIZE);
+		release_mem_region(tc->iomem->start, resource_size(tc->iomem));
 		tc->regs = NULL;
 		tc->iomem = NULL;
 	}
