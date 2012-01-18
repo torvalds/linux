@@ -203,8 +203,6 @@ static void fts_ts_release(void)
 		if ( _st_finger_infos[i].u2_pressure == -1 )
 			continue;
 
-		_st_finger_infos[i].u2_pressure = 0;
-
 		input_mt_slot(data->input_dev, i);
 		input_mt_report_slot_state(data->input_dev, MT_TOOL_FINGER, false);
 
@@ -352,7 +350,9 @@ int fts_read_data(void)
 		printk(KERN_ERR "get fingers failed!\n");
 
 //	printk(KERN_INFO "touch_point_num=%d\n", touch_point_num);
-
+	if(touch_point_num > CFG_MAX_POINT_NUM)
+		printk("[Warning],+++++Touch number[%d] readed is larger than max point number+++++++++++++\n",touch_point_num);
+	
 	i_count = 0;
 
 	if(touch_point_num != 0)
@@ -386,7 +386,6 @@ int fts_read_data(void)
 					_st_finger_infos[i_count].u2_pressure= 1;//pressure;
 					_st_finger_infos[i_count].i2_x= (int16_t)x;
 					_st_finger_infos[i_count].i2_y= (int16_t)y;
-					_si_touch_num ++;
 				}
 				else if (touch_event == 1) //up event
 				{
@@ -397,11 +396,11 @@ int fts_read_data(void)
 					_st_finger_infos[i_count].u2_pressure= 1;//pressure;
 					_st_finger_infos[i_count].i2_x= (int16_t)x;
 					_st_finger_infos[i_count].i2_y= (int16_t)y;
-					_si_touch_num ++;
 				}
-				else					/*bad event, ignore*/
+				else	/*bad event, ignore*/
 				{
 					printk("Bad event, ignore!!!\n");
+					i_count++;
 					continue;  
 				}
 				
@@ -443,13 +442,12 @@ int fts_read_data(void)
 		}
 	}
 
-	//If touch up or touch number is zero then release touch.
-	if(touch_point_num == 0 || _si_touch_num == 0)
+	//If touch number is zero then release touch.
+	if(touch_point_num == 0 )
 	{
-		printk("[RELEASE!!!!!!!!!!!!!!!]\n");
 		fts_ts_release();
 	}
-
+	
 	return 0;
 }
 
