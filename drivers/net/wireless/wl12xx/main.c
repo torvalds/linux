@@ -1232,10 +1232,9 @@ static int wl1271_setup(struct wl1271 *wl)
 	return 0;
 }
 
-static int wl1271_chip_wakeup(struct wl1271 *wl)
+static int wl12xx_set_power_on(struct wl1271 *wl)
 {
-	struct wl1271_partition_set partition;
-	int ret = 0;
+	int ret;
 
 	msleep(WL1271_PRE_POWER_ON_SLEEP);
 	ret = wl1271_power_on(wl);
@@ -1245,20 +1244,22 @@ static int wl1271_chip_wakeup(struct wl1271 *wl)
 	wl1271_io_reset(wl);
 	wl1271_io_init(wl);
 
-	/* We don't need a real memory partition here, because we only want
-	 * to use the registers at this point. */
-	memset(&partition, 0, sizeof(partition));
-	partition.reg.start = REGISTERS_BASE;
-	partition.reg.size = REGISTERS_DOWN_SIZE;
-	wl1271_set_partition(wl, &partition);
+	wl1271_set_partition(wl, &wl12xx_part_table[PART_DOWN]);
 
 	/* ELP module wake up */
 	wl1271_fw_wakeup(wl);
 
-	/* whal_FwCtrl_BootSm() */
+out:
+	return ret;
+}
 
-	/* 0. read chip id from CHIP_ID */
-	wl->chip.id = wl1271_read32(wl, CHIP_ID_B);
+static int wl1271_chip_wakeup(struct wl1271 *wl)
+{
+	int ret = 0;
+
+	ret = wl12xx_set_power_on(wl);
+	if (ret < 0)
+		goto out;
 
 	/*
 	 * For wl127x based devices we could use the default block
@@ -4858,12 +4859,41 @@ static struct bin_attribute fwlog_attr = {
 	.read = wl1271_sysfs_read_fwlog,
 };
 
+static int wl12xx_get_hw_info(struct wl1271 *wl)
+{
+	int ret;
+	u32 die_info;
+
+	ret = wl12xx_set_power_on(wl);
+	if (ret < 0)
+		goto out;
+
+	wl->chip.id = wl1271_read32(wl, CHIP_ID_B);
+
+	if (wl->chip.id == CHIP_ID_1283_PG20)
+		die_info = wl1271_top_reg_read(wl, WL128X_REG_FUSE_DATA_2_1);
+	else
+		die_info = wl1271_top_reg_read(wl, WL127X_REG_FUSE_DATA_2_1);
+
+	wl->hw_pg_ver = (s8) (die_info & PG_VER_MASK) >> PG_VER_OFFSET;
+
+	wl1271_power_off(wl);
+out:
+	return ret;
+}
+
 static int wl1271_register_hw(struct wl1271 *wl)
 {
 	int ret;
 
 	if (wl->mac80211_registered)
 		return 0;
+
+	ret = wl12xx_get_hw_info(wl);
+	if (ret < 0) {
+		wl1271_error("couldn't get hw info");
+		goto out;
+	}
 
 	ret = wl1271_fetch_nvs(wl);
 	if (ret == 0) {
@@ -4886,7 +4916,7 @@ static int wl1271_register_hw(struct wl1271 *wl)
 	ret = ieee80211_register_hw(wl->hw);
 	if (ret < 0) {
 		wl1271_error("unable to register mac80211 hw: %d", ret);
-		return ret;
+		goto out;
 	}
 
 	wl->mac80211_registered = true;
@@ -4897,7 +4927,8 @@ static int wl1271_register_hw(struct wl1271 *wl)
 
 	wl1271_notice("loaded");
 
-	return 0;
+out:
+	return ret;
 }
 
 static void wl1271_unregister_hw(struct wl1271 *wl)
