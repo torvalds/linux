@@ -1475,8 +1475,12 @@ lpfc_handle_eratt_s4(struct lpfc_hba *phba)
 				phba->sli4_hba.u.if_type2.STATUSregaddr,
 				&portstat_reg.word0);
 		/* consider PCI bus read error as pci_channel_offline */
-		if (pci_rd_rc1 == -EIO)
+		if (pci_rd_rc1 == -EIO) {
+			lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
+				"3151 PCI bus read access failure: x%x\n",
+				readl(phba->sli4_hba.u.if_type2.STATUSregaddr));
 			return;
+		}
 		reg_err1 = readl(phba->sli4_hba.u.if_type2.ERR1regaddr);
 		reg_err2 = readl(phba->sli4_hba.u.if_type2.ERR2regaddr);
 		if (bf_get(lpfc_sliport_status_oti, &portstat_reg)) {
@@ -1526,6 +1530,9 @@ lpfc_handle_eratt_s4(struct lpfc_hba *phba)
 			}
 			/* fall through for not able to recover */
 		}
+		lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
+				"3152 Unrecoverable error, bring the port "
+				"offline\n");
 		lpfc_sli4_offline_eratt(phba);
 		break;
 	case LPFC_SLI_INTF_IF_TYPE_1:
@@ -2514,6 +2521,42 @@ lpfc_block_mgmt_io(struct lpfc_hba * phba)
 }
 
 /**
+ * lpfc_sli4_node_prep - Assign RPIs for active nodes.
+ * @phba: pointer to lpfc hba data structure.
+ *
+ * Allocate RPIs for all active remote nodes. This is needed whenever
+ * an SLI4 adapter is reset and the driver is not unloading. Its purpose
+ * is to fixup the temporary rpi assignments.
+ **/
+void
+lpfc_sli4_node_prep(struct lpfc_hba *phba)
+{
+	struct lpfc_nodelist  *ndlp, *next_ndlp;
+	struct lpfc_vport **vports;
+	int i;
+
+	if (phba->sli_rev != LPFC_SLI_REV4)
+		return;
+
+	vports = lpfc_create_vport_work_array(phba);
+	if (vports != NULL) {
+		for (i = 0; i <= phba->max_vports && vports[i] != NULL; i++) {
+			if (vports[i]->load_flag & FC_UNLOADING)
+				continue;
+
+			list_for_each_entry_safe(ndlp, next_ndlp,
+						 &vports[i]->fc_nodes,
+						 nlp_listp) {
+				if (NLP_CHK_NODE_ACT(ndlp))
+					ndlp->nlp_rpi =
+						lpfc_sli4_alloc_rpi(phba);
+			}
+		}
+	}
+	lpfc_destroy_vport_work_array(phba, vports);
+}
+
+/**
  * lpfc_online - Initialize and bring a HBA online
  * @phba: pointer to lpfc hba data structure.
  *
@@ -2654,6 +2697,15 @@ lpfc_offline_prep(struct lpfc_hba * phba)
 				}
 				spin_lock_irq(shost->host_lock);
 				ndlp->nlp_flag &= ~NLP_NPR_ADISC;
+
+				/*
+				 * Whenever an SLI4 port goes offline, free the
+				 * RPI.  A new RPI when the adapter port comes
+				 * back online.
+				 */
+				if (phba->sli_rev == LPFC_SLI_REV4)
+					lpfc_sli4_free_rpi(phba, ndlp->nlp_rpi);
+
 				spin_unlock_irq(shost->host_lock);
 				lpfc_unreg_rpi(vports[i], ndlp);
 			}
@@ -7224,19 +7276,17 @@ lpfc_pci_function_reset(struct lpfc_hba *phba)
 					rc = -ENODEV;
 					goto out;
 				}
+				if (bf_get(lpfc_sliport_status_rn, &reg_data))
+					reset_again++;
 				if (bf_get(lpfc_sliport_status_rdy, &reg_data))
 					break;
-				if (bf_get(lpfc_sliport_status_rn, &reg_data)) {
-					reset_again++;
-					break;
-				}
 			}
 
 			/*
 			 * If the port responds to the init request with
 			 * reset needed, delay for a bit and restart the loop.
 			 */
-			if (reset_again) {
+			if (reset_again && (rdy_chk < 1000)) {
 				msleep(10);
 				reset_again = 0;
 				continue;
@@ -9059,7 +9109,7 @@ lpfc_sli4_get_els_iocb_cnt(struct lpfc_hba *phba)
 int
 lpfc_write_firmware(struct lpfc_hba *phba, const struct firmware *fw)
 {
-	char fwrev[32];
+	char fwrev[FW_REV_STR_SIZE];
 	struct lpfc_grp_hdr *image = (struct lpfc_grp_hdr *)fw->data;
 	struct list_head dma_buffer_list;
 	int i, rc = 0;

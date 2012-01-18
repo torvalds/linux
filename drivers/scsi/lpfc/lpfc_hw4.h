@@ -715,12 +715,20 @@ struct lpfc_register {
 #define lpfc_eqcq_doorbell_eqci_SHIFT		9
 #define lpfc_eqcq_doorbell_eqci_MASK		0x0001
 #define lpfc_eqcq_doorbell_eqci_WORD		word0
-#define lpfc_eqcq_doorbell_cqid_SHIFT		0
-#define lpfc_eqcq_doorbell_cqid_MASK		0x03FF
-#define lpfc_eqcq_doorbell_cqid_WORD		word0
-#define lpfc_eqcq_doorbell_eqid_SHIFT		0
-#define lpfc_eqcq_doorbell_eqid_MASK		0x01FF
-#define lpfc_eqcq_doorbell_eqid_WORD		word0
+#define lpfc_eqcq_doorbell_cqid_lo_SHIFT	0
+#define lpfc_eqcq_doorbell_cqid_lo_MASK		0x03FF
+#define lpfc_eqcq_doorbell_cqid_lo_WORD		word0
+#define lpfc_eqcq_doorbell_cqid_hi_SHIFT	11
+#define lpfc_eqcq_doorbell_cqid_hi_MASK		0x001F
+#define lpfc_eqcq_doorbell_cqid_hi_WORD		word0
+#define lpfc_eqcq_doorbell_eqid_lo_SHIFT	0
+#define lpfc_eqcq_doorbell_eqid_lo_MASK		0x01FF
+#define lpfc_eqcq_doorbell_eqid_lo_WORD		word0
+#define lpfc_eqcq_doorbell_eqid_hi_SHIFT	11
+#define lpfc_eqcq_doorbell_eqid_hi_MASK		0x001F
+#define lpfc_eqcq_doorbell_eqid_hi_WORD		word0
+#define LPFC_CQID_HI_FIELD_SHIFT		10
+#define LPFC_EQID_HI_FIELD_SHIFT		9
 
 #define LPFC_BMBX			0x0160
 #define lpfc_bmbx_addr_SHIFT		2
@@ -3313,7 +3321,11 @@ struct xmit_bls_rsp64_wqe {
 	uint32_t rsrvd4;
 	struct wqe_did	wqe_dest;
 	struct wqe_common wqe_com; /* words 6-11 */
-	uint32_t rsvd_12_15[4];
+	uint32_t word12;
+#define xmit_bls_rsp64_temprpi_SHIFT  0
+#define xmit_bls_rsp64_temprpi_MASK   0x0000ffff
+#define xmit_bls_rsp64_temprpi_WORD   word12
+	uint32_t rsvd_13_15[3];
 };
 
 struct wqe_rctl_dfctl {

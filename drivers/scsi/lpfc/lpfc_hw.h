@@ -70,6 +70,7 @@
 /* vendor ID used in SCSI netlink calls */
 #define LPFC_NL_VENDOR_ID (SCSI_NL_VID_TYPE_PCI | PCI_VENDOR_ID_EMULEX)
 
+#define FW_REV_STR_SIZE	32
 /* Common Transport structures and definitions */
 
 union CtRevisionId {
