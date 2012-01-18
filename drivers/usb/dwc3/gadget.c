@@ -1657,7 +1657,8 @@ static void dwc3_endpoint_interrupt(struct dwc3 *dwc,
 			int ret;
 
 			dev_vdbg(dwc->dev, "%s: reason %s\n",
-					dep->name, event->status
+					dep->name, event->status &
+					DEPEVT_STATUS_TRANSFER_ACTIVE
 					? "Transfer Active"
 					: "Transfer Not Active");
 

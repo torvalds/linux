@@ -719,6 +719,11 @@ struct dwc3_event_depevt {
 	u32	endpoint_event:4;
 	u32	reserved11_10:2;
 	u32	status:4;
+
+/* Within XferNotReady */
+#define DEPEVT_STATUS_TRANSFER_ACTIVE	(1 << 3)
+
+/* Within XferComplete */
 #define DEPEVT_STATUS_BUSERR    (1 << 0)
 #define DEPEVT_STATUS_SHORT     (1 << 1)
 #define DEPEVT_STATUS_IOC       (1 << 2)
