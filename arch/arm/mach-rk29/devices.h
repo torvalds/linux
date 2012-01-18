@@ -63,8 +63,6 @@ extern struct rk29_sdmmc_platform_data default_sdmmc1_data;
 extern struct platform_device rk29_device_sdmmc0;
 extern struct platform_device rk29_device_sdmmc1;
 extern struct platform_device rk29_device_adc;
-extern struct platform_device rk29_adc_device_battery;
-extern struct rk29_adc_battery_platform_data rk29_adc_battery_platdata;
 extern struct platform_device rk29_device_vmac;
 extern struct rk29_bl_info    rk29_bl_info;
 extern struct rk29_button_light_info rk29_button_light_info;
