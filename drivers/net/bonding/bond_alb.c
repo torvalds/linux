@@ -871,16 +871,12 @@ static void alb_send_learning_packets(struct slave *slave, u8 mac_addr[])
 	}
 }
 
-/* hw is a boolean parameter that determines whether we should try and
- * set the hw address of the device as well as the hw address of the
- * net_device
- */
-static int alb_set_slave_mac_addr(struct slave *slave, u8 addr[], int hw)
+static int alb_set_slave_mac_addr(struct slave *slave, u8 addr[])
 {
 	struct net_device *dev = slave->dev;
 	struct sockaddr s_addr;
 
-	if (!hw) {
+	if (slave->bond->params.mode == BOND_MODE_TLB) {
 		memcpy(dev->dev_addr, addr, dev->addr_len);
 		return 0;
 	}
@@ -910,8 +906,8 @@ static void alb_swap_mac_addr(struct bonding *bond, struct slave *slave1, struct
 	u8 tmp_mac_addr[ETH_ALEN];
 
 	memcpy(tmp_mac_addr, slave1->dev->dev_addr, ETH_ALEN);
-	alb_set_slave_mac_addr(slave1, slave2->dev->dev_addr, bond->alb_info.rlb_enabled);
-	alb_set_slave_mac_addr(slave2, tmp_mac_addr, bond->alb_info.rlb_enabled);
+	alb_set_slave_mac_addr(slave1, slave2->dev->dev_addr);
+	alb_set_slave_mac_addr(slave2, tmp_mac_addr);
 
 }
 
@@ -1058,8 +1054,7 @@ static int alb_handle_addr_collision_on_attach(struct bonding *bond, struct slav
 
 		/* Try setting slave mac to bond address and fall-through
 		   to code handling that situation below... */
-		alb_set_slave_mac_addr(slave, bond->dev->dev_addr,
-				       bond->alb_info.rlb_enabled);
+		alb_set_slave_mac_addr(slave, bond->dev->dev_addr);
 	}
 
 	/* The slave's address is equal to the address of the bond.
@@ -1095,8 +1090,7 @@ static int alb_handle_addr_collision_on_attach(struct bonding *bond, struct slav
 	}
 
 	if (free_mac_slave) {
-		alb_set_slave_mac_addr(slave, free_mac_slave->perm_hwaddr,
-				       bond->alb_info.rlb_enabled);
+		alb_set_slave_mac_addr(slave, free_mac_slave->perm_hwaddr);
 
 		pr_warning("%s: Warning: the hw address of slave %s is in use by the bond; giving it the hw address of %s\n",
 			   bond->dev->name, slave->dev->name,
@@ -1452,8 +1446,7 @@ int bond_alb_init_slave(struct bonding *bond, struct slave *slave)
 {
 	int res;
 
-	res = alb_set_slave_mac_addr(slave, slave->perm_hwaddr,
-				     bond->alb_info.rlb_enabled);
+	res = alb_set_slave_mac_addr(slave, slave->perm_hwaddr);
 	if (res) {
 		return res;
 	}
@@ -1604,8 +1597,7 @@ void bond_alb_handle_active_change(struct bonding *bond, struct slave *new_slave
 		alb_swap_mac_addr(bond, swap_slave, new_slave);
 	} else {
 		/* set the new_slave to the bond mac address */
-		alb_set_slave_mac_addr(new_slave, bond->dev->dev_addr,
-				       bond->alb_info.rlb_enabled);
+		alb_set_slave_mac_addr(new_slave, bond->dev->dev_addr);
 	}
 
 	if (swap_slave) {
@@ -1665,8 +1657,7 @@ int bond_alb_set_mac_address(struct net_device *bond_dev, void *addr)
 		alb_swap_mac_addr(bond, swap_slave, bond->curr_active_slave);
 		alb_fasten_mac_swap(bond, swap_slave, bond->curr_active_slave);
 	} else {
-		alb_set_slave_mac_addr(bond->curr_active_slave, bond_dev->dev_addr,
-				       bond->alb_info.rlb_enabled);
+		alb_set_slave_mac_addr(bond->curr_active_slave, bond_dev->dev_addr);
 
 		read_lock(&bond->lock);
 		alb_send_learning_packets(bond->curr_active_slave, bond_dev->dev_addr);
