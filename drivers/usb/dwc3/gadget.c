@@ -1313,10 +1313,13 @@ static void dwc3_gadget_run_stop(struct dwc3 *dwc, int is_on)
 	u32			timeout = 500;
 
 	reg = dwc3_readl(dwc->regs, DWC3_DCTL);
-	if (is_on)
-		reg |= DWC3_DCTL_RUN_STOP;
-	else
+	if (is_on) {
+		reg &= ~DWC3_DCTL_TRGTULST_MASK;
+		reg |= (DWC3_DCTL_RUN_STOP
+				| DWC3_DCTL_TRGTULST_RX_DET);
+	} else {
 		reg &= ~DWC3_DCTL_RUN_STOP;
+	}
 
 	dwc3_writel(dwc->regs, DWC3_DCTL, reg);
 
