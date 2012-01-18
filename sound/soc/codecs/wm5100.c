@@ -2475,7 +2475,7 @@ static int wm5100_probe(struct snd_soc_codec *codec)
 {
 	struct i2c_client *i2c = to_i2c_client(codec->dev);
 	struct wm5100_priv *wm5100 = snd_soc_codec_get_drvdata(codec);
-	int ret, i, irq_flags;
+	int ret, i;
 
 	wm5100->codec = codec;
 	codec->control_data = wm5100->regmap;
@@ -2499,61 +2499,10 @@ static int wm5100_probe(struct snd_soc_codec *codec)
 
 	/* TODO: check if we're symmetric */
 
-	if (i2c->irq) {
-		if (wm5100->pdata.irq_flags)
-			irq_flags = wm5100->pdata.irq_flags;
-		else
-			irq_flags = IRQF_TRIGGER_LOW;
-
-		irq_flags |= IRQF_ONESHOT;
-
-		if (irq_flags & (IRQF_TRIGGER_RISING | IRQF_TRIGGER_FALLING))
-			ret = request_threaded_irq(i2c->irq, NULL,
-						   wm5100_edge_irq, irq_flags,
-						   "wm5100", wm5100);
-		else
-			ret = request_threaded_irq(i2c->irq, NULL, wm5100_irq,
-						   irq_flags, "wm5100",
-						   wm5100);
-
-		if (ret != 0) {
-			dev_err(codec->dev, "Failed to request IRQ %d: %d\n",
-				i2c->irq, ret);
-		} else {
-			/* Enable default interrupts */
-			snd_soc_update_bits(codec,
-					    WM5100_INTERRUPT_STATUS_3_MASK,
-					    WM5100_IM_SPK_SHUTDOWN_WARN_EINT |
-					    WM5100_IM_SPK_SHUTDOWN_EINT |
-					    WM5100_IM_ASRC2_LOCK_EINT |
-					    WM5100_IM_ASRC1_LOCK_EINT |
-					    WM5100_IM_FLL2_LOCK_EINT |
-					    WM5100_IM_FLL1_LOCK_EINT |
-					    WM5100_CLKGEN_ERR_EINT |
-					    WM5100_CLKGEN_ERR_ASYNC_EINT, 0);
-
-			snd_soc_update_bits(codec,
-					    WM5100_INTERRUPT_STATUS_4_MASK,
-					    WM5100_AIF3_ERR_EINT |
-					    WM5100_AIF2_ERR_EINT |
-					    WM5100_AIF1_ERR_EINT |
-					    WM5100_CTRLIF_ERR_EINT |
-					    WM5100_ISRC2_UNDERCLOCKED_EINT |
-					    WM5100_ISRC1_UNDERCLOCKED_EINT |
-					    WM5100_FX_UNDERCLOCKED_EINT |
-					    WM5100_AIF3_UNDERCLOCKED_EINT |
-					    WM5100_AIF2_UNDERCLOCKED_EINT |
-					    WM5100_AIF1_UNDERCLOCKED_EINT |
-					    WM5100_ASRC_UNDERCLOCKED_EINT |
-					    WM5100_DAC_UNDERCLOCKED_EINT |
-					    WM5100_ADC_UNDERCLOCKED_EINT |
-					    WM5100_MIXER_UNDERCLOCKED_EINT, 0);
-		}
-	} else {
+	if (i2c->irq)
 		snd_soc_dapm_new_controls(&codec->dapm,
 					  wm5100_dapm_widgets_noirq,
 					  ARRAY_SIZE(wm5100_dapm_widgets_noirq));
-	}
 
 	if (wm5100->pdata.hp_pol) {
 		ret = gpio_request_one(wm5100->pdata.hp_pol,
@@ -2641,7 +2590,7 @@ static __devinit int wm5100_i2c_probe(struct i2c_client *i2c,
 	struct wm5100_pdata *pdata = dev_get_platdata(&i2c->dev);
 	struct wm5100_priv *wm5100;
 	unsigned int reg;
-	int ret, i;
+	int ret, i, irq_flags;
 
 	wm5100 = devm_kzalloc(&i2c->dev, sizeof(struct wm5100_priv),
 			      GFP_KERNEL);
@@ -2778,6 +2727,58 @@ static __devinit int wm5100_i2c_probe(struct i2c_client *i2c,
 				    WM5100_IN1_DMIC_SUP_SHIFT));
 	}
 
+	if (i2c->irq) {
+		if (wm5100->pdata.irq_flags)
+			irq_flags = wm5100->pdata.irq_flags;
+		else
+			irq_flags = IRQF_TRIGGER_LOW;
+
+		irq_flags |= IRQF_ONESHOT;
+
+		if (irq_flags & (IRQF_TRIGGER_RISING | IRQF_TRIGGER_FALLING))
+			ret = request_threaded_irq(i2c->irq, NULL,
+						   wm5100_edge_irq, irq_flags,
+						   "wm5100", wm5100);
+		else
+			ret = request_threaded_irq(i2c->irq, NULL, wm5100_irq,
+						   irq_flags, "wm5100",
+						   wm5100);
+
+		if (ret != 0) {
+			dev_err(&i2c->dev, "Failed to request IRQ %d: %d\n",
+				i2c->irq, ret);
+		} else {
+			/* Enable default interrupts */
+			regmap_update_bits(wm5100->regmap,
+					   WM5100_INTERRUPT_STATUS_3_MASK,
+					   WM5100_IM_SPK_SHUTDOWN_WARN_EINT |
+					   WM5100_IM_SPK_SHUTDOWN_EINT |
+					   WM5100_IM_ASRC2_LOCK_EINT |
+					   WM5100_IM_ASRC1_LOCK_EINT |
+					   WM5100_IM_FLL2_LOCK_EINT |
+					   WM5100_IM_FLL1_LOCK_EINT |
+					   WM5100_CLKGEN_ERR_EINT |
+					   WM5100_CLKGEN_ERR_ASYNC_EINT, 0);
+
+			regmap_update_bits(wm5100->regmap,
+					   WM5100_INTERRUPT_STATUS_4_MASK,
+					   WM5100_AIF3_ERR_EINT |
+					   WM5100_AIF2_ERR_EINT |
+					   WM5100_AIF1_ERR_EINT |
+					   WM5100_CTRLIF_ERR_EINT |
+					   WM5100_ISRC2_UNDERCLOCKED_EINT |
+					   WM5100_ISRC1_UNDERCLOCKED_EINT |
+					   WM5100_FX_UNDERCLOCKED_EINT |
+					   WM5100_AIF3_UNDERCLOCKED_EINT |
+					   WM5100_AIF2_UNDERCLOCKED_EINT |
+					   WM5100_AIF1_UNDERCLOCKED_EINT |
+					   WM5100_ASRC_UNDERCLOCKED_EINT |
+					   WM5100_DAC_UNDERCLOCKED_EINT |
+					   WM5100_ADC_UNDERCLOCKED_EINT |
+					   WM5100_MIXER_UNDERCLOCKED_EINT, 0);
+		}
+	}
+
 	ret = snd_soc_register_codec(&i2c->dev,
 				     &soc_codec_dev_wm5100, wm5100_dai,
 				     ARRAY_SIZE(wm5100_dai));
@@ -2789,6 +2790,8 @@ static __devinit int wm5100_i2c_probe(struct i2c_client *i2c,
 	return ret;
 
 err_reset:
+	if (i2c->irq)
+		free_irq(i2c->irq, wm5100);
 	wm5100_free_gpio(i2c);
 	if (wm5100->pdata.reset) {
 		gpio_set_value_cansleep(wm5100->pdata.reset, 0);
@@ -2817,12 +2820,14 @@ err:
 	return ret;
 }
 
-static __devexit int wm5100_i2c_remove(struct i2c_client *client)
+static __devexit int wm5100_i2c_remove(struct i2c_client *i2c)
 {
-	struct wm5100_priv *wm5100 = i2c_get_clientdata(client);
+	struct wm5100_priv *wm5100 = i2c_get_clientdata(i2c);
 
-	snd_soc_unregister_codec(&client->dev);
-	wm5100_free_gpio(client);
+	snd_soc_unregister_codec(&i2c->dev);
+	if (i2c->irq)
+		free_irq(i2c->irq, wm5100);
+	wm5100_free_gpio(i2c);
 	if (wm5100->pdata.reset) {
 		gpio_set_value_cansleep(wm5100->pdata.reset, 0);
 		gpio_free(wm5100->pdata.reset);
