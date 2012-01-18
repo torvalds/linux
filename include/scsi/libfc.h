@@ -857,7 +857,7 @@ struct fc_lport {
 	enum fc_lport_state	       state;
 	unsigned long		       boot_time;
 	struct fc_host_statistics      host_stats;
-	struct fcoe_dev_stats	       *dev_stats;
+	struct fcoe_dev_stats __percpu *dev_stats;
 	u8			       retry_count;
 
 	/* Fabric information */

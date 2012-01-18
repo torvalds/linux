@@ -1875,6 +1875,11 @@ exit:
 int qla4_8xxx_load_risc(struct scsi_qla_host *ha)
 {
 	int retval;
+
+	/* clear the interrupt */
+	writel(0, &ha->qla4_8xxx_reg->host_int);
+	readl(&ha->qla4_8xxx_reg->host_int);
+
 	retval = qla4_8xxx_device_state_handler(ha);
 
 	if (retval == QLA_SUCCESS && !test_bit(AF_INIT_DONE, &ha->flags))
