@@ -287,7 +287,8 @@ static int __devinit nuc900wdt_probe(struct platform_device *pdev)
 
 	setup_timer(&nuc900_wdt->timer, nuc900_wdt_timer_ping, 0);
 
-	if (misc_register(&nuc900wdt_miscdev)) {
+	ret = misc_register(&nuc900wdt_miscdev);
+	if (ret) {
 		dev_err(&pdev->dev, "err register miscdev on minor=%d (%d)\n",
 			WATCHDOG_MINOR, ret);
 		goto err_clk;
