@@ -46,6 +46,8 @@ enum nci_flag {
 enum nci_state {
 	NCI_IDLE,
 	NCI_DISCOVERY,
+	NCI_W4_ALL_DISCOVERIES,
+	NCI_W4_HOST_SELECT,
 	NCI_POLL_ACTIVE,
 };
 
@@ -53,6 +55,7 @@ enum nci_state {
 #define NCI_RESET_TIMEOUT			5000
 #define NCI_INIT_TIMEOUT			5000
 #define NCI_RF_DISC_TIMEOUT			5000
+#define NCI_RF_DISC_SELECT_TIMEOUT		5000
 #define NCI_RF_DEACTIVATE_TIMEOUT		30000
 #define NCI_CMD_TIMEOUT				5000
 #define NCI_DATA_TIMEOUT			700
@@ -66,6 +69,7 @@ struct nci_ops {
 };
 
 #define NCI_MAX_SUPPORTED_RF_INTERFACES		4
+#define NCI_MAX_DISCOVERED_TARGETS		10
 
 /* NCI Core structures */
 struct nci_dev {
@@ -105,8 +109,10 @@ struct nci_dev {
 	void			*driver_data;
 
 	__u32			poll_prots;
-	__u32			target_available_prots;
 	__u32			target_active_prot;
+
+	struct nfc_target	targets[NCI_MAX_DISCOVERED_TARGETS];
+	int			n_targets;
 
 	/* received during NCI_OP_CORE_RESET_RSP */
 	__u8			nci_ver;
@@ -178,6 +184,7 @@ int nci_send_cmd(struct nci_dev *ndev, __u16 opcode, __u8 plen, void *payload);
 int nci_send_data(struct nci_dev *ndev, __u8 conn_id, struct sk_buff *skb);
 void nci_data_exchange_complete(struct nci_dev *ndev, struct sk_buff *skb,
 				int err);
+void nci_clear_target_list(struct nci_dev *ndev);
 
 /* ----- NCI requests ----- */
 #define NCI_REQ_DONE		0

@@ -142,6 +142,18 @@ static void nci_rf_disc_rsp_packet(struct nci_dev *ndev, struct sk_buff *skb)
 	nci_req_complete(ndev, status);
 }
 
+static void nci_rf_disc_select_rsp_packet(struct nci_dev *ndev,
+						struct sk_buff *skb)
+{
+	__u8 status = skb->data[0];
+
+	pr_debug("status 0x%x\n", status);
+
+	/* Complete the request on intf_activated_ntf or generic_error_ntf */
+	if (status != NCI_STATUS_OK)
+		nci_req_complete(ndev, status);
+}
+
 static void nci_rf_deactivate_rsp_packet(struct nci_dev *ndev,
 					struct sk_buff *skb)
 {
@@ -152,6 +164,7 @@ static void nci_rf_deactivate_rsp_packet(struct nci_dev *ndev,
 	/* If target was active, complete the request only in deactivate_ntf */
 	if ((status != NCI_STATUS_OK) ||
 		(atomic_read(&ndev->state) != NCI_POLL_ACTIVE)) {
+		nci_clear_target_list(ndev);
 		atomic_set(&ndev->state, NCI_IDLE);
 		nci_req_complete(ndev, status);
 	}
@@ -188,6 +201,10 @@ void nci_rsp_packet(struct nci_dev *ndev, struct sk_buff *skb)
 
 	case NCI_OP_RF_DISCOVER_RSP:
 		nci_rf_disc_rsp_packet(ndev, skb);
+		break;
+
+	case NCI_OP_RF_DISCOVER_SELECT_RSP:
+		nci_rf_disc_select_rsp_packet(ndev, skb);
 		break;
 
 	case NCI_OP_RF_DEACTIVATE_RSP:
