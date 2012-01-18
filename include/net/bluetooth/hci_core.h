@@ -411,6 +411,13 @@ enum {
 	HCI_CONN_REMOTE_OOB,
 };
 
+static inline bool hci_conn_ssp_enabled(struct hci_conn *conn)
+{
+	struct hci_dev *hdev = conn->hdev;
+	return (test_bit(HCI_SSP_ENABLED, &hdev->flags) &&
+				test_bit(HCI_CONN_SSP_ENABLED, &conn->flags));
+}
+
 static inline void hci_conn_hash_init(struct hci_dev *hdev)
 {
 	struct hci_conn_hash *h = &hdev->conn_hash;

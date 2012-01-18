@@ -608,9 +608,7 @@ int hci_conn_check_link_mode(struct hci_conn *conn)
 {
 	BT_DBG("conn %p", conn);
 
-	if (test_bit(HCI_CONN_SSP_ENABLED, &conn->flags) &&
-			test_bit(HCI_SSP_ENABLED, &conn->hdev->dev_flags) &&
-			!(conn->link_mode & HCI_LM_ENCRYPT))
+	if (hci_conn_ssp_enabled(conn) && !(conn->link_mode & HCI_LM_ENCRYPT))
 		return 0;
 
 	return 1;
@@ -672,9 +670,7 @@ int hci_conn_security(struct hci_conn *conn, __u8 sec_level, __u8 auth_type)
 
 	/* For non 2.1 devices and low security level we don't need the link
 	   key. */
-	if (sec_level == BT_SECURITY_LOW &&
-			(!test_bit(HCI_CONN_SSP_ENABLED, &conn->flags) ||
-			!test_bit(HCI_SSP_ENABLED, &conn->hdev->dev_flags)))
+	if (sec_level == BT_SECURITY_LOW && !hci_conn_ssp_enabled(conn))
 		return 1;
 
 	/* For other security levels we need the link key. */
