@@ -729,7 +729,7 @@ int target_emulate_inquiry(struct se_task *task)
 	}
 
 	pr_err("Unknown VPD Code: 0x%02x\n", cdb[2]);
-	cmd->scsi_sense_reason = TCM_UNSUPPORTED_SCSI_OPCODE;
+	cmd->scsi_sense_reason = TCM_INVALID_CDB_FIELD;
 	ret = -EINVAL;
 
 out_unmap:
