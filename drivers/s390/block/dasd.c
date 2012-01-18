@@ -3261,6 +3261,12 @@ void dasd_generic_path_event(struct ccw_device *cdev, int *path_event)
 			device->path_data.tbvpm |= eventlpm;
 			dasd_schedule_device_bh(device);
 		}
+		if (path_event[chp] & PE_PATHGROUP_ESTABLISHED) {
+			DBF_DEV_EVENT(DBF_WARNING, device, "%s",
+				      "Pathgroup re-established\n");
+			if (device->discipline->kick_validate)
+				device->discipline->kick_validate(device);
+		}
 	}
 	dasd_put_device(device);
 }

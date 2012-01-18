@@ -1550,6 +1550,24 @@ static void dasd_eckd_validate_server(struct dasd_device *device)
 			"returned rc=%d", private->uid.ssid, rc);
 }
 
+/*
+ * worker to do a validate server in case of a lost pathgroup
+ */
+static void dasd_eckd_do_validate_server(struct work_struct *work)
+{
+	struct dasd_device *device = container_of(work, struct dasd_device,
+						  kick_validate);
+	dasd_eckd_validate_server(device);
+	dasd_put_device(device);
+}
+
+static void dasd_eckd_kick_validate_server(struct dasd_device *device)
+{
+	dasd_get_device(device);
+	/* queue call to do_validate_server to the kernel event daemon. */
+	schedule_work(&device->kick_validate);
+}
+
 static u32 get_fcx_max_data(struct dasd_device *device)
 {
 #if defined(CONFIG_64BIT)
@@ -1594,6 +1612,9 @@ dasd_eckd_check_characteristics(struct dasd_device *device)
 	int rc, i;
 	int readonly;
 	unsigned long value;
+
+	/* setup work queue for validate server*/
+	INIT_WORK(&device->kick_validate, dasd_eckd_do_validate_server);
 
 	if (!ccw_device_is_pathgroup(device->cdev)) {
 		dev_warn(&device->cdev->dev,
@@ -4259,6 +4280,7 @@ static struct dasd_discipline dasd_eckd_discipline = {
 	.restore = dasd_eckd_restore_device,
 	.reload = dasd_eckd_reload_device,
 	.get_uid = dasd_eckd_get_uid,
+	.kick_validate = dasd_eckd_kick_validate_server,
 };
 
 static int __init
