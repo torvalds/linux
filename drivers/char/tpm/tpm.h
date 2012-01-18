@@ -39,6 +39,9 @@ enum tpm_addr {
 };
 
 #define TPM_WARN_DOING_SELFTEST 0x802
+#define TPM_ERR_DEACTIVATED     0x6
+#define TPM_ERR_DISABLED        0x7
+
 #define TPM_HEADER_SIZE		10
 extern ssize_t tpm_show_pubek(struct device *, struct device_attribute *attr,
 				char *);
