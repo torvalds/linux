@@ -61,25 +61,23 @@
 
 struct rk_touch_info
 {
-	u32 status;   // 1:down,0:up
+	u32 press;  
 	u32 x ;
 	u32 y ;
+	int status ; // 0 1
 } ;
 struct rk_ts_data{
-	uint16_t addr;
-	uint8_t bad_data;
 	struct i2c_client *client;
 	struct input_dev *input_dev;
-	int use_reset;					//use RESET flag
-	int use_irq;					//use EINT flag
 	int irq;
 	int irq_pin;
+	int pwr_pin;
+	int rst_pin;
 	int read_mode;					//read moudle mode,20110221 by andrew
 	struct hrtimer timer;
 	struct workqueue_struct *ts_wq;
 	struct delayed_work  ts_work;
 	char phys[32];
-	int retry;
 	struct early_suspend early_suspend;
 	int (*power)(struct rk_ts_data * ts, int on);
 	int (*ts_init)(struct rk_ts_data*ts);
@@ -88,7 +86,6 @@ struct rk_ts_data{
 	uint16_t abs_x_max;
 	uint16_t abs_y_max;
 	uint8_t max_touch_num;
-	uint8_t int_trigger_type;
 	bool		pendown;
 };
 
@@ -121,10 +118,6 @@ struct i2c_client * i2c_connect_client = NULL;
 static struct proc_dir_entry *goodix_proc_entry;
 //static struct kobject *goodix_debug_kobj;
 	
-#ifdef CONFIG_HAS_EARLYSUSPEND
-static void goodix_ts_early_suspend(struct early_suspend *h);
-static void goodix_ts_late_resume(struct early_suspend *h);
-#endif 
 
 #define READ_COOR_ADDR 0x01
 
