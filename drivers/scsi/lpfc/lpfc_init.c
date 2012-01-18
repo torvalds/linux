@@ -4380,6 +4380,7 @@ lpfc_sli4_driver_resource_setup(struct lpfc_hba *phba)
 	uint8_t pn_page[LPFC_MAX_SUPPORTED_PAGES] = {0};
 	struct lpfc_mqe *mqe;
 	int longs, sli_family;
+	int sges_per_segment;
 
 	/* Before proceed, wait for POST done and device ready */
 	rc = lpfc_sli4_post_status_check(phba);
@@ -4443,6 +4444,11 @@ lpfc_sli4_driver_resource_setup(struct lpfc_hba *phba)
 	phba->fc_map[1] = LPFC_FCOE_FCF_MAP1;
 	phba->fc_map[2] = LPFC_FCOE_FCF_MAP2;
 
+	/* With BlockGuard we can have multiple SGEs per Data Segemnt */
+	sges_per_segment = 1;
+	if (phba->cfg_enable_bg)
+		sges_per_segment = 2;
+
 	/*
 	 * Since the sg_tablesize is module parameter, the sg_dma_buf_size
 	 * used to create the sg_dma_buf_pool must be dynamically calculated.
@@ -4451,7 +4457,8 @@ lpfc_sli4_driver_resource_setup(struct lpfc_hba *phba)
 	 * sgl sizes of must be a power of 2.
 	 */
 	buf_size = (sizeof(struct fcp_cmnd) + sizeof(struct fcp_rsp) +
-		    ((phba->cfg_sg_seg_cnt + 2) * sizeof(struct sli4_sge)));
+		    (((phba->cfg_sg_seg_cnt * sges_per_segment) + 2) *
+		    sizeof(struct sli4_sge)));
 
 	sli_family = bf_get(lpfc_sli_intf_sli_family, &phba->sli4_hba.sli_intf);
 	max_buf_size = LPFC_SLI4_MAX_BUF_SIZE;
@@ -4468,6 +4475,7 @@ lpfc_sli4_driver_resource_setup(struct lpfc_hba *phba)
 	default:
 		break;
 	}
+
 	for (dma_buf_size = LPFC_SLI4_MIN_BUF_SIZE;
 	     dma_buf_size < max_buf_size && buf_size > dma_buf_size;
 	     dma_buf_size = dma_buf_size << 1)

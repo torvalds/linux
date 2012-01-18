@@ -7839,12 +7839,16 @@ lpfc_sli4_iocb2wqe(struct lpfc_hba *phba, struct lpfc_iocbq *iocbq,
 		bf_set(wqe_lnk, &wqe->fcp_iwrite.wqe_com, iocbq->iocb.ulpXS);
 		/* Always open the exchange */
 		bf_set(wqe_xc, &wqe->fcp_iwrite.wqe_com, 0);
-		bf_set(wqe_dbde, &wqe->fcp_iwrite.wqe_com, 1);
 		bf_set(wqe_iod, &wqe->fcp_iwrite.wqe_com, LPFC_WQE_IOD_WRITE);
 		bf_set(wqe_lenloc, &wqe->fcp_iwrite.wqe_com,
 		       LPFC_WQE_LENLOC_WORD4);
 		bf_set(wqe_ebde_cnt, &wqe->fcp_iwrite.wqe_com, 0);
 		bf_set(wqe_pu, &wqe->fcp_iwrite.wqe_com, iocbq->iocb.ulpPU);
+		if (iocbq->iocb_flag & LPFC_IO_DIF) {
+			iocbq->iocb_flag &= ~LPFC_IO_DIF;
+			bf_set(wqe_dif, &wqe->generic.wqe_com, 1);
+		}
+		bf_set(wqe_dbde, &wqe->fcp_iwrite.wqe_com, 1);
 		break;
 	case CMD_FCP_IREAD64_CR:
 		/* word3 iocb=iotag wqe=payload_offset_len */
@@ -7858,12 +7862,16 @@ lpfc_sli4_iocb2wqe(struct lpfc_hba *phba, struct lpfc_iocbq *iocbq,
 		bf_set(wqe_lnk, &wqe->fcp_iread.wqe_com, iocbq->iocb.ulpXS);
 		/* Always open the exchange */
 		bf_set(wqe_xc, &wqe->fcp_iread.wqe_com, 0);
-		bf_set(wqe_dbde, &wqe->fcp_iread.wqe_com, 1);
 		bf_set(wqe_iod, &wqe->fcp_iread.wqe_com, LPFC_WQE_IOD_READ);
 		bf_set(wqe_lenloc, &wqe->fcp_iread.wqe_com,
 		       LPFC_WQE_LENLOC_WORD4);
 		bf_set(wqe_ebde_cnt, &wqe->fcp_iread.wqe_com, 0);
 		bf_set(wqe_pu, &wqe->fcp_iread.wqe_com, iocbq->iocb.ulpPU);
+		if (iocbq->iocb_flag & LPFC_IO_DIF) {
+			iocbq->iocb_flag &= ~LPFC_IO_DIF;
+			bf_set(wqe_dif, &wqe->generic.wqe_com, 1);
+		}
+		bf_set(wqe_dbde, &wqe->fcp_iread.wqe_com, 1);
 		break;
 	case CMD_FCP_ICMND64_CR:
 		/* word3 iocb=IO_TAG wqe=reserved */
@@ -10672,12 +10680,14 @@ lpfc_sli4_iocb_param_transfer(struct lpfc_hba *phba,
 			      struct lpfc_wcqe_complete *wcqe)
 {
 	unsigned long iflags;
+	uint32_t status;
 	size_t offset = offsetof(struct lpfc_iocbq, iocb);
 
 	memcpy((char *)pIocbIn + offset, (char *)pIocbOut + offset,
 	       sizeof(struct lpfc_iocbq) - offset);
 	/* Map WCQE parameters into irspiocb parameters */
-	pIocbIn->iocb.ulpStatus = bf_get(lpfc_wcqe_c_status, wcqe);
+	status = bf_get(lpfc_wcqe_c_status, wcqe);
+	pIocbIn->iocb.ulpStatus = (status & LPFC_IOCB_STATUS_MASK);
 	if (pIocbOut->iocb_flag & LPFC_IO_FCP)
 		if (pIocbIn->iocb.ulpStatus == IOSTAT_FCP_RSP_ERROR)
 			pIocbIn->iocb.un.fcpi.fcpi_parm =
@@ -10688,6 +10698,44 @@ lpfc_sli4_iocb_param_transfer(struct lpfc_hba *phba,
 	else {
 		pIocbIn->iocb.un.ulpWord[4] = wcqe->parameter;
 		pIocbIn->iocb.un.genreq64.bdl.bdeSize = wcqe->total_data_placed;
+	}
+
+	/* Convert BG errors for completion status */
+	if (status == CQE_STATUS_DI_ERROR) {
+		pIocbIn->iocb.ulpStatus = IOSTAT_LOCAL_REJECT;
+
+		if (bf_get(lpfc_wcqe_c_bg_edir, wcqe))
+			pIocbIn->iocb.un.ulpWord[4] = IOERR_RX_DMA_FAILED;
+		else
+			pIocbIn->iocb.un.ulpWord[4] = IOERR_TX_DMA_FAILED;
+
+		pIocbIn->iocb.unsli3.sli3_bg.bgstat = 0;
+		if (bf_get(lpfc_wcqe_c_bg_ge, wcqe)) /* Guard Check failed */
+			pIocbIn->iocb.unsli3.sli3_bg.bgstat |=
+				BGS_GUARD_ERR_MASK;
+		if (bf_get(lpfc_wcqe_c_bg_ae, wcqe)) /* App Tag Check failed */
+			pIocbIn->iocb.unsli3.sli3_bg.bgstat |=
+				BGS_APPTAG_ERR_MASK;
+		if (bf_get(lpfc_wcqe_c_bg_re, wcqe)) /* Ref Tag Check failed */
+			pIocbIn->iocb.unsli3.sli3_bg.bgstat |=
+				BGS_REFTAG_ERR_MASK;
+
+		/* Check to see if there was any good data before the error */
+		if (bf_get(lpfc_wcqe_c_bg_tdpv, wcqe)) {
+			pIocbIn->iocb.unsli3.sli3_bg.bgstat |=
+				BGS_HI_WATER_MARK_PRESENT_MASK;
+			pIocbIn->iocb.unsli3.sli3_bg.bghm =
+				wcqe->total_data_placed;
+		}
+
+		/*
+		* Set ALL the error bits to indicate we don't know what
+		* type of error it is.
+		*/
+		if (!pIocbIn->iocb.unsli3.sli3_bg.bgstat)
+			pIocbIn->iocb.unsli3.sli3_bg.bgstat |=
+				(BGS_REFTAG_ERR_MASK | BGS_APPTAG_ERR_MASK |
+				BGS_GUARD_ERR_MASK);
 	}
 
 	/* Pick up HBA exchange busy condition */

@@ -321,6 +321,10 @@ struct lpfc_cqe {
 #define CQE_STATUS_CMD_REJECT		0xb
 #define CQE_STATUS_FCP_TGT_LENCHECK	0xc
 #define CQE_STATUS_NEED_BUFF_ENTRY	0xf
+#define CQE_STATUS_DI_ERROR		0x16
+
+/* Used when mapping CQE status to IOCB */
+#define LPFC_IOCB_STATUS_MASK		0xf
 
 /* Status returned by hardware (valid only if status = CQE_STATUS_SUCCESS). */
 #define CQE_HW_STATUS_NO_ERR		0x0
@@ -348,6 +352,21 @@ struct lpfc_wcqe_complete {
 #define lpfc_wcqe_c_hw_status_WORD	word0
 	uint32_t total_data_placed;
 	uint32_t parameter;
+#define lpfc_wcqe_c_bg_edir_SHIFT	5
+#define lpfc_wcqe_c_bg_edir_MASK	0x00000001
+#define lpfc_wcqe_c_bg_edir_WORD	parameter
+#define lpfc_wcqe_c_bg_tdpv_SHIFT	3
+#define lpfc_wcqe_c_bg_tdpv_MASK	0x00000001
+#define lpfc_wcqe_c_bg_tdpv_WORD	parameter
+#define lpfc_wcqe_c_bg_re_SHIFT		2
+#define lpfc_wcqe_c_bg_re_MASK		0x00000001
+#define lpfc_wcqe_c_bg_re_WORD		parameter
+#define lpfc_wcqe_c_bg_ae_SHIFT		1
+#define lpfc_wcqe_c_bg_ae_MASK		0x00000001
+#define lpfc_wcqe_c_bg_ae_WORD		parameter
+#define lpfc_wcqe_c_bg_ge_SHIFT		0
+#define lpfc_wcqe_c_bg_ge_MASK		0x00000001
+#define lpfc_wcqe_c_bg_ge_WORD		parameter
 	uint32_t word3;
 #define lpfc_wcqe_c_valid_SHIFT		lpfc_cqe_valid_SHIFT
 #define lpfc_wcqe_c_valid_MASK		lpfc_cqe_valid_MASK
@@ -359,8 +378,8 @@ struct lpfc_wcqe_complete {
 #define lpfc_wcqe_c_pv_MASK		0x00000001
 #define lpfc_wcqe_c_pv_WORD		word3
 #define lpfc_wcqe_c_priority_SHIFT	24
-#define lpfc_wcqe_c_priority_MASK		0x00000007
-#define lpfc_wcqe_c_priority_WORD		word3
+#define lpfc_wcqe_c_priority_MASK	0x00000007
+#define lpfc_wcqe_c_priority_WORD	word3
 #define lpfc_wcqe_c_code_SHIFT		lpfc_cqe_code_SHIFT
 #define lpfc_wcqe_c_code_MASK		lpfc_cqe_code_MASK
 #define lpfc_wcqe_c_code_WORD		lpfc_cqe_code_WORD
