@@ -1534,6 +1534,10 @@ static void dasd_eckd_validate_server(struct dasd_device *device)
 	struct dasd_eckd_private *private;
 	int enable_pav;
 
+	private = (struct dasd_eckd_private *) device->private;
+	if (private->uid.type == UA_BASE_PAV_ALIAS ||
+	    private->uid.type == UA_HYPER_PAV_ALIAS)
+		return;
 	if (dasd_nopav || MACHINE_IS_VM)
 		enable_pav = 0;
 	else
@@ -1542,7 +1546,6 @@ static void dasd_eckd_validate_server(struct dasd_device *device)
 
 	/* may be requested feature is not available on server,
 	 * therefore just report error and go ahead */
-	private = (struct dasd_eckd_private *) device->private;
 	DBF_EVENT_DEVID(DBF_WARNING, device->cdev, "PSF-SSC for SSID %04x "
 			"returned rc=%d", private->uid.ssid, rc);
 }
@@ -1588,7 +1591,7 @@ dasd_eckd_check_characteristics(struct dasd_device *device)
 	struct dasd_eckd_private *private;
 	struct dasd_block *block;
 	struct dasd_uid temp_uid;
-	int is_known, rc, i;
+	int rc, i;
 	int readonly;
 	unsigned long value;
 
@@ -1651,22 +1654,12 @@ dasd_eckd_check_characteristics(struct dasd_device *device)
 		block->base = device;
 	}
 
-	/* register lcu with alias handling, enable PAV if this is a new lcu */
-	is_known = dasd_alias_make_device_known_to_lcu(device);
-	if (is_known < 0) {
-		rc = is_known;
+	/* register lcu with alias handling, enable PAV */
+	rc = dasd_alias_make_device_known_to_lcu(device);
+	if (rc)
 		goto out_err2;
-	}
-	/*
-	 * dasd_eckd_validate_server is done on the first device that
-	 * is found for an LCU. All later other devices have to wait
-	 * for it, so they will read the correct feature codes.
-	 */
-	if (!is_known) {
-		dasd_eckd_validate_server(device);
-		dasd_alias_lcu_setup_complete(device);
-	} else
-		dasd_alias_wait_for_lcu_setup(device);
+
+	dasd_eckd_validate_server(device);
 
 	/* device may report different configuration data after LCU setup */
 	rc = dasd_eckd_read_conf(device);
@@ -4098,7 +4091,7 @@ static int dasd_eckd_restore_device(struct dasd_device *device)
 {
 	struct dasd_eckd_private *private;
 	struct dasd_eckd_characteristics temp_rdc_data;
-	int is_known, rc;
+	int rc;
 	struct dasd_uid temp_uid;
 	unsigned long flags;
 
@@ -4121,14 +4114,10 @@ static int dasd_eckd_restore_device(struct dasd_device *device)
 		goto out_err;
 
 	/* register lcu with alias handling, enable PAV if this is a new lcu */
-	is_known = dasd_alias_make_device_known_to_lcu(device);
-	if (is_known < 0)
-		return is_known;
-	if (!is_known) {
-		dasd_eckd_validate_server(device);
-		dasd_alias_lcu_setup_complete(device);
-	} else
-		dasd_alias_wait_for_lcu_setup(device);
+	rc = dasd_alias_make_device_known_to_lcu(device);
+	if (rc)
+		return rc;
+	dasd_eckd_validate_server(device);
 
 	/* RE-Read Configuration Data */
 	rc = dasd_eckd_read_conf(device);
