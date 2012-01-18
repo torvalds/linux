@@ -264,6 +264,7 @@ static int nci_open_device(struct nci_dev *ndev)
 
 	if (!rc) {
 		set_bit(NCI_UP, &ndev->flags);
+		atomic_set(&ndev->state, NCI_IDLE);
 	} else {
 		/* Init failed, cleanup */
 		skb_queue_purge(&ndev->cmd_q);
@@ -360,7 +361,7 @@ static int nci_start_poll(struct nfc_dev *nfc_dev, __u32 protocols)
 	struct nci_dev *ndev = nfc_get_drvdata(nfc_dev);
 	int rc;
 
-	if (test_bit(NCI_DISCOVERY, &ndev->flags)) {
+	if (atomic_read(&ndev->state) == NCI_DISCOVERY) {
 		pr_err("unable to start poll, since poll is already active\n");
 		return -EBUSY;
 	}
@@ -370,7 +371,7 @@ static int nci_start_poll(struct nfc_dev *nfc_dev, __u32 protocols)
 		return -EBUSY;
 	}
 
-	if (test_bit(NCI_POLL_ACTIVE, &ndev->flags)) {
+	if (atomic_read(&ndev->state) == NCI_POLL_ACTIVE) {
 		pr_debug("target is active, implicitly deactivate...\n");
 
 		rc = nci_request(ndev, nci_rf_deactivate_req, 0,
@@ -392,7 +393,7 @@ static void nci_stop_poll(struct nfc_dev *nfc_dev)
 {
 	struct nci_dev *ndev = nfc_get_drvdata(nfc_dev);
 
-	if (!test_bit(NCI_DISCOVERY, &ndev->flags)) {
+	if (atomic_read(&ndev->state) != NCI_DISCOVERY) {
 		pr_err("unable to stop poll, since poll is not active\n");
 		return;
 	}
@@ -408,7 +409,7 @@ static int nci_activate_target(struct nfc_dev *nfc_dev, __u32 target_idx,
 
 	pr_debug("target_idx %d, protocol 0x%x\n", target_idx, protocol);
 
-	if (!test_bit(NCI_POLL_ACTIVE, &ndev->flags)) {
+	if (atomic_read(&ndev->state) != NCI_POLL_ACTIVE) {
 		pr_err("there is no available target to activate\n");
 		return -EINVAL;
 	}
@@ -443,7 +444,7 @@ static void nci_deactivate_target(struct nfc_dev *nfc_dev, __u32 target_idx)
 
 	ndev->target_active_prot = 0;
 
-	if (test_bit(NCI_POLL_ACTIVE, &ndev->flags)) {
+	if (atomic_read(&ndev->state) == NCI_POLL_ACTIVE) {
 		nci_request(ndev, nci_rf_deactivate_req, 0,
 			msecs_to_jiffies(NCI_RF_DEACTIVATE_TIMEOUT));
 	}

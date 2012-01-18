@@ -261,8 +261,7 @@ static void nci_rf_intf_activated_ntf_packet(struct nci_dev *ndev,
 	__u8 *data = skb->data;
 	int err = 0;
 
-	clear_bit(NCI_DISCOVERY, &ndev->flags);
-	set_bit(NCI_POLL_ACTIVE, &ndev->flags);
+	atomic_set(&ndev->state, NCI_POLL_ACTIVE);
 
 	ntf.rf_discovery_id = *data++;
 	ntf.rf_interface = *data++;
@@ -350,7 +349,7 @@ static void nci_rf_deactivate_ntf_packet(struct nci_dev *ndev,
 
 	pr_debug("entry, type 0x%x, reason 0x%x\n", ntf->type, ntf->reason);
 
-	clear_bit(NCI_POLL_ACTIVE, &ndev->flags);
+	atomic_set(&ndev->state, NCI_IDLE);
 	ndev->target_active_prot = 0;
 
 	/* drop tx data queue */

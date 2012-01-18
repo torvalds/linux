@@ -34,14 +34,19 @@
 #include <net/nfc/nfc.h>
 #include <net/nfc/nci.h>
 
-/* NCI device state */
-enum {
+/* NCI device flags */
+enum nci_flag {
 	NCI_INIT,
 	NCI_UP,
-	NCI_DISCOVERY,
-	NCI_POLL_ACTIVE,
 	NCI_DATA_EXCHANGE,
 	NCI_DATA_EXCHANGE_TO,
+};
+
+/* NCI device states */
+enum nci_state {
+	NCI_IDLE,
+	NCI_DISCOVERY,
+	NCI_POLL_ACTIVE,
 };
 
 /* NCI timeouts */
@@ -70,6 +75,7 @@ struct nci_dev {
 	int			tx_headroom;
 	int			tx_tailroom;
 
+	atomic_t		state;
 	unsigned long		flags;
 
 	atomic_t		cmd_cnt;

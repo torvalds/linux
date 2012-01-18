@@ -137,7 +137,7 @@ static void nci_rf_disc_rsp_packet(struct nci_dev *ndev, struct sk_buff *skb)
 	pr_debug("status 0x%x\n", status);
 
 	if (status == NCI_STATUS_OK)
-		set_bit(NCI_DISCOVERY, &ndev->flags);
+		atomic_set(&ndev->state, NCI_DISCOVERY);
 
 	nci_req_complete(ndev, status);
 }
@@ -149,12 +149,12 @@ static void nci_rf_deactivate_rsp_packet(struct nci_dev *ndev,
 
 	pr_debug("status 0x%x\n", status);
 
-	clear_bit(NCI_DISCOVERY, &ndev->flags);
-
 	/* If target was active, complete the request only in deactivate_ntf */
 	if ((status != NCI_STATUS_OK) ||
-		(!test_bit(NCI_POLL_ACTIVE, &ndev->flags)))
+		(atomic_read(&ndev->state) != NCI_POLL_ACTIVE)) {
+		atomic_set(&ndev->state, NCI_IDLE);
 		nci_req_complete(ndev, status);
+	}
 }
 
 void nci_rsp_packet(struct nci_dev *ndev, struct sk_buff *skb)
