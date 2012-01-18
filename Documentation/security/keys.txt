@@ -554,6 +554,10 @@ The keyctl syscall functions are:
      process must have write permission on the keyring, and it must be a
      keyring (or else error ENOTDIR will result).
 
+     This function can also be used to clear special kernel keyrings if they
+     are appropriately marked if the user has CAP_SYS_ADMIN capability.  The
+     DNS resolver cache keyring is an example of this.
+
 
  (*) Link a key into a keyring:
 

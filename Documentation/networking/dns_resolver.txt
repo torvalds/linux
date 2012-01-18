@@ -102,6 +102,10 @@ implemented in the module can be called after doing:
      If _expiry is non-NULL, the expiry time (TTL) of the result will be
      returned also.
 
+The kernel maintains an internal keyring in which it caches looked up keys.
+This can be cleared by any process that has the CAP_SYS_ADMIN capability by
+the use of KEYCTL_KEYRING_CLEAR on the keyring ID.
+
 
 ===============================
 READING DNS KEYS FROM USERSPACE

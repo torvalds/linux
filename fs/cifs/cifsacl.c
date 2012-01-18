@@ -556,6 +556,7 @@ init_cifs_idmap(void)
 
 	/* instruct request_key() to use this special keyring as a cache for
 	 * the results it looks up */
+	set_bit(KEY_FLAG_ROOT_CAN_CLEAR, &keyring->flags);
 	cred->thread_keyring = keyring;
 	cred->jit_keyring = KEY_REQKEY_DEFL_THREAD_KEYRING;
 	root_cred = cred;
