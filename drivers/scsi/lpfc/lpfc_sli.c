@@ -558,81 +558,6 @@ __lpfc_get_active_sglq(struct lpfc_hba *phba, uint16_t xritag)
 }
 
 /**
- * __lpfc_set_rrq_active - set RRQ active bit in the ndlp's xri_bitmap.
- * @phba: Pointer to HBA context object.
- * @ndlp: nodelist pointer for this target.
- * @xritag: xri used in this exchange.
- * @rxid: Remote Exchange ID.
- * @send_rrq: Flag used to determine if we should send rrq els cmd.
- *
- * This function is called with hbalock held.
- * The active bit is set in the ndlp's active rrq xri_bitmap. Allocates an
- * rrq struct and adds it to the active_rrq_list.
- *
- * returns  0 for rrq slot for this xri
- *         < 0  Were not able to get rrq mem or invalid parameter.
- **/
-static int
-__lpfc_set_rrq_active(struct lpfc_hba *phba, struct lpfc_nodelist *ndlp,
-		uint16_t xritag, uint16_t rxid, uint16_t send_rrq)
-{
-	struct lpfc_node_rrq *rrq;
-	int empty;
-	uint32_t did = 0;
-
-
-	if (!ndlp)
-		return -EINVAL;
-
-	if (!phba->cfg_enable_rrq)
-		return -EINVAL;
-
-	if (phba->pport->load_flag & FC_UNLOADING) {
-		phba->hba_flag &= ~HBA_RRQ_ACTIVE;
-		goto out;
-	}
-	did = ndlp->nlp_DID;
-
-	/*
-	 * set the active bit even if there is no mem available.
-	 */
-	if (NLP_CHK_FREE_REQ(ndlp))
-		goto out;
-
-	if (ndlp->vport && (ndlp->vport->load_flag & FC_UNLOADING))
-		goto out;
-
-	if (test_and_set_bit(xritag, ndlp->active_rrqs.xri_bitmap))
-		goto out;
-
-	rrq = mempool_alloc(phba->rrq_pool, GFP_KERNEL);
-	if (rrq) {
-		rrq->send_rrq = send_rrq;
-		rrq->xritag = xritag;
-		rrq->rrq_stop_time = jiffies + HZ * (phba->fc_ratov + 1);
-		rrq->ndlp = ndlp;
-		rrq->nlp_DID = ndlp->nlp_DID;
-		rrq->vport = ndlp->vport;
-		rrq->rxid = rxid;
-		empty = list_empty(&phba->active_rrq_list);
-		rrq->send_rrq = send_rrq;
-		list_add_tail(&rrq->list, &phba->active_rrq_list);
-		if (!(phba->hba_flag & HBA_RRQ_ACTIVE)) {
-			phba->hba_flag |= HBA_RRQ_ACTIVE;
-			if (empty)
-				lpfc_worker_wake_up(phba);
-		}
-		return 0;
-	}
-out:
-	lpfc_printf_log(phba, KERN_INFO, LOG_SLI,
-			"2921 Can't set rrq active xri:0x%x rxid:0x%x"
-			" DID:0x%x Send:%d\n",
-			xritag, rxid, did, send_rrq);
-	return -EINVAL;
-}
-
-/**
  * lpfc_clr_rrq_active - Clears RRQ active bit in xri_bitmap.
  * @phba: Pointer to HBA context object.
  * @xritag: xri used in this exchange.
@@ -860,15 +785,68 @@ lpfc_test_rrq_active(struct lpfc_hba *phba, struct lpfc_nodelist *ndlp,
  **/
 int
 lpfc_set_rrq_active(struct lpfc_hba *phba, struct lpfc_nodelist *ndlp,
-			uint16_t xritag, uint16_t rxid, uint16_t send_rrq)
+		    uint16_t xritag, uint16_t rxid, uint16_t send_rrq)
 {
-	int ret;
 	unsigned long iflags;
+	struct lpfc_node_rrq *rrq;
+	int empty;
+
+	if (!ndlp)
+		return -EINVAL;
+
+	if (!phba->cfg_enable_rrq)
+		return -EINVAL;
 
 	spin_lock_irqsave(&phba->hbalock, iflags);
-	ret = __lpfc_set_rrq_active(phba, ndlp, xritag, rxid, send_rrq);
+	if (phba->pport->load_flag & FC_UNLOADING) {
+		phba->hba_flag &= ~HBA_RRQ_ACTIVE;
+		goto out;
+	}
+
+	/*
+	 * set the active bit even if there is no mem available.
+	 */
+	if (NLP_CHK_FREE_REQ(ndlp))
+		goto out;
+
+	if (ndlp->vport && (ndlp->vport->load_flag & FC_UNLOADING))
+		goto out;
+
+	if (test_and_set_bit(xritag, ndlp->active_rrqs.xri_bitmap))
+		goto out;
+
 	spin_unlock_irqrestore(&phba->hbalock, iflags);
-	return ret;
+	rrq = mempool_alloc(phba->rrq_pool, GFP_KERNEL);
+	if (!rrq) {
+		lpfc_printf_log(phba, KERN_INFO, LOG_SLI,
+				"3155 Unable to allocate RRQ xri:0x%x rxid:0x%x"
+				" DID:0x%x Send:%d\n",
+				xritag, rxid, ndlp->nlp_DID, send_rrq);
+		return -EINVAL;
+	}
+	rrq->send_rrq = send_rrq;
+	rrq->xritag = xritag;
+	rrq->rrq_stop_time = jiffies + HZ * (phba->fc_ratov + 1);
+	rrq->ndlp = ndlp;
+	rrq->nlp_DID = ndlp->nlp_DID;
+	rrq->vport = ndlp->vport;
+	rrq->rxid = rxid;
+	rrq->send_rrq = send_rrq;
+	spin_lock_irqsave(&phba->hbalock, iflags);
+	empty = list_empty(&phba->active_rrq_list);
+	list_add_tail(&rrq->list, &phba->active_rrq_list);
+	phba->hba_flag |= HBA_RRQ_ACTIVE;
+	if (empty)
+		lpfc_worker_wake_up(phba);
+	spin_unlock_irqrestore(&phba->hbalock, iflags);
+	return 0;
+out:
+	spin_unlock_irqrestore(&phba->hbalock, iflags);
+	lpfc_printf_log(phba, KERN_INFO, LOG_SLI,
+			"2921 Can't set rrq active xri:0x%x rxid:0x%x"
+			" DID:0x%x Send:%d\n",
+			xritag, rxid, ndlp->nlp_DID, send_rrq);
+	return -EINVAL;
 }
 
 /**
