@@ -27,7 +27,6 @@
 #include <linux/rcupdate.h>
 #include <linux/rtnetlink.h>
 #include <linux/compat.h>
-#include <linux/version.h>
 
 #include "vport.h"
 #include "vport-internal_dev.h"

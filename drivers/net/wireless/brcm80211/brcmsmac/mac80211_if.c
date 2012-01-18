@@ -1128,14 +1128,7 @@ static int __devinit brcms_bcma_probe(struct bcma_device *pdev)
 	return 0;
 }
 
-static int brcms_pci_suspend(struct pci_dev *pdev)
-{
-	pci_save_state(pdev);
-	pci_disable_device(pdev);
-	return pci_set_power_state(pdev, PCI_D3hot);
-}
-
-static int brcms_suspend(struct bcma_device *pdev, pm_message_t state)
+static int brcms_suspend(struct bcma_device *pdev)
 {
 	struct brcms_info *wl;
 	struct ieee80211_hw *hw;
@@ -1153,40 +1146,15 @@ static int brcms_suspend(struct bcma_device *pdev, pm_message_t state)
 	wl->pub->hw_up = false;
 	spin_unlock_bh(&wl->lock);
 
-	/* temporarily do suspend ourselves */
-	return brcms_pci_suspend(pdev->bus->host_pci);
-}
-
-static int brcms_pci_resume(struct pci_dev *pdev)
-{
-	int err = 0;
-	uint val;
-
-	err = pci_set_power_state(pdev, PCI_D0);
-	if (err)
-		return err;
-
-	pci_restore_state(pdev);
-
-	err = pci_enable_device(pdev);
-	if (err)
-		return err;
-
-	pci_set_master(pdev);
-
-	pci_read_config_dword(pdev, 0x40, &val);
-	if ((val & 0x0000ff00) != 0)
-		pci_write_config_dword(pdev, 0x40, val & 0xffff00ff);
+	pr_debug("brcms_suspend ok\n");
 
 	return 0;
 }
 
 static int brcms_resume(struct bcma_device *pdev)
 {
-	/*
-	*  just do pci resume for now until bcma supports it.
-	*/
-	return brcms_pci_resume(pdev->bus->host_pci);
+	pr_debug("brcms_resume ok\n");
+	return 0;
 }
 
 static struct bcma_driver brcms_bcma_driver = {

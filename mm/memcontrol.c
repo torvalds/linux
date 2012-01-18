@@ -373,7 +373,6 @@ static void mem_cgroup_put(struct mem_cgroup *memcg);
 
 /* Writing them here to avoid exposing memcg's inner layout */
 #ifdef CONFIG_CGROUP_MEM_RES_CTLR_KMEM
-#ifdef CONFIG_INET
 #include <net/sock.h>
 #include <net/ip.h>
 
@@ -420,6 +419,7 @@ void sock_release_memcg(struct sock *sk)
 	}
 }
 
+#ifdef CONFIG_INET
 struct cg_proto *tcp_proto_cgroup(struct mem_cgroup *memcg)
 {
 	if (!memcg || mem_cgroup_is_root(memcg))
