@@ -530,6 +530,8 @@ static int nfs_vm_page_mkwrite(struct vm_area_struct *vma, struct vm_fault *vmf)
 	if (mapping != dentry->d_inode->i_mapping)
 		goto out_unlock;
 
+	wait_on_page_writeback(page);
+
 	pagelen = nfs_page_length(page);
 	if (pagelen == 0)
 		goto out_unlock;
