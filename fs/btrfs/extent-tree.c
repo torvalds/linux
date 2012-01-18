@@ -5277,7 +5277,6 @@ enum btrfs_loop_type {
 static noinline int find_free_extent(struct btrfs_trans_handle *trans,
 				     struct btrfs_root *orig_root,
 				     u64 num_bytes, u64 empty_size,
-				     u64 search_start, u64 search_end,
 				     u64 hint_byte, struct btrfs_key *ins,
 				     u64 data)
 {
@@ -5286,6 +5285,7 @@ static noinline int find_free_extent(struct btrfs_trans_handle *trans,
 	struct btrfs_free_cluster *last_ptr = NULL;
 	struct btrfs_block_group_cache *block_group = NULL;
 	struct btrfs_block_group_cache *used_block_group;
+	u64 search_start = 0;
 	int empty_cluster = 2 * 1024 * 1024;
 	int allowed_chunk_alloc = 0;
 	int done_chunk_alloc = 0;
@@ -5569,11 +5569,6 @@ unclustered_alloc:
 		}
 checks:
 		search_start = stripe_align(root, offset);
-		/* move on to the next group */
-		if (search_start + num_bytes >= search_end) {
-			btrfs_add_free_space(used_block_group, offset, num_bytes);
-			goto loop;
-		}
 
 		/* move on to the next group */
 		if (search_start + num_bytes >
@@ -5721,12 +5716,10 @@ int btrfs_reserve_extent(struct btrfs_trans_handle *trans,
 			 struct btrfs_root *root,
 			 u64 num_bytes, u64 min_alloc_size,
 			 u64 empty_size, u64 hint_byte,
-			 u64 search_end, struct btrfs_key *ins,
-			 u64 data)
+			 struct btrfs_key *ins, u64 data)
 {
 	bool final_tried = false;
 	int ret;
-	u64 search_start = 0;
 
 	data = btrfs_get_alloc_profile(root, data);
 again:
@@ -5741,8 +5734,7 @@ again:
 
 	WARN_ON(num_bytes < root->sectorsize);
 	ret = find_free_extent(trans, root, num_bytes, empty_size,
-			       search_start, search_end, hint_byte,
-			       ins, data);
+			       hint_byte, ins, data);
 
 	if (ret == -ENOSPC) {
 		if (!final_tried) {
@@ -6137,7 +6129,7 @@ struct extent_buffer *btrfs_alloc_free_block(struct btrfs_trans_handle *trans,
 		return ERR_CAST(block_rsv);
 
 	ret = btrfs_reserve_extent(trans, root, blocksize, blocksize,
-				   empty_size, hint, (u64)-1, &ins, 0);
+				   empty_size, hint, &ins, 0);
 	if (ret) {
 		unuse_block_rsv(root->fs_info, block_rsv, blocksize);
 		return ERR_PTR(ret);

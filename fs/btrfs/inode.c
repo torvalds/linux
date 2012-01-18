@@ -634,8 +634,7 @@ retry:
 		ret = btrfs_reserve_extent(trans, root,
 					   async_extent->compressed_size,
 					   async_extent->compressed_size,
-					   0, alloc_hint,
-					   (u64)-1, &ins, 1);
+					   0, alloc_hint, &ins, 1);
 		btrfs_end_transaction(trans, root);
 
 		if (ret) {
@@ -838,7 +837,7 @@ static noinline int cow_file_range(struct inode *inode,
 		cur_alloc_size = disk_num_bytes;
 		ret = btrfs_reserve_extent(trans, root, cur_alloc_size,
 					   root->sectorsize, 0, alloc_hint,
-					   (u64)-1, &ins, 1);
+					   &ins, 1);
 		BUG_ON(ret);
 
 		em = alloc_extent_map();
@@ -5414,7 +5413,7 @@ static struct extent_map *btrfs_new_extent_direct(struct inode *inode,
 
 	alloc_hint = get_extent_allocation_hint(inode, start, len);
 	ret = btrfs_reserve_extent(trans, root, len, root->sectorsize, 0,
-				   alloc_hint, (u64)-1, &ins, 1);
+				   alloc_hint, &ins, 1);
 	if (ret) {
 		em = ERR_PTR(ret);
 		goto out;
@@ -7315,7 +7314,7 @@ static int __btrfs_prealloc_file_range(struct inode *inode, int mode,
 		}
 
 		ret = btrfs_reserve_extent(trans, root, num_bytes, min_size,
-					   0, *alloc_hint, (u64)-1, &ins, 1);
+					   0, *alloc_hint, &ins, 1);
 		if (ret) {
 			if (own_trans)
 				btrfs_end_transaction(trans, root);
