@@ -12,6 +12,5 @@ config PLAT_VERSATILE_LEDS
 
 config PLAT_VERSATILE_SCHED_CLOCK
 	def_bool y if !ARCH_INTEGRATOR_AP
-	select HAVE_SCHED_CLOCK
 
 endif
