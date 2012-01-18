@@ -173,6 +173,7 @@
 #include <linux/init.h>
 #include <linux/ioport.h>
 #include <linux/cpufreq.h>
+#include <linux/gpio.h>
 #include <linux/platform_device.h>
 #include <linux/dma-mapping.h>
 #include <linux/mutex.h>
@@ -796,10 +797,8 @@ static void sa1100fb_enable_controller(struct sa1100fb_info *fbi)
 	DBAR2 = fbi->dbar2;
 	LCCR0 |= LCCR0_LEN;
 
-	if (machine_is_shannon()) {
-		GPDR |= SHANNON_GPIO_DISP_EN;
-		GPSR = SHANNON_GPIO_DISP_EN;
-	}
+	if (machine_is_shannon())
+		gpio_set_value(SHANNON_GPIO_DISP_EN, 1);
 
 	dev_dbg(fbi->dev, "DBAR1 = 0x%08lx\n", DBAR1);
 	dev_dbg(fbi->dev, "DBAR2 = 0x%08lx\n", DBAR2);
@@ -815,9 +814,8 @@ static void sa1100fb_disable_controller(struct sa1100fb_info *fbi)
 
 	dev_dbg(fbi->dev, "Disabling LCD controller\n");
 
-	if (machine_is_shannon()) {
-		GPCR = SHANNON_GPIO_DISP_EN;
-	}	
+	if (machine_is_shannon())
+		gpio_set_value(SHANNON_GPIO_DISP_EN, 0);
 
 	set_current_state(TASK_UNINTERRUPTIBLE);
 	add_wait_queue(&fbi->ctrlr_wait, &wait);
@@ -1230,6 +1228,13 @@ static int __devinit sa1100fb_probe(struct platform_device *pdev)
 		goto failed;
 	}
 
+	if (machine_is_shannon()) {
+		ret = gpio_request_one(SHANNON_GPIO_DISP_EN,
+			GPIOF_OUT_INIT_LOW, "display enable");
+		if (ret)
+			goto err_free_irq;
+	}
+
 	/*
 	 * This makes sure that our colour bitfield
 	 * descriptors are correctly initialised.
@@ -1240,7 +1245,7 @@ static int __devinit sa1100fb_probe(struct platform_device *pdev)
 
 	ret = register_framebuffer(&fbi->fb);
 	if (ret < 0)
-		goto err_free_irq;
+		goto err_reg_fb;
 
 #ifdef CONFIG_CPU_FREQ
 	fbi->freq_transition.notifier_call = sa1100fb_freq_transition;
@@ -1252,6 +1257,9 @@ static int __devinit sa1100fb_probe(struct platform_device *pdev)
 	/* This driver cannot be unloaded at the moment */
 	return 0;
 
+ err_reg_fb:
+	if (machine_is_shannon())
+		gpio_free(SHANNON_GPIO_DISP_EN);
  err_free_irq:
 	free_irq(irq, fbi);
  failed:
