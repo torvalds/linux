@@ -698,6 +698,13 @@ int target_emulate_inquiry(struct se_task *task)
 	int p, ret;
 
 	if (!(cdb[1] & 0x1)) {
+		if (cdb[2]) {
+			pr_err("INQUIRY with EVPD==0 but PAGE CODE=%02x\n",
+			       cdb[2]);
+			cmd->scsi_sense_reason = TCM_INVALID_CDB_FIELD;
+			return -EINVAL;
+		}
+
 		ret = target_emulate_inquiry_std(cmd);
 		goto out;
 	}
