@@ -24,6 +24,7 @@
 
 static const char	*length_str	= "1MB";
 static const char	*routine	= "default";
+static int		iterations	= 1;
 static bool		use_clock;
 static int		clock_fd;
 static bool		only_prefault;
@@ -35,6 +36,8 @@ static const struct option options[] = {
 		    "available unit: B, MB, GB (upper and lower)"),
 	OPT_STRING('r', "routine", &routine, "default",
 		    "Specify routine to copy"),
+	OPT_INTEGER('i', "iterations", &iterations,
+		    "repeat memset() invocation this number of times"),
 	OPT_BOOLEAN('c', "clock", &use_clock,
 		    "Use CPU clock for measuring"),
 	OPT_BOOLEAN('o', "only-prefault", &only_prefault,
@@ -117,6 +120,7 @@ static u64 do_memset_clock(memset_t fn, size_t len, bool prefault)
 {
 	u64 clock_start = 0ULL, clock_end = 0ULL;
 	void *dst = NULL;
+	int i;
 
 	alloc_mem(&dst, len);
 
@@ -124,7 +128,8 @@ static u64 do_memset_clock(memset_t fn, size_t len, bool prefault)
 		fn(dst, -1, len);
 
 	clock_start = get_clock();
-	fn(dst, 0, len);
+	for (i = 0; i < iterations; ++i)
+		fn(dst, i, len);
 	clock_end = get_clock();
 
 	free(dst);
@@ -135,6 +140,7 @@ static double do_memset_gettimeofday(memset_t fn, size_t len, bool prefault)
 {
 	struct timeval tv_start, tv_end, tv_diff;
 	void *dst = NULL;
+	int i;
 
 	alloc_mem(&dst, len);
 
@@ -142,7 +148,8 @@ static double do_memset_gettimeofday(memset_t fn, size_t len, bool prefault)
 		fn(dst, -1, len);
 
 	BUG_ON(gettimeofday(&tv_start, NULL));
-	fn(dst, 0, len);
+	for (i = 0; i < iterations; ++i)
+		fn(dst, i, len);
 	BUG_ON(gettimeofday(&tv_end, NULL));
 
 	timersub(&tv_end, &tv_start, &tv_diff);
