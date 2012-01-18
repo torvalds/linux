@@ -2562,7 +2562,6 @@ static int wm5100_remove(struct snd_soc_codec *codec)
 	struct wm5100_priv *wm5100 = snd_soc_codec_get_drvdata(codec);
 	struct i2c_client *i2c = to_i2c_client(codec->dev);
 
-	wm5100_set_bias_level(codec, SND_SOC_BIAS_OFF);
 	if (wm5100->pdata.hp_pol) {
 		gpio_free(wm5100->pdata.hp_pol);
 	}
