@@ -828,7 +828,7 @@ static struct nfs4_opendata *nfs4_opendata_alloc(struct dentry *dentry,
 	p->o_arg.bitmask = server->attr_bitmask;
 	p->o_arg.dir_bitmask = server->cache_consistency_bitmask;
 	p->o_arg.claim = NFS4_OPEN_CLAIM_NULL;
-	if (flags & O_CREAT) {
+	if (attrs != NULL && attrs->ia_valid != 0) {
 		u32 *s;
 
 		p->o_arg.u.attrs = &p->attrs;
@@ -885,7 +885,7 @@ static int can_open_cached(struct nfs4_state *state, fmode_t mode, int open_mode
 {
 	int ret = 0;
 
-	if (open_mode & O_EXCL)
+	if (open_mode & (O_EXCL|O_TRUNC))
 		goto out;
 	switch (mode & (FMODE_READ|FMODE_WRITE)) {
 		case FMODE_READ:
@@ -1033,7 +1033,7 @@ static struct nfs4_state *nfs4_try_open_cached(struct nfs4_opendata *opendata)
 	struct nfs4_state *state = opendata->state;
 	struct nfs_inode *nfsi = NFS_I(state->inode);
 	struct nfs_delegation *delegation;
-	int open_mode = opendata->o_arg.open_flags & O_EXCL;
+	int open_mode = opendata->o_arg.open_flags & (O_EXCL|O_TRUNC);
 	fmode_t fmode = opendata->o_arg.fmode;
 	nfs4_stateid stateid;
 	int ret = -EAGAIN;
@@ -2430,6 +2430,10 @@ nfs4_proc_setattr(struct dentry *dentry, struct nfs_fattr *fattr,
 			state = ctx->state;
 		}
 	}
+
+	/* Deal with open(O_TRUNC) */
+	if (sattr->ia_valid & ATTR_OPEN)
+		sattr->ia_valid &= ~(ATTR_MTIME|ATTR_CTIME|ATTR_OPEN);
 
 	status = nfs4_do_setattr(inode, cred, fattr, sattr, state);
 	if (status == 0)
