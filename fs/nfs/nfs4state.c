@@ -444,13 +444,17 @@ nfs4_remove_state_owner_locked(struct nfs4_state_owner *sp)
  *
  */
 static struct nfs4_state_owner *
-nfs4_alloc_state_owner(void)
+nfs4_alloc_state_owner(struct nfs_server *server,
+		struct rpc_cred *cred,
+		gfp_t gfp_flags)
 {
 	struct nfs4_state_owner *sp;
 
-	sp = kzalloc(sizeof(*sp),GFP_NOFS);
+	sp = kzalloc(sizeof(*sp), gfp_flags);
 	if (!sp)
 		return NULL;
+	sp->so_server = server;
+	sp->so_cred = get_rpccred(cred);
 	spin_lock_init(&sp->so_lock);
 	INIT_LIST_HEAD(&sp->so_states);
 	rpc_init_wait_queue(&sp->so_sequence.wait, "Seqid_waitqueue");
@@ -516,7 +520,8 @@ static void nfs4_gc_state_owners(struct nfs_server *server)
  * Returns a pointer to an instantiated nfs4_state_owner struct, or NULL.
  */
 struct nfs4_state_owner *nfs4_get_state_owner(struct nfs_server *server,
-					      struct rpc_cred *cred)
+					      struct rpc_cred *cred,
+					      gfp_t gfp_flags)
 {
 	struct nfs_client *clp = server->nfs_client;
 	struct nfs4_state_owner *sp, *new;
@@ -526,20 +531,13 @@ struct nfs4_state_owner *nfs4_get_state_owner(struct nfs_server *server,
 	spin_unlock(&clp->cl_lock);
 	if (sp != NULL)
 		goto out;
-	new = nfs4_alloc_state_owner();
+	new = nfs4_alloc_state_owner(server, cred, gfp_flags);
 	if (new == NULL)
 		goto out;
-	new->so_server = server;
-	new->so_cred = cred;
-	spin_lock(&clp->cl_lock);
 	sp = nfs4_insert_state_owner_locked(new);
 	spin_unlock(&clp->cl_lock);
-	if (sp == new)
-		get_rpccred(cred);
-	else {
-		rpc_destroy_wait_queue(&new->so_sequence.wait);
-		kfree(new);
-	}
+	if (sp != new)
+		nfs4_free_state_owner(new);
 out:
 	nfs4_gc_state_owners(server);
 	return sp;
