@@ -1175,3 +1175,9 @@
  */
 /* TagTracer MIFARE*/
 #define FTDI_ZEITCONTROL_TAGTRACE_MIFARE_PID	0xF7C0
+
+/*
+ * Rainforest Automation
+ */
+/* ZigBee controller */
+#define FTDI_RF_R106		0x8A28
