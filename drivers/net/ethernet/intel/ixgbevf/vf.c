@@ -26,6 +26,7 @@
 *******************************************************************************/
 
 #include "vf.h"
+#include "ixgbevf.h"
 
 /**
  *  ixgbevf_start_hw_vf - Prepare hardware for Tx/Rx
