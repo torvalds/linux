@@ -2341,13 +2341,20 @@ lpfc_cleanup(struct lpfc_vport *vport)
 			continue;
 		}
 
+		/* take care of nodes in unused state before the state
+		 * machine taking action.
+		 */
+		if (ndlp->nlp_state == NLP_STE_UNUSED_NODE) {
+			lpfc_nlp_put(ndlp);
+			continue;
+		}
+
 		if (ndlp->nlp_type & NLP_FABRIC)
 			lpfc_disc_state_machine(vport, ndlp, NULL,
 					NLP_EVT_DEVICE_RECOVERY);
 
 		lpfc_disc_state_machine(vport, ndlp, NULL,
 					     NLP_EVT_DEVICE_RM);
-
 	}
 
 	/* At this point, ALL ndlp's should be gone

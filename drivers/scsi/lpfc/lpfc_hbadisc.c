@@ -5332,6 +5332,10 @@ lpfc_filter_by_rpi(struct lpfc_nodelist *ndlp, void *param)
 {
 	uint16_t *rpi = param;
 
+	/* check for active node */
+	if (!NLP_CHK_NODE_ACT(ndlp))
+		return 0;
+
 	return ndlp->nlp_rpi == *rpi;
 }
 

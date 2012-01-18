@@ -1526,7 +1526,6 @@ lpfc_plogi_confirm_nport(struct lpfc_hba *phba, uint32_t *prsp,
 			memcpy(&ndlp->active_rrqs.xri_bitmap,
 				&rrq.xri_bitmap,
 				sizeof(ndlp->active_rrqs.xri_bitmap));
-		lpfc_nlp_set_state(vport, ndlp, NLP_STE_NPR_NODE);
 		/* Since we are swapping the ndlp passed in with the new one
 		 * and the did has already been swapped, copy over the
 		 * state and names.
@@ -1536,6 +1535,7 @@ lpfc_plogi_confirm_nport(struct lpfc_hba *phba, uint32_t *prsp,
 		memcpy(&new_ndlp->nlp_nodename, &ndlp->nlp_nodename,
 			sizeof(struct lpfc_name));
 		new_ndlp->nlp_state = ndlp->nlp_state;
+		lpfc_nlp_set_state(vport, ndlp, NLP_STE_NPR_NODE);
 		/* Fix up the rport accordingly */
 		rport = ndlp->rport;
 		if (rport) {
