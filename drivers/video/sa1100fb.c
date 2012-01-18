@@ -798,7 +798,7 @@ static void sa1100fb_enable_controller(struct sa1100fb_info *fbi)
 
 	if (machine_is_shannon()) {
 		GPDR |= SHANNON_GPIO_DISP_EN;
-		GPSR |= SHANNON_GPIO_DISP_EN;
+		GPSR = SHANNON_GPIO_DISP_EN;
 	}
 
 	dev_dbg(fbi->dev, "DBAR1 = 0x%08lx\n", DBAR1);
@@ -816,7 +816,7 @@ static void sa1100fb_disable_controller(struct sa1100fb_info *fbi)
 	dev_dbg(fbi->dev, "Disabling LCD controller\n");
 
 	if (machine_is_shannon()) {
-		GPCR |= SHANNON_GPIO_DISP_EN;
+		GPCR = SHANNON_GPIO_DISP_EN;
 	}	
 
 	set_current_state(TASK_UNINTERRUPTIBLE);
