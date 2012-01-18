@@ -761,8 +761,19 @@ static void sa1100fb_setup_gpio(struct sa1100fb_info *fbi)
 	}
 
 	if (mask) {
+		unsigned long flags;
+
+		/*
+		 * SA-1100 requires the GPIO direction register set
+		 * appropriately for the alternate function.  Hence
+		 * we set it here via bitmask rather than excessive
+		 * fiddling via the GPIO subsystem - and even then
+		 * we'll still have to deal with GAFR.
+		 */
+		local_irq_save(flags);
 		GPDR |= mask;
 		GAFR |= mask;
+		local_irq_restore(flags);
 	}
 }
 
