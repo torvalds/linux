@@ -2977,9 +2977,9 @@ lpfc_mbx_process_link_up(struct lpfc_hba *phba, struct lpfc_mbx_read_top *la)
 				"topology\n");
 				/* Get Loop Map information */
 		if (bf_get(lpfc_mbx_read_top_il, la)) {
-			spin_lock_irq(shost->host_lock);
+			spin_lock(shost->host_lock);
 			vport->fc_flag |= FC_LBIT;
-			spin_unlock_irq(shost->host_lock);
+			spin_unlock(shost->host_lock);
 		}
 
 		vport->fc_myDID = bf_get(lpfc_mbx_read_top_alpa_granted, la);
@@ -3029,9 +3029,9 @@ lpfc_mbx_process_link_up(struct lpfc_hba *phba, struct lpfc_mbx_read_top *la)
 				phba->sli3_options |= LPFC_SLI3_NPIV_ENABLED;
 		}
 		vport->fc_myDID = phba->fc_pref_DID;
-		spin_lock_irq(shost->host_lock);
+		spin_lock(shost->host_lock);
 		vport->fc_flag |= FC_LBIT;
-		spin_unlock_irq(shost->host_lock);
+		spin_unlock(shost->host_lock);
 	}
 	spin_unlock_irq(&phba->hbalock);
 

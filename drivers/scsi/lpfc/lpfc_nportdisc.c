@@ -481,6 +481,7 @@ lpfc_mbx_cmpl_resume_rpi(struct lpfc_hba *phba, LPFC_MBOXQ_t *mboxq)
 			ndlp, NULL);
 	}
 	kfree(elsiocb);
+	mempool_free(mboxq, phba->mbox_mem_pool);
 }
 
 static int

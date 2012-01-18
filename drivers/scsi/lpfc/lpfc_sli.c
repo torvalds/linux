@@ -14840,7 +14840,8 @@ lpfc_sli4_resume_rpi(struct lpfc_nodelist *ndlp,
 		mboxq->mbox_cmpl = cmpl;
 		mboxq->context1 = arg;
 		mboxq->context2 = ndlp;
-	}
+	} else
+		mboxq->mbox_cmpl = lpfc_sli_def_mbox_cmpl;
 	mboxq->vport = ndlp->vport;
 	rc = lpfc_sli_issue_mbox(phba, mboxq, MBX_NOWAIT);
 	if (rc == MBX_NOT_FINISHED) {
