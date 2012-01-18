@@ -457,7 +457,7 @@ static int dwc3_ep0_set_config(struct dwc3 *dwc, struct usb_ctrlrequest *ctrl)
 	case DWC3_ADDRESS_STATE:
 		ret = dwc3_ep0_delegate_req(dwc, ctrl);
 		/* if the cfg matches and the cfg is non zero */
-		if (!ret && cfg)
+		if (cfg && (!ret || (ret == USB_GADGET_DELAYED_STATUS)))
 			dwc->dev_state = DWC3_CONFIGURED_STATE;
 		break;
 
