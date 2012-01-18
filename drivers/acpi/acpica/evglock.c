@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2011, Intel Corp.
+ * Copyright (C) 2000 - 2012, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -69,6 +69,12 @@ acpi_status acpi_ev_init_global_lock_handler(void)
 	acpi_status status;
 
 	ACPI_FUNCTION_TRACE(ev_init_global_lock_handler);
+
+	/* If Hardware Reduced flag is set, there is no global lock */
+
+	if (acpi_gbl_reduced_hardware) {
+		return_ACPI_STATUS(AE_OK);
+	}
 
 	/* Attempt installation of the global lock handler */
 

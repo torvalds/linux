@@ -82,7 +82,7 @@ MODULE_LICENSE("GPL");
 static int acpi_processor_add(struct acpi_device *device);
 static int acpi_processor_remove(struct acpi_device *device, int type);
 static void acpi_processor_notify(struct acpi_device *device, u32 event);
-static acpi_status acpi_processor_hotadd_init(acpi_handle handle, int *p_cpu);
+static acpi_status acpi_processor_hotadd_init(struct acpi_processor *pr);
 static int acpi_processor_handle_eject(struct acpi_processor *pr);
 
 
@@ -324,10 +324,8 @@ static int acpi_processor_get_info(struct acpi_device *device)
 	 *  they are physically not present.
 	 */
 	if (pr->id == -1) {
-		if (ACPI_FAILURE
-		    (acpi_processor_hotadd_init(pr->handle, &pr->id))) {
+		if (ACPI_FAILURE(acpi_processor_hotadd_init(pr)))
 			return -ENODEV;
-		}
 	}
 	/*
 	 * On some boxes several processors use the same processor bus id.
@@ -539,6 +537,7 @@ err_thermal_unregister:
 	thermal_cooling_device_unregister(pr->cdev);
 err_power_exit:
 	acpi_processor_power_exit(pr, device);
+	sysfs_remove_link(&device->dev.kobj, "sysdev");
 err_free_cpumask:
 	free_cpumask_var(pr->throttling.shared_cpu_map);
 
@@ -720,18 +719,19 @@ processor_walk_namespace_cb(acpi_handle handle,
 	return (AE_OK);
 }
 
-static acpi_status acpi_processor_hotadd_init(acpi_handle handle, int *p_cpu)
+static acpi_status acpi_processor_hotadd_init(struct acpi_processor *pr)
 {
+	acpi_handle handle = pr->handle;
 
 	if (!is_processor_present(handle)) {
 		return AE_ERROR;
 	}
 
-	if (acpi_map_lsapic(handle, p_cpu))
+	if (acpi_map_lsapic(handle, &pr->id))
 		return AE_ERROR;
 
-	if (arch_register_cpu(*p_cpu)) {
-		acpi_unmap_lsapic(*p_cpu);
+	if (arch_register_cpu(pr->id)) {
+		acpi_unmap_lsapic(pr->id);
 		return AE_ERROR;
 	}
 
@@ -748,7 +748,7 @@ static int acpi_processor_handle_eject(struct acpi_processor *pr)
 	return (0);
 }
 #else
-static acpi_status acpi_processor_hotadd_init(acpi_handle handle, int *p_cpu)
+static acpi_status acpi_processor_hotadd_init(struct acpi_processor *pr)
 {
 	return AE_ERROR;
 }
@@ -826,8 +826,6 @@ static void __exit acpi_processor_exit(void)
 	acpi_processor_uninstall_hotplug_notify();
 
 	acpi_bus_unregister_driver(&acpi_processor_driver);
-
-	cpuidle_unregister_driver(&acpi_idle_driver);
 
 	return;
 }
