@@ -4003,8 +4003,8 @@ set_itr_now:
 	}
 }
 
-void igb_tx_ctxtdesc(struct igb_ring *tx_ring, u32 vlan_macip_lens,
-		     u32 type_tucmd, u32 mss_l4len_idx)
+static void igb_tx_ctxtdesc(struct igb_ring *tx_ring, u32 vlan_macip_lens,
+			    u32 type_tucmd, u32 mss_l4len_idx)
 {
 	struct e1000_adv_tx_context_desc *context_desc;
 	u16 i = tx_ring->next_to_use;
@@ -5623,7 +5623,7 @@ static irqreturn_t igb_intr(int irq, void *data)
 	return IRQ_HANDLED;
 }
 
-void igb_ring_irq_enable(struct igb_q_vector *q_vector)
+static void igb_ring_irq_enable(struct igb_q_vector *q_vector)
 {
 	struct igb_adapter *adapter = q_vector->adapter;
 	struct e1000_hw *hw = &adapter->hw;
