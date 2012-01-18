@@ -49,10 +49,8 @@ static int find_index_from_host_irq(struct kvm_assigned_dev_kernel
 			index = i;
 			break;
 		}
-	if (index < 0) {
+	if (index < 0)
 		printk(KERN_WARNING "Fail to find correlated MSI-X entry!\n");
-		return 0;
-	}
 
 	return index;
 }
