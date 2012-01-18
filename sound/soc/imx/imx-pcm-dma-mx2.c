@@ -107,12 +107,12 @@ static int imx_ssi_dma_alloc(struct snd_pcm_substream *substream,
 	}
 
 	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK) {
-		slave_config.direction = DMA_TO_DEVICE;
+		slave_config.direction = DMA_MEM_TO_DEV;
 		slave_config.dst_addr = dma_params->dma_addr;
 		slave_config.dst_addr_width = buswidth;
 		slave_config.dst_maxburst = dma_params->burstsize;
 	} else {
-		slave_config.direction = DMA_FROM_DEVICE;
+		slave_config.direction = DMA_DEV_TO_MEM;
 		slave_config.src_addr = dma_params->dma_addr;
 		slave_config.src_addr_width = buswidth;
 		slave_config.src_maxburst = dma_params->burstsize;
@@ -159,7 +159,7 @@ static int snd_imx_pcm_hw_params(struct snd_pcm_substream *substream,
 			iprtd->period_bytes * iprtd->periods,
 			iprtd->period_bytes,
 			substream->stream == SNDRV_PCM_STREAM_PLAYBACK ?
-			DMA_TO_DEVICE : DMA_FROM_DEVICE);
+			DMA_MEM_TO_DEV : DMA_DEV_TO_MEM);
 	if (!iprtd->desc) {
 		dev_err(&chan->dev->device, "cannot prepare slave dma\n");
 		return -EINVAL;
