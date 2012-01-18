@@ -987,12 +987,12 @@ static int sgtl5000_restore_regs(struct snd_soc_codec *codec)
 	/* restore regular registers */
 	for (reg = 0; reg <= SGTL5000_CHIP_SHORT_CTRL; reg += 2) {
 
-		/* this regs depends on the others */
+		/* These regs should restore in particular order */
 		if (reg == SGTL5000_CHIP_ANA_POWER ||
 			reg == SGTL5000_CHIP_CLK_CTRL ||
 			reg == SGTL5000_CHIP_LINREG_CTRL ||
 			reg == SGTL5000_CHIP_LINE_OUT_CTRL ||
-			reg == SGTL5000_CHIP_CLK_CTRL)
+			reg == SGTL5000_CHIP_REF_CTRL)
 			continue;
 
 		snd_soc_write(codec, reg, cache[reg]);
@@ -1003,8 +1003,17 @@ static int sgtl5000_restore_regs(struct snd_soc_codec *codec)
 		snd_soc_write(codec, reg, cache[reg]);
 
 	/*
-	 * restore power and other regs according
-	 * to set_power() and set_clock()
+	 * restore these regs according to the power setting sequence in
+	 * sgtl5000_set_power_regs() and clock setting sequence in
+	 * sgtl5000_set_clock().
+	 *
+	 * The order of restore is:
+	 * 1. SGTL5000_CHIP_CLK_CTRL MCLK_FREQ bits (1:0) should be restore after
+	 *    SGTL5000_CHIP_ANA_POWER PLL bits set
+	 * 2. SGTL5000_CHIP_LINREG_CTRL should be set before
+	 *    SGTL5000_CHIP_ANA_POWER LINREG_D restored
+	 * 3. SGTL5000_CHIP_REF_CTRL controls Analog Ground Voltage,
+	 *    prefer to resotre it after SGTL5000_CHIP_ANA_POWER restored
 	 */
 	snd_soc_write(codec, SGTL5000_CHIP_LINREG_CTRL,
 			cache[SGTL5000_CHIP_LINREG_CTRL]);
