@@ -641,9 +641,11 @@ static int aic32x4_probe(struct snd_soc_codec *codec)
 	if (aic32x4->power_cfg & AIC32X4_PWR_AVDD_DVDD_WEAK_DISABLE) {
 		snd_soc_write(codec, AIC32X4_PWRCFG, AIC32X4_AVDDWEAKDISABLE);
 	}
-	if (aic32x4->power_cfg & AIC32X4_PWR_AIC32X4_LDO_ENABLE) {
-		snd_soc_write(codec, AIC32X4_LDOCTL, AIC32X4_LDOCTLEN);
-	}
+
+	tmp_reg = (aic32x4->power_cfg & AIC32X4_PWR_AIC32X4_LDO_ENABLE) ?
+			AIC32X4_LDOCTLEN : 0;
+	snd_soc_write(codec, AIC32X4_LDOCTL, tmp_reg);
+
 	tmp_reg = snd_soc_read(codec, AIC32X4_CMMODE);
 	if (aic32x4->power_cfg & AIC32X4_PWR_CMMODE_LDOIN_RANGE_18_36) {
 		tmp_reg |= AIC32X4_LDOIN_18_36;
