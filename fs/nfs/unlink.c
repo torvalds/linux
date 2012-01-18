@@ -114,7 +114,7 @@ void nfs_unlink_prepare(struct rpc_task *task, void *calldata)
 	struct nfs_server *server = NFS_SERVER(data->dir);
 
 	if (nfs4_setup_sequence(server, &data->args.seq_args,
-				&data->res.seq_res, 1, task))
+				&data->res.seq_res, task))
 		return;
 	rpc_call_start(task);
 }
@@ -410,7 +410,7 @@ static void nfs_rename_prepare(struct rpc_task *task, void *calldata)
 	struct nfs_server *server = NFS_SERVER(data->old_dir);
 
 	if (nfs4_setup_sequence(server, &data->args.seq_args,
-				&data->res.seq_res, 1, task))
+				&data->res.seq_res, task))
 		return;
 	rpc_call_start(task);
 }

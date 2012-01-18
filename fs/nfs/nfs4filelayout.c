@@ -173,7 +173,7 @@ static void filelayout_read_prepare(struct rpc_task *task, void *data)
 
 	if (nfs41_setup_sequence(rdata->ds_clp->cl_session,
 				&rdata->args.seq_args, &rdata->res.seq_res,
-				0, task))
+				task))
 		return;
 
 	rpc_call_start(task);
@@ -254,7 +254,7 @@ static void filelayout_write_prepare(struct rpc_task *task, void *data)
 
 	if (nfs41_setup_sequence(wdata->ds_clp->cl_session,
 				&wdata->args.seq_args, &wdata->res.seq_res,
-				0, task))
+				task))
 		return;
 
 	rpc_call_start(task);

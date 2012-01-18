@@ -1135,7 +1135,7 @@ void nfs_write_prepare(struct rpc_task *task, void *calldata)
 
 	if (nfs4_setup_sequence(NFS_SERVER(data->inode),
 				&data->args.seq_args,
-				&data->res.seq_res, 1, task))
+				&data->res.seq_res, task))
 		return;
 	rpc_call_start(task);
 }
