@@ -420,15 +420,20 @@ static int calc_ntlmv2_hash(struct cifs_ses *ses, char *ntlmv2_hash,
 	}
 
 	/* convert ses->user_name to unicode and uppercase */
-	len = strlen(ses->user_name);
+	len = ses->user_name ? strlen(ses->user_name) : 0;
 	user = kmalloc(2 + (len * 2), GFP_KERNEL);
 	if (user == NULL) {
 		cERROR(1, "calc_ntlmv2_hash: user mem alloc failure\n");
 		rc = -ENOMEM;
 		return rc;
 	}
-	len = cifs_strtoUCS((__le16 *)user, ses->user_name, len, nls_cp);
-	UniStrupr(user);
+
+	if (len) {
+		len = cifs_strtoUCS((__le16 *)user, ses->user_name, len, nls_cp);
+		UniStrupr(user);
+	} else {
+		memset(user, '\0', 2);
+	}
 
 	rc = crypto_shash_update(&ses->server->secmech.sdeschmacmd5->shash,
 				(char *)user, 2 * len);
