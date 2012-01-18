@@ -1092,6 +1092,7 @@ static struct nfs_server *nfs_alloc_server(void)
 		return NULL;
 	}
 
+	ida_init(&server->openowner_id);
 	pnfs_init_server(server);
 
 	return server;
@@ -1117,6 +1118,7 @@ void nfs_free_server(struct nfs_server *server)
 
 	nfs_put_client(server->nfs_client);
 
+	ida_destroy(&server->openowner_id);
 	nfs_free_iostats(server->io_stats);
 	bdi_destroy(&server->backing_dev_info);
 	kfree(server);

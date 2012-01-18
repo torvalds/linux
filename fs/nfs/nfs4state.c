@@ -405,6 +405,7 @@ nfs4_insert_state_owner_locked(struct nfs4_state_owner *new)
 	struct rb_node **p = &server->state_owners.rb_node,
 		       *parent = NULL;
 	struct nfs4_state_owner *sp;
+	int err;
 
 	while (*p != NULL) {
 		parent = *p;
@@ -421,8 +422,9 @@ nfs4_insert_state_owner_locked(struct nfs4_state_owner *new)
 			return sp;
 		}
 	}
-	nfs_alloc_unique_id_locked(&server->openowner_id,
-					&new->so_owner_id, 1, 64);
+	err = ida_get_new(&server->openowner_id, &new->so_owner_id);
+	if (err)
+		return ERR_PTR(err);
 	rb_link_node(&new->so_server_node, parent, p);
 	rb_insert_color(&new->so_server_node, &server->state_owners);
 	return new;
@@ -435,7 +437,7 @@ nfs4_remove_state_owner_locked(struct nfs4_state_owner *sp)
 
 	if (!RB_EMPTY_NODE(&sp->so_server_node))
 		rb_erase(&sp->so_server_node, &server->state_owners);
-	nfs_free_unique_id(&server->openowner_id, &sp->so_owner_id);
+	ida_remove(&server->openowner_id, sp->so_owner_id);
 }
 
 /*
@@ -534,8 +536,13 @@ struct nfs4_state_owner *nfs4_get_state_owner(struct nfs_server *server,
 	new = nfs4_alloc_state_owner(server, cred, gfp_flags);
 	if (new == NULL)
 		goto out;
-	sp = nfs4_insert_state_owner_locked(new);
-	spin_unlock(&clp->cl_lock);
+	do {
+		if (ida_pre_get(&server->openowner_id, gfp_flags) == 0)
+			break;
+		spin_lock(&clp->cl_lock);
+		sp = nfs4_insert_state_owner_locked(new);
+		spin_unlock(&clp->cl_lock);
+	} while (sp == ERR_PTR(-EAGAIN));
 	if (sp != new)
 		nfs4_free_state_owner(new);
 out:

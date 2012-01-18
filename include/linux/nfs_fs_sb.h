@@ -3,6 +3,7 @@
 
 #include <linux/list.h>
 #include <linux/backing-dev.h>
+#include <linux/idr.h>
 #include <linux/wait.h>
 #include <linux/nfs_xdr.h>
 #include <linux/sunrpc/xprt.h>
@@ -151,9 +152,9 @@ struct nfs_server {
 
 	/* the following fields are protected by nfs_client->cl_lock */
 	struct rb_root		state_owners;
-	struct rb_root		openowner_id;
 	struct rb_root		lockowner_id;
 #endif
+	struct ida		openowner_id;
 	struct list_head	state_owners_lru;
 	struct list_head	layouts;
 	struct list_head	delegations;
