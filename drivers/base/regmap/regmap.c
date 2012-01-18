@@ -160,7 +160,9 @@ struct regmap *regmap_init(struct device *dev,
 	mutex_init(&map->lock);
 	map->format.buf_size = (config->reg_bits + config->val_bits) / 8;
 	map->format.reg_bytes = config->reg_bits / 8;
+	map->format.pad_bytes = config->pad_bits / 8;
 	map->format.val_bytes = config->val_bits / 8;
+	map->format.buf_size += map->format.pad_bytes;
 	map->dev = dev;
 	map->bus = bus;
 	map->max_register = config->max_register;
@@ -235,7 +237,7 @@ struct regmap *regmap_init(struct device *dev,
 	    !(map->format.format_reg && map->format.format_val))
 		goto err_map;
 
-	map->work_buf = kmalloc(map->format.buf_size, GFP_KERNEL);
+	map->work_buf = kzalloc(map->format.buf_size, GFP_KERNEL);
 	if (map->work_buf == NULL) {
 		ret = -ENOMEM;
 		goto err_map;
@@ -329,23 +331,28 @@ static int _regmap_raw_write(struct regmap *map, unsigned int reg,
 	 * send the work_buf directly, otherwise try to do a gather
 	 * write.
 	 */
-	if (val == map->work_buf + map->format.reg_bytes)
+	if (val == (map->work_buf + map->format.pad_bytes +
+		    map->format.reg_bytes))
 		ret = map->bus->write(map->dev, map->work_buf,
-				      map->format.reg_bytes + val_len);
+				      map->format.reg_bytes +
+				      map->format.pad_bytes +
+				      val_len);
 	else if (map->bus->gather_write)
 		ret = map->bus->gather_write(map->dev, map->work_buf,
-					     map->format.reg_bytes,
+					     map->format.reg_bytes +
+					     map->format.pad_bytes,
 					     val, val_len);
 
 	/* If that didn't work fall back on linearising by hand. */
 	if (ret == -ENOTSUPP) {
-		len = map->format.reg_bytes + val_len;
-		buf = kmalloc(len, GFP_KERNEL);
+		len = map->format.reg_bytes + map->format.pad_bytes + val_len;
+		buf = kzalloc(len, GFP_KERNEL);
 		if (!buf)
 			return -ENOMEM;
 
 		memcpy(buf, map->work_buf, map->format.reg_bytes);
-		memcpy(buf + map->format.reg_bytes, val, val_len);
+		memcpy(buf + map->format.reg_bytes + map->format.pad_bytes,
+		       val, val_len);
 		ret = map->bus->write(map->dev, buf, len);
 
 		kfree(buf);
@@ -387,10 +394,12 @@ int _regmap_write(struct regmap *map, unsigned int reg,
 
 		return ret;
 	} else {
-		map->format.format_val(map->work_buf + map->format.reg_bytes,
-				       val);
+		map->format.format_val(map->work_buf + map->format.reg_bytes
+				       + map->format.pad_bytes, val);
 		return _regmap_raw_write(map, reg,
-					 map->work_buf + map->format.reg_bytes,
+					 map->work_buf +
+					 map->format.reg_bytes +
+					 map->format.pad_bytes,
 					 map->format.val_bytes);
 	}
 }
@@ -473,7 +482,8 @@ static int _regmap_raw_read(struct regmap *map, unsigned int reg, void *val,
 	trace_regmap_hw_read_start(map->dev, reg,
 				   val_len / map->format.val_bytes);
 
-	ret = map->bus->read(map->dev, map->work_buf, map->format.reg_bytes,
+	ret = map->bus->read(map->dev, map->work_buf,
+			     map->format.reg_bytes + map->format.pad_bytes,
 			     val, val_len);
 
 	trace_regmap_hw_read_done(map->dev, reg,
