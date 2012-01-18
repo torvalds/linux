@@ -364,15 +364,20 @@ capability and it is cleared otherwise.</entry>
 	  <row>
 	    <entry><constant>V4L2_FBUF_FLAG_OVERLAY</constant></entry>
 	    <entry>0x0002</entry>
-	    <entry>The frame buffer is an overlay surface the same
-size as the capture. [?]</entry>
-	  </row>
-	  <row>
-	    <entry spanname="hspan">The purpose of
-<constant>V4L2_FBUF_FLAG_OVERLAY</constant> was never quite clear.
-Most drivers seem to ignore this flag. For compatibility with the
-<wordasword>bttv</wordasword> driver applications should set the
-<constant>V4L2_FBUF_FLAG_OVERLAY</constant> flag.</entry>
+	    <entry>If this flag is set for a video capture device, then the
+driver will set the initial overlay size to cover the full framebuffer size,
+otherwise the existing overlay size (as set by &VIDIOC-S-FMT;) will be used.
+
+Only one video capture driver (bttv) supports this flag. The use of this flag
+for capture devices is deprecated. There is no way to detect which drivers
+support this flag, so the only reliable method of setting the overlay size is
+through &VIDIOC-S-FMT;.
+
+If this flag is set for a video output device, then the video output overlay
+window is relative to the top-left corner of the framebuffer and restricted
+to the size of the framebuffer. If it is cleared, then the video output
+overlay window is relative to the video output display.
+            </entry>
 	  </row>
 	  <row>
 	    <entry><constant>V4L2_FBUF_FLAG_CHROMAKEY</constant></entry>

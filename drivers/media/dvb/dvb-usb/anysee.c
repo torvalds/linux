@@ -877,24 +877,18 @@ static int anysee_frontend_attach(struct dvb_usb_adapter *adap)
 	case ANYSEE_HW_508T2C: /* 20 */
 		/* E7 T2C */
 
+		if (state->fe_id)
+			break;
+
 		/* enable DVB-T/T2/C demod on IOE[5] */
 		ret = anysee_wr_reg_mask(adap->dev, REG_IOE, (1 << 5), 0x20);
 		if (ret)
 			goto error;
 
-		if (state->fe_id == 0)  {
-			/* DVB-T/T2 */
-			adap->fe_adap[state->fe_id].fe =
-				dvb_attach(cxd2820r_attach,
-				&anysee_cxd2820r_config,
-				&adap->dev->i2c_adap, NULL);
-		} else {
-			/* DVB-C */
-			adap->fe_adap[state->fe_id].fe =
-				dvb_attach(cxd2820r_attach,
-				&anysee_cxd2820r_config,
-				&adap->dev->i2c_adap, adap->fe_adap[0].fe);
-		}
+		/* attach demod */
+		adap->fe_adap[state->fe_id].fe = dvb_attach(cxd2820r_attach,
+				&anysee_cxd2820r_config, &adap->dev->i2c_adap,
+				NULL);
 
 		state->has_ci = true;
 

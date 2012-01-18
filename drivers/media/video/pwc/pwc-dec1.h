@@ -25,13 +25,15 @@
 #ifndef PWC_DEC1_H
 #define PWC_DEC1_H
 
-#include "pwc.h"
+#include <linux/mutex.h>
+
+struct pwc_device;
 
 struct pwc_dec1_private
 {
 	int version;
 };
 
-int pwc_dec1_init(struct pwc_device *pwc, int type, int release, void *buffer);
+void pwc_dec1_init(struct pwc_device *pdev, const unsigned char *cmd);
 
 #endif

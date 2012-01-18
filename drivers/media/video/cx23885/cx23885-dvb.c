@@ -943,6 +943,11 @@ static int dvb_register(struct cx23885_tsport *port)
 
 			fe = dvb_attach(xc4000_attach, fe0->dvb.frontend,
 					&dev->i2c_bus[1].i2c_adap, &cfg);
+			if (!fe) {
+				printk(KERN_ERR "%s/2: xc4000 attach failed\n",
+				       dev->name);
+				goto frontend_detach;
+			}
 		}
 		break;
 	case CX23885_BOARD_TBS_6920:

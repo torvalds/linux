@@ -309,9 +309,14 @@ static int cxd2820r_read_status(struct dvb_frontend *fe, fe_status_t *status)
 
 static int cxd2820r_get_frontend(struct dvb_frontend *fe)
 {
+	struct cxd2820r_priv *priv = fe->demodulator_priv;
 	int ret;
 
 	dbg("%s: delsys=%d", __func__, fe->dtv_property_cache.delivery_system);
+
+	if (priv->delivery_system == SYS_UNDEFINED)
+		return 0;
+
 	switch (fe->dtv_property_cache.delivery_system) {
 	case SYS_DVBT:
 		ret = cxd2820r_get_frontend_t(fe);
@@ -476,10 +481,10 @@ static enum dvbfe_search cxd2820r_search(struct dvb_frontend *fe)
 	dbg("%s: delsys=%d", __func__, fe->dtv_property_cache.delivery_system);
 
 	/* switch between DVB-T and DVB-T2 when tune fails */
-	if (priv->last_tune_failed && (priv->delivery_system != SYS_DVBC_ANNEX_A)) {
+	if (priv->last_tune_failed) {
 		if (priv->delivery_system == SYS_DVBT)
 			c->delivery_system = SYS_DVBT2;
-		else
+		else if (priv->delivery_system == SYS_DVBT2)
 			c->delivery_system = SYS_DVBT;
 	}
 
@@ -492,6 +497,7 @@ static enum dvbfe_search cxd2820r_search(struct dvb_frontend *fe)
 	/* frontend lock wait loop count */
 	switch (priv->delivery_system) {
 	case SYS_DVBT:
+	case SYS_DVBC_ANNEX_A:
 		i = 20;
 		break;
 	case SYS_DVBT2:

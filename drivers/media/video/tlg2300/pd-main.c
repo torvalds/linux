@@ -374,7 +374,7 @@ static inline void set_map_flags(struct poseidon *pd, struct usb_device *udev)
 }
 #endif
 
-static bool check_firmware(struct usb_device *udev, int *down_firmware)
+static int check_firmware(struct usb_device *udev, int *down_firmware)
 {
 	void *buf;
 	int ret;
@@ -398,7 +398,7 @@ static bool check_firmware(struct usb_device *udev, int *down_firmware)
 		*down_firmware = 1;
 		return firmware_download(udev);
 	}
-	return ret;
+	return 0;
 }
 
 static int poseidon_probe(struct usb_interface *interface,
