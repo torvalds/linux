@@ -1058,11 +1058,8 @@ int target_emulate_request_sense(struct se_task *task)
 		 */
 		buf[0] = 0x70;
 		buf[SPC_SENSE_KEY_OFFSET] = UNIT_ATTENTION;
-		/*
-		 * Make sure request data length is enough for additional
-		 * sense data.
-		 */
-		if (cmd->data_length <= 18) {
+
+		if (cmd->data_length < 18) {
 			buf[7] = 0x00;
 			err = -EINVAL;
 			goto end;
@@ -1079,11 +1076,8 @@ int target_emulate_request_sense(struct se_task *task)
 		 */
 		buf[0] = 0x70;
 		buf[SPC_SENSE_KEY_OFFSET] = NO_SENSE;
-		/*
-		 * Make sure request data length is enough for additional
-		 * sense data.
-		 */
-		if (cmd->data_length <= 18) {
+
+		if (cmd->data_length < 18) {
 			buf[7] = 0x00;
 			err = -EINVAL;
 			goto end;
