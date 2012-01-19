@@ -256,7 +256,7 @@ static int qnx4_fill_super(struct super_block *s, void *data, int silent)
 	if (IS_ERR(root)) {
 		printk(KERN_ERR "qnx4: get inode failed\n");
 		ret = PTR_ERR(root);
- 		goto out;
+ 		goto outb;
  	}
 
 	ret = -ENOMEM;
@@ -269,6 +269,8 @@ static int qnx4_fill_super(struct super_block *s, void *data, int silent)
 
       outi:
 	iput(root);
+      outb:
+	kfree(qs->BitMap);
       out:
 	brelse(bh);
       outnobh:
