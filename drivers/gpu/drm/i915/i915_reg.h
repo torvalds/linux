@@ -391,7 +391,7 @@
 
 #define MI_MODE		0x0209c
 # define VS_TIMER_DISPATCH				(1 << 6)
-# define MI_FLUSH_ENABLE				(1 << 11)
+# define MI_FLUSH_ENABLE				(1 << 12)
 
 #define GFX_MODE	0x02520
 #define GFX_MODE_GEN7	0x0229c
