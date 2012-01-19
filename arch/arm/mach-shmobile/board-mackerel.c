@@ -193,6 +193,16 @@
  */
 
 /*
+ * FSI - AK4642
+ *
+ * it needs amixer settings for playing
+ *
+ * amixer set "Headphone" on
+ * amixer set "HPOUTL Mixer DACH" on
+ * amixer set "HPOUTR Mixer DACH" on
+ */
+
+/*
  * FIXME !!
  *
  * gpio_no_direction
