@@ -50,7 +50,8 @@ struct ad7414_data {
 /* REG: (0.25C/bit, two's complement) << 6 */
 static inline int ad7414_temp_from_reg(s16 reg)
 {
-	/* use integer division instead of equivalent right shift to
+	/*
+	 * use integer division instead of equivalent right shift to
 	 * guarantee arithmetic shift and preserve the sign
 	 */
 	return ((int)reg / 64) * 250;
