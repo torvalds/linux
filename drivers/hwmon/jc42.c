@@ -350,8 +350,10 @@ set(temp_min, JC42_REG_TEMP_LOWER);
 set(temp_max, JC42_REG_TEMP_UPPER);
 set(temp_crit, JC42_REG_TEMP_CRITICAL);
 
-/* JC42.4 compliant chips only support four hysteresis values.
- * Pick best choice and go from there. */
+/*
+ * JC42.4 compliant chips only support four hysteresis values.
+ * Pick best choice and go from there.
+ */
 static ssize_t set_temp_crit_hyst(struct device *dev,
 				  struct device_attribute *attr,
 				  const char *buf, size_t count)
