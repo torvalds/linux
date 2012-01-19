@@ -408,7 +408,7 @@ static void ft_send_tm(struct ft_cmd *cmd)
 		sess = cmd->sess;
 		transport_send_check_condition_and_sense(&cmd->se_cmd,
 			cmd->se_cmd.scsi_sense_reason, 0);
-		ft_sess_put(sess);
+		transport_generic_free_cmd(&cmd->se_cmd, 0);
 		return;
 	}
 
