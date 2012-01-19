@@ -2273,7 +2273,7 @@ static int __devinit enic_probe(struct pci_dev *pdev,
 #ifdef CONFIG_PCI_IOV
 	int pos = 0;
 #endif
-	int num_pps;
+	int num_pps = 1;
 
 	/* Allocate net device structure and initialize.  Private
 	 * instance data is initialized to zero.
@@ -2380,11 +2380,11 @@ static int __devinit enic_probe(struct pci_dev *pdev,
 				goto err_out_vnic_unregister;
 			}
 			enic->priv_flags |= ENIC_SRIOV_ENABLED;
+			num_pps = enic->num_vfs;
 		}
 	}
 #endif
 
-	num_pps = enic->num_vfs ? enic->num_vfs : 1;
 	/* Allocate structure for port profiles */
 	enic->pp = kcalloc(num_pps, sizeof(*enic->pp), GFP_KERNEL);
 	if (!enic->pp) {
