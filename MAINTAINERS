@@ -7469,6 +7469,12 @@ S:	Supported
 F:	Documentation/filesystems/xfs.txt
 F:	fs/xfs/
 
+XILINX AXI ETHERNET DRIVER
+M:	Ariane Keller <ariane.keller@tik.ee.ethz.ch>
+M:	Daniel Borkmann <daniel.borkmann@tik.ee.ethz.ch>
+S:	Maintained
+F:	drivers/net/ethernet/xilinx/xilinx_axienet*
+
 XILINX SYSTEMACE DRIVER
 M:	Grant Likely <grant.likely@secretlab.ca>
 W:	http://www.secretlab.ca/
