@@ -316,7 +316,7 @@ static unsigned long SA5_completed(struct ctlr_info *h)
 		dev_dbg(&h->pdev->dev, "Read %lx back from board\n",
 			register_value);
 	else
-		dev_dbg(&h->pdev->dev, "hpsa: FIFO Empty read\n");
+		dev_dbg(&h->pdev->dev, "FIFO Empty read\n");
 #endif
 
 	return register_value;
