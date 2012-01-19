@@ -194,20 +194,18 @@ static const char *qnx4_checkroot(struct super_block *sb)
 			}
 			for (i = 0; i < QNX4_INODES_PER_BLOCK; i++) {
 				rootdir = (struct qnx4_inode_entry *) (bh->b_data + i * QNX4_DIR_ENTRY_SIZE);
-				if (rootdir->di_fname != NULL) {
-					QNX4DEBUG((KERN_INFO "rootdir entry found : [%s]\n", rootdir->di_fname));
-					if (!strcmp(rootdir->di_fname,
-						    QNX4_BMNAME)) {
-						found = 1;
-						qnx4_sb(sb)->BitMap = kmemdup(rootdir,
-									      sizeof(struct qnx4_inode_entry),
-									      GFP_KERNEL);
-						if (!qnx4_sb(sb)->BitMap) {
-							brelse (bh);
-							return "not enough memory for bitmap inode";
-						}/* keep bitmap inode known */
-						break;
-					}
+				QNX4DEBUG((KERN_INFO "rootdir entry found : [%s]\n", rootdir->di_fname));
+				if (!strcmp(rootdir->di_fname,
+					    QNX4_BMNAME)) {
+					found = 1;
+					qnx4_sb(sb)->BitMap = kmemdup(rootdir,
+								      sizeof(struct qnx4_inode_entry),
+								      GFP_KERNEL);
+					if (!qnx4_sb(sb)->BitMap) {
+						brelse (bh);
+						return "not enough memory for bitmap inode";
+					}/* keep bitmap inode known */
+					break;
 				}
 			}
 			brelse(bh);
