@@ -872,13 +872,15 @@ retry:
 	spin_unlock_irq(q->queue_lock);
 
 	/* create icq if missing */
-	if (unlikely(et->icq_cache && !icq))
+	if ((rw_flags & REQ_ELVPRIV) && unlikely(et->icq_cache && !icq)) {
 		icq = ioc_create_icq(q, gfp_mask);
+		if (!icq)
+			goto fail_icq;
+	}
 
-	/* rqs are guaranteed to have icq on elv_set_request() if requested */
-	if (likely(!et->icq_cache || icq))
-		rq = blk_alloc_request(q, icq, rw_flags, gfp_mask);
+	rq = blk_alloc_request(q, icq, rw_flags, gfp_mask);
 
+fail_icq:
 	if (unlikely(!rq)) {
 		/*
 		 * Allocation failed presumably due to memory. Undo anything
