@@ -214,7 +214,8 @@ static unsigned int ltc4245_get_current(struct device *dev, u8 reg)
 	unsigned int voltage;
 	unsigned int curr;
 
-	/* The strange looking conversions that follow are fixed-point
+	/*
+	 * The strange looking conversions that follow are fixed-point
 	 * math, since we cannot do floating point in the kernel.
 	 *
 	 * Step 1: convert sense register to microVolts
@@ -317,7 +318,8 @@ static ssize_t ltc4245_show_gpio(struct device *dev,
 	return snprintf(buf, PAGE_SIZE, "%u\n", val * 10);
 }
 
-/* These macros are used below in constructing device attribute objects
+/*
+ * These macros are used below in constructing device attribute objects
  * for use with sysfs_create_group() to make a sysfs device file
  * for each register.
  */
@@ -391,7 +393,8 @@ LTC4245_POWER(power2_input,			LTC4245_5VSENSE);
 LTC4245_POWER(power3_input,			LTC4245_3VSENSE);
 LTC4245_POWER(power4_input,			LTC4245_VEESENSE);
 
-/* Finally, construct an array of pointers to members of the above objects,
+/*
+ * Finally, construct an array of pointers to members of the above objects,
  * as required for sysfs_create_group()
  */
 static struct attribute *ltc4245_std_attributes[] = {
