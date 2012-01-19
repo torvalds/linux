@@ -354,8 +354,6 @@ static void ft_send_resp_code_and_free(struct ft_cmd *cmd,
 static void ft_send_tm(struct ft_cmd *cmd)
 {
 	struct fcp_cmnd *fcp;
-	struct ft_sess *sess;
-	int rc;
 	u8 tm_func;
 
 	fcp = fc_frame_payload_get(cmd->req_frame, sizeof(*fcp));
@@ -386,33 +384,9 @@ static void ft_send_tm(struct ft_cmd *cmd)
 		return;
 	}
 
-	transport_init_se_cmd(&cmd->se_cmd, &ft_configfs->tf_ops,
-			cmd->sess->se_sess, 0, DMA_NONE, 0,
-			&cmd->ft_sense_buffer[0]);
-	target_get_sess_cmd(cmd->sess->se_sess, &cmd->se_cmd, false);
-
-	pr_debug("alloc tm cmd fn %d\n", tm_func);
-	rc = core_tmr_alloc_req(&cmd->se_cmd, cmd, tm_func, GFP_KERNEL);
-	if (rc < 0) {
-		pr_debug("alloc failed\n");
-		ft_send_resp_code_and_free(cmd, FCP_TMF_FAILED);
-		return;
-	}
-
-	rc = transport_lookup_tmr_lun(&cmd->se_cmd, scsilun_to_int(&fcp->fc_lun));
-	if (rc < 0) {
-		pr_debug("Failed to get LUN for TMR func %d, "
-			  "se_cmd %p, unpacked_lun %d\n",
-			  tm_func, &cmd->se_cmd, scsilun_to_int(&fcp->fc_lun));
-		ft_dump_cmd(cmd, __func__);
-		sess = cmd->sess;
-		transport_send_check_condition_and_sense(&cmd->se_cmd,
-			cmd->se_cmd.scsi_sense_reason, 0);
-		transport_generic_free_cmd(&cmd->se_cmd, 0);
-		return;
-	}
-
-	transport_generic_handle_tmr(&cmd->se_cmd);
+	target_submit_tmr(&cmd->se_cmd, cmd->sess->se_sess,
+		&cmd->ft_sense_buffer[0], scsilun_to_int(&fcp->fc_lun),
+		cmd, tm_func, 0);
 }
 
 /*
