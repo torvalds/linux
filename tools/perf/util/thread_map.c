@@ -62,3 +62,14 @@ void thread_map__delete(struct thread_map *threads)
 {
 	free(threads);
 }
+
+size_t thread_map__fprintf(struct thread_map *threads, FILE *fp)
+{
+	int i;
+	size_t printed = fprintf(fp, "%d thread%s: ",
+				 threads->nr, threads->nr > 1 ? "s" : "");
+	for (i = 0; i < threads->nr; ++i)
+		printed += fprintf(fp, "%s%d", i ? ", " : "", threads->map[i]);
+
+	return printed + fprintf(fp, "\n");
+}
