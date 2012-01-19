@@ -2576,6 +2576,7 @@ static int skge_up(struct net_device *dev)
 	}
 
 	/* Initialize MAC */
+	netif_carrier_off(dev);
 	spin_lock_bh(&hw->phy_lock);
 	if (is_genesis(hw))
 		genesis_mac_init(hw, port);
