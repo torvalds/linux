@@ -677,6 +677,20 @@ lun_assigned:
 	return 0;
 }
 
+/* Update an entry in h->dev[] array. */
+static void hpsa_scsi_update_entry(struct ctlr_info *h, int hostno,
+	int entry, struct hpsa_scsi_dev_t *new_entry)
+{
+	/* assumes h->devlock is held */
+	BUG_ON(entry < 0 || entry >= HPSA_MAX_DEVICES);
+
+	/* Raid level changed. */
+	h->dev[entry]->raid_level = new_entry->raid_level;
+	dev_info(&h->pdev->dev, "%s device c%db%dt%dl%d updated.\n",
+		scsi_device_type(new_entry->devtype), hostno, new_entry->bus,
+		new_entry->target, new_entry->lun);
+}
+
 /* Replace an entry from h->dev[] array. */
 static void hpsa_scsi_replace_entry(struct ctlr_info *h, int hostno,
 	int entry, struct hpsa_scsi_dev_t *new_entry,
@@ -783,10 +797,25 @@ static inline int device_is_the_same(struct hpsa_scsi_dev_t *dev1,
 	return 1;
 }
 
+static inline int device_updated(struct hpsa_scsi_dev_t *dev1,
+	struct hpsa_scsi_dev_t *dev2)
+{
+	/* Device attributes that can change, but don't mean
+	 * that the device is a different device, nor that the OS
+	 * needs to be told anything about the change.
+	 */
+	if (dev1->raid_level != dev2->raid_level)
+		return 1;
+	return 0;
+}
+
 /* Find needle in haystack.  If exact match found, return DEVICE_SAME,
  * and return needle location in *index.  If scsi3addr matches, but not
  * vendor, model, serial num, etc. return DEVICE_CHANGED, and return needle
- * location in *index.  If needle not found, return DEVICE_NOT_FOUND.
+ * location in *index.
+ * In the case of a minor device attribute change, such as RAID level, just
+ * return DEVICE_UPDATED, along with the updated device's location in index.
+ * If needle not found, return DEVICE_NOT_FOUND.
  */
 static int hpsa_scsi_find_entry(struct hpsa_scsi_dev_t *needle,
 	struct hpsa_scsi_dev_t *haystack[], int haystack_size,
@@ -796,15 +825,19 @@ static int hpsa_scsi_find_entry(struct hpsa_scsi_dev_t *needle,
 #define DEVICE_NOT_FOUND 0
 #define DEVICE_CHANGED 1
 #define DEVICE_SAME 2
+#define DEVICE_UPDATED 3
 	for (i = 0; i < haystack_size; i++) {
 		if (haystack[i] == NULL) /* previously removed. */
 			continue;
 		if (SCSI3ADDR_EQ(needle->scsi3addr, haystack[i]->scsi3addr)) {
 			*index = i;
-			if (device_is_the_same(needle, haystack[i]))
+			if (device_is_the_same(needle, haystack[i])) {
+				if (device_updated(needle, haystack[i]))
+					return DEVICE_UPDATED;
 				return DEVICE_SAME;
-			else
+			} else {
 				return DEVICE_CHANGED;
+			}
 		}
 	}
 	*index = -1;
@@ -840,6 +873,8 @@ static void adjust_hpsa_scsi_table(struct ctlr_info *h, int hostno,
 	 * sd[] and remove them from h->dev[], and for any
 	 * devices which have changed, remove the old device
 	 * info and add the new device info.
+	 * If minor device attributes change, just update
+	 * the existing device structure.
 	 */
 	i = 0;
 	nremoved = 0;
@@ -860,6 +895,8 @@ static void adjust_hpsa_scsi_table(struct ctlr_info *h, int hostno,
 			 * at the bottom of hpsa_update_scsi_devices()
 			 */
 			sd[entry] = NULL;
+		} else if (device_change == DEVICE_UPDATED) {
+			hpsa_scsi_update_entry(h, hostno, i, sd[entry]);
 		}
 		i++;
 	}
