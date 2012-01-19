@@ -52,7 +52,7 @@
 #include <linux/usb.h>
 #include <linux/usb/serial.h>
 
-static int debug;
+static bool debug;
 
 /* Vendor and Product ID */
 #define AIRCABLE_VID		0x16CA

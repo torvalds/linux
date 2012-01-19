@@ -14,7 +14,7 @@
 #include <linux/init.h>
 #include <asm/memory.h>
 
-	__INIT
+	__CPUINIT
 
 /*
  * Reset vector for secondary CPUs.

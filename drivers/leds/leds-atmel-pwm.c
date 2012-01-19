@@ -134,29 +134,18 @@ static int __exit pwmled_remove(struct platform_device *pdev)
 	return 0;
 }
 
-/* work with hotplug and coldplug */
-MODULE_ALIAS("platform:leds-atmel-pwm");
-
 static struct platform_driver pwmled_driver = {
 	.driver = {
 		.name =		"leds-atmel-pwm",
 		.owner =	THIS_MODULE,
 	},
 	/* REVISIT add suspend() and resume() methods */
+	.probe =	pwmled_probe,
 	.remove =	__exit_p(pwmled_remove),
 };
 
-static int __init modinit(void)
-{
-	return platform_driver_probe(&pwmled_driver, pwmled_probe);
-}
-module_init(modinit);
-
-static void __exit modexit(void)
-{
-	platform_driver_unregister(&pwmled_driver);
-}
-module_exit(modexit);
+module_platform_driver(pwmled_driver);
 
 MODULE_DESCRIPTION("Driver for LEDs with PWM-controlled brightness");
 MODULE_LICENSE("GPL");
+MODULE_ALIAS("platform:leds-atmel-pwm");

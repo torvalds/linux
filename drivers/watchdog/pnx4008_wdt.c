@@ -334,18 +334,7 @@ static struct platform_driver platform_wdt_driver = {
 	.remove = __devexit_p(pnx4008_wdt_remove),
 };
 
-static int __init pnx4008_wdt_init(void)
-{
-	return platform_driver_register(&platform_wdt_driver);
-}
-
-static void __exit pnx4008_wdt_exit(void)
-{
-	platform_driver_unregister(&platform_wdt_driver);
-}
-
-module_init(pnx4008_wdt_init);
-module_exit(pnx4008_wdt_exit);
+module_platform_driver(platform_wdt_driver);
 
 MODULE_AUTHOR("MontaVista Software, Inc. <source@mvista.com>");
 MODULE_DESCRIPTION("PNX4008 Watchdog Driver");

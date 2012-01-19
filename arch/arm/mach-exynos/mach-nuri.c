@@ -32,12 +32,12 @@
 #include <media/v4l2-mediabus.h>
 
 #include <asm/mach/arch.h>
+#include <asm/hardware/gic.h>
 #include <asm/mach-types.h>
 
 #include <plat/adc.h>
 #include <plat/regs-fb-v4.h>
 #include <plat/regs-serial.h>
-#include <plat/exynos4.h>
 #include <plat/cpu.h>
 #include <plat/devs.h>
 #include <plat/fb.h>
@@ -53,6 +53,8 @@
 #include <plat/mipi_csis.h>
 
 #include <mach/map.h>
+
+#include "common.h"
 
 /* Following are default values for UCON, ULCON and UFCON UART registers */
 #define NURI_UCON_DEFAULT	(S3C2410_UCON_TXILEVEL |	\
@@ -247,13 +249,8 @@ static void nuri_lcd_power_on(struct plat_lcd_data *pd, unsigned int power)
 
 static int nuri_bl_init(struct device *dev)
 {
-	int ret, gpio = EXYNOS4_GPE2(3);
-
-	ret = gpio_request(gpio, "LCD_LDO_EN");
-	if (!ret)
-		gpio_direction_output(gpio, 0);
-
-	return ret;
+	return gpio_request_one(EXYNOS4_GPE2(3), GPIOF_OUT_INIT_LOW,
+				"LCD_LD0_EN");
 }
 
 static int nuri_bl_notify(struct device *dev, int brightness)
@@ -1283,7 +1280,7 @@ static struct platform_device *nuri_devices[] __initdata = {
 
 static void __init nuri_map_io(void)
 {
-	s5p_init_io(NULL, 0, S5P_VA_CHIPID);
+	exynos_init_io(NULL, 0);
 	s3c24xx_init_clocks(24000000);
 	s3c24xx_init_uarts(nuri_uartcfgs, ARRAY_SIZE(nuri_uartcfgs));
 }
@@ -1333,7 +1330,9 @@ MACHINE_START(NURI, "NURI")
 	.atag_offset	= 0x100,
 	.init_irq	= exynos4_init_irq,
 	.map_io		= nuri_map_io,
+	.handle_irq	= gic_handle_irq,
 	.init_machine	= nuri_machine_init,
 	.timer		= &exynos4_timer,
 	.reserve        = &nuri_reserve,
+	.restart	= exynos4_restart,
 MACHINE_END

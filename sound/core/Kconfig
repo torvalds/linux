@@ -5,12 +5,14 @@ config SND_TIMER
 config SND_PCM
 	tristate
 	select SND_TIMER
-	select GCD
 
 config SND_HWDEP
 	tristate
 
 config SND_RAWMIDI
+	tristate
+
+config SND_COMPRESS_OFFLOAD
 	tristate
 
 # To be effective this also requires INPUT - users should say:
@@ -205,6 +207,9 @@ config SND_PCM_XRUN_DEBUG
 	  the process or driver which causes the scheduling gaps.
 
 config SND_VMASTER
+	bool
+
+config SND_KCTL_JACK
 	bool
 
 config SND_DMA_SGBUF

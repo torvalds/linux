@@ -20,7 +20,7 @@
 
 #include "../iio.h"
 #include "../sysfs.h"
-#include "../buffer_generic.h"
+#include "../buffer.h"
 #include "meter.h"
 #include "ade7758.h"
 
@@ -663,63 +663,63 @@ static const struct attribute_group ade7758_attribute_group = {
 
 static struct iio_chan_spec ade7758_channels[] = {
 	IIO_CHAN(IIO_VOLTAGE, 0, 1, 0, "raw", 0, 0,
-		(1 << IIO_CHAN_INFO_SCALE_SHARED),
+		IIO_CHAN_INFO_SCALE_SHARED_BIT,
 		AD7758_WT(AD7758_PHASE_A, AD7758_VOLTAGE),
 		0, IIO_ST('s', 24, 32, 0), 0),
 	IIO_CHAN(IIO_CURRENT, 0, 1, 0, "raw", 0, 0,
-		(1 << IIO_CHAN_INFO_SCALE_SHARED),
+		IIO_CHAN_INFO_SCALE_SHARED_BIT,
 		AD7758_WT(AD7758_PHASE_A, AD7758_CURRENT),
 		1, IIO_ST('s', 24, 32, 0), 0),
 	IIO_CHAN(IIO_POWER, 0, 1, 0, "apparent_raw", 0, 0,
-		(1 << IIO_CHAN_INFO_SCALE_SHARED),
+		IIO_CHAN_INFO_SCALE_SHARED_BIT,
 		AD7758_WT(AD7758_PHASE_A, AD7758_APP_PWR),
 		2, IIO_ST('s', 24, 32, 0), 0),
 	IIO_CHAN(IIO_POWER, 0, 1, 0, "active_raw", 0, 0,
-		(1 << IIO_CHAN_INFO_SCALE_SHARED),
+		IIO_CHAN_INFO_SCALE_SHARED_BIT,
 		AD7758_WT(AD7758_PHASE_A, AD7758_ACT_PWR),
 		3, IIO_ST('s', 24, 32, 0), 0),
 	IIO_CHAN(IIO_POWER, 0, 1, 0, "reactive_raw", 0, 0,
-		(1 << IIO_CHAN_INFO_SCALE_SHARED),
+		IIO_CHAN_INFO_SCALE_SHARED_BIT,
 		AD7758_WT(AD7758_PHASE_A, AD7758_REACT_PWR),
 		4, IIO_ST('s', 24, 32, 0), 0),
 	IIO_CHAN(IIO_VOLTAGE, 0, 1, 0, "raw", 1, 0,
-		(1 << IIO_CHAN_INFO_SCALE_SHARED),
+		IIO_CHAN_INFO_SCALE_SHARED_BIT,
 		AD7758_WT(AD7758_PHASE_B, AD7758_VOLTAGE),
 		5, IIO_ST('s', 24, 32, 0), 0),
 	IIO_CHAN(IIO_CURRENT, 0, 1, 0, "raw", 1, 0,
-		(1 << IIO_CHAN_INFO_SCALE_SHARED),
+		IIO_CHAN_INFO_SCALE_SHARED_BIT,
 		AD7758_WT(AD7758_PHASE_B, AD7758_CURRENT),
 		6, IIO_ST('s', 24, 32, 0), 0),
 	IIO_CHAN(IIO_POWER, 0, 1, 0, "apparent_raw", 1, 0,
-		(1 << IIO_CHAN_INFO_SCALE_SHARED),
+		IIO_CHAN_INFO_SCALE_SHARED_BIT,
 		AD7758_WT(AD7758_PHASE_B, AD7758_APP_PWR),
 		7, IIO_ST('s', 24, 32, 0), 0),
 	IIO_CHAN(IIO_POWER, 0, 1, 0, "active_raw", 1, 0,
-		(1 << IIO_CHAN_INFO_SCALE_SHARED),
+		IIO_CHAN_INFO_SCALE_SHARED_BIT,
 		AD7758_WT(AD7758_PHASE_B, AD7758_ACT_PWR),
 		8, IIO_ST('s', 24, 32, 0), 0),
 	IIO_CHAN(IIO_POWER, 0, 1, 0, "reactive_raw", 1, 0,
-		(1 << IIO_CHAN_INFO_SCALE_SHARED),
+		IIO_CHAN_INFO_SCALE_SHARED_BIT,
 		AD7758_WT(AD7758_PHASE_B, AD7758_REACT_PWR),
 		9, IIO_ST('s', 24, 32, 0), 0),
 	IIO_CHAN(IIO_VOLTAGE, 0, 1, 0, "raw", 2, 0,
-		(1 << IIO_CHAN_INFO_SCALE_SHARED),
+		IIO_CHAN_INFO_SCALE_SHARED_BIT,
 		AD7758_WT(AD7758_PHASE_C, AD7758_VOLTAGE),
 		10, IIO_ST('s', 24, 32, 0), 0),
 	IIO_CHAN(IIO_CURRENT, 0, 1, 0, "raw", 2, 0,
-		(1 << IIO_CHAN_INFO_SCALE_SHARED),
+		IIO_CHAN_INFO_SCALE_SHARED_BIT,
 		AD7758_WT(AD7758_PHASE_C, AD7758_CURRENT),
 		11, IIO_ST('s', 24, 32, 0), 0),
 	IIO_CHAN(IIO_POWER, 0, 1, 0, "apparent_raw", 2, 0,
-		(1 << IIO_CHAN_INFO_SCALE_SHARED),
+		IIO_CHAN_INFO_SCALE_SHARED_BIT,
 		AD7758_WT(AD7758_PHASE_C, AD7758_APP_PWR),
 		12, IIO_ST('s', 24, 32, 0), 0),
 	IIO_CHAN(IIO_POWER, 0, 1, 0, "active_raw", 2, 0,
-		(1 << IIO_CHAN_INFO_SCALE_SHARED),
+		IIO_CHAN_INFO_SCALE_SHARED_BIT,
 		AD7758_WT(AD7758_PHASE_C, AD7758_ACT_PWR),
 		13, IIO_ST('s', 24, 32, 0), 0),
 	IIO_CHAN(IIO_POWER, 0, 1, 0, "reactive_raw", 2, 0,
-		(1 << IIO_CHAN_INFO_SCALE_SHARED),
+		IIO_CHAN_INFO_SCALE_SHARED_BIT,
 		AD7758_WT(AD7758_PHASE_C, AD7758_REACT_PWR),
 		14, IIO_ST('s', 24, 32, 0), 0),
 	IIO_CHAN_SOFT_TIMESTAMP(15),
@@ -746,12 +746,12 @@ static int __devinit ade7758_probe(struct spi_device *spi)
 	spi_set_drvdata(spi, indio_dev);
 
 	/* Allocate the comms buffers */
-	st->rx = kzalloc(sizeof(*st->rx)*ADE7758_MAX_RX, GFP_KERNEL);
+	st->rx = kcalloc(ADE7758_MAX_RX, sizeof(*st->rx), GFP_KERNEL);
 	if (st->rx == NULL) {
 		ret = -ENOMEM;
 		goto error_free_dev;
 	}
-	st->tx = kzalloc(sizeof(*st->tx)*ADE7758_MAX_TX, GFP_KERNEL);
+	st->tx = kcalloc(ADE7758_MAX_TX, sizeof(*st->tx), GFP_KERNEL);
 	if (st->tx == NULL) {
 		ret = -ENOMEM;
 		goto error_free_rx;
@@ -843,6 +843,7 @@ static const struct spi_device_id ade7758_id[] = {
 	{"ade7758", 0},
 	{}
 };
+MODULE_DEVICE_TABLE(spi, ade7758_id);
 
 static struct spi_driver ade7758_driver = {
 	.driver = {
@@ -853,18 +854,7 @@ static struct spi_driver ade7758_driver = {
 	.remove = __devexit_p(ade7758_remove),
 	.id_table = ade7758_id,
 };
-
-static __init int ade7758_init(void)
-{
-	return spi_register_driver(&ade7758_driver);
-}
-module_init(ade7758_init);
-
-static __exit void ade7758_exit(void)
-{
-	spi_unregister_driver(&ade7758_driver);
-}
-module_exit(ade7758_exit);
+module_spi_driver(ade7758_driver);
 
 MODULE_AUTHOR("Barry Song <21cnbao@gmail.com>");
 MODULE_DESCRIPTION("Analog Devices ADE7758 Polyphase Multifunction Energy Metering IC Driver");

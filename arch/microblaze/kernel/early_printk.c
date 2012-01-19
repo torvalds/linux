@@ -50,9 +50,9 @@ static void early_printk_uartlite_write(struct console *unused,
 					const char *s, unsigned n)
 {
 	while (*s && n-- > 0) {
-		early_printk_uartlite_putc(*s);
 		if (*s == '\n')
 			early_printk_uartlite_putc('\r');
+		early_printk_uartlite_putc(*s);
 		s++;
 	}
 }
@@ -94,9 +94,9 @@ static void early_printk_uart16550_write(struct console *unused,
 					const char *s, unsigned n)
 {
 	while (*s && n-- > 0) {
-		early_printk_uart16550_putc(*s);
 		if (*s == '\n')
 			early_printk_uart16550_putc('\r');
+		early_printk_uart16550_putc(*s);
 		s++;
 	}
 }

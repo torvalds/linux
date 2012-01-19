@@ -135,7 +135,7 @@
 #define PARPORT_IP32_ENABLE_EPP	(1U << 3)
 #define PARPORT_IP32_ENABLE_ECP	(1U << 4)
 static unsigned int features =	~0U;
-static int verbose_probing =	DEFAULT_VERBOSE_PROBING;
+static bool verbose_probing =	DEFAULT_VERBOSE_PROBING;
 
 /* We do not support more than one port. */
 static struct parport *this_port = NULL;

@@ -1578,10 +1578,15 @@ void show_code(struct pt_regs *regs)
 	ptr += sprintf(ptr, "%s Code:", mode);
 	hops = 0;
 	while (start < end && hops < 8) {
-		*ptr++ = (start == 32) ? '>' : ' ';
+		opsize = insn_length(code[start]);
+		if  (start + opsize == 32)
+			*ptr++ = '#';
+		else if (start == 32)
+			*ptr++ = '>';
+		else
+			*ptr++ = ' ';
 		addr = regs->psw.addr + start - 32;
 		ptr += sprintf(ptr, ONELONG, addr);
-		opsize = insn_length(code[start]);
 		if (start + opsize >= end)
 			break;
 		for (i = 0; i < opsize; i++)

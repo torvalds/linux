@@ -266,7 +266,7 @@ static int ath9k_htc_set_channel(struct ath9k_htc_priv *priv,
 
 	ath9k_wmi_event_drain(priv);
 
-	ath_dbg(common, ATH_DBG_CONFIG,
+	ath_dbg(common, CONFIG,
 		"(%u MHz) -> (%u MHz), HT: %d, HT40: %d fastcc: %d\n",
 		priv->ah->curchan->channel,
 		channel->center_freq, conf_is_ht(conf), conf_is_ht40(conf),
@@ -415,7 +415,7 @@ static int ath9k_htc_add_monitor_interface(struct ath9k_htc_priv *priv)
 	priv->vif_sta_pos[priv->mon_vif_idx] = sta_idx;
 	priv->ah->is_monitoring = true;
 
-	ath_dbg(common, ATH_DBG_CONFIG,
+	ath_dbg(common, CONFIG,
 		"Attached a monitor interface at idx: %d, sta idx: %d\n",
 		priv->mon_vif_idx, sta_idx);
 
@@ -427,7 +427,7 @@ err_sta:
 	 */
 	__ath9k_htc_remove_monitor_interface(priv);
 err_vif:
-	ath_dbg(common, ATH_DBG_FATAL, "Unable to attach a monitor interface\n");
+	ath_dbg(common, FATAL, "Unable to attach a monitor interface\n");
 
 	return ret;
 }
@@ -452,7 +452,7 @@ static int ath9k_htc_remove_monitor_interface(struct ath9k_htc_priv *priv)
 	priv->nstations--;
 	priv->ah->is_monitoring = false;
 
-	ath_dbg(common, ATH_DBG_CONFIG,
+	ath_dbg(common, CONFIG,
 		"Removed a monitor interface at idx: %d, sta idx: %d\n",
 		priv->mon_vif_idx, sta_idx);
 
@@ -512,11 +512,11 @@ static int ath9k_htc_add_station(struct ath9k_htc_priv *priv,
 	}
 
 	if (sta) {
-		ath_dbg(common, ATH_DBG_CONFIG,
+		ath_dbg(common, CONFIG,
 			"Added a station entry for: %pM (idx: %d)\n",
 			sta->addr, tsta.sta_index);
 	} else {
-		ath_dbg(common, ATH_DBG_CONFIG,
+		ath_dbg(common, CONFIG,
 			"Added a station entry for VIF %d (idx: %d)\n",
 			avp->index, tsta.sta_index);
 	}
@@ -556,11 +556,11 @@ static int ath9k_htc_remove_station(struct ath9k_htc_priv *priv,
 	}
 
 	if (sta) {
-		ath_dbg(common, ATH_DBG_CONFIG,
+		ath_dbg(common, CONFIG,
 			"Removed a station entry for: %pM (idx: %d)\n",
 			sta->addr, sta_idx);
 	} else {
-		ath_dbg(common, ATH_DBG_CONFIG,
+		ath_dbg(common, CONFIG,
 			"Removed a station entry for VIF %d (idx: %d)\n",
 			avp->index, sta_idx);
 	}
@@ -665,7 +665,7 @@ static void ath9k_htc_init_rate(struct ath9k_htc_priv *priv,
 	ath9k_htc_setup_rate(priv, sta, &trate);
 	ret = ath9k_htc_send_rate_cmd(priv, &trate);
 	if (!ret)
-		ath_dbg(common, ATH_DBG_CONFIG,
+		ath_dbg(common, CONFIG,
 			"Updated target sta: %pM, rate caps: 0x%X\n",
 			sta->addr, be32_to_cpu(trate.capflags));
 }
@@ -692,7 +692,7 @@ static void ath9k_htc_update_rate(struct ath9k_htc_priv *priv,
 
 	ret = ath9k_htc_send_rate_cmd(priv, &trate);
 	if (!ret)
-		ath_dbg(common, ATH_DBG_CONFIG,
+		ath_dbg(common, CONFIG,
 			"Updated target sta: %pM, rate caps: 0x%X\n",
 			bss_conf->bssid, be32_to_cpu(trate.capflags));
 }
@@ -721,11 +721,11 @@ static int ath9k_htc_tx_aggr_oper(struct ath9k_htc_priv *priv,
 
 	WMI_CMD_BUF(WMI_TX_AGGR_ENABLE_CMDID, &aggr);
 	if (ret)
-		ath_dbg(common, ATH_DBG_CONFIG,
+		ath_dbg(common, CONFIG,
 			"Unable to %s TX aggregation for (%pM, %d)\n",
 			(aggr.aggr_enable) ? "start" : "stop", sta->addr, tid);
 	else
-		ath_dbg(common, ATH_DBG_CONFIG,
+		ath_dbg(common, CONFIG,
 			"%s TX aggregation for (%pM, %d)\n",
 			(aggr.aggr_enable) ? "Starting" : "Stopping",
 			sta->addr, tid);
@@ -784,7 +784,7 @@ void ath9k_htc_ani_work(struct work_struct *work)
 	/* Long calibration runs independently of short calibration. */
 	if ((timestamp - common->ani.longcal_timer) >= ATH_LONG_CALINTERVAL) {
 		longcal = true;
-		ath_dbg(common, ATH_DBG_ANI, "longcal @%lu\n", jiffies);
+		ath_dbg(common, ANI, "longcal @%lu\n", jiffies);
 		common->ani.longcal_timer = timestamp;
 	}
 
@@ -793,8 +793,7 @@ void ath9k_htc_ani_work(struct work_struct *work)
 		if ((timestamp - common->ani.shortcal_timer) >=
 		    short_cal_interval) {
 			shortcal = true;
-			ath_dbg(common, ATH_DBG_ANI,
-				"shortcal @%lu\n", jiffies);
+			ath_dbg(common, ANI, "shortcal @%lu\n", jiffies);
 			common->ani.shortcal_timer = timestamp;
 			common->ani.resetcal_timer = timestamp;
 		}
@@ -808,7 +807,8 @@ void ath9k_htc_ani_work(struct work_struct *work)
 	}
 
 	/* Verify whether we must check ANI */
-	if ((timestamp - common->ani.checkani_timer) >= ATH_ANI_POLLINTERVAL) {
+	if (ah->config.enable_ani &&
+	    (timestamp - common->ani.checkani_timer) >= ATH_ANI_POLLINTERVAL) {
 		aniflag = true;
 		common->ani.checkani_timer = timestamp;
 	}
@@ -838,7 +838,7 @@ set_timer:
 	* short calibration and long calibration.
 	*/
 	cal_interval = ATH_LONG_CALINTERVAL;
-	if (priv->ah->config.enable_ani)
+	if (ah->config.enable_ani)
 		cal_interval = min(cal_interval, (u32)ATH_ANI_POLLINTERVAL);
 	if (!common->ani.caldone)
 		cal_interval = min(cal_interval, (u32)short_cal_interval);
@@ -865,7 +865,7 @@ static void ath9k_htc_tx(struct ieee80211_hw *hw, struct sk_buff *skb)
 	padsize = padpos & 3;
 	if (padsize && skb->len > padpos) {
 		if (skb_headroom(skb) < padsize) {
-			ath_dbg(common, ATH_DBG_XMIT, "No room for padding\n");
+			ath_dbg(common, XMIT, "No room for padding\n");
 			goto fail_tx;
 		}
 		skb_push(skb, padsize);
@@ -874,13 +874,13 @@ static void ath9k_htc_tx(struct ieee80211_hw *hw, struct sk_buff *skb)
 
 	slot = ath9k_htc_tx_get_slot(priv);
 	if (slot < 0) {
-		ath_dbg(common, ATH_DBG_XMIT, "No free TX slot\n");
+		ath_dbg(common, XMIT, "No free TX slot\n");
 		goto fail_tx;
 	}
 
 	ret = ath9k_htc_tx_start(priv, skb, slot, false);
 	if (ret != 0) {
-		ath_dbg(common, ATH_DBG_XMIT, "Tx failed\n");
+		ath_dbg(common, XMIT, "Tx failed\n");
 		goto clear_slot;
 	}
 
@@ -908,7 +908,7 @@ static int ath9k_htc_start(struct ieee80211_hw *hw)
 
 	mutex_lock(&priv->mutex);
 
-	ath_dbg(common, ATH_DBG_CONFIG,
+	ath_dbg(common, CONFIG,
 		"Starting driver with initial channel: %d MHz\n",
 		curchan->center_freq);
 
@@ -942,7 +942,7 @@ static int ath9k_htc_start(struct ieee80211_hw *hw)
 
 	ret = ath9k_htc_update_cap_target(priv, 0);
 	if (ret)
-		ath_dbg(common, ATH_DBG_CONFIG,
+		ath_dbg(common, CONFIG,
 			"Failed to update capability in target\n");
 
 	priv->op_flags &= ~OP_INVALID;
@@ -957,7 +957,7 @@ static int ath9k_htc_start(struct ieee80211_hw *hw)
 	mod_timer(&priv->tx.cleanup_timer,
 		  jiffies + msecs_to_jiffies(ATH9K_HTC_TX_CLEANUP_INTERVAL));
 
-	if (ah->btcoex_hw.scheme == ATH_BTCOEX_CFG_3WIRE) {
+	if (ath9k_hw_get_btcoex_scheme(ah) == ATH_BTCOEX_CFG_3WIRE) {
 		ath9k_hw_btcoex_set_weight(ah, AR_BT_COEX_WGHT,
 					   AR_STOMP_LOW_WLAN_WGHT);
 		ath9k_hw_btcoex_enable(ah);
@@ -979,7 +979,7 @@ static void ath9k_htc_stop(struct ieee80211_hw *hw)
 	mutex_lock(&priv->mutex);
 
 	if (priv->op_flags & OP_INVALID) {
-		ath_dbg(common, ATH_DBG_ANY, "Device not present\n");
+		ath_dbg(common, ANY, "Device not present\n");
 		mutex_unlock(&priv->mutex);
 		return;
 	}
@@ -1009,7 +1009,8 @@ static void ath9k_htc_stop(struct ieee80211_hw *hw)
 
 	mutex_lock(&priv->mutex);
 
-	if (ah->btcoex_hw.enabled) {
+	if (ah->btcoex_hw.enabled &&
+	    ath9k_hw_get_btcoex_scheme(ah) != ATH_BTCOEX_CFG_NONE) {
 		ath9k_hw_btcoex_disable(ah);
 		if (ah->btcoex_hw.scheme == ATH_BTCOEX_CFG_3WIRE)
 			ath_htc_cancel_btcoex_work(priv);
@@ -1026,7 +1027,7 @@ static void ath9k_htc_stop(struct ieee80211_hw *hw)
 
 	priv->op_flags |= OP_INVALID;
 
-	ath_dbg(common, ATH_DBG_CONFIG, "Driver halt\n");
+	ath_dbg(common, CONFIG, "Driver halt\n");
 	mutex_unlock(&priv->mutex);
 }
 
@@ -1119,8 +1120,8 @@ static int ath9k_htc_add_interface(struct ieee80211_hw *hw,
 		ath9k_htc_start_ani(priv);
 	}
 
-	ath_dbg(common, ATH_DBG_CONFIG,
-		"Attach a VIF of type: %d at idx: %d\n", vif->type, avp->index);
+	ath_dbg(common, CONFIG, "Attach a VIF of type: %d at idx: %d\n",
+		vif->type, avp->index);
 
 out:
 	ath9k_htc_ps_restore(priv);
@@ -1176,7 +1177,7 @@ static void ath9k_htc_remove_interface(struct ieee80211_hw *hw,
 			ath9k_htc_stop_ani(priv);
 	}
 
-	ath_dbg(common, ATH_DBG_CONFIG, "Detach Interface at idx: %d\n", avp->index);
+	ath_dbg(common, CONFIG, "Detach Interface at idx: %d\n", avp->index);
 
 	ath9k_htc_ps_restore(priv);
 	mutex_unlock(&priv->mutex);
@@ -1201,8 +1202,7 @@ static int ath9k_htc_config(struct ieee80211_hw *hw, u32 changed)
 		mutex_unlock(&priv->htc_pm_lock);
 
 		if (enable_radio) {
-			ath_dbg(common, ATH_DBG_CONFIG,
-				"not-idle: enabling radio\n");
+			ath_dbg(common, CONFIG, "not-idle: enabling radio\n");
 			ath9k_htc_setpower(priv, ATH9K_PM_AWAKE);
 			ath9k_htc_radio_enable(hw);
 		}
@@ -1224,7 +1224,7 @@ static int ath9k_htc_config(struct ieee80211_hw *hw, u32 changed)
 		struct ieee80211_channel *curchan = hw->conf.channel;
 		int pos = curchan->hw_value;
 
-		ath_dbg(common, ATH_DBG_CONFIG, "Set channel: %d MHz\n",
+		ath_dbg(common, CONFIG, "Set channel: %d MHz\n",
 			curchan->center_freq);
 
 		ath9k_cmn_update_ichannel(&priv->ah->channels[pos],
@@ -1264,8 +1264,7 @@ static int ath9k_htc_config(struct ieee80211_hw *hw, u32 changed)
 		}
 		mutex_unlock(&priv->htc_pm_lock);
 
-		ath_dbg(common, ATH_DBG_CONFIG,
-			"idle: disabling radio\n");
+		ath_dbg(common, CONFIG, "idle: disabling radio\n");
 		ath9k_htc_radio_disable(hw);
 	}
 
@@ -1297,7 +1296,7 @@ static void ath9k_htc_configure_filter(struct ieee80211_hw *hw,
 	*total_flags &= SUPPORTED_FILTERS;
 
 	if (priv->op_flags & OP_INVALID) {
-		ath_dbg(ath9k_hw_common(priv->ah), ATH_DBG_ANY,
+		ath_dbg(ath9k_hw_common(priv->ah), ANY,
 			"Unable to configure filter on invalid state\n");
 		mutex_unlock(&priv->mutex);
 		return;
@@ -1308,8 +1307,8 @@ static void ath9k_htc_configure_filter(struct ieee80211_hw *hw,
 	rfilt = ath9k_htc_calcrxfilter(priv);
 	ath9k_hw_setrxfilter(priv->ah, rfilt);
 
-	ath_dbg(ath9k_hw_common(priv->ah), ATH_DBG_CONFIG,
-		"Set HW RX filter: 0x%x\n", rfilt);
+	ath_dbg(ath9k_hw_common(priv->ah), CONFIG, "Set HW RX filter: 0x%x\n",
+		rfilt);
 
 	ath9k_htc_ps_restore(priv);
 	mutex_unlock(&priv->mutex);
@@ -1376,7 +1375,7 @@ static int ath9k_htc_conf_tx(struct ieee80211_hw *hw,
 
 	qnum = get_hw_qnum(queue, priv->hwq_map);
 
-	ath_dbg(common, ATH_DBG_CONFIG,
+	ath_dbg(common, CONFIG,
 		"Configure tx [queue/hwq] [%d/%d],  aifs: %d, cw_min: %d, cw_max: %d, txop: %d\n",
 		queue, qnum, params->aifs, params->cw_min,
 		params->cw_max, params->txop);
@@ -1411,7 +1410,7 @@ static int ath9k_htc_set_key(struct ieee80211_hw *hw,
 		return -ENOSPC;
 
 	mutex_lock(&priv->mutex);
-	ath_dbg(common, ATH_DBG_CONFIG, "Set HW Key\n");
+	ath_dbg(common, CONFIG, "Set HW Key\n");
 	ath9k_htc_ps_wakeup(priv);
 
 	switch (cmd) {
@@ -1447,8 +1446,7 @@ static void ath9k_htc_set_bssid(struct ath9k_htc_priv *priv)
 	struct ath_common *common = ath9k_hw_common(priv->ah);
 
 	ath9k_hw_write_associd(priv->ah);
-	ath_dbg(common, ATH_DBG_CONFIG,
-		"BSSID: %pM aid: 0x%x\n",
+	ath_dbg(common, CONFIG, "BSSID: %pM aid: 0x%x\n",
 		common->curbssid, common->curaid);
 }
 
@@ -1486,7 +1484,7 @@ static void ath9k_htc_bss_info_changed(struct ieee80211_hw *hw,
 	ath9k_htc_ps_wakeup(priv);
 
 	if (changed & BSS_CHANGED_ASSOC) {
-		ath_dbg(common, ATH_DBG_CONFIG, "BSS Changed ASSOC %d\n",
+		ath_dbg(common, CONFIG, "BSS Changed ASSOC %d\n",
 			bss_conf->assoc);
 
 		bss_conf->assoc ?
@@ -1511,8 +1509,8 @@ static void ath9k_htc_bss_info_changed(struct ieee80211_hw *hw,
 	}
 
 	if ((changed & BSS_CHANGED_BEACON_ENABLED) && bss_conf->enable_beacon) {
-		ath_dbg(common, ATH_DBG_CONFIG,
-			"Beacon enabled for BSS: %pM\n", bss_conf->bssid);
+		ath_dbg(common, CONFIG, "Beacon enabled for BSS: %pM\n",
+			bss_conf->bssid);
 		ath9k_htc_set_tsfadjust(priv, vif);
 		priv->op_flags |= OP_ENABLE_BEACON;
 		ath9k_htc_beacon_config(priv, vif);
@@ -1524,7 +1522,7 @@ static void ath9k_htc_bss_info_changed(struct ieee80211_hw *hw,
 		 * AP/IBSS interfaces.
 		 */
 		if ((priv->num_ap_vif <= 1) || priv->num_ibss_vif) {
-			ath_dbg(common, ATH_DBG_CONFIG,
+			ath_dbg(common, CONFIG,
 				"Beacon disabled for BSS: %pM\n",
 				bss_conf->bssid);
 			priv->op_flags &= ~OP_ENABLE_BEACON;
@@ -1542,7 +1540,7 @@ static void ath9k_htc_bss_info_changed(struct ieee80211_hw *hw,
 		    (vif->type == NL80211_IFTYPE_AP)) {
 			priv->op_flags |= OP_TSF_RESET;
 		}
-		ath_dbg(common, ATH_DBG_CONFIG,
+		ath_dbg(common, CONFIG,
 			"Beacon interval changed for BSS: %pM\n",
 			bss_conf->bssid);
 		ath9k_htc_beacon_config(priv, vif);
@@ -1732,8 +1730,7 @@ static int ath9k_htc_set_bitrate_mask(struct ieee80211_hw *hw,
 		goto out;
 	}
 
-	ath_dbg(common, ATH_DBG_CONFIG,
-		"Set bitrate masks: 0x%x, 0x%x\n",
+	ath_dbg(common, CONFIG, "Set bitrate masks: 0x%x, 0x%x\n",
 		mask->control[IEEE80211_BAND_2GHZ].legacy,
 		mask->control[IEEE80211_BAND_5GHZ].legacy);
 out:

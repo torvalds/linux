@@ -214,6 +214,26 @@ void vcc_release_async(struct atm_vcc *vcc, int reply)
 }
 EXPORT_SYMBOL(vcc_release_async);
 
+void vcc_process_recv_queue(struct atm_vcc *vcc)
+{
+	struct sk_buff_head queue, *rq;
+	struct sk_buff *skb, *tmp;
+	unsigned long flags;
+
+	__skb_queue_head_init(&queue);
+	rq = &sk_atm(vcc)->sk_receive_queue;
+
+	spin_lock_irqsave(&rq->lock, flags);
+	skb_queue_splice_init(rq, &queue);
+	spin_unlock_irqrestore(&rq->lock, flags);
+
+	skb_queue_walk_safe(&queue, skb, tmp) {
+		__skb_unlink(skb, &queue);
+		vcc->push(vcc, skb);
+	}
+}
+EXPORT_SYMBOL(vcc_process_recv_queue);
+
 void atm_dev_signal_change(struct atm_dev *dev, char signal)
 {
 	pr_debug("%s signal=%d dev=%p number=%d dev->signal=%d\n",
@@ -502,8 +522,11 @@ int vcc_recvmsg(struct kiocb *iocb, struct socket *sock, struct msghdr *msg,
 
 	if (sock->state != SS_CONNECTED)
 		return -ENOTCONN;
-	if (flags & ~MSG_DONTWAIT)		/* only handle MSG_DONTWAIT */
+
+	/* only handle MSG_DONTWAIT and MSG_PEEK */
+	if (flags & ~(MSG_DONTWAIT | MSG_PEEK))
 		return -EOPNOTSUPP;
+
 	vcc = ATM_SD(sock);
 	if (test_bit(ATM_VF_RELEASED, &vcc->flags) ||
 	    test_bit(ATM_VF_CLOSE, &vcc->flags) ||
@@ -524,8 +547,13 @@ int vcc_recvmsg(struct kiocb *iocb, struct socket *sock, struct msghdr *msg,
 	if (error)
 		return error;
 	sock_recv_ts_and_drops(msg, sk, skb);
-	pr_debug("%d -= %d\n", atomic_read(&sk->sk_rmem_alloc), skb->truesize);
-	atm_return(vcc, skb->truesize);
+
+	if (!(flags & MSG_PEEK)) {
+		pr_debug("%d -= %d\n", atomic_read(&sk->sk_rmem_alloc),
+			 skb->truesize);
+		atm_return(vcc, skb->truesize);
+	}
+
 	skb_free_datagram(sk, skb);
 	return copied;
 }

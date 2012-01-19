@@ -25,6 +25,7 @@
 #include <linux/interrupt.h>
 #include <linux/msi.h>
 #include <linux/amd-iommu.h>
+#include <linux/export.h>
 #include <asm/pci-direct.h>
 #include <asm/iommu.h>
 #include <asm/gart.h>
@@ -140,6 +141,12 @@ int amd_iommus_present;
 /* IOMMUs have a non-present cache? */
 bool amd_iommu_np_cache __read_mostly;
 bool amd_iommu_iotlb_sup __read_mostly = true;
+
+u32 amd_iommu_max_pasids __read_mostly = ~0;
+
+bool amd_iommu_v2_present __read_mostly;
+
+bool amd_iommu_force_isolation __read_mostly;
 
 /*
  * The ACPI table parsing functions set this variable on an error
@@ -296,6 +303,16 @@ static void iommu_feature_disable(struct amd_iommu *iommu, u8 bit)
 
 	ctrl = readl(iommu->mmio_base + MMIO_CONTROL_OFFSET);
 	ctrl &= ~(1 << bit);
+	writel(ctrl, iommu->mmio_base + MMIO_CONTROL_OFFSET);
+}
+
+static void iommu_set_inv_tlb_timeout(struct amd_iommu *iommu, int timeout)
+{
+	u32 ctrl;
+
+	ctrl = readl(iommu->mmio_base + MMIO_CONTROL_OFFSET);
+	ctrl &= ~CTRL_INV_TO_MASK;
+	ctrl |= (timeout << CONTROL_INV_TIMEOUT) & CTRL_INV_TO_MASK;
 	writel(ctrl, iommu->mmio_base + MMIO_CONTROL_OFFSET);
 }
 
@@ -581,21 +598,69 @@ static void __init free_event_buffer(struct amd_iommu *iommu)
 	free_pages((unsigned long)iommu->evt_buf, get_order(EVT_BUFFER_SIZE));
 }
 
+/* allocates the memory where the IOMMU will log its events to */
+static u8 * __init alloc_ppr_log(struct amd_iommu *iommu)
+{
+	iommu->ppr_log = (u8 *)__get_free_pages(GFP_KERNEL | __GFP_ZERO,
+						get_order(PPR_LOG_SIZE));
+
+	if (iommu->ppr_log == NULL)
+		return NULL;
+
+	return iommu->ppr_log;
+}
+
+static void iommu_enable_ppr_log(struct amd_iommu *iommu)
+{
+	u64 entry;
+
+	if (iommu->ppr_log == NULL)
+		return;
+
+	entry = (u64)virt_to_phys(iommu->ppr_log) | PPR_LOG_SIZE_512;
+
+	memcpy_toio(iommu->mmio_base + MMIO_PPR_LOG_OFFSET,
+		    &entry, sizeof(entry));
+
+	/* set head and tail to zero manually */
+	writel(0x00, iommu->mmio_base + MMIO_PPR_HEAD_OFFSET);
+	writel(0x00, iommu->mmio_base + MMIO_PPR_TAIL_OFFSET);
+
+	iommu_feature_enable(iommu, CONTROL_PPFLOG_EN);
+	iommu_feature_enable(iommu, CONTROL_PPR_EN);
+}
+
+static void __init free_ppr_log(struct amd_iommu *iommu)
+{
+	if (iommu->ppr_log == NULL)
+		return;
+
+	free_pages((unsigned long)iommu->ppr_log, get_order(PPR_LOG_SIZE));
+}
+
+static void iommu_enable_gt(struct amd_iommu *iommu)
+{
+	if (!iommu_feature(iommu, FEATURE_GT))
+		return;
+
+	iommu_feature_enable(iommu, CONTROL_GT_EN);
+}
+
 /* sets a specific bit in the device table entry. */
 static void set_dev_entry_bit(u16 devid, u8 bit)
 {
-	int i = (bit >> 5) & 0x07;
-	int _bit = bit & 0x1f;
+	int i = (bit >> 6) & 0x03;
+	int _bit = bit & 0x3f;
 
-	amd_iommu_dev_table[devid].data[i] |= (1 << _bit);
+	amd_iommu_dev_table[devid].data[i] |= (1UL << _bit);
 }
 
 static int get_dev_entry_bit(u16 devid, u8 bit)
 {
-	int i = (bit >> 5) & 0x07;
-	int _bit = bit & 0x1f;
+	int i = (bit >> 6) & 0x03;
+	int _bit = bit & 0x3f;
 
-	return (amd_iommu_dev_table[devid].data[i] & (1 << _bit)) >> _bit;
+	return (amd_iommu_dev_table[devid].data[i] & (1UL << _bit)) >> _bit;
 }
 
 
@@ -698,6 +763,32 @@ static void __init init_iommu_from_pci(struct amd_iommu *iommu)
 	high = readl(iommu->mmio_base + MMIO_EXT_FEATURES + 4);
 
 	iommu->features = ((u64)high << 32) | low;
+
+	if (iommu_feature(iommu, FEATURE_GT)) {
+		int glxval;
+		u32 pasids;
+		u64 shift;
+
+		shift   = iommu->features & FEATURE_PASID_MASK;
+		shift >>= FEATURE_PASID_SHIFT;
+		pasids  = (1 << shift);
+
+		amd_iommu_max_pasids = min(amd_iommu_max_pasids, pasids);
+
+		glxval   = iommu->features & FEATURE_GLXVAL_MASK;
+		glxval >>= FEATURE_GLXVAL_SHIFT;
+
+		if (amd_iommu_max_glx_val == -1)
+			amd_iommu_max_glx_val = glxval;
+		else
+			amd_iommu_max_glx_val = min(amd_iommu_max_glx_val, glxval);
+	}
+
+	if (iommu_feature(iommu, FEATURE_GT) &&
+	    iommu_feature(iommu, FEATURE_PPR)) {
+		iommu->is_iommu_v2   = true;
+		amd_iommu_v2_present = true;
+	}
 
 	if (!is_rd890_iommu(iommu->dev))
 		return;
@@ -901,6 +992,7 @@ static void __init free_iommu_one(struct amd_iommu *iommu)
 {
 	free_command_buffer(iommu);
 	free_event_buffer(iommu);
+	free_ppr_log(iommu);
 	iommu_unmap_mmio_space(iommu);
 }
 
@@ -963,6 +1055,12 @@ static int __init init_iommu_one(struct amd_iommu *iommu, struct ivhd_header *h)
 	init_iommu_from_pci(iommu);
 	init_iommu_from_acpi(iommu, h);
 	init_iommu_devices(iommu);
+
+	if (iommu_feature(iommu, FEATURE_PPR)) {
+		iommu->ppr_log = alloc_ppr_log(iommu);
+		if (!iommu->ppr_log)
+			return -ENOMEM;
+	}
 
 	if (iommu->cap & (1UL << IOMMU_CAP_NPCACHE))
 		amd_iommu_np_cache = true;
@@ -1049,6 +1147,9 @@ static int iommu_setup_msi(struct amd_iommu *iommu)
 
 	iommu->int_enabled = true;
 	iommu_feature_enable(iommu, CONTROL_EVT_INT_EN);
+
+	if (iommu->ppr_log != NULL)
+		iommu_feature_enable(iommu, CONTROL_PPFINT_EN);
 
 	return 0;
 }
@@ -1209,6 +1310,9 @@ static void iommu_init_flags(struct amd_iommu *iommu)
 	 * make IOMMU memory accesses cache coherent
 	 */
 	iommu_feature_enable(iommu, CONTROL_COHERENT_EN);
+
+	/* Set IOTLB invalidation timeout to 1s */
+	iommu_set_inv_tlb_timeout(iommu, CTRL_INV_TO_1S);
 }
 
 static void iommu_apply_resume_quirks(struct amd_iommu *iommu)
@@ -1274,6 +1378,8 @@ static void enable_iommus(void)
 		iommu_set_device_table(iommu);
 		iommu_enable_command_buffer(iommu);
 		iommu_enable_event_buffer(iommu);
+		iommu_enable_ppr_log(iommu);
+		iommu_enable_gt(iommu);
 		iommu_set_exclusion_range(iommu);
 		iommu_init_msi(iommu);
 		iommu_enable(iommu);
@@ -1303,13 +1409,6 @@ static void amd_iommu_resume(void)
 
 	/* re-load the hardware */
 	enable_iommus();
-
-	/*
-	 * we have to flush after the IOMMUs are enabled because a
-	 * disabled IOMMU will never execute the commands we send
-	 */
-	for_each_iommu(iommu)
-		iommu_flush_all_caches(iommu);
 }
 
 static int amd_iommu_suspend(void)
@@ -1560,6 +1659,8 @@ static int __init parse_amd_iommu_options(char *str)
 			amd_iommu_unmap_flush = true;
 		if (strncmp(str, "off", 3) == 0)
 			amd_iommu_disabled = true;
+		if (strncmp(str, "force_isolation", 15) == 0)
+			amd_iommu_force_isolation = true;
 	}
 
 	return 1;
@@ -1572,3 +1673,9 @@ IOMMU_INIT_FINISH(amd_iommu_detect,
 		  gart_iommu_hole_init,
 		  0,
 		  0);
+
+bool amd_iommu_v2_supported(void)
+{
+	return amd_iommu_v2_present;
+}
+EXPORT_SYMBOL(amd_iommu_v2_supported);

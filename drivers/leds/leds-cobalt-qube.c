@@ -75,9 +75,6 @@ static int __devexit cobalt_qube_led_remove(struct platform_device *pdev)
 	return 0;
 }
 
-/* work with hotplug and coldplug */
-MODULE_ALIAS("platform:cobalt-qube-leds");
-
 static struct platform_driver cobalt_qube_led_driver = {
 	.probe	= cobalt_qube_led_probe,
 	.remove	= __devexit_p(cobalt_qube_led_remove),
@@ -87,19 +84,9 @@ static struct platform_driver cobalt_qube_led_driver = {
 	},
 };
 
-static int __init cobalt_qube_led_init(void)
-{
-	return platform_driver_register(&cobalt_qube_led_driver);
-}
-
-static void __exit cobalt_qube_led_exit(void)
-{
-	platform_driver_unregister(&cobalt_qube_led_driver);
-}
-
-module_init(cobalt_qube_led_init);
-module_exit(cobalt_qube_led_exit);
+module_platform_driver(cobalt_qube_led_driver);
 
 MODULE_LICENSE("GPL");
 MODULE_DESCRIPTION("Front LED support for Cobalt Server");
 MODULE_AUTHOR("Florian Fainelli <florian@openwrt.org>");
+MODULE_ALIAS("platform:cobalt-qube-leds");

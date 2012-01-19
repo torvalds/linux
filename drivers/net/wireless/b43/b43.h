@@ -191,6 +191,9 @@
 #define B43_BFH_BUCKBOOST		0x0020	/* has buck/booster */
 #define B43_BFH_FEM_BT			0x0040	/* has FEM and switch to share antenna
 						 * with bluetooth */
+#define B43_BFH_NOCBUCK			0x0080
+#define B43_BFH_PALDO			0x0200
+#define B43_BFH_EXTLNA_5GHZ		0x1000	/* has an external LNA (5GHz mode) */
 
 /* SPROM boardflags2_lo values */
 #define B43_BFL2_RXBB_INT_REG_DIS	0x0001	/* external RX BB regulator present */
@@ -204,6 +207,14 @@
 #define B43_BFL2_SKWRKFEM_BRD		0x0100	/* 4321mcm93 uses Skyworks FEM */
 #define B43_BFL2_SPUR_WAR		0x0200	/* has a workaround for clock-harmonic spurs */
 #define B43_BFL2_GPLL_WAR		0x0400	/* altenative G-band PLL settings implemented */
+#define B43_BFL2_SINGLEANT_CCK		0x1000
+#define B43_BFL2_2G_SPUR_WAR		0x2000
+
+/* SPROM boardflags2_hi values */
+#define B43_BFH2_GPLL_WAR2		0x0001
+#define B43_BFH2_IPALVLSHIFT_3P3	0x0002
+#define B43_BFH2_INTERNDET_TXIQCAL	0x0004
+#define B43_BFH2_XTALBUFOUTEN		0x0008
 
 /* GPIO register offset, in both ChipCommon and PCI core. */
 #define B43_GPIO_CONTROL		0x6c
@@ -667,6 +678,7 @@ struct b43_key {
 };
 
 /* SHM offsets to the QOS data structures for the 4 different queues. */
+#define B43_QOS_QUEUE_NUM	4
 #define B43_QOS_PARAMS(queue)	(B43_SHM_SH_EDCFQ + \
 				 (B43_NR_QOSPARAMS * sizeof(u16) * (queue)))
 #define B43_QOS_BACKGROUND	B43_QOS_PARAMS(0)
@@ -904,7 +916,7 @@ struct b43_wl {
 	struct work_struct beacon_update_trigger;
 
 	/* The current QOS parameters for the 4 queues. */
-	struct b43_qos_params qos_params[4];
+	struct b43_qos_params qos_params[B43_QOS_QUEUE_NUM];
 
 	/* Work for adjustment of the transmission power.
 	 * This is scheduled when we determine that the actual TX output
@@ -913,8 +925,12 @@ struct b43_wl {
 
 	/* Packet transmit work */
 	struct work_struct tx_work;
+
 	/* Queue of packets to be transmitted. */
-	struct sk_buff_head tx_queue;
+	struct sk_buff_head tx_queue[B43_QOS_QUEUE_NUM];
+
+	/* Flag that implement the queues stopping. */
+	bool tx_queue_stopped[B43_QOS_QUEUE_NUM];
 
 	/* The device LEDs. */
 	struct b43_leds leds;

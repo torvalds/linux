@@ -21,7 +21,7 @@ config NET_VENDOR_FREESCALE
 if NET_VENDOR_FREESCALE
 
 config FEC
-	bool "FEC ethernet controller (of ColdFire and some i.MX CPUs)"
+	tristate "FEC ethernet controller (of ColdFire and some i.MX CPUs)"
 	depends on (M523x || M527x || M5272 || M528x || M520x || M532x || \
 		   ARCH_MXC || SOC_IMX28)
 	default ARCH_MXC || SOC_IMX28 if ARM

@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2011, Intel Corp.
+ * Copyright (C) 2000 - 2012, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -329,6 +329,7 @@ acpi_ev_execute_reg_method(union acpi_operand_object *region_obj, u32 function)
  * FUNCTION:    acpi_ev_address_space_dispatch
  *
  * PARAMETERS:  region_obj          - Internal region object
+ *              field_obj           - Corresponding field. Can be NULL.
  *              Function            - Read or Write operation
  *              region_offset       - Where in the region to read or write
  *              bit_width           - Field width in bits (8, 16, 32, or 64)
@@ -344,6 +345,7 @@ acpi_ev_execute_reg_method(union acpi_operand_object *region_obj, u32 function)
 
 acpi_status
 acpi_ev_address_space_dispatch(union acpi_operand_object *region_obj,
+			       union acpi_operand_object *field_obj,
 			       u32 function,
 			       u32 region_offset, u32 bit_width, u64 *value)
 {
@@ -353,6 +355,7 @@ acpi_ev_address_space_dispatch(union acpi_operand_object *region_obj,
 	union acpi_operand_object *handler_desc;
 	union acpi_operand_object *region_obj2;
 	void *region_context = NULL;
+	struct acpi_connection_info *context;
 
 	ACPI_FUNCTION_TRACE(ev_address_space_dispatch);
 
@@ -374,6 +377,8 @@ acpi_ev_address_space_dispatch(union acpi_operand_object *region_obj,
 
 		return_ACPI_STATUS(AE_NOT_EXIST);
 	}
+
+	context = handler_desc->address_space.context;
 
 	/*
 	 * It may be the case that the region has never been initialized.
@@ -404,8 +409,7 @@ acpi_ev_address_space_dispatch(union acpi_operand_object *region_obj,
 		acpi_ex_exit_interpreter();
 
 		status = region_setup(region_obj, ACPI_REGION_ACTIVATE,
-				      handler_desc->address_space.context,
-				      &region_context);
+				      context, &region_context);
 
 		/* Re-enter the interpreter */
 
@@ -455,6 +459,25 @@ acpi_ev_address_space_dispatch(union acpi_operand_object *region_obj,
 			  acpi_ut_get_region_name(region_obj->region.
 						  space_id)));
 
+	/*
+	 * Special handling for generic_serial_bus and general_purpose_io:
+	 * There are three extra parameters that must be passed to the
+	 * handler via the context:
+	 *   1) Connection buffer, a resource template from Connection() op.
+	 *   2) Length of the above buffer.
+	 *   3) Actual access length from the access_as() op.
+	 */
+	if (((region_obj->region.space_id == ACPI_ADR_SPACE_GSBUS) ||
+	     (region_obj->region.space_id == ACPI_ADR_SPACE_GPIO)) &&
+	    context && field_obj) {
+
+		/* Get the Connection (resource_template) buffer */
+
+		context->connection = field_obj->field.resource_buffer;
+		context->length = field_obj->field.resource_length;
+		context->access_length = field_obj->field.access_length;
+	}
+
 	if (!(handler_desc->address_space.handler_flags &
 	      ACPI_ADDR_HANDLER_DEFAULT_INSTALLED)) {
 		/*
@@ -469,7 +492,7 @@ acpi_ev_address_space_dispatch(union acpi_operand_object *region_obj,
 
 	status = handler(function,
 			 (region_obj->region.address + region_offset),
-			 bit_width, value, handler_desc->address_space.context,
+			 bit_width, value, context,
 			 region_obj2->extra.region_context);
 
 	if (ACPI_FAILURE(status)) {

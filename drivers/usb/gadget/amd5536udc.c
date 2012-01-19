@@ -152,15 +152,15 @@ static const char *ep_string[] = {
 };
 
 /* DMA usage flag */
-static int use_dma = 1;
+static bool use_dma = 1;
 /* packet per buffer dma */
-static int use_dma_ppb = 1;
+static bool use_dma_ppb = 1;
 /* with per descr. update */
-static int use_dma_ppb_du;
+static bool use_dma_ppb_du;
 /* buffer fill mode */
 static int use_dma_bufferfill_mode;
 /* full speed only mode */
-static int use_fullspeed;
+static bool use_fullspeed;
 /* tx buffer size for high speed */
 static unsigned long hs_tx_buf = UDC_EPIN_BUFF_SIZE;
 
@@ -1959,7 +1959,7 @@ static int amd5536_start(struct usb_gadget_driver *driver,
 	u32 tmp;
 
 	if (!driver || !bind || !driver->setup
-			|| driver->speed < USB_SPEED_HIGH)
+			|| driver->max_speed < USB_SPEED_HIGH)
 		return -EINVAL;
 	if (!dev)
 		return -ENODEV;
@@ -3349,7 +3349,7 @@ static int udc_probe(struct udc *dev)
 	dev_set_name(&dev->gadget.dev, "gadget");
 	dev->gadget.dev.release = gadget_release;
 	dev->gadget.name = name;
-	dev->gadget.is_dualspeed = 1;
+	dev->gadget.max_speed = USB_SPEED_HIGH;
 
 	/* init registers, interrupts, ... */
 	startup_registers(dev);

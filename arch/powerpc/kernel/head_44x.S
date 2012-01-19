@@ -64,6 +64,35 @@ _ENTRY(_start);
 	mr	r31,r3		/* save device tree ptr */
 	li	r24,0		/* CPU number */
 
+#ifdef CONFIG_RELOCATABLE
+/*
+ * Relocate ourselves to the current runtime address.
+ * This is called only by the Boot CPU.
+ * "relocate" is called with our current runtime virutal
+ * address.
+ * r21 will be loaded with the physical runtime address of _stext
+ */
+	bl	0f				/* Get our runtime address */
+0:	mflr	r21				/* Make it accessible */
+	addis	r21,r21,(_stext - 0b)@ha
+	addi	r21,r21,(_stext - 0b)@l 	/* Get our current runtime base */
+
+	/*
+	 * We have the runtime (virutal) address of our base.
+	 * We calculate our shift of offset from a 256M page.
+	 * We could map the 256M page we belong to at PAGE_OFFSET and
+	 * get going from there.
+	 */
+	lis	r4,KERNELBASE@h
+	ori	r4,r4,KERNELBASE@l
+	rlwinm	r6,r21,0,4,31			/* r6 = PHYS_START % 256M */
+	rlwinm	r5,r4,0,4,31			/* r5 = KERNELBASE % 256M */
+	subf	r3,r5,r6			/* r3 = r6 - r5 */
+	add	r3,r4,r3			/* Required Virutal Address */
+
+	bl	relocate
+#endif
+
 	bl	init_cpu_state
 
 	/*
@@ -88,6 +117,65 @@ _ENTRY(_start);
 
 #ifdef CONFIG_RELOCATABLE
 	/*
+	 * Relocatable kernel support based on processing of dynamic
+	 * relocation entries.
+	 *
+	 * r25 will contain RPN/ERPN for the start address of memory
+	 * r21 will contain the current offset of _stext
+	 */
+	lis	r3,kernstart_addr@ha
+	la	r3,kernstart_addr@l(r3)
+
+	/*
+	 * Compute the kernstart_addr.
+	 * kernstart_addr => (r6,r8)
+	 * kernstart_addr & ~0xfffffff => (r6,r7)
+	 */
+	rlwinm	r6,r25,0,28,31	/* ERPN. Bits 32-35 of Address */
+	rlwinm	r7,r25,0,0,3	/* RPN - assuming 256 MB page size */
+	rlwinm	r8,r21,0,4,31	/* r8 = (_stext & 0xfffffff) */
+	or	r8,r7,r8	/* Compute the lower 32bit of kernstart_addr */
+
+	/* Store kernstart_addr */
+	stw	r6,0(r3)	/* higher 32bit */
+	stw	r8,4(r3)	/* lower 32bit  */
+
+	/*
+	 * Compute the virt_phys_offset :
+	 * virt_phys_offset = stext.run - kernstart_addr
+	 *
+	 * stext.run = (KERNELBASE & ~0xfffffff) + (kernstart_addr & 0xfffffff)
+	 * When we relocate, we have :
+	 *
+	 *	(kernstart_addr & 0xfffffff) = (stext.run & 0xfffffff)
+	 *
+	 * hence:
+	 *  virt_phys_offset = (KERNELBASE & ~0xfffffff) - (kernstart_addr & ~0xfffffff)
+	 *
+	 */
+
+	/* KERNELBASE&~0xfffffff => (r4,r5) */
+	li	r4, 0		/* higer 32bit */
+	lis	r5,KERNELBASE@h
+	rlwinm	r5,r5,0,0,3	/* Align to 256M, lower 32bit */
+
+	/*
+	 * 64bit subtraction.
+	 */
+	subfc	r5,r7,r5
+	subfe	r4,r6,r4
+
+	/* Store virt_phys_offset */
+	lis	r3,virt_phys_offset@ha
+	la	r3,virt_phys_offset@l(r3)
+
+	stw	r4,0(r3)
+	stw	r5,4(r3)
+
+#elif defined(CONFIG_DYNAMIC_MEMSTART)
+	/*
+	 * Mapping based, page aligned dynamic kernel loading.
+	 *
 	 * r25 will contain RPN/ERPN for the start address of memory
 	 *
 	 * Add the difference between KERNELBASE and PAGE_OFFSET to the
@@ -732,6 +820,8 @@ _GLOBAL(init_cpu_state)
 	/* We use the PVR to differenciate 44x cores from 476 */
 	mfspr	r3,SPRN_PVR
 	srwi	r3,r3,16
+	cmplwi	cr0,r3,PVR_476FPE@h
+	beq	head_start_47x
 	cmplwi	cr0,r3,PVR_476@h
 	beq	head_start_47x
 	cmplwi	cr0,r3,PVR_476_ISS@h
@@ -800,12 +890,29 @@ skpinv:	addi	r4,r4,1				/* Increment */
 /*
  * Configure and load pinned entry into TLB slot 63.
  */
+#ifdef CONFIG_NONSTATIC_KERNEL
+	/*
+	 * In case of a NONSTATIC_KERNEL we reuse the TLB XLAT
+	 * entries of the initial mapping set by the boot loader.
+	 * The XLAT entry is stored in r25
+	 */
+
+	/* Read the XLAT entry for our current mapping */
+	tlbre	r25,r23,PPC44x_TLB_XLAT
+
+	lis	r3,KERNELBASE@h
+	ori	r3,r3,KERNELBASE@l
+
+	/* Use our current RPN entry */
+	mr	r4,r25
+#else
 
 	lis	r3,PAGE_OFFSET@h
 	ori	r3,r3,PAGE_OFFSET@l
 
 	/* Kernel is at the base of RAM */
 	li r4, 0			/* Load the kernel physical address */
+#endif
 
 	/* Load the kernel PID = 0 */
 	li	r0,0

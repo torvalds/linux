@@ -32,12 +32,11 @@
 #include <scsi/scsi_cmnd.h>
 
 #include <target/target_core_base.h>
-#include <target/target_core_device.h>
-#include <target/target_core_tmr.h>
-#include <target/target_core_transport.h>
-#include <target/target_core_fabric_ops.h>
+#include <target/target_core_backend.h>
+#include <target/target_core_fabric.h>
 #include <target/target_core_configfs.h>
 
+#include "target_core_internal.h"
 #include "target_core_alua.h"
 #include "target_core_pr.h"
 
@@ -101,6 +100,21 @@ static void core_tmr_handle_tas_abort(
 	transport_cmd_finish_abort(cmd, 0);
 }
 
+static int target_check_cdb_and_preempt(struct list_head *list,
+		struct se_cmd *cmd)
+{
+	struct t10_pr_registration *reg;
+
+	if (!list)
+		return 0;
+	list_for_each_entry(reg, list, pr_reg_abort_list) {
+		if (reg->pr_res_key == cmd->pr_res_key)
+			return 0;
+	}
+
+	return 1;
+}
+
 static void core_tmr_drain_tmr_list(
 	struct se_device *dev,
 	struct se_tmr_req *tmr,
@@ -132,9 +146,7 @@ static void core_tmr_drain_tmr_list(
 		 * parameter (eg: for PROUT PREEMPT_AND_ABORT service action
 		 * skip non regisration key matching TMRs.
 		 */
-		if (preempt_and_abort_list &&
-		    (core_scsi3_check_cdb_abort_and_preempt(
-					preempt_and_abort_list, cmd) != 0))
+		if (target_check_cdb_and_preempt(preempt_and_abort_list, cmd))
 			continue;
 
 		spin_lock(&cmd->t_state_lock);
@@ -211,9 +223,7 @@ static void core_tmr_drain_task_list(
 		 * For PREEMPT_AND_ABORT usage, only process commands
 		 * with a matching reservation key.
 		 */
-		if (preempt_and_abort_list &&
-		    (core_scsi3_check_cdb_abort_and_preempt(
-					preempt_and_abort_list, cmd) != 0))
+		if (target_check_cdb_and_preempt(preempt_and_abort_list, cmd))
 			continue;
 		/*
 		 * Not aborting PROUT PREEMPT_AND_ABORT CDB..
@@ -222,7 +232,7 @@ static void core_tmr_drain_task_list(
 			continue;
 
 		list_move_tail(&task->t_state_list, &drain_task_list);
-		atomic_set(&task->task_state_active, 0);
+		task->t_state_active = false;
 		/*
 		 * Remove from task execute list before processing drain_task_list
 		 */
@@ -321,9 +331,7 @@ static void core_tmr_drain_cmd_list(
 		 * For PREEMPT_AND_ABORT usage, only process commands
 		 * with a matching reservation key.
 		 */
-		if (preempt_and_abort_list &&
-		    (core_scsi3_check_cdb_abort_and_preempt(
-					preempt_and_abort_list, cmd) != 0))
+		if (target_check_cdb_and_preempt(preempt_and_abort_list, cmd))
 			continue;
 		/*
 		 * Not aborting PROUT PREEMPT_AND_ABORT CDB..

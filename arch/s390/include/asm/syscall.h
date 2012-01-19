@@ -27,7 +27,7 @@ static inline long syscall_get_nr(struct task_struct *task,
 				  struct pt_regs *regs)
 {
 	return test_tsk_thread_flag(task, TIF_SYSCALL) ?
-		(regs->svc_code & 0xffff) : -1;
+		(regs->int_code & 0xffff) : -1;
 }
 
 static inline void syscall_rollback(struct task_struct *task,

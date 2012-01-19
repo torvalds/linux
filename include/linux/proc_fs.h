@@ -50,7 +50,7 @@ typedef	int (write_proc_t)(struct file *file, const char __user *buffer,
 
 struct proc_dir_entry {
 	unsigned int low_ino;
-	mode_t mode;
+	umode_t mode;
 	nlink_t nlink;
 	uid_t uid;
 	gid_t gid;
@@ -106,9 +106,9 @@ extern void proc_root_init(void);
 
 void proc_flush_task(struct task_struct *task);
 
-extern struct proc_dir_entry *create_proc_entry(const char *name, mode_t mode,
+extern struct proc_dir_entry *create_proc_entry(const char *name, umode_t mode,
 						struct proc_dir_entry *parent);
-struct proc_dir_entry *proc_create_data(const char *name, mode_t mode,
+struct proc_dir_entry *proc_create_data(const char *name, umode_t mode,
 				struct proc_dir_entry *parent,
 				const struct file_operations *proc_fops,
 				void *data);
@@ -146,17 +146,17 @@ extern void proc_device_tree_update_prop(struct proc_dir_entry *pde,
 extern struct proc_dir_entry *proc_symlink(const char *,
 		struct proc_dir_entry *, const char *);
 extern struct proc_dir_entry *proc_mkdir(const char *,struct proc_dir_entry *);
-extern struct proc_dir_entry *proc_mkdir_mode(const char *name, mode_t mode,
+extern struct proc_dir_entry *proc_mkdir_mode(const char *name, umode_t mode,
 			struct proc_dir_entry *parent);
 
-static inline struct proc_dir_entry *proc_create(const char *name, mode_t mode,
+static inline struct proc_dir_entry *proc_create(const char *name, umode_t mode,
 	struct proc_dir_entry *parent, const struct file_operations *proc_fops)
 {
 	return proc_create_data(name, mode, parent, proc_fops, NULL);
 }
 
 static inline struct proc_dir_entry *create_proc_read_entry(const char *name,
-	mode_t mode, struct proc_dir_entry *base, 
+	umode_t mode, struct proc_dir_entry *base, 
 	read_proc_t *read_proc, void * data)
 {
 	struct proc_dir_entry *res=create_proc_entry(name,mode,base);
@@ -168,7 +168,7 @@ static inline struct proc_dir_entry *create_proc_read_entry(const char *name,
 }
  
 extern struct proc_dir_entry *proc_net_fops_create(struct net *net,
-	const char *name, mode_t mode, const struct file_operations *fops);
+	const char *name, umode_t mode, const struct file_operations *fops);
 extern void proc_net_remove(struct net *net, const char *name);
 extern struct proc_dir_entry *proc_net_mkdir(struct net *net, const char *name,
 	struct proc_dir_entry *parent);
@@ -185,15 +185,15 @@ static inline void proc_flush_task(struct task_struct *task)
 }
 
 static inline struct proc_dir_entry *create_proc_entry(const char *name,
-	mode_t mode, struct proc_dir_entry *parent) { return NULL; }
+	umode_t mode, struct proc_dir_entry *parent) { return NULL; }
 static inline struct proc_dir_entry *proc_create(const char *name,
-	mode_t mode, struct proc_dir_entry *parent,
+	umode_t mode, struct proc_dir_entry *parent,
 	const struct file_operations *proc_fops)
 {
 	return NULL;
 }
 static inline struct proc_dir_entry *proc_create_data(const char *name,
-	mode_t mode, struct proc_dir_entry *parent,
+	umode_t mode, struct proc_dir_entry *parent,
 	const struct file_operations *proc_fops, void *data)
 {
 	return NULL;
@@ -205,10 +205,10 @@ static inline struct proc_dir_entry *proc_symlink(const char *name,
 static inline struct proc_dir_entry *proc_mkdir(const char *name,
 	struct proc_dir_entry *parent) {return NULL;}
 static inline struct proc_dir_entry *proc_mkdir_mode(const char *name,
-	mode_t mode, struct proc_dir_entry *parent) { return NULL; }
+	umode_t mode, struct proc_dir_entry *parent) { return NULL; }
 
 static inline struct proc_dir_entry *create_proc_read_entry(const char *name,
-	mode_t mode, struct proc_dir_entry *base, 
+	umode_t mode, struct proc_dir_entry *base, 
 	read_proc_t *read_proc, void * data) { return NULL; }
 
 struct tty_driver;
@@ -253,7 +253,7 @@ extern const struct proc_ns_operations utsns_operations;
 extern const struct proc_ns_operations ipcns_operations;
 
 union proc_op {
-	int (*proc_get_link)(struct inode *, struct path *);
+	int (*proc_get_link)(struct dentry *, struct path *);
 	int (*proc_read)(struct task_struct *task, char *page);
 	int (*proc_show)(struct seq_file *m,
 		struct pid_namespace *ns, struct pid *pid,

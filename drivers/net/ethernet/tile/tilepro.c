@@ -1256,7 +1256,7 @@ static void tile_net_stop_aux(struct net_device *dev)
 			  sizeof(dummy), NETIO_IPP_STOP_SHIM_OFF) < 0)
 		panic("Failed to stop LIPP/LEPP!\n");
 
-	priv->partly_opened = 0;
+	priv->partly_opened = false;
 }
 
 
@@ -1507,7 +1507,7 @@ static int tile_net_open(struct net_device *dev)
 		       priv->network_cpus_count, priv->network_cpus_credits);
 #endif
 
-		priv->partly_opened = 1;
+		priv->partly_opened = true;
 
 	} else {
 		/* FIXME: Is this possible? */
@@ -2260,8 +2260,7 @@ static int tile_net_get_mac(struct net_device *dev)
 	return 0;
 }
 
-
-static struct net_device_ops tile_net_ops = {
+static const struct net_device_ops tile_net_ops = {
 	.ndo_open = tile_net_open,
 	.ndo_stop = tile_net_stop,
 	.ndo_start_xmit = tile_net_tx,

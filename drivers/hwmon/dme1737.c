@@ -45,7 +45,7 @@
 static struct platform_device *pdev;
 
 /* Module load parameters */
-static int force_start;
+static bool force_start;
 module_param(force_start, bool, 0);
 MODULE_PARM_DESC(force_start, "Force the chip to start monitoring inputs");
 
@@ -53,7 +53,7 @@ static unsigned short force_id;
 module_param(force_id, ushort, 0);
 MODULE_PARM_DESC(force_id, "Override the detected device ID");
 
-static int probe_all_addr;
+static bool probe_all_addr;
 module_param(probe_all_addr, bool, 0);
 MODULE_PARM_DESC(probe_all_addr, "Include probing of non-standard LPC "
 		 "addresses");
@@ -1223,7 +1223,7 @@ static ssize_t show_pwm(struct device *dev, struct device_attribute *attr,
 }
 
 static struct attribute *dme1737_pwm_chmod_attr[];
-static void dme1737_chmod_file(struct device*, struct attribute*, mode_t);
+static void dme1737_chmod_file(struct device*, struct attribute*, umode_t);
 
 static ssize_t set_pwm(struct device *dev, struct device_attribute *attr,
 		       const char *buf, size_t count)
@@ -1961,7 +1961,7 @@ static inline void dme1737_sio_outb(int sio_cip, int reg, int val)
 static int dme1737_i2c_get_features(int, struct dme1737_data*);
 
 static void dme1737_chmod_file(struct device *dev,
-			       struct attribute *attr, mode_t mode)
+			       struct attribute *attr, umode_t mode)
 {
 	if (sysfs_chmod_file(&dev->kobj, attr, mode)) {
 		dev_warn(dev, "Failed to change permissions of %s.\n",
@@ -1971,7 +1971,7 @@ static void dme1737_chmod_file(struct device *dev,
 
 static void dme1737_chmod_group(struct device *dev,
 				const struct attribute_group *group,
-				mode_t mode)
+				umode_t mode)
 {
 	struct attribute **attr;
 

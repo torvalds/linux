@@ -66,6 +66,8 @@ struct idmap_msg {
 /* Forward declaration to make this header independent of others */
 struct nfs_client;
 struct nfs_server;
+struct nfs_fattr;
+struct nfs4_string;
 
 #ifdef CONFIG_NFS_USE_NEW_IDMAPPER
 
@@ -96,6 +98,12 @@ int nfs_idmap_new(struct nfs_client *);
 void nfs_idmap_delete(struct nfs_client *);
 
 #endif /* CONFIG_NFS_USE_NEW_IDMAPPER */
+
+void nfs_fattr_init_names(struct nfs_fattr *fattr,
+		struct nfs4_string *owner_name,
+		struct nfs4_string *group_name);
+void nfs_fattr_free_names(struct nfs_fattr *);
+void nfs_fattr_map_and_free_names(struct nfs_server *, struct nfs_fattr *);
 
 int nfs_map_name_to_uid(const struct nfs_server *, const char *, size_t, __u32 *);
 int nfs_map_group_to_gid(const struct nfs_server *, const char *, size_t, __u32 *);

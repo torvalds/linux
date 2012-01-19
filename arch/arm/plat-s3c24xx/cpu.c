@@ -38,8 +38,6 @@
 #include <asm/mach/arch.h>
 #include <asm/mach/map.h>
 
-#include <mach/system-reset.h>
-
 #include <mach/regs-gpio.h>
 #include <plat/regs-serial.h>
 
@@ -192,27 +190,6 @@ static unsigned long s3c24xx_read_idcode_v4(void)
 	return __raw_readl(S3C2410_GSTATUS1);
 }
 
-/* Hook for arm_pm_restart to ensure we execute the reset code
- * with the caches enabled. It seems at least the S3C2440 has a problem
- * resetting if there is bus activity interrupted by the reset.
- */
-static void s3c24xx_pm_restart(char mode, const char *cmd)
-{
-	if (mode != 's') {
-		unsigned long flags;
-
-		local_irq_save(flags);
-		__cpuc_flush_kern_all();
-		__cpuc_flush_user_all();
-
-		arch_reset(mode, cmd);
-		local_irq_restore(flags);
-	}
-
-	/* fallback, or unhandled */
-	arm_machine_restart(mode, cmd);
-}
-
 void __init s3c24xx_init_io(struct map_desc *mach_desc, int size)
 {
 	/* initialise the io descriptors we need for initialisation */
@@ -225,8 +202,6 @@ void __init s3c24xx_init_io(struct map_desc *mach_desc, int size)
 		samsung_cpu_id = s3c24xx_read_idcode_v4();
 	}
 	s3c24xx_init_cpu();
-
-	arm_pm_restart = s3c24xx_pm_restart;
 
 	s3c_init_cpu(samsung_cpu_id, cpu_ids, ARRAY_SIZE(cpu_ids));
 }

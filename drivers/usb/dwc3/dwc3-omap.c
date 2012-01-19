@@ -48,6 +48,7 @@
 #include <linux/io.h>
 #include <linux/module.h>
 
+#include "core.h"
 #include "io.h"
 
 /*
@@ -200,6 +201,7 @@ static int __devinit dwc3_omap_probe(struct platform_device *pdev)
 	struct dwc3_omap	*omap;
 	struct resource		*res;
 
+	int			devid;
 	int			ret = -ENOMEM;
 	int			irq;
 
@@ -236,16 +238,20 @@ static int __devinit dwc3_omap_probe(struct platform_device *pdev)
 		goto err1;
 	}
 
-	dwc3 = platform_device_alloc("dwc3-omap", -1);
+	devid = dwc3_get_device_id();
+	if (devid < 0)
+		goto err2;
+
+	dwc3 = platform_device_alloc("dwc3", devid);
 	if (!dwc3) {
 		dev_err(&pdev->dev, "couldn't allocate dwc3 device\n");
-		goto err2;
+		goto err3;
 	}
 
 	context = kzalloc(resource_size(res), GFP_KERNEL);
 	if (!context) {
 		dev_err(&pdev->dev, "couldn't allocate dwc3 context memory\n");
-		goto err3;
+		goto err4;
 	}
 
 	spin_lock_init(&omap->lock);
@@ -299,7 +305,7 @@ static int __devinit dwc3_omap_probe(struct platform_device *pdev)
 	if (ret) {
 		dev_err(&pdev->dev, "failed to request IRQ #%d --> %d\n",
 				omap->irq, ret);
-		goto err4;
+		goto err5;
 	}
 
 	/* enable all IRQs */
@@ -322,25 +328,28 @@ static int __devinit dwc3_omap_probe(struct platform_device *pdev)
 			pdev->num_resources);
 	if (ret) {
 		dev_err(&pdev->dev, "couldn't add resources to dwc3 device\n");
-		goto err5;
+		goto err6;
 	}
 
 	ret = platform_device_add(dwc3);
 	if (ret) {
 		dev_err(&pdev->dev, "failed to register dwc3 device\n");
-		goto err5;
+		goto err6;
 	}
 
 	return 0;
 
-err5:
+err6:
 	free_irq(omap->irq, omap);
 
-err4:
+err5:
 	kfree(omap->context);
 
-err3:
+err4:
 	platform_device_put(dwc3);
+
+err3:
+	dwc3_put_device_id(devid);
 
 err2:
 	iounmap(base);
@@ -358,6 +367,7 @@ static int __devexit dwc3_omap_remove(struct platform_device *pdev)
 
 	platform_device_unregister(omap->dwc3);
 
+	dwc3_put_device_id(omap->dwc3->id);
 	free_irq(omap->irq, omap);
 	iounmap(omap->base);
 
@@ -384,18 +394,9 @@ static struct platform_driver dwc3_omap_driver = {
 	},
 };
 
+module_platform_driver(dwc3_omap_driver);
+
+MODULE_ALIAS("platform:omap-dwc3");
 MODULE_AUTHOR("Felipe Balbi <balbi@ti.com>");
 MODULE_LICENSE("Dual BSD/GPL");
 MODULE_DESCRIPTION("DesignWare USB3 OMAP Glue Layer");
-
-static int __devinit dwc3_omap_init(void)
-{
-	return platform_driver_register(&dwc3_omap_driver);
-}
-module_init(dwc3_omap_init);
-
-static void __exit dwc3_omap_exit(void)
-{
-	platform_driver_unregister(&dwc3_omap_driver);
-}
-module_exit(dwc3_omap_exit);

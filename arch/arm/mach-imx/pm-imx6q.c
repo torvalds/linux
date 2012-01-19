@@ -64,7 +64,9 @@ void __init imx6q_pm_init(void)
 	 * address of the data structure used by l2x0 core to save registers,
 	 * and later restore the necessary ones in imx6q resume entry.
 	 */
+#ifdef CONFIG_CACHE_L2X0
 	phys_l2x0_saved_regs = __pa(&l2x0_saved_regs);
+#endif
 
 	suspend_set_ops(&imx6q_pm_ops);
 }

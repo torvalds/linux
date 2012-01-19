@@ -384,7 +384,6 @@ static void ceph_i_callback(struct rcu_head *head)
 	struct inode *inode = container_of(head, struct inode, i_rcu);
 	struct ceph_inode_info *ci = ceph_inode(inode);
 
-	INIT_LIST_HEAD(&inode->i_dentry);
 	kmem_cache_free(ceph_inode_cachep, ci);
 }
 
@@ -851,11 +850,12 @@ static void ceph_set_dentry_offset(struct dentry *dn)
 {
 	struct dentry *dir = dn->d_parent;
 	struct inode *inode = dir->d_inode;
-	struct ceph_inode_info *ci = ceph_inode(inode);
+	struct ceph_inode_info *ci;
 	struct ceph_dentry_info *di;
 
 	BUG_ON(!inode);
 
+	ci = ceph_inode(inode);
 	di = ceph_dentry(dn);
 
 	spin_lock(&ci->i_ceph_lock);

@@ -121,10 +121,8 @@ static const struct ar9300_eeprom ar9300_default = {
 		 * if the register is per chain
 		 */
 		.noiseFloorThreshCh = {-1, 0, 0},
-		.ob = {1, 1, 1},/* 3 chain */
-		.db_stage2 = {1, 1, 1}, /* 3 chain  */
-		.db_stage3 = {0, 0, 0},
-		.db_stage4 = {0, 0, 0},
+		.reserved = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+		.quick_drop = 0,
 		.xpaBiasLvl = 0,
 		.txFrameToDataStart = 0x0e,
 		.txFrameToPaOn = 0x0e,
@@ -144,7 +142,7 @@ static const struct ar9300_eeprom ar9300_default = {
 	 },
 	.base_ext1 = {
 		.ant_div_control = 0,
-		.future = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0}
+		.future = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0}
 	},
 	.calFreqPier2G = {
 		FREQ2FBIN(2412, 1),
@@ -323,10 +321,8 @@ static const struct ar9300_eeprom ar9300_default = {
 		.spurChans = {0, 0, 0, 0, 0},
 		/* noiseFloorThreshCh Check if the register is per chain */
 		.noiseFloorThreshCh = {-1, 0, 0},
-		.ob = {3, 3, 3}, /* 3 chain */
-		.db_stage2 = {3, 3, 3}, /* 3 chain */
-		.db_stage3 = {3, 3, 3}, /* doesn't exist for 2G */
-		.db_stage4 = {3, 3, 3},	 /* don't exist for 2G */
+		.reserved = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+		.quick_drop = 0,
 		.xpaBiasLvl = 0,
 		.txFrameToDataStart = 0x0e,
 		.txFrameToPaOn = 0x0e,
@@ -698,10 +694,8 @@ static const struct ar9300_eeprom ar9300_x113 = {
 		 * if the register is per chain
 		 */
 		.noiseFloorThreshCh = {-1, 0, 0},
-		.ob = {1, 1, 1},/* 3 chain */
-		.db_stage2 = {1, 1, 1}, /* 3 chain  */
-		.db_stage3 = {0, 0, 0},
-		.db_stage4 = {0, 0, 0},
+		.reserved = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+		.quick_drop = 0,
 		.xpaBiasLvl = 0,
 		.txFrameToDataStart = 0x0e,
 		.txFrameToPaOn = 0x0e,
@@ -721,7 +715,7 @@ static const struct ar9300_eeprom ar9300_x113 = {
 	 },
 	 .base_ext1 = {
 		.ant_div_control = 0,
-		.future = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0}
+		.future = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0}
 	 },
 	.calFreqPier2G = {
 		FREQ2FBIN(2412, 1),
@@ -900,10 +894,8 @@ static const struct ar9300_eeprom ar9300_x113 = {
 		.spurChans = {FREQ2FBIN(5500, 0), 0, 0, 0, 0},
 		/* noiseFloorThreshCh Check if the register is per chain */
 		.noiseFloorThreshCh = {-1, 0, 0},
-		.ob = {3, 3, 3}, /* 3 chain */
-		.db_stage2 = {3, 3, 3}, /* 3 chain */
-		.db_stage3 = {3, 3, 3}, /* doesn't exist for 2G */
-		.db_stage4 = {3, 3, 3},	 /* don't exist for 2G */
+		.reserved = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+		.quick_drop = 0,
 		.xpaBiasLvl = 0xf,
 		.txFrameToDataStart = 0x0e,
 		.txFrameToPaOn = 0x0e,
@@ -1276,10 +1268,8 @@ static const struct ar9300_eeprom ar9300_h112 = {
 		 * if the register is per chain
 		 */
 		.noiseFloorThreshCh = {-1, 0, 0},
-		.ob = {1, 1, 1},/* 3 chain */
-		.db_stage2 = {1, 1, 1}, /* 3 chain  */
-		.db_stage3 = {0, 0, 0},
-		.db_stage4 = {0, 0, 0},
+		.reserved = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+		.quick_drop = 0,
 		.xpaBiasLvl = 0,
 		.txFrameToDataStart = 0x0e,
 		.txFrameToPaOn = 0x0e,
@@ -1291,20 +1281,20 @@ static const struct ar9300_eeprom ar9300_h112 = {
 		.txEndToRxOn = 0x2,
 		.txFrameToXpaOn = 0xe,
 		.thresh62 = 28,
-		.papdRateMaskHt20 = LE32(0x80c080),
-		.papdRateMaskHt40 = LE32(0x80c080),
+		.papdRateMaskHt20 = LE32(0x0c80c080),
+		.papdRateMaskHt40 = LE32(0x0080c080),
 		.futureModal = {
 			0, 0, 0, 0, 0, 0, 0, 0,
 		},
 	},
 	.base_ext1 = {
 		.ant_div_control = 0,
-		.future = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0}
+		.future = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0}
 	},
 	.calFreqPier2G = {
 		FREQ2FBIN(2412, 1),
 		FREQ2FBIN(2437, 1),
-		FREQ2FBIN(2472, 1),
+		FREQ2FBIN(2462, 1),
 	},
 	/* ar9300_cal_data_per_freq_op_loop 2g */
 	.calPierData2G = {
@@ -1314,7 +1304,7 @@ static const struct ar9300_eeprom ar9300_h112 = {
 	},
 	.calTarget_freqbin_Cck = {
 		FREQ2FBIN(2412, 1),
-		FREQ2FBIN(2484, 1),
+		FREQ2FBIN(2472, 1),
 	},
 	.calTarget_freqbin_2G = {
 		FREQ2FBIN(2412, 1),
@@ -1478,10 +1468,8 @@ static const struct ar9300_eeprom ar9300_h112 = {
 		.spurChans = {0, 0, 0, 0, 0},
 		/* noiseFloorThreshCh Check if the register is per chain */
 		.noiseFloorThreshCh = {-1, 0, 0},
-		.ob = {3, 3, 3}, /* 3 chain */
-		.db_stage2 = {3, 3, 3}, /* 3 chain */
-		.db_stage3 = {3, 3, 3}, /* doesn't exist for 2G */
-		.db_stage4 = {3, 3, 3},	 /* don't exist for 2G */
+		.reserved = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+		.quick_drop = 0,
 		.xpaBiasLvl = 0,
 		.txFrameToDataStart = 0x0e,
 		.txFrameToPaOn = 0x0e,
@@ -1515,7 +1503,7 @@ static const struct ar9300_eeprom ar9300_h112 = {
 		FREQ2FBIN(5500, 0),
 		FREQ2FBIN(5600, 0),
 		FREQ2FBIN(5700, 0),
-		FREQ2FBIN(5825, 0)
+		FREQ2FBIN(5785, 0)
 	},
 	.calPierData5G = {
 		{
@@ -1854,10 +1842,8 @@ static const struct ar9300_eeprom ar9300_x112 = {
 		 * if the register is per chain
 		 */
 		.noiseFloorThreshCh = {-1, 0, 0},
-		.ob = {1, 1, 1},/* 3 chain */
-		.db_stage2 = {1, 1, 1}, /* 3 chain  */
-		.db_stage3 = {0, 0, 0},
-		.db_stage4 = {0, 0, 0},
+		.reserved = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+		.quick_drop = 0,
 		.xpaBiasLvl = 0,
 		.txFrameToDataStart = 0x0e,
 		.txFrameToPaOn = 0x0e,
@@ -1877,7 +1863,7 @@ static const struct ar9300_eeprom ar9300_x112 = {
 	},
 	.base_ext1 = {
 		.ant_div_control = 0,
-		.future = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0}
+		.future = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0}
 	},
 	.calFreqPier2G = {
 		FREQ2FBIN(2412, 1),
@@ -2056,10 +2042,8 @@ static const struct ar9300_eeprom ar9300_x112 = {
 		.spurChans = {0, 0, 0, 0, 0},
 		/* noiseFloorThreshch check if the register is per chain */
 		.noiseFloorThreshCh = {-1, 0, 0},
-		.ob = {3, 3, 3}, /* 3 chain */
-		.db_stage2 = {3, 3, 3}, /* 3 chain */
-		.db_stage3 = {3, 3, 3}, /* doesn't exist for 2G */
-		.db_stage4 = {3, 3, 3},	 /* don't exist for 2G */
+		.reserved = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+		.quick_drop = 0,
 		.xpaBiasLvl = 0,
 		.txFrameToDataStart = 0x0e,
 		.txFrameToPaOn = 0x0e,
@@ -2431,10 +2415,8 @@ static const struct ar9300_eeprom ar9300_h116 = {
 		 * if the register is per chain
 		 */
 		.noiseFloorThreshCh = {-1, 0, 0},
-		.ob = {1, 1, 1},/* 3 chain */
-		.db_stage2 = {1, 1, 1}, /* 3 chain  */
-		.db_stage3 = {0, 0, 0},
-		.db_stage4 = {0, 0, 0},
+		.reserved = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+		.quick_drop = 0,
 		.xpaBiasLvl = 0,
 		.txFrameToDataStart = 0x0e,
 		.txFrameToPaOn = 0x0e,
@@ -2454,12 +2436,12 @@ static const struct ar9300_eeprom ar9300_h116 = {
 	 },
 	 .base_ext1 = {
 		.ant_div_control = 0,
-		.future = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0}
+		.future = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0}
 	 },
 	.calFreqPier2G = {
 		FREQ2FBIN(2412, 1),
 		FREQ2FBIN(2437, 1),
-		FREQ2FBIN(2472, 1),
+		FREQ2FBIN(2462, 1),
 	 },
 	/* ar9300_cal_data_per_freq_op_loop 2g */
 	.calPierData2G = {
@@ -2633,10 +2615,8 @@ static const struct ar9300_eeprom ar9300_h116 = {
 		.spurChans = {0, 0, 0, 0, 0},
 		/* noiseFloorThreshCh Check if the register is per chain */
 		.noiseFloorThreshCh = {-1, 0, 0},
-		.ob = {3, 3, 3}, /* 3 chain */
-		.db_stage2 = {3, 3, 3}, /* 3 chain */
-		.db_stage3 = {3, 3, 3}, /* doesn't exist for 2G */
-		.db_stage4 = {3, 3, 3},	 /* don't exist for 2G */
+		.reserved = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+		.quick_drop = 0,
 		.xpaBiasLvl = 0,
 		.txFrameToDataStart = 0x0e,
 		.txFrameToPaOn = 0x0e,
@@ -2663,7 +2643,7 @@ static const struct ar9300_eeprom ar9300_h116 = {
 		.xatten1MarginHigh = {0, 0, 0}
 	 },
 	.calFreqPier5G = {
-		FREQ2FBIN(5180, 0),
+		FREQ2FBIN(5160, 0),
 		FREQ2FBIN(5220, 0),
 		FREQ2FBIN(5320, 0),
 		FREQ2FBIN(5400, 0),
@@ -3023,6 +3003,8 @@ static u32 ath9k_hw_ar9300_get_eeprom(struct ath_hw *ah,
 		return eep->modalHeader5G.antennaGain;
 	case EEP_ANTENNA_GAIN_2G:
 		return eep->modalHeader2G.antennaGain;
+	case EEP_QUICK_DROP:
+		return pBase->miscConfiguration & BIT(1);
 	default:
 		return 0;
 	}
@@ -3061,8 +3043,7 @@ static bool ar9300_read_eeprom(struct ath_hw *ah, int address, u8 *buffer,
 	int i;
 
 	if ((address < 0) || ((address + count) / 2 > AR9300_EEPROM_SIZE - 1)) {
-		ath_dbg(common, ATH_DBG_EEPROM,
-			"eeprom address not in range\n");
+		ath_dbg(common, EEPROM, "eeprom address not in range\n");
 		return false;
 	}
 
@@ -3093,8 +3074,8 @@ static bool ar9300_read_eeprom(struct ath_hw *ah, int address, u8 *buffer,
 	return true;
 
 error:
-	ath_dbg(common, ATH_DBG_EEPROM,
-		"unable to read eeprom region at offset %d\n", address);
+	ath_dbg(common, EEPROM, "unable to read eeprom region at offset %d\n",
+		address);
 	return false;
 }
 
@@ -3178,13 +3159,13 @@ static bool ar9300_uncompress_block(struct ath_hw *ah,
 		length &= 0xff;
 
 		if (length > 0 && spot >= 0 && spot+length <= mdataSize) {
-			ath_dbg(common, ATH_DBG_EEPROM,
+			ath_dbg(common, EEPROM,
 				"Restore at %d: spot=%d offset=%d length=%d\n",
 				it, spot, offset, length);
 			memcpy(&mptr[spot], &block[it+2], length);
 			spot += length;
 		} else if (length > 0) {
-			ath_dbg(common, ATH_DBG_EEPROM,
+			ath_dbg(common, EEPROM,
 				"Bad restore at %d: spot=%d offset=%d length=%d\n",
 				it, spot, offset, length);
 			return false;
@@ -3206,13 +3187,13 @@ static int ar9300_compress_decision(struct ath_hw *ah,
 	switch (code) {
 	case _CompressNone:
 		if (length != mdata_size) {
-			ath_dbg(common, ATH_DBG_EEPROM,
+			ath_dbg(common, EEPROM,
 				"EEPROM structure size mismatch memory=%d eeprom=%d\n",
 				mdata_size, length);
 			return -1;
 		}
 		memcpy(mptr, (u8 *) (word + COMP_HDR_LEN), length);
-		ath_dbg(common, ATH_DBG_EEPROM,
+		ath_dbg(common, EEPROM,
 			"restored eeprom %d: uncompressed, length %d\n",
 			it, length);
 		break;
@@ -3221,22 +3202,21 @@ static int ar9300_compress_decision(struct ath_hw *ah,
 		} else {
 			eep = ar9003_eeprom_struct_find_by_id(reference);
 			if (eep == NULL) {
-				ath_dbg(common, ATH_DBG_EEPROM,
+				ath_dbg(common, EEPROM,
 					"can't find reference eeprom struct %d\n",
 					reference);
 				return -1;
 			}
 			memcpy(mptr, eep, mdata_size);
 		}
-		ath_dbg(common, ATH_DBG_EEPROM,
+		ath_dbg(common, EEPROM,
 			"restore eeprom %d: block, reference %d, length %d\n",
 			it, reference, length);
 		ar9300_uncompress_block(ah, mptr, mdata_size,
 					(u8 *) (word + COMP_HDR_LEN), length);
 		break;
 	default:
-		ath_dbg(common, ATH_DBG_EEPROM,
-			"unknown compression code %d\n", code);
+		ath_dbg(common, EEPROM, "unknown compression code %d\n", code);
 		return -1;
 	}
 	return 0;
@@ -3312,34 +3292,32 @@ static int ar9300_eeprom_restore_internal(struct ath_hw *ah,
 		cptr = AR9300_BASE_ADDR_512;
 	else
 		cptr = AR9300_BASE_ADDR;
-	ath_dbg(common, ATH_DBG_EEPROM,
-		"Trying EEPROM access at Address 0x%04x\n", cptr);
+	ath_dbg(common, EEPROM, "Trying EEPROM access at Address 0x%04x\n",
+		cptr);
 	if (ar9300_check_eeprom_header(ah, read, cptr))
 		goto found;
 
 	cptr = AR9300_BASE_ADDR_512;
-	ath_dbg(common, ATH_DBG_EEPROM,
-		"Trying EEPROM access at Address 0x%04x\n", cptr);
+	ath_dbg(common, EEPROM, "Trying EEPROM access at Address 0x%04x\n",
+		cptr);
 	if (ar9300_check_eeprom_header(ah, read, cptr))
 		goto found;
 
 	read = ar9300_read_otp;
 	cptr = AR9300_BASE_ADDR;
-	ath_dbg(common, ATH_DBG_EEPROM,
-		"Trying OTP access at Address 0x%04x\n", cptr);
+	ath_dbg(common, EEPROM, "Trying OTP access at Address 0x%04x\n", cptr);
 	if (ar9300_check_eeprom_header(ah, read, cptr))
 		goto found;
 
 	cptr = AR9300_BASE_ADDR_512;
-	ath_dbg(common, ATH_DBG_EEPROM,
-		"Trying OTP access at Address 0x%04x\n", cptr);
+	ath_dbg(common, EEPROM, "Trying OTP access at Address 0x%04x\n", cptr);
 	if (ar9300_check_eeprom_header(ah, read, cptr))
 		goto found;
 
 	goto fail;
 
 found:
-	ath_dbg(common, ATH_DBG_EEPROM, "Found valid EEPROM data\n");
+	ath_dbg(common, EEPROM, "Found valid EEPROM data\n");
 
 	for (it = 0; it < MSTATE; it++) {
 		if (!read(ah, cptr, word, COMP_HDR_LEN))
@@ -3350,13 +3328,12 @@ found:
 
 		ar9300_comp_hdr_unpack(word, &code, &reference,
 				       &length, &major, &minor);
-		ath_dbg(common, ATH_DBG_EEPROM,
+		ath_dbg(common, EEPROM,
 			"Found block at %x: code=%d ref=%d length=%d major=%d minor=%d\n",
 			cptr, code, reference, length, major, minor);
 		if ((!AR_SREV_9485(ah) && length >= 1024) ||
 		    (AR_SREV_9485(ah) && length > EEPROM_DATA_LEN_9485)) {
-			ath_dbg(common, ATH_DBG_EEPROM,
-				"Skipping bad header\n");
+			ath_dbg(common, EEPROM, "Skipping bad header\n");
 			cptr -= COMP_HDR_LEN;
 			continue;
 		}
@@ -3365,13 +3342,13 @@ found:
 		read(ah, cptr, word, COMP_HDR_LEN + osize + COMP_CKSUM_LEN);
 		checksum = ar9300_comp_cksum(&word[COMP_HDR_LEN], length);
 		mchecksum = get_unaligned_le16(&word[COMP_HDR_LEN + osize]);
-		ath_dbg(common, ATH_DBG_EEPROM,
-			"checksum %x %x\n", checksum, mchecksum);
+		ath_dbg(common, EEPROM, "checksum %x %x\n",
+			checksum, mchecksum);
 		if (checksum == mchecksum) {
 			ar9300_compress_decision(ah, it, code, reference, mptr,
 						 word, length, mdata_size);
 		} else {
-			ath_dbg(common, ATH_DBG_EEPROM,
+			ath_dbg(common, EEPROM,
 				"skipping block with bad checksum\n");
 		}
 		cptr -= (COMP_HDR_LEN + osize + COMP_CKSUM_LEN);
@@ -3428,25 +3405,14 @@ static u32 ar9003_dump_modal_eeprom(char *buf, u32 len, u32 size,
 	PR_EEP("Chain0 NF Threshold", modal_hdr->noiseFloorThreshCh[0]);
 	PR_EEP("Chain1 NF Threshold", modal_hdr->noiseFloorThreshCh[1]);
 	PR_EEP("Chain2 NF Threshold", modal_hdr->noiseFloorThreshCh[2]);
+	PR_EEP("Quick Drop", modal_hdr->quick_drop);
+	PR_EEP("txEndToXpaOff", modal_hdr->txEndToXpaOff);
 	PR_EEP("xPA Bias Level", modal_hdr->xpaBiasLvl);
 	PR_EEP("txFrameToDataStart", modal_hdr->txFrameToDataStart);
 	PR_EEP("txFrameToPaOn", modal_hdr->txFrameToPaOn);
 	PR_EEP("txFrameToXpaOn", modal_hdr->txFrameToXpaOn);
 	PR_EEP("txClip", modal_hdr->txClip);
 	PR_EEP("ADC Desired size", modal_hdr->adcDesiredSize);
-	PR_EEP("Chain0 ob", modal_hdr->ob[0]);
-	PR_EEP("Chain1 ob", modal_hdr->ob[1]);
-	PR_EEP("Chain2 ob", modal_hdr->ob[2]);
-
-	PR_EEP("Chain0 db_stage2", modal_hdr->db_stage2[0]);
-	PR_EEP("Chain1 db_stage2", modal_hdr->db_stage2[1]);
-	PR_EEP("Chain2 db_stage2", modal_hdr->db_stage2[2]);
-	PR_EEP("Chain0 db_stage3", modal_hdr->db_stage3[0]);
-	PR_EEP("Chain1 db_stage3", modal_hdr->db_stage3[1]);
-	PR_EEP("Chain2 db_stage3", modal_hdr->db_stage3[2]);
-	PR_EEP("Chain0 db_stage4", modal_hdr->db_stage4[0]);
-	PR_EEP("Chain1 db_stage4", modal_hdr->db_stage4[1]);
-	PR_EEP("Chain2 db_stage4", modal_hdr->db_stage4[2]);
 
 	return len;
 }
@@ -3503,6 +3469,7 @@ static u32 ath9k_hw_ar9003_dump_eeprom(struct ath_hw *ah, bool dump_base_hdr,
 	PR_EEP("Internal regulator", !!(pBase->featureEnable & BIT(4)));
 	PR_EEP("Enable Paprd", !!(pBase->featureEnable & BIT(5)));
 	PR_EEP("Driver Strength", !!(pBase->miscConfiguration & BIT(0)));
+	PR_EEP("Quick Drop", !!(pBase->miscConfiguration & BIT(1)));
 	PR_EEP("Chain mask Reduce", (pBase->miscConfiguration >> 0x3) & 0x1);
 	PR_EEP("Write enable Gpio", pBase->eepromWriteEnableGpio);
 	PR_EEP("WLAN Disable Gpio", pBase->wlanDisableGpio);
@@ -3571,13 +3538,13 @@ static void ar9003_hw_xpa_bias_level_apply(struct ath_hw *ah, bool is2ghz)
 static u16 ar9003_switch_com_spdt_get(struct ath_hw *ah, bool is_2ghz)
 {
 	struct ar9300_eeprom *eep = &ah->eeprom.ar9300_eep;
-	__le32 val;
+	__le16 val;
 
 	if (is_2ghz)
 		val = eep->modalHeader2G.switchcomspdt;
 	else
 		val = eep->modalHeader5G.switchcomspdt;
-	return le32_to_cpu(val);
+	return le16_to_cpu(val);
 }
 
 
@@ -3965,6 +3932,40 @@ static void ar9003_hw_apply_tuning_caps(struct ath_hw *ah)
 	}
 }
 
+static void ar9003_hw_quick_drop_apply(struct ath_hw *ah, u16 freq)
+{
+	struct ar9300_eeprom *eep = &ah->eeprom.ar9300_eep;
+	int quick_drop = ath9k_hw_ar9300_get_eeprom(ah, EEP_QUICK_DROP);
+	s32 t[3], f[3] = {5180, 5500, 5785};
+
+	if (!quick_drop)
+		return;
+
+	if (freq < 4000)
+		quick_drop = eep->modalHeader2G.quick_drop;
+	else {
+		t[0] = eep->base_ext1.quick_drop_low;
+		t[1] = eep->modalHeader5G.quick_drop;
+		t[2] = eep->base_ext1.quick_drop_high;
+		quick_drop = ar9003_hw_power_interpolate(freq, f, t, 3);
+	}
+	REG_RMW_FIELD(ah, AR_PHY_AGC, AR_PHY_AGC_QUICK_DROP, quick_drop);
+}
+
+static void ar9003_hw_txend_to_xpa_off_apply(struct ath_hw *ah, u16 freq)
+{
+	struct ar9300_eeprom *eep = &ah->eeprom.ar9300_eep;
+	u32 value;
+
+	value = (freq < 4000) ? eep->modalHeader2G.txEndToXpaOff :
+				eep->modalHeader5G.txEndToXpaOff;
+
+	REG_RMW_FIELD(ah, AR_PHY_XPA_TIMING_CTL,
+		      AR_PHY_XPA_TIMING_CTL_TX_END_XPAB_OFF, value);
+	REG_RMW_FIELD(ah, AR_PHY_XPA_TIMING_CTL,
+		      AR_PHY_XPA_TIMING_CTL_TX_END_XPAA_OFF, value);
+}
+
 static void ath9k_hw_ar9300_set_board_values(struct ath_hw *ah,
 					     struct ath9k_channel *chan)
 {
@@ -3972,10 +3973,12 @@ static void ath9k_hw_ar9300_set_board_values(struct ath_hw *ah,
 	ar9003_hw_ant_ctrl_apply(ah, IS_CHAN_2GHZ(chan));
 	ar9003_hw_drive_strength_apply(ah);
 	ar9003_hw_atten_apply(ah, chan);
+	ar9003_hw_quick_drop_apply(ah, chan->channel);
 	if (!AR_SREV_9330(ah) && !AR_SREV_9340(ah))
 		ar9003_hw_internal_regulator_apply(ah);
 	if (AR_SREV_9485(ah) || AR_SREV_9330(ah) || AR_SREV_9340(ah))
 		ar9003_hw_apply_tuning_caps(ah);
+	ar9003_hw_txend_to_xpa_off_apply(ah, chan->channel);
 }
 
 static void ath9k_hw_ar9300_set_addac(struct ath_hw *ah,
@@ -4416,8 +4419,8 @@ static void ar9003_hw_set_target_power_eeprom(struct ath_hw *ah, u16 freq,
 					      is2GHz) + ht40PowerIncForPdadc;
 
 	for (i = 0; i < ar9300RateSize; i++) {
-		ath_dbg(common, ATH_DBG_EEPROM,
-			"TPC[%02d] 0x%08x\n", i, targetPowerValT2[i]);
+		ath_dbg(common, EEPROM, "TPC[%02d] 0x%08x\n",
+			i, targetPowerValT2[i]);
 	}
 }
 
@@ -4436,7 +4439,7 @@ static int ar9003_hw_cal_pier_get(struct ath_hw *ah,
 	struct ath_common *common = ath9k_hw_common(ah);
 
 	if (ichain >= AR9300_MAX_CHAINS) {
-		ath_dbg(common, ATH_DBG_EEPROM,
+		ath_dbg(common, EEPROM,
 			"Invalid chain index, must be less than %d\n",
 			AR9300_MAX_CHAINS);
 		return -1;
@@ -4444,7 +4447,7 @@ static int ar9003_hw_cal_pier_get(struct ath_hw *ah,
 
 	if (mode) {		/* 5GHz */
 		if (ipier >= AR9300_NUM_5G_CAL_PIERS) {
-			ath_dbg(common, ATH_DBG_EEPROM,
+			ath_dbg(common, EEPROM,
 				"Invalid 5GHz cal pier index, must be less than %d\n",
 				AR9300_NUM_5G_CAL_PIERS);
 			return -1;
@@ -4454,7 +4457,7 @@ static int ar9003_hw_cal_pier_get(struct ath_hw *ah,
 		is2GHz = 0;
 	} else {
 		if (ipier >= AR9300_NUM_2G_CAL_PIERS) {
-			ath_dbg(common, ATH_DBG_EEPROM,
+			ath_dbg(common, EEPROM,
 				"Invalid 2GHz cal pier index, must be less than %d\n",
 				AR9300_NUM_2G_CAL_PIERS);
 			return -1;
@@ -4616,8 +4619,7 @@ static int ar9003_hw_calibration_apply(struct ath_hw *ah, int frequency)
 
 	/* interpolate  */
 	for (ichain = 0; ichain < AR9300_MAX_CHAINS; ichain++) {
-		ath_dbg(common, ATH_DBG_EEPROM,
-			"ch=%d f=%d low=%d %d h=%d %d\n",
+		ath_dbg(common, EEPROM, "ch=%d f=%d low=%d %d h=%d %d\n",
 			ichain, frequency, lfrequency[ichain],
 			lcorrection[ichain], hfrequency[ichain],
 			hcorrection[ichain]);
@@ -4672,7 +4674,7 @@ static int ar9003_hw_calibration_apply(struct ath_hw *ah, int frequency)
 	ar9003_hw_power_control_override(ah, frequency, correction, voltage,
 					 temperature);
 
-	ath_dbg(common, ATH_DBG_EEPROM,
+	ath_dbg(common, EEPROM,
 		"for frequency=%d, calibration correction = %d %d %d\n",
 		frequency, correction[0], correction[1], correction[2]);
 
@@ -4771,7 +4773,7 @@ static void ar9003_hw_set_power_per_rate_table(struct ath_hw *ah,
 {
 	struct ath_common *common = ath9k_hw_common(ah);
 	struct ar9300_eeprom *pEepData = &ah->eeprom.ar9300_eep;
-	u16 twiceMaxEdgePower = MAX_RATE_POWER;
+	u16 twiceMaxEdgePower;
 	int i;
 	u16 scaledPower = 0, minCtlPower;
 	static const u16 ctlModesFor11a[] = {
@@ -4858,7 +4860,7 @@ static void ar9003_hw_set_power_per_rate_table(struct ath_hw *ah,
 		else
 			freq = centers.ctl_center;
 
-		ath_dbg(common, ATH_DBG_REGULATORY,
+		ath_dbg(common, REGULATORY,
 			"LOOP-Mode ctlMode %d < %d, isHt40CtlMode %d, EXT_ADDITIVE %d\n",
 			ctlMode, numCtlModes, isHt40CtlMode,
 			(pCtlMode[ctlMode] & EXT_ADDITIVE));
@@ -4872,8 +4874,9 @@ static void ar9003_hw_set_power_per_rate_table(struct ath_hw *ah,
 			ctlNum = AR9300_NUM_CTLS_5G;
 		}
 
+		twiceMaxEdgePower = MAX_RATE_POWER;
 		for (i = 0; (i < ctlNum) && ctlIndex[i]; i++) {
-			ath_dbg(common, ATH_DBG_REGULATORY,
+			ath_dbg(common, REGULATORY,
 				"LOOP-Ctlidx %d: cfgCtl 0x%2.2x pCtlMode 0x%2.2x ctlIndex 0x%2.2x chan %d\n",
 				i, cfgCtl, pCtlMode[ctlMode], ctlIndex[i],
 				chan->channel);
@@ -4915,7 +4918,7 @@ static void ar9003_hw_set_power_per_rate_table(struct ath_hw *ah,
 
 			minCtlPower = (u8)min(twiceMaxEdgePower, scaledPower);
 
-			ath_dbg(common, ATH_DBG_REGULATORY,
+			ath_dbg(common, REGULATORY,
 				"SEL-Min ctlMode %d pCtlMode %d 2xMaxEdge %d sP %d minCtlPwr %d\n",
 				ctlMode, pCtlMode[ctlMode], twiceMaxEdgePower,
 				scaledPower, minCtlPower);
@@ -5039,7 +5042,7 @@ static void ath9k_hw_ar9300_set_txpower(struct ath_hw *ah,
 				target_power_val_t2_eep[i]) >
 			    paprd_scale_factor)) {
 				ah->paprd_ratemask &= ~(1 << i);
-				ath_dbg(common, ATH_DBG_EEPROM,
+				ath_dbg(common, EEPROM,
 					"paprd disabled for mcs %d\n", i);
 			}
 		}
@@ -5051,12 +5054,14 @@ static void ath9k_hw_ar9300_set_txpower(struct ath_hw *ah,
 			regulatory->max_power_level = targetPowerValT2[i];
 	}
 
+	ath9k_hw_update_regulatory_maxpower(ah);
+
 	if (test)
 		return;
 
 	for (i = 0; i < ar9300RateSize; i++) {
-		ath_dbg(common, ATH_DBG_EEPROM,
-			"TPC[%02d] 0x%08x\n", i, targetPowerValT2[i]);
+		ath_dbg(common, EEPROM, "TPC[%02d] 0x%08x\n",
+			i, targetPowerValT2[i]);
 	}
 
 	ah->txpower_limit = regulatory->max_power_level;

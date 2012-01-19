@@ -1,5 +1,7 @@
 00-INDEX
 	- this file.
+LSM.txt
+	- description of the Linux Security Module framework.
 SELinux.txt
 	- how to get started with the SELinux security enhancement.
 Smack.txt

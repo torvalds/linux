@@ -531,33 +531,7 @@ static struct usb_driver rio_driver = {
 	.id_table =	rio_table,
 };
 
-static int __init usb_rio_init(void)
-{
-	int retval;
-	retval = usb_register(&rio_driver);
-	if (retval)
-		goto out;
-
-	printk(KERN_INFO KBUILD_MODNAME ": " DRIVER_VERSION ":"
-	       DRIVER_DESC "\n");
-
-out:
-	return retval;
-}
-
-
-static void __exit usb_rio_cleanup(void)
-{
-	struct rio_usb_data *rio = &rio_instance;
-
-	rio->present = 0;
-	usb_deregister(&rio_driver);
-
-
-}
-
-module_init(usb_rio_init);
-module_exit(usb_rio_cleanup);
+module_usb_driver(rio_driver);
 
 MODULE_AUTHOR( DRIVER_AUTHOR );
 MODULE_DESCRIPTION( DRIVER_DESC );

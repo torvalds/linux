@@ -394,7 +394,7 @@ __do_out_asm(_rec_outl, "stwbrx")
 #endif /* CONFIG_PPC32 */
 
 /* The "__do_*" operations below provide the actual "base" implementation
- * for each of the defined acccessor. Some of them use the out_* functions
+ * for each of the defined accessors. Some of them use the out_* functions
  * directly, some of them still use EEH, though we might change that in the
  * future. Those macros below provide the necessary argument swapping and
  * handling of the IO base for PIO.

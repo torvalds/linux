@@ -414,22 +414,6 @@ do {									\
 #define this_cpu_xchg_2(pcp, nval)	percpu_xchg_op(pcp, nval)
 #define this_cpu_xchg_4(pcp, nval)	percpu_xchg_op(pcp, nval)
 
-#define irqsafe_cpu_add_1(pcp, val)	percpu_add_op((pcp), val)
-#define irqsafe_cpu_add_2(pcp, val)	percpu_add_op((pcp), val)
-#define irqsafe_cpu_add_4(pcp, val)	percpu_add_op((pcp), val)
-#define irqsafe_cpu_and_1(pcp, val)	percpu_to_op("and", (pcp), val)
-#define irqsafe_cpu_and_2(pcp, val)	percpu_to_op("and", (pcp), val)
-#define irqsafe_cpu_and_4(pcp, val)	percpu_to_op("and", (pcp), val)
-#define irqsafe_cpu_or_1(pcp, val)	percpu_to_op("or", (pcp), val)
-#define irqsafe_cpu_or_2(pcp, val)	percpu_to_op("or", (pcp), val)
-#define irqsafe_cpu_or_4(pcp, val)	percpu_to_op("or", (pcp), val)
-#define irqsafe_cpu_xor_1(pcp, val)	percpu_to_op("xor", (pcp), val)
-#define irqsafe_cpu_xor_2(pcp, val)	percpu_to_op("xor", (pcp), val)
-#define irqsafe_cpu_xor_4(pcp, val)	percpu_to_op("xor", (pcp), val)
-#define irqsafe_cpu_xchg_1(pcp, nval)	percpu_xchg_op(pcp, nval)
-#define irqsafe_cpu_xchg_2(pcp, nval)	percpu_xchg_op(pcp, nval)
-#define irqsafe_cpu_xchg_4(pcp, nval)	percpu_xchg_op(pcp, nval)
-
 #ifndef CONFIG_M386
 #define __this_cpu_add_return_1(pcp, val) percpu_add_return_op(pcp, val)
 #define __this_cpu_add_return_2(pcp, val) percpu_add_return_op(pcp, val)
@@ -445,9 +429,6 @@ do {									\
 #define this_cpu_cmpxchg_2(pcp, oval, nval)	percpu_cmpxchg_op(pcp, oval, nval)
 #define this_cpu_cmpxchg_4(pcp, oval, nval)	percpu_cmpxchg_op(pcp, oval, nval)
 
-#define irqsafe_cpu_cmpxchg_1(pcp, oval, nval)	percpu_cmpxchg_op(pcp, oval, nval)
-#define irqsafe_cpu_cmpxchg_2(pcp, oval, nval)	percpu_cmpxchg_op(pcp, oval, nval)
-#define irqsafe_cpu_cmpxchg_4(pcp, oval, nval)	percpu_cmpxchg_op(pcp, oval, nval)
 #endif /* !CONFIG_M386 */
 
 #ifdef CONFIG_X86_CMPXCHG64
@@ -464,7 +445,6 @@ do {									\
 
 #define __this_cpu_cmpxchg_double_4	percpu_cmpxchg8b_double
 #define this_cpu_cmpxchg_double_4	percpu_cmpxchg8b_double
-#define irqsafe_cpu_cmpxchg_double_4	percpu_cmpxchg8b_double
 #endif /* CONFIG_X86_CMPXCHG64 */
 
 /*
@@ -492,13 +472,6 @@ do {									\
 #define this_cpu_xchg_8(pcp, nval)	percpu_xchg_op(pcp, nval)
 #define this_cpu_cmpxchg_8(pcp, oval, nval)	percpu_cmpxchg_op(pcp, oval, nval)
 
-#define irqsafe_cpu_add_8(pcp, val)	percpu_add_op((pcp), val)
-#define irqsafe_cpu_and_8(pcp, val)	percpu_to_op("and", (pcp), val)
-#define irqsafe_cpu_or_8(pcp, val)	percpu_to_op("or", (pcp), val)
-#define irqsafe_cpu_xor_8(pcp, val)	percpu_to_op("xor", (pcp), val)
-#define irqsafe_cpu_xchg_8(pcp, nval)	percpu_xchg_op(pcp, nval)
-#define irqsafe_cpu_cmpxchg_8(pcp, oval, nval)	percpu_cmpxchg_op(pcp, oval, nval)
-
 /*
  * Pretty complex macro to generate cmpxchg16 instruction.  The instruction
  * is not supported on early AMD64 processors so we must be able to emulate
@@ -521,7 +494,6 @@ do {									\
 
 #define __this_cpu_cmpxchg_double_8	percpu_cmpxchg16b_double
 #define this_cpu_cmpxchg_double_8	percpu_cmpxchg16b_double
-#define irqsafe_cpu_cmpxchg_double_8	percpu_cmpxchg16b_double
 
 #endif
 

@@ -266,10 +266,6 @@ do_open_fhandle(struct svc_rqst *rqstp, struct svc_fh *current_fh, struct nfsd4_
 {
 	__be32 status;
 
-	/* Only reclaims from previously confirmed clients are valid */
-	if ((status = nfs4_check_open_reclaim(&open->op_clientid)))
-		return status;
-
 	/* We don't know the target directory, and therefore can not
 	* set the change info
 	*/
@@ -373,6 +369,9 @@ nfsd4_open(struct svc_rqst *rqstp, struct nfsd4_compound_state *cstate,
 			break;
 		case NFS4_OPEN_CLAIM_PREVIOUS:
 			open->op_openowner->oo_flags |= NFS4_OO_CONFIRMED;
+			status = nfs4_check_open_reclaim(&open->op_clientid);
+			if (status)
+				goto out;
 		case NFS4_OPEN_CLAIM_FH:
 		case NFS4_OPEN_CLAIM_DELEG_CUR_FH:
 			status = do_open_fhandle(rqstp, &cstate->current_fh,
@@ -838,7 +837,7 @@ nfsd4_setattr(struct svc_rqst *rqstp, struct nfsd4_compound_state *cstate,
 			return status;
 		}
 	}
-	status = mnt_want_write(cstate->current_fh.fh_export->ex_path.mnt);
+	status = fh_want_write(&cstate->current_fh);
 	if (status)
 		return status;
 	status = nfs_ok;
@@ -856,7 +855,7 @@ nfsd4_setattr(struct svc_rqst *rqstp, struct nfsd4_compound_state *cstate,
 	status = nfsd_setattr(rqstp, &cstate->current_fh, &setattr->sa_iattr,
 				0, (time_t)0);
 out:
-	mnt_drop_write(cstate->current_fh.fh_export->ex_path.mnt);
+	fh_drop_write(&cstate->current_fh);
 	return status;
 }
 

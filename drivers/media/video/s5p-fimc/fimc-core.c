@@ -52,13 +52,29 @@ static struct fimc_fmt fimc_formats[] = {
 		.colplanes	= 1,
 		.flags		= FMT_FLAGS_M2M,
 	}, {
-		.name		= "XRGB-8-8-8-8, 32 bpp",
+		.name		= "ARGB8888, 32 bpp",
 		.fourcc		= V4L2_PIX_FMT_RGB32,
 		.depth		= { 32 },
 		.color		= S5P_FIMC_RGB888,
 		.memplanes	= 1,
 		.colplanes	= 1,
-		.flags		= FMT_FLAGS_M2M,
+		.flags		= FMT_FLAGS_M2M | FMT_HAS_ALPHA,
+	}, {
+		.name		= "ARGB1555",
+		.fourcc		= V4L2_PIX_FMT_RGB555,
+		.depth		= { 16 },
+		.color		= S5P_FIMC_RGB555,
+		.memplanes	= 1,
+		.colplanes	= 1,
+		.flags		= FMT_FLAGS_M2M_OUT | FMT_HAS_ALPHA,
+	}, {
+		.name		= "ARGB4444",
+		.fourcc		= V4L2_PIX_FMT_RGB444,
+		.depth		= { 16 },
+		.color		= S5P_FIMC_RGB444,
+		.memplanes	= 1,
+		.colplanes	= 1,
+		.flags		= FMT_FLAGS_M2M_OUT | FMT_HAS_ALPHA,
 	}, {
 		.name		= "YUV 4:2:2 packed, YCbYCr",
 		.fourcc		= V4L2_PIX_FMT_YUYV,
@@ -170,6 +186,14 @@ static struct fimc_fmt fimc_formats[] = {
 		.flags		= FMT_FLAGS_CAM,
 	},
 };
+
+static unsigned int get_m2m_fmt_flags(unsigned int stream_type)
+{
+	if (stream_type == V4L2_BUF_TYPE_VIDEO_OUTPUT_MPLANE)
+		return FMT_FLAGS_M2M_IN;
+	else
+		return FMT_FLAGS_M2M_OUT;
+}
 
 int fimc_check_scaler_ratio(struct fimc_ctx *ctx, int sw, int sh,
 			    int dw, int dh, int rotation)
@@ -652,8 +676,11 @@ static void fimc_dma_run(void *priv)
 	if (ctx->state & (FIMC_DST_ADDR | FIMC_PARAMS))
 		fimc_hw_set_output_addr(fimc, &ctx->d_frame.paddr, -1);
 
-	if (ctx->state & FIMC_PARAMS)
+	if (ctx->state & FIMC_PARAMS) {
 		fimc_hw_set_out_dma(ctx);
+		if (fimc->variant->has_alpha)
+			fimc_hw_set_rgb_alpha(ctx);
+	}
 
 	fimc_activate_capture(ctx);
 
@@ -750,12 +777,11 @@ static struct vb2_ops fimc_qops = {
 #define ctrl_to_ctx(__ctrl) \
 	container_of((__ctrl)->handler, struct fimc_ctx, ctrl_handler)
 
-static int fimc_s_ctrl(struct v4l2_ctrl *ctrl)
+static int __fimc_s_ctrl(struct fimc_ctx *ctx, struct v4l2_ctrl *ctrl)
 {
-	struct fimc_ctx *ctx = ctrl_to_ctx(ctrl);
 	struct fimc_dev *fimc = ctx->fimc_dev;
 	struct samsung_fimc_variant *variant = fimc->variant;
-	unsigned long flags;
+	unsigned int flags = FIMC_DST_FMT | FIMC_SRC_FMT;
 	int ret = 0;
 
 	if (ctrl->flags & V4L2_CTRL_FLAG_INACTIVE)
@@ -763,41 +789,49 @@ static int fimc_s_ctrl(struct v4l2_ctrl *ctrl)
 
 	switch (ctrl->id) {
 	case V4L2_CID_HFLIP:
-		spin_lock_irqsave(&ctx->slock, flags);
 		ctx->hflip = ctrl->val;
 		break;
 
 	case V4L2_CID_VFLIP:
-		spin_lock_irqsave(&ctx->slock, flags);
 		ctx->vflip = ctrl->val;
 		break;
 
 	case V4L2_CID_ROTATE:
 		if (fimc_capture_pending(fimc) ||
-		    fimc_ctx_state_is_set(FIMC_DST_FMT | FIMC_SRC_FMT, ctx)) {
+		    (ctx->state & flags) == flags) {
 			ret = fimc_check_scaler_ratio(ctx, ctx->s_frame.width,
 					ctx->s_frame.height, ctx->d_frame.width,
 					ctx->d_frame.height, ctrl->val);
-		}
-		if (ret) {
-			v4l2_err(fimc->m2m.vfd, "Out of scaler range\n");
-			return -EINVAL;
+			if (ret)
+				return -EINVAL;
 		}
 		if ((ctrl->val == 90 || ctrl->val == 270) &&
 		    !variant->has_out_rot)
 			return -EINVAL;
-		spin_lock_irqsave(&ctx->slock, flags);
+
 		ctx->rotation = ctrl->val;
 		break;
 
-	default:
-		v4l2_err(fimc->v4l2_dev, "Invalid control: 0x%X\n", ctrl->id);
-		return -EINVAL;
+	case V4L2_CID_ALPHA_COMPONENT:
+		ctx->d_frame.alpha = ctrl->val;
+		break;
 	}
 	ctx->state |= FIMC_PARAMS;
 	set_bit(ST_CAPT_APPLY_CFG, &fimc->state);
-	spin_unlock_irqrestore(&ctx->slock, flags);
 	return 0;
+}
+
+static int fimc_s_ctrl(struct v4l2_ctrl *ctrl)
+{
+	struct fimc_ctx *ctx = ctrl_to_ctx(ctrl);
+	unsigned long flags;
+	int ret;
+
+	spin_lock_irqsave(&ctx->slock, flags);
+	ret = __fimc_s_ctrl(ctx, ctrl);
+	spin_unlock_irqrestore(&ctx->slock, flags);
+
+	return ret;
 }
 
 static const struct v4l2_ctrl_ops fimc_ctrl_ops = {
@@ -806,16 +840,26 @@ static const struct v4l2_ctrl_ops fimc_ctrl_ops = {
 
 int fimc_ctrls_create(struct fimc_ctx *ctx)
 {
+	struct samsung_fimc_variant *variant = ctx->fimc_dev->variant;
+	unsigned int max_alpha = fimc_get_alpha_mask(ctx->d_frame.fmt);
+
 	if (ctx->ctrls_rdy)
 		return 0;
-	v4l2_ctrl_handler_init(&ctx->ctrl_handler, 3);
+	v4l2_ctrl_handler_init(&ctx->ctrl_handler, 4);
 
 	ctx->ctrl_rotate = v4l2_ctrl_new_std(&ctx->ctrl_handler, &fimc_ctrl_ops,
-				     V4L2_CID_HFLIP, 0, 1, 1, 0);
+					V4L2_CID_ROTATE, 0, 270, 90, 0);
 	ctx->ctrl_hflip = v4l2_ctrl_new_std(&ctx->ctrl_handler, &fimc_ctrl_ops,
-				    V4L2_CID_VFLIP, 0, 1, 1, 0);
+					V4L2_CID_HFLIP, 0, 1, 1, 0);
 	ctx->ctrl_vflip = v4l2_ctrl_new_std(&ctx->ctrl_handler, &fimc_ctrl_ops,
-				    V4L2_CID_ROTATE, 0, 270, 90, 0);
+					V4L2_CID_VFLIP, 0, 1, 1, 0);
+	if (variant->has_alpha)
+		ctx->ctrl_alpha = v4l2_ctrl_new_std(&ctx->ctrl_handler,
+				    &fimc_ctrl_ops, V4L2_CID_ALPHA_COMPONENT,
+				    0, max_alpha, 1, 0);
+	else
+		ctx->ctrl_alpha = NULL;
+
 	ctx->ctrls_rdy = ctx->ctrl_handler.error == 0;
 
 	return ctx->ctrl_handler.error;
@@ -826,11 +870,14 @@ void fimc_ctrls_delete(struct fimc_ctx *ctx)
 	if (ctx->ctrls_rdy) {
 		v4l2_ctrl_handler_free(&ctx->ctrl_handler);
 		ctx->ctrls_rdy = false;
+		ctx->ctrl_alpha = NULL;
 	}
 }
 
 void fimc_ctrls_activate(struct fimc_ctx *ctx, bool active)
 {
+	unsigned int has_alpha = ctx->d_frame.fmt->flags & FMT_HAS_ALPHA;
+
 	if (!ctx->ctrls_rdy)
 		return;
 
@@ -838,6 +885,8 @@ void fimc_ctrls_activate(struct fimc_ctx *ctx, bool active)
 	v4l2_ctrl_activate(ctx->ctrl_rotate, active);
 	v4l2_ctrl_activate(ctx->ctrl_hflip, active);
 	v4l2_ctrl_activate(ctx->ctrl_vflip, active);
+	if (ctx->ctrl_alpha)
+		v4l2_ctrl_activate(ctx->ctrl_alpha, active && has_alpha);
 
 	if (active) {
 		ctx->rotation = ctx->ctrl_rotate->val;
@@ -849,6 +898,24 @@ void fimc_ctrls_activate(struct fimc_ctx *ctx, bool active)
 		ctx->vflip    = 0;
 	}
 	mutex_unlock(&ctx->ctrl_handler.lock);
+}
+
+/* Update maximum value of the alpha color control */
+void fimc_alpha_ctrl_update(struct fimc_ctx *ctx)
+{
+	struct fimc_dev *fimc = ctx->fimc_dev;
+	struct v4l2_ctrl *ctrl = ctx->ctrl_alpha;
+
+	if (ctrl == NULL || !fimc->variant->has_alpha)
+		return;
+
+	v4l2_ctrl_lock(ctrl);
+	ctrl->maximum = fimc_get_alpha_mask(ctx->d_frame.fmt);
+
+	if (ctrl->cur.val > ctrl->maximum)
+		ctrl->cur.val = ctrl->maximum;
+
+	v4l2_ctrl_unlock(ctrl);
 }
 
 /*
@@ -874,7 +941,8 @@ static int fimc_m2m_enum_fmt_mplane(struct file *file, void *priv,
 {
 	struct fimc_fmt *fmt;
 
-	fmt = fimc_find_format(NULL, NULL, FMT_FLAGS_M2M, f->index);
+	fmt = fimc_find_format(NULL, NULL, get_m2m_fmt_flags(f->type),
+			       f->index);
 	if (!fmt)
 		return -EINVAL;
 
@@ -938,6 +1006,7 @@ void fimc_adjust_mplane_format(struct fimc_fmt *fmt, u32 width, u32 height,
 	pix->colorspace	= V4L2_COLORSPACE_JPEG;
 	pix->field = V4L2_FIELD_NONE;
 	pix->num_planes = fmt->memplanes;
+	pix->pixelformat = fmt->fourcc;
 	pix->height = height;
 	pix->width = width;
 
@@ -1017,7 +1086,8 @@ static int fimc_try_fmt_mplane(struct fimc_ctx *ctx, struct v4l2_format *f)
 
 	dbg("w: %d, h: %d", pix->width, pix->height);
 
-	fmt = fimc_find_format(&pix->pixelformat, NULL, FMT_FLAGS_M2M, 0);
+	fmt = fimc_find_format(&pix->pixelformat, NULL,
+			       get_m2m_fmt_flags(f->type), 0);
 	if (WARN(fmt == NULL, "Pixel format lookup failed"))
 		return -EINVAL;
 
@@ -1087,9 +1157,12 @@ static int fimc_m2m_s_fmt_mplane(struct file *file, void *fh,
 
 	pix = &f->fmt.pix_mp;
 	frame->fmt = fimc_find_format(&pix->pixelformat, NULL,
-				      FMT_FLAGS_M2M, 0);
+				      get_m2m_fmt_flags(f->type), 0);
 	if (!frame->fmt)
 		return -EINVAL;
+
+	/* Update RGB Alpha control state and value range */
+	fimc_alpha_ctrl_update(ctx);
 
 	for (i = 0; i < frame->fmt->colplanes; i++) {
 		frame->payload[i] =
@@ -1374,6 +1447,12 @@ static int fimc_m2m_open(struct file *file)
 	if (!ctx)
 		return -ENOMEM;
 	v4l2_fh_init(&ctx->fh, fimc->m2m.vfd);
+	ctx->fimc_dev = fimc;
+
+	/* Default color format */
+	ctx->s_frame.fmt = &fimc_formats[0];
+	ctx->d_frame.fmt = &fimc_formats[0];
+
 	ret = fimc_ctrls_create(ctx);
 	if (ret)
 		goto error_fh;
@@ -1383,10 +1462,6 @@ static int fimc_m2m_open(struct file *file)
 	file->private_data = &ctx->fh;
 	v4l2_fh_add(&ctx->fh);
 
-	ctx->fimc_dev = fimc;
-	/* Default color format */
-	ctx->s_frame.fmt = &fimc_formats[0];
-	ctx->d_frame.fmt = &fimc_formats[0];
 	/* Setup the device context for memory-to-memory mode */
 	ctx->state = FIMC_CTX_M2M;
 	ctx->flags = 0;
@@ -1709,9 +1784,8 @@ static int fimc_runtime_resume(struct device *dev)
 	/* Resume the capture or mem-to-mem device */
 	if (fimc_capture_busy(fimc))
 		return fimc_capture_resume(fimc);
-	else if (fimc_m2m_pending(fimc))
-		return fimc_m2m_resume(fimc);
-	return 0;
+
+	return fimc_m2m_resume(fimc);
 }
 
 static int fimc_runtime_suspend(struct device *dev)
@@ -1893,6 +1967,7 @@ static struct samsung_fimc_variant fimc0_variant_exynos4 = {
 	.has_cam_if	 = 1,
 	.has_cistatus2	 = 1,
 	.has_mainscaler_ext = 1,
+	.has_alpha	 = 1,
 	.min_inp_pixsize = 16,
 	.min_out_pixsize = 16,
 	.hor_offs_align	 = 2,
@@ -1906,6 +1981,7 @@ static struct samsung_fimc_variant fimc3_variant_exynos4 = {
 	.has_cam_if	 = 1,
 	.has_cistatus2	 = 1,
 	.has_mainscaler_ext = 1,
+	.has_alpha	 = 1,
 	.min_inp_pixsize = 16,
 	.min_out_pixsize = 16,
 	.hor_offs_align	 = 2,

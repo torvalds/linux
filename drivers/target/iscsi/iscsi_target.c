@@ -27,8 +27,7 @@
 #include <scsi/scsi_device.h>
 #include <scsi/iscsi_proto.h>
 #include <target/target_core_base.h>
-#include <target/target_core_tmr.h>
-#include <target/target_core_transport.h>
+#include <target/target_core_fabric.h>
 
 #include "iscsi_target_core.h"
 #include "iscsi_target_parameters.h"
@@ -284,8 +283,8 @@ static struct iscsi_np *iscsit_get_np(
 			sock_in6 = (struct sockaddr_in6 *)sockaddr;
 			sock_in6_e = (struct sockaddr_in6 *)&np->np_sockaddr;
 
-			if (!memcmp((void *)&sock_in6->sin6_addr.in6_u,
-				    (void *)&sock_in6_e->sin6_addr.in6_u,
+			if (!memcmp(&sock_in6->sin6_addr.in6_u,
+				    &sock_in6_e->sin6_addr.in6_u,
 				    sizeof(struct in6_addr)))
 				ip_match = 1;
 
@@ -1225,7 +1224,7 @@ static void iscsit_do_crypto_hash_buf(
 
 	crypto_hash_init(hash);
 
-	sg_init_one(&sg, (u8 *)buf, payload_length);
+	sg_init_one(&sg, buf, payload_length);
 	crypto_hash_update(hash, &sg, payload_length);
 
 	if (padding) {
@@ -1603,7 +1602,7 @@ static int iscsit_handle_nop_out(
 		/*
 		 * Attach ping data to struct iscsi_cmd->buf_ptr.
 		 */
-		cmd->buf_ptr = (void *)ping_data;
+		cmd->buf_ptr = ping_data;
 		cmd->buf_ptr_size = payload_length;
 
 		pr_debug("Got %u bytes of NOPOUT ping"
@@ -3197,7 +3196,7 @@ static int iscsit_build_sendtargets_response(struct iscsi_cmd *cmd)
 			end_of_buf = 1;
 			goto eob;
 		}
-		memcpy((void *)payload + payload_len, buf, len);
+		memcpy(payload + payload_len, buf, len);
 		payload_len += len;
 
 		spin_lock(&tiqn->tiqn_tpg_lock);
@@ -3229,7 +3228,7 @@ static int iscsit_build_sendtargets_response(struct iscsi_cmd *cmd)
 					end_of_buf = 1;
 					goto eob;
 				}
-				memcpy((void *)payload + payload_len, buf, len);
+				memcpy(payload + payload_len, buf, len);
 				payload_len += len;
 			}
 			spin_unlock(&tpg->tpg_np_lock);
@@ -3486,7 +3485,7 @@ int iscsi_target_tx_thread(void *arg)
 	struct iscsi_conn *conn;
 	struct iscsi_queue_req *qr = NULL;
 	struct se_cmd *se_cmd;
-	struct iscsi_thread_set *ts = (struct iscsi_thread_set *)arg;
+	struct iscsi_thread_set *ts = arg;
 	/*
 	 * Allow ourselves to be interrupted by SIGINT so that a
 	 * connection recovery / failure event can be triggered externally.
@@ -3775,7 +3774,7 @@ int iscsi_target_rx_thread(void *arg)
 	u8 buffer[ISCSI_HDR_LEN], opcode;
 	u32 checksum = 0, digest = 0;
 	struct iscsi_conn *conn = NULL;
-	struct iscsi_thread_set *ts = (struct iscsi_thread_set *)arg;
+	struct iscsi_thread_set *ts = arg;
 	struct kvec iov;
 	/*
 	 * Allow ourselves to be interrupted by SIGINT so that a

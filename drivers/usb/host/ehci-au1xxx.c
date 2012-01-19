@@ -23,6 +23,7 @@ static int au1xxx_ehci_setup(struct usb_hcd *hcd)
 	int ret = ehci_init(hcd);
 
 	ehci->need_io_watchdog = 0;
+	ehci_reset(ehci);
 	return ret;
 }
 

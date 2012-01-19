@@ -200,8 +200,8 @@ struct sock *cookie_v6_check(struct sock *sk, struct sk_buff *skb)
 	req->mss = mss;
 	ireq->rmt_port = th->source;
 	ireq->loc_port = th->dest;
-	ipv6_addr_copy(&ireq6->rmt_addr, &ipv6_hdr(skb)->saddr);
-	ipv6_addr_copy(&ireq6->loc_addr, &ipv6_hdr(skb)->daddr);
+	ireq6->rmt_addr = ipv6_hdr(skb)->saddr;
+	ireq6->loc_addr = ipv6_hdr(skb)->daddr;
 	if (ipv6_opt_accepted(sk, skb) ||
 	    np->rxopt.bits.rxinfo || np->rxopt.bits.rxoinfo ||
 	    np->rxopt.bits.rxhlim || np->rxopt.bits.rxohlim) {
@@ -237,9 +237,9 @@ struct sock *cookie_v6_check(struct sock *sk, struct sk_buff *skb)
 		struct flowi6 fl6;
 		memset(&fl6, 0, sizeof(fl6));
 		fl6.flowi6_proto = IPPROTO_TCP;
-		ipv6_addr_copy(&fl6.daddr, &ireq6->rmt_addr);
+		fl6.daddr = ireq6->rmt_addr;
 		final_p = fl6_update_dst(&fl6, np->opt, &final);
-		ipv6_addr_copy(&fl6.saddr, &ireq6->loc_addr);
+		fl6.saddr = ireq6->loc_addr;
 		fl6.flowi6_oif = sk->sk_bound_dev_if;
 		fl6.flowi6_mark = sk->sk_mark;
 		fl6.fl6_dport = inet_rsk(req)->rmt_port;

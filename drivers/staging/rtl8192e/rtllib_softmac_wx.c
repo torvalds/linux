@@ -15,7 +15,6 @@
 
 
 #include "rtllib.h"
-#include "rtl_core.h"
 #include "dot11d.h"
 /* FIXME: add A freqs */
 
@@ -25,6 +24,7 @@ const long rtllib_wlan_frequencies[] = {
 	2452, 2457, 2462, 2467,
 	2472, 2484
 };
+EXPORT_SYMBOL(rtllib_wlan_frequencies);
 
 
 int rtllib_wx_set_freq(struct rtllib_device *ieee, struct iw_request_info *a,
@@ -82,6 +82,7 @@ out:
 	up(&ieee->wx_sem);
 	return ret;
 }
+EXPORT_SYMBOL(rtllib_wx_set_freq);
 
 
 int rtllib_wx_get_freq(struct rtllib_device *ieee,
@@ -97,6 +98,7 @@ int rtllib_wx_get_freq(struct rtllib_device *ieee,
 	fwrq->e = 1;
 	return 0;
 }
+EXPORT_SYMBOL(rtllib_wx_get_freq);
 
 int rtllib_wx_get_wap(struct rtllib_device *ieee,
 			    struct iw_request_info *info,
@@ -125,6 +127,7 @@ int rtllib_wx_get_wap(struct rtllib_device *ieee,
 
 	return 0;
 }
+EXPORT_SYMBOL(rtllib_wx_get_wap);
 
 
 int rtllib_wx_set_wap(struct rtllib_device *ieee,
@@ -184,6 +187,7 @@ out:
 	up(&ieee->wx_sem);
 	return ret;
 }
+EXPORT_SYMBOL(rtllib_wx_set_wap);
 
 int rtllib_wx_get_essid(struct rtllib_device *ieee, struct iw_request_info *a,
 			 union iwreq_data *wrqu, char *b)
@@ -220,6 +224,7 @@ out:
 	return ret;
 
 }
+EXPORT_SYMBOL(rtllib_wx_get_essid);
 
 int rtllib_wx_set_rate(struct rtllib_device *ieee,
 			     struct iw_request_info *info,
@@ -231,6 +236,7 @@ int rtllib_wx_set_rate(struct rtllib_device *ieee,
 	ieee->rate = target_rate/100000;
 	return 0;
 }
+EXPORT_SYMBOL(rtllib_wx_set_rate);
 
 int rtllib_wx_get_rate(struct rtllib_device *ieee,
 			     struct iw_request_info *info,
@@ -243,6 +249,7 @@ int rtllib_wx_get_rate(struct rtllib_device *ieee,
 
 	return 0;
 }
+EXPORT_SYMBOL(rtllib_wx_get_rate);
 
 
 int rtllib_wx_set_rts(struct rtllib_device *ieee,
@@ -259,6 +266,7 @@ int rtllib_wx_set_rts(struct rtllib_device *ieee,
 	}
 	return 0;
 }
+EXPORT_SYMBOL(rtllib_wx_set_rts);
 
 int rtllib_wx_get_rts(struct rtllib_device *ieee,
 			     struct iw_request_info *info,
@@ -269,6 +277,7 @@ int rtllib_wx_get_rts(struct rtllib_device *ieee,
 	wrqu->rts.disabled = (wrqu->rts.value == DEFAULT_RTS_THRESHOLD);
 	return 0;
 }
+EXPORT_SYMBOL(rtllib_wx_get_rts);
 
 int rtllib_wx_set_mode(struct rtllib_device *ieee, struct iw_request_info *a,
 			     union iwreq_data *wrqu, char *b)
@@ -314,6 +323,7 @@ out:
 	up(&ieee->wx_sem);
 	return set_mode_status;
 }
+EXPORT_SYMBOL(rtllib_wx_set_mode);
 
 void rtllib_wx_sync_scan_wq(void *data)
 {
@@ -428,6 +438,7 @@ out:
 	up(&ieee->wx_sem);
 	return ret;
 }
+EXPORT_SYMBOL(rtllib_wx_set_scan);
 
 int rtllib_wx_set_essid(struct rtllib_device *ieee,
 			struct iw_request_info *a,
@@ -490,6 +501,7 @@ out:
 	up(&ieee->wx_sem);
 	return ret;
 }
+EXPORT_SYMBOL(rtllib_wx_set_essid);
 
 int rtllib_wx_get_mode(struct rtllib_device *ieee, struct iw_request_info *a,
 		       union iwreq_data *wrqu, char *b)
@@ -497,6 +509,7 @@ int rtllib_wx_get_mode(struct rtllib_device *ieee, struct iw_request_info *a,
 	wrqu->mode = ieee->iw_mode;
 	return 0;
 }
+EXPORT_SYMBOL(rtllib_wx_get_mode);
 
 int rtllib_wx_set_rawtx(struct rtllib_device *ieee,
 			struct iw_request_info *info,
@@ -533,6 +546,7 @@ int rtllib_wx_set_rawtx(struct rtllib_device *ieee,
 
 	return 0;
 }
+EXPORT_SYMBOL(rtllib_wx_set_rawtx);
 
 int rtllib_wx_get_name(struct rtllib_device *ieee,
 			     struct iw_request_info *info,
@@ -548,6 +562,7 @@ int rtllib_wx_get_name(struct rtllib_device *ieee,
 		strcat(wrqu->name, "n");
 	return 0;
 }
+EXPORT_SYMBOL(rtllib_wx_get_name);
 
 
 /* this is mostly stolen from hostap */
@@ -605,6 +620,7 @@ exit:
 	return ret;
 
 }
+EXPORT_SYMBOL(rtllib_wx_set_power);
 
 /* this is stolen from hostap */
 int rtllib_wx_get_power(struct rtllib_device *ieee,
@@ -643,3 +659,4 @@ exit:
 	return ret;
 
 }
+EXPORT_SYMBOL(rtllib_wx_get_power);

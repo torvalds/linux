@@ -334,8 +334,8 @@ minstrel_get_rate(void *priv, struct ieee80211_sta *sta,
 
 
 static void
-calc_rate_durations(struct minstrel_sta_info *mi, struct ieee80211_local *local,
-                    struct minstrel_rate *d, struct ieee80211_rate *rate)
+calc_rate_durations(struct ieee80211_local *local, struct minstrel_rate *d,
+		    struct ieee80211_rate *rate)
 {
 	int erp = !!(rate->flags & IEEE80211_RATE_ERP_G);
 
@@ -402,8 +402,7 @@ minstrel_rate_init(void *priv, struct ieee80211_supported_band *sband,
 
 		mr->rix = i;
 		mr->bitrate = sband->bitrates[i].bitrate / 5;
-		calc_rate_durations(mi, local, mr,
-				&sband->bitrates[i]);
+		calc_rate_durations(local, mr, &sband->bitrates[i]);
 
 		/* calculate maximum number of retransmissions before
 		 * fallback (based on maximum segment size) */

@@ -17,6 +17,8 @@ choice
 
 config ARCH_EXYNOS4
 	bool "SAMSUNG EXYNOS4"
+	select HAVE_SMP
+	select MIGHT_HAVE_CACHE_L2X0
 	help
 	  Samsung EXYNOS4 SoCs based systems
 
@@ -57,6 +59,11 @@ config EXYNOS4_MCT
 	help
 	  Use MCT (Multi Core Timer) as kernel timers
 
+config EXYNOS4_DEV_DMA
+	bool
+	help
+	  Compile in amba device definitions for DMA controller
+
 config EXYNOS4_DEV_AHCI
 	bool
 	help
@@ -81,6 +88,11 @@ config EXYNOS4_DEV_DWMCI
 	bool
 	help
 	  Compile in platform device definitions for DWMCI
+
+config EXYNOS4_DEV_USB_OHCI
+	bool
+	help
+	  Compile in platform device definition for USB OHCI
 
 config EXYNOS4_SETUP_I2C1
 	bool
@@ -143,6 +155,11 @@ config EXYNOS4_SETUP_USB_PHY
 	help
 	  Common setup code for USB PHY controller
 
+config EXYNOS4_SETUP_SPI
+	bool
+	help
+	  Common setup code for SPI GPIO configurations.
+
 # machine support
 
 if ARCH_EXYNOS4
@@ -177,8 +194,10 @@ config MACH_SMDKV310
 	select SAMSUNG_DEV_BACKLIGHT
 	select EXYNOS4_DEV_AHCI
 	select SAMSUNG_DEV_KEYPAD
+	select EXYNOS4_DEV_DMA
 	select EXYNOS4_DEV_PD
 	select SAMSUNG_DEV_PWM
+	select EXYNOS4_DEV_USB_OHCI
 	select EXYNOS4_DEV_SYSMMU
 	select EXYNOS4_SETUP_FIMD0
 	select EXYNOS4_SETUP_I2C1
@@ -197,6 +216,7 @@ config MACH_ARMLEX4210
 	select S3C_DEV_HSMMC2
 	select S3C_DEV_HSMMC3
 	select EXYNOS4_DEV_AHCI
+	select EXYNOS4_DEV_DMA
 	select EXYNOS4_DEV_SYSMMU
 	select EXYNOS4_SETUP_SDHCI
 	help
@@ -222,6 +242,7 @@ config MACH_UNIVERSAL_C210
 	select S5P_DEV_MFC
 	select S5P_DEV_ONENAND
 	select S5P_DEV_TV
+	select EXYNOS4_DEV_DMA
 	select EXYNOS4_DEV_PD
 	select EXYNOS4_SETUP_FIMD0
 	select EXYNOS4_SETUP_I2C1
@@ -255,6 +276,7 @@ config MACH_NURI
 	select S5P_DEV_MFC
 	select S5P_DEV_USB_EHCI
 	select S5P_SETUP_MIPIPHY
+	select EXYNOS4_DEV_DMA
 	select EXYNOS4_DEV_PD
 	select EXYNOS4_SETUP_FIMC
 	select EXYNOS4_SETUP_FIMD0
@@ -287,7 +309,9 @@ config MACH_ORIGEN
 	select S5P_DEV_USB_EHCI
 	select SAMSUNG_DEV_BACKLIGHT
 	select SAMSUNG_DEV_PWM
+	select EXYNOS4_DEV_DMA
 	select EXYNOS4_DEV_PD
+	select EXYNOS4_DEV_USB_OHCI
 	select EXYNOS4_SETUP_FIMD0
 	select EXYNOS4_SETUP_SDHCI
 	select EXYNOS4_SETUP_USB_PHY
@@ -326,6 +350,20 @@ config MACH_SMDK4412
 	help
 	  Machine support for Samsung SMDK4412
 endif
+
+comment "Flattened Device Tree based board for Exynos4 based SoC"
+
+config MACH_EXYNOS4_DT
+	bool "Samsung Exynos4 Machine using device tree"
+	select CPU_EXYNOS4210
+	select USE_OF
+	select ARM_AMBA
+	select HAVE_SAMSUNG_KEYPAD if INPUT_KEYBOARD
+	help
+	  Machine support for Samsung Exynos4 machine with device tree enabled.
+	  Select this if a fdt blob is available for the Exynos4 SoC based board.
+	  Note: This is under development and not all peripherals can be supported
+	  with this machine file.
 
 if ARCH_EXYNOS4
 

@@ -520,7 +520,7 @@ extern const struct super_operations logfs_super_operations;
 struct inode *logfs_iget(struct super_block *sb, ino_t ino);
 struct inode *logfs_safe_iget(struct super_block *sb, ino_t ino, int *cookie);
 void logfs_safe_iput(struct inode *inode, int cookie);
-struct inode *logfs_new_inode(struct inode *dir, int mode);
+struct inode *logfs_new_inode(struct inode *dir, umode_t mode);
 struct inode *logfs_new_meta_inode(struct super_block *sb, u64 ino);
 struct inode *logfs_read_meta_inode(struct super_block *sb, u64 ino);
 int logfs_init_inode_cache(void);

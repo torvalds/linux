@@ -150,4 +150,5 @@ MACHINE_START(PLEB, "PLEB")
 	.init_irq	= sa1100_init_irq,
 	.timer		= &sa1100_timer,
 	.init_machine   = pleb_init,
+	.restart	= sa11x0_restart,
 MACHINE_END

@@ -815,9 +815,9 @@ static const u8 samsung_smt_7020_inittab[] = {
 };
 
 
-static int samsung_smt_7020_tuner_set_params(struct dvb_frontend *fe,
-	struct dvb_frontend_parameters *params)
+static int samsung_smt_7020_tuner_set_params(struct dvb_frontend *fe)
 {
+	struct dtv_frontend_properties *c = &fe->dtv_property_cache;
 	struct cx8802_dev *dev = fe->dvb->priv;
 	u8 buf[4];
 	u32 div;
@@ -827,14 +827,14 @@ static int samsung_smt_7020_tuner_set_params(struct dvb_frontend *fe,
 		.buf = buf,
 		.len = sizeof(buf) };
 
-	div = params->frequency / 125;
+	div = c->frequency / 125;
 
 	buf[0] = (div >> 8) & 0x7f;
 	buf[1] = div & 0xff;
 	buf[2] = 0x84;  /* 0xC4 */
 	buf[3] = 0x00;
 
-	if (params->frequency < 1500000)
+	if (c->frequency < 1500000)
 		buf[3] |= 0x10;
 
 	if (fe->ops.i2c_gate_ctrl)
@@ -954,6 +954,7 @@ static int dvb_register(struct cx8802_dev *dev)
 	struct cx88_core *core = dev->core;
 	struct videobuf_dvb_frontend *fe0, *fe1 = NULL;
 	int mfe_shared = 0; /* bus not shared by default */
+	int res = -EINVAL;
 
 	if (0 != core->i2c_rc) {
 		printk(KERN_ERR "%s/2: no i2c-bus available, cannot attach dvb drivers\n", core->name);
@@ -999,7 +1000,6 @@ static int dvb_register(struct cx8802_dev *dev)
 		}
 		break;
 	case CX88_BOARD_WINFAST_DTV2000H:
-	case CX88_BOARD_WINFAST_DTV2000H_J:
 	case CX88_BOARD_HAUPPAUGE_HVR1100:
 	case CX88_BOARD_HAUPPAUGE_HVR1100LP:
 	case CX88_BOARD_HAUPPAUGE_HVR1300:
@@ -1010,6 +1010,17 @@ static int dvb_register(struct cx8802_dev *dev)
 			if (!dvb_attach(simple_tuner_attach, fe0->dvb.frontend,
 				   &core->i2c_adap, 0x61,
 				   TUNER_PHILIPS_FMD1216ME_MK3))
+				goto frontend_detach;
+		}
+		break;
+	case CX88_BOARD_WINFAST_DTV2000H_J:
+		fe0->dvb.frontend = dvb_attach(cx22702_attach,
+					       &hauppauge_hvr_config,
+					       &core->i2c_adap);
+		if (fe0->dvb.frontend != NULL) {
+			if (!dvb_attach(simple_tuner_attach, fe0->dvb.frontend,
+				   &core->i2c_adap, 0x61,
+				   TUNER_PHILIPS_FMD1216MEX_MK3))
 				goto frontend_detach;
 		}
 		break;
@@ -1566,13 +1577,16 @@ static int dvb_register(struct cx8802_dev *dev)
 	call_all(core, core, s_power, 0);
 
 	/* register everything */
-	return videobuf_dvb_register_bus(&dev->frontends, THIS_MODULE, dev,
-					 &dev->pci->dev, adapter_nr, mfe_shared, NULL);
+	res = videobuf_dvb_register_bus(&dev->frontends, THIS_MODULE, dev,
+		&dev->pci->dev, adapter_nr, mfe_shared, NULL);
+	if (res)
+		goto frontend_detach;
+	return res;
 
 frontend_detach:
 	core->gate_ctrl = NULL;
 	videobuf_dvb_dealloc_frontends(&dev->frontends);
-	return -EINVAL;
+	return res;
 }
 
 /* ----------------------------------------------------------- */

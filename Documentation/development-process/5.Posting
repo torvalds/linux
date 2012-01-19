@@ -271,10 +271,10 @@ copies should go to:
    the linux-kernel list.
 
  - If you are fixing a bug, think about whether the fix should go into the
-   next stable update.  If so, stable@kernel.org should get a copy of the
-   patch.  Also add a "Cc: stable@kernel.org" to the tags within the patch
-   itself; that will cause the stable team to get a notification when your
-   fix goes into the mainline.
+   next stable update.  If so, stable@vger.kernel.org should get a copy of
+   the patch.  Also add a "Cc: stable@vger.kernel.org" to the tags within
+   the patch itself; that will cause the stable team to get a notification
+   when your fix goes into the mainline.
 
 When selecting recipients for a patch, it is good to have an idea of who
 you think will eventually accept the patch and get it merged.  While it

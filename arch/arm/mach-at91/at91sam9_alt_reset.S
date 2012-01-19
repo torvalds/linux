@@ -14,20 +14,15 @@
  */
 
 #include <linux/linkage.h>
-#include <asm/system.h>
 #include <mach/hardware.h>
 #include <mach/at91sam9_sdramc.h>
 #include <mach/at91_rstc.h>
 
 			.arm
 
-			.globl	at91sam9_alt_reset
+			.globl	at91sam9_alt_restart
 
-at91sam9_alt_reset:	mrc	p15, 0, r0, c1, c0, 0
-			orr	r0, r0, #CR_I
-			mcr	p15, 0, r0, c1, c0, 0		@ enable I-cache
-
-			ldr	r0, .at91_va_base_sdramc	@ preload constants
+at91sam9_alt_restart:	ldr	r0, .at91_va_base_sdramc	@ preload constants
 			ldr	r1, .at91_va_base_rstc_cr
 
 			mov	r2, #1

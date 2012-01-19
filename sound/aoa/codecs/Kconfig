@@ -7,14 +7,6 @@ config SND_AOA_ONYX
 	codec chip found in the latest Apple machines
 	(most of those with digital audio output).
 
-#config SND_AOA_TOPAZ
-#	tristate "support Topaz chips"
-#	---help---
-#	This option enables support for the Topaz (CS84xx)
-#	codec chips found in the latest Apple machines,
-#	these chips do the digital input and output on
-#	some PowerMacs.
-
 config SND_AOA_TAS
 	tristate "support TAS chips"
 	select I2C

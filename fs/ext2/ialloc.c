@@ -429,7 +429,7 @@ found:
 	return group;
 }
 
-struct inode *ext2_new_inode(struct inode *dir, int mode,
+struct inode *ext2_new_inode(struct inode *dir, umode_t mode,
 			     const struct qstr *qstr)
 {
 	struct super_block *sb;
@@ -573,8 +573,11 @@ got:
 	inode->i_generation = sbi->s_next_generation++;
 	spin_unlock(&sbi->s_next_gen_lock);
 	if (insert_inode_locked(inode) < 0) {
-		err = -EINVAL;
-		goto fail_drop;
+		ext2_error(sb, "ext2_new_inode",
+			   "inode number already in use - inode=%lu",
+			   (unsigned long) ino);
+		err = -EIO;
+		goto fail;
 	}
 
 	dquot_initialize(inode);

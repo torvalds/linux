@@ -101,6 +101,7 @@ ENTRY(cpu_arm720_set_pte_ext)
  * Params  : r0 = address to jump to
  * Notes   : This sets up everything for a reset
  */
+		.pushsection	.idmap.text, "ax"
 ENTRY(cpu_arm720_reset)
 		mov	ip, #0
 		mcr	p15, 0, ip, c7, c7, 0		@ invalidate cache
@@ -112,6 +113,8 @@ ENTRY(cpu_arm720_reset)
 		bic	ip, ip, #0x2100			@ ..v....s........
 		mcr	p15, 0, ip, c1, c0, 0		@ ctrl register
 		mov	pc, r0
+ENDPROC(cpu_arm720_reset)
+		.popsection
 
 	__CPUINIT
 

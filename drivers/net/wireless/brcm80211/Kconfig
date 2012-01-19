@@ -3,9 +3,8 @@ config BRCMUTIL
 
 config BRCMSMAC
 	tristate "Broadcom IEEE802.11n PCIe SoftMAC WLAN driver"
-	depends on PCI
 	depends on MAC80211
-	depends on BCMA=n
+	depends on BCMA
 	select BRCMUTIL
 	select FW_LOADER
 	select CRC_CCITT
@@ -18,15 +17,25 @@ config BRCMSMAC
 
 config BRCMFMAC
 	tristate "Broadcom IEEE802.11n embedded FullMAC WLAN driver"
-	depends on MMC
 	depends on CFG80211
 	select BRCMUTIL
-	select FW_LOADER
 	---help---
 	  This module adds support for embedded wireless adapters based on
-	  Broadcom IEEE802.11n FullMAC chipsets.  This driver uses the kernel's
-	  wireless extensions subsystem.  If you choose to build a module,
+	  Broadcom IEEE802.11n FullMAC chipsets. It has to work with at least
+	  one of the bus interface support. If you choose to build a module,
 	  it'll be called brcmfmac.ko.
+
+config BRCMFMAC_SDIO
+	bool "SDIO bus interface support for FullMAC"
+	depends on MMC
+	depends on BRCMFMAC
+	select FW_LOADER
+	default y
+	---help---
+	  This option enables the SDIO bus interface support for Broadcom
+	  FullMAC WLAN driver.
+	  Say Y if you want to use brcmfmac for a compatible SDIO interface
+	  wireless card.
 
 config BRCMDBG
 	bool "Broadcom driver debug functions"

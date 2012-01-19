@@ -52,7 +52,7 @@
  * indirect page table entries.
  */
 #ifdef CONFIG_PPC_BOOK3E_MMU
-#ifdef CONFIG_FSL_BOOKE
+#ifdef CONFIG_PPC_FSL_BOOK3E
 struct mmu_psize_def mmu_psize_defs[MMU_PAGE_COUNT] = {
 	[MMU_PAGE_4K] = {
 		.shift	= 12,

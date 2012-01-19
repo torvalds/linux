@@ -36,12 +36,18 @@
 #include <linux/pci.h>
 #include <linux/kernel.h>
 #include <linux/init.h>
+#include <linux/msi.h>
 #include <linux/mm.h>
+#include <linux/irq.h>
+#include <linux/irqdesc.h>
 #include <linux/console.h>
 
 #include <asm/io.h>
 
 #include <asm/netlogic/interrupt.h>
+#include <asm/netlogic/haldefs.h>
+
+#include <asm/netlogic/xlr/msidef.h>
 #include <asm/netlogic/xlr/iomap.h>
 #include <asm/netlogic/xlr/pic.h>
 #include <asm/netlogic/xlr/xlr.h>
@@ -150,7 +156,7 @@ struct pci_controller nlm_pci_controller = {
 	.io_offset      = 0x00000000UL,
 };
 
-int __init pcibios_map_irq(const struct pci_dev *dev, u8 slot, u8 pin)
+static int get_irq_vector(const struct pci_dev *dev)
 {
 	if (!nlm_chip_is_xls())
 		return	PIC_PCIX_IRQ;	/* for XLR just one IRQ*/
@@ -182,6 +188,101 @@ int __init pcibios_map_irq(const struct pci_dev *dev, u8 slot, u8 pin)
 	return 0;
 }
 
+#ifdef CONFIG_PCI_MSI
+void destroy_irq(unsigned int irq)
+{
+	    /* nothing to do yet */
+}
+
+void arch_teardown_msi_irq(unsigned int irq)
+{
+	destroy_irq(irq);
+}
+
+int arch_setup_msi_irq(struct pci_dev *dev, struct msi_desc *desc)
+{
+	struct msi_msg msg;
+	int irq, ret;
+
+	irq = get_irq_vector(dev);
+	if (irq <= 0)
+		return 1;
+
+	msg.address_hi = MSI_ADDR_BASE_HI;
+	msg.address_lo = MSI_ADDR_BASE_LO   |
+		MSI_ADDR_DEST_MODE_PHYSICAL |
+		MSI_ADDR_REDIRECTION_CPU;
+
+	msg.data = MSI_DATA_TRIGGER_EDGE |
+		MSI_DATA_LEVEL_ASSERT    |
+		MSI_DATA_DELIVERY_FIXED;
+
+	ret = irq_set_msi_desc(irq, desc);
+	if (ret < 0) {
+		destroy_irq(irq);
+		return ret;
+	}
+
+	write_msi_msg(irq, &msg);
+	return 0;
+}
+#endif
+
+/* Extra ACK needed for XLR on chip PCI controller */
+static void xlr_pci_ack(struct irq_data *d)
+{
+	uint64_t pcibase = nlm_mmio_base(NETLOGIC_IO_PCIX_OFFSET);
+
+	nlm_read_reg(pcibase, (0x140 >> 2));
+}
+
+/* Extra ACK needed for XLS on chip PCIe controller */
+static void xls_pcie_ack(struct irq_data *d)
+{
+	uint64_t pciebase_le = nlm_mmio_base(NETLOGIC_IO_PCIE_1_OFFSET);
+
+	switch (d->irq) {
+	case PIC_PCIE_LINK0_IRQ:
+		nlm_write_reg(pciebase_le, (0x90 >> 2), 0xffffffff);
+		break;
+	case PIC_PCIE_LINK1_IRQ:
+		nlm_write_reg(pciebase_le, (0x94 >> 2), 0xffffffff);
+		break;
+	case PIC_PCIE_LINK2_IRQ:
+		nlm_write_reg(pciebase_le, (0x190 >> 2), 0xffffffff);
+		break;
+	case PIC_PCIE_LINK3_IRQ:
+		nlm_write_reg(pciebase_le, (0x194 >> 2), 0xffffffff);
+		break;
+	}
+}
+
+/* For XLS B silicon, the 3,4 PCI interrupts are different */
+static void xls_pcie_ack_b(struct irq_data *d)
+{
+	uint64_t pciebase_le = nlm_mmio_base(NETLOGIC_IO_PCIE_1_OFFSET);
+
+	switch (d->irq) {
+	case PIC_PCIE_LINK0_IRQ:
+		nlm_write_reg(pciebase_le, (0x90 >> 2), 0xffffffff);
+		break;
+	case PIC_PCIE_LINK1_IRQ:
+		nlm_write_reg(pciebase_le, (0x94 >> 2), 0xffffffff);
+		break;
+	case PIC_PCIE_XLSB0_LINK2_IRQ:
+		nlm_write_reg(pciebase_le, (0x190 >> 2), 0xffffffff);
+		break;
+	case PIC_PCIE_XLSB0_LINK3_IRQ:
+		nlm_write_reg(pciebase_le, (0x194 >> 2), 0xffffffff);
+		break;
+	}
+}
+
+int __init pcibios_map_irq(const struct pci_dev *dev, u8 slot, u8 pin)
+{
+	return get_irq_vector(dev);
+}
+
 /* Do platform specific device initialization at pci_enable_device() time */
 int pcibios_plat_dev_init(struct pci_dev *dev)
 {
@@ -203,6 +304,31 @@ static int __init pcibios_init(void)
 
 	pr_info("Registering XLR/XLS PCIX/PCIE Controller.\n");
 	register_pci_controller(&nlm_pci_controller);
+
+	/*
+	 * For PCI interrupts, we need to ack the PCI controller too, overload
+	 * irq handler data to do this
+	 */
+	if (nlm_chip_is_xls()) {
+		if (nlm_chip_is_xls_b()) {
+			irq_set_handler_data(PIC_PCIE_LINK0_IRQ,
+							xls_pcie_ack_b);
+			irq_set_handler_data(PIC_PCIE_LINK1_IRQ,
+							xls_pcie_ack_b);
+			irq_set_handler_data(PIC_PCIE_XLSB0_LINK2_IRQ,
+							xls_pcie_ack_b);
+			irq_set_handler_data(PIC_PCIE_XLSB0_LINK3_IRQ,
+							xls_pcie_ack_b);
+		} else {
+			irq_set_handler_data(PIC_PCIE_LINK0_IRQ, xls_pcie_ack);
+			irq_set_handler_data(PIC_PCIE_LINK1_IRQ, xls_pcie_ack);
+			irq_set_handler_data(PIC_PCIE_LINK2_IRQ, xls_pcie_ack);
+			irq_set_handler_data(PIC_PCIE_LINK3_IRQ, xls_pcie_ack);
+		}
+	} else {
+		/* XLR PCI controller ACK */
+		irq_set_handler_data(PIC_PCIE_XLSB0_LINK3_IRQ, xlr_pci_ack);
+	}
 
 	return 0;
 }

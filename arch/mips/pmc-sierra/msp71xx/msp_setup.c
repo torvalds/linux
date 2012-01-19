@@ -209,7 +209,7 @@ void __init prom_init(void)
 	default:
 		/* we don't recognize the machine */
 		mips_machtype  = MACH_UNKNOWN;
-		panic("***Bogosity factor five***, exiting\n");
+		panic("***Bogosity factor five***, exiting");
 		break;
 	}
 

@@ -47,7 +47,7 @@
 
 /* Current ACPICA subsystem version in YYYYMMDD format */
 
-#define ACPI_CA_VERSION                 0x20110623
+#define ACPI_CA_VERSION                 0x20120111
 
 #include "actypes.h"
 #include "actbl.h"
@@ -66,7 +66,7 @@ extern u8 acpi_gbl_create_osi_method;
 extern u8 acpi_gbl_use_default_register_widths;
 extern acpi_name acpi_gbl_trace_method_name;
 extern u32 acpi_gbl_trace_flags;
-extern u32 acpi_gbl_enable_aml_debug_object;
+extern bool acpi_gbl_enable_aml_debug_object;
 extern u8 acpi_gbl_copy_dsdt_locally;
 extern u8 acpi_gbl_truncate_io_addresses;
 extern u8 acpi_gbl_disable_auto_repair;
@@ -74,6 +74,7 @@ extern u8 acpi_gbl_disable_auto_repair;
 extern u32 acpi_current_gpe_count;
 extern struct acpi_table_fadt acpi_gbl_FADT;
 extern u8 acpi_gbl_system_awake_and_running;
+extern u8 acpi_gbl_reduced_hardware;	/* ACPI 5.0 */
 
 extern u32 acpi_rsdt_forced;
 /*
@@ -110,6 +111,11 @@ acpi_status acpi_purge_cached_objects(void);
 acpi_status acpi_install_interface(acpi_string interface_name);
 
 acpi_status acpi_remove_interface(acpi_string interface_name);
+
+u32
+acpi_check_address_range(acpi_adr_space_type space_id,
+			 acpi_physical_address address,
+			 acpi_size length, u8 warn);
 
 /*
  * ACPI Memory management
@@ -276,12 +282,23 @@ acpi_status acpi_install_exception_handler(acpi_exception_handler handler);
 acpi_status acpi_install_interface_handler(acpi_interface_handler handler);
 
 /*
- * Event interfaces
+ * Global Lock interfaces
  */
 acpi_status acpi_acquire_global_lock(u16 timeout, u32 * handle);
 
 acpi_status acpi_release_global_lock(u32 handle);
 
+/*
+ * Interfaces to AML mutex objects
+ */
+acpi_status
+acpi_acquire_mutex(acpi_handle handle, acpi_string pathname, u16 timeout);
+
+acpi_status acpi_release_mutex(acpi_handle handle, acpi_string pathname);
+
+/*
+ * Fixed Event interfaces
+ */
 acpi_status acpi_enable_event(u32 event, u32 flags);
 
 acpi_status acpi_disable_event(u32 event, u32 flags);
@@ -291,7 +308,7 @@ acpi_status acpi_clear_event(u32 event);
 acpi_status acpi_get_event_status(u32 event, acpi_event_status * event_status);
 
 /*
- * GPE Interfaces
+ * General Purpose Event (GPE) Interfaces
  */
 acpi_status acpi_enable_gpe(acpi_handle gpe_device, u32 gpe_number);
 
@@ -346,6 +363,10 @@ acpi_get_possible_resources(acpi_handle device, struct acpi_buffer *ret_buffer);
 #endif
 
 acpi_status
+acpi_get_event_resources(acpi_handle device_handle,
+			 struct acpi_buffer *ret_buffer);
+
+acpi_status
 acpi_walk_resources(acpi_handle device,
 		    char *name,
 		    acpi_walk_resource_callback user_function, void *context);
@@ -359,6 +380,11 @@ acpi_get_irq_routing_table(acpi_handle device, struct acpi_buffer *ret_buffer);
 acpi_status
 acpi_resource_to_address64(struct acpi_resource *resource,
 			   struct acpi_resource_address64 *out);
+
+acpi_status
+acpi_buffer_to_resource(u8 *aml_buffer,
+			u16 aml_buffer_length,
+			struct acpi_resource **resource_ptr);
 
 /*
  * Hardware (ACPI device) interfaces

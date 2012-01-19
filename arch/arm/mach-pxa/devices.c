@@ -415,9 +415,29 @@ static struct resource pxa_rtc_resources[] = {
 	},
 };
 
+static struct resource sa1100_rtc_resources[] = {
+	[0] = {
+		.start  = 0x40900000,
+		.end	= 0x409000ff,
+		.flags  = IORESOURCE_MEM,
+	},
+	[1] = {
+		.start  = IRQ_RTC1Hz,
+		.end    = IRQ_RTC1Hz,
+		.flags  = IORESOURCE_IRQ,
+	},
+	[2] = {
+		.start  = IRQ_RTCAlrm,
+		.end    = IRQ_RTCAlrm,
+		.flags  = IORESOURCE_IRQ,
+	},
+};
+
 struct platform_device sa1100_device_rtc = {
 	.name		= "sa1100-rtc",
 	.id		= -1,
+	.num_resources  = ARRAY_SIZE(sa1100_rtc_resources),
+	.resource       = sa1100_rtc_resources,
 };
 
 struct platform_device pxa_device_rtc = {
@@ -1050,6 +1070,36 @@ struct platform_device pxa3xx_device_ssp4 = {
 	.num_resources	= ARRAY_SIZE(pxa3xx_resource_ssp4),
 };
 #endif /* CONFIG_PXA3xx || CONFIG_PXA95x */
+
+struct resource pxa_resource_gpio[] = {
+	{
+		.start	= 0x40e00000,
+		.end	= 0x40e0ffff,
+		.flags	= IORESOURCE_MEM,
+	}, {
+		.start	= IRQ_GPIO0,
+		.end	= IRQ_GPIO0,
+		.name	= "gpio0",
+		.flags	= IORESOURCE_IRQ,
+	}, {
+		.start	= IRQ_GPIO1,
+		.end	= IRQ_GPIO1,
+		.name	= "gpio1",
+		.flags	= IORESOURCE_IRQ,
+	}, {
+		.start	= IRQ_GPIO_2_x,
+		.end	= IRQ_GPIO_2_x,
+		.name	= "gpio_mux",
+		.flags	= IORESOURCE_IRQ,
+	},
+};
+
+struct platform_device pxa_device_gpio = {
+	.name		= "pxa-gpio",
+	.id		= -1,
+	.num_resources	= ARRAY_SIZE(pxa_resource_gpio),
+	.resource	= pxa_resource_gpio,
+};
 
 /* pxa2xx-spi platform-device ID equals respective SSP platform-device ID + 1.
  * See comment in arch/arm/mach-pxa/ssp.c::ssp_probe() */

@@ -1185,18 +1185,7 @@ static struct platform_driver ethoc_driver = {
 	},
 };
 
-static int __init ethoc_init(void)
-{
-	return platform_driver_register(&ethoc_driver);
-}
-
-static void __exit ethoc_exit(void)
-{
-	platform_driver_unregister(&ethoc_driver);
-}
-
-module_init(ethoc_init);
-module_exit(ethoc_exit);
+module_platform_driver(ethoc_driver);
 
 MODULE_AUTHOR("Thierry Reding <thierry.reding@avionic-design.de>");
 MODULE_DESCRIPTION("OpenCores Ethernet MAC driver");

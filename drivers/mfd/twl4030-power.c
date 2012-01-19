@@ -34,7 +34,8 @@
 static u8 twl4030_start_script_address = 0x2b;
 
 #define PWR_P1_SW_EVENTS	0x10
-#define PWR_DEVOFF	(1<<0)
+#define PWR_DEVOFF		(1 << 0)
+#define SEQ_OFFSYNC		(1 << 0)
 
 #define PHY_TO_OFF_PM_MASTER(p)		(p - 0x36)
 #define PHY_TO_OFF_PM_RECEIVER(p)	(p - 0x5b)
@@ -511,12 +512,27 @@ int twl4030_remove_script(u8 flags)
 	return err;
 }
 
+/*
+ * In master mode, start the power off sequence.
+ * After a successful execution, TWL shuts down the power to the SoC
+ * and all peripherals connected to it.
+ */
+void twl4030_power_off(void)
+{
+	int err;
+
+	err = twl_i2c_write_u8(TWL4030_MODULE_PM_MASTER, PWR_DEVOFF,
+			       TWL4030_PM_MASTER_P1_SW_EVENTS);
+	if (err)
+		pr_err("TWL4030 Unable to power off\n");
+}
+
 void __init twl4030_power_init(struct twl4030_power_data *twl4030_scripts)
 {
 	int err = 0;
 	int i;
 	struct twl4030_resconfig *resconfig;
-	u8 address = twl4030_start_script_address;
+	u8 val, address = twl4030_start_script_address;
 
 	err = twl_i2c_write_u8(TWL4030_MODULE_PM_MASTER,
 			TWL4030_PM_MASTER_KEY_CFG1,
@@ -548,6 +564,28 @@ void __init twl4030_power_init(struct twl4030_power_data *twl4030_scripts)
 		}
 	}
 
+	/* Board has to be wired properly to use this feature */
+	if (twl4030_scripts->use_poweroff && !pm_power_off) {
+		/* Default for SEQ_OFFSYNC is set, lets ensure this */
+		err = twl_i2c_read_u8(TWL4030_MODULE_PM_MASTER, &val,
+				      TWL4030_PM_MASTER_CFG_P123_TRANSITION);
+		if (err) {
+			pr_warning("TWL4030 Unable to read registers\n");
+
+		} else if (!(val & SEQ_OFFSYNC)) {
+			val |= SEQ_OFFSYNC;
+			err = twl_i2c_write_u8(TWL4030_MODULE_PM_MASTER, val,
+					TWL4030_PM_MASTER_CFG_P123_TRANSITION);
+			if (err) {
+				pr_err("TWL4030 Unable to setup SEQ_OFFSYNC\n");
+				goto relock;
+			}
+		}
+
+		pm_power_off = twl4030_power_off;
+	}
+
+relock:
 	err = twl_i2c_write_u8(TWL4030_MODULE_PM_MASTER, 0,
 			TWL4030_PM_MASTER_PROTECT_KEY);
 	if (err)

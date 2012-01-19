@@ -31,7 +31,6 @@
 #include <brcmu_utils.h>
 #include <brcmu_wifi.h>
 #include <soc.h>
-#include "dhd.h"
 #include "dhd_bus.h"
 #include "dhd_dbg.h"
 #include "sdio_host.h"
@@ -51,12 +50,18 @@ static void brcmf_sdioh_irqhandler(struct sdio_func *func)
 	sdio_claim_host(func);
 }
 
+/* dummy handler for SDIO function 2 interrupt */
+static void brcmf_sdioh_dummy_irq_handler(struct sdio_func *func)
+{
+}
+
 int brcmf_sdcard_intr_reg(struct brcmf_sdio_dev *sdiodev)
 {
 	brcmf_dbg(TRACE, "Entering\n");
 
 	sdio_claim_host(sdiodev->func[1]);
 	sdio_claim_irq(sdiodev->func[1], brcmf_sdioh_irqhandler);
+	sdio_claim_irq(sdiodev->func[2], brcmf_sdioh_dummy_irq_handler);
 	sdio_release_host(sdiodev->func[1]);
 
 	return 0;
@@ -67,6 +72,7 @@ int brcmf_sdcard_intr_dereg(struct brcmf_sdio_dev *sdiodev)
 	brcmf_dbg(TRACE, "Entering\n");
 
 	sdio_claim_host(sdiodev->func[1]);
+	sdio_release_irq(sdiodev->func[2]);
 	sdio_release_irq(sdiodev->func[1]);
 	sdio_release_host(sdiodev->func[1]);
 
@@ -222,18 +228,11 @@ bool brcmf_sdcard_regfail(struct brcmf_sdio_dev *sdiodev)
 	return sdiodev->regfail;
 }
 
-int
-brcmf_sdcard_recv_buf(struct brcmf_sdio_dev *sdiodev, u32 addr, uint fn,
-		      uint flags,
-		      u8 *buf, uint nbytes, struct sk_buff *pkt)
+static int brcmf_sdcard_recv_prepare(struct brcmf_sdio_dev *sdiodev, uint fn,
+				     uint flags, uint width, u32 *addr)
 {
-	int status;
-	uint incr_fix;
-	uint width;
-	uint bar0 = addr & ~SBSDIO_SB_OFT_ADDR_MASK;
+	uint bar0 = *addr & ~SBSDIO_SB_OFT_ADDR_MASK;
 	int err = 0;
-
-	brcmf_dbg(INFO, "fun = %d, addr = 0x%x, size = %d\n", fn, addr, nbytes);
 
 	/* Async not implemented yet */
 	if (flags & SDIO_REQ_ASYNC)
@@ -247,29 +246,114 @@ brcmf_sdcard_recv_buf(struct brcmf_sdio_dev *sdiodev, u32 addr, uint fn,
 		sdiodev->sbwad = bar0;
 	}
 
-	addr &= SBSDIO_SB_OFT_ADDR_MASK;
+	*addr &= SBSDIO_SB_OFT_ADDR_MASK;
+
+	if (width == 4)
+		*addr |= SBSDIO_SB_ACCESS_2_4B_FLAG;
+
+	return 0;
+}
+
+int
+brcmf_sdcard_recv_buf(struct brcmf_sdio_dev *sdiodev, u32 addr, uint fn,
+		      uint flags, u8 *buf, uint nbytes)
+{
+	struct sk_buff *mypkt;
+	int err;
+
+	mypkt = brcmu_pkt_buf_get_skb(nbytes);
+	if (!mypkt) {
+		brcmf_dbg(ERROR, "brcmu_pkt_buf_get_skb failed: len %d\n",
+			  nbytes);
+		return -EIO;
+	}
+
+	err = brcmf_sdcard_recv_pkt(sdiodev, addr, fn, flags, mypkt);
+	if (!err)
+		memcpy(buf, mypkt->data, nbytes);
+
+	brcmu_pkt_buf_free_skb(mypkt);
+	return err;
+}
+
+int
+brcmf_sdcard_recv_pkt(struct brcmf_sdio_dev *sdiodev, u32 addr, uint fn,
+		      uint flags, struct sk_buff *pkt)
+{
+	uint incr_fix;
+	uint width;
+	int err = 0;
+
+	brcmf_dbg(INFO, "fun = %d, addr = 0x%x, size = %d\n",
+		  fn, addr, pkt->len);
+
+	width = (flags & SDIO_REQ_4BYTE) ? 4 : 2;
+	err = brcmf_sdcard_recv_prepare(sdiodev, fn, flags, width, &addr);
+	if (err)
+		return err;
 
 	incr_fix = (flags & SDIO_REQ_FIXED) ? SDIOH_DATA_FIX : SDIOH_DATA_INC;
+	err = brcmf_sdioh_request_buffer(sdiodev, incr_fix, SDIOH_READ,
+					 fn, addr, pkt);
+
+	return err;
+}
+
+int brcmf_sdcard_recv_chain(struct brcmf_sdio_dev *sdiodev, u32 addr, uint fn,
+			    uint flags, struct sk_buff_head *pktq)
+{
+	uint incr_fix;
+	uint width;
+	int err = 0;
+
+	brcmf_dbg(INFO, "fun = %d, addr = 0x%x, size = %d\n",
+		  fn, addr, pktq->qlen);
+
 	width = (flags & SDIO_REQ_4BYTE) ? 4 : 2;
-	if (width == 4)
-		addr |= SBSDIO_SB_ACCESS_2_4B_FLAG;
+	err = brcmf_sdcard_recv_prepare(sdiodev, fn, flags, width, &addr);
+	if (err)
+		return err;
 
-	status = brcmf_sdioh_request_buffer(sdiodev, incr_fix, SDIOH_READ,
-					    fn, addr, width, nbytes, buf, pkt);
+	incr_fix = (flags & SDIO_REQ_FIXED) ? SDIOH_DATA_FIX : SDIOH_DATA_INC;
+	err = brcmf_sdioh_request_chain(sdiodev, incr_fix, SDIOH_READ, fn, addr,
+					pktq);
 
-	return status;
+	return err;
 }
 
 int
 brcmf_sdcard_send_buf(struct brcmf_sdio_dev *sdiodev, u32 addr, uint fn,
-		      uint flags, u8 *buf, uint nbytes, struct sk_buff *pkt)
+		      uint flags, u8 *buf, uint nbytes)
+{
+	struct sk_buff *mypkt;
+	int err;
+
+	mypkt = brcmu_pkt_buf_get_skb(nbytes);
+	if (!mypkt) {
+		brcmf_dbg(ERROR, "brcmu_pkt_buf_get_skb failed: len %d\n",
+			  nbytes);
+		return -EIO;
+	}
+
+	memcpy(mypkt->data, buf, nbytes);
+	err = brcmf_sdcard_send_pkt(sdiodev, addr, fn, flags, mypkt);
+
+	brcmu_pkt_buf_free_skb(mypkt);
+	return err;
+
+}
+
+int
+brcmf_sdcard_send_pkt(struct brcmf_sdio_dev *sdiodev, u32 addr, uint fn,
+		      uint flags, struct sk_buff *pkt)
 {
 	uint incr_fix;
 	uint width;
 	uint bar0 = addr & ~SBSDIO_SB_OFT_ADDR_MASK;
 	int err = 0;
 
-	brcmf_dbg(INFO, "fun = %d, addr = 0x%x, size = %d\n", fn, addr, nbytes);
+	brcmf_dbg(INFO, "fun = %d, addr = 0x%x, size = %d\n",
+		  fn, addr, pkt->len);
 
 	/* Async not implemented yet */
 	if (flags & SDIO_REQ_ASYNC)
@@ -291,18 +375,39 @@ brcmf_sdcard_send_buf(struct brcmf_sdio_dev *sdiodev, u32 addr, uint fn,
 		addr |= SBSDIO_SB_ACCESS_2_4B_FLAG;
 
 	return brcmf_sdioh_request_buffer(sdiodev, incr_fix, SDIOH_WRITE, fn,
-					  addr, width, nbytes, buf, pkt);
+					  addr, pkt);
 }
 
 int brcmf_sdcard_rwdata(struct brcmf_sdio_dev *sdiodev, uint rw, u32 addr,
 			u8 *buf, uint nbytes)
 {
+	struct sk_buff *mypkt;
+	bool write = rw ? SDIOH_WRITE : SDIOH_READ;
+	int err;
+
 	addr &= SBSDIO_SB_OFT_ADDR_MASK;
 	addr |= SBSDIO_SB_ACCESS_2_4B_FLAG;
 
-	return brcmf_sdioh_request_buffer(sdiodev, SDIOH_DATA_INC,
-		(rw ? SDIOH_WRITE : SDIOH_READ), SDIO_FUNC_1,
-		addr, 4, nbytes, buf, NULL);
+	mypkt = brcmu_pkt_buf_get_skb(nbytes);
+	if (!mypkt) {
+		brcmf_dbg(ERROR, "brcmu_pkt_buf_get_skb failed: len %d\n",
+			  nbytes);
+		return -EIO;
+	}
+
+	/* For a write, copy the buffer data into the packet. */
+	if (write)
+		memcpy(mypkt->data, buf, nbytes);
+
+	err = brcmf_sdioh_request_buffer(sdiodev, SDIOH_DATA_INC, write,
+					 SDIO_FUNC_1, addr, mypkt);
+
+	/* For a read, copy the packet data back to the buffer. */
+	if (!err && !write)
+		memcpy(buf, mypkt->data, nbytes);
+
+	brcmu_pkt_buf_free_skb(mypkt);
+	return err;
 }
 
 int brcmf_sdcard_abort(struct brcmf_sdio_dev *sdiodev, uint fn)
@@ -333,7 +438,7 @@ int brcmf_sdio_probe(struct brcmf_sdio_dev *sdiodev)
 	sdiodev->sbwad = SI_ENUM_BASE;
 
 	/* try to attach to the target device */
-	sdiodev->bus = brcmf_sdbrcm_probe(0, 0, 0, 0, regs, sdiodev);
+	sdiodev->bus = brcmf_sdbrcm_probe(regs, sdiodev);
 	if (!sdiodev->bus) {
 		brcmf_dbg(ERROR, "device attach failed\n");
 		ret = -ENODEV;

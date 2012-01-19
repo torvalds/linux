@@ -132,33 +132,42 @@ nv50_crtc_blank(struct nouveau_crtc *nv_crtc, bool blanked)
 }
 
 static int
-nv50_crtc_set_dither(struct nouveau_crtc *nv_crtc, bool on, bool update)
+nv50_crtc_set_dither(struct nouveau_crtc *nv_crtc, bool update)
 {
-	struct drm_device *dev = nv_crtc->base.dev;
-	struct nouveau_channel *evo = nv50_display(dev)->master;
-	int ret;
+	struct nouveau_channel *evo = nv50_display(nv_crtc->base.dev)->master;
+	struct nouveau_connector *nv_connector;
+	struct drm_connector *connector;
+	int head = nv_crtc->index, ret;
+	u32 mode = 0x00;
 
-	NV_DEBUG_KMS(dev, "\n");
+	nv_connector = nouveau_crtc_connector_get(nv_crtc);
+	connector = &nv_connector->base;
+	if (nv_connector->dithering_mode == DITHERING_MODE_AUTO) {
+		if (nv_crtc->base.fb->depth > connector->display_info.bpc * 3)
+			mode = DITHERING_MODE_DYNAMIC2X2;
+	} else {
+		mode = nv_connector->dithering_mode;
+	}
+
+	if (nv_connector->dithering_depth == DITHERING_DEPTH_AUTO) {
+		if (connector->display_info.bpc >= 8)
+			mode |= DITHERING_DEPTH_8BPC;
+	} else {
+		mode |= nv_connector->dithering_depth;
+	}
 
 	ret = RING_SPACE(evo, 2 + (update ? 2 : 0));
-	if (ret) {
-		NV_ERROR(dev, "no space while setting dither\n");
-		return ret;
+	if (ret == 0) {
+		BEGIN_RING(evo, 0, NV50_EVO_CRTC(head, DITHER_CTRL), 1);
+		OUT_RING  (evo, mode);
+		if (update) {
+			BEGIN_RING(evo, 0, NV50_EVO_UPDATE, 1);
+			OUT_RING  (evo, 0);
+			FIRE_RING (evo);
+		}
 	}
 
-	BEGIN_RING(evo, 0, NV50_EVO_CRTC(nv_crtc->index, DITHER_CTRL), 1);
-	if (on)
-		OUT_RING(evo, NV50_EVO_CRTC_DITHER_CTRL_ON);
-	else
-		OUT_RING(evo, NV50_EVO_CRTC_DITHER_CTRL_OFF);
-
-	if (update) {
-		BEGIN_RING(evo, 0, NV50_EVO_UPDATE, 1);
-		OUT_RING(evo, 0);
-		FIRE_RING(evo);
-	}
-
-	return 0;
+	return ret;
 }
 
 struct nouveau_connector *
@@ -180,80 +189,103 @@ nouveau_crtc_connector_get(struct nouveau_crtc *nv_crtc)
 }
 
 static int
-nv50_crtc_set_scale(struct nouveau_crtc *nv_crtc, int scaling_mode, bool update)
+nv50_crtc_set_scale(struct nouveau_crtc *nv_crtc, bool update)
 {
-	struct nouveau_connector *nv_connector =
-		nouveau_crtc_connector_get(nv_crtc);
-	struct drm_device *dev = nv_crtc->base.dev;
+	struct nouveau_connector *nv_connector;
+	struct drm_crtc *crtc = &nv_crtc->base;
+	struct drm_device *dev = crtc->dev;
 	struct nouveau_channel *evo = nv50_display(dev)->master;
-	struct drm_display_mode *native_mode = NULL;
-	struct drm_display_mode *mode = &nv_crtc->base.mode;
-	uint32_t outX, outY, horiz, vert;
-	int ret;
+	struct drm_display_mode *umode = &crtc->mode;
+	struct drm_display_mode *omode;
+	int scaling_mode, ret;
+	u32 ctrl = 0, oX, oY;
 
 	NV_DEBUG_KMS(dev, "\n");
 
-	switch (scaling_mode) {
-	case DRM_MODE_SCALE_NONE:
-		break;
-	default:
-		if (!nv_connector || !nv_connector->native_mode) {
-			NV_ERROR(dev, "No native mode, forcing panel scaling\n");
-			scaling_mode = DRM_MODE_SCALE_NONE;
-		} else {
-			native_mode = nv_connector->native_mode;
-		}
-		break;
+	nv_connector = nouveau_crtc_connector_get(nv_crtc);
+	if (!nv_connector || !nv_connector->native_mode) {
+		NV_ERROR(dev, "no native mode, forcing panel scaling\n");
+		scaling_mode = DRM_MODE_SCALE_NONE;
+	} else {
+		scaling_mode = nv_connector->scaling_mode;
 	}
 
-	switch (scaling_mode) {
-	case DRM_MODE_SCALE_ASPECT:
-		horiz = (native_mode->hdisplay << 19) / mode->hdisplay;
-		vert = (native_mode->vdisplay << 19) / mode->vdisplay;
+	/* start off at the resolution we programmed the crtc for, this
+	 * effectively handles NONE/FULL scaling
+	 */
+	if (scaling_mode != DRM_MODE_SCALE_NONE)
+		omode = nv_connector->native_mode;
+	else
+		omode = umode;
 
-		if (vert > horiz) {
-			outX = (mode->hdisplay * horiz) >> 19;
-			outY = (mode->vdisplay * horiz) >> 19;
+	oX = omode->hdisplay;
+	oY = omode->vdisplay;
+	if (omode->flags & DRM_MODE_FLAG_DBLSCAN)
+		oY *= 2;
+
+	/* add overscan compensation if necessary, will keep the aspect
+	 * ratio the same as the backend mode unless overridden by the
+	 * user setting both hborder and vborder properties.
+	 */
+	if (nv_connector && ( nv_connector->underscan == UNDERSCAN_ON ||
+			     (nv_connector->underscan == UNDERSCAN_AUTO &&
+			      nv_connector->edid &&
+			      drm_detect_hdmi_monitor(nv_connector->edid)))) {
+		u32 bX = nv_connector->underscan_hborder;
+		u32 bY = nv_connector->underscan_vborder;
+		u32 aspect = (oY << 19) / oX;
+
+		if (bX) {
+			oX -= (bX * 2);
+			if (bY) oY -= (bY * 2);
+			else    oY  = ((oX * aspect) + (aspect / 2)) >> 19;
 		} else {
-			outX = (mode->hdisplay * vert) >> 19;
-			outY = (mode->vdisplay * vert) >> 19;
+			oX -= (oX >> 4) + 32;
+			if (bY) oY -= (bY * 2);
+			else    oY  = ((oX * aspect) + (aspect / 2)) >> 19;
 		}
-		break;
-	case DRM_MODE_SCALE_FULLSCREEN:
-		outX = native_mode->hdisplay;
-		outY = native_mode->vdisplay;
-		break;
+	}
+
+	/* handle CENTER/ASPECT scaling, taking into account the areas
+	 * removed already for overscan compensation
+	 */
+	switch (scaling_mode) {
 	case DRM_MODE_SCALE_CENTER:
-	case DRM_MODE_SCALE_NONE:
+		oX = min((u32)umode->hdisplay, oX);
+		oY = min((u32)umode->vdisplay, oY);
+		/* fall-through */
+	case DRM_MODE_SCALE_ASPECT:
+		if (oY < oX) {
+			u32 aspect = (umode->hdisplay << 19) / umode->vdisplay;
+			oX = ((oY * aspect) + (aspect / 2)) >> 19;
+		} else {
+			u32 aspect = (umode->vdisplay << 19) / umode->hdisplay;
+			oY = ((oX * aspect) + (aspect / 2)) >> 19;
+		}
+		break;
 	default:
-		outX = mode->hdisplay;
-		outY = mode->vdisplay;
 		break;
 	}
 
-	ret = RING_SPACE(evo, update ? 7 : 5);
+	if (umode->hdisplay != oX || umode->vdisplay != oY ||
+	    umode->flags & DRM_MODE_FLAG_INTERLACE ||
+	    umode->flags & DRM_MODE_FLAG_DBLSCAN)
+		ctrl |= NV50_EVO_CRTC_SCALE_CTRL_ACTIVE;
+
+	ret = RING_SPACE(evo, 5);
 	if (ret)
 		return ret;
 
-	/* Got a better name for SCALER_ACTIVE? */
-	/* One day i've got to really figure out why this is needed. */
 	BEGIN_RING(evo, 0, NV50_EVO_CRTC(nv_crtc->index, SCALE_CTRL), 1);
-	if ((mode->flags & DRM_MODE_FLAG_DBLSCAN) ||
-	    (mode->flags & DRM_MODE_FLAG_INTERLACE) ||
-	    mode->hdisplay != outX || mode->vdisplay != outY) {
-		OUT_RING(evo, NV50_EVO_CRTC_SCALE_CTRL_ACTIVE);
-	} else {
-		OUT_RING(evo, NV50_EVO_CRTC_SCALE_CTRL_INACTIVE);
-	}
-
+	OUT_RING  (evo, ctrl);
 	BEGIN_RING(evo, 0, NV50_EVO_CRTC(nv_crtc->index, SCALE_RES1), 2);
-	OUT_RING(evo, outY << 16 | outX);
-	OUT_RING(evo, outY << 16 | outX);
+	OUT_RING  (evo, oY << 16 | oX);
+	OUT_RING  (evo, oY << 16 | oX);
 
 	if (update) {
-		BEGIN_RING(evo, 0, NV50_EVO_UPDATE, 1);
-		OUT_RING(evo, 0);
-		FIRE_RING(evo);
+		nv50_display_flip_stop(crtc);
+		nv50_display_sync(dev);
+		nv50_display_flip_next(crtc, crtc->fb, NULL);
 	}
 
 	return 0;
@@ -333,7 +365,6 @@ nv50_crtc_destroy(struct drm_crtc *crtc)
 	nouveau_bo_ref(NULL, &nv_crtc->lut.nvbo);
 	nouveau_bo_unmap(nv_crtc->cursor.nvbo);
 	nouveau_bo_ref(NULL, &nv_crtc->cursor.nvbo);
-	kfree(nv_crtc->mode);
 	kfree(nv_crtc);
 }
 
@@ -441,39 +472,6 @@ nv50_crtc_dpms(struct drm_crtc *crtc, int mode)
 {
 }
 
-static int
-nv50_crtc_wait_complete(struct drm_crtc *crtc)
-{
-	struct drm_device *dev = crtc->dev;
-	struct drm_nouveau_private *dev_priv = dev->dev_private;
-	struct nouveau_timer_engine *ptimer = &dev_priv->engine.timer;
-	struct nv50_display *disp = nv50_display(dev);
-	struct nouveau_channel *evo = disp->master;
-	u64 start;
-	int ret;
-
-	ret = RING_SPACE(evo, 6);
-	if (ret)
-		return ret;
-	BEGIN_RING(evo, 0, 0x0084, 1);
-	OUT_RING  (evo, 0x80000000);
-	BEGIN_RING(evo, 0, 0x0080, 1);
-	OUT_RING  (evo, 0);
-	BEGIN_RING(evo, 0, 0x0084, 1);
-	OUT_RING  (evo, 0x00000000);
-
-	nv_wo32(disp->ntfy, 0x000, 0x00000000);
-	FIRE_RING (evo);
-
-	start = ptimer->read(dev);
-	do {
-		if (nv_ro32(disp->ntfy, 0x000))
-			return 0;
-	} while (ptimer->read(dev) - start < 2000000000ULL);
-
-	return -EBUSY;
-}
-
 static void
 nv50_crtc_prepare(struct drm_crtc *crtc)
 {
@@ -497,7 +495,7 @@ nv50_crtc_commit(struct drm_crtc *crtc)
 
 	nv50_crtc_blank(nv_crtc, false);
 	drm_vblank_post_modeset(dev, nv_crtc->index);
-	nv50_crtc_wait_complete(crtc);
+	nv50_display_sync(dev);
 	nv50_display_flip_next(crtc, crtc->fb, NULL);
 }
 
@@ -593,90 +591,76 @@ nv50_crtc_do_mode_set_base(struct drm_crtc *crtc,
 }
 
 static int
-nv50_crtc_mode_set(struct drm_crtc *crtc, struct drm_display_mode *mode,
-		   struct drm_display_mode *adjusted_mode, int x, int y,
+nv50_crtc_mode_set(struct drm_crtc *crtc, struct drm_display_mode *umode,
+		   struct drm_display_mode *mode, int x, int y,
 		   struct drm_framebuffer *old_fb)
 {
 	struct drm_device *dev = crtc->dev;
 	struct nouveau_channel *evo = nv50_display(dev)->master;
 	struct nouveau_crtc *nv_crtc = nouveau_crtc(crtc);
-	struct nouveau_connector *nv_connector = NULL;
-	uint32_t hsync_dur,  vsync_dur, hsync_start_to_end, vsync_start_to_end;
-	uint32_t hunk1, vunk1, vunk2a, vunk2b;
+	u32 head = nv_crtc->index * 0x400;
+	u32 ilace = (mode->flags & DRM_MODE_FLAG_INTERLACE) ? 2 : 1;
+	u32 vscan = (mode->flags & DRM_MODE_FLAG_DBLSCAN) ? 2 : 1;
+	u32 hactive, hsynce, hbackp, hfrontp, hblanke, hblanks;
+	u32 vactive, vsynce, vbackp, vfrontp, vblanke, vblanks;
+	u32 vblan2e = 0, vblan2s = 1;
 	int ret;
 
-	/* Find the connector attached to this CRTC */
-	nv_connector = nouveau_crtc_connector_get(nv_crtc);
+	/* hw timing description looks like this:
+	 *
+	 * <sync> <back porch> <---------display---------> <front porch>
+	 * ______
+	 *       |____________|---------------------------|____________|
+	 *
+	 *       ^ synce      ^ blanke                    ^ blanks     ^ active
+	 *
+	 * interlaced modes also have 2 additional values pointing at the end
+	 * and start of the next field's blanking period.
+	 */
 
-	*nv_crtc->mode = *adjusted_mode;
+	hactive = mode->htotal;
+	hsynce  = mode->hsync_end - mode->hsync_start - 1;
+	hbackp  = mode->htotal - mode->hsync_end;
+	hblanke = hsynce + hbackp;
+	hfrontp = mode->hsync_start - mode->hdisplay;
+	hblanks = mode->htotal - hfrontp - 1;
 
-	NV_DEBUG_KMS(dev, "index %d\n", nv_crtc->index);
-
-	hsync_dur = adjusted_mode->hsync_end - adjusted_mode->hsync_start;
-	vsync_dur = adjusted_mode->vsync_end - adjusted_mode->vsync_start;
-	hsync_start_to_end = adjusted_mode->htotal - adjusted_mode->hsync_start;
-	vsync_start_to_end = adjusted_mode->vtotal - adjusted_mode->vsync_start;
-	/* I can't give this a proper name, anyone else can? */
-	hunk1 = adjusted_mode->htotal -
-		adjusted_mode->hsync_start + adjusted_mode->hdisplay;
-	vunk1 = adjusted_mode->vtotal -
-		adjusted_mode->vsync_start + adjusted_mode->vdisplay;
-	/* Another strange value, this time only for interlaced adjusted_modes. */
-	vunk2a = 2 * adjusted_mode->vtotal -
-		 adjusted_mode->vsync_start + adjusted_mode->vdisplay;
-	vunk2b = adjusted_mode->vtotal -
-		 adjusted_mode->vsync_start + adjusted_mode->vtotal;
-
-	if (adjusted_mode->flags & DRM_MODE_FLAG_INTERLACE) {
-		vsync_dur /= 2;
-		vsync_start_to_end  /= 2;
-		vunk1 /= 2;
-		vunk2a /= 2;
-		vunk2b /= 2;
-		/* magic */
-		if (adjusted_mode->flags & DRM_MODE_FLAG_DBLSCAN) {
-			vsync_start_to_end -= 1;
-			vunk1 -= 1;
-			vunk2a -= 1;
-			vunk2b -= 1;
-		}
+	vactive = mode->vtotal * vscan / ilace;
+	vsynce  = ((mode->vsync_end - mode->vsync_start) * vscan / ilace) - 1;
+	vbackp  = (mode->vtotal - mode->vsync_end) * vscan / ilace;
+	vblanke = vsynce + vbackp;
+	vfrontp = (mode->vsync_start - mode->vdisplay) * vscan / ilace;
+	vblanks = vactive - vfrontp - 1;
+	if (mode->flags & DRM_MODE_FLAG_INTERLACE) {
+		vblan2e = vactive + vsynce + vbackp;
+		vblan2s = vblan2e + (mode->vdisplay * vscan / ilace);
+		vactive = (vactive * 2) + 1;
 	}
 
-	ret = RING_SPACE(evo, 17);
-	if (ret)
-		return ret;
-
-	BEGIN_RING(evo, 0, NV50_EVO_CRTC(nv_crtc->index, CLOCK), 2);
-	OUT_RING(evo, adjusted_mode->clock | 0x800000);
-	OUT_RING(evo, (adjusted_mode->flags & DRM_MODE_FLAG_INTERLACE) ? 2 : 0);
-
-	BEGIN_RING(evo, 0, NV50_EVO_CRTC(nv_crtc->index, DISPLAY_START), 5);
-	OUT_RING(evo, 0);
-	OUT_RING(evo, (adjusted_mode->vtotal << 16) | adjusted_mode->htotal);
-	OUT_RING(evo, (vsync_dur - 1) << 16 | (hsync_dur - 1));
-	OUT_RING(evo, (vsync_start_to_end - 1) << 16 |
-			(hsync_start_to_end - 1));
-	OUT_RING(evo, (vunk1 - 1) << 16 | (hunk1 - 1));
-
-	if (adjusted_mode->flags & DRM_MODE_FLAG_INTERLACE) {
-		BEGIN_RING(evo, 0, NV50_EVO_CRTC(nv_crtc->index, UNK0824), 1);
-		OUT_RING(evo, (vunk2b - 1) << 16 | (vunk2a - 1));
-	} else {
-		OUT_RING(evo, 0);
-		OUT_RING(evo, 0);
+	ret = RING_SPACE(evo, 18);
+	if (ret == 0) {
+		BEGIN_RING(evo, 0, 0x0804 + head, 2);
+		OUT_RING  (evo, 0x00800000 | mode->clock);
+		OUT_RING  (evo, (ilace == 2) ? 2 : 0);
+		BEGIN_RING(evo, 0, 0x0810 + head, 6);
+		OUT_RING  (evo, 0x00000000); /* border colour */
+		OUT_RING  (evo, (vactive << 16) | hactive);
+		OUT_RING  (evo, ( vsynce << 16) | hsynce);
+		OUT_RING  (evo, (vblanke << 16) | hblanke);
+		OUT_RING  (evo, (vblanks << 16) | hblanks);
+		OUT_RING  (evo, (vblan2e << 16) | vblan2s);
+		BEGIN_RING(evo, 0, 0x082c + head, 1);
+		OUT_RING  (evo, 0x00000000);
+		BEGIN_RING(evo, 0, 0x0900 + head, 1);
+		OUT_RING  (evo, 0x00000311); /* makes sync channel work */
+		BEGIN_RING(evo, 0, 0x08c8 + head, 1);
+		OUT_RING  (evo, (umode->vdisplay << 16) | umode->hdisplay);
+		BEGIN_RING(evo, 0, 0x08d4 + head, 1);
+		OUT_RING  (evo, 0x00000000); /* screen position */
 	}
 
-	BEGIN_RING(evo, 0, NV50_EVO_CRTC(nv_crtc->index, UNK082C), 1);
-	OUT_RING(evo, 0);
-
-	/* This is the actual resolution of the mode. */
-	BEGIN_RING(evo, 0, NV50_EVO_CRTC(nv_crtc->index, REAL_RES), 1);
-	OUT_RING(evo, (mode->vdisplay << 16) | mode->hdisplay);
-	BEGIN_RING(evo, 0, NV50_EVO_CRTC(nv_crtc->index, SCALE_CENTER_OFFSET), 1);
-	OUT_RING(evo, NV50_EVO_CRTC_SCALE_CENTER_OFFSET_VAL(0, 0));
-
-	nv_crtc->set_dither(nv_crtc, nv_connector->use_dithering, false);
-	nv_crtc->set_scale(nv_crtc, nv_connector->scaling_mode, false);
+	nv_crtc->set_dither(nv_crtc, false);
+	nv_crtc->set_scale(nv_crtc, false);
 
 	return nv50_crtc_do_mode_set_base(crtc, old_fb, x, y, false);
 }
@@ -692,7 +676,7 @@ nv50_crtc_mode_set_base(struct drm_crtc *crtc, int x, int y,
 	if (ret)
 		return ret;
 
-	ret = nv50_crtc_wait_complete(crtc);
+	ret = nv50_display_sync(crtc->dev);
 	if (ret)
 		return ret;
 
@@ -711,7 +695,7 @@ nv50_crtc_mode_set_base_atomic(struct drm_crtc *crtc,
 	if (ret)
 		return ret;
 
-	return nv50_crtc_wait_complete(crtc);
+	return nv50_display_sync(crtc->dev);
 }
 
 static const struct drm_crtc_helper_funcs nv50_crtc_helper_funcs = {
@@ -737,12 +721,6 @@ nv50_crtc_create(struct drm_device *dev, int index)
 	if (!nv_crtc)
 		return -ENOMEM;
 
-	nv_crtc->mode = kzalloc(sizeof(*nv_crtc->mode), GFP_KERNEL);
-	if (!nv_crtc->mode) {
-		kfree(nv_crtc);
-		return -ENOMEM;
-	}
-
 	/* Default CLUT parameters, will be activated on the hw upon
 	 * first mode set.
 	 */
@@ -764,7 +742,6 @@ nv50_crtc_create(struct drm_device *dev, int index)
 	}
 
 	if (ret) {
-		kfree(nv_crtc->mode);
 		kfree(nv_crtc);
 		return ret;
 	}

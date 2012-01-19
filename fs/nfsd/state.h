@@ -366,6 +366,7 @@ struct nfs4_openowner {
 
 struct nfs4_lockowner {
 	struct nfs4_stateowner	lo_owner; /* must be first element */
+	struct list_head	lo_owner_ino_hash; /* hash by owner,file */
 	struct list_head        lo_perstateid; /* for lockowners only */
 	struct list_head	lo_list; /* for temporary uses */
 };
@@ -482,7 +483,7 @@ extern void nfsd4_shutdown_recdir(void);
 extern int nfs4_client_to_reclaim(const char *name);
 extern int nfs4_has_reclaimed_state(const char *name, bool use_exchange_id);
 extern void nfsd4_recdir_purge_old(void);
-extern int nfsd4_create_clid_dir(struct nfs4_client *clp);
+extern void nfsd4_create_clid_dir(struct nfs4_client *clp);
 extern void nfsd4_remove_clid_dir(struct nfs4_client *clp);
 extern void release_session_client(struct nfsd4_session *);
 extern __be32 nfs4_validate_stateid(struct nfs4_client *, stateid_t *);

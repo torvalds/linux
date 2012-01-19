@@ -67,9 +67,9 @@ static int tua6100_sleep(struct dvb_frontend *fe)
 	return (ret == 1) ? 0 : ret;
 }
 
-static int tua6100_set_params(struct dvb_frontend *fe,
-			      struct dvb_frontend_parameters *params)
+static int tua6100_set_params(struct dvb_frontend *fe)
 {
+	struct dtv_frontend_properties *c = &fe->dtv_property_cache;
 	struct tua6100_priv *priv = fe->tuner_priv;
 	u32 div;
 	u32 prediv;
@@ -85,36 +85,37 @@ static int tua6100_set_params(struct dvb_frontend *fe,
 #define _ri 4000000
 
 	// setup register 0
-	if (params->frequency < 2000000) {
+	if (c->frequency < 2000000)
 		reg0[1] = 0x03;
-	} else {
+	else
 		reg0[1] = 0x07;
-	}
 
 	// setup register 1
-	if (params->frequency < 1630000) {
+	if (c->frequency < 1630000)
 		reg1[1] = 0x2c;
-	} else {
+	else
 		reg1[1] = 0x0c;
-	}
+
 	if (_P == 64)
 		reg1[1] |= 0x40;
-	if (params->frequency >= 1525000)
+	if (c->frequency >= 1525000)
 		reg1[1] |= 0x80;
 
 	// register 2
 	reg2[1] = (_R >> 8) & 0x03;
 	reg2[2] = _R;
-	if (params->frequency < 1455000) {
+	if (c->frequency < 1455000)
 		reg2[1] |= 0x1c;
-	} else if (params->frequency < 1630000) {
+	else if (c->frequency < 1630000)
 		reg2[1] |= 0x0c;
-	} else {
+	else
 		reg2[1] |= 0x1c;
-	}
 
-	// The N divisor ratio (note: params->frequency is in kHz, but we need it in Hz)
-	prediv = (params->frequency * _R) / (_ri / 1000);
+	/*
+	 * The N divisor ratio (note: c->frequency is in kHz, but we
+	 * need it in Hz)
+	 */
+	prediv = (c->frequency * _R) / (_ri / 1000);
 	div = prediv / _P;
 	reg1[1] |= (div >> 9) & 0x03;
 	reg1[2] = div >> 1;

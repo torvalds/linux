@@ -40,24 +40,25 @@ static struct tda1004x_config alps_tdhd1_204a_config = {
 	.request_firmware = alps_tdhd1_204_request_firmware
 };
 
-static int alps_tdhd1_204a_tuner_set_params(struct dvb_frontend *fe, struct dvb_frontend_parameters *params)
+static int alps_tdhd1_204a_tuner_set_params(struct dvb_frontend *fe)
 {
+	struct dtv_frontend_properties *p = &fe->dtv_property_cache;
 	struct i2c_adapter *i2c = fe->tuner_priv;
 	u8 data[4];
 	struct i2c_msg msg = { .addr = 0x61, .flags = 0, .buf = data, .len = sizeof(data) };
 	u32 div;
 
-	div = (params->frequency + 36166666) / 166666;
+	div = (p->frequency + 36166666) / 166666;
 
 	data[0] = (div >> 8) & 0x7f;
 	data[1] = div & 0xff;
 	data[2] = 0x85;
 
-	if (params->frequency >= 174000000 && params->frequency <= 230000000)
+	if (p->frequency >= 174000000 && p->frequency <= 230000000)
 		data[3] = 0x02;
-	else if (params->frequency >= 470000000 && params->frequency <= 823000000)
+	else if (p->frequency >= 470000000 && p->frequency <= 823000000)
 		data[3] = 0x0C;
-	else if (params->frequency > 823000000 && params->frequency <= 862000000)
+	else if (p->frequency > 823000000 && p->frequency <= 862000000)
 		data[3] = 0x8C;
 	else
 		return -EINVAL;

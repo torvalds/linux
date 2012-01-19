@@ -42,7 +42,7 @@ static int __devinit dummy_regulator_probe(struct platform_device *pdev)
 	int ret;
 
 	dummy_regulator_rdev = regulator_register(&dummy_desc, NULL,
-						  &dummy_initdata, NULL);
+						  &dummy_initdata, NULL, NULL);
 	if (IS_ERR(dummy_regulator_rdev)) {
 		ret = PTR_ERR(dummy_regulator_rdev);
 		pr_err("Failed to register regulator: %d\n", ret);

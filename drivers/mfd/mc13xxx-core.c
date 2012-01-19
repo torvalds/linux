@@ -18,11 +18,15 @@
 #include <linux/spi/spi.h>
 #include <linux/mfd/core.h>
 #include <linux/mfd/mc13xxx.h>
+#include <linux/of.h>
+#include <linux/of_device.h>
+#include <linux/of_gpio.h>
 
 struct mc13xxx {
 	struct spi_device *spidev;
 	struct mutex lock;
 	int irq;
+	int flags;
 
 	irq_handler_t irqhandler[MC13XXX_NUM_IRQ];
 	void *irqdata[MC13XXX_NUM_IRQ];
@@ -550,10 +554,7 @@ static const char *mc13xxx_get_chipname(struct mc13xxx *mc13xxx)
 
 int mc13xxx_get_flags(struct mc13xxx *mc13xxx)
 {
-	struct mc13xxx_platform_data *pdata =
-		dev_get_platdata(&mc13xxx->spidev->dev);
-
-	return pdata->flags;
+	return mc13xxx->flags;
 }
 EXPORT_SYMBOL(mc13xxx_get_flags);
 
@@ -615,13 +616,13 @@ int mc13xxx_adc_do_conversion(struct mc13xxx *mc13xxx, unsigned int mode,
 		break;
 
 	case MC13XXX_ADC_MODE_SINGLE_CHAN:
-		adc0 |= old_adc0 & MC13XXX_ADC0_TSMOD_MASK;
+		adc0 |= old_adc0 & MC13XXX_ADC0_CONFIG_MASK;
 		adc1 |= (channel & 0x7) << MC13XXX_ADC1_CHAN0_SHIFT;
 		adc1 |= MC13XXX_ADC1_RAND;
 		break;
 
 	case MC13XXX_ADC_MODE_MULT_CHAN:
-		adc0 |= old_adc0 & MC13XXX_ADC0_TSMOD_MASK;
+		adc0 |= old_adc0 & MC13XXX_ADC0_CONFIG_MASK;
 		adc1 |= 4 << MC13XXX_ADC1_CHAN1_SHIFT;
 		break;
 
@@ -696,17 +697,67 @@ static int mc13xxx_add_subdevice(struct mc13xxx *mc13xxx, const char *format)
 	return mc13xxx_add_subdevice_pdata(mc13xxx, format, NULL, 0);
 }
 
+#ifdef CONFIG_OF
+static int mc13xxx_probe_flags_dt(struct mc13xxx *mc13xxx)
+{
+	struct device_node *np = mc13xxx->spidev->dev.of_node;
+
+	if (!np)
+		return -ENODEV;
+
+	if (of_get_property(np, "fsl,mc13xxx-uses-adc", NULL))
+		mc13xxx->flags |= MC13XXX_USE_ADC;
+
+	if (of_get_property(np, "fsl,mc13xxx-uses-codec", NULL))
+		mc13xxx->flags |= MC13XXX_USE_CODEC;
+
+	if (of_get_property(np, "fsl,mc13xxx-uses-rtc", NULL))
+		mc13xxx->flags |= MC13XXX_USE_RTC;
+
+	if (of_get_property(np, "fsl,mc13xxx-uses-touch", NULL))
+		mc13xxx->flags |= MC13XXX_USE_TOUCHSCREEN;
+
+	return 0;
+}
+#else
+static inline int mc13xxx_probe_flags_dt(struct mc13xxx *mc13xxx)
+{
+	return -ENODEV;
+}
+#endif
+
+static const struct spi_device_id mc13xxx_device_id[] = {
+	{
+		.name = "mc13783",
+		.driver_data = MC13XXX_ID_MC13783,
+	}, {
+		.name = "mc13892",
+		.driver_data = MC13XXX_ID_MC13892,
+	}, {
+		/* sentinel */
+	}
+};
+MODULE_DEVICE_TABLE(spi, mc13xxx_device_id);
+
+static const struct of_device_id mc13xxx_dt_ids[] = {
+	{ .compatible = "fsl,mc13783", .data = (void *) MC13XXX_ID_MC13783, },
+	{ .compatible = "fsl,mc13892", .data = (void *) MC13XXX_ID_MC13892, },
+	{ /* sentinel */ }
+};
+MODULE_DEVICE_TABLE(of, mc13xxx_dt_ids);
+
 static int mc13xxx_probe(struct spi_device *spi)
 {
+	const struct of_device_id *of_id;
+	struct spi_driver *sdrv = to_spi_driver(spi->dev.driver);
 	struct mc13xxx *mc13xxx;
 	struct mc13xxx_platform_data *pdata = dev_get_platdata(&spi->dev);
 	enum mc13xxx_id id;
 	int ret;
 
-	if (!pdata) {
-		dev_err(&spi->dev, "invalid platform data\n");
-		return -EINVAL;
-	}
+	of_id = of_match_device(mc13xxx_dt_ids, &spi->dev);
+	if (of_id)
+		sdrv->id_table = &mc13xxx_device_id[(enum mc13xxx_id) of_id->data];
 
 	mc13xxx = kzalloc(sizeof(*mc13xxx), GFP_KERNEL);
 	if (!mc13xxx)
@@ -749,28 +800,33 @@ err_revision:
 
 	mc13xxx_unlock(mc13xxx);
 
-	if (pdata->flags & MC13XXX_USE_ADC)
+	if (mc13xxx_probe_flags_dt(mc13xxx) < 0 && pdata)
+		mc13xxx->flags = pdata->flags;
+
+	if (mc13xxx->flags & MC13XXX_USE_ADC)
 		mc13xxx_add_subdevice(mc13xxx, "%s-adc");
 
-	if (pdata->flags & MC13XXX_USE_CODEC)
+	if (mc13xxx->flags & MC13XXX_USE_CODEC)
 		mc13xxx_add_subdevice(mc13xxx, "%s-codec");
 
-	mc13xxx_add_subdevice_pdata(mc13xxx, "%s-regulator",
-		&pdata->regulators, sizeof(pdata->regulators));
-
-	if (pdata->flags & MC13XXX_USE_RTC)
+	if (mc13xxx->flags & MC13XXX_USE_RTC)
 		mc13xxx_add_subdevice(mc13xxx, "%s-rtc");
 
-	if (pdata->flags & MC13XXX_USE_TOUCHSCREEN)
+	if (mc13xxx->flags & MC13XXX_USE_TOUCHSCREEN)
 		mc13xxx_add_subdevice(mc13xxx, "%s-ts");
 
-	if (pdata->leds)
+	if (pdata) {
+		mc13xxx_add_subdevice_pdata(mc13xxx, "%s-regulator",
+			&pdata->regulators, sizeof(pdata->regulators));
 		mc13xxx_add_subdevice_pdata(mc13xxx, "%s-led",
 				pdata->leds, sizeof(*pdata->leds));
-
-	if (pdata->buttons)
 		mc13xxx_add_subdevice_pdata(mc13xxx, "%s-pwrbutton",
 				pdata->buttons, sizeof(*pdata->buttons));
+	} else {
+		mc13xxx_add_subdevice(mc13xxx, "%s-regulator");
+		mc13xxx_add_subdevice(mc13xxx, "%s-led");
+		mc13xxx_add_subdevice(mc13xxx, "%s-pwrbutton");
+	}
 
 	return 0;
 }
@@ -788,25 +844,12 @@ static int __devexit mc13xxx_remove(struct spi_device *spi)
 	return 0;
 }
 
-static const struct spi_device_id mc13xxx_device_id[] = {
-	{
-		.name = "mc13783",
-		.driver_data = MC13XXX_ID_MC13783,
-	}, {
-		.name = "mc13892",
-		.driver_data = MC13XXX_ID_MC13892,
-	}, {
-		/* sentinel */
-	}
-};
-MODULE_DEVICE_TABLE(spi, mc13xxx_device_id);
-
 static struct spi_driver mc13xxx_driver = {
 	.id_table = mc13xxx_device_id,
 	.driver = {
 		.name = "mc13xxx",
-		.bus = &spi_bus_type,
 		.owner = THIS_MODULE,
+		.of_match_table = mc13xxx_dt_ids,
 	},
 	.probe = mc13xxx_probe,
 	.remove = __devexit_p(mc13xxx_remove),

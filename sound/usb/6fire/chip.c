@@ -35,7 +35,7 @@ MODULE_SUPPORTED_DEVICE("{{TerraTec, DMX 6Fire USB}}");
 
 static int index[SNDRV_CARDS] = SNDRV_DEFAULT_IDX; /* Index 0-max */
 static char *id[SNDRV_CARDS] = SNDRV_DEFAULT_STR; /* Id for card */
-static int enable[SNDRV_CARDS] = SNDRV_DEFAULT_ENABLE_PNP; /* Enable card */
+static bool enable[SNDRV_CARDS] = SNDRV_DEFAULT_ENABLE_PNP; /* Enable card */
 static struct sfire_chip *chips[SNDRV_CARDS] = SNDRV_DEFAULT_PTR;
 static struct usb_device *devices[SNDRV_CARDS] = SNDRV_DEFAULT_PTR;
 
@@ -211,22 +211,11 @@ static struct usb_device_id device_table[] = {
 
 MODULE_DEVICE_TABLE(usb, device_table);
 
-static struct usb_driver driver = {
+static struct usb_driver usb_driver = {
 	.name = "snd-usb-6fire",
 	.probe = usb6fire_chip_probe,
 	.disconnect = usb6fire_chip_disconnect,
 	.id_table = device_table,
 };
 
-static int __init usb6fire_chip_init(void)
-{
-	return usb_register(&driver);
-}
-
-static void __exit usb6fire_chip_cleanup(void)
-{
-	usb_deregister(&driver);
-}
-
-module_init(usb6fire_chip_init);
-module_exit(usb6fire_chip_cleanup);
+module_usb_driver(usb_driver);

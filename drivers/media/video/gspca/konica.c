@@ -247,9 +247,6 @@ static int sd_config(struct gspca_dev *gspca_dev,
 	gspca_dev->cam.cam_mode = vga_mode;
 	gspca_dev->cam.nmodes = ARRAY_SIZE(vga_mode);
 	gspca_dev->cam.no_urb_create = 1;
-	/* The highest alt setting has an isoc packetsize of 0, so we
-	   don't want to use it */
-	gspca_dev->nbalt--;
 
 	sd->brightness  = BRIGHTNESS_DEFAULT;
 	sd->contrast    = CONTRAST_DEFAULT;
@@ -634,15 +631,4 @@ static struct usb_driver sd_driver = {
 #endif
 };
 
-/* -- module insert / remove -- */
-static int __init sd_mod_init(void)
-{
-	return usb_register(&sd_driver);
-}
-static void __exit sd_mod_exit(void)
-{
-	usb_deregister(&sd_driver);
-}
-
-module_init(sd_mod_init);
-module_exit(sd_mod_exit);
+module_usb_driver(sd_driver);

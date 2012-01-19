@@ -78,9 +78,10 @@ nouveau_vm_map(struct nouveau_vma *vma, struct nouveau_mem *node)
 
 void
 nouveau_vm_map_sg(struct nouveau_vma *vma, u64 delta, u64 length,
-		  struct nouveau_mem *mem, dma_addr_t *list)
+		  struct nouveau_mem *mem)
 {
 	struct nouveau_vm *vm = vma->vm;
+	dma_addr_t *list = mem->pages;
 	int big = vma->node->type != vm->spg_shift;
 	u32 offset = vma->node->offset + (delta >> 12);
 	u32 bits = vma->node->type - 12;

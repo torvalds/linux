@@ -514,28 +514,7 @@ static struct usb_driver friio_driver = {
 	.id_table	= friio_table,
 };
 
-
-/* module stuff */
-static int __init friio_module_init(void)
-{
-	int ret;
-
-	ret = usb_register(&friio_driver);
-	if (ret)
-		err("usb_register failed. Error number %d", ret);
-
-	return ret;
-}
-
-
-static void __exit friio_module_exit(void)
-{
-	/* deregister this driver from the USB subsystem */
-	usb_deregister(&friio_driver);
-}
-
-module_init(friio_module_init);
-module_exit(friio_module_exit);
+module_usb_driver(friio_driver);
 
 MODULE_AUTHOR("Akihiro Tsukada <tskd2@yahoo.co.jp>");
 MODULE_DESCRIPTION("Driver for Friio ISDB-T USB2.0 Receiver");

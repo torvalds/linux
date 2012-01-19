@@ -57,6 +57,10 @@ the following:
 
   4. Bus type of the device, if both dev->bus and dev->bus->pm are present.
 
+If the subsystem chosen by applying the above rules doesn't provide the relevant
+callback, the PM core will invoke the corresponding driver callback stored in
+dev->driver->pm directly (if present).
+
 The PM core always checks which callback to use in the order given above, so the
 priority order of callbacks from high to low is: PM domain, device type, class
 and bus type.  Moreover, the high-priority one will always take precedence over
@@ -64,86 +68,88 @@ a low-priority one.  The PM domain, bus type, device type and class callbacks
 are referred to as subsystem-level callbacks in what follows.
 
 By default, the callbacks are always invoked in process context with interrupts
-enabled.  However, subsystems can use the pm_runtime_irq_safe() helper function
-to tell the PM core that their ->runtime_suspend(), ->runtime_resume() and
-->runtime_idle() callbacks may be invoked in atomic context with interrupts
-disabled for a given device.  This implies that the callback routines in
-question must not block or sleep, but it also means that the synchronous helper
-functions listed at the end of Section 4 may be used for that device within an
-interrupt handler or generally in an atomic context.
+enabled.  However, the pm_runtime_irq_safe() helper function can be used to tell
+the PM core that it is safe to run the ->runtime_suspend(), ->runtime_resume()
+and ->runtime_idle() callbacks for the given device in atomic context with
+interrupts disabled.  This implies that the callback routines in question must
+not block or sleep, but it also means that the synchronous helper functions
+listed at the end of Section 4 may be used for that device within an interrupt
+handler or generally in an atomic context.
 
-The subsystem-level suspend callback is _entirely_ _responsible_ for handling
-the suspend of the device as appropriate, which may, but need not include
-executing the device driver's own ->runtime_suspend() callback (from the
+The subsystem-level suspend callback, if present, is _entirely_ _responsible_
+for handling the suspend of the device as appropriate, which may, but need not
+include executing the device driver's own ->runtime_suspend() callback (from the
 PM core's point of view it is not necessary to implement a ->runtime_suspend()
 callback in a device driver as long as the subsystem-level suspend callback
 knows what to do to handle the device).
 
-  * Once the subsystem-level suspend callback has completed successfully
-    for given device, the PM core regards the device as suspended, which need
-    not mean that the device has been put into a low power state.  It is
-    supposed to mean, however, that the device will not process data and will
-    not communicate with the CPU(s) and RAM until the subsystem-level resume
-    callback is executed for it.  The runtime PM status of a device after
-    successful execution of the subsystem-level suspend callback is 'suspended'.
+  * Once the subsystem-level suspend callback (or the driver suspend callback,
+    if invoked directly) has completed successfully for the given device, the PM
+    core regards the device as suspended, which need not mean that it has been
+    put into a low power state.  It is supposed to mean, however, that the
+    device will not process data and will not communicate with the CPU(s) and
+    RAM until the appropriate resume callback is executed for it.  The runtime
+    PM status of a device after successful execution of the suspend callback is
+    'suspended'.
 
-  * If the subsystem-level suspend callback returns -EBUSY or -EAGAIN,
-    the device's runtime PM status is 'active', which means that the device
-    _must_ be fully operational afterwards.
+  * If the suspend callback returns -EBUSY or -EAGAIN, the device's runtime PM
+    status remains 'active', which means that the device _must_ be fully
+    operational afterwards.
 
-  * If the subsystem-level suspend callback returns an error code different
-    from -EBUSY or -EAGAIN, the PM core regards this as a fatal error and will
-    refuse to run the helper functions described in Section 4 for the device,
-    until the status of it is directly set either to 'active', or to 'suspended'
-    (the PM core provides special helper functions for this purpose).
+  * If the suspend callback returns an error code different from -EBUSY and
+    -EAGAIN, the PM core regards this as a fatal error and will refuse to run
+    the helper functions described in Section 4 for the device until its status
+    is directly set to  either'active', or 'suspended' (the PM core provides
+    special helper functions for this purpose).
 
-In particular, if the driver requires remote wake-up capability (i.e. hardware
+In particular, if the driver requires remote wakeup capability (i.e. hardware
 mechanism allowing the device to request a change of its power state, such as
 PCI PME) for proper functioning and device_run_wake() returns 'false' for the
 device, then ->runtime_suspend() should return -EBUSY.  On the other hand, if
-device_run_wake() returns 'true' for the device and the device is put into a low
-power state during the execution of the subsystem-level suspend callback, it is
-expected that remote wake-up will be enabled for the device.  Generally, remote
-wake-up should be enabled for all input devices put into a low power state at
-run time.
+device_run_wake() returns 'true' for the device and the device is put into a
+low-power state during the execution of the suspend callback, it is expected
+that remote wakeup will be enabled for the device.  Generally, remote wakeup
+should be enabled for all input devices put into low-power states at run time.
 
-The subsystem-level resume callback is _entirely_ _responsible_ for handling the
-resume of the device as appropriate, which may, but need not include executing
-the device driver's own ->runtime_resume() callback (from the PM core's point of
-view it is not necessary to implement a ->runtime_resume() callback in a device
-driver as long as the subsystem-level resume callback knows what to do to handle
-the device).
+The subsystem-level resume callback, if present, is _entirely_ _responsible_ for
+handling the resume of the device as appropriate, which may, but need not
+include executing the device driver's own ->runtime_resume() callback (from the
+PM core's point of view it is not necessary to implement a ->runtime_resume()
+callback in a device driver as long as the subsystem-level resume callback knows
+what to do to handle the device).
 
-  * Once the subsystem-level resume callback has completed successfully, the PM
-    core regards the device as fully operational, which means that the device
-    _must_ be able to complete I/O operations as needed.  The runtime PM status
-    of the device is then 'active'.
+  * Once the subsystem-level resume callback (or the driver resume callback, if
+    invoked directly) has completed successfully, the PM core regards the device
+    as fully operational, which means that the device _must_ be able to complete
+    I/O operations as needed.  The runtime PM status of the device is then
+    'active'.
 
-  * If the subsystem-level resume callback returns an error code, the PM core
-    regards this as a fatal error and will refuse to run the helper functions
-    described in Section 4 for the device, until its status is directly set
-    either to 'active' or to 'suspended' (the PM core provides special helper
-    functions for this purpose).
+  * If the resume callback returns an error code, the PM core regards this as a
+    fatal error and will refuse to run the helper functions described in Section
+    4 for the device, until its status is directly set to either 'active', or
+    'suspended' (by means of special helper functions provided by the PM core
+    for this purpose).
 
-The subsystem-level idle callback is executed by the PM core whenever the device
-appears to be idle, which is indicated to the PM core by two counters, the
-device's usage counter and the counter of 'active' children of the device.
+The idle callback (a subsystem-level one, if present, or the driver one) is
+executed by the PM core whenever the device appears to be idle, which is
+indicated to the PM core by two counters, the device's usage counter and the
+counter of 'active' children of the device.
 
   * If any of these counters is decreased using a helper function provided by
     the PM core and it turns out to be equal to zero, the other counter is
     checked.  If that counter also is equal to zero, the PM core executes the
-    subsystem-level idle callback with the device as an argument.
+    idle callback with the device as its argument.
 
-The action performed by a subsystem-level idle callback is totally dependent on
-the subsystem in question, but the expected and recommended action is to check
+The action performed by the idle callback is totally dependent on the subsystem
+(or driver) in question, but the expected and recommended action is to check
 if the device can be suspended (i.e. if all of the conditions necessary for
 suspending the device are satisfied) and to queue up a suspend request for the
 device in that case.  The value returned by this callback is ignored by the PM
 core.
 
 The helper functions provided by the PM core, described in Section 4, guarantee
-that the following constraints are met with respect to the bus type's runtime
-PM callbacks:
+that the following constraints are met with respect to runtime PM callbacks for
+one device:
 
 (1) The callbacks are mutually exclusive (e.g. it is forbidden to execute
     ->runtime_suspend() in parallel with ->runtime_resume() or with another

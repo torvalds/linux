@@ -287,7 +287,7 @@ static void mx3_videobuf_queue(struct vb2_buffer *vb)
 		sg_dma_len(sg)		= new_size;
 
 		txd = ichan->dma_chan.device->device_prep_slave_sg(
-			&ichan->dma_chan, sg, 1, DMA_FROM_DEVICE,
+			&ichan->dma_chan, sg, 1, DMA_DEV_TO_MEM,
 			DMA_PREP_INTERRUPT);
 		if (!txd)
 			goto error;
@@ -982,12 +982,13 @@ static int mx3_camera_querycap(struct soc_camera_host *ici,
 	return 0;
 }
 
-static int mx3_camera_set_bus_param(struct soc_camera_device *icd, __u32 pixfmt)
+static int mx3_camera_set_bus_param(struct soc_camera_device *icd)
 {
 	struct v4l2_subdev *sd = soc_camera_to_subdev(icd);
 	struct soc_camera_host *ici = to_soc_camera_host(icd->parent);
 	struct mx3_camera_dev *mx3_cam = ici->priv;
 	struct v4l2_mbus_config cfg = {.type = V4L2_MBUS_PARALLEL,};
+	u32 pixfmt = icd->current_fmt->host_fmt->fourcc;
 	unsigned long bus_flags, common_flags;
 	u32 dw, sens_conf;
 	const struct soc_mbus_pixelfmt *fmt;
@@ -1285,19 +1286,7 @@ static struct platform_driver mx3_camera_driver = {
 	.remove		= __devexit_p(mx3_camera_remove),
 };
 
-
-static int __init mx3_camera_init(void)
-{
-	return platform_driver_register(&mx3_camera_driver);
-}
-
-static void __exit mx3_camera_exit(void)
-{
-	platform_driver_unregister(&mx3_camera_driver);
-}
-
-module_init(mx3_camera_init);
-module_exit(mx3_camera_exit);
+module_platform_driver(mx3_camera_driver);
 
 MODULE_DESCRIPTION("i.MX3x SoC Camera Host driver");
 MODULE_AUTHOR("Guennadi Liakhovetski <lg@denx.de>");

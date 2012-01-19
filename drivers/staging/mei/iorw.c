@@ -228,18 +228,15 @@ struct mei_cl_cb *find_amthi_read_list_entry(
 		struct file *file)
 {
 	struct mei_cl *cl_temp;
-	struct mei_cl_cb *cb_pos = NULL;
-	struct mei_cl_cb *cb_next = NULL;
+	struct mei_cl_cb *pos = NULL;
+	struct mei_cl_cb *next = NULL;
 
-	if (!dev->amthi_read_complete_list.status &&
-	    !list_empty(&dev->amthi_read_complete_list.mei_cb.cb_list)) {
-		list_for_each_entry_safe(cb_pos, cb_next,
-		    &dev->amthi_read_complete_list.mei_cb.cb_list, cb_list) {
-			cl_temp = (struct mei_cl *)cb_pos->file_private;
-			if (cl_temp && cl_temp == &dev->iamthif_cl &&
-				cb_pos->file_object == file)
-				return cb_pos;
-		}
+	list_for_each_entry_safe(pos, next,
+	    &dev->amthi_read_complete_list.mei_cb.cb_list, cb_list) {
+		cl_temp = (struct mei_cl *)pos->file_private;
+		if (cl_temp && cl_temp == &dev->iamthif_cl &&
+			pos->file_object == file)
+			return pos;
 	}
 	return NULL;
 }
@@ -262,7 +259,7 @@ struct mei_cl_cb *find_amthi_read_list_entry(
  *  negative on failure.
  */
 int amthi_read(struct mei_device *dev, struct file *file,
-	      char __user *ubuf, size_t length, loff_t *offset)
+	       char __user *ubuf, size_t length, loff_t *offset)
 {
 	int rets;
 	int wait_ret;
@@ -334,8 +331,7 @@ int amthi_read(struct mei_device *dev, struct file *file,
 		}
 	}
 	/* if the whole message will fit remove it from the list */
-	if (cb->information >= *offset &&
-	    length >= (cb->information - *offset))
+	if (cb->information >= *offset && length >= (cb->information - *offset))
 		list_del(&cb->cb_list);
 	else if (cb->information > 0 && cb->information <= *offset) {
 		/* end of the message has been reached */
@@ -356,9 +352,7 @@ int amthi_read(struct mei_device *dev, struct file *file,
 	 * the information may be longer */
 	length = min_t(size_t, length, (cb->information - *offset));
 
-	if (copy_to_user(ubuf,
-			 cb->response_buffer.data + *offset,
-			 length))
+	if (copy_to_user(ubuf, cb->response_buffer.data + *offset, length))
 		rets = -EFAULT;
 	else {
 		rets = length;
@@ -427,7 +421,7 @@ int mei_start_read(struct mei_device *dev, struct mei_cl *cl)
 
 	cb->response_buffer.size = dev->me_clients[i].props.max_msg_length;
 	cb->response_buffer.data =
-	    kmalloc(cb->response_buffer.size, GFP_KERNEL);
+			kmalloc(cb->response_buffer.size, GFP_KERNEL);
 	if (!cb->response_buffer.data) {
 		rets = -ENOMEM;
 		goto unlock;
@@ -448,8 +442,7 @@ int mei_start_read(struct mei_device *dev, struct mei_cl *cl)
 				      &dev->read_list.mei_cb.cb_list);
 		}
 	} else {
-		list_add_tail(&cb->cb_list,
-			      &dev->ctrl_wr_list.mei_cb.cb_list);
+		list_add_tail(&cb->cb_list, &dev->ctrl_wr_list.mei_cb.cb_list);
 	}
 	return rets;
 unlock:
@@ -482,7 +475,7 @@ int amthi_write(struct mei_device *dev, struct mei_cl_cb *cb)
 	dev->iamthif_ioctl = true;
 	dev->iamthif_msg_buf_size = cb->request_buffer.size;
 	memcpy(dev->iamthif_msg_buf, cb->request_buffer.data,
-	    cb->request_buffer.size);
+	       cb->request_buffer.size);
 
 	ret = mei_flow_ctrl_creds(dev, &dev->iamthif_cl);
 	if (ret < 0)
@@ -534,8 +527,7 @@ int amthi_write(struct mei_device *dev, struct mei_cl_cb *cb)
 
 		dev_dbg(&dev->pdev->dev, "No flow control credentials, "
 				"so add iamthif cb to write list.\n");
-		list_add_tail(&cb->cb_list,
-			      &dev->write_list.mei_cb.cb_list);
+		list_add_tail(&cb->cb_list, &dev->write_list.mei_cb.cb_list);
 	}
 	return 0;
 }
@@ -550,8 +542,8 @@ int amthi_write(struct mei_device *dev, struct mei_cl_cb *cb)
 void mei_run_next_iamthif_cmd(struct mei_device *dev)
 {
 	struct mei_cl *cl_tmp;
-	struct mei_cl_cb *cb_pos = NULL;
-	struct mei_cl_cb *cb_next = NULL;
+	struct mei_cl_cb *pos = NULL;
+	struct mei_cl_cb *next = NULL;
 	int status;
 
 	if (!dev)
@@ -565,25 +557,22 @@ void mei_run_next_iamthif_cmd(struct mei_device *dev)
 	dev->iamthif_timer = 0;
 	dev->iamthif_file_object = NULL;
 
-	if (dev->amthi_cmd_list.status == 0 &&
-	    !list_empty(&dev->amthi_cmd_list.mei_cb.cb_list)) {
-		dev_dbg(&dev->pdev->dev, "complete amthi cmd_list cb.\n");
+	dev_dbg(&dev->pdev->dev, "complete amthi cmd_list cb.\n");
 
-		list_for_each_entry_safe(cb_pos, cb_next,
-		    &dev->amthi_cmd_list.mei_cb.cb_list, cb_list) {
-			list_del(&cb_pos->cb_list);
-			cl_tmp = (struct mei_cl *)cb_pos->file_private;
+	list_for_each_entry_safe(pos, next,
+			&dev->amthi_cmd_list.mei_cb.cb_list, cb_list) {
+		list_del(&pos->cb_list);
+		cl_tmp = (struct mei_cl *)pos->file_private;
 
-			if (cl_tmp && cl_tmp == &dev->iamthif_cl) {
-				status = amthi_write(dev, cb_pos);
-				if (status) {
-					dev_dbg(&dev->pdev->dev,
-						"amthi write failed status = %d\n",
-							status);
-					return;
-				}
-				break;
+		if (cl_tmp && cl_tmp == &dev->iamthif_cl) {
+			status = amthi_write(dev, pos);
+			if (status) {
+				dev_dbg(&dev->pdev->dev,
+					"amthi write failed status = %d\n",
+						status);
+				return;
 			}
+			break;
 		}
 	}
 }

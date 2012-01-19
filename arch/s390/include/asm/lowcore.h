@@ -97,47 +97,52 @@ struct _lowcore {
 	__u32	gpregs_save_area[16];		/* 0x0180 */
 	__u32	cregs_save_area[16];		/* 0x01c0 */
 
+	/* Save areas. */
+	__u32	save_area_sync[8];		/* 0x0200 */
+	__u32	save_area_async[8];		/* 0x0220 */
+	__u32	save_area_restart[1];		/* 0x0240 */
+	__u8	pad_0x0244[0x0248-0x0244];	/* 0x0244 */
+
 	/* Return psws. */
-	__u32	save_area[16];			/* 0x0200 */
-	psw_t	return_psw;			/* 0x0240 */
-	psw_t	return_mcck_psw;		/* 0x0248 */
+	psw_t	return_psw;			/* 0x0248 */
+	psw_t	return_mcck_psw;		/* 0x0250 */
 
 	/* CPU time accounting values */
-	__u64	sync_enter_timer;		/* 0x0250 */
-	__u64	async_enter_timer;		/* 0x0258 */
-	__u64	mcck_enter_timer;		/* 0x0260 */
-	__u64	exit_timer;			/* 0x0268 */
-	__u64	user_timer;			/* 0x0270 */
-	__u64	system_timer;			/* 0x0278 */
-	__u64	steal_timer;			/* 0x0280 */
-	__u64	last_update_timer;		/* 0x0288 */
-	__u64	last_update_clock;		/* 0x0290 */
+	__u64	sync_enter_timer;		/* 0x0258 */
+	__u64	async_enter_timer;		/* 0x0260 */
+	__u64	mcck_enter_timer;		/* 0x0268 */
+	__u64	exit_timer;			/* 0x0270 */
+	__u64	user_timer;			/* 0x0278 */
+	__u64	system_timer;			/* 0x0280 */
+	__u64	steal_timer;			/* 0x0288 */
+	__u64	last_update_timer;		/* 0x0290 */
+	__u64	last_update_clock;		/* 0x0298 */
 
 	/* Current process. */
-	__u32	current_task;			/* 0x0298 */
-	__u32	thread_info;			/* 0x029c */
-	__u32	kernel_stack;			/* 0x02a0 */
+	__u32	current_task;			/* 0x02a0 */
+	__u32	thread_info;			/* 0x02a4 */
+	__u32	kernel_stack;			/* 0x02a8 */
 
 	/* Interrupt and panic stack. */
-	__u32	async_stack;			/* 0x02a4 */
-	__u32	panic_stack;			/* 0x02a8 */
+	__u32	async_stack;			/* 0x02ac */
+	__u32	panic_stack;			/* 0x02b0 */
 
 	/* Address space pointer. */
-	__u32	kernel_asce;			/* 0x02ac */
-	__u32	user_asce;			/* 0x02b0 */
-	__u32	current_pid;			/* 0x02b4 */
+	__u32	kernel_asce;			/* 0x02b4 */
+	__u32	user_asce;			/* 0x02b8 */
+	__u32	current_pid;			/* 0x02bc */
 
 	/* SMP info area */
-	__u32	cpu_nr;				/* 0x02b8 */
-	__u32	softirq_pending;		/* 0x02bc */
-	__u32	percpu_offset;			/* 0x02c0 */
-	__u32	ext_call_fast;			/* 0x02c4 */
-	__u64	int_clock;			/* 0x02c8 */
-	__u64	mcck_clock;			/* 0x02d0 */
-	__u64	clock_comparator;		/* 0x02d8 */
-	__u32	machine_flags;			/* 0x02e0 */
-	__u32	ftrace_func;			/* 0x02e4 */
-	__u8	pad_0x02e8[0x0300-0x02e8];	/* 0x02e8 */
+	__u32	cpu_nr;				/* 0x02c0 */
+	__u32	softirq_pending;		/* 0x02c4 */
+	__u32	percpu_offset;			/* 0x02c8 */
+	__u32	ext_call_fast;			/* 0x02cc */
+	__u64	int_clock;			/* 0x02d0 */
+	__u64	mcck_clock;			/* 0x02d8 */
+	__u64	clock_comparator;		/* 0x02e0 */
+	__u32	machine_flags;			/* 0x02e8 */
+	__u32	ftrace_func;			/* 0x02ec */
+	__u8	pad_0x02f8[0x0300-0x02f0];	/* 0x02f0 */
 
 	/* Interrupt response block */
 	__u8	irb[64];			/* 0x0300 */
@@ -229,57 +234,62 @@ struct _lowcore {
 	psw_t	mcck_new_psw;			/* 0x01e0 */
 	psw_t	io_new_psw;			/* 0x01f0 */
 
-	/* Entry/exit save area & return psws. */
-	__u64	save_area[16];			/* 0x0200 */
-	psw_t	return_psw;			/* 0x0280 */
-	psw_t	return_mcck_psw;		/* 0x0290 */
+	/* Save areas. */
+	__u64	save_area_sync[8];		/* 0x0200 */
+	__u64	save_area_async[8];		/* 0x0240 */
+	__u64	save_area_restart[1];		/* 0x0280 */
+	__u8	pad_0x0288[0x0290-0x0288];	/* 0x0288 */
+
+	/* Return psws. */
+	psw_t	return_psw;			/* 0x0290 */
+	psw_t	return_mcck_psw;		/* 0x02a0 */
 
 	/* CPU accounting and timing values. */
-	__u64	sync_enter_timer;		/* 0x02a0 */
-	__u64	async_enter_timer;		/* 0x02a8 */
-	__u64	mcck_enter_timer;		/* 0x02b0 */
-	__u64	exit_timer;			/* 0x02b8 */
-	__u64	user_timer;			/* 0x02c0 */
-	__u64	system_timer;			/* 0x02c8 */
-	__u64	steal_timer;			/* 0x02d0 */
-	__u64	last_update_timer;		/* 0x02d8 */
-	__u64	last_update_clock;		/* 0x02e0 */
+	__u64	sync_enter_timer;		/* 0x02b0 */
+	__u64	async_enter_timer;		/* 0x02b8 */
+	__u64	mcck_enter_timer;		/* 0x02c0 */
+	__u64	exit_timer;			/* 0x02c8 */
+	__u64	user_timer;			/* 0x02d0 */
+	__u64	system_timer;			/* 0x02d8 */
+	__u64	steal_timer;			/* 0x02e0 */
+	__u64	last_update_timer;		/* 0x02e8 */
+	__u64	last_update_clock;		/* 0x02f0 */
 
 	/* Current process. */
-	__u64	current_task;			/* 0x02e8 */
-	__u64	thread_info;			/* 0x02f0 */
-	__u64	kernel_stack;			/* 0x02f8 */
+	__u64	current_task;			/* 0x02f8 */
+	__u64	thread_info;			/* 0x0300 */
+	__u64	kernel_stack;			/* 0x0308 */
 
 	/* Interrupt and panic stack. */
-	__u64	async_stack;			/* 0x0300 */
-	__u64	panic_stack;			/* 0x0308 */
+	__u64	async_stack;			/* 0x0310 */
+	__u64	panic_stack;			/* 0x0318 */
 
 	/* Address space pointer. */
-	__u64	kernel_asce;			/* 0x0310 */
-	__u64	user_asce;			/* 0x0318 */
-	__u64	current_pid;			/* 0x0320 */
+	__u64	kernel_asce;			/* 0x0320 */
+	__u64	user_asce;			/* 0x0328 */
+	__u64	current_pid;			/* 0x0330 */
 
 	/* SMP info area */
-	__u32	cpu_nr;				/* 0x0328 */
-	__u32	softirq_pending;		/* 0x032c */
-	__u64	percpu_offset;			/* 0x0330 */
-	__u64	ext_call_fast;			/* 0x0338 */
-	__u64	int_clock;			/* 0x0340 */
-	__u64	mcck_clock;			/* 0x0348 */
-	__u64	clock_comparator;		/* 0x0350 */
-	__u64	vdso_per_cpu_data;		/* 0x0358 */
-	__u64	machine_flags;			/* 0x0360 */
-	__u64	ftrace_func;			/* 0x0368 */
-	__u64	gmap;				/* 0x0370 */
-	__u64	cmf_hpp;			/* 0x0378 */
+	__u32	cpu_nr;				/* 0x0338 */
+	__u32	softirq_pending;		/* 0x033c */
+	__u64	percpu_offset;			/* 0x0340 */
+	__u64	ext_call_fast;			/* 0x0348 */
+	__u64	int_clock;			/* 0x0350 */
+	__u64	mcck_clock;			/* 0x0358 */
+	__u64	clock_comparator;		/* 0x0360 */
+	__u64	vdso_per_cpu_data;		/* 0x0368 */
+	__u64	machine_flags;			/* 0x0370 */
+	__u64	ftrace_func;			/* 0x0378 */
+	__u64	gmap;				/* 0x0380 */
+	__u8	pad_0x0388[0x0400-0x0388];	/* 0x0388 */
 
 	/* Interrupt response block. */
-	__u8	irb[64];			/* 0x0380 */
+	__u8	irb[64];			/* 0x0400 */
 
 	/* Per cpu primary space access list */
-	__u32	paste[16];			/* 0x03c0 */
+	__u32	paste[16];			/* 0x0440 */
 
-	__u8	pad_0x0400[0x0e00-0x0400];	/* 0x0400 */
+	__u8	pad_0x0480[0x0e00-0x0480];	/* 0x0480 */
 
 	/*
 	 * 0xe00 contains the address of the IPL Parameter Information

@@ -1718,7 +1718,7 @@ dasd_3990_erp_action_1B_32(struct dasd_ccw_req * default_erp, char *sense)
 	erp->startdev = device;
 	erp->memdev = device;
 	erp->magic = default_erp->magic;
-	erp->expires = 0;
+	erp->expires = default_erp->expires;
 	erp->retries = 256;
 	erp->buildclk = get_clock();
 	erp->status = DASD_CQR_FILLED;
@@ -2363,7 +2363,7 @@ static struct dasd_ccw_req *dasd_3990_erp_add_erp(struct dasd_ccw_req *cqr)
 	erp->memdev   = device;
 	erp->block    = cqr->block;
 	erp->magic    = cqr->magic;
-	erp->expires  = 0;
+	erp->expires  = cqr->expires;
 	erp->retries  = 256;
 	erp->buildclk = get_clock();
 	erp->status = DASD_CQR_FILLED;

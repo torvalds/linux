@@ -33,3 +33,19 @@ Description:	Maximum time allowed for periodic transfers per microframe (μs)
 		Beware, non-standard modes are usually not thoroughly tested by
 		hardware designers, and the hardware can malfunction when this
 		setting differ from default 100.
+
+What:		/sys/module/*/{coresize,initsize}
+Date:		Jan 2012
+KernelVersion:»·3.3
+Contact:	Kay Sievers <kay.sievers@vrfy.org>
+Description:	Module size in bytes.
+
+What:		/sys/module/*/taint
+Date:		Jan 2012
+KernelVersion:»·3.3
+Contact:	Kay Sievers <kay.sievers@vrfy.org>
+Description:	Module taint flags:
+			P - proprietary module
+			O - out-of-tree module
+			F - force-loaded module
+			C - staging driver module

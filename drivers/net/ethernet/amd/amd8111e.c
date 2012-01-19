@@ -499,7 +499,7 @@ static int amd8111e_restart(struct net_device *dev)
 	writel( VAL0 | APAD_XMT | REX_RTRY, mmio + CMD2 );
 
 	/* Setting the MAC address to the device */
-	for(i = 0; i < ETH_ADDR_LEN; i++)
+	for (i = 0; i < ETH_ALEN; i++)
 		writeb( dev->dev_addr[i], mmio + PADR + i );
 
 	/* Enable interrupt coalesce */
@@ -1412,10 +1412,11 @@ static void amd8111e_get_drvinfo(struct net_device* dev, struct ethtool_drvinfo 
 {
 	struct amd8111e_priv *lp = netdev_priv(dev);
 	struct pci_dev *pci_dev = lp->pci_dev;
-	strcpy (info->driver, MODULE_NAME);
-	strcpy (info->version, MODULE_VERS);
-	sprintf(info->fw_version,"%u",chip_version);
-	strcpy (info->bus_info, pci_name(pci_dev));
+	strlcpy(info->driver, MODULE_NAME, sizeof(info->driver));
+	strlcpy(info->version, MODULE_VERS, sizeof(info->version));
+	snprintf(info->fw_version, sizeof(info->fw_version),
+		"%u", chip_version);
+	strlcpy(info->bus_info, pci_name(pci_dev), sizeof(info->bus_info));
 }
 
 static int amd8111e_get_regs_len(struct net_device *dev)
@@ -1549,7 +1550,7 @@ static int amd8111e_set_mac_address(struct net_device *dev, void *p)
 	memcpy(dev->dev_addr, addr->sa_data, dev->addr_len);
 	spin_lock_irq(&lp->lock);
 	/* Setting the MAC address to the device */
-	for(i = 0; i < ETH_ADDR_LEN; i++)
+	for (i = 0; i < ETH_ALEN; i++)
 		writeb( dev->dev_addr[i], lp->mmio + PADR + i );
 
 	spin_unlock_irq(&lp->lock);
@@ -1885,7 +1886,7 @@ static int __devinit amd8111e_probe_one(struct pci_dev *pdev,
 	}
 
 	/* Initializing MAC address */
-	for(i = 0; i < ETH_ADDR_LEN; i++)
+	for (i = 0; i < ETH_ALEN; i++)
 		dev->dev_addr[i] = readb(lp->mmio + PADR + i);
 
 	/* Setting user defined parametrs */

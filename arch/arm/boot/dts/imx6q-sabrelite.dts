@@ -1,0 +1,49 @@
+/*
+ * Copyright 2011 Freescale Semiconductor, Inc.
+ * Copyright 2011 Linaro Ltd.
+ *
+ * The code contained herein is licensed under the GNU General Public
+ * License. You may obtain a copy of the GNU General Public License
+ * Version 2 or later at the following locations:
+ *
+ * http://www.opensource.org/licenses/gpl-license.html
+ * http://www.gnu.org/copyleft/gpl.html
+ */
+
+/dts-v1/;
+/include/ "imx6q.dtsi"
+
+/ {
+	model = "Freescale i.MX6 Quad SABRE Lite Board";
+	compatible = "fsl,imx6q-sabrelite", "fsl,imx6q";
+
+	memory {
+		reg = <0x10000000 0x40000000>;
+	};
+
+	soc {
+		aips-bus@02100000 { /* AIPS2 */
+			enet@02188000 {
+				phy-mode = "rgmii";
+				phy-reset-gpios = <&gpio3 23 0>;
+				status = "okay";
+			};
+
+			usdhc@02198000 { /* uSDHC3 */
+				cd-gpios = <&gpio7 0 0>;
+				wp-gpios = <&gpio7 1 0>;
+				status = "okay";
+			};
+
+			usdhc@0219c000 { /* uSDHC4 */
+				cd-gpios = <&gpio2 6 0>;
+				wp-gpios = <&gpio2 7 0>;
+				status = "okay";
+			};
+
+			uart2: uart@021e8000 {
+				status = "okay";
+			};
+		};
+	};
+};

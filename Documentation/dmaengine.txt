@@ -75,6 +75,10 @@ The slave DMA usage consists of following steps:
    slave_sg	- DMA a list of scatter gather buffers from/to a peripheral
    dma_cyclic	- Perform a cyclic DMA operation from/to a peripheral till the
 		  operation is explicitly stopped.
+   interleaved_dma - This is common to Slave as well as M2M clients. For slave
+		 address of devices' fifo could be already known to the driver.
+		 Various types of operations could be expressed by setting
+		 appropriate values to the 'dma_interleaved_template' members.
 
    A non-NULL return of this transfer API represents a "descriptor" for
    the given transaction.
@@ -88,6 +92,10 @@ The slave DMA usage consists of following steps:
 	struct dma_async_tx_descriptor *(*chan->device->device_prep_dma_cyclic)(
 		struct dma_chan *chan, dma_addr_t buf_addr, size_t buf_len,
 		size_t period_len, enum dma_data_direction direction);
+
+	struct dma_async_tx_descriptor *(*device_prep_interleaved_dma)(
+		struct dma_chan *chan, struct dma_interleaved_template *xt,
+		unsigned long flags);
 
    The peripheral driver is expected to have mapped the scatterlist for
    the DMA operation prior to calling device_prep_slave_sg, and must

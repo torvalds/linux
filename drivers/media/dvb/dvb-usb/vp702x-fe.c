@@ -135,9 +135,9 @@ static int vp702x_fe_get_tune_settings(struct dvb_frontend* fe, struct dvb_front
 	return 0;
 }
 
-static int vp702x_fe_set_frontend(struct dvb_frontend* fe,
-				  struct dvb_frontend_parameters *fep)
+static int vp702x_fe_set_frontend(struct dvb_frontend *fe)
 {
+	struct dtv_frontend_properties *fep = &fe->dtv_property_cache;
 	struct vp702x_fe_state *st = fe->demodulator_priv;
 	struct vp702x_device_state *dst = st->d->priv;
 	u32 freq = fep->frequency/1000;
@@ -155,14 +155,14 @@ static int vp702x_fe_set_frontend(struct dvb_frontend* fe,
 	cmd[1] =  freq       & 0xff;
 	cmd[2] = 1; /* divrate == 4 -> frequencyRef[1] -> 1 here */
 
-	sr = (u64) (fep->u.qpsk.symbol_rate/1000) << 20;
+	sr = (u64) (fep->symbol_rate/1000) << 20;
 	do_div(sr,88000);
 	cmd[3] = (sr >> 12) & 0xff;
 	cmd[4] = (sr >> 4)  & 0xff;
 	cmd[5] = (sr << 4)  & 0xf0;
 
 	deb_fe("setting frontend to: %u -> %u (%x) LNB-based GHz, symbolrate: %d -> %lu (%lx)\n",
-			fep->frequency,freq,freq, fep->u.qpsk.symbol_rate,
+			fep->frequency, freq, freq, fep->symbol_rate,
 			(unsigned long) sr, (unsigned long) sr);
 
 /*	if (fep->inversion == INVERSION_ON)
@@ -171,7 +171,7 @@ static int vp702x_fe_set_frontend(struct dvb_frontend* fe,
 	if (st->voltage == SEC_VOLTAGE_18)
 		cmd[6] |= 0x40;
 
-/*	if (fep->u.qpsk.symbol_rate > 8000000)
+/*	if (fep->symbol_rate > 8000000)
 		cmd[6] |= 0x20;
 
 	if (fep->frequency < 1531000)
@@ -206,13 +206,6 @@ static int vp702x_fe_init(struct dvb_frontend *fe)
 }
 
 static int vp702x_fe_sleep(struct dvb_frontend *fe)
-{
-	deb_fe("%s\n",__func__);
-	return 0;
-}
-
-static int vp702x_fe_get_frontend(struct dvb_frontend* fe,
-				  struct dvb_frontend_parameters *fep)
 {
 	deb_fe("%s\n",__func__);
 	return 0;
@@ -350,9 +343,9 @@ error:
 
 
 static struct dvb_frontend_ops vp702x_fe_ops = {
+	.delsys = { SYS_DVBS },
 	.info = {
 		.name           = "Twinhan DST-like frontend (VP7021/VP7020) DVB-S",
-		.type           = FE_QPSK,
 		.frequency_min       = 950000,
 		.frequency_max       = 2150000,
 		.frequency_stepsize  = 1000,   /* kHz for QPSK frontends */
@@ -371,7 +364,6 @@ static struct dvb_frontend_ops vp702x_fe_ops = {
 	.sleep = vp702x_fe_sleep,
 
 	.set_frontend = vp702x_fe_set_frontend,
-	.get_frontend = vp702x_fe_get_frontend,
 	.get_tune_settings = vp702x_fe_get_tune_settings,
 
 	.read_status = vp702x_fe_read_status,

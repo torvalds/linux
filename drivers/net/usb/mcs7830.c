@@ -692,17 +692,7 @@ static struct usb_driver mcs7830_driver = {
 	.reset_resume = mcs7830_reset_resume,
 };
 
-static int __init mcs7830_init(void)
-{
-	return usb_register(&mcs7830_driver);
-}
-module_init(mcs7830_init);
-
-static void __exit mcs7830_exit(void)
-{
-	usb_deregister(&mcs7830_driver);
-}
-module_exit(mcs7830_exit);
+module_usb_driver(mcs7830_driver);
 
 MODULE_DESCRIPTION("USB to network adapter MCS7830)");
 MODULE_LICENSE("GPL");

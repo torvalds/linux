@@ -62,17 +62,15 @@ static int check_node_data(struct jffs2_sb_info *c, struct jffs2_tmp_dnode_info 
 #ifndef __ECOS
 	/* TODO: instead, incapsulate point() stuff to jffs2_flash_read(),
 	 * adding and jffs2_flash_read_end() interface. */
-	if (c->mtd->point) {
-		err = c->mtd->point(c->mtd, ofs, len, &retlen,
-				    (void **)&buffer, NULL);
-		if (!err && retlen < len) {
-			JFFS2_WARNING("MTD point returned len too short: %zu instead of %u.\n", retlen, tn->csize);
-			c->mtd->unpoint(c->mtd, ofs, retlen);
-		} else if (err)
+	err = mtd_point(c->mtd, ofs, len, &retlen, (void **)&buffer, NULL);
+	if (!err && retlen < len) {
+		JFFS2_WARNING("MTD point returned len too short: %zu instead of %u.\n", retlen, tn->csize);
+		mtd_unpoint(c->mtd, ofs, retlen);
+	} else if (err) {
+		if (err != -EOPNOTSUPP)
 			JFFS2_WARNING("MTD point failed: error code %d.\n", err);
-		else
-			pointed = 1; /* succefully pointed to device */
-	}
+	} else
+		pointed = 1; /* succefully pointed to device */
 #endif
 
 	if (!pointed) {
@@ -101,7 +99,7 @@ static int check_node_data(struct jffs2_sb_info *c, struct jffs2_tmp_dnode_info 
 		kfree(buffer);
 #ifndef __ECOS
 	else
-		c->mtd->unpoint(c->mtd, ofs, len);
+		mtd_unpoint(c->mtd, ofs, len);
 #endif
 
 	if (crc != tn->data_crc) {
@@ -137,7 +135,7 @@ free_out:
 		kfree(buffer);
 #ifndef __ECOS
 	else
-		c->mtd->unpoint(c->mtd, ofs, len);
+		mtd_unpoint(c->mtd, ofs, len);
 #endif
 	return err;
 }

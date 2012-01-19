@@ -382,7 +382,7 @@ static int ucb1x00_ts_add(struct ucb1x00_dev *dev)
 	ts->adcsync = adcsync ? UCB_SYNC : UCB_NOSYNC;
 
 	idev->name       = "Touchscreen panel";
-	idev->id.product = ts->ucb->id;
+	idev->id.product = ts->ucb->id->driver_data;
 	idev->open       = ucb1x00_ts_open;
 	idev->close      = ucb1x00_ts_close;
 

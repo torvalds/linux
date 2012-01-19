@@ -3,6 +3,8 @@
 
 #ifdef CONFIG_X86_32
 
+#define EFI_LOADER_SIGNATURE	"EL32"
+
 extern unsigned long asmlinkage efi_call_phys(void *, ...);
 
 #define efi_call_phys0(f)		efi_call_phys(f)
@@ -36,6 +38,8 @@ extern unsigned long asmlinkage efi_call_phys(void *, ...);
 #define efi_ioremap(addr, size, type)		ioremap_cache(addr, size)
 
 #else /* !CONFIG_X86_32 */
+
+#define EFI_LOADER_SIGNATURE	"EL64"
 
 extern u64 efi_call0(void *fp);
 extern u64 efi_call1(void *fp, u64 arg1);

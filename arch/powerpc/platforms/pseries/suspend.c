@@ -26,7 +26,7 @@
 #include <asm/rtas.h>
 
 static u64 stream_id;
-static struct sys_device suspend_sysdev;
+static struct device suspend_dev;
 static DECLARE_COMPLETION(suspend_work);
 static struct rtas_suspend_me_data suspend_data;
 static atomic_t suspending;
@@ -110,8 +110,8 @@ static int pseries_prepare_late(void)
 
 /**
  * store_hibernate - Initiate partition hibernation
- * @classdev:	sysdev class struct
- * @attr:		class device attribute struct
+ * @dev:		subsys root device
+ * @attr:		device attribute struct
  * @buf:		buffer
  * @count:		buffer size
  *
@@ -121,8 +121,8 @@ static int pseries_prepare_late(void)
  * Return value:
  * 	number of bytes printed to buffer / other on failure
  **/
-static ssize_t store_hibernate(struct sysdev_class *classdev,
-			       struct sysdev_class_attribute *attr,
+static ssize_t store_hibernate(struct device *dev,
+			       struct device_attribute *attr,
 			       const char *buf, size_t count)
 {
 	int rc;
@@ -148,10 +148,11 @@ static ssize_t store_hibernate(struct sysdev_class *classdev,
 	return rc;
 }
 
-static SYSDEV_CLASS_ATTR(hibernate, S_IWUSR, NULL, store_hibernate);
+static DEVICE_ATTR(hibernate, S_IWUSR, NULL, store_hibernate);
 
-static struct sysdev_class suspend_sysdev_class = {
+static struct bus_type suspend_subsys = {
 	.name = "power",
+	.dev_name = "power",
 };
 
 static const struct platform_suspend_ops pseries_suspend_ops = {
@@ -167,23 +168,23 @@ static const struct platform_suspend_ops pseries_suspend_ops = {
  * Return value:
  * 	0 on success / other on failure
  **/
-static int pseries_suspend_sysfs_register(struct sys_device *sysdev)
+static int pseries_suspend_sysfs_register(struct device *dev)
 {
 	int rc;
 
-	if ((rc = sysdev_class_register(&suspend_sysdev_class)))
+	if ((rc = subsys_system_register(&suspend_subsys, NULL)))
 		return rc;
 
-	sysdev->id = 0;
-	sysdev->cls = &suspend_sysdev_class;
+	dev->id = 0;
+	dev->bus = &suspend_subsys;
 
-	if ((rc = sysdev_class_create_file(&suspend_sysdev_class, &attr_hibernate)))
-		goto class_unregister;
+	if ((rc = device_create_file(suspend_subsys.dev_root, &dev_attr_hibernate)))
+		goto subsys_unregister;
 
 	return 0;
 
-class_unregister:
-	sysdev_class_unregister(&suspend_sysdev_class);
+subsys_unregister:
+	bus_unregister(&suspend_subsys);
 	return rc;
 }
 
@@ -204,7 +205,7 @@ static int __init pseries_suspend_init(void)
 	if (suspend_data.token == RTAS_UNKNOWN_SERVICE)
 		return 0;
 
-	if ((rc = pseries_suspend_sysfs_register(&suspend_sysdev)))
+	if ((rc = pseries_suspend_sysfs_register(&suspend_dev)))
 		return rc;
 
 	ppc_md.suspend_disable_cpu = pseries_suspend_cpu;

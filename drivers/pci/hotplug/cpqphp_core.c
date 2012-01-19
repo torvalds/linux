@@ -57,8 +57,8 @@ struct irq_routing_table *cpqhp_routing_table;
 static void __iomem *smbios_table;
 static void __iomem *smbios_start;
 static void __iomem *cpqhp_rom_start;
-static int power_mode;
-static int debug;
+static bool power_mode;
+static bool debug;
 static int initialized;
 
 #define DRIVER_VERSION	"0.9.8"
