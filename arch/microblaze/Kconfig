@@ -19,6 +19,7 @@ config MICROBLAZE
 	select GENERIC_IRQ_SHOW
 	select GENERIC_PCI_IOMAP
 	select GENERIC_CPU_DEVICES
+	select GENERIC_ATOMIC64
 
 config SWAP
 	def_bool n
