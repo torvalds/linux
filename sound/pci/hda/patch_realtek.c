@@ -621,17 +621,10 @@ static void alc_mic_automute(struct hda_codec *codec)
 		alc_mux_select(codec, 0, spec->int_mic_idx, false);
 }
 
-/* unsolicited event for HP jack sensing */
-static void alc_sku_unsol_event(struct hda_codec *codec, unsigned int res)
+/* handle the specified unsol action (ALC_XXX_EVENT) */
+static void alc_exec_unsol_event(struct hda_codec *codec, int action)
 {
-	struct alc_spec *spec = codec->spec;
-	if (codec->vendor_id == 0x10ec0880)
-		res >>= 28;
-	else
-		res >>= 26;
-	if (spec->use_jack_tbl)
-		res = snd_hda_jack_get_action(codec, res);
-	switch (res) {
+	switch (action) {
 	case ALC_HP_EVENT:
 		alc_hp_automute(codec);
 		break;
@@ -643,6 +636,19 @@ static void alc_sku_unsol_event(struct hda_codec *codec, unsigned int res)
 		break;
 	}
 	snd_hda_jack_report_sync(codec);
+}
+
+/* unsolicited event for HP jack sensing */
+static void alc_sku_unsol_event(struct hda_codec *codec, unsigned int res)
+{
+	struct alc_spec *spec = codec->spec;
+	if (codec->vendor_id == 0x10ec0880)
+		res >>= 28;
+	else
+		res >>= 26;
+	if (spec->use_jack_tbl)
+		res = snd_hda_jack_get_action(codec, res);
+	alc_exec_unsol_event(codec, res);
 }
 
 /* call init functions of standard auto-mute helpers */
@@ -1883,7 +1889,7 @@ static const struct snd_kcontrol_new alc_beep_mixer[] = {
 };
 #endif
 
-static int alc_build_controls(struct hda_codec *codec)
+static int __alc_build_controls(struct hda_codec *codec)
 {
 	struct alc_spec *spec = codec->spec;
 	struct snd_kcontrol *kctl = NULL;
@@ -2029,11 +2035,16 @@ static int alc_build_controls(struct hda_codec *codec)
 
 	alc_free_kctls(codec); /* no longer needed */
 
-	err = snd_hda_jack_add_kctls(codec, &spec->autocfg);
+	return 0;
+}
+
+static int alc_build_controls(struct hda_codec *codec)
+{
+	struct alc_spec *spec = codec->spec;
+	int err = __alc_build_controls(codec);
 	if (err < 0)
 		return err;
-
-	return 0;
+	return snd_hda_jack_add_kctls(codec, &spec->autocfg);
 }
 
 
@@ -4168,6 +4179,8 @@ static int patch_alc880(struct hda_codec *codec)
 	codec->patch_ops = alc_patch_ops;
 	if (board_config == ALC_MODEL_AUTO)
 		spec->init_hook = alc_auto_init_std;
+	else
+		codec->patch_ops.build_controls = __alc_build_controls;
 #ifdef CONFIG_SND_HDA_POWER_SAVE
 	if (!spec->loopback.amplist)
 		spec->loopback.amplist = alc880_loopbacks;
@@ -4297,6 +4310,8 @@ static int patch_alc260(struct hda_codec *codec)
 	codec->patch_ops = alc_patch_ops;
 	if (board_config == ALC_MODEL_AUTO)
 		spec->init_hook = alc_auto_init_std;
+	else
+		codec->patch_ops.build_controls = __alc_build_controls;
 	spec->shutup = alc_eapd_shutup;
 #ifdef CONFIG_SND_HDA_POWER_SAVE
 	if (!spec->loopback.amplist)
@@ -4691,6 +4706,8 @@ static int patch_alc882(struct hda_codec *codec)
 	codec->patch_ops = alc_patch_ops;
 	if (board_config == ALC_MODEL_AUTO)
 		spec->init_hook = alc_auto_init_std;
+	else
+		codec->patch_ops.build_controls = __alc_build_controls;
 
 #ifdef CONFIG_SND_HDA_POWER_SAVE
 	if (!spec->loopback.amplist)
