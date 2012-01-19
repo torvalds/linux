@@ -1257,46 +1257,6 @@ static void complete_scsi_command(struct CommandList *cp)
 	cmd_free(h, cp);
 }
 
-static int hpsa_scsi_detect(struct ctlr_info *h)
-{
-	struct Scsi_Host *sh;
-	int error;
-
-	sh = scsi_host_alloc(&hpsa_driver_template, sizeof(h));
-	if (sh == NULL)
-		goto fail;
-
-	sh->io_port = 0;
-	sh->n_io_port = 0;
-	sh->this_id = -1;
-	sh->max_channel = 3;
-	sh->max_cmd_len = MAX_COMMAND_SIZE;
-	sh->max_lun = HPSA_MAX_LUN;
-	sh->max_id = HPSA_MAX_LUN;
-	sh->can_queue = h->nr_cmds;
-	sh->cmd_per_lun = h->nr_cmds;
-	sh->sg_tablesize = h->maxsgentries;
-	h->scsi_host = sh;
-	sh->hostdata[0] = (unsigned long) h;
-	sh->irq = h->intr[h->intr_mode];
-	sh->unique_id = sh->irq;
-	error = scsi_add_host(sh, &h->pdev->dev);
-	if (error)
-		goto fail_host_put;
-	scsi_scan_host(sh);
-	return 0;
-
- fail_host_put:
-	dev_err(&h->pdev->dev, "hpsa_scsi_detect: scsi_add_host"
-		" failed for controller %d\n", h->ctlr);
-	scsi_host_put(sh);
-	return error;
- fail:
-	dev_err(&h->pdev->dev, "hpsa_scsi_detect: scsi_host_alloc"
-		" failed for controller %d\n", h->ctlr);
-	return -ENOMEM;
-}
-
 static void hpsa_pci_unmap(struct pci_dev *pdev,
 	struct CommandList *c, int sg_used, int data_direction)
 {
@@ -2228,13 +2188,42 @@ static void hpsa_unregister_scsi(struct ctlr_info *h)
 
 static int hpsa_register_scsi(struct ctlr_info *h)
 {
-	int rc;
+	struct Scsi_Host *sh;
+	int error;
 
-	rc = hpsa_scsi_detect(h);
-	if (rc != 0)
-		dev_err(&h->pdev->dev, "hpsa_register_scsi: failed"
-			" hpsa_scsi_detect(), rc is %d\n", rc);
-	return rc;
+	sh = scsi_host_alloc(&hpsa_driver_template, sizeof(h));
+	if (sh == NULL)
+		goto fail;
+
+	sh->io_port = 0;
+	sh->n_io_port = 0;
+	sh->this_id = -1;
+	sh->max_channel = 3;
+	sh->max_cmd_len = MAX_COMMAND_SIZE;
+	sh->max_lun = HPSA_MAX_LUN;
+	sh->max_id = HPSA_MAX_LUN;
+	sh->can_queue = h->nr_cmds;
+	sh->cmd_per_lun = h->nr_cmds;
+	sh->sg_tablesize = h->maxsgentries;
+	h->scsi_host = sh;
+	sh->hostdata[0] = (unsigned long) h;
+	sh->irq = h->intr[h->intr_mode];
+	sh->unique_id = sh->irq;
+	error = scsi_add_host(sh, &h->pdev->dev);
+	if (error)
+		goto fail_host_put;
+	scsi_scan_host(sh);
+	return 0;
+
+ fail_host_put:
+	dev_err(&h->pdev->dev, "%s: scsi_add_host"
+		" failed for controller %d\n", __func__, h->ctlr);
+	scsi_host_put(sh);
+	return error;
+ fail:
+	dev_err(&h->pdev->dev, "%s: scsi_host_alloc"
+		" failed for controller %d\n", __func__, h->ctlr);
+	return -ENOMEM;
 }
 
 static int wait_for_device_to_become_ready(struct ctlr_info *h,
