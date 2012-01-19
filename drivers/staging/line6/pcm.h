@@ -305,13 +305,4 @@ extern void line6_pcm_disconnect(struct snd_line6_pcm *line6pcm);
 extern int line6_pcm_start(struct snd_line6_pcm *line6pcm, int channels);
 extern int line6_pcm_stop(struct snd_line6_pcm *line6pcm, int channels);
 
-#define PRINT_FRAME_DIFF(op) {						\
-	static int diff_prev = 1000;					\
-	int diff = line6pcm->last_frame_out - line6pcm->last_frame_in;	\
-	if ((diff != diff_prev) && (abs(diff) < 100)) {			\
-		printk(KERN_INFO "%s frame diff = %d\n", op, diff);	\
-		diff_prev = diff;					\
-	}								\
-}
-
 #endif
