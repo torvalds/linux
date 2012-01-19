@@ -1137,7 +1137,7 @@ int hdmi_config_audio_acr(struct hdmi_ip_data *ip_data,
 {
 	u32 r;
 	u32 deep_color = 0;
-	u32 pclk = ip_data->cfg.timings.timings.pixel_clock;
+	u32 pclk = ip_data->cfg.timings.pixel_clock;
 
 	if (n == NULL || cts == NULL)
 		return -EINVAL;
