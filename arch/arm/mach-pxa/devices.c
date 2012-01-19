@@ -415,29 +415,9 @@ static struct resource pxa_rtc_resources[] = {
 	},
 };
 
-static struct resource sa1100_rtc_resources[] = {
-	[0] = {
-		.start  = 0x40900000,
-		.end	= 0x409000ff,
-		.flags  = IORESOURCE_MEM,
-	},
-	[1] = {
-		.start  = IRQ_RTC1Hz,
-		.end    = IRQ_RTC1Hz,
-		.flags  = IORESOURCE_IRQ,
-	},
-	[2] = {
-		.start  = IRQ_RTCAlrm,
-		.end    = IRQ_RTCAlrm,
-		.flags  = IORESOURCE_IRQ,
-	},
-};
-
 struct platform_device sa1100_device_rtc = {
 	.name		= "sa1100-rtc",
 	.id		= -1,
-	.num_resources  = ARRAY_SIZE(sa1100_rtc_resources),
-	.resource       = sa1100_rtc_resources,
 };
 
 struct platform_device pxa_device_rtc = {
