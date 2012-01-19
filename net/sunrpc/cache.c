@@ -1664,6 +1664,32 @@ void cache_unregister(struct cache_detail *cd)
 }
 EXPORT_SYMBOL_GPL(cache_unregister);
 
+struct cache_detail *cache_create_net(struct cache_detail *tmpl, struct net *net)
+{
+	struct cache_detail *cd;
+
+	cd = kmemdup(tmpl, sizeof(struct cache_detail), GFP_KERNEL);
+	if (cd == NULL)
+		return ERR_PTR(-ENOMEM);
+
+	cd->hash_table = kzalloc(cd->hash_size * sizeof(struct cache_head *),
+				 GFP_KERNEL);
+	if (cd->hash_table == NULL) {
+		kfree(cd);
+		return ERR_PTR(-ENOMEM);
+	}
+	cd->net = net;
+	return cd;
+}
+EXPORT_SYMBOL_GPL(cache_create_net);
+
+void cache_destroy_net(struct cache_detail *cd, struct net *net)
+{
+	kfree(cd->hash_table);
+	kfree(cd);
+}
+EXPORT_SYMBOL_GPL(cache_destroy_net);
+
 static ssize_t cache_read_pipefs(struct file *filp, char __user *buf,
 				 size_t count, loff_t *ppos)
 {
