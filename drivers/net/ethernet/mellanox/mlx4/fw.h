@@ -119,7 +119,6 @@ struct mlx4_dev_cap {
 };
 
 struct mlx4_func_cap {
-	u8	function;
 	u8	num_ports;
 	u8	flags;
 	u32	pf_context_behaviour;

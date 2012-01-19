@@ -471,7 +471,6 @@ static int mlx4_slave_cap(struct mlx4_dev *dev)
 		return -ENOSYS;
 	}
 
-	dev->caps.function		= func_cap.function;
 	dev->caps.num_ports		= func_cap.num_ports;
 	dev->caps.num_qps		= func_cap.qp_quota;
 	dev->caps.num_srqs		= func_cap.srq_quota;

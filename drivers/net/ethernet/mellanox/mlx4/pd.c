@@ -52,8 +52,7 @@ int mlx4_pd_alloc(struct mlx4_dev *dev, u32 *pdn)
 	*pdn = mlx4_bitmap_alloc(&priv->pd_bitmap);
 	if (*pdn == -1)
 		return -ENOMEM;
-	if (mlx4_is_mfunc(dev))
-		*pdn |= (dev->caps.function + 1) << NOT_MASKED_PD_BITS;
+
 	return 0;
 }
 EXPORT_SYMBOL_GPL(mlx4_pd_alloc);
