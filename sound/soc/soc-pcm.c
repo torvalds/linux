@@ -85,9 +85,11 @@ static void soc_pcm_apply_msb(struct snd_pcm_substream *substream,
 		return;
 
 	for (i = 0; i < ARRAY_SIZE(sample_sizes); i++) {
-		ret = snd_pcm_hw_constraint_msbits(substream->runtime,
-						   0, sample_sizes[i],
-						   bits);
+		if (bits >= sample_sizes[i])
+			continue;
+
+		ret = snd_pcm_hw_constraint_msbits(substream->runtime, 0,
+						   sample_sizes[i], bits);
 		if (ret != 0)
 			dev_warn(dai->dev,
 				 "Failed to set MSB %d/%d: %d\n",
