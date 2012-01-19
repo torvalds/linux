@@ -1694,9 +1694,9 @@ static int add_msa2xxx_enclosure_device(struct ctlr_info *h,
 	if (is_scsi_rev_5(h))
 		return 0; /* p1210m doesn't need to do this. */
 
-	if (*nmsa2xxx_enclosures >= MAX_MSA2XXX_ENCLOSURES) {
-		dev_warn(&h->pdev->dev, "Maximum number of MSA2XXX "
-			"enclosures exceeded.  Check your hardware "
+	if (*nmsa2xxx_enclosures >= MAX_EXT_TARGETS) {
+		dev_warn(&h->pdev->dev, "Maximum number of external "
+			"target devices exceeded.  Check your hardware "
 			"configuration.");
 		return 0;
 	}
@@ -1802,7 +1802,7 @@ static void hpsa_update_scsi_devices(struct ctlr_info *h, int hostno)
 	int reportlunsize = sizeof(*physdev_list) + HPSA_MAX_PHYS_LUN * 8;
 	int i, nmsa2xxx_enclosures, ndevs_to_allocate;
 	int raid_ctlr_position;
-	DECLARE_BITMAP(lunzerobits, HPSA_MAX_TARGETS_PER_CTLR);
+	DECLARE_BITMAP(lunzerobits, MAX_EXT_TARGETS);
 
 	currentsd = kzalloc(sizeof(*currentsd) * HPSA_MAX_DEVICES, GFP_KERNEL);
 	physdev_list = kzalloc(reportlunsize, GFP_KERNEL);
@@ -1819,11 +1819,11 @@ static void hpsa_update_scsi_devices(struct ctlr_info *h, int hostno)
 			logdev_list, &nlogicals))
 		goto out;
 
-	/* We might see up to 32 MSA2xxx enclosures, actually 8 of them
-	 * but each of them 4 times through different paths.  The plus 1
-	 * is for the RAID controller.
+	/* We might see up to the maximum number of logical and physical disks
+	 * plus external target devices, and a device for the local RAID
+	 * controller.
 	 */
-	ndevs_to_allocate = nphysicals + nlogicals + MAX_MSA2XXX_ENCLOSURES + 1;
+	ndevs_to_allocate = nphysicals + nlogicals + MAX_EXT_TARGETS + 1;
 
 	/* Allocate the per device structures */
 	for (i = 0; i < ndevs_to_allocate; i++) {
