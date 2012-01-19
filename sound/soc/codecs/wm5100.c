@@ -1377,6 +1377,7 @@ static int wm5100_set_bias_level(struct snd_soc_codec *codec,
 
 			switch (wm5100->rev) {
 			case 0:
+				regcache_cache_bypass(wm5100->regmap, true);
 				snd_soc_write(codec, 0x11, 0x3);
 				snd_soc_write(codec, 0x203, 0xc);
 				snd_soc_write(codec, 0x206, 0);
@@ -1392,6 +1393,7 @@ static int wm5100_set_bias_level(struct snd_soc_codec *codec,
 					snd_soc_write(codec,
 						      wm5100_reva_patches[i].reg,
 						      wm5100_reva_patches[i].val);
+				regcache_cache_bypass(wm5100->regmap, false);
 				break;
 			default:
 				break;
