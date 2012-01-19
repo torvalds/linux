@@ -806,9 +806,7 @@ static struct domain_device *sas_ex_discover_end_dev(
 		child->rphy = rphy;
 		sas_fill_in_rphy(child, rphy);
 
-		spin_lock_irq(&parent->port->dev_list_lock);
-		list_add_tail(&child->dev_list_node, &parent->port->dev_list);
-		spin_unlock_irq(&parent->port->dev_list_lock);
+		list_add_tail(&child->disco_list_node, &parent->port->disco_list);
 
 		res = sas_discover_end_dev(child);
 		if (res) {

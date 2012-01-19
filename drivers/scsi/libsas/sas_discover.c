@@ -152,7 +152,7 @@ static int sas_get_port_device(struct asd_sas_port *port)
 
 	dev->rphy = rphy;
 
-	if (dev_is_sata(dev))
+	if (dev_is_sata(dev) || dev->dev_type == SAS_END_DEV)
 		list_add_tail(&dev->disco_list_node, &port->disco_list);
 	else {
 		spin_lock_irq(&port->dev_list_lock);
@@ -198,8 +198,34 @@ void sas_notify_lldd_dev_gone(struct domain_device *dev)
 	}
 }
 
-/* ---------- Common/dispatchers ---------- */
+static void sas_probe_devices(struct work_struct *work)
+{
+	struct domain_device *dev, *n;
+	struct sas_discovery_event *ev =
+		container_of(work, struct sas_discovery_event, work);
+	struct asd_sas_port *port = ev->port;
 
+	clear_bit(DISCE_PROBE, &port->disc.pending);
+
+	list_for_each_entry_safe(dev, n, &port->disco_list, disco_list_node) {
+		int err;
+
+		spin_lock_irq(&port->dev_list_lock);
+		list_add_tail(&dev->dev_list_node, &port->dev_list);
+		spin_unlock_irq(&port->dev_list_lock);
+
+		err = sas_rphy_add(dev->rphy);
+
+		if (err) {
+			SAS_DPRINTK("%s: for %s device %16llx returned %d\n",
+				    __func__, dev->parent ? "exp-attached" :
+							    "direct-attached",
+				    SAS_ADDR(dev->sas_addr), err);
+			sas_unregister_dev(port, dev);
+		} else
+			list_del_init(&dev->disco_list_node);
+	}
+}
 
 /**
  * sas_discover_end_dev -- discover an end device (SSP, etc)
@@ -213,18 +239,10 @@ int sas_discover_end_dev(struct domain_device *dev)
 
 	res = sas_notify_lldd_dev_found(dev);
 	if (res)
-		goto out_err2;
-
-	res = sas_rphy_add(dev->rphy);
-	if (res)
-		goto out_err;
+		return res;
+	sas_discover_event(dev->port, DISCE_PROBE);
 
 	return 0;
-
-out_err:
-	sas_notify_lldd_dev_gone(dev);
-out_err2:
-	return res;
 }
 
 /* ---------- Device registration and unregistration ---------- */
@@ -491,7 +509,7 @@ void sas_init_disc(struct sas_discovery *disc, struct asd_sas_port *port)
 	static const work_func_t sas_event_fns[DISC_NUM_EVENTS] = {
 		[DISCE_DISCOVER_DOMAIN] = sas_discover_domain,
 		[DISCE_REVALIDATE_DOMAIN] = sas_revalidate_domain,
-		[DISCE_PROBE] = sas_probe_sata,
+		[DISCE_PROBE] = sas_probe_devices,
 		[DISCE_DESTRUCT] = sas_destruct_devices,
 	};
 

@@ -683,35 +683,6 @@ static void sas_get_ata_command_set(struct domain_device *dev)
 		dev->sata_dev.command_set = ATAPI_COMMAND_SET;
 }
 
-void sas_probe_sata(struct work_struct *work)
-{
-	struct domain_device *dev, *n;
-	struct sas_discovery_event *ev =
-		container_of(work, struct sas_discovery_event, work);
-	struct asd_sas_port *port = ev->port;
-
-	clear_bit(DISCE_PROBE, &port->disc.pending);
-
-	list_for_each_entry_safe(dev, n, &port->disco_list, disco_list_node) {
-		int err;
-
-		spin_lock_irq(&port->dev_list_lock);
-		list_add_tail(&dev->dev_list_node, &port->dev_list);
-		spin_unlock_irq(&port->dev_list_lock);
-
-		err = sas_rphy_add(dev->rphy);
-
-		if (err) {
-			SAS_DPRINTK("%s: for %s device %16llx returned %d\n",
-				    __func__, dev->parent ? "exp-attached" :
-							    "direct-attached",
-				    SAS_ADDR(dev->sas_addr), err);
-			sas_unregister_dev(port, dev);
-		} else
-			list_del_init(&dev->disco_list_node);
-	}
-}
-
 /**
  * sas_discover_sata -- discover an STP/SATA domain device
  * @dev: pointer to struct domain_device of interest
