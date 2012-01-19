@@ -2476,12 +2476,16 @@ iscsi_host_attr(netdev, ISCSI_HOST_PARAM_NETDEV_NAME);
 iscsi_host_attr(hwaddress, ISCSI_HOST_PARAM_HWADDRESS);
 iscsi_host_attr(ipaddress, ISCSI_HOST_PARAM_IPADDRESS);
 iscsi_host_attr(initiatorname, ISCSI_HOST_PARAM_INITIATOR_NAME);
+iscsi_host_attr(port_state, ISCSI_HOST_PARAM_PORT_STATE);
+iscsi_host_attr(port_speed, ISCSI_HOST_PARAM_PORT_SPEED);
 
 static struct attribute *iscsi_host_attrs[] = {
 	&dev_attr_host_netdev.attr,
 	&dev_attr_host_hwaddress.attr,
 	&dev_attr_host_ipaddress.attr,
 	&dev_attr_host_initiatorname.attr,
+	&dev_attr_host_port_state.attr,
+	&dev_attr_host_port_speed.attr,
 	NULL,
 };
 
@@ -2501,6 +2505,10 @@ static umode_t iscsi_host_attr_is_visible(struct kobject *kobj,
 		param = ISCSI_HOST_PARAM_IPADDRESS;
 	else if (attr == &dev_attr_host_initiatorname.attr)
 		param = ISCSI_HOST_PARAM_INITIATOR_NAME;
+	else if (attr == &dev_attr_host_port_state.attr)
+		param = ISCSI_HOST_PARAM_PORT_STATE;
+	else if (attr == &dev_attr_host_port_speed.attr)
+		param = ISCSI_HOST_PARAM_PORT_SPEED;
 	else {
 		WARN_ONCE(1, "Invalid host attr");
 		return 0;
@@ -2513,6 +2521,61 @@ static struct attribute_group iscsi_host_group = {
 	.attrs = iscsi_host_attrs,
 	.is_visible = iscsi_host_attr_is_visible,
 };
+
+/* convert iscsi_port_speed values to ascii string name */
+static const struct {
+	enum iscsi_port_speed	value;
+	char			*name;
+} iscsi_port_speed_names[] = {
+	{ISCSI_PORT_SPEED_UNKNOWN,	"Unknown" },
+	{ISCSI_PORT_SPEED_10MBPS,	"10 Mbps" },
+	{ISCSI_PORT_SPEED_100MBPS,	"100 Mbps" },
+	{ISCSI_PORT_SPEED_1GBPS,	"1 Gbps" },
+	{ISCSI_PORT_SPEED_10GBPS,	"10 Gbps" },
+};
+
+char *iscsi_get_port_speed_name(struct Scsi_Host *shost)
+{
+	int i;
+	char *speed = "Unknown!";
+	struct iscsi_cls_host *ihost = shost->shost_data;
+	uint32_t port_speed = ihost->port_speed;
+
+	for (i = 0; i < ARRAY_SIZE(iscsi_port_speed_names); i++) {
+		if (iscsi_port_speed_names[i].value & port_speed) {
+			speed = iscsi_port_speed_names[i].name;
+			break;
+		}
+	}
+	return speed;
+}
+EXPORT_SYMBOL_GPL(iscsi_get_port_speed_name);
+
+/* convert iscsi_port_state values to ascii string name */
+static const struct {
+	enum iscsi_port_state	value;
+	char			*name;
+} iscsi_port_state_names[] = {
+	{ISCSI_PORT_STATE_DOWN,		"LINK DOWN" },
+	{ISCSI_PORT_STATE_UP,		"LINK UP" },
+};
+
+char *iscsi_get_port_state_name(struct Scsi_Host *shost)
+{
+	int i;
+	char *state = "Unknown!";
+	struct iscsi_cls_host *ihost = shost->shost_data;
+	uint32_t port_state = ihost->port_state;
+
+	for (i = 0; i < ARRAY_SIZE(iscsi_port_state_names); i++) {
+		if (iscsi_port_state_names[i].value & port_state) {
+			state = iscsi_port_state_names[i].name;
+			break;
+		}
+	}
+	return state;
+}
+EXPORT_SYMBOL_GPL(iscsi_get_port_state_name);
 
 static int iscsi_session_match(struct attribute_container *cont,
 			   struct device *dev)

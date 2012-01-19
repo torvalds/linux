@@ -238,6 +238,8 @@ struct iscsi_cls_host {
 	atomic_t nr_scans;
 	struct mutex mutex;
 	struct request_queue *bsg_q;
+	uint32_t port_speed;
+	uint32_t port_state;
 };
 
 #define iscsi_job_to_shost(_job) \
@@ -307,5 +309,7 @@ extern struct iscsi_iface *iscsi_create_iface(struct Scsi_Host *shost,
 					      uint32_t iface_num, int dd_size);
 extern void iscsi_destroy_iface(struct iscsi_iface *iface);
 extern struct iscsi_iface *iscsi_lookup_iface(int handle);
+extern char *iscsi_get_port_speed_name(struct Scsi_Host *shost);
+extern char *iscsi_get_port_state_name(struct Scsi_Host *shost);
 
 #endif

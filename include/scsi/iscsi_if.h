@@ -416,7 +416,24 @@ enum iscsi_host_param {
 	ISCSI_HOST_PARAM_INITIATOR_NAME,
 	ISCSI_HOST_PARAM_NETDEV_NAME,
 	ISCSI_HOST_PARAM_IPADDRESS,
+	ISCSI_HOST_PARAM_PORT_STATE,
+	ISCSI_HOST_PARAM_PORT_SPEED,
 	ISCSI_HOST_PARAM_MAX,
+};
+
+/* iSCSI port Speed */
+enum iscsi_port_speed {
+	ISCSI_PORT_SPEED_UNKNOWN	= 0x1,
+	ISCSI_PORT_SPEED_10MBPS		= 0x2,
+	ISCSI_PORT_SPEED_100MBPS	= 0x4,
+	ISCSI_PORT_SPEED_1GBPS		= 0x8,
+	ISCSI_PORT_SPEED_10GBPS		= 0x10,
+};
+
+/* iSCSI port state */
+enum iscsi_port_state {
+	ISCSI_PORT_STATE_DOWN		= 0x1,
+	ISCSI_PORT_STATE_UP		= 0x2,
 };
 
 #define iscsi_ptr(_handle) ((void*)(unsigned long)_handle)
