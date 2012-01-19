@@ -231,7 +231,7 @@ static void pch_gpio_setup(struct pch_gpio *chip)
 static int pch_irq_type(struct irq_data *d, unsigned int type)
 {
 	u32 im;
-	u32 *im_reg;
+	u32 __iomem *im_reg;
 	u32 ien;
 	u32 im_pos;
 	int ch;
@@ -376,7 +376,7 @@ static int __devinit pch_gpio_probe(struct pci_dev *pdev,
 	}
 
 	chip->base = pci_iomap(pdev, 1, 0);
-	if (chip->base == 0) {
+	if (!chip->base) {
 		dev_err(&pdev->dev, "%s : pci_iomap FAILED", __func__);
 		ret = -ENOMEM;
 		goto err_iomap;
