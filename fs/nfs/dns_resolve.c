@@ -224,7 +224,7 @@ static int nfs_dns_parse(struct cache_detail *cd, char *buf, int buflen)
 	len = qword_get(&buf, buf1, sizeof(buf1));
 	if (len <= 0)
 		goto out;
-	key.addrlen = rpc_pton(&init_net, buf1, len,
+	key.addrlen = rpc_pton(cd->net, buf1, len,
 			(struct sockaddr *)&key.addr,
 			sizeof(key.addr));
 
