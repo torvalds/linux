@@ -1,9 +1,11 @@
-NVIDIA Tegra 2 GPIO controller
+NVIDIA Tegra GPIO controller
 
 Required properties:
-- compatible : "nvidia,tegra20-gpio"
+- compatible : "nvidia,tegra<chip>-gpio"
 - reg : Physical base address and length of the controller's registers.
-- interrupts : The interrupt outputs from the controller.
+- interrupts : The interrupt outputs from the controller. For Tegra20,
+  there should be 7 interrupts specified, and for Tegra30, there should
+  be 8 interrupts specified.
 - #gpio-cells : Should be two. The first cell is the pin number and the
   second cell is used to specify optional parameters:
   - bit 0 specifies polarity (0 for normal, 1 for inverted)
