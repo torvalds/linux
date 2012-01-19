@@ -320,7 +320,9 @@ static void toneport_setup(struct usb_line6_toneport *toneport)
 	/* initialize source select: */
 	switch (usbdev->descriptor.idProduct) {
 	case LINE6_DEVID_TONEPORT_UX1:
+	case LINE6_DEVID_TONEPORT_UX2:
 	case LINE6_DEVID_PODSTUDIO_UX1:
+	case LINE6_DEVID_PODSTUDIO_UX2:
 		toneport_send_cmd(usbdev,
 				  toneport_source_info[toneport->source].code,
 				  0x0000);
@@ -363,7 +365,9 @@ static int toneport_try_init(struct usb_interface *interface,
 	/* register source select control: */
 	switch (usbdev->descriptor.idProduct) {
 	case LINE6_DEVID_TONEPORT_UX1:
+	case LINE6_DEVID_TONEPORT_UX2:
 	case LINE6_DEVID_PODSTUDIO_UX1:
+	case LINE6_DEVID_PODSTUDIO_UX2:
 		err =
 		    snd_ctl_add(line6->card,
 				snd_ctl_new1(&toneport_control_source,
