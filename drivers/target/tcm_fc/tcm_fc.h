@@ -113,7 +113,6 @@ struct ft_lport_acl {
  * Commands
  */
 struct ft_cmd {
-	u32 lun;                        /* LUN from request */
 	struct ft_sess *sess;		/* session held for cmd */
 	struct fc_seq *seq;		/* sequence in exchange mgr */
 	struct se_cmd se_cmd;		/* Local TCM I/O descriptor */

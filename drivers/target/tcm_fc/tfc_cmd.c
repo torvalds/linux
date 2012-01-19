@@ -61,7 +61,6 @@ void ft_dump_cmd(struct ft_cmd *cmd, const char *caller)
 		caller, cmd, cmd->sess, cmd->seq, se_cmd);
 	pr_debug("%s: cmd %p cdb %p\n",
 		caller, cmd, cmd->cdb);
-	pr_debug("%s: cmd %p lun %d\n", caller, cmd, cmd->lun);
 
 	pr_debug("%s: cmd %p data_nents %u len %u se_cmd_flags <0x%x>\n",
 		caller, cmd, se_cmd->t_data_nents,
@@ -407,8 +406,7 @@ static void ft_send_tm(struct ft_cmd *cmd)
 
 	switch (fcp->fc_tm_flags) {
 	case FCP_TMF_LUN_RESET:
-		cmd->lun = scsilun_to_int((struct scsi_lun *)fcp->fc_lun);
-		if (transport_lookup_tmr_lun(&cmd->se_cmd, cmd->lun) < 0) {
+		if (transport_lookup_tmr_lun(&cmd->se_cmd, scsilun_to_int(&fcp->fc_lun)) < 0) {
 			/*
 			 * Make sure to clean up newly allocated TMR request
 			 * since "unable to  handle TMR request because failed
@@ -416,7 +414,7 @@ static void ft_send_tm(struct ft_cmd *cmd)
 			 */
 			pr_debug("Failed to get LUN for TMR func %d, "
 				  "se_cmd %p, unpacked_lun %d\n",
-				  tm_func, &cmd->se_cmd, cmd->lun);
+				  tm_func, &cmd->se_cmd, scsilun_to_int(&fcp->fc_lun));
 			ft_dump_cmd(cmd, __func__);
 			sess = cmd->sess;
 			transport_send_check_condition_and_sense(&cmd->se_cmd,
@@ -597,14 +595,13 @@ static void ft_send_work(struct work_struct *work)
 		return;
 	}
 	fc_seq_exch(cmd->seq)->lp->tt.seq_set_resp(cmd->seq, ft_recv_seq, cmd);
-	cmd->lun = scsilun_to_int((struct scsi_lun *)fcp->fc_lun);
 	/*
 	 * Use a single se_cmd->cmd_kref as we expect to release se_cmd
 	 * directly from ft_check_stop_free callback in response path.
 	 */
 	target_submit_cmd(&cmd->se_cmd, cmd->sess->se_sess, cmd->cdb,
-				&cmd->ft_sense_buffer[0], cmd->lun, data_len,
-				task_attr, data_dir, 0);
+			&cmd->ft_sense_buffer[0], scsilun_to_int(&fcp->fc_lun),
+			data_len, task_attr, data_dir, 0);
 	pr_debug("r_ctl %x alloc target_submit_cmd\n", fh->fh_r_ctl);
 	return;
 
