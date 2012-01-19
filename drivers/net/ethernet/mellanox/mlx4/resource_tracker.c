@@ -2023,10 +2023,10 @@ int mlx4_GEN_EQE(struct mlx4_dev *dev, int slave, struct mlx4_eqe *eqe)
 	if (!priv->mfunc.master.slave_state)
 		return -EINVAL;
 
-	event_eq = &priv->mfunc.master.slave_state[slave].event_eq;
+	event_eq = &priv->mfunc.master.slave_state[slave].event_eq[eqe->type];
 
 	/* Create the event only if the slave is registered */
-	if ((event_eq->event_type & (1 << eqe->type)) == 0)
+	if (event_eq->eqn < 0)
 		return 0;
 
 	mutex_lock(&priv->mfunc.master.gen_eqe_mutex[slave]);
