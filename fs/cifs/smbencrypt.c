@@ -213,7 +213,7 @@ E_md4hash(const unsigned char *passwd, unsigned char *p16,
 
 	/* Password cannot be longer than 128 characters */
 	if (passwd) /* Password must be converted to NT unicode */
-		len = cifs_strtoUCS(wpwd, passwd, 128, codepage);
+		len = cifs_strtoUTF16(wpwd, passwd, 128, codepage);
 	else {
 		len = 0;
 		*wpwd = 0; /* Ensure string is null terminated */

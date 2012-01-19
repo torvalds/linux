@@ -3644,7 +3644,7 @@ CIFSTCon(unsigned int xid, struct cifs_ses *ses,
 	if (ses->capabilities & CAP_UNICODE) {
 		smb_buffer->Flags2 |= SMBFLG2_UNICODE;
 		length =
-		    cifs_strtoUCS((__le16 *) bcc_ptr, tree,
+		    cifs_strtoUTF16((__le16 *) bcc_ptr, tree,
 			6 /* max utf8 char length in bytes */ *
 			(/* server len*/ + 256 /* share len */), nls_codepage);
 		bcc_ptr += 2 * length;	/* convert num 16 bit words to bytes */
@@ -3699,7 +3699,7 @@ CIFSTCon(unsigned int xid, struct cifs_ses *ses,
 
 		/* mostly informational -- no need to fail on error here */
 		kfree(tcon->nativeFileSystem);
-		tcon->nativeFileSystem = cifs_strndup_from_ucs(bcc_ptr,
+		tcon->nativeFileSystem = cifs_strndup_from_utf16(bcc_ptr,
 						      bytes_left, is_unicode,
 						      nls_codepage);
 
