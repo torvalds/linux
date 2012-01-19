@@ -4482,6 +4482,14 @@ static void hpsa_shutdown(struct pci_dev *pdev)
 #endif				/* CONFIG_PCI_MSI */
 }
 
+static void __devexit hpsa_free_device_info(struct ctlr_info *h)
+{
+	int i;
+
+	for (i = 0; i < h->ndevices; i++)
+		kfree(h->dev[i]);
+}
+
 static void __devexit hpsa_remove_one(struct pci_dev *pdev)
 {
 	struct ctlr_info *h;
@@ -4497,6 +4505,7 @@ static void __devexit hpsa_remove_one(struct pci_dev *pdev)
 	iounmap(h->vaddr);
 	iounmap(h->transtable);
 	iounmap(h->cfgtable);
+	hpsa_free_device_info(h);
 	hpsa_free_sg_chain_blocks(h);
 	pci_free_consistent(h->pdev,
 		h->nr_cmds * sizeof(struct CommandList),
