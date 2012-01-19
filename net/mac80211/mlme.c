@@ -127,7 +127,7 @@ static void run_again(struct ieee80211_if_managed *ifmgd,
 
 void ieee80211_sta_reset_beacon_monitor(struct ieee80211_sub_if_data *sdata)
 {
-	if (sdata->local->hw.flags & IEEE80211_HW_BEACON_FILTER)
+	if (sdata->vif.driver_flags & IEEE80211_VIF_BEACON_FILTER)
 		return;
 
 	mod_timer(&sdata->u.mgd.bcn_mon_timer,

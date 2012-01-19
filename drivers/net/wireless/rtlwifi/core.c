@@ -112,6 +112,8 @@ static int rtl_op_add_interface(struct ieee80211_hw *hw,
 	struct rtl_mac *mac = rtl_mac(rtl_priv(hw));
 	int err = 0;
 
+	vif->driver_flags |= IEEE80211_VIF_BEACON_FILTER;
+
 	if (mac->vif) {
 		RT_TRACE(rtlpriv, COMP_ERR, DBG_WARNING,
 			 "vif has been set!! mac->vif = 0x%p\n", mac->vif);
