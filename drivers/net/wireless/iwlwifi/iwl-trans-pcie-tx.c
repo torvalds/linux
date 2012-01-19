@@ -431,9 +431,12 @@ void iwl_trans_tx_queue_set_status(struct iwl_trans *trans,
 
 	txq->sched_retry = scd_retry;
 
-	IWL_DEBUG_TX_QUEUES(trans, "%s %s Queue %d on FIFO %d\n",
-		       active ? "Activate" : "Deactivate",
-		       scd_retry ? "BA" : "AC/CMD", txq_id, tx_fifo_id);
+	if (active)
+		IWL_DEBUG_TX_QUEUES(trans, "Activate %s Queue %d on FIFO %d\n",
+			scd_retry ? "BA" : "AC/CMD", txq_id, tx_fifo_id);
+	else
+		IWL_DEBUG_TX_QUEUES(trans, "Deactivate %s Queue %d\n",
+			scd_retry ? "BA" : "AC/CMD", txq_id);
 }
 
 static inline int get_fifo_from_tid(struct iwl_trans_pcie *trans_pcie,
