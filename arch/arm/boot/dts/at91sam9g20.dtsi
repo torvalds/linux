@@ -26,6 +26,8 @@
 		gpio0 = &pioA;
 		gpio1 = &pioB;
 		gpio2 = &pioC;
+		tcb0 = &tcb0;
+		tcb1 = &tcb1;
 	};
 	cpus {
 		cpu@0 {
@@ -61,6 +63,18 @@
 				compatible = "atmel,at91sam9260-pit";
 				reg = <0xfffffd30 0xf>;
 				interrupts = <1 4>;
+			};
+
+			tcb0: timer@fffa0000 {
+				compatible = "atmel,at91rm9200-tcb";
+				reg = <0xfffa0000 0x100>;
+				interrupts = <17 4 18 4 19 4>;
+			};
+
+			tcb1: timer@fffdc000 {
+				compatible = "atmel,at91rm9200-tcb";
+				reg = <0xfffdc000 0x100>;
+				interrupts = <26 4 27 4 28 4>;
 			};
 
 			pioA: gpio@fffff400 {

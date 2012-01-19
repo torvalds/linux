@@ -1090,8 +1090,25 @@ static struct platform_device at91sam9g45_tcb1_device = {
 	.num_resources	= ARRAY_SIZE(tcb1_resources),
 };
 
+#if defined(CONFIG_OF)
+static struct of_device_id tcb_ids[] = {
+	{ .compatible = "atmel,at91rm9200-tcb" },
+	{ /*sentinel*/ }
+};
+#endif
+
 static void __init at91_add_device_tc(void)
 {
+#if defined(CONFIG_OF)
+	struct device_node *np;
+
+	np = of_find_matching_node(NULL, tcb_ids);
+	if (np) {
+		of_node_put(np);
+		return;
+	}
+#endif
+
 	platform_device_register(&at91sam9g45_tcb0_device);
 	platform_device_register(&at91sam9g45_tcb1_device);
 }

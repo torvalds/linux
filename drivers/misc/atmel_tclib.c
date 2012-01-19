@@ -6,8 +6,10 @@
 #include <linux/ioport.h>
 #include <linux/kernel.h>
 #include <linux/platform_device.h>
+#include <linux/module.h>
 #include <linux/slab.h>
 #include <linux/export.h>
+#include <linux/of.h>
 
 /*
  * This is a thin library to solve the problem of how to portably allocate
@@ -48,7 +50,13 @@ struct atmel_tc *atmel_tc_alloc(unsigned block, const char *name)
 
 	spin_lock(&tc_list_lock);
 	list_for_each_entry(tc, &tc_list, node) {
-		if (tc->pdev->id == block) {
+		if (tc->pdev->dev.of_node) {
+			if (of_alias_get_id(tc->pdev->dev.of_node, "tcb")
+					== block) {
+				pdev = tc->pdev;
+				break;
+			}
+		} else if (tc->pdev->id == block) {
 			pdev = tc->pdev;
 			break;
 		}
@@ -105,6 +113,18 @@ void atmel_tc_free(struct atmel_tc *tc)
 }
 EXPORT_SYMBOL_GPL(atmel_tc_free);
 
+#if defined(CONFIG_OF)
+static const struct of_device_id atmel_tcb_dt_ids[] = {
+	{
+		.compatible = "atmel,at91rm9200-tcb",
+	}, {
+		/* sentinel */
+	}
+};
+
+MODULE_DEVICE_TABLE(of, atmel_tcb_dt_ids);
+#endif
+
 static int __init tc_probe(struct platform_device *pdev)
 {
 	struct atmel_tc *tc;
@@ -154,7 +174,10 @@ static int __init tc_probe(struct platform_device *pdev)
 }
 
 static struct platform_driver tc_driver = {
-	.driver.name	= "atmel_tcb",
+	.driver = {
+		.name	= "atmel_tcb",
+		.of_match_table	= of_match_ptr(atmel_tcb_dt_ids),
+	},
 };
 
 static int __init tc_init(void)
