@@ -931,17 +931,20 @@ static int skge_ring_alloc(struct skge_ring *ring, void *vaddr, u32 base)
 }
 
 /* Allocate and setup a new buffer for receiving */
-static void skge_rx_setup(struct skge_port *skge, struct skge_element *e,
-			  struct sk_buff *skb, unsigned int bufsize)
+static int skge_rx_setup(struct pci_dev *pdev,
+			 struct skge_element *e,
+			 struct sk_buff *skb, unsigned int bufsize)
 {
 	struct skge_rx_desc *rd = e->desc;
-	u64 map;
+	dma_addr_t map;
 
-	map = pci_map_single(skge->hw->pdev, skb->data, bufsize,
+	map = pci_map_single(pdev, skb->data, bufsize,
 			     PCI_DMA_FROMDEVICE);
+	if (pci_dma_mapping_error(pdev, map))
+		goto mapping_error;
 
-	rd->dma_lo = map;
-	rd->dma_hi = map >> 32;
+	rd->dma_lo = lower_32_bits(map);
+	rd->dma_hi = upper_32_bits(map);
 	e->skb = skb;
 	rd->csum1_start = ETH_HLEN;
 	rd->csum2_start = ETH_HLEN;
@@ -953,6 +956,13 @@ static void skge_rx_setup(struct skge_port *skge, struct skge_element *e,
 	rd->control = BMU_OWN | BMU_STF | BMU_IRQ_EOF | BMU_TCP_CHECK | bufsize;
 	dma_unmap_addr_set(e, mapaddr, map);
 	dma_unmap_len_set(e, maplen, bufsize);
+	return 0;
+
+mapping_error:
+	if (net_ratelimit())
+		dev_warn(&pdev->dev, "%s: rx mapping error\n",
+			 skb->dev->name);
+	return -EIO;
 }
 
 /* Resume receiving using existing skb,
@@ -1014,7 +1024,11 @@ static int skge_rx_fill(struct net_device *dev)
 			return -ENOMEM;
 
 		skb_reserve(skb, NET_IP_ALIGN);
-		skge_rx_setup(skge, e, skb, skge->rx_buf_size);
+		if (skge_rx_setup(skge->hw->pdev, e, skb, skge->rx_buf_size)) {
+			kfree_skb(skb);
+			return -ENOMEM;
+		}
+
 	} while ((e = e->next) != ring->start);
 
 	ring->to_clean = ring->start;
@@ -2729,7 +2743,7 @@ static netdev_tx_t skge_xmit_frame(struct sk_buff *skb,
 	struct skge_tx_desc *td;
 	int i;
 	u32 control, len;
-	u64 map;
+	dma_addr_t map;
 
 	if (skb_padto(skb, ETH_ZLEN))
 		return NETDEV_TX_OK;
@@ -2743,11 +2757,14 @@ static netdev_tx_t skge_xmit_frame(struct sk_buff *skb,
 	e->skb = skb;
 	len = skb_headlen(skb);
 	map = pci_map_single(hw->pdev, skb->data, len, PCI_DMA_TODEVICE);
+	if (pci_dma_mapping_error(hw->pdev, map))
+		goto mapping_error;
+
 	dma_unmap_addr_set(e, mapaddr, map);
 	dma_unmap_len_set(e, maplen, len);
 
-	td->dma_lo = map;
-	td->dma_hi = map >> 32;
+	td->dma_lo = lower_32_bits(map);
+	td->dma_hi = upper_32_bits(map);
 
 	if (skb->ip_summed == CHECKSUM_PARTIAL) {
 		const int offset = skb_checksum_start_offset(skb);
@@ -2778,14 +2795,16 @@ static netdev_tx_t skge_xmit_frame(struct sk_buff *skb,
 
 			map = skb_frag_dma_map(&hw->pdev->dev, frag, 0,
 					       skb_frag_size(frag), DMA_TO_DEVICE);
+			if (dma_mapping_error(&hw->pdev->dev, map))
+				goto mapping_unwind;
 
 			e = e->next;
 			e->skb = skb;
 			tf = e->desc;
 			BUG_ON(tf->control & BMU_OWN);
 
-			tf->dma_lo = map;
-			tf->dma_hi = (u64) map >> 32;
+			tf->dma_lo = lower_32_bits(map);
+			tf->dma_hi = upper_32_bits(map);
 			dma_unmap_addr_set(e, mapaddr, map);
 			dma_unmap_len_set(e, maplen, skb_frag_size(frag));
 
@@ -2812,6 +2831,28 @@ static netdev_tx_t skge_xmit_frame(struct sk_buff *skb,
 		netif_stop_queue(dev);
 	}
 
+	return NETDEV_TX_OK;
+
+mapping_unwind:
+	/* unroll any pages that were already mapped.  */
+	if (e != skge->tx_ring.to_use) {
+		struct skge_element *u;
+
+		for (u = skge->tx_ring.to_use->next; u != e; u = u->next)
+			pci_unmap_page(hw->pdev, dma_unmap_addr(u, mapaddr),
+				       dma_unmap_len(u, maplen),
+				       PCI_DMA_TODEVICE);
+		e = skge->tx_ring.to_use;
+	}
+	/* undo the mapping for the skb header */
+	pci_unmap_single(hw->pdev, dma_unmap_addr(e, mapaddr),
+			 dma_unmap_len(e, maplen),
+			 PCI_DMA_TODEVICE);
+mapping_error:
+	/* mapping error causes error message and packet to be discarded. */
+	if (net_ratelimit())
+		dev_warn(&hw->pdev->dev, "%s: tx mapping error\n", dev->name);
+	dev_kfree_skb(skb);
 	return NETDEV_TX_OK;
 }
 
@@ -3060,13 +3101,17 @@ static struct sk_buff *skge_rx_get(struct net_device *dev,
 		if (!nskb)
 			goto resubmit;
 
+		if (unlikely(skge_rx_setup(skge->hw->pdev, e, nskb, skge->rx_buf_size))) {
+			dev_kfree_skb(nskb);
+			goto resubmit;
+		}
+
 		pci_unmap_single(skge->hw->pdev,
 				 dma_unmap_addr(e, mapaddr),
 				 dma_unmap_len(e, maplen),
 				 PCI_DMA_FROMDEVICE);
 		skb = e->skb;
 		prefetch(skb->data);
-		skge_rx_setup(skge, e, nskb, skge->rx_buf_size);
 	}
 
 	skb_put(skb, len);
