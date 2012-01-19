@@ -2700,16 +2700,16 @@ static int hpsa_big_passthru_ioctl(struct ctlr_info *h, void __user *argp)
 		status = -EINVAL;
 		goto cleanup1;
 	}
-	if (ioc->buf_size > ioc->malloc_size * MAXSGENTRIES) {
+	if (ioc->buf_size > ioc->malloc_size * SG_ENTRIES_IN_CMD) {
 		status = -EINVAL;
 		goto cleanup1;
 	}
-	buff = kzalloc(MAXSGENTRIES * sizeof(char *), GFP_KERNEL);
+	buff = kzalloc(SG_ENTRIES_IN_CMD * sizeof(char *), GFP_KERNEL);
 	if (!buff) {
 		status = -ENOMEM;
 		goto cleanup1;
 	}
-	buff_size = kmalloc(MAXSGENTRIES * sizeof(int), GFP_KERNEL);
+	buff_size = kmalloc(SG_ENTRIES_IN_CMD * sizeof(int), GFP_KERNEL);
 	if (!buff_size) {
 		status = -ENOMEM;
 		goto cleanup1;
@@ -4601,15 +4601,15 @@ static __devinit void hpsa_enter_performant_mode(struct ctlr_info *h,
 	 * Each SG entry requires 16 bytes.  The eight registers are programmed
 	 * with the number of 16-byte blocks a command of that size requires.
 	 * The smallest command possible requires 5 such 16 byte blocks.
-	 * the largest command possible requires MAXSGENTRIES + 4 16-byte
+	 * the largest command possible requires SG_ENTRIES_IN_CMD + 4 16-byte
 	 * blocks.  Note, this only extends to the SG entries contained
 	 * within the command block, and does not extend to chained blocks
 	 * of SG elements.   bft[] contains the eight values we write to
 	 * the registers.  They are not evenly distributed, but have more
 	 * sizes for small commands, and fewer sizes for larger commands.
 	 */
-	int bft[8] = {5, 6, 8, 10, 12, 20, 28, MAXSGENTRIES + 4};
-	BUILD_BUG_ON(28 > MAXSGENTRIES + 4);
+	int bft[8] = {5, 6, 8, 10, 12, 20, 28, SG_ENTRIES_IN_CMD + 4};
+	BUILD_BUG_ON(28 > SG_ENTRIES_IN_CMD + 4);
 	/*  5 = 1 s/g entry or 4k
 	 *  6 = 2 s/g entry or 8k
 	 *  8 = 4 s/g entry or 16k
@@ -4622,8 +4622,9 @@ static __devinit void hpsa_enter_performant_mode(struct ctlr_info *h,
 	memset(h->reply_pool, 0, h->reply_pool_size);
 	h->reply_pool_head = h->reply_pool;
 
-	bft[7] = h->max_sg_entries + 4;
-	calc_bucket_map(bft, ARRAY_SIZE(bft), 32, h->blockFetchTable);
+	bft[7] = SG_ENTRIES_IN_CMD + 4;
+	calc_bucket_map(bft, ARRAY_SIZE(bft),
+				SG_ENTRIES_IN_CMD, h->blockFetchTable);
 	for (i = 0; i < 8; i++)
 		writel(bft[i], &h->transtable->BlockFetch[i]);
 
@@ -4661,14 +4662,13 @@ static __devinit void hpsa_put_ctlr_into_performant_mode(struct ctlr_info *h)
 		return;
 
 	hpsa_get_max_perf_mode_cmds(h);
-	h->max_sg_entries = 32;
 	/* Performant mode ring buffer and supporting data structures */
 	h->reply_pool_size = h->max_commands * sizeof(u64);
 	h->reply_pool = pci_alloc_consistent(h->pdev, h->reply_pool_size,
 				&(h->reply_pool_dhandle));
 
 	/* Need a block fetch table for performant mode */
-	h->blockFetchTable = kmalloc(((h->max_sg_entries+1) *
+	h->blockFetchTable = kmalloc(((SG_ENTRIES_IN_CMD + 1) *
 				sizeof(u32)), GFP_KERNEL);
 
 	if ((h->reply_pool == NULL)

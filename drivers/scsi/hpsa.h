@@ -58,7 +58,6 @@ struct ctlr_info {
 	unsigned long paddr;
 	int 	nr_cmds; /* Number of commands allowed on this controller */
 	struct CfgTable __iomem *cfgtable;
-	int     max_sg_entries;
 	int	interrupts_enabled;
 	int	major;
 	int 	max_commands;

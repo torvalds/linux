@@ -23,7 +23,7 @@
 
 /* general boundary defintions */
 #define SENSEINFOBYTES          32 /* may vary between hbas */
-#define MAXSGENTRIES            32
+#define SG_ENTRIES_IN_CMD	32 /* Max SG entries excluding chain blocks */
 #define HPSA_SG_CHAIN		0x80000000
 #define MAXREPLYQS              256
 
@@ -282,7 +282,7 @@ struct CommandList {
 	struct CommandListHeader Header;
 	struct RequestBlock      Request;
 	struct ErrDescriptor     ErrDesc;
-	struct SGDescriptor      SG[MAXSGENTRIES];
+	struct SGDescriptor      SG[SG_ENTRIES_IN_CMD];
 	/* information associated with the command */
 	u32			   busaddr; /* physical addr of this record */
 	struct ErrorInfo *err_info; /* pointer to the allocated mem */
