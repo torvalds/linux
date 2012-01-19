@@ -593,12 +593,12 @@ struct se_cmd {
 };
 
 struct se_tmr_req {
-	/* Task Management function to be preformed */
+	/* Task Management function to be performed */
 	u8			function;
 	/* Task Management response to send */
 	u8			response;
 	int			call_transport;
-	/* Reference to ITT that Task Mgmt should be preformed */
+	/* Reference to ITT that Task Mgmt should be performed */
 	u32			ref_task_tag;
 	/* 64-bit encoded SAM LUN from $FABRIC_MOD TMR header */
 	u64			ref_task_lun;
