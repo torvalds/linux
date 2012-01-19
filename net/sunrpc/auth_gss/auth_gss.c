@@ -1662,6 +1662,21 @@ static const struct rpc_pipe_ops gss_upcall_ops_v1 = {
 	.release_pipe	= gss_pipe_release,
 };
 
+static __net_init int rpcsec_gss_init_net(struct net *net)
+{
+	return gss_svc_init_net(net);
+}
+
+static __net_exit void rpcsec_gss_exit_net(struct net *net)
+{
+	gss_svc_shutdown_net(net);
+}
+
+static struct pernet_operations rpcsec_gss_net_ops = {
+	.init = rpcsec_gss_init_net,
+	.exit = rpcsec_gss_exit_net,
+};
+
 /*
  * Initialize RPCSEC_GSS module
  */
@@ -1675,8 +1690,13 @@ static int __init init_rpcsec_gss(void)
 	err = gss_svc_init();
 	if (err)
 		goto out_unregister;
+	err = register_pernet_subsys(&rpcsec_gss_net_ops);
+	if (err)
+		goto out_svc_exit;
 	rpc_init_wait_queue(&pipe_version_rpc_waitqueue, "gss pipe version");
 	return 0;
+out_svc_exit:
+	gss_svc_shutdown();
 out_unregister:
 	rpcauth_unregister(&authgss_ops);
 out:
@@ -1685,6 +1705,7 @@ out:
 
 static void __exit exit_rpcsec_gss(void)
 {
+	unregister_pernet_subsys(&rpcsec_gss_net_ops);
 	gss_svc_shutdown();
 	rpcauth_unregister(&authgss_ops);
 	rcu_barrier(); /* Wait for completion of call_rcu()'s */
