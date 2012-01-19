@@ -1647,30 +1647,15 @@ static void figure_bus_target_lun(struct ctlr_info *h,
 			*target = (lunid >> 16) & 0x3fff;
 			*lun = lunid & 0x00ff;
 		} else {
-			if (likely(is_scsi_rev_5(h))) {
-				/* All current smart arrays (circa 2011) */
-				*bus = 0;
-				*target = 0;
-				*lun = (lunid & 0x3fff) + 1;
-			} else {
-				/* Traditional old smart array way. */
-				*bus = 0;
-				*target = lunid & 0x3fff;
-				*lun = 0;
-			}
+			*bus = 0;
+			*target = 0;
+			*lun = (lunid & 0x3fff);
 		}
 	} else {
-		/* physical device */
 		if (is_hba_lunid(lunaddrbytes))
-			if (unlikely(is_scsi_rev_5(h))) {
-				*bus = 0; /* put p1210m ctlr at 0,0,0 */
-				*target = 0;
-				*lun = 0;
-				return;
-			} else
-				*bus = 3; /* traditional smartarray */
+			*bus = 3; /* controller */
 		else
-			*bus = 2; /* physical disk */
+			*bus = 2; /* physical device */
 		*target = -1;
 		*lun = -1; /* we will fill these in later. */
 	}
