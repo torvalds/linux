@@ -1006,7 +1006,8 @@ static int mmc_init_card(struct mmc_host *host, u32 ocr,
 			err = mmc_select_hs200(card);
 		else if	(host->caps & MMC_CAP_MMC_HIGHSPEED)
 			err = mmc_switch(card, EXT_CSD_CMD_SET_NORMAL,
-					 EXT_CSD_HS_TIMING, 1, 0);
+					 EXT_CSD_HS_TIMING, 1,
+					 card->ext_csd.generic_cmd6_time);
 
 		if (err && err != -EBADMSG)
 			goto free_card;
@@ -1116,7 +1117,7 @@ static int mmc_init_card(struct mmc_host *host, u32 ocr,
 	 * Activate wide bus and DDR (if supported).
 	 */
 	if (!mmc_card_hs200(card) &&
-	    (card->csd.mmca_vsn >= CSD_SPEC_VER_3) &&
+	    (card->csd.mmca_vsn >= CSD_SPEC_VER_4) &&
 	    (host->caps & (MMC_CAP_4_BIT_DATA | MMC_CAP_8_BIT_DATA))) {
 		static unsigned ext_csd_bits[][2] = {
 			{ EXT_CSD_BUS_WIDTH_8, EXT_CSD_DDR_BUS_WIDTH_8 },
