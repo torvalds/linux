@@ -3233,7 +3233,7 @@ static int alc_auto_create_multi_out_ctls(struct hda_codec *codec,
 	int i, err, noutputs;
 
 	noutputs = cfg->line_outs;
-	if (spec->multi_ios > 0)
+	if (spec->multi_ios > 0 && cfg->line_outs < 3)
 		noutputs += spec->multi_ios;
 
 	for (i = 0; i < noutputs; i++) {
