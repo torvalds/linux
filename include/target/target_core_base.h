@@ -474,12 +474,6 @@ struct t10_reservation {
 	struct t10_reservation_ops pr_ops;
 };
 
-struct se_queue_req {
-	int			state;
-	struct se_cmd		*cmd;
-	struct list_head	qr_list;
-};
-
 struct se_queue_obj {
 	atomic_t		queue_cnt;
 	spinlock_t		cmd_queue_lock;
