@@ -898,6 +898,8 @@ int mlx4_DUMP_ETH_STATS_wrapper(struct mlx4_dev *dev, int slave,
 				struct mlx4_cmd_mailbox *outbox,
 				struct mlx4_cmd_info *cmd)
 {
+	if (slave != dev->caps.function)
+		return 0;
 	return mlx4_common_dump_eth_stats(dev, slave,
 					  vhcr->in_modifier, outbox);
 }
