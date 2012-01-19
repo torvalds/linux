@@ -702,6 +702,8 @@ int mlx4_en_start_port(struct net_device *dev)
 	/* Schedule multicast task to populate multicast list */
 	queue_work(mdev->workqueue, &priv->mcast_task);
 
+	mlx4_set_stats_bitmap(mdev->dev, &priv->stats_bitmap);
+
 	priv->port_up = true;
 	netif_tx_start_all_queues(dev);
 	return 0;
