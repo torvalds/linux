@@ -604,8 +604,7 @@ static const struct dvb_frontend_ops cxd2820r_ops = {
 };
 
 struct dvb_frontend *cxd2820r_attach(const struct cxd2820r_config *cfg,
-				     struct i2c_adapter *i2c,
-				     struct dvb_frontend *fe)
+		struct i2c_adapter *i2c)
 {
 	struct cxd2820r_priv *priv = NULL;
 	int ret;
