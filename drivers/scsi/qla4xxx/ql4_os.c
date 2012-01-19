@@ -206,6 +206,8 @@ static umode_t ql4_attr_is_visible(int param_type, int param)
 		case ISCSI_HOST_PARAM_HWADDRESS:
 		case ISCSI_HOST_PARAM_IPADDRESS:
 		case ISCSI_HOST_PARAM_INITIATOR_NAME:
+		case ISCSI_HOST_PARAM_PORT_STATE:
+		case ISCSI_HOST_PARAM_PORT_SPEED:
 			return S_IRUGO;
 		default:
 			return 0;
@@ -548,6 +550,43 @@ static enum blk_eh_timer_return qla4xxx_eh_cmd_timed_out(struct scsi_cmnd *sc)
 	return ret;
 }
 
+static void qla4xxx_set_port_speed(struct Scsi_Host *shost)
+{
+	struct scsi_qla_host *ha = to_qla_host(shost);
+	struct iscsi_cls_host *ihost = shost_priv(shost);
+	uint32_t speed = ISCSI_PORT_SPEED_UNKNOWN;
+
+	qla4xxx_get_firmware_state(ha);
+
+	switch (ha->addl_fw_state & 0x0F00) {
+	case FW_ADDSTATE_LINK_SPEED_10MBPS:
+		speed = ISCSI_PORT_SPEED_10MBPS;
+		break;
+	case FW_ADDSTATE_LINK_SPEED_100MBPS:
+		speed = ISCSI_PORT_SPEED_100MBPS;
+		break;
+	case FW_ADDSTATE_LINK_SPEED_1GBPS:
+		speed = ISCSI_PORT_SPEED_1GBPS;
+		break;
+	case FW_ADDSTATE_LINK_SPEED_10GBPS:
+		speed = ISCSI_PORT_SPEED_10GBPS;
+		break;
+	}
+	ihost->port_speed = speed;
+}
+
+static void qla4xxx_set_port_state(struct Scsi_Host *shost)
+{
+	struct scsi_qla_host *ha = to_qla_host(shost);
+	struct iscsi_cls_host *ihost = shost_priv(shost);
+	uint32_t state = ISCSI_PORT_STATE_DOWN;
+
+	if (test_bit(AF_LINK_UP, &ha->flags))
+		state = ISCSI_PORT_STATE_UP;
+
+	ihost->port_state = state;
+}
+
 static int qla4xxx_host_get_param(struct Scsi_Host *shost,
 				  enum iscsi_host_param param, char *buf)
 {
@@ -563,6 +602,14 @@ static int qla4xxx_host_get_param(struct Scsi_Host *shost,
 		break;
 	case ISCSI_HOST_PARAM_INITIATOR_NAME:
 		len = sprintf(buf, "%s\n", ha->name_string);
+		break;
+	case ISCSI_HOST_PARAM_PORT_STATE:
+		qla4xxx_set_port_state(shost);
+		len = sprintf(buf, "%s\n", iscsi_get_port_state_name(shost));
+		break;
+	case ISCSI_HOST_PARAM_PORT_SPEED:
+		qla4xxx_set_port_speed(shost);
+		len = sprintf(buf, "%s\n", iscsi_get_port_speed_name(shost));
 		break;
 	default:
 		return -ENOSYS;
