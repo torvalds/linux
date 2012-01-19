@@ -1608,7 +1608,7 @@ static const struct snd_pci_quirk stac92hd73xx_codec_id_cfg_tbl[] = {
 	SND_PCI_QUIRK(PCI_VENDOR_ID_DELL, 0x043a,
 		      "Alienware M17x", STAC_ALIENWARE_M17X),
 	SND_PCI_QUIRK(PCI_VENDOR_ID_DELL, 0x0490,
-		      "Alienware M17x", STAC_ALIENWARE_M17X),
+		      "Alienware M17x R3", STAC_DELL_EQ),
 	{} /* terminator */
 };
 
