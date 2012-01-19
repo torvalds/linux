@@ -856,9 +856,14 @@ struct ieee80211_channel_switch {
  *
  * @IEEE80211_VIF_BEACON_FILTER: the device performs beacon filtering
  *	on this virtual interface to avoid unnecessary CPU wakeups
+ * @IEEE80211_VIF_SUPPORTS_CQM_RSSI: the device can do connection quality
+ *	monitoring on this virtual interface -- i.e. it can monitor
+ *	connection quality related parameters, such as the RSSI level and
+ *	provide notifications if configured trigger levels are reached.
  */
 enum ieee80211_vif_flags {
 	IEEE80211_VIF_BEACON_FILTER		= BIT(0),
+	IEEE80211_VIF_SUPPORTS_CQM_RSSI		= BIT(1),
 };
 
 /**
@@ -1119,11 +1124,6 @@ enum sta_notify_cmd {
  *      When this flag is set, signaling beacon-loss will cause an immediate
  *      change to disassociated state.
  *
- * @IEEE80211_HW_SUPPORTS_CQM_RSSI:
- *	Hardware can do connection quality monitoring - i.e. it can monitor
- *	connection quality related parameters, such as the RSSI level and
- *	provide notifications if configured trigger levels are reached.
- *
  * @IEEE80211_HW_NEED_DTIM_PERIOD:
  *	This device needs to know the DTIM period for the BSS before
  *	associating.
@@ -1167,7 +1167,7 @@ enum ieee80211_hw_flags {
 	IEEE80211_HW_SUPPORTS_UAPSD			= 1<<17,
 	IEEE80211_HW_REPORTS_TX_ACK_STATUS		= 1<<18,
 	IEEE80211_HW_CONNECTION_MONITOR			= 1<<19,
-	IEEE80211_HW_SUPPORTS_CQM_RSSI			= 1<<20,
+	/* reuse bit 20 */
 	IEEE80211_HW_SUPPORTS_PER_STA_GTK		= 1<<21,
 	IEEE80211_HW_AP_LINK_PS				= 1<<22,
 	IEEE80211_HW_TX_AMPDU_SETUP_IN_HW		= 1<<23,
@@ -3408,7 +3408,7 @@ void ieee80211_enable_dyn_ps(struct ieee80211_vif *vif);
  * @rssi_event: the RSSI trigger event type
  * @gfp: context flags
  *
- * When the %IEEE80211_HW_SUPPORTS_CQM_RSSI is set, and a connection quality
+ * When the %IEEE80211_VIF_SUPPORTS_CQM_RSSI is set, and a connection quality
  * monitoring is configured with an rssi threshold, the driver will inform
  * whenever the rssi level reaches the threshold.
  */

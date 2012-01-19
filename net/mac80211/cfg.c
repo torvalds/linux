@@ -1873,7 +1873,6 @@ static int ieee80211_set_cqm_rssi_config(struct wiphy *wiphy,
 					 s32 rssi_thold, u32 rssi_hyst)
 {
 	struct ieee80211_sub_if_data *sdata = IEEE80211_DEV_TO_SUB_IF(dev);
-	struct ieee80211_local *local = wdev_priv(dev->ieee80211_ptr);
 	struct ieee80211_vif *vif = &sdata->vif;
 	struct ieee80211_bss_conf *bss_conf = &vif->bss_conf;
 
@@ -1884,14 +1883,9 @@ static int ieee80211_set_cqm_rssi_config(struct wiphy *wiphy,
 	bss_conf->cqm_rssi_thold = rssi_thold;
 	bss_conf->cqm_rssi_hyst = rssi_hyst;
 
-	if (!(local->hw.flags & IEEE80211_HW_SUPPORTS_CQM_RSSI)) {
-		if (sdata->vif.type != NL80211_IFTYPE_STATION)
-			return -EOPNOTSUPP;
-		return 0;
-	}
-
 	/* tell the driver upon association, unless already associated */
-	if (sdata->u.mgd.associated)
+	if (sdata->u.mgd.associated &&
+	    sdata->vif.driver_flags & IEEE80211_VIF_SUPPORTS_CQM_RSSI)
 		ieee80211_bss_info_change_notify(sdata, BSS_CHANGED_CQM);
 
 	return 0;

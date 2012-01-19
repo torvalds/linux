@@ -257,8 +257,6 @@ static ssize_t hwflags_read(struct file *file, char __user *user_buf,
 		sf += snprintf(buf + sf, mxln - sf, "REPORTS_TX_ACK_STATUS\n");
 	if (local->hw.flags & IEEE80211_HW_CONNECTION_MONITOR)
 		sf += snprintf(buf + sf, mxln - sf, "CONNECTION_MONITOR\n");
-	if (local->hw.flags & IEEE80211_HW_SUPPORTS_CQM_RSSI)
-		sf += snprintf(buf + sf, mxln - sf, "SUPPORTS_CQM_RSSI\n");
 	if (local->hw.flags & IEEE80211_HW_SUPPORTS_PER_STA_GTK)
 		sf += snprintf(buf + sf, mxln - sf, "SUPPORTS_PER_STA_GTK\n");
 	if (local->hw.flags & IEEE80211_HW_AP_LINK_PS)
