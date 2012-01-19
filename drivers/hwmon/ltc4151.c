@@ -154,7 +154,8 @@ static SENSOR_DEVICE_ATTR(in2_input, S_IRUGO, \
 static SENSOR_DEVICE_ATTR(curr1_input, S_IRUGO, \
 	ltc4151_show_value, NULL, LTC4151_SENSE_H);
 
-/* Finally, construct an array of pointers to members of the above objects,
+/*
+ * Finally, construct an array of pointers to members of the above objects,
  * as required for sysfs_create_group()
  */
 static struct attribute *ltc4151_attributes[] = {
