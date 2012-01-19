@@ -117,7 +117,6 @@ struct ft_cmd {
 	struct fc_seq *seq;		/* sequence in exchange mgr */
 	struct se_cmd se_cmd;		/* Local TCM I/O descriptor */
 	struct fc_frame *req_frame;
-	unsigned char *cdb;		/* pointer to CDB inside frame */
 	u32 write_data_len;		/* data received on writes */
 	struct work_struct work;
 	/* Local sense buffer */

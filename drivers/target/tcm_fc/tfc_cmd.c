@@ -59,8 +59,6 @@ void ft_dump_cmd(struct ft_cmd *cmd, const char *caller)
 	se_cmd = &cmd->se_cmd;
 	pr_debug("%s: cmd %p sess %p seq %p se_cmd %p\n",
 		caller, cmd, cmd->sess, cmd->seq, se_cmd);
-	pr_debug("%s: cmd %p cdb %p\n",
-		caller, cmd, cmd->cdb);
 
 	pr_debug("%s: cmd %p data_nents %u len %u se_cmd_flags <0x%x>\n",
 		caller, cmd, se_cmd->t_data_nents,
@@ -80,8 +78,6 @@ void ft_dump_cmd(struct ft_cmd *cmd, const char *caller)
 			caller, cmd, ep->sid, ep->did, ep->oxid, ep->rxid,
 			sp->id, ep->esb_stat);
 	}
-	print_hex_dump(KERN_INFO, "ft_dump_cmd ", DUMP_PREFIX_NONE,
-		16, 4, cmd->cdb, MAX_COMMAND_SIZE, 0);
 }
 
 static void ft_free_cmd(struct ft_cmd *cmd)
@@ -584,14 +580,12 @@ static void ft_send_work(struct work_struct *work)
 		task_attr = MSG_SIMPLE_TAG;
 	}
 
-	cmd->cdb = fcp->fc_cdb;
-
 	fc_seq_exch(cmd->seq)->lp->tt.seq_set_resp(cmd->seq, ft_recv_seq, cmd);
 	/*
 	 * Use a single se_cmd->cmd_kref as we expect to release se_cmd
 	 * directly from ft_check_stop_free callback in response path.
 	 */
-	target_submit_cmd(&cmd->se_cmd, cmd->sess->se_sess, cmd->cdb,
+	target_submit_cmd(&cmd->se_cmd, cmd->sess->se_sess, fcp->fc_cdb,
 			&cmd->ft_sense_buffer[0], scsilun_to_int(&fcp->fc_lun),
 			ntohl(fcp->fc_dl), task_attr, data_dir, 0);
 	pr_debug("r_ctl %x alloc target_submit_cmd\n", fh->fh_r_ctl);
