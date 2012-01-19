@@ -114,9 +114,21 @@ void atmel_tc_free(struct atmel_tc *tc)
 EXPORT_SYMBOL_GPL(atmel_tc_free);
 
 #if defined(CONFIG_OF)
+static struct atmel_tcb_config tcb_rm9200_config = {
+	.counter_width = 16,
+};
+
+static struct atmel_tcb_config tcb_sam9x5_config = {
+	.counter_width = 32,
+};
+
 static const struct of_device_id atmel_tcb_dt_ids[] = {
 	{
 		.compatible = "atmel,at91rm9200-tcb",
+		.data = &tcb_rm9200_config,
+	}, {
+		.compatible = "atmel,at91sam9x5-tcb",
+		.data = &tcb_sam9x5_config,
 	}, {
 		/* sentinel */
 	}
@@ -148,6 +160,14 @@ static int __init tc_probe(struct platform_device *pdev)
 	if (IS_ERR(clk)) {
 		kfree(tc);
 		return -EINVAL;
+	}
+
+	/* Now take SoC information if available */
+	if (pdev->dev.of_node) {
+		const struct of_device_id *match;
+		match = of_match_node(atmel_tcb_dt_ids, pdev->dev.of_node);
+		if (match)
+			tc->tcb_config = match->data;
 	}
 
 	tc->clk[0] = clk;
