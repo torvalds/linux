@@ -26,6 +26,7 @@
 #include <linux/vmalloc.h>
 #include <linux/io.h>
 
+#include <asm/cp15.h>
 #include <asm/cputype.h>
 #include <asm/cacheflush.h>
 #include <asm/mmu_context.h>

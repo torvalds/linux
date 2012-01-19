@@ -16,6 +16,7 @@
 #include <linux/io.h>
 
 #include <asm/cacheflush.h>
+#include <asm/cp15.h>
 
 #include <mach/regs-pmu.h>
 

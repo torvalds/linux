@@ -22,7 +22,7 @@
 #include <linux/sched.h>
 #include <linux/uaccess.h>
 
-#include <asm/system.h>
+#include <asm/cp15.h>
 #include <asm/unaligned.h>
 
 #include "fault.h"
