@@ -1006,8 +1006,8 @@ done:
 	/*
 	 * The CDB is going to an se_device_t.
 	 */
-	ret = iscsit_get_lun_for_cmd(cmd, hdr->cdb,
-				get_unaligned_le64(&hdr->lun));
+	ret = transport_lookup_cmd_lun(&cmd->se_cmd,
+				       scsilun_to_int(&hdr->lun));
 	if (ret < 0) {
 		if (cmd->se_cmd.scsi_sense_reason == TCM_NON_EXISTENT_LUN) {
 			pr_debug("Responding to non-acl'ed,"
@@ -1746,8 +1746,8 @@ static int iscsit_handle_task_mgt_cmd(
 	 * Locate the struct se_lun for all TMRs not related to ERL=2 TASK_REASSIGN
 	 */
 	if (function != ISCSI_TM_FUNC_TASK_REASSIGN) {
-		ret = iscsit_get_lun_for_tmr(cmd,
-				get_unaligned_le64(&hdr->lun));
+		ret = transport_lookup_tmr_lun(&cmd->se_cmd,
+					       scsilun_to_int(&hdr->lun));
 		if (ret < 0) {
 			cmd->se_cmd.se_cmd_flags |= SCF_SCSI_CDB_EXCEPTION;
 			se_tmr->response = ISCSI_TMF_RSP_NO_LUN;
