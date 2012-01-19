@@ -1687,6 +1687,54 @@ void target_submit_cmd(struct se_cmd *se_cmd, struct se_session *se_sess,
 }
 EXPORT_SYMBOL(target_submit_cmd);
 
+/**
+ * target_submit_tmr - lookup unpacked lun and submit uninitialized se_cmd
+ *                     for TMR CDBs
+ *
+ * @se_cmd: command descriptor to submit
+ * @se_sess: associated se_sess for endpoint
+ * @sense: pointer to SCSI sense buffer
+ * @unpacked_lun: unpacked LUN to reference for struct se_lun
+ * @fabric_context: fabric context for TMR req
+ * @tm_type: Type of TM request
+ *
+ * Callable from all contexts.
+ **/
+
+void target_submit_tmr(struct se_cmd *se_cmd, struct se_session *se_sess,
+		unsigned char *sense, u32 unpacked_lun,
+		void *fabric_tmr_ptr, unsigned char tm_type, int flags)
+{
+	struct se_portal_group *se_tpg;
+	int ret;
+
+	se_tpg = se_sess->se_tpg;
+	BUG_ON(!se_tpg);
+
+	transport_init_se_cmd(se_cmd, se_tpg->se_tpg_tfo, se_sess,
+			      0, DMA_NONE, MSG_SIMPLE_TAG, sense);
+
+	/* See target_submit_cmd for commentary */
+	target_get_sess_cmd(se_sess, se_cmd, (flags & TARGET_SCF_ACK_KREF));
+
+	ret = core_tmr_alloc_req(se_cmd, fabric_tmr_ptr, tm_type, GFP_KERNEL);
+	if (ret < 0) {
+		dump_stack();
+		/* FIXME XXX */
+		return;
+	}
+
+	ret = transport_lookup_tmr_lun(se_cmd, unpacked_lun);
+	if (ret) {
+		transport_send_check_condition_and_sense(se_cmd,
+			se_cmd->scsi_sense_reason, 0);
+		transport_generic_free_cmd(se_cmd, 0);
+		return;
+	}
+	transport_generic_handle_tmr(se_cmd);
+}
+EXPORT_SYMBOL(target_submit_tmr);
+
 /*
  * Used by fabric module frontends defining a TFO->new_cmd_map() caller
  * to  queue up a newly setup se_cmd w/ TRANSPORT_NEW_CMD_MAP in order to
