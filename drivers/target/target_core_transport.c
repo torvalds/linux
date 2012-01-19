@@ -1657,7 +1657,7 @@ EXPORT_SYMBOL(transport_handle_cdb_direct);
  * This may only be called from process context, and also currently
  * assumes internal allocation of fabric payload buffer by target-core.
  **/
-int target_submit_cmd(struct se_cmd *se_cmd, struct se_session *se_sess,
+void target_submit_cmd(struct se_cmd *se_cmd, struct se_session *se_sess,
 		unsigned char *cdb, unsigned char *sense, u32 unpacked_lun,
 		u32 data_length, int task_attr, int data_dir, int flags)
 {
@@ -1706,12 +1706,11 @@ int target_submit_cmd(struct se_cmd *se_cmd, struct se_session *se_sess,
 	 * when fabric has filled the incoming buffer.
 	 */
 	transport_handle_cdb_direct(se_cmd);
-	return 0;
+	return;
 
 out_check_cond:
 	transport_send_check_condition_and_sense(se_cmd,
 				se_cmd->scsi_sense_reason, 0);
-	return 0;
 }
 EXPORT_SYMBOL(target_submit_cmd);
 
