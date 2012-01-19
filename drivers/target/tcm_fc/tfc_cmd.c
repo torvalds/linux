@@ -399,33 +399,19 @@ static void ft_send_tm(struct ft_cmd *cmd)
 		return;
 	}
 
-	switch (fcp->fc_tm_flags) {
-	case FCP_TMF_LUN_RESET:
-		if (transport_lookup_tmr_lun(&cmd->se_cmd, scsilun_to_int(&fcp->fc_lun)) < 0) {
-			/*
-			 * Make sure to clean up newly allocated TMR request
-			 * since "unable to  handle TMR request because failed
-			 * to get to LUN"
-			 */
-			pr_debug("Failed to get LUN for TMR func %d, "
-				  "se_cmd %p, unpacked_lun %d\n",
-				  tm_func, &cmd->se_cmd, scsilun_to_int(&fcp->fc_lun));
-			ft_dump_cmd(cmd, __func__);
-			sess = cmd->sess;
-			transport_send_check_condition_and_sense(&cmd->se_cmd,
-				cmd->se_cmd.scsi_sense_reason, 0);
-			ft_sess_put(sess);
-			return;
-		}
-		break;
-	case FCP_TMF_TGT_RESET:
-	case FCP_TMF_CLR_TASK_SET:
-	case FCP_TMF_ABT_TASK_SET:
-	case FCP_TMF_CLR_ACA:
-		break;
-	default:
+	rc = transport_lookup_tmr_lun(&cmd->se_cmd, scsilun_to_int(&fcp->fc_lun));
+	if (rc < 0) {
+		pr_debug("Failed to get LUN for TMR func %d, "
+			  "se_cmd %p, unpacked_lun %d\n",
+			  tm_func, &cmd->se_cmd, scsilun_to_int(&fcp->fc_lun));
+		ft_dump_cmd(cmd, __func__);
+		sess = cmd->sess;
+		transport_send_check_condition_and_sense(&cmd->se_cmd,
+			cmd->se_cmd.scsi_sense_reason, 0);
+		ft_sess_put(sess);
 		return;
 	}
+
 	transport_generic_handle_tmr(&cmd->se_cmd);
 }
 
