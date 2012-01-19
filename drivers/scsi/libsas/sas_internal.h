@@ -113,6 +113,15 @@ static inline int sas_smp_host_handler(struct Scsi_Host *shost,
 }
 #endif
 
+static inline void sas_fail_probe(struct domain_device *dev, const char *func, int err)
+{
+	SAS_DPRINTK("%s: for %s device %16llx returned %d\n",
+		    func, dev->parent ? "exp-attached" :
+					    "direct-attached",
+		    SAS_ADDR(dev->sas_addr), err);
+	sas_unregister_dev(dev->port, dev);
+}
+
 static inline void sas_fill_in_rphy(struct domain_device *dev,
 				    struct sas_rphy *rphy)
 {

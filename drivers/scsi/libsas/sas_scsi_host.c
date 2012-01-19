@@ -762,16 +762,9 @@ int sas_target_alloc(struct scsi_target *starget)
 {
 	struct sas_rphy *rphy = dev_to_rphy(starget->dev.parent);
 	struct domain_device *found_dev = sas_find_dev_by_rphy(rphy);
-	int res;
 
 	if (!found_dev)
 		return -ENODEV;
-
-	if (dev_is_sata(found_dev)) {
-		res = sas_ata_init_host_and_port(found_dev, starget);
-		if (res)
-			return res;
-	}
 
 	kref_get(&found_dev->kref);
 	starget->hostdata = found_dev;
@@ -1012,16 +1005,6 @@ void sas_task_abort(struct sas_task *task)
 	}
 }
 
-int sas_slave_alloc(struct scsi_device *scsi_dev)
-{
-	struct domain_device *dev = sdev_to_domain_dev(scsi_dev);
-
-	if (dev_is_sata(dev))
-		return ata_sas_port_init(dev->sata_dev.ap);
-
-	return 0;
-}
-
 void sas_target_destroy(struct scsi_target *starget)
 {
 	struct domain_device *found_dev = starget->hostdata;
@@ -1082,6 +1065,5 @@ EXPORT_SYMBOL_GPL(sas_task_abort);
 EXPORT_SYMBOL_GPL(sas_phy_reset);
 EXPORT_SYMBOL_GPL(sas_eh_device_reset_handler);
 EXPORT_SYMBOL_GPL(sas_eh_bus_reset_handler);
-EXPORT_SYMBOL_GPL(sas_slave_alloc);
 EXPORT_SYMBOL_GPL(sas_target_destroy);
 EXPORT_SYMBOL_GPL(sas_ioctl);

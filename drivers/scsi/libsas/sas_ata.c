@@ -585,11 +585,10 @@ static struct ata_port_info sata_port_info = {
 	.port_ops = &sas_sata_ops
 };
 
-int sas_ata_init_host_and_port(struct domain_device *found_dev,
-			       struct scsi_target *starget)
+int sas_ata_init_host_and_port(struct domain_device *found_dev)
 {
-	struct Scsi_Host *shost = dev_to_shost(&starget->dev);
-	struct sas_ha_struct *ha = SHOST_TO_SAS_HA(shost);
+	struct sas_ha_struct *ha = found_dev->port->ha;
+	struct Scsi_Host *shost = ha->core.shost;
 	struct ata_port *ap;
 
 	ata_host_init(&found_dev->sata_dev.ata_host,
@@ -607,6 +606,8 @@ int sas_ata_init_host_and_port(struct domain_device *found_dev,
 	ap->private_data = found_dev;
 	ap->cbl = ATA_CBL_SATA;
 	ap->scsi_host = shost;
+	/* publish initialized ata port */
+	smp_wmb();
 	found_dev->sata_dev.ap = ap;
 
 	return 0;
@@ -683,6 +684,38 @@ static void sas_get_ata_command_set(struct domain_device *dev)
 		dev->sata_dev.command_set = ATAPI_COMMAND_SET;
 }
 
+void sas_probe_sata(struct asd_sas_port *port)
+{
+	struct domain_device *dev, *n;
+	int err;
+
+	mutex_lock(&port->ha->disco_mutex);
+	list_for_each_entry_safe(dev, n, &port->disco_list, disco_list_node) {
+		if (!dev_is_sata(dev))
+			continue;
+
+		err = sas_ata_init_host_and_port(dev);
+		if (err)
+			sas_fail_probe(dev, __func__, err);
+		else
+			ata_sas_async_port_init(dev->sata_dev.ap);
+	}
+	mutex_unlock(&port->ha->disco_mutex);
+
+	list_for_each_entry_safe(dev, n, &port->disco_list, disco_list_node) {
+		if (!dev_is_sata(dev))
+			continue;
+
+		sas_ata_wait_eh(dev);
+
+		/* if libata could not bring the link up, don't surface
+		 * the device
+		 */
+		if (ata_dev_disabled(sas_to_ata_dev(dev)))
+			sas_fail_probe(dev, __func__, -ENODEV);
+	}
+}
+
 /**
  * sas_discover_sata -- discover an STP/SATA domain device
  * @dev: pointer to struct domain_device of interest
@@ -724,11 +757,23 @@ static void async_sas_ata_eh(void *data, async_cookie_t cookie)
 	sas_put_device(dev);
 }
 
+static bool sas_ata_dev_eh_valid(struct domain_device *dev)
+{
+	struct ata_port *ap;
+
+	if (!dev_is_sata(dev))
+		return false;
+	ap = dev->sata_dev.ap;
+	/* consume fully initialized ata ports */
+	smp_rmb();
+	return !!ap;
+}
+
 void sas_ata_strategy_handler(struct Scsi_Host *shost)
 {
-	struct scsi_device *sdev;
 	struct sas_ha_struct *sas_ha = SHOST_TO_SAS_HA(shost);
 	LIST_HEAD(async);
+	int i;
 
 	/* it's ok to defer revalidation events during ata eh, these
 	 * disks are in one of three states:
@@ -740,14 +785,21 @@ void sas_ata_strategy_handler(struct Scsi_Host *shost)
 	 */
 	sas_disable_revalidation(sas_ha);
 
-	shost_for_each_device(sdev, shost) {
-		struct domain_device *ddev = sdev_to_domain_dev(sdev);
+	spin_lock_irq(&sas_ha->phy_port_lock);
+	for (i = 0; i < sas_ha->num_phys; i++) {
+		struct asd_sas_port *port = sas_ha->sas_port[i];
+		struct domain_device *dev;
 
-		if (!dev_is_sata(ddev))
-			continue;
-
-		async_schedule_domain(async_sas_ata_eh, ddev, &async);
+		spin_lock(&port->dev_list_lock);
+		list_for_each_entry(dev, &port->dev_list, dev_list_node) {
+			if (!sas_ata_dev_eh_valid(dev))
+				continue;
+			async_schedule_domain(async_sas_ata_eh, dev, &async);
+		}
+		spin_unlock(&port->dev_list_lock);
 	}
+	spin_unlock_irq(&sas_ha->phy_port_lock);
+
 	async_synchronize_full_domain(&async);
 
 	sas_enable_revalidation(sas_ha);
