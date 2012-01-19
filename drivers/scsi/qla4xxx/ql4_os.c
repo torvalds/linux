@@ -1552,6 +1552,8 @@ static void qla4xxx_copy_fwddb_param(struct scsi_qla_host *ha,
 			(char *)ha->name_string, buflen);
 	iscsi_set_param(cls_conn, ISCSI_PARAM_PERSISTENT_ADDRESS,
 			(char *)ip_addr, buflen);
+	iscsi_set_param(cls_conn, ISCSI_PARAM_TARGET_ALIAS,
+			(char *)fw_ddb_entry->iscsi_alias, buflen);
 }
 
 void qla4xxx_update_session_conn_fwddb_param(struct scsi_qla_host *ha,
@@ -1665,6 +1667,9 @@ void qla4xxx_update_session_conn_param(struct scsi_qla_host *ha,
 
 	memcpy(sess->initiatorname, ha->name_string,
 	       min(sizeof(ha->name_string), sizeof(sess->initiatorname)));
+
+	iscsi_set_param(cls_conn, ISCSI_PARAM_TARGET_ALIAS,
+			(char *)fw_ddb_entry->iscsi_alias, 0);
 
 exit_session_conn_param:
 	if (fw_ddb_entry)
