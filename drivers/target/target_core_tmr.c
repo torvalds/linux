@@ -40,7 +40,7 @@
 #include "target_core_alua.h"
 #include "target_core_pr.h"
 
-struct se_tmr_req *core_tmr_alloc_req(
+int core_tmr_alloc_req(
 	struct se_cmd *se_cmd,
 	void *fabric_tmr_ptr,
 	u8 function,
@@ -48,17 +48,20 @@ struct se_tmr_req *core_tmr_alloc_req(
 {
 	struct se_tmr_req *tmr;
 
-	tmr = kmem_cache_zalloc(se_tmr_req_cache, gfp_flags);
+	tmr = kzalloc(sizeof(struct se_tmr_req), gfp_flags);
 	if (!tmr) {
 		pr_err("Unable to allocate struct se_tmr_req\n");
-		return ERR_PTR(-ENOMEM);
+		return -ENOMEM;
 	}
+
+	se_cmd->se_cmd_flags |= SCF_SCSI_TMR_CDB;
+	se_cmd->se_tmr_req = tmr;
 	tmr->task_cmd = se_cmd;
 	tmr->fabric_tmr_ptr = fabric_tmr_ptr;
 	tmr->function = function;
 	INIT_LIST_HEAD(&tmr->tmr_list);
 
-	return tmr;
+	return 0;
 }
 EXPORT_SYMBOL(core_tmr_alloc_req);
 
@@ -69,7 +72,7 @@ void core_tmr_release_req(
 	unsigned long flags;
 
 	if (!dev) {
-		kmem_cache_free(se_tmr_req_cache, tmr);
+		kfree(tmr);
 		return;
 	}
 
@@ -77,7 +80,7 @@ void core_tmr_release_req(
 	list_del(&tmr->tmr_list);
 	spin_unlock_irqrestore(&dev->se_tmr_lock, flags);
 
-	kmem_cache_free(se_tmr_req_cache, tmr);
+	kfree(tmr);
 }
 
 static void core_tmr_handle_tas_abort(

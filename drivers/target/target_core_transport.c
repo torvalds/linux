@@ -58,7 +58,6 @@ static int sub_api_initialized;
 
 static struct workqueue_struct *target_completion_wq;
 static struct kmem_cache *se_sess_cache;
-struct kmem_cache *se_tmr_req_cache;
 struct kmem_cache *se_ua_cache;
 struct kmem_cache *t10_pr_reg_cache;
 struct kmem_cache *t10_alua_lu_gp_cache;
@@ -82,21 +81,13 @@ static void target_complete_ok_work(struct work_struct *work);
 
 int init_se_kmem_caches(void)
 {
-	se_tmr_req_cache = kmem_cache_create("se_tmr_cache",
-			sizeof(struct se_tmr_req), __alignof__(struct se_tmr_req),
-			0, NULL);
-	if (!se_tmr_req_cache) {
-		pr_err("kmem_cache_create() for struct se_tmr_req"
-				" failed\n");
-		goto out;
-	}
 	se_sess_cache = kmem_cache_create("se_sess_cache",
 			sizeof(struct se_session), __alignof__(struct se_session),
 			0, NULL);
 	if (!se_sess_cache) {
 		pr_err("kmem_cache_create() for struct se_session"
 				" failed\n");
-		goto out_free_tmr_req_cache;
+		goto out;
 	}
 	se_ua_cache = kmem_cache_create("se_ua_cache",
 			sizeof(struct se_ua), __alignof__(struct se_ua),
@@ -169,8 +160,6 @@ out_free_ua_cache:
 	kmem_cache_destroy(se_ua_cache);
 out_free_sess_cache:
 	kmem_cache_destroy(se_sess_cache);
-out_free_tmr_req_cache:
-	kmem_cache_destroy(se_tmr_req_cache);
 out:
 	return -ENOMEM;
 }
@@ -178,7 +167,6 @@ out:
 void release_se_kmem_caches(void)
 {
 	destroy_workqueue(target_completion_wq);
-	kmem_cache_destroy(se_tmr_req_cache);
 	kmem_cache_destroy(se_sess_cache);
 	kmem_cache_destroy(se_ua_cache);
 	kmem_cache_destroy(t10_pr_reg_cache);
@@ -553,7 +541,7 @@ static void transport_lun_remove_cmd(struct se_cmd *cmd)
 
 void transport_cmd_finish_abort(struct se_cmd *cmd, int remove)
 {
-	if (!cmd->se_tmr_req)
+	if (!(cmd->se_cmd_flags & SCF_SCSI_TMR_CDB))
 		transport_lun_remove_cmd(cmd);
 
 	if (transport_cmd_check_stop_to_fabric(cmd))
@@ -3367,7 +3355,7 @@ static void transport_release_cmd(struct se_cmd *cmd)
 {
 	BUG_ON(!cmd->se_tfo);
 
-	if (cmd->se_tmr_req)
+	if (cmd->se_cmd_flags & SCF_SCSI_TMR_CDB)
 		core_tmr_release_req(cmd->se_tmr_req);
 	if (cmd->t_task_cdb != cmd->__t_task_cdb)
 		kfree(cmd->t_task_cdb);
@@ -3956,7 +3944,7 @@ queue_full:
 void transport_generic_free_cmd(struct se_cmd *cmd, int wait_for_tasks)
 {
 	if (!(cmd->se_cmd_flags & SCF_SE_LUN_CMD)) {
-		if (wait_for_tasks && cmd->se_tmr_req)
+		if (wait_for_tasks && (cmd->se_cmd_flags & SCF_SCSI_TMR_CDB))
 			 transport_wait_for_tasks(cmd);
 
 		transport_release_cmd(cmd);
@@ -4282,7 +4270,8 @@ bool transport_wait_for_tasks(struct se_cmd *cmd)
 	unsigned long flags;
 
 	spin_lock_irqsave(&cmd->t_state_lock, flags);
-	if (!(cmd->se_cmd_flags & SCF_SE_LUN_CMD) && !(cmd->se_tmr_req)) {
+	if (!(cmd->se_cmd_flags & SCF_SE_LUN_CMD) &&
+	    !(cmd->se_cmd_flags & SCF_SCSI_TMR_CDB)) {
 		spin_unlock_irqrestore(&cmd->t_state_lock, flags);
 		return false;
 	}
@@ -4290,7 +4279,8 @@ bool transport_wait_for_tasks(struct se_cmd *cmd)
 	 * Only perform a possible wait_for_tasks if SCF_SUPPORTED_SAM_OPCODE
 	 * has been set in transport_set_supported_SAM_opcode().
 	 */
-	if (!(cmd->se_cmd_flags & SCF_SUPPORTED_SAM_OPCODE) && !cmd->se_tmr_req) {
+	if (!(cmd->se_cmd_flags & SCF_SUPPORTED_SAM_OPCODE) &&
+	    !(cmd->se_cmd_flags & SCF_SCSI_TMR_CDB)) {
 		spin_unlock_irqrestore(&cmd->t_state_lock, flags);
 		return false;
 	}

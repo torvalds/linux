@@ -187,7 +187,7 @@ static int tcm_loop_check_stop_free(struct se_cmd *se_cmd)
 	 * pointer.  These will be released directly in tcm_loop_device_reset()
 	 * with transport_generic_free_cmd().
 	 */
-	if (se_cmd->se_tmr_req)
+	if (se_cmd->se_cmd_flags & SCF_SCSI_TMR_CDB)
 		return 0;
 	/*
 	 * Release the struct se_cmd, which will make a callback to release
@@ -324,7 +324,7 @@ static int tcm_loop_device_reset(struct scsi_cmnd *sc)
 	struct tcm_loop_nexus *tl_nexus;
 	struct tcm_loop_tmr *tl_tmr = NULL;
 	struct tcm_loop_tpg *tl_tpg;
-	int ret = FAILED;
+	int ret = FAILED, rc;
 	/*
 	 * Locate the tcm_loop_hba_t pointer
 	 */
@@ -365,12 +365,9 @@ static int tcm_loop_device_reset(struct scsi_cmnd *sc)
 	transport_init_se_cmd(se_cmd, se_tpg->se_tpg_tfo, se_sess, 0,
 				DMA_NONE, MSG_SIMPLE_TAG,
 				&tl_cmd->tl_sense_buf[0]);
-	/*
-	 * Allocate the LUN_RESET TMR
-	 */
-	se_cmd->se_tmr_req = core_tmr_alloc_req(se_cmd, tl_tmr,
-						TMR_LUN_RESET, GFP_KERNEL);
-	if (IS_ERR(se_cmd->se_tmr_req))
+
+	rc = core_tmr_alloc_req(se_cmd, tl_tmr, TMR_LUN_RESET, GFP_KERNEL);
+	if (rc < 0)
 		goto release;
 	/*
 	 * Locate the underlying TCM struct se_lun from sc->device->lun

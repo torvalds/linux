@@ -356,6 +356,7 @@ static void ft_send_tm(struct ft_cmd *cmd)
 	struct se_tmr_req *tmr;
 	struct fcp_cmnd *fcp;
 	struct ft_sess *sess;
+	int rc;
 	u8 tm_func;
 
 	transport_init_se_cmd(&cmd->se_cmd, &ft_configfs->tf_ops,
@@ -392,13 +393,12 @@ static void ft_send_tm(struct ft_cmd *cmd)
 	}
 
 	pr_debug("alloc tm cmd fn %d\n", tm_func);
-	tmr = core_tmr_alloc_req(&cmd->se_cmd, cmd, tm_func, GFP_KERNEL);
-	if (!tmr) {
+	rc = core_tmr_alloc_req(&cmd->se_cmd, cmd, tm_func, GFP_KERNEL);
+	if (rc < 0) {
 		pr_debug("alloc failed\n");
 		ft_send_resp_code_and_free(cmd, FCP_TMF_FAILED);
 		return;
 	}
-	cmd->se_cmd.se_tmr_req = tmr;
 
 	switch (fcp->fc_tm_flags) {
 	case FCP_TMF_LUN_RESET:

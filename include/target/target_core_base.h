@@ -169,7 +169,8 @@ enum se_cmd_flags_table {
 	SCF_EMULATED_TASK_SENSE		= 0x00000004,
 	SCF_SCSI_DATA_SG_IO_CDB		= 0x00000008,
 	SCF_SCSI_CONTROL_SG_IO_CDB	= 0x00000010,
-	SCF_SCSI_NON_DATA_CDB		= 0x00000040,
+	SCF_SCSI_NON_DATA_CDB		= 0x00000020,
+	SCF_SCSI_TMR_CDB		= 0x00000040,
 	SCF_SCSI_CDB_EXCEPTION		= 0x00000080,
 	SCF_SCSI_RESERVATION_CONFLICT	= 0x00000100,
 	SCF_FUA				= 0x00000200,
@@ -498,6 +499,24 @@ struct se_task {
 	struct completion	task_stop_comp;
 };
 
+struct se_tmr_req {
+	/* Task Management function to be performed */
+	u8			function;
+	/* Task Management response to send */
+	u8			response;
+	int			call_transport;
+	/* Reference to ITT that Task Mgmt should be performed */
+	u32			ref_task_tag;
+	/* 64-bit encoded SAM LUN from $FABRIC_MOD TMR header */
+	u64			ref_task_lun;
+	void 			*fabric_tmr_ptr;
+	struct se_cmd		*task_cmd;
+	struct se_cmd		*ref_cmd;
+	struct se_device	*tmr_dev;
+	struct se_lun		*tmr_lun;
+	struct list_head	tmr_list;
+};
+
 struct se_cmd {
 	/* SAM response code being sent to initiator */
 	u8			scsi_status;
@@ -584,24 +603,6 @@ struct se_cmd {
 	struct list_head	t_task_list;
 	u32			t_task_list_num;
 
-};
-
-struct se_tmr_req {
-	/* Task Management function to be performed */
-	u8			function;
-	/* Task Management response to send */
-	u8			response;
-	int			call_transport;
-	/* Reference to ITT that Task Mgmt should be performed */
-	u32			ref_task_tag;
-	/* 64-bit encoded SAM LUN from $FABRIC_MOD TMR header */
-	u64			ref_task_lun;
-	void 			*fabric_tmr_ptr;
-	struct se_cmd		*task_cmd;
-	struct se_cmd		*ref_cmd;
-	struct se_device	*tmr_dev;
-	struct se_lun		*tmr_lun;
-	struct list_head	tmr_list;
 };
 
 struct se_ua {
