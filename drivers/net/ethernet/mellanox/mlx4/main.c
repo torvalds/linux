@@ -108,7 +108,7 @@ static struct mlx4_profile default_profile = {
 	.num_cq		= 1 << 16,
 	.num_mcg	= 1 << 13,
 	.num_mpt	= 1 << 19,
-	.num_mtt	= 1 << 20,
+	.num_mtt	= 1 << 20, /* It is really num mtt segements */
 };
 
 static int log_num_mac = 7;

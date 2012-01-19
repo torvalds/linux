@@ -110,7 +110,7 @@ u64 mlx4_make_profile(struct mlx4_dev *dev,
 	profile[MLX4_RES_EQ].num      = min_t(unsigned, dev_cap->max_eqs, MAX_MSIX);
 	profile[MLX4_RES_DMPT].num    = request->num_mpt;
 	profile[MLX4_RES_CMPT].num    = MLX4_NUM_CMPTS;
-	profile[MLX4_RES_MTT].num     = request->num_mtt;
+	profile[MLX4_RES_MTT].num     = request->num_mtt * (1 << log_mtts_per_seg);
 	profile[MLX4_RES_MCG].num     = request->num_mcg;
 
 	for (i = 0; i < MLX4_RES_NUM; ++i) {
