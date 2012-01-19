@@ -78,6 +78,10 @@ Default is to monitor all CPUS.
 --tid=<tid>::
         Profile events on existing thread ID.
 
+-u::
+--uid=::
+        Record events in threads owned by uid. Name or number.
+
 -r <priority>::
 --realtime=<priority>::
 	Collect data with this RT SCHED_FIFO priority.

@@ -246,6 +246,8 @@ struct perf_event_attr;
 
 void event_attr_init(struct perf_event_attr *attr);
 
+uid_t parse_target_uid(const char *str, pid_t tid, pid_t pid);
+
 #define _STR(x) #x
 #define STR(x) _STR(x)
 

@@ -841,6 +841,9 @@ static int hists__browser_title(struct hists *self, char *bf, size_t size,
 	nr_events = convert_unit(nr_events, &unit);
 	printed = snprintf(bf, size, "Events: %lu%c %s", nr_events, unit, ev_name);
 
+	if (self->uid_filter_str)
+		printed += snprintf(bf + printed, size - printed,
+				    ", UID: %s", self->uid_filter_str);
 	if (thread)
 		printed += snprintf(bf + printed, size - printed,
 				    ", Thread: %s(%d)",

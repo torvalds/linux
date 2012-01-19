@@ -75,6 +75,9 @@ size_t perf_top__header_snprintf(struct perf_top *top, char *bf, size_t size)
 	else if (top->target_tid != -1)
 		ret += SNPRINTF(bf + ret, size - ret, " (target_tid: %d",
 				top->target_tid);
+	else if (top->uid_str != NULL)
+		ret += SNPRINTF(bf + ret, size - ret, " (uid: %s",
+				top->uid_str);
 	else
 		ret += SNPRINTF(bf + ret, size - ret, " (all");
 

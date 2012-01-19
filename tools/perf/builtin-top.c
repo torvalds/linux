@@ -64,7 +64,6 @@
 #include <linux/unistd.h>
 #include <linux/types.h>
 
-
 void get_term_dimensions(struct winsize *ws)
 {
 	char *s = getenv("LINES");
@@ -537,10 +536,20 @@ static void perf_top__sort_new_samples(void *arg)
 
 static void *display_thread_tui(void *arg)
 {
+	struct perf_evsel *pos;
 	struct perf_top *top = arg;
 	const char *help = "For a higher level overview, try: perf top --sort comm,dso";
 
 	perf_top__sort_new_samples(top);
+
+	/*
+	 * Initialize the uid_filter_str, in the future the TUI will allow
+	 * Zooming in/out UIDs. For now juse use whatever the user passed
+	 * via --uid.
+	 */
+	list_for_each_entry(pos, &top->evlist->entries, node)
+		pos->hists.uid_filter_str = top->uid_str;
+
 	perf_evlist__tui_browse_hists(top->evlist, help,
 				      perf_top__sort_new_samples,
 				      top, top->delay_secs);
@@ -949,7 +958,7 @@ static int __cmd_top(struct perf_top *top)
 	if (ret)
 		goto out_delete;
 
-	if (top->target_tid != -1)
+	if (top->target_tid != -1 || top->uid != UINT_MAX)
 		perf_event__synthesize_thread_map(&top->tool, top->evlist->threads,
 						  perf_event__process,
 						  &top->session->host_machine);
@@ -1089,6 +1098,7 @@ int cmd_top(int argc, const char **argv, const char *prefix __used)
 		.delay_secs	     = 2,
 		.target_pid	     = -1,
 		.target_tid	     = -1,
+		.uid		     = UINT_MAX,
 		.freq		     = 1000, /* 1 KHz */
 		.sample_id_all_avail = true,
 		.mmap_pages	     = 128,
@@ -1162,6 +1172,7 @@ int cmd_top(int argc, const char **argv, const char *prefix __used)
 		    "Display raw encoding of assembly instructions (default)"),
 	OPT_STRING('M', "disassembler-style", &disassembler_style, "disassembler style",
 		   "Specify disassembler style (e.g. -M intel for intel syntax)"),
+	OPT_STRING('u', "uid", &top.uid_str, "user", "user to profile"),
 	OPT_END()
 	};
 
@@ -1187,6 +1198,10 @@ int cmd_top(int argc, const char **argv, const char *prefix __used)
 
 	setup_browser(false);
 
+	top.uid = parse_target_uid(top.uid_str, top.target_tid, top.target_pid);
+	if (top.uid_str != NULL && top.uid == UINT_MAX - 1)
+		goto out_delete_evlist;
+
 	/* CPU and PID are mutually exclusive */
 	if (top.target_tid > 0 && top.cpu_list) {
 		printf("WARNING: PID switch overriding CPU\n");
@@ -1198,7 +1213,7 @@ int cmd_top(int argc, const char **argv, const char *prefix __used)
 		top.target_tid = top.target_pid;
 
 	if (perf_evlist__create_maps(top.evlist, top.target_pid,
-				     top.target_tid, top.cpu_list) < 0)
+				     top.target_tid, top.uid, top.cpu_list) < 0)
 		usage_with_options(top_usage, options);
 
 	if (!top.evlist->nr_entries &&
@@ -1262,6 +1277,7 @@ int cmd_top(int argc, const char **argv, const char *prefix __used)
 
 	status = __cmd_top(&top);
 
+out_delete_evlist:
 	perf_evlist__delete(top.evlist);
 
 	return status;

@@ -1201,7 +1201,7 @@ int cmd_stat(int argc, const char **argv, const char *prefix __used)
 	if (target_pid != -1)
 		target_tid = target_pid;
 
-	evsel_list->threads = thread_map__new(target_pid, target_tid);
+	evsel_list->threads = thread_map__new(target_pid, target_tid, UINT_MAX);
 	if (evsel_list->threads == NULL) {
 		pr_err("Problems finding threads of monitor\n");
 		usage_with_options(stat_usage, options);
