@@ -207,9 +207,9 @@ static int snd_toneport_monitor_put(struct snd_kcontrol *kcontrol,
 	line6pcm->volume_monitor = ucontrol->value.integer.value[0];
 
 	if (line6pcm->volume_monitor > 0)
-		line6_pcm_start(line6pcm, MASK_PCM_MONITOR);
+		line6_pcm_acquire(line6pcm, LINE6_BITS_PCM_MONITOR);
 	else
-		line6_pcm_stop(line6pcm, MASK_PCM_MONITOR);
+		line6_pcm_release(line6pcm, LINE6_BITS_PCM_MONITOR);
 
 	return 1;
 }
@@ -264,7 +264,7 @@ static void toneport_start_pcm(unsigned long arg)
 {
 	struct usb_line6_toneport *toneport = (struct usb_line6_toneport *)arg;
 	struct usb_line6 *line6 = &toneport->line6;
-	line6_pcm_start(line6->line6pcm, MASK_PCM_MONITOR);
+	line6_pcm_acquire(line6->line6pcm, LINE6_BITS_PCM_MONITOR);
 }
 
 /* control definition */
@@ -446,7 +446,7 @@ void line6_toneport_disconnect(struct usb_interface *interface)
 		struct snd_line6_pcm *line6pcm = toneport->line6.line6pcm;
 
 		if (line6pcm != NULL) {
-			line6_pcm_stop(line6pcm, MASK_PCM_MONITOR);
+			line6_pcm_release(line6pcm, LINE6_BITS_PCM_MONITOR);
 			line6_pcm_disconnect(line6pcm);
 		}
 	}
