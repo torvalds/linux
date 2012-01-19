@@ -106,7 +106,8 @@ static ssize_t show_adc(struct device *dev,
 	if (ret < 0)
 		return ret;
 
-	/* assume the reference voltage to be 2.048V, with an 8-bit sample,
+	/*
+	 * assume the reference voltage to be 2.048V, with an 8-bit sample,
 	 * the LSB weight is 8mV
 	 */
 	return sprintf(buf, "%d\n", ret * 8);
