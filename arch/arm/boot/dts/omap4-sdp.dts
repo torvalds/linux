@@ -8,6 +8,7 @@
 /dts-v1/;
 
 /include/ "omap4.dtsi"
+/include/ "elpida_ecb240abacn.dtsi"
 
 / {
 	model = "TI OMAP4 SDP board";
@@ -225,6 +226,16 @@
 &mmc5 {
 	bus-width = <4>;
 	ti,non-removable;
+};
+
+&emif1 {
+	cs1-used;
+	device-handle = <&elpida_ECB240ABACN>;
+};
+
+&emif2 {
+	cs1-used;
+	device-handle = <&elpida_ECB240ABACN>;
 };
 
 &keypad {

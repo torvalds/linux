@@ -300,5 +300,23 @@
 			compatible = "ti,omap4-keypad";
 			ti,hwmods = "kbd";
 		};
+
+		emif1: emif@4c000000 {
+			compatible = "ti,emif-4d";
+			ti,hwmods = "emif1";
+			phy-type = <1>;
+			hw-caps-read-idle-ctrl;
+			hw-caps-ll-interface;
+			hw-caps-temp-alert;
+		};
+
+		emif2: emif@4d000000 {
+			compatible = "ti,emif-4d";
+			ti,hwmods = "emif2";
+			phy-type = <1>;
+			hw-caps-read-idle-ctrl;
+			hw-caps-ll-interface;
+			hw-caps-temp-alert;
+		};
 	};
 };
