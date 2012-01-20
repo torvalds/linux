@@ -467,6 +467,10 @@ radeon_atombios_get_tv_info(struct radeon_device *rdev);
 
 extern struct drm_connector *
 radeon_get_connector_for_encoder(struct drm_encoder *encoder);
+extern struct drm_connector *
+radeon_get_connector_for_encoder_init(struct drm_encoder *encoder);
+extern bool radeon_dig_monitor_is_duallink(struct drm_encoder *encoder,
+				    u32 pixel_clock);
 
 extern u16 radeon_encoder_get_dp_bridge_encoder_id(struct drm_encoder *encoder);
 extern u16 radeon_connector_encoder_get_dp_bridge_encoder_id(struct drm_connector *connector);

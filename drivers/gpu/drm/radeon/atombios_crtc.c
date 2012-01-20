@@ -518,6 +518,7 @@ static u32 atombios_adjust_pll(struct drm_crtc *crtc,
 	int encoder_mode = 0;
 	u32 dp_clock = mode->clock;
 	int bpc = 8;
+	bool is_duallink = false;
 
 	/* reset the pll flags */
 	pll->flags = 0;
@@ -552,6 +553,7 @@ static u32 atombios_adjust_pll(struct drm_crtc *crtc,
 			if (connector && connector->display_info.bpc)
 				bpc = connector->display_info.bpc;
 			encoder_mode = atombios_get_encoder_mode(encoder);
+			is_duallink = radeon_dig_monitor_is_duallink(encoder, mode->clock);
 			if ((radeon_encoder->devices & (ATOM_DEVICE_LCD_SUPPORT | ATOM_DEVICE_DFP_SUPPORT)) ||
 			    (radeon_encoder_get_dp_bridge_encoder_id(encoder) != ENCODER_OBJECT_ID_NONE)) {
 				if (connector) {
@@ -647,7 +649,7 @@ static u32 atombios_adjust_pll(struct drm_crtc *crtc,
 					if (dig->coherent_mode)
 						args.v3.sInput.ucDispPllConfig |=
 							DISPPLL_CONFIG_COHERENT_MODE;
-					if (mode->clock > 165000)
+					if (is_duallink)
 						args.v3.sInput.ucDispPllConfig |=
 							DISPPLL_CONFIG_DUAL_LINK;
 				}
