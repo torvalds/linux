@@ -2246,6 +2246,17 @@ T:	git git://git.kernel.org/pub/scm/linux/kernel/git/teigland/dlm.git
 S:	Supported
 F:	fs/dlm/
 
+DMA BUFFER SHARING FRAMEWORK
+M:	Sumit Semwal <sumit.semwal@linaro.org>
+S:	Maintained
+L:	linux-media@vger.kernel.org
+L:	dri-devel@lists.freedesktop.org
+L:	linaro-mm-sig@lists.linaro.org
+F:	drivers/base/dma-buf*
+F:	include/linux/dma-buf*
+F:	Documentation/dma-buf-sharing.txt
+T:	git git://git.linaro.org/people/sumitsemwal/linux-dma-buf.git
+
 DMA GENERIC OFFLOAD ENGINE SUBSYSTEM
 M:	Vinod Koul <vinod.koul@intel.com>
 M:	Dan Williams <dan.j.williams@intel.com>
