@@ -368,6 +368,11 @@ static int probe_itpm(struct tpm_chip *chip)
 	};
 	size_t len = sizeof(cmd_getticks);
 	int rem_itpm = itpm;
+	u16 vendor = ioread16(chip->vendor.iobase + TPM_DID_VID(0));
+
+	/* probe only iTPMS */
+	if (vendor != TPM_VID_INTEL)
+		return 0;
 
 	itpm = 0;
 
@@ -390,9 +395,6 @@ static int probe_itpm(struct tpm_chip *chip)
 out:
 	itpm = rem_itpm;
 	tpm_tis_ready(chip);
-	/* some TPMs need a break here otherwise they will not work
-	 * correctly on the immediately subsequent command */
-	msleep(chip->vendor.timeout_b);
 	release_locality(chip, chip->vendor.locality, 0);
 
 	return rc;
