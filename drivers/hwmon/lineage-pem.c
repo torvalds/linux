@@ -568,19 +568,8 @@ static struct i2c_driver pem_driver = {
 	.id_table = pem_id,
 };
 
-static int __init pem_init(void)
-{
-	return i2c_add_driver(&pem_driver);
-}
-
-static void __exit pem_exit(void)
-{
-	i2c_del_driver(&pem_driver);
-}
+module_i2c_driver(pem_driver);
 
 MODULE_AUTHOR("Guenter Roeck <guenter.roeck@ericsson.com>");
 MODULE_DESCRIPTION("Lineage CPL PEM hardware monitoring driver");
 MODULE_LICENSE("GPL");
-
-module_init(pem_init);
-module_exit(pem_exit);

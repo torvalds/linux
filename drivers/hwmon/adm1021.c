@@ -451,15 +451,7 @@ static struct adm1021_data *adm1021_update_device(struct device *dev)
 	return data;
 }
 
-static int __init sensors_adm1021_init(void)
-{
-	return i2c_add_driver(&adm1021_driver);
-}
-
-static void __exit sensors_adm1021_exit(void)
-{
-	i2c_del_driver(&adm1021_driver);
-}
+module_i2c_driver(adm1021_driver);
 
 MODULE_AUTHOR ("Frodo Looijaard <frodol@dds.nl> and "
 		"Philip Edelbrock <phil@netroedge.com>");
@@ -468,6 +460,3 @@ MODULE_LICENSE("GPL");
 
 module_param(read_only, bool, 0);
 MODULE_PARM_DESC(read_only, "Don't set any values, read only mode");
-
-module_init(sensors_adm1021_init)
-module_exit(sensors_adm1021_exit)

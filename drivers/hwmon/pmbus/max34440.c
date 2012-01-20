@@ -248,18 +248,8 @@ static struct i2c_driver max34440_driver = {
 	.id_table = max34440_id,
 };
 
-static int __init max34440_init(void)
-{
-	return i2c_add_driver(&max34440_driver);
-}
-
-static void __exit max34440_exit(void)
-{
-	i2c_del_driver(&max34440_driver);
-}
+module_i2c_driver(max34440_driver);
 
 MODULE_AUTHOR("Guenter Roeck");
 MODULE_DESCRIPTION("PMBus driver for Maxim MAX34440/MAX34441");
 MODULE_LICENSE("GPL");
-module_init(max34440_init);
-module_exit(max34440_exit);

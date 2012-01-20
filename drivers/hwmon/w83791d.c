@@ -1625,19 +1625,8 @@ static void w83791d_print_debug(struct w83791d_data *data, struct device *dev)
 }
 #endif
 
-static int __init sensors_w83791d_init(void)
-{
-	return i2c_add_driver(&w83791d_driver);
-}
-
-static void __exit sensors_w83791d_exit(void)
-{
-	i2c_del_driver(&w83791d_driver);
-}
+module_i2c_driver(w83791d_driver);
 
 MODULE_AUTHOR("Charles Spirakis <bezaur@gmail.com>");
 MODULE_DESCRIPTION("W83791D driver");
 MODULE_LICENSE("GPL");
-
-module_init(sensors_w83791d_init);
-module_exit(sensors_w83791d_exit);

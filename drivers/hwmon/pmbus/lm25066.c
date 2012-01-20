@@ -334,18 +334,8 @@ static struct i2c_driver lm25066_driver = {
 	.id_table = lm25066_id,
 };
 
-static int __init lm25066_init(void)
-{
-	return i2c_add_driver(&lm25066_driver);
-}
-
-static void __exit lm25066_exit(void)
-{
-	i2c_del_driver(&lm25066_driver);
-}
+module_i2c_driver(lm25066_driver);
 
 MODULE_AUTHOR("Guenter Roeck");
 MODULE_DESCRIPTION("PMBus driver for LM25066/LM5064/LM5066");
 MODULE_LICENSE("GPL");
-module_init(lm25066_init);
-module_exit(lm25066_exit);

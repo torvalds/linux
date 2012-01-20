@@ -264,18 +264,8 @@ static struct i2c_driver zl6100_driver = {
 	.id_table = zl6100_id,
 };
 
-static int __init zl6100_init(void)
-{
-	return i2c_add_driver(&zl6100_driver);
-}
-
-static void __exit zl6100_exit(void)
-{
-	i2c_del_driver(&zl6100_driver);
-}
+module_i2c_driver(zl6100_driver);
 
 MODULE_AUTHOR("Guenter Roeck");
 MODULE_DESCRIPTION("PMBus driver for ZL6100 and compatibles");
 MODULE_LICENSE("GPL");
-module_init(zl6100_init);
-module_exit(zl6100_exit);

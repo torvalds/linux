@@ -450,24 +450,8 @@ static struct adm1029_data *adm1029_update_device(struct device *dev)
 	return data;
 }
 
-/*
-	Common module stuff
-*/
-static int __init sensors_adm1029_init(void)
-{
-
-	return i2c_add_driver(&adm1029_driver);
-}
-
-static void __exit sensors_adm1029_exit(void)
-{
-
-	i2c_del_driver(&adm1029_driver);
-}
+module_i2c_driver(adm1029_driver);
 
 MODULE_AUTHOR("Corentin LABBE <corentin.labbe@geomatys.fr>");
 MODULE_DESCRIPTION("adm1029 driver");
 MODULE_LICENSE("GPL v2");
-
-module_init(sensors_adm1029_init);
-module_exit(sensors_adm1029_exit);

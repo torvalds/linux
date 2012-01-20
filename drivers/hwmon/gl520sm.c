@@ -910,23 +910,10 @@ static struct gl520_data *gl520_update_device(struct device *dev)
 	return data;
 }
 
-
-static int __init sensors_gl520sm_init(void)
-{
-	return i2c_add_driver(&gl520_driver);
-}
-
-static void __exit sensors_gl520sm_exit(void)
-{
-	i2c_del_driver(&gl520_driver);
-}
-
+module_i2c_driver(gl520_driver);
 
 MODULE_AUTHOR("Frodo Looijaard <frodol@dds.nl>, "
 	"Kyösti Mälkki <kmalkki@cc.hut.fi>, "
 	"Maarten Deprez <maartendeprez@users.sourceforge.net>");
 MODULE_DESCRIPTION("GL520SM driver");
 MODULE_LICENSE("GPL");
-
-module_init(sensors_gl520sm_init);
-module_exit(sensors_gl520sm_exit);

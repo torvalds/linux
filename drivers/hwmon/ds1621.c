@@ -305,20 +305,8 @@ static struct i2c_driver ds1621_driver = {
 	.address_list	= normal_i2c,
 };
 
-static int __init ds1621_init(void)
-{
-	return i2c_add_driver(&ds1621_driver);
-}
-
-static void __exit ds1621_exit(void)
-{
-	i2c_del_driver(&ds1621_driver);
-}
-
+module_i2c_driver(ds1621_driver);
 
 MODULE_AUTHOR("Christian W. Zuckschwerdt <zany@triq.net>");
 MODULE_DESCRIPTION("DS1621 driver");
 MODULE_LICENSE("GPL");
-
-module_init(ds1621_init);
-module_exit(ds1621_exit);

@@ -258,18 +258,8 @@ static struct i2c_driver ucd9000_driver = {
 	.id_table = ucd9000_id,
 };
 
-static int __init ucd9000_init(void)
-{
-	return i2c_add_driver(&ucd9000_driver);
-}
-
-static void __exit ucd9000_exit(void)
-{
-	i2c_del_driver(&ucd9000_driver);
-}
+module_i2c_driver(ucd9000_driver);
 
 MODULE_AUTHOR("Guenter Roeck");
 MODULE_DESCRIPTION("PMBus driver for TI UCD90xxx");
 MODULE_LICENSE("GPL");
-module_init(ucd9000_init);
-module_exit(ucd9000_exit);

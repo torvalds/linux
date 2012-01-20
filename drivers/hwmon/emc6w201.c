@@ -552,17 +552,7 @@ static struct i2c_driver emc6w201_driver = {
 	.address_list	= normal_i2c,
 };
 
-static int __init sensors_emc6w201_init(void)
-{
-	return i2c_add_driver(&emc6w201_driver);
-}
-module_init(sensors_emc6w201_init);
-
-static void __exit sensors_emc6w201_exit(void)
-{
-	i2c_del_driver(&emc6w201_driver);
-}
-module_exit(sensors_emc6w201_exit);
+module_i2c_driver(emc6w201_driver);
 
 MODULE_AUTHOR("Jean Delvare <khali@linux-fr.org>");
 MODULE_DESCRIPTION("SMSC EMC6W201 hardware monitoring driver");

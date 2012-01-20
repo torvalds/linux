@@ -326,18 +326,8 @@ static struct i2c_driver adm1275_driver = {
 	.id_table = adm1275_id,
 };
 
-static int __init adm1275_init(void)
-{
-	return i2c_add_driver(&adm1275_driver);
-}
-
-static void __exit adm1275_exit(void)
-{
-	i2c_del_driver(&adm1275_driver);
-}
+module_i2c_driver(adm1275_driver);
 
 MODULE_AUTHOR("Guenter Roeck");
 MODULE_DESCRIPTION("PMBus driver for Analog Devices ADM1275 and compatibles");
 MODULE_LICENSE("GPL");
-module_init(adm1275_init);
-module_exit(adm1275_exit);

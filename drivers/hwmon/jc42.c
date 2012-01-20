@@ -614,19 +614,8 @@ abort:
 	return ret;
 }
 
-static int __init sensors_jc42_init(void)
-{
-	return i2c_add_driver(&jc42_driver);
-}
-
-static void __exit sensors_jc42_exit(void)
-{
-	i2c_del_driver(&jc42_driver);
-}
+module_i2c_driver(jc42_driver);
 
 MODULE_AUTHOR("Guenter Roeck <guenter.roeck@ericsson.com>");
 MODULE_DESCRIPTION("JC42 driver");
 MODULE_LICENSE("GPL");
-
-module_init(sensors_jc42_init);
-module_exit(sensors_jc42_exit);

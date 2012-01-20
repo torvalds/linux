@@ -465,18 +465,7 @@ static struct thmc50_data *thmc50_update_device(struct device *dev)
 	return data;
 }
 
-static int __init sm_thmc50_init(void)
-{
-	return i2c_add_driver(&thmc50_driver);
-}
-
-static void __exit sm_thmc50_exit(void)
-{
-	i2c_del_driver(&thmc50_driver);
-}
+module_i2c_driver(thmc50_driver);
 
 MODULE_AUTHOR("Krzysztof Helt <krzysztof.h1@wp.pl>");
 MODULE_DESCRIPTION("THMC50 driver");
-
-module_init(sm_thmc50_init);
-module_exit(sm_thmc50_exit);

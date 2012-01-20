@@ -190,18 +190,8 @@ static struct i2c_driver ucd9200_driver = {
 	.id_table = ucd9200_id,
 };
 
-static int __init ucd9200_init(void)
-{
-	return i2c_add_driver(&ucd9200_driver);
-}
-
-static void __exit ucd9200_exit(void)
-{
-	i2c_del_driver(&ucd9200_driver);
-}
+module_i2c_driver(ucd9200_driver);
 
 MODULE_AUTHOR("Guenter Roeck");
 MODULE_DESCRIPTION("PMBus driver for TI UCD922x, UCD924x");
 MODULE_LICENSE("GPL");
-module_init(ucd9200_init);
-module_exit(ucd9200_exit);

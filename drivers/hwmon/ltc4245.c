@@ -578,19 +578,8 @@ static struct i2c_driver ltc4245_driver = {
 	.id_table	= ltc4245_id,
 };
 
-static int __init ltc4245_init(void)
-{
-	return i2c_add_driver(&ltc4245_driver);
-}
-
-static void __exit ltc4245_exit(void)
-{
-	i2c_del_driver(&ltc4245_driver);
-}
+module_i2c_driver(ltc4245_driver);
 
 MODULE_AUTHOR("Ira W. Snyder <iws@ovro.caltech.edu>");
 MODULE_DESCRIPTION("LTC4245 driver");
 MODULE_LICENSE("GPL");
-
-module_init(ltc4245_init);
-module_exit(ltc4245_exit);

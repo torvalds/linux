@@ -420,19 +420,8 @@ static struct lm77_data *lm77_update_device(struct device *dev)
 	return data;
 }
 
-static int __init sensors_lm77_init(void)
-{
-	return i2c_add_driver(&lm77_driver);
-}
-
-static void __exit sensors_lm77_exit(void)
-{
-	i2c_del_driver(&lm77_driver);
-}
+module_i2c_driver(lm77_driver);
 
 MODULE_AUTHOR("Andras BALI <drewie@freemail.hu>");
 MODULE_DESCRIPTION("LM77 driver");
 MODULE_LICENSE("GPL");
-
-module_init(sensors_lm77_init);
-module_exit(sensors_lm77_exit);

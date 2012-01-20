@@ -430,19 +430,8 @@ static struct lm83_data *lm83_update_device(struct device *dev)
 	return data;
 }
 
-static int __init sensors_lm83_init(void)
-{
-	return i2c_add_driver(&lm83_driver);
-}
-
-static void __exit sensors_lm83_exit(void)
-{
-	i2c_del_driver(&lm83_driver);
-}
+module_i2c_driver(lm83_driver);
 
 MODULE_AUTHOR("Jean Delvare <khali@linux-fr.org>");
 MODULE_DESCRIPTION("LM83 driver");
 MODULE_LICENSE("GPL");
-
-module_init(sensors_lm83_init);
-module_exit(sensors_lm83_exit);

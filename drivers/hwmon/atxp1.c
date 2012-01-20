@@ -367,15 +367,4 @@ static int atxp1_remove(struct i2c_client *client)
 	return 0;
 };
 
-static int __init atxp1_init(void)
-{
-	return i2c_add_driver(&atxp1_driver);
-};
-
-static void __exit atxp1_exit(void)
-{
-	i2c_del_driver(&atxp1_driver);
-};
-
-module_init(atxp1_init);
-module_exit(atxp1_exit);
+module_i2c_driver(atxp1_driver);

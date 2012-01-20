@@ -224,18 +224,8 @@ static struct i2c_driver pmbus_driver = {
 	.id_table = pmbus_id,
 };
 
-static int __init pmbus_init(void)
-{
-	return i2c_add_driver(&pmbus_driver);
-}
-
-static void __exit pmbus_exit(void)
-{
-	i2c_del_driver(&pmbus_driver);
-}
+module_i2c_driver(pmbus_driver);
 
 MODULE_AUTHOR("Guenter Roeck");
 MODULE_DESCRIPTION("Generic PMBus driver");
 MODULE_LICENSE("GPL");
-module_init(pmbus_init);
-module_exit(pmbus_exit);

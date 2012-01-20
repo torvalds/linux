@@ -295,20 +295,9 @@ static int ad7418_remove(struct i2c_client *client)
 	return 0;
 }
 
-static int __init ad7418_init(void)
-{
-	return i2c_add_driver(&ad7418_driver);
-}
-
-static void __exit ad7418_exit(void)
-{
-	i2c_del_driver(&ad7418_driver);
-}
+module_i2c_driver(ad7418_driver);
 
 MODULE_AUTHOR("Alessandro Zummo <a.zummo@towertech.it>");
 MODULE_DESCRIPTION("AD7416/17/18 driver");
 MODULE_LICENSE("GPL");
 MODULE_VERSION(DRV_VERSION);
-
-module_init(ad7418_init);
-module_exit(ad7418_exit);

@@ -1131,19 +1131,8 @@ static struct adm1031_data *adm1031_update_device(struct device *dev)
 	return data;
 }
 
-static int __init sensors_adm1031_init(void)
-{
-	return i2c_add_driver(&adm1031_driver);
-}
-
-static void __exit sensors_adm1031_exit(void)
-{
-	i2c_del_driver(&adm1031_driver);
-}
+module_i2c_driver(adm1031_driver);
 
 MODULE_AUTHOR("Alexandre d'Alton <alex@alexdalton.org>");
 MODULE_DESCRIPTION("ADM1031/ADM1030 driver");
 MODULE_LICENSE("GPL");
-
-module_init(sensors_adm1031_init);
-module_exit(sensors_adm1031_exit);

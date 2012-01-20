@@ -1761,20 +1761,9 @@ static int adm1026_remove(struct i2c_client *client)
 	return 0;
 }
 
-static int __init sm_adm1026_init(void)
-{
-	return i2c_add_driver(&adm1026_driver);
-}
-
-static void __exit sm_adm1026_exit(void)
-{
-	i2c_del_driver(&adm1026_driver);
-}
+module_i2c_driver(adm1026_driver);
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Philip Pokorny <ppokorny@penguincomputing.com>, "
 	      "Justin Thiessen <jthiessen@penguincomputing.com>");
 MODULE_DESCRIPTION("ADM1026 driver");
-
-module_init(sm_adm1026_init);
-module_exit(sm_adm1026_exit);

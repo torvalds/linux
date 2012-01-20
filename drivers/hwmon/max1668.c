@@ -484,19 +484,8 @@ static struct i2c_driver max1668_driver = {
 	.address_list = max1668_addr_list,
 };
 
-static int __init sensors_max1668_init(void)
-{
-	return i2c_add_driver(&max1668_driver);
-}
-
-static void __exit sensors_max1668_exit(void)
-{
-	i2c_del_driver(&max1668_driver);
-}
+module_i2c_driver(max1668_driver);
 
 MODULE_AUTHOR("David George <david.george@ska.ac.za>");
 MODULE_DESCRIPTION("MAX1668 remote temperature sensor driver");
 MODULE_LICENSE("GPL");
-
-module_init(sensors_max1668_init)
-module_exit(sensors_max1668_exit)

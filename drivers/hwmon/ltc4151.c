@@ -238,19 +238,8 @@ static struct i2c_driver ltc4151_driver = {
 	.id_table	= ltc4151_id,
 };
 
-static int __init ltc4151_init(void)
-{
-	return i2c_add_driver(&ltc4151_driver);
-}
-
-static void __exit ltc4151_exit(void)
-{
-	i2c_del_driver(&ltc4151_driver);
-}
+module_i2c_driver(ltc4151_driver);
 
 MODULE_AUTHOR("Per Dalen <per.dalen@appeartv.com>");
 MODULE_DESCRIPTION("LTC4151 driver");
 MODULE_LICENSE("GPL");
-
-module_init(ltc4151_init);
-module_exit(ltc4151_exit);

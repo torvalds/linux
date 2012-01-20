@@ -1314,20 +1314,9 @@ static struct fschmd_data *fschmd_update_device(struct device *dev)
 	return data;
 }
 
-static int __init fschmd_init(void)
-{
-	return i2c_add_driver(&fschmd_driver);
-}
-
-static void __exit fschmd_exit(void)
-{
-	i2c_del_driver(&fschmd_driver);
-}
+module_i2c_driver(fschmd_driver);
 
 MODULE_AUTHOR("Hans de Goede <hdegoede@redhat.com>");
 MODULE_DESCRIPTION("FSC Poseidon, Hermes, Scylla, Heracles, Heimdall, Hades "
 			"and Syleus driver");
 MODULE_LICENSE("GPL");
-
-module_init(fschmd_init);
-module_exit(fschmd_exit);

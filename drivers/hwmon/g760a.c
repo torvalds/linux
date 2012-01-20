@@ -250,21 +250,8 @@ static int g760a_remove(struct i2c_client *client)
 	return 0;
 }
 
-/* module management */
-
-static int __init g760a_init(void)
-{
-	return i2c_add_driver(&g760a_driver);
-}
-
-static void __exit g760a_exit(void)
-{
-	i2c_del_driver(&g760a_driver);
-}
+module_i2c_driver(g760a_driver);
 
 MODULE_AUTHOR("Herbert Valerio Riedel <hvr@gnu.org>");
 MODULE_DESCRIPTION("GMT G760A driver");
 MODULE_LICENSE("GPL");
-
-module_init(g760a_init);
-module_exit(g760a_exit);

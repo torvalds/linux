@@ -718,19 +718,8 @@ static struct i2c_driver smm665_driver = {
 	.id_table = smm665_id,
 };
 
-static int __init smm665_init(void)
-{
-	return i2c_add_driver(&smm665_driver);
-}
-
-static void __exit smm665_exit(void)
-{
-	i2c_del_driver(&smm665_driver);
-}
+module_i2c_driver(smm665_driver);
 
 MODULE_AUTHOR("Guenter Roeck");
 MODULE_DESCRIPTION("SMM665 driver");
 MODULE_LICENSE("GPL");
-
-module_init(smm665_init);
-module_exit(smm665_exit);

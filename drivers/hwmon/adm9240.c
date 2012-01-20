@@ -795,21 +795,9 @@ static struct adm9240_data *adm9240_update_device(struct device *dev)
 	return data;
 }
 
-static int __init sensors_adm9240_init(void)
-{
-	return i2c_add_driver(&adm9240_driver);
-}
-
-static void __exit sensors_adm9240_exit(void)
-{
-	i2c_del_driver(&adm9240_driver);
-}
+module_i2c_driver(adm9240_driver);
 
 MODULE_AUTHOR("Michiel Rook <michiel@grendelproject.nl>, "
 		"Grant Coady <gcoady.lk@gmail.com> and others");
 MODULE_DESCRIPTION("ADM9240/DS1780/LM81 driver");
 MODULE_LICENSE("GPL");
-
-module_init(sensors_adm9240_init);
-module_exit(sensors_adm9240_exit);
-

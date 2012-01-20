@@ -963,19 +963,8 @@ static struct lm87_data *lm87_update_device(struct device *dev)
 	return data;
 }
 
-static int __init sensors_lm87_init(void)
-{
-	return i2c_add_driver(&lm87_driver);
-}
-
-static void __exit sensors_lm87_exit(void)
-{
-	i2c_del_driver(&lm87_driver);
-}
+module_i2c_driver(lm87_driver);
 
 MODULE_AUTHOR("Jean Delvare <khali@linux-fr.org> and others");
 MODULE_DESCRIPTION("LM87 driver");
 MODULE_LICENSE("GPL");
-
-module_init(sensors_lm87_init);
-module_exit(sensors_lm87_exit);

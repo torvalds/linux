@@ -1975,19 +1975,8 @@ static int adt7462_remove(struct i2c_client *client)
 	return 0;
 }
 
-static int __init adt7462_init(void)
-{
-	return i2c_add_driver(&adt7462_driver);
-}
-
-static void __exit adt7462_exit(void)
-{
-	i2c_del_driver(&adt7462_driver);
-}
+module_i2c_driver(adt7462_driver);
 
 MODULE_AUTHOR("Darrick J. Wong <djwong@us.ibm.com>");
 MODULE_DESCRIPTION("ADT7462 driver");
 MODULE_LICENSE("GPL");
-
-module_init(adt7462_init);
-module_exit(adt7462_exit);

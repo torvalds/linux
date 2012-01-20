@@ -297,19 +297,8 @@ static struct i2c_driver ltc4261_driver = {
 	.id_table = ltc4261_id,
 };
 
-static int __init ltc4261_init(void)
-{
-	return i2c_add_driver(&ltc4261_driver);
-}
-
-static void __exit ltc4261_exit(void)
-{
-	i2c_del_driver(&ltc4261_driver);
-}
+module_i2c_driver(ltc4261_driver);
 
 MODULE_AUTHOR("Guenter Roeck <guenter.roeck@ericsson.com>");
 MODULE_DESCRIPTION("LTC4261 driver");
 MODULE_LICENSE("GPL");
-
-module_init(ltc4261_init);
-module_exit(ltc4261_exit);

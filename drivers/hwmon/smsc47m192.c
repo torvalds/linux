@@ -635,19 +635,8 @@ static struct smsc47m192_data *smsc47m192_update_device(struct device *dev)
 	return data;
 }
 
-static int __init smsc47m192_init(void)
-{
-	return i2c_add_driver(&smsc47m192_driver);
-}
-
-static void __exit smsc47m192_exit(void)
-{
-	i2c_del_driver(&smsc47m192_driver);
-}
+module_i2c_driver(smsc47m192_driver);
 
 MODULE_AUTHOR("Hartmut Rick <linux@rick.claranet.de>");
 MODULE_DESCRIPTION("SMSC47M192 driver");
 MODULE_LICENSE("GPL");
-
-module_init(smsc47m192_init);
-module_exit(smsc47m192_exit);

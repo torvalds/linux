@@ -1317,19 +1317,8 @@ static int adt7470_remove(struct i2c_client *client)
 	return 0;
 }
 
-static int __init adt7470_init(void)
-{
-	return i2c_add_driver(&adt7470_driver);
-}
-
-static void __exit adt7470_exit(void)
-{
-	i2c_del_driver(&adt7470_driver);
-}
+module_i2c_driver(adt7470_driver);
 
 MODULE_AUTHOR("Darrick J. Wong <djwong@us.ibm.com>");
 MODULE_DESCRIPTION("ADT7470 driver");
 MODULE_LICENSE("GPL");
-
-module_init(adt7470_init);
-module_exit(adt7470_exit);

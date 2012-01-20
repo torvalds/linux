@@ -1626,19 +1626,8 @@ static struct adt7475_data *adt7475_update_device(struct device *dev)
 	return data;
 }
 
-static int __init sensors_adt7475_init(void)
-{
-	return i2c_add_driver(&adt7475_driver);
-}
-
-static void __exit sensors_adt7475_exit(void)
-{
-	i2c_del_driver(&adt7475_driver);
-}
+module_i2c_driver(adt7475_driver);
 
 MODULE_AUTHOR("Advanced Micro Devices, Inc");
 MODULE_DESCRIPTION("adt7475 driver");
 MODULE_LICENSE("GPL");
-
-module_init(sensors_adt7475_init);
-module_exit(sensors_adt7475_exit);

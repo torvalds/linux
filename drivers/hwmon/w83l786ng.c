@@ -769,21 +769,8 @@ static struct w83l786ng_data *w83l786ng_update_device(struct device *dev)
 	return data;
 }
 
-static int __init
-sensors_w83l786ng_init(void)
-{
-	return i2c_add_driver(&w83l786ng_driver);
-}
-
-static void __exit
-sensors_w83l786ng_exit(void)
-{
-	i2c_del_driver(&w83l786ng_driver);
-}
+module_i2c_driver(w83l786ng_driver);
 
 MODULE_AUTHOR("Kevin Lo");
 MODULE_DESCRIPTION("w83l786ng driver");
 MODULE_LICENSE("GPL");
-
-module_init(sensors_w83l786ng_init);
-module_exit(sensors_w83l786ng_exit);

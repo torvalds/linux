@@ -1611,22 +1611,10 @@ static struct lm85_data *lm85_update_device(struct device *dev)
 	return data;
 }
 
-
-static int __init sm_lm85_init(void)
-{
-	return i2c_add_driver(&lm85_driver);
-}
-
-static void __exit sm_lm85_exit(void)
-{
-	i2c_del_driver(&lm85_driver);
-}
+module_i2c_driver(lm85_driver);
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Philip Pokorny <ppokorny@penguincomputing.com>, "
 	"Margit Schubert-While <margitsw@t-online.de>, "
 	"Justin Thiessen <jthiessen@penguincomputing.com>");
 MODULE_DESCRIPTION("LM85-B, LM85-C driver");
-
-module_init(sm_lm85_init);
-module_exit(sm_lm85_exit);

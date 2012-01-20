@@ -366,18 +366,7 @@ static struct i2c_driver sensor_emc1403 = {
 	.address_list = emc1403_address_list,
 };
 
-static int __init sensor_emc1403_init(void)
-{
-	return i2c_add_driver(&sensor_emc1403);
-}
-
-static void  __exit sensor_emc1403_exit(void)
-{
-	i2c_del_driver(&sensor_emc1403);
-}
-
-module_init(sensor_emc1403_init);
-module_exit(sensor_emc1403_exit);
+module_i2c_driver(sensor_emc1403);
 
 MODULE_AUTHOR("Kalhan Trisal <kalhan.trisal@intel.com");
 MODULE_DESCRIPTION("emc1403 Thermal Driver");

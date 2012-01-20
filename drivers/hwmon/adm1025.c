@@ -618,19 +618,8 @@ static struct adm1025_data *adm1025_update_device(struct device *dev)
 	return data;
 }
 
-static int __init sensors_adm1025_init(void)
-{
-	return i2c_add_driver(&adm1025_driver);
-}
-
-static void __exit sensors_adm1025_exit(void)
-{
-	i2c_del_driver(&adm1025_driver);
-}
+module_i2c_driver(adm1025_driver);
 
 MODULE_AUTHOR("Jean Delvare <khali@linux-fr.org>");
 MODULE_DESCRIPTION("ADM1025 driver");
 MODULE_LICENSE("GPL");
-
-module_init(sensors_adm1025_init);
-module_exit(sensors_adm1025_exit);

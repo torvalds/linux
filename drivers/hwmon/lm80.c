@@ -697,20 +697,9 @@ done:
 	return ret;
 }
 
-static int __init sensors_lm80_init(void)
-{
-	return i2c_add_driver(&lm80_driver);
-}
-
-static void __exit sensors_lm80_exit(void)
-{
-	i2c_del_driver(&lm80_driver);
-}
+module_i2c_driver(lm80_driver);
 
 MODULE_AUTHOR("Frodo Looijaard <frodol@dds.nl> and "
 	"Philip Edelbrock <phil@netroedge.com>");
 MODULE_DESCRIPTION("LM80 driver");
 MODULE_LICENSE("GPL");
-
-module_init(sensors_lm80_init);
-module_exit(sensors_lm80_exit);

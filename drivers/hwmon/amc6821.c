@@ -1095,20 +1095,7 @@ static struct amc6821_data *amc6821_update_device(struct device *dev)
 	return data;
 }
 
-
-static int __init amc6821_init(void)
-{
-	return i2c_add_driver(&amc6821_driver);
-}
-
-static void __exit amc6821_exit(void)
-{
-	i2c_del_driver(&amc6821_driver);
-}
-
-module_init(amc6821_init);
-module_exit(amc6821_exit);
-
+module_i2c_driver(amc6821_driver);
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("T. Mertelj <tomaz.mertelj@guest.arnes.si>");

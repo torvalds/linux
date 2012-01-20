@@ -2635,20 +2635,9 @@ static struct i2c_driver lm93_driver = {
 	.address_list	= normal_i2c,
 };
 
-static int __init lm93_init(void)
-{
-	return i2c_add_driver(&lm93_driver);
-}
-
-static void __exit lm93_exit(void)
-{
-	i2c_del_driver(&lm93_driver);
-}
+module_i2c_driver(lm93_driver);
 
 MODULE_AUTHOR("Mark M. Hoffman <mhoffman@lightlink.com>, "
 		"Hans J. Koch <hjk@hansjkoch.de>");
 MODULE_DESCRIPTION("LM93 driver");
 MODULE_LICENSE("GPL");
-
-module_init(lm93_init);
-module_exit(lm93_exit);

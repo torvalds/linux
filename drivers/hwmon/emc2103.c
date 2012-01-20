@@ -722,19 +722,8 @@ static struct i2c_driver emc2103_driver = {
 	.address_list	= normal_i2c,
 };
 
-static int __init sensors_emc2103_init(void)
-{
-	return i2c_add_driver(&emc2103_driver);
-}
-
-static void __exit sensors_emc2103_exit(void)
-{
-	i2c_del_driver(&emc2103_driver);
-}
+module_i2c_driver(emc2103_driver);
 
 MODULE_AUTHOR("Steve Glendinning <steve.glendinning@smsc.com>");
 MODULE_DESCRIPTION("SMSC EMC2103 hwmon driver");
 MODULE_LICENSE("GPL");
-
-module_init(sensors_emc2103_init);
-module_exit(sensors_emc2103_exit);

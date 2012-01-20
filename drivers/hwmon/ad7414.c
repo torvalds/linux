@@ -256,17 +256,7 @@ static struct i2c_driver ad7414_driver = {
 	.id_table = ad7414_id,
 };
 
-static int __init ad7414_init(void)
-{
-	return i2c_add_driver(&ad7414_driver);
-}
-module_init(ad7414_init);
-
-static void __exit ad7414_exit(void)
-{
-	i2c_del_driver(&ad7414_driver);
-}
-module_exit(ad7414_exit);
+module_i2c_driver(ad7414_driver);
 
 MODULE_AUTHOR("Stefan Roese <sr at denx.de>, "
 	      "Frank Edelhaeuser <frank.edelhaeuser at spansion.com>");

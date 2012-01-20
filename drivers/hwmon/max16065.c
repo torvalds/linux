@@ -699,19 +699,8 @@ static struct i2c_driver max16065_driver = {
 	.id_table = max16065_id,
 };
 
-static int __init max16065_init(void)
-{
-	return i2c_add_driver(&max16065_driver);
-}
-
-static void __exit max16065_exit(void)
-{
-	i2c_del_driver(&max16065_driver);
-}
+module_i2c_driver(max16065_driver);
 
 MODULE_AUTHOR("Guenter Roeck <guenter.roeck@ericsson.com>");
 MODULE_DESCRIPTION("MAX16065 driver");
 MODULE_LICENSE("GPL");
-
-module_init(max16065_init);
-module_exit(max16065_exit);

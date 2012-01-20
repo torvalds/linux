@@ -662,19 +662,8 @@ static struct i2c_driver tmp401_driver = {
 	.address_list	= normal_i2c,
 };
 
-static int __init tmp401_init(void)
-{
-	return i2c_add_driver(&tmp401_driver);
-}
-
-static void __exit tmp401_exit(void)
-{
-	i2c_del_driver(&tmp401_driver);
-}
+module_i2c_driver(tmp401_driver);
 
 MODULE_AUTHOR("Hans de Goede <hdegoede@redhat.com>");
 MODULE_DESCRIPTION("Texas Instruments TMP401 temperature sensor driver");
 MODULE_LICENSE("GPL");
-
-module_init(tmp401_init);
-module_exit(tmp401_exit);

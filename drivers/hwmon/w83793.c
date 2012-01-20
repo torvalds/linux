@@ -2120,19 +2120,8 @@ END:
 	return res;
 }
 
-static int __init sensors_w83793_init(void)
-{
-	return i2c_add_driver(&w83793_driver);
-}
-
-static void __exit sensors_w83793_exit(void)
-{
-	i2c_del_driver(&w83793_driver);
-}
+module_i2c_driver(w83793_driver);
 
 MODULE_AUTHOR("Yuan Mu, Sven Anders");
 MODULE_DESCRIPTION("w83793 driver");
 MODULE_LICENSE("GPL");
-
-module_init(sensors_w83793_init);
-module_exit(sensors_w83793_exit);

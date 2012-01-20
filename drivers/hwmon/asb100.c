@@ -971,19 +971,8 @@ static struct asb100_data *asb100_update_device(struct device *dev)
 	return data;
 }
 
-static int __init asb100_init(void)
-{
-	return i2c_add_driver(&asb100_driver);
-}
-
-static void __exit asb100_exit(void)
-{
-	i2c_del_driver(&asb100_driver);
-}
+module_i2c_driver(asb100_driver);
 
 MODULE_AUTHOR("Mark M. Hoffman <mhoffman@lightlink.com>");
 MODULE_DESCRIPTION("ASB100 Bach driver");
 MODULE_LICENSE("GPL");
-
-module_init(asb100_init);
-module_exit(asb100_exit);

@@ -731,19 +731,8 @@ static struct max6650_data *max6650_update_device(struct device *dev)
 	return data;
 }
 
-static int __init sensors_max6650_init(void)
-{
-	return i2c_add_driver(&max6650_driver);
-}
-
-static void __exit sensors_max6650_exit(void)
-{
-	i2c_del_driver(&max6650_driver);
-}
+module_i2c_driver(max6650_driver);
 
 MODULE_AUTHOR("Hans J. Koch");
 MODULE_DESCRIPTION("MAX6650 sensor driver");
 MODULE_LICENSE("GPL");
-
-module_init(sensors_max6650_init);
-module_exit(sensors_max6650_exit);
