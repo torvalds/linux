@@ -854,18 +854,6 @@ static int truncate_upper(struct dentry *dentry, struct iattr *ia,
 		size_t num_zeros = (PAGE_CACHE_SIZE
 				    - (ia->ia_size & ~PAGE_CACHE_MASK));
 
-
-		/*
-		 * XXX(truncate) this should really happen at the begginning
-		 * of ->setattr.  But the code is too messy to that as part
-		 * of a larger patch.  ecryptfs is also totally missing out
-		 * on the inode_change_ok check at the beginning of
-		 * ->setattr while would include this.
-		 */
-		rc = inode_newsize_ok(inode, ia->ia_size);
-		if (rc)
-			goto out;
-
 		if (!(crypt_stat->flags & ECRYPTFS_ENCRYPTED)) {
 			truncate_setsize(inode, ia->ia_size);
 			lower_ia->ia_size = ia->ia_size;
@@ -915,6 +903,28 @@ out:
 	return rc;
 }
 
+static int ecryptfs_inode_newsize_ok(struct inode *inode, loff_t offset)
+{
+	struct ecryptfs_crypt_stat *crypt_stat;
+	loff_t lower_oldsize, lower_newsize;
+
+	crypt_stat = &ecryptfs_inode_to_private(inode)->crypt_stat;
+	lower_oldsize = upper_size_to_lower_size(crypt_stat,
+						 i_size_read(inode));
+	lower_newsize = upper_size_to_lower_size(crypt_stat, offset);
+	if (lower_newsize > lower_oldsize) {
+		/*
+		 * The eCryptfs inode and the new *lower* size are mixed here
+		 * because we may not have the lower i_mutex held and/or it may
+		 * not be appropriate to call inode_newsize_ok() with inodes
+		 * from other filesystems.
+		 */
+		return inode_newsize_ok(inode, lower_newsize);
+	}
+
+	return 0;
+}
+
 /**
  * ecryptfs_truncate
  * @dentry: The ecryptfs layer dentry
@@ -930,6 +940,10 @@ int ecryptfs_truncate(struct dentry *dentry, loff_t new_length)
 	struct iattr ia = { .ia_valid = ATTR_SIZE, .ia_size = new_length };
 	struct iattr lower_ia = { .ia_valid = 0 };
 	int rc;
+
+	rc = ecryptfs_inode_newsize_ok(dentry->d_inode, new_length);
+	if (rc)
+		return rc;
 
 	rc = truncate_upper(dentry, &ia, &lower_ia);
 	if (!rc && lower_ia.ia_valid & ATTR_SIZE) {
@@ -1012,6 +1026,16 @@ static int ecryptfs_setattr(struct dentry *dentry, struct iattr *ia)
 		}
 	}
 	mutex_unlock(&crypt_stat->cs_mutex);
+
+	rc = inode_change_ok(inode, ia);
+	if (rc)
+		goto out;
+	if (ia->ia_valid & ATTR_SIZE) {
+		rc = ecryptfs_inode_newsize_ok(inode, ia->ia_size);
+		if (rc)
+			goto out;
+	}
+
 	if (S_ISREG(inode->i_mode)) {
 		rc = filemap_write_and_wait(inode->i_mapping);
 		if (rc)
