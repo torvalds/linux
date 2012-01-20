@@ -7288,7 +7288,7 @@ static int intel_gen2_queue_flip(struct drm_device *dev,
 		 MI_DISPLAY_FLIP_PLANE(intel_crtc->plane));
 	OUT_RING(fb->pitches[0]);
 	OUT_RING(obj->gtt_offset + offset);
-	OUT_RING(MI_NOOP);
+	OUT_RING(0); /* aux display base address, unused */
 	ADVANCE_LP_RING();
 out:
 	return ret;
