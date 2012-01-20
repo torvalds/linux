@@ -978,9 +978,12 @@ int pinmux_hog_maps(struct pinctrl_dev *pctldev)
 	for (i = 0; i < pinmux_maps_num; i++) {
 		struct pinmux_map const *map = &pinmux_maps[i];
 
-		if (((map->ctrl_dev == dev) ||
-		     !strcmp(map->ctrl_dev_name, devname)) &&
-		    map->hog_on_boot) {
+		if (!map->hog_on_boot)
+			continue;
+
+		if ((map->ctrl_dev == dev) ||
+			(map->ctrl_dev_name &&
+				!strcmp(map->ctrl_dev_name, devname))) {
 			/* OK time to hog! */
 			ret = pinmux_hog_map(pctldev, map);
 			if (ret)
