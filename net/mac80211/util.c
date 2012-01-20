@@ -1184,15 +1184,8 @@ int ieee80211_reconfig(struct ieee80211_local *local)
 	/* add STAs back */
 	mutex_lock(&local->sta_mtx);
 	list_for_each_entry(sta, &local->sta_list, list) {
-		if (sta->uploaded) {
-			sdata = sta->sdata;
-			if (sdata->vif.type == NL80211_IFTYPE_AP_VLAN)
-				sdata = container_of(sdata->bss,
-					     struct ieee80211_sub_if_data,
-					     u.ap);
-
-			WARN_ON(drv_sta_add(local, sdata, &sta->sta));
-		}
+		if (sta->uploaded)
+			WARN_ON(drv_sta_add(local, sta->sdata, &sta->sta));
 	}
 	mutex_unlock(&local->sta_mtx);
 

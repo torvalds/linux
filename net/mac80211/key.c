@@ -123,9 +123,6 @@ static int ieee80211_key_enable_hw_accel(struct ieee80211_key *key)
 		 */
 		if (!(key->conf.flags & IEEE80211_KEY_FLAG_PAIRWISE))
 			goto out_unsupported;
-		sdata = container_of(sdata->bss,
-				     struct ieee80211_sub_if_data,
-				     u.ap);
 	}
 
 	ret = drv_set_key(key->local, SET_KEY, sdata, sta, &key->conf);
@@ -186,11 +183,6 @@ static void ieee80211_key_disable_hw_accel(struct ieee80211_key *key)
 	      (key->conf.flags & IEEE80211_KEY_FLAG_GENERATE_IV) ||
 	      (key->conf.flags & IEEE80211_KEY_FLAG_PUT_IV_SPACE)))
 		increment_tailroom_need_count(sdata);
-
-	if (sdata->vif.type == NL80211_IFTYPE_AP_VLAN)
-		sdata = container_of(sdata->bss,
-				     struct ieee80211_sub_if_data,
-				     u.ap);
 
 	ret = drv_set_key(key->local, DISABLE_KEY, sdata,
 			  sta, &key->conf);

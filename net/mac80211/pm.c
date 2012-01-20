@@ -97,15 +97,8 @@ int __ieee80211_suspend(struct ieee80211_hw *hw, struct cfg80211_wowlan *wowlan)
 	/* tear down aggregation sessions and remove STAs */
 	mutex_lock(&local->sta_mtx);
 	list_for_each_entry(sta, &local->sta_list, list) {
-		if (sta->uploaded) {
-			sdata = sta->sdata;
-			if (sdata->vif.type == NL80211_IFTYPE_AP_VLAN)
-				sdata = container_of(sdata->bss,
-					     struct ieee80211_sub_if_data,
-					     u.ap);
-
-			drv_sta_remove(local, sdata, &sta->sta);
-		}
+		if (sta->uploaded)
+			drv_sta_remove(local, sta->sdata, &sta->sta);
 
 		mesh_plink_quiesce(sta);
 	}

@@ -253,6 +253,7 @@ static inline int drv_set_key(struct ieee80211_local *local,
 
 	might_sleep();
 
+	sdata = get_bss_sdata(sdata);
 	check_sdata_in_driver(sdata);
 
 	trace_drv_set_key(local, cmd, sdata, sta, key);
@@ -272,6 +273,7 @@ static inline void drv_update_tkip_key(struct ieee80211_local *local,
 	if (sta)
 		ista = &sta->sta;
 
+	sdata = get_bss_sdata(sdata);
 	check_sdata_in_driver(sdata);
 
 	trace_drv_update_tkip_key(local, sdata, conf, ista, iv32);
