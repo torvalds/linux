@@ -373,21 +373,9 @@ static int __exit sa1100_mtd_remove(struct platform_device *pdev)
 	return 0;
 }
 
-#ifdef CONFIG_PM
-static void sa1100_mtd_shutdown(struct platform_device *dev)
-{
-	struct sa_info *info = platform_get_drvdata(dev);
-	if (info && mtd_suspend(info->mtd) == 0)
-		mtd_resume(info->mtd);
-}
-#else
-#define sa1100_mtd_shutdown NULL
-#endif
-
 static struct platform_driver sa1100_mtd_driver = {
 	.probe		= sa1100_mtd_probe,
 	.remove		= __exit_p(sa1100_mtd_remove),
-	.shutdown	= sa1100_mtd_shutdown,
 	.driver		= {
 		.name	= "sa1100-mtd",
 		.owner	= THIS_MODULE,
