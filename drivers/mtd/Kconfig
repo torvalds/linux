@@ -304,9 +304,6 @@ config MTD_OOPS
 	  buffer in a flash partition where it can be read back at some
 	  later point.
 
-	  To use, add console=ttyMTDx to the kernel command line,
-	  where x is the MTD device number to use.
-
 config MTD_SWAP
 	tristate "Swap on MTD device support"
 	depends on MTD && SWAP
