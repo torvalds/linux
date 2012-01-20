@@ -1024,7 +1024,7 @@ it, disables and releases it, and muxes it in on the pins defined by group B:
 
 foo_switch()
 {
-	struct pinmux pmx;
+	struct pinmux *pmx;
 
 	/* Enable on position A */
 	pmx = pinmux_get(&device, "spi0-pos-A");

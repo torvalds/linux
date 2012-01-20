@@ -53,11 +53,6 @@ struct pinmux_group {
  * @dev: the device using this pinmux
  * @usecount: the number of active users of this mux setting, used to keep
  *	track of nested use cases
- * @pins: an array of discrete physical pins used in this mapping, taken
- *	from the global pin enumeration space (copied from pinmux map)
- * @num_pins: the number of pins in this mapping array, i.e. the number of
- *	elements in .pins so we can iterate over that array (copied from
- *	pinmux map)
  * @pctldev: pin control device handling this pinmux
  * @func_selector: the function selector for the pinmux device handling
  *	this pinmux
@@ -409,7 +404,7 @@ int __init pinmux_register_mappings(struct pinmux_map const *maps,
 }
 
 /**
- * acquire_pins() - acquire all the pins for a certain funcion on a pinmux
+ * acquire_pins() - acquire all the pins for a certain function on a pinmux
  * @pctldev: the device to take the pins on
  * @func_selector: the function selector to acquire the pins for
  * @group_selector: the group selector containing the pins to acquire
@@ -455,7 +450,7 @@ static int acquire_pins(struct pinctrl_dev *pctldev,
 
 /**
  * release_pins() - release pins taken by earlier acquirement
- * @pctldev: the device to free the pinx on
+ * @pctldev: the device to free the pins on
  * @group_selector: the group selector containing the pins to free
  */
 static void release_pins(struct pinctrl_dev *pctldev,
