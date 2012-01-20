@@ -148,6 +148,8 @@ int regulator_disable_deferred(struct regulator *regulator, int ms);
 
 int regulator_bulk_get(struct device *dev, int num_consumers,
 		       struct regulator_bulk_data *consumers);
+int devm_regulator_bulk_get(struct device *dev, int num_consumers,
+			    struct regulator_bulk_data *consumers);
 int regulator_bulk_enable(int num_consumers,
 			  struct regulator_bulk_data *consumers);
 int regulator_bulk_disable(int num_consumers,
