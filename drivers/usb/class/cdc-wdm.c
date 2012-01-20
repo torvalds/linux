@@ -723,8 +723,7 @@ next_desc:
 	if (rv < 0)
 		goto err2;
 	else
-		dev_info(&intf->dev, "cdc-wdm%d: USB WDM device\n",
-			intf->minor - WDM_MINOR_BASE);
+		dev_info(&intf->dev, "%s: USB WDM device\n", dev_name(intf->usb_dev));
 out:
 	return rv;
 err2:
