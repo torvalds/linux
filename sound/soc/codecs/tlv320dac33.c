@@ -1513,8 +1513,9 @@ static struct snd_soc_dai_driver dac33_dai = {
 		.channels_min = 2,
 		.channels_max = 2,
 		.rates = DAC33_RATES,
-		.formats = DAC33_FORMATS,},
+		.formats = DAC33_FORMATS,
 		.sig_bits = 24,
+	},
 	.ops = &dac33_dai_ops,
 };
 
