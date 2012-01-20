@@ -35,7 +35,7 @@
 #define virtio_rmb(vq) \
 	do { if ((vq)->weak_barriers) smp_rmb(); else rmb(); } while(0)
 #define virtio_wmb(vq) \
-	do { if ((vq)->weak_barriers) smp_rmb(); else rmb(); } while(0)
+	do { if ((vq)->weak_barriers) smp_wmb(); else wmb(); } while(0)
 #else
 /* We must force memory ordering even if guest is UP since host could be
  * running on another CPU, but SMP barriers are defined to barrier() in that
