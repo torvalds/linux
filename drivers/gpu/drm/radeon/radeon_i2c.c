@@ -30,6 +30,10 @@
 #include "radeon.h"
 #include "atom.h"
 
+extern int radeon_atom_hw_i2c_xfer(struct i2c_adapter *i2c_adap,
+				   struct i2c_msg *msgs, int num);
+extern u32 radeon_atom_hw_i2c_func(struct i2c_adapter *adap);
+
 /**
  * radeon_ddc_probe
  *
@@ -882,6 +886,11 @@ static const struct i2c_algorithm radeon_i2c_algo = {
 	.functionality = radeon_hw_i2c_func,
 };
 
+static const struct i2c_algorithm radeon_atom_i2c_algo = {
+	.master_xfer = radeon_atom_hw_i2c_xfer,
+	.functionality = radeon_atom_hw_i2c_func,
+};
+
 struct radeon_i2c_chan *radeon_i2c_create(struct drm_device *dev,
 					  struct radeon_i2c_bus_rec *rec,
 					  const char *name)
@@ -909,6 +918,18 @@ struct radeon_i2c_chan *radeon_i2c_create(struct drm_device *dev,
 		snprintf(i2c->adapter.name, sizeof(i2c->adapter.name),
 			 "Radeon i2c hw bus %s", name);
 		i2c->adapter.algo = &radeon_i2c_algo;
+		ret = i2c_add_adapter(&i2c->adapter);
+		if (ret) {
+			DRM_ERROR("Failed to register hw i2c %s\n", name);
+			goto out_free;
+		}
+	} else if (rec->hw_capable &&
+		   radeon_hw_i2c &&
+		   ASIC_IS_DCE3(rdev)) {
+		/* hw i2c using atom */
+		snprintf(i2c->adapter.name, sizeof(i2c->adapter.name),
+			 "Radeon i2c hw bus %s", name);
+		i2c->adapter.algo = &radeon_atom_i2c_algo;
 		ret = i2c_add_adapter(&i2c->adapter);
 		if (ret) {
 			DRM_ERROR("Failed to register hw i2c %s\n", name);
