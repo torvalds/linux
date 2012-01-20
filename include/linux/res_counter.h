@@ -142,7 +142,10 @@ static inline unsigned long long res_counter_margin(struct res_counter *cnt)
 	unsigned long flags;
 
 	spin_lock_irqsave(&cnt->lock, flags);
-	margin = cnt->limit - cnt->usage;
+	if (cnt->limit > cnt->usage)
+		margin = cnt->limit - cnt->usage;
+	else
+		margin = 0;
 	spin_unlock_irqrestore(&cnt->lock, flags);
 	return margin;
 }
