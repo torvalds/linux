@@ -158,11 +158,12 @@ static int __devinit lm70_probe(struct spi_device *spi)
 
 	spi_set_drvdata(spi, p_lm70);
 
-	if ((status = device_create_file(&spi->dev, &dev_attr_temp1_input))
-	 || (status = device_create_file(&spi->dev, &dev_attr_name))) {
-		dev_dbg(&spi->dev, "device_create_file failure.\n");
+	status = device_create_file(&spi->dev, &dev_attr_temp1_input);
+	if (status)
+		goto out_dev_create_temp_file_failed;
+	status = device_create_file(&spi->dev, &dev_attr_name);
+	if (status)
 		goto out_dev_create_file_failed;
-	}
 
 	/* sysfs hook */
 	p_lm70->hwmon_dev = hwmon_device_register(&spi->dev);
@@ -178,6 +179,7 @@ out_dev_reg_failed:
 	device_remove_file(&spi->dev, &dev_attr_name);
 out_dev_create_file_failed:
 	device_remove_file(&spi->dev, &dev_attr_temp1_input);
+out_dev_create_temp_file_failed:
 	spi_set_drvdata(spi, NULL);
 	kfree(p_lm70);
 	return status;
