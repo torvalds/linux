@@ -26,7 +26,27 @@
 #include <linux/mfd/s5m87xx/s5m-rtc.h>
 #include <linux/regmap.h>
 
-static struct mfd_cell s5m87xx_devs[] = {
+static struct mfd_cell s5m8751_devs[] = {
+	{
+		.name = "s5m8751-pmic",
+	}, {
+		.name = "s5m-charger",
+	}, {
+		.name = "s5m8751-codec",
+	},
+};
+
+static struct mfd_cell s5m8763_devs[] = {
+	{
+		.name = "s5m8763-pmic",
+	}, {
+		.name = "s5m-rtc",
+	}, {
+		.name = "s5m-charger",
+	},
+};
+
+static struct mfd_cell s5m8767_devs[] = {
 	{
 		.name = "s5m8767-pmic",
 	}, {
@@ -113,9 +133,23 @@ static int s5m87xx_i2c_probe(struct i2c_client *i2c,
 
 	pm_runtime_set_active(s5m87xx->dev);
 
-	ret = mfd_add_devices(s5m87xx->dev, -1,
-				s5m87xx_devs, ARRAY_SIZE(s5m87xx_devs),
-				NULL, 0);
+	switch (s5m87xx->device_type) {
+	case S5M8751X:
+		ret = mfd_add_devices(s5m87xx->dev, -1, s5m8751_devs,
+					ARRAY_SIZE(s5m8751_devs), NULL, 0);
+		break;
+	case S5M8763X:
+		ret = mfd_add_devices(s5m87xx->dev, -1, s5m8763_devs,
+					ARRAY_SIZE(s5m8763_devs), NULL, 0);
+		break;
+	case S5M8767X:
+		ret = mfd_add_devices(s5m87xx->dev, -1, s5m8767_devs,
+					ARRAY_SIZE(s5m8767_devs), NULL, 0);
+		break;
+	default:
+		/* If this happens the probe function is problem */
+		BUG();
+	}
 
 	if (ret < 0)
 		goto err;
