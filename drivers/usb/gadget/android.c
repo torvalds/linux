@@ -840,7 +840,6 @@ static ssize_t enable_store(struct device *pdev, struct device_attribute *attr,
 
 	sscanf(buff, "%d", &enabled);
 	if (enabled && !dev->enabled) {
-		cdev->next_string_id = 0;
 		/* update values in composite driver's copy of device descriptor */
 		cdev->desc.idVendor = device_desc.idVendor;
 		cdev->desc.idProduct = device_desc.idProduct;
