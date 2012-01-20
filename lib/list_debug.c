@@ -8,6 +8,7 @@
 
 #include <linux/module.h>
 #include <linux/list.h>
+#include <linux/kernel.h>
 
 /*
  * Insert a new entry between two known consecutive entries.
