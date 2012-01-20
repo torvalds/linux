@@ -40,7 +40,7 @@
 #include <mach/usb.h>
 #include <mach/aemif.h>
 
-#define DM644X_EVM_PHY_ID		"0:01"
+#define DM644X_EVM_PHY_ID		"davinci_mdio-0:01"
 #define LXT971_PHY_ID	(0x001378e2)
 #define LXT971_PHY_MASK	(0xfffffff0)
 
