@@ -2104,6 +2104,9 @@ enum nl80211_mntr_flags {
  * TUs) during which a mesh STA can send only one Action frame containing a
  * PERR element.
  *
+ * @NL80211_MESHCONF_FORWARDING: set Mesh STA as forwarding or non-forwarding
+ * or forwarding entity (default is TRUE - forwarding entity)
+ *
  * @NL80211_MESHCONF_ATTR_MAX: highest possible mesh configuration attribute
  *
  * @__NL80211_MESHCONF_ATTR_AFTER_LAST: internal use
@@ -2128,6 +2131,7 @@ enum nl80211_meshconf_params {
 	NL80211_MESHCONF_HWMP_RANN_INTERVAL,
 	NL80211_MESHCONF_GATE_ANNOUNCEMENTS,
 	NL80211_MESHCONF_HWMP_PERR_MIN_INTERVAL,
+	NL80211_MESHCONF_FORWARDING,
 
 	/* keep last */
 	__NL80211_MESHCONF_ATTR_AFTER_LAST,

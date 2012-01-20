@@ -798,6 +798,7 @@ struct mesh_config {
 	 * mesh gate, but not necessarily using the gate announcement protocol.
 	 * Still keeping the same nomenclature to be in sync with the spec. */
 	bool  dot11MeshGateAnnouncementProtocol;
+	bool dot11MeshForwarding;
 };
 
 /**

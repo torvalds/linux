@@ -1346,6 +1346,8 @@ static int ieee80211_update_mesh_config(struct wiphy *wiphy,
 		conf->dot11MeshHWMPRannInterval =
 			nconf->dot11MeshHWMPRannInterval;
 	}
+	if (_chg_mesh_attr(NL80211_MESHCONF_FORWARDING, mask))
+		conf->dot11MeshForwarding = nconf->dot11MeshForwarding;
 	return 0;
 }
 
