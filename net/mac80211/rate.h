@@ -58,6 +58,7 @@ static inline void rate_control_rate_init(struct sta_info *sta)
 	sband = local->hw.wiphy->bands[local->hw.conf.channel->band];
 
 	ref->ops->rate_init(ref->priv, sband, ista, priv_sta);
+	set_sta_flag(sta, WLAN_STA_RATE_CONTROL);
 }
 
 static inline void rate_control_rate_update(struct ieee80211_local *local,

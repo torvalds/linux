@@ -439,7 +439,7 @@ void rate_control_get_rate(struct ieee80211_sub_if_data *sdata,
 	u32 mask;
 	u8 mcs_mask[IEEE80211_HT_MCS_MASK_LEN];
 
-	if (sta) {
+	if (sta && test_sta_flag(sta, WLAN_STA_RATE_CONTROL)) {
 		ista = &sta->sta;
 		priv_sta = sta->rate_ctrl_priv;
 	}
