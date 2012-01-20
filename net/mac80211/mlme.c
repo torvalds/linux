@@ -1587,20 +1587,6 @@ static bool ieee80211_assoc_success(struct ieee80211_work *wk,
 		return false;
 	}
 
-	err = sta_info_move_state(sta, IEEE80211_STA_AUTH);
-	if (!err)
-		err = sta_info_move_state(sta, IEEE80211_STA_ASSOC);
-	if (!err && !(ifmgd->flags & IEEE80211_STA_CONTROL_PORT))
-		err = sta_info_move_state(sta, IEEE80211_STA_AUTHORIZED);
-	if (err) {
-		printk(KERN_DEBUG
-		       "%s: failed to move station %pM to desired state\n",
-		       sdata->name, sta->sta.addr);
-		WARN_ON(__sta_info_destroy(sta));
-		mutex_unlock(&sdata->local->sta_mtx);
-		return false;
-	}
-
 	rates = 0;
 	basic_rates = 0;
 	sband = local->hw.wiphy->bands[wk->chan->band];
@@ -1647,6 +1633,20 @@ static bool ieee80211_assoc_success(struct ieee80211_work *wk,
 
 	if (elems.wmm_param)
 		set_sta_flag(sta, WLAN_STA_WME);
+
+	err = sta_info_move_state(sta, IEEE80211_STA_AUTH);
+	if (!err)
+		err = sta_info_move_state(sta, IEEE80211_STA_ASSOC);
+	if (!err && !(ifmgd->flags & IEEE80211_STA_CONTROL_PORT))
+		err = sta_info_move_state(sta, IEEE80211_STA_AUTHORIZED);
+	if (err) {
+		printk(KERN_DEBUG
+		       "%s: failed to move station %pM to desired state\n",
+		       sdata->name, sta->sta.addr);
+		WARN_ON(__sta_info_destroy(sta));
+		mutex_unlock(&sdata->local->sta_mtx);
+		return false;
+	}
 
 	/* sta_info_reinsert will also unlock the mutex lock */
 	err = sta_info_reinsert(sta);
