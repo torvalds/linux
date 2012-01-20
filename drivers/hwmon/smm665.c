@@ -124,9 +124,9 @@ enum chips { smm465, smm665, smm665c, smm764, smm766 };
 #define SMM665_AIN_ADC_TO_VOLTS(adc)   ((adc) * vref / 512)
 
 /* Temp Sensor */
-#define SMM665_TEMP_ADC_TO_CELSIUS(adc) ((adc) <= 511) ?		   \
+#define SMM665_TEMP_ADC_TO_CELSIUS(adc) (((adc) <= 511) ?		   \
 					 ((int)(adc) * 1000 / 4) :	   \
-					 (((int)(adc) - 0x400) * 1000 / 4)
+					 (((int)(adc) - 0x400) * 1000 / 4))
 
 #define SMM665_NUM_ADC		11
 
@@ -389,7 +389,8 @@ SMM665_SHOW(max);
 SMM665_SHOW(lcrit);
 SMM665_SHOW(crit);
 
-/* These macros are used below in constructing device attribute objects
+/*
+ * These macros are used below in constructing device attribute objects
  * for use with sysfs_create_group() to make a sysfs device file
  * for each register.
  */
