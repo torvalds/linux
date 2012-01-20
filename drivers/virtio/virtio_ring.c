@@ -308,9 +308,9 @@ bool virtqueue_kick_prepare(struct virtqueue *_vq)
 	bool needs_kick;
 
 	START_USE(vq);
-	/* Descriptors and available array need to be set before we expose the
-	 * new available array entries. */
-	virtio_wmb(vq);
+	/* We need to expose available array entries before checking avail
+	 * event. */
+	virtio_mb(vq);
 
 	old = vq->vring.avail->idx - vq->num_added;
 	new = vq->vring.avail->idx;
