@@ -1310,7 +1310,9 @@ u32 __ieee80211_recalc_idle(struct ieee80211_local *local)
 
 		/* do not count disabled managed interfaces */
 		if (sdata->vif.type == NL80211_IFTYPE_STATION &&
-		    !sdata->u.mgd.associated) {
+		    !sdata->u.mgd.associated &&
+		    !sdata->u.mgd.auth_data &&
+		    !sdata->u.mgd.assoc_data) {
 			sdata->vif.bss_conf.idle = true;
 			continue;
 		}
