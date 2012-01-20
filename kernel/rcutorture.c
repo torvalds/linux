@@ -67,6 +67,8 @@ static int fqs_stutter = 3;	/* Wait time between bursts (s). */
 static int onoff_interval;	/* Wait time between CPU hotplugs, 0=disable. */
 static int onoff_holdoff;	/* Seconds after boot before CPU hotplugs. */
 static int shutdown_secs;	/* Shutdown time (s).  <=0 for no shutdown. */
+static int stall_cpu;		/* CPU-stall duration (s).  0 for no stall. */
+static int stall_cpu_holdoff = 10; /* Time to wait until stall (s).  */
 static int test_boost = 1;	/* Test RCU prio boost: 0=no, 1=maybe, 2=yes. */
 static int test_boost_interval = 7; /* Interval between boost tests, seconds. */
 static int test_boost_duration = 4; /* Duration of each boost test, seconds. */
@@ -100,6 +102,10 @@ module_param(onoff_holdoff, int, 0444);
 MODULE_PARM_DESC(onoff_holdoff, "Time after boot before CPU hotplugs (s)");
 module_param(shutdown_secs, int, 0444);
 MODULE_PARM_DESC(shutdown_secs, "Shutdown time (s), zero to disable.");
+module_param(stall_cpu, int, 0444);
+MODULE_PARM_DESC(stall_cpu, "Stall duration (s), zero to disable.");
+module_param(stall_cpu_holdoff, int, 0444);
+MODULE_PARM_DESC(stall_cpu_holdoff, "Time to wait before starting stall (s).");
 module_param(test_boost, int, 0444);
 MODULE_PARM_DESC(test_boost, "Test RCU prio boost: 0=no, 1=maybe, 2=yes.");
 module_param(test_boost_interval, int, 0444);
@@ -132,6 +138,7 @@ static struct task_struct *shutdown_task;
 #ifdef CONFIG_HOTPLUG_CPU
 static struct task_struct *onoff_task;
 #endif /* #ifdef CONFIG_HOTPLUG_CPU */
+static struct task_struct *stall_task;
 
 #define RCU_TORTURE_PIPE_LEN 10
 
@@ -1489,6 +1496,63 @@ static void rcu_torture_onoff_cleanup(void)
 
 #endif /* #else #ifdef CONFIG_HOTPLUG_CPU */
 
+/*
+ * CPU-stall kthread.  It waits as specified by stall_cpu_holdoff, then
+ * induces a CPU stall for the time specified by stall_cpu.
+ */
+static int __cpuinit rcu_torture_stall(void *args)
+{
+	unsigned long stop_at;
+
+	VERBOSE_PRINTK_STRING("rcu_torture_stall task started");
+	if (stall_cpu_holdoff > 0) {
+		VERBOSE_PRINTK_STRING("rcu_torture_stall begin holdoff");
+		schedule_timeout_interruptible(stall_cpu_holdoff * HZ);
+		VERBOSE_PRINTK_STRING("rcu_torture_stall end holdoff");
+	}
+	if (!kthread_should_stop()) {
+		stop_at = get_seconds() + stall_cpu;
+		/* RCU CPU stall is expected behavior in following code. */
+		printk(KERN_ALERT "rcu_torture_stall start.\n");
+		rcu_read_lock();
+		preempt_disable();
+		while (ULONG_CMP_LT(get_seconds(), stop_at))
+			continue;  /* Induce RCU CPU stall warning. */
+		preempt_enable();
+		rcu_read_unlock();
+		printk(KERN_ALERT "rcu_torture_stall end.\n");
+	}
+	rcutorture_shutdown_absorb("rcu_torture_stall");
+	while (!kthread_should_stop())
+		schedule_timeout_interruptible(10 * HZ);
+	return 0;
+}
+
+/* Spawn CPU-stall kthread, if stall_cpu specified. */
+static int __init rcu_torture_stall_init(void)
+{
+	int ret;
+
+	if (stall_cpu <= 0)
+		return 0;
+	stall_task = kthread_run(rcu_torture_stall, NULL, "rcu_torture_stall");
+	if (IS_ERR(stall_task)) {
+		ret = PTR_ERR(stall_task);
+		stall_task = NULL;
+		return ret;
+	}
+	return 0;
+}
+
+/* Clean up after the CPU-stall kthread, if one was spawned. */
+static void rcu_torture_stall_cleanup(void)
+{
+	if (stall_task == NULL)
+		return;
+	VERBOSE_PRINTK_STRING("Stopping rcu_torture_stall_task.");
+	kthread_stop(stall_task);
+}
+
 static int rcutorture_cpu_notify(struct notifier_block *self,
 				 unsigned long action, void *hcpu)
 {
@@ -1531,6 +1595,7 @@ rcu_torture_cleanup(void)
 	fullstop = FULLSTOP_RMMOD;
 	mutex_unlock(&fullstop_mutex);
 	unregister_reboot_notifier(&rcutorture_shutdown_nb);
+	rcu_torture_stall_cleanup();
 	if (stutter_task) {
 		VERBOSE_PRINTK_STRING("Stopping rcu_torture_stutter task");
 		kthread_stop(stutter_task);
@@ -1831,6 +1896,7 @@ rcu_torture_init(void)
 	}
 	rcu_torture_onoff_init();
 	register_reboot_notifier(&rcutorture_shutdown_nb);
+	rcu_torture_stall_init();
 	rcutorture_record_test_transition();
 	mutex_unlock(&fullstop_mutex);
 	return 0;
