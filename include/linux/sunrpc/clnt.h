@@ -70,12 +70,12 @@ struct rpc_clnt {
  */
 #define RPC_MAXVERSION		4
 struct rpc_program {
-	char *			name;		/* protocol name */
+	const char *		name;		/* protocol name */
 	u32			number;		/* program number */
 	unsigned int		nrvers;		/* number of versions */
 	struct rpc_version **	version;	/* version array */
 	struct rpc_stat *	stats;		/* statistics */
-	char *			pipe_dir_name;	/* path to rpc_pipefs dir */
+	const char *		pipe_dir_name;	/* path to rpc_pipefs dir */
 };
 
 struct rpc_version {

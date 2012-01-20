@@ -118,7 +118,8 @@ static void rpc_clnt_remove_pipedir(struct rpc_clnt *clnt)
 }
 
 static struct dentry *rpc_setup_pipedir_sb(struct super_block *sb,
-				    struct rpc_clnt *clnt, char *dir_name)
+				    struct rpc_clnt *clnt,
+				    const char *dir_name)
 {
 	static uint32_t clntid;
 	char name[15];
@@ -151,7 +152,7 @@ static struct dentry *rpc_setup_pipedir_sb(struct super_block *sb,
 }
 
 static int
-rpc_setup_pipedir(struct rpc_clnt *clnt, char *dir_name)
+rpc_setup_pipedir(struct rpc_clnt *clnt, const char *dir_name)
 {
 	struct super_block *pipefs_sb;
 	struct dentry *dentry;
