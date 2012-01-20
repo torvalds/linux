@@ -8,6 +8,7 @@
 
 #include <linux/module.h>
 #include <linux/list.h>
+#include <linux/bug.h>
 #include <linux/kernel.h>
 
 /*

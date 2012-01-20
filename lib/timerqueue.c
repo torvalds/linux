@@ -22,6 +22,7 @@
  *  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
 
+#include <linux/bug.h>
 #include <linux/timerqueue.h>
 #include <linux/rbtree.h>
 #include <linux/module.h>

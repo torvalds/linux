@@ -6,6 +6,7 @@
 
 #include <linux/kernel.h>
 #include <linux/init.h>
+#include <linux/bug.h>
 
 #include <asm/mach-types.h>
 #include <plat/pincfg.h>
