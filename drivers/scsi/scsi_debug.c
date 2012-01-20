@@ -2220,7 +2220,7 @@ static int resp_get_lba_status(struct scsi_cmnd * scmd,
 	mapped = map_state(lba, &num);
 
 	memset(arr, 0, SDEBUG_GET_LBA_STATUS_LEN);
-	put_unaligned_be32(16, &arr[0]);	/* Parameter Data Length */
+	put_unaligned_be32(20, &arr[0]);	/* Parameter Data Length */
 	put_unaligned_be64(lba, &arr[8]);	/* LBA */
 	put_unaligned_be32(num, &arr[16]);	/* Number of blocks */
 	arr[20] = !mapped;			/* mapped = 0, unmapped = 1 */
