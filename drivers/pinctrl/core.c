@@ -510,10 +510,12 @@ static struct dentry *debugfs_root;
 
 static void pinctrl_init_device_debugfs(struct pinctrl_dev *pctldev)
 {
-	static struct dentry *device_root;
+	struct dentry *device_root;
 
 	device_root = debugfs_create_dir(dev_name(pctldev->dev),
 					 debugfs_root);
+	pctldev->device_root = device_root;
+
 	if (IS_ERR(device_root) || !device_root) {
 		pr_warn("failed to create debugfs directory for %s\n",
 			dev_name(pctldev->dev));
@@ -527,6 +529,11 @@ static void pinctrl_init_device_debugfs(struct pinctrl_dev *pctldev)
 			    device_root, pctldev, &pinctrl_gpioranges_ops);
 	pinmux_init_device_debugfs(device_root, pctldev);
 	pinconf_init_device_debugfs(device_root, pctldev);
+}
+
+static void pinctrl_remove_device_debugfs(struct pinctrl_dev *pctldev)
+{
+	debugfs_remove_recursive(pctldev->device_root);
 }
 
 static void pinctrl_init_debugfs(void)
@@ -550,6 +557,10 @@ static void pinctrl_init_device_debugfs(struct pinctrl_dev *pctldev)
 }
 
 static void pinctrl_init_debugfs(void)
+{
+}
+
+static void pinctrl_remove_device_debugfs(struct pinctrl_dev *pctldev)
 {
 }
 
@@ -641,6 +652,7 @@ void pinctrl_unregister(struct pinctrl_dev *pctldev)
 	if (pctldev == NULL)
 		return;
 
+	pinctrl_remove_device_debugfs(pctldev);
 	pinmux_unhog_maps(pctldev);
 	/* TODO: check that no pinmuxes are still active? */
 	mutex_lock(&pinctrldev_list_mutex);
