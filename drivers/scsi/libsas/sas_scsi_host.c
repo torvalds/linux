@@ -521,8 +521,7 @@ try_bus_reset:
 	return FAILED;
 }
 
-static int sas_eh_handle_sas_errors(struct Scsi_Host *shost,
-				    struct list_head *work_q)
+static void sas_eh_handle_sas_errors(struct Scsi_Host *shost, struct list_head *work_q)
 {
 	struct scsi_cmnd *cmd, *n;
 	enum task_disposition res = TASK_IS_DONE;
@@ -658,7 +657,7 @@ static int sas_eh_handle_sas_errors(struct Scsi_Host *shost,
  out:
 	list_splice_tail(&done, work_q);
 	list_splice_tail_init(&ha->eh_ata_q, work_q);
-	return list_empty(work_q);
+	return;
 
  clear_q:
 	SAS_DPRINTK("--- Exit %s -- clear_q\n", __func__);
@@ -682,10 +681,13 @@ void sas_scsi_recover_host(struct Scsi_Host *shost)
 		    __func__, shost->host_busy, shost->host_failed);
 	/*
 	 * Deal with commands that still have SAS tasks (i.e. they didn't
-	 * complete via the normal sas_task completion mechanism)
+	 * complete via the normal sas_task completion mechanism),
+	 * SAS_HA_FROZEN gives eh dominion over all sas_task completion.
 	 */
 	set_bit(SAS_HA_FROZEN, &ha->state);
-	if (sas_eh_handle_sas_errors(shost, &eh_work_q))
+	sas_eh_handle_sas_errors(shost, &eh_work_q);
+	clear_bit(SAS_HA_FROZEN, &ha->state);
+	if (list_empty(&eh_work_q))
 		goto out;
 
 	/*
@@ -699,7 +701,6 @@ void sas_scsi_recover_host(struct Scsi_Host *shost)
 		scsi_eh_ready_devs(shost, &eh_work_q, &ha->eh_done_q);
 
 out:
-	clear_bit(SAS_HA_FROZEN, &ha->state);
 	if (ha->lldd_max_execute_num > 1)
 		wake_up_process(ha->core.queue_thread);
 
