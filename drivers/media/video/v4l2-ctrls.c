@@ -362,6 +362,16 @@ const char * const *v4l2_ctrl_get_menu(u32 id)
 		NULL,
 	};
 
+	static const char * const jpeg_chroma_subsampling[] = {
+		"4:4:4",
+		"4:2:2",
+		"4:2:0",
+		"4:1:1",
+		"4:1:0",
+		"Gray",
+		NULL,
+	};
+
 	switch (id) {
 	case V4L2_CID_MPEG_AUDIO_SAMPLING_FREQ:
 		return mpeg_audio_sampling_freq;
@@ -426,6 +436,9 @@ const char * const *v4l2_ctrl_get_menu(u32 id)
 		return mpeg_mpeg4_level;
 	case V4L2_CID_MPEG_VIDEO_MPEG4_PROFILE:
 		return mpeg4_profile;
+	case V4L2_CID_JPEG_CHROMA_SUBSAMPLING:
+		return jpeg_chroma_subsampling;
+
 	default:
 		return NULL;
 	}
@@ -623,6 +636,14 @@ const char *v4l2_ctrl_get_name(u32 id)
 	case V4L2_CID_FLASH_CHARGE:		return "Charge";
 	case V4L2_CID_FLASH_READY:		return "Ready to Strobe";
 
+	/* JPEG encoder controls */
+	/* Keep the order of the 'case's the same as in videodev2.h! */
+	case V4L2_CID_JPEG_CLASS:		return "JPEG Compression Controls";
+	case V4L2_CID_JPEG_CHROMA_SUBSAMPLING:	return "Chroma Subsampling";
+	case V4L2_CID_JPEG_RESTART_INTERVAL:	return "Restart Interval";
+	case V4L2_CID_JPEG_COMPRESSION_QUALITY:	return "Compression Quality";
+	case V4L2_CID_JPEG_ACTIVE_MARKER:	return "Active Markers";
+
 	default:
 		return NULL;
 	}
@@ -711,6 +732,7 @@ void v4l2_ctrl_fill(u32 id, const char **name, enum v4l2_ctrl_type *type,
 	case V4L2_CID_MPEG_VIDEO_H264_VUI_SAR_IDC:
 	case V4L2_CID_MPEG_VIDEO_MPEG4_LEVEL:
 	case V4L2_CID_MPEG_VIDEO_MPEG4_PROFILE:
+	case V4L2_CID_JPEG_CHROMA_SUBSAMPLING:
 		*type = V4L2_CTRL_TYPE_MENU;
 		break;
 	case V4L2_CID_RDS_TX_PS_NAME:
@@ -722,6 +744,7 @@ void v4l2_ctrl_fill(u32 id, const char **name, enum v4l2_ctrl_type *type,
 	case V4L2_CID_MPEG_CLASS:
 	case V4L2_CID_FM_TX_CLASS:
 	case V4L2_CID_FLASH_CLASS:
+	case V4L2_CID_JPEG_CLASS:
 		*type = V4L2_CTRL_TYPE_CTRL_CLASS;
 		/* You can neither read not write these */
 		*flags |= V4L2_CTRL_FLAG_READ_ONLY | V4L2_CTRL_FLAG_WRITE_ONLY;
@@ -735,6 +758,7 @@ void v4l2_ctrl_fill(u32 id, const char **name, enum v4l2_ctrl_type *type,
 		*max = 0xFFFFFF;
 		break;
 	case V4L2_CID_FLASH_FAULT:
+	case V4L2_CID_JPEG_ACTIVE_MARKER:
 		*type = V4L2_CTRL_TYPE_BITMASK;
 		break;
 	case V4L2_CID_MIN_BUFFERS_FOR_CAPTURE:
