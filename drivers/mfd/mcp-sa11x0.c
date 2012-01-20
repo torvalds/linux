@@ -146,9 +146,6 @@ static int mcp_sa11x0_probe(struct platform_device *pdev)
 	if (!data)
 		return -ENODEV;
 
-	if (!data->codec)
-		return -ENODEV;
-
 	if (!request_mem_region(0x80060000, 0x60, "sa11x0-mcp"))
 		return -EBUSY;
 
@@ -165,7 +162,7 @@ static int mcp_sa11x0_probe(struct platform_device *pdev)
 	mcp->dma_audio_wr	= DMA_Ser4MCP0Wr;
 	mcp->dma_telco_rd	= DMA_Ser4MCP1Rd;
 	mcp->dma_telco_wr	= DMA_Ser4MCP1Wr;
-	mcp->codec		= data->codec;
+	mcp->gpio_base		= data->gpio_base;
 
 	platform_set_drvdata(pdev, mcp);
 
@@ -198,7 +195,7 @@ static int mcp_sa11x0_probe(struct platform_device *pdev)
 	mcp->rw_timeout = (64 * 3 * 1000000 + mcp->sclk_rate - 1) /
 			  mcp->sclk_rate;
 
-	ret = mcp_host_register(mcp, data->codec_pdata);
+	ret = mcp_host_register(mcp);
 	if (ret == 0)
 		goto out;
 

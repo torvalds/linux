@@ -10,7 +10,6 @@
 #ifndef MCP_H
 #define MCP_H
 
-#include <linux/mod_devicetable.h>
 #include <mach/dma.h>
 
 struct mcp_ops;
@@ -27,7 +26,7 @@ struct mcp {
 	dma_device_t	dma_telco_rd;
 	dma_device_t	dma_telco_wr;
 	struct device	attached_device;
-	const char	*codec;
+	int		gpio_base;
 };
 
 struct mcp_ops {
@@ -45,11 +44,10 @@ void mcp_reg_write(struct mcp *, unsigned int, unsigned int);
 unsigned int mcp_reg_read(struct mcp *, unsigned int);
 void mcp_enable(struct mcp *);
 void mcp_disable(struct mcp *);
-const struct mcp_device_id *mcp_get_device_id(const struct mcp *mcp);
 #define mcp_get_sclk_rate(mcp)	((mcp)->sclk_rate)
 
 struct mcp *mcp_host_alloc(struct device *, size_t);
-int mcp_host_register(struct mcp *, void *);
+int mcp_host_register(struct mcp *);
 void mcp_host_unregister(struct mcp *);
 
 struct mcp_driver {
@@ -58,7 +56,6 @@ struct mcp_driver {
 	void (*remove)(struct mcp *);
 	int (*suspend)(struct mcp *, pm_message_t);
 	int (*resume)(struct mcp *);
-	const struct mcp_device_id *id_table;
 };
 
 int mcp_driver_register(struct mcp_driver *);

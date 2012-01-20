@@ -55,7 +55,6 @@ static struct resource shannon_flash_resource = {
 static struct mcp_plat_data shannon_mcp_data = {
 	.mccr0		= MCCR0_ADM,
 	.sclk_rate	= 11981000,
-	.codec		= "ucb1x00",
 };
 
 static void __init shannon_init(void)
