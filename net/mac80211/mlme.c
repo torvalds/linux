@@ -1581,7 +1581,7 @@ static bool ieee80211_assoc_success(struct ieee80211_work *wk,
 	 * station info was already allocated and inserted before
 	 * the association and should be available to us
 	 */
-	sta = sta_info_get_rx(sdata, cbss->bssid);
+	sta = sta_info_get(sdata, cbss->bssid);
 	if (WARN_ON(!sta)) {
 		mutex_unlock(&sdata->local->sta_mtx);
 		return false;
@@ -1648,14 +1648,7 @@ static bool ieee80211_assoc_success(struct ieee80211_work *wk,
 		return false;
 	}
 
-	/* sta_info_reinsert will also unlock the mutex lock */
-	err = sta_info_reinsert(sta);
-	sta = NULL;
-	if (err) {
-		printk(KERN_DEBUG "%s: failed to insert STA entry for"
-		       " the AP (error %d)\n", sdata->name, err);
-		return false;
-	}
+	mutex_unlock(&sdata->local->sta_mtx);
 
 	/*
 	 * Always handle WMM once after association regardless
@@ -2536,12 +2529,10 @@ static int ieee80211_pre_assoc(struct ieee80211_sub_if_data *sdata,
 	if (!sta)
 		return -ENOMEM;
 
-	sta->dummy = true;
-
 	err = sta_info_insert(sta);
 	sta = NULL;
 	if (err) {
-		printk(KERN_DEBUG "%s: failed to insert Dummy STA entry for"
+		printk(KERN_DEBUG "%s: failed to insert STA entry for"
 		       " the AP (error %d)\n", sdata->name, err);
 		return err;
 	}
