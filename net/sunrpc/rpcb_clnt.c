@@ -343,7 +343,7 @@ out:
 	return result;
 }
 
-static struct rpc_clnt *rpcb_create(struct net *net, char *hostname,
+static struct rpc_clnt *rpcb_create(struct net *net, const char *hostname,
 				    struct sockaddr *srvaddr, size_t salen,
 				    int proto, u32 version)
 {

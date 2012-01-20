@@ -41,8 +41,8 @@ struct rpc_clnt {
 				cl_vers,	/* RPC version number */
 				cl_maxproc;	/* max procedure number */
 
-	char *			cl_server;	/* server machine name */
-	char *			cl_protname;	/* protocol name */
+	const char *		cl_server;	/* server machine name */
+	const char *		cl_protname;	/* protocol name */
 	struct rpc_auth *	cl_auth;	/* authenticator */
 	struct rpc_stat *	cl_stats;	/* per-program statistics */
 	struct rpc_iostats *	cl_metrics;	/* per-client statistics */
@@ -62,7 +62,6 @@ struct rpc_clnt {
 	struct rpc_rtt		cl_rtt_default;
 	struct rpc_timeout	cl_timeout_default;
 	struct rpc_program *	cl_program;
-	char			cl_inline_name[32];
 	char			*cl_principal;	/* target to authenticate to */
 };
 
@@ -97,7 +96,7 @@ struct rpc_procinfo {
 	unsigned int		p_count;	/* call count */
 	unsigned int		p_timer;	/* Which RTT timer to use */
 	u32			p_statidx;	/* Which procedure to account */
-	char *			p_name;		/* name of procedure */
+	const char *		p_name;		/* name of procedure */
 };
 
 #ifdef __KERNEL__
@@ -109,7 +108,7 @@ struct rpc_create_args {
 	size_t			addrsize;
 	struct sockaddr		*saddress;
 	const struct rpc_timeout *timeout;
-	char			*servername;
+	const char		*servername;
 	struct rpc_program	*program;
 	u32			prognumber;	/* overrides program->number */
 	u32			version;

@@ -273,15 +273,9 @@ static struct rpc_clnt * rpc_new_client(const struct rpc_create_args *args, stru
 		goto out_err;
 	clnt->cl_parent = clnt;
 
-	clnt->cl_server = clnt->cl_inline_name;
-	if (len > sizeof(clnt->cl_inline_name)) {
-		char *buf = kmalloc(len, GFP_KERNEL);
-		if (buf != NULL)
-			clnt->cl_server = buf;
-		else
-			len = sizeof(clnt->cl_inline_name);
-	}
-	strlcpy(clnt->cl_server, args->servername, len);
+	clnt->cl_server = kstrdup(args->servername, GFP_KERNEL);
+	if (clnt->cl_server == NULL)
+		goto out_no_server;
 
 	clnt->cl_xprt     = xprt;
 	clnt->cl_procinfo = version->procs;
@@ -346,8 +340,8 @@ out_no_path:
 out_no_principal:
 	rpc_free_iostats(clnt->cl_metrics);
 out_no_stats:
-	if (clnt->cl_server != clnt->cl_inline_name)
-		kfree(clnt->cl_server);
+	kfree(clnt->cl_server);
+out_no_server:
 	kfree(clnt);
 out_err:
 	xprt_put(xprt);
@@ -470,6 +464,9 @@ rpc_clone_client(struct rpc_clnt *clnt)
 	new = kmemdup(clnt, sizeof(*new), GFP_KERNEL);
 	if (!new)
 		goto out_no_clnt;
+	new->cl_server = kstrdup(clnt->cl_server, GFP_KERNEL);
+	if (new->cl_server == NULL)
+		goto out_no_server;
 	new->cl_parent = clnt;
 	/* Turn off autobind on clones */
 	new->cl_autobind = 0;
@@ -500,6 +497,8 @@ out_no_path:
 out_no_principal:
 	rpc_free_iostats(new->cl_metrics);
 out_no_stats:
+	kfree(new->cl_server);
+out_no_server:
 	kfree(new);
 out_no_clnt:
 	dprintk("RPC:       %s: returned error %d\n", __func__, err);
@@ -565,13 +564,9 @@ rpc_free_client(struct rpc_clnt *clnt)
 {
 	dprintk("RPC:       destroying %s client for %s\n",
 			clnt->cl_protname, clnt->cl_server);
-	if (clnt->cl_parent != clnt) {
+	if (clnt->cl_parent != clnt)
 		rpc_release_client(clnt->cl_parent);
-		goto out_free;
-	}
-	if (clnt->cl_server != clnt->cl_inline_name)
-		kfree(clnt->cl_server);
-out_free:
+	kfree(clnt->cl_server);
 	rpc_unregister_client(clnt);
 	rpc_clnt_remove_pipedir(clnt);
 	rpc_free_iostats(clnt->cl_metrics);
