@@ -64,11 +64,12 @@ struct az6007_device_state {
 
 static struct drxk_config terratec_h7_drxk = {
 	.adr = 0x29,
-	.single_master = 1,
-	.no_i2c_bridge = 0,
+	.parallel_ts = true,
+	.dynamic_clk = true,
+	.single_master = true,
+	.no_i2c_bridge = false,
 	.chunk_size = 64,
-	.microcode_name = "dvb-usb-terratec-h7-drxk.fw",
-	.parallel_ts = 1,
+	.microcode_name = "dvb-usb-terratec-h7-az6007.fw",
 };
 
 static int drxk_gate_ctrl(struct dvb_frontend *fe, int enable)
