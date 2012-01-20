@@ -27,6 +27,7 @@
 
 #include <mach/assabet.h>
 
+#define DRIVER_NAME "sa11x0-mcp"
 
 struct mcp_sa11x0 {
 	u32	mccr0;
@@ -227,18 +228,14 @@ static int mcp_sa11x0_resume(struct platform_device *dev)
 	return 0;
 }
 
-/*
- * The driver for the SA11x0 MCP port.
- */
-MODULE_ALIAS("platform:sa11x0-mcp");
-
 static struct platform_driver mcp_sa11x0_driver = {
 	.probe		= mcp_sa11x0_probe,
 	.remove		= mcp_sa11x0_remove,
 	.suspend	= mcp_sa11x0_suspend,
 	.resume		= mcp_sa11x0_resume,
 	.driver		= {
-		.name	= "sa11x0-mcp",
+		.name	= DRIVER_NAME,
+		.owner	= THIS_MODULE,
 	},
 };
 
@@ -247,6 +244,7 @@ static struct platform_driver mcp_sa11x0_driver = {
  */
 module_platform_driver(mcp_sa11x0_driver);
 
+MODULE_ALIAS("platform:" DRIVER_NAME);
 MODULE_AUTHOR("Russell King <rmk@arm.linux.org.uk>");
 MODULE_DESCRIPTION("SA11x0 multimedia communications port driver");
 MODULE_LICENSE("GPL");
