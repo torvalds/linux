@@ -916,7 +916,7 @@ SYSCALL_DEFINE3(shmctl, int, shmid, int, cmd, struct shmid_ds __user *, buf)
 		shp->mlock_user = NULL;
 		get_file(shm_file);
 		shm_unlock(shp);
-		scan_mapping_unevictable_pages(shm_file->f_mapping);
+		shmem_unlock_mapping(shm_file->f_mapping);
 		fput(shm_file);
 		goto out;
 	}
