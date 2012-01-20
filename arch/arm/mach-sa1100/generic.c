@@ -221,6 +221,11 @@ static struct resource sa11x0mcp_resources[] = {
 		.flags	= IORESOURCE_MEM,
 	},
 	[1] = {
+		.start	= __PREG(Ser4MCCR1),
+		.end	= __PREG(Ser4MCCR1) + 4 - 1,
+		.flags	= IORESOURCE_MEM,
+	},
+	[2] = {
 		.start	= IRQ_Ser4MCP,
 		.end	= IRQ_Ser4MCP,
 		.flags	= IORESOURCE_IRQ,
