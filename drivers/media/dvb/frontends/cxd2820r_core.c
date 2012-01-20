@@ -482,10 +482,19 @@ static enum dvbfe_search cxd2820r_search(struct dvb_frontend *fe)
 
 	/* switch between DVB-T and DVB-T2 when tune fails */
 	if (priv->last_tune_failed) {
-		if (priv->delivery_system == SYS_DVBT)
+		if (priv->delivery_system == SYS_DVBT) {
+			ret = cxd2820r_sleep_t(fe);
+			if (ret)
+				goto error;
+
 			c->delivery_system = SYS_DVBT2;
-		else if (priv->delivery_system == SYS_DVBT2)
+		} else if (priv->delivery_system == SYS_DVBT2) {
+			ret = cxd2820r_sleep_t2(fe);
+			if (ret)
+				goto error;
+
 			c->delivery_system = SYS_DVBT;
+		}
 	}
 
 	/* set frontend */
