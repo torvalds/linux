@@ -1757,6 +1757,7 @@ void __init kmemleak_init(void)
 
 #ifdef CONFIG_DEBUG_KMEMLEAK_DEFAULT_OFF
 	if (!kmemleak_skip_disable) {
+		atomic_set(&kmemleak_early_log, 0);
 		kmemleak_disable();
 		return;
 	}
