@@ -181,7 +181,7 @@ static struct se_device *iblock_create_virtdevice(
 		 */
 		dev->se_sub_dev->se_dev_attrib.max_unmap_block_desc_count = 1;
 		dev->se_sub_dev->se_dev_attrib.unmap_granularity =
-				q->limits.discard_granularity;
+				q->limits.discard_granularity >> 9;
 		dev->se_sub_dev->se_dev_attrib.unmap_granularity_alignment =
 				q->limits.discard_alignment;
 
