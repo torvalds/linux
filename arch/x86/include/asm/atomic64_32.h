@@ -288,9 +288,8 @@ static inline int atomic64_add_unless(atomic64_t *v, long long a, long long u)
 	unsigned low = (unsigned)u;
 	unsigned high = (unsigned)(u >> 32);
 	alternative_atomic64(add_unless,
-			     ASM_OUTPUT2("+A" (a), "+c" (v),
-					 "+S" (low), "+D" (high)),
-			     ASM_NO_INPUT_CLOBBER("memory"));
+			     ASM_OUTPUT2("+A" (a), "+c" (low), "+D" (high)),
+			     "S" (v) : "memory");
 	return (int)a;
 }
 
