@@ -590,7 +590,7 @@ static void __init mx31moboard_reserve(void)
 }
 
 MACHINE_START(MX31MOBOARD, "EPFL Mobots mx31moboard")
-	/* Maintainer: Valentin Longchamp, EPFL Mobots group */
+	/* Maintainer: Philippe Retornaz, EPFL Mobots group */
 	.atag_offset = 0x100,
 	.reserve = mx31moboard_reserve,
 	.map_io = mx31_map_io,
