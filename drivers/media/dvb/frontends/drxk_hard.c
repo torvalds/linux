@@ -91,10 +91,6 @@ bool IsA1WithRomCode(struct drxk_state *state)
 #define DRXK_MPEG_PARALLEL_OUTPUT_PIN_DRIVE_STRENGTH (0x03)
 #endif
 
-#ifndef DRXK_MPEG_OUTPUT_CLK_DRIVE_STRENGTH
-#define DRXK_MPEG_OUTPUT_CLK_DRIVE_STRENGTH (0x06)
-#endif
-
 #define DEFAULT_DRXK_MPEG_LOCK_TIMEOUT 700
 #define DEFAULT_DRXK_DEMOD_LOCK_TIMEOUT 500
 
@@ -659,7 +655,6 @@ static int init_state(struct drxk_state *state)
 	u32 ulGPIOCfg = 0x0113;
 	u32 ulInvertTSClock = 0;
 	u32 ulTSDataStrength = DRXK_MPEG_SERIAL_OUTPUT_PIN_DRIVE_STRENGTH;
-	u32 ulTSClockkStrength = DRXK_MPEG_OUTPUT_CLK_DRIVE_STRENGTH;
 	u32 ulDVBTBitrate = 50000000;
 	u32 ulDVBCBitrate = DRXK_QAM_SYMBOLRATE_MAX * 8;
 
@@ -820,7 +815,6 @@ static int init_state(struct drxk_state *state)
 	state->m_DVBCBitrate = ulDVBCBitrate;
 
 	state->m_TSDataStrength = (ulTSDataStrength & 0x07);
-	state->m_TSClockkStrength = (ulTSClockkStrength & 0x07);
 
 	/* Maximum bitrate in b/s in case static clockrate is selected */
 	state->m_mpegTsStaticBitrate = 19392658;
@@ -6393,6 +6387,12 @@ struct dvb_frontend *drxk_attach(const struct drxk_config *config,
 		state->m_DVBTStaticCLK = 1;
 		state->m_DVBCStaticCLK = 1;
 	}
+
+
+	if (config->mpeg_out_clk_strength)
+		state->m_TSClockkStrength = config->mpeg_out_clk_strength & 0x07;
+	else
+		state->m_TSClockkStrength = 0x06;
 
 	if (config->parallel_ts)
 		state->m_enableParallel = true;

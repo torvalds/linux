@@ -69,6 +69,7 @@ static struct drxk_config terratec_h7_drxk = {
 	.single_master = true,
 	.no_i2c_bridge = false,
 	.chunk_size = 64,
+	.mpeg_out_clk_strength = 0x02,
 	.microcode_name = "dvb-usb-terratec-h7-az6007.fw",
 };
 
@@ -278,12 +279,10 @@ static int az6007_led_on_off(struct usb_interface *intf, int onoff)
 {
 	struct usb_device *udev = interface_to_usbdev(intf);
 	int ret;
-
 	/* TS through */
 	ret = az6007_write(udev, AZ6007_POWER, onoff, 0, NULL, 0);
 	if (ret < 0)
 		err("%s failed with error %d", __func__, ret);
-
 	return ret;
 }
 

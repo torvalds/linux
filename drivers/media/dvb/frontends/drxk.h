@@ -17,6 +17,7 @@
  * @antenna_gpio:	GPIO bit used to control the antenna
  * @antenna_dvbt:	GPIO bit for changing antenna to DVB-C. A value of 1
  *			means that 1=DVBC, 0 = DVBT. Zero means the opposite.
+ * @mpeg_out_clk_strength: DRXK Mpeg output clock drive strength.
  * @microcode_name:	Name of the firmware file with the microcode
  *
  * On the *_gpio vars, bit 0 is UIO-1, bit 1 is UIO-2 and bit 2 is
@@ -32,7 +33,8 @@ struct drxk_config {
 	bool	antenna_dvbt;
 	u16	antenna_gpio;
 
-	int    chunk_size;
+	u8	mpeg_out_clk_strength;
+	int	chunk_size;
 
 	const char *microcode_name;
 };
