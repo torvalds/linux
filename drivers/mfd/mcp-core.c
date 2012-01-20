@@ -208,6 +208,7 @@ struct mcp *mcp_host_alloc(struct device *parent, size_t size)
 	mcp = kzalloc(sizeof(struct mcp) + size, GFP_KERNEL);
 	if (mcp) {
 		spin_lock_init(&mcp->lock);
+		device_initialize(&mcp->attached_device);
 		mcp->attached_device.parent = parent;
 		mcp->attached_device.bus = &mcp_bus_type;
 		mcp->attached_device.dma_mask = parent->dma_mask;
@@ -217,18 +218,24 @@ struct mcp *mcp_host_alloc(struct device *parent, size_t size)
 }
 EXPORT_SYMBOL(mcp_host_alloc);
 
-int mcp_host_register(struct mcp *mcp)
+int mcp_host_add(struct mcp *mcp)
 {
 	dev_set_name(&mcp->attached_device, "mcp0");
-	return device_register(&mcp->attached_device);
+	return device_add(&mcp->attached_device);
 }
-EXPORT_SYMBOL(mcp_host_register);
+EXPORT_SYMBOL(mcp_host_add);
 
-void mcp_host_unregister(struct mcp *mcp)
+void mcp_host_del(struct mcp *mcp)
 {
-	device_unregister(&mcp->attached_device);
+	device_del(&mcp->attached_device);
 }
-EXPORT_SYMBOL(mcp_host_unregister);
+EXPORT_SYMBOL(mcp_host_del);
+
+void mcp_host_free(struct mcp *mcp)
+{
+	put_device(&mcp->attached_device);
+}
+EXPORT_SYMBOL(mcp_host_free);
 
 int mcp_driver_register(struct mcp_driver *mcpdrv)
 {

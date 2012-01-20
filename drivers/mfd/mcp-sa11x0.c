@@ -195,10 +195,11 @@ static int mcp_sa11x0_probe(struct platform_device *pdev)
 	mcp->rw_timeout = (64 * 3 * 1000000 + mcp->sclk_rate - 1) /
 			  mcp->sclk_rate;
 
-	ret = mcp_host_register(mcp);
+	ret = mcp_host_add(mcp);
 	if (ret == 0)
 		goto out;
 
+	mcp_host_free(mcp);
  release:
 	release_mem_region(0x80060000, 0x60);
 	platform_set_drvdata(pdev, NULL);
@@ -212,7 +213,8 @@ static int mcp_sa11x0_remove(struct platform_device *dev)
 	struct mcp *mcp = platform_get_drvdata(dev);
 
 	platform_set_drvdata(dev, NULL);
-	mcp_host_unregister(mcp);
+	mcp_host_del(mcp);
+	mcp_host_free(mcp);
 	release_mem_region(0x80060000, 0x60);
 
 	return 0;

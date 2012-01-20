@@ -47,8 +47,9 @@ void mcp_disable(struct mcp *);
 #define mcp_get_sclk_rate(mcp)	((mcp)->sclk_rate)
 
 struct mcp *mcp_host_alloc(struct device *, size_t);
-int mcp_host_register(struct mcp *);
-void mcp_host_unregister(struct mcp *);
+int mcp_host_add(struct mcp *);
+void mcp_host_del(struct mcp *);
+void mcp_host_free(struct mcp *);
 
 struct mcp_driver {
 	struct device_driver drv;
