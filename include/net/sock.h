@@ -1008,9 +1008,8 @@ static inline void memcg_memory_allocated_add(struct cg_proto *prot,
 	struct res_counter *fail;
 	int ret;
 
-	ret = res_counter_charge(prot->memory_allocated,
-				 amt << PAGE_SHIFT, &fail);
-
+	ret = res_counter_charge_nofail(prot->memory_allocated,
+					amt << PAGE_SHIFT, &fail);
 	if (ret < 0)
 		*parent_status = OVER_LIMIT;
 }
@@ -1054,12 +1053,11 @@ sk_memory_allocated_add(struct sock *sk, int amt, int *parent_status)
 }
 
 static inline void
-sk_memory_allocated_sub(struct sock *sk, int amt, int parent_status)
+sk_memory_allocated_sub(struct sock *sk, int amt)
 {
 	struct proto *prot = sk->sk_prot;
 
-	if (mem_cgroup_sockets_enabled && sk->sk_cgrp &&
-	    parent_status != OVER_LIMIT) /* Otherwise was uncharged already */
+	if (mem_cgroup_sockets_enabled && sk->sk_cgrp)
 		memcg_memory_allocated_sub(sk->sk_cgrp, amt);
 
 	atomic_long_sub(amt, prot->memory_allocated);
