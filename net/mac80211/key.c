@@ -54,14 +54,6 @@ static void assert_key_lock(struct ieee80211_local *local)
 	lockdep_assert_held(&local->key_mtx);
 }
 
-static struct ieee80211_sta *get_sta_for_key(struct ieee80211_key *key)
-{
-	if (key->sta)
-		return &key->sta->sta;
-
-	return NULL;
-}
-
 static void increment_tailroom_need_count(struct ieee80211_sub_if_data *sdata)
 {
 	/*
@@ -95,7 +87,7 @@ static void increment_tailroom_need_count(struct ieee80211_sub_if_data *sdata)
 static int ieee80211_key_enable_hw_accel(struct ieee80211_key *key)
 {
 	struct ieee80211_sub_if_data *sdata;
-	struct ieee80211_sta *sta;
+	struct sta_info *sta;
 	int ret;
 
 	might_sleep();
@@ -105,7 +97,7 @@ static int ieee80211_key_enable_hw_accel(struct ieee80211_key *key)
 
 	assert_key_lock(key->local);
 
-	sta = get_sta_for_key(key);
+	sta = key->sta;
 
 	/*
 	 * If this is a per-STA GTK, check if it
@@ -113,6 +105,9 @@ static int ieee80211_key_enable_hw_accel(struct ieee80211_key *key)
 	 */
 	if (sta && !(key->conf.flags & IEEE80211_KEY_FLAG_PAIRWISE) &&
 	    !(key->local->hw.flags & IEEE80211_HW_SUPPORTS_PER_STA_GTK))
+		goto out_unsupported;
+
+	if (sta && !sta->uploaded)
 		goto out_unsupported;
 
 	sdata = key->sdata;
@@ -125,7 +120,8 @@ static int ieee80211_key_enable_hw_accel(struct ieee80211_key *key)
 			goto out_unsupported;
 	}
 
-	ret = drv_set_key(key->local, SET_KEY, sdata, sta, &key->conf);
+	ret = drv_set_key(key->local, SET_KEY, sdata,
+			  sta ? &sta->sta : NULL, &key->conf);
 
 	if (!ret) {
 		key->flags |= KEY_FLAG_UPLOADED_TO_HARDWARE;
@@ -144,7 +140,8 @@ static int ieee80211_key_enable_hw_accel(struct ieee80211_key *key)
 	if (ret != -ENOSPC && ret != -EOPNOTSUPP)
 		wiphy_err(key->local->hw.wiphy,
 			  "failed to set key (%d, %pM) to hardware (%d)\n",
-			  key->conf.keyidx, sta ? sta->addr : bcast_addr, ret);
+			  key->conf.keyidx,
+			  sta ? sta->sta.addr : bcast_addr, ret);
 
  out_unsupported:
 	switch (key->conf.cipher) {
@@ -163,7 +160,7 @@ static int ieee80211_key_enable_hw_accel(struct ieee80211_key *key)
 static void ieee80211_key_disable_hw_accel(struct ieee80211_key *key)
 {
 	struct ieee80211_sub_if_data *sdata;
-	struct ieee80211_sta *sta;
+	struct sta_info *sta;
 	int ret;
 
 	might_sleep();
@@ -176,7 +173,7 @@ static void ieee80211_key_disable_hw_accel(struct ieee80211_key *key)
 	if (!(key->flags & KEY_FLAG_UPLOADED_TO_HARDWARE))
 		return;
 
-	sta = get_sta_for_key(key);
+	sta = key->sta;
 	sdata = key->sdata;
 
 	if (!((key->conf.flags & IEEE80211_KEY_FLAG_GENERATE_MMIC) ||
@@ -185,12 +182,13 @@ static void ieee80211_key_disable_hw_accel(struct ieee80211_key *key)
 		increment_tailroom_need_count(sdata);
 
 	ret = drv_set_key(key->local, DISABLE_KEY, sdata,
-			  sta, &key->conf);
+			  sta ? &sta->sta : NULL, &key->conf);
 
 	if (ret)
 		wiphy_err(key->local->hw.wiphy,
 			  "failed to remove key (%d, %pM) from hardware (%d)\n",
-			  key->conf.keyidx, sta ? sta->addr : bcast_addr, ret);
+			  key->conf.keyidx,
+			  sta ? sta->sta.addr : bcast_addr, ret);
 
 	key->flags &= ~KEY_FLAG_UPLOADED_TO_HARDWARE;
 }
