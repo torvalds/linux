@@ -388,19 +388,12 @@ static int ite_firmware_select(struct usb_device *udev,
 {
 	int sw;
 	/* auto switch */
-	if (le16_to_cpu(udev->descriptor.idProduct) ==
-			USB_PID_ITETECH_IT9135)
-		sw = IT9135_V1_FW;
-	else if (le16_to_cpu(udev->descriptor.idProduct) ==
-			USB_PID_ITETECH_IT9135_9005)
-		sw = IT9135_V1_FW;
-	else if (le16_to_cpu(udev->descriptor.idProduct) ==
-			USB_PID_ITETECH_IT9135_9006) {
-		sw = IT9135_V2_FW;
-		if (it913x_config.tuner_id_0 == 0)
-			it913x_config.tuner_id_0 = IT9135_60;
-	} else
+	if (le16_to_cpu(udev->descriptor.idVendor) == USB_VID_KWORLD_2)
 		sw = IT9137_FW;
+	else if (it913x_config.chip_ver == 1)
+		sw = IT9135_V1_FW;
+	else
+		sw = IT9135_V2_FW;
 
 	/* force switch */
 	if (dvb_usb_it913x_firmware != IT9135_AUTO)
@@ -416,6 +409,8 @@ static int ite_firmware_select(struct usb_device *udev,
 		it913x_config.firmware_ver = 1;
 		it913x_config.adc_x2 = 1;
 		props->firmware = fw_it9135_v2;
+		if (it913x_config.tuner_id_0 == 0)
+			it913x_config.tuner_id_0 = IT9135_60;
 		break;
 	case IT9137_FW:
 	default:
@@ -823,5 +818,5 @@ module_usb_driver(it913x_driver);
 
 MODULE_AUTHOR("Malcolm Priestley <tvboxspy@gmail.com>");
 MODULE_DESCRIPTION("it913x USB 2 Driver");
-MODULE_VERSION("1.22");
+MODULE_VERSION("1.23");
 MODULE_LICENSE("GPL");
