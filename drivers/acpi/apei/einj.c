@@ -259,15 +259,15 @@ static void *einj_get_parameter_address(void)
 
 		v4param = ioremap(paddrv4, sizeof(*v4param));
 		if (!v4param)
-			return 0;
+			return NULL;
 		if (readq(&v4param->reserved1) || readq(&v4param->reserved2)) {
 			iounmap(v4param);
-			return 0;
+			return NULL;
 		}
 		return v4param;
 	}
 
-	return 0;
+	return NULL;
 }
 
 /* do sanity check to trigger table */
