@@ -271,7 +271,7 @@ static inline int rpc_task_has_priority(struct rpc_task *task, unsigned char pri
 }
 
 #ifdef RPC_DEBUG
-static inline const char * rpc_qname(struct rpc_wait_queue *q)
+static inline const char * rpc_qname(const struct rpc_wait_queue *q)
 {
 	return ((q && q->name) ? q->name : "unknown");
 }
