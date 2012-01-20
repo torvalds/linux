@@ -77,7 +77,8 @@ static int s5m87xx_i2c_probe(struct i2c_client *i2c,
 	int ret = 0;
 	int error;
 
-	s5m87xx = kzalloc(sizeof(struct s5m87xx_dev), GFP_KERNEL);
+	s5m87xx = devm_kzalloc(&i2c->dev, sizeof(struct s5m87xx_dev),
+				GFP_KERNEL);
 	if (s5m87xx == NULL)
 		return -ENOMEM;
 
@@ -126,7 +127,6 @@ err:
 	s5m_irq_exit(s5m87xx);
 	i2c_unregister_device(s5m87xx->rtc);
 	regmap_exit(s5m87xx->regmap);
-	kfree(s5m87xx);
 	return ret;
 }
 
@@ -138,7 +138,6 @@ static int s5m87xx_i2c_remove(struct i2c_client *i2c)
 	s5m_irq_exit(s5m87xx);
 	i2c_unregister_device(s5m87xx->rtc);
 	regmap_exit(s5m87xx->regmap);
-	kfree(s5m87xx);
 	return 0;
 }
 
