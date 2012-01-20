@@ -1188,6 +1188,14 @@ static int anysee_ci_init(struct dvb_usb_device *d)
 	if (ret)
 		return ret;
 
+	ret = anysee_wr_reg_mask(d, REG_IOD, (0 << 2)|(0 << 1)|(0 << 0), 0x07);
+	if (ret)
+		return ret;
+
+	ret = anysee_wr_reg_mask(d, REG_IOD, (1 << 2)|(1 << 1)|(1 << 0), 0x07);
+	if (ret)
+		return ret;
+
 	ret = dvb_ca_en50221_init(&d->adapter[0].dvb_adap, &state->ci, 0, 1);
 	if (ret)
 		return ret;
