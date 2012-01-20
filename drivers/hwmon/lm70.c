@@ -156,13 +156,6 @@ static int __devinit lm70_probe(struct spi_device *spi)
 	mutex_init(&p_lm70->lock);
 	p_lm70->chip = chip;
 
-	/* sysfs hook */
-	p_lm70->hwmon_dev = hwmon_device_register(&spi->dev);
-	if (IS_ERR(p_lm70->hwmon_dev)) {
-		dev_dbg(&spi->dev, "hwmon_device_register failed.\n");
-		status = PTR_ERR(p_lm70->hwmon_dev);
-		goto out_dev_reg_failed;
-	}
 	spi_set_drvdata(spi, p_lm70);
 
 	if ((status = device_create_file(&spi->dev, &dev_attr_temp1_input))
@@ -171,12 +164,20 @@ static int __devinit lm70_probe(struct spi_device *spi)
 		goto out_dev_create_file_failed;
 	}
 
+	/* sysfs hook */
+	p_lm70->hwmon_dev = hwmon_device_register(&spi->dev);
+	if (IS_ERR(p_lm70->hwmon_dev)) {
+		dev_dbg(&spi->dev, "hwmon_device_register failed.\n");
+		status = PTR_ERR(p_lm70->hwmon_dev);
+		goto out_dev_reg_failed;
+	}
+
 	return 0;
 
+out_dev_reg_failed:
+	device_remove_file(&spi->dev, &dev_attr_name);
 out_dev_create_file_failed:
 	device_remove_file(&spi->dev, &dev_attr_temp1_input);
-	hwmon_device_unregister(p_lm70->hwmon_dev);
-out_dev_reg_failed:
 	spi_set_drvdata(spi, NULL);
 	kfree(p_lm70);
 	return status;
@@ -186,9 +187,9 @@ static int __devexit lm70_remove(struct spi_device *spi)
 {
 	struct lm70 *p_lm70 = spi_get_drvdata(spi);
 
+	hwmon_device_unregister(p_lm70->hwmon_dev);
 	device_remove_file(&spi->dev, &dev_attr_temp1_input);
 	device_remove_file(&spi->dev, &dev_attr_name);
-	hwmon_device_unregister(p_lm70->hwmon_dev);
 	spi_set_drvdata(spi, NULL);
 	kfree(p_lm70);
 
