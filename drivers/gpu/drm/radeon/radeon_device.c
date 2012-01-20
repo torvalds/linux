@@ -959,9 +959,11 @@ int radeon_resume_kms(struct drm_device *dev)
 	radeon_fbdev_set_suspend(rdev, 0);
 	console_unlock();
 
-	/* init dig PHYs */
-	if (rdev->is_atom_bios)
+	/* init dig PHYs, disp eng pll */
+	if (rdev->is_atom_bios) {
 		radeon_atom_encoder_init(rdev);
+		radeon_atom_dcpll_init(rdev);
+	}
 	/* reset hpd state */
 	radeon_hpd_init(rdev);
 	/* blat the mode back in */
