@@ -650,9 +650,6 @@ static int init_state(struct drxk_state *state)
 	u32 ulQual83 = DEFAULT_MER_83;
 	u32 ulQual93 = DEFAULT_MER_93;
 
-	u32 ulDVBTStaticTSClock = 1;
-	u32 ulDVBCStaticTSClock = 1;
-
 	u32 ulMpegLockTimeOut = DEFAULT_DRXK_MPEG_LOCK_TIMEOUT;
 	u32 ulDemodLockTimeOut = DEFAULT_DRXK_DEMOD_LOCK_TIMEOUT;
 
@@ -815,8 +812,7 @@ static int init_state(struct drxk_state *state)
 	state->m_invertSTR = false;	/* If TRUE; invert STR signals */
 	state->m_invertVAL = false;	/* If TRUE; invert VAL signals */
 	state->m_invertCLK = (ulInvertTSClock != 0);	/* If TRUE; invert CLK signals */
-	state->m_DVBTStaticCLK = (ulDVBTStaticTSClock != 0);
-	state->m_DVBCStaticCLK = (ulDVBCStaticTSClock != 0);
+
 	/* If TRUE; static MPEG clockrate will be used;
 	   otherwise clockrate will adapt to the bitrate of the TS */
 
@@ -6389,6 +6385,14 @@ struct dvb_frontend *drxk_attach(const struct drxk_config *config,
 	state->antenna_gpio = config->antenna_gpio;
 	state->antenna_dvbt = config->antenna_dvbt;
 	state->m_ChunkSize = config->chunk_size;
+
+	if (config->dynamic_clk) {
+		state->m_DVBTStaticCLK = 0;
+		state->m_DVBCStaticCLK = 0;
+	} else {
+		state->m_DVBTStaticCLK = 1;
+		state->m_DVBCStaticCLK = 1;
+	}
 
 	if (config->parallel_ts)
 		state->m_enableParallel = true;
