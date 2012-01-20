@@ -351,6 +351,38 @@ static int sta_info_insert_check(struct sta_info *sta)
 	return 0;
 }
 
+static int sta_info_insert_drv_state(struct ieee80211_local *local,
+				     struct ieee80211_sub_if_data *sdata,
+				     struct sta_info *sta)
+{
+	enum ieee80211_sta_state state;
+	int err = 0;
+
+	for (state = IEEE80211_STA_NOTEXIST; state < sta->sta_state; state++) {
+		err = drv_sta_state(local, sdata, sta, state, state + 1);
+		if (err)
+			break;
+	}
+
+	if (!err) {
+		sta->uploaded = true;
+		return 0;
+	}
+
+	if (sdata->vif.type == NL80211_IFTYPE_ADHOC) {
+		printk(KERN_DEBUG
+		       "%s: failed to move IBSS STA %pM to state %d (%d) - keeping it anyway.\n",
+		       sdata->name, sta->sta.addr, state + 1, err);
+		err = 0;
+	}
+
+	/* unwind on error */
+	for (; state > IEEE80211_STA_NOTEXIST; state--)
+		WARN_ON(drv_sta_state(local, sdata, sta, state, state - 1));
+
+	return err;
+}
+
 /*
  * should be called with sta_mtx locked
  * this function replaces the mutex lock
@@ -392,8 +424,11 @@ static int sta_info_insert_finish(struct sta_info *sta) __acquires(RCU)
 			printk(KERN_DEBUG "%s: failed to add IBSS STA %pM to "
 					  "driver (%d) - keeping it anyway.\n",
 			       sdata->name, sta->sta.addr, err);
-		} else
-			sta->uploaded = true;
+		} else {
+			err = sta_info_insert_drv_state(local, sdata, sta);
+			if (err)
+				goto out_err;
+		}
 	}
 
 	if (!dummy_reinsert) {
@@ -759,15 +794,19 @@ int __must_check __sta_info_destroy(struct sta_info *sta)
 		RCU_INIT_POINTER(sdata->u.vlan.sta, NULL);
 
 	while (sta->sta_state > IEEE80211_STA_NONE) {
-		int err = sta_info_move_state(sta, sta->sta_state - 1);
-		if (err) {
+		ret = sta_info_move_state(sta, sta->sta_state - 1);
+		if (ret) {
 			WARN_ON_ONCE(1);
 			break;
 		}
 	}
 
-	if (sta->uploaded)
+	if (sta->uploaded) {
 		drv_sta_remove(local, sdata, &sta->sta);
+		ret = drv_sta_state(local, sdata, sta, IEEE80211_STA_NONE,
+				    IEEE80211_STA_NOTEXIST);
+		WARN_ON_ONCE(ret != 0);
+	}
 
 	/*
 	 * At this point, after we wait for an RCU grace period,
@@ -1404,37 +1443,25 @@ int sta_info_move_state(struct sta_info *sta,
 	if (sta->sta_state == new_state)
 		return 0;
 
+	/* check allowed transitions first */
+
 	switch (new_state) {
 	case IEEE80211_STA_NONE:
-		if (sta->sta_state == IEEE80211_STA_AUTH)
-			clear_bit(WLAN_STA_AUTH, &sta->_flags);
-		else
+		if (sta->sta_state != IEEE80211_STA_AUTH)
 			return -EINVAL;
 		break;
 	case IEEE80211_STA_AUTH:
-		if (sta->sta_state == IEEE80211_STA_NONE)
-			set_bit(WLAN_STA_AUTH, &sta->_flags);
-		else if (sta->sta_state == IEEE80211_STA_ASSOC)
-			clear_bit(WLAN_STA_ASSOC, &sta->_flags);
-		else
+		if (sta->sta_state != IEEE80211_STA_NONE &&
+		    sta->sta_state != IEEE80211_STA_ASSOC)
 			return -EINVAL;
 		break;
 	case IEEE80211_STA_ASSOC:
-		if (sta->sta_state == IEEE80211_STA_AUTH) {
-			set_bit(WLAN_STA_ASSOC, &sta->_flags);
-		} else if (sta->sta_state == IEEE80211_STA_AUTHORIZED) {
-			if (sta->sdata->vif.type == NL80211_IFTYPE_AP)
-				atomic_dec(&sta->sdata->u.ap.num_sta_authorized);
-			clear_bit(WLAN_STA_AUTHORIZED, &sta->_flags);
-		} else
+		if (sta->sta_state != IEEE80211_STA_AUTH &&
+		    sta->sta_state != IEEE80211_STA_AUTHORIZED)
 			return -EINVAL;
 		break;
 	case IEEE80211_STA_AUTHORIZED:
-		if (sta->sta_state == IEEE80211_STA_ASSOC) {
-			if (sta->sdata->vif.type == NL80211_IFTYPE_AP)
-				atomic_inc(&sta->sdata->u.ap.num_sta_authorized);
-			set_bit(WLAN_STA_AUTHORIZED, &sta->_flags);
-		} else
+		if (sta->sta_state != IEEE80211_STA_ASSOC)
 			return -EINVAL;
 		break;
 	default:
@@ -1444,6 +1471,51 @@ int sta_info_move_state(struct sta_info *sta,
 
 	printk(KERN_DEBUG "%s: moving STA %pM to state %d\n",
 		sta->sdata->name, sta->sta.addr, new_state);
+
+	/*
+	 * notify the driver before the actual changes so it can
+	 * fail the transition
+	 */
+	if (test_sta_flag(sta, WLAN_STA_INSERTED)) {
+		int err = drv_sta_state(sta->local, sta->sdata, sta,
+					sta->sta_state, new_state);
+		if (err)
+			return err;
+	}
+
+	/* reflect the change in all state variables */
+
+	switch (new_state) {
+	case IEEE80211_STA_NONE:
+		if (sta->sta_state == IEEE80211_STA_AUTH)
+			clear_bit(WLAN_STA_AUTH, &sta->_flags);
+		break;
+	case IEEE80211_STA_AUTH:
+		if (sta->sta_state == IEEE80211_STA_NONE)
+			set_bit(WLAN_STA_AUTH, &sta->_flags);
+		else if (sta->sta_state == IEEE80211_STA_ASSOC)
+			clear_bit(WLAN_STA_ASSOC, &sta->_flags);
+		break;
+	case IEEE80211_STA_ASSOC:
+		if (sta->sta_state == IEEE80211_STA_AUTH) {
+			set_bit(WLAN_STA_ASSOC, &sta->_flags);
+		} else if (sta->sta_state == IEEE80211_STA_AUTHORIZED) {
+			if (sta->sdata->vif.type == NL80211_IFTYPE_AP)
+				atomic_dec(&sta->sdata->u.ap.num_sta_authorized);
+			clear_bit(WLAN_STA_AUTHORIZED, &sta->_flags);
+		}
+		break;
+	case IEEE80211_STA_AUTHORIZED:
+		if (sta->sta_state == IEEE80211_STA_ASSOC) {
+			if (sta->sdata->vif.type == NL80211_IFTYPE_AP)
+				atomic_inc(&sta->sdata->u.ap.num_sta_authorized);
+			set_bit(WLAN_STA_AUTHORIZED, &sta->_flags);
+		}
+		break;
+	default:
+		break;
+	}
+
 	sta->sta_state = new_state;
 
 	return 0;

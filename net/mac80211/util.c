@@ -1184,8 +1184,16 @@ int ieee80211_reconfig(struct ieee80211_local *local)
 	/* add STAs back */
 	mutex_lock(&local->sta_mtx);
 	list_for_each_entry(sta, &local->sta_list, list) {
-		if (sta->uploaded)
+		if (sta->uploaded) {
+			enum ieee80211_sta_state state;
+
 			WARN_ON(drv_sta_add(local, sta->sdata, &sta->sta));
+
+			for (state = IEEE80211_STA_NOTEXIST;
+			     state < sta->sta_state - 1; state++)
+				WARN_ON(drv_sta_state(local, sta->sdata, sta,
+						      state, state + 1));
+		}
 	}
 	mutex_unlock(&local->sta_mtx);
 
