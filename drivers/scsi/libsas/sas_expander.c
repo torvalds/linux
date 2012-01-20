@@ -2005,6 +2005,15 @@ static int sas_rediscover_dev(struct domain_device *dev, int phy_id, bool last)
 		return res;
 	}
 
+	/* delete the old link */
+	if (SAS_ADDR(phy->attached_sas_addr) &&
+	    SAS_ADDR(sas_addr) != SAS_ADDR(phy->attached_sas_addr)) {
+		SAS_DPRINTK("ex %016llx phy 0x%x replace %016llx\n",
+			    SAS_ADDR(dev->sas_addr), phy_id,
+			    SAS_ADDR(phy->attached_sas_addr));
+		sas_unregister_devs_sas_addr(dev, phy_id, last);
+	}
+
 	return sas_discover_new(dev, phy_id);
 }
 
