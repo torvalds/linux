@@ -49,6 +49,7 @@ show up in /proc/sys/kernel:
 - panic
 - panic_on_oops
 - panic_on_unrecovered_nmi
+- panic_on_stackoverflow
 - pid_max
 - powersave-nap               [ PPC only ]
 - printk
@@ -393,11 +394,32 @@ Controls the kernel's behaviour when an oops or BUG is encountered.
 
 ==============================================================
 
+panic_on_stackoverflow:
+
+Controls the kernel's behavior when detecting the overflows of
+kernel, IRQ and exception stacks except a user stack.
+This file shows up if CONFIG_DEBUG_STACKOVERFLOW is enabled.
+
+0: try to continue operation.
+
+1: panic immediately.
+
+==============================================================
+
+
 pid_max:
 
 PID allocation wrap value.  When the kernel's next PID value
 reaches this value, it wraps back to a minimum PID value.
 PIDs of value pid_max or larger are not allocated.
+
+==============================================================
+
+ns_last_pid:
+
+The last pid allocated in the current (the one task using this sysctl
+lives in) pid namespace. When selecting a pid for a next task on fork
+kernel tries to allocate a number starting from this one.
 
 ==============================================================
 

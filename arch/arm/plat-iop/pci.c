@@ -215,16 +215,16 @@ int iop3xx_pci_setup(int nr, struct pci_sys_data *sys)
 	sys->mem_offset = IOP3XX_PCI_LOWER_MEM_PA - *IOP3XX_OMWTVR0;
 	sys->io_offset  = IOP3XX_PCI_LOWER_IO_PA - *IOP3XX_OIOWTVR;
 
-	sys->resource[0] = &res[0];
-	sys->resource[1] = &res[1];
-	sys->resource[2] = NULL;
+	pci_add_resource(&sys->resources, &res[0]);
+	pci_add_resource(&sys->resources, &res[1]);
 
 	return 1;
 }
 
 struct pci_bus *iop3xx_pci_scan_bus(int nr, struct pci_sys_data *sys)
 {
-	return pci_scan_bus(sys->busnr, &iop3xx_ops, sys);
+	return pci_scan_root_bus(NULL, sys->busnr, &iop3xx_ops, sys,
+				 &sys->resources);
 }
 
 void __init iop3xx_atu_setup(void)

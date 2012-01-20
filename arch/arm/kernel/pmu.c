@@ -33,3 +33,4 @@ release_pmu(enum arm_pmu_type type)
 {
 	clear_bit_unlock(type, pmu_lock);
 }
+EXPORT_SYMBOL_GPL(release_pmu);

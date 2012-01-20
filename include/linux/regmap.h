@@ -23,7 +23,6 @@ struct spi_device;
 /* An enum of all the supported cache types */
 enum regcache_type {
 	REGCACHE_NONE,
-	REGCACHE_INDEXED,
 	REGCACHE_RBTREE,
 	REGCACHE_COMPRESSED
 };
@@ -83,7 +82,7 @@ struct regmap_config {
 	bool (*precious_reg)(struct device *dev, unsigned int reg);
 
 	unsigned int max_register;
-	struct reg_default *reg_defaults;
+	const struct reg_default *reg_defaults;
 	unsigned int num_reg_defaults;
 	enum regcache_type cache_type;
 	const void *reg_defaults_raw;
@@ -141,6 +140,9 @@ int regmap_bulk_read(struct regmap *map, unsigned int reg, void *val,
 		     size_t val_count);
 int regmap_update_bits(struct regmap *map, unsigned int reg,
 		       unsigned int mask, unsigned int val);
+int regmap_update_bits_check(struct regmap *map, unsigned int reg,
+			     unsigned int mask, unsigned int val,
+			     bool *change);
 
 int regcache_sync(struct regmap *map);
 void regcache_cache_only(struct regmap *map, bool enable);

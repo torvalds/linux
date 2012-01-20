@@ -179,21 +179,9 @@ static struct platform_driver asic3_led_driver = {
 	},
 };
 
-MODULE_ALIAS("platform:leds-asic3");
-
-static int __init asic3_led_init(void)
-{
-	return platform_driver_register(&asic3_led_driver);
-}
-
-static void __exit asic3_led_exit(void)
-{
-	platform_driver_unregister(&asic3_led_driver);
-}
-
-module_init(asic3_led_init);
-module_exit(asic3_led_exit);
+module_platform_driver(asic3_led_driver);
 
 MODULE_AUTHOR("Paul Parsons <lost.distance@yahoo.com>");
 MODULE_DESCRIPTION("HTC ASIC3 LED driver");
 MODULE_LICENSE("GPL");
+MODULE_ALIAS("platform:leds-asic3");

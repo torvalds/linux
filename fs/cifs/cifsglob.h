@@ -169,8 +169,8 @@ struct smb_vol {
 	gid_t linux_gid;
 	uid_t backupuid;
 	gid_t backupgid;
-	mode_t file_mode;
-	mode_t dir_mode;
+	umode_t file_mode;
+	umode_t dir_mode;
 	unsigned secFlg;
 	bool retry:1;
 	bool intr:1;

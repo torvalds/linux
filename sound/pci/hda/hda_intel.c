@@ -94,7 +94,7 @@ MODULE_PARM_DESC(probe_only, "Only probing and no codec initialization.");
 module_param(single_cmd, bool, 0444);
 MODULE_PARM_DESC(single_cmd, "Use single command to communicate with codecs "
 		 "(for debugging only).");
-module_param(enable_msi, int, 0444);
+module_param(enable_msi, bint, 0444);
 MODULE_PARM_DESC(enable_msi, "Enable Message Signaled Interrupt (MSI)");
 #ifdef CONFIG_SND_HDA_PATCH_LOADER
 module_param_array(patch, charp, NULL, 0444);

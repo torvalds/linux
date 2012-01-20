@@ -832,7 +832,7 @@ static int ldo_regulator_register(struct snd_soc_codec *codec,
 	ldo->voltage = voltage;
 
 	ldo->dev = regulator_register(&ldo->desc, codec->dev,
-					  init_data, ldo);
+					  init_data, ldo, NULL);
 	if (IS_ERR(ldo->dev)) {
 		int ret = PTR_ERR(ldo->dev);
 
@@ -1457,5 +1457,5 @@ static void __exit sgtl5000_exit(void)
 module_exit(sgtl5000_exit);
 
 MODULE_DESCRIPTION("Freescale SGTL5000 ALSA SoC Codec Driver");
-MODULE_AUTHOR("Zeng Zhaoming <zhaoming.zeng@freescale.com>");
+MODULE_AUTHOR("Zeng Zhaoming <zengzm.kernel@gmail.com>");
 MODULE_LICENSE("GPL");

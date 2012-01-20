@@ -35,6 +35,14 @@
 #define EVERGREEN_P1PLL_SS_CNTL                         0x414
 #define EVERGREEN_P2PLL_SS_CNTL                         0x454
 #       define EVERGREEN_PxPLL_SS_EN                    (1 << 12)
+
+#define EVERGREEN_AUDIO_PLL1_MUL			0x5b0
+#define EVERGREEN_AUDIO_PLL1_DIV			0x5b4
+#define EVERGREEN_AUDIO_PLL1_UNK			0x5bc
+
+#define EVERGREEN_AUDIO_ENABLE				0x5e78
+#define EVERGREEN_AUDIO_VENDOR_ID			0x5ec0
+
 /* GRPH blocks at 0x6800, 0x7400, 0x10000, 0x10c00, 0x11800, 0x12400 */
 #define EVERGREEN_GRPH_ENABLE                           0x6800
 #define EVERGREEN_GRPH_CONTROL                          0x6804
@@ -42,6 +50,17 @@
 #       define EVERGREEN_GRPH_DEPTH_8BPP                0
 #       define EVERGREEN_GRPH_DEPTH_16BPP               1
 #       define EVERGREEN_GRPH_DEPTH_32BPP               2
+#       define EVERGREEN_GRPH_NUM_BANKS(x)              (((x) & 0x3) << 2)
+#       define EVERGREEN_ADDR_SURF_2_BANK               0
+#       define EVERGREEN_ADDR_SURF_4_BANK               1
+#       define EVERGREEN_ADDR_SURF_8_BANK               2
+#       define EVERGREEN_ADDR_SURF_16_BANK              3
+#       define EVERGREEN_GRPH_Z(x)                      (((x) & 0x3) << 4)
+#       define EVERGREEN_GRPH_BANK_WIDTH(x)             (((x) & 0x3) << 6)
+#       define EVERGREEN_ADDR_SURF_BANK_WIDTH_1         0
+#       define EVERGREEN_ADDR_SURF_BANK_WIDTH_2         1
+#       define EVERGREEN_ADDR_SURF_BANK_WIDTH_4         2
+#       define EVERGREEN_ADDR_SURF_BANK_WIDTH_8         3
 #       define EVERGREEN_GRPH_FORMAT(x)                 (((x) & 0x7) << 8)
 /* 8 BPP */
 #       define EVERGREEN_GRPH_FORMAT_INDEXED            0
@@ -61,6 +80,24 @@
 #       define EVERGREEN_GRPH_FORMAT_8B_BGRA1010102     5
 #       define EVERGREEN_GRPH_FORMAT_RGB111110          6
 #       define EVERGREEN_GRPH_FORMAT_BGR101111          7
+#       define EVERGREEN_GRPH_BANK_HEIGHT(x)            (((x) & 0x3) << 11)
+#       define EVERGREEN_ADDR_SURF_BANK_HEIGHT_1        0
+#       define EVERGREEN_ADDR_SURF_BANK_HEIGHT_2        1
+#       define EVERGREEN_ADDR_SURF_BANK_HEIGHT_4        2
+#       define EVERGREEN_ADDR_SURF_BANK_HEIGHT_8        3
+#       define EVERGREEN_GRPH_TILE_SPLIT(x)             (((x) & 0x7) << 13)
+#       define EVERGREEN_ADDR_SURF_TILE_SPLIT_64B       0
+#       define EVERGREEN_ADDR_SURF_TILE_SPLIT_128B      1
+#       define EVERGREEN_ADDR_SURF_TILE_SPLIT_256B      2
+#       define EVERGREEN_ADDR_SURF_TILE_SPLIT_512B      3
+#       define EVERGREEN_ADDR_SURF_TILE_SPLIT_1KB       4
+#       define EVERGREEN_ADDR_SURF_TILE_SPLIT_2KB       5
+#       define EVERGREEN_ADDR_SURF_TILE_SPLIT_4KB       6
+#       define EVERGREEN_GRPH_MACRO_TILE_ASPECT(x)      (((x) & 0x3) << 18)
+#       define EVERGREEN_ADDR_SURF_MACRO_TILE_ASPECT_1  0
+#       define EVERGREEN_ADDR_SURF_MACRO_TILE_ASPECT_2  1
+#       define EVERGREEN_ADDR_SURF_MACRO_TILE_ASPECT_4  2
+#       define EVERGREEN_ADDR_SURF_MACRO_TILE_ASPECT_8  3
 #       define EVERGREEN_GRPH_ARRAY_MODE(x)             (((x) & 0x7) << 20)
 #       define EVERGREEN_GRPH_ARRAY_LINEAR_GENERAL      0
 #       define EVERGREEN_GRPH_ARRAY_LINEAR_ALIGNED      1
@@ -190,5 +227,10 @@
 #define EVERGREEN_DC_GPIO_HPD_A                         0x64b4
 #define EVERGREEN_DC_GPIO_HPD_EN                        0x64b8
 #define EVERGREEN_DC_GPIO_HPD_Y                         0x64bc
+
+/* HDMI blocks at 0x7030, 0x7c30, 0x10830, 0x11430, 0x12030, 0x12c30 */
+#define EVERGREEN_HDMI_BASE				0x7030
+
+#define EVERGREEN_HDMI_CONFIG_OFFSET			0xf0
 
 #endif

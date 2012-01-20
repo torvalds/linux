@@ -57,6 +57,8 @@ static int mmc_ios_show(struct seq_file *s, void *data)
 	const char *str;
 
 	seq_printf(s, "clock:\t\t%u Hz\n", ios->clock);
+	if (host->actual_clock)
+		seq_printf(s, "actual clock:\t%u Hz\n", host->actual_clock);
 	seq_printf(s, "vdd:\t\t%u ", ios->vdd);
 	if ((1 << ios->vdd) & MMC_VDD_165_195)
 		seq_printf(s, "(1.65 - 1.95 V)\n");
@@ -132,6 +134,9 @@ static int mmc_ios_show(struct seq_file *s, void *data)
 		break;
 	case MMC_TIMING_UHS_DDR50:
 		str = "sd uhs DDR50";
+		break;
+	case MMC_TIMING_MMC_HS200:
+		str = "mmc high-speed SDR200";
 		break;
 	default:
 		str = "invalid";

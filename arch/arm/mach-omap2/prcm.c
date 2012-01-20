@@ -25,8 +25,7 @@
 #include <linux/delay.h>
 #include <linux/export.h>
 
-#include <mach/system.h>
-#include <plat/common.h>
+#include "common.h"
 #include <plat/prcm.h>
 #include <plat/irqs.h>
 
@@ -59,7 +58,7 @@ u32 omap_prcm_get_reset_sources(void)
 EXPORT_SYMBOL(omap_prcm_get_reset_sources);
 
 /* Resets clock rates and reboots the system. Only called from system.h */
-static void omap_prcm_arch_reset(char mode, const char *cmd)
+void omap_prcm_restart(char mode, const char *cmd)
 {
 	s16 prcm_offs = 0;
 
@@ -109,8 +108,6 @@ static void omap_prcm_arch_reset(char mode, const char *cmd)
 				   OMAP2_RM_RSTCTRL);
 	omap2_prm_read_mod_reg(prcm_offs, OMAP2_RM_RSTCTRL); /* OCP barrier */
 }
-
-void (*arch_reset)(char, const char *) = omap_prcm_arch_reset;
 
 /**
  * omap2_cm_wait_idlest - wait for IDLEST bit to indicate module readiness

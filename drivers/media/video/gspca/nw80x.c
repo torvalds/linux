@@ -1763,8 +1763,8 @@ static int sd_config(struct gspca_dev *gspca_dev,
 	if ((unsigned) webcam >= NWEBCAMS)
 		webcam = 0;
 	sd->webcam = webcam;
-	gspca_dev->cam.reverse_alts = 1;
 	gspca_dev->cam.ctrls = sd->ctrls;
+	gspca_dev->cam.needs_full_bandwidth = 1;
 	sd->ag_cnt = -1;
 
 	/*
@@ -2118,18 +2118,7 @@ static struct usb_driver sd_driver = {
 #endif
 };
 
-/* -- module insert / remove -- */
-static int __init sd_mod_init(void)
-{
-	return usb_register(&sd_driver);
-}
-static void __exit sd_mod_exit(void)
-{
-	usb_deregister(&sd_driver);
-}
-
-module_init(sd_mod_init);
-module_exit(sd_mod_exit);
+module_usb_driver(sd_driver);
 
 module_param(webcam, int, 0644);
 MODULE_PARM_DESC(webcam,

@@ -208,4 +208,5 @@ MACHINE_START(EM7210, "Lanner EM7210")
 	.init_irq	= iop32x_init_irq,
 	.timer		= &em7210_timer,
 	.init_machine	= em7210_init_machine,
+	.restart	= iop3xx_restart,
 MACHINE_END

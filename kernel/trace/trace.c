@@ -338,7 +338,8 @@ static DECLARE_WAIT_QUEUE_HEAD(trace_wait);
 /* trace_flags holds trace_options default values */
 unsigned long trace_flags = TRACE_ITER_PRINT_PARENT | TRACE_ITER_PRINTK |
 	TRACE_ITER_ANNOTATE | TRACE_ITER_CONTEXT_INFO | TRACE_ITER_SLEEP_TIME |
-	TRACE_ITER_GRAPH_TIME | TRACE_ITER_RECORD_CMD | TRACE_ITER_OVERWRITE;
+	TRACE_ITER_GRAPH_TIME | TRACE_ITER_RECORD_CMD | TRACE_ITER_OVERWRITE |
+	TRACE_ITER_IRQ_INFO;
 
 static int trace_stop_count;
 static DEFINE_RAW_SPINLOCK(tracing_start_lock);
@@ -426,6 +427,7 @@ static const char *trace_options[] = {
 	"record-cmd",
 	"overwrite",
 	"disable_on_free",
+	"irq-info",
 	NULL
 };
 
@@ -1843,6 +1845,33 @@ static void s_stop(struct seq_file *m, void *p)
 	trace_event_read_unlock();
 }
 
+static void
+get_total_entries(struct trace_array *tr, unsigned long *total, unsigned long *entries)
+{
+	unsigned long count;
+	int cpu;
+
+	*total = 0;
+	*entries = 0;
+
+	for_each_tracing_cpu(cpu) {
+		count = ring_buffer_entries_cpu(tr->buffer, cpu);
+		/*
+		 * If this buffer has skipped entries, then we hold all
+		 * entries for the trace and we need to ignore the
+		 * ones before the time stamp.
+		 */
+		if (tr->data[cpu]->skipped_entries) {
+			count -= tr->data[cpu]->skipped_entries;
+			/* total is the same as the entries */
+			*total += count;
+		} else
+			*total += count +
+				ring_buffer_overrun_cpu(tr->buffer, cpu);
+		*entries += count;
+	}
+}
+
 static void print_lat_help_header(struct seq_file *m)
 {
 	seq_puts(m, "#                  _------=> CPU#            \n");
@@ -1855,12 +1884,35 @@ static void print_lat_help_header(struct seq_file *m)
 	seq_puts(m, "#     \\   /      |||||  \\    |   /           \n");
 }
 
-static void print_func_help_header(struct seq_file *m)
+static void print_event_info(struct trace_array *tr, struct seq_file *m)
 {
-	seq_puts(m, "#           TASK-PID    CPU#    TIMESTAMP  FUNCTION\n");
+	unsigned long total;
+	unsigned long entries;
+
+	get_total_entries(tr, &total, &entries);
+	seq_printf(m, "# entries-in-buffer/entries-written: %lu/%lu   #P:%d\n",
+		   entries, total, num_online_cpus());
+	seq_puts(m, "#\n");
+}
+
+static void print_func_help_header(struct trace_array *tr, struct seq_file *m)
+{
+	print_event_info(tr, m);
+	seq_puts(m, "#           TASK-PID   CPU#      TIMESTAMP  FUNCTION\n");
 	seq_puts(m, "#              | |       |          |         |\n");
 }
 
+static void print_func_help_header_irq(struct trace_array *tr, struct seq_file *m)
+{
+	print_event_info(tr, m);
+	seq_puts(m, "#                              _-----=> irqs-off\n");
+	seq_puts(m, "#                             / _----=> need-resched\n");
+	seq_puts(m, "#                            | / _---=> hardirq/softirq\n");
+	seq_puts(m, "#                            || / _--=> preempt-depth\n");
+	seq_puts(m, "#                            ||| /     delay\n");
+	seq_puts(m, "#           TASK-PID   CPU#  ||||    TIMESTAMP  FUNCTION\n");
+	seq_puts(m, "#              | |       |   ||||       |         |\n");
+}
 
 void
 print_trace_header(struct seq_file *m, struct trace_iterator *iter)
@@ -1869,32 +1921,14 @@ print_trace_header(struct seq_file *m, struct trace_iterator *iter)
 	struct trace_array *tr = iter->tr;
 	struct trace_array_cpu *data = tr->data[tr->cpu];
 	struct tracer *type = current_trace;
-	unsigned long entries = 0;
-	unsigned long total = 0;
-	unsigned long count;
+	unsigned long entries;
+	unsigned long total;
 	const char *name = "preemption";
-	int cpu;
 
 	if (type)
 		name = type->name;
 
-
-	for_each_tracing_cpu(cpu) {
-		count = ring_buffer_entries_cpu(tr->buffer, cpu);
-		/*
-		 * If this buffer has skipped entries, then we hold all
-		 * entries for the trace and we need to ignore the
-		 * ones before the time stamp.
-		 */
-		if (tr->data[cpu]->skipped_entries) {
-			count -= tr->data[cpu]->skipped_entries;
-			/* total is the same as the entries */
-			total += count;
-		} else
-			total += count +
-				ring_buffer_overrun_cpu(tr->buffer, cpu);
-		entries += count;
-	}
+	get_total_entries(tr, &total, &entries);
 
 	seq_printf(m, "# %s latency trace v1.1.5 on %s\n",
 		   name, UTS_RELEASE);
@@ -2140,6 +2174,21 @@ enum print_line_t print_trace_line(struct trace_iterator *iter)
 	return print_trace_fmt(iter);
 }
 
+void trace_latency_header(struct seq_file *m)
+{
+	struct trace_iterator *iter = m->private;
+
+	/* print nothing if the buffers are empty */
+	if (trace_empty(iter))
+		return;
+
+	if (iter->iter_flags & TRACE_FILE_LAT_FMT)
+		print_trace_header(m, iter);
+
+	if (!(trace_flags & TRACE_ITER_VERBOSE))
+		print_lat_help_header(m);
+}
+
 void trace_default_header(struct seq_file *m)
 {
 	struct trace_iterator *iter = m->private;
@@ -2155,8 +2204,12 @@ void trace_default_header(struct seq_file *m)
 		if (!(trace_flags & TRACE_ITER_VERBOSE))
 			print_lat_help_header(m);
 	} else {
-		if (!(trace_flags & TRACE_ITER_VERBOSE))
-			print_func_help_header(m);
+		if (!(trace_flags & TRACE_ITER_VERBOSE)) {
+			if (trace_flags & TRACE_ITER_IRQ_INFO)
+				print_func_help_header_irq(iter->tr, m);
+			else
+				print_func_help_header(iter->tr, m);
+		}
 	}
 }
 
@@ -4385,7 +4438,7 @@ static const struct file_operations trace_options_core_fops = {
 };
 
 struct dentry *trace_create_file(const char *name,
-				 mode_t mode,
+				 umode_t mode,
 				 struct dentry *parent,
 				 void *data,
 				 const struct file_operations *fops)
@@ -4775,6 +4828,7 @@ void ftrace_dump(enum ftrace_dump_mode oops_dump_mode)
 {
 	__ftrace_dump(true, oops_dump_mode);
 }
+EXPORT_SYMBOL_GPL(ftrace_dump);
 
 __init static int tracer_alloc_buffers(void)
 {

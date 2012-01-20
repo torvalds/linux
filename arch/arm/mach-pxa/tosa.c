@@ -404,8 +404,8 @@ static struct pda_power_pdata tosa_power_data = {
 static struct resource tosa_power_resource[] = {
 	{
 		.name		= "ac",
-		.start		= gpio_to_irq(TOSA_GPIO_AC_IN),
-		.end		= gpio_to_irq(TOSA_GPIO_AC_IN),
+		.start		= PXA_GPIO_TO_IRQ(TOSA_GPIO_AC_IN),
+		.end		= PXA_GPIO_TO_IRQ(TOSA_GPIO_AC_IN),
 		.flags		= IORESOURCE_IRQ |
 				  IORESOURCE_IRQ_HIGHEDGE |
 				  IORESOURCE_IRQ_LOWEDGE,
@@ -911,7 +911,7 @@ static struct platform_device *devices[] __initdata = {
 
 static void tosa_poweroff(void)
 {
-	arm_machine_restart('g', NULL);
+	pxa_restart('g', NULL);
 }
 
 static void tosa_restart(char mode, const char *cmd)
@@ -941,7 +941,6 @@ static void __init tosa_init(void)
 	init_gpio_reset(TOSA_GPIO_ON_RESET, 0, 0);
 
 	pm_power_off = tosa_poweroff;
-	arm_pm_restart = tosa_restart;
 
 	PCFR |= PCFR_OPDE;
 
@@ -976,6 +975,7 @@ static void __init fixup_tosa(struct tag *tags, char **cmdline,
 }
 
 MACHINE_START(TOSA, "SHARP Tosa")
+	.restart_mode	= 'g',
 	.fixup          = fixup_tosa,
 	.map_io         = pxa25x_map_io,
 	.nr_irqs	= TOSA_NR_IRQS,
@@ -983,4 +983,5 @@ MACHINE_START(TOSA, "SHARP Tosa")
 	.handle_irq       = pxa25x_handle_irq,
 	.init_machine   = tosa_init,
 	.timer          = &pxa_timer,
+	.restart	= tosa_restart,
 MACHINE_END

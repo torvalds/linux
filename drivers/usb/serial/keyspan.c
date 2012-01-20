@@ -25,73 +25,6 @@
 
   Tip 'o the hat to IBM (and previously Linuxcare :) for supporting
   staff in their work on open source projects.
-
-  Change History
-
-    2003sep04	LPM (Keyspan) add support for new single port product USA19HS.
-				Improve setup message handling for all devices.
-
-    Wed Feb 19 22:00:00 PST 2003 (Jeffrey S. Laing <keyspan@jsl.com>)
-      Merged the current (1/31/03) Keyspan code with the current (2.4.21-pre4)
-      Linux source tree.  The Linux tree lacked support for the 49WLC and
-      others.  The Keyspan patches didn't work with the current kernel.
-
-    2003jan30	LPM	add support for the 49WLC and MPR
-
-    Wed Apr 25 12:00:00 PST 2002 (Keyspan)
-      Started with Hugh Blemings' code dated Jan 17, 2002.  All adapters
-      now supported (including QI and QW).  Modified port open, port
-      close, and send setup() logic to fix various data and endpoint
-      synchronization bugs and device LED status bugs.  Changed keyspan_
-      write_room() to accurately return transmit buffer availability.
-      Changed forwardingLength from 1 to 16 for all adapters.
-
-    Fri Oct 12 16:45:00 EST 2001
-      Preliminary USA-19QI and USA-28 support (both test OK for me, YMMV)
-
-    Wed Apr 25 12:00:00 PST 2002 (Keyspan)
-      Started with Hugh Blemings' code dated Jan 17, 2002.  All adapters
-      now supported (including QI and QW).  Modified port open, port
-      close, and send setup() logic to fix various data and endpoint
-      synchronization bugs and device LED status bugs.  Changed keyspan_
-      write_room() to accurately return transmit buffer availability.
-      Changed forwardingLength from 1 to 16 for all adapters.
-
-    Fri Oct 12 16:45:00 EST 2001
-      Preliminary USA-19QI and USA-28 support (both test OK for me, YMMV)
-
-    Mon Oct  8 14:29:00 EST 2001 hugh
-      Fixed bug that prevented mulitport devices operating correctly
-      if they weren't the first unit attached.
-
-    Sat Oct  6 12:31:21 EST 2001 hugh
-      Added support for USA-28XA and -28XB, misc cleanups, break support
-      for usa26 based models thanks to David Gibson.
-
-    Thu May 31 11:56:42 PDT 2001 gkh
-      switched from using spinlock to a semaphore
-
-    (04/08/2001) gb
-	Identify version on module load.
-
-    (11/01/2000) Adam J. Richter
-	usb_device_id table support.
-
-    Tue Oct 10 23:15:33 EST 2000 Hugh
-      Merged Paul's changes with my USA-49W mods.  Work in progress
-      still...
-
-    Wed Jul 19 14:00:42 EST 2000 gkh
-      Added module_init and module_exit functions to handle the fact that
-      this driver is a loadable module now.
-
-    Tue Jul 18 16:14:52 EST 2000 Hugh
-      Basic character input/output for USA-19 now mostly works,
-      fixed at 9600 baud for the moment.
-
-    Sat Jul  8 11:11:48 EST 2000 Hugh
-      First public release - nothing works except the firmware upload.
-      Tested on PPC and x86 architectures, seems to behave...
 */
 
 
@@ -112,7 +45,7 @@
 #include <linux/usb/serial.h>
 #include "keyspan.h"
 
-static int debug;
+static bool debug;
 
 /*
  * Version Information
@@ -397,7 +330,6 @@ static int keyspan_write(struct tty_struct *tty,
 		/* send the data out the bulk port */
 		this_urb->transfer_buffer_length = todo + dataOffset;
 
-		this_urb->dev = port->serial->dev;
 		err = usb_submit_urb(this_urb, GFP_ATOMIC);
 		if (err != 0)
 			dbg("usb_submit_urb(write bulk) failed (%d)", err);
@@ -463,7 +395,6 @@ static void	usa26_indat_callback(struct urb *urb)
 	tty_kref_put(tty);
 
 	/* Resubmit urb so we continue receiving */
-	urb->dev = port->serial->dev;
 	err = usb_submit_urb(urb, GFP_ATOMIC);
 	if (err != 0)
 		dbg("%s - resubmit read urb failed. (%d)", __func__, err);
@@ -559,7 +490,6 @@ static void	usa26_instat_callback(struct urb *urb)
 	}
 
 	/* Resubmit urb so we continue receiving */
-	urb->dev = serial->dev;
 	err = usb_submit_urb(urb, GFP_ATOMIC);
 	if (err != 0)
 		dbg("%s - resubmit read urb failed. (%d)", __func__, err);
@@ -609,7 +539,6 @@ static void usa28_indat_callback(struct urb *urb)
 		tty_kref_put(tty);
 
 		/* Resubmit urb so we continue receiving */
-		urb->dev = port->serial->dev;
 		err = usb_submit_urb(urb, GFP_ATOMIC);
 		if (err != 0)
 			dbg("%s - resubmit read urb failed. (%d)",
@@ -694,7 +623,6 @@ static void	usa28_instat_callback(struct urb *urb)
 	}
 
 		/* Resubmit urb so we continue receiving */
-	urb->dev = serial->dev;
 	err = usb_submit_urb(urb, GFP_ATOMIC);
 	if (err != 0)
 		dbg("%s - resubmit read urb failed. (%d)", __func__, err);
@@ -789,8 +717,6 @@ static void	usa49_instat_callback(struct urb *urb)
 	}
 
 	/* Resubmit urb so we continue receiving */
-	urb->dev = serial->dev;
-
 	err = usb_submit_urb(urb, GFP_ATOMIC);
 	if (err != 0)
 		dbg("%s - resubmit read urb failed. (%d)", __func__, err);
@@ -848,7 +774,6 @@ static void	usa49_indat_callback(struct urb *urb)
 	tty_kref_put(tty);
 
 	/* Resubmit urb so we continue receiving */
-	urb->dev = port->serial->dev;
 	err = usb_submit_urb(urb, GFP_ATOMIC);
 	if (err != 0)
 		dbg("%s - resubmit read urb failed. (%d)", __func__, err);
@@ -919,8 +844,6 @@ static void usa49wg_indat_callback(struct urb *urb)
 	}
 
 	/* Resubmit urb so we continue receiving */
-	urb->dev = serial->dev;
-
 	err = usb_submit_urb(urb, GFP_ATOMIC);
 	if (err != 0)
 		dbg("%s - resubmit read urb failed. (%d)", __func__, err);
@@ -996,7 +919,6 @@ static void usa90_indat_callback(struct urb *urb)
 	}
 
 	/* Resubmit urb so we continue receiving */
-	urb->dev = port->serial->dev;
 	err = usb_submit_urb(urb, GFP_ATOMIC);
 	if (err != 0)
 		dbg("%s - resubmit read urb failed. (%d)", __func__, err);
@@ -1047,7 +969,6 @@ static void	usa90_instat_callback(struct urb *urb)
 	}
 
 	/* Resubmit urb so we continue receiving */
-	urb->dev = serial->dev;
 	err = usb_submit_urb(urb, GFP_ATOMIC);
 	if (err != 0)
 		dbg("%s - resubmit read urb failed. (%d)", __func__, err);
@@ -1123,7 +1044,6 @@ static void	usa67_instat_callback(struct urb *urb)
 	}
 
 	/* Resubmit urb so we continue receiving */
-	urb->dev = serial->dev;
 	err = usb_submit_urb(urb, GFP_ATOMIC);
 	if (err != 0)
 		dbg("%s - resubmit read urb failed. (%d)", __func__, err);
@@ -1223,7 +1143,6 @@ static int keyspan_open(struct tty_struct *tty, struct usb_serial_port *port)
 		urb = p_priv->in_urbs[i];
 		if (urb == NULL)
 			continue;
-		urb->dev = serial->dev;
 
 		/* make sure endpoint data toggle is synchronized
 		   with the device */
@@ -1239,7 +1158,6 @@ static int keyspan_open(struct tty_struct *tty, struct usb_serial_port *port)
 		urb = p_priv->out_urbs[i];
 		if (urb == NULL)
 			continue;
-		urb->dev = serial->dev;
 		/* usb_settoggle(urb->dev, usb_pipeendpoint(urb->pipe),
 						usb_pipeout(urb->pipe), 0); */
 	}
@@ -1956,7 +1874,6 @@ static int keyspan_usa26_send_setup(struct usb_serial *serial,
 	/* send the data out the device on control endpoint */
 	this_urb->transfer_buffer_length = sizeof(msg);
 
-	this_urb->dev = serial->dev;
 	err = usb_submit_urb(this_urb, GFP_ATOMIC);
 	if (err != 0)
 		dbg("%s - usb_submit_urb(setup) failed (%d)", __func__, err);
@@ -2084,7 +2001,6 @@ static int keyspan_usa28_send_setup(struct usb_serial *serial,
 	/* send the data out the device on control endpoint */
 	this_urb->transfer_buffer_length = sizeof(msg);
 
-	this_urb->dev = serial->dev;
 	err = usb_submit_urb(this_urb, GFP_ATOMIC);
 	if (err != 0)
 		dbg("%s - usb_submit_urb(setup) failed", __func__);
@@ -2271,8 +2187,6 @@ static int keyspan_usa49_send_setup(struct usb_serial *serial,
 
 		/* send the data out the device on control endpoint */
 		this_urb->transfer_buffer_length = sizeof(msg);
-
-		this_urb->dev = serial->dev;
 	}
 	err = usb_submit_urb(this_urb, GFP_ATOMIC);
 	if (err != 0)
@@ -2415,7 +2329,6 @@ static int keyspan_usa90_send_setup(struct usb_serial *serial,
 	/* send the data out the device on control endpoint */
 	this_urb->transfer_buffer_length = sizeof(msg);
 
-	this_urb->dev = serial->dev;
 	err = usb_submit_urb(this_urb, GFP_ATOMIC);
 	if (err != 0)
 		dbg("%s - usb_submit_urb(setup) failed (%d)", __func__, err);
@@ -2561,7 +2474,6 @@ static int keyspan_usa67_send_setup(struct usb_serial *serial,
 
 	/* send the data out the device on control endpoint */
 	this_urb->transfer_buffer_length = sizeof(msg);
-	this_urb->dev = serial->dev;
 
 	err = usb_submit_urb(this_urb, GFP_ATOMIC);
 	if (err != 0)
@@ -2650,14 +2562,12 @@ static int keyspan_startup(struct usb_serial *serial)
 	keyspan_setup_urbs(serial);
 
 	if (s_priv->instat_urb != NULL) {
-		s_priv->instat_urb->dev = serial->dev;
 		err = usb_submit_urb(s_priv->instat_urb, GFP_KERNEL);
 		if (err != 0)
 			dbg("%s - submit instat urb failed %d", __func__,
 				err);
 	}
 	if (s_priv->indat_urb != NULL) {
-		s_priv->indat_urb->dev = serial->dev;
 		err = usb_submit_urb(s_priv->indat_urb, GFP_KERNEL);
 		if (err != 0)
 			dbg("%s - submit indat urb failed %d", __func__,

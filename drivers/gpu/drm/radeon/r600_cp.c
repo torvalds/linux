@@ -1815,7 +1815,7 @@ static void r600_cp_init_ring_buffer(struct drm_device *dev,
 		     dev_priv->ring.size_l2qw);
 #endif
 
-	RADEON_WRITE(R600_CP_SEM_WAIT_TIMER, 0x4);
+	RADEON_WRITE(R600_CP_SEM_WAIT_TIMER, 0x0);
 
 	/* Set the write pointer delay */
 	RADEON_WRITE(R600_CP_RB_WPTR_DELAY, 0);

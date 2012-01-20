@@ -130,7 +130,7 @@ static struct clk dsp_clk = {
 	.name = "dsp",
 	.parent = &pll1_sysclk1,
 	.lpsc = DAVINCI_LPSC_GEM,
-	.flags = PSC_DSP,
+	.domain = DAVINCI_GPSC_DSPDOMAIN,
 	.usecount = 1,			/* REVISIT how to disable? */
 };
 
@@ -145,7 +145,7 @@ static struct clk vicp_clk = {
 	.name = "vicp",
 	.parent = &pll1_sysclk2,
 	.lpsc = DAVINCI_LPSC_IMCOP,
-	.flags = PSC_DSP,
+	.domain = DAVINCI_GPSC_DSPDOMAIN,
 	.usecount = 1,			/* REVISIT how to disable? */
 };
 
@@ -767,7 +767,6 @@ static struct davinci_soc_info davinci_soc_info_dm644x = {
 	.emac_pdata		= &dm644x_emac_pdata,
 	.sram_dma		= 0x00008000,
 	.sram_len		= SZ_16K,
-	.reset_device		= &davinci_wdt_device,
 };
 
 void __init dm644x_init_asp(struct snd_platform_data *pdata)

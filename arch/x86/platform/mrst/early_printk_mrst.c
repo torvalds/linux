@@ -245,16 +245,24 @@ struct console early_mrst_console = {
  * Following is the early console based on Medfield HSU (High
  * Speed UART) device.
  */
-#define HSU_PORT2_PADDR		0xffa28180
+#define HSU_PORT_BASE		0xffa28080
 
 static void __iomem *phsu;
 
-void hsu_early_console_init(void)
+void hsu_early_console_init(const char *s)
 {
+	unsigned long paddr, port = 0;
 	u8 lcr;
 
-	phsu = (void *)set_fixmap_offset_nocache(FIX_EARLYCON_MEM_BASE,
-							HSU_PORT2_PADDR);
+	/*
+	 * Select the early HSU console port if specified by user in the
+	 * kernel command line.
+	 */
+	if (*s && !kstrtoul(s, 10, &port))
+		port = clamp_val(port, 0, 2);
+
+	paddr = HSU_PORT_BASE + port * 0x80;
+	phsu = (void *)set_fixmap_offset_nocache(FIX_EARLYCON_MEM_BASE, paddr);
 
 	/* Disable FIFO */
 	writeb(0x0, phsu + UART_FCR);

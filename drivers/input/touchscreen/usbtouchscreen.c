@@ -16,6 +16,7 @@
  *  - JASTEC USB touch controller/DigiTech DTR-02U
  *  - Zytronic capacitive touchscreen
  *  - NEXIO/iNexio
+ *  - Elo TouchSystems 2700 IntelliTouch
  *
  * Copyright (C) 2004-2007 by Daniel Ritz <daniel.ritz@gmx.ch>
  * Copyright (C) by Todd E. Johnson (mtouchusb.c)
@@ -59,11 +60,11 @@
 #define DRIVER_AUTHOR		"Daniel Ritz <daniel.ritz@gmx.ch>"
 #define DRIVER_DESC		"USB Touchscreen Driver"
 
-static int swap_xy;
+static bool swap_xy;
 module_param(swap_xy, bool, 0644);
 MODULE_PARM_DESC(swap_xy, "If set X and Y axes are swapped.");
 
-static int hwcalib_xy;
+static bool hwcalib_xy;
 module_param(hwcalib_xy, bool, 0644);
 MODULE_PARM_DESC(hwcalib_xy, "If set hw-calibrated X/Y are used if available");
 
@@ -138,6 +139,7 @@ enum {
 	DEVTYPE_ZYTRONIC,
 	DEVTYPE_TC45USB,
 	DEVTYPE_NEXIO,
+	DEVTYPE_ELO,
 };
 
 #define USB_DEVICE_HID_CLASS(vend, prod) \
@@ -237,6 +239,10 @@ static const struct usb_device_id usbtouch_devices[] = {
 		.driver_info = DEVTYPE_NEXIO},
 	{USB_DEVICE_AND_INTERFACE_INFO(0x1870, 0x0001, 0x0a, 0x00, 0x00),
 		.driver_info = DEVTYPE_NEXIO},
+#endif
+
+#ifdef CONFIG_TOUCHSCREEN_USB_ELO
+	{USB_DEVICE(0x04e7, 0x0020), .driver_info = DEVTYPE_ELO},
 #endif
 
 	{}
@@ -945,6 +951,24 @@ static int nexio_read_data(struct usbtouch_usb *usbtouch, unsigned char *pkt)
 
 
 /*****************************************************************************
+ * ELO part
+ */
+
+#ifdef CONFIG_TOUCHSCREEN_USB_ELO
+
+static int elo_read_data(struct usbtouch_usb *dev, unsigned char *pkt)
+{
+	dev->x = (pkt[3] << 8) | pkt[2];
+	dev->y = (pkt[5] << 8) | pkt[4];
+	dev->touch = pkt[6] > 0;
+	dev->press = pkt[6];
+
+	return 1;
+}
+#endif
+
+
+/*****************************************************************************
  * the different device descriptors
  */
 #ifdef MULTI_PACKET
@@ -953,6 +977,18 @@ static void usbtouch_process_multi(struct usbtouch_usb *usbtouch,
 #endif
 
 static struct usbtouch_device_info usbtouch_dev_info[] = {
+#ifdef CONFIG_TOUCHSCREEN_USB_ELO
+	[DEVTYPE_ELO] = {
+		.min_xc		= 0x0,
+		.max_xc		= 0x0fff,
+		.min_yc		= 0x0,
+		.max_yc		= 0x0fff,
+		.max_press	= 0xff,
+		.rept_size	= 8,
+		.read_data	= elo_read_data,
+	},
+#endif
+
 #ifdef CONFIG_TOUCHSCREEN_USB_EGALAX
 	[DEVTYPE_EGALAX] = {
 		.min_xc		= 0x0,
@@ -1580,18 +1616,7 @@ static struct usb_driver usbtouch_driver = {
 	.supports_autosuspend = 1,
 };
 
-static int __init usbtouch_init(void)
-{
-	return usb_register(&usbtouch_driver);
-}
-
-static void __exit usbtouch_cleanup(void)
-{
-	usb_deregister(&usbtouch_driver);
-}
-
-module_init(usbtouch_init);
-module_exit(usbtouch_cleanup);
+module_usb_driver(usbtouch_driver);
 
 MODULE_AUTHOR(DRIVER_AUTHOR);
 MODULE_DESCRIPTION(DRIVER_DESC);

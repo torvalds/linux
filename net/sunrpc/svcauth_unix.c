@@ -134,7 +134,7 @@ static void ip_map_init(struct cache_head *cnew, struct cache_head *citem)
 	struct ip_map *item = container_of(citem, struct ip_map, h);
 
 	strcpy(new->m_class, item->m_class);
-	ipv6_addr_copy(&new->m_addr, &item->m_addr);
+	new->m_addr = item->m_addr;
 }
 static void update(struct cache_head *cnew, struct cache_head *citem)
 {
@@ -220,7 +220,7 @@ static int ip_map_parse(struct cache_detail *cd,
 		ipv6_addr_set_v4mapped(address.s4.sin_addr.s_addr,
 				&sin6.sin6_addr);
 		break;
-#if defined(CONFIG_IPV6) || defined(CONFIG_IPV6_MODULE)
+#if IS_ENABLED(CONFIG_IPV6)
 	case AF_INET6:
 		memcpy(&sin6, &address.s6, sizeof(sin6));
 		break;
@@ -274,7 +274,7 @@ static int ip_map_show(struct seq_file *m,
 	}
 	im = container_of(h, struct ip_map, h);
 	/* class addr domain */
-	ipv6_addr_copy(&addr, &im->m_addr);
+	addr = im->m_addr;
 
 	if (test_bit(CACHE_VALID, &h->flags) &&
 	    !test_bit(CACHE_NEGATIVE, &h->flags))
@@ -297,7 +297,7 @@ static struct ip_map *__ip_map_lookup(struct cache_detail *cd, char *class,
 	struct cache_head *ch;
 
 	strcpy(ip.m_class, class);
-	ipv6_addr_copy(&ip.m_addr, addr);
+	ip.m_addr = *addr;
 	ch = sunrpc_cache_lookup(cd, &ip.h,
 				 hash_str(class, IP_HASHBITS) ^
 				 hash_ip6(*addr));

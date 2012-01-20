@@ -560,7 +560,7 @@ static ssize_t bm_entry_write(struct file *file, const char __user *buffer,
 			break;
 		case 2: set_bit(Enabled, &e->flags);
 			break;
-		case 3: root = dget(file->f_path.mnt->mnt_sb->s_root);
+		case 3: root = dget(file->f_path.dentry->d_sb->s_root);
 			mutex_lock(&root->d_inode->i_mutex);
 
 			kill_node(e);
@@ -587,7 +587,7 @@ static ssize_t bm_register_write(struct file *file, const char __user *buffer,
 	Node *e;
 	struct inode *inode;
 	struct dentry *root, *dentry;
-	struct super_block *sb = file->f_path.mnt->mnt_sb;
+	struct super_block *sb = file->f_path.dentry->d_sb;
 	int err = 0;
 
 	e = create_entry(buffer, count);
@@ -666,7 +666,7 @@ static ssize_t bm_status_write(struct file * file, const char __user * buffer,
 	switch (res) {
 		case 1: enabled = 0; break;
 		case 2: enabled = 1; break;
-		case 3: root = dget(file->f_path.mnt->mnt_sb->s_root);
+		case 3: root = dget(file->f_path.dentry->d_sb->s_root);
 			mutex_lock(&root->d_inode->i_mutex);
 
 			while (!list_empty(&entries))

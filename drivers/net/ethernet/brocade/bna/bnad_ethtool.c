@@ -38,7 +38,7 @@
 	sizeof(struct bnad_drv_stats) / sizeof(u64) +		\
 	offsetof(struct bfi_enet_stats, rxf_stats[0]) / sizeof(u64))
 
-static char *bnad_net_stats_strings[BNAD_ETHTOOL_STATS_NUM] = {
+static const char *bnad_net_stats_strings[BNAD_ETHTOOL_STATS_NUM] = {
 	"rx_packets",
 	"tx_packets",
 	"rx_bytes",
@@ -296,8 +296,8 @@ bnad_get_drvinfo(struct net_device *netdev, struct ethtool_drvinfo *drvinfo)
 	struct bfa_ioc_attr *ioc_attr;
 	unsigned long flags;
 
-	strcpy(drvinfo->driver, BNAD_NAME);
-	strcpy(drvinfo->version, BNAD_VERSION);
+	strlcpy(drvinfo->driver, BNAD_NAME, sizeof(drvinfo->driver));
+	strlcpy(drvinfo->version, BNAD_VERSION, sizeof(drvinfo->version));
 
 	ioc_attr = kzalloc(sizeof(*ioc_attr), GFP_KERNEL);
 	if (ioc_attr) {
@@ -305,12 +305,13 @@ bnad_get_drvinfo(struct net_device *netdev, struct ethtool_drvinfo *drvinfo)
 		bfa_nw_ioc_get_attr(&bnad->bna.ioceth.ioc, ioc_attr);
 		spin_unlock_irqrestore(&bnad->bna_lock, flags);
 
-		strncpy(drvinfo->fw_version, ioc_attr->adapter_attr.fw_ver,
-			sizeof(drvinfo->fw_version) - 1);
+		strlcpy(drvinfo->fw_version, ioc_attr->adapter_attr.fw_ver,
+			sizeof(drvinfo->fw_version));
 		kfree(ioc_attr);
 	}
 
-	strncpy(drvinfo->bus_info, pci_name(bnad->pcidev), ETHTOOL_BUSINFO_LEN);
+	strlcpy(drvinfo->bus_info, pci_name(bnad->pcidev),
+		sizeof(drvinfo->bus_info));
 }
 
 static void
@@ -934,7 +935,144 @@ bnad_get_sset_count(struct net_device *netdev, int sset)
 	}
 }
 
-static struct ethtool_ops bnad_ethtool_ops = {
+static u32
+bnad_get_flash_partition_by_offset(struct bnad *bnad, u32 offset,
+				u32 *base_offset)
+{
+	struct bfa_flash_attr *flash_attr;
+	struct bnad_iocmd_comp fcomp;
+	u32 i, flash_part = 0, ret;
+	unsigned long flags = 0;
+
+	flash_attr = kzalloc(sizeof(struct bfa_flash_attr), GFP_KERNEL);
+	if (!flash_attr)
+		return -ENOMEM;
+
+	fcomp.bnad = bnad;
+	fcomp.comp_status = 0;
+
+	init_completion(&fcomp.comp);
+	spin_lock_irqsave(&bnad->bna_lock, flags);
+	ret = bfa_nw_flash_get_attr(&bnad->bna.flash, flash_attr,
+				bnad_cb_completion, &fcomp);
+	if (ret != BFA_STATUS_OK) {
+		spin_unlock_irqrestore(&bnad->bna_lock, flags);
+		kfree(flash_attr);
+		goto out_err;
+	}
+	spin_unlock_irqrestore(&bnad->bna_lock, flags);
+	wait_for_completion(&fcomp.comp);
+	ret = fcomp.comp_status;
+
+	/* Check for the flash type & base offset value */
+	if (ret == BFA_STATUS_OK) {
+		for (i = 0; i < flash_attr->npart; i++) {
+			if (offset >= flash_attr->part[i].part_off &&
+			    offset < (flash_attr->part[i].part_off +
+				      flash_attr->part[i].part_size)) {
+				flash_part = flash_attr->part[i].part_type;
+				*base_offset = flash_attr->part[i].part_off;
+				break;
+			}
+		}
+	}
+	kfree(flash_attr);
+	return flash_part;
+out_err:
+	return -EINVAL;
+}
+
+static int
+bnad_get_eeprom_len(struct net_device *netdev)
+{
+	return BFA_TOTAL_FLASH_SIZE;
+}
+
+static int
+bnad_get_eeprom(struct net_device *netdev, struct ethtool_eeprom *eeprom,
+		u8 *bytes)
+{
+	struct bnad *bnad = netdev_priv(netdev);
+	struct bnad_iocmd_comp fcomp;
+	u32 flash_part = 0, base_offset = 0;
+	unsigned long flags = 0;
+	int ret = 0;
+
+	/* Check if the flash read request is valid */
+	if (eeprom->magic != (bnad->pcidev->vendor |
+			     (bnad->pcidev->device << 16)))
+		return -EFAULT;
+
+	/* Query the flash partition based on the offset */
+	flash_part = bnad_get_flash_partition_by_offset(bnad,
+				eeprom->offset, &base_offset);
+	if (flash_part <= 0)
+		return -EFAULT;
+
+	fcomp.bnad = bnad;
+	fcomp.comp_status = 0;
+
+	init_completion(&fcomp.comp);
+	spin_lock_irqsave(&bnad->bna_lock, flags);
+	ret = bfa_nw_flash_read_part(&bnad->bna.flash, flash_part,
+				bnad->id, bytes, eeprom->len,
+				eeprom->offset - base_offset,
+				bnad_cb_completion, &fcomp);
+	if (ret != BFA_STATUS_OK) {
+		spin_unlock_irqrestore(&bnad->bna_lock, flags);
+		goto done;
+	}
+
+	spin_unlock_irqrestore(&bnad->bna_lock, flags);
+	wait_for_completion(&fcomp.comp);
+	ret = fcomp.comp_status;
+done:
+	return ret;
+}
+
+static int
+bnad_set_eeprom(struct net_device *netdev, struct ethtool_eeprom *eeprom,
+		u8 *bytes)
+{
+	struct bnad *bnad = netdev_priv(netdev);
+	struct bnad_iocmd_comp fcomp;
+	u32 flash_part = 0, base_offset = 0;
+	unsigned long flags = 0;
+	int ret = 0;
+
+	/* Check if the flash update request is valid */
+	if (eeprom->magic != (bnad->pcidev->vendor |
+			     (bnad->pcidev->device << 16)))
+		return -EINVAL;
+
+	/* Query the flash partition based on the offset */
+	flash_part = bnad_get_flash_partition_by_offset(bnad,
+				eeprom->offset, &base_offset);
+	if (flash_part <= 0)
+		return -EFAULT;
+
+	fcomp.bnad = bnad;
+	fcomp.comp_status = 0;
+
+	init_completion(&fcomp.comp);
+	spin_lock_irqsave(&bnad->bna_lock, flags);
+	ret = bfa_nw_flash_update_part(&bnad->bna.flash, flash_part,
+				bnad->id, bytes, eeprom->len,
+				eeprom->offset - base_offset,
+				bnad_cb_completion, &fcomp);
+	if (ret != BFA_STATUS_OK) {
+		spin_unlock_irqrestore(&bnad->bna_lock, flags);
+		goto done;
+	}
+
+	spin_unlock_irqrestore(&bnad->bna_lock, flags);
+	wait_for_completion(&fcomp.comp);
+	ret = fcomp.comp_status;
+done:
+	return ret;
+}
+
+static const struct ethtool_ops bnad_ethtool_ops = {
 	.get_settings = bnad_get_settings,
 	.set_settings = bnad_set_settings,
 	.get_drvinfo = bnad_get_drvinfo,
@@ -948,7 +1086,10 @@ static struct ethtool_ops bnad_ethtool_ops = {
 	.set_pauseparam = bnad_set_pauseparam,
 	.get_strings = bnad_get_strings,
 	.get_ethtool_stats = bnad_get_ethtool_stats,
-	.get_sset_count = bnad_get_sset_count
+	.get_sset_count = bnad_get_sset_count,
+	.get_eeprom_len = bnad_get_eeprom_len,
+	.get_eeprom = bnad_get_eeprom,
+	.set_eeprom = bnad_set_eeprom,
 };
 
 void

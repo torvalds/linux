@@ -43,9 +43,9 @@
 #define DRIVER_DESC	"Streamzap Remote Control driver"
 
 #ifdef CONFIG_USB_DEBUG
-static int debug = 1;
+static bool debug = 1;
 #else
-static int debug;
+static bool debug;
 #endif
 
 #define USB_STREAMZAP_VENDOR_ID		0x0e9c
@@ -523,33 +523,7 @@ static int streamzap_resume(struct usb_interface *intf)
 	return 0;
 }
 
-/**
- *	streamzap_init
- */
-static int __init streamzap_init(void)
-{
-	int ret;
-
-	/* register this driver with the USB subsystem */
-	ret = usb_register(&streamzap_driver);
-	if (ret < 0)
-		printk(KERN_ERR DRIVER_NAME ": usb register failed, "
-		       "result = %d\n", ret);
-
-	return ret;
-}
-
-/**
- *	streamzap_exit
- */
-static void __exit streamzap_exit(void)
-{
-	usb_deregister(&streamzap_driver);
-}
-
-
-module_init(streamzap_init);
-module_exit(streamzap_exit);
+module_usb_driver(streamzap_driver);
 
 MODULE_AUTHOR("Jarod Wilson <jarod@wilsonet.com>");
 MODULE_DESCRIPTION(DRIVER_DESC);

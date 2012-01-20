@@ -250,19 +250,7 @@ static struct platform_driver pxa930_trkball_driver = {
 	.probe		= pxa930_trkball_probe,
 	.remove		= __devexit_p(pxa930_trkball_remove),
 };
-
-static int __init pxa930_trkball_init(void)
-{
-	return platform_driver_register(&pxa930_trkball_driver);
-}
-
-static void __exit pxa930_trkball_exit(void)
-{
-	platform_driver_unregister(&pxa930_trkball_driver);
-}
-
-module_init(pxa930_trkball_init);
-module_exit(pxa930_trkball_exit);
+module_platform_driver(pxa930_trkball_driver);
 
 MODULE_AUTHOR("Yong Yao <yaoyong@marvell.com>");
 MODULE_DESCRIPTION("PXA930 Trackball Mouse Driver");

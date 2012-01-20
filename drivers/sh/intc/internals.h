@@ -4,7 +4,7 @@
 #include <linux/kernel.h>
 #include <linux/types.h>
 #include <linux/radix-tree.h>
-#include <linux/sysdev.h>
+#include <linux/device.h>
 
 #define _INTC_MK(fn, mode, addr_e, addr_d, width, shift) \
 	((shift) | ((width) << 5) | ((fn) << 9) | ((mode) << 13) | \
@@ -51,7 +51,7 @@ struct intc_subgroup_entry {
 
 struct intc_desc_int {
 	struct list_head list;
-	struct sys_device sysdev;
+	struct device dev;
 	struct radix_tree_root tree;
 	raw_spinlock_t lock;
 	unsigned int index;
@@ -67,6 +67,7 @@ struct intc_desc_int {
 	struct intc_window *window;
 	unsigned int nr_windows;
 	struct irq_chip chip;
+	bool skip_suspend;
 };
 
 
@@ -157,7 +158,7 @@ void _intc_enable(struct irq_data *data, unsigned long handle);
 extern struct list_head intc_list;
 extern raw_spinlock_t intc_big_lock;
 extern unsigned int nr_intc_controllers;
-extern struct sysdev_class intc_sysdev_class;
+extern struct bus_type intc_subsys;
 
 unsigned int intc_get_dfl_prio_level(void);
 unsigned int intc_get_prio_level(unsigned int irq);

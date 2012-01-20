@@ -82,7 +82,7 @@ static struct sctp_auth_bytes *sctp_auth_create_key(__u32 key_len, gfp_t gfp)
 	struct sctp_auth_bytes *key;
 
 	/* Verify that we are not going to overflow INT_MAX */
-	if ((INT_MAX - key_len) < sizeof(struct sctp_auth_bytes))
+	if (key_len > (INT_MAX - sizeof(struct sctp_auth_bytes)))
 		return NULL;
 
 	/* Allocate the shared key */

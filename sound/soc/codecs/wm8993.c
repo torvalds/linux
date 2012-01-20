@@ -444,6 +444,12 @@ static int _wm8993_set_fll(struct snd_soc_codec *codec, int fll_id, int source,
 	/* Enable the FLL */
 	snd_soc_write(codec, WM8993_FLL_CONTROL_1, reg1 | WM8993_FLL_ENA);
 
+	/* Both overestimates */
+	if (Fref < 1000000)
+		msleep(3);
+	else
+		msleep(1);
+
 	dev_dbg(codec->dev, "FLL enabled at %dHz->%dHz\n", Fref, Fout);
 
 	wm8993->fll_fref = Fref;

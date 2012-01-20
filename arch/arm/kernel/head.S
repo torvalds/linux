@@ -39,8 +39,14 @@
 #error KERNEL_RAM_VADDR must start at 0xXXXX8000
 #endif
 
+#ifdef CONFIG_ARM_LPAE
+	/* LPAE requires an additional page for the PGD */
+#define PG_DIR_SIZE	0x5000
+#define PMD_ORDER	3
+#else
 #define PG_DIR_SIZE	0x4000
 #define PMD_ORDER	2
+#endif
 
 	.globl	swapper_pg_dir
 	.equ	swapper_pg_dir, KERNEL_RAM_VADDR - PG_DIR_SIZE
@@ -92,6 +98,14 @@ ENTRY(stext)
 	movs	r10, r5				@ invalid processor (r5=0)?
  THUMB( it	eq )		@ force fixup-able long branch encoding
 	beq	__error_p			@ yes, error 'p'
+
+#ifdef CONFIG_ARM_LPAE
+	mrc	p15, 0, r3, c0, c1, 4		@ read ID_MMFR0
+	and	r3, r3, #0xf			@ extract VMSA support
+	cmp	r3, #5				@ long-descriptor translation table format?
+ THUMB( it	lo )				@ force fixup-able long branch encoding
+	blo	__error_p			@ only classic page table format
+#endif
 
 #ifndef CONFIG_XIP_KERNEL
 	adr	r3, 2f
@@ -164,17 +178,36 @@ __create_page_tables:
 	teq	r0, r6
 	bne	1b
 
+#ifdef CONFIG_ARM_LPAE
+	/*
+	 * Build the PGD table (first level) to point to the PMD table. A PGD
+	 * entry is 64-bit wide.
+	 */
+	mov	r0, r4
+	add	r3, r4, #0x1000			@ first PMD table address
+	orr	r3, r3, #3			@ PGD block type
+	mov	r6, #4				@ PTRS_PER_PGD
+	mov	r7, #1 << (55 - 32)		@ L_PGD_SWAPPER
+1:	str	r3, [r0], #4			@ set bottom PGD entry bits
+	str	r7, [r0], #4			@ set top PGD entry bits
+	add	r3, r3, #0x1000			@ next PMD table
+	subs	r6, r6, #1
+	bne	1b
+
+	add	r4, r4, #0x1000			@ point to the PMD tables
+#endif
+
 	ldr	r7, [r10, #PROCINFO_MM_MMUFLAGS] @ mm_mmuflags
 
 	/*
 	 * Create identity mapping to cater for __enable_mmu.
 	 * This identity mapping will be removed by paging_init().
 	 */
-	adr	r0, __enable_mmu_loc
+	adr	r0, __turn_mmu_on_loc
 	ldmia	r0, {r3, r5, r6}
 	sub	r0, r0, r3			@ virt->phys offset
-	add	r5, r5, r0			@ phys __enable_mmu
-	add	r6, r6, r0			@ phys __enable_mmu_end
+	add	r5, r5, r0			@ phys __turn_mmu_on
+	add	r6, r6, r0			@ phys __turn_mmu_on_end
 	mov	r5, r5, lsr #SECTION_SHIFT
 	mov	r6, r6, lsr #SECTION_SHIFT
 
@@ -219,8 +252,8 @@ __create_page_tables:
 #endif
 
 	/*
-	 * Then map boot params address in r2 or
-	 * the first 1MB of ram if boot params address is not specified.
+	 * Then map boot params address in r2 or the first 1MB (2MB with LPAE)
+	 * of ram if boot params address is not specified.
 	 */
 	mov	r0, r2, lsr #SECTION_SHIFT
 	movs	r0, r0, lsl #SECTION_SHIFT
@@ -251,7 +284,15 @@ __create_page_tables:
 	mov	r3, r7, lsr #SECTION_SHIFT
 	ldr	r7, [r10, #PROCINFO_IO_MMUFLAGS] @ io_mmuflags
 	orr	r3, r7, r3, lsl #SECTION_SHIFT
+#ifdef CONFIG_ARM_LPAE
+	mov	r7, #1 << (54 - 32)		@ XN
+#else
+	orr	r3, r3, #PMD_SECT_XN
+#endif
 1:	str	r3, [r0], #4
+#ifdef CONFIG_ARM_LPAE
+	str	r7, [r0], #4
+#endif
 	add	r3, r3, #1 << SECTION_SHIFT
 	cmp	r0, r6
 	blo	1b
@@ -283,14 +324,17 @@ __create_page_tables:
 	str	r3, [r0]
 #endif
 #endif
+#ifdef CONFIG_ARM_LPAE
+	sub	r4, r4, #0x1000		@ point to the PGD table
+#endif
 	mov	pc, lr
 ENDPROC(__create_page_tables)
 	.ltorg
 	.align
-__enable_mmu_loc:
+__turn_mmu_on_loc:
 	.long	.
-	.long	__enable_mmu
-	.long	__enable_mmu_end
+	.long	__turn_mmu_on
+	.long	__turn_mmu_on_end
 
 #if defined(CONFIG_SMP)
 	__CPUINIT
@@ -374,12 +418,17 @@ __enable_mmu:
 #ifdef CONFIG_CPU_ICACHE_DISABLE
 	bic	r0, r0, #CR_I
 #endif
+#ifdef CONFIG_ARM_LPAE
+	mov	r5, #0
+	mcrr	p15, 0, r4, r5, c2		@ load TTBR0
+#else
 	mov	r5, #(domain_val(DOMAIN_USER, DOMAIN_MANAGER) | \
 		      domain_val(DOMAIN_KERNEL, DOMAIN_MANAGER) | \
 		      domain_val(DOMAIN_TABLE, DOMAIN_MANAGER) | \
 		      domain_val(DOMAIN_IO, DOMAIN_CLIENT))
 	mcr	p15, 0, r5, c3, c0, 0		@ load domain access register
 	mcr	p15, 0, r4, c2, c0, 0		@ load page table pointer
+#endif
 	b	__turn_mmu_on
 ENDPROC(__enable_mmu)
 
@@ -398,15 +447,19 @@ ENDPROC(__enable_mmu)
  * other registers depend on the function called upon completion
  */
 	.align	5
-__turn_mmu_on:
+	.pushsection	.idmap.text, "ax"
+ENTRY(__turn_mmu_on)
 	mov	r0, r0
+	instr_sync
 	mcr	p15, 0, r0, c1, c0, 0		@ write control reg
 	mrc	p15, 0, r3, c0, c0, 0		@ read id reg
+	instr_sync
 	mov	r3, r3
 	mov	r3, r13
 	mov	pc, r3
-__enable_mmu_end:
+__turn_mmu_on_end:
 ENDPROC(__turn_mmu_on)
+	.popsection
 
 
 #ifdef CONFIG_SMP_ON_UP

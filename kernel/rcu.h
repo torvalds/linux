@@ -30,6 +30,13 @@
 #endif /* #else #ifdef CONFIG_RCU_TRACE */
 
 /*
+ * Process-level increment to ->dynticks_nesting field.  This allows for
+ * architectures that use half-interrupts and half-exceptions from
+ * process context.
+ */
+#define DYNTICK_TASK_NESTING (LLONG_MAX / 2 - 1)
+
+/*
  * debug_rcu_head_queue()/debug_rcu_head_unqueue() are used internally
  * by call_rcu() and rcu callback execution, and are therefore not part of the
  * RCU API. Leaving in rcupdate.h because they are used by all RCU flavors.

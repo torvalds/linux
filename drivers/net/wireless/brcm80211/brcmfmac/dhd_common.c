@@ -32,8 +32,6 @@
 #define PKTFILTER_BUF_SIZE		2048
 #define BRCMF_ARPOL_MODE		0xb	/* agent|snoop|peer_autoreply */
 
-int brcmf_msg_level;
-
 #define MSGTRACE_VERSION	1
 
 #define BRCMF_PKT_FILTER_FIXED_LEN	offsetof(struct brcmf_pkt_filter_le, u)
@@ -85,25 +83,14 @@ brcmf_c_mkiovar(char *name, char *data, uint datalen, char *buf, uint buflen)
 	return len;
 }
 
-void brcmf_c_init(void)
-{
-	/* Init global variables at run-time, not as part of the declaration.
-	 * This is required to support init/de-init of the driver.
-	 * Initialization
-	 * of globals as part of the declaration results in non-deterministic
-	 * behaviour since the value of the globals may be different on the
-	 * first time that the driver is initialized vs subsequent
-	 * initializations.
-	 */
-	brcmf_msg_level = BRCMF_ERROR_VAL;
-}
-
-bool brcmf_c_prec_enq(struct brcmf_pub *drvr, struct pktq *q,
+bool brcmf_c_prec_enq(struct device *dev, struct pktq *q,
 		      struct sk_buff *pkt, int prec)
 {
 	struct sk_buff *p;
 	int eprec = -1;		/* precedence to evict from */
 	bool discard_oldest;
+	struct brcmf_bus *bus_if = dev_get_drvdata(dev);
+	struct brcmf_pub *drvr = bus_if->drvr;
 
 	/* Fast case, precedence queue is not full and we are also not
 	 * exceeding total queue length
@@ -446,7 +433,7 @@ brcmf_c_show_host_event(struct brcmf_event_msg *event, void *event_data)
 #endif				/* BCMDBG */
 
 int
-brcmf_c_host_event(struct brcmf_info *drvr_priv, int *ifidx, void *pktdata,
+brcmf_c_host_event(struct brcmf_pub *drvr, int *ifidx, void *pktdata,
 		   struct brcmf_event_msg *event, void **data_ptr)
 {
 	/* check whether packet is a BRCM event pkt */
@@ -488,19 +475,18 @@ brcmf_c_host_event(struct brcmf_info *drvr_priv, int *ifidx, void *pktdata,
 
 		if (ifevent->ifidx > 0 && ifevent->ifidx < BRCMF_MAX_IFS) {
 			if (ifevent->action == BRCMF_E_IF_ADD)
-				brcmf_add_if(drvr_priv, ifevent->ifidx, NULL,
+				brcmf_add_if(drvr->dev, ifevent->ifidx,
 					     event->ifname,
-					     pvt_data->eth.h_dest,
-					     ifevent->flags, ifevent->bssidx);
+					     pvt_data->eth.h_dest);
 			else
-				brcmf_del_if(drvr_priv, ifevent->ifidx);
+				brcmf_del_if(drvr, ifevent->ifidx);
 		} else {
 			brcmf_dbg(ERROR, "Invalid ifidx %d for %s\n",
 				  ifevent->ifidx, event->ifname);
 		}
 
 		/* send up the if event: btamp user needs it */
-		*ifidx = brcmf_ifname2idx(drvr_priv, event->ifname);
+		*ifidx = brcmf_ifname2idx(drvr, event->ifname);
 		break;
 
 		/* These are what external supplicant/authenticator wants */
@@ -512,7 +498,7 @@ brcmf_c_host_event(struct brcmf_info *drvr_priv, int *ifidx, void *pktdata,
 	default:
 		/* Fall through: this should get _everything_  */
 
-		*ifidx = brcmf_ifname2idx(drvr_priv, event->ifname);
+		*ifidx = brcmf_ifname2idx(drvr, event->ifname);
 		brcmf_dbg(TRACE, "MAC event %d, flags %x, status %x\n",
 			  type, flags, status);
 
@@ -812,7 +798,7 @@ int brcmf_c_preinit_dcmds(struct brcmf_pub *drvr)
 				 "event_msgs" + '\0' + bitvec  */
 	uint up = 0;
 	char buf[128], *ptr;
-	u32 dongle_align = BRCMF_SDALIGN;
+	u32 dongle_align = drvr->bus_if->align;
 	u32 glom = 0;
 	u32 roaming = 1;
 	uint bcn_timeout = 3;
@@ -820,7 +806,7 @@ int brcmf_c_preinit_dcmds(struct brcmf_pub *drvr)
 	int scan_unassoc_time = 40;
 	int i;
 
-	brcmf_os_proto_block(drvr);
+	mutex_lock(&drvr->proto_block);
 
 	/* Set Country code */
 	if (drvr->country_code[0] != 0) {
@@ -889,7 +875,7 @@ int brcmf_c_preinit_dcmds(struct brcmf_pub *drvr)
 						 0, true);
 	}
 
-	brcmf_os_proto_unblock(drvr);
+	mutex_unlock(&drvr->proto_block);
 
 	return 0;
 }

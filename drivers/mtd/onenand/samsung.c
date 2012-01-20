@@ -1133,18 +1133,7 @@ static struct platform_driver s3c_onenand_driver = {
 	.remove         = __devexit_p(s3c_onenand_remove),
 };
 
-static int __init s3c_onenand_init(void)
-{
-	return platform_driver_register(&s3c_onenand_driver);
-}
-
-static void __exit s3c_onenand_exit(void)
-{
-	platform_driver_unregister(&s3c_onenand_driver);
-}
-
-module_init(s3c_onenand_init);
-module_exit(s3c_onenand_exit);
+module_platform_driver(s3c_onenand_driver);
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Kyungmin Park <kyungmin.park@samsung.com>");

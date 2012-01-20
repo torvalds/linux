@@ -242,3 +242,8 @@ void __init h720x_map_io(void)
 {
 	iotable_init(h720x_io_desc,ARRAY_SIZE(h720x_io_desc));
 }
+
+void h720x_restart(char mode, const char *cmd)
+{
+	CPU_REG (PMU_BASE, PMU_STAT) |= PMU_WARMRESET;
+}

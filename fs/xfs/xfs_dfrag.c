@@ -163,12 +163,14 @@ xfs_swap_extents_check_format(
 
 	/* Check temp in extent form to max in target */
 	if (tip->i_d.di_format == XFS_DINODE_FMT_EXTENTS &&
-	    XFS_IFORK_NEXTENTS(tip, XFS_DATA_FORK) > ip->i_df.if_ext_max)
+	    XFS_IFORK_NEXTENTS(tip, XFS_DATA_FORK) >
+			XFS_IFORK_MAXEXT(ip, XFS_DATA_FORK))
 		return EINVAL;
 
 	/* Check target in extent form to max in temp */
 	if (ip->i_d.di_format == XFS_DINODE_FMT_EXTENTS &&
-	    XFS_IFORK_NEXTENTS(ip, XFS_DATA_FORK) > tip->i_df.if_ext_max)
+	    XFS_IFORK_NEXTENTS(ip, XFS_DATA_FORK) >
+			XFS_IFORK_MAXEXT(tip, XFS_DATA_FORK))
 		return EINVAL;
 
 	/*
@@ -180,18 +182,25 @@ xfs_swap_extents_check_format(
 	 * (a common defrag case) which will occur when the temp inode is in
 	 * extent format...
 	 */
-	if (tip->i_d.di_format == XFS_DINODE_FMT_BTREE &&
-	    ((XFS_IFORK_BOFF(ip) &&
-	      tip->i_df.if_broot_bytes > XFS_IFORK_BOFF(ip)) ||
-	     XFS_IFORK_NEXTENTS(tip, XFS_DATA_FORK) <= ip->i_df.if_ext_max))
-		return EINVAL;
+	if (tip->i_d.di_format == XFS_DINODE_FMT_BTREE) {
+		if (XFS_IFORK_BOFF(ip) &&
+		    tip->i_df.if_broot_bytes > XFS_IFORK_BOFF(ip))
+			return EINVAL;
+		if (XFS_IFORK_NEXTENTS(tip, XFS_DATA_FORK) <=
+		    XFS_IFORK_MAXEXT(ip, XFS_DATA_FORK))
+			return EINVAL;
+	}
 
 	/* Reciprocal target->temp btree format checks */
-	if (ip->i_d.di_format == XFS_DINODE_FMT_BTREE &&
-	    ((XFS_IFORK_BOFF(tip) &&
-	      ip->i_df.if_broot_bytes > XFS_IFORK_BOFF(tip)) ||
-	     XFS_IFORK_NEXTENTS(ip, XFS_DATA_FORK) <= tip->i_df.if_ext_max))
-		return EINVAL;
+	if (ip->i_d.di_format == XFS_DINODE_FMT_BTREE) {
+		if (XFS_IFORK_BOFF(tip) &&
+		    ip->i_df.if_broot_bytes > XFS_IFORK_BOFF(tip))
+			return EINVAL;
+
+		if (XFS_IFORK_NEXTENTS(ip, XFS_DATA_FORK) <=
+		    XFS_IFORK_MAXEXT(tip, XFS_DATA_FORK))
+			return EINVAL;
+	}
 
 	return 0;
 }
@@ -347,16 +356,6 @@ xfs_swap_extents(
 	*tempifp = *ifp;	/* struct copy */
 	*ifp = *tifp;		/* struct copy */
 	*tifp = *tempifp;	/* struct copy */
-
-	/*
-	 * Fix the in-memory data fork values that are dependent on the fork
-	 * offset in the inode. We can't assume they remain the same as attr2
-	 * has dynamic fork offsets.
-	 */
-	ifp->if_ext_max = XFS_IFORK_SIZE(ip, XFS_DATA_FORK) /
-					(uint)sizeof(xfs_bmbt_rec_t);
-	tifp->if_ext_max = XFS_IFORK_SIZE(tip, XFS_DATA_FORK) /
-					(uint)sizeof(xfs_bmbt_rec_t);
 
 	/*
 	 * Fix the on-disk inode values

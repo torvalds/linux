@@ -13,222 +13,6 @@
 *
 *  Peter Berger (pberger@brimson.com)
 *  Al Borchers (borchers@steinerpoint.com)
-* 
-* (12/03/2001) gkh
-*	switched to using port->port.count instead of private version.
-*	Removed port->active
-*
-* (04/08/2001) gb
-*	Identify version on module load.
-*
-* (11/01/2000) Adam J. Richter
-*	usb_device_id table support
-* 
-* (11/01/2000) pberger and borchers
-*    -- Turned off the USB_DISABLE_SPD flag for write bulk urbs--it caused
-*       USB 4 ports to hang on startup.
-*    -- Serialized access to write urbs by adding the dp_write_urb_in_use
-*       flag; otherwise, the driver caused SMP system hangs.  Watching the
-*       urb status is not sufficient.
-*
-* (10/05/2000) gkh
-*    -- Fixed bug with urb->dev not being set properly, now that the usb
-*	core needs it.
-* 
-*  (8/8/2000) pberger and borchers
-*    -- Fixed close so that 
-*       - it can timeout while waiting for transmit idle, if needed;
-*       - it ignores interrupts when flushing the port, turning
-*         of modem signalling, and so on;
-*       - it waits for the flush to really complete before returning.
-*    -- Read_bulk_callback and write_bulk_callback check for a closed
-*       port before using the tty struct or writing to the port.
-*    -- The two changes above fix the oops caused by interrupted closes.
-*    -- Added interruptible args to write_oob_command and set_modem_signals
-*       and added a timeout arg to transmit_idle; needed for fixes to
-*       close.
-*    -- Added code for rx_throttle and rx_unthrottle so that input flow
-*       control works.
-*    -- Added code to set overrun, parity, framing, and break errors
-*       (untested).
-*    -- Set USB_DISABLE_SPD flag for write bulk urbs, so no 0 length
-*       bulk writes are done.  These hung the Digi USB device.  The
-*       0 length bulk writes were a new feature of usb-uhci added in
-*       the 2.4.0-test6 kernels.
-*    -- Fixed mod inc race in open; do mod inc before sleeping to wait
-*       for a close to finish.
-*
-*  (7/31/2000) pberger
-*    -- Fixed bugs with hardware handshaking:
-*       - Added code to set/clear tty->hw_stopped in digi_read_oob_callback()
-*         and digi_set_termios()
-*    -- Added code in digi_set_termios() to
-*       - add conditional in code handling transition from B0 to only
-*         set RTS if RTS/CTS flow control is either not in use or if
-*         the port is not currently throttled.
-*       - handle turning off CRTSCTS.
-*
-*  (7/30/2000) borchers
-*    -- Added support for more than one Digi USB device by moving
-*       globals to a private structure in the pointed to from the
-*       usb_serial structure.
-*    -- Moved the modem change and transmit idle wait queues into
-*       the port private structure, so each port has its own queue
-*       rather than sharing global queues.
-*    -- Added support for break signals.
-*
-*  (7/25/2000) pberger
-*    -- Added USB-2 support.  Note: the USB-2 supports 3 devices: two
-*       serial and a parallel port.  The parallel port is implemented
-*       as a serial-to-parallel converter.  That is, the driver actually
-*       presents all three USB-2 interfaces as serial ports, but the third
-*       one physically connects to a parallel device.  Thus, for example,
-*       one could plug a parallel printer into the USB-2's third port,
-*       but from the kernel's (and userland's) point of view what's
-*       actually out there is a serial device.
-*
-*  (7/15/2000) borchers
-*    -- Fixed race in open when a close is in progress.
-*    -- Keep count of opens and dec the module use count for each
-*       outstanding open when shutdown is called (on disconnect).
-*    -- Fixed sanity checks in read_bulk_callback and write_bulk_callback
-*       so pointers are checked before use.
-*    -- Split read bulk callback into in band and out of band
-*       callbacks, and no longer restart read chains if there is
-*       a status error or a sanity error.  This fixed the seg
-*       faults and other errors we used to get on disconnect.
-*    -- Port->active is once again a flag as usb-serial intended it
-*       to be, not a count.  Since it was only a char it would
-*       have been limited to 256 simultaneous opens.  Now the open
-*       count is kept in the port private structure in dp_open_count.
-*    -- Added code for modularization of the digi_acceleport driver.
-*
-*  (6/27/2000) pberger and borchers
-*    -- Zeroed out sync field in the wakeup_task before first use;
-*       otherwise the uninitialized value might prevent the task from
-*       being scheduled.
-*    -- Initialized ret value to 0 in write_bulk_callback, otherwise
-*       the uninitialized value could cause a spurious debugging message.
-*
-*  (6/22/2000) pberger and borchers
-*    -- Made cond_wait_... inline--apparently on SPARC the flags arg
-*       to spin_lock_irqsave cannot be passed to another function
-*       to call spin_unlock_irqrestore.  Thanks to Pauline Middelink.
-*    -- In digi_set_modem_signals the inner nested spin locks use just
-*       spin_lock() rather than spin_lock_irqsave().  The old code
-*       mistakenly left interrupts off.  Thanks to Pauline Middelink.
-*    -- copy_from_user (which can sleep) is no longer called while a
-*       spinlock is held.  We copy to a local buffer before getting
-*       the spinlock--don't like the extra copy but the code is simpler.
-*    -- Printk and dbg are no longer called while a spin lock is held.
-*
-*  (6/4/2000) pberger and borchers
-*    -- Replaced separate calls to spin_unlock_irqrestore and
-*       interruptible_sleep_on_timeout with a new function
-*       cond_wait_interruptible_timeout_irqrestore.  This eliminates
-*       the race condition where the wake up could happen after
-*       the unlock and before the sleep.
-*    -- Close now waits for output to drain.
-*    -- Open waits until any close in progress is finished.
-*    -- All out of band responses are now processed, not just the
-*       first in a USB packet.
-*    -- Fixed a bug that prevented the driver from working when the
-*       first Digi port was not the first USB serial port--the driver
-*       was mistakenly using the external USB serial port number to
-*       try to index into its internal ports.
-*    -- Fixed an SMP bug -- write_bulk_callback is called directly from
-*       an interrupt, so spin_lock_irqsave/spin_unlock_irqrestore are
-*       needed for locks outside write_bulk_callback that are also
-*       acquired by write_bulk_callback to prevent deadlocks.
-*    -- Fixed support for select() by making digi_chars_in_buffer()
-*       return 256 when -EINPROGRESS is set, as the line discipline
-*       code in n_tty.c expects.
-*    -- Fixed an include file ordering problem that prevented debugging
-*       messages from working.
-*    -- Fixed an intermittent timeout problem that caused writes to
-*       sometimes get stuck on some machines on some kernels.  It turns
-*       out in these circumstances write_chan() (in n_tty.c) was
-*       asleep waiting for our wakeup call.  Even though we call
-*       wake_up_interruptible() in digi_write_bulk_callback(), there is
-*       a race condition that could cause the wakeup to fail: if our
-*       wake_up_interruptible() call occurs between the time that our
-*       driver write routine finishes and write_chan() sets current->state
-*       to TASK_INTERRUPTIBLE, the effect of our wakeup setting the state
-*       to TASK_RUNNING will be lost and write_chan's subsequent call to
-*       schedule() will never return (unless it catches a signal).
-*       This race condition occurs because write_bulk_callback() (and thus
-*       the wakeup) are called asynchronously from an interrupt, rather than
-*       from the scheduler.  We can avoid the race by calling the wakeup
-*       from the scheduler queue and that's our fix:  Now, at the end of
-*       write_bulk_callback() we queue up a wakeup call on the scheduler
-*       task queue.  We still also invoke the wakeup directly since that
-*       squeezes a bit more performance out of the driver, and any lost
-*       race conditions will get cleaned up at the next scheduler run.
-*
-*       NOTE:  The problem also goes away if you comment out
-*       the two code lines in write_chan() where current->state
-*       is set to TASK_RUNNING just before calling driver.write() and to
-*       TASK_INTERRUPTIBLE immediately afterwards.  This is why the
-*       problem did not show up with the 2.2 kernels -- they do not
-*       include that code.
-*
-*  (5/16/2000) pberger and borchers
-*    -- Added timeouts to sleeps, to defend against lost wake ups.
-*    -- Handle transition to/from B0 baud rate in digi_set_termios.
-*
-*  (5/13/2000) pberger and borchers
-*    -- All commands now sent on out of band port, using
-*       digi_write_oob_command.
-*    -- Get modem control signals whenever they change, support TIOCMGET/
-*       SET/BIS/BIC ioctls.
-*    -- digi_set_termios now supports parity, word size, stop bits, and
-*       receive enable.
-*    -- Cleaned up open and close, use digi_set_termios and
-*       digi_write_oob_command to set port parameters.
-*    -- Added digi_startup_device to start read chains on all ports.
-*    -- Write buffer is only used when count==1, to be sure put_char can
-*       write a char (unless the buffer is full).
-*
-*  (5/10/2000) pberger and borchers
-*    -- Added MOD_INC_USE_COUNT/MOD_DEC_USE_COUNT calls on open/close.
-*    -- Fixed problem where the first incoming character is lost on
-*       port opens after the first close on that port.  Now we keep
-*       the read_urb chain open until shutdown.
-*    -- Added more port conditioning calls in digi_open and digi_close.
-*    -- Convert port->active to a use count so that we can deal with multiple
-*       opens and closes properly.
-*    -- Fixed some problems with the locking code.
-*
-*  (5/3/2000) pberger and borchers
-*    -- First alpha version of the driver--many known limitations and bugs.
-*
-*
-*  Locking and SMP
-*
-*  - Each port, including the out-of-band port, has a lock used to
-*    serialize all access to the port's private structure.
-*  - The port lock is also used to serialize all writes and access to
-*    the port's URB.
-*  - The port lock is also used for the port write_wait condition
-*    variable.  Holding the port lock will prevent a wake up on the
-*    port's write_wait; this can be used with cond_wait_... to be sure
-*    the wake up is not lost in a race when dropping the lock and
-*    sleeping waiting for the wakeup.
-*  - digi_write() does not sleep, since it is sometimes called on
-*    interrupt time.
-*  - digi_write_bulk_callback() and digi_read_bulk_callback() are
-*    called directly from interrupts.  Hence spin_lock_irqsave()
-*    and spin_unlock_irqrestore() are used in the rest of the code
-*    for any locks they acquire.
-*  - digi_write_bulk_callback() gets the port lock before waking up
-*    processes sleeping on the port write_wait.  It also schedules
-*    wake ups so they happen from the scheduler, because the tty
-*    system can miss wake ups from interrupts.
-*  - All sleeps use a timeout of DIGI_RETRY_TIMEOUT before looping to
-*    recheck the condition they are sleeping on.  This is defensive,
-*    in case a wake up is lost.
-*  - Following Documentation/DocBook/kernel-locking.tmpl no spin locks
-*    are held when calling copy_to/from_user or printk.
 */
 
 #include <linux/kernel.h>
@@ -467,7 +251,7 @@ static int digi_read_oob_callback(struct urb *urb);
 
 /* Statics */
 
-static int debug;
+static bool debug;
 
 static const struct usb_device_id id_table_combined[] = {
 	{ USB_DEVICE(DIGI_VENDOR_ID, DIGI_2_ID) },
@@ -654,7 +438,6 @@ static int digi_write_oob_command(struct usb_serial_port *port,
 			len &= ~3;
 		memcpy(oob_port->write_urb->transfer_buffer, buf, len);
 		oob_port->write_urb->transfer_buffer_length = len;
-		oob_port->write_urb->dev = port->serial->dev;
 		ret = usb_submit_urb(oob_port->write_urb, GFP_ATOMIC);
 		if (ret == 0) {
 			oob_priv->dp_write_urb_in_use = 1;
@@ -732,7 +515,6 @@ static int digi_write_inb_command(struct usb_serial_port *port,
 			memcpy(data, buf, len);
 			port->write_urb->transfer_buffer_length = len;
 		}
-		port->write_urb->dev = port->serial->dev;
 
 		ret = usb_submit_urb(port->write_urb, GFP_ATOMIC);
 		if (ret == 0) {
@@ -803,7 +585,6 @@ static int digi_set_modem_signals(struct usb_serial_port *port,
 	data[7] = 0;
 
 	oob_port->write_urb->transfer_buffer_length = 8;
-	oob_port->write_urb->dev = port->serial->dev;
 
 	ret = usb_submit_urb(oob_port->write_urb, GFP_ATOMIC);
 	if (ret == 0) {
@@ -899,10 +680,8 @@ static void digi_rx_unthrottle(struct tty_struct *tty)
 	spin_lock_irqsave(&priv->dp_port_lock, flags);
 
 	/* restart read chain */
-	if (priv->dp_throttle_restart) {
-		port->read_urb->dev = port->serial->dev;
+	if (priv->dp_throttle_restart)
 		ret = usb_submit_urb(port->read_urb, GFP_ATOMIC);
-	}
 
 	/* turn throttle off */
 	priv->dp_throttled = 0;
@@ -1195,7 +974,6 @@ static int digi_write(struct tty_struct *tty, struct usb_serial_port *port,
 	}
 
 	port->write_urb->transfer_buffer_length = data_len+2;
-	port->write_urb->dev = port->serial->dev;
 
 	*data++ = DIGI_CMD_SEND_DATA;
 	*data++ = data_len;
@@ -1271,7 +1049,6 @@ static void digi_write_bulk_callback(struct urb *urb)
 			= (unsigned char)priv->dp_out_buf_len;
 		port->write_urb->transfer_buffer_length =
 						priv->dp_out_buf_len + 2;
-		port->write_urb->dev = serial->dev;
 		memcpy(port->write_urb->transfer_buffer + 2, priv->dp_out_buf,
 			priv->dp_out_buf_len);
 		ret = usb_submit_urb(port->write_urb, GFP_ATOMIC);
@@ -1473,7 +1250,6 @@ static int digi_startup_device(struct usb_serial *serial)
 	/* set USB_DISABLE_SPD flag for write bulk urbs */
 	for (i = 0; i < serial->type->num_ports + 1; i++) {
 		port = serial->port[i];
-		port->write_urb->dev = port->serial->dev;
 		ret = usb_submit_urb(port->read_urb, GFP_KERNEL);
 		if (ret != 0) {
 			dev_err(&port->dev,
@@ -1616,7 +1392,6 @@ static void digi_read_bulk_callback(struct urb *urb)
 	}
 
 	/* continue read */
-	urb->dev = port->serial->dev;
 	ret = usb_submit_urb(urb, GFP_ATOMIC);
 	if (ret != 0 && ret != -EPERM) {
 		dev_err(&port->dev,

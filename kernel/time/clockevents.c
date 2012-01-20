@@ -17,7 +17,6 @@
 #include <linux/module.h>
 #include <linux/notifier.h>
 #include <linux/smp.h>
-#include <linux/sysdev.h>
 
 #include "tick-internal.h"
 

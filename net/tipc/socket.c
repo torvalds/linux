@@ -185,9 +185,6 @@ static int tipc_create(struct net *net, struct socket *sock, int protocol,
 
 	/* Validate arguments */
 
-	if (!net_eq(net, &init_net))
-		return -EAFNOSUPPORT;
-
 	if (unlikely(protocol != 0))
 		return -EPROTONOSUPPORT;
 

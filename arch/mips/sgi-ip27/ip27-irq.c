@@ -73,7 +73,7 @@ static inline int alloc_level(int cpu, int irq)
 
 	level = find_first_zero_bit(hub->irq_alloc_mask, LEVELS_PER_SLICE);
 	if (level >= LEVELS_PER_SLICE)
-		panic("Cpu %d flooded with devices\n", cpu);
+		panic("Cpu %d flooded with devices", cpu);
 
 	__set_bit(level, hub->irq_alloc_mask);
 	si->level_to_irq[level] = irq;
@@ -96,7 +96,7 @@ static inline int find_level(cpuid_t *cpunum, int irq)
 			}
 	}
 
-	panic("Could not identify cpu/level for irq %d\n", irq);
+	panic("Could not identify cpu/level for irq %d", irq);
 }
 
 /*
@@ -116,7 +116,7 @@ static int ms1bit(unsigned long x)
 }
 
 /*
- * This code is unnecessarily complex, because we do IRQF_DISABLED
+ * This code is unnecessarily complex, because we do
  * intr enabling. Basically, once we grab the set of intrs we need
  * to service, we must mask _all_ these interrupts; firstly, to make
  * sure the same intr does not intr again, causing recursion that

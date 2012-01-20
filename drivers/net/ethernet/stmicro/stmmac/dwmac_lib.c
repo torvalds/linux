@@ -238,6 +238,19 @@ void stmmac_set_mac_addr(void __iomem *ioaddr, u8 addr[6],
 	writel(data, ioaddr + low);
 }
 
+/* Enable disable MAC RX/TX */
+void stmmac_set_mac(void __iomem *ioaddr, bool enable)
+{
+	u32 value = readl(ioaddr + MAC_CTRL_REG);
+
+	if (enable)
+		value |= MAC_RNABLE_RX | MAC_ENABLE_TX;
+	else
+		value &= ~(MAC_ENABLE_TX | MAC_RNABLE_RX);
+
+	writel(value, ioaddr + MAC_CTRL_REG);
+}
+
 void stmmac_get_mac_addr(void __iomem *ioaddr, unsigned char *addr,
 			 unsigned int high, unsigned int low)
 {

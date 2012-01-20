@@ -166,7 +166,6 @@ static struct inode *exofs_alloc_inode(struct super_block *sb)
 static void exofs_i_callback(struct rcu_head *head)
 {
 	struct inode *inode = container_of(head, struct inode, i_rcu);
-	INIT_LIST_HEAD(&inode->i_dentry);
 	kmem_cache_free(exofs_inode_cachep, exofs_i(inode));
 }
 
@@ -839,6 +838,8 @@ static int exofs_fill_super(struct super_block *sb, void *data, int silent)
 	ret = bdi_setup_and_register(&sbi->bdi, "exofs", BDI_CAP_MAP_COPY);
 	if (ret) {
 		EXOFS_DBGMSG("Failed to bdi_setup_and_register\n");
+		dput(sb->s_root);
+		sb->s_root = NULL;
 		goto free_sbi;
 	}
 

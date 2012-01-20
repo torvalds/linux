@@ -100,7 +100,7 @@ MODULE_PARM_DESC(f71862fg_pin,
 	"Watchdog f71862fg reset output pin configuration. Choose pin 56 or 63"
 			" (default=" __MODULE_STRING(WATCHDOG_F71862FG_PIN)")");
 
-static int nowayout = WATCHDOG_NOWAYOUT;
+static bool nowayout = WATCHDOG_NOWAYOUT;
 module_param(nowayout, bool, 0444);
 MODULE_PARM_DESC(nowayout, "Disable watchdog shutdown on close");
 

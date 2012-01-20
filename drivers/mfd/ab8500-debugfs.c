@@ -13,7 +13,7 @@
 #include <linux/platform_device.h>
 
 #include <linux/mfd/abx500.h>
-#include <linux/mfd/ab8500.h>
+#include <linux/mfd/abx500/ab8500.h>
 
 static u32 debug_bank;
 static u32 debug_address;

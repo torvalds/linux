@@ -27,7 +27,7 @@
 
 #include <asm/geode.h>
 
-static int force = 0;
+static bool force = 0;
 module_param(force, bool, 0444);
 /* FIXME: Award bios is not automatically detected as Alix platform */
 MODULE_PARM_DESC(force, "Force detection as ALIX.2/ALIX.3 platform");

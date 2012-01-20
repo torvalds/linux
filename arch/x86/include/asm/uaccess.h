@@ -462,7 +462,7 @@ struct __large_struct { unsigned long buf[100]; };
 	barrier();
 
 #define uaccess_catch(err)						\
-	(err) |= current_thread_info()->uaccess_err;			\
+	(err) |= (current_thread_info()->uaccess_err ? -EFAULT : 0);	\
 	current_thread_info()->uaccess_err = prev_err;			\
 } while (0)
 

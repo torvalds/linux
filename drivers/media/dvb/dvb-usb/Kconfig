@@ -311,6 +311,7 @@ config DVB_USB_ANYSEE
 	select DVB_STV0900 if !DVB_FE_CUSTOMISE
 	select DVB_STV6110 if !DVB_FE_CUSTOMISE
 	select DVB_ISL6423 if !DVB_FE_CUSTOMISE
+	select DVB_CXD2820R if !DVB_FE_CUSTOMISE
 	help
 	  Say Y here to support the Anysee E30, Anysee E30 Plus or
 	  Anysee E30 C Plus DVB USB2.0 receiver.
@@ -340,7 +341,7 @@ config DVB_USB_AF9015
 
 config DVB_USB_CE6230
 	tristate "Intel CE6230 DVB-T USB2.0 support"
-	depends on DVB_USB && EXPERIMENTAL
+	depends on DVB_USB
 	select DVB_ZL10353
 	select MEDIA_TUNER_MXL5005S if !MEDIA_TUNER_CUSTOMISE
 	help
@@ -354,7 +355,7 @@ config DVB_USB_FRIIO
 
 config DVB_USB_EC168
 	tristate "E3C EC168 DVB-T USB2.0 support"
-	depends on DVB_USB && EXPERIMENTAL
+	depends on DVB_USB
 	select DVB_EC100
 	select MEDIA_TUNER_MXL5005S if !MEDIA_TUNER_CUSTOMISE
 	help

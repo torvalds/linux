@@ -133,7 +133,7 @@ int gfs2_unstuff_dinode(struct gfs2_inode *ip, struct page *page)
 		   and write it out to disk */
 
 		unsigned int n = 1;
-		error = gfs2_alloc_block(ip, &block, &n);
+		error = gfs2_alloc_blocks(ip, &block, &n, 0, NULL);
 		if (error)
 			goto out_brelse;
 		if (isdir) {
@@ -503,7 +503,7 @@ static int gfs2_bmap_alloc(struct inode *inode, const sector_t lblock,
 	do {
 		int error;
 		n = blks - alloced;
-		error = gfs2_alloc_block(ip, &bn, &n);
+		error = gfs2_alloc_blocks(ip, &bn, &n, 0, NULL);
 		if (error)
 			return error;
 		alloced += n;
@@ -742,9 +742,6 @@ static int do_strip(struct gfs2_inode *ip, struct buffer_head *dibh,
 		revokes = (height) ? sdp->sd_inptrs : sdp->sd_diptrs;
 	else if (ip->i_depth)
 		revokes = sdp->sd_inptrs;
-
-	if (error)
-		return error;
 
 	memset(&rlist, 0, sizeof(struct gfs2_rgrp_list));
 	bstart = 0;
@@ -1044,7 +1041,7 @@ static int trunc_dealloc(struct gfs2_inode *ip, u64 size)
 		lblock = (size - 1) >> sdp->sd_sb.sb_bsize_shift;
 
 	find_metapath(sdp, lblock, &mp, ip->i_height);
-	if (!gfs2_alloc_get(ip))
+	if (!gfs2_qadata_get(ip))
 		return -ENOMEM;
 
 	error = gfs2_quota_hold(ip, NO_QUOTA_CHANGE, NO_QUOTA_CHANGE);
@@ -1064,7 +1061,7 @@ static int trunc_dealloc(struct gfs2_inode *ip, u64 size)
 	gfs2_quota_unhold(ip);
 
 out:
-	gfs2_alloc_put(ip);
+	gfs2_qadata_put(ip);
 	return error;
 }
 
@@ -1166,21 +1163,20 @@ static int do_grow(struct inode *inode, u64 size)
 	struct gfs2_inode *ip = GFS2_I(inode);
 	struct gfs2_sbd *sdp = GFS2_SB(inode);
 	struct buffer_head *dibh;
-	struct gfs2_alloc *al = NULL;
+	struct gfs2_qadata *qa = NULL;
 	int error;
 
 	if (gfs2_is_stuffed(ip) &&
 	    (size > (sdp->sd_sb.sb_bsize - sizeof(struct gfs2_dinode)))) {
-		al = gfs2_alloc_get(ip);
-		if (al == NULL)
+		qa = gfs2_qadata_get(ip);
+		if (qa == NULL)
 			return -ENOMEM;
 
 		error = gfs2_quota_lock_check(ip);
 		if (error)
 			goto do_grow_alloc_put;
 
-		al->al_requested = 1;
-		error = gfs2_inplace_reserve(ip);
+		error = gfs2_inplace_reserve(ip, 1);
 		if (error)
 			goto do_grow_qunlock;
 	}
@@ -1189,7 +1185,7 @@ static int do_grow(struct inode *inode, u64 size)
 	if (error)
 		goto do_grow_release;
 
-	if (al) {
+	if (qa) {
 		error = gfs2_unstuff_dinode(ip, NULL);
 		if (error)
 			goto do_end_trans;
@@ -1208,12 +1204,12 @@ static int do_grow(struct inode *inode, u64 size)
 do_end_trans:
 	gfs2_trans_end(sdp);
 do_grow_release:
-	if (al) {
+	if (qa) {
 		gfs2_inplace_release(ip);
 do_grow_qunlock:
 		gfs2_quota_unlock(ip);
 do_grow_alloc_put:
-		gfs2_alloc_put(ip);
+		gfs2_qadata_put(ip);
 	}
 	return error;
 }

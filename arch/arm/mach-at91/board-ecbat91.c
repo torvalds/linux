@@ -64,18 +64,23 @@ static void __init ecb_at91init_early(void)
 	at91_set_serial_console(0);
 }
 
-static struct at91_eth_data __initdata ecb_at91eth_data = {
+static struct macb_platform_data __initdata ecb_at91eth_data = {
 	.phy_irq_pin	= AT91_PIN_PC4,
 	.is_rmii	= 0,
 };
 
 static struct at91_usbh_data __initdata ecb_at91usbh_data = {
 	.ports		= 1,
+	.vbus_pin	= {-EINVAL, -EINVAL},
+	.overcurrent_pin= {-EINVAL, -EINVAL},
 };
 
 static struct at91_mmc_data __initdata ecb_at91mmc_data = {
 	.slot_b		= 0,
 	.wire4		= 1,
+	.det_pin	= -EINVAL,
+	.wp_pin		= -EINVAL,
+	.vcc_pin	= -EINVAL,
 };
 
 

@@ -380,6 +380,8 @@ static inline unsigned long __fls(unsigned long word)
 	return word;
 }
 
+#undef ADDR
+
 #ifdef __KERNEL__
 /**
  * ffs - find first set bit in word
@@ -395,10 +397,25 @@ static inline unsigned long __fls(unsigned long word)
 static inline int ffs(int x)
 {
 	int r;
-#ifdef CONFIG_X86_CMOV
+
+#ifdef CONFIG_X86_64
+	/*
+	 * AMD64 says BSFL won't clobber the dest reg if x==0; Intel64 says the
+	 * dest reg is undefined if x==0, but their CPU architect says its
+	 * value is written to set it to the same as before, except that the
+	 * top 32 bits will be cleared.
+	 *
+	 * We cannot do this on 32 bits because at the very least some
+	 * 486 CPUs did not behave this way.
+	 */
+	long tmp = -1;
+	asm("bsfl %1,%0"
+	    : "=r" (r)
+	    : "rm" (x), "0" (tmp));
+#elif defined(CONFIG_X86_CMOV)
 	asm("bsfl %1,%0\n\t"
 	    "cmovzl %2,%0"
-	    : "=r" (r) : "rm" (x), "r" (-1));
+	    : "=&r" (r) : "rm" (x), "r" (-1));
 #else
 	asm("bsfl %1,%0\n\t"
 	    "jnz 1f\n\t"
@@ -422,7 +439,22 @@ static inline int ffs(int x)
 static inline int fls(int x)
 {
 	int r;
-#ifdef CONFIG_X86_CMOV
+
+#ifdef CONFIG_X86_64
+	/*
+	 * AMD64 says BSRL won't clobber the dest reg if x==0; Intel64 says the
+	 * dest reg is undefined if x==0, but their CPU architect says its
+	 * value is written to set it to the same as before, except that the
+	 * top 32 bits will be cleared.
+	 *
+	 * We cannot do this on 32 bits because at the very least some
+	 * 486 CPUs did not behave this way.
+	 */
+	long tmp = -1;
+	asm("bsrl %1,%0"
+	    : "=r" (r)
+	    : "rm" (x), "0" (tmp));
+#elif defined(CONFIG_X86_CMOV)
 	asm("bsrl %1,%0\n\t"
 	    "cmovzl %2,%0"
 	    : "=&r" (r) : "rm" (x), "rm" (-1));
@@ -434,11 +466,35 @@ static inline int fls(int x)
 #endif
 	return r + 1;
 }
-#endif /* __KERNEL__ */
 
-#undef ADDR
-
-#ifdef __KERNEL__
+/**
+ * fls64 - find last set bit in a 64-bit word
+ * @x: the word to search
+ *
+ * This is defined in a similar way as the libc and compiler builtin
+ * ffsll, but returns the position of the most significant set bit.
+ *
+ * fls64(value) returns 0 if value is 0 or the position of the last
+ * set bit if value is nonzero. The last (most significant) bit is
+ * at position 64.
+ */
+#ifdef CONFIG_X86_64
+static __always_inline int fls64(__u64 x)
+{
+	long bitpos = -1;
+	/*
+	 * AMD64 says BSRQ won't clobber the dest reg if x==0; Intel64 says the
+	 * dest reg is undefined if x==0, but their CPU architect says its
+	 * value is written to set it to the same as before.
+	 */
+	asm("bsrq %1,%0"
+	    : "+r" (bitpos)
+	    : "rm" (x));
+	return bitpos + 1;
+}
+#else
+#include <asm-generic/bitops/fls64.h>
+#endif
 
 #include <asm-generic/bitops/find.h>
 
@@ -449,12 +505,6 @@ static inline int fls(int x)
 #include <asm/arch_hweight.h>
 
 #include <asm-generic/bitops/const_hweight.h>
-
-#endif /* __KERNEL__ */
-
-#include <asm-generic/bitops/fls64.h>
-
-#ifdef __KERNEL__
 
 #include <asm-generic/bitops/le.h>
 

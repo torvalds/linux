@@ -189,6 +189,9 @@ struct be_mcc_mailbox {
 #define OPCODE_COMMON_GET_PHY_DETAILS			102
 #define OPCODE_COMMON_SET_DRIVER_FUNCTION_CAP		103
 #define OPCODE_COMMON_GET_CNTL_ADDITIONAL_ATTRIBUTES	121
+#define OPCODE_COMMON_GET_MAC_LIST			147
+#define OPCODE_COMMON_SET_MAC_LIST			148
+#define OPCODE_COMMON_READ_OBJECT			171
 #define OPCODE_COMMON_WRITE_OBJECT			172
 
 #define OPCODE_ETH_RSS_CONFIG				1
@@ -294,6 +297,7 @@ struct be_cmd_req_mac_query {
 	u8 type;
 	u8 permanent;
 	u16 if_id;
+	u32 pmac_id;
 } __packed;
 
 struct be_cmd_resp_mac_query {
@@ -956,7 +960,8 @@ struct be_cmd_resp_link_status {
 	u8 mgmt_mac_duplex;
 	u8 mgmt_mac_speed;
 	u16 link_speed;
-	u32 rsvd0;
+	u8 logical_link_status;
+	u8 rsvd1[3];
 } __packed;
 
 /******************** Port Identification ***************************/
@@ -1161,6 +1166,38 @@ struct lancer_cmd_resp_write_object {
 	u32 actual_write_len;
 };
 
+/************************ Lancer Read FW info **************/
+#define LANCER_READ_FILE_CHUNK			(32*1024)
+#define LANCER_READ_FILE_EOF_MASK		0x80000000
+
+#define LANCER_FW_DUMP_FILE			"/dbg/dump.bin"
+#define LANCER_VPD_PF_FILE			"/vpd/ntr_pf.vpd"
+#define LANCER_VPD_VF_FILE			"/vpd/ntr_vf.vpd"
+
+struct lancer_cmd_req_read_object {
+	struct be_cmd_req_hdr hdr;
+	u32 desired_read_len;
+	u32 read_offset;
+	u8 object_name[104];
+	u32 descriptor_count;
+	u32 buf_len;
+	u32 addr_low;
+	u32 addr_high;
+};
+
+struct lancer_cmd_resp_read_object {
+	u8 opcode;
+	u8 subsystem;
+	u8 rsvd1[2];
+	u8 status;
+	u8 additional_status;
+	u8 rsvd2[2];
+	u32 resp_len;
+	u32 actual_resp_len;
+	u32 actual_read_len;
+	u32 eof;
+};
+
 /************************ WOL *******************************/
 struct be_cmd_req_acpi_wol_magic_config{
 	struct be_cmd_req_hdr hdr;
@@ -1307,6 +1344,34 @@ struct be_cmd_resp_set_func_cap {
 	u8 rsvd[212];
 };
 
+/******************** GET/SET_MACLIST  **************************/
+#define BE_MAX_MAC			64
+struct amap_get_mac_list_context {
+	u8 macid[31];
+	u8 act;
+} __packed;
+
+struct be_cmd_req_get_mac_list {
+	struct be_cmd_req_hdr hdr;
+	u32 rsvd;
+} __packed;
+
+struct be_cmd_resp_get_mac_list {
+	struct be_cmd_resp_hdr hdr;
+	u8 mac_count;
+	u8 rsvd1;
+	u16 rsvd2;
+	u8 context[sizeof(struct amap_get_mac_list_context) / 8][BE_MAX_MAC];
+} __packed;
+
+struct be_cmd_req_set_mac_list {
+	struct be_cmd_req_hdr hdr;
+	u8 mac_count;
+	u8 rsvd1;
+	u16 rsvd2;
+	struct macaddr mac[BE_MAX_MAC];
+} __packed;
+
 /*************** HW Stats Get v1 **********************************/
 #define BE_TXP_SW_SZ			48
 struct be_port_rxf_stats_v1 {
@@ -1413,15 +1478,15 @@ static inline void *be_erx_stats_from_cmd(struct be_adapter *adapter)
 extern int be_pci_fnum_get(struct be_adapter *adapter);
 extern int be_cmd_POST(struct be_adapter *adapter);
 extern int be_cmd_mac_addr_query(struct be_adapter *adapter, u8 *mac_addr,
-			u8 type, bool permanent, u32 if_handle);
+			u8 type, bool permanent, u32 if_handle, u32 pmac_id);
 extern int be_cmd_pmac_add(struct be_adapter *adapter, u8 *mac_addr,
 			u32 if_id, u32 *pmac_id, u32 domain);
 extern int be_cmd_pmac_del(struct be_adapter *adapter, u32 if_id,
-			u32 pmac_id, u32 domain);
+			int pmac_id, u32 domain);
 extern int be_cmd_if_create(struct be_adapter *adapter, u32 cap_flags,
 			u32 en_flags, u8 *mac, u32 *if_handle, u32 *pmac_id,
 			u32 domain);
-extern int be_cmd_if_destroy(struct be_adapter *adapter, u32 if_handle,
+extern int be_cmd_if_destroy(struct be_adapter *adapter, int if_handle,
 			u32 domain);
 extern int be_cmd_eq_create(struct be_adapter *adapter,
 			struct be_queue_info *eq, int eq_delay);
@@ -1443,8 +1508,8 @@ extern int be_cmd_q_destroy(struct be_adapter *adapter, struct be_queue_info *q,
 			int type);
 extern int be_cmd_rxq_destroy(struct be_adapter *adapter,
 			struct be_queue_info *q);
-extern int be_cmd_link_status_query(struct be_adapter *adapter,
-			u8 *mac_speed, u16 *link_speed, u32 dom);
+extern int be_cmd_link_status_query(struct be_adapter *adapter, u8 *mac_speed,
+				    u16 *link_speed, u8 *link_status, u32 dom);
 extern int be_cmd_reset(struct be_adapter *adapter);
 extern int be_cmd_get_stats(struct be_adapter *adapter,
 			struct be_dma_mem *nonemb_cmd);
@@ -1480,6 +1545,9 @@ extern int lancer_cmd_write_object(struct be_adapter *adapter,
 				u32 data_size, u32 data_offset,
 				const char *obj_name,
 				u32 *data_written, u8 *addn_status);
+int lancer_cmd_read_object(struct be_adapter *adapter, struct be_dma_mem *cmd,
+		u32 data_size, u32 data_offset, const char *obj_name,
+		u32 *data_read, u32 *eof, u8 *addn_status);
 int be_cmd_get_flash_crc(struct be_adapter *adapter, u8 *flashed_crc,
 				int offset);
 extern int be_cmd_enable_magic_wol(struct be_adapter *adapter, u8 *mac,
@@ -1506,4 +1574,8 @@ extern int be_cmd_get_cntl_attributes(struct be_adapter *adapter);
 extern int be_cmd_req_native_mode(struct be_adapter *adapter);
 extern int be_cmd_get_reg_len(struct be_adapter *adapter, u32 *log_size);
 extern void be_cmd_get_regs(struct be_adapter *adapter, u32 buf_len, void *buf);
+extern int be_cmd_get_mac_from_list(struct be_adapter *adapter, u32 domain,
+							u32 *pmac_id);
+extern int be_cmd_set_mac_list(struct be_adapter *adapter, u8 *mac_array,
+						u8 mac_count, u32 domain);
 

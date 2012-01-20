@@ -75,7 +75,7 @@ static void __init xen_add_extra_mem(u64 start, u64 size)
 	if (i == XEN_EXTRA_MEM_MAX_REGIONS)
 		printk(KERN_WARNING "Warning: not enough extra memory regions\n");
 
-	memblock_x86_reserve_range(start, start + size, "XEN EXTRA");
+	memblock_reserve(start, size);
 
 	xen_max_p2m_pfn = PFN_DOWN(start + size);
 
@@ -173,9 +173,21 @@ static unsigned long __init xen_get_max_pages(void)
 	domid_t domid = DOMID_SELF;
 	int ret;
 
-	ret = HYPERVISOR_memory_op(XENMEM_maximum_reservation, &domid);
-	if (ret > 0)
-		max_pages = ret;
+	/*
+	 * For the initial domain we use the maximum reservation as
+	 * the maximum page.
+	 *
+	 * For guest domains the current maximum reservation reflects
+	 * the current maximum rather than the static maximum. In this
+	 * case the e820 map provided to us will cover the static
+	 * maximum region.
+	 */
+	if (xen_initial_domain()) {
+		ret = HYPERVISOR_memory_op(XENMEM_maximum_reservation, &domid);
+		if (ret > 0)
+			max_pages = ret;
+	}
+
 	return min(max_pages, MAX_DOMAIN_PAGES);
 }
 
@@ -299,9 +311,8 @@ char * __init xen_memory_setup(void)
 	 *  - xen_start_info
 	 * See comment above "struct start_info" in <xen/interface/xen.h>
 	 */
-	memblock_x86_reserve_range(__pa(xen_start_info->mfn_list),
-		      __pa(xen_start_info->pt_base),
-			"XEN START INFO");
+	memblock_reserve(__pa(xen_start_info->mfn_list),
+			 xen_start_info->pt_base - xen_start_info->mfn_list);
 
 	sanitize_e820_map(e820.map, ARRAY_SIZE(e820.map), &e820.nr_map);
 
@@ -410,6 +421,6 @@ void __init xen_arch_setup(void)
 #endif
 	disable_cpuidle();
 	boot_option_idle_override = IDLE_HALT;
-
+	WARN_ON(set_pm_idle_to_default());
 	fiddle_vdso();
 }

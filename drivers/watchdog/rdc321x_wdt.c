@@ -293,18 +293,7 @@ static struct platform_driver rdc321x_wdt_driver = {
 	},
 };
 
-static int __init rdc321x_wdt_init(void)
-{
-	return platform_driver_register(&rdc321x_wdt_driver);
-}
-
-static void __exit rdc321x_wdt_exit(void)
-{
-	platform_driver_unregister(&rdc321x_wdt_driver);
-}
-
-module_init(rdc321x_wdt_init);
-module_exit(rdc321x_wdt_exit);
+module_platform_driver(rdc321x_wdt_driver);
 
 MODULE_AUTHOR("Florian Fainelli <florian@openwrt.org>");
 MODULE_DESCRIPTION("RDC321x watchdog driver");

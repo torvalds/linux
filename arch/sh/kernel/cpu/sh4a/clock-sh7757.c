@@ -129,7 +129,7 @@ static struct clk_lookup lookups[] = {
 	CLKDEV_ICK_ID("sci_fck", "sh-sci.0", &mstp_clks[MSTP110]),
 
 	CLKDEV_CON_ID("usb_fck", &mstp_clks[MSTP103]),
-	CLKDEV_CON_ID("usb0", &mstp_clks[MSTP102]),
+	CLKDEV_DEV_ID("renesas_usbhs.0", &mstp_clks[MSTP102]),
 	CLKDEV_CON_ID("mmc0", &mstp_clks[MSTP220]),
 };
 

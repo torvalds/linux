@@ -66,16 +66,8 @@ extern u32 libipw_debug_level;
 do { if (libipw_debug_level & (level)) \
   printk(KERN_DEBUG "libipw: %c %s " fmt, \
          in_interrupt() ? 'I' : 'U', __func__ , ## args); } while (0)
-static inline bool libipw_ratelimit_debug(u32 level)
-{
-	return (libipw_debug_level & level) && net_ratelimit();
-}
 #else
 #define LIBIPW_DEBUG(level, fmt, args...) do {} while (0)
-static inline bool libipw_ratelimit_debug(u32 level)
-{
-	return false;
-}
 #endif				/* CONFIG_LIBIPW_DEBUG */
 
 /*
@@ -813,9 +805,6 @@ struct libipw_device {
 	/* WEP and other encryption related settings at the device level */
 	int open_wep;		/* Set to 1 to allow unencrypted frames */
 
-	int reset_on_keychange;	/* Set to 1 if the HW needs to be reset on
-				 * WEP key changes */
-
 	/* If the host performs {en,de}cryption, then set to 1 */
 	int host_encrypt;
 	int host_encrypt_msdu;
@@ -868,7 +857,6 @@ struct libipw_device {
 			      struct libipw_security * sec);
 	netdev_tx_t (*hard_start_xmit) (struct libipw_txb * txb,
 					struct net_device * dev, int pri);
-	int (*reset_port) (struct net_device * dev);
 	int (*is_queue_full) (struct net_device * dev, int pri);
 
 	int (*handle_management) (struct net_device * dev,

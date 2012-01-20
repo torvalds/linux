@@ -171,8 +171,8 @@ static struct resource locomo_resources[] = {
 		.flags		= IORESOURCE_MEM,
 	},
 	[1] = {
-		.start		= IRQ_GPIO(10),
-		.end		= IRQ_GPIO(10),
+		.start		= PXA_GPIO_TO_IRQ(10),
+		.end		= PXA_GPIO_TO_IRQ(10),
 		.flags		= IORESOURCE_IRQ,
 	},
 };
@@ -217,7 +217,7 @@ static struct spi_board_info poodle_spi_devices[] = {
 		.bus_num	= 1,
 		.platform_data	= &poodle_ads7846_info,
 		.controller_data= &poodle_ads7846_chip,
-		.irq		= gpio_to_irq(POODLE_GPIO_TP_INT),
+		.irq		= PXA_GPIO_TO_IRQ(POODLE_GPIO_TP_INT),
 	},
 };
 
@@ -423,12 +423,7 @@ static struct i2c_board_info __initdata poodle_i2c_devices[] = {
 
 static void poodle_poweroff(void)
 {
-	arm_machine_restart('h', NULL);
-}
-
-static void poodle_restart(char mode, const char *cmd)
-{
-	arm_machine_restart('h', cmd);
+	pxa_restart('h', NULL);
 }
 
 static void __init poodle_init(void)
@@ -436,7 +431,6 @@ static void __init poodle_init(void)
 	int ret = 0;
 
 	pm_power_off = poodle_poweroff;
-	arm_pm_restart = poodle_restart;
 
 	PCFR |= PCFR_OPDE;
 
@@ -478,4 +472,5 @@ MACHINE_START(POODLE, "SHARP Poodle")
 	.handle_irq	= pxa25x_handle_irq,
 	.timer		= &pxa_timer,
 	.init_machine	= poodle_init,
+	.restart	= pxa_restart,
 MACHINE_END

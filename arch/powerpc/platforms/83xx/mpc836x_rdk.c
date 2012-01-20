@@ -27,58 +27,16 @@
 
 #include "mpc83xx.h"
 
-static struct of_device_id __initdata mpc836x_rdk_ids[] = {
-	{ .compatible = "simple-bus", },
-	{},
-};
-
-static int __init mpc836x_rdk_declare_of_platform_devices(void)
-{
-	return of_platform_bus_probe(NULL, mpc836x_rdk_ids, NULL);
-}
-machine_device_initcall(mpc836x_rdk, mpc836x_rdk_declare_of_platform_devices);
+machine_device_initcall(mpc836x_rdk, mpc83xx_declare_of_platform_devices);
 
 static void __init mpc836x_rdk_setup_arch(void)
 {
-#ifdef CONFIG_PCI
-	struct device_node *np;
-#endif
-
 	if (ppc_md.progress)
 		ppc_md.progress("mpc836x_rdk_setup_arch()", 0);
 
-#ifdef CONFIG_PCI
-	for_each_compatible_node(np, "pci", "fsl,mpc8349-pci")
-		mpc83xx_add_bridge(np);
-#endif
+	mpc83xx_setup_pci();
 #ifdef CONFIG_QUICC_ENGINE
 	qe_reset();
-#endif
-}
-
-static void __init mpc836x_rdk_init_IRQ(void)
-{
-	struct device_node *np;
-
-	np = of_find_compatible_node(NULL, NULL, "fsl,ipic");
-	if (!np)
-		return;
-
-	ipic_init(np, 0);
-
-	/*
-	 * Initialize the default interrupt mapping priorities,
-	 * in case the boot rom changed something on us.
-	 */
-	ipic_set_default_priority();
-	of_node_put(np);
-#ifdef CONFIG_QUICC_ENGINE
-	np = of_find_compatible_node(NULL, NULL, "fsl,qe-ic");
-	if (!np)
-		return;
-
-	qe_ic_init(np, 0, qe_ic_cascade_low_ipic, qe_ic_cascade_high_ipic);
-	of_node_put(np);
 #endif
 }
 
@@ -96,7 +54,7 @@ define_machine(mpc836x_rdk) {
 	.name		= "MPC836x RDK",
 	.probe		= mpc836x_rdk_probe,
 	.setup_arch	= mpc836x_rdk_setup_arch,
-	.init_IRQ	= mpc836x_rdk_init_IRQ,
+	.init_IRQ	= mpc83xx_ipic_and_qe_init_IRQ,
 	.get_irq	= ipic_get_irq,
 	.restart	= mpc83xx_restart,
 	.time_init	= mpc83xx_time_init,

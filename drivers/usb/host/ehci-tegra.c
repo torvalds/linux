@@ -21,7 +21,12 @@
 #include <linux/platform_data/tegra_usb.h>
 #include <linux/irq.h>
 #include <linux/usb/otg.h>
+#include <linux/gpio.h>
+#include <linux/of.h>
+#include <linux/of_gpio.h>
+
 #include <mach/usb_phy.h>
+#include <mach/iomap.h>
 
 #define TEGRA_USB_DMA_ALIGN 32
 
@@ -574,6 +579,35 @@ static const struct hc_driver tegra_ehci_hc_driver = {
 	.port_handed_over	= ehci_port_handed_over,
 };
 
+static int setup_vbus_gpio(struct platform_device *pdev)
+{
+	int err = 0;
+	int gpio;
+
+	if (!pdev->dev.of_node)
+		return 0;
+
+	gpio = of_get_named_gpio(pdev->dev.of_node, "nvidia,vbus-gpio", 0);
+	if (!gpio_is_valid(gpio))
+		return 0;
+
+	err = gpio_request(gpio, "vbus_gpio");
+	if (err) {
+		dev_err(&pdev->dev, "can't request vbus gpio %d", gpio);
+		return err;
+	}
+	err = gpio_direction_output(gpio, 1);
+	if (err) {
+		dev_err(&pdev->dev, "can't enable vbus\n");
+		return err;
+	}
+	gpio_set_value(gpio, 1);
+
+	return err;
+}
+
+static u64 tegra_ehci_dma_mask = DMA_BIT_MASK(32);
+
 static int tegra_ehci_probe(struct platform_device *pdev)
 {
 	struct resource *res;
@@ -589,6 +623,15 @@ static int tegra_ehci_probe(struct platform_device *pdev)
 		dev_err(&pdev->dev, "Platform data missing\n");
 		return -EINVAL;
 	}
+
+	/* Right now device-tree probed devices don't get dma_mask set.
+	 * Since shared usb code relies on it, set it here for now.
+	 * Once we have dma capability bindings this can go away.
+	 */
+	if (!pdev->dev.dma_mask)
+		pdev->dev.dma_mask = &tegra_ehci_dma_mask;
+
+	setup_vbus_gpio(pdev);
 
 	tegra = kzalloc(sizeof(struct tegra_ehci_hcd), GFP_KERNEL);
 	if (!tegra)
@@ -638,6 +681,28 @@ static int tegra_ehci_probe(struct platform_device *pdev)
 		dev_err(&pdev->dev, "Failed to remap I/O memory\n");
 		err = -ENOMEM;
 		goto fail_io;
+	}
+
+	/* This is pretty ugly and needs to be fixed when we do only
+	 * device-tree probing. Old code relies on the platform_device
+	 * numbering that we lack for device-tree-instantiated devices.
+	 */
+	if (instance < 0) {
+		switch (res->start) {
+		case TEGRA_USB_BASE:
+			instance = 0;
+			break;
+		case TEGRA_USB2_BASE:
+			instance = 1;
+			break;
+		case TEGRA_USB3_BASE:
+			instance = 2;
+			break;
+		default:
+			err = -ENODEV;
+			dev_err(&pdev->dev, "unknown usb instance\n");
+			goto fail_phy;
+		}
 	}
 
 	tegra->phy = tegra_usb_phy_open(instance, hcd->regs, pdata->phy_config,
@@ -773,6 +838,11 @@ static void tegra_ehci_hcd_shutdown(struct platform_device *pdev)
 		hcd->driver->shutdown(hcd);
 }
 
+static struct of_device_id tegra_ehci_of_match[] __devinitdata = {
+	{ .compatible = "nvidia,tegra20-ehci", },
+	{ },
+};
+
 static struct platform_driver tegra_ehci_driver = {
 	.probe		= tegra_ehci_probe,
 	.remove		= tegra_ehci_remove,
@@ -783,5 +853,6 @@ static struct platform_driver tegra_ehci_driver = {
 	.shutdown	= tegra_ehci_hcd_shutdown,
 	.driver		= {
 		.name	= "tegra-ehci",
+		.of_match_table = tegra_ehci_of_match,
 	}
 };

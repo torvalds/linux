@@ -207,6 +207,10 @@
 /* Xilinx PSS UART */
 #define PORT_XUARTPS	98
 
+/* Atheros AR933X SoC */
+#define PORT_AR933X	99
+
+
 #ifdef __KERNEL__
 
 #include <linux/compiler.h>
@@ -351,6 +355,7 @@ struct uart_port {
 #define UPF_CONS_FLOW		((__force upf_t) (1 << 23))
 #define UPF_SHARE_IRQ		((__force upf_t) (1 << 24))
 #define UPF_EXAR_EFR		((__force upf_t) (1 << 25))
+#define UPF_IIR_ONCE		((__force upf_t) (1 << 26))
 /* The exact UART type is known and should not be probed.  */
 #define UPF_FIXED_TYPE		((__force upf_t) (1 << 27))
 #define UPF_BOOT_AUTOCONF	((__force upf_t) (1 << 28))
@@ -483,10 +488,19 @@ static inline int uart_tx_stopped(struct uart_port *port)
 /*
  * The following are helper functions for the low level drivers.
  */
+
+extern void uart_handle_dcd_change(struct uart_port *uport,
+		unsigned int status);
+extern void uart_handle_cts_change(struct uart_port *uport,
+		unsigned int status);
+
+extern void uart_insert_char(struct uart_port *port, unsigned int status,
+		 unsigned int overrun, unsigned int ch, unsigned int flag);
+
+#ifdef SUPPORT_SYSRQ
 static inline int
 uart_handle_sysrq_char(struct uart_port *port, unsigned int ch)
 {
-#ifdef SUPPORT_SYSRQ
 	if (port->sysrq) {
 		if (ch && time_before(jiffies, port->sysrq)) {
 			handle_sysrq(ch);
@@ -495,11 +509,10 @@ uart_handle_sysrq_char(struct uart_port *port, unsigned int ch)
 		}
 		port->sysrq = 0;
 	}
-#endif
 	return 0;
 }
-#ifndef SUPPORT_SYSRQ
-#define uart_handle_sysrq_char(port,ch) uart_handle_sysrq_char(port, 0)
+#else
+#define uart_handle_sysrq_char(port,ch) ({ (void)port; 0; })
 #endif
 
 /*
@@ -520,89 +533,6 @@ static inline int uart_handle_break(struct uart_port *port)
 	if (port->flags & UPF_SAK)
 		do_SAK(state->port.tty);
 	return 0;
-}
-
-/**
- *	uart_handle_dcd_change - handle a change of carrier detect state
- *	@uport: uart_port structure for the open port
- *	@status: new carrier detect status, nonzero if active
- */
-static inline void
-uart_handle_dcd_change(struct uart_port *uport, unsigned int status)
-{
-	struct uart_state *state = uport->state;
-	struct tty_port *port = &state->port;
-	struct tty_ldisc *ld = tty_ldisc_ref(port->tty);
-	struct pps_event_time ts;
-
-	if (ld && ld->ops->dcd_change)
-		pps_get_ts(&ts);
-
-	uport->icount.dcd++;
-#ifdef CONFIG_HARD_PPS
-	if ((uport->flags & UPF_HARDPPS_CD) && status)
-		hardpps();
-#endif
-
-	if (port->flags & ASYNC_CHECK_CD) {
-		if (status)
-			wake_up_interruptible(&port->open_wait);
-		else if (port->tty)
-			tty_hangup(port->tty);
-	}
-
-	if (ld && ld->ops->dcd_change)
-		ld->ops->dcd_change(port->tty, status, &ts);
-	if (ld)
-		tty_ldisc_deref(ld);
-}
-
-/**
- *	uart_handle_cts_change - handle a change of clear-to-send state
- *	@uport: uart_port structure for the open port
- *	@status: new clear to send status, nonzero if active
- */
-static inline void
-uart_handle_cts_change(struct uart_port *uport, unsigned int status)
-{
-	struct tty_port *port = &uport->state->port;
-	struct tty_struct *tty = port->tty;
-
-	uport->icount.cts++;
-
-	if (port->flags & ASYNC_CTS_FLOW) {
-		if (tty->hw_stopped) {
-			if (status) {
-				tty->hw_stopped = 0;
-				uport->ops->start_tx(uport);
-				uart_write_wakeup(uport);
-			}
-		} else {
-			if (!status) {
-				tty->hw_stopped = 1;
-				uport->ops->stop_tx(uport);
-			}
-		}
-	}
-}
-
-#include <linux/tty_flip.h>
-
-static inline void
-uart_insert_char(struct uart_port *port, unsigned int status,
-		 unsigned int overrun, unsigned int ch, unsigned int flag)
-{
-	struct tty_struct *tty = port->state->port.tty;
-
-	if ((status & port->ignore_status_mask & ~overrun) == 0)
-		tty_insert_flip_char(tty, ch, flag);
-
-	/*
-	 * Overrun is special.  Since it's reported immediately,
-	 * it doesn't affect the current character.
-	 */
-	if (status & ~port->ignore_status_mask & overrun)
-		tty_insert_flip_char(tty, 0, TTY_OVERRUN);
 }
 
 /*

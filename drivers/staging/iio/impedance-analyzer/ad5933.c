@@ -21,7 +21,7 @@
 
 #include "../iio.h"
 #include "../sysfs.h"
-#include "../buffer_generic.h"
+#include "../buffer.h"
 #include "../ring_sw.h"
 
 #include "ad5933.h"
@@ -113,10 +113,10 @@ static struct iio_chan_spec ad5933_channels[] = {
 		 0, AD5933_REG_TEMP_DATA, IIO_ST('s', 14, 16, 0), 0),
 	/* Ring Channels */
 	IIO_CHAN(IIO_VOLTAGE, 0, 1, 0, "real_raw", 0, 0,
-		 (1 << IIO_CHAN_INFO_SCALE_SEPARATE),
+		 IIO_CHAN_INFO_SCALE_SEPARATE_BIT,
 		 AD5933_REG_REAL_DATA, 0, IIO_ST('s', 16, 16, 0), 0),
 	IIO_CHAN(IIO_VOLTAGE, 0, 1, 0, "imag_raw", 0, 0,
-		 (1 << IIO_CHAN_INFO_SCALE_SEPARATE),
+		 IIO_CHAN_INFO_SCALE_SEPARATE_BIT,
 		 AD5933_REG_IMAG_DATA, 1, IIO_ST('s', 16, 16, 0), 0),
 };
 
@@ -329,7 +329,7 @@ static ssize_t ad5933_show(struct device *dev,
 	int ret = 0, len = 0;
 
 	mutex_lock(&indio_dev->mlock);
-	switch (this_attr->address) {
+	switch ((u32) this_attr->address) {
 	case AD5933_OUT_RANGE:
 		len = sprintf(buf, "%d\n",
 			      st->range_avail[(st->ctrl_hb >> 1) & 0x3]);
@@ -380,7 +380,7 @@ static ssize_t ad5933_store(struct device *dev,
 	}
 
 	mutex_lock(&indio_dev->mlock);
-	switch (this_attr->address) {
+	switch ((u32) this_attr->address) {
 	case AD5933_OUT_RANGE:
 		for (i = 0; i < 4; i++)
 			if (val == st->range_avail[i]) {
@@ -537,14 +537,14 @@ static const struct iio_info ad5933_info = {
 static int ad5933_ring_preenable(struct iio_dev *indio_dev)
 {
 	struct ad5933_state *st = iio_priv(indio_dev);
-	struct iio_buffer *ring = indio_dev->buffer;
 	size_t d_size;
 	int ret;
 
-	if (!ring->scan_count)
+	if (bitmap_empty(indio_dev->active_scan_mask, indio_dev->masklength))
 		return -EINVAL;
 
-	d_size = ring->scan_count *
+	d_size = bitmap_weight(indio_dev->active_scan_mask,
+			       indio_dev->masklength) *
 		 ad5933_channels[1].scan_type.storagebits / 8;
 
 	if (indio_dev->buffer->access->set_bytes_per_datum)
@@ -611,7 +611,7 @@ static int ad5933_register_ring_funcs_and_init(struct iio_dev *indio_dev)
 	indio_dev->buffer->access = &ring_sw_access_funcs;
 
 	/* Ring buffer functions - here trigger setup related */
-	indio_dev->buffer->setup_ops = &ad5933_ring_setup_ops;
+	indio_dev->setup_ops = &ad5933_ring_setup_ops;
 
 	indio_dev->modes |= INDIO_BUFFER_HARDWARE;
 
@@ -640,12 +640,14 @@ static void ad5933_work(struct work_struct *work)
 	ad5933_i2c_read(st->client, AD5933_REG_STATUS, 1, &status);
 
 	if (status & AD5933_STAT_DATA_VALID) {
+		int scan_count = bitmap_weight(indio_dev->active_scan_mask,
+					       indio_dev->masklength);
 		ad5933_i2c_read(st->client,
-				test_bit(1, ring->scan_mask) ?
+				test_bit(1, indio_dev->active_scan_mask) ?
 				AD5933_REG_REAL_DATA : AD5933_REG_IMAG_DATA,
-				ring->scan_count * 2, (u8 *)buf);
+				scan_count * 2, (u8 *)buf);
 
-		if (ring->scan_count == 2) {
+		if (scan_count == 2) {
 			buf[0] = be16_to_cpu(buf[0]);
 			buf[1] = be16_to_cpu(buf[1]);
 		} else {
@@ -734,8 +736,8 @@ static int __devinit ad5933_probe(struct i2c_client *client,
 		goto error_unreg_ring;
 
 	/* enable both REAL and IMAG channels by default */
-	iio_scan_mask_set(indio_dev->buffer, 0);
-	iio_scan_mask_set(indio_dev->buffer, 1);
+	iio_scan_mask_set(indio_dev, indio_dev->buffer, 0);
+	iio_scan_mask_set(indio_dev, indio_dev->buffer, 1);
 
 	ret = ad5933_setup(st);
 	if (ret)
@@ -796,18 +798,7 @@ static struct i2c_driver ad5933_driver = {
 	.remove = __devexit_p(ad5933_remove),
 	.id_table = ad5933_id,
 };
-
-static __init int ad5933_init(void)
-{
-	return i2c_add_driver(&ad5933_driver);
-}
-module_init(ad5933_init);
-
-static __exit void ad5933_exit(void)
-{
-	i2c_del_driver(&ad5933_driver);
-}
-module_exit(ad5933_exit);
+module_i2c_driver(ad5933_driver);
 
 MODULE_AUTHOR("Michael Hennerich <hennerich@blackfin.uclinux.org>");
 MODULE_DESCRIPTION("Analog Devices AD5933 Impedance Conv. Network Analyzer");

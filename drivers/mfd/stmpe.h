@@ -8,6 +8,14 @@
 #ifndef __STMPE_H
 #define __STMPE_H
 
+#include <linux/device.h>
+#include <linux/mfd/core.h>
+#include <linux/mfd/stmpe.h>
+#include <linux/printk.h>
+#include <linux/types.h>
+
+extern const struct dev_pm_ops stmpe_dev_pm_ops;
+
 #ifdef STMPE_DUMP_BYTES
 static inline void stmpe_dump_bytes(const char *str, const void *buf,
 				    size_t len)
@@ -67,9 +75,53 @@ struct stmpe_variant_info {
 	int (*enable_autosleep)(struct stmpe *stmpe, int autosleep_timeout);
 };
 
+/**
+ * struct stmpe_client_info - i2c or spi specific routines/info
+ * @data: client specific data
+ * @read_byte: read single byte
+ * @write_byte: write single byte
+ * @read_block: read block or multiple bytes
+ * @write_block: write block or multiple bytes
+ * @init: client init routine, called during probe
+ */
+struct stmpe_client_info {
+	void *data;
+	int irq;
+	void *client;
+	struct device *dev;
+	int (*read_byte)(struct stmpe *stmpe, u8 reg);
+	int (*write_byte)(struct stmpe *stmpe, u8 reg, u8 val);
+	int (*read_block)(struct stmpe *stmpe, u8 reg, u8 len, u8 *values);
+	int (*write_block)(struct stmpe *stmpe, u8 reg, u8 len,
+			const u8 *values);
+	void (*init)(struct stmpe *stmpe);
+};
+
+int stmpe_probe(struct stmpe_client_info *ci, int partnum);
+int stmpe_remove(struct stmpe *stmpe);
+
 #define STMPE_ICR_LSB_HIGH	(1 << 2)
 #define STMPE_ICR_LSB_EDGE	(1 << 1)
 #define STMPE_ICR_LSB_GIM	(1 << 0)
+
+/*
+ * STMPE801
+ */
+#define STMPE801_ID			0x0108
+#define STMPE801_NR_INTERNAL_IRQS	1
+
+#define STMPE801_REG_CHIP_ID		0x00
+#define STMPE801_REG_VERSION_ID		0x02
+#define STMPE801_REG_SYS_CTRL		0x04
+#define STMPE801_REG_GPIO_INT_EN	0x08
+#define STMPE801_REG_GPIO_INT_STA	0x09
+#define STMPE801_REG_GPIO_MP_STA	0x10
+#define STMPE801_REG_GPIO_SET_PIN	0x11
+#define STMPE801_REG_GPIO_DIR		0x12
+
+#define STMPE801_REG_SYS_CTRL_RESET	(1 << 7)
+#define STMPE801_REG_SYS_CTRL_INT_EN	(1 << 2)
+#define STMPE801_REG_SYS_CTRL_INT_HI	(1 << 0)
 
 /*
  * STMPE811
@@ -87,6 +139,7 @@ struct stmpe_variant_info {
 
 #define STMPE811_REG_CHIP_ID		0x00
 #define STMPE811_REG_SYS_CTRL2		0x04
+#define STMPE811_REG_SPI_CFG		0x08
 #define STMPE811_REG_INT_CTRL		0x09
 #define STMPE811_REG_INT_EN		0x0A
 #define STMPE811_REG_INT_STA		0x0B

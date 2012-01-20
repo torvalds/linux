@@ -134,11 +134,13 @@ OUT_RINGp(struct nouveau_channel *chan, const void *data, unsigned nr_dwords)
  *  -EBUSY if timeout exceeded
  */
 static inline int
-READ_GET(struct nouveau_channel *chan, uint32_t *prev_get, uint32_t *timeout)
+READ_GET(struct nouveau_channel *chan, uint64_t *prev_get, int *timeout)
 {
-	uint32_t val;
+	uint64_t val;
 
 	val = nvchan_rd32(chan, chan->user_get);
+        if (chan->user_get_hi)
+                val |= (uint64_t)nvchan_rd32(chan, chan->user_get_hi) << 32;
 
 	/* reset counter as long as GET is still advancing, this is
 	 * to avoid misdetecting a GPU lockup if the GPU happens to
@@ -218,8 +220,8 @@ nv50_dma_push_wait(struct nouveau_channel *chan, int count)
 static int
 nv50_dma_wait(struct nouveau_channel *chan, int slots, int count)
 {
-	uint32_t cnt = 0, prev_get = 0;
-	int ret;
+	uint64_t prev_get = 0;
+	int ret, cnt = 0;
 
 	ret = nv50_dma_push_wait(chan, slots + 1);
 	if (unlikely(ret))
@@ -261,8 +263,8 @@ nv50_dma_wait(struct nouveau_channel *chan, int slots, int count)
 int
 nouveau_dma_wait(struct nouveau_channel *chan, int slots, int size)
 {
-	uint32_t prev_get = 0, cnt = 0;
-	int get;
+	uint64_t prev_get = 0;
+	int cnt = 0, get;
 
 	if (chan->dma.ib_max)
 		return nv50_dma_wait(chan, slots, size);

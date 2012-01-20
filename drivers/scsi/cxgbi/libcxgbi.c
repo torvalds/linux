@@ -472,6 +472,7 @@ static struct cxgbi_sock *cxgbi_check_route(struct sockaddr *dst_addr)
 	struct net_device *ndev;
 	struct cxgbi_device *cdev;
 	struct rtable *rt = NULL;
+	struct neighbour *n;
 	struct flowi4 fl4;
 	struct cxgbi_sock *csk = NULL;
 	unsigned int mtu = 0;
@@ -493,7 +494,12 @@ static struct cxgbi_sock *cxgbi_check_route(struct sockaddr *dst_addr)
 		goto err_out;
 	}
 	dst = &rt->dst;
-	ndev = dst_get_neighbour(dst)->dev;
+	n = dst_get_neighbour_noref(dst);
+	if (!n) {
+		err = -ENODEV;
+		goto rel_rt;
+	}
+	ndev = n->dev;
 
 	if (rt->rt_flags & (RTCF_MULTICAST | RTCF_BROADCAST)) {
 		pr_info("multi-cast route %pI4, port %u, dev %s.\n",
@@ -507,7 +513,7 @@ static struct cxgbi_sock *cxgbi_check_route(struct sockaddr *dst_addr)
 		ndev = ip_dev_find(&init_net, daddr->sin_addr.s_addr);
 		mtu = ndev->mtu;
 		pr_info("rt dev %s, loopback -> %s, mtu %u.\n",
-			dst_get_neighbour(dst)->dev->name, ndev->name, mtu);
+			n->dev->name, ndev->name, mtu);
 	}
 
 	cdev = cxgbi_device_find_by_netdev(ndev, &port);
@@ -1862,8 +1868,9 @@ int cxgbi_conn_alloc_pdu(struct iscsi_task *task, u8 opcode)
 
 	tdata->skb = alloc_skb(cdev->skb_tx_rsvd + headroom, GFP_ATOMIC);
 	if (!tdata->skb) {
-		pr_warn("alloc skb %u+%u, opcode 0x%x failed.\n",
-			cdev->skb_tx_rsvd, headroom, opcode);
+		struct cxgbi_sock *csk = cconn->cep->csk;
+		struct net_device *ndev = cdev->ports[csk->port_id];
+		ndev->stats.tx_dropped++;
 		return -ENOMEM;
 	}
 
@@ -2569,7 +2576,7 @@ void cxgbi_iscsi_cleanup(struct iscsi_transport *itp,
 }
 EXPORT_SYMBOL_GPL(cxgbi_iscsi_cleanup);
 
-mode_t cxgbi_attr_is_visible(int param_type, int param)
+umode_t cxgbi_attr_is_visible(int param_type, int param)
 {
 	switch (param_type) {
 	case ISCSI_HOST_PARAM:

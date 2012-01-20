@@ -185,7 +185,6 @@ typedef void (*activate_complete)(void *, int);
 struct scsi_device_handler {
 	/* Used by the infrastructure */
 	struct list_head list; /* list of scsi_device_handlers */
-	int idx;
 
 	/* Filled by the hardware handler */
 	struct module *module;

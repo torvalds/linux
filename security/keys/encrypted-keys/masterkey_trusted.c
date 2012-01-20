@@ -18,6 +18,8 @@
 #include <linux/module.h>
 #include <linux/err.h>
 #include <keys/trusted-type.h>
+#include <keys/encrypted-type.h>
+#include "encrypted.h"
 
 /*
  * request_trusted_key - request the trusted key
@@ -37,7 +39,7 @@ struct key *request_trusted_key(const char *trusted_desc,
 		goto error;
 
 	down_read(&tkey->sem);
-	tpayload = rcu_dereference(tkey->payload.data);
+	tpayload = tkey->payload.data;
 	*master_key = tpayload->key;
 	*master_keylen = tpayload->key_len;
 error:

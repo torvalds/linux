@@ -26,20 +26,23 @@
 static struct pcmcia_irqs cd_irqs[] = {
 	{
 		.sock = 0,
-		.irq  = IRQ_GPIO(GPIO_E740_PCMCIA_CD0),
 		.str  = "CF card detect"
 	},
 	{
 		.sock = 1,
-		.irq  = IRQ_GPIO(GPIO_E740_PCMCIA_CD1),
 		.str  = "Wifi switch"
 	},
 };
 
 static int e740_pcmcia_hw_init(struct soc_pcmcia_socket *skt)
 {
-	skt->socket.pci_irq = skt->nr == 0 ? IRQ_GPIO(GPIO_E740_PCMCIA_RDY0) :
-				IRQ_GPIO(GPIO_E740_PCMCIA_RDY1);
+	if (skt->nr == 0)
+		skt->socket.pci_irq = gpio_to_irq(GPIO_E740_PCMCIA_RDY0);
+	else
+		skt->socket.pci_irq = gpio_to_irq(GPIO_E740_PCMCIA_RDY1);
+
+	cd_irqs[0].irq = gpio_to_irq(GPIO_E740_PCMCIA_CD0);
+	cd_irqs[1].irq = gpio_to_irq(GPIO_E740_PCMCIA_CD1);
 
 	return soc_pcmcia_request_irqs(skt, &cd_irqs[skt->nr], 1);
 }

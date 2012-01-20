@@ -806,7 +806,6 @@ static void pcie_cleanup_slot(struct controller *ctrl)
 	struct slot *slot = ctrl->slot;
 	cancel_delayed_work(&slot->work);
 	flush_workqueue(pciehp_wq);
-	flush_workqueue(pciehp_ordered_wq);
 	kfree(slot);
 }
 

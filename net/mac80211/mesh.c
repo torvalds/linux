@@ -76,6 +76,7 @@ static void ieee80211_mesh_housekeeping_timer(unsigned long data)
 bool mesh_matches_local(struct ieee802_11_elems *ie, struct ieee80211_sub_if_data *sdata)
 {
 	struct ieee80211_if_mesh *ifmsh = &sdata->u.mesh;
+	struct ieee80211_local *local = sdata->local;
 
 	/*
 	 * As support for each feature is added, check for matching
@@ -87,15 +88,23 @@ bool mesh_matches_local(struct ieee802_11_elems *ie, struct ieee80211_sub_if_dat
 	 *   - MDA enabled
 	 * - Power management control on fc
 	 */
-	if (ifmsh->mesh_id_len == ie->mesh_id_len &&
-		memcmp(ifmsh->mesh_id, ie->mesh_id, ie->mesh_id_len) == 0 &&
-		(ifmsh->mesh_pp_id == ie->mesh_config->meshconf_psel) &&
-		(ifmsh->mesh_pm_id == ie->mesh_config->meshconf_pmetric) &&
-		(ifmsh->mesh_cc_id == ie->mesh_config->meshconf_congest) &&
-		(ifmsh->mesh_sp_id == ie->mesh_config->meshconf_synch) &&
-		(ifmsh->mesh_auth_id == ie->mesh_config->meshconf_auth))
-		return true;
+	if (!(ifmsh->mesh_id_len == ie->mesh_id_len &&
+	     memcmp(ifmsh->mesh_id, ie->mesh_id, ie->mesh_id_len) == 0 &&
+	     (ifmsh->mesh_pp_id == ie->mesh_config->meshconf_psel) &&
+	     (ifmsh->mesh_pm_id == ie->mesh_config->meshconf_pmetric) &&
+	     (ifmsh->mesh_cc_id == ie->mesh_config->meshconf_congest) &&
+	     (ifmsh->mesh_sp_id == ie->mesh_config->meshconf_synch) &&
+	     (ifmsh->mesh_auth_id == ie->mesh_config->meshconf_auth)))
+		goto mismatch;
 
+	/* disallow peering with mismatched channel types for now */
+	if (ie->ht_info_elem &&
+	    (local->_oper_channel_type !=
+	     ieee80211_ht_info_to_channel_type(ie->ht_info_elem)))
+		goto mismatch;
+
+	return true;
+mismatch:
 	return false;
 }
 
@@ -341,6 +350,49 @@ int mesh_add_ds_params_ie(struct sk_buff *skb,
 	return 0;
 }
 
+int mesh_add_ht_cap_ie(struct sk_buff *skb,
+		       struct ieee80211_sub_if_data *sdata)
+{
+	struct ieee80211_local *local = sdata->local;
+	struct ieee80211_supported_band *sband;
+	u8 *pos;
+
+	sband = local->hw.wiphy->bands[local->oper_channel->band];
+	if (!sband->ht_cap.ht_supported ||
+	    local->_oper_channel_type == NL80211_CHAN_NO_HT)
+		return 0;
+
+	if (skb_tailroom(skb) < 2 + sizeof(struct ieee80211_ht_cap))
+		return -ENOMEM;
+
+	pos = skb_put(skb, 2 + sizeof(struct ieee80211_ht_cap));
+	ieee80211_ie_build_ht_cap(pos, &sband->ht_cap, sband->ht_cap.cap);
+
+	return 0;
+}
+
+int mesh_add_ht_info_ie(struct sk_buff *skb,
+			struct ieee80211_sub_if_data *sdata)
+{
+	struct ieee80211_local *local = sdata->local;
+	struct ieee80211_channel *channel = local->oper_channel;
+	enum nl80211_channel_type channel_type = local->_oper_channel_type;
+	struct ieee80211_supported_band *sband =
+				local->hw.wiphy->bands[channel->band];
+	struct ieee80211_sta_ht_cap *ht_cap = &sband->ht_cap;
+	u8 *pos;
+
+	if (!ht_cap->ht_supported || channel_type == NL80211_CHAN_NO_HT)
+		return 0;
+
+	if (skb_tailroom(skb) < 2 + sizeof(struct ieee80211_ht_info))
+		return -ENOMEM;
+
+	pos = skb_put(skb, 2 + sizeof(struct ieee80211_ht_info));
+	ieee80211_ie_build_ht_info(pos, ht_cap, channel, channel_type);
+
+	return 0;
+}
 static void ieee80211_mesh_path_timer(unsigned long data)
 {
 	struct ieee80211_sub_if_data *sdata =
@@ -697,6 +749,7 @@ void ieee80211_mesh_init_sdata(struct ieee80211_sub_if_data *sdata)
 	atomic_set(&ifmsh->mpaths, 0);
 	mesh_rmc_init(sdata);
 	ifmsh->last_preq = jiffies;
+	ifmsh->next_perr = jiffies;
 	/* Allocate all mesh structures when creating the first mesh interface. */
 	if (!mesh_allocated)
 		ieee80211s_init();

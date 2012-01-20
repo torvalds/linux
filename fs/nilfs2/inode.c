@@ -291,7 +291,7 @@ const struct address_space_operations nilfs_aops = {
 	.is_partially_uptodate  = block_is_partially_uptodate,
 };
 
-struct inode *nilfs_new_inode(struct inode *dir, int mode)
+struct inode *nilfs_new_inode(struct inode *dir, umode_t mode)
 {
 	struct super_block *sb = dir->i_sb;
 	struct the_nilfs *nilfs = sb->s_fs_info;

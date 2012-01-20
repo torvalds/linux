@@ -87,26 +87,13 @@ static struct platform_driver sdhci_hlwd_driver = {
 		.name = "sdhci-hlwd",
 		.owner = THIS_MODULE,
 		.of_match_table = sdhci_hlwd_of_match,
+		.pm = SDHCI_PLTFM_PMOPS,
 	},
 	.probe = sdhci_hlwd_probe,
 	.remove = __devexit_p(sdhci_hlwd_remove),
-#ifdef CONFIG_PM
-	.suspend = sdhci_pltfm_suspend,
-	.resume = sdhci_pltfm_resume,
-#endif
 };
 
-static int __init sdhci_hlwd_init(void)
-{
-	return platform_driver_register(&sdhci_hlwd_driver);
-}
-module_init(sdhci_hlwd_init);
-
-static void __exit sdhci_hlwd_exit(void)
-{
-	platform_driver_unregister(&sdhci_hlwd_driver);
-}
-module_exit(sdhci_hlwd_exit);
+module_platform_driver(sdhci_hlwd_driver);
 
 MODULE_DESCRIPTION("Nintendo Wii SDHCI OF driver");
 MODULE_AUTHOR("The GameCube Linux Team, Albert Herranz");

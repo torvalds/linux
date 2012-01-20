@@ -610,7 +610,7 @@ static void falcon_stats_complete(struct efx_nic *efx)
 	if (!nic_data->stats_pending)
 		return;
 
-	nic_data->stats_pending = 0;
+	nic_data->stats_pending = false;
 	if (*nic_data->stats_dma_done == FALCON_STATS_DONE) {
 		rmb(); /* read the done flag before the stats */
 		efx->mac_op->update_stats(efx);

@@ -179,7 +179,7 @@ static struct sh_mobile_lcdc_info lcdc_info = {
 	.clock_source = LCDC_CLK_EXTERNAL,
 	.ch[0] = {
 		.chan = LCDC_CHAN_MAINLCD,
-		.bpp = 16,
+		.fourcc = V4L2_PIX_FMT_RGB565,
 		.clock_divider = 1,
 		.lcd_size_cfg = { /* 7.0 inch */
 			.width = 152,
@@ -209,9 +209,6 @@ static struct platform_device lcdc_device = {
 	.resource	= lcdc_resources,
 	.dev		= {
 		.platform_data	= &lcdc_info,
-	},
-	.archdata = {
-		.hwblk_id = HWBLK_LCDC,
 	},
 };
 
@@ -244,9 +241,6 @@ static struct platform_device ceu0_device = {
 	.dev	= {
 		.platform_data	= &sh_mobile_ceu0_info,
 	},
-	.archdata = {
-		.hwblk_id = HWBLK_CEU0,
-	},
 };
 
 /* CEU1 */
@@ -278,9 +272,6 @@ static struct platform_device ceu1_device = {
 	.dev	= {
 		.platform_data	= &sh_mobile_ceu1_info,
 	},
-	.archdata = {
-		.hwblk_id = HWBLK_CEU1,
-	},
 };
 
 /* FSI */
@@ -309,9 +300,6 @@ static struct platform_device fsi_device = {
 	.resource	= fsi_resources,
 	.dev	= {
 		.platform_data	= &fsi_info,
-	},
-	.archdata = {
-		.hwblk_id = HWBLK_SPU, /* FSI needs SPU hwblk */
 	},
 };
 
@@ -367,9 +355,6 @@ static struct platform_device keysc_device = {
 	.dev	= {
 		.platform_data	= &keysc_info,
 	},
-	.archdata = {
-		.hwblk_id = HWBLK_KEYSC,
-	},
 };
 
 /* SH Eth */
@@ -398,9 +383,6 @@ static struct platform_device sh_eth_device = {
 	},
 	.num_resources = ARRAY_SIZE(sh_eth_resources),
 	.resource = sh_eth_resources,
-	.archdata = {
-		.hwblk_id = HWBLK_ETHER,
-	},
 };
 
 static struct r8a66597_platdata sh7724_usb0_host_data = {
@@ -430,9 +412,6 @@ static struct platform_device sh7724_usb0_host_device = {
 	},
 	.num_resources	= ARRAY_SIZE(sh7724_usb0_host_resources),
 	.resource	= sh7724_usb0_host_resources,
-	.archdata = {
-		.hwblk_id = HWBLK_USB0,
-	},
 };
 
 static struct r8a66597_platdata sh7724_usb1_gadget_data = {
@@ -491,9 +470,6 @@ static struct platform_device sdhi0_cn7_device = {
 	.dev = {
 		.platform_data	= &sh7724_sdhi0_data,
 	},
-	.archdata = {
-		.hwblk_id = HWBLK_SDHI0,
-	},
 };
 
 static struct resource sdhi1_cn8_resources[] = {
@@ -522,9 +498,6 @@ static struct platform_device sdhi1_cn8_device = {
 	.resource       = sdhi1_cn8_resources,
 	.dev = {
 		.platform_data	= &sh7724_sdhi1_data,
-	},
-	.archdata = {
-		.hwblk_id = HWBLK_SDHI1,
 	},
 };
 
@@ -587,9 +560,6 @@ static struct platform_device vou_device = {
 	.resource       = sh_vou_resources,
 	.dev		= {
 		.platform_data	= &sh_vou_pdata,
-	},
-	.archdata	= {
-		.hwblk_id	= HWBLK_VOU,
 	},
 };
 

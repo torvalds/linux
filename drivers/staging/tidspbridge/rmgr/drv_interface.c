@@ -24,11 +24,7 @@
 #include <linux/types.h>
 #include <linux/platform_device.h>
 #include <linux/pm.h>
-
-#ifdef MODULE
 #include <linux/module.h>
-#endif
-
 #include <linux/device.h>
 #include <linux/init.h>
 #include <linux/moduleparam.h>

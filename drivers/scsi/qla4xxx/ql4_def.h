@@ -147,9 +147,11 @@
 #define ISCSI_ALIAS_SIZE		32	/* ISCSI Alias name size */
 #define ISCSI_NAME_SIZE			0xE0	/* ISCSI Name size */
 
-#define QL4_SESS_RECOVERY_TMO		30	/* iSCSI session */
+#define QL4_SESS_RECOVERY_TMO		120	/* iSCSI session */
 						/* recovery timeout */
 
+#define MSB(x) ((uint8_t)((uint16_t)(x) >> 8))
+#define LSW(x) ((uint16_t)(x))
 #define LSDW(x) ((u32)((u64)(x)))
 #define MSDW(x) ((u32)((((u64)(x)) >> 16) >> 16))
 
@@ -173,8 +175,11 @@
 #define ISNS_DEREG_TOV			5
 #define HBA_ONLINE_TOV			30
 #define DISABLE_ACB_TOV			30
+#define IP_CONFIG_TOV			30
+#define LOGIN_TOV			12
 
 #define MAX_RESET_HA_RETRIES		2
+#define FW_ALIVE_WAIT_TOV		3
 
 #define CMD_SP(Cmnd)			((Cmnd)->SCp.ptr)
 
@@ -240,6 +245,45 @@ struct ddb_entry {
 
 	uint16_t fw_ddb_index;	/* DDB firmware index */
 	uint32_t fw_ddb_device_state; /* F/W Device State  -- see ql4_fw.h */
+	uint16_t ddb_type;
+#define FLASH_DDB 0x01
+
+	struct dev_db_entry fw_ddb_entry;
+	int (*unblock_sess)(struct iscsi_cls_session *cls_session);
+	int (*ddb_change)(struct scsi_qla_host *ha, uint32_t fw_ddb_index,
+			  struct ddb_entry *ddb_entry, uint32_t state);
+
+	/* Driver Re-login  */
+	unsigned long flags;		  /* DDB Flags */
+	uint16_t default_relogin_timeout; /*  Max time to wait for
+					   *  relogin to complete */
+	atomic_t retry_relogin_timer;	  /* Min Time between relogins
+					   * (4000 only) */
+	atomic_t relogin_timer;		  /* Max Time to wait for
+					   * relogin to complete */
+	atomic_t relogin_retry_count;	  /* Num of times relogin has been
+					   * retried */
+	uint32_t default_time2wait;	  /* Default Min time between
+					   * relogins (+aens) */
+
+};
+
+struct qla_ddb_index {
+	struct list_head list;
+	uint16_t fw_ddb_idx;
+	struct dev_db_entry fw_ddb;
+};
+
+#define DDB_IPADDR_LEN 64
+
+struct ql4_tuple_ddb {
+	int port;
+	int tpgt;
+	char ip_addr[DDB_IPADDR_LEN];
+	char iscsi_name[ISCSI_NAME_SIZE];
+	uint16_t options;
+#define DDB_OPT_IPV6 0x0e0e
+#define DDB_OPT_IPV4 0x0f0f
 };
 
 /*
@@ -411,7 +455,7 @@ struct scsi_qla_host {
 #define AF_FW_RECOVERY			19 /* 0x00080000 */
 #define AF_EEH_BUSY			20 /* 0x00100000 */
 #define AF_PCI_CHANNEL_IO_PERM_FAILURE	21 /* 0x00200000 */
-
+#define AF_BUILD_DDB_LIST		22 /* 0x00400000 */
 	unsigned long dpc_flags;
 
 #define DPC_RESET_HA			1 /* 0x00000002 */
@@ -604,6 +648,7 @@ struct scsi_qla_host {
 	uint16_t bootload_minor;
 	uint16_t bootload_patch;
 	uint16_t bootload_build;
+	uint16_t def_timeout; /* Default login timeout */
 
 	uint32_t flash_state;
 #define	QLFLASH_WAITING		0
@@ -623,6 +668,12 @@ struct scsi_qla_host {
 	uint16_t iscsi_pci_func_cnt;
 	uint8_t model_name[16];
 	struct completion disable_acb_comp;
+	struct dma_pool *fw_ddb_dma_pool;
+#define DDB_DMA_BLOCK_SIZE 512
+	uint16_t pri_ddb_idx;
+	uint16_t sec_ddb_idx;
+	int is_reset;
+	uint16_t temperature;
 };
 
 struct ql4_task_data {
@@ -835,6 +886,10 @@ static inline int ql4xxx_reset_active(struct scsi_qla_host *ha)
 /*---------------------------------------------------------------------------*/
 
 /* Defines for qla4xxx_initialize_adapter() and qla4xxx_recover_adapter() */
+
+#define INIT_ADAPTER    0
+#define RESET_ADAPTER   1
+
 #define PRESERVE_DDB_LIST	0
 #define REBUILD_DDB_LIST	1
 

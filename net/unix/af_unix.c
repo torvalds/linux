@@ -115,8 +115,10 @@
 #include <net/checksum.h>
 #include <linux/security.h>
 
-static struct hlist_head unix_socket_table[UNIX_HASH_SIZE + 1];
-static DEFINE_SPINLOCK(unix_table_lock);
+struct hlist_head unix_socket_table[UNIX_HASH_SIZE + 1];
+EXPORT_SYMBOL_GPL(unix_socket_table);
+DEFINE_SPINLOCK(unix_table_lock);
+EXPORT_SYMBOL_GPL(unix_table_lock);
 static atomic_long_t unix_nr_socks;
 
 #define unix_sockets_unbound	(&unix_socket_table[UNIX_HASH_SIZE])
@@ -172,7 +174,7 @@ static inline int unix_recvq_full(struct sock const *sk)
 	return skb_queue_len(&sk->sk_receive_queue) > sk->sk_max_ack_backlog;
 }
 
-static struct sock *unix_peer_get(struct sock *s)
+struct sock *unix_peer_get(struct sock *s)
 {
 	struct sock *peer;
 
@@ -183,6 +185,7 @@ static struct sock *unix_peer_get(struct sock *s)
 	unix_state_unlock(s);
 	return peer;
 }
+EXPORT_SYMBOL_GPL(unix_peer_get);
 
 static inline void unix_release_addr(struct unix_address *addr)
 {
@@ -847,7 +850,7 @@ static int unix_bind(struct socket *sock, struct sockaddr *uaddr, int addr_len)
 	atomic_set(&addr->refcnt, 1);
 
 	if (sun_path[0]) {
-		unsigned int mode;
+		umode_t mode;
 		err = 0;
 		/*
 		 * Get the parent directory, calculate the hash for last
@@ -1957,6 +1960,7 @@ static int unix_stream_recvmsg(struct kiocb *iocb, struct socket *sock,
 			if ((UNIXCB(skb).pid  != siocb->scm->pid) ||
 			    (UNIXCB(skb).cred != siocb->scm->cred)) {
 				skb_queue_head(&sk->sk_receive_queue, skb);
+				sk->sk_data_ready(sk, skb->len);
 				break;
 			}
 		} else {
@@ -1974,6 +1978,7 @@ static int unix_stream_recvmsg(struct kiocb *iocb, struct socket *sock,
 		chunk = min_t(unsigned int, skb->len, size);
 		if (memcpy_toiovec(msg->msg_iov, skb->data, chunk)) {
 			skb_queue_head(&sk->sk_receive_queue, skb);
+			sk->sk_data_ready(sk, skb->len);
 			if (copied == 0)
 				copied = -EFAULT;
 			break;
@@ -1991,6 +1996,7 @@ static int unix_stream_recvmsg(struct kiocb *iocb, struct socket *sock,
 			/* put the skb back if we didn't use it up.. */
 			if (skb->len) {
 				skb_queue_head(&sk->sk_receive_queue, skb);
+				sk->sk_data_ready(sk, skb->len);
 				break;
 			}
 
@@ -2006,6 +2012,7 @@ static int unix_stream_recvmsg(struct kiocb *iocb, struct socket *sock,
 
 			/* put message back and return */
 			skb_queue_head(&sk->sk_receive_queue, skb);
+			sk->sk_data_ready(sk, skb->len);
 			break;
 		}
 	} while (size);
@@ -2058,6 +2065,36 @@ static int unix_shutdown(struct socket *sock, int mode)
 	return 0;
 }
 
+long unix_inq_len(struct sock *sk)
+{
+	struct sk_buff *skb;
+	long amount = 0;
+
+	if (sk->sk_state == TCP_LISTEN)
+		return -EINVAL;
+
+	spin_lock(&sk->sk_receive_queue.lock);
+	if (sk->sk_type == SOCK_STREAM ||
+	    sk->sk_type == SOCK_SEQPACKET) {
+		skb_queue_walk(&sk->sk_receive_queue, skb)
+			amount += skb->len;
+	} else {
+		skb = skb_peek(&sk->sk_receive_queue);
+		if (skb)
+			amount = skb->len;
+	}
+	spin_unlock(&sk->sk_receive_queue.lock);
+
+	return amount;
+}
+EXPORT_SYMBOL_GPL(unix_inq_len);
+
+long unix_outq_len(struct sock *sk)
+{
+	return sk_wmem_alloc_get(sk);
+}
+EXPORT_SYMBOL_GPL(unix_outq_len);
+
 static int unix_ioctl(struct socket *sock, unsigned int cmd, unsigned long arg)
 {
 	struct sock *sk = sock->sk;
@@ -2066,33 +2103,16 @@ static int unix_ioctl(struct socket *sock, unsigned int cmd, unsigned long arg)
 
 	switch (cmd) {
 	case SIOCOUTQ:
-		amount = sk_wmem_alloc_get(sk);
+		amount = unix_outq_len(sk);
 		err = put_user(amount, (int __user *)arg);
 		break;
 	case SIOCINQ:
-		{
-			struct sk_buff *skb;
-
-			if (sk->sk_state == TCP_LISTEN) {
-				err = -EINVAL;
-				break;
-			}
-
-			spin_lock(&sk->sk_receive_queue.lock);
-			if (sk->sk_type == SOCK_STREAM ||
-			    sk->sk_type == SOCK_SEQPACKET) {
-				skb_queue_walk(&sk->sk_receive_queue, skb)
-					amount += skb->len;
-			} else {
-				skb = skb_peek(&sk->sk_receive_queue);
-				if (skb)
-					amount = skb->len;
-			}
-			spin_unlock(&sk->sk_receive_queue.lock);
+		amount = unix_inq_len(sk);
+		if (amount < 0)
+			err = amount;
+		else
 			err = put_user(amount, (int __user *)arg);
-			break;
-		}
-
+		break;
 	default:
 		err = -ENOIOCTLCMD;
 		break;

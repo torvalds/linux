@@ -1115,28 +1115,4 @@ static struct usb_driver ems_usb_driver = {
 	.id_table = ems_usb_table,
 };
 
-static int __init ems_usb_init(void)
-{
-	int err;
-
-	printk(KERN_INFO "CPC-USB kernel driver loaded\n");
-
-	/* register this driver with the USB subsystem */
-	err = usb_register(&ems_usb_driver);
-
-	if (err) {
-		err("usb_register failed. Error number %d\n", err);
-		return err;
-	}
-
-	return 0;
-}
-
-static void __exit ems_usb_exit(void)
-{
-	/* deregister this driver with the USB subsystem */
-	usb_deregister(&ems_usb_driver);
-}
-
-module_init(ems_usb_init);
-module_exit(ems_usb_exit);
+module_usb_driver(ems_usb_driver);

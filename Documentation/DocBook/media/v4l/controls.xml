@@ -324,12 +324,6 @@ minimum value disables backlight compensation.</entry>
 		(usually a microscope).</entry>
 	  </row>
 	  <row>
-	    <entry><constant>V4L2_CID_LASTP1</constant></entry>
-	    <entry></entry>
-	    <entry>End of the predefined control IDs (currently
-<constant>V4L2_CID_ILLUMINATORS_2</constant> + 1).</entry>
-	  </row>
-	  <row>
 	    <entry><constant>V4L2_CID_MIN_BUFFERS_FOR_CAPTURE</constant></entry>
 	    <entry>integer</entry>
 	    <entry>This is a read-only control that can be read by the application
@@ -344,6 +338,25 @@ to work.</entry>
 and used as a hint to determine the number of OUTPUT buffers to pass to REQBUFS.
 The value is the minimum number of OUTPUT buffers that is necessary for hardware
 to work.</entry>
+	  </row>
+	  <row id="v4l2-alpha-component">
+	    <entry><constant>V4L2_CID_ALPHA_COMPONENT</constant></entry>
+	    <entry>integer</entry>
+	    <entry> Sets the alpha color component on the capture device or on
+	    the capture buffer queue of a mem-to-mem device. When a mem-to-mem
+	    device produces frame format that includes an alpha component
+	    (e.g. <link linkend="rgb-formats">packed RGB image formats</link>)
+	    and the alpha value is not defined by the mem-to-mem input data
+	    this control lets you select the alpha component value of all
+	    pixels. It is applicable to any pixel format that contains an alpha
+	    component.
+	    </entry>
+	  </row>
+	  <row>
+	    <entry><constant>V4L2_CID_LASTP1</constant></entry>
+	    <entry></entry>
+	    <entry>End of the predefined control IDs (currently
+	      <constant>V4L2_CID_ALPHA_COMPONENT</constant> + 1).</entry>
 	  </row>
 	  <row>
 	    <entry><constant>V4L2_CID_PRIVATE_BASE</constant></entry>
@@ -3329,6 +3342,16 @@ interface and may change in the future.</para>
 		  <entry>The short circuit protection of the flash
 		  controller has been triggered.</entry>
 		</row>
+		<row>
+		  <entry><constant>V4L2_FLASH_FAULT_OVER_CURRENT</constant></entry>
+		  <entry>Current in the LED power supply has exceeded the limit
+		  specific to the flash controller.</entry>
+		</row>
+		<row>
+		  <entry><constant>V4L2_FLASH_FAULT_INDICATOR</constant></entry>
+		  <entry>The flash controller has detected a short or open
+		  circuit condition on the indicator LED.</entry>
+		</row>
 	      </tbody>
 	    </entrytbl>
 	  </row>
@@ -3357,11 +3380,3 @@ interface and may change in the future.</para>
 
     </section>
 </section>
-
-  <!--
-Local Variables:
-mode: sgml
-sgml-parent-document: "common.sgml"
-indent-tabs-mode: nil
-End:
-  -->

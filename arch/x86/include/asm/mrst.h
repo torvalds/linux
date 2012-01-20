@@ -31,10 +31,19 @@ enum mrst_cpu_type {
 };
 
 extern enum mrst_cpu_type __mrst_cpu_chip;
+
+#ifdef CONFIG_X86_INTEL_MID
+
 static inline enum mrst_cpu_type mrst_identify_cpu(void)
 {
 	return __mrst_cpu_chip;
 }
+
+#else /* !CONFIG_X86_INTEL_MID */
+
+#define mrst_identify_cpu()    (0)
+
+#endif /* !CONFIG_X86_INTEL_MID */
 
 enum mrst_timer_options {
 	MRST_TIMER_DEFAULT,
@@ -58,7 +67,7 @@ extern struct console early_mrst_console;
 extern void mrst_early_console_init(void);
 
 extern struct console early_hsu_console;
-extern void hsu_early_console_init(void);
+extern void hsu_early_console_init(const char *);
 
 extern void intel_scu_devices_create(void);
 extern void intel_scu_devices_destroy(void);

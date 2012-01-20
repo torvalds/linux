@@ -293,12 +293,14 @@ static u32 unresettable_controller[] = {
 	0x3215103C, /* Smart Array E200i */
 	0x3237103C, /* Smart Array E500 */
 	0x323D103C, /* Smart Array P700m */
+	0x40800E11, /* Smart Array 5i */
 	0x409C0E11, /* Smart Array 6400 */
 	0x409D0E11, /* Smart Array 6400 EM */
 };
 
 /* List of controllers which cannot even be soft reset */
 static u32 soft_unresettable_controller[] = {
+	0x40800E11, /* Smart Array 5i */
 	/* Exclude 640x boards.  These are two pci devices in one slot
 	 * which share a battery backed cache module.  One controls the
 	 * cache, the other accesses the cache through the one that controls
@@ -4072,10 +4074,10 @@ static int hpsa_request_irq(struct ctlr_info *h,
 
 	if (h->msix_vector || h->msi_vector)
 		rc = request_irq(h->intr[h->intr_mode], msixhandler,
-				IRQF_DISABLED, h->devname, h);
+				0, h->devname, h);
 	else
 		rc = request_irq(h->intr[h->intr_mode], intxhandler,
-				IRQF_DISABLED, h->devname, h);
+				IRQF_SHARED, h->devname, h);
 	if (rc) {
 		dev_err(&h->pdev->dev, "unable to get irq %d for %s\n",
 		       h->intr[h->intr_mode], h->devname);
@@ -4269,7 +4271,9 @@ static void stop_controller_lockup_detector(struct ctlr_info *h)
 	remove_ctlr_from_lockup_detector_list(h);
 	/* If the list of ctlr's to monitor is empty, stop the thread */
 	if (list_empty(&hpsa_ctlr_list)) {
+		spin_unlock_irqrestore(&lockup_detector_lock, flags);
 		kthread_stop(hpsa_lockup_detector);
+		spin_lock_irqsave(&lockup_detector_lock, flags);
 		hpsa_lockup_detector = NULL;
 	}
 	spin_unlock_irqrestore(&lockup_detector_lock, flags);

@@ -79,19 +79,6 @@ struct dwc3_gadget_ep_cmd_params {
 
 /* -------------------------------------------------------------------------- */
 
-struct dwc3_request {
-	struct usb_request	request;
-	struct list_head	list;
-	struct dwc3_ep		*dep;
-
-	u8			epnum;
-	struct dwc3_trb_hw	*trb;
-	dma_addr_t		trb_dma;
-
-	unsigned		direction:1;
-	unsigned		mapped:1;
-	unsigned		queued:1;
-};
 #define to_dwc3_request(r)	(container_of(r, struct dwc3_request, request))
 
 static inline struct dwc3_request *next_request(struct list_head *list)
@@ -110,23 +97,11 @@ static inline void dwc3_gadget_move_request_queued(struct dwc3_request *req)
 	list_move_tail(&req->list, &dep->req_queued);
 }
 
-#if defined(CONFIG_USB_GADGET_DWC3) || defined(CONFIG_USB_GADGET_DWC3_MODULE)
-int dwc3_gadget_init(struct dwc3 *dwc);
-void dwc3_gadget_exit(struct dwc3 *dwc);
-#else
-static inline int dwc3_gadget_init(struct dwc3 *dwc) { return 0; }
-static inline void dwc3_gadget_exit(struct dwc3 *dwc) { }
-static inline int dwc3_send_gadget_ep_cmd(struct dwc3 *dwc, unsigned ep,
-		unsigned cmd, struct dwc3_gadget_ep_cmd_params *params)
-{
-	return 0;
-}
-#endif
-
 void dwc3_gadget_giveback(struct dwc3_ep *dep, struct dwc3_request *req,
 		int status);
 
-void dwc3_ep0_interrupt(struct dwc3 *dwc, const struct dwc3_event_depevt *event);
+void dwc3_ep0_interrupt(struct dwc3 *dwc,
+		const struct dwc3_event_depevt *event);
 void dwc3_ep0_out_start(struct dwc3 *dwc);
 int dwc3_gadget_ep0_queue(struct usb_ep *ep, struct usb_request *request,
 		gfp_t gfp_flags);

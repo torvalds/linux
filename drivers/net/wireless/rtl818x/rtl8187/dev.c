@@ -1592,15 +1592,4 @@ static struct usb_driver rtl8187_driver = {
 	.disconnect	= __devexit_p(rtl8187_disconnect),
 };
 
-static int __init rtl8187_init(void)
-{
-	return usb_register(&rtl8187_driver);
-}
-
-static void __exit rtl8187_exit(void)
-{
-	usb_deregister(&rtl8187_driver);
-}
-
-module_init(rtl8187_init);
-module_exit(rtl8187_exit);
+module_usb_driver(rtl8187_driver);

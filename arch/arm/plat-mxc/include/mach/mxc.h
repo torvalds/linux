@@ -50,20 +50,6 @@
 #define IMX_CHIP_REVISION_3_3		0x33
 #define IMX_CHIP_REVISION_UNKNOWN	0xff
 
-#define IMX_CHIP_REVISION_1_0_STRING		"1.0"
-#define IMX_CHIP_REVISION_1_1_STRING		"1.1"
-#define IMX_CHIP_REVISION_1_2_STRING		"1.2"
-#define IMX_CHIP_REVISION_1_3_STRING		"1.3"
-#define IMX_CHIP_REVISION_2_0_STRING		"2.0"
-#define IMX_CHIP_REVISION_2_1_STRING		"2.1"
-#define IMX_CHIP_REVISION_2_2_STRING		"2.2"
-#define IMX_CHIP_REVISION_2_3_STRING		"2.3"
-#define IMX_CHIP_REVISION_3_0_STRING		"3.0"
-#define IMX_CHIP_REVISION_3_1_STRING		"3.1"
-#define IMX_CHIP_REVISION_3_2_STRING		"3.2"
-#define IMX_CHIP_REVISION_3_3_STRING		"3.3"
-#define IMX_CHIP_REVISION_UNKNOWN_STRING	"unknown"
-
 #ifndef __ASSEMBLY__
 extern unsigned int __mxc_cpu_type;
 #endif
@@ -182,7 +168,7 @@ struct cpu_op {
 	u32 cpu_rate;
 };
 
-int tzic_enable_wake(int is_idle);
+int tzic_enable_wake(void);
 
 extern struct cpu_op *(*get_cpu_op)(int *op);
 #endif

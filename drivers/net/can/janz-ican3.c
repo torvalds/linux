@@ -1803,20 +1803,9 @@ static struct platform_driver ican3_driver = {
 	.remove		= __devexit_p(ican3_remove),
 };
 
-static int __init ican3_init(void)
-{
-	return platform_driver_register(&ican3_driver);
-}
-
-static void __exit ican3_exit(void)
-{
-	platform_driver_unregister(&ican3_driver);
-}
+module_platform_driver(ican3_driver);
 
 MODULE_AUTHOR("Ira W. Snyder <iws@ovro.caltech.edu>");
 MODULE_DESCRIPTION("Janz MODULbus VMOD-ICAN3 Driver");
 MODULE_LICENSE("GPL");
 MODULE_ALIAS("platform:janz-ican3");
-
-module_init(ican3_init);
-module_exit(ican3_exit);

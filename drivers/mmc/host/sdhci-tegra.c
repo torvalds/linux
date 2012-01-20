@@ -318,26 +318,13 @@ static struct platform_driver sdhci_tegra_driver = {
 		.name	= "sdhci-tegra",
 		.owner	= THIS_MODULE,
 		.of_match_table = sdhci_tegra_dt_match,
+		.pm	= SDHCI_PLTFM_PMOPS,
 	},
 	.probe		= sdhci_tegra_probe,
 	.remove		= __devexit_p(sdhci_tegra_remove),
-#ifdef CONFIG_PM
-	.suspend	= sdhci_pltfm_suspend,
-	.resume		= sdhci_pltfm_resume,
-#endif
 };
 
-static int __init sdhci_tegra_init(void)
-{
-	return platform_driver_register(&sdhci_tegra_driver);
-}
-module_init(sdhci_tegra_init);
-
-static void __exit sdhci_tegra_exit(void)
-{
-	platform_driver_unregister(&sdhci_tegra_driver);
-}
-module_exit(sdhci_tegra_exit);
+module_platform_driver(sdhci_tegra_driver);
 
 MODULE_DESCRIPTION("SDHCI driver for Tegra");
 MODULE_AUTHOR(" Google, Inc.");

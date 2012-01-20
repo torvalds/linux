@@ -251,6 +251,7 @@ static inline struct at_dma_chan *to_at_dma_chan(struct dma_chan *dchan)
 /**
  * struct at_dma - internal representation of an Atmel HDMA Controller
  * @chan_common: common dmaengine dma_device object members
+ * @atdma_devtype: identifier of DMA controller compatibility
  * @ch_regs: memory mapped register base
  * @clk: dma controller clock
  * @save_imr: interrupt mask register that is saved on suspend/resume cycle

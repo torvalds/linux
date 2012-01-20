@@ -1351,9 +1351,9 @@ static int ufs_remount (struct super_block *sb, int *mount_flags, char *data)
 	return 0;
 }
 
-static int ufs_show_options(struct seq_file *seq, struct vfsmount *vfs)
+static int ufs_show_options(struct seq_file *seq, struct dentry *root)
 {
-	struct ufs_sb_info *sbi = UFS_SB(vfs->mnt_sb);
+	struct ufs_sb_info *sbi = UFS_SB(root->d_sb);
 	unsigned mval = sbi->s_mount_opt & UFS_MOUNT_UFSTYPE;
 	const struct match_token *tp = tokens;
 
@@ -1425,7 +1425,6 @@ static struct inode *ufs_alloc_inode(struct super_block *sb)
 static void ufs_i_callback(struct rcu_head *head)
 {
 	struct inode *inode = container_of(head, struct inode, i_rcu);
-	INIT_LIST_HEAD(&inode->i_dentry);
 	kmem_cache_free(ufs_inode_cachep, UFS_I(inode));
 }
 

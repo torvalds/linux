@@ -594,53 +594,44 @@ rmdir() will fail with it. From this behavior, pre_destroy() can be
 called multiple times against a cgroup.
 
 int can_attach(struct cgroup_subsys *ss, struct cgroup *cgrp,
-	       struct task_struct *task)
+	       struct cgroup_taskset *tset)
 (cgroup_mutex held by caller)
 
-Called prior to moving a task into a cgroup; if the subsystem
-returns an error, this will abort the attach operation.  If a NULL
-task is passed, then a successful result indicates that *any*
-unspecified task can be moved into the cgroup. Note that this isn't
-called on a fork. If this method returns 0 (success) then this should
-remain valid while the caller holds cgroup_mutex and it is ensured that either
+Called prior to moving one or more tasks into a cgroup; if the
+subsystem returns an error, this will abort the attach operation.
+@tset contains the tasks to be attached and is guaranteed to have at
+least one task in it.
+
+If there are multiple tasks in the taskset, then:
+  - it's guaranteed that all are from the same thread group
+  - @tset contains all tasks from the thread group whether or not
+    they're switching cgroups
+  - the first task is the leader
+
+Each @tset entry also contains the task's old cgroup and tasks which
+aren't switching cgroup can be skipped easily using the
+cgroup_taskset_for_each() iterator. Note that this isn't called on a
+fork. If this method returns 0 (success) then this should remain valid
+while the caller holds cgroup_mutex and it is ensured that either
 attach() or cancel_attach() will be called in future.
 
-int can_attach_task(struct cgroup *cgrp, struct task_struct *tsk);
-(cgroup_mutex held by caller)
-
-As can_attach, but for operations that must be run once per task to be
-attached (possibly many when using cgroup_attach_proc). Called after
-can_attach.
-
 void cancel_attach(struct cgroup_subsys *ss, struct cgroup *cgrp,
-	       struct task_struct *task, bool threadgroup)
+		   struct cgroup_taskset *tset)
 (cgroup_mutex held by caller)
 
 Called when a task attach operation has failed after can_attach() has succeeded.
 A subsystem whose can_attach() has some side-effects should provide this
 function, so that the subsystem can implement a rollback. If not, not necessary.
 This will be called only about subsystems whose can_attach() operation have
-succeeded.
-
-void pre_attach(struct cgroup *cgrp);
-(cgroup_mutex held by caller)
-
-For any non-per-thread attachment work that needs to happen before
-attach_task. Needed by cpuset.
+succeeded. The parameters are identical to can_attach().
 
 void attach(struct cgroup_subsys *ss, struct cgroup *cgrp,
-	    struct cgroup *old_cgrp, struct task_struct *task)
+	    struct cgroup_taskset *tset)
 (cgroup_mutex held by caller)
 
 Called after the task has been attached to the cgroup, to allow any
 post-attachment activity that requires memory allocations or blocking.
-
-void attach_task(struct cgroup *cgrp, struct task_struct *tsk);
-(cgroup_mutex held by caller)
-
-As attach, but for operations that must be run once per task to be attached,
-like can_attach_task. Called before attach. Currently does not support any
-subsystem that might need the old_cgrp for every thread in the group.
+The parameters are identical to can_attach().
 
 void fork(struct cgroup_subsy *ss, struct task_struct *task)
 

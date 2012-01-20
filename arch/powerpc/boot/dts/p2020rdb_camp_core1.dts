@@ -15,26 +15,16 @@
  * option) any later version.
  */
 
-/include/ "p2020si.dtsi"
+/include/ "p2020rdb.dts"
 
 / {
 	model = "fsl,P2020RDB";
 	compatible = "fsl,P2020RDB", "fsl,MPC85XXRDB-CAMP";
 
-	aliases {
-		ethernet0 = &enet0;
-		serial0 = &serial1;
-		pci1 = &pci1;
-	};
-
 	cpus {
 		PowerPC,P2020@0 {
-		status = "disabled";
+			status = "disabled";
 		};
-	};
-
-	memory {
-		device_type = "memory";
 	};
 
 	localbus@ffe05000 {
@@ -70,53 +60,8 @@
 			status = "disabled";
 		};
 
-		dma@c300 {
-			#address-cells = <1>;
-			#size-cells = <1>;
-			compatible = "fsl,eloplus-dma";
-			reg = <0xc300 0x4>;
-			ranges = <0x0 0xc100 0x200>;
-			cell-index = <1>;
-			dma-channel@0 {
-				compatible = "fsl,eloplus-dma-channel";
-				reg = <0x0 0x80>;
-				cell-index = <0>;
-				interrupt-parent = <&mpic>;
-				interrupts = <76 2>;
-			};
-			dma-channel@80 {
-				compatible = "fsl,eloplus-dma-channel";
-				reg = <0x80 0x80>;
-				cell-index = <1>;
-				interrupt-parent = <&mpic>;
-				interrupts = <77 2>;
-			};
-			dma-channel@100 {
-				compatible = "fsl,eloplus-dma-channel";
-				reg = <0x100 0x80>;
-				cell-index = <2>;
-				interrupt-parent = <&mpic>;
-				interrupts = <78 2>;
-			};
-			dma-channel@180 {
-				compatible = "fsl,eloplus-dma-channel";
-				reg = <0x180 0x80>;
-				cell-index = <3>;
-				interrupt-parent = <&mpic>;
-				interrupts = <79 2>;
-			};
-		};
-
 		gpio: gpio-controller@f000 {
 			status = "disabled";
-		};
-
-		L2: l2-cache-controller@20000 {
-			compatible = "fsl,p2020-l2-cache-controller";
-			reg = <0x20000 0x1000>;
-			cache-line-size = <32>;	// 32 bytes
-			cache-size = <0x80000>; // L2,512K
-			interrupt-parent = <&mpic>;
 		};
 
 		dma@21300 {
@@ -137,12 +82,6 @@
 
 		mdio@26520 {
 			status = "disabled";
-		};
-
-		enet0: ethernet@24000 {
-			fixed-link = <1 1 1000 0 0>;
-			phy-connection-type = "rgmii-id";
-
 		};
 
 		enet1: ethernet@25000 {
@@ -170,22 +109,6 @@
 			>;
 		};
 
-		msi@41600 {
-			compatible = "fsl,p2020-msi", "fsl,mpic-msi";
-			reg = <0x41600 0x80>;
-			msi-available-ranges = <0 0x100>;
-			interrupts = <
-				0xe0 0
-				0xe1 0
-				0xe2 0
-				0xe3 0
-				0xe4 0
-				0xe5 0
-				0xe6 0
-				0xe7 0>;
-			interrupt-parent = <&mpic>;
-		};
-
 		global-utilities@e0000 {	//global utilities block
 			status = "disabled";
 		};
@@ -198,31 +121,5 @@
 
 	pci1: pcie@ffe09000 {
 		status = "disabled";
-	};
-
-	pci2: pcie@ffe0a000 {
-		ranges = <0x2000000 0x0 0x80000000 0 0x80000000 0x0 0x20000000
-			  0x1000000 0x0 0x00000000 0 0xffc00000 0x0 0x10000>;
-		interrupt-map-mask = <0xf800 0x0 0x0 0x7>;
-		interrupt-map = <
-			/* IDSEL 0x0 */
-			0000 0x0 0x0 0x1 &mpic 0x0 0x1
-			0000 0x0 0x0 0x2 &mpic 0x1 0x1
-			0000 0x0 0x0 0x3 &mpic 0x2 0x1
-			0000 0x0 0x0 0x4 &mpic 0x3 0x1
-			>;
-		pcie@0 {
-			reg = <0x0 0x0 0x0 0x0 0x0>;
-			#size-cells = <2>;
-			#address-cells = <3>;
-			device_type = "pci";
-			ranges = <0x2000000 0x0 0x80000000
-				  0x2000000 0x0 0x80000000
-				  0x0 0x20000000
-
-				  0x1000000 0x0 0x0
-				  0x1000000 0x0 0x0
-				  0x0 0x100000>;
-		};
 	};
 };

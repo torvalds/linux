@@ -930,7 +930,6 @@ static int ext4_drop_inode(struct inode *inode)
 static void ext4_i_callback(struct rcu_head *head)
 {
 	struct inode *inode = container_of(head, struct inode, i_rcu);
-	INIT_LIST_HEAD(&inode->i_dentry);
 	kmem_cache_free(ext4_inode_cachep, EXT4_I(inode));
 }
 
@@ -1033,11 +1032,11 @@ static inline void ext4_show_quota_options(struct seq_file *seq,
  *  - it's set to a non-default value OR
  *  - if the per-sb default is different from the global default
  */
-static int ext4_show_options(struct seq_file *seq, struct vfsmount *vfs)
+static int ext4_show_options(struct seq_file *seq, struct dentry *root)
 {
 	int def_errors;
 	unsigned long def_mount_opts;
-	struct super_block *sb = vfs->mnt_sb;
+	struct super_block *sb = root->d_sb;
 	struct ext4_sb_info *sbi = EXT4_SB(sb);
 	struct ext4_super_block *es = sbi->s_es;
 
@@ -1096,7 +1095,7 @@ static int ext4_show_options(struct seq_file *seq, struct vfsmount *vfs)
 	}
 	if (sbi->s_max_batch_time != EXT4_DEF_MAX_BATCH_TIME) {
 		seq_printf(seq, ",max_batch_time=%u",
-			   (unsigned) sbi->s_min_batch_time);
+			   (unsigned) sbi->s_max_batch_time);
 	}
 
 	/*
@@ -1155,9 +1154,9 @@ static int ext4_show_options(struct seq_file *seq, struct vfsmount *vfs)
 		seq_puts(seq, ",block_validity");
 
 	if (!test_opt(sb, INIT_INODE_TABLE))
-		seq_puts(seq, ",noinit_inode_table");
+		seq_puts(seq, ",noinit_itable");
 	else if (sbi->s_li_wait_mult != EXT4_DEF_LI_WAIT_MULT)
-		seq_printf(seq, ",init_inode_table=%u",
+		seq_printf(seq, ",init_itable=%u",
 			   (unsigned) sbi->s_li_wait_mult);
 
 	ext4_show_quota_options(seq, sb);
@@ -1333,8 +1332,7 @@ enum {
 	Opt_nomblk_io_submit, Opt_block_validity, Opt_noblock_validity,
 	Opt_inode_readahead_blks, Opt_journal_ioprio,
 	Opt_dioread_nolock, Opt_dioread_lock,
-	Opt_discard, Opt_nodiscard,
-	Opt_init_inode_table, Opt_noinit_inode_table,
+	Opt_discard, Opt_nodiscard, Opt_init_itable, Opt_noinit_itable,
 };
 
 static const match_table_t tokens = {
@@ -1407,9 +1405,9 @@ static const match_table_t tokens = {
 	{Opt_dioread_lock, "dioread_lock"},
 	{Opt_discard, "discard"},
 	{Opt_nodiscard, "nodiscard"},
-	{Opt_init_inode_table, "init_itable=%u"},
-	{Opt_init_inode_table, "init_itable"},
-	{Opt_noinit_inode_table, "noinit_itable"},
+	{Opt_init_itable, "init_itable=%u"},
+	{Opt_init_itable, "init_itable"},
+	{Opt_noinit_itable, "noinit_itable"},
 	{Opt_err, NULL},
 };
 
@@ -1892,7 +1890,7 @@ set_qf_format:
 		case Opt_dioread_lock:
 			clear_opt(sb, DIOREAD_NOLOCK);
 			break;
-		case Opt_init_inode_table:
+		case Opt_init_itable:
 			set_opt(sb, INIT_INODE_TABLE);
 			if (args[0].from) {
 				if (match_int(&args[0], &option))
@@ -1903,7 +1901,7 @@ set_qf_format:
 				return 0;
 			sbi->s_li_wait_mult = option;
 			break;
-		case Opt_noinit_inode_table:
+		case Opt_noinit_itable:
 			clear_opt(sb, INIT_INODE_TABLE);
 			break;
 		default:
@@ -2007,17 +2005,16 @@ static int ext4_fill_flex_info(struct super_block *sb)
 	struct ext4_group_desc *gdp = NULL;
 	ext4_group_t flex_group_count;
 	ext4_group_t flex_group;
-	int groups_per_flex = 0;
+	unsigned int groups_per_flex = 0;
 	size_t size;
 	int i;
 
 	sbi->s_log_groups_per_flex = sbi->s_es->s_log_groups_per_flex;
-	groups_per_flex = 1 << sbi->s_log_groups_per_flex;
-
-	if (groups_per_flex < 2) {
+	if (sbi->s_log_groups_per_flex < 1 || sbi->s_log_groups_per_flex > 31) {
 		sbi->s_log_groups_per_flex = 0;
 		return 1;
 	}
+	groups_per_flex = 1 << sbi->s_log_groups_per_flex;
 
 	/* We allocate both existing and potentially added groups */
 	flex_group_count = ((sbi->s_groups_count + groups_per_flex - 1) +
@@ -2884,8 +2881,7 @@ cont_thread:
 		}
 		mutex_unlock(&eli->li_list_mtx);
 
-		if (freezing(current))
-			refrigerator();
+		try_to_freeze();
 
 		cur = jiffies;
 		if ((time_after_eq(cur, next_wakeup)) ||
@@ -3509,7 +3505,7 @@ static int ext4_fill_super(struct super_block *sb, void *data, int silent)
 	 * of the filesystem.
 	 */
 	if (le32_to_cpu(es->s_first_data_block) >= ext4_blocks_count(es)) {
-                ext4_msg(sb, KERN_WARNING, "bad geometry: first data"
+		ext4_msg(sb, KERN_WARNING, "bad geometry: first data "
 			 "block %u is beyond end of filesystem (%llu)",
 			 le32_to_cpu(es->s_first_data_block),
 			 ext4_blocks_count(es));
@@ -3736,10 +3732,12 @@ no_journal:
 	}
 	if (!S_ISDIR(root->i_mode) || !root->i_blocks || !root->i_size) {
 		ext4_msg(sb, KERN_ERR, "corrupt root inode, run e2fsck");
+		iput(root);
 		goto failed_mount4;
 	}
 	sb->s_root = d_alloc_root(root);
 	if (!sb->s_root) {
+		iput(root);
 		ext4_msg(sb, KERN_ERR, "get root dentry failed");
 		ret = -ENOMEM;
 		goto failed_mount4;
@@ -3776,7 +3774,7 @@ no_journal:
 	if (err) {
 		ext4_msg(sb, KERN_ERR, "failed to initialize system "
 			 "zone (%d)", err);
-		goto failed_mount4;
+		goto failed_mount4a;
 	}
 
 	ext4_ext_init(sb);
@@ -3833,13 +3831,14 @@ cantfind_ext4:
 failed_mount7:
 	ext4_unregister_li_request(sb);
 failed_mount6:
-	ext4_ext_release(sb);
-failed_mount5:
 	ext4_mb_release(sb);
+failed_mount5:
+	ext4_ext_release(sb);
 	ext4_release_system_zone(sb);
-failed_mount4:
-	iput(root);
+failed_mount4a:
+	dput(sb->s_root);
 	sb->s_root = NULL;
+failed_mount4:
 	ext4_msg(sb, KERN_ERR, "mount failed");
 	destroy_workqueue(EXT4_SB(sb)->dio_unwritten_wq);
 failed_mount_wq:
@@ -4783,7 +4782,7 @@ static int ext4_quota_on(struct super_block *sb, int type, int format_id,
 		return -EINVAL;
 
 	/* Quotafile not on the same filesystem? */
-	if (path->mnt->mnt_sb != sb)
+	if (path->dentry->d_sb != sb)
 		return -EXDEV;
 	/* Journaling quota? */
 	if (EXT4_SB(sb)->s_qf_names[type]) {

@@ -113,7 +113,7 @@ static int h3_panel_resume(struct platform_device *pdev)
 	return 0;
 }
 
-struct platform_driver h3_panel_driver = {
+static struct platform_driver h3_panel_driver = {
 	.probe		= h3_panel_probe,
 	.remove		= h3_panel_remove,
 	.suspend	= h3_panel_suspend,
@@ -124,16 +124,4 @@ struct platform_driver h3_panel_driver = {
 	},
 };
 
-static int __init h3_panel_drv_init(void)
-{
-	return platform_driver_register(&h3_panel_driver);
-}
-
-static void __exit h3_panel_drv_cleanup(void)
-{
-	platform_driver_unregister(&h3_panel_driver);
-}
-
-module_init(h3_panel_drv_init);
-module_exit(h3_panel_drv_cleanup);
-
+module_platform_driver(h3_panel_driver);

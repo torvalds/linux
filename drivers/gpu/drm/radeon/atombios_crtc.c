@@ -554,7 +554,7 @@ static u32 atombios_adjust_pll(struct drm_crtc *crtc,
 		if (encoder->crtc == crtc) {
 			radeon_encoder = to_radeon_encoder(encoder);
 			connector = radeon_get_connector_for_encoder(encoder);
-			if (connector)
+			if (connector && connector->display_info.bpc)
 				bpc = connector->display_info.bpc;
 			encoder_mode = atombios_get_encoder_mode(encoder);
 			if ((radeon_encoder->devices & (ATOM_DEVICE_LCD_SUPPORT | ATOM_DEVICE_DFP_SUPPORT)) ||
@@ -1107,9 +1107,40 @@ static int dce4_crtc_do_set_base(struct drm_crtc *crtc,
 		return -EINVAL;
 	}
 
-	if (tiling_flags & RADEON_TILING_MACRO)
+	if (tiling_flags & RADEON_TILING_MACRO) {
+		if (rdev->family >= CHIP_CAYMAN)
+			tmp = rdev->config.cayman.tile_config;
+		else
+			tmp = rdev->config.evergreen.tile_config;
+
+		switch ((tmp & 0xf0) >> 4) {
+		case 0: /* 4 banks */
+			fb_format |= EVERGREEN_GRPH_NUM_BANKS(EVERGREEN_ADDR_SURF_4_BANK);
+			break;
+		case 1: /* 8 banks */
+		default:
+			fb_format |= EVERGREEN_GRPH_NUM_BANKS(EVERGREEN_ADDR_SURF_8_BANK);
+			break;
+		case 2: /* 16 banks */
+			fb_format |= EVERGREEN_GRPH_NUM_BANKS(EVERGREEN_ADDR_SURF_16_BANK);
+			break;
+		}
+
+		switch ((tmp & 0xf000) >> 12) {
+		case 0: /* 1KB rows */
+		default:
+			fb_format |= EVERGREEN_GRPH_TILE_SPLIT(EVERGREEN_ADDR_SURF_TILE_SPLIT_1KB);
+			break;
+		case 1: /* 2KB rows */
+			fb_format |= EVERGREEN_GRPH_TILE_SPLIT(EVERGREEN_ADDR_SURF_TILE_SPLIT_2KB);
+			break;
+		case 2: /* 4KB rows */
+			fb_format |= EVERGREEN_GRPH_TILE_SPLIT(EVERGREEN_ADDR_SURF_TILE_SPLIT_4KB);
+			break;
+		}
+
 		fb_format |= EVERGREEN_GRPH_ARRAY_MODE(EVERGREEN_GRPH_ARRAY_2D_TILED_THIN1);
-	else if (tiling_flags & RADEON_TILING_MICRO)
+	} else if (tiling_flags & RADEON_TILING_MICRO)
 		fb_format |= EVERGREEN_GRPH_ARRAY_MODE(EVERGREEN_GRPH_ARRAY_1D_TILED_THIN1);
 
 	switch (radeon_crtc->crtc_id) {
@@ -1153,7 +1184,7 @@ static int dce4_crtc_do_set_base(struct drm_crtc *crtc,
 	WREG32(EVERGREEN_GRPH_X_END + radeon_crtc->crtc_offset, target_fb->width);
 	WREG32(EVERGREEN_GRPH_Y_END + radeon_crtc->crtc_offset, target_fb->height);
 
-	fb_pitch_pixels = target_fb->pitch / (target_fb->bits_per_pixel / 8);
+	fb_pitch_pixels = target_fb->pitches[0] / (target_fb->bits_per_pixel / 8);
 	WREG32(EVERGREEN_GRPH_PITCH + radeon_crtc->crtc_offset, fb_pitch_pixels);
 	WREG32(EVERGREEN_GRPH_ENABLE + radeon_crtc->crtc_offset, 1);
 
@@ -1322,7 +1353,7 @@ static int avivo_crtc_do_set_base(struct drm_crtc *crtc,
 	WREG32(AVIVO_D1GRPH_X_END + radeon_crtc->crtc_offset, target_fb->width);
 	WREG32(AVIVO_D1GRPH_Y_END + radeon_crtc->crtc_offset, target_fb->height);
 
-	fb_pitch_pixels = target_fb->pitch / (target_fb->bits_per_pixel / 8);
+	fb_pitch_pixels = target_fb->pitches[0] / (target_fb->bits_per_pixel / 8);
 	WREG32(AVIVO_D1GRPH_PITCH + radeon_crtc->crtc_offset, fb_pitch_pixels);
 	WREG32(AVIVO_D1GRPH_ENABLE + radeon_crtc->crtc_offset, 1);
 
