@@ -4083,7 +4083,6 @@ static int nl80211_send_bss(struct sk_buff *msg, struct netlink_callback *cb,
 	struct cfg80211_bss *res = &intbss->pub;
 	void *hdr;
 	struct nlattr *bss;
-	int i;
 
 	ASSERT_WDEV_LOCK(wdev);
 
@@ -4136,13 +4135,6 @@ static int nl80211_send_bss(struct sk_buff *msg, struct netlink_callback *cb,
 		if (intbss == wdev->current_bss)
 			NLA_PUT_U32(msg, NL80211_BSS_STATUS,
 				    NL80211_BSS_STATUS_ASSOCIATED);
-		else for (i = 0; i < MAX_AUTH_BSSES; i++) {
-			if (intbss != wdev->auth_bsses[i])
-				continue;
-			NLA_PUT_U32(msg, NL80211_BSS_STATUS,
-				    NL80211_BSS_STATUS_AUTHENTICATED);
-			break;
-		}
 		break;
 	case NL80211_IFTYPE_ADHOC:
 		if (intbss == wdev->current_bss)
@@ -4410,10 +4402,16 @@ static int nl80211_authenticate(struct sk_buff *skb, struct genl_info *info)
 
 	local_state_change = !!info->attrs[NL80211_ATTR_LOCAL_STATE_CHANGE];
 
+	/*
+	 * Since we no longer track auth state, ignore
+	 * requests to only change local state.
+	 */
+	if (local_state_change)
+		return 0;
+
 	return cfg80211_mlme_auth(rdev, dev, chan, auth_type, bssid,
 				  ssid, ssid_len, ie, ie_len,
-				  key.p.key, key.p.key_len, key.idx,
-				  local_state_change);
+				  key.p.key, key.p.key_len, key.idx);
 }
 
 static int nl80211_crypto_settings(struct cfg80211_registered_device *rdev,

@@ -2459,9 +2459,6 @@ int ieee80211_mgd_auth(struct ieee80211_sub_if_data *sdata,
 	struct ieee80211_work *wk;
 	u16 auth_alg;
 
-	if (req->local_state_change)
-		return 0; /* no need to update mac80211 state */
-
 	switch (req->auth_type) {
 	case NL80211_AUTHTYPE_OPEN_SYSTEM:
 		auth_alg = WLAN_AUTH_OPEN;
@@ -2593,7 +2590,7 @@ static enum work_done_result ieee80211_assoc_done(struct ieee80211_work *wk,
 		sta_info_destroy_addr(wk->sdata, cbss->bssid);
 	}
 
-	cfg80211_send_rx_assoc(wk->sdata->dev, skb->data, skb->len);
+	cfg80211_send_rx_assoc(wk->sdata->dev, cbss, skb->data, skb->len);
  destroy:
 	if (wk->assoc.synced)
 		drv_finish_tx_sync(local, wk->sdata, wk->filter_ta,
@@ -2750,13 +2747,12 @@ int ieee80211_mgd_deauth(struct ieee80211_sub_if_data *sdata,
 {
 	struct ieee80211_local *local = sdata->local;
 	struct ieee80211_if_managed *ifmgd = &sdata->u.mgd;
-	u8 bssid[ETH_ALEN];
 	bool assoc_bss = false;
 
 	mutex_lock(&ifmgd->mtx);
 
-	memcpy(bssid, req->bss->bssid, ETH_ALEN);
-	if (ifmgd->associated == req->bss) {
+	if (ifmgd->associated &&
+	    memcmp(ifmgd->associated->bssid, req->bssid, ETH_ALEN) == 0) {
 		ieee80211_set_disassoc(sdata, false, true);
 		mutex_unlock(&ifmgd->mtx);
 		assoc_bss = true;
@@ -2777,7 +2773,7 @@ int ieee80211_mgd_deauth(struct ieee80211_sub_if_data *sdata,
 			    tmp->type != IEEE80211_WORK_ASSOC_BEACON_WAIT)
 				continue;
 
-			if (memcmp(req->bss->bssid, tmp->filter_ta, ETH_ALEN))
+			if (memcmp(req->bssid, tmp->filter_ta, ETH_ALEN))
 				continue;
 
 			not_auth_yet = tmp->type == IEEE80211_WORK_DIRECT_PROBE;
@@ -2811,18 +2807,15 @@ int ieee80211_mgd_deauth(struct ieee80211_sub_if_data *sdata,
 		 * frame, and if it's IDLE we have completed the auth
 		 * process already.
 		 */
-		if (not_auth_yet) {
-			__cfg80211_auth_canceled(sdata->dev, bssid);
+		if (not_auth_yet)
 			return 0;
-		}
 	}
 
 	printk(KERN_DEBUG "%s: deauthenticating from %pM by local choice (reason=%d)\n",
-	       sdata->name, bssid, req->reason_code);
+	       sdata->name, req->bssid, req->reason_code);
 
-	ieee80211_send_deauth_disassoc(sdata, bssid, IEEE80211_STYPE_DEAUTH,
-				       req->reason_code, cookie,
-				       !req->local_state_change);
+	ieee80211_send_deauth_disassoc(sdata, req->bssid, IEEE80211_STYPE_DEAUTH,
+				       req->reason_code, cookie, true);
 	if (assoc_bss)
 		sta_info_flush(sdata->local, sdata);
 
