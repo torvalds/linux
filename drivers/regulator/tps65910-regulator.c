@@ -83,8 +83,8 @@ struct tps_info {
 	const char *name;
 	unsigned min_uV;
 	unsigned max_uV;
-	u8 table_len;
-	const u16 *table;
+	u8 n_voltages;
+	const u16 *voltage_table;
 };
 
 static struct tps_info tps65910_regs[] = {
@@ -95,8 +95,8 @@ static struct tps_info tps65910_regs[] = {
 		.name = "VIO",
 		.min_uV = 1500000,
 		.max_uV = 3300000,
-		.table_len = ARRAY_SIZE(VIO_VSEL_table),
-		.table = VIO_VSEL_table,
+		.n_voltages = ARRAY_SIZE(VIO_VSEL_table),
+		.voltage_table = VIO_VSEL_table,
 	},
 	{
 		.name = "VDD1",
@@ -112,64 +112,64 @@ static struct tps_info tps65910_regs[] = {
 		.name = "VDD3",
 		.min_uV = 5000000,
 		.max_uV = 5000000,
-		.table_len = ARRAY_SIZE(VDD3_VSEL_table),
-		.table = VDD3_VSEL_table,
+		.n_voltages = ARRAY_SIZE(VDD3_VSEL_table),
+		.voltage_table = VDD3_VSEL_table,
 	},
 	{
 		.name = "VDIG1",
 		.min_uV = 1200000,
 		.max_uV = 2700000,
-		.table_len = ARRAY_SIZE(VDIG1_VSEL_table),
-		.table = VDIG1_VSEL_table,
+		.n_voltages = ARRAY_SIZE(VDIG1_VSEL_table),
+		.voltage_table = VDIG1_VSEL_table,
 	},
 	{
 		.name = "VDIG2",
 		.min_uV = 1000000,
 		.max_uV = 1800000,
-		.table_len = ARRAY_SIZE(VDIG2_VSEL_table),
-		.table = VDIG2_VSEL_table,
+		.n_voltages = ARRAY_SIZE(VDIG2_VSEL_table),
+		.voltage_table = VDIG2_VSEL_table,
 	},
 	{
 		.name = "VPLL",
 		.min_uV = 1000000,
 		.max_uV = 2500000,
-		.table_len = ARRAY_SIZE(VPLL_VSEL_table),
-		.table = VPLL_VSEL_table,
+		.n_voltages = ARRAY_SIZE(VPLL_VSEL_table),
+		.voltage_table = VPLL_VSEL_table,
 	},
 	{
 		.name = "VDAC",
 		.min_uV = 1800000,
 		.max_uV = 2850000,
-		.table_len = ARRAY_SIZE(VDAC_VSEL_table),
-		.table = VDAC_VSEL_table,
+		.n_voltages = ARRAY_SIZE(VDAC_VSEL_table),
+		.voltage_table = VDAC_VSEL_table,
 	},
 	{
 		.name = "VAUX1",
 		.min_uV = 1800000,
 		.max_uV = 2850000,
-		.table_len = ARRAY_SIZE(VAUX1_VSEL_table),
-		.table = VAUX1_VSEL_table,
+		.n_voltages = ARRAY_SIZE(VAUX1_VSEL_table),
+		.voltage_table = VAUX1_VSEL_table,
 	},
 	{
 		.name = "VAUX2",
 		.min_uV = 1800000,
 		.max_uV = 3300000,
-		.table_len = ARRAY_SIZE(VAUX2_VSEL_table),
-		.table = VAUX2_VSEL_table,
+		.n_voltages = ARRAY_SIZE(VAUX2_VSEL_table),
+		.voltage_table = VAUX2_VSEL_table,
 	},
 	{
 		.name = "VAUX33",
 		.min_uV = 1800000,
 		.max_uV = 3300000,
-		.table_len = ARRAY_SIZE(VAUX33_VSEL_table),
-		.table = VAUX33_VSEL_table,
+		.n_voltages = ARRAY_SIZE(VAUX33_VSEL_table),
+		.voltage_table = VAUX33_VSEL_table,
 	},
 	{
 		.name = "VMMC",
 		.min_uV = 1800000,
 		.max_uV = 3300000,
-		.table_len = ARRAY_SIZE(VMMC_VSEL_table),
-		.table = VMMC_VSEL_table,
+		.n_voltages = ARRAY_SIZE(VMMC_VSEL_table),
+		.voltage_table = VMMC_VSEL_table,
 	},
 };
 
@@ -181,74 +181,74 @@ static struct tps_info tps65911_regs[] = {
 		.name = "VIO",
 		.min_uV = 1500000,
 		.max_uV = 3300000,
-		.table_len = ARRAY_SIZE(VIO_VSEL_table),
-		.table = VIO_VSEL_table,
+		.n_voltages = ARRAY_SIZE(VIO_VSEL_table),
+		.voltage_table = VIO_VSEL_table,
 	},
 	{
 		.name = "VDD1",
 		.min_uV = 600000,
 		.max_uV = 4500000,
-		.table_len = 73,
+		.n_voltages = 73,
 	},
 	{
 		.name = "VDD2",
 		.min_uV = 600000,
 		.max_uV = 4500000,
-		.table_len = 73,
+		.n_voltages = 73,
 	},
 	{
 		.name = "VDDCTRL",
 		.min_uV = 600000,
 		.max_uV = 1400000,
-		.table_len = 65,
+		.n_voltages = 65,
 	},
 	{
 		.name = "LDO1",
 		.min_uV = 1000000,
 		.max_uV = 3300000,
-		.table_len = 47,
+		.n_voltages = 47,
 	},
 	{
 		.name = "LDO2",
 		.min_uV = 1000000,
 		.max_uV = 3300000,
-		.table_len = 47,
+		.n_voltages = 47,
 	},
 	{
 		.name = "LDO3",
 		.min_uV = 1000000,
 		.max_uV = 3300000,
-		.table_len = 24,
+		.n_voltages = 24,
 	},
 	{
 		.name = "LDO4",
 		.min_uV = 1000000,
 		.max_uV = 3300000,
-		.table_len = 47,
+		.n_voltages = 47,
 	},
 	{
 		.name = "LDO5",
 		.min_uV = 1000000,
 		.max_uV = 3300000,
-		.table_len = 24,
+		.n_voltages = 24,
 	},
 	{
 		.name = "LDO6",
 		.min_uV = 1000000,
 		.max_uV = 3300000,
-		.table_len = 24,
+		.n_voltages = 24,
 	},
 	{
 		.name = "LDO7",
 		.min_uV = 1000000,
 		.max_uV = 3300000,
-		.table_len = 24,
+		.n_voltages = 24,
 	},
 	{
 		.name = "LDO8",
 		.min_uV = 1000000,
 		.max_uV = 3300000,
-		.table_len = 24,
+		.n_voltages = 24,
 	},
 };
 
@@ -586,7 +586,7 @@ static int tps65910_get_voltage(struct regulator_dev *dev)
 		return -EINVAL;
 	}
 
-	voltage = pmic->info[id]->table[value] * 1000;
+	voltage = pmic->info[id]->voltage_table[value] * 1000;
 
 	return voltage;
 }
@@ -636,7 +636,7 @@ static int tps65911_get_voltage(struct regulator_dev *dev)
 		step_mv = 100;
 		break;
 	case TPS65910_REG_VIO:
-		return pmic->info[id]->table[value] * 1000;
+		return pmic->info[id]->voltage_table[value] * 1000;
 		break;
 	default:
 		return -EINVAL;
@@ -770,10 +770,10 @@ static int tps65910_list_voltage(struct regulator_dev *dev,
 	if (id < TPS65910_REG_VIO || id > TPS65910_REG_VMMC)
 		return -EINVAL;
 
-	if (selector >= pmic->info[id]->table_len)
+	if (selector >= pmic->info[id]->n_voltages)
 		return -EINVAL;
 	else
-		voltage = pmic->info[id]->table[selector] * 1000;
+		voltage = pmic->info[id]->voltage_table[selector] * 1000;
 
 	return voltage;
 }
@@ -809,7 +809,7 @@ static int tps65911_list_voltage(struct regulator_dev *dev, unsigned selector)
 		step_mv = 100;
 		break;
 	case TPS65910_REG_VIO:
-		return pmic->info[id]->table[selector] * 1000;
+		return pmic->info[id]->voltage_table[selector] * 1000;
 	default:
 		return -EINVAL;
 	}
@@ -940,7 +940,7 @@ static __devinit int tps65910_probe(struct platform_device *pdev)
 
 		pmic->desc[i].name = info->name;
 		pmic->desc[i].id = i;
-		pmic->desc[i].n_voltages = info->table_len;
+		pmic->desc[i].n_voltages = info->n_voltages;
 
 		if (i == TPS65910_REG_VDD1 || i == TPS65910_REG_VDD2) {
 			pmic->desc[i].ops = &tps65910_ops_dcdc;
