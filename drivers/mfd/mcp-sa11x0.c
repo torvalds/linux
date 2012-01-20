@@ -166,15 +166,6 @@ static int mcp_sa11x0_probe(struct platform_device *pdev)
 	}
 
 	/*
-	 * Setup the PPC unit correctly.
-	 */
-	PPDR &= ~PPC_RXD4;
-	PPDR |= PPC_TXD4 | PPC_SCLK | PPC_SFRM;
-	PSDR |= PPC_RXD4;
-	PSDR &= ~(PPC_TXD4 | PPC_SCLK | PPC_SFRM);
-	PPSR &= ~(PPC_TXD4 | PPC_SCLK | PPC_SFRM);
-
-	/*
 	 * Initialise device.  Note that we initially
 	 * set the sampling rate to minimum.
 	 */

@@ -341,6 +341,8 @@ static void __init collie_init(void)
 
 	GPSR |= _COLLIE_GPIO_UCB1x00_RESET;
 
+	sa11x0_ppc_configure_mcp();
+
 
 	platform_scoop_config = &collie_pcmcia_config;
 

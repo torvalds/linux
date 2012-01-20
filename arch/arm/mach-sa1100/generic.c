@@ -240,6 +240,16 @@ static struct platform_device sa11x0mcp_device = {
 	.resource	= sa11x0mcp_resources,
 };
 
+void __init sa11x0_ppc_configure_mcp(void)
+{
+	/* Setup the PPC unit for the MCP */
+	PPDR &= ~PPC_RXD4;
+	PPDR |= PPC_TXD4 | PPC_SCLK | PPC_SFRM;
+	PSDR |= PPC_RXD4;
+	PSDR &= ~(PPC_TXD4 | PPC_SCLK | PPC_SFRM);
+	PPSR &= ~(PPC_TXD4 | PPC_SCLK | PPC_SFRM);
+}
+
 void sa11x0_register_mcp(struct mcp_plat_data *data)
 {
 	sa11x0_register_device(&sa11x0mcp_device, data);

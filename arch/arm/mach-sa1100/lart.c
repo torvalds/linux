@@ -28,6 +28,7 @@ static struct mcp_plat_data lart_mcp_data = {
 
 static void __init lart_init(void)
 {
+	sa11x0_ppc_configure_mcp();
 	sa11x0_register_mcp(&lart_mcp_data);
 }
 
