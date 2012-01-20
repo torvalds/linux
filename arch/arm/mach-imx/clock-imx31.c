@@ -32,7 +32,7 @@
 #include <mach/mx31.h>
 #include <mach/common.h>
 
-#include "crmregs-imx31.h"
+#include "crmregs-imx3.h"
 
 #define PRE_DIV_MIN_FREQ    10000000 /* Minimum Frequency after Predivider */
 
