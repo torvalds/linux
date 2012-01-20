@@ -144,11 +144,6 @@ static inline struct cfg80211_internal_bss *bss_from_pub(struct cfg80211_bss *pu
 	return container_of(pub, struct cfg80211_internal_bss, pub);
 }
 
-static inline void cfg80211_ref_bss(struct cfg80211_internal_bss *bss)
-{
-	kref_get(&bss->ref);
-}
-
 static inline void cfg80211_hold_bss(struct cfg80211_internal_bss *bss)
 {
 	atomic_inc(&bss->hold);
