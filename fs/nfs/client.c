@@ -1199,33 +1199,6 @@ error:
 /*
  * NFSv4.0 callback thread helper
  *
- * Find a client by IP address, protocol version, and minorversion
- *
- * Called from the pg_authenticate method. The callback identifier
- * is not used as it has not been decoded.
- *
- * Returns NULL if no such client
- */
-struct nfs_client *
-nfs4_find_client_no_ident(const struct sockaddr *addr)
-{
-	struct nfs_client *clp;
-
-	spin_lock(&nfs_client_lock);
-	list_for_each_entry(clp, &nfs_client_list, cl_share_link) {
-		if (nfs4_cb_match_client(addr, clp, 0) == false)
-			continue;
-		atomic_inc(&clp->cl_count);
-		spin_unlock(&nfs_client_lock);
-		return clp;
-	}
-	spin_unlock(&nfs_client_lock);
-	return NULL;
-}
-
-/*
- * NFSv4.0 callback thread helper
- *
  * Find a client by callback identifier
  */
 struct nfs_client *
