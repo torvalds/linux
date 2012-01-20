@@ -213,18 +213,7 @@ static struct spi_driver lm70_driver = {
 	.remove	= __devexit_p(lm70_remove),
 };
 
-static int __init init_lm70(void)
-{
-	return spi_register_driver(&lm70_driver);
-}
-
-static void __exit cleanup_lm70(void)
-{
-	spi_unregister_driver(&lm70_driver);
-}
-
-module_init(init_lm70);
-module_exit(cleanup_lm70);
+module_spi_driver(lm70_driver);
 
 MODULE_AUTHOR("Kaiwan N Billimoria");
 MODULE_DESCRIPTION("NS LM70 / TI TMP121/TMP123 Linux driver");

@@ -234,18 +234,7 @@ static struct spi_driver ads7871_driver = {
 	.remove = __devexit_p(ads7871_remove),
 };
 
-static int __init ads7871_init(void)
-{
-	return spi_register_driver(&ads7871_driver);
-}
-
-static void __exit ads7871_exit(void)
-{
-	spi_unregister_driver(&ads7871_driver);
-}
-
-module_init(ads7871_init);
-module_exit(ads7871_exit);
+module_spi_driver(ads7871_driver);
 
 MODULE_AUTHOR("Paul Thomas <pthomas8589@gmail.com>");
 MODULE_DESCRIPTION("TI ADS7871 A/D driver");
