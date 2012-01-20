@@ -1811,10 +1811,21 @@ radeon_atom_encoder_mode_set(struct drm_encoder *encoder,
 	case ENCODER_OBJECT_ID_INTERNAL_UNIPHY2:
 	case ENCODER_OBJECT_ID_INTERNAL_KLDSCP_LVTMA:
 		if (ASIC_IS_DCE4(rdev)) {
+			struct drm_connector *connector = radeon_get_connector_for_encoder(encoder);
+			struct radeon_encoder_atom_dig *dig = radeon_encoder->enc_priv;
+
+			if (!connector)
+				dig->panel_mode = DP_PANEL_MODE_EXTERNAL_DP_MODE;
+			else
+				dig->panel_mode = radeon_dp_get_panel_mode(encoder, connector);
+
 			/* disable the transmitter */
 			atombios_dig_transmitter_setup(encoder, ATOM_TRANSMITTER_ACTION_DISABLE, 0, 0);
 			/* setup and enable the encoder */
 			atombios_dig_encoder_setup(encoder, ATOM_ENCODER_CMD_SETUP, 0);
+			atombios_dig_encoder_setup(encoder,
+						   ATOM_ENCODER_CMD_SETUP_PANEL_MODE,
+						   dig->panel_mode);
 
 			/* enable the transmitter */
 			atombios_dig_transmitter_setup(encoder, ATOM_TRANSMITTER_ACTION_ENABLE, 0, 0);

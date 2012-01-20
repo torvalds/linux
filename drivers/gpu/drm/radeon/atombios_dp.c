@@ -549,8 +549,8 @@ bool radeon_dp_getdpcd(struct radeon_connector *radeon_connector)
 	return false;
 }
 
-static void radeon_dp_set_panel_mode(struct drm_encoder *encoder,
-				     struct drm_connector *connector)
+int radeon_dp_get_panel_mode(struct drm_encoder *encoder,
+			     struct drm_connector *connector)
 {
 	struct drm_device *dev = encoder->dev;
 	struct radeon_device *rdev = dev->dev_private;
@@ -558,7 +558,7 @@ static void radeon_dp_set_panel_mode(struct drm_encoder *encoder,
 	int panel_mode = DP_PANEL_MODE_EXTERNAL_DP_MODE;
 
 	if (!ASIC_IS_DCE4(rdev))
-		return;
+		return panel_mode;
 
 	if (radeon_connector_encoder_get_dp_bridge_encoder_id(connector) ==
 	    ENCODER_OBJECT_ID_NUTMEG)
@@ -572,14 +572,7 @@ static void radeon_dp_set_panel_mode(struct drm_encoder *encoder,
 			panel_mode = DP_PANEL_MODE_INTERNAL_DP2_MODE;
 	}
 
-	atombios_dig_encoder_setup(encoder,
-				   ATOM_ENCODER_CMD_SETUP_PANEL_MODE,
-				   panel_mode);
-
-	if ((connector->connector_type == DRM_MODE_CONNECTOR_eDP) &&
-	    (panel_mode == DP_PANEL_MODE_INTERNAL_DP2_MODE)) {
-		radeon_write_dpcd_reg(radeon_connector, DP_EDP_CONFIGURATION_SET, 1);
-	}
+	return panel_mode;
 }
 
 void radeon_dp_set_link_config(struct drm_connector *connector,
@@ -717,6 +710,8 @@ static void radeon_dp_set_tp(struct radeon_dp_link_train_info *dp_info, int tp)
 
 static int radeon_dp_link_train_init(struct radeon_dp_link_train_info *dp_info)
 {
+	struct radeon_encoder *radeon_encoder = to_radeon_encoder(dp_info->encoder);
+	struct radeon_encoder_atom_dig *dig = radeon_encoder->enc_priv;
 	u8 tmp;
 
 	/* power up the sink */
@@ -732,7 +727,10 @@ static int radeon_dp_link_train_init(struct radeon_dp_link_train_info *dp_info)
 		radeon_write_dpcd_reg(dp_info->radeon_connector,
 				      DP_DOWNSPREAD_CTRL, 0);
 
-	radeon_dp_set_panel_mode(dp_info->encoder, dp_info->connector);
+	if ((dp_info->connector->connector_type == DRM_MODE_CONNECTOR_eDP) &&
+	    (dig->panel_mode == DP_PANEL_MODE_INTERNAL_DP2_MODE)) {
+		radeon_write_dpcd_reg(dp_info->radeon_connector, DP_EDP_CONFIGURATION_SET, 1);
+	}
 
 	/* set the lane count on the sink */
 	tmp = dp_info->dp_lane_count;
