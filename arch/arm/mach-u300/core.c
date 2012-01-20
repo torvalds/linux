@@ -27,6 +27,7 @@
 #include <linux/mtd/fsmc.h>
 #include <linux/pinctrl/machine.h>
 #include <linux/pinctrl/consumer.h>
+#include <linux/pinctrl/pinconf-generic.h>
 #include <linux/dma-mapping.h>
 
 #include <asm/types.h>
@@ -1605,7 +1606,15 @@ static struct platform_device dma_device = {
 	},
 };
 
-/* Pinmux settings */
+static unsigned long pin_pullup_conf[] = {
+	PIN_CONF_PACKED(PIN_CONFIG_BIAS_PULL_UP, 1),
+};
+
+static unsigned long pin_highz_conf[] = {
+	PIN_CONF_PACKED(PIN_CONFIG_BIAS_HIGH_IMPEDANCE, 0),
+};
+
+/* Pin control settings */
 static struct pinctrl_map __initdata u300_pinmux_map[] = {
 	/* anonymous maps for chip power and EMIFs */
 	PIN_MAP_MUX_GROUP_HOG_DEFAULT("pinctrl-u300", NULL, "power"),
@@ -1615,6 +1624,12 @@ static struct pinctrl_map __initdata u300_pinmux_map[] = {
 	PIN_MAP_MUX_GROUP_DEFAULT("mmci",  "pinctrl-u300", NULL, "mmc0"),
 	PIN_MAP_MUX_GROUP_DEFAULT("pl022", "pinctrl-u300", NULL, "spi0"),
 	PIN_MAP_MUX_GROUP_DEFAULT("uart0", "pinctrl-u300", NULL, "uart0"),
+	/* This pin is used for clock return rather than GPIO */
+	PIN_MAP_CONFIGS_PIN_DEFAULT("mmci", "pinctrl-u300", "PIO APP GPIO 11",
+				    pin_pullup_conf),
+	/* This pin is used for card detect */
+	PIN_MAP_CONFIGS_PIN_DEFAULT("mmci", "pinctrl-u300", "PIO MS INS",
+				    pin_highz_conf),
 };
 
 struct u300_mux_hog {
@@ -1640,7 +1655,6 @@ static int __init u300_pinctrl_fetch(void)
 
 	for (i = 0; i < ARRAY_SIZE(u300_mux_hogs); i++) {
 		struct pinctrl *p;
-		int ret;
 
 		p = pinctrl_get_select_default(u300_mux_hogs[i].dev);
 		if (IS_ERR(p)) {
