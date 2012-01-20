@@ -379,7 +379,7 @@ static void mem_cgroup_put(struct mem_cgroup *memcg);
 static bool mem_cgroup_is_root(struct mem_cgroup *memcg);
 void sock_update_memcg(struct sock *sk)
 {
-	if (static_branch(&memcg_socket_limit_enabled)) {
+	if (mem_cgroup_sockets_enabled) {
 		struct mem_cgroup *memcg;
 
 		BUG_ON(!sk->sk_prot->proto_cgroup);
@@ -411,7 +411,7 @@ EXPORT_SYMBOL(sock_update_memcg);
 
 void sock_release_memcg(struct sock *sk)
 {
-	if (static_branch(&memcg_socket_limit_enabled) && sk->sk_cgrp) {
+	if (mem_cgroup_sockets_enabled && sk->sk_cgrp) {
 		struct mem_cgroup *memcg;
 		WARN_ON(!sk->sk_cgrp->memcg);
 		memcg = sk->sk_cgrp->memcg;
