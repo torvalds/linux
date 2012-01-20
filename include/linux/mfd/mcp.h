@@ -20,7 +20,6 @@ struct mcp {
 	unsigned int	sclk_rate;
 	unsigned int	rw_timeout;
 	struct device	attached_device;
-	int		gpio_base;
 };
 
 struct mcp_ops {
@@ -41,7 +40,7 @@ void mcp_disable(struct mcp *);
 #define mcp_get_sclk_rate(mcp)	((mcp)->sclk_rate)
 
 struct mcp *mcp_host_alloc(struct device *, size_t);
-int mcp_host_add(struct mcp *);
+int mcp_host_add(struct mcp *, void *);
 void mcp_host_del(struct mcp *);
 void mcp_host_free(struct mcp *);
 

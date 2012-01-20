@@ -217,8 +217,9 @@ struct mcp *mcp_host_alloc(struct device *parent, size_t size)
 }
 EXPORT_SYMBOL(mcp_host_alloc);
 
-int mcp_host_add(struct mcp *mcp)
+int mcp_host_add(struct mcp *mcp, void *pdata)
 {
+	mcp->attached_device.platform_data = pdata;
 	dev_set_name(&mcp->attached_device, "mcp0");
 	return device_add(&mcp->attached_device);
 }

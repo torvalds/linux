@@ -104,6 +104,9 @@
 #define UCB_MODE_DYN_VFLAG_ENA	(1 << 12)
 #define UCB_MODE_AUD_OFF_CAN	(1 << 13)
 
+struct ucb1x00_plat_data {
+	int			gpio_base;
+};
 
 struct ucb1x00_irq {
 	void *devid;

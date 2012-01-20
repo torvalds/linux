@@ -534,6 +534,7 @@ static int ucb1x00_probe(struct mcp *mcp)
 {
 	struct ucb1x00 *ucb;
 	struct ucb1x00_driver *drv;
+	struct ucb1x00_plat_data *pdata;
 	unsigned int id;
 	int ret = -ENODEV;
 	int temp;
@@ -551,7 +552,7 @@ static int ucb1x00_probe(struct mcp *mcp)
 	if (!ucb)
 		goto err_disable;
 
-
+	pdata = mcp->attached_device.platform_data;
 	ucb->dev.class = &ucb1x00_class;
 	ucb->dev.parent = &mcp->attached_device;
 	dev_set_name(&ucb->dev, "ucb1x00");
@@ -570,9 +571,9 @@ static int ucb1x00_probe(struct mcp *mcp)
 	}
 
 	ucb->gpio.base = -1;
-	if (mcp->gpio_base != 0) {
+	if (pdata && pdata->gpio_base) {
 		ucb->gpio.label = dev_name(&ucb->dev);
-		ucb->gpio.base = mcp->gpio_base;
+		ucb->gpio.base = pdata->gpio_base;
 		ucb->gpio.ngpio = 10;
 		ucb->gpio.set = ucb1x00_gpio_set;
 		ucb->gpio.get = ucb1x00_gpio_get;
