@@ -443,43 +443,6 @@ static int sas_ata_hard_reset(struct ata_link *link, unsigned int *class,
 	return ret;
 }
 
-static int sas_ata_soft_reset(struct ata_link *link, unsigned int *class,
-			       unsigned long deadline)
-{
-	struct ata_port *ap = link->ap;
-	struct domain_device *dev = ap->private_data;
-	struct sas_internal *i = dev_to_sas_internal(dev);
-	int res = TMF_RESP_FUNC_FAILED;
-	int ret = 0;
-
-	if (i->dft->lldd_ata_soft_reset)
-		res = i->dft->lldd_ata_soft_reset(dev);
-
-	if (res != TMF_RESP_FUNC_COMPLETE) {
-		SAS_DPRINTK("%s: Unable to soft reset\n", __func__);
-		ret = -EAGAIN;
-	}
-
-	switch (dev->sata_dev.command_set) {
-	case ATA_COMMAND_SET:
-		SAS_DPRINTK("%s: Found ATA device.\n", __func__);
-		*class = ATA_DEV_ATA;
-		break;
-	case ATAPI_COMMAND_SET:
-		SAS_DPRINTK("%s: Found ATAPI device.\n", __func__);
-		*class = ATA_DEV_ATAPI;
-		break;
-	default:
-		SAS_DPRINTK("%s: Unknown SATA command set: %d.\n",
-			    __func__, dev->sata_dev.command_set);
-		*class = ATA_DEV_UNKNOWN;
-		break;
-	}
-
-	ap->cbl = ATA_CBL_SATA;
-	return ret;
-}
-
 /*
  * notify the lldd to forget the sas_task for this internal ata command
  * that bypasses scsi-eh
@@ -563,7 +526,6 @@ static void sas_ata_set_dmamode(struct ata_port *ap, struct ata_device *ata_dev)
 
 static struct ata_port_operations sas_sata_ops = {
 	.prereset		= ata_std_prereset,
-	.softreset		= sas_ata_soft_reset,
 	.hardreset		= sas_ata_hard_reset,
 	.postreset		= ata_std_postreset,
 	.error_handler		= ata_std_error_handler,
