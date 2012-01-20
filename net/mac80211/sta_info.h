@@ -77,6 +77,7 @@ enum ieee80211_sta_info_flags {
 
 enum ieee80211_sta_state {
 	/* NOTE: These need to be ordered correctly! */
+	IEEE80211_STA_NOTEXIST,
 	IEEE80211_STA_NONE,
 	IEEE80211_STA_AUTH,
 	IEEE80211_STA_ASSOC,
