@@ -811,6 +811,7 @@ enum {
 	SEND_PING,		/* whether asender should send a ping asap */
 	SIGNAL_ASENDER,		/* whether asender wants to be interrupted */
 	GOT_PING_ACK,		/* set when we receive a ping_ack packet, ping_wait gets woken */
+	CONN_WD_ST_CHG_REQ,	/* A cluster wide state change on the connection is active */
 	CONN_WD_ST_CHG_OKAY,
 	CONN_WD_ST_CHG_FAIL,
 	CONN_DRY_RUN,		/* Expect disconnect after resync handshake. */

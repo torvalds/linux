@@ -4827,6 +4827,11 @@ static int got_RqSReply(struct drbd_tconn *tconn, struct packet_info *pi)
 	if (!mdev)
 		return -EIO;
 
+	if (test_bit(CONN_WD_ST_CHG_REQ, &tconn->flags)) {
+		D_ASSERT(tconn->agreed_pro_version < 100);
+		return got_conn_RqSReply(tconn, pi);
+	}
+
 	if (retcode >= SS_SUCCESS) {
 		set_bit(CL_ST_CHG_SUCCESS, &mdev->flags);
 	} else {

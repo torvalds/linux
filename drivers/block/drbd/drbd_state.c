@@ -1671,7 +1671,9 @@ conn_cl_wide(struct drbd_tconn *tconn, union drbd_state mask, union drbd_state v
 	spin_unlock_irq(&tconn->req_lock);
 	mutex_lock(&tconn->cstate_mutex);
 
+	set_bit(CONN_WD_ST_CHG_REQ, &tconn->flags);
 	if (conn_send_state_req(tconn, mask, val)) {
+		clear_bit(CONN_WD_ST_CHG_REQ, &tconn->flags);
 		rv = SS_CW_FAILED_BY_PEER;
 		/* if (f & CS_VERBOSE)
 		   print_st_err(mdev, os, ns, rv); */
@@ -1679,6 +1681,7 @@ conn_cl_wide(struct drbd_tconn *tconn, union drbd_state mask, union drbd_state v
 	}
 
 	wait_event(tconn->ping_wait, (rv = _conn_rq_cond(tconn, mask, val)));
+	clear_bit(CONN_WD_ST_CHG_REQ, &tconn->flags);
 
 abort:
 	mutex_unlock(&tconn->cstate_mutex);
