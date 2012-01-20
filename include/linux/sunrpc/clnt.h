@@ -61,7 +61,7 @@ struct rpc_clnt {
 	struct rpc_clnt *	cl_parent;	/* Points to parent of clones */
 	struct rpc_rtt		cl_rtt_default;
 	struct rpc_timeout	cl_timeout_default;
-	struct rpc_program *	cl_program;
+	const struct rpc_program *cl_program;
 	char			*cl_principal;	/* target to authenticate to */
 };
 
@@ -73,7 +73,7 @@ struct rpc_program {
 	const char *		name;		/* protocol name */
 	u32			number;		/* program number */
 	unsigned int		nrvers;		/* number of versions */
-	struct rpc_version **	version;	/* version array */
+	const struct rpc_version **	version;	/* version array */
 	struct rpc_stat *	stats;		/* statistics */
 	const char *		pipe_dir_name;	/* path to rpc_pipefs dir */
 };
@@ -109,7 +109,7 @@ struct rpc_create_args {
 	struct sockaddr		*saddress;
 	const struct rpc_timeout *timeout;
 	const char		*servername;
-	struct rpc_program	*program;
+	const struct rpc_program *program;
 	u32			prognumber;	/* overrides program->number */
 	u32			version;
 	rpc_authflavor_t	authflavor;
@@ -128,7 +128,7 @@ struct rpc_create_args {
 
 struct rpc_clnt *rpc_create(struct rpc_create_args *args);
 struct rpc_clnt	*rpc_bind_new_program(struct rpc_clnt *,
-				struct rpc_program *, u32);
+				const struct rpc_program *, u32);
 void rpc_task_reset_client(struct rpc_task *task, struct rpc_clnt *clnt);
 struct rpc_clnt *rpc_clone_client(struct rpc_clnt *);
 void		rpc_shutdown_client(struct rpc_clnt *);

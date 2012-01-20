@@ -67,7 +67,7 @@ enum {
 	MOUNTPROC3_EXPORT	= 5,
 };
 
-static struct rpc_program	mnt_program;
+static const struct rpc_program mnt_program;
 
 /*
  * Defined by OpenGroup XNFS Version 3W, chapter 8
@@ -488,19 +488,19 @@ static struct rpc_procinfo mnt3_procedures[] = {
 };
 
 
-static struct rpc_version mnt_version1 = {
+static const struct rpc_version mnt_version1 = {
 	.number		= 1,
 	.nrprocs	= ARRAY_SIZE(mnt_procedures),
 	.procs		= mnt_procedures,
 };
 
-static struct rpc_version mnt_version3 = {
+static const struct rpc_version mnt_version3 = {
 	.number		= 3,
 	.nrprocs	= ARRAY_SIZE(mnt3_procedures),
 	.procs		= mnt3_procedures,
 };
 
-static struct rpc_version *mnt_version[] = {
+static const struct rpc_version *mnt_version[] = {
 	NULL,
 	&mnt_version1,
 	NULL,
@@ -509,7 +509,7 @@ static struct rpc_version *mnt_version[] = {
 
 static struct rpc_stat mnt_stats;
 
-static struct rpc_program mnt_program = {
+static const struct rpc_program mnt_program = {
 	.name		= "mount",
 	.number		= NFS_MNT_PROGRAM,
 	.nrvers		= ARRAY_SIZE(mnt_version),

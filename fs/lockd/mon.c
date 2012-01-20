@@ -47,7 +47,7 @@ struct nsm_res {
 	u32			state;
 };
 
-static struct rpc_program	nsm_program;
+static const struct rpc_program	nsm_program;
 static				LIST_HEAD(nsm_handles);
 static				DEFINE_SPINLOCK(nsm_lock);
 
@@ -534,19 +534,19 @@ static struct rpc_procinfo	nsm_procedures[] = {
 	},
 };
 
-static struct rpc_version	nsm_version1 = {
+static const struct rpc_version nsm_version1 = {
 		.number		= 1,
 		.nrprocs	= ARRAY_SIZE(nsm_procedures),
 		.procs		= nsm_procedures
 };
 
-static struct rpc_version *	nsm_version[] = {
+static const struct rpc_version *nsm_version[] = {
 	[1] = &nsm_version1,
 };
 
 static struct rpc_stat		nsm_stats;
 
-static struct rpc_program	nsm_program = {
+static const struct rpc_program nsm_program = {
 		.name		= "statd",
 		.number		= NSM_PROGRAM,
 		.nrvers		= ARRAY_SIZE(nsm_version),

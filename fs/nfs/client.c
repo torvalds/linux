@@ -89,7 +89,7 @@ static bool nfs4_disable_idmapping = true;
 /*
  * RPC cruft for NFS
  */
-static struct rpc_version *nfs_version[5] = {
+static const struct rpc_version *nfs_version[5] = {
 	[2]			= &nfs_version2,
 #ifdef CONFIG_NFS_V3
 	[3]			= &nfs_version3,
@@ -99,7 +99,7 @@ static struct rpc_version *nfs_version[5] = {
 #endif
 };
 
-struct rpc_program nfs_program = {
+const struct rpc_program nfs_program = {
 	.name			= "nfs",
 	.number			= NFS_PROGRAM,
 	.nrvers			= ARRAY_SIZE(nfs_version),
@@ -115,11 +115,11 @@ struct rpc_stat nfs_rpcstat = {
 
 #ifdef CONFIG_NFS_V3_ACL
 static struct rpc_stat		nfsacl_rpcstat = { &nfsacl_program };
-static struct rpc_version *	nfsacl_version[] = {
+static const struct rpc_version *nfsacl_version[] = {
 	[3]			= &nfsacl_version3,
 };
 
-struct rpc_program		nfsacl_program = {
+const struct rpc_program nfsacl_program = {
 	.name			= "nfsacl",
 	.number			= NFS_ACL_PROGRAM,
 	.nrvers			= ARRAY_SIZE(nfsacl_version),

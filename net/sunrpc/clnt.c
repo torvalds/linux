@@ -238,8 +238,8 @@ void rpc_clients_notifier_unregister(void)
 
 static struct rpc_clnt * rpc_new_client(const struct rpc_create_args *args, struct rpc_xprt *xprt)
 {
-	struct rpc_program	*program = args->program;
-	struct rpc_version	*version;
+	const struct rpc_program *program = args->program;
+	const struct rpc_version *version;
 	struct rpc_clnt		*clnt = NULL;
 	struct rpc_auth		*auth;
 	int err;
@@ -626,11 +626,11 @@ rpc_release_client(struct rpc_clnt *clnt)
  * The Sun NFSv2/v3 ACL protocol can do this.
  */
 struct rpc_clnt *rpc_bind_new_program(struct rpc_clnt *old,
-				      struct rpc_program *program,
+				      const struct rpc_program *program,
 				      u32 vers)
 {
 	struct rpc_clnt *clnt;
-	struct rpc_version *version;
+	const struct rpc_version *version;
 	int err;
 
 	BUG_ON(vers >= program->nrvers || !program->version[vers]);

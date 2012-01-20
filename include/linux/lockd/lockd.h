@@ -188,7 +188,7 @@ struct nlm_block {
 /*
  * Global variables
  */
-extern struct rpc_program	nlm_program;
+extern const struct rpc_program	nlm_program;
 extern struct svc_procedure	nlmsvc_procedures[];
 #ifdef CONFIG_LOCKD_V4
 extern struct svc_procedure	nlmsvc_procedures4[];

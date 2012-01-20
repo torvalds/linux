@@ -145,7 +145,7 @@ extern int nfs_mount(struct nfs_mount_request *info);
 extern void nfs_umount(const struct nfs_mount_request *info);
 
 /* client.c */
-extern struct rpc_program nfs_program;
+extern const struct rpc_program nfs_program;
 
 extern void nfs_cleanup_cb_ident_idr(void);
 extern void nfs_put_client(struct nfs_client *);

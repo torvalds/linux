@@ -112,7 +112,7 @@ enum {
 
 static void			rpcb_getport_done(struct rpc_task *, void *);
 static void			rpcb_map_release(void *data);
-static struct rpc_program	rpcb_program;
+static const struct rpc_program	rpcb_program;
 
 struct rpcbind_args {
 	struct rpc_xprt *	r_xprt;
@@ -137,8 +137,8 @@ struct rpcb_info {
 	struct rpc_procinfo *	rpc_proc;
 };
 
-static struct rpcb_info rpcb_next_version[];
-static struct rpcb_info rpcb_next_version6[];
+static const struct rpcb_info rpcb_next_version[];
+static const struct rpcb_info rpcb_next_version6[];
 
 static const struct rpc_call_ops rpcb_getport_ops = {
 	.rpc_call_done		= rpcb_getport_done,
@@ -1051,7 +1051,7 @@ static struct rpc_procinfo rpcb_procedures4[] = {
 	},
 };
 
-static struct rpcb_info rpcb_next_version[] = {
+static const struct rpcb_info rpcb_next_version[] = {
 	{
 		.rpc_vers	= RPCBVERS_2,
 		.rpc_proc	= &rpcb_procedures2[RPCBPROC_GETPORT],
@@ -1061,7 +1061,7 @@ static struct rpcb_info rpcb_next_version[] = {
 	},
 };
 
-static struct rpcb_info rpcb_next_version6[] = {
+static const struct rpcb_info rpcb_next_version6[] = {
 	{
 		.rpc_vers	= RPCBVERS_4,
 		.rpc_proc	= &rpcb_procedures4[RPCBPROC_GETADDR],
@@ -1075,25 +1075,25 @@ static struct rpcb_info rpcb_next_version6[] = {
 	},
 };
 
-static struct rpc_version rpcb_version2 = {
+static const struct rpc_version rpcb_version2 = {
 	.number		= RPCBVERS_2,
 	.nrprocs	= ARRAY_SIZE(rpcb_procedures2),
 	.procs		= rpcb_procedures2
 };
 
-static struct rpc_version rpcb_version3 = {
+static const struct rpc_version rpcb_version3 = {
 	.number		= RPCBVERS_3,
 	.nrprocs	= ARRAY_SIZE(rpcb_procedures3),
 	.procs		= rpcb_procedures3
 };
 
-static struct rpc_version rpcb_version4 = {
+static const struct rpc_version rpcb_version4 = {
 	.number		= RPCBVERS_4,
 	.nrprocs	= ARRAY_SIZE(rpcb_procedures4),
 	.procs		= rpcb_procedures4
 };
 
-static struct rpc_version *rpcb_version[] = {
+static const struct rpc_version *rpcb_version[] = {
 	NULL,
 	NULL,
 	&rpcb_version2,
@@ -1103,7 +1103,7 @@ static struct rpc_version *rpcb_version[] = {
 
 static struct rpc_stat rpcb_stats;
 
-static struct rpc_program rpcb_program = {
+static const struct rpc_program rpcb_program = {
 	.name		= "rpcbind",
 	.number		= RPCBIND_PROGRAM,
 	.nrvers		= ARRAY_SIZE(rpcb_version),
