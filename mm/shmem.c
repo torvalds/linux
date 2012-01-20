@@ -1068,13 +1068,6 @@ int shmem_lock(struct file *file, int lock, struct user_struct *user)
 		user_shm_unlock(inode->i_size, user);
 		info->flags &= ~VM_LOCKED;
 		mapping_clear_unevictable(file->f_mapping);
-		/*
-		 * Ensure that a racing putback_lru_page() can see
-		 * the pages of this mapping are evictable when we
-		 * skip them due to !PageLRU during the scan.
-		 */
-		smp_mb__after_clear_bit();
-		scan_mapping_unevictable_pages(file->f_mapping);
 	}
 	retval = 0;
 

@@ -870,9 +870,7 @@ SYSCALL_DEFINE3(shmctl, int, shmid, int, cmd, struct shmid_ds __user *, buf)
 	case SHM_LOCK:
 	case SHM_UNLOCK:
 	{
-		struct file *uninitialized_var(shm_file);
-
-		lru_add_drain_all();  /* drain pagevecs to lru lists */
+		struct file *shm_file;
 
 		shp = shm_lock_check(ns, shmid);
 		if (IS_ERR(shp)) {
@@ -895,22 +893,31 @@ SYSCALL_DEFINE3(shmctl, int, shmid, int, cmd, struct shmid_ds __user *, buf)
 		err = security_shm_shmctl(shp, cmd);
 		if (err)
 			goto out_unlock;
-		
-		if(cmd==SHM_LOCK) {
+
+		shm_file = shp->shm_file;
+		if (is_file_hugepages(shm_file))
+			goto out_unlock;
+
+		if (cmd == SHM_LOCK) {
 			struct user_struct *user = current_user();
-			if (!is_file_hugepages(shp->shm_file)) {
-				err = shmem_lock(shp->shm_file, 1, user);
-				if (!err && !(shp->shm_perm.mode & SHM_LOCKED)){
-					shp->shm_perm.mode |= SHM_LOCKED;
-					shp->mlock_user = user;
-				}
+			err = shmem_lock(shm_file, 1, user);
+			if (!err && !(shp->shm_perm.mode & SHM_LOCKED)) {
+				shp->shm_perm.mode |= SHM_LOCKED;
+				shp->mlock_user = user;
 			}
-		} else if (!is_file_hugepages(shp->shm_file)) {
-			shmem_lock(shp->shm_file, 0, shp->mlock_user);
-			shp->shm_perm.mode &= ~SHM_LOCKED;
-			shp->mlock_user = NULL;
+			goto out_unlock;
 		}
+
+		/* SHM_UNLOCK */
+		if (!(shp->shm_perm.mode & SHM_LOCKED))
+			goto out_unlock;
+		shmem_lock(shm_file, 0, shp->mlock_user);
+		shp->shm_perm.mode &= ~SHM_LOCKED;
+		shp->mlock_user = NULL;
+		get_file(shm_file);
 		shm_unlock(shp);
+		scan_mapping_unevictable_pages(shm_file->f_mapping);
+		fput(shm_file);
 		goto out;
 	}
 	case IPC_RMID:
