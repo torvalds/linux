@@ -365,7 +365,12 @@ static int sta_info_insert_drv_state(struct ieee80211_local *local,
 	}
 
 	if (!err) {
-		sta->uploaded = true;
+		/*
+		 * Drivers using legacy sta_add/sta_remove callbacks only
+		 * get uploaded set to true after sta_add is called.
+		 */
+		if (!local->ops->sta_add)
+			sta->uploaded = true;
 		return 0;
 	}
 
@@ -417,18 +422,9 @@ static int sta_info_insert_finish(struct sta_info *sta) __acquires(RCU)
 
 	if (!sta->dummy || dummy_reinsert) {
 		/* notify driver */
-		err = drv_sta_add(local, sdata, &sta->sta);
-		if (err) {
-			if (sdata->vif.type != NL80211_IFTYPE_ADHOC)
-				goto out_err;
-			printk(KERN_DEBUG "%s: failed to add IBSS STA %pM to "
-					  "driver (%d) - keeping it anyway.\n",
-			       sdata->name, sta->sta.addr, err);
-		} else {
-			err = sta_info_insert_drv_state(local, sdata, sta);
-			if (err)
-				goto out_err;
-		}
+		err = sta_info_insert_drv_state(local, sdata, sta);
+		if (err)
+			goto out_err;
 	}
 
 	if (!dummy_reinsert) {
@@ -802,7 +798,6 @@ int __must_check __sta_info_destroy(struct sta_info *sta)
 	}
 
 	if (sta->uploaded) {
-		drv_sta_remove(local, sdata, &sta->sta);
 		ret = drv_sta_state(local, sdata, sta, IEEE80211_STA_NONE,
 				    IEEE80211_STA_NOTEXIST);
 		WARN_ON_ONCE(ret != 0);

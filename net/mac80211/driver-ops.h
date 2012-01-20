@@ -493,9 +493,18 @@ int drv_sta_state(struct ieee80211_local *local,
 	check_sdata_in_driver(sdata);
 
 	trace_drv_sta_state(local, sdata, &sta->sta, old_state, new_state);
-	if (local->ops->sta_state)
+	if (local->ops->sta_state) {
 		ret = local->ops->sta_state(&local->hw, &sdata->vif, &sta->sta,
 					    old_state, new_state);
+	} else if (old_state == IEEE80211_STA_AUTH &&
+		   new_state == IEEE80211_STA_ASSOC) {
+		ret = drv_sta_add(local, sdata, &sta->sta);
+		if (ret == 0)
+			sta->uploaded = true;
+	} else if (old_state == IEEE80211_STA_ASSOC &&
+		   new_state == IEEE80211_STA_AUTH) {
+		drv_sta_remove(local, sdata, &sta->sta);
+	}
 	trace_drv_return_int(local, ret);
 	return ret;
 }

@@ -100,8 +100,6 @@ int __ieee80211_suspend(struct ieee80211_hw *hw, struct cfg80211_wowlan *wowlan)
 		if (sta->uploaded) {
 			enum ieee80211_sta_state state;
 
-			drv_sta_remove(local, sta->sdata, &sta->sta);
-
 			state = sta->sta_state;
 			for (; state > IEEE80211_STA_NOTEXIST; state--)
 				WARN_ON(drv_sta_state(local, sdata, sta,
