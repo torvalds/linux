@@ -640,7 +640,6 @@ static void alc_exec_unsol_event(struct hda_codec *codec, int action)
 /* unsolicited event for HP jack sensing */
 static void alc_sku_unsol_event(struct hda_codec *codec, unsigned int res)
 {
-	struct alc_spec *spec = codec->spec;
 	if (codec->vendor_id == 0x10ec0880)
 		res >>= 28;
 	else
