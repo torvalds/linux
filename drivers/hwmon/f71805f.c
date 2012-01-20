@@ -283,11 +283,11 @@ static inline long temp_from_reg(u8 reg)
 
 static inline u8 temp_to_reg(long val)
 {
-	if (val < 0)
-		val = 0;
-	else if (val > 1000 * 0xff)
-		val = 0xff;
-	return ((val + 500) / 1000);
+	if (val <= 0)
+		return 0;
+	if (val >= 1000 * 0xff)
+		return 0xff;
+	return (val + 500) / 1000;
 }
 
 /*
