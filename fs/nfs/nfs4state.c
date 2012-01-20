@@ -916,20 +916,28 @@ struct nfs_seqid *nfs_alloc_seqid(struct nfs_seqid_counter *counter, gfp_t gfp_m
 	if (new != NULL) {
 		new->sequence = counter;
 		INIT_LIST_HEAD(&new->list);
+		new->task = NULL;
 	}
 	return new;
 }
 
 void nfs_release_seqid(struct nfs_seqid *seqid)
 {
-	if (!list_empty(&seqid->list)) {
-		struct nfs_seqid_counter *sequence = seqid->sequence;
+	struct nfs_seqid_counter *sequence;
 
-		spin_lock(&sequence->lock);
-		list_del_init(&seqid->list);
-		spin_unlock(&sequence->lock);
-		rpc_wake_up(&sequence->wait);
+	if (list_empty(&seqid->list))
+		return;
+	sequence = seqid->sequence;
+	spin_lock(&sequence->lock);
+	list_del_init(&seqid->list);
+	if (!list_empty(&sequence->list)) {
+		struct nfs_seqid *next;
+
+		next = list_first_entry(&sequence->list,
+				struct nfs_seqid, list);
+		rpc_wake_up_queued_task(&sequence->wait, next->task);
 	}
+	spin_unlock(&sequence->lock);
 }
 
 void nfs_free_seqid(struct nfs_seqid *seqid)
@@ -1000,6 +1008,7 @@ int nfs_wait_on_sequence(struct nfs_seqid *seqid, struct rpc_task *task)
 	int status = 0;
 
 	spin_lock(&sequence->lock);
+	seqid->task = task;
 	if (list_empty(&seqid->list))
 		list_add_tail(&seqid->list, &sequence->list);
 	if (list_first_entry(&sequence->list, struct nfs_seqid, list) == seqid)

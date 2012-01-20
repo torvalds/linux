@@ -71,6 +71,7 @@ struct nfs_seqid_counter {
 struct nfs_seqid {
 	struct nfs_seqid_counter *sequence;
 	struct list_head list;
+	struct rpc_task *task;
 };
 
 static inline void nfs_confirm_seqid(struct nfs_seqid_counter *seqid, int status)
