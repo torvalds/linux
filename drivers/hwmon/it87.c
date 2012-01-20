@@ -1341,12 +1341,12 @@ static DEVICE_ATTR(cpu0_vid, S_IRUGO, show_vid_reg, NULL);
 static ssize_t show_label(struct device *dev, struct device_attribute *attr,
 		char *buf)
 {
-	static const char *labels[] = {
+	static const char * const labels[] = {
 		"+5V",
 		"5VSB",
 		"Vbat",
 	};
-	static const char *labels_it8721[] = {
+	static const char * const labels_it8721[] = {
 		"+3.3V",
 		"3VSB",
 		"Vbat",
@@ -1815,7 +1815,7 @@ static int __devinit it87_probe(struct platform_device *pdev)
 	int err = 0, i;
 	int enable_pwm_interface;
 	int fan_beep_need_rw;
-	static const char *names[] = {
+	static const char * const names[] = {
 		"it87",
 		"it8712",
 		"it8716",
