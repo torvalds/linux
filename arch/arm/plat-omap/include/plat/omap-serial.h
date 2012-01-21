@@ -131,6 +131,7 @@ struct uart_omap_port {
 	u32			context_loss_cnt;
 	u32			errata;
 	u8			wakeups_enabled;
+	u8			max_tx_count;
 
 	struct pm_qos_request	pm_qos_request;
 	u32			latency;

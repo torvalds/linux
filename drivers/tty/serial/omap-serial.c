@@ -88,6 +88,49 @@ static inline void serial_omap_clear_fifos(struct uart_omap_port *up)
 	serial_out(up, UART_FCR, 0);
 }
 
+/**
+ * serial_omap_block_cpu_low_power_state - prevent MPU pwrdm from leaving ON
+ * @up: struct uart_omap_port *
+ *
+ * Prevent the MPU powerdomain from entering a power state lower than
+ * ON.  (It should be sufficient to prevent it from entering INACTIVE,
+ * but there is presently no easy way to do this.)  This works around
+ * a suspected silicon bug in the OMAP UART IP blocks.  The UARTs should
+ * wake the PRCM when the transmit FIFO threshold interrupt is raised, but
+ * they do not.   See also serial_omap_allow_cpu_low_power_state().  No
+ * return value.
+ */
+static void serial_omap_block_cpu_low_power_state(struct uart_omap_port *up)
+{
+#ifdef CONFIG_CPU_IDLE
+	up->latency = 1;
+	schedule_work(&up->qos_work);
+#else
+	up->max_tx_count = 1;
+#endif
+}
+
+/**
+ * serial_omap_allow_cpu_low_power_state - remove power state restriction on MPU
+ * @up: struct uart_omap_port *
+ *
+ * Cancel the effects of serial_omap_block_cpu_low_power_state().
+ * This should allow the MPU powerdomain to enter a power state lower
+ * than ON, assuming the rest of the kernel is not restricting it.
+ * This works around a suspected silicon bug in the OMAP UART IP
+ * blocks.  The UARTs should wake the PRCM when the transmit FIFO
+ * threshold interrupt is raised, but they do not.  No return value.
+ */
+static void serial_omap_allow_cpu_low_power_state(struct uart_omap_port *up)
+{
+#ifdef CONFIG_CPU_IDLE
+	up->latency = up->calc_latency;
+	schedule_work(&up->qos_work);
+#else
+	up->max_tx_count = up->port.fifosize / 4;
+#endif
+}
+
 /*
  * serial_omap_get_divisor - calculate divisor value
  * @port: uart port info
@@ -162,6 +205,9 @@ static void serial_omap_stop_tx(struct uart_port *port)
 		up->ier &= ~UART_IER_THRI;
 		serial_out(up, UART_IER, up->ier);
 	}
+
+	if (!up->use_dma)
+		serial_omap_allow_cpu_low_power_state(up);
 
 	pm_runtime_mark_last_busy(&up->pdev->dev);
 	pm_runtime_put_autosuspend(&up->pdev->dev);
@@ -264,7 +310,7 @@ static void transmit_chars(struct uart_omap_port *up)
 		serial_omap_stop_tx(&up->port);
 		return;
 	}
-	count = up->port.fifosize / 4;
+	count = up->max_tx_count;
 	do {
 		serial_out(up, UART_TX, xmit->buf[xmit->tail]);
 		xmit->tail = (xmit->tail + 1) & (UART_XMIT_SIZE - 1);
@@ -297,6 +343,7 @@ static void serial_omap_start_tx(struct uart_port *port)
 
 	if (!up->use_dma) {
 		pm_runtime_get_sync(&up->pdev->dev);
+		serial_omap_block_cpu_low_power_state(up);
 		serial_omap_enable_ier_thri(up);
 		pm_runtime_mark_last_busy(&up->pdev->dev);
 		pm_runtime_put_autosuspend(&up->pdev->dev);
@@ -1420,6 +1467,8 @@ static int serial_omap_probe(struct platform_device *pdev)
 	up->port.regshift = 2;
 	up->port.fifosize = 64;
 	up->port.ops = &serial_omap_pops;
+
+	up->max_tx_count = up->port.fifosize / 4;
 
 	if (pdev->dev.of_node)
 		up->port.line = of_alias_get_id(pdev->dev.of_node, "serial");
