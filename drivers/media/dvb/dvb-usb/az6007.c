@@ -67,6 +67,7 @@ static struct drxk_config terratec_h7_drxk = {
 	.parallel_ts = true,
 	.dynamic_clk = true,
 	.single_master = true,
+	.enable_merr_cfg = true,
 	.no_i2c_bridge = false,
 	.chunk_size = 64,
 	.mpeg_out_clk_strength = 0x02,

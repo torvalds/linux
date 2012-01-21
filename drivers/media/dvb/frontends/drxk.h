@@ -12,6 +12,7 @@
  * 			Serial otherwise.
  * @dynamic_clk:	True means that the clock will be dynamically
  *			adjusted. Static clock otherwise.
+ * @enable_merr_cfg:	Enable SIO_PDR_PERR_CFG/SIO_PDR_MVAL_CFG.
  * @single_master:	Device is on the single master mode
  * @no_i2c_bridge:	Don't switch the I2C bridge to talk with tuner
  * @antenna_gpio:	GPIO bit used to control the antenna
@@ -29,6 +30,7 @@ struct drxk_config {
 	bool	no_i2c_bridge;
 	bool	parallel_ts;
 	bool	dynamic_clk;
+	bool	enable_merr_cfg;
 
 	bool	antenna_dvbt;
 	u16	antenna_gpio;

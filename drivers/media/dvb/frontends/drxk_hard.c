@@ -1179,6 +1179,7 @@ static int MPEGTSConfigurePins(struct drxk_state *state, bool mpegEnable)
 	int status = -1;
 	u16 sioPdrMclkCfg = 0;
 	u16 sioPdrMdxCfg = 0;
+	u16 err_cfg = 0;
 
 	dprintk(1, ": mpeg %s, %s mode\n",
 		mpegEnable ? "enable" : "disable",
@@ -1244,12 +1245,17 @@ static int MPEGTSConfigurePins(struct drxk_state *state, bool mpegEnable)
 		status = write16(state, SIO_PDR_MSTRT_CFG__A, sioPdrMdxCfg);
 		if (status < 0)
 			goto error;
-		status = write16(state, SIO_PDR_MERR_CFG__A, 0x0000);	/* Disable */
+
+		if (state->enable_merr_cfg)
+			err_cfg = sioPdrMdxCfg;
+
+		status = write16(state, SIO_PDR_MERR_CFG__A, err_cfg);
 		if (status < 0)
 			goto error;
-		status = write16(state, SIO_PDR_MVAL_CFG__A, 0x0000);	/* Disable */
+		status = write16(state, SIO_PDR_MVAL_CFG__A, err_cfg);
 		if (status < 0)
 			goto error;
+
 		if (state->m_enableParallel == true) {
 			/* paralel -> enable MD1 to MD7 */
 			status = write16(state, SIO_PDR_MD1_CFG__A, sioPdrMdxCfg);
@@ -6379,6 +6385,7 @@ struct dvb_frontend *drxk_attach(const struct drxk_config *config,
 	state->antenna_gpio = config->antenna_gpio;
 	state->antenna_dvbt = config->antenna_dvbt;
 	state->m_ChunkSize = config->chunk_size;
+	state->enable_merr_cfg = config->enable_merr_cfg;
 
 	if (config->dynamic_clk) {
 		state->m_DVBTStaticCLK = 0;
