@@ -943,10 +943,12 @@ struct ctl_table_header *__register_sysctl_paths(
 	struct ctl_table *new, **prevp;
 	unsigned int n, npath;
 	struct ctl_table_set *set;
+	size_t path_bytes = 0;
+	char *new_name;
 
 	/* Count the path components */
 	for (npath = 0; path[npath].procname; ++npath)
-		;
+		path_bytes += strlen(path[npath].procname) + 1;
 
 	/*
 	 * For each path component, allocate a 2-element ctl_table array.
@@ -956,24 +958,27 @@ struct ctl_table_header *__register_sysctl_paths(
 	 * We allocate everything in one go so that we don't have to
 	 * worry about freeing additional memory in unregister_sysctl_table.
 	 */
-	header = kzalloc(sizeof(struct ctl_table_header) +
+	header = kzalloc(sizeof(struct ctl_table_header) + path_bytes +
 			 (2 * npath * sizeof(struct ctl_table)), GFP_KERNEL);
 	if (!header)
 		return NULL;
 
 	new = (struct ctl_table *) (header + 1);
+	new_name = (char *)(new + (2 * npath));
 
 	/* Now connect the dots */
 	prevp = &header->ctl_table;
 	for (n = 0; n < npath; ++n, ++path) {
 		/* Copy the procname */
-		new->procname = path->procname;
+		strcpy(new_name, path->procname);
+		new->procname = new_name;
 		new->mode     = 0555;
 
 		*prevp = new;
 		prevp = &new->child;
 
 		new += 2;
+		new_name += strlen(new_name) + 1;
 	}
 	*prevp = table;
 	header->ctl_table_arg = table;
