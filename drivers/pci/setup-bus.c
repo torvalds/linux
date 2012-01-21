@@ -137,6 +137,52 @@ static resource_size_t get_res_add_size(struct resource_list_x *realloc_head,
 	return 0;
 }
 
+/* Sort resources by alignment */
+static void pdev_sort_resources(struct pci_dev *dev, struct resource_list *head)
+{
+	int i;
+
+	for (i = 0; i < PCI_NUM_RESOURCES; i++) {
+		struct resource *r;
+		struct resource_list *list, *tmp;
+		resource_size_t r_align;
+
+		r = &dev->resource[i];
+
+		if (r->flags & IORESOURCE_PCI_FIXED)
+			continue;
+
+		if (!(r->flags) || r->parent)
+			continue;
+
+		r_align = pci_resource_alignment(dev, r);
+		if (!r_align) {
+			dev_warn(&dev->dev, "BAR %d: %pR has bogus alignment\n",
+				 i, r);
+			continue;
+		}
+		for (list = head; ; list = list->next) {
+			resource_size_t align = 0;
+			struct resource_list *ln = list->next;
+
+			if (ln)
+				align = pci_resource_alignment(ln->dev, ln->res);
+
+			if (r_align > align) {
+				tmp = kmalloc(sizeof(*tmp), GFP_KERNEL);
+				if (!tmp)
+					panic("pdev_sort_resources(): "
+					      "kmalloc() failed!\n");
+				tmp->next = ln;
+				tmp->res = r;
+				tmp->dev = dev;
+				list->next = tmp;
+				break;
+			}
+		}
+	}
+}
+
 static void __dev_sort_resources(struct pci_dev *dev,
 				 struct resource_list *head)
 {
