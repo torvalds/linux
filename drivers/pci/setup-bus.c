@@ -89,14 +89,6 @@ static int add_to_list(struct list_head *head,
 	return 0;
 }
 
-static void add_to_failed_list(struct list_head *head,
-				struct pci_dev *dev, struct resource *res)
-{
-	add_to_list(head, dev, res,
-			0 /* dont care */,
-			0 /* dont care */);
-}
-
 static void remove_from_list(struct list_head *head,
 				 struct resource *res)
 {
@@ -302,8 +294,10 @@ static void assign_requested_resources_sorted(struct list_head *head,
 				 */
 				if (!((idx == PCI_ROM_RESOURCE) &&
 				      (!(res->flags & IORESOURCE_ROM_ENABLE))))
-					add_to_failed_list(fail_head,
-							   dev_res->dev, res);
+					add_to_list(fail_head,
+						    dev_res->dev, res,
+						    0 /* dont care */,
+						    0 /* dont care */);
 			}
 			reset_resource(res);
 		}
