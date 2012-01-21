@@ -17,6 +17,17 @@
 #include "core.h"
 #include "debug.h"
 
+/*
+ * tid - tid_mux0..tid_mux3
+ * aid - tid_mux4..tid_mux7
+ */
+#define ATH6KL_TID_MASK 0xf
+
+static inline u8 ath6kl_get_tid(u8 tid_mux)
+{
+	return tid_mux & ATH6KL_TID_MASK;
+}
+
 static u8 ath6kl_ibss_map_epid(struct sk_buff *skb, struct net_device *dev,
 			       u32 *map_no)
 {
@@ -1602,7 +1613,7 @@ static void aggr_delete_tid_state(struct aggr_info_conn *aggr_conn, u8 tid)
 	memset(stats, 0, sizeof(struct rxtid_stats));
 }
 
-void aggr_recv_addba_req_evt(struct ath6kl_vif *vif, u8 tid, u16 seq_no,
+void aggr_recv_addba_req_evt(struct ath6kl_vif *vif, u8 tid_mux, u16 seq_no,
 			     u8 win_sz)
 {
 	struct aggr_info *p_aggr = vif->aggr_cntxt;
@@ -1610,11 +1621,16 @@ void aggr_recv_addba_req_evt(struct ath6kl_vif *vif, u8 tid, u16 seq_no,
 	struct rxtid *rxtid;
 	struct rxtid_stats *stats;
 	u16 hold_q_size;
+	u8 tid;
 
 	if (!p_aggr || !p_aggr->aggr_conn)
 		return;
 
 	aggr_conn = p_aggr->aggr_conn;
+
+	tid = ath6kl_get_tid(tid_mux);
+	if (tid >= NUM_OF_TIDS)
+		return;
 
 	rxtid = &aggr_conn->rx_tid[tid];
 	stats = &aggr_conn->stat[tid];
@@ -1691,13 +1707,18 @@ struct aggr_info *aggr_init(struct ath6kl_vif *vif)
 	return p_aggr;
 }
 
-void aggr_recv_delba_req_evt(struct ath6kl_vif *vif, u8 tid)
+void aggr_recv_delba_req_evt(struct ath6kl_vif *vif, u8 tid_mux)
 {
 	struct aggr_info *p_aggr = vif->aggr_cntxt;
 	struct rxtid *rxtid;
 	struct aggr_info_conn *aggr_conn;
+	u8 tid;
 
 	if (!p_aggr || !p_aggr->aggr_conn)
+		return;
+
+	tid = ath6kl_get_tid(tid_mux);
+	if (tid >= NUM_OF_TIDS)
 		return;
 
 	aggr_conn = p_aggr->aggr_conn;
