@@ -252,6 +252,10 @@ static int mcp_sa11x0_remove(struct platform_device *dev)
 	struct mcp_sa11x0 *m = priv(mcp);
 	struct resource *mem0, *mem1;
 
+	if (m->mccr0 & MCCR0_MCE)
+		dev_warn(&dev->dev,
+			 "device left active (missing disable call?)\n");
+
 	mem0 = platform_get_resource(dev, IORESOURCE_MEM, 0);
 	mem1 = platform_get_resource(dev, IORESOURCE_MEM, 1);
 
@@ -270,6 +274,9 @@ static int mcp_sa11x0_remove(struct platform_device *dev)
 static int mcp_sa11x0_suspend(struct device *dev)
 {
 	struct mcp_sa11x0 *m = priv(dev_get_drvdata(dev));
+
+	if (m->mccr0 & MCCR0_MCE)
+		dev_warn(dev, "device left active (missing disable call?)\n");
 
 	writel(m->mccr0 & ~MCCR0_MCE, MCCR0(m));
 
