@@ -844,7 +844,7 @@ static struct s5p_fimc_isp_info goni_camera_sensors[] = {
 	},
 };
 
-struct s5p_platform_fimc goni_fimc_md_platdata __initdata = {
+static struct s5p_platform_fimc goni_fimc_md_platdata __initdata = {
 	.isp_info	= goni_camera_sensors,
 	.num_clients	= ARRAY_SIZE(goni_camera_sensors),
 };
