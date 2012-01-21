@@ -428,7 +428,7 @@ static const struct snd_soc_dapm_widget wm8985_dapm_widgets[] = {
 	SND_SOC_DAPM_OUTPUT("SPKR")
 };
 
-static const struct snd_soc_dapm_route audio_map[] = {
+static const struct snd_soc_dapm_route wm8985_dapm_routes[] = {
 	{ "Right Output Mixer", "PCM Switch", "Right DAC" },
 	{ "Right Output Mixer", "Aux Switch", "AUXR" },
 	{ "Right Output Mixer", "Line Switch", "Right Boost Mixer" },
@@ -528,17 +528,6 @@ static int eqmode_put(struct snd_kcontrol *kcontrol,
 	/* restore DAC/ADC configuration */
 	snd_soc_write(codec, WM8985_POWER_MANAGEMENT_2, regpwr2);
 	snd_soc_write(codec, WM8985_POWER_MANAGEMENT_3, regpwr3);
-	return 0;
-}
-
-static int wm8985_add_widgets(struct snd_soc_codec *codec)
-{
-	struct snd_soc_dapm_context *dapm = &codec->dapm;
-
-	snd_soc_dapm_new_controls(dapm, wm8985_dapm_widgets,
-				  ARRAY_SIZE(wm8985_dapm_widgets));
-	snd_soc_dapm_add_routes(dapm, audio_map,
-				ARRAY_SIZE(audio_map));
 	return 0;
 }
 
@@ -1017,10 +1006,6 @@ static int wm8985_probe(struct snd_soc_codec *codec)
 	cache[WM8985_BIAS_CTRL] |= WM8985_BIASCUT;
 	codec->cache_sync = 1;
 
-	snd_soc_add_controls(codec, wm8985_snd_controls,
-			     ARRAY_SIZE(wm8985_snd_controls));
-	wm8985_add_widgets(codec);
-
 	wm8985_set_bias_level(codec, SND_SOC_BIAS_STANDBY);
 	return 0;
 
@@ -1068,9 +1053,16 @@ static struct snd_soc_codec_driver soc_codec_dev_wm8985 = {
 	.suspend = wm8985_suspend,
 	.resume = wm8985_resume,
 	.set_bias_level = wm8985_set_bias_level,
+
+	.controls = wm8985_snd_controls,
+	.num_controls = ARRAY_SIZE(wm8985_snd_controls),
+	.dapm_widgets = wm8985_dapm_widgets,
 	.reg_cache_size = ARRAY_SIZE(wm8985_reg_defs),
 	.reg_word_size = sizeof(u16),
 	.reg_cache_default = wm8985_reg_defs
+	.num_dapm_widgets = ARRAY_SIZE(wm8985_dapm_widgets),
+	.dapm_routes = wm8985_dapm_routes,
+	.num_dapm_routes = ARRAY_SIZE(wm8985_dapm_routes),
 };
 
 #if defined(CONFIG_SPI_MASTER)
