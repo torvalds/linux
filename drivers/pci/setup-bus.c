@@ -64,7 +64,7 @@ void pci_realloc(void)
  * @add_size:	additional size to be optionally added
  *              to the resource
  */
-static void add_to_list(struct resource_list_x *head,
+static int add_to_list(struct resource_list_x *head,
 		 struct pci_dev *dev, struct resource *res,
 		 resource_size_t add_size, resource_size_t min_align)
 {
@@ -75,7 +75,7 @@ static void add_to_list(struct resource_list_x *head,
 	tmp = kmalloc(sizeof(*tmp), GFP_KERNEL);
 	if (!tmp) {
 		pr_warning("add_to_list: kmalloc() failed!\n");
-		return;
+		return -ENOMEM;
 	}
 
 	tmp->next = ln;
@@ -87,6 +87,8 @@ static void add_to_list(struct resource_list_x *head,
 	tmp->add_size = add_size;
 	tmp->min_align = min_align;
 	list->next = tmp;
+
+	return 0;
 }
 
 static void add_to_failed_list(struct resource_list_x *head,
