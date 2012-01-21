@@ -411,9 +411,6 @@ static int nand_default_block_markbad(struct mtd_info *mtd, loff_t ofs)
 		nand_erase_nand(mtd, &einfo, 0);
 	}
 
-	if (chip->bbt_options & NAND_BBT_SCANLASTPAGE)
-		ofs += mtd->erasesize - mtd->writesize;
-
 	/* Get block number */
 	block = (int)(ofs >> chip->bbt_erase_shift);
 	if (chip->bbt)
@@ -424,11 +421,12 @@ static int nand_default_block_markbad(struct mtd_info *mtd, loff_t ofs)
 		ret = nand_update_bbt(mtd, ofs);
 	else {
 		struct mtd_oob_ops ops;
+		loff_t wr_ofs = ofs;
 
 		nand_get_device(chip, mtd, FL_WRITING);
 
 		/*
-		 * Write to first two pages if necessary. If we write to more
+		 * Write to first/last page(s) if necessary. If we write to more
 		 * than one location, the first error encountered quits the
 		 * procedure.
 		 */
@@ -442,11 +440,14 @@ static int nand_default_block_markbad(struct mtd_info *mtd, loff_t ofs)
 			ops.len = ops.ooblen = 1;
 		}
 		ops.mode = MTD_OPS_PLACE_OOB;
+
+		if (chip->bbt_options & NAND_BBT_SCANLASTPAGE)
+			wr_ofs += mtd->erasesize - mtd->writesize;
 		do {
-			ret = nand_do_write_oob(mtd, ofs, &ops);
+			ret = nand_do_write_oob(mtd, wr_ofs, &ops);
 
 			i++;
-			ofs += mtd->writesize;
+			wr_ofs += mtd->writesize;
 		} while (!ret && (chip->bbt_options & NAND_BBT_SCAN2NDPAGE) &&
 				i < 2);
 
