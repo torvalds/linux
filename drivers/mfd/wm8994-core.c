@@ -345,6 +345,27 @@ static int wm8994_ldo_in_use(struct wm8994_pdata *pdata, int ldo)
 }
 #endif
 
+static const __devinitdata struct reg_default wm8994_revc_patch[] = {
+	{ 0x102, 0x3 },
+	{ 0x56, 0x3 },
+	{ 0x817, 0x0 },
+	{ 0x102, 0x0 },
+};
+
+static const __devinitdata struct reg_default wm8958_reva_patch[] = {
+	{ 0x102, 0x3 },
+	{ 0xcb, 0x81 },
+	{ 0x817, 0x0 },
+	{ 0x102, 0x0 },
+};
+
+static const __devinitdata struct reg_default wm1811_reva_patch[] = {
+	{ 0x102, 0x3 },
+	{ 0x5d, 0x7e },
+	{ 0x5e, 0x0 },
+	{ 0x102, 0x0 },
+};
+
 /*
  * Instantiate the generic non-control parts of the device.
  */
@@ -352,8 +373,9 @@ static __devinit int wm8994_device_init(struct wm8994 *wm8994, int irq)
 {
 	struct wm8994_pdata *pdata = wm8994->dev->platform_data;
 	struct regmap_config *regmap_config;
+	const struct reg_default *regmap_patch = NULL;
 	const char *devname;
-	int ret, i;
+	int ret, i, patch_regs;
 	int pulls = 0;
 
 	dev_set_drvdata(wm8994->dev, wm8994);
@@ -474,15 +496,42 @@ static __devinit int wm8994_device_init(struct wm8994 *wm8994, int irq)
 				 "revision %c not fully supported\n",
 				 'A' + wm8994->revision);
 			break;
+		case 2:
+		case 3:
+			regmap_patch = wm8994_revc_patch;
+			patch_regs = ARRAY_SIZE(wm8994_revc_patch);
+			break;
 		default:
 			break;
 		}
 		break;
+
+	case WM8958:
+		switch (wm8994->revision) {
+		case 0:
+			regmap_patch = wm8958_reva_patch;
+			patch_regs = ARRAY_SIZE(wm8958_reva_patch);
+			break;
+		default:
+			break;
+		}
+		break;
+
 	case WM1811:
 		/* Revision C did not change the relevant layer */
 		if (wm8994->revision > 1)
 			wm8994->revision++;
+		switch (wm8994->revision) {
+		case 0:
+		case 1:
+			regmap_patch = wm1811_reva_patch;
+			patch_regs = ARRAY_SIZE(wm1811_reva_patch);
+			break;
+		default:
+			break;
+		}
 		break;
+
 	default:
 		break;
 	}
@@ -510,6 +559,16 @@ static __devinit int wm8994_device_init(struct wm8994 *wm8994, int irq)
 		dev_err(wm8994->dev, "Failed to reinit register cache: %d\n",
 			ret);
 		return ret;
+	}
+
+	if (regmap_patch) {
+		ret = regmap_register_patch(wm8994->regmap, regmap_patch,
+					    patch_regs);
+		if (ret != 0) {
+			dev_err(wm8994->dev, "Failed to register patch: %d\n",
+				ret);
+			goto err_regmap;
+		}
 	}
 
 	if (pdata) {
