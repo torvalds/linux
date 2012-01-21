@@ -915,9 +915,10 @@ static BUS_ATTR(uevent, S_IWUSR, NULL, bus_uevent_store);
 
 /**
  * __bus_register - register a driver-core subsystem
- * @bus: bus.
+ * @bus: bus to register
+ * @key: lockdep class key
  *
- * Once we have that, we registered the bus with the kobject
+ * Once we have that, we register the bus with the kobject
  * infrastructure, then register the children subsystems it has:
  * the devices and drivers that belong to the subsystem.
  */
@@ -1220,8 +1221,8 @@ static void system_root_device_release(struct device *dev)
 }
 /**
  * subsys_system_register - register a subsystem at /sys/devices/system/
- * @subsys - system subsystem
- * @groups - default attributes for the root device
+ * @subsys: system subsystem
+ * @groups: default attributes for the root device
  *
  * All 'system' subsystems have a /sys/devices/system/<name> root device
  * with the name of the subsystem. The root device can carry subsystem-
