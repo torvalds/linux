@@ -112,18 +112,15 @@ enum ucb1x00_reset {
 
 struct ucb1x00_plat_data {
 	void			(*reset)(enum ucb1x00_reset);
+	unsigned		irq_base;
 	int			gpio_base;
 };
 
-struct ucb1x00_irq {
-	void *devid;
-	void (*fn)(int, void *);
-};
-
 struct ucb1x00 {
-	spinlock_t		lock;
+	raw_spinlock_t		irq_lock;
 	struct mcp		*mcp;
 	unsigned int		irq;
+	int			irq_base;
 	struct mutex		adc_mutex;
 	spinlock_t		io_lock;
 	u16			id;
@@ -132,7 +129,7 @@ struct ucb1x00 {
 	u16			adc_cr;
 	u16			irq_fal_enbl;
 	u16			irq_ris_enbl;
-	struct ucb1x00_irq	irq_handler[16];
+	u16			irq_mask;
 	struct device		dev;
 	struct list_head	node;
 	struct list_head	devs;
@@ -254,16 +251,5 @@ unsigned int ucb1x00_io_read(struct ucb1x00 *ucb);
 unsigned int ucb1x00_adc_read(struct ucb1x00 *ucb, int adc_channel, int sync);
 void ucb1x00_adc_enable(struct ucb1x00 *ucb);
 void ucb1x00_adc_disable(struct ucb1x00 *ucb);
-
-/*
- * Which edges of the IRQ do you want to control today?
- */
-#define UCB_RISING	(1 << 0)
-#define UCB_FALLING	(1 << 1)
-
-int ucb1x00_hook_irq(struct ucb1x00 *ucb, unsigned int idx, void (*fn)(int, void *), void *devid);
-void ucb1x00_enable_irq(struct ucb1x00 *ucb, unsigned int idx, int edges);
-void ucb1x00_disable_irq(struct ucb1x00 *ucb, unsigned int idx, int edges);
-int ucb1x00_free_irq(struct ucb1x00 *ucb, unsigned int idx, void *devid);
 
 #endif

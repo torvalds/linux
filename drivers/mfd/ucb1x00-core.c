@@ -23,6 +23,7 @@
 #include <linux/init.h>
 #include <linux/errno.h>
 #include <linux/interrupt.h>
+#include <linux/irq.h>
 #include <linux/device.h>
 #include <linux/mutex.h>
 #include <linux/mfd/ucb1x00.h>
@@ -178,6 +179,13 @@ static int ucb1x00_gpio_direction_output(struct gpio_chip *chip, unsigned offset
 	return 0;
 }
 
+static int ucb1x00_to_irq(struct gpio_chip *chip, unsigned offset)
+{
+	struct ucb1x00 *ucb = container_of(chip, struct ucb1x00, gpio);
+
+	return ucb->irq_base > 0 ? ucb->irq_base + offset : -ENXIO;
+}
+
 /*
  * UCB1300 data sheet says we must:
  *  1. enable ADC	=> 5us (including reference startup time)
@@ -274,10 +282,9 @@ void ucb1x00_adc_disable(struct ucb1x00 *ucb)
  * SIBCLK to talk to the chip.  We leave the clock running until
  * we have finished processing all interrupts from the chip.
  */
-static irqreturn_t ucb1x00_irq(int irqnr, void *devid)
+static void ucb1x00_irq(unsigned int irq, struct irq_desc *desc)
 {
-	struct ucb1x00 *ucb = devid;
-	struct ucb1x00_irq *irq;
+	struct ucb1x00 *ucb = irq_desc_get_handler_data(desc);
 	unsigned int isr, i;
 
 	ucb1x00_enable(ucb);
@@ -285,156 +292,83 @@ static irqreturn_t ucb1x00_irq(int irqnr, void *devid)
 	ucb1x00_reg_write(ucb, UCB_IE_CLEAR, isr);
 	ucb1x00_reg_write(ucb, UCB_IE_CLEAR, 0);
 
-	for (i = 0, irq = ucb->irq_handler; i < 16 && isr; i++, isr >>= 1, irq++)
-		if (isr & 1 && irq->fn)
-			irq->fn(i, irq->devid);
+	for (i = 0; i < 16 && isr; i++, isr >>= 1, irq++)
+		if (isr & 1)
+			generic_handle_irq(ucb->irq_base + i);
 	ucb1x00_disable(ucb);
-
-	return IRQ_HANDLED;
 }
 
-/**
- *	ucb1x00_hook_irq - hook a UCB1x00 interrupt
- *	@ucb:   UCB1x00 structure describing chip
- *	@idx:   interrupt index
- *	@fn:    function to call when interrupt is triggered
- *	@devid: device id to pass to interrupt handler
- *
- *	Hook the specified interrupt.  You can only register one handler
- *	for each interrupt source.  The interrupt source is not enabled
- *	by this function; use ucb1x00_enable_irq instead.
- *
- *	Interrupt handlers will be called with other interrupts enabled.
- *
- *	Returns zero on success, or one of the following errors:
- *	 -EINVAL if the interrupt index is invalid
- *	 -EBUSY if the interrupt has already been hooked
- */
-int ucb1x00_hook_irq(struct ucb1x00 *ucb, unsigned int idx, void (*fn)(int, void *), void *devid)
+static void ucb1x00_irq_update(struct ucb1x00 *ucb, unsigned mask)
 {
-	struct ucb1x00_irq *irq;
-	int ret = -EINVAL;
-
-	if (idx < 16) {
-		irq = ucb->irq_handler + idx;
-		ret = -EBUSY;
-
-		spin_lock_irq(&ucb->lock);
-		if (irq->fn == NULL) {
-			irq->devid = devid;
-			irq->fn = fn;
-			ret = 0;
-		}
-		spin_unlock_irq(&ucb->lock);
-	}
-	return ret;
+	ucb1x00_enable(ucb);
+	if (ucb->irq_ris_enbl & mask)
+		ucb1x00_reg_write(ucb, UCB_IE_RIS, ucb->irq_ris_enbl &
+				  ucb->irq_mask);
+	if (ucb->irq_fal_enbl & mask)
+		ucb1x00_reg_write(ucb, UCB_IE_FAL, ucb->irq_fal_enbl &
+				  ucb->irq_mask);
+	ucb1x00_disable(ucb);
 }
 
-/**
- *	ucb1x00_enable_irq - enable an UCB1x00 interrupt source
- *	@ucb: UCB1x00 structure describing chip
- *	@idx: interrupt index
- *	@edges: interrupt edges to enable
- *
- *	Enable the specified interrupt to trigger on %UCB_RISING,
- *	%UCB_FALLING or both edges.  The interrupt should have been
- *	hooked by ucb1x00_hook_irq.
- */
-void ucb1x00_enable_irq(struct ucb1x00 *ucb, unsigned int idx, int edges)
+static void ucb1x00_irq_noop(struct irq_data *data)
 {
-	unsigned long flags;
-
-	if (idx < 16) {
-		spin_lock_irqsave(&ucb->lock, flags);
-
-		ucb1x00_enable(ucb);
-		if (edges & UCB_RISING) {
-			ucb->irq_ris_enbl |= 1 << idx;
-			ucb1x00_reg_write(ucb, UCB_IE_RIS, ucb->irq_ris_enbl);
-		}
-		if (edges & UCB_FALLING) {
-			ucb->irq_fal_enbl |= 1 << idx;
-			ucb1x00_reg_write(ucb, UCB_IE_FAL, ucb->irq_fal_enbl);
-		}
-		ucb1x00_disable(ucb);
-		spin_unlock_irqrestore(&ucb->lock, flags);
-	}
 }
 
-/**
- *	ucb1x00_disable_irq - disable an UCB1x00 interrupt source
- *	@ucb: UCB1x00 structure describing chip
- *	@edges: interrupt edges to disable
- *
- *	Disable the specified interrupt triggering on the specified
- *	(%UCB_RISING, %UCB_FALLING or both) edges.
- */
-void ucb1x00_disable_irq(struct ucb1x00 *ucb, unsigned int idx, int edges)
+static void ucb1x00_irq_mask(struct irq_data *data)
 {
-	unsigned long flags;
+	struct ucb1x00 *ucb = irq_data_get_irq_chip_data(data);
+	unsigned mask = 1 << (data->irq - ucb->irq_base);
 
-	if (idx < 16) {
-		spin_lock_irqsave(&ucb->lock, flags);
-
-		ucb1x00_enable(ucb);
-		if (edges & UCB_RISING) {
-			ucb->irq_ris_enbl &= ~(1 << idx);
-			ucb1x00_reg_write(ucb, UCB_IE_RIS, ucb->irq_ris_enbl);
-		}
-		if (edges & UCB_FALLING) {
-			ucb->irq_fal_enbl &= ~(1 << idx);
-			ucb1x00_reg_write(ucb, UCB_IE_FAL, ucb->irq_fal_enbl);
-		}
-		ucb1x00_disable(ucb);
-		spin_unlock_irqrestore(&ucb->lock, flags);
-	}
+	raw_spin_lock(&ucb->irq_lock);
+	ucb->irq_mask &= ~mask;
+	ucb1x00_irq_update(ucb, mask);
+	raw_spin_unlock(&ucb->irq_lock);
 }
 
-/**
- *	ucb1x00_free_irq - disable and free the specified UCB1x00 interrupt
- *	@ucb: UCB1x00 structure describing chip
- *	@idx: interrupt index
- *	@devid: device id.
- *
- *	Disable the interrupt source and remove the handler.  devid must
- *	match the devid passed when hooking the interrupt.
- *
- *	Returns zero on success, or one of the following errors:
- *	 -EINVAL if the interrupt index is invalid
- *	 -ENOENT if devid does not match
- */
-int ucb1x00_free_irq(struct ucb1x00 *ucb, unsigned int idx, void *devid)
+static void ucb1x00_irq_unmask(struct irq_data *data)
 {
-	struct ucb1x00_irq *irq;
-	int ret;
+	struct ucb1x00 *ucb = irq_data_get_irq_chip_data(data);
+	unsigned mask = 1 << (data->irq - ucb->irq_base);
 
-	if (idx >= 16)
-		goto bad;
-
-	irq = ucb->irq_handler + idx;
-	ret = -ENOENT;
-
-	spin_lock_irq(&ucb->lock);
-	if (irq->devid == devid) {
-		ucb->irq_ris_enbl &= ~(1 << idx);
-		ucb->irq_fal_enbl &= ~(1 << idx);
-
-		ucb1x00_enable(ucb);
-		ucb1x00_reg_write(ucb, UCB_IE_RIS, ucb->irq_ris_enbl);
-		ucb1x00_reg_write(ucb, UCB_IE_FAL, ucb->irq_fal_enbl);
-		ucb1x00_disable(ucb);
-
-		irq->fn = NULL;
-		irq->devid = NULL;
-		ret = 0;
-	}
-	spin_unlock_irq(&ucb->lock);
-	return ret;
-
-bad:
-	printk(KERN_ERR "Freeing bad UCB1x00 irq %d\n", idx);
-	return -EINVAL;
+	raw_spin_lock(&ucb->irq_lock);
+	ucb->irq_mask |= mask;
+	ucb1x00_irq_update(ucb, mask);
+	raw_spin_unlock(&ucb->irq_lock);
 }
+
+static int ucb1x00_irq_set_type(struct irq_data *data, unsigned int type)
+{
+	struct ucb1x00 *ucb = irq_data_get_irq_chip_data(data);
+	unsigned mask = 1 << (data->irq - ucb->irq_base);
+
+	raw_spin_lock(&ucb->irq_lock);
+	if (type & IRQ_TYPE_EDGE_RISING)
+		ucb->irq_ris_enbl |= mask;
+	else
+		ucb->irq_ris_enbl &= ~mask;
+
+	if (type & IRQ_TYPE_EDGE_FALLING)
+		ucb->irq_fal_enbl |= mask;
+	else
+		ucb->irq_fal_enbl &= ~mask;
+	if (ucb->irq_mask & mask) {
+		ucb1x00_reg_write(ucb, UCB_IE_RIS, ucb->irq_ris_enbl &
+				  ucb->irq_mask);
+		ucb1x00_reg_write(ucb, UCB_IE_FAL, ucb->irq_fal_enbl &
+				  ucb->irq_mask);
+	}
+	raw_spin_unlock(&ucb->irq_lock);
+
+	return 0;
+}
+
+static struct irq_chip ucb1x00_irqchip = {
+	.name = "ucb1x00",
+	.irq_ack = ucb1x00_irq_noop,
+	.irq_mask = ucb1x00_irq_mask,
+	.irq_unmask = ucb1x00_irq_unmask,
+	.irq_set_type = ucb1x00_irq_set_type,
+};
 
 static int ucb1x00_add_dev(struct ucb1x00 *ucb, struct ucb1x00_driver *drv)
 {
@@ -545,9 +479,8 @@ static int ucb1x00_probe(struct mcp *mcp)
 	struct ucb1x00_plat_data *pdata = mcp->attached_device.platform_data;
 	struct ucb1x00_driver *drv;
 	struct ucb1x00 *ucb;
-	unsigned int id;
+	unsigned id, i, irq_base;
 	int ret = -ENODEV;
-	int temp;
 
 	/* Tell the platform to deassert the UCB1x00 reset */
 	if (pdata && pdata->reset)
@@ -572,7 +505,7 @@ static int ucb1x00_probe(struct mcp *mcp)
 	ucb->dev.parent = &mcp->attached_device;
 	dev_set_name(&ucb->dev, "ucb1x00");
 
-	spin_lock_init(&ucb->lock);
+	raw_spin_lock_init(&ucb->irq_lock);
 	spin_lock_init(&ucb->io_lock);
 	mutex_init(&ucb->adc_mutex);
 
@@ -593,6 +526,26 @@ static int ucb1x00_probe(struct mcp *mcp)
 	}
 
 	ucb->gpio.base = -1;
+	irq_base = pdata ? pdata->irq_base : 0;
+	ucb->irq_base = irq_alloc_descs(-1, irq_base, 16, -1);
+	if (ucb->irq_base < 0) {
+		dev_err(&ucb->dev, "unable to allocate 16 irqs: %d\n",
+			ucb->irq_base);
+		goto err_irq_alloc;
+	}
+
+	for (i = 0; i < 16; i++) {
+		unsigned irq = ucb->irq_base + i;
+
+		irq_set_chip_and_handler(irq, &ucb1x00_irqchip, handle_edge_irq);
+		irq_set_chip_data(irq, ucb);
+		set_irq_flags(irq, IRQF_VALID | IRQ_NOREQUEST);
+	}
+
+	irq_set_irq_type(ucb->irq, IRQ_TYPE_EDGE_RISING);
+	irq_set_handler_data(ucb->irq, ucb);
+	irq_set_chained_handler(ucb->irq, ucb1x00_irq);
+
 	if (pdata && pdata->gpio_base) {
 		ucb->gpio.label = dev_name(&ucb->dev);
 		ucb->gpio.dev = &ucb->dev;
@@ -603,19 +556,12 @@ static int ucb1x00_probe(struct mcp *mcp)
 		ucb->gpio.get = ucb1x00_gpio_get;
 		ucb->gpio.direction_input = ucb1x00_gpio_direction_input;
 		ucb->gpio.direction_output = ucb1x00_gpio_direction_output;
+		ucb->gpio.to_irq = ucb1x00_to_irq;
 		ret = gpiochip_add(&ucb->gpio);
 		if (ret)
 			goto err_gpio_add;
 	} else
 		dev_info(&ucb->dev, "gpio_base not set so no gpiolib support");
-
-	ret = request_irq(ucb->irq, ucb1x00_irq, IRQF_TRIGGER_RISING,
-			  "UCB1x00", ucb);
-	if (ret) {
-		dev_err(&ucb->dev, "ucb1x00: unable to grab irq%d: %d\n",
-			ucb->irq, ret);
-		goto err_irq;
-	}
 
 	mcp_set_drvdata(mcp, ucb);
 
@@ -629,10 +575,11 @@ static int ucb1x00_probe(struct mcp *mcp)
 
 	return ret;
 
- err_irq:
-	if (ucb->gpio.base != -1)
-		temp = gpiochip_remove(&ucb->gpio);
  err_gpio_add:
+	irq_set_chained_handler(ucb->irq, NULL);
+ err_irq_alloc:
+	if (ucb->irq_base > 0)
+		irq_free_descs(ucb->irq_base, 16);
  err_no_irq:
 	device_del(&ucb->dev);
  err_dev_add:
@@ -664,7 +611,8 @@ static void ucb1x00_remove(struct mcp *mcp)
 			dev_err(&ucb->dev, "Can't remove gpio chip: %d\n", ret);
 	}
 
-	free_irq(ucb->irq, ucb);
+	irq_set_chained_handler(ucb->irq, NULL);
+	irq_free_descs(ucb->irq_base, 16);
 	device_unregister(&ucb->dev);
 
 	if (pdata && pdata->reset)
@@ -771,11 +719,6 @@ EXPORT_SYMBOL(ucb1x00_io_read);
 EXPORT_SYMBOL(ucb1x00_adc_enable);
 EXPORT_SYMBOL(ucb1x00_adc_read);
 EXPORT_SYMBOL(ucb1x00_adc_disable);
-
-EXPORT_SYMBOL(ucb1x00_hook_irq);
-EXPORT_SYMBOL(ucb1x00_free_irq);
-EXPORT_SYMBOL(ucb1x00_enable_irq);
-EXPORT_SYMBOL(ucb1x00_disable_irq);
 
 EXPORT_SYMBOL(ucb1x00_register_driver);
 EXPORT_SYMBOL(ucb1x00_unregister_driver);
