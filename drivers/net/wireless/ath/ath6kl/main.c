@@ -74,6 +74,7 @@ static void ath6kl_add_new_sta(struct ath6kl_vif *vif, u8 *mac, u16 aid,
 
 	ar->sta_list_index = ar->sta_list_index | (1 << free_slot);
 	ar->ap_stats.sta[free_slot].aid = cpu_to_le32(aid);
+	aggr_conn_init(vif, sta->aggr_conn);
 }
 
 static void ath6kl_sta_cleanup(struct ath6kl *ar, u8 i)
@@ -94,7 +95,7 @@ static void ath6kl_sta_cleanup(struct ath6kl *ar, u8 i)
 	sta->sta_flags = 0;
 
 	ar->sta_list_index = ar->sta_list_index & ~(1 << i);
-
+	aggr_reset_state(sta->aggr_conn);
 }
 
 static u8 ath6kl_remove_sta(struct ath6kl *ar, u8 *mac, u16 reason)
@@ -602,7 +603,7 @@ void ath6kl_connect_event(struct ath6kl_vif *vif, u16 channel, u8 *bssid,
 	netif_carrier_on(vif->ndev);
 	spin_unlock_bh(&vif->if_lock);
 
-	aggr_reset_state(vif->aggr_cntxt);
+	aggr_reset_state(vif->aggr_cntxt->aggr_conn);
 	vif->reconnect_flag = 0;
 
 	if ((vif->nw_type == ADHOC_NETWORK) && ar->ibss_ps_enable) {
@@ -924,7 +925,7 @@ void ath6kl_disconnect_event(struct ath6kl_vif *vif, u8 reason, u8 *bssid,
 				       assoc_resp_len, assoc_info,
 				       prot_reason_status);
 
-	aggr_reset_state(vif->aggr_cntxt);
+	aggr_reset_state(vif->aggr_cntxt->aggr_conn);
 
 	del_timer(&vif->disconnect_timer);
 

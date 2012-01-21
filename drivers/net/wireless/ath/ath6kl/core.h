@@ -298,6 +298,7 @@ struct ath6kl_sta {
 	spinlock_t psq_lock;
 	u8 apsd_info;
 	struct sk_buff_head apsdq;
+	struct aggr_info_conn *aggr_conn;
 };
 
 struct ath6kl_version {
@@ -713,6 +714,7 @@ void ath6kl_free_cookie(struct ath6kl *ar, struct ath6kl_cookie *cookie);
 int ath6kl_data_tx(struct sk_buff *skb, struct net_device *dev);
 
 struct aggr_info *aggr_init(struct ath6kl_vif *vif);
+void aggr_conn_init(struct ath6kl_vif *vif, struct aggr_info_conn *aggr_conn);
 void ath6kl_rx_refill(struct htc_target *target,
 		      enum htc_endpoint_id endpoint);
 void ath6kl_refill_amsdu_rxbufs(struct ath6kl *ar, int count);
@@ -720,7 +722,7 @@ struct htc_packet *ath6kl_alloc_amsdu_rxbuf(struct htc_target *target,
 					    enum htc_endpoint_id endpoint,
 					    int len);
 void aggr_module_destroy(struct aggr_info *aggr_info);
-void aggr_reset_state(struct aggr_info *aggr_info);
+void aggr_reset_state(struct aggr_info_conn *aggr_conn);
 
 struct ath6kl_sta *ath6kl_find_sta(struct ath6kl_vif *vif, u8 * node_addr);
 struct ath6kl_sta *ath6kl_find_sta_by_aid(struct ath6kl *ar, u8 aid);

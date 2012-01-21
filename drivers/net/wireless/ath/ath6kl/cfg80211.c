@@ -2871,6 +2871,11 @@ struct ath6kl *ath6kl_cfg80211_create(void)
 /* Note: ar variable must not be accessed after calling this! */
 void ath6kl_cfg80211_destroy(struct ath6kl *ar)
 {
+	int i;
+
+	for (i = 0; i < AP_MAX_NUM_STA; i++)
+		kfree(ar->sta_list[i].aggr_conn);
+
 	wiphy_free(ar->wiphy);
 }
 
