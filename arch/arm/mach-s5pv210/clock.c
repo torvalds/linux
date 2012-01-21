@@ -175,7 +175,7 @@ static int s5pv210_clk_mask1_ctrl(struct clk *clk, int enable)
 	return s5p_gatectrl(S5P_CLK_SRC_MASK1, clk, enable);
 }
 
-static int exynos4_clk_hdmiphy_ctrl(struct clk *clk, int enable)
+static int s5pv210_clk_hdmiphy_ctrl(struct clk *clk, int enable)
 {
 	return s5p_gatectrl(S5P_HDMI_PHY_CONTROL, clk, enable);
 }
@@ -372,7 +372,7 @@ static struct clk init_clocks_off[] = {
 	}, {
 		.name		= "hdmiphy",
 		.devname	= "s5pv210-hdmi",
-		.enable		= exynos4_clk_hdmiphy_ctrl,
+		.enable		= s5pv210_clk_hdmiphy_ctrl,
 		.ctrlbit	= (1 << 0),
 	}, {
 		.name		= "dacphy",
