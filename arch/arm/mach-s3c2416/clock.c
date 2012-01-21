@@ -132,12 +132,6 @@ static struct clk hsmmc0_clk = {
 	.ctrlbit	= S3C2416_HCLKCON_HSMMC0,
 };
 
-void __init_or_cpufreq s3c2416_setup_clocks(void)
-{
-	s3c2443_common_setup_clocks(s3c2416_get_pll);
-}
-
-
 static struct clksrc_clk *clksrcs[] __initdata = {
 	&hsspi_eplldiv,
 	&hsspi_mux,

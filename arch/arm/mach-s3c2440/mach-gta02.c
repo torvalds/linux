@@ -258,7 +258,7 @@ static struct pcf50633_bl_platform_data gta02_backlight_data = {
 	.ramp_time = 5,
 };
 
-struct pcf50633_platform_data gta02_pcf_pdata = {
+static struct pcf50633_platform_data gta02_pcf_pdata = {
 	.resumers = {
 		[0] =	PCF50633_INT1_USBINS |
 			PCF50633_INT1_USBREM |
@@ -404,7 +404,7 @@ static struct platform_device gta02_nor_flash = {
 };
 
 
-struct platform_device s3c24xx_pwm_device = {
+static struct platform_device s3c24xx_pwm_device = {
 	.name		= "s3c24xx_pwm",
 	.num_resources	= 0,
 };

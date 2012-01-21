@@ -217,7 +217,7 @@ static const struct s3c_adc_bat_thresh bat_lut_acin[] = {
 	{ .volt = 3820, .cur = 0, .level = 0},
 };
 
-int rx1950_bat_init(void)
+static int rx1950_bat_init(void)
 {
 	int ret;
 
@@ -236,25 +236,25 @@ err_gpio1:
 	return ret;
 }
 
-void rx1950_bat_exit(void)
+static void rx1950_bat_exit(void)
 {
 	gpio_free(S3C2410_GPJ(2));
 	gpio_free(S3C2410_GPJ(3));
 }
 
-void rx1950_enable_charger(void)
+static void rx1950_enable_charger(void)
 {
 	gpio_direction_output(S3C2410_GPJ(2), 1);
 	gpio_direction_output(S3C2410_GPJ(3), 1);
 }
 
-void rx1950_disable_charger(void)
+static void rx1950_disable_charger(void)
 {
 	gpio_direction_output(S3C2410_GPJ(2), 0);
 	gpio_direction_output(S3C2410_GPJ(3), 0);
 }
 
-DEFINE_SPINLOCK(rx1950_blink_spin);
+static DEFINE_SPINLOCK(rx1950_blink_spin);
 
 static int rx1950_led_blink_set(unsigned gpio, int state,
 	unsigned long *delay_on, unsigned long *delay_off)
@@ -382,7 +382,7 @@ static struct s3c2410fb_mach_info rx1950_lcd_cfg = {
 
 static struct pwm_device *lcd_pwm;
 
-void rx1950_lcd_power(int enable)
+static void rx1950_lcd_power(int enable)
 {
 	int i;
 	static int enabled;

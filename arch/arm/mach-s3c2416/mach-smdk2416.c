@@ -125,7 +125,7 @@ static struct s3c2410_uartcfg smdk2416_uartcfgs[] __initdata = {
 	}
 };
 
-void smdk2416_hsudc_gpio_init(void)
+static void smdk2416_hsudc_gpio_init(void)
 {
 	s3c_gpio_setpull(S3C2410_GPH(14), S3C_GPIO_PULL_UP);
 	s3c_gpio_setpull(S3C2410_GPF(2), S3C_GPIO_PULL_NONE);
@@ -133,20 +133,20 @@ void smdk2416_hsudc_gpio_init(void)
 	s3c2410_modify_misccr(S3C2416_MISCCR_SEL_SUSPND, 0);
 }
 
-void smdk2416_hsudc_gpio_uninit(void)
+static void smdk2416_hsudc_gpio_uninit(void)
 {
 	s3c2410_modify_misccr(S3C2416_MISCCR_SEL_SUSPND, 1);
 	s3c_gpio_setpull(S3C2410_GPH(14), S3C_GPIO_PULL_NONE);
 	s3c_gpio_cfgpin(S3C2410_GPH(14), S3C_GPIO_SFN(0));
 }
 
-struct s3c24xx_hsudc_platdata smdk2416_hsudc_platdata = {
+static struct s3c24xx_hsudc_platdata smdk2416_hsudc_platdata = {
 	.epnum = 9,
 	.gpio_init = smdk2416_hsudc_gpio_init,
 	.gpio_uninit = smdk2416_hsudc_gpio_uninit,
 };
 
-struct s3c_fb_pd_win smdk2416_fb_win[] = {
+static struct s3c_fb_pd_win smdk2416_fb_win[] = {
 	[0] = {
 		/* think this is the same as the smdk6410 */
 		.win_mode	= {
