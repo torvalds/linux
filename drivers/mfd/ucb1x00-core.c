@@ -116,14 +116,22 @@ static void ucb1x00_gpio_set(struct gpio_chip *chip, unsigned offset, int value)
 	else
 		ucb->io_out &= ~(1 << offset);
 
+	ucb1x00_enable(ucb);
 	ucb1x00_reg_write(ucb, UCB_IO_DATA, ucb->io_out);
+	ucb1x00_disable(ucb);
 	spin_unlock_irqrestore(&ucb->io_lock, flags);
 }
 
 static int ucb1x00_gpio_get(struct gpio_chip *chip, unsigned offset)
 {
 	struct ucb1x00 *ucb = container_of(chip, struct ucb1x00, gpio);
-	return ucb1x00_reg_read(ucb, UCB_IO_DATA) & (1 << offset);
+	unsigned val;
+
+	ucb1x00_enable(ucb);
+	val = ucb1x00_reg_read(ucb, UCB_IO_DATA);
+	ucb1x00_disable(ucb);
+
+	return val & (1 << offset);
 }
 
 static int ucb1x00_gpio_direction_input(struct gpio_chip *chip, unsigned offset)
@@ -133,7 +141,9 @@ static int ucb1x00_gpio_direction_input(struct gpio_chip *chip, unsigned offset)
 
 	spin_lock_irqsave(&ucb->io_lock, flags);
 	ucb->io_dir &= ~(1 << offset);
+	ucb1x00_enable(ucb);
 	ucb1x00_reg_write(ucb, UCB_IO_DIR, ucb->io_dir);
+	ucb1x00_disable(ucb);
 	spin_unlock_irqrestore(&ucb->io_lock, flags);
 
 	return 0;
@@ -153,6 +163,7 @@ static int ucb1x00_gpio_direction_output(struct gpio_chip *chip, unsigned offset
 	else
 		ucb->io_out &= ~mask;
 
+	ucb1x00_enable(ucb);
 	if (old != ucb->io_out)
 		ucb1x00_reg_write(ucb, UCB_IO_DATA, ucb->io_out);
 
@@ -160,6 +171,7 @@ static int ucb1x00_gpio_direction_output(struct gpio_chip *chip, unsigned offset
 		ucb->io_dir |= mask;
 		ucb1x00_reg_write(ucb, UCB_IO_DIR, ucb->io_dir);
 	}
+	ucb1x00_disable(ucb);
 	spin_unlock_irqrestore(&ucb->io_lock, flags);
 
 	return 0;
@@ -703,8 +715,10 @@ static int ucb1x00_resume(struct mcp *mcp)
 	struct ucb1x00 *ucb = mcp_get_drvdata(mcp);
 	struct ucb1x00_dev *dev;
 
+	ucb1x00_enable(ucb);
 	ucb1x00_reg_write(ucb, UCB_IO_DATA, ucb->io_out);
 	ucb1x00_reg_write(ucb, UCB_IO_DIR, ucb->io_dir);
+	ucb1x00_disable(ucb);
 	mutex_lock(&ucb1x00_mutex);
 	list_for_each_entry(dev, &ucb->devs, dev_node) {
 		if (dev->drv->resume)
