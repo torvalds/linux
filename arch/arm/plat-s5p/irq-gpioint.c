@@ -41,7 +41,7 @@ struct s5p_gpioint_bank {
 	void			(*handler)(unsigned int, struct irq_desc *);
 };
 
-LIST_HEAD(banks);
+static LIST_HEAD(banks);
 
 static int s5p_gpioint_set_type(struct irq_data *d, unsigned int type)
 {

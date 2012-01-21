@@ -200,7 +200,7 @@ static struct irq_chip s5p_irq_vic_eint = {
 #endif
 };
 
-int __init s5p_init_irq_eint(void)
+static int __init s5p_init_irq_eint(void)
 {
 	int irq;
 
