@@ -201,8 +201,8 @@ static struct rc_map_table rc_map_az6007_table[] = {
 /* remote control stuff (does not work with my box) */
 static int az6007_rc_query(struct dvb_usb_device *d, u32 * event, int *state)
 {
+	struct az6007_device_state *st = d->priv;
 	struct rc_map_table *keymap = d->props.rc.legacy.rc_map_table;
-	u8 key[10];
 	int i;
 
 	/*
@@ -212,9 +212,9 @@ static int az6007_rc_query(struct dvb_usb_device *d, u32 * event, int *state)
 	 */
 	return 0;
 
-	az6007_read(d, AZ6007_READ_IR, 0, 0, key, 10);
+	az6007_read(d, AZ6007_READ_IR, 0, 0, st->data, 10);
 
-	if (key[1] == 0x44) {
+	if (st->data[1] == 0x44) {
 		*state = REMOTE_NO_KEY_PRESSED;
 		return 0;
 	}
@@ -228,11 +228,11 @@ static int az6007_rc_query(struct dvb_usb_device *d, u32 * event, int *state)
 	 * 88 80 7e 0d f2 ff 00 82 63 82 (another NEC-extended based IR)
 	 * I suspect that the IR data is at bytes 1 to 4, and byte 5 is parity
 	 */
-	deb_rc("remote query key: %x %d\n", key[1], key[1]);
-	print_hex_dump_bytes("Remote: ", DUMP_PREFIX_NONE, key, 10);
+	deb_rc("remote query key: %x %d\n", st->data[1], st->data[1]);
+	print_hex_dump_bytes("Remote: ", DUMP_PREFIX_NONE, st->data, 10);
 
 	for (i = 0; i < d->props.rc.legacy.rc_map_size; i++) {
-		if (rc5_custom(&keymap[i]) == key[1]) {
+		if (rc5_custom(&keymap[i]) == st->data[1]) {
 			*event = keymap[i].keycode;
 			*state = REMOTE_KEY_PRESSED;
 
@@ -244,8 +244,11 @@ static int az6007_rc_query(struct dvb_usb_device *d, u32 * event, int *state)
 
 static int az6007_read_mac_addr(struct dvb_usb_device *d, u8 mac[6])
 {
+	struct az6007_device_state *st = d->priv;
 	int ret;
-	ret = az6007_read(d, AZ6007_READ_DATA, 6, 0, mac, 6);
+
+	ret = az6007_read(d, AZ6007_READ_DATA, 6, 0, st->data, 6);
+	memcpy(mac, st->data, sizeof(mac));
 
 	if (ret > 0)
 		deb_info("%s: mac is %02x:%02x:%02x:%02x:%02x:%02x\n",
@@ -464,7 +467,11 @@ int az6007_identify_state(struct usb_device *udev,
 			  struct dvb_usb_device_description **desc, int *cold)
 {
 	int ret;
-	u8 mac[6];
+	u8 *mac;
+
+	mac = kmalloc(6, GFP_ATOMIC);
+	if (!mac)
+		return -ENOMEM;
 
 	/* Try to read the mac address */
 	ret = __az6007_read(udev, AZ6007_READ_DATA, 6, 0, mac, 6);
@@ -472,6 +479,8 @@ int az6007_identify_state(struct usb_device *udev,
 		*cold = 0;
 	else
 		*cold = 1;
+
+	kfree(mac);
 
 	if (*cold) {
 		__az6007_write(udev, 0x09, 1, 0, NULL, 0);
@@ -488,8 +497,6 @@ static struct dvb_usb_device_properties az6007_properties;
 static int az6007_usb_probe(struct usb_interface *intf,
 			    const struct usb_device_id *id)
 {
-	struct usb_device *udev = interface_to_usbdev(intf);
-
 	return dvb_usb_device_init(intf, &az6007_properties,
 				   THIS_MODULE, NULL, adapter_nr);
 }
