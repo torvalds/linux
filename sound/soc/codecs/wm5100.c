@@ -1310,10 +1310,7 @@ static const struct snd_soc_dapm_route wm5100_dapm_routes[] = {
 	{ "PWM2", NULL, "PWM2 Driver" },
 };
 
-static struct {
-	int reg;
-	int val;
-} wm5100_reva_patches[] = {
+static const __devinitdata struct reg_default wm5100_reva_patches[] = {
 	{ WM5100_AUDIO_IF_1_10, 0 },
 	{ WM5100_AUDIO_IF_1_11, 1 },
 	{ WM5100_AUDIO_IF_1_12, 2 },
@@ -1376,31 +1373,6 @@ static int wm5100_set_bias_level(struct snd_soc_codec *codec,
 			}
 
 			regcache_cache_only(wm5100->regmap, false);
-
-			switch (wm5100->rev) {
-			case 0:
-				regcache_cache_bypass(wm5100->regmap, true);
-				snd_soc_write(codec, 0x11, 0x3);
-				snd_soc_write(codec, 0x203, 0xc);
-				snd_soc_write(codec, 0x206, 0);
-				snd_soc_write(codec, 0x207, 0xf0);
-				snd_soc_write(codec, 0x208, 0x3c);
-				snd_soc_write(codec, 0x209, 0);
-				snd_soc_write(codec, 0x211, 0x20d8);
-				snd_soc_write(codec, 0x11, 0);
-
-				for (i = 0;
-				     i < ARRAY_SIZE(wm5100_reva_patches);
-				     i++)
-					snd_soc_write(codec,
-						      wm5100_reva_patches[i].reg,
-						      wm5100_reva_patches[i].val);
-				regcache_cache_bypass(wm5100->regmap, false);
-				break;
-			default:
-				break;
-			}
-
 			regcache_sync(wm5100->regmap);
 		}
 		break;
@@ -2702,6 +2674,22 @@ static __devinit int wm5100_i2c_probe(struct i2c_client *i2c,
 		dev_err(&i2c->dev, "Failed to issue reset\n");
 		goto err_reset;
 	}
+
+	switch (wm5100->rev) {
+	case 0:
+		ret = regmap_register_patch(wm5100->regmap,
+					    wm5100_reva_patches,
+					    ARRAY_SIZE(wm5100_reva_patches));
+		if (ret != 0) {
+			dev_err(&i2c->dev, "Failed to register patches: %d\n",
+				ret);
+			goto err_reset;
+		}
+		break;
+	default:
+		break;
+	}
+
 
 	wm5100_init_gpio(i2c);
 
