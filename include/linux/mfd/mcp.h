@@ -64,6 +64,9 @@ void mcp_driver_unregister(struct mcp_driver *);
 #define mcp_get_drvdata(mcp)	dev_get_drvdata(&(mcp)->attached_device)
 #define mcp_set_drvdata(mcp,d)	dev_set_drvdata(&(mcp)->attached_device, d)
 
-#define mcp_priv(mcp)		((void *)((mcp)+1))
+static inline void *mcp_priv(struct mcp *mcp)
+{
+	return mcp + 1;
+}
 
 #endif
