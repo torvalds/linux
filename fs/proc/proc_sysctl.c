@@ -1228,6 +1228,23 @@ fail:
 	return NULL;
 }
 
+/**
+ * register_sysctl - register a sysctl table
+ * @path: The path to the directory the sysctl table is in.
+ * @table: the table structure
+ *
+ * Register a sysctl table. @table should be a filled in ctl_table
+ * array. A completely 0 filled entry terminates the table.
+ *
+ * See __register_sysctl_table for more details.
+ */
+struct ctl_table_header *register_sysctl(const char *path, struct ctl_table *table)
+{
+	return __register_sysctl_table(&sysctl_table_root.default_set,
+					path, table);
+}
+EXPORT_SYMBOL(register_sysctl);
+
 static char *append_path(const char *path, char *pos, const char *name)
 {
 	int namelen;
