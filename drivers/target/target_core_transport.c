@@ -1690,15 +1690,21 @@ void target_submit_cmd(struct se_cmd *se_cmd, struct se_session *se_sess,
 	/*
 	 * Locate se_lun pointer and attach it to struct se_cmd
 	 */
-	if (transport_lookup_cmd_lun(se_cmd, unpacked_lun) < 0)
-		goto out_check_cond;
+	if (transport_lookup_cmd_lun(se_cmd, unpacked_lun) < 0) {
+		transport_send_check_condition_and_sense(se_cmd,
+				se_cmd->scsi_sense_reason, 0);
+		target_put_sess_cmd(se_sess, se_cmd);
+		return;
+	}
 	/*
 	 * Sanitize CDBs via transport_generic_cmd_sequencer() and
 	 * allocate the necessary tasks to complete the received CDB+data
 	 */
 	rc = transport_generic_allocate_tasks(se_cmd, cdb);
-	if (rc != 0)
-		goto out_check_cond;
+	if (rc != 0) {
+		transport_generic_request_failure(se_cmd);
+		return;
+	}
 	/*
 	 * Dispatch se_cmd descriptor to se_lun->lun_se_dev backend
 	 * for immediate execution of READs, otherwise wait for
@@ -1707,10 +1713,6 @@ void target_submit_cmd(struct se_cmd *se_cmd, struct se_session *se_sess,
 	 */
 	transport_handle_cdb_direct(se_cmd);
 	return;
-
-out_check_cond:
-	transport_send_check_condition_and_sense(se_cmd,
-				se_cmd->scsi_sense_reason, 0);
 }
 EXPORT_SYMBOL(target_submit_cmd);
 
