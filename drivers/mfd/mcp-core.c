@@ -47,39 +47,11 @@ static int mcp_bus_remove(struct device *dev)
 	return 0;
 }
 
-static int mcp_bus_suspend(struct device *dev, pm_message_t state)
-{
-	struct mcp *mcp = to_mcp(dev);
-	int ret = 0;
-
-	if (dev->driver) {
-		struct mcp_driver *drv = to_mcp_driver(dev->driver);
-
-		ret = drv->suspend(mcp, state);
-	}
-	return ret;
-}
-
-static int mcp_bus_resume(struct device *dev)
-{
-	struct mcp *mcp = to_mcp(dev);
-	int ret = 0;
-
-	if (dev->driver) {
-		struct mcp_driver *drv = to_mcp_driver(dev->driver);
-
-		ret = drv->resume(mcp);
-	}
-	return ret;
-}
-
 static struct bus_type mcp_bus_type = {
 	.name		= "mcp",
 	.match		= mcp_bus_match,
 	.probe		= mcp_bus_probe,
 	.remove		= mcp_bus_remove,
-	.suspend	= mcp_bus_suspend,
-	.resume		= mcp_bus_resume,
 };
 
 /**

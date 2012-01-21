@@ -48,8 +48,6 @@ struct mcp_driver {
 	struct device_driver drv;
 	int (*probe)(struct mcp *);
 	void (*remove)(struct mcp *);
-	int (*suspend)(struct mcp *, pm_message_t);
-	int (*resume)(struct mcp *);
 };
 
 int mcp_driver_register(struct mcp_driver *);
