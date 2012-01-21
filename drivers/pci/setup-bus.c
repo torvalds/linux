@@ -118,10 +118,13 @@ static resource_size_t get_res_add_size(struct list_head *head,
 
 	list_for_each_entry(dev_res, head, list) {
 		if (dev_res->res == res) {
+			int idx = res - &dev_res->dev->resource[0];
+
 			dev_printk(KERN_DEBUG, &dev_res->dev->dev,
-				 "%pR get_res_add_size  add_size %llx\n",
-				 dev_res->res,
+				 "res[%d]=%pR get_res_add_size add_size %llx\n",
+				 idx, dev_res->res,
 				 (unsigned long long)dev_res->add_size);
+
 			return dev_res->add_size;
 		}
 	}
@@ -260,8 +263,9 @@ static void reassign_resources_sorted(struct list_head *realloc_head,
 			if (pci_reassign_resource(add_res->dev, idx,
 						  add_size, align))
 				dev_printk(KERN_DEBUG, &add_res->dev->dev,
-				   "failed to add optional resources res=%pR\n",
-							res);
+					   "failed to add %llx res[%d]=%pR\n",
+					   (unsigned long long)add_size,
+					   idx, res);
 		}
 out:
 		list_del(&add_res->list);
@@ -760,8 +764,12 @@ static void pbus_size_io(struct pci_bus *bus, resource_size_t min_size,
 	b_res->start = 4096;
 	b_res->end = b_res->start + size0 - 1;
 	b_res->flags |= IORESOURCE_STARTALIGN;
-	if (size1 > size0 && realloc_head)
+	if (size1 > size0 && realloc_head) {
 		add_to_list(realloc_head, bus->self, b_res, size1-size0, 4096);
+		dev_printk(KERN_DEBUG, &bus->self->dev, "bridge window "
+				 "%pR to [bus %02x-%02x] add_size %lx\n", b_res,
+				 bus->secondary, bus->subordinate, size1-size0);
+	}
 }
 
 /**
@@ -873,8 +881,12 @@ static int pbus_size_mem(struct pci_bus *bus, unsigned long mask,
 	b_res->start = min_align;
 	b_res->end = size0 + min_align - 1;
 	b_res->flags |= IORESOURCE_STARTALIGN | mem64_mask;
-	if (size1 > size0 && realloc_head)
+	if (size1 > size0 && realloc_head) {
 		add_to_list(realloc_head, bus->self, b_res, size1-size0, min_align);
+		dev_printk(KERN_DEBUG, &bus->self->dev, "bridge window "
+				 "%pR to [bus %02x-%02x] add_size %llx\n", b_res,
+				 bus->secondary, bus->subordinate, (unsigned long long)size1-size0);
+	}
 	return 1;
 }
 
