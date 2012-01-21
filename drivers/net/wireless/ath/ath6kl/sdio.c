@@ -1314,6 +1314,7 @@ static void ath6kl_sdio_remove(struct sdio_func *func)
 	cancel_work_sync(&ar_sdio->wr_async_work);
 
 	ath6kl_core_cleanup(ar_sdio->ar);
+	ath6kl_core_destroy(ar_sdio->ar);
 
 	kfree(ar_sdio->dma_buffer);
 	kfree(ar_sdio);
