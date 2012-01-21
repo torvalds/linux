@@ -233,11 +233,12 @@ int pci_reassign_resource(struct pci_dev *dev, int resno, resource_size_t addsiz
 		return -EINVAL;
 	}
 
-	new_size = resource_size(res) + addsize + min_align;
+	/* already aligned with min_align */
+	new_size = resource_size(res) + addsize;
 	ret = _pci_assign_resource(dev, resno, new_size, min_align);
 	if (!ret) {
 		res->flags &= ~IORESOURCE_STARTALIGN;
-		dev_info(&dev->dev, "BAR %d: assigned %pR\n", resno, res);
+		dev_info(&dev->dev, "BAR %d: reassigned %pR\n", resno, res);
 		if (resno < PCI_BRIDGE_RESOURCES)
 			pci_update_resource(dev, resno);
 	}
