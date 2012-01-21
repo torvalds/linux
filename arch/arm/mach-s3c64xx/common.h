@@ -25,8 +25,6 @@ void s3c64xx_setup_clocks(void);
 
 void s3c64xx_restart(char mode, const char *cmd);
 
-extern struct syscore_ops s3c64xx_irq_syscore_ops;
-
 #ifdef CONFIG_CPU_S3C6400
 
 extern  int s3c6400_init(void);
