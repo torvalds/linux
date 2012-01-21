@@ -436,8 +436,8 @@ static int ucb1x00_add_dev(struct ucb1x00 *ucb, struct ucb1x00_driver *drv)
 		ret = drv->add(dev);
 
 		if (ret == 0) {
-			list_add(&dev->dev_node, &ucb->devs);
-			list_add(&dev->drv_node, &drv->devs);
+			list_add_tail(&dev->dev_node, &ucb->devs);
+			list_add_tail(&dev->drv_node, &drv->devs);
 		} else {
 			kfree(dev);
 		}
@@ -605,7 +605,7 @@ static int ucb1x00_probe(struct mcp *mcp)
 
 	INIT_LIST_HEAD(&ucb->devs);
 	mutex_lock(&ucb1x00_mutex);
-	list_add(&ucb->node, &ucb1x00_devices);
+	list_add_tail(&ucb->node, &ucb1x00_devices);
 	list_for_each_entry(drv, &ucb1x00_drivers, node) {
 		ucb1x00_add_dev(ucb, drv);
 	}
@@ -663,7 +663,7 @@ int ucb1x00_register_driver(struct ucb1x00_driver *drv)
 
 	INIT_LIST_HEAD(&drv->devs);
 	mutex_lock(&ucb1x00_mutex);
-	list_add(&drv->node, &ucb1x00_drivers);
+	list_add_tail(&drv->node, &ucb1x00_drivers);
 	list_for_each_entry(ucb, &ucb1x00_devices, node) {
 		ucb1x00_add_dev(ucb, drv);
 	}
