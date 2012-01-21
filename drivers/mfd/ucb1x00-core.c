@@ -714,6 +714,7 @@ static int ucb1x00_resume(struct mcp *mcp)
 static struct mcp_driver ucb1x00_driver = {
 	.drv		= {
 		.name	= "ucb1x00",
+		.owner	= THIS_MODULE,
 	},
 	.probe		= ucb1x00_probe,
 	.remove		= ucb1x00_remove,
@@ -757,6 +758,7 @@ EXPORT_SYMBOL(ucb1x00_disable_irq);
 EXPORT_SYMBOL(ucb1x00_register_driver);
 EXPORT_SYMBOL(ucb1x00_unregister_driver);
 
+MODULE_ALIAS("mcp:ucb1x00");
 MODULE_AUTHOR("Russell King <rmk@arm.linux.org.uk>");
 MODULE_DESCRIPTION("UCB1x00 core driver");
 MODULE_LICENSE("GPL");
