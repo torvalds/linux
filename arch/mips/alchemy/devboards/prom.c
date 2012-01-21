@@ -33,15 +33,6 @@
 #include <asm/mach-au1x00/au1000.h>
 #include <prom.h>
 
-#if defined(CONFIG_MIPS_DB1000) || \
-    defined(CONFIG_MIPS_PB1100) || \
-    defined(CONFIG_MIPS_PB1500)
-#define ALCHEMY_BOARD_DEFAULT_MEMSIZE	0x04000000
-
-#else	/* Au1550/Au1200-based develboards */
-#define ALCHEMY_BOARD_DEFAULT_MEMSIZE	0x08000000
-#endif
-
 void __init prom_init(void)
 {
 	unsigned char *memsize_str;
@@ -54,7 +45,7 @@ void __init prom_init(void)
 	prom_init_cmdline();
 	memsize_str = prom_getenv("memsize");
 	if (!memsize_str || strict_strtoul(memsize_str, 0, &memsize))
-		memsize = ALCHEMY_BOARD_DEFAULT_MEMSIZE;
+		memsize = 64 << 20; /* all devboards have at least 64MB RAM */
 
 	add_memory_region(0, memsize, BOOT_MEM_RAM);
 }
