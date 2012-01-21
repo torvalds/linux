@@ -99,6 +99,21 @@ static void add_to_failed_list(struct resource_list_x *head,
 			0 /* dont care */);
 }
 
+static resource_size_t get_res_add_size(struct resource_list_x *realloc_head,
+					struct resource *res)
+{
+	struct resource_list_x *list;
+
+	/* check if it is in realloc_head list */
+	for (list = realloc_head->next; list && list->res != res;
+			list = list->next)
+		;
+	if (list)
+		return list->add_size;
+
+	return 0;
+}
+
 static void __dev_sort_resources(struct pci_dev *dev,
 				 struct resource_list *head)
 {
@@ -548,20 +563,6 @@ static resource_size_t calculate_memsize(resource_size_t size,
 		size = old_size;
 	size = ALIGN(size + size1, align);
 	return size;
-}
-
-static resource_size_t get_res_add_size(struct resource_list_x *realloc_head,
-					struct resource *res)
-{
-	struct resource_list_x *list;
-
-	/* check if it is in realloc_head list */
-	for (list = realloc_head->next; list && list->res != res;
-			list = list->next);
-	if (list)
-		return list->add_size;
-
-	return 0;
 }
 
 /**
