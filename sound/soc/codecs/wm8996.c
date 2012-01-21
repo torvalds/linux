@@ -3153,8 +3153,8 @@ static __devinit int wm8996_i2c_probe(struct i2c_client *i2c,
 	for (i = 0; i < ARRAY_SIZE(wm8996->supplies); i++)
 		wm8996->supplies[i].supply = wm8996_supply_names[i];
 
-	ret = regulator_bulk_get(&i2c->dev, ARRAY_SIZE(wm8996->supplies),
-				 wm8996->supplies);
+	ret = devm_regulator_bulk_get(&i2c->dev, ARRAY_SIZE(wm8996->supplies),
+				      wm8996->supplies);
 	if (ret != 0) {
 		dev_err(&i2c->dev, "Failed to request supplies: %d\n", ret);
 		goto err_gpio;
@@ -3164,7 +3164,7 @@ static __devinit int wm8996_i2c_probe(struct i2c_client *i2c,
 				    wm8996->supplies);
 	if (ret != 0) {
 		dev_err(&i2c->dev, "Failed to enable supplies: %d\n", ret);
-		goto err_get;
+		goto err_gpio;
 	}
 
 	if (wm8996->pdata.ldo_ena > 0) {
@@ -3226,8 +3226,6 @@ err_enable:
 	if (wm8996->pdata.ldo_ena > 0)
 		gpio_set_value_cansleep(wm8996->pdata.ldo_ena, 0);
 	regulator_bulk_disable(ARRAY_SIZE(wm8996->supplies), wm8996->supplies);
-err_get:
-	regulator_bulk_free(ARRAY_SIZE(wm8996->supplies), wm8996->supplies);
 err_gpio:
 	if (wm8996->pdata.ldo_ena > 0)
 		gpio_free(wm8996->pdata.ldo_ena);
@@ -3242,7 +3240,6 @@ static __devexit int wm8996_i2c_remove(struct i2c_client *client)
 
 	snd_soc_unregister_codec(&client->dev);
 	wm8996_free_gpio(wm8996);
-	regulator_bulk_free(ARRAY_SIZE(wm8996->supplies), wm8996->supplies);
 	regmap_exit(wm8996->regmap);
 	if (wm8996->pdata.ldo_ena > 0) {
 		gpio_set_value_cansleep(wm8996->pdata.ldo_ena, 0);
