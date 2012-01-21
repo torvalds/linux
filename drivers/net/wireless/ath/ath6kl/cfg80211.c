@@ -2694,7 +2694,7 @@ void ath6kl_cfg80211_stop_all(struct ath6kl *ar)
 
 static int ath6kl_cfg80211_vif_init(struct ath6kl_vif *vif)
 {
-	vif->aggr_cntxt = aggr_init(vif->ndev);
+	vif->aggr_cntxt = aggr_init(vif);
 	if (!vif->aggr_cntxt) {
 		ath6kl_err("failed to initialize aggr\n");
 		return -ENOMEM;

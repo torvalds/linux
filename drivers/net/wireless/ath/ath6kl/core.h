@@ -242,14 +242,19 @@ struct rxtid_stats {
 	u32 num_bar;
 };
 
-struct aggr_info {
+struct aggr_info_conn {
 	u8 aggr_sz;
 	u8 timer_scheduled;
 	struct timer_list timer;
 	struct net_device *dev;
 	struct rxtid rx_tid[NUM_OF_TIDS];
-	struct sk_buff_head free_q;
 	struct rxtid_stats stat[NUM_OF_TIDS];
+	struct aggr_info *aggr_info;
+};
+
+struct aggr_info {
+	struct aggr_info_conn *aggr_conn;
+	struct sk_buff_head rx_amsdu_freeq;
 };
 
 struct ath6kl_wep_key {
@@ -707,7 +712,7 @@ struct ath6kl_cookie *ath6kl_alloc_cookie(struct ath6kl *ar);
 void ath6kl_free_cookie(struct ath6kl *ar, struct ath6kl_cookie *cookie);
 int ath6kl_data_tx(struct sk_buff *skb, struct net_device *dev);
 
-struct aggr_info *aggr_init(struct net_device *dev);
+struct aggr_info *aggr_init(struct ath6kl_vif *vif);
 void ath6kl_rx_refill(struct htc_target *target,
 		      enum htc_endpoint_id endpoint);
 void ath6kl_refill_amsdu_rxbufs(struct ath6kl *ar, int count);
