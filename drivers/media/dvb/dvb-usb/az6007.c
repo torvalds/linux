@@ -204,13 +204,7 @@ static int az6007_rc_query(struct dvb_usb_device *d, u32 * event, int *state)
 	struct az6007_device_state *st = d->priv;
 	struct rc_map_table *keymap = d->props.rc.legacy.rc_map_table;
 	int i;
-
-	/*
-	 * FIXME: remove the following return to enabled remote querying
-	 * The driver likely needs proper locking to avoid troubles between
-	 * this call and other concurrent calls.
-	 */
-	return 0;
+	unsigned code = 0;
 
 	az6007_read(d, AZ6007_READ_IR, 0, 0, st->data, 10);
 
@@ -219,20 +213,21 @@ static int az6007_rc_query(struct dvb_usb_device *d, u32 * event, int *state)
 		return 0;
 	}
 
-	/*
-	 * FIXME: need to make something useful with the keycodes and to
-	 * convert it to the non-legacy mode. Yet, it is producing some
-	 * debug info already, like:
-	 * 88 04 eb 02 fd ff 00 82 63 82 (terratec IR)
-	 * 88 04 eb 03 fc 00 00 82 63 82 (terratec IR)
-	 * 88 80 7e 0d f2 ff 00 82 63 82 (another NEC-extended based IR)
-	 * I suspect that the IR data is at bytes 1 to 4, and byte 5 is parity
-	 */
-	deb_rc("remote query key: %x %d\n", st->data[1], st->data[1]);
+	if ((st->data[1] ^ st->data[2]) == 0xff)
+		code = st->data[1];
+	else
+		code = st->data[1] << 8 | st->data[2];
+
+	if ((st->data[3] ^ st->data[4]) == 0xff)
+		code = code << 8 | st->data[3];
+	else
+		code = code << 16 | st->data[3] << 8| st->data[4];
+
+	printk("remote query key: %04x\n", code);
 	print_hex_dump_bytes("Remote: ", DUMP_PREFIX_NONE, st->data, 10);
 
 	for (i = 0; i < d->props.rc.legacy.rc_map_size; i++) {
-		if (rc5_custom(&keymap[i]) == st->data[1]) {
+		if (rc5_custom(&keymap[i]) == code) {
 			*event = keymap[i].keycode;
 			*state = REMOTE_KEY_PRESSED;
 
