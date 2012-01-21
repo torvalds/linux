@@ -27,7 +27,6 @@
 #include <linux/mutex.h>
 #include <linux/mfd/ucb1x00.h>
 #include <linux/gpio.h>
-#include <linux/semaphore.h>
 
 static DEFINE_MUTEX(ucb1x00_mutex);
 static LIST_HEAD(ucb1x00_drivers);
@@ -99,7 +98,7 @@ void ucb1x00_io_write(struct ucb1x00 *ucb, unsigned int set, unsigned int clear)
  *	ucb1x00_enable must have been called to enable the comms
  *	before using this function.
  *
- *	This function does not take any semaphores or spinlocks.
+ *	This function does not take any mutexes or spinlocks.
  */
 unsigned int ucb1x00_io_read(struct ucb1x00 *ucb)
 {
@@ -183,7 +182,7 @@ static int ucb1x00_gpio_direction_output(struct gpio_chip *chip, unsigned offset
  *	Any code wishing to use the ADC converter must call this
  *	function prior to using it.
  *
- *	This function takes the ADC semaphore to prevent two or more
+ *	This function takes the ADC mutex to prevent two or more
  *	concurrent uses, and therefore may sleep.  As a result, it
  *	can only be called from process context, not interrupt
  *	context.
@@ -193,7 +192,7 @@ static int ucb1x00_gpio_direction_output(struct gpio_chip *chip, unsigned offset
  */
 void ucb1x00_adc_enable(struct ucb1x00 *ucb)
 {
-	down(&ucb->adc_sem);
+	mutex_lock(&ucb->adc_mutex);
 
 	ucb->adc_cr |= UCB_ADC_ENA;
 
@@ -215,7 +214,7 @@ void ucb1x00_adc_enable(struct ucb1x00 *ucb)
  *	complete (2 frames max without sync).
  *
  *	If called for a synchronised ADC conversion, it may sleep
- *	with the ADC semaphore held.
+ *	with the ADC mutex held.
  */
 unsigned int ucb1x00_adc_read(struct ucb1x00 *ucb, int adc_channel, int sync)
 {
@@ -243,7 +242,7 @@ unsigned int ucb1x00_adc_read(struct ucb1x00 *ucb, int adc_channel, int sync)
  *	ucb1x00_adc_disable - disable the ADC converter
  *	@ucb: UCB1x00 structure describing chip
  *
- *	Disable the ADC converter and release the ADC semaphore.
+ *	Disable the ADC converter and release the ADC mutex.
  */
 void ucb1x00_adc_disable(struct ucb1x00 *ucb)
 {
@@ -251,7 +250,7 @@ void ucb1x00_adc_disable(struct ucb1x00 *ucb)
 	ucb1x00_reg_write(ucb, UCB_ADC_CR, ucb->adc_cr);
 	ucb1x00_disable(ucb);
 
-	up(&ucb->adc_sem);
+	mutex_unlock(&ucb->adc_mutex);
 }
 
 /*
@@ -560,7 +559,7 @@ static int ucb1x00_probe(struct mcp *mcp)
 
 	spin_lock_init(&ucb->lock);
 	spin_lock_init(&ucb->io_lock);
-	sema_init(&ucb->adc_sem, 1);
+	mutex_init(&ucb->adc_mutex);
 
 	ucb->id  = id;
 	ucb->mcp = mcp;

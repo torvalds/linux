@@ -12,7 +12,7 @@
 
 #include <linux/mfd/mcp.h>
 #include <linux/gpio.h>
-#include <linux/semaphore.h>
+#include <linux/mutex.h>
 
 #define UCB_IO_DATA	0x00
 #define UCB_IO_DIR	0x01
@@ -124,7 +124,7 @@ struct ucb1x00 {
 	spinlock_t		lock;
 	struct mcp		*mcp;
 	unsigned int		irq;
-	struct semaphore	adc_sem;
+	struct mutex		adc_mutex;
 	spinlock_t		io_lock;
 	u16			id;
 	u16			io_dir;
