@@ -29,8 +29,6 @@
 #include <linux/gpio.h>
 #include <linux/semaphore.h>
 
-#include <mach/hardware.h>
-
 static DEFINE_MUTEX(ucb1x00_mutex);
 static LIST_HEAD(ucb1x00_drivers);
 static LIST_HEAD(ucb1x00_devices);
