@@ -1685,6 +1685,11 @@ void aggr_reset_state(struct aggr_info *aggr_info)
 {
 	u8 tid;
 
+	if (aggr_info->timer_scheduled) {
+		del_timer(&aggr_info->timer);
+		aggr_info->timer_scheduled = false;
+	}
+
 	for (tid = 0; tid < NUM_OF_TIDS; tid++)
 		aggr_delete_tid_state(aggr_info, tid);
 }
