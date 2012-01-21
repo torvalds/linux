@@ -943,7 +943,8 @@ void __ref __pci_bus_size_bridges(struct pci_bus *bus,
 		 * Follow thru
 		 */
 	default:
-		pbus_size_io(bus, 0, additional_io_size, realloc_head);
+		pbus_size_io(bus, realloc_head ? 0 : additional_io_size,
+			     additional_io_size, realloc_head);
 		/* If the bridge supports prefetchable range, size it
 		   separately. If it doesn't, or its prefetchable window
 		   has already been allocated by arch code, try
@@ -951,11 +952,15 @@ void __ref __pci_bus_size_bridges(struct pci_bus *bus,
 		   resources. */
 		mask = IORESOURCE_MEM;
 		prefmask = IORESOURCE_MEM | IORESOURCE_PREFETCH;
-		if (pbus_size_mem(bus, prefmask, prefmask, 0, additional_mem_size, realloc_head))
+		if (pbus_size_mem(bus, prefmask, prefmask,
+				  realloc_head ? 0 : additional_mem_size,
+				  additional_mem_size, realloc_head))
 			mask = prefmask; /* Success, size non-prefetch only. */
 		else
 			additional_mem_size += additional_mem_size;
-		pbus_size_mem(bus, mask, IORESOURCE_MEM, 0, additional_mem_size, realloc_head);
+		pbus_size_mem(bus, mask, IORESOURCE_MEM,
+				realloc_head ? 0 : additional_mem_size,
+				additional_mem_size, realloc_head);
 		break;
 	}
 }
@@ -1194,44 +1199,49 @@ pci_assign_unassigned_resources(void)
 	struct pci_bus *bus;
 	struct resource_list_x realloc_list; /* list of resources that
 					want additional resources */
+	struct resource_list_x *add_list = NULL;
 	int tried_times = 0;
 	enum release_type rel_type = leaf_only;
 	struct resource_list_x head, *list;
 	unsigned long type_mask = IORESOURCE_IO | IORESOURCE_MEM |
 				  IORESOURCE_PREFETCH;
 	unsigned long failed_type;
-	int max_depth = pci_get_max_depth();
-	int pci_try_num;
-
+	int pci_try_num = 1;
 
 	head.next = NULL;
 	realloc_list.next = NULL;
 
-	pci_try_num = max_depth + 1;
-	printk(KERN_DEBUG "PCI: max bus depth: %d pci_try_num: %d\n",
-		 max_depth, pci_try_num);
+	/* don't realloc if asked to do so */
+	if (pci_realloc_enabled()) {
+		int max_depth = pci_get_max_depth();
+
+		pci_try_num = max_depth + 1;
+		printk(KERN_DEBUG "PCI: max bus depth: %d pci_try_num: %d\n",
+			 max_depth, pci_try_num);
+	}
 
 again:
+	/*
+	 * last try will use add_list, otherwise will try good to have as
+	 * must have, so can realloc parent bridge resource
+	 */
+	if (tried_times + 1 == pci_try_num)
+		add_list = &realloc_list;
 	/* Depth first, calculate sizes and alignments of all
 	   subordinate buses. */
 	list_for_each_entry(bus, &pci_root_buses, node)
-		__pci_bus_size_bridges(bus, &realloc_list);
+		__pci_bus_size_bridges(bus, add_list);
 
 	/* Depth last, allocate resources and update the hardware. */
 	list_for_each_entry(bus, &pci_root_buses, node)
-		__pci_bus_assign_resources(bus, &realloc_list, &head);
-	BUG_ON(realloc_list.next);
+		__pci_bus_assign_resources(bus, add_list, &head);
+	if (add_list)
+		BUG_ON(add_list->next);
 	tried_times++;
 
 	/* any device complain? */
 	if (!head.next)
 		goto enable_and_dump;
-
-	/* don't realloc if asked to do so */
-	if (!pci_realloc_enabled()) {
-		free_list(resource_list_x, &head);
-		goto enable_and_dump;
-	}
 
 	failed_type = 0;
 	for (list = head.next; list;) {
