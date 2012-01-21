@@ -154,7 +154,7 @@ struct ucb1x00_driver {
 	struct list_head	devs;
 	int	(*add)(struct ucb1x00_dev *dev);
 	void	(*remove)(struct ucb1x00_dev *dev);
-	int	(*suspend)(struct ucb1x00_dev *dev, pm_message_t state);
+	int	(*suspend)(struct ucb1x00_dev *dev);
 	int	(*resume)(struct ucb1x00_dev *dev);
 };
 
