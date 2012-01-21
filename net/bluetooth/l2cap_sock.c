@@ -849,6 +849,8 @@ static struct l2cap_chan *l2cap_sock_new_connection_cb(void *data)
 	if (!sk)
 		return NULL;
 
+	bt_sock_reclassify_lock(sk, BTPROTO_L2CAP);
+
 	l2cap_sock_init(sk, parent);
 
 	return l2cap_pi(sk)->chan;
