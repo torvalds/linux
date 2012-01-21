@@ -192,26 +192,16 @@ static int az6007_streaming_ctrl(struct dvb_usb_adapter *adap, int onoff)
 	return az6007_write(d, 0xbc, onoff, 0, NULL, 0);
 }
 
-/* keys for the enclosed remote control */
-static struct rc_map_table rc_map_az6007_table[] = {
-	{0x0001, KEY_1},
-	{0x0002, KEY_2},
-};
-
 /* remote control stuff (does not work with my box) */
-static int az6007_rc_query(struct dvb_usb_device *d, u32 * event, int *state)
+static int az6007_rc_query(struct dvb_usb_device *d)
 {
 	struct az6007_device_state *st = d->priv;
-	struct rc_map_table *keymap = d->props.rc.legacy.rc_map_table;
-	int i;
 	unsigned code = 0;
 
 	az6007_read(d, AZ6007_READ_IR, 0, 0, st->data, 10);
 
-	if (st->data[1] == 0x44) {
-		*state = REMOTE_NO_KEY_PRESSED;
+	if (st->data[1] == 0x44)
 		return 0;
-	}
 
 	if ((st->data[1] ^ st->data[2]) == 0xff)
 		code = st->data[1];
@@ -224,16 +214,9 @@ static int az6007_rc_query(struct dvb_usb_device *d, u32 * event, int *state)
 		code = code << 16 | st->data[3] << 8| st->data[4];
 
 	printk("remote query key: %04x\n", code);
-	print_hex_dump_bytes("Remote: ", DUMP_PREFIX_NONE, st->data, 10);
 
-	for (i = 0; i < d->props.rc.legacy.rc_map_size; i++) {
-		if (rc5_custom(&keymap[i]) == code) {
-			*event = keymap[i].keycode;
-			*state = REMOTE_KEY_PRESSED;
+	rc_keydown(d->rc_dev, code, st->data[5]);
 
-			return 0;
-		}
-	}
 	return 0;
 }
 
@@ -536,11 +519,12 @@ static struct dvb_usb_device_properties az6007_properties = {
 	.power_ctrl       = az6007_power_ctrl,
 	.read_mac_address = az6007_read_mac_addr,
 
-	.rc.legacy = {
-		.rc_map_table  = rc_map_az6007_table,
-		.rc_map_size  = ARRAY_SIZE(rc_map_az6007_table),
+	.rc.core = {
 		.rc_interval      = 400,
+		.rc_codes         = RC_MAP_DIB0700_NEC_TABLE,
+		.module_name	  = "az6007",
 		.rc_query         = az6007_rc_query,
+		.allowed_protos   = RC_TYPE_NEC,
 	},
 	.i2c_algo         = &az6007_i2c_algo,
 
