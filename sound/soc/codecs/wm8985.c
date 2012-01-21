@@ -834,25 +834,6 @@ static int wm8985_set_sysclk(struct snd_soc_dai *dai,
 	return 0;
 }
 
-static void wm8985_sync_cache(struct snd_soc_codec *codec)
-{
-	short i;
-	u16 *cache;
-
-	if (!codec->cache_sync)
-		return;
-	codec->cache_only = 0;
-	/* restore cache */
-	cache = codec->reg_cache;
-	for (i = 0; i < codec->driver->reg_cache_size; i++) {
-		if (i == WM8985_SOFTWARE_RESET
-				|| cache[i] == wm8985_reg_defs[i])
-			continue;
-		snd_soc_write(codec, i, cache[i]);
-	}
-	codec->cache_sync = 0;
-}
-
 static int wm8985_set_bias_level(struct snd_soc_codec *codec,
 				 enum snd_soc_bias_level level)
 {
@@ -879,7 +860,7 @@ static int wm8985_set_bias_level(struct snd_soc_codec *codec,
 				return ret;
 			}
 
-			wm8985_sync_cache(codec);
+			snd_soc_cache_sync(codec);
 
 			/* enable anti-pop features */
 			snd_soc_update_bits(codec, WM8985_OUT4_TO_ADC,
