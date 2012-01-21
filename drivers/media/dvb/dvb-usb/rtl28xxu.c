@@ -367,9 +367,9 @@ static int rtl2831u_frontend_attach(struct dvb_usb_adapter *adap)
 
 found:
 	/* attach demodulator */
-	adap->fe[0] = dvb_attach(rtl2830_attach, rtl2830_config,
+	adap->fe_adap[0].fe = dvb_attach(rtl2830_attach, rtl2830_config,
 		&adap->dev->i2c_adap);
-	if (adap->fe[0] == NULL) {
+	if (adap->fe_adap[0].fe == NULL) {
 		ret = -ENODEV;
 		goto err;
 	}
@@ -489,20 +489,21 @@ static int rtl2831u_tuner_attach(struct dvb_usb_adapter *adap)
 	deb_info("%s:\n", __func__);
 
 	/* use rtl2830 driver I2C adapter, for more info see rtl2830 driver */
-	rtl2830_tuner_i2c = rtl2830_get_tuner_i2c_adapter(adap->fe[0]);
+	rtl2830_tuner_i2c = rtl2830_get_tuner_i2c_adapter(adap->fe_adap[0].fe);
 
 	switch (priv->tuner) {
 	case TUNER_RTL2830_QT1010:
-		fe = dvb_attach(qt1010_attach, adap->fe[0], rtl2830_tuner_i2c,
-			&rtl28xxu_qt1010_config);
+		fe = dvb_attach(qt1010_attach, adap->fe_adap[0].fe,
+				rtl2830_tuner_i2c, &rtl28xxu_qt1010_config);
 		break;
 	case TUNER_RTL2830_MT2060:
-		fe = dvb_attach(mt2060_attach, adap->fe[0], rtl2830_tuner_i2c,
-			&rtl28xxu_mt2060_config, 1220);
+		fe = dvb_attach(mt2060_attach, adap->fe_adap[0].fe,
+				rtl2830_tuner_i2c, &rtl28xxu_mt2060_config,
+				1220);
 		break;
 	case TUNER_RTL2830_MXL5005S:
-		fe = dvb_attach(mxl5005s_attach, adap->fe[0], rtl2830_tuner_i2c,
-			&rtl28xxu_mxl5005s_config);
+		fe = dvb_attach(mxl5005s_attach, adap->fe_adap[0].fe,
+			rtl2830_tuner_i2c, &rtl28xxu_mxl5005s_config);
 		break;
 	default:
 		err("unknown tuner=%d", priv->tuner);
@@ -814,19 +815,24 @@ static struct dvb_usb_device_properties rtl28xxu_properties[] = {
 		.num_adapters = 1,
 		.adapter = {
 			{
-				.frontend_attach = rtl2831u_frontend_attach,
-				.tuner_attach    = rtl2831u_tuner_attach,
-				.streaming_ctrl  = rtl28xxu_streaming_ctrl,
-				.stream = {
-					.type = USB_BULK,
-					.count = 6,
-					.endpoint = 0x81,
-					.u = {
-						.bulk = {
-							.buffersize = 4096,
+				.num_frontends = 1,
+				.fe = {
+					{
+						.frontend_attach = rtl2831u_frontend_attach,
+						.tuner_attach    = rtl2831u_tuner_attach,
+						.streaming_ctrl  = rtl28xxu_streaming_ctrl,
+						.stream = {
+							.type = USB_BULK,
+							.count = 6,
+							.endpoint = 0x81,
+							.u = {
+								.bulk = {
+									.buffersize = 4096,
+								}
+							}
 						}
 					}
-				},
+				}
 			}
 		},
 
@@ -870,19 +876,24 @@ static struct dvb_usb_device_properties rtl28xxu_properties[] = {
 		.num_adapters = 1,
 		.adapter = {
 			{
-				.frontend_attach = rtl2832u_frontend_attach,
-				.tuner_attach    = rtl2832u_tuner_attach,
-				.streaming_ctrl  = rtl28xxu_streaming_ctrl,
-				.stream = {
-					.type = USB_BULK,
-					.count = 6,
-					.endpoint = 0x81,
-					.u = {
-						.bulk = {
-							.buffersize = 4096,
+				.num_frontends = 1,
+				.fe = {
+					{
+						.frontend_attach = rtl2832u_frontend_attach,
+						.tuner_attach    = rtl2832u_tuner_attach,
+						.streaming_ctrl  = rtl28xxu_streaming_ctrl,
+						.stream = {
+							.type = USB_BULK,
+							.count = 6,
+							.endpoint = 0x81,
+							.u = {
+								.bulk = {
+									.buffersize = 4096,
+								}
+							}
 						}
 					}
-				},
+				}
 			}
 		},
 
