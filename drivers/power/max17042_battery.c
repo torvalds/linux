@@ -751,18 +751,7 @@ static struct i2c_driver max17042_i2c_driver = {
 	.remove		= __devexit_p(max17042_remove),
 	.id_table	= max17042_id,
 };
-
-static int __init max17042_init(void)
-{
-	return i2c_add_driver(&max17042_i2c_driver);
-}
-module_init(max17042_init);
-
-static void __exit max17042_exit(void)
-{
-	i2c_del_driver(&max17042_i2c_driver);
-}
-module_exit(max17042_exit);
+module_i2c_driver(max17042_i2c_driver);
 
 MODULE_AUTHOR("MyungJoo Ham <myungjoo.ham@samsung.com>");
 MODULE_DESCRIPTION("MAX17042 Fuel Gauge");
