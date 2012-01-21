@@ -554,16 +554,17 @@ static int ucb1x00_probe(struct mcp *mcp)
 
 	mcp_enable(mcp);
 	id = mcp_reg_read(mcp, UCB_ID);
+	mcp_disable(mcp);
 
 	if (id != UCB_ID_1200 && id != UCB_ID_1300 && id != UCB_ID_TC35143) {
 		printk(KERN_WARNING "UCB1x00 ID not found: %04x\n", id);
-		goto err_disable;
+		goto out;
 	}
 
 	ucb = kzalloc(sizeof(struct ucb1x00), GFP_KERNEL);
 	ret = -ENOMEM;
 	if (!ucb)
-		goto err_disable;
+		goto out;
 
 	device_initialize(&ucb->dev);
 	ucb->dev.class = &ucb1x00_class;
@@ -581,7 +582,9 @@ static int ucb1x00_probe(struct mcp *mcp)
 	if (ret)
 		goto err_dev_add;
 
+	ucb1x00_enable(ucb);
 	ucb->irq = ucb1x00_detect_irq(ucb);
+	ucb1x00_disable(ucb);
 	if (ucb->irq == NO_IRQ) {
 		dev_err(&ucb->dev, "IRQ probe failed\n");
 		ret = -ENODEV;
@@ -633,8 +636,6 @@ static int ucb1x00_probe(struct mcp *mcp)
 	device_del(&ucb->dev);
  err_dev_add:
 	put_device(&ucb->dev);
- err_disable:
-	mcp_disable(mcp);
  out:
 	if (pdata && pdata->reset)
 		pdata->reset(UCB_RST_PROBE_FAIL);
