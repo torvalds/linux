@@ -38,13 +38,15 @@ struct pci_dev_resource {
 	unsigned long flags;
 };
 
-#define free_list(type, head) do {				\
-	struct type *dev_res, *tmp;				\
-	list_for_each_entry_safe(dev_res, tmp, head, list) {	\
-		list_del(&dev_res->list);			\
-		kfree(dev_res);					\
-	}							\
-} while (0)
+static void free_list(struct list_head *head)
+{
+	struct pci_dev_resource *dev_res, *tmp;
+
+	list_for_each_entry_safe(dev_res, tmp, head, list) {
+		list_del(&dev_res->list);
+		kfree(dev_res);
+	}
+}
 
 int pci_realloc_enable = 0;
 #define pci_realloc_enabled() pci_realloc_enable
@@ -329,7 +331,7 @@ static void __assign_resources_sorted(struct list_head *head,
 	/* Save original start, end, flags etc at first */
 	list_for_each_entry(dev_res, head, list) {
 		if (add_to_list(&save_head, dev_res->dev, dev_res->res, 0, 0)) {
-			free_list(pci_dev_resource, &save_head);
+			free_list(&save_head);
 			goto requested_and_reassign;
 		}
 	}
@@ -347,12 +349,12 @@ static void __assign_resources_sorted(struct list_head *head,
 		/* Remove head list from realloc_head list */
 		list_for_each_entry(dev_res, head, list)
 			remove_from_list(realloc_head, dev_res->res);
-		free_list(pci_dev_resource, &save_head);
-		free_list(pci_dev_resource, head);
+		free_list(&save_head);
+		free_list(head);
 		return;
 	}
 
-	free_list(pci_dev_resource, &local_fail_head);
+	free_list(&local_fail_head);
 	/* Release assigned resource */
 	list_for_each_entry(dev_res, head, list)
 		if (dev_res->res->parent)
@@ -365,7 +367,7 @@ static void __assign_resources_sorted(struct list_head *head,
 		res->end = save_res->end;
 		res->flags = save_res->flags;
 	}
-	free_list(pci_dev_resource, &save_head);
+	free_list(&save_head);
 
 requested_and_reassign:
 	/* Satisfy the must-have resource requests */
@@ -375,7 +377,7 @@ requested_and_reassign:
 		requests */
 	if (realloc_head)
 		reassign_resources_sorted(realloc_head, head);
-	free_list(pci_dev_resource, head);
+	free_list(head);
 }
 
 static void pdev_assign_resources_sorted(struct pci_dev *dev,
@@ -1298,7 +1300,7 @@ again:
 	 */
 	failed_type &= type_mask;
 	if ((failed_type == IORESOURCE_IO) || (tried_times >= pci_try_num)) {
-		free_list(pci_dev_resource, &fail_head);
+		free_list(&fail_head);
 		goto enable_and_dump;
 	}
 
@@ -1329,7 +1331,7 @@ again:
 		if (fail_res->dev->subordinate)
 			res->flags = 0;
 	}
-	free_list(pci_dev_resource, &fail_head);
+	free_list(&fail_head);
 
 	goto again;
 
@@ -1366,7 +1368,7 @@ again:
 
 	if (tried_times >= 2) {
 		/* still fail, don't need to try more */
-		free_list(pci_dev_resource, &fail_head);
+		free_list(&fail_head);
 		goto enable_all;
 	}
 
@@ -1394,7 +1396,7 @@ again:
 		if (fail_res->dev->subordinate)
 			res->flags = 0;
 	}
-	free_list(pci_dev_resource, &fail_head);
+	free_list(&fail_head);
 
 	goto again;
 
