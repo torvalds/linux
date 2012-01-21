@@ -19,6 +19,7 @@
 #include <linux/delay.h>
 #include <linux/spinlock.h>
 #include <linux/platform_device.h>
+#include <linux/pm.h>
 #include <linux/mfd/mcp.h>
 
 #include <mach/hardware.h>
@@ -266,33 +267,38 @@ static int mcp_sa11x0_remove(struct platform_device *dev)
 	return 0;
 }
 
-static int mcp_sa11x0_suspend(struct platform_device *dev, pm_message_t state)
+#ifdef CONFIG_PM_SLEEP
+static int mcp_sa11x0_suspend(struct device *dev)
 {
-	struct mcp_sa11x0 *m = priv(platform_get_drvdata(dev));
+	struct mcp_sa11x0 *m = priv(dev_get_drvdata(dev));
 
 	writel(m->mccr0 & ~MCCR0_MCE, MCCR0(m));
 
 	return 0;
 }
 
-static int mcp_sa11x0_resume(struct platform_device *dev)
+static int mcp_sa11x0_resume(struct device *dev)
 {
-	struct mcp_sa11x0 *m = priv(platform_get_drvdata(dev));
+	struct mcp_sa11x0 *m = priv(dev_get_drvdata(dev));
 
 	writel_relaxed(m->mccr1, MCCR1(m));
 	writel_relaxed(m->mccr0, MCCR0(m));
 
 	return 0;
 }
+#endif
+
+static const struct dev_pm_ops mcp_sa11x0_pm_ops = {
+	SET_SYSTEM_SLEEP_PM_OPS(mcp_sa11x0_suspend, mcp_sa11x0_resume)
+};
 
 static struct platform_driver mcp_sa11x0_driver = {
 	.probe		= mcp_sa11x0_probe,
 	.remove		= mcp_sa11x0_remove,
-	.suspend	= mcp_sa11x0_suspend,
-	.resume		= mcp_sa11x0_resume,
 	.driver		= {
 		.name	= DRIVER_NAME,
 		.owner	= THIS_MODULE,
+		.pm	= &mcp_sa11x0_pm_ops,
 	},
 };
 
