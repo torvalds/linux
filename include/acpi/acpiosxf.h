@@ -218,9 +218,13 @@ acpi_status acpi_os_write_port(acpi_io_address address, u32 value, u32 width);
  */
 acpi_status
 acpi_os_read_memory(acpi_physical_address address, u32 * value, u32 width);
+acpi_status
+acpi_os_read_memory64(acpi_physical_address address, u64 *value, u32 width);
 
 acpi_status
 acpi_os_write_memory(acpi_physical_address address, u32 value, u32 width);
+acpi_status
+acpi_os_write_memory64(acpi_physical_address address, u64 value, u32 width);
 
 /*
  * Platform and hardware-independent PCI configuration space access
