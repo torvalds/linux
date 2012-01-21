@@ -211,9 +211,7 @@ static int az6007_rc_query(struct dvb_usb_device *d)
 	if ((st->data[3] ^ st->data[4]) == 0xff)
 		code = code << 8 | st->data[3];
 	else
-		code = code << 16 | st->data[3] << 8| st->data[4];
-
-	printk("remote query key: %04x\n", code);
+		code = code << 16 | st->data[3] << 8 | st->data[4];
 
 	rc_keydown(d->rc_dev, code, st->data[5]);
 
@@ -302,11 +300,11 @@ int az6007_power_ctrl(struct dvb_usb_device *d, int onoff)
 		ret = az6007_write(d, FX2_SCON1, 0, 3, NULL, 0);
 		if (ret < 0)
 			return ret;
-		msleep (150);
+		msleep(150);
 		ret = az6007_write(d, FX2_SCON1, 1, 3, NULL, 0);
 		if (ret < 0)
 			return ret;
-		msleep (430);
+		msleep(430);
 		ret = az6007_write(d, AZ6007_POWER, 0, 0, NULL, 0);
 		if (ret < 0)
 			return ret;
@@ -362,8 +360,8 @@ static int az6007_i2c_xfer(struct i2c_adapter *adap, struct i2c_msg msgs[],
 			value = addr | (1 << 8);
 			length = 6 + msgs[i + 1].len;
 			len = msgs[i + 1].len;
-			ret = __az6007_read(d->udev, req, value, index, st->data,
-					       length);
+			ret = __az6007_read(d->udev, req, value, index,
+					    st->data, length);
 			if (ret >= len) {
 				for (j = 0; j < len; j++) {
 					msgs[i + 1].buf[j] = st->data[j + 5];
@@ -391,10 +389,11 @@ static int az6007_i2c_xfer(struct i2c_adapter *adap, struct i2c_msg msgs[],
 			for (j = 0; j < len; j++) {
 				st->data[j] = msgs[i].buf[j + 1];
 				if (dvb_usb_az6007_debug & 2)
-					printk(KERN_CONT "0x%02x ", st->data[j]);
+					printk(KERN_CONT "0x%02x ",
+					       st->data[j]);
 			}
-			ret =  __az6007_write(d->udev, req, value, index, st->data,
-						 length);
+			ret =  __az6007_write(d->udev, req, value, index,
+					      st->data, length);
 		} else {
 			/* read bytes */
 			if (dvb_usb_az6007_debug & 2)
@@ -406,8 +405,8 @@ static int az6007_i2c_xfer(struct i2c_adapter *adap, struct i2c_msg msgs[],
 			value = addr;
 			length = msgs[i].len + 6;
 			len = msgs[i].len;
-			ret = __az6007_read(d->udev, req, value, index, st->data,
-					       length);
+			ret = __az6007_read(d->udev, req, value, index,
+					    st->data, length);
 			for (j = 0; j < len; j++) {
 				msgs[i].buf[j] = st->data[j + 5];
 				if (dvb_usb_az6007_debug & 2)
@@ -466,7 +465,7 @@ int az6007_identify_state(struct usb_device *udev,
 		__az6007_write(udev, 0x00, 0, 0, NULL, 0);
 	}
 
-	deb_info("Device is on %s state\n", *cold? "warm" : "cold");
+	deb_info("Device is on %s state\n", *cold ? "warm" : "cold");
 	return 0;
 }
 
@@ -514,7 +513,7 @@ static struct dvb_usb_device_properties az6007_properties = {
 					}
 				}
 			},
-		}}
+		} }
 	} },
 	.power_ctrl       = az6007_power_ctrl,
 	.read_mac_address = az6007_read_mac_addr,
