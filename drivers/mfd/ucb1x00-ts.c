@@ -363,6 +363,7 @@ static int ucb1x00_ts_add(struct ucb1x00_dev *dev)
 	idev->id.product = ts->ucb->id;
 	idev->open       = ucb1x00_ts_open;
 	idev->close      = ucb1x00_ts_close;
+	idev->dev.parent = &ts->ucb->dev;
 
 	idev->evbit[0]   = BIT_MASK(EV_ABS) | BIT_MASK(EV_KEY);
 	idev->keybit[BIT_WORD(BTN_TOUCH)] = BIT_MASK(BTN_TOUCH);
