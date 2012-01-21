@@ -853,11 +853,6 @@ static int carl9170_op_config(struct ieee80211_hw *hw, u32 changed)
 			goto out;
 	}
 
-	if (changed & IEEE80211_CONF_CHANGE_POWER) {
-		/* TODO */
-		err = 0;
-	}
-
 	if (changed & IEEE80211_CONF_CHANGE_SMPS) {
 		/* TODO */
 		err = 0;
@@ -887,6 +882,12 @@ static int carl9170_op_config(struct ieee80211_hw *hw, u32 changed)
 			goto out;
 
 		err = carl9170_set_rts_cts_rate(ar);
+		if (err)
+			goto out;
+	}
+
+	if (changed & IEEE80211_CONF_CHANGE_POWER) {
+		err = carl9170_set_mac_tpc(ar, ar->hw->conf.channel);
 		if (err)
 			goto out;
 	}
