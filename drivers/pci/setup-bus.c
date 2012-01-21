@@ -330,13 +330,14 @@ requested_and_reassign:
 }
 
 static void pdev_assign_resources_sorted(struct pci_dev *dev,
+				 struct resource_list_x *add_head,
 				 struct resource_list_x *fail_head)
 {
 	struct resource_list head;
 
 	head.next = NULL;
 	__dev_sort_resources(dev, &head);
-	__assign_resources_sorted(&head, NULL, fail_head);
+	__assign_resources_sorted(&head, add_head, fail_head);
 
 }
 
@@ -1006,17 +1007,19 @@ void __ref pci_bus_assign_resources(const struct pci_bus *bus)
 EXPORT_SYMBOL(pci_bus_assign_resources);
 
 static void __ref __pci_bridge_assign_resources(const struct pci_dev *bridge,
+					 struct resource_list_x *add_head,
 					 struct resource_list_x *fail_head)
 {
 	struct pci_bus *b;
 
-	pdev_assign_resources_sorted((struct pci_dev *)bridge, fail_head);
+	pdev_assign_resources_sorted((struct pci_dev *)bridge,
+					 add_head, fail_head);
 
 	b = bridge->subordinate;
 	if (!b)
 		return;
 
-	__pci_bus_assign_resources(b, NULL, fail_head);
+	__pci_bus_assign_resources(b, add_head, fail_head);
 
 	switch (bridge->class >> 8) {
 	case PCI_CLASS_BRIDGE_PCI:
@@ -1291,6 +1294,8 @@ enable_and_dump:
 void pci_assign_unassigned_bridge_resources(struct pci_dev *bridge)
 {
 	struct pci_bus *parent = bridge->subordinate;
+	struct resource_list_x add_list; /* list of resources that
+					want additional resources */
 	int tried_times = 0;
 	struct resource_list_x head, *list;
 	int retval;
@@ -1298,11 +1303,12 @@ void pci_assign_unassigned_bridge_resources(struct pci_dev *bridge)
 				  IORESOURCE_PREFETCH;
 
 	head.next = NULL;
+	add_list.next = NULL;
 
 again:
-	pci_bus_size_bridges(parent);
-	__pci_bridge_assign_resources(bridge, &head);
-
+	__pci_bus_size_bridges(parent, &add_list);
+	__pci_bridge_assign_resources(bridge, &add_list, &head);
+	BUG_ON(add_list.next);
 	tried_times++;
 
 	if (!head.next)
