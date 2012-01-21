@@ -882,7 +882,7 @@ static int sysctl_check_table(struct nsproxy *namespaces, struct ctl_table *tabl
 #endif /* CONFIG_SYSCTL_SYSCALL_CHECK */
 
 /**
- * __register_sysctl_paths - register a sysctl hierarchy
+ * __register_sysctl_table - register a sysctl table
  * @root: List of sysctl headers to register on
  * @namespaces: Data to compute which lists of sysctl entries are visible
  * @path: The path to the directory the sysctl table is in.
@@ -934,21 +934,34 @@ static int sysctl_check_table(struct nsproxy *namespaces, struct ctl_table *tabl
  * This routine returns %NULL on a failure to register, and a pointer
  * to the table header on success.
  */
-struct ctl_table_header *__register_sysctl_paths(
+struct ctl_table_header *__register_sysctl_table(
 	struct ctl_table_root *root,
 	struct nsproxy *namespaces,
-	const struct ctl_path *path, struct ctl_table *table)
+	const char *path, struct ctl_table *table)
 {
 	struct ctl_table_header *header;
 	struct ctl_table *new, **prevp;
-	unsigned int n, npath;
+	const char *name, *nextname;
+	unsigned int npath = 0;
 	struct ctl_table_set *set;
 	size_t path_bytes = 0;
 	char *new_name;
 
 	/* Count the path components */
-	for (npath = 0; path[npath].procname; ++npath)
-		path_bytes += strlen(path[npath].procname) + 1;
+	for (name = path; name; name = nextname) {
+		int namelen;
+		nextname = strchr(name, '/');
+		if (nextname) {
+			namelen = nextname - name;
+			nextname++;
+		} else {
+			namelen = strlen(name);
+		}
+		if (namelen == 0)
+			continue;
+		path_bytes += namelen + 1;
+		npath++;
+	}
 
 	/*
 	 * For each path component, allocate a 2-element ctl_table array.
@@ -968,9 +981,20 @@ struct ctl_table_header *__register_sysctl_paths(
 
 	/* Now connect the dots */
 	prevp = &header->ctl_table;
-	for (n = 0; n < npath; ++n, ++path) {
-		/* Copy the procname */
-		strcpy(new_name, path->procname);
+	for (name = path; name; name = nextname) {
+		int namelen;
+		nextname = strchr(name, '/');
+		if (nextname) {
+			namelen = nextname - name;
+			nextname++;
+		} else {
+			namelen = strlen(name);
+		}
+		if (namelen == 0)
+			continue;
+		memcpy(new_name, name, namelen);
+		new_name[namelen] = '\0';
+
 		new->procname = new_name;
 		new->mode     = 0555;
 
@@ -978,7 +1002,7 @@ struct ctl_table_header *__register_sysctl_paths(
 		prevp = &new->child;
 
 		new += 2;
-		new_name += strlen(new_name) + 1;
+		new_name += namelen + 1;
 	}
 	*prevp = table;
 	header->ctl_table_arg = table;
@@ -1019,6 +1043,56 @@ struct ctl_table_header *__register_sysctl_paths(
 	list_add_tail(&header->ctl_entry, &header->set->list);
 	spin_unlock(&sysctl_lock);
 
+	return header;
+}
+
+static char *append_path(const char *path, char *pos, const char *name)
+{
+	int namelen;
+	namelen = strlen(name);
+	if (((pos - path) + namelen + 2) >= PATH_MAX)
+		return NULL;
+	memcpy(pos, name, namelen);
+	pos[namelen] = '/';
+	pos[namelen + 1] = '\0';
+	pos += namelen + 1;
+	return pos;
+}
+
+/**
+ * __register_sysctl_paths - register a sysctl table hierarchy
+ * @root: List of sysctl headers to register on
+ * @namespaces: Data to compute which lists of sysctl entries are visible
+ * @path: The path to the directory the sysctl table is in.
+ * @table: the top-level table structure
+ *
+ * Register a sysctl table hierarchy. @table should be a filled in ctl_table
+ * array. A completely 0 filled entry terminates the table.
+ *
+ * See __register_sysctl_table for more details.
+ */
+struct ctl_table_header *__register_sysctl_paths(
+	struct ctl_table_root *root,
+	struct nsproxy *namespaces,
+	const struct ctl_path *path, struct ctl_table *table)
+{
+	struct ctl_table_header *header = NULL;
+	const struct ctl_path *component;
+	char *new_path, *pos;
+
+	pos = new_path = kmalloc(PATH_MAX, GFP_KERNEL);
+	if (!new_path)
+		return NULL;
+
+	pos[0] = '\0';
+	for (component = path; component->procname; component++) {
+		pos = append_path(new_path, pos, component->procname);
+		if (!pos)
+			goto out;
+	}
+	header = __register_sysctl_table(root, namespaces, new_path, table);
+out:
+	kfree(new_path);
 	return header;
 }
 
