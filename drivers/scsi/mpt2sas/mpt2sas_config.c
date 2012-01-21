@@ -149,7 +149,7 @@ _config_display_some_debug(struct MPT2SAS_ADAPTER *ioc, u16 smid,
 			desc = "raid_config";
 			break;
 		case MPI2_CONFIG_EXTPAGETYPE_DRIVER_MAPPING:
-			desc = "driver_mappping";
+			desc = "driver_mapping";
 			break;
 		}
 		break;
