@@ -521,7 +521,7 @@ static struct dvb_usb_device_properties az6007_properties = {
 
 	.rc.core = {
 		.rc_interval      = 400,
-		.rc_codes         = RC_MAP_DIB0700_NEC_TABLE,
+		.rc_codes         = RC_MAP_NEC_TERRATEC_CINERGY_XS,
 		.module_name	  = "az6007",
 		.rc_query         = az6007_rc_query,
 		.allowed_protos   = RC_TYPE_NEC,
