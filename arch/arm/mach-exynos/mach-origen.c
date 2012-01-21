@@ -412,7 +412,7 @@ static struct max8997_regulator_data __initdata origen_max8997_regulators[] = {
 	{ MAX8997_BUCK7,	&max8997_buck7_data },
 };
 
-struct max8997_platform_data __initdata origen_max8997_pdata = {
+static struct max8997_platform_data __initdata origen_max8997_pdata = {
 	.num_regulators = ARRAY_SIZE(origen_max8997_regulators),
 	.regulators	= origen_max8997_regulators,
 

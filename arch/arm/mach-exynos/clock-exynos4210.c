@@ -115,7 +115,7 @@ static void exynos4210_clock_resume(void)
 #define exynos4210_clock_resume NULL
 #endif
 
-struct syscore_ops exynos4210_clock_syscore_ops = {
+static struct syscore_ops exynos4210_clock_syscore_ops = {
 	.suspend	= exynos4210_clock_suspend,
 	.resume		= exynos4210_clock_resume,
 };
