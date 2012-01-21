@@ -124,8 +124,6 @@ static int wdt_stop(struct watchdog_device *wdd)
 static int wdt_set_timeout(struct watchdog_device *wdd,
 			   unsigned int new_timeout)
 {
-	if (new_timeout < 1 || new_timeout > WDT_TIMEOUT_MAX)
-		return -EINVAL;
 	writel(new_timeout, wdt_mem + VIA_WDT_COUNT);
 	timeout = new_timeout;
 	return 0;
@@ -150,6 +148,8 @@ static const struct watchdog_ops wdt_ops = {
 static struct watchdog_device wdt_dev = {
 	.info =		&wdt_info,
 	.ops =		&wdt_ops,
+	.min_timeout =	1,
+	.max_timeout =	WDT_TIMEOUT_MAX,
 };
 
 static int __devinit wdt_probe(struct pci_dev *pdev,
