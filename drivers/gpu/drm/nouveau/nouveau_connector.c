@@ -519,6 +519,19 @@ nouveau_connector_set_property(struct drm_connector *connector,
 		return nv_crtc->set_dither(nv_crtc, true);
 	}
 
+	if (nv_crtc && nv_crtc->set_color_vibrance) {
+		/* Hue */
+		if (property == disp->vibrant_hue_property) {
+			nv_crtc->vibrant_hue = value - 90;
+			return nv_crtc->set_color_vibrance(nv_crtc, true);
+		}
+		/* Saturation */
+		if (property == disp->color_vibrance_property) {
+			nv_crtc->color_vibrance = value - 100;
+			return nv_crtc->set_color_vibrance(nv_crtc, true);
+		}
+	}
+
 	if (nv_encoder && nv_encoder->dcb->type == OUTPUT_TV)
 		return get_slave_funcs(encoder)->set_property(
 			encoder, connector, property, value);
@@ -1017,6 +1030,16 @@ nouveau_connector_create(struct drm_device *dev, int index)
 					      disp->underscan_vborder_property,
 					      0);
 	}
+
+	/* Add hue and saturation options */
+	if (disp->vibrant_hue_property)
+		drm_connector_attach_property(connector,
+					      disp->vibrant_hue_property,
+					      90);
+	if (disp->color_vibrance_property)
+		drm_connector_attach_property(connector,
+					      disp->color_vibrance_property,
+					      150);
 
 	switch (nv_connector->type) {
 	case DCB_CONNECTOR_VGA:
