@@ -289,7 +289,14 @@ static int mcp_sa11x0_resume(struct device *dev)
 #endif
 
 static const struct dev_pm_ops mcp_sa11x0_pm_ops = {
-	SET_SYSTEM_SLEEP_PM_OPS(mcp_sa11x0_suspend, mcp_sa11x0_resume)
+#ifdef CONFIG_PM_SLEEP
+	.suspend = mcp_sa11x0_suspend,
+	.freeze = mcp_sa11x0_suspend,
+	.poweroff = mcp_sa11x0_suspend,
+	.resume_noirq = mcp_sa11x0_resume,
+	.thaw_noirq = mcp_sa11x0_resume,
+	.restore_noirq = mcp_sa11x0_resume,
+#endif
 };
 
 static struct platform_driver mcp_sa11x0_driver = {
