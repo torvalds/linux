@@ -4,6 +4,8 @@
  * Base on TW's sis fbdev code.
  */
 
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
 /* #include <linux/config.h> */
 #include <linux/module.h>
 #include <linux/moduleparam.h>
