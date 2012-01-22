@@ -1053,8 +1053,7 @@ static void dice_proc_read(struct snd_info_entry *entry,
 			break;
 		snd_iprintf(buffer, "rx %u:\n", stream);
 		snd_iprintf(buffer, "  iso channel: %d\n", (int)buf.rx.iso);
-		snd_iprintf(buffer, "  sequence start: %u\n",
-			    (int)buf.rx.seq_start);
+		snd_iprintf(buffer, "  sequence start: %u\n", buf.rx.seq_start);
 		snd_iprintf(buffer, "  audio channels: %u\n",
 			    buf.rx.number_audio);
 		snd_iprintf(buffer, "  midi ports: %u\n", buf.rx.number_midi);
