@@ -57,7 +57,7 @@ static int __init amiga_init_bus(void)
 subsys_initcall(amiga_init_bus);
 
 
-static int z_dev_present(zorro_id id)
+static int __init z_dev_present(zorro_id id)
 {
 	unsigned int i;
 
