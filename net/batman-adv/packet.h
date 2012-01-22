@@ -90,6 +90,23 @@ enum tt_client_flags {
 	TT_CLIENT_PENDING = 1 << 10
 };
 
+/* claim frame types for the bridge loop avoidance */
+enum bla_claimframe {
+	CLAIM_TYPE_ADD		= 0x00,
+	CLAIM_TYPE_DEL		= 0x01,
+	CLAIM_TYPE_ANNOUNCE	= 0x02,
+	CLAIM_TYPE_REQUEST	= 0x03
+};
+
+/* the destination hardware field in the ARP frame is used to
+ * transport the claim type and the group id
+ */
+struct bla_claim_dst {
+	uint8_t magic[3];	/* FF:43:05 */
+	uint8_t type;		/* bla_claimframe */
+	uint16_t group;		/* group id */
+} __packed;
+
 struct batman_header {
 	uint8_t  packet_type;
 	uint8_t  version;  /* batman version field */

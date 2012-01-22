@@ -28,6 +28,7 @@
 #include "hard-interface.h"
 #include "unicast.h"
 #include "soft-interface.h"
+#include "bridge_loop_avoidance.h"
 
 static void purge_orig(struct work_struct *work);
 

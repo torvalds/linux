@@ -28,6 +28,7 @@
 #include "bat_sysfs.h"
 #include "originator.h"
 #include "hash.h"
+#include "bridge_loop_avoidance.h"
 
 #include <linux/if_arp.h>
 
@@ -107,7 +108,8 @@ out:
 	return hard_iface;
 }
 
-static void primary_if_update_addr(struct bat_priv *bat_priv)
+static void primary_if_update_addr(struct bat_priv *bat_priv,
+				   struct hard_iface *oldif)
 {
 	struct vis_packet *vis_packet;
 	struct hard_iface *primary_if;
@@ -122,6 +124,7 @@ static void primary_if_update_addr(struct bat_priv *bat_priv)
 	memcpy(vis_packet->sender_orig,
 	       primary_if->net_dev->dev_addr, ETH_ALEN);
 
+	bla_update_orig_address(bat_priv, primary_if, oldif);
 out:
 	if (primary_if)
 		hardif_free_ref(primary_if);
@@ -140,14 +143,15 @@ static void primary_if_select(struct bat_priv *bat_priv,
 	curr_hard_iface = rcu_dereference_protected(bat_priv->primary_if, 1);
 	rcu_assign_pointer(bat_priv->primary_if, new_hard_iface);
 
-	if (curr_hard_iface)
-		hardif_free_ref(curr_hard_iface);
-
 	if (!new_hard_iface)
-		return;
+		goto out;
 
 	bat_priv->bat_algo_ops->bat_ogm_init_primary(new_hard_iface);
-	primary_if_update_addr(bat_priv);
+	primary_if_update_addr(bat_priv, curr_hard_iface);
+
+out:
+	if (curr_hard_iface)
+		hardif_free_ref(curr_hard_iface);
 }
 
 static bool hardif_is_iface_up(const struct hard_iface *hard_iface)
@@ -531,7 +535,7 @@ static int hard_if_event(struct notifier_block *this,
 			goto hardif_put;
 
 		if (hard_iface == primary_if)
-			primary_if_update_addr(bat_priv);
+			primary_if_update_addr(bat_priv, NULL);
 		break;
 	default:
 		break;

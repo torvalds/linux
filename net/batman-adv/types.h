@@ -148,6 +148,7 @@ struct bat_priv {
 	atomic_t bonding;		/* boolean */
 	atomic_t fragmentation;		/* boolean */
 	atomic_t ap_isolation;		/* boolean */
+	atomic_t bridge_loop_avoidance;	/* boolean */
 	atomic_t vis_mode;		/* VIS_TYPE_* */
 	atomic_t gw_mode;		/* GW_MODE_* */
 	atomic_t gw_sel_class;		/* uint */
@@ -161,6 +162,7 @@ struct bat_priv {
 	atomic_t ttvn; /* translation table version number */
 	atomic_t tt_ogm_append_cnt;
 	atomic_t tt_local_changes; /* changes registered in a OGM interval */
+	atomic_t bla_num_requests; /* number of bla requests in flight */
 	/* The tt_poss_change flag is used to detect an ongoing roaming phase.
 	 * If true, then I received a Roaming_adv and I have to inspect every
 	 * packet directed to me to check whether I am still the true
@@ -179,6 +181,8 @@ struct bat_priv {
 	struct hashtable_t *orig_hash;
 	struct hashtable_t *tt_local_hash;
 	struct hashtable_t *tt_global_hash;
+	struct hashtable_t *claim_hash;
+	struct hashtable_t *backbone_hash;
 	struct list_head tt_req_list; /* list of pending tt_requests */
 	struct list_head tt_roam_list;
 	struct hashtable_t *vis_hash;
@@ -199,6 +203,7 @@ struct bat_priv {
 	struct delayed_work tt_work;
 	struct delayed_work orig_work;
 	struct delayed_work vis_work;
+	struct delayed_work bla_work;
 	struct gw_node __rcu *curr_gw;  /* rcu protected pointer */
 	atomic_t gw_reselect;
 	struct hard_iface __rcu *primary_if;  /* rcu protected pointer */
@@ -239,6 +244,28 @@ struct tt_global_entry {
 	struct orig_node *orig_node;
 	uint8_t ttvn;
 	unsigned long roam_at; /* time at which TT_GLOBAL_ROAM was set */
+};
+
+struct backbone_gw {
+	uint8_t orig[ETH_ALEN];
+	short vid;		/* used VLAN ID */
+	struct hlist_node hash_entry;
+	struct bat_priv *bat_priv;
+	unsigned long lasttime;	/* last time we heard of this backbone gw */
+	atomic_t request_sent;
+	atomic_t refcount;
+	struct rcu_head rcu;
+	uint16_t crc;		/* crc checksum over all claims */
+};
+
+struct claim {
+	uint8_t addr[ETH_ALEN];
+	short vid;
+	struct backbone_gw *backbone_gw;
+	unsigned long lasttime;	/* last time we heard of claim (locals only) */
+	struct rcu_head rcu;
+	atomic_t refcount;
+	struct hlist_node hash_entry;
 };
 
 struct tt_change_node {

@@ -30,6 +30,7 @@
 #include "translation-table.h"
 #include "hard-interface.h"
 #include "gateway_client.h"
+#include "bridge_loop_avoidance.h"
 #include "vis.h"
 #include "hash.h"
 #include "bat_algo.h"
@@ -115,6 +116,9 @@ int mesh_init(struct net_device *soft_iface)
 	if (vis_init(bat_priv) < 1)
 		goto err;
 
+	if (bla_init(bat_priv) < 1)
+		goto err;
+
 	atomic_set(&bat_priv->gw_reselect, 0);
 	atomic_set(&bat_priv->mesh_state, MESH_ACTIVE);
 	goto end;
@@ -141,6 +145,8 @@ void mesh_free(struct net_device *soft_iface)
 	originator_free(bat_priv);
 
 	tt_free(bat_priv);
+
+	bla_free(bat_priv);
 
 	atomic_set(&bat_priv->mesh_state, MESH_INACTIVE);
 }
