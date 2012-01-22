@@ -530,12 +530,16 @@ static struct class ucb1x00_class = {
 
 static int ucb1x00_probe(struct mcp *mcp)
 {
-	struct ucb1x00 *ucb;
+	struct ucb1x00_plat_data *pdata = mcp->attached_device.platform_data;
 	struct ucb1x00_driver *drv;
-	struct ucb1x00_plat_data *pdata;
+	struct ucb1x00 *ucb;
 	unsigned int id;
 	int ret = -ENODEV;
 	int temp;
+
+	/* Tell the platform to deassert the UCB1x00 reset */
+	if (pdata && pdata->reset)
+		pdata->reset(UCB_RST_PROBE);
 
 	mcp_enable(mcp);
 	id = mcp_reg_read(mcp, UCB_ID);
@@ -550,7 +554,6 @@ static int ucb1x00_probe(struct mcp *mcp)
 	if (!ucb)
 		goto err_disable;
 
-	pdata = mcp->attached_device.platform_data;
 	ucb->dev.class = &ucb1x00_class;
 	ucb->dev.parent = &mcp->attached_device;
 	dev_set_name(&ucb->dev, "ucb1x00");
@@ -606,7 +609,7 @@ static int ucb1x00_probe(struct mcp *mcp)
 	}
 	mutex_unlock(&ucb1x00_mutex);
 
-	goto out;
+	return ret;
 
  err_irq:
 	free_irq(ucb->irq, ucb);
@@ -618,11 +621,14 @@ static int ucb1x00_probe(struct mcp *mcp)
  err_disable:
 	mcp_disable(mcp);
  out:
+	if (pdata && pdata->reset)
+		pdata->reset(UCB_RST_PROBE_FAIL);
 	return ret;
 }
 
 static void ucb1x00_remove(struct mcp *mcp)
 {
+	struct ucb1x00_plat_data *pdata = mcp->attached_device.platform_data;
 	struct ucb1x00 *ucb = mcp_get_drvdata(mcp);
 	struct list_head *l, *n;
 	int ret;
@@ -643,6 +649,9 @@ static void ucb1x00_remove(struct mcp *mcp)
 
 	free_irq(ucb->irq, ucb);
 	device_unregister(&ucb->dev);
+
+	if (pdata && pdata->reset)
+		pdata->reset(UCB_RST_REMOVE);
 }
 
 int ucb1x00_register_driver(struct ucb1x00_driver *drv)

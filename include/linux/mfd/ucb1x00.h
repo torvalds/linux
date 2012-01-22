@@ -104,7 +104,14 @@
 #define UCB_MODE_DYN_VFLAG_ENA	(1 << 12)
 #define UCB_MODE_AUD_OFF_CAN	(1 << 13)
 
+enum ucb1x00_reset {
+	UCB_RST_PROBE,
+	UCB_RST_REMOVE,
+	UCB_RST_PROBE_FAIL,
+};
+
 struct ucb1x00_plat_data {
+	void			(*reset)(enum ucb1x00_reset);
 	int			gpio_base;
 };
 
