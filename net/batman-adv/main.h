@@ -80,8 +80,6 @@
 #define MAX_AGGREGATION_BYTES 512
 #define MAX_AGGREGATION_MS 100
 
-#define SOFTIF_NEIGH_TIMEOUT 180000 /* 3 minutes */
-
 /* don't reset again within 30 seconds */
 #define RESET_PROTECTION_MS 30000
 #define EXPECTED_SEQNO_RANGE	65536

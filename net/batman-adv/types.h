@@ -174,7 +174,6 @@ struct bat_priv {
 	struct hlist_head forw_bat_list;
 	struct hlist_head forw_bcast_list;
 	struct hlist_head gw_list;
-	struct hlist_head softif_neigh_vids;
 	struct list_head tt_changes_list; /* tracks changes in a OGM int */
 	struct list_head vis_send_list;
 	struct hashtable_t *orig_hash;
@@ -191,8 +190,6 @@ struct bat_priv {
 	spinlock_t gw_list_lock; /* protects gw_list and curr_gw */
 	spinlock_t vis_hash_lock; /* protects vis_hash */
 	spinlock_t vis_list_lock; /* protects vis_info::recv_list */
-	spinlock_t softif_neigh_lock; /* protects soft-interface neigh list */
-	spinlock_t softif_neigh_vid_lock; /* protects soft-interface vid list */
 	atomic_t num_local_tt;
 	/* Checksum of the local table, recomputed before sending a new OGM */
 	atomic_t tt_crc;
@@ -325,24 +322,6 @@ struct vis_info_entry {
 struct recvlist_node {
 	struct list_head list;
 	uint8_t mac[ETH_ALEN];
-};
-
-struct softif_neigh_vid {
-	struct hlist_node list;
-	struct bat_priv *bat_priv;
-	short vid;
-	atomic_t refcount;
-	struct softif_neigh __rcu *softif_neigh;
-	struct rcu_head rcu;
-	struct hlist_head softif_neigh_list;
-};
-
-struct softif_neigh {
-	struct hlist_node list;
-	uint8_t addr[ETH_ALEN];
-	unsigned long last_seen;
-	atomic_t refcount;
-	struct rcu_head rcu;
 };
 
 struct bat_algo_ops {
