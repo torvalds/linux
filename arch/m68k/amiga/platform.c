@@ -252,4 +252,4 @@ static int __init amiga_init_devices(void)
 	return 0;
 }
 
-device_initcall(amiga_init_devices);
+arch_initcall(amiga_init_devices);
