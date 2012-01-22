@@ -134,7 +134,7 @@ static int interface_tx(struct sk_buff *skb, struct net_device *soft_iface)
 						   0x00};
 	unsigned int header_len = 0;
 	int data_len = skb->len, ret;
-	short vid = -1;
+	short vid __maybe_unused = -1;
 	bool do_bcast = false;
 
 	if (atomic_read(&bat_priv->mesh_state) != MESH_ACTIVE)
@@ -256,7 +256,7 @@ void interface_rx(struct net_device *soft_iface,
 	struct bat_priv *bat_priv = netdev_priv(soft_iface);
 	struct ethhdr *ethhdr;
 	struct vlan_ethhdr *vhdr;
-	short vid = -1;
+	short vid __maybe_unused = -1;
 
 	/* check if enough space is available for pulling, and pull */
 	if (!pskb_may_pull(skb, hdr_size))
