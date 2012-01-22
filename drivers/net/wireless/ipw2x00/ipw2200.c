@@ -11840,16 +11840,17 @@ static int __devinit ipw_pci_probe(struct pci_dev *pdev,
 	}
 
 	mutex_unlock(&priv->mutex);
-	err = register_netdev(net_dev);
-	if (err) {
-		IPW_ERROR("failed to register network device\n");
-		goto out_remove_sysfs;
-	}
 
 	err = ipw_wdev_init(net_dev);
 	if (err) {
 		IPW_ERROR("failed to register wireless device\n");
-		goto out_unregister_netdev;
+		goto out_remove_sysfs;
+	}
+
+	err = register_netdev(net_dev);
+	if (err) {
+		IPW_ERROR("failed to register network device\n");
+		goto out_unregister_wiphy;
 	}
 
 #ifdef CONFIG_IPW2200_PROMISCUOUS
@@ -11858,10 +11859,8 @@ static int __devinit ipw_pci_probe(struct pci_dev *pdev,
 		if (err) {
 			IPW_ERROR("Failed to register promiscuous network "
 				  "device (error %d).\n", err);
-			wiphy_unregister(priv->ieee->wdev.wiphy);
-			kfree(priv->ieee->a_band.channels);
-			kfree(priv->ieee->bg_band.channels);
-			goto out_unregister_netdev;
+			unregister_netdev(priv->net_dev);
+			goto out_unregister_wiphy;
 		}
 	}
 #endif
@@ -11873,8 +11872,10 @@ static int __devinit ipw_pci_probe(struct pci_dev *pdev,
 
 	return 0;
 
-      out_unregister_netdev:
-	unregister_netdev(priv->net_dev);
+      out_unregister_wiphy:
+	wiphy_unregister(priv->ieee->wdev.wiphy);
+	kfree(priv->ieee->a_band.channels);
+	kfree(priv->ieee->bg_band.channels);
       out_remove_sysfs:
 	sysfs_remove_group(&pdev->dev.kobj, &ipw_attribute_group);
       out_release_irq:
