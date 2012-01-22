@@ -53,6 +53,13 @@ static DEFINE_SPINLOCK(sysctl_lock);
 
 static void drop_sysctl_table(struct ctl_table_header *header);
 
+static void sysctl_print_dir(struct ctl_dir *dir)
+{
+	if (dir->header.parent)
+		sysctl_print_dir(dir->header.parent);
+	printk(KERN_CONT "%s/", dir->header.ctl_table[0].procname);
+}
+
 static int namecmp(const char *name1, int len1, const char *name2, int len2)
 {
 	int minlen;
@@ -822,7 +829,9 @@ found:
 	subdir->header.nreg++;
 failed:
 	if (unlikely(IS_ERR(subdir))) {
-		printk(KERN_ERR "sysctl could not get directory: %*.*s %ld\n",
+		printk(KERN_ERR "sysctl could not get directory: ");
+		sysctl_print_dir(dir);
+		printk(KERN_CONT "/%*.*s %ld\n",
 			namelen, namelen, name, PTR_ERR(subdir));
 	}
 	drop_sysctl_table(&dir->header);
