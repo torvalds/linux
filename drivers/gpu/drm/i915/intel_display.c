@@ -936,6 +936,10 @@ void assert_pipe(struct drm_i915_private *dev_priv,
 	u32 val;
 	bool cur_state;
 
+	/* if we need the pipe A quirk it must be always on */
+	if (pipe == PIPE_A && dev_priv->quirks & QUIRK_PIPEA_FORCE)
+		state = true;
+
 	reg = PIPECONF(pipe);
 	val = I915_READ(reg);
 	cur_state = !!(val & PIPECONF_ENABLE);
