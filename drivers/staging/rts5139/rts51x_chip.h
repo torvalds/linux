@@ -857,12 +857,12 @@ static inline u8 *rts51x_get_rsp_data(struct rts51x_chip *chip)
 	return chip->rsp_buf;
 }
 
-int rts51x_get_card_status(struct rts51x_chip *chip, u16 * status);
+int rts51x_get_card_status(struct rts51x_chip *chip, u16 *status);
 int rts51x_write_register(struct rts51x_chip *chip, u16 addr, u8 mask, u8 data);
-int rts51x_read_register(struct rts51x_chip *chip, u16 addr, u8 * data);
+int rts51x_read_register(struct rts51x_chip *chip, u16 addr, u8 *data);
 int rts51x_ep0_write_register(struct rts51x_chip *chip, u16 addr, u8 mask,
 			      u8 data);
-int rts51x_ep0_read_register(struct rts51x_chip *chip, u16 addr, u8 * data);
+int rts51x_ep0_read_register(struct rts51x_chip *chip, u16 addr, u8 *data);
 int rts51x_seq_write_register(struct rts51x_chip *chip, u16 addr, u16 len,
 			      u8 *data);
 int rts51x_seq_read_register(struct rts51x_chip *chip, u16 addr, u16 len,
