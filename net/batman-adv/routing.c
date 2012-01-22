@@ -1076,6 +1076,10 @@ int recv_bcast_packet(struct sk_buff *skb, struct hard_iface *recv_if)
 
 	spin_unlock_bh(&orig_node->bcast_seqno_lock);
 
+	/* check whether this has been sent by another originator before */
+	if (bla_check_bcast_duplist(bat_priv, bcast_packet, hdr_size))
+		goto out;
+
 	/* rebroadcast packet */
 	add_bcast_packet_to_list(bat_priv, skb, 1);
 

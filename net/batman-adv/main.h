@@ -83,6 +83,9 @@
 #define BLA_PERIOD_LENGTH	10000	/* 10 seconds */
 #define BLA_BACKBONE_TIMEOUT	(BLA_PERIOD_LENGTH * 3)
 #define BLA_CLAIM_TIMEOUT	(BLA_PERIOD_LENGTH * 10)
+
+#define DUPLIST_SIZE		16
+#define DUPLIST_TIMEOUT		500	/* 500 ms */
 /* don't reset again within 30 seconds */
 #define RESET_PROTECTION_MS 30000
 #define EXPECTED_SEQNO_RANGE	65536

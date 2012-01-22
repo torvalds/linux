@@ -140,6 +140,11 @@ struct neigh_node {
 	spinlock_t tq_lock;	/* protects: tq_recv, tq_index */
 };
 
+struct bcast_duplist_entry {
+	uint8_t orig[ETH_ALEN];
+	uint16_t crc;
+	unsigned long entrytime;
+};
 
 struct bat_priv {
 	atomic_t mesh_state;
@@ -186,6 +191,8 @@ struct bat_priv {
 	struct list_head tt_req_list; /* list of pending tt_requests */
 	struct list_head tt_roam_list;
 	struct hashtable_t *vis_hash;
+	struct bcast_duplist_entry bcast_duplist[DUPLIST_SIZE];
+	int bcast_duplist_curr;
 	spinlock_t forw_bat_list_lock; /* protects forw_bat_list */
 	spinlock_t forw_bcast_list_lock; /* protects  */
 	spinlock_t tt_changes_list_lock; /* protects tt_changes */

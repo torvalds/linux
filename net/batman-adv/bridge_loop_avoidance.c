@@ -1041,7 +1041,15 @@ out:
 /* initialize all bla structures */
 int bla_init(struct bat_priv *bat_priv)
 {
+	int i;
+
 	bat_dbg(DBG_BLA, bat_priv, "bla hash registering\n");
+
+	/* initialize the duplicate list */
+	for (i = 0; i < DUPLIST_SIZE; i++)
+		bat_priv->bcast_duplist[i].entrytime =
+			jiffies - msecs_to_jiffies(DUPLIST_TIMEOUT);
+	bat_priv->bcast_duplist_curr = 0;
 
 	if (bat_priv->claim_hash)
 		return 1;
@@ -1057,6 +1065,73 @@ int bla_init(struct bat_priv *bat_priv)
 	bla_start_timer(bat_priv);
 	return 1;
 }
+
+/**
+ * @bat_priv: the bat priv with all the soft interface information
+ * @bcast_packet: originator mac address
+ * @hdr_size: maximum length of the frame
+ *
+ * check if it is on our broadcast list. Another gateway might
+ * have sent the same packet because it is connected to the same backbone,
+ * so we have to remove this duplicate.
+ *
+ * This is performed by checking the CRC, which will tell us
+ * with a good chance that it is the same packet. If it is furthermore
+ * sent by another host, drop it. We allow equal packets from
+ * the same host however as this might be intended.
+ *
+ **/
+
+int bla_check_bcast_duplist(struct bat_priv *bat_priv,
+			    struct bcast_packet *bcast_packet,
+			    int hdr_size)
+{
+	int i, length, curr;
+	uint8_t *content;
+	uint16_t crc;
+	struct bcast_duplist_entry *entry;
+
+	length = hdr_size - sizeof(*bcast_packet);
+	content = (uint8_t *)bcast_packet;
+	content += sizeof(*bcast_packet);
+
+	/* calculate the crc ... */
+	crc = crc16(0, content, length);
+
+	for (i = 0 ; i < DUPLIST_SIZE; i++) {
+		curr = (bat_priv->bcast_duplist_curr + i) % DUPLIST_SIZE;
+		entry = &bat_priv->bcast_duplist[curr];
+
+		/* we can stop searching if the entry is too old ;
+		 * later entries will be even older
+		 */
+		if (has_timed_out(entry->entrytime, DUPLIST_TIMEOUT))
+			break;
+
+		if (entry->crc != crc)
+			continue;
+
+		if (compare_eth(entry->orig, bcast_packet->orig))
+			continue;
+
+		/* this entry seems to match: same crc, not too old,
+		 * and from another gw. therefore return 1 to forbid it.
+		 */
+		return 1;
+	}
+	/* not found, add a new entry (overwrite the oldest entry) */
+	curr = (bat_priv->bcast_duplist_curr + DUPLIST_SIZE - 1) % DUPLIST_SIZE;
+	entry = &bat_priv->bcast_duplist[curr];
+	entry->crc = crc;
+	entry->entrytime = jiffies;
+	memcpy(entry->orig, bcast_packet->orig, ETH_ALEN);
+	bat_priv->bcast_duplist_curr = curr;
+
+	/* allow it, its the first occurence. */
+	return 0;
+}
+
+
 
 /**
  * @bat_priv: the bat priv with all the soft interface information
