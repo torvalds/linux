@@ -682,9 +682,19 @@ static struct platform_device ep93xx_fb_device = {
 	.resource		= ep93xx_fb_resource,
 };
 
+/* The backlight use a single register in the framebuffer's register space */
+#define EP93XX_RASTER_REG_BRIGHTNESS 0x20
+
+static struct resource ep93xx_bl_resources[] = {
+	DEFINE_RES_MEM(EP93XX_RASTER_PHYS_BASE +
+		       EP93XX_RASTER_REG_BRIGHTNESS, 0x04),
+};
+
 static struct platform_device ep93xx_bl_device = {
 	.name		= "ep93xx-bl",
 	.id		= -1,
+	.num_resources	= ARRAY_SIZE(ep93xx_bl_resources),
+	.resource	= ep93xx_bl_resources,
 };
 
 /**
