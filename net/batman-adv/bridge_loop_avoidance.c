@@ -1294,3 +1294,56 @@ out:
 		claim_free_ref(claim);
 	return ret;
 }
+
+int bla_claim_table_seq_print_text(struct seq_file *seq, void *offset)
+{
+	struct net_device *net_dev = (struct net_device *)seq->private;
+	struct bat_priv *bat_priv = netdev_priv(net_dev);
+	struct hashtable_t *hash = bat_priv->claim_hash;
+	struct claim *claim;
+	struct hard_iface *primary_if;
+	struct hlist_node *node;
+	struct hlist_head *head;
+	uint32_t i;
+	bool is_own;
+	int ret = 0;
+
+	primary_if = primary_if_get_selected(bat_priv);
+	if (!primary_if) {
+		ret = seq_printf(seq,
+				 "BATMAN mesh %s disabled - please specify interfaces to enable it\n",
+				 net_dev->name);
+		goto out;
+	}
+
+	if (primary_if->if_status != IF_ACTIVE) {
+		ret = seq_printf(seq,
+				 "BATMAN mesh %s disabled - primary interface not active\n",
+				 net_dev->name);
+		goto out;
+	}
+
+	seq_printf(seq, "Claims announced for the mesh %s (orig %pM)\n",
+		   net_dev->name, primary_if->net_dev->dev_addr);
+	seq_printf(seq, "   %-17s    %-5s    %-17s [o] (%-4s)\n",
+		   "Client", "VID", "Originator", "CRC");
+	for (i = 0; i < hash->size; i++) {
+		head = &hash->table[i];
+
+		rcu_read_lock();
+		hlist_for_each_entry_rcu(claim, node, head, hash_entry) {
+			is_own = compare_eth(claim->backbone_gw->orig,
+					     primary_if->net_dev->dev_addr);
+			seq_printf(seq,	" * %pM on % 5d by %pM [%c] (%04x)\n",
+				   claim->addr, claim->vid,
+				   claim->backbone_gw->orig,
+				   (is_own ? 'x' : ' '),
+				   claim->backbone_gw->crc);
+		}
+		rcu_read_unlock();
+	}
+out:
+	if (primary_if)
+		hardif_free_ref(primary_if);
+	return ret;
+}

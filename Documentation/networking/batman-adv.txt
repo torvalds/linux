@@ -77,9 +77,8 @@ folder:
 There is a special folder for debugging information:
 
 #  ls /sys/kernel/debug/batman_adv/bat0/
-#  gateways     socket        transtable_global  vis_data
-#  originators  softif_neigh  transtable_local
-
+# bla_claim_table    log                socket             transtable_local
+# gateways           originators        transtable_global  vis_data
 
 Some of the files contain all sort of status information  regard-
 ing  the  mesh  network.  For  example, you can view the table of
