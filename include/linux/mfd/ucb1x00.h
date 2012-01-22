@@ -106,6 +106,8 @@
 
 enum ucb1x00_reset {
 	UCB_RST_PROBE,
+	UCB_RST_RESUME,
+	UCB_RST_SUSPEND,
 	UCB_RST_REMOVE,
 	UCB_RST_PROBE_FAIL,
 };
@@ -114,6 +116,7 @@ struct ucb1x00_plat_data {
 	void			(*reset)(enum ucb1x00_reset);
 	unsigned		irq_base;
 	int			gpio_base;
+	unsigned		can_wakeup;
 };
 
 struct ucb1x00 {
@@ -130,6 +133,7 @@ struct ucb1x00 {
 	u16			irq_fal_enbl;
 	u16			irq_ris_enbl;
 	u16			irq_mask;
+	u16			irq_wake;
 	struct device		dev;
 	struct list_head	node;
 	struct list_head	devs;
