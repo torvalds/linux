@@ -464,20 +464,8 @@ static struct i2c_driver bmp085_driver = {
 	.address_list	= normal_i2c
 };
 
-static int __init bmp085_init(void)
-{
-	return i2c_add_driver(&bmp085_driver);
-}
-
-static void __exit bmp085_exit(void)
-{
-	i2c_del_driver(&bmp085_driver);
-}
-
+module_i2c_driver(bmp085_driver);
 
 MODULE_AUTHOR("Christoph Mair <christoph.mair@gmail.com");
 MODULE_DESCRIPTION("BMP085 driver");
 MODULE_LICENSE("GPL");
-
-module_init(bmp085_init);
-module_exit(bmp085_exit);

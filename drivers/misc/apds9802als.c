@@ -332,17 +332,7 @@ static struct i2c_driver apds9802als_driver = {
 	.id_table = apds9802als_id,
 };
 
-static int __init sensor_apds9802als_init(void)
-{
-	return i2c_add_driver(&apds9802als_driver);
-}
-
-static void  __exit sensor_apds9802als_exit(void)
-{
-	i2c_del_driver(&apds9802als_driver);
-}
-module_init(sensor_apds9802als_init);
-module_exit(sensor_apds9802als_exit);
+module_i2c_driver(apds9802als_driver);
 
 MODULE_AUTHOR("Anantha Narayanan <Anantha.Narayanan@intel.com");
 MODULE_DESCRIPTION("Avago apds9802als ALS Driver");
