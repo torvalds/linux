@@ -25,7 +25,14 @@ void proc_sys_poll_notify(struct ctl_table_poll *poll)
 	wake_up_interruptible(&poll->wait);
 }
 
-static struct ctl_table root_table[1];
+static struct ctl_table root_table[] = {
+	{
+		.procname = "",
+		.mode = S_IRUGO|S_IXUGO,
+		.child = &root_table[1],
+	},
+	{ }
+};
 static struct ctl_table_root sysctl_table_root;
 static struct ctl_table_header root_table_header = {
 	{{.count = 1,
@@ -319,7 +326,7 @@ static struct dentry *proc_sys_lookup(struct inode *dir, struct dentry *dentry,
 		goto out;
 	}
 
-	table = table ? table->child : head->ctl_table;
+	table = table ? table->child : &head->ctl_table[1];
 
 	p = find_in_table(table, name);
 	if (!p) {
@@ -510,7 +517,7 @@ static int proc_sys_readdir(struct file *filp, void *dirent, filldir_t filldir)
 		goto out;
 	}
 
-	table = table ? table->child : head->ctl_table;
+	table = table ? table->child : &head->ctl_table[1];
 
 	ret = 0;
 	/* Avoid a switch here: arm builds fail with missing __cmpdi2 */
@@ -966,7 +973,7 @@ struct ctl_table_header *__register_sysctl_table(
 	spin_lock(&sysctl_lock);
 	header->set = lookup_header_set(root, namespaces);
 	header->attached_by = header->ctl_table;
-	header->attached_to = root_table;
+	header->attached_to = &root_table[1];
 	header->parent = &root_table_header;
 	set = header->set;
 	root = header->root;
