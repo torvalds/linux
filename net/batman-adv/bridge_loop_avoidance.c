@@ -24,6 +24,7 @@
 #include "hard-interface.h"
 #include "originator.h"
 #include "bridge_loop_avoidance.h"
+#include "translation-table.h"
 #include "send.h"
 
 #include <linux/etherdevice.h>
@@ -359,6 +360,7 @@ static struct backbone_gw *bla_get_backbone_gw(struct bat_priv *bat_priv,
 					       uint8_t *orig, short vid)
 {
 	struct backbone_gw *entry;
+	struct orig_node *orig_node;
 	int hash_added;
 
 	entry = backbone_hash_find(bat_priv, orig, vid);
@@ -393,6 +395,13 @@ static struct backbone_gw *bla_get_backbone_gw(struct bat_priv *bat_priv,
 		return NULL;
 	}
 
+	/* this is a gateway now, remove any tt entries */
+	orig_node = orig_hash_find(bat_priv, orig);
+	if (orig_node) {
+		tt_global_del_orig(bat_priv, orig_node,
+				   "became a backbone gateway");
+		orig_node_free_ref(orig_node);
+	}
 	return entry;
 }
 
@@ -1048,6 +1057,47 @@ int bla_init(struct bat_priv *bat_priv)
 	bla_start_timer(bat_priv);
 	return 1;
 }
+
+/**
+ * @bat_priv: the bat priv with all the soft interface information
+ * @orig: originator mac address
+ *
+ * check if the originator is a gateway for any VLAN ID.
+ *
+ * returns 1 if it is found, 0 otherwise
+ *
+ */
+
+int bla_is_backbone_gw_orig(struct bat_priv *bat_priv, uint8_t *orig)
+{
+	struct hashtable_t *hash = bat_priv->backbone_hash;
+	struct hlist_head *head;
+	struct hlist_node *node;
+	struct backbone_gw *backbone_gw;
+	int i;
+
+	if (!atomic_read(&bat_priv->bridge_loop_avoidance))
+		return 0;
+
+	if (!hash)
+		return 0;
+
+	for (i = 0; i < hash->size; i++) {
+		head = &hash->table[i];
+
+		rcu_read_lock();
+		hlist_for_each_entry_rcu(backbone_gw, node, head, hash_entry) {
+			if (compare_eth(backbone_gw->orig, orig)) {
+				rcu_read_unlock();
+				return 1;
+			}
+		}
+		rcu_read_unlock();
+	}
+
+	return 0;
+}
+
 
 /**
  * @skb: the frame to be checked
