@@ -811,10 +811,9 @@ error:
 
 static void __exit asus_oled_exit(void)
 {
+	usb_deregister(&oled_driver);
 	class_remove_file(oled_class, &class_attr_version.attr);
 	class_destroy(oled_class);
-
-	usb_deregister(&oled_driver);
 }
 
 module_init(asus_oled_init);
