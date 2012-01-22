@@ -608,11 +608,6 @@ static int rtl28xxu_power_ctrl(struct dvb_usb_device *d, int onoff)
 		sys0 = sys0 & 0x0f;
 		sys0 |= 0xe0;
 	} else {
-		/*
-		 * FIXME: Use .fe_ioctl_override() to prevent demod
-		 * IOCTLs in case of device is powered off. Or change
-		 * RTL2830 demod not perform requestesd IOCTL & IO when sleep.
-		 */
 		gpio &= (~0x01); /* GPIO0 = 0 */
 		gpio |= 0x10; /* GPIO4 = 1 */
 		sys0 = sys0 & (~0xc0);

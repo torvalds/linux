@@ -273,10 +273,19 @@ static int rtl2830_init(struct dvb_frontend *fe)
 	if (ret)
 		goto err;
 
+	priv->sleeping = false;
+
 	return ret;
 err:
 	dbg("%s: failed=%d", __func__, ret);
 	return ret;
+}
+
+static int rtl2830_sleep(struct dvb_frontend *fe)
+{
+	struct rtl2830_priv *priv = fe->demodulator_priv;
+	priv->sleeping = true;
+	return 0;
 }
 
 int rtl2830_get_tune_settings(struct dvb_frontend *fe,
@@ -371,6 +380,9 @@ static int rtl2830_read_status(struct dvb_frontend *fe, fe_status_t *status)
 	int ret;
 	u8 tmp;
 	*status = 0;
+
+	if (priv->sleeping)
+		return 0;
 
 	ret = rtl2830_rd_reg_mask(priv, 0x351, &tmp, 0x78); /* [6:3] */
 	if (ret)
@@ -498,6 +510,8 @@ struct dvb_frontend *rtl2830_attach(const struct rtl2830_config *cfg,
 		goto err;
 	}
 
+	priv->sleeping = true;
+
 	return &priv->fe;
 err:
 	dbg("%s: failed=%d", __func__, ret);
@@ -530,6 +544,7 @@ static struct dvb_frontend_ops rtl2830_ops = {
 	.release = rtl2830_release,
 
 	.init = rtl2830_init,
+	.sleep = rtl2830_sleep,
 
 	.get_tune_settings = rtl2830_get_tune_settings,
 

@@ -43,6 +43,8 @@ struct rtl2830_priv {
 	struct rtl2830_config cfg;
 	struct i2c_adapter tuner_i2c_adapter;
 
+	bool sleeping;
+
 	u8 page; /* active register page */
 };
 
