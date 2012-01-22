@@ -23,6 +23,7 @@
  *	- Add a few missing ioctls
  */
 
+#include <linux/platform_device.h>
 #include <linux/module.h>
 #include <linux/fs.h>
 #include <linux/miscdevice.h>
@@ -30,7 +31,6 @@
 #include <linux/timer.h>
 #include <linux/uaccess.h>
 #include <linux/io.h>
-#include <mach/hardware.h>
 
 #define WDT_VERSION	"0.3"
 #define PFX		"ep93xx_wdt: "
@@ -41,6 +41,7 @@
 static int nowayout = WATCHDOG_NOWAYOUT;
 static int timeout = WDT_TIMEOUT;
 
+static void __iomem *mmio_base;
 static struct timer_list timer;
 static unsigned long next_heartbeat;
 static unsigned long wdt_status;
@@ -49,26 +50,25 @@ static unsigned long boot_status;
 #define WDT_IN_USE		0
 #define WDT_OK_TO_CLOSE		1
 
-#define EP93XX_WDT_REG(x)	(EP93XX_WATCHDOG_BASE + (x))
-#define EP93XX_WDT_WATCHDOG	EP93XX_WDT_REG(0x00)
-#define EP93XX_WDT_WDSTATUS	EP93XX_WDT_REG(0x04)
+#define EP93XX_WATCHDOG		0x00
+#define EP93XX_WDSTATUS		0x04
 
 /* reset the wdt every ~200ms */
 #define WDT_INTERVAL (HZ/5)
 
 static void wdt_enable(void)
 {
-	__raw_writew(0xaaaa, EP93XX_WDT_WATCHDOG);
+	writel(0xaaaa, mmio_base + EP93XX_WATCHDOG);
 }
 
 static void wdt_disable(void)
 {
-	__raw_writew(0xaa55, EP93XX_WDT_WATCHDOG);
+	writel(0xaa55, mmio_base + EP93XX_WATCHDOG);
 }
 
 static inline void wdt_ping(void)
 {
-	__raw_writew(0x5555, EP93XX_WDT_WATCHDOG);
+	writel(0x5555, mmio_base + EP93XX_WATCHDOG);
 }
 
 static void wdt_startup(void)
@@ -206,18 +206,32 @@ static void ep93xx_timer_ping(unsigned long data)
 	mod_timer(&timer, jiffies + WDT_INTERVAL);
 }
 
-static int __init ep93xx_wdt_init(void)
+static int __devinit ep93xx_wdt_probe(struct platform_device *pdev)
 {
+	struct resource *res;
+	unsigned long val;
 	int err;
+
+	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
+	if (!res)
+		return -ENXIO;
+
+	if (!devm_request_mem_region(&pdev->dev, res->start,
+				     resource_size(res), pdev->name))
+		return -EBUSY;
+
+	mmio_base = devm_ioremap(&pdev->dev, res->start, resource_size(res));
+	if (!mmio_base)
+		return -ENXIO;
 
 	err = misc_register(&ep93xx_wdt_miscdev);
 
-	boot_status = __raw_readl(EP93XX_WDT_WATCHDOG) & 0x01 ? 1 : 0;
+	val = readl(mmio_base + EP93XX_WATCHDOG);
+	boot_status = val & 0x01 ? 1 : 0;
 
 	printk(KERN_INFO PFX "EP93XX watchdog, driver version "
 		WDT_VERSION "%s\n",
-		(__raw_readl(EP93XX_WDT_WATCHDOG) & 0x08)
-		? " (nCS1 disable detected)" : "");
+		(val & 0x08) ? " (nCS1 disable detected)" : "");
 
 	if (timeout < 1 || timeout > 3600) {
 		timeout = WDT_TIMEOUT;
@@ -230,14 +244,23 @@ static int __init ep93xx_wdt_init(void)
 	return err;
 }
 
-static void __exit ep93xx_wdt_exit(void)
+static int __devexit ep93xx_wdt_remove(struct platform_device *pdev)
 {
 	wdt_shutdown();
 	misc_deregister(&ep93xx_wdt_miscdev);
+	return 0;
 }
 
-module_init(ep93xx_wdt_init);
-module_exit(ep93xx_wdt_exit);
+static struct platform_driver ep93xx_wdt_driver = {
+	.driver		= {
+		.owner	= THIS_MODULE,
+		.name	= "ep93xx-wdt",
+	},
+	.probe		= ep93xx_wdt_probe,
+	.remove		= __devexit_p(ep93xx_wdt_remove),
+};
+
+module_platform_driver(ep93xx_wdt_driver);
 
 module_param(nowayout, int, 0);
 MODULE_PARM_DESC(nowayout, "Watchdog cannot be stopped once started");
