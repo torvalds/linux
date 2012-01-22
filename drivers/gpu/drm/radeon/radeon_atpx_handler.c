@@ -58,7 +58,7 @@ static int radeon_atrm_call(acpi_handle atrm_handle, uint8_t *bios,
 	}
 
 	obj = (union acpi_object *)buffer.pointer;
-	memcpy(bios+offset, obj->buffer.pointer, len);
+	memcpy(bios+offset, obj->buffer.pointer, obj->buffer.length);
 	kfree(buffer.pointer);
 	return len;
 }
