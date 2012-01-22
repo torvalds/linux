@@ -58,25 +58,23 @@ static int rtl28xxu_ctrl_msg(struct dvb_usb_device *d, struct rtl28xxu_req *req)
 	}
 
 	ret = usb_control_msg(d->udev, pipe, 0, requesttype, req->value,
-		req->index, buf, req->size, 1000);
+			req->index, buf, req->size, 1000);
+	if (ret > 0)
+		ret = 0;
 
 	deb_dump(0, requesttype, req->value, req->index, buf, req->size,
-		deb_xfer);
-
-	if (ret < 0)
-		goto err_dealloc;
-	else
-		ret = 0;
+			deb_xfer);
 
 	/* read request, copy returned data to return buf */
 	if (!ret && requesttype == (USB_TYPE_VENDOR | USB_DIR_IN))
 		memcpy(req->data, buf, req->size);
 
 	kfree(buf);
-	return ret;
 
-err_dealloc:
-	kfree(buf);
+	if (ret)
+		goto err;
+
+	return ret;
 err:
 	deb_info("%s: failed=%d\n", __func__, ret);
 	return ret;
@@ -167,7 +165,7 @@ static int rtl28xxu_i2c_xfer(struct i2c_adapter *adap, struct i2c_msg msg[],
 		if (msg[0].len > 24 || msg[1].len > 24) {
 			/* TODO: check msg[0].len max */
 			ret = -EOPNOTSUPP;
-			goto err_unlock;
+			goto err_mutex_unlock;
 		} else if (msg[0].addr == 0x10) {
 			/* method 1 - integrated demod */
 			req.value = (msg[0].buf[0] << 8) | (msg[0].addr << 1);
@@ -190,7 +188,7 @@ static int rtl28xxu_i2c_xfer(struct i2c_adapter *adap, struct i2c_msg msg[],
 			req.data = msg[0].buf;
 			ret = rtl28xxu_ctrl_msg(d, &req);
 			if (ret)
-				goto err_unlock;
+				goto err_mutex_unlock;
 
 			req.value = (msg[0].addr << 1);
 			req.index = CMD_I2C_DA_RD;
@@ -202,7 +200,7 @@ static int rtl28xxu_i2c_xfer(struct i2c_adapter *adap, struct i2c_msg msg[],
 		if (msg[0].len > 22) {
 			/* TODO: check msg[0].len max */
 			ret = -EOPNOTSUPP;
-			goto err_unlock;
+			goto err_mutex_unlock;
 		} else if (msg[0].addr == 0x10) {
 			/* method 1 - integrated demod */
 			if (msg[0].buf[0] == 0x00) {
@@ -236,7 +234,7 @@ static int rtl28xxu_i2c_xfer(struct i2c_adapter *adap, struct i2c_msg msg[],
 		ret = -EINVAL;
 	}
 
-err_unlock:
+err_mutex_unlock:
 	mutex_unlock(&d->i2c_mutex);
 
 	return ret ? ret : num;
@@ -293,11 +291,11 @@ static int rtl2831u_frontend_attach(struct dvb_usb_adapter *adap)
 	u8 buf[1];
 	struct rtl2830_config *rtl2830_config;
 	/* open RTL2831U/RTL2830 I2C gate */
-	struct rtl28xxu_req req_gate = {0x0120, 0x0011, 0x0001, "\x08"};
+	struct rtl28xxu_req req_gate = { 0x0120, 0x0011, 0x0001, "\x08" };
 	/* for MT2060 tuner probe */
-	struct rtl28xxu_req req_mt2060 = {0x00c0, CMD_I2C_RD, 1, buf};
+	struct rtl28xxu_req req_mt2060 = { 0x00c0, CMD_I2C_RD, 1, buf };
 	/* for QT1010 tuner probe */
-	struct rtl28xxu_req req_qt1010 = {0x0fc4, CMD_I2C_RD, 1, buf};
+	struct rtl28xxu_req req_qt1010 = { 0x0fc4, CMD_I2C_RD, 1, buf };
 
 	deb_info("%s:\n", __func__);
 
@@ -484,7 +482,7 @@ static int rtl2831u_tuner_attach(struct dvb_usb_adapter *adap)
 	int ret;
 	struct rtl28xxu_priv *priv = adap->dev->priv;
 	struct i2c_adapter *rtl2830_tuner_i2c;
-	struct dvb_frontend *fe = NULL;
+	struct dvb_frontend *fe;
 
 	deb_info("%s:\n", __func__);
 
@@ -503,9 +501,10 @@ static int rtl2831u_tuner_attach(struct dvb_usb_adapter *adap)
 		break;
 	case TUNER_RTL2830_MXL5005S:
 		fe = dvb_attach(mxl5005s_attach, adap->fe_adap[0].fe,
-			rtl2830_tuner_i2c, &rtl28xxu_mxl5005s_config);
+				rtl2830_tuner_i2c, &rtl28xxu_mxl5005s_config);
 		break;
 	default:
+		fe = NULL;
 		err("unknown tuner=%d", priv->tuner);
 	}
 
@@ -524,15 +523,17 @@ static int rtl2832u_tuner_attach(struct dvb_usb_adapter *adap)
 {
 	int ret;
 	struct rtl28xxu_priv *priv = adap->dev->priv;
-	struct dvb_frontend *fe = NULL;
+	struct dvb_frontend *fe;
 
 	deb_info("%s:\n", __func__);
 
 	switch (priv->tuner) {
 	case TUNER_RTL2832_FC2580:
 		/* TODO: */
+		fe = NULL;
 		break;
 	default:
+		fe = NULL;
 		err("unknown tuner=%d", priv->tuner);
 	}
 
@@ -662,7 +663,7 @@ static int rtl2831u_rc_query(struct dvb_usb_device *d)
 	if (!priv->rc_active) {
 		for (i = 0; i < ARRAY_SIZE(rc_nec_tab); i++) {
 			ret = rtl2831_wr_reg(d, rc_nec_tab[i].reg,
-				rc_nec_tab[i].val);
+					rc_nec_tab[i].val);
 			if (ret)
 				goto err;
 		}
@@ -681,7 +682,7 @@ static int rtl2831u_rc_query(struct dvb_usb_device *d)
 			} else {
 				/* NEC extended (24 bit) */
 				rc_code = buf[0] << 16 |
-					buf[1] << 8 | buf[2];
+						buf[1] << 8 | buf[2];
 			}
 		} else {
 			/* NEC full (32 bit) */
@@ -707,7 +708,6 @@ err:
 	return ret;
 }
 
-
 static int rtl2832u_rc_query(struct dvb_usb_device *d)
 {
 	int ret, i;
@@ -715,27 +715,27 @@ static int rtl2832u_rc_query(struct dvb_usb_device *d)
 	u8 buf[128];
 	int len;
 	struct rtl28xxu_reg_val rc_nec_tab[] = {
-		{IR_RX_CTRL,             0x20},
-		{IR_RX_BUF_CTRL,         0x80},
-		{IR_RX_IF,               0xff},
-		{IR_RX_IE,               0xff},
-		{IR_MAX_DURATION0,       0xd0},
-		{IR_MAX_DURATION1,       0x07},
-		{IR_IDLE_LEN0,           0xc0},
-		{IR_IDLE_LEN1,           0x00},
-		{IR_GLITCH_LEN,          0x03},
-		{IR_RX_CLK,              0x09},
-		{IR_RX_CFG,              0x1c},
-		{IR_MAX_H_TOL_LEN,       0x1e},
-		{IR_MAX_L_TOL_LEN,       0x1e},
-		{IR_RX_CTRL,             0x80},
+		{ IR_RX_CTRL,             0x20 },
+		{ IR_RX_BUF_CTRL,         0x80 },
+		{ IR_RX_IF,               0xff },
+		{ IR_RX_IE,               0xff },
+		{ IR_MAX_DURATION0,       0xd0 },
+		{ IR_MAX_DURATION1,       0x07 },
+		{ IR_IDLE_LEN0,           0xc0 },
+		{ IR_IDLE_LEN1,           0x00 },
+		{ IR_GLITCH_LEN,          0x03 },
+		{ IR_RX_CLK,              0x09 },
+		{ IR_RX_CFG,              0x1c },
+		{ IR_MAX_H_TOL_LEN,       0x1e },
+		{ IR_MAX_L_TOL_LEN,       0x1e },
+		{ IR_RX_CTRL,             0x80 },
 	};
 
 	/* init remote controller */
 	if (!priv->rc_active) {
 		for (i = 0; i < ARRAY_SIZE(rc_nec_tab); i++) {
 			ret = rtl2831_wr_reg(d, rc_nec_tab[i].reg,
-				rc_nec_tab[i].val);
+					rc_nec_tab[i].val);
 			if (ret)
 				goto err;
 		}
@@ -769,35 +769,19 @@ err:
 	return ret;
 }
 
-
-/* DVB USB Driver stuff */
-#define	USB_VID_REALTEK                                 0x0bda
-#define	USB_VID_DEXATEK                                 0x1D19
-#define	USB_PID_RTL2831U                                0x2831
-#define	USB_PID_RTL2832U                                0x2832
-#define	USB_PID_FREECOM                                 0x0160
-#define	USB_PID_DEXATEK_1101                            0x1101
-
-#define RTL2831U_0BDA_2831                          0
-#define RTL2831U_14AA_0160                          1
-
-#define RTL2832U_1ST_ID                            (RTL2831U_14AA_0160 + 1)
-
-#define RTL2832U_0BDA_2832                         (0 + RTL2832U_1ST_ID)
-#define RTL2832U_1D19_1101                         (1 + RTL2832U_1ST_ID)
-
+enum rtl28xxu_usb_table_entry {
+	RTL2831U_0BDA_2831,
+	RTL2831U_14AA_0160,
+};
 
 static struct usb_device_id rtl28xxu_table[] = {
+	/* RTL2831U */
 	[RTL2831U_0BDA_2831] = {
-		USB_DEVICE(USB_VID_REALTEK, USB_PID_RTL2831U)},
+		USB_DEVICE(USB_VID_REALTEK, USB_PID_REALTEK_RTL2831U)},
 	[RTL2831U_14AA_0160] = {
-		USB_DEVICE(USB_VID_WIDEVIEW, USB_PID_FREECOM)},
+		USB_DEVICE(USB_VID_WIDEVIEW, USB_PID_FREECOM_DVBT)},
 
-	[RTL2832U_0BDA_2832] = {
-		USB_DEVICE(USB_VID_REALTEK, USB_PID_RTL2832U)},
-	[RTL2832U_1D19_1101] = {
-		USB_DEVICE(USB_VID_DEXATEK, USB_PID_DEXATEK_1101)},
-
+	/* RTL2832U */
 	{} /* terminating entry */
 };
 
@@ -827,7 +811,7 @@ static struct dvb_usb_device_properties rtl28xxu_properties[] = {
 							.endpoint = 0x81,
 							.u = {
 								.bulk = {
-									.buffersize = 4096,
+									.buffersize = 8*512,
 								}
 							}
 						}
@@ -853,15 +837,15 @@ static struct dvb_usb_device_properties rtl28xxu_properties[] = {
 		.devices = {
 			{
 				.name = "Realtek RTL2831U reference design",
-				.cold_ids = {NULL},
 				.warm_ids = {
-				&rtl28xxu_table[RTL2831U_0BDA_2831], NULL},
+					&rtl28xxu_table[RTL2831U_0BDA_2831],
+				},
 			},
 			{
 				.name = "Freecom USB2.0 DVB-T",
-				.cold_ids = {NULL},
 				.warm_ids = {
-				&rtl28xxu_table[RTL2831U_14AA_0160], NULL},
+					&rtl28xxu_table[RTL2831U_14AA_0160],
+				},
 			},
 		}
 	},
@@ -888,7 +872,7 @@ static struct dvb_usb_device_properties rtl28xxu_properties[] = {
 							.endpoint = 0x81,
 							.u = {
 								.bulk = {
-									.buffersize = 4096,
+									.buffersize = 8*512,
 								}
 							}
 						}
@@ -910,19 +894,10 @@ static struct dvb_usb_device_properties rtl28xxu_properties[] = {
 
 		.i2c_algo = &rtl28xxu_i2c_algo,
 
-		.num_device_descs = 2,
+		.num_device_descs = 0, /* disabled as no support for RTL2832 */
 		.devices = {
 			{
 				.name = "Realtek RTL2832U reference design",
-				.cold_ids = {NULL},
-				.warm_ids = {
-				&rtl28xxu_table[RTL2832U_0BDA_2832], NULL},
-			},
-			{
-				.name = "Dexatek dongle",
-				.cold_ids = {NULL},
-				.warm_ids = {
-				&rtl28xxu_table[RTL2832U_1D19_1101], NULL},
 			},
 		}
 	},
@@ -930,11 +905,11 @@ static struct dvb_usb_device_properties rtl28xxu_properties[] = {
 };
 
 static int rtl28xxu_probe(struct usb_interface *intf,
-			const struct usb_device_id *id)
+		const struct usb_device_id *id)
 {
 	int ret, i;
 	int properties_count = ARRAY_SIZE(rtl28xxu_properties);
-	struct dvb_usb_device *d = NULL;
+	struct dvb_usb_device *d;
 
 	deb_info("%s: interface=%d\n", __func__,
 		intf->cur_altsetting->desc.bInterfaceNumber);
@@ -944,7 +919,7 @@ static int rtl28xxu_probe(struct usb_interface *intf,
 
 	for (i = 0; i < properties_count; i++) {
 		ret = dvb_usb_device_init(intf, &rtl28xxu_properties[i],
-			THIS_MODULE, &d, adapter_nr);
+				THIS_MODULE, &d, adapter_nr);
 		if (ret == 0 || ret != -ENODEV)
 			break;
 	}
@@ -982,7 +957,9 @@ static struct usb_driver rtl28xxu_driver = {
 static int __init rtl28xxu_module_init(void)
 {
 	int ret;
+
 	deb_info("%s:\n", __func__);
+
 	ret = usb_register(&rtl28xxu_driver);
 	if (ret)
 		err("usb_register failed=%d", ret);
@@ -993,6 +970,7 @@ static int __init rtl28xxu_module_init(void)
 static void __exit rtl28xxu_module_exit(void)
 {
 	deb_info("%s:\n", __func__);
+
 	/* deregister this driver from the USB subsystem */
 	usb_deregister(&rtl28xxu_driver);
 }

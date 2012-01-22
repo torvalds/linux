@@ -49,25 +49,27 @@
  * USB commands
  * (usb_control_msg() index parameter)
  */
-#define DEMOD  (0x00 << 8)
-#define USB    (0x01 << 8)
-#define SYS    (0x02 << 8)
-#define I2C    (0x03 << 8)
-#define I2C_DA (0x06 << 8)
 
-#define CMD_WR_FLAG   0x10
-#define CMD_DEMOD_RD  (DEMOD)
-#define CMD_DEMOD_WR  (DEMOD | CMD_WR_FLAG)
-#define CMD_USB_RD    (USB)
-#define CMD_USB_WR    (USB | CMD_WR_FLAG)
-#define CMD_SYS_RD    (SYS)
-#define CMD_IR_RD     (CMD_SYS_RD | 0x01)
-#define CMD_IR_WR     (CMD_SYS_WR | 0x01)
-#define CMD_SYS_WR    (SYS | CMD_WR_FLAG)
-#define CMD_I2C_RD    (I2C)
-#define CMD_I2C_WR    (I2C | CMD_WR_FLAG)
-#define CMD_I2C_DA_RD (I2C_DA)
-#define CMD_I2C_DA_WR (I2C_DA | CMD_WR_FLAG)
+#define DEMOD            0x0000
+#define USB              0x0100
+#define SYS              0x0200
+#define I2C              0x0300
+#define I2C_DA           0x0600
+
+#define CMD_WR_FLAG      0x0010
+#define CMD_DEMOD_RD     0x0000
+#define CMD_DEMOD_WR     0x0010
+#define CMD_USB_RD       0x0100
+#define CMD_USB_WR       0x0110
+#define CMD_SYS_RD       0x0200
+#define CMD_IR_RD        0x0201
+#define CMD_IR_WR        0x0211
+#define CMD_SYS_WR       0x0210
+#define CMD_I2C_RD       0x0300
+#define CMD_I2C_WR       0x0310
+#define CMD_I2C_DA_RD    0x0600
+#define CMD_I2C_DA_WR    0x0610
+
 
 struct rtl28xxu_priv {
 	u8 chip_id;
@@ -77,13 +79,13 @@ struct rtl28xxu_priv {
 };
 
 enum rtl28xxu_chip_id {
-	CHIP_ID_NONE = 0,
+	CHIP_ID_NONE,
 	CHIP_ID_RTL2831U,
 	CHIP_ID_RTL2832U,
 };
 
 enum rtl28xxu_tuner {
-	TUNER_NONE = 0,
+	TUNER_NONE,
 
 	TUNER_RTL2830_QT1010,
 	TUNER_RTL2830_MT2060,
