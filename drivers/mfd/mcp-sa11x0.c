@@ -27,8 +27,6 @@
 #include <asm/system.h>
 #include <mach/mcp.h>
 
-#include <mach/assabet.h>
-
 #define DRIVER_NAME "sa11x0-mcp"
 
 struct mcp_sa11x0 {
@@ -207,10 +205,6 @@ static int mcp_sa11x0_probe(struct platform_device *dev)
 	}
 
 	platform_set_drvdata(dev, mcp);
-
-	if (machine_is_assabet()) {
-		ASSABET_BCR_set(ASSABET_BCR_CODEC_RST);
-	}
 
 	/*
 	 * Initialise device.  Note that we initially

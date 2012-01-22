@@ -70,6 +70,13 @@ void ASSABET_BCR_frob(unsigned int mask, unsigned int val)
 
 EXPORT_SYMBOL(ASSABET_BCR_frob);
 
+static void assabet_ucb1x00_reset(enum ucb1x00_reset state)
+{
+	if (state == UCB_RST_PROBE)
+		ASSABET_BCR_set(ASSABET_BCR_CODEC_RST);
+}
+
+
 static void assabet_backlight_power(int on)
 {
 #ifndef ASSABET_PAL_VIDEO
@@ -201,6 +208,7 @@ static struct irda_platform_data assabet_irda_data = {
 };
 
 static struct ucb1x00_plat_data assabet_ucb1x00_data = {
+	.reset		= assabet_ucb1x00_reset,
 	.gpio_base	= -1,
 };
 
