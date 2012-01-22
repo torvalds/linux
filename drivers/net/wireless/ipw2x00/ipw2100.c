@@ -1963,10 +1963,8 @@ static int ipw2100_wdev_init(struct net_device *dev)
 	wdev->wiphy->n_cipher_suites = ARRAY_SIZE(ipw_cipher_suites);
 
 	set_wiphy_dev(wdev->wiphy, &priv->pci_dev->dev);
-	if (wiphy_register(wdev->wiphy)) {
-		ipw2100_down(priv);
+	if (wiphy_register(wdev->wiphy))
 		return -EIO;
-	}
 	return 0;
 }
 
@@ -6331,6 +6329,11 @@ static int ipw2100_pci_init_one(struct pci_dev *pci_dev,
 	printk(KERN_INFO DRV_NAME
 	       ": Detected Intel PRO/Wireless 2100 Network Connection\n");
 
+	err = ipw2100_wdev_init(dev);
+	if (err)
+		goto fail;
+	registered = 1;
+
 	/* Bring up the interface.  Pre 0.46, after we registered the
 	 * network device we would call ipw2100_up.  This introduced a race
 	 * condition with newer hotplug configurations (network was coming
@@ -6347,11 +6350,7 @@ static int ipw2100_pci_init_one(struct pci_dev *pci_dev,
 		       "Error calling register_netdev.\n");
 		goto fail;
 	}
-	registered = 1;
-
-	err = ipw2100_wdev_init(dev);
-	if (err)
-		goto fail;
+	registered = 2;
 
 	mutex_lock(&priv->action_mutex);
 
@@ -6390,12 +6389,15 @@ out:
 
       fail_unlock:
 	mutex_unlock(&priv->action_mutex);
-	wiphy_unregister(priv->ieee->wdev.wiphy);
-	kfree(priv->ieee->bg_band.channels);
       fail:
 	if (dev) {
-		if (registered)
+		if (registered >= 2)
 			unregister_netdev(dev);
+
+		if (registered) {
+			wiphy_unregister(priv->ieee->wdev.wiphy);
+			kfree(priv->ieee->bg_band.channels);
+		}
 
 		ipw2100_hw_stop_adapter(priv);
 
