@@ -30,7 +30,7 @@ static const char *boardname[] = { "DataCommute/BRI", "DataCommute/PRI", "TeleCo
 static unsigned int io[] = {0,0,0,0};
 static unsigned char irq[] = {0,0,0,0};
 static unsigned long ram[] = {0,0,0,0};
-static int do_reset = 0;
+static bool do_reset = 0;
 
 module_param_array(io, int, NULL, 0);
 module_param_array(irq, int, NULL, 0);

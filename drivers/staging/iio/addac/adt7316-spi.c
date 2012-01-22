@@ -151,7 +151,6 @@ static int adt7316_spi_resume(struct spi_device *spi_dev)
 static struct spi_driver adt7316_driver = {
 	.driver = {
 		.name = "adt7316",
-		.bus = &spi_bus_type,
 		.owner = THIS_MODULE,
 	},
 	.probe = adt7316_spi_probe,
@@ -160,21 +159,9 @@ static struct spi_driver adt7316_driver = {
 	.resume = adt7316_spi_resume,
 	.id_table = adt7316_spi_id,
 };
-
-static __init int adt7316_spi_init(void)
-{
-	return spi_register_driver(&adt7316_driver);
-}
-
-static __exit void adt7316_spi_exit(void)
-{
-	spi_unregister_driver(&adt7316_driver);
-}
+module_spi_driver(adt7316_driver);
 
 MODULE_AUTHOR("Sonic Zhang <sonic.zhang@analog.com>");
 MODULE_DESCRIPTION("SPI bus driver for Analog Devices ADT7316/7/8 and"
 			"ADT7516/7/9 digital temperature sensor, ADC and DAC");
 MODULE_LICENSE("GPL v2");
-
-module_init(adt7316_spi_init);
-module_exit(adt7316_spi_exit);

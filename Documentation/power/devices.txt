@@ -126,7 +126,9 @@ The core methods to suspend and resume devices reside in struct dev_pm_ops
 pointed to by the ops member of struct dev_pm_domain, or by the pm member of
 struct bus_type, struct device_type and struct class.  They are mostly of
 interest to the people writing infrastructure for platforms and buses, like PCI
-or USB, or device type and device class drivers.
+or USB, or device type and device class drivers.  They also are relevant to the
+writers of device drivers whose subsystems (PM domains, device types, device
+classes and bus types) don't provide all power management methods.
 
 Bus drivers implement these methods as appropriate for the hardware and the
 drivers using it; PCI works differently from USB, and so on.  Not many people
@@ -268,32 +270,35 @@ various phases always run after tasks have been frozen and before they are
 unfrozen.  Furthermore, the *_noirq phases run at a time when IRQ handlers have
 been disabled (except for those marked with the IRQF_NO_SUSPEND flag).
 
-All phases use PM domain, bus, type, or class callbacks (that is, methods
-defined in dev->pm_domain->ops, dev->bus->pm, dev->type->pm, or dev->class->pm).
-These callbacks are regarded by the PM core as mutually exclusive.  Moreover,
-PM domain callbacks always take precedence over bus, type and class callbacks,
-while type callbacks take precedence over bus and class callbacks, and class
-callbacks take precedence over bus callbacks.  To be precise, the following
-rules are used to determine which callback to execute in the given phase:
+All phases use PM domain, bus, type, class or driver callbacks (that is, methods
+defined in dev->pm_domain->ops, dev->bus->pm, dev->type->pm, dev->class->pm or
+dev->driver->pm).  These callbacks are regarded by the PM core as mutually
+exclusive.  Moreover, PM domain callbacks always take precedence over all of the
+other callbacks and, for example, type callbacks take precedence over bus, class
+and driver callbacks.  To be precise, the following rules are used to determine
+which callback to execute in the given phase:
 
-    1.	If dev->pm_domain is present, the PM core will attempt to execute the
-	callback included in dev->pm_domain->ops.  If that callback is not
-	present, no action will be carried out for the given device.
+    1.	If dev->pm_domain is present, the PM core will choose the callback
+	included in dev->pm_domain->ops for execution
 
     2.	Otherwise, if both dev->type and dev->type->pm are present, the callback
-	included in dev->type->pm will be executed.
+	included in dev->type->pm will be chosen for execution.
 
     3.	Otherwise, if both dev->class and dev->class->pm are present, the
-	callback included in dev->class->pm will be executed.
+	callback included in dev->class->pm will be chosen for execution.
 
     4.	Otherwise, if both dev->bus and dev->bus->pm are present, the callback
-	included in dev->bus->pm will be executed.
+	included in dev->bus->pm will be chosen for execution.
 
 This allows PM domains and device types to override callbacks provided by bus
 types or device classes if necessary.
 
-These callbacks may in turn invoke device- or driver-specific methods stored in
-dev->driver->pm, but they don't have to.
+The PM domain, type, class and bus callbacks may in turn invoke device- or
+driver-specific methods stored in dev->driver->pm, but they don't have to do
+that.
+
+If the subsystem callback chosen for execution is not present, the PM core will
+execute the corresponding method from dev->driver->pm instead if there is one.
 
 
 Entering System Suspend

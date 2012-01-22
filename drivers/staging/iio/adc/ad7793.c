@@ -20,7 +20,7 @@
 
 #include "../iio.h"
 #include "../sysfs.h"
-#include "../buffer_generic.h"
+#include "../buffer.h"
 #include "../ring_sw.h"
 #include "../trigger.h"
 #include "../trigger_consumer.h"
@@ -316,25 +316,6 @@ out:
 	return ret;
 }
 
-static int ad7793_scan_from_ring(struct ad7793_state *st, unsigned ch, int *val)
-{
-	struct iio_buffer *ring = iio_priv_to_dev(st)->buffer;
-	int ret;
-	s64 dat64[2];
-	u32 *dat32 = (u32 *)dat64;
-
-	if (!(test_bit(ch, ring->scan_mask)))
-		return  -EBUSY;
-
-	ret = ring->access->read_last(ring, (u8 *) &dat64);
-	if (ret)
-		return ret;
-
-	*val = *dat32;
-
-	return 0;
-}
-
 static int ad7793_ring_preenable(struct iio_dev *indio_dev)
 {
 	struct ad7793_state *st = iio_priv(indio_dev);
@@ -342,14 +323,15 @@ static int ad7793_ring_preenable(struct iio_dev *indio_dev)
 	size_t d_size;
 	unsigned channel;
 
-	if (!ring->scan_count)
+	if (bitmap_empty(indio_dev->active_scan_mask, indio_dev->masklength))
 		return -EINVAL;
 
-	channel = find_first_bit(ring->scan_mask,
+	channel = find_first_bit(indio_dev->active_scan_mask,
 				 indio_dev->masklength);
 
-	d_size = ring->scan_count *
-		 indio_dev->channels[0].scan_type.storagebits / 8;
+	d_size = bitmap_weight(indio_dev->active_scan_mask,
+			       indio_dev->masklength) *
+		indio_dev->channels[0].scan_type.storagebits / 8;
 
 	if (ring->scan_timestamp) {
 		d_size += sizeof(s64);
@@ -411,7 +393,7 @@ static irqreturn_t ad7793_trigger_handler(int irq, void *p)
 	s64 dat64[2];
 	s32 *dat32 = (s32 *)dat64;
 
-	if (ring->scan_count)
+	if (!bitmap_empty(indio_dev->active_scan_mask, indio_dev->masklength))
 		__ad7793_read_reg(st, 1, 1, AD7793_REG_DATA,
 				  dat32,
 				  indio_dev->channels[0].scan_type.realbits/8);
@@ -459,7 +441,7 @@ static int ad7793_register_ring_funcs_and_init(struct iio_dev *indio_dev)
 	}
 
 	/* Ring buffer functions - here trigger setup related */
-	indio_dev->buffer->setup_ops = &ad7793_ring_setup_ops;
+	indio_dev->setup_ops = &ad7793_ring_setup_ops;
 
 	/* Flag that polled ring buffering is possible */
 	indio_dev->modes |= INDIO_BUFFER_TRIGGERED;
@@ -493,6 +475,10 @@ static irqreturn_t ad7793_data_rdy_trig_poll(int irq, void *private)
 	return IRQ_HANDLED;
 }
 
+static struct iio_trigger_ops ad7793_trigger_ops = {
+	.owner = THIS_MODULE,
+};
+
 static int ad7793_probe_trigger(struct iio_dev *indio_dev)
 {
 	struct ad7793_state *st = iio_priv(indio_dev);
@@ -505,6 +491,7 @@ static int ad7793_probe_trigger(struct iio_dev *indio_dev)
 		ret = -ENOMEM;
 		goto error_ret;
 	}
+	st->trig->ops = &ad7793_trigger_ops;
 
 	ret = request_irq(st->spi->irq,
 			  ad7793_data_rdy_trig_poll,
@@ -517,7 +504,6 @@ static int ad7793_probe_trigger(struct iio_dev *indio_dev)
 	disable_irq_nosync(st->spi->irq);
 	st->irq_dis = true;
 	st->trig->dev.parent = &st->spi->dev;
-	st->trig->owner = THIS_MODULE;
 	st->trig->private_data = indio_dev;
 
 	ret = iio_trigger_register(st->trig);
@@ -649,8 +635,7 @@ static int ad7793_read_raw(struct iio_dev *indio_dev,
 	case 0:
 		mutex_lock(&indio_dev->mlock);
 		if (iio_buffer_enabled(indio_dev))
-			ret = ad7793_scan_from_ring(st,
-					chan->scan_index, &smpl);
+			ret = -EBUSY;
 		else
 			ret = ad7793_read(st, chan->address,
 					chan->scan_type.realbits / 8, &smpl);
@@ -667,19 +652,21 @@ static int ad7793_read_raw(struct iio_dev *indio_dev,
 
 		return IIO_VAL_INT;
 
-	case (1 << IIO_CHAN_INFO_SCALE_SHARED):
-		*val = st->scale_avail[(st->conf >> 8) & 0x7][0];
-		*val2 = st->scale_avail[(st->conf >> 8) & 0x7][1];
-
-		return IIO_VAL_INT_PLUS_NANO;
-
-	case (1 << IIO_CHAN_INFO_SCALE_SEPARATE):
+	case IIO_CHAN_INFO_SCALE:
 		switch (chan->type) {
 		case IIO_VOLTAGE:
-			/* 1170mV / 2^23 * 6 */
-			scale_uv = (1170ULL * 100000000ULL * 6ULL)
-				>> (chan->scan_type.realbits -
-				(unipolar ? 0 : 1));
+			if (chan->differential) {
+				*val = st->
+					scale_avail[(st->conf >> 8) & 0x7][0];
+				*val2 = st->
+					scale_avail[(st->conf >> 8) & 0x7][1];
+				return IIO_VAL_INT_PLUS_NANO;
+			} else {
+				/* 1170mV / 2^23 * 6 */
+				scale_uv = (1170ULL * 100000000ULL * 6ULL)
+					>> (chan->scan_type.realbits -
+					    (unipolar ? 0 : 1));
+			}
 			break;
 		case IIO_TEMP:
 			/* Always uses unity gain and internal ref */
@@ -716,7 +703,7 @@ static int ad7793_write_raw(struct iio_dev *indio_dev,
 	}
 
 	switch (mask) {
-	case (1 << IIO_CHAN_INFO_SCALE_SHARED):
+	case IIO_CHAN_INFO_SCALE:
 		ret = -EINVAL;
 		for (i = 0; i < ARRAY_SIZE(st->scale_avail); i++)
 			if (val2 == st->scale_avail[i][1]) {
@@ -775,7 +762,7 @@ static const struct ad7793_chip_info ad7793_chip_info_tbl[] = {
 			.channel = 0,
 			.channel2 = 0,
 			.address = AD7793_CH_AIN1P_AIN1M,
-			.info_mask = (1 << IIO_CHAN_INFO_SCALE_SHARED),
+			.info_mask = IIO_CHAN_INFO_SCALE_SHARED_BIT,
 			.scan_index = 0,
 			.scan_type = IIO_ST('s', 24, 32, 0)
 		},
@@ -786,7 +773,7 @@ static const struct ad7793_chip_info ad7793_chip_info_tbl[] = {
 			.channel = 1,
 			.channel2 = 1,
 			.address = AD7793_CH_AIN2P_AIN2M,
-			.info_mask = (1 << IIO_CHAN_INFO_SCALE_SHARED),
+			.info_mask = IIO_CHAN_INFO_SCALE_SHARED_BIT,
 			.scan_index = 1,
 			.scan_type = IIO_ST('s', 24, 32, 0)
 		},
@@ -797,7 +784,7 @@ static const struct ad7793_chip_info ad7793_chip_info_tbl[] = {
 			.channel = 2,
 			.channel2 = 2,
 			.address = AD7793_CH_AIN3P_AIN3M,
-			.info_mask = (1 << IIO_CHAN_INFO_SCALE_SHARED),
+			.info_mask = IIO_CHAN_INFO_SCALE_SHARED_BIT,
 			.scan_index = 2,
 			.scan_type = IIO_ST('s', 24, 32, 0)
 		},
@@ -809,7 +796,7 @@ static const struct ad7793_chip_info ad7793_chip_info_tbl[] = {
 			.channel = 2,
 			.channel2 = 2,
 			.address = AD7793_CH_AIN1M_AIN1M,
-			.info_mask = (1 << IIO_CHAN_INFO_SCALE_SHARED),
+			.info_mask = IIO_CHAN_INFO_SCALE_SHARED_BIT,
 			.scan_index = 2,
 			.scan_type = IIO_ST('s', 24, 32, 0)
 		},
@@ -818,7 +805,7 @@ static const struct ad7793_chip_info ad7793_chip_info_tbl[] = {
 			.indexed = 1,
 			.channel = 0,
 			.address = AD7793_CH_TEMP,
-			.info_mask = (1 << IIO_CHAN_INFO_SCALE_SEPARATE),
+			.info_mask = IIO_CHAN_INFO_SCALE_SEPARATE_BIT,
 			.scan_index = 4,
 			.scan_type = IIO_ST('s', 24, 32, 0),
 		},
@@ -828,7 +815,7 @@ static const struct ad7793_chip_info ad7793_chip_info_tbl[] = {
 			.indexed = 1,
 			.channel = 4,
 			.address = AD7793_CH_AVDD_MONITOR,
-			.info_mask = (1 << IIO_CHAN_INFO_SCALE_SEPARATE),
+			.info_mask = IIO_CHAN_INFO_SCALE_SEPARATE_BIT,
 			.scan_index = 5,
 			.scan_type = IIO_ST('s', 24, 32, 0),
 		},
@@ -842,7 +829,7 @@ static const struct ad7793_chip_info ad7793_chip_info_tbl[] = {
 			.channel = 0,
 			.channel2 = 0,
 			.address = AD7793_CH_AIN1P_AIN1M,
-			.info_mask = (1 << IIO_CHAN_INFO_SCALE_SHARED),
+			.info_mask = IIO_CHAN_INFO_SCALE_SHARED_BIT,
 			.scan_index = 0,
 			.scan_type = IIO_ST('s', 16, 32, 0)
 		},
@@ -853,7 +840,7 @@ static const struct ad7793_chip_info ad7793_chip_info_tbl[] = {
 			.channel = 1,
 			.channel2 = 1,
 			.address = AD7793_CH_AIN2P_AIN2M,
-			.info_mask = (1 << IIO_CHAN_INFO_SCALE_SHARED),
+			.info_mask = IIO_CHAN_INFO_SCALE_SHARED_BIT,
 			.scan_index = 1,
 			.scan_type = IIO_ST('s', 16, 32, 0)
 		},
@@ -864,7 +851,7 @@ static const struct ad7793_chip_info ad7793_chip_info_tbl[] = {
 			.channel = 2,
 			.channel2 = 2,
 			.address = AD7793_CH_AIN3P_AIN3M,
-			.info_mask = (1 << IIO_CHAN_INFO_SCALE_SHARED),
+			.info_mask = IIO_CHAN_INFO_SCALE_SHARED_BIT,
 			.scan_index = 2,
 			.scan_type = IIO_ST('s', 16, 32, 0)
 		},
@@ -876,7 +863,7 @@ static const struct ad7793_chip_info ad7793_chip_info_tbl[] = {
 			.channel = 2,
 			.channel2 = 2,
 			.address = AD7793_CH_AIN1M_AIN1M,
-			.info_mask = (1 << IIO_CHAN_INFO_SCALE_SHARED),
+			.info_mask = IIO_CHAN_INFO_SCALE_SHARED_BIT,
 			.scan_index = 2,
 			.scan_type = IIO_ST('s', 16, 32, 0)
 		},
@@ -885,7 +872,7 @@ static const struct ad7793_chip_info ad7793_chip_info_tbl[] = {
 			.indexed = 1,
 			.channel = 0,
 			.address = AD7793_CH_TEMP,
-			.info_mask = (1 << IIO_CHAN_INFO_SCALE_SEPARATE),
+			.info_mask = IIO_CHAN_INFO_SCALE_SEPARATE_BIT,
 			.scan_index = 4,
 			.scan_type = IIO_ST('s', 16, 32, 0),
 		},
@@ -895,7 +882,7 @@ static const struct ad7793_chip_info ad7793_chip_info_tbl[] = {
 			.indexed = 1,
 			.channel = 4,
 			.address = AD7793_CH_AVDD_MONITOR,
-			.info_mask = (1 << IIO_CHAN_INFO_SCALE_SEPARATE),
+			.info_mask = IIO_CHAN_INFO_SCALE_SEPARATE_BIT,
 			.scan_index = 5,
 			.scan_type = IIO_ST('s', 16, 32, 0),
 		},
@@ -1034,29 +1021,18 @@ static const struct spi_device_id ad7793_id[] = {
 	{"ad7793", ID_AD7793},
 	{}
 };
+MODULE_DEVICE_TABLE(spi, ad7793_id);
 
 static struct spi_driver ad7793_driver = {
 	.driver = {
 		.name	= "ad7793",
-		.bus	= &spi_bus_type,
 		.owner	= THIS_MODULE,
 	},
 	.probe		= ad7793_probe,
 	.remove		= __devexit_p(ad7793_remove),
 	.id_table	= ad7793_id,
 };
-
-static int __init ad7793_init(void)
-{
-	return spi_register_driver(&ad7793_driver);
-}
-module_init(ad7793_init);
-
-static void __exit ad7793_exit(void)
-{
-	spi_unregister_driver(&ad7793_driver);
-}
-module_exit(ad7793_exit);
+module_spi_driver(ad7793_driver);
 
 MODULE_AUTHOR("Michael Hennerich <hennerich@blackfin.uclinux.org>");
 MODULE_DESCRIPTION("Analog Devices AD7792/3 ADC");

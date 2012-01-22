@@ -150,6 +150,8 @@
 #define QL4_SESS_RECOVERY_TMO		120	/* iSCSI session */
 						/* recovery timeout */
 
+#define MSB(x) ((uint8_t)((uint16_t)(x) >> 8))
+#define LSW(x) ((uint16_t)(x))
 #define LSDW(x) ((u32)((u64)(x)))
 #define MSDW(x) ((u32)((((u64)(x)) >> 16) >> 16))
 
@@ -177,6 +179,7 @@
 #define LOGIN_TOV			12
 
 #define MAX_RESET_HA_RETRIES		2
+#define FW_ALIVE_WAIT_TOV		3
 
 #define CMD_SP(Cmnd)			((Cmnd)->SCp.ptr)
 
@@ -670,6 +673,7 @@ struct scsi_qla_host {
 	uint16_t pri_ddb_idx;
 	uint16_t sec_ddb_idx;
 	int is_reset;
+	uint16_t temperature;
 };
 
 struct ql4_task_data {

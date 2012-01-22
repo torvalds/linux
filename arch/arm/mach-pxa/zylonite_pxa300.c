@@ -231,12 +231,12 @@ static struct i2c_board_info zylonite_i2c_board_info[] = {
 		.type		= "pca9539",
 		.addr		= 0x74,
 		.platform_data	= &gpio_exp[0],
-		.irq		= IRQ_GPIO(18),
+		.irq		= PXA_GPIO_TO_IRQ(18),
 	}, {
 		.type		= "pca9539",
 		.addr		= 0x75,
 		.platform_data	= &gpio_exp[1],
-		.irq		= IRQ_GPIO(19),
+		.irq		= PXA_GPIO_TO_IRQ(19),
 	},
 };
 

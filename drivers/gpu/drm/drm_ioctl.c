@@ -158,14 +158,11 @@ int drm_getmap(struct drm_device *dev, void *data,
 	int i;
 
 	idx = map->offset;
-
-	mutex_lock(&dev->struct_mutex);
-	if (idx < 0) {
-		mutex_unlock(&dev->struct_mutex);
+	if (idx < 0)
 		return -EINVAL;
-	}
 
 	i = 0;
+	mutex_lock(&dev->struct_mutex);
 	list_for_each(list, &dev->maplist) {
 		if (i == idx) {
 			r_list = list_entry(list, struct drm_map_list, head);
@@ -211,9 +208,9 @@ int drm_getclient(struct drm_device *dev, void *data,
 	int i;
 
 	idx = client->idx;
-	mutex_lock(&dev->struct_mutex);
-
 	i = 0;
+
+	mutex_lock(&dev->struct_mutex);
 	list_for_each_entry(pt, &dev->filelist, lhead) {
 		if (i++ >= idx) {
 			client->auth = pt->authenticated;
@@ -249,8 +246,6 @@ int drm_getstats(struct drm_device *dev, void *data,
 
 	memset(stats, 0, sizeof(*stats));
 
-	mutex_lock(&dev->struct_mutex);
-
 	for (i = 0; i < dev->counters; i++) {
 		if (dev->types[i] == _DRM_STAT_LOCK)
 			stats->data[i].value =
@@ -261,8 +256,6 @@ int drm_getstats(struct drm_device *dev, void *data,
 	}
 
 	stats->count = dev->counters;
-
-	mutex_unlock(&dev->struct_mutex);
 
 	return 0;
 }

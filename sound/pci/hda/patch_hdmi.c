@@ -36,6 +36,7 @@
 #include <sound/jack.h>
 #include "hda_codec.h"
 #include "hda_local.h"
+#include "hda_jack.h"
 
 static bool static_hdmi_pcm;
 module_param(static_hdmi_pcm, bool, 0644);
@@ -48,8 +49,8 @@ MODULE_PARM_DESC(static_hdmi_pcm, "Don't restrict PCM parameters per ELD info");
  *
  * The HDA correspondence of pipes/ports are converter/pin nodes.
  */
-#define MAX_HDMI_CVTS	4
-#define MAX_HDMI_PINS	4
+#define MAX_HDMI_CVTS	8
+#define MAX_HDMI_PINS	8
 
 struct hdmi_spec_per_cvt {
 	hda_nid_t cvt_nid;
@@ -754,10 +755,18 @@ static void hdmi_present_sense(struct hdmi_spec_per_pin *per_pin, int repoll);
 static void hdmi_intrinsic_event(struct hda_codec *codec, unsigned int res)
 {
 	struct hdmi_spec *spec = codec->spec;
-	int pin_nid = res >> AC_UNSOL_RES_TAG_SHIFT;
+	int tag = res >> AC_UNSOL_RES_TAG_SHIFT;
+	int pin_nid;
 	int pd = !!(res & AC_UNSOL_RES_PD);
 	int eldv = !!(res & AC_UNSOL_RES_ELDV);
 	int pin_idx;
+	struct hda_jack_tbl *jack;
+
+	jack = snd_hda_jack_tbl_get_from_tag(codec, tag);
+	if (!jack)
+		return;
+	pin_nid = jack->nid;
+	jack->jack_dirty = 1;
 
 	printk(KERN_INFO
 		"HDMI hot plug event: Codec=%d Pin=%d Presence_Detect=%d ELD_Valid=%d\n",
@@ -768,6 +777,7 @@ static void hdmi_intrinsic_event(struct hda_codec *codec, unsigned int res)
 		return;
 
 	hdmi_present_sense(&spec->pins[pin_idx], 1);
+	snd_hda_jack_report_sync(codec);
 }
 
 static void hdmi_non_intrinsic_event(struct hda_codec *codec, unsigned int res)
@@ -795,11 +805,10 @@ static void hdmi_non_intrinsic_event(struct hda_codec *codec, unsigned int res)
 
 static void hdmi_unsol_event(struct hda_codec *codec, unsigned int res)
 {
-	struct hdmi_spec *spec = codec->spec;
 	int tag = res >> AC_UNSOL_RES_TAG_SHIFT;
 	int subtag = (res & AC_UNSOL_RES_SUBTAG) >> AC_UNSOL_RES_SUBTAG_SHIFT;
 
-	if (pin_nid_to_pin_index(spec, tag) < 0) {
+	if (!snd_hda_jack_tbl_get_from_tag(codec, tag)) {
 		snd_printd(KERN_INFO "Unexpected HDMI event tag 0x%x\n", tag);
 		return;
 	}
@@ -996,8 +1005,6 @@ static void hdmi_present_sense(struct hdmi_spec_per_pin *per_pin, int repoll)
 					   msecs_to_jiffies(300));
 		}
 	}
-
-	snd_hda_input_jack_report(codec, pin_nid);
 }
 
 static void hdmi_repoll_eld(struct work_struct *work)
@@ -1126,12 +1133,12 @@ static int hdmi_parse_codec(struct hda_codec *codec)
 
 /*
  */
-static char *generic_hdmi_pcm_names[MAX_HDMI_PINS] = {
-	"HDMI 0",
-	"HDMI 1",
-	"HDMI 2",
-	"HDMI 3",
-};
+static char *get_hdmi_pcm_name(int idx)
+{
+	static char names[MAX_HDMI_PINS][8];
+	sprintf(&names[idx][0], "HDMI %d", idx);
+	return &names[idx][0];
+}
 
 /*
  * HDMI callbacks
@@ -1209,7 +1216,7 @@ static int generic_hdmi_build_pcms(struct hda_codec *codec)
 		struct hda_pcm_stream *pstr;
 
 		info = &spec->pcm_rec[pin_idx];
-		info->name = generic_hdmi_pcm_names[pin_idx];
+		info->name = get_hdmi_pcm_name(pin_idx);
 		info->pcm_type = HDA_PCM_TYPE_HDMI;
 
 		pstr = &info->stream[SNDRV_PCM_STREAM_PLAYBACK];
@@ -1226,21 +1233,15 @@ static int generic_hdmi_build_pcms(struct hda_codec *codec)
 
 static int generic_hdmi_build_jack(struct hda_codec *codec, int pin_idx)
 {
-	int err;
-	char hdmi_str[32];
+	char hdmi_str[32] = "HDMI/DP";
 	struct hdmi_spec *spec = codec->spec;
 	struct hdmi_spec_per_pin *per_pin = &spec->pins[pin_idx];
 	int pcmdev = spec->pcm_rec[pin_idx].device;
 
-	snprintf(hdmi_str, sizeof(hdmi_str), "HDMI/DP,pcm=%d", pcmdev);
+	if (pcmdev > 0)
+		sprintf(hdmi_str + strlen(hdmi_str), ",pcm=%d", pcmdev);
 
-	err = snd_hda_input_jack_add(codec, per_pin->pin_nid,
-			     SND_JACK_VIDEOOUT, pcmdev > 0 ? hdmi_str : NULL);
-	if (err < 0)
-		return err;
-
-	hdmi_present_sense(per_pin, 0);
-	return 0;
+	return snd_hda_jack_add_kctl(codec, per_pin->pin_nid, hdmi_str, 0);
 }
 
 static int generic_hdmi_build_controls(struct hda_codec *codec)
@@ -1270,6 +1271,8 @@ static int generic_hdmi_build_controls(struct hda_codec *codec)
 
 		if (err < 0)
 			return err;
+
+		hdmi_present_sense(per_pin, 0);
 	}
 
 	return 0;
@@ -1286,14 +1289,13 @@ static int generic_hdmi_init(struct hda_codec *codec)
 		struct hdmi_eld *eld = &per_pin->sink_eld;
 
 		hdmi_init_pin(codec, pin_nid);
-		snd_hda_codec_write(codec, pin_nid, 0,
-				    AC_VERB_SET_UNSOLICITED_ENABLE,
-				    AC_USRSP_EN | pin_nid);
+		snd_hda_jack_detect_enable(codec, pin_nid, pin_nid);
 
 		per_pin->codec = codec;
 		INIT_DELAYED_WORK(&per_pin->work, hdmi_repoll_eld);
 		snd_hda_eld_proc_new(codec, eld, pin_idx);
 	}
+	snd_hda_jack_report_sync(codec);
 	return 0;
 }
 
@@ -1309,7 +1311,6 @@ static void generic_hdmi_free(struct hda_codec *codec)
 		cancel_delayed_work(&per_pin->work);
 		snd_hda_eld_proc_free(codec, eld);
 	}
-	snd_hda_input_jack_free(codec);
 
 	flush_workqueue(codec->bus->workq);
 	kfree(spec);
@@ -1364,7 +1365,7 @@ static int simple_playback_build_pcms(struct hda_codec *codec)
 		chans = get_wcaps(codec, spec->cvts[i].cvt_nid);
 		chans = get_wcaps_channels(chans);
 
-		info->name = generic_hdmi_pcm_names[i];
+		info->name = get_hdmi_pcm_name(i);
 		info->pcm_type = HDA_PCM_TYPE_HDMI;
 		pstr = &info->stream[SNDRV_PCM_STREAM_PLAYBACK];
 		snd_BUG_ON(!spec->pcm_playback);

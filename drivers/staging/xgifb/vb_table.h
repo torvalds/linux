@@ -2569,33 +2569,6 @@ static struct XGI330_LCDCapStruct  XGI_LCDCapList[] = {
 	0x30, 0x10, 0x5A, 0x10, 0x10, 0x0A, 0xC0, 0x28, 0x10}
 };
 
-struct XGI21_LVDSCapStruct XGI21_LCDCapList[] = {
-	{DisableLCD24bpp + LCDPolarity,
-	 2160, 1250, 1600, 1200,   64,    1,  192,    3,
-	 0x70, 0x24, 0x20, 0x04, 0x0A, 0x02, 0xC8
-	},
-	{DisableLCD24bpp + LCDPolarity,
-	 1688, 1066, 1280, 1024,   48,    1,   112,    3,
-	 0x70, 0x44, 0x20, 0x04, 0x0A, 0x02, 0xC8
-	},
-	{DisableLCD24bpp + LCDPolarity + (LCDPolarity << 8),
-	 1344,  806, 1024,  768,   24,    3,   136,    6,
-	 0x6C, 0x65, 0x20, 0x04, 0x0A, 0x02, 0xC8
-	},
-	{DisableLCD24bpp + LCDPolarity,
-	 1056,  628,  800,  600,   40,    1,  128,    4,
-	 0x42, 0xE2, 0x20, 0x14, 0x0A, 0x02, 0x00
-	},
-	{DisableLCD24bpp + LCDPolarity,
-	  928,  525,  800,  480,   40,   13,   48,    3,
-	 0x52, 0xC5, 0x20, 0x14, 0x0A, 0x02, 0x00
-	},
-	{DisableLCD24bpp + LCDPolarity + (LCDPolarity << 8),
-	  800,  525,  640,  480,   16,   10,   96,    2,
-	 0x1B, 0xE1, 0x20, 0x04, 0x0A, 0x02, 0xC8
-	}
-};
-
 static struct XGI_Ext2Struct XGI330_RefIndex[] = {
 	{Support32Bpp + SupportAllCRT2 + SyncPN, RES320x200, VCLK25_175,
 	0x00, 0x10, 0x59, 320, 200},/* 00 */

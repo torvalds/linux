@@ -20,7 +20,7 @@
 
 #include "../iio.h"
 #include "../sysfs.h"
-#include "../buffer_generic.h"
+#include "../buffer.h"
 
 #include "adis16204.h"
 
@@ -366,7 +366,7 @@ static int adis16204_read_raw(struct iio_dev *indio_dev,
 		*val = val16;
 		mutex_unlock(&indio_dev->mlock);
 		return IIO_VAL_INT;
-	case (1 << IIO_CHAN_INFO_SCALE_SEPARATE):
+	case IIO_CHAN_INFO_SCALE:
 		switch (chan->type) {
 		case IIO_VOLTAGE:
 			*val = 0;
@@ -390,12 +390,12 @@ static int adis16204_read_raw(struct iio_dev *indio_dev,
 			return -EINVAL;
 		}
 		break;
-	case (1 << IIO_CHAN_INFO_OFFSET_SEPARATE):
+	case IIO_CHAN_INFO_OFFSET:
 		*val = 25;
 		return IIO_VAL_INT;
-	case (1 << IIO_CHAN_INFO_CALIBBIAS_SEPARATE):
-	case (1 << IIO_CHAN_INFO_PEAK_SEPARATE):
-		if (mask == (1 << IIO_CHAN_INFO_CALIBBIAS_SEPARATE)) {
+	case IIO_CHAN_INFO_CALIBBIAS:
+	case IIO_CHAN_INFO_PEAK:
+		if (mask == IIO_CHAN_INFO_CALIBBIAS) {
 			bits = 12;
 			addrind = 1;
 		} else { /* PEAK_SEPARATE */
@@ -428,7 +428,7 @@ static int adis16204_write_raw(struct iio_dev *indio_dev,
 	s16 val16;
 	u8 addr;
 	switch (mask) {
-	case (1 << IIO_CHAN_INFO_CALIBBIAS_SEPARATE):
+	case IIO_CHAN_INFO_CALIBBIAS:
 		switch (chan->type) {
 		case IIO_ACCEL:
 			bits = 12;
@@ -445,28 +445,28 @@ static int adis16204_write_raw(struct iio_dev *indio_dev,
 
 static struct iio_chan_spec adis16204_channels[] = {
 	IIO_CHAN(IIO_VOLTAGE, 0, 0, 0, "supply", 0, 0,
-		 (1 << IIO_CHAN_INFO_SCALE_SEPARATE),
+		 IIO_CHAN_INFO_SCALE_SEPARATE_BIT,
 		 in_supply, ADIS16204_SCAN_SUPPLY,
 		 IIO_ST('u', 12, 16, 0), 0),
 	IIO_CHAN(IIO_VOLTAGE, 0, 1, 0, NULL, 1, 0,
-		 (1 << IIO_CHAN_INFO_SCALE_SEPARATE),
+		 IIO_CHAN_INFO_SCALE_SEPARATE_BIT,
 		 in_aux, ADIS16204_SCAN_AUX_ADC,
 		 IIO_ST('u', 12, 16, 0), 0),
 	IIO_CHAN(IIO_TEMP, 0, 1, 0, NULL, 0, 0,
-		 (1 << IIO_CHAN_INFO_SCALE_SEPARATE) |
-		 (1 << IIO_CHAN_INFO_OFFSET_SEPARATE),
+		 IIO_CHAN_INFO_SCALE_SEPARATE_BIT |
+		 IIO_CHAN_INFO_OFFSET_SEPARATE_BIT,
 		 temp, ADIS16204_SCAN_TEMP,
 		 IIO_ST('u', 12, 16, 0), 0),
 	IIO_CHAN(IIO_ACCEL, 1, 0, 0, NULL, 0, IIO_MOD_X,
-		 (1 << IIO_CHAN_INFO_SCALE_SEPARATE) |
-		 (1 << IIO_CHAN_INFO_CALIBBIAS_SEPARATE) |
-		 (1 << IIO_CHAN_INFO_PEAK_SEPARATE),
+		 IIO_CHAN_INFO_SCALE_SEPARATE_BIT |
+		 IIO_CHAN_INFO_CALIBBIAS_SEPARATE_BIT |
+		 IIO_CHAN_INFO_PEAK_SEPARATE_BIT,
 		 accel_x, ADIS16204_SCAN_ACC_X,
 		 IIO_ST('s', 14, 16, 0), 0),
 	IIO_CHAN(IIO_ACCEL, 1, 0, 0, NULL, 0, IIO_MOD_Y,
-		 (1 << IIO_CHAN_INFO_SCALE_SEPARATE) |
-		 (1 << IIO_CHAN_INFO_CALIBBIAS_SEPARATE) |
-		 (1 << IIO_CHAN_INFO_PEAK_SEPARATE),
+		 IIO_CHAN_INFO_SCALE_SEPARATE_BIT |
+		 IIO_CHAN_INFO_CALIBBIAS_SEPARATE_BIT |
+		 IIO_CHAN_INFO_PEAK_SEPARATE_BIT,
 		 accel_y, ADIS16204_SCAN_ACC_Y,
 		 IIO_ST('s', 14, 16, 0), 0),
 	IIO_CHAN_SOFT_TIMESTAMP(5),
@@ -577,19 +577,9 @@ static struct spi_driver adis16204_driver = {
 	.probe = adis16204_probe,
 	.remove = __devexit_p(adis16204_remove),
 };
-
-static __init int adis16204_init(void)
-{
-	return spi_register_driver(&adis16204_driver);
-}
-module_init(adis16204_init);
-
-static __exit void adis16204_exit(void)
-{
-	spi_unregister_driver(&adis16204_driver);
-}
-module_exit(adis16204_exit);
+module_spi_driver(adis16204_driver);
 
 MODULE_AUTHOR("Barry Song <21cnbao@gmail.com>");
 MODULE_DESCRIPTION("ADIS16204 High-g Digital Impact Sensor and Recorder");
 MODULE_LICENSE("GPL v2");
+MODULE_ALIAS("spi:adis16204");

@@ -19,8 +19,8 @@ config SENSORS_PMBUS
 	default y
 	help
 	  If you say yes here you get hardware monitoring support for generic
-	  PMBus devices, including but not limited to ADP4000, BMR450, BMR451,
-	  BMR453, BMR454, NCP4200, and NCP4208.
+	  PMBus devices, including but not limited to ADP4000, BMR453, BMR454,
+	  NCP4200, and NCP4208.
 
 	  This driver can also be built as a module. If so, the module will
 	  be called pmbus.
@@ -113,8 +113,9 @@ config SENSORS_ZL6100
 	default n
 	help
 	  If you say yes here you get hardware monitoring support for Intersil
-	  ZL2004, ZL2006, ZL2008, ZL2105, ZL2106, ZL6100, and ZL6105 Digital
-	  DC/DC Controllers.
+	  ZL2004, ZL2005, ZL2006, ZL2008, ZL2105, ZL2106, ZL6100, and ZL6105
+	  Digital DC/DC Controllers, as well as for Ericsson BMR450, BMR451,
+	  BMR462, BMR463, and BMR464.
 
 	  This driver can also be built as a module. If so, the module will
 	  be called zl6100.

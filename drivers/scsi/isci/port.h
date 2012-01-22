@@ -63,6 +63,9 @@
 
 #define SCIC_SDS_DUMMY_PORT   0xFF
 
+#define PF_NOTIFY (1 << 0)
+#define PF_RESUME (1 << 1)
+
 struct isci_phy;
 struct isci_host;
 
@@ -83,6 +86,8 @@ enum isci_status {
  * @logical_port_index: software port index
  * @physical_port_index: hardware port index
  * @active_phy_mask: identifies phy members
+ * @enabled_phy_mask: phy mask for the port
+ *                    that are already part of the port
  * @reserved_tag:
  * @reserved_rni: reserver for port task scheduler workaround
  * @started_request_count: reference count for outstanding commands
@@ -104,6 +109,7 @@ struct isci_port {
 	u8 logical_port_index;
 	u8 physical_port_index;
 	u8 active_phy_mask;
+	u8 enabled_phy_mask;
 	u8 last_active_phy;
 	u16 reserved_rni;
 	u16 reserved_tag;
@@ -249,6 +255,10 @@ void sci_port_deactivate_phy(
 bool sci_port_link_detected(
 	struct isci_port *iport,
 	struct isci_phy *iphy);
+
+enum sci_status sci_port_get_properties(
+	struct isci_port *iport,
+	struct sci_port_properties *prop);
 
 enum sci_status sci_port_link_up(struct isci_port *iport,
 				      struct isci_phy *iphy);

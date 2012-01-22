@@ -6,7 +6,7 @@
  *          Title:  MPI Configuration messages and pages
  *  Creation Date:  November 10, 2006
  *
- *    mpi2_cnfg.h Version:  02.00.19
+ *    mpi2_cnfg.h Version:  02.00.21
  *
  *  Version History
  *  ---------------
@@ -140,6 +140,13 @@
  *                      Added SASNotifyPrimitiveMasks field to
  *                      MPI2_CONFIG_PAGE_IOC_7.
  *  03-09-11  02.00.19  Fixed IO Unit Page 10 (to match the spec).
+ *  05-25-11  02.00.20  Cleaned up a few comments.
+ *  08-24-11  02.00.21  Marked the IO Unit Page 7 PowerManagementCapabilities
+ *                      for PCIe link as obsolete.
+ *                      Added SpinupFlags field containing a Disable Spin-up
+ *                      bit to the MPI2_SAS_IOUNIT4_SPINUP_GROUP fields of
+ *                      SAS IO Unit Page 4.
+
  *  --------------------------------------------------------------------------
  */
 
@@ -904,8 +911,8 @@ typedef struct _MPI2_CONFIG_PAGE_IO_UNIT_7 {
 #define MPI2_IOUNITPAGE7_PMCAP_12_5_PCT_IOCSPEED    (0x00000400)
 #define MPI2_IOUNITPAGE7_PMCAP_25_0_PCT_IOCSPEED    (0x00000200)
 #define MPI2_IOUNITPAGE7_PMCAP_50_0_PCT_IOCSPEED    (0x00000100)
-#define MPI2_IOUNITPAGE7_PMCAP_PCIE_WIDTH_CHANGE    (0x00000008)
-#define MPI2_IOUNITPAGE7_PMCAP_PCIE_SPEED_CHANGE    (0x00000004)
+#define MPI2_IOUNITPAGE7_PMCAP_PCIE_WIDTH_CHANGE    (0x00000008) /* obsolete */
+#define MPI2_IOUNITPAGE7_PMCAP_PCIE_SPEED_CHANGE    (0x00000004) /* obsolete */
 
 /* defines for IO Unit Page 7 IOCTemperatureUnits field */
 #define MPI2_IOUNITPAGE7_IOC_TEMP_NOT_PRESENT       (0x00)
@@ -1970,9 +1977,13 @@ typedef struct _MPI2_SAS_IOUNIT4_SPINUP_GROUP
 {
     U8          MaxTargetSpinup;            /* 0x00 */
     U8          SpinupDelay;                /* 0x01 */
-    U16         Reserved1;                  /* 0x02 */
+	U8          SpinupFlags;                /* 0x02 */
+	U8          Reserved1;                  /* 0x03 */
 } MPI2_SAS_IOUNIT4_SPINUP_GROUP, MPI2_POINTER PTR_MPI2_SAS_IOUNIT4_SPINUP_GROUP,
   Mpi2SasIOUnit4SpinupGroup_t, MPI2_POINTER pMpi2SasIOUnit4SpinupGroup_t;
+
+/* defines for SAS IO Unit Page 4 SpinupFlags */
+#define MPI2_SASIOUNIT4_SPINUP_DISABLE_FLAG         (0x01)
 
 /*
  * Host code (drivers, BIOS, utilities, etc.) should leave this define set to
@@ -2321,13 +2332,12 @@ typedef struct _MPI2_CONFIG_PAGE_EXPANDER_1
 
 /* use MPI2_SAS_NEG_LINK_RATE_ defines for the NegotiatedLinkRate field */
 
-/* use MPI2_SAS_APHYINFO_ defines for AttachedPhyInfo field */
-
 /* values for SAS Expander Page 1 DiscoveryInfo field */
 #define MPI2_SAS_EXPANDER1_DISCINFO_BAD_PHY_DISABLED    (0x04)
 #define MPI2_SAS_EXPANDER1_DISCINFO_LINK_STATUS_CHANGE  (0x02)
 #define MPI2_SAS_EXPANDER1_DISCINFO_NO_ROUTING_ENTRIES  (0x01)
 
+/* use MPI2_SAS_APHYINFO_ defines for AttachedPhyInfo field */
 
 /****************************************************************************
 *   SAS Device Config Pages
@@ -2447,6 +2457,8 @@ typedef struct _MPI2_CONFIG_PAGE_SAS_PHY_0
 
 #define MPI2_SASPHY0_PAGEVERSION            (0x03)
 
+/* use MPI2_SAS_APHYINFO_ defines for AttachedPhyInfo field */
+
 /* use MPI2_SAS_PRATE_ defines for the ProgrammedLinkRate field */
 
 /* use MPI2_SAS_HWRATE_ defines for the HwLinkRate field */
@@ -2454,11 +2466,9 @@ typedef struct _MPI2_CONFIG_PAGE_SAS_PHY_0
 /* values for SAS PHY Page 0 Flags field */
 #define MPI2_SAS_PHY0_FLAGS_SGPIO_DIRECT_ATTACH_ENC             (0x01)
 
-/* use MPI2_SAS_APHYINFO_ defines for AttachedPhyInfo field */
+/* use MPI2_SAS_PHYINFO_ for the PhyInfo field */
 
 /* use MPI2_SAS_NEG_LINK_RATE_ defines for the NegotiatedLinkRate field */
-
-/* use MPI2_SAS_PHYINFO_ for the PhyInfo field */
 
 
 /* SAS PHY Page 1 */

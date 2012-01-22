@@ -199,7 +199,7 @@ static void usb_tranzport_abort_transfers(struct usb_tranzport *dev)
 		struct usb_interface *intf = to_usb_interface(dev);	\
 		struct usb_tranzport *t = usb_get_intfdata(intf);	\
 		unsigned long temp;	\
-		if (strict_strtoul(buf, 10, &temp))	\
+		if (kstrtoul(buf, 10, &temp))	\
 			return -EINVAL;	\
 		t->value = temp;	\
 		return count;	\
@@ -971,29 +971,4 @@ static struct usb_driver usb_tranzport_driver = {
 	.id_table = usb_tranzport_table,
 };
 
-/**
- *	usb_tranzport_init
- */
-static int __init usb_tranzport_init(void)
-{
-	int retval;
-
-	/* register this driver with the USB subsystem */
-	retval = usb_register(&usb_tranzport_driver);
-	if (retval)
-		err("usb_register failed for the " __FILE__
-			" driver. Error number %d\n", retval);
-	return retval;
-}
-/**
- *	usb_tranzport_exit
- */
-
-static void __exit usb_tranzport_exit(void)
-{
-	/* deregister this driver with the USB subsystem */
-	usb_deregister(&usb_tranzport_driver);
-}
-
-module_init(usb_tranzport_init);
-module_exit(usb_tranzport_exit);
+module_usb_driver(usb_tranzport_driver);

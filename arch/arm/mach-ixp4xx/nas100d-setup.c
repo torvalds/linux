@@ -321,4 +321,5 @@ MACHINE_START(NAS100D, "Iomega NAS 100d")
 #if defined(CONFIG_PCI)
 	.dma_zone_size	= SZ_64M,
 #endif
+	.restart	= ixp4xx_restart,
 MACHINE_END

@@ -221,6 +221,22 @@ config KEYBOARD_TCA6416
 	  To compile this driver as a module, choose M here: the
 	  module will be called tca6416_keypad.
 
+config KEYBOARD_TCA8418
+	tristate "TCA8418 Keypad Support"
+	depends on I2C
+	help
+	  This driver implements basic keypad functionality
+	  for keys connected through TCA8418 keypad decoder.
+
+	  Say Y here if your device has keys connected to
+	  TCA8418 keypad decoder.
+
+	  If enabled the complete TCA8418 device will be managed through
+	  this driver.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called tca8418_keypad.
+
 config KEYBOARD_MATRIX
 	tristate "GPIO driven matrix keypad support"
 	depends on GENERIC_GPIO
@@ -425,9 +441,10 @@ config KEYBOARD_PMIC8XXX
 
 config KEYBOARD_SAMSUNG
 	tristate "Samsung keypad support"
-	depends on SAMSUNG_DEV_KEYPAD
+	depends on HAVE_CLK
 	help
-	  Say Y here if you want to use the Samsung keypad.
+	  Say Y here if you want to use the keypad on your Samsung mobile
+	  device.
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called samsung-keypad.

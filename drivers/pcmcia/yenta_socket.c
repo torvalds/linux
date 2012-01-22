@@ -24,15 +24,15 @@
 #include "yenta_socket.h"
 #include "i82365.h"
 
-static int disable_clkrun;
+static bool disable_clkrun;
 module_param(disable_clkrun, bool, 0444);
 MODULE_PARM_DESC(disable_clkrun, "If PC card doesn't function properly, please try this option");
 
-static int isa_probe = 1;
+static bool isa_probe = 1;
 module_param(isa_probe, bool, 0444);
 MODULE_PARM_DESC(isa_probe, "If set ISA interrupts are probed (default). Set to N to disable probing");
 
-static int pwr_irqs_off;
+static bool pwr_irqs_off;
 module_param(pwr_irqs_off, bool, 0644);
 MODULE_PARM_DESC(pwr_irqs_off, "Force IRQs off during power-on of slot. Use only when seeing IRQ storms!");
 

@@ -248,7 +248,7 @@ static void ioh_gpio_setup(struct ioh_gpio *chip, int num_port)
 static int ioh_irq_type(struct irq_data *d, unsigned int type)
 {
 	u32 im;
-	u32 *im_reg;
+	void __iomem *im_reg;
 	u32 ien;
 	u32 im_pos;
 	int ch;
@@ -412,7 +412,7 @@ static int __devinit ioh_gpio_probe(struct pci_dev *pdev,
 	int i, j;
 	struct ioh_gpio *chip;
 	void __iomem *base;
-	void __iomem *chip_save;
+	void *chip_save;
 	int irq_base;
 
 	ret = pci_enable_device(pdev);
@@ -428,7 +428,7 @@ static int __devinit ioh_gpio_probe(struct pci_dev *pdev,
 	}
 
 	base = pci_iomap(pdev, 1, 0);
-	if (base == 0) {
+	if (!base) {
 		dev_err(&pdev->dev, "%s : pci_iomap failed", __func__);
 		ret = -ENOMEM;
 		goto err_iomap;
@@ -521,7 +521,7 @@ static void __devexit ioh_gpio_remove(struct pci_dev *pdev)
 	int err;
 	int i;
 	struct ioh_gpio *chip = pci_get_drvdata(pdev);
-	void __iomem *chip_save;
+	void *chip_save;
 
 	chip_save = chip;
 

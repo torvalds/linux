@@ -81,35 +81,23 @@ static int __devinit gpio_ext_init(struct netxbig_gpio_ext *gpio_ext)
 
 	/* Configure address GPIOs. */
 	for (i = 0; i < gpio_ext->num_addr; i++) {
-		err = gpio_request(gpio_ext->addr[i], "GPIO extension addr");
+		err = gpio_request_one(gpio_ext->addr[i], GPIOF_OUT_INIT_LOW,
+				       "GPIO extension addr");
 		if (err)
 			goto err_free_addr;
-		err = gpio_direction_output(gpio_ext->addr[i], 0);
-		if (err) {
-			gpio_free(gpio_ext->addr[i]);
-			goto err_free_addr;
-		}
 	}
 	/* Configure data GPIOs. */
 	for (i = 0; i < gpio_ext->num_data; i++) {
-		err = gpio_request(gpio_ext->data[i], "GPIO extension data");
+		err = gpio_request_one(gpio_ext->data[i], GPIOF_OUT_INIT_LOW,
+				   "GPIO extension data");
 		if (err)
 			goto err_free_data;
-		err = gpio_direction_output(gpio_ext->data[i], 0);
-		if (err) {
-			gpio_free(gpio_ext->data[i]);
-			goto err_free_data;
-		}
 	}
 	/* Configure "enable select" GPIO. */
-	err = gpio_request(gpio_ext->enable, "GPIO extension enable");
+	err = gpio_request_one(gpio_ext->enable, GPIOF_OUT_INIT_LOW,
+			       "GPIO extension enable");
 	if (err)
 		goto err_free_data;
-	err = gpio_direction_output(gpio_ext->enable, 0);
-	if (err) {
-		gpio_free(gpio_ext->enable);
-		goto err_free_data;
-	}
 
 	return 0;
 
@@ -429,21 +417,10 @@ static struct platform_driver netxbig_led_driver = {
 		.owner	= THIS_MODULE,
 	},
 };
-MODULE_ALIAS("platform:leds-netxbig");
 
-static int __init netxbig_led_init(void)
-{
-	return platform_driver_register(&netxbig_led_driver);
-}
-
-static void __exit netxbig_led_exit(void)
-{
-	platform_driver_unregister(&netxbig_led_driver);
-}
-
-module_init(netxbig_led_init);
-module_exit(netxbig_led_exit);
+module_platform_driver(netxbig_led_driver);
 
 MODULE_AUTHOR("Simon Guinot <sguinot@lacie.com>");
 MODULE_DESCRIPTION("LED driver for LaCie xBig Network boards");
 MODULE_LICENSE("GPL");
+MODULE_ALIAS("platform:leds-netxbig");

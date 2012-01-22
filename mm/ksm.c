@@ -28,6 +28,7 @@
 #include <linux/kthread.h>
 #include <linux/wait.h>
 #include <linux/slab.h>
+#include <linux/memcontrol.h>
 #include <linux/rbtree.h>
 #include <linux/memory.h>
 #include <linux/mmu_notifier.h>
@@ -1571,6 +1572,16 @@ struct page *ksm_does_need_to_copy(struct page *page,
 
 	new_page = alloc_page_vma(GFP_HIGHUSER_MOVABLE, vma, address);
 	if (new_page) {
+		/*
+		 * The memcg-specific accounting when moving
+		 * pages around the LRU lists relies on the
+		 * page's owner (memcg) to be valid.  Usually,
+		 * pages are assigned to a new owner before
+		 * being put on the LRU list, but since this
+		 * is not the case here, the stale owner from
+		 * a previous allocation cycle must be reset.
+		 */
+		mem_cgroup_reset_owner(new_page);
 		copy_user_highpage(new_page, page, address, vma);
 
 		SetPageDirty(new_page);

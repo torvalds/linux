@@ -80,7 +80,7 @@ static int index = SNDRV_DEFAULT_IDX1;	/* Index 0-MAX */
 static char *id = SNDRV_DEFAULT_STR1;	/* ID for this card */
 static long mpu_port;
 #ifdef SUPPORT_JOYSTICK
-static int joystick;
+static bool joystick;
 #endif
 static int ac97_clock = 48000;
 static char *ac97_quirk;
@@ -110,7 +110,7 @@ module_param(nodelay, int, 0444);
 MODULE_PARM_DESC(nodelay, "Disable 500ms init delay");
 
 /* just for backward compatibility */
-static int enable;
+static bool enable;
 module_param(enable, bool, 0444);
 
 

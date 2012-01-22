@@ -560,7 +560,15 @@ struct b43legacy_key {
 	u8 algorithm;
 };
 
+#define B43legacy_QOS_QUEUE_NUM	4
+
 struct b43legacy_wldev;
+
+/* QOS parameters for a queue. */
+struct b43legacy_qos_params {
+	/* The QOS parameters */
+	struct ieee80211_tx_queue_params p;
+};
 
 /* Data structure for the WLAN parts (802.11 cores) of the b43legacy chip. */
 struct b43legacy_wl {
@@ -611,6 +619,18 @@ struct b43legacy_wl {
 	bool beacon1_uploaded;
 	bool beacon_templates_virgin; /* Never wrote the templates? */
 	struct work_struct beacon_update_trigger;
+	/* The current QOS parameters for the 4 queues. */
+	struct b43legacy_qos_params qos_params[B43legacy_QOS_QUEUE_NUM];
+
+	/* Packet transmit work */
+	struct work_struct tx_work;
+
+	/* Queue of packets to be transmitted. */
+	struct sk_buff_head tx_queue[B43legacy_QOS_QUEUE_NUM];
+
+	/* Flag that implement the queues stopping. */
+	bool tx_queue_stopped[B43legacy_QOS_QUEUE_NUM];
+
 };
 
 /* Pointers to the firmware data and meta information about it. */

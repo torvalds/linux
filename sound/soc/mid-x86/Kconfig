@@ -1,7 +1,6 @@
 config SND_MFLD_MACHINE
 	tristate "SOC Machine Audio driver for Intel Medfield MID platform"
 	depends on INTEL_SCU_IPC
-	depends on SND_INTEL_SST
 	select SND_SOC_SN95031
 	select SND_SST_PLATFORM
 	help

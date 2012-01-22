@@ -98,7 +98,7 @@ enum cmb_format {
  * enum cmb_format.
  */
 static int format = CMF_AUTODETECT;
-module_param(format, bool, 0444);
+module_param(format, bint, 0444);
 
 /**
  * struct cmb_operations - functions to use depending on cmb_format

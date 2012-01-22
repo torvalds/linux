@@ -139,17 +139,7 @@ static struct platform_driver ppc4xx_rng_driver = {
 	.remove = ppc4xx_rng_remove,
 };
 
-static int __init ppc4xx_rng_init(void)
-{
-	return platform_driver_register(&ppc4xx_rng_driver);
-}
-module_init(ppc4xx_rng_init);
-
-static void __exit ppc4xx_rng_exit(void)
-{
-	platform_driver_unregister(&ppc4xx_rng_driver);
-}
-module_exit(ppc4xx_rng_exit);
+module_platform_driver(ppc4xx_rng_driver);
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Josh Boyer <jwboyer@linux.vnet.ibm.com>");

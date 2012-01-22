@@ -207,7 +207,7 @@ static int jz4740_codec_hw_params(struct snd_pcm_substream *substream,
 	return 0;
 }
 
-static struct snd_soc_dai_ops jz4740_codec_dai_ops = {
+static const struct snd_soc_dai_ops jz4740_codec_dai_ops = {
 	.hw_params = jz4740_codec_hw_params,
 };
 
@@ -312,7 +312,7 @@ static int jz4740_codec_dev_remove(struct snd_soc_codec *codec)
 
 #ifdef CONFIG_PM_SLEEP
 
-static int jz4740_codec_suspend(struct snd_soc_codec *codec, pm_message_t state)
+static int jz4740_codec_suspend(struct snd_soc_codec *codec)
 {
 	return jz4740_codec_set_bias_level(codec, SND_SOC_BIAS_OFF);
 }
@@ -353,7 +353,8 @@ static int __devinit jz4740_codec_probe(struct platform_device *pdev)
 	struct jz4740_codec *jz4740_codec;
 	struct resource *mem;
 
-	jz4740_codec = kzalloc(sizeof(*jz4740_codec), GFP_KERNEL);
+	jz4740_codec = devm_kzalloc(&pdev->dev, sizeof(*jz4740_codec),
+				    GFP_KERNEL);
 	if (!jz4740_codec)
 		return -ENOMEM;
 
@@ -361,14 +362,14 @@ static int __devinit jz4740_codec_probe(struct platform_device *pdev)
 	if (!mem) {
 		dev_err(&pdev->dev, "Failed to get mmio memory resource\n");
 		ret = -ENOENT;
-		goto err_free_codec;
+		goto err_out;
 	}
 
 	mem = request_mem_region(mem->start, resource_size(mem), pdev->name);
 	if (!mem) {
 		dev_err(&pdev->dev, "Failed to request mmio memory region\n");
 		ret = -EBUSY;
-		goto err_free_codec;
+		goto err_out;
 	}
 
 	jz4740_codec->base = ioremap(mem->start, resource_size(mem));
@@ -394,9 +395,7 @@ err_iounmap:
 	iounmap(jz4740_codec->base);
 err_release_mem_region:
 	release_mem_region(mem->start, resource_size(mem));
-err_free_codec:
-	kfree(jz4740_codec);
-
+err_out:
 	return ret;
 }
 
@@ -411,7 +410,6 @@ static int __devexit jz4740_codec_remove(struct platform_device *pdev)
 	release_mem_region(mem->start, resource_size(mem));
 
 	platform_set_drvdata(pdev, NULL);
-	kfree(jz4740_codec);
 
 	return 0;
 }
@@ -425,17 +423,7 @@ static struct platform_driver jz4740_codec_driver = {
 	},
 };
 
-static int __init jz4740_codec_init(void)
-{
-	return platform_driver_register(&jz4740_codec_driver);
-}
-module_init(jz4740_codec_init);
-
-static void __exit jz4740_codec_exit(void)
-{
-	platform_driver_unregister(&jz4740_codec_driver);
-}
-module_exit(jz4740_codec_exit);
+module_platform_driver(jz4740_codec_driver);
 
 MODULE_DESCRIPTION("JZ4740 SoC internal codec driver");
 MODULE_AUTHOR("Lars-Peter Clausen <lars@metafoo.de>");

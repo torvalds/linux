@@ -241,7 +241,7 @@ hash_ip6_data_isnull(const struct hash_ip6_elem *elem)
 static inline void
 hash_ip6_data_copy(struct hash_ip6_elem *dst, const struct hash_ip6_elem *src)
 {
-	ipv6_addr_copy(&dst->ip.in6, &src->ip.in6);
+	dst->ip.in6 = src->ip.in6;
 }
 
 static inline void

@@ -131,6 +131,12 @@ config SPARSEMEM_VMEMMAP
 config HAVE_MEMBLOCK
 	boolean
 
+config HAVE_MEMBLOCK_NODE_MAP
+	boolean
+
+config ARCH_DISCARD_MEMBLOCK
+	boolean
+
 config NO_BOOTMEM
 	boolean
 

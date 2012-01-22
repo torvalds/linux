@@ -138,7 +138,7 @@ struct cdc_ncm_ctx {
 static void cdc_ncm_tx_timeout(unsigned long arg);
 static const struct driver_info cdc_ncm_info;
 static struct usb_driver cdc_ncm_driver;
-static struct ethtool_ops cdc_ncm_ethtool_ops;
+static const struct ethtool_ops cdc_ncm_ethtool_ops;
 
 static const struct usb_device_id cdc_devs[] = {
 	{ USB_INTERFACE_INFO(USB_CLASS_COMM,
@@ -465,11 +465,9 @@ static int cdc_ncm_bind(struct usbnet *dev, struct usb_interface *intf)
 	int temp;
 	u8 iface_no;
 
-	ctx = kmalloc(sizeof(*ctx), GFP_KERNEL);
+	ctx = kzalloc(sizeof(*ctx), GFP_KERNEL);
 	if (ctx == NULL)
 		return -ENODEV;
-
-	memset(ctx, 0, sizeof(*ctx));
 
 	init_timer(&ctx->tx_timer);
 	spin_lock_init(&ctx->mtx);
@@ -1222,7 +1220,7 @@ static struct usb_driver cdc_ncm_driver = {
 	.supports_autosuspend = 1,
 };
 
-static struct ethtool_ops cdc_ncm_ethtool_ops = {
+static const struct ethtool_ops cdc_ncm_ethtool_ops = {
 	.get_drvinfo = cdc_ncm_get_drvinfo,
 	.get_link = usbnet_get_link,
 	.get_msglevel = usbnet_get_msglevel,
@@ -1232,20 +1230,7 @@ static struct ethtool_ops cdc_ncm_ethtool_ops = {
 	.nway_reset = usbnet_nway_reset,
 };
 
-static int __init cdc_ncm_init(void)
-{
-	printk(KERN_INFO KBUILD_MODNAME ": " DRIVER_VERSION "\n");
-	return usb_register(&cdc_ncm_driver);
-}
-
-module_init(cdc_ncm_init);
-
-static void __exit cdc_ncm_exit(void)
-{
-	usb_deregister(&cdc_ncm_driver);
-}
-
-module_exit(cdc_ncm_exit);
+module_usb_driver(cdc_ncm_driver);
 
 MODULE_AUTHOR("Hans Petter Selasky");
 MODULE_DESCRIPTION("USB CDC NCM host driver");

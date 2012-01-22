@@ -113,9 +113,9 @@ static int ep93xx_pcm_open(struct snd_pcm_substream *substream)
 	rtd->dma_data.name = dma_params->name;
 
 	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK)
-		rtd->dma_data.direction = DMA_TO_DEVICE;
+		rtd->dma_data.direction = DMA_MEM_TO_DEV;
 	else
-		rtd->dma_data.direction = DMA_FROM_DEVICE;
+		rtd->dma_data.direction = DMA_DEV_TO_MEM;
 
 	rtd->dma_chan = dma_request_channel(mask, ep93xx_pcm_dma_filter,
 					    &rtd->dma_data);
@@ -286,7 +286,6 @@ static u64 ep93xx_pcm_dmamask = 0xffffffff;
 static int ep93xx_pcm_new(struct snd_soc_pcm_runtime *rtd)
 {
 	struct snd_card *card = rtd->card->snd_card;
-	struct snd_soc_dai *dai = rtd->cpu_dai;
 	struct snd_pcm *pcm = rtd->pcm;
 	int ret = 0;
 
@@ -295,14 +294,14 @@ static int ep93xx_pcm_new(struct snd_soc_pcm_runtime *rtd)
 	if (!card->dev->coherent_dma_mask)
 		card->dev->coherent_dma_mask = 0xffffffff;
 
-	if (dai->driver->playback.channels_min) {
+	if (pcm->streams[SNDRV_PCM_STREAM_PLAYBACK].substream) {
 		ret = ep93xx_pcm_preallocate_dma_buffer(pcm,
 					SNDRV_PCM_STREAM_PLAYBACK);
 		if (ret)
 			return ret;
 	}
 
-	if (dai->driver->capture.channels_min) {
+	if (pcm->streams[SNDRV_PCM_STREAM_CAPTURE].substream) {
 		ret = ep93xx_pcm_preallocate_dma_buffer(pcm,
 					SNDRV_PCM_STREAM_CAPTURE);
 		if (ret)
@@ -339,18 +338,7 @@ static struct platform_driver ep93xx_pcm_driver = {
 	.remove = __devexit_p(ep93xx_soc_platform_remove),
 };
 
-static int __init ep93xx_soc_platform_init(void)
-{
-	return platform_driver_register(&ep93xx_pcm_driver);
-}
-
-static void __exit ep93xx_soc_platform_exit(void)
-{
-	platform_driver_unregister(&ep93xx_pcm_driver);
-}
-
-module_init(ep93xx_soc_platform_init);
-module_exit(ep93xx_soc_platform_exit);
+module_platform_driver(ep93xx_pcm_driver);
 
 MODULE_AUTHOR("Ryan Mallon");
 MODULE_DESCRIPTION("EP93xx ALSA PCM interface");

@@ -152,6 +152,7 @@ struct ath_common {
 	struct ath_cycle_counters cc_survey;
 
 	struct ath_regulatory regulatory;
+	struct ath_regulatory reg_world_copy;
 	const struct ath_ops *ops;
 	const struct ath_bus_ops *bus_ops;
 
@@ -214,6 +215,10 @@ do {								\
  * @ATH_DBG_HWTIMER: hardware timer handling
  * @ATH_DBG_BTCOEX: bluetooth coexistance
  * @ATH_DBG_BSTUCK: stuck beacons
+ * @ATH_DBG_MCI: Message Coexistence Interface, a private protocol
+ *	used exclusively for WLAN-BT coexistence starting from
+ *	AR9462.
+ * @ATH_DBG_DFS: radar datection
  * @ATH_DBG_ANY: enable all debugging
  *
  * The debug level is used to control the amount and type of debugging output
@@ -239,6 +244,8 @@ enum ATH_DEBUG {
 	ATH_DBG_BTCOEX		= 0x00002000,
 	ATH_DBG_WMI		= 0x00004000,
 	ATH_DBG_BSTUCK		= 0x00008000,
+	ATH_DBG_MCI		= 0x00010000,
+	ATH_DBG_DFS		= 0x00020000,
 	ATH_DBG_ANY		= 0xffffffff
 };
 
@@ -248,7 +255,7 @@ enum ATH_DEBUG {
 
 #define ath_dbg(common, dbg_mask, fmt, ...)				\
 do {									\
-	if ((common)->debug_mask & dbg_mask)				\
+	if ((common)->debug_mask & ATH_DBG_##dbg_mask)			\
 		_ath_printk(KERN_DEBUG, common, fmt, ##__VA_ARGS__);	\
 } while (0)
 
@@ -258,10 +265,13 @@ do {									\
 #else
 
 static inline  __attribute__ ((format (printf, 3, 4)))
-void ath_dbg(struct ath_common *common, enum ATH_DEBUG dbg_mask,
+void _ath_dbg(struct ath_common *common, enum ATH_DEBUG dbg_mask,
 	     const char *fmt, ...)
 {
 }
+#define ath_dbg(common, dbg_mask, fmt, ...)				\
+	_ath_dbg(common, ATH_DBG_##dbg_mask, fmt, ##__VA_ARGS__)
+
 #define ATH_DBG_WARN(foo, arg...) do {} while (0)
 #define ATH_DBG_WARN_ON_ONCE(foo) ({				\
 	int __ret_warn_once = !!(foo);				\

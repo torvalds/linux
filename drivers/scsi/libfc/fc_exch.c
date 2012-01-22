@@ -91,7 +91,7 @@ struct fc_exch_pool {
  * It manages the allocation of exchange IDs.
  */
 struct fc_exch_mgr {
-	struct fc_exch_pool *pool;
+	struct fc_exch_pool __percpu *pool;
 	mempool_t	*ep_pool;
 	enum fc_class	class;
 	struct kref	kref;

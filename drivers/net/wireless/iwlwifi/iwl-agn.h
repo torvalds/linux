@@ -65,6 +65,12 @@
 
 #include "iwl-dev.h"
 
+struct iwlagn_ucode_capabilities {
+	u32 max_probe_length;
+	u32 standard_phy_calibration_size;
+	u32 flags;
+};
+
 extern struct ieee80211_ops iwlagn_hw_ops;
 
 int iwl_reset_ict(struct iwl_trans *trans);
@@ -76,6 +82,16 @@ static inline void iwl_set_calib_hdr(struct iwl_calib_hdr *hdr, u8 cmd)
 	hdr->groups_num = 1;
 	hdr->data_valid = 1;
 }
+
+void __iwl_down(struct iwl_priv *priv);
+void iwl_down(struct iwl_priv *priv);
+void iwlagn_prepare_restart(struct iwl_priv *priv);
+
+/* MAC80211 */
+struct ieee80211_hw *iwl_alloc_all(void);
+int iwlagn_mac_setup_register(struct iwl_priv *priv,
+			      struct iwlagn_ucode_capabilities *capa);
+void iwlagn_mac_unregister(struct iwl_priv *priv);
 
 /* RXON */
 int iwlagn_set_pan_params(struct iwl_priv *priv);
@@ -93,20 +109,20 @@ void iwlagn_config_ht40(struct ieee80211_conf *conf,
 int iwlagn_rx_calib_result(struct iwl_priv *priv,
 			    struct iwl_rx_mem_buffer *rxb,
 			    struct iwl_device_cmd *cmd);
-int iwlagn_send_bt_env(struct iwl_priv *priv, u8 action, u8 type);
-void iwlagn_send_prio_tbl(struct iwl_priv *priv);
-int iwlagn_run_init_ucode(struct iwl_priv *priv);
-int iwlagn_load_ucode_wait_alive(struct iwl_priv *priv,
-				 struct fw_img *image,
-				 enum iwlagn_ucode_type ucode_type);
 
 /* lib */
 int iwlagn_send_tx_power(struct iwl_priv *priv);
 void iwlagn_temperature(struct iwl_priv *priv);
-u16 iwlagn_eeprom_calib_version(struct iwl_priv *priv);
+u16 iwl_eeprom_calib_version(struct iwl_shared *shrd);
 int iwlagn_txfifo_flush(struct iwl_priv *priv, u16 flush_control);
 void iwlagn_dev_txfifo_flush(struct iwl_priv *priv, u16 flush_control);
 int iwlagn_send_beacon_cmd(struct iwl_priv *priv);
+#ifdef CONFIG_PM_SLEEP
+int iwlagn_send_patterns(struct iwl_priv *priv,
+			 struct cfg80211_wowlan *wowlan);
+int iwlagn_suspend(struct iwl_priv *priv,
+		   struct ieee80211_hw *hw, struct cfg80211_wowlan *wowlan);
+#endif
 
 /* rx */
 int iwlagn_hwrate_to_mac80211_idx(u32 rate_n_flags, enum ieee80211_band band);
@@ -117,6 +133,8 @@ void iwl_setup_rx_handlers(struct iwl_priv *priv);
 int iwlagn_tx_skb(struct iwl_priv *priv, struct sk_buff *skb);
 int iwlagn_tx_agg_start(struct iwl_priv *priv, struct ieee80211_vif *vif,
 			struct ieee80211_sta *sta, u16 tid, u16 *ssn);
+int iwlagn_tx_agg_oper(struct iwl_priv *priv, struct ieee80211_vif *vif,
+			struct ieee80211_sta *sta, u16 tid, u8 buf_size);
 int iwlagn_tx_agg_stop(struct iwl_priv *priv, struct ieee80211_vif *vif,
 		       struct ieee80211_sta *sta, u16 tid);
 int iwlagn_rx_reply_compressed_ba(struct iwl_priv *priv,
@@ -198,9 +216,6 @@ int iwl_add_station_common(struct iwl_priv *priv, struct iwl_rxon_context *ctx,
 			   struct ieee80211_sta *sta, u8 *sta_id_r);
 int iwl_remove_station(struct iwl_priv *priv, const u8 sta_id,
 		       const u8 *addr);
-int iwlagn_mac_sta_remove(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
-		       struct ieee80211_sta *sta);
-
 u8 iwl_prep_station(struct iwl_priv *priv, struct iwl_rxon_context *ctx,
 		    const u8 *addr, bool is_ap, struct ieee80211_sta *sta);
 
@@ -318,10 +333,6 @@ void iwl_sta_modify_sleep_tx_count(struct iwl_priv *priv, int sta_id, int cnt);
 int iwl_update_bcast_station(struct iwl_priv *priv,
 			     struct iwl_rxon_context *ctx);
 int iwl_update_bcast_stations(struct iwl_priv *priv);
-void iwlagn_mac_sta_notify(struct ieee80211_hw *hw,
-			   struct ieee80211_vif *vif,
-			   enum sta_notify_cmd cmd,
-			   struct ieee80211_sta *sta);
 
 /* rate */
 static inline u32 iwl_ant_idx_to_flags(u8 ant_idx)
@@ -341,28 +352,11 @@ static inline __le32 iwl_hw_set_rate_n_flags(u8 rate, u32 flags)
 
 /* eeprom */
 void iwl_eeprom_enhanced_txpower(struct iwl_priv *priv);
-void iwl_eeprom_get_mac(const struct iwl_priv *priv, u8 *mac);
+void iwl_eeprom_get_mac(const struct iwl_shared *shrd, u8 *mac);
 
-/* notification wait support */
-void __acquires(wait_entry)
-iwlagn_init_notification_wait(struct iwl_priv *priv,
-			      struct iwl_notification_wait *wait_entry,
-			      u8 cmd,
-			      void (*fn)(struct iwl_priv *priv,
-					 struct iwl_rx_packet *pkt,
-					 void *data),
-			      void *fn_data);
-int __must_check __releases(wait_entry)
-iwlagn_wait_notification(struct iwl_priv *priv,
-			 struct iwl_notification_wait *wait_entry,
-			 unsigned long timeout);
-void __releases(wait_entry)
-iwlagn_remove_notification(struct iwl_priv *priv,
-			   struct iwl_notification_wait *wait_entry);
-extern int iwlagn_init_alive_start(struct iwl_priv *priv);
 extern int iwl_alive_start(struct iwl_priv *priv);
 /* svtool */
-#ifdef CONFIG_IWLWIFI_DEVICE_SVTOOL
+#ifdef CONFIG_IWLWIFI_DEVICE_TESTMODE
 extern int iwlagn_mac_testmode_cmd(struct ieee80211_hw *hw, void *data,
 				   int len);
 extern int iwlagn_mac_testmode_dump(struct ieee80211_hw *hw,

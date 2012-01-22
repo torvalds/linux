@@ -252,8 +252,8 @@ static struct resource asic3_resources[] = {
 		.flags	= IORESOURCE_MEM,
 	},
 	[1] = {
-		.start	= gpio_to_irq(GPIO12_HX4700_ASIC3_IRQ),
-		.end	= gpio_to_irq(GPIO12_HX4700_ASIC3_IRQ),
+		.start	= PXA_GPIO_TO_IRQ(GPIO12_HX4700_ASIC3_IRQ),
+		.end	= PXA_GPIO_TO_IRQ(GPIO12_HX4700_ASIC3_IRQ),
 		.flags	= IORESOURCE_IRQ,
 	},
 	/* SD part */
@@ -263,8 +263,8 @@ static struct resource asic3_resources[] = {
 		.flags	= IORESOURCE_MEM,
 	},
 	[3] = {
-		.start	= gpio_to_irq(GPIO66_HX4700_ASIC3_nSDIO_IRQ),
-		.end	= gpio_to_irq(GPIO66_HX4700_ASIC3_nSDIO_IRQ),
+		.start	= PXA_GPIO_TO_IRQ(GPIO66_HX4700_ASIC3_nSDIO_IRQ),
+		.end	= PXA_GPIO_TO_IRQ(GPIO66_HX4700_ASIC3_nSDIO_IRQ),
 		.flags	= IORESOURCE_IRQ,
 	},
 };
@@ -587,7 +587,7 @@ static struct spi_board_info tsc2046_board_info[] __initdata = {
 		.modalias        = "ads7846",
 		.bus_num         = 2,
 		.max_speed_hz    = 2600000, /* 100 kHz sample rate */
-		.irq             = gpio_to_irq(GPIO58_HX4700_TSC2046_nPENIRQ),
+		.irq             = PXA_GPIO_TO_IRQ(GPIO58_HX4700_TSC2046_nPENIRQ),
 		.platform_data   = &tsc2046_info,
 		.controller_data = &tsc2046_chip,
 	},
@@ -635,15 +635,15 @@ static struct resource power_supply_resources[] = {
 		.name  = "ac",
 		.flags = IORESOURCE_IRQ | IORESOURCE_IRQ_HIGHEDGE |
 		         IORESOURCE_IRQ_LOWEDGE,
-		.start = gpio_to_irq(GPIOD9_nAC_IN),
-		.end   = gpio_to_irq(GPIOD9_nAC_IN),
+		.start = PXA_GPIO_TO_IRQ(GPIOD9_nAC_IN),
+		.end   = PXA_GPIO_TO_IRQ(GPIOD9_nAC_IN),
 	},
 	[1] = {
 		.name  = "usb",
 		.flags = IORESOURCE_IRQ | IORESOURCE_IRQ_HIGHEDGE |
 		         IORESOURCE_IRQ_LOWEDGE,
-		.start = gpio_to_irq(GPIOD14_nUSBC_DETECT),
-		.end   = gpio_to_irq(GPIOD14_nUSBC_DETECT),
+		.start = PXA_GPIO_TO_IRQ(GPIOD14_nUSBC_DETECT),
+		.end   = PXA_GPIO_TO_IRQ(GPIOD14_nUSBC_DETECT),
 	},
 };
 
@@ -845,4 +845,5 @@ MACHINE_START(H4700, "HP iPAQ HX4700")
 	.handle_irq     = pxa27x_handle_irq,
 	.init_machine = hx4700_init,
 	.timer        = &pxa_timer,
+	.restart	= pxa_restart,
 MACHINE_END

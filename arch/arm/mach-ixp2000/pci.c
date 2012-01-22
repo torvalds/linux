@@ -132,7 +132,8 @@ static struct pci_ops ixp2000_pci_ops = {
 
 struct pci_bus *ixp2000_pci_scan_bus(int nr, struct pci_sys_data *sysdata)
 {
-	return pci_scan_bus(sysdata->busnr, &ixp2000_pci_ops, sysdata);
+	return pci_scan_root_bus(NULL, sysdata->busnr, &ixp2000_pci_ops,
+				 sysdata, &sysdata->resources);
 }
 
 
@@ -242,9 +243,8 @@ int ixp2000_pci_setup(int nr, struct pci_sys_data *sys)
 	if (nr >= 1)
 		return 0;
 
-	sys->resource[0] = &ixp2000_pci_io_space;
-	sys->resource[1] = &ixp2000_pci_mem_space;
-	sys->resource[2] = NULL;
+	pci_add_resource(&sys->resources, &ixp2000_pci_io_space);
+	pci_add_resource(&sys->resources, &ixp2000_pci_mem_space);
 
 	return 1;
 }

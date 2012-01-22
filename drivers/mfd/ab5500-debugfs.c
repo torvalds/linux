@@ -7,8 +7,8 @@
 #include <linux/module.h>
 #include <linux/debugfs.h>
 #include <linux/seq_file.h>
-#include <linux/mfd/ab5500/ab5500.h>
 #include <linux/mfd/abx500.h>
+#include <linux/mfd/abx500/ab5500.h>
 #include <linux/uaccess.h>
 
 #include "ab5500-core.h"

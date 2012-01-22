@@ -992,7 +992,7 @@ static struct attribute *hwmon_attributes[] = {
 	NULL
 };
 
-static mode_t asus_hwmon_sysfs_is_visible(struct kobject *kobj,
+static umode_t asus_hwmon_sysfs_is_visible(struct kobject *kobj,
 					  struct attribute *attr, int idx)
 {
 	struct device *dev = container_of(kobj, struct device, kobj);
@@ -1357,7 +1357,7 @@ static struct attribute *platform_attributes[] = {
 	NULL
 };
 
-static mode_t asus_sysfs_is_visible(struct kobject *kobj,
+static umode_t asus_sysfs_is_visible(struct kobject *kobj,
 				    struct attribute *attr, int idx)
 {
 	struct device *dev = container_of(kobj, struct device, kobj);

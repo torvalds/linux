@@ -75,8 +75,8 @@ static LIST_HEAD(trace_list);		/* struct remap_trace */
 
 /* module parameters */
 static unsigned long	filter_offset;
-static int		nommiotrace;
-static int		trace_pc;
+static bool		nommiotrace;
+static bool		trace_pc;
 
 module_param(filter_offset, ulong, 0);
 module_param(nommiotrace, bool, 0);

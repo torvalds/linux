@@ -24,11 +24,13 @@ extern void s3c2443_init_clocks(int xtal);
 
 extern  int s3c2443_baseclk_add(void);
 
+extern void s3c2443_restart(char mode, const char *cmd);
 #else
 #define s3c2443_init_clocks NULL
 #define s3c2443_init_uarts NULL
 #define s3c2443_map_io NULL
 #define s3c2443_init NULL
+#define s3c2443_restart NULL
 #endif
 
 /* common code used by s3c2443 and others.

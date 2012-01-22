@@ -417,8 +417,8 @@ static struct resource dm9k_resources[] = {
 	       .flags = IORESOURCE_MEM
 	},
 	[2] = {
-	       .start = gpio_to_irq(mfp_to_gpio(MFP_PIN_GPIO9)),
-	       .end = gpio_to_irq(mfp_to_gpio(MFP_PIN_GPIO9)),
+	       .start = PXA_GPIO_TO_IRQ(mfp_to_gpio(MFP_PIN_GPIO9)),
+	       .end = PXA_GPIO_TO_IRQ(mfp_to_gpio(MFP_PIN_GPIO9)),
 	       .flags = IORESOURCE_IRQ | IORESOURCE_IRQ_HIGHEDGE
 	}
 };

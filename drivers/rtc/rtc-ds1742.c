@@ -240,18 +240,7 @@ static struct platform_driver ds1742_rtc_driver = {
 	},
 };
 
-static __init int ds1742_init(void)
-{
-	return platform_driver_register(&ds1742_rtc_driver);
-}
-
-static __exit void ds1742_exit(void)
-{
-	platform_driver_unregister(&ds1742_rtc_driver);
-}
-
-module_init(ds1742_init);
-module_exit(ds1742_exit);
+module_platform_driver(ds1742_rtc_driver);
 
 MODULE_AUTHOR("Atsushi Nemoto <anemo@mba.ocn.ne.jp>");
 MODULE_DESCRIPTION("Dallas DS1742 RTC driver");

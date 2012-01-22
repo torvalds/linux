@@ -1491,7 +1491,7 @@ myri10ge_clean_rx_done(struct myri10ge_slice_state *ss, int budget)
 	 * access to avoid theoretical race condition with functions that
 	 * change NETIF_F_LRO flag at runtime.
 	 */
-	bool lro_enabled = ACCESS_ONCE(mgp->dev->features) & NETIF_F_LRO;
+	bool lro_enabled = !!(ACCESS_ONCE(mgp->dev->features) & NETIF_F_LRO);
 
 	while (rx_done->entry[idx].length != 0 && work_done < budget) {
 		length = ntohs(rx_done->entry[idx].length);
@@ -3149,7 +3149,8 @@ static int myri10ge_set_mac_address(struct net_device *dev, void *addr)
 	return 0;
 }
 
-static u32 myri10ge_fix_features(struct net_device *dev, u32 features)
+static netdev_features_t myri10ge_fix_features(struct net_device *dev,
+	netdev_features_t features)
 {
 	if (!(features & NETIF_F_RXCSUM))
 		features &= ~NETIF_F_LRO;

@@ -18,7 +18,9 @@
  */
 
 
-/*
+/**
+ * DOC: RF Buffer registers
+ *
  * There are some special registers on the RF chip
  * that control various operation settings related mostly to
  * the analog parts (channel, gain adjustment etc).
@@ -44,40 +46,63 @@
  */
 
 
-/*
+/**
+ * struct ath5k_ini_rfbuffer - Initial RF Buffer settings
+ * @rfb_bank: RF Bank number
+ * @rfb_ctrl_register: RF Buffer control register
+ * @rfb_mode_data: RF Buffer data for each mode
+ *
  * Struct to hold default mode specific RF
- * register values (RF Banks)
+ * register values (RF Banks) for each chip.
  */
 struct ath5k_ini_rfbuffer {
-	u8	rfb_bank;		/* RF Bank number */
-	u16	rfb_ctrl_register;	/* RF Buffer control register */
-	u32	rfb_mode_data[3];	/* RF Buffer data for each mode */
+	u8	rfb_bank;
+	u16	rfb_ctrl_register;
+	u32	rfb_mode_data[3];
 };
 
-/*
+/**
+ * struct ath5k_rfb_field - An RF Buffer field (register/value)
+ * @len: Field length
+ * @pos: Offset on the raw packet
+ * @col: Used for shifting
+ *
  * Struct to hold RF Buffer field
  * infos used to access certain RF
  * analog registers
  */
 struct ath5k_rfb_field {
-	u8	len;	/* Field length */
-	u16	pos;	/* Offset on the raw packet */
-	u8	col;	/* Column -used for shifting */
+	u8	len;
+	u16	pos;
+	u8	col;
 };
 
-/*
- * RF analog register definition
+/**
+ * struct ath5k_rf_reg - RF analog register definition
+ * @bank: RF Buffer Bank number
+ * @index: Register's index on ath5k_rf_regx_idx
+ * @field: The &struct ath5k_rfb_field
+ *
+ * We use this struct to define the set of RF registers
+ * on each chip that we want to tweak. Some RF registers
+ * are common between different chip versions so this saves
+ * us space and complexity because we can refer to an rf
+ * register by it's index no matter what chip we work with
+ * as long as it has that register.
  */
 struct ath5k_rf_reg {
-	u8			bank;	/* RF Buffer Bank number */
-	u8			index;	/* Register's index on rf_regs_idx */
-	struct ath5k_rfb_field	field;	/* RF Buffer field for this register */
+	u8			bank;
+	u8			index;
+	struct ath5k_rfb_field	field;
 };
 
-/* Map RF registers to indexes
+/**
+ * enum ath5k_rf_regs_idx - Map RF registers to indexes
+ *
  * We do this to handle common bits and make our
  * life easier by using an index for each register
- * instead of a full rfb_field */
+ * instead of a full rfb_field
+ */
 enum ath5k_rf_regs_idx {
 	/* BANK 2 */
 	AR5K_RF_TURBO = 0,

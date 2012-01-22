@@ -414,18 +414,7 @@ static struct platform_driver xwdt_driver = {
 	},
 };
 
-static int __init xwdt_init(void)
-{
-	return platform_driver_register(&xwdt_driver);
-}
-
-static void __exit xwdt_exit(void)
-{
-	platform_driver_unregister(&xwdt_driver);
-}
-
-module_init(xwdt_init);
-module_exit(xwdt_exit);
+module_platform_driver(xwdt_driver);
 
 MODULE_AUTHOR("Alejandro Cabrera <aldaya@gmail.com>");
 MODULE_DESCRIPTION("Xilinx Watchdog driver");

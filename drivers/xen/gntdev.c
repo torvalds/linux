@@ -193,8 +193,10 @@ static void gntdev_put_map(struct grant_map *map)
 
 	atomic_sub(map->count, &pages_mapped);
 
-	if (map->notify.flags & UNMAP_NOTIFY_SEND_EVENT)
+	if (map->notify.flags & UNMAP_NOTIFY_SEND_EVENT) {
 		notify_remote_via_evtchn(map->notify.event);
+		evtchn_put(map->notify.event);
+	}
 
 	if (map->pages) {
 		if (!use_ptemod)
@@ -312,7 +314,8 @@ static int __unmap_grant_pages(struct grant_map *map, int offset, int pages)
 		}
 	}
 
-	err = gnttab_unmap_refs(map->unmap_ops + offset, map->pages + offset, pages);
+	err = gnttab_unmap_refs(map->unmap_ops + offset, map->pages + offset,
+				pages, true);
 	if (err)
 		return err;
 
@@ -599,12 +602,29 @@ static long gntdev_ioctl_notify(struct gntdev_priv *priv, void __user *u)
 	struct ioctl_gntdev_unmap_notify op;
 	struct grant_map *map;
 	int rc;
+	int out_flags;
+	unsigned int out_event;
 
 	if (copy_from_user(&op, u, sizeof(op)))
 		return -EFAULT;
 
 	if (op.action & ~(UNMAP_NOTIFY_CLEAR_BYTE|UNMAP_NOTIFY_SEND_EVENT))
 		return -EINVAL;
+
+	/* We need to grab a reference to the event channel we are going to use
+	 * to send the notify before releasing the reference we may already have
+	 * (if someone has called this ioctl twice). This is required so that
+	 * it is possible to change the clear_byte part of the notification
+	 * without disturbing the event channel part, which may now be the last
+	 * reference to that event channel.
+	 */
+	if (op.action & UNMAP_NOTIFY_SEND_EVENT) {
+		if (evtchn_get(op.event_channel_port))
+			return -EINVAL;
+	}
+
+	out_flags = op.action;
+	out_event = op.event_channel_port;
 
 	spin_lock(&priv->lock);
 
@@ -624,12 +644,22 @@ static long gntdev_ioctl_notify(struct gntdev_priv *priv, void __user *u)
 		goto unlock_out;
 	}
 
+	out_flags = map->notify.flags;
+	out_event = map->notify.event;
+
 	map->notify.flags = op.action;
 	map->notify.addr = op.index - (map->index << PAGE_SHIFT);
 	map->notify.event = op.event_channel_port;
+
 	rc = 0;
+
  unlock_out:
 	spin_unlock(&priv->lock);
+
+	/* Drop the reference to the event channel we did not save in the map */
+	if (out_flags & UNMAP_NOTIFY_SEND_EVENT)
+		evtchn_put(out_event);
+
 	return rc;
 }
 

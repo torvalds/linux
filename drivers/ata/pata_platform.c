@@ -256,17 +256,7 @@ static struct platform_driver pata_platform_driver = {
 	},
 };
 
-static int __init pata_platform_init(void)
-{
-	return platform_driver_register(&pata_platform_driver);
-}
-
-static void __exit pata_platform_exit(void)
-{
-	platform_driver_unregister(&pata_platform_driver);
-}
-module_init(pata_platform_init);
-module_exit(pata_platform_exit);
+module_platform_driver(pata_platform_driver);
 
 module_param(pio_mask, int, 0);
 

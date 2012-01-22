@@ -453,7 +453,7 @@ ispmmu_vmap(struct isp_device *isp, const struct scatterlist *sglist, int sglen)
 	sgt->nents = sglen;
 	sgt->orig_nents = sglen;
 
-	da = omap_iommu_vmap(isp->domain, isp->iommu, 0, sgt, IOMMU_FLAG);
+	da = omap_iommu_vmap(isp->domain, isp->dev, 0, sgt, IOMMU_FLAG);
 	if (IS_ERR_VALUE(da))
 		kfree(sgt);
 
@@ -469,7 +469,7 @@ static void ispmmu_vunmap(struct isp_device *isp, dma_addr_t da)
 {
 	struct sg_table *sgt;
 
-	sgt = omap_iommu_vunmap(isp->domain, isp->iommu, (u32)da);
+	sgt = omap_iommu_vunmap(isp->domain, isp->dev, (u32)da);
 	kfree(sgt);
 }
 

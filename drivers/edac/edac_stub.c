@@ -26,7 +26,7 @@ EXPORT_SYMBOL_GPL(edac_handlers);
 int edac_err_assert = 0;
 EXPORT_SYMBOL_GPL(edac_err_assert);
 
-static atomic_t edac_class_valid = ATOMIC_INIT(0);
+static atomic_t edac_subsys_valid = ATOMIC_INIT(0);
 
 /*
  * called to determine if there is an EDAC driver interested in
@@ -54,36 +54,37 @@ EXPORT_SYMBOL_GPL(edac_atomic_assert_error);
  * sysfs object: /sys/devices/system/edac
  *	need to export to other files
  */
-struct sysdev_class edac_class = {
+struct bus_type edac_subsys = {
 	.name = "edac",
+	.dev_name = "edac",
 };
-EXPORT_SYMBOL_GPL(edac_class);
+EXPORT_SYMBOL_GPL(edac_subsys);
 
 /* return pointer to the 'edac' node in sysfs */
-struct sysdev_class *edac_get_sysfs_class(void)
+struct bus_type *edac_get_sysfs_subsys(void)
 {
 	int err = 0;
 
-	if (atomic_read(&edac_class_valid))
+	if (atomic_read(&edac_subsys_valid))
 		goto out;
 
 	/* create the /sys/devices/system/edac directory */
-	err = sysdev_class_register(&edac_class);
+	err = subsys_system_register(&edac_subsys, NULL);
 	if (err) {
 		printk(KERN_ERR "Error registering toplevel EDAC sysfs dir\n");
 		return NULL;
 	}
 
 out:
-	atomic_inc(&edac_class_valid);
-	return &edac_class;
+	atomic_inc(&edac_subsys_valid);
+	return &edac_subsys;
 }
-EXPORT_SYMBOL_GPL(edac_get_sysfs_class);
+EXPORT_SYMBOL_GPL(edac_get_sysfs_subsys);
 
-void edac_put_sysfs_class(void)
+void edac_put_sysfs_subsys(void)
 {
 	/* last user unregisters it */
-	if (atomic_dec_and_test(&edac_class_valid))
-		sysdev_class_unregister(&edac_class);
+	if (atomic_dec_and_test(&edac_subsys_valid))
+		bus_unregister(&edac_subsys);
 }
-EXPORT_SYMBOL_GPL(edac_put_sysfs_class);
+EXPORT_SYMBOL_GPL(edac_put_sysfs_subsys);
