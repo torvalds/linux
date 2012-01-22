@@ -61,6 +61,20 @@ struct clk clk_fout_apll = {
 	.id		= -1,
 };
 
+/* BPLL clock output */
+
+struct clk clk_fout_bpll = {
+	.name		= "fout_bpll",
+	.id		= -1,
+};
+
+/* CPLL clock output */
+
+struct clk clk_fout_cpll = {
+	.name		= "fout_cpll",
+	.id		= -1,
+};
+
 /* MPLL clock output
  * No need .ctrlbit, this is always on
 */
@@ -99,6 +113,28 @@ static struct clk *clk_src_apll_list[] = {
 struct clksrc_sources clk_src_apll = {
 	.sources	= clk_src_apll_list,
 	.nr_sources	= ARRAY_SIZE(clk_src_apll_list),
+};
+
+/* Possible clock sources for BPLL Mux */
+static struct clk *clk_src_bpll_list[] = {
+	[0] = &clk_fin_bpll,
+	[1] = &clk_fout_bpll,
+};
+
+struct clksrc_sources clk_src_bpll = {
+	.sources	= clk_src_bpll_list,
+	.nr_sources	= ARRAY_SIZE(clk_src_bpll_list),
+};
+
+/* Possible clock sources for CPLL Mux */
+static struct clk *clk_src_cpll_list[] = {
+	[0] = &clk_fin_cpll,
+	[1] = &clk_fout_cpll,
+};
+
+struct clksrc_sources clk_src_cpll = {
+	.sources	= clk_src_cpll_list,
+	.nr_sources	= ARRAY_SIZE(clk_src_cpll_list),
 };
 
 /* Possible clock sources for MPLL Mux */
