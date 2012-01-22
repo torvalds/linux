@@ -108,42 +108,62 @@ int nfs4_validate_delegation_stateid(struct nfs_delegation *delegation, const nf
 
 #if defined(CONFIG_NFS_V4_1)
 
-static u32 initiate_file_draining(struct nfs_client *clp,
-				  struct cb_layoutrecallargs *args)
+/*
+ * Lookup a layout by filehandle.
+ *
+ * Note: gets a refcount on the layout hdr and on its respective inode.
+ * Caller must put the layout hdr and the inode.
+ *
+ * TODO: keep track of all layouts (and delegations) in a hash table
+ * hashed by filehandle.
+ */
+static struct pnfs_layout_hdr * get_layout_by_fh_locked(struct nfs_client *clp, struct nfs_fh *fh)
 {
 	struct nfs_server *server;
-	struct pnfs_layout_hdr *lo;
 	struct inode *ino;
-	bool found = false;
-	u32 rv = NFS4ERR_NOMATCHING_LAYOUT;
-	LIST_HEAD(free_me_list);
+	struct pnfs_layout_hdr *lo;
 
-	spin_lock(&clp->cl_lock);
-	rcu_read_lock();
 	list_for_each_entry_rcu(server, &clp->cl_superblocks, client_link) {
 		list_for_each_entry(lo, &server->layouts, plh_layouts) {
-			if (nfs_compare_fh(&args->cbl_fh,
-					   &NFS_I(lo->plh_inode)->fh))
+			if (nfs_compare_fh(fh, &NFS_I(lo->plh_inode)->fh))
 				continue;
 			ino = igrab(lo->plh_inode);
 			if (!ino)
 				continue;
-			found = true;
-			/* Without this, layout can be freed as soon
-			 * as we release cl_lock.
-			 */
 			get_layout_hdr(lo);
-			break;
+			return lo;
 		}
-		if (found)
-			break;
 	}
+
+	return NULL;
+}
+
+static struct pnfs_layout_hdr * get_layout_by_fh(struct nfs_client *clp, struct nfs_fh *fh)
+{
+	struct pnfs_layout_hdr *lo;
+
+	spin_lock(&clp->cl_lock);
+	rcu_read_lock();
+	lo = get_layout_by_fh_locked(clp, fh);
 	rcu_read_unlock();
 	spin_unlock(&clp->cl_lock);
 
-	if (!found)
+	return lo;
+}
+
+static u32 initiate_file_draining(struct nfs_client *clp,
+				  struct cb_layoutrecallargs *args)
+{
+	struct inode *ino;
+	struct pnfs_layout_hdr *lo;
+	u32 rv = NFS4ERR_NOMATCHING_LAYOUT;
+	LIST_HEAD(free_me_list);
+
+	lo = get_layout_by_fh(clp, &args->cbl_fh);
+	if (!lo)
 		return NFS4ERR_NOMATCHING_LAYOUT;
 
+	ino = lo->plh_inode;
 	spin_lock(&ino->i_lock);
 	if (test_bit(NFS_LAYOUT_BULK_RECALL, &lo->plh_flags) ||
 	    mark_matching_lsegs_invalid(lo, &free_me_list,
