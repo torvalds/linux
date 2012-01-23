@@ -1395,10 +1395,10 @@ static struct snd_soc_codec_driver sgtl5000_driver = {
 	.volatile_register = sgtl5000_volatile_register,
 	.controls = sgtl5000_snd_controls,
 	.num_controls = ARRAY_SIZE(sgtl5000_snd_controls),
-	.dapm_widgets = sgtl500_dapm_widgets,
-	.num_dapm_widgets = ARRAY_SIZE(sgtl500_dapm_widgets),
-	.dapm_routes = sgtl500_dapm_routes,
-	.num_dapm_routes = ARRAY_SIZE(sgtl500_dapm_routes),
+	.dapm_widgets = sgtl5000_dapm_widgets,
+	.num_dapm_widgets = ARRAY_SIZE(sgtl5000_dapm_widgets),
+	.dapm_routes = sgtl5000_dapm_routes,
+	.num_dapm_routes = ARRAY_SIZE(sgtl5000_dapm_routes),
 };
 
 static __devinit int sgtl5000_i2c_probe(struct i2c_client *client,
