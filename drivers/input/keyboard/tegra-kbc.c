@@ -48,6 +48,7 @@
 #define KBC_FIFO_TH_CNT_SHIFT(cnt)	(cnt << 14)
 #define KBC_DEBOUNCE_CNT_SHIFT(cnt)	(cnt << 4)
 #define KBC_CONTROL_FIFO_CNT_INT_EN	(1 << 3)
+#define KBC_CONTROL_KEYPRESS_INT_EN	(1 << 1)
 #define KBC_CONTROL_KBC_EN		(1 << 0)
 
 /* KBC Interrupt Register */
@@ -353,6 +354,18 @@ static void tegra_kbc_set_fifo_interrupt(struct tegra_kbc *kbc, bool enable)
 		val |= KBC_CONTROL_FIFO_CNT_INT_EN;
 	else
 		val &= ~KBC_CONTROL_FIFO_CNT_INT_EN;
+	writel(val, kbc->mmio + KBC_CONTROL_0);
+}
+
+static void tegra_kbc_set_keypress_interrupt(struct tegra_kbc *kbc, bool enable)
+{
+	u32 val;
+
+	val = readl(kbc->mmio + KBC_CONTROL_0);
+	if (enable)
+		val |= KBC_CONTROL_KEYPRESS_INT_EN;
+	else
+		val &= ~KBC_CONTROL_KEYPRESS_INT_EN;
 	writel(val, kbc->mmio + KBC_CONTROL_0);
 }
 
@@ -831,6 +844,8 @@ static int tegra_kbc_suspend(struct device *dev)
 		msleep(30);
 
 		kbc->keypress_caused_wake = false;
+		/* Enable keypress interrupt before going into suspend. */
+		tegra_kbc_set_keypress_interrupt(kbc, true);
 		enable_irq(kbc->irq);
 		enable_irq_wake(kbc->irq);
 	} else {
@@ -852,6 +867,8 @@ static int tegra_kbc_resume(struct device *dev)
 	if (device_may_wakeup(&pdev->dev)) {
 		disable_irq_wake(kbc->irq);
 		tegra_kbc_setup_wakekeys(kbc, false);
+		/* We will use fifo interrupts for key detection. */
+		tegra_kbc_set_keypress_interrupt(kbc, false);
 
 		/* Restore the resident time of continuous polling mode. */
 		writel(kbc->cp_to_wkup_dly, kbc->mmio + KBC_TO_CNT_0);
