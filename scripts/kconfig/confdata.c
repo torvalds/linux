@@ -344,10 +344,8 @@ setsym:
 
 int conf_read(const char *name)
 {
-	struct symbol *sym, *choice_sym;
-	struct property *prop;
-	struct expr *e;
-	int i, flags;
+	struct symbol *sym;
+	int i;
 
 	sym_set_change_count(0);
 
@@ -357,7 +355,7 @@ int conf_read(const char *name)
 	for_all_symbols(i, sym) {
 		sym_calc_value(sym);
 		if (sym_is_choice(sym) || (sym->flags & SYMBOL_AUTO))
-			goto sym_ok;
+			continue;
 		if (sym_has_value(sym) && (sym->flags & SYMBOL_WRITE)) {
 			/* check that calculated value agrees with saved value */
 			switch (sym->type) {
@@ -366,30 +364,18 @@ int conf_read(const char *name)
 				if (sym->def[S_DEF_USER].tri != sym_get_tristate_value(sym))
 					break;
 				if (!sym_is_choice(sym))
-					goto sym_ok;
+					continue;
 				/* fall through */
 			default:
 				if (!strcmp(sym->curr.val, sym->def[S_DEF_USER].val))
-					goto sym_ok;
+					continue;
 				break;
 			}
 		} else if (!sym_has_value(sym) && !(sym->flags & SYMBOL_WRITE))
 			/* no previous value and not saved */
-			goto sym_ok;
+			continue;
 		conf_unsaved++;
 		/* maybe print value in verbose mode... */
-	sym_ok:
-		if (!sym_is_choice(sym))
-			continue;
-		/* The choice symbol only has a set value (and thus is not new)
-		 * if all its visible childs have values.
-		 */
-		prop = sym_get_choice_prop(sym);
-		flags = sym->flags;
-		expr_list_for_each_sym(prop->expr, e, choice_sym)
-			if (choice_sym->visible != no)
-				flags &= choice_sym->flags;
-		sym->flags &= flags | ~SYMBOL_DEF_USER;
 	}
 
 	for_all_symbols(i, sym) {
