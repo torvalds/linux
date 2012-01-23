@@ -1017,11 +1017,12 @@ void i915_destroy_error_state(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct drm_i915_error_state *error;
+	unsigned long flags;
 
-	spin_lock(&dev_priv->error_lock);
+	spin_lock_irqsave(&dev_priv->error_lock, flags);
 	error = dev_priv->first_error;
 	dev_priv->first_error = NULL;
-	spin_unlock(&dev_priv->error_lock);
+	spin_unlock_irqrestore(&dev_priv->error_lock, flags);
 
 	if (error)
 		i915_error_state_free(dev, error);
