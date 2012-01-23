@@ -25,6 +25,24 @@
 #ifndef __NOUVEAU_PM_H__
 #define __NOUVEAU_PM_H__
 
+struct nouveau_mem_exec_func {
+	struct drm_device *dev;
+	void (*precharge)(struct nouveau_mem_exec_func *);
+	void (*refresh)(struct nouveau_mem_exec_func *);
+	void (*refresh_auto)(struct nouveau_mem_exec_func *, bool);
+	void (*refresh_self)(struct nouveau_mem_exec_func *, bool);
+	void (*wait)(struct nouveau_mem_exec_func *, u32 nsec);
+	u32  (*mrg)(struct nouveau_mem_exec_func *, int mr);
+	void (*mrs)(struct nouveau_mem_exec_func *, int mr, u32 data);
+	void (*clock_set)(struct nouveau_mem_exec_func *);
+	void (*timing_set)(struct nouveau_mem_exec_func *);
+	void *priv;
+};
+
+/* nouveau_mem.c */
+int  nouveau_mem_exec(struct nouveau_mem_exec_func *,
+		      struct nouveau_pm_level *);
+
 /* nouveau_pm.c */
 int  nouveau_pm_init(struct drm_device *dev);
 void nouveau_pm_fini(struct drm_device *dev);

@@ -934,6 +934,102 @@ nouveau_mem_timing_read(struct drm_device *dev, struct nouveau_pm_memtiming *t)
 }
 
 int
+nouveau_mem_exec(struct nouveau_mem_exec_func *exec,
+		 struct nouveau_pm_level *perflvl)
+{
+	struct drm_nouveau_private *dev_priv = exec->dev->dev_private;
+	struct nouveau_pm_memtiming *info = &perflvl->timing;
+	u32 tMRD = 1000, tCKSRE = 0, tCKSRX = 0, tXS = 0, tDLLK = 0;
+	u32 mr[3] = { info->mr[0], info->mr[1], info->mr[2] };
+	u32 mr1_dlloff;
+
+	switch (dev_priv->vram_type) {
+	case NV_MEM_TYPE_DDR2:
+		tDLLK = 2000;
+		mr1_dlloff = 0x00000001;
+		break;
+	case NV_MEM_TYPE_DDR3:
+		tDLLK = 12000;
+		mr1_dlloff = 0x00000001;
+		break;
+	case NV_MEM_TYPE_GDDR3:
+		tDLLK = 40000;
+		mr1_dlloff = 0x00000040;
+		break;
+	default:
+		NV_ERROR(exec->dev, "cannot reclock unsupported memtype\n");
+		return -ENODEV;
+	}
+
+	/* fetch current MRs */
+	switch (dev_priv->vram_type) {
+	case NV_MEM_TYPE_DDR3:
+		mr[2] = exec->mrg(exec, 2);
+	default:
+		mr[1] = exec->mrg(exec, 1);
+		mr[0] = exec->mrg(exec, 0);
+		break;
+	}
+
+	/* DLL 'on' -> DLL 'off' mode, disable before entering self-refresh  */
+	if (!(mr[1] & mr1_dlloff) && (info->mr[1] & mr1_dlloff)) {
+		exec->precharge(exec);
+		exec->mrs (exec, 1, mr[1] | mr1_dlloff);
+		exec->wait(exec, tMRD);
+	}
+
+	/* enter self-refresh mode */
+	exec->precharge(exec);
+	exec->refresh(exec);
+	exec->refresh(exec);
+	exec->refresh_auto(exec, false);
+	exec->refresh_self(exec, true);
+	exec->wait(exec, tCKSRE);
+
+	/* modify input clock frequency */
+	exec->clock_set(exec);
+
+	/* exit self-refresh mode */
+	exec->wait(exec, tCKSRX);
+	exec->precharge(exec);
+	exec->refresh_self(exec, false);
+	exec->refresh_auto(exec, true);
+	exec->wait(exec, tXS);
+
+	/* update MRs */
+	if (mr[2] != info->mr[2]) {
+		exec->mrs (exec, 2, info->mr[2]);
+		exec->wait(exec, tMRD);
+	}
+
+	if (mr[1] != info->mr[1]) {
+		exec->mrs (exec, 1, info->mr[1]);
+		exec->wait(exec, tMRD);
+	}
+
+	if (mr[0] != info->mr[0]) {
+		exec->mrs (exec, 0, info->mr[0]);
+		exec->wait(exec, tMRD);
+	}
+
+	/* update PFB timing registers */
+	exec->timing_set(exec);
+
+	/* DLL reset */
+	if (!(info->mr[1] & mr1_dlloff)) {
+		exec->mrs (exec, 0, info->mr[0] | 0x00000100);
+		exec->wait(exec, tMRD);
+		exec->mrs (exec, 0, info->mr[0] | 0x00000000);
+		exec->wait(exec, tMRD);
+		exec->wait(exec, tDLLK);
+		if (dev_priv->vram_type == NV_MEM_TYPE_GDDR3)
+			exec->precharge(exec);
+	}
+
+	return 0;
+}
+
+int
 nouveau_mem_vbios_type(struct drm_device *dev)
 {
 	struct bit_entry M;
