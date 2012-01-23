@@ -32,7 +32,6 @@
 #include <asm/mach/arch.h>
 #include <asm/mach/time.h>
 
-#include "crm_regs.h"
 #include "devices-imx53.h"
 
 #define ARD_ETHERNET_INT_B	IMX_GPIO_NR(2, 31)

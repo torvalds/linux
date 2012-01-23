@@ -31,7 +31,6 @@
 #include <asm/mach/arch.h>
 #include <asm/mach/time.h>
 
-#include "crm_regs.h"
 #include "devices-imx53.h"
 
 #define SMD_FEC_PHY_RST		IMX_GPIO_NR(7, 6)
