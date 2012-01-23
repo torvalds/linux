@@ -344,7 +344,7 @@ static int __devexit ske_keypad_remove(struct platform_device *pdev)
 	return 0;
 }
 
-#ifdef CONFIG_PM
+#ifdef CONFIG_PM_SLEEP
 static int ske_keypad_suspend(struct device *dev)
 {
 	struct platform_device *pdev = to_platform_device(dev);
@@ -372,20 +372,16 @@ static int ske_keypad_resume(struct device *dev)
 
 	return 0;
 }
-
-static const struct dev_pm_ops ske_keypad_dev_pm_ops = {
-	.suspend = ske_keypad_suspend,
-	.resume = ske_keypad_resume,
-};
 #endif
+
+static SIMPLE_DEV_PM_OPS(ske_keypad_dev_pm_ops,
+			 ske_keypad_suspend, ske_keypad_resume);
 
 static struct platform_driver ske_keypad_driver = {
 	.driver = {
 		.name = "nmk-ske-keypad",
 		.owner  = THIS_MODULE,
-#ifdef CONFIG_PM
 		.pm = &ske_keypad_dev_pm_ops,
-#endif
 	},
 	.remove = __devexit_p(ske_keypad_remove),
 };
