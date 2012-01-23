@@ -20,14 +20,10 @@
 #include <linux/profile.h>
 #include <linux/time.h>
 #include <linux/timex.h>
+#include <linux/rtc.h>
 
 #include <asm/machdep.h>
 #include <asm/irq_regs.h>
-
-#define	TICK_SIZE (tick_nsec / 1000)
-
-/* machine dependent timer functions */
-void (*mach_gettod)(int*, int*, int*, int*, int*, int*);
 
 static inline int set_rtc_mmss(unsigned long nowtime)
 {
@@ -55,28 +51,20 @@ irqreturn_t arch_timer_interrupt(int irq, void *dummy)
 }
 #endif
 
-static unsigned long read_rtc_mmss(void)
-{
-	unsigned int year, mon, day, hour, min, sec;
-
-	if (mach_gettod) {
-		mach_gettod(&year, &mon, &day, &hour, &min, &sec);
-		if ((year += 1900) < 1970)
-			year += 100;
-	} else {
-		year = 1970;
-		mon = day = 1;
-		hour = min = sec = 0;
-	}
-
-
-	return  mktime(year, mon, day, hour, min, sec);
-}
-
 void read_persistent_clock(struct timespec *ts)
 {
-	ts->tv_sec = read_rtc_mmss();
+	struct rtc_time time;
+	ts->tv_sec = 0;
 	ts->tv_nsec = 0;
+
+	if (mach_hwclk) {
+		mach_hwclk(0, &time);
+
+		if ((time.tm_year += 1900) < 1970)
+			time.tm_year += 100;
+		ts->tv_sec = mktime(time.tm_year, time.tm_mon, time.tm_mday,
+			time.tm_hour, time.tm_min, time.tm_sec);
+	}
 }
 
 int update_persistent_clock(struct timespec now)
