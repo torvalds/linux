@@ -128,6 +128,19 @@ static inline int xfs_this_quota_on(struct xfs_mount *mp, int type)
 	}
 }
 
+static inline xfs_dquot_t *xfs_inode_dquot(struct xfs_inode *ip, int type)
+{
+	switch (type & XFS_DQ_ALLTYPES) {
+	case XFS_DQ_USER:
+		return ip->i_udquot;
+	case XFS_DQ_GROUP:
+	case XFS_DQ_PROJ:
+		return ip->i_gdquot;
+	default:
+		return NULL;
+	}
+}
+
 #define XFS_DQ_IS_LOCKED(dqp)	(mutex_is_locked(&((dqp)->q_qlock)))
 #define XFS_DQ_IS_DIRTY(dqp)	((dqp)->dq_flags & XFS_DQ_DIRTY)
 #define XFS_QM_ISUDQ(dqp)	((dqp)->dq_flags & XFS_DQ_USER)
