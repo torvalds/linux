@@ -32,12 +32,11 @@ static inline int set_rtc_mmss(unsigned long nowtime)
 	return -1;
 }
 
-#ifndef CONFIG_GENERIC_CLOCKEVENTS
 /*
  * timer_interrupt() needs to keep up the real-time clock,
  * as well as call the "xtime_update()" routine every clocktick
  */
-irqreturn_t arch_timer_interrupt(int irq, void *dummy)
+static irqreturn_t timer_interrupt(int irq, void *dummy)
 {
 
 	if (current->pid)
@@ -49,7 +48,6 @@ irqreturn_t arch_timer_interrupt(int irq, void *dummy)
 
 	return(IRQ_HANDLED);
 }
-#endif
 
 void read_persistent_clock(struct timespec *ts)
 {
@@ -72,7 +70,7 @@ int update_persistent_clock(struct timespec now)
 	return set_rtc_mmss(now.tv_sec);
 }
 
-void time_init(void)
+void __init time_init(void)
 {
-	hw_timer_init();
+	mach_sched_init(timer_interrupt);
 }

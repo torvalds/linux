@@ -291,6 +291,7 @@ static void m520x_cpu_reset(void)
 void __init config_BSP(char *commandp, int size)
 {
 	mach_reset = m520x_cpu_reset;
+	mach_sched_init = hw_timer_init;
 	m520x_uarts_init();
 	m520x_fec_init();
 #if defined(CONFIG_SPI_COLDFIRE_QSPI) || defined(CONFIG_SPI_COLDFIRE_QSPI_MODULE)

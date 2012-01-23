@@ -47,6 +47,8 @@ void coldfire_profile_init(void);
 static u32 mcftmr_cycles_per_jiffy;
 static u32 mcftmr_cnt;
 
+static irq_handler_t timer_interrupt;
+
 /***************************************************************************/
 
 static irqreturn_t mcftmr_tick(int irq, void *dummy)
@@ -55,7 +57,7 @@ static irqreturn_t mcftmr_tick(int irq, void *dummy)
 	__raw_writeb(MCFTIMER_TER_CAP | MCFTIMER_TER_REF, TA(MCFTIMER_TER));
 
 	mcftmr_cnt += mcftmr_cycles_per_jiffy;
-	return arch_timer_interrupt(irq, dummy);
+	return timer_interrupt(irq, dummy);
 }
 
 /***************************************************************************/
@@ -94,7 +96,7 @@ static struct clocksource mcftmr_clk = {
 
 /***************************************************************************/
 
-void hw_timer_init(void)
+void hw_timer_init(irq_handler_t handler)
 {
 	__raw_writew(MCFTIMER_TMR_DISABLE, TA(MCFTIMER_TMR));
 	mcftmr_cycles_per_jiffy = FREQ / HZ;
@@ -110,6 +112,7 @@ void hw_timer_init(void)
 
 	clocksource_register_hz(&mcftmr_clk, FREQ);
 
+	timer_interrupt = handler;
 	setup_irq(MCF_IRQ_TIMER, &mcftmr_timer_irq);
 
 #ifdef CONFIG_HIGHPROFILE

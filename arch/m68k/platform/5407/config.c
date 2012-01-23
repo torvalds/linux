@@ -99,6 +99,7 @@ void m5407_cpu_reset(void)
 void __init config_BSP(char *commandp, int size)
 {
 	mach_reset = m5407_cpu_reset;
+	mach_sched_init = hw_timer_init;
 	m5407_timers_init();
 	m5407_uarts_init();
 

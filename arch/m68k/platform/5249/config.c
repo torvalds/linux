@@ -307,6 +307,7 @@ void m5249_cpu_reset(void)
 void __init config_BSP(char *commandp, int size)
 {
 	mach_reset = m5249_cpu_reset;
+	mach_sched_init = hw_timer_init;
 	m5249_timers_init();
 	m5249_uarts_init();
 #ifdef CONFIG_M5249C3

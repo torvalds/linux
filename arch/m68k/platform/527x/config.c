@@ -364,6 +364,7 @@ static void m527x_cpu_reset(void)
 void __init config_BSP(char *commandp, int size)
 {
 	mach_reset = m527x_cpu_reset;
+	mach_sched_init = hw_timer_init;
 	m527x_uarts_init();
 	m527x_fec_init();
 #if defined(CONFIG_SPI_COLDFIRE_QSPI) || defined(CONFIG_SPI_COLDFIRE_QSPI_MODULE)

@@ -306,6 +306,7 @@ void __init config_BSP(char *commandp, int size)
 static int __init init_BSP(void)
 {
 	mach_reset = m528x_cpu_reset;
+	mach_sched_init = hw_timer_init;
 	m528x_uarts_init();
 	m528x_fec_init();
 #if defined(CONFIG_SPI_COLDFIRE_QSPI) || defined(CONFIG_SPI_COLDFIRE_QSPI_MODULE)

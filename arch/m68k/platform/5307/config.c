@@ -115,6 +115,7 @@ void __init config_BSP(char *commandp, int size)
 #endif
 
 	mach_reset = m5307_cpu_reset;
+	mach_sched_init = hw_timer_init;
 	m5307_timers_init();
 	m5307_uarts_init();
 

@@ -105,6 +105,7 @@ void __init config_BSP(char *commandp, int size)
 #endif /* CONFIG_NETtel */
 
 	mach_reset = m5206_cpu_reset;
+	mach_sched_init = hw_timer_init;
 	m5206_timers_init();
 	m5206_uarts_init();
 

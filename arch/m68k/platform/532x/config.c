@@ -263,6 +263,8 @@ void __init config_BSP(char *commandp, int size)
 	}
 #endif
 
+	mach_sched_init = hw_timer_init;
+
 #ifdef CONFIG_BDM_DISABLE
 	/*
 	 * Disable the BDM clocking.  This also turns off most of the rest of

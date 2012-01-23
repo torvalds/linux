@@ -33,9 +33,8 @@ extern void (*mach_l2_flush) (int);
 extern void (*mach_beep) (unsigned int, unsigned int);
 
 /* Hardware clock functions */
-extern void hw_timer_init(void);
+extern void hw_timer_init(irq_handler_t handler);
 extern unsigned long hw_timer_offset(void);
-extern irqreturn_t arch_timer_interrupt(int irq, void *dummy);
 
 extern void config_BSP(char *command, int len);
 
