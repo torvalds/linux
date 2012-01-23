@@ -33,49 +33,49 @@ struct ceph_vxattr {
 
 /* directories */
 
-static size_t ceph_vxattrcb_entries(struct ceph_inode_info *ci, char *val,
+static size_t ceph_vxattrcb_dir_entries(struct ceph_inode_info *ci, char *val,
 					size_t size)
 {
 	return snprintf(val, size, "%lld", ci->i_files + ci->i_subdirs);
 }
 
-static size_t ceph_vxattrcb_files(struct ceph_inode_info *ci, char *val,
+static size_t ceph_vxattrcb_dir_files(struct ceph_inode_info *ci, char *val,
 				      size_t size)
 {
 	return snprintf(val, size, "%lld", ci->i_files);
 }
 
-static size_t ceph_vxattrcb_subdirs(struct ceph_inode_info *ci, char *val,
+static size_t ceph_vxattrcb_dir_subdirs(struct ceph_inode_info *ci, char *val,
 					size_t size)
 {
 	return snprintf(val, size, "%lld", ci->i_subdirs);
 }
 
-static size_t ceph_vxattrcb_rentries(struct ceph_inode_info *ci, char *val,
+static size_t ceph_vxattrcb_dir_rentries(struct ceph_inode_info *ci, char *val,
 					 size_t size)
 {
 	return snprintf(val, size, "%lld", ci->i_rfiles + ci->i_rsubdirs);
 }
 
-static size_t ceph_vxattrcb_rfiles(struct ceph_inode_info *ci, char *val,
+static size_t ceph_vxattrcb_dir_rfiles(struct ceph_inode_info *ci, char *val,
 				       size_t size)
 {
 	return snprintf(val, size, "%lld", ci->i_rfiles);
 }
 
-static size_t ceph_vxattrcb_rsubdirs(struct ceph_inode_info *ci, char *val,
+static size_t ceph_vxattrcb_dir_rsubdirs(struct ceph_inode_info *ci, char *val,
 					 size_t size)
 {
 	return snprintf(val, size, "%lld", ci->i_rsubdirs);
 }
 
-static size_t ceph_vxattrcb_rbytes(struct ceph_inode_info *ci, char *val,
+static size_t ceph_vxattrcb_dir_rbytes(struct ceph_inode_info *ci, char *val,
 				       size_t size)
 {
 	return snprintf(val, size, "%lld", ci->i_rbytes);
 }
 
-static size_t ceph_vxattrcb_rctime(struct ceph_inode_info *ci, char *val,
+static size_t ceph_vxattrcb_dir_rctime(struct ceph_inode_info *ci, char *val,
 				       size_t size)
 {
 	return snprintf(val, size, "%ld.%ld", (long)ci->i_rctime.tv_sec,
@@ -87,7 +87,7 @@ static size_t ceph_vxattrcb_rctime(struct ceph_inode_info *ci, char *val,
 #define XATTR_NAME_CEPH(_type, _name) \
 		{ \
 			.name = CEPH_XATTR_NAME(_type, _name), \
-			.getxattr_cb = ceph_vxattrcb_ ## _name, \
+			.getxattr_cb = ceph_vxattrcb_ ## _type ## _ ## _name, \
 			.readonly = true, \
 		}
 
@@ -105,7 +105,7 @@ static struct ceph_vxattr ceph_dir_vxattrs[] = {
 
 /* files */
 
-static size_t ceph_vxattrcb_layout(struct ceph_inode_info *ci, char *val,
+static size_t ceph_vxattrcb_file_layout(struct ceph_inode_info *ci, char *val,
 				   size_t size)
 {
 	int ret;
@@ -127,7 +127,7 @@ static struct ceph_vxattr ceph_file_vxattrs[] = {
 	/* The following extended attribute name is deprecated */
 	{
 		.name = XATTR_CEPH_PREFIX "layout",
-		.getxattr_cb = ceph_vxattrcb_layout,
+		.getxattr_cb = ceph_vxattrcb_file_layout,
 		.readonly = true,
 	},
 	{ 0 }	/* Required table terminator */
