@@ -1738,7 +1738,7 @@ static int bnx2x_run_loopback(struct bnx2x *bp, int loopback_mode)
 	struct bnx2x_fp_txdata *txdata = &fp_tx->txdata[0];
 	u16 tx_start_idx, tx_idx;
 	u16 rx_start_idx, rx_idx;
-	u16 pkt_prod, bd_prod, rx_comp_cons;
+	u16 pkt_prod, bd_prod;
 	struct sw_tx_bd *tx_buf;
 	struct eth_tx_start_bd *tx_start_bd;
 	struct eth_tx_parse_bd_e1x  *pbd_e1x = NULL;
@@ -1873,8 +1873,7 @@ static int bnx2x_run_loopback(struct bnx2x *bp, int loopback_mode)
 	if (rx_idx != rx_start_idx + num_pkts)
 		goto test_loopback_exit;
 
-	rx_comp_cons = le16_to_cpu(fp_rx->rx_comp_cons);
-	cqe = &fp_rx->rx_comp_ring[RCQ_BD(rx_comp_cons)];
+	cqe = &fp_rx->rx_comp_ring[RCQ_BD(fp_rx->rx_comp_cons)];
 	cqe_fp_flags = cqe->fast_path_cqe.type_error_flags;
 	cqe_fp_type = cqe_fp_flags & ETH_FAST_PATH_RX_CQE_TYPE;
 	if (!CQE_TYPE_FAST(cqe_fp_type) || (cqe_fp_flags & ETH_RX_ERROR_FALGS))
