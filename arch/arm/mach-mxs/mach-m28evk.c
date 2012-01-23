@@ -247,11 +247,8 @@ static int __init m28evk_fec_get_mac(void)
 	u32 val;
 	const u32 *ocotp = mxs_get_ocotp();
 
-	if (!ocotp) {
-		pr_err("%s: timeout when reading fec mac from OCOTP\n",
-			__func__);
+	if (!ocotp)
 		return -ETIMEDOUT;
-	}
 
 	/*
 	 * OCOTP only stores the last 4 octets for each mac address,
