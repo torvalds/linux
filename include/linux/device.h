@@ -279,11 +279,11 @@ struct device *driver_find_device(struct device_driver *drv,
 
 /**
  * struct subsys_interface - interfaces to device functions
- * @name        name of the device function
- * @subsystem   subsytem of the devices to attach to
- * @node        the list of functions registered at the subsystem
- * @add         device hookup to device function handler
- * @remove      device hookup to device function handler
+ * @name:       name of the device function
+ * @subsys:     subsytem of the devices to attach to
+ * @node:       the list of functions registered at the subsystem
+ * @add_dev:    device hookup to device function handler
+ * @remove_dev: device hookup to device function handler
  *
  * Simple interfaces attached to a subsystem. Multiple interfaces can
  * attach to a subsystem and its devices. Unlike drivers, they do not
@@ -612,6 +612,7 @@ struct device_dma_parameters {
  * @archdata:	For arch-specific additions.
  * @of_node:	Associated device tree node.
  * @devt:	For creating the sysfs "dev".
+ * @id:		device instance
  * @devres_lock: Spinlock to protect the resource of the device.
  * @devres_head: The resources list of the device.
  * @knode_class: The node used to add the device to the class list.
@@ -1002,6 +1003,10 @@ extern long sysfs_deprecated;
  * special in module init/exit. This eliminates a lot of boilerplate.
  * Each module may only use this macro once, and calling it replaces
  * module_init() and module_exit().
+ *
+ * @__driver: driver name
+ * @__register: register function for this driver type
+ * @__unregister: unregister function for this driver type
  *
  * Use this macro to construct bus specific macros for registering
  * drivers, and do not use it on its own.
