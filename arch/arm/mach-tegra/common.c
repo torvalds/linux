@@ -27,7 +27,6 @@
 #include <asm/hardware/gic.h>
 
 #include <mach/iomap.h>
-#include <mach/system.h>
 
 #include "board.h"
 #include "clock.h"
@@ -96,6 +95,8 @@ static void __init tegra_init_cache(u32 tag_latency, u32 data_latency)
 #ifdef CONFIG_ARCH_TEGRA_2x_SOC
 void __init tegra20_init_early(void)
 {
+	disable_hlt();  /* idle WFI usage needs to be confirmed */
+
 	tegra_init_fuse();
 	tegra2_init_clocks();
 	tegra_clk_init_from_table(tegra20_clk_init_table);
