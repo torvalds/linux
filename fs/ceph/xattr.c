@@ -730,11 +730,9 @@ int ceph_setxattr(struct dentry *dentry, const char *name,
 		goto out;
 
 	if (val_len) {
-		newval = kmalloc(val_len + 1, GFP_NOFS);
+		newval = kmemdup(value, val_len, GFP_NOFS);
 		if (!newval)
 			goto out;
-		memcpy(newval, value, val_len);
-		newval[val_len] = '\0';
 	}
 
 	xattr = kmalloc(sizeof(struct ceph_inode_xattr), GFP_NOFS);
