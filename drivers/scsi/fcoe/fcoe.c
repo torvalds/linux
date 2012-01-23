@@ -734,6 +734,85 @@ static int fcoe_shost_config(struct fc_lport *lport, struct device *dev)
 	return 0;
 }
 
+
+/**
+ * fcoe_fdmi_info() - Get FDMI related info from net devive for SW FCoE
+ * @lport:  The local port that is associated with the net device
+ * @netdev: The associated net device
+ *
+ * Must be called after fcoe_shost_config() as it will use local port mutex
+ *
+ */
+static void fcoe_fdmi_info(struct fc_lport *lport, struct net_device *netdev)
+{
+	struct fcoe_interface *fcoe;
+	struct fcoe_port *port;
+	struct net_device *realdev;
+	int rc;
+	struct netdev_fcoe_hbainfo fdmi;
+
+	port = lport_priv(lport);
+	fcoe = port->priv;
+	realdev = fcoe->realdev;
+
+	if (!realdev)
+		return;
+
+	/* No FDMI state m/c for NPIV ports */
+	if (lport->vport)
+		return;
+
+	if (realdev->netdev_ops->ndo_fcoe_get_hbainfo) {
+		memset(&fdmi, 0, sizeof(fdmi));
+		rc = realdev->netdev_ops->ndo_fcoe_get_hbainfo(realdev,
+							       &fdmi);
+		if (rc) {
+			printk(KERN_INFO "fcoe: Failed to retrieve FDMI "
+					"information from netdev.\n");
+			return;
+		}
+
+		snprintf(fc_host_serial_number(lport->host),
+			 FC_SERIAL_NUMBER_SIZE,
+			 "%s",
+			 fdmi.serial_number);
+		snprintf(fc_host_manufacturer(lport->host),
+			 FC_SERIAL_NUMBER_SIZE,
+			 "%s",
+			 fdmi.manufacturer);
+		snprintf(fc_host_model(lport->host),
+			 FC_SYMBOLIC_NAME_SIZE,
+			 "%s",
+			 fdmi.model);
+		snprintf(fc_host_model_description(lport->host),
+			 FC_SYMBOLIC_NAME_SIZE,
+			 "%s",
+			 fdmi.model_description);
+		snprintf(fc_host_hardware_version(lport->host),
+			 FC_VERSION_STRING_SIZE,
+			 "%s",
+			 fdmi.hardware_version);
+		snprintf(fc_host_driver_version(lport->host),
+			 FC_VERSION_STRING_SIZE,
+			 "%s",
+			 fdmi.driver_version);
+		snprintf(fc_host_optionrom_version(lport->host),
+			 FC_VERSION_STRING_SIZE,
+			 "%s",
+			 fdmi.optionrom_version);
+		snprintf(fc_host_firmware_version(lport->host),
+			 FC_VERSION_STRING_SIZE,
+			 "%s",
+			 fdmi.firmware_version);
+
+		/* Enable FDMI lport states */
+		lport->fdmi_enabled = 1;
+	} else {
+		lport->fdmi_enabled = 0;
+		printk(KERN_INFO "fcoe: No FDMI support.\n");
+	}
+}
+
 /**
  * fcoe_oem_match() - The match routine for the offloaded exchange manager
  * @fp: The I/O frame
@@ -1046,6 +1125,9 @@ static struct fc_lport *fcoe_if_create(struct fcoe_interface *fcoe,
 				"interface\n");
 		goto out_lp_destroy;
 	}
+
+	/* Initialized FDMI information */
+	fcoe_fdmi_info(lport, netdev);
 
 	/*
 	 * fcoe_em_alloc() and fcoe_hostlist_add() both
