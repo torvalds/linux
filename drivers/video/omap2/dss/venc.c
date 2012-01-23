@@ -401,7 +401,7 @@ static void venc_runtime_put(void)
 
 	DSSDBG("venc_runtime_put\n");
 
-	r = pm_runtime_put(&venc.pdev->dev);
+	r = pm_runtime_put_sync(&venc.pdev->dev);
 	WARN_ON(r < 0);
 }
 

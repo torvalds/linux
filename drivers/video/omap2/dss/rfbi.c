@@ -140,7 +140,7 @@ static void rfbi_runtime_put(void)
 
 	DSSDBG("rfbi_runtime_put\n");
 
-	r = pm_runtime_put(&rfbi.pdev->dev);
+	r = pm_runtime_put_sync(&rfbi.pdev->dev);
 	WARN_ON(r < 0);
 }
 
