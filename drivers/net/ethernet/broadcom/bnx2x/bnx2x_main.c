@@ -10536,6 +10536,9 @@ static int __devinit bnx2x_init_dev(struct pci_dev *pdev,
 {
 	struct bnx2x *bp;
 	int rc;
+	bool chip_is_e1x = (board_type == BCM57710 ||
+			    board_type == BCM57711 ||
+			    board_type == BCM57711E);
 
 	SET_NETDEV_DEV(dev, &pdev->dev);
 	bp = netdev_priv(dev);
@@ -10624,7 +10627,7 @@ static int __devinit bnx2x_init_dev(struct pci_dev *pdev,
 	REG_WR(bp, PXP2_REG_PGL_ADDR_90_F0, 0);
 	REG_WR(bp, PXP2_REG_PGL_ADDR_94_F0, 0);
 
-	if (CHIP_IS_E1x(bp)) {
+	if (chip_is_e1x) {
 		REG_WR(bp, PXP2_REG_PGL_ADDR_88_F1, 0);
 		REG_WR(bp, PXP2_REG_PGL_ADDR_8C_F1, 0);
 		REG_WR(bp, PXP2_REG_PGL_ADDR_90_F1, 0);
@@ -10635,9 +10638,7 @@ static int __devinit bnx2x_init_dev(struct pci_dev *pdev,
 	 * Enable internal target-read (in case we are probed after PF FLR).
 	 * Must be done prior to any BAR read access. Only for 57712 and up
 	 */
-	if (board_type != BCM57710 &&
-	    board_type != BCM57711 &&
-	    board_type != BCM57711E)
+	if (!chip_is_e1x)
 		REG_WR(bp, PGLUE_B_REG_INTERNAL_PFID_ENABLE_TARGET_READ, 1);
 
 	/* Reset the load counter */
