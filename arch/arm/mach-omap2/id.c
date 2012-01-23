@@ -343,6 +343,7 @@ static void __init omap3_check_revision(const char **cpu_rev)
 	case 0xb944:
 		omap_revision = AM335X_REV_ES1_0;
 		*cpu_rev = "1.0";
+		break;
 	case 0xb8f2:
 		switch (rev) {
 		case 0:
