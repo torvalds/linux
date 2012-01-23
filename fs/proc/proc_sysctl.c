@@ -995,13 +995,20 @@ struct ctl_table_header *__register_sysctl_paths(
 	header->attached_by = header->ctl_table;
 	header->attached_to = root_table;
 	header->parent = &root_table_header;
-	for (set = header->set; set; set = set->parent) {
+	set = header->set;
+	root = header->root;
+	for (;;) {
 		struct ctl_table_header *p;
 		list_for_each_entry(p, &set->list, ctl_entry) {
 			if (p->unregistering)
 				continue;
 			try_attach(p, header);
 		}
+		if (root == &sysctl_table_root)
+			break;
+		root = list_entry(root->root_list.prev,
+				  struct ctl_table_root, root_list);
+		set = lookup_header_set(root, namespaces);
 	}
 	header->parent->count++;
 	list_add_tail(&header->ctl_entry, &header->set->list);
@@ -1072,11 +1079,9 @@ void unregister_sysctl_table(struct ctl_table_header * header)
 EXPORT_SYMBOL(unregister_sysctl_table);
 
 void setup_sysctl_set(struct ctl_table_set *p,
-	struct ctl_table_set *parent,
 	int (*is_seen)(struct ctl_table_set *))
 {
 	INIT_LIST_HEAD(&p->list);
-	p->parent = parent ? parent : &sysctl_table_root.default_set;
 	p->is_seen = is_seen;
 }
 

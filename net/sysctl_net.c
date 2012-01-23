@@ -75,7 +75,6 @@ static struct ctl_table_root net_sysctl_ro_root = {
 static int __net_init sysctl_net_init(struct net *net)
 {
 	setup_sysctl_set(&net->sysctls,
-			 &net_sysctl_ro_root.default_set,
 			 is_seen);
 	return 0;
 }
@@ -96,9 +95,9 @@ static __init int net_sysctl_init(void)
 	ret = register_pernet_subsys(&sysctl_pernet_ops);
 	if (ret)
 		goto out;
-	register_sysctl_root(&net_sysctl_root);
-	setup_sysctl_set(&net_sysctl_ro_root.default_set, NULL, NULL);
+	setup_sysctl_set(&net_sysctl_ro_root.default_set, NULL);
 	register_sysctl_root(&net_sysctl_ro_root);
+	register_sysctl_root(&net_sysctl_root);
 out:
 	return ret;
 }

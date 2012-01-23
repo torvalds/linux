@@ -1047,7 +1047,6 @@ struct ctl_table_header
 
 struct ctl_table_set {
 	struct list_head list;
-	struct ctl_table_set *parent;
 	int (*is_seen)(struct ctl_table_set *);
 };
 
@@ -1070,7 +1069,6 @@ struct ctl_path {
 void proc_sys_poll_notify(struct ctl_table_poll *poll);
 
 extern void setup_sysctl_set(struct ctl_table_set *p,
-	struct ctl_table_set *parent,
 	int (*is_seen)(struct ctl_table_set *));
 extern void retire_sysctl_set(struct ctl_table_set *set);
 
@@ -1102,7 +1100,6 @@ static inline void unregister_sysctl_table(struct ctl_table_header * table)
 }
 
 static inline void setup_sysctl_set(struct ctl_table_set *p,
-	struct ctl_table_set *parent,
 	int (*is_seen)(struct ctl_table_set *))
 {
 }
