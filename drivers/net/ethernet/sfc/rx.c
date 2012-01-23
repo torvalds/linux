@@ -568,12 +568,30 @@ out:
 	channel->rx_pkt_csummed = checksummed;
 }
 
+static void efx_rx_deliver(struct efx_channel *channel,
+			   struct efx_rx_buffer *rx_buf)
+{
+	struct sk_buff *skb;
+
+	/* We now own the SKB */
+	skb = rx_buf->u.skb;
+	rx_buf->u.skb = NULL;
+
+	/* Set the SKB flags */
+	skb_checksum_none_assert(skb);
+
+	/* Pass the packet up */
+	netif_receive_skb(skb);
+
+	/* Update allocation strategy method */
+	channel->rx_alloc_level += RX_ALLOC_FACTOR_SKB;
+}
+
 /* Handle a received packet.  Second half: Touches packet payload. */
 void __efx_rx_packet(struct efx_channel *channel,
 		     struct efx_rx_buffer *rx_buf, bool checksummed)
 {
 	struct efx_nic *efx = channel->efx;
-	struct sk_buff *skb;
 	u8 *eh = efx_rx_buf_eh(efx, rx_buf);
 
 	/* If we're in loopback test, then pass the packet directly to the
@@ -586,7 +604,7 @@ void __efx_rx_packet(struct efx_channel *channel,
 	}
 
 	if (!rx_buf->is_page) {
-		skb = rx_buf->u.skb;
+		struct sk_buff *skb = rx_buf->u.skb;
 
 		prefetch(skb_shinfo(skb));
 
@@ -606,23 +624,10 @@ void __efx_rx_packet(struct efx_channel *channel,
 	if (unlikely(!(efx->net_dev->features & NETIF_F_RXCSUM)))
 		checksummed = false;
 
-	if (likely(checksummed || rx_buf->is_page)) {
+	if (likely(checksummed || rx_buf->is_page))
 		efx_rx_packet_gro(channel, rx_buf, eh, checksummed);
-		return;
-	}
-
-	/* We now own the SKB */
-	skb = rx_buf->u.skb;
-	rx_buf->u.skb = NULL;
-
-	/* Set the SKB flags */
-	skb_checksum_none_assert(skb);
-
-	/* Pass the packet up */
-	netif_receive_skb(skb);
-
-	/* Update allocation strategy method */
-	channel->rx_alloc_level += RX_ALLOC_FACTOR_SKB;
+	else
+		efx_rx_deliver(channel, rx_buf);
 }
 
 void efx_rx_strategy(struct efx_channel *channel)
