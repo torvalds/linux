@@ -794,26 +794,34 @@ nouveau_pm_init(struct drm_device *dev)
 	int ret, i;
 
 	nouveau_mem_timing_init(dev);
+
+	/* parse aux tables from vbios */
 	nouveau_volt_init(dev);
-	nouveau_perf_init(dev);
 	nouveau_temp_init(dev);
 
+	/* determine current ("boot") performance level */
+	ret = nouveau_pm_perflvl_get(dev, &pm->boot);
+	if (ret) {
+		NV_ERROR(dev, "failed to determine boot perflvl\n");
+		return ret;
+	}
+
+	strncpy(pm->boot.name, "boot", 4);
+	pm->boot.timing = &pm->memtimings.boot;
+	pm->cur = &pm->boot;
+
+	/* add performance levels from vbios */
+	nouveau_perf_init(dev);
+
+	/* display available performance levels */
 	NV_INFO(dev, "%d available performance level(s)\n", pm->nr_perflvl);
 	for (i = 0; i < pm->nr_perflvl; i++) {
 		nouveau_pm_perflvl_info(&pm->perflvl[i], info, sizeof(info));
 		NV_INFO(dev, "%d:%s", pm->perflvl[i].id, info);
 	}
 
-	/* determine current ("boot") performance level */
-	ret = nouveau_pm_perflvl_get(dev, &pm->boot);
-	if (ret == 0) {
-		strncpy(pm->boot.name, "boot", 4);
-		pm->boot.timing = &pm->memtimings.boot;
-		pm->cur = &pm->boot;
-
-		nouveau_pm_perflvl_info(&pm->boot, info, sizeof(info));
-		NV_INFO(dev, "c:%s", info);
-	}
+	nouveau_pm_perflvl_info(&pm->boot, info, sizeof(info));
+	NV_INFO(dev, "c:%s", info);
 
 	/* switch performance levels now if requested */
 	if (nouveau_perflvl != NULL) {
