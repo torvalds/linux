@@ -266,11 +266,16 @@ struct v4l2_subdev_video_ops {
 	...
 };
 
+struct v4l2_subdev_pad_ops {
+	...
+};
+
 struct v4l2_subdev_ops {
 	const struct v4l2_subdev_core_ops  *core;
 	const struct v4l2_subdev_tuner_ops *tuner;
 	const struct v4l2_subdev_audio_ops *audio;
 	const struct v4l2_subdev_video_ops *video;
+	const struct v4l2_subdev_pad_ops *video;
 };
 
 The core ops are common to all subdevs, the other categories are implemented
@@ -306,6 +311,10 @@ subdev device node (if any) is opened/closed.
 Don't forget to cleanup the media entity before the sub-device is destroyed:
 
 	media_entity_cleanup(&sd->entity);
+
+If the subdev driver intends to process video and integrate with the media
+framework, it must implement format related functionality using
+v4l2_subdev_pad_ops instead of v4l2_subdev_video_ops.
 
 A device (bridge) driver needs to register the v4l2_subdev with the
 v4l2_device:
