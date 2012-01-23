@@ -765,15 +765,15 @@ int ceph_setxattr(struct dentry *dentry, const char *name,
 	struct inode *inode = dentry->d_inode;
 	struct ceph_vxattr *vxattr;
 	struct ceph_inode_info *ci = ceph_inode(inode);
+	int issued;
 	int err;
+	int dirty;
 	int name_len = strlen(name);
 	int val_len = size;
 	char *newname = NULL;
 	char *newval = NULL;
 	struct ceph_inode_xattr *xattr = NULL;
-	int issued;
 	int required_blob_size;
-	int dirty;
 
 	if (ceph_snap(inode) != CEPH_NOSNAP)
 		return -EROFS;
@@ -804,6 +804,7 @@ int ceph_setxattr(struct dentry *dentry, const char *name,
 	spin_lock(&ci->i_ceph_lock);
 retry:
 	issued = __ceph_caps_issued(ci, NULL);
+	dout("setxattr %p issued %s\n", inode, ceph_cap_string(issued));
 	if (!(issued & CEPH_CAP_XATTR_EXCL))
 		goto do_sync;
 	__build_xattrs(inode);
@@ -812,7 +813,7 @@ retry:
 
 	if (!ci->i_xattrs.prealloc_blob ||
 	    required_blob_size > ci->i_xattrs.prealloc_blob->alloc_len) {
-		struct ceph_buffer *blob = NULL;
+		struct ceph_buffer *blob;
 
 		spin_unlock(&ci->i_ceph_lock);
 		dout(" preaallocating new blob size=%d\n", required_blob_size);
@@ -826,12 +827,13 @@ retry:
 		goto retry;
 	}
 
-	dout("setxattr %p issued %s\n", inode, ceph_cap_string(issued));
 	err = __set_xattr(ci, newname, name_len, newval,
 			  val_len, 1, 1, 1, &xattr);
+
 	dirty = __ceph_mark_dirty_caps(ci, CEPH_CAP_XATTR_EXCL);
 	ci->i_xattrs.dirty = true;
 	inode->i_ctime = CURRENT_TIME;
+
 	spin_unlock(&ci->i_ceph_lock);
 	if (dirty)
 		__mark_inode_dirty(inode, dirty);
@@ -895,13 +897,13 @@ int ceph_removexattr(struct dentry *dentry, const char *name)
 
 	err = -ENOMEM;
 	spin_lock(&ci->i_ceph_lock);
-	__build_xattrs(inode);
 retry:
 	issued = __ceph_caps_issued(ci, NULL);
 	dout("removexattr %p issued %s\n", inode, ceph_cap_string(issued));
 
 	if (!(issued & CEPH_CAP_XATTR_EXCL))
 		goto do_sync;
+	__build_xattrs(inode);
 
 	required_blob_size = __get_required_blob_size(ci, 0, 0);
 
@@ -922,10 +924,10 @@ retry:
 	}
 
 	err = __remove_xattr_by_name(ceph_inode(inode), name);
+
 	dirty = __ceph_mark_dirty_caps(ci, CEPH_CAP_XATTR_EXCL);
 	ci->i_xattrs.dirty = true;
 	inode->i_ctime = CURRENT_TIME;
-
 	spin_unlock(&ci->i_ceph_lock);
 	if (dirty)
 		__mark_inode_dirty(inode, dirty);
