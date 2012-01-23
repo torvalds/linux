@@ -1,0 +1,19 @@
+
+OUTPUT_ARCH(arm)
+ENTRY(standby_main)
+
+SECTIONS
+{
+	.text 0xf0000000 :
+	{
+		sun3i_sram_entry.o(.text)
+		*(.text)
+	}
+	.rodata : { *(.rodata) }
+	.data   : { *(.data) }
+
+	__bss_start = . ;
+	.bss : { *(.sbss) *(.scommon) *(.bss) *(COMMON) }
+	__bss_end = .;
+}
+

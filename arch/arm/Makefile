@@ -196,6 +196,7 @@ machine-$(CONFIG_MACH_SPEAR300)		:= spear3xx
 machine-$(CONFIG_MACH_SPEAR310)		:= spear3xx
 machine-$(CONFIG_MACH_SPEAR320)		:= spear3xx
 machine-$(CONFIG_MACH_SPEAR600)		:= spear6xx
+machine-$(CONFIG_ARCH_SUN3I)		:= sun3i
 machine-$(CONFIG_ARCH_SUN4I)		:= sun4i
 machine-$(CONFIG_ARCH_SUN5I)		:= sun5i
 machine-$(CONFIG_ARCH_SUN6I)		:= sun6i
