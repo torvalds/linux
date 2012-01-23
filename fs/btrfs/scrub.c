@@ -25,6 +25,7 @@
 #include "transaction.h"
 #include "backref.h"
 #include "extent_io.h"
+#include "check-integrity.h"
 
 /*
  * This is only the first step towards a full-features scrub. It reads all
@@ -309,7 +310,7 @@ static void scrub_print_warning(const char *errstr, struct scrub_bio *sbio,
 	u8 ref_level;
 	unsigned long ptr = 0;
 	const int bufsize = 4096;
-	u64 extent_offset;
+	u64 extent_item_pos;
 
 	path = btrfs_alloc_path();
 
@@ -329,12 +330,13 @@ static void scrub_print_warning(const char *errstr, struct scrub_bio *sbio,
 	if (ret < 0)
 		goto out;
 
-	extent_offset = swarn.logical - found_key.objectid;
+	extent_item_pos = swarn.logical - found_key.objectid;
 	swarn.extent_item_size = found_key.offset;
 
 	eb = path->nodes[0];
 	ei = btrfs_item_ptr(eb, path->slots[0], struct btrfs_extent_item);
 	item_size = btrfs_item_size_nr(eb, path->slots[0]);
+	btrfs_release_path(path);
 
 	if (ret & BTRFS_EXTENT_FLAG_TREE_BLOCK) {
 		do {
@@ -351,7 +353,7 @@ static void scrub_print_warning(const char *errstr, struct scrub_bio *sbio,
 	} else {
 		swarn.path = path;
 		iterate_extent_inodes(fs_info, path, found_key.objectid,
-					extent_offset,
+					extent_item_pos,
 					scrub_print_warning_inode, &swarn);
 	}
 
@@ -732,7 +734,7 @@ static int scrub_fixup_io(int rw, struct block_device *bdev, sector_t sector,
 	bio_add_page(bio, page, PAGE_SIZE, 0);
 	bio->bi_end_io = scrub_fixup_end_io;
 	bio->bi_private = &complete;
-	submit_bio(rw, bio);
+	btrfsic_submit_bio(rw, bio);
 
 	/* this will also unplug the queue */
 	wait_for_completion(&complete);
@@ -958,7 +960,7 @@ static int scrub_submit(struct scrub_dev *sdev)
 	sdev->curr = -1;
 	atomic_inc(&sdev->in_flight);
 
-	submit_bio(READ, sbio->bio);
+	btrfsic_submit_bio(READ, sbio->bio);
 
 	return 0;
 }

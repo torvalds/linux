@@ -731,9 +731,6 @@ static int __devinit ivtv_init_struct1(struct ivtv *itv)
 
 	init_kthread_work(&itv->irq_work, ivtv_irq_work_handler);
 
-	/* start counting open_id at 1 */
-	itv->open_id = 1;
-
 	/* Initial settings */
 	itv->cxhdl.port = CX2341X_PORT_MEMORY;
 	itv->cxhdl.capabilities = CX2341X_CAP_HAS_SLICED_VBI;

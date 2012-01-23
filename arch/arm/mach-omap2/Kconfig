@@ -366,8 +366,8 @@ config OMAP3_SDRC_AC_TIMING
 	  going on could result in system crashes;
 
 config OMAP4_ERRATA_I688
-	bool "OMAP4 errata: Async Bridge Corruption"
-	depends on ARCH_OMAP4
+	bool "OMAP4 errata: Async Bridge Corruption (BROKEN)"
+	depends on ARCH_OMAP4 && BROKEN
 	select ARCH_HAS_BARRIERS
 	help
 	  If a data is stalled inside asynchronous bridge because of back

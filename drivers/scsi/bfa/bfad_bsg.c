@@ -2394,6 +2394,21 @@ out:
 	return 0;
 }
 
+/* Function to reset the LUN SCAN mode */
+static void
+bfad_iocmd_lunmask_reset_lunscan_mode(struct bfad_s *bfad, int lunmask_cfg)
+{
+	struct bfad_im_port_s *pport_im = bfad->pport.im_port;
+	struct bfad_vport_s *vport = NULL;
+
+	/* Set the scsi device LUN SCAN flags for base port */
+	bfad_reset_sdev_bflags(pport_im, lunmask_cfg);
+
+	/* Set the scsi device LUN SCAN flags for the vports */
+	list_for_each_entry(vport, &bfad->vport_list, list_entry)
+		bfad_reset_sdev_bflags(vport->drv_port.im_port, lunmask_cfg);
+}
+
 int
 bfad_iocmd_lunmask(struct bfad_s *bfad, void *pcmd, unsigned int v_cmd)
 {
@@ -2401,11 +2416,17 @@ bfad_iocmd_lunmask(struct bfad_s *bfad, void *pcmd, unsigned int v_cmd)
 	unsigned long	flags;
 
 	spin_lock_irqsave(&bfad->bfad_lock, flags);
-	if (v_cmd == IOCMD_FCPIM_LUNMASK_ENABLE)
+	if (v_cmd == IOCMD_FCPIM_LUNMASK_ENABLE) {
 		iocmd->status = bfa_fcpim_lunmask_update(&bfad->bfa, BFA_TRUE);
-	else if (v_cmd == IOCMD_FCPIM_LUNMASK_DISABLE)
+		/* Set the LUN Scanning mode to be Sequential scan */
+		if (iocmd->status == BFA_STATUS_OK)
+			bfad_iocmd_lunmask_reset_lunscan_mode(bfad, BFA_TRUE);
+	} else if (v_cmd == IOCMD_FCPIM_LUNMASK_DISABLE) {
 		iocmd->status = bfa_fcpim_lunmask_update(&bfad->bfa, BFA_FALSE);
-	else if (v_cmd == IOCMD_FCPIM_LUNMASK_CLEAR)
+		/* Set the LUN Scanning mode to default REPORT_LUNS scan */
+		if (iocmd->status == BFA_STATUS_OK)
+			bfad_iocmd_lunmask_reset_lunscan_mode(bfad, BFA_FALSE);
+	} else if (v_cmd == IOCMD_FCPIM_LUNMASK_CLEAR)
 		iocmd->status = bfa_fcpim_lunmask_clear(&bfad->bfa);
 	spin_unlock_irqrestore(&bfad->bfad_lock, flags);
 	return 0;

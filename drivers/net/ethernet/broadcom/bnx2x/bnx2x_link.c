@@ -2502,7 +2502,7 @@ static void bnx2x_update_pfc_nig(struct link_params *params,
 		struct bnx2x_nig_brb_pfc_port_params *nig_params)
 {
 	u32 xcm_mask = 0, ppp_enable = 0, pause_enable = 0, llfc_out_en = 0;
-	u32 llfc_enable = 0, xcm0_out_en = 0, p0_hwpfc_enable = 0;
+	u32 llfc_enable = 0, xcm_out_en = 0, hwpfc_enable = 0;
 	u32 pkt_priority_to_cos = 0;
 	struct bnx2x *bp = params->bp;
 	u8 port = params->port;
@@ -2516,9 +2516,8 @@ static void bnx2x_update_pfc_nig(struct link_params *params,
 	 * MAC control frames (that are not pause packets)
 	 * will be forwarded to the XCM.
 	 */
-	xcm_mask = REG_RD(bp,
-				port ? NIG_REG_LLH1_XCM_MASK :
-				NIG_REG_LLH0_XCM_MASK);
+	xcm_mask = REG_RD(bp, port ? NIG_REG_LLH1_XCM_MASK :
+			  NIG_REG_LLH0_XCM_MASK);
 	/*
 	 * nig params will override non PFC params, since it's possible to
 	 * do transition from PFC to SAFC
@@ -2533,8 +2532,8 @@ static void bnx2x_update_pfc_nig(struct link_params *params,
 		ppp_enable = 1;
 		xcm_mask &= ~(port ? NIG_LLH1_XCM_MASK_REG_LLH1_XCM_MASK_BCN :
 				     NIG_LLH0_XCM_MASK_REG_LLH0_XCM_MASK_BCN);
-		xcm0_out_en = 0;
-		p0_hwpfc_enable = 1;
+		xcm_out_en = 0;
+		hwpfc_enable = 1;
 	} else  {
 		if (nig_params) {
 			llfc_out_en = nig_params->llfc_out_en;
@@ -2545,7 +2544,7 @@ static void bnx2x_update_pfc_nig(struct link_params *params,
 
 		xcm_mask |= (port ? NIG_LLH1_XCM_MASK_REG_LLH1_XCM_MASK_BCN :
 			NIG_LLH0_XCM_MASK_REG_LLH0_XCM_MASK_BCN);
-		xcm0_out_en = 1;
+		xcm_out_en = 1;
 	}
 
 	if (CHIP_IS_E3(bp))
@@ -2564,13 +2563,16 @@ static void bnx2x_update_pfc_nig(struct link_params *params,
 	REG_WR(bp, port ? NIG_REG_LLH1_XCM_MASK :
 	       NIG_REG_LLH0_XCM_MASK, xcm_mask);
 
-	REG_WR(bp,  NIG_REG_LLFC_EGRESS_SRC_ENABLE_0, 0x7);
+	REG_WR(bp, port ? NIG_REG_LLFC_EGRESS_SRC_ENABLE_1 :
+	       NIG_REG_LLFC_EGRESS_SRC_ENABLE_0, 0x7);
 
 	/* output enable for RX_XCM # IF */
-	REG_WR(bp, NIG_REG_XCM0_OUT_EN, xcm0_out_en);
+	REG_WR(bp, port ? NIG_REG_XCM1_OUT_EN :
+	       NIG_REG_XCM0_OUT_EN, xcm_out_en);
 
 	/* HW PFC TX enable */
-	REG_WR(bp, NIG_REG_P0_HWPFC_ENABLE, p0_hwpfc_enable);
+	REG_WR(bp, port ? NIG_REG_P1_HWPFC_ENABLE :
+	       NIG_REG_P0_HWPFC_ENABLE, hwpfc_enable);
 
 	if (nig_params) {
 		u8 i = 0;
@@ -3761,7 +3763,15 @@ static void bnx2x_warpcore_enable_AN_KR(struct bnx2x_phy *phy,
 	/* Advertise pause */
 	bnx2x_ext_phy_set_pause(params, phy, vars);
 
-	vars->rx_tx_asic_rst = MAX_KR_LINK_RETRY;
+	/*
+	 * Set KR Autoneg Work-Around flag for Warpcore version older than D108
+	 */
+	bnx2x_cl45_read(bp, phy, MDIO_WC_DEVAD,
+			MDIO_WC_REG_UC_INFO_B1_VERSION, &val16);
+	if (val16 < 0xd108) {
+		DP(NETIF_MSG_LINK, "Enable AN KR work-around\n");
+		vars->rx_tx_asic_rst = MAX_KR_LINK_RETRY;
+	}
 
 	bnx2x_cl45_read(bp, phy, MDIO_WC_DEVAD,
 			MDIO_WC_REG_DIGITAL5_MISC7, &val16);
@@ -9266,62 +9276,68 @@ static void bnx2x_8727_link_reset(struct bnx2x_phy *phy,
 /*		BCM8481/BCM84823/BCM84833 PHY SECTION	          */
 /******************************************************************/
 static void bnx2x_save_848xx_spirom_version(struct bnx2x_phy *phy,
-					   struct link_params *params)
+					    struct bnx2x *bp,
+					    u8 port)
 {
 	u16 val, fw_ver1, fw_ver2, cnt;
-	u8 port;
-	struct bnx2x *bp = params->bp;
 
-	port = params->port;
+	if (phy->type == PORT_HW_CFG_XGXS_EXT_PHY_TYPE_BCM84833) {
+		bnx2x_cl45_read(bp, phy, MDIO_CTL_DEVAD, 0x400f, &fw_ver1);
+		bnx2x_save_spirom_version(bp, port,
+				((fw_ver1 & 0xf000)>>5) | (fw_ver1 & 0x7f),
+				phy->ver_addr);
+	} else {
+		/* For 32-bit registers in 848xx, access via MDIO2ARM i/f. */
+		/* (1) set reg 0xc200_0014(SPI_BRIDGE_CTRL_2) to 0x03000000 */
+		bnx2x_cl45_write(bp, phy, MDIO_PMA_DEVAD, 0xA819, 0x0014);
+		bnx2x_cl45_write(bp, phy, MDIO_PMA_DEVAD, 0xA81A, 0xc200);
+		bnx2x_cl45_write(bp, phy, MDIO_PMA_DEVAD, 0xA81B, 0x0000);
+		bnx2x_cl45_write(bp, phy, MDIO_PMA_DEVAD, 0xA81C, 0x0300);
+		bnx2x_cl45_write(bp, phy, MDIO_PMA_DEVAD, 0xA817, 0x0009);
 
-	/* For the 32 bits registers in 848xx, access via MDIO2ARM interface.*/
-	/* (1) set register 0xc200_0014(SPI_BRIDGE_CTRL_2) to 0x03000000 */
-	bnx2x_cl45_write(bp, phy, MDIO_PMA_DEVAD, 0xA819, 0x0014);
-	bnx2x_cl45_write(bp, phy, MDIO_PMA_DEVAD, 0xA81A, 0xc200);
-	bnx2x_cl45_write(bp, phy, MDIO_PMA_DEVAD, 0xA81B, 0x0000);
-	bnx2x_cl45_write(bp, phy, MDIO_PMA_DEVAD, 0xA81C, 0x0300);
-	bnx2x_cl45_write(bp, phy, MDIO_PMA_DEVAD, 0xA817, 0x0009);
+		for (cnt = 0; cnt < 100; cnt++) {
+			bnx2x_cl45_read(bp, phy, MDIO_PMA_DEVAD, 0xA818, &val);
+			if (val & 1)
+				break;
+			udelay(5);
+		}
+		if (cnt == 100) {
+			DP(NETIF_MSG_LINK, "Unable to read 848xx "
+					"phy fw version(1)\n");
+			bnx2x_save_spirom_version(bp, port, 0,
+						  phy->ver_addr);
+			return;
+		}
 
-	for (cnt = 0; cnt < 100; cnt++) {
-		bnx2x_cl45_read(bp, phy, MDIO_PMA_DEVAD, 0xA818, &val);
-		if (val & 1)
-			break;
-		udelay(5);
-	}
-	if (cnt == 100) {
-		DP(NETIF_MSG_LINK, "Unable to read 848xx phy fw version(1)\n");
-		bnx2x_save_spirom_version(bp, port, 0,
+
+		/* 2) read register 0xc200_0000 (SPI_FW_STATUS) */
+		bnx2x_cl45_write(bp, phy, MDIO_PMA_DEVAD, 0xA819, 0x0000);
+		bnx2x_cl45_write(bp, phy, MDIO_PMA_DEVAD, 0xA81A, 0xc200);
+		bnx2x_cl45_write(bp, phy, MDIO_PMA_DEVAD, 0xA817, 0x000A);
+		for (cnt = 0; cnt < 100; cnt++) {
+			bnx2x_cl45_read(bp, phy, MDIO_PMA_DEVAD, 0xA818, &val);
+			if (val & 1)
+				break;
+			udelay(5);
+		}
+		if (cnt == 100) {
+			DP(NETIF_MSG_LINK, "Unable to read 848xx phy fw "
+					"version(2)\n");
+			bnx2x_save_spirom_version(bp, port, 0,
+						  phy->ver_addr);
+			return;
+		}
+
+		/* lower 16 bits of the register SPI_FW_STATUS */
+		bnx2x_cl45_read(bp, phy, MDIO_PMA_DEVAD, 0xA81B, &fw_ver1);
+		/* upper 16 bits of register SPI_FW_STATUS */
+		bnx2x_cl45_read(bp, phy, MDIO_PMA_DEVAD, 0xA81C, &fw_ver2);
+
+		bnx2x_save_spirom_version(bp, port, (fw_ver2<<16) | fw_ver1,
 					  phy->ver_addr);
-		return;
 	}
 
-
-	/* 2) read register 0xc200_0000 (SPI_FW_STATUS) */
-	bnx2x_cl45_write(bp, phy, MDIO_PMA_DEVAD, 0xA819, 0x0000);
-	bnx2x_cl45_write(bp, phy, MDIO_PMA_DEVAD, 0xA81A, 0xc200);
-	bnx2x_cl45_write(bp, phy, MDIO_PMA_DEVAD, 0xA817, 0x000A);
-	for (cnt = 0; cnt < 100; cnt++) {
-		bnx2x_cl45_read(bp, phy, MDIO_PMA_DEVAD, 0xA818, &val);
-		if (val & 1)
-			break;
-		udelay(5);
-	}
-	if (cnt == 100) {
-		DP(NETIF_MSG_LINK, "Unable to read 848xx phy fw version(2)\n");
-		bnx2x_save_spirom_version(bp, port, 0,
-					  phy->ver_addr);
-		return;
-	}
-
-	/* lower 16 bits of the register SPI_FW_STATUS */
-	bnx2x_cl45_read(bp, phy, MDIO_PMA_DEVAD, 0xA81B, &fw_ver1);
-	/* upper 16 bits of register SPI_FW_STATUS */
-	bnx2x_cl45_read(bp, phy, MDIO_PMA_DEVAD, 0xA81C, &fw_ver2);
-
-	bnx2x_save_spirom_version(bp, port, (fw_ver2<<16) | fw_ver1,
-				  phy->ver_addr);
 }
-
 static void bnx2x_848xx_set_led(struct bnx2x *bp,
 				struct bnx2x_phy *phy)
 {
@@ -9392,10 +9408,13 @@ static int bnx2x_848xx_cmn_config_init(struct bnx2x_phy *phy,
 	u16 tmp_req_line_speed;
 
 	tmp_req_line_speed = phy->req_line_speed;
-	if (phy->type == PORT_HW_CFG_XGXS_EXT_PHY_TYPE_BCM84833)
+	if (phy->type == PORT_HW_CFG_XGXS_EXT_PHY_TYPE_BCM84833) {
 		if (phy->req_line_speed == SPEED_10000)
 			phy->req_line_speed = SPEED_AUTO_NEG;
-
+	} else {
+		/* Save spirom version */
+		bnx2x_save_848xx_spirom_version(phy, bp, params->port);
+	}
 	/*
 	 * This phy uses the NIG latch mechanism since link indication
 	 * arrives through its LED4 and not via its LASI signal, so we
@@ -9443,13 +9462,10 @@ static int bnx2x_848xx_cmn_config_init(struct bnx2x_phy *phy,
 			 an_1000_val);
 
 	/* set 100 speed advertisement */
-	if (((phy->req_line_speed == SPEED_AUTO_NEG) &&
+	if ((phy->req_line_speed == SPEED_AUTO_NEG) &&
 	     (phy->speed_cap_mask &
 	      (PORT_HW_CFG_SPEED_CAPABILITY_D0_100M_FULL |
-	       PORT_HW_CFG_SPEED_CAPABILITY_D0_100M_HALF)) &&
-	     (phy->supported &
-	      (SUPPORTED_100baseT_Half |
-	       SUPPORTED_100baseT_Full)))) {
+	       PORT_HW_CFG_SPEED_CAPABILITY_D0_100M_HALF))) {
 		an_10_100_val |= (1<<7);
 		/* Enable autoneg and restart autoneg for legacy speeds */
 		autoneg_val |= (1<<9 | 1<<12);
@@ -9538,9 +9554,6 @@ static int bnx2x_848xx_cmn_config_init(struct bnx2x_phy *phy,
 				 MDIO_AN_DEVAD,
 				 MDIO_AN_REG_8481_10GBASE_T_AN_CTRL,
 				 1);
-
-	/* Save spirom version */
-	bnx2x_save_848xx_spirom_version(phy, params);
 
 	phy->req_line_speed = tmp_req_line_speed;
 
@@ -9749,17 +9762,7 @@ static int bnx2x_848x3_config_init(struct bnx2x_phy *phy,
 
 	/* Wait for GPHY to come out of reset */
 	msleep(50);
-	if (phy->type == PORT_HW_CFG_XGXS_EXT_PHY_TYPE_BCM84833) {
-		/* Bring PHY out of super isolate mode */
-		bnx2x_cl45_read(bp, phy,
-				MDIO_CTL_DEVAD,
-				MDIO_84833_TOP_CFG_XGPHY_STRAP1, &val);
-		val &= ~MDIO_84833_SUPER_ISOLATE;
-		bnx2x_cl45_write(bp, phy,
-				MDIO_CTL_DEVAD,
-				MDIO_84833_TOP_CFG_XGPHY_STRAP1, val);
-		bnx2x_84833_pair_swap_cfg(phy, params, vars);
-	} else {
+	if (phy->type != PORT_HW_CFG_XGXS_EXT_PHY_TYPE_BCM84833) {
 		/*
 		 * BCM84823 requires that XGXS links up first @ 10G for normal
 		 * behavior.
@@ -9816,24 +9819,23 @@ static int bnx2x_848x3_config_init(struct bnx2x_phy *phy,
 	DP(NETIF_MSG_LINK, "Multi_phy config = 0x%x, Media control = 0x%x\n",
 		   params->multi_phy_config, val);
 
-	/* AutogrEEEn */
-	if (params->feature_config_flags &
-		FEATURE_CONFIG_AUTOGREEEN_ENABLED)
-		cmd_args[0] = 0x2;
-	else
-		cmd_args[0] = 0x0;
+	if (phy->type == PORT_HW_CFG_XGXS_EXT_PHY_TYPE_BCM84833) {
+		bnx2x_84833_pair_swap_cfg(phy, params, vars);
 
-	cmd_args[1] = 0x0;
-	cmd_args[2] = PHY84833_CONSTANT_LATENCY + 1;
-	cmd_args[3] = PHY84833_CONSTANT_LATENCY;
-	rc = bnx2x_84833_cmd_hdlr(phy, params,
-		PHY84833_CMD_SET_EEE_MODE, cmd_args);
-	if (rc != 0)
-		DP(NETIF_MSG_LINK, "Cfg AutogrEEEn failed.\n");
+		/* Keep AutogrEEEn disabled. */
+		cmd_args[0] = 0x0;
+		cmd_args[1] = 0x0;
+		cmd_args[2] = PHY84833_CONSTANT_LATENCY + 1;
+		cmd_args[3] = PHY84833_CONSTANT_LATENCY;
+		rc = bnx2x_84833_cmd_hdlr(phy, params,
+			PHY84833_CMD_SET_EEE_MODE, cmd_args);
+		if (rc != 0)
+			DP(NETIF_MSG_LINK, "Cfg AutogrEEEn failed.\n");
+	}
 	if (initialize)
 		rc = bnx2x_848xx_cmn_config_init(phy, params, vars);
 	else
-		bnx2x_save_848xx_spirom_version(phy, params);
+		bnx2x_save_848xx_spirom_version(phy, bp, params->port);
 	/* 84833 PHY has a better feature and doesn't need to support this. */
 	if (phy->type == PORT_HW_CFG_XGXS_EXT_PHY_TYPE_BCM84823) {
 		cms_enable = REG_RD(bp, params->shmem_base +
@@ -9851,6 +9853,16 @@ static int bnx2x_848x3_config_init(struct bnx2x_phy *phy,
 				 MDIO_CTL_REG_84823_USER_CTRL_REG, val);
 	}
 
+	if (phy->type == PORT_HW_CFG_XGXS_EXT_PHY_TYPE_BCM84833) {
+		/* Bring PHY out of super isolate mode as the final step. */
+		bnx2x_cl45_read(bp, phy,
+				MDIO_CTL_DEVAD,
+				MDIO_84833_TOP_CFG_XGPHY_STRAP1, &val);
+		val &= ~MDIO_84833_SUPER_ISOLATE;
+		bnx2x_cl45_write(bp, phy,
+				MDIO_CTL_DEVAD,
+				MDIO_84833_TOP_CFG_XGPHY_STRAP1, val);
+	}
 	return rc;
 }
 
@@ -9988,10 +10000,11 @@ static void bnx2x_848x3_link_reset(struct bnx2x_phy *phy,
 	} else {
 		bnx2x_cl45_read(bp, phy,
 				MDIO_CTL_DEVAD,
-				0x400f, &val16);
+				MDIO_84833_TOP_CFG_XGPHY_STRAP1, &val16);
+		val16 |= MDIO_84833_SUPER_ISOLATE;
 		bnx2x_cl45_write(bp, phy,
-				MDIO_PMA_DEVAD,
-				MDIO_PMA_REG_CTRL, 0x800);
+				 MDIO_CTL_DEVAD,
+				 MDIO_84833_TOP_CFG_XGPHY_STRAP1, val16);
 	}
 }
 
@@ -11516,6 +11529,19 @@ static int bnx2x_populate_ext_phy(struct bnx2x *bp,
 	}
 	phy->mdio_ctrl = bnx2x_get_emac_base(bp, mdc_mdio_access, port);
 
+	if ((phy->type == PORT_HW_CFG_XGXS_EXT_PHY_TYPE_BCM84833) &&
+	    (phy->ver_addr)) {
+		/*
+		 * Remove 100Mb link supported for BCM84833 when phy fw
+		 * version lower than or equal to 1.39
+		 */
+		u32 raw_ver = REG_RD(bp, phy->ver_addr);
+		if (((raw_ver & 0x7F) <= 39) &&
+		    (((raw_ver & 0xF80) >> 7) <= 1))
+			phy->supported &= ~(SUPPORTED_100baseT_Half |
+					    SUPPORTED_100baseT_Full);
+	}
+
 	/*
 	 * In case mdc/mdio_access of the external phy is different than the
 	 * mdc/mdio access of the XGXS, a HW lock must be taken in each access
@@ -12333,55 +12359,69 @@ static int bnx2x_84833_common_init_phy(struct bnx2x *bp,
 						u32 chip_id)
 {
 	u8 reset_gpios;
-	struct bnx2x_phy phy;
-	u32 shmem_base, shmem2_base, cnt;
-	s8 port = 0;
-	u16 val;
-
 	reset_gpios = bnx2x_84833_get_reset_gpios(bp, shmem_base_path, chip_id);
 	bnx2x_set_mult_gpio(bp, reset_gpios, MISC_REGISTERS_GPIO_OUTPUT_LOW);
 	udelay(10);
 	bnx2x_set_mult_gpio(bp, reset_gpios, MISC_REGISTERS_GPIO_OUTPUT_HIGH);
 	DP(NETIF_MSG_LINK, "84833 reset pulse on pin values 0x%x\n",
 		reset_gpios);
-	for (port = PORT_MAX - 1; port >= PORT_0; port--) {
-		/* This PHY is for E2 and E3. */
-		shmem_base = shmem_base_path[port];
-		shmem2_base = shmem2_base_path[port];
-		/* Extract the ext phy address for the port */
-		if (bnx2x_populate_phy(bp, phy_index, shmem_base, shmem2_base,
-				       0, &phy) !=
-		    0) {
-			DP(NETIF_MSG_LINK, "populate_phy failed\n");
-			return -EINVAL;
-		}
-
-		/* Wait for FW completing its initialization. */
-		for (cnt = 0; cnt < 1000; cnt++) {
-			bnx2x_cl45_read(bp, &phy,
-				MDIO_PMA_DEVAD,
-				MDIO_PMA_REG_CTRL, &val);
-			if (!(val & (1<<15)))
-				break;
-			msleep(1);
-		}
-		if (cnt >= 1000)
-			DP(NETIF_MSG_LINK,
-				"84833 Cmn reset timeout (%d)\n", port);
-
-		/* Put the port in super isolate mode. */
-		bnx2x_cl45_read(bp, &phy,
-				MDIO_CTL_DEVAD,
-				MDIO_84833_TOP_CFG_XGPHY_STRAP1, &val);
-		val |= MDIO_84833_SUPER_ISOLATE;
-		bnx2x_cl45_write(bp, &phy,
-				MDIO_CTL_DEVAD,
-				MDIO_84833_TOP_CFG_XGPHY_STRAP1, val);
-	}
-
 	return 0;
 }
 
+static int bnx2x_84833_pre_init_phy(struct bnx2x *bp,
+					       struct bnx2x_phy *phy)
+{
+	u16 val, cnt;
+	/* Wait for FW completing its initialization. */
+	for (cnt = 0; cnt < 1500; cnt++) {
+		bnx2x_cl45_read(bp, phy,
+				MDIO_PMA_DEVAD,
+				MDIO_PMA_REG_CTRL, &val);
+		if (!(val & (1<<15)))
+			break;
+		msleep(1);
+	}
+	if (cnt >= 1500) {
+		DP(NETIF_MSG_LINK, "84833 reset timeout\n");
+		return -EINVAL;
+	}
+
+	/* Put the port in super isolate mode. */
+	bnx2x_cl45_read(bp, phy,
+			MDIO_CTL_DEVAD,
+			MDIO_84833_TOP_CFG_XGPHY_STRAP1, &val);
+	val |= MDIO_84833_SUPER_ISOLATE;
+	bnx2x_cl45_write(bp, phy,
+			 MDIO_CTL_DEVAD,
+			 MDIO_84833_TOP_CFG_XGPHY_STRAP1, val);
+
+	/* Save spirom version */
+	bnx2x_save_848xx_spirom_version(phy, bp, PORT_0);
+	return 0;
+}
+
+int bnx2x_pre_init_phy(struct bnx2x *bp,
+				  u32 shmem_base,
+				  u32 shmem2_base,
+				  u32 chip_id)
+{
+	int rc = 0;
+	struct bnx2x_phy phy;
+	bnx2x_set_mdio_clk(bp, chip_id, PORT_0);
+	if (bnx2x_populate_phy(bp, EXT_PHY1, shmem_base, shmem2_base,
+			       PORT_0, &phy)) {
+		DP(NETIF_MSG_LINK, "populate_phy failed\n");
+		return -EINVAL;
+	}
+	switch (phy.type) {
+	case PORT_HW_CFG_XGXS_EXT_PHY_TYPE_BCM84833:
+		rc = bnx2x_84833_pre_init_phy(bp, &phy);
+		break;
+	default:
+		break;
+	}
+	return rc;
+}
 
 static int bnx2x_ext_phy_common_init(struct bnx2x *bp, u32 shmem_base_path[],
 				     u32 shmem2_base_path[], u8 phy_index,

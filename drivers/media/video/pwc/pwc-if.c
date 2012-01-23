@@ -128,18 +128,11 @@ static struct usb_driver pwc_driver = {
 #define MAX_DEV_HINTS	20
 #define MAX_ISOC_ERRORS	20
 
-static int default_fps = 10;
 #ifdef CONFIG_USB_PWC_DEBUG
 	int pwc_trace = PWC_DEBUG_LEVEL;
 #endif
 static int power_save = -1;
-static int led_on = 100, led_off; /* defaults to LED that is on while in use */
-static struct {
-	int type;
-	char serial_number[30];
-	int device_node;
-	struct pwc_device *pdev;
-} device_hint[MAX_DEV_HINTS];
+static int leds[2] = { 100, 0 };
 
 /***/
 
@@ -386,8 +379,8 @@ static int pwc_isoc_init(struct pwc_device *pdev)
 retry:
 	/* We first try with low compression and then retry with a higher
 	   compression setting if there is not enough bandwidth. */
-	ret = pwc_set_video_mode(pdev, pdev->width, pdev->height,
-				 pdev->vframes, &compression);
+	ret = pwc_set_video_mode(pdev, pdev->width, pdev->height, pdev->pixfmt,
+				 pdev->vframes, &compression, 1);
 
 	/* Get the current alternate interface, adjust packet size */
 	intf = usb_ifnum_to_if(udev, 0);
@@ -597,23 +590,9 @@ leave:
 static void pwc_video_release(struct v4l2_device *v)
 {
 	struct pwc_device *pdev = container_of(v, struct pwc_device, v4l2_dev);
-	int hint;
-
-	/* search device_hint[] table if we occupy a slot, by any chance */
-	for (hint = 0; hint < MAX_DEV_HINTS; hint++)
-		if (device_hint[hint].pdev == pdev)
-			device_hint[hint].pdev = NULL;
-
-	/* Free intermediate decompression buffer & tables */
-	if (pdev->decompress_data != NULL) {
-		PWC_DEBUG_MEMORY("Freeing decompression buffer at %p.\n",
-				 pdev->decompress_data);
-		kfree(pdev->decompress_data);
-		pdev->decompress_data = NULL;
-	}
 
 	v4l2_ctrl_handler_free(&pdev->ctrl_handler);
-
+	kfree(pdev->ctrl_buf);
 	kfree(pdev);
 }
 
@@ -758,7 +737,7 @@ static int start_streaming(struct vb2_queue *vq, unsigned int count)
 
 	/* Turn on camera and set LEDS on */
 	pwc_camera_power(pdev, 1);
-	pwc_set_leds(pdev, led_on, led_off);
+	pwc_set_leds(pdev, leds[0], leds[1]);
 
 	r = pwc_isoc_init(pdev);
 	if (r) {
@@ -813,10 +792,9 @@ static int usb_pwc_probe(struct usb_interface *intf, const struct usb_device_id 
 	struct usb_device *udev = interface_to_usbdev(intf);
 	struct pwc_device *pdev = NULL;
 	int vendor_id, product_id, type_id;
-	int hint, rc;
+	int rc;
 	int features = 0;
 	int compression = 0;
-	int video_nr = -1; /* default: use next available device */
 	int my_power_save = power_save;
 	char serial_number[30], *name;
 
@@ -1076,7 +1054,6 @@ static int usb_pwc_probe(struct usb_interface *intf, const struct usb_device_id 
 		return -ENOMEM;
 	}
 	pdev->type = type_id;
-	pdev->vframes = default_fps;
 	pdev->features = features;
 	pwc_construct(pdev); /* set min/max sizes correct */
 
@@ -1107,23 +1084,13 @@ static int usb_pwc_probe(struct usb_interface *intf, const struct usb_device_id 
 	pdev->release = le16_to_cpu(udev->descriptor.bcdDevice);
 	PWC_DEBUG_PROBE("Release: %04x\n", pdev->release);
 
-	/* Now search device_hint[] table for a match, so we can hint a node number. */
-	for (hint = 0; hint < MAX_DEV_HINTS; hint++) {
-		if (((device_hint[hint].type == -1) || (device_hint[hint].type == pdev->type)) &&
-		     (device_hint[hint].pdev == NULL)) {
-			/* so far, so good... try serial number */
-			if ((device_hint[hint].serial_number[0] == '*') || !strcmp(device_hint[hint].serial_number, serial_number)) {
-				/* match! */
-				video_nr = device_hint[hint].device_node;
-				PWC_DEBUG_PROBE("Found hint, will try to register as /dev/video%d\n", video_nr);
-				break;
-			}
-		}
+	/* Allocate USB command buffers */
+	pdev->ctrl_buf = kmalloc(sizeof(pdev->cmd_buf), GFP_KERNEL);
+	if (!pdev->ctrl_buf) {
+		PWC_ERROR("Oops, could not allocate memory for pwc_device.\n");
+		rc = -ENOMEM;
+		goto err_free_mem;
 	}
-
-	/* occupy slot */
-	if (hint < MAX_DEV_HINTS)
-		device_hint[hint].pdev = pdev;
 
 #ifdef CONFIG_USB_PWC_DEBUG
 	/* Query sensor type */
@@ -1138,8 +1105,8 @@ static int usb_pwc_probe(struct usb_interface *intf, const struct usb_device_id 
 	pwc_set_leds(pdev, 0, 0);
 
 	/* Setup intial videomode */
-	rc = pwc_set_video_mode(pdev, MAX_WIDTH, MAX_HEIGHT, pdev->vframes,
-				&compression);
+	rc = pwc_set_video_mode(pdev, MAX_WIDTH, MAX_HEIGHT,
+				V4L2_PIX_FMT_YUV420, 30, &compression, 1);
 	if (rc)
 		goto err_free_mem;
 
@@ -1164,7 +1131,7 @@ static int usb_pwc_probe(struct usb_interface *intf, const struct usb_device_id 
 	pdev->v4l2_dev.ctrl_handler = &pdev->ctrl_handler;
 	pdev->vdev.v4l2_dev = &pdev->v4l2_dev;
 
-	rc = video_register_device(&pdev->vdev, VFL_TYPE_GRABBER, video_nr);
+	rc = video_register_device(&pdev->vdev, VFL_TYPE_GRABBER, -1);
 	if (rc < 0) {
 		PWC_ERROR("Failed to register as video device (%d).\n", rc);
 		goto err_unregister_v4l2_dev;
@@ -1207,8 +1174,7 @@ err_unregister_v4l2_dev:
 err_free_controls:
 	v4l2_ctrl_handler_free(&pdev->ctrl_handler);
 err_free_mem:
-	if (hint < MAX_DEV_HINTS)
-		device_hint[hint].pdev = NULL;
+	kfree(pdev->ctrl_buf);
 	kfree(pdev);
 	return rc;
 }
@@ -1243,27 +1209,19 @@ static void usb_pwc_disconnect(struct usb_interface *intf)
  * Initialization code & module stuff
  */
 
-static int fps;
-static int leds[2] = { -1, -1 };
 static unsigned int leds_nargs;
-static char *dev_hint[MAX_DEV_HINTS];
-static unsigned int dev_hint_nargs;
 
-module_param(fps, int, 0444);
 #ifdef CONFIG_USB_PWC_DEBUG
 module_param_named(trace, pwc_trace, int, 0644);
 #endif
 module_param(power_save, int, 0644);
 module_param_array(leds, int, &leds_nargs, 0444);
-module_param_array(dev_hint, charp, &dev_hint_nargs, 0444);
 
-MODULE_PARM_DESC(fps, "Initial frames per second. Varies with model, useful range 5-30");
 #ifdef CONFIG_USB_PWC_DEBUG
 MODULE_PARM_DESC(trace, "For debugging purposes");
 #endif
 MODULE_PARM_DESC(power_save, "Turn power saving for new cameras on or off");
 MODULE_PARM_DESC(leds, "LED on,off time in milliseconds");
-MODULE_PARM_DESC(dev_hint, "Device node hints");
 
 MODULE_DESCRIPTION("Philips & OEM USB webcam driver");
 MODULE_AUTHOR("Luc Saillard <luc@saillard.org>");
@@ -1273,114 +1231,13 @@ MODULE_VERSION( PWC_VERSION );
 
 static int __init usb_pwc_init(void)
 {
-	int i;
-
-#ifdef CONFIG_USB_PWC_DEBUG
-	PWC_INFO("Philips webcam module version " PWC_VERSION " loaded.\n");
-	PWC_INFO("Supports Philips PCA645/646, PCVC675/680/690, PCVC720[40]/730/740/750 & PCVC830/840.\n");
-	PWC_INFO("Also supports the Askey VC010, various Logitech Quickcams, Samsung MPC-C10 and MPC-C30,\n");
-	PWC_INFO("the Creative WebCam 5 & Pro Ex, SOTEC Afina Eye and Visionite VCS-UC300 and VCS-UM100.\n");
-
-	if (pwc_trace >= 0) {
-		PWC_DEBUG_MODULE("Trace options: 0x%04x\n", pwc_trace);
-	}
-#endif
-
-	if (fps) {
-		if (fps < 4 || fps > 30) {
-			PWC_ERROR("Framerate out of bounds (4-30).\n");
-			return -EINVAL;
-		}
-		default_fps = fps;
-		PWC_DEBUG_MODULE("Default framerate set to %d.\n", default_fps);
-	}
-
-	if (leds[0] >= 0)
-		led_on = leds[0];
-	if (leds[1] >= 0)
-		led_off = leds[1];
-
-	/* Big device node whoopla. Basically, it allows you to assign a
-	   device node (/dev/videoX) to a camera, based on its type
-	   & serial number. The format is [type[.serialnumber]:]node.
-
-	   Any camera that isn't matched by these rules gets the next
-	   available free device node.
-	 */
-	for (i = 0; i < MAX_DEV_HINTS; i++) {
-		char *s, *colon, *dot;
-
-		/* This loop also initializes the array */
-		device_hint[i].pdev = NULL;
-		s = dev_hint[i];
-		if (s != NULL && *s != '\0') {
-			device_hint[i].type = -1; /* wildcard */
-			strcpy(device_hint[i].serial_number, "*");
-
-			/* parse string: chop at ':' & '/' */
-			colon = dot = s;
-			while (*colon != '\0' && *colon != ':')
-				colon++;
-			while (*dot != '\0' && *dot != '.')
-				dot++;
-			/* Few sanity checks */
-			if (*dot != '\0' && dot > colon) {
-				PWC_ERROR("Malformed camera hint: the colon must be after the dot.\n");
-				return -EINVAL;
-			}
-
-			if (*colon == '\0') {
-				/* No colon */
-				if (*dot != '\0') {
-					PWC_ERROR("Malformed camera hint: no colon + device node given.\n");
-					return -EINVAL;
-				}
-				else {
-					/* No type or serial number specified, just a number. */
-					device_hint[i].device_node =
-						simple_strtol(s, NULL, 10);
-				}
-			}
-			else {
-				/* There's a colon, so we have at least a type and a device node */
-				device_hint[i].type =
-					simple_strtol(s, NULL, 10);
-				device_hint[i].device_node =
-					simple_strtol(colon + 1, NULL, 10);
-				if (*dot != '\0') {
-					/* There's a serial number as well */
-					int k;
-
-					dot++;
-					k = 0;
-					while (*dot != ':' && k < 29) {
-						device_hint[i].serial_number[k++] = *dot;
-						dot++;
-					}
-					device_hint[i].serial_number[k] = '\0';
-				}
-			}
-			PWC_TRACE("device_hint[%d]:\n", i);
-			PWC_TRACE("  type    : %d\n", device_hint[i].type);
-			PWC_TRACE("  serial# : %s\n", device_hint[i].serial_number);
-			PWC_TRACE("  node    : %d\n", device_hint[i].device_node);
-		}
-		else
-			device_hint[i].type = 0; /* not filled */
-	} /* ..for MAX_DEV_HINTS */
-
-	PWC_DEBUG_PROBE("Registering driver at address 0x%p.\n", &pwc_driver);
 	return usb_register(&pwc_driver);
 }
 
 static void __exit usb_pwc_exit(void)
 {
-	PWC_DEBUG_MODULE("Deregistering driver.\n");
 	usb_deregister(&pwc_driver);
-	PWC_INFO("Philips webcam module removed.\n");
 }
 
 module_init(usb_pwc_init);
 module_exit(usb_pwc_exit);
-
-/* vim: set cino= formatoptions=croql cindent shiftwidth=8 tabstop=8: */

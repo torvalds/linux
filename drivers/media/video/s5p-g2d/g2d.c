@@ -184,6 +184,7 @@ static int g2d_s_ctrl(struct v4l2_ctrl *ctrl)
 			ctx->rop = ROP4_INVERT;
 		else
 			ctx->rop = ROP4_COPY;
+		break;
 	default:
 		v4l2_err(&ctx->dev->v4l2_dev, "unknown control\n");
 		return -EINVAL;

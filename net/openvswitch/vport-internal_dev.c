@@ -23,7 +23,6 @@
 #include <linux/etherdevice.h>
 #include <linux/ethtool.h>
 #include <linux/skbuff.h>
-#include <linux/version.h>
 
 #include "datapath.h"
 #include "vport-internal_dev.h"
