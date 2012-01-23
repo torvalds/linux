@@ -34,8 +34,8 @@ static struct map_desc u8500_uart_io_desc[] __initdata = {
 	__IO_DEV_DESC(U8500_UART0_BASE, SZ_4K),
 	__IO_DEV_DESC(U8500_UART2_BASE, SZ_4K),
 };
-
-static struct map_desc u8500_io_desc[] __initdata = {
+/*  U8500 and U9540 common io_desc */
+static struct map_desc u8500_common_io_desc[] __initdata = {
 	/* SCU base also covers GIC CPU BASE and TWD with its 4K page */
 	__IO_DEV_DESC(U8500_SCU_BASE, SZ_4K),
 	__IO_DEV_DESC(U8500_GIC_DIST_BASE, SZ_4K),
@@ -66,7 +66,7 @@ void __init u8500_map_io(void)
 
 	ux500_map_io();
 
-	iotable_init(u8500_io_desc, ARRAY_SIZE(u8500_io_desc));
+	iotable_init(u8500_common_io_desc, ARRAY_SIZE(u8500_common_io_desc));
 
 	_PRCMU_BASE = __io_address(U8500_PRCMU_BASE);
 }

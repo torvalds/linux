@@ -151,7 +151,7 @@ static unsigned long clk_mtu_get_rate(struct clk *clk)
 
 	if (cpu_is_u5500())
 		addr = __io_address(U5500_PRCMU_BASE);
-	else if (cpu_is_u8500())
+	else if (cpu_is_u8500_family())
 		addr = __io_address(U8500_PRCMU_BASE);
 	else
 		ux500_unknown_soc();
