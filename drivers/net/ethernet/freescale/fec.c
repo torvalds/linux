@@ -1739,21 +1739,6 @@ static struct platform_driver fec_driver = {
 	.remove	= __devexit_p(fec_drv_remove),
 };
 
-static int __init
-fec_enet_module_init(void)
-{
-	printk(KERN_INFO "FEC Ethernet Driver\n");
-
-	return platform_driver_register(&fec_driver);
-}
-
-static void __exit
-fec_enet_cleanup(void)
-{
-	platform_driver_unregister(&fec_driver);
-}
-
-module_exit(fec_enet_cleanup);
-module_init(fec_enet_module_init);
+module_platform_driver(fec_driver);
 
 MODULE_LICENSE("GPL");
