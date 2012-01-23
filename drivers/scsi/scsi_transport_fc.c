@@ -313,7 +313,7 @@ static void fc_scsi_scan_rport(struct work_struct *work);
 #define FC_STARGET_NUM_ATTRS 	3
 #define FC_RPORT_NUM_ATTRS	10
 #define FC_VPORT_NUM_ATTRS	9
-#define FC_HOST_NUM_ATTRS	22
+#define FC_HOST_NUM_ATTRS	29
 
 struct fc_internal {
 	struct scsi_transport_template t;
@@ -399,6 +399,20 @@ static int fc_host_setup(struct transport_container *tc, struct device *dev,
 	fc_host->max_npiv_vports = 0;
 	memset(fc_host->serial_number, 0,
 		sizeof(fc_host->serial_number));
+	memset(fc_host->manufacturer, 0,
+		sizeof(fc_host->manufacturer));
+	memset(fc_host->model, 0,
+		sizeof(fc_host->model));
+	memset(fc_host->model_description, 0,
+		sizeof(fc_host->model_description));
+	memset(fc_host->hardware_version, 0,
+		sizeof(fc_host->hardware_version));
+	memset(fc_host->driver_version, 0,
+		sizeof(fc_host->driver_version));
+	memset(fc_host->firmware_version, 0,
+		sizeof(fc_host->firmware_version));
+	memset(fc_host->optionrom_version, 0,
+		sizeof(fc_host->optionrom_version));
 
 	fc_host->port_id = -1;
 	fc_host->port_type = FC_PORTTYPE_UNKNOWN;
@@ -1513,6 +1527,13 @@ fc_private_host_rd_attr_cast(permanent_port_name, "0x%llx\n", 20,
 fc_private_host_rd_attr(maxframe_size, "%u bytes\n", 20);
 fc_private_host_rd_attr(max_npiv_vports, "%u\n", 20);
 fc_private_host_rd_attr(serial_number, "%s\n", (FC_SERIAL_NUMBER_SIZE +1));
+fc_private_host_rd_attr(manufacturer, "%s\n", FC_SERIAL_NUMBER_SIZE + 1);
+fc_private_host_rd_attr(model, "%s\n", FC_SYMBOLIC_NAME_SIZE + 1);
+fc_private_host_rd_attr(model_description, "%s\n", FC_SYMBOLIC_NAME_SIZE + 1);
+fc_private_host_rd_attr(hardware_version, "%s\n", FC_VERSION_STRING_SIZE + 1);
+fc_private_host_rd_attr(driver_version, "%s\n", FC_VERSION_STRING_SIZE + 1);
+fc_private_host_rd_attr(firmware_version, "%s\n", FC_VERSION_STRING_SIZE + 1);
+fc_private_host_rd_attr(optionrom_version, "%s\n", FC_VERSION_STRING_SIZE + 1);
 
 
 /* Dynamic Host Attributes */
@@ -2208,6 +2229,13 @@ fc_attach_transport(struct fc_function_template *ft)
 		SETUP_HOST_ATTRIBUTE_RD_NS(npiv_vports_inuse);
 	}
 	SETUP_HOST_ATTRIBUTE_RD(serial_number);
+	SETUP_HOST_ATTRIBUTE_RD(manufacturer);
+	SETUP_HOST_ATTRIBUTE_RD(model);
+	SETUP_HOST_ATTRIBUTE_RD(model_description);
+	SETUP_HOST_ATTRIBUTE_RD(hardware_version);
+	SETUP_HOST_ATTRIBUTE_RD(driver_version);
+	SETUP_HOST_ATTRIBUTE_RD(firmware_version);
+	SETUP_HOST_ATTRIBUTE_RD(optionrom_version);
 
 	SETUP_HOST_ATTRIBUTE_RD(port_id);
 	SETUP_HOST_ATTRIBUTE_RD(port_type);
