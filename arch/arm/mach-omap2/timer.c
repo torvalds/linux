@@ -270,7 +270,7 @@ static struct clocksource clocksource_gpt = {
 static u32 notrace dmtimer_read_sched_clock(void)
 {
 	if (clksrc.reserved)
-		return __omap_dm_timer_read_counter(clksrc.io_base, 1);
+		return __omap_dm_timer_read_counter(&clksrc, 1);
 
 	return 0;
 }
