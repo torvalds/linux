@@ -4162,13 +4162,15 @@ static int enable_pin_detect(struct hda_codec *codec, hda_nid_t nid,
 	return 1;
 }
 
-static int is_nid_hp_pin(struct auto_pin_cfg *cfg, hda_nid_t nid)
+static int is_nid_out_jack_pin(struct auto_pin_cfg *cfg, hda_nid_t nid)
 {
 	int i;
 	for (i = 0; i < cfg->hp_outs; i++)
 		if (cfg->hp_pins[i] == nid)
 			return 1; /* nid is a HP-Out */
-
+	for (i = 0; i < cfg->line_outs; i++)
+		if (cfg->line_out_pins[i] == nid)
+			return 1; /* nid is a line-Out */
 	return 0; /* nid is not a HP-Out */
 };
 
@@ -4354,7 +4356,7 @@ static int stac92xx_init(struct hda_codec *codec)
 			continue;
 		}
 
-		if (is_nid_hp_pin(cfg, nid))
+		if (is_nid_out_jack_pin(cfg, nid))
 			continue; /* already has an unsol event */
 
 		pinctl = snd_hda_codec_read(codec, nid, 0,
