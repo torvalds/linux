@@ -120,10 +120,10 @@ So in practice, the 'at all' may become a 'why freeze kernel threads?' and
 freezing user threads I don't find really objectionable."
 
 Still, there are kernel threads that may want to be freezable.  For example, if
-a kernel that belongs to a device driver accesses the device directly, it in
-principle needs to know when the device is suspended, so that it doesn't try to
-access it at that time.  However, if the kernel thread is freezable, it will be
-frozen before the driver's .suspend() callback is executed and it will be
+a kernel thread that belongs to a device driver accesses the device directly, it
+in principle needs to know when the device is suspended, so that it doesn't try
+to access it at that time.  However, if the kernel thread is freezable, it will
+be frozen before the driver's .suspend() callback is executed and it will be
 thawed after the driver's .resume() callback has run, so it won't be accessing
 the device while it's suspended.
 
