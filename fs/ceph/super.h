@@ -367,7 +367,7 @@ static inline u32 ceph_ino_to_ino32(__u64 vino)
 	u32 ino = vino & 0xffffffff;
 	ino ^= vino >> 32;
 	if (!ino)
-		ino = 1;
+		ino = 2;
 	return ino;
 }
 
