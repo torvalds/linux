@@ -70,13 +70,13 @@ const char *ceph_pr_addr(const struct sockaddr_storage *ss)
 
 	switch (ss->ss_family) {
 	case AF_INET:
-		snprintf(s, MAX_ADDR_STR_LEN, "%pI4:%u", &in4->sin_addr,
-			 (unsigned int)ntohs(in4->sin_port));
+		snprintf(s, MAX_ADDR_STR_LEN, "%pI4:%hu", &in4->sin_addr,
+			 ntohs(in4->sin_port));
 		break;
 
 	case AF_INET6:
-		snprintf(s, MAX_ADDR_STR_LEN, "[%pI6c]:%u", &in6->sin6_addr,
-			 (unsigned int)ntohs(in6->sin6_port));
+		snprintf(s, MAX_ADDR_STR_LEN, "[%pI6c]:%hu", &in6->sin6_addr,
+			 ntohs(in6->sin6_port));
 		break;
 
 	default:
@@ -153,8 +153,8 @@ EXPORT_SYMBOL(ceph_msgr_flush);
 /* data available on socket, or listen socket received a connect */
 static void ceph_data_ready(struct sock *sk, int count_unused)
 {
-	struct ceph_connection *con =
-		(struct ceph_connection *)sk->sk_user_data;
+	struct ceph_connection *con = sk->sk_user_data;
+
 	if (sk->sk_state != TCP_CLOSE_WAIT) {
 		dout("ceph_data_ready on %p state = %lu, queueing work\n",
 		     con, con->state);
@@ -189,8 +189,7 @@ static void ceph_write_space(struct sock *sk)
 /* socket's state has changed */
 static void ceph_state_change(struct sock *sk)
 {
-	struct ceph_connection *con =
-		(struct ceph_connection *)sk->sk_user_data;
+	struct ceph_connection *con = sk->sk_user_data;
 
 	dout("ceph_state_change %p state = %lu sk_state = %u\n",
 	     con, con->state, sk->sk_state);
@@ -225,7 +224,7 @@ static void set_sock_callbacks(struct socket *sock,
 			       struct ceph_connection *con)
 {
 	struct sock *sk = sock->sk;
-	sk->sk_user_data = (void *)con;
+	sk->sk_user_data = con;
 	sk->sk_data_ready = ceph_data_ready;
 	sk->sk_write_space = ceph_write_space;
 	sk->sk_state_change = ceph_state_change;
@@ -552,7 +551,7 @@ static void prepare_write_message(struct ceph_connection *con)
 
 	/* fill in crc (except data pages), footer */
 	con->out_msg->hdr.crc =
-		cpu_to_le32(crc32c(0, (void *)&m->hdr,
+		cpu_to_le32(crc32c(0, &m->hdr,
 				      sizeof(m->hdr) - sizeof(m->hdr.crc)));
 	con->out_msg->footer.flags = CEPH_MSG_FOOTER_COMPLETE;
 	con->out_msg->footer.front_crc =
@@ -1647,7 +1646,7 @@ static int read_partial_message(struct ceph_connection *con)
 			return ret;
 		con->in_base_pos += ret;
 		if (con->in_base_pos == sizeof(con->in_hdr)) {
-			u32 crc = crc32c(0, (void *)&con->in_hdr,
+			u32 crc = crc32c(0, &con->in_hdr,
 				 sizeof(con->in_hdr) - sizeof(con->in_hdr.crc));
 			if (crc != le32_to_cpu(con->in_hdr.crc)) {
 				pr_err("read_partial_message bad hdr "
