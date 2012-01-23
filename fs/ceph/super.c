@@ -927,6 +927,7 @@ static int __init init_ceph(void)
 	if (ret)
 		goto out;
 
+	ceph_xattr_init();
 	ret = register_filesystem(&ceph_fs_type);
 	if (ret)
 		goto out_icache;
@@ -936,6 +937,7 @@ static int __init init_ceph(void)
 	return 0;
 
 out_icache:
+	ceph_xattr_exit();
 	destroy_caches();
 out:
 	return ret;
@@ -945,6 +947,7 @@ static void __exit exit_ceph(void)
 {
 	dout("exit_ceph\n");
 	unregister_filesystem(&ceph_fs_type);
+	ceph_xattr_exit();
 	destroy_caches();
 }
 
