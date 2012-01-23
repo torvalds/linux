@@ -45,6 +45,7 @@ static struct ctl_table_header root_table_header = {
 static struct ctl_table_root sysctl_table_root = {
 	.root_list = LIST_HEAD_INIT(sysctl_table_root.root_list),
 	.default_set.list = LIST_HEAD_INIT(root_table_header.ctl_entry),
+	.default_set.root = &sysctl_table_root,
 };
 
 static DEFINE_SPINLOCK(sysctl_lock);
@@ -1348,9 +1349,11 @@ void unregister_sysctl_table(struct ctl_table_header * header)
 EXPORT_SYMBOL(unregister_sysctl_table);
 
 void setup_sysctl_set(struct ctl_table_set *p,
+	struct ctl_table_root *root,
 	int (*is_seen)(struct ctl_table_set *))
 {
 	INIT_LIST_HEAD(&p->list);
+	p->root = root;
 	p->is_seen = is_seen;
 }
 
