@@ -354,21 +354,12 @@ nv50_pm_clocks_get(struct drm_device *dev, struct nouveau_pm_level *perflvl)
 
 struct nv50_pm_state {
 	struct nouveau_pm_level *perflvl;
-
+	struct hwsq_ucode eclk_hwsq;
 	struct hwsq_ucode mclk_hwsq;
 	u32 mscript;
 	u32 mmast;
 	u32 mctrl;
 	u32 mcoef;
-
-	u32 emast;
-	u32 nctrl;
-	u32 ncoef;
-	u32 sctrl;
-	u32 scoef;
-
-	u32 amast;
-	u32 pdivs;
 };
 
 static u32
@@ -598,10 +589,11 @@ nv50_pm_clocks_pre(struct drm_device *dev, struct nouveau_pm_level *perflvl)
 {
 	struct drm_nouveau_private *dev_priv = dev->dev_private;
 	struct nv50_pm_state *info;
+	struct hwsq_ucode *hwsq;
 	struct pll_lims pll;
+	u32 out, mast, divs, ctrl;
 	int clk, ret = -EINVAL;
 	int N, M, P1, P2;
-	u32 out;
 
 	if (dev_priv->chipset == 0xaa ||
 	    dev_priv->chipset == 0xac)
@@ -622,41 +614,32 @@ nv50_pm_clocks_pre(struct drm_device *dev, struct nouveau_pm_level *perflvl)
 		info->mscript = perflvl->memscript;
 	}
 
-	/* core: for the moment at least, always use nvpll */
-	clk = calc_pll(dev, 0x4028, &pll, perflvl->core, &N, &M, &P1);
-	if (clk == 0)
-		goto error;
+	divs = read_div(dev);
+	mast = info->mmast;
 
-	info->emast = 0x00000003;
-	info->nctrl = 0x80000000 | (P1 << 19) | (P1 << 16);
-	info->ncoef = (N << 8) | M;
+	/* start building HWSQ script for engine reclocking */
+	hwsq = &info->eclk_hwsq;
+	hwsq_init(hwsq);
+	hwsq_setf(hwsq, 0x10, 0); /* disable bus access */
+	hwsq_op5f(hwsq, 0x00, 0x01); /* wait for access disabled? */
 
-	/* shader: tie to nvclk if possible, otherwise use spll.  have to be
-	 * very careful that the shader clock is at least twice the core, or
-	 * some chipsets will be very unhappy.  i expect most or all of these
-	 * cases will be handled by tying to nvclk, but it's possible there's
-	 * corners
-	 */
-	if (P1-- && perflvl->shader == (perflvl->core << 1)) {
-		info->emast |= 0x00000020;
-		info->sctrl  = 0x00000000 | (P1 << 19) | (P1 << 16);
-		info->scoef  = nv_rd32(dev, 0x004024);
-	} else {
-		clk = calc_pll(dev, 0x4020, &pll, perflvl->shader, &N, &M, &P1);
-		if (clk == 0)
-			goto error;
-
-		info->emast |= 0x00000030;
-		info->sctrl  = 0x80000000 | (P1 << 19) | (P1 << 16);
-		info->scoef  = (N << 8) | M;
+	/* vdec/dom6: switch to "safe" clocks temporarily */
+	if (perflvl->vdec) {
+		mast &= ~0x00000c00;
+		divs &= ~0x00000700;
 	}
+
+	if (perflvl->dom6) {
+		mast &= ~0x0c000000;
+		divs &= ~0x00000007;
+	}
+
+	hwsq_wr32(hwsq, 0x00c040, mast);
 
 	/* vdec: avoid modifying xpll until we know exactly how the other
 	 * clock domains work, i suspect at least some of them can also be
 	 * tied to xpll...
 	 */
-	info->amast = nv_rd32(dev, 0x00c040);
-	info->pdivs = read_div(dev);
 	if (perflvl->vdec) {
 		/* see how close we can get using nvclk as a source */
 		clk = calc_div(perflvl->core, perflvl->vdec, &P1);
@@ -669,16 +652,14 @@ nv50_pm_clocks_pre(struct drm_device *dev, struct nouveau_pm_level *perflvl)
 		out = calc_div(out, perflvl->vdec, &P2);
 
 		/* select whichever gets us closest */
-		info->amast &= ~0x00000c00;
-		info->pdivs &= ~0x00000700;
 		if (abs((int)perflvl->vdec - clk) <=
 		    abs((int)perflvl->vdec - out)) {
 			if (dev_priv->chipset != 0x98)
-				info->amast |= 0x00000c00;
-			info->pdivs |= P1 << 8;
+				mast |= 0x00000c00;
+			divs |= P1 << 8;
 		} else {
-			info->amast |= 0x00000800;
-			info->pdivs |= P2 << 8;
+			mast |= 0x00000800;
+			divs |= P2 << 8;
 		}
 	}
 
@@ -686,20 +667,81 @@ nv50_pm_clocks_pre(struct drm_device *dev, struct nouveau_pm_level *perflvl)
 	 * of the host clock frequency
 	 */
 	if (perflvl->dom6) {
-		info->amast &= ~0x0c000000;
 		if (clk_same(perflvl->dom6, read_clk(dev, clk_src_href))) {
-			info->amast |= 0x00000000;
+			mast |= 0x00000000;
 		} else
 		if (clk_same(perflvl->dom6, read_clk(dev, clk_src_hclk))) {
-			info->amast |= 0x08000000;
+			mast |= 0x08000000;
 		} else {
 			clk = read_clk(dev, clk_src_hclk) * 3;
 			clk = calc_div(clk, perflvl->dom6, &P1);
 
-			info->amast |= 0x0c000000;
-			info->pdivs  = (info->pdivs & ~0x00000007) | P1;
+			mast |= 0x0c000000;
+			divs |= P1;
 		}
 	}
+
+	/* vdec/dom6: complete switch to new clocks */
+	switch (dev_priv->chipset) {
+	case 0x92:
+	case 0x94:
+	case 0x96:
+		hwsq_wr32(hwsq, 0x004800, divs);
+		break;
+	default:
+		hwsq_wr32(hwsq, 0x004700, divs);
+		break;
+	}
+
+	hwsq_wr32(hwsq, 0x00c040, mast);
+
+	/* core/shader: make sure sclk/nvclk are disconnected from their
+	 * PLLs (nvclk to dom6, sclk to hclk)
+	 */
+	if (dev_priv->chipset < 0x92)
+		mast = (mast & ~0x001000b0) | 0x00100080;
+	else
+		mast = (mast & ~0x000000b3) | 0x00000081;
+
+	hwsq_wr32(hwsq, 0x00c040, mast);
+
+	/* core: for the moment at least, always use nvpll */
+	clk = calc_pll(dev, 0x4028, &pll, perflvl->core, &N, &M, &P1);
+	if (clk == 0)
+		goto error;
+
+	ctrl  = nv_rd32(dev, 0x004028) & ~0xc03f0100;
+	mast &= ~0x00100000;
+	mast |= 3;
+
+	hwsq_wr32(hwsq, 0x004028, 0x80000000 | (P1 << 19) | (P1 << 16) | ctrl);
+	hwsq_wr32(hwsq, 0x00402c, (N << 8) | M);
+
+	/* shader: tie to nvclk if possible, otherwise use spll.  have to be
+	 * very careful that the shader clock is at least twice the core, or
+	 * some chipsets will be very unhappy.  i expect most or all of these
+	 * cases will be handled by tying to nvclk, but it's possible there's
+	 * corners
+	 */
+	ctrl = nv_rd32(dev, 0x004020) & ~0xc03f0100;
+
+	if (P1-- && perflvl->shader == (perflvl->core << 1)) {
+		hwsq_wr32(hwsq, 0x004020, (P1 << 19) | (P1 << 16) | ctrl);
+		hwsq_wr32(hwsq, 0x00c040, 0x00000020 | mast);
+	} else {
+		clk = calc_pll(dev, 0x4020, &pll, perflvl->shader, &N, &M, &P1);
+		if (clk == 0)
+			goto error;
+		ctrl |= 0x80000000;
+
+		hwsq_wr32(hwsq, 0x004020, (P1 << 19) | (P1 << 16) | ctrl);
+		hwsq_wr32(hwsq, 0x004024, (N << 8) | M);
+		hwsq_wr32(hwsq, 0x00c040, 0x00000030 | mast);
+	}
+
+	hwsq_setf(hwsq, 0x10, 1); /* enable bus access */
+	hwsq_op5f(hwsq, 0x00, 0x00); /* wait for access enabled? */
+	hwsq_fini(hwsq);
 
 	return info;
 error:
@@ -708,7 +750,7 @@ error:
 }
 
 static int
-prog_mclk(struct drm_device *dev, struct hwsq_ucode *hwsq)
+prog_hwsq(struct drm_device *dev, struct hwsq_ucode *hwsq)
 {
 	struct drm_nouveau_private *dev_priv = dev->dev_private;
 	u32 hwsq_data, hwsq_kick;
@@ -748,20 +790,17 @@ prog_mclk(struct drm_device *dev, struct hwsq_ucode *hwsq)
 int
 nv50_pm_clocks_set(struct drm_device *dev, void *data)
 {
-	struct drm_nouveau_private *dev_priv = dev->dev_private;
 	struct nv50_pm_state *info = data;
 	struct bit_entry M;
-	int ret = 0;
+	int ret = -EBUSY;
 
 	/* halt and idle execution engines */
 	nv_mask(dev, 0x002504, 0x00000001, 0x00000001);
 	if (!nv_wait(dev, 0x002504, 0x00000010, 0x00000010))
-		goto error;
+		goto resume;
 
-	/* memory: it is *very* important we change this first, the ucode
-	 * we build in pre() now has hardcoded 0xc040 values, which can't
-	 * change before we execute it or the engine clocks may end up
-	 * messed up.
+	/* program memory clock, if necessary - must come before engine clock
+	 * reprogramming due to how we construct the hwsq scripts in pre()
 	 */
 	if (info->mclk_hwsq.len) {
 		/* execute some scripts that do ??? from the vbios.. */
@@ -775,42 +814,14 @@ nv50_pm_clocks_set(struct drm_device *dev, void *data)
 			nouveau_bios_init_exec(dev, info->mscript);
 		}
 
-		ret = prog_mclk(dev, &info->mclk_hwsq);
+		ret = prog_hwsq(dev, &info->mclk_hwsq);
 		if (ret)
 			goto resume;
 	}
 
-	/* reclock vdec/dom6 */
-	nv_mask(dev, 0x00c040, 0x00000c00, 0x00000000);
-	switch (dev_priv->chipset) {
-	case 0x92:
-	case 0x94:
-	case 0x96:
-		nv_mask(dev, 0x004800, 0x00000707, info->pdivs);
-		break;
-	default:
-		nv_mask(dev, 0x004700, 0x00000707, info->pdivs);
-		break;
-	}
-	nv_mask(dev, 0x00c040, 0x0c000c00, info->amast);
+	/* program engine clocks */
+	ret = prog_hwsq(dev, &info->eclk_hwsq);
 
-	/* core/shader: make sure sclk/nvclk are disconnected from their
-	 * plls (nvclk to dom6, sclk to hclk), modify the plls, and
-	 * reconnect sclk/nvclk to their new clock source
-	 */
-	if (dev_priv->chipset < 0x92)
-		nv_mask(dev, 0x00c040, 0x001000b0, 0x00100080); /* grrr! */
-	else
-		nv_mask(dev, 0x00c040, 0x000000b3, 0x00000081);
-	nv_mask(dev, 0x004020, 0xc03f0100, info->sctrl);
-	nv_wr32(dev, 0x004024, info->scoef);
-	nv_mask(dev, 0x004028, 0xc03f0100, info->nctrl);
-	nv_wr32(dev, 0x00402c, info->ncoef);
-	nv_mask(dev, 0x00c040, 0x00100033, info->emast);
-
-	goto resume;
-error:
-	ret = -EBUSY;
 resume:
 	nv_mask(dev, 0x002504, 0x00000001, 0x00000000);
 	kfree(info);
