@@ -261,6 +261,17 @@ config FB_TILEBLITTING
 comment "Frame buffer hardware drivers"
 	depends on FB
 
+config LYCHEE_FB_SUN3I
+	tristate "FB Controller Driver Support(sun3i)"
+	depends on FB && ARCH_SUN3I
+	---help---
+	default m
+
+config LYCHEE_HDMI_SUN3I
+	tristate "HDMI Driver Support(sun3i)"
+	depends on ARCH_SUN3I
+	---help---
+	default m
 
 config LYCHEE_FB_SUN4I
         tristate "DISP Driver Support(sun4i)"
