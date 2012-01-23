@@ -314,12 +314,11 @@ static struct resource mipidsi0_resources[] = {
 	},
 };
 
-#define DSI0PHYCR	0xe615006c
 static int sh_mipi_set_dot_clock(struct platform_device *pdev,
 				 void __iomem *base,
 				 int enable)
 {
-	struct clk *pck;
+	struct clk *pck, *phy;
 	int ret;
 
 	pck = clk_get(&pdev->dev, "dsip_clk");
@@ -328,18 +327,27 @@ static int sh_mipi_set_dot_clock(struct platform_device *pdev,
 		goto sh_mipi_set_dot_clock_pck_err;
 	}
 
+	phy = clk_get(&pdev->dev, "dsiphy_clk");
+	if (IS_ERR(phy)) {
+		ret = PTR_ERR(phy);
+		goto sh_mipi_set_dot_clock_phy_err;
+	}
+
 	if (enable) {
 		clk_set_rate(pck, clk_round_rate(pck,  24000000));
-		__raw_writel(0x2a809010, DSI0PHYCR);
+		clk_set_rate(phy, clk_round_rate(pck, 510000000));
 		clk_enable(pck);
+		clk_enable(phy);
 	} else {
 		clk_disable(pck);
+		clk_disable(phy);
 	}
 
 	ret = 0;
 
+	clk_put(phy);
+sh_mipi_set_dot_clock_phy_err:
 	clk_put(pck);
-
 sh_mipi_set_dot_clock_pck_err:
 	return ret;
 }
