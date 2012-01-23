@@ -24,7 +24,7 @@ static bool ceph_is_valid_xattr(const char *name)
  * These define virtual xattrs exposing the recursive directory
  * statistics and layout metadata.
  */
-struct ceph_vxattr_cb {
+struct ceph_vxattr {
 	char *name;
 	size_t (*getxattr_cb)(struct ceph_inode_info *ci, char *val,
 			      size_t size);
@@ -91,7 +91,7 @@ static size_t ceph_vxattrcb_rctime(struct ceph_inode_info *ci, char *val,
 			.readonly = true, \
 		}
 
-static struct ceph_vxattr_cb ceph_dir_vxattrs[] = {
+static struct ceph_vxattr ceph_dir_vxattrs[] = {
 	XATTR_NAME_CEPH(dir, entries),
 	XATTR_NAME_CEPH(dir, files),
 	XATTR_NAME_CEPH(dir, subdirs),
@@ -122,7 +122,7 @@ static size_t ceph_vxattrcb_layout(struct ceph_inode_info *ci, char *val,
 	return ret;
 }
 
-static struct ceph_vxattr_cb ceph_file_vxattrs[] = {
+static struct ceph_vxattr ceph_file_vxattrs[] = {
 	XATTR_NAME_CEPH(file, layout),
 	/* The following extended attribute name is deprecated */
 	{
@@ -133,7 +133,7 @@ static struct ceph_vxattr_cb ceph_file_vxattrs[] = {
 	{ 0 }	/* Required table terminator */
 };
 
-static struct ceph_vxattr_cb *ceph_inode_vxattrs(struct inode *inode)
+static struct ceph_vxattr *ceph_inode_vxattrs(struct inode *inode)
 {
 	if (S_ISDIR(inode->i_mode))
 		return ceph_dir_vxattrs;
@@ -142,10 +142,10 @@ static struct ceph_vxattr_cb *ceph_inode_vxattrs(struct inode *inode)
 	return NULL;
 }
 
-static struct ceph_vxattr_cb *ceph_match_vxattr(struct inode *inode,
+static struct ceph_vxattr *ceph_match_vxattr(struct inode *inode,
 						const char *name)
 {
-	struct ceph_vxattr_cb *vxattr = ceph_inode_vxattrs(inode);
+	struct ceph_vxattr *vxattr = ceph_inode_vxattrs(inode);
 
 	if (vxattr) {
 		while (vxattr->name) {
@@ -525,7 +525,7 @@ ssize_t ceph_getxattr(struct dentry *dentry, const char *name, void *value,
 	struct ceph_inode_info *ci = ceph_inode(inode);
 	int err;
 	struct ceph_inode_xattr *xattr;
-	struct ceph_vxattr_cb *vxattr = NULL;
+	struct ceph_vxattr *vxattr = NULL;
 
 	if (!ceph_is_valid_xattr(name))
 		return -ENODATA;
@@ -587,7 +587,7 @@ ssize_t ceph_listxattr(struct dentry *dentry, char *names, size_t size)
 {
 	struct inode *inode = dentry->d_inode;
 	struct ceph_inode_info *ci = ceph_inode(inode);
-	struct ceph_vxattr_cb *vxattrs = ceph_inode_vxattrs(inode);
+	struct ceph_vxattr *vxattrs = ceph_inode_vxattrs(inode);
 	u32 vir_namelen = 0;
 	u32 namelen;
 	int err;
@@ -717,7 +717,7 @@ int ceph_setxattr(struct dentry *dentry, const char *name,
 		  const void *value, size_t size, int flags)
 {
 	struct inode *inode = dentry->d_inode;
-	struct ceph_vxattr_cb *vxattr;
+	struct ceph_vxattr *vxattr;
 	struct ceph_inode_info *ci = ceph_inode(inode);
 	int err;
 	int name_len = strlen(name);
@@ -830,7 +830,7 @@ static int ceph_send_removexattr(struct dentry *dentry, const char *name)
 int ceph_removexattr(struct dentry *dentry, const char *name)
 {
 	struct inode *inode = dentry->d_inode;
-	struct ceph_vxattr_cb *vxattr;
+	struct ceph_vxattr *vxattr;
 	struct ceph_inode_info *ci = ceph_inode(inode);
 	int issued;
 	int err;
