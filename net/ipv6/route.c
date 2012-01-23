@@ -1091,6 +1091,7 @@ struct dst_entry *icmp6_dst_alloc(struct net_device *dev,
 	else {
 		neigh = ip6_neigh_lookup(&rt->dst, &fl6->daddr);
 		if (IS_ERR(neigh)) {
+			in6_dev_put(idev);
 			dst_free(&rt->dst);
 			return ERR_CAST(neigh);
 		}

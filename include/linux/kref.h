@@ -17,6 +17,7 @@
 
 #include <linux/bug.h>
 #include <linux/atomic.h>
+#include <linux/kernel.h>
 
 struct kref {
 	atomic_t refcount;

@@ -1195,7 +1195,7 @@ static int ds3000_set_frontend(struct dvb_frontend *fe)
 
 	for (i = 0; i < 30 ; i++) {
 		ds3000_read_status(fe, &status);
-		if (status && FE_HAS_LOCK)
+		if (status & FE_HAS_LOCK)
 			break;
 
 		msleep(10);

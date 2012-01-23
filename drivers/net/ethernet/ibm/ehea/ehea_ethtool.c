@@ -263,7 +263,7 @@ static void ehea_get_ethtool_stats(struct net_device *dev,
 		data[i++] = atomic_read(&port->port_res[k].swqe_avail);
 }
 
-const struct ethtool_ops ehea_ethtool_ops = {
+static const struct ethtool_ops ehea_ethtool_ops = {
 	.get_settings = ehea_get_settings,
 	.get_drvinfo = ehea_get_drvinfo,
 	.get_msglevel = ehea_get_msglevel,

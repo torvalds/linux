@@ -1429,6 +1429,8 @@ static int pm_genpd_default_restore_state(struct device *dev)
 	return 0;
 }
 
+#ifdef CONFIG_PM_SLEEP
+
 /**
  * pm_genpd_default_suspend - Default "device suspend" for PM domians.
  * @dev: Device to handle.
@@ -1516,6 +1518,19 @@ static int pm_genpd_default_thaw(struct device *dev)
 
 	return cb ? cb(dev) : pm_generic_thaw(dev);
 }
+
+#else /* !CONFIG_PM_SLEEP */
+
+#define pm_genpd_default_suspend	NULL
+#define pm_genpd_default_suspend_late	NULL
+#define pm_genpd_default_resume_early	NULL
+#define pm_genpd_default_resume		NULL
+#define pm_genpd_default_freeze		NULL
+#define pm_genpd_default_freeze_late	NULL
+#define pm_genpd_default_thaw_early	NULL
+#define pm_genpd_default_thaw		NULL
+
+#endif /* !CONFIG_PM_SLEEP */
 
 /**
  * pm_genpd_init - Initialize a generic I/O PM domain object.

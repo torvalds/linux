@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2011, Intel Corp.
+ * Copyright (C) 2000 - 2012, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -467,6 +467,8 @@ void acpi_ex_release_global_lock(u32 rule);
 void acpi_ex_eisa_id_to_string(char *dest, u64 compressed_id);
 
 void acpi_ex_integer_to_string(char *dest, u64 value);
+
+u8 acpi_is_valid_space_id(u8 space_id);
 
 /*
  * exregion - default op_region handlers

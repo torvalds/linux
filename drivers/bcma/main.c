@@ -241,6 +241,21 @@ int __init bcma_bus_early_register(struct bcma_bus *bus,
 }
 
 #ifdef CONFIG_PM
+int bcma_bus_suspend(struct bcma_bus *bus)
+{
+	struct bcma_device *core;
+
+	list_for_each_entry(core, &bus->cores, list) {
+		struct device_driver *drv = core->dev.driver;
+		if (drv) {
+			struct bcma_driver *adrv = container_of(drv, struct bcma_driver, drv);
+			if (adrv->suspend)
+				adrv->suspend(core);
+		}
+	}
+	return 0;
+}
+
 int bcma_bus_resume(struct bcma_bus *bus)
 {
 	struct bcma_device *core;
@@ -250,6 +265,15 @@ int bcma_bus_resume(struct bcma_bus *bus)
 	if (core) {
 		bus->drv_cc.setup_done = false;
 		bcma_core_chipcommon_init(&bus->drv_cc);
+	}
+
+	list_for_each_entry(core, &bus->cores, list) {
+		struct device_driver *drv = core->dev.driver;
+		if (drv) {
+			struct bcma_driver *adrv = container_of(drv, struct bcma_driver, drv);
+			if (adrv->resume)
+				adrv->resume(core);
+		}
 	}
 
 	return 0;

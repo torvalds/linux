@@ -189,6 +189,11 @@ static inline int valid_user_regs(struct pt_regs *regs)
 	return 0;
 }
 
+static inline long regs_return_value(struct pt_regs *regs)
+{
+	return regs->ARM_r0;
+}
+
 #define instruction_pointer(regs)	(regs)->ARM_pc
 
 #ifdef CONFIG_SMP

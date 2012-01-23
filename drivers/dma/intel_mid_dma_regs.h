@@ -262,7 +262,7 @@ struct intel_mid_dma_desc {
 	unsigned int			lli_length;
 	unsigned int			current_lli;
 	dma_addr_t			next;
-	enum dma_data_direction		dirn;
+	enum dma_transfer_direction		dirn;
 	enum dma_status			status;
 	enum dma_slave_buswidth		width; /*width of DMA txn*/
 	enum intel_mid_dma_mode		cfg_mode; /*mode configuration*/
@@ -296,6 +296,6 @@ static inline struct intel_mid_dma_slave *to_intel_mid_dma_slave
 }
 
 
-int dma_resume(struct pci_dev *pci);
+int dma_resume(struct device *dev);
 
 #endif /*__INTEL_MID_DMAC_REGS_H__*/

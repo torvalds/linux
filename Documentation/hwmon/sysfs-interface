@@ -304,7 +304,7 @@ value (fastest fan speed) wins.
 temp[1-*]_type	Sensor type selection.
 		Integers 1 to 6
 		RW
-		1: PII/Celeron Diode
+		1: CPU embedded diode
 		2: 3904 transistor
 		3: thermal diode
 		4: thermistor

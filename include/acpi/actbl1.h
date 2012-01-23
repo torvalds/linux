@@ -228,7 +228,8 @@ enum acpi_einj_actions {
 	ACPI_EINJ_EXECUTE_OPERATION = 5,
 	ACPI_EINJ_CHECK_BUSY_STATUS = 6,
 	ACPI_EINJ_GET_COMMAND_STATUS = 7,
-	ACPI_EINJ_ACTION_RESERVED = 8,	/* 8 and greater are reserved */
+	ACPI_EINJ_SET_ERROR_TYPE_WITH_ADDRESS = 8,
+	ACPI_EINJ_ACTION_RESERVED = 9,	/* 9 and greater are reserved */
 	ACPI_EINJ_TRIGGER_ERROR = 0xFF	/* Except for this value */
 };
 
@@ -240,7 +241,27 @@ enum acpi_einj_instructions {
 	ACPI_EINJ_WRITE_REGISTER = 2,
 	ACPI_EINJ_WRITE_REGISTER_VALUE = 3,
 	ACPI_EINJ_NOOP = 4,
-	ACPI_EINJ_INSTRUCTION_RESERVED = 5	/* 5 and greater are reserved */
+	ACPI_EINJ_FLUSH_CACHELINE = 5,
+	ACPI_EINJ_INSTRUCTION_RESERVED = 6	/* 6 and greater are reserved */
+};
+
+struct acpi_einj_error_type_with_addr {
+	u32 error_type;
+	u32 vendor_struct_offset;
+	u32 flags;
+	u32 apic_id;
+	u64 address;
+	u64 range;
+	u32 pcie_id;
+};
+
+struct acpi_einj_vendor {
+	u32 length;
+	u32 pcie_id;
+	u16 vendor_id;
+	u16 device_id;
+	u8 revision_id;
+	u8 reserved[3];
 };
 
 /* EINJ Trigger Error Action Table */
@@ -275,6 +296,7 @@ enum acpi_einj_command_status {
 #define ACPI_EINJ_PLATFORM_CORRECTABLE      (1<<9)
 #define ACPI_EINJ_PLATFORM_UNCORRECTABLE    (1<<10)
 #define ACPI_EINJ_PLATFORM_FATAL            (1<<11)
+#define ACPI_EINJ_VENDOR_DEFINED            (1<<31)
 
 /*******************************************************************************
  *
@@ -631,7 +653,9 @@ enum acpi_madt_type {
 	ACPI_MADT_TYPE_INTERRUPT_SOURCE = 8,
 	ACPI_MADT_TYPE_LOCAL_X2APIC = 9,
 	ACPI_MADT_TYPE_LOCAL_X2APIC_NMI = 10,
-	ACPI_MADT_TYPE_RESERVED = 11	/* 11 and greater are reserved */
+	ACPI_MADT_TYPE_GENERIC_INTERRUPT = 11,
+	ACPI_MADT_TYPE_GENERIC_DISTRIBUTOR = 12,
+	ACPI_MADT_TYPE_RESERVED = 13	/* 13 and greater are reserved */
 };
 
 /*
@@ -752,11 +776,36 @@ struct acpi_madt_local_x2apic_nmi {
 	u8 reserved[3];
 };
 
+/* 11: Generic Interrupt (ACPI 5.0) */
+
+struct acpi_madt_generic_interrupt {
+	struct acpi_subtable_header header;
+	u16 reserved;		/* Reserved - must be zero */
+	u32 gic_id;
+	u32 uid;
+	u32 flags;
+	u32 parking_version;
+	u32 performance_interrupt;
+	u64 parked_address;
+	u64 base_address;
+};
+
+/* 12: Generic Distributor (ACPI 5.0) */
+
+struct acpi_madt_generic_distributor {
+	struct acpi_subtable_header header;
+	u16 reserved;		/* Reserved - must be zero */
+	u32 gic_id;
+	u64 base_address;
+	u32 global_irq_base;
+	u32 reserved2;		/* Reserved - must be zero */
+};
+
 /*
  * Common flags fields for MADT subtables
  */
 
-/* MADT Local APIC flags (lapic_flags) */
+/* MADT Local APIC flags (lapic_flags) and GIC flags */
 
 #define ACPI_MADT_ENABLED           (1)	/* 00: Processor is usable if set */
 

@@ -496,7 +496,7 @@ static int isci_task_execute_tmf(struct isci_host *ihost,
 		}
 	}
 
-	isci_print_tmf(tmf);
+	isci_print_tmf(ihost, tmf);
 
 	if (tmf->status == SCI_SUCCESS)
 		ret =  TMF_RESP_FUNC_COMPLETE;

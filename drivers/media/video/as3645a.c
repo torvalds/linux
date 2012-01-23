@@ -29,6 +29,7 @@
 #include <linux/i2c.h>
 #include <linux/module.h>
 #include <linux/mutex.h>
+#include <linux/slab.h>
 
 #include <media/as3645a.h>
 #include <media/v4l2-ctrls.h>

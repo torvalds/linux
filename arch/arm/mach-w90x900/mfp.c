@@ -155,7 +155,7 @@ void mfp_set_groupg(struct device *dev, const char *subname)
 	} else if (strcmp(dev_id, "nuc900-i2c1") == 0) {
 		mfpen &= ~(GPIOG2TO3);
 		mfpen |= ENI2C1;/*enable i2c1*/
-	} else if (strcmp(dev_id, "nuc900-audio") == 0) {
+	} else if (strcmp(dev_id, "nuc900-ac97") == 0) {
 		mfpen &= ~(GPIOG22TO23);
 		mfpen |= ENAC97;/*enable AC97*/
 	} else if (strcmp(dev_id, "nuc900-mmc-port1") == 0) {

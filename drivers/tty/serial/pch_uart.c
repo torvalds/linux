@@ -764,7 +764,7 @@ static int dma_handle_rx(struct eg20t_port *priv)
 	sg_dma_address(sg) = priv->rx_buf_dma;
 
 	desc = priv->chan_rx->device->device_prep_slave_sg(priv->chan_rx,
-			sg, 1, DMA_FROM_DEVICE,
+			sg, 1, DMA_DEV_TO_MEM,
 			DMA_PREP_INTERRUPT | DMA_CTRL_ACK);
 
 	if (!desc)
@@ -923,7 +923,7 @@ static unsigned int dma_handle_tx(struct eg20t_port *priv)
 	}
 
 	desc = priv->chan_tx->device->device_prep_slave_sg(priv->chan_tx,
-					priv->sg_tx_p, nent, DMA_TO_DEVICE,
+					priv->sg_tx_p, nent, DMA_MEM_TO_DEV,
 					DMA_PREP_INTERRUPT | DMA_CTRL_ACK);
 	if (!desc) {
 		dev_err(priv->port.dev, "%s:device_prep_slave_sg Failed\n",

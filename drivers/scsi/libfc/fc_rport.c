@@ -391,7 +391,7 @@ static void fc_rport_work(struct work_struct *work)
  * If it appears we are already logged in, ADISC is used to verify
  * the setup.
  */
-int fc_rport_login(struct fc_rport_priv *rdata)
+static int fc_rport_login(struct fc_rport_priv *rdata)
 {
 	mutex_lock(&rdata->rp_mutex);
 
@@ -451,7 +451,7 @@ static void fc_rport_enter_delete(struct fc_rport_priv *rdata,
  * function will hold the rport lock, call an _enter_*
  * function and then unlock the rport.
  */
-int fc_rport_logoff(struct fc_rport_priv *rdata)
+static int fc_rport_logoff(struct fc_rport_priv *rdata)
 {
 	mutex_lock(&rdata->rp_mutex);
 
@@ -653,8 +653,8 @@ static int fc_rport_login_complete(struct fc_rport_priv *rdata,
  * @fp:	    The FLOGI response frame
  * @rp_arg: The remote port that received the FLOGI response
  */
-void fc_rport_flogi_resp(struct fc_seq *sp, struct fc_frame *fp,
-			 void *rp_arg)
+static void fc_rport_flogi_resp(struct fc_seq *sp, struct fc_frame *fp,
+				void *rp_arg)
 {
 	struct fc_rport_priv *rdata = rp_arg;
 	struct fc_lport *lport = rdata->local_port;
@@ -1520,7 +1520,7 @@ reject:
  *
  * Locking Note: Called with the lport lock held.
  */
-void fc_rport_recv_req(struct fc_lport *lport, struct fc_frame *fp)
+static void fc_rport_recv_req(struct fc_lport *lport, struct fc_frame *fp)
 {
 	struct fc_seq_els_data els_data;
 
