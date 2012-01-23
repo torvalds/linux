@@ -1541,6 +1541,12 @@ static int __mce_read_apei(char __user **ubuf, size_t usize)
 	/* Error or no more MCE record */
 	if (rc <= 0) {
 		mce_apei_read_done = 1;
+		/*
+		 * When ERST is disabled, mce_chrdev_read() should return
+		 * "no record" instead of "no device."
+		 */
+		if (rc == -ENODEV)
+			return 0;
 		return rc;
 	}
 	rc = -EFAULT;
