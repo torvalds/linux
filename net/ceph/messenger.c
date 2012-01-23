@@ -44,13 +44,16 @@ static void con_work(struct work_struct *);
 static void ceph_fault(struct ceph_connection *con);
 
 /*
- * nicely render a sockaddr as a string.
+ * Nicely render a sockaddr as a string.  An array of formatted
+ * strings is used, to approximate reentrancy.
  */
-#define MAX_ADDR_STR 20
-#define MAX_ADDR_STR_LEN 60
-static char addr_str[MAX_ADDR_STR][MAX_ADDR_STR_LEN];
-static DEFINE_SPINLOCK(addr_str_lock);
-static int last_addr_str;
+#define ADDR_STR_COUNT_LOG	5	/* log2(# address strings in array) */
+#define ADDR_STR_COUNT		(1 << ADDR_STR_COUNT_LOG)
+#define ADDR_STR_COUNT_MASK	(ADDR_STR_COUNT - 1)
+#define MAX_ADDR_STR_LEN	64	/* 54 is enough */
+
+static char addr_str[ADDR_STR_COUNT][MAX_ADDR_STR_LEN];
+static atomic_t addr_str_seq = ATOMIC_INIT(0);
 
 static struct page *zero_page;		/* used in certain error cases */
 static void *zero_page_address;		/* kernel virtual addr of zero_page */
@@ -62,11 +65,7 @@ const char *ceph_pr_addr(const struct sockaddr_storage *ss)
 	struct sockaddr_in *in4 = (void *)ss;
 	struct sockaddr_in6 *in6 = (void *)ss;
 
-	spin_lock(&addr_str_lock);
-	i = last_addr_str++;
-	if (last_addr_str == MAX_ADDR_STR)
-		last_addr_str = 0;
-	spin_unlock(&addr_str_lock);
+	i = atomic_inc_return(&addr_str_seq) & ADDR_STR_COUNT_MASK;
 	s = addr_str[i];
 
 	switch (ss->ss_family) {
