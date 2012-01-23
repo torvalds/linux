@@ -62,8 +62,8 @@ const char *ceph_pr_addr(const struct sockaddr_storage *ss)
 {
 	int i;
 	char *s;
-	struct sockaddr_in *in4 = (void *)ss;
-	struct sockaddr_in6 *in6 = (void *)ss;
+	struct sockaddr_in *in4 = (struct sockaddr_in *) ss;
+	struct sockaddr_in6 *in6 = (struct sockaddr_in6 *) ss;
 
 	i = atomic_inc_return(&addr_str_seq) & ADDR_STR_COUNT_MASK;
 	s = addr_str[i];
@@ -1112,8 +1112,8 @@ static void addr_set_port(struct sockaddr_storage *ss, int p)
 static int ceph_pton(const char *str, size_t len, struct sockaddr_storage *ss,
 		char delim, const char **ipend)
 {
-	struct sockaddr_in *in4 = (void *)ss;
-	struct sockaddr_in6 *in6 = (void *)ss;
+	struct sockaddr_in *in4 = (struct sockaddr_in *) ss;
+	struct sockaddr_in6 *in6 = (struct sockaddr_in6 *) ss;
 
 	memset(ss, 0, sizeof(*ss));
 
