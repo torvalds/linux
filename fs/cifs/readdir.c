@@ -647,10 +647,11 @@ static int cifs_filldir(char *find_entry, struct file *file, filldir_t filldir,
 
 		name.name = scratch_buf;
 		name.len =
-			cifs_from_ucs2((char *)name.name, (__le16 *)de.name,
-				       UNICODE_NAME_MAX,
-				       min(de.namelen, (size_t)max_len), nlt,
-				       cifs_sb->mnt_cifs_flags &
+			cifs_from_utf16((char *)name.name, (__le16 *)de.name,
+					UNICODE_NAME_MAX,
+					min_t(size_t, de.namelen,
+					      (size_t)max_len), nlt,
+					cifs_sb->mnt_cifs_flags &
 						CIFS_MOUNT_MAP_SPECIAL_CHR);
 		name.len -= nls_nullsize(nlt);
 	} else {
