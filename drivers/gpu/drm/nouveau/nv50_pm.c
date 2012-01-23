@@ -28,6 +28,7 @@
 #include "nouveau_hw.h"
 #include "nouveau_pm.h"
 #include "nouveau_hwsq.h"
+#include "nv50_display.h"
 
 enum clk_src {
 	clk_src_crystal,
@@ -535,6 +536,7 @@ calc_mclk(struct drm_device *dev, struct nouveau_pm_level *perflvl,
 	  struct nv50_pm_state *info)
 {
 	struct drm_nouveau_private *dev_priv = dev->dev_private;
+	u32 crtc_mask = nv50_display_active_crtcs(dev);
 	struct nouveau_mem_exec_func exec = {
 		.dev = dev,
 		.precharge = mclk_precharge,
@@ -550,9 +552,8 @@ calc_mclk(struct drm_device *dev, struct nouveau_pm_level *perflvl,
 	};
 	struct hwsq_ucode *hwsq = &info->mclk_hwsq;
 	struct pll_lims pll;
-	u32 crtc_mask = 0;
 	int N, M, P;
-	int ret, i;
+	int ret;
 
 	/* use pcie refclock if possible, otherwise use mpll */
 	info->mctrl  = nv_rd32(dev, 0x004008);
@@ -567,12 +568,6 @@ calc_mclk(struct drm_device *dev, struct nouveau_pm_level *perflvl,
 		info->mctrl |= 0x80000000 | (P << 22) | (P << 16);
 		info->mctrl |= pll.log2p_bias << 19;
 		info->mcoef  = (N << 8) | M;
-	}
-
-	/* determine active crtcs */
-	for (i = 0; i < 2; i++) {
-		if (nv_rd32(dev, NV50_PDISPLAY_CRTC_C(i, CLOCK)))
-			crtc_mask |= (1 << i);
 	}
 
 	/* build the ucode which will reclock the memory for us */

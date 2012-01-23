@@ -50,6 +50,29 @@ nv50_sor_nr(struct drm_device *dev)
 	return 4;
 }
 
+u32
+nv50_display_active_crtcs(struct drm_device *dev)
+{
+	struct drm_nouveau_private *dev_priv = dev->dev_private;
+	u32 mask = 0;
+	int i;
+
+	if (dev_priv->chipset  < 0x90 ||
+	    dev_priv->chipset == 0x92 ||
+	    dev_priv->chipset == 0xa0) {
+		for (i = 0; i < 2; i++)
+			mask |= nv_rd32(dev, NV50_PDISPLAY_SOR_MODE_CTRL_C(i));
+	} else {
+		for (i = 0; i < 4; i++)
+			mask |= nv_rd32(dev, NV90_PDISPLAY_SOR_MODE_CTRL_C(i));
+	}
+
+	for (i = 0; i < 3; i++)
+		mask |= nv_rd32(dev, NV50_PDISPLAY_DAC_MODE_CTRL_C(i));
+
+	return mask & 3;
+}
+
 static int
 evo_icmd(struct drm_device *dev, int ch, u32 mthd, u32 data)
 {
