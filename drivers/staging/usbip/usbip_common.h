@@ -306,7 +306,7 @@ void usbip_header_correct_endian(struct usbip_header *pdu, int send);
 void *usbip_alloc_iso_desc_pdu(struct urb *urb, ssize_t *bufflen);
 /* some members of urb must be substituted before. */
 int usbip_recv_iso(struct usbip_device *ud, struct urb *urb);
-int usbip_pad_iso(struct usbip_device *ud, struct urb *urb);
+void usbip_pad_iso(struct usbip_device *ud, struct urb *urb);
 int usbip_recv_xbuff(struct usbip_device *ud, struct urb *urb);
 
 /* usbip_event.c */
