@@ -146,6 +146,7 @@ extern void nfs_umount(const struct nfs_mount_request *info);
 
 /* client.c */
 extern const struct rpc_program nfs_program;
+extern void nfs_clients_init(struct net *net);
 
 extern void nfs_cleanup_cb_ident_idr(void);
 extern void nfs_put_client(struct nfs_client *);
@@ -183,7 +184,6 @@ static inline void nfs_fs_proc_exit(void)
 #endif
 #ifdef CONFIG_NFS_V4
 extern spinlock_t nfs_client_lock;
-extern struct list_head nfs_client_list;
 #endif
 
 /* nfs4namespace.c */

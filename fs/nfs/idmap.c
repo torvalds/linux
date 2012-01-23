@@ -532,13 +532,12 @@ static int rpc_pipefs_event(struct notifier_block *nb, unsigned long event,
 			    void *ptr)
 {
 	struct super_block *sb = ptr;
+	struct nfs_net *nn = net_generic(sb->s_fs_info, nfs_net_id);
 	struct nfs_client *clp;
 	int error = 0;
 
 	spin_lock(&nfs_client_lock);
-	list_for_each_entry(clp, &nfs_client_list, cl_share_link) {
-		if (clp->net != sb->s_fs_info)
-			continue;
+	list_for_each_entry(clp, &nn->nfs_client_list, cl_share_link) {
 		if (clp->rpc_ops != &nfs_v4_clientops)
 			continue;
 		error = __rpc_pipefs_event(clp, event, sb);

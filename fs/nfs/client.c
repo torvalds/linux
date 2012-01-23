@@ -39,6 +39,8 @@
 #include <net/ipv6.h>
 #include <linux/nfs_xdr.h>
 #include <linux/sunrpc/bc_xprt.h>
+#include <linux/nsproxy.h>
+#include <linux/pid_namespace.h>
 
 #include <asm/system.h>
 
@@ -49,11 +51,11 @@
 #include "internal.h"
 #include "fscache.h"
 #include "pnfs.h"
+#include "netns.h"
 
 #define NFSDBG_FACILITY		NFSDBG_CLIENT
 
 DEFINE_SPINLOCK(nfs_client_lock);
-LIST_HEAD(nfs_client_list);
 static LIST_HEAD(nfs_volume_list);
 static DECLARE_WAIT_QUEUE_HEAD(nfs_client_active_wq);
 #ifdef CONFIG_NFS_V4
@@ -464,8 +466,9 @@ static struct nfs_client *nfs_match_client(const struct nfs_client_initdata *dat
 {
 	struct nfs_client *clp;
 	const struct sockaddr *sap = data->addr;
+	struct nfs_net *nn = net_generic(data->net, nfs_net_id);
 
-	list_for_each_entry(clp, &nfs_client_list, cl_share_link) {
+	list_for_each_entry(clp, &nn->nfs_client_list, cl_share_link) {
 	        const struct sockaddr *clap = (struct sockaddr *)&clp->cl_addr;
 		/* Don't match clients that failed to initialise properly */
 		if (clp->cl_cons_state < 0)
@@ -482,9 +485,6 @@ static struct nfs_client *nfs_match_client(const struct nfs_client_initdata *dat
 			continue;
 		/* Match the full socket address */
 		if (!nfs_sockaddr_cmp(sap, clap))
-			continue;
-		/* Match network namespace */
-		if (clp->net != data->net)
 			continue;
 
 		atomic_inc(&clp->cl_count);
@@ -506,6 +506,7 @@ nfs_get_client(const struct nfs_client_initdata *cl_init,
 {
 	struct nfs_client *clp, *new = NULL;
 	int error;
+	struct nfs_net *nn = net_generic(cl_init->net, nfs_net_id);
 
 	dprintk("--> nfs_get_client(%s,v%u)\n",
 		cl_init->hostname ?: "", cl_init->rpc_ops->version);
@@ -531,7 +532,7 @@ nfs_get_client(const struct nfs_client_initdata *cl_init,
 	/* install a new client and return with it unready */
 install_client:
 	clp = new;
-	list_add(&clp->cl_share_link, &nfs_client_list);
+	list_add(&clp->cl_share_link, &nn->nfs_client_list);
 	spin_unlock(&nfs_client_lock);
 
 	error = cl_init->rpc_ops->init_client(clp, timeparms, ip_addr,
@@ -1227,9 +1228,10 @@ nfs4_find_client_sessionid(const struct sockaddr *addr,
 			   struct nfs4_sessionid *sid)
 {
 	struct nfs_client *clp;
+	struct nfs_net *nn = net_generic(&init_net, nfs_net_id);
 
 	spin_lock(&nfs_client_lock);
-	list_for_each_entry(clp, &nfs_client_list, cl_share_link) {
+	list_for_each_entry(clp, &nn->nfs_client_list, cl_share_link) {
 		if (nfs4_cb_match_client(addr, clp, 1) == false)
 			continue;
 
@@ -1757,6 +1759,13 @@ out_free_server:
 	return ERR_PTR(error);
 }
 
+void nfs_clients_init(struct net *net)
+{
+	struct nfs_net *nn = net_generic(net, nfs_net_id);
+
+	INIT_LIST_HEAD(&nn->nfs_client_list);
+}
+
 #ifdef CONFIG_PROC_FS
 static struct proc_dir_entry *proc_fs_nfs;
 
@@ -1810,13 +1819,15 @@ static int nfs_server_list_open(struct inode *inode, struct file *file)
 {
 	struct seq_file *m;
 	int ret;
+	struct pid_namespace *pid_ns = file->f_dentry->d_sb->s_fs_info;
+	struct net *net = pid_ns->child_reaper->nsproxy->net_ns;
 
 	ret = seq_open(file, &nfs_server_list_ops);
 	if (ret < 0)
 		return ret;
 
 	m = file->private_data;
-	m->private = PDE(inode)->data;
+	m->private = net;
 
 	return 0;
 }
@@ -1826,9 +1837,11 @@ static int nfs_server_list_open(struct inode *inode, struct file *file)
  */
 static void *nfs_server_list_start(struct seq_file *m, loff_t *_pos)
 {
+	struct nfs_net *nn = net_generic(m->private, nfs_net_id);
+
 	/* lock the list against modification */
 	spin_lock(&nfs_client_lock);
-	return seq_list_start_head(&nfs_client_list, *_pos);
+	return seq_list_start_head(&nn->nfs_client_list, *_pos);
 }
 
 /*
@@ -1836,7 +1849,9 @@ static void *nfs_server_list_start(struct seq_file *m, loff_t *_pos)
  */
 static void *nfs_server_list_next(struct seq_file *p, void *v, loff_t *pos)
 {
-	return seq_list_next(v, &nfs_client_list, pos);
+	struct nfs_net *nn = net_generic(p->private, nfs_net_id);
+
+	return seq_list_next(v, &nn->nfs_client_list, pos);
 }
 
 /*
@@ -1853,9 +1868,10 @@ static void nfs_server_list_stop(struct seq_file *p, void *v)
 static int nfs_server_list_show(struct seq_file *m, void *v)
 {
 	struct nfs_client *clp;
+	struct nfs_net *nn = net_generic(m->private, nfs_net_id);
 
 	/* display header on line 1 */
-	if (v == &nfs_client_list) {
+	if (v == &nn->nfs_client_list) {
 		seq_puts(m, "NV SERVER   PORT USE HOSTNAME\n");
 		return 0;
 	}

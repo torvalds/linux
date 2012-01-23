@@ -1558,6 +1558,7 @@ EXPORT_SYMBOL_GPL(nfs_net_id);
 
 static int nfs_net_init(struct net *net)
 {
+	nfs_clients_init(net);
 	return nfs_dns_resolver_cache_init(net);
 }
 
