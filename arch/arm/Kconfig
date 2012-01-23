@@ -704,6 +704,18 @@ config ARCH_PICOXCELL
 	  family of Femtocell devices.  The picoxcell support requires device tree
 	  for all boards.
 
+config ARCH_SUN3I
+	bool "Allwinner SUN3I Platform"
+	select CPU_ARM926T
+	select ARM_AMBA
+	select HAVE_CLK
+	select ARM_VIC
+	# select COMMON_CLKDEV
+	select ICST
+	select GENERIC_CLOCKEVENTS
+	help
+	  This enables support for Allwinner Technology Co., Ltd F20 SoC based systems
+
 config ARCH_SUN4I
 	bool "AllWinner SUN4I Platform"
 	select CPU_V7
@@ -730,6 +742,9 @@ config ARCH_SUN5I
         help
           This enables support for Allwinner Technology Co., Ltd A12/A13 SoC based systems
 
+#if ARCH_SUN3I
+source "arch/arm/mach-sun3i/Kconfig"
+#endif
 #if ARCH_SUN4I
 #source "arch/arm/mach-sun4i/Kconfig"
 #endif
