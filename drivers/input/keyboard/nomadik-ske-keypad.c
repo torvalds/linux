@@ -88,7 +88,7 @@ static void ske_keypad_set_bits(struct ske_keypad *keypad, u16 addr,
  *
  * Enable Multi key press detection, auto scan mode
  */
-static int __devinit ske_keypad_chip_init(struct ske_keypad *keypad)
+static int __init ske_keypad_chip_init(struct ske_keypad *keypad)
 {
 	u32 value;
 	int timeout = 50;
@@ -198,7 +198,7 @@ static irqreturn_t ske_keypad_irq(int irq, void *dev_id)
 	return IRQ_HANDLED;
 }
 
-static int __devinit ske_keypad_probe(struct platform_device *pdev)
+static int __init ske_keypad_probe(struct platform_device *pdev)
 {
 	const struct ske_keypad_platform_data *plat = pdev->dev.platform_data;
 	struct ske_keypad *keypad;
@@ -387,7 +387,6 @@ static struct platform_driver ske_keypad_driver = {
 		.pm = &ske_keypad_dev_pm_ops,
 #endif
 	},
-	.probe = ske_keypad_probe,
 	.remove = __devexit_p(ske_keypad_remove),
 };
 module_platform_driver(ske_keypad_driver);
