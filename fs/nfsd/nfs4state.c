@@ -3043,18 +3043,18 @@ static int nfs4_setlease(struct nfs4_delegation *dp)
 	if (!fl)
 		return -ENOMEM;
 	fl->fl_file = find_readable_file(fp);
-	list_add(&dp->dl_perclnt, &dp->dl_stid.sc_client->cl_delegations);
 	status = vfs_setlease(fl->fl_file, fl->fl_type, &fl);
-	if (status) {
-		list_del_init(&dp->dl_perclnt);
-		locks_free_lock(fl);
-		return status;
-	}
+	if (status)
+		goto out_free;
+	list_add(&dp->dl_perclnt, &dp->dl_stid.sc_client->cl_delegations);
 	fp->fi_lease = fl;
 	fp->fi_deleg_file = get_file(fl->fl_file);
 	atomic_set(&fp->fi_delegees, 1);
 	list_add(&dp->dl_perfile, &fp->fi_delegations);
 	return 0;
+out_free:
+	locks_free_lock(fl);
+	return status;
 }
 
 static int nfs4_set_delegation(struct nfs4_delegation *dp, struct nfs4_file *fp)
