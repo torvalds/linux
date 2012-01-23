@@ -30,6 +30,7 @@
 
 #include <scsi/fc/fc_fcp.h>
 #include <scsi/fc/fc_ns.h>
+#include <scsi/fc/fc_ms.h>
 #include <scsi/fc/fc_els.h>
 #include <scsi/fc/fc_gs.h>
 
@@ -52,6 +53,8 @@
  * @LPORT_ST_RPN_ID:   Register port name by ID (RPN_ID) sent
  * @LPORT_ST_RFT_ID:   Register Fibre Channel types by ID (RFT_ID) sent
  * @LPORT_ST_RFF_ID:   Register FC-4 Features by ID (RFF_ID) sent
+ * @LPORT_ST_FDMI:     Waiting for mgmt server rport to become ready
+ * @LPORT_ST_RHBA:
  * @LPORT_ST_SCR:      State Change Register (SCR) sent
  * @LPORT_ST_READY:    Ready for use
  * @LPORT_ST_LOGO:     Local port logout (LOGO) sent
@@ -66,6 +69,11 @@ enum fc_lport_state {
 	LPORT_ST_RSPN_ID,
 	LPORT_ST_RFT_ID,
 	LPORT_ST_RFF_ID,
+	LPORT_ST_FDMI,
+	LPORT_ST_RHBA,
+	LPORT_ST_RPA,
+	LPORT_ST_DHBA,
+	LPORT_ST_DPRT,
 	LPORT_ST_SCR,
 	LPORT_ST_READY,
 	LPORT_ST_LOGO,
@@ -797,6 +805,7 @@ enum fc_lport_event {
  * @host:                  The SCSI host associated with a local port
  * @ema_list:              Exchange manager anchor list
  * @dns_rdata:             The directory server remote port
+ * @ms_rdata:		   The management server remote port
  * @ptp_rdata:             Point to point remote port
  * @scsi_priv:             FCP layer internal data
  * @disc:                  Discovery context
@@ -842,6 +851,7 @@ struct fc_lport {
 	struct Scsi_Host	       *host;
 	struct list_head	       ema_list;
 	struct fc_rport_priv	       *dns_rdata;
+	struct fc_rport_priv	       *ms_rdata;
 	struct fc_rport_priv	       *ptp_rdata;
 	void			       *scsi_priv;
 	struct fc_disc                 disc;
@@ -877,6 +887,7 @@ struct fc_lport {
 	u32			       does_npiv:1;
 	u32			       npiv_enabled:1;
 	u32			       point_to_multipoint:1;
+	u32			       fdmi_enabled:1;
 	u32			       mfs;
 	u8			       max_retry_count;
 	u8			       max_rport_retry_count;
