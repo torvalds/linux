@@ -8,9 +8,12 @@
 #include <linux/xattr.h>
 #include <linux/slab.h>
 
+#define XATTR_CEPH_PREFIX "ceph."
+#define XATTR_CEPH_PREFIX_LEN (sizeof (XATTR_CEPH_PREFIX) - 1)
+
 static bool ceph_is_valid_xattr(const char *name)
 {
-	return !strncmp(name, "ceph.", 5) ||
+	return !strncmp(name, XATTR_CEPH_PREFIX, XATTR_CEPH_PREFIX_LEN) ||
 	       !strncmp(name, XATTR_SECURITY_PREFIX,
 			XATTR_SECURITY_PREFIX_LEN) ||
 	       !strncmp(name, XATTR_TRUSTED_PREFIX, XATTR_TRUSTED_PREFIX_LEN) ||
@@ -80,14 +83,14 @@ static size_t ceph_vxattrcb_rctime(struct ceph_inode_info *ci, char *val,
 }
 
 static struct ceph_vxattr_cb ceph_dir_vxattrs[] = {
-	{ true, "ceph.dir.entries", ceph_vxattrcb_entries},
-	{ true, "ceph.dir.files", ceph_vxattrcb_files},
-	{ true, "ceph.dir.subdirs", ceph_vxattrcb_subdirs},
-	{ true, "ceph.dir.rentries", ceph_vxattrcb_rentries},
-	{ true, "ceph.dir.rfiles", ceph_vxattrcb_rfiles},
-	{ true, "ceph.dir.rsubdirs", ceph_vxattrcb_rsubdirs},
-	{ true, "ceph.dir.rbytes", ceph_vxattrcb_rbytes},
-	{ true, "ceph.dir.rctime", ceph_vxattrcb_rctime},
+	{ true, XATTR_CEPH_PREFIX "dir.entries", ceph_vxattrcb_entries},
+	{ true, XATTR_CEPH_PREFIX "dir.files", ceph_vxattrcb_files},
+	{ true, XATTR_CEPH_PREFIX "dir.subdirs", ceph_vxattrcb_subdirs},
+	{ true, XATTR_CEPH_PREFIX "dir.rentries", ceph_vxattrcb_rentries},
+	{ true, XATTR_CEPH_PREFIX "dir.rfiles", ceph_vxattrcb_rfiles},
+	{ true, XATTR_CEPH_PREFIX "dir.rsubdirs", ceph_vxattrcb_rsubdirs},
+	{ true, XATTR_CEPH_PREFIX "dir.rbytes", ceph_vxattrcb_rbytes},
+	{ true, XATTR_CEPH_PREFIX "dir.rctime", ceph_vxattrcb_rctime},
 	{ true, NULL, NULL }
 };
 
@@ -111,9 +114,9 @@ static size_t ceph_vxattrcb_layout(struct ceph_inode_info *ci, char *val,
 }
 
 static struct ceph_vxattr_cb ceph_file_vxattrs[] = {
-	{ true, "ceph.file.layout", ceph_vxattrcb_layout},
+	{ true, XATTR_CEPH_PREFIX "file.layout", ceph_vxattrcb_layout},
 	/* The following extended attribute name is deprecated */
-	{ true, "ceph.layout", ceph_vxattrcb_layout},
+	{ true, XATTR_CEPH_PREFIX "layout", ceph_vxattrcb_layout},
 	{ true, NULL, NULL }
 };
 
