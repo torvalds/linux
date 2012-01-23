@@ -941,7 +941,7 @@ void bnx2x_panic_dump(struct bnx2x *bp)
 			struct sw_rx_bd *sw_bd = &fp->rx_buf_ring[j];
 
 			BNX2X_ERR("fp%d: rx_bd[%x]=[%x:%x]  sw_bd=[%p]\n",
-				  i, j, rx_bd[1], rx_bd[0], sw_bd->skb);
+				  i, j, rx_bd[1], rx_bd[0], sw_bd->data);
 		}
 
 		start = RX_SGE(fp->rx_sge_prod);
