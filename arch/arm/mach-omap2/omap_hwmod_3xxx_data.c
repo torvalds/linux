@@ -1480,6 +1480,27 @@ static struct omap_hwmod omap3xxx_dss_core_hwmod = {
 	.masters_cnt	= ARRAY_SIZE(omap3xxx_dss_masters),
 };
 
+/*
+ * 'dispc' class
+ * display controller
+ */
+
+static struct omap_hwmod_class_sysconfig omap3_dispc_sysc = {
+	.rev_offs	= 0x0000,
+	.sysc_offs	= 0x0010,
+	.syss_offs	= 0x0014,
+	.sysc_flags	= (SYSC_HAS_SIDLEMODE | SYSC_HAS_MIDLEMODE |
+			   SYSC_HAS_SOFTRESET | SYSC_HAS_AUTOIDLE),
+	.idlemodes	= (SIDLE_FORCE | SIDLE_NO | SIDLE_SMART |
+			   MSTANDBY_FORCE | MSTANDBY_NO | MSTANDBY_SMART),
+	.sysc_fields	= &omap_hwmod_sysc_type1,
+};
+
+static struct omap_hwmod_class omap3_dispc_hwmod_class = {
+	.name	= "dispc",
+	.sysc	= &omap3_dispc_sysc,
+};
+
 /* l4_core -> dss_dispc */
 static struct omap_hwmod_ocp_if omap3xxx_l4_core__dss_dispc = {
 	.master		= &omap3xxx_l4_core_hwmod,
@@ -1503,7 +1524,7 @@ static struct omap_hwmod_ocp_if *omap3xxx_dss_dispc_slaves[] = {
 
 static struct omap_hwmod omap3xxx_dss_dispc_hwmod = {
 	.name		= "dss_dispc",
-	.class		= &omap2_dispc_hwmod_class,
+	.class		= &omap3_dispc_hwmod_class,
 	.mpu_irqs	= omap2_dispc_irqs,
 	.main_clk	= "dss1_alwon_fck",
 	.prcm		= {
