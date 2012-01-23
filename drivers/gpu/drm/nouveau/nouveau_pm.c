@@ -50,7 +50,7 @@ nouveau_pwmfan_get(struct drm_device *dev)
 	ret = nouveau_gpio_find(dev, 0, DCB_GPIO_PWM_FAN, 0xff, &gpio);
 	if (ret == 0) {
 		ret = pm->pwm_get(dev, gpio.line, &divs, &duty);
-		if (ret == 0) {
+		if (ret == 0 && divs) {
 			divs = max(divs, duty);
 			if (dev_priv->card_type <= NV_40 || (gpio.log[0] & 1))
 				duty = divs - duty;
