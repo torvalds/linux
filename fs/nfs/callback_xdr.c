@@ -876,7 +876,7 @@ static __be32 nfs4_callback_compound(struct svc_rqst *rqstp, void *argp, void *r
 		return rpc_garbage_args;
 
 	if (hdr_arg.minorversion == 0) {
-		cps.clp = nfs4_find_client_ident(hdr_arg.cb_ident);
+		cps.clp = nfs4_find_client_ident(rqstp->rq_xprt->xpt_net, hdr_arg.cb_ident);
 		if (!cps.clp || !check_gss_callback_principal(cps.clp, rqstp))
 			return rpc_drop_reply;
 	}

@@ -9,6 +9,9 @@ struct nfs_net {
 	struct rpc_pipe *bl_device_pipe;
 	struct list_head nfs_client_list;
 	struct list_head nfs_volume_list;
+#ifdef CONFIG_NFS_V4
+	struct idr cb_ident_idr; /* Protected by nfs_client_lock */
+#endif
 };
 
 extern int nfs_net_id;

@@ -58,7 +58,6 @@
 DEFINE_SPINLOCK(nfs_client_lock);
 static DECLARE_WAIT_QUEUE_HEAD(nfs_client_active_wq);
 #ifdef CONFIG_NFS_V4
-static DEFINE_IDR(cb_ident_idr); /* Protected by nfs_client_lock */
 
 /*
  * Get a unique NFSv4.0 callback identifier which will be used
@@ -67,14 +66,15 @@ static DEFINE_IDR(cb_ident_idr); /* Protected by nfs_client_lock */
 static int nfs_get_cb_ident_idr(struct nfs_client *clp, int minorversion)
 {
 	int ret = 0;
+	struct nfs_net *nn = net_generic(clp->net, nfs_net_id);
 
 	if (clp->rpc_ops->version != 4 || minorversion != 0)
 		return ret;
 retry:
-	if (!idr_pre_get(&cb_ident_idr, GFP_KERNEL))
+	if (!idr_pre_get(&nn->cb_ident_idr, GFP_KERNEL))
 		return -ENOMEM;
 	spin_lock(&nfs_client_lock);
-	ret = idr_get_new(&cb_ident_idr, clp, &clp->cl_cb_ident);
+	ret = idr_get_new(&nn->cb_ident_idr, clp, &clp->cl_cb_ident);
 	spin_unlock(&nfs_client_lock);
 	if (ret == -EAGAIN)
 		goto retry;
@@ -173,6 +173,7 @@ static struct nfs_client *nfs_alloc_client(const struct nfs_client_initdata *cl_
 	clp->cl_rpcclient = ERR_PTR(-EINVAL);
 
 	clp->cl_proto = cl_init->proto;
+	clp->net = cl_init->net;
 
 #ifdef CONFIG_NFS_V4
 	err = nfs_get_cb_ident_idr(clp, cl_init->minorversion);
@@ -191,7 +192,6 @@ static struct nfs_client *nfs_alloc_client(const struct nfs_client_initdata *cl_
 	if (!IS_ERR(cred))
 		clp->cl_machine_cred = cred;
 	nfs_fscache_get_client_cookie(clp);
-	clp->net = cl_init->net;
 
 	return clp;
 
@@ -236,16 +236,20 @@ static void nfs4_shutdown_client(struct nfs_client *clp)
 }
 
 /* idr_remove_all is not needed as all id's are removed by nfs_put_client */
-void nfs_cleanup_cb_ident_idr(void)
+void nfs_cleanup_cb_ident_idr(struct net *net)
 {
-	idr_destroy(&cb_ident_idr);
+	struct nfs_net *nn = net_generic(net, nfs_net_id);
+
+	idr_destroy(&nn->cb_ident_idr);
 }
 
 /* nfs_client_lock held */
 static void nfs_cb_idr_remove_locked(struct nfs_client *clp)
 {
+	struct nfs_net *nn = net_generic(clp->net, nfs_net_id);
+
 	if (clp->cl_cb_ident)
-		idr_remove(&cb_ident_idr, clp->cl_cb_ident);
+		idr_remove(&nn->cb_ident_idr, clp->cl_cb_ident);
 }
 
 static void pnfs_init_server(struct nfs_server *server)
@@ -263,7 +267,7 @@ static void nfs4_shutdown_client(struct nfs_client *clp)
 {
 }
 
-void nfs_cleanup_cb_ident_idr(void)
+void nfs_cleanup_cb_ident_idr(struct net *net)
 {
 }
 
@@ -1203,12 +1207,13 @@ error:
  * Find a client by callback identifier
  */
 struct nfs_client *
-nfs4_find_client_ident(int cb_ident)
+nfs4_find_client_ident(struct net *net, int cb_ident)
 {
 	struct nfs_client *clp;
+	struct nfs_net *nn = net_generic(net, nfs_net_id);
 
 	spin_lock(&nfs_client_lock);
-	clp = idr_find(&cb_ident_idr, cb_ident);
+	clp = idr_find(&nn->cb_ident_idr, cb_ident);
 	if (clp)
 		atomic_inc(&clp->cl_count);
 	spin_unlock(&nfs_client_lock);
@@ -1765,6 +1770,9 @@ void nfs_clients_init(struct net *net)
 
 	INIT_LIST_HEAD(&nn->nfs_client_list);
 	INIT_LIST_HEAD(&nn->nfs_volume_list);
+#ifdef CONFIG_NFS_V4
+	idr_init(&nn->cb_ident_idr);
+#endif
 }
 
 #ifdef CONFIG_PROC_FS

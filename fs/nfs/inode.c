@@ -1565,6 +1565,7 @@ static int nfs_net_init(struct net *net)
 static void nfs_net_exit(struct net *net)
 {
 	nfs_dns_resolver_cache_destroy(net);
+	nfs_cleanup_cb_ident_idr(net);
 }
 
 static struct pernet_operations nfs_net_ops = {
@@ -1674,7 +1675,6 @@ static void __exit exit_nfs_fs(void)
 #ifdef CONFIG_PROC_FS
 	rpc_proc_unregister(&init_net, "nfs");
 #endif
-	nfs_cleanup_cb_ident_idr();
 	unregister_nfs_fs();
 	nfs_fs_proc_exit();
 	nfsiod_stop();
