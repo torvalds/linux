@@ -25,10 +25,10 @@ static bool ceph_is_valid_xattr(const char *name)
  * statistics and layout metadata.
  */
 struct ceph_vxattr_cb {
-	bool readonly;
 	char *name;
 	size_t (*getxattr_cb)(struct ceph_inode_info *ci, char *val,
 			      size_t size);
+	bool readonly;
 };
 
 /* directories */
@@ -82,16 +82,25 @@ static size_t ceph_vxattrcb_rctime(struct ceph_inode_info *ci, char *val,
 			(long)ci->i_rctime.tv_nsec);
 }
 
+#define CEPH_XATTR_NAME(_type, _name)	XATTR_CEPH_PREFIX #_type "." #_name
+
+#define XATTR_NAME_CEPH(_type, _name) \
+		{ \
+			.name = CEPH_XATTR_NAME(_type, _name), \
+			.getxattr_cb = ceph_vxattrcb_ ## _name, \
+			.readonly = true, \
+		}
+
 static struct ceph_vxattr_cb ceph_dir_vxattrs[] = {
-	{ true, XATTR_CEPH_PREFIX "dir.entries", ceph_vxattrcb_entries},
-	{ true, XATTR_CEPH_PREFIX "dir.files", ceph_vxattrcb_files},
-	{ true, XATTR_CEPH_PREFIX "dir.subdirs", ceph_vxattrcb_subdirs},
-	{ true, XATTR_CEPH_PREFIX "dir.rentries", ceph_vxattrcb_rentries},
-	{ true, XATTR_CEPH_PREFIX "dir.rfiles", ceph_vxattrcb_rfiles},
-	{ true, XATTR_CEPH_PREFIX "dir.rsubdirs", ceph_vxattrcb_rsubdirs},
-	{ true, XATTR_CEPH_PREFIX "dir.rbytes", ceph_vxattrcb_rbytes},
-	{ true, XATTR_CEPH_PREFIX "dir.rctime", ceph_vxattrcb_rctime},
-	{ true, NULL, NULL }
+	XATTR_NAME_CEPH(dir, entries),
+	XATTR_NAME_CEPH(dir, files),
+	XATTR_NAME_CEPH(dir, subdirs),
+	XATTR_NAME_CEPH(dir, rentries),
+	XATTR_NAME_CEPH(dir, rfiles),
+	XATTR_NAME_CEPH(dir, rsubdirs),
+	XATTR_NAME_CEPH(dir, rbytes),
+	XATTR_NAME_CEPH(dir, rctime),
+	{ 0 }	/* Required table terminator */
 };
 
 /* files */
@@ -114,10 +123,14 @@ static size_t ceph_vxattrcb_layout(struct ceph_inode_info *ci, char *val,
 }
 
 static struct ceph_vxattr_cb ceph_file_vxattrs[] = {
-	{ true, XATTR_CEPH_PREFIX "file.layout", ceph_vxattrcb_layout},
+	XATTR_NAME_CEPH(file, layout),
 	/* The following extended attribute name is deprecated */
-	{ true, XATTR_CEPH_PREFIX "layout", ceph_vxattrcb_layout},
-	{ true, NULL, NULL }
+	{
+		.name = XATTR_CEPH_PREFIX "layout",
+		.getxattr_cb = ceph_vxattrcb_layout,
+		.readonly = true,
+	},
+	{ 0 }	/* Required table terminator */
 };
 
 static struct ceph_vxattr_cb *ceph_inode_vxattrs(struct inode *inode)
