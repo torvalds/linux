@@ -146,15 +146,17 @@ void caif_flow_cb(struct sk_buff *skb)
 	spin_lock_bh(&caifd->flow_lock);
 	send_xoff = caifd->xoff;
 	caifd->xoff = 0;
-	if (!WARN_ON(caifd->xoff_skb_dtor == NULL)) {
-		WARN_ON(caifd->xoff_skb != skb);
-		dtor = caifd->xoff_skb_dtor;
-		caifd->xoff_skb = NULL;
-		caifd->xoff_skb_dtor = NULL;
-	}
+	dtor = caifd->xoff_skb_dtor;
+
+	if (WARN_ON(caifd->xoff_skb != skb))
+		skb = NULL;
+
+	caifd->xoff_skb = NULL;
+	caifd->xoff_skb_dtor = NULL;
+
 	spin_unlock_bh(&caifd->flow_lock);
 
-	if (dtor)
+	if (dtor && skb)
 		dtor(skb);
 
 	if (send_xoff)

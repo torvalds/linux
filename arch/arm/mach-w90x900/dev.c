@@ -501,8 +501,8 @@ static struct resource nuc900_ac97_resource[] = {
 
 };
 
-struct platform_device nuc900_device_audio = {
-	.name		= "nuc900-audio",
+struct platform_device nuc900_device_ac97 = {
+	.name		= "nuc900-ac97",
 	.id		= -1,
 	.num_resources	= ARRAY_SIZE(nuc900_ac97_resource),
 	.resource	= nuc900_ac97_resource,
@@ -523,7 +523,7 @@ static struct platform_device *nuc900_public_dev[] __initdata = {
 	&nuc900_device_emc,
 	&nuc900_device_spi,
 	&nuc900_device_wdt,
-	&nuc900_device_audio,
+	&nuc900_device_ac97,
 };
 
 /* Provide adding specific CPU platform devices API */

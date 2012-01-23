@@ -846,6 +846,15 @@ int tpm_do_selftest(struct tpm_chip *chip)
 
 	do {
 		rc = __tpm_pcr_read(chip, 0, digest);
+		if (rc == TPM_ERR_DISABLED || rc == TPM_ERR_DEACTIVATED) {
+			dev_info(chip->dev,
+				 "TPM is disabled/deactivated (0x%X)\n", rc);
+			/* TPM is disabled and/or deactivated; driver can
+			 * proceed and TPM does handle commands for
+			 * suspend/resume correctly
+			 */
+			return 0;
+		}
 		if (rc != TPM_WARN_DOING_SELFTEST)
 			return rc;
 		msleep(delay_msec);

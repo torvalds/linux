@@ -134,7 +134,7 @@ txx9aclc_dma_submit(struct txx9aclc_dmadata *dmadata, dma_addr_t buf_dma_addr)
 	sg_dma_address(&sg) = buf_dma_addr;
 	desc = chan->device->device_prep_slave_sg(chan, &sg, 1,
 		dmadata->substream->stream == SNDRV_PCM_STREAM_PLAYBACK ?
-		DMA_TO_DEVICE : DMA_FROM_DEVICE,
+		DMA_MEM_TO_DEV : DMA_DEV_TO_MEM,
 		DMA_PREP_INTERRUPT | DMA_CTRL_ACK);
 	if (!desc) {
 		dev_err(&chan->dev->device, "cannot prepare slave dma\n");

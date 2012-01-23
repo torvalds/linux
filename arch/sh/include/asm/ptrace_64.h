@@ -13,7 +13,10 @@ struct pt_regs {
 #ifdef __KERNEL__
 
 #define MAX_REG_OFFSET		offsetof(struct pt_regs, tregs[7])
-#define regs_return_value(_regs)	((_regs)->regs[3])
+static inline long regs_return_value(struct pt_regs *regs)
+{
+	return regs->regs[3];
+}
 
 #endif /* __KERNEL__ */
 

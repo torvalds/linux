@@ -67,7 +67,7 @@ static void picoxcell_add_clocksource(struct device_node *source_timer)
 
 static void __iomem *sched_io_base;
 
-unsigned u32 notrace picoxcell_read_sched_clock(void)
+static u32 picoxcell_read_sched_clock(void)
 {
 	return __raw_readl(sched_io_base);
 }

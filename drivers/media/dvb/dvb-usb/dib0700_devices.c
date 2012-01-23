@@ -3066,19 +3066,25 @@ static struct dib7000p_config stk7070pd_dib7000p_config[2] = {
 	}
 };
 
+static void stk7070pd_init(struct dvb_usb_device *dev)
+{
+	dib0700_set_gpio(dev, GPIO6, GPIO_OUT, 1);
+	msleep(10);
+	dib0700_set_gpio(dev, GPIO9, GPIO_OUT, 1);
+	dib0700_set_gpio(dev, GPIO4, GPIO_OUT, 1);
+	dib0700_set_gpio(dev, GPIO7, GPIO_OUT, 1);
+	dib0700_set_gpio(dev, GPIO10, GPIO_OUT, 0);
+
+	dib0700_ctrl_clock(dev, 72, 1);
+
+	msleep(10);
+	dib0700_set_gpio(dev, GPIO10, GPIO_OUT, 1);
+}
+
 static int stk7070pd_frontend_attach0(struct dvb_usb_adapter *adap)
 {
-	dib0700_set_gpio(adap->dev, GPIO6, GPIO_OUT, 1);
-	msleep(10);
-	dib0700_set_gpio(adap->dev, GPIO9, GPIO_OUT, 1);
-	dib0700_set_gpio(adap->dev, GPIO4, GPIO_OUT, 1);
-	dib0700_set_gpio(adap->dev, GPIO7, GPIO_OUT, 1);
-	dib0700_set_gpio(adap->dev, GPIO10, GPIO_OUT, 0);
+	stk7070pd_init(adap->dev);
 
-	dib0700_ctrl_clock(adap->dev, 72, 1);
-
-	msleep(10);
-	dib0700_set_gpio(adap->dev, GPIO10, GPIO_OUT, 1);
 	msleep(10);
 	dib0700_set_gpio(adap->dev, GPIO0, GPIO_OUT, 1);
 
@@ -3097,6 +3103,77 @@ static int stk7070pd_frontend_attach1(struct dvb_usb_adapter *adap)
 {
 	adap->fe_adap[0].fe = dvb_attach(dib7000p_attach, &adap->dev->i2c_adap, 0x82, &stk7070pd_dib7000p_config[1]);
 	return adap->fe_adap[0].fe == NULL ? -ENODEV : 0;
+}
+
+static int novatd_read_status_override(struct dvb_frontend *fe,
+		fe_status_t *stat)
+{
+	struct dvb_usb_adapter *adap = fe->dvb->priv;
+	struct dvb_usb_device *dev = adap->dev;
+	struct dib0700_state *state = dev->priv;
+	int ret;
+
+	ret = state->read_status(fe, stat);
+
+	if (!ret)
+		dib0700_set_gpio(dev, adap->id == 0 ? GPIO1 : GPIO0, GPIO_OUT,
+				!!(*stat & FE_HAS_LOCK));
+
+	return ret;
+}
+
+static int novatd_sleep_override(struct dvb_frontend* fe)
+{
+	struct dvb_usb_adapter *adap = fe->dvb->priv;
+	struct dvb_usb_device *dev = adap->dev;
+	struct dib0700_state *state = dev->priv;
+
+	/* turn off LED */
+	dib0700_set_gpio(dev, adap->id == 0 ? GPIO1 : GPIO0, GPIO_OUT, 0);
+
+	return state->sleep(fe);
+}
+
+/**
+ * novatd_frontend_attach - Nova-TD specific attach
+ *
+ * Nova-TD has GPIO0, 1 and 2 for LEDs. So do not fiddle with them except for
+ * information purposes.
+ */
+static int novatd_frontend_attach(struct dvb_usb_adapter *adap)
+{
+	struct dvb_usb_device *dev = adap->dev;
+	struct dib0700_state *st = dev->priv;
+
+	if (adap->id == 0) {
+		stk7070pd_init(dev);
+
+		/* turn the power LED on, the other two off (just in case) */
+		dib0700_set_gpio(dev, GPIO0, GPIO_OUT, 0);
+		dib0700_set_gpio(dev, GPIO1, GPIO_OUT, 0);
+		dib0700_set_gpio(dev, GPIO2, GPIO_OUT, 1);
+
+		if (dib7000p_i2c_enumeration(&dev->i2c_adap, 2, 18,
+					     stk7070pd_dib7000p_config) != 0) {
+			err("%s: dib7000p_i2c_enumeration failed.  Cannot continue\n",
+			    __func__);
+			return -ENODEV;
+		}
+	}
+
+	adap->fe_adap[0].fe = dvb_attach(dib7000p_attach, &dev->i2c_adap,
+			adap->id == 0 ? 0x80 : 0x82,
+			&stk7070pd_dib7000p_config[adap->id]);
+
+	if (adap->fe_adap[0].fe == NULL)
+		return -ENODEV;
+
+	st->read_status = adap->fe_adap[0].fe->ops.read_status;
+	adap->fe_adap[0].fe->ops.read_status = novatd_read_status_override;
+	st->sleep = adap->fe_adap[0].fe->ops.sleep;
+	adap->fe_adap[0].fe->ops.sleep = novatd_sleep_override;
+
+	return 0;
 }
 
 /* S5H1411 */
@@ -3870,6 +3947,57 @@ struct dvb_usb_device_properties dib0700_devices[] = {
 				.pid_filter_count = 32,
 				.pid_filter       = stk70x0p_pid_filter,
 				.pid_filter_ctrl  = stk70x0p_pid_filter_ctrl,
+				.frontend_attach  = novatd_frontend_attach,
+				.tuner_attach     = dib7070p_tuner_attach,
+
+				DIB0700_DEFAULT_STREAMING_CONFIG(0x02),
+			}},
+				.size_of_priv     = sizeof(struct dib0700_adapter_state),
+			}, {
+			.num_frontends = 1,
+			.fe = {{
+				.caps = DVB_USB_ADAP_HAS_PID_FILTER | DVB_USB_ADAP_PID_FILTER_CAN_BE_TURNED_OFF,
+				.pid_filter_count = 32,
+				.pid_filter       = stk70x0p_pid_filter,
+				.pid_filter_ctrl  = stk70x0p_pid_filter_ctrl,
+				.frontend_attach  = novatd_frontend_attach,
+				.tuner_attach     = dib7070p_tuner_attach,
+
+				DIB0700_DEFAULT_STREAMING_CONFIG(0x03),
+			}},
+				.size_of_priv     = sizeof(struct dib0700_adapter_state),
+			}
+		},
+
+		.num_device_descs = 1,
+		.devices = {
+			{   "Hauppauge Nova-TD Stick (52009)",
+				{ &dib0700_usb_id_table[35], NULL },
+				{ NULL },
+			},
+		},
+
+		.rc.core = {
+			.rc_interval      = DEFAULT_RC_INTERVAL,
+			.rc_codes         = RC_MAP_DIB0700_RC5_TABLE,
+			.module_name	  = "dib0700",
+			.rc_query         = dib0700_rc_query_old_firmware,
+			.allowed_protos   = RC_TYPE_RC5 |
+					    RC_TYPE_RC6 |
+					    RC_TYPE_NEC,
+			.change_protocol = dib0700_change_protocol,
+		},
+	}, { DIB0700_DEFAULT_DEVICE_PROPERTIES,
+
+		.num_adapters = 2,
+		.adapter = {
+			{
+			.num_frontends = 1,
+			.fe = {{
+				.caps = DVB_USB_ADAP_HAS_PID_FILTER | DVB_USB_ADAP_PID_FILTER_CAN_BE_TURNED_OFF,
+				.pid_filter_count = 32,
+				.pid_filter       = stk70x0p_pid_filter,
+				.pid_filter_ctrl  = stk70x0p_pid_filter_ctrl,
 				.frontend_attach  = stk7070pd_frontend_attach0,
 				.tuner_attach     = dib7070p_tuner_attach,
 
@@ -3892,7 +4020,7 @@ struct dvb_usb_device_properties dib0700_devices[] = {
 			}
 		},
 
-		.num_device_descs = 6,
+		.num_device_descs = 5,
 		.devices = {
 			{   "DiBcom STK7070PD reference design",
 				{ &dib0700_usb_id_table[17], NULL },
@@ -3900,10 +4028,6 @@ struct dvb_usb_device_properties dib0700_devices[] = {
 			},
 			{   "Pinnacle PCTV Dual DVB-T Diversity Stick",
 				{ &dib0700_usb_id_table[18], NULL },
-				{ NULL },
-			},
-			{   "Hauppauge Nova-TD Stick (52009)",
-				{ &dib0700_usb_id_table[35], NULL },
 				{ NULL },
 			},
 			{   "Hauppauge Nova-TD-500 (84xxx)",

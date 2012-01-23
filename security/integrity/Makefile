@@ -3,7 +3,7 @@
 #
 
 obj-$(CONFIG_INTEGRITY) += integrity.o
-obj-$(CONFIG_INTEGRITY_DIGSIG) += digsig.o
+obj-$(CONFIG_INTEGRITY_SIGNATURE) += digsig.o
 
 integrity-y := iint.o
 

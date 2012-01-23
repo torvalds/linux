@@ -23,7 +23,6 @@
 #include <linux/interrupt.h>
 #include <linux/dmaengine.h>
 #include <linux/delay.h>
-#include <linux/dma-mapping.h>
 #include <linux/platform_device.h>
 #include <linux/pm_runtime.h>
 #include <linux/sh_dma.h>
@@ -57,6 +56,15 @@ static LIST_HEAD(sh_dmae_devices);
 static unsigned long sh_dmae_slave_used[BITS_TO_LONGS(SH_DMA_SLAVE_NUMBER)];
 
 static void sh_dmae_chan_ld_cleanup(struct sh_dmae_chan *sh_chan, bool all);
+static void sh_chan_xfer_ld_queue(struct sh_dmae_chan *sh_chan);
+
+static void chclr_write(struct sh_dmae_chan *sh_dc, u32 data)
+{
+	struct sh_dmae_device *shdev = to_sh_dev(sh_dc);
+
+	__raw_writel(data, shdev->chan_reg +
+		     shdev->pdata->channel[sh_dc->id].chclr_offset);
+}
 
 static void sh_dmae_writel(struct sh_dmae_chan *sh_dc, u32 data, u32 reg)
 {
@@ -129,6 +137,15 @@ static int sh_dmae_rst(struct sh_dmae_device *shdev)
 
 	dmaor = dmaor_read(shdev) & ~(DMAOR_NMIF | DMAOR_AE | DMAOR_DME);
 
+	if (shdev->pdata->chclr_present) {
+		int i;
+		for (i = 0; i < shdev->pdata->channel_num; i++) {
+			struct sh_dmae_chan *sh_chan = shdev->chan[i];
+			if (sh_chan)
+				chclr_write(sh_chan, 0);
+		}
+	}
+
 	dmaor_write(shdev, dmaor | shdev->pdata->dmaor_init);
 
 	dmaor = dmaor_read(shdev);
@@ -139,6 +156,10 @@ static int sh_dmae_rst(struct sh_dmae_device *shdev)
 		dev_warn(shdev->common.dev, "Can't initialize DMAOR.\n");
 		return -EIO;
 	}
+	if (shdev->pdata->dmaor_init & ~dmaor)
+		dev_warn(shdev->common.dev,
+			 "DMAOR=0x%x hasn't latched the initial value 0x%x.\n",
+			 dmaor, shdev->pdata->dmaor_init);
 	return 0;
 }
 
@@ -259,8 +280,6 @@ static int dmae_set_dmars(struct sh_dmae_chan *sh_chan, u16 val)
 	return 0;
 }
 
-static void sh_chan_xfer_ld_queue(struct sh_dmae_chan *sh_chan);
-
 static dma_cookie_t sh_dmae_tx_submit(struct dma_async_tx_descriptor *tx)
 {
 	struct sh_desc *desc = tx_to_sh_desc(tx), *chunk, *last = desc, *c;
@@ -340,6 +359,8 @@ static dma_cookie_t sh_dmae_tx_submit(struct dma_async_tx_descriptor *tx)
 				sh_chan_xfer_ld_queue(sh_chan);
 			sh_chan->pm_state = DMAE_PM_ESTABLISHED;
 		}
+	} else {
+		sh_chan->pm_state = DMAE_PM_PENDING;
 	}
 
 	spin_unlock_irq(&sh_chan->desc_lock);
@@ -479,19 +500,19 @@ static void sh_dmae_free_chan_resources(struct dma_chan *chan)
  * @sh_chan:	DMA channel
  * @flags:	DMA transfer flags
  * @dest:	destination DMA address, incremented when direction equals
- *		DMA_FROM_DEVICE or DMA_BIDIRECTIONAL
+ *		DMA_DEV_TO_MEM
  * @src:	source DMA address, incremented when direction equals
- *		DMA_TO_DEVICE or DMA_BIDIRECTIONAL
+ *		DMA_MEM_TO_DEV
  * @len:	DMA transfer length
  * @first:	if NULL, set to the current descriptor and cookie set to -EBUSY
  * @direction:	needed for slave DMA to decide which address to keep constant,
- *		equals DMA_BIDIRECTIONAL for MEMCPY
+ *		equals DMA_MEM_TO_MEM for MEMCPY
  * Returns 0 or an error
  * Locks: called with desc_lock held
  */
 static struct sh_desc *sh_dmae_add_desc(struct sh_dmae_chan *sh_chan,
 	unsigned long flags, dma_addr_t *dest, dma_addr_t *src, size_t *len,
-	struct sh_desc **first, enum dma_data_direction direction)
+	struct sh_desc **first, enum dma_transfer_direction direction)
 {
 	struct sh_desc *new;
 	size_t copy_size;
@@ -531,9 +552,9 @@ static struct sh_desc *sh_dmae_add_desc(struct sh_dmae_chan *sh_chan,
 	new->direction = direction;
 
 	*len -= copy_size;
-	if (direction == DMA_BIDIRECTIONAL || direction == DMA_TO_DEVICE)
+	if (direction == DMA_MEM_TO_MEM || direction == DMA_MEM_TO_DEV)
 		*src += copy_size;
-	if (direction == DMA_BIDIRECTIONAL || direction == DMA_FROM_DEVICE)
+	if (direction == DMA_MEM_TO_MEM || direction == DMA_DEV_TO_MEM)
 		*dest += copy_size;
 
 	return new;
@@ -546,12 +567,12 @@ static struct sh_desc *sh_dmae_add_desc(struct sh_dmae_chan *sh_chan,
  * converted to scatter-gather to guarantee consistent locking and a correct
  * list manipulation. For slave DMA direction carries the usual meaning, and,
  * logically, the SG list is RAM and the addr variable contains slave address,
- * e.g., the FIFO I/O register. For MEMCPY direction equals DMA_BIDIRECTIONAL
+ * e.g., the FIFO I/O register. For MEMCPY direction equals DMA_MEM_TO_MEM
  * and the SG list contains only one element and points at the source buffer.
  */
 static struct dma_async_tx_descriptor *sh_dmae_prep_sg(struct sh_dmae_chan *sh_chan,
 	struct scatterlist *sgl, unsigned int sg_len, dma_addr_t *addr,
-	enum dma_data_direction direction, unsigned long flags)
+	enum dma_transfer_direction direction, unsigned long flags)
 {
 	struct scatterlist *sg;
 	struct sh_desc *first = NULL, *new = NULL /* compiler... */;
@@ -592,7 +613,7 @@ static struct dma_async_tx_descriptor *sh_dmae_prep_sg(struct sh_dmae_chan *sh_c
 			dev_dbg(sh_chan->dev, "Add SG #%d@%p[%d], dma %llx\n",
 				i, sg, len, (unsigned long long)sg_addr);
 
-			if (direction == DMA_FROM_DEVICE)
+			if (direction == DMA_DEV_TO_MEM)
 				new = sh_dmae_add_desc(sh_chan, flags,
 						&sg_addr, addr, &len, &first,
 						direction);
@@ -646,13 +667,13 @@ static struct dma_async_tx_descriptor *sh_dmae_prep_memcpy(
 	sg_dma_address(&sg) = dma_src;
 	sg_dma_len(&sg) = len;
 
-	return sh_dmae_prep_sg(sh_chan, &sg, 1, &dma_dest, DMA_BIDIRECTIONAL,
+	return sh_dmae_prep_sg(sh_chan, &sg, 1, &dma_dest, DMA_MEM_TO_MEM,
 			       flags);
 }
 
 static struct dma_async_tx_descriptor *sh_dmae_prep_slave_sg(
 	struct dma_chan *chan, struct scatterlist *sgl, unsigned int sg_len,
-	enum dma_data_direction direction, unsigned long flags)
+	enum dma_transfer_direction direction, unsigned long flags)
 {
 	struct sh_dmae_slave *param;
 	struct sh_dmae_chan *sh_chan;
@@ -996,7 +1017,7 @@ static void dmae_do_tasklet(unsigned long data)
 	spin_lock_irq(&sh_chan->desc_lock);
 	list_for_each_entry(desc, &sh_chan->ld_queue, node) {
 		if (desc->mark == DESC_SUBMITTED &&
-		    ((desc->direction == DMA_FROM_DEVICE &&
+		    ((desc->direction == DMA_DEV_TO_MEM &&
 		      (desc->hw.dar + desc->hw.tcr) == dar_buf) ||
 		     (desc->hw.sar + desc->hw.tcr) == sar_buf)) {
 			dev_dbg(sh_chan->dev, "done #%d@%p dst %u\n",
@@ -1225,6 +1246,8 @@ static int __init sh_dmae_probe(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, shdev);
 
+	shdev->common.dev = &pdev->dev;
+
 	pm_runtime_enable(&pdev->dev);
 	pm_runtime_get_sync(&pdev->dev);
 
@@ -1254,7 +1277,6 @@ static int __init sh_dmae_probe(struct platform_device *pdev)
 	shdev->common.device_prep_slave_sg = sh_dmae_prep_slave_sg;
 	shdev->common.device_control = sh_dmae_control;
 
-	shdev->common.dev = &pdev->dev;
 	/* Default transfer size of 32 bytes requires 32-byte alignment */
 	shdev->common.copy_align = LOG2_DEFAULT_XFER_SIZE;
 
@@ -1435,22 +1457,17 @@ static int sh_dmae_runtime_resume(struct device *dev)
 #ifdef CONFIG_PM
 static int sh_dmae_suspend(struct device *dev)
 {
-	struct sh_dmae_device *shdev = dev_get_drvdata(dev);
-	int i;
-
-	for (i = 0; i < shdev->pdata->channel_num; i++) {
-		struct sh_dmae_chan *sh_chan = shdev->chan[i];
-		if (sh_chan->descs_allocated)
-			sh_chan->pm_error = pm_runtime_put_sync(dev);
-	}
-
 	return 0;
 }
 
 static int sh_dmae_resume(struct device *dev)
 {
 	struct sh_dmae_device *shdev = dev_get_drvdata(dev);
-	int i;
+	int i, ret;
+
+	ret = sh_dmae_rst(shdev);
+	if (ret < 0)
+		dev_err(dev, "Failed to reset!\n");
 
 	for (i = 0; i < shdev->pdata->channel_num; i++) {
 		struct sh_dmae_chan *sh_chan = shdev->chan[i];
@@ -1458,9 +1475,6 @@ static int sh_dmae_resume(struct device *dev)
 
 		if (!sh_chan->descs_allocated)
 			continue;
-
-		if (!sh_chan->pm_error)
-			pm_runtime_get_sync(dev);
 
 		if (param) {
 			const struct sh_dmae_slave_config *cfg = param->config;

@@ -179,6 +179,7 @@ int ivtv_set_speed(struct ivtv *itv, int speed)
 		ivtv_vapi(itv, CX2341X_DEC_PAUSE_PLAYBACK, 1, 0);
 
 		/* Wait for any DMA to finish */
+		mutex_unlock(&itv->serialize_lock);
 		prepare_to_wait(&itv->dma_waitq, &wait, TASK_INTERRUPTIBLE);
 		while (test_bit(IVTV_F_I_DMA, &itv->i_flags)) {
 			got_sig = signal_pending(current);
@@ -188,6 +189,7 @@ int ivtv_set_speed(struct ivtv *itv, int speed)
 			schedule();
 		}
 		finish_wait(&itv->dma_waitq, &wait);
+		mutex_lock(&itv->serialize_lock);
 		if (got_sig)
 			return -EINTR;
 
@@ -1107,6 +1109,7 @@ void ivtv_s_std_dec(struct ivtv *itv, v4l2_std_id *std)
 	 * happens within the first 100 lines of the top field.
 	 * Make 4 attempts to sync to the decoder before giving up.
 	 */
+	mutex_unlock(&itv->serialize_lock);
 	for (f = 0; f < 4; f++) {
 		prepare_to_wait(&itv->vsync_waitq, &wait,
 				TASK_UNINTERRUPTIBLE);
@@ -1115,6 +1118,7 @@ void ivtv_s_std_dec(struct ivtv *itv, v4l2_std_id *std)
 		schedule_timeout(msecs_to_jiffies(25));
 	}
 	finish_wait(&itv->vsync_waitq, &wait);
+	mutex_lock(&itv->serialize_lock);
 
 	if (f == 4)
 		IVTV_WARN("Mode change failed to sync to decoder\n");
@@ -1842,8 +1846,7 @@ static long ivtv_default(struct file *file, void *fh, bool valid_prio,
 	return 0;
 }
 
-static long ivtv_serialized_ioctl(struct ivtv *itv, struct file *filp,
-		unsigned int cmd, unsigned long arg)
+long ivtv_v4l2_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 {
 	struct video_device *vfd = video_devdata(filp);
 	long ret;
@@ -1853,21 +1856,6 @@ static long ivtv_serialized_ioctl(struct ivtv *itv, struct file *filp,
 	ret = video_ioctl2(filp, cmd, arg);
 	vfd->debug = 0;
 	return ret;
-}
-
-long ivtv_v4l2_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
-{
-	struct ivtv_open_id *id = fh2id(filp->private_data);
-	struct ivtv *itv = id->itv;
-	long res;
-
-	/* DQEVENT can block, so this should not run with the serialize lock */
-	if (cmd == VIDIOC_DQEVENT)
-		return ivtv_serialized_ioctl(itv, filp, cmd, arg);
-	mutex_lock(&itv->serialize_lock);
-	res = ivtv_serialized_ioctl(itv, filp, cmd, arg);
-	mutex_unlock(&itv->serialize_lock);
-	return res;
 }
 
 static const struct v4l2_ioctl_ops ivtv_ioctl_ops = {

@@ -39,7 +39,7 @@ struct coh901318_desc {
 	struct scatterlist *sg;
 	unsigned int sg_len;
 	struct coh901318_lli *lli;
-	enum dma_data_direction dir;
+	enum dma_transfer_direction dir;
 	unsigned long flags;
 	u32 head_config;
 	u32 head_ctrl;
@@ -1034,7 +1034,7 @@ coh901318_prep_memcpy(struct dma_chan *chan, dma_addr_t dest, dma_addr_t src,
 
 static struct dma_async_tx_descriptor *
 coh901318_prep_slave_sg(struct dma_chan *chan, struct scatterlist *sgl,
-			unsigned int sg_len, enum dma_data_direction direction,
+			unsigned int sg_len, enum dma_transfer_direction direction,
 			unsigned long flags)
 {
 	struct coh901318_chan *cohc = to_coh901318_chan(chan);
@@ -1077,7 +1077,7 @@ coh901318_prep_slave_sg(struct dma_chan *chan, struct scatterlist *sgl,
 	ctrl_last |= cohc->runtime_ctrl;
 	ctrl |= cohc->runtime_ctrl;
 
-	if (direction == DMA_TO_DEVICE) {
+	if (direction == DMA_MEM_TO_DEV) {
 		u32 tx_flags = COH901318_CX_CTRL_PRDD_SOURCE |
 			COH901318_CX_CTRL_SRC_ADDR_INC_ENABLE;
 
@@ -1085,7 +1085,7 @@ coh901318_prep_slave_sg(struct dma_chan *chan, struct scatterlist *sgl,
 		ctrl_chained |= tx_flags;
 		ctrl_last |= tx_flags;
 		ctrl |= tx_flags;
-	} else if (direction == DMA_FROM_DEVICE) {
+	} else if (direction == DMA_DEV_TO_MEM) {
 		u32 rx_flags = COH901318_CX_CTRL_PRDD_DEST |
 			COH901318_CX_CTRL_DST_ADDR_INC_ENABLE;
 
@@ -1274,11 +1274,11 @@ static void coh901318_dma_set_runtimeconfig(struct dma_chan *chan,
 	int i = 0;
 
 	/* We only support mem to per or per to mem transfers */
-	if (config->direction == DMA_FROM_DEVICE) {
+	if (config->direction == DMA_DEV_TO_MEM) {
 		addr = config->src_addr;
 		addr_width = config->src_addr_width;
 		maxburst = config->src_maxburst;
-	} else if (config->direction == DMA_TO_DEVICE) {
+	} else if (config->direction == DMA_MEM_TO_DEV) {
 		addr = config->dst_addr;
 		addr_width = config->dst_addr_width;
 		maxburst = config->dst_maxburst;

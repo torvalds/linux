@@ -1,5 +1,5 @@
-/* Defined in target_core_configfs.h */
-struct target_fabric_configfs;
+#ifndef TARGET_CORE_FABRIC_H
+#define TARGET_CORE_FABRIC_H
 
 struct target_core_fabric_ops {
 	struct configfs_subsystem *tf_subsys;
@@ -52,10 +52,6 @@ struct target_core_fabric_ops {
 	 * Returning 0 will signal a descriptor has not been released.
 	 */
 	int (*check_stop_free)(struct se_cmd *);
-	/*
-	 * Optional check for active I/O shutdown
-	 */
-	int (*check_release_cmd)(struct se_cmd *);
 	void (*release_cmd)(struct se_cmd *);
 	/*
 	 * Called with spin_lock_bh(struct se_portal_group->session_lock held.
@@ -103,3 +99,89 @@ struct target_core_fabric_ops {
 				struct config_group *, const char *);
 	void (*fabric_drop_nodeacl)(struct se_node_acl *);
 };
+
+struct se_session *transport_init_session(void);
+void	__transport_register_session(struct se_portal_group *,
+		struct se_node_acl *, struct se_session *, void *);
+void	transport_register_session(struct se_portal_group *,
+		struct se_node_acl *, struct se_session *, void *);
+void	transport_free_session(struct se_session *);
+void	transport_deregister_session_configfs(struct se_session *);
+void	transport_deregister_session(struct se_session *);
+
+
+void	transport_init_se_cmd(struct se_cmd *, struct target_core_fabric_ops *,
+		struct se_session *, u32, int, int, unsigned char *);
+int	transport_lookup_cmd_lun(struct se_cmd *, u32);
+int	transport_generic_allocate_tasks(struct se_cmd *, unsigned char *);
+int	target_submit_cmd(struct se_cmd *, struct se_session *, unsigned char *,
+		unsigned char *, u32, u32, int, int, int);
+int	transport_handle_cdb_direct(struct se_cmd *);
+int	transport_generic_handle_cdb_map(struct se_cmd *);
+int	transport_generic_handle_data(struct se_cmd *);
+int	transport_generic_map_mem_to_cmd(struct se_cmd *cmd,
+		struct scatterlist *, u32, struct scatterlist *, u32);
+void	transport_do_task_sg_chain(struct se_cmd *);
+int	transport_generic_new_cmd(struct se_cmd *);
+
+void	transport_generic_process_write(struct se_cmd *);
+
+void	transport_generic_free_cmd(struct se_cmd *, int);
+
+bool	transport_wait_for_tasks(struct se_cmd *);
+int	transport_check_aborted_status(struct se_cmd *, int);
+int	transport_send_check_condition_and_sense(struct se_cmd *, u8, int);
+
+void	target_get_sess_cmd(struct se_session *, struct se_cmd *, bool);
+int	target_put_sess_cmd(struct se_session *, struct se_cmd *);
+void	target_splice_sess_cmd_list(struct se_session *);
+void	target_wait_for_sess_cmds(struct se_session *, int);
+
+int	core_alua_check_nonop_delay(struct se_cmd *);
+
+struct se_tmr_req *core_tmr_alloc_req(struct se_cmd *, void *, u8, gfp_t);
+void	core_tmr_release_req(struct se_tmr_req *);
+int	transport_generic_handle_tmr(struct se_cmd *);
+int	transport_lookup_tmr_lun(struct se_cmd *, u32);
+
+struct se_node_acl *core_tpg_check_initiator_node_acl(struct se_portal_group *,
+		unsigned char *);
+void	core_tpg_clear_object_luns(struct se_portal_group *);
+struct se_node_acl *core_tpg_add_initiator_node_acl(struct se_portal_group *,
+		struct se_node_acl *, const char *, u32);
+int	core_tpg_del_initiator_node_acl(struct se_portal_group *,
+		struct se_node_acl *, int);
+int	core_tpg_set_initiator_node_queue_depth(struct se_portal_group *,
+		unsigned char *, u32, int);
+int	core_tpg_register(struct target_core_fabric_ops *, struct se_wwn *,
+		struct se_portal_group *, void *, int);
+int	core_tpg_deregister(struct se_portal_group *);
+
+/* SAS helpers */
+u8	sas_get_fabric_proto_ident(struct se_portal_group *);
+u32	sas_get_pr_transport_id(struct se_portal_group *, struct se_node_acl *,
+		struct t10_pr_registration *, int *, unsigned char *);
+u32	sas_get_pr_transport_id_len(struct se_portal_group *, struct se_node_acl *,
+		struct t10_pr_registration *, int *);
+char	*sas_parse_pr_out_transport_id(struct se_portal_group *, const char *,
+		u32 *, char **);
+
+/* FC helpers */
+u8	fc_get_fabric_proto_ident(struct se_portal_group *);
+u32	fc_get_pr_transport_id(struct se_portal_group *, struct se_node_acl *,
+		struct t10_pr_registration *, int *, unsigned char *);
+u32	fc_get_pr_transport_id_len(struct se_portal_group *, struct se_node_acl *,
+		struct t10_pr_registration *, int *);
+char	*fc_parse_pr_out_transport_id(struct se_portal_group *, const char *,
+		u32 *, char **);
+
+/* iSCSI helpers */
+u8	iscsi_get_fabric_proto_ident(struct se_portal_group *);
+u32	iscsi_get_pr_transport_id(struct se_portal_group *, struct se_node_acl *,
+		struct t10_pr_registration *, int *, unsigned char *);
+u32	iscsi_get_pr_transport_id_len(struct se_portal_group *, struct se_node_acl *,
+		struct t10_pr_registration *, int *);
+char	*iscsi_parse_pr_out_transport_id(struct se_portal_group *, const char *,
+		u32 *, char **);
+
+#endif /* TARGET_CORE_FABRICH */

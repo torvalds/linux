@@ -154,6 +154,8 @@ struct xc4000_priv {
 #define XREG_SNR          0x06
 #define XREG_VERSION      0x07
 #define XREG_PRODUCT_ID   0x08
+#define XREG_SIGNAL_LEVEL 0x0A
+#define XREG_NOISE_LEVEL  0x0B
 
 /*
    Basic firmware description. This will remain with
@@ -484,6 +486,16 @@ static int xc_get_frame_lines(struct xc4000_priv *priv, u16 *frame_lines)
 static int xc_get_quality(struct xc4000_priv *priv, u16 *quality)
 {
 	return xc4000_readreg(priv, XREG_QUALITY, quality);
+}
+
+static int xc_get_signal_level(struct xc4000_priv *priv, u16 *signal)
+{
+	return xc4000_readreg(priv, XREG_SIGNAL_LEVEL, signal);
+}
+
+static int xc_get_noise_level(struct xc4000_priv *priv, u16 *noise)
+{
+	return xc4000_readreg(priv, XREG_NOISE_LEVEL, noise);
 }
 
 static u16 xc_wait_for_lock(struct xc4000_priv *priv)
@@ -1089,6 +1101,8 @@ static void xc_debug_dump(struct xc4000_priv *priv)
 	u32	hsync_freq_hz = 0;
 	u16	frame_lines;
 	u16	quality;
+	u16	signal = 0;
+	u16	noise = 0;
 	u8	hw_majorversion = 0, hw_minorversion = 0;
 	u8	fw_majorversion = 0, fw_minorversion = 0;
 
@@ -1119,6 +1133,12 @@ static void xc_debug_dump(struct xc4000_priv *priv)
 
 	xc_get_quality(priv, &quality);
 	dprintk(1, "*** Quality (0:<8dB, 7:>56dB) = %d\n", quality);
+
+	xc_get_signal_level(priv, &signal);
+	dprintk(1, "*** Signal level = -%ddB (%d)\n", signal >> 8, signal);
+
+	xc_get_noise_level(priv, &noise);
+	dprintk(1, "*** Noise level = %ddB (%d)\n", noise >> 8, noise);
 }
 
 static int xc4000_set_params(struct dvb_frontend *fe)
@@ -1432,6 +1452,71 @@ fail:
 	return ret;
 }
 
+static int xc4000_get_signal(struct dvb_frontend *fe, u16 *strength)
+{
+	struct xc4000_priv *priv = fe->tuner_priv;
+	u16 value = 0;
+	int rc;
+
+	mutex_lock(&priv->lock);
+	rc = xc4000_readreg(priv, XREG_SIGNAL_LEVEL, &value);
+	mutex_unlock(&priv->lock);
+
+	if (rc < 0)
+		goto ret;
+
+	/* Informations from real testing of DVB-T and radio part,
+	   coeficient for one dB is 0xff.
+	 */
+	tuner_dbg("Signal strength: -%ddB (%05d)\n", value >> 8, value);
+
+	/* all known digital modes */
+	if ((priv->video_standard == XC4000_DTV6) ||
+	    (priv->video_standard == XC4000_DTV7) ||
+	    (priv->video_standard == XC4000_DTV7_8) ||
+	    (priv->video_standard == XC4000_DTV8))
+		goto digital;
+
+	/* Analog mode has NOISE LEVEL important, signal
+	   depends only on gain of antenna and amplifiers,
+	   but it doesn't tell anything about real quality
+	   of reception.
+	 */
+	mutex_lock(&priv->lock);
+	rc = xc4000_readreg(priv, XREG_NOISE_LEVEL, &value);
+	mutex_unlock(&priv->lock);
+
+	tuner_dbg("Noise level: %ddB (%05d)\n", value >> 8, value);
+
+	/* highest noise level: 32dB */
+	if (value >= 0x2000) {
+		value = 0;
+	} else {
+		value = ~value << 3;
+	}
+
+	goto ret;
+
+	/* Digital mode has SIGNAL LEVEL important and real
+	   noise level is stored in demodulator registers.
+	 */
+digital:
+	/* best signal: -50dB */
+	if (value <= 0x3200) {
+		value = 0xffff;
+	/* minimum: -114dB - should be 0x7200 but real zero is 0x713A */
+	} else if (value >= 0x713A) {
+		value = 0;
+	} else {
+		value = ~(value - 0x3200) << 2;
+	}
+
+ret:
+	*strength = value;
+
+	return rc;
+}
+
 static int xc4000_get_frequency(struct dvb_frontend *fe, u32 *freq)
 {
 	struct xc4000_priv *priv = fe->tuner_priv;
@@ -1559,6 +1644,7 @@ static const struct dvb_tuner_ops xc4000_tuner_ops = {
 	.set_params	   = xc4000_set_params,
 	.set_analog_params = xc4000_set_analog_params,
 	.get_frequency	   = xc4000_get_frequency,
+	.get_rf_strength   = xc4000_get_signal,
 	.get_bandwidth	   = xc4000_get_bandwidth,
 	.get_status	   = xc4000_get_status
 };

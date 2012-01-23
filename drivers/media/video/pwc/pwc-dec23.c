@@ -294,22 +294,17 @@ static unsigned char pwc_crop_table[256 + 2*MAX_OUTER_CROP_VALUE];
 
 
 /* If the type or the command change, we rebuild the lookup table */
-int pwc_dec23_init(struct pwc_device *pwc, int type, unsigned char *cmd)
+void pwc_dec23_init(struct pwc_device *pdev, const unsigned char *cmd)
 {
 	int flags, version, shift, i;
-	struct pwc_dec23_private *pdec;
-
-	if (pwc->decompress_data == NULL) {
-		pdec = kmalloc(sizeof(struct pwc_dec23_private), GFP_KERNEL);
-		if (pdec == NULL)
-			return -ENOMEM;
-		pwc->decompress_data = pdec;
-	}
-	pdec = pwc->decompress_data;
+	struct pwc_dec23_private *pdec = &pdev->dec23;
 
 	mutex_init(&pdec->lock);
 
-	if (DEVICE_USE_CODEC3(type)) {
+	if (pdec->last_cmd_valid && pdec->last_cmd == cmd[2])
+		return;
+
+	if (DEVICE_USE_CODEC3(pdev->type)) {
 		flags = cmd[2] & 0x18;
 		if (flags == 8)
 			pdec->nbits = 7;	/* More bits, mean more bits to encode the stream, but better quality */
@@ -356,7 +351,8 @@ int pwc_dec23_init(struct pwc_device *pwc, int type, unsigned char *cmd)
 		pwc_crop_table[MAX_OUTER_CROP_VALUE+256+i] = 255;
 #endif
 
-	return 0;
+	pdec->last_cmd = cmd[2];
+	pdec->last_cmd_valid = 1;
 }
 
 /*
@@ -659,12 +655,12 @@ static void DecompressBand23(struct pwc_dec23_private *pdec,
  * src: raw data
  * dst: image output
  */
-void pwc_dec23_decompress(const struct pwc_device *pwc,
+void pwc_dec23_decompress(struct pwc_device *pdev,
 			  const void *src,
 			  void *dst)
 {
 	int bandlines_left, bytes_per_block;
-	struct pwc_dec23_private *pdec = pwc->decompress_data;
+	struct pwc_dec23_private *pdec = &pdev->dec23;
 
 	/* YUV420P image format */
 	unsigned char *pout_planar_y;
@@ -674,23 +670,22 @@ void pwc_dec23_decompress(const struct pwc_device *pwc,
 
 	mutex_lock(&pdec->lock);
 
-	bandlines_left = pwc->height / 4;
-	bytes_per_block = pwc->width * 4;
-	plane_size = pwc->height * pwc->width;
+	bandlines_left = pdev->height / 4;
+	bytes_per_block = pdev->width * 4;
+	plane_size = pdev->height * pdev->width;
 
 	pout_planar_y = dst;
 	pout_planar_u = dst + plane_size;
 	pout_planar_v = dst + plane_size + plane_size / 4;
 
 	while (bandlines_left--) {
-		DecompressBand23(pwc->decompress_data,
-				 src,
+		DecompressBand23(pdec, src,
 				 pout_planar_y, pout_planar_u, pout_planar_v,
-				 pwc->width, pwc->width);
-		src += pwc->vbandlength;
+				 pdev->width, pdev->width);
+		src += pdev->vbandlength;
 		pout_planar_y += bytes_per_block;
-		pout_planar_u += pwc->width;
-		pout_planar_v += pwc->width;
+		pout_planar_u += pdev->width;
+		pout_planar_v += pdev->width;
 	}
 	mutex_unlock(&pdec->lock);
 }

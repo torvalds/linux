@@ -365,13 +365,18 @@ static int bnx2x_set_settings(struct net_device *dev, struct ethtool_cmd *cmd)
 	DP(NETIF_MSG_LINK, "cfg_idx = %x\n", cfg_idx);
 
 	if (cmd->autoneg == AUTONEG_ENABLE) {
+		u32 an_supported_speed = bp->port.supported[cfg_idx];
+		if (bp->link_params.phy[EXT_PHY1].type ==
+		    PORT_HW_CFG_XGXS_EXT_PHY_TYPE_BCM84833)
+			an_supported_speed |= (SUPPORTED_100baseT_Half |
+					       SUPPORTED_100baseT_Full);
 		if (!(bp->port.supported[cfg_idx] & SUPPORTED_Autoneg)) {
 			DP(NETIF_MSG_LINK, "Autoneg not supported\n");
 			return -EINVAL;
 		}
 
 		/* advertise the requested speed and duplex if supported */
-		if (cmd->advertising & ~(bp->port.supported[cfg_idx])) {
+		if (cmd->advertising & ~an_supported_speed) {
 			DP(NETIF_MSG_LINK, "Advertisement parameters "
 					   "are not supported\n");
 			return -EINVAL;
