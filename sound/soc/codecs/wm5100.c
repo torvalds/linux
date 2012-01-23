@@ -2504,8 +2504,9 @@ static __devinit int wm5100_i2c_probe(struct i2c_client *i2c,
 	for (i = 0; i < ARRAY_SIZE(wm5100->core_supplies); i++)
 		wm5100->core_supplies[i].supply = wm5100_core_supply_names[i];
 
-	ret = regulator_bulk_get(&i2c->dev, ARRAY_SIZE(wm5100->core_supplies),
-				 wm5100->core_supplies);
+	ret = devm_regulator_bulk_get(&i2c->dev,
+				      ARRAY_SIZE(wm5100->core_supplies),
+				      wm5100->core_supplies);
 	if (ret != 0) {
 		dev_err(&i2c->dev, "Failed to request core supplies: %d\n",
 			ret);
@@ -2517,7 +2518,7 @@ static __devinit int wm5100_i2c_probe(struct i2c_client *i2c,
 	if (ret != 0) {
 		dev_err(&i2c->dev, "Failed to enable core supplies: %d\n",
 			ret);
-		goto err_core;
+		goto err_regmap;
 	}
 
 	if (wm5100->pdata.ldo_ena) {
@@ -2686,9 +2687,6 @@ err_ldo:
 err_enable:
 	regulator_bulk_disable(ARRAY_SIZE(wm5100->core_supplies),
 			       wm5100->core_supplies);
-err_core:
-	regulator_bulk_free(ARRAY_SIZE(wm5100->core_supplies),
-			    wm5100->core_supplies);
 err_regmap:
 	regmap_exit(wm5100->regmap);
 err:
@@ -2711,8 +2709,6 @@ static __devexit int wm5100_i2c_remove(struct i2c_client *i2c)
 		gpio_set_value_cansleep(wm5100->pdata.ldo_ena, 0);
 		gpio_free(wm5100->pdata.ldo_ena);
 	}
-	regulator_bulk_free(ARRAY_SIZE(wm5100->core_supplies),
-			    wm5100->core_supplies);
 	regmap_exit(wm5100->regmap);
 
 	return 0;
