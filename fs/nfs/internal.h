@@ -182,9 +182,6 @@ static inline void nfs_fs_proc_exit(void)
 {
 }
 #endif
-#ifdef CONFIG_NFS_V4
-extern spinlock_t nfs_client_lock;
-#endif
 
 /* nfs4namespace.c */
 #ifdef CONFIG_NFS_V4

@@ -536,7 +536,7 @@ static int rpc_pipefs_event(struct notifier_block *nb, unsigned long event,
 	struct nfs_client *clp;
 	int error = 0;
 
-	spin_lock(&nfs_client_lock);
+	spin_lock(&nn->nfs_client_lock);
 	list_for_each_entry(clp, &nn->nfs_client_list, cl_share_link) {
 		if (clp->rpc_ops != &nfs_v4_clientops)
 			continue;
@@ -544,7 +544,7 @@ static int rpc_pipefs_event(struct notifier_block *nb, unsigned long event,
 		if (error)
 			break;
 	}
-	spin_unlock(&nfs_client_lock);
+	spin_unlock(&nn->nfs_client_lock);
 	return error;
 }
 

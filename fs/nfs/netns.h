@@ -12,6 +12,7 @@ struct nfs_net {
 #ifdef CONFIG_NFS_V4
 	struct idr cb_ident_idr; /* Protected by nfs_client_lock */
 #endif
+	spinlock_t nfs_client_lock;
 };
 
 extern int nfs_net_id;
