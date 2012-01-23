@@ -109,12 +109,12 @@ int radeon_ib_get(struct radeon_device *rdev, int ring,
 		return r;
 	}
 
-	mutex_lock(&rdev->ib_pool.mutex);
+	radeon_mutex_lock(&rdev->ib_pool.mutex);
 	idx = rdev->ib_pool.head_id;
 retry:
 	if (cretry > 5) {
 		dev_err(rdev->dev, "failed to get an ib after 5 retry\n");
-		mutex_unlock(&rdev->ib_pool.mutex);
+		radeon_mutex_unlock(&rdev->ib_pool.mutex);
 		radeon_fence_unref(&fence);
 		return -ENOMEM;
 	}
@@ -139,7 +139,7 @@ retry:
 				 */
 				rdev->ib_pool.head_id = (1 + idx);
 				rdev->ib_pool.head_id &= (RADEON_IB_POOL_SIZE - 1);
-				mutex_unlock(&rdev->ib_pool.mutex);
+				radeon_mutex_unlock(&rdev->ib_pool.mutex);
 				return 0;
 			}
 		}
@@ -158,7 +158,7 @@ retry:
 		}
 		idx = (idx + 1) & (RADEON_IB_POOL_SIZE - 1);
 	}
-	mutex_unlock(&rdev->ib_pool.mutex);
+	radeon_mutex_unlock(&rdev->ib_pool.mutex);
 	radeon_fence_unref(&fence);
 	return r;
 }
@@ -171,12 +171,12 @@ void radeon_ib_free(struct radeon_device *rdev, struct radeon_ib **ib)
 	if (tmp == NULL) {
 		return;
 	}
-	mutex_lock(&rdev->ib_pool.mutex);
+	radeon_mutex_lock(&rdev->ib_pool.mutex);
 	if (tmp->fence && !tmp->fence->emitted) {
 		radeon_sa_bo_free(rdev, &tmp->sa_bo);
 		radeon_fence_unref(&tmp->fence);
 	}
-	mutex_unlock(&rdev->ib_pool.mutex);
+	radeon_mutex_unlock(&rdev->ib_pool.mutex);
 }
 
 int radeon_ib_schedule(struct radeon_device *rdev, struct radeon_ib *ib)
@@ -214,9 +214,9 @@ int radeon_ib_pool_init(struct radeon_device *rdev)
 		return r;
 	}
 
-	mutex_lock(&rdev->ib_pool.mutex);
+	radeon_mutex_lock(&rdev->ib_pool.mutex);
 	if (rdev->ib_pool.ready) {
-		mutex_unlock(&rdev->ib_pool.mutex);
+		radeon_mutex_unlock(&rdev->ib_pool.mutex);
 		radeon_sa_bo_manager_fini(rdev, &tmp);
 		return 0;
 	}
@@ -239,7 +239,7 @@ int radeon_ib_pool_init(struct radeon_device *rdev)
 	if (radeon_debugfs_ring_init(rdev)) {
 		DRM_ERROR("Failed to register debugfs file for rings !\n");
 	}
-	mutex_unlock(&rdev->ib_pool.mutex);
+	radeon_mutex_unlock(&rdev->ib_pool.mutex);
 	return 0;
 }
 
@@ -247,7 +247,7 @@ void radeon_ib_pool_fini(struct radeon_device *rdev)
 {
 	unsigned i;
 
-	mutex_lock(&rdev->ib_pool.mutex);
+	radeon_mutex_lock(&rdev->ib_pool.mutex);
 	if (rdev->ib_pool.ready) {
 		for (i = 0; i < RADEON_IB_POOL_SIZE; i++) {
 			radeon_sa_bo_free(rdev, &rdev->ib_pool.ibs[i].sa_bo);
@@ -256,7 +256,7 @@ void radeon_ib_pool_fini(struct radeon_device *rdev)
 		radeon_sa_bo_manager_fini(rdev, &rdev->ib_pool.sa_manager);
 		rdev->ib_pool.ready = false;
 	}
-	mutex_unlock(&rdev->ib_pool.mutex);
+	radeon_mutex_unlock(&rdev->ib_pool.mutex);
 }
 
 int radeon_ib_pool_start(struct radeon_device *rdev)
