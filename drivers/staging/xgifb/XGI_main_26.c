@@ -2029,13 +2029,12 @@ static int __devinit xgifb_probe(struct pci_dev *pdev,
 		xgifb_info->hasVB = HASVB_NONE;
 	} else if (xgifb_info->chip == XG21) {
 		CR38 = xgifb_reg_get(XGICR, 0x38);
-		if ((CR38&0xE0) == 0xC0) {
+		if ((CR38&0xE0) == 0xC0)
 			xgifb_info->display2 = XGIFB_DISP_LCD;
-		} else if ((CR38&0xE0) == 0x60) {
+		else if ((CR38&0xE0) == 0x60)
 			xgifb_info->hasVB = HASVB_CHRONTEL;
-		} else {
+		else
 			xgifb_info->hasVB = HASVB_NONE;
-		}
 	} else {
 		XGIfb_get_VB_type(xgifb_info);
 	}
@@ -2139,9 +2138,6 @@ static int __devinit xgifb_probe(struct pci_dev *pdev,
 					if (tmp & 0x20) {
 						tmp = xgifb_reg_get(
 							XGIPART1, 0x13);
-						if (tmp & 0x04) {
-							/* XGI_Pr.XGI_UseLCDA = 1; */
-						}
 					}
 				}
 			}
