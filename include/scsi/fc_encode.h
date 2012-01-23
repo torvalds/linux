@@ -97,7 +97,9 @@ static inline void fc_adisc_fill(struct fc_lport *lport, struct fc_frame *fp)
  * returns pointer to ct request.
  */
 static inline struct fc_ct_req *fc_ct_hdr_fill(const struct fc_frame *fp,
-					       unsigned int op, size_t req_size)
+					       unsigned int op, size_t req_size,
+					       enum fc_ct_fs_type fs_type,
+					       u8 subtype)
 {
 	struct fc_ct_req *ct;
 	size_t ct_plen;
@@ -106,14 +108,14 @@ static inline struct fc_ct_req *fc_ct_hdr_fill(const struct fc_frame *fp,
 	ct = fc_frame_payload_get(fp, ct_plen);
 	memset(ct, 0, ct_plen);
 	ct->hdr.ct_rev = FC_CT_REV;
-	ct->hdr.ct_fs_type = FC_FST_DIR;
-	ct->hdr.ct_fs_subtype = FC_NS_SUBTYPE;
+	ct->hdr.ct_fs_type = fs_type;
+	ct->hdr.ct_fs_subtype = subtype;
 	ct->hdr.ct_cmd = htons((u16) op);
 	return ct;
 }
 
 /**
- * fc_ct_fill() - Fill in a name service request frame
+ * fc_ct_ns_fill() - Fill in a name service request frame
  * @lport: local port.
  * @fc_id: FC_ID of non-destination rport for GPN_ID and similar inquiries.
  * @fp: frame to contain payload.
@@ -121,7 +123,7 @@ static inline struct fc_ct_req *fc_ct_hdr_fill(const struct fc_frame *fp,
  * @r_ctl: pointer to FC header R_CTL.
  * @fh_type: pointer to FC-4 type.
  */
-static inline int fc_ct_fill(struct fc_lport *lport,
+static inline int fc_ct_ns_fill(struct fc_lport *lport,
 		      u32 fc_id, struct fc_frame *fp,
 		      unsigned int op, enum fc_rctl *r_ctl,
 		      enum fc_fh_type *fh_type)
@@ -131,23 +133,28 @@ static inline int fc_ct_fill(struct fc_lport *lport,
 
 	switch (op) {
 	case FC_NS_GPN_FT:
-		ct = fc_ct_hdr_fill(fp, op, sizeof(struct fc_ns_gid_ft));
+		ct = fc_ct_hdr_fill(fp, op, sizeof(struct fc_ns_gid_ft),
+				    FC_FST_DIR, FC_NS_SUBTYPE);
 		ct->payload.gid.fn_fc4_type = FC_TYPE_FCP;
 		break;
 
 	case FC_NS_GPN_ID:
-		ct = fc_ct_hdr_fill(fp, op, sizeof(struct fc_ns_fid));
+		ct = fc_ct_hdr_fill(fp, op, sizeof(struct fc_ns_fid),
+				    FC_FST_DIR, FC_NS_SUBTYPE);
+		ct->payload.gid.fn_fc4_type = FC_TYPE_FCP;
 		hton24(ct->payload.fid.fp_fid, fc_id);
 		break;
 
 	case FC_NS_RFT_ID:
-		ct = fc_ct_hdr_fill(fp, op, sizeof(struct fc_ns_rft));
+		ct = fc_ct_hdr_fill(fp, op, sizeof(struct fc_ns_rft),
+				    FC_FST_DIR, FC_NS_SUBTYPE);
 		hton24(ct->payload.rft.fid.fp_fid, lport->port_id);
 		ct->payload.rft.fts = lport->fcts;
 		break;
 
 	case FC_NS_RFF_ID:
-		ct = fc_ct_hdr_fill(fp, op, sizeof(struct fc_ns_rff_id));
+		ct = fc_ct_hdr_fill(fp, op, sizeof(struct fc_ns_rff_id),
+				    FC_FST_DIR, FC_NS_SUBTYPE);
 		hton24(ct->payload.rff.fr_fid.fp_fid, lport->port_id);
 		ct->payload.rff.fr_type = FC_TYPE_FCP;
 		if (lport->service_params & FCP_SPPF_INIT_FCN)
@@ -157,14 +164,16 @@ static inline int fc_ct_fill(struct fc_lport *lport,
 		break;
 
 	case FC_NS_RNN_ID:
-		ct = fc_ct_hdr_fill(fp, op, sizeof(struct fc_ns_rn_id));
+		ct = fc_ct_hdr_fill(fp, op, sizeof(struct fc_ns_rn_id),
+				    FC_FST_DIR, FC_NS_SUBTYPE);
 		hton24(ct->payload.rn.fr_fid.fp_fid, lport->port_id);
 		put_unaligned_be64(lport->wwnn, &ct->payload.rn.fr_wwn);
 		break;
 
 	case FC_NS_RSPN_ID:
 		len = strnlen(fc_host_symbolic_name(lport->host), 255);
-		ct = fc_ct_hdr_fill(fp, op, sizeof(struct fc_ns_rspn) + len);
+		ct = fc_ct_hdr_fill(fp, op, sizeof(struct fc_ns_rspn) + len,
+				    FC_FST_DIR, FC_NS_SUBTYPE);
 		hton24(ct->payload.spn.fr_fid.fp_fid, lport->port_id);
 		strncpy(ct->payload.spn.fr_name,
 			fc_host_symbolic_name(lport->host), len);
@@ -173,7 +182,8 @@ static inline int fc_ct_fill(struct fc_lport *lport,
 
 	case FC_NS_RSNN_NN:
 		len = strnlen(fc_host_symbolic_name(lport->host), 255);
-		ct = fc_ct_hdr_fill(fp, op, sizeof(struct fc_ns_rsnn) + len);
+		ct = fc_ct_hdr_fill(fp, op, sizeof(struct fc_ns_rsnn) + len,
+				    FC_FST_DIR, FC_NS_SUBTYPE);
 		put_unaligned_be64(lport->wwnn, &ct->payload.snn.fr_wwn);
 		strncpy(ct->payload.snn.fr_name,
 			fc_host_symbolic_name(lport->host), len);
@@ -188,6 +198,32 @@ static inline int fc_ct_fill(struct fc_lport *lport,
 	return 0;
 }
 
+/**
+ * fc_ct_fill() - Fill in a common transport service request frame
+ * @lport: local port.
+ * @fc_id: FC_ID of non-destination rport for GPN_ID and similar inquiries.
+ * @fp: frame to contain payload.
+ * @op: CT opcode.
+ * @r_ctl: pointer to FC header R_CTL.
+ * @fh_type: pointer to FC-4 type.
+ */
+static inline int fc_ct_fill(struct fc_lport *lport,
+		      u32 fc_id, struct fc_frame *fp,
+		      unsigned int op, enum fc_rctl *r_ctl,
+		      enum fc_fh_type *fh_type, u32 *did)
+{
+	int rc = -EINVAL;
+
+	switch (fc_id) {
+	case FC_FID_DIR_SERV:
+	default:
+		rc = fc_ct_ns_fill(lport, fc_id, fp, op, r_ctl, fh_type);
+		*did = FC_FID_DIR_SERV;
+		break;
+	}
+
+	return rc;
+}
 /**
  * fc_plogi_fill - Fill in plogi request frame
  */
