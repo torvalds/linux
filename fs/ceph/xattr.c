@@ -126,14 +126,19 @@ static struct ceph_vxattr_cb *ceph_inode_vxattrs(struct inode *inode)
 	return NULL;
 }
 
-static struct ceph_vxattr_cb *ceph_match_vxattr(struct ceph_vxattr_cb *vxattr,
+static struct ceph_vxattr_cb *ceph_match_vxattr(struct inode *inode,
 						const char *name)
 {
-	do {
-		if (strcmp(vxattr->name, name) == 0)
-			return vxattr;
-		vxattr++;
-	} while (vxattr->name);
+	struct ceph_vxattr_cb *vxattr = ceph_inode_vxattrs(inode);
+
+	if (vxattr) {
+		while (vxattr->name) {
+			if (!strcmp(vxattr->name, name))
+				return vxattr;
+			vxattr++;
+		}
+	}
+
 	return NULL;
 }
 
@@ -502,7 +507,6 @@ ssize_t ceph_getxattr(struct dentry *dentry, const char *name, void *value,
 {
 	struct inode *inode = dentry->d_inode;
 	struct ceph_inode_info *ci = ceph_inode(inode);
-	struct ceph_vxattr_cb *vxattrs = ceph_inode_vxattrs(inode);
 	int err;
 	struct ceph_inode_xattr *xattr;
 	struct ceph_vxattr_cb *vxattr = NULL;
@@ -511,8 +515,7 @@ ssize_t ceph_getxattr(struct dentry *dentry, const char *name, void *value,
 		return -ENODATA;
 
 	/* let's see if a virtual xattr was requested */
-	if (vxattrs)
-		vxattr = ceph_match_vxattr(vxattrs, name);
+	vxattr = ceph_match_vxattr(inode, name);
 
 	spin_lock(&ci->i_ceph_lock);
 	dout("getxattr %p ver=%lld index_ver=%lld\n", inode,
@@ -698,8 +701,8 @@ int ceph_setxattr(struct dentry *dentry, const char *name,
 		  const void *value, size_t size, int flags)
 {
 	struct inode *inode = dentry->d_inode;
+	struct ceph_vxattr_cb *vxattr;
 	struct ceph_inode_info *ci = ceph_inode(inode);
-	struct ceph_vxattr_cb *vxattrs = ceph_inode_vxattrs(inode);
 	int err;
 	int name_len = strlen(name);
 	int val_len = size;
@@ -716,12 +719,9 @@ int ceph_setxattr(struct dentry *dentry, const char *name,
 	if (!ceph_is_valid_xattr(name))
 		return -EOPNOTSUPP;
 
-	if (vxattrs) {
-		struct ceph_vxattr_cb *vxattr =
-			ceph_match_vxattr(vxattrs, name);
-		if (vxattr && vxattr->readonly)
-			return -EOPNOTSUPP;
-	}
+	vxattr = ceph_match_vxattr(inode, name);
+	if (vxattr && vxattr->readonly)
+		return -EOPNOTSUPP;
 
 	/* preallocate memory for xattr name, value, index node */
 	err = -ENOMEM;
@@ -814,8 +814,8 @@ static int ceph_send_removexattr(struct dentry *dentry, const char *name)
 int ceph_removexattr(struct dentry *dentry, const char *name)
 {
 	struct inode *inode = dentry->d_inode;
+	struct ceph_vxattr_cb *vxattr;
 	struct ceph_inode_info *ci = ceph_inode(inode);
-	struct ceph_vxattr_cb *vxattrs = ceph_inode_vxattrs(inode);
 	int issued;
 	int err;
 	int required_blob_size;
@@ -827,12 +827,9 @@ int ceph_removexattr(struct dentry *dentry, const char *name)
 	if (!ceph_is_valid_xattr(name))
 		return -EOPNOTSUPP;
 
-	if (vxattrs) {
-		struct ceph_vxattr_cb *vxattr =
-			ceph_match_vxattr(vxattrs, name);
-		if (vxattr && vxattr->readonly)
-			return -EOPNOTSUPP;
-	}
+	vxattr = ceph_match_vxattr(inode, name);
+	if (vxattr && vxattr->readonly)
+		return -EOPNOTSUPP;
 
 	err = -ENOMEM;
 	spin_lock(&ci->i_ceph_lock);
