@@ -591,6 +591,35 @@ int rcu_is_cpu_idle(void)
 }
 EXPORT_SYMBOL(rcu_is_cpu_idle);
 
+#ifdef CONFIG_HOTPLUG_CPU
+
+/*
+ * Is the current CPU online?  Disable preemption to avoid false positives
+ * that could otherwise happen due to the current CPU number being sampled,
+ * this task being preempted, its old CPU being taken offline, resuming
+ * on some other CPU, then determining that its old CPU is now offline.
+ * It is OK to use RCU on an offline processor during initial boot, hence
+ * the check for rcu_scheduler_fully_active.
+ *
+ * Disable checking if in an NMI handler because we cannot safely report
+ * errors from NMI handlers anyway.
+ */
+bool rcu_lockdep_current_cpu_online(void)
+{
+	bool ret;
+
+	if (in_nmi())
+		return 1;
+	preempt_disable();
+	ret = cpu_online(smp_processor_id()) ||
+	      !rcu_scheduler_fully_active;
+	preempt_enable();
+	return ret;
+}
+EXPORT_SYMBOL_GPL(rcu_lockdep_current_cpu_online);
+
+#endif /* #ifdef CONFIG_HOTPLUG_CPU */
+
 #endif /* #ifdef CONFIG_PROVE_RCU */
 
 /**
