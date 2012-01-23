@@ -251,7 +251,6 @@ static struct socket *ceph_tcp_connect(struct ceph_connection *con)
 			       IPPROTO_TCP, &sock);
 	if (ret)
 		return ERR_PTR(ret);
-	con->sock = sock;
 	sock->sk->sk_allocation = GFP_NOFS;
 
 #ifdef CONFIG_LOCKDEP
@@ -268,18 +267,16 @@ static struct socket *ceph_tcp_connect(struct ceph_connection *con)
 		dout("connect %s EINPROGRESS sk_state = %u\n",
 		     ceph_pr_addr(&con->peer_addr.in_addr),
 		     sock->sk->sk_state);
-		ret = 0;
-	}
-	if (ret < 0) {
+	} else if (ret < 0) {
 		pr_err("connect %s error %d\n",
 		       ceph_pr_addr(&con->peer_addr.in_addr), ret);
 		sock_release(sock);
-		con->sock = NULL;
 		con->error_msg = "connect error";
-	}
 
-	if (ret < 0)
 		return ERR_PTR(ret);
+	}
+	con->sock = sock;
+
 	return sock;
 }
 
