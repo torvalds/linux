@@ -992,7 +992,7 @@ static struct snd_soc_codec_driver soc_codec_device_alc5623 = {
  *    low  = 0x1a
  *    high = 0x1b
  */
-static int alc5623_i2c_probe(struct i2c_client *client,
+static __devinit int alc5623_i2c_probe(struct i2c_client *client,
 				const struct i2c_device_id *id)
 {
 	struct alc5623_platform_data *pdata;
@@ -1059,7 +1059,7 @@ static int alc5623_i2c_probe(struct i2c_client *client,
 	return ret;
 }
 
-static int alc5623_i2c_remove(struct i2c_client *client)
+static __devexit int alc5623_i2c_remove(struct i2c_client *client)
 {
 	snd_soc_unregister_codec(&client->dev);
 	return 0;
