@@ -91,14 +91,9 @@ static struct map_desc realview_eb_io_desc[] __initdata = {
 
 static struct map_desc realview_eb11mp_io_desc[] __initdata = {
 	{
-		.virtual	= IO_ADDRESS(REALVIEW_EB11MP_SCU_BASE),
-		.pfn		= __phys_to_pfn(REALVIEW_EB11MP_SCU_BASE),
-		.length		= SZ_4K,
-		.type		= MT_DEVICE,
-	}, {
-		.virtual	= IO_ADDRESS(REALVIEW_EB11MP_GIC_DIST_BASE),
-		.pfn		= __phys_to_pfn(REALVIEW_EB11MP_GIC_DIST_BASE),
-		.length		= SZ_4K,
+		.virtual	= IO_ADDRESS(REALVIEW_EB11MP_PRIV_MEM_BASE),
+		.pfn		= __phys_to_pfn(REALVIEW_EB11MP_PRIV_MEM_BASE),
+		.length		= REALVIEW_EB11MP_PRIV_MEM_SIZE,
 		.type		= MT_DEVICE,
 	}, {
 		.virtual	= IO_ADDRESS(REALVIEW_EB11MP_L220_BASE),
