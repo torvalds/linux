@@ -3638,6 +3638,13 @@ static struct snd_soc_codec_driver soc_codec_dev_wm8962 = {
 	.volatile_register = wm8962_soc_volatile,
 };
 
+/* Improve power consumption for IN4 DC measurement mode */
+static const struct reg_default wm8962_dc_measure[] = {
+	{ 0xfd, 0x1 },
+	{ 0xcc, 0x40 },
+	{ 0xfd, 0 },
+};
+
 static const struct regmap_config wm8962_regmap = {
 	.reg_bits = 16,
 	.val_bits = 16,
@@ -3653,6 +3660,7 @@ static const struct regmap_config wm8962_regmap = {
 static __devinit int wm8962_i2c_probe(struct i2c_client *i2c,
 				      const struct i2c_device_id *id)
 {
+	struct wm8962_pdata *pdata = dev_get_platdata(&i2c->dev);
 	struct wm8962_priv *wm8962;
 	unsigned int reg;
 	int ret, i;
@@ -3729,6 +3737,16 @@ static __devinit int wm8962_i2c_probe(struct i2c_client *i2c,
 	if (ret < 0) {
 		dev_err(&i2c->dev, "Failed to issue reset\n");
 		goto err_regmap;
+	}
+
+	if (pdata && pdata->in4_dc_measure) {
+		ret = regmap_register_patch(wm8962->regmap,
+					    wm8962_dc_measure,
+					    ARRAY_SIZE(wm8962_dc_measure));
+		if (ret != 0)
+			dev_err(&i2c->dev,
+				"Failed to configure for DC mesurement: %d\n",
+				ret);
 	}
 
 	regcache_cache_only(wm8962->regmap, true);
