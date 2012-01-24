@@ -371,11 +371,13 @@ static int rbd_get_client(struct rbd_device *rbd_dev, const char *mon_addr,
 
 	rbd_opts->notify_timeout = RBD_NOTIFY_TIMEOUT_DEFAULT;
 
-	ret = ceph_parse_options(&opt, options, mon_addr,
+	opt = ceph_parse_options(options, mon_addr,
 				mon_addr + strlen(mon_addr),
 				parse_rbd_opts_token, rbd_opts);
-	if (ret < 0)
+	if (IS_ERR(opt)) {
+		ret = PTR_ERR(opt);
 		goto done_err;
+	}
 
 	spin_lock(&node_lock);
 	rbdc = __rbd_client_find(opt);

@@ -334,10 +334,12 @@ static int parse_mount_options(struct ceph_mount_options **pfsopt,
 	*path += 2;
 	dout("server path '%s'\n", *path);
 
-	err = ceph_parse_options(popt, options, dev_name, dev_name_end,
+	*popt = ceph_parse_options(options, dev_name, dev_name_end,
 				 parse_fsopt_token, (void *)fsopt);
-	if (err)
+	if (IS_ERR(*popt)) {
+		err = PTR_ERR(*popt);
 		goto out;
+	}
 
 	/* success */
 	*pfsopt = fsopt;
