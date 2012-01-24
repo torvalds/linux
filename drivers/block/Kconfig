@@ -527,6 +527,18 @@ config BLK_DEV_RBD
 
 	  If unsure, say N.
 
+config SUN3I_NANDFLASH
+	depends on BLOCK && ARCH_SUN3I
+	tristate "SUN3I Nandflash Driver"
+	---help---
+	  Nand flash driver for SUN3I
+
+config SUN3I_NANDFLASH_TEST
+	depends on SUN3I_NANDFLASH && ARCH_SUN3I
+	tristate "SUN3I Nandflash Test Driver "
+	---help---
+	  Nand flash test driver for SUN3I
+
 config SUN4I_NANDFLASH
         depends on BLOCK && ARCH_SUN4I
         tristate "SUN4I Nandflash Driver"
