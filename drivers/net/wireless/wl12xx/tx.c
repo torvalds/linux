@@ -77,35 +77,6 @@ static void wl1271_free_tx_id(struct wl1271 *wl, int id)
 	}
 }
 
-static int wl1271_tx_update_filters(struct wl1271 *wl,
-				    struct wl12xx_vif *wlvif,
-				    struct sk_buff *skb)
-{
-	struct ieee80211_hdr *hdr;
-	int ret;
-
-	hdr = (struct ieee80211_hdr *)skb->data;
-
-	/*
-	 * stop bssid-based filtering before transmitting authentication
-	 * requests. this way the hw will never drop authentication
-	 * responses coming from BSSIDs it isn't familiar with (e.g. on
-	 * roaming)
-	 */
-	if (!ieee80211_is_auth(hdr->frame_control))
-		return 0;
-
-	if (wlvif->dev_hlid != WL12XX_INVALID_LINK_ID)
-		goto out;
-
-	wl1271_debug(DEBUG_CMD, "starting device role for roaming");
-	ret = wl12xx_start_dev(wl, wlvif);
-	if (ret < 0)
-		goto out;
-out:
-	return 0;
-}
-
 static void wl1271_tx_ap_update_inconnection_sta(struct wl1271 *wl,
 						 struct sk_buff *skb)
 {
@@ -186,8 +157,6 @@ u8 wl12xx_tx_get_hlid(struct wl1271 *wl, struct wl12xx_vif *wlvif,
 
 	if (wlvif->bss_type == BSS_TYPE_AP_BSS)
 		return wl12xx_tx_get_hlid_ap(wl, wlvif, skb);
-
-	wl1271_tx_update_filters(wl, wlvif, skb);
 
 	if ((test_bit(WLVIF_FLAG_STA_ASSOCIATED, &wlvif->flags) ||
 	     test_bit(WLVIF_FLAG_IBSS_JOINED, &wlvif->flags)) &&
