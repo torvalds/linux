@@ -489,7 +489,7 @@ static int rt2800pci_init_registers(struct rt2x00_dev *rt2x00dev)
 
 	rt2x00pci_register_write(rt2x00dev, PWR_PIN_CFG, 0x00000003);
 
-	rt2x00pci_register_read(rt2x00dev, MAC_SYS_CTRL, &reg);
+	reg = 0;
 	rt2x00_set_field32(&reg, MAC_SYS_CTRL_RESET_CSR, 1);
 	rt2x00_set_field32(&reg, MAC_SYS_CTRL_RESET_BBP, 1);
 	rt2x00pci_register_write(rt2x00dev, MAC_SYS_CTRL, reg);
