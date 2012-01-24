@@ -202,8 +202,8 @@ static void __init assabet_init(void)
 	/*
 	 * Ensure that the power supply is in "high power" mode.
 	 */
-	GPDR |= GPIO_GPIO16;
 	GPSR = GPIO_GPIO16;
+	GPDR |= GPIO_GPIO16;
 
 	/*
 	 * Ensure that these pins are set as outputs and are driving
@@ -211,8 +211,8 @@ static void __init assabet_init(void)
 	 * the WS latch in the CPLD, and we don't float causing
 	 * excessive power drain.  --rmk
 	 */
-	GPDR |= GPIO_SSP_TXD | GPIO_SSP_SCLK | GPIO_SSP_SFRM;
 	GPCR = GPIO_SSP_TXD | GPIO_SSP_SCLK | GPIO_SSP_SFRM;
+	GPDR |= GPIO_SSP_TXD | GPIO_SSP_SCLK | GPIO_SSP_SFRM;
 
 	/*
 	 * Set up registers for sleep mode.
