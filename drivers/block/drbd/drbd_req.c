@@ -85,17 +85,15 @@ static struct drbd_request *drbd_req_new(struct drbd_conf *mdev,
 	INIT_LIST_HEAD(&req->tl_requests);
 	INIT_LIST_HEAD(&req->w.list);
 
+	atomic_set(&req->completion_ref, 1);
+	kref_init(&req->kref);
 	return req;
 }
 
-static void drbd_req_free(struct drbd_request *req)
+static void drbd_req_destroy(struct kref *kref)
 {
-	mempool_free(req, drbd_request_mempool);
-}
-
-/* rw is bio_data_dir(), only READ or WRITE */
-static void _req_is_done(struct drbd_conf *mdev, struct drbd_request *req, const int rw)
-{
+	struct drbd_request *req = container_of(kref, struct drbd_request, kref);
+	struct drbd_conf *mdev = req->w.mdev;
 	const unsigned long s = req->rq_state;
 
 	/* remove it from the transfer log.
@@ -109,7 +107,7 @@ static void _req_is_done(struct drbd_conf *mdev, struct drbd_request *req, const
 	/* if it was a write, we may have to set the corresponding
 	 * bit(s) out-of-sync first. If it had a local part, we need to
 	 * release the reference to the activity log. */
-	if (rw == WRITE) {
+	if (s & RQ_WRITE) {
 		/* Set out-of-sync unless both OK flags are set
 		 * (local only or remote failed).
 		 * Other places where we set out-of-sync:
@@ -146,7 +144,7 @@ static void _req_is_done(struct drbd_conf *mdev, struct drbd_request *req, const
 	if (s & RQ_POSTPONED)
 		drbd_restart_request(req);
 	else
-		drbd_req_free(req);
+		mempool_free(req, drbd_request_mempool);
 }
 
 static void wake_all_senders(struct drbd_tconn *tconn) {
@@ -196,12 +194,10 @@ static
 void req_may_be_done(struct drbd_request *req)
 {
 	const unsigned long s = req->rq_state;
-	struct drbd_conf *mdev = req->w.mdev;
-	int rw = req->rq_state & RQ_WRITE ? WRITE : READ;
 
 	/* req->master_bio still present means: Not yet completed.
 	 *
-	 * Unless this is RQ_POSTPONED, which will cause _req_is_done() to
+	 * Unless this is RQ_POSTPONED, which will cause drbd_req_destroy() to
 	 * queue it on the retry workqueue instead of destroying it.
 	 */
 	if (req->master_bio && !(s & RQ_POSTPONED))
@@ -216,7 +212,7 @@ void req_may_be_done(struct drbd_request *req)
 		/* this is disconnected (local only) operation,
 		 * or protocol A, B, or C P_BARRIER_ACK,
 		 * or killed from the transfer log due to connection loss. */
-		_req_is_done(mdev, req, rw);
+		kref_put(&req->kref, drbd_req_destroy);
 	}
 	/* else: network part and not DONE yet. that is
 	 * protocol A, B, or C, barrier ack still pending... */
@@ -249,6 +245,15 @@ void req_may_be_completed(struct drbd_request *req, struct bio_and_error *m)
 		return;
 	if (s & RQ_NET_PENDING)
 		return;
+
+	/* FIXME
+	 * instead of all the RQ_FLAGS, actually use the completion_ref
+	 * to decide if this is ready to be completed. */
+	if (req->master_bio) {
+		int complete = atomic_dec_and_test(&req->completion_ref);
+		D_ASSERT(complete != 0);
+	} else
+		D_ASSERT(atomic_read(&req->completion_ref) == 0);
 
 	if (req->master_bio) {
 		int rw = bio_rw(req->master_bio);
@@ -1113,7 +1118,7 @@ struct drbd_request *find_oldest_request(struct drbd_tconn *tconn)
 	 * and find the oldest not yet completed request */
 	struct drbd_request *r;
 	list_for_each_entry(r, &tconn->transfer_log, tl_requests) {
-		if (r->rq_state & (RQ_NET_PENDING|RQ_LOCAL_PENDING))
+		if (atomic_read(&r->completion_ref))
 			return r;
 	}
 	return NULL;
