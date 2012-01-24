@@ -168,50 +168,98 @@ error:
 	return ret;
 }
 
+void
+nouveau_pm_trigger(struct drm_device *dev)
+{
+	struct drm_nouveau_private *dev_priv = dev->dev_private;
+	struct nouveau_pm_engine *pm = &dev_priv->engine.pm;
+	struct nouveau_pm_profile *profile = NULL;
+	struct nouveau_pm_level *perflvl = NULL;
+	int ret;
+
+	/* select power profile based on current power source */
+	if (power_supply_is_system_supplied())
+		profile = pm->profile_ac;
+	else
+		profile = pm->profile_dc;
+
+	/* select performance level based on profile */
+	perflvl = profile->func->select(profile);
+
+	/* change perflvl, if necessary */
+	if (perflvl != pm->cur) {
+		struct nouveau_timer_engine *ptimer = &dev_priv->engine.timer;
+		u64 time0 = ptimer->read(dev);
+
+		NV_INFO(dev, "setting performance level: %d", perflvl->id);
+		ret = nouveau_pm_perflvl_set(dev, perflvl);
+		if (ret)
+			NV_INFO(dev, "> reclocking failed: %d\n\n", ret);
+
+		NV_INFO(dev, "> reclocking took %lluns\n\n",
+			     ptimer->read(dev) - time0);
+	}
+}
+
+static struct nouveau_pm_profile *
+profile_find(struct drm_device *dev, const char *string)
+{
+	struct drm_nouveau_private *dev_priv = dev->dev_private;
+	struct nouveau_pm_engine *pm = &dev_priv->engine.pm;
+	struct nouveau_pm_profile *profile;
+
+	list_for_each_entry(profile, &pm->profiles, head) {
+		if (!strncmp(profile->name, string, sizeof(profile->name)))
+			return profile;
+	}
+
+	return NULL;
+}
+
 static int
 nouveau_pm_profile_set(struct drm_device *dev, const char *profile)
 {
 	struct drm_nouveau_private *dev_priv = dev->dev_private;
 	struct nouveau_pm_engine *pm = &dev_priv->engine.pm;
-	struct nouveau_pm_level *perflvl = NULL;
-	u64 start_time;
-	int ret = 0;
-	long pl;
+	struct nouveau_pm_profile *ac = NULL, *dc = NULL;
+	char string[16], *cur = string, *ptr;
 
 	/* safety precaution, for now */
 	if (nouveau_perflvl_wr != 7777)
 		return -EPERM;
 
-	if (!strncmp(profile, "boot", 4))
-		perflvl = &pm->boot;
-	else {
-		int i;
-		if (kstrtol(profile, 10, &pl) == -EINVAL)
-			return -EINVAL;
+	strncpy(string, profile, sizeof(string));
+	if ((ptr = strchr(string, '\n')))
+		*ptr = '\0';
 
-		for (i = 0; i < pm->nr_perflvl; i++) {
-			if (pm->perflvl[i].id == pl) {
-				perflvl = &pm->perflvl[i];
-				break;
-			}
-		}
+	ptr = strsep(&cur, ",");
+	if (ptr)
+		ac = profile_find(dev, ptr);
 
-		if (!perflvl)
-			return -EINVAL;
-	}
+	ptr = strsep(&cur, ",");
+	if (ptr)
+		dc = profile_find(dev, ptr);
+	else
+		dc = ac;
 
-	NV_INFO(dev, "setting performance level: %s", profile);
-	start_time = nv04_timer_read(dev);
-	ret = nouveau_pm_perflvl_set(dev, perflvl);
-	if (!ret) {
-		NV_INFO(dev, "> reclocking took %lluns\n\n",
-			(nv04_timer_read(dev) - start_time));
-	} else {
-		NV_INFO(dev, "> reclocking failed\n\n");
-	}
+	if (ac == NULL || dc == NULL)
+		return -EINVAL;
 
-	return ret;
+	pm->profile_ac = ac;
+	pm->profile_dc = dc;
+	nouveau_pm_trigger(dev);
+	return 0;
 }
+
+static struct nouveau_pm_level *
+nouveau_pm_static_select(struct nouveau_pm_profile *profile)
+{
+	return container_of(profile, struct nouveau_pm_level, profile);
+}
+
+const struct nouveau_pm_profile_func nouveau_pm_static_profile_func = {
+	.select = nouveau_pm_static_select,
+};
 
 static int
 nouveau_pm_perflvl_get(struct drm_device *dev, struct nouveau_pm_level *perflvl)
@@ -273,14 +321,15 @@ nouveau_pm_perflvl_info(struct nouveau_pm_level *perflvl, char *ptr, int len)
 	if (perflvl->fanspeed)
 		snprintf(f, sizeof(f), " fanspeed %d%%", perflvl->fanspeed);
 
-	snprintf(ptr, len, "%s%s%s%s%s\n", c, s, m,  v, f);
+	snprintf(ptr, len, "%s%s%s%s%s\n", c, s, m, v, f);
 }
 
 static ssize_t
 nouveau_pm_get_perflvl_info(struct device *d,
 			    struct device_attribute *a, char *buf)
 {
-	struct nouveau_pm_level *perflvl = (struct nouveau_pm_level *)a;
+	struct nouveau_pm_level *perflvl =
+		container_of(a, struct nouveau_pm_level, dev_attr);
 	char *ptr = buf;
 	int len = PAGE_SIZE;
 
@@ -302,12 +351,8 @@ nouveau_pm_get_perflvl(struct device *d, struct device_attribute *a, char *buf)
 	int len = PAGE_SIZE, ret;
 	char *ptr = buf;
 
-	if (!pm->cur)
-		snprintf(ptr, len, "setting: boot\n");
-	else if (pm->cur == &pm->boot)
-		snprintf(ptr, len, "setting: boot\nc:");
-	else
-		snprintf(ptr, len, "setting: static %d\nc:", pm->cur->id);
+	snprintf(ptr, len, "profile: %s, %s\nc:",
+		 pm->profile_ac->name, pm->profile_dc->name);
 	ptr += strlen(buf);
 	len -= strlen(buf);
 
@@ -776,6 +821,7 @@ nouveau_pm_acpi_event(struct notifier_block *nb, unsigned long val, void *data)
 		bool ac = power_supply_is_system_supplied();
 
 		NV_DEBUG(dev, "power supply changed: %s\n", ac ? "AC" : "DC");
+		nouveau_pm_trigger(dev);
 	}
 
 	return NOTIFY_OK;
@@ -802,6 +848,14 @@ nouveau_pm_init(struct drm_device *dev)
 	}
 
 	strncpy(pm->boot.name, "boot", 4);
+	strncpy(pm->boot.profile.name, "boot", 4);
+	pm->boot.profile.func = &nouveau_pm_static_profile_func;
+
+	INIT_LIST_HEAD(&pm->profiles);
+	list_add(&pm->boot.profile.head, &pm->profiles);
+
+	pm->profile_ac = &pm->boot.profile;
+	pm->profile_dc = &pm->boot.profile;
 	pm->cur = &pm->boot;
 
 	/* add performance levels from vbios */
@@ -818,13 +872,8 @@ nouveau_pm_init(struct drm_device *dev)
 	NV_INFO(dev, "c:%s", info);
 
 	/* switch performance levels now if requested */
-	if (nouveau_perflvl != NULL) {
-		ret = nouveau_pm_profile_set(dev, nouveau_perflvl);
-		if (ret) {
-			NV_ERROR(dev, "error setting perflvl \"%s\": %d\n",
-				 nouveau_perflvl, ret);
-		}
-	}
+	if (nouveau_perflvl != NULL)
+		nouveau_pm_profile_set(dev, nouveau_perflvl);
 
 	/* determine the current fan speed */
 	pm->fan.percent = nouveau_pwmfan_get(dev);

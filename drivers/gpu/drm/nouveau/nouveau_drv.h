@@ -485,15 +485,27 @@ struct nouveau_pm_tbl_entry {
 	u8 tUNK_20, tUNK_21;
 };
 
+struct nouveau_pm_profile;
+struct nouveau_pm_profile_func {
+	struct nouveau_pm_level *(*select)(struct nouveau_pm_profile *);
+};
+
+struct nouveau_pm_profile {
+	const struct nouveau_pm_profile_func *func;
+	struct list_head head;
+	char name[8];
+};
+
 #define NOUVEAU_PM_MAX_LEVEL 8
 struct nouveau_pm_level {
+	struct nouveau_pm_profile profile;
 	struct device_attribute dev_attr;
 	char name[32];
 	int id;
 
+	struct nouveau_pm_memtiming timing;
 	u32 memory;
 	u16 memscript;
-	struct nouveau_pm_memtiming timing;
 
 	u32 core;
 	u32 shader;
@@ -541,6 +553,10 @@ struct nouveau_pm_engine {
 	struct nouveau_pm_temp_sensor_constants sensor_constants;
 	struct nouveau_pm_threshold_temp threshold_temp;
 	struct nouveau_pm_fan fan;
+
+	struct nouveau_pm_profile *profile_ac;
+	struct nouveau_pm_profile *profile_dc;
+	struct list_head profiles;
 
 	struct nouveau_pm_level boot;
 	struct nouveau_pm_level *cur;

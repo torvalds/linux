@@ -47,6 +47,8 @@ int  nouveau_mem_exec(struct nouveau_mem_exec_func *,
 int  nouveau_pm_init(struct drm_device *dev);
 void nouveau_pm_fini(struct drm_device *dev);
 void nouveau_pm_resume(struct drm_device *dev);
+extern const struct nouveau_pm_profile_func nouveau_pm_static_profile_func;
+void nouveau_pm_trigger(struct drm_device *dev);
 
 /* nouveau_volt.c */
 void nouveau_volt_init(struct drm_device *);

@@ -394,6 +394,13 @@ nouveau_perf_init(struct drm_device *dev)
 		snprintf(perflvl->name, sizeof(perflvl->name),
 			 "performance_level_%d", i);
 		perflvl->id = i;
+
+		snprintf(perflvl->profile.name, sizeof(perflvl->profile.name),
+			 "%d", perflvl->id);
+		perflvl->profile.func = &nouveau_pm_static_profile_func;
+		list_add_tail(&perflvl->profile.head, &pm->profiles);
+
+
 		pm->nr_perflvl++;
 	}
 }
