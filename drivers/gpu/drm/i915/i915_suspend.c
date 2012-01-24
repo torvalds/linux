@@ -827,7 +827,7 @@ int i915_save_state(struct drm_device *dev)
 
 	if (IS_IRONLAKE_M(dev))
 		ironlake_disable_drps(dev);
-	if (IS_GEN6(dev))
+	if (INTEL_INFO(dev)->gen >= 6)
 		gen6_disable_rps(dev);
 
 	/* Cache mode state */
@@ -886,7 +886,7 @@ int i915_restore_state(struct drm_device *dev)
 		intel_init_emon(dev);
 	}
 
-	if (IS_GEN6(dev)) {
+	if (INTEL_INFO(dev)->gen >= 6) {
 		gen6_enable_rps(dev_priv);
 		gen6_update_ring_freq(dev_priv);
 	}
