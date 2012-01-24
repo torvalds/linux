@@ -380,6 +380,7 @@ static int rbd_get_client(struct rbd_device *rbd_dev, const char *mon_addr,
 	rbdc = __rbd_client_find(opt);
 	if (rbdc) {
 		ceph_destroy_options(opt);
+		kfree(rbd_opts);
 
 		/* using an existing client */
 		kref_get(&rbdc->kref);
