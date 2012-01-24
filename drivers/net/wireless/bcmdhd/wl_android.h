@@ -40,7 +40,7 @@
  */
 int wl_android_init(void);
 int wl_android_exit(void);
-int wl_android_post_init(void);
+void wl_android_post_init(void);
 int wl_android_wifi_on(struct net_device *dev);
 int wl_android_wifi_off(struct net_device *dev);
 int wl_android_priv_cmd(struct net_device *net, struct ifreq *ifr, int cmd);

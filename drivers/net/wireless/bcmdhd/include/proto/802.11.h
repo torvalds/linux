@@ -21,7 +21,7 @@
  *
  * Fundamental types and constants relating to 802.11
  *
- * $Id: 802.11.h 289520 2011-10-13 04:44:55Z $
+ * $Id: 802.11.h 304058 2011-12-21 00:39:12Z $
  */
 
 
@@ -1394,6 +1394,14 @@ typedef struct dot11_ext_cap_ie dot11_ext_cap_ie_t;
 
 #define DOT11_OP_CLASS_NONE			255
 
+BWL_PRE_PACKED_STRUCT struct do11_ap_chrep {
+	uint8 id;
+	uint8 len;
+	uint8 reg;
+	uint8 chanlist[1];
+} BWL_POST_PACKED_STRUCT;
+typedef struct do11_ap_chrep dot11_ap_chrep_t;
+
 
 #define DOT11_RM_ACTION_RM_REQ      0   
 #define DOT11_RM_ACTION_RM_REP      1   
@@ -1484,7 +1492,7 @@ typedef struct dot11_rmrep_bcn dot11_rmrep_bcn_t;
 #define DOT11_RMREQ_BCN_REPINFO_ID  1
 #define DOT11_RMREQ_BCN_REPDET_ID   2
 #define DOT11_RMREQ_BCN_REQUEST_ID  10
-#define DOT11_RMREQ_BCN_APCHREP_ID  51
+#define DOT11_RMREQ_BCN_APCHREP_ID  DOT11_MNG_AP_CHREP_ID
 
 
 #define DOT11_RMREQ_BCN_REPDET_FIXED    0   

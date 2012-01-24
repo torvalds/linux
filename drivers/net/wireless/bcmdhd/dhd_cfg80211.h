@@ -1,4 +1,6 @@
 /*
+ * Linux cfg80211 driver - Dongle Host Driver (DHD) related
+ *
  * Copyright (C) 1999-2011, Broadcom Corporation
  * 
  *         Unless you and Broadcom execute a separate written software license
@@ -19,31 +21,22 @@
  * software in any way with any other Broadcom software provided under a license
  * other than the GPL, without Broadcom's express prior written consent.
  *
- * $Id: epivers.h.in 277737 2011-08-16 17:54:59Z $
- *
-*/
+ * $Id: wl_cfg80211.c,v 1.1.4.1.2.14 2011/02/09 01:40:07 Exp $
+ */
 
 
-#ifndef _epivers_h_
-#define _epivers_h_
+#ifndef __DHD_CFG80211__
+#define __DHD_CFG80211__
 
-#define	EPI_MAJOR_VERSION	5
+#include <wl_cfg80211.h>
+#include <wl_cfgp2p.h>
 
-#define	EPI_MINOR_VERSION	90
+s32 dhd_cfg80211_init(struct wl_priv *wl);
+s32 dhd_cfg80211_deinit(struct wl_priv *wl);
+s32 dhd_cfg80211_down(struct wl_priv *wl);
+s32 dhd_config_dongle(struct wl_priv *wl, bool need_lock);
 
-#define	EPI_RC_NUMBER		195
+int wl_cfg80211_btcoex_init(struct wl_priv *wl);
+void wl_cfg80211_btcoex_deinit(struct wl_priv *wl);
 
-#define	EPI_INCREMENTAL_NUMBER	19
-
-#define	EPI_BUILD_NUMBER	0
-
-#define	EPI_VERSION		5, 90, 195, 19
-
-#define	EPI_VERSION_NUM		0x055ac313
-
-#define EPI_VERSION_DEV		5.90.195
-
-
-#define	EPI_VERSION_STR		"5.90.195.19"
-
-#endif 
+#endif /* __DHD_CFG80211__ */

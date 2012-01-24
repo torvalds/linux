@@ -24,7 +24,7 @@
  * software in any way with any other Broadcom software provided under a license
  * other than the GPL, without Broadcom's express prior written consent.
  *
- * $Id: wlioctl.h 302303 2011-12-10 07:51:07Z $
+ * $Id: wlioctl.h 307468 2012-01-11 18:29:27Z $
  */
 
 
@@ -821,8 +821,14 @@ typedef struct wlc_iov_trx_s {
 #define WLC_IOCTL_MEDLEN        1536    
 #ifdef WLC_HIGH_ONLY
 #define WLC_SAMPLECOLLECT_MAXLEN    1024    
+#define WLC_SAMPLECOLLECT_MAXLEN_LCN40  1024
 #else
-#define WLC_SAMPLECOLLECT_MAXLEN    10240   
+#if defined(LCNCONF) || defined(LCN40CONF)
+#define WLC_SAMPLECOLLECT_MAXLEN	8192	
+#else
+#define WLC_SAMPLECOLLECT_MAXLEN	10240	
+#endif
+#define WLC_SAMPLECOLLECT_MAXLEN_LCN40  8192
 #endif 
 
 
@@ -1411,7 +1417,7 @@ typedef struct wl_aci_args {
 #define TRIGGER_BADPLCP             0x10
 #define TRIGGER_CRSGLITCH           0x20
 #define WL_ACI_ARGS_LEGACY_LENGTH   16  
-#define WL_SAMPLECOLLECT_T_VERSION  1   
+#define	WL_SAMPLECOLLECT_T_VERSION	2	
 typedef struct wl_samplecollect_args {
 	
 	uint8 coll_us;
@@ -1419,7 +1425,7 @@ typedef struct wl_samplecollect_args {
 	
 	uint16 version;     
 	uint16 length;      
-	uint8 trigger;
+	int8 trigger;
 	uint16 timeout;
 	uint16 mode;
 	uint32 pre_dur;
@@ -1429,6 +1435,11 @@ typedef struct wl_samplecollect_args {
 	bool be_deaf;
 	bool agc;       
 	bool filter;        
+	
+	uint8 trigger_state;
+	uint8 module_sel1;
+	uint8 module_sel2;
+	uint16 nsamps;
 } wl_samplecollect_args_t;
 
 #define WL_SAMPLEDATA_HEADER_TYPE   1
