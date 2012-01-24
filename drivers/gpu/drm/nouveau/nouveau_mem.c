@@ -1016,7 +1016,8 @@ nouveau_mem_exec(struct nouveau_mem_exec_func *exec,
 	}
 
 	if (mr[1] != info->mr[1]) {
-		exec->mrs (exec, 1, info->mr[1]);
+		/* need to keep DLL off until later, at least on GDDR3 */
+		exec->mrs (exec, 1, info->mr[1] | (mr[1] & mr1_dlloff));
 		exec->wait(exec, tMRD);
 	}
 
@@ -1028,8 +1029,12 @@ nouveau_mem_exec(struct nouveau_mem_exec_func *exec,
 	/* update PFB timing registers */
 	exec->timing_set(exec);
 
-	/* DLL reset */
+	/* DLL (enable + ) reset */
 	if (!(info->mr[1] & mr1_dlloff)) {
+		if (mr[1] & mr1_dlloff) {
+			exec->mrs (exec, 1, info->mr[1]);
+			exec->wait(exec, tMRD);
+		}
 		exec->mrs (exec, 0, info->mr[0] | 0x00000100);
 		exec->wait(exec, tMRD);
 		exec->mrs (exec, 0, info->mr[0] | 0x00000000);
