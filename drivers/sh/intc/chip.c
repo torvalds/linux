@@ -2,13 +2,14 @@
  * IRQ chip definitions for INTC IRQs.
  *
  * Copyright (C) 2007, 2008 Magnus Damm
- * Copyright (C) 2009, 2010 Paul Mundt
+ * Copyright (C) 2009 - 2012 Paul Mundt
  *
  * This file is subject to the terms and conditions of the GNU General Public
  * License.  See the file "COPYING" in the main directory of this archive
  * for more details.
  */
 #include <linux/cpumask.h>
+#include <linux/bsearch.h>
 #include <linux/io.h>
 #include "internals.h"
 
@@ -117,28 +118,12 @@ static struct intc_handle_int *intc_find_irq(struct intc_handle_int *hp,
 					     unsigned int nr_hp,
 					     unsigned int irq)
 {
-	int i;
+	struct intc_handle_int key;
 
-	/*
-	 * this doesn't scale well, but...
-	 *
-	 * this function should only be used for cerain uncommon
-	 * operations such as intc_set_priority() and intc_set_type()
-	 * and in those rare cases performance doesn't matter that much.
-	 * keeping the memory footprint low is more important.
-	 *
-	 * one rather simple way to speed this up and still keep the
-	 * memory footprint down is to make sure the array is sorted
-	 * and then perform a bisect to lookup the irq.
-	 */
-	for (i = 0; i < nr_hp; i++) {
-		if ((hp + i)->irq != irq)
-			continue;
+	key.irq = irq;
+	key.handle = 0;
 
-		return hp + i;
-	}
-
-	return NULL;
+	return bsearch(&key, hp, nr_hp, sizeof(*hp), intc_handle_int_cmp);
 }
 
 int intc_set_priority(unsigned int irq, unsigned int prio)

@@ -108,6 +108,14 @@ static inline void activate_irq(int irq)
 #endif
 }
 
+static inline int intc_handle_int_cmp(const void *a, const void *b)
+{
+	const struct intc_handle_int *_a = a;
+	const struct intc_handle_int *_b = b;
+
+	return _a->irq - _b->irq;
+}
+
 /* access.c */
 extern unsigned long
 (*intc_reg_fns[])(unsigned long addr, unsigned long h, unsigned long data);
