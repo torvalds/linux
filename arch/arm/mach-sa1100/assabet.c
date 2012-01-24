@@ -215,6 +215,14 @@ static void __init assabet_init(void)
 	GPDR |= GPIO_SSP_TXD | GPIO_SSP_SCLK | GPIO_SSP_SFRM;
 
 	/*
+	 * Also set GPIO27 as an output; this is used to clock UART3
+	 * via the FPGA and as otherwise has no pullups or pulldowns,
+	 * so stop it floating.
+	 */
+	GPCR = GPIO_GPIO27;
+	GPDR |= GPIO_GPIO27;
+
+	/*
 	 * Set up registers for sleep mode.
 	 */
 	PWER = PWER_GPIO0;
