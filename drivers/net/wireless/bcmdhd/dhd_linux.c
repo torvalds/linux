@@ -22,7 +22,7 @@
  * software in any way with any other Broadcom software provided under a license
  * other than the GPL, without Broadcom's express prior written consent.
  *
- * $Id: dhd_linux.c 307603 2012-01-12 01:32:01Z $
+ * $Id: dhd_linux.c 308879 2012-01-17 22:03:47Z $
  */
 
 #include <typedefs.h>

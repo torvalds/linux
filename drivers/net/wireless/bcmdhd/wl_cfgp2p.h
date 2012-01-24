@@ -101,13 +101,13 @@ enum wl_cfgp2p_status {
 #define wl_to_p2p_bss_saved_ie(w, type) 	((wl)->p2p->bss_idx[type].saved_ie)
 #define wl_to_p2p_bss_private(w, type) 	((wl)->p2p->bss_idx[type].private_data)
 #define wl_to_p2p_bss(wl, type) ((wl)->p2p->bss_idx[type])
-#define wl_get_p2p_status(wl, stat) ((!(wl)->p2p_supported) ? 0 : test_bit(WLP2P_STATUS_ ## stat, \
+#define wl_get_p2p_status(wl, stat) ((!(wl)->p2p_supported) ? 0:test_bit(WLP2P_STATUS_ ## stat, \
 									&(wl)->p2p->status))
-#define wl_set_p2p_status(wl, stat) ((!(wl)->p2p_supported) ? 0 : set_bit(WLP2P_STATUS_ ## stat, \
+#define wl_set_p2p_status(wl, stat) ((!(wl)->p2p_supported) ? 0:set_bit(WLP2P_STATUS_ ## stat, \
 									&(wl)->p2p->status))
-#define wl_clr_p2p_status(wl, stat) ((!(wl)->p2p_supported) ? 0 : clear_bit(WLP2P_STATUS_ ## stat, \
+#define wl_clr_p2p_status(wl, stat) ((!(wl)->p2p_supported) ? 0:clear_bit(WLP2P_STATUS_ ## stat, \
 									&(wl)->p2p->status))
-#define wl_chg_p2p_status(wl, stat) ((!(wl)->p2p_supported) ? 0: change_bit(WLP2P_STATUS_ ## stat, \
+#define wl_chg_p2p_status(wl, stat) ((!(wl)->p2p_supported) ? 0:change_bit(WLP2P_STATUS_ ## stat, \
 									&(wl)->p2p->status))
 #define p2p_on(wl) ((wl)->p2p->on)
 #define p2p_scan(wl) ((wl)->p2p->scan)
@@ -140,7 +140,14 @@ enum wl_cfgp2p_status {
 		}									\
 	} while (0)
 
-
+extern bool
+wl_cfgp2p_is_pub_action(void *frame, u32 frame_len);
+extern bool
+wl_cfgp2p_is_p2p_action(void *frame, u32 frame_len);
+extern bool
+wl_cfgp2p_is_gas_action(void *frame, u32 frame_len);
+extern void
+wl_cfgp2p_print_actframe(bool tx, void *frame, u32 frame_len);
 extern s32
 wl_cfgp2p_init_priv(struct wl_priv *wl);
 extern void
@@ -260,17 +267,15 @@ wl_cfgp2p_unregister_ndev(struct wl_priv *wl);
 #define WL_P2P_WILDCARD_SSID_LEN 7
 #define WL_P2P_INTERFACE_PREFIX "p2p"
 #define WL_P2P_TEMP_CHAN "11"
-#define IS_PUB_ACT_FRAME(category) ((category == P2P_PUB_AF_CATEGORY))
-#define IS_P2P_ACT_FRAME(category) ((category == P2P_AF_CATEGORY))
 
-#define IS_P2P_ACTION(categry, action) (IS_PUB_ACT_FRAME(category) && (action == P2P_PUB_AF_ACTION))
-#define IS_GAS_REQ(category, action) (IS_PUB_ACT_FRAME(category) && \
-					((action == P2PSD_ACTION_ID_GAS_IREQ) || \
-					(action == P2PSD_ACTION_ID_GAS_CREQ)))
-#define IS_P2P_ACT_REQ(category, subtype) (IS_PUB_ACT_FRAME(category) && \
-						((subtype == P2P_PAF_GON_REQ) || \
-						(subtype == P2P_PAF_INVITE_REQ) || \
-						(subtype == P2P_PAF_PROVDIS_REQ)))
+
+#define IS_GAS_REQ(frame, len) (wl_cfgp2p_is_gas_action(frame, len) && \
+					((frame->action == P2PSD_ACTION_ID_GAS_IREQ) || \
+					(frame->action == P2PSD_ACTION_ID_GAS_CREQ)))
+#define IS_P2P_PUB_ACT_REQ(frame, len) (wl_cfgp2p_is_pub_action(frame, len) && \
+						((frame->subtype == P2P_PAF_GON_REQ) || \
+						(frame->subtype == P2P_PAF_INVITE_REQ) || \
+						(frame->subtype == P2P_PAF_PROVDIS_REQ)))
 #define IS_P2P_SOCIAL(ch) ((ch == SOCIAL_CHAN_1) || (ch == SOCIAL_CHAN_2) || (ch == SOCIAL_CHAN_3))
 #define IS_P2P_SSID(ssid) (memcmp(ssid, WL_P2P_WILDCARD_SSID, WL_P2P_WILDCARD_SSID_LEN) == 0)
 #endif				/* _wl_cfgp2p_h_ */

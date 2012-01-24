@@ -1897,6 +1897,11 @@ si_is_sprom_available(si_t *sih)
 		return (sih->chipst & CST4315_SPROM_SEL) != 0;
 	case BCM4319_CHIP_ID:
 		return (sih->chipst & CST4319_SPROM_SEL) != 0;
+
+	case BCM4336_CHIP_ID:
+	case BCM43362_CHIP_ID:
+		return (sih->chipst & CST4336_SPROM_PRESENT) != 0;
+
 	case BCM4330_CHIP_ID:
 		return (sih->chipst & CST4330_SPROM_PRESENT) != 0;
 	case BCM4313_CHIP_ID:

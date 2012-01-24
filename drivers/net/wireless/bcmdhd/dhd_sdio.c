@@ -21,7 +21,7 @@
  * software in any way with any other Broadcom software provided under a license
  * other than the GPL, without Broadcom's express prior written consent.
  *
- * $Id: dhd_sdio.c 308574 2012-01-16 22:56:40Z $
+ * $Id: dhd_sdio.c 309234 2012-01-19 01:44:16Z $
  */
 
 #include <typedefs.h>
@@ -5194,6 +5194,12 @@ dhdsdio_chipmatch(uint16 chipid)
 	if (chipid == BCM4330_CHIP_ID)
 		return TRUE;
 	if (chipid == BCM43239_CHIP_ID)
+		return TRUE;
+	if (chipid == BCM4336_CHIP_ID)
+		return TRUE;
+	if (chipid == BCM43237_CHIP_ID)
+		return TRUE;
+	if (chipid == BCM43362_CHIP_ID)
 		return TRUE;
 
 	return FALSE;
