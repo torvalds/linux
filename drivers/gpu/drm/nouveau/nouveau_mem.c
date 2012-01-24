@@ -766,8 +766,10 @@ nouveau_mem_gddr3_mr(struct drm_device *dev, u32 freq,
 	t->mr[1] = (boot->mr[1] & 0x100f40) | t->drive_strength |
 		   (t->odt << 2) |
 		   (nv_mem_wr_lut_gddr3[e->tWR] & 0xf) << 4;
+	t->mr[2] = boot->mr[2];
 
-	NV_DEBUG(dev, "(%u) MR: %08x %08x", t->id, t->mr[0], t->mr[1]);
+	NV_DEBUG(dev, "(%u) MR: %08x %08x %08x", t->id,
+		      t->mr[0], t->mr[1], t->mr[2]);
 	return 0;
 }
 
@@ -963,6 +965,7 @@ nouveau_mem_exec(struct nouveau_mem_exec_func *exec,
 
 	/* fetch current MRs */
 	switch (dev_priv->vram_type) {
+	case NV_MEM_TYPE_GDDR3:
 	case NV_MEM_TYPE_DDR3:
 		mr[2] = exec->mrg(exec, 2);
 	default:
