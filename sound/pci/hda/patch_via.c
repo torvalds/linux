@@ -1051,7 +1051,7 @@ static void analog_low_current_mode(struct hda_codec *codec)
 	bool enable;
 	unsigned int verb, parm;
 
-	enable = is_aa_path_mute(codec) && (spec->opened_streams != 0);
+	enable = is_aa_path_mute(codec) && !spec->opened_streams;
 
 	/* decide low current mode's verb & parameter */
 	switch (spec->codec_type) {
