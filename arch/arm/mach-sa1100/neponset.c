@@ -1,12 +1,13 @@
 /*
  * linux/arch/arm/mach-sa1100/neponset.c
- *
  */
 #include <linux/init.h>
 #include <linux/ioport.h>
 #include <linux/kernel.h>
+#include <linux/module.h>
 #include <linux/platform_device.h>
 #include <linux/serial_core.h>
+#include <linux/slab.h>
 
 #include <asm/mach-types.h>
 #include <asm/irq.h>
@@ -19,6 +20,13 @@
 #include <mach/hardware.h>
 #include <mach/assabet.h>
 #include <mach/neponset.h>
+
+struct neponset_drvdata {
+#ifdef CONFIG_PM_SLEEP
+	u32 ncr0;
+	u32 mdm_ctl_0;
+#endif
+};
 
 void neponset_ncr_frob(unsigned int mask, unsigned int val)
 {
@@ -200,6 +208,15 @@ static struct platform_device smc91x_device = {
 
 static int __devinit neponset_probe(struct platform_device *dev)
 {
+	struct neponset_drvdata *d;
+	int ret;
+
+	d = kzalloc(sizeof(*d), GFP_KERNEL);
+	if (!d) {
+		ret = -ENOMEM;
+		goto err_alloc;
+	}
+
 	sa1100_register_uart_fns(&neponset_port_fns);
 
 	/*
@@ -234,29 +251,42 @@ static int __devinit neponset_probe(struct platform_device *dev)
 	 */
 	NCR_0 = NCR_GP01_OFF;
 
+	platform_set_drvdata(dev, d);
+
+	return 0;
+
+ err_alloc:
+	return ret;
+}
+
+static int __devexit neponset_remove(struct platform_device *dev)
+{
+	struct neponset_drvdata *d = platform_get_drvdata(dev);
+
+	irq_set_chained_handler(IRQ_GPIO25, NULL);
+
+	kfree(d);
+
 	return 0;
 }
 
 #ifdef CONFIG_PM
-
-/*
- * LDM power management.
- */
-static unsigned int neponset_saved_state;
-
 static int neponset_suspend(struct platform_device *dev, pm_message_t state)
 {
-	/*
-	 * Save state.
-	 */
-	neponset_saved_state = NCR_0;
+	struct neponset_drvdata *d = platform_get_drvdata(dev);
+
+	d->ncr0 = NCR_0;
+	d->mdm_ctl_0 = MDM_CTL_0;
 
 	return 0;
 }
 
 static int neponset_resume(struct platform_device *dev)
 {
-	NCR_0 = neponset_saved_state;
+	struct neponset_drvdata *d = platform_get_drvdata(dev);
+
+	NCR_0 = d->ncr0;
+	MDM_CTL_0 = d->mdm_ctl_0;
 
 	return 0;
 }
@@ -268,6 +298,7 @@ static int neponset_resume(struct platform_device *dev)
 
 static struct platform_driver neponset_device_driver = {
 	.probe		= neponset_probe,
+	.remove		= __devexit_p(neponset_remove),
 	.suspend	= neponset_suspend,
 	.resume		= neponset_resume,
 	.driver		= {
