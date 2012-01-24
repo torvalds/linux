@@ -853,12 +853,19 @@ static void hub_activate(struct usb_hub *hub, enum hub_activation_type type)
 				set_bit(port1, hub->change_bits);
 
 		} else if (portstatus & USB_PORT_STAT_ENABLE) {
+			bool port_resumed = (portstatus &
+					USB_PORT_STAT_LINK_STATE) ==
+				USB_SS_PORT_LS_U0;
 			/* The power session apparently survived the resume.
 			 * If there was an overcurrent or suspend change
 			 * (i.e., remote wakeup request), have khubd
-			 * take care of it.
+			 * take care of it.  Look at the port link state
+			 * for USB 3.0 hubs, since they don't have a suspend
+			 * change bit, and they don't set the port link change
+			 * bit on device-initiated resume.
 			 */
-			if (portchange)
+			if (portchange || (hub_is_superspeed(hub->hdev) &&
+						port_resumed))
 				set_bit(port1, hub->change_bits);
 
 		} else if (udev->persist_enabled) {
@@ -3509,7 +3516,7 @@ done:
 
 /* Returns 1 if there was a remote wakeup and a connect status change. */
 static int hub_handle_remote_wakeup(struct usb_hub *hub, unsigned int port,
-		u16 portchange)
+		u16 portstatus, u16 portchange)
 {
 	struct usb_device *hdev;
 	struct usb_device *udev;
@@ -3524,8 +3531,8 @@ static int hub_handle_remote_wakeup(struct usb_hub *hub, unsigned int port,
 		clear_port_feature(hdev, port, USB_PORT_FEAT_C_SUSPEND);
 	} else {
 		if (!udev || udev->state != USB_STATE_SUSPENDED ||
-				!test_and_clear_bit(udev->portnum,
-					hub->wakeup_bits))
+				 (portstatus & USB_PORT_STAT_LINK_STATE) !=
+				 USB_SS_PORT_LS_U0)
 			return 0;
 	}
 
@@ -3638,7 +3645,7 @@ static void hub_events(void)
 			if (test_bit(i, hub->busy_bits))
 				continue;
 			connect_change = test_bit(i, hub->change_bits);
-			wakeup_change = test_bit(i, hub->wakeup_bits);
+			wakeup_change = test_and_clear_bit(i, hub->wakeup_bits);
 			if (!test_and_clear_bit(i, hub->event_bits) &&
 					!connect_change && !wakeup_change)
 				continue;
@@ -3681,7 +3688,8 @@ static void hub_events(void)
 				}
 			}
 
-			if (hub_handle_remote_wakeup(hub, i, portchange))
+			if (hub_handle_remote_wakeup(hub, i,
+						portstatus, portchange))
 				connect_change = 1;
 
 			if (portchange & USB_PORT_STAT_C_OVERCURRENT) {
