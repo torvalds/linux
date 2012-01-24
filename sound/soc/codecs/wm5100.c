@@ -1346,7 +1346,7 @@ static int wm5100_set_bias_level(struct snd_soc_codec *codec,
 				 enum snd_soc_bias_level level)
 {
 	struct wm5100_priv *wm5100 = snd_soc_codec_get_drvdata(codec);
-	int ret, i;
+	int ret;
 
 	switch (level) {
 	case SND_SOC_BIAS_ON:
@@ -2504,7 +2504,6 @@ err_gpio:
 static int wm5100_remove(struct snd_soc_codec *codec)
 {
 	struct wm5100_priv *wm5100 = snd_soc_codec_get_drvdata(codec);
-	struct i2c_client *i2c = to_i2c_client(codec->dev);
 
 	if (wm5100->pdata.hp_pol) {
 		gpio_free(wm5100->pdata.hp_pol);
