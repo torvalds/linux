@@ -218,7 +218,6 @@ struct irq_chip intc_irq_chip	= {
 	.irq_mask_ack		= intc_mask_ack,
 	.irq_enable		= intc_enable,
 	.irq_disable		= intc_disable,
-	.irq_shutdown		= intc_disable,
 	.irq_set_type		= intc_set_type,
 #ifdef CONFIG_SMP
 	.irq_set_affinity	= intc_set_affinity,
