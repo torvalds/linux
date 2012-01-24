@@ -73,7 +73,7 @@ static int intc_set_affinity(struct irq_data *data,
 
 	cpumask_copy(data->affinity, cpumask);
 
-	return 0;
+	return IRQ_SET_MASK_OK_NOCOPY;
 }
 #endif
 
