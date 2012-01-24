@@ -21,7 +21,7 @@
  * software in any way with any other Broadcom software provided under a license
  * other than the GPL, without Broadcom's express prior written consent.
  *
- * $Id: bcmutils.h,v 13.236.2.16 2011-01-26 00:45:06 Exp $
+ * $Id: bcmutils.h 294991 2011-11-09 00:17:28Z $
  */
 
 
@@ -221,7 +221,9 @@ extern uint16 pktpool_avail(pktpool_t *pktp);
 extern int pktpool_avail_register(pktpool_t *pktp, pktpool_cb_t cb, void *arg);
 extern int pktpool_empty_register(pktpool_t *pktp, pktpool_cb_t cb, void *arg);
 extern int pktpool_setmaxlen(pktpool_t *pktp, uint16 maxlen);
+extern int pktpool_setmaxlen_strict(osl_t *osh, pktpool_t *pktp, uint16 maxlen);
 extern void pktpool_emptycb_disable(pktpool_t *pktp, bool disable);
+extern bool pktpool_emptycb_disabled(pktpool_t *pktp);
 
 #define POOLPTR(pp)			((pktpool_t *)(pp))
 #define pktpool_len(pp)			(POOLPTR(pp)->len - 1)
@@ -329,6 +331,8 @@ extern char *bcm_ip_ntoa(struct ipv4_addr *ia, char *buf);
 
 
 extern void bcm_mdelay(uint ms);
+
+#define NVRAM_RECLAIM_CHECK(name)
 
 extern char *getvar(char *vars, const char *name);
 extern int getintvar(char *vars, const char *name);
@@ -534,9 +538,17 @@ extern int bcm_format_ssid(char* buf, const uchar ssid[], uint ssid_len);
 	                                         & ~((boundary) - 1))
 #define	ISPOWEROF2(x)		((((x)-1)&(x)) == 0)
 #define VALID_MASK(mask)	!((mask) & ((mask) + 1))
+
 #ifndef OFFSETOF
+#ifdef __ARMCC_VERSION
+
+#include <stddef.h>
+#define	OFFSETOF(type, member)	offsetof(type, member)
+#else
 #define	OFFSETOF(type, member)	((uint)(uintptr)&((type *)0)->member)
 #endif 
+#endif 
+
 #ifndef ARRAYSIZE
 #define ARRAYSIZE(a)		(sizeof(a)/sizeof(a[0]))
 #endif

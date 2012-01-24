@@ -5,7 +5,7 @@
  * JTAG, 0/1/2 UARTs, clock frequency control, a watchdog interrupt timer,
  * GPIO interface, extbus, and support for serial and parallel flashes.
  *
- * $Id: sbchipc.h,v 13.169.2.14 2011-02-10 23:43:55 Exp $
+ * $Id: sbchipc.h 277737 2011-08-16 17:54:59Z $
  *
  * Copyright (C) 1999-2011, Broadcom Corporation
  * 
@@ -40,6 +40,50 @@
 #define	_XSTR(line)	_PADLINE(line)
 #define	PAD		_XSTR(__LINE__)
 #endif	
+
+typedef struct eci_prerev35 {
+	uint32	eci_output;
+	uint32	eci_control;
+	uint32	eci_inputlo;
+	uint32	eci_inputmi;
+	uint32	eci_inputhi;
+	uint32	eci_inputintpolaritylo;
+	uint32	eci_inputintpolaritymi;
+	uint32	eci_inputintpolarityhi;
+	uint32	eci_intmasklo;
+	uint32	eci_intmaskmi;
+	uint32	eci_intmaskhi;
+	uint32	eci_eventlo;
+	uint32	eci_eventmi;
+	uint32	eci_eventhi;
+	uint32	eci_eventmasklo;
+	uint32	eci_eventmaskmi;
+	uint32	eci_eventmaskhi;
+	uint32	PAD[3];
+} eci_prerev35_t;
+
+typedef struct eci_rev35 {
+	uint32	eci_outputlo;
+	uint32	eci_outputhi;
+	uint32	eci_controllo;
+	uint32	eci_controlhi;
+	uint32	eci_inputlo;
+	uint32	eci_inputhi;
+	uint32	eci_inputintpolaritylo;
+	uint32	eci_inputintpolarityhi;
+	uint32	eci_intmasklo;
+	uint32	eci_intmaskhi;
+	uint32	eci_eventlo;
+	uint32	eci_eventhi;
+	uint32	eci_eventmasklo;
+	uint32	eci_eventmaskhi;
+	uint32	eci_auxtx;
+	uint32	eci_auxrx;
+	uint32	eci_datatag;
+	uint32	eci_uartescvalue;
+	uint32	eci_autobaudctr;
+	uint32	eci_uartfifolevel;
+} eci_rev35_t;
 
 typedef volatile struct {
 	uint32	chipid;			
@@ -153,10 +197,26 @@ typedef volatile struct {
 	uint32	prog_waitcount;
 	uint32	flash_config;
 	uint32	flash_waitcount;
-	uint32	PAD[4];
-	uint32	PAD[40];
+	uint32  SECI_config;		
+	uint32	SECI_status;
+	uint32	SECI_statusmask;
+	uint32	SECI_rxnibchanged;
+
+	uint32	PAD[20];
 
 	
+	uint32	sromcontrol;		
+	uint32	sromaddress;
+	uint32	sromdata;
+	uint32	PAD[9];		
+	uint32  seci_uart_data;		
+	uint32  seci_uart_bauddiv;
+	uint32  seci_uart_fcr;
+	uint32  seci_uart_lcr;
+	uint32  seci_uart_mcr;
+	uint32  seci_uart_lsr;
+	uint32  seci_uart_msr;
+	uint32  seci_uart_baudadj;
 	
 	uint32	clk_ctl_st;		
 	uint32	hw_war;
@@ -1332,9 +1392,27 @@ typedef volatile struct {
 #define CST43237_BOOT_FROM_INVALID	3
 
 
+#define RES43239_CBUCK_LPOM		0
+#define RES43239_CBUCK_BURST		1
+#define RES43239_CBUCK_LP_PWM		2
+#define RES43239_CBUCK_PWM		3
+#define RES43239_CLDO_PU		4
+#define RES43239_DIS_INT_RESET_PD	5
+#define RES43239_ILP_REQUEST		6
+#define RES43239_LNLDO_PU		7
+#define RES43239_LDO3P3_PU		8
 #define RES43239_OTP_PU			9
+#define RES43239_XTAL_PU		10
+#define RES43239_ALP_AVAIL		11
+#define RES43239_RADIO_PU		12
 #define RES43239_MACPHY_CLKAVAIL	23
 #define RES43239_HT_AVAIL		24
+#define RES43239_XOLDO_PU		25
+#define RES43239_WL_XTAL_CTL_SEL	26
+#define RES43239_SR_CLK_STABLE		27
+#define RES43239_SR_SAVE_RESTORE	28
+#define RES43239_SR_PHY_PIC		29
+#define RES43239_SR_PHY_PWR_SW		30
 
 
 #define CST43239_SPROM_MASK			0x00000002
@@ -1342,7 +1420,7 @@ typedef volatile struct {
 #define	CST43239_RES_INIT_MODE_SHIFT	7
 #define	CST43239_RES_INIT_MODE_MASK		0x000001f0
 #define CST43239_CHIPMODE_SDIOD(cs)	((cs) & (1 << 15))	
-#define CST43239_CHIPMODE_USB20D(cs)	((cs) & !(1 << 15))	
+#define CST43239_CHIPMODE_USB20D(cs)	(~(cs) & (1 << 15))	
 #define CST43239_CHIPMODE_SDIO(cs)	(((cs) & (1 << 0)) == 0)	
 #define CST43239_CHIPMODE_GSPI(cs)	(((cs) & (1 << 0)) == (1 << 0))	
 
@@ -1350,6 +1428,40 @@ typedef volatile struct {
 #define CCTRL43239_XTAL_STRENGTH(ctl)	((ctl & 0x3F) << 12)
 
 
+#define RES4331_REGULATOR		0
+#define RES4331_ILP_REQUEST		1
+#define RES4331_XTAL_PU			2
+#define RES4331_ALP_AVAIL		3
+#define RES4331_SI_PLL_ON		4
+#define RES4331_HT_SI_AVAIL		5
+
+
+#define CCTRL4331_BT_COEXIST		(1<<0)	
+#define CCTRL4331_SECI			(1<<1)	
+#define CCTRL4331_EXT_LNA_G		(1<<2)	
+#define CCTRL4331_SPROM_GPIO13_15       (1<<3)  
+#define CCTRL4331_EXTPA_EN		(1<<4)	
+#define CCTRL4331_GPIOCLK_ON_SPROMCS	<1<<5)	
+#define CCTRL4331_PCIE_MDIO_ON_SPROMCS	(1<<6)	
+#define CCTRL4331_EXTPA_ON_GPIO2_5	(1<<7)	
+#define CCTRL4331_OVR_PIPEAUXCLKEN	(1<<8)	
+#define CCTRL4331_OVR_PIPEAUXPWRDOWN	(1<<9)	
+#define CCTRL4331_PCIE_AUXCLKEN		<1<<10)	
+#define CCTRL4331_PCIE_PIPE_PLLDOWN	<1<<11)	
+#define CCTRL4331_EXTPA_EN2		(1<<12)	
+#define CCTRL4331_EXT_LNA_A		(1<<13)	
+#define CCTRL4331_BT_SHD0_ON_GPIO4	<1<<16)	
+#define CCTRL4331_BT_SHD1_ON_GPIO5	<1<<17)	
+#define CCTRL4331_EXTPA_ANA_EN		(1<<24)	
+
+
+#define	CST4331_XTAL_FREQ		0x00000001	
+#define	CST4331_SPROM_OTP_SEL_MASK	0x00000006
+#define	CST4331_SPROM_OTP_SEL_SHIFT	1
+#define	CST4331_SPROM_PRESENT		0x00000002
+#define	CST4331_OTP_PRESENT		0x00000004
+#define	CST4331_LDO_RF			0x00000008
+#define	CST4331_LDO_PAR			0x00000010
 
 
 #define RES4315_CBUCK_LPOM		1	
@@ -1595,6 +1707,54 @@ typedef volatile struct {
 
 #define PMURES_UP_TRANSITION	2
 
+
+
+#define SECI_MODE_UART			0x0
+#define SECI_MODE_SECI			0x1
+#define SECI_MODE_LEGACY_3WIRE_BT	0x2
+#define SECI_MODE_LEGACY_3WIRE_WLAN	0x3
+#define SECI_MODE_HALF_SECI		0x4
+
+#define SECI_RESET		(1 << 0)
+#define SECI_RESET_BAR_UART	(1 << 1)
+#define SECI_ENAB_SECI_ECI	(1 << 2)
+#define SECI_ENAB_SECIOUT_DIS	(1 << 3)
+#define SECI_MODE_MASK		0x7
+#define SECI_MODE_SHIFT		4 
+#define SECI_UPD_SECI		(1 << 7)
+
+
+#define CLKCTL_STS_SECI_CLK_REQ		(1 << 8)
+#define CLKCTL_STS_SECI_CLK_AVAIL	(1 << 24)
+
+#define SECI_UART_MSR_CTS_STATE		(1 << 0)
+#define SECI_UART_MSR_RTS_STATE		(1 << 1)
+#define SECI_UART_SECI_IN_STATE		(1 << 2)
+#define SECI_UART_SECI_IN2_STATE	(1 << 3)
+
+
+#define SECI_UART_LCR_STOP_BITS		(1 << 0) 
+#define SECI_UART_LCR_PARITY_EN		(1 << 1)
+#define SECI_UART_LCR_PARITY		(1 << 2) 
+#define SECI_UART_LCR_RX_EN		(1 << 3)
+#define SECI_UART_LCR_LBRK_CTRL		(1 << 4) 
+#define SECI_UART_LCR_TXO_EN		(1 << 5)
+#define SECI_UART_LCR_RTSO_EN		(1 << 6)
+#define SECI_UART_LCR_SLIPMODE_EN	(1 << 7)
+#define SECI_UART_LCR_RXCRC_CHK		(1 << 8)
+#define SECI_UART_LCR_TXCRC_INV		(1 << 9)
+#define SECI_UART_LCR_TXCRC_LSBF	(1 << 10)
+#define SECI_UART_LCR_TXCRC_EN		(1 << 11)
+
+#define SECI_UART_MCR_TX_EN		(1 << 0)
+#define SECI_UART_MCR_PRTS		(1 << 1)
+#define SECI_UART_MCR_SWFLCTRL_EN	(1 << 2)
+#define SECI_UART_MCR_HIGHRATE_EN	(1 << 3)
+#define SECI_UART_MCR_LOOPBK_EN		(1 << 4)
+#define SECI_UART_MCR_AUTO_RTS		(1 << 5)
+#define SECI_UART_MCR_AUTO_TX_DIS	(1 << 6)
+#define SECI_UART_MCR_BAUD_ADJ_EN	(1 << 7)
+#define SECI_UART_MCR_XONOFF_RPT	(1 << 9)
 
 
 

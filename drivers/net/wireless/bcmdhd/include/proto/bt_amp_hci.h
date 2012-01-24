@@ -21,7 +21,7 @@
  * software in any way with any other Broadcom software provided under a license
  * other than the GPL, without Broadcom's express prior written consent.
  *
- * $Id: bt_amp_hci.h,v 9.14.8.2 2010-09-10 18:37:47 Exp $
+ * $Id: bt_amp_hci.h 277737 2011-08-16 17:54:59Z $
 */
 
 #ifndef _bt_amp_hci_h

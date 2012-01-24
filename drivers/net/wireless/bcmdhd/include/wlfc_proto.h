@@ -18,7 +18,7 @@
 *      Notwithstanding the above, under no circumstances may you combine this
 * software in any way with any other Broadcom software provided under a license
 * other than the GPL, without Broadcom's express prior written consent.
-* $Id: wlfc_proto.h,v 1.1.6.2 2010-05-08 01:30:41 Exp $
+* $Id: wlfc_proto.h 277737 2011-08-16 17:54:59Z $
 *
 */
 #ifndef __wlfc_proto_definitions_h__

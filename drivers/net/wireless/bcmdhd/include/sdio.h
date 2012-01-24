@@ -22,7 +22,7 @@
  * software in any way with any other Broadcom software provided under a license
  * other than the GPL, without Broadcom's express prior written consent.
  *
- * $Id: sdio.h,v 13.27.14.1 2010-09-07 13:37:45 Exp $
+ * $Id: sdio.h 277737 2011-08-16 17:54:59Z $
  */
 
 #ifndef	_SDIO_H
@@ -366,7 +366,7 @@ typedef volatile struct {
  *  SDIO Commands and responses
  *
  *  I/O only commands are:
- *      CMD0, CMD3, CMD5, CMD7, CMD15, CMD52, CMD53
+ *      CMD0, CMD3, CMD5, CMD7, CMD14, CMD15, CMD52, CMD53
  * ------------------------------------------------
  */
 
@@ -412,6 +412,7 @@ typedef volatile struct {
 
 #define CMD7_RCA_M		BITFIELD_MASK(16)
 #define CMD7_RCA_S		16
+
 #define CMD14_RCA_M		BITFIELD_MASK(16)
 #define CMD14_RCA_S		16
 #define CMD14_SLEEP_M		BITFIELD_MASK(1)

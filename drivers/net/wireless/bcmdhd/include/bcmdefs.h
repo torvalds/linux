@@ -21,7 +21,7 @@
  * software in any way with any other Broadcom software provided under a license
  * other than the GPL, without Broadcom's express prior written consent.
  *
- * $Id: bcmdefs.h,v 13.68.2.8 2011-01-08 04:04:19 Exp $
+ * $Id: bcmdefs.h 279282 2011-08-23 22:44:02Z $
  */
 
 
@@ -30,12 +30,26 @@
 
 
 
+
+#define BCM_REFERENCE(data)	((void)(data))
+
+
+
 #define bcmreclaimed 		0
 #define _data	_data
 #define _fn	_fn
+#define BCMPREATTACHDATA(_data)	_data
+#define BCMPREATTACHFN(_fn)	_fn
 #define _data	_data
 #define _fn		_fn
 #define _fn	_fn
+#define	BCMNMIATTACHFN(_fn)	_fn
+#define	BCMNMIATTACHDATA(_data)	_data
+#define BCMOVERLAY0DATA(_sym)	_sym
+#define BCMOVERLAY0FN(_fn)	_fn
+#define BCMOVERLAY1DATA(_sym)	_sym
+#define BCMOVERLAY1FN(_fn)	_fn
+#define BCMOVERLAYERRFN(_fn)	_fn
 #define CONST	const
 #define BCMFASTPATH
 
@@ -43,9 +57,30 @@
 
 
 #define _data	_data
+#define BCMROMDAT_NAME(_data)	_data
 #define _fn		_fn
 #define _fn	_fn
 #define STATIC	static
+#define BCMROMDAT_ARYSIZ(data)	ARRAYSIZE(data)
+#define BCMROMDAT_SIZEOF(data)	sizeof(data)
+#define BCMROMDAT_APATCH(data)
+#define BCMROMDAT_SPATCH(data)
+
+
+
+#define OVERLAY_INLINE
+#define OSTATIC			static
+#define BCMOVERLAYDATA(_ovly, _sym)	_sym
+#define BCMOVERLAYFN(_ovly, _fn)	_fn
+#define BCMOVERLAYERRFN(_fn)	_fn
+#define BCMROMOVERLAYDATA(_ovly, _data)	_data
+#define BCMROMOVERLAYFN(_ovly, _fn)		_fn
+#define BCMATTACHOVERLAYDATA(_ovly, _sym)	_sym
+#define BCMATTACHOVERLAYFN(_ovly, _fn)		_fn
+#define BCMINITOVERLAYDATA(_ovly, _sym)		_sym
+#define BCMINITOVERLAYFN(_ovly, _fn)		_fn
+#define BCMUNINITOVERLAYFN(_ovly, _fn)		_fn
+
 
 
 #define	SI_BUS			0	

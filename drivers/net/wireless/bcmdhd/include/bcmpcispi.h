@@ -21,7 +21,7 @@
  * software in any way with any other Broadcom software provided under a license
  * other than the GPL, without Broadcom's express prior written consent.
  *
- * $Id: bcmpcispi.h,v 13.15.112.1 2010-11-15 18:22:12 Exp $
+ * $Id: bcmpcispi.h 277737 2011-08-16 17:54:59Z $
  */
 #ifndef	_BCM_PCI_SPI_H
 #define	_BCM_PCI_SPI_H

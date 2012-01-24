@@ -22,7 +22,7 @@
  * software in any way with any other Broadcom software provided under a license
  * other than the GPL, without Broadcom's express prior written consent.
  *
- * $Id: hndpmu.c,v 1.228.2.56 2011-02-11 22:49:07 Exp $
+ * $Id: hndpmu.c,v 1.228.2.56 2011-02-11 22:49:07 $
  */
 
 #include <typedefs.h>
@@ -93,26 +93,8 @@ static const sdiod_drive_str_t sdiod_drive_strength_tab4_1v8[] = {
 	{0, 0x1} };
 
 /* SDIO Drive Strength to sel value table for PMU Rev 11 (1.2v) */
-static const sdiod_drive_str_t sdiod_drive_strength_tab4_1v2[] = {
-	{16, 0x3},
-	{13, 0x2},
-	{11, 0x1},
-	{8, 0x0},
-	{6, 0x7},
-	{4, 0x6},
-	{2, 0x5},
-	{0, 0x4} };
 
 /* SDIO Drive Strength to sel value table for PMU Rev 11 (2.5v) */
-static const sdiod_drive_str_t sdiod_drive_strength_tab4_2v5[] = {
-	{80, 0x5},
-	{65, 0x4},
-	{55, 0x7},
-	{40, 0x6},
-	{30, 0x1},
-	{20, 0x0},
-	{10, 0x3},
-	{0, 0x2} };
 
 /* SDIO Drive Strength to sel value table for PMU Rev 13 (1.8v) */
 static const sdiod_drive_str_t sdiod_drive_strength_tab5_1v8[] = {
@@ -125,14 +107,6 @@ static const sdiod_drive_str_t sdiod_drive_strength_tab5_1v8[] = {
 	{0, 0x0} };
 
 /* SDIO Drive Strength to sel value table for PMU Rev 13 (3.3v) */
-static const sdiod_drive_str_t sdiod_drive_strength_tab5_3v3[] = {
-	{12, 0x7},
-	{10, 0x6},
-	{8, 0x5},
-	{6, 0x4},
-	{4, 0x2},
-	{2, 0x1},
-	{0, 0x0} };
 
 
 #define SDIOD_DRVSTR_KEY(chip, pmu)	(((chip) << 16) | (pmu))
@@ -166,24 +140,8 @@ si_sdiod_drive_strength_init(si_t *sih, osl_t *osh, uint32 drivestrength)
 		str_mask = 0x00003800;
 		str_shift = 11;
 		break;
-	case SDIOD_DRVSTR_KEY(BCM4336_CHIP_ID, 8):
-	case SDIOD_DRVSTR_KEY(BCM4336_CHIP_ID, 11):
-		if (sih->pmurev == 8) {
-			str_tab = (sdiod_drive_str_t *)&sdiod_drive_strength_tab3;
-		}
-		else if (sih->pmurev == 11) {
-			str_tab = (sdiod_drive_str_t *)&sdiod_drive_strength_tab4_1v8;
-		}
-		str_mask = 0x00003800;
-		str_shift = 11;
-		break;
 	case SDIOD_DRVSTR_KEY(BCM4330_CHIP_ID, 12):
 		str_tab = (sdiod_drive_str_t *)&sdiod_drive_strength_tab4_1v8;
-		str_mask = 0x00003800;
-		str_shift = 11;
-		break;
-	case SDIOD_DRVSTR_KEY(BCM43362_CHIP_ID, 13):
-		str_tab = (sdiod_drive_str_t *)&sdiod_drive_strength_tab5_1v8;
 		str_mask = 0x00003800;
 		str_shift = 11;
 		break;

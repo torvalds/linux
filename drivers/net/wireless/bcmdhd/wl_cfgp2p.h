@@ -103,11 +103,11 @@ enum wl_cfgp2p_status {
 #define wl_to_p2p_bss(wl, type) ((wl)->p2p->bss_idx[type])
 #define wl_get_p2p_status(wl, stat) ((!(wl)->p2p_supported) ? 0 : test_bit(WLP2P_STATUS_ ## stat, \
 									&(wl)->p2p->status))
-#define wl_set_p2p_status(wl, stat) ((!(wl)->p2p_supported) ? : set_bit(WLP2P_STATUS_ ## stat, \
+#define wl_set_p2p_status(wl, stat) ((!(wl)->p2p_supported) ? 0 : set_bit(WLP2P_STATUS_ ## stat, \
 									&(wl)->p2p->status))
-#define wl_clr_p2p_status(wl, stat) ((!(wl)->p2p_supported) ? : clear_bit(WLP2P_STATUS_ ## stat, \
+#define wl_clr_p2p_status(wl, stat) ((!(wl)->p2p_supported) ? 0 : clear_bit(WLP2P_STATUS_ ## stat, \
 									&(wl)->p2p->status))
-#define wl_chg_p2p_status(wl, stat) ((!(wl)->p2p_supported) ? : change_bit(WLP2P_STATUS_ ## stat, \
+#define wl_chg_p2p_status(wl, stat) ((!(wl)->p2p_supported) ? 0 : change_bit(WLP2P_STATUS_ ## stat, \
 									&(wl)->p2p->status))
 #define p2p_on(wl) ((wl)->p2p->on)
 #define p2p_scan(wl) ((wl)->p2p->scan)
@@ -234,6 +234,12 @@ wl_cfgp2p_get_p2p_noa(struct wl_priv *wl, struct net_device *ndev, char* buf, in
 
 extern s32
 wl_cfgp2p_set_p2p_ps(struct wl_priv *wl, struct net_device *ndev, char* buf, int len);
+
+extern s32
+wl_cfgp2p_register_ndev(struct wl_priv *wl);
+
+extern s32
+wl_cfgp2p_unregister_ndev(struct wl_priv *wl);
 
 /* WiFi Direct */
 #define SOCIAL_CHAN_1 1

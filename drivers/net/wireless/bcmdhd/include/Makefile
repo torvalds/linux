@@ -10,7 +10,7 @@
 #
 # Copyright 2005, Broadcom, Inc.
 #
-# $Id: Makefile 241702 2011-02-19 00:41:03Z automrgr $
+# $Id: Makefile 241702 2011-02-19 00:41:03Z $
 #
 
 SRCBASE := ..

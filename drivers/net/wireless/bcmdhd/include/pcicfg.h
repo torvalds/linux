@@ -21,7 +21,7 @@
  * software in any way with any other Broadcom software provided under a license
  * other than the GPL, without Broadcom's express prior written consent.
  *
- * $Id: pcicfg.h,v 1.50 2009-12-07 21:56:06 Exp $
+ * $Id: pcicfg.h 277737 2011-08-16 17:54:59Z $
  */
 
 
@@ -39,6 +39,19 @@
 #define	PCI_INT_MASK		0x94	
 
 #define PCIE_EXTCFG_OFFSET	0x100
+#define	PCI_SPROM_CONTROL	0x88	
+#define	PCI_BAR1_CONTROL	0x8c	
+#define PCI_TO_SB_MB		0x98	
+#define PCI_BACKPLANE_ADDR	0xa0	
+#define PCI_BACKPLANE_DATA	0xa4	
+#define	PCI_CLK_CTL_ST		0xa8	
+#define	PCI_BAR0_WIN2		0xac	
+#define	PCI_GPIO_IN		0xb0	
+#define	PCI_GPIO_OUT		0xb4	
+#define	PCI_GPIO_OUTEN		0xb8	
+
+#define	PCI_BAR0_SHADOW_OFFSET	(2 * 1024)	
+#define	PCI_BAR0_SPROM_OFFSET	(4 * 1024)	
 #define	PCI_BAR0_PCIREGS_OFFSET	(6 * 1024)	
 #define	PCI_BAR0_PCISBR_OFFSET	(4 * 1024)	
 
@@ -48,5 +61,18 @@
 #define	PCI_16KB0_PCIREGS_OFFSET (8 * 1024)	
 #define	PCI_16KB0_CCREGS_OFFSET	(12 * 1024)	
 #define PCI_16KBB0_WINSZ	(16 * 1024)	
+
+
+#define	PCI_16KB0_WIN2_OFFSET	(4 * 1024)	
+
+
+
+#define SPROM_SZ_MSK		0x02	
+#define SPROM_LOCKED		0x08	
+#define	SPROM_BLANK		0x04	
+#define SPROM_WRITEEN		0x10	
+#define SPROM_BOOTROM_WE	0x20	
+#define SPROM_BACKPLANE_EN	0x40	
+#define SPROM_OTPIN_USE		0x80	
 
 #endif	

@@ -34,7 +34,7 @@
  *      Notwithstanding the above, under no circumstances may you combine this
  * software in any way with any other Broadcom software provided under a license
  * other than the GPL, without Broadcom's express prior written consent.
- * $Id: packed_section_start.h,v 1.4.124.1 2010-09-17 00:47:03 Exp $
+ * $Id: packed_section_start.h 277737 2011-08-16 17:54:59Z $
  */
 
 

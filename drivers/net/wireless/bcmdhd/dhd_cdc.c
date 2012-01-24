@@ -21,7 +21,7 @@
  * software in any way with any other Broadcom software provided under a license
  * other than the GPL, without Broadcom's express prior written consent.
  *
- * $Id: dhd_cdc.c,v 1.51.6.31 2011-02-09 14:31:43 Exp $
+ * $Id: dhd_cdc.c 301794 2011-12-08 20:41:35Z $
  *
  * BDC is like CDC, except it includes a header for data packets to convey
  * packet priority over the bus, and flags (e.g. to indicate checksum status
@@ -77,6 +77,8 @@ typedef struct dhd_prot {
 	cdc_ioctl_t msg;
 	unsigned char buf[WLC_IOCTL_MAXLEN + ROUND_UP_MARGIN];
 } dhd_prot_t;
+
+extern int dhd_dbus_txdata(dhd_pub_t *dhdp, void *pktbuf);
 
 static int
 dhdcdc_msg(dhd_pub_t *dhd)
@@ -2174,6 +2176,7 @@ dhd_wlfc_init(dhd_pub_t *dhd)
 		WLFC_FLAGS_CREDIT_STATUS_SIGNALS |
 		WLFC_FLAGS_HOST_PROPTXSTATUS_ACTIVE : 0;
 
+	dhd->wlfc_state  = NULL;
 
 	/*
 	try to enable/disable signaling by sending "tlv" iovar. if that fails,
@@ -2463,7 +2466,7 @@ fail:
 #ifndef CONFIG_DHD_USE_STATIC_BUF
 	if (cdc != NULL)
 		MFREE(dhd->osh, cdc, sizeof(dhd_prot_t));
-#endif
+#endif /* CONFIG_DHD_USE_STATIC_BUF */
 	return BCME_NOMEM;
 }
 
@@ -2476,7 +2479,7 @@ dhd_prot_detach(dhd_pub_t *dhd)
 #endif
 #ifndef CONFIG_DHD_USE_STATIC_BUF
 	MFREE(dhd->osh, dhd->prot, sizeof(dhd_prot_t));
-#endif
+#endif /* CONFIG_DHD_USE_STATIC_BUF */
 	dhd->prot = NULL;
 }
 

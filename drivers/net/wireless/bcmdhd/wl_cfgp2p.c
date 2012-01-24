@@ -47,7 +47,7 @@
 #include <wl_cfg80211.h>
 #include <wl_cfgp2p.h>
 #include <wldev_common.h>
-
+#include <wl_android.h>
 
 static s8 ioctlbuf[WLC_IOCTL_MAXLEN];
 static s8 scanparambuf[WLC_IOCTL_SMLEN];
@@ -59,6 +59,19 @@ wl_cfgp2p_has_ie(u8 *ie, u8 **tlvs, u32 *tlvs_len, const u8 *oui, u32 oui_len, u
 static s32
 wl_cfgp2p_vndr_ie(struct net_device *ndev, s32 bssidx, s32 pktflag,
             s8 *oui, s32 ie_id, s8 *data, s32 data_len, s32 delete);
+
+static int wl_cfgp2p_start_xmit(struct sk_buff *skb, struct net_device *ndev);
+static int wl_cfgp2p_do_ioctl(struct net_device *net, struct ifreq *ifr, int cmd);
+static int wl_cfgp2p_if_open(struct net_device *net);
+static int wl_cfgp2p_if_stop(struct net_device *net);
+
+static const struct net_device_ops wl_cfgp2p_if_ops = {
+	.ndo_open		= wl_cfgp2p_if_open,
+	.ndo_stop		= wl_cfgp2p_if_stop,
+	.ndo_do_ioctl		= wl_cfgp2p_do_ioctl,
+	.ndo_start_xmit		= wl_cfgp2p_start_xmit,
+};
+
 /*
  *  Initialize variables related to P2P
  *
@@ -569,7 +582,7 @@ wl_cfgp2p_escan(struct wl_priv *wl, struct net_device *dev, u16 active,
 
 	eparams->params.nprobes = htod32(P2PAPI_SCAN_NPROBES);
 	eparams->params.home_time = htod32(P2PAPI_SCAN_HOME_TIME_MS);
-	if (wl_get_drv_status(wl, CONNECTED))
+	if (wl_get_drv_status_all(wl, CONNECTED))
 		eparams->params.active_time = htod32(-1);
 	else if (num_chans == 3)
 		eparams->params.active_time = htod32(P2PAPI_SCAN_SOCIAL_DWELL_TIME_MS);
@@ -670,7 +683,7 @@ wl_cfgp2p_set_management_ie(struct wl_priv *wl, struct net_device *ndev, s32 bss
 				CFGP2P_ERR(("not suitable type\n"));
 				return -1;
 		}
-	} else if (get_mode_by_netdev(wl, ndev) == WL_MODE_AP) {
+	} else if (wl_get_mode_by_netdev(wl, ndev) == WL_MODE_AP) {
 		switch (pktflag) {
 			case VNDR_IE_PRBRSP_FLAG :
 				mgmt_ie_buf = wl->ap_info->probe_res_ie;
@@ -689,7 +702,7 @@ wl_cfgp2p_set_management_ie(struct wl_priv *wl, struct net_device *ndev, s32 bss
 				return -1;
 		}
 		bssidx = 0;
-	} else if (bssidx == -1 && get_mode_by_netdev(wl, ndev) == WL_MODE_BSS) {
+	} else if (bssidx == -1 && wl_get_mode_by_netdev(wl, ndev) == WL_MODE_BSS) {
 		switch (pktflag) {
 			case VNDR_IE_PRBREQ_FLAG :
 				mgmt_ie_buf = wl->sta_info->probe_req_ie;
@@ -964,7 +977,7 @@ wl_cfgp2p_listen_complete(struct wl_priv *wl, struct net_device *ndev,
 			del_timer_sync(&wl->p2p->listen_timer);
 			spin_unlock_bh(&wl->p2p->timer_lock);
 		}
-		cfg80211_remain_on_channel_expired(ndev, wl->cache_cookie, &wl->remain_on_chan,
+		cfg80211_remain_on_channel_expired(ndev, wl->last_roc_id, &wl->remain_on_chan,
 		    wl->remain_on_chan_type, GFP_KERNEL);
 	} else
 		wl_clr_p2p_status(wl, LISTEN_EXPIRED);
@@ -1466,4 +1479,146 @@ s32 wl_cfgp2p_set_p2p_ps(struct wl_priv *wl, struct net_device *ndev, char* buf,
 		ret = -1;
 	}
 	return ret;
+}
+
+s32
+wl_cfgp2p_register_ndev(struct wl_priv *wl)
+{
+	int ret = 0;
+	struct net_device* net = NULL;
+	struct wireless_dev *wdev;
+	uint8 temp_addr[ETHER_ADDR_LEN] = { 0x00, 0x90, 0x4c, 0x33, 0x22, 0x11 };
+
+	/* Allocate etherdev, including space for private structure */
+	if (!(net = alloc_etherdev(sizeof(wl)))) {
+		CFGP2P_ERR(("%s: OOM - alloc_etherdev\n", __FUNCTION__));
+		goto fail;
+	}
+
+	strcpy(net->name, "p2p%d");
+	net->name[IFNAMSIZ - 1] = '\0';
+
+	/* Copy the reference to wl_priv */
+	memcpy((void *)netdev_priv(net), &wl, sizeof(wl));
+
+#if (LINUX_VERSION_CODE < KERNEL_VERSION(2, 6, 31))
+	ASSERT(!net->open);
+	net->do_ioctl = wl_cfgp2p_do_ioctl;
+	net->hard_start_xmit = wl_cfgp2p_start_xmit;
+	net->open = wl_cfgp2p_if_open;
+	net->stop = wl_cfgp2p_if_stop;
+#else
+	ASSERT(!net->netdev_ops);
+	net->netdev_ops = &wl_cfgp2p_if_ops;
+#endif
+
+	/* Register with a dummy MAC addr */
+	memcpy(net->dev_addr, temp_addr, ETHER_ADDR_LEN);
+
+	wdev = kzalloc(sizeof(*wdev), GFP_KERNEL);
+	if (unlikely(!wdev)) {
+		WL_ERR(("Could not allocate wireless device\n"));
+		return -ENOMEM;
+	}
+
+	wdev->wiphy = wl->wdev->wiphy;
+
+	wdev->iftype = wl_mode_to_nl80211_iftype(WL_MODE_BSS);
+
+	net->ieee80211_ptr = wdev;
+
+	SET_NETDEV_DEV(net, wiphy_dev(wdev->wiphy));
+
+	/* Associate p2p0 network interface with new wdev */
+	wdev->netdev = net;
+
+	/* store p2p net ptr for further reference. Note that iflist won't have this
+	 * entry as there corresponding firmware interface is a "Hidden" interface.
+	 */
+	if (wl->p2p_net) {
+		CFGP2P_ERR(("p2p_net defined already.\n"));
+		return -EINVAL;
+	} else {
+		wl->p2p_wdev = wdev;
+		wl->p2p_net = net;
+	}
+
+	ret = register_netdev(net);
+	if (ret) {
+		CFGP2P_ERR((" register_netdevice failed (%d)\n", ret));
+		goto fail;
+	}
+
+	printk("%s: P2P Interface Registered\n", net->name);
+
+	return ret;
+fail:
+
+#if LINUX_VERSION_CODE < KERNEL_VERSION(2, 6, 31)
+	net->open = NULL;
+#else
+	net->netdev_ops = NULL;
+#endif
+
+	if (net) {
+		unregister_netdev(net);
+		free_netdev(net);
+	}
+
+	return -ENODEV;
+}
+
+s32
+wl_cfgp2p_unregister_ndev(struct wl_priv *wl)
+{
+
+	if (!wl || !wl->p2p_net) {
+		CFGP2P_ERR(("Invalid Ptr\n"));
+		return -EINVAL;
+	}
+
+	unregister_netdev(wl->p2p_net);
+	free_netdev(wl->p2p_net);
+
+	return 0;
+}
+
+static int wl_cfgp2p_start_xmit(struct sk_buff *skb, struct net_device *ndev)
+{
+	CFGP2P_DBG(("(%s) is not used for data operations. Droping the packet. \n", ndev->name));
+	return 0;
+}
+
+static int wl_cfgp2p_do_ioctl(struct net_device *net, struct ifreq *ifr, int cmd)
+{
+	int ret = 0;
+	struct wl_priv *wl = *(struct wl_priv **)netdev_priv(net);
+	struct net_device *ndev = wl_to_prmry_ndev(wl);
+
+	/* There is no ifidx corresponding to p2p0 in our firmware. So we should
+	 * not Handle any IOCTL cmds on p2p0 other than ANDROID PRIVATE CMDs.
+	 * For Android PRIV CMD handling map it to primary I/F
+	 */
+	if (cmd == SIOCDEVPRIVATE+1) {
+		ret = wl_android_priv_cmd(ndev, ifr, cmd);
+
+	} else {
+		CFGP2P_ERR(("%s: IOCTL req 0x%x on p2p0 I/F. Ignoring. \n",
+		__FUNCTION__, cmd));
+		return -1;
+	}
+
+	return ret;
+}
+
+static int wl_cfgp2p_if_open(struct net_device *net)
+{
+	CFGP2P_DBG(("Do Nothing \n"));
+	return 0;
+}
+
+static int wl_cfgp2p_if_stop(struct net_device *net)
+{
+	CFGP2P_DBG(("Do Nothing \n"));
+	return 0;
 }

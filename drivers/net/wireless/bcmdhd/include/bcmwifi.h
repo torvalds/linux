@@ -23,7 +23,7 @@
  * software in any way with any other Broadcom software provided under a license
  * other than the GPL, without Broadcom's express prior written consent.
  *
- * $Id: bcmwifi.h,v 1.29.6.3 2010-08-03 17:47:04 Exp $
+ * $Id: bcmwifi.h 277737 2011-08-16 17:54:59Z $
  */
 
 

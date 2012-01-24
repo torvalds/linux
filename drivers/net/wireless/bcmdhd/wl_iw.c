@@ -21,7 +21,7 @@
  * software in any way with any other Broadcom software provided under a license
  * other than the GPL, without Broadcom's express prior written consent.
  *
- * $Id: wl_iw.c,v 1.132.2.18 2011-02-05 01:44:47 Exp $
+ * $Id: wl_iw.c,v 1.132.2.18 2011-02-05 01:44:47 $
  */
 
 #include <wlioctl.h>
@@ -1564,6 +1564,63 @@ exit_proc:
 	net_os_wake_unlock(dev);
 	return res;
 }
+
+static int
+wl_iw_set_pno_setadd(
+	struct net_device *dev,
+	struct iw_request_info *info,
+	union iwreq_data *wrqu,
+	char *extra
+)
+{
+	int ret = -1;
+	char *tmp_ptr;
+	int size, tmp_size;
+
+	net_os_wake_lock(dev);
+	WL_ERROR(("\n### %s: info->cmd:%x, info->flags:%x, u.data=0x%p, u.len=%d\n",
+		__FUNCTION__, info->cmd, info->flags,
+		wrqu->data.pointer, wrqu->data.length));
+
+	if (g_onoff == G_WLAN_SET_OFF) {
+		WL_TRACE(("%s: driver is not up yet after START\n", __FUNCTION__));
+		goto exit_proc;
+	}
+
+	if (wrqu->data.length <= strlen(PNOSETADD_SET_CMD) + sizeof(cmd_tlv_t)) {
+		WL_ERROR(("%s argument=%d less than %d\n", __FUNCTION__,
+		          wrqu->data.length, (int)(strlen(PNOSETADD_SET_CMD) + sizeof(cmd_tlv_t))));
+		goto exit_proc;
+	}
+
+	
+	bcopy(PNOSETUP_SET_CMD, extra, strlen(PNOSETUP_SET_CMD));
+
+	tmp_ptr = extra + strlen(PNOSETUP_SET_CMD);
+	size = wrqu->data.length - strlen(PNOSETUP_SET_CMD);
+	tmp_size = size;
+	
+	while (*tmp_ptr && tmp_size > 0) {
+		if ((*tmp_ptr == 'S') && (size - tmp_size) >= sizeof(cmd_tlv_t)) {
+			*(tmp_ptr + 1) = ((*(tmp_ptr + 1) - '0') << 4) + (*(tmp_ptr + 2) - '0');
+			memmove(tmp_ptr + 2, tmp_ptr + 3, tmp_size - 3);
+			tmp_size -= 2 + *(tmp_ptr + 1);
+			tmp_ptr += 2 + *(tmp_ptr + 1);
+			size--;
+		} else {
+			tmp_ptr++;
+			tmp_size--;
+		}
+	}
+
+	wrqu->data.length = strlen(PNOSETUP_SET_CMD) + size;
+	ret = wl_iw_set_pno_set(dev, info, wrqu, extra);
+
+exit_proc:
+	net_os_wake_unlock(dev);
+	return ret;
+
+}
 #endif 
 
 static int
@@ -2567,6 +2624,8 @@ wl_iw_get_range(
 	IW_EVENT_CAPA_SET(range->event_capa, SIOCGIWSCAN);
 	IW_EVENT_CAPA_SET(range->event_capa, IWEVTXDROP);
 	IW_EVENT_CAPA_SET(range->event_capa, IWEVMICHAELMICFAILURE);
+	IW_EVENT_CAPA_SET(range->event_capa, IWEVASSOCREQIE);
+	IW_EVENT_CAPA_SET(range->event_capa, IWEVASSOCRESPIE);
 	IW_EVENT_CAPA_SET(range->event_capa, IWEVPMKIDCAND);
 #endif 
 
@@ -5473,7 +5532,15 @@ wl_iw_set_wpaauth(
 	switch (paramid) {
 	case IW_AUTH_WPA_VERSION:
 		
-		iw->wpaversion = paramval;
+		if (paramval & IW_AUTH_WPA_VERSION_DISABLED)
+			val = WPA_AUTH_DISABLED;
+		else if (paramval & (IW_AUTH_WPA_VERSION_WPA))
+			val = WPA_AUTH_PSK | WPA_AUTH_UNSPECIFIED;
+		else if (paramval & IW_AUTH_WPA_VERSION_WPA2)
+			val = WPA2_AUTH_PSK | WPA2_AUTH_UNSPECIFIED;
+		WL_ERROR(("%s: %d: setting wpa_auth to 0x%0x\n", __FUNCTION__, __LINE__, val));
+		if ((error = dev_wlc_intvar_set(dev, "wpa_auth", val)))
+			return error;
 		break;
 
 	case IW_AUTH_CIPHER_PAIRWISE:
@@ -5491,7 +5558,27 @@ wl_iw_set_wpaauth(
 		break;
 
 	case IW_AUTH_KEY_MGMT:
-		if (paramval & IW_AUTH_KEY_MGMT_PSK) {
+		if ((error = dev_wlc_intvar_get(dev, "wpa_auth", &val)))
+			return error;
+
+		if (val & (WPA_AUTH_PSK | WPA_AUTH_UNSPECIFIED)) {
+			if (paramval & IW_AUTH_KEY_MGMT_PSK)
+				val = WPA_AUTH_PSK;
+			else
+				val = WPA_AUTH_UNSPECIFIED;
+			if (paramval & 0x04)
+				val |= WPA2_AUTH_FT;
+		}
+		else if (val & (WPA2_AUTH_PSK | WPA2_AUTH_UNSPECIFIED)) {
+			if (paramval & IW_AUTH_KEY_MGMT_PSK)
+				val = WPA2_AUTH_PSK;
+			else
+				val = WPA2_AUTH_UNSPECIFIED;
+			if (paramval & 0x04)
+				val |= WPA2_AUTH_FT;
+		}
+
+		else if (paramval & IW_AUTH_KEY_MGMT_PSK) {
 			if (iw->wpaversion == IW_AUTH_WPA_VERSION_WPA)
 				val = WPA_AUTH_PSK;
 			else if (iw->wpaversion == IW_AUTH_WPA_VERSION_WPA2)
@@ -7526,6 +7613,8 @@ wl_iw_set_priv(
 			ret = wl_iw_set_pno_reset(dev, info, (union iwreq_data *)dwrq, extra);
 		else if (strnicmp(extra, PNOSETUP_SET_CMD, strlen(PNOSETUP_SET_CMD)) == 0)
 			ret = wl_iw_set_pno_set(dev, info, (union iwreq_data *)dwrq, extra);
+		else if (strnicmp(extra, PNOSETADD_SET_CMD, strlen(PNOSETADD_SET_CMD)) == 0)
+			ret = wl_iw_set_pno_setadd(dev, info, (union iwreq_data *)dwrq, extra);
 		else if (strnicmp(extra, PNOENABLE_SET_CMD, strlen(PNOENABLE_SET_CMD)) == 0)
 			ret = wl_iw_set_pno_enable(dev, info, (union iwreq_data *)dwrq, extra);
 #endif 
@@ -8251,6 +8340,21 @@ wl_iw_event(struct net_device *dev, wl_event_msg_t *e, void* data)
 
 		break;
 	}
+
+	case WLC_E_ASSOC_REQ_IE:
+		cmd = IWEVASSOCREQIE;
+		wrqu.data.length = datalen;
+		if (datalen < sizeof(extra))
+			memcpy(extra, data, datalen);
+		break;
+
+	case WLC_E_ASSOC_RESP_IE:
+		cmd = IWEVASSOCRESPIE;
+		wrqu.data.length = datalen;
+		if (datalen < sizeof(extra))
+			memcpy(extra, data, datalen);
+		break;
+
 	case WLC_E_PMKID_CACHE: {
 		if (data)
 		{

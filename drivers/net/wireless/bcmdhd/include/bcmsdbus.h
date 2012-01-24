@@ -22,7 +22,7 @@
  * software in any way with any other Broadcom software provided under a license
  * other than the GPL, without Broadcom's express prior written consent.
  *
- * $Id: bcmsdbus.h,v 13.17.86.2 2010-12-23 01:13:20 Exp $
+ * $Id: bcmsdbus.h 300017 2011-12-01 20:30:27Z $
  */
 
 #ifndef	_sdio_api_h_
@@ -116,5 +116,13 @@ extern int sdioh_sdio_reset(sdioh_info_t *si);
 void *bcmsdh_get_sdioh(bcmsdh_info_t *sdh);
 
 
+
+extern SDIOH_API_RC sdioh_sleep(sdioh_info_t *si, bool enab);
+
+/* GPIO support */
+extern SDIOH_API_RC sdioh_gpio_init(sdioh_info_t *sd);
+extern bool sdioh_gpioin(sdioh_info_t *sd, uint32 gpio);
+extern SDIOH_API_RC sdioh_gpioouten(sdioh_info_t *sd, uint32 gpio);
+extern SDIOH_API_RC sdioh_gpioout(sdioh_info_t *sd, uint32 gpio, bool enab);
 
 #endif /* _sdio_api_h_ */

@@ -22,7 +22,7 @@
  * software in any way with any other Broadcom software provided under a license
  * other than the GPL, without Broadcom's express prior written consent.
  *
- * $Id: sdiovar.h,v 13.9 2009-12-08 22:30:15 Exp $
+ * $Id: sdiovar.h 277737 2011-08-16 17:54:59Z $
  */
 
 #ifndef _sdiovar_h_

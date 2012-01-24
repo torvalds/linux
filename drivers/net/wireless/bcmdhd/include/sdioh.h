@@ -22,7 +22,7 @@
  * software in any way with any other Broadcom software provided under a license
  * other than the GPL, without Broadcom's express prior written consent.
  *
- * $Id: sdioh.h,v 13.17.2.3 2011-01-08 05:28:21 Exp $
+ * $Id: sdioh.h 300017 2011-12-01 20:30:27Z $
  */
 
 #ifndef	_SDIOH_H
@@ -68,6 +68,10 @@
 #define SD_ADMA_SysAddr			0x58
 #define SD_SlotInterruptStatus		0x0FC
 #define SD_HostControllerVersion 	0x0FE
+#define	SD_GPIO_Reg			0x100
+#define	SD_GPIO_OE			0x104
+#define	SD_GPIO_Enable			0x108
+
 
 /* SD specific registers in PCI config space */
 #define SD_SlotInfo	0x40
@@ -408,5 +412,31 @@
 /* SD_MaxCurCap_Reserved: Offset 0x04C , size = bytes */
 /* SD_SlotInterruptStatus: Offset 0x0FC , size = bytes */
 /* SD_HostControllerVersion : Offset 0x0FE , size = bytes */
+
+/* SDIO Host Control Register DMA Mode Definitions */
+#define SDIOH_SDMA_MODE			0
+#define SDIOH_ADMA1_MODE		1
+#define SDIOH_ADMA2_MODE		2
+#define SDIOH_ADMA2_64_MODE		3
+
+#define ADMA2_ATTRIBUTE_VALID		(1 << 0)	/* ADMA Descriptor line valid */
+#define ADMA2_ATTRIBUTE_END			(1 << 1)	/* End of Descriptor */
+#define ADMA2_ATTRIBUTE_INT			(1 << 2)	/* Interrupt when line is done */
+#define ADMA2_ATTRIBUTE_ACT_NOP		(0 << 4)	/* Skip current line, go to next. */
+#define ADMA2_ATTRIBUTE_ACT_RSV		(1 << 4)	/* Same as NOP */
+#define ADMA1_ATTRIBUTE_ACT_SET		(1 << 4)	/* ADMA1 Only - set transfer length */
+#define ADMA2_ATTRIBUTE_ACT_TRAN	(2 << 4)	/* Transfer Data of one descriptor line. */
+#define ADMA2_ATTRIBUTE_ACT_LINK	(3 << 4)	/* Link Descriptor */
+
+/* ADMA2 Descriptor Table Entry for 32-bit Address */
+typedef struct adma2_dscr_32b {
+	uint32 len_attr;
+	uint32 phys_addr;
+} adma2_dscr_32b_t;
+
+/* ADMA1 Descriptor Table Entry */
+typedef struct adma1_dscr {
+	uint32 phys_addr_attr;
+} adma1_dscr_t;
 
 #endif /* _SDIOH_H */
