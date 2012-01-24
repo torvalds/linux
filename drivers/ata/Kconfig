@@ -83,6 +83,14 @@ config SATA_AHCI_PLATFORM
 
 	  If unsure, say N.
 
+config SW_SATA_AHCI_PLATFORM
+	tristate "SoftWinner Platform AHCI SATA support"
+	help
+	  This option enables support for SoftWinner Platform AHCI Serial ATA
+	  controllers.
+
+	  If unsure, say N.
+
 config SATA_FSL
 	tristate "Freescale 3.0Gbps SATA support"
 	depends on FSL_SOC
