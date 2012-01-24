@@ -3322,7 +3322,8 @@ static int omap_dispchw_probe(struct platform_device *pdev)
 		r = -EINVAL;
 		goto err_ioremap;
 	}
-	dispc.base = ioremap(dispc_mem->start, resource_size(dispc_mem));
+	dispc.base = devm_ioremap(&pdev->dev, dispc_mem->start,
+				  resource_size(dispc_mem));
 	if (!dispc.base) {
 		DSSERR("can't ioremap DISPC\n");
 		r = -ENOMEM;
@@ -3332,14 +3333,14 @@ static int omap_dispchw_probe(struct platform_device *pdev)
 	if (dispc.irq < 0) {
 		DSSERR("platform_get_irq failed\n");
 		r = -ENODEV;
-		goto err_irq;
+		goto err_ioremap;
 	}
 
-	r = request_irq(dispc.irq, omap_dispc_irq_handler, IRQF_SHARED,
-		"OMAP DISPC", dispc.pdev);
+	r = devm_request_irq(&pdev->dev, dispc.irq, omap_dispc_irq_handler,
+			     IRQF_SHARED, "OMAP DISPC", dispc.pdev);
 	if (r < 0) {
 		DSSERR("request_irq failed\n");
-		goto err_irq;
+		goto err_ioremap;
 	}
 
 	pm_runtime_enable(&pdev->dev);
@@ -3362,9 +3363,6 @@ static int omap_dispchw_probe(struct platform_device *pdev)
 
 err_runtime_get:
 	pm_runtime_disable(&pdev->dev);
-	free_irq(dispc.irq, dispc.pdev);
-err_irq:
-	iounmap(dispc.base);
 err_ioremap:
 	clk_put(dispc.dss_clk);
 err_get_clk:
@@ -3377,8 +3375,6 @@ static int omap_dispchw_remove(struct platform_device *pdev)
 
 	clk_put(dispc.dss_clk);
 
-	free_irq(dispc.irq, dispc.pdev);
-	iounmap(dispc.base);
 	return 0;
 }
 

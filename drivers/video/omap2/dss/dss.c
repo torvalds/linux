@@ -751,7 +751,8 @@ static int omap_dsshw_probe(struct platform_device *pdev)
 		r = -EINVAL;
 		goto err_ioremap;
 	}
-	dss.base = ioremap(dss_mem->start, resource_size(dss_mem));
+	dss.base = devm_ioremap(&pdev->dev, dss_mem->start,
+				resource_size(dss_mem));
 	if (!dss.base) {
 		DSSERR("can't ioremap DSS\n");
 		r = -ENOMEM;
@@ -760,7 +761,7 @@ static int omap_dsshw_probe(struct platform_device *pdev)
 
 	r = dss_get_clocks();
 	if (r)
-		goto err_clocks;
+		goto err_ioremap;
 
 	pm_runtime_enable(&pdev->dev);
 
@@ -808,8 +809,6 @@ err_dpi:
 err_runtime_get:
 	pm_runtime_disable(&pdev->dev);
 	dss_put_clocks();
-err_clocks:
-	iounmap(dss.base);
 err_ioremap:
 	return r;
 }
@@ -818,8 +817,6 @@ static int omap_dsshw_remove(struct platform_device *pdev)
 {
 	dpi_exit();
 	sdi_exit();
-
-	iounmap(dss.base);
 
 	pm_runtime_disable(&pdev->dev);
 

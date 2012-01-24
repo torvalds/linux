@@ -798,7 +798,8 @@ static int omap_venchw_probe(struct platform_device *pdev)
 		r = -EINVAL;
 		goto err_ioremap;
 	}
-	venc.base = ioremap(venc_mem->start, resource_size(venc_mem));
+	venc.base = devm_ioremap(&pdev->dev, venc_mem->start,
+				 resource_size(venc_mem));
 	if (!venc.base) {
 		DSSERR("can't ioremap VENC\n");
 		r = -ENOMEM;
@@ -807,7 +808,7 @@ static int omap_venchw_probe(struct platform_device *pdev)
 
 	r = venc_get_clocks(pdev);
 	if (r)
-		goto err_get_clk;
+		goto err_ioremap;
 
 	pm_runtime_enable(&pdev->dev);
 
@@ -825,8 +826,6 @@ static int omap_venchw_probe(struct platform_device *pdev)
 err_get_venc:
 	pm_runtime_disable(&pdev->dev);
 	venc_put_clocks();
-err_get_clk:
-	iounmap(venc.base);
 err_ioremap:
 	return r;
 }
@@ -842,7 +841,6 @@ static int omap_venchw_remove(struct platform_device *pdev)
 	pm_runtime_disable(&pdev->dev);
 	venc_put_clocks();
 
-	iounmap(venc.base);
 	return 0;
 }
 

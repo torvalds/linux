@@ -925,7 +925,8 @@ static int omap_rfbihw_probe(struct platform_device *pdev)
 		r = -EINVAL;
 		goto err_ioremap;
 	}
-	rfbi.base = ioremap(rfbi_mem->start, resource_size(rfbi_mem));
+	rfbi.base = devm_ioremap(&pdev->dev, rfbi_mem->start,
+				 resource_size(rfbi_mem));
 	if (!rfbi.base) {
 		DSSERR("can't ioremap RFBI\n");
 		r = -ENOMEM;
@@ -963,7 +964,6 @@ err_get_ick:
 	rfbi_runtime_put();
 err_get_rfbi:
 	pm_runtime_disable(&pdev->dev);
-	iounmap(rfbi.base);
 err_ioremap:
 	return r;
 }
@@ -971,7 +971,6 @@ err_ioremap:
 static int omap_rfbihw_remove(struct platform_device *pdev)
 {
 	pm_runtime_disable(&pdev->dev);
-	iounmap(rfbi.base);
 	return 0;
 }
 
