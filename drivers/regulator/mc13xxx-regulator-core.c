@@ -254,6 +254,7 @@ int __devinit mc13xxx_get_num_regulators_dt(struct platform_device *pdev)
 
 	return num;
 }
+EXPORT_SYMBOL_GPL(mc13xxx_get_num_regulators_dt);
 
 struct mc13xxx_regulator_init_data * __devinit mc13xxx_parse_regulators_dt(
 	struct platform_device *pdev, struct mc13xxx_regulator *regulators,
@@ -291,6 +292,7 @@ struct mc13xxx_regulator_init_data * __devinit mc13xxx_parse_regulators_dt(
 
 	return data;
 }
+EXPORT_SYMBOL_GPL(mc13xxx_parse_regulators_dt);
 #endif
 
 MODULE_LICENSE("GPL v2");
