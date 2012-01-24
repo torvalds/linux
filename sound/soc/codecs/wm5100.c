@@ -2525,8 +2525,6 @@ static int wm5100_probe(struct snd_soc_codec *codec)
 	return 0;
 
 err_gpio:
-	if (i2c->irq)
-		free_irq(i2c->irq, wm5100);
 
 	return ret;
 }
@@ -2539,8 +2537,6 @@ static int wm5100_remove(struct snd_soc_codec *codec)
 	if (wm5100->pdata.hp_pol) {
 		gpio_free(wm5100->pdata.hp_pol);
 	}
-	if (i2c->irq)
-		free_irq(i2c->irq, wm5100);
 
 	return 0;
 }
