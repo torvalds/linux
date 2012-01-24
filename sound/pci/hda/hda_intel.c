@@ -148,6 +148,7 @@ MODULE_SUPPORTED_DEVICE("{{Intel, ICH6},"
 			 "{Intel, PCH},"
 			 "{Intel, CPT},"
 			 "{Intel, PPT},"
+			 "{Intel, LPT},"
 			 "{Intel, PBG},"
 			 "{Intel, SCH},"
 			 "{ATI, SB450},"
@@ -2999,6 +3000,10 @@ static DEFINE_PCI_DEVICE_TABLE(azx_ids) = {
 	  AZX_DCAPS_BUFSIZE},
 	/* Panther Point */
 	{ PCI_DEVICE(0x8086, 0x1e20),
+	  .driver_data = AZX_DRIVER_PCH | AZX_DCAPS_SCH_SNOOP |
+	  AZX_DCAPS_BUFSIZE},
+	/* Lynx Point */
+	{ PCI_DEVICE(0x8086, 0x8c20),
 	  .driver_data = AZX_DRIVER_PCH | AZX_DCAPS_SCH_SNOOP |
 	  AZX_DCAPS_BUFSIZE},
 	/* SCH */
