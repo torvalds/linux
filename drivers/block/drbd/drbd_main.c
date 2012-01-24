@@ -210,7 +210,7 @@ void tl_release(struct drbd_tconn *tconn, unsigned int barrier_nr,
 	/* find latest not yet barrier-acked write request,
 	 * count writes in its epoch. */
 	list_for_each_entry(r, &tconn->transfer_log, tl_requests) {
-		const unsigned long s = r->rq_state;
+		const unsigned s = r->rq_state;
 		if (!req) {
 			if (!(s & RQ_WRITE))
 				continue;

@@ -575,13 +575,14 @@ struct drbd_request {
 
 	struct list_head tl_requests; /* ring list in the transfer log */
 	struct bio *master_bio;       /* master bio pointer */
-	unsigned long rq_state; /* see comments above _req_mod() */
 	unsigned long start_time;
 
 	/* once it hits 0, we may complete the master_bio */
 	atomic_t completion_ref;
 	/* once it hits 0, we may destroy this drbd_request object */
 	struct kref kref;
+
+	unsigned rq_state; /* see comments above _req_mod() */
 };
 
 struct drbd_epoch {
