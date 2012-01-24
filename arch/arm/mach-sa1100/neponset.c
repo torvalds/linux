@@ -2,23 +2,23 @@
  * linux/arch/arm/mach-sa1100/neponset.c
  *
  */
-#include <linux/kernel.h>
 #include <linux/init.h>
-#include <linux/tty.h>
 #include <linux/ioport.h>
-#include <linux/serial_core.h>
+#include <linux/kernel.h>
 #include <linux/platform_device.h>
+#include <linux/serial_core.h>
 
-#include <mach/hardware.h>
 #include <asm/mach-types.h>
 #include <asm/irq.h>
 #include <asm/mach/map.h>
 #include <asm/mach/irq.h>
 #include <asm/mach/serial_sa1100.h>
-#include <mach/assabet.h>
-#include <mach/neponset.h>
 #include <asm/hardware/sa1111.h>
 #include <asm/sizes.h>
+
+#include <mach/hardware.h>
+#include <mach/assabet.h>
+#include <mach/neponset.h>
 
 void neponset_ncr_frob(unsigned int mask, unsigned int val)
 {
@@ -27,66 +27,6 @@ void neponset_ncr_frob(unsigned int mask, unsigned int val)
 	local_irq_save(flags);
 	NCR_0 = (NCR_0 & ~mask) | val;
 	local_irq_restore(flags);
-}
-
-/*
- * Install handler for Neponset IRQ.  Note that we have to loop here
- * since the ETHERNET and USAR IRQs are level based, and we need to
- * ensure that the IRQ signal is deasserted before returning.  This
- * is rather unfortunate.
- */
-static void
-neponset_irq_handler(unsigned int irq, struct irq_desc *desc)
-{
-	unsigned int irr;
-
-	while (1) {
-		/*
-		 * Acknowledge the parent IRQ.
-		 */
-		desc->irq_data.chip->irq_ack(&desc->irq_data);
-
-		/*
-		 * Read the interrupt reason register.  Let's have all
-		 * active IRQ bits high.  Note: there is a typo in the
-		 * Neponset user's guide for the SA1111 IRR level.
-		 */
-		irr = IRR ^ (IRR_ETHERNET | IRR_USAR);
-
-		if ((irr & (IRR_ETHERNET | IRR_USAR | IRR_SA1111)) == 0)
-			break;
-
-		/*
-		 * Since there is no individual mask, we have to
-		 * mask the parent IRQ.  This is safe, since we'll
-		 * recheck the register for any pending IRQs.
-		 */
-		if (irr & (IRR_ETHERNET | IRR_USAR)) {
-			desc->irq_data.chip->irq_mask(&desc->irq_data);
-
-			/*
-			 * Ack the interrupt now to prevent re-entering
-			 * this neponset handler.  Again, this is safe
-			 * since we'll check the IRR register prior to
-			 * leaving.
-			 */
-			desc->irq_data.chip->irq_ack(&desc->irq_data);
-
-			if (irr & IRR_ETHERNET) {
-				generic_handle_irq(IRQ_NEPONSET_SMC9196);
-			}
-
-			if (irr & IRR_USAR) {
-				generic_handle_irq(IRQ_NEPONSET_USAR);
-			}
-
-			desc->irq_data.chip->irq_unmask(&desc->irq_data);
-		}
-
-		if (irr & IRR_SA1111) {
-			generic_handle_irq(IRQ_NEPONSET_SA1111);
-		}
-	}
 }
 
 static void neponset_set_mctrl(struct uart_port *port, u_int mctrl)
@@ -148,6 +88,66 @@ static struct sa1100_port_fns neponset_port_fns __devinitdata = {
 };
 
 /*
+ * Install handler for Neponset IRQ.  Note that we have to loop here
+ * since the ETHERNET and USAR IRQs are level based, and we need to
+ * ensure that the IRQ signal is deasserted before returning.  This
+ * is rather unfortunate.
+ */
+static void
+neponset_irq_handler(unsigned int irq, struct irq_desc *desc)
+{
+	unsigned int irr;
+
+	while (1) {
+		/*
+		 * Acknowledge the parent IRQ.
+		 */
+		desc->irq_data.chip->irq_ack(&desc->irq_data);
+
+		/*
+		 * Read the interrupt reason register.  Let's have all
+		 * active IRQ bits high.  Note: there is a typo in the
+		 * Neponset user's guide for the SA1111 IRR level.
+		 */
+		irr = IRR ^ (IRR_ETHERNET | IRR_USAR);
+
+		if ((irr & (IRR_ETHERNET | IRR_USAR | IRR_SA1111)) == 0)
+			break;
+
+		/*
+		 * Since there is no individual mask, we have to
+		 * mask the parent IRQ.  This is safe, since we'll
+		 * recheck the register for any pending IRQs.
+		 */
+		if (irr & (IRR_ETHERNET | IRR_USAR)) {
+			desc->irq_data.chip->irq_mask(&desc->irq_data);
+
+			/*
+			 * Ack the interrupt now to prevent re-entering
+			 * this neponset handler.  Again, this is safe
+			 * since we'll check the IRR register prior to
+			 * leaving.
+			 */
+			desc->irq_data.chip->irq_ack(&desc->irq_data);
+
+			if (irr & IRR_ETHERNET) {
+				generic_handle_irq(IRQ_NEPONSET_SMC9196);
+			}
+
+			if (irr & IRR_USAR) {
+				generic_handle_irq(IRQ_NEPONSET_USAR);
+			}
+
+			desc->irq_data.chip->irq_unmask(&desc->irq_data);
+		}
+
+		if (irr & IRR_SA1111) {
+			generic_handle_irq(IRQ_NEPONSET_SA1111);
+		}
+	}
+}
+
+/*
  * Yes, we really do not have any kind of masking or unmasking
  */
 static void nochip_noop(struct irq_data *irq)
@@ -159,6 +159,43 @@ static struct irq_chip nochip = {
 	.irq_ack = nochip_noop,
 	.irq_mask = nochip_noop,
 	.irq_unmask = nochip_noop,
+};
+
+static struct resource sa1111_resources[] = {
+	[0] = DEFINE_RES_MEM(0x40000000, SZ_8K),
+	[1] = DEFINE_RES_IRQ(IRQ_NEPONSET_SA1111),
+};
+
+static struct sa1111_platform_data sa1111_info = {
+	.irq_base	= IRQ_BOARD_END,
+};
+
+static u64 sa1111_dmamask = 0xffffffffUL;
+
+static struct platform_device sa1111_device = {
+	.name		= "sa1111",
+	.id		= 0,
+	.dev		= {
+		.dma_mask = &sa1111_dmamask,
+		.coherent_dma_mask = 0xffffffff,
+		.platform_data = &sa1111_info,
+	},
+	.num_resources	= ARRAY_SIZE(sa1111_resources),
+	.resource	= sa1111_resources,
+};
+
+static struct resource smc91x_resources[] = {
+	[0] = DEFINE_RES_MEM_NAMED(SA1100_CS3_PHYS, 0x02000000, "smc91x-regs"),
+	[1] = DEFINE_RES_IRQ(IRQ_NEPONSET_SMC9196),
+	[2] = DEFINE_RES_MEM_NAMED(SA1100_CS3_PHYS + 0x02000000,
+			0x02000000, "smc91x-attrib"),
+};
+
+static struct platform_device smc91x_device = {
+	.name		= "smc91x",
+	.id		= 0,
+	.num_resources	= ARRAY_SIZE(smc91x_resources),
+	.resource	= smc91x_resources,
 };
 
 static int __devinit neponset_probe(struct platform_device *dev)
@@ -247,43 +284,6 @@ static struct platform_device neponset_device = {
 	.id		= 0,
 	.num_resources	= ARRAY_SIZE(neponset_resources),
 	.resource	= neponset_resources,
-};
-
-static struct resource sa1111_resources[] = {
-	[0] = DEFINE_RES_MEM(0x40000000, SZ_8K),
-	[1] = DEFINE_RES_IRQ(IRQ_NEPONSET_SA1111),
-};
-
-static struct sa1111_platform_data sa1111_info = {
-	.irq_base	= IRQ_BOARD_END,
-};
-
-static u64 sa1111_dmamask = 0xffffffffUL;
-
-static struct platform_device sa1111_device = {
-	.name		= "sa1111",
-	.id		= 0,
-	.dev		= {
-		.dma_mask = &sa1111_dmamask,
-		.coherent_dma_mask = 0xffffffff,
-		.platform_data = &sa1111_info,
-	},
-	.num_resources	= ARRAY_SIZE(sa1111_resources),
-	.resource	= sa1111_resources,
-};
-
-static struct resource smc91x_resources[] = {
-	[0] = DEFINE_RES_MEM_NAMED(SA1100_CS3_PHYS, 0x02000000, "smc91x-regs"),
-	[1] = DEFINE_RES_IRQ(IRQ_NEPONSET_SMC9196),
-	[2] = DEFINE_RES_MEM_NAMED(SA1100_CS3_PHYS + 0x02000000,
-			0x02000000, "smc91x-attrib"),
-};
-
-static struct platform_device smc91x_device = {
-	.name		= "smc91x",
-	.id		= 0,
-	.num_resources	= ARRAY_SIZE(smc91x_resources),
-	.resource	= smc91x_resources,
 };
 
 static struct platform_device *devices[] __initdata = {
