@@ -262,7 +262,7 @@ static int at91_pm_enter(suspend_state_t state)
 					: /* no input */
 					: "r0");
 			saved_lpr = sdram_selfrefresh_enable();
-			wait_for_interrupt_enable();
+			cpu_do_idle();
 			sdram_selfrefresh_disable(saved_lpr);
 			break;
 
