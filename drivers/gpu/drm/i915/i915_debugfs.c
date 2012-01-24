@@ -1106,7 +1106,7 @@ static int gen6_drpc_info(struct seq_file *m)
 	seq_printf(m, "SW control enabled: %s\n",
 		   yesno((rpmodectl1 & GEN6_RP_MEDIA_MODE_MASK) ==
 			  GEN6_RP_MEDIA_SW_MODE));
-	seq_printf(m, "RC6 Enabled: %s\n",
+	seq_printf(m, "RC1e Enabled: %s\n",
 		   yesno(rcctl1 & GEN6_RC_CTL_RC1e_ENABLE));
 	seq_printf(m, "RC6 Enabled: %s\n",
 		   yesno(rcctl1 & GEN6_RC_CTL_RC6_ENABLE));
