@@ -272,6 +272,7 @@ static struct platform_driver neponset_device_driver = {
 	.resume		= neponset_resume,
 	.driver		= {
 		.name	= "neponset",
+		.owner	= THIS_MODULE,
 	},
 };
 
