@@ -171,7 +171,7 @@ static int max17042_get_property(struct power_supply *psy,
 		val->intval = ret * 625 / 8;
 		break;
 	case POWER_SUPPLY_PROP_CAPACITY:
-		ret = max17042_read_reg(chip->client, MAX17042_SOC);
+		ret = max17042_read_reg(chip->client, MAX17042_RepSOC);
 		if (ret < 0)
 			return ret;
 
