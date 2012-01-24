@@ -82,11 +82,3 @@
 #else
 #define NR_IRQS			(IRQ_BOARD_START)
 #endif
-
-/*
- * Board specific IRQs.  Define them here.
- * Do not surround them with ifdefs.
- */
-#define IRQ_NEPONSET_SMC9196	(IRQ_BOARD_START + 0)
-#define IRQ_NEPONSET_USAR	(IRQ_BOARD_START + 1)
-#define IRQ_NEPONSET_SA1111	(IRQ_BOARD_START + 2)
