@@ -344,16 +344,13 @@ static int fimc_md_register_platform_entities(struct fimc_md *fmd)
 		return -ENODEV;
 	ret = driver_for_each_device(driver, NULL, fmd,
 				     fimc_register_callback);
-	put_driver(driver);
 	if (ret)
 		return ret;
 
 	driver = driver_find(CSIS_DRIVER_NAME, &platform_bus_type);
-	if (driver) {
+	if (driver)
 		ret = driver_for_each_device(driver, NULL, fmd,
 					     csis_register_callback);
-		put_driver(driver);
-	}
 	return ret;
 }
 
