@@ -344,7 +344,6 @@ static int wl1271_event_process(struct wl1271 *wl, struct event_mailbox *mbox)
 
 		/* TODO: configure only the relevant vif */
 		wl12xx_for_each_wlvif_sta(wl, wlvif) {
-			struct ieee80211_vif *vif = wl12xx_wlvif_to_vif(wlvif);
 			bool success;
 
 			if (!test_and_clear_bit(WLVIF_FLAG_CS_PROGRESS,
@@ -352,6 +351,8 @@ static int wl1271_event_process(struct wl1271 *wl, struct event_mailbox *mbox)
 				continue;
 
 			success = mbox->channel_switch_status ? false : true;
+			vif = wl12xx_wlvif_to_vif(wlvif);
+
 			ieee80211_chswitch_done(vif, success);
 		}
 	}
