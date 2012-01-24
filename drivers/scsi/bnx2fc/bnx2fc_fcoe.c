@@ -953,8 +953,8 @@ static int bnx2fc_lport_config(struct fc_lport *lport)
 {
 	lport->link_up = 0;
 	lport->qfull = 0;
-	lport->max_retry_count = 3;
-	lport->max_rport_retry_count = 3;
+	lport->max_retry_count = BNX2FC_MAX_RETRY_CNT;
+	lport->max_rport_retry_count = BNX2FC_MAX_RPORT_RETRY_CNT;
 	lport->e_d_tov = 2 * 1000;
 	lport->r_a_tov = 10 * 1000;
 

@@ -114,6 +114,8 @@
 #define BNX2FC_HASH_TBL_CHUNK_SIZE	(16 * 1024)
 
 #define BNX2FC_MAX_SEQS			255
+#define BNX2FC_MAX_RETRY_CNT		3
+#define BNX2FC_MAX_RPORT_RETRY_CNT	255
 
 #define BNX2FC_READ			(1 << 1)
 #define BNX2FC_WRITE			(1 << 0)
