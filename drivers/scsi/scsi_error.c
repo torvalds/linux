@@ -1540,7 +1540,7 @@ int scsi_decide_disposition(struct scsi_cmnd *scmd)
 			 * Need to modify host byte to signal a
 			 * permanent target failure
 			 */
-			scmd->result |= (DID_TARGET_FAILURE << 16);
+			set_host_byte(scmd, DID_TARGET_FAILURE);
 			rtn = SUCCESS;
 		}
 		/* if rtn == FAILED, we have no sense information;
@@ -1560,7 +1560,7 @@ int scsi_decide_disposition(struct scsi_cmnd *scmd)
 	case RESERVATION_CONFLICT:
 		sdev_printk(KERN_INFO, scmd->device,
 			    "reservation conflict\n");
-		scmd->result |= (DID_NEXUS_FAILURE << 16);
+		set_host_byte(scmd, DID_NEXUS_FAILURE);
 		return SUCCESS; /* causes immediate i/o error */
 	default:
 		return FAILED;
