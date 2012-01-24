@@ -532,6 +532,7 @@ struct ath6kl {
 	struct wiphy *wiphy;
 
 	enum ath6kl_state state;
+	unsigned int testmode;
 
 	struct ath6kl_bmi bmi;
 	const struct ath6kl_hif_ops *hif_ops;

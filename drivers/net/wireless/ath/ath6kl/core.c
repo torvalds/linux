@@ -28,11 +28,13 @@ unsigned int debug_mask;
 static bool suspend_cutpower;
 static unsigned int uart_debug;
 static unsigned int ath6kl_p2p;
+static unsigned int testmode;
 
 module_param(debug_mask, uint, 0644);
 module_param(suspend_cutpower, bool, 0444);
 module_param(uart_debug, uint, 0644);
 module_param(ath6kl_p2p, uint, 0644);
+module_param(testmode, uint, 0644);
 
 int ath6kl_core_init(struct ath6kl *ar)
 {
@@ -75,6 +77,8 @@ int ath6kl_core_init(struct ath6kl *ar)
 		ret = -ENOMEM;
 		goto err_power_off;
 	}
+
+	ar->testmode = testmode;
 
 	ret = ath6kl_init_fetch_firmwares(ar);
 	if (ret)
