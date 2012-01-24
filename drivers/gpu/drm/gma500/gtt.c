@@ -20,6 +20,7 @@
  */
 
 #include <drm/drmP.h>
+#include <linux/shmem_fs.h>
 #include "psb_drv.h"
 
 
@@ -203,9 +204,7 @@ static int psb_gtt_attach_pages(struct gtt_range *gt)
 	gt->npage = pages;
 
 	for (i = 0; i < pages; i++) {
-		/* FIXME: needs updating as per mail from Hugh Dickins */
-		p = read_cache_page_gfp(mapping, i,
-					__GFP_COLD | GFP_KERNEL);
+		p = shmem_read_mapping_page(mapping, i);
 		if (IS_ERR(p))
 			goto err;
 		gt->pages[i] = p;
