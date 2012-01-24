@@ -3857,10 +3857,8 @@ cifs_construct_tcon(struct cifs_sb_info *cifs_sb, uid_t fsuid)
 	struct smb_vol *vol_info;
 
 	vol_info = kzalloc(sizeof(*vol_info), GFP_KERNEL);
-	if (vol_info == NULL) {
-		tcon = ERR_PTR(-ENOMEM);
-		goto out;
-	}
+	if (vol_info == NULL)
+		return ERR_PTR(-ENOMEM);
 
 	vol_info->local_nls = cifs_sb->local_nls;
 	vol_info->linux_uid = fsuid;
