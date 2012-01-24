@@ -653,7 +653,7 @@ static int i915_ringbuffer_info(struct seq_file *m, void *data)
 	seq_printf(m, "  Size :    %08x\n", ring->size);
 	seq_printf(m, "  Active :  %08x\n", intel_ring_get_active_head(ring));
 	seq_printf(m, "  NOPID :   %08x\n", I915_READ_NOPID(ring));
-	if (IS_GEN6(dev)) {
+	if (IS_GEN6(dev) || IS_GEN7(dev)) {
 		seq_printf(m, "  Sync 0 :   %08x\n", I915_READ_SYNC_0(ring));
 		seq_printf(m, "  Sync 1 :   %08x\n", I915_READ_SYNC_1(ring));
 	}
