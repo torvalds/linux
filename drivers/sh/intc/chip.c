@@ -58,11 +58,6 @@ static void intc_disable(struct irq_data *data)
 	}
 }
 
-static int intc_set_wake(struct irq_data *data, unsigned int on)
-{
-	return 0; /* allow wakeup, but setup hardware in intc_suspend() */
-}
-
 #ifdef CONFIG_SMP
 /*
  * This is held with the irq desc lock held, so we don't require any
@@ -225,8 +220,8 @@ struct irq_chip intc_irq_chip	= {
 	.irq_disable		= intc_disable,
 	.irq_shutdown		= intc_disable,
 	.irq_set_type		= intc_set_type,
-	.irq_set_wake		= intc_set_wake,
 #ifdef CONFIG_SMP
 	.irq_set_affinity	= intc_set_affinity,
 #endif
+	.flags			= IRQCHIP_SKIP_SET_WAKE,
 };
