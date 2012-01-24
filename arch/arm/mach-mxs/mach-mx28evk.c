@@ -259,7 +259,7 @@ static int __init mx28evk_fec_get_mac(void)
 	 * so hard-code Freescale OUI (00:04:9f) here.
 	 */
 	for (i = 0; i < 2; i++) {
-		val = ocotp[i * 4];
+		val = ocotp[i];
 		mx28_fec_pdata[i].mac[0] = 0x00;
 		mx28_fec_pdata[i].mac[1] = 0x04;
 		mx28_fec_pdata[i].mac[2] = 0x9f;
