@@ -28,6 +28,7 @@ ifeq ($(SUBARCH),i386)
 endif
 ifeq ($(SUBARCH),x86_64)
         HEADER_ARCH := x86
+	KBUILD_CFLAGS += -mcmodel=large
 endif
 
 HOST_DIR := arch/$(HEADER_ARCH)
