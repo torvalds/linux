@@ -140,8 +140,24 @@ si_sdiod_drive_strength_init(si_t *sih, osl_t *osh, uint32 drivestrength)
 		str_mask = 0x00003800;
 		str_shift = 11;
 		break;
+	case SDIOD_DRVSTR_KEY(BCM4336_CHIP_ID, 8):
+	case SDIOD_DRVSTR_KEY(BCM4336_CHIP_ID, 11):
+		if (sih->pmurev == 8) {
+			str_tab = (sdiod_drive_str_t *)&sdiod_drive_strength_tab3;
+		}
+		else if (sih->pmurev == 11) {
+			str_tab = (sdiod_drive_str_t *)&sdiod_drive_strength_tab4_1v8;
+		}
+		str_mask = 0x00003800;
+		str_shift = 11;
+		break;
 	case SDIOD_DRVSTR_KEY(BCM4330_CHIP_ID, 12):
 		str_tab = (sdiod_drive_str_t *)&sdiod_drive_strength_tab4_1v8;
+		str_mask = 0x00003800;
+		str_shift = 11;
+		break;
+	case SDIOD_DRVSTR_KEY(BCM43362_CHIP_ID, 13):
+		str_tab = (sdiod_drive_str_t *)&sdiod_drive_strength_tab5_1v8;
 		str_mask = 0x00003800;
 		str_shift = 11;
 		break;

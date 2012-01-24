@@ -21,7 +21,7 @@
  * software in any way with any other Broadcom software provided under a license
  * other than the GPL, without Broadcom's express prior written consent.
  *
- * $Id: bcmsdh_linux.c 294990 2011-11-09 00:13:10Z $
+ * $Id: bcmsdh_linux.c 308641 2012-01-17 02:18:02Z $
  */
 
 /**
@@ -144,17 +144,6 @@ EXPORT_SYMBOL(bcmsdh_remove);
 /* forward declarations */
 static int __devinit bcmsdh_probe(struct device *dev);
 static int __devexit bcmsdh_remove(struct device *dev);
-#endif /* BCMLXSDMMC */
-
-#ifndef BCMLXSDMMC
-static struct device_driver bcmsdh_driver = {
-	.name		= "pxa2xx-mci",
-	.bus		= &platform_bus_type,
-	.probe		= bcmsdh_probe,
-	.remove		= bcmsdh_remove,
-	.suspend	= NULL,
-	.resume		= NULL,
-	};
 #endif /* BCMLXSDMMC */
 
 #ifndef BCMLXSDMMC
@@ -531,13 +520,8 @@ bcmsdh_register(bcmsdh_driver_t *driver)
 	drvinfo = *driver;
 
 #if defined(BCMPLATFORM_BUS)
-#if defined(BCMLXSDMMC)
 	SDLX_MSG(("Linux Kernel SDIO/MMC Driver\n"));
 	error = sdio_function_init();
-#else
-	SDLX_MSG(("Intel PXA270 SDIO Driver\n"));
-	error = driver_register(&bcmsdh_driver);
-#endif /* defined(BCMLXSDMMC) */
 	return error;
 #endif /* defined(BCMPLATFORM_BUS) */
 
@@ -565,14 +549,12 @@ bcmsdh_unregister(void)
 	if (bcmsdh_pci_driver.node.next)
 #endif
 
-#if defined(BCMPLATFORM_BUS) && !defined(BCMLXSDMMC)
-		driver_unregister(&bcmsdh_driver);
-#endif
 #if defined(BCMLXSDMMC)
 	sdio_function_cleanup();
 #endif /* BCMLXSDMMC */
+
 #if !defined(BCMPLATFORM_BUS) && !defined(BCMLXSDMMC)
-		pci_unregister_driver(&bcmsdh_pci_driver);
+	pci_unregister_driver(&bcmsdh_pci_driver);
 #endif /* BCMPLATFORM_BUS */
 }
 

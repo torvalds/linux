@@ -1148,7 +1148,7 @@ dhd_set_mac_address(struct net_device *dev, void *addr)
 	if (ifidx == DHD_BAD_IF)
 		return -1;
 
-	ASSERT(&dhd->thr_sysioc_ctl.thr_pid >= 0);
+	ASSERT(dhd->thr_sysioc_ctl.thr_pid >= 0);
 	memcpy(&dhd->macvalue, sa->sa_data, ETHER_ADDR_LEN);
 	dhd->set_macaddress = TRUE;
 	up(&dhd->thr_sysioc_ctl.sema);
@@ -1166,7 +1166,7 @@ dhd_set_multicast_list(struct net_device *dev)
 	if (ifidx == DHD_BAD_IF)
 		return;
 
-	ASSERT(&dhd->thr_sysioc_ctl.thr_pid >= 0);
+	ASSERT(dhd->thr_sysioc_ctl.thr_pid >= 0);
 	dhd->iflist[ifidx]->set_multicast = TRUE;
 	up(&dhd->thr_sysioc_ctl.sema);
 }
@@ -2508,7 +2508,7 @@ dhd_add_if(dhd_info_t *dhd, int ifidx, void *handle, char *name,
 		ifp->state = DHD_IF_ADD;
 		ifp->idx = ifidx;
 		ifp->bssidx = bssidx;
-		ASSERT(&dhd->thr_sysioc_ctl.thr_pid >= 0);
+		ASSERT(dhd->thr_sysioc_ctl.thr_pid >= 0);
 		up(&dhd->thr_sysioc_ctl.sema);
 	} else
 		ifp->net = (struct net_device *)handle;
@@ -2532,7 +2532,7 @@ dhd_del_if(dhd_info_t *dhd, int ifidx)
 
 	ifp->state = DHD_IF_DEL;
 	ifp->idx = ifidx;
-	ASSERT(&dhd->thr_sysioc_ctl.thr_pid >= 0);
+	ASSERT(dhd->thr_sysioc_ctl.thr_pid >= 0);
 	up(&dhd->thr_sysioc_ctl.sema);
 }
 
@@ -3588,7 +3588,7 @@ void dhd_detach(dhd_pub_t *dhdp)
 	}
 #endif /* defined(CONFIG_WIRELESS_EXT) */
 
-	if (&dhd->thr_sysioc_ctl.thr_pid >= 0) {
+	if (dhd->thr_sysioc_ctl.thr_pid >= 0) {
 		PROC_STOP(&dhd->thr_sysioc_ctl);
 	}
 

@@ -57,8 +57,10 @@
 #define BCM_DNGL_BL_PID_4328	0xbd12
 #define BCM_DNGL_BL_PID_4322	0xbd13
 #define BCM_DNGL_BL_PID_4319    0xbd16
+#define BCM_DNGL_BL_PID_43236   0xbd17
 #define BCM_DNGL_BL_PID_4332	0xbd18
 #define BCM_DNGL_BL_PID_4330	0xbd19
+#define BCM_DNGL_BL_PID_43239   0xbd1b
 #define BCM_DNGL_BDC_PID	0x0bdc
 #define BCM_DNGL_JTAG_PID	0x4a44
 

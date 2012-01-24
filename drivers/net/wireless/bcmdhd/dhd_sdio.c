@@ -21,7 +21,7 @@
  * software in any way with any other Broadcom software provided under a license
  * other than the GPL, without Broadcom's express prior written consent.
  *
- * $Id: dhd_sdio.c 303389 2011-12-16 09:30:48Z $
+ * $Id: dhd_sdio.c 308574 2012-01-16 22:56:40Z $
  */
 
 #include <typedefs.h>
@@ -851,8 +851,10 @@ dhdsdio_bussleep(dhd_bus_t *bus, bool sleep)
 		                 SBSDIO_FORCE_HW_CLKREQ_OFF, NULL);
 
 		/* Isolate the bus */
-		bcmsdh_cfg_write(sdh, SDIO_FUNC_1, SBSDIO_DEVICE_CTL,
-		                 SBSDIO_DEVCTL_PADS_ISO, NULL);
+		if (bus->sih->chip != BCM4329_CHIP_ID && bus->sih->chip != BCM4319_CHIP_ID) {
+			bcmsdh_cfg_write(sdh, SDIO_FUNC_1, SBSDIO_DEVICE_CTL,
+				SBSDIO_DEVCTL_PADS_ISO, NULL);
+		}
 
 		/* Change state */
 		bus->sleeping = TRUE;
@@ -5191,6 +5193,9 @@ dhdsdio_chipmatch(uint16 chipid)
 		return TRUE;
 	if (chipid == BCM4330_CHIP_ID)
 		return TRUE;
+	if (chipid == BCM43239_CHIP_ID)
+		return TRUE;
+
 	return FALSE;
 }
 
