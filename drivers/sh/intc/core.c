@@ -35,7 +35,7 @@
 
 LIST_HEAD(intc_list);
 DEFINE_RAW_SPINLOCK(intc_big_lock);
-unsigned int nr_intc_controllers;
+static unsigned int nr_intc_controllers;
 
 /*
  * Default priority level
