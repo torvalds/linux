@@ -45,12 +45,15 @@ static int omap_abe_hw_params(struct snd_pcm_substream *substream,
 {
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
 	struct snd_soc_dai *codec_dai = rtd->codec_dai;
+	struct snd_soc_codec *codec = rtd->codec;
+	struct snd_soc_card *card = codec->card;
+	struct omap_abe_twl6040_data *pdata = dev_get_platdata(card->dev);
 	int clk_id, freq;
 	int ret;
 
 	clk_id = twl6040_get_clk_id(rtd->codec);
 	if (clk_id == TWL6040_SYSCLK_SEL_HPPLL)
-		freq = 38400000;
+		freq = pdata->mclk_freq;
 	else if (clk_id == TWL6040_SYSCLK_SEL_LPPLL)
 		freq = 32768;
 	else
@@ -295,6 +298,11 @@ static __devinit int omap_abe_probe(struct platform_device *pdev)
 		card->name = pdata->card_name;
 	} else {
 		dev_err(&pdev->dev, "Card name is not provided\n");
+		return -ENODEV;
+	}
+
+	if (!pdata->mclk_freq) {
+		dev_err(&pdev->dev, "MCLK frequency missing\n");
 		return -ENODEV;
 	}
 
