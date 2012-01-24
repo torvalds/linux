@@ -448,6 +448,8 @@ int rt2800_load_firmware(struct rt2x00_dev *rt2x00dev,
 	 */
 	rt2800_register_write(rt2x00dev, H2M_BBP_AGENT, 0);
 	rt2800_register_write(rt2x00dev, H2M_MAILBOX_CSR, 0);
+	if (rt2x00_is_usb(rt2x00dev))
+		rt2800_register_write(rt2x00dev, H2M_INT_SRC, 0);
 	msleep(1);
 
 	return 0;
