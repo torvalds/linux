@@ -735,6 +735,8 @@ nouveau_mem_gddr3_mr(struct drm_device *dev, u32 freq,
 		     struct nouveau_pm_memtiming *boot,
 		     struct nouveau_pm_memtiming *t)
 {
+	u8 rver, rlen, *ramcfg = nouveau_perf_ramcfg(dev, freq, &rver, &rlen);
+
 	if (len < 15) {
 		t->drive_strength = boot->drive_strength;
 		t->odt = boot->odt;
@@ -763,9 +765,17 @@ nouveau_mem_gddr3_mr(struct drm_device *dev, u32 freq,
 		   /* CAS */
 		   ((nv_mem_cl_lut_gddr3[e->tCL] & 0x7) << 4) |
 		   ((nv_mem_cl_lut_gddr3[e->tCL] & 0x8) >> 2);
+
 	t->mr[1] = (boot->mr[1] & 0x100f40) | t->drive_strength |
 		   (t->odt << 2) |
 		   (nv_mem_wr_lut_gddr3[e->tWR] & 0xf) << 4;
+	if (ramcfg && rver == 0x00) {
+		/* DLL enable/disable */
+		t->mr[1] &= ~0x00000040;
+		if (ramcfg[3] & 0x08)
+			t->mr[1] |= 0x00000040;
+	}
+
 	t->mr[2] = boot->mr[2];
 
 	NV_DEBUG(dev, "(%u) MR: %08x %08x %08x", t->id,

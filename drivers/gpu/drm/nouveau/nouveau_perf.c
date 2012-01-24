@@ -139,7 +139,7 @@ nouveau_perf_rammap(struct drm_device *dev, u32 freq,
 	return NULL;
 }
 
-static u8 *
+u8 *
 nouveau_perf_ramcfg(struct drm_device *dev, u32 freq, u8 *ver, u8 *len)
 {
 	struct drm_nouveau_private *dev_priv = dev->dev_private;
