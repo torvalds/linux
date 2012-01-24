@@ -289,17 +289,17 @@ static inline struct scsi_data_buffer *scsi_prot(struct scsi_cmnd *cmd)
 
 static inline void set_msg_byte(struct scsi_cmnd *cmd, char status)
 {
-	cmd->result |= status << 8;
+	cmd->result = (cmd->result & 0xffff00ff) | (status << 8);
 }
 
 static inline void set_host_byte(struct scsi_cmnd *cmd, char status)
 {
-	cmd->result |= status << 16;
+	cmd->result = (cmd->result & 0xff00ffff) | (status << 16);
 }
 
 static inline void set_driver_byte(struct scsi_cmnd *cmd, char status)
 {
-	cmd->result |= status << 24;
+	cmd->result = (cmd->result & 0x00ffffff) | (status << 24);
 }
 
 #endif /* _SCSI_SCSI_CMND_H */
