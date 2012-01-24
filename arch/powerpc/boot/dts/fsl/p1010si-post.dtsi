@@ -158,7 +158,8 @@
 /include/ "pq3-usb2-dr-0.dtsi"
 /include/ "pq3-esdhc-0.dtsi"
 	sdhc@2e000 {
-		fsl,sdhci-auto-cmd12;
+		compatible = "fsl,p1010-esdhc", "fsl,esdhc";
+		sdhci,auto-cmd12;
 	};
 
 /include/ "pq3-sec4.4-0.dtsi"
