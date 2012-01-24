@@ -487,6 +487,9 @@ struct nouveau_pm_tbl_entry {
 
 struct nouveau_pm_profile;
 struct nouveau_pm_profile_func {
+	void (*destroy)(struct nouveau_pm_profile *);
+	void (*init)(struct nouveau_pm_profile *);
+	void (*fini)(struct nouveau_pm_profile *);
 	struct nouveau_pm_level *(*select)(struct nouveau_pm_profile *);
 };
 
@@ -556,6 +559,7 @@ struct nouveau_pm_engine {
 
 	struct nouveau_pm_profile *profile_ac;
 	struct nouveau_pm_profile *profile_dc;
+	struct nouveau_pm_profile *profile;
 	struct list_head profiles;
 
 	struct nouveau_pm_level boot;

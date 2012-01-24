@@ -183,6 +183,12 @@ nouveau_pm_trigger(struct drm_device *dev)
 	else
 		profile = pm->profile_dc;
 
+	if (profile != pm->profile) {
+		pm->profile->func->fini(pm->profile);
+		pm->profile = profile;
+		pm->profile->func->init(pm->profile);
+	}
+
 	/* select performance level based on profile */
 	perflvl = profile->func->select(profile);
 
@@ -251,6 +257,11 @@ nouveau_pm_profile_set(struct drm_device *dev, const char *profile)
 	return 0;
 }
 
+static void
+nouveau_pm_static_dummy(struct nouveau_pm_profile *profile)
+{
+}
+
 static struct nouveau_pm_level *
 nouveau_pm_static_select(struct nouveau_pm_profile *profile)
 {
@@ -258,6 +269,9 @@ nouveau_pm_static_select(struct nouveau_pm_profile *profile)
 }
 
 const struct nouveau_pm_profile_func nouveau_pm_static_profile_func = {
+	.destroy = nouveau_pm_static_dummy,
+	.init = nouveau_pm_static_dummy,
+	.fini = nouveau_pm_static_dummy,
 	.select = nouveau_pm_static_select,
 };
 
@@ -856,6 +870,7 @@ nouveau_pm_init(struct drm_device *dev)
 
 	pm->profile_ac = &pm->boot.profile;
 	pm->profile_dc = &pm->boot.profile;
+	pm->profile = &pm->boot.profile;
 	pm->cur = &pm->boot;
 
 	/* add performance levels from vbios */
@@ -893,6 +908,12 @@ nouveau_pm_fini(struct drm_device *dev)
 {
 	struct drm_nouveau_private *dev_priv = dev->dev_private;
 	struct nouveau_pm_engine *pm = &dev_priv->engine.pm;
+	struct nouveau_pm_profile *profile, *tmp;
+
+	list_for_each_entry_safe(profile, tmp, &pm->profiles, head) {
+		list_del(&profile->head);
+		profile->func->destroy(profile);
+	}
 
 	if (pm->cur != &pm->boot)
 		nouveau_pm_perflvl_set(dev, &pm->boot);
