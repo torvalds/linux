@@ -1669,7 +1669,7 @@ static int i915_forcewake_open(struct inode *inode, struct file *file)
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	int ret;
 
-	if (!IS_GEN6(dev))
+	if (INTEL_INFO(dev)->gen < 6)
 		return 0;
 
 	ret = mutex_lock_interruptible(&dev->struct_mutex);
@@ -1686,7 +1686,7 @@ int i915_forcewake_release(struct inode *inode, struct file *file)
 	struct drm_device *dev = inode->i_private;
 	struct drm_i915_private *dev_priv = dev->dev_private;
 
-	if (!IS_GEN6(dev))
+	if (INTEL_INFO(dev)->gen < 6)
 		return 0;
 
 	/*
