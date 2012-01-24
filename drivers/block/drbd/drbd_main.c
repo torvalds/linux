@@ -2236,9 +2236,8 @@ static void do_retry(struct work_struct *ws)
 
 		/* We are not just doing generic_make_request(),
 		 * as we want to keep the start_time information. */
-		do {
-			inc_ap_bio(mdev);
-		} while(__drbd_make_request(mdev, bio, start_time));
+		inc_ap_bio(mdev);
+		__drbd_make_request(mdev, bio, start_time);
 	}
 }
 

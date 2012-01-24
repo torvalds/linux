@@ -1403,7 +1403,7 @@ extern void conn_free_crypto(struct drbd_tconn *tconn);
 extern int proc_details;
 
 /* drbd_req */
-extern int __drbd_make_request(struct drbd_conf *, struct bio *, unsigned long);
+extern void __drbd_make_request(struct drbd_conf *, struct bio *, unsigned long);
 extern int drbd_make_request(struct request_queue *q, struct bio *bio);
 extern int drbd_read_remote(struct drbd_conf *mdev, struct drbd_request *req);
 extern int drbd_merge_bvec(struct request_queue *q, struct bvec_merge_data *bvm, struct bio_vec *bvec);
