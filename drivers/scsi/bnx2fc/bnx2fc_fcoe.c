@@ -1537,6 +1537,7 @@ static void __bnx2fc_destroy(struct bnx2fc_interface *interface)
 static int bnx2fc_destroy(struct net_device *netdev)
 {
 	struct bnx2fc_interface *interface = NULL;
+	struct workqueue_struct *timer_work_queue;
 	int rc = 0;
 
 	rtnl_lock();
@@ -1549,9 +1550,9 @@ static int bnx2fc_destroy(struct net_device *netdev)
 		goto netdev_err;
 	}
 
-
-	destroy_workqueue(interface->timer_work_queue);
+	timer_work_queue = interface->timer_work_queue;
 	__bnx2fc_destroy(interface);
+	destroy_workqueue(timer_work_queue);
 
 netdev_err:
 	mutex_unlock(&bnx2fc_dev_lock);
