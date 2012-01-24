@@ -908,13 +908,13 @@ static struct regulator_desc regulators[] = {
 	},
 	regulator_desc_buck(7),
 	{
-		.name	= "EN32KHz AP",
+		.name	= "EN32KHz_AP",
 		.id	= MAX8997_EN32KHZ_AP,
 		.ops	= &max8997_fixedvolt_ops,
 		.type	= REGULATOR_VOLTAGE,
 		.owner	= THIS_MODULE,
 	}, {
-		.name	= "EN32KHz CP",
+		.name	= "EN32KHz_CP",
 		.id	= MAX8997_EN32KHZ_CP,
 		.ops	= &max8997_fixedvolt_ops,
 		.type	= REGULATOR_VOLTAGE,
@@ -938,7 +938,7 @@ static struct regulator_desc regulators[] = {
 		.type	= REGULATOR_VOLTAGE,
 		.owner	 = THIS_MODULE,
 	}, {
-		.name	= "CHARGER CV",
+		.name	= "CHARGER_CV",
 		.id	= MAX8997_CHARGER_CV,
 		.ops	= &max8997_fixedstate_ops,
 		.type	= REGULATOR_VOLTAGE,
@@ -950,7 +950,7 @@ static struct regulator_desc regulators[] = {
 		.type	= REGULATOR_CURRENT,
 		.owner	 = THIS_MODULE,
 	}, {
-		.name	= "CHARGER TOPOFF",
+		.name	= "CHARGER_TOPOFF",
 		.id	= MAX8997_CHARGER_TOPOFF,
 		.ops	= &max8997_charger_fixedstate_ops,
 		.type	= REGULATOR_CURRENT,
