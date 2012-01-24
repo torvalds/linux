@@ -2667,8 +2667,7 @@ nfs4_remote_mount(struct file_system_type *fs_type, int flags,
 	if (!s->s_root) {
 		/* initial superblock/root creation */
 		nfs4_fill_super(s);
-		nfs_fscache_get_super_cookie(
-			s, data ? data->fscache_uniq : NULL, NULL);
+		nfs_fscache_get_super_cookie(s, data->fscache_uniq, NULL);
 	}
 
 	mntroot = nfs4_get_root(s, mntfh, dev_name);
