@@ -940,8 +940,14 @@ static int bnx2fc_libfc_config(struct fc_lport *lport)
 
 static int bnx2fc_em_config(struct fc_lport *lport)
 {
+	int max_xid;
+
+	if (nr_cpu_ids <= 2)
+		max_xid = FCOE_XIDS_PER_CPU;
+	else
+		max_xid = FCOE_MAX_XID;
 	if (!fc_exch_mgr_alloc(lport, FC_CLASS_3, FCOE_MIN_XID,
-				FCOE_MAX_XID, NULL)) {
+				max_xid, NULL)) {
 		printk(KERN_ERR PFX "em_config:fc_exch_mgr_alloc failed\n");
 		return -ENOMEM;
 	}
@@ -2056,6 +2062,7 @@ if_create_err:
 ifput_err:
 	bnx2fc_net_cleanup(interface);
 	bnx2fc_interface_put(interface);
+	goto mod_err;
 netdev_err:
 	module_put(THIS_MODULE);
 mod_err:
