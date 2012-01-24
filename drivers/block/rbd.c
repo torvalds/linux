@@ -46,7 +46,7 @@
 
 #define RBD_MINORS_PER_MAJOR	256		/* max minors per blkdev */
 
-#define RBD_MAX_MD_NAME_LEN	(96 + sizeof(RBD_SUFFIX))
+#define RBD_MAX_MD_NAME_LEN	(RBD_MAX_OBJ_NAME_LEN + sizeof(RBD_SUFFIX))
 #define RBD_MAX_POOL_NAME_LEN	64
 #define RBD_MAX_SNAP_NAME_LEN	32
 #define RBD_MAX_OPT_LEN		1024
@@ -175,7 +175,7 @@ static struct bus_type rbd_bus_type = {
 	.name		= "rbd",
 };
 
-static spinlock_t node_lock;      /* protects client get/put */
+static DEFINE_SPINLOCK(node_lock);      /* protects client get/put */
 
 static DEFINE_MUTEX(ctl_mutex);	  /* Serialize open/close/setup/teardown */
 static LIST_HEAD(rbd_dev_list);    /* devices */
@@ -324,7 +324,7 @@ static int parse_rbd_opts_token(char *c, void *private)
 	substring_t argstr[MAX_OPT_ARGS];
 	int token, intval, ret;
 
-	token = match_token((char *)c, rbdopt_tokens, argstr);
+	token = match_token(c, rbdopt_tokens, argstr);
 	if (token < 0)
 		return -EINVAL;
 
@@ -372,7 +372,8 @@ static int rbd_get_client(struct rbd_device *rbd_dev, const char *mon_addr,
 	rbd_opts->notify_timeout = RBD_NOTIFY_TIMEOUT_DEFAULT;
 
 	ret = ceph_parse_options(&opt, options, mon_addr,
-				 mon_addr + strlen(mon_addr), parse_rbd_opts_token, rbd_opts);
+				mon_addr + strlen(mon_addr),
+				parse_rbd_opts_token, rbd_opts);
 	if (ret < 0)
 		goto done_err;
 
@@ -460,15 +461,13 @@ static int rbd_header_from_disk(struct rbd_image_header *header,
 	u32 snap_count = le32_to_cpu(ondisk->snap_count);
 	int ret = -ENOMEM;
 
-	if (memcmp(ondisk, RBD_HEADER_TEXT, sizeof(RBD_HEADER_TEXT))) {
+	if (memcmp(ondisk, RBD_HEADER_TEXT, sizeof(RBD_HEADER_TEXT)))
 		return -ENXIO;
-	}
 
 	init_rwsem(&header->snap_rwsem);
 	header->snap_names_len = le64_to_cpu(ondisk->snap_names_len);
 	header->snapc = kmalloc(sizeof(struct ceph_snap_context) +
-				snap_count *
-				 sizeof(struct rbd_image_snap_ondisk),
+				snap_count * sizeof (*ondisk),
 				gfp_flags);
 	if (!header->snapc)
 		return -ENOMEM;
@@ -498,8 +497,7 @@ static int rbd_header_from_disk(struct rbd_image_header *header,
 	header->snapc->num_snaps = snap_count;
 	header->total_snaps = snap_count;
 
-	if (snap_count &&
-	    allocated_snaps == snap_count) {
+	if (snap_count && allocated_snaps == snap_count) {
 		for (i = 0; i < snap_count; i++) {
 			header->snapc->snaps[i] =
 				le64_to_cpu(ondisk->snaps[i].id);
@@ -2423,7 +2421,7 @@ static int rbd_sysfs_init(void)
 	rbd_bus_type.bus_attrs = rbd_bus_attrs;
 
 	ret = bus_register(&rbd_bus_type);
-	 if (ret < 0)
+	if (ret < 0)
 		return ret;
 
 	ret = device_register(&rbd_root_dev);
@@ -2444,7 +2442,6 @@ int __init rbd_init(void)
 	rc = rbd_sysfs_init();
 	if (rc)
 		return rc;
-	spin_lock_init(&node_lock);
 	pr_info("loaded " DRV_NAME_LONG "\n");
 	return 0;
 }
