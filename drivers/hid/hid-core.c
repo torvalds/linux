@@ -1619,11 +1619,7 @@ static ssize_t store_new_id(struct device_driver *drv, const char *buf,
 	list_add_tail(&dynid->list, &hdrv->dyn_list);
 	spin_unlock(&hdrv->dyn_lock);
 
-	ret = 0;
-	if (get_driver(&hdrv->driver)) {
-		ret = driver_attach(&hdrv->driver);
-		put_driver(&hdrv->driver);
-	}
+	ret = driver_attach(&hdrv->driver);
 
 	return ret ? : count;
 }

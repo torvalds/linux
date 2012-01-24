@@ -71,10 +71,7 @@ ssize_t usb_store_new_id(struct usb_dynids *dynids,
 	list_add_tail(&dynid->node, &dynids->list);
 	spin_unlock(&dynids->lock);
 
-	if (get_driver(driver)) {
-		retval = driver_attach(driver);
-		put_driver(driver);
-	}
+	retval = driver_attach(driver);
 
 	if (retval)
 		return retval;

@@ -127,10 +127,7 @@ pcmcia_store_new_id(struct device_driver *driver, const char *buf, size_t count)
 	list_add_tail(&dynid->node, &pdrv->dynids.list);
 	mutex_unlock(&pdrv->dynids.lock);
 
-	if (get_driver(&pdrv->drv)) {
-		retval = driver_attach(&pdrv->drv);
-		put_driver(&pdrv->drv);
-	}
+	retval = driver_attach(&pdrv->drv);
 
 	if (retval)
 		return retval;

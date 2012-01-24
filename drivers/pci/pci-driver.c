@@ -72,9 +72,7 @@ int pci_add_dynid(struct pci_driver *drv,
 	list_add_tail(&dynid->node, &drv->dynids.list);
 	spin_unlock(&drv->dynids.lock);
 
-	get_driver(&drv->driver);
 	retval = driver_attach(&drv->driver);
-	put_driver(&drv->driver);
 
 	return retval;
 }
