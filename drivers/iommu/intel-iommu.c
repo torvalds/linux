@@ -1241,7 +1241,7 @@ static int iommu_init_domains(struct intel_iommu *iommu)
 	unsigned long nlongs;
 
 	ndomains = cap_ndoms(iommu->cap);
-	pr_debug("IOMMU %d: Number of Domains supportd <%ld>\n", iommu->seq_id,
+	pr_debug("IOMMU %d: Number of Domains supported <%ld>\n", iommu->seq_id,
 			ndomains);
 	nlongs = BITS_TO_LONGS(ndomains);
 
