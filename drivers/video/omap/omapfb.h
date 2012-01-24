@@ -47,11 +47,7 @@
 
 struct omapfb_device;
 
-#ifdef CONFIG_ARCH_OMAP1
 #define OMAPFB_PLANE_NUM		1
-#else
-#define OMAPFB_PLANE_NUM		3
-#endif
 
 struct omapfb_mem_region {
 	u32		paddr;

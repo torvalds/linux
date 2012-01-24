@@ -4,11 +4,9 @@
 
 obj-$(CONFIG_FB_OMAP) += omapfb.o
 
-objs-yy := omapfb_main.o
+objs-yy := omapfb_main.o lcdc.o
 
-objs-y$(CONFIG_ARCH_OMAP1) += lcdc.o
-
-objs-$(CONFIG_ARCH_OMAP1)$(CONFIG_FB_OMAP_LCDC_EXTERNAL) += sossi.o
+objs-y$(CONFIG_FB_OMAP_LCDC_EXTERNAL) += sossi.o
 
 objs-y$(CONFIG_FB_OMAP_LCDC_HWA742) += hwa742.o
 
