@@ -761,7 +761,7 @@ int parse_mtd_partitions(struct mtd_info *master, const char **types,
 	for ( ; ret <= 0 && *types; types++) {
 		parser = get_partition_parser(*types);
 		if (!parser && !request_module("%s", *types))
-				parser = get_partition_parser(*types);
+			parser = get_partition_parser(*types);
 		if (!parser)
 			continue;
 		ret = (*parser->parse_fn)(master, pparts, data);
