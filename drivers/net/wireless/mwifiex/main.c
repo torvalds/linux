@@ -462,7 +462,7 @@ mwifiex_hard_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	tx_info->bss_type = priv->bss_type;
 	mwifiex_fill_buffer(skb);
 
-	mwifiex_wmm_add_buf_txqueue(priv->adapter, skb);
+	mwifiex_wmm_add_buf_txqueue(priv, skb);
 	atomic_inc(&priv->adapter->tx_pending);
 
 	if (atomic_read(&priv->adapter->tx_pending) >= MAX_TX_PENDING) {
