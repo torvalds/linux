@@ -95,3 +95,14 @@ void __init device_tree_init(void)
 	/* free the space reserved for the dt blob */
 	free_mem_mach(base, size);
 }
+
+void __init __dt_setup_arch(struct boot_param_header *bph)
+{
+	if (be32_to_cpu(bph->magic) != OF_DT_HEADER) {
+		pr_err("DTB has bad magic, ignoring builtin OF DTB\n");
+
+		return;
+	}
+
+	initial_boot_params = bph;
+}

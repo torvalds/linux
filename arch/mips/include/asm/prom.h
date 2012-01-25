@@ -36,6 +36,17 @@ static inline unsigned long pci_address_to_pio(phys_addr_t address)
 }
 #define pci_address_to_pio pci_address_to_pio
 
+struct boot_param_header;
+
+extern void __dt_setup_arch(struct boot_param_header *bph);
+
+#define dt_setup_arch(sym)						\
+({									\
+	extern struct boot_param_header __dtb_##sym##_begin;		\
+									\
+	__dt_setup_arch(&__dtb_##sym##_begin);				\
+})
+
 #else /* CONFIG_OF */
 static inline void device_tree_init(void) { }
 #endif /* CONFIG_OF */
