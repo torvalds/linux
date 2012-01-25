@@ -1435,9 +1435,13 @@ static int dapm_power_widgets(struct snd_soc_dapm_context *dapm, int event)
 			/* Supplies and micbiases only bring the
 			 * context up to STANDBY as unless something
 			 * else is active and passing audio they
-			 * generally don't require full power.
+			 * generally don't require full power.  Signal
+			 * generators are virtual pins and have no
+			 * power impact themselves.
 			 */
 			switch (w->id) {
+			case snd_soc_dapm_siggen:
+				break;
 			case snd_soc_dapm_supply:
 			case snd_soc_dapm_regulator_supply:
 			case snd_soc_dapm_micbias:
