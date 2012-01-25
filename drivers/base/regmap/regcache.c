@@ -269,6 +269,9 @@ int regcache_sync(struct regmap *map)
 	name = map->cache_ops->name;
 	trace_regcache_sync(map->dev, name, "start");
 
+	if (!map->cache_dirty)
+		goto out;
+
 	/* Apply any patch first */
 	for (i = 0; i < map->patch_regs; i++) {
 		ret = _regmap_write(map, map->patch[i].reg, map->patch[i].def);
@@ -279,8 +282,6 @@ int regcache_sync(struct regmap *map)
 		}
 	}
 
-	if (!map->cache_dirty)
-		goto out;
 	if (map->cache_ops->sync) {
 		ret = map->cache_ops->sync(map);
 	} else {
