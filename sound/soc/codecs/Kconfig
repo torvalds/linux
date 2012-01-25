@@ -62,6 +62,7 @@ config SND_SOC_ALL_CODECS
 	select SND_SOC_WL1273 if MFD_WL1273_CORE
 	select SND_SOC_WM1250_EV1 if I2C
 	select SND_SOC_WM2000 if I2C
+	select SND_SOC_WM2200 if I2C
 	select SND_SOC_WM5100 if I2C
 	select SND_SOC_WM8350 if MFD_WM8350
 	select SND_SOC_WM8400 if MFD_WM8400
@@ -290,6 +291,9 @@ config SND_SOC_WM1250_EV1
 	tristate
 
 config SND_SOC_WM2000
+	tristate
+
+config SND_SOC_WM2200
 	tristate
 
 config SND_SOC_WM5100
