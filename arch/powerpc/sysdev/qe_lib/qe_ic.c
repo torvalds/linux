@@ -272,23 +272,10 @@ static int qe_ic_host_map(struct irq_domain *h, unsigned int virq,
 	return 0;
 }
 
-static int qe_ic_host_xlate(struct irq_domain *h, struct device_node *ct,
-			    const u32 * intspec, unsigned int intsize,
-			    irq_hw_number_t * out_hwirq,
-			    unsigned int *out_flags)
-{
-	*out_hwirq = intspec[0];
-	if (intsize > 1)
-		*out_flags = intspec[1];
-	else
-		*out_flags = IRQ_TYPE_NONE;
-	return 0;
-}
-
 static struct irq_domain_ops qe_ic_host_ops = {
 	.match = qe_ic_host_match,
 	.map = qe_ic_host_map,
-	.xlate = qe_ic_host_xlate,
+	.xlate = irq_domain_xlate_onetwocell,
 };
 
 /* Return an interrupt vector or NO_IRQ if no interrupt is pending. */

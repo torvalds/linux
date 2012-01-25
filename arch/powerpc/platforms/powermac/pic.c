@@ -288,21 +288,10 @@ static int pmac_pic_host_map(struct irq_domain *h, unsigned int virq,
 	return 0;
 }
 
-static int pmac_pic_host_xlate(struct irq_domain *h, struct device_node *ct,
-			       const u32 *intspec, unsigned int intsize,
-			       irq_hw_number_t *out_hwirq,
-			       unsigned int *out_flags)
-
-{
-	*out_flags = IRQ_TYPE_NONE;
-	*out_hwirq = *intspec;
-	return 0;
-}
-
 static const struct irq_domain_ops pmac_pic_host_ops = {
 	.match = pmac_pic_host_match,
 	.map = pmac_pic_host_map,
-	.xlate = pmac_pic_host_xlate,
+	.xlate = irq_domain_xlate_onecell,
 };
 
 static void __init pmac_pic_probe_oldstyle(void)

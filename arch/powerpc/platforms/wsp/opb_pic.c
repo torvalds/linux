@@ -196,20 +196,9 @@ static int opb_host_map(struct irq_domain *host, unsigned int virq,
 	return 0;
 }
 
-static int opb_host_xlate(struct irq_domain *host, struct device_node *dn,
-		const u32 *intspec, unsigned int intsize,
-		irq_hw_number_t *out_hwirq, unsigned int *out_type)
-{
-	/* Interrupt size must == 2 */
-	BUG_ON(intsize != 2);
-	*out_hwirq = intspec[0];
-	*out_type = intspec[1];
-	return 0;
-}
-
 static const struct irq_domain_ops opb_host_ops = {
 	.map = opb_host_map,
-	.xlate = opb_host_xlate,
+	.xlate = irq_domain_xlate_twocell,
 };
 
 irqreturn_t opb_irq_handler(int irq, void *private)

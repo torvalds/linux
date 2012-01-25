@@ -190,21 +190,9 @@ static int uic_host_map(struct irq_domain *h, unsigned int virq,
 	return 0;
 }
 
-static int uic_host_xlate(struct irq_domain *h, struct device_node *ct,
-			  const u32 *intspec, unsigned int intsize,
-			  irq_hw_number_t *out_hwirq, unsigned int *out_type)
-
-{
-	/* UIC intspecs must have 2 cells */
-	BUG_ON(intsize != 2);
-	*out_hwirq = intspec[0];
-	*out_type = intspec[1];
-	return 0;
-}
-
 static struct irq_domain_ops uic_host_ops = {
 	.map	= uic_host_map,
-	.xlate	= uic_host_xlate,
+	.xlate	= irq_domain_xlate_twocell,
 };
 
 void uic_irq_cascade(unsigned int virq, struct irq_desc *desc)

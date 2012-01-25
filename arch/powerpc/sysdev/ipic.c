@@ -692,26 +692,10 @@ static int ipic_host_map(struct irq_domain *h, unsigned int virq,
 	return 0;
 }
 
-static int ipic_host_xlate(struct irq_domain *h, struct device_node *ct,
-			   const u32 *intspec, unsigned int intsize,
-			   irq_hw_number_t *out_hwirq, unsigned int *out_flags)
-
-{
-	/* interrupt sense values coming from the device tree equal either
-	 * LEVEL_LOW (low assertion) or EDGE_FALLING (high-to-low change)
-	 */
-	*out_hwirq = intspec[0];
-	if (intsize > 1)
-		*out_flags = intspec[1];
-	else
-		*out_flags = IRQ_TYPE_NONE;
-	return 0;
-}
-
 static struct irq_domain_ops ipic_host_ops = {
 	.match	= ipic_host_match,
 	.map	= ipic_host_map,
-	.xlate	= ipic_host_xlate,
+	.xlate	= irq_domain_xlate_onetwocell,
 };
 
 struct ipic * __init ipic_init(struct device_node *node, unsigned int flags)
