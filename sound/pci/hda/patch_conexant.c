@@ -4414,6 +4414,18 @@ static int patch_conexant_auto(struct hda_codec *codec)
 	codec->patch_ops = cx_auto_patch_ops;
 	if (spec->beep_amp)
 		snd_hda_attach_beep_device(codec, spec->beep_amp);
+
+	/* Some laptops with Conexant chips show stalls in S3 resume,
+	 * which falls into the single-cmd mode.
+	 * Better to make reset, then.
+	 */
+	if (!codec->bus->sync_write) {
+		snd_printd("hda_codec: "
+			   "Enable sync_write for stable communication\n");
+		codec->bus->sync_write = 1;
+		codec->bus->allow_bus_reset = 1;
+	}
+
 	return 0;
 }
 
