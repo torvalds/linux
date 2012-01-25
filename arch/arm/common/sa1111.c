@@ -158,7 +158,7 @@ static struct sa1111_dev_info sa1111_devices[] = {
 	{
 		.offset		= SA1111_KBD,
 		.skpcr_mask	= SKPCR_PTCLKEN,
-		.devid		= SA1111_DEVID_PS2,
+		.devid		= SA1111_DEVID_PS2_KBD,
 		.irq = {
 			IRQ_TPRXINT,
 			IRQ_TPTXINT
@@ -167,7 +167,7 @@ static struct sa1111_dev_info sa1111_devices[] = {
 	{
 		.offset		= SA1111_MSE,
 		.skpcr_mask	= SKPCR_PMCLKEN,
-		.devid		= SA1111_DEVID_PS2,
+		.devid		= SA1111_DEVID_PS2_MSE,
 		.irq = {
 			IRQ_MSRXINT,
 			IRQ_MSTXINT
@@ -835,12 +835,12 @@ __sa1111_probe(struct device *me, struct resource *mem, int irq)
 	has_devs = ~0;
 	if (machine_is_assabet() || machine_is_jornada720() ||
 	    machine_is_badge4())
-		has_devs &= ~(1 << 4);
+		has_devs &= ~SA1111_DEVID_PS2_MSE;
 	else
-		has_devs &= ~(1 << 1);
+		has_devs &= ~SA1111_DEVID_SAC;
 
 	for (i = 0; i < ARRAY_SIZE(sa1111_devices); i++)
-		if (has_devs & (1 << i))
+		if (sa1111_devices[i].devid & has_devs)
 			sa1111_init_one_child(sachip, mem, &sa1111_devices[i]);
 
 	return 0;
@@ -1335,7 +1335,7 @@ static int sa1111_match(struct device *_dev, struct device_driver *_drv)
 	struct sa1111_dev *dev = SA1111_DEV(_dev);
 	struct sa1111_driver *drv = SA1111_DRV(_drv);
 
-	return dev->devid == drv->devid;
+	return dev->devid & drv->devid;
 }
 
 static int sa1111_bus_suspend(struct device *dev, pm_message_t state)

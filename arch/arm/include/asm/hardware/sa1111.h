@@ -516,15 +516,17 @@
 
 extern struct bus_type sa1111_bus_type;
 
-#define SA1111_DEVID_SBI	0
-#define SA1111_DEVID_SK		1
-#define SA1111_DEVID_USB	2
-#define SA1111_DEVID_SAC	3
-#define SA1111_DEVID_SSP	4
-#define SA1111_DEVID_PS2	5
-#define SA1111_DEVID_GPIO	6
-#define SA1111_DEVID_INT	7
-#define SA1111_DEVID_PCMCIA	8
+#define SA1111_DEVID_SBI	(1 << 0)
+#define SA1111_DEVID_SK		(1 << 1)
+#define SA1111_DEVID_USB	(1 << 2)
+#define SA1111_DEVID_SAC	(1 << 3)
+#define SA1111_DEVID_SSP	(1 << 4)
+#define SA1111_DEVID_PS2	(3 << 5)
+#define SA1111_DEVID_PS2_KBD	(1 << 5)
+#define SA1111_DEVID_PS2_MSE	(1 << 6)
+#define SA1111_DEVID_GPIO	(1 << 7)
+#define SA1111_DEVID_INT	(1 << 8)
+#define SA1111_DEVID_PCMCIA	(1 << 9)
 
 struct sa1111_dev {
 	struct device	dev;
