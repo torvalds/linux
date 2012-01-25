@@ -585,6 +585,10 @@ config KEYBOARD_HV2605_KEYBOARD
         help
           Say Y here to enable the keyboard, support 5 keys.
 
+config IR_SUN3I
+	tristate "sun3i IR support"
+	depends on ARCH_SUN3I
+
 config IR_SUN4I
         tristate "sun4i IR  support"
 	depends on ARCH_SUN4I
