@@ -52,20 +52,6 @@ static inline int ring_space(struct intel_ring_buffer *ring)
 	return space;
 }
 
-static u32 i915_gem_get_seqno(struct drm_device *dev)
-{
-	drm_i915_private_t *dev_priv = dev->dev_private;
-	u32 seqno;
-
-	seqno = dev_priv->next_seqno;
-
-	/* reserve 0 for non-seqno */
-	if (++dev_priv->next_seqno == 0)
-		dev_priv->next_seqno = 1;
-
-	return seqno;
-}
-
 static int
 render_ring_flush(struct intel_ring_buffer *ring,
 		  u32	invalidate_domains,
@@ -465,7 +451,7 @@ gen6_add_request(struct intel_ring_buffer *ring,
 	mbox1_reg = ring->signal_mbox[0];
 	mbox2_reg = ring->signal_mbox[1];
 
-	*seqno = i915_gem_get_seqno(ring->dev);
+	*seqno = i915_gem_next_request_seqno(ring);
 
 	update_mboxes(ring, *seqno, mbox1_reg);
 	update_mboxes(ring, *seqno, mbox2_reg);
@@ -563,8 +549,7 @@ static int
 pc_render_add_request(struct intel_ring_buffer *ring,
 		      u32 *result)
 {
-	struct drm_device *dev = ring->dev;
-	u32 seqno = i915_gem_get_seqno(dev);
+	u32 seqno = i915_gem_next_request_seqno(ring);
 	struct pipe_control *pc = ring->private;
 	u32 scratch_addr = pc->gtt_offset + 128;
 	int ret;
@@ -615,8 +600,7 @@ static int
 render_ring_add_request(struct intel_ring_buffer *ring,
 			u32 *result)
 {
-	struct drm_device *dev = ring->dev;
-	u32 seqno = i915_gem_get_seqno(dev);
+	u32 seqno = i915_gem_next_request_seqno(ring);
 	int ret;
 
 	ret = intel_ring_begin(ring, 4);
@@ -790,7 +774,7 @@ ring_add_request(struct intel_ring_buffer *ring,
 	if (ret)
 		return ret;
 
-	seqno = i915_gem_get_seqno(ring->dev);
+	seqno = i915_gem_next_request_seqno(ring);
 
 	intel_ring_emit(ring, MI_STORE_DWORD_INDEX);
 	intel_ring_emit(ring, I915_GEM_HWS_INDEX << MI_STORE_DWORD_INDEX_SHIFT);

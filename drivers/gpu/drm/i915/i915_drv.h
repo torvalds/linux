@@ -1177,12 +1177,7 @@ i915_seqno_passed(uint32_t seq1, uint32_t seq2)
 	return (int32_t)(seq1 - seq2) >= 0;
 }
 
-static inline u32
-i915_gem_next_request_seqno(struct intel_ring_buffer *ring)
-{
-	drm_i915_private_t *dev_priv = ring->dev->dev_private;
-	return ring->outstanding_lazy_request = dev_priv->next_seqno;
-}
+u32 i915_gem_next_request_seqno(struct intel_ring_buffer *ring);
 
 int __must_check i915_gem_object_get_fence(struct drm_i915_gem_object *obj,
 					   struct intel_ring_buffer *pipelined);
