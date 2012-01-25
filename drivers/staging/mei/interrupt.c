@@ -1423,7 +1423,7 @@ void mei_timer(struct work_struct *work)
 
 	if (dev->iamthif_stall_timer) {
 		if (--dev->iamthif_stall_timer == 0) {
-			dev_dbg(&dev->pdev->dev, "reseting because of hang to amthi.\n");
+			dev_dbg(&dev->pdev->dev, "resetting because of hang to amthi.\n");
 			mei_reset(dev, 1);
 			dev->iamthif_msg_buf_size = 0;
 			dev->iamthif_msg_buf_index = 0;
