@@ -1285,7 +1285,7 @@ static void dapm_post_sequence_async(void *data, async_cookie_t cookie)
 			dev_err(d->dev, "Failed to turn off bias: %d\n", ret);
 
 		if (d->dev)
-			pm_runtime_put_sync(d->dev);
+			pm_runtime_put(d->dev);
 	}
 
 	/* If we just powered up then move to active bias */
