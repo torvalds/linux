@@ -46,6 +46,7 @@
 #include <linux/dma-mapping.h>
 #include <linux/ioport.h>
 #include <linux/io.h>
+#include <linux/of.h>
 #include <linux/module.h>
 
 #include "core.h"
@@ -197,14 +198,18 @@ static irqreturn_t dwc3_omap_interrupt(int irq, void *_omap)
 static int __devinit dwc3_omap_probe(struct platform_device *pdev)
 {
 	struct dwc3_omap_data	*pdata = pdev->dev.platform_data;
+	struct device_node	*node = pdev->dev.of_node;
+
 	struct platform_device	*dwc3;
 	struct dwc3_omap	*omap;
 	struct resource		*res;
 
 	int			devid;
+	int			size;
 	int			ret = -ENOMEM;
 	int			irq;
 
+	const u32		*utmi_mode;
 	u32			reg;
 
 	void __iomem		*base;
@@ -269,19 +274,24 @@ static int __devinit dwc3_omap_probe(struct platform_device *pdev)
 
 	reg = dwc3_readl(omap->base, USBOTGSS_UTMI_OTG_STATUS);
 
-	if (!pdata) {
-		dev_dbg(&pdev->dev, "missing platform data\n");
+	utmi_mode = of_get_property(node, "utmi-mode", &size);
+	if (utmi_mode && size == sizeof(*utmi_mode)) {
+		reg |= *utmi_mode;
 	} else {
-		switch (pdata->utmi_mode) {
-		case DWC3_OMAP_UTMI_MODE_SW:
-			reg |= USBOTGSS_UTMI_OTG_STATUS_SW_MODE;
-			break;
-		case DWC3_OMAP_UTMI_MODE_HW:
-			reg &= ~USBOTGSS_UTMI_OTG_STATUS_SW_MODE;
-			break;
-		default:
-			dev_dbg(&pdev->dev, "UNKNOWN utmi mode %d\n",
-					pdata->utmi_mode);
+		if (!pdata) {
+			dev_dbg(&pdev->dev, "missing platform data\n");
+		} else {
+			switch (pdata->utmi_mode) {
+			case DWC3_OMAP_UTMI_MODE_SW:
+				reg |= USBOTGSS_UTMI_OTG_STATUS_SW_MODE;
+				break;
+			case DWC3_OMAP_UTMI_MODE_HW:
+				reg &= ~USBOTGSS_UTMI_OTG_STATUS_SW_MODE;
+				break;
+			default:
+				dev_dbg(&pdev->dev, "UNKNOWN utmi mode %d\n",
+						pdata->utmi_mode);
+			}
 		}
 	}
 
