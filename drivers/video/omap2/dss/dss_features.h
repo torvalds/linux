@@ -58,6 +58,9 @@ enum dss_feat_id {
 	FEAT_FIR_COEF_V			= 1 << 25,
 	FEAT_ALPHA_FIXED_ZORDER		= 1 << 26,
 	FEAT_ALPHA_FREE_ZORDER		= 1 << 27,
+	FEAT_FIFO_MERGE			= 1 << 28,
+	/* An unknown HW bug causing the normal FIFO thresholds not to work */
+	FEAT_OMAP3_DSI_FIFO_BUG		= 1 << 29,
 };
 
 /* DSS register field id */

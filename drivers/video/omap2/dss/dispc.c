@@ -909,7 +909,7 @@ static void dispc_configure_burst_sizes(void)
 		dispc_ovl_set_burst_size(i, burst_size);
 }
 
-u32 dispc_ovl_get_burst_size(enum omap_plane plane)
+static u32 dispc_ovl_get_burst_size(enum omap_plane plane)
 {
 	unsigned unit = dss_feat_get_burst_size_unit();
 	/* burst multiplier is always x8 (see dispc_configure_burst_sizes()) */
@@ -1018,7 +1018,7 @@ static void dispc_read_plane_fifo_sizes(void)
 	}
 }
 
-u32 dispc_ovl_get_fifo_size(enum omap_plane plane)
+static u32 dispc_ovl_get_fifo_size(enum omap_plane plane)
 {
 	return dispc.fifo_size[plane];
 }
@@ -1039,13 +1039,13 @@ void dispc_ovl_set_fifo_threshold(enum omap_plane plane, u32 low, u32 high)
 	dss_feat_get_reg_field(FEAT_REG_FIFOHIGHTHRESHOLD, &hi_start, &hi_end);
 	dss_feat_get_reg_field(FEAT_REG_FIFOLOWTHRESHOLD, &lo_start, &lo_end);
 
-	DSSDBG("fifo(%d) low/high old %u/%u, new %u/%u\n",
+	DSSDBG("fifo(%d) threshold (bytes), old %u/%u, new %u/%u\n",
 			plane,
 			REG_GET(DISPC_OVL_FIFO_THRESHOLD(plane),
-				lo_start, lo_end),
+				lo_start, lo_end) * unit,
 			REG_GET(DISPC_OVL_FIFO_THRESHOLD(plane),
-				hi_start, hi_end),
-			low, high);
+				hi_start, hi_end) * unit,
+			low * unit, high * unit);
 
 	dispc_write_reg(DISPC_OVL_FIFO_THRESHOLD(plane),
 			FLD_VAL(high, hi_start, hi_end) |
@@ -1054,8 +1054,51 @@ void dispc_ovl_set_fifo_threshold(enum omap_plane plane, u32 low, u32 high)
 
 void dispc_enable_fifomerge(bool enable)
 {
+	if (!dss_has_feature(FEAT_FIFO_MERGE)) {
+		WARN_ON(enable);
+		return;
+	}
+
 	DSSDBG("FIFO merge %s\n", enable ? "enabled" : "disabled");
 	REG_FLD_MOD(DISPC_CONFIG, enable ? 1 : 0, 14, 14);
+}
+
+void dispc_ovl_compute_fifo_thresholds(enum omap_plane plane,
+		u32 *fifo_low, u32 *fifo_high, bool use_fifomerge)
+{
+	/*
+	 * All sizes are in bytes. Both the buffer and burst are made of
+	 * buffer_units, and the fifo thresholds must be buffer_unit aligned.
+	 */
+
+	unsigned buf_unit = dss_feat_get_buffer_size_unit();
+	unsigned ovl_fifo_size, total_fifo_size, burst_size;
+	int i;
+
+	burst_size = dispc_ovl_get_burst_size(plane);
+	ovl_fifo_size = dispc_ovl_get_fifo_size(plane);
+
+	if (use_fifomerge) {
+		total_fifo_size = 0;
+		for (i = 0; i < omap_dss_get_num_overlays(); ++i)
+			total_fifo_size += dispc_ovl_get_fifo_size(i);
+	} else {
+		total_fifo_size = ovl_fifo_size;
+	}
+
+	/*
+	 * We use the same low threshold for both fifomerge and non-fifomerge
+	 * cases, but for fifomerge we calculate the high threshold using the
+	 * combined fifo size
+	 */
+
+	if (dss_has_feature(FEAT_OMAP3_DSI_FIFO_BUG)) {
+		*fifo_low = ovl_fifo_size - burst_size * 2;
+		*fifo_high = total_fifo_size - burst_size;
+	} else {
+		*fifo_low = ovl_fifo_size - burst_size;
+		*fifo_high = total_fifo_size - buf_unit;
+	}
 }
 
 static void dispc_ovl_set_fir(enum omap_plane plane,
