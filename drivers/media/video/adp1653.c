@@ -281,19 +281,19 @@ adp1653_init_device(struct adp1653_flash *flash)
 		return -EIO;
 	}
 
-	mutex_lock(&flash->ctrls.lock);
+	mutex_lock(flash->ctrls.lock);
 	/* Reset faults before reading new ones. */
 	flash->fault = 0;
 	rval = adp1653_get_fault(flash);
-	mutex_unlock(&flash->ctrls.lock);
+	mutex_unlock(flash->ctrls.lock);
 	if (rval > 0) {
 		dev_err(&client->dev, "faults detected: 0x%1.1x\n", rval);
 		return -EIO;
 	}
 
-	mutex_lock(&flash->ctrls.lock);
+	mutex_lock(flash->ctrls.lock);
 	rval = adp1653_update_hw(flash);
-	mutex_unlock(&flash->ctrls.lock);
+	mutex_unlock(flash->ctrls.lock);
 	if (rval) {
 		dev_err(&client->dev,
 			"adp1653_update_hw failed at %s\n", __func__);

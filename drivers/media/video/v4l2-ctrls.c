@@ -1177,7 +1177,8 @@ static inline int handler_set_err(struct v4l2_ctrl_handler *hdl, int err)
 int v4l2_ctrl_handler_init(struct v4l2_ctrl_handler *hdl,
 			   unsigned nr_of_controls_hint)
 {
-	mutex_init(&hdl->lock);
+	hdl->lock = &hdl->_lock;
+	mutex_init(hdl->lock);
 	INIT_LIST_HEAD(&hdl->ctrls);
 	INIT_LIST_HEAD(&hdl->ctrl_refs);
 	hdl->nr_of_buckets = 1 + nr_of_controls_hint / 8;
@@ -1198,7 +1199,7 @@ void v4l2_ctrl_handler_free(struct v4l2_ctrl_handler *hdl)
 	if (hdl == NULL || hdl->buckets == NULL)
 		return;
 
-	mutex_lock(&hdl->lock);
+	mutex_lock(hdl->lock);
 	/* Free all nodes */
 	list_for_each_entry_safe(ref, next_ref, &hdl->ctrl_refs, node) {
 		list_del(&ref->node);
@@ -1215,7 +1216,7 @@ void v4l2_ctrl_handler_free(struct v4l2_ctrl_handler *hdl)
 	hdl->buckets = NULL;
 	hdl->cached = NULL;
 	hdl->error = 0;
-	mutex_unlock(&hdl->lock);
+	mutex_unlock(hdl->lock);
 }
 EXPORT_SYMBOL(v4l2_ctrl_handler_free);
 
@@ -1280,9 +1281,9 @@ static struct v4l2_ctrl_ref *find_ref_lock(
 	struct v4l2_ctrl_ref *ref = NULL;
 
 	if (hdl) {
-		mutex_lock(&hdl->lock);
+		mutex_lock(hdl->lock);
 		ref = find_ref(hdl, id);
-		mutex_unlock(&hdl->lock);
+		mutex_unlock(hdl->lock);
 	}
 	return ref;
 }
@@ -1329,7 +1330,7 @@ static int handler_new_ref(struct v4l2_ctrl_handler *hdl,
 
 	INIT_LIST_HEAD(&new_ref->node);
 
-	mutex_lock(&hdl->lock);
+	mutex_lock(hdl->lock);
 
 	/* Add immediately at the end of the list if the list is empty, or if
 	   the last element in the list has a lower ID.
@@ -1359,7 +1360,7 @@ insert_in_hash:
 	hdl->buckets[bucket] = new_ref;
 
 unlock:
-	mutex_unlock(&hdl->lock);
+	mutex_unlock(hdl->lock);
 	return 0;
 }
 
@@ -1445,9 +1446,9 @@ static struct v4l2_ctrl *v4l2_ctrl_new(struct v4l2_ctrl_handler *hdl,
 		kfree(ctrl);
 		return NULL;
 	}
-	mutex_lock(&hdl->lock);
+	mutex_lock(hdl->lock);
 	list_add_tail(&ctrl->node, &hdl->ctrls);
-	mutex_unlock(&hdl->lock);
+	mutex_unlock(hdl->lock);
 	return ctrl;
 }
 
@@ -1564,7 +1565,7 @@ int v4l2_ctrl_add_handler(struct v4l2_ctrl_handler *hdl,
 		return 0;
 	if (hdl->error)
 		return hdl->error;
-	mutex_lock(&add->lock);
+	mutex_lock(add->lock);
 	list_for_each_entry(ref, &add->ctrl_refs, node) {
 		struct v4l2_ctrl *ctrl = ref->ctrl;
 
@@ -1578,7 +1579,7 @@ int v4l2_ctrl_add_handler(struct v4l2_ctrl_handler *hdl,
 		if (ret)
 			break;
 	}
-	mutex_unlock(&add->lock);
+	mutex_unlock(add->lock);
 	return ret;
 }
 EXPORT_SYMBOL(v4l2_ctrl_add_handler);
@@ -1742,11 +1743,11 @@ void v4l2_ctrl_handler_log_status(struct v4l2_ctrl_handler *hdl,
 	len = strlen(prefix);
 	if (len && prefix[len - 1] != ' ')
 		colon = ": ";
-	mutex_lock(&hdl->lock);
+	mutex_lock(hdl->lock);
 	list_for_each_entry(ctrl, &hdl->ctrls, node)
 		if (!(ctrl->flags & V4L2_CTRL_FLAG_DISABLED))
 			log_ctrl(ctrl, prefix, colon);
-	mutex_unlock(&hdl->lock);
+	mutex_unlock(hdl->lock);
 }
 EXPORT_SYMBOL(v4l2_ctrl_handler_log_status);
 
@@ -1758,7 +1759,7 @@ int v4l2_ctrl_handler_setup(struct v4l2_ctrl_handler *hdl)
 
 	if (hdl == NULL)
 		return 0;
-	mutex_lock(&hdl->lock);
+	mutex_lock(hdl->lock);
 	list_for_each_entry(ctrl, &hdl->ctrls, node)
 		ctrl->done = false;
 
@@ -1783,7 +1784,7 @@ int v4l2_ctrl_handler_setup(struct v4l2_ctrl_handler *hdl)
 		if (ret)
 			break;
 	}
-	mutex_unlock(&hdl->lock);
+	mutex_unlock(hdl->lock);
 	return ret;
 }
 EXPORT_SYMBOL(v4l2_ctrl_handler_setup);
@@ -1798,7 +1799,7 @@ int v4l2_queryctrl(struct v4l2_ctrl_handler *hdl, struct v4l2_queryctrl *qc)
 	if (hdl == NULL)
 		return -EINVAL;
 
-	mutex_lock(&hdl->lock);
+	mutex_lock(hdl->lock);
 
 	/* Try to find it */
 	ref = find_ref(hdl, id);
@@ -1823,7 +1824,7 @@ int v4l2_queryctrl(struct v4l2_ctrl_handler *hdl, struct v4l2_queryctrl *qc)
 					break;
 		}
 	}
-	mutex_unlock(&hdl->lock);
+	mutex_unlock(hdl->lock);
 	if (!ref)
 		return -EINVAL;
 
@@ -2000,7 +2001,7 @@ static int prepare_ext_ctrls(struct v4l2_ctrl_handler *hdl,
 	   belong to the same cluster. */
 
 	/* This has to be done with the handler lock taken. */
-	mutex_lock(&hdl->lock);
+	mutex_lock(hdl->lock);
 
 	/* First zero the helper field in the master control references */
 	for (i = 0; i < cs->count; i++)
@@ -2022,7 +2023,7 @@ static int prepare_ext_ctrls(struct v4l2_ctrl_handler *hdl,
 		/* Point the mref helper to the current helper struct. */
 		mref->helper = h;
 	}
-	mutex_unlock(&hdl->lock);
+	mutex_unlock(hdl->lock);
 	return 0;
 }
 

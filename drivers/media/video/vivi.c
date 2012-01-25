@@ -485,7 +485,7 @@ static void vivi_fillbuff(struct vivi_dev *dev, struct vivi_buffer *buf)
 	gen_text(dev, vbuf, line++ * 16, 16, str);
 
 	gain = v4l2_ctrl_g_ctrl(dev->gain);
-	mutex_lock(&dev->ctrl_handler.lock);
+	mutex_lock(dev->ctrl_handler.lock);
 	snprintf(str, sizeof(str), " brightness %3d, contrast %3d, saturation %3d, hue %d ",
 			dev->brightness->cur.val,
 			dev->contrast->cur.val,
@@ -509,7 +509,7 @@ static void vivi_fillbuff(struct vivi_dev *dev, struct vivi_buffer *buf)
 			dev->int_menu->qmenu_int[dev->int_menu->cur.val],
 			dev->int_menu->cur.val);
 	gen_text(dev, vbuf, line++ * 16, 16, str);
-	mutex_unlock(&dev->ctrl_handler.lock);
+	mutex_unlock(dev->ctrl_handler.lock);
 	if (dev->button_pressed) {
 		dev->button_pressed--;
 		snprintf(str, sizeof(str), " button pressed!");

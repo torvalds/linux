@@ -167,7 +167,9 @@ struct v4l2_ctrl_ref {
 /** struct v4l2_ctrl_handler - The control handler keeps track of all the
   * controls: both the controls owned by the handler and those inherited
   * from other handlers.
+  * @_lock:	Default for "lock".
   * @lock:	Lock to control access to this handler and its controls.
+  *		May be replaced by the user right after init.
   * @ctrls:	The list of controls owned by this handler.
   * @ctrl_refs:	The list of control references.
   * @cached:	The last found control reference. It is common that the same
@@ -178,7 +180,8 @@ struct v4l2_ctrl_ref {
   * @error:	The error code of the first failed control addition.
   */
 struct v4l2_ctrl_handler {
-	struct mutex lock;
+	struct mutex _lock;
+	struct mutex *lock;
 	struct list_head ctrls;
 	struct list_head ctrl_refs;
 	struct v4l2_ctrl_ref *cached;
@@ -455,7 +458,7 @@ void v4l2_ctrl_grab(struct v4l2_ctrl *ctrl, bool grabbed);
   */
 static inline void v4l2_ctrl_lock(struct v4l2_ctrl *ctrl)
 {
-	mutex_lock(&ctrl->handler->lock);
+	mutex_lock(ctrl->handler->lock);
 }
 
 /** v4l2_ctrl_lock() - Helper function to unlock the handler
@@ -464,7 +467,7 @@ static inline void v4l2_ctrl_lock(struct v4l2_ctrl *ctrl)
   */
 static inline void v4l2_ctrl_unlock(struct v4l2_ctrl *ctrl)
 {
-	mutex_unlock(&ctrl->handler->lock);
+	mutex_unlock(ctrl->handler->lock);
 }
 
 /** v4l2_ctrl_g_ctrl() - Helper function to get the control's value from within a driver.
