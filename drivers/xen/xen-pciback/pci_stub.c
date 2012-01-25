@@ -884,7 +884,7 @@ static inline int str_to_quirk(const char *buf, int *domain, int *bus, int
 	int err;
 
 	err =
-	    sscanf(buf, " %04x:%02x:%02x.%1x-%08x:%1x:%08x", domain, bus, slot,
+	    sscanf(buf, " %04x:%02x:%02x.%d-%08x:%1x:%08x", domain, bus, slot,
 		   func, reg, size, mask);
 	if (err == 7)
 		return 0;
@@ -904,7 +904,7 @@ static int pcistub_device_id_add(int domain, int bus, int slot, int func)
 	pci_dev_id->bus = bus;
 	pci_dev_id->devfn = PCI_DEVFN(slot, func);
 
-	pr_debug(DRV_NAME ": wants to seize %04x:%02x:%02x.%01x\n",
+	pr_debug(DRV_NAME ": wants to seize %04x:%02x:%02x.%d\n",
 		 domain, bus, slot, func);
 
 	spin_lock_irqsave(&device_ids_lock, flags);
@@ -934,7 +934,7 @@ static int pcistub_device_id_remove(int domain, int bus, int slot, int func)
 
 			err = 0;
 
-			pr_debug(DRV_NAME ": removed %04x:%02x:%02x.%01x from "
+			pr_debug(DRV_NAME ": removed %04x:%02x:%02x.%d from "
 				 "seize list\n", domain, bus, slot, func);
 		}
 	}
@@ -1029,7 +1029,7 @@ static ssize_t pcistub_slot_show(struct device_driver *drv, char *buf)
 			break;
 
 		count += scnprintf(buf + count, PAGE_SIZE - count,
-				   "%04x:%02x:%02x.%01x\n",
+				   "%04x:%02x:%02x.%d\n",
 				   pci_dev_id->domain, pci_dev_id->bus,
 				   PCI_SLOT(pci_dev_id->devfn),
 				   PCI_FUNC(pci_dev_id->devfn));
