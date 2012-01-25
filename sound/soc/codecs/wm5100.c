@@ -2612,6 +2612,13 @@ static const struct regmap_config wm5100_regmap = {
 	.cache_type = REGCACHE_RBTREE,
 };
 
+static const unsigned int wm5100_mic_ctrl_reg[] = {
+	WM5100_IN1L_CONTROL,
+	WM5100_IN2L_CONTROL,
+	WM5100_IN3L_CONTROL,
+	WM5100_IN4L_CONTROL,
+};
+
 static __devinit int wm5100_i2c_probe(struct i2c_client *i2c,
 				      const struct i2c_device_id *id)
 {
@@ -2744,7 +2751,7 @@ static __devinit int wm5100_i2c_probe(struct i2c_client *i2c,
 	}
 
 	for (i = 0; i < ARRAY_SIZE(wm5100->pdata.in_mode); i++) {
-		regmap_update_bits(wm5100->regmap, WM5100_IN1L_CONTROL,
+		regmap_update_bits(wm5100->regmap, wm5100_mic_ctrl_reg[i],
 				   WM5100_IN1_MODE_MASK |
 				   WM5100_IN1_DMIC_SUP_MASK,
 				   (wm5100->pdata.in_mode[i] <<
