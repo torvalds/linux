@@ -1186,7 +1186,7 @@ i915_gem_do_execbuffer(struct drm_device *dev, void *data,
 			 * so every billion or so execbuffers, we need to stall
 			 * the GPU in order to reset the counters.
 			 */
-			ret = i915_gpu_idle(dev);
+			ret = i915_gpu_idle(dev, true);
 			if (ret)
 				goto err;
 
