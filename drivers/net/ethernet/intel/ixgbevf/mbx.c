@@ -26,6 +26,7 @@
 *******************************************************************************/
 
 #include "mbx.h"
+#include "ixgbevf.h"
 
 /**
  *  ixgbevf_poll_for_msg - Wait for message notification
@@ -328,7 +329,7 @@ static s32 ixgbevf_init_mbx_params_vf(struct ixgbe_hw *hw)
 	return 0;
 }
 
-struct ixgbe_mbx_operations ixgbevf_mbx_ops = {
+const struct ixgbe_mbx_operations ixgbevf_mbx_ops = {
 	.init_params   = ixgbevf_init_mbx_params_vf,
 	.read          = ixgbevf_read_mbx_vf,
 	.write         = ixgbevf_write_mbx_vf,

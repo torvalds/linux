@@ -1561,11 +1561,6 @@ static int mr_get_mtt_size(struct mlx4_mpt_entry *mpt)
 	return be32_to_cpu(mpt->mtt_sz);
 }
 
-static int mr_get_pdn(struct mlx4_mpt_entry *mpt)
-{
-	return be32_to_cpu(mpt->pd_flags) & 0xffffff;
-}
-
 static int qp_get_mtt_addr(struct mlx4_qp_context *qpc)
 {
 	return be32_to_cpu(qpc->mtt_base_addr_l) & 0xfffffff8;
@@ -1600,16 +1595,6 @@ static int qp_get_mtt_size(struct mlx4_qp_context *qpc)
 				   page_shift);
 
 	return total_pages;
-}
-
-static int qp_get_pdn(struct mlx4_qp_context *qpc)
-{
-	return be32_to_cpu(qpc->pd) & 0xffffff;
-}
-
-static int pdn2slave(int pdn)
-{
-	return (pdn >> NOT_MASKED_PD_BITS) - 1;
 }
 
 static int check_mtt_range(struct mlx4_dev *dev, int slave, int start,
@@ -1654,11 +1639,6 @@ int mlx4_SW2HW_MPT_wrapper(struct mlx4_dev *dev, int slave,
 			goto ex_put;
 
 		mpt->mtt = mtt;
-	}
-
-	if (pdn2slave(mr_get_pdn(inbox->buf)) != slave) {
-		err = -EPERM;
-		goto ex_put;
 	}
 
 	err = mlx4_DMA_wrapper(dev, slave, vhcr, inbox, outbox, cmd);
@@ -1791,11 +1771,6 @@ int mlx4_RST2INIT_QP_wrapper(struct mlx4_dev *dev, int slave,
 	err = check_mtt_range(dev, slave, mtt_base, mtt_size, mtt);
 	if (err)
 		goto ex_put_mtt;
-
-	if (pdn2slave(qp_get_pdn(qpc)) != slave) {
-		err = -EPERM;
-		goto ex_put_mtt;
-	}
 
 	err = get_res(dev, slave, rcqn, RES_CQ, &rcq);
 	if (err)
@@ -2048,10 +2023,10 @@ int mlx4_GEN_EQE(struct mlx4_dev *dev, int slave, struct mlx4_eqe *eqe)
 	if (!priv->mfunc.master.slave_state)
 		return -EINVAL;
 
-	event_eq = &priv->mfunc.master.slave_state[slave].event_eq;
+	event_eq = &priv->mfunc.master.slave_state[slave].event_eq[eqe->type];
 
 	/* Create the event only if the slave is registered */
-	if ((event_eq->event_type & (1 << eqe->type)) == 0)
+	if (event_eq->eqn < 0)
 		return 0;
 
 	mutex_lock(&priv->mfunc.master.gen_eqe_mutex[slave]);
@@ -2289,11 +2264,6 @@ ex_put:
 	return err;
 }
 
-static int srq_get_pdn(struct mlx4_srq_context *srqc)
-{
-	return be32_to_cpu(srqc->pd) & 0xffffff;
-}
-
 static int srq_get_mtt_size(struct mlx4_srq_context *srqc)
 {
 	int log_srq_size = (be32_to_cpu(srqc->state_logsize_srqn) >> 24) & 0xf;
@@ -2332,11 +2302,6 @@ int mlx4_SW2HW_SRQ_wrapper(struct mlx4_dev *dev, int slave,
 			      mtt);
 	if (err)
 		goto ex_put_mtt;
-
-	if (pdn2slave(srq_get_pdn(srqc)) != slave) {
-		err = -EPERM;
-		goto ex_put_mtt;
-	}
 
 	err = mlx4_DMA_wrapper(dev, slave, vhcr, inbox, outbox, cmd);
 	if (err)
