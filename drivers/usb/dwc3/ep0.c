@@ -126,7 +126,6 @@ static int __dwc3_gadget_ep0_queue(struct dwc3_ep *dep,
 		struct dwc3_request *req)
 {
 	struct dwc3		*dwc = dep->dwc;
-	u32			type;
 	int			ret = 0;
 
 	req->request.actual	= 0;
@@ -149,20 +148,14 @@ static int __dwc3_gadget_ep0_queue(struct dwc3_ep *dep,
 
 		direction = !!(dep->flags & DWC3_EP0_DIR_IN);
 
-		if (dwc->ep0state == EP0_STATUS_PHASE) {
-			type = dwc->three_stage_setup
-				? DWC3_TRBCTL_CONTROL_STATUS3
-				: DWC3_TRBCTL_CONTROL_STATUS2;
-		} else if (dwc->ep0state == EP0_DATA_PHASE) {
-			type = DWC3_TRBCTL_CONTROL_DATA;
-		} else {
-			/* should never happen */
-			WARN_ON(1);
+		if (dwc->ep0state != EP0_DATA_PHASE) {
+			dev_WARN(dwc->dev, "Unexpected pending request\n");
 			return 0;
 		}
 
 		ret = dwc3_ep0_start_trans(dwc, direction,
-				req->request.dma, req->request.length, type);
+				req->request.dma, req->request.length,
+				DWC3_TRBCTL_CONTROL_DATA);
 		dep->flags &= ~(DWC3_EP_PENDING_REQUEST |
 				DWC3_EP0_DIR_IN);
 	} else if (dwc->delayed_status) {
