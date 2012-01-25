@@ -4688,10 +4688,8 @@ static int omap_dsihw_probe(struct platform_device *dsidev)
 	struct dsi_data *dsi;
 
 	dsi = devm_kzalloc(&dsidev->dev, sizeof(*dsi), GFP_KERNEL);
-	if (!dsi) {
-		r = -ENOMEM;
-		goto err_alloc;
-	}
+	if (!dsi)
+		return -ENOMEM;
 
 	dsi->pdev = dsidev;
 	dsi_pdev_map[dsi_module] = dsidev;
@@ -4714,12 +4712,6 @@ static int omap_dsihw_probe(struct platform_device *dsidev)
 	mutex_init(&dsi->lock);
 	sema_init(&dsi->bus_lock, 1);
 
-	r = dsi_get_clocks(dsidev);
-	if (r)
-		goto err_alloc;
-
-	pm_runtime_enable(&dsidev->dev);
-
 	INIT_DELAYED_WORK_DEFERRABLE(&dsi->framedone_timeout_work,
 			dsi_framedone_timeout_work_callback);
 
@@ -4731,28 +4723,27 @@ static int omap_dsihw_probe(struct platform_device *dsidev)
 	dsi_mem = platform_get_resource(dsi->pdev, IORESOURCE_MEM, 0);
 	if (!dsi_mem) {
 		DSSERR("can't get IORESOURCE_MEM DSI\n");
-		r = -EINVAL;
-		goto err_ioremap;
+		return -EINVAL;
 	}
+
 	dsi->base = devm_ioremap(&dsidev->dev, dsi_mem->start,
 				 resource_size(dsi_mem));
 	if (!dsi->base) {
 		DSSERR("can't ioremap DSI\n");
-		r = -ENOMEM;
-		goto err_ioremap;
+		return -ENOMEM;
 	}
+
 	dsi->irq = platform_get_irq(dsi->pdev, 0);
 	if (dsi->irq < 0) {
 		DSSERR("platform_get_irq failed\n");
-		r = -ENODEV;
-		goto err_ioremap;
+		return -ENODEV;
 	}
 
 	r = devm_request_irq(&dsidev->dev, dsi->irq, omap_dsi_irq_handler,
 			     IRQF_SHARED, dev_name(&dsidev->dev), dsi->pdev);
 	if (r < 0) {
 		DSSERR("request_irq failed\n");
-		goto err_ioremap;
+		return r;
 	}
 
 	/* DSI VCs initialization */
@@ -4764,9 +4755,15 @@ static int omap_dsihw_probe(struct platform_device *dsidev)
 
 	dsi_calc_clock_param_ranges(dsidev);
 
+	r = dsi_get_clocks(dsidev);
+	if (r)
+		return r;
+
+	pm_runtime_enable(&dsidev->dev);
+
 	r = dsi_runtime_get(dsidev);
 	if (r)
-		goto err_ioremap;
+		goto err_runtime_get;
 
 	rev = dsi_read_reg(dsidev, DSI_REVISION);
 	dev_dbg(&dsidev->dev, "OMAP DSI rev %d.%d\n",
@@ -4784,9 +4781,9 @@ static int omap_dsihw_probe(struct platform_device *dsidev)
 
 	return 0;
 
-err_ioremap:
+err_runtime_get:
 	pm_runtime_disable(&dsidev->dev);
-err_alloc:
+	dsi_put_clocks(dsidev);
 	return r;
 }
 
