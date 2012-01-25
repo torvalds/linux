@@ -2830,7 +2830,7 @@ static void ixgbe_configure_virtualization(struct ixgbe_adapter *adapter)
 	IXGBE_WRITE_REG(hw, IXGBE_VT_CTL, vmdctl | vt_reg_bits);
 
 	vf_shift = adapter->num_vfs % 32;
-	reg_offset = (adapter->num_vfs > 32) ? 1 : 0;
+	reg_offset = (adapter->num_vfs >= 32) ? 1 : 0;
 
 	/* Enable only the PF's pool for Tx/Rx */
 	IXGBE_WRITE_REG(hw, IXGBE_VFRE(reg_offset), (1 << vf_shift));
