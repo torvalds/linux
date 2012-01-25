@@ -82,6 +82,7 @@
 #include <linux/errno.h>
 #include <linux/slab.h>
 
+#include <asm/cpu_device_id.h>
 #include <asm/processor-cyrix.h>
 
 /* PCI config registers, all at F0 */
@@ -171,6 +172,7 @@ static struct pci_device_id gx_chipset_tbl[] __initdata = {
 	{ PCI_VDEVICE(CYRIX, PCI_DEVICE_ID_CYRIX_5510), },
 	{ 0, },
 };
+MODULE_DEVICE_TABLE(gx_chipset_tbl);
 
 static void gx_write_byte(int reg, int value)
 {
@@ -184,13 +186,6 @@ static void gx_write_byte(int reg, int value)
 static __init struct pci_dev *gx_detect_chipset(void)
 {
 	struct pci_dev *gx_pci = NULL;
-
-	/* check if CPU is a MediaGX or a Geode. */
-	if ((boot_cpu_data.x86_vendor != X86_VENDOR_NSC) &&
-	    (boot_cpu_data.x86_vendor != X86_VENDOR_CYRIX)) {
-		pr_debug("error: no MediaGX/Geode processor found!\n");
-		return NULL;
-	}
 
 	/* detect which companion chip is used */
 	for_each_pci_dev(gx_pci) {
