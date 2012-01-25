@@ -1610,7 +1610,7 @@ i915_add_request(struct intel_ring_buffer *ring,
 		spin_unlock(&file_priv->mm.lock);
 	}
 
-	ring->outstanding_lazy_request = false;
+	ring->outstanding_lazy_request = 0;
 
 	if (!dev_priv->mm.suspended) {
 		if (i915_enable_hangcheck) {
