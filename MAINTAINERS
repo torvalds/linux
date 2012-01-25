@@ -2402,7 +2402,7 @@ F:	net/bridge/netfilter/ebt*.c
 
 ECRYPT FILE SYSTEM
 M:	Tyler Hicks <tyhicks@canonical.com>
-M:	Dustin Kirkland <kirkland@canonical.com>
+M:	Dustin Kirkland <dustin.kirkland@gazzang.com>
 L:	ecryptfs@vger.kernel.org
 W:	https://launchpad.net/ecryptfs
 S:	Supported
