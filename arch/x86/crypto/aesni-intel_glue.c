@@ -28,6 +28,7 @@
 #include <crypto/aes.h>
 #include <crypto/cryptd.h>
 #include <crypto/ctr.h>
+#include <asm/cpu_device_id.h>
 #include <asm/i387.h>
 #include <asm/aes.h>
 #include <crypto/scatterwalk.h>
@@ -1253,14 +1254,19 @@ static struct crypto_alg __rfc4106_alg = {
 };
 #endif
 
+
+static const struct x86_cpu_id aesni_cpu_id[] = {
+	X86_FEATURE_MATCH(X86_FEATURE_AES),
+	{}
+};
+MODULE_DEVICE_TABLE(x86cpu, aesni_cpu_id);
+
 static int __init aesni_init(void)
 {
 	int err;
 
-	if (!cpu_has_aes) {
-		printk(KERN_INFO "Intel AES-NI instructions are not detected.\n");
+	if (!x86_match_cpu(aesni_cpu_id))
 		return -ENODEV;
-	}
 
 	if ((err = crypto_fpu_init()))
 		goto fpu_err;

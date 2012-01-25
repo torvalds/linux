@@ -19,6 +19,7 @@
 #include <linux/percpu.h>
 #include <linux/smp.h>
 #include <linux/slab.h>
+#include <asm/cpu_device_id.h>
 #include <asm/byteorder.h>
 #include <asm/processor.h>
 #include <asm/i387.h>
@@ -503,12 +504,18 @@ static struct crypto_alg cbc_aes_alg = {
 	}
 };
 
+static struct x86_cpu_id padlock_cpu_id[] = {
+	X86_FEATURE_MATCH(X86_FEATURE_XCRYPT),
+	{}
+};
+MODULE_DEVICE_TABLE(x86cpu, padlock_cpu_id);
+
 static int __init padlock_init(void)
 {
 	int ret;
 	struct cpuinfo_x86 *c = &cpu_data(0);
 
-	if (!cpu_has_xcrypt)
+	if (!x86_match_cpu(padlock_cpu_id))
 		return -ENODEV;
 
 	if (!cpu_has_xcrypt_enabled) {
