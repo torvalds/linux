@@ -128,6 +128,11 @@ again:
 							goto have_snum;
 						}
 					}
+					if (!inet_csk(sk)->icsk_af_ops->bind_conflict(sk, tb)) {
+						spin_unlock(&head->lock);
+						snum = rover;
+						goto have_snum;
+					}
 					goto next;
 				}
 			break;
