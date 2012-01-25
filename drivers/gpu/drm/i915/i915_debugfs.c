@@ -1075,6 +1075,7 @@ static int gen6_drpc_info(struct seq_file *m)
 	struct drm_device *dev = node->minor->dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	u32 rpmodectl1, gt_core_status, rcctl1;
+	unsigned forcewake_count;
 	int count=0, ret;
 
 
@@ -1082,9 +1083,13 @@ static int gen6_drpc_info(struct seq_file *m)
 	if (ret)
 		return ret;
 
-	if (atomic_read(&dev_priv->forcewake_count)) {
-		seq_printf(m, "RC information inaccurate because userspace "
-			      "holds a reference \n");
+	spin_lock_irq(&dev_priv->gt_lock);
+	forcewake_count = dev_priv->forcewake_count;
+	spin_unlock_irq(&dev_priv->gt_lock);
+
+	if (forcewake_count) {
+		seq_printf(m, "RC information inaccurate because somebody "
+			      "holds a forcewake reference \n");
 	} else {
 		/* NB: we cannot use forcewake, else we read the wrong values */
 		while (count++ < 50 && (I915_READ_NOTRACE(FORCEWAKE_ACK) & 1))
