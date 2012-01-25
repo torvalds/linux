@@ -235,6 +235,7 @@ nva3_pm_clocks_get(struct drm_device *dev, struct nouveau_pm_level *perflvl)
 }
 
 struct nva3_pm_state {
+	struct nouveau_pm_level *perflvl;
 	struct creg nclk;
 	struct creg sclk;
 	struct creg mclk;
@@ -272,6 +273,7 @@ nva3_pm_clocks_pre(struct drm_device *dev, struct nouveau_pm_level *perflvl)
 	if (ret < 0)
 		goto out;
 
+	info->perflvl = perflvl;
 out:
 	if (ret < 0) {
 		kfree(info);
@@ -290,6 +292,112 @@ nva3_pm_grcp_idle(void *data)
 	if (nv_rd32(dev, 0x400308) == 0x0050001c)
 		return true;
 	return false;
+}
+
+static void
+mclk_precharge(struct nouveau_mem_exec_func *exec)
+{
+	nv_wr32(exec->dev, 0x1002d4, 0x00000001);
+}
+
+static void
+mclk_refresh(struct nouveau_mem_exec_func *exec)
+{
+	nv_wr32(exec->dev, 0x1002d0, 0x00000001);
+}
+
+static void
+mclk_refresh_auto(struct nouveau_mem_exec_func *exec, bool enable)
+{
+	nv_wr32(exec->dev, 0x100210, enable ? 0x80000000 : 0x00000000);
+}
+
+static void
+mclk_refresh_self(struct nouveau_mem_exec_func *exec, bool enable)
+{
+	nv_wr32(exec->dev, 0x1002dc, enable ? 0x00000001 : 0x00000000);
+}
+
+static void
+mclk_wait(struct nouveau_mem_exec_func *exec, u32 nsec)
+{
+	udelay((nsec + 500) / 1000);
+}
+
+static u32
+mclk_mrg(struct nouveau_mem_exec_func *exec, int mr)
+{
+	if (mr <= 1)
+		return nv_rd32(exec->dev, 0x1002c0 + ((mr - 0) * 4));
+	if (mr <= 3)
+		return nv_rd32(exec->dev, 0x1002e0 + ((mr - 2) * 4));
+	return 0;
+}
+
+static void
+mclk_mrs(struct nouveau_mem_exec_func *exec, int mr, u32 data)
+{
+	struct drm_nouveau_private *dev_priv = exec->dev->dev_private;
+
+	if (mr <= 1) {
+		if (dev_priv->vram_rank_B)
+			nv_wr32(exec->dev, 0x1002c8 + ((mr - 0) * 4), data);
+		nv_wr32(exec->dev, 0x1002c0 + ((mr - 0) * 4), data);
+	} else
+	if (mr <= 3) {
+		if (dev_priv->vram_rank_B)
+			nv_wr32(exec->dev, 0x1002e8 + ((mr - 2) * 4), data);
+		nv_wr32(exec->dev, 0x1002e0 + ((mr - 2) * 4), data);
+	}
+}
+
+static void
+mclk_clock_set(struct nouveau_mem_exec_func *exec)
+{
+	struct nva3_pm_state *info = exec->priv;
+	struct drm_device *dev = exec->dev;
+
+	nv_wr32(dev, 0x004018, 0x00001000);
+
+	prog_pll(dev, 0x02, 0x004000, &info->mclk);
+
+	if (nv_rd32(dev, 0x4000) & 0x00000008)
+		nv_wr32(dev, 0x004018, 0x1000d000);
+	else
+		nv_wr32(dev, 0x004018, 0x10005000);
+}
+
+static void
+mclk_timing_set(struct nouveau_mem_exec_func *exec)
+{
+	struct nva3_pm_state *info = exec->priv;
+	struct nouveau_pm_level *perflvl = info->perflvl;
+	int i;
+
+	for (i = 0; i < 9; i++)
+		nv_wr32(exec->dev, 0x100220 + (i * 4), perflvl->timing.reg[i]);
+}
+
+static void
+prog_mem(struct drm_device *dev, struct nva3_pm_state *info)
+{
+	struct nouveau_mem_exec_func exec = {
+		.dev = dev,
+		.precharge = mclk_precharge,
+		.refresh = mclk_refresh,
+		.refresh_auto = mclk_refresh_auto,
+		.refresh_self = mclk_refresh_self,
+		.wait = mclk_wait,
+		.mrg = mclk_mrg,
+		.mrs = mclk_mrs,
+		.clock_set = mclk_clock_set,
+		.timing_set = mclk_timing_set,
+		.priv = info
+	};
+
+	nv_wr32(dev, 0x611200, 0x00003300);
+	nouveau_mem_exec(&exec, info->perflvl);
+	nv_wr32(dev, 0x611200, 0x00003330);
 }
 
 int
@@ -321,18 +429,8 @@ nva3_pm_clocks_set(struct drm_device *dev, void *pre_state)
 	prog_clk(dev, 0x20, &info->unka0);
 	prog_clk(dev, 0x21, &info->vdec);
 
-	if (info->mclk.clk || info->mclk.pll) {
-		nv_wr32(dev, 0x100210, 0);
-		nv_wr32(dev, 0x1002dc, 1);
-		nv_wr32(dev, 0x004018, 0x00001000);
-		prog_pll(dev, 0x02, 0x004000, &info->mclk);
-		if (nv_rd32(dev, 0x4000) & 0x00000008)
-			nv_wr32(dev, 0x004018, 0x1000d000);
-		else
-			nv_wr32(dev, 0x004018, 0x10005000);
-		nv_wr32(dev, 0x1002dc, 0);
-		nv_wr32(dev, 0x100210, 0x80000000);
-	}
+	if (info->mclk.clk || info->mclk.pll)
+		prog_mem(dev, info);
 
 	ret = 0;
 
