@@ -583,26 +583,6 @@ struct pinctrl_dev *pinctrl_register(struct pinctrl_desc *pctldesc,
 	if (pctldesc->name == NULL)
 		return NULL;
 
-	/* If we're implementing pinmuxing, check the ops for sanity */
-	if (pctldesc->pmxops) {
-		ret = pinmux_check_ops(pctldesc->pmxops);
-		if (ret) {
-			pr_err("%s pinmux ops lacks necessary functions\n",
-			       pctldesc->name);
-			return NULL;
-		}
-	}
-
-	/* If we're implementing pinconfig, check the ops for sanity */
-	if (pctldesc->confops) {
-		ret = pinconf_check_ops(pctldesc->confops);
-		if (ret) {
-			pr_err("%s pin config ops lacks necessary functions\n",
-			       pctldesc->name);
-			return NULL;
-		}
-	}
-
 	pctldev = kzalloc(sizeof(struct pinctrl_dev), GFP_KERNEL);
 	if (pctldev == NULL)
 		return NULL;
@@ -616,6 +596,26 @@ struct pinctrl_dev *pinctrl_register(struct pinctrl_desc *pctldesc,
 	INIT_LIST_HEAD(&pctldev->gpio_ranges);
 	mutex_init(&pctldev->gpio_ranges_lock);
 	pctldev->dev = dev;
+
+	/* If we're implementing pinmuxing, check the ops for sanity */
+	if (pctldesc->pmxops) {
+		ret = pinmux_check_ops(pctldev);
+		if (ret) {
+			pr_err("%s pinmux ops lacks necessary functions\n",
+			       pctldesc->name);
+			goto out_err;
+		}
+	}
+
+	/* If we're implementing pinconfig, check the ops for sanity */
+	if (pctldesc->confops) {
+		ret = pinconf_check_ops(pctldev);
+		if (ret) {
+			pr_err("%s pin config ops lacks necessary functions\n",
+			       pctldesc->name);
+			goto out_err;
+		}
+	}
 
 	/* Register all the pins */
 	pr_debug("try to register %d pins on %s...\n",

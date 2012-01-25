@@ -889,8 +889,11 @@ void pinmux_disable(struct pinmux *pmx)
 }
 EXPORT_SYMBOL_GPL(pinmux_disable);
 
-int pinmux_check_ops(const struct pinmux_ops *ops)
+int pinmux_check_ops(struct pinctrl_dev *pctldev)
 {
+	const struct pinmux_ops *ops = pctldev->desc->pmxops;
+	unsigned selector = 0;
+
 	/* Check that we implement required operations */
 	if (!ops->list_functions ||
 	    !ops->get_function_name ||
@@ -898,6 +901,18 @@ int pinmux_check_ops(const struct pinmux_ops *ops)
 	    !ops->enable ||
 	    !ops->disable)
 		return -EINVAL;
+
+	/* Check that all functions registered have names */
+	while (ops->list_functions(pctldev, selector) >= 0) {
+		const char *fname = ops->get_function_name(pctldev,
+							   selector);
+		if (!fname) {
+			pr_err("pinmux ops has no name for function%u\n",
+				selector);
+			return -EINVAL;
+		}
+		selector++;
+	}
 
 	return 0;
 }
