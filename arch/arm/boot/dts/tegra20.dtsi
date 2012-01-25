@@ -4,6 +4,11 @@
 	compatible = "nvidia,tegra20";
 	interrupt-parent = <&intc>;
 
+	pmc@7000f400 {
+		compatible = "nvidia,tegra20-pmc";
+		reg = <0x7000e400 0x400>;
+	};
+
 	intc: interrupt-controller@50041000 {
 		compatible = "arm,cortex-a9-gic";
 		interrupt-controller;
