@@ -1408,23 +1408,9 @@ static int fsi_resume(struct device *dev)
 	return 0;
 }
 
-static int fsi_runtime_nop(struct device *dev)
-{
-	/* Runtime PM callback shared between ->runtime_suspend()
-	 * and ->runtime_resume(). Simply returns success.
-	 *
-	 * This driver re-initializes all registers after
-	 * pm_runtime_get_sync() anyway so there is no need
-	 * to save and restore registers here.
-	 */
-	return 0;
-}
-
 static struct dev_pm_ops fsi_pm_ops = {
 	.suspend		= fsi_suspend,
 	.resume			= fsi_resume,
-	.runtime_suspend	= fsi_runtime_nop,
-	.runtime_resume		= fsi_runtime_nop,
 };
 
 static struct fsi_core fsi1_core = {
