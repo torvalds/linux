@@ -2,6 +2,7 @@
 #include <asm/processor.h>
 #include <linux/cpu.h>
 #include <linux/module.h>
+#include <linux/slab.h>
 
 /**
  * x86_match_cpu - match current CPU again an array of x86_cpu_ids
@@ -46,3 +47,46 @@ const struct x86_cpu_id *x86_match_cpu(const struct x86_cpu_id *match)
 	return NULL;
 }
 EXPORT_SYMBOL(x86_match_cpu);
+
+ssize_t arch_print_cpu_modalias(struct device *dev,
+				struct device_attribute *attr,
+				char *bufptr)
+{
+	int size = PAGE_SIZE;
+	int i, n;
+	char *buf = bufptr;
+
+	n = snprintf(buf, size, "x86cpu:vendor:%04X:family:%04X:"
+		     "model:%04X:feature:",
+		boot_cpu_data.x86_vendor,
+		boot_cpu_data.x86,
+		boot_cpu_data.x86_model);
+	size -= n;
+	buf += n;
+	size -= 2;
+	for (i = 0; i < NCAPINTS*32; i++) {
+		if (boot_cpu_has(i)) {
+			n = snprintf(buf, size, ",%04X", i);
+			if (n < 0) {
+				WARN(1, "x86 features overflow page\n");
+				break;
+			}
+			size -= n;
+			buf += n;
+		}
+	}
+	*buf++ = ',';
+	*buf++ = '\n';
+	return buf - bufptr;
+}
+
+int arch_cpu_uevent(struct device *dev, struct kobj_uevent_env *env)
+{
+	char *buf = kzalloc(PAGE_SIZE, GFP_KERNEL);
+	if (buf) {
+		arch_print_cpu_modalias(NULL, NULL, buf);
+		add_uevent_var(env, "MODALIAS=%s", buf);
+		kfree(buf);
+	}
+	return 0;
+}
