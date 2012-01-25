@@ -345,6 +345,11 @@ static void __init exynos5_map_io(void)
 {
 	iotable_init(exynos5_iodesc, ARRAY_SIZE(exynos5_iodesc));
 
+	s3c_device_i2c0.resource[0].start = EXYNOS5_PA_IIC(0);
+	s3c_device_i2c0.resource[0].end   = EXYNOS5_PA_IIC(0) + SZ_4K - 1;
+	s3c_device_i2c0.resource[1].start = EXYNOS5_IRQ_IIC;
+	s3c_device_i2c0.resource[1].end   = EXYNOS5_IRQ_IIC;
+
 	/* The I2C bus controllers are directly compatible with s3c2440 */
 	s3c_i2c0_setname("s3c2440-i2c");
 	s3c_i2c1_setname("s3c2440-i2c");
@@ -451,7 +456,14 @@ static struct irq_chip combiner_chip = {
 
 static void __init combiner_cascade_irq(unsigned int combiner_nr, unsigned int irq)
 {
-	if (combiner_nr >= MAX_COMBINER_NR)
+	unsigned int max_nr;
+
+	if (soc_is_exynos5250())
+		max_nr = EXYNOS5_MAX_COMBINER_NR;
+	else
+		max_nr = EXYNOS4_MAX_COMBINER_NR;
+
+	if (combiner_nr >= max_nr)
 		BUG();
 	if (irq_set_handler_data(irq, &combiner_data[combiner_nr]) != 0)
 		BUG();
@@ -462,8 +474,14 @@ static void __init combiner_init(unsigned int combiner_nr, void __iomem *base,
 			  unsigned int irq_start)
 {
 	unsigned int i;
+	unsigned int max_nr;
 
-	if (combiner_nr >= MAX_COMBINER_NR)
+	if (soc_is_exynos5250())
+		max_nr = EXYNOS5_MAX_COMBINER_NR;
+	else
+		max_nr = EXYNOS4_MAX_COMBINER_NR;
+
+	if (combiner_nr >= max_nr)
 		BUG();
 
 	combiner_data[combiner_nr].base = base;
@@ -506,7 +524,7 @@ void __init exynos4_init_irq(void)
 		of_irq_init(exynos4_dt_irq_match);
 #endif
 
-	for (irq = 0; irq < MAX_COMBINER_NR; irq++) {
+	for (irq = 0; irq < EXYNOS4_MAX_COMBINER_NR; irq++) {
 
 		combiner_init(irq, (void __iomem *)S5P_VA_COMBINER(irq),
 				COMBINER_IRQ(irq, 0));
@@ -527,7 +545,7 @@ void __init exynos5_init_irq(void)
 
 	gic_init(0, IRQ_PPI(0), S5P_VA_GIC_DIST, S5P_VA_GIC_CPU);
 
-	for (irq = 0; irq < MAX_COMBINER_NR; irq++) {
+	for (irq = 0; irq < EXYNOS5_MAX_COMBINER_NR; irq++) {
 		combiner_init(irq, (void __iomem *)S5P_VA_COMBINER(irq),
 				COMBINER_IRQ(irq, 0));
 		combiner_cascade_irq(irq, IRQ_SPI(irq));
@@ -651,27 +669,43 @@ static DEFINE_SPINLOCK(eint_lock);
 
 static unsigned int eint0_15_data[16];
 
-static unsigned int exynos4_get_irq_nr(unsigned int number)
-{
-	u32 ret = 0;
+static unsigned int exynos4_eint0_15_src_int[16] = {
+	EXYNOS4_IRQ_EINT0,
+	EXYNOS4_IRQ_EINT1,
+	EXYNOS4_IRQ_EINT2,
+	EXYNOS4_IRQ_EINT3,
+	EXYNOS4_IRQ_EINT4,
+	EXYNOS4_IRQ_EINT5,
+	EXYNOS4_IRQ_EINT6,
+	EXYNOS4_IRQ_EINT7,
+	EXYNOS4_IRQ_EINT8,
+	EXYNOS4_IRQ_EINT9,
+	EXYNOS4_IRQ_EINT10,
+	EXYNOS4_IRQ_EINT11,
+	EXYNOS4_IRQ_EINT12,
+	EXYNOS4_IRQ_EINT13,
+	EXYNOS4_IRQ_EINT14,
+	EXYNOS4_IRQ_EINT15,
+};
 
-	switch (number) {
-	case 0 ... 3:
-		ret = (number + IRQ_EINT0);
-		break;
-	case 4 ... 7:
-		ret = (number + (IRQ_EINT4 - 4));
-		break;
-	case 8 ... 15:
-		ret = (number + (IRQ_EINT8 - 8));
-		break;
-	default:
-		printk(KERN_ERR "number available : %d\n", number);
-	}
-
-	return ret;
-}
-
+static unsigned int exynos5_eint0_15_src_int[16] = {
+	EXYNOS5_IRQ_EINT0,
+	EXYNOS5_IRQ_EINT1,
+	EXYNOS5_IRQ_EINT2,
+	EXYNOS5_IRQ_EINT3,
+	EXYNOS5_IRQ_EINT4,
+	EXYNOS5_IRQ_EINT5,
+	EXYNOS5_IRQ_EINT6,
+	EXYNOS5_IRQ_EINT7,
+	EXYNOS5_IRQ_EINT8,
+	EXYNOS5_IRQ_EINT9,
+	EXYNOS5_IRQ_EINT10,
+	EXYNOS5_IRQ_EINT11,
+	EXYNOS5_IRQ_EINT12,
+	EXYNOS5_IRQ_EINT13,
+	EXYNOS5_IRQ_EINT14,
+	EXYNOS5_IRQ_EINT15,
+};
 static inline void exynos4_irq_eint_mask(struct irq_data *data)
 {
 	u32 mask;
@@ -816,7 +850,7 @@ static void exynos4_irq_demux_eint16_31(unsigned int irq, struct irq_desc *desc)
 	chained_irq_exit(chip, desc);
 }
 
-static void exynos4_irq_eint0_15(unsigned int irq, struct irq_desc *desc)
+static void exynos_irq_eint0_15(unsigned int irq, struct irq_desc *desc)
 {
 	u32 *irq_data = irq_get_handler_data(irq);
 	struct irq_chip *chip = irq_get_chip(irq);
@@ -846,15 +880,22 @@ static int __init exynos4_init_irq_eint(void)
 		set_irq_flags(IRQ_EINT(irq), IRQF_VALID);
 	}
 
-	irq_set_chained_handler(IRQ_EINT16_31, exynos4_irq_demux_eint16_31);
+	irq_set_chained_handler(EXYNOS_IRQ_EINT16_31, exynos4_irq_demux_eint16_31);
 
 	for (irq = 0 ; irq <= 15 ; irq++) {
 		eint0_15_data[irq] = IRQ_EINT(irq);
 
-		irq_set_handler_data(exynos4_get_irq_nr(irq),
-				     &eint0_15_data[irq]);
-		irq_set_chained_handler(exynos4_get_irq_nr(irq),
-					exynos4_irq_eint0_15);
+		if (soc_is_exynos5250()) {
+			irq_set_handler_data(exynos5_eint0_15_src_int[irq],
+					     &eint0_15_data[irq]);
+			irq_set_chained_handler(exynos5_eint0_15_src_int[irq],
+						exynos_irq_eint0_15);
+		} else {
+			irq_set_handler_data(exynos4_eint0_15_src_int[irq],
+					     &eint0_15_data[irq]);
+			irq_set_chained_handler(exynos4_eint0_15_src_int[irq],
+						exynos_irq_eint0_15);
+		}
 	}
 
 	return 0;

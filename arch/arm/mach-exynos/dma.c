@@ -108,7 +108,7 @@ static u8 exynos4212_pdma0_peri[] = {
 struct dma_pl330_platdata exynos4_pdma0_pdata;
 
 static AMBA_AHB_DEVICE(exynos4_pdma0, "dma-pl330.0", 0x00041330,
-	EXYNOS4_PA_PDMA0, {IRQ_PDMA0}, &exynos4_pdma0_pdata);
+	EXYNOS4_PA_PDMA0, {EXYNOS4_IRQ_PDMA0}, &exynos4_pdma0_pdata);
 
 static u8 exynos4210_pdma1_peri[] = {
 	DMACH_PCM0_RX,
@@ -174,7 +174,7 @@ static u8 exynos4212_pdma1_peri[] = {
 static struct dma_pl330_platdata exynos4_pdma1_pdata;
 
 static AMBA_AHB_DEVICE(exynos4_pdma1,  "dma-pl330.1", 0x00041330,
-	EXYNOS4_PA_PDMA1, {IRQ_PDMA1}, &exynos4_pdma1_pdata);
+	EXYNOS4_PA_PDMA1, {EXYNOS4_IRQ_PDMA1}, &exynos4_pdma1_pdata);
 
 static u8 mdma_peri[] = {
 	DMACH_MTOM_0,
@@ -193,7 +193,7 @@ static struct dma_pl330_platdata exynos4_mdma1_pdata = {
 };
 
 static AMBA_AHB_DEVICE(exynos4_mdma1,  "dma-pl330.2", 0x00041330,
-	EXYNOS4_PA_MDMA1, {IRQ_MDMA1}, &exynos4_mdma1_pdata);
+	EXYNOS4_PA_MDMA1, {EXYNOS4_IRQ_MDMA1}, &exynos4_mdma1_pdata);
 
 static int __init exynos4_dma_init(void)
 {
