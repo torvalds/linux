@@ -170,8 +170,6 @@ static int iwl5000_hw_set_hw_params(struct iwl_priv *priv)
 			iwlagn_mod_params.num_of_queues;
 
 	hw_params(priv).max_txq_num = cfg(priv)->base_params->num_of_queues;
-	priv->contexts[IWL_RXON_CTX_BSS].bcast_sta_id = IWLAGN_BROADCAST_ID;
-
 	hw_params(priv).max_data_size = IWLAGN_RTC_DATA_SIZE;
 	hw_params(priv).max_inst_size = IWLAGN_RTC_INST_SIZE;
 
@@ -199,8 +197,6 @@ static int iwl5150_hw_set_hw_params(struct iwl_priv *priv)
 			iwlagn_mod_params.num_of_queues;
 
 	hw_params(priv).max_txq_num = cfg(priv)->base_params->num_of_queues;
-	priv->contexts[IWL_RXON_CTX_BSS].bcast_sta_id = IWLAGN_BROADCAST_ID;
-
 	hw_params(priv).max_data_size = IWLAGN_RTC_DATA_SIZE;
 	hw_params(priv).max_inst_size = IWLAGN_RTC_INST_SIZE;
 

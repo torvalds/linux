@@ -513,6 +513,7 @@ static void iwl_init_context(struct iwl_priv *priv, u32 ucode_flags)
 	priv->contexts[IWL_RXON_CTX_BSS].qos_cmd = REPLY_QOS_PARAM;
 	priv->contexts[IWL_RXON_CTX_BSS].ap_sta_id = IWL_AP_ID;
 	priv->contexts[IWL_RXON_CTX_BSS].wep_key_cmd = REPLY_WEPKEY;
+	priv->contexts[IWL_RXON_CTX_BSS].bcast_sta_id = IWLAGN_BROADCAST_ID;
 	priv->contexts[IWL_RXON_CTX_BSS].exclusive_interface_modes =
 		BIT(NL80211_IFTYPE_ADHOC);
 	priv->contexts[IWL_RXON_CTX_BSS].interface_modes =
