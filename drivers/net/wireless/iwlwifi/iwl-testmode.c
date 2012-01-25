@@ -81,6 +81,13 @@
 #include "iwl-bus.h"
 #include "iwl-fh.h"
 
+
+/* Periphery registers absolute lower bound. This is used in order to
+ * differentiate registery access through HBUS_TARG_PRPH_* and
+ * HBUS_TARG_MEM_* accesses.
+ */
+#define IWL_TM_ABS_PRPH_START (0xA00000)
+
 /* The TLVs used in the gnl message policy between the kernel module and
  * user space application. iwl_testmode_gnl_msg_policy is to be carried
  * through the NL80211_CMD_TESTMODE channel regulated by nl80211.
@@ -110,9 +117,9 @@ struct nla_policy iwl_testmode_gnl_msg_policy[IWL_TM_ATTR_MAX] = {
 
 	[IWL_TM_ATTR_UCODE_OWNER] = { .type = NLA_U8, },
 
-	[IWL_TM_ATTR_SRAM_ADDR] = { .type = NLA_U32, },
-	[IWL_TM_ATTR_SRAM_SIZE] = { .type = NLA_U32, },
-	[IWL_TM_ATTR_SRAM_DUMP] = { .type = NLA_UNSPEC, },
+	[IWL_TM_ATTR_MEM_ADDR] = { .type = NLA_U32, },
+	[IWL_TM_ATTR_BUFFER_SIZE] = { .type = NLA_U32, },
+	[IWL_TM_ATTR_BUFFER_DUMP] = { .type = NLA_UNSPEC, },
 
 	[IWL_TM_ATTR_FW_VERSION] = { .type = NLA_U32, },
 	[IWL_TM_ATTR_DEVICE_ID] = { .type = NLA_U32, },
@@ -190,17 +197,17 @@ void iwl_testmode_init(struct iwl_priv *priv)
 {
 	priv->pre_rx_handler = iwl_testmode_ucode_rx_pkt;
 	priv->testmode_trace.trace_enabled = false;
-	priv->testmode_sram.sram_readed = false;
+	priv->testmode_mem.read_in_progress = false;
 }
 
-static void iwl_sram_cleanup(struct iwl_priv *priv)
+static void iwl_mem_cleanup(struct iwl_priv *priv)
 {
-	if (priv->testmode_sram.sram_readed) {
-		kfree(priv->testmode_sram.buff_addr);
-		priv->testmode_sram.buff_addr = NULL;
-		priv->testmode_sram.buff_size = 0;
-		priv->testmode_sram.num_chunks = 0;
-		priv->testmode_sram.sram_readed = false;
+	if (priv->testmode_mem.read_in_progress) {
+		kfree(priv->testmode_mem.buff_addr);
+		priv->testmode_mem.buff_addr = NULL;
+		priv->testmode_mem.buff_size = 0;
+		priv->testmode_mem.num_chunks = 0;
+		priv->testmode_mem.read_in_progress = false;
 	}
 }
 
@@ -226,7 +233,7 @@ static void iwl_trace_cleanup(struct iwl_priv *priv)
 void iwl_testmode_cleanup(struct iwl_priv *priv)
 {
 	iwl_trace_cleanup(priv);
-	iwl_sram_cleanup(priv);
+	iwl_mem_cleanup(priv);
 }
 
 /*
@@ -346,30 +353,6 @@ static int iwl_testmode_reg(struct ieee80211_hw *hw, struct nlattr **tb)
 			val8 = nla_get_u8(tb[IWL_TM_ATTR_REG_VALUE8]);
 			IWL_INFO(priv, "8bit value to write 0x%x\n", val8);
 			iwl_write8(trans(priv), ofs, val8);
-		}
-		break;
-	case IWL_TM_CMD_APP2DEV_INDIRECT_REG_READ32:
-		val32 = iwl_read_prph(trans(priv), ofs);
-		IWL_INFO(priv, "32bit value to read 0x%x\n", val32);
-
-		skb = cfg80211_testmode_alloc_reply_skb(hw->wiphy, 20);
-		if (!skb) {
-			IWL_ERR(priv, "Memory allocation fail\n");
-			return -ENOMEM;
-		}
-		NLA_PUT_U32(skb, IWL_TM_ATTR_REG_VALUE32, val32);
-		status = cfg80211_testmode_reply(skb);
-		if (status < 0)
-			IWL_ERR(priv, "Error sending msg : %d\n", status);
-		break;
-	case IWL_TM_CMD_APP2DEV_INDIRECT_REG_WRITE32:
-		if (!tb[IWL_TM_ATTR_REG_VALUE32]) {
-			IWL_ERR(priv, "Missing value to write\n");
-			return -ENOMSG;
-		} else {
-			val32 = nla_get_u32(tb[IWL_TM_ATTR_REG_VALUE32]);
-			IWL_INFO(priv, "32bit value to write 0x%x\n", val32);
-			iwl_write_prph(trans(priv), ofs, val32);
 		}
 		break;
 	default:
@@ -748,6 +731,81 @@ static int iwl_testmode_ownership(struct ieee80211_hw *hw, struct nlattr **tb)
 	return 0;
 }
 
+static int iwl_testmode_indirect_read(struct iwl_priv *priv, u32 addr, u32 size)
+{
+	struct iwl_trans *trans = trans(priv);
+	unsigned long flags;
+	int i;
+
+	if (size & 0x3)
+		return -EINVAL;
+	priv->testmode_mem.buff_size = size;
+	priv->testmode_mem.buff_addr =
+		kmalloc(priv->testmode_mem.buff_size, GFP_KERNEL);
+	if (priv->testmode_mem.buff_addr == NULL)
+		return -ENOMEM;
+
+	/* Hard-coded periphery absolute address */
+	if (IWL_TM_ABS_PRPH_START <= addr &&
+		addr < IWL_TM_ABS_PRPH_START + PRPH_END) {
+			spin_lock_irqsave(&trans->reg_lock, flags);
+			iwl_grab_nic_access(trans);
+			iwl_write32(trans, HBUS_TARG_PRPH_RADDR, addr);
+			for (i = 0; i < size; i += 4)
+				priv->testmode_mem.buff_addr[i] =
+					iwl_read32(trans, HBUS_TARG_PRPH_RDAT);
+			iwl_release_nic_access(trans);
+			spin_unlock_irqrestore(&trans->reg_lock, flags);
+	} else { /* target memory (SRAM) */
+		_iwl_read_targ_mem_words(trans, addr,
+			priv->testmode_mem.buff_addr,
+			priv->testmode_mem.buff_size / 4);
+	}
+
+	priv->testmode_mem.num_chunks =
+		DIV_ROUND_UP(priv->testmode_mem.buff_size, DUMP_CHUNK_SIZE);
+	priv->testmode_mem.read_in_progress = true;
+	return 0;
+
+}
+
+static int iwl_testmode_indirect_write(struct iwl_priv *priv, u32 addr,
+	u32 size, unsigned char *buf)
+{
+	struct iwl_trans *trans = trans(priv);
+	u32 val, i;
+	unsigned long flags;
+
+	if (IWL_TM_ABS_PRPH_START <= addr &&
+		addr < IWL_TM_ABS_PRPH_START + PRPH_END) {
+			/* Periphery writes can be 1-3 bytes long, or DWORDs */
+			if (size < 4) {
+				memcpy(&val, buf, size);
+				spin_lock_irqsave(&trans->reg_lock, flags);
+				iwl_grab_nic_access(trans);
+				iwl_write32(trans, HBUS_TARG_PRPH_WADDR,
+					    (addr & 0x0000FFFF) | (size << 24));
+				iwl_write32(trans, HBUS_TARG_PRPH_WDAT, val);
+				iwl_release_nic_access(trans);
+				/* needed after consecutive writes w/o read */
+				mmiowb();
+				spin_unlock_irqrestore(&trans->reg_lock, flags);
+			} else {
+				if (size % 4)
+					return -EINVAL;
+				for (i = 0; i < size; i += 4)
+					iwl_write_prph(trans, addr+i,
+						*(u32 *)buf+i);
+			}
+	} else if (iwlagn_hw_valid_rtc_data_addr(addr) ||
+		(IWLAGN_RTC_INST_LOWER_BOUND <= addr &&
+		addr < IWLAGN_RTC_INST_UPPER_BOUND)) {
+			_iwl_write_targ_mem_words(trans, addr, buf, size/4);
+	} else
+		return -EINVAL;
+	return 0;
+}
+
 /*
  * This function handles the user application commands for SRAM data dump
  *
@@ -764,82 +822,60 @@ static int iwl_testmode_ownership(struct ieee80211_hw *hw, struct nlattr **tb)
  * @hw: ieee80211_hw object that represents the device
  * @tb: gnl message fields from the user space
  */
-static int iwl_testmode_sram(struct ieee80211_hw *hw, struct nlattr **tb)
+static int iwl_testmode_indirect_mem(struct ieee80211_hw *hw,
+	struct nlattr **tb)
 {
 	struct iwl_priv *priv = hw->priv;
-	u32 ofs, size, maxsize;
+	u32 addr, size, cmd;
+	unsigned char *buf;
 
-	if (priv->testmode_sram.sram_readed)
+	/* Both read and write should be blocked, for atomicity */
+	if (priv->testmode_mem.read_in_progress)
 		return -EBUSY;
 
-	if (!tb[IWL_TM_ATTR_SRAM_ADDR]) {
-		IWL_ERR(priv, "Missing SRAM offset address\n");
+	cmd = nla_get_u32(tb[IWL_TM_ATTR_COMMAND]);
+	if (!tb[IWL_TM_ATTR_MEM_ADDR]) {
+		IWL_ERR(priv, "Error finding memory offset address\n");
 		return -ENOMSG;
 	}
-	ofs = nla_get_u32(tb[IWL_TM_ATTR_SRAM_ADDR]);
-	if (!tb[IWL_TM_ATTR_SRAM_SIZE]) {
-		IWL_ERR(priv, "Missing size for SRAM reading\n");
+	addr = nla_get_u32(tb[IWL_TM_ATTR_MEM_ADDR]);
+	if (!tb[IWL_TM_ATTR_BUFFER_SIZE]) {
+		IWL_ERR(priv, "Error finding size for memory reading\n");
 		return -ENOMSG;
 	}
-	size = nla_get_u32(tb[IWL_TM_ATTR_SRAM_SIZE]);
-	switch (priv->shrd->ucode_type) {
-	case IWL_UCODE_REGULAR:
-		maxsize = trans(priv)->ucode_rt.data.len;
-		break;
-	case IWL_UCODE_INIT:
-		maxsize = trans(priv)->ucode_init.data.len;
-		break;
-	case IWL_UCODE_WOWLAN:
-		maxsize = trans(priv)->ucode_wowlan.data.len;
-		break;
-	case IWL_UCODE_NONE:
-		IWL_ERR(priv, "uCode does not been loaded\n");
-		return -ENOSYS;
-	default:
-		IWL_ERR(priv, "unsupported uCode type\n");
-		return -ENOSYS;
+	size = nla_get_u32(tb[IWL_TM_ATTR_BUFFER_SIZE]);
+
+	if (cmd == IWL_TM_CMD_APP2DEV_INDIRECT_BUFFER_READ)
+		return iwl_testmode_indirect_read(priv, addr,  size);
+	else {
+		if (!tb[IWL_TM_ATTR_BUFFER_DUMP])
+			return -EINVAL;
+		buf = (unsigned char *) nla_data(tb[IWL_TM_ATTR_BUFFER_DUMP]);
+		return iwl_testmode_indirect_write(priv, addr, size, buf);
 	}
-	if ((ofs + size) > (maxsize + SRAM_DATA_SEG_OFFSET)) {
-		IWL_ERR(priv, "Invalid offset/size: out of range\n");
-		return -EINVAL;
-	}
-	priv->testmode_sram.buff_size = (size / 4) * 4;
-	priv->testmode_sram.buff_addr =
-		kmalloc(priv->testmode_sram.buff_size, GFP_KERNEL);
-	if (priv->testmode_sram.buff_addr == NULL) {
-		IWL_ERR(priv, "Memory allocation fail\n");
-		return -ENOMEM;
-	}
-	_iwl_read_targ_mem_words(trans(priv), ofs,
-					priv->testmode_sram.buff_addr,
-					priv->testmode_sram.buff_size / 4);
-	priv->testmode_sram.num_chunks =
-		DIV_ROUND_UP(priv->testmode_sram.buff_size, DUMP_CHUNK_SIZE);
-	priv->testmode_sram.sram_readed = true;
-	return 0;
 }
 
-static int iwl_testmode_sram_dump(struct ieee80211_hw *hw, struct nlattr **tb,
+static int iwl_testmode_buffer_dump(struct ieee80211_hw *hw, struct nlattr **tb,
 				   struct sk_buff *skb,
 				   struct netlink_callback *cb)
 {
 	struct iwl_priv *priv = hw->priv;
 	int idx, length;
 
-	if (priv->testmode_sram.sram_readed) {
+	if (priv->testmode_mem.read_in_progress) {
 		idx = cb->args[4];
-		if (idx >= priv->testmode_sram.num_chunks) {
-			iwl_sram_cleanup(priv);
+		if (idx >= priv->testmode_mem.num_chunks) {
+			iwl_mem_cleanup(priv);
 			return -ENOENT;
 		}
 		length = DUMP_CHUNK_SIZE;
-		if (((idx + 1) == priv->testmode_sram.num_chunks) &&
-		    (priv->testmode_sram.buff_size % DUMP_CHUNK_SIZE))
-			length = priv->testmode_sram.buff_size %
+		if (((idx + 1) == priv->testmode_mem.num_chunks) &&
+		    (priv->testmode_mem.buff_size % DUMP_CHUNK_SIZE))
+			length = priv->testmode_mem.buff_size %
 				DUMP_CHUNK_SIZE;
 
-		NLA_PUT(skb, IWL_TM_ATTR_SRAM_DUMP, length,
-			priv->testmode_sram.buff_addr +
+		NLA_PUT(skb, IWL_TM_ATTR_BUFFER_DUMP, length,
+			priv->testmode_mem.buff_addr +
 			(DUMP_CHUNK_SIZE * idx));
 		idx++;
 		cb->args[4] = idx;
@@ -900,8 +936,6 @@ int iwlagn_mac_testmode_cmd(struct ieee80211_hw *hw, void *data, int len)
 	case IWL_TM_CMD_APP2DEV_DIRECT_REG_READ32:
 	case IWL_TM_CMD_APP2DEV_DIRECT_REG_WRITE32:
 	case IWL_TM_CMD_APP2DEV_DIRECT_REG_WRITE8:
-	case IWL_TM_CMD_APP2DEV_INDIRECT_REG_READ32:
-	case IWL_TM_CMD_APP2DEV_INDIRECT_REG_WRITE32:
 		IWL_DEBUG_INFO(priv, "testmode cmd to register\n");
 		result = iwl_testmode_reg(hw, tb);
 		break;
@@ -931,9 +965,11 @@ int iwlagn_mac_testmode_cmd(struct ieee80211_hw *hw, void *data, int len)
 		result = iwl_testmode_ownership(hw, tb);
 		break;
 
-	case IWL_TM_CMD_APP2DEV_READ_SRAM:
-		IWL_DEBUG_INFO(priv, "testmode sram read cmd to driver\n");
-		result = iwl_testmode_sram(hw, tb);
+	case IWL_TM_CMD_APP2DEV_INDIRECT_BUFFER_READ:
+	case IWL_TM_CMD_APP2DEV_INDIRECT_BUFFER_WRITE:
+		IWL_DEBUG_INFO(priv, "testmode indirect memory cmd "
+			"to driver\n");
+		result = iwl_testmode_indirect_mem(hw, tb);
 		break;
 
 	default:
@@ -983,9 +1019,9 @@ int iwlagn_mac_testmode_dump(struct ieee80211_hw *hw, struct sk_buff *skb,
 		IWL_DEBUG_INFO(priv, "uCode trace cmd to driver\n");
 		result = iwl_testmode_trace_dump(hw, tb, skb, cb);
 		break;
-	case IWL_TM_CMD_APP2DEV_DUMP_SRAM:
+	case IWL_TM_CMD_APP2DEV_INDIRECT_BUFFER_DUMP:
 		IWL_DEBUG_INFO(priv, "testmode sram dump cmd to driver\n");
-		result = iwl_testmode_sram_dump(hw, tb, skb, cb);
+		result = iwl_testmode_buffer_dump(hw, tb, skb, cb);
 		break;
 	default:
 		result = -EINVAL;

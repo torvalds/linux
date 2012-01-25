@@ -109,20 +109,19 @@
  *	if application has the ownership, the only host command from
  *	testmode will deliver to uCode. Default owner is driver
  *
- * @IWL_TM_CMD_APP2DEV_INDIRECT_REG_READ32:
- * @IWL_TM_CMD_APP2DEV_INDIRECT_REG_WRITE32:
- *	commands from user application to indirectly access peripheral register
- *
- * @IWL_TM_CMD_APP2DEV_READ_SRAM:
- * @IWL_TM_CMD_APP2DEV_DUMP_SRAM:
- *	commands from user application to read data in sram
- *
  * @IWL_TM_CMD_APP2DEV_LOAD_WOWLAN_FW: load Wake On Wireless LAN uCode image
  * @IWL_TM_CMD_APP2DEV_GET_FW_VERSION: retrieve uCode version
  * @IWL_TM_CMD_APP2DEV_GET_DEVICE_ID: retrieve ID information in device
  * @IWL_TM_CMD_APP2DEV_GET_FW_INFO:
  *	retrieve information of existing loaded uCode image
  *
+ * @IWL_TM_CMD_APP2DEV_INDIRECT_BUFFER_READ:
+ * @IWL_TM_CMD_APP2DEV_INDIRECT_BUFFER_DUMP:
+ * @IWL_TM_CMD_APP2DEV_INDIRECT_BUFFER_WRITE:
+ *	Commands to read/write data from periphery or SRAM memory ranges.
+ *	Fore reading, a READ command is sent from the userspace and the data
+ *	is returned when the user calls a DUMP command.
+ *	For writing, only a WRITE command is used.
  */
 enum iwl_tm_cmd_t {
 	IWL_TM_CMD_APP2DEV_UCODE		= 1,
@@ -142,15 +141,18 @@ enum iwl_tm_cmd_t {
 	IWL_TM_CMD_DEV2APP_UCODE_RX_PKT		= 15,
 	IWL_TM_CMD_DEV2APP_EEPROM_RSP		= 16,
 	IWL_TM_CMD_APP2DEV_OWNERSHIP		= 17,
-	IWL_TM_CMD_APP2DEV_INDIRECT_REG_READ32	= 18,
-	IWL_TM_CMD_APP2DEV_INDIRECT_REG_WRITE32	= 19,
-	IWL_TM_CMD_APP2DEV_READ_SRAM		= 20,
-	IWL_TM_CMD_APP2DEV_DUMP_SRAM		= 21,
+	RESERVED_18				= 18,
+	RESERVED_19				= 19,
+	RESERVED_20				= 20,
+	RESERVED_21				= 21,
 	IWL_TM_CMD_APP2DEV_LOAD_WOWLAN_FW	= 22,
 	IWL_TM_CMD_APP2DEV_GET_FW_VERSION	= 23,
 	IWL_TM_CMD_APP2DEV_GET_DEVICE_ID	= 24,
 	IWL_TM_CMD_APP2DEV_GET_FW_INFO		= 25,
-	IWL_TM_CMD_MAX				= 26,
+	IWL_TM_CMD_APP2DEV_INDIRECT_BUFFER_READ = 26,
+	IWL_TM_CMD_APP2DEV_INDIRECT_BUFFER_DUMP = 27,
+	IWL_TM_CMD_APP2DEV_INDIRECT_BUFFER_WRITE = 28,
+	IWL_TM_CMD_MAX				= 29,
 };
 
 /*
@@ -221,16 +223,19 @@ enum iwl_tm_cmd_t {
  *	The mandatory fields are:
  *	IWL_TM_ATTR_UCODE_OWNER for the new owner
  *
- * @IWL_TM_ATTR_SRAM_ADDR:
- * @IWL_TM_ATTR_SRAM_SIZE:
- *	When IWL_TM_ATTR_COMMAND is IWL_TM_CMD_APP2DEV_READ_SRAM,
+ * @IWL_TM_ATTR_MEM_ADDR:
+ * @IWL_TM_ATTR_BUFFER_SIZE:
+ *	When IWL_TM_ATTR_COMMAND is IWL_TM_CMD_APP2DEV_INDIRECT_BUFFER_READ
+ *	or IWL_TM_CMD_APP2DEV_INDIRECT_BUFFER_WRITE.
  *	The mandatory fields are:
- *	IWL_TM_ATTR_SRAM_ADDR for the address in sram
- *	IWL_TM_ATTR_SRAM_SIZE for the buffer size of data reading
+ *	IWL_TM_ATTR_MEM_ADDR for the address in SRAM/periphery to read/write
+ *	IWL_TM_ATTR_BUFFER_SIZE for the buffer size of data to read/write.
  *
- * @IWL_TM_ATTR_SRAM_DUMP:
- *	When IWL_TM_ATTR_COMMAND is IWL_TM_CMD_APP2DEV_DUMP_SRAM,
- *	IWL_TM_ATTR_SRAM_DUMP for the data in sram
+ * @IWL_TM_ATTR_BUFFER_DUMP:
+ *	When IWL_TM_ATTR_COMMAND is IWL_TM_CMD_APP2DEV_INDIRECT_BUFFER_DUMP,
+ *	IWL_TM_ATTR_BUFFER_DUMP is used for the data that was read.
+ *	When IWL_TM_ATTR_COMMAND is IWL_TM_CMD_APP2DEV_INDIRECT_BUFFER_WRITE,
+ *	this attribute contains the data to write.
  *
  * @IWL_TM_ATTR_FW_VERSION:
  *	When IWL_TM_ATTR_COMMAND is IWL_TM_CMD_APP2DEV_GET_FW_VERSION,
@@ -266,9 +271,9 @@ enum iwl_tm_attr_t {
 	IWL_TM_ATTR_TRACE_DUMP			= 12,
 	IWL_TM_ATTR_FIXRATE			= 13,
 	IWL_TM_ATTR_UCODE_OWNER			= 14,
-	IWL_TM_ATTR_SRAM_ADDR			= 15,
-	IWL_TM_ATTR_SRAM_SIZE			= 16,
-	IWL_TM_ATTR_SRAM_DUMP			= 17,
+	IWL_TM_ATTR_MEM_ADDR			= 15,
+	IWL_TM_ATTR_BUFFER_SIZE			= 16,
+	IWL_TM_ATTR_BUFFER_DUMP			= 17,
 	IWL_TM_ATTR_FW_VERSION			= 18,
 	IWL_TM_ATTR_DEVICE_ID			= 19,
 	IWL_TM_ATTR_FW_TYPE			= 20,
