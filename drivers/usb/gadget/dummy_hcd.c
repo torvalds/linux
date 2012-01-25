@@ -599,8 +599,10 @@ static void dummy_free_request(struct usb_ep *_ep, struct usb_request *_req)
 	struct dummy_ep		*ep;
 	struct dummy_request	*req;
 
+	if (!_ep || !_req)
+		return;
 	ep = usb_ep_to_dummy_ep(_ep);
-	if (!ep || !_req || (!ep->desc && _ep->name != ep0name))
+	if (!ep->desc && _ep->name != ep0name)
 		return;
 
 	req = usb_request_to_dummy_request(_req);
