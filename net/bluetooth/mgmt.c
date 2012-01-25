@@ -297,7 +297,7 @@ static u32 get_current_settings(struct hci_dev *hdev)
 	if (test_bit(HCI_AUTH, &hdev->flags))
 		settings |= MGMT_SETTING_LINK_SECURITY;
 
-	if (hdev->ssp_mode > 0)
+	if (test_bit(HCI_SSP_ENABLED, &hdev->dev_flags))
 		settings |= MGMT_SETTING_SSP;
 
 	return settings;
@@ -416,7 +416,7 @@ static int update_eir(struct hci_dev *hdev)
 	if (!(hdev->features[6] & LMP_EXT_INQ))
 		return 0;
 
-	if (hdev->ssp_mode == 0)
+	if (!test_bit(HCI_SSP_ENABLED, &hdev->dev_flags))
 		return 0;
 
 	if (test_bit(HCI_SERVICE_CACHE, &hdev->dev_flags))

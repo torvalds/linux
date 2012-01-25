@@ -94,6 +94,7 @@ enum {
 	HCI_DEBUG_KEYS,
 
 	HCI_LE_SCAN,
+	HCI_SSP_ENABLED,
 };
 
 /* HCI ioctl defines */

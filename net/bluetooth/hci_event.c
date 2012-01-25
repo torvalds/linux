@@ -429,7 +429,10 @@ static void hci_cc_read_ssp_mode(struct hci_dev *hdev, struct sk_buff *skb)
 	if (rp->status)
 		return;
 
-	hdev->ssp_mode = rp->mode;
+	if (rp->mode)
+		set_bit(HCI_SSP_ENABLED, &hdev->dev_flags);
+	else
+		clear_bit(HCI_SSP_ENABLED, &hdev->dev_flags);
 }
 
 static void hci_cc_write_ssp_mode(struct hci_dev *hdev, struct sk_buff *skb)
@@ -446,7 +449,10 @@ static void hci_cc_write_ssp_mode(struct hci_dev *hdev, struct sk_buff *skb)
 	if (!sent)
 		return;
 
-	hdev->ssp_mode = *((__u8 *) sent);
+	if (*((u8 *) sent))
+		set_bit(HCI_SSP_ENABLED, &hdev->dev_flags);
+	else
+		clear_bit(HCI_SSP_ENABLED, &hdev->dev_flags);
 }
 
 static u8 hci_get_inquiry_mode(struct hci_dev *hdev)
@@ -1264,7 +1270,7 @@ static int hci_outgoing_auth_needed(struct hci_dev *hdev,
 
 	/* Only request authentication for SSP connections or non-SSP
 	 * devices with sec_level HIGH or if MITM protection is requested */
-	if (!(hdev->ssp_mode > 0 &&
+	if (!(test_bit(HCI_SSP_ENABLED, &hdev->dev_flags) &&
 			test_bit(HCI_CONN_SSP_ENABLED, &conn->flags)) &&
 				conn->pending_sec_level != BT_SECURITY_HIGH &&
 				!(conn->auth_type & 0x01))
@@ -1840,7 +1846,7 @@ static inline void hci_auth_complete_evt(struct hci_dev *hdev, struct sk_buff *s
 
 	if (!ev->status) {
 		if (!(test_bit(HCI_CONN_SSP_ENABLED, &conn->flags) &&
-							hdev->ssp_mode > 0) &&
+				test_bit(HCI_SSP_ENABLED, &hdev->dev_flags)) &&
 				test_bit(HCI_CONN_REAUTH_PEND,	&conn->flags)) {
 			BT_INFO("re-auth of legacy device is not possible.");
 		} else {
@@ -1855,7 +1861,8 @@ static inline void hci_auth_complete_evt(struct hci_dev *hdev, struct sk_buff *s
 	clear_bit(HCI_CONN_REAUTH_PEND, &conn->flags);
 
 	if (conn->state == BT_CONFIG) {
-		if (!ev->status && hdev->ssp_mode > 0 &&
+		if (!ev->status &&
+				test_bit(HCI_SSP_ENABLED, &hdev->dev_flags) &&
 				test_bit(HCI_CONN_SSP_ENABLED, &conn->flags)) {
 			struct hci_cp_set_conn_encrypt cp;
 			cp.handle  = ev->handle;

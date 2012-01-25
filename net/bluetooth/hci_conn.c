@@ -609,8 +609,8 @@ int hci_conn_check_link_mode(struct hci_conn *conn)
 	BT_DBG("conn %p", conn);
 
 	if (test_bit(HCI_CONN_SSP_ENABLED, &conn->flags) &&
-					conn->hdev->ssp_mode > 0 &&
-					!(conn->link_mode & HCI_LM_ENCRYPT))
+			test_bit(HCI_SSP_ENABLED, &conn->hdev->dev_flags) &&
+			!(conn->link_mode & HCI_LM_ENCRYPT))
 		return 0;
 
 	return 1;
@@ -674,7 +674,7 @@ int hci_conn_security(struct hci_conn *conn, __u8 sec_level, __u8 auth_type)
 	   key. */
 	if (sec_level == BT_SECURITY_LOW &&
 			(!test_bit(HCI_CONN_SSP_ENABLED, &conn->flags) ||
-							!conn->hdev->ssp_mode))
+			!test_bit(HCI_SSP_ENABLED, &conn->hdev->dev_flags)))
 		return 1;
 
 	/* For other security levels we need the link key. */
