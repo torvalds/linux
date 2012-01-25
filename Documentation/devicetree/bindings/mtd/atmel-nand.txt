@@ -1,0 +1,41 @@
+Atmel NAND flash
+
+Required properties:
+- compatible : "atmel,at91rm9200-nand".
+- reg : should specify localbus address and size used for the chip,
+	and if availlable the ECC.
+- atmel,nand-addr-offset : offset for the address latch.
+- atmel,nand-cmd-offset : offset for the command latch.
+- #address-cells, #size-cells : Must be present if the device has sub-nodes
+  representing partitions.
+
+- gpios : specifies the gpio pins to control the NAND device. detect is an
+  optional gpio and may be set to 0 if not present.
+
+Optional properties:
+- nand-ecc-mode : String, operation mode of the NAND ecc mode, soft by default.
+  Supported values are: "none", "soft", "hw", "hw_syndrome", "hw_oob_first",
+  "soft_bch".
+- nand-bus-width : 8 or 16 bus width if not present 8
+- nand-on-flash-bbt: boolean to enable on flash bbt option if not present false
+
+Examples:
+nand0: nand@40000000,0 {
+	compatible = "atmel,at91rm9200-nand";
+	#address-cells = <1>;
+	#size-cells = <1>;
+	reg = <0x40000000 0x10000000
+	       0xffffe800 0x200
+	      >;
+	atmel,nand-addr-offset = <21>;
+	atmel,nand-cmd-offset = <22>;
+	nand-on-flash-bbt;
+	nand-ecc-mode = "soft";
+	gpios = <&pioC 13 0
+		 &pioC 14 0
+		 0
+		>;
+	partition@0 {
+		...
+	};
+};

@@ -19,10 +19,7 @@
 #include <linux/of_irq.h>
 #include <linux/of_platform.h>
 
-#include <mach/hardware.h>
 #include <mach/board.h>
-#include <mach/system_rev.h>
-#include <mach/at91sam9_smc.h>
 
 #include <asm/setup.h>
 #include <asm/irq.h>
@@ -30,7 +27,6 @@
 #include <asm/mach/map.h>
 #include <asm/mach/irq.h>
 
-#include "sam9_smc.h"
 #include "generic.h"
 
 
@@ -38,50 +34,6 @@ static void __init ek_init_early(void)
 {
 	/* Initialize processor: 12.000 MHz crystal */
 	at91_initialize(12000000);
-}
-
-/* det_pin is not connected */
-static struct atmel_nand_data __initdata ek_nand_data = {
-	.ale		= 21,
-	.cle		= 22,
-	.det_pin	= -EINVAL,
-	.rdy_pin	= AT91_PIN_PC8,
-	.enable_pin	= AT91_PIN_PC14,
-	.ecc_mode	= NAND_ECC_SOFT,
-	.on_flash_bbt	= 1,
-};
-
-static struct sam9_smc_config __initdata ek_nand_smc_config = {
-	.ncs_read_setup		= 0,
-	.nrd_setup		= 2,
-	.ncs_write_setup	= 0,
-	.nwe_setup		= 2,
-
-	.ncs_read_pulse		= 4,
-	.nrd_pulse		= 4,
-	.ncs_write_pulse	= 4,
-	.nwe_pulse		= 4,
-
-	.read_cycle		= 7,
-	.write_cycle		= 7,
-
-	.mode			= AT91_SMC_READMODE | AT91_SMC_WRITEMODE | AT91_SMC_EXNWMODE_DISABLE,
-	.tdf_cycles		= 3,
-};
-
-static void __init ek_add_device_nand(void)
-{
-	ek_nand_data.bus_width_16 = board_have_nand_16bit();
-	/* setup bus-width (8 or 16) */
-	if (ek_nand_data.bus_width_16)
-		ek_nand_smc_config.mode |= AT91_SMC_DBW_16;
-	else
-		ek_nand_smc_config.mode |= AT91_SMC_DBW_8;
-
-	/* configure chip-select 3 (NAND) */
-	sam9_smc_configure(0, 3, &ek_nand_smc_config);
-
-	at91_add_device_nand(&ek_nand_data);
 }
 
 static const struct of_device_id irq_of_match[] __initconst = {
@@ -100,9 +52,6 @@ static void __init at91_dt_init_irq(void)
 static void __init at91_dt_device_init(void)
 {
 	of_platform_populate(NULL, of_default_bus_match_table, NULL, NULL);
-
-	/* NAND */
-	ek_add_device_nand();
 }
 
 static const char *at91_dt_board_compat[] __initdata = {
