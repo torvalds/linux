@@ -358,8 +358,8 @@ static struct zbud_hdr *zbud_create(uint16_t client_id, uint16_t pool_id,
 	if (unlikely(zbpg == NULL))
 		goto out;
 	/* ok, have a page, now compress the data before taking locks */
-	spin_lock(&zbpg->lock);
 	spin_lock(&zbud_budlists_spinlock);
+	spin_lock(&zbpg->lock);
 	list_add_tail(&zbpg->bud_list, &zbud_unbuddied[nchunks].list);
 	zbud_unbuddied[nchunks].count++;
 	zh = &zbpg->buddy[0];
@@ -389,12 +389,11 @@ init_zh:
 	zh->oid = *oid;
 	zh->pool_id = pool_id;
 	zh->client_id = client_id;
-	/* can wait to copy the data until the list locks are dropped */
-	spin_unlock(&zbud_budlists_spinlock);
-
 	to = zbud_data(zh, size);
 	memcpy(to, cdata, size);
 	spin_unlock(&zbpg->lock);
+	spin_unlock(&zbud_budlists_spinlock);
+
 	zbud_cumul_chunk_counts[nchunks]++;
 	atomic_inc(&zcache_zbud_curr_zpages);
 	zcache_zbud_cumul_zpages++;
