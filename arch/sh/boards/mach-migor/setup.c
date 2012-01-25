@@ -21,9 +21,11 @@
 #include <linux/delay.h>
 #include <linux/clk.h>
 #include <linux/gpio.h>
+#include <linux/videodev2.h>
 #include <video/sh_mobile_lcdc.h>
 #include <media/sh_mobile_ceu.h>
 #include <media/ov772x.h>
+#include <media/soc_camera.h>
 #include <media/tw9910.h>
 #include <asm/clock.h>
 #include <asm/machvec.h>
