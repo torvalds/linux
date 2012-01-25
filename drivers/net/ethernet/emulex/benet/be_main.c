@@ -1189,7 +1189,7 @@ static void be_rx_compl_process(struct be_adapter *adapter,
 	struct net_device *netdev = adapter->netdev;
 	struct sk_buff *skb;
 
-	skb = netdev_alloc_skb_ip_align(netdev, BE_HDR_LEN);
+	skb = netdev_alloc_skb_ip_align(netdev, BE_RX_SKB_ALLOC_SIZE);
 	if (unlikely(!skb)) {
 		rx_stats(rxo)->rx_drops_no_skbs++;
 		be_rx_compl_discard(adapter, rxo, rxcp);

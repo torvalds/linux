@@ -74,6 +74,9 @@ static inline char *nic_name(struct pci_dev *pdev)
 
 /* Number of bytes of an RX frame that are copied to skb->data */
 #define BE_HDR_LEN		((u16) 64)
+/* allocate extra space to allow tunneling decapsulation without head reallocation */
+#define BE_RX_SKB_ALLOC_SIZE (BE_HDR_LEN + 64)
+
 #define BE_MAX_JUMBO_FRAME_SIZE	9018
 #define BE_MIN_MTU		256
 
