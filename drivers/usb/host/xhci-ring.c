@@ -1321,20 +1321,16 @@ static void handle_port_status(struct xhci_hcd *xhci,
 		}
 
 		if (DEV_SUPERSPEED(temp)) {
-			xhci_dbg(xhci, "resume SS port %d\n", port_id);
+			xhci_dbg(xhci, "remote wake SS port %d\n", port_id);
+			xhci_test_and_clear_bit(xhci, port_array,
+					faked_port_index, PORT_PLC);
 			xhci_set_link_state(xhci, port_array, faked_port_index,
 						XDEV_U0);
-			slot_id = xhci_find_slot_id_by_port(hcd, xhci,
-					faked_port_index + 1);
-			if (!slot_id) {
-				xhci_dbg(xhci, "slot_id is zero\n");
-				goto cleanup;
-			}
-			xhci_ring_device(xhci, slot_id);
-			xhci_dbg(xhci, "resume SS port %d finished\n", port_id);
-			/* Clear PORT_PLC */
-			xhci_test_and_clear_bit(xhci, port_array,
-						faked_port_index, PORT_PLC);
+			/* Need to wait until the next link state change
+			 * indicates the device is actually in U0.
+			 */
+			bogus_port_status = true;
+			goto cleanup;
 		} else {
 			xhci_dbg(xhci, "resume HS port %d\n", port_id);
 			bus_state->resume_done[faked_port_index] = jiffies +
@@ -1343,6 +1339,15 @@ static void handle_port_status(struct xhci_hcd *xhci,
 				  bus_state->resume_done[faked_port_index]);
 			/* Do the rest in GetPortStatus */
 		}
+	}
+
+	if ((temp & PORT_PLC) && (temp & PORT_PLS_MASK) == XDEV_U0 &&
+			DEV_SUPERSPEED(temp)) {
+		xhci_dbg(xhci, "resume SS port %d finished\n", port_id);
+		slot_id = xhci_find_slot_id_by_port(hcd, xhci,
+				faked_port_index + 1);
+		if (slot_id && xhci->devs[slot_id])
+			xhci_ring_device(xhci, slot_id);
 	}
 
 	if (hcd->speed != HCD_USB3)
