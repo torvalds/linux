@@ -2463,8 +2463,8 @@ EXPORT_SYMBOL_GPL(regulator_bulk_enable);
  * @return         0 on success, an errno on failure
  *
  * This convenience API allows consumers to disable multiple regulator
- * clients in a single API call.  If any consumers cannot be enabled
- * then any others that were disabled will be disabled again prior to
+ * clients in a single API call.  If any consumers cannot be disabled
+ * then any others that were disabled will be enabled again prior to
  * return.
  */
 int regulator_bulk_disable(int num_consumers,
@@ -2473,7 +2473,7 @@ int regulator_bulk_disable(int num_consumers,
 	int i;
 	int ret;
 
-	for (i = 0; i < num_consumers; i++) {
+	for (i = num_consumers - 1; i >= 0; --i) {
 		ret = regulator_disable(consumers[i].consumer);
 		if (ret != 0)
 			goto err;
@@ -2483,7 +2483,7 @@ int regulator_bulk_disable(int num_consumers,
 
 err:
 	pr_err("Failed to disable %s: %d\n", consumers[i].supply, ret);
-	for (--i; i >= 0; --i)
+	for (++i; i < num_consumers; ++i)
 		regulator_enable(consumers[i].consumer);
 
 	return ret;
