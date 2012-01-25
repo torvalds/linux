@@ -5586,6 +5586,7 @@ static const struct hda_amp_list alc861_loopbacks[] = {
 /* Pin config fixes */
 enum {
 	PINFIX_FSC_AMILO_PI1505,
+	PINFIX_ASUS_A6RP,
 };
 
 static const struct alc_fixup alc861_fixups[] = {
@@ -5597,9 +5598,18 @@ static const struct alc_fixup alc861_fixups[] = {
 			{ }
 		}
 	},
+	[PINFIX_ASUS_A6RP] = {
+		.type = ALC_FIXUP_VERBS,
+		.v.verbs = (const struct hda_verb[]) {
+			/* node 0x0f VREF seems controlling the master output */
+			{ 0x0f, AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_VREF50 },
+			{ }
+		},
+	},
 };
 
 static const struct snd_pci_quirk alc861_fixup_tbl[] = {
+	SND_PCI_QUIRK(0x1043, 0x1393, "ASUS A6Rp", PINFIX_ASUS_A6RP),
 	SND_PCI_QUIRK(0x1734, 0x10c7, "FSC Amilo Pi1505", PINFIX_FSC_AMILO_PI1505),
 	{}
 };
