@@ -557,6 +557,23 @@ mwifiex_dump_station_info(struct mwifiex_private *priv,
 	/* bit rate is in 500 kb/s units. Convert it to 100kb/s units */
 	sinfo->txrate.legacy = rate.rate * 5;
 
+	if (priv->bss_mode == NL80211_IFTYPE_STATION) {
+		sinfo->filled |= STATION_INFO_BSS_PARAM;
+		sinfo->bss_param.flags = 0;
+		if (priv->curr_bss_params.bss_descriptor.cap_info_bitmap &
+						WLAN_CAPABILITY_SHORT_PREAMBLE)
+			sinfo->bss_param.flags |=
+					BSS_PARAM_FLAGS_SHORT_PREAMBLE;
+		if (priv->curr_bss_params.bss_descriptor.cap_info_bitmap &
+						WLAN_CAPABILITY_SHORT_SLOT_TIME)
+			sinfo->bss_param.flags |=
+					BSS_PARAM_FLAGS_SHORT_SLOT_TIME;
+		sinfo->bss_param.dtim_period =
+			priv->curr_bss_params.bss_descriptor.dtim_period;
+		sinfo->bss_param.beacon_interval =
+			priv->curr_bss_params.bss_descriptor.beacon_period;
+	}
+
 	return ret;
 }
 

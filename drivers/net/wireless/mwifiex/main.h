@@ -249,6 +249,7 @@ struct mwifiex_bssdescriptor {
 	u32 channel;
 	u32 freq;
 	u16 beacon_period;
+	u8 dtim_period;
 	u8 erp_flags;
 	u32 bss_mode;
 	u8 supported_rates[MWIFIEX_SUPPORTED_RATES];
