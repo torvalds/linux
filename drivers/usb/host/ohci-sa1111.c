@@ -16,7 +16,6 @@
 #include <mach/hardware.h>
 #include <asm/mach-types.h>
 #include <mach/assabet.h>
-#include <mach/badge4.h>
 #include <asm/hardware/sa1111.h>
 
 #ifndef CONFIG_SA1111
@@ -34,12 +33,6 @@ static int sa1111_start_hc(struct sa1111_dev *dev)
 
 	printk(KERN_DEBUG "%s: starting SA-1111 OHCI USB Controller\n",
 	       __FILE__);
-
-#ifdef CONFIG_SA1100_BADGE4
-	if (machine_is_badge4()) {
-		badge4_set_5V(BADGE4_5V_USB, 1);
-	}
-#endif
 
 	if (machine_is_xp860() ||
 	    machine_has_neponset() ||
@@ -84,13 +77,6 @@ static void sa1111_stop_hc(struct sa1111_dev *dev)
 	 * Stop the USB clock.
 	 */
 	sa1111_disable_device(dev);
-
-#ifdef CONFIG_SA1100_BADGE4
-	if (machine_is_badge4()) {
-		/* Disable power to the USB bus */
-		badge4_set_5V(BADGE4_5V_USB, 0);
-	}
-#endif
 }
 
 

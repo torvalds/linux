@@ -51,8 +51,23 @@ static struct resource sa1111_resources[] = {
 	},
 };
 
+static int badge4_sa1111_enable(void *data, unsigned devid)
+{
+	if (devid == SA1111_DEVID_USB)
+		badge4_set_5V(BADGE4_5V_USB, 1);
+	return 0;
+}
+
+static void badge4_sa1111_disable(void *data, unsigned devid)
+{
+	if (devid == SA1111_DEVID_USB)
+		badge4_set_5V(BADGE4_5V_USB, 0);
+}
+
 static struct sa1111_platform_data sa1111_info = {
 	.irq_base	= IRQ_BOARD_END,
+	.enable		= badge4_sa1111_enable,
+	.disable	= badge4_sa1111_disable,
 };
 
 static u64 sa1111_dmamask = 0xffffffffUL;
