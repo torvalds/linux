@@ -882,11 +882,27 @@ static int bnx2x_get_eeprom_len(struct net_device *dev)
 	return bp->common.flash_size;
 }
 
+/* Per pf misc lock must be aquired before the per port mcp lock. Otherwise, had
+ * we done things the other way around, if two pfs from the same port would
+ * attempt to access nvram at the same time, we could run into a scenario such
+ * as:
+ * pf A takes the port lock.
+ * pf B succeeds in taking the same lock since they are from the same port.
+ * pf A takes the per pf misc lock. Performs eeprom access.
+ * pf A finishes. Unlocks the per pf misc lock.
+ * Pf B takes the lock and proceeds to perform it's own access.
+ * pf A unlocks the per port lock, while pf B is still working (!).
+ * mcp takes the per port lock and corrupts pf B's access (and/or has it's own
+ * acess corrupted by pf B).*
+ */
 static int bnx2x_acquire_nvram_lock(struct bnx2x *bp)
 {
 	int port = BP_PORT(bp);
 	int count, i;
-	u32 val = 0;
+	u32 val;
+
+	/* acquire HW lock: protect against other PFs in PF Direct Assignment */
+	bnx2x_acquire_hw_lock(bp, HW_LOCK_RESOURCE_NVRAM);
 
 	/* adjust timeout for emulation/FPGA */
 	count = BNX2X_NVRAM_TIMEOUT_COUNT;
@@ -917,7 +933,7 @@ static int bnx2x_release_nvram_lock(struct bnx2x *bp)
 {
 	int port = BP_PORT(bp);
 	int count, i;
-	u32 val = 0;
+	u32 val;
 
 	/* adjust timeout for emulation/FPGA */
 	count = BNX2X_NVRAM_TIMEOUT_COUNT;
@@ -941,6 +957,8 @@ static int bnx2x_release_nvram_lock(struct bnx2x *bp)
 		return -EBUSY;
 	}
 
+	/* release HW lock: protect against other PFs in PF Direct Assignment */
+	bnx2x_release_hw_lock(bp, HW_LOCK_RESOURCE_NVRAM);
 	return 0;
 }
 

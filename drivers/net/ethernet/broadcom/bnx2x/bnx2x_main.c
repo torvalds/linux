@@ -3724,11 +3724,11 @@ static inline void bnx2x_attn_int_deasserted3(struct bnx2x *bp, u32 attn)
  */
 void bnx2x_set_reset_global(struct bnx2x *bp)
 {
-	u32 val	= REG_RD(bp, BNX2X_RECOVERY_GLOB_REG);
-
+	u32 val;
+	bnx2x_acquire_hw_lock(bp, HW_LOCK_RESOURCE_RECOVERY_REG);
+	val = REG_RD(bp, BNX2X_RECOVERY_GLOB_REG);
 	REG_WR(bp, BNX2X_RECOVERY_GLOB_REG, val | BNX2X_GLOBAL_RESET_BIT);
-	barrier();
-	mmiowb();
+	bnx2x_release_hw_lock(bp, HW_LOCK_RESOURCE_RECOVERY_REG);
 }
 
 /*
@@ -3738,11 +3738,11 @@ void bnx2x_set_reset_global(struct bnx2x *bp)
  */
 static inline void bnx2x_clear_reset_global(struct bnx2x *bp)
 {
-	u32 val	= REG_RD(bp, BNX2X_RECOVERY_GLOB_REG);
-
+	u32 val;
+	bnx2x_acquire_hw_lock(bp, HW_LOCK_RESOURCE_RECOVERY_REG);
+	val = REG_RD(bp, BNX2X_RECOVERY_GLOB_REG);
 	REG_WR(bp, BNX2X_RECOVERY_GLOB_REG, val & (~BNX2X_GLOBAL_RESET_BIT));
-	barrier();
-	mmiowb();
+	bnx2x_release_hw_lock(bp, HW_LOCK_RESOURCE_RECOVERY_REG);
 }
 
 /*
@@ -3765,15 +3765,17 @@ static inline bool bnx2x_reset_is_global(struct bnx2x *bp)
  */
 static inline void bnx2x_set_reset_done(struct bnx2x *bp)
 {
-	u32 val	= REG_RD(bp, BNX2X_RECOVERY_GLOB_REG);
+	u32 val;
 	u32 bit = BP_PATH(bp) ?
 		BNX2X_PATH1_RST_IN_PROG_BIT : BNX2X_PATH0_RST_IN_PROG_BIT;
+	bnx2x_acquire_hw_lock(bp, HW_LOCK_RESOURCE_RECOVERY_REG);
+	val = REG_RD(bp, BNX2X_RECOVERY_GLOB_REG);
 
 	/* Clear the bit */
 	val &= ~bit;
 	REG_WR(bp, BNX2X_RECOVERY_GLOB_REG, val);
-	barrier();
-	mmiowb();
+
+	bnx2x_release_hw_lock(bp, HW_LOCK_RESOURCE_RECOVERY_REG);
 }
 
 /*
@@ -3783,15 +3785,16 @@ static inline void bnx2x_set_reset_done(struct bnx2x *bp)
  */
 void bnx2x_set_reset_in_progress(struct bnx2x *bp)
 {
-	u32 val	= REG_RD(bp, BNX2X_RECOVERY_GLOB_REG);
+	u32 val;
 	u32 bit = BP_PATH(bp) ?
 		BNX2X_PATH1_RST_IN_PROG_BIT : BNX2X_PATH0_RST_IN_PROG_BIT;
+	bnx2x_acquire_hw_lock(bp, HW_LOCK_RESOURCE_RECOVERY_REG);
+	val = REG_RD(bp, BNX2X_RECOVERY_GLOB_REG);
 
 	/* Set the bit */
 	val |= bit;
 	REG_WR(bp, BNX2X_RECOVERY_GLOB_REG, val);
-	barrier();
-	mmiowb();
+	bnx2x_release_hw_lock(bp, HW_LOCK_RESOURCE_RECOVERY_REG);
 }
 
 /*
@@ -3815,11 +3818,14 @@ bool bnx2x_reset_is_done(struct bnx2x *bp, int engine)
  */
 void bnx2x_inc_load_cnt(struct bnx2x *bp)
 {
-	u32 val1, val = REG_RD(bp, BNX2X_RECOVERY_GLOB_REG);
+	u32 val1, val;
 	u32 mask = BP_PATH(bp) ? BNX2X_PATH1_LOAD_CNT_MASK :
 			     BNX2X_PATH0_LOAD_CNT_MASK;
 	u32 shift = BP_PATH(bp) ? BNX2X_PATH1_LOAD_CNT_SHIFT :
 			     BNX2X_PATH0_LOAD_CNT_SHIFT;
+
+	bnx2x_acquire_hw_lock(bp, HW_LOCK_RESOURCE_RECOVERY_REG);
+	val = REG_RD(bp, BNX2X_RECOVERY_GLOB_REG);
 
 	DP(NETIF_MSG_HW, "Old GEN_REG_VAL=0x%08x\n", val);
 
@@ -3836,8 +3842,7 @@ void bnx2x_inc_load_cnt(struct bnx2x *bp)
 	val |= ((val1 << shift) & mask);
 
 	REG_WR(bp, BNX2X_RECOVERY_GLOB_REG, val);
-	barrier();
-	mmiowb();
+	bnx2x_release_hw_lock(bp, HW_LOCK_RESOURCE_RECOVERY_REG);
 }
 
 /**
@@ -3851,12 +3856,14 @@ void bnx2x_inc_load_cnt(struct bnx2x *bp)
  */
 u32 bnx2x_dec_load_cnt(struct bnx2x *bp)
 {
-	u32 val1, val = REG_RD(bp, BNX2X_RECOVERY_GLOB_REG);
+	u32 val1, val;
 	u32 mask = BP_PATH(bp) ? BNX2X_PATH1_LOAD_CNT_MASK :
 			     BNX2X_PATH0_LOAD_CNT_MASK;
 	u32 shift = BP_PATH(bp) ? BNX2X_PATH1_LOAD_CNT_SHIFT :
 			     BNX2X_PATH0_LOAD_CNT_SHIFT;
 
+	bnx2x_acquire_hw_lock(bp, HW_LOCK_RESOURCE_RECOVERY_REG);
+	val = REG_RD(bp, BNX2X_RECOVERY_GLOB_REG);
 	DP(NETIF_MSG_HW, "Old GEN_REG_VAL=0x%08x\n", val);
 
 	/* get the current counter value */
@@ -3872,10 +3879,8 @@ u32 bnx2x_dec_load_cnt(struct bnx2x *bp)
 	val |= ((val1 << shift) & mask);
 
 	REG_WR(bp, BNX2X_RECOVERY_GLOB_REG, val);
-	barrier();
-	mmiowb();
-
-	return val1;
+	bnx2x_release_hw_lock(bp, HW_LOCK_RESOURCE_RECOVERY_REG);
+	return val1 != 0;
 }
 
 /*
@@ -3907,11 +3912,13 @@ static inline u32 bnx2x_get_load_cnt(struct bnx2x *bp, int engine)
  */
 static inline void bnx2x_clear_load_cnt(struct bnx2x *bp)
 {
-	u32 val = REG_RD(bp, BNX2X_RECOVERY_GLOB_REG);
+	u32 val;
 	u32 mask = (BP_PATH(bp) ? BNX2X_PATH1_LOAD_CNT_MASK :
-			     BNX2X_PATH0_LOAD_CNT_MASK);
-
+		    BNX2X_PATH0_LOAD_CNT_MASK);
+	bnx2x_acquire_hw_lock(bp, HW_LOCK_RESOURCE_RECOVERY_REG);
+	val = REG_RD(bp, BNX2X_RECOVERY_GLOB_REG);
 	REG_WR(bp, BNX2X_RECOVERY_GLOB_REG, val & (~mask));
+	bnx2x_release_hw_lock(bp, HW_LOCK_RESOURCE_RECOVERY_REG);
 }
 
 static inline void _print_next_block(int idx, const char *blk)
@@ -8809,11 +8816,13 @@ static void __devinit bnx2x_undi_unload(struct bnx2x *bp)
 {
 	u32 val;
 
-	/* Check if there is any driver already loaded */
-	val = REG_RD(bp, MISC_REG_UNPREPARED);
-	if (val == 0x1) {
+	/* possibly another driver is trying to reset the chip */
+	bnx2x_acquire_hw_lock(bp, HW_LOCK_RESOURCE_RESET);
 
-		bnx2x_acquire_hw_lock(bp, HW_LOCK_RESOURCE_RESET);
+	/* check if doorbell queue is reset */
+	if (REG_RD(bp, GRCBASE_MISC + MISC_REGISTERS_RESET_REG_1_SET)
+	    & MISC_REGISTERS_RESET_REG_1_RST_DORQ) {
+
 		/*
 		 * Check if it is the UNDI driver
 		 * UNDI driver initializes CID offset for normal bell to 0x7
@@ -8905,10 +8914,10 @@ static void __devinit bnx2x_undi_unload(struct bnx2x *bp)
 			      (SHMEM_RD(bp, func_mb[bp->pf_num].drv_mb_header) &
 				DRV_MSG_SEQ_NUMBER_MASK);
 		}
-
-		/* now it's safe to release the lock */
-		bnx2x_release_hw_lock(bp, HW_LOCK_RESOURCE_RESET);
 	}
+
+	/* now it's safe to release the lock */
+	bnx2x_release_hw_lock(bp, HW_LOCK_RESOURCE_RESET);
 }
 
 static void __devinit bnx2x_get_common_hwinfo(struct bnx2x *bp)
