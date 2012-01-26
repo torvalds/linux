@@ -34,7 +34,7 @@ MPI do_encode_md(const void *sha_buffer, unsigned nbits)
 	uint8_t *frame, *fr_pt;
 	int i = 0, n;
 	size_t asnlen = DIM(asn);
-	MPI a = MPI_NULL;
+	MPI a = NULL;
 
 	if (SHA1_DIGEST_LENGTH + asnlen + 4 > nframe)
 		pr_info("MPI: can't encode a %d bit MD into a %d bits frame\n",
@@ -48,7 +48,7 @@ MPI do_encode_md(const void *sha_buffer, unsigned nbits)
 	 */
 	frame = kmalloc(nframe, GFP_KERNEL);
 	if (!frame)
-		return MPI_NULL;
+		return NULL;
 	n = 0;
 	frame[n++] = 0;
 	frame[n++] = 1;		/* block type */
@@ -92,7 +92,7 @@ MPI mpi_read_from_buffer(const void *xbuffer, unsigned *ret_nread)
 	int i, j;
 	unsigned nbits, nbytes, nlimbs, nread = 0;
 	mpi_limb_t a;
-	MPI val = MPI_NULL;
+	MPI val = NULL;
 
 	if (*ret_nread < 2)
 		goto leave;
@@ -109,7 +109,7 @@ MPI mpi_read_from_buffer(const void *xbuffer, unsigned *ret_nread)
 	nlimbs = (nbytes + BYTES_PER_MPI_LIMB - 1) / BYTES_PER_MPI_LIMB;
 	val = mpi_alloc(nlimbs);
 	if (!val)
-		return MPI_NULL;
+		return NULL;
 	i = BYTES_PER_MPI_LIMB - nbytes % BYTES_PER_MPI_LIMB;
 	i %= BYTES_PER_MPI_LIMB;
 	val->nbits = nbits;

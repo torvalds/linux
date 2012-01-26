@@ -135,7 +135,7 @@ int mpi_copy(MPI *copied, const MPI a)
 	size_t i;
 	MPI b;
 
-	*copied = MPI_NULL;
+	*copied = NULL;
 
 	if (a) {
 		b = mpi_alloc(a->nlimbs);
