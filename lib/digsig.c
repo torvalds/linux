@@ -105,6 +105,10 @@ static int digsig_verify_rsa(struct key *key,
 
 	down_read(&key->sem);
 	ukp = key->payload.data;
+
+	if (ukp->datalen < sizeof(*pkh))
+		goto err1;
+
 	pkh = (struct pubkey_hdr *)ukp->data;
 
 	if (pkh->version != 1)
@@ -117,7 +121,7 @@ static int digsig_verify_rsa(struct key *key,
 		goto err1;
 
 	datap = pkh->mpi;
-	endp = datap + ukp->datalen;
+	endp = ukp->data + ukp->datalen;
 
 	for (i = 0; i < pkh->nmpi; i++) {
 		unsigned int remaining = endp - datap;
@@ -128,7 +132,8 @@ static int digsig_verify_rsa(struct key *key,
 	mblen = mpi_get_nbits(pkey[0]);
 	mlen = (mblen + 7)/8;
 
-	err = -ENOMEM;
+	if (mlen == 0)
+		goto err;
 
 	out1 = kzalloc(mlen, GFP_KERNEL);
 	if (!out1)
