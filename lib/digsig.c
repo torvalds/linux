@@ -109,9 +109,13 @@ static int digsig_verify_rsa(struct key *key,
 	datap = pkh->mpi;
 	endp = ukp->data + ukp->datalen;
 
+	err = -ENOMEM;
+
 	for (i = 0; i < pkh->nmpi; i++) {
 		unsigned int remaining = endp - datap;
 		pkey[i] = mpi_read_from_buffer(datap, &remaining);
+		if (!pkey[i])
+			goto err;
 		datap += remaining;
 	}
 
@@ -168,8 +172,8 @@ err:
 	mpi_free(res);
 	kfree(out1);
 	kfree(out2);
-	mpi_free(pkey[0]);
-	mpi_free(pkey[1]);
+	while (--i >= 0)
+		mpi_free(pkey[i]);
 err1:
 	up_read(&key->sem);
 
