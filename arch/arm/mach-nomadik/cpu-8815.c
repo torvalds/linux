@@ -97,12 +97,7 @@ static struct platform_device cpu8815_platform_gpio[] = {
 	GPIO_DEVICE(3),
 };
 
-static struct amba_device cpu8815_amba_rng = {
-	.dev = {
-		.init_name = "rng",
-	},
-	__MEM_4K_RESOURCE(NOMADIK_RNG_BASE),
-};
+static AMBA_APB_DEVICE(cpu8815_amba_rng, "rng", 0, NOMADIK_RNG_BASE, { }, NULL);
 
 static struct platform_device *platform_devs[] __initdata = {
 	cpu8815_platform_gpio + 0,
@@ -112,7 +107,7 @@ static struct platform_device *platform_devs[] __initdata = {
 };
 
 static struct amba_device *amba_devs[] __initdata = {
-	&cpu8815_amba_rng
+	&cpu8815_amba_rng_device
 };
 
 static int __init cpu8815_init(void)

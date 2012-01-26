@@ -122,52 +122,52 @@ static struct pl022_ssp_controller ssp0_plat_data = {
  * RealView PBA8Core AMBA devices
  */
 
-#define GPIO2_IRQ		{ IRQ_PBA8_GPIO2, NO_IRQ }
-#define GPIO3_IRQ		{ IRQ_PBA8_GPIO3, NO_IRQ }
-#define AACI_IRQ		{ IRQ_PBA8_AACI, NO_IRQ }
+#define GPIO2_IRQ		{ IRQ_PBA8_GPIO2 }
+#define GPIO3_IRQ		{ IRQ_PBA8_GPIO3 }
+#define AACI_IRQ		{ IRQ_PBA8_AACI }
 #define MMCI0_IRQ		{ IRQ_PBA8_MMCI0A, IRQ_PBA8_MMCI0B }
-#define KMI0_IRQ		{ IRQ_PBA8_KMI0, NO_IRQ }
-#define KMI1_IRQ		{ IRQ_PBA8_KMI1, NO_IRQ }
-#define PBA8_SMC_IRQ		{ NO_IRQ, NO_IRQ }
-#define MPMC_IRQ		{ NO_IRQ, NO_IRQ }
-#define PBA8_CLCD_IRQ		{ IRQ_PBA8_CLCD, NO_IRQ }
-#define DMAC_IRQ		{ IRQ_PBA8_DMAC, NO_IRQ }
-#define SCTL_IRQ		{ NO_IRQ, NO_IRQ }
-#define PBA8_WATCHDOG_IRQ	{ IRQ_PBA8_WATCHDOG, NO_IRQ }
-#define PBA8_GPIO0_IRQ		{ IRQ_PBA8_GPIO0, NO_IRQ }
-#define GPIO1_IRQ		{ IRQ_PBA8_GPIO1, NO_IRQ }
-#define PBA8_RTC_IRQ		{ IRQ_PBA8_RTC, NO_IRQ }
-#define SCI_IRQ			{ IRQ_PBA8_SCI, NO_IRQ }
-#define PBA8_UART0_IRQ		{ IRQ_PBA8_UART0, NO_IRQ }
-#define PBA8_UART1_IRQ		{ IRQ_PBA8_UART1, NO_IRQ }
-#define PBA8_UART2_IRQ		{ IRQ_PBA8_UART2, NO_IRQ }
-#define PBA8_UART3_IRQ		{ IRQ_PBA8_UART3, NO_IRQ }
-#define PBA8_SSP_IRQ		{ IRQ_PBA8_SSP, NO_IRQ }
+#define KMI0_IRQ		{ IRQ_PBA8_KMI0 }
+#define KMI1_IRQ		{ IRQ_PBA8_KMI1 }
+#define PBA8_SMC_IRQ		{ }
+#define MPMC_IRQ		{ }
+#define PBA8_CLCD_IRQ		{ IRQ_PBA8_CLCD }
+#define DMAC_IRQ		{ IRQ_PBA8_DMAC }
+#define SCTL_IRQ		{ }
+#define PBA8_WATCHDOG_IRQ	{ IRQ_PBA8_WATCHDOG }
+#define PBA8_GPIO0_IRQ		{ IRQ_PBA8_GPIO0 }
+#define GPIO1_IRQ		{ IRQ_PBA8_GPIO1 }
+#define PBA8_RTC_IRQ		{ IRQ_PBA8_RTC }
+#define SCI_IRQ			{ IRQ_PBA8_SCI }
+#define PBA8_UART0_IRQ		{ IRQ_PBA8_UART0 }
+#define PBA8_UART1_IRQ		{ IRQ_PBA8_UART1 }
+#define PBA8_UART2_IRQ		{ IRQ_PBA8_UART2 }
+#define PBA8_UART3_IRQ		{ IRQ_PBA8_UART3 }
+#define PBA8_SSP_IRQ		{ IRQ_PBA8_SSP }
 
 /* FPGA Primecells */
-AMBA_DEVICE(aaci,	"fpga:aaci",	AACI,		NULL);
-AMBA_DEVICE(mmc0,	"fpga:mmc0",	MMCI0,		&realview_mmc0_plat_data);
-AMBA_DEVICE(kmi0,	"fpga:kmi0",	KMI0,		NULL);
-AMBA_DEVICE(kmi1,	"fpga:kmi1",	KMI1,		NULL);
-AMBA_DEVICE(uart3,	"fpga:uart3",	PBA8_UART3,	NULL);
+APB_DEVICE(aaci,	"fpga:aaci",	AACI,		NULL);
+APB_DEVICE(mmc0,	"fpga:mmc0",	MMCI0,		&realview_mmc0_plat_data);
+APB_DEVICE(kmi0,	"fpga:kmi0",	KMI0,		NULL);
+APB_DEVICE(kmi1,	"fpga:kmi1",	KMI1,		NULL);
+APB_DEVICE(uart3,	"fpga:uart3",	PBA8_UART3,	NULL);
 
 /* DevChip Primecells */
-AMBA_DEVICE(smc,	"dev:smc",	PBA8_SMC,	NULL);
-AMBA_DEVICE(sctl,	"dev:sctl",	SCTL,		NULL);
-AMBA_DEVICE(wdog,	"dev:wdog",	PBA8_WATCHDOG, NULL);
-AMBA_DEVICE(gpio0,	"dev:gpio0",	PBA8_GPIO0,	&gpio0_plat_data);
-AMBA_DEVICE(gpio1,	"dev:gpio1",	GPIO1,		&gpio1_plat_data);
-AMBA_DEVICE(gpio2,	"dev:gpio2",	GPIO2,		&gpio2_plat_data);
-AMBA_DEVICE(rtc,	"dev:rtc",	PBA8_RTC,	NULL);
-AMBA_DEVICE(sci0,	"dev:sci0",	SCI,		NULL);
-AMBA_DEVICE(uart0,	"dev:uart0",	PBA8_UART0,	NULL);
-AMBA_DEVICE(uart1,	"dev:uart1",	PBA8_UART1,	NULL);
-AMBA_DEVICE(uart2,	"dev:uart2",	PBA8_UART2,	NULL);
-AMBA_DEVICE(ssp0,	"dev:ssp0",	PBA8_SSP,	&ssp0_plat_data);
+AHB_DEVICE(smc,		"dev:smc",	PBA8_SMC,	NULL);
+AHB_DEVICE(sctl,	"dev:sctl",	SCTL,		NULL);
+APB_DEVICE(wdog,	"dev:wdog",	PBA8_WATCHDOG, NULL);
+APB_DEVICE(gpio0,	"dev:gpio0",	PBA8_GPIO0,	&gpio0_plat_data);
+APB_DEVICE(gpio1,	"dev:gpio1",	GPIO1,		&gpio1_plat_data);
+APB_DEVICE(gpio2,	"dev:gpio2",	GPIO2,		&gpio2_plat_data);
+APB_DEVICE(rtc,		"dev:rtc",	PBA8_RTC,	NULL);
+APB_DEVICE(sci0,	"dev:sci0",	SCI,		NULL);
+APB_DEVICE(uart0,	"dev:uart0",	PBA8_UART0,	NULL);
+APB_DEVICE(uart1,	"dev:uart1",	PBA8_UART1,	NULL);
+APB_DEVICE(uart2,	"dev:uart2",	PBA8_UART2,	NULL);
+APB_DEVICE(ssp0,	"dev:ssp0",	PBA8_SSP,	&ssp0_plat_data);
 
 /* Primecells on the NEC ISSP chip */
-AMBA_DEVICE(clcd,	"issp:clcd",	PBA8_CLCD,	&clcd_plat_data);
-AMBA_DEVICE(dmac,	"issp:dmac",	DMAC,		NULL);
+AHB_DEVICE(clcd,	"issp:clcd",	PBA8_CLCD,	&clcd_plat_data);
+AHB_DEVICE(dmac,	"issp:dmac",	DMAC,		NULL);
 
 static struct amba_device *amba_devs[] __initdata = {
 	&dmac_device,

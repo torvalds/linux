@@ -26,29 +26,22 @@ dbx500_add_amba_device(const char *name, resource_size_t base,
 	struct amba_device *dev;
 	int ret;
 
-	dev = kzalloc(sizeof *dev, GFP_KERNEL);
+	dev = amba_device_alloc(name, base, SZ_4K);
 	if (!dev)
 		return ERR_PTR(-ENOMEM);
-
-	dev->dev.init_name = name;
-
-	dev->res.start = base;
-	dev->res.end = base + SZ_4K - 1;
-	dev->res.flags = IORESOURCE_MEM;
 
 	dev->dma_mask = DMA_BIT_MASK(32);
 	dev->dev.coherent_dma_mask = DMA_BIT_MASK(32);
 
 	dev->irq[0] = irq;
-	dev->irq[1] = NO_IRQ;
 
 	dev->periphid = periphid;
 
 	dev->dev.platform_data = pdata;
 
-	ret = amba_device_register(dev, &iomem_resource);
+	ret = amba_device_add(dev, &iomem_resource);
 	if (ret) {
-		kfree(dev);
+		amba_device_put(dev);
 		return ERR_PTR(ret);
 	}
 
