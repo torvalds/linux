@@ -48,8 +48,7 @@ static int sa1111_start_hc(struct sa1111_dev *dev)
 	unsigned int usb_rst = 0;
 	int ret;
 
-	printk(KERN_DEBUG "%s: starting SA-1111 OHCI USB Controller\n",
-	       __FILE__);
+	dev_dbg(&dev->dev, "starting SA-1111 OHCI USB Controller\n");
 
 	if (machine_is_xp860() ||
 	    machine_has_neponset() ||
@@ -81,8 +80,7 @@ static void sa1111_stop_hc(struct sa1111_dev *dev)
 {
 	unsigned int usb_rst;
 
-	printk(KERN_DEBUG "%s: stopping SA-1111 OHCI USB Controller\n",
-	       __FILE__);
+	dev_dbg(&dev->dev, "stopping SA-1111 OHCI USB Controller\n");
 
 	/*
 	 * Put the USB host controller into reset.
