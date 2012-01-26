@@ -3069,6 +3069,10 @@ static int amd_iommu_domain_init(struct iommu_domain *dom)
 
 	dom->priv = domain;
 
+	dom->geometry.aperture_start = 0;
+	dom->geometry.aperture_end   = ~0ULL;
+	dom->geometry.force_aperture = true;
+
 	return 0;
 
 out_free:
