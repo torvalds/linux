@@ -262,6 +262,7 @@ static int ohci_hcd_sa1111_drv_remove(struct sa1111_dev *dev)
 static struct sa1111_driver ohci_hcd_sa1111_driver = {
 	.drv = {
 		.name	= "sa1111-ohci",
+		.owner	= THIS_MODULE,
 	},
 	.devid		= SA1111_DEVID_USB,
 	.probe		= ohci_hcd_sa1111_drv_probe,

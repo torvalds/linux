@@ -330,6 +330,7 @@ static int __devexit ps2_remove(struct sa1111_dev *dev)
 static struct sa1111_driver ps2_driver = {
 	.drv = {
 		.name	= "sa1111-ps2",
+		.owner	= THIS_MODULE,
 	},
 	.devid		= SA1111_DEVID_PS2,
 	.probe		= ps2_probe,
