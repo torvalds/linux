@@ -324,9 +324,6 @@ static int wl1271_suspend(struct device *dev)
 			dev_err(dev, "error while trying to keep power\n");
 			goto out;
 		}
-
-		/* release host */
-		sdio_release_host(func);
 	}
 out:
 	return ret;
@@ -334,15 +331,7 @@ out:
 
 static int wl1271_resume(struct device *dev)
 {
-	struct sdio_func *func = dev_to_sdio_func(dev);
-	struct wl12xx_sdio_glue *glue = sdio_get_drvdata(func);
-	struct wl1271 *wl = platform_get_drvdata(glue->core);
-
 	dev_dbg(dev, "wl1271 resume\n");
-	if (wl->wow_enabled) {
-		/* claim back host */
-		sdio_claim_host(func);
-	}
 
 	return 0;
 }
