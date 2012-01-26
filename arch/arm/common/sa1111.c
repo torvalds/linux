@@ -1348,6 +1348,14 @@ static int sa1111_bus_resume(struct device *dev)
 	return ret;
 }
 
+static void sa1111_bus_shutdown(struct device *dev)
+{
+	struct sa1111_driver *drv = SA1111_DRV(dev->driver);
+
+	if (drv && drv->shutdown)
+		drv->shutdown(SA1111_DEV(dev));
+}
+
 static int sa1111_bus_probe(struct device *dev)
 {
 	struct sa1111_dev *sadev = SA1111_DEV(dev);
@@ -1377,6 +1385,7 @@ struct bus_type sa1111_bus_type = {
 	.remove		= sa1111_bus_remove,
 	.suspend	= sa1111_bus_suspend,
 	.resume		= sa1111_bus_resume,
+	.shutdown	= sa1111_bus_shutdown,
 };
 EXPORT_SYMBOL(sa1111_bus_type);
 
