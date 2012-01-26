@@ -172,7 +172,7 @@ void flush_thread(void)
 
 	current->thread.fs = __USER_DS;
 	if (!FPU_IS_EMU)
-		asm volatile ("frestore %0@" : : "a" (&zero) : "memory");
+		asm volatile("frestore %0": :"m" (zero));
 }
 
 /*
