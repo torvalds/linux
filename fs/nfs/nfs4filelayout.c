@@ -575,7 +575,7 @@ filelayout_decode_layout(struct pnfs_layout_hdr *flo,
 			goto out_err_free;
 		fl->fh_array[i]->size = be32_to_cpup(p++);
 		if (sizeof(struct nfs_fh) < fl->fh_array[i]->size) {
-			printk(KERN_ERR "Too big fh %d received %d\n",
+			printk(KERN_ERR "NFS: Too big fh %d received %d\n",
 			       i, fl->fh_array[i]->size);
 			goto out_err_free;
 		}

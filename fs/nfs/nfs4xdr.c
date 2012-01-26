@@ -1023,7 +1023,7 @@ static void encode_attrs(struct xdr_stream *xdr, const struct iattr *iap, const 
 	 * Now we backfill the bitmap and the attribute buffer length.
 	 */
 	if (len != ((char *)p - (char *)q) + 4) {
-		printk(KERN_ERR "nfs: Attr length error, %u != %Zu\n",
+		printk(KERN_ERR "NFS: Attr length error, %u != %Zu\n",
 				len, ((char *)p - (char *)q) + 4);
 		BUG();
 	}

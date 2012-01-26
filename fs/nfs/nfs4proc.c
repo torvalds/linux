@@ -5406,7 +5406,7 @@ int nfs4_proc_destroy_session(struct nfs4_session *session)
 
 	if (status)
 		printk(KERN_WARNING
-			"Got error %d from the server on DESTROY_SESSION. "
+			"NFS: Got error %d from the server on DESTROY_SESSION. "
 			"Session has been destroyed regardless...\n", status);
 
 	dprintk("<-- nfs4_proc_destroy_session\n");
