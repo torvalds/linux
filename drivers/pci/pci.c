@@ -959,6 +959,7 @@ void pci_restore_state(struct pci_dev *dev)
 {
 	int i;
 	u32 val;
+	int tries;
 
 	if (!dev->state_saved)
 		return;
@@ -973,12 +974,16 @@ void pci_restore_state(struct pci_dev *dev)
 	 */
 	for (i = 15; i >= 0; i--) {
 		pci_read_config_dword(dev, i * 4, &val);
-		if (val != dev->saved_config_space[i]) {
+		tries = 10;		
+		while (tries && val != dev->saved_config_space[i]) {
 			dev_dbg(&dev->dev, "restoring config "
 				"space at offset %#x (was %#x, writing %#x)\n",
 				i, val, (int)dev->saved_config_space[i]);
 			pci_write_config_dword(dev,i * 4,
 				dev->saved_config_space[i]);
+			pci_read_config_dword(dev, i * 4, &val);
+			mdelay(10);
+			tries--;
 		}
 	}
 	pci_restore_pcix_state(dev);
