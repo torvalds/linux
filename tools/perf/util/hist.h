@@ -55,6 +55,7 @@ struct hists {
 	u64			nr_entries;
 	const struct thread	*thread_filter;
 	const struct dso	*dso_filter;
+	const char		*uid_filter_str;
 	pthread_mutex_t		lock;
 	struct events_stats	stats;
 	u64			event_stream;

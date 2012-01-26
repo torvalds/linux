@@ -188,6 +188,7 @@ void pthread__unblock_sigwinch(void);
 struct perf_record_opts {
 	pid_t	     target_pid;
 	pid_t	     target_tid;
+	uid_t	     uid;
 	bool	     call_graph;
 	bool	     group;
 	bool	     inherit_stat;

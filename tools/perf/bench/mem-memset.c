@@ -1,9 +1,9 @@
 /*
- * mem-memcpy.c
+ * mem-memset.c
  *
- * memcpy: Simple memory copy in various ways
+ * memset: Simple memory set in various ways
  *
- * Written by Hitoshi Mitake <mitake@dcl.info.waseda.ac.jp>
+ * Trivial clone of mem-memcpy.c.
  */
 #include <ctype.h>
 
@@ -12,7 +12,7 @@
 #include "../util/parse-options.h"
 #include "../util/header.h"
 #include "bench.h"
-#include "mem-memcpy-arch.h"
+#include "mem-memset-arch.h"
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -37,33 +37,33 @@ static const struct option options[] = {
 	OPT_STRING('r', "routine", &routine, "default",
 		    "Specify routine to copy"),
 	OPT_INTEGER('i', "iterations", &iterations,
-		    "repeat memcpy() invocation this number of times"),
+		    "repeat memset() invocation this number of times"),
 	OPT_BOOLEAN('c', "clock", &use_clock,
 		    "Use CPU clock for measuring"),
 	OPT_BOOLEAN('o', "only-prefault", &only_prefault,
-		    "Show only the result with page faults before memcpy()"),
+		    "Show only the result with page faults before memset()"),
 	OPT_BOOLEAN('n', "no-prefault", &no_prefault,
-		    "Show only the result without page faults before memcpy()"),
+		    "Show only the result without page faults before memset()"),
 	OPT_END()
 };
 
-typedef void *(*memcpy_t)(void *, const void *, size_t);
+typedef void *(*memset_t)(void *, int, size_t);
 
 struct routine {
 	const char *name;
 	const char *desc;
-	memcpy_t fn;
+	memset_t fn;
 };
 
-struct routine routines[] = {
+static const struct routine routines[] = {
 	{ "default",
-	  "Default memcpy() provided by glibc",
-	  memcpy },
+	  "Default memset() provided by glibc",
+	  memset },
 #ifdef ARCH_X86_64
 
-#define MEMCPY_FN(fn, name, desc) { name, desc, fn },
-#include "mem-memcpy-x86-64-asm-def.h"
-#undef MEMCPY_FN
+#define MEMSET_FN(fn, name, desc) { name, desc, fn },
+#include "mem-memset-x86-64-asm-def.h"
+#undef MEMSET_FN
 
 #endif
 
@@ -72,8 +72,8 @@ struct routine routines[] = {
 	  NULL   }
 };
 
-static const char * const bench_mem_memcpy_usage[] = {
-	"perf bench mem memcpy <options>",
+static const char * const bench_mem_memset_usage[] = {
+	"perf bench mem memset <options>",
 	NULL
 };
 
@@ -109,57 +109,51 @@ static double timeval2double(struct timeval *ts)
 		(double)ts->tv_usec / (double)1000000;
 }
 
-static void alloc_mem(void **dst, void **src, size_t length)
+static void alloc_mem(void **dst, size_t length)
 {
 	*dst = zalloc(length);
 	if (!dst)
 		die("memory allocation failed - maybe length is too large?\n");
-
-	*src = zalloc(length);
-	if (!src)
-		die("memory allocation failed - maybe length is too large?\n");
 }
 
-static u64 do_memcpy_clock(memcpy_t fn, size_t len, bool prefault)
+static u64 do_memset_clock(memset_t fn, size_t len, bool prefault)
 {
 	u64 clock_start = 0ULL, clock_end = 0ULL;
-	void *src = NULL, *dst = NULL;
+	void *dst = NULL;
 	int i;
 
-	alloc_mem(&src, &dst, len);
+	alloc_mem(&dst, len);
 
 	if (prefault)
-		fn(dst, src, len);
+		fn(dst, -1, len);
 
 	clock_start = get_clock();
 	for (i = 0; i < iterations; ++i)
-		fn(dst, src, len);
+		fn(dst, i, len);
 	clock_end = get_clock();
 
-	free(src);
 	free(dst);
 	return clock_end - clock_start;
 }
 
-static double do_memcpy_gettimeofday(memcpy_t fn, size_t len, bool prefault)
+static double do_memset_gettimeofday(memset_t fn, size_t len, bool prefault)
 {
 	struct timeval tv_start, tv_end, tv_diff;
-	void *src = NULL, *dst = NULL;
+	void *dst = NULL;
 	int i;
 
-	alloc_mem(&src, &dst, len);
+	alloc_mem(&dst, len);
 
 	if (prefault)
-		fn(dst, src, len);
+		fn(dst, -1, len);
 
 	BUG_ON(gettimeofday(&tv_start, NULL));
 	for (i = 0; i < iterations; ++i)
-		fn(dst, src, len);
+		fn(dst, i, len);
 	BUG_ON(gettimeofday(&tv_end, NULL));
 
 	timersub(&tv_end, &tv_start, &tv_diff);
 
-	free(src);
 	free(dst);
 	return (double)((double)len / timeval2double(&tv_diff));
 }
@@ -177,7 +171,7 @@ static double do_memcpy_gettimeofday(memcpy_t fn, size_t len, bool prefault)
 			printf(" %14lf GB/Sec", x / K / K / K); \
 	} while (0)
 
-int bench_mem_memcpy(int argc, const char **argv,
+int bench_mem_memset(int argc, const char **argv,
 		     const char *prefix __used)
 {
 	int i;
@@ -186,7 +180,7 @@ int bench_mem_memcpy(int argc, const char **argv,
 	u64 result_clock[2];
 
 	argc = parse_options(argc, argv, options,
-			     bench_mem_memcpy_usage, 0);
+			     bench_mem_memset_usage, 0);
 
 	if (use_clock)
 		init_clock();
@@ -226,25 +220,25 @@ int bench_mem_memcpy(int argc, const char **argv,
 		/* show both of results */
 		if (use_clock) {
 			result_clock[0] =
-				do_memcpy_clock(routines[i].fn, len, false);
+				do_memset_clock(routines[i].fn, len, false);
 			result_clock[1] =
-				do_memcpy_clock(routines[i].fn, len, true);
+				do_memset_clock(routines[i].fn, len, true);
 		} else {
 			result_bps[0] =
-				do_memcpy_gettimeofday(routines[i].fn,
+				do_memset_gettimeofday(routines[i].fn,
 						len, false);
 			result_bps[1] =
-				do_memcpy_gettimeofday(routines[i].fn,
+				do_memset_gettimeofday(routines[i].fn,
 						len, true);
 		}
 	} else {
 		if (use_clock) {
 			result_clock[pf] =
-				do_memcpy_clock(routines[i].fn,
+				do_memset_clock(routines[i].fn,
 						len, only_prefault);
 		} else {
 			result_bps[pf] =
-				do_memcpy_gettimeofday(routines[i].fn,
+				do_memset_gettimeofday(routines[i].fn,
 						len, only_prefault);
 		}
 	}
@@ -256,7 +250,7 @@ int bench_mem_memcpy(int argc, const char **argv,
 				printf(" %14lf Clock/Byte\n",
 					(double)result_clock[0]
 					/ (double)len);
-				printf(" %14lf Clock/Byte (with prefault)\n",
+				printf(" %14lf Clock/Byte (with prefault)\n ",
 					(double)result_clock[1]
 					/ (double)len);
 			} else {

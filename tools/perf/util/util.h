@@ -40,7 +40,6 @@
 #define decimal_length(x)	((int)(sizeof(x) * 2.56 + 0.5) + 1)
 
 #define _ALL_SOURCE 1
-#define _GNU_SOURCE 1
 #define _BSD_SOURCE 1
 #define HAS_BOOL
 
@@ -245,6 +244,8 @@ int readn(int fd, void *buf, size_t size);
 struct perf_event_attr;
 
 void event_attr_init(struct perf_event_attr *attr);
+
+uid_t parse_target_uid(const char *str, pid_t tid, pid_t pid);
 
 #define _STR(x) #x
 #define STR(x) _STR(x)

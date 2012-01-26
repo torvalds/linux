@@ -24,6 +24,7 @@ struct perf_top {
 	int		   print_entries, count_filter, delay_secs;
 	int		   freq;
 	pid_t		   target_pid, target_tid;
+	uid_t		   uid;
 	bool		   hide_kernel_symbols, hide_user_symbols, zero;
 	bool		   system_wide;
 	bool		   use_tui, use_stdio;
@@ -45,6 +46,7 @@ struct perf_top {
 	int		   realtime_prio;
 	int		   sym_pcnt_filter;
 	const char	   *sym_filter;
+	const char	   *uid_str;
 };
 
 size_t perf_top__header_snprintf(struct perf_top *top, char *bf, size_t size);
