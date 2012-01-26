@@ -532,6 +532,12 @@
 #define ADI_GNICEPLUS_PID	0xF001
 
 /*
+ * Hornby Elite
+ */
+#define HORNBY_VID		0x04D8
+#define HORNBY_ELITE_PID	0x000A
+
+/*
  * RATOC REX-USB60F
  */
 #define RATOC_VENDOR_ID		0x0584
