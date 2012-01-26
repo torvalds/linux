@@ -62,6 +62,7 @@
 #include <linux/nfs_fs.h>
 #include "nfs4_fs.h"
 #include "internal.h"
+#include "netns.h"
 
 #define NFS_UINT_MAXLEN 11
 #define IDMAP_HASH_SZ          128
