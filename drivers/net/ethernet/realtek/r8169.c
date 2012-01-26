@@ -714,7 +714,11 @@ struct rtl8169_private {
 	unsigned int (*phy_reset_pending)(struct rtl8169_private *tp);
 	unsigned int (*link_ok)(void __iomem *);
 	int (*do_ioctl)(struct rtl8169_private *tp, struct mii_ioctl_data *data, int cmd);
-	struct delayed_work task;
+
+	struct {
+		struct work_struct work;
+	} wk;
+
 	unsigned features;
 
 	struct mii_if_info mii;
@@ -4194,7 +4198,7 @@ static void __devexit rtl8169_remove_one(struct pci_dev *pdev)
 		rtl8168_driver_stop(tp);
 	}
 
-	cancel_delayed_work_sync(&tp->task);
+	cancel_work_sync(&tp->wk.work);
 
 	unregister_netdev(dev);
 
@@ -4255,6 +4259,8 @@ static void rtl_request_firmware(struct rtl8169_private *tp)
 		rtl_request_uncached_firmware(tp);
 }
 
+static void rtl_task(struct work_struct *);
+
 static int rtl8169_open(struct net_device *dev)
 {
 	struct rtl8169_private *tp = netdev_priv(dev);
@@ -4282,7 +4288,7 @@ static int rtl8169_open(struct net_device *dev)
 	if (retval < 0)
 		goto err_free_rx_1;
 
-	INIT_DELAYED_WORK(&tp->task, NULL);
+	INIT_WORK(&tp->wk.work, rtl_task);
 
 	smp_mb();
 
@@ -5328,12 +5334,11 @@ static void rtl8169_tx_clear(struct rtl8169_private *tp)
 	tp->cur_tx = tp->dirty_tx = 0;
 }
 
-static void rtl8169_schedule_work(struct net_device *dev, work_func_t task)
+static void rtl8169_schedule_work(struct net_device *dev)
 {
 	struct rtl8169_private *tp = netdev_priv(dev);
 
-	PREPARE_DELAYED_WORK(&tp->task, task);
-	schedule_delayed_work(&tp->task, 4);
+	schedule_work(&tp->wk.work);
 }
 
 static void rtl8169_wait_for_quiescence(struct net_device *dev)
@@ -5353,10 +5358,8 @@ static void rtl8169_wait_for_quiescence(struct net_device *dev)
 	napi_enable(&tp->napi);
 }
 
-static void rtl8169_reset_task(struct work_struct *work)
+static void rtl_reset_work(struct rtl8169_private *tp)
 {
-	struct rtl8169_private *tp =
-		container_of(work, struct rtl8169_private, task.work);
 	struct net_device *dev = tp->dev;
 	int i;
 
@@ -5385,7 +5388,7 @@ out_unlock:
 
 static void rtl8169_tx_timeout(struct net_device *dev)
 {
-	rtl8169_schedule_work(dev, rtl8169_reset_task);
+	rtl8169_schedule_work(dev);
 }
 
 static int rtl8169_xmit_frags(struct rtl8169_private *tp, struct sk_buff *skb,
@@ -5588,7 +5591,7 @@ static void rtl8169_pcierr_interrupt(struct net_device *dev)
 
 	rtl8169_hw_reset(tp);
 
-	rtl8169_schedule_work(dev, rtl8169_reset_task);
+	rtl8169_schedule_work(dev);
 }
 
 static void rtl8169_tx_interrupt(struct net_device *dev,
@@ -5707,7 +5710,7 @@ static int rtl8169_rx_interrupt(struct net_device *dev,
 			if (status & RxCRC)
 				dev->stats.rx_crc_errors++;
 			if (status & RxFOVF) {
-				rtl8169_schedule_work(dev, rtl8169_reset_task);
+				rtl8169_schedule_work(dev);
 				dev->stats.rx_fifo_errors++;
 			}
 			rtl8169_mark_to_asic(desc, rx_buf_sz);
@@ -5838,6 +5841,14 @@ static irqreturn_t rtl8169_interrupt(int irq, void *dev_instance)
 	}
 done:
 	return IRQ_RETVAL(handled);
+}
+
+static void rtl_task(struct work_struct *work)
+{
+	struct rtl8169_private *tp =
+		container_of(work, struct rtl8169_private, wk.work);
+
+	rtl_reset_work(tp);
 }
 
 static int rtl8169_poll(struct napi_struct *napi, int budget)
@@ -6046,7 +6057,7 @@ static void __rtl8169_resume(struct net_device *dev)
 
 	rtl_pll_power_up(tp);
 
-	rtl8169_schedule_work(dev, rtl8169_reset_task);
+	rtl8169_schedule_work(dev);
 }
 
 static int rtl8169_resume(struct device *device)
