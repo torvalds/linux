@@ -88,6 +88,7 @@ static int core_domain_map(struct irq_domain *h, unsigned int virq,
 
 static const struct irq_domain_ops core_domain_ops = {
 	.map = core_domain_map,
+	.xlate = irq_domain_xlate_onecell,
 };
 
 void __init init_IRQ(void)

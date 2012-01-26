@@ -136,21 +136,9 @@ static int megamod_map(struct irq_domain *h, unsigned int virq,
 	return 0;
 }
 
-static int megamod_xlate(struct irq_domain *h, struct device_node *ct,
-			 const u32 *intspec, unsigned int intsize,
-			 irq_hw_number_t *out_hwirq, unsigned int *out_type)
-
-{
-	/* megamod intspecs must have 1 cell */
-	BUG_ON(intsize != 1);
-	*out_hwirq = intspec[0];
-	*out_type = IRQ_TYPE_NONE;
-	return 0;
-}
-
 static const struct irq_domain_ops megamod_domain_ops = {
 	.map	= megamod_map,
-	.xlate	= megamod_xlate,
+	.xlate	= irq_domain_xlate_onecell,
 };
 
 static void __init set_megamod_mux(struct megamod_pic *pic, int src, int output)
