@@ -1079,6 +1079,7 @@ static ssize_t data_read(struct file *filp, char __user *ubuf, size_t count,
 	struct fpga_reader *reader = filp->private_data;
 	struct fpga_device *priv = reader->priv;
 	struct list_head *used = &priv->used;
+	bool drop_buffer = false;
 	struct data_buf *dbuf;
 	size_t avail;
 	void *data;
@@ -1166,10 +1167,12 @@ have_buffer:
 	 * One of two things has happened, the device is disabled, or the
 	 * device has been reconfigured underneath us. In either case, we
 	 * should just throw away the buffer.
+	 *
+	 * Lockdep complains if this is done under the spinlock, so we
+	 * handle it during the unlock path.
 	 */
 	if (!priv->enabled || dbuf->size != priv->bufsize) {
-		videobuf_dma_unmap(priv->dev, &dbuf->vb);
-		data_free_buffer(dbuf);
+		drop_buffer = true;
 		goto out_unlock;
 	}
 
@@ -1178,6 +1181,12 @@ have_buffer:
 
 out_unlock:
 	spin_unlock_irq(&priv->lock);
+
+	if (drop_buffer) {
+		videobuf_dma_unmap(priv->dev, &dbuf->vb);
+		data_free_buffer(dbuf);
+	}
+
 	return count;
 }
 
