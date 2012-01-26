@@ -803,10 +803,10 @@ enum bnx2x_q_type {
 };
 
 #define BNX2X_PRIMARY_CID_INDEX			0
-#define BNX2X_MULTI_TX_COS_E1X			1
+#define BNX2X_MULTI_TX_COS_E1X			3 /* QM only */
 #define BNX2X_MULTI_TX_COS_E2_E3A0		2
 #define BNX2X_MULTI_TX_COS_E3B0			3
-#define BNX2X_MULTI_TX_COS			BNX2X_MULTI_TX_COS_E3B0
+#define BNX2X_MULTI_TX_COS			3 /* Maximum possible */
 
 
 struct bnx2x_queue_init_params {
