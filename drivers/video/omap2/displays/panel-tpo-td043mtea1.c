@@ -408,16 +408,11 @@ static int tpo_td043_probe(struct omap_dss_device *dssdev)
 	}
 
 	if (gpio_is_valid(nreset_gpio)) {
-		ret = gpio_request(nreset_gpio, "lcd reset");
+		ret = gpio_request_one(nreset_gpio, GPIOF_OUT_INIT_LOW,
+					"lcd reset");
 		if (ret < 0) {
 			dev_err(&dssdev->dev, "couldn't request reset GPIO\n");
 			goto fail_gpio_req;
-		}
-
-		ret = gpio_direction_output(nreset_gpio, 0);
-		if (ret < 0) {
-			dev_err(&dssdev->dev, "couldn't set GPIO direction\n");
-			goto fail_gpio_direction;
 		}
 	}
 
@@ -427,8 +422,6 @@ static int tpo_td043_probe(struct omap_dss_device *dssdev)
 
 	return 0;
 
-fail_gpio_direction:
-	gpio_free(nreset_gpio);
 fail_gpio_req:
 	regulator_put(tpo_td043->vcc_reg);
 fail_regulator:

@@ -365,10 +365,10 @@ static int __devinit bfin_lq035q1_request_ports(struct platform_device *pdev,
 	 * Drive PPI_FS3 Low
 	 */
 	if (ANOMALY_05000400) {
-		int ret = gpio_request(P_IDENT(P_PPI0_FS3), "PPI_FS3");
+		int ret = gpio_request_one(P_IDENT(P_PPI0_FS3),
+					GPIOF_OUT_INIT_LOW, "PPI_FS3");
 		if (ret)
 			return ret;
-		gpio_direction_output(P_IDENT(P_PPI0_FS3), 0);
 	}
 
 	if (ppi16)
@@ -716,14 +716,14 @@ static int __devinit bfin_lq035q1_probe(struct platform_device *pdev)
 	}
 
 	if (info->disp_info->use_bl) {
-		ret = gpio_request(info->disp_info->gpio_bl, "LQ035 Backlight");
+		ret = gpio_request_one(info->disp_info->gpio_bl,
+					GPIOF_OUT_INIT_LOW, "LQ035 Backlight");
 
 		if (ret) {
 			dev_err(&pdev->dev, "failed to request GPIO %d\n",
 				info->disp_info->gpio_bl);
 			goto out9;
 		}
-		gpio_direction_output(info->disp_info->gpio_bl, 0);
 	}
 
 	ret = register_framebuffer(fbinfo);
