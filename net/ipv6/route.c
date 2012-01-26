@@ -125,8 +125,7 @@ static inline const void *choose_neigh_daddr(struct rt6_info *rt, const void *da
 {
 	struct in6_addr *p = &rt->rt6i_gateway;
 
-	if (p->s6_addr32[0] | p->s6_addr32[1] |
-	    p->s6_addr32[2] | p->s6_addr32[3])
+	if (!ipv6_addr_any(p))
 		return (const void *) p;
 	return daddr;
 }
