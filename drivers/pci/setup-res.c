@@ -250,7 +250,7 @@ int pci_reassign_resource(struct pci_dev *dev, int resno, resource_size_t addsiz
 	int ret;
 
 	if (!res->parent) {
-		dev_info(&dev->dev, "BAR %d: can't reassign an unassigned resouce %pR "
+		dev_info(&dev->dev, "BAR %d: can't reassign an unassigned resource %pR "
 			 "\n", resno, res);
 		return -EINVAL;
 	}
