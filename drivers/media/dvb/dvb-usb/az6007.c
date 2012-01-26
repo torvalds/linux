@@ -481,6 +481,7 @@ static int az6007_usb_probe(struct usb_interface *intf,
 static struct usb_device_id az6007_usb_table[] = {
 	{USB_DEVICE(USB_VID_AZUREWAVE, USB_PID_AZUREWAVE_6007)},
 	{USB_DEVICE(USB_VID_TERRATEC, USB_PID_TERRATEC_H7)},
+	{USB_DEVICE(USB_VID_TERRATEC, USB_PID_TERRATEC_H7_2)},
 	{0},
 };
 
@@ -534,7 +535,7 @@ static struct dvb_usb_device_properties az6007_properties = {
 		  .warm_ids = { NULL },
 		},
 		{ .name = "TerraTec DTV StarBox DVB-T/C USB2.0 (az6007)",
-		  .cold_ids = { &az6007_usb_table[1], NULL },
+		  .cold_ids = { &az6007_usb_table[1], &az6007_usb_table[2], NULL },
 		  .warm_ids = { NULL },
 		},
 		{ NULL },
