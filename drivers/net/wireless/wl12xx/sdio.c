@@ -74,6 +74,8 @@ static void wl12xx_sdio_raw_read(struct device *child, int addr, void *buf,
 	struct wl12xx_sdio_glue *glue = dev_get_drvdata(child->parent);
 	struct sdio_func *func = dev_to_sdio_func(glue->dev);
 
+	sdio_claim_host(func);
+
 	if (unlikely(addr == HW_ACCESS_ELP_CTRL_REG_ADDR)) {
 		((u8 *)buf)[0] = sdio_f0_readb(func, addr, &ret);
 		dev_dbg(child->parent, "sdio read 52 addr 0x%x, byte 0x%02x\n",
@@ -88,6 +90,8 @@ static void wl12xx_sdio_raw_read(struct device *child, int addr, void *buf,
 			addr, len);
 	}
 
+	sdio_release_host(func);
+
 	if (ret)
 		dev_err(child->parent, "sdio read failed (%d)\n", ret);
 }
@@ -98,6 +102,8 @@ static void wl12xx_sdio_raw_write(struct device *child, int addr, void *buf,
 	int ret;
 	struct wl12xx_sdio_glue *glue = dev_get_drvdata(child->parent);
 	struct sdio_func *func = dev_to_sdio_func(glue->dev);
+
+	sdio_claim_host(func);
 
 	if (unlikely(addr == HW_ACCESS_ELP_CTRL_REG_ADDR)) {
 		sdio_f0_writeb(func, ((u8 *)buf)[0], addr, &ret);
@@ -112,6 +118,8 @@ static void wl12xx_sdio_raw_write(struct device *child, int addr, void *buf,
 		else
 			ret = sdio_memcpy_toio(func, addr, buf, len);
 	}
+
+	sdio_release_host(func);
 
 	if (ret)
 		dev_err(child->parent, "sdio write failed (%d)\n", ret);
@@ -136,6 +144,7 @@ static int wl12xx_sdio_power_on(struct wl12xx_sdio_glue *glue)
 
 	sdio_claim_host(func);
 	sdio_enable_func(func);
+	sdio_release_host(func);
 
 out:
 	return ret;
@@ -146,6 +155,7 @@ static int wl12xx_sdio_power_off(struct wl12xx_sdio_glue *glue)
 	int ret;
 	struct sdio_func *func = dev_to_sdio_func(glue->dev);
 
+	sdio_claim_host(func);
 	sdio_disable_func(func);
 	sdio_release_host(func);
 
