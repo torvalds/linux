@@ -39,6 +39,37 @@
 #include <linux/slab.h>
 #include <linux/nfs_idmap.h>
 #include <linux/nfs_fs.h>
+#include <linux/cred.h>
+#include <linux/sunrpc/sched.h>
+#include <linux/nfs4.h>
+#include <linux/nfs_fs_sb.h>
+#include <linux/keyctl.h>
+#include <linux/key-type.h>
+#include <linux/rcupdate.h>
+#include <linux/err.h>
+#include <keys/user-type.h>
+
+/* include files needed by legacy idmapper */
+#include <linux/module.h>
+#include <linux/mutex.h>
+#include <linux/init.h>
+#include <linux/socket.h>
+#include <linux/in.h>
+#include <linux/sched.h>
+#include <linux/sunrpc/clnt.h>
+#include <linux/workqueue.h>
+#include <linux/sunrpc/rpc_pipe_fs.h>
+#include <linux/nfs_fs.h>
+#include "nfs4_fs.h"
+#include "internal.h"
+
+#define NFS_UINT_MAXLEN 11
+#define IDMAP_HASH_SZ          128
+
+/* Default cache timeout is 10 minutes */
+unsigned int nfs_idmap_cache_timeout = 600 * HZ;
+const struct cred *id_resolver_cache;
+
 
 /**
  * nfs_fattr_init_names - initialise the nfs_fattr owner_name/group_name fields
@@ -141,21 +172,6 @@ static int nfs_map_numeric_to_string(__u32 id, char *buf, size_t buflen)
 {
 	return snprintf(buf, buflen, "%u", id);
 }
-
-#include <linux/cred.h>
-#include <linux/sunrpc/sched.h>
-#include <linux/nfs4.h>
-#include <linux/nfs_fs_sb.h>
-#include <linux/keyctl.h>
-#include <linux/key-type.h>
-#include <linux/rcupdate.h>
-#include <linux/err.h>
-
-#include <keys/user-type.h>
-
-#define NFS_UINT_MAXLEN 11
-
-const struct cred *id_resolver_cache;
 
 struct key_type key_type_id_resolver = {
 	.name		= "id_resolver",
@@ -327,26 +343,6 @@ static int nfs_idmap_lookup_id(const char *name, size_t namelen,
 }
 
 /* idmap classic begins here */
-#include <linux/module.h>
-#include <linux/mutex.h>
-#include <linux/init.h>
-#include <linux/socket.h>
-#include <linux/in.h>
-#include <linux/sched.h>
-#include <linux/sunrpc/clnt.h>
-#include <linux/workqueue.h>
-#include <linux/sunrpc/rpc_pipe_fs.h>
-
-#include <linux/nfs_fs.h>
-
-#include "nfs4_fs.h"
-#include "internal.h"
-
-#define IDMAP_HASH_SZ          128
-
-/* Default cache timeout is 10 minutes */
-unsigned int nfs_idmap_cache_timeout = 600 * HZ;
-
 static int param_set_idmap_timeout(const char *val, struct kernel_param *kp)
 {
 	char *endp;
