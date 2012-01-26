@@ -97,11 +97,11 @@ static size_t nfs_parse_server_name(char *string, size_t len,
 		struct sockaddr *sa, size_t salen, struct nfs_server *server)
 {
 	ssize_t ret;
+	struct net *net = server->client->cl_xprt->xprt_net;
 
-	ret = rpc_pton(&init_net, string, len, sa, salen);
+	ret = rpc_pton(net, string, len, sa, salen);
 	if (ret == 0) {
-		ret = nfs_dns_resolve_name(server->client->cl_xprt->xprt_net,
-					   string, len, sa, salen);
+		ret = nfs_dns_resolve_name(net, string, len, sa, salen);
 		if (ret < 0)
 			ret = 0;
 	}
