@@ -14,7 +14,6 @@
 #include <linux/mtd/partitions.h>
 #include <linux/io.h>
 #include <linux/gpio.h>
-#include <linux/mfd/ucb1x00.h>
 
 #include <asm/irq.h>
 #include <mach/hardware.h>
@@ -188,15 +187,10 @@ static struct resource simpad_flash_resources [] = {
 	}
 };
 
-static struct ucb1x00_plat_data simpad_ucb1x00_data = {
-	.gpio_base	= SIMPAD_UCB1X00_GPIO_BASE,
-};
-
 static struct mcp_plat_data simpad_mcp_data = {
 	.mccr0		= MCCR0_ADM,
 	.sclk_rate	= 11981000,
-	.codec		= "ucb1300",
-	.codec_pdata	= &simpad_ucb1x00_data,
+	.gpio_base	= SIMPAD_UCB1X00_GPIO_BASE,
 };
 
 
@@ -384,16 +378,6 @@ static int __init simpad_init(void)
 
 	sa11x0_register_mtd(&simpad_flash_data, simpad_flash_resources,
 			      ARRAY_SIZE(simpad_flash_resources));
-
-	/*
-	 * Setup the PPC unit correctly.
-	 */
-	PPDR &= ~PPC_RXD4;
-	PPDR |= PPC_TXD4 | PPC_SCLK | PPC_SFRM;
-	PSDR |= PPC_RXD4;
-	PSDR &= ~(PPC_TXD4 | PPC_SCLK | PPC_SFRM);
-	PPSR &= ~(PPC_TXD4 | PPC_SCLK | PPC_SFRM);
-
 	sa11x0_register_mcp(&simpad_mcp_data);
 
 	ret = platform_add_devices(devices, ARRAY_SIZE(devices));
