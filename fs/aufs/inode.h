@@ -158,7 +158,8 @@ void au_unpin(struct au_pin *pin);
 /* i_op_add.c */
 int au_may_add(struct dentry *dentry, aufs_bindex_t bindex,
 	       struct dentry *h_parent, int isdir);
-int aufs_mknod(struct inode *dir, struct dentry *dentry, umode_t mode, dev_t dev);
+int aufs_mknod(struct inode *dir, struct dentry *dentry, umode_t mode,
+	       dev_t dev);
 int aufs_symlink(struct inode *dir, struct dentry *dentry, const char *symname);
 int aufs_create(struct inode *dir, struct dentry *dentry, umode_t mode,
 		struct nameidata *nd);
