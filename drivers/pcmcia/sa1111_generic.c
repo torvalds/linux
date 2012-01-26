@@ -163,12 +163,18 @@ int sa1111_pcmcia_add(struct sa1111_dev *dev, struct pcmcia_low_level *ops,
 static int pcmcia_probe(struct sa1111_dev *dev)
 {
 	void __iomem *base;
+	int ret;
+
+	ret = sa1111_enable_device(dev);
+	if (ret)
+		return ret;
 
 	dev_set_drvdata(&dev->dev, NULL);
 
-	if (!request_mem_region(dev->res.start, 512,
-				SA1111_DRIVER_NAME(dev)))
+	if (!request_mem_region(dev->res.start, 512, SA1111_DRIVER_NAME(dev))) {
+		sa1111_disable_device(dev);
 		return -EBUSY;
+	}
 
 	base = dev->mapbase;
 
@@ -212,6 +218,7 @@ static int __devexit pcmcia_remove(struct sa1111_dev *dev)
 	}
 
 	release_mem_region(dev->res.start, 512);
+	sa1111_disable_device(dev);
 	return 0;
 }
 

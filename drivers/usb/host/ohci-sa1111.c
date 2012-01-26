@@ -27,9 +27,10 @@ extern int usb_disabled(void);
 
 /*-------------------------------------------------------------------------*/
 
-static void sa1111_start_hc(struct sa1111_dev *dev)
+static int sa1111_start_hc(struct sa1111_dev *dev)
 {
 	unsigned int usb_rst = 0;
+	int ret;
 
 	printk(KERN_DEBUG "%s: starting SA-1111 OHCI USB Controller\n",
 	       __FILE__);
@@ -57,9 +58,13 @@ static void sa1111_start_hc(struct sa1111_dev *dev)
 	 * Now, carefully enable the USB clock, and take
 	 * the USB host controller out of reset.
 	 */
-	sa1111_enable_device(dev);
-	udelay(11);
-	sa1111_writel(usb_rst, dev->mapbase + SA1111_USB_RESET);
+	ret = sa1111_enable_device(dev);
+	if (ret == 0) {
+		udelay(11);
+		sa1111_writel(usb_rst, dev->mapbase + SA1111_USB_RESET);
+	}
+
+	return ret;
 }
 
 static void sa1111_stop_hc(struct sa1111_dev *dev)
@@ -140,7 +145,10 @@ int usb_hcd_sa1111_probe (const struct hc_driver *driver,
 	}
 	hcd->regs = dev->mapbase;
 
-	sa1111_start_hc(dev);
+	ret = sa1111_start_hc(dev);
+	if (ret)
+		goto err2;
+
 	ohci_hcd_init(hcd_to_ohci(hcd));
 
 	retval = usb_add_hcd(hcd, dev->irq[1], 0);
@@ -148,6 +156,7 @@ int usb_hcd_sa1111_probe (const struct hc_driver *driver,
 		return retval;
 
 	sa1111_stop_hc(dev);
+ err2:
 	release_mem_region(hcd->rsrc_start, hcd->rsrc_len);
  err1:
 	usb_put_hcd(hcd);

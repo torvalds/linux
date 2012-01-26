@@ -106,6 +106,7 @@ struct sa1111 {
 	int		irq_base;	/* base for cascaded on-chip IRQs */
 	spinlock_t	lock;
 	void __iomem	*base;
+	struct sa1111_platform_data *pdata;
 #ifdef CONFIG_PM
 	void		*saved_state;
 #endif
@@ -756,6 +757,7 @@ __sa1111_probe(struct device *me, struct resource *mem, int irq)
 	sachip->dev = me;
 	dev_set_drvdata(sachip->dev, sachip);
 
+	sachip->pdata = pd;
 	sachip->phys = mem->start;
 	sachip->irq = irq;
 
@@ -1282,16 +1284,23 @@ EXPORT_SYMBOL(sa1111_set_sleep_io);
  *	sa1111_enable_device - enable an on-chip SA1111 function block
  *	@sadev: SA1111 function block device to enable
  */
-void sa1111_enable_device(struct sa1111_dev *sadev)
+int sa1111_enable_device(struct sa1111_dev *sadev)
 {
 	struct sa1111 *sachip = sa1111_chip_driver(sadev);
 	unsigned long flags;
 	unsigned int val;
+	int ret = 0;
 
-	spin_lock_irqsave(&sachip->lock, flags);
-	val = sa1111_readl(sachip->base + SA1111_SKPCR);
-	sa1111_writel(val | sadev->skpcr_mask, sachip->base + SA1111_SKPCR);
-	spin_unlock_irqrestore(&sachip->lock, flags);
+	if (sachip->pdata && sachip->pdata->enable)
+		ret = sachip->pdata->enable(sachip->pdata->data, sadev->devid);
+
+	if (ret == 0) {
+		spin_lock_irqsave(&sachip->lock, flags);
+		val = sa1111_readl(sachip->base + SA1111_SKPCR);
+		sa1111_writel(val | sadev->skpcr_mask, sachip->base + SA1111_SKPCR);
+		spin_unlock_irqrestore(&sachip->lock, flags);
+	}
+	return ret;
 }
 EXPORT_SYMBOL(sa1111_enable_device);
 
@@ -1309,6 +1318,9 @@ void sa1111_disable_device(struct sa1111_dev *sadev)
 	val = sa1111_readl(sachip->base + SA1111_SKPCR);
 	sa1111_writel(val & ~sadev->skpcr_mask, sachip->base + SA1111_SKPCR);
 	spin_unlock_irqrestore(&sachip->lock, flags);
+
+	if (sachip->pdata && sachip->pdata->disable)
+		sachip->pdata->disable(sachip->pdata->data, sadev->devid);
 }
 EXPORT_SYMBOL(sa1111_disable_device);
 

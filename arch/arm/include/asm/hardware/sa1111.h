@@ -556,9 +556,10 @@ struct sa1111_driver {
 #define SA1111_DRIVER_NAME(_sadev) ((_sadev)->dev.driver->name)
 
 /*
- * These frob the SKPCR register.
+ * These frob the SKPCR register, and call platform specific
+ * enable/disable functions.
  */
-void sa1111_enable_device(struct sa1111_dev *);
+int sa1111_enable_device(struct sa1111_dev *);
 void sa1111_disable_device(struct sa1111_dev *);
 
 unsigned int sa1111_pll_clock(struct sa1111_dev *);
@@ -581,6 +582,9 @@ void sa1111_set_sleep_io(struct sa1111_dev *sadev, unsigned int bits, unsigned i
 
 struct sa1111_platform_data {
 	int	irq_base;	/* base for cascaded on-chip IRQs */
+	void	*data;
+	int	(*enable)(void *, unsigned);
+	void	(*disable)(void *, unsigned);
 };
 
 #endif  /* _ASM_ARCH_SA1111 */

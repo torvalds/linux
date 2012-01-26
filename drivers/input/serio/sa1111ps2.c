@@ -124,13 +124,16 @@ static int ps2_open(struct serio *io)
 	struct ps2if *ps2if = io->port_data;
 	int ret;
 
-	sa1111_enable_device(ps2if->dev);
+	ret = sa1111_enable_device(ps2if->dev);
+	if (ret)
+		return ret;
 
 	ret = request_irq(ps2if->dev->irq[0], ps2_rxint, 0,
 			  SA1111_DRIVER_NAME(ps2if->dev), ps2if);
 	if (ret) {
 		printk(KERN_ERR "sa1111ps2: could not allocate IRQ%d: %d\n",
 			ps2if->dev->irq[0], ret);
+		sa1111_disable_device(ps2if->dev);
 		return ret;
 	}
 
@@ -140,6 +143,7 @@ static int ps2_open(struct serio *io)
 		printk(KERN_ERR "sa1111ps2: could not allocate IRQ%d: %d\n",
 			ps2if->dev->irq[1], ret);
 		free_irq(ps2if->dev->irq[0], ps2if);
+		sa1111_disable_device(ps2if->dev);
 		return ret;
 	}
 
