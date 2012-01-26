@@ -309,7 +309,8 @@ out:
 	return err;
 }
 
-int aufs_mknod(struct inode *dir, struct dentry *dentry, umode_t mode, dev_t dev)
+int aufs_mknod(struct inode *dir, struct dentry *dentry, umode_t mode,
+	       dev_t dev)
 {
 	struct simple_arg arg = {
 		.type = Mknod,
