@@ -5,6 +5,10 @@ config SND_OMAP_SOC
 config SND_OMAP_SOC_DMIC
 	tristate
 
+config OMAP_MCBSP
+	tristate
+	depends on ARCH_OMAP
+
 config SND_OMAP_SOC_MCBSP
 	tristate
 	select OMAP_MCBSP
