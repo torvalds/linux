@@ -248,7 +248,7 @@ static int ehv_pic_host_xlate(struct irq_domain *h, struct device_node *ct,
 	return 0;
 }
 
-static struct irq_domain_ops ehv_pic_host_ops = {
+static const struct irq_domain_ops ehv_pic_host_ops = {
 	.match = ehv_pic_host_match,
 	.map = ehv_pic_host_map,
 	.xlate = ehv_pic_host_xlate,

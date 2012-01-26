@@ -384,7 +384,7 @@ static int mpc52xx_irqhost_map(struct irq_domain *h, unsigned int virq,
 	return 0;
 }
 
-static struct irq_domain_ops mpc52xx_irqhost_ops = {
+static const struct irq_domain_ops mpc52xx_irqhost_ops = {
 	.xlate = mpc52xx_irqhost_xlate,
 	.map = mpc52xx_irqhost_map,
 };

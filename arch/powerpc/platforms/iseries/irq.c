@@ -356,7 +356,7 @@ static int iseries_irq_host_match(struct irq_domain *h, struct device_node *np)
 	return 1;
 }
 
-static struct irq_domain_ops iseries_irq_domain_ops = {
+static const struct irq_domain_ops iseries_irq_domain_ops = {
 	.map = iseries_irq_host_map,
 	.match = iseries_irq_host_match,
 };

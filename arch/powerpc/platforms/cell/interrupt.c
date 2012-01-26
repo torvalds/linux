@@ -285,7 +285,7 @@ static int iic_host_xlate(struct irq_domain *h, struct device_node *ct,
 	return 0;
 }
 
-static struct irq_domain_ops iic_host_ops = {
+static const struct irq_domain_ops iic_host_ops = {
 	.match = iic_host_match,
 	.map = iic_host_map,
 	.xlate = iic_host_xlate,

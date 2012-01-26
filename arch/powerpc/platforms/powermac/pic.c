@@ -299,7 +299,7 @@ static int pmac_pic_host_xlate(struct irq_domain *h, struct device_node *ct,
 	return 0;
 }
 
-static struct irq_domain_ops pmac_pic_host_ops = {
+static const struct irq_domain_ops pmac_pic_host_ops = {
 	.match = pmac_pic_host_match,
 	.map = pmac_pic_host_map,
 	.xlate = pmac_pic_host_xlate,

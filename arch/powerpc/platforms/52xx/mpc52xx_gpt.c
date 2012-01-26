@@ -236,7 +236,7 @@ static int mpc52xx_gpt_irq_xlate(struct irq_domain *h, struct device_node *ct,
 	return 0;
 }
 
-static struct irq_domain_ops mpc52xx_gpt_irq_ops = {
+static const struct irq_domain_ops mpc52xx_gpt_irq_ops = {
 	.map = mpc52xx_gpt_irq_map,
 	.xlate = mpc52xx_gpt_irq_xlate,
 };

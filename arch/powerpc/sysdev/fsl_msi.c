@@ -74,7 +74,7 @@ static int fsl_msi_host_map(struct irq_domain *h, unsigned int virq,
 	return 0;
 }
 
-static struct irq_domain_ops fsl_msi_host_ops = {
+static const struct irq_domain_ops fsl_msi_host_ops = {
 	.map = fsl_msi_host_map,
 };
 

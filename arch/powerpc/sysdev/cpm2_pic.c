@@ -236,7 +236,7 @@ static int cpm2_pic_host_xlate(struct irq_domain *h, struct device_node *ct,
 	return 0;
 }
 
-static struct irq_domain_ops cpm2_pic_host_ops = {
+static const struct irq_domain_ops cpm2_pic_host_ops = {
 	.map = cpm2_pic_host_map,
 	.xlate = cpm2_pic_host_xlate,
 };

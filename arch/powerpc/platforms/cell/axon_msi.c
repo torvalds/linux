@@ -327,7 +327,7 @@ static int msic_host_map(struct irq_domain *h, unsigned int virq,
 	return 0;
 }
 
-static struct irq_domain_ops msic_host_ops = {
+static const struct irq_domain_ops msic_host_ops = {
 	.map	= msic_host_map,
 };
 

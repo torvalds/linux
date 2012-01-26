@@ -194,7 +194,7 @@ static int spider_host_xlate(struct irq_domain *h, struct device_node *ct,
 	return 0;
 }
 
-static struct irq_domain_ops spider_host_ops = {
+static const struct irq_domain_ops spider_host_ops = {
 	.map = spider_host_map,
 	.xlate = spider_host_xlate,
 };

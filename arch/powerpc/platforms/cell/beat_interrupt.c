@@ -172,7 +172,7 @@ static int beatic_pic_host_match(struct irq_domain *h, struct device_node *np)
 	return 1;
 }
 
-static struct irq_domain_ops beatic_pic_host_ops = {
+static const struct irq_domain_ops beatic_pic_host_ops = {
 	.map = beatic_pic_host_map,
 	.unmap = beatic_pic_host_unmap,
 	.xlate = beatic_pic_host_xlate,

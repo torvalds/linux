@@ -184,7 +184,7 @@ static int psurge_host_map(struct irq_domain *h, unsigned int virq,
 	return 0;
 }
 
-struct irq_domain_ops psurge_host_ops = {
+static const struct irq_domain_ops psurge_host_ops = {
 	.map	= psurge_host_map,
 };
 

@@ -207,7 +207,7 @@ static int opb_host_xlate(struct irq_domain *host, struct device_node *dn,
 	return 0;
 }
 
-static struct irq_domain_ops opb_host_ops = {
+static const struct irq_domain_ops opb_host_ops = {
 	.map = opb_host_map,
 	.xlate = opb_host_xlate,
 };

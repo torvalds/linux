@@ -269,7 +269,7 @@ static int socrates_fpga_pic_host_xlate(struct irq_domain *h,
 	return 0;
 }
 
-static struct irq_domain_ops socrates_fpga_pic_host_ops = {
+static const struct irq_domain_ops socrates_fpga_pic_host_ops = {
 	.map    = socrates_fpga_pic_host_map,
 	.xlate  = socrates_fpga_pic_host_xlate,
 };

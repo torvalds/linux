@@ -684,7 +684,7 @@ static int ps3_host_match(struct irq_domain *h, struct device_node *np)
 	return 1;
 }
 
-static struct irq_domain_ops ps3_host_ops = {
+static const struct irq_domain_ops ps3_host_ops = {
 	.map = ps3_host_map,
 	.match = ps3_host_match,
 };

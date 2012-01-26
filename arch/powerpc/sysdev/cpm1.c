@@ -123,7 +123,7 @@ static struct irqaction cpm_error_irqaction = {
 	.name = "error",
 };
 
-static struct irq_domain_ops cpm_pic_host_ops = {
+static const struct irq_domain_ops cpm_pic_host_ops = {
 	.map = cpm_pic_host_map,
 };
 

@@ -113,7 +113,7 @@ static int flipper_pic_match(struct irq_domain *h, struct device_node *np)
 }
 
 
-static struct irq_domain_ops flipper_irq_domain_ops = {
+static const struct irq_domain_ops flipper_irq_domain_ops = {
 	.map = flipper_pic_map,
 	.match = flipper_pic_match,
 };

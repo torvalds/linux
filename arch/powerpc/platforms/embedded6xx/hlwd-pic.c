@@ -100,7 +100,7 @@ static int hlwd_pic_map(struct irq_domain *h, unsigned int virq,
 	return 0;
 }
 
-static struct irq_domain_ops hlwd_irq_domain_ops = {
+static const struct irq_domain_ops hlwd_irq_domain_ops = {
 	.map = hlwd_pic_map,
 };
 

@@ -136,7 +136,7 @@ static int media5200_irq_xlate(struct irq_domain *h, struct device_node *ct,
 	return 0;
 }
 
-static struct irq_domain_ops media5200_irq_ops = {
+static const struct irq_domain_ops media5200_irq_ops = {
 	.map = media5200_irq_map,
 	.xlate = media5200_irq_xlate,
 };

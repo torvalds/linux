@@ -137,7 +137,7 @@ cpld_pic_host_map(struct irq_domain *h, unsigned int virq,
 	return 0;
 }
 
-static struct irq_domain_ops cpld_pic_host_ops = {
+static const struct irq_domain_ops cpld_pic_host_ops = {
 	.match = cpld_pic_host_match,
 	.map = cpld_pic_host_map,
 };
