@@ -78,7 +78,7 @@ static inline void LOAD_OP(int I, u64 *W, const u8 *input)
 
 static inline void BLEND_OP(int I, u64 *W)
 {
-	W[I % 16] += s1(W[(I-2) % 16]) + W[(I-7) % 16] + s0(W[(I-15) % 16]);
+	W[I & 15] += s1(W[(I-2) & 15]) + W[(I-7) & 15] + s0(W[(I-15) & 15]);
 }
 
 static void
@@ -105,7 +105,7 @@ sha512_transform(u64 *state, const u8 *input)
 
 #define SHA512_16_79(i, a, b, c, d, e, f, g, h)			\
 	BLEND_OP(i, W);						\
-	t1 = h + e1(e) + Ch(e, f, g) + sha512_K[i] + W[(i)%16];	\
+	t1 = h + e1(e) + Ch(e, f, g) + sha512_K[i] + W[(i)&15];	\
 	t2 = e0(a) + Maj(a, b, c);				\
 	d += t1;						\
 	h = t1 + t2
