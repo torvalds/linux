@@ -24,24 +24,6 @@ static inline u32 sdram_selfrefresh_enable(void)
 #define wait_for_interrupt_enable()		asm volatile ("mcr p15, 0, %0, c7, c0, 4" \
 								: : "r" (0))
 
-#elif defined(CONFIG_ARCH_AT91CAP9)
-#include <mach/at91sam9_ddrsdr.h>
-
-
-static inline u32 sdram_selfrefresh_enable(void)
-{
-	u32 saved_lpr, lpr;
-
-	saved_lpr = at91_ramc_read(0, AT91CAP9_DDRSDRC_LPR);
-
-	lpr = saved_lpr & ~AT91_DDRSDRC_LPCB;
-	at91_ramc_write(0, AT91CAP9_DDRSDRC_LPR, lpr | AT91_DDRSDRC_LPCB_SELF_REFRESH);
-	return saved_lpr;
-}
-
-#define sdram_selfrefresh_disable(saved_lpr)	at91_ramc_write(0, AT91CAP9_DDRSDRC_LPR, saved_lpr)
-#define wait_for_interrupt_enable()		cpu_do_idle()
-
 #elif defined(CONFIG_ARCH_AT91SAM9G45)
 #include <mach/at91sam9_ddrsdr.h>
 

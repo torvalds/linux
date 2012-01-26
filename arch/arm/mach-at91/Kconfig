@@ -102,15 +102,6 @@ config ARCH_AT91SAM9G45
 	select HAVE_AT91_DBGU1
 	select AT91_SAM9G45_RESET
 
-config ARCH_AT91CAP9
-	bool "AT91CAP9"
-	select CPU_ARM926T
-	select GENERIC_CLOCKEVENTS
-	select HAVE_FB_ATMEL
-	select HAVE_NET_MACB
-	select HAVE_AT91_DBGU1
-	select AT91_SAM9G45_RESET
-
 config ARCH_AT91X40
 	bool "AT91x40"
 	select ARCH_USES_GETTIMEOFFSET
@@ -447,21 +438,6 @@ endif
 
 # ----------------------------------------------------------
 
-if ARCH_AT91CAP9
-
-comment "AT91CAP9 Board Type"
-
-config MACH_AT91CAP9ADK
-	bool "Atmel AT91CAP9A-DK Evaluation Kit"
-	select HAVE_AT91_DATAFLASH_CARD
-	help
-	  Select this if you are using Atmel's AT91CAP9A-DK Evaluation Kit.
-	  <http://www.atmel.com/dyn/products/tools_card.asp?tool_id=4138>
-
-endif
-
-# ----------------------------------------------------------
-
 if ARCH_AT91X40
 
 comment "AT91X40 Board Type"
@@ -544,7 +520,7 @@ config AT91_EARLY_DBGU0
 	depends on HAVE_AT91_DBGU0
 
 config AT91_EARLY_DBGU1
-	bool "DBGU on 9263, 9g45 and cap9"
+	bool "DBGU on 9263 and 9g45"
 	depends on HAVE_AT91_DBGU1
 
 config AT91_EARLY_USART0
