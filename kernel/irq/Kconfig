@@ -13,7 +13,7 @@ config GENERIC_HARDIRQS
 # Options selectable by the architecture code
 
 # Make sparse irq Kconfig switch below available
-config HAVE_SPARSE_IRQ
+config MAY_HAVE_SPARSE_IRQ
        bool
 
 # Enable the generic irq autoprobe mechanism
@@ -61,8 +61,7 @@ config IRQ_FORCED_THREADING
        bool
 
 config SPARSE_IRQ
-	bool "Support sparse irq numbering"
-	depends on HAVE_SPARSE_IRQ
+	bool "Support sparse irq numbering" if MAY_HAVE_SPARSE_IRQ
 	---help---
 
 	  Sparse irq numbering is useful for distro kernels that want
