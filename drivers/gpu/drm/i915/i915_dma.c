@@ -1196,6 +1196,7 @@ static int i915_load_gem_init(struct drm_device *dev)
 	/* Basic memrange allocator for stolen space */
 	drm_mm_init(&dev_priv->mm.stolen, 0, prealloc_size);
 
+	mutex_lock(&dev->struct_mutex);
 	if (i915_enable_ppgtt && HAS_ALIASING_PPGTT(dev)) {
 		/* PPGTT pdes are stolen from global gtt ptes, so shrink the
 		 * aperture accordingly when using aliasing ppgtt. */
@@ -1222,7 +1223,6 @@ static int i915_load_gem_init(struct drm_device *dev)
 		i915_gem_do_init(dev, 0, mappable_size, gtt_size - PAGE_SIZE);
 	}
 
-	mutex_lock(&dev->struct_mutex);
 	ret = i915_gem_init_hw(dev);
 	mutex_unlock(&dev->struct_mutex);
 	if (ret) {
