@@ -495,15 +495,12 @@ static irqreturn_t ab8500_debug_handler(int irq, void *data)
 	return IRQ_HANDLED;
 }
 
-static int ab8500_registers_print(struct seq_file *s, void *p)
+/* Prints to seq_file or log_buf */
+static int ab8500_registers_print(struct device *dev, u32 bank,
+				struct seq_file *s)
 {
-	struct device *dev = s->private;
 	unsigned int i;
-	u32 bank = debug_bank;
 
-	seq_printf(s, AB8500_NAME_STRING " register values:\n");
-
-	seq_printf(s, " bank %u:\n", bank);
 	for (i = 0; i < debug_ranges[bank].num_ranges; i++) {
 		u32 reg;
 
@@ -520,26 +517,91 @@ static int ab8500_registers_print(struct seq_file *s, void *p)
 				return err;
 			}
 
-			err = seq_printf(s, "  [%u/0x%02X]: 0x%02X\n", bank,
-				reg, value);
-			if (err < 0) {
-				dev_err(dev, "seq_printf overflow\n");
-				/* Error is not returned here since
-				 * the output is wanted in any case */
-				return 0;
+			if (s) {
+				err = seq_printf(s, "  [%u/0x%02X]: 0x%02X\n",
+					bank, reg, value);
+				if (err < 0) {
+					dev_err(dev,
+					"seq_printf overflow bank=%d reg=%d\n",
+						bank, reg);
+					/* Error is not returned here since
+					 * the output is wanted in any case */
+					return 0;
+				}
+			} else {
+				printk(KERN_INFO" [%u/0x%02X]: 0x%02X\n", bank,
+					reg, value);
 			}
 		}
 	}
 	return 0;
 }
 
+static int ab8500_print_bank_registers(struct seq_file *s, void *p)
+{
+	struct device *dev = s->private;
+	u32 bank = debug_bank;
+
+	seq_printf(s, AB8500_NAME_STRING " register values:\n");
+
+	seq_printf(s, " bank %u:\n", bank);
+
+	ab8500_registers_print(dev, bank, s);
+	return 0;
+}
+
 static int ab8500_registers_open(struct inode *inode, struct file *file)
 {
-	return single_open(file, ab8500_registers_print, inode->i_private);
+	return single_open(file, ab8500_print_bank_registers, inode->i_private);
 }
 
 static const struct file_operations ab8500_registers_fops = {
 	.open = ab8500_registers_open,
+	.read = seq_read,
+	.llseek = seq_lseek,
+	.release = single_release,
+	.owner = THIS_MODULE,
+};
+
+static int ab8500_print_all_banks(struct seq_file *s, void *p)
+{
+	struct device *dev = s->private;
+	unsigned int i;
+	int err;
+
+	seq_printf(s, AB8500_NAME_STRING " register values:\n");
+
+	for (i = 1; i < AB8500_NUM_BANKS; i++) {
+		err = seq_printf(s, " bank %u:\n", i);
+		if (err < 0)
+			dev_err(dev, "seq_printf overflow, bank=%d\n", i);
+
+		ab8500_registers_print(dev, i, s);
+	}
+	return 0;
+}
+
+static int ab8500_all_banks_open(struct inode *inode, struct file *file)
+{
+	struct seq_file *s;
+	int err;
+
+	err = single_open(file, ab8500_print_all_banks, inode->i_private);
+	if (!err) {
+		/* Default buf size in seq_read is not enough */
+		s = (struct seq_file *)file->private_data;
+		s->size = (PAGE_SIZE * 2);
+		s->buf = kmalloc(s->size, GFP_KERNEL);
+		if (!s->buf) {
+			single_release(inode, file);
+			err = -ENOMEM;
+		}
+	}
+	return err;
+}
+
+static const struct file_operations ab8500_all_banks_fops = {
+	.open = ab8500_all_banks_open,
 	.read = seq_read,
 	.llseek = seq_lseek,
 	.release = single_release,
@@ -1474,6 +1536,11 @@ static int ab8500_debug_probe(struct platform_device *plf)
 
 	file = debugfs_create_file("all-bank-registers", S_IRUGO,
 	    ab8500_dir, &plf->dev, &ab8500_registers_fops);
+	if (!file)
+		goto err;
+
+	file = debugfs_create_file("all-banks", S_IRUGO,
+	    ab8500_dir, &plf->dev, &ab8500_all_banks_fops);
 	if (!file)
 		goto err;
 
