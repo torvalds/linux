@@ -145,13 +145,13 @@ extern void __add_wrong_size(void)
 
 #ifdef __HAVE_ARCH_CMPXCHG
 #define cmpxchg(ptr, old, new)						\
-	__cmpxchg((ptr), (old), (new), sizeof(*ptr))
+	__cmpxchg(ptr, old, new, sizeof(*(ptr)))
 
 #define sync_cmpxchg(ptr, old, new)					\
-	__sync_cmpxchg((ptr), (old), (new), sizeof(*ptr))
+	__sync_cmpxchg(ptr, old, new, sizeof(*(ptr)))
 
 #define cmpxchg_local(ptr, old, new)					\
-	__cmpxchg_local((ptr), (old), (new), sizeof(*ptr))
+	__cmpxchg_local(ptr, old, new, sizeof(*(ptr)))
 #endif
 
 /*
