@@ -1272,6 +1272,21 @@ int ieee80211_reconfig(struct ieee80211_local *local)
 	ieee80211_recalc_ps(local, -1);
 
 	/*
+	 * The sta might be in psm against the ap (e.g. because
+	 * this was the state before a hw restart), so we
+	 * explicitly send a null packet in order to make sure
+	 * it'll sync against the ap (and get out of psm).
+	 */
+	if (!(local->hw.conf.flags & IEEE80211_CONF_PS)) {
+		list_for_each_entry(sdata, &local->interfaces, list) {
+			if (sdata->vif.type != NL80211_IFTYPE_STATION)
+				continue;
+
+			ieee80211_send_nullfunc(local, sdata, 0);
+		}
+	}
+
+	/*
 	 * Clear the WLAN_STA_BLOCK_BA flag so new aggregation
 	 * sessions can be established after a resume.
 	 *
