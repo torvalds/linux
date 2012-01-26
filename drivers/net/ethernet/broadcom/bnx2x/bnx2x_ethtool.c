@@ -175,7 +175,11 @@ static const struct {
 	{ STATS_OFFSET32(total_tpa_aggregated_frames_hi),
 			8, STATS_FLAGS_FUNC, "tpa_aggregated_frames"},
 	{ STATS_OFFSET32(total_tpa_bytes_hi),
-			8, STATS_FLAGS_FUNC, "tpa_bytes"}
+			8, STATS_FLAGS_FUNC, "tpa_bytes"},
+	{ STATS_OFFSET32(recoverable_error),
+			4, STATS_FLAGS_FUNC, "recoverable_errors" },
+	{ STATS_OFFSET32(unrecoverable_error),
+			4, STATS_FLAGS_FUNC, "unrecoverable_errors" },
 };
 
 #define BNX2X_NUM_STATS		ARRAY_SIZE(bnx2x_stats_arr)
@@ -1388,7 +1392,8 @@ static int bnx2x_set_ringparam(struct net_device *dev,
 	struct bnx2x *bp = netdev_priv(dev);
 
 	if (bp->recovery_state != BNX2X_RECOVERY_DONE) {
-		pr_err("Handling parity error recovery. Try again later\n");
+		netdev_err(dev, "Handling parity error recovery. "
+				"Try again later\n");
 		return -EAGAIN;
 	}
 
@@ -2042,7 +2047,8 @@ static void bnx2x_self_test(struct net_device *dev,
 	struct bnx2x *bp = netdev_priv(dev);
 	u8 is_serdes;
 	if (bp->recovery_state != BNX2X_RECOVERY_DONE) {
-		pr_err("Handling parity error recovery. Try again later\n");
+		netdev_err(bp->dev, "Handling parity error recovery. "
+				    "Try again later\n");
 		etest->flags |= ETH_TEST_FL_FAILED;
 		return;
 	}

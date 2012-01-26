@@ -784,6 +784,7 @@ void bnx2x_panic_dump(struct bnx2x *bp)
 #endif
 
 	bp->stats_state = STATS_STATE_DISABLED;
+	bp->eth_stats.unrecoverable_error++;
 	DP(BNX2X_MSG_STATS, "stats_state - DISABLED\n");
 
 	BNX2X_ERR("begin crash dump -----------------\n");
@@ -5441,6 +5442,7 @@ static void bnx2x_init_eth_fp(struct bnx2x *bp, int fp_idx)
 
 	/* init shortcut */
 	fp->ustorm_rx_prods_offset = bnx2x_rx_ustorm_prods_offset(fp);
+
 	/* Setup SB indicies */
 	fp->rx_cons_sb = BNX2X_RX_SB_INDEX;
 
@@ -8563,6 +8565,7 @@ static inline void bnx2x_recovery_failed(struct bnx2x *bp)
 static void bnx2x_parity_recover(struct bnx2x *bp)
 {
 	bool global = false;
+	u32 error_recovered, error_unrecovered;
 	bool is_parity;
 
 	DP(NETIF_MSG_HW, "Handling parity\n");
@@ -8678,9 +8681,14 @@ static void bnx2x_parity_recover(struct bnx2x *bp)
 						return;
 					}
 
+					error_recovered =
+					  bp->eth_stats.recoverable_error;
+					error_unrecovered =
+					  bp->eth_stats.unrecoverable_error;
 					bp->recovery_state =
 						BNX2X_RECOVERY_NIC_LOADING;
 					if (bnx2x_nic_load(bp, LOAD_NORMAL)) {
+						error_unrecovered++;
 						netdev_err(bp->dev,
 							   "Recovery failed. "
 							   "Power cycle "
@@ -8694,8 +8702,13 @@ static void bnx2x_parity_recover(struct bnx2x *bp)
 					} else {
 						bp->recovery_state =
 							BNX2X_RECOVERY_DONE;
+						error_recovered++;
 						smp_mb();
 					}
+					bp->eth_stats.recoverable_error =
+						error_recovered;
+					bp->eth_stats.unrecoverable_error =
+						error_unrecovered;
 
 					return;
 				}

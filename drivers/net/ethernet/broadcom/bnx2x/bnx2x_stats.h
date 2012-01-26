@@ -199,6 +199,10 @@ struct bnx2x_eth_stats {
 	u32 pfc_frames_received_lo;
 	u32 pfc_frames_sent_hi;
 	u32 pfc_frames_sent_lo;
+
+	/* Recovery */
+	u32 recoverable_error;
+	u32 unrecoverable_error;
 };
 
 
