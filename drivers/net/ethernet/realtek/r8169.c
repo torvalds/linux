@@ -5353,34 +5353,6 @@ static void rtl8169_wait_for_quiescence(struct net_device *dev)
 	napi_enable(&tp->napi);
 }
 
-static void rtl8169_reinit_task(struct work_struct *work)
-{
-	struct rtl8169_private *tp =
-		container_of(work, struct rtl8169_private, task.work);
-	struct net_device *dev = tp->dev;
-	int ret;
-
-	rtnl_lock();
-
-	if (!netif_running(dev))
-		goto out_unlock;
-
-	rtl8169_wait_for_quiescence(dev);
-	rtl8169_close(dev);
-
-	ret = rtl8169_open(dev);
-	if (unlikely(ret < 0)) {
-		if (net_ratelimit())
-			netif_err(tp, drv, dev,
-				  "reinit failure (status = %d). Rescheduling\n",
-				  ret);
-		rtl8169_schedule_work(dev, rtl8169_reinit_task);
-	}
-
-out_unlock:
-	rtnl_unlock();
-}
-
 static void rtl8169_reset_task(struct work_struct *work)
 {
 	struct rtl8169_private *tp =
@@ -5616,7 +5588,7 @@ static void rtl8169_pcierr_interrupt(struct net_device *dev)
 
 	rtl8169_hw_reset(tp);
 
-	rtl8169_schedule_work(dev, rtl8169_reinit_task);
+	rtl8169_schedule_work(dev, rtl8169_reset_task);
 }
 
 static void rtl8169_tx_interrupt(struct net_device *dev,
@@ -5923,8 +5895,8 @@ static void rtl8169_down(struct net_device *dev)
 	rtl8169_hw_reset(tp);
 	/*
 	 * At this point device interrupts can not be enabled in any function,
-	 * as netif_running is not true (rtl8169_interrupt, rtl8169_reset_task,
-	 * rtl8169_reinit_task) and napi is disabled (rtl8169_poll).
+	 * as netif_running is not true (rtl8169_interrupt, rtl8169_reset_task)
+	 * and napi is disabled (rtl8169_poll).
 	 */
 	rtl8169_rx_missed(dev, ioaddr);
 
