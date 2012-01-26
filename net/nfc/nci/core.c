@@ -444,7 +444,7 @@ static int nci_activate_target(struct nfc_dev *nfc_dev, __u32 target_idx,
 {
 	struct nci_dev *ndev = nfc_get_drvdata(nfc_dev);
 	struct nci_rf_discover_select_param param;
-	struct nfc_target *target = 0;
+	struct nfc_target *target = NULL;
 	int i;
 	int rc = 0;
 
