@@ -70,13 +70,6 @@
 
 #define PASS_LIMIT	256
 
-/*
- * We default to IRQ0 for the "no irq" hack.   Some
- * machine types want others as well - they're free
- * to redefine this in their header file.
- */
-#define is_real_interrupt(irq)	((irq) != 0)
-
 #define BASE_BAUD	115200
 
 /* Standard COM flags */
@@ -640,7 +633,7 @@ static int m32r_sio_startup(struct uart_port *port)
 	 * hardware interrupt, we use a timer-based system.  The original
 	 * driver used to do this with IRQ0.
 	 */
-	if (!is_real_interrupt(up->port.irq)) {
+	if (!up->port.irq) {
 		unsigned int timeout = up->port.timeout;
 
 		timeout = timeout > 6 ? (timeout / 2 - 2) : 1;
@@ -687,7 +680,7 @@ static void m32r_sio_shutdown(struct uart_port *port)
 
 	sio_init();
 
-	if (!is_real_interrupt(up->port.irq))
+	if (!up->port.irq)
 		del_timer_sync(&up->timer);
 	else
 		serial_unlink_irq_chain(up);

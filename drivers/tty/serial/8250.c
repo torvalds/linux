@@ -86,13 +86,6 @@ static unsigned int skip_txen_test; /* force skip of txen test at init time */
 #define BOTH_EMPTY 	(UART_LSR_TEMT | UART_LSR_THRE)
 
 
-/*
- * We default to IRQ0 for the "no irq" hack.   Some
- * machine types want others as well - they're free
- * to redefine this in their header file.
- */
-#define is_real_interrupt(irq)	((irq) != 0)
-
 #ifdef CONFIG_SERIAL_8250_DETECT_IRQ
 #define CONFIG_SERIAL_DETECT_IRQ 1
 #endif
@@ -1750,7 +1743,7 @@ static void serial8250_backup_timeout(unsigned long data)
 	 * Must disable interrupts or else we risk racing with the interrupt
 	 * based handler.
 	 */
-	if (is_real_interrupt(up->port.irq)) {
+	if (up->port.irq) {
 		ier = serial_in(up, UART_IER);
 		serial_out(up, UART_IER, 0);
 	}
@@ -1775,7 +1768,7 @@ static void serial8250_backup_timeout(unsigned long data)
 	if (!(iir & UART_IIR_NO_INT))
 		serial8250_tx_chars(up);
 
-	if (is_real_interrupt(up->port.irq))
+	if (up->port.irq)
 		serial_out(up, UART_IER, ier);
 
 	spin_unlock_irqrestore(&up->port.lock, flags);
@@ -2028,7 +2021,7 @@ static int serial8250_startup(struct uart_port *port)
 		serial_outp(up, UART_LCR, 0);
 	}
 
-	if (is_real_interrupt(up->port.irq)) {
+	if (up->port.irq) {
 		unsigned char iir1;
 		/*
 		 * Test for UARTs that do not reassert THRE when the
@@ -2083,7 +2076,7 @@ static int serial8250_startup(struct uart_port *port)
 	 * hardware interrupt, we use a timer-based system.  The original
 	 * driver used to do this with IRQ0.
 	 */
-	if (!is_real_interrupt(up->port.irq)) {
+	if (!up->port.irq) {
 		up->timer.data = (unsigned long)up;
 		mod_timer(&up->timer, jiffies + uart_poll_timeout(port));
 	} else {
@@ -2099,13 +2092,13 @@ static int serial8250_startup(struct uart_port *port)
 
 	spin_lock_irqsave(&up->port.lock, flags);
 	if (up->port.flags & UPF_FOURPORT) {
-		if (!is_real_interrupt(up->port.irq))
+		if (!up->port.irq)
 			up->port.mctrl |= TIOCM_OUT1;
 	} else
 		/*
 		 * Most PC uarts need OUT2 raised to enable interrupts.
 		 */
-		if (is_real_interrupt(up->port.irq))
+		if (up->port.irq)
 			up->port.mctrl |= TIOCM_OUT2;
 
 	serial8250_set_mctrl(&up->port, up->port.mctrl);
@@ -2223,7 +2216,7 @@ static void serial8250_shutdown(struct uart_port *port)
 
 	del_timer_sync(&up->timer);
 	up->timer.function = serial8250_timeout;
-	if (is_real_interrupt(up->port.irq))
+	if (up->port.irq)
 		serial_unlink_irq_chain(up);
 }
 

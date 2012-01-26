@@ -1237,7 +1237,7 @@ static int __init hvsi_console_init(void)
 		hp->state = HVSI_CLOSED;
 		hp->vtermno = *vtermno;
 		hp->virq = irq_create_mapping(NULL, irq[0]);
-		if (hp->virq == NO_IRQ) {
+		if (hp->virq == 0) {
 			printk(KERN_ERR "%s: couldn't create irq mapping for 0x%x\n",
 				__func__, irq[0]);
 			continue;

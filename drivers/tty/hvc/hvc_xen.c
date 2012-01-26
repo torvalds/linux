@@ -176,7 +176,7 @@ static int __init xen_hvc_init(void)
 		xencons_irq = bind_evtchn_to_irq(xen_start_info->console.domU.evtchn);
 	}
 	if (xencons_irq < 0)
-		xencons_irq = 0; /* NO_IRQ */
+		xencons_irq = 0;
 	else
 		irq_set_noprobe(xencons_irq);
 

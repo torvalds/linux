@@ -499,7 +499,7 @@ static int __init mux_probe(struct parisc_device *dev)
 		port->membase	= ioremap_nocache(port->mapbase, MUX_LINE_OFFSET);
 		port->iotype	= UPIO_MEM;
 		port->type	= PORT_MUX;
-		port->irq	= NO_IRQ;
+		port->irq	= 0;
 		port->uartclk	= 0;
 		port->fifosize	= MUX_FIFO_SIZE;
 		port->ops	= &mux_pops;
