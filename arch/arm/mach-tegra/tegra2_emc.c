@@ -284,16 +284,16 @@ static struct tegra_emc_pdata __devinit *tegra_emc_fill_pdata(struct platform_de
 	pdata->tables = devm_kzalloc(&pdev->dev, sizeof(*pdata->tables),
 				     GFP_KERNEL);
 
-	pdata->tables[0].rate = clk_get_rate(c);
+	pdata->tables[0].rate = clk_get_rate(c) / 2 / 1000;
 
 	for (i = 0; i < TEGRA_EMC_NUM_REGS; i++)
 		pdata->tables[0].regs[i] = emc_readl(emc_reg_addr[i]);
 
 	pdata->num_tables = 1;
 
-	khz = pdata->tables[0].rate / 1000;
+	khz = pdata->tables[0].rate;
 	dev_info(&pdev->dev, "no tables provided, using %ld kHz emc, "
-		 "%ld kHz mem\n", khz, khz/2);
+		 "%ld kHz mem\n", khz * 2, khz);
 
 	return pdata;
 }
