@@ -1354,8 +1354,9 @@ static struct platform_driver omap_mcbsp_driver = {
 	},
 };
 
-int __init omap_mcbsp_init(void)
-{
-	/* Register the McBSP driver */
-	return platform_driver_register(&omap_mcbsp_driver);
-}
+module_platform_driver(omap_mcbsp_driver);
+
+MODULE_AUTHOR("Samuel Ortiz <samuel.ortiz@nokia.com>");
+MODULE_DESCRIPTION("OMAP McBSP core driver");
+MODULE_LICENSE("GPL");
+MODULE_ALIAS("platform:omap-mcbsp");

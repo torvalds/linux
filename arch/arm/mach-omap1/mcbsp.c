@@ -449,7 +449,7 @@ static int __init omap1_mcbsp_init(void)
 					omap16xx_mcbsp_pdata,
 					OMAP16XX_MCBSP_COUNT);
 
-	return omap_mcbsp_init();
+	return 0;
 }
 
 arch_initcall(omap1_mcbsp_init);

@@ -360,7 +360,6 @@ struct omap_mcbsp_dev_attr {
 extern struct omap_mcbsp **mcbsp_ptr;
 extern int omap_mcbsp_count;
 
-int omap_mcbsp_init(void);
 void omap_mcbsp_config(unsigned int id, const struct omap_mcbsp_reg_cfg * config);
 void omap_mcbsp_set_tx_threshold(unsigned int id, u16 threshold);
 void omap_mcbsp_set_rx_threshold(unsigned int id, u16 threshold);

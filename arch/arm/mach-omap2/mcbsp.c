@@ -193,6 +193,6 @@ static int __init omap2_mcbsp_init(void)
 	if (!mcbsp_ptr)
 		return -ENOMEM;
 
-	return omap_mcbsp_init();
+	return 0;
 }
 arch_initcall(omap2_mcbsp_init);
