@@ -584,6 +584,7 @@ void sa1111_set_sleep_io(struct sa1111_dev *sadev, unsigned int bits, unsigned i
 
 struct sa1111_platform_data {
 	int	irq_base;	/* base for cascaded on-chip IRQs */
+	unsigned disable_devs;
 	void	*data;
 	int	(*enable)(void *, unsigned);
 	void	(*disable)(void *, unsigned);

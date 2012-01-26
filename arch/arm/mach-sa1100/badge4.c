@@ -66,6 +66,7 @@ static void badge4_sa1111_disable(void *data, unsigned devid)
 
 static struct sa1111_platform_data sa1111_info = {
 	.irq_base	= IRQ_BOARD_END,
+	.disable_devs	= SA1111_DEVID_PS2_MSE,
 	.enable		= badge4_sa1111_enable,
 	.disable	= badge4_sa1111_disable,
 };

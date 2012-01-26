@@ -242,6 +242,7 @@ static struct resource sa1111_resources[] = {
 
 static struct sa1111_platform_data sa1111_info = {
 	.irq_base	= IRQ_BOARD_END,
+	.disable_devs	= SA1111_DEVID_PS2_MSE,
 };
 
 static u64 sa1111_dmamask = 0xffffffffUL;

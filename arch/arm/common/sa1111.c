@@ -833,11 +833,8 @@ __sa1111_probe(struct device *me, struct resource *mem, int irq)
 	g_sa1111 = sachip;
 
 	has_devs = ~0;
-	if (machine_is_assabet() || machine_is_jornada720() ||
-	    machine_is_badge4())
-		has_devs &= ~SA1111_DEVID_PS2_MSE;
-	else
-		has_devs &= ~SA1111_DEVID_SAC;
+	if (pd)
+		has_devs &= ~pd->disable_devs;
 
 	for (i = 0; i < ARRAY_SIZE(sa1111_devices); i++)
 		if (sa1111_devices[i].devid & has_devs)
