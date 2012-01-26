@@ -71,7 +71,7 @@ static inline int is_dma_buf_file(struct file *file)
  * ops, or error in allocating struct dma_buf, will return negative error.
  *
  */
-struct dma_buf *dma_buf_export(void *priv, struct dma_buf_ops *ops,
+struct dma_buf *dma_buf_export(void *priv, const struct dma_buf_ops *ops,
 				size_t size, int flags)
 {
 	struct dma_buf *dmabuf;
