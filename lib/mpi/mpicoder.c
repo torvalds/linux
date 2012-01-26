@@ -79,7 +79,8 @@ MPI do_encode_md(const void *sha_buffer, unsigned nbits)
 	}
 
 	a = mpi_alloc((nframe + BYTES_PER_MPI_LIMB - 1) / BYTES_PER_MPI_LIMB);
-	mpi_set_buffer(a, frame, nframe, 0);
+	if (a)
+		mpi_set_buffer(a, frame, nframe, 0);
 	kfree(frame);
 
 	return a;
