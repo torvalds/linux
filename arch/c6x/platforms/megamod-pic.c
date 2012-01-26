@@ -148,7 +148,7 @@ static int megamod_xlate(struct irq_domain *h, struct device_node *ct,
 	return 0;
 }
 
-static struct irq_domain_ops megamod_domain_ops = {
+static const struct irq_domain_ops megamod_domain_ops = {
 	.map	= megamod_map,
 	.xlate	= megamod_xlate,
 };

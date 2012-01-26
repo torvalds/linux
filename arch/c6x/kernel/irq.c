@@ -86,7 +86,7 @@ static int core_domain_map(struct irq_domain *h, unsigned int virq,
 	return 0;
 }
 
-static struct irq_domain_ops core_domain_ops = {
+static const struct irq_domain_ops core_domain_ops = {
 	.map = core_domain_map,
 };
 
