@@ -107,6 +107,7 @@ void iwlagn_config_ht40(struct ieee80211_conf *conf,
 int iwlagn_rx_calib_result(struct iwl_priv *priv,
 			    struct iwl_rx_mem_buffer *rxb,
 			    struct iwl_device_cmd *cmd);
+void iwl_init_context(struct iwl_priv *priv, u32 ucode_flags);
 
 /* lib */
 int iwlagn_send_tx_power(struct iwl_priv *priv);

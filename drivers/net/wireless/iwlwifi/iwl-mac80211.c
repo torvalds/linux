@@ -35,7 +35,6 @@
 #include <linux/sched.h>
 #include <linux/skbuff.h>
 #include <linux/netdevice.h>
-#include <linux/firmware.h>
 #include <linux/etherdevice.h>
 #include <linux/if_arp.h>
 
@@ -43,6 +42,7 @@
 
 #include <asm/div64.h>
 
+#include "iwl-ucode.h"
 #include "iwl-eeprom.h"
 #include "iwl-wifi.h"
 #include "iwl-dev.h"
