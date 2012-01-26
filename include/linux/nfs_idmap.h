@@ -82,23 +82,8 @@ static inline void nfs_idmap_quit(void)
 {}
 #endif
 
-#ifdef CONFIG_NFS_USE_NEW_IDMAPPER
-
-static inline int nfs_idmap_new(struct nfs_client *clp)
-{
-	return 0;
-}
-
-static inline void nfs_idmap_delete(struct nfs_client *clp)
-{
-}
-
-#else /* CONFIG_NFS_USE_NEW_IDMAPPER not set */
-
 int nfs_idmap_new(struct nfs_client *);
 void nfs_idmap_delete(struct nfs_client *);
-
-#endif /* CONFIG_NFS_USE_NEW_IDMAPPER */
 
 void nfs_fattr_init_names(struct nfs_fattr *fattr,
 		struct nfs4_string *owner_name,
