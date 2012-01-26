@@ -4,13 +4,21 @@ ID Mapper
 =========
 Id mapper is used by NFS to translate user and group ids into names, and to
 translate user and group names into ids.  Part of this translation involves
-performing an upcall to userspace to request the information.  Id mapper will
-user request-key to perform this upcall and cache the result.  The program
-/usr/sbin/nfs.idmap should be called by request-key, and will perform the
-translation and initialize a key with the resulting information.
+performing an upcall to userspace to request the information.  There are two
+ways NFS could obtain this information: placing a call to /sbin/request-key
+or by placing a call to the rpc.idmap daemon.
 
- NFS_USE_NEW_IDMAPPER must be selected when configuring the kernel to use this
- feature.
+NFS will attempt to call /sbin/request-key first.  If this succeeds, the
+result will be cached using the generic request-key cache.  This call should
+only fail if /etc/request-key.conf is not configured for the id_resolver key
+type, see the "Configuring" section below if you wish to use the request-key
+method.
+
+If the call to /sbin/request-key fails (if /etc/request-key.conf is not
+configured with the id_resolver key type), then the idmapper will ask the
+legacy rpc.idmap daemon for the id mapping.  This result will be stored
+in a custom NFS idmap cache.
+
 
 ===========
 Configuring
