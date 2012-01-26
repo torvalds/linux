@@ -28,7 +28,6 @@
 #include <asm/memory.h>
 #include <asm/mach/map.h>
 #include <mach/common.h>
-#include <mach/board-mx31ads.h>
 #include <mach/iomux-mx3.h>
 
 #ifdef CONFIG_MACH_MX31ADS_WM1133_EV1
@@ -38,6 +37,9 @@
 #endif
 
 #include "devices-imx31.h"
+
+/* Base address of PBC controller */
+#define PBC_BASE_ADDRESS	MX31_CS4_BASE_ADDR_VIRT
 
 /* PBC Board interrupt status register */
 #define PBC_INTSTATUS           0x000016
@@ -62,12 +64,17 @@
 #define PBC_INTMASK_CLEAR_REG	(PBC_INTMASK_CLEAR + PBC_BASE_ADDRESS)
 #define EXPIO_PARENT_INT	IOMUX_TO_IRQ(MX31_PIN_GPIO1_4)
 
+#define MXC_EXP_IO_BASE		MXC_BOARD_IRQ_START
 #define MXC_IRQ_TO_EXPIO(irq)	((irq) - MXC_EXP_IO_BASE)
 
 #define EXPIO_INT_XUART_INTA	(MXC_EXP_IO_BASE + 10)
 #define EXPIO_INT_XUART_INTB	(MXC_EXP_IO_BASE + 11)
 
 #define MXC_MAX_EXP_IO_LINES	16
+
+/* CS8900 */
+#define EXPIO_INT_ENET_INT	(MXC_EXP_IO_BASE + 8)
+#define CS4_CS8900_MMIO_START	0x20000
 
 /*
  * The serial port definition structure.
@@ -101,9 +108,27 @@ static struct platform_device serial_device = {
 	},
 };
 
+static const struct resource mx31ads_cs8900_resources[] __initconst = {
+	DEFINE_RES_MEM(MX31_CS4_BASE_ADDR + CS4_CS8900_MMIO_START, SZ_64K),
+	DEFINE_RES_IRQ(EXPIO_INT_ENET_INT),
+};
+
+static const struct platform_device_info mx31ads_cs8900_devinfo __initconst = {
+	.name = "cs89x0",
+	.id = 0,
+	.res = mx31ads_cs8900_resources,
+	.num_res = ARRAY_SIZE(mx31ads_cs8900_resources),
+};
+
 static int __init mxc_init_extuart(void)
 {
 	return platform_device_register(&serial_device);
+}
+
+static void __init mxc_init_ext_ethernet(void)
+{
+	platform_device_register_full(
+		(struct platform_device_info *)&mx31ads_cs8900_devinfo);
 }
 
 static const struct imxuart_platform_data uart_pdata __initconst = {
@@ -492,12 +517,15 @@ static void __init mxc_init_audio(void)
 	mxc_iomux_setup_multiple_pins(ssi_pins, ARRAY_SIZE(ssi_pins), "ssi");
 }
 
-/* static mappings */
+/*
+ * Static mappings, starting from the CS4 start address up to the start address
+ * of the CS8900.
+ */
 static struct map_desc mx31ads_io_desc[] __initdata = {
 	{
 		.virtual	= MX31_CS4_BASE_ADDR_VIRT,
 		.pfn		= __phys_to_pfn(MX31_CS4_BASE_ADDR),
-		.length		= MX31_CS4_SIZE / 2,
+		.length		= CS4_CS8900_MMIO_START,
 		.type		= MT_DEVICE
 	},
 };
@@ -522,6 +550,7 @@ static void __init mx31ads_init(void)
 	mxc_init_imx_uart();
 	mxc_init_i2c();
 	mxc_init_audio();
+	mxc_init_ext_ethernet();
 }
 
 static void __init mx31ads_timer_init(void)
