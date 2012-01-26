@@ -3089,7 +3089,7 @@ static void wm8958_default_micdet(u16 status, void *data)
 	}
 
 
-	if (wm8994->mic_detecting && status & 0x4) {
+	if (wm8994->mic_detecting && status & 0xfc) {
 		dev_dbg(codec->dev, "Detected headphone\n");
 		wm8994->mic_detecting = false;
 
