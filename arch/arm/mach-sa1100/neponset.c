@@ -27,6 +27,8 @@
 #define NEP_IRQ_SA1111	2
 #define NEP_IRQ_NR	3
 
+extern void sa1110_mb_disable(void);
+
 struct neponset_drvdata {
 	struct platform_device *sa1111;
 	struct platform_device *smc91x;
@@ -222,6 +224,13 @@ static int __devinit neponset_probe(struct platform_device *dev)
 		goto err_alloc;
 	}
 
+	if (WHOAMI != 0x11) {
+		dev_warn(&dev->dev, "Neponset board detected, but wrong ID: %02x\n",
+			 WHOAMI);
+		ret = -ENODEV;
+		goto err_alloc;
+	}
+
 	d = kzalloc(sizeof(*d), GFP_KERNEL);
 	if (!d) {
 		ret = -ENOMEM;
@@ -263,6 +272,9 @@ static int __devinit neponset_probe(struct platform_device *dev)
 		 d->irq_base, d->irq_base + NEP_IRQ_NR - 1);
 
 	sa1100_register_uart_fns(&neponset_port_fns);
+
+	/* Ensure that the memory bus request/grant signals are setup */
+	sa1110_mb_disable();
 
 	/* Disable GPIO 0/1 drivers so the buttons work on the Assabet */
 	NCR_0 = NCR_GP01_OFF;
@@ -346,51 +358,9 @@ static struct platform_driver neponset_device_driver = {
 	},
 };
 
-static struct resource neponset_resources[] = {
-	DEFINE_RES_MEM(0x10000000, 0x08000000),
-	DEFINE_RES_MEM(0x18000000, 0x04000000),
-	DEFINE_RES_MEM(0x40000000, SZ_8K),
-	DEFINE_RES_IRQ(IRQ_GPIO25),
-};
-
-static struct platform_device neponset_device = {
-	.name		= "neponset",
-	.id		= 0,
-	.num_resources	= ARRAY_SIZE(neponset_resources),
-	.resource	= neponset_resources,
-};
-
-extern void sa1110_mb_disable(void);
-
 static int __init neponset_init(void)
 {
-	platform_driver_register(&neponset_device_driver);
-
-	/*
-	 * The Neponset is only present on the Assabet machine type.
-	 */
-	if (!machine_is_assabet())
-		return -ENODEV;
-
-	/*
-	 * Ensure that the memory bus request/grant signals are setup,
-	 * and the grant is held in its inactive state, whether or not
-	 * we actually have a Neponset attached.
-	 */
-	sa1110_mb_disable();
-
-	if (!machine_has_neponset()) {
-		printk(KERN_DEBUG "Neponset expansion board not present\n");
-		return -ENODEV;
-	}
-
-	if (WHOAMI != 0x11) {
-		printk(KERN_WARNING "Neponset board detected, but "
-			"wrong ID: %02x\n", WHOAMI);
-		return -ENODEV;
-	}
-
-	return platform_device_register(&neponset_device);
+	return platform_driver_register(&neponset_device_driver);
 }
 
 subsys_initcall(neponset_init);

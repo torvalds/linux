@@ -197,6 +197,15 @@ static struct mcp_plat_data assabet_mcp_data = {
 	.sclk_rate	= 11981000,
 };
 
+#ifdef CONFIG_ASSABET_NEPONSET
+static struct resource neponset_resources[] = {
+	DEFINE_RES_MEM(0x10000000, 0x08000000),
+	DEFINE_RES_MEM(0x18000000, 0x04000000),
+	DEFINE_RES_MEM(0x40000000, SZ_8K),
+	DEFINE_RES_IRQ(IRQ_GPIO25),
+};
+#endif
+
 static void __init assabet_init(void)
 {
 	/*
@@ -247,6 +256,9 @@ static void __init assabet_init(void)
 #ifndef CONFIG_ASSABET_NEPONSET
 		printk( "Warning: Neponset detected but full support "
 			"hasn't been configured in the kernel\n" );
+#else
+		platform_device_register_simple("neponset", 0,
+			neponset_resources, ARRAY_SIZE(neponset_resources));
 #endif
 	}
 
