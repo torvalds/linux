@@ -210,6 +210,8 @@ int mpi_tdiv_qr(MPI quot, MPI rem, MPI num, MPI den)
 		 * numerator would be gradually overwritten by the quotient limbs.  */
 		if (qp == np) {	/* Copy NP object to temporary space.  */
 			np = marker[markidx++] = mpi_alloc_limb_space(nsize);
+			if (!np)
+				goto nomem;
 			MPN_COPY(np, qp, nsize);
 		}
 	} else			/* Put quotient at top of remainder. */
