@@ -149,6 +149,9 @@ int mpi_tdiv_qr(MPI quot, MPI rem, MPI num, MPI den)
 	mpi_ptr_t marker[5];
 	int markidx = 0;
 
+	if (!dsize)
+		return -EINVAL;
+
 	memset(marker, 0, sizeof(marker));
 
 	/* Ensure space is enough for quotient and remainder.
