@@ -46,7 +46,7 @@ static int decode_sector_number(__be32 **rp, sector_t *sp)
 
 	*rp = xdr_decode_hyper(*rp, &s);
 	if (s & 0x1ff) {
-		printk(KERN_WARNING "%s: sector not aligned\n", __func__);
+		printk(KERN_WARNING "NFS: %s: sector not aligned\n", __func__);
 		return -1;
 	}
 	*sp = s >> SECTOR_SHIFT;

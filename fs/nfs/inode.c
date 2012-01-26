@@ -1407,7 +1407,7 @@ static int nfs_update_inode(struct inode *inode, struct nfs_fattr *fattr)
 	/*
 	 * Big trouble! The inode has become a different object.
 	 */
-	printk(KERN_DEBUG "%s: inode %ld mode changed, %07o to %07o\n",
+	printk(KERN_DEBUG "NFS: %s: inode %ld mode changed, %07o to %07o\n",
 			__func__, inode->i_ino, inode->i_mode, fattr->mode);
  out_err:
 	/*

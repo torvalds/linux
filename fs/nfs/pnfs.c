@@ -101,8 +101,8 @@ set_pnfs_layoutdriver(struct nfs_server *server, const struct nfs_fh *mntfh,
 		goto out_no_driver;
 	if (!(server->nfs_client->cl_exchange_flags &
 		 (EXCHGID4_FLAG_USE_NON_PNFS | EXCHGID4_FLAG_USE_PNFS_MDS))) {
-		printk(KERN_ERR "%s: id %u cl_exchange_flags 0x%x\n", __func__,
-		       id, server->nfs_client->cl_exchange_flags);
+		printk(KERN_ERR "NFS: %s: id %u cl_exchange_flags 0x%x\n",
+			__func__, id, server->nfs_client->cl_exchange_flags);
 		goto out_no_driver;
 	}
 	ld_type = find_pnfs_driver(id);
@@ -122,8 +122,8 @@ set_pnfs_layoutdriver(struct nfs_server *server, const struct nfs_fh *mntfh,
 	server->pnfs_curr_ld = ld_type;
 	if (ld_type->set_layoutdriver
 	    && ld_type->set_layoutdriver(server, mntfh)) {
-		printk(KERN_ERR "%s: Error initializing pNFS layout driver %u.\n",
-				__func__, id);
+		printk(KERN_ERR "NFS: %s: Error initializing pNFS layout "
+			"driver %u.\n", __func__, id);
 		module_put(ld_type->owner);
 		goto out_no_driver;
 	}
@@ -143,11 +143,11 @@ pnfs_register_layoutdriver(struct pnfs_layoutdriver_type *ld_type)
 	struct pnfs_layoutdriver_type *tmp;
 
 	if (ld_type->id == 0) {
-		printk(KERN_ERR "%s id 0 is reserved\n", __func__);
+		printk(KERN_ERR "NFS: %s id 0 is reserved\n", __func__);
 		return status;
 	}
 	if (!ld_type->alloc_lseg || !ld_type->free_lseg) {
-		printk(KERN_ERR "%s Layout driver must provide "
+		printk(KERN_ERR "NFS: %s Layout driver must provide "
 		       "alloc_lseg and free_lseg.\n", __func__);
 		return status;
 	}
@@ -160,7 +160,7 @@ pnfs_register_layoutdriver(struct pnfs_layoutdriver_type *ld_type)
 		dprintk("%s Registering id:%u name:%s\n", __func__, ld_type->id,
 			ld_type->name);
 	} else {
-		printk(KERN_ERR "%s Module with id %d already loaded!\n",
+		printk(KERN_ERR "NFS: %s Module with id %d already loaded!\n",
 			__func__, ld_type->id);
 	}
 	spin_unlock(&pnfs_spinlock);

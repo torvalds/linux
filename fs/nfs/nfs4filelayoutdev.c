@@ -554,7 +554,7 @@ decode_device(struct inode *ino, struct pnfs_device *pdev, gfp_t gfp_flags)
 	cnt = be32_to_cpup(p);
 	dprintk("%s stripe count  %d\n", __func__, cnt);
 	if (cnt > NFS4_PNFS_MAX_STRIPE_CNT) {
-		printk(KERN_WARNING "%s: stripe count %d greater than "
+		printk(KERN_WARNING "NFS: %s: stripe count %d greater than "
 		       "supported maximum %d\n", __func__,
 			cnt, NFS4_PNFS_MAX_STRIPE_CNT);
 		goto out_err_free_scratch;
@@ -585,7 +585,7 @@ decode_device(struct inode *ino, struct pnfs_device *pdev, gfp_t gfp_flags)
 	num = be32_to_cpup(p);
 	dprintk("%s ds_num %u\n", __func__, num);
 	if (num > NFS4_PNFS_MAX_MULTI_CNT) {
-		printk(KERN_WARNING "%s: multipath count %d greater than "
+		printk(KERN_WARNING "NFS: %s: multipath count %d greater than "
 			"supported maximum %d\n", __func__,
 			num, NFS4_PNFS_MAX_MULTI_CNT);
 		goto out_err_free_stripe_indices;
@@ -593,7 +593,7 @@ decode_device(struct inode *ino, struct pnfs_device *pdev, gfp_t gfp_flags)
 
 	/* validate stripe indices are all < num */
 	if (max_stripe_index >= num) {
-		printk(KERN_WARNING "%s: stripe index %u >= num ds %u\n",
+		printk(KERN_WARNING "NFS: %s: stripe index %u >= num ds %u\n",
 			__func__, max_stripe_index, num);
 		goto out_err_free_stripe_indices;
 	}
@@ -687,7 +687,7 @@ decode_and_add_device(struct inode *inode, struct pnfs_device *dev, gfp_t gfp_fl
 
 	new = decode_device(inode, dev, gfp_flags);
 	if (!new) {
-		printk(KERN_WARNING "%s: Could not decode or add device\n",
+		printk(KERN_WARNING "NFS: %s: Could not decode or add device\n",
 			__func__);
 		return NULL;
 	}
@@ -836,7 +836,7 @@ nfs4_fl_prepare_ds(struct pnfs_layout_segment *lseg, u32 ds_idx)
 	struct nfs4_pnfs_ds *ds = dsaddr->ds_list[ds_idx];
 
 	if (ds == NULL) {
-		printk(KERN_ERR "%s: No data server for offset index %d\n",
+		printk(KERN_ERR "NFS: %s: No data server for offset index %d\n",
 			__func__, ds_idx);
 		return NULL;
 	}

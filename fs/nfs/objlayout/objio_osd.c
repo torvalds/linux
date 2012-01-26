@@ -582,10 +582,10 @@ objlayout_init(void)
 
 	if (ret)
 		printk(KERN_INFO
-			"%s: Registering OSD pNFS Layout Driver failed: error=%d\n",
+			"NFS: %s: Registering OSD pNFS Layout Driver failed: error=%d\n",
 			__func__, ret);
 	else
-		printk(KERN_INFO "%s: Registered OSD pNFS Layout Driver\n",
+		printk(KERN_INFO "NFS: %s: Registered OSD pNFS Layout Driver\n",
 			__func__);
 	return ret;
 }
@@ -594,7 +594,7 @@ static void __exit
 objlayout_exit(void)
 {
 	pnfs_unregister_layoutdriver(&objlayout_type);
-	printk(KERN_INFO "%s: Unregistered OSD pNFS Layout Driver\n",
+	printk(KERN_INFO "NFS: %s: Unregistered OSD pNFS Layout Driver\n",
 	       __func__);
 }
 

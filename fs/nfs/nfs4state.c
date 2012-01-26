@@ -1138,8 +1138,8 @@ static int nfs4_reclaim_locks(struct nfs4_state *state, const struct nfs4_state_
 			case -NFS4ERR_CONN_NOT_BOUND_TO_SESSION:
 				goto out;
 			default:
-				printk(KERN_ERR "%s: unhandled error %d. Zeroing state\n",
-						__func__, status);
+				printk(KERN_ERR "NFS: %s: unhandled error %d. "
+					"Zeroing state\n", __func__, status);
 			case -ENOMEM:
 			case -NFS4ERR_DENIED:
 			case -NFS4ERR_RECLAIM_BAD:
@@ -1185,8 +1185,8 @@ restart:
 				spin_lock(&state->state_lock);
 				list_for_each_entry(lock, &state->lock_states, ls_locks) {
 					if (!(lock->ls_flags & NFS_LOCK_INITIALIZED))
-						printk("%s: Lock reclaim failed!\n",
-							__func__);
+						printk("NFS: %s: Lock reclaim "
+							"failed!\n", __func__);
 				}
 				spin_unlock(&state->state_lock);
 				nfs4_put_open_state(state);
@@ -1195,8 +1195,8 @@ restart:
 		}
 		switch (status) {
 			default:
-				printk(KERN_ERR "%s: unhandled error %d. Zeroing state\n",
-						__func__, status);
+				printk(KERN_ERR "NFS: %s: unhandled error %d. "
+					"Zeroing state\n", __func__, status);
 			case -ENOENT:
 			case -ENOMEM:
 			case -ESTALE:

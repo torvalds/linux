@@ -4584,7 +4584,8 @@ static int _nfs4_proc_setlk(struct nfs4_state *state, int cmd, struct file_lock 
 	/* Note: we always want to sleep here! */
 	request->fl_flags = fl_flags | FL_SLEEP;
 	if (do_vfs_lock(request->fl_file, request) < 0)
-		printk(KERN_WARNING "%s: VFS is out of sync with lock manager!\n", __func__);
+		printk(KERN_WARNING "NFS: %s: VFS is out of sync with lock "
+			"manager!\n", __func__);
 out_unlock:
 	up_read(&nfsi->rwsem);
 out:
@@ -4664,8 +4665,8 @@ int nfs4_lock_delegation_recall(struct nfs4_state *state, struct file_lock *fl)
 		err = _nfs4_do_setlk(state, F_SETLK, fl, NFS_LOCK_NEW);
 		switch (err) {
 			default:
-				printk(KERN_ERR "%s: unhandled error %d.\n",
-						__func__, err);
+				printk(KERN_ERR "NFS: %s: unhandled error "
+					"%d.\n", __func__, err);
 			case 0:
 			case -ESTALE:
 				goto out;

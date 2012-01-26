@@ -367,7 +367,8 @@ filelayout_write_pagelist(struct nfs_write_data *data, int sync)
 	idx = nfs4_fl_calc_ds_index(lseg, j);
 	ds = nfs4_fl_prepare_ds(lseg, idx);
 	if (!ds) {
-		printk(KERN_ERR "%s: prepare_ds failed, use MDS\n", __func__);
+		printk(KERN_ERR "NFS: %s: prepare_ds failed, use MDS\n",
+			__func__);
 		set_bit(lo_fail_bit(IOMODE_RW), &lseg->pls_layout->plh_flags);
 		set_bit(lo_fail_bit(IOMODE_READ), &lseg->pls_layout->plh_flags);
 		return PNFS_NOT_ATTEMPTED;
@@ -797,7 +798,8 @@ static int filelayout_initiate_commit(struct nfs_write_data *data, int how)
 	idx = calc_ds_index_from_commit(lseg, data->ds_commit_index);
 	ds = nfs4_fl_prepare_ds(lseg, idx);
 	if (!ds) {
-		printk(KERN_ERR "%s: prepare_ds failed, use MDS\n", __func__);
+		printk(KERN_ERR "NFS: %s: prepare_ds failed, use MDS\n",
+			__func__);
 		set_bit(lo_fail_bit(IOMODE_RW), &lseg->pls_layout->plh_flags);
 		set_bit(lo_fail_bit(IOMODE_READ), &lseg->pls_layout->plh_flags);
 		prepare_to_resend_writes(data);

@@ -558,11 +558,13 @@ static int __rpc_pipefs_event(struct nfs_client *clp, unsigned long event,
 			 * here.
 			 */
 			if (rpc_rmdir(parent))
-				printk(KERN_ERR "%s: failed to remove clnt dir!\n", __func__);
+				printk(KERN_ERR "NFS: %s: failed to remove "
+					"clnt dir!\n", __func__);
 		}
 		break;
 	default:
-		printk(KERN_ERR "%s: unknown event: %ld\n", __func__, event);
+		printk(KERN_ERR "NFS: %s: unknown event: %ld\n", __func__,
+			event);
 		return -ENOTSUPP;
 	}
 	return err;

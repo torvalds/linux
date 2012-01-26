@@ -490,9 +490,9 @@ encode_accumulated_error(struct objlayout *objlay, __be32 *p)
 			if (!ioerr->oer_errno)
 				continue;
 
-			printk(KERN_ERR "%s: err[%d]: errno=%d is_write=%d "
-				"dev(%llx:%llx) par=0x%llx obj=0x%llx "
-				"offset=0x%llx length=0x%llx\n",
+			printk(KERN_ERR "NFS: %s: err[%d]: errno=%d "
+				"is_write=%d dev(%llx:%llx) par=0x%llx "
+				"obj=0x%llx offset=0x%llx length=0x%llx\n",
 				__func__, i, ioerr->oer_errno,
 				ioerr->oer_iswrite,
 				_DEVID_LO(&ioerr->oer_component.oid_device_id),

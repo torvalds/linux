@@ -4468,8 +4468,8 @@ static int decode_first_pnfs_layout_type(struct xdr_stream *xdr,
 		return 0;
 	}
 	if (num > 1)
-		printk(KERN_INFO "%s: Warning: Multiple pNFS layout drivers "
-			"per filesystem not supported\n", __func__);
+		printk(KERN_INFO "NFS: %s: Warning: Multiple pNFS layout "
+			"drivers per filesystem not supported\n", __func__);
 
 	/* Decode and set first layout type, move xdr->p past unused types */
 	p = xdr_inline_decode(xdr, num * 4);
@@ -5290,8 +5290,8 @@ static int decode_chan_attrs(struct xdr_stream *xdr,
 	attrs->max_reqs = be32_to_cpup(p++);
 	nr_attrs = be32_to_cpup(p);
 	if (unlikely(nr_attrs > 1)) {
-		printk(KERN_WARNING "%s: Invalid rdma channel attrs count %u\n",
-			__func__, nr_attrs);
+		printk(KERN_WARNING "NFS: %s: Invalid rdma channel attrs "
+			"count %u\n", __func__, nr_attrs);
 		return -EINVAL;
 	}
 	if (nr_attrs == 1) {
@@ -5448,7 +5448,7 @@ static int decode_getdevicelist(struct xdr_stream *xdr,
 	dprintk("%s: num_dev %d\n", __func__, res->num_devs);
 
 	if (res->num_devs > NFS4_PNFS_GETDEVLIST_MAXNUM) {
-		printk(KERN_ERR "%s too many result dev_num %u\n",
+		printk(KERN_ERR "NFS: %s too many result dev_num %u\n",
 				__func__, res->num_devs);
 		return -EIO;
 	}

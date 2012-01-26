@@ -85,7 +85,7 @@ nfs4_callback_svc(void *vrqstp)
 		}
 		if (err < 0) {
 			if (err != preverr) {
-				printk(KERN_WARNING "%s: unexpected error "
+				printk(KERN_WARNING "NFS: %s: unexpected error "
 					"from svc_recv (%d)\n", __func__, err);
 				preverr = err;
 			}
