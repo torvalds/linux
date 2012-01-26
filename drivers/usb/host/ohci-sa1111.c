@@ -89,6 +89,7 @@ static const struct hc_driver ohci_sa1111_hc_driver = {
 	 */
 	.start =		ohci_sa1111_start,
 	.stop =			ohci_stop,
+	.shutdown =		ohci_shutdown,
 
 	/*
 	 * managing i/o requests and associated device resources
@@ -232,6 +233,16 @@ static int ohci_hcd_sa1111_remove(struct sa1111_dev *dev)
 	return 0;
 }
 
+static void ohci_hcd_sa1111_shutdown(struct sa1111_dev *dev)
+{
+	struct usb_hcd *hcd = sa1111_get_drvdata(dev);
+
+	if (test_bit(HCD_FLAG_HW_ACCESSIBLE, &hcd->flags)) {
+		hcd->driver->shutdown(hcd);
+		sa1111_stop_hc(dev);
+	}
+}
+
 static struct sa1111_driver ohci_hcd_sa1111_driver = {
 	.drv = {
 		.name	= "sa1111-ohci",
@@ -240,4 +251,5 @@ static struct sa1111_driver ohci_hcd_sa1111_driver = {
 	.devid		= SA1111_DEVID_USB,
 	.probe		= ohci_hcd_sa1111_probe,
 	.remove		= ohci_hcd_sa1111_remove,
+	.shutdown	= ohci_hcd_sa1111_shutdown,
 };
