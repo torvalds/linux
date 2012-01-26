@@ -2475,7 +2475,7 @@ setup_cluster_bitmap(struct btrfs_block_group_cache *block_group,
 	}
 
 	list_for_each_entry(entry, bitmaps, list) {
-		if (entry->bytes < min_bytes)
+		if (entry->bytes < bytes)
 			continue;
 		ret = btrfs_bitmap_cluster(block_group, entry, cluster, offset,
 					   bytes, cont1_bytes, min_bytes);
