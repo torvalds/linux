@@ -789,7 +789,7 @@ static void rts51x_suspend_timer_fn(unsigned long data)
 			rts51x_set_stat(chip, RTS51X_STAT_SS);
 			/* ignore mass storage interface's children */
 			pm_suspend_ignore_children(&us->pusb_intf->dev, true);
-			usb_autopm_put_interface(us->pusb_intf);
+			usb_autopm_put_interface_async(us->pusb_intf);
 			US_DEBUGP("%s: RTS51X_STAT_SS 01,"
 				"intf->pm_usage_cnt:%d, power.usage:%d\n",
 				__func__,
