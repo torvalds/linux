@@ -58,6 +58,9 @@ mpi_ptr_t mpi_alloc_limb_space(unsigned nlimbs)
 {
 	size_t len = nlimbs * sizeof(mpi_limb_t);
 
+	if (!len)
+		return NULL;
+
 	return kmalloc(len, GFP_KERNEL);
 }
 
