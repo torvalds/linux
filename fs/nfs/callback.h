@@ -39,6 +39,7 @@ struct cb_process_state {
 	__be32			drc_status;
 	struct nfs_client	*clp;
 	int			slotid;
+	struct net		*net;
 };
 
 struct cb_compound_hdr_arg {

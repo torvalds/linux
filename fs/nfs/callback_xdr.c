@@ -861,6 +861,7 @@ static __be32 nfs4_callback_compound(struct svc_rqst *rqstp, void *argp, void *r
 		.drc_status = 0,
 		.clp = NULL,
 		.slotid = -1,
+		.net = rqstp->rq_xprt->xpt_net,
 	};
 	unsigned int nops = 0;
 

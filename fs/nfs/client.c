@@ -1232,11 +1232,11 @@ nfs4_find_client_ident(struct net *net, int cb_ident)
  * Returns NULL if no such client
  */
 struct nfs_client *
-nfs4_find_client_sessionid(const struct sockaddr *addr,
+nfs4_find_client_sessionid(struct net *net, const struct sockaddr *addr,
 			   struct nfs4_sessionid *sid)
 {
 	struct nfs_client *clp;
-	struct nfs_net *nn = net_generic(&init_net, nfs_net_id);
+	struct nfs_net *nn = net_generic(net, nfs_net_id);
 
 	spin_lock(&nn->nfs_client_lock);
 	list_for_each_entry(clp, &nn->nfs_client_list, cl_share_link) {
