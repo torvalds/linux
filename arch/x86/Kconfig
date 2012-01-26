@@ -360,7 +360,6 @@ config X86_NUMACHIP
 	depends on NUMA
 	depends on SMP
 	depends on X86_X2APIC
-	depends on !EDAC_AMD64
 	---help---
 	  Adds support for Numascale NumaChip large-SMP systems. Needed to
 	  enable more than ~168 cores.
