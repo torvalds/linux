@@ -1184,6 +1184,13 @@ static u8 rtl8168d_efuse_read(void __iomem *ioaddr, int reg_addr)
 	return value;
 }
 
+static void rtl_irq_enable(struct rtl8169_private *tp, u16 bits)
+{
+	void __iomem *ioaddr = tp->mmio_addr;
+
+	RTL_W16(IntrMask, bits);
+}
+
 static void rtl8169_irq_mask_and_ack(struct rtl8169_private *tp)
 {
 	void __iomem *ioaddr = tp->mmio_addr;
@@ -4383,6 +4390,8 @@ static void rtl_hw_start(struct net_device *dev)
 
 	tp->hw_start(dev);
 
+	rtl_irq_enable(tp, tp->intr_event);
+
 	netif_start_queue(dev);
 }
 
@@ -4510,9 +4519,6 @@ static void rtl_hw_start_8169(struct net_device *dev)
 
 	/* no early-rx interrupts */
 	RTL_W16(MultiIntr, RTL_R16(MultiIntr) & 0xF000);
-
-	/* Enable all known interrupts by setting the interrupt mask. */
-	RTL_W16(IntrMask, tp->intr_event);
 }
 
 static void rtl_csi_access_enable(void __iomem *ioaddr, u32 bits)
@@ -4981,8 +4987,6 @@ static void rtl_hw_start_8168(struct net_device *dev)
 	RTL_W8(Cfg9346, Cfg9346_Lock);
 
 	RTL_W16(MultiIntr, RTL_R16(MultiIntr) & 0xF000);
-
-	RTL_W16(IntrMask, tp->intr_event);
 }
 
 #define R810X_CPCMD_QUIRK_MASK (\
@@ -5140,8 +5144,6 @@ static void rtl_hw_start_8101(struct net_device *dev)
 	rtl_set_rx_mode(dev);
 
 	RTL_W16(MultiIntr, RTL_R16(MultiIntr) & 0xf000);
-
-	RTL_W16(IntrMask, tp->intr_event);
 }
 
 static int rtl8169_change_mtu(struct net_device *dev, int new_mtu)
