@@ -90,6 +90,7 @@ struct wm8996_priv {
 	struct snd_soc_jack *jack;
 	bool detecting;
 	bool jack_mic;
+	int jack_flips;
 	wm8996_polarity_fn polarity_cb;
 
 #ifdef CONFIG_GPIOLIB
@@ -2437,6 +2438,7 @@ int wm8996_detect(struct snd_soc_codec *codec, struct snd_soc_jack *jack,
 	wm8996->jack = jack;
 	wm8996->detecting = true;
 	wm8996->polarity_cb = polarity_cb;
+	wm8996->jack_flips = 0;
 
 	if (wm8996->polarity_cb)
 		wm8996->polarity_cb(codec, 0);
@@ -2552,6 +2554,19 @@ static void wm8996_hpdet_start(struct snd_soc_codec *codec)
 			    WM8996_HP_POLL, WM8996_HP_POLL);
 }
 
+static void wm8996_report_headphone(struct snd_soc_codec *codec)
+{
+	dev_dbg(codec->dev, "Headphone detected\n");
+	wm8996_hpdet_start(codec);
+
+	/* Increase the detection rate a bit for responsiveness. */
+	snd_soc_update_bits(codec, WM8996_MIC_DETECT_1,
+			    WM8996_MICD_RATE_MASK |
+			    WM8996_MICD_BIAS_STARTTIME_MASK,
+			    7 << WM8996_MICD_RATE_SHIFT |
+			    7 << WM8996_MICD_BIAS_STARTTIME_SHIFT);
+}
+
 static void wm8996_micd(struct snd_soc_codec *codec)
 {
 	struct wm8996_priv *wm8996 = snd_soc_codec_get_drvdata(codec);
@@ -2571,6 +2586,7 @@ static void wm8996_micd(struct snd_soc_codec *codec)
 		dev_dbg(codec->dev, "Jack removal detected\n");
 		wm8996->jack_mic = false;
 		wm8996->detecting = true;
+		wm8996->jack_flips = 0;
 		snd_soc_jack_report(wm8996->jack, 0,
 				    SND_JACK_LINEOUT | SND_JACK_HEADSET |
 				    SND_JACK_BTN_0);
@@ -2611,9 +2627,17 @@ static void wm8996_micd(struct snd_soc_codec *codec)
 	/* If we detected a lower impedence during initial startup
 	 * then we probably have the wrong polarity, flip it.  Don't
 	 * do this for the lowest impedences to speed up detection of
-	 * plain headphones.
+	 * plain headphones.  If both polarities report a low
+	 * impedence then give up and report headphones.
 	 */
 	if (wm8996->detecting && (val & 0x3f0)) {
+		wm8996->jack_flips++;
+
+		if (wm8996->jack_flips > 1) {
+			wm8996_report_headphone(codec);
+			return;
+		}
+
 		reg = snd_soc_read(codec, WM8996_ACCESSORY_DETECT_MODE_2);
 		reg ^= WM8996_HPOUT1FB_SRC | WM8996_MICD_SRC |
 			WM8996_MICD_BIAS_SRC;
@@ -2640,17 +2664,7 @@ static void wm8996_micd(struct snd_soc_codec *codec)
 			snd_soc_jack_report(wm8996->jack, SND_JACK_BTN_0,
 					    SND_JACK_BTN_0);
 		} else if (wm8996->detecting) {
-			dev_dbg(codec->dev, "Headphone detected\n");
-			wm8996_hpdet_start(codec);
-
-			/* Increase the detection rate a bit for
-			 * responsiveness.
-			 */
-			snd_soc_update_bits(codec, WM8996_MIC_DETECT_1,
-					    WM8996_MICD_RATE_MASK |
-					    WM8996_MICD_BIAS_STARTTIME_MASK,
-					    7 << WM8996_MICD_RATE_SHIFT |
-					    7 << WM8996_MICD_BIAS_STARTTIME_SHIFT);
+			wm8996_report_headphone(codec);
 		}
 	}
 }
