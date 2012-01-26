@@ -3812,11 +3812,11 @@ bool bnx2x_reset_is_done(struct bnx2x *bp, int engine)
 }
 
 /*
- * Increment the load counter for the current engine.
+ * set pf load for the current pf.
  *
  * should be run under rtnl lock
  */
-void bnx2x_inc_load_cnt(struct bnx2x *bp)
+void bnx2x_set_pf_load(struct bnx2x *bp)
 {
 	u32 val1, val;
 	u32 mask = BP_PATH(bp) ? BNX2X_PATH1_LOAD_CNT_MASK :
@@ -3832,8 +3832,8 @@ void bnx2x_inc_load_cnt(struct bnx2x *bp)
 	/* get the current counter value */
 	val1 = (val & mask) >> shift;
 
-	/* increment... */
-	val1++;
+	/* set bit of that PF */
+	val1 |= (1 << bp->pf_num);
 
 	/* clear the old value */
 	val &= ~mask;
@@ -3846,15 +3846,15 @@ void bnx2x_inc_load_cnt(struct bnx2x *bp)
 }
 
 /**
- * bnx2x_dec_load_cnt - decrement the load counter
+ * bnx2x_clear_pf_load - clear pf load mark
  *
  * @bp:		driver handle
  *
  * Should be run under rtnl lock.
  * Decrements the load counter for the current engine. Returns
- * the new counter value.
+ * whether other functions are still loaded
  */
-u32 bnx2x_dec_load_cnt(struct bnx2x *bp)
+bool bnx2x_clear_pf_load(struct bnx2x *bp)
 {
 	u32 val1, val;
 	u32 mask = BP_PATH(bp) ? BNX2X_PATH1_LOAD_CNT_MASK :
@@ -3869,8 +3869,8 @@ u32 bnx2x_dec_load_cnt(struct bnx2x *bp)
 	/* get the current counter value */
 	val1 = (val & mask) >> shift;
 
-	/* decrement... */
-	val1--;
+	/* clear bit of that PF */
+	val1 &= ~(1 << bp->pf_num);
 
 	/* clear the old value */
 	val &= ~mask;
@@ -3884,11 +3884,11 @@ u32 bnx2x_dec_load_cnt(struct bnx2x *bp)
 }
 
 /*
- * Read the load counter for the current engine.
+ * Read the load status for the current engine.
  *
  * should be run under rtnl lock
  */
-static inline u32 bnx2x_get_load_cnt(struct bnx2x *bp, int engine)
+static inline bool bnx2x_get_load_status(struct bnx2x *bp, int engine)
 {
 	u32 mask = (engine ? BNX2X_PATH1_LOAD_CNT_MASK :
 			     BNX2X_PATH0_LOAD_CNT_MASK);
@@ -3900,17 +3900,15 @@ static inline u32 bnx2x_get_load_cnt(struct bnx2x *bp, int engine)
 
 	val = (val & mask) >> shift;
 
-	DP(NETIF_MSG_HW, "load_cnt for engine %d = %d\n", engine, val);
+	DP(NETIF_MSG_HW, "load mask for engine %d = 0x%x\n", engine, val);
 
-	return val;
+	return val != 0;
 }
 
 /*
- * Reset the load counter for the current engine.
- *
- * should be run under rtnl lock
+ * Reset the load status for the current engine.
  */
-static inline void bnx2x_clear_load_cnt(struct bnx2x *bp)
+static inline void bnx2x_clear_load_status(struct bnx2x *bp)
 {
 	u32 val;
 	u32 mask = (BP_PATH(bp) ? BNX2X_PATH1_LOAD_CNT_MASK :
@@ -8582,10 +8580,10 @@ static void bnx2x_parity_recover(struct bnx2x *bp)
 			DP(NETIF_MSG_HW, "State is BNX2X_RECOVERY_WAIT\n");
 			if (bp->is_leader) {
 				int other_engine = BP_PATH(bp) ? 0 : 1;
-				u32 other_load_counter =
-					bnx2x_get_load_cnt(bp, other_engine);
-				u32 load_counter =
-					bnx2x_get_load_cnt(bp, BP_PATH(bp));
+				bool other_load_status =
+					bnx2x_get_load_status(bp, other_engine);
+				bool load_status =
+					bnx2x_get_load_status(bp, BP_PATH(bp));
 				global = bnx2x_reset_is_global(bp);
 
 				/*
@@ -8596,8 +8594,8 @@ static void bnx2x_parity_recover(struct bnx2x *bp)
 				 * the the gates will remain closed for that
 				 * engine.
 				 */
-				if (load_counter ||
-				    (global && other_load_counter)) {
+				if (load_status ||
+				    (global && other_load_status)) {
 					/* Wait until all other functions get
 					 * down.
 					 */
@@ -10206,14 +10204,14 @@ static int bnx2x_open(struct net_device *dev)
 	struct bnx2x *bp = netdev_priv(dev);
 	bool global = false;
 	int other_engine = BP_PATH(bp) ? 0 : 1;
-	u32 other_load_counter, load_counter;
+	bool other_load_status, load_status;
 
 	netif_carrier_off(dev);
 
 	bnx2x_set_power_state(bp, PCI_D0);
 
-	other_load_counter = bnx2x_get_load_cnt(bp, other_engine);
-	load_counter = bnx2x_get_load_cnt(bp, BP_PATH(bp));
+	other_load_status = bnx2x_get_load_status(bp, other_engine);
+	load_status = bnx2x_get_load_status(bp, BP_PATH(bp));
 
 	/*
 	 * If parity had happen during the unload, then attentions
@@ -10239,8 +10237,8 @@ static int bnx2x_open(struct net_device *dev)
 			 * global blocks only the first in the chip should try
 			 * to recover.
 			 */
-			if ((!load_counter &&
-			     (!global || !other_load_counter)) &&
+			if ((!load_status &&
+			     (!global || !other_load_status)) &&
 			    bnx2x_trylock_leader_lock(bp) &&
 			    !bnx2x_leader_reset(bp)) {
 				netdev_info(bp->dev, "Recovered in open\n");
@@ -10680,7 +10678,7 @@ static int __devinit bnx2x_init_dev(struct pci_dev *pdev,
 		REG_WR(bp, PGLUE_B_REG_INTERNAL_PFID_ENABLE_TARGET_READ, 1);
 
 	/* Reset the load counter */
-	bnx2x_clear_load_cnt(bp);
+	bnx2x_clear_load_status(bp);
 
 	dev->watchdog_timeo = TX_TIMEOUT;
 
