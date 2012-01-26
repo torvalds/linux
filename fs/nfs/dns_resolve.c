@@ -20,7 +20,7 @@ ssize_t nfs_dns_resolve_name(struct net *net, char *name, size_t namelen,
 
 	ip_len = dns_query(NULL, name, namelen, NULL, &ip_addr, NULL);
 	if (ip_len > 0)
-		ret = rpc_pton(&init_net, ip_addr, ip_len, sa, salen);
+		ret = rpc_pton(net, ip_addr, ip_len, sa, salen);
 	else
 		ret = -ESRCH;
 	kfree(ip_addr);
