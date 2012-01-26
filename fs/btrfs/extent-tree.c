@@ -34,11 +34,10 @@
 #include "locking.h"
 #include "free-space-cache.h"
 
-/* control flags for do_chunk_alloc's force field
+/*
+ * control flags for do_chunk_alloc's force field
  * CHUNK_ALLOC_NO_FORCE means to only allocate a chunk
  * if we really need one.
- *
- * CHUNK_ALLOC_FORCE means it must try to allocate one
  *
  * CHUNK_ALLOC_LIMITED means to only try and allocate one
  * if we have very few chunks already allocated.  This is
@@ -46,11 +45,13 @@
  * we have a good pool of storage to cluster in, without
  * filling the FS with empty chunks
  *
+ * CHUNK_ALLOC_FORCE means it must try to allocate one
+ *
  */
 enum {
 	CHUNK_ALLOC_NO_FORCE = 0,
-	CHUNK_ALLOC_FORCE = 1,
-	CHUNK_ALLOC_LIMITED = 2,
+	CHUNK_ALLOC_LIMITED = 1,
+	CHUNK_ALLOC_FORCE = 2,
 };
 
 /*
@@ -3414,7 +3415,7 @@ static int do_chunk_alloc(struct btrfs_trans_handle *trans,
 
 again:
 	spin_lock(&space_info->lock);
-	if (space_info->force_alloc)
+	if (force < space_info->force_alloc)
 		force = space_info->force_alloc;
 	if (space_info->full) {
 		spin_unlock(&space_info->lock);
@@ -5794,6 +5795,7 @@ int btrfs_reserve_extent(struct btrfs_trans_handle *trans,
 			 u64 search_end, struct btrfs_key *ins,
 			 u64 data)
 {
+	bool final_tried = false;
 	int ret;
 	u64 search_start = 0;
 
@@ -5813,22 +5815,25 @@ again:
 			       search_start, search_end, hint_byte,
 			       ins, data);
 
-	if (ret == -ENOSPC && num_bytes > min_alloc_size) {
-		num_bytes = num_bytes >> 1;
-		num_bytes = num_bytes & ~(root->sectorsize - 1);
-		num_bytes = max(num_bytes, min_alloc_size);
-		do_chunk_alloc(trans, root->fs_info->extent_root,
-			       num_bytes, data, CHUNK_ALLOC_FORCE);
-		goto again;
-	}
-	if (ret == -ENOSPC && btrfs_test_opt(root, ENOSPC_DEBUG)) {
-		struct btrfs_space_info *sinfo;
+	if (ret == -ENOSPC) {
+		if (!final_tried) {
+			num_bytes = num_bytes >> 1;
+			num_bytes = num_bytes & ~(root->sectorsize - 1);
+			num_bytes = max(num_bytes, min_alloc_size);
+			do_chunk_alloc(trans, root->fs_info->extent_root,
+				       num_bytes, data, CHUNK_ALLOC_FORCE);
+			if (num_bytes == min_alloc_size)
+				final_tried = true;
+			goto again;
+		} else if (btrfs_test_opt(root, ENOSPC_DEBUG)) {
+			struct btrfs_space_info *sinfo;
 
-		sinfo = __find_space_info(root->fs_info, data);
-		printk(KERN_ERR "btrfs allocation failed flags %llu, "
-		       "wanted %llu\n", (unsigned long long)data,
-		       (unsigned long long)num_bytes);
-		dump_space_info(sinfo, num_bytes, 1);
+			sinfo = __find_space_info(root->fs_info, data);
+			printk(KERN_ERR "btrfs allocation failed flags %llu, "
+			       "wanted %llu\n", (unsigned long long)data,
+			       (unsigned long long)num_bytes);
+			dump_space_info(sinfo, num_bytes, 1);
+		}
 	}
 
 	trace_btrfs_reserved_extent_alloc(root, ins->objectid, ins->offset);
