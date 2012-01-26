@@ -72,6 +72,7 @@ struct wm5100_priv {
 	bool jack_detecting;
 	bool jack_mic;
 	int jack_mode;
+	int jack_flips;
 
 	struct wm5100_fll fll[2];
 
@@ -1996,6 +1997,19 @@ static void wm5100_set_detect_mode(struct wm5100_priv *wm5100, int the_mode)
 		wm5100->jack_mode);
 }
 
+static void wm5100_report_headphone(struct wm5100_priv *wm5100)
+{
+	dev_dbg(wm5100->dev, "Headphone detected\n");
+	wm5100->jack_detecting = false;
+	snd_soc_jack_report(wm5100->jack, SND_JACK_HEADPHONE,
+			    SND_JACK_HEADPHONE);
+
+	/* Increase the detection rate a bit for responsiveness. */
+	regmap_update_bits(wm5100->regmap, WM5100_MIC_DETECT_1,
+			   WM5100_ACCDET_RATE_MASK,
+			   7 << WM5100_ACCDET_RATE_SHIFT);
+}
+
 static void wm5100_micd_irq(struct wm5100_priv *wm5100)
 {
 	unsigned int val;
@@ -2020,6 +2034,7 @@ static void wm5100_micd_irq(struct wm5100_priv *wm5100)
 		dev_dbg(wm5100->dev, "Jack removal detected\n");
 		wm5100->jack_mic = false;
 		wm5100->jack_detecting = true;
+		wm5100->jack_flips = 0;
 		snd_soc_jack_report(wm5100->jack, 0,
 				    SND_JACK_LINEOUT | SND_JACK_HEADSET |
 				    SND_JACK_BTN_0);
@@ -2058,10 +2073,16 @@ static void wm5100_micd_irq(struct wm5100_priv *wm5100)
 	/* If we detected a lower impedence during initial startup
 	 * then we probably have the wrong polarity, flip it.  Don't
 	 * do this for the lowest impedences to speed up detection of
-	 * plain headphones.
+	 * plain headphones and give up if neither polarity looks
+	 * sensible.
 	 */
 	if (wm5100->jack_detecting && (val & 0x3f8)) {
-		wm5100_set_detect_mode(wm5100, !wm5100->jack_mode);
+		wm5100->jack_flips++;
+
+		if (wm5100->jack_flips > 1)
+			wm5100_report_headphone(wm5100);
+		else
+			wm5100_set_detect_mode(wm5100, !wm5100->jack_mode);
 
 		return;
 	}
@@ -2075,16 +2096,7 @@ static void wm5100_micd_irq(struct wm5100_priv *wm5100)
 			snd_soc_jack_report(wm5100->jack, SND_JACK_BTN_0,
 					    SND_JACK_BTN_0);
 		} else if (wm5100->jack_detecting) {
-			dev_dbg(wm5100->dev, "Headphone detected\n");
-			snd_soc_jack_report(wm5100->jack, SND_JACK_HEADPHONE,
-					    SND_JACK_HEADPHONE);
-
-			/* Increase the detection rate a bit for
-			 * responsiveness.
-			 */
-			regmap_update_bits(wm5100->regmap, WM5100_MIC_DETECT_1,
-					   WM5100_ACCDET_RATE_MASK,
-					   7 << WM5100_ACCDET_RATE_SHIFT);
+			wm5100_report_headphone(wm5100);
 		}
 	}
 }
@@ -2096,6 +2108,7 @@ int wm5100_detect(struct snd_soc_codec *codec, struct snd_soc_jack *jack)
 	if (jack) {
 		wm5100->jack = jack;
 		wm5100->jack_detecting = true;
+		wm5100->jack_flips = 0;
 
 		wm5100_set_detect_mode(wm5100, 0);
 
