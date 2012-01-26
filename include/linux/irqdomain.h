@@ -106,7 +106,7 @@ struct irq_domain {
 		} linear;
 		struct radix_tree_root tree;
 	} revmap_data;
-	struct irq_domain_ops *ops;
+	const struct irq_domain_ops *ops;
 	void *host_data;
 	irq_hw_number_t inval_irq;
 
@@ -119,17 +119,17 @@ struct irq_domain *irq_domain_add_legacy(struct device_node *of_node,
 					 unsigned int size,
 					 unsigned int first_irq,
 					 irq_hw_number_t first_hwirq,
-					 struct irq_domain_ops *ops,
+					 const struct irq_domain_ops *ops,
 					 void *host_data);
 struct irq_domain *irq_domain_add_linear(struct device_node *of_node,
 					 unsigned int size,
-					 struct irq_domain_ops *ops,
+					 const struct irq_domain_ops *ops,
 					 void *host_data);
 struct irq_domain *irq_domain_add_nomap(struct device_node *of_node,
-					 struct irq_domain_ops *ops,
+					 const struct irq_domain_ops *ops,
 					 void *host_data);
 struct irq_domain *irq_domain_add_tree(struct device_node *of_node,
-					 struct irq_domain_ops *ops,
+					 const struct irq_domain_ops *ops,
 					 void *host_data);
 
 extern struct irq_domain *irq_find_host(struct device_node *node);
@@ -138,7 +138,7 @@ extern void irq_set_virq_count(unsigned int count);
 
 static inline struct irq_domain *irq_domain_add_legacy_isa(
 				struct device_node *of_node,
-				struct irq_domain_ops *ops,
+				const struct irq_domain_ops *ops,
 				void *host_data)
 {
 	return irq_domain_add_legacy(of_node, NUM_ISA_INTERRUPTS, 0, 0, ops,
@@ -162,7 +162,7 @@ extern unsigned int irq_radix_revmap_lookup(struct irq_domain *host,
 extern unsigned int irq_linear_revmap(struct irq_domain *host,
 				      irq_hw_number_t hwirq);
 
-extern struct irq_domain_ops irq_domain_simple_ops;
+extern const struct irq_domain_ops irq_domain_simple_ops;
 
 /* stock xlate functions */
 int irq_domain_xlate_onecell(struct irq_domain *d, struct device_node *ctrlr,

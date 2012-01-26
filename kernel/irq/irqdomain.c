@@ -26,11 +26,6 @@ static DEFINE_MUTEX(revmap_trees_mutex);
 static unsigned int irq_virq_count = NR_IRQS;
 static struct irq_domain *irq_default_domain;
 
-static int default_irq_domain_match(struct irq_domain *d, struct device_node *np)
-{
-	return d->of_node != NULL && d->of_node == np;
-}
-
 /**
  * irq_domain_alloc() - Allocate a new irq_domain data structure
  * @of_node: optional device-tree node of the interrupt controller
@@ -44,7 +39,7 @@ static int default_irq_domain_match(struct irq_domain *d, struct device_node *np
  */
 static struct irq_domain *irq_domain_alloc(struct device_node *of_node,
 					   unsigned int revmap_type,
-					   struct irq_domain_ops *ops,
+					   const struct irq_domain_ops *ops,
 					   void *host_data)
 {
 	struct irq_domain *domain;
@@ -58,9 +53,6 @@ static struct irq_domain *irq_domain_alloc(struct device_node *of_node,
 	domain->ops = ops;
 	domain->host_data = host_data;
 	domain->of_node = of_node_get(of_node);
-
-	if (domain->ops->match == NULL)
-		domain->ops->match = default_irq_domain_match;
 
 	return domain;
 }
@@ -104,7 +96,7 @@ struct irq_domain *irq_domain_add_legacy(struct device_node *of_node,
 					 unsigned int size,
 					 unsigned int first_irq,
 					 irq_hw_number_t first_hwirq,
-					 struct irq_domain_ops *ops,
+					 const struct irq_domain_ops *ops,
 					 void *host_data)
 {
 	struct irq_domain *domain;
@@ -170,7 +162,7 @@ struct irq_domain *irq_domain_add_legacy(struct device_node *of_node,
  */
 struct irq_domain *irq_domain_add_linear(struct device_node *of_node,
 					 unsigned int size,
-					 struct irq_domain_ops *ops,
+					 const struct irq_domain_ops *ops,
 					 void *host_data)
 {
 	struct irq_domain *domain;
@@ -192,7 +184,7 @@ struct irq_domain *irq_domain_add_linear(struct device_node *of_node,
 }
 
 struct irq_domain *irq_domain_add_nomap(struct device_node *of_node,
-					 struct irq_domain_ops *ops,
+					 const struct irq_domain_ops *ops,
 					 void *host_data)
 {
 	struct irq_domain *domain = irq_domain_alloc(of_node,
@@ -211,7 +203,7 @@ struct irq_domain *irq_domain_add_nomap(struct device_node *of_node,
  * (the reverse mapping will use the slow path until that happens).
  */
 struct irq_domain *irq_domain_add_tree(struct device_node *of_node,
-					 struct irq_domain_ops *ops,
+					 const struct irq_domain_ops *ops,
 					 void *host_data)
 {
 	struct irq_domain *domain = irq_domain_alloc(of_node,
@@ -230,6 +222,7 @@ struct irq_domain *irq_domain_add_tree(struct device_node *of_node,
 struct irq_domain *irq_find_host(struct device_node *node)
 {
 	struct irq_domain *h, *found = NULL;
+	int rc;
 
 	/* We might want to match the legacy controller last since
 	 * it might potentially be set to match all interrupts in
@@ -237,11 +230,17 @@ struct irq_domain *irq_find_host(struct device_node *node)
 	 * yet though...
 	 */
 	mutex_lock(&irq_domain_mutex);
-	list_for_each_entry(h, &irq_domain_list, link)
-		if (h->ops->match(h, node)) {
+	list_for_each_entry(h, &irq_domain_list, link) {
+		if (h->ops->match)
+			rc = h->ops->match(h, node);
+		else
+			rc = (h->of_node != NULL) && (h->of_node == node);
+
+		if (rc) {
 			found = h;
 			break;
 		}
+	}
 	mutex_unlock(&irq_domain_mutex);
 	return found;
 }
@@ -760,7 +759,7 @@ int irq_domain_xlate_onetwocell(struct irq_domain *d,
 }
 EXPORT_SYMBOL_GPL(irq_domain_xlate_onetwocell);
 
-struct irq_domain_ops irq_domain_simple_ops = {
+const struct irq_domain_ops irq_domain_simple_ops = {
 	.map = irq_domain_simple_map,
 	.xlate = irq_domain_xlate_onetwocell,
 };
