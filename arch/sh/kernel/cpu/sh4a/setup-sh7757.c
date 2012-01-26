@@ -133,7 +133,7 @@ static struct resource spi0_resources[] = {
 	[0] = {
 		.start	= 0xfe002000,
 		.end	= 0xfe0020ff,
-		.flags	= IORESOURCE_MEM,
+		.flags	= IORESOURCE_MEM | IORESOURCE_MEM_32BIT,
 	},
 	[1] = {
 		.start	= 86,
