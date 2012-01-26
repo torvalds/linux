@@ -1,6 +1,6 @@
 /* bnx2x_dump.h: Broadcom Everest network driver.
  *
- * Copyright (c) 2011 Broadcom Corporation
+ * Copyright (c) 2012 Broadcom Corporation
  *
  * Unless you and Broadcom execute a separate written software license
  * agreement governing use of this software, this software is licensed to you
