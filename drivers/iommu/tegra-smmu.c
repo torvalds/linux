@@ -807,6 +807,11 @@ found:
 	spin_unlock_irqrestore(&as->lock, flags);
 	domain->priv = as;
 
+	domain->geometry.aperture_start = smmu->iovmm_base;
+	domain->geometry.aperture_end   = smmu->iovmm_base +
+		smmu->page_count * SMMU_PAGE_SIZE - 1;
+	domain->geometry.force_aperture = true;
+
 	dev_dbg(smmu->dev, "smmu_as@%p\n", as);
 	return 0;
 
