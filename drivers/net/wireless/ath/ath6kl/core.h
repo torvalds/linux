@@ -715,7 +715,8 @@ void ath6kl_free_cookie(struct ath6kl *ar, struct ath6kl_cookie *cookie);
 int ath6kl_data_tx(struct sk_buff *skb, struct net_device *dev);
 
 struct aggr_info *aggr_init(struct ath6kl_vif *vif);
-void aggr_conn_init(struct ath6kl_vif *vif, struct aggr_info_conn *aggr_conn);
+void aggr_conn_init(struct ath6kl_vif *vif, struct aggr_info *aggr_info,
+		    struct aggr_info_conn *aggr_conn);
 void ath6kl_rx_refill(struct htc_target *target,
 		      enum htc_endpoint_id endpoint);
 void ath6kl_refill_amsdu_rxbufs(struct ath6kl *ar, int count);

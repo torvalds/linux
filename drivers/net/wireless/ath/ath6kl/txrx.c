@@ -1674,7 +1674,8 @@ void aggr_recv_addba_req_evt(struct ath6kl_vif *vif, u8 tid_mux, u16 seq_no,
 	rxtid->aggr = true;
 }
 
-void aggr_conn_init(struct ath6kl_vif *vif, struct aggr_info_conn *aggr_conn)
+void aggr_conn_init(struct ath6kl_vif *vif, struct aggr_info *aggr_info,
+		    struct aggr_info_conn *aggr_conn)
 {
 	struct rxtid *rxtid;
 	u8 i;
@@ -1684,7 +1685,7 @@ void aggr_conn_init(struct ath6kl_vif *vif, struct aggr_info_conn *aggr_conn)
 	init_timer(&aggr_conn->timer);
 	aggr_conn->timer.function = aggr_timeout;
 	aggr_conn->timer.data = (unsigned long) aggr_conn;
-	aggr_conn->aggr_info = vif->aggr_cntxt;
+	aggr_conn->aggr_info = aggr_info;
 
 	aggr_conn->timer_scheduled = false;
 
@@ -1716,7 +1717,7 @@ struct aggr_info *aggr_init(struct ath6kl_vif *vif)
 		return NULL;
 	}
 
-	aggr_conn_init(vif, p_aggr->aggr_conn);
+	aggr_conn_init(vif, p_aggr, p_aggr->aggr_conn);
 
 	skb_queue_head_init(&p_aggr->rx_amsdu_freeq);
 	ath6kl_alloc_netbufs(&p_aggr->rx_amsdu_freeq, AGGR_NUM_OF_FREE_NETBUFS);
