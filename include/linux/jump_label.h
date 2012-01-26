@@ -1,6 +1,38 @@
 #ifndef _LINUX_JUMP_LABEL_H
 #define _LINUX_JUMP_LABEL_H
 
+/*
+ * Jump label support
+ *
+ * Copyright (C) 2009-2012 Jason Baron <jbaron@redhat.com>
+ * Copyright (C) 2011-2012 Peter Zijlstra <pzijlstr@redhat.com>
+ *
+ * Jump labels provide an interface to generate dynamic branches using
+ * self-modifying code. Assuming toolchain and architecture support the result
+ * of a "if (static_branch(&key))" statement is a unconditional branch (which
+ * defaults to false - and the true block is placed out of line).
+ *
+ * However at runtime we can change the 'static' branch target using
+ * jump_label_{inc,dec}(). These function as a 'reference' count on the key
+ * object and for as long as there are references all branches referring to
+ * that particular key will point to the (out of line) true block.
+ *
+ * Since this relies on modifying code the jump_label_{inc,dec}() functions
+ * must be considered absolute slow paths (machine wide synchronization etc.).
+ * OTOH, since the affected branches are unconditional their runtime overhead
+ * will be absolutely minimal, esp. in the default (off) case where the total
+ * effect is a single NOP of appropriate size. The on case will patch in a jump
+ * to the out-of-line block.
+ *
+ * When the control is directly exposed to userspace it is prudent to delay the
+ * decrement to avoid high frequency code modifications which can (and do)
+ * cause significant performance degradation. Struct jump_label_key_deferred and
+ * jump_label_dec_deferred() provide for this.
+ *
+ * Lacking toolchain and or architecture support, it falls back to a simple
+ * conditional branch.
+ */
+
 #include <linux/types.h>
 #include <linux/compiler.h>
 #include <linux/workqueue.h>
