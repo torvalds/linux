@@ -37,8 +37,8 @@
 #define MX21ADS_REG_ADDR(offset)    (void __force __iomem *) \
 		(MX21ADS_MMIO_BASE_ADDR + (offset))
 
+#define MX21ADS_CS8900A_MMIO_SIZE   0x200000
 #define MX21ADS_CS8900A_IRQ         IRQ_GPIOE(11)
-#define MX21ADS_CS8900A_IOBASE_REG  MX21ADS_REG_ADDR(0x000000)
 #define MX21ADS_ST16C255_IOBASE_REG MX21ADS_REG_ADDR(0x200000)
 #define MX21ADS_VERSION_REG         MX21ADS_REG_ADDR(0x400000)
 #define MX21ADS_IO_REG              MX21ADS_REG_ADDR(0x800000)
@@ -157,6 +157,18 @@ static struct platform_device mx21ads_nor_mtd_device = {
 	},
 	.num_resources = 1,
 	.resource = &mx21ads_flash_resource,
+};
+
+static const struct resource mx21ads_cs8900_resources[] __initconst = {
+	DEFINE_RES_MEM(MX21_CS1_BASE_ADDR, MX21ADS_CS8900A_MMIO_SIZE),
+	DEFINE_RES_IRQ(MX21ADS_CS8900A_IRQ),
+};
+
+static const struct platform_device_info mx21ads_cs8900_devinfo __initconst = {
+	.name = "cs89x0",
+	.id = 0,
+	.res = mx21ads_cs8900_resources,
+	.num_res = ARRAY_SIZE(mx21ads_cs8900_resources),
 };
 
 static const struct imxuart_platform_data uart_pdata_rts __initconst = {
@@ -292,6 +304,8 @@ static void __init mx21ads_board_init(void)
 	imx21_add_mxc_nand(&mx21ads_nand_board_info);
 
 	platform_add_devices(platform_devices, ARRAY_SIZE(platform_devices));
+	platform_device_register_full(
+			(struct platform_device_info *)&mx21ads_cs8900_devinfo);
 }
 
 static void __init mx21ads_timer_init(void)
