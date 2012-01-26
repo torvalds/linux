@@ -1184,6 +1184,29 @@ static u8 rtl8168d_efuse_read(void __iomem *ioaddr, int reg_addr)
 	return value;
 }
 
+static u16 rtl_get_events(struct rtl8169_private *tp)
+{
+	void __iomem *ioaddr = tp->mmio_addr;
+
+	return RTL_R16(IntrStatus);
+}
+
+static void rtl_ack_events(struct rtl8169_private *tp, u16 bits)
+{
+	void __iomem *ioaddr = tp->mmio_addr;
+
+	RTL_W16(IntrStatus, bits);
+	mmiowb();
+}
+
+static void rtl_irq_disable(struct rtl8169_private *tp)
+{
+	void __iomem *ioaddr = tp->mmio_addr;
+
+	RTL_W16(IntrMask, 0);
+	mmiowb();
+}
+
 static void rtl_irq_enable(struct rtl8169_private *tp, u16 bits)
 {
 	void __iomem *ioaddr = tp->mmio_addr;
@@ -1195,8 +1218,8 @@ static void rtl8169_irq_mask_and_ack(struct rtl8169_private *tp)
 {
 	void __iomem *ioaddr = tp->mmio_addr;
 
-	RTL_W16(IntrMask, 0x0000);
-	RTL_W16(IntrStatus, tp->intr_event);
+	rtl_irq_disable(tp);
+	rtl_ack_events(tp, tp->intr_event);
 	RTL_R8(ChipCmd);
 }
 
@@ -4057,11 +4080,11 @@ rtl8169_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 	rtl_init_rxcfg(tp);
 
-	RTL_W16(IntrMask, 0x0000);
+	rtl_irq_disable(tp);
 
 	rtl_hw_reset(tp);
 
-	RTL_W16(IntrStatus, 0xffff);
+	rtl_ack_events(tp, 0xffff);
 
 	pci_set_master(pdev);
 
@@ -5775,12 +5798,12 @@ static irqreturn_t rtl8169_interrupt(int irq, void *dev_instance)
 	struct rtl8169_private *tp = netdev_priv(dev);
 	void __iomem *ioaddr = tp->mmio_addr;
 	int handled = 0;
-	int status;
+	u16 status;
 
 	/* loop handling interrupts until we have no new ones or
 	 * we hit a invalid/hotplug case.
 	 */
-	status = RTL_R16(IntrStatus);
+	status = rtl_get_events(tp);
 	while (status && status != 0xffff) {
 		status &= tp->intr_event;
 		if (!status)
@@ -5839,7 +5862,7 @@ static irqreturn_t rtl8169_interrupt(int irq, void *dev_instance)
 		 */
 		RTL_W16(IntrStatus,
 			(status & RxFIFOOver) ? (status | RxOverflow) : status);
-		status = RTL_R16(IntrStatus);
+		status = rtl_get_events(tp);
 	}
 done:
 	return IRQ_RETVAL(handled);
