@@ -264,15 +264,6 @@ config SERIAL_MAX3107
 	help
 	  MAX3107 chip support
 
-config SERIAL_MAX3107_AAVA
-	tristate "MAX3107 AAVA platform support"
-	depends on X86_MRST && SERIAL_MAX3107 && GPIOLIB
-	select SERIAL_CORE
-	help
-	  Support for the MAX3107 chip configuration found on the AAVA
-	  platform. Includes the extra initialisation and GPIO support
-	  neded for this device.
-
 config SERIAL_DZ
 	bool "DECstation DZ serial driver"
 	depends on MACH_DECSTATION && 32BIT
