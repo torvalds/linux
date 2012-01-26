@@ -235,7 +235,7 @@ static const struct file_operations musb_test_mode_fops = {
 	.release		= single_release,
 };
 
-int __init musb_init_debugfs(struct musb *musb)
+int __devinit musb_init_debugfs(struct musb *musb)
 {
 	struct dentry		*root;
 	struct dentry		*file;

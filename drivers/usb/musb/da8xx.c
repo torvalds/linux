@@ -478,7 +478,7 @@ static const struct musb_platform_ops da8xx_ops = {
 
 static u64 da8xx_dmamask = DMA_BIT_MASK(32);
 
-static int __init da8xx_probe(struct platform_device *pdev)
+static int __devinit da8xx_probe(struct platform_device *pdev)
 {
 	struct musb_hdrc_platform_data	*pdata = pdev->dev.platform_data;
 	struct platform_device		*musb;
@@ -562,7 +562,7 @@ err0:
 	return ret;
 }
 
-static int __exit da8xx_remove(struct platform_device *pdev)
+static int __devexit da8xx_remove(struct platform_device *pdev)
 {
 	struct da8xx_glue		*glue = platform_get_drvdata(pdev);
 
@@ -576,7 +576,8 @@ static int __exit da8xx_remove(struct platform_device *pdev)
 }
 
 static struct platform_driver da8xx_driver = {
-	.remove		= __exit_p(da8xx_remove),
+	.probe		= da8xx_probe,
+	.remove		= __devexit_p(da8xx_remove),
 	.driver		= {
 		.name	= "musb-da8xx",
 	},
@@ -588,9 +589,9 @@ MODULE_LICENSE("GPL v2");
 
 static int __init da8xx_init(void)
 {
-	return platform_driver_probe(&da8xx_driver, da8xx_probe);
+	return platform_driver_register(&da8xx_driver);
 }
-subsys_initcall(da8xx_init);
+module_init(da8xx_init);
 
 static void __exit da8xx_exit(void)
 {

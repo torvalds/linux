@@ -1762,7 +1762,7 @@ static void musb_gadget_release(struct device *dev)
 }
 
 
-static void __init
+static void __devinit
 init_peripheral_ep(struct musb *musb, struct musb_ep *ep, u8 epnum, int is_in)
 {
 	struct musb_hw_ep	*hw_ep = musb->endpoints + epnum;
@@ -1799,7 +1799,7 @@ init_peripheral_ep(struct musb *musb, struct musb_ep *ep, u8 epnum, int is_in)
  * Initialize the endpoints exposed to peripheral drivers, with backlinks
  * to the rest of the driver state.
  */
-static inline void __init musb_g_init_endpoints(struct musb *musb)
+static inline void __devinit musb_g_init_endpoints(struct musb *musb)
 {
 	u8			epnum;
 	struct musb_hw_ep	*hw_ep;
@@ -1832,7 +1832,7 @@ static inline void __init musb_g_init_endpoints(struct musb *musb)
 /* called once during driver setup to initialize and link into
  * the driver model; memory is zeroed.
  */
-int __init musb_gadget_setup(struct musb *musb)
+int __devinit musb_gadget_setup(struct musb *musb)
 {
 	int status;
 
