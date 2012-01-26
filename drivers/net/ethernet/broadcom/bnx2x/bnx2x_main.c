@@ -498,9 +498,13 @@ void bnx2x_write_dmae(struct bnx2x *bp, dma_addr_t dma_addr, u32 dst_addr,
 	if (!bp->dmae_ready) {
 		u32 *data = bnx2x_sp(bp, wb_data[0]);
 
-		DP(BNX2X_MSG_OFF, "DMAE is not ready (dst_addr %08x  len32 %d)"
-		   "  using indirect\n", dst_addr, len32);
-		bnx2x_init_ind_wr(bp, dst_addr, data, len32);
+		DP(BNX2X_MSG_OFF,
+		   "DMAE is not ready (dst_addr %08x len32 %d) using indirect\n",
+		   dst_addr, len32);
+		if (CHIP_IS_E1(bp))
+			bnx2x_init_ind_wr(bp, dst_addr, data, len32);
+		else
+			bnx2x_init_str_wr(bp, dst_addr, data, len32);
 		return;
 	}
 
@@ -528,10 +532,16 @@ void bnx2x_read_dmae(struct bnx2x *bp, u32 src_addr, u32 len32)
 		u32 *data = bnx2x_sp(bp, wb_data[0]);
 		int i;
 
-		DP(BNX2X_MSG_OFF, "DMAE is not ready (src_addr %08x  len32 %d)"
-		   "  using indirect\n", src_addr, len32);
-		for (i = 0; i < len32; i++)
-			data[i] = bnx2x_reg_rd_ind(bp, src_addr + i*4);
+		if (CHIP_IS_E1(bp)) {
+			DP(BNX2X_MSG_OFF,
+			   "DMAE is not ready (src_addr %08x len32 %d) using indirect\n",
+			   src_addr, len32);
+			for (i = 0; i < len32; i++)
+				data[i] = bnx2x_reg_rd_ind(bp, src_addr + i*4);
+		} else
+			for (i = 0; i < len32; i++)
+				data[i] = REG_RD(bp, src_addr + i*4);
+
 		return;
 	}
 
