@@ -46,6 +46,13 @@
 
 #define DEFAULT_CLK_SPEED 48000000 /* 48Mhz*/
 
+/* SCR register bitmasks */
+#define OMAP_UART_SCR_RX_TRIG_GRANU1_MASK		(1 << 7)
+
+/* FCR register bitmasks */
+#define OMAP_UART_FCR_RX_FIFO_TRIG_SHIFT		6
+#define OMAP_UART_FCR_RX_FIFO_TRIG_MASK			(0x3 << 6)
+
 static struct uart_omap_port *ui[OMAP_MAX_HSUART_PORTS];
 
 /* Forward declaration of functions */
@@ -811,13 +818,20 @@ serial_omap_set_termios(struct uart_port *port, struct ktermios *termios,
 	up->mcr = serial_in(up, UART_MCR);
 	serial_out(up, UART_MCR, up->mcr | UART_MCR_TCRTLR);
 	/* FIFO ENABLE, DMA MODE */
-	serial_out(up, UART_FCR, up->fcr);
-	serial_out(up, UART_LCR, UART_LCR_CONF_MODE_B);
+
+	up->scr |= OMAP_UART_SCR_RX_TRIG_GRANU1_MASK;
 
 	if (up->use_dma) {
 		serial_out(up, UART_TI752_TLR, 0);
-		up->scr |= (UART_FCR_TRIGGER_4 | UART_FCR_TRIGGER_8);
+		up->scr |= UART_FCR_TRIGGER_4;
+	} else {
+		/* Set receive FIFO threshold to 1 byte */
+		up->fcr &= ~OMAP_UART_FCR_RX_FIFO_TRIG_MASK;
+		up->fcr |= (0x1 << OMAP_UART_FCR_RX_FIFO_TRIG_SHIFT);
 	}
+
+	serial_out(up, UART_FCR, up->fcr);
+	serial_out(up, UART_LCR, UART_LCR_CONF_MODE_B);
 
 	serial_out(up, UART_OMAP_SCR, up->scr);
 
