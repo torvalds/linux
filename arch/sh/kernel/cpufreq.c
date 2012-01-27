@@ -14,6 +14,8 @@
  * License.  See the file "COPYING" in the main directory of this archive
  * for more details.
  */
+#define pr_fmt(fmt) "cpufreq: " fmt
+
 #include <linux/types.h>
 #include <linux/cpufreq.h>
 #include <linux/kernel.h>
@@ -21,6 +23,7 @@
 #include <linux/init.h>
 #include <linux/err.h>
 #include <linux/cpumask.h>
+#include <linux/cpu.h>
 #include <linux/smp.h>
 #include <linux/sched.h>	/* set_cpus_allowed() */
 #include <linux/clk.h>
@@ -45,6 +48,7 @@ static int sh_cpufreq_target(struct cpufreq_policy *policy,
 	struct clk *cpuclk = &per_cpu(sh_cpuclk, cpu);
 	cpumask_t cpus_allowed;
 	struct cpufreq_freqs freqs;
+	struct device *dev;
 	long freq;
 
 	if (!cpu_online(cpu))
@@ -55,13 +59,15 @@ static int sh_cpufreq_target(struct cpufreq_policy *policy,
 
 	BUG_ON(smp_processor_id() != cpu);
 
+	dev = get_cpu_device(cpu);
+
 	/* Convert target_freq from kHz to Hz */
 	freq = clk_round_rate(cpuclk, target_freq * 1000);
 
 	if (freq < (policy->min * 1000) || freq > (policy->max * 1000))
 		return -EINVAL;
 
-	pr_debug("cpufreq: requested frequency %u Hz\n", target_freq * 1000);
+	dev_dbg(dev, "requested frequency %u Hz\n", target_freq * 1000);
 
 	freqs.cpu	= cpu;
 	freqs.old	= sh_cpufreq_get(cpu);
@@ -73,7 +79,7 @@ static int sh_cpufreq_target(struct cpufreq_policy *policy,
 	clk_set_rate(cpuclk, freq);
 	cpufreq_notify_transition(&freqs, CPUFREQ_POSTCHANGE);
 
-	pr_debug("cpufreq: set frequency %lu Hz\n", freq);
+	dev_dbg(dev, "set frequency %lu Hz\n", freq);
 
 	return 0;
 }
@@ -82,13 +88,16 @@ static int sh_cpufreq_cpu_init(struct cpufreq_policy *policy)
 {
 	unsigned int cpu = policy->cpu;
 	struct clk *cpuclk = &per_cpu(sh_cpuclk, cpu);
+	struct device *dev;
 
 	if (!cpu_online(cpu))
 		return -ENODEV;
 
-	cpuclk = clk_get(NULL, "cpu_clk");
+	dev = get_cpu_device(cpu);
+
+	cpuclk = clk_get(dev, "cpu_clk");
 	if (IS_ERR(cpuclk)) {
-		printk(KERN_ERR "cpufreq: couldn't get CPU#%d clk\n", cpu);
+		dev_err(dev, "couldn't get CPU clk\n");
 		return PTR_ERR(cpuclk);
 	}
 
@@ -106,16 +115,14 @@ static int sh_cpufreq_cpu_init(struct cpufreq_policy *policy)
 	 * properly to support scaling.
 	 */
 	if (unlikely(policy->min == policy->max)) {
-		printk(KERN_ERR "cpufreq: clock framework rate rounding "
-		       "not supported on CPU#%d.\n", cpu);
-
+		dev_err(dev, "rate rounding not supported on this CPU.\n");
 		clk_put(cpuclk);
 		return -EINVAL;
 	}
 
-	printk(KERN_INFO "cpufreq: CPU#%d Frequencies - Minimum %u.%03u MHz, "
+	dev_info(dev, "CPU Frequencies - Minimum %u.%03u MHz, "
 	       "Maximum %u.%03u MHz.\n",
-	       cpu, policy->min / 1000, policy->min % 1000,
+	       policy->min / 1000, policy->min % 1000,
 	       policy->max / 1000, policy->max % 1000);
 
 	return 0;
@@ -147,7 +154,7 @@ static struct cpufreq_driver sh_cpufreq_driver = {
 
 static int __init sh_cpufreq_module_init(void)
 {
-	printk(KERN_INFO "cpufreq: SuperH CPU frequency driver.\n");
+	pr_notice("SuperH CPU frequency driver.\n");
 	return cpufreq_register_driver(&sh_cpufreq_driver);
 }
 
