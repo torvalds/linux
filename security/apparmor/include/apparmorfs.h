@@ -15,6 +15,30 @@
 #ifndef __AA_APPARMORFS_H
 #define __AA_APPARMORFS_H
 
+enum aa_fs_type {
+	AA_FS_TYPE_FOPS,
+	AA_FS_TYPE_DIR,
+};
+
+struct aa_fs_entry;
+
+struct aa_fs_entry {
+	const char *name;
+	struct dentry *dentry;
+	umode_t mode;
+	enum aa_fs_type v_type;
+	union {
+		struct aa_fs_entry *files;
+	} v;
+	const struct file_operations *file_ops;
+};
+
+#define AA_FS_FILE_FOPS(_name, _mode, _fops) \
+	{ .name = (_name), .v_type = AA_FS_TYPE_FOPS, \
+	  .mode = (_mode), .file_ops = (_fops) }
+#define AA_FS_DIR(_name, _value) \
+	{ .name = (_name), .v_type = AA_FS_TYPE_DIR, .v.files = (_value) }
+
 extern void __init aa_destroy_aafs(void);
 
 #endif /* __AA_APPARMORFS_H */
