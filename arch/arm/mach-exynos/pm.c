@@ -384,7 +384,9 @@ static void exynos4_pm_resume(void)
 
 	exynos4_restore_pll();
 
+#ifdef CONFIG_SMP
 	scu_enable(S5P_VA_SCU);
+#endif
 
 #ifdef CONFIG_CACHE_L2X0
 	s3c_pm_do_restore_core(exynos4_l2cc_save, ARRAY_SIZE(exynos4_l2cc_save));
