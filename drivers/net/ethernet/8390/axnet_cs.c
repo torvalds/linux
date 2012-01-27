@@ -192,7 +192,7 @@ static int get_prom(struct pcmcia_device *link)
     unsigned int ioaddr = dev->base_addr;
     int i, j;
 
-    /* This is based on drivers/net/ne.c */
+    /* This is based on drivers/net/ethernet/8390/ne.c */
     struct {
 	u_char value, offset;
     } program_seq[] = {

@@ -1,5 +1,5 @@
 /*
- * drivers/net/ibm_newemac/phy.h
+ * drivers/net/ethernet/ibm/emac/phy.h
  *
  * Driver for PowerPC 4xx on-chip ethernet controller, PHY support
  *

@@ -1,4 +1,4 @@
-/* drivers/net/ax88796.c
+/* drivers/net/ethernet/8390/ax88796.c
  *
  * Copyright 2005,2007 Simtec Electronics
  *	Ben Dooks <ben@simtec.co.uk>

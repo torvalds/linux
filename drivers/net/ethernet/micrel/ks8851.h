@@ -1,4 +1,4 @@
-/* drivers/net/ks8851.h
+/* drivers/net/ethernet/micrel/ks8851.h
  *
  * Copyright 2009 Simtec Electronics
  *      Ben Dooks <ben@simtec.co.uk>

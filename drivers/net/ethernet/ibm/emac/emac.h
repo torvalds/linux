@@ -1,5 +1,5 @@
 /*
- * drivers/net/ibm_newemac/emac.h
+ * drivers/net/ethernet/ibm/emac/emac.h
  *
  * Register definitions for PowerPC 4xx on-chip ethernet contoller
  *

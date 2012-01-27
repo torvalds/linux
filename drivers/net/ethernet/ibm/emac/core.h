@@ -1,5 +1,5 @@
 /*
- * drivers/net/ibm_newemac/core.h
+ * drivers/net/ethernet/ibm/emac/core.h
  *
  * Driver for PowerPC 4xx on-chip ethernet controller.
  *

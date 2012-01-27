@@ -113,7 +113,7 @@ config DEPCA
 	  If you have a network (Ethernet) card of this type, say Y and read
 	  the Ethernet-HOWTO, available from
 	  <http://www.tldp.org/docs.html#howto> as well as
-	  <file:drivers/net/depca.c>.
+	  <file:drivers/net/ethernet/amd/depca.c>.
 
 	  To compile this driver as a module, choose M here. The module
 	  will be called depca.

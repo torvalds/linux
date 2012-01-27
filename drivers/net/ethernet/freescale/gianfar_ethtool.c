@@ -1,5 +1,5 @@
 /*
- *  drivers/net/gianfar_ethtool.c
+ *  drivers/net/ethernet/freescale/gianfar_ethtool.c
  *
  *  Gianfar Ethernet Driver
  *  Ethtool support for Gianfar Enet

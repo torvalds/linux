@@ -1,5 +1,5 @@
 /*
- *  linux/drivers/net/am79c961.c
+ *  linux/drivers/net/ethernet/amd/am79c961a.c
  *
  *  by Russell King <rmk@arm.linux.org.uk> 1995-2001.
  *

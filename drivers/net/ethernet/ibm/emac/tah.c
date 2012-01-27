@@ -1,5 +1,5 @@
 /*
- * drivers/net/ibm_newemac/tah.c
+ * drivers/net/ethernet/ibm/emac/tah.c
  *
  * Driver for PowerPC 4xx on-chip ethernet controller, TAH support.
  *

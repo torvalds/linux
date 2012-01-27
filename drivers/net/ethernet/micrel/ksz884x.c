@@ -1,5 +1,5 @@
 /**
- * drivers/net/ksx884x.c - Micrel KSZ8841/2 PCI Ethernet driver
+ * drivers/net/ethernet/micrel/ksx884x.c - Micrel KSZ8841/2 PCI Ethernet driver
  *
  * Copyright (c) 2009-2010 Micrel, Inc.
  * 	Tristram Ha <Tristram.Ha@micrel.com>

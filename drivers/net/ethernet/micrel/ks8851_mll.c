@@ -1,5 +1,5 @@
 /**
- * drivers/net/ks8851_mll.c
+ * drivers/net/ethernet/micrel/ks8851_mll.c
  * Copyright (c) 2009 Micrel Inc.
  *
  * This program is free software; you can redistribute it and/or modify

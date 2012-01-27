@@ -1,5 +1,5 @@
 /*
- * linux/drivers/net/ethoc.c
+ * linux/drivers/net/ethernet/ethoc.c
  *
  * Copyright (C) 2007-2008 Avionic Design Development GmbH
  * Copyright (C) 2008-2009 Avionic Design GmbH

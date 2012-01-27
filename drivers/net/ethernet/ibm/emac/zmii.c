@@ -1,5 +1,5 @@
 /*
- * drivers/net/ibm_newemac/zmii.c
+ * drivers/net/ethernet/ibm/emac/zmii.c
  *
  * Driver for PowerPC 4xx on-chip ethernet controller, ZMII bridge support.
  *
