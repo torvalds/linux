@@ -450,18 +450,7 @@ static struct spi_driver sst25l_driver = {
 	.remove		= __devexit_p(sst25l_remove),
 };
 
-static int __init sst25l_init(void)
-{
-	return spi_register_driver(&sst25l_driver);
-}
-
-static void __exit sst25l_exit(void)
-{
-	spi_unregister_driver(&sst25l_driver);
-}
-
-module_init(sst25l_init);
-module_exit(sst25l_exit);
+module_spi_driver(sst25l_driver);
 
 MODULE_DESCRIPTION("MTD SPI driver for SST25L Flash chips");
 MODULE_AUTHOR("Andre Renaud <andre@bluewatersys.com>, "

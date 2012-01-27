@@ -946,18 +946,7 @@ static struct spi_driver dataflash_driver = {
 	/* FIXME:  investigate suspend and resume... */
 };
 
-static int __init dataflash_init(void)
-{
-	return spi_register_driver(&dataflash_driver);
-}
-module_init(dataflash_init);
-
-static void __exit dataflash_exit(void)
-{
-	spi_unregister_driver(&dataflash_driver);
-}
-module_exit(dataflash_exit);
-
+module_spi_driver(dataflash_driver);
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Andrew Victor, David Brownell");

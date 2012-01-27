@@ -1004,21 +1004,7 @@ static struct spi_driver m25p80_driver = {
 	 */
 };
 
-
-static int __init m25p80_init(void)
-{
-	return spi_register_driver(&m25p80_driver);
-}
-
-
-static void __exit m25p80_exit(void)
-{
-	spi_unregister_driver(&m25p80_driver);
-}
-
-
-module_init(m25p80_init);
-module_exit(m25p80_exit);
+module_spi_driver(m25p80_driver);
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Mike Lavender");
