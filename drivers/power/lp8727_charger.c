@@ -92,7 +92,7 @@ struct lp8727_chg {
 	enum lp8727_dev_id devid;
 };
 
-static int lp8727_i2c_read(struct lp8727_chg *pchg, u8 reg, u8 *data, u8 len)
+static int lp8727_read_bytes(struct lp8727_chg *pchg, u8 reg, u8 *data, u8 len)
 {
 	s32 ret;
 
@@ -103,27 +103,20 @@ static int lp8727_i2c_read(struct lp8727_chg *pchg, u8 reg, u8 *data, u8 len)
 	return (ret != len) ? -EIO : 0;
 }
 
-static int lp8727_i2c_write(struct lp8727_chg *pchg, u8 reg, u8 *data, u8 len)
+static inline int lp8727_read_byte(struct lp8727_chg *pchg, u8 reg, u8 *data)
 {
-	s32 ret;
+	return lp8727_read_bytes(pchg, reg, data, 1);
+}
+
+static int lp8727_write_byte(struct lp8727_chg *pchg, u8 reg, u8 data)
+{
+	int ret;
 
 	mutex_lock(&pchg->xfer_lock);
-	ret = i2c_smbus_write_i2c_block_data(pchg->client, reg, len, data);
+	ret = i2c_smbus_write_byte_data(pchg->client, reg, data);
 	mutex_unlock(&pchg->xfer_lock);
 
 	return ret;
-}
-
-static inline int lp8727_i2c_read_byte(struct lp8727_chg *pchg, u8 reg,
-				       u8 *data)
-{
-	return lp8727_i2c_read(pchg, reg, data, 1);
-}
-
-static inline int lp8727_i2c_write_byte(struct lp8727_chg *pchg, u8 reg,
-					u8 *data)
-{
-	return lp8727_i2c_write(pchg, reg, data, 1);
 }
 
 static int lp8727_is_charger_attached(const char *name, int id)
@@ -144,12 +137,12 @@ static int lp8727_init_device(struct lp8727_chg *pchg)
 	int ret;
 
 	val = ID200_EN | ADC_EN | CP_EN;
-	ret = lp8727_i2c_write_byte(pchg, CTRL1, &val);
+	ret = lp8727_write_byte(pchg, CTRL1, val);
 	if (ret)
 		return ret;
 
 	val = INT_EN | CHGDET_EN;
-	ret = lp8727_i2c_write_byte(pchg, CTRL2, &val);
+	ret = lp8727_write_byte(pchg, CTRL2, val);
 	if (ret)
 		return ret;
 
@@ -159,21 +152,20 @@ static int lp8727_init_device(struct lp8727_chg *pchg)
 static int lp8727_is_dedicated_charger(struct lp8727_chg *pchg)
 {
 	u8 val;
-	lp8727_i2c_read_byte(pchg, STATUS1, &val);
+	lp8727_read_byte(pchg, STATUS1, &val);
 	return (val & DCPORT);
 }
 
 static int lp8727_is_usb_charger(struct lp8727_chg *pchg)
 {
 	u8 val;
-	lp8727_i2c_read_byte(pchg, STATUS1, &val);
+	lp8727_read_byte(pchg, STATUS1, &val);
 	return (val & CHPORT);
 }
 
 static void lp8727_ctrl_switch(struct lp8727_chg *pchg, u8 sw)
 {
-	u8 val = sw;
-	lp8727_i2c_write_byte(pchg, SWCTRL, &val);
+	lp8727_write_byte(pchg, SWCTRL, sw);
 }
 
 static void lp8727_id_detection(struct lp8727_chg *pchg, u8 id, int vbusin)
@@ -213,9 +205,9 @@ static void lp8727_enable_chgdet(struct lp8727_chg *pchg)
 {
 	u8 val;
 
-	lp8727_i2c_read_byte(pchg, CTRL2, &val);
+	lp8727_read_byte(pchg, CTRL2, &val);
 	val |= CHGDET_EN;
-	lp8727_i2c_write_byte(pchg, CTRL2, &val);
+	lp8727_write_byte(pchg, CTRL2, val);
 }
 
 static void lp8727_delayed_func(struct work_struct *_work)
@@ -224,7 +216,7 @@ static void lp8727_delayed_func(struct work_struct *_work)
 	struct lp8727_chg *pchg =
 	    container_of(_work, struct lp8727_chg, work.work);
 
-	if (lp8727_i2c_read(pchg, INT1, intstat, 2)) {
+	if (lp8727_read_bytes(pchg, INT1, intstat, 2)) {
 		dev_err(pchg->dev, "can not read INT registers\n");
 		return;
 	}
@@ -308,7 +300,7 @@ static int lp8727_battery_get_property(struct power_supply *psy,
 	switch (psp) {
 	case POWER_SUPPLY_PROP_STATUS:
 		if (lp8727_is_charger_attached(psy->name, pchg->devid)) {
-			lp8727_i2c_read_byte(pchg, STATUS1, &read);
+			lp8727_read_byte(pchg, STATUS1, &read);
 			if (((read & CHGSTAT) >> 4) == EOC)
 				val->intval = POWER_SUPPLY_STATUS_FULL;
 			else
@@ -318,7 +310,7 @@ static int lp8727_battery_get_property(struct power_supply *psy,
 		}
 		break;
 	case POWER_SUPPLY_PROP_HEALTH:
-		lp8727_i2c_read_byte(pchg, STATUS2, &read);
+		lp8727_read_byte(pchg, STATUS2, &read);
 		read = (read & TEMP_STAT) >> 5;
 		if (read >= 0x1 && read <= 0x3)
 			val->intval = POWER_SUPPLY_HEALTH_OVERHEAT;
@@ -359,7 +351,7 @@ static void lp8727_charger_changed(struct power_supply *psy)
 			eoc_level = pchg->chg_parm->eoc_level;
 			ichg = pchg->chg_parm->ichg;
 			val = (ichg << 4) | eoc_level;
-			lp8727_i2c_write_byte(pchg, CHGCTRL2, &val);
+			lp8727_write_byte(pchg, CHGCTRL2, val);
 		}
 	}
 }
