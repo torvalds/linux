@@ -265,10 +265,37 @@ static void pcie_wait_link_active(struct controller *ctrl)
 	ctrl_dbg(ctrl, "Data Link Layer Link Active not set in 1000 msec\n");
 }
 
+static bool pci_bus_check_dev(struct pci_bus *bus, int devfn)
+{
+	u32 l;
+	int count = 0;
+	int delay = 1000, step = 20;
+	bool found = false;
+
+	do {
+		found = pci_bus_read_dev_vendor_id(bus, devfn, &l, 0);
+		count++;
+
+		if (found)
+			break;
+
+		msleep(step);
+		delay -= step;
+	} while (delay > 0);
+
+	if (count > 1 && pciehp_debug)
+		printk(KERN_DEBUG "pci %04x:%02x:%02x.%d id reading try %d times with interval %d ms to get %08x\n",
+			pci_domain_nr(bus), bus->number, PCI_SLOT(devfn),
+			PCI_FUNC(devfn), count, step, l);
+
+	return found;
+}
+
 int pciehp_check_link_status(struct controller *ctrl)
 {
 	u16 lnk_status;
 	int retval = 0;
+	bool found = false;
 
         /*
          * Data Link Layer Link Active Reporting must be capable for
@@ -280,13 +307,10 @@ int pciehp_check_link_status(struct controller *ctrl)
         else
                 msleep(1000);
 
-	/*
-	 * Need to wait for 1000 ms after Data Link Layer Link Active
-	 * (DLLLA) bit reads 1b before sending configuration request.
-	 * We need it before checking Link Training (LT) bit becuase
-	 * LT is still set even after DLLLA bit is set on some platform.
-	 */
-	msleep(1000);
+	/* wait 100ms before read pci conf, and try in 1s */
+	msleep(100);
+	found = pci_bus_check_dev(ctrl->pcie->port->subordinate,
+					PCI_DEVFN(0, 0));
 
 	retval = pciehp_readw(ctrl, PCI_EXP_LNKSTA, &lnk_status);
 	if (retval) {
@@ -302,15 +326,10 @@ int pciehp_check_link_status(struct controller *ctrl)
 		return retval;
 	}
 
-	/*
-	 * If the port supports Link speeds greater than 5.0 GT/s, we
-	 * must wait for 100 ms after Link training completes before
-	 * sending configuration request.
-	 */
-	if (ctrl->pcie->port->subordinate->max_bus_speed > PCIE_SPEED_5_0GT)
-		msleep(100);
-
 	pcie_update_link_speed(ctrl->pcie->port->subordinate, lnk_status);
+
+	if (!found && !retval)
+		retval = -1;
 
 	return retval;
 }
