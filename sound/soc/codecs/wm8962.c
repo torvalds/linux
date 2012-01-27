@@ -3636,6 +3636,7 @@ static struct snd_soc_codec_driver soc_codec_dev_wm8962 = {
 	.set_pll = wm8962_set_fll,
 	.reg_cache_size	= WM8962_MAX_REGISTER,
 	.volatile_register = wm8962_soc_volatile,
+	.idle_bias_off = true,
 };
 
 /* Improve power consumption for IN4 DC measurement mode */
