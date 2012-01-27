@@ -342,11 +342,13 @@ static void i82875p_init_csrows(struct mem_ctl_info *mci,
 				void __iomem * ovrfl_window, u32 drc)
 {
 	struct csrow_info *csrow;
+	struct dimm_info *dimm;
+	unsigned nr_chans = dual_channel_active(drc) + 1;
 	unsigned long last_cumul_size;
 	u8 value;
 	u32 drc_ddim;		/* DRAM Data Integrity Mode 0=none,2=edac */
 	u32 cumul_size;
-	int index;
+	int index, j;
 
 	drc_ddim = (drc >> 18) & 0x1;
 	last_cumul_size = 0;
@@ -371,10 +373,15 @@ static void i82875p_init_csrows(struct mem_ctl_info *mci,
 		csrow->last_page = cumul_size - 1;
 		csrow->nr_pages = cumul_size - last_cumul_size;
 		last_cumul_size = cumul_size;
-		csrow->grain = 1 << 12;	/* I82875P_EAP has 4KiB reolution */
-		csrow->mtype = MEM_DDR;
-		csrow->dtype = DEV_UNKNOWN;
-		csrow->edac_mode = drc_ddim ? EDAC_SECDED : EDAC_NONE;
+
+		for (j = 0; j < nr_chans; j++) {
+			dimm = csrow->channels[j].dimm;
+
+			dimm->grain = 1 << 12;	/* I82875P_EAP has 4KiB reolution */
+			dimm->mtype = MEM_DDR;
+			dimm->dtype = DEV_UNKNOWN;
+			dimm->edac_mode = drc_ddim ? EDAC_SECDED : EDAC_NONE;
+		}
 	}
 }
 

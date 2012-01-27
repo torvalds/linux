@@ -43,7 +43,7 @@ static void edac_mc_dump_channel(struct rank_info *chan)
 {
 	debugf4("\tchannel = %p\n", chan);
 	debugf4("\tchannel->chan_idx = %d\n", chan->chan_idx);
-	debugf4("\tchannel->ce_count = %d\n", chan->ce_count);
+	debugf4("\tchannel->ce_count = %d\n", chan->dimm->ce_count);
 	debugf4("\tchannel->label = '%s'\n", chan->dimm->label);
 	debugf4("\tchannel->csrow = %p\n\n", chan->csrow);
 }
@@ -695,6 +695,7 @@ void edac_mc_handle_ce(struct mem_ctl_info *mci,
 {
 	unsigned long remapped_page;
 	char *label = NULL;
+	u32 grain;
 
 	debugf3("MC%d: %s()\n", mci->mc_idx, __func__);
 
@@ -719,6 +720,7 @@ void edac_mc_handle_ce(struct mem_ctl_info *mci,
 	}
 
 	label = mci->csrows[row].channels[channel].dimm->label;
+	grain = mci->csrows[row].channels[channel].dimm->grain;
 
 	if (edac_mc_get_log_ce())
 		/* FIXME - put in DIMM location */
@@ -726,11 +728,12 @@ void edac_mc_handle_ce(struct mem_ctl_info *mci,
 			"CE page 0x%lx, offset 0x%lx, grain %d, syndrome "
 			"0x%lx, row %d, channel %d, label \"%s\": %s\n",
 			page_frame_number, offset_in_page,
-			mci->csrows[row].grain, syndrome, row, channel,
+			grain, syndrome, row, channel,
 			label, msg);
 
 	mci->ce_count++;
 	mci->csrows[row].ce_count++;
+	mci->csrows[row].channels[channel].dimm->ce_count++;
 	mci->csrows[row].channels[channel].ce_count++;
 
 	if (mci->scrub_mode & SCRUB_SW_SRC) {
@@ -747,8 +750,7 @@ void edac_mc_handle_ce(struct mem_ctl_info *mci,
 			mci->ctl_page_to_phys(mci, page_frame_number) :
 			page_frame_number;
 
-		edac_mc_scrub_block(remapped_page, offset_in_page,
-				mci->csrows[row].grain);
+		edac_mc_scrub_block(remapped_page, offset_in_page, grain);
 	}
 }
 EXPORT_SYMBOL_GPL(edac_mc_handle_ce);
@@ -774,6 +776,7 @@ void edac_mc_handle_ue(struct mem_ctl_info *mci,
 	int chan;
 	int chars;
 	char *label = NULL;
+	u32 grain;
 
 	debugf3("MC%d: %s()\n", mci->mc_idx, __func__);
 
@@ -787,6 +790,7 @@ void edac_mc_handle_ue(struct mem_ctl_info *mci,
 		return;
 	}
 
+	grain = mci->csrows[row].channels[0].dimm->grain;
 	label = mci->csrows[row].channels[0].dimm->label;
 	chars = snprintf(pos, len + 1, "%s", label);
 	len -= chars;
@@ -804,14 +808,13 @@ void edac_mc_handle_ue(struct mem_ctl_info *mci,
 		edac_mc_printk(mci, KERN_EMERG,
 			"UE page 0x%lx, offset 0x%lx, grain %d, row %d, "
 			"labels \"%s\": %s\n", page_frame_number,
-			offset_in_page, mci->csrows[row].grain, row,
-			labels, msg);
+			offset_in_page, grain, row, labels, msg);
 
 	if (edac_mc_get_panic_on_ue())
 		panic("EDAC MC%d: UE page 0x%lx, offset 0x%lx, grain %d, "
 			"row %d, labels \"%s\": %s\n", mci->mc_idx,
 			page_frame_number, offset_in_page,
-			mci->csrows[row].grain, row, labels, msg);
+			grain, row, labels, msg);
 
 	mci->ue_count++;
 	mci->csrows[row].ue_count++;
@@ -883,6 +886,7 @@ void edac_mc_handle_fbd_ue(struct mem_ctl_info *mci,
 	chars = snprintf(pos, len + 1, "%s", label);
 	len -= chars;
 	pos += chars;
+
 	chars = snprintf(pos, len + 1, "-%s",
 			mci->csrows[csrow].channels[channelb].dimm->label);
 
@@ -936,6 +940,7 @@ void edac_mc_handle_fbd_ce(struct mem_ctl_info *mci,
 
 	mci->ce_count++;
 	mci->csrows[csrow].ce_count++;
+	mci->csrows[csrow].channels[channel].dimm->ce_count++;
 	mci->csrows[csrow].channels[channel].ce_count++;
 }
 EXPORT_SYMBOL(edac_mc_handle_fbd_ce);

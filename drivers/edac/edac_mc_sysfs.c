@@ -150,19 +150,19 @@ static ssize_t csrow_size_show(struct csrow_info *csrow, char *data,
 static ssize_t csrow_mem_type_show(struct csrow_info *csrow, char *data,
 				int private)
 {
-	return sprintf(data, "%s\n", mem_types[csrow->mtype]);
+	return sprintf(data, "%s\n", mem_types[csrow->channels[0].dimm->mtype]);
 }
 
 static ssize_t csrow_dev_type_show(struct csrow_info *csrow, char *data,
 				int private)
 {
-	return sprintf(data, "%s\n", dev_types[csrow->dtype]);
+	return sprintf(data, "%s\n", dev_types[csrow->channels[0].dimm->dtype]);
 }
 
 static ssize_t csrow_edac_mode_show(struct csrow_info *csrow, char *data,
 				int private)
 {
-	return sprintf(data, "%s\n", edac_caps[csrow->edac_mode]);
+	return sprintf(data, "%s\n", edac_caps[csrow->channels[0].dimm->edac_mode]);
 }
 
 /* show/store functions for DIMM Label attributes */

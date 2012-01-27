@@ -883,6 +883,7 @@ static void __devinit mpc85xx_init_csrows(struct mem_ctl_info *mci)
 {
 	struct mpc85xx_mc_pdata *pdata = mci->pvt_info;
 	struct csrow_info *csrow;
+	struct dimm_info *dimm;
 	u32 sdram_ctl;
 	u32 sdtype;
 	enum mem_type mtype;
@@ -929,6 +930,8 @@ static void __devinit mpc85xx_init_csrows(struct mem_ctl_info *mci)
 		u32 end;
 
 		csrow = &mci->csrows[index];
+		dimm = csrow->channels[0].dimm;
+
 		cs_bnds = in_be32(pdata->mc_vbase + MPC85XX_MC_CS_BNDS_0 +
 				  (index * MPC85XX_MC_CS_BNDS_OFS));
 
@@ -945,12 +948,12 @@ static void __devinit mpc85xx_init_csrows(struct mem_ctl_info *mci)
 		csrow->first_page = start;
 		csrow->last_page = end;
 		csrow->nr_pages = end + 1 - start;
-		csrow->grain = 8;
-		csrow->mtype = mtype;
-		csrow->dtype = DEV_UNKNOWN;
+		dimm->grain = 8;
+		dimm->mtype = mtype;
+		dimm->dtype = DEV_UNKNOWN;
 		if (sdram_ctl & DSC_X32_EN)
-			csrow->dtype = DEV_X32;
-		csrow->edac_mode = EDAC_SECDED;
+			dimm->dtype = DEV_X32;
+		dimm->edac_mode = EDAC_SECDED;
 	}
 }
 

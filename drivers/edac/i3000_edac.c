@@ -304,7 +304,7 @@ static int i3000_is_interleaved(const unsigned char *c0dra,
 static int i3000_probe1(struct pci_dev *pdev, int dev_idx)
 {
 	int rc;
-	int i;
+	int i, j;
 	struct mem_ctl_info *mci = NULL;
 	unsigned long last_cumul_size;
 	int interleaved, nr_channels;
@@ -386,19 +386,21 @@ static int i3000_probe1(struct pci_dev *pdev, int dev_idx)
 			cumul_size <<= 1;
 		debugf3("MC: %s(): (%d) cumul_size 0x%x\n",
 			__func__, i, cumul_size);
-		if (cumul_size == last_cumul_size) {
-			csrow->mtype = MEM_EMPTY;
+		if (cumul_size == last_cumul_size)
 			continue;
-		}
 
 		csrow->first_page = last_cumul_size;
 		csrow->last_page = cumul_size - 1;
 		csrow->nr_pages = cumul_size - last_cumul_size;
 		last_cumul_size = cumul_size;
-		csrow->grain = I3000_DEAP_GRAIN;
-		csrow->mtype = MEM_DDR2;
-		csrow->dtype = DEV_UNKNOWN;
-		csrow->edac_mode = EDAC_UNKNOWN;
+
+		for (j = 0; j < nr_channels; j++) {
+			struct dimm_info *dimm = csrow->channels[j].dimm;
+			dimm->grain = I3000_DEAP_GRAIN;
+			dimm->mtype = MEM_DDR2;
+			dimm->dtype = DEV_UNKNOWN;
+			dimm->edac_mode = EDAC_UNKNOWN;
+		}
 	}
 
 	/*

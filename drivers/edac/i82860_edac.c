@@ -140,6 +140,7 @@ static void i82860_init_csrows(struct mem_ctl_info *mci, struct pci_dev *pdev)
 	u16 value;
 	u32 cumul_size;
 	struct csrow_info *csrow;
+	struct dimm_info *dimm;
 	int index;
 
 	pci_read_config_word(pdev, I82860_MCHCFG, &mchcfg_ddim);
@@ -153,6 +154,8 @@ static void i82860_init_csrows(struct mem_ctl_info *mci, struct pci_dev *pdev)
 	 */
 	for (index = 0; index < mci->nr_csrows; index++) {
 		csrow = &mci->csrows[index];
+		dimm = csrow->channels[0].dimm;
+
 		pci_read_config_word(pdev, I82860_GBA + index * 2, &value);
 		cumul_size = (value & I82860_GBA_MASK) <<
 			(I82860_GBA_SHIFT - PAGE_SHIFT);
@@ -166,10 +169,10 @@ static void i82860_init_csrows(struct mem_ctl_info *mci, struct pci_dev *pdev)
 		csrow->last_page = cumul_size - 1;
 		csrow->nr_pages = cumul_size - last_cumul_size;
 		last_cumul_size = cumul_size;
-		csrow->grain = 1 << 12;	/* I82860_EAP has 4KiB reolution */
-		csrow->mtype = MEM_RMBS;
-		csrow->dtype = DEV_UNKNOWN;
-		csrow->edac_mode = mchcfg_ddim ? EDAC_SECDED : EDAC_NONE;
+		dimm->grain = 1 << 12;	/* I82860_EAP has 4KiB reolution */
+		dimm->mtype = MEM_RMBS;
+		dimm->dtype = DEV_UNKNOWN;
+		dimm->edac_mode = mchcfg_ddim ? EDAC_SECDED : EDAC_NONE;
 	}
 }
 

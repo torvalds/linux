@@ -12,7 +12,7 @@
  * 440GX fix by Jason Uhlenkott <juhlenko@akamai.com>.
  *
  * Written with reference to 82443BX Host Bridge Datasheet:
- * http://download.intel.com/design/chipsets/datashts/29063301.pdf 
+ * http://download.intel.com/design/chipsets/datashts/29063301.pdf
  * references to this document given in [].
  *
  * This module doesn't support the 440LX, but it may be possible to
@@ -189,6 +189,7 @@ static void i82443bxgx_init_csrows(struct mem_ctl_info *mci,
 				enum mem_type mtype)
 {
 	struct csrow_info *csrow;
+	struct dimm_info *dimm;
 	int index;
 	u8 drbar, dramc;
 	u32 row_base, row_high_limit, row_high_limit_last;
@@ -197,6 +198,8 @@ static void i82443bxgx_init_csrows(struct mem_ctl_info *mci,
 	row_high_limit_last = 0;
 	for (index = 0; index < mci->nr_csrows; index++) {
 		csrow = &mci->csrows[index];
+		dimm = csrow->channels[0].dimm;
+
 		pci_read_config_byte(pdev, I82443BXGX_DRB + index, &drbar);
 		debugf1("MC%d: %s: %s() Row=%d DRB = %#0x\n",
 			mci->mc_idx, __FILE__, __func__, index, drbar);
@@ -219,12 +222,12 @@ static void i82443bxgx_init_csrows(struct mem_ctl_info *mci,
 		csrow->last_page = (row_high_limit >> PAGE_SHIFT) - 1;
 		csrow->nr_pages = csrow->last_page - csrow->first_page + 1;
 		/* EAP reports in 4kilobyte granularity [61] */
-		csrow->grain = 1 << 12;
-		csrow->mtype = mtype;
+		dimm->grain = 1 << 12;
+		dimm->mtype = mtype;
 		/* I don't think 440BX can tell you device type? FIXME? */
-		csrow->dtype = DEV_UNKNOWN;
+		dimm->dtype = DEV_UNKNOWN;
 		/* Mode is global to all rows on 440BX */
-		csrow->edac_mode = edac_mode;
+		dimm->edac_mode = edac_mode;
 		row_high_limit_last = row_high_limit;
 	}
 }

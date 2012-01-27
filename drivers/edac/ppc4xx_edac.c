@@ -895,7 +895,7 @@ ppc4xx_edac_init_csrows(struct mem_ctl_info *mci, u32 mcopt1)
 	enum mem_type mtype;
 	enum dev_type dtype;
 	enum edac_type edac_mode;
-	int row;
+	int row, j;
 	u32 mbxcf, size;
 	static u32 ppc4xx_last_page;
 
@@ -975,15 +975,18 @@ ppc4xx_edac_init_csrows(struct mem_ctl_info *mci, u32 mcopt1)
 		 * possible values would be the PLB width (16), the
 		 * page size (PAGE_SIZE) or the memory width (2 or 4).
 		 */
+		for (j = 0; j < csi->nr_channels; j++) {
+			struct dimm_info *dimm = csi->channels[j].dimm;
 
-		csi->grain	= 1;
+			dimm->grain	= 1;
 
-		csi->mtype	= mtype;
-		csi->dtype	= dtype;
+			dimm->mtype	= mtype;
+			dimm->dtype	= dtype;
 
-		csi->edac_mode	= edac_mode;
+			dimm->edac_mode	= edac_mode;
 
 		ppc4xx_last_page += csi->nr_pages;
+		}
 	}
 
  done:

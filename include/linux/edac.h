@@ -318,6 +318,13 @@ struct dimm_info {
 	unsigned memory_controller;
 	unsigned csrow;
 	unsigned csrow_channel;
+
+	u32 grain;		/* granularity of reported error in bytes */
+	enum dev_type dtype;	/* memory device type */
+	enum mem_type mtype;	/* memory dimm type */
+	enum edac_type edac_mode;	/* EDAC mode for this dimm */
+
+	u32 ce_count;		/* Correctable Errors for this dimm */
 };
 
 /**
@@ -343,19 +350,17 @@ struct rank_info {
 };
 
 struct csrow_info {
-	unsigned long first_page;	/* first page number in dimm */
-	unsigned long last_page;	/* last page number in dimm */
+	unsigned long first_page;	/* first page number in csrow */
+	unsigned long last_page;	/* last page number in csrow */
+	u32 nr_pages;			/* number of pages in csrow */
 	unsigned long page_mask;	/* used for interleaving -
 					 * 0UL for non intlv
 					 */
-	u32 nr_pages;		/* number of pages in csrow */
-	u32 grain;		/* granularity of reported error in bytes */
-	int csrow_idx;		/* the chip-select row */
-	enum dev_type dtype;	/* memory device type */
+	int csrow_idx;			/* the chip-select row */
+
 	u32 ue_count;		/* Uncorrectable Errors for this csrow */
 	u32 ce_count;		/* Correctable Errors for this csrow */
-	enum mem_type mtype;	/* memory csrow type */
-	enum edac_type edac_mode;	/* EDAC mode for this csrow */
+
 	struct mem_ctl_info *mci;	/* the parent */
 
 	struct kobject kobj;	/* sysfs kobject for this csrow */

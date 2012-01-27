@@ -2187,7 +2187,9 @@ static int init_csrows(struct mem_ctl_info *mci)
 	struct amd64_pvt *pvt = mci->pvt_info;
 	u64 input_addr_min, input_addr_max, sys_addr, base, mask;
 	u32 val;
-	int i, empty = 1;
+	int i, j, empty = 1;
+	enum mem_type mtype;
+	enum edac_type edac_mode;
 
 	amd64_read_pci_cfg(pvt->F3, NBCFG, &val);
 
@@ -2224,7 +2226,7 @@ static int init_csrows(struct mem_ctl_info *mci)
 		csrow->page_mask = ~mask;
 		/* 8 bytes of resolution */
 
-		csrow->mtype = amd64_determine_memory_type(pvt, i);
+		mtype = amd64_determine_memory_type(pvt, i);
 
 		debugf1("  for MC node %d csrow %d:\n", pvt->mc_node_id, i);
 		debugf1("    input_addr_min: 0x%lx input_addr_max: 0x%lx\n",
@@ -2241,11 +2243,15 @@ static int init_csrows(struct mem_ctl_info *mci)
 		 * determine whether CHIPKILL or JUST ECC or NO ECC is operating
 		 */
 		if (pvt->nbcfg & NBCFG_ECC_ENABLE)
-			csrow->edac_mode =
-			    (pvt->nbcfg & NBCFG_CHIPKILL) ?
-			    EDAC_S4ECD4ED : EDAC_SECDED;
+			edac_mode = (pvt->nbcfg & NBCFG_CHIPKILL) ?
+				    EDAC_S4ECD4ED : EDAC_SECDED;
 		else
-			csrow->edac_mode = EDAC_NONE;
+			edac_mode = EDAC_NONE;
+
+		for (j = 0; j < pvt->channel_count; j++) {
+			csrow->channels[j].dimm->mtype = mtype;
+			csrow->channels[j].dimm->edac_mode = edac_mode;
+		}
 	}
 
 	return empty;

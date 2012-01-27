@@ -656,6 +656,8 @@ static void mv64x60_init_csrows(struct mem_ctl_info *mci,
 				struct mv64x60_mc_pdata *pdata)
 {
 	struct csrow_info *csrow;
+	struct dimm_info *dimm;
+
 	u32 devtype;
 	u32 ctl;
 
@@ -664,30 +666,30 @@ static void mv64x60_init_csrows(struct mem_ctl_info *mci,
 	ctl = in_le32(pdata->mc_vbase + MV64X60_SDRAM_CONFIG);
 
 	csrow = &mci->csrows[0];
-	csrow->first_page = 0;
+	dimm = csrow->channels[0].dimm;
 	csrow->nr_pages = pdata->total_mem >> PAGE_SHIFT;
 	csrow->last_page = csrow->first_page + csrow->nr_pages - 1;
-	csrow->grain = 8;
+	dimm->grain = 8;
 
-	csrow->mtype = (ctl & MV64X60_SDRAM_REGISTERED) ? MEM_RDDR : MEM_DDR;
+	dimm->mtype = (ctl & MV64X60_SDRAM_REGISTERED) ? MEM_RDDR : MEM_DDR;
 
 	devtype = (ctl >> 20) & 0x3;
 	switch (devtype) {
 	case 0x0:
-		csrow->dtype = DEV_X32;
+		dimm->dtype = DEV_X32;
 		break;
 	case 0x2:		/* could be X8 too, but no way to tell */
-		csrow->dtype = DEV_X16;
+		dimm->dtype = DEV_X16;
 		break;
 	case 0x3:
-		csrow->dtype = DEV_X4;
+		dimm->dtype = DEV_X4;
 		break;
 	default:
-		csrow->dtype = DEV_UNKNOWN;
+		dimm->dtype = DEV_UNKNOWN;
 		break;
 	}
 
-	csrow->edac_mode = EDAC_SECDED;
+	dimm->edac_mode = EDAC_SECDED;
 }
 
 static int __devinit mv64x60_mc_err_probe(struct platform_device *pdev)

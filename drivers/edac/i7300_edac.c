@@ -618,6 +618,7 @@ static int decode_mtr(struct i7300_pvt *pvt,
 		      int slot, int ch, int branch,
 		      struct i7300_dimm_info *dinfo,
 		      struct csrow_info *p_csrow,
+		      struct dimm_info *dimm,
 		      u32 *nr_pages)
 {
 	int mtr, ans, addrBits, channel;
@@ -663,10 +664,7 @@ static int decode_mtr(struct i7300_pvt *pvt,
 	debugf2("\t\tNUMCOL: %s\n", numcol_toString[MTR_DIMM_COLS(mtr)]);
 	debugf2("\t\tSIZE: %d MB\n", dinfo->megabytes);
 
-	p_csrow->grain = 8;
-	p_csrow->mtype = MEM_FB_DDR2;
 	p_csrow->csrow_idx = slot;
-	p_csrow->page_mask = 0;
 
 	/*
 	 * The type of error detection actually depends of the
@@ -677,15 +675,17 @@ static int decode_mtr(struct i7300_pvt *pvt,
 	 * See datasheet Sections 7.3.6 to 7.3.8
 	 */
 
+	dimm->grain = 8;
+	dimm->mtype = MEM_FB_DDR2;
 	if (IS_SINGLE_MODE(pvt->mc_settings_a)) {
-		p_csrow->edac_mode = EDAC_SECDED;
+		dimm->edac_mode = EDAC_SECDED;
 		debugf2("\t\tECC code is 8-byte-over-32-byte SECDED+ code\n");
 	} else {
 		debugf2("\t\tECC code is on Lockstep mode\n");
 		if (MTR_DRAM_WIDTH(mtr) == 8)
-			p_csrow->edac_mode = EDAC_S8ECD8ED;
+			dimm->edac_mode = EDAC_S8ECD8ED;
 		else
-			p_csrow->edac_mode = EDAC_S4ECD4ED;
+			dimm->edac_mode = EDAC_S4ECD4ED;
 	}
 
 	/* ask what device type on this row */
@@ -694,9 +694,9 @@ static int decode_mtr(struct i7300_pvt *pvt,
 			IS_SCRBALGO_ENHANCED(pvt->mc_settings) ?
 					    "enhanced" : "normal");
 
-		p_csrow->dtype = DEV_X8;
+		dimm->dtype = DEV_X8;
 	} else
-		p_csrow->dtype = DEV_X4;
+		dimm->dtype = DEV_X4;
 
 	return mtr;
 }
@@ -779,6 +779,7 @@ static int i7300_init_csrows(struct mem_ctl_info *mci)
 	int mtr;
 	int ch, branch, slot, channel;
 	u32 last_page = 0, nr_pages;
+	struct dimm_info *dimm;
 
 	pvt = mci->pvt_info;
 
@@ -803,20 +804,24 @@ static int i7300_init_csrows(struct mem_ctl_info *mci)
 	}
 
 	/* Get the set of MTR[0-7] regs by each branch */
+	nr_pages = 0;
 	for (slot = 0; slot < MAX_SLOTS; slot++) {
 		int where = mtr_regs[slot];
 		for (branch = 0; branch < MAX_BRANCHES; branch++) {
 			pci_read_config_word(pvt->pci_dev_2x_0_fbd_branch[branch],
 					where,
 					&pvt->mtr[slot][branch]);
-			for (ch = 0; ch < MAX_BRANCHES; ch++) {
+			for (ch = 0; ch < MAX_CH_PER_BRANCH; ch++) {
 				int channel = to_channel(ch, branch);
 
 				dinfo = &pvt->dimm_info[slot][channel];
 				p_csrow = &mci->csrows[slot];
 
+				dimm = p_csrow->channels[branch * MAX_CH_PER_BRANCH + ch].dimm;
+
 				mtr = decode_mtr(pvt, slot, ch, branch,
-						 dinfo, p_csrow, &nr_pages);
+						 dinfo, p_csrow, dimm,
+						 &nr_pages);
 				/* if no DIMMS on this row, continue */
 				if (!MTR_DIMMS_PRESENT(mtr))
 					continue;

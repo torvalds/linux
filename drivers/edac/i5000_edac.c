@@ -1268,25 +1268,23 @@ static int i5000_init_csrows(struct mem_ctl_info *mci)
 		p_csrow->last_page = 9 + csrow * 20;
 		p_csrow->page_mask = 0xFFF;
 
-		p_csrow->grain = 8;
-
 		csrow_megs = 0;
 		for (channel = 0; channel < pvt->maxch; channel++) {
 			csrow_megs += pvt->dimm_info[csrow][channel].megabytes;
+			p_csrow->channels[channel].dimm->grain = 8;
+
+			/* Assume DDR2 for now */
+			p_csrow->channels[channel].dimm->mtype = MEM_FB_DDR2;
+
+			/* ask what device type on this row */
+			if (MTR_DRAM_WIDTH(mtr))
+				p_csrow->channels[channel].dimm->dtype = DEV_X8;
+			else
+				p_csrow->channels[channel].dimm->dtype = DEV_X4;
+
+			p_csrow->channels[channel].dimm->edac_mode = EDAC_S8ECD8ED;
 		}
-
 		p_csrow->nr_pages = csrow_megs << 8;
-
-		/* Assume DDR2 for now */
-		p_csrow->mtype = MEM_FB_DDR2;
-
-		/* ask what device type on this row */
-		if (MTR_DRAM_WIDTH(mtr))
-			p_csrow->dtype = DEV_X8;
-		else
-			p_csrow->dtype = DEV_X4;
-
-		p_csrow->edac_mode = EDAC_S8ECD8ED;
 
 		empty = 0;
 	}

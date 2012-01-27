@@ -319,7 +319,7 @@ static unsigned long drb_to_nr_pages(
 static int i3200_probe1(struct pci_dev *pdev, int dev_idx)
 {
 	int rc;
-	int i;
+	int i, j;
 	struct mem_ctl_info *mci = NULL;
 	unsigned long last_page;
 	u16 drbs[I3200_CHANNELS][I3200_RANKS_PER_CHANNEL];
@@ -375,20 +375,22 @@ static int i3200_probe1(struct pci_dev *pdev, int dev_idx)
 			i / I3200_RANKS_PER_CHANNEL,
 			i % I3200_RANKS_PER_CHANNEL);
 
-		if (nr_pages == 0) {
-			csrow->mtype = MEM_EMPTY;
+		if (nr_pages == 0)
 			continue;
-		}
 
 		csrow->first_page = last_page + 1;
 		last_page += nr_pages;
 		csrow->last_page = last_page;
 		csrow->nr_pages = nr_pages;
 
-		csrow->grain = nr_pages << PAGE_SHIFT;
-		csrow->mtype = MEM_DDR2;
-		csrow->dtype = DEV_UNKNOWN;
-		csrow->edac_mode = EDAC_UNKNOWN;
+		for (j = 0; j < nr_channels; j++) {
+			struct dimm_info *dimm = csrow->channels[j].dimm;
+
+			dimm->grain = nr_pages << PAGE_SHIFT;
+			dimm->mtype = MEM_DDR2;
+			dimm->dtype = DEV_UNKNOWN;
+			dimm->edac_mode = EDAC_UNKNOWN;
+		}
 	}
 
 	i3200_clear_error_info(mci);

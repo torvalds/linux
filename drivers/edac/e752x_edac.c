@@ -1044,7 +1044,7 @@ static void e752x_init_csrows(struct mem_ctl_info *mci, struct pci_dev *pdev,
 	int drc_drbg;		/* DRB granularity 0=64mb, 1=128mb */
 	int drc_ddim;		/* DRAM Data Integrity Mode 0=none, 2=edac */
 	u8 value;
-	u32 dra, drc, cumul_size;
+	u32 dra, drc, cumul_size, i;
 
 	dra = 0;
 	for (index = 0; index < 4; index++) {
@@ -1053,7 +1053,7 @@ static void e752x_init_csrows(struct mem_ctl_info *mci, struct pci_dev *pdev,
 		dra |= dra_reg << (index * 8);
 	}
 	pci_read_config_dword(pdev, E752X_DRC, &drc);
-	drc_chan = dual_channel_active(ddrcsr);
+	drc_chan = dual_channel_active(ddrcsr) ? 1 : 0;
 	drc_drbg = drc_chan + 1;	/* 128 in dual mode, 64 in single */
 	drc_ddim = (drc >> 20) & 0x3;
 
@@ -1080,24 +1080,28 @@ static void e752x_init_csrows(struct mem_ctl_info *mci, struct pci_dev *pdev,
 		csrow->last_page = cumul_size - 1;
 		csrow->nr_pages = cumul_size - last_cumul_size;
 		last_cumul_size = cumul_size;
-		csrow->grain = 1 << 12;	/* 4KiB - resolution of CELOG */
-		csrow->mtype = MEM_RDDR;	/* only one type supported */
-		csrow->dtype = mem_dev ? DEV_X4 : DEV_X8;
 
-		/*
-		 * if single channel or x8 devices then SECDED
-		 * if dual channel and x4 then S4ECD4ED
-		 */
-		if (drc_ddim) {
-			if (drc_chan && mem_dev) {
-				csrow->edac_mode = EDAC_S4ECD4ED;
-				mci->edac_cap |= EDAC_FLAG_S4ECD4ED;
-			} else {
-				csrow->edac_mode = EDAC_SECDED;
-				mci->edac_cap |= EDAC_FLAG_SECDED;
-			}
-		} else
-			csrow->edac_mode = EDAC_NONE;
+		for (i = 0; i < drc_chan + 1; i++) {
+			struct dimm_info *dimm = csrow->channels[i].dimm;
+			dimm->grain = 1 << 12;	/* 4KiB - resolution of CELOG */
+			dimm->mtype = MEM_RDDR;	/* only one type supported */
+			dimm->dtype = mem_dev ? DEV_X4 : DEV_X8;
+
+			/*
+			* if single channel or x8 devices then SECDED
+			* if dual channel and x4 then S4ECD4ED
+			*/
+			if (drc_ddim) {
+				if (drc_chan && mem_dev) {
+					dimm->edac_mode = EDAC_S4ECD4ED;
+					mci->edac_cap |= EDAC_FLAG_S4ECD4ED;
+				} else {
+					dimm->edac_mode = EDAC_SECDED;
+					mci->edac_cap |= EDAC_FLAG_SECDED;
+				}
+			} else
+				dimm->edac_mode = EDAC_NONE;
+		}
 	}
 }
 

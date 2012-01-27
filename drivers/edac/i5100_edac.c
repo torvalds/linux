@@ -428,12 +428,16 @@ static void i5100_handle_ce(struct mem_ctl_info *mci,
 			    const char *msg)
 {
 	const int csrow = i5100_rank_to_csrow(mci, chan, rank);
+	char *label = NULL;
+
+	if (mci->csrows[csrow].channels[0].dimm)
+		label = mci->csrows[csrow].channels[0].dimm->label;
 
 	printk(KERN_ERR
 		"CE chan %d, bank %u, rank %u, syndrome 0x%lx, "
 		"cas %u, ras %u, csrow %u, label \"%s\": %s\n",
 		chan, bank, rank, syndrome, cas, ras,
-		csrow, mci->csrows[csrow].channels[0].dimm->label, msg);
+		csrow, label, msg);
 
 	mci->ce_count++;
 	mci->csrows[csrow].ce_count++;
@@ -450,12 +454,16 @@ static void i5100_handle_ue(struct mem_ctl_info *mci,
 			    const char *msg)
 {
 	const int csrow = i5100_rank_to_csrow(mci, chan, rank);
+	char *label = NULL;
+
+	if (mci->csrows[csrow].channels[0].dimm)
+		label = mci->csrows[csrow].channels[0].dimm->label;
 
 	printk(KERN_ERR
 		"UE chan %d, bank %u, rank %u, syndrome 0x%lx, "
 		"cas %u, ras %u, csrow %u, label \"%s\": %s\n",
 		chan, bank, rank, syndrome, cas, ras,
-		csrow, mci->csrows[csrow].channels[0].dimm->label, msg);
+		csrow, label, msg);
 
 	mci->ue_count++;
 	mci->csrows[csrow].ue_count++;
@@ -837,6 +845,7 @@ static void __devinit i5100_init_csrows(struct mem_ctl_info *mci)
 	int i;
 	unsigned long total_pages = 0UL;
 	struct i5100_priv *priv = mci->pvt_info;
+	struct dimm_info *dimm;
 
 	for (i = 0; i < mci->nr_csrows; i++) {
 		const unsigned long npages = i5100_npages(mci, i);
@@ -852,27 +861,22 @@ static void __devinit i5100_init_csrows(struct mem_ctl_info *mci)
 		 */
 		mci->csrows[i].first_page = total_pages;
 		mci->csrows[i].last_page = total_pages + npages - 1;
-		mci->csrows[i].page_mask = 0UL;
-
 		mci->csrows[i].nr_pages = npages;
-		mci->csrows[i].grain = 32;
 		mci->csrows[i].csrow_idx = i;
-		mci->csrows[i].dtype =
-			(priv->mtr[chan][rank].width == 4) ? DEV_X4 : DEV_X8;
-		mci->csrows[i].ue_count = 0;
-		mci->csrows[i].ce_count = 0;
-		mci->csrows[i].mtype = MEM_RDDR2;
-		mci->csrows[i].edac_mode = EDAC_SECDED;
 		mci->csrows[i].mci = mci;
 		mci->csrows[i].nr_channels = 1;
-		mci->csrows[i].channels[0].chan_idx = 0;
-		mci->csrows[i].channels[0].ce_count = 0;
 		mci->csrows[i].channels[0].csrow = mci->csrows + i;
-		snprintf(mci->csrows[i].channels[0].dimm->label,
-			 sizeof(mci->csrows[i].channels[0].dimm->label),
-			 "DIMM%u", i5100_rank_to_slot(mci, chan, rank));
-
 		total_pages += npages;
+
+		dimm = mci->csrows[i].channels[0].dimm;
+		dimm->grain = 32;
+		dimm->dtype = (priv->mtr[chan][rank].width == 4) ?
+			      DEV_X4 : DEV_X8;
+		dimm->mtype = MEM_RDDR2;
+		dimm->edac_mode = EDAC_SECDED;
+		snprintf(dimm->label, sizeof(dimm->label),
+			 "DIMM%u",
+			 i5100_rank_to_slot(mci, chan, rank));
 	}
 }
 

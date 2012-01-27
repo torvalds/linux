@@ -216,6 +216,7 @@ static void r82600_init_csrows(struct mem_ctl_info *mci, struct pci_dev *pdev,
 			u8 dramcr)
 {
 	struct csrow_info *csrow;
+	struct dimm_info *dimm;
 	int index;
 	u8 drbar;		/* SDRAM Row Boundary Address Register */
 	u32 row_high_limit, row_high_limit_last;
@@ -227,6 +228,7 @@ static void r82600_init_csrows(struct mem_ctl_info *mci, struct pci_dev *pdev,
 
 	for (index = 0; index < mci->nr_csrows; index++) {
 		csrow = &mci->csrows[index];
+		dimm = csrow->channels[0].dimm;
 
 		/* find the DRAM Chip Select Base address and mask */
 		pci_read_config_byte(pdev, R82600_DRBA + index, &drbar);
@@ -250,13 +252,13 @@ static void r82600_init_csrows(struct mem_ctl_info *mci, struct pci_dev *pdev,
 		csrow->nr_pages = csrow->last_page - csrow->first_page + 1;
 		/* Error address is top 19 bits - so granularity is      *
 		 * 14 bits                                               */
-		csrow->grain = 1 << 14;
-		csrow->mtype = reg_sdram ? MEM_RDDR : MEM_DDR;
+		dimm->grain = 1 << 14;
+		dimm->mtype = reg_sdram ? MEM_RDDR : MEM_DDR;
 		/* FIXME - check that this is unknowable with this chipset */
-		csrow->dtype = DEV_UNKNOWN;
+		dimm->dtype = DEV_UNKNOWN;
 
 		/* Mode is global on 82600 */
-		csrow->edac_mode = ecc_on ? EDAC_SECDED : EDAC_NONE;
+		dimm->edac_mode = ecc_on ? EDAC_SECDED : EDAC_NONE;
 		row_high_limit_last = row_high_limit;
 	}
 }

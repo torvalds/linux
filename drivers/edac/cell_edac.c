@@ -124,8 +124,10 @@ static void cell_edac_check(struct mem_ctl_info *mci)
 static void __devinit cell_edac_init_csrows(struct mem_ctl_info *mci)
 {
 	struct csrow_info		*csrow = &mci->csrows[0];
+	struct dimm_info		*dimm;
 	struct cell_edac_priv		*priv = mci->pvt_info;
 	struct device_node		*np;
+	int				j;
 
 	for (np = NULL;
 	     (np = of_find_node_by_name(np, "memory")) != NULL;) {
@@ -142,8 +144,12 @@ static void __devinit cell_edac_init_csrows(struct mem_ctl_info *mci)
 		csrow->first_page = r.start >> PAGE_SHIFT;
 		csrow->nr_pages = resource_size(&r) >> PAGE_SHIFT;
 		csrow->last_page = csrow->first_page + csrow->nr_pages - 1;
-		csrow->mtype = MEM_XDR;
-		csrow->edac_mode = EDAC_SECDED;
+
+		for (j = 0; j < csrow->nr_channels; j++) {
+			dimm = csrow->channels[j].dimm;
+			dimm->mtype = MEM_XDR;
+			dimm->edac_mode = EDAC_SECDED;
+		}
 		dev_dbg(mci->dev,
 			"Initialized on node %d, chanmask=0x%x,"
 			" first_page=0x%lx, nr_pages=0x%x\n",

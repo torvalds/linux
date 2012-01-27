@@ -329,7 +329,8 @@ static void cpc925_init_csrows(struct mem_ctl_info *mci)
 {
 	struct cpc925_mc_pdata *pdata = mci->pvt_info;
 	struct csrow_info *csrow;
-	int index;
+	struct dimm_info *dimm;
+	int index, j;
 	u32 mbmr, mbbar, bba;
 	unsigned long row_size, last_nr_pages = 0;
 
@@ -354,32 +355,35 @@ static void cpc925_init_csrows(struct mem_ctl_info *mci)
 		csrow->last_page = csrow->first_page + csrow->nr_pages - 1;
 		last_nr_pages = csrow->last_page + 1;
 
-		csrow->mtype = MEM_RDDR;
-		csrow->edac_mode = EDAC_SECDED;
+		for (j = 0; j < csrow->nr_channels; j++) {
+			dimm = csrow->channels[j].dimm;
+			dimm->mtype = MEM_RDDR;
+			dimm->edac_mode = EDAC_SECDED;
 
-		switch (csrow->nr_channels) {
-		case 1: /* Single channel */
-			csrow->grain = 32; /* four-beat burst of 32 bytes */
-			break;
-		case 2: /* Dual channel */
-		default:
-			csrow->grain = 64; /* four-beat burst of 64 bytes */
-			break;
-		}
+			switch (csrow->nr_channels) {
+			case 1: /* Single channel */
+				dimm->grain = 32; /* four-beat burst of 32 bytes */
+				break;
+			case 2: /* Dual channel */
+			default:
+				dimm->grain = 64; /* four-beat burst of 64 bytes */
+				break;
+			}
 
-		switch ((mbmr & MBMR_MODE_MASK) >> MBMR_MODE_SHIFT) {
-		case 6: /* 0110, no way to differentiate X8 VS X16 */
-		case 5:	/* 0101 */
-		case 8: /* 1000 */
-			csrow->dtype = DEV_X16;
-			break;
-		case 7: /* 0111 */
-		case 9: /* 1001 */
-			csrow->dtype = DEV_X8;
-			break;
-		default:
-			csrow->dtype = DEV_UNKNOWN;
-			break;
+			switch ((mbmr & MBMR_MODE_MASK) >> MBMR_MODE_SHIFT) {
+			case 6: /* 0110, no way to differentiate X8 VS X16 */
+			case 5:	/* 0101 */
+			case 8: /* 1000 */
+				dimm->dtype = DEV_X16;
+				break;
+			case 7: /* 0111 */
+			case 9: /* 1001 */
+				dimm->dtype = DEV_X8;
+				break;
+			default:
+				dimm->dtype = DEV_UNKNOWN;
+				break;
+			}
 		}
 	}
 }
@@ -962,9 +966,9 @@ static int __devinit cpc925_probe(struct platform_device *pdev)
 		goto err2;
 	}
 
-	nr_channels = cpc925_mc_get_channels(vbase);
+	nr_channels = cpc925_mc_get_channels(vbase) + 1;
 	mci = edac_mc_alloc(sizeof(struct cpc925_mc_pdata),
-			CPC925_NR_CSROWS, nr_channels + 1, edac_mc_idx);
+			CPC925_NR_CSROWS, nr_channels, edac_mc_idx);
 	if (!mci) {
 		cpc925_printk(KERN_ERR, "No memory for mem_ctl_info\n");
 		res = -ENOMEM;

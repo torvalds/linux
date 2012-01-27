@@ -186,11 +186,13 @@ static void amd76x_init_csrows(struct mem_ctl_info *mci, struct pci_dev *pdev,
 			enum edac_type edac_mode)
 {
 	struct csrow_info *csrow;
+	struct dimm_info *dimm;
 	u32 mba, mba_base, mba_mask, dms;
 	int index;
 
 	for (index = 0; index < mci->nr_csrows; index++) {
 		csrow = &mci->csrows[index];
+		dimm = csrow->channels[0].dimm;
 
 		/* find the DRAM Chip Select Base address and mask */
 		pci_read_config_dword(pdev,
@@ -206,10 +208,10 @@ static void amd76x_init_csrows(struct mem_ctl_info *mci, struct pci_dev *pdev,
 		csrow->nr_pages = (mba_mask + 1) >> PAGE_SHIFT;
 		csrow->last_page = csrow->first_page + csrow->nr_pages - 1;
 		csrow->page_mask = mba_mask >> PAGE_SHIFT;
-		csrow->grain = csrow->nr_pages << PAGE_SHIFT;
-		csrow->mtype = MEM_RDDR;
-		csrow->dtype = ((dms >> index) & 0x1) ? DEV_X4 : DEV_UNKNOWN;
-		csrow->edac_mode = edac_mode;
+		dimm->grain = csrow->nr_pages << PAGE_SHIFT;
+		dimm->mtype = MEM_RDDR;
+		dimm->dtype = ((dms >> index) & 0x1) ? DEV_X4 : DEV_UNKNOWN;
+		dimm->edac_mode = edac_mode;
 	}
 }
 

@@ -135,11 +135,13 @@ static int pasemi_edac_init_csrows(struct mem_ctl_info *mci,
 				   enum edac_type edac_mode)
 {
 	struct csrow_info *csrow;
+	struct dimm_info *dimm;
 	u32 rankcfg;
 	int index;
 
 	for (index = 0; index < mci->nr_csrows; index++) {
 		csrow = &mci->csrows[index];
+		dimm = csrow->channels[0].dimm;
 
 		pci_read_config_dword(pdev,
 				      MCDRAM_RANKCFG + (index * 12),
@@ -177,10 +179,10 @@ static int pasemi_edac_init_csrows(struct mem_ctl_info *mci,
 		csrow->last_page = csrow->first_page + csrow->nr_pages - 1;
 		last_page_in_mmc += csrow->nr_pages;
 		csrow->page_mask = 0;
-		csrow->grain = PASEMI_EDAC_ERROR_GRAIN;
-		csrow->mtype = MEM_DDR;
-		csrow->dtype = DEV_UNKNOWN;
-		csrow->edac_mode = edac_mode;
+		dimm->grain = PASEMI_EDAC_ERROR_GRAIN;
+		dimm->mtype = MEM_DDR;
+		dimm->dtype = DEV_UNKNOWN;
+		dimm->edac_mode = edac_mode;
 	}
 	return 0;
 }

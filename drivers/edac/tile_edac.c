@@ -84,6 +84,7 @@ static int __devinit tile_edac_init_csrows(struct mem_ctl_info *mci)
 	struct csrow_info	*csrow = &mci->csrows[0];
 	struct tile_edac_priv	*priv = mci->pvt_info;
 	struct mshim_mem_info	mem_info;
+	struct dimm_info *dimm = csrow->channels[0].dimm;
 
 	if (hv_dev_pread(priv->hv_devhdl, 0, (HV_VirtAddr)&mem_info,
 		sizeof(struct mshim_mem_info), MSHIM_MEM_INFO_OFF) !=
@@ -93,16 +94,16 @@ static int __devinit tile_edac_init_csrows(struct mem_ctl_info *mci)
 	}
 
 	if (mem_info.mem_ecc)
-		csrow->edac_mode = EDAC_SECDED;
+		dimm->edac_mode = EDAC_SECDED;
 	else
-		csrow->edac_mode = EDAC_NONE;
+		dimm->edac_mode = EDAC_NONE;
 	switch (mem_info.mem_type) {
 	case DDR2:
-		csrow->mtype = MEM_DDR2;
+		dimm->mtype = MEM_DDR2;
 		break;
 
 	case DDR3:
-		csrow->mtype = MEM_DDR3;
+		dimm->mtype = MEM_DDR3;
 		break;
 
 	default:
@@ -112,8 +113,8 @@ static int __devinit tile_edac_init_csrows(struct mem_ctl_info *mci)
 	csrow->first_page = 0;
 	csrow->nr_pages = mem_info.mem_size >> PAGE_SHIFT;
 	csrow->last_page = csrow->first_page + csrow->nr_pages - 1;
-	csrow->grain = TILE_EDAC_ERROR_GRAIN;
-	csrow->dtype = DEV_UNKNOWN;
+	dimm->grain = TILE_EDAC_ERROR_GRAIN;
+	dimm->dtype = DEV_UNKNOWN;
 
 	return 0;
 }
