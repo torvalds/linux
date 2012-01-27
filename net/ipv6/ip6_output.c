@@ -486,7 +486,7 @@ int ip6_forward(struct sk_buff *skb)
 		   and by source (inside ndisc_send_redirect)
 		 */
 		if (inet_peer_xrlim_allow(rt->rt6i_peer, 1*HZ))
-			ndisc_send_redirect(skb, n, target);
+			ndisc_send_redirect(skb, target);
 	} else {
 		int addrtype = ipv6_addr_type(&hdr->saddr);
 

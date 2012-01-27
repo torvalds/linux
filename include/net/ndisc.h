@@ -133,7 +133,6 @@ extern void			ndisc_send_rs(struct net_device *dev,
 					      const struct in6_addr *daddr);
 
 extern void			ndisc_send_redirect(struct sk_buff *skb,
-						    struct neighbour *neigh,
 						    const struct in6_addr *target);
 
 extern int			ndisc_mc_map(const struct in6_addr *addr, char *buf,

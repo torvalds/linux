@@ -1512,8 +1512,7 @@ static void ndisc_redirect_rcv(struct sk_buff *skb)
 	}
 }
 
-void ndisc_send_redirect(struct sk_buff *skb, struct neighbour *neigh,
-			 const struct in6_addr *target)
+void ndisc_send_redirect(struct sk_buff *skb, const struct in6_addr *target)
 {
 	struct net_device *dev = skb->dev;
 	struct net *net = dev_net(dev);
@@ -1571,6 +1570,13 @@ void ndisc_send_redirect(struct sk_buff *skb, struct neighbour *neigh,
 		goto release;
 
 	if (dev->addr_len) {
+		struct neighbour *neigh = dst_neigh_lookup(skb_dst(skb), target);
+		if (!neigh) {
+			ND_PRINTK2(KERN_WARNING
+				   "ICMPv6 Redirect: no neigh for target address\n");
+			goto release;
+		}
+
 		read_lock_bh(&neigh->lock);
 		if (neigh->nud_state & NUD_VALID) {
 			memcpy(ha_buf, neigh->ha, dev->addr_len);
@@ -1579,6 +1585,8 @@ void ndisc_send_redirect(struct sk_buff *skb, struct neighbour *neigh,
 			len += ndisc_opt_addr_space(dev);
 		} else
 			read_unlock_bh(&neigh->lock);
+
+		neigh_release(neigh);
 	}
 
 	rd_len = min_t(unsigned int,
