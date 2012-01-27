@@ -233,6 +233,7 @@ ip_vs_sched_persist(struct ip_vs_service *svc,
 	__be16 dport = 0;		/* destination port to forward */
 	unsigned int flags;
 	struct ip_vs_conn_param param;
+	const union nf_inet_addr fwmark = { .ip = htonl(svc->fwmark) };
 	union nf_inet_addr snet;	/* source network of the client,
 					   after masking */
 
@@ -268,7 +269,6 @@ ip_vs_sched_persist(struct ip_vs_service *svc,
 	{
 		int protocol = iph.protocol;
 		const union nf_inet_addr *vaddr = &iph.daddr;
-		const union nf_inet_addr fwmark = { .ip = htonl(svc->fwmark) };
 		__be16 vport = 0;
 
 		if (dst_port == svc->port) {
