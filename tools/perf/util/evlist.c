@@ -97,9 +97,9 @@ void perf_evlist__add(struct perf_evlist *evlist, struct perf_evsel *entry)
 	++evlist->nr_entries;
 }
 
-static void perf_evlist__splice_list_tail(struct perf_evlist *evlist,
-					  struct list_head *list,
-					  int nr_entries)
+void perf_evlist__splice_list_tail(struct perf_evlist *evlist,
+				   struct list_head *list,
+				   int nr_entries)
 {
 	list_splice_tail(list, &evlist->entries);
 	evlist->nr_entries += nr_entries;
