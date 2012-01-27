@@ -138,17 +138,22 @@ static int lp8727_is_charger_attached(const char *name, int id)
 	return (id >= ID_TA && id <= ID_USB_CHG) ? 1 : 0;
 }
 
-static void lp8727_init_device(struct lp8727_chg *pchg)
+static int lp8727_init_device(struct lp8727_chg *pchg)
 {
 	u8 val;
+	int ret;
 
 	val = ID200_EN | ADC_EN | CP_EN;
-	if (lp8727_i2c_write_byte(pchg, CTRL1, &val))
-		dev_err(pchg->dev, "i2c write err : addr=0x%.2x\n", CTRL1);
+	ret = lp8727_i2c_write_byte(pchg, CTRL1, &val);
+	if (ret)
+		return ret;
 
 	val = INT_EN | CHGDET_EN;
-	if (lp8727_i2c_write_byte(pchg, CTRL2, &val))
-		dev_err(pchg->dev, "i2c write err : addr=0x%.2x\n", CTRL2);
+	ret = lp8727_i2c_write_byte(pchg, CTRL2, &val);
+	if (ret)
+		return ret;
+
+	return 0;
 }
 
 static int lp8727_is_dedicated_charger(struct lp8727_chg *pchg)
@@ -245,20 +250,22 @@ static irqreturn_t lp8727_isr_func(int irq, void *ptr)
 	return IRQ_HANDLED;
 }
 
-static void lp8727_intr_config(struct lp8727_chg *pchg)
+static int lp8727_intr_config(struct lp8727_chg *pchg)
 {
 	INIT_DELAYED_WORK(&pchg->work, lp8727_delayed_func);
 
 	pchg->irqthread = create_singlethread_workqueue("lp8727-irqthd");
-	if (!pchg->irqthread)
+	if (!pchg->irqthread) {
 		dev_err(pchg->dev, "can not create thread for lp8727\n");
-
-	if (request_threaded_irq(pchg->client->irq,
-				 NULL,
-				 lp8727_isr_func,
-				 IRQF_TRIGGER_FALLING, "lp8727_irq", pchg)) {
-		dev_err(pchg->dev, "lp8727 irq can not be registered\n");
+		return -ENOMEM;
 	}
+
+	return request_threaded_irq(pchg->client->irq,
+				NULL,
+				lp8727_isr_func,
+				IRQF_TRIGGER_FALLING,
+				"lp8727_irq",
+				pchg);
 }
 
 static enum power_supply_property lp8727_charger_prop[] = {
@@ -440,15 +447,29 @@ static int lp8727_probe(struct i2c_client *cl, const struct i2c_device_id *id)
 
 	mutex_init(&pchg->xfer_lock);
 
-	lp8727_init_device(pchg);
-	lp8727_intr_config(pchg);
+	ret = lp8727_init_device(pchg);
+	if (ret) {
+		dev_err(pchg->dev, "i2c communication err: %d", ret);
+		goto error;
+	}
+
+	ret = lp8727_intr_config(pchg);
+	if (ret) {
+		dev_err(pchg->dev, "irq handler err: %d", ret);
+		goto error;
+	}
 
 	ret = lp8727_register_psy(pchg);
-	if (ret)
-		dev_err(pchg->dev,
-			"can not register power supplies. err=%d", ret);
+	if (ret) {
+		dev_err(pchg->dev, "power supplies register err: %d", ret);
+		goto error;
+	}
 
 	return 0;
+
+error:
+	kfree(pchg);
+	return ret;
 }
 
 static int __devexit lp8727_remove(struct i2c_client *cl)
