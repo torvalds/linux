@@ -4093,7 +4093,7 @@ static int mwl8k_set_key(struct ieee80211_hw *hw,
 		return -EOPNOTSUPP;
 
 	if (sta == NULL)
-		addr = hw->wiphy->perm_addr;
+		addr = vif->addr;
 	else
 		addr = sta->addr;
 
