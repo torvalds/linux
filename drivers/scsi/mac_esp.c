@@ -565,8 +565,7 @@ static int __devinit esp_mac_probe(struct platform_device *dev)
 	esp_chips[dev->id] = esp;
 	mb();
 	if (esp_chips[!dev->id] == NULL) {
-		err = request_irq(host->irq, mac_scsi_esp_intr, 0,
-		                  "Mac ESP", NULL);
+		err = request_irq(host->irq, mac_scsi_esp_intr, 0, "ESP", NULL);
 		if (err < 0) {
 			esp_chips[dev->id] = NULL;
 			goto fail_free_priv;
