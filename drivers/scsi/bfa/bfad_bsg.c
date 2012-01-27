@@ -3047,8 +3047,7 @@ bfad_im_bsg_els_ct_request(struct fc_bsg_job *job)
 	 * Allocate buffer for bsg_fcpt and do a copy_from_user op for payload
 	 * buffer of size bsg_data->payload_len
 	 */
-	bsg_fcpt = (struct bfa_bsg_fcpt_s *)
-		   kzalloc(bsg_data->payload_len, GFP_KERNEL);
+	bsg_fcpt = kzalloc(bsg_data->payload_len, GFP_KERNEL);
 	if (!bsg_fcpt)
 		goto out;
 
@@ -3060,6 +3059,7 @@ bfad_im_bsg_els_ct_request(struct fc_bsg_job *job)
 
 	drv_fcxp = kzalloc(sizeof(struct bfad_fcxp), GFP_KERNEL);
 	if (drv_fcxp == NULL) {
+		kfree(bsg_fcpt);
 		rc = -ENOMEM;
 		goto out;
 	}
