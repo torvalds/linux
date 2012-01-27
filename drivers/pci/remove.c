@@ -144,7 +144,15 @@ static void pci_stop_bus_devices(struct pci_bus *bus)
 {
 	struct list_head *l, *n;
 
-	list_for_each_safe(l, n, &bus->devices) {
+	/*
+	 * VFs could be removed by pci_remove_bus_device() in the
+	 *  pci_stop_bus_devices() code path for PF.
+	 *  aka, bus->devices get updated in the process.
+	 * but VFs are inserted after PFs when SRIOV is enabled for PF,
+	 * We can iterate the list backwards to get prev valid PF instead
+	 *  of removed VF.
+	 */
+	list_for_each_prev_safe(l, n, &bus->devices) {
 		struct pci_dev *dev = pci_dev_b(l);
 		pci_stop_bus_device(dev);
 	}
