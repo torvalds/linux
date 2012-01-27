@@ -18,6 +18,7 @@
 #include <linux/seq_file.h>
 #include <linux/uaccess.h>
 #include <linux/namei.h>
+#include <linux/capability.h>
 
 #include "include/apparmor.h"
 #include "include/apparmorfs.h"
@@ -142,12 +143,62 @@ static const struct file_operations aa_fs_profile_remove = {
 	.llseek = default_llseek,
 };
 
+static int aa_fs_seq_show(struct seq_file *seq, void *v)
+{
+	struct aa_fs_entry *fs_file = seq->private;
+
+	if (!fs_file)
+		return 0;
+
+	switch (fs_file->v_type) {
+	case AA_FS_TYPE_BOOLEAN:
+		seq_printf(seq, "%s\n", fs_file->v.boolean ? "yes" : "no");
+		break;
+	case AA_FS_TYPE_U64:
+		seq_printf(seq, "%#08lx\n", fs_file->v.u64);
+		break;
+	default:
+		/* Ignore unpritable entry types. */
+		break;
+	}
+
+	return 0;
+}
+
+static int aa_fs_seq_open(struct inode *inode, struct file *file)
+{
+	return single_open(file, aa_fs_seq_show, inode->i_private);
+}
+
+const struct file_operations aa_fs_seq_file_ops = {
+	.owner		= THIS_MODULE,
+	.open		= aa_fs_seq_open,
+	.read		= seq_read,
+	.llseek		= seq_lseek,
+	.release	= single_release,
+};
+
 /** Base file system setup **/
+
+static struct aa_fs_entry aa_fs_entry_domain[] = {
+	AA_FS_FILE_BOOLEAN("change_hat",	1),
+	AA_FS_FILE_BOOLEAN("change_hatv",	1),
+	AA_FS_FILE_BOOLEAN("change_onexec",	1),
+	AA_FS_FILE_BOOLEAN("change_profile",	1),
+	{ }
+};
+
+static struct aa_fs_entry aa_fs_entry_features[] = {
+	AA_FS_DIR("domain",			aa_fs_entry_domain),
+	AA_FS_FILE_U64("capability",		VFS_CAP_FLAGS_MASK),
+	{ }
+};
 
 static struct aa_fs_entry aa_fs_entry_apparmor[] = {
 	AA_FS_FILE_FOPS(".load", 0640, &aa_fs_profile_load),
 	AA_FS_FILE_FOPS(".replace", 0640, &aa_fs_profile_replace),
 	AA_FS_FILE_FOPS(".remove", 0640, &aa_fs_profile_remove),
+	AA_FS_DIR("features", aa_fs_entry_features),
 	{ }
 };
 
