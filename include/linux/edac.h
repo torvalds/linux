@@ -308,10 +308,22 @@ enum scrub_type {
  * PS - I enjoyed writing all that about as much as you enjoyed reading it.
  */
 
-struct channel_info {
-	int chan_idx;		/* channel index */
-	u32 ce_count;		/* Correctable Errors for this CHANNEL */
-	char label[EDAC_MC_LABEL_LEN + 1];	/* DIMM label on motherboard */
+/**
+ * struct rank_info - contains the information for one DIMM rank
+ *
+ * @chan_idx:	channel number where the rank is (typically, 0 or 1)
+ * @ce_count:	number of correctable errors for this rank
+ * @label:	DIMM label. Different ranks for the same DIMM should be
+ *		filled, on userspace, with the same label.
+ *		FIXME: The core currently won't enforce it.
+ * @csrow:	A pointer to the chip select row structure (the parent
+ *		structure). The location of the rank is given by
+ *		the (csrow->csrow_idx, chan_idx) vector.
+ */
+struct rank_info {
+	int chan_idx;
+	u32 ce_count;
+	char label[EDAC_MC_LABEL_LEN + 1];
 	struct csrow_info *csrow;	/* the parent */
 };
 
@@ -335,7 +347,7 @@ struct csrow_info {
 
 	/* channel information for this csrow */
 	u32 nr_channels;
-	struct channel_info *channels;
+	struct rank_info *channels;
 };
 
 struct mcidev_sysfs_group {
