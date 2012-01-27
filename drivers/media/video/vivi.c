@@ -1001,17 +1001,6 @@ static int vidioc_s_input(struct file *file, void *priv, unsigned int i)
 	return 0;
 }
 
-static int vidioc_subscribe_event(struct v4l2_fh *fh,
-				struct v4l2_event_subscription *sub)
-{
-	switch (sub->type) {
-	case V4L2_EVENT_CTRL:
-		return v4l2_event_subscribe(fh, sub, 0);
-	default:
-		return -EINVAL;
-	}
-}
-
 /* --- controls ---------------------------------------------- */
 
 static int vivi_g_volatile_ctrl(struct v4l2_ctrl *ctrl)
@@ -1203,7 +1192,7 @@ static const struct v4l2_ioctl_ops vivi_ioctl_ops = {
 	.vidioc_streamon      = vidioc_streamon,
 	.vidioc_streamoff     = vidioc_streamoff,
 	.vidioc_log_status    = v4l2_ctrl_log_status,
-	.vidioc_subscribe_event = vidioc_subscribe_event,
+	.vidioc_subscribe_event = v4l2_ctrl_subscribe_event,
 	.vidioc_unsubscribe_event = v4l2_event_unsubscribe,
 };
 
