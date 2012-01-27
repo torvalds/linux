@@ -1,5 +1,5 @@
 /*
- * Driver for LP8727 Micro/Mini USB IC with intergrated charger
+ * Driver for LP8727 Micro/Mini USB IC with integrated charger
  *
  *			Copyright (C) 2011 Texas Instruments
  *			Copyright (C) 2011 National Semiconductor
