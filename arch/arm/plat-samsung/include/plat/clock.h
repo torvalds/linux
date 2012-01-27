@@ -120,6 +120,10 @@ extern void s3c2412_setup_clocks(void);
 extern void s3c244x_setup_clocks(void);
 extern void s3c2443_setup_clocks(void);
 
+/* S3C2410 specific clock functions */
+
+extern int s3c2410_baseclk_add(void);
+
 /* S3C2443/S3C2416 specific clock functions */
 
 typedef unsigned int (*pll_fn)(unsigned int reg, unsigned int base);
