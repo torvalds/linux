@@ -2502,9 +2502,14 @@ static int __devinit efx_pci_probe(struct pci_dev *pci_dev,
 
 	netif_dbg(efx, probe, efx->net_dev, "initialisation successful\n");
 
+	/* Try to create MTDs, but allow this to fail */
 	rtnl_lock();
-	efx_mtd_probe(efx); /* allowed to fail */
+	rc = efx_mtd_probe(efx);
 	rtnl_unlock();
+	if (rc)
+		netif_warn(efx, probe, efx->net_dev,
+			   "failed to create MTDs (%d)\n", rc);
+
 	return 0;
 
  fail4:

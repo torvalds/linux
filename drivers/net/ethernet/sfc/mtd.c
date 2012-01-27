@@ -280,7 +280,7 @@ fail:
 		--part;
 		efx_mtd_remove_partition(part);
 	}
-	/* mtd_device_register() returns 1 if the MTD table is full */
+	/* Failure is unlikely here, but probably means we're out of memory */
 	return -ENOMEM;
 }
 
