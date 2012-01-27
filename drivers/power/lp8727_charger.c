@@ -26,7 +26,7 @@
 #define INT1		0x4
 #define INT2		0x5
 #define STATUS1		0x6
-#define STATUS2 	0x7
+#define STATUS2		0x7
 #define CHGCTRL2	0x9
 
 /* CTRL1 register */
@@ -153,14 +153,14 @@ static int lp8727_is_dedicated_charger(struct lp8727_chg *pchg)
 {
 	u8 val;
 	lp8727_read_byte(pchg, STATUS1, &val);
-	return (val & DCPORT);
+	return val & DCPORT;
 }
 
 static int lp8727_is_usb_charger(struct lp8727_chg *pchg)
 {
 	u8 val;
 	lp8727_read_byte(pchg, STATUS1, &val);
-	return (val & CHPORT);
+	return val & CHPORT;
 }
 
 static void lp8727_ctrl_switch(struct lp8727_chg *pchg, u8 sw)
@@ -504,6 +504,6 @@ module_init(lp8727_init);
 module_exit(lp8727_exit);
 
 MODULE_DESCRIPTION("TI/National Semiconductor LP8727 charger driver");
-MODULE_AUTHOR
-    ("Woogyom Kim <milo.kim@ti.com>, Daniel Jeong <daniel.jeong@ti.com>");
+MODULE_AUTHOR("Woogyom Kim <milo.kim@ti.com>, "
+	      "Daniel Jeong <daniel.jeong@ti.com>");
 MODULE_LICENSE("GPL");
