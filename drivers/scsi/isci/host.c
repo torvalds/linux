@@ -1491,6 +1491,15 @@ sci_controller_set_interrupt_coalescence(struct isci_host *ihost,
 static void sci_controller_ready_state_enter(struct sci_base_state_machine *sm)
 {
 	struct isci_host *ihost = container_of(sm, typeof(*ihost), sm);
+	u32 val;
+
+	/* enable clock gating for power control of the scu unit */
+	val = readl(&ihost->smu_registers->clock_gating_control);
+	val &= ~(SMU_CGUCR_GEN_BIT(REGCLK_ENABLE) |
+		 SMU_CGUCR_GEN_BIT(TXCLK_ENABLE) |
+		 SMU_CGUCR_GEN_BIT(XCLK_ENABLE));
+	val |= SMU_CGUCR_GEN_BIT(IDLE_ENABLE);
+	writel(val, &ihost->smu_registers->clock_gating_control);
 
 	/* set the default interrupt coalescence number and timeout value. */
 	sci_controller_set_interrupt_coalescence(ihost, 0, 0);
