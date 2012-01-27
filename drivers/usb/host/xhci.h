@@ -1223,10 +1223,7 @@ union xhci_trb {
 /* Allow two commands + a link TRB, along with any reserved command TRBs */
 #define MAX_RSVD_CMD_TRBS	(TRBS_PER_SEGMENT - 3)
 #define SEGMENT_SIZE		(TRBS_PER_SEGMENT*16)
-/* SEGMENT_SHIFT should be log2(SEGMENT_SIZE).
- * Change this if you change TRBS_PER_SEGMENT!
- */
-#define SEGMENT_SHIFT		10
+#define SEGMENT_SHIFT		(__ffs(SEGMENT_SIZE))
 /* TRB buffer pointers can't cross 64KB boundaries */
 #define TRB_MAX_BUFF_SHIFT		16
 #define TRB_MAX_BUFF_SIZE	(1 << TRB_MAX_BUFF_SHIFT)
