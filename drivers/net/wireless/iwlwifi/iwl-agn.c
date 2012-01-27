@@ -1781,7 +1781,7 @@ int iwl_probe(struct iwl_bus *bus, const struct iwl_trans_ops *trans_ops,
 
 	SET_IEEE80211_DEV(hw, trans(priv)->dev);
 
-	/* what debugging capabilities we have */
+	/* show what debugging capabilities we have */
 	iwl_debug_config(priv);
 
 	IWL_DEBUG_INFO(priv, "*** LOAD DRIVER ***\n");
