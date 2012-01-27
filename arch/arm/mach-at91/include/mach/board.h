@@ -88,7 +88,7 @@ extern void __init at91_add_device_eth(struct macb_platform_data *data);
 struct at91_usbh_data {
 	u8		ports;		/* number of ports on root hub */
 	int		vbus_pin[2];	/* port power-control pin */
-	u8              vbus_pin_inverted;
+	u8              vbus_pin_active_low[2];
 	u8              overcurrent_supported;
 	int             overcurrent_pin[2];
 	u8              overcurrent_status[2];
