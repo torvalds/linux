@@ -2394,3 +2394,23 @@ int v4l2_ctrl_log_status(struct file *file, void *fh)
 	return 0;
 }
 EXPORT_SYMBOL(v4l2_ctrl_log_status);
+
+int v4l2_ctrl_subscribe_event(struct v4l2_fh *fh,
+				struct v4l2_event_subscription *sub)
+{
+	if (sub->type == V4L2_EVENT_CTRL)
+		return v4l2_event_subscribe(fh, sub, 0);
+	return -EINVAL;
+}
+EXPORT_SYMBOL(v4l2_ctrl_subscribe_event);
+
+unsigned int v4l2_ctrl_poll(struct file *file, struct poll_table_struct *wait)
+{
+	struct v4l2_fh *fh = file->private_data;
+
+	if (v4l2_event_pending(fh))
+		return POLLPRI;
+	poll_wait(file, &fh->wait, wait);
+	return 0;
+}
+EXPORT_SYMBOL(v4l2_ctrl_poll);
