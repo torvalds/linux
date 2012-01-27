@@ -24,9 +24,12 @@
 #include <linux/init.h>
 #include <linux/types.h>
 
+#include <asm/io.h>
 #include <asm/xen/hypervisor.h>
 
 #include <xen/xen.h>
+#include <xen/interface/xen.h>
+#include <xen/hvm.h>
 #include <xen/page.h>
 #include <xen/events.h>
 #include <xen/interface/io/console.h>
@@ -42,9 +45,13 @@ static int xencons_irq;
 /* ------------------------------------------------------------------ */
 
 static unsigned long console_pfn = ~0ul;
+static unsigned int console_evtchn = ~0ul;
+static struct xencons_interface *xencons_if = NULL;
 
 static inline struct xencons_interface *xencons_interface(void)
 {
+	if (xencons_if != NULL)
+		return xencons_if;
 	if (console_pfn == ~0ul)
 		return mfn_to_virt(xen_start_info->console.domU.mfn);
 	else
@@ -54,7 +61,10 @@ static inline struct xencons_interface *xencons_interface(void)
 static inline void notify_daemon(void)
 {
 	/* Use evtchn: this is called early, before irq is set up. */
-	notify_remote_via_evtchn(xen_start_info->console.domU.evtchn);
+	if (console_evtchn == ~0ul)
+		notify_remote_via_evtchn(xen_start_info->console.domU.evtchn);
+	else
+		notify_remote_via_evtchn(console_evtchn);
 }
 
 static int __write_console(const char *data, int len)
@@ -157,28 +167,63 @@ static struct hv_ops dom0_hvc_ops = {
 	.notifier_hangup = notifier_hangup_irq,
 };
 
+static int xen_hvm_console_init(void)
+{
+	int r;
+	uint64_t v = 0;
+	unsigned long mfn;
+
+	if (!xen_hvm_domain())
+		return -ENODEV;
+
+	if (xencons_if != NULL)
+		return -EBUSY;
+
+	r = hvm_get_parameter(HVM_PARAM_CONSOLE_EVTCHN, &v);
+	if (r < 0)
+		return -ENODEV;
+	console_evtchn = v;
+	hvm_get_parameter(HVM_PARAM_CONSOLE_PFN, &v);
+	if (r < 0)
+		return -ENODEV;
+	mfn = v;
+	xencons_if = ioremap(mfn << PAGE_SHIFT, PAGE_SIZE);
+	if (xencons_if == NULL)
+		return -ENODEV;
+
+	return 0;
+}
+
 static int __init xen_hvc_init(void)
 {
 	struct hvc_struct *hp;
 	struct hv_ops *ops;
+	int r;
 
-	if (!xen_pv_domain())
+	if (!xen_domain())
 		return -ENODEV;
 
 	if (xen_initial_domain()) {
 		ops = &dom0_hvc_ops;
 		xencons_irq = bind_virq_to_irq(VIRQ_CONSOLE, 0);
 	} else {
-		if (!xen_start_info->console.domU.evtchn)
-			return -ENODEV;
-
 		ops = &domU_hvc_ops;
-		xencons_irq = bind_evtchn_to_irq(xen_start_info->console.domU.evtchn);
+		if (xen_pv_domain()) {
+			if (!xen_start_info->console.domU.evtchn)
+				return -ENODEV;
+			console_pfn = mfn_to_pfn(xen_start_info->console.domU.mfn);
+			console_evtchn = xen_start_info->console.domU.evtchn;
+		} else {
+			r = xen_hvm_console_init();
+			if (r < 0)
+				return r;
+		}
+		xencons_irq = bind_evtchn_to_irq(console_evtchn);
+		if (xencons_irq < 0)
+			xencons_irq = 0; /* NO_IRQ */
+		else
+			irq_set_noprobe(xencons_irq);
 	}
-	if (xencons_irq < 0)
-		xencons_irq = 0; /* NO_IRQ */
-	else
-		irq_set_noprobe(xencons_irq);
 
 	hp = hvc_alloc(HVC_COOKIE, xencons_irq, ops, 256);
 	if (IS_ERR(hp))
@@ -186,15 +231,13 @@ static int __init xen_hvc_init(void)
 
 	hvc = hp;
 
-	console_pfn = mfn_to_pfn(xen_start_info->console.domU.mfn);
-
 	return 0;
 }
 
 void xen_console_resume(void)
 {
 	if (xencons_irq)
-		rebind_evtchn_irq(xen_start_info->console.domU.evtchn, xencons_irq);
+		rebind_evtchn_irq(console_evtchn, xencons_irq);
 }
 
 static void __exit xen_hvc_fini(void)
@@ -205,15 +248,21 @@ static void __exit xen_hvc_fini(void)
 
 static int xen_cons_init(void)
 {
-	struct hv_ops *ops;
+	const struct hv_ops *ops;
 
-	if (!xen_pv_domain())
+	if (!xen_domain())
 		return 0;
 
 	if (xen_initial_domain())
 		ops = &dom0_hvc_ops;
-	else
+	else {
 		ops = &domU_hvc_ops;
+
+		if (xen_pv_domain())
+			console_evtchn = xen_start_info->console.domU.evtchn;
+		else
+			xen_hvm_console_init();
+	}
 
 	hvc_instantiate(HVC_COOKIE, 0, ops);
 	return 0;
@@ -229,6 +278,9 @@ static void xenboot_write_console(struct console *console, const char *string,
 {
 	unsigned int linelen, off = 0;
 	const char *pos;
+
+	if (!xen_pv_domain())
+		return;
 
 	dom0_write_console(0, string, len);
 
