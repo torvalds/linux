@@ -1550,7 +1550,6 @@ static int cx23885_set_freq_via_ops(struct cx23885_dev *dev,
 	struct v4l2_control ctrl;
 	struct videobuf_dvb_frontend *vfe;
 	struct dvb_frontend *fe;
-	int err = 0;
 
 	struct analog_parameters params = {
 		.mode      = V4L2_TUNER_ANALOG_TV,
@@ -1572,8 +1571,10 @@ static int cx23885_set_freq_via_ops(struct cx23885_dev *dev,
 		params.frequency, f->tuner, params.std);
 
 	vfe = videobuf_dvb_get_frontend(&dev->ts2.frontends, 1);
-	if (!vfe)
-		err = -EINVAL;
+	if (!vfe) {
+		mutex_unlock(&dev->lock);
+		return -EINVAL;
+	}
 
 	fe = vfe->dvb.frontend;
 

@@ -4271,7 +4271,9 @@ static void stop_controller_lockup_detector(struct ctlr_info *h)
 	remove_ctlr_from_lockup_detector_list(h);
 	/* If the list of ctlr's to monitor is empty, stop the thread */
 	if (list_empty(&hpsa_ctlr_list)) {
+		spin_unlock_irqrestore(&lockup_detector_lock, flags);
 		kthread_stop(hpsa_lockup_detector);
+		spin_lock_irqsave(&lockup_detector_lock, flags);
 		hpsa_lockup_detector = NULL;
 	}
 	spin_unlock_irqrestore(&lockup_detector_lock, flags);

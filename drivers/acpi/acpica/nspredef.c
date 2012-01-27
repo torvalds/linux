@@ -6,7 +6,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2011, Intel Corp.
+ * Copyright (C) 2000 - 2012, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -620,6 +620,7 @@ acpi_ns_check_package(struct acpi_predefined_data *data,
 	case ACPI_PTYPE2_FIXED:
 	case ACPI_PTYPE2_MIN:
 	case ACPI_PTYPE2_COUNT:
+	case ACPI_PTYPE2_FIX_VAR:
 
 		/*
 		 * These types all return a single Package that consists of a
@@ -754,6 +755,34 @@ acpi_ns_check_package_list(struct acpi_predefined_data *data,
 							   object_type2,
 							   package->ret_info.
 							   count2, 0);
+			if (ACPI_FAILURE(status)) {
+				return (status);
+			}
+			break;
+
+		case ACPI_PTYPE2_FIX_VAR:
+			/*
+			 * Each subpackage has a fixed number of elements and an
+			 * optional element
+			 */
+			expected_count =
+			    package->ret_info.count1 + package->ret_info.count2;
+			if (sub_package->package.count < expected_count) {
+				goto package_too_small;
+			}
+
+			status =
+			    acpi_ns_check_package_elements(data, sub_elements,
+							   package->ret_info.
+							   object_type1,
+							   package->ret_info.
+							   count1,
+							   package->ret_info.
+							   object_type2,
+							   sub_package->package.
+							   count -
+							   package->ret_info.
+							   count1, 0);
 			if (ACPI_FAILURE(status)) {
 				return (status);
 			}

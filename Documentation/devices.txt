@@ -447,6 +447,9 @@ Your cooperation is appreciated.
 		234 = /dev/btrfs-control	Btrfs control device
 		235 = /dev/autofs	Autofs control device
 		236 = /dev/mapper/control	Device-Mapper control device
+		237 = /dev/loop-control Loopback control device
+		238 = /dev/vhost-net	Host kernel accelerator for virtio net
+
 		240-254			Reserved for local use
 		255			Reserved for MISC_DYNAMIC_MINOR
 

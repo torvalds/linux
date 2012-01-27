@@ -134,7 +134,7 @@ struct pl08x_txd {
 	struct dma_async_tx_descriptor tx;
 	struct list_head node;
 	struct list_head dsg_list;
-	enum dma_data_direction	direction;
+	enum dma_transfer_direction direction;
 	dma_addr_t llis_bus;
 	struct pl08x_lli *llis_va;
 	/* Default cctl value for LLIs */
@@ -197,7 +197,7 @@ struct pl08x_dma_chan {
 	dma_addr_t dst_addr;
 	u32 src_cctl;
 	u32 dst_cctl;
-	enum dma_data_direction	runtime_direction;
+	enum dma_transfer_direction runtime_direction;
 	dma_cookie_t lc;
 	struct list_head pend_list;
 	struct pl08x_txd *at;

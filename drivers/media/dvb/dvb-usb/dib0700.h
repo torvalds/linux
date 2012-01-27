@@ -48,6 +48,8 @@ struct dib0700_state {
 	u8 disable_streaming_master_mode;
 	u32 fw_version;
 	u32 nb_packet_buffer_size;
+	int (*read_status)(struct dvb_frontend *, fe_status_t *);
+	int (*sleep)(struct dvb_frontend* fe);
 	u8 buf[255];
 };
 

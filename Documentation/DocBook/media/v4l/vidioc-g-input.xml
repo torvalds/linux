@@ -61,8 +61,8 @@ desired input in an integer and call the
 <constant>VIDIOC_S_INPUT</constant> ioctl with a pointer to this
 integer. Side effects are possible. For example inputs may support
 different video standards, so the driver may implicitly switch the
-current standard. It is good practice to select an input before
-querying or negotiating any other parameters.</para>
+current standard. Because of these possible side effects applications
+must select an input before querying or negotiating any other parameters.</para>
 
     <para>Information about video inputs is available using the
 &VIDIOC-ENUMINPUT; ioctl.</para>

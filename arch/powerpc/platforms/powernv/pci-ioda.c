@@ -204,11 +204,10 @@ static void __devinit pnv_ioda_offset_bus(struct pci_bus *bus,
 	pr_devel("  -> OBR %s [%x] +%016llx\n",
 		 bus->self ? pci_name(bus->self) : "root", flags, offset);
 
-	for (i = 0; i < 2; i++) {
-		r = bus->resource[i];
+	pci_bus_for_each_resource(bus, r, i) {
 		if (r && (r->flags & flags)) {
-			bus->resource[i]->start += offset;
-			bus->resource[i]->end += offset;
+			r->start += offset;
+			r->end += offset;
 		}
 	}
 	list_for_each_entry(dev, &bus->devices, bus_list)
@@ -288,12 +287,17 @@ static void __devinit pnv_ioda_calc_bus(struct pci_bus *bus, unsigned int flags,
 	 * assignment algorithm is going to be uber-trivial for now, we
 	 * can try to be smarter later at filling out holes.
 	 */
-	start = bus->self ? 0 : bus->resource[bres]->start;
-
-	/* Don't hand out IO 0 */
-	if ((flags & IORESOURCE_IO) && !bus->self)
-		start += 0x1000;
-
+	if (bus->self) {
+		/* No offset for downstream bridges */
+		start = 0;
+	} else {
+		/* Offset from the root */
+		if (flags & IORESOURCE_IO)
+			/* Don't hand out IO 0 */
+			start = hose->io_resource.start + 0x1000;
+		else
+			start = hose->mem_resources[0].start;
+	}
 	while(!list_empty(&head)) {
 		w = list_first_entry(&head, struct resource_wrap, link);
 		list_del(&w->link);
@@ -321,13 +325,20 @@ static void __devinit pnv_ioda_calc_bus(struct pci_bus *bus, unsigned int flags,
  empty:
 	/* Only setup P2P's, not the PHB itself */
 	if (bus->self) {
-		WARN_ON(bus->resource[bres] == NULL);
-		bus->resource[bres]->start = 0;
-		bus->resource[bres]->flags = (*size) ? flags : 0;
-		bus->resource[bres]->end = (*size) ? (*size - 1) : 0;
+		struct resource *res = bus->resource[bres];
 
-		/* Clear prefetch bus resources for now */
-		bus->resource[2]->flags = 0;
+		if (WARN_ON(res == NULL))
+			return;
+
+		/*
+		 * FIXME: We should probably export and call
+		 * pci_bridge_check_ranges() to properly re-initialize
+		 * the PCI portion of the flags here, and to detect
+		 * what the bridge actually supports.
+		 */
+		res->start = 0;
+		res->flags = (*size) ? flags : 0;
+		res->end = (*size) ? (*size - 1) : 0;
 	}
 
 	pr_devel("<- CBR %s [%x] *size=%016llx *align=%016llx\n",

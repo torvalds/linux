@@ -46,7 +46,6 @@
 
 /* This keeps a track of which one is the crashing cpu. */
 int crashing_cpu = -1;
-static atomic_t cpus_in_crash;
 static int time_to_dump;
 
 #define CRASH_HANDLER_MAX 3
@@ -66,6 +65,7 @@ static int handle_fault(struct pt_regs *regs)
 
 #ifdef CONFIG_SMP
 
+static atomic_t cpus_in_crash;
 void crash_ipi_callback(struct pt_regs *regs)
 {
 	static cpumask_t cpus_state_saved = CPU_MASK_NONE;

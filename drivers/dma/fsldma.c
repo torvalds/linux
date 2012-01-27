@@ -772,7 +772,7 @@ fail:
  */
 static struct dma_async_tx_descriptor *fsl_dma_prep_slave_sg(
 	struct dma_chan *dchan, struct scatterlist *sgl, unsigned int sg_len,
-	enum dma_data_direction direction, unsigned long flags)
+	enum dma_transfer_direction direction, unsigned long flags)
 {
 	/*
 	 * This operation is not supported on the Freescale DMA controller
@@ -819,7 +819,7 @@ static int fsl_dma_device_control(struct dma_chan *dchan,
 			return -ENXIO;
 
 		/* we set the controller burst size depending on direction */
-		if (config->direction == DMA_TO_DEVICE)
+		if (config->direction == DMA_MEM_TO_DEV)
 			size = config->dst_addr_width * config->dst_maxburst;
 		else
 			size = config->src_addr_width * config->src_maxburst;

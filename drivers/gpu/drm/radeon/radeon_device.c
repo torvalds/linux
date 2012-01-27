@@ -720,7 +720,7 @@ int radeon_device_init(struct radeon_device *rdev,
 	/* mutex initialization are all done here so we
 	 * can recall function without having locking issues */
 	radeon_mutex_init(&rdev->cs_mutex);
-	mutex_init(&rdev->ib_pool.mutex);
+	radeon_mutex_init(&rdev->ib_pool.mutex);
 	for (i = 0; i < RADEON_NUM_RINGS; ++i)
 		mutex_init(&rdev->ring[i].mutex);
 	mutex_init(&rdev->dc_hw_i2c_mutex);
@@ -959,9 +959,11 @@ int radeon_resume_kms(struct drm_device *dev)
 	radeon_fbdev_set_suspend(rdev, 0);
 	console_unlock();
 
-	/* init dig PHYs */
-	if (rdev->is_atom_bios)
+	/* init dig PHYs, disp eng pll */
+	if (rdev->is_atom_bios) {
 		radeon_atom_encoder_init(rdev);
+		radeon_atom_dcpll_init(rdev);
+	}
 	/* reset hpd state */
 	radeon_hpd_init(rdev);
 	/* blat the mode back in */

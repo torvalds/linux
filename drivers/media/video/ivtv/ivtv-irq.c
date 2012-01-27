@@ -288,13 +288,13 @@ static void dma_post(struct ivtv_stream *s)
 			ivtv_process_vbi_data(itv, buf, 0, s->type);
 			s->q_dma.bytesused += buf->bytesused;
 		}
-		if (s->id == -1) {
+		if (s->fh == NULL) {
 			ivtv_queue_move(s, &s->q_dma, NULL, &s->q_free, 0);
 			return;
 		}
 	}
 	ivtv_queue_move(s, &s->q_dma, NULL, &s->q_full, s->q_dma.bytesused);
-	if (s->id != -1)
+	if (s->fh)
 		wake_up(&s->waitq);
 }
 

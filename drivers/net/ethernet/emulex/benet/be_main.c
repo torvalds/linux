@@ -1786,8 +1786,7 @@ static void be_rx_queues_destroy(struct be_adapter *adapter)
 static u32 be_num_rxqs_want(struct be_adapter *adapter)
 {
 	if ((adapter->function_caps & BE_FUNCTION_CAPS_RSS) &&
-	     !sriov_enabled(adapter) && be_physfn(adapter) &&
-	     !be_is_mc(adapter)) {
+	     !sriov_enabled(adapter) && be_physfn(adapter)) {
 		return 1 + MAX_RSS_QS; /* one default non-RSS queue */
 	} else {
 		dev_warn(&adapter->pdev->dev,

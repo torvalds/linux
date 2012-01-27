@@ -853,8 +853,7 @@ static int em28xx_dvb_init(struct em28xx *dev)
 	case EM28174_BOARD_PCTV_290E:
 		dvb->fe[0] = dvb_attach(cxd2820r_attach,
 					&em28xx_cxd2820r_config,
-					&dev->i2c_adap,
-					NULL);
+					&dev->i2c_adap);
 		if (dvb->fe[0]) {
 			/* FE 0 attach tuner */
 			if (!dvb_attach(tda18271_attach,

@@ -31,6 +31,7 @@
 #include <linux/kernel.h>
 #include <linux/slab.h>
 #include <linux/mm.h>
+#include <linux/highmem.h>
 #include <linux/pci.h>
 #include <linux/interrupt.h>
 #include <linux/kmod.h>
@@ -82,19 +83,6 @@ static struct workqueue_struct *kacpid_wq;
 static struct workqueue_struct *kacpi_notify_wq;
 struct workqueue_struct *kacpi_hotplug_wq;
 EXPORT_SYMBOL(kacpi_hotplug_wq);
-
-struct acpi_res_list {
-	resource_size_t start;
-	resource_size_t end;
-	acpi_adr_space_type resource_type; /* IO port, System memory, ...*/
-	char name[5];   /* only can have a length of 4 chars, make use of this
-			   one instead of res->name, no need to kalloc then */
-	struct list_head resource_list;
-	int count;
-};
-
-static LIST_HEAD(resource_list_head);
-static DEFINE_SPINLOCK(acpi_res_lock);
 
 /*
  * This list of permanent mappings is for memory that may be accessed from
@@ -166,17 +154,21 @@ static u32 acpi_osi_handler(acpi_string interface, u32 supported)
 	return supported;
 }
 
-static void __init acpi_request_region (struct acpi_generic_address *addr,
+static void __init acpi_request_region (struct acpi_generic_address *gas,
 	unsigned int length, char *desc)
 {
-	if (!addr->address || !length)
+	u64 addr;
+
+	/* Handle possible alignment issues */
+	memcpy(&addr, &gas->address, sizeof(addr));
+	if (!addr || !length)
 		return;
 
 	/* Resources are never freed */
-	if (addr->space_id == ACPI_ADR_SPACE_SYSTEM_IO)
-		request_region(addr->address, length, desc);
-	else if (addr->space_id == ACPI_ADR_SPACE_SYSTEM_MEMORY)
-		request_mem_region(addr->address, length, desc);
+	if (gas->space_id == ACPI_ADR_SPACE_SYSTEM_IO)
+		request_region(addr, length, desc);
+	else if (gas->space_id == ACPI_ADR_SPACE_SYSTEM_MEMORY)
+		request_mem_region(addr, length, desc);
 }
 
 static int __init acpi_reserve_resources(void)
@@ -330,6 +322,37 @@ acpi_map_lookup_virt(void __iomem *virt, acpi_size size)
 	return NULL;
 }
 
+#ifndef CONFIG_IA64
+#define should_use_kmap(pfn)   page_is_ram(pfn)
+#else
+/* ioremap will take care of cache attributes */
+#define should_use_kmap(pfn)   0
+#endif
+
+static void __iomem *acpi_map(acpi_physical_address pg_off, unsigned long pg_sz)
+{
+	unsigned long pfn;
+
+	pfn = pg_off >> PAGE_SHIFT;
+	if (should_use_kmap(pfn)) {
+		if (pg_sz > PAGE_SIZE)
+			return NULL;
+		return (void __iomem __force *)kmap(pfn_to_page(pfn));
+	} else
+		return acpi_os_ioremap(pg_off, pg_sz);
+}
+
+static void acpi_unmap(acpi_physical_address pg_off, void __iomem *vaddr)
+{
+	unsigned long pfn;
+
+	pfn = pg_off >> PAGE_SHIFT;
+	if (page_is_ram(pfn))
+		kunmap(pfn_to_page(pfn));
+	else
+		iounmap(vaddr);
+}
+
 void __iomem *__init_refok
 acpi_os_map_memory(acpi_physical_address phys, acpi_size size)
 {
@@ -362,7 +385,7 @@ acpi_os_map_memory(acpi_physical_address phys, acpi_size size)
 
 	pg_off = round_down(phys, PAGE_SIZE);
 	pg_sz = round_up(phys + size, PAGE_SIZE) - pg_off;
-	virt = acpi_os_ioremap(pg_off, pg_sz);
+	virt = acpi_map(pg_off, pg_sz);
 	if (!virt) {
 		mutex_unlock(&acpi_ioremap_lock);
 		kfree(map);
@@ -393,7 +416,7 @@ static void acpi_os_map_cleanup(struct acpi_ioremap *map)
 {
 	if (!map->refcount) {
 		synchronize_rcu();
-		iounmap(map->virt);
+		acpi_unmap(map->phys, map->virt);
 		kfree(map);
 	}
 }
@@ -427,35 +450,42 @@ void __init early_acpi_os_unmap_memory(void __iomem *virt, acpi_size size)
 		__acpi_unmap_table(virt, size);
 }
 
-static int acpi_os_map_generic_address(struct acpi_generic_address *addr)
+int acpi_os_map_generic_address(struct acpi_generic_address *gas)
 {
+	u64 addr;
 	void __iomem *virt;
 
-	if (addr->space_id != ACPI_ADR_SPACE_SYSTEM_MEMORY)
+	if (gas->space_id != ACPI_ADR_SPACE_SYSTEM_MEMORY)
 		return 0;
 
-	if (!addr->address || !addr->bit_width)
+	/* Handle possible alignment issues */
+	memcpy(&addr, &gas->address, sizeof(addr));
+	if (!addr || !gas->bit_width)
 		return -EINVAL;
 
-	virt = acpi_os_map_memory(addr->address, addr->bit_width / 8);
+	virt = acpi_os_map_memory(addr, gas->bit_width / 8);
 	if (!virt)
 		return -EIO;
 
 	return 0;
 }
+EXPORT_SYMBOL(acpi_os_map_generic_address);
 
-static void acpi_os_unmap_generic_address(struct acpi_generic_address *addr)
+void acpi_os_unmap_generic_address(struct acpi_generic_address *gas)
 {
+	u64 addr;
 	struct acpi_ioremap *map;
 
-	if (addr->space_id != ACPI_ADR_SPACE_SYSTEM_MEMORY)
+	if (gas->space_id != ACPI_ADR_SPACE_SYSTEM_MEMORY)
 		return;
 
-	if (!addr->address || !addr->bit_width)
+	/* Handle possible alignment issues */
+	memcpy(&addr, &gas->address, sizeof(addr));
+	if (!addr || !gas->bit_width)
 		return;
 
 	mutex_lock(&acpi_ioremap_lock);
-	map = acpi_map_lookup(addr->address, addr->bit_width / 8);
+	map = acpi_map_lookup(addr, gas->bit_width / 8);
 	if (!map) {
 		mutex_unlock(&acpi_ioremap_lock);
 		return;
@@ -465,6 +495,7 @@ static void acpi_os_unmap_generic_address(struct acpi_generic_address *addr)
 
 	acpi_os_map_cleanup(map);
 }
+EXPORT_SYMBOL(acpi_os_unmap_generic_address);
 
 #ifdef ACPI_FUTURE_USAGE
 acpi_status
@@ -711,6 +742,67 @@ acpi_os_read_memory(acpi_physical_address phys_addr, u32 * value, u32 width)
 	return AE_OK;
 }
 
+#ifdef readq
+static inline u64 read64(const volatile void __iomem *addr)
+{
+	return readq(addr);
+}
+#else
+static inline u64 read64(const volatile void __iomem *addr)
+{
+	u64 l, h;
+	l = readl(addr);
+	h = readl(addr+4);
+	return l | (h << 32);
+}
+#endif
+
+acpi_status
+acpi_os_read_memory64(acpi_physical_address phys_addr, u64 *value, u32 width)
+{
+	void __iomem *virt_addr;
+	unsigned int size = width / 8;
+	bool unmap = false;
+	u64 dummy;
+
+	rcu_read_lock();
+	virt_addr = acpi_map_vaddr_lookup(phys_addr, size);
+	if (!virt_addr) {
+		rcu_read_unlock();
+		virt_addr = acpi_os_ioremap(phys_addr, size);
+		if (!virt_addr)
+			return AE_BAD_ADDRESS;
+		unmap = true;
+	}
+
+	if (!value)
+		value = &dummy;
+
+	switch (width) {
+	case 8:
+		*(u8 *) value = readb(virt_addr);
+		break;
+	case 16:
+		*(u16 *) value = readw(virt_addr);
+		break;
+	case 32:
+		*(u32 *) value = readl(virt_addr);
+		break;
+	case 64:
+		*(u64 *) value = read64(virt_addr);
+		break;
+	default:
+		BUG();
+	}
+
+	if (unmap)
+		iounmap(virt_addr);
+	else
+		rcu_read_unlock();
+
+	return AE_OK;
+}
+
 acpi_status
 acpi_os_write_memory(acpi_physical_address phys_addr, u32 value, u32 width)
 {
@@ -737,6 +829,61 @@ acpi_os_write_memory(acpi_physical_address phys_addr, u32 value, u32 width)
 		break;
 	case 32:
 		writel(value, virt_addr);
+		break;
+	default:
+		BUG();
+	}
+
+	if (unmap)
+		iounmap(virt_addr);
+	else
+		rcu_read_unlock();
+
+	return AE_OK;
+}
+
+#ifdef writeq
+static inline void write64(u64 val, volatile void __iomem *addr)
+{
+	writeq(val, addr);
+}
+#else
+static inline void write64(u64 val, volatile void __iomem *addr)
+{
+	writel(val, addr);
+	writel(val>>32, addr+4);
+}
+#endif
+
+acpi_status
+acpi_os_write_memory64(acpi_physical_address phys_addr, u64 value, u32 width)
+{
+	void __iomem *virt_addr;
+	unsigned int size = width / 8;
+	bool unmap = false;
+
+	rcu_read_lock();
+	virt_addr = acpi_map_vaddr_lookup(phys_addr, size);
+	if (!virt_addr) {
+		rcu_read_unlock();
+		virt_addr = acpi_os_ioremap(phys_addr, size);
+		if (!virt_addr)
+			return AE_BAD_ADDRESS;
+		unmap = true;
+	}
+
+	switch (width) {
+	case 8:
+		writeb(value, virt_addr);
+		break;
+	case 16:
+		writew(value, virt_addr);
+		break;
+	case 32:
+		writel(value, virt_addr);
+		break;
+	case 64:
+		write64(value, virt_addr);
 		break;
 	default:
 		BUG();
@@ -1278,44 +1425,28 @@ __setup("acpi_enforce_resources=", acpi_enforce_resources_setup);
  * drivers */
 int acpi_check_resource_conflict(const struct resource *res)
 {
-	struct acpi_res_list *res_list_elem;
-	int ioport = 0, clash = 0;
+	acpi_adr_space_type space_id;
+	acpi_size length;
+	u8 warn = 0;
+	int clash = 0;
 
 	if (acpi_enforce_resources == ENFORCE_RESOURCES_NO)
 		return 0;
 	if (!(res->flags & IORESOURCE_IO) && !(res->flags & IORESOURCE_MEM))
 		return 0;
 
-	ioport = res->flags & IORESOURCE_IO;
+	if (res->flags & IORESOURCE_IO)
+		space_id = ACPI_ADR_SPACE_SYSTEM_IO;
+	else
+		space_id = ACPI_ADR_SPACE_SYSTEM_MEMORY;
 
-	spin_lock(&acpi_res_lock);
-	list_for_each_entry(res_list_elem, &resource_list_head,
-			    resource_list) {
-		if (ioport && (res_list_elem->resource_type
-			       != ACPI_ADR_SPACE_SYSTEM_IO))
-			continue;
-		if (!ioport && (res_list_elem->resource_type
-				!= ACPI_ADR_SPACE_SYSTEM_MEMORY))
-			continue;
-
-		if (res->end < res_list_elem->start
-		    || res_list_elem->end < res->start)
-			continue;
-		clash = 1;
-		break;
-	}
-	spin_unlock(&acpi_res_lock);
+	length = res->end - res->start + 1;
+	if (acpi_enforce_resources != ENFORCE_RESOURCES_NO)
+		warn = 1;
+	clash = acpi_check_address_range(space_id, res->start, length, warn);
 
 	if (clash) {
 		if (acpi_enforce_resources != ENFORCE_RESOURCES_NO) {
-			printk(KERN_WARNING "ACPI: resource %s %pR"
-			       " conflicts with ACPI region %s "
-			       "[%s 0x%zx-0x%zx]\n",
-			       res->name, res, res_list_elem->name,
-			       (res_list_elem->resource_type ==
-				ACPI_ADR_SPACE_SYSTEM_IO) ? "io" : "mem",
-			       (size_t) res_list_elem->start,
-			       (size_t) res_list_elem->end);
 			if (acpi_enforce_resources == ENFORCE_RESOURCES_LAX)
 				printk(KERN_NOTICE "ACPI: This conflict may"
 				       " cause random problems and system"
@@ -1466,155 +1597,6 @@ acpi_status acpi_os_release_object(acpi_cache_t * cache, void *object)
 {
 	kmem_cache_free(cache, object);
 	return (AE_OK);
-}
-
-static inline int acpi_res_list_add(struct acpi_res_list *res)
-{
-	struct acpi_res_list *res_list_elem;
-
-	list_for_each_entry(res_list_elem, &resource_list_head,
-			    resource_list) {
-
-		if (res->resource_type == res_list_elem->resource_type &&
-		    res->start == res_list_elem->start &&
-		    res->end == res_list_elem->end) {
-
-			/*
-			 * The Region(addr,len) already exist in the list,
-			 * just increase the count
-			 */
-
-			res_list_elem->count++;
-			return 0;
-		}
-	}
-
-	res->count = 1;
-	list_add(&res->resource_list, &resource_list_head);
-	return 1;
-}
-
-static inline void acpi_res_list_del(struct acpi_res_list *res)
-{
-	struct acpi_res_list *res_list_elem;
-
-	list_for_each_entry(res_list_elem, &resource_list_head,
-			    resource_list) {
-
-		if (res->resource_type == res_list_elem->resource_type &&
-		    res->start == res_list_elem->start &&
-		    res->end == res_list_elem->end) {
-
-			/*
-			 * If the res count is decreased to 0,
-			 * remove and free it
-			 */
-
-			if (--res_list_elem->count == 0) {
-				list_del(&res_list_elem->resource_list);
-				kfree(res_list_elem);
-			}
-			return;
-		}
-	}
-}
-
-acpi_status
-acpi_os_invalidate_address(
-    u8                   space_id,
-    acpi_physical_address   address,
-    acpi_size               length)
-{
-	struct acpi_res_list res;
-
-	switch (space_id) {
-	case ACPI_ADR_SPACE_SYSTEM_IO:
-	case ACPI_ADR_SPACE_SYSTEM_MEMORY:
-		/* Only interference checks against SystemIO and SystemMemory
-		   are needed */
-		res.start = address;
-		res.end = address + length - 1;
-		res.resource_type = space_id;
-		spin_lock(&acpi_res_lock);
-		acpi_res_list_del(&res);
-		spin_unlock(&acpi_res_lock);
-		break;
-	case ACPI_ADR_SPACE_PCI_CONFIG:
-	case ACPI_ADR_SPACE_EC:
-	case ACPI_ADR_SPACE_SMBUS:
-	case ACPI_ADR_SPACE_CMOS:
-	case ACPI_ADR_SPACE_PCI_BAR_TARGET:
-	case ACPI_ADR_SPACE_DATA_TABLE:
-	case ACPI_ADR_SPACE_FIXED_HARDWARE:
-		break;
-	}
-	return AE_OK;
-}
-
-/******************************************************************************
- *
- * FUNCTION:    acpi_os_validate_address
- *
- * PARAMETERS:  space_id             - ACPI space ID
- *              address             - Physical address
- *              length              - Address length
- *
- * RETURN:      AE_OK if address/length is valid for the space_id. Otherwise,
- *              should return AE_AML_ILLEGAL_ADDRESS.
- *
- * DESCRIPTION: Validate a system address via the host OS. Used to validate
- *              the addresses accessed by AML operation regions.
- *
- *****************************************************************************/
-
-acpi_status
-acpi_os_validate_address (
-    u8                   space_id,
-    acpi_physical_address   address,
-    acpi_size               length,
-    char *name)
-{
-	struct acpi_res_list *res;
-	int added;
-	if (acpi_enforce_resources == ENFORCE_RESOURCES_NO)
-		return AE_OK;
-
-	switch (space_id) {
-	case ACPI_ADR_SPACE_SYSTEM_IO:
-	case ACPI_ADR_SPACE_SYSTEM_MEMORY:
-		/* Only interference checks against SystemIO and SystemMemory
-		   are needed */
-		res = kzalloc(sizeof(struct acpi_res_list), GFP_KERNEL);
-		if (!res)
-			return AE_OK;
-		/* ACPI names are fixed to 4 bytes, still better use strlcpy */
-		strlcpy(res->name, name, 5);
-		res->start = address;
-		res->end = address + length - 1;
-		res->resource_type = space_id;
-		spin_lock(&acpi_res_lock);
-		added = acpi_res_list_add(res);
-		spin_unlock(&acpi_res_lock);
-		pr_debug("%s %s resource: start: 0x%llx, end: 0x%llx, "
-			 "name: %s\n", added ? "Added" : "Already exist",
-			 (space_id == ACPI_ADR_SPACE_SYSTEM_IO)
-			 ? "SystemIO" : "System Memory",
-			 (unsigned long long)res->start,
-			 (unsigned long long)res->end,
-			 res->name);
-		if (!added)
-			kfree(res);
-		break;
-	case ACPI_ADR_SPACE_PCI_CONFIG:
-	case ACPI_ADR_SPACE_EC:
-	case ACPI_ADR_SPACE_SMBUS:
-	case ACPI_ADR_SPACE_CMOS:
-	case ACPI_ADR_SPACE_PCI_BAR_TARGET:
-	case ACPI_ADR_SPACE_DATA_TABLE:
-	case ACPI_ADR_SPACE_FIXED_HARDWARE:
-		break;
-	}
-	return AE_OK;
 }
 #endif
 

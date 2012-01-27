@@ -47,20 +47,53 @@ directory apei/einj. The following files are provided.
 
 - param1
   This file is used to set the first error parameter value. Effect of
-  parameter depends on error_type specified. For memory error, this is
-  physical memory address.  Only available if param_extension module
-  parameter is specified.
+  parameter depends on error_type specified.
 
 - param2
   This file is used to set the second error parameter value. Effect of
-  parameter depends on error_type specified. For memory error, this is
-  physical memory address mask.  Only available if param_extension
-  module parameter is specified.
+  parameter depends on error_type specified.
 
-Injecting parameter support is a BIOS version specific extension, that
-is, it only works on some BIOS version.  If you want to use it, please
-make sure your BIOS version has the proper support and specify
-"param_extension=y" in module parameter.
+BIOS versions based in the ACPI 4.0 specification have limited options
+to control where the errors are injected.  Your BIOS may support an
+extension (enabled with the param_extension=1 module parameter, or
+boot command line einj.param_extension=1). This allows the address
+and mask for memory injections to be specified by the param1 and
+param2 files in apei/einj.
+
+BIOS versions using the ACPI 5.0 specification have more control over
+the target of the injection. For processor related errors (type 0x1,
+0x2 and 0x4) the APICID of the target should be provided using the
+param1 file in apei/einj. For memory errors (type 0x8, 0x10 and 0x20)
+the address is set using param1 with a mask in param2 (0x0 is equivalent
+to all ones). For PCI express errors (type 0x40, 0x80 and 0x100) the
+segment, bus, device and function are specified using param1:
+
+         31     24 23    16 15    11 10      8  7        0
+	+-------------------------------------------------+
+	| segment |   bus  | device | function | reserved |
+	+-------------------------------------------------+
+
+An ACPI 5.0 BIOS may also allow vendor specific errors to be injected.
+In this case a file named vendor will contain identifying information
+from the BIOS that hopefully will allow an application wishing to use
+the vendor specific extension to tell that they are running on a BIOS
+that supports it. All vendor extensions have the 0x80000000 bit set in
+error_type. A file vendor_flags controls the interpretation of param1
+and param2 (1 = PROCESSOR, 2 = MEMORY, 4 = PCI). See your BIOS vendor
+documentation for details (and expect changes to this API if vendors
+creativity in using this feature expands beyond our expectations).
+
+Example:
+# cd /sys/kernel/debug/apei/einj
+# cat available_error_type		# See which errors can be injected
+0x00000002	Processor Uncorrectable non-fatal
+0x00000008	Memory Correctable
+0x00000010	Memory Uncorrectable non-fatal
+# echo 0x12345000 > param1		# Set memory address for injection
+# echo 0xfffffffffffff000 > param2	# Mask - anywhere in this page
+# echo 0x8 > error_type			# Choose correctable memory error
+# echo 1 > error_inject			# Inject now
+
 
 For more information about EINJ, please refer to ACPI specification
-version 4.0, section 17.5.
+version 4.0, section 17.5 and ACPI 5.0, section 18.6.

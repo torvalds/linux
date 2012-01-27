@@ -157,6 +157,47 @@ bool radeon_get_bios(struct radeon_device *rdev);
 
 
 /*
+ * Mutex which allows recursive locking from the same process.
+ */
+struct radeon_mutex {
+	struct mutex		mutex;
+	struct task_struct	*owner;
+	int			level;
+};
+
+static inline void radeon_mutex_init(struct radeon_mutex *mutex)
+{
+	mutex_init(&mutex->mutex);
+	mutex->owner = NULL;
+	mutex->level = 0;
+}
+
+static inline void radeon_mutex_lock(struct radeon_mutex *mutex)
+{
+	if (mutex_trylock(&mutex->mutex)) {
+		/* The mutex was unlocked before, so it's ours now */
+		mutex->owner = current;
+	} else if (mutex->owner != current) {
+		/* Another process locked the mutex, take it */
+		mutex_lock(&mutex->mutex);
+		mutex->owner = current;
+	}
+	/* Otherwise the mutex was already locked by this process */
+
+	mutex->level++;
+}
+
+static inline void radeon_mutex_unlock(struct radeon_mutex *mutex)
+{
+	if (--mutex->level > 0)
+		return;
+
+	mutex->owner = NULL;
+	mutex_unlock(&mutex->mutex);
+}
+
+
+/*
  * Dummy page
  */
 struct radeon_dummy_page {
@@ -598,7 +639,7 @@ struct radeon_ib {
  * mutex protects scheduled_ibs, ready, alloc_bm
  */
 struct radeon_ib_pool {
-	struct mutex			mutex;
+	struct radeon_mutex		mutex;
 	struct radeon_sa_manager	sa_manager;
 	struct radeon_ib		ibs[RADEON_IB_POOL_SIZE];
 	bool				ready;
@@ -1352,47 +1393,6 @@ struct r600_vram_scratch {
 	volatile uint32_t		*ptr;
 	u64				gpu_addr;
 };
-
-
-/*
- * Mutex which allows recursive locking from the same process.
- */
-struct radeon_mutex {
-	struct mutex		mutex;
-	struct task_struct	*owner;
-	int			level;
-};
-
-static inline void radeon_mutex_init(struct radeon_mutex *mutex)
-{
-	mutex_init(&mutex->mutex);
-	mutex->owner = NULL;
-	mutex->level = 0;
-}
-
-static inline void radeon_mutex_lock(struct radeon_mutex *mutex)
-{
-	if (mutex_trylock(&mutex->mutex)) {
-		/* The mutex was unlocked before, so it's ours now */
-		mutex->owner = current;
-	} else if (mutex->owner != current) {
-		/* Another process locked the mutex, take it */
-		mutex_lock(&mutex->mutex);
-		mutex->owner = current;
-	}
-	/* Otherwise the mutex was already locked by this process */
-
-	mutex->level++;
-}
-
-static inline void radeon_mutex_unlock(struct radeon_mutex *mutex)
-{
-	if (--mutex->level > 0)
-		return;
-
-	mutex->owner = NULL;
-	mutex_unlock(&mutex->mutex);
-}
 
 
 /*

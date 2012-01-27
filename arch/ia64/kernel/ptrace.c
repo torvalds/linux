@@ -1246,15 +1246,8 @@ syscall_trace_enter (long arg0, long arg1, long arg2, long arg3,
 	if (test_thread_flag(TIF_RESTORE_RSE))
 		ia64_sync_krbs();
 
-	if (unlikely(current->audit_context)) {
-		long syscall;
-		int arch;
 
-		syscall = regs.r15;
-		arch = AUDIT_ARCH_IA64;
-
-		audit_syscall_entry(arch, syscall, arg0, arg1, arg2, arg3);
-	}
+	audit_syscall_entry(AUDIT_ARCH_IA64, regs.r15, arg0, arg1, arg2, arg3);
 
 	return 0;
 }
@@ -1268,14 +1261,7 @@ syscall_trace_leave (long arg0, long arg1, long arg2, long arg3,
 {
 	int step;
 
-	if (unlikely(current->audit_context)) {
-		int success = AUDITSC_RESULT(regs.r10);
-		long result = regs.r8;
-
-		if (success != AUDITSC_SUCCESS)
-			result = -result;
-		audit_syscall_exit(success, result);
-	}
+	audit_syscall_exit(&regs);
 
 	step = test_thread_flag(TIF_SINGLESTEP);
 	if (step || test_thread_flag(TIF_SYSCALL_TRACE))
