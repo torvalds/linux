@@ -126,7 +126,7 @@ static int mtd_cls_resume(struct device *dev)
 {
 	struct mtd_info *mtd = dev_get_drvdata(dev);
 
-	if (mtd && mtd->_resume)
+	if (mtd)
 		mtd_resume(mtd);
 	return 0;
 }
