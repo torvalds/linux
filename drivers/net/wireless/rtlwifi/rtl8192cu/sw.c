@@ -41,7 +41,6 @@
 #include "trx.h"
 #include "led.h"
 #include "hw.h"
-#include <linux/vmalloc.h>
 #include <linux/module.h>
 
 MODULE_AUTHOR("Georgia		<georgia@realtek.com>");

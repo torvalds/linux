@@ -27,11 +27,6 @@
  *
  *****************************************************************************/
 
-#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
-
-#include <linux/vmalloc.h>
-#include <linux/module.h>
-
 #include "../wifi.h"
 #include "../core.h"
 #include "../pci.h"
@@ -44,6 +39,8 @@
 #include "sw.h"
 #include "trx.h"
 #include "led.h"
+
+#include <linux/module.h>
 
 static void rtl92s_init_aspm_vars(struct ieee80211_hw *hw)
 {

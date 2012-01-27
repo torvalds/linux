@@ -27,8 +27,6 @@
  *
  *****************************************************************************/
 
-#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
-
 #include "../wifi.h"
 #include "../pci.h"
 #include "../ps.h"

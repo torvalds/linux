@@ -27,13 +27,13 @@
  *
  *****************************************************************************/
 
-#include <linux/export.h>
-#include "core.h"
 #include "wifi.h"
+#include "core.h"
 #include "pci.h"
 #include "base.h"
 #include "ps.h"
 #include "efuse.h"
+#include <linux/export.h>
 
 static const u16 pcibridge_vendors[PCI_BRIDGE_VENDOR_MAX] = {
 	PCI_VENDOR_ID_INTEL,

@@ -25,16 +25,13 @@
  *
  *****************************************************************************/
 
-#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
-
-#include <linux/usb.h>
-#include <linux/export.h>
-#include "core.h"
 #include "wifi.h"
+#include "core.h"
 #include "usb.h"
 #include "base.h"
 #include "ps.h"
 #include "rtl8192c/fw_common.h"
+#include <linux/export.h>
 
 #define	REALTEK_USB_VENQT_READ			0xC0
 #define	REALTEK_USB_VENQT_WRITE			0x40

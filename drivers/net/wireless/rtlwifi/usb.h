@@ -28,7 +28,6 @@
 #ifndef __RTL_USB_H__
 #define __RTL_USB_H__
 
-#include <linux/usb.h>
 #include <linux/skbuff.h>
 
 #define RTL_RX_DESC_SIZE		24
