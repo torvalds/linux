@@ -651,8 +651,8 @@ static int get_dimm_config(const struct mem_ctl_info *mci)
 				csr->channels[0].chan_idx = i;
 				csr->channels[0].ce_count = 0;
 				pvt->csrow_map[i][j] = csrow;
-				snprintf(csr->channels[0].label,
-					 sizeof(csr->channels[0].label),
+				snprintf(csr->channels[0].dimm->label,
+					 sizeof(csr->channels[0].dimm->label),
 					 "CPU_SrcID#%u_Channel#%u_DIMM#%u",
 					 pvt->sbridge_dev->source_id, i, j);
 				last_page += npages;

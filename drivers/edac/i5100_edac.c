@@ -433,7 +433,7 @@ static void i5100_handle_ce(struct mem_ctl_info *mci,
 		"CE chan %d, bank %u, rank %u, syndrome 0x%lx, "
 		"cas %u, ras %u, csrow %u, label \"%s\": %s\n",
 		chan, bank, rank, syndrome, cas, ras,
-		csrow, mci->csrows[csrow].channels[0].label, msg);
+		csrow, mci->csrows[csrow].channels[0].dimm->label, msg);
 
 	mci->ce_count++;
 	mci->csrows[csrow].ce_count++;
@@ -455,7 +455,7 @@ static void i5100_handle_ue(struct mem_ctl_info *mci,
 		"UE chan %d, bank %u, rank %u, syndrome 0x%lx, "
 		"cas %u, ras %u, csrow %u, label \"%s\": %s\n",
 		chan, bank, rank, syndrome, cas, ras,
-		csrow, mci->csrows[csrow].channels[0].label, msg);
+		csrow, mci->csrows[csrow].channels[0].dimm->label, msg);
 
 	mci->ue_count++;
 	mci->csrows[csrow].ue_count++;
@@ -868,8 +868,8 @@ static void __devinit i5100_init_csrows(struct mem_ctl_info *mci)
 		mci->csrows[i].channels[0].chan_idx = 0;
 		mci->csrows[i].channels[0].ce_count = 0;
 		mci->csrows[i].channels[0].csrow = mci->csrows + i;
-		snprintf(mci->csrows[i].channels[0].label,
-			 sizeof(mci->csrows[i].channels[0].label),
+		snprintf(mci->csrows[i].channels[0].dimm->label,
+			 sizeof(mci->csrows[i].channels[0].dimm->label),
 			 "DIMM%u", i5100_rank_to_slot(mci, chan, rank));
 
 		total_pages += npages;

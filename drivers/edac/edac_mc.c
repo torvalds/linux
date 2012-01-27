@@ -44,7 +44,7 @@ static void edac_mc_dump_channel(struct rank_info *chan)
 	debugf4("\tchannel = %p\n", chan);
 	debugf4("\tchannel->chan_idx = %d\n", chan->chan_idx);
 	debugf4("\tchannel->ce_count = %d\n", chan->ce_count);
-	debugf4("\tchannel->label = '%s'\n", chan->label);
+	debugf4("\tchannel->label = '%s'\n", chan->dimm->label);
 	debugf4("\tchannel->csrow = %p\n\n", chan->csrow);
 }
 
@@ -157,6 +157,7 @@ struct mem_ctl_info *edac_mc_alloc(unsigned sz_pvt, unsigned nr_csrows,
 	struct mem_ctl_info *mci;
 	struct csrow_info *csi, *csrow;
 	struct rank_info *chi, *chp, *chan;
+	struct dimm_info *dimm;
 	void *pvt;
 	unsigned size;
 	int row, chn;
@@ -170,7 +171,8 @@ struct mem_ctl_info *edac_mc_alloc(unsigned sz_pvt, unsigned nr_csrows,
 	mci = (struct mem_ctl_info *)0;
 	csi = edac_align_ptr(&mci[1], sizeof(*csi));
 	chi = edac_align_ptr(&csi[nr_csrows], sizeof(*chi));
-	pvt = edac_align_ptr(&chi[nr_chans * nr_csrows], sz_pvt);
+	dimm = edac_align_ptr(&chi[nr_chans * nr_csrows], sizeof(*dimm));
+	pvt = edac_align_ptr(&dimm[nr_chans * nr_csrows], sz_pvt);
 	size = ((unsigned long)pvt) + sz_pvt;
 
 	mci = kzalloc(size, GFP_KERNEL);
@@ -182,13 +184,21 @@ struct mem_ctl_info *edac_mc_alloc(unsigned sz_pvt, unsigned nr_csrows,
 	 */
 	csi = (struct csrow_info *)(((char *)mci) + ((unsigned long)csi));
 	chi = (struct rank_info *)(((char *)mci) + ((unsigned long)chi));
+	dimm = (struct dimm_info *)(((char *)mci) + ((unsigned long)dimm));
 	pvt = sz_pvt ? (((char *)mci) + ((unsigned long)pvt)) : NULL;
 
 	/* setup index and various internal pointers */
 	mci->mc_idx = edac_index;
 	mci->csrows = csi;
+	mci->dimms  = dimm;
 	mci->pvt_info = pvt;
 	mci->nr_csrows = nr_csrows;
+
+	/*
+	 * For now, assumes that a per-csrow arrangement for dimms.
+	 * This will be latter changed.
+	 */
+	dimm = mci->dimms;
 
 	for (row = 0; row < nr_csrows; row++) {
 		csrow = &csi[row];
@@ -202,6 +212,12 @@ struct mem_ctl_info *edac_mc_alloc(unsigned sz_pvt, unsigned nr_csrows,
 			chan = &chp[chn];
 			chan->chan_idx = chn;
 			chan->csrow = csrow;
+
+			mci->csrows[row].channels[chn].dimm = dimm;
+			dimm->csrow = row;
+			dimm->csrow_channel = chn;
+			dimm++;
+			mci->nr_dimms++;
 		}
 	}
 
@@ -678,6 +694,7 @@ void edac_mc_handle_ce(struct mem_ctl_info *mci,
 		int row, int channel, const char *msg)
 {
 	unsigned long remapped_page;
+	char *label = NULL;
 
 	debugf3("MC%d: %s()\n", mci->mc_idx, __func__);
 
@@ -701,6 +718,8 @@ void edac_mc_handle_ce(struct mem_ctl_info *mci,
 		return;
 	}
 
+	label = mci->csrows[row].channels[channel].dimm->label;
+
 	if (edac_mc_get_log_ce())
 		/* FIXME - put in DIMM location */
 		edac_mc_printk(mci, KERN_WARNING,
@@ -708,7 +727,7 @@ void edac_mc_handle_ce(struct mem_ctl_info *mci,
 			"0x%lx, row %d, channel %d, label \"%s\": %s\n",
 			page_frame_number, offset_in_page,
 			mci->csrows[row].grain, syndrome, row, channel,
-			mci->csrows[row].channels[channel].label, msg);
+			label, msg);
 
 	mci->ce_count++;
 	mci->csrows[row].ce_count++;
@@ -754,6 +773,7 @@ void edac_mc_handle_ue(struct mem_ctl_info *mci,
 	char *pos = labels;
 	int chan;
 	int chars;
+	char *label = NULL;
 
 	debugf3("MC%d: %s()\n", mci->mc_idx, __func__);
 
@@ -767,15 +787,15 @@ void edac_mc_handle_ue(struct mem_ctl_info *mci,
 		return;
 	}
 
-	chars = snprintf(pos, len + 1, "%s",
-			 mci->csrows[row].channels[0].label);
+	label = mci->csrows[row].channels[0].dimm->label;
+	chars = snprintf(pos, len + 1, "%s", label);
 	len -= chars;
 	pos += chars;
 
 	for (chan = 1; (chan < mci->csrows[row].nr_channels) && (len > 0);
 		chan++) {
-		chars = snprintf(pos, len + 1, ":%s",
-				 mci->csrows[row].channels[chan].label);
+		label = mci->csrows[row].channels[chan].dimm->label;
+		chars = snprintf(pos, len + 1, ":%s", label);
 		len -= chars;
 		pos += chars;
 	}
@@ -824,6 +844,7 @@ void edac_mc_handle_fbd_ue(struct mem_ctl_info *mci,
 	char labels[len + 1];
 	char *pos = labels;
 	int chars;
+	char *label;
 
 	if (csrow >= mci->nr_csrows) {
 		/* something is wrong */
@@ -858,12 +879,12 @@ void edac_mc_handle_fbd_ue(struct mem_ctl_info *mci,
 	mci->csrows[csrow].ue_count++;
 
 	/* Generate the DIMM labels from the specified channels */
-	chars = snprintf(pos, len + 1, "%s",
-			 mci->csrows[csrow].channels[channela].label);
+	label = mci->csrows[csrow].channels[channela].dimm->label;
+	chars = snprintf(pos, len + 1, "%s", label);
 	len -= chars;
 	pos += chars;
 	chars = snprintf(pos, len + 1, "-%s",
-			 mci->csrows[csrow].channels[channelb].label);
+			mci->csrows[csrow].channels[channelb].dimm->label);
 
 	if (edac_mc_get_log_ue())
 		edac_mc_printk(mci, KERN_EMERG,
@@ -885,6 +906,7 @@ EXPORT_SYMBOL(edac_mc_handle_fbd_ue);
 void edac_mc_handle_fbd_ce(struct mem_ctl_info *mci,
 			unsigned int csrow, unsigned int channel, char *msg)
 {
+	char *label = NULL;
 
 	/* Ensure boundary values */
 	if (csrow >= mci->nr_csrows) {
@@ -904,12 +926,13 @@ void edac_mc_handle_fbd_ce(struct mem_ctl_info *mci,
 		return;
 	}
 
+	label = mci->csrows[csrow].channels[channel].dimm->label;
+
 	if (edac_mc_get_log_ce())
 		/* FIXME - put in DIMM location */
 		edac_mc_printk(mci, KERN_WARNING,
 			"CE row %d, channel %d, label \"%s\": %s\n",
-			csrow, channel,
-			mci->csrows[csrow].channels[channel].label, msg);
+			csrow, channel, label, msg);
 
 	mci->ce_count++;
 	mci->csrows[csrow].ce_count++;

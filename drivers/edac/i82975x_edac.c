@@ -407,7 +407,7 @@ static void i82975x_init_csrows(struct mem_ctl_info *mci,
 		 *   [0-3] for dual-channel; i.e. csrow->nr_channels = 2
 		 */
 		for (chan = 0; chan < csrow->nr_channels; chan++)
-			strncpy(csrow->channels[chan].label,
+			strncpy(csrow->channels[chan].dimm->label,
 					labels[(index >> 1) + (chan * 2)],
 					EDAC_MC_LABEL_LEN);
 
