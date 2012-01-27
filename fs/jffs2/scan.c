@@ -366,7 +366,7 @@ static int jffs2_scan_xattr_node(struct jffs2_sb_info *c, struct jffs2_erasebloc
 
 	if (jffs2_sum_active())
 		jffs2_sum_add_xattr_mem(s, rx, ofs - jeb->offset);
-	dbg_xattr("scaning xdatum at %#08x (xid=%u, version=%u)\n",
+	dbg_xattr("scanning xdatum at %#08x (xid=%u, version=%u)\n",
 		  ofs, xd->xid, xd->version);
 	return 0;
 }
