@@ -61,6 +61,10 @@ struct r600_cs_track {
 	u32			cb_color_size[8];
 	u32			vgt_strmout_en;
 	u32			vgt_strmout_buffer_en;
+	struct radeon_bo	*vgt_strmout_bo[4];
+	u64			vgt_strmout_bo_mc[4];
+	u32			vgt_strmout_bo_offset[4];
+	u32			vgt_strmout_size[4];
 	u32			db_depth_control;
 	u32			db_depth_info;
 	u32			db_depth_size_idx;
@@ -310,6 +314,13 @@ static void r600_cs_track_init(struct r600_cs_track *track)
 	track->db_depth_size = 0xFFFFFFFF;
 	track->db_depth_size_idx = 0;
 	track->db_depth_control = 0xFFFFFFFF;
+
+	for (i = 0; i < 4; i++) {
+		track->vgt_strmout_size[i] = 0;
+		track->vgt_strmout_bo[i] = NULL;
+		track->vgt_strmout_bo_offset[i] = 0xFFFFFFFF;
+		track->vgt_strmout_bo_mc[i] = 0xFFFFFFFF;
+	}
 }
 
 static int r600_cs_track_validate_cb(struct radeon_cs_parser *p, int i)
@@ -430,11 +441,28 @@ static int r600_cs_track_check(struct radeon_cs_parser *p)
 	/* on legacy kernel we don't perform advanced check */
 	if (p->rdev == NULL)
 		return 0;
-	/* we don't support out buffer yet */
-	if (track->vgt_strmout_en || track->vgt_strmout_buffer_en) {
-		dev_warn(p->dev, "this kernel doesn't support SMX output buffer\n");
-		return -EINVAL;
+
+	/* check streamout */
+	if (track->vgt_strmout_en) {
+		for (i = 0; i < 4; i++) {
+			if (track->vgt_strmout_buffer_en & (1 << i)) {
+				if (track->vgt_strmout_bo[i]) {
+					u64 offset = (u64)track->vgt_strmout_bo_offset[i] +
+						(u64)track->vgt_strmout_size[i];
+					if (offset > radeon_bo_size(track->vgt_strmout_bo[i])) {
+						DRM_ERROR("streamout %d bo too small: 0x%llx, 0x%lx\n",
+							  i, offset,
+							  radeon_bo_size(track->vgt_strmout_bo[i]));
+						return -EINVAL;
+					}
+				} else {
+					dev_warn(p->dev, "No buffer for streamout %d\n", i);
+					return -EINVAL;
+				}
+			}
+		}
 	}
+
 	/* check that we have a cb for each enabled target, we don't check
 	 * shader_mask because it seems mesa isn't always setting it :(
 	 */
@@ -975,6 +1003,39 @@ static int r600_cs_check_reg(struct radeon_cs_parser *p, u32 reg, u32 idx)
 	case R_028B20_VGT_STRMOUT_BUFFER_EN:
 		track->vgt_strmout_buffer_en = radeon_get_ib_value(p, idx);
 		break;
+	case VGT_STRMOUT_BUFFER_BASE_0:
+	case VGT_STRMOUT_BUFFER_BASE_1:
+	case VGT_STRMOUT_BUFFER_BASE_2:
+	case VGT_STRMOUT_BUFFER_BASE_3:
+		r = r600_cs_packet_next_reloc(p, &reloc);
+		if (r) {
+			dev_warn(p->dev, "bad SET_CONTEXT_REG "
+					"0x%04X\n", reg);
+			return -EINVAL;
+		}
+		tmp = (reg - VGT_STRMOUT_BUFFER_BASE_0) / 16;
+		track->vgt_strmout_bo_offset[tmp] = radeon_get_ib_value(p, idx) << 8;
+		ib[idx] += (u32)((reloc->lobj.gpu_offset >> 8) & 0xffffffff);
+		track->vgt_strmout_bo[tmp] = reloc->robj;
+		track->vgt_strmout_bo_mc[tmp] = reloc->lobj.gpu_offset;
+		break;
+	case VGT_STRMOUT_BUFFER_SIZE_0:
+	case VGT_STRMOUT_BUFFER_SIZE_1:
+	case VGT_STRMOUT_BUFFER_SIZE_2:
+	case VGT_STRMOUT_BUFFER_SIZE_3:
+		tmp = (reg - VGT_STRMOUT_BUFFER_SIZE_0) / 16;
+		/* size in register is DWs, convert to bytes */
+		track->vgt_strmout_size[tmp] = radeon_get_ib_value(p, idx) * 4;
+		break;
+	case CP_COHER_BASE:
+		r = r600_cs_packet_next_reloc(p, &reloc);
+		if (r) {
+			dev_warn(p->dev, "missing reloc for CP_COHER_BASE "
+					"0x%04X\n", reg);
+			return -EINVAL;
+		}
+		ib[idx] += (u32)((reloc->lobj.gpu_offset >> 8) & 0xffffffff);
+		break;
 	case R_028238_CB_TARGET_MASK:
 		track->cb_target_mask = radeon_get_ib_value(p, idx);
 		break;
@@ -1397,6 +1458,22 @@ static int r600_check_texture_resource(struct radeon_cs_parser *p,  u32 idx,
 	return 0;
 }
 
+static bool r600_is_safe_reg(struct radeon_cs_parser *p, u32 reg, u32 idx)
+{
+	u32 m, i;
+
+	i = (reg >> 7);
+	if (i >= ARRAY_SIZE(r600_reg_safe_bm)) {
+		dev_warn(p->dev, "forbidden register 0x%08x at %d\n", reg, idx);
+		return false;
+	}
+	m = 1 << ((reg >> 2) & 31);
+	if (!(r600_reg_safe_bm[i] & m))
+		return true;
+	dev_warn(p->dev, "forbidden register 0x%08x at %d\n", reg, idx);
+	return false;
+}
+
 static int r600_packet3_check(struct radeon_cs_parser *p,
 				struct radeon_cs_packet *pkt)
 {
@@ -1740,6 +1817,100 @@ static int r600_packet3_check(struct radeon_cs_parser *p,
 		if (pkt->count) {
 			DRM_ERROR("bad SURFACE_BASE_UPDATE\n");
 			return -EINVAL;
+		}
+		break;
+	case PACKET3_STRMOUT_BUFFER_UPDATE:
+		if (pkt->count != 4) {
+			DRM_ERROR("bad STRMOUT_BUFFER_UPDATE (invalid count)\n");
+			return -EINVAL;
+		}
+		/* Updating memory at DST_ADDRESS. */
+		if (idx_value & 0x1) {
+			u64 offset;
+			r = r600_cs_packet_next_reloc(p, &reloc);
+			if (r) {
+				DRM_ERROR("bad STRMOUT_BUFFER_UPDATE (missing dst reloc)\n");
+				return -EINVAL;
+			}
+			offset = radeon_get_ib_value(p, idx+1);
+			offset += ((u64)(radeon_get_ib_value(p, idx+2) & 0xff)) << 32;
+			if ((offset + 4) > radeon_bo_size(reloc->robj)) {
+				DRM_ERROR("bad STRMOUT_BUFFER_UPDATE dst bo too small: 0x%llx, 0x%lx\n",
+					  offset + 4, radeon_bo_size(reloc->robj));
+				return -EINVAL;
+			}
+			ib[idx+1] += (u32)(reloc->lobj.gpu_offset & 0xffffffff);
+			ib[idx+2] += upper_32_bits(reloc->lobj.gpu_offset) & 0xff;
+		}
+		/* Reading data from SRC_ADDRESS. */
+		if (((idx_value >> 1) & 0x3) == 2) {
+			u64 offset;
+			r = r600_cs_packet_next_reloc(p, &reloc);
+			if (r) {
+				DRM_ERROR("bad STRMOUT_BUFFER_UPDATE (missing src reloc)\n");
+				return -EINVAL;
+			}
+			offset = radeon_get_ib_value(p, idx+3);
+			offset += ((u64)(radeon_get_ib_value(p, idx+4) & 0xff)) << 32;
+			if ((offset + 4) > radeon_bo_size(reloc->robj)) {
+				DRM_ERROR("bad STRMOUT_BUFFER_UPDATE src bo too small: 0x%llx, 0x%lx\n",
+					  offset + 4, radeon_bo_size(reloc->robj));
+				return -EINVAL;
+			}
+			ib[idx+3] += (u32)(reloc->lobj.gpu_offset & 0xffffffff);
+			ib[idx+4] += upper_32_bits(reloc->lobj.gpu_offset) & 0xff;
+		}
+		break;
+	case PACKET3_COPY_DW:
+		if (pkt->count != 4) {
+			DRM_ERROR("bad COPY_DW (invalid count)\n");
+			return -EINVAL;
+		}
+		if (idx_value & 0x1) {
+			u64 offset;
+			/* SRC is memory. */
+			r = r600_cs_packet_next_reloc(p, &reloc);
+			if (r) {
+				DRM_ERROR("bad COPY_DW (missing src reloc)\n");
+				return -EINVAL;
+			}
+			offset = radeon_get_ib_value(p, idx+1);
+			offset += ((u64)(radeon_get_ib_value(p, idx+2) & 0xff)) << 32;
+			if ((offset + 4) > radeon_bo_size(reloc->robj)) {
+				DRM_ERROR("bad COPY_DW src bo too small: 0x%llx, 0x%lx\n",
+					  offset + 4, radeon_bo_size(reloc->robj));
+				return -EINVAL;
+			}
+			ib[idx+1] += (u32)(reloc->lobj.gpu_offset & 0xffffffff);
+			ib[idx+2] += upper_32_bits(reloc->lobj.gpu_offset) & 0xff;
+		} else {
+			/* SRC is a reg. */
+			reg = radeon_get_ib_value(p, idx+1) << 2;
+			if (!r600_is_safe_reg(p, reg, idx+1))
+				return -EINVAL;
+		}
+		if (idx_value & 0x2) {
+			u64 offset;
+			/* DST is memory. */
+			r = r600_cs_packet_next_reloc(p, &reloc);
+			if (r) {
+				DRM_ERROR("bad COPY_DW (missing dst reloc)\n");
+				return -EINVAL;
+			}
+			offset = radeon_get_ib_value(p, idx+3);
+			offset += ((u64)(radeon_get_ib_value(p, idx+4) & 0xff)) << 32;
+			if ((offset + 4) > radeon_bo_size(reloc->robj)) {
+				DRM_ERROR("bad COPY_DW dst bo too small: 0x%llx, 0x%lx\n",
+					  offset + 4, radeon_bo_size(reloc->robj));
+				return -EINVAL;
+			}
+			ib[idx+3] += (u32)(reloc->lobj.gpu_offset & 0xffffffff);
+			ib[idx+4] += upper_32_bits(reloc->lobj.gpu_offset) & 0xff;
+		} else {
+			/* DST is a reg. */
+			reg = radeon_get_ib_value(p, idx+3) << 2;
+			if (!r600_is_safe_reg(p, reg, idx+3))
+				return -EINVAL;
 		}
 		break;
 	case PACKET3_NOP:
