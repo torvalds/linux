@@ -5983,6 +5983,7 @@ TI DAVINCI MACHINE SUPPORT
 M:	Sekhar Nori <nsekhar@ti.com>
 M:	Kevin Hilman <khilman@ti.com>
 L:	davinci-linux-open-source@linux.davincidsp.com (moderated for non-subscribers)
+T:	git git://gitorious.org/linux-davinci/linux-davinci.git
 Q:	http://patchwork.kernel.org/project/linux-davinci/list/
 S:	Supported
 F:	arch/arm/mach-davinci
