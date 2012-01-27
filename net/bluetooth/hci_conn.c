@@ -280,15 +280,12 @@ static void hci_conn_timeout(struct work_struct *work)
 {
 	struct hci_conn *conn = container_of(work, struct hci_conn,
 							disc_work.work);
-	struct hci_dev *hdev = conn->hdev;
 	__u8 reason;
 
 	BT_DBG("conn %p state %d", conn, conn->state);
 
 	if (atomic_read(&conn->refcnt))
 		return;
-
-	hci_dev_lock(hdev);
 
 	switch (conn->state) {
 	case BT_CONNECT:
@@ -309,8 +306,6 @@ static void hci_conn_timeout(struct work_struct *work)
 		conn->state = BT_CLOSED;
 		break;
 	}
-
-	hci_dev_unlock(hdev);
 }
 
 /* Enter sniff mode */
