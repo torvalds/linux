@@ -31,4 +31,6 @@ extern void mx28_init_irq(void);
 
 extern void icoll_init_irq(void);
 
+extern int mxs_clkctrl_timeout(unsigned int reg_offset, unsigned int mask);
+
 #endif /* __MACH_MXS_COMMON_H__ */
