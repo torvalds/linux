@@ -30,6 +30,7 @@
 
 #include "common.h"
 
+#ifdef CONFIG_PM_SLEEP
 static struct sleep_save exynos4_clock_save[] = {
 	SAVE_ITEM(S5P_CLKDIV_LEFTBUS),
 	SAVE_ITEM(S5P_CLKGATE_IP_LEFTBUS),
@@ -93,6 +94,7 @@ static struct sleep_save exynos4_clock_save[] = {
 	SAVE_ITEM(S5P_CLKGATE_SCLKCPU),
 	SAVE_ITEM(S5P_CLKGATE_IP_CPU),
 };
+#endif
 
 struct clk clk_sclk_hdmi27m = {
 	.name		= "sclk_hdmi27m",

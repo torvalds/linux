@@ -32,12 +32,14 @@
 
 #include "common.h"
 
+#ifdef CONFIG_PM_SLEEP
 static struct sleep_save exynos4212_clock_save[] = {
 	SAVE_ITEM(S5P_CLKSRC_IMAGE),
 	SAVE_ITEM(S5P_CLKDIV_IMAGE),
 	SAVE_ITEM(S5P_CLKGATE_IP_IMAGE_4212),
 	SAVE_ITEM(S5P_CLKGATE_IP_PERIR_4212),
 };
+#endif
 
 static struct clk *clk_src_mpll_user_list[] = {
 	[0] = &clk_fin_mpll,
