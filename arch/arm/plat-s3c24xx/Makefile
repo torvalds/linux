@@ -38,12 +38,6 @@ obj-$(CONFIG_S3C2410_CPUFREQ_UTILS) += s3c2410-cpufreq-utils.o
 obj-$(CONFIG_ARCH_S3C2410)	+= setup-i2c.o
 obj-$(CONFIG_S3C2410_SETUP_TS)	+= setup-ts.o
 
-# SPI gpio central GPIO functions
-
-obj-$(CONFIG_S3C24XX_SPI_BUS0_GPE11_GPE12_GPE13) += spi-bus0-gpe11_12_13.o
-obj-$(CONFIG_S3C24XX_SPI_BUS1_GPG5_GPG6_GPG7)    += spi-bus1-gpg5_6_7.o
-obj-$(CONFIG_S3C24XX_SPI_BUS1_GPD8_GPD9_GPD10)	 += spi-bus1-gpd8_9_10.o
-
 # machine common support
 
 obj-$(CONFIG_MACH_SMDK)		+= common-smdk.o
