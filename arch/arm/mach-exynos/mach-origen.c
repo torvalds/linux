@@ -621,13 +621,6 @@ static struct platform_device *origen_devices[] __initdata = {
 	&s5p_device_mfc_r,
 	&s5p_device_mixer,
 	&exynos4_device_ohci,
-	&exynos4_device_pd[PD_LCD0],
-	&exynos4_device_pd[PD_TV],
-	&exynos4_device_pd[PD_G3D],
-	&exynos4_device_pd[PD_LCD1],
-	&exynos4_device_pd[PD_CAM],
-	&exynos4_device_pd[PD_GPS],
-	&exynos4_device_pd[PD_MFC],
 	&origen_device_gpiokeys,
 	&origen_lcd_hv070wsa,
 };
@@ -694,13 +687,6 @@ static void __init origen_machine_init(void)
 	s5p_fimd0_set_platdata(&origen_lcd_pdata);
 
 	platform_add_devices(origen_devices, ARRAY_SIZE(origen_devices));
-
-	s5p_device_fimd0.dev.parent = &exynos4_device_pd[PD_LCD0].dev;
-
-	s5p_device_hdmi.dev.parent = &exynos4_device_pd[PD_TV].dev;
-	s5p_device_mixer.dev.parent = &exynos4_device_pd[PD_TV].dev;
-
-	s5p_device_mfc.dev.parent = &exynos4_device_pd[PD_MFC].dev;
 
 	samsung_bl_set(&origen_bl_gpio_info, &origen_bl_data);
 }
