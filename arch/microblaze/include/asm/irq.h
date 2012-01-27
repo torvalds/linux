@@ -9,7 +9,14 @@
 #ifndef _ASM_MICROBLAZE_IRQ_H
 #define _ASM_MICROBLAZE_IRQ_H
 
-#define NR_IRQS 32
+
+/*
+ * Linux IRQ# is currently offset by one to map to the hardware
+ * irq number. So hardware IRQ0 maps to Linux irq 1.
+ */
+#define NO_IRQ_OFFSET	1
+#define IRQ_OFFSET	NO_IRQ_OFFSET
+#define NR_IRQS		(32 + IRQ_OFFSET)
 #include <asm-generic/irq.h>
 
 /* This type is the placeholder for a hardware interrupt number. It has to
@@ -19,8 +26,6 @@
 typedef unsigned long irq_hw_number_t;
 
 extern unsigned int nr_irq;
-
-#define NO_IRQ (-1)
 
 struct pt_regs;
 extern void do_IRQ(struct pt_regs *regs);

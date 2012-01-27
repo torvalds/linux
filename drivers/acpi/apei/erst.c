@@ -932,8 +932,10 @@ static int erst_check_table(struct acpi_table_erst *erst_tab)
 static int erst_open_pstore(struct pstore_info *psi);
 static int erst_close_pstore(struct pstore_info *psi);
 static ssize_t erst_reader(u64 *id, enum pstore_type_id *type,
-			   struct timespec *time, struct pstore_info *psi);
-static int erst_writer(enum pstore_type_id type, u64 *id, unsigned int part,
+			   struct timespec *time, char **buf,
+			   struct pstore_info *psi);
+static int erst_writer(enum pstore_type_id type, enum kmsg_dump_reason reason,
+		       u64 *id, unsigned int part,
 		       size_t size, struct pstore_info *psi);
 static int erst_clearer(enum pstore_type_id type, u64 id,
 			struct pstore_info *psi);
@@ -986,17 +988,23 @@ static int erst_close_pstore(struct pstore_info *psi)
 }
 
 static ssize_t erst_reader(u64 *id, enum pstore_type_id *type,
-			   struct timespec *time, struct pstore_info *psi)
+			   struct timespec *time, char **buf,
+			   struct pstore_info *psi)
 {
 	int rc;
 	ssize_t len = 0;
 	u64 record_id;
-	struct cper_pstore_record *rcd = (struct cper_pstore_record *)
-					(erst_info.buf - sizeof(*rcd));
+	struct cper_pstore_record *rcd;
+	size_t rcd_len = sizeof(*rcd) + erst_info.bufsize;
 
 	if (erst_disable)
 		return -ENODEV;
 
+	rcd = kmalloc(rcd_len, GFP_KERNEL);
+	if (!rcd) {
+		rc = -ENOMEM;
+		goto out;
+	}
 skip:
 	rc = erst_get_record_id_next(&reader_pos, &record_id);
 	if (rc)
@@ -1004,22 +1012,27 @@ skip:
 
 	/* no more record */
 	if (record_id == APEI_ERST_INVALID_RECORD_ID) {
-		rc = -1;
+		rc = -EINVAL;
 		goto out;
 	}
 
-	len = erst_read(record_id, &rcd->hdr, sizeof(*rcd) +
-			erst_info.bufsize);
+	len = erst_read(record_id, &rcd->hdr, rcd_len);
 	/* The record may be cleared by others, try read next record */
 	if (len == -ENOENT)
 		goto skip;
-	else if (len < 0) {
-		rc = -1;
+	else if (len < sizeof(*rcd)) {
+		rc = -EIO;
 		goto out;
 	}
 	if (uuid_le_cmp(rcd->hdr.creator_id, CPER_CREATOR_PSTORE) != 0)
 		goto skip;
 
+	*buf = kmalloc(len, GFP_KERNEL);
+	if (*buf == NULL) {
+		rc = -ENOMEM;
+		goto out;
+	}
+	memcpy(*buf, rcd->data, len - sizeof(*rcd));
 	*id = record_id;
 	if (uuid_le_cmp(rcd->sec_hdr.section_type,
 			CPER_SECTION_TYPE_DMESG) == 0)
@@ -1037,10 +1050,12 @@ skip:
 	time->tv_nsec = 0;
 
 out:
+	kfree(rcd);
 	return (rc < 0) ? rc : (len - sizeof(*rcd));
 }
 
-static int erst_writer(enum pstore_type_id type, u64 *id, unsigned int part,
+static int erst_writer(enum pstore_type_id type, enum kmsg_dump_reason reason,
+		       u64 *id, unsigned int part,
 		       size_t size, struct pstore_info *psi)
 {
 	struct cper_pstore_record *rcd = (struct cper_pstore_record *)
@@ -1112,10 +1127,9 @@ static int __init erst_init(void)
 
 	status = acpi_get_table(ACPI_SIG_ERST, 0,
 				(struct acpi_table_header **)&erst_tab);
-	if (status == AE_NOT_FOUND) {
-		pr_info(ERST_PFX "Table is not found!\n");
+	if (status == AE_NOT_FOUND)
 		goto err;
-	} else if (ACPI_FAILURE(status)) {
+	else if (ACPI_FAILURE(status)) {
 		const char *msg = acpi_format_exception(status);
 		pr_err(ERST_PFX "Failed to get table, %s\n", msg);
 		rc = -EINVAL;

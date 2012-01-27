@@ -127,7 +127,7 @@ static void da850_evm_m25p80_notify_add(struct mtd_info *mtd)
 	size_t retlen;
 
 	if (!strcmp(mtd->name, "MAC-Address")) {
-		mtd->read(mtd, 0, ETH_ALEN, &retlen, mac_addr);
+		mtd_read(mtd, 0, ETH_ALEN, &retlen, mac_addr);
 		if (retlen == ETH_ALEN)
 			pr_info("Read MAC addr from SPI Flash: %pM\n",
 				mac_addr);
@@ -753,7 +753,7 @@ static struct snd_platform_data da850_evm_snd_data = {
 	.num_serializer	= ARRAY_SIZE(da850_iis_serializer_direction),
 	.tdm_slots	= 2,
 	.serial_dir	= da850_iis_serializer_direction,
-	.asp_chan_q	= EVENTQ_1,
+	.asp_chan_q	= EVENTQ_0,
 	.version	= MCASP_VERSION_2,
 	.txnumevt	= 1,
 	.rxnumevt	= 1,
@@ -1411,4 +1411,5 @@ MACHINE_START(DAVINCI_DA850_EVM, "DaVinci DA850/OMAP-L138/AM18x EVM")
 	.timer		= &davinci_timer,
 	.init_machine	= da850_evm_init,
 	.dma_zone_size	= SZ_128M,
+	.restart	= da8xx_restart,
 MACHINE_END

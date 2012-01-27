@@ -98,11 +98,11 @@ config PCI_PASID
 	  If unsure, say N.
 
 config PCI_IOAPIC
-	bool
+	tristate "PCI IO-APIC hotplug support" if X86
 	depends on PCI
 	depends on ACPI
 	depends on HOTPLUG
-	default y
+	default !X86
 
 config PCI_LABEL
 	def_bool y if (DMI || ACPI)

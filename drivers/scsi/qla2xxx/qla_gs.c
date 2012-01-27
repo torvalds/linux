@@ -758,7 +758,7 @@ qla2x00_sns_ga_nxt(scsi_qla_host_t *vha, fc_port_t *fcport)
 		    "GA_NXT Send SNS failed (%d).\n", rval);
 	} else if (sns_cmd->p.gan_data[8] != 0x80 ||
 	    sns_cmd->p.gan_data[9] != 0x02) {
-		ql_dbg(ql_dbg_disc + ql_dbg_buffer, vha, 0x207d,
+		ql_dbg(ql_dbg_disc + ql_dbg_buffer, vha, 0x2084,
 		    "GA_NXT failed, rejected request ga_nxt_rsp:\n");
 		ql_dump_buffer(ql_dbg_disc + ql_dbg_buffer, vha, 0x2074,
 		    sns_cmd->p.gan_data, 16);

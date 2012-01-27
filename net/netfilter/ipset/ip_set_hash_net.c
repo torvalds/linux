@@ -267,7 +267,7 @@ static inline void
 hash_net6_data_copy(struct hash_net6_elem *dst,
 		    const struct hash_net6_elem *src)
 {
-	ipv6_addr_copy(&dst->ip.in6, &src->ip.in6);
+	dst->ip.in6 = src->ip.in6;
 	dst->cidr = src->cidr;
 }
 

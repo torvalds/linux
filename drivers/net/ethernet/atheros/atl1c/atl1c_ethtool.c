@@ -232,7 +232,6 @@ static void atl1c_get_drvinfo(struct net_device *netdev,
 	strlcpy(drvinfo->driver,  atl1c_driver_name, sizeof(drvinfo->driver));
 	strlcpy(drvinfo->version, atl1c_driver_version,
 		sizeof(drvinfo->version));
-	strlcpy(drvinfo->fw_version, "N/A", sizeof(drvinfo->fw_version));
 	strlcpy(drvinfo->bus_info, pci_name(adapter->pdev),
 		sizeof(drvinfo->bus_info));
 	drvinfo->n_stats = 0;

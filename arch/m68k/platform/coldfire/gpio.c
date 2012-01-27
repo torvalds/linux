@@ -15,7 +15,7 @@
 
 #include <linux/kernel.h>
 #include <linux/init.h>
-#include <linux/sysdev.h>
+#include <linux/device.h>
 
 #include <asm/gpio.h>
 #include <asm/pinmux.h>
@@ -115,13 +115,14 @@ void mcf_gpio_free(struct gpio_chip *chip, unsigned offset)
 		mcf_pinmux_release(mcf_chip->gpio_to_pinmux[offset], 0);
 }
 
-struct sysdev_class mcf_gpio_sysclass = {
-	.name	= "gpio",
+struct bus_type mcf_gpio_subsys = {
+	.name		= "gpio",
+	.dev_name	= "gpio",
 };
 
 static int __init mcf_gpio_sysinit(void)
 {
-	return sysdev_class_register(&mcf_gpio_sysclass);
+	return subsys_system_register(&mcf_gpio_subsys, NULL);
 }
 
 core_initcall(mcf_gpio_sysinit);

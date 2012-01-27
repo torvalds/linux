@@ -242,7 +242,22 @@ int strtailcmp(const char *s1, const char *s2);
 unsigned long convert_unit(unsigned long value, char *unit);
 int readn(int fd, void *buf, size_t size);
 
+struct perf_event_attr;
+
+void event_attr_init(struct perf_event_attr *attr);
+
 #define _STR(x) #x
 #define STR(x) _STR(x)
+
+/*
+ *  Determine whether some value is a power of two, where zero is
+ * *not* considered a power of two.
+ */
+
+static inline __attribute__((const))
+bool is_power_of_2(unsigned long n)
+{
+	return (n != 0 && ((n & (n - 1)) == 0));
+}
 
 #endif

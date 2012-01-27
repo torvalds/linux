@@ -319,15 +319,4 @@ static struct platform_driver xtsonic_driver = {
 	},
 };
 
-static int __init xtsonic_init(void)
-{
-	return platform_driver_register(&xtsonic_driver);
-}
-
-static void __exit xtsonic_cleanup(void)
-{
-	platform_driver_unregister(&xtsonic_driver);
-}
-
-module_init(xtsonic_init);
-module_exit(xtsonic_cleanup);
+module_platform_driver(xtsonic_driver);

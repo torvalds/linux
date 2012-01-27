@@ -23,7 +23,7 @@ struct wm8994_ldo_pdata {
 	int enable;
 
 	const char *supply;
-	struct regulator_init_data *init_data;
+	const struct regulator_init_data *init_data;
 };
 
 #define WM8994_CONFIGURE_GPIO 0x10000
@@ -113,6 +113,23 @@ struct wm8958_enh_eq_cfg {
 	u16 regs[WM8958_ENH_EQ_REGS];
 };
 
+/**
+ * Microphone detection rates, used to tune response rates and power
+ * consumption for WM8958/WM1811 microphone detection.
+ *
+ * @sysclk: System clock rate to use this configuration for.
+ * @idle: True if this configuration should use when no accessory is detected,
+ *        false otherwise.
+ * @start: Value for MICD_BIAS_START_TIME register field (not shifted).
+ * @rate: Value for MICD_RATE register field (not shifted).
+ */
+struct wm8958_micd_rate {
+	int sysclk;
+	bool idle;
+	int start;
+	int rate;
+};
+
 struct wm8994_pdata {
 	int gpio_base;
 
@@ -144,6 +161,9 @@ struct wm8994_pdata {
 	int num_enh_eq_cfgs;
 	struct wm8958_enh_eq_cfg *enh_eq_cfgs;
 
+	int num_micd_rates;
+	struct wm8958_micd_rate *micd_rates;
+
         /* LINEOUT can be differential or single ended */
         unsigned int lineout1_diff:1;
         unsigned int lineout2_diff:1;
@@ -168,12 +188,21 @@ struct wm8994_pdata {
 	/* WM8958 microphone bias configuration */
 	int micbias[2];
 
+	/* WM8958 microphone detection ranges */
+	u16 micd_lvl_sel;
+
 	/* Disable the internal pull downs on the LDOs if they are
 	 * always driven (eg, connected to an always on supply or
 	 * GPIO that always drives an output.  If they float power
 	 * consumption will rise.
 	 */
 	bool ldo_ena_always_driven;
+
+	/*
+	 * SPKMODE must be pulled internally by the device on this
+	 * system.
+	 */
+	bool spkmode_pu;
 };
 
 #endif

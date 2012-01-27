@@ -166,7 +166,7 @@ static ssize_t set_pwm(struct device *dev, struct device_attribute *da,
 	struct g760a_data *data = g760a_update_client(dev);
 	unsigned long val;
 
-	if (strict_strtoul(buf, 10, &val))
+	if (kstrtoul(buf, 10, &val))
 		return -EINVAL;
 
 	mutex_lock(&data->update_lock);

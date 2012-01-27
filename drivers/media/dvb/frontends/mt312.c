@@ -531,9 +531,9 @@ static int mt312_read_ucblocks(struct dvb_frontend *fe, u32 *ubc)
 	return 0;
 }
 
-static int mt312_set_frontend(struct dvb_frontend *fe,
-			      struct dvb_frontend_parameters *p)
+static int mt312_set_frontend(struct dvb_frontend *fe)
 {
+	struct dtv_frontend_properties *p = &fe->dtv_property_cache;
 	struct mt312_state *state = fe->demodulator_priv;
 	int ret;
 	u8 buf[5], config_val;
@@ -553,16 +553,16 @@ static int mt312_set_frontend(struct dvb_frontend *fe,
 	    || (p->inversion > INVERSION_ON))
 		return -EINVAL;
 
-	if ((p->u.qpsk.symbol_rate < fe->ops.info.symbol_rate_min)
-	    || (p->u.qpsk.symbol_rate > fe->ops.info.symbol_rate_max))
+	if ((p->symbol_rate < fe->ops.info.symbol_rate_min)
+	    || (p->symbol_rate > fe->ops.info.symbol_rate_max))
 		return -EINVAL;
 
-	if ((p->u.qpsk.fec_inner < FEC_NONE)
-	    || (p->u.qpsk.fec_inner > FEC_AUTO))
+	if ((p->fec_inner < FEC_NONE)
+	    || (p->fec_inner > FEC_AUTO))
 		return -EINVAL;
 
-	if ((p->u.qpsk.fec_inner == FEC_4_5)
-	    || (p->u.qpsk.fec_inner == FEC_8_9))
+	if ((p->fec_inner == FEC_4_5)
+	    || (p->fec_inner == FEC_8_9))
 		return -EINVAL;
 
 	switch (state->id) {
@@ -574,7 +574,7 @@ static int mt312_set_frontend(struct dvb_frontend *fe,
 		ret = mt312_readreg(state, CONFIG, &config_val);
 		if (ret < 0)
 			return ret;
-		if (p->u.qpsk.symbol_rate >= 30000000) {
+		if (p->symbol_rate >= 30000000) {
 			/* Note that 30MS/s should use 90MHz */
 			if (state->freq_mult == 6) {
 				/* We are running 60MHz */
@@ -603,25 +603,25 @@ static int mt312_set_frontend(struct dvb_frontend *fe,
 	}
 
 	if (fe->ops.tuner_ops.set_params) {
-		fe->ops.tuner_ops.set_params(fe, p);
+		fe->ops.tuner_ops.set_params(fe);
 		if (fe->ops.i2c_gate_ctrl)
 			fe->ops.i2c_gate_ctrl(fe, 0);
 	}
 
 	/* sr = (u16)(sr * 256.0 / 1000000.0) */
-	sr = mt312_div(p->u.qpsk.symbol_rate * 4, 15625);
+	sr = mt312_div(p->symbol_rate * 4, 15625);
 
 	/* SYM_RATE */
 	buf[0] = (sr >> 8) & 0x3f;
 	buf[1] = (sr >> 0) & 0xff;
 
 	/* VIT_MODE */
-	buf[2] = inv_tab[p->inversion] | fec_tab[p->u.qpsk.fec_inner];
+	buf[2] = inv_tab[p->inversion] | fec_tab[p->fec_inner];
 
 	/* QPSK_CTRL */
 	buf[3] = 0x40;		/* swap I and Q before QPSK demodulation */
 
-	if (p->u.qpsk.symbol_rate < 10000000)
+	if (p->symbol_rate < 10000000)
 		buf[3] |= 0x04;	/* use afc mode */
 
 	/* GO */
@@ -636,9 +636,9 @@ static int mt312_set_frontend(struct dvb_frontend *fe,
 	return 0;
 }
 
-static int mt312_get_frontend(struct dvb_frontend *fe,
-			      struct dvb_frontend_parameters *p)
+static int mt312_get_frontend(struct dvb_frontend *fe)
 {
+	struct dtv_frontend_properties *p = &fe->dtv_property_cache;
 	struct mt312_state *state = fe->demodulator_priv;
 	int ret;
 
@@ -646,11 +646,11 @@ static int mt312_get_frontend(struct dvb_frontend *fe,
 	if (ret < 0)
 		return ret;
 
-	ret = mt312_get_symbol_rate(state, &p->u.qpsk.symbol_rate);
+	ret = mt312_get_symbol_rate(state, &p->symbol_rate);
 	if (ret < 0)
 		return ret;
 
-	ret = mt312_get_code_rate(state, &p->u.qpsk.fec_inner);
+	ret = mt312_get_code_rate(state, &p->fec_inner);
 	if (ret < 0)
 		return ret;
 
@@ -738,10 +738,9 @@ static void mt312_release(struct dvb_frontend *fe)
 
 #define MT312_SYS_CLK		90000000UL	/* 90 MHz */
 static struct dvb_frontend_ops mt312_ops = {
-
+	.delsys = { SYS_DVBS },
 	.info = {
 		.name = "Zarlink ???? DVB-S",
-		.type = FE_QPSK,
 		.frequency_min = 950000,
 		.frequency_max = 2150000,
 		/* FIXME: adjust freq to real used xtal */

@@ -20,7 +20,7 @@
 #define AR6003_BOARD_DATA_SZ		1024
 #define AR6003_BOARD_EXT_DATA_SZ	768
 
-#define AR6004_BOARD_DATA_SZ     7168
+#define AR6004_BOARD_DATA_SZ     6144
 #define AR6004_BOARD_EXT_DATA_SZ 0
 
 #define RESET_CONTROL_ADDRESS		0x00000000
@@ -320,7 +320,10 @@ struct host_interest {
 |   (2)   |   (2)   |   (2)   |   (2)   |   (2)   |   (2)   |   (2)   |   (2)
 |------------------------------------------------------------------------------|
 */
+#define HI_OPTION_FW_MODE_BITS	       0x2
 #define HI_OPTION_FW_MODE_SHIFT        0xC
+
+#define HI_OPTION_FW_SUBMODE_BITS      0x2
 #define HI_OPTION_FW_SUBMODE_SHIFT     0x14
 
 /* Convert a Target virtual address into a Target physical address */
@@ -330,20 +333,6 @@ struct host_interest {
 #define TARG_VTOP(target_type, vaddr) \
 	(((target_type) == TARGET_TYPE_AR6003) ? AR6003_VTOP(vaddr) : \
 	(((target_type) == TARGET_TYPE_AR6004) ? AR6004_VTOP(vaddr) : 0))
-
-#define AR6003_REV2_APP_LOAD_ADDRESS            0x543180
-#define AR6003_REV2_BOARD_EXT_DATA_ADDRESS      0x57E500
-#define AR6003_REV2_DATASET_PATCH_ADDRESS       0x57e884
-#define AR6003_REV2_RAM_RESERVE_SIZE            6912
-
-#define AR6003_REV3_APP_LOAD_ADDRESS            0x545000
-#define AR6003_REV3_BOARD_EXT_DATA_ADDRESS      0x542330
-#define AR6003_REV3_DATASET_PATCH_ADDRESS       0x57FF74
-#define AR6003_REV3_RAM_RESERVE_SIZE            512
-
-#define AR6004_REV1_BOARD_DATA_ADDRESS          0x435400
-#define AR6004_REV1_BOARD_EXT_DATA_ADDRESS      0x437000
-#define AR6004_REV1_RAM_RESERVE_SIZE            11264
 
 #define ATH6KL_FWLOG_PAYLOAD_SIZE		1500
 

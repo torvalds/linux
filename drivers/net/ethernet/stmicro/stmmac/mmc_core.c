@@ -22,6 +22,7 @@
   Author: Giuseppe Cavallaro <peppe.cavallaro@st.com>
 *******************************************************************************/
 
+#include <linux/kernel.h>
 #include <linux/io.h>
 #include "mmc.h"
 

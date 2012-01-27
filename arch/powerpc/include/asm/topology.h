@@ -3,7 +3,7 @@
 #ifdef __KERNEL__
 
 
-struct sys_device;
+struct device;
 struct device_node;
 
 #ifdef CONFIG_NUMA
@@ -86,19 +86,19 @@ extern int __node_distance(int, int);
 
 extern void __init dump_numa_cpu_topology(void);
 
-extern int sysfs_add_device_to_node(struct sys_device *dev, int nid);
-extern void sysfs_remove_device_from_node(struct sys_device *dev, int nid);
+extern int sysfs_add_device_to_node(struct device *dev, int nid);
+extern void sysfs_remove_device_from_node(struct device *dev, int nid);
 
 #else
 
 static inline void dump_numa_cpu_topology(void) {}
 
-static inline int sysfs_add_device_to_node(struct sys_device *dev, int nid)
+static inline int sysfs_add_device_to_node(struct device *dev, int nid)
 {
 	return 0;
 }
 
-static inline void sysfs_remove_device_from_node(struct sys_device *dev,
+static inline void sysfs_remove_device_from_node(struct device *dev,
 						int nid)
 {
 }

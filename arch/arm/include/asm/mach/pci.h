@@ -40,7 +40,7 @@ struct pci_sys_data {
 	u64		mem_offset;	/* bus->cpu memory mapping offset	*/
 	unsigned long	io_offset;	/* bus->cpu IO mapping offset		*/
 	struct pci_bus	*bus;		/* PCI bus				*/
-	struct resource *resource[3];	/* Primary PCI bus resources		*/
+	struct list_head resources;	/* root bus resources (apertures)       */
 					/* Bridge swizzling			*/
 	u8		(*swizzle)(struct pci_dev *, u8 *);
 					/* IRQ mapping				*/

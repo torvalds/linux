@@ -27,8 +27,8 @@
 
 /* Kernel module parameters */
 int force_sensor;
-static int dump_bridge;
-int dump_sensor;
+static bool dump_bridge;
+bool dump_sensor;
 
 static const struct usb_device_id m5602_table[] = {
 	{USB_DEVICE(0x0402, 0x5602)},

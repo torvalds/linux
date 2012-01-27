@@ -281,7 +281,7 @@ static int nodeid_to_addr(int nodeid, struct sockaddr *retaddr)
 	} else {
 		struct sockaddr_in6 *in6  = (struct sockaddr_in6 *) &addr;
 		struct sockaddr_in6 *ret6 = (struct sockaddr_in6 *) retaddr;
-		ipv6_addr_copy(&ret6->sin6_addr, &in6->sin6_addr);
+		ret6->sin6_addr = in6->sin6_addr;
 	}
 
 	return 0;

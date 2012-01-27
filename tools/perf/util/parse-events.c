@@ -25,8 +25,6 @@ enum event_result {
 	EVT_HANDLED_ALL
 };
 
-char debugfs_path[MAXPATHLEN];
-
 #define CHW(x) .type = PERF_TYPE_HARDWARE, .config = PERF_COUNT_HW_##x
 #define CSW(x) .type = PERF_TYPE_SOFTWARE, .config = PERF_COUNT_SW_##x
 
@@ -40,6 +38,7 @@ static struct event_symbol event_symbols[] = {
   { CHW(BRANCH_INSTRUCTIONS),		"branch-instructions",		"branches"		},
   { CHW(BRANCH_MISSES),			"branch-misses",		""			},
   { CHW(BUS_CYCLES),			"bus-cycles",			""			},
+  { CHW(REF_CPU_CYCLES),		"ref-cycles",			""			},
 
   { CSW(CPU_CLOCK),			"cpu-clock",			""			},
   { CSW(TASK_CLOCK),			"task-clock",			""			},
@@ -70,6 +69,7 @@ static const char *hw_event_names[PERF_COUNT_HW_MAX] = {
 	"bus-cycles",
 	"stalled-cycles-frontend",
 	"stalled-cycles-backend",
+	"ref-cycles",
 };
 
 static const char *sw_event_names[PERF_COUNT_SW_MAX] = {
@@ -140,7 +140,7 @@ static int tp_event_has_id(struct dirent *sys_dir, struct dirent *evt_dir)
 	char evt_path[MAXPATHLEN];
 	int fd;
 
-	snprintf(evt_path, MAXPATHLEN, "%s/%s/%s/id", debugfs_path,
+	snprintf(evt_path, MAXPATHLEN, "%s/%s/%s/id", tracing_events_path,
 			sys_dir->d_name, evt_dir->d_name);
 	fd = open(evt_path, O_RDONLY);
 	if (fd < 0)
@@ -171,16 +171,16 @@ struct tracepoint_path *tracepoint_id_to_path(u64 config)
 	char evt_path[MAXPATHLEN];
 	char dir_path[MAXPATHLEN];
 
-	if (debugfs_valid_mountpoint(debugfs_path))
+	if (debugfs_valid_mountpoint(tracing_events_path))
 		return NULL;
 
-	sys_dir = opendir(debugfs_path);
+	sys_dir = opendir(tracing_events_path);
 	if (!sys_dir)
 		return NULL;
 
 	for_each_subsystem(sys_dir, sys_dirent, sys_next) {
 
-		snprintf(dir_path, MAXPATHLEN, "%s/%s", debugfs_path,
+		snprintf(dir_path, MAXPATHLEN, "%s/%s", tracing_events_path,
 			 sys_dirent.d_name);
 		evt_dir = opendir(dir_path);
 		if (!evt_dir)
@@ -447,7 +447,7 @@ parse_single_tracepoint_event(char *sys_name,
 	u64 id;
 	int fd;
 
-	snprintf(evt_path, MAXPATHLEN, "%s/%s/%s/id", debugfs_path,
+	snprintf(evt_path, MAXPATHLEN, "%s/%s/%s/id", tracing_events_path,
 		 sys_name, evt_name);
 
 	fd = open(evt_path, O_RDONLY);
@@ -485,7 +485,7 @@ parse_multiple_tracepoint_event(struct perf_evlist *evlist, char *sys_name,
 	struct dirent *evt_ent;
 	DIR *evt_dir;
 
-	snprintf(evt_path, MAXPATHLEN, "%s/%s", debugfs_path, sys_name);
+	snprintf(evt_path, MAXPATHLEN, "%s/%s", tracing_events_path, sys_name);
 	evt_dir = opendir(evt_path);
 
 	if (!evt_dir) {
@@ -528,7 +528,7 @@ parse_tracepoint_event(struct perf_evlist *evlist, const char **strp,
 	char sys_name[MAX_EVENT_LENGTH];
 	unsigned int sys_length, evt_length;
 
-	if (debugfs_valid_mountpoint(debugfs_path))
+	if (debugfs_valid_mountpoint(tracing_events_path))
 		return 0;
 
 	evt_name = strchr(*strp, ':');
@@ -735,8 +735,8 @@ static int
 parse_event_modifier(const char **strp, struct perf_event_attr *attr)
 {
 	const char *str = *strp;
-	int exclude = 0;
-	int eu = 0, ek = 0, eh = 0, precise = 0;
+	int exclude = 0, exclude_GH = 0;
+	int eu = 0, ek = 0, eh = 0, eH = 0, eG = 0, precise = 0;
 
 	if (!*str)
 		return 0;
@@ -760,6 +760,14 @@ parse_event_modifier(const char **strp, struct perf_event_attr *attr)
 			if (!exclude)
 				exclude = eu = ek = eh = 1;
 			eh = 0;
+		} else if (*str == 'G') {
+			if (!exclude_GH)
+				exclude_GH = eG = eH = 1;
+			eG = 0;
+		} else if (*str == 'H') {
+			if (!exclude_GH)
+				exclude_GH = eG = eH = 1;
+			eH = 0;
 		} else if (*str == 'p') {
 			precise++;
 		} else
@@ -776,6 +784,8 @@ parse_event_modifier(const char **strp, struct perf_event_attr *attr)
 	attr->exclude_kernel = ek;
 	attr->exclude_hv     = eh;
 	attr->precise_ip     = precise;
+	attr->exclude_host   = eH;
+	attr->exclude_guest  = eG;
 
 	return 0;
 }
@@ -838,6 +848,7 @@ int parse_events(struct perf_evlist *evlist , const char *str, int unset __used)
 	for (;;) {
 		ostr = str;
 		memset(&attr, 0, sizeof(attr));
+		event_attr_init(&attr);
 		ret = parse_event_symbols(evlist, &str, &attr);
 		if (ret == EVT_FAILED)
 			return -1;
@@ -920,10 +931,10 @@ void print_tracepoint_events(const char *subsys_glob, const char *event_glob)
 	char evt_path[MAXPATHLEN];
 	char dir_path[MAXPATHLEN];
 
-	if (debugfs_valid_mountpoint(debugfs_path))
+	if (debugfs_valid_mountpoint(tracing_events_path))
 		return;
 
-	sys_dir = opendir(debugfs_path);
+	sys_dir = opendir(tracing_events_path);
 	if (!sys_dir)
 		return;
 
@@ -932,7 +943,7 @@ void print_tracepoint_events(const char *subsys_glob, const char *event_glob)
 		    !strglobmatch(sys_dirent.d_name, subsys_glob))
 			continue;
 
-		snprintf(dir_path, MAXPATHLEN, "%s/%s", debugfs_path,
+		snprintf(dir_path, MAXPATHLEN, "%s/%s", tracing_events_path,
 			 sys_dirent.d_name);
 		evt_dir = opendir(dir_path);
 		if (!evt_dir)
@@ -964,16 +975,16 @@ int is_valid_tracepoint(const char *event_string)
 	char evt_path[MAXPATHLEN];
 	char dir_path[MAXPATHLEN];
 
-	if (debugfs_valid_mountpoint(debugfs_path))
+	if (debugfs_valid_mountpoint(tracing_events_path))
 		return 0;
 
-	sys_dir = opendir(debugfs_path);
+	sys_dir = opendir(tracing_events_path);
 	if (!sys_dir)
 		return 0;
 
 	for_each_subsystem(sys_dir, sys_dirent, sys_next) {
 
-		snprintf(dir_path, MAXPATHLEN, "%s/%s", debugfs_path,
+		snprintf(dir_path, MAXPATHLEN, "%s/%s", tracing_events_path,
 			 sys_dirent.d_name);
 		evt_dir = opendir(dir_path);
 		if (!evt_dir)

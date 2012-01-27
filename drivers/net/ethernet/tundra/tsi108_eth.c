@@ -1604,7 +1604,7 @@ tsi108_init_one(struct platform_device *pdev)
 	data->phyregs = ioremap(einfo->phyregs, 0x400);
 	if (NULL == data->phyregs) {
 		err = -ENOMEM;
-		goto regs_fail;
+		goto phyregs_fail;
 	}
 /* MII setup */
 	data->mii_if.dev = dev;
@@ -1663,8 +1663,10 @@ tsi108_init_one(struct platform_device *pdev)
 	return 0;
 
 register_fail:
-	iounmap(data->regs);
 	iounmap(data->phyregs);
+
+phyregs_fail:
+	iounmap(data->regs);
 
 regs_fail:
 	free_netdev(dev);
@@ -1688,18 +1690,6 @@ static void tsi108_timed_checker(unsigned long dev_ptr)
 	mod_timer(&data->timer, jiffies + CHECK_PHY_INTERVAL);
 }
 
-static int tsi108_ether_init(void)
-{
-	int ret;
-	ret = platform_driver_register (&tsi_eth_driver);
-	if (ret < 0){
-		printk("tsi108_ether_init: error initializing ethernet "
-		       "device\n");
-		return ret;
-	}
-	return 0;
-}
-
 static int tsi108_ether_remove(struct platform_device *pdev)
 {
 	struct net_device *dev = platform_get_drvdata(pdev);
@@ -1714,13 +1704,7 @@ static int tsi108_ether_remove(struct platform_device *pdev)
 
 	return 0;
 }
-static void tsi108_ether_exit(void)
-{
-	platform_driver_unregister(&tsi_eth_driver);
-}
-
-module_init(tsi108_ether_init);
-module_exit(tsi108_ether_exit);
+module_platform_driver(tsi_eth_driver);
 
 MODULE_AUTHOR("Tundra Semiconductor Corporation");
 MODULE_DESCRIPTION("Tsi108 Gigabit Ethernet driver");

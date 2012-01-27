@@ -22,7 +22,6 @@
 
 #include <mach/hardware.h>
 #include <mach/irqs.h>
-#include <mach/gpio-pxa.h>
 
 #include "generic.h"
 
@@ -92,44 +91,6 @@ static struct irq_chip pxa_internal_irq_chip = {
 	.irq_unmask	= pxa_unmask_irq,
 };
 
-/*
- * GPIO IRQs for GPIO 0 and 1
- */
-static int pxa_set_low_gpio_type(struct irq_data *d, unsigned int type)
-{
-	int gpio = d->irq - IRQ_GPIO0;
-
-	if (__gpio_is_occupied(gpio)) {
-		pr_err("%s failed: GPIO is configured\n", __func__);
-		return -EINVAL;
-	}
-
-	if (type & IRQ_TYPE_EDGE_RISING)
-		GRER0 |= GPIO_bit(gpio);
-	else
-		GRER0 &= ~GPIO_bit(gpio);
-
-	if (type & IRQ_TYPE_EDGE_FALLING)
-		GFER0 |= GPIO_bit(gpio);
-	else
-		GFER0 &= ~GPIO_bit(gpio);
-
-	return 0;
-}
-
-static void pxa_ack_low_gpio(struct irq_data *d)
-{
-	GEDR0 = (1 << (d->irq - IRQ_GPIO0));
-}
-
-static struct irq_chip pxa_low_gpio_chip = {
-	.name		= "GPIO-l",
-	.irq_ack	= pxa_ack_low_gpio,
-	.irq_mask	= pxa_mask_irq,
-	.irq_unmask	= pxa_unmask_irq,
-	.irq_set_type	= pxa_set_low_gpio_type,
-};
-
 asmlinkage void __exception_irq_entry icip_handle_irq(struct pt_regs *regs)
 {
 	uint32_t icip, icmr, mask;
@@ -160,26 +121,7 @@ asmlinkage void __exception_irq_entry ichp_handle_irq(struct pt_regs *regs)
 	} while (1);
 }
 
-static void __init pxa_init_low_gpio_irq(set_wake_t fn)
-{
-	int irq;
-
-	/* clear edge detection on GPIO 0 and 1 */
-	GFER0 &= ~0x3;
-	GRER0 &= ~0x3;
-	GEDR0 = 0x3;
-
-	for (irq = IRQ_GPIO0; irq <= IRQ_GPIO1; irq++) {
-		irq_set_chip_and_handler(irq, &pxa_low_gpio_chip,
-					 handle_edge_irq);
-		irq_set_chip_data(irq, irq_base(0));
-		set_irq_flags(irq, IRQF_VALID);
-	}
-
-	pxa_low_gpio_chip.irq_set_wake = fn;
-}
-
-void __init pxa_init_irq(int irq_nr, set_wake_t fn)
+void __init pxa_init_irq(int irq_nr, int (*fn)(struct irq_data *, unsigned int))
 {
 	int irq, i, n;
 
@@ -209,7 +151,6 @@ void __init pxa_init_irq(int irq_nr, set_wake_t fn)
 	__raw_writel(1, irq_base(0) + ICCR);
 
 	pxa_internal_irq_chip.irq_set_wake = fn;
-	pxa_init_low_gpio_irq(fn);
 }
 
 #ifdef CONFIG_PM

@@ -1931,14 +1931,12 @@ int imx6q_set_lpm(enum mxc_cpu_pwr_mode mode)
 		val |= 0x1 << BP_CLPCR_LPM;
 		val &= ~BM_CLPCR_VSTBY;
 		val &= ~BM_CLPCR_SBYOS;
-		val |= BM_CLPCR_BYP_MMDC_CH1_LPM_HS;
 		break;
 	case STOP_POWER_OFF:
 		val |= 0x2 << BP_CLPCR_LPM;
 		val |= 0x3 << BP_CLPCR_STBY_COUNT;
 		val |= BM_CLPCR_VSTBY;
 		val |= BM_CLPCR_SBYOS;
-		val |= BM_CLPCR_BYP_MMDC_CH1_LPM_HS;
 		break;
 	default:
 		return -EINVAL;
@@ -1953,13 +1951,16 @@ static struct map_desc imx6q_clock_desc[] = {
 	imx_map_entry(MX6Q, ANATOP, MT_DEVICE),
 };
 
+void __init imx6q_clock_map_io(void)
+{
+	iotable_init(imx6q_clock_desc, ARRAY_SIZE(imx6q_clock_desc));
+}
+
 int __init mx6q_clocks_init(void)
 {
 	struct device_node *np;
 	void __iomem *base;
 	int i, irq;
-
-	iotable_init(imx6q_clock_desc, ARRAY_SIZE(imx6q_clock_desc));
 
 	/* retrieve the freqency of fixed clocks from device tree */
 	for_each_compatible_node(np, NULL, "fixed-clock") {

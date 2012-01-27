@@ -798,7 +798,7 @@ static int adav80x_probe(struct snd_soc_codec *codec)
 	return adav80x_set_bias_level(codec, SND_SOC_BIAS_STANDBY);
 }
 
-static int adav80x_suspend(struct snd_soc_codec *codec, pm_message_t state)
+static int adav80x_suspend(struct snd_soc_codec *codec)
 {
 	return adav80x_set_bias_level(codec, SND_SOC_BIAS_OFF);
 }

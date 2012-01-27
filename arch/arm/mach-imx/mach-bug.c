@@ -65,4 +65,5 @@ MACHINE_START(BUG, "BugLabs BUGBase")
 	.handle_irq = imx31_handle_irq,
 	.timer = &bug_timer,
 	.init_machine = bug_board_init,
+	.restart	= mxc_restart,
 MACHINE_END

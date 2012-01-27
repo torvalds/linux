@@ -65,7 +65,7 @@
 
 /* Kernel module parameters */
 extern int force_sensor;
-extern int dump_sensor;
+extern bool dump_sensor;
 
 int s5k4aa_probe(struct sd *sd);
 int s5k4aa_init(struct sd *sd);

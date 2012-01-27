@@ -32,6 +32,8 @@ static unsigned long last_crtr;
 static u32 irqmask;
 static struct clock_event_device clkevt;
 
+#define RM9200_TIMER_LATCH	((AT91_SLOW_CLOCK + HZ/2) / HZ)
+
 /*
  * The ST_CRTR is updated asynchronously to the master clock ... but
  * the updates as seen by the CPU don't seem to be strictly monotonic.
@@ -74,8 +76,8 @@ static irqreturn_t at91rm9200_timer_interrupt(int irq, void *dev_id)
 	if (sr & AT91_ST_PITS) {
 		u32	crtr = read_CRTR();
 
-		while (((crtr - last_crtr) & AT91_ST_CRTV) >= LATCH) {
-			last_crtr += LATCH;
+		while (((crtr - last_crtr) & AT91_ST_CRTV) >= RM9200_TIMER_LATCH) {
+			last_crtr += RM9200_TIMER_LATCH;
 			clkevt.event_handler(&clkevt);
 		}
 		return IRQ_HANDLED;
@@ -116,7 +118,7 @@ clkevt32k_mode(enum clock_event_mode mode, struct clock_event_device *dev)
 	case CLOCK_EVT_MODE_PERIODIC:
 		/* PIT for periodic irqs; fixed rate of 1/HZ */
 		irqmask = AT91_ST_PITS;
-		at91_sys_write(AT91_ST_PIMR, LATCH);
+		at91_sys_write(AT91_ST_PIMR, RM9200_TIMER_LATCH);
 		break;
 	case CLOCK_EVT_MODE_ONESHOT:
 		/* ALM for oneshot irqs, set by next_event()

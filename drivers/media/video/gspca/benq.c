@@ -76,7 +76,6 @@ static int sd_config(struct gspca_dev *gspca_dev,
 	gspca_dev->cam.cam_mode = vga_mode;
 	gspca_dev->cam.nmodes = ARRAY_SIZE(vga_mode);
 	gspca_dev->cam.no_urb_create = 1;
-	gspca_dev->cam.reverse_alts = 1;
 	return 0;
 }
 
@@ -135,13 +134,17 @@ static int sd_start(struct gspca_dev *gspca_dev)
 
 static void sd_stopN(struct gspca_dev *gspca_dev)
 {
+	struct usb_interface *intf;
+
 	reg_w(gspca_dev, 0x003c, 0x0003);
 	reg_w(gspca_dev, 0x003c, 0x0004);
 	reg_w(gspca_dev, 0x003c, 0x0005);
 	reg_w(gspca_dev, 0x003c, 0x0006);
 	reg_w(gspca_dev, 0x003c, 0x0007);
+
+	intf = usb_ifnum_to_if(gspca_dev->dev, gspca_dev->iface);
 	usb_set_interface(gspca_dev->dev, gspca_dev->iface,
-					gspca_dev->nbalt - 1);
+					intf->num_altsetting - 1);
 }
 
 static void sd_pkt_scan(struct gspca_dev *gspca_dev,

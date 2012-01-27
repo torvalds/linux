@@ -36,6 +36,8 @@ pen:	ldr	r7, [r6]
 	 * should now contain the SVC stack for this core
 	 */
 	b	secondary_startup
+ENDPROC(exynos4_secondary_startup)
 
+	.align 2
 1:	.long	.
 	.long	pen_release

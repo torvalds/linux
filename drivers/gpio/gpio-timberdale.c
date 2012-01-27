@@ -359,18 +359,7 @@ static struct platform_driver timbgpio_platform_driver = {
 
 /*--------------------------------------------------------------------------*/
 
-static int __init timbgpio_init(void)
-{
-	return platform_driver_register(&timbgpio_platform_driver);
-}
-
-static void __exit timbgpio_exit(void)
-{
-	platform_driver_unregister(&timbgpio_platform_driver);
-}
-
-module_init(timbgpio_init);
-module_exit(timbgpio_exit);
+module_platform_driver(timbgpio_platform_driver);
 
 MODULE_DESCRIPTION("Timberdale GPIO driver");
 MODULE_LICENSE("GPL v2");

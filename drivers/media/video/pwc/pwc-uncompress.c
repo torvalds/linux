@@ -35,7 +35,7 @@
 
 int pwc_decompress(struct pwc_device *pdev, struct pwc_frame_buf *fbuf)
 {
-	int n, line, col, stride;
+	int n, line, col;
 	void *yuv, *image;
 	u16 *src;
 	u16 *dsty, *dstu, *dstv;
@@ -60,35 +60,23 @@ int pwc_decompress(struct pwc_device *pdev, struct pwc_frame_buf *fbuf)
 		return 0;
 	}
 
-	vb2_set_plane_payload(&fbuf->vb, 0, pdev->view.size);
+	vb2_set_plane_payload(&fbuf->vb, 0,
+			      pdev->width * pdev->height * 3 / 2);
 
 	if (pdev->vbandlength == 0) {
 		/* Uncompressed mode.
-		 * We copy the data into the output buffer, using the viewport
-		 * size (which may be larger than the image size).
-		 * Unfortunately we have to do a bit of byte stuffing to get
-		 * the desired output format/size.
 		 *
 		 * We do some byte shuffling here to go from the
 		 * native format to YUV420P.
 		 */
 		src = (u16 *)yuv;
-		n = pdev->view.x * pdev->view.y;
+		n = pdev->width * pdev->height;
+		dsty = (u16 *)(image);
+		dstu = (u16 *)(image + n);
+		dstv = (u16 *)(image + n + n / 4);
 
-		/* offset in Y plane */
-		stride = pdev->view.x * pdev->offset.y + pdev->offset.x;
-		dsty = (u16 *)(image + stride);
-
-		/* offsets in U/V planes */
-		stride = pdev->view.x * pdev->offset.y / 4 + pdev->offset.x / 2;
-		dstu = (u16 *)(image + n +         stride);
-		dstv = (u16 *)(image + n + n / 4 + stride);
-
-		/* increment after each line */
-		stride = (pdev->view.x - pdev->image.x) / 2; /* u16 is 2 bytes */
-
-		for (line = 0; line < pdev->image.y; line++) {
-			for (col = 0; col < pdev->image.x; col += 4) {
+		for (line = 0; line < pdev->height; line++) {
+			for (col = 0; col < pdev->width; col += 4) {
 				*dsty++ = *src++;
 				*dsty++ = *src++;
 				if (line & 1)
@@ -96,11 +84,6 @@ int pwc_decompress(struct pwc_device *pdev, struct pwc_frame_buf *fbuf)
 				else
 					*dstu++ = *src++;
 			}
-			dsty += stride;
-			if (line & 1)
-				dstv += (stride >> 1);
-			else
-				dstu += (stride >> 1);
 		}
 
 		return 0;
@@ -111,12 +94,6 @@ int pwc_decompress(struct pwc_device *pdev, struct pwc_frame_buf *fbuf)
 	 * the decompressor routines will write the data in planar format
 	 * immediately.
 	 */
-	if (pdev->vsize == PSZ_VGA && pdev->vframes == 5 && pdev->vsnapshot) {
-		PWC_ERROR("Mode Bayer is not supported for now\n");
-		/* flags |= PWCX_FLAG_BAYER; */
-		return -ENXIO; /* No such device or address: missing decompressor */
-	}
-
 	if (DEVICE_USE_CODEC1(pdev->type)) {
 
 		/* TODO & FIXME */
@@ -124,10 +101,7 @@ int pwc_decompress(struct pwc_device *pdev, struct pwc_frame_buf *fbuf)
 		return -ENXIO; /* No such device or address: missing decompressor */
 
 	} else {
-		pwc_dec23_decompress(pdev, yuv, image, PWCX_FLAG_PLANAR);
+		pwc_dec23_decompress(pdev, yuv, image);
 	}
 	return 0;
 }
-
-
-/* vim: set cino= formatoptions=croql cindent shiftwidth=8 tabstop=8: */

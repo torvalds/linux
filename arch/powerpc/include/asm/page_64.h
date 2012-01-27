@@ -130,7 +130,9 @@ do {						\
 
 #ifdef CONFIG_HUGETLB_PAGE
 
+#ifdef CONFIG_PPC_MM_SLICES
 #define HAVE_ARCH_HUGETLB_UNMAPPED_AREA
+#endif
 
 #endif /* !CONFIG_HUGETLB_PAGE */
 

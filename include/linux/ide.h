@@ -920,7 +920,7 @@ __IDE_PROC_DEVSET(_name, _min, _max, NULL, NULL)
 
 typedef struct {
 	const char	*name;
-	mode_t		mode;
+	umode_t		mode;
 	const struct file_operations *proc_fops;
 } ide_proc_entry_t;
 

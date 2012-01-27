@@ -238,6 +238,8 @@ static const char *v4l2_ioctls[] = {
 	[_IOC_NR(VIDIOC_CROPCAP)]          = "VIDIOC_CROPCAP",
 	[_IOC_NR(VIDIOC_G_CROP)]           = "VIDIOC_G_CROP",
 	[_IOC_NR(VIDIOC_S_CROP)]           = "VIDIOC_S_CROP",
+	[_IOC_NR(VIDIOC_G_SELECTION)]      = "VIDIOC_G_SELECTION",
+	[_IOC_NR(VIDIOC_S_SELECTION)]      = "VIDIOC_S_SELECTION",
 	[_IOC_NR(VIDIOC_G_JPEGCOMP)]       = "VIDIOC_G_JPEGCOMP",
 	[_IOC_NR(VIDIOC_S_JPEGCOMP)]       = "VIDIOC_S_JPEGCOMP",
 	[_IOC_NR(VIDIOC_QUERYSTD)]         = "VIDIOC_QUERYSTD",
@@ -1547,11 +1549,32 @@ static long __video_do_ioctl(struct file *file,
 	{
 		struct v4l2_crop *p = arg;
 
-		if (!ops->vidioc_g_crop)
+		if (!ops->vidioc_g_crop && !ops->vidioc_g_selection)
 			break;
 
 		dbgarg(cmd, "type=%s\n", prt_names(p->type, v4l2_type_names));
-		ret = ops->vidioc_g_crop(file, fh, p);
+
+		if (ops->vidioc_g_crop) {
+			ret = ops->vidioc_g_crop(file, fh, p);
+		} else {
+			/* simulate capture crop using selection api */
+			struct v4l2_selection s = {
+				.type = p->type,
+			};
+
+			/* crop means compose for output devices */
+			if (V4L2_TYPE_IS_OUTPUT(p->type))
+				s.target = V4L2_SEL_TGT_COMPOSE_ACTIVE;
+			else
+				s.target = V4L2_SEL_TGT_CROP_ACTIVE;
+
+			ret = ops->vidioc_g_selection(file, fh, &s);
+
+			/* copying results to old structure on success */
+			if (!ret)
+				p->c = s.r;
+		}
+
 		if (!ret)
 			dbgrect(vfd, "", &p->c);
 		break;
@@ -1560,15 +1583,65 @@ static long __video_do_ioctl(struct file *file,
 	{
 		struct v4l2_crop *p = arg;
 
-		if (!ops->vidioc_s_crop)
+		if (!ops->vidioc_s_crop && !ops->vidioc_s_selection)
 			break;
+
 		if (ret_prio) {
 			ret = ret_prio;
 			break;
 		}
 		dbgarg(cmd, "type=%s\n", prt_names(p->type, v4l2_type_names));
 		dbgrect(vfd, "", &p->c);
-		ret = ops->vidioc_s_crop(file, fh, p);
+
+		if (ops->vidioc_s_crop) {
+			ret = ops->vidioc_s_crop(file, fh, p);
+		} else {
+			/* simulate capture crop using selection api */
+			struct v4l2_selection s = {
+				.type = p->type,
+				.r = p->c,
+			};
+
+			/* crop means compose for output devices */
+			if (V4L2_TYPE_IS_OUTPUT(p->type))
+				s.target = V4L2_SEL_TGT_COMPOSE_ACTIVE;
+			else
+				s.target = V4L2_SEL_TGT_CROP_ACTIVE;
+
+			ret = ops->vidioc_s_selection(file, fh, &s);
+		}
+		break;
+	}
+	case VIDIOC_G_SELECTION:
+	{
+		struct v4l2_selection *p = arg;
+
+		if (!ops->vidioc_g_selection)
+			break;
+
+		dbgarg(cmd, "type=%s\n", prt_names(p->type, v4l2_type_names));
+
+		ret = ops->vidioc_g_selection(file, fh, p);
+		if (!ret)
+			dbgrect(vfd, "", &p->r);
+		break;
+	}
+	case VIDIOC_S_SELECTION:
+	{
+		struct v4l2_selection *p = arg;
+
+		if (!ops->vidioc_s_selection)
+			break;
+
+		if (ret_prio) {
+			ret = ret_prio;
+			break;
+		}
+
+		dbgarg(cmd, "type=%s\n", prt_names(p->type, v4l2_type_names));
+		dbgrect(vfd, "", &p->r);
+
+		ret = ops->vidioc_s_selection(file, fh, p);
 		break;
 	}
 	case VIDIOC_CROPCAP:
@@ -1576,11 +1649,42 @@ static long __video_do_ioctl(struct file *file,
 		struct v4l2_cropcap *p = arg;
 
 		/*FIXME: Should also show v4l2_fract pixelaspect */
-		if (!ops->vidioc_cropcap)
+		if (!ops->vidioc_cropcap && !ops->vidioc_g_selection)
 			break;
 
 		dbgarg(cmd, "type=%s\n", prt_names(p->type, v4l2_type_names));
-		ret = ops->vidioc_cropcap(file, fh, p);
+		if (ops->vidioc_cropcap) {
+			ret = ops->vidioc_cropcap(file, fh, p);
+		} else {
+			struct v4l2_selection s = { .type = p->type };
+
+			/* obtaining bounds */
+			if (V4L2_TYPE_IS_OUTPUT(p->type))
+				s.target = V4L2_SEL_TGT_COMPOSE_BOUNDS;
+			else
+				s.target = V4L2_SEL_TGT_CROP_BOUNDS;
+
+			ret = ops->vidioc_g_selection(file, fh, &s);
+			if (ret)
+				break;
+			p->bounds = s.r;
+
+			/* obtaining defrect */
+			if (V4L2_TYPE_IS_OUTPUT(p->type))
+				s.target = V4L2_SEL_TGT_COMPOSE_DEFAULT;
+			else
+				s.target = V4L2_SEL_TGT_CROP_DEFAULT;
+
+			ret = ops->vidioc_g_selection(file, fh, &s);
+			if (ret)
+				break;
+			p->defrect = s.r;
+
+			/* setting trivial pixelaspect */
+			p->pixelaspect.numerator = 1;
+			p->pixelaspect.denominator = 1;
+		}
+
 		if (!ret) {
 			dbgrect(vfd, "bounds ", &p->bounds);
 			dbgrect(vfd, "defrect ", &p->defrect);
@@ -1767,6 +1871,7 @@ static long __video_do_ioctl(struct file *file,
 	case VIDIOC_S_FREQUENCY:
 	{
 		struct v4l2_frequency *p = arg;
+		enum v4l2_tuner_type type;
 
 		if (!ops->vidioc_s_frequency)
 			break;
@@ -1774,9 +1879,14 @@ static long __video_do_ioctl(struct file *file,
 			ret = ret_prio;
 			break;
 		}
+		type = (vfd->vfl_type == VFL_TYPE_RADIO) ?
+			V4L2_TUNER_RADIO : V4L2_TUNER_ANALOG_TV;
 		dbgarg(cmd, "tuner=%d, type=%d, frequency=%d\n",
 				p->tuner, p->type, p->frequency);
-		ret = ops->vidioc_s_frequency(file, fh, p);
+		if (p->type != type)
+			ret = -EINVAL;
+		else
+			ret = ops->vidioc_s_frequency(file, fh, p);
 		break;
 	}
 	case VIDIOC_G_SLICED_VBI_CAP:
@@ -2226,6 +2336,10 @@ static int check_array_args(unsigned int cmd, void *parg, size_t *array_size,
 		struct v4l2_ext_controls *ctrls = parg;
 
 		if (ctrls->count != 0) {
+			if (ctrls->count > V4L2_CID_MAX_CTRLS) {
+				ret = -EINVAL;
+				break;
+			}
 			*user_ptr = (void __user *)ctrls->controls;
 			*kernel_ptr = (void *)&ctrls->controls;
 			*array_size = sizeof(struct v4l2_ext_control)

@@ -108,6 +108,7 @@ static struct snd_soc_dai_link osk_dai = {
 /* Audio machine driver */
 static struct snd_soc_card snd_soc_card_osk = {
 	.name = "OSK5912",
+	.owner = THIS_MODULE,
 	.dai_link = &osk_dai,
 	.num_links = 1,
 

@@ -27,6 +27,7 @@
 
 #include <mach/common.h>
 #include <mach/iomux-mx28.h>
+#include <mach/digctl.h>
 
 #include "devices-mx28.h"
 
@@ -228,7 +229,7 @@ static void __init mx28evk_fec_reset(void)
 	/* Enable fec phy clock */
 	clk = clk_get_sys("pll2", NULL);
 	if (!IS_ERR(clk))
-		clk_enable(clk);
+		clk_prepare_enable(clk);
 
 	/* Power up fec phy */
 	ret = gpio_request(MX28EVK_FEC_PHY_POWER, "fec-phy-power");
@@ -421,6 +422,18 @@ static struct gpio mx28evk_lcd_gpios[] = {
 	{ MX28EVK_BL_ENABLE, GPIOF_OUT_INIT_HIGH, "bl-enable" },
 };
 
+static const struct mxs_saif_platform_data
+			mx28evk_mxs_saif_pdata[] __initconst = {
+	/* working on EXTMSTR0 mode (saif0 master, saif1 slave) */
+	{
+		.master_mode = 1,
+		.master_id = 0,
+	}, {
+		.master_mode = 0,
+		.master_id = 0,
+	},
+};
+
 static void __init mx28evk_init(void)
 {
 	int ret;
@@ -454,8 +467,9 @@ static void __init mx28evk_init(void)
 	else
 		mx28_add_mxsfb(&mx28evk_mxsfb_pdata);
 
-	mx28_add_saif(0);
-	mx28_add_saif(1);
+	mxs_saif_clkmux_select(MXS_DIGCTL_SAIF_CLKMUX_EXTMSTR0);
+	mx28_add_saif(0, &mx28evk_mxs_saif_pdata[0]);
+	mx28_add_saif(1, &mx28evk_mxs_saif_pdata[1]);
 
 	mx28_add_mxs_i2c(0);
 	i2c_register_board_info(0, mxs_i2c0_board_info,
@@ -501,4 +515,5 @@ MACHINE_START(MX28EVK, "Freescale MX28 EVK")
 	.init_irq	= mx28_init_irq,
 	.timer		= &mx28evk_timer,
 	.init_machine	= mx28evk_init,
+	.restart	= mxs_restart,
 MACHINE_END

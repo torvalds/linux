@@ -44,7 +44,7 @@ static int fat_ioctl_set_attributes(struct file *file, u32 __user *user_attr)
 		goto out;
 
 	mutex_lock(&inode->i_mutex);
-	err = mnt_want_write(file->f_path.mnt);
+	err = mnt_want_write_file(file);
 	if (err)
 		goto out_unlock_inode;
 
@@ -108,7 +108,7 @@ static int fat_ioctl_set_attributes(struct file *file, u32 __user *user_attr)
 	fat_save_attrs(inode, attr);
 	mark_inode_dirty(inode);
 out_drop_write:
-	mnt_drop_write(file->f_path.mnt);
+	mnt_drop_write_file(file);
 out_unlock_inode:
 	mutex_unlock(&inode->i_mutex);
 out:
@@ -314,7 +314,7 @@ EXPORT_SYMBOL_GPL(fat_getattr);
 static int fat_sanitize_mode(const struct msdos_sb_info *sbi,
 			     struct inode *inode, umode_t *mode_ptr)
 {
-	mode_t mask, perm;
+	umode_t mask, perm;
 
 	/*
 	 * Note, the basic check is already done by a caller of
@@ -351,7 +351,7 @@ static int fat_sanitize_mode(const struct msdos_sb_info *sbi,
 
 static int fat_allow_set_time(struct msdos_sb_info *sbi, struct inode *inode)
 {
-	mode_t allow_utime = sbi->options.allow_utime;
+	umode_t allow_utime = sbi->options.allow_utime;
 
 	if (current_fsuid() != inode->i_uid) {
 		if (in_group_p(inode->i_gid))

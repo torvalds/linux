@@ -299,8 +299,13 @@ static int sport_startup(struct uart_port *port)
 			dev_info(port->dev, "Unable to attach BlackFin UART over SPORT CTS interrupt. So, disable it.\n");
 		}
 	}
-	if (up->rts_pin >= 0)
-		gpio_direction_output(up->rts_pin, 0);
+	if (up->rts_pin >= 0) {
+		if (gpio_request(up->rts_pin, DRV_NAME)) {
+			dev_info(port->dev, "fail to request RTS PIN at GPIO_%d\n", up->rts_pin);
+			up->rts_pin = -1;
+		} else
+			gpio_direction_output(up->rts_pin, 0);
+	}
 #endif
 
 	return 0;
@@ -445,6 +450,8 @@ static void sport_shutdown(struct uart_port *port)
 #ifdef CONFIG_SERIAL_BFIN_SPORT_CTSRTS
 	if (up->cts_pin >= 0)
 		free_irq(gpio_to_irq(up->cts_pin), up);
+	if (up->rts_pin >= 0)
+		gpio_free(up->rts_pin);
 #endif
 }
 
@@ -803,17 +810,16 @@ static int __devinit sport_uart_probe(struct platform_device *pdev)
 		res = platform_get_resource(pdev, IORESOURCE_IO, 0);
 		if (res == NULL)
 			sport->cts_pin = -1;
-		else
+		else {
 			sport->cts_pin = res->start;
+			sport->port.flags |= ASYNC_CTS_FLOW;
+		}
 
 		res = platform_get_resource(pdev, IORESOURCE_IO, 1);
 		if (res == NULL)
 			sport->rts_pin = -1;
 		else
 			sport->rts_pin = res->start;
-
-		if (sport->rts_pin >= 0)
-			gpio_request(sport->rts_pin, DRV_NAME);
 #endif
 	}
 
@@ -853,10 +859,6 @@ static int __devexit sport_uart_remove(struct platform_device *pdev)
 
 	if (sport) {
 		uart_remove_one_port(&sport_uart_reg, &sport->port);
-#ifdef CONFIG_SERIAL_BFIN_CTSRTS
-		if (sport->rts_pin >= 0)
-			gpio_free(sport->rts_pin);
-#endif
 		iounmap(sport->port.membase);
 		peripheral_free_list(
 			(unsigned short *)pdev->dev.platform_data);

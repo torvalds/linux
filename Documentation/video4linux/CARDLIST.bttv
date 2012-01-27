@@ -71,7 +71,7 @@
  70 -> Prolink Pixelview PV-BT878P+ (Rev.4C,8E)
  71 -> Lifeview FlyVideo 98EZ (capture only) LR51          [1851:1851]
  72 -> Prolink Pixelview PV-BT878P+9B (PlayTV Pro rev.9B FM+NICAM) [1554:4011]
- 73 -> Sensoray 311                                        [6000:0311]
+ 73 -> Sensoray 311/611                                    [6000:0311,6000:0611]
  74 -> RemoteVision MX (RV605)
  75 -> Powercolor MTV878/ MTV878R/ MTV878F
  76 -> Canopus WinDVR PCI (COMPAQ Presario 3524JP, 5112JP) [0e11:0079]
@@ -158,3 +158,4 @@
 157 -> Geovision GV-800(S) (master)                        [800a:763d]
 158 -> Geovision GV-800(S) (slave)                         [800b:763d,800c:763d,800d:763d]
 159 -> ProVideo PV183                                      [1830:1540,1831:1540,1832:1540,1833:1540,1834:1540,1835:1540,1836:1540,1837:1540]
+160 -> Tongwei Video Technology TD-3116                    [f200:3116]

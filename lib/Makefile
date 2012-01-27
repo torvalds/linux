@@ -33,6 +33,7 @@ endif
 
 lib-$(CONFIG_HOTPLUG) += kobject_uevent.o
 obj-$(CONFIG_GENERIC_IOMAP) += iomap.o
+obj-$(CONFIG_GENERIC_PCI_IOMAP) += pci_iomap.o
 obj-$(CONFIG_HAS_IOMEM) += iomap_copy.o devres.o
 obj-$(CONFIG_CHECK_SIGNATURE) += check_signature.o
 obj-$(CONFIG_DEBUG_LOCKING_API_SELFTESTS) += locking-selftest.o
@@ -114,6 +115,11 @@ obj-$(CONFIG_AVERAGE) += average.o
 obj-$(CONFIG_CPU_RMAP) += cpu_rmap.o
 
 obj-$(CONFIG_CORDIC) += cordic.o
+
+obj-$(CONFIG_DQL) += dynamic_queue_limits.o
+
+obj-$(CONFIG_MPILIB) += mpi/
+obj-$(CONFIG_SIGNATURE) += digsig.o
 
 hostprogs-y	:= gen_crc32table
 clean-files	:= crc32table.h

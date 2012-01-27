@@ -7,6 +7,7 @@
 #include "util/thread.h"
 #include "util/header.h"
 #include "util/session.h"
+#include "util/tool.h"
 
 #include "util/parse-options.h"
 #include "util/trace-event.h"
@@ -18,7 +19,7 @@
 struct alloc_stat;
 typedef int (*sort_fn_t)(struct alloc_stat *, struct alloc_stat *);
 
-static char const		*input_name = "perf.data";
+static const char		*input_name;
 
 static int			alloc_flag;
 static int			caller_flag;
@@ -107,7 +108,9 @@ static void setup_cpunode_map(void)
 				continue;
 			cpunode_map[cpu] = mem;
 		}
+		closedir(dir2);
 	}
+	closedir(dir1);
 }
 
 static void insert_alloc_stat(unsigned long call_site, unsigned long ptr,
@@ -303,12 +306,13 @@ static void process_raw_event(union perf_event *raw_event __used, void *data,
 	}
 }
 
-static int process_sample_event(union perf_event *event,
+static int process_sample_event(struct perf_tool *tool __used,
+				union perf_event *event,
 				struct perf_sample *sample,
 				struct perf_evsel *evsel __used,
-				struct perf_session *session)
+				struct machine *machine)
 {
-	struct thread *thread = perf_session__findnew(session, event->ip.pid);
+	struct thread *thread = machine__findnew_thread(machine, event->ip.pid);
 
 	if (thread == NULL) {
 		pr_debug("problem processing %d event, skipping it.\n",
@@ -324,7 +328,7 @@ static int process_sample_event(union perf_event *event,
 	return 0;
 }
 
-static struct perf_event_ops event_ops = {
+static struct perf_tool perf_kmem = {
 	.sample			= process_sample_event,
 	.comm			= perf_event__process_comm,
 	.ordered_samples	= true,
@@ -483,7 +487,7 @@ static int __cmd_kmem(void)
 {
 	int err = -EINVAL;
 	struct perf_session *session = perf_session__new(input_name, O_RDONLY,
-							 0, false, &event_ops);
+							 0, false, &perf_kmem);
 	if (session == NULL)
 		return -ENOMEM;
 
@@ -494,7 +498,7 @@ static int __cmd_kmem(void)
 		goto out_delete;
 
 	setup_pager();
-	err = perf_session__process_events(session, &event_ops);
+	err = perf_session__process_events(session, &perf_kmem);
 	if (err != 0)
 		goto out_delete;
 	sort_result();
@@ -643,6 +647,7 @@ static int setup_sorting(struct list_head *sort_list, const char *arg)
 			break;
 		if (sort_dimension__add(tok, sort_list) < 0) {
 			error("Unknown --sort key: '%s'", tok);
+			free(str);
 			return -1;
 		}
 	}

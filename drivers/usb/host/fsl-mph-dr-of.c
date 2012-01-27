@@ -297,17 +297,7 @@ static struct platform_driver fsl_usb2_mph_dr_driver = {
 	.remove	= __devexit_p(fsl_usb2_mph_dr_of_remove),
 };
 
-static int __init fsl_usb2_mph_dr_init(void)
-{
-	return platform_driver_register(&fsl_usb2_mph_dr_driver);
-}
-module_init(fsl_usb2_mph_dr_init);
-
-static void __exit fsl_usb2_mph_dr_exit(void)
-{
-	platform_driver_unregister(&fsl_usb2_mph_dr_driver);
-}
-module_exit(fsl_usb2_mph_dr_exit);
+module_platform_driver(fsl_usb2_mph_dr_driver);
 
 MODULE_DESCRIPTION("FSL MPH DR OF devices driver");
 MODULE_AUTHOR("Anatolij Gustschin <agust@denx.de>");

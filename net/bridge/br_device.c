@@ -170,8 +170,11 @@ static int br_set_mac_address(struct net_device *dev, void *p)
 		return -EINVAL;
 
 	spin_lock_bh(&br->lock);
-	memcpy(dev->dev_addr, addr->sa_data, ETH_ALEN);
-	br_stp_change_bridge_id(br, addr->sa_data);
+	if (compare_ether_addr(dev->dev_addr, addr->sa_data)) {
+		memcpy(dev->dev_addr, addr->sa_data, ETH_ALEN);
+		br_fdb_change_mac_address(br, addr->sa_data);
+		br_stp_change_bridge_id(br, addr->sa_data);
+	}
 	br->flags |= BR_SET_MAC_ADDR;
 	spin_unlock_bh(&br->lock);
 
@@ -186,7 +189,8 @@ static void br_getinfo(struct net_device *dev, struct ethtool_drvinfo *info)
 	strcpy(info->bus_info, "N/A");
 }
 
-static u32 br_fix_features(struct net_device *dev, u32 features)
+static netdev_features_t br_fix_features(struct net_device *dev,
+	netdev_features_t features)
 {
 	struct net_bridge *br = netdev_priv(dev);
 
@@ -341,10 +345,10 @@ void br_dev_setup(struct net_device *dev)
 	dev->priv_flags = IFF_EBRIDGE;
 
 	dev->features = NETIF_F_SG | NETIF_F_FRAGLIST | NETIF_F_HIGHDMA |
-			NETIF_F_GSO_MASK | NETIF_F_NO_CSUM | NETIF_F_LLTX |
+			NETIF_F_GSO_MASK | NETIF_F_HW_CSUM | NETIF_F_LLTX |
 			NETIF_F_NETNS_LOCAL | NETIF_F_HW_VLAN_TX;
 	dev->hw_features = NETIF_F_SG | NETIF_F_FRAGLIST | NETIF_F_HIGHDMA |
-			   NETIF_F_GSO_MASK | NETIF_F_NO_CSUM |
+			   NETIF_F_GSO_MASK | NETIF_F_HW_CSUM |
 			   NETIF_F_HW_VLAN_TX;
 
 	br->dev = dev;

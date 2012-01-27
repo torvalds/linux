@@ -177,19 +177,19 @@ static void wait_for_dc_servo(struct snd_soc_codec *codec)
 }
 
 static const unsigned int in_tlv[] = {
-	TLV_DB_RANGE_HEAD(6),
+	TLV_DB_RANGE_HEAD(3),
 	0, 0, TLV_DB_SCALE_ITEM(-600, 0, 0),
 	1, 3, TLV_DB_SCALE_ITEM(-350, 350, 0),
 	4, 6, TLV_DB_SCALE_ITEM(600, 600, 0),
 };
 static const unsigned int mix_tlv[] = {
-	TLV_DB_RANGE_HEAD(4),
+	TLV_DB_RANGE_HEAD(2),
 	0, 2, TLV_DB_SCALE_ITEM(-1200, 300, 0),
 	3, 3, TLV_DB_SCALE_ITEM(0, 0, 0),
 };
 static const DECLARE_TLV_DB_SCALE(out_tlv, -5700, 100, 0);
 static const unsigned int spkboost_tlv[] = {
-	TLV_DB_RANGE_HEAD(7),
+	TLV_DB_RANGE_HEAD(2),
 	0, 6, TLV_DB_SCALE_ITEM(0, 150, 0),
 	7, 7, TLV_DB_SCALE_ITEM(1200, 0, 0),
 };
@@ -513,18 +513,7 @@ static int wm9090_set_bias_level(struct snd_soc_codec *codec,
 	case SND_SOC_BIAS_STANDBY:
 		if (codec->dapm.bias_level == SND_SOC_BIAS_OFF) {
 			/* Restore the register cache */
-			for (i = 1; i < codec->driver->reg_cache_size; i++) {
-				if (reg_cache[i] == wm9090_reg_defaults[i])
-					continue;
-				if (wm9090_volatile(codec, i))
-					continue;
-
-				ret = snd_soc_write(codec, i, reg_cache[i]);
-				if (ret != 0)
-					dev_warn(codec->dev,
-						 "Failed to restore register %d: %d\n",
-						 i, ret);
-			}
+			snd_soc_cache_sync(codec);
 		}
 
 		/* We keep VMID off during standby since the combination of
@@ -604,7 +593,7 @@ static int wm9090_probe(struct snd_soc_codec *codec)
 }
 
 #ifdef CONFIG_PM
-static int wm9090_suspend(struct snd_soc_codec *codec, pm_message_t state)
+static int wm9090_suspend(struct snd_soc_codec *codec)
 {
 	wm9090_set_bias_level(codec, SND_SOC_BIAS_OFF);
 
@@ -647,7 +636,7 @@ static int wm9090_i2c_probe(struct i2c_client *i2c,
 	struct wm9090_priv *wm9090;
 	int ret;
 
-	wm9090 = kzalloc(sizeof(*wm9090), GFP_KERNEL);
+	wm9090 = devm_kzalloc(&i2c->dev, sizeof(*wm9090), GFP_KERNEL);
 	if (wm9090 == NULL) {
 		dev_err(&i2c->dev, "Can not allocate memory\n");
 		return -ENOMEM;
@@ -661,8 +650,6 @@ static int wm9090_i2c_probe(struct i2c_client *i2c,
 
 	ret =  snd_soc_register_codec(&i2c->dev,
 			&soc_codec_dev_wm9090,  NULL, 0);
-	if (ret < 0)
-		kfree(wm9090);
 	return ret;
 }
 
@@ -671,7 +658,6 @@ static int __devexit wm9090_i2c_remove(struct i2c_client *i2c)
 	struct wm9090_priv *wm9090 = i2c_get_clientdata(i2c);
 
 	snd_soc_unregister_codec(&i2c->dev);
-	kfree(wm9090);
 
 	return 0;
 }
@@ -685,7 +671,7 @@ MODULE_DEVICE_TABLE(i2c, wm9090_id);
 
 static struct i2c_driver wm9090_i2c_driver = {
 	.driver = {
-		.name = "wm9090-codec",
+		.name = "wm9090",
 		.owner = THIS_MODULE,
 	},
 	.probe = wm9090_i2c_probe,

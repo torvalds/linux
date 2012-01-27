@@ -1692,7 +1692,7 @@ int ocfs2_open_lock(struct inode *inode)
 	mlog(0, "inode %llu take PRMODE open lock\n",
 	     (unsigned long long)OCFS2_I(inode)->ip_blkno);
 
-	if (ocfs2_mount_local(osb))
+	if (ocfs2_is_hard_readonly(osb) || ocfs2_mount_local(osb))
 		goto out;
 
 	lockres = &OCFS2_I(inode)->ip_open_lockres;
@@ -1717,6 +1717,12 @@ int ocfs2_try_open_lock(struct inode *inode, int write)
 	mlog(0, "inode %llu try to take %s open lock\n",
 	     (unsigned long long)OCFS2_I(inode)->ip_blkno,
 	     write ? "EXMODE" : "PRMODE");
+
+	if (ocfs2_is_hard_readonly(osb)) {
+		if (write)
+			status = -EROFS;
+		goto out;
+	}
 
 	if (ocfs2_mount_local(osb))
 		goto out;
@@ -2298,7 +2304,7 @@ int ocfs2_inode_lock_full_nested(struct inode *inode,
 	if (ocfs2_is_hard_readonly(osb)) {
 		if (ex)
 			status = -EROFS;
-		goto bail;
+		goto getbh;
 	}
 
 	if (ocfs2_mount_local(osb))
@@ -2356,7 +2362,7 @@ local:
 			mlog_errno(status);
 		goto bail;
 	}
-
+getbh:
 	if (ret_bh) {
 		status = ocfs2_assign_bh(inode, ret_bh, local_bh);
 		if (status < 0) {
@@ -2628,8 +2634,11 @@ int ocfs2_dentry_lock(struct dentry *dentry, int ex)
 
 	BUG_ON(!dl);
 
-	if (ocfs2_is_hard_readonly(osb))
-		return -EROFS;
+	if (ocfs2_is_hard_readonly(osb)) {
+		if (ex)
+			return -EROFS;
+		return 0;
+	}
 
 	if (ocfs2_mount_local(osb))
 		return 0;
@@ -2647,7 +2656,7 @@ void ocfs2_dentry_unlock(struct dentry *dentry, int ex)
 	struct ocfs2_dentry_lock *dl = dentry->d_fsdata;
 	struct ocfs2_super *osb = OCFS2_SB(dentry->d_sb);
 
-	if (!ocfs2_mount_local(osb))
+	if (!ocfs2_is_hard_readonly(osb) && !ocfs2_mount_local(osb))
 		ocfs2_cluster_unlock(osb, &dl->dl_lockres, level);
 }
 

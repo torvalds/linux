@@ -32,6 +32,7 @@
 #include "i915_drv.h"
 #include "i915_trace.h"
 #include "intel_drv.h"
+#include <linux/dma_remapping.h>
 
 struct change_domains {
 	uint32_t invalidate_domains;
@@ -746,6 +747,22 @@ i915_gem_execbuffer_flush(struct drm_device *dev,
 	return 0;
 }
 
+static bool
+intel_enable_semaphores(struct drm_device *dev)
+{
+	if (INTEL_INFO(dev)->gen < 6)
+		return 0;
+
+	if (i915_semaphores >= 0)
+		return i915_semaphores;
+
+	/* Disable semaphores on SNB */
+	if (INTEL_INFO(dev)->gen == 6)
+		return 0;
+
+	return 1;
+}
+
 static int
 i915_gem_execbuffer_sync_rings(struct drm_i915_gem_object *obj,
 			       struct intel_ring_buffer *to)
@@ -758,7 +775,7 @@ i915_gem_execbuffer_sync_rings(struct drm_i915_gem_object *obj,
 		return 0;
 
 	/* XXX gpu semaphores are implicated in various hard hangs on SNB */
-	if (INTEL_INFO(obj->base.dev)->gen < 6 || !i915_semaphores)
+	if (!intel_enable_semaphores(obj->base.dev))
 		return i915_gem_object_wait_rendering(obj);
 
 	idx = intel_ring_sync_index(from, to);
@@ -954,6 +971,31 @@ i915_gem_execbuffer_retire_commands(struct drm_device *dev,
 }
 
 static int
+i915_reset_gen7_sol_offsets(struct drm_device *dev,
+			    struct intel_ring_buffer *ring)
+{
+	drm_i915_private_t *dev_priv = dev->dev_private;
+	int ret, i;
+
+	if (!IS_GEN7(dev) || ring != &dev_priv->ring[RCS])
+		return 0;
+
+	ret = intel_ring_begin(ring, 4 * 3);
+	if (ret)
+		return ret;
+
+	for (i = 0; i < 4; i++) {
+		intel_ring_emit(ring, MI_LOAD_REGISTER_IMM(1));
+		intel_ring_emit(ring, GEN7_SO_WRITE_OFFSET(i));
+		intel_ring_emit(ring, 0);
+	}
+
+	intel_ring_advance(ring);
+
+	return 0;
+}
+
+static int
 i915_gem_do_execbuffer(struct drm_device *dev, void *data,
 		       struct drm_file *file,
 		       struct drm_i915_gem_execbuffer2 *args,
@@ -967,6 +1009,7 @@ i915_gem_do_execbuffer(struct drm_device *dev, void *data,
 	struct intel_ring_buffer *ring;
 	u32 exec_start, exec_len;
 	u32 seqno;
+	u32 mask;
 	int ret, mode, i;
 
 	if (!i915_gem_check_execbuffer(args)) {
@@ -1004,6 +1047,7 @@ i915_gem_do_execbuffer(struct drm_device *dev, void *data,
 	}
 
 	mode = args->flags & I915_EXEC_CONSTANTS_MASK;
+	mask = I915_EXEC_CONSTANTS_MASK;
 	switch (mode) {
 	case I915_EXEC_CONSTANTS_REL_GENERAL:
 	case I915_EXEC_CONSTANTS_ABSOLUTE:
@@ -1017,18 +1061,9 @@ i915_gem_do_execbuffer(struct drm_device *dev, void *data,
 			    mode == I915_EXEC_CONSTANTS_REL_SURFACE)
 				return -EINVAL;
 
-			ret = intel_ring_begin(ring, 4);
-			if (ret)
-				return ret;
-
-			intel_ring_emit(ring, MI_NOOP);
-			intel_ring_emit(ring, MI_LOAD_REGISTER_IMM(1));
-			intel_ring_emit(ring, INSTPM);
-			intel_ring_emit(ring,
-					I915_EXEC_CONSTANTS_MASK << 16 | mode);
-			intel_ring_advance(ring);
-
-			dev_priv->relative_constants_mode = mode;
+			/* The HW changed the meaning on this bit on gen6 */
+			if (INTEL_INFO(dev)->gen >= 6)
+				mask &= ~I915_EXEC_CONSTANTS_REL_SURFACE;
 		}
 		break;
 	default:
@@ -1157,6 +1192,27 @@ i915_gem_do_execbuffer(struct drm_device *dev, void *data,
 
 			BUG_ON(ring->sync_seqno[i]);
 		}
+	}
+
+	if (ring == &dev_priv->ring[RCS] &&
+	    mode != dev_priv->relative_constants_mode) {
+		ret = intel_ring_begin(ring, 4);
+		if (ret)
+				goto err;
+
+		intel_ring_emit(ring, MI_NOOP);
+		intel_ring_emit(ring, MI_LOAD_REGISTER_IMM(1));
+		intel_ring_emit(ring, INSTPM);
+		intel_ring_emit(ring, mask << 16 | mode);
+		intel_ring_advance(ring);
+
+		dev_priv->relative_constants_mode = mode;
+	}
+
+	if (args->flags & I915_EXEC_GEN7_SOL_RESET) {
+		ret = i915_reset_gen7_sol_offsets(dev, ring);
+		if (ret)
+			goto err;
 	}
 
 	trace_i915_gem_ring_dispatch(ring, seqno);

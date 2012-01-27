@@ -138,8 +138,6 @@ static int twl6030_irq_thread(void *data)
 	static const unsigned max_i2c_errors = 100;
 	int ret;
 
-	current->flags |= PF_NOFREEZE;
-
 	while (!kthread_should_stop()) {
 		int i;
 		union {

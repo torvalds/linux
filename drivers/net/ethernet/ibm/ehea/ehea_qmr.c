@@ -34,9 +34,7 @@
 #include "ehea_phyp.h"
 #include "ehea_qmr.h"
 
-struct ehea_bmap *ehea_bmap = NULL;
-
-
+static struct ehea_bmap *ehea_bmap;
 
 static void *hw_qpageit_get_inc(struct hw_queue *queue)
 {
@@ -212,7 +210,7 @@ out_nomem:
 	return NULL;
 }
 
-u64 ehea_destroy_cq_res(struct ehea_cq *cq, u64 force)
+static u64 ehea_destroy_cq_res(struct ehea_cq *cq, u64 force)
 {
 	u64 hret;
 	u64 adapter_handle = cq->adapter->handle;
@@ -337,7 +335,7 @@ struct ehea_eqe *ehea_poll_eq(struct ehea_eq *eq)
 	return eqe;
 }
 
-u64 ehea_destroy_eq_res(struct ehea_eq *eq, u64 force)
+static u64 ehea_destroy_eq_res(struct ehea_eq *eq, u64 force)
 {
 	u64 hret;
 	unsigned long flags;
@@ -381,7 +379,7 @@ int ehea_destroy_eq(struct ehea_eq *eq)
 /**
  * allocates memory for a queue and registers pages in phyp
  */
-int ehea_qp_alloc_register(struct ehea_qp *qp, struct hw_queue *hw_queue,
+static int ehea_qp_alloc_register(struct ehea_qp *qp, struct hw_queue *hw_queue,
 			   int nr_pages, int wqe_size, int act_nr_sges,
 			   struct ehea_adapter *adapter, int h_call_q_selector)
 {
@@ -516,7 +514,7 @@ out_freemem:
 	return NULL;
 }
 
-u64 ehea_destroy_qp_res(struct ehea_qp *qp, u64 force)
+static u64 ehea_destroy_qp_res(struct ehea_qp *qp, u64 force)
 {
 	u64 hret;
 	struct ehea_qp_init_attr *qp_attr = &qp->init_attr;
@@ -976,7 +974,7 @@ int ehea_gen_smr(struct ehea_adapter *adapter, struct ehea_mr *old_mr,
 	return 0;
 }
 
-void print_error_data(u64 *data)
+static void print_error_data(u64 *data)
 {
 	int length;
 	u64 type = EHEA_BMASK_GET(ERROR_DATA_TYPE, data[2]);

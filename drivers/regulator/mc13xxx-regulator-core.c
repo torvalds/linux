@@ -18,12 +18,14 @@
 #include <linux/mfd/mc13xxx.h>
 #include <linux/regulator/machine.h>
 #include <linux/regulator/driver.h>
+#include <linux/regulator/of_regulator.h>
 #include <linux/platform_device.h>
 #include <linux/kernel.h>
 #include <linux/slab.h>
 #include <linux/init.h>
 #include <linux/err.h>
 #include <linux/module.h>
+#include <linux/of.h>
 #include "mc13xxx.h"
 
 static int mc13xxx_regulator_enable(struct regulator_dev *rdev)
@@ -235,6 +237,61 @@ int mc13xxx_sw_regulator_is_enabled(struct regulator_dev *rdev)
 	return 1;
 }
 EXPORT_SYMBOL_GPL(mc13xxx_sw_regulator_is_enabled);
+
+#ifdef CONFIG_OF
+int __devinit mc13xxx_get_num_regulators_dt(struct platform_device *pdev)
+{
+	struct device_node *parent, *child;
+	int num = 0;
+
+	of_node_get(pdev->dev.parent->of_node);
+	parent = of_find_node_by_name(pdev->dev.parent->of_node, "regulators");
+	if (!parent)
+		return -ENODEV;
+
+	for_each_child_of_node(parent, child)
+		num++;
+
+	return num;
+}
+
+struct mc13xxx_regulator_init_data * __devinit mc13xxx_parse_regulators_dt(
+	struct platform_device *pdev, struct mc13xxx_regulator *regulators,
+	int num_regulators)
+{
+	struct mc13xxx_regulator_priv *priv = platform_get_drvdata(pdev);
+	struct mc13xxx_regulator_init_data *data, *p;
+	struct device_node *parent, *child;
+	int i;
+
+	of_node_get(pdev->dev.parent->of_node);
+	parent = of_find_node_by_name(pdev->dev.parent->of_node, "regulators");
+	if (!parent)
+		return NULL;
+
+	data = devm_kzalloc(&pdev->dev, sizeof(*data) * priv->num_regulators,
+			    GFP_KERNEL);
+	if (!data)
+		return NULL;
+	p = data;
+
+	for_each_child_of_node(parent, child) {
+		for (i = 0; i < num_regulators; i++) {
+			if (!of_node_cmp(child->name,
+					 regulators[i].desc.name)) {
+				p->id = i;
+				p->init_data = of_get_regulator_init_data(
+							&pdev->dev, child);
+				p->node = child;
+				p++;
+				break;
+			}
+		}
+	}
+
+	return data;
+}
+#endif
 
 MODULE_LICENSE("GPL v2");
 MODULE_AUTHOR("Yong Shen <yong.shen@linaro.org>");

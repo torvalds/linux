@@ -19,6 +19,7 @@
 #include "util/color.h"
 #include <linux/list.h>
 #include "util/cache.h"
+#include "util/evsel.h"
 #include <linux/rbtree.h>
 #include "util/symbol.h"
 #include "util/callchain.h"
@@ -31,13 +32,14 @@
 #include "util/event.h"
 #include "util/session.h"
 #include "util/svghelper.h"
+#include "util/tool.h"
 
 #define SUPPORT_OLD_POWER_EVENTS 1
 #define PWR_EVENT_EXIT -1
 
 
-static char		const *input_name = "perf.data";
-static char		const *output_name = "output.svg";
+static const char	*input_name;
+static const char	*output_name = "output.svg";
 
 static unsigned int	numcpus;
 static u64		min_freq;	/* Lowest CPU frequency seen */
@@ -273,25 +275,28 @@ static int cpus_cstate_state[MAX_CPUS];
 static u64 cpus_pstate_start_times[MAX_CPUS];
 static u64 cpus_pstate_state[MAX_CPUS];
 
-static int process_comm_event(union perf_event *event,
+static int process_comm_event(struct perf_tool *tool __used,
+			      union perf_event *event,
 			      struct perf_sample *sample __used,
-			      struct perf_session *session __used)
+			      struct machine *machine __used)
 {
 	pid_set_comm(event->comm.tid, event->comm.comm);
 	return 0;
 }
 
-static int process_fork_event(union perf_event *event,
+static int process_fork_event(struct perf_tool *tool __used,
+			      union perf_event *event,
 			      struct perf_sample *sample __used,
-			      struct perf_session *session __used)
+			      struct machine *machine __used)
 {
 	pid_fork(event->fork.pid, event->fork.ppid, event->fork.time);
 	return 0;
 }
 
-static int process_exit_event(union perf_event *event,
+static int process_exit_event(struct perf_tool *tool __used,
+			      union perf_event *event,
 			      struct perf_sample *sample __used,
-			      struct perf_session *session __used)
+			      struct machine *machine __used)
 {
 	pid_exit(event->fork.pid, event->fork.time);
 	return 0;
@@ -486,14 +491,15 @@ static void sched_switch(int cpu, u64 timestamp, struct trace_entry *te)
 }
 
 
-static int process_sample_event(union perf_event *event __used,
+static int process_sample_event(struct perf_tool *tool __used,
+				union perf_event *event __used,
 				struct perf_sample *sample,
-				struct perf_evsel *evsel __used,
-				struct perf_session *session)
+				struct perf_evsel *evsel,
+				struct machine *machine __used)
 {
 	struct trace_entry *te;
 
-	if (session->sample_type & PERF_SAMPLE_TIME) {
+	if (evsel->attr.sample_type & PERF_SAMPLE_TIME) {
 		if (!first_time || first_time > sample->time)
 			first_time = sample->time;
 		if (last_time < sample->time)
@@ -501,7 +507,7 @@ static int process_sample_event(union perf_event *event __used,
 	}
 
 	te = (void *)sample->raw_data;
-	if (session->sample_type & PERF_SAMPLE_RAW && sample->raw_size > 0) {
+	if ((evsel->attr.sample_type & PERF_SAMPLE_RAW) && sample->raw_size > 0) {
 		char *event_str;
 #ifdef SUPPORT_OLD_POWER_EVENTS
 		struct power_entry_old *peo;
@@ -974,7 +980,7 @@ static void write_svg_file(const char *filename)
 	svg_close();
 }
 
-static struct perf_event_ops event_ops = {
+static struct perf_tool perf_timechart = {
 	.comm			= process_comm_event,
 	.fork			= process_fork_event,
 	.exit			= process_exit_event,
@@ -985,7 +991,7 @@ static struct perf_event_ops event_ops = {
 static int __cmd_timechart(void)
 {
 	struct perf_session *session = perf_session__new(input_name, O_RDONLY,
-							 0, false, &event_ops);
+							 0, false, &perf_timechart);
 	int ret = -EINVAL;
 
 	if (session == NULL)
@@ -994,7 +1000,7 @@ static int __cmd_timechart(void)
 	if (!perf_session__has_traces(session, "timechart record"))
 		goto out_delete;
 
-	ret = perf_session__process_events(session, &event_ops);
+	ret = perf_session__process_events(session, &perf_timechart);
 	if (ret)
 		goto out_delete;
 

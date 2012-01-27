@@ -29,7 +29,6 @@
 #include <linux/delay.h>
 #include <linux/firmware.h>
 #include <linux/i2c.h>
-#include <linux/version.h>
 #include <asm/div64.h>
 
 #include "dvb_frontend.h"
@@ -1123,55 +1122,51 @@ static int release(struct dvb_frontend *fe)
 	return 0;
 }
 
-/*
- * As defined on EN 300 429 Annex A and on ITU-T J.83 annex A, the DVB-C
- * roll-off factor is 0.15.
- * According with the specs, the amount of the needed bandwith is given by:
- *	Bw = Symbol_rate * (1 + 0.15)
- * As such, the maximum symbol rate supported by 6 MHz is
- *	max_symbol_rate = 6 MHz / 1.15 = 5217391 Bauds
- *NOTE: For ITU-T J.83 Annex C, the roll-off factor is 0.13. So:
- *	max_symbol_rate = 6 MHz / 1.13 = 5309735 Baud
- *	That means that an adjustment is needed for Japan,
- *	but, as currently DRX-K is hardcoded to Annex A, let's stick
- *	with 0.15 roll-off factor.
- */
-#define MAX_SYMBOL_RATE_6MHz	5217391
 
-static int set_params(struct dvb_frontend *fe,
-		      struct dvb_frontend_parameters *params)
+static int set_params(struct dvb_frontend *fe)
 {
 	struct tda_state *state = fe->tuner_priv;
 	int status = 0;
 	int Standard;
+	u32 bw = fe->dtv_property_cache.bandwidth_hz;
+	u32 delsys  = fe->dtv_property_cache.delivery_system;
 
-	state->m_Frequency = params->frequency;
+	state->m_Frequency = fe->dtv_property_cache.frequency;
 
-	if (fe->ops.info.type == FE_OFDM)
-		switch (params->u.ofdm.bandwidth) {
-		case BANDWIDTH_6_MHZ:
+	switch (delsys) {
+	case  SYS_DVBT:
+	case  SYS_DVBT2:
+		switch (bw) {
+		case 6000000:
 			Standard = HF_DVBT_6MHZ;
 			break;
-		case BANDWIDTH_7_MHZ:
+		case 7000000:
 			Standard = HF_DVBT_7MHZ;
 			break;
-		default:
-		case BANDWIDTH_8_MHZ:
+		case 8000000:
 			Standard = HF_DVBT_8MHZ;
 			break;
+		default:
+			return -EINVAL;
 		}
-	else if (fe->ops.info.type == FE_QAM) {
-		if (params->u.qam.symbol_rate <= MAX_SYMBOL_RATE_6MHz)
+	case SYS_DVBC_ANNEX_A:
+	case SYS_DVBC_ANNEX_C:
+		if (bw <= 6000000)
 			Standard = HF_DVBC_6MHZ;
+		else if (bw <= 7000000)
+			Standard = HF_DVBC_7MHZ;
 		else
 			Standard = HF_DVBC_8MHZ;
-	} else
+		break;
+	default:
 		return -EINVAL;
+	}
 	do {
-		status = RFTrackingFiltersCorrection(state, params->frequency);
+		status = RFTrackingFiltersCorrection(state, state->m_Frequency);
 		if (status < 0)
 			break;
-		status = ChannelConfiguration(state, params->frequency, Standard);
+		status = ChannelConfiguration(state, state->m_Frequency,
+					      Standard);
 		if (status < 0)
 			break;
 

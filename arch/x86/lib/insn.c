@@ -202,7 +202,7 @@ void insn_get_opcode(struct insn *insn)
 		m = insn_vex_m_bits(insn);
 		p = insn_vex_p_bits(insn);
 		insn->attr = inat_get_avx_attribute(op, m, p);
-		if (!inat_accept_vex(insn->attr))
+		if (!inat_accept_vex(insn->attr) && !inat_is_group(insn->attr))
 			insn->attr = 0;	/* This instruction is bad */
 		goto end;	/* VEX has only 1 byte for opcode */
 	}
@@ -249,6 +249,8 @@ void insn_get_modrm(struct insn *insn)
 			pfx = insn_last_prefix(insn);
 			insn->attr = inat_get_group_attribute(mod, pfx,
 							      insn->attr);
+			if (insn_is_avx(insn) && !inat_accept_vex(insn->attr))
+				insn->attr = 0;	/* This is bad */
 		}
 	}
 

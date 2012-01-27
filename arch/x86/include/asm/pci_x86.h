@@ -44,8 +44,6 @@ enum pci_bf_sort_state {
 
 /* pci-i386.c */
 
-extern unsigned int pcibios_max_latency;
-
 void pcibios_resource_survey(void);
 void pcibios_set_cache_line_size(void);
 

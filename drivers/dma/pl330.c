@@ -19,6 +19,7 @@
 #include <linux/amba/pl330.h>
 #include <linux/pm_runtime.h>
 #include <linux/scatterlist.h>
+#include <linux/of.h>
 
 #define NR_DEFAULT_DESC	16
 
@@ -115,6 +116,9 @@ struct dma_pl330_desc {
 	/* The channel which currently holds this desc */
 	struct dma_pl330_chan *pchan;
 };
+
+/* forward declaration */
+static struct amba_driver pl330_driver;
 
 static inline struct dma_pl330_chan *
 to_pchan(struct dma_chan *ch)
@@ -267,6 +271,32 @@ static void dma_pl330_rqcb(void *token, enum pl330_op_err err)
 	tasklet_schedule(&pch->task);
 }
 
+bool pl330_filter(struct dma_chan *chan, void *param)
+{
+	u8 *peri_id;
+
+	if (chan->device->dev->driver != &pl330_driver.drv)
+		return false;
+
+#ifdef CONFIG_OF
+	if (chan->device->dev->of_node) {
+		const __be32 *prop_value;
+		phandle phandle;
+		struct device_node *node;
+
+		prop_value = ((struct property *)param)->value;
+		phandle = be32_to_cpup(prop_value++);
+		node = of_find_node_by_phandle(phandle);
+		return ((chan->private == node) &&
+				(chan->chan_id == be32_to_cpup(prop_value)));
+	}
+#endif
+
+	peri_id = chan->private;
+	return *peri_id == (unsigned)param;
+}
+EXPORT_SYMBOL(pl330_filter);
+
 static int pl330_alloc_chan_resources(struct dma_chan *chan)
 {
 	struct dma_pl330_chan *pch = to_pchan(chan);
@@ -320,14 +350,14 @@ static int pl330_control(struct dma_chan *chan, enum dma_ctrl_cmd cmd, unsigned 
 	case DMA_SLAVE_CONFIG:
 		slave_config = (struct dma_slave_config *)arg;
 
-		if (slave_config->direction == DMA_TO_DEVICE) {
+		if (slave_config->direction == DMA_MEM_TO_DEV) {
 			if (slave_config->dst_addr)
 				pch->fifo_addr = slave_config->dst_addr;
 			if (slave_config->dst_addr_width)
 				pch->burst_sz = __ffs(slave_config->dst_addr_width);
 			if (slave_config->dst_maxburst)
 				pch->burst_len = slave_config->dst_maxburst;
-		} else if (slave_config->direction == DMA_FROM_DEVICE) {
+		} else if (slave_config->direction == DMA_DEV_TO_MEM) {
 			if (slave_config->src_addr)
 				pch->fifo_addr = slave_config->src_addr;
 			if (slave_config->src_addr_width)
@@ -497,7 +527,7 @@ pluck_desc(struct dma_pl330_dmac *pdmac)
 static struct dma_pl330_desc *pl330_get_desc(struct dma_pl330_chan *pch)
 {
 	struct dma_pl330_dmac *pdmac = pch->dmac;
-	struct dma_pl330_peri *peri = pch->chan.private;
+	u8 *peri_id = pch->chan.private;
 	struct dma_pl330_desc *desc;
 
 	/* Pluck one desc from the pool of DMAC */
@@ -522,13 +552,7 @@ static struct dma_pl330_desc *pl330_get_desc(struct dma_pl330_chan *pch)
 	desc->txd.cookie = 0;
 	async_tx_ack(&desc->txd);
 
-	if (peri) {
-		desc->req.rqtype = peri->rqtype;
-		desc->req.peri = pch->chan.chan_id;
-	} else {
-		desc->req.rqtype = MEMTOMEM;
-		desc->req.peri = 0;
-	}
+	desc->req.peri = peri_id ? pch->chan.chan_id : 0;
 
 	dma_async_tx_descriptor_init(&desc->txd, &pch->chan);
 
@@ -597,7 +621,7 @@ static inline int get_burst_len(struct dma_pl330_desc *desc, size_t len)
 
 static struct dma_async_tx_descriptor *pl330_prep_dma_cyclic(
 		struct dma_chan *chan, dma_addr_t dma_addr, size_t len,
-		size_t period_len, enum dma_data_direction direction)
+		size_t period_len, enum dma_transfer_direction direction)
 {
 	struct dma_pl330_desc *desc;
 	struct dma_pl330_chan *pch = to_pchan(chan);
@@ -612,15 +636,17 @@ static struct dma_async_tx_descriptor *pl330_prep_dma_cyclic(
 	}
 
 	switch (direction) {
-	case DMA_TO_DEVICE:
+	case DMA_MEM_TO_DEV:
 		desc->rqcfg.src_inc = 1;
 		desc->rqcfg.dst_inc = 0;
+		desc->req.rqtype = MEMTODEV;
 		src = dma_addr;
 		dst = pch->fifo_addr;
 		break;
-	case DMA_FROM_DEVICE:
+	case DMA_DEV_TO_MEM:
 		desc->rqcfg.src_inc = 0;
 		desc->rqcfg.dst_inc = 1;
+		desc->req.rqtype = DEVTOMEM;
 		src = pch->fifo_addr;
 		dst = dma_addr;
 		break;
@@ -646,14 +672,10 @@ pl330_prep_dma_memcpy(struct dma_chan *chan, dma_addr_t dst,
 {
 	struct dma_pl330_desc *desc;
 	struct dma_pl330_chan *pch = to_pchan(chan);
-	struct dma_pl330_peri *peri = chan->private;
 	struct pl330_info *pi;
 	int burst;
 
 	if (unlikely(!pch || !len))
-		return NULL;
-
-	if (peri && peri->rqtype != MEMTOMEM)
 		return NULL;
 
 	pi = &pch->dmac->pif;
@@ -664,6 +686,7 @@ pl330_prep_dma_memcpy(struct dma_chan *chan, dma_addr_t dst,
 
 	desc->rqcfg.src_inc = 1;
 	desc->rqcfg.dst_inc = 1;
+	desc->req.rqtype = MEMTOMEM;
 
 	/* Select max possible burst size */
 	burst = pi->pcfg.data_bus_width / 8;
@@ -687,29 +710,18 @@ pl330_prep_dma_memcpy(struct dma_chan *chan, dma_addr_t dst,
 
 static struct dma_async_tx_descriptor *
 pl330_prep_slave_sg(struct dma_chan *chan, struct scatterlist *sgl,
-		unsigned int sg_len, enum dma_data_direction direction,
+		unsigned int sg_len, enum dma_transfer_direction direction,
 		unsigned long flg)
 {
 	struct dma_pl330_desc *first, *desc = NULL;
 	struct dma_pl330_chan *pch = to_pchan(chan);
-	struct dma_pl330_peri *peri = chan->private;
 	struct scatterlist *sg;
 	unsigned long flags;
 	int i;
 	dma_addr_t addr;
 
-	if (unlikely(!pch || !sgl || !sg_len || !peri))
+	if (unlikely(!pch || !sgl || !sg_len))
 		return NULL;
-
-	/* Make sure the direction is consistent */
-	if ((direction == DMA_TO_DEVICE &&
-				peri->rqtype != MEMTODEV) ||
-			(direction == DMA_FROM_DEVICE &&
-				peri->rqtype != DEVTOMEM)) {
-		dev_err(pch->dmac->pif.dev, "%s:%d Invalid Direction\n",
-				__func__, __LINE__);
-		return NULL;
-	}
 
 	addr = pch->fifo_addr;
 
@@ -747,14 +759,16 @@ pl330_prep_slave_sg(struct dma_chan *chan, struct scatterlist *sgl,
 		else
 			list_add_tail(&desc->node, &first->node);
 
-		if (direction == DMA_TO_DEVICE) {
+		if (direction == DMA_MEM_TO_DEV) {
 			desc->rqcfg.src_inc = 1;
 			desc->rqcfg.dst_inc = 0;
+			desc->req.rqtype = MEMTODEV;
 			fill_px(&desc->px,
 				addr, sg_dma_address(sg), sg_dma_len(sg));
 		} else {
 			desc->rqcfg.src_inc = 0;
 			desc->rqcfg.dst_inc = 1;
+			desc->req.rqtype = DEVTOMEM;
 			fill_px(&desc->px,
 				sg_dma_address(sg), addr, sg_dma_len(sg));
 		}
@@ -820,17 +834,7 @@ pl330_probe(struct amba_device *adev, const struct amba_id *id)
 
 	amba_set_drvdata(adev, pdmac);
 
-#ifdef CONFIG_PM_RUNTIME
-	/* to use the runtime PM helper functions */
-	pm_runtime_enable(&adev->dev);
-
-	/* enable the power domain */
-	if (pm_runtime_get_sync(&adev->dev)) {
-		dev_err(&adev->dev, "failed to get runtime pm\n");
-		ret = -ENODEV;
-		goto probe_err1;
-	}
-#else
+#ifndef CONFIG_PM_RUNTIME
 	/* enable dma clk */
 	clk_enable(pdmac->clk);
 #endif
@@ -856,32 +860,16 @@ pl330_probe(struct amba_device *adev, const struct amba_id *id)
 	INIT_LIST_HEAD(&pd->channels);
 
 	/* Initialize channel parameters */
-	num_chan = max(pdat ? pdat->nr_valid_peri : 0, (u8)pi->pcfg.num_chan);
+	num_chan = max(pdat ? pdat->nr_valid_peri : (u8)pi->pcfg.num_peri,
+			(u8)pi->pcfg.num_chan);
 	pdmac->peripherals = kzalloc(num_chan * sizeof(*pch), GFP_KERNEL);
 
 	for (i = 0; i < num_chan; i++) {
 		pch = &pdmac->peripherals[i];
-		if (pdat) {
-			struct dma_pl330_peri *peri = &pdat->peri[i];
-
-			switch (peri->rqtype) {
-			case MEMTOMEM:
-				dma_cap_set(DMA_MEMCPY, pd->cap_mask);
-				break;
-			case MEMTODEV:
-			case DEVTOMEM:
-				dma_cap_set(DMA_SLAVE, pd->cap_mask);
-				dma_cap_set(DMA_CYCLIC, pd->cap_mask);
-				break;
-			default:
-				dev_err(&adev->dev, "DEVTODEV Not Supported\n");
-				continue;
-			}
-			pch->chan.private = peri;
-		} else {
-			dma_cap_set(DMA_MEMCPY, pd->cap_mask);
-			pch->chan.private = NULL;
-		}
+		if (!adev->dev.of_node)
+			pch->chan.private = pdat ? &pdat->peri_id[i] : NULL;
+		else
+			pch->chan.private = adev->dev.of_node;
 
 		INIT_LIST_HEAD(&pch->work_list);
 		spin_lock_init(&pch->lock);
@@ -894,6 +882,15 @@ pl330_probe(struct amba_device *adev, const struct amba_id *id)
 	}
 
 	pd->dev = &adev->dev;
+	if (pdat) {
+		pd->cap_mask = pdat->cap_mask;
+	} else {
+		dma_cap_set(DMA_MEMCPY, pd->cap_mask);
+		if (pi->pcfg.num_peri) {
+			dma_cap_set(DMA_SLAVE, pd->cap_mask);
+			dma_cap_set(DMA_CYCLIC, pd->cap_mask);
+		}
+	}
 
 	pd->device_alloc_chan_resources = pl330_alloc_chan_resources;
 	pd->device_free_chan_resources = pl330_free_chan_resources;
@@ -970,10 +967,7 @@ static int __devexit pl330_remove(struct amba_device *adev)
 	res = &adev->res;
 	release_mem_region(res->start, resource_size(res));
 
-#ifdef CONFIG_PM_RUNTIME
-	pm_runtime_put(&adev->dev);
-	pm_runtime_disable(&adev->dev);
-#else
+#ifndef CONFIG_PM_RUNTIME
 	clk_disable(pdmac->clk);
 #endif
 
@@ -989,6 +983,8 @@ static struct amba_id pl330_ids[] = {
 	},
 	{ 0, 0 },
 };
+
+MODULE_DEVICE_TABLE(amba, pl330_ids);
 
 #ifdef CONFIG_PM_RUNTIME
 static int pl330_runtime_suspend(struct device *dev)

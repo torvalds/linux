@@ -15,9 +15,9 @@
 #include <linux/platform_device.h>
 #include <linux/dma-mapping.h>
 #include <linux/serial_8250.h>
-#include <linux/mbus.h>
 #include <linux/mv643xx_i2c.h>
 #include <linux/ata_platform.h>
+#include <linux/delay.h>
 #include <net/dsa.h>
 #include <asm/page.h>
 #include <asm/setup.h>
@@ -31,6 +31,7 @@
 #include <plat/orion_nand.h>
 #include <plat/time.h>
 #include <plat/common.h>
+#include <plat/addr-map.h>
 #include "common.h"
 
 /*****************************************************************************
@@ -71,8 +72,7 @@ void __init orion5x_map_io(void)
  ****************************************************************************/
 void __init orion5x_ehci0_init(void)
 {
-	orion_ehci_init(&orion5x_mbus_dram_info,
-			ORION5X_USB0_PHYS_BASE, IRQ_ORION5X_USB0_CTRL);
+	orion_ehci_init(ORION5X_USB0_PHYS_BASE, IRQ_ORION5X_USB0_CTRL);
 }
 
 
@@ -81,8 +81,7 @@ void __init orion5x_ehci0_init(void)
  ****************************************************************************/
 void __init orion5x_ehci1_init(void)
 {
-	orion_ehci_1_init(&orion5x_mbus_dram_info,
-			  ORION5X_USB1_PHYS_BASE, IRQ_ORION5X_USB1_CTRL);
+	orion_ehci_1_init(ORION5X_USB1_PHYS_BASE, IRQ_ORION5X_USB1_CTRL);
 }
 
 
@@ -91,7 +90,7 @@ void __init orion5x_ehci1_init(void)
  ****************************************************************************/
 void __init orion5x_eth_init(struct mv643xx_eth_platform_data *eth_data)
 {
-	orion_ge00_init(eth_data, &orion5x_mbus_dram_info,
+	orion_ge00_init(eth_data,
 			ORION5X_ETH_PHYS_BASE, IRQ_ORION5X_ETH_SUM,
 			IRQ_ORION5X_ETH_ERR, orion5x_tclk);
 }
@@ -121,8 +120,7 @@ void __init orion5x_i2c_init(void)
  ****************************************************************************/
 void __init orion5x_sata_init(struct mv_sata_platform_data *sata_data)
 {
-	orion_sata_init(sata_data, &orion5x_mbus_dram_info,
-			ORION5X_SATA_PHYS_BASE, IRQ_ORION5X_SATA);
+	orion_sata_init(sata_data, ORION5X_SATA_PHYS_BASE, IRQ_ORION5X_SATA);
 }
 
 
@@ -158,8 +156,7 @@ void __init orion5x_uart1_init(void)
  ****************************************************************************/
 void __init orion5x_xor_init(void)
 {
-	orion_xor0_init(&orion5x_mbus_dram_info,
-			ORION5X_XOR_PHYS_BASE,
+	orion_xor0_init(ORION5X_XOR_PHYS_BASE,
 			ORION5X_XOR_PHYS_BASE + 0x200,
 			IRQ_ORION5X_XOR0, IRQ_ORION5X_XOR1);
 }
@@ -169,12 +166,7 @@ void __init orion5x_xor_init(void)
  ****************************************************************************/
 static void __init orion5x_crypto_init(void)
 {
-	int ret;
-
-	ret = orion5x_setup_sram_win();
-	if (ret)
-		return;
-
+	orion5x_setup_sram_win();
 	orion_crypto_init(ORION5X_CRYPTO_PHYS_BASE, ORION5X_SRAM_PHYS_BASE,
 			  SZ_8K, IRQ_ORION5X_CESA);
 }
@@ -302,6 +294,17 @@ void __init orion5x_init(void)
 	 * Register watchdog driver
 	 */
 	orion5x_wdt_init();
+}
+
+void orion5x_restart(char mode, const char *cmd)
+{
+	/*
+	 * Enable and issue soft reset
+	 */
+	orion5x_setbits(RSTOUTn_MASK, (1 << 2));
+	orion5x_setbits(CPU_SOFT_RESET, 1);
+	mdelay(200);
+	orion5x_clrbits(CPU_SOFT_RESET, 1);
 }
 
 /*

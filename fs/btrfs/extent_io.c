@@ -18,6 +18,7 @@
 #include "ctree.h"
 #include "btrfs_inode.h"
 #include "volumes.h"
+#include "check-integrity.h"
 
 static struct kmem_cache *extent_state_cache;
 static struct kmem_cache *extent_buffer_cache;
@@ -935,8 +936,10 @@ again:
 	node = tree_search(tree, start);
 	if (!node) {
 		prealloc = alloc_extent_state_atomic(prealloc);
-		if (!prealloc)
-			return -ENOMEM;
+		if (!prealloc) {
+			err = -ENOMEM;
+			goto out;
+		}
 		err = insert_state(tree, prealloc, start, end, &bits);
 		prealloc = NULL;
 		BUG_ON(err == -EEXIST);
@@ -992,8 +995,10 @@ hit_next:
 	 */
 	if (state->start < start) {
 		prealloc = alloc_extent_state_atomic(prealloc);
-		if (!prealloc)
-			return -ENOMEM;
+		if (!prealloc) {
+			err = -ENOMEM;
+			goto out;
+		}
 		err = split_state(tree, state, prealloc, start);
 		BUG_ON(err == -EEXIST);
 		prealloc = NULL;
@@ -1024,8 +1029,10 @@ hit_next:
 			this_end = last_start - 1;
 
 		prealloc = alloc_extent_state_atomic(prealloc);
-		if (!prealloc)
-			return -ENOMEM;
+		if (!prealloc) {
+			err = -ENOMEM;
+			goto out;
+		}
 
 		/*
 		 * Avoid to free 'prealloc' if it can be merged with
@@ -1051,8 +1058,10 @@ hit_next:
 	 */
 	if (state->start <= end && state->end > end) {
 		prealloc = alloc_extent_state_atomic(prealloc);
-		if (!prealloc)
-			return -ENOMEM;
+		if (!prealloc) {
+			err = -ENOMEM;
+			goto out;
+		}
 
 		err = split_state(tree, state, prealloc, end + 1);
 		BUG_ON(err == -EEXIST);
@@ -1887,7 +1896,7 @@ int repair_io_failure(struct btrfs_mapping_tree *map_tree, u64 start,
 	}
 	bio->bi_bdev = dev->bdev;
 	bio_add_page(bio, page, length, start-page_offset(page));
-	submit_bio(WRITE_SYNC, bio);
+	btrfsic_submit_bio(WRITE_SYNC, bio);
 	wait_for_completion(&compl);
 
 	if (!test_bit(BIO_UPTODATE, &bio->bi_flags)) {
@@ -2287,20 +2296,33 @@ static void end_bio_extent_readpage(struct bio *bio, int err)
 		if (!uptodate) {
 			int failed_mirror;
 			failed_mirror = (int)(unsigned long)bio->bi_bdev;
-			if (tree->ops && tree->ops->readpage_io_failed_hook)
-				ret = tree->ops->readpage_io_failed_hook(
-						bio, page, start, end,
-						failed_mirror, state);
-			else
-				ret = bio_readpage_error(bio, page, start, end,
-							 failed_mirror, NULL);
+			/*
+			 * The generic bio_readpage_error handles errors the
+			 * following way: If possible, new read requests are
+			 * created and submitted and will end up in
+			 * end_bio_extent_readpage as well (if we're lucky, not
+			 * in the !uptodate case). In that case it returns 0 and
+			 * we just go on with the next page in our bio. If it
+			 * can't handle the error it will return -EIO and we
+			 * remain responsible for that page.
+			 */
+			ret = bio_readpage_error(bio, page, start, end,
+							failed_mirror, NULL);
 			if (ret == 0) {
+error_handled:
 				uptodate =
 					test_bit(BIO_UPTODATE, &bio->bi_flags);
 				if (err)
 					uptodate = 0;
 				uncache_state(&cached);
 				continue;
+			}
+			if (tree->ops && tree->ops->readpage_io_failed_hook) {
+				ret = tree->ops->readpage_io_failed_hook(
+							bio, page, start, end,
+							failed_mirror, state);
+				if (ret == 0)
+					goto error_handled;
 			}
 		}
 
@@ -2372,7 +2394,7 @@ static int submit_one_bio(int rw, struct bio *bio, int mirror_num,
 		ret = tree->ops->submit_bio_hook(page->mapping->host, rw, bio,
 					   mirror_num, bio_flags, start);
 	else
-		submit_bio(rw, bio);
+		btrfsic_submit_bio(rw, bio);
 
 	if (bio_flagged(bio, BIO_EOPNOTSUPP))
 		ret = -EOPNOTSUPP;
@@ -3558,6 +3580,7 @@ static struct extent_buffer *__alloc_extent_buffer(struct extent_io_tree *tree,
 	atomic_set(&eb->blocking_writers, 0);
 	atomic_set(&eb->spinning_readers, 0);
 	atomic_set(&eb->spinning_writers, 0);
+	eb->lock_nested = 0;
 	init_waitqueue_head(&eb->write_lock_wq);
 	init_waitqueue_head(&eb->read_lock_wq);
 

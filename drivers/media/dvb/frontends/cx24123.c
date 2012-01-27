@@ -526,9 +526,9 @@ static int cx24123_set_symbolrate(struct cx24123_state *state, u32 srate)
  * to be configured and the correct band selected.
  * Calculate those values.
  */
-static int cx24123_pll_calculate(struct dvb_frontend *fe,
-	struct dvb_frontend_parameters *p)
+static int cx24123_pll_calculate(struct dvb_frontend *fe)
 {
+	struct dtv_frontend_properties *p = &fe->dtv_property_cache;
 	struct cx24123_state *state = fe->demodulator_priv;
 	u32 ndiv = 0, adiv = 0, vco_div = 0;
 	int i = 0;
@@ -548,8 +548,8 @@ static int cx24123_pll_calculate(struct dvb_frontend *fe,
 	 * FILTUNE programming bits */
 	for (i = 0; i < ARRAY_SIZE(cx24123_AGC_vals); i++) {
 		agcv = &cx24123_AGC_vals[i];
-		if ((agcv->symbolrate_low <= p->u.qpsk.symbol_rate) &&
-		    (agcv->symbolrate_high >= p->u.qpsk.symbol_rate)) {
+		if ((agcv->symbolrate_low <= p->symbol_rate) &&
+		    (agcv->symbolrate_high >= p->symbol_rate)) {
 			state->VCAarg = agcv->VCAprogdata;
 			state->VGAarg = agcv->VGAprogdata;
 			state->FILTune = agcv->FILTune;
@@ -601,8 +601,7 @@ static int cx24123_pll_calculate(struct dvb_frontend *fe,
  * Tuner cx24109 is written through a dedicated 3wire interface
  * on the demod chip.
  */
-static int cx24123_pll_writereg(struct dvb_frontend *fe,
-	struct dvb_frontend_parameters *p, u32 data)
+static int cx24123_pll_writereg(struct dvb_frontend *fe, u32 data)
 {
 	struct cx24123_state *state = fe->demodulator_priv;
 	unsigned long timeout;
@@ -659,26 +658,26 @@ static int cx24123_pll_writereg(struct dvb_frontend *fe,
 	return 0;
 }
 
-static int cx24123_pll_tune(struct dvb_frontend *fe,
-	struct dvb_frontend_parameters *p)
+static int cx24123_pll_tune(struct dvb_frontend *fe)
 {
+	struct dtv_frontend_properties *p = &fe->dtv_property_cache;
 	struct cx24123_state *state = fe->demodulator_priv;
 	u8 val;
 
 	dprintk("frequency=%i\n", p->frequency);
 
-	if (cx24123_pll_calculate(fe, p) != 0) {
+	if (cx24123_pll_calculate(fe) != 0) {
 		err("%s: cx24123_pll_calcutate failed\n", __func__);
 		return -EINVAL;
 	}
 
 	/* Write the new VCO/VGA */
-	cx24123_pll_writereg(fe, p, state->VCAarg);
-	cx24123_pll_writereg(fe, p, state->VGAarg);
+	cx24123_pll_writereg(fe, state->VCAarg);
+	cx24123_pll_writereg(fe, state->VGAarg);
 
 	/* Write the new bandselect and pll args */
-	cx24123_pll_writereg(fe, p, state->bandselectarg);
-	cx24123_pll_writereg(fe, p, state->pllarg);
+	cx24123_pll_writereg(fe, state->bandselectarg);
+	cx24123_pll_writereg(fe, state->pllarg);
 
 	/* set the FILTUNE voltage */
 	val = cx24123_readreg(state, 0x28) & ~0x3;
@@ -925,10 +924,10 @@ static int cx24123_read_snr(struct dvb_frontend *fe, u16 *snr)
 	return 0;
 }
 
-static int cx24123_set_frontend(struct dvb_frontend *fe,
-	struct dvb_frontend_parameters *p)
+static int cx24123_set_frontend(struct dvb_frontend *fe)
 {
 	struct cx24123_state *state = fe->demodulator_priv;
+	struct dtv_frontend_properties *p = &fe->dtv_property_cache;
 
 	dprintk("\n");
 
@@ -936,16 +935,16 @@ static int cx24123_set_frontend(struct dvb_frontend *fe,
 		state->config->set_ts_params(fe, 0);
 
 	state->currentfreq = p->frequency;
-	state->currentsymbolrate = p->u.qpsk.symbol_rate;
+	state->currentsymbolrate = p->symbol_rate;
 
 	cx24123_set_inversion(state, p->inversion);
-	cx24123_set_fec(state, p->u.qpsk.fec_inner);
-	cx24123_set_symbolrate(state, p->u.qpsk.symbol_rate);
+	cx24123_set_fec(state, p->fec_inner);
+	cx24123_set_symbolrate(state, p->symbol_rate);
 
 	if (!state->config->dont_use_pll)
-		cx24123_pll_tune(fe, p);
+		cx24123_pll_tune(fe);
 	else if (fe->ops.tuner_ops.set_params)
-		fe->ops.tuner_ops.set_params(fe, p);
+		fe->ops.tuner_ops.set_params(fe);
 	else
 		err("it seems I don't have a tuner...");
 
@@ -960,9 +959,9 @@ static int cx24123_set_frontend(struct dvb_frontend *fe,
 	return 0;
 }
 
-static int cx24123_get_frontend(struct dvb_frontend *fe,
-	struct dvb_frontend_parameters *p)
+static int cx24123_get_frontend(struct dvb_frontend *fe)
 {
+	struct dtv_frontend_properties *p = &fe->dtv_property_cache;
 	struct cx24123_state *state = fe->demodulator_priv;
 
 	dprintk("\n");
@@ -971,12 +970,12 @@ static int cx24123_get_frontend(struct dvb_frontend *fe,
 		err("%s: Failed to get inversion status\n", __func__);
 		return -EREMOTEIO;
 	}
-	if (cx24123_get_fec(state, &p->u.qpsk.fec_inner) != 0) {
+	if (cx24123_get_fec(state, &p->fec_inner) != 0) {
 		err("%s: Failed to get fec status\n", __func__);
 		return -EREMOTEIO;
 	}
 	p->frequency = state->currentfreq;
-	p->u.qpsk.symbol_rate = state->currentsymbolrate;
+	p->symbol_rate = state->currentsymbolrate;
 
 	return 0;
 }
@@ -1007,15 +1006,15 @@ static int cx24123_set_tone(struct dvb_frontend *fe, fe_sec_tone_mode_t tone)
 }
 
 static int cx24123_tune(struct dvb_frontend *fe,
-			struct dvb_frontend_parameters *params,
+			bool re_tune,
 			unsigned int mode_flags,
 			unsigned int *delay,
 			fe_status_t *status)
 {
 	int retval = 0;
 
-	if (params != NULL)
-		retval = cx24123_set_frontend(fe, params);
+	if (re_tune)
+		retval = cx24123_set_frontend(fe);
 
 	if (!(mode_flags & FE_TUNE_MODE_ONESHOT))
 		cx24123_read_status(fe, status);
@@ -1126,10 +1125,9 @@ error:
 EXPORT_SYMBOL(cx24123_attach);
 
 static struct dvb_frontend_ops cx24123_ops = {
-
+	.delsys = { SYS_DVBS },
 	.info = {
 		.name = "Conexant CX24123/CX24109",
-		.type = FE_QPSK,
 		.frequency_min = 950000,
 		.frequency_max = 2150000,
 		.frequency_stepsize = 1011, /* kHz for QPSK frontends */

@@ -1149,14 +1149,10 @@ static struct snd_kcontrol_new pod_control_monitor = {
 static void pod_destruct(struct usb_interface *interface)
 {
 	struct usb_line6_pod *pod = usb_get_intfdata(interface);
-	struct usb_line6 *line6;
 
 	if (pod == NULL)
 		return;
-	line6 = &pod->line6;
-	if (line6 == NULL)
-		return;
-	line6_cleanup_audio(line6);
+	line6_cleanup_audio(&pod->line6);
 
 	del_timer(&pod->startup_timer);
 	cancel_work_sync(&pod->startup_work);

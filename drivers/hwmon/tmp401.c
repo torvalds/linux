@@ -334,7 +334,7 @@ static ssize_t store_temp_min(struct device *dev, struct device_attribute
 	long val;
 	u16 reg;
 
-	if (strict_strtol(buf, 10, &val))
+	if (kstrtol(buf, 10, &val))
 		return -EINVAL;
 
 	reg = tmp401_temp_to_register(val, data->config);
@@ -361,7 +361,7 @@ static ssize_t store_temp_max(struct device *dev, struct device_attribute
 	long val;
 	u16 reg;
 
-	if (strict_strtol(buf, 10, &val))
+	if (kstrtol(buf, 10, &val))
 		return -EINVAL;
 
 	reg = tmp401_temp_to_register(val, data->config);
@@ -388,7 +388,7 @@ static ssize_t store_temp_crit(struct device *dev, struct device_attribute
 	long val;
 	u8 reg;
 
-	if (strict_strtol(buf, 10, &val))
+	if (kstrtol(buf, 10, &val))
 		return -EINVAL;
 
 	reg = tmp401_crit_temp_to_register(val, data->config);
@@ -413,7 +413,7 @@ static ssize_t store_temp_crit_hyst(struct device *dev, struct device_attribute
 	long val;
 	u8 reg;
 
-	if (strict_strtol(buf, 10, &val))
+	if (kstrtol(buf, 10, &val))
 		return -EINVAL;
 
 	if (data->config & TMP401_CONFIG_RANGE)
@@ -447,7 +447,7 @@ static ssize_t reset_temp_history(struct device *dev,
 {
 	long val;
 
-	if (strict_strtol(buf, 10, &val))
+	if (kstrtol(buf, 10, &val))
 		return -EINVAL;
 
 	if (val != 1) {

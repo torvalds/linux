@@ -312,8 +312,8 @@ static int rcu_boost(void)
 	rt_mutex_lock(&mtx);
 	rt_mutex_unlock(&mtx);  /* Keep lockdep happy. */
 
-	return rcu_preempt_ctrlblk.boost_tasks != NULL ||
-	       rcu_preempt_ctrlblk.exp_tasks != NULL;
+	return ACCESS_ONCE(rcu_preempt_ctrlblk.boost_tasks) != NULL ||
+	       ACCESS_ONCE(rcu_preempt_ctrlblk.exp_tasks) != NULL;
 }
 
 /*
@@ -885,6 +885,19 @@ static void invoke_rcu_callbacks(void)
 	wake_up(&rcu_kthread_wq);
 }
 
+#ifdef CONFIG_RCU_TRACE
+
+/*
+ * Is the current CPU running the RCU-callbacks kthread?
+ * Caller must have preemption disabled.
+ */
+static bool rcu_is_callbacks_kthread(void)
+{
+	return rcu_kthread_task == current;
+}
+
+#endif /* #ifdef CONFIG_RCU_TRACE */
+
 /*
  * This kthread invokes RCU callbacks whose grace periods have
  * elapsed.  It is awakened as needed, and takes the place of the
@@ -937,6 +950,18 @@ void invoke_rcu_callbacks(void)
 {
 	raise_softirq(RCU_SOFTIRQ);
 }
+
+#ifdef CONFIG_RCU_TRACE
+
+/*
+ * There is no callback kthread, so this thread is never it.
+ */
+static bool rcu_is_callbacks_kthread(void)
+{
+	return false;
+}
+
+#endif /* #ifdef CONFIG_RCU_TRACE */
 
 void rcu_init(void)
 {

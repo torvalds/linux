@@ -322,6 +322,7 @@ static struct resource sh7780_dmae0_resources[] = {
 	},
 	{
 		/* Real DMA error IRQ is 38, and channel IRQs are 34-37, 44-45 */
+		.name	= "error_irq",
 		.start	= 34,
 		.end	= 34,
 		.flags	= IORESOURCE_IRQ | IORESOURCE_IRQ_SHAREABLE,
@@ -338,6 +339,7 @@ static struct resource sh7780_dmae1_resources[] = {
 	/* DMAC1 has no DMARS */
 	{
 		/* Real DMA error IRQ is 38, and channel IRQs are 46-47, 92-95 */
+		.name	= "error_irq",
 		.start	= 46,
 		.end	= 46,
 		.flags	= IORESOURCE_IRQ | IORESOURCE_IRQ_SHAREABLE,

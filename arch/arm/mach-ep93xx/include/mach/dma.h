@@ -37,7 +37,7 @@
  */
 struct ep93xx_dma_data {
 	int				port;
-	enum dma_data_direction		direction;
+	enum dma_transfer_direction	direction;
 	const char			*name;
 };
 
@@ -80,14 +80,14 @@ static inline bool ep93xx_dma_chan_is_m2p(struct dma_chan *chan)
  * channel supports given DMA direction. Only M2P channels have such
  * limitation, for M2M channels the direction is configurable.
  */
-static inline enum dma_data_direction
+static inline enum dma_transfer_direction
 ep93xx_dma_chan_direction(struct dma_chan *chan)
 {
 	if (!ep93xx_dma_chan_is_m2p(chan))
 		return DMA_NONE;
 
 	/* even channels are for TX, odd for RX */
-	return (chan->chan_id % 2 == 0) ? DMA_TO_DEVICE : DMA_FROM_DEVICE;
+	return (chan->chan_id % 2 == 0) ? DMA_MEM_TO_DEV : DMA_DEV_TO_MEM;
 }
 
 #endif /* __ASM_ARCH_DMA_H */

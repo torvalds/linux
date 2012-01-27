@@ -122,7 +122,7 @@ static int cq93vc_set_bias_level(struct snd_soc_codec *codec,
 #define CQ93VC_RATES	(SNDRV_PCM_RATE_8000 | SNDRV_PCM_RATE_16000)
 #define CQ93VC_FORMATS	(SNDRV_PCM_FMTBIT_U8 | SNDRV_PCM_FMTBIT_S16_LE)
 
-static struct snd_soc_dai_ops cq93vc_dai_ops = {
+static const struct snd_soc_dai_ops cq93vc_dai_ops = {
 	.digital_mute	= cq93vc_mute,
 	.set_sysclk	= cq93vc_set_dai_sysclk,
 };
@@ -206,17 +206,7 @@ static struct platform_driver cq93vc_codec_driver = {
 	.remove = __devexit_p(cq93vc_platform_remove),
 };
 
-static int __init cq93vc_init(void)
-{
-	return platform_driver_register(&cq93vc_codec_driver);
-}
-module_init(cq93vc_init);
-
-static void __exit cq93vc_exit(void)
-{
-	platform_driver_unregister(&cq93vc_codec_driver);
-}
-module_exit(cq93vc_exit);
+module_platform_driver(cq93vc_codec_driver);
 
 MODULE_DESCRIPTION("Texas Instruments DaVinci ASoC CQ0093 Voice Codec Driver");
 MODULE_AUTHOR("Miguel Aguilar");

@@ -23,10 +23,6 @@ The function pointers within here are used to allow the core to handle
 as much buffer functionality as possible. Note almost all of these
 are optional.
 
-mark_in_use, unmark_in_use
-  Basically indicate that not changes should be made to the buffer state that
-  will effect the form of the data being captures (e.g. scan elements or length)
-
 store_to
   If possible, push data to the buffer.
 
@@ -39,8 +35,6 @@ rip_first_n
   The primary buffer reading function. Note that it may well not return
   as much data as requested.
 
-mark_param_changed
-  Used to indicate that something has changed. Used in conjunction with
 request_update
   If parameters have changed that require reinitialization or configuration of
   the buffer this will trigger it.
@@ -51,7 +45,3 @@ get_bytes_per_datum, set_bytes_per_datum
 get_length / set_length
   Get/set the number of complete scans that may be held by the buffer.
 
-is_enabled
-  Query if ring buffer is in use
-enable
-  Start the ring buffer.

@@ -99,6 +99,7 @@ static void pcistub_device_release(struct kref *kref)
 	kfree(pci_get_drvdata(psdev->dev));
 	pci_set_drvdata(psdev->dev, NULL);
 
+	psdev->dev->dev_flags &= ~PCI_DEV_FLAGS_ASSIGNED;
 	pci_dev_put(psdev->dev);
 
 	kfree(psdev);
@@ -234,6 +235,8 @@ void pcistub_put_pci_dev(struct pci_dev *dev)
 	xen_pcibk_config_free_dyn_fields(found_psdev->dev);
 	xen_pcibk_config_reset_dev(found_psdev->dev);
 
+	xen_unregister_device_domain_owner(found_psdev->dev);
+
 	spin_lock_irqsave(&found_psdev->lock, flags);
 	found_psdev->pdev = NULL;
 	spin_unlock_irqrestore(&found_psdev->lock, flags);
@@ -331,6 +334,7 @@ static int __devinit pcistub_init_device(struct pci_dev *dev)
 	dev_dbg(&dev->dev, "reset device\n");
 	xen_pcibk_reset_device(dev);
 
+	dev->dev_flags |= PCI_DEV_FLAGS_ASSIGNED;
 	return 0;
 
 config_release:

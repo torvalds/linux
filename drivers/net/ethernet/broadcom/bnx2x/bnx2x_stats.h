@@ -193,6 +193,12 @@ struct bnx2x_eth_stats {
 	u32 total_tpa_aggregated_frames_lo;
 	u32 total_tpa_bytes_hi;
 	u32 total_tpa_bytes_lo;
+
+	/* PFC */
+	u32 pfc_frames_received_hi;
+	u32 pfc_frames_received_lo;
+	u32 pfc_frames_sent_hi;
+	u32 pfc_frames_sent_lo;
 };
 
 

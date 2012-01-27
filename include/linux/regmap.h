@@ -23,9 +23,8 @@ struct spi_device;
 /* An enum of all the supported cache types */
 enum regcache_type {
 	REGCACHE_NONE,
-	REGCACHE_INDEXED,
 	REGCACHE_RBTREE,
-	REGCACHE_LZO
+	REGCACHE_COMPRESSED
 };
 
 /**
@@ -83,7 +82,7 @@ struct regmap_config {
 	bool (*precious_reg)(struct device *dev, unsigned int reg);
 
 	unsigned int max_register;
-	struct reg_default *reg_defaults;
+	const struct reg_default *reg_defaults;
 	unsigned int num_reg_defaults;
 	enum regcache_type cache_type;
 	const void *reg_defaults_raw;
@@ -129,6 +128,8 @@ struct regmap *regmap_init_spi(struct spi_device *dev,
 			       const struct regmap_config *config);
 
 void regmap_exit(struct regmap *map);
+int regmap_reinit_cache(struct regmap *map,
+			const struct regmap_config *config);
 int regmap_write(struct regmap *map, unsigned int reg, unsigned int val);
 int regmap_raw_write(struct regmap *map, unsigned int reg,
 		     const void *val, size_t val_len);
@@ -139,9 +140,61 @@ int regmap_bulk_read(struct regmap *map, unsigned int reg, void *val,
 		     size_t val_count);
 int regmap_update_bits(struct regmap *map, unsigned int reg,
 		       unsigned int mask, unsigned int val);
+int regmap_update_bits_check(struct regmap *map, unsigned int reg,
+			     unsigned int mask, unsigned int val,
+			     bool *change);
 
 int regcache_sync(struct regmap *map);
 void regcache_cache_only(struct regmap *map, bool enable);
 void regcache_cache_bypass(struct regmap *map, bool enable);
+void regcache_mark_dirty(struct regmap *map);
+
+/**
+ * Description of an IRQ for the generic regmap irq_chip.
+ *
+ * @reg_offset: Offset of the status/mask register within the bank
+ * @mask:       Mask used to flag/control the register.
+ */
+struct regmap_irq {
+	unsigned int reg_offset;
+	unsigned int mask;
+};
+
+/**
+ * Description of a generic regmap irq_chip.  This is not intended to
+ * handle every possible interrupt controller, but it should handle a
+ * substantial proportion of those that are found in the wild.
+ *
+ * @name:        Descriptive name for IRQ controller.
+ *
+ * @status_base: Base status register address.
+ * @mask_base:   Base mask register address.
+ * @ack_base:    Base ack address.  If zero then the chip is clear on read.
+ *
+ * @num_regs:    Number of registers in each control bank.
+ * @irqs:        Descriptors for individual IRQs.  Interrupt numbers are
+ *               assigned based on the index in the array of the interrupt.
+ * @num_irqs:    Number of descriptors.
+ */
+struct regmap_irq_chip {
+	const char *name;
+
+	unsigned int status_base;
+	unsigned int mask_base;
+	unsigned int ack_base;
+
+	int num_regs;
+
+	const struct regmap_irq *irqs;
+	int num_irqs;
+};
+
+struct regmap_irq_chip_data;
+
+int regmap_add_irq_chip(struct regmap *map, int irq, int irq_flags,
+			int irq_base, struct regmap_irq_chip *chip,
+			struct regmap_irq_chip_data **data);
+void regmap_del_irq_chip(int irq, struct regmap_irq_chip_data *data);
+int regmap_irq_chip_get_base(struct regmap_irq_chip_data *data);
 
 #endif

@@ -194,3 +194,4 @@ module_spi_driver(adis16080_driver);
 MODULE_AUTHOR("Barry Song <21cnbao@gmail.com>");
 MODULE_DESCRIPTION("Analog Devices ADIS16080/100 Yaw Rate Gyroscope Driver");
 MODULE_LICENSE("GPL v2");
+MODULE_ALIAS("spi:adis16080");

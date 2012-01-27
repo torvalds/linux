@@ -46,3 +46,5 @@
 		};
 	};
 };
+
+/include/ "testcases/tests.dtsi"

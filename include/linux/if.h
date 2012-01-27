@@ -79,6 +79,7 @@
 #define IFF_TX_SKB_SHARING	0x10000	/* The interface supports sharing
 					 * skbs on transmit */
 #define IFF_UNICAST_FLT	0x20000		/* Supports unicast filtering	*/
+#define IFF_TEAM_PORT	0x40000		/* device used as team port */
 
 #define IF_GET_IFACE	0x0001		/* for querying only */
 #define IF_GET_PROTO	0x0002

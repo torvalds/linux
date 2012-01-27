@@ -627,10 +627,7 @@ void vmbus_driver_unregister(struct hv_driver *hv_driver)
 	pr_info("unregistering driver %s\n", hv_driver->name);
 
 	if (!vmbus_exists())
-		return;
-
-	driver_unregister(&hv_driver->driver);
-
+		driver_unregister(&hv_driver->driver);
 }
 EXPORT_SYMBOL_GPL(vmbus_driver_unregister);
 

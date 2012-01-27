@@ -16,6 +16,8 @@
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307 USA
  */
 
+#define pr_fmt(fmt)    "%s: " fmt, __func__
+
 #include <linux/device.h>
 #include <linux/kernel.h>
 #include <linux/bug.h>
@@ -25,8 +27,59 @@
 #include <linux/errno.h>
 #include <linux/iommu.h>
 
+static ssize_t show_iommu_group(struct device *dev,
+				struct device_attribute *attr, char *buf)
+{
+	unsigned int groupid;
+
+	if (iommu_device_group(dev, &groupid))
+		return 0;
+
+	return sprintf(buf, "%u", groupid);
+}
+static DEVICE_ATTR(iommu_group, S_IRUGO, show_iommu_group, NULL);
+
+static int add_iommu_group(struct device *dev, void *data)
+{
+	unsigned int groupid;
+
+	if (iommu_device_group(dev, &groupid) == 0)
+		return device_create_file(dev, &dev_attr_iommu_group);
+
+	return 0;
+}
+
+static int remove_iommu_group(struct device *dev)
+{
+	unsigned int groupid;
+
+	if (iommu_device_group(dev, &groupid) == 0)
+		device_remove_file(dev, &dev_attr_iommu_group);
+
+	return 0;
+}
+
+static int iommu_device_notifier(struct notifier_block *nb,
+				 unsigned long action, void *data)
+{
+	struct device *dev = data;
+
+	if (action == BUS_NOTIFY_ADD_DEVICE)
+		return add_iommu_group(dev, NULL);
+	else if (action == BUS_NOTIFY_DEL_DEVICE)
+		return remove_iommu_group(dev);
+
+	return 0;
+}
+
+static struct notifier_block iommu_device_nb = {
+	.notifier_call = iommu_device_notifier,
+};
+
 static void iommu_bus_init(struct bus_type *bus, struct iommu_ops *ops)
 {
+	bus_register_notifier(bus, &iommu_device_nb);
+	bus_for_each_dev(bus, NULL, NULL, add_iommu_group);
 }
 
 /**
@@ -90,7 +143,7 @@ struct iommu_domain *iommu_domain_alloc(struct bus_type *bus)
 	if (bus == NULL || bus->iommu_ops == NULL)
 		return NULL;
 
-	domain = kmalloc(sizeof(*domain), GFP_KERNEL);
+	domain = kzalloc(sizeof(*domain), GFP_KERNEL);
 	if (!domain)
 		return NULL;
 
@@ -157,32 +210,134 @@ int iommu_domain_has_cap(struct iommu_domain *domain,
 EXPORT_SYMBOL_GPL(iommu_domain_has_cap);
 
 int iommu_map(struct iommu_domain *domain, unsigned long iova,
-	      phys_addr_t paddr, int gfp_order, int prot)
+	      phys_addr_t paddr, size_t size, int prot)
 {
-	size_t size;
+	unsigned long orig_iova = iova;
+	unsigned int min_pagesz;
+	size_t orig_size = size;
+	int ret = 0;
 
 	if (unlikely(domain->ops->map == NULL))
 		return -ENODEV;
 
-	size         = PAGE_SIZE << gfp_order;
+	/* find out the minimum page size supported */
+	min_pagesz = 1 << __ffs(domain->ops->pgsize_bitmap);
 
-	BUG_ON(!IS_ALIGNED(iova | paddr, size));
+	/*
+	 * both the virtual address and the physical one, as well as
+	 * the size of the mapping, must be aligned (at least) to the
+	 * size of the smallest page supported by the hardware
+	 */
+	if (!IS_ALIGNED(iova | paddr | size, min_pagesz)) {
+		pr_err("unaligned: iova 0x%lx pa 0x%lx size 0x%lx min_pagesz "
+			"0x%x\n", iova, (unsigned long)paddr,
+			(unsigned long)size, min_pagesz);
+		return -EINVAL;
+	}
 
-	return domain->ops->map(domain, iova, paddr, gfp_order, prot);
+	pr_debug("map: iova 0x%lx pa 0x%lx size 0x%lx\n", iova,
+				(unsigned long)paddr, (unsigned long)size);
+
+	while (size) {
+		unsigned long pgsize, addr_merge = iova | paddr;
+		unsigned int pgsize_idx;
+
+		/* Max page size that still fits into 'size' */
+		pgsize_idx = __fls(size);
+
+		/* need to consider alignment requirements ? */
+		if (likely(addr_merge)) {
+			/* Max page size allowed by both iova and paddr */
+			unsigned int align_pgsize_idx = __ffs(addr_merge);
+
+			pgsize_idx = min(pgsize_idx, align_pgsize_idx);
+		}
+
+		/* build a mask of acceptable page sizes */
+		pgsize = (1UL << (pgsize_idx + 1)) - 1;
+
+		/* throw away page sizes not supported by the hardware */
+		pgsize &= domain->ops->pgsize_bitmap;
+
+		/* make sure we're still sane */
+		BUG_ON(!pgsize);
+
+		/* pick the biggest page */
+		pgsize_idx = __fls(pgsize);
+		pgsize = 1UL << pgsize_idx;
+
+		pr_debug("mapping: iova 0x%lx pa 0x%lx pgsize %lu\n", iova,
+					(unsigned long)paddr, pgsize);
+
+		ret = domain->ops->map(domain, iova, paddr, pgsize, prot);
+		if (ret)
+			break;
+
+		iova += pgsize;
+		paddr += pgsize;
+		size -= pgsize;
+	}
+
+	/* unroll mapping in case something went wrong */
+	if (ret)
+		iommu_unmap(domain, orig_iova, orig_size - size);
+
+	return ret;
 }
 EXPORT_SYMBOL_GPL(iommu_map);
 
-int iommu_unmap(struct iommu_domain *domain, unsigned long iova, int gfp_order)
+size_t iommu_unmap(struct iommu_domain *domain, unsigned long iova, size_t size)
 {
-	size_t size;
+	size_t unmapped_page, unmapped = 0;
+	unsigned int min_pagesz;
 
 	if (unlikely(domain->ops->unmap == NULL))
 		return -ENODEV;
 
-	size         = PAGE_SIZE << gfp_order;
+	/* find out the minimum page size supported */
+	min_pagesz = 1 << __ffs(domain->ops->pgsize_bitmap);
 
-	BUG_ON(!IS_ALIGNED(iova, size));
+	/*
+	 * The virtual address, as well as the size of the mapping, must be
+	 * aligned (at least) to the size of the smallest page supported
+	 * by the hardware
+	 */
+	if (!IS_ALIGNED(iova | size, min_pagesz)) {
+		pr_err("unaligned: iova 0x%lx size 0x%lx min_pagesz 0x%x\n",
+					iova, (unsigned long)size, min_pagesz);
+		return -EINVAL;
+	}
 
-	return domain->ops->unmap(domain, iova, gfp_order);
+	pr_debug("unmap this: iova 0x%lx size 0x%lx\n", iova,
+							(unsigned long)size);
+
+	/*
+	 * Keep iterating until we either unmap 'size' bytes (or more)
+	 * or we hit an area that isn't mapped.
+	 */
+	while (unmapped < size) {
+		size_t left = size - unmapped;
+
+		unmapped_page = domain->ops->unmap(domain, iova, left);
+		if (!unmapped_page)
+			break;
+
+		pr_debug("unmapped: iova 0x%lx size %lx\n", iova,
+					(unsigned long)unmapped_page);
+
+		iova += unmapped_page;
+		unmapped += unmapped_page;
+	}
+
+	return unmapped;
 }
 EXPORT_SYMBOL_GPL(iommu_unmap);
+
+int iommu_device_group(struct device *dev, unsigned int *groupid)
+{
+	if (iommu_present(dev->bus) && dev->bus->iommu_ops->device_group)
+		return dev->bus->iommu_ops->device_group(dev, groupid);
+
+	return -ENODEV;
+}
+EXPORT_SYMBOL_GPL(iommu_device_group);

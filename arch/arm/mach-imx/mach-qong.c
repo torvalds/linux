@@ -273,4 +273,5 @@ MACHINE_START(QONG, "Dave/DENX QongEVB-LITE")
 	.handle_irq = imx31_handle_irq,
 	.timer = &qong_timer,
 	.init_machine = qong_init,
+	.restart	= mxc_restart,
 MACHINE_END
