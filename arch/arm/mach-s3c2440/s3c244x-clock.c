@@ -72,7 +72,7 @@ static struct clk clk_arm = {
 	},
 };
 
-static int s3c244x_clk_add(struct device *dev)
+static int s3c244x_clk_add(struct device *dev, struct subsys_interface *sif)
 {
 	unsigned long camdivn = __raw_readl(S3C2440_CAMDIVN);
 	unsigned long clkdivn;

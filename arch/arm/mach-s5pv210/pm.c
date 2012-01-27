@@ -133,7 +133,7 @@ static void s5pv210_pm_prepare(void)
 	s3c_pm_do_save(s5pv210_core_save, ARRAY_SIZE(s5pv210_core_save));
 }
 
-static int s5pv210_pm_add(struct device *dev)
+static int s5pv210_pm_add(struct device *dev, struct subsys_interface *sif)
 {
 	pm_cpu_prep = s5pv210_pm_prepare;
 	pm_cpu_sleep = s5pv210_cpu_suspend;

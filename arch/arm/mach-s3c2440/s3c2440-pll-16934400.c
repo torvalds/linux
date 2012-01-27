@@ -79,7 +79,8 @@ static struct cpufreq_frequency_table s3c2440_plls_169344[] __initdata = {
 	{ .frequency = 402192000,	.index = PLLVAL(87, 2, 1), 	}, 	/* FVco 804.384000 */
 };
 
-static int s3c2440_plls169344_add(struct device *dev)
+static int s3c2440_plls169344_add(struct device *dev,
+				  struct subsys_interface *sif)
 {
 	struct clk *xtal_clk;
 	unsigned long xtal;

@@ -149,7 +149,7 @@ static struct clk_lookup s3c2440_clk_lookup[] = {
 	CLKDEV_INIT(NULL, "clk_uart_baud3", &s3c2440_clk_fclk_n),
 };
 
-static int s3c2440_clk_add(struct device *dev)
+static int s3c2440_clk_add(struct device *dev, struct subsys_interface *sif)
 {
 	struct clk *clock_upll;
 	struct clk *clock_h;

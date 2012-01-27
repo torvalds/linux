@@ -159,7 +159,8 @@ static struct s3c24xx_dma_selection __initdata s3c2412_dma_sel = {
 	.map_size	= ARRAY_SIZE(s3c2412_dma_mappings),
 };
 
-static int __init s3c2412_dma_add(struct device *dev)
+static int __init s3c2412_dma_add(struct device *dev,
+				  struct subsys_interface *sif)
 {
 	s3c2410_dma_init();
 	return s3c24xx_dma_init_map(&s3c2412_dma_sel);

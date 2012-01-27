@@ -270,7 +270,8 @@ struct s3c_cpufreq_info s3c2440_cpufreq_info = {
 	.debug_io_show  = s3c_cpufreq_debugfs_call(s3c2410_iotiming_debugfs),
 };
 
-static int s3c2440_cpufreq_add(struct device *dev)
+static int s3c2440_cpufreq_add(struct device *dev,
+			       struct subsys_interface *sif)
 {
 	xtal = s3c_cpufreq_clk_get(NULL, "xtal");
 	hclk = s3c_cpufreq_clk_get(NULL, "hclk");
