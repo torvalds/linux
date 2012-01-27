@@ -356,10 +356,15 @@ struct nfsd4_saved_compoundargs {
 	struct page **pagelist;
 };
 
+struct nfsd4_test_stateid_id {
+	__be32			ts_id_status;
+	stateid_t		ts_id_stateid;
+	struct list_head	ts_id_list;
+};
+
 struct nfsd4_test_stateid {
 	__be32		ts_num_ids;
-	struct nfsd4_compoundargs *ts_saved_args;
-	struct nfsd4_saved_compoundargs ts_savedp;
+	struct list_head ts_stateid_list;
 };
 
 struct nfsd4_free_stateid {

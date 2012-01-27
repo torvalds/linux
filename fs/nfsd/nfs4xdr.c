@@ -133,22 +133,6 @@ xdr_error:					\
 	}					\
 } while (0)
 
-static void save_buf(struct nfsd4_compoundargs *argp, struct nfsd4_saved_compoundargs *savep)
-{
-	savep->p        = argp->p;
-	savep->end      = argp->end;
-	savep->pagelen  = argp->pagelen;
-	savep->pagelist = argp->pagelist;
-}
-
-static void restore_buf(struct nfsd4_compoundargs *argp, struct nfsd4_saved_compoundargs *savep)
-{
-	argp->p        = savep->p;
-	argp->end      = savep->end;
-	argp->pagelen  = savep->pagelen;
-	argp->pagelist = savep->pagelist;
-}
-
 static __be32 *read_buf(struct nfsd4_compoundargs *argp, u32 nbytes)
 {
 	/* We want more bytes than seem to be available.
@@ -1396,26 +1380,29 @@ nfsd4_decode_sequence(struct nfsd4_compoundargs *argp,
 static __be32
 nfsd4_decode_test_stateid(struct nfsd4_compoundargs *argp, struct nfsd4_test_stateid *test_stateid)
 {
-	unsigned int nbytes;
-	stateid_t si;
 	int i;
-	__be32 *p;
-	__be32 status;
+	__be32 *p, status;
+	struct nfsd4_test_stateid_id *stateid;
 
 	READ_BUF(4);
 	test_stateid->ts_num_ids = ntohl(*p++);
 
-	nbytes = test_stateid->ts_num_ids * sizeof(stateid_t);
-	if (nbytes > (u32)((char *)argp->end - (char *)argp->p))
-		goto xdr_error;
-
-	test_stateid->ts_saved_args = argp;
-	save_buf(argp, &test_stateid->ts_savedp);
+	INIT_LIST_HEAD(&test_stateid->ts_stateid_list);
 
 	for (i = 0; i < test_stateid->ts_num_ids; i++) {
-		status = nfsd4_decode_stateid(argp, &si);
+		stateid = kmalloc(sizeof(struct nfsd4_test_stateid_id), GFP_KERNEL);
+		if (!stateid) {
+			status = PTR_ERR(stateid);
+			goto out;
+		}
+
+		defer_free(argp, kfree, stateid);
+		INIT_LIST_HEAD(&stateid->ts_id_list);
+		list_add_tail(&stateid->ts_id_list, &test_stateid->ts_stateid_list);
+
+		status = nfsd4_decode_stateid(argp, &stateid->ts_id_stateid);
 		if (status)
-			return status;
+			goto out;
 	}
 
 	status = 0;
@@ -3402,30 +3389,17 @@ __be32
 nfsd4_encode_test_stateid(struct nfsd4_compoundres *resp, int nfserr,
 			  struct nfsd4_test_stateid *test_stateid)
 {
-	struct nfsd4_compoundargs *argp;
-	struct nfs4_client *cl = resp->cstate.session->se_client;
-	stateid_t si;
+	struct nfsd4_test_stateid_id *stateid, *next;
 	__be32 *p;
-	int i;
-	int valid;
 
-	restore_buf(test_stateid->ts_saved_args, &test_stateid->ts_savedp);
-	argp = test_stateid->ts_saved_args;
-
-	RESERVE_SPACE(4);
+	RESERVE_SPACE(4 + (4 * test_stateid->ts_num_ids));
 	*p++ = htonl(test_stateid->ts_num_ids);
-	resp->p = p;
 
-	nfs4_lock_state();
-	for (i = 0; i < test_stateid->ts_num_ids; i++) {
-		nfsd4_decode_stateid(argp, &si);
-		valid = nfs4_validate_stateid(cl, &si);
-		RESERVE_SPACE(4);
-		*p++ = htonl(valid);
-		resp->p = p;
+	list_for_each_entry_safe(stateid, next, &test_stateid->ts_stateid_list, ts_id_list) {
+		*p++ = htonl(stateid->ts_id_status);
 	}
-	nfs4_unlock_state();
 
+	ADJUST_ARGS();
 	return nfserr;
 }
 
