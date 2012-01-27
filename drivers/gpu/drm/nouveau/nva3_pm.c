@@ -354,8 +354,11 @@ mclk_mrs(struct nouveau_mem_exec_func *exec, int mr, u32 data)
 static void
 mclk_clock_set(struct nouveau_mem_exec_func *exec)
 {
-	struct nva3_pm_state *info = exec->priv;
 	struct drm_device *dev = exec->dev;
+	struct nva3_pm_state *info = exec->priv;
+	struct nouveau_pm_level *perflvl = info->perflvl;
+	u32 freq = perflvl->memory;
+	u8 *rammap, *ramcfg, ver, hdr, cnt, len;
 
 	nv_wr32(dev, 0x004018, 0x00001000);
 
@@ -365,6 +368,26 @@ mclk_clock_set(struct nouveau_mem_exec_func *exec)
 		nv_wr32(dev, 0x004018, 0x1000d000);
 	else
 		nv_wr32(dev, 0x004018, 0x10005000);
+
+	rammap = nouveau_perf_rammap(dev, freq, &ver, &hdr, &cnt, &len);
+	if (rammap && ver == 0x10 && hdr >= 5) {
+		ramcfg = nouveau_perf_ramcfg(dev, freq, &ver, &len);
+		if (ramcfg && (rammap[4] & 0x08)) {
+			u32 unk5a0 = (ROM16(ramcfg[5]) << 8) | ramcfg[5];
+			u32 unk5a4 = ROM16(ramcfg[7]);
+			u32 unk804 = (ramcfg[9] & 0xf0) << 16 |
+				     (ramcfg[3] & 0x0f) << 16 |
+				     (ramcfg[9] & 0x0f) |
+				     0x80000000;
+			nv_wr32(dev, 0x1005a0, unk5a0);
+			nv_wr32(dev, 0x1005a4, unk5a4);
+			nv_wr32(dev, 0x10f804, unk804);
+			nv_mask(dev, 0x10053c, 0x00001000, 0x00000000);
+		} else {
+			nv_mask(dev, 0x10053c, 0x00001000, 0x00001000);
+			nv_mask(dev, 0x10f804, 0x80000000, 0x00000000);
+		}
+	}
 }
 
 static void

@@ -83,7 +83,7 @@ nouveau_perf_entry(struct drm_device *dev, int idx,
 	return NULL;
 }
 
-static u8 *
+u8 *
 nouveau_perf_rammap(struct drm_device *dev, u32 freq,
 		    u8 *ver, u8 *hdr, u8 *cnt, u8 *len)
 {
