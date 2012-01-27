@@ -154,6 +154,9 @@ static int aa_fs_seq_show(struct seq_file *seq, void *v)
 	case AA_FS_TYPE_BOOLEAN:
 		seq_printf(seq, "%s\n", fs_file->v.boolean ? "yes" : "no");
 		break;
+	case AA_FS_TYPE_STRING:
+		seq_printf(seq, "%s\n", fs_file->v.string);
+		break;
 	case AA_FS_TYPE_U64:
 		seq_printf(seq, "%#08lx\n", fs_file->v.u64);
 		break;
@@ -180,6 +183,12 @@ const struct file_operations aa_fs_seq_file_ops = {
 
 /** Base file system setup **/
 
+static struct aa_fs_entry aa_fs_entry_file[] = {
+	AA_FS_FILE_STRING("mask", "create read write exec append mmap_exec " \
+				  "link lock"),
+	{ }
+};
+
 static struct aa_fs_entry aa_fs_entry_domain[] = {
 	AA_FS_FILE_BOOLEAN("change_hat",	1),
 	AA_FS_FILE_BOOLEAN("change_hatv",	1),
@@ -190,6 +199,7 @@ static struct aa_fs_entry aa_fs_entry_domain[] = {
 
 static struct aa_fs_entry aa_fs_entry_features[] = {
 	AA_FS_DIR("domain",			aa_fs_entry_domain),
+	AA_FS_DIR("file",			aa_fs_entry_file),
 	AA_FS_FILE_U64("capability",		VFS_CAP_FLAGS_MASK),
 	{ }
 };
