@@ -511,18 +511,7 @@ static struct spi_driver tpo_td043_spi_driver = {
 	.remove	= __devexit_p(tpo_td043_spi_remove),
 };
 
-static int __init tpo_td043_init(void)
-{
-	return spi_register_driver(&tpo_td043_spi_driver);
-}
-
-static void __exit tpo_td043_exit(void)
-{
-	spi_unregister_driver(&tpo_td043_spi_driver);
-}
-
-module_init(tpo_td043_init);
-module_exit(tpo_td043_exit);
+module_spi_driver(tpo_td043_spi_driver);
 
 MODULE_AUTHOR("Gražvydas Ignotas <notasas@gmail.com>");
 MODULE_DESCRIPTION("TPO TD043MTEA1 LCD Driver");
