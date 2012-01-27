@@ -2047,7 +2047,6 @@ static int wm8995_probe(struct snd_soc_codec *codec)
 	int i;
 	int ret;
 
-	codec->dapm.idle_bias_off = 1;
 	wm8995 = snd_soc_codec_get_drvdata(codec);
 	wm8995->codec = codec;
 
@@ -2241,6 +2240,7 @@ static struct snd_soc_codec_driver soc_codec_dev_wm8995 = {
 	.suspend = wm8995_suspend,
 	.resume = wm8995_resume,
 	.set_bias_level = wm8995_set_bias_level,
+	.idle_bias_off = true,
 };
 
 static struct regmap_config wm8995_regmap = {

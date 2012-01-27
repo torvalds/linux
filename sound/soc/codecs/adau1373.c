@@ -1244,8 +1244,6 @@ static int adau1373_probe(struct snd_soc_codec *codec)
 		return ret;
 	}
 
-	codec->dapm.idle_bias_off = true;
-
 	if (pdata) {
 		if (pdata->num_drc > ARRAY_SIZE(pdata->drc_setting))
 			return -EINVAL;
@@ -1340,6 +1338,7 @@ static struct snd_soc_codec_driver adau1373_codec_driver = {
 	.suspend =	adau1373_suspend,
 	.resume =	adau1373_resume,
 	.set_bias_level = adau1373_set_bias_level,
+	.idle_bias_off = true,
 	.reg_cache_size = ARRAY_SIZE(adau1373_default_regs),
 	.reg_cache_default = adau1373_default_regs,
 	.reg_word_size = sizeof(uint8_t),

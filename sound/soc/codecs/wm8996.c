@@ -2804,15 +2804,12 @@ static int wm8996_probe(struct snd_soc_codec *codec)
 	int ret;
 	struct wm8996_priv *wm8996 = snd_soc_codec_get_drvdata(codec);
 	struct i2c_client *i2c = to_i2c_client(codec->dev);
-	struct snd_soc_dapm_context *dapm = &codec->dapm;
 	int i, irq_flags;
 
 	wm8996->codec = codec;
 
 	init_completion(&wm8996->dcs_done);
 	init_completion(&wm8996->fll_lock);
-
-	dapm->idle_bias_off = true;
 
 	codec->control_data = wm8996->regmap;
 
@@ -3067,6 +3064,7 @@ static struct snd_soc_codec_driver soc_codec_dev_wm8996 = {
 	.probe =	wm8996_probe,
 	.remove =	wm8996_remove,
 	.set_bias_level = wm8996_set_bias_level,
+	.idle_bias_off	= true,
 	.seq_notifier = wm8996_seq_notifier,
 	.controls = wm8996_snd_controls,
 	.num_controls = ARRAY_SIZE(wm8996_snd_controls),

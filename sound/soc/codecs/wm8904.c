@@ -2088,7 +2088,6 @@ static int wm8904_probe(struct snd_soc_codec *codec)
 	int ret, i;
 
 	codec->cache_sync = 1;
-	codec->dapm.idle_bias_off = 1;
 	codec->control_data = wm8904->regmap;
 
 	switch (wm8904->devtype) {
@@ -2237,6 +2236,7 @@ static struct snd_soc_codec_driver soc_codec_dev_wm8904 = {
 	.suspend =	wm8904_suspend,
 	.resume =	wm8904_resume,
 	.set_bias_level = wm8904_set_bias_level,
+	.idle_bias_off = true,
 };
 
 static const struct regmap_config wm8904_regmap = {

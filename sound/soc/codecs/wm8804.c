@@ -549,7 +549,6 @@ static int wm8804_probe(struct snd_soc_codec *codec)
 
 	wm8804 = snd_soc_codec_get_drvdata(codec);
 
-	codec->dapm.idle_bias_off = 1;
 	codec->control_data = wm8804->regmap;
 
 	ret = snd_soc_codec_set_cache_io(codec, 8, 8, SND_SOC_REGMAP);
@@ -678,6 +677,7 @@ static struct snd_soc_codec_driver soc_codec_dev_wm8804 = {
 	.suspend = wm8804_suspend,
 	.resume = wm8804_resume,
 	.set_bias_level = wm8804_set_bias_level,
+	.idle_bias_off = true,
 
 	.controls = wm8804_snd_controls,
 	.num_controls = ARRAY_SIZE(wm8804_snd_controls),
