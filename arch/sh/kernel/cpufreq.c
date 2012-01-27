@@ -84,10 +84,32 @@ static int sh_cpufreq_target(struct cpufreq_policy *policy,
 	return 0;
 }
 
+static int sh_cpufreq_verify(struct cpufreq_policy *policy)
+{
+	struct clk *cpuclk = &per_cpu(sh_cpuclk, policy->cpu);
+	struct cpufreq_frequency_table *freq_table;
+
+	freq_table = cpuclk->nr_freqs ? cpuclk->freq_table : NULL;
+	if (freq_table)
+		return cpufreq_frequency_table_verify(policy, freq_table);
+
+	cpufreq_verify_within_limits(policy, policy->cpuinfo.min_freq,
+				     policy->cpuinfo.max_freq);
+
+	policy->min = (clk_round_rate(cpuclk, 1) + 500) / 1000;
+	policy->max = (clk_round_rate(cpuclk, ~0UL) + 500) / 1000;
+
+	cpufreq_verify_within_limits(policy, policy->cpuinfo.min_freq,
+				     policy->cpuinfo.max_freq);
+
+	return 0;
+}
+
 static int sh_cpufreq_cpu_init(struct cpufreq_policy *policy)
 {
 	unsigned int cpu = policy->cpu;
 	struct clk *cpuclk = &per_cpu(sh_cpuclk, cpu);
+	struct cpufreq_frequency_table *freq_table;
 	struct device *dev;
 
 	if (!cpu_online(cpu))
@@ -101,24 +123,23 @@ static int sh_cpufreq_cpu_init(struct cpufreq_policy *policy)
 		return PTR_ERR(cpuclk);
 	}
 
-	/* cpuinfo and default policy values */
-	policy->cpuinfo.min_freq = (clk_round_rate(cpuclk, 1) + 500) / 1000;
-	policy->cpuinfo.max_freq = (clk_round_rate(cpuclk, ~0UL) + 500) / 1000;
-	policy->cpuinfo.transition_latency = CPUFREQ_ETERNAL;
+	policy->cur = policy->min = policy->max = sh_cpufreq_get(cpu);
 
-	policy->cur		= sh_cpufreq_get(cpu);
-	policy->min		= policy->cpuinfo.min_freq;
-	policy->max		= policy->cpuinfo.max_freq;
+	freq_table = cpuclk->nr_freqs ? cpuclk->freq_table : NULL;
+	if (freq_table) {
+		int result = cpufreq_frequency_table_cpuinfo(policy, freq_table);
 
-	/*
-	 * Catch the cases where the clock framework hasn't been wired up
-	 * properly to support scaling.
-	 */
-	if (unlikely(policy->min == policy->max)) {
-		dev_err(dev, "rate rounding not supported on this CPU.\n");
-		clk_put(cpuclk);
-		return -EINVAL;
+		if (!result)
+			cpufreq_frequency_table_get_attr(freq_table, cpu);
+	} else {
+		policy->cpuinfo.min_freq = (clk_round_rate(cpuclk, 1) + 500) / 1000;
+		policy->cpuinfo.max_freq = (clk_round_rate(cpuclk, ~0UL) + 500) / 1000;
 	}
+
+	policy->min = policy->cpuinfo.min_freq;
+	policy->max = policy->cpuinfo.max_freq;
+
+	policy->cpuinfo.transition_latency = CPUFREQ_ETERNAL;
 
 	dev_info(dev, "CPU Frequencies - Minimum %u.%03u MHz, "
 	       "Maximum %u.%03u MHz.\n",
@@ -128,28 +149,25 @@ static int sh_cpufreq_cpu_init(struct cpufreq_policy *policy)
 	return 0;
 }
 
-static int sh_cpufreq_verify(struct cpufreq_policy *policy)
+static int sh_cpufreq_cpu_exit(struct cpufreq_policy *policy)
 {
-	cpufreq_verify_within_limits(policy, policy->cpuinfo.min_freq,
-				     policy->cpuinfo.max_freq);
-	return 0;
-}
+	unsigned int cpu = policy->cpu;
+	struct clk *cpuclk = &per_cpu(sh_cpuclk, cpu);
 
-static int sh_cpufreq_exit(struct cpufreq_policy *policy)
-{
-	struct clk *cpuclk = &per_cpu(sh_cpuclk, policy->cpu);
+	cpufreq_frequency_table_put_attr(cpu);
 	clk_put(cpuclk);
+
 	return 0;
 }
 
 static struct cpufreq_driver sh_cpufreq_driver = {
 	.owner		= THIS_MODULE,
 	.name		= "sh",
-	.init		= sh_cpufreq_cpu_init,
-	.verify		= sh_cpufreq_verify,
-	.target		= sh_cpufreq_target,
 	.get		= sh_cpufreq_get,
-	.exit		= sh_cpufreq_exit,
+	.target		= sh_cpufreq_target,
+	.verify		= sh_cpufreq_verify,
+	.init		= sh_cpufreq_cpu_init,
+	.exit		= sh_cpufreq_cpu_exit,
 };
 
 static int __init sh_cpufreq_module_init(void)
