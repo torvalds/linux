@@ -1509,7 +1509,8 @@ void omap3isp_put(struct isp_device *isp)
 	BUG_ON(isp->ref_count == 0);
 	if (--isp->ref_count == 0) {
 		isp_disable_interrupts(isp);
-		isp_save_ctx(isp);
+		if (isp->domain)
+			isp_save_ctx(isp);
 		/* Reset the ISP if an entity has failed to stop. This is the
 		 * only way to recover from such conditions.
 		 */
@@ -1996,6 +1997,7 @@ static int isp_remove(struct platform_device *pdev)
 	omap3isp_get(isp);
 	iommu_detach_device(isp->domain, &pdev->dev);
 	iommu_domain_free(isp->domain);
+	isp->domain = NULL;
 	omap3isp_put(isp);
 
 	free_irq(isp->irq_num, isp);
