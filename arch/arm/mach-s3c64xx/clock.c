@@ -138,6 +138,11 @@ static struct clk init_clocks_off[] = {
 		.ctrlbit	= S3C_CLKCON_PCLK_TSADC,
 	}, {
 		.name		= "i2c",
+#ifdef CONFIG_S3C_DEV_I2C1
+		.devname        = "s3c2440-i2c.0",
+#else
+		.devname	= "s3c2440-i2c",
+#endif
 		.parent		= &clk_p,
 		.enable		= s3c64xx_pclk_ctrl,
 		.ctrlbit	= S3C_CLKCON_PCLK_IIC,
