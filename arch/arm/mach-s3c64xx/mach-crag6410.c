@@ -300,6 +300,7 @@ static struct platform_device littlemill_device = {
 };
 
 static struct regulator_consumer_supply wallvdd_consumers[] = {
+	REGULATOR_SUPPLY("SPKVDD", "1-001a"),
 	REGULATOR_SUPPLY("SPKVDD1", "1-001a"),
 	REGULATOR_SUPPLY("SPKVDD2", "1-001a"),
 	REGULATOR_SUPPLY("SPKVDDL", "1-001a"),
