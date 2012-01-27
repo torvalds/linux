@@ -867,6 +867,12 @@ hc_init:
 
 static void __devinit quirk_usb_early_handoff(struct pci_dev *pdev)
 {
+	/* Skip Netlogic mips SoC's internal PCI USB controller.
+	 * This device does not need/support EHCI/OHCI handoff
+	 */
+	if (pdev->vendor == 0x184e)	/* vendor Netlogic */
+		return;
+
 	if (pdev->class == PCI_CLASS_SERIAL_USB_UHCI)
 		quirk_usb_handoff_uhci(pdev);
 	else if (pdev->class == PCI_CLASS_SERIAL_USB_OHCI)
