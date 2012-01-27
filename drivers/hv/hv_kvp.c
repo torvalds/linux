@@ -28,8 +28,6 @@
 #include <linux/workqueue.h>
 #include <linux/hyperv.h>
 
-#include "hv_kvp.h"
-
 
 
 /*
