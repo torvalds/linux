@@ -3239,6 +3239,228 @@ static netdev_tx_t e1000_xmit_frame(struct sk_buff *skb,
 	return NETDEV_TX_OK;
 }
 
+#define NUM_REGS 38 /* 1 based count */
+static void e1000_regdump(struct e1000_adapter *adapter)
+{
+	struct e1000_hw *hw = &adapter->hw;
+	u32 regs[NUM_REGS];
+	u32 *regs_buff = regs;
+	int i = 0;
+
+	char *reg_name[] = {
+	"CTRL",  "STATUS",
+	"RCTL", "RDLEN", "RDH", "RDT", "RDTR",
+	"TCTL", "TDBAL", "TDBAH", "TDLEN", "TDH", "TDT",
+	"TIDV", "TXDCTL", "TADV", "TARC0",
+	"TDBAL1", "TDBAH1", "TDLEN1", "TDH1", "TDT1",
+	"TXDCTL1", "TARC1",
+	"CTRL_EXT", "ERT", "RDBAL", "RDBAH",
+	"TDFH", "TDFT", "TDFHS", "TDFTS", "TDFPC",
+	"RDFH", "RDFT", "RDFHS", "RDFTS", "RDFPC"
+	};
+
+	regs_buff[0]  = er32(CTRL);
+	regs_buff[1]  = er32(STATUS);
+
+	regs_buff[2]  = er32(RCTL);
+	regs_buff[3]  = er32(RDLEN);
+	regs_buff[4]  = er32(RDH);
+	regs_buff[5]  = er32(RDT);
+	regs_buff[6]  = er32(RDTR);
+
+	regs_buff[7]  = er32(TCTL);
+	regs_buff[8]  = er32(TDBAL);
+	regs_buff[9]  = er32(TDBAH);
+	regs_buff[10] = er32(TDLEN);
+	regs_buff[11] = er32(TDH);
+	regs_buff[12] = er32(TDT);
+	regs_buff[13] = er32(TIDV);
+	regs_buff[14] = er32(TXDCTL);
+	regs_buff[15] = er32(TADV);
+	regs_buff[16] = er32(TARC0);
+
+	regs_buff[17] = er32(TDBAL1);
+	regs_buff[18] = er32(TDBAH1);
+	regs_buff[19] = er32(TDLEN1);
+	regs_buff[20] = er32(TDH1);
+	regs_buff[21] = er32(TDT1);
+	regs_buff[22] = er32(TXDCTL1);
+	regs_buff[23] = er32(TARC1);
+	regs_buff[24] = er32(CTRL_EXT);
+	regs_buff[25] = er32(ERT);
+	regs_buff[26] = er32(RDBAL0);
+	regs_buff[27] = er32(RDBAH0);
+	regs_buff[28] = er32(TDFH);
+	regs_buff[29] = er32(TDFT);
+	regs_buff[30] = er32(TDFHS);
+	regs_buff[31] = er32(TDFTS);
+	regs_buff[32] = er32(TDFPC);
+	regs_buff[33] = er32(RDFH);
+	regs_buff[34] = er32(RDFT);
+	regs_buff[35] = er32(RDFHS);
+	regs_buff[36] = er32(RDFTS);
+	regs_buff[37] = er32(RDFPC);
+
+	pr_info("Register dump\n");
+	for (i = 0; i < NUM_REGS; i++) {
+		printk(KERN_INFO "%-15s  %08x\n",
+		reg_name[i], regs_buff[i]);
+	}
+}
+
+/*
+ * e1000_dump: Print registers, tx ring and rx ring
+ */
+static void e1000_dump(struct e1000_adapter *adapter)
+{
+	/* this code doesn't handle multiple rings */
+	struct e1000_tx_ring *tx_ring = adapter->tx_ring;
+	struct e1000_rx_ring *rx_ring = adapter->rx_ring;
+	int i;
+
+	if (!netif_msg_hw(adapter))
+		return;
+
+	/* Print Registers */
+	e1000_regdump(adapter);
+
+	/*
+	 * transmit dump
+	 */
+	pr_info("TX Desc ring0 dump\n");
+
+	/* Transmit Descriptor Formats - DEXT[29] is 0 (Legacy) or 1 (Extended)
+	 *
+	 * Legacy Transmit Descriptor
+	 *   +--------------------------------------------------------------+
+	 * 0 |         Buffer Address [63:0] (Reserved on Write Back)       |
+	 *   +--------------------------------------------------------------+
+	 * 8 | Special  |    CSS     | Status |  CMD    |  CSO   |  Length  |
+	 *   +--------------------------------------------------------------+
+	 *   63       48 47        36 35    32 31     24 23    16 15        0
+	 *
+	 * Extended Context Descriptor (DTYP=0x0) for TSO or checksum offload
+	 *   63      48 47    40 39       32 31             16 15    8 7      0
+	 *   +----------------------------------------------------------------+
+	 * 0 |  TUCSE  | TUCS0  |   TUCSS   |     IPCSE       | IPCS0 | IPCSS |
+	 *   +----------------------------------------------------------------+
+	 * 8 |   MSS   | HDRLEN | RSV | STA | TUCMD | DTYP |      PAYLEN      |
+	 *   +----------------------------------------------------------------+
+	 *   63      48 47    40 39 36 35 32 31   24 23  20 19                0
+	 *
+	 * Extended Data Descriptor (DTYP=0x1)
+	 *   +----------------------------------------------------------------+
+	 * 0 |                     Buffer Address [63:0]                      |
+	 *   +----------------------------------------------------------------+
+	 * 8 | VLAN tag |  POPTS  | Rsvd | Status | Command | DTYP |  DTALEN  |
+	 *   +----------------------------------------------------------------+
+	 *   63       48 47     40 39  36 35    32 31     24 23  20 19        0
+	 */
+	printk(KERN_INFO "Tc[desc]     [Ce CoCsIpceCoS] [MssHlRSCm0Plen] [bi->dma       ]"
+	       " leng  ntw timestmp         bi->skb\n");
+	printk(KERN_INFO "Td[desc]     [address 63:0  ] [VlaPoRSCm1Dlen] [bi->dma       ]"
+	       " leng  ntw timestmp         bi->skb\n");
+
+	if (!netif_msg_tx_done(adapter))
+		goto rx_ring_summary;
+
+	for (i = 0; tx_ring->desc && (i < tx_ring->count); i++) {
+		struct e1000_tx_desc *tx_desc = E1000_TX_DESC(*tx_ring, i);
+		struct e1000_buffer *buffer_info = &tx_ring->buffer_info[i];
+		struct my_u { u64 a; u64 b; };
+		struct my_u *u = (struct my_u *)tx_desc;
+		printk(KERN_INFO "T%c[0x%03X]    %016llX %016llX %016llX %04X  %3X "
+		       "%016llX %p",
+		       ((le64_to_cpu(u->b) & (1<<20)) ? 'd' : 'c'), i,
+		       le64_to_cpu(u->a), le64_to_cpu(u->b),
+		       (u64)buffer_info->dma, buffer_info->length,
+		       buffer_info->next_to_watch, (u64)buffer_info->time_stamp,
+		       buffer_info->skb);
+		if (i == tx_ring->next_to_use && i == tx_ring->next_to_clean)
+			printk(KERN_CONT" NTC/U\n");
+		else if (i == tx_ring->next_to_use)
+			printk(KERN_CONT " NTU\n");
+		else if (i == tx_ring->next_to_clean)
+			printk(KERN_CONT " NTC\n");
+		else
+			printk(KERN_CONT "\n");
+
+
+		if (netif_msg_pktdata(adapter) && buffer_info->dma != 0)
+			print_hex_dump(KERN_INFO, "", DUMP_PREFIX_ADDRESS,
+					16, 1, phys_to_virt(buffer_info->dma),
+					buffer_info->length, true);
+	}
+
+rx_ring_summary:
+	/*
+	 * receive dump
+	 */
+	pr_info("\nRX Desc ring dump\n");
+
+	/* Legacy Receive Descriptor Format
+	 *
+	 * +-----------------------------------------------------+
+	 * |                Buffer Address [63:0]                |
+	 * +-----------------------------------------------------+
+	 * | VLAN Tag | Errors | Status 0 | Packet csum | Length |
+	 * +-----------------------------------------------------+
+	 * 63       48 47    40 39      32 31         16 15      0
+	 */
+	printk(KERN_INFO "R[desc]      [address 63:0  ] [vl er S cks ln] "
+		"[bi->dma       ] [bi->skb]\n");
+
+	if (!netif_msg_rx_status(adapter))
+		goto exit;
+
+	for (i = 0; rx_ring->desc && (i < rx_ring->count); i++) {
+		struct e1000_rx_desc *rx_desc = E1000_RX_DESC(*rx_ring, i);
+		struct e1000_buffer *buffer_info = &rx_ring->buffer_info[i];
+		struct my_u { u64 a; u64 b; };
+		struct my_u *u = (struct my_u *)rx_desc;
+		printk(KERN_INFO "R[0x%03X]     %016llX %016llX %016llX %p",
+			i, le64_to_cpu(u->a), le64_to_cpu(u->b),
+			(u64)buffer_info->dma, buffer_info->skb);
+		if (i == rx_ring->next_to_use)
+			printk(KERN_CONT " NTU\n");
+		else if (i == rx_ring->next_to_clean)
+			printk(KERN_CONT " NTC\n");
+		else
+			printk(KERN_CONT "\n");
+
+		if (netif_msg_pktdata(adapter))
+			print_hex_dump(KERN_INFO, "",
+				DUMP_PREFIX_ADDRESS, 16, 1,
+				phys_to_virt(buffer_info->dma),
+				buffer_info->length, true);
+
+	} /* for */
+
+	/* dump the descriptor caches */
+	/* rx */
+	printk(KERN_INFO "e1000: Rx descriptor cache in 64bit format\n");
+	for (i = 0x6000; i <= 0x63FF ; i += 0x10) {
+		printk(KERN_INFO "R%04X: %08X|%08X %08X|%08X\n",
+				i,
+				readl(adapter->hw.hw_addr + i+4),
+				readl(adapter->hw.hw_addr + i),
+				readl(adapter->hw.hw_addr + i+12),
+				readl(adapter->hw.hw_addr + i+8));
+	}
+	/* tx */
+	printk(KERN_INFO "e1000: Tx descriptor cache in 64bit format\n");
+	for (i = 0x7000; i <= 0x73FF ; i += 0x10) {
+		printk(KERN_INFO "T%04X: %08X|%08X %08X|%08X\n",
+				i,
+				readl(adapter->hw.hw_addr + i+4),
+				readl(adapter->hw.hw_addr + i),
+				readl(adapter->hw.hw_addr + i+12),
+				readl(adapter->hw.hw_addr + i+8));
+	}
+exit:
+	return;
+}
+
 /**
  * e1000_tx_timeout - Respond to a Tx Hang
  * @netdev: network interface device structure
@@ -3260,6 +3482,7 @@ static void e1000_reset_task(struct work_struct *work)
 
 	if (test_bit(__E1000_DOWN, &adapter->flags))
 		return;
+	e_err(drv, "Reset adapter\n");
 	e1000_reinit_safe(adapter);
 }
 
@@ -3677,6 +3900,7 @@ static bool e1000_clean_tx_irq(struct e1000_adapter *adapter,
 				eop,
 				jiffies,
 				eop_desc->upper.fields.status);
+			e1000_dump(adapter);
 			netif_stop_queue(netdev);
 		}
 	}
