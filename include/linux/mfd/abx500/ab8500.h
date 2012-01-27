@@ -345,4 +345,10 @@ static inline int is_ab8500_2p0(struct ab8500 *ab)
 	return (is_ab8500(ab) && (ab->chip_id == AB8500_CUT2P0));
 }
 
+#ifdef CONFIG_AB8500_DEBUG
+void ab8500_dump_all_banks(struct device *dev);
+#else
+static inline void ab8500_dump_all_banks(struct device *dev) {}
+#endif
+
 #endif /* MFD_AB8500_H */

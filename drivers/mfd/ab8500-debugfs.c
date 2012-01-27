@@ -581,6 +581,19 @@ static int ab8500_print_all_banks(struct seq_file *s, void *p)
 	return 0;
 }
 
+/* Dump registers to kernel log */
+void ab8500_dump_all_banks(struct device *dev)
+{
+	unsigned int i;
+
+	printk(KERN_INFO"ab8500 register values:\n");
+
+	for (i = 1; i < AB8500_NUM_BANKS; i++) {
+		printk(KERN_INFO" bank %u:\n", i);
+		ab8500_registers_print(dev, i, NULL);
+	}
+}
+
 static int ab8500_all_banks_open(struct inode *inode, struct file *file)
 {
 	struct seq_file *s;

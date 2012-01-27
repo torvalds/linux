@@ -319,6 +319,7 @@ static struct abx500_ops ab8500_ops = {
 	.mask_and_set_register = ab8500_mask_and_set_register,
 	.event_registers_startup_state_get = NULL,
 	.startup_irq_enabled = NULL,
+	.dump_all_banks = ab8500_dump_all_banks,
 };
 
 static void ab8500_irq_lock(struct irq_data *data)
