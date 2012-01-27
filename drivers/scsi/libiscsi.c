@@ -1909,6 +1909,16 @@ static enum blk_eh_timer_return iscsi_eh_cmd_timed_out(struct scsi_cmnd *sc)
 	ISCSI_DBG_EH(session, "scsi cmd %p timedout\n", sc);
 
 	spin_lock(&session->lock);
+	task = (struct iscsi_task *)sc->SCp.ptr;
+	if (!task) {
+		/*
+		 * Raced with completion. Blk layer has taken ownership
+		 * so let timeout code complete it now.
+		 */
+		rc = BLK_EH_HANDLED;
+		goto done;
+	}
+
 	if (session->state != ISCSI_STATE_LOGGED_IN) {
 		/*
 		 * We are probably in the middle of iscsi recovery so let
@@ -1921,16 +1931,6 @@ static enum blk_eh_timer_return iscsi_eh_cmd_timed_out(struct scsi_cmnd *sc)
 	conn = session->leadconn;
 	if (!conn) {
 		/* In the middle of shuting down */
-		rc = BLK_EH_RESET_TIMER;
-		goto done;
-	}
-
-	task = (struct iscsi_task *)sc->SCp.ptr;
-	if (!task) {
-		/*
-		 * Raced with completion. Just reset timer, and let it
-		 * complete normally
-		 */
 		rc = BLK_EH_RESET_TIMER;
 		goto done;
 	}
