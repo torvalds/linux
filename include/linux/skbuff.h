@@ -438,14 +438,17 @@ struct sk_buff {
 #endif
 
 	int			skb_iif;
+
+	__u32			rxhash;
+
+	__u16			vlan_tci;
+
 #ifdef CONFIG_NET_SCHED
 	__u16			tc_index;	/* traffic control index */
 #ifdef CONFIG_NET_CLS_ACT
 	__u16			tc_verd;	/* traffic control verdict */
 #endif
 #endif
-
-	__u32			rxhash;
 
 	__u16			queue_mapping;
 	kmemcheck_bitfield_begin(flags2);
@@ -469,8 +472,6 @@ struct sk_buff {
 		__u32		mark;
 		__u32		dropcount;
 	};
-
-	__u16			vlan_tci;
 
 	sk_buff_data_t		transport_header;
 	sk_buff_data_t		network_header;
