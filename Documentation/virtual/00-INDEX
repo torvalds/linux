@@ -4,8 +4,6 @@ Virtualization support in the Linux kernel.
 	- this file.
 kvm/
 	- Kernel Virtual Machine.  See also http://linux-kvm.org
-lguest/
-	- Extremely simple hypervisor for experimental/educational use.
 uml/
 	- User Mode Linux, builds/runs Linux kernel as a userspace program.
 virtio.txt
