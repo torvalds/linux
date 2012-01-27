@@ -1363,8 +1363,7 @@ static int nes_addr_resolve_neigh(struct nes_vnic *nesvnic, u32 dst_ip, int arpi
 				if (!memcmp(nesadapter->arp_table[arpindex].mac_addr,
 					    neigh->ha, ETH_ALEN)) {
 					/* Mac address same as in nes_arp_table */
-					ip_rt_put(rt);
-					return rc;
+					goto out;
 				}
 
 				nes_manage_arp_cache(nesvnic->netdev,
@@ -1380,6 +1379,8 @@ static int nes_addr_resolve_neigh(struct nes_vnic *nesvnic, u32 dst_ip, int arpi
 			neigh_event_send(neigh, NULL);
 		}
 	}
+
+out:
 	rcu_read_unlock();
 	ip_rt_put(rt);
 	return rc;
