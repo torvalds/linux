@@ -2593,6 +2593,21 @@ static struct platform_device bfin_ac97_pcm = {
 };
 #endif
 
+#if defined(CONFIG_SND_BF5XX_SOC_AD73311) || \
+				defined(CONFIG_SND_BF5XX_SOC_AD73311_MODULE)
+static const unsigned ad73311_gpio[] = {
+	GPIO_PF4,
+};
+
+static struct platform_device bfin_ad73311_machine = {
+	.name = "bfin-snd-ad73311",
+	.id = 1,
+	.dev = {
+		.platform_data = (void *)ad73311_gpio,
+	},
+};
+#endif
+
 #if defined(CONFIG_SND_SOC_AD73311) || defined(CONFIG_SND_SOC_AD73311_MODULE)
 static struct platform_device bfin_ad73311_codec_device = {
 	.name = "ad73311",
@@ -2860,6 +2875,11 @@ static struct platform_device *stamp_devices[] __initdata = {
 
 #if defined(CONFIG_SND_BF5XX_AC97) || defined(CONFIG_SND_BF5XX_AC97_MODULE)
 	&bfin_ac97_pcm,
+#endif
+
+#if defined(CONFIG_SND_BF5XX_SOC_AD73311) || \
+		defined(CONFIG_SND_BF5XX_SOC_AD73311_MODULE)
+	&bfin_ad73311_machine,
 #endif
 
 #if defined(CONFIG_SND_SOC_AD73311) || defined(CONFIG_SND_SOC_AD73311_MODULE)
