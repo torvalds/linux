@@ -2226,7 +2226,7 @@ static struct dvb_tuner_ops mt2063_ops = {
 	.info = {
 		 .name = "MT2063 Silicon Tuner",
 		 .frequency_min = 45000000,
-		 .frequency_max = 850000000,
+		 .frequency_max = 865000000,
 		 .frequency_step = 0,
 		 },
 
