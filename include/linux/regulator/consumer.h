@@ -249,6 +249,12 @@ static inline int regulator_bulk_get(struct device *dev,
 	return 0;
 }
 
+static inline int devm_regulator_bulk_get(struct device *dev, int num_consumers,
+					  struct regulator_bulk_data *consumers)
+{
+	return 0;
+}
+
 static inline int regulator_bulk_enable(int num_consumers,
 					struct regulator_bulk_data *consumers)
 {
