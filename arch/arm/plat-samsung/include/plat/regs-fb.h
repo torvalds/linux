@@ -384,3 +384,9 @@
 #define WPALCON_W0PAL_16BPP_A555		(0x5 << 0)
 #define WPALCON_W0PAL_16BPP_565			(0x6 << 0)
 
+/* Blending equation control */
+#define BLENDCON				(0x260)
+#define BLENDCON_NEW_MASK			(1 << 0)
+#define BLENDCON_NEW_8BIT_ALPHA_VALUE		(1 << 0)
+#define BLENDCON_NEW_4BIT_ALPHA_VALUE		(0 << 0)
+
