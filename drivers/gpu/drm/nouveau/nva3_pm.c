@@ -393,12 +393,34 @@ mclk_clock_set(struct nouveau_mem_exec_func *exec)
 static void
 mclk_timing_set(struct nouveau_mem_exec_func *exec)
 {
+	struct drm_device *dev = exec->dev;
 	struct nva3_pm_state *info = exec->priv;
 	struct nouveau_pm_level *perflvl = info->perflvl;
+	u8 *ramcfg, ver, len;
 	int i;
 
 	for (i = 0; i < 9; i++)
-		nv_wr32(exec->dev, 0x100220 + (i * 4), perflvl->timing.reg[i]);
+		nv_wr32(dev, 0x100220 + (i * 4), perflvl->timing.reg[i]);
+
+	ramcfg = nouveau_perf_ramcfg(dev, perflvl->memory, &ver, &len);
+	if (ramcfg) {
+		u32 unk714 = nv_rd32(dev, 0x100714) & ~0xf0000010;
+		u32 unk718 = nv_rd32(dev, 0x100718) & ~0x00000100;
+		u32 unk71c = nv_rd32(dev, 0x10071c) & ~0x00000100;
+		if ( (ramcfg[2] & 0x20))
+			unk714 |= 0xf0000000;
+		if (!(ramcfg[2] & 0x04))
+			unk714 |= 0x00000010;
+		nv_wr32(dev, 0x100714, unk714);
+
+		if (ramcfg[2] & 0x01)
+			unk71c |= 0x00000100;
+		nv_wr32(dev, 0x10071c, unk71c);
+
+		if (ramcfg[2] & 0x02)
+			unk718 |= 0x00000100;
+		nv_wr32(dev, 0x100718, unk718);
+	}
 }
 
 static void
