@@ -40,15 +40,11 @@
 #include <syslog.h>
 
 /*
- * KYS: TODO. Need to register these in the kernel.
  *
  * The following definitions are shared with the in-kernel component; do not
  * change any of this without making the corresponding changes in
  * the KVP kernel component.
  */
-#define CN_KVP_IDX		0x9     /* MSFT KVP functionality */
-#define CN_KVP_VAL		0x1 /* This supports queries from the kernel */
-#define CN_KVP_USER_VAL		0x2 /* This supports queries from the user  */
 
 /*
  * KVP protocol: The user mode component first registers with the

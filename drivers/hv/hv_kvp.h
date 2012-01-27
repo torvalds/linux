@@ -107,9 +107,6 @@
  * the KVP user-mode component.
  */
 
-#define CN_KVP_VAL             0x1 /* This supports queries from the kernel */
-#define CN_KVP_USER_VAL       0x2 /* This supports queries from the user */
-
 enum hv_ku_op {
 	KVP_REGISTER = 0, /* Register the user mode component */
 	KVP_KERNEL_GET, /* Kernel is requesting the value */
