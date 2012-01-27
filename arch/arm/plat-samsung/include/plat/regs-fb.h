@@ -91,6 +91,9 @@
 #define VIDCON1_VSTATUS_BACKPORCH		(0x1 << 13)
 #define VIDCON1_VSTATUS_ACTIVE			(0x2 << 13)
 #define VIDCON1_VSTATUS_FRONTPORCH		(0x0 << 13)
+#define VIDCON1_VCLK_MASK			(0x3 << 9)
+#define VIDCON1_VCLK_HOLD			(0x0 << 9)
+#define VIDCON1_VCLK_RUN			(0x1 << 9)
 
 #define VIDCON1_INV_VCLK			(1 << 7)
 #define VIDCON1_INV_HSYNC			(1 << 6)
