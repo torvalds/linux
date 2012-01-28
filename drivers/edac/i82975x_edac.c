@@ -370,7 +370,7 @@ static void i82975x_init_csrows(struct mem_ctl_info *mci,
 	struct csrow_info *csrow;
 	unsigned long last_cumul_size;
 	u8 value;
-	u32 cumul_size;
+	u32 cumul_size, nr_pages;
 	int index, chan;
 	struct dimm_info *dimm;
 	enum dev_type dtype;
@@ -402,6 +402,7 @@ static void i82975x_init_csrows(struct mem_ctl_info *mci,
 		debugf3("%s(): (%d) cumul_size 0x%x\n", __func__, index,
 			cumul_size);
 
+		nr_pages = cumul_size - last_cumul_size;
 		/*
 		 * Initialise dram labels
 		 * index values:
@@ -411,6 +412,11 @@ static void i82975x_init_csrows(struct mem_ctl_info *mci,
 		dtype = i82975x_dram_type(mch_window, index);
 		for (chan = 0; chan < csrow->nr_channels; chan++) {
 			dimm = mci->csrows[index].channels[chan].dimm;
+
+			if (!nr_pages)
+				continue;
+
+			dimm->nr_pages = nr_pages / csrow->nr_channels;
 			strncpy(csrow->channels[chan].dimm->label,
 					labels[(index >> 1) + (chan * 2)],
 					EDAC_MC_LABEL_LEN);
@@ -420,12 +426,11 @@ static void i82975x_init_csrows(struct mem_ctl_info *mci,
 			dimm->edac_mode = EDAC_SECDED; /* only supported */
 		}
 
-		if (cumul_size == last_cumul_size)
+		if (!nr_pages)
 			continue;	/* not populated */
 
 		csrow->first_page = last_cumul_size;
 		csrow->last_page = cumul_size - 1;
-		csrow->nr_pages = cumul_size - last_cumul_size;
 		last_cumul_size = cumul_size;
 	}
 }

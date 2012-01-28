@@ -561,7 +561,6 @@ static int get_dimm_config(struct mem_ctl_info *mci)
 	u32 reg;
 	enum edac_type mode;
 	enum mem_type mtype;
-	struct dimm_info *dimm;
 
 	pci_read_config_dword(pvt->pci_br, SAD_TARGET, &reg);
 	pvt->sbridge_dev->source_id = SOURCE_ID(reg);
@@ -613,11 +612,11 @@ static int get_dimm_config(struct mem_ctl_info *mci)
 	/* On all supported DDR3 DIMM types, there are 8 banks available */
 	banks = 8;
 
-	dimm = mci->dimms;
 	for (i = 0; i < NUM_CHANNELS; i++) {
 		u32 mtr;
 
 		for (j = 0; j < ARRAY_SIZE(mtr_regs); j++) {
+			struct dimm_info *dimm = &mci->dimms[j];
 			pci_read_config_dword(pvt->pci_tad[i],
 					      mtr_regs[j], &mtr);
 			debugf4("Channel #%d  MTR%d = %x\n", i, j, mtr);
@@ -642,15 +641,12 @@ static int get_dimm_config(struct mem_ctl_info *mci)
 				 * csrows.
 				 */
 				csr = &mci->csrows[csrow];
-				csr->nr_pages = npages;
-				csr->csrow_idx = csrow;
-				csr->nr_channels = 1;
-				csr->channels[0].chan_idx = i;
 				pvt->csrow_map[i][j] = csrow;
 				last_page += npages;
 				csrow++;
 
 				csr->channels[0].dimm = dimm;
+				dimm->nr_pages = npages;
 				dimm->grain = 32;
 				dimm->dtype = (banks == 8) ? DEV_X8 : DEV_X4;
 				dimm->mtype = mtype;

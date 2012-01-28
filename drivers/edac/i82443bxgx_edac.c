@@ -220,7 +220,7 @@ static void i82443bxgx_init_csrows(struct mem_ctl_info *mci,
 		row_base = row_high_limit_last;
 		csrow->first_page = row_base >> PAGE_SHIFT;
 		csrow->last_page = (row_high_limit >> PAGE_SHIFT) - 1;
-		csrow->nr_pages = csrow->last_page - csrow->first_page + 1;
+		dimm->nr_pages = csrow->last_page - csrow->first_page + 1;
 		/* EAP reports in 4kilobyte granularity [61] */
 		dimm->grain = 1 << 12;
 		dimm->mtype = mtype;

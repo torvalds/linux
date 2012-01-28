@@ -1156,7 +1156,7 @@ static int i5400_init_csrows(struct mem_ctl_info *mci)
 	int empty, channel_count;
 	int max_csrows;
 	int mtr;
-	int csrow_megs;
+	int size_mb;
 	int channel;
 	int csrow;
 	struct dimm_info *dimm;
@@ -1171,8 +1171,6 @@ static int i5400_init_csrows(struct mem_ctl_info *mci)
 	for (csrow = 0; csrow < max_csrows; csrow++) {
 		p_csrow = &mci->csrows[csrow];
 
-		p_csrow->csrow_idx = csrow;
-
 		/* use branch 0 for the basis */
 		mtr = determine_mtr(pvt, csrow, 0);
 
@@ -1180,12 +1178,11 @@ static int i5400_init_csrows(struct mem_ctl_info *mci)
 		if (!MTR_DIMMS_PRESENT(mtr))
 			continue;
 
-		csrow_megs = 0;
 		for (channel = 0; channel < pvt->maxch; channel++) {
-			csrow_megs += pvt->dimm_info[csrow][channel].megabytes;
+			size_mb = pvt->dimm_info[csrow][channel].megabytes;
 
-			p_csrow->nr_pages = csrow_megs << 8;
 			dimm = p_csrow->channels[channel].dimm;
+			dimm->nr_pages = size_mb << 8;
 			dimm->grain = 8;
 			dimm->dtype = MTR_DRAM_WIDTH(mtr) ? DEV_X8 : DEV_X4;
 			dimm->mtype = MEM_RDDR2;

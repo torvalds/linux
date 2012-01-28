@@ -110,7 +110,7 @@ static int __devinit tile_edac_init_csrows(struct mem_ctl_info *mci)
 		return -1;
 	}
 
-	csrow->nr_pages = mem_info.mem_size >> PAGE_SHIFT;
+	dimm->nr_pages = mem_info.mem_size >> PAGE_SHIFT;
 	dimm->grain = TILE_EDAC_ERROR_GRAIN;
 	dimm->dtype = DEV_UNKNOWN;
 

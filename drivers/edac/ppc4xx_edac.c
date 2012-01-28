@@ -896,7 +896,7 @@ ppc4xx_edac_init_csrows(struct mem_ctl_info *mci, u32 mcopt1)
 	enum dev_type dtype;
 	enum edac_type edac_mode;
 	int row, j;
-	u32 mbxcf, size;
+	u32 mbxcf, size, nr_pages;
 
 	/* Establish the memory type and width */
 
@@ -947,7 +947,7 @@ ppc4xx_edac_init_csrows(struct mem_ctl_info *mci, u32 mcopt1)
 		case SDRAM_MBCF_SZ_2GB:
 		case SDRAM_MBCF_SZ_4GB:
 		case SDRAM_MBCF_SZ_8GB:
-			csi->nr_pages = SDRAM_MBCF_SZ_TO_PAGES(size);
+			nr_pages = SDRAM_MBCF_SZ_TO_PAGES(size);
 			break;
 		default:
 			ppc4xx_edac_mc_printk(KERN_ERR, mci,
@@ -973,6 +973,7 @@ ppc4xx_edac_init_csrows(struct mem_ctl_info *mci, u32 mcopt1)
 		for (j = 0; j < csi->nr_channels; j++) {
 			struct dimm_info *dimm = csi->channels[j].dimm;
 
+			dimm->nr_pages  = nr_pages / csi->nr_channels;
 			dimm->grain	= 1;
 
 			dimm->mtype	= mtype;

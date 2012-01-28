@@ -324,6 +324,8 @@ struct dimm_info {
 	enum mem_type mtype;	/* memory dimm type */
 	enum edac_type edac_mode;	/* EDAC mode for this dimm */
 
+	u32 nr_pages;			/* number of pages in csrow */
+
 	u32 ce_count;		/* Correctable Errors for this dimm */
 };
 
@@ -350,12 +352,12 @@ struct rank_info {
 };
 
 struct csrow_info {
+	/* Used only by edac_mc_find_csrow_by_page() */
 	unsigned long first_page;	/* first page number in csrow */
 	unsigned long last_page;	/* last page number in csrow */
-	u32 nr_pages;			/* number of pages in csrow */
 	unsigned long page_mask;	/* used for interleaving -
-					 * 0UL for non intlv
-					 */
+					 * 0UL for non intlv */
+
 	int csrow_idx;			/* the chip-select row */
 
 	u32 ue_count;		/* Uncorrectable Errors for this csrow */

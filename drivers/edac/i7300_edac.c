@@ -617,9 +617,7 @@ static void i7300_enable_error_reporting(struct mem_ctl_info *mci)
 static int decode_mtr(struct i7300_pvt *pvt,
 		      int slot, int ch, int branch,
 		      struct i7300_dimm_info *dinfo,
-		      struct csrow_info *p_csrow,
-		      struct dimm_info *dimm,
-		      u32 *nr_pages)
+		      struct dimm_info *dimm)
 {
 	int mtr, ans, addrBits, channel;
 
@@ -651,7 +649,6 @@ static int decode_mtr(struct i7300_pvt *pvt,
 	addrBits -= 3;	/* 8 bits per bytes */
 
 	dinfo->megabytes = 1 << addrBits;
-	*nr_pages = dinfo->megabytes << 8;
 
 	debugf2("\t\tWIDTH: x%d\n", MTR_DRAM_WIDTH(mtr));
 
@@ -664,8 +661,6 @@ static int decode_mtr(struct i7300_pvt *pvt,
 	debugf2("\t\tNUMCOL: %s\n", numcol_toString[MTR_DIMM_COLS(mtr)]);
 	debugf2("\t\tSIZE: %d MB\n", dinfo->megabytes);
 
-	p_csrow->csrow_idx = slot;
-
 	/*
 	 * The type of error detection actually depends of the
 	 * mode of operation. When it is just one single memory chip, at
@@ -675,6 +670,7 @@ static int decode_mtr(struct i7300_pvt *pvt,
 	 * See datasheet Sections 7.3.6 to 7.3.8
 	 */
 
+	dimm->nr_pages = MiB_TO_PAGES(dinfo->megabytes);
 	dimm->grain = 8;
 	dimm->mtype = MEM_FB_DDR2;
 	if (IS_SINGLE_MODE(pvt->mc_settings_a)) {
@@ -774,11 +770,9 @@ static int i7300_init_csrows(struct mem_ctl_info *mci)
 {
 	struct i7300_pvt *pvt;
 	struct i7300_dimm_info *dinfo;
-	struct csrow_info *p_csrow;
 	int rc = -ENODEV;
 	int mtr;
 	int ch, branch, slot, channel;
-	u32 nr_pages;
 	struct dimm_info *dimm;
 
 	pvt = mci->pvt_info;
@@ -804,7 +798,6 @@ static int i7300_init_csrows(struct mem_ctl_info *mci)
 	}
 
 	/* Get the set of MTR[0-7] regs by each branch */
-	nr_pages = 0;
 	for (slot = 0; slot < MAX_SLOTS; slot++) {
 		int where = mtr_regs[slot];
 		for (branch = 0; branch < MAX_BRANCHES; branch++) {
@@ -815,21 +808,18 @@ static int i7300_init_csrows(struct mem_ctl_info *mci)
 				int channel = to_channel(ch, branch);
 
 				dinfo = &pvt->dimm_info[slot][channel];
-				p_csrow = &mci->csrows[slot];
 
-				dimm = p_csrow->channels[branch * MAX_CH_PER_BRANCH + ch].dimm;
+				dimm = mci->csrows[slot].channels[branch * MAX_CH_PER_BRANCH + ch].dimm;
 
 				mtr = decode_mtr(pvt, slot, ch, branch,
-						 dinfo, p_csrow, dimm,
-						 &nr_pages);
+						 dinfo, dimm);
+
 				/* if no DIMMS on this row, continue */
 				if (!MTR_DIMMS_PRESENT(mtr))
 					continue;
 
-				/* Update per_csrow memory count */
-				p_csrow->nr_pages += nr_pages;
-
 				rc = 0;
+
 			}
 		}
 	}

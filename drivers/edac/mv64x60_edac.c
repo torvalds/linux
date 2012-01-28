@@ -667,7 +667,8 @@ static void mv64x60_init_csrows(struct mem_ctl_info *mci,
 
 	csrow = &mci->csrows[0];
 	dimm = csrow->channels[0].dimm;
-	csrow->nr_pages = pdata->total_mem >> PAGE_SHIFT;
+
+	dimm->nr_pages = pdata->total_mem >> PAGE_SHIFT;
 	dimm->grain = 8;
 
 	dimm->mtype = (ctl & MV64X60_SDRAM_REGISTERED) ? MEM_RDDR : MEM_DDR;

@@ -167,7 +167,7 @@ static void i82860_init_csrows(struct mem_ctl_info *mci, struct pci_dev *pdev)
 
 		csrow->first_page = last_cumul_size;
 		csrow->last_page = cumul_size - 1;
-		csrow->nr_pages = cumul_size - last_cumul_size;
+		dimm->nr_pages = cumul_size - last_cumul_size;
 		last_cumul_size = cumul_size;
 		dimm->grain = 1 << 12;	/* I82860_EAP has 4KiB reolution */
 		dimm->mtype = MEM_RMBS;

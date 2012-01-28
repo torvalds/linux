@@ -205,10 +205,10 @@ static void amd76x_init_csrows(struct mem_ctl_info *mci, struct pci_dev *pdev,
 		mba_mask = ((mba & 0xff80) << 16) | 0x7fffffUL;
 		pci_read_config_dword(pdev, AMD76X_DRAM_MODE_STATUS, &dms);
 		csrow->first_page = mba_base >> PAGE_SHIFT;
-		csrow->nr_pages = (mba_mask + 1) >> PAGE_SHIFT;
-		csrow->last_page = csrow->first_page + csrow->nr_pages - 1;
+		dimm->nr_pages = (mba_mask + 1) >> PAGE_SHIFT;
+		csrow->last_page = csrow->first_page + dimm->nr_pages - 1;
 		csrow->page_mask = mba_mask >> PAGE_SHIFT;
-		dimm->grain = csrow->nr_pages << PAGE_SHIFT;
+		dimm->grain = dimm->nr_pages << PAGE_SHIFT;
 		dimm->mtype = MEM_RDDR;
 		dimm->dtype = ((dms >> index) & 0x1) ? DEV_X4 : DEV_UNKNOWN;
 		dimm->edac_mode = edac_mode;

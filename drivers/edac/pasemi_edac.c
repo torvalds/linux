@@ -153,20 +153,20 @@ static int pasemi_edac_init_csrows(struct mem_ctl_info *mci,
 		switch ((rankcfg & MCDRAM_RANKCFG_TYPE_SIZE_M) >>
 			MCDRAM_RANKCFG_TYPE_SIZE_S) {
 		case 0:
-			csrow->nr_pages = 128 << (20 - PAGE_SHIFT);
+			dimm->nr_pages = 128 << (20 - PAGE_SHIFT);
 			break;
 		case 1:
-			csrow->nr_pages = 256 << (20 - PAGE_SHIFT);
+			dimm->nr_pages = 256 << (20 - PAGE_SHIFT);
 			break;
 		case 2:
 		case 3:
-			csrow->nr_pages = 512 << (20 - PAGE_SHIFT);
+			dimm->nr_pages = 512 << (20 - PAGE_SHIFT);
 			break;
 		case 4:
-			csrow->nr_pages = 1024 << (20 - PAGE_SHIFT);
+			dimm->nr_pages = 1024 << (20 - PAGE_SHIFT);
 			break;
 		case 5:
-			csrow->nr_pages = 2048 << (20 - PAGE_SHIFT);
+			dimm->nr_pages = 2048 << (20 - PAGE_SHIFT);
 			break;
 		default:
 			edac_mc_printk(mci, KERN_ERR,
@@ -176,8 +176,8 @@ static int pasemi_edac_init_csrows(struct mem_ctl_info *mci,
 		}
 
 		csrow->first_page = last_page_in_mmc;
-		csrow->last_page = csrow->first_page + csrow->nr_pages - 1;
-		last_page_in_mmc += csrow->nr_pages;
+		csrow->last_page = csrow->first_page + dimm->nr_pages - 1;
+		last_page_in_mmc += dimm->nr_pages;
 		csrow->page_mask = 0;
 		dimm->grain = PASEMI_EDAC_ERROR_GRAIN;
 		dimm->mtype = MEM_DDR;

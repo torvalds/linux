@@ -376,11 +376,10 @@ static int i3200_probe1(struct pci_dev *pdev, int dev_idx)
 		if (nr_pages == 0)
 			continue;
 
-		csrow->nr_pages = nr_pages;
-
 		for (j = 0; j < nr_channels; j++) {
 			struct dimm_info *dimm = csrow->channels[j].dimm;
 
+			dimm->nr_pages = nr_pages / nr_channels;
 			dimm->grain = nr_pages << PAGE_SHIFT;
 			dimm->mtype = MEM_DDR2;
 			dimm->dtype = DEV_UNKNOWN;

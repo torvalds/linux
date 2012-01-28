@@ -332,7 +332,7 @@ static void cpc925_init_csrows(struct mem_ctl_info *mci)
 	struct dimm_info *dimm;
 	int index, j;
 	u32 mbmr, mbbar, bba;
-	unsigned long row_size, last_nr_pages = 0;
+	unsigned long row_size, nr_pages, last_nr_pages = 0;
 
 	get_total_mem(pdata);
 
@@ -351,12 +351,14 @@ static void cpc925_init_csrows(struct mem_ctl_info *mci)
 
 		row_size = bba * (1UL << 28);	/* 256M */
 		csrow->first_page = last_nr_pages;
-		csrow->nr_pages = row_size >> PAGE_SHIFT;
-		csrow->last_page = csrow->first_page + csrow->nr_pages - 1;
+		nr_pages = row_size >> PAGE_SHIFT;
+		csrow->last_page = csrow->first_page + nr_pages - 1;
 		last_nr_pages = csrow->last_page + 1;
 
 		for (j = 0; j < csrow->nr_channels; j++) {
 			dimm = csrow->channels[j].dimm;
+
+			dimm->nr_pages = nr_pages / csrow->nr_channels;
 			dimm->mtype = MEM_RDDR;
 			dimm->edac_mode = EDAC_SECDED;
 

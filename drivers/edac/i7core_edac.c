@@ -715,17 +715,12 @@ static int get_dimm_config(struct mem_ctl_info *mci)
 			npages = MiB_TO_PAGES(size);
 
 			csr = &mci->csrows[csrow];
-			csr->nr_pages = npages;
-
-			csr->csrow_idx = csrow;
-			csr->nr_channels = 1;
-
-			csr->channels[0].chan_idx = i;
-			csr->channels[0].ce_count = 0;
 
 			pvt->csrow_map[i][j] = csrow;
 
 			dimm = csr->channels[0].dimm;
+			dimm->nr_pages = npages;
+
 			switch (banks) {
 			case 4:
 				dimm->dtype = DEV_X4;
@@ -746,6 +741,7 @@ static int get_dimm_config(struct mem_ctl_info *mci)
 			dimm->grain = 8;
 			dimm->edac_mode = mode;
 			dimm->mtype = mtype;
+			csrow++;
 		}
 
 		pci_read_config_dword(pdev, MC_SAG_CH_0, &value[0]);

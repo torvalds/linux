@@ -859,7 +859,6 @@ static void __devinit i5100_init_csrows(struct mem_ctl_info *mci)
 		 * FIXME: these two are totally bogus -- I don't see how to
 		 * map them correctly to this structure...
 		 */
-		mci->csrows[i].nr_pages = npages;
 		mci->csrows[i].csrow_idx = i;
 		mci->csrows[i].mci = mci;
 		mci->csrows[i].nr_channels = 1;
@@ -867,14 +866,19 @@ static void __devinit i5100_init_csrows(struct mem_ctl_info *mci)
 		total_pages += npages;
 
 		dimm = mci->csrows[i].channels[0].dimm;
-		dimm->grain = 32;
-		dimm->dtype = (priv->mtr[chan][rank].width == 4) ?
-			      DEV_X4 : DEV_X8;
-		dimm->mtype = MEM_RDDR2;
-		dimm->edac_mode = EDAC_SECDED;
-		snprintf(dimm->label, sizeof(dimm->label),
-			 "DIMM%u",
-			 i5100_rank_to_slot(mci, chan, rank));
+		dimm->nr_pages = npages;
+		if (npages) {
+			total_pages += npages;
+
+			dimm->grain = 32;
+			dimm->dtype = (priv->mtr[chan][rank].width == 4) ?
+				DEV_X4 : DEV_X8;
+			dimm->mtype = MEM_RDDR2;
+			dimm->edac_mode = EDAC_SECDED;
+			snprintf(dimm->label, sizeof(dimm->label),
+				"DIMM%u",
+				i5100_rank_to_slot(mci, chan, rank));
+		}
 	}
 }
 
