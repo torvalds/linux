@@ -2387,10 +2387,21 @@
 #define   PIPECONF_PALETTE	0
 #define   PIPECONF_GAMMA		(1<<24)
 #define   PIPECONF_FORCE_BORDER	(1<<25)
-#define   PIPECONF_PROGRESSIVE	(0 << 21)
-#define   PIPECONF_INTERLACE_W_FIELD_INDICATION	(6 << 21)
-#define   PIPECONF_INTERLACE_FIELD_0_ONLY		(7 << 21)
 #define   PIPECONF_INTERLACE_MASK	(7 << 21)
+/* Note that pre-gen3 does not support interlaced display directly. Panel
+ * fitting must be disabled on pre-ilk for interlaced. */
+#define   PIPECONF_PROGRESSIVE			(0 << 21)
+#define   PIPECONF_INTERLACE_W_SYNC_SHIFT_PANEL	(4 << 21) /* gen4 only */
+#define   PIPECONF_INTERLACE_W_SYNC_SHIFT	(5 << 21) /* gen4 only */
+#define   PIPECONF_INTERLACE_W_FIELD_INDICATION	(6 << 21)
+#define   PIPECONF_INTERLACE_FIELD_0_ONLY	(7 << 21) /* gen3 only */
+/* Ironlake and later have a complete new set of values for interlaced. PFIT
+ * means panel fitter required, PF means progressive fetch, DBL means power
+ * saving pixel doubling. */
+#define   PIPECONF_PFIT_PF_INTERLACED_ILK	(1 << 21)
+#define   PIPECONF_INTERLACED_ILK		(3 << 21)
+#define   PIPECONF_INTERLACED_DBL_ILK		(4 << 21) /* ilk/snb only */
+#define   PIPECONF_PFIT_PF_INTERLACED_DBL_ILK	(5 << 21) /* ilk/snb only */
 #define   PIPECONF_CXSR_DOWNCLOCK	(1<<16)
 #define   PIPECONF_BPP_MASK	(0x000000e0)
 #define   PIPECONF_BPP_8	(0<<5)
