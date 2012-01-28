@@ -71,12 +71,6 @@ extern void platform_secondary_init(unsigned int cpu);
 extern void platform_smp_prepare_cpus(unsigned int);
 
 /*
- * Logical CPU mapping.
- */
-extern int __cpu_logical_map[NR_CPUS];
-#define cpu_logical_map(cpu)	__cpu_logical_map[cpu]
-
-/*
  * Initial data for bringing up a secondary CPU.
  */
 struct secondary_data {

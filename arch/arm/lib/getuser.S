@@ -31,18 +31,18 @@
 #include <asm/domain.h>
 
 ENTRY(__get_user_1)
-1:	T(ldrb)	r2, [r0]
+1: TUSER(ldrb)	r2, [r0]
 	mov	r0, #0
 	mov	pc, lr
 ENDPROC(__get_user_1)
 
 ENTRY(__get_user_2)
 #ifdef CONFIG_THUMB2_KERNEL
-2:	T(ldrb)	r2, [r0]
-3:	T(ldrb)	r3, [r0, #1]
+2: TUSER(ldrb)	r2, [r0]
+3: TUSER(ldrb)	r3, [r0, #1]
 #else
-2:	T(ldrb)	r2, [r0], #1
-3:	T(ldrb)	r3, [r0]
+2: TUSER(ldrb)	r2, [r0], #1
+3: TUSER(ldrb)	r3, [r0]
 #endif
 #ifndef __ARMEB__
 	orr	r2, r2, r3, lsl #8
@@ -54,7 +54,7 @@ ENTRY(__get_user_2)
 ENDPROC(__get_user_2)
 
 ENTRY(__get_user_4)
-4:	T(ldr)	r2, [r0]
+4: TUSER(ldr)	r2, [r0]
 	mov	r0, #0
 	mov	pc, lr
 ENDPROC(__get_user_4)

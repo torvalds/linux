@@ -75,9 +75,9 @@ futex_atomic_cmpxchg_inatomic(u32 *uval, u32 __user *uaddr,
 
 #define __futex_atomic_op(insn, ret, oldval, tmp, uaddr, oparg)	\
 	__asm__ __volatile__(					\
-	"1:	" T(ldr) "	%1, [%3]\n"			\
+	"1:	" TUSER(ldr) "	%1, [%3]\n"			\
 	"	" insn "\n"					\
-	"2:	" T(str) "	%0, [%3]\n"			\
+	"2:	" TUSER(str) "	%0, [%3]\n"			\
 	"	mov	%0, #0\n"				\
 	__futex_atomic_ex_table("%5")				\
 	: "=&r" (ret), "=&r" (oldval), "=&r" (tmp)		\
@@ -95,10 +95,10 @@ futex_atomic_cmpxchg_inatomic(u32 *uval, u32 __user *uaddr,
 		return -EFAULT;
 
 	__asm__ __volatile__("@futex_atomic_cmpxchg_inatomic\n"
-	"1:	" T(ldr) "	%1, [%4]\n"
+	"1:	" TUSER(ldr) "	%1, [%4]\n"
 	"	teq	%1, %2\n"
 	"	it	eq	@ explicit IT needed for the 2b label\n"
-	"2:	" T(streq) "	%3, [%4]\n"
+	"2:	" TUSER(streq) "	%3, [%4]\n"
 	__futex_atomic_ex_table("%5")
 	: "+r" (ret), "=&r" (val)
 	: "r" (oldval), "r" (newval), "r" (uaddr), "Ir" (-EFAULT)
