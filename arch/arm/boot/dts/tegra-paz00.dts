@@ -79,4 +79,15 @@
 	sdhci@c8000600 {
 		support-8bit;
 	};
+
+	gpio-keys {
+		compatible = "gpio-keys";
+
+		power {
+			label = "Power";
+			gpios = <&gpio 79 1>; /* gpio PJ7, active low */
+			linux,code = <116>; /* KEY_POWER */
+			gpio-key,wakeup;
+		};
+	};
 };
