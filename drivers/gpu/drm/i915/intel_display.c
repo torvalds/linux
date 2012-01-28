@@ -5385,7 +5385,8 @@ static int i9xx_crtc_mode_set(struct drm_crtc *crtc,
 	}
 
 	pipeconf &= ~PIPECONF_INTERLACE_MASK;
-	if (adjusted_mode->flags & DRM_MODE_FLAG_INTERLACE) {
+	if (!IS_GEN2(dev) &&
+	    adjusted_mode->flags & DRM_MODE_FLAG_INTERLACE) {
 		pipeconf |= PIPECONF_INTERLACE_W_FIELD_INDICATION;
 		/* the chip adds 2 halflines automatically */
 		adjusted_mode->crtc_vtotal -= 1;
