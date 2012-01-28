@@ -46,11 +46,11 @@
 	};
 
 	serial@70006200 {
-		status = "disable";
+		clock-frequency = <216000000>;
 	};
 
 	serial@70006300 {
-		clock-frequency = <216000000>;
+		status = "disable";
 	};
 
 	serial@70006400 {
