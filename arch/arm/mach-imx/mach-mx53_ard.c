@@ -188,8 +188,10 @@ static int weim_cs_config(void)
 		return -ENOMEM;
 
 	iomuxc_base = ioremap(MX53_IOMUXC_BASE_ADDR, SZ_4K);
-	if (!iomuxc_base)
+	if (!iomuxc_base) {
+		iounmap(weim_base);
 		return -ENOMEM;
+	}
 
 	/* CS1 timings for LAN9220 */
 	writel(0x20001, (weim_base + 0x18));

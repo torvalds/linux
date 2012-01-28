@@ -261,6 +261,8 @@ void __init mop500_sdi_init(void)
 
 void __init snowball_sdi_init(void)
 {
+	/* On Snowball MMC_CAP_SD_HIGHSPEED isn't supported (Hardware issue?) */
+	mop500_sdi0_data.capabilities &= ~MMC_CAP_SD_HIGHSPEED;
 	/* On-board eMMC */
 	db8500_add_sdi4(&mop500_sdi4_data, U8500_SDI_V2_PERIPHID);
 	/* External Micro SD slot */
