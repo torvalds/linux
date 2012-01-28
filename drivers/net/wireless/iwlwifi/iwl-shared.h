@@ -264,11 +264,13 @@ enum iwl_pa_type {
  *			LED ON  = RF ON
  *			LED OFF = RF OFF
  *    IWL_LED_BLINK:    adjust led blink rate based on blink table
+ *    IWL_LED_DISABLE:	led disabled
  */
 enum iwl_led_mode {
 	IWL_LED_DEFAULT,
 	IWL_LED_RF_STATE,
 	IWL_LED_BLINK,
+	IWL_LED_DISABLE,
 };
 
 /**

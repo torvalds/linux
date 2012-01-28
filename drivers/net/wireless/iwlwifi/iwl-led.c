@@ -177,6 +177,10 @@ void iwl_leds_init(struct iwl_priv *priv)
 	int mode = iwlagn_mod_params.led_mode;
 	int ret;
 
+	if (mode == IWL_LED_DISABLE) {
+		IWL_INFO(priv, "Led disabled\n");
+		return;
+	}
 	if (mode == IWL_LED_DEFAULT)
 		mode = cfg(priv)->led_mode;
 

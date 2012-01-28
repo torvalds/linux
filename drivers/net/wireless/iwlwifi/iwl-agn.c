@@ -2097,7 +2097,7 @@ MODULE_PARM_DESC(bt_coex_active, "enable wifi/bt co-exist (default: enable)");
 
 module_param_named(led_mode, iwlagn_mod_params.led_mode, int, S_IRUGO);
 MODULE_PARM_DESC(led_mode, "0=system default, "
-		"1=On(RF On)/Off(RF Off), 2=blinking (default: 0)");
+		"1=On(RF On)/Off(RF Off), 2=blinking, 3=Off (default: 0)");
 
 module_param_named(power_save, iwlagn_mod_params.power_save,
 		bool, S_IRUGO);
