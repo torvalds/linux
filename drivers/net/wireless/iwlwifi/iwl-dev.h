@@ -661,7 +661,7 @@ struct traffic_stats {
  * schedule the timer to wake up every UCODE_TRACE_PERIOD milliseconds
  * to perform continuous uCode event logging operation if enabled
  */
-#define UCODE_TRACE_PERIOD (100)
+#define UCODE_TRACE_PERIOD (10)
 
 /*
  * iwl_event_log: current uCode event log position
