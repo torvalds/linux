@@ -409,8 +409,15 @@ static int ite_firmware_select(struct usb_device *udev,
 		it913x_config.firmware_ver = 1;
 		it913x_config.adc_x2 = 1;
 		props->firmware = fw_it9135_v2;
-		if (it913x_config.tuner_id_0 == 0)
+		switch (it913x_config.tuner_id_0) {
+		case IT9135_61:
+		case IT9135_62:
+			break;
+		default:
+			info("Unknown tuner ID applying default 0x60");
+		case IT9135_60:
 			it913x_config.tuner_id_0 = IT9135_60;
+		}
 		break;
 	case IT9137_FW:
 	default:
@@ -818,5 +825,5 @@ module_usb_driver(it913x_driver);
 
 MODULE_AUTHOR("Malcolm Priestley <tvboxspy@gmail.com>");
 MODULE_DESCRIPTION("it913x USB 2 Driver");
-MODULE_VERSION("1.23");
+MODULE_VERSION("1.24");
 MODULE_LICENSE("GPL");
