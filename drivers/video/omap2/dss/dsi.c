@@ -1079,7 +1079,7 @@ void dsi_runtime_put(struct platform_device *dsidev)
 
 	DSSDBG("dsi_runtime_put\n");
 
-	r = pm_runtime_put(&dsi->pdev->dev);
+	r = pm_runtime_put_sync(&dsi->pdev->dev);
 	WARN_ON(r < 0);
 }
 
