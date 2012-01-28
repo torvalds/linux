@@ -715,25 +715,6 @@ static inline u64 input_addr_to_sys_addr(struct mem_ctl_info *mci,
 				     input_addr_to_dram_addr(mci, input_addr));
 }
 
-/*
- * Find the minimum and maximum InputAddr values that map to the given @csrow.
- * Pass back these values in *input_addr_min and *input_addr_max.
- */
-static void find_csrow_limits(struct mem_ctl_info *mci, int csrow,
-			      u64 *input_addr_min, u64 *input_addr_max)
-{
-	struct amd64_pvt *pvt;
-	u64 base, mask;
-
-	pvt = mci->pvt_info;
-	BUG_ON((csrow < 0) || (csrow >= pvt->csels[0].b_cnt));
-
-	get_cs_base_and_mask(pvt, csrow, 0, &base, &mask);
-
-	*input_addr_min = base & ~mask;
-	*input_addr_max = base | mask;
-}
-
 /* Map the Error address to a PAGE and PAGE OFFSET. */
 static inline void error_address_to_page_and_offset(u64 error_address,
 						    u32 *page, u32 *offset)
@@ -2185,7 +2166,7 @@ static int init_csrows(struct mem_ctl_info *mci)
 {
 	struct csrow_info *csrow;
 	struct amd64_pvt *pvt = mci->pvt_info;
-	u64 input_addr_min, input_addr_max, sys_addr, base, mask;
+	u64 base, mask;
 	u32 val;
 	int i, j, empty = 1;
 	enum mem_type mtype;
@@ -2216,28 +2197,14 @@ static int init_csrows(struct mem_ctl_info *mci)
 			csrow->nr_pages = amd64_csrow_nr_pages(pvt, 0, i);
 		if (csrow_enabled(i, 1, pvt))
 			csrow->nr_pages += amd64_csrow_nr_pages(pvt, 1, i);
-		find_csrow_limits(mci, i, &input_addr_min, &input_addr_max);
-		sys_addr = input_addr_to_sys_addr(mci, input_addr_min);
-		csrow->first_page = (u32) (sys_addr >> PAGE_SHIFT);
-		sys_addr = input_addr_to_sys_addr(mci, input_addr_max);
-		csrow->last_page = (u32) (sys_addr >> PAGE_SHIFT);
 
 		get_cs_base_and_mask(pvt, i, 0, &base, &mask);
-		csrow->page_mask = ~mask;
 		/* 8 bytes of resolution */
 
 		mtype = amd64_determine_memory_type(pvt, i);
 
 		debugf1("  for MC node %d csrow %d:\n", pvt->mc_node_id, i);
-		debugf1("    input_addr_min: 0x%lx input_addr_max: 0x%lx\n",
-			(unsigned long)input_addr_min,
-			(unsigned long)input_addr_max);
-		debugf1("    sys_addr: 0x%lx  page_mask: 0x%lx\n",
-			(unsigned long)sys_addr, csrow->page_mask);
-		debugf1("    nr_pages: %u  first_page: 0x%lx "
-			"last_page: 0x%lx\n",
-			(unsigned)csrow->nr_pages,
-			csrow->first_page, csrow->last_page);
+		debugf1("    nr_pages: %u\n", csrow->nr_pages);
 
 		/*
 		 * determine whether CHIPKILL or JUST ECC or NO ECC is operating

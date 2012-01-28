@@ -599,7 +599,6 @@ static int get_dimm_config(struct mem_ctl_info *mci)
 	struct pci_dev *pdev;
 	int i, j;
 	int csrow = 0;
-	unsigned long last_page = 0;
 	enum edac_type mode;
 	enum mem_type mtype;
 	struct dimm_info *dimm;
@@ -716,12 +715,8 @@ static int get_dimm_config(struct mem_ctl_info *mci)
 			npages = MiB_TO_PAGES(size);
 
 			csr = &mci->csrows[csrow];
-			csr->first_page = last_page + 1;
-			last_page += npages;
-			csr->last_page = last_page;
 			csr->nr_pages = npages;
 
-			csr->page_mask = 0;
 			csr->csrow_idx = csrow;
 			csr->nr_channels = 1;
 

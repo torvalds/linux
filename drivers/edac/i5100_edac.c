@@ -859,8 +859,6 @@ static void __devinit i5100_init_csrows(struct mem_ctl_info *mci)
 		 * FIXME: these two are totally bogus -- I don't see how to
 		 * map them correctly to this structure...
 		 */
-		mci->csrows[i].first_page = total_pages;
-		mci->csrows[i].last_page = total_pages + npages - 1;
 		mci->csrows[i].nr_pages = npages;
 		mci->csrows[i].csrow_idx = i;
 		mci->csrows[i].mci = mci;

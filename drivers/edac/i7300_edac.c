@@ -778,7 +778,7 @@ static int i7300_init_csrows(struct mem_ctl_info *mci)
 	int rc = -ENODEV;
 	int mtr;
 	int ch, branch, slot, channel;
-	u32 last_page = 0, nr_pages;
+	u32 nr_pages;
 	struct dimm_info *dimm;
 
 	pvt = mci->pvt_info;
@@ -828,9 +828,6 @@ static int i7300_init_csrows(struct mem_ctl_info *mci)
 
 				/* Update per_csrow memory count */
 				p_csrow->nr_pages += nr_pages;
-				p_csrow->first_page = last_page;
-				last_page += nr_pages;
-				p_csrow->last_page = last_page;
 
 				rc = 0;
 			}

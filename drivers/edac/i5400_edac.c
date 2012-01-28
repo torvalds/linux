@@ -1180,11 +1180,6 @@ static int i5400_init_csrows(struct mem_ctl_info *mci)
 		if (!MTR_DIMMS_PRESENT(mtr))
 			continue;
 
-		/* FAKE OUT VALUES, FIXME */
-		p_csrow->first_page = 0 + csrow * 20;
-		p_csrow->last_page = 9 + csrow * 20;
-		p_csrow->page_mask = 0xFFF;
-
 		csrow_megs = 0;
 		for (channel = 0; channel < pvt->maxch; channel++) {
 			csrow_megs += pvt->dimm_info[csrow][channel].megabytes;

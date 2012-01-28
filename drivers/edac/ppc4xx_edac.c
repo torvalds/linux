@@ -897,7 +897,6 @@ ppc4xx_edac_init_csrows(struct mem_ctl_info *mci, u32 mcopt1)
 	enum edac_type edac_mode;
 	int row, j;
 	u32 mbxcf, size;
-	static u32 ppc4xx_last_page;
 
 	/* Establish the memory type and width */
 
@@ -959,10 +958,6 @@ ppc4xx_edac_init_csrows(struct mem_ctl_info *mci, u32 mcopt1)
 			goto done;
 		}
 
-		csi->first_page = ppc4xx_last_page;
-		csi->last_page	= csi->first_page + csi->nr_pages - 1;
-		csi->page_mask	= 0;
-
 		/*
 		 * It's unclear exactly what grain should be set to
 		 * here. The SDRAM_ECCES register allows resolution of
@@ -984,8 +979,6 @@ ppc4xx_edac_init_csrows(struct mem_ctl_info *mci, u32 mcopt1)
 			dimm->dtype	= dtype;
 
 			dimm->edac_mode	= edac_mode;
-
-		ppc4xx_last_page += csi->nr_pages;
 		}
 	}
 

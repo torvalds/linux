@@ -642,8 +642,6 @@ static int get_dimm_config(struct mem_ctl_info *mci)
 				 * csrows.
 				 */
 				csr = &mci->csrows[csrow];
-				csr->first_page = last_page;
-				csr->last_page = last_page + npages - 1;
 				csr->nr_pages = npages;
 				csr->csrow_idx = csrow;
 				csr->nr_channels = 1;

@@ -321,7 +321,6 @@ static int i3200_probe1(struct pci_dev *pdev, int dev_idx)
 	int rc;
 	int i, j;
 	struct mem_ctl_info *mci = NULL;
-	unsigned long last_page;
 	u16 drbs[I3200_CHANNELS][I3200_RANKS_PER_CHANNEL];
 	bool stacked;
 	void __iomem *window;
@@ -366,7 +365,6 @@ static int i3200_probe1(struct pci_dev *pdev, int dev_idx)
 	 * cumulative; the last one will contain the total memory
 	 * contained in all ranks.
 	 */
-	last_page = -1UL;
 	for (i = 0; i < mci->nr_csrows; i++) {
 		unsigned long nr_pages;
 		struct csrow_info *csrow = &mci->csrows[i];
@@ -378,9 +376,6 @@ static int i3200_probe1(struct pci_dev *pdev, int dev_idx)
 		if (nr_pages == 0)
 			continue;
 
-		csrow->first_page = last_page + 1;
-		last_page += nr_pages;
-		csrow->last_page = last_page;
 		csrow->nr_pages = nr_pages;
 
 		for (j = 0; j < nr_channels; j++) {
