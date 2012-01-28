@@ -1984,7 +1984,7 @@ intel_sdvo_connector_init(struct intel_sdvo_connector *connector,
 	drm_connector_helper_add(&connector->base.base,
 				 &intel_sdvo_connector_helper_funcs);
 
-	connector->base.base.interlace_allowed = 0;
+	connector->base.base.interlace_allowed = 1;
 	connector->base.base.doublescan_allowed = 0;
 	connector->base.base.display_info.subpixel_order = SubPixelHorizontalRGB;
 
