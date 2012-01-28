@@ -5388,12 +5388,8 @@ static int i9xx_crtc_mode_set(struct drm_crtc *crtc,
 	if (adjusted_mode->flags & DRM_MODE_FLAG_INTERLACE) {
 		pipeconf |= PIPECONF_INTERLACE_W_FIELD_INDICATION;
 		/* the chip adds 2 halflines automatically */
-		adjusted_mode->crtc_vdisplay -= 1;
 		adjusted_mode->crtc_vtotal -= 1;
-		adjusted_mode->crtc_vblank_start -= 1;
 		adjusted_mode->crtc_vblank_end -= 1;
-		adjusted_mode->crtc_vsync_end -= 1;
-		adjusted_mode->crtc_vsync_start -= 1;
 	} else
 		pipeconf |= PIPECONF_PROGRESSIVE;
 
@@ -5981,12 +5977,8 @@ static int ironlake_crtc_mode_set(struct drm_crtc *crtc,
 	if (adjusted_mode->flags & DRM_MODE_FLAG_INTERLACE) {
 		pipeconf |= PIPECONF_INTERLACE_W_FIELD_INDICATION;
 		/* the chip adds 2 halflines automatically */
-		adjusted_mode->crtc_vdisplay -= 1;
 		adjusted_mode->crtc_vtotal -= 1;
-		adjusted_mode->crtc_vblank_start -= 1;
 		adjusted_mode->crtc_vblank_end -= 1;
-		adjusted_mode->crtc_vsync_end -= 1;
-		adjusted_mode->crtc_vsync_start -= 1;
 	} else
 		pipeconf |= PIPECONF_PROGRESSIVE;
 
