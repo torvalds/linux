@@ -926,9 +926,7 @@ struct radeon_i2c_chan *radeon_i2c_create(struct drm_device *dev,
 		i2c->algo.bit.getsda = get_data;
 		i2c->algo.bit.getscl = get_clock;
 		i2c->algo.bit.udelay = 10;
-		/* vesa says 2.2 ms is enough, 1 jiffy doesn't seem to always
-		 * make this, 2 jiffies is a lot more reliable */
-		i2c->algo.bit.timeout = 2;
+		i2c->algo.bit.timeout = usecs_to_jiffies(2200);	/* from VESA */
 		i2c->algo.bit.data = i2c;
 		ret = i2c_bit_add_bus(&i2c->adapter);
 		if (ret) {
