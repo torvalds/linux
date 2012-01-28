@@ -90,4 +90,14 @@
 			gpio-key,wakeup;
 		};
 	};
+
+	gpio-leds {
+		compatible = "gpio-leds";
+
+		wifi {
+			label = "wifi-led";
+			gpios = <&gpio 24 0>;
+			linux,default-trigger = "rfkill0";
+		};
+	};
 };
