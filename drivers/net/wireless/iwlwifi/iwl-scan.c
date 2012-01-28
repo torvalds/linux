@@ -416,6 +416,8 @@ static u16 iwl_limit_dwell(struct iwl_priv *priv, u16 dwell_time)
 
 		if (!iwl_is_associated_ctx(ctx))
 			continue;
+		if (ctx->staging.dev_type == RXON_DEV_TYPE_P2P)
+			continue;
 		value = ctx->beacon_int;
 		if (!value)
 			value = IWL_PASSIVE_DWELL_BASE;
@@ -567,7 +569,7 @@ static int iwlagn_request_scan(struct iwl_priv *priv, struct ieee80211_vif *vif)
 	struct iwl_scan_cmd *scan;
 	struct iwl_rxon_context *ctx = &priv->contexts[IWL_RXON_CTX_BSS];
 	u32 rate_flags = 0;
-	u16 cmd_len;
+	u16 cmd_len = 0;
 	u16 rx_chain = 0;
 	enum ieee80211_band band;
 	u8 n_probes = 0;
@@ -678,7 +680,8 @@ static int iwlagn_request_scan(struct iwl_priv *priv, struct ieee80211_vif *vif)
 			priv->contexts[IWL_RXON_CTX_BSS].active.flags &
 						RXON_FLG_CHANNEL_MODE_MSK)
 				       >> RXON_FLG_CHANNEL_MODE_POS;
-		if (chan_mod == CHANNEL_MODE_PURE_40) {
+		if ((priv->scan_request && priv->scan_request->no_cck) ||
+		    chan_mod == CHANNEL_MODE_PURE_40) {
 			rate = IWL_RATE_6M_PLCP;
 		} else {
 			rate = IWL_RATE_1M_PLCP;
@@ -688,8 +691,8 @@ static int iwlagn_request_scan(struct iwl_priv *priv, struct ieee80211_vif *vif)
 		 * Internal scans are passive, so we can indiscriminately set
 		 * the BT ignore flag on 2.4 GHz since it applies to TX only.
 		 */
-		if (priv->cfg->bt_params &&
-		    priv->cfg->bt_params->advanced_bt_coexist)
+		if (cfg(priv)->bt_params &&
+		    cfg(priv)->bt_params->advanced_bt_coexist)
 			scan->tx_cmd.tx_flags |= TX_CMD_FLG_IGNORE_BT;
 		break;
 	case IEEE80211_BAND_5GHZ:
@@ -730,12 +733,12 @@ static int iwlagn_request_scan(struct iwl_priv *priv, struct ieee80211_vif *vif)
 
 	band = priv->scan_band;
 
-	if (priv->cfg->scan_rx_antennas[band])
-		rx_ant = priv->cfg->scan_rx_antennas[band];
+	if (cfg(priv)->scan_rx_antennas[band])
+		rx_ant = cfg(priv)->scan_rx_antennas[band];
 
 	if (band == IEEE80211_BAND_2GHZ &&
-	    priv->cfg->bt_params &&
-	    priv->cfg->bt_params->advanced_bt_coexist) {
+	    cfg(priv)->bt_params &&
+	    cfg(priv)->bt_params->advanced_bt_coexist) {
 		/* transmit 2.4 GHz probes only on first antenna */
 		scan_tx_antennas = first_antenna(scan_tx_antennas);
 	}
@@ -759,8 +762,8 @@ static int iwlagn_request_scan(struct iwl_priv *priv, struct ieee80211_vif *vif)
 
 		rx_ant = first_antenna(active_chains);
 	}
-	if (priv->cfg->bt_params &&
-	    priv->cfg->bt_params->advanced_bt_coexist &&
+	if (cfg(priv)->bt_params &&
+	    cfg(priv)->bt_params->advanced_bt_coexist &&
 	    priv->bt_full_concurrent) {
 		/* operated as 1x1 in full concurrency mode */
 		rx_ant = first_antenna(rx_ant);
@@ -938,51 +941,6 @@ int __must_check iwl_scan_initiate(struct iwl_priv *priv,
 	return 0;
 }
 
-int iwlagn_mac_hw_scan(struct ieee80211_hw *hw,
-		    struct ieee80211_vif *vif,
-		    struct cfg80211_scan_request *req)
-{
-	struct iwl_priv *priv = hw->priv;
-	int ret;
-
-	IWL_DEBUG_MAC80211(priv, "enter\n");
-
-	if (req->n_channels == 0)
-		return -EINVAL;
-
-	mutex_lock(&priv->shrd->mutex);
-
-	/*
-	 * If an internal scan is in progress, just set
-	 * up the scan_request as per above.
-	 */
-	if (priv->scan_type != IWL_SCAN_NORMAL) {
-		IWL_DEBUG_SCAN(priv,
-			       "SCAN request during internal scan - defer\n");
-		priv->scan_request = req;
-		priv->scan_vif = vif;
-		ret = 0;
-	} else {
-		priv->scan_request = req;
-		priv->scan_vif = vif;
-		/*
-		 * mac80211 will only ask for one band at a time
-		 * so using channels[0] here is ok
-		 */
-		ret = iwl_scan_initiate(priv, vif, IWL_SCAN_NORMAL,
-					req->channels[0]->band);
-		if (ret) {
-			priv->scan_request = NULL;
-			priv->scan_vif = NULL;
-		}
-	}
-
-	IWL_DEBUG_MAC80211(priv, "leave\n");
-
-	mutex_unlock(&priv->shrd->mutex);
-
-	return ret;
-}
 
 /*
  * internal short scan, this function should only been called while associated.

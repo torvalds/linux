@@ -733,7 +733,7 @@ void beiscsi_ep_disconnect(struct iscsi_endpoint *ep)
 	iscsi_destroy_endpoint(beiscsi_ep->openiscsi_ep);
 }
 
-mode_t be2iscsi_attr_is_visible(int param_type, int param)
+umode_t be2iscsi_attr_is_visible(int param_type, int param)
 {
 	switch (param_type) {
 	case ISCSI_HOST_PARAM:

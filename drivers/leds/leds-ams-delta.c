@@ -118,18 +118,7 @@ static struct platform_driver ams_delta_led_driver = {
 	},
 };
 
-static int __init ams_delta_led_init(void)
-{
-	return platform_driver_register(&ams_delta_led_driver);
-}
-
-static void __exit ams_delta_led_exit(void)
-{
-	platform_driver_unregister(&ams_delta_led_driver);
-}
-
-module_init(ams_delta_led_init);
-module_exit(ams_delta_led_exit);
+module_platform_driver(ams_delta_led_driver);
 
 MODULE_AUTHOR("Jonathan McDowell <noodles@earth.li>");
 MODULE_DESCRIPTION("Amstrad Delta LED driver");

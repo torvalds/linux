@@ -13,9 +13,11 @@
 #include <linux/platform_device.h>
 #include <linux/kernel.h>
 #include <linux/init.h>
+#include <linux/syscore_ops.h>
 #include <linux/vmalloc.h>
 
 #include <asm/mach-au1x00/au1000.h>
+#include <asm/tlbmisc.h>
 
 #ifdef CONFIG_DEBUG_PCI
 #define DBG(x...) printk(KERN_DEBUG x)
@@ -40,6 +42,12 @@ struct alchemy_pci_context {
 	int (*board_map_irq)(const struct pci_dev *d, u8 slot, u8 pin);
 	int (*board_pci_idsel)(unsigned int devsel, int assert);
 };
+
+/* for syscore_ops. There's only one PCI controller on Alchemy chips, so this
+ * should suffice for now.
+ */
+static struct alchemy_pci_context *__alchemy_pci_ctx;
+
 
 /* IO/MEM resources for PCI. Keep the memres in sync with __fixup_bigphys_addr
  * in arch/mips/alchemy/common/setup.c
@@ -98,18 +106,6 @@ static int config_access(unsigned char access_type, struct pci_bus *bus,
 		*data = 0xffffffff;
 		return -1;
 	}
-
-	/* YAMON on all db1xxx boards wipes the TLB and writes zero to C0_wired
-	 * on resume, clearing our wired entry.  Unfortunately the ->resume()
-	 * callback is called way way way too late (and ->suspend() too early)
-	 * to have them destroy and recreate it.  Instead just test if c0_wired
-	 * is now lower than the index we retrieved before suspending and then
-	 * recreate the entry if necessary.  Of course this is totally bonkers
-	 * and breaks as soon as someone else adds another wired entry somewhere
-	 * else.  Anyone have any ideas how to handle this better?
-	 */
-	if (unlikely(read_c0_wired() < ctx->wired_entry))
-		alchemy_pci_wired_entry(ctx);
 
 	local_irq_save(flags);
 	r = __raw_readl(ctx->regs + PCI_REG_STATCMD) & 0x0000ffff;
@@ -304,6 +300,62 @@ static int alchemy_pci_def_idsel(unsigned int devsel, int assert)
 	return 1;	/* success */
 }
 
+/* save PCI controller register contents. */
+static int alchemy_pci_suspend(void)
+{
+	struct alchemy_pci_context *ctx = __alchemy_pci_ctx;
+	if (!ctx)
+		return 0;
+
+	ctx->pm[0]  = __raw_readl(ctx->regs + PCI_REG_CMEM);
+	ctx->pm[1]  = __raw_readl(ctx->regs + PCI_REG_CONFIG) & 0x0009ffff;
+	ctx->pm[2]  = __raw_readl(ctx->regs + PCI_REG_B2BMASK_CCH);
+	ctx->pm[3]  = __raw_readl(ctx->regs + PCI_REG_B2BBASE0_VID);
+	ctx->pm[4]  = __raw_readl(ctx->regs + PCI_REG_B2BBASE1_SID);
+	ctx->pm[5]  = __raw_readl(ctx->regs + PCI_REG_MWMASK_DEV);
+	ctx->pm[6]  = __raw_readl(ctx->regs + PCI_REG_MWBASE_REV_CCL);
+	ctx->pm[7]  = __raw_readl(ctx->regs + PCI_REG_ID);
+	ctx->pm[8]  = __raw_readl(ctx->regs + PCI_REG_CLASSREV);
+	ctx->pm[9]  = __raw_readl(ctx->regs + PCI_REG_PARAM);
+	ctx->pm[10] = __raw_readl(ctx->regs + PCI_REG_MBAR);
+	ctx->pm[11] = __raw_readl(ctx->regs + PCI_REG_TIMEOUT);
+
+	return 0;
+}
+
+static void alchemy_pci_resume(void)
+{
+	struct alchemy_pci_context *ctx = __alchemy_pci_ctx;
+	if (!ctx)
+		return;
+
+	__raw_writel(ctx->pm[0],  ctx->regs + PCI_REG_CMEM);
+	__raw_writel(ctx->pm[2],  ctx->regs + PCI_REG_B2BMASK_CCH);
+	__raw_writel(ctx->pm[3],  ctx->regs + PCI_REG_B2BBASE0_VID);
+	__raw_writel(ctx->pm[4],  ctx->regs + PCI_REG_B2BBASE1_SID);
+	__raw_writel(ctx->pm[5],  ctx->regs + PCI_REG_MWMASK_DEV);
+	__raw_writel(ctx->pm[6],  ctx->regs + PCI_REG_MWBASE_REV_CCL);
+	__raw_writel(ctx->pm[7],  ctx->regs + PCI_REG_ID);
+	__raw_writel(ctx->pm[8],  ctx->regs + PCI_REG_CLASSREV);
+	__raw_writel(ctx->pm[9],  ctx->regs + PCI_REG_PARAM);
+	__raw_writel(ctx->pm[10], ctx->regs + PCI_REG_MBAR);
+	__raw_writel(ctx->pm[11], ctx->regs + PCI_REG_TIMEOUT);
+	wmb();
+	__raw_writel(ctx->pm[1],  ctx->regs + PCI_REG_CONFIG);
+	wmb();
+
+	/* YAMON on all db1xxx boards wipes the TLB and writes zero to C0_wired
+	 * on resume, making it necessary to recreate it as soon as possible.
+	 */
+	ctx->wired_entry = 8191;	/* impossibly high value */
+	alchemy_pci_wired_entry(ctx);	/* install it */
+}
+
+static struct syscore_ops alchemy_pci_pmops = {
+	.suspend	= alchemy_pci_suspend,
+	.resume		= alchemy_pci_resume,
+};
+
 static int __devinit alchemy_pci_probe(struct platform_device *pdev)
 {
 	struct alchemy_pci_platdata *pd = pdev->dev.platform_data;
@@ -396,7 +448,8 @@ static int __devinit alchemy_pci_probe(struct platform_device *pdev)
 		ret = -ENOMEM;
 		goto out4;
 	}
-	ctx->wired_entry = 8192;	/* impossibly high value */
+	ctx->wired_entry = 8191;	/* impossibly high value */
+	alchemy_pci_wired_entry(ctx);	/* install it */
 
 	set_io_port_base((unsigned long)ctx->alchemy_pci_ctrl.io_map_base);
 
@@ -408,7 +461,9 @@ static int __devinit alchemy_pci_probe(struct platform_device *pdev)
 	__raw_writel(val, ctx->regs + PCI_REG_CONFIG);
 	wmb();
 
+	__alchemy_pci_ctx = ctx;
 	platform_set_drvdata(pdev, ctx);
+	register_syscore_ops(&alchemy_pci_pmops);
 	register_pci_controller(&ctx->alchemy_pci_ctrl);
 
 	return 0;
@@ -425,68 +480,11 @@ out:
 	return ret;
 }
 
-
-#ifdef CONFIG_PM
-/* save PCI controller register contents. */
-static int alchemy_pci_suspend(struct device *dev)
-{
-	struct alchemy_pci_context *ctx = dev_get_drvdata(dev);
-
-	ctx->pm[0]  = __raw_readl(ctx->regs + PCI_REG_CMEM);
-	ctx->pm[1]  = __raw_readl(ctx->regs + PCI_REG_CONFIG) & 0x0009ffff;
-	ctx->pm[2]  = __raw_readl(ctx->regs + PCI_REG_B2BMASK_CCH);
-	ctx->pm[3]  = __raw_readl(ctx->regs + PCI_REG_B2BBASE0_VID);
-	ctx->pm[4]  = __raw_readl(ctx->regs + PCI_REG_B2BBASE1_SID);
-	ctx->pm[5]  = __raw_readl(ctx->regs + PCI_REG_MWMASK_DEV);
-	ctx->pm[6]  = __raw_readl(ctx->regs + PCI_REG_MWBASE_REV_CCL);
-	ctx->pm[7]  = __raw_readl(ctx->regs + PCI_REG_ID);
-	ctx->pm[8]  = __raw_readl(ctx->regs + PCI_REG_CLASSREV);
-	ctx->pm[9]  = __raw_readl(ctx->regs + PCI_REG_PARAM);
-	ctx->pm[10] = __raw_readl(ctx->regs + PCI_REG_MBAR);
-	ctx->pm[11] = __raw_readl(ctx->regs + PCI_REG_TIMEOUT);
-
-	return 0;
-}
-
-static int alchemy_pci_resume(struct device *dev)
-{
-	struct alchemy_pci_context *ctx = dev_get_drvdata(dev);
-
-	__raw_writel(ctx->pm[0],  ctx->regs + PCI_REG_CMEM);
-	__raw_writel(ctx->pm[2],  ctx->regs + PCI_REG_B2BMASK_CCH);
-	__raw_writel(ctx->pm[3],  ctx->regs + PCI_REG_B2BBASE0_VID);
-	__raw_writel(ctx->pm[4],  ctx->regs + PCI_REG_B2BBASE1_SID);
-	__raw_writel(ctx->pm[5],  ctx->regs + PCI_REG_MWMASK_DEV);
-	__raw_writel(ctx->pm[6],  ctx->regs + PCI_REG_MWBASE_REV_CCL);
-	__raw_writel(ctx->pm[7],  ctx->regs + PCI_REG_ID);
-	__raw_writel(ctx->pm[8],  ctx->regs + PCI_REG_CLASSREV);
-	__raw_writel(ctx->pm[9],  ctx->regs + PCI_REG_PARAM);
-	__raw_writel(ctx->pm[10], ctx->regs + PCI_REG_MBAR);
-	__raw_writel(ctx->pm[11], ctx->regs + PCI_REG_TIMEOUT);
-	wmb();
-	__raw_writel(ctx->pm[1],  ctx->regs + PCI_REG_CONFIG);
-	wmb();
-
-	return 0;
-}
-
-static const struct dev_pm_ops alchemy_pci_pmops = {
-	.suspend	= alchemy_pci_suspend,
-	.resume		= alchemy_pci_resume,
-};
-
-#define ALCHEMY_PCICTL_PM	(&alchemy_pci_pmops)
-
-#else
-#define ALCHEMY_PCICTL_PM	NULL
-#endif
-
 static struct platform_driver alchemy_pcictl_driver = {
 	.probe		= alchemy_pci_probe,
 	.driver	= {
 		.name	= "alchemy-pci",
 		.owner	= THIS_MODULE,
-		.pm	= ALCHEMY_PCICTL_PM,
 	},
 };
 

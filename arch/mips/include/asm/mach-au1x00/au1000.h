@@ -136,6 +136,7 @@ static inline int au1xxx_cpu_needs_config_od(void)
 #define ALCHEMY_CPU_AU1100	2
 #define ALCHEMY_CPU_AU1550	3
 #define ALCHEMY_CPU_AU1200	4
+#define ALCHEMY_CPU_AU1300	5
 
 static inline int alchemy_get_cputype(void)
 {
@@ -156,6 +157,9 @@ static inline int alchemy_get_cputype(void)
 	case 0x05030000:
 		return ALCHEMY_CPU_AU1200;
 		break;
+	case 0x800c0000:
+		return ALCHEMY_CPU_AU1300;
+		break;
 	}
 
 	return ALCHEMY_CPU_UNKNOWN;
@@ -166,6 +170,7 @@ static inline int alchemy_get_uarts(int type)
 {
 	switch (type) {
 	case ALCHEMY_CPU_AU1000:
+	case ALCHEMY_CPU_AU1300:
 		return 4;
 	case ALCHEMY_CPU_AU1500:
 	case ALCHEMY_CPU_AU1200:
@@ -243,6 +248,7 @@ extern unsigned long au1xxx_calc_clock(void);
 /* PM: arch/mips/alchemy/common/sleeper.S, power.c, irq.c */
 void alchemy_sleep_au1000(void);
 void alchemy_sleep_au1550(void);
+void alchemy_sleep_au1300(void);
 void au_sleep(void);
 
 /* USB: drivers/usb/host/alchemy-common.c */
@@ -251,6 +257,7 @@ enum alchemy_usb_block {
 	ALCHEMY_USB_UDC0,
 	ALCHEMY_USB_EHCI0,
 	ALCHEMY_USB_OTG0,
+	ALCHEMY_USB_OHCI1,
 };
 int alchemy_usb_control(int block, int enable);
 
@@ -263,13 +270,91 @@ struct alchemy_pci_platdata {
 	unsigned long pci_cfg_clr;
 };
 
-/* SOC Interrupt numbers */
+/* Multifunction pins: Each of these pins can either be assigned to the
+ * GPIO controller or a on-chip peripheral.
+ * Call "au1300_pinfunc_to_dev()" or "au1300_pinfunc_to_gpio()" to
+ * assign one of these to either the GPIO controller or the device.
+ */
+enum au1300_multifunc_pins {
+	/* wake-from-str pins 0-3 */
+	AU1300_PIN_WAKE0 = 0, AU1300_PIN_WAKE1, AU1300_PIN_WAKE2,
+	AU1300_PIN_WAKE3,
+	/* external clock sources for PSCs: 4-5 */
+	AU1300_PIN_EXTCLK0, AU1300_PIN_EXTCLK1,
+	/* 8bit MMC interface on SD0: 6-9 */
+	AU1300_PIN_SD0DAT4, AU1300_PIN_SD0DAT5, AU1300_PIN_SD0DAT6,
+	AU1300_PIN_SD0DAT7,
+	/* aux clk input for freqgen 3: 10 */
+	AU1300_PIN_FG3AUX,
+	/* UART1 pins: 11-18 */
+	AU1300_PIN_U1RI, AU1300_PIN_U1DCD, AU1300_PIN_U1DSR,
+	AU1300_PIN_U1CTS, AU1300_PIN_U1RTS, AU1300_PIN_U1DTR,
+	AU1300_PIN_U1RX, AU1300_PIN_U1TX,
+	/* UART0 pins: 19-24 */
+	AU1300_PIN_U0RI, AU1300_PIN_U0DCD, AU1300_PIN_U0DSR,
+	AU1300_PIN_U0CTS, AU1300_PIN_U0RTS, AU1300_PIN_U0DTR,
+	/* UART2: 25-26 */
+	AU1300_PIN_U2RX, AU1300_PIN_U2TX,
+	/* UART3: 27-28 */
+	AU1300_PIN_U3RX, AU1300_PIN_U3TX,
+	/* LCD controller PWMs, ext pixclock: 29-31 */
+	AU1300_PIN_LCDPWM0, AU1300_PIN_LCDPWM1, AU1300_PIN_LCDCLKIN,
+	/* SD1 interface: 32-37 */
+	AU1300_PIN_SD1DAT0, AU1300_PIN_SD1DAT1, AU1300_PIN_SD1DAT2,
+	AU1300_PIN_SD1DAT3, AU1300_PIN_SD1CMD, AU1300_PIN_SD1CLK,
+	/* SD2 interface: 38-43 */
+	AU1300_PIN_SD2DAT0, AU1300_PIN_SD2DAT1, AU1300_PIN_SD2DAT2,
+	AU1300_PIN_SD2DAT3, AU1300_PIN_SD2CMD, AU1300_PIN_SD2CLK,
+	/* PSC0/1 clocks: 44-45 */
+	AU1300_PIN_PSC0CLK, AU1300_PIN_PSC1CLK,
+	/* PSCs: 46-49/50-53/54-57/58-61 */
+	AU1300_PIN_PSC0SYNC0, AU1300_PIN_PSC0SYNC1, AU1300_PIN_PSC0D0,
+	AU1300_PIN_PSC0D1,
+	AU1300_PIN_PSC1SYNC0, AU1300_PIN_PSC1SYNC1, AU1300_PIN_PSC1D0,
+	AU1300_PIN_PSC1D1,
+	AU1300_PIN_PSC2SYNC0, AU1300_PIN_PSC2SYNC1, AU1300_PIN_PSC2D0,
+	AU1300_PIN_PSC2D1,
+	AU1300_PIN_PSC3SYNC0, AU1300_PIN_PSC3SYNC1, AU1300_PIN_PSC3D0,
+	AU1300_PIN_PSC3D1,
+	/* PCMCIA interface: 62-70 */
+	AU1300_PIN_PCE2, AU1300_PIN_PCE1, AU1300_PIN_PIOS16,
+	AU1300_PIN_PIOR, AU1300_PIN_PWE, AU1300_PIN_PWAIT,
+	AU1300_PIN_PREG, AU1300_PIN_POE, AU1300_PIN_PIOW,
+	/* camera interface H/V sync inputs: 71-72 */
+	AU1300_PIN_CIMLS, AU1300_PIN_CIMFS,
+	/* PSC2/3 clocks: 73-74 */
+	AU1300_PIN_PSC2CLK, AU1300_PIN_PSC3CLK,
+};
 
+/* GPIC (Au1300) pin management: arch/mips/alchemy/common/gpioint.c */
+extern void au1300_pinfunc_to_gpio(enum au1300_multifunc_pins gpio);
+extern void au1300_pinfunc_to_dev(enum au1300_multifunc_pins gpio);
+extern void au1300_set_irq_priority(unsigned int irq, int p);
+extern void au1300_set_dbdma_gpio(int dchan, unsigned int gpio);
+
+/* Au1300 allows to disconnect certain blocks from internal power supply */
+enum au1300_vss_block {
+	AU1300_VSS_MPE = 0,
+	AU1300_VSS_BSA,
+	AU1300_VSS_GPE,
+	AU1300_VSS_MGP,
+};
+
+extern void au1300_vss_block_control(int block, int enable);
+
+
+/* SOC Interrupt numbers */
+/* Au1000-style (IC0/1): 2 controllers with 32 sources each */
 #define AU1000_INTC0_INT_BASE	(MIPS_CPU_IRQ_BASE + 8)
 #define AU1000_INTC0_INT_LAST	(AU1000_INTC0_INT_BASE + 31)
 #define AU1000_INTC1_INT_BASE	(AU1000_INTC0_INT_LAST + 1)
 #define AU1000_INTC1_INT_LAST	(AU1000_INTC1_INT_BASE + 31)
 #define AU1000_MAX_INTR 	AU1000_INTC1_INT_LAST
+
+/* Au1300-style (GPIC): 1 controller with up to 128 sources */
+#define ALCHEMY_GPIC_INT_BASE	(MIPS_CPU_IRQ_BASE + 8)
+#define ALCHEMY_GPIC_INT_NUM	128
+#define ALCHEMY_GPIC_INT_LAST	(ALCHEMY_GPIC_INT_BASE + ALCHEMY_GPIC_INT_NUM - 1)
 
 enum soc_au1000_ints {
 	AU1000_FIRST_INT	= AU1000_INTC0_INT_BASE,
@@ -591,24 +676,77 @@ enum soc_au1200_ints {
 
 #endif /* !defined (_LANGUAGE_ASSEMBLY) */
 
+/* Au1300 peripheral interrupt numbers */
+#define AU1300_FIRST_INT	(ALCHEMY_GPIC_INT_BASE)
+#define AU1300_UART1_INT	(AU1300_FIRST_INT + 17)
+#define AU1300_UART2_INT	(AU1300_FIRST_INT + 25)
+#define AU1300_UART3_INT	(AU1300_FIRST_INT + 27)
+#define AU1300_SD1_INT		(AU1300_FIRST_INT + 32)
+#define AU1300_SD2_INT		(AU1300_FIRST_INT + 38)
+#define AU1300_PSC0_INT		(AU1300_FIRST_INT + 48)
+#define AU1300_PSC1_INT		(AU1300_FIRST_INT + 52)
+#define AU1300_PSC2_INT		(AU1300_FIRST_INT + 56)
+#define AU1300_PSC3_INT		(AU1300_FIRST_INT + 60)
+#define AU1300_NAND_INT		(AU1300_FIRST_INT + 62)
+#define AU1300_DDMA_INT		(AU1300_FIRST_INT + 75)
+#define AU1300_MMU_INT		(AU1300_FIRST_INT + 76)
+#define AU1300_MPU_INT		(AU1300_FIRST_INT + 77)
+#define AU1300_GPU_INT		(AU1300_FIRST_INT + 78)
+#define AU1300_UDMA_INT		(AU1300_FIRST_INT + 79)
+#define AU1300_TOY_INT		(AU1300_FIRST_INT + 80)
+#define AU1300_TOY_MATCH0_INT	(AU1300_FIRST_INT + 81)
+#define AU1300_TOY_MATCH1_INT	(AU1300_FIRST_INT + 82)
+#define AU1300_TOY_MATCH2_INT	(AU1300_FIRST_INT + 83)
+#define AU1300_RTC_INT		(AU1300_FIRST_INT + 84)
+#define AU1300_RTC_MATCH0_INT	(AU1300_FIRST_INT + 85)
+#define AU1300_RTC_MATCH1_INT	(AU1300_FIRST_INT + 86)
+#define AU1300_RTC_MATCH2_INT	(AU1300_FIRST_INT + 87)
+#define AU1300_UART0_INT	(AU1300_FIRST_INT + 88)
+#define AU1300_SD0_INT		(AU1300_FIRST_INT + 89)
+#define AU1300_USB_INT		(AU1300_FIRST_INT + 90)
+#define AU1300_LCD_INT		(AU1300_FIRST_INT + 91)
+#define AU1300_BSA_INT		(AU1300_FIRST_INT + 92)
+#define AU1300_MPE_INT		(AU1300_FIRST_INT + 93)
+#define AU1300_ITE_INT		(AU1300_FIRST_INT + 94)
+#define AU1300_AES_INT		(AU1300_FIRST_INT + 95)
+#define AU1300_CIM_INT		(AU1300_FIRST_INT + 96)
+
+/**********************************************************************/
+
 /*
  * Physical base addresses for integrated peripherals
- * 0..au1000 1..au1500 2..au1100 3..au1550 4..au1200
+ * 0..au1000 1..au1500 2..au1100 3..au1550 4..au1200 5..au1300
  */
 
 #define AU1000_AC97_PHYS_ADDR		0x10000000 /* 012 */
+#define AU1300_ROM_PHYS_ADDR		0x10000000 /* 5 */
+#define AU1300_OTP_PHYS_ADDR		0x10002000 /* 5 */
+#define AU1300_VSS_PHYS_ADDR		0x10003000 /* 5 */
+#define AU1300_UART0_PHYS_ADDR		0x10100000 /* 5 */
+#define AU1300_UART1_PHYS_ADDR		0x10101000 /* 5 */
+#define AU1300_UART2_PHYS_ADDR		0x10102000 /* 5 */
+#define AU1300_UART3_PHYS_ADDR		0x10103000 /* 5 */
 #define AU1000_USB_OHCI_PHYS_ADDR	0x10100000 /* 012 */
 #define AU1000_USB_UDC_PHYS_ADDR	0x10200000 /* 0123 */
+#define AU1300_GPIC_PHYS_ADDR		0x10200000 /* 5 */
 #define AU1000_IRDA_PHYS_ADDR		0x10300000 /* 02 */
-#define AU1200_AES_PHYS_ADDR		0x10300000 /* 4 */
+#define AU1200_AES_PHYS_ADDR		0x10300000 /* 45 */
 #define AU1000_IC0_PHYS_ADDR		0x10400000 /* 01234 */
+#define AU1300_GPU_PHYS_ADDR		0x10500000 /* 5 */
 #define AU1000_MAC0_PHYS_ADDR		0x10500000 /* 023 */
 #define AU1000_MAC1_PHYS_ADDR		0x10510000 /* 023 */
 #define AU1000_MACEN_PHYS_ADDR		0x10520000 /* 023 */
-#define AU1100_SD0_PHYS_ADDR		0x10600000 /* 24 */
+#define AU1100_SD0_PHYS_ADDR		0x10600000 /* 245 */
+#define AU1300_SD1_PHYS_ADDR		0x10601000 /* 5 */
+#define AU1300_SD2_PHYS_ADDR		0x10602000 /* 5 */
 #define AU1100_SD1_PHYS_ADDR		0x10680000 /* 24 */
+#define AU1300_SYS_PHYS_ADDR		0x10900000 /* 5 */
 #define AU1550_PSC2_PHYS_ADDR		0x10A00000 /* 3 */
 #define AU1550_PSC3_PHYS_ADDR		0x10B00000 /* 3 */
+#define AU1300_PSC0_PHYS_ADDR		0x10A00000 /* 5 */
+#define AU1300_PSC1_PHYS_ADDR		0x10A01000 /* 5 */
+#define AU1300_PSC2_PHYS_ADDR		0x10A02000 /* 5 */
+#define AU1300_PSC3_PHYS_ADDR		0x10A03000 /* 5 */
 #define AU1000_I2S_PHYS_ADDR		0x11000000 /* 02 */
 #define AU1500_MAC0_PHYS_ADDR		0x11500000 /* 1 */
 #define AU1500_MAC1_PHYS_ADDR		0x11510000 /* 1 */
@@ -622,37 +760,96 @@ enum soc_au1200_ints {
 #define AU1000_SSI1_PHYS_ADDR		0x11680000 /* 02 */
 #define AU1500_GPIO2_PHYS_ADDR		0x11700000 /* 1234 */
 #define AU1000_IC1_PHYS_ADDR		0x11800000 /* 01234 */
-#define AU1000_SYS_PHYS_ADDR		0x11900000 /* 01234 */
+#define AU1000_SYS_PHYS_ADDR		0x11900000 /* 012345 */
 #define AU1550_PSC0_PHYS_ADDR		0x11A00000 /* 34 */
 #define AU1550_PSC1_PHYS_ADDR		0x11B00000 /* 34 */
 #define AU1000_MEM_PHYS_ADDR		0x14000000 /* 01234 */
 #define AU1000_STATIC_MEM_PHYS_ADDR	0x14001000 /* 01234 */
+#define AU1300_UDMA_PHYS_ADDR		0x14001800 /* 5 */
 #define AU1000_DMA_PHYS_ADDR		0x14002000 /* 012 */
-#define AU1550_DBDMA_PHYS_ADDR		0x14002000 /* 34 */
-#define AU1550_DBDMA_CONF_PHYS_ADDR	0x14003000 /* 34 */
+#define AU1550_DBDMA_PHYS_ADDR		0x14002000 /* 345 */
+#define AU1550_DBDMA_CONF_PHYS_ADDR	0x14003000 /* 345 */
 #define AU1000_MACDMA0_PHYS_ADDR	0x14004000 /* 0123 */
 #define AU1000_MACDMA1_PHYS_ADDR	0x14004200 /* 0123 */
-#define AU1200_CIM_PHYS_ADDR		0x14004000 /* 4 */
+#define AU1200_CIM_PHYS_ADDR		0x14004000 /* 45 */
 #define AU1500_PCI_PHYS_ADDR		0x14005000 /* 13 */
 #define AU1550_PE_PHYS_ADDR		0x14008000 /* 3 */
 #define AU1200_MAEBE_PHYS_ADDR		0x14010000 /* 4 */
 #define AU1200_MAEFE_PHYS_ADDR		0x14012000 /* 4 */
+#define AU1300_MAEITE_PHYS_ADDR		0x14010000 /* 5 */
+#define AU1300_MAEMPE_PHYS_ADDR		0x14014000 /* 5 */
 #define AU1550_USB_OHCI_PHYS_ADDR	0x14020000 /* 3 */
 #define AU1200_USB_CTL_PHYS_ADDR	0x14020000 /* 4 */
 #define AU1200_USB_OTG_PHYS_ADDR	0x14020020 /* 4 */
 #define AU1200_USB_OHCI_PHYS_ADDR	0x14020100 /* 4 */
 #define AU1200_USB_EHCI_PHYS_ADDR	0x14020200 /* 4 */
 #define AU1200_USB_UDC_PHYS_ADDR	0x14022000 /* 4 */
+#define AU1300_USB_EHCI_PHYS_ADDR	0x14020000 /* 5 */
+#define AU1300_USB_OHCI0_PHYS_ADDR	0x14020400 /* 5 */
+#define AU1300_USB_OHCI1_PHYS_ADDR	0x14020800 /* 5 */
+#define AU1300_USB_CTL_PHYS_ADDR	0x14021000 /* 5 */
+#define AU1300_USB_OTG_PHYS_ADDR	0x14022000 /* 5 */
+#define AU1300_MAEBSA_PHYS_ADDR		0x14030000 /* 5 */
 #define AU1100_LCD_PHYS_ADDR		0x15000000 /* 2 */
-#define AU1200_LCD_PHYS_ADDR		0x15000000 /* 4 */
+#define AU1200_LCD_PHYS_ADDR		0x15000000 /* 45 */
 #define AU1500_PCI_MEM_PHYS_ADDR	0x400000000ULL /* 13 */
 #define AU1500_PCI_IO_PHYS_ADDR		0x500000000ULL /* 13 */
 #define AU1500_PCI_CONFIG0_PHYS_ADDR	0x600000000ULL /* 13 */
 #define AU1500_PCI_CONFIG1_PHYS_ADDR	0x680000000ULL /* 13 */
-#define AU1000_PCMCIA_IO_PHYS_ADDR	0xF00000000ULL /* 01234 */
-#define AU1000_PCMCIA_ATTR_PHYS_ADDR	0xF40000000ULL /* 01234 */
-#define AU1000_PCMCIA_MEM_PHYS_ADDR	0xF80000000ULL /* 01234 */
+#define AU1000_PCMCIA_IO_PHYS_ADDR	0xF00000000ULL /* 012345 */
+#define AU1000_PCMCIA_ATTR_PHYS_ADDR	0xF40000000ULL /* 012345 */
+#define AU1000_PCMCIA_MEM_PHYS_ADDR	0xF80000000ULL /* 012345 */
 
+/**********************************************************************/
+
+
+/*
+ * Au1300 GPIO+INT controller (GPIC) register offsets and bits
+ * Registers are 128bits (0x10 bytes), divided into 4 "banks".
+ */
+#define AU1300_GPIC_PINVAL	0x0000
+#define AU1300_GPIC_PINVALCLR	0x0010
+#define AU1300_GPIC_IPEND	0x0020
+#define AU1300_GPIC_PRIENC	0x0030
+#define AU1300_GPIC_IEN		0x0040	/* int_mask in manual */
+#define AU1300_GPIC_IDIS	0x0050	/* int_maskclr in manual */
+#define AU1300_GPIC_DMASEL	0x0060
+#define AU1300_GPIC_DEVSEL	0x0080
+#define AU1300_GPIC_DEVCLR	0x0090
+#define AU1300_GPIC_RSTVAL	0x00a0
+/* pin configuration space. one 32bit register for up to 128 IRQs */
+#define AU1300_GPIC_PINCFG	0x1000
+
+#define GPIC_GPIO_TO_BIT(gpio)	\
+	(1 << ((gpio) & 0x1f))
+
+#define GPIC_GPIO_BANKOFF(gpio)	\
+	(((gpio) >> 5) * 4)
+
+/* Pin Control bits: who owns the pin, what does it do */
+#define GPIC_CFG_PC_GPIN		0
+#define GPIC_CFG_PC_DEV			1
+#define GPIC_CFG_PC_GPOLOW		2
+#define GPIC_CFG_PC_GPOHIGH		3
+#define GPIC_CFG_PC_MASK		3
+
+/* assign pin to MIPS IRQ line */
+#define GPIC_CFG_IL_SET(x)	(((x) & 3) << 2)
+#define GPIC_CFG_IL_MASK	(3 << 2)
+
+/* pin interrupt type setup */
+#define GPIC_CFG_IC_OFF		(0 << 4)
+#define GPIC_CFG_IC_LEVEL_LOW	(1 << 4)
+#define GPIC_CFG_IC_LEVEL_HIGH	(2 << 4)
+#define GPIC_CFG_IC_EDGE_FALL	(5 << 4)
+#define GPIC_CFG_IC_EDGE_RISE	(6 << 4)
+#define GPIC_CFG_IC_EDGE_BOTH	(7 << 4)
+#define GPIC_CFG_IC_MASK	(7 << 4)
+
+/* allow interrupt to wake cpu from 'wait' */
+#define GPIC_CFG_IDLEWAKE	(1 << 7)
+
+/***********************************************************************/
 
 /* Au1000 SDRAM memory controller register offsets */
 #define AU1000_MEM_SDMODE0		0x0000
@@ -1068,44 +1265,20 @@ enum soc_au1200_ints {
 #define SSI_ENABLE_CD		(1 << 1)
 #define SSI_ENABLE_E		(1 << 0)
 
-/* IrDA Controller */
-#define IRDA_BASE		0xB0300000
-#define IR_RING_PTR_STATUS	(IRDA_BASE + 0x00)
-#define IR_RING_BASE_ADDR_H	(IRDA_BASE + 0x04)
-#define IR_RING_BASE_ADDR_L	(IRDA_BASE + 0x08)
-#define IR_RING_SIZE		(IRDA_BASE + 0x0C)
-#define IR_RING_PROMPT		(IRDA_BASE + 0x10)
-#define IR_RING_ADDR_CMPR	(IRDA_BASE + 0x14)
-#define IR_INT_CLEAR		(IRDA_BASE + 0x18)
-#define IR_CONFIG_1		(IRDA_BASE + 0x20)
-#  define IR_RX_INVERT_LED	(1 << 0)
-#  define IR_TX_INVERT_LED	(1 << 1)
-#  define IR_ST 		(1 << 2)
-#  define IR_SF 		(1 << 3)
-#  define IR_SIR		(1 << 4)
-#  define IR_MIR		(1 << 5)
-#  define IR_FIR		(1 << 6)
-#  define IR_16CRC		(1 << 7)
-#  define IR_TD 		(1 << 8)
-#  define IR_RX_ALL		(1 << 9)
-#  define IR_DMA_ENABLE 	(1 << 10)
-#  define IR_RX_ENABLE		(1 << 11)
-#  define IR_TX_ENABLE		(1 << 12)
-#  define IR_LOOPBACK		(1 << 14)
-#  define IR_SIR_MODE		(IR_SIR | IR_DMA_ENABLE | \
-				 IR_RX_ALL | IR_RX_ENABLE | IR_SF | IR_16CRC)
-#define IR_SIR_FLAGS		(IRDA_BASE + 0x24)
-#define IR_ENABLE		(IRDA_BASE + 0x28)
-#  define IR_RX_STATUS		(1 << 9)
-#  define IR_TX_STATUS		(1 << 10)
-#define IR_READ_PHY_CONFIG	(IRDA_BASE + 0x2C)
-#define IR_WRITE_PHY_CONFIG	(IRDA_BASE + 0x30)
-#define IR_MAX_PKT_LEN		(IRDA_BASE + 0x34)
-#define IR_RX_BYTE_CNT		(IRDA_BASE + 0x38)
-#define IR_CONFIG_2		(IRDA_BASE + 0x3C)
-#  define IR_MODE_INV		(1 << 0)
-#  define IR_ONE_PIN		(1 << 1)
-#define IR_INTERFACE_CONFIG	(IRDA_BASE + 0x40)
+
+/*
+ * The IrDA peripheral has an IRFIRSEL pin, but on the DB/PB boards it's not
+ * used to select FIR/SIR mode on the transceiver but as a GPIO.  Instead a
+ * CPLD has to be told about the mode.
+ */
+#define AU1000_IRDA_PHY_MODE_OFF	0
+#define AU1000_IRDA_PHY_MODE_SIR	1
+#define AU1000_IRDA_PHY_MODE_FIR	2
+
+struct au1k_irda_platform_data {
+	void(*set_phy_mode)(int mode);
+};
+
 
 /* GPIO */
 #define SYS_PINFUNC		0xB190002C

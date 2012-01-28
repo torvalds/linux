@@ -281,27 +281,9 @@ pcibios_fixup_device_resources(struct pci_dev *dev, struct pci_bus *bus)
 void __devinit
 pcibios_fixup_bus(struct pci_bus *bus)
 {
-	/* Propagate hose info into the subordinate devices.  */
-
-	struct pci_controller *hose = bus->sysdata;
 	struct pci_dev *dev = bus->self;
 
-	if (!dev) {
-		/* Root bus. */
-		u32 pci_mem_end;
-		u32 sg_base = hose->sg_pci ? hose->sg_pci->dma_base : ~0;
-		unsigned long end;
-
-		bus->resource[0] = hose->io_space;
-		bus->resource[1] = hose->mem_space;
-
-		/* Adjust hose mem_space limit to prevent PCI allocations
-		   in the iommu windows. */
-		pci_mem_end = min((u32)__direct_map_base, sg_base) - 1;
-		end = hose->mem_space->start + pci_mem_end;
-		if (hose->mem_space->end > end)
-			hose->mem_space->end = end;
- 	} else if (pci_probe_only &&
+	if (pci_probe_only && dev &&
  		   (dev->class >> 8) == PCI_CLASS_BRIDGE_PCI) {
  		pci_read_bridge_bases(bus);
  		pcibios_fixup_device_resources(dev, bus);
@@ -414,13 +396,31 @@ void __init
 common_init_pci(void)
 {
 	struct pci_controller *hose;
+	struct list_head resources;
 	struct pci_bus *bus;
 	int next_busno;
 	int need_domain_info = 0;
+	u32 pci_mem_end;
+	u32 sg_base;
+	unsigned long end;
 
 	/* Scan all of the recorded PCI controllers.  */
 	for (next_busno = 0, hose = hose_head; hose; hose = hose->next) {
-		bus = pci_scan_bus(next_busno, alpha_mv.pci_ops, hose);
+		sg_base = hose->sg_pci ? hose->sg_pci->dma_base : ~0;
+
+		/* Adjust hose mem_space limit to prevent PCI allocations
+		   in the iommu windows. */
+		pci_mem_end = min((u32)__direct_map_base, sg_base) - 1;
+		end = hose->mem_space->start + pci_mem_end;
+		if (hose->mem_space->end > end)
+			hose->mem_space->end = end;
+
+		INIT_LIST_HEAD(&resources);
+		pci_add_resource(&resources, hose->io_space);
+		pci_add_resource(&resources, hose->mem_space);
+
+		bus = pci_scan_root_bus(NULL, next_busno, alpha_mv.pci_ops,
+					hose, &resources);
 		hose->bus = bus;
 		hose->need_domain_info = need_domain_info;
 		next_busno = bus->subordinate + 1;
@@ -508,30 +508,7 @@ sys_pciconfig_iobase(long which, unsigned long bus, unsigned long dfn)
 	return -EOPNOTSUPP;
 }
 
-/* Create an __iomem token from a PCI BAR.  Copied from lib/iomap.c with
-   no changes, since we don't want the other things in that object file.  */
-
-void __iomem *pci_iomap(struct pci_dev *dev, int bar, unsigned long maxlen)
-{
-	resource_size_t start = pci_resource_start(dev, bar);
-	resource_size_t len = pci_resource_len(dev, bar);
-	unsigned long flags = pci_resource_flags(dev, bar);
-
-	if (!len || !start)
-		return NULL;
-	if (maxlen && len > maxlen)
-		len = maxlen;
-	if (flags & IORESOURCE_IO)
-		return ioport_map(start, len);
-	if (flags & IORESOURCE_MEM) {
-		/* Not checking IORESOURCE_CACHEABLE because alpha does
-		   not distinguish between ioremap and ioremap_nocache.  */
-		return ioremap(start, len);
-	}
-	return NULL;
-}
-
-/* Destroy that token.  Not copied from lib/iomap.c.  */
+/* Destroy an __iomem token.  Not copied from lib/iomap.c.  */
 
 void pci_iounmap(struct pci_dev *dev, void __iomem * addr)
 {
@@ -539,7 +516,6 @@ void pci_iounmap(struct pci_dev *dev, void __iomem * addr)
 		iounmap(addr);
 }
 
-EXPORT_SYMBOL(pci_iomap);
 EXPORT_SYMBOL(pci_iounmap);
 
 /* FIXME: Some boxes have multiple ISA bridges! */

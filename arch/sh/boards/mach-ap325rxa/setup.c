@@ -249,9 +249,6 @@ static struct platform_device lcdc_device = {
 	.dev		= {
 		.platform_data	= &lcdc_info,
 	},
-	.archdata = {
-		.hwblk_id = HWBLK_LCDC,
-	},
 };
 
 static void camera_power(int val)
@@ -424,9 +421,6 @@ static struct platform_device ceu_device = {
 	.dev		= {
 		.platform_data	= &sh_mobile_ceu_info,
 	},
-	.archdata = {
-		.hwblk_id = HWBLK_CEU,
-	},
 };
 
 static struct resource sdhi0_cn3_resources[] = {
@@ -454,9 +448,6 @@ static struct platform_device sdhi0_cn3_device = {
 	.dev = {
 		.platform_data = &sdhi0_cn3_data,
 	},
-	.archdata = {
-		.hwblk_id = HWBLK_SDHI0,
-	},
 };
 
 static struct resource sdhi1_cn7_resources[] = {
@@ -483,9 +474,6 @@ static struct platform_device sdhi1_cn7_device = {
 	.resource	= sdhi1_cn7_resources,
 	.dev = {
 		.platform_data = &sdhi1_cn7_data,
-	},
-	.archdata = {
-		.hwblk_id = HWBLK_SDHI1,
 	},
 };
 

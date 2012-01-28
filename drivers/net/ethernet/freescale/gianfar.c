@@ -734,7 +734,7 @@ static int gfar_of_init(struct platform_device *ofdev, struct net_device **pdev)
 
 	mac_addr = of_get_mac_address(np);
 	if (mac_addr)
-		memcpy(dev->dev_addr, mac_addr, MAC_ADDR_LEN);
+		memcpy(dev->dev_addr, mac_addr, ETH_ALEN);
 
 	if (model && !strcasecmp(model, "TSEC"))
 		priv->device_flags =
@@ -1984,7 +1984,8 @@ static inline struct txfcb *gfar_add_fcb(struct sk_buff *skb)
 	return fcb;
 }
 
-static inline void gfar_tx_checksum(struct sk_buff *skb, struct txfcb *fcb)
+static inline void gfar_tx_checksum(struct sk_buff *skb, struct txfcb *fcb,
+		int fcb_length)
 {
 	u8 flags = 0;
 
@@ -2006,7 +2007,7 @@ static inline void gfar_tx_checksum(struct sk_buff *skb, struct txfcb *fcb)
 	 * frame (skb->data) and the start of the IP hdr.
 	 * l4os is the distance between the start of the
 	 * l3 hdr and the l4 hdr */
-	fcb->l3os = (u16)(skb_network_offset(skb) - GMAC_FCB_LEN);
+	fcb->l3os = (u16)(skb_network_offset(skb) - fcb_length);
 	fcb->l4os = skb_network_header_len(skb);
 
 	fcb->flags = flags;
@@ -2046,7 +2047,7 @@ static int gfar_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	int i, rq = 0, do_tstamp = 0;
 	u32 bufaddr;
 	unsigned long flags;
-	unsigned int nr_frags, nr_txbds, length;
+	unsigned int nr_frags, nr_txbds, length, fcb_length = GMAC_FCB_LEN;
 
 	/*
 	 * TOE=1 frames larger than 2500 bytes may see excess delays
@@ -2070,22 +2071,28 @@ static int gfar_start_xmit(struct sk_buff *skb, struct net_device *dev)
 
 	/* check if time stamp should be generated */
 	if (unlikely(skb_shinfo(skb)->tx_flags & SKBTX_HW_TSTAMP &&
-		     priv->hwts_tx_en))
+			priv->hwts_tx_en)) {
 		do_tstamp = 1;
+		fcb_length = GMAC_FCB_LEN + GMAC_TXPAL_LEN;
+	}
 
 	/* make space for additional header when fcb is needed */
 	if (((skb->ip_summed == CHECKSUM_PARTIAL) ||
 			vlan_tx_tag_present(skb) ||
 			unlikely(do_tstamp)) &&
-			(skb_headroom(skb) < GMAC_FCB_LEN)) {
+			(skb_headroom(skb) < fcb_length)) {
 		struct sk_buff *skb_new;
 
-		skb_new = skb_realloc_headroom(skb, GMAC_FCB_LEN);
+		skb_new = skb_realloc_headroom(skb, fcb_length);
 		if (!skb_new) {
 			dev->stats.tx_errors++;
 			kfree_skb(skb);
 			return NETDEV_TX_OK;
 		}
+
+		/* Steal sock reference for processing TX time stamps */
+		swap(skb_new->sk, skb->sk);
+		swap(skb_new->destructor, skb->destructor);
 		kfree_skb(skb);
 		skb = skb_new;
 	}
@@ -2154,6 +2161,12 @@ static int gfar_start_xmit(struct sk_buff *skb, struct net_device *dev)
 		lstatus = txbdp_start->lstatus;
 	}
 
+	/* Add TxPAL between FCB and frame if required */
+	if (unlikely(do_tstamp)) {
+		skb_push(skb, GMAC_TXPAL_LEN);
+		memset(skb->data, 0, GMAC_TXPAL_LEN);
+	}
+
 	/* Set up checksumming */
 	if (CHECKSUM_PARTIAL == skb->ip_summed) {
 		fcb = gfar_add_fcb(skb);
@@ -2164,7 +2177,7 @@ static int gfar_start_xmit(struct sk_buff *skb, struct net_device *dev)
 			skb_checksum_help(skb);
 		} else {
 			lstatus |= BD_LFLAG(TXBD_TOE);
-			gfar_tx_checksum(skb, fcb);
+			gfar_tx_checksum(skb, fcb, fcb_length);
 		}
 	}
 
@@ -2196,9 +2209,9 @@ static int gfar_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	 * the full frame length.
 	 */
 	if (unlikely(do_tstamp)) {
-		txbdp_tstamp->bufPtr = txbdp_start->bufPtr + GMAC_FCB_LEN;
+		txbdp_tstamp->bufPtr = txbdp_start->bufPtr + fcb_length;
 		txbdp_tstamp->lstatus |= BD_LFLAG(TXBD_READY) |
-				(skb_headlen(skb) - GMAC_FCB_LEN);
+				(skb_headlen(skb) - fcb_length);
 		lstatus |= BD_LFLAG(TXBD_CRC | TXBD_READY) | GMAC_FCB_LEN;
 	} else {
 		lstatus |= BD_LFLAG(TXBD_CRC | TXBD_READY) | skb_headlen(skb);
@@ -2306,7 +2319,7 @@ void gfar_check_rx_parser_mode(struct gfar_private *priv)
 }
 
 /* Enables and disables VLAN insertion/extraction */
-void gfar_vlan_mode(struct net_device *dev, u32 features)
+void gfar_vlan_mode(struct net_device *dev, netdev_features_t features)
 {
 	struct gfar_private *priv = netdev_priv(dev);
 	struct gfar __iomem *regs = NULL;
@@ -2490,7 +2503,7 @@ static int gfar_clean_tx_ring(struct gfar_priv_tx_q *tx_queue)
 
 		if (unlikely(skb_shinfo(skb)->tx_flags & SKBTX_IN_PROGRESS)) {
 			next = next_txbd(bdp, base, tx_ring_size);
-			buflen = next->length + GMAC_FCB_LEN;
+			buflen = next->length + GMAC_FCB_LEN + GMAC_TXPAL_LEN;
 		} else
 			buflen = bdp->length;
 
@@ -2502,6 +2515,7 @@ static int gfar_clean_tx_ring(struct gfar_priv_tx_q *tx_queue)
 			u64 *ns = (u64*) (((u32)skb->data + 0x10) & ~0x7);
 			memset(&shhwtstamps, 0, sizeof(shhwtstamps));
 			shhwtstamps.hwtstamp = ns_to_ktime(*ns);
+			skb_pull(skb, GMAC_FCB_LEN + GMAC_TXPAL_LEN);
 			skb_tstamp_tx(skb, &shhwtstamps);
 			bdp->lstatus &= BD_LFLAG(TXBD_WRAP);
 			bdp = next;
@@ -3114,7 +3128,7 @@ static void gfar_set_multi(struct net_device *dev)
 static void gfar_clear_exact_match(struct net_device *dev)
 {
 	int idx;
-	static const u8 zero_arr[MAC_ADDR_LEN] = {0, 0, 0, 0, 0, 0};
+	static const u8 zero_arr[ETH_ALEN] = {0, 0, 0, 0, 0, 0};
 
 	for(idx = 1;idx < GFAR_EM_NUM + 1;idx++)
 		gfar_set_mac_for_addr(dev, idx, zero_arr);
@@ -3137,7 +3151,7 @@ static void gfar_set_hash_for_addr(struct net_device *dev, u8 *addr)
 {
 	u32 tempval;
 	struct gfar_private *priv = netdev_priv(dev);
-	u32 result = ether_crc(MAC_ADDR_LEN, addr);
+	u32 result = ether_crc(ETH_ALEN, addr);
 	int width = priv->hash_width;
 	u8 whichbit = (result >> (32 - width)) & 0x1f;
 	u8 whichreg = result >> (32 - width + 5);
@@ -3158,7 +3172,7 @@ static void gfar_set_mac_for_addr(struct net_device *dev, int num,
 	struct gfar_private *priv = netdev_priv(dev);
 	struct gfar __iomem *regs = priv->gfargrp[0].regs;
 	int idx;
-	char tmpbuf[MAC_ADDR_LEN];
+	char tmpbuf[ETH_ALEN];
 	u32 tempval;
 	u32 __iomem *macptr = &regs->macstnaddr1;
 
@@ -3166,8 +3180,8 @@ static void gfar_set_mac_for_addr(struct net_device *dev, int num,
 
 	/* Now copy it into the mac registers backwards, cuz */
 	/* little endian is silly */
-	for (idx = 0; idx < MAC_ADDR_LEN; idx++)
-		tmpbuf[MAC_ADDR_LEN - 1 - idx] = addr[idx];
+	for (idx = 0; idx < ETH_ALEN; idx++)
+		tmpbuf[ETH_ALEN - 1 - idx] = addr[idx];
 
 	gfar_write(macptr, *((u32 *) (tmpbuf)));
 
@@ -3281,16 +3295,4 @@ static struct platform_driver gfar_driver = {
 	.remove = gfar_remove,
 };
 
-static int __init gfar_init(void)
-{
-	return platform_driver_register(&gfar_driver);
-}
-
-static void __exit gfar_exit(void)
-{
-	platform_driver_unregister(&gfar_driver);
-}
-
-module_init(gfar_init);
-module_exit(gfar_exit);
-
+module_platform_driver(gfar_driver);

@@ -112,12 +112,12 @@ static u8 read_prom_byte(struct he_dev *he_dev, int addr);
 /* globals */
 
 static struct he_dev *he_devs;
-static int disable64;
+static bool disable64;
 static short nvpibits = -1;
 static short nvcibits = -1;
 static short rx_skb_reserve = 16;
-static int irq_coalesce = 1;
-static int sdh = 0;
+static bool irq_coalesce = 1;
+static bool sdh = 0;
 
 /* Read from EEPROM = 0000 0011b */
 static unsigned int readtab[] = {

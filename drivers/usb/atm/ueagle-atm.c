@@ -542,7 +542,7 @@ static int modem_index;
 static unsigned int debug;
 static unsigned int altsetting[NB_MODEM] = {
 				[0 ... (NB_MODEM - 1)] = FASTEST_ISO_INTF};
-static int sync_wait[NB_MODEM];
+static bool sync_wait[NB_MODEM];
 static char *cmv_file[NB_MODEM];
 static int annex[NB_MODEM];
 
@@ -2753,36 +2753,7 @@ static struct usb_driver uea_driver = {
 
 MODULE_DEVICE_TABLE(usb, uea_ids);
 
-/**
- * uea_init - Initialize the module.
- *      Register to USB subsystem
- */
-static int __init uea_init(void)
-{
-	printk(KERN_INFO "[ueagle-atm] driver " EAGLEUSBVERSION " loaded\n");
-
-	usb_register(&uea_driver);
-
-	return 0;
-}
-
-module_init(uea_init);
-
-/**
- * uea_exit  -  Destroy module
- *    Deregister with USB subsystem
- */
-static void __exit uea_exit(void)
-{
-	/*
-	 * This calls automatically the uea_disconnect method if necessary:
-	 */
-	usb_deregister(&uea_driver);
-
-	printk(KERN_INFO "[ueagle-atm] driver unloaded\n");
-}
-
-module_exit(uea_exit);
+module_usb_driver(uea_driver);
 
 MODULE_AUTHOR("Damien Bergamini/Matthieu Castet/Stanislaw W. Gruszka");
 MODULE_DESCRIPTION("ADI 930/Eagle USB ADSL Modem driver");

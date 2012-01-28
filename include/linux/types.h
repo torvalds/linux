@@ -24,6 +24,7 @@ typedef __kernel_fd_set		fd_set;
 typedef __kernel_dev_t		dev_t;
 typedef __kernel_ino_t		ino_t;
 typedef __kernel_mode_t		mode_t;
+typedef unsigned short		umode_t;
 typedef __kernel_nlink_t	nlink_t;
 typedef __kernel_off_t		off_t;
 typedef __kernel_pid_t		pid_t;
@@ -188,7 +189,7 @@ typedef __u32 __bitwise __wsum;
  * aligned_u64 should be used in defining kernel<->userspace ABIs to avoid
  * common 32/64-bit compat problems.
  * 64-bit values align to 4-byte boundaries on x86_32 (and possibly other
- * architectures) and to 8-byte boundaries on 64-bit architetures.  The new
+ * architectures) and to 8-byte boundaries on 64-bit architectures.  The new
  * aligned_64 type enforces 8-byte alignment so that structs containing
  * aligned_64 values have the same alignment on 32-bit and 64-bit architectures.
  * No conversions are necessary between 32-bit user-space and a 64-bit kernel.

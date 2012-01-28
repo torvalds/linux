@@ -199,21 +199,9 @@ static struct platform_driver lt3593_led_driver = {
 	},
 };
 
-MODULE_ALIAS("platform:leds-lt3593");
-
-static int __init lt3593_led_init(void)
-{
-	return platform_driver_register(&lt3593_led_driver);
-}
-
-static void __exit lt3593_led_exit(void)
-{
-	platform_driver_unregister(&lt3593_led_driver);
-}
-
-module_init(lt3593_led_init);
-module_exit(lt3593_led_exit);
+module_platform_driver(lt3593_led_driver);
 
 MODULE_AUTHOR("Daniel Mack <daniel@caiaq.de>");
 MODULE_DESCRIPTION("LED driver for LT3593 controllers");
 MODULE_LICENSE("GPL");
+MODULE_ALIAS("platform:leds-lt3593");

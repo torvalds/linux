@@ -642,7 +642,7 @@ static struct attribute *dev_string_attrs[] = {
 	NULL
 };
 
-static mode_t dev_string_attrs_are_visible(struct kobject *kobj,
+static umode_t dev_string_attrs_are_visible(struct kobject *kobj,
 		struct attribute *a, int n)
 {
 	struct device *dev = container_of(kobj, struct device, kobj);
@@ -877,7 +877,7 @@ static struct attribute *intf_assoc_attrs[] = {
 	NULL,
 };
 
-static mode_t intf_assoc_attrs_are_visible(struct kobject *kobj,
+static umode_t intf_assoc_attrs_are_visible(struct kobject *kobj,
 		struct attribute *a, int n)
 {
 	struct device *dev = container_of(kobj, struct device, kobj);

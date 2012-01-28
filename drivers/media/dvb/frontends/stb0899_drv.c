@@ -1431,7 +1431,7 @@ static void stb0899_set_iterations(struct stb0899_state *state)
 	stb0899_write_s2reg(state, STB0899_S2FEC, STB0899_BASE_MAX_ITER, STB0899_OFF0_MAX_ITER, reg);
 }
 
-static enum dvbfe_search stb0899_search(struct dvb_frontend *fe, struct dvb_frontend_parameters *p)
+static enum dvbfe_search stb0899_search(struct dvb_frontend *fe)
 {
 	struct stb0899_state *state = fe->demodulator_priv;
 	struct stb0899_params *i_params = &state->params;
@@ -1441,8 +1441,8 @@ static enum dvbfe_search stb0899_search(struct dvb_frontend *fe, struct dvb_fron
 
 	u32 SearchRange, gain;
 
-	i_params->freq	= p->frequency;
-	i_params->srate = p->u.qpsk.symbol_rate;
+	i_params->freq	= props->frequency;
+	i_params->srate = props->symbol_rate;
 	state->delsys = props->delivery_system;
 	dprintk(state->verbose, FE_DEBUG, 1, "delivery system=%d", state->delsys);
 
@@ -1568,34 +1568,15 @@ static enum dvbfe_search stb0899_search(struct dvb_frontend *fe, struct dvb_fron
 
 	return DVBFE_ALGO_SEARCH_ERROR;
 }
-/*
- * stb0899_track
- * periodically check the signal level against a specified
- * threshold level and perform derotator centering.
- * called once we have a lock from a successful search
- * event.
- *
- * Will be called periodically called to maintain the
- * lock.
- *
- * Will be used to get parameters as well as info from
- * the decoded baseband header
- *
- * Once a new lock has established, the internal state
- * frequency (internal->freq) is updated
- */
-static int stb0899_track(struct dvb_frontend *fe, struct dvb_frontend_parameters *p)
-{
-	return 0;
-}
 
-static int stb0899_get_frontend(struct dvb_frontend *fe, struct dvb_frontend_parameters *p)
+static int stb0899_get_frontend(struct dvb_frontend *fe)
 {
+	struct dtv_frontend_properties *p = &fe->dtv_property_cache;
 	struct stb0899_state *state		= fe->demodulator_priv;
 	struct stb0899_internal *internal	= &state->internal;
 
 	dprintk(state->verbose, FE_DEBUG, 1, "Get params");
-	p->u.qpsk.symbol_rate = internal->srate;
+	p->symbol_rate = internal->srate;
 
 	return 0;
 }
@@ -1606,10 +1587,9 @@ static enum dvbfe_algo stb0899_frontend_algo(struct dvb_frontend *fe)
 }
 
 static struct dvb_frontend_ops stb0899_ops = {
-
+	.delsys = { SYS_DVBS, SYS_DVBS2, SYS_DSS },
 	.info = {
 		.name 			= "STB0899 Multistandard",
-		.type 			= FE_QPSK,
 		.frequency_min		= 950000,
 		.frequency_max 		= 2150000,
 		.frequency_stepsize	= 0,
@@ -1632,8 +1612,7 @@ static struct dvb_frontend_ops stb0899_ops = {
 
 	.get_frontend_algo		= stb0899_frontend_algo,
 	.search				= stb0899_search,
-	.track				= stb0899_track,
-	.get_frontend			= stb0899_get_frontend,
+	.get_frontend                   = stb0899_get_frontend,
 
 
 	.read_status			= stb0899_read_status,

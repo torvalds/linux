@@ -7,9 +7,9 @@
 #include <linux/err.h>
 #include <linux/module.h>
 #include <linux/platform_device.h>
-#include <linux/mfd/ab8500.h>
 #include <linux/mfd/abx500.h>
-#include <linux/mfd/ab8500/sysctrl.h>
+#include <linux/mfd/abx500/ab8500.h>
+#include <linux/mfd/abx500/ab8500-sysctrl.h>
 
 static struct device *sysctrl_dev;
 

@@ -12,12 +12,6 @@
 
 #include <asm-generic/int-ll64.h>
 
-#ifndef __ASSEMBLY__
-
-typedef unsigned short umode_t;
-
-#endif /* __ASSEMBLY__ */
-
 #endif /* defined(__sparc__) */
 
 #endif /* defined(_SPARC_TYPES_H) */

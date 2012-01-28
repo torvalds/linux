@@ -774,13 +774,13 @@ struct kvm *kvm_arch_alloc_vm(void)
 	return kvm;
 }
 
-struct kvm_io_range {
+struct kvm_ia64_io_range {
 	unsigned long start;
 	unsigned long size;
 	unsigned long type;
 };
 
-static const struct kvm_io_range io_ranges[] = {
+static const struct kvm_ia64_io_range io_ranges[] = {
 	{VGA_IO_START, VGA_IO_SIZE, GPFN_FRAME_BUFFER},
 	{MMIO_START, MMIO_SIZE, GPFN_LOW_MMIO},
 	{LEGACY_IO_START, LEGACY_IO_SIZE, GPFN_LEGACY_IO},
@@ -1366,14 +1366,12 @@ static void kvm_release_vm_pages(struct kvm *kvm)
 {
 	struct kvm_memslots *slots;
 	struct kvm_memory_slot *memslot;
-	int i, j;
+	int j;
 	unsigned long base_gfn;
 
 	slots = kvm_memslots(kvm);
-	for (i = 0; i < slots->nmemslots; i++) {
-		memslot = &slots->memslots[i];
+	kvm_for_each_memslot(memslot, slots) {
 		base_gfn = memslot->base_gfn;
-
 		for (j = 0; j < memslot->npages; j++) {
 			if (memslot->rmap[j])
 				put_page((struct page *)memslot->rmap[j]);
@@ -1820,7 +1818,7 @@ int kvm_vm_ioctl_get_dirty_log(struct kvm *kvm,
 	if (log->slot >= KVM_MEMORY_SLOTS)
 		goto out;
 
-	memslot = &kvm->memslots->memslots[log->slot];
+	memslot = id_to_memslot(kvm->memslots, log->slot);
 	r = -ENOENT;
 	if (!memslot->dirty_bitmap)
 		goto out;

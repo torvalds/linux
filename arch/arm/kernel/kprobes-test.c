@@ -202,6 +202,8 @@
 #include <linux/slab.h>
 #include <linux/kprobes.h>
 
+#include <asm/opcodes.h>
+
 #include "kprobes.h"
 #include "kprobes-test.h"
 
@@ -1050,65 +1052,9 @@ static int test_instance;
 
 static unsigned long test_check_cc(int cc, unsigned long cpsr)
 {
-	unsigned long temp;
+	int ret = arm_check_condition(cc << 28, cpsr);
 
-	switch (cc) {
-	case 0x0: /* eq */
-		return cpsr & PSR_Z_BIT;
-
-	case 0x1: /* ne */
-		return (~cpsr) & PSR_Z_BIT;
-
-	case 0x2: /* cs */
-		return cpsr & PSR_C_BIT;
-
-	case 0x3: /* cc */
-		return (~cpsr) & PSR_C_BIT;
-
-	case 0x4: /* mi */
-		return cpsr & PSR_N_BIT;
-
-	case 0x5: /* pl */
-		return (~cpsr) & PSR_N_BIT;
-
-	case 0x6: /* vs */
-		return cpsr & PSR_V_BIT;
-
-	case 0x7: /* vc */
-		return (~cpsr) & PSR_V_BIT;
-
-	case 0x8: /* hi */
-		cpsr &= ~(cpsr >> 1); /* PSR_C_BIT &= ~PSR_Z_BIT */
-		return cpsr & PSR_C_BIT;
-
-	case 0x9: /* ls */
-		cpsr &= ~(cpsr >> 1); /* PSR_C_BIT &= ~PSR_Z_BIT */
-		return (~cpsr) & PSR_C_BIT;
-
-	case 0xa: /* ge */
-		cpsr ^= (cpsr << 3); /* PSR_N_BIT ^= PSR_V_BIT */
-		return (~cpsr) & PSR_N_BIT;
-
-	case 0xb: /* lt */
-		cpsr ^= (cpsr << 3); /* PSR_N_BIT ^= PSR_V_BIT */
-		return cpsr & PSR_N_BIT;
-
-	case 0xc: /* gt */
-		temp = cpsr ^ (cpsr << 3); /* PSR_N_BIT ^= PSR_V_BIT */
-		temp |= (cpsr << 1);	   /* PSR_N_BIT |= PSR_Z_BIT */
-		return (~temp) & PSR_N_BIT;
-
-	case 0xd: /* le */
-		temp = cpsr ^ (cpsr << 3); /* PSR_N_BIT ^= PSR_V_BIT */
-		temp |= (cpsr << 1);	   /* PSR_N_BIT |= PSR_Z_BIT */
-		return temp & PSR_N_BIT;
-
-	case 0xe: /* al */
-	case 0xf: /* unconditional */
-		return true;
-	}
-	BUG();
-	return false;
+	return (ret != ARM_OPCODE_CONDTEST_FAIL);
 }
 
 static int is_last_scenario;
@@ -1128,7 +1074,9 @@ static unsigned long test_context_cpsr(int scenario)
 
 	if (!test_case_is_thumb) {
 		/* Testing ARM code */
-		probe_should_run = test_check_cc(current_instruction >> 28, cpsr) != 0;
+		int cc = current_instruction >> 28;
+
+		probe_should_run = test_check_cc(cc, cpsr) != 0;
 		if (scenario == 15)
 			is_last_scenario = true;
 

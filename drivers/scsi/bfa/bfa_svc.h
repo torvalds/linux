@@ -582,11 +582,6 @@ void bfa_cb_rport_qos_scn_prio(void *rport,
 #define BFA_LP_TAG_INVALID	0xff
 void	bfa_rport_set_lunmask(struct bfa_s *bfa, struct bfa_rport_s *rp);
 void	bfa_rport_unset_lunmask(struct bfa_s *bfa, struct bfa_rport_s *rp);
-bfa_boolean_t	bfa_rport_lunmask_active(struct bfa_rport_s *rp);
-wwn_t	bfa_rport_get_pwwn(struct bfa_s *bfa, struct bfa_rport_s *rp);
-struct bfa_rport_s *bfa_rport_get_by_wwn(struct bfa_s *bfa, u16 vf_id,
-					 wwn_t *lpwwn, wwn_t rpwwn);
-void *bfa_cb_get_rp_by_wwn(void *arg, u16 vf_id, wwn_t *lpwwn, wwn_t rpwwn);
 
 /*
  * bfa fcxp API functions

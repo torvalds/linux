@@ -154,11 +154,3 @@ data flow. For more information see <xref linkend="crop" />.</para>
 however the framebuffer interface of the driver may support the
 <constant>FBIOBLANK</constant> ioctl.</para>
   </section>
-
-  <!--
-Local Variables:
-mode: sgml
-sgml-parent-document: "v4l2.sgml"
-indent-tabs-mode: nil
-End:
-  -->

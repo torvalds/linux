@@ -242,7 +242,7 @@ struct vfsmount *afs_d_automount(struct path *path)
 {
 	struct vfsmount *newmnt;
 
-	_enter("{%s,%s}", path->mnt->mnt_devname, path->dentry->d_name.name);
+	_enter("{%s}", path->dentry->d_name.name);
 
 	newmnt = afs_mntpt_do_automount(path->dentry);
 	if (IS_ERR(newmnt))
@@ -252,7 +252,7 @@ struct vfsmount *afs_d_automount(struct path *path)
 	mnt_set_expiry(newmnt, &afs_vfsmounts);
 	queue_delayed_work(afs_wq, &afs_mntpt_expiry_timer,
 			   afs_mntpt_expiry_timeout * HZ);
-	_leave(" = %p {%s}", newmnt, newmnt->mnt_devname);
+	_leave(" = %p", newmnt);
 	return newmnt;
 }
 

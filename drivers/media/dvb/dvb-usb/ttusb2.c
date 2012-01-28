@@ -75,10 +75,18 @@ static int ttusb2_msg(struct dvb_usb_device *d, u8 cmd,
 		u8 *wbuf, int wlen, u8 *rbuf, int rlen)
 {
 	struct ttusb2_state *st = d->priv;
-	u8 s[wlen+4],r[64] = { 0 };
+	u8 *s, *r = NULL;
 	int ret = 0;
 
-	memset(s,0,wlen+4);
+	s = kzalloc(wlen+4, GFP_KERNEL);
+	if (!s)
+		return -ENOMEM;
+
+	r = kzalloc(64, GFP_KERNEL);
+	if (!r) {
+		kfree(s);
+		return -ENOMEM;
+	}
 
 	s[0] = 0xaa;
 	s[1] = ++st->id;
@@ -94,11 +102,16 @@ static int ttusb2_msg(struct dvb_usb_device *d, u8 cmd,
 		r[2] != cmd ||
 		(rlen > 0 && r[3] != rlen)) {
 		warn("there might have been an error during control message transfer. (rlen = %d, was %d)",rlen,r[3]);
+		kfree(s);
+		kfree(r);
 		return -EIO;
 	}
 
 	if (rlen > 0)
 		memcpy(rbuf, &r[4], rlen);
+
+	kfree(s);
+	kfree(r);
 
 	return 0;
 }
@@ -384,7 +397,7 @@ static int ttusb2_i2c_xfer(struct i2c_adapter *adap,struct i2c_msg msg[],int num
 
 		memcpy(&obuf[3], msg[i].buf, msg[i].len);
 
-		if (ttusb2_msg(d, CMD_I2C_XFER, obuf, msg[i].len+3, ibuf, obuf[2] + 3) < 0) {
+		if (ttusb2_msg(d, CMD_I2C_XFER, obuf, obuf[1]+3, ibuf, obuf[2] + 3) < 0) {
 			err("i2c transfer failed.");
 			break;
 		}
@@ -799,26 +812,7 @@ static struct usb_driver ttusb2_driver = {
 	.id_table	= ttusb2_table,
 };
 
-/* module stuff */
-static int __init ttusb2_module_init(void)
-{
-	int result;
-	if ((result = usb_register(&ttusb2_driver))) {
-		err("usb_register failed. Error number %d",result);
-		return result;
-	}
-
-	return 0;
-}
-
-static void __exit ttusb2_module_exit(void)
-{
-	/* deregister this driver from the USB subsystem */
-	usb_deregister(&ttusb2_driver);
-}
-
-module_init (ttusb2_module_init);
-module_exit (ttusb2_module_exit);
+module_usb_driver(ttusb2_driver);
 
 MODULE_AUTHOR("Patrick Boettcher <patrick.boettcher@desy.de>");
 MODULE_DESCRIPTION("Driver for Pinnacle PCTV 400e DVB-S USB2.0");

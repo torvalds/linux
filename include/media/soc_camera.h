@@ -94,7 +94,7 @@ struct soc_camera_host_ops {
 			      struct soc_camera_device *);
 	int (*reqbufs)(struct soc_camera_device *, struct v4l2_requestbuffers *);
 	int (*querycap)(struct soc_camera_host *, struct v4l2_capability *);
-	int (*set_bus_param)(struct soc_camera_device *, __u32);
+	int (*set_bus_param)(struct soc_camera_device *);
 	int (*get_parm)(struct soc_camera_device *, struct v4l2_streamparm *);
 	int (*set_parm)(struct soc_camera_device *, struct v4l2_streamparm *);
 	int (*enum_fsizes)(struct soc_camera_device *, struct v4l2_frmsizeenum *);
@@ -254,7 +254,7 @@ unsigned long soc_camera_apply_board_flags(struct soc_camera_link *icl,
 static inline struct video_device *soc_camera_i2c_to_vdev(const struct i2c_client *client)
 {
 	struct v4l2_subdev *sd = i2c_get_clientdata(client);
-	struct soc_camera_device *icd = (struct soc_camera_device *)sd->grp_id;
+	struct soc_camera_device *icd = v4l2_get_subdev_hostdata(sd);
 	return icd ? icd->vdev : NULL;
 }
 
@@ -277,6 +277,11 @@ static inline struct soc_camera_device *soc_camera_from_vb2q(const struct vb2_qu
 static inline struct soc_camera_device *soc_camera_from_vbq(const struct videobuf_queue *vq)
 {
 	return container_of(vq, struct soc_camera_device, vb_vidq);
+}
+
+static inline u32 soc_camera_grp_id(const struct soc_camera_device *icd)
+{
+	return (icd->iface << 8) | (icd->devnum + 1);
 }
 
 void soc_camera_lock(struct vb2_queue *vq);

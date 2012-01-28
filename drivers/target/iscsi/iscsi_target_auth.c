@@ -82,7 +82,7 @@ static void chap_gen_challenge(
 	unsigned int *c_len)
 {
 	unsigned char challenge_asciihex[CHAP_CHALLENGE_LENGTH * 2 + 1];
-	struct iscsi_chap *chap = (struct iscsi_chap *) conn->auth_protocol;
+	struct iscsi_chap *chap = conn->auth_protocol;
 
 	memset(challenge_asciihex, 0, CHAP_CHALLENGE_LENGTH * 2 + 1);
 
@@ -120,7 +120,7 @@ static struct iscsi_chap *chap_server_open(
 	if (!conn->auth_protocol)
 		return NULL;
 
-	chap = (struct iscsi_chap *) conn->auth_protocol;
+	chap = conn->auth_protocol;
 	/*
 	 * We only support MD5 MDA presently.
 	 */
@@ -165,14 +165,15 @@ static int chap_server_compute_md5(
 	unsigned int *nr_out_len)
 {
 	char *endptr;
-	unsigned char id, digest[MD5_SIGNATURE_SIZE];
+	unsigned long id;
+	unsigned char digest[MD5_SIGNATURE_SIZE];
 	unsigned char type, response[MD5_SIGNATURE_SIZE * 2 + 2];
 	unsigned char identifier[10], *challenge = NULL;
 	unsigned char *challenge_binhex = NULL;
 	unsigned char client_digest[MD5_SIGNATURE_SIZE];
 	unsigned char server_digest[MD5_SIGNATURE_SIZE];
 	unsigned char chap_n[MAX_CHAP_N_SIZE], chap_r[MAX_RESPONSE_LENGTH];
-	struct iscsi_chap *chap = (struct iscsi_chap *) conn->auth_protocol;
+	struct iscsi_chap *chap = conn->auth_protocol;
 	struct crypto_hash *tfm;
 	struct hash_desc desc;
 	struct scatterlist sg;
@@ -246,7 +247,7 @@ static int chap_server_compute_md5(
 		goto out;
 	}
 
-	sg_init_one(&sg, (void *)&chap->id, 1);
+	sg_init_one(&sg, &chap->id, 1);
 	ret = crypto_hash_update(&desc, &sg, 1);
 	if (ret < 0) {
 		pr_err("crypto_hash_update() failed for id\n");
@@ -254,7 +255,7 @@ static int chap_server_compute_md5(
 		goto out;
 	}
 
-	sg_init_one(&sg, (void *)&auth->password, strlen(auth->password));
+	sg_init_one(&sg, &auth->password, strlen(auth->password));
 	ret = crypto_hash_update(&desc, &sg, strlen(auth->password));
 	if (ret < 0) {
 		pr_err("crypto_hash_update() failed for password\n");
@@ -262,7 +263,7 @@ static int chap_server_compute_md5(
 		goto out;
 	}
 
-	sg_init_one(&sg, (void *)chap->challenge, CHAP_CHALLENGE_LENGTH);
+	sg_init_one(&sg, chap->challenge, CHAP_CHALLENGE_LENGTH);
 	ret = crypto_hash_update(&desc, &sg, CHAP_CHALLENGE_LENGTH);
 	if (ret < 0) {
 		pr_err("crypto_hash_update() failed for challenge\n");
@@ -305,14 +306,17 @@ static int chap_server_compute_md5(
 	}
 
 	if (type == HEX)
-		id = (unsigned char)simple_strtoul((char *)&identifier[2],
-					&endptr, 0);
+		id = simple_strtoul(&identifier[2], &endptr, 0);
 	else
-		id = (unsigned char)simple_strtoul(identifier, &endptr, 0);
+		id = simple_strtoul(identifier, &endptr, 0);
+	if (id > 255) {
+		pr_err("chap identifier: %lu greater than 255\n", id);
+		goto out;
+	}
 	/*
 	 * RFC 1994 says Identifier is no more than octet (8 bits).
 	 */
-	pr_debug("[server] Got CHAP_I=%d\n", id);
+	pr_debug("[server] Got CHAP_I=%lu\n", id);
 	/*
 	 * Get CHAP_C.
 	 */
@@ -351,7 +355,7 @@ static int chap_server_compute_md5(
 		goto out;
 	}
 
-	sg_init_one(&sg, (void *)&id, 1);
+	sg_init_one(&sg, &id, 1);
 	ret = crypto_hash_update(&desc, &sg, 1);
 	if (ret < 0) {
 		pr_err("crypto_hash_update() failed for id\n");
@@ -359,7 +363,7 @@ static int chap_server_compute_md5(
 		goto out;
 	}
 
-	sg_init_one(&sg, (void *)auth->password_mutual,
+	sg_init_one(&sg, auth->password_mutual,
 				strlen(auth->password_mutual));
 	ret = crypto_hash_update(&desc, &sg, strlen(auth->password_mutual));
 	if (ret < 0) {
@@ -371,7 +375,7 @@ static int chap_server_compute_md5(
 	/*
 	 * Convert received challenge to binary hex.
 	 */
-	sg_init_one(&sg, (void *)challenge_binhex, challenge_len);
+	sg_init_one(&sg, challenge_binhex, challenge_len);
 	ret = crypto_hash_update(&desc, &sg, challenge_len);
 	if (ret < 0) {
 		pr_err("crypto_hash_update() failed for ma challenge\n");
@@ -414,7 +418,7 @@ static int chap_got_response(
 	char *nr_out_ptr,
 	unsigned int *nr_out_len)
 {
-	struct iscsi_chap *chap = (struct iscsi_chap *) conn->auth_protocol;
+	struct iscsi_chap *chap = conn->auth_protocol;
 
 	switch (chap->digest_type) {
 	case CHAP_DIGEST_MD5:
@@ -437,7 +441,7 @@ u32 chap_main_loop(
 	int *in_len,
 	int *out_len)
 {
-	struct iscsi_chap *chap = (struct iscsi_chap *) conn->auth_protocol;
+	struct iscsi_chap *chap = conn->auth_protocol;
 
 	if (!chap) {
 		chap = chap_server_open(conn, auth, in_text, out_text, out_len);

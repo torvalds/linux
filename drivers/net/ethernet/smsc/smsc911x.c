@@ -44,6 +44,7 @@
 #include <linux/module.h>
 #include <linux/netdevice.h>
 #include <linux/platform_device.h>
+#include <linux/regulator/consumer.h>
 #include <linux/sched.h>
 #include <linux/timer.h>
 #include <linux/bug.h>
@@ -87,6 +88,8 @@ struct smsc911x_ops {
 	void (*tx_writefifo)(struct smsc911x_data *pdata,
 				unsigned int *buf, unsigned int wordcount);
 };
+
+#define SMSC911X_NUM_SUPPLIES 2
 
 struct smsc911x_data {
 	void __iomem *ioaddr;
@@ -138,6 +141,9 @@ struct smsc911x_data {
 
 	/* register access functions */
 	const struct smsc911x_ops *ops;
+
+	/* regulators */
+	struct regulator_bulk_data supplies[SMSC911X_NUM_SUPPLIES];
 };
 
 /* Easy access to information */
@@ -360,6 +366,76 @@ smsc911x_rx_readfifo_shift(struct smsc911x_data *pdata, unsigned int *buf,
 	BUG();
 out:
 	spin_unlock_irqrestore(&pdata->dev_lock, flags);
+}
+
+/*
+ * enable resources, currently just regulators.
+ */
+static int smsc911x_enable_resources(struct platform_device *pdev)
+{
+	struct net_device *ndev = platform_get_drvdata(pdev);
+	struct smsc911x_data *pdata = netdev_priv(ndev);
+	int ret = 0;
+
+	ret = regulator_bulk_enable(ARRAY_SIZE(pdata->supplies),
+			pdata->supplies);
+	if (ret)
+		netdev_err(ndev, "failed to enable regulators %d\n",
+				ret);
+	return ret;
+}
+
+/*
+ * disable resources, currently just regulators.
+ */
+static int smsc911x_disable_resources(struct platform_device *pdev)
+{
+	struct net_device *ndev = platform_get_drvdata(pdev);
+	struct smsc911x_data *pdata = netdev_priv(ndev);
+	int ret = 0;
+
+	ret = regulator_bulk_disable(ARRAY_SIZE(pdata->supplies),
+			pdata->supplies);
+	return ret;
+}
+
+/*
+ * Request resources, currently just regulators.
+ *
+ * The SMSC911x has two power pins: vddvario and vdd33a, in designs where
+ * these are not always-on we need to request regulators to be turned on
+ * before we can try to access the device registers.
+ */
+static int smsc911x_request_resources(struct platform_device *pdev)
+{
+	struct net_device *ndev = platform_get_drvdata(pdev);
+	struct smsc911x_data *pdata = netdev_priv(ndev);
+	int ret = 0;
+
+	/* Request regulators */
+	pdata->supplies[0].supply = "vdd33a";
+	pdata->supplies[1].supply = "vddvario";
+	ret = regulator_bulk_get(&pdev->dev,
+			ARRAY_SIZE(pdata->supplies),
+			pdata->supplies);
+	if (ret)
+		netdev_err(ndev, "couldn't get regulators %d\n",
+				ret);
+	return ret;
+}
+
+/*
+ * Free resources, currently just regulators.
+ *
+ */
+static void smsc911x_free_resources(struct platform_device *pdev)
+{
+	struct net_device *ndev = platform_get_drvdata(pdev);
+	struct smsc911x_data *pdata = netdev_priv(ndev);
+
+	/* Free regulators */
+	regulator_bulk_free(ARRAY_SIZE(pdata->supplies),
+			pdata->supplies);
 }
 
 /* waits for MAC not busy, with timeout.  Only called by smsc911x_mac_read
@@ -968,7 +1044,8 @@ static int __devinit smsc911x_mii_init(struct platform_device *pdev,
 	}
 
 	pdata->mii_bus->name = SMSC_MDIONAME;
-	snprintf(pdata->mii_bus->id, MII_BUS_ID_SIZE, "%x", pdev->id);
+	snprintf(pdata->mii_bus->id, MII_BUS_ID_SIZE, "%s-%x",
+		pdev->name, pdev->id);
 	pdata->mii_bus->priv = pdata;
 	pdata->mii_bus->read = smsc911x_mii_read;
 	pdata->mii_bus->write = smsc911x_mii_write;
@@ -1243,10 +1320,92 @@ static void smsc911x_rx_multicast_update_workaround(struct smsc911x_data *pdata)
 	spin_unlock(&pdata->mac_lock);
 }
 
+static int smsc911x_phy_disable_energy_detect(struct smsc911x_data *pdata)
+{
+	int rc = 0;
+
+	if (!pdata->phy_dev)
+		return rc;
+
+	rc = phy_read(pdata->phy_dev, MII_LAN83C185_CTRL_STATUS);
+
+	if (rc < 0) {
+		SMSC_WARN(pdata, drv, "Failed reading PHY control reg");
+		return rc;
+	}
+
+	/*
+	 * If energy is detected the PHY is already awake so is not necessary
+	 * to disable the energy detect power-down mode.
+	 */
+	if ((rc & MII_LAN83C185_EDPWRDOWN) &&
+	    !(rc & MII_LAN83C185_ENERGYON)) {
+		/* Disable energy detect mode for this SMSC Transceivers */
+		rc = phy_write(pdata->phy_dev, MII_LAN83C185_CTRL_STATUS,
+			       rc & (~MII_LAN83C185_EDPWRDOWN));
+
+		if (rc < 0) {
+			SMSC_WARN(pdata, drv, "Failed writing PHY control reg");
+			return rc;
+		}
+
+		mdelay(1);
+	}
+
+	return 0;
+}
+
+static int smsc911x_phy_enable_energy_detect(struct smsc911x_data *pdata)
+{
+	int rc = 0;
+
+	if (!pdata->phy_dev)
+		return rc;
+
+	rc = phy_read(pdata->phy_dev, MII_LAN83C185_CTRL_STATUS);
+
+	if (rc < 0) {
+		SMSC_WARN(pdata, drv, "Failed reading PHY control reg");
+		return rc;
+	}
+
+	/* Only enable if energy detect mode is already disabled */
+	if (!(rc & MII_LAN83C185_EDPWRDOWN)) {
+		mdelay(100);
+		/* Enable energy detect mode for this SMSC Transceivers */
+		rc = phy_write(pdata->phy_dev, MII_LAN83C185_CTRL_STATUS,
+			       rc | MII_LAN83C185_EDPWRDOWN);
+
+		if (rc < 0) {
+			SMSC_WARN(pdata, drv, "Failed writing PHY control reg");
+			return rc;
+		}
+
+		mdelay(1);
+	}
+	return 0;
+}
+
 static int smsc911x_soft_reset(struct smsc911x_data *pdata)
 {
 	unsigned int timeout;
 	unsigned int temp;
+	int ret;
+
+	/*
+	 * LAN9210/LAN9211/LAN9220/LAN9221 chips have an internal PHY that
+	 * are initialized in a Energy Detect Power-Down mode that prevents
+	 * the MAC chip to be software reseted. So we have to wakeup the PHY
+	 * before.
+	 */
+	if (pdata->generation == 4) {
+		ret = smsc911x_phy_disable_energy_detect(pdata);
+
+		if (ret) {
+			SMSC_WARN(pdata, drv, "Failed to wakeup the PHY chip");
+			return ret;
+		}
+	}
 
 	/* Reset the LAN911x */
 	smsc911x_reg_write(pdata, HW_CFG, HW_CFG_SRST_);
@@ -1260,6 +1419,16 @@ static int smsc911x_soft_reset(struct smsc911x_data *pdata)
 		SMSC_WARN(pdata, drv, "Failed to complete reset");
 		return -EIO;
 	}
+
+	if (pdata->generation == 4) {
+		ret = smsc911x_phy_enable_energy_detect(pdata);
+
+		if (ret) {
+			SMSC_WARN(pdata, drv, "Failed to wakeup the PHY chip");
+			return ret;
+		}
+	}
+
 	return 0;
 }
 
@@ -2092,6 +2261,9 @@ static int __devexit smsc911x_drv_remove(struct platform_device *pdev)
 
 	iounmap(pdata->ioaddr);
 
+	(void)smsc911x_disable_resources(pdev);
+	smsc911x_free_resources(pdev);
+
 	free_netdev(dev);
 
 	return 0;
@@ -2218,10 +2390,20 @@ static int __devinit smsc911x_drv_probe(struct platform_device *pdev)
 	pdata->dev = dev;
 	pdata->msg_enable = ((1 << debug) - 1);
 
+	platform_set_drvdata(pdev, dev);
+
+	retval = smsc911x_request_resources(pdev);
+	if (retval)
+		goto out_return_resources;
+
+	retval = smsc911x_enable_resources(pdev);
+	if (retval)
+		goto out_disable_resources;
+
 	if (pdata->ioaddr == NULL) {
 		SMSC_WARN(pdata, probe, "Error smsc911x base address invalid");
 		retval = -ENOMEM;
-		goto out_free_netdev_2;
+		goto out_disable_resources;
 	}
 
 	retval = smsc911x_probe_config_dt(&pdata->config, np);
@@ -2233,7 +2415,7 @@ static int __devinit smsc911x_drv_probe(struct platform_device *pdev)
 
 	if (retval) {
 		SMSC_WARN(pdata, probe, "Error smsc911x config not found");
-		goto out_unmap_io_3;
+		goto out_disable_resources;
 	}
 
 	/* assume standard, non-shifted, access to HW registers */
@@ -2244,7 +2426,7 @@ static int __devinit smsc911x_drv_probe(struct platform_device *pdev)
 
 	retval = smsc911x_init(dev);
 	if (retval < 0)
-		goto out_unmap_io_3;
+		goto out_disable_resources;
 
 	/* configure irq polarity and type before connecting isr */
 	if (pdata->config.irq_polarity == SMSC911X_IRQ_POLARITY_ACTIVE_HIGH)
@@ -2264,15 +2446,13 @@ static int __devinit smsc911x_drv_probe(struct platform_device *pdev)
 	if (retval) {
 		SMSC_WARN(pdata, probe,
 			  "Unable to claim requested irq: %d", dev->irq);
-		goto out_unmap_io_3;
+		goto out_free_irq;
 	}
-
-	platform_set_drvdata(pdev, dev);
 
 	retval = register_netdev(dev);
 	if (retval) {
 		SMSC_WARN(pdata, probe, "Error %i registering device", retval);
-		goto out_unset_drvdata_4;
+		goto out_free_irq;
 	} else {
 		SMSC_TRACE(pdata, probe,
 			   "Network interface: \"%s\"", dev->name);
@@ -2321,12 +2501,14 @@ static int __devinit smsc911x_drv_probe(struct platform_device *pdev)
 
 out_unregister_netdev_5:
 	unregister_netdev(dev);
-out_unset_drvdata_4:
-	platform_set_drvdata(pdev, NULL);
+out_free_irq:
 	free_irq(dev->irq, dev);
-out_unmap_io_3:
+out_disable_resources:
+	(void)smsc911x_disable_resources(pdev);
+out_return_resources:
+	smsc911x_free_resources(pdev);
+	platform_set_drvdata(pdev, NULL);
 	iounmap(pdata->ioaddr);
-out_free_netdev_2:
 	free_netdev(dev);
 out_release_io_1:
 	release_mem_region(res->start, resource_size(res));

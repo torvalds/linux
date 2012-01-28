@@ -659,25 +659,4 @@ err:
 	return retval;
 }
 
-static int __init amradio_init(void)
-{
-	int retval = usb_register(&usb_amradio_driver);
-
-	pr_info(KBUILD_MODNAME
-		": version " DRIVER_VERSION " " DRIVER_DESC "\n");
-
-	if (retval)
-		pr_err(KBUILD_MODNAME
-			": usb_register failed. Error number %d\n", retval);
-
-	return retval;
-}
-
-static void __exit amradio_exit(void)
-{
-	usb_deregister(&usb_amradio_driver);
-}
-
-module_init(amradio_init);
-module_exit(amradio_exit);
-
+module_usb_driver(usb_amradio_driver);

@@ -15,11 +15,3 @@ receive the result data either with &func-read; and &func-write;
 functions, or through the streaming I/O mechanism.</para>
 
   <para>[to do]</para>
-
-  <!--
-Local Variables:
-mode: sgml
-sgml-parent-document: "v4l2.sgml"
-indent-tabs-mode: nil
-End:
-  -->

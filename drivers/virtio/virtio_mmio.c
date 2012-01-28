@@ -310,8 +310,8 @@ static struct virtqueue *vm_setup_vq(struct virtio_device *vdev, unsigned index,
 			vm_dev->base + VIRTIO_MMIO_QUEUE_PFN);
 
 	/* Create the vring */
-	vq = vring_new_virtqueue(info->num, VIRTIO_MMIO_VRING_ALIGN,
-				 vdev, info->queue, vm_notify, callback, name);
+	vq = vring_new_virtqueue(info->num, VIRTIO_MMIO_VRING_ALIGN, vdev,
+				 true, info->queue, vm_notify, callback, name);
 	if (!vq) {
 		err = -ENOMEM;
 		goto error_new_virtqueue;
@@ -361,7 +361,12 @@ static int vm_find_vqs(struct virtio_device *vdev, unsigned nvqs,
 	return 0;
 }
 
+static const char *vm_bus_name(struct virtio_device *vdev)
+{
+	struct virtio_mmio_device *vm_dev = to_virtio_mmio_device(vdev);
 
+	return vm_dev->pdev->name;
+}
 
 static struct virtio_config_ops virtio_mmio_config_ops = {
 	.get		= vm_get,
@@ -373,6 +378,7 @@ static struct virtio_config_ops virtio_mmio_config_ops = {
 	.del_vqs	= vm_del_vqs,
 	.get_features	= vm_get_features,
 	.finalize_features = vm_finalize_features,
+	.bus_name	= vm_bus_name,
 };
 
 

@@ -44,6 +44,7 @@
 #include <linux/slab.h>
 
 #include <asm/mach-au1x00/au1000.h>
+#include <asm/mach-au1x00/au1200fb.h>	/* platform_data */
 #include "au1200fb.h"
 
 #define DRIVER_NAME "au1200fb"
@@ -143,6 +144,7 @@ struct au1200_lcd_iodata_t {
 /* Private, per-framebuffer management information (independent of the panel itself) */
 struct au1200fb_device {
 	struct fb_info *fb_info;		/* FB driver info record */
+	struct au1200fb_platdata *pd;
 
 	int					plane;
 	unsigned char* 		fb_mem;		/* FrameBuffer memory map */
@@ -200,9 +202,6 @@ struct window_settings {
 #else
 #define LCD_WINCTRL1_PO_16BPP LCD_WINCTRL1_PO_01
 #endif
-
-extern int board_au1200fb_panel_init (void);
-extern int board_au1200fb_panel_shutdown (void);
 
 /*
  * Default window configurations
@@ -334,8 +333,6 @@ struct panel_settings
 	uint32 mode_toyclksrc;
 	uint32 mode_backlight;
 	uint32 mode_auxpll;
-	int (*device_init)(void);
-	int (*device_shutdown)(void);
 #define Xres min_xres
 #define Yres min_yres
 	u32	min_xres;		/* Minimum horizontal resolution */
@@ -385,8 +382,6 @@ static struct panel_settings known_lcd_panels[] =
 		.mode_toyclksrc	= 0x00000004, /* AUXPLL directly */
 		.mode_backlight	= 0x00000000,
 		.mode_auxpll		= 8, /* 96MHz AUXPLL */
-		.device_init		= NULL,
-		.device_shutdown	= NULL,
 		320, 320,
 		240, 240,
 	},
@@ -415,8 +410,6 @@ static struct panel_settings known_lcd_panels[] =
 		.mode_toyclksrc	= 0x00000004, /* AUXPLL directly */
 		.mode_backlight	= 0x00000000,
 		.mode_auxpll		= 8, /* 96MHz AUXPLL */
-		.device_init		= NULL,
-		.device_shutdown	= NULL,
 		640, 480,
 		640, 480,
 	},
@@ -445,8 +438,6 @@ static struct panel_settings known_lcd_panels[] =
 		.mode_toyclksrc	= 0x00000004, /* AUXPLL directly */
 		.mode_backlight	= 0x00000000,
 		.mode_auxpll		= 8, /* 96MHz AUXPLL */
-		.device_init		= NULL,
-		.device_shutdown	= NULL,
 		800, 800,
 		600, 600,
 	},
@@ -475,8 +466,6 @@ static struct panel_settings known_lcd_panels[] =
 		.mode_toyclksrc	= 0x00000004, /* AUXPLL directly */
 		.mode_backlight	= 0x00000000,
 		.mode_auxpll		= 6, /* 72MHz AUXPLL */
-		.device_init		= NULL,
-		.device_shutdown	= NULL,
 		1024, 1024,
 		768, 768,
 	},
@@ -505,8 +494,6 @@ static struct panel_settings known_lcd_panels[] =
 		.mode_toyclksrc	= 0x00000004, /* AUXPLL directly */
 		.mode_backlight	= 0x00000000,
 		.mode_auxpll		= 10, /* 120MHz AUXPLL */
-		.device_init		= NULL,
-		.device_shutdown	= NULL,
 		1280, 1280,
 		1024, 1024,
 	},
@@ -535,8 +522,6 @@ static struct panel_settings known_lcd_panels[] =
 		.mode_toyclksrc	= 0x00000004, /* AUXPLL directly */
 		.mode_backlight	= 0x00000000,
 		.mode_auxpll		= 8, /* 96MHz AUXPLL */
-		.device_init		= board_au1200fb_panel_init,
-		.device_shutdown	= board_au1200fb_panel_shutdown,
 		1024, 1024,
 		768, 768,
 	},
@@ -568,8 +553,6 @@ static struct panel_settings known_lcd_panels[] =
 		.mode_toyclksrc	= 0x00000004, /* AUXPLL directly */
 		.mode_backlight	= 0x00000000,
 		.mode_auxpll		= 8, /* 96MHz AUXPLL */
-		.device_init		= board_au1200fb_panel_init,
-		.device_shutdown	= board_au1200fb_panel_shutdown,
 		640, 480,
 		640, 480,
 	},
@@ -601,8 +584,6 @@ static struct panel_settings known_lcd_panels[] =
 		.mode_toyclksrc	= 0x00000004, /* AUXPLL directly */
 		.mode_backlight	= 0x00000000,
 		.mode_auxpll		= 8, /* 96MHz AUXPLL */
-		.device_init		= board_au1200fb_panel_init,
-		.device_shutdown	= board_au1200fb_panel_shutdown,
 		320, 320,
 		240, 240,
 	},
@@ -634,9 +615,41 @@ static struct panel_settings known_lcd_panels[] =
 		.mode_toyclksrc	= 0x00000004, /* AUXPLL directly */
 		.mode_backlight	= 0x00000000,
 		.mode_auxpll		= 8, /* 96MHz AUXPLL */
-		.device_init		= board_au1200fb_panel_init,
-		.device_shutdown	= board_au1200fb_panel_shutdown,
 		856, 856,
+		480, 480,
+	},
+	[9] = {
+		.name = "DB1300_800x480",
+		.monspecs = {
+			.modedb = NULL,
+			.modedb_len = 0,
+			.hfmin = 30000,
+			.hfmax = 70000,
+			.vfmin = 60,
+			.vfmax = 60,
+			.dclkmin = 6000000,
+			.dclkmax = 28000000,
+			.input = FB_DISP_RGB,
+		},
+		.mode_screen		= LCD_SCREEN_SX_N(800) |
+					  LCD_SCREEN_SY_N(480),
+		.mode_horztiming	= LCD_HORZTIMING_HPW_N(5) |
+					  LCD_HORZTIMING_HND1_N(16) |
+					  LCD_HORZTIMING_HND2_N(8),
+		.mode_verttiming	= LCD_VERTTIMING_VPW_N(4) |
+					  LCD_VERTTIMING_VND1_N(8) |
+					  LCD_VERTTIMING_VND2_N(5),
+		.mode_clkcontrol	= LCD_CLKCONTROL_PCD_N(1) |
+					  LCD_CLKCONTROL_IV |
+					  LCD_CLKCONTROL_IH,
+		.mode_pwmdiv		= 0x00000000,
+		.mode_pwmhi		= 0x00000000,
+		.mode_outmask		= 0x00FFFFFF,
+		.mode_fifoctrl		= 0x2f2f2f2f,
+		.mode_toyclksrc		= 0x00000004, /* AUXPLL directly */
+		.mode_backlight		= 0x00000000,
+		.mode_auxpll		= (48/12) * 2,
+		800, 800,
 		480, 480,
 	},
 };
@@ -764,7 +777,8 @@ static int au1200_setlocation (struct au1200fb_device *fbdev, int plane,
 	return 0;
 }
 
-static void au1200_setpanel (struct panel_settings *newpanel)
+static void au1200_setpanel(struct panel_settings *newpanel,
+			    struct au1200fb_platdata *pd)
 {
 	/*
 	 * Perform global setup/init of LCD controller
@@ -798,8 +812,8 @@ static void au1200_setpanel (struct panel_settings *newpanel)
 		    the controller, the clock cannot be turned off before first
 			shutting down the controller.
 		 */
-		if (panel->device_shutdown != NULL)
-			panel->device_shutdown();
+		if (pd->panel_shutdown)
+			pd->panel_shutdown();
 	}
 
 	/* Newpanel == NULL indicates a shutdown operation only */
@@ -852,7 +866,8 @@ static void au1200_setpanel (struct panel_settings *newpanel)
 	au_sync();
 
 	/* Call init of panel */
-	if (panel->device_init != NULL) panel->device_init();
+	if (pd->panel_init)
+		pd->panel_init();
 
 	/* FIX!!!! not appropriate on panel change!!! Global setup/init */
 	lcd->intenable = 0;
@@ -1185,6 +1200,8 @@ static int au1200fb_fb_setcolreg(unsigned regno, unsigned red, unsigned green,
  */
 static int au1200fb_fb_blank(int blank_mode, struct fb_info *fbi)
 {
+	struct au1200fb_device *fbdev = fbi->par;
+
 	/* Short-circuit screen blanking */
 	if (noblanking)
 		return 0;
@@ -1194,13 +1211,13 @@ static int au1200fb_fb_blank(int blank_mode, struct fb_info *fbi)
 	case FB_BLANK_UNBLANK:
 	case FB_BLANK_NORMAL:
 		/* printk("turn on panel\n"); */
-		au1200_setpanel(panel);
+		au1200_setpanel(panel, fbdev->pd);
 		break;
 	case FB_BLANK_VSYNC_SUSPEND:
 	case FB_BLANK_HSYNC_SUSPEND:
 	case FB_BLANK_POWERDOWN:
 		/* printk("turn off panel\n"); */
-		au1200_setpanel(NULL);
+		au1200_setpanel(NULL, fbdev->pd);
 		break;
 	default:
 		break;
@@ -1428,6 +1445,7 @@ static void get_window(unsigned int plane,
 static int au1200fb_ioctl(struct fb_info *info, unsigned int cmd,
                           unsigned long arg)
 {
+	struct au1200fb_device *fbdev = info->par;
 	int plane;
 	int val;
 
@@ -1472,7 +1490,7 @@ static int au1200fb_ioctl(struct fb_info *info, unsigned int cmd,
 				struct panel_settings *newpanel;
 				panel_index = iodata.global.panel_choice;
 				newpanel = &known_lcd_panels[panel_index];
-				au1200_setpanel(newpanel);
+				au1200_setpanel(newpanel, fbdev->pd);
 			}
 			break;
 
@@ -1588,21 +1606,101 @@ static int au1200fb_init_fbinfo(struct au1200fb_device *fbdev)
 
 /*-------------------------------------------------------------------------*/
 
-/* AU1200 LCD controller device driver */
 
+static int au1200fb_setup(struct au1200fb_platdata *pd)
+{
+	char *options = NULL;
+	char *this_opt, *endptr;
+	int num_panels = ARRAY_SIZE(known_lcd_panels);
+	int panel_idx = -1;
+
+	fb_get_options(DRIVER_NAME, &options);
+
+	if (!options)
+		goto out;
+
+	while ((this_opt = strsep(&options, ",")) != NULL) {
+		/* Panel option - can be panel name,
+		 * "bs" for board-switch, or number/index */
+		if (!strncmp(this_opt, "panel:", 6)) {
+			int i;
+			long int li;
+			char *endptr;
+			this_opt += 6;
+			/* First check for index, which allows
+			 * to short circuit this mess */
+			li = simple_strtol(this_opt, &endptr, 0);
+			if (*endptr == '\0')
+				panel_idx = (int)li;
+			else if (strcmp(this_opt, "bs") == 0)
+				panel_idx = pd->panel_index();
+			else {
+				for (i = 0; i < num_panels; i++) {
+					if (!strcmp(this_opt,
+						    known_lcd_panels[i].name)) {
+						panel_idx = i;
+						break;
+					}
+				}
+			}
+			if ((panel_idx < 0) || (panel_idx >= num_panels))
+				print_warn("Panel %s not supported!", this_opt);
+			else
+				panel_index = panel_idx;
+
+		} else if (strncmp(this_opt, "nohwcursor", 10) == 0)
+			nohwcursor = 1;
+		else if (strncmp(this_opt, "devices:", 8) == 0) {
+			this_opt += 8;
+			device_count = simple_strtol(this_opt, &endptr, 0);
+			if ((device_count < 0) ||
+			    (device_count > MAX_DEVICE_COUNT))
+				device_count = MAX_DEVICE_COUNT;
+		} else if (strncmp(this_opt, "wincfg:", 7) == 0) {
+			this_opt += 7;
+			window_index = simple_strtol(this_opt, &endptr, 0);
+			if ((window_index < 0) ||
+			    (window_index >= ARRAY_SIZE(windows)))
+				window_index = DEFAULT_WINDOW_INDEX;
+		} else if (strncmp(this_opt, "off", 3) == 0)
+			return 1;
+		else
+			print_warn("Unsupported option \"%s\"", this_opt);
+	}
+
+out:
+	return 0;
+}
+
+/* AU1200 LCD controller device driver */
 static int __devinit au1200fb_drv_probe(struct platform_device *dev)
 {
 	struct au1200fb_device *fbdev;
+	struct au1200fb_platdata *pd;
 	struct fb_info *fbi = NULL;
 	unsigned long page;
 	int bpp, plane, ret, irq;
 
+	print_info("" DRIVER_DESC "");
+
+	pd = dev->dev.platform_data;
+	if (!pd)
+		return -ENODEV;
+
+	/* Setup driver with options */
+	if (au1200fb_setup(pd))
+		return -ENODEV;
+
+	/* Point to the panel selected */
+	panel = &known_lcd_panels[panel_index];
+	win = &windows[window_index];
+
+	printk(DRIVER_NAME ": Panel %d %s\n", panel_index, panel->name);
+	printk(DRIVER_NAME ": Win %d %s\n", window_index, win->name);
+
 	/* shut gcc up */
 	ret = 0;
 	fbdev = NULL;
-
-	/* Kickstart the panel */
-	au1200_setpanel(panel);
 
 	for (plane = 0; plane < device_count; ++plane) {
 		bpp = winbpp(win->w[plane].mode_winctrl1);
@@ -1619,6 +1717,7 @@ static int __devinit au1200fb_drv_probe(struct platform_device *dev)
 		_au1200fb_infos[plane] = fbi;
 		fbdev = fbi->par;
 		fbdev->fb_info = fbi;
+		fbdev->pd = pd;
 
 		fbdev->plane = plane;
 
@@ -1680,6 +1779,11 @@ static int __devinit au1200fb_drv_probe(struct platform_device *dev)
 		goto failed;
 	}
 
+	platform_set_drvdata(dev, pd);
+
+	/* Kickstart the panel */
+	au1200_setpanel(panel, pd);
+
 	return 0;
 
 failed:
@@ -1699,12 +1803,13 @@ failed:
 
 static int __devexit au1200fb_drv_remove(struct platform_device *dev)
 {
+	struct au1200fb_platdata *pd = platform_get_drvdata(dev);
 	struct au1200fb_device *fbdev;
 	struct fb_info *fbi;
 	int plane;
 
 	/* Turn off the panel */
-	au1200_setpanel(NULL);
+	au1200_setpanel(NULL, pd);
 
 	for (plane = 0; plane < device_count; ++plane)	{
 		fbi = _au1200fb_infos[plane];
@@ -1732,7 +1837,8 @@ static int __devexit au1200fb_drv_remove(struct platform_device *dev)
 #ifdef CONFIG_PM
 static int au1200fb_drv_suspend(struct device *dev)
 {
-	au1200_setpanel(NULL);
+	struct au1200fb_platdata *pd = dev_get_drvdata(dev);
+	au1200_setpanel(NULL, pd);
 
 	lcd->outmask = 0;
 	au_sync();
@@ -1742,11 +1848,12 @@ static int au1200fb_drv_suspend(struct device *dev)
 
 static int au1200fb_drv_resume(struct device *dev)
 {
+	struct au1200fb_platdata *pd = dev_get_drvdata(dev);
 	struct fb_info *fbi;
 	int i;
 
 	/* Kickstart the panel */
-	au1200_setpanel(panel);
+	au1200_setpanel(panel, pd);
 
 	for (i = 0; i < device_count; i++) {
 		fbi = _au1200fb_infos[i];
@@ -1781,100 +1888,8 @@ static struct platform_driver au1200fb_driver = {
 
 /*-------------------------------------------------------------------------*/
 
-/* Kernel driver */
-
-static int au1200fb_setup(void)
-{
-	char *options = NULL;
-	char *this_opt, *endptr;
-	int num_panels = ARRAY_SIZE(known_lcd_panels);
-	int panel_idx = -1;
-
-	fb_get_options(DRIVER_NAME, &options);
-
-	if (options) {
-		while ((this_opt = strsep(&options,",")) != NULL) {
-			/* Panel option - can be panel name,
-			 * "bs" for board-switch, or number/index */
-			if (!strncmp(this_opt, "panel:", 6)) {
-				int i;
-				long int li;
-				char *endptr;
-				this_opt += 6;
-				/* First check for index, which allows
-				 * to short circuit this mess */
-				li = simple_strtol(this_opt, &endptr, 0);
-				if (*endptr == '\0') {
-					panel_idx = (int)li;
-				}
-				else if (strcmp(this_opt, "bs") == 0) {
-					extern int board_au1200fb_panel(void);
-					panel_idx = board_au1200fb_panel();
-				}
-
-				else
-				for (i = 0; i < num_panels; i++) {
-					if (!strcmp(this_opt, known_lcd_panels[i].name)) {
-						panel_idx = i;
-						break;
-					}
-				}
-
-				if ((panel_idx < 0) || (panel_idx >= num_panels)) {
-						print_warn("Panel %s not supported!", this_opt);
-				}
-				else
-					panel_index = panel_idx;
-			}
-
-			else if (strncmp(this_opt, "nohwcursor", 10) == 0) {
-				nohwcursor = 1;
-			}
-
-			else if (strncmp(this_opt, "devices:", 8) == 0) {
-				this_opt += 8;
-				device_count = simple_strtol(this_opt,
-							     &endptr, 0);
-				if ((device_count < 0) ||
-				    (device_count > MAX_DEVICE_COUNT))
-					device_count = MAX_DEVICE_COUNT;
-			}
-
-			else if (strncmp(this_opt, "wincfg:", 7) == 0) {
-				this_opt += 7;
-				window_index = simple_strtol(this_opt,
-							     &endptr, 0);
-				if ((window_index < 0) ||
-				    (window_index >= ARRAY_SIZE(windows)))
-					window_index = DEFAULT_WINDOW_INDEX;
-			}
-
-			else if (strncmp(this_opt, "off", 3) == 0)
-				return 1;
-			/* Unsupported option */
-			else {
-				print_warn("Unsupported option \"%s\"", this_opt);
-			}
-		}
-	}
-	return 0;
-}
-
 static int __init au1200fb_init(void)
 {
-	print_info("" DRIVER_DESC "");
-
-	/* Setup driver with options */
-	if (au1200fb_setup())
-		return -ENODEV;
-
-	/* Point to the panel selected */
-	panel = &known_lcd_panels[panel_index];
-	win = &windows[window_index];
-
-	printk(DRIVER_NAME ": Panel %d %s\n", panel_index, panel->name);
-	printk(DRIVER_NAME ": Win %d %s\n", window_index, win->name);
-
 	return platform_driver_register(&au1200fb_driver);
 }
 

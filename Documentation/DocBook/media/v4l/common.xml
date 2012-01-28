@@ -1168,6 +1168,8 @@ dheight = format.fmt.pix.height;
     </section>
   </section>
 
+  &sub-selection-api;
+
   <section id="streaming-par">
     <title>Streaming Parameters</title>
 
@@ -1195,11 +1197,3 @@ separate parameters for input and output devices.</para>
     <para>These ioctls are optional, drivers need not implement
 them. If so, they return the &EINVAL;.</para>
   </section>
-
-  <!--
-Local Variables:
-mode: sgml
-sgml-parent-document: "v4l2.sgml"
-indent-tabs-mode: nil
-End:
-  -->

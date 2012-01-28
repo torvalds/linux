@@ -4,7 +4,7 @@
  * for more details.
  *
  * Copyright (C) 2008 Maxime Bizon <mbizon@freebox.fr>
- * Copyright (C) 2008 Florian Fainelli <florian@openwrt.org>
+ * Copyright (C) 2008-2011 Florian Fainelli <florian@openwrt.org>
  */
 
 #include <linux/kernel.h>
@@ -17,6 +17,34 @@
 #include <bcm63xx_gpio.h>
 #include <bcm63xx_io.h>
 #include <bcm63xx_regs.h>
+
+#ifndef BCMCPU_RUNTIME_DETECT
+#define gpio_out_low_reg	GPIO_DATA_LO_REG
+#ifdef CONFIG_BCM63XX_CPU_6345
+#ifdef gpio_out_low_reg
+#undef gpio_out_low_reg
+#define gpio_out_low_reg	GPIO_DATA_LO_REG_6345
+#endif /* gpio_out_low_reg */
+#endif /* CONFIG_BCM63XX_CPU_6345 */
+
+static inline void bcm63xx_gpio_out_low_reg_init(void)
+{
+}
+#else /* ! BCMCPU_RUNTIME_DETECT */
+static u32 gpio_out_low_reg;
+
+static void bcm63xx_gpio_out_low_reg_init(void)
+{
+	switch (bcm63xx_get_cpu_id()) {
+	case BCM6345_CPU_ID:
+		gpio_out_low_reg = GPIO_DATA_LO_REG_6345;
+		break;
+	default:
+		gpio_out_low_reg = GPIO_DATA_LO_REG;
+		break;
+	}
+}
+#endif /* ! BCMCPU_RUNTIME_DETECT */
 
 static DEFINE_SPINLOCK(bcm63xx_gpio_lock);
 static u32 gpio_out_low, gpio_out_high;
@@ -33,7 +61,7 @@ static void bcm63xx_gpio_set(struct gpio_chip *chip,
 		BUG();
 
 	if (gpio < 32) {
-		reg = GPIO_DATA_LO_REG;
+		reg = gpio_out_low_reg;
 		mask = 1 << gpio;
 		v = &gpio_out_low;
 	} else {
@@ -60,7 +88,7 @@ static int bcm63xx_gpio_get(struct gpio_chip *chip, unsigned gpio)
 		BUG();
 
 	if (gpio < 32) {
-		reg = GPIO_DATA_LO_REG;
+		reg = gpio_out_low_reg;
 		mask = 1 << gpio;
 	} else {
 		reg = GPIO_DATA_HI_REG;
@@ -125,8 +153,11 @@ static struct gpio_chip bcm63xx_gpio_chip = {
 
 int __init bcm63xx_gpio_init(void)
 {
-	gpio_out_low = bcm_gpio_readl(GPIO_DATA_LO_REG);
-	gpio_out_high = bcm_gpio_readl(GPIO_DATA_HI_REG);
+	bcm63xx_gpio_out_low_reg_init();
+
+	gpio_out_low = bcm_gpio_readl(gpio_out_low_reg);
+	if (!BCMCPU_IS_6345())
+		gpio_out_high = bcm_gpio_readl(GPIO_DATA_HI_REG);
 	bcm63xx_gpio_chip.ngpio = bcm63xx_gpio_count();
 	pr_info("registering %d GPIOs\n", bcm63xx_gpio_chip.ngpio);
 

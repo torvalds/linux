@@ -86,6 +86,8 @@ static void __init cpu9krea_init_early(void)
  */
 static struct at91_usbh_data __initdata cpu9krea_usbh_data = {
 	.ports		= 2,
+	.vbus_pin	= {-EINVAL, -EINVAL},
+	.overcurrent_pin= {-EINVAL, -EINVAL},
 };
 
 /*
@@ -93,13 +95,14 @@ static struct at91_usbh_data __initdata cpu9krea_usbh_data = {
  */
 static struct at91_udc_data __initdata cpu9krea_udc_data = {
 	.vbus_pin	= AT91_PIN_PC8,
-	.pullup_pin	= 0,		/* pull-up driven by UDC */
+	.pullup_pin	= -EINVAL,		/* pull-up driven by UDC */
 };
 
 /*
  * MACB Ethernet device
  */
-static struct at91_eth_data __initdata cpu9krea_macb_data = {
+static struct macb_platform_data __initdata cpu9krea_macb_data = {
+	.phy_irq_pin	= -EINVAL,
 	.is_rmii	= 1,
 };
 
@@ -112,6 +115,7 @@ static struct atmel_nand_data __initdata cpu9krea_nand_data = {
 	.rdy_pin	= AT91_PIN_PC13,
 	.enable_pin	= AT91_PIN_PC14,
 	.bus_width_16	= 0,
+	.det_pin	= -EINVAL,
 };
 
 #ifdef CONFIG_MACH_CPU9260
@@ -156,7 +160,7 @@ static struct sam9_smc_config __initdata cpu9krea_nand_smc_config = {
 
 static void __init cpu9krea_add_device_nand(void)
 {
-	sam9_smc_configure(3, &cpu9krea_nand_smc_config);
+	sam9_smc_configure(0, 3, &cpu9krea_nand_smc_config);
 	at91_add_device_nand(&cpu9krea_nand_data);
 }
 
@@ -238,7 +242,7 @@ static __init void cpu9krea_add_device_nor(void)
 	at91_sys_write(AT91_MATRIX_EBICSA, csa | AT91_MATRIX_VDDIOMSEL_3_3V);
 
 	/* configure chip-select 0 (NOR) */
-	sam9_smc_configure(0, &cpu9krea_nor_smc_config);
+	sam9_smc_configure(0, 0, &cpu9krea_nor_smc_config);
 
 	platform_device_register(&cpu9krea_nor_flash);
 }
@@ -337,6 +341,8 @@ static struct at91_mmc_data __initdata cpu9krea_mmc_data = {
 	.slot_b		= 0,
 	.wire4		= 1,
 	.det_pin	= AT91_PIN_PA29,
+	.wp_pin		= -EINVAL,
+	.vcc_pin	= -EINVAL,
 };
 
 static void __init cpu9krea_board_init(void)

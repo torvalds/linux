@@ -87,7 +87,7 @@ static inline struct inet_peer *inet_getpeer_v6(const struct in6_addr *v6daddr, 
 {
 	struct inetpeer_addr daddr;
 
-	ipv6_addr_copy((struct in6_addr *)daddr.addr.a6, v6daddr);
+	*(struct in6_addr *)daddr.addr.a6 = *v6daddr;
 	daddr.family = AF_INET6;
 	return inet_getpeer(&daddr, create);
 }

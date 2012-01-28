@@ -14,10 +14,6 @@
 #include "net_driver.h"
 #include "filter.h"
 
-/* PCI IDs */
-#define BETHPAGE_A_P_DEVID      0x0803
-#define SIENA_A_P_DEVID         0x0813
-
 /* Solarstorm controllers use BAR 0 for I/O space and BAR 2(&3) for memory */
 #define EFX_MEM_BAR 2
 
@@ -65,13 +61,23 @@ extern void efx_schedule_slow_fill(struct efx_rx_queue *rx_queue);
 extern int efx_probe_filters(struct efx_nic *efx);
 extern void efx_restore_filters(struct efx_nic *efx);
 extern void efx_remove_filters(struct efx_nic *efx);
-extern int efx_filter_insert_filter(struct efx_nic *efx,
+extern s32 efx_filter_insert_filter(struct efx_nic *efx,
 				    struct efx_filter_spec *spec,
 				    bool replace);
-extern int efx_filter_remove_filter(struct efx_nic *efx,
-				    struct efx_filter_spec *spec);
+extern int efx_filter_remove_id_safe(struct efx_nic *efx,
+				     enum efx_filter_priority priority,
+				     u32 filter_id);
+extern int efx_filter_get_filter_safe(struct efx_nic *efx,
+				      enum efx_filter_priority priority,
+				      u32 filter_id, struct efx_filter_spec *);
 extern void efx_filter_clear_rx(struct efx_nic *efx,
 				enum efx_filter_priority priority);
+extern u32 efx_filter_count_rx_used(struct efx_nic *efx,
+				    enum efx_filter_priority priority);
+extern u32 efx_filter_get_rx_id_limit(struct efx_nic *efx);
+extern s32 efx_filter_get_rx_ids(struct efx_nic *efx,
+				 enum efx_filter_priority priority,
+				 u32 *buf, u32 size);
 #ifdef CONFIG_RFS_ACCEL
 extern int efx_filter_rfs(struct net_device *net_dev, const struct sk_buff *skb,
 			  u16 rxq_index, u32 flow_id);

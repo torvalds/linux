@@ -5,6 +5,7 @@ config USB_WUSB
 	tristate "Enable Wireless USB extensions (EXPERIMENTAL)"
 	depends on EXPERIMENTAL
 	depends on USB
+	depends on PCI
         select UWB
         select CRYPTO
         select CRYPTO_BLKCIPHER

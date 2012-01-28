@@ -746,9 +746,6 @@ static void ahci_start_port(struct ata_port *ap)
 	/* enable FIS reception */
 	ahci_start_fis_rx(ap);
 
-	/* enable DMA */
-	ahci_start_engine(ap);
-
 	/* turn on LEDs */
 	if (ap->flags & ATA_FLAG_EM) {
 		ata_for_each_link(link, ap, EDGE) {
@@ -2022,7 +2019,7 @@ static int ahci_port_suspend(struct ata_port *ap, pm_message_t mesg)
 		ahci_power_down(ap);
 	else {
 		ata_port_err(ap, "%s (%d)\n", emsg, rc);
-		ahci_start_port(ap);
+		ata_port_freeze(ap);
 	}
 
 	return rc;

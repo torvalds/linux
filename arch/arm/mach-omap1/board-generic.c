@@ -25,7 +25,7 @@
 #include <plat/mux.h>
 #include <plat/usb.h>
 #include <plat/board.h>
-#include <plat/common.h>
+#include "common.h"
 
 /* assume no Mini-AB port */
 
@@ -89,4 +89,5 @@ MACHINE_START(OMAP_GENERIC, "Generic OMAP1510/1610/1710")
 	.init_irq	= omap1_init_irq,
 	.init_machine	= omap_generic_init,
 	.timer		= &omap1_timer,
+	.restart	= omap1_restart,
 MACHINE_END

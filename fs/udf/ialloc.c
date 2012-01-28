@@ -46,7 +46,7 @@ void udf_free_inode(struct inode *inode)
 	udf_free_blocks(sb, NULL, &UDF_I(inode)->i_location, 0, 1);
 }
 
-struct inode *udf_new_inode(struct inode *dir, int mode, int *err)
+struct inode *udf_new_inode(struct inode *dir, umode_t mode, int *err)
 {
 	struct super_block *sb = dir->i_sb;
 	struct udf_sb_info *sbi = UDF_SB(sb);

@@ -194,6 +194,7 @@ static int taos_get_lux(struct iio_dev *indio_dev)
 {
 	u16 ch0, ch1; /* separated ch0/ch1 data from device */
 	u32 lux; /* raw lux calculated from device data */
+	u64 lux64;
 	u32 ratio;
 	u8 buf[5];
 	struct taos_lux *p;
@@ -297,9 +298,19 @@ static int taos_get_lux(struct iio_dev *indio_dev)
 		lux = (lux + (chip->als_time_scale >> 1)) /
 			chip->als_time_scale;
 
-	/* adjust for active gain scale */
-	lux >>= 13; /* tables have factor of 8192 builtin for accuracy */
-	lux = (lux * chip->taos_settings.als_gain_trim + 500) / 1000;
+	/* Adjust for active gain scale.
+	 * The taos_device_lux tables above have a factor of 8192 built in,
+	 * so we need to shift right.
+	 * User-specified gain provides a multiplier.
+	 * Apply user-specified gain before shifting right to retain precision.
+	 * Use 64 bits to avoid overflow on multiplication.
+	 * Then go back to 32 bits before division to avoid using div_u64().
+	 */
+	lux64 = lux;
+	lux64 = lux64 * chip->taos_settings.als_gain_trim;
+	lux64 >>= 13;
+	lux = lux64;
+	lux = (lux + 500) / 1000;
 	if (lux > TSL258X_LUX_CALC_OVER_FLOW) { /* check for overflow */
 return_max:
 		lux = TSL258X_LUX_CALC_OVER_FLOW;
@@ -933,19 +944,7 @@ static struct i2c_driver taos_driver = {
 	.probe = taos_probe,
 	.remove = __devexit_p(taos_remove),
 };
-
-static int __init taos_init(void)
-{
-	return i2c_add_driver(&taos_driver);
-}
-
-static void __exit taos_exit(void)
-{
-	i2c_del_driver(&taos_driver);
-}
-
-module_init(taos_init);
-module_exit(taos_exit);
+module_i2c_driver(taos_driver);
 
 MODULE_AUTHOR("J. August Brenner<jbrenner@taosinc.com>");
 MODULE_DESCRIPTION("TAOS tsl2583 ambient light sensor driver");

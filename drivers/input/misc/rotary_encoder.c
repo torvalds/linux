@@ -284,19 +284,7 @@ static struct platform_driver rotary_encoder_driver = {
 		.owner	= THIS_MODULE,
 	}
 };
-
-static int __init rotary_encoder_init(void)
-{
-	return platform_driver_register(&rotary_encoder_driver);
-}
-
-static void __exit rotary_encoder_exit(void)
-{
-	platform_driver_unregister(&rotary_encoder_driver);
-}
-
-module_init(rotary_encoder_init);
-module_exit(rotary_encoder_exit);
+module_platform_driver(rotary_encoder_driver);
 
 MODULE_ALIAS("platform:" DRV_NAME);
 MODULE_DESCRIPTION("GPIO rotary encoder driver");

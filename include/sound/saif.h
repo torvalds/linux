@@ -10,7 +10,7 @@
 #define __SOUND_SAIF_H__
 
 struct mxs_saif_platform_data {
-	int (*init) (void);
-	int (*get_master_id) (unsigned int saif_id);
+	bool master_mode;	/* if true use master mode */
+	int master_id;		/* id of the master if in slave mode */
 };
 #endif

@@ -107,12 +107,13 @@ ebt_log_packet(u_int8_t pf, unsigned int hooknum,
 		goto out;
 	}
 
-#if defined(CONFIG_BRIDGE_EBT_IP6) || defined(CONFIG_BRIDGE_EBT_IP6_MODULE)
+#if IS_ENABLED(CONFIG_BRIDGE_EBT_IP6)
 	if ((bitmask & EBT_LOG_IP6) && eth_hdr(skb)->h_proto ==
 	   htons(ETH_P_IPV6)) {
 		const struct ipv6hdr *ih;
 		struct ipv6hdr _iph;
 		uint8_t nexthdr;
+		__be16 frag_off;
 		int offset_ph;
 
 		ih = skb_header_pointer(skb, 0, sizeof(_iph), &_iph);
@@ -123,7 +124,7 @@ ebt_log_packet(u_int8_t pf, unsigned int hooknum,
 		printk(" IPv6 SRC=%pI6 IPv6 DST=%pI6, IPv6 priority=0x%01X, Next Header=%d",
 		       &ih->saddr, &ih->daddr, ih->priority, ih->nexthdr);
 		nexthdr = ih->nexthdr;
-		offset_ph = ipv6_skip_exthdr(skb, sizeof(_iph), &nexthdr);
+		offset_ph = ipv6_skip_exthdr(skb, sizeof(_iph), &nexthdr, &frag_off);
 		if (offset_ph == -1)
 			goto out;
 		print_ports(skb, nexthdr, offset_ph);

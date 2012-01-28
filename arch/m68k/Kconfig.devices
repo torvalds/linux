@@ -8,8 +8,8 @@ config ARCH_MAY_HAVE_PC_FDC
 menu "Platform devices"
 
 config HEARTBEAT
-	bool "Use power LED as a heartbeat" if AMIGA || APOLLO || ATARI || MAC ||Q40
-	default y if !AMIGA && !APOLLO && !ATARI && !MAC && !Q40 && HP300
+	bool "Use power LED as a heartbeat" if AMIGA || APOLLO || ATARI || Q40
+	default y if !AMIGA && !APOLLO && !ATARI && !Q40 && HP300
 	help
 	  Use the power-on LED on your machine as a load meter.  The exact
 	  behavior is platform-dependent, but normally the flash frequency is
@@ -59,27 +59,6 @@ endmenu
 
 menu "Character devices"
 
-config ATARI_MFPSER
-	tristate "Atari MFP serial support"
-	depends on ATARI
-	---help---
-	  If you like to use the MFP serial ports ("Modem1", "Serial1") under
-	  Linux, say Y. The driver equally supports all kinds of MFP serial
-	  ports and automatically detects whether Serial1 is available.
-
-	  To compile this driver as a module, choose M here.
-
-	  Note for Falcon users: You also have an MFP port, it's just not
-	  wired to the outside... But you could use the port under Linux.
-
-config ATARI_MIDI
-	tristate "Atari MIDI serial support"
-	depends on ATARI
-	help
-	  If you want to use your Atari's MIDI port in Linux, say Y.
-
-	  To compile this driver as a module, choose M here.
-
 config ATARI_DSP56K
 	tristate "Atari DSP56k support (EXPERIMENTAL)"
 	depends on ATARI && EXPERIMENTAL
@@ -99,15 +78,6 @@ config AMIGA_BUILTIN_SERIAL
 
 	  To compile this driver as a module, choose M here.
 
-config MULTIFACE_III_TTY
-	tristate "Multiface Card III serial support"
-	depends on AMIGA
-	help
-	  If you want to use a Multiface III card's serial port in Linux,
-	  answer Y.
-
-	  To compile this driver as a module, choose M here.
-
 config HPDCA
 	tristate "HP DCA serial support"
 	depends on DIO && SERIAL_8250
@@ -122,13 +92,9 @@ config HPAPCI
 	  If you want to use the internal "APCI" serial ports on an HP400
 	  machine, say Y here.
 
-config DN_SERIAL
-	bool "Support for DN serial port (dummy)"
-	depends on APOLLO
-
 config SERIAL_CONSOLE
 	bool "Support for serial port console"
-	depends on (AMIGA || ATARI || SUN3 || SUN3X || VME || APOLLO) && (ATARI_MFPSER=y || ATARI_MIDI=y || AMIGA_BUILTIN_SERIAL=y || MULTIFACE_III_TTY=y || SERIAL=y || SERIAL167 || DN_SERIAL)
+	depends on AMIGA_BUILTIN_SERIAL=y
 	---help---
 	  If you say Y here, it will be possible to use a serial port as the
 	  system console (the system console is the device which receives all
@@ -140,10 +106,10 @@ config SERIAL_CONSOLE
 	  (/dev/tty0) will still be used as the system console by default, but
 	  you can alter that using a kernel command line option such as
 	  "console=ttyS1". (Try "man bootparam" or see the documentation of
-	  your boot loader (lilo or loadlin) about how to pass options to the
-	  kernel at boot time.)
+	  your boot loader about how to pass options to the kernel at boot
+	  time.)
 
-	  If you don't have a VGA card installed and you say Y here, the
+	  If you don't have a graphical console and you say Y here, the
 	  kernel will automatically use the first serial line, /dev/ttyS0, as
 	  system console.
 

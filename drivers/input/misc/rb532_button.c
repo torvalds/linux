@@ -100,19 +100,7 @@ static struct platform_driver rb532_button_driver = {
 		.owner = THIS_MODULE,
 	},
 };
-
-static int __init rb532_button_init(void)
-{
-	return platform_driver_register(&rb532_button_driver);
-}
-
-static void __exit rb532_button_exit(void)
-{
-	platform_driver_unregister(&rb532_button_driver);
-}
-
-module_init(rb532_button_init);
-module_exit(rb532_button_exit);
+module_platform_driver(rb532_button_driver);
 
 MODULE_AUTHOR("Phil Sutter <n0-1@freewrt.org>");
 MODULE_LICENSE("GPL");

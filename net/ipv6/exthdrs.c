@@ -243,9 +243,9 @@ static int ipv6_dest_hao(struct sk_buff *skb, int optoff)
 	if (skb->ip_summed == CHECKSUM_COMPLETE)
 		skb->ip_summed = CHECKSUM_NONE;
 
-	ipv6_addr_copy(&tmp_addr, &ipv6h->saddr);
-	ipv6_addr_copy(&ipv6h->saddr, &hao->addr);
-	ipv6_addr_copy(&hao->addr, &tmp_addr);
+	tmp_addr = ipv6h->saddr;
+	ipv6h->saddr = hao->addr;
+	hao->addr = tmp_addr;
 
 	if (skb->tstamp.tv64 == 0)
 		__net_timestamp(skb);
@@ -461,9 +461,9 @@ looped_back:
 		return -1;
 	}
 
-	ipv6_addr_copy(&daddr, addr);
-	ipv6_addr_copy(addr, &ipv6_hdr(skb)->daddr);
-	ipv6_addr_copy(&ipv6_hdr(skb)->daddr, &daddr);
+	daddr = *addr;
+	*addr = ipv6_hdr(skb)->daddr;
+	ipv6_hdr(skb)->daddr = daddr;
 
 	skb_dst_drop(skb);
 	ip6_route_input(skb);
@@ -690,7 +690,7 @@ static void ipv6_push_rthdr(struct sk_buff *skb, u8 *proto,
 		memcpy(phdr->addr, ihdr->addr + 1,
 		       (hops - 1) * sizeof(struct in6_addr));
 
-	ipv6_addr_copy(phdr->addr + (hops - 1), *addr_p);
+	phdr->addr[hops - 1] = **addr_p;
 	*addr_p = ihdr->addr;
 
 	phdr->rt_hdr.nexthdr = *proto;
@@ -888,8 +888,8 @@ struct in6_addr *fl6_update_dst(struct flowi6 *fl6,
 	if (!opt || !opt->srcrt)
 		return NULL;
 
-	ipv6_addr_copy(orig, &fl6->daddr);
-	ipv6_addr_copy(&fl6->daddr, ((struct rt0_hdr *)opt->srcrt)->addr);
+	*orig = fl6->daddr;
+	fl6->daddr = *((struct rt0_hdr *)opt->srcrt)->addr;
 	return orig;
 }
 

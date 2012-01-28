@@ -639,7 +639,7 @@ static int fsl_otg_set_power(struct otg_transceiver *otg_p, unsigned mA)
  * Delayed pin detect interrupt processing.
  *
  * When the Mini-A cable is disconnected from the board,
- * the pin-detect interrupt happens before the disconnnect
+ * the pin-detect interrupt happens before the disconnect
  * interrupts for the connected device(s).  In order to
  * process the disconnect interrupt(s) prior to switching
  * roles, the pin-detect interrupts are delayed, and handled
@@ -1151,18 +1151,7 @@ struct platform_driver fsl_otg_driver = {
 	},
 };
 
-static int __init fsl_usb_otg_init(void)
-{
-	pr_info(DRIVER_INFO "\n");
-	return platform_driver_register(&fsl_otg_driver);
-}
-module_init(fsl_usb_otg_init);
-
-static void __exit fsl_usb_otg_exit(void)
-{
-	platform_driver_unregister(&fsl_otg_driver);
-}
-module_exit(fsl_usb_otg_exit);
+module_platform_driver(fsl_otg_driver);
 
 MODULE_DESCRIPTION(DRIVER_INFO);
 MODULE_AUTHOR(DRIVER_AUTHOR);

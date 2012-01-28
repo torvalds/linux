@@ -199,6 +199,33 @@ void __init footbridge_map_io(void)
 		iotable_init(ebsa285_host_io_desc, ARRAY_SIZE(ebsa285_host_io_desc));
 }
 
+void footbridge_restart(char mode, const char *cmd)
+{
+	if (mode == 's') {
+		/* Jump into the ROM */
+		soft_restart(0x41000000);
+	} else {
+		/*
+		 * Force the watchdog to do a CPU reset.
+		 *
+		 * After making sure that the watchdog is disabled
+		 * (so we can change the timer registers) we first
+		 * enable the timer to autoreload itself.  Next, the
+		 * timer interval is set really short and any
+		 * current interrupt request is cleared (so we can
+		 * see an edge transition).  Finally, TIMER4 is
+		 * enabled as the watchdog.
+		 */
+		*CSR_SA110_CNTL &= ~(1 << 13);
+		*CSR_TIMER4_CNTL = TIMER_CNTL_ENABLE |
+				   TIMER_CNTL_AUTORELOAD |
+				   TIMER_CNTL_DIV16;
+		*CSR_TIMER4_LOAD = 0x2;
+		*CSR_TIMER4_CLR  = 0;
+		*CSR_SA110_CNTL |= (1 << 13);
+	}
+}
+
 #ifdef CONFIG_FOOTBRIDGE_ADDIN
 
 static inline unsigned long fb_bus_sdram_offset(void)

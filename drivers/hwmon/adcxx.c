@@ -125,7 +125,7 @@ static ssize_t adcxx_set_max(struct device *dev,
 	struct adcxx *adc = spi_get_drvdata(spi);
 	unsigned long value;
 
-	if (strict_strtoul(buf, 10, &value))
+	if (kstrtoul(buf, 10, &value))
 		return -EINVAL;
 
 	if (mutex_lock_interruptible(&adc->lock))

@@ -1128,17 +1128,7 @@ static struct platform_driver marvell_crypto = {
 };
 MODULE_ALIAS("platform:mv_crypto");
 
-static int __init mv_crypto_init(void)
-{
-	return platform_driver_register(&marvell_crypto);
-}
-module_init(mv_crypto_init);
-
-static void __exit mv_crypto_exit(void)
-{
-	platform_driver_unregister(&marvell_crypto);
-}
-module_exit(mv_crypto_exit);
+module_platform_driver(marvell_crypto);
 
 MODULE_AUTHOR("Sebastian Andrzej Siewior <sebastian@breakpoint.cc>");
 MODULE_DESCRIPTION("Support for Marvell's cryptographic engine");

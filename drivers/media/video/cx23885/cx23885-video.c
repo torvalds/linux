@@ -253,9 +253,9 @@ static struct cx23885_ctrl cx23885_ctls[] = {
 			.id            = V4L2_CID_AUDIO_VOLUME,
 			.name          = "Volume",
 			.minimum       = 0,
-			.maximum       = 0x3f,
-			.step          = 1,
-			.default_value = 0x3f,
+			.maximum       = 65535,
+			.step          = 65535 / 100,
+			.default_value = 65535,
 			.type          = V4L2_CTRL_TYPE_INTEGER,
 		},
 		.reg                   = PATH1_VOL_CTL,
@@ -316,7 +316,7 @@ void cx23885_video_wakeup(struct cx23885_dev *dev,
 			__func__, bc);
 }
 
-static int cx23885_set_tvnorm(struct cx23885_dev *dev, v4l2_std_id norm)
+int cx23885_set_tvnorm(struct cx23885_dev *dev, v4l2_std_id norm)
 {
 	dprintk(1, "%s(norm = 0x%08x) name: [%s]\n",
 		__func__,
@@ -344,8 +344,8 @@ static struct video_device *cx23885_vdev_init(struct cx23885_dev *dev,
 	*vfd = *template;
 	vfd->v4l2_dev = &dev->v4l2_dev;
 	vfd->release = video_device_release;
-	snprintf(vfd->name, sizeof(vfd->name), "%s %s (%s)",
-		 dev->name, type, cx23885_boards[dev->board].name);
+	snprintf(vfd->name, sizeof(vfd->name), "%s (%s)",
+		 cx23885_boards[dev->board].name, type);
 	video_set_drvdata(vfd, dev);
 	return vfd;
 }
@@ -492,7 +492,8 @@ static int cx23885_video_mux(struct cx23885_dev *dev, unsigned int input)
 	dev->input = input;
 
 	if (dev->board == CX23885_BOARD_MYGICA_X8506 ||
-		dev->board == CX23885_BOARD_MAGICPRO_PROHDTVE2) {
+		dev->board == CX23885_BOARD_MAGICPRO_PROHDTVE2 ||
+		dev->board == CX23885_BOARD_MYGICA_X8507) {
 		/* Select Analog TV */
 		if (INPUT(input)->type == CX23885_VMUX_TELEVISION)
 			cx23885_gpio_clear(dev, GPIO_0);
@@ -503,7 +504,8 @@ static int cx23885_video_mux(struct cx23885_dev *dev, unsigned int input)
 			INPUT(input)->vmux, 0, 0);
 
 	if ((dev->board == CX23885_BOARD_HAUPPAUGE_HVR1800) ||
-		(dev->board == CX23885_BOARD_MPX885)) {
+		(dev->board == CX23885_BOARD_MPX885) ||
+		(dev->board == CX23885_BOARD_HAUPPAUGE_HVR1850)) {
 		/* Configure audio routing */
 		v4l2_subdev_call(dev->sd_cx25840, audio, s_routing,
 			INPUT(input)->amux, 0, 0);
@@ -649,6 +651,7 @@ static int buffer_prepare(struct videobuf_queue *q, struct videobuf_buffer *vb,
 	int rc, init_buffer = 0;
 	u32 line0_offset, line1_offset;
 	struct videobuf_dmabuf *dma = videobuf_to_dma(&buf->vb);
+	int field_tff;
 
 	BUG_ON(NULL == fh->fmt);
 	if (fh->width  < 48 || fh->width  > norm_maxw(dev->tvnorm) ||
@@ -690,15 +693,25 @@ static int buffer_prepare(struct videobuf_queue *q, struct videobuf_buffer *vb,
 					 buf->bpl, 0, buf->vb.height);
 			break;
 		case V4L2_FIELD_INTERLACED:
-			if (dev->tvnorm & V4L2_STD_NTSC) {
+			if (dev->tvnorm & V4L2_STD_NTSC)
+				/* NTSC or  */
+				field_tff = 1;
+			else
+				field_tff = 0;
+
+			if (cx23885_boards[dev->board].force_bff)
+				/* PAL / SECAM OR 888 in NTSC MODE */
+				field_tff = 0;
+
+			if (field_tff) {
 				/* cx25840 transmits NTSC bottom field first */
-				dprintk(1, "%s() Creating NTSC risc\n",
+				dprintk(1, "%s() Creating TFF/NTSC risc\n",
 					__func__);
 				line0_offset = buf->bpl;
 				line1_offset = 0;
 			} else {
 				/* All other formats are top field first */
-				dprintk(1, "%s() Creating PAL/SECAM risc\n",
+				dprintk(1, "%s() Creating BFF/PAL/SECAM risc\n",
 					__func__);
 				line0_offset = 0;
 				line1_offset = buf->bpl;
@@ -981,6 +994,8 @@ static int video_release(struct file *file)
 	}
 
 	videobuf_mmap_free(&fh->vidq);
+	videobuf_mmap_free(&fh->vbiq);
+
 	file->private_data = NULL;
 	kfree(fh);
 
@@ -1002,7 +1017,7 @@ static int video_mmap(struct file *file, struct vm_area_struct *vma)
 /* ------------------------------------------------------------------ */
 /* VIDEO CTRL IOCTLS                                                  */
 
-static int cx23885_get_control(struct cx23885_dev *dev,
+int cx23885_get_control(struct cx23885_dev *dev,
 	struct v4l2_control *ctl)
 {
 	dprintk(1, "%s() calling cx25840(VIDIOC_G_CTRL)\n", __func__);
@@ -1010,7 +1025,7 @@ static int cx23885_get_control(struct cx23885_dev *dev,
 	return 0;
 }
 
-static int cx23885_set_control(struct cx23885_dev *dev,
+int cx23885_set_control(struct cx23885_dev *dev,
 	struct v4l2_control *ctl)
 {
 	dprintk(1, "%s() calling cx25840(VIDIOC_S_CTRL)\n", __func__);
@@ -1229,6 +1244,16 @@ static int vidioc_streamoff(struct file *file, void *priv, enum v4l2_buf_type i)
 	return 0;
 }
 
+static int vidioc_g_std(struct file *file, void *priv, v4l2_std_id *id)
+{
+	struct cx23885_dev *dev = ((struct cx23885_fh *)priv)->dev;
+	dprintk(1, "%s()\n", __func__);
+
+	call_all(dev, core, g_std, id);
+
+	return 0;
+}
+
 static int vidioc_s_std(struct file *file, void *priv, v4l2_std_id *tvnorms)
 {
 	struct cx23885_dev *dev = ((struct cx23885_fh *)priv)->dev;
@@ -1241,7 +1266,7 @@ static int vidioc_s_std(struct file *file, void *priv, v4l2_std_id *tvnorms)
 	return 0;
 }
 
-static int cx23885_enum_input(struct cx23885_dev *dev, struct v4l2_input *i)
+int cx23885_enum_input(struct cx23885_dev *dev, struct v4l2_input *i)
 {
 	static const char *iname[] = {
 		[CX23885_VMUX_COMPOSITE1] = "Composite1",
@@ -1278,6 +1303,15 @@ static int cx23885_enum_input(struct cx23885_dev *dev, struct v4l2_input *i)
 	if (INPUT(n)->type != CX23885_VMUX_TELEVISION)
 		i->audioset = 0x3;
 
+	if (dev->input == n) {
+		/* enum'd input matches our configured input.
+		 * Ask the video decoder to process the call
+		 * and give it an oppertunity to update the
+		 * status field.
+		 */
+		call_all(dev, video, g_input_status, &i->status);
+	}
+
 	return 0;
 }
 
@@ -1289,7 +1323,7 @@ static int vidioc_enum_input(struct file *file, void *priv,
 	return cx23885_enum_input(dev, i);
 }
 
-static int vidioc_g_input(struct file *file, void *priv, unsigned int *i)
+int cx23885_get_input(struct file *file, void *priv, unsigned int *i)
 {
 	struct cx23885_dev *dev = ((struct cx23885_fh *)priv)->dev;
 
@@ -1298,7 +1332,12 @@ static int vidioc_g_input(struct file *file, void *priv, unsigned int *i)
 	return 0;
 }
 
-static int vidioc_s_input(struct file *file, void *priv, unsigned int i)
+static int vidioc_g_input(struct file *file, void *priv, unsigned int *i)
+{
+	return cx23885_get_input(file, priv, i);
+}
+
+int cx23885_set_input(struct file *file, void *priv, unsigned int i)
 {
 	struct cx23885_dev *dev = ((struct cx23885_fh *)priv)->dev;
 
@@ -1322,6 +1361,11 @@ static int vidioc_s_input(struct file *file, void *priv, unsigned int i)
 	return 0;
 }
 
+static int vidioc_s_input(struct file *file, void *priv, unsigned int i)
+{
+	return cx23885_set_input(file, priv, i);
+}
+
 static int vidioc_log_status(struct file *file, void *priv)
 {
 	struct cx23885_fh  *fh  = priv;
@@ -1329,11 +1373,11 @@ static int vidioc_log_status(struct file *file, void *priv)
 
 	printk(KERN_INFO
 		"%s/0: ============  START LOG STATUS  ============\n",
-	       dev->name);
+		dev->name);
 	call_all(dev, core, log_status);
 	printk(KERN_INFO
 		"%s/0: =============  END LOG STATUS  =============\n",
-	       dev->name);
+		dev->name);
 	return 0;
 }
 
@@ -1471,6 +1515,8 @@ static int vidioc_g_frequency(struct file *file, void *priv,
 
 static int cx23885_set_freq(struct cx23885_dev *dev, struct v4l2_frequency *f)
 {
+	struct v4l2_control ctrl;
+
 	if (unlikely(UNSET == dev->tuner_type))
 		return -EINVAL;
 	if (unlikely(f->tuner != 0))
@@ -1479,29 +1525,103 @@ static int cx23885_set_freq(struct cx23885_dev *dev, struct v4l2_frequency *f)
 	mutex_lock(&dev->lock);
 	dev->freq = f->frequency;
 
+	/* I need to mute audio here */
+	ctrl.id = V4L2_CID_AUDIO_MUTE;
+	ctrl.value = 1;
+	cx23885_set_control(dev, &ctrl);
+
 	call_all(dev, tuner, s_frequency, f);
 
 	/* When changing channels it is required to reset TVAUDIO */
-	msleep(10);
+	msleep(100);
+
+	/* I need to unmute audio here */
+	ctrl.value = 0;
+	cx23885_set_control(dev, &ctrl);
 
 	mutex_unlock(&dev->lock);
 
 	return 0;
 }
 
-static int vidioc_s_frequency(struct file *file, void *priv,
-				struct v4l2_frequency *f)
+static int cx23885_set_freq_via_ops(struct cx23885_dev *dev,
+	struct v4l2_frequency *f)
+{
+	struct v4l2_control ctrl;
+	struct videobuf_dvb_frontend *vfe;
+	struct dvb_frontend *fe;
+
+	struct analog_parameters params = {
+		.mode      = V4L2_TUNER_ANALOG_TV,
+		.audmode   = V4L2_TUNER_MODE_STEREO,
+		.std       = dev->tvnorm,
+		.frequency = f->frequency
+	};
+
+	mutex_lock(&dev->lock);
+	dev->freq = f->frequency;
+
+	/* I need to mute audio here */
+	ctrl.id = V4L2_CID_AUDIO_MUTE;
+	ctrl.value = 1;
+	cx23885_set_control(dev, &ctrl);
+
+	/* If HVR1850 */
+	dprintk(1, "%s() frequency=%d tuner=%d std=0x%llx\n", __func__,
+		params.frequency, f->tuner, params.std);
+
+	vfe = videobuf_dvb_get_frontend(&dev->ts2.frontends, 1);
+	if (!vfe) {
+		mutex_unlock(&dev->lock);
+		return -EINVAL;
+	}
+
+	fe = vfe->dvb.frontend;
+
+	if (dev->board == CX23885_BOARD_HAUPPAUGE_HVR1850)
+		fe = &dev->ts1.analog_fe;
+
+	if (fe && fe->ops.tuner_ops.set_analog_params) {
+		call_all(dev, core, s_std, dev->tvnorm);
+		fe->ops.tuner_ops.set_analog_params(fe, &params);
+	}
+	else
+		printk(KERN_ERR "%s() No analog tuner, aborting\n", __func__);
+
+	/* When changing channels it is required to reset TVAUDIO */
+	msleep(100);
+
+	/* I need to unmute audio here */
+	ctrl.value = 0;
+	cx23885_set_control(dev, &ctrl);
+
+	mutex_unlock(&dev->lock);
+
+	return 0;
+}
+
+int cx23885_set_frequency(struct file *file, void *priv,
+	struct v4l2_frequency *f)
 {
 	struct cx23885_fh *fh = priv;
 	struct cx23885_dev *dev = fh->dev;
+	int ret;
 
-	if (unlikely(0 == fh->radio && f->type != V4L2_TUNER_ANALOG_TV))
-		return -EINVAL;
-	if (unlikely(1 == fh->radio && f->type != V4L2_TUNER_RADIO))
-		return -EINVAL;
+	switch (dev->board) {
+	case CX23885_BOARD_HAUPPAUGE_HVR1850:
+		ret = cx23885_set_freq_via_ops(dev, f);
+		break;
+	default:
+		ret = cx23885_set_freq(dev, f);
+	}
 
-	return
-		cx23885_set_freq(dev, f);
+	return ret;
+}
+
+static int vidioc_s_frequency(struct file *file, void *priv,
+	struct v4l2_frequency *f)
+{
+	return cx23885_set_frequency(file, priv, f);
 }
 
 /* ----------------------------------------------------------- */
@@ -1613,6 +1733,8 @@ static const struct v4l2_ioctl_ops video_ioctl_ops = {
 	.vidioc_qbuf          = vidioc_qbuf,
 	.vidioc_dqbuf         = vidioc_dqbuf,
 	.vidioc_s_std         = vidioc_s_std,
+	.vidioc_g_std         = vidioc_g_std,
+	.vidioc_querystd      = vidioc_g_std,
 	.vidioc_enum_input    = vidioc_enum_input,
 	.vidioc_g_input       = vidioc_g_input,
 	.vidioc_s_input       = vidioc_s_input,

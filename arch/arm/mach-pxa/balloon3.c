@@ -13,6 +13,7 @@
  *  published by the Free Software Foundation.
  */
 
+#include <linux/export.h>
 #include <linux/init.h>
 #include <linux/platform_device.h>
 #include <linux/interrupt.h>
@@ -179,7 +180,7 @@ static unsigned long balloon3_ac97_pin_config[] __initdata = {
 };
 
 static struct ucb1400_pdata vpac270_ucb1400_pdata = {
-	.irq		= IRQ_GPIO(BALLOON3_GPIO_CODEC_IRQ),
+	.irq		= PXA_GPIO_TO_IRQ(BALLOON3_GPIO_CODEC_IRQ),
 };
 
 
@@ -829,4 +830,5 @@ MACHINE_START(BALLOON3, "Balloon3")
 	.timer		= &pxa_timer,
 	.init_machine	= balloon3_init,
 	.atag_offset	= 0x100,
+	.restart	= pxa_restart,
 MACHINE_END

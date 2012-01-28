@@ -103,9 +103,9 @@ static int vp7045_fe_get_tune_settings(struct dvb_frontend* fe, struct dvb_front
 	return 0;
 }
 
-static int vp7045_fe_set_frontend(struct dvb_frontend* fe,
-				  struct dvb_frontend_parameters *fep)
+static int vp7045_fe_set_frontend(struct dvb_frontend *fe)
 {
+	struct dtv_frontend_properties *fep = &fe->dtv_property_cache;
 	struct vp7045_fe_state *state = fe->demodulator_priv;
 	u8 buf[5];
 	u32 freq = fep->frequency / 1000;
@@ -115,22 +115,21 @@ static int vp7045_fe_set_frontend(struct dvb_frontend* fe,
 	buf[2] =  freq        & 0xff;
 	buf[3] = 0;
 
-	switch (fep->u.ofdm.bandwidth) {
-		case BANDWIDTH_8_MHZ: buf[4] = 8; break;
-		case BANDWIDTH_7_MHZ: buf[4] = 7; break;
-		case BANDWIDTH_6_MHZ: buf[4] = 6; break;
-		case BANDWIDTH_AUTO: return -EOPNOTSUPP;
-		default:
-			return -EINVAL;
+	switch (fep->bandwidth_hz) {
+	case 8000000:
+		buf[4] = 8;
+		break;
+	case 7000000:
+		buf[4] = 7;
+		break;
+	case 6000000:
+		buf[4] = 6;
+		break;
+	default:
+		return -EINVAL;
 	}
 
 	vp7045_usb_op(state->d,LOCK_TUNER_COMMAND,buf,5,NULL,0,200);
-	return 0;
-}
-
-static int vp7045_fe_get_frontend(struct dvb_frontend* fe,
-				  struct dvb_frontend_parameters *fep)
-{
 	return 0;
 }
 
@@ -159,9 +158,9 @@ error:
 
 
 static struct dvb_frontend_ops vp7045_fe_ops = {
+	.delsys = { SYS_DVBT },
 	.info = {
 		.name			= "Twinhan VP7045/46 USB DVB-T",
-		.type			= FE_OFDM,
 		.frequency_min		= 44250000,
 		.frequency_max		= 867250000,
 		.frequency_stepsize	= 1000,
@@ -181,7 +180,6 @@ static struct dvb_frontend_ops vp7045_fe_ops = {
 	.sleep = vp7045_fe_sleep,
 
 	.set_frontend = vp7045_fe_set_frontend,
-	.get_frontend = vp7045_fe_get_frontend,
 	.get_tune_settings = vp7045_fe_get_tune_settings,
 
 	.read_status = vp7045_fe_read_status,

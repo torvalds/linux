@@ -24,29 +24,4 @@ static void arch_idle(void)
 	cpu_do_idle();
 }
 
-static inline void arch_reset(char mode, const char *cmd)
-{
-	extern void lpc32xx_watchdog_reset(void);
-
-	switch (mode) {
-	case 's':
-	case 'h':
-		printk(KERN_CRIT "RESET: Rebooting system\n");
-
-		/* Disable interrupts */
-		local_irq_disable();
-
-		lpc32xx_watchdog_reset();
-		break;
-
-	default:
-		/* Do nothing */
-		break;
-	}
-
-	/* Wait for watchdog to reset system */
-	while (1)
-		;
-}
-
 #endif

@@ -414,6 +414,11 @@ static int init_render_ring(struct intel_ring_buffer *ring)
 			return ret;
 	}
 
+	if (INTEL_INFO(dev)->gen >= 6) {
+		I915_WRITE(INSTPM,
+			   INSTPM_FORCE_ORDERING << 16 | INSTPM_FORCE_ORDERING);
+	}
+
 	return ret;
 }
 
@@ -787,6 +792,17 @@ ring_add_request(struct intel_ring_buffer *ring,
 }
 
 static bool
+gen7_blt_ring_get_irq(struct intel_ring_buffer *ring)
+{
+	/* The BLT ring on IVB appears to have broken synchronization
+	 * between the seqno write and the interrupt, so that the
+	 * interrupt appears first.  Returning false here makes
+	 * i915_wait_request() do a polling loop, instead.
+	 */
+	return false;
+}
+
+static bool
 gen6_ring_get_irq(struct intel_ring_buffer *ring, u32 gflag, u32 rflag)
 {
 	struct drm_device *dev = ring->dev;
@@ -1119,7 +1135,16 @@ int intel_wait_ring_buffer(struct intel_ring_buffer *ring, int n)
 	}
 
 	trace_i915_ring_wait_begin(ring);
-	end = jiffies + 3 * HZ;
+	if (drm_core_check_feature(dev, DRIVER_GEM))
+		/* With GEM the hangcheck timer should kick us out of the loop,
+		 * leaving it early runs the risk of corrupting GEM state (due
+		 * to running on almost untested codepaths). But on resume
+		 * timers don't work yet, so prevent a complete hang in that
+		 * case by choosing an insanely large timeout. */
+		end = jiffies + 60 * HZ;
+	else
+		end = jiffies + 3 * HZ;
+
 	do {
 		ring->head = I915_READ_HEAD(ring);
 		ring->space = ring_space(ring);
@@ -1551,6 +1576,9 @@ int intel_init_blt_ring_buffer(struct drm_device *dev)
 	struct intel_ring_buffer *ring = &dev_priv->ring[BCS];
 
 	*ring = gen6_blt_ring;
+
+	if (IS_GEN7(dev))
+		ring->irq_get = gen7_blt_ring_get_irq;
 
 	return intel_init_ring_buffer(dev, ring);
 }

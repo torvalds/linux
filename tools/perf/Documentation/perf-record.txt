@@ -89,7 +89,7 @@ OPTIONS
 
 -m::
 --mmap-pages=::
-	Number of mmap data pages.
+	Number of mmap data pages. Must be a power of two.
 
 -g::
 --call-graph::

@@ -324,7 +324,8 @@ struct pt_regs
 	psw_t psw;
 	unsigned long gprs[NUM_GPRS];
 	unsigned long orig_gpr2;
-	unsigned int svc_code;
+	unsigned int int_code;
+	unsigned long int_parm_long;
 };
 
 /*
@@ -540,8 +541,12 @@ struct user_regs_struct
 #define user_mode(regs) (((regs)->psw.mask & PSW_MASK_PSTATE) != 0)
 #define instruction_pointer(regs) ((regs)->psw.addr & PSW_ADDR_INSN)
 #define user_stack_pointer(regs)((regs)->gprs[15])
-#define regs_return_value(regs)((regs)->gprs[2])
 #define profile_pc(regs) instruction_pointer(regs)
+
+static inline long regs_return_value(struct pt_regs *regs)
+{
+	return regs->gprs[2];
+}
 
 int regs_query_register_offset(const char *name);
 const char *regs_query_register_name(unsigned int offset);

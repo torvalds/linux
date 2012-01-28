@@ -206,7 +206,6 @@ static int __devinit xgpio_of_probe(struct device_node *np)
 		       np->full_name, status);
 		return status;
 	}
-	pr_info("XGpio: %s: registered\n", np->full_name);
 	return 0;
 }
 

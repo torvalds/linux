@@ -1387,6 +1387,7 @@ struct ipr_ioa_cfg {
 	u8 msi_received:1;
 	u8 sis64:1;
 	u8 dump_timeout:1;
+	u8 cfg_locked:1;
 
 	u8 revid;
 

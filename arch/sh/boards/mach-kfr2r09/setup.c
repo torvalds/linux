@@ -122,9 +122,6 @@ static struct platform_device kfr2r09_sh_keysc_device = {
 	.dev	= {
 		.platform_data	= &kfr2r09_sh_keysc_info,
 	},
-	.archdata = {
-		.hwblk_id = HWBLK_KEYSC,
-	},
 };
 
 static const struct fb_videomode kfr2r09_lcdc_modes[] = {
@@ -191,9 +188,6 @@ static struct platform_device kfr2r09_sh_lcdc_device = {
 	.dev	= {
 		.platform_data	= &kfr2r09_sh_lcdc_info,
 	},
-	.archdata = {
-		.hwblk_id = HWBLK_LCDC,
-	},
 };
 
 static struct r8a66597_platdata kfr2r09_usb0_gadget_data = {
@@ -253,9 +247,6 @@ static struct platform_device kfr2r09_ceu_device = {
 	.resource	= kfr2r09_ceu_resources,
 	.dev	= {
 		.platform_data	= &sh_mobile_ceu_info,
-	},
-	.archdata = {
-		.hwblk_id = HWBLK_CEU0,
 	},
 };
 
@@ -376,9 +367,6 @@ static struct platform_device kfr2r09_sh_sdhi0_device = {
 	.resource       = kfr2r09_sh_sdhi0_resources,
 	.dev = {
 		.platform_data	= &sh7724_sdhi0_data,
-	},
-	.archdata = {
-		.hwblk_id = HWBLK_SDHI0,
 	},
 };
 

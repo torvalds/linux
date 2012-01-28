@@ -995,14 +995,12 @@ static int sd_config(struct gspca_dev *gspca_dev,
 	case CIT_MODEL0:
 		cam->cam_mode = model0_mode;
 		cam->nmodes = ARRAY_SIZE(model0_mode);
-		cam->reverse_alts = 1;
 		gspca_dev->ctrl_dis = ~((1 << SD_CONTRAST) | (1 << SD_HFLIP));
 		sd->sof_len = 4;
 		break;
 	case CIT_MODEL1:
 		cam->cam_mode = cif_yuv_mode;
 		cam->nmodes = ARRAY_SIZE(cif_yuv_mode);
-		cam->reverse_alts = 1;
 		gspca_dev->ctrl_dis = (1 << SD_HUE) | (1 << SD_HFLIP);
 		sd->sof_len = 4;
 		break;
@@ -2791,7 +2789,7 @@ static int sd_isoc_init(struct gspca_dev *gspca_dev)
 	}
 
 	/* Start isoc bandwidth "negotiation" at max isoc bandwidth */
-	alt = &gspca_dev->dev->config->intf_cache[0]->altsetting[1];
+	alt = &gspca_dev->dev->actconfig->intf_cache[0]->altsetting[1];
 	alt->endpoint[0].desc.wMaxPacketSize = cpu_to_le16(max_packet_size);
 
 	return 0;
@@ -2814,7 +2812,7 @@ static int sd_isoc_nego(struct gspca_dev *gspca_dev)
 		break;
 	}
 
-	alt = &gspca_dev->dev->config->intf_cache[0]->altsetting[1];
+	alt = &gspca_dev->dev->actconfig->intf_cache[0]->altsetting[1];
 	packet_size = le16_to_cpu(alt->endpoint[0].desc.wMaxPacketSize);
 	if (packet_size <= min_packet_size)
 		return -EIO;
@@ -3325,15 +3323,4 @@ static struct usb_driver sd_driver = {
 #endif
 };
 
-/* -- module insert / remove -- */
-static int __init sd_mod_init(void)
-{
-	return usb_register(&sd_driver);
-}
-static void __exit sd_mod_exit(void)
-{
-	usb_deregister(&sd_driver);
-}
-
-module_init(sd_mod_init);
-module_exit(sd_mod_exit);
+module_usb_driver(sd_driver);

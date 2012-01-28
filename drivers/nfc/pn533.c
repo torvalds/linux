@@ -72,6 +72,7 @@ MODULE_DEVICE_TABLE(usb, pn533_table);
 #define PN533_CMD_IN_LIST_PASSIVE_TARGET 0x4A
 #define PN533_CMD_IN_ATR 0x50
 #define PN533_CMD_IN_RELEASE 0x52
+#define PN533_CMD_IN_JUMP_FOR_DEP 0x56
 
 #define PN533_CMD_RESPONSE(cmd) (cmd + 1)
 
@@ -231,6 +232,26 @@ struct pn533_cmd_activate_response {
 	u8 gt[];
 } __packed;
 
+/* PN533_CMD_IN_JUMP_FOR_DEP */
+struct pn533_cmd_jump_dep {
+	u8 active;
+	u8 baud;
+	u8 next;
+	u8 gt[];
+} __packed;
+
+struct pn533_cmd_jump_dep_response {
+	u8 status;
+	u8 tg;
+	u8 nfcid3t[10];
+	u8 didt;
+	u8 bst;
+	u8 brt;
+	u8 to;
+	u8 ppt;
+	/* optional */
+	u8 gt[];
+} __packed;
 
 struct pn533 {
 	struct usb_device *udev;
@@ -1121,6 +1142,7 @@ static int pn533_activate_target_nfcdep(struct pn533 *dev)
 {
 	struct pn533_cmd_activate_param param;
 	struct pn533_cmd_activate_response *resp;
+	u16 gt_len;
 	int rc;
 
 	nfc_dev_dbg(&dev->interface->dev, "%s", __func__);
@@ -1146,7 +1168,11 @@ static int pn533_activate_target_nfcdep(struct pn533 *dev)
 	if (rc != PN533_CMD_RET_SUCCESS)
 		return -EIO;
 
-	return 0;
+	/* ATR_RES general bytes are located at offset 16 */
+	gt_len = PN533_FRAME_CMD_PARAMS_LEN(dev->in_frame) - 16;
+	rc = nfc_set_remote_general_bytes(dev->nfc_dev, resp->gt, gt_len);
+
+	return rc;
 }
 
 static int pn533_activate_target(struct nfc_dev *nfc_dev, u32 target_idx,
@@ -1237,6 +1263,142 @@ static void pn533_deactivate_target(struct nfc_dev *nfc_dev, u32 target_idx)
 							" the target", rc);
 
 	return;
+}
+
+
+static int pn533_in_dep_link_up_complete(struct pn533 *dev, void *arg,
+						u8 *params, int params_len)
+{
+	struct pn533_cmd_jump_dep *cmd;
+	struct pn533_cmd_jump_dep_response *resp;
+	struct nfc_target nfc_target;
+	u8 target_gt_len;
+	int rc;
+
+	if (params_len == -ENOENT) {
+		nfc_dev_dbg(&dev->interface->dev, "");
+		return 0;
+	}
+
+	if (params_len < 0) {
+		nfc_dev_err(&dev->interface->dev,
+				"Error %d when bringing DEP link up",
+								params_len);
+		return 0;
+	}
+
+	if (dev->tgt_available_prots &&
+	    !(dev->tgt_available_prots & (1 << NFC_PROTO_NFC_DEP))) {
+		nfc_dev_err(&dev->interface->dev,
+			"The target does not support DEP");
+		return -EINVAL;
+	}
+
+	resp = (struct pn533_cmd_jump_dep_response *) params;
+	cmd = (struct pn533_cmd_jump_dep *) arg;
+	rc = resp->status & PN533_CMD_RET_MASK;
+	if (rc != PN533_CMD_RET_SUCCESS) {
+		nfc_dev_err(&dev->interface->dev,
+				"Bringing DEP link up failed %d", rc);
+		return 0;
+	}
+
+	if (!dev->tgt_available_prots) {
+		nfc_dev_dbg(&dev->interface->dev, "Creating new target");
+
+		nfc_target.supported_protocols = NFC_PROTO_NFC_DEP_MASK;
+		rc = nfc_targets_found(dev->nfc_dev, &nfc_target, 1);
+		if (rc)
+			return 0;
+
+		dev->tgt_available_prots = 0;
+	}
+
+	dev->tgt_active_prot = NFC_PROTO_NFC_DEP;
+
+	/* ATR_RES general bytes are located at offset 17 */
+	target_gt_len = PN533_FRAME_CMD_PARAMS_LEN(dev->in_frame) - 17;
+	rc = nfc_set_remote_general_bytes(dev->nfc_dev,
+						resp->gt, target_gt_len);
+	if (rc == 0)
+		rc = nfc_dep_link_is_up(dev->nfc_dev,
+						dev->nfc_dev->targets[0].idx,
+						!cmd->active, NFC_RF_INITIATOR);
+
+	return 0;
+}
+
+static int pn533_dep_link_up(struct nfc_dev *nfc_dev, int target_idx,
+						u8 comm_mode, u8 rf_mode)
+{
+	struct pn533 *dev = nfc_get_drvdata(nfc_dev);
+	struct pn533_cmd_jump_dep *cmd;
+	u8 cmd_len, local_gt_len, *local_gt;
+	int rc;
+
+	nfc_dev_dbg(&dev->interface->dev, "%s", __func__);
+
+	if (rf_mode == NFC_RF_TARGET) {
+		nfc_dev_err(&dev->interface->dev, "Target mode not supported");
+		return -EOPNOTSUPP;
+	}
+
+
+	if (dev->poll_mod_count) {
+		nfc_dev_err(&dev->interface->dev,
+				"Cannot bring the DEP link up while polling");
+		return -EBUSY;
+	}
+
+	if (dev->tgt_active_prot) {
+		nfc_dev_err(&dev->interface->dev,
+				"There is already an active target");
+		return -EBUSY;
+	}
+
+	local_gt = nfc_get_local_general_bytes(dev->nfc_dev, &local_gt_len);
+	if (local_gt_len > NFC_MAX_GT_LEN)
+		return -EINVAL;
+
+	cmd_len = sizeof(struct pn533_cmd_jump_dep) + local_gt_len;
+	cmd = kzalloc(cmd_len, GFP_KERNEL);
+	if (cmd == NULL)
+		return -ENOMEM;
+
+	pn533_tx_frame_init(dev->out_frame, PN533_CMD_IN_JUMP_FOR_DEP);
+
+	cmd->active = !comm_mode;
+	cmd->baud = 0;
+	if (local_gt != NULL) {
+		cmd->next = 4; /* We have some Gi */
+		memcpy(cmd->gt, local_gt, local_gt_len);
+	} else {
+		cmd->next = 0;
+	}
+
+	memcpy(PN533_FRAME_CMD_PARAMS_PTR(dev->out_frame), cmd, cmd_len);
+	dev->out_frame->datalen += cmd_len;
+
+	pn533_tx_frame_finish(dev->out_frame);
+
+	rc = pn533_send_cmd_frame_async(dev, dev->out_frame, dev->in_frame,
+				dev->in_maxlen,	pn533_in_dep_link_up_complete,
+				cmd, GFP_KERNEL);
+	if (rc)
+		goto out;
+
+
+out:
+	kfree(cmd);
+
+	return rc;
+}
+
+static int pn533_dep_link_down(struct nfc_dev *nfc_dev)
+{
+	pn533_deactivate_target(nfc_dev, 0);
+
+	return 0;
 }
 
 #define PN533_CMD_DATAEXCH_HEAD_LEN (sizeof(struct pn533_frame) + 3)
@@ -1339,7 +1501,7 @@ error:
 	return 0;
 }
 
-int pn533_data_exchange(struct nfc_dev *nfc_dev, u32 target_idx,
+static int pn533_data_exchange(struct nfc_dev *nfc_dev, u32 target_idx,
 						struct sk_buff *skb,
 						data_exchange_cb_t cb,
 						void *cb_context)
@@ -1368,7 +1530,7 @@ int pn533_data_exchange(struct nfc_dev *nfc_dev, u32 target_idx,
 			PN533_CMD_DATAEXCH_DATA_MAXLEN +
 			PN533_FRAME_TAIL_SIZE;
 
-	skb_resp = nfc_alloc_skb(skb_resp_len, GFP_KERNEL);
+	skb_resp = nfc_alloc_recv_skb(skb_resp_len, GFP_KERNEL);
 	if (!skb_resp) {
 		rc = -ENOMEM;
 		goto error;
@@ -1434,6 +1596,8 @@ static int pn533_set_configuration(struct pn533 *dev, u8 cfgitem, u8 *cfgdata,
 struct nfc_ops pn533_nfc_ops = {
 	.dev_up = NULL,
 	.dev_down = NULL,
+	.dep_link_up = pn533_dep_link_up,
+	.dep_link_down = pn533_dep_link_down,
 	.start_poll = pn533_start_poll,
 	.stop_poll = pn533_stop_poll,
 	.activate_target = pn533_activate_target,
@@ -1597,24 +1761,7 @@ static struct usb_driver pn533_driver = {
 	.id_table =	pn533_table,
 };
 
-static int __init pn533_init(void)
-{
-	int rc;
-
-	rc = usb_register(&pn533_driver);
-	if (rc)
-		err("usb_register failed. Error number %d", rc);
-
-	return rc;
-}
-
-static void __exit pn533_exit(void)
-{
-	usb_deregister(&pn533_driver);
-}
-
-module_init(pn533_init);
-module_exit(pn533_exit);
+module_usb_driver(pn533_driver);
 
 MODULE_AUTHOR("Lauro Ramos Venancio <lauro.venancio@openbossa.org>,"
 			" Aloisio Almeida Jr <aloisio.almeida@openbossa.org>");

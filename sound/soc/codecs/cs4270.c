@@ -22,7 +22,6 @@
  */
 
 #include <linux/module.h>
-#include <linux/platform_device.h>
 #include <linux/slab.h>
 #include <sound/core.h>
 #include <sound/soc.h>
@@ -447,7 +446,7 @@ static const struct snd_kcontrol_new cs4270_snd_controls[] = {
 		snd_soc_get_volsw, cs4270_soc_put_mute),
 };
 
-static struct snd_soc_dai_ops cs4270_dai_ops = {
+static const struct snd_soc_dai_ops cs4270_dai_ops = {
 	.hw_params	= cs4270_hw_params,
 	.set_sysclk	= cs4270_set_dai_sysclk,
 	.set_fmt	= cs4270_set_dai_fmt,
@@ -579,7 +578,7 @@ static int cs4270_remove(struct snd_soc_codec *codec)
  * and all registers are written back to the hardware when resuming.
  */
 
-static int cs4270_soc_suspend(struct snd_soc_codec *codec, pm_message_t mesg)
+static int cs4270_soc_suspend(struct snd_soc_codec *codec)
 {
 	struct cs4270_private *cs4270 = snd_soc_codec_get_drvdata(codec);
 	int reg, ret;
@@ -672,7 +671,8 @@ static int cs4270_i2c_probe(struct i2c_client *i2c_client,
 		i2c_client->addr);
 	dev_info(&i2c_client->dev, "hardware revision %X\n", ret & 0xF);
 
-	cs4270 = kzalloc(sizeof(struct cs4270_private), GFP_KERNEL);
+	cs4270 = devm_kzalloc(&i2c_client->dev, sizeof(struct cs4270_private),
+			      GFP_KERNEL);
 	if (!cs4270) {
 		dev_err(&i2c_client->dev, "could not allocate codec\n");
 		return -ENOMEM;
@@ -683,8 +683,6 @@ static int cs4270_i2c_probe(struct i2c_client *i2c_client,
 
 	ret = snd_soc_register_codec(&i2c_client->dev,
 			&soc_codec_device_cs4270, &cs4270_dai, 1);
-	if (ret < 0)
-		kfree(cs4270);
 	return ret;
 }
 
@@ -697,7 +695,6 @@ static int cs4270_i2c_probe(struct i2c_client *i2c_client,
 static int cs4270_i2c_remove(struct i2c_client *i2c_client)
 {
 	snd_soc_unregister_codec(&i2c_client->dev);
-	kfree(i2c_get_clientdata(i2c_client));
 	return 0;
 }
 

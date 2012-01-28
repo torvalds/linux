@@ -492,13 +492,13 @@ static bool tomoyo_correct_word2(const char *string, size_t len)
 				if (d < '0' || d > '7' || e < '0' || e > '7')
 					break;
 				c = tomoyo_make_byte(c, d, e);
-				if (tomoyo_invalid(c))
-					continue; /* pattern is not \000 */
+				if (c <= ' ' || c >= 127)
+					continue;
 			}
 			goto out;
 		} else if (in_repetition && c == '/') {
 			goto out;
-		} else if (tomoyo_invalid(c)) {
+		} else if (c <= ' ' || c >= 127) {
 			goto out;
 		}
 	}

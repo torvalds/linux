@@ -436,26 +436,7 @@ static struct usb_driver vp702x_usb_driver = {
 	.id_table	= vp702x_usb_table,
 };
 
-/* module stuff */
-static int __init vp702x_usb_module_init(void)
-{
-	int result;
-	if ((result = usb_register(&vp702x_usb_driver))) {
-		err("usb_register failed. (%d)",result);
-		return result;
-	}
-
-	return 0;
-}
-
-static void __exit vp702x_usb_module_exit(void)
-{
-	/* deregister this driver from the USB subsystem */
-	usb_deregister(&vp702x_usb_driver);
-}
-
-module_init(vp702x_usb_module_init);
-module_exit(vp702x_usb_module_exit);
+module_usb_driver(vp702x_usb_driver);
 
 MODULE_AUTHOR("Patrick Boettcher <patrick.boettcher@desy.de>");
 MODULE_DESCRIPTION("Driver for Twinhan StarBox DVB-S USB2.0 and clones");

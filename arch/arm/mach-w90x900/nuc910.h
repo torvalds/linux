@@ -12,14 +12,7 @@
  * published by the Free Software Foundation.
  *
  */
-
-struct map_desc;
-struct sys_timer;
-
-/* core initialisation functions */
-
-extern void nuc900_init_irq(void);
-extern struct sys_timer nuc900_timer;
+#include "nuc9xx.h"
 
 /* extern file from nuc910.c */
 

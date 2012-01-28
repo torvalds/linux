@@ -234,7 +234,7 @@ static unsigned char exofs_type_by_mode[S_IFMT >> S_SHIFT] = {
 static inline
 void exofs_set_de_type(struct exofs_dir_entry *de, struct inode *inode)
 {
-	mode_t mode = inode->i_mode;
+	umode_t mode = inode->i_mode;
 	de->file_type = exofs_type_by_mode[(mode & S_IFMT) >> S_SHIFT];
 }
 

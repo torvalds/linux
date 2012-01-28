@@ -25,24 +25,8 @@
 #define __ASM_ARCH_PXA_GPIO_H
 
 #include <asm-generic/gpio.h>
-/* The defines for the driver are needed for the accelerated accessors */
-#include "gpio-pxa.h"
 
-#define gpio_to_irq(gpio)	IRQ_GPIO(gpio)
+#include <mach/irqs.h>
+#include <mach/hardware.h>
 
-static inline int irq_to_gpio(unsigned int irq)
-{
-	int gpio;
-
-	if (irq == IRQ_GPIO0 || irq == IRQ_GPIO1)
-		return irq - IRQ_GPIO0;
-
-	gpio = irq - PXA_GPIO_IRQ_BASE;
-	if (gpio >= 2 && gpio < NR_BUILTIN_GPIO)
-		return gpio;
-
-	return -1;
-}
-
-#include <plat/gpio.h>
 #endif

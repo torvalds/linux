@@ -42,7 +42,7 @@ static const unsigned short normal_i2c[] = {
 };
 
 
-static int reset;
+static bool reset;
 module_param(reset, bool, 0);
 MODULE_PARM_DESC(reset, "Set to 1 to reset chip, not recommended");
 
@@ -730,7 +730,7 @@ store_beep(struct device *dev, struct device_attribute *attr,
 	u8 beep_bit = 1 << shift;
 	unsigned long val;
 
-	if (strict_strtoul(buf, 10, &val) < 0)
+	if (kstrtoul(buf, 10, &val) < 0)
 		return -EINVAL;
 	if (val != 0 && val != 1)
 		return -EINVAL;
@@ -755,7 +755,7 @@ store_chassis_clear(struct device *dev,
 	struct w83795_data *data = i2c_get_clientdata(client);
 	unsigned long val;
 
-	if (strict_strtoul(buf, 10, &val) < 0 || val != 0)
+	if (kstrtoul(buf, 10, &val) < 0 || val != 0)
 		return -EINVAL;
 
 	mutex_lock(&data->update_lock);
@@ -801,7 +801,7 @@ store_fan_min(struct device *dev, struct device_attribute *attr,
 	struct w83795_data *data = i2c_get_clientdata(client);
 	unsigned long val;
 
-	if (strict_strtoul(buf, 10, &val))
+	if (kstrtoul(buf, 10, &val))
 		return -EINVAL;
 	val = fan_to_reg(val);
 
@@ -863,7 +863,7 @@ store_pwm(struct device *dev, struct device_attribute *attr,
 	int index = sensor_attr->index;
 	unsigned long val;
 
-	if (strict_strtoul(buf, 10, &val) < 0)
+	if (kstrtoul(buf, 10, &val) < 0)
 		return -EINVAL;
 
 	mutex_lock(&data->update_lock);
@@ -924,7 +924,7 @@ store_pwm_enable(struct device *dev, struct device_attribute *attr,
 	unsigned long val;
 	int i;
 
-	if (strict_strtoul(buf, 10, &val) < 0)
+	if (kstrtoul(buf, 10, &val) < 0)
 		return -EINVAL;
 	if (val < 1 || val > 2)
 		return -EINVAL;
@@ -1021,7 +1021,7 @@ store_temp_src(struct device *dev, struct device_attribute *attr,
 	unsigned long channel;
 	u8 val = index / 2;
 
-	if (strict_strtoul(buf, 10, &channel) < 0 ||
+	if (kstrtoul(buf, 10, &channel) < 0 ||
 	    channel < 1 || channel > 14)
 		return -EINVAL;
 
@@ -1088,7 +1088,7 @@ store_temp_pwm_enable(struct device *dev, struct device_attribute *attr,
 	int index = sensor_attr->index;
 	unsigned long tmp;
 
-	if (strict_strtoul(buf, 10, &tmp) < 0)
+	if (kstrtoul(buf, 10, &tmp) < 0)
 		return -EINVAL;
 
 	switch (nr) {
@@ -1149,7 +1149,7 @@ store_fanin(struct device *dev, struct device_attribute *attr,
 	int index = sensor_attr->index;
 	unsigned long val;
 
-	if (strict_strtoul(buf, 10, &val) < 0)
+	if (kstrtoul(buf, 10, &val) < 0)
 		return -EINVAL;
 
 	mutex_lock(&data->update_lock);
@@ -1198,7 +1198,7 @@ store_temp_pwm(struct device *dev, struct device_attribute *attr,
 	unsigned long val;
 	u8 tmp;
 
-	if (strict_strtoul(buf, 10, &val) < 0)
+	if (kstrtoul(buf, 10, &val) < 0)
 		return -EINVAL;
 	val /= 1000;
 
@@ -1257,7 +1257,7 @@ store_sf4_pwm(struct device *dev, struct device_attribute *attr,
 	int index = sensor_attr->index;
 	unsigned long val;
 
-	if (strict_strtoul(buf, 10, &val) < 0)
+	if (kstrtoul(buf, 10, &val) < 0)
 		return -EINVAL;
 
 	mutex_lock(&data->update_lock);
@@ -1293,7 +1293,7 @@ store_sf4_temp(struct device *dev, struct device_attribute *attr,
 	int index = sensor_attr->index;
 	unsigned long val;
 
-	if (strict_strtoul(buf, 10, &val) < 0)
+	if (kstrtoul(buf, 10, &val) < 0)
 		return -EINVAL;
 	val /= 1000;
 
@@ -1333,7 +1333,7 @@ store_temp(struct device *dev, struct device_attribute *attr,
 	struct w83795_data *data = i2c_get_clientdata(client);
 	long tmp;
 
-	if (strict_strtol(buf, 10, &tmp) < 0)
+	if (kstrtol(buf, 10, &tmp) < 0)
 		return -EINVAL;
 
 	mutex_lock(&data->update_lock);
@@ -1394,7 +1394,7 @@ store_dts_ext(struct device *dev, struct device_attribute *attr,
 	struct w83795_data *data = i2c_get_clientdata(client);
 	long tmp;
 
-	if (strict_strtol(buf, 10, &tmp) < 0)
+	if (kstrtol(buf, 10, &tmp) < 0)
 		return -EINVAL;
 
 	mutex_lock(&data->update_lock);
@@ -1436,7 +1436,7 @@ store_temp_mode(struct device *dev, struct device_attribute *attr,
 	unsigned long val;
 	u8 tmp;
 
-	if (strict_strtoul(buf, 10, &val) < 0)
+	if (kstrtoul(buf, 10, &val) < 0)
 		return -EINVAL;
 	if ((val != 4) && (val != 3))
 		return -EINVAL;
@@ -1512,7 +1512,7 @@ store_in(struct device *dev, struct device_attribute *attr,
 	u8 tmp;
 	u8 lsb_idx;
 
-	if (strict_strtoul(buf, 10, &val) < 0)
+	if (kstrtoul(buf, 10, &val) < 0)
 		return -EINVAL;
 	val = in_to_reg(index, val);
 
@@ -1569,7 +1569,7 @@ store_sf_setup(struct device *dev, struct device_attribute *attr,
 	struct w83795_data *data = i2c_get_clientdata(client);
 	unsigned long val;
 
-	if (strict_strtoul(buf, 10, &val) < 0)
+	if (kstrtoul(buf, 10, &val) < 0)
 		return -EINVAL;
 
 	switch (nr) {

@@ -13,8 +13,6 @@
 #include <linux/smp.h>
 #include <linux/io.h>
 
-#include <asm/unified.h>
-
 #include <mach/motherboard.h>
 #define V2M_PA_CS7 0x10000000
 
@@ -46,6 +44,6 @@ void __init platform_smp_prepare_cpus(unsigned int max_cpus)
 	 * secondary CPU branches to this address.
 	 */
 	writel(~0, MMIO_P2V(V2M_SYS_FLAGSCLR));
-	writel(BSYM(virt_to_phys(versatile_secondary_startup)),
+	writel(virt_to_phys(versatile_secondary_startup),
 		MMIO_P2V(V2M_SYS_FLAGSSET));
 }

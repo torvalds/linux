@@ -22,63 +22,63 @@
 #include <media/rc-map.h>
 
 static struct rc_map_table snapstream_firefly[] = {
-	{ 0xf12c, KEY_ZOOM },       /* Maximize */
-	{ 0xc702, KEY_CLOSE },
+	{ 0x2c, KEY_ZOOM },       /* Maximize */
+	{ 0x02, KEY_CLOSE },
 
-	{ 0xd20d, KEY_1 },
-	{ 0xd30e, KEY_2 },
-	{ 0xd40f, KEY_3 },
-	{ 0xd510, KEY_4 },
-	{ 0xd611, KEY_5 },
-	{ 0xd712, KEY_6 },
-	{ 0xd813, KEY_7 },
-	{ 0xd914, KEY_8 },
-	{ 0xda15, KEY_9 },
-	{ 0xdc17, KEY_0 },
-	{ 0xdb16, KEY_BACK },
-	{ 0xdd18, KEY_KPENTER },    /* ent */
+	{ 0x0d, KEY_1 },
+	{ 0x0e, KEY_2 },
+	{ 0x0f, KEY_3 },
+	{ 0x10, KEY_4 },
+	{ 0x11, KEY_5 },
+	{ 0x12, KEY_6 },
+	{ 0x13, KEY_7 },
+	{ 0x14, KEY_8 },
+	{ 0x15, KEY_9 },
+	{ 0x17, KEY_0 },
+	{ 0x16, KEY_BACK },
+	{ 0x18, KEY_KPENTER },    /* ent */
 
-	{ 0xce09, KEY_VOLUMEUP },
-	{ 0xcd08, KEY_VOLUMEDOWN },
-	{ 0xcf0a, KEY_MUTE },
-	{ 0xd00b, KEY_CHANNELUP },
-	{ 0xd10c, KEY_CHANNELDOWN },
-	{ 0xc500, KEY_VENDOR },     /* firefly */
+	{ 0x09, KEY_VOLUMEUP },
+	{ 0x08, KEY_VOLUMEDOWN },
+	{ 0x0a, KEY_MUTE },
+	{ 0x0b, KEY_CHANNELUP },
+	{ 0x0c, KEY_CHANNELDOWN },
+	{ 0x00, KEY_VENDOR },     /* firefly */
 
-	{ 0xf32e, KEY_INFO },
-	{ 0xf42f, KEY_OPTION },
+	{ 0x2e, KEY_INFO },
+	{ 0x2f, KEY_OPTION },
 
-	{ 0xe21d, KEY_LEFT },
-	{ 0xe41f, KEY_RIGHT },
-	{ 0xe722, KEY_DOWN },
-	{ 0xdf1a, KEY_UP },
-	{ 0xe31e, KEY_OK },
+	{ 0x1d, KEY_LEFT },
+	{ 0x1f, KEY_RIGHT },
+	{ 0x22, KEY_DOWN },
+	{ 0x1a, KEY_UP },
+	{ 0x1e, KEY_OK },
 
-	{ 0xe11c, KEY_MENU },
-	{ 0xe520, KEY_EXIT },
+	{ 0x1c, KEY_MENU },
+	{ 0x20, KEY_EXIT },
 
-	{ 0xec27, KEY_RECORD },
-	{ 0xea25, KEY_PLAY },
-	{ 0xed28, KEY_STOP },
-	{ 0xe924, KEY_REWIND },
-	{ 0xeb26, KEY_FORWARD },
-	{ 0xee29, KEY_PAUSE },
-	{ 0xf02b, KEY_PREVIOUS },
-	{ 0xef2a, KEY_NEXT },
+	{ 0x27, KEY_RECORD },
+	{ 0x25, KEY_PLAY },
+	{ 0x28, KEY_STOP },
+	{ 0x24, KEY_REWIND },
+	{ 0x26, KEY_FORWARD },
+	{ 0x29, KEY_PAUSE },
+	{ 0x2b, KEY_PREVIOUS },
+	{ 0x2a, KEY_NEXT },
 
-	{ 0xcb06, KEY_AUDIO },      /* Music */
-	{ 0xca05, KEY_IMAGES },     /* Photos */
-	{ 0xc904, KEY_DVD },
-	{ 0xc803, KEY_TV },
-	{ 0xcc07, KEY_VIDEO },
+	{ 0x06, KEY_AUDIO },      /* Music */
+	{ 0x05, KEY_IMAGES },     /* Photos */
+	{ 0x04, KEY_DVD },
+	{ 0x03, KEY_TV },
+	{ 0x07, KEY_VIDEO },
 
-	{ 0xc601, KEY_HELP },
-	{ 0xf22d, KEY_MODE },       /* Mouse */
+	{ 0x01, KEY_HELP },
+	{ 0x2d, KEY_MODE },       /* Mouse */
 
-	{ 0xde19, KEY_A },
-	{ 0xe01b, KEY_B },
-	{ 0xe621, KEY_C },
-	{ 0xe823, KEY_D },
+	{ 0x19, KEY_A },
+	{ 0x1b, KEY_B },
+	{ 0x21, KEY_C },
+	{ 0x23, KEY_D },
 };
 
 static struct rc_map_list snapstream_firefly_map = {

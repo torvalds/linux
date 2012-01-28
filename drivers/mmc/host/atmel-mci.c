@@ -823,6 +823,7 @@ atmci_prepare_data_dma(struct atmel_mci *host, struct mmc_data *data)
 	struct scatterlist		*sg;
 	unsigned int			i;
 	enum dma_data_direction		direction;
+	enum dma_transfer_direction	slave_dirn;
 	unsigned int			sglen;
 	u32 iflags;
 
@@ -860,16 +861,19 @@ atmci_prepare_data_dma(struct atmel_mci *host, struct mmc_data *data)
 	if (host->caps.has_dma)
 		atmci_writel(host, ATMCI_DMA, ATMCI_DMA_CHKSIZE(3) | ATMCI_DMAEN);
 
-	if (data->flags & MMC_DATA_READ)
+	if (data->flags & MMC_DATA_READ) {
 		direction = DMA_FROM_DEVICE;
-	else
+		slave_dirn = DMA_DEV_TO_MEM;
+	} else {
 		direction = DMA_TO_DEVICE;
+		slave_dirn = DMA_MEM_TO_DEV;
+	}
 
 	sglen = dma_map_sg(chan->device->dev, data->sg,
 			data->sg_len, direction);
 
 	desc = chan->device->device_prep_slave_sg(chan,
-			data->sg, sglen, direction,
+			data->sg, sglen, slave_dirn,
 			DMA_PREP_INTERRUPT | DMA_CTRL_ACK);
 	if (!desc)
 		goto unmap_exit;

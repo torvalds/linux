@@ -130,10 +130,8 @@ extern void setup_node_to_cpumask_map(void);
 	.balance_interval	= 1,					\
 }
 
-#ifdef CONFIG_X86_64
 extern int __node_distance(int, int);
 #define node_distance(a, b) __node_distance(a, b)
-#endif
 
 #else /* !CONFIG_NUMA */
 
@@ -174,7 +172,7 @@ static inline void arch_fix_phys_package_id(int num, u32 slot)
 }
 
 struct pci_bus;
-void x86_pci_root_bus_res_quirks(struct pci_bus *b);
+void x86_pci_root_bus_resources(int bus, struct list_head *resources);
 
 #ifdef CONFIG_SMP
 #define mc_capable()	((boot_cpu_data.x86_max_cores > 1) && \

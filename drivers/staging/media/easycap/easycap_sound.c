@@ -56,6 +56,141 @@ static const struct snd_pcm_hardware alsa_hardware = {
 };
 
 
+/*---------------------------------------------------------------------------*/
+/*
+ *  SUBMIT ALL AUDIO URBS.
+ */
+/*---------------------------------------------------------------------------*/
+static int easycap_audio_submit_urbs(struct easycap *peasycap)
+{
+	struct data_urb *pdata_urb;
+	struct urb *purb;
+	struct list_head *plist_head;
+	int j, isbad, nospc, m, rc;
+	int isbuf;
+
+	if (!peasycap->purb_audio_head) {
+		SAM("ERROR: peasycap->urb_audio_head uninitialized\n");
+		return -EFAULT;
+	}
+	if (!peasycap->pusb_device) {
+		SAM("ERROR: peasycap->pusb_device is NULL\n");
+		return -EFAULT;
+	}
+
+	if (peasycap->audio_isoc_streaming) {
+		JOM(4, "already streaming audio urbs\n");
+		return 0;
+	}
+
+	JOM(4, "initial submission of all audio urbs\n");
+	rc = usb_set_interface(peasycap->pusb_device,
+			       peasycap->audio_interface,
+			       peasycap->audio_altsetting_on);
+	JOM(8, "usb_set_interface(.,%i,%i) returned %i\n",
+	    peasycap->audio_interface,
+	    peasycap->audio_altsetting_on, rc);
+
+	isbad = 0;
+	nospc = 0;
+	m = 0;
+	list_for_each(plist_head, peasycap->purb_audio_head) {
+		pdata_urb = list_entry(plist_head, struct data_urb, list_head);
+		if (pdata_urb && pdata_urb->purb) {
+			purb = pdata_urb->purb;
+			isbuf = pdata_urb->isbuf;
+
+			purb->interval = 1;
+			purb->dev = peasycap->pusb_device;
+			purb->pipe = usb_rcvisocpipe(peasycap->pusb_device,
+					peasycap->audio_endpointnumber);
+			purb->transfer_flags = URB_ISO_ASAP;
+			purb->transfer_buffer = peasycap->audio_isoc_buffer[isbuf].pgo;
+			purb->transfer_buffer_length = peasycap->audio_isoc_buffer_size;
+			purb->complete = easycap_alsa_complete;
+			purb->context = peasycap;
+			purb->start_frame = 0;
+			purb->number_of_packets = peasycap->audio_isoc_framesperdesc;
+			for (j = 0;  j < peasycap->audio_isoc_framesperdesc; j++) {
+				purb->iso_frame_desc[j].offset = j * peasycap->audio_isoc_maxframesize;
+				purb->iso_frame_desc[j].length = peasycap->audio_isoc_maxframesize;
+			}
+
+			rc = usb_submit_urb(purb, GFP_KERNEL);
+			if (rc) {
+				isbad++;
+				SAM("ERROR: usb_submit_urb() failed"
+				    " for urb with rc: -%s: %d\n",
+				    strerror(rc), rc);
+			} else {
+				m++;
+			}
+		} else {
+			isbad++;
+		}
+	}
+	if (nospc) {
+		SAM("-ENOSPC=usb_submit_urb() for %i urbs\n", nospc);
+		SAM(".....  possibly inadequate USB bandwidth\n");
+		peasycap->audio_eof = 1;
+	}
+
+	if (isbad)
+		easycap_audio_kill_urbs(peasycap);
+	else
+		peasycap->audio_isoc_streaming = m;
+
+	return 0;
+}
+/*---------------------------------------------------------------------------*/
+/*
+ *  COMMON AUDIO INITIALIZATION
+ */
+/*---------------------------------------------------------------------------*/
+static int easycap_sound_setup(struct easycap *peasycap)
+{
+	int rc;
+
+	JOM(4, "starting initialization\n");
+
+	if (!peasycap) {
+		SAY("ERROR:  peasycap is NULL.\n");
+		return -EFAULT;
+	}
+	if (!peasycap->pusb_device) {
+		SAM("ERROR: peasycap->pusb_device is NULL\n");
+		return -ENODEV;
+	}
+	JOM(16, "0x%08lX=peasycap->pusb_device\n", (long int)peasycap->pusb_device);
+
+	rc = easycap_audio_setup(peasycap);
+	JOM(8, "audio_setup() returned %i\n", rc);
+
+	if (!peasycap->pusb_device) {
+		SAM("ERROR: peasycap->pusb_device has become NULL\n");
+		return -ENODEV;
+	}
+/*---------------------------------------------------------------------------*/
+	if (!peasycap->pusb_device) {
+		SAM("ERROR: peasycap->pusb_device has become NULL\n");
+		return -ENODEV;
+	}
+	rc = usb_set_interface(peasycap->pusb_device, peasycap->audio_interface,
+			       peasycap->audio_altsetting_on);
+	JOM(8, "usb_set_interface(.,%i,%i) returned %i\n", peasycap->audio_interface,
+	    peasycap->audio_altsetting_on, rc);
+
+	rc = easycap_wakeup_device(peasycap->pusb_device);
+	JOM(8, "wakeup_device() returned %i\n", rc);
+
+	peasycap->audio_eof = 0;
+	peasycap->audio_idle = 0;
+
+	easycap_audio_submit_urbs(peasycap);
+
+	JOM(4, "finished initialization\n");
+	return 0;
+}
 /*****************************************************************************/
 /*---------------------------------------------------------------------------*/
 /*
@@ -64,8 +199,7 @@ static const struct snd_pcm_hardware alsa_hardware = {
  *  IT IS RESUBMITTED PROVIDED peasycap->audio_isoc_streaming IS NOT ZERO.
  */
 /*---------------------------------------------------------------------------*/
-void
-easycap_alsa_complete(struct urb *purb)
+void easycap_alsa_complete(struct urb *purb)
 {
 	struct easycap *peasycap;
 	struct snd_pcm_substream *pss;
@@ -458,7 +592,6 @@ static int easycap_alsa_ack(struct snd_pcm_substream *pss)
 static int easycap_alsa_trigger(struct snd_pcm_substream *pss, int cmd)
 {
 	struct easycap *peasycap;
-	int retval;
 
 	JOT(4, "%i=cmd cf %i=START %i=STOP\n", cmd, SNDRV_PCM_TRIGGER_START,
 	    SNDRV_PCM_TRIGGER_STOP);
@@ -481,7 +614,7 @@ static int easycap_alsa_trigger(struct snd_pcm_substream *pss, int cmd)
 		break;
 	}
 	default:
-		retval = -EINVAL;
+		return -EINVAL;
 	}
 	return 0;
 }
@@ -615,202 +748,3 @@ int easycap_alsa_probe(struct easycap *peasycap)
 	return 0;
 }
 
-/*****************************************************************************/
-/*****************************************************************************/
-/*****************************************************************************/
-/*****************************************************************************/
-/*****************************************************************************/
-/*****************************************************************************/
-/*---------------------------------------------------------------------------*/
-/*
- *  COMMON AUDIO INITIALIZATION
- */
-/*---------------------------------------------------------------------------*/
-int
-easycap_sound_setup(struct easycap *peasycap)
-{
-	int rc;
-
-	JOM(4, "starting initialization\n");
-
-	if (!peasycap) {
-		SAY("ERROR:  peasycap is NULL.\n");
-		return -EFAULT;
-	}
-	if (!peasycap->pusb_device) {
-		SAM("ERROR: peasycap->pusb_device is NULL\n");
-		return -ENODEV;
-	}
-	JOM(16, "0x%08lX=peasycap->pusb_device\n", (long int)peasycap->pusb_device);
-
-	rc = audio_setup(peasycap);
-	JOM(8, "audio_setup() returned %i\n", rc);
-
-	if (!peasycap->pusb_device) {
-		SAM("ERROR: peasycap->pusb_device has become NULL\n");
-		return -ENODEV;
-	}
-/*---------------------------------------------------------------------------*/
-	if (!peasycap->pusb_device) {
-		SAM("ERROR: peasycap->pusb_device has become NULL\n");
-		return -ENODEV;
-	}
-	rc = usb_set_interface(peasycap->pusb_device, peasycap->audio_interface,
-			       peasycap->audio_altsetting_on);
-	JOM(8, "usb_set_interface(.,%i,%i) returned %i\n", peasycap->audio_interface,
-	    peasycap->audio_altsetting_on, rc);
-
-	rc = wakeup_device(peasycap->pusb_device);
-	JOM(8, "wakeup_device() returned %i\n", rc);
-
-	peasycap->audio_eof = 0;
-	peasycap->audio_idle = 0;
-
-	submit_audio_urbs(peasycap);
-
-	JOM(4, "finished initialization\n");
-	return 0;
-}
-/*****************************************************************************/
-/*---------------------------------------------------------------------------*/
-/*
- *  SUBMIT ALL AUDIO URBS.
- */
-/*---------------------------------------------------------------------------*/
-int
-submit_audio_urbs(struct easycap *peasycap)
-{
-	struct data_urb *pdata_urb;
-	struct urb *purb;
-	struct list_head *plist_head;
-	int j, isbad, nospc, m, rc;
-	int isbuf;
-
-	if (!peasycap) {
-		SAY("ERROR: peasycap is NULL\n");
-		return -EFAULT;
-	}
-	if (!peasycap->purb_audio_head) {
-		SAM("ERROR: peasycap->urb_audio_head uninitialized\n");
-		return -EFAULT;
-	}
-	if (!peasycap->pusb_device) {
-		SAM("ERROR: peasycap->pusb_device is NULL\n");
-		return -EFAULT;
-	}
-
-	if (peasycap->audio_isoc_streaming) {
-		JOM(4, "already streaming audio urbs\n");
-		return 0;
-	}
-
-	JOM(4, "initial submission of all audio urbs\n");
-	rc = usb_set_interface(peasycap->pusb_device,
-			       peasycap->audio_interface,
-			       peasycap->audio_altsetting_on);
-	JOM(8, "usb_set_interface(.,%i,%i) returned %i\n",
-	    peasycap->audio_interface,
-	    peasycap->audio_altsetting_on, rc);
-
-	isbad = 0;
-	nospc = 0;
-	m = 0;
-	list_for_each(plist_head, peasycap->purb_audio_head) {
-		pdata_urb = list_entry(plist_head, struct data_urb, list_head);
-		if (pdata_urb && pdata_urb->purb) {
-			purb = pdata_urb->purb;
-			isbuf = pdata_urb->isbuf;
-
-			purb->interval = 1;
-			purb->dev = peasycap->pusb_device;
-			purb->pipe = usb_rcvisocpipe(peasycap->pusb_device,
-					peasycap->audio_endpointnumber);
-			purb->transfer_flags = URB_ISO_ASAP;
-			purb->transfer_buffer = peasycap->audio_isoc_buffer[isbuf].pgo;
-			purb->transfer_buffer_length = peasycap->audio_isoc_buffer_size;
-			purb->complete = easycap_alsa_complete;
-			purb->context = peasycap;
-			purb->start_frame = 0;
-			purb->number_of_packets = peasycap->audio_isoc_framesperdesc;
-			for (j = 0;  j < peasycap->audio_isoc_framesperdesc; j++) {
-				purb->iso_frame_desc[j].offset = j * peasycap->audio_isoc_maxframesize;
-				purb->iso_frame_desc[j].length = peasycap->audio_isoc_maxframesize;
-			}
-
-			rc = usb_submit_urb(purb, GFP_KERNEL);
-			if (rc) {
-				isbad++;
-				SAM("ERROR: usb_submit_urb() failed"
-				    " for urb with rc: -%s: %d\n",
-				    strerror(rc), rc);
-			} else {
-				m++;
-			}
-		} else {
-			isbad++;
-		}
-	}
-	if (nospc) {
-		SAM("-ENOSPC=usb_submit_urb() for %i urbs\n", nospc);
-		SAM(".....  possibly inadequate USB bandwidth\n");
-		peasycap->audio_eof = 1;
-	}
-	if (isbad) {
-		JOM(4, "attempting cleanup instead of submitting\n");
-		list_for_each(plist_head, (peasycap->purb_audio_head)) {
-			pdata_urb = list_entry(plist_head, struct data_urb, list_head);
-			if (pdata_urb && pdata_urb->purb)
-				usb_kill_urb(pdata_urb->purb);
-		}
-		peasycap->audio_isoc_streaming = 0;
-	} else {
-		peasycap->audio_isoc_streaming = m;
-		JOM(4, "submitted %i audio urbs\n", m);
-	}
-
-	return 0;
-}
-/*****************************************************************************/
-/*---------------------------------------------------------------------------*/
-/*
- *  KILL ALL AUDIO URBS.
- */
-/*---------------------------------------------------------------------------*/
-int
-kill_audio_urbs(struct easycap *peasycap)
-{
-	int m;
-	struct list_head *plist_head;
-	struct data_urb *pdata_urb;
-
-	if (!peasycap) {
-		SAY("ERROR: peasycap is NULL\n");
-		return -EFAULT;
-	}
-
-	if (!peasycap->audio_isoc_streaming) {
-		JOM(8, "%i=audio_isoc_streaming, no audio urbs killed\n",
-		    peasycap->audio_isoc_streaming);
-		return 0;
-	}
-
-	if (!peasycap->purb_audio_head) {
-		SAM("ERROR: peasycap->purb_audio_head is NULL\n");
-		return -EFAULT;
-	}
-
-	peasycap->audio_isoc_streaming = 0;
-	JOM(4, "killing audio urbs\n");
-	m = 0;
-	list_for_each(plist_head, (peasycap->purb_audio_head)) {
-		pdata_urb = list_entry(plist_head, struct data_urb, list_head);
-		if (pdata_urb && pdata_urb->purb) {
-			usb_kill_urb(pdata_urb->purb);
-			m++;
-		}
-	}
-	JOM(4, "%i audio urbs killed\n", m);
-
-	return 0;
-}
-/*****************************************************************************/

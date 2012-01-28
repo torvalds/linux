@@ -33,6 +33,10 @@ static const struct platform_device_id ehci_ath79_id_table[] = {
 		.driver_data	= EHCI_ATH79_IP_V2,
 	},
 	{
+		.name		= "ar933x-ehci",
+		.driver_data	= EHCI_ATH79_IP_V2,
+	},
+	{
 		/* terminating entry */
 	},
 };

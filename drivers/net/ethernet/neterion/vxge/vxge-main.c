@@ -2662,9 +2662,10 @@ static void vxge_poll_vp_lockup(unsigned long data)
 	mod_timer(&vdev->vp_lockup_timer, jiffies + HZ / 1000);
 }
 
-static u32 vxge_fix_features(struct net_device *dev, u32 features)
+static netdev_features_t vxge_fix_features(struct net_device *dev,
+	netdev_features_t features)
 {
-	u32 changed = dev->features ^ features;
+	netdev_features_t changed = dev->features ^ features;
 
 	/* Enabling RTH requires some of the logic in vxge_device_register and a
 	 * vpath reset.  Due to these restrictions, only allow modification
@@ -2676,10 +2677,10 @@ static u32 vxge_fix_features(struct net_device *dev, u32 features)
 	return features;
 }
 
-static int vxge_set_features(struct net_device *dev, u32 features)
+static int vxge_set_features(struct net_device *dev, netdev_features_t features)
 {
 	struct vxgedev *vdev = netdev_priv(dev);
-	u32 changed = dev->features ^ features;
+	netdev_features_t changed = dev->features ^ features;
 
 	if (!(changed & NETIF_F_RXHASH))
 		return 0;
@@ -3304,7 +3305,7 @@ static void vxge_tx_watchdog(struct net_device *dev)
  *
  * Add the vlan id to the devices vlan id table
  */
-static void
+static int
 vxge_vlan_rx_add_vid(struct net_device *dev, unsigned short vid)
 {
 	struct vxgedev *vdev = netdev_priv(dev);
@@ -3319,6 +3320,7 @@ vxge_vlan_rx_add_vid(struct net_device *dev, unsigned short vid)
 		vxge_hw_vpath_vid_add(vpath->handle, vid);
 	}
 	set_bit(vid, vdev->active_vlans);
+	return 0;
 }
 
 /**
@@ -3328,7 +3330,7 @@ vxge_vlan_rx_add_vid(struct net_device *dev, unsigned short vid)
  *
  * Remove the vlan id from the device's vlan id table
  */
-static void
+static int
 vxge_vlan_rx_kill_vid(struct net_device *dev, unsigned short vid)
 {
 	struct vxgedev *vdev = netdev_priv(dev);
@@ -3347,6 +3349,7 @@ vxge_vlan_rx_kill_vid(struct net_device *dev, unsigned short vid)
 	vxge_debug_entryexit(VXGE_TRACE,
 		"%s:%d  Exiting...", __func__, __LINE__);
 	clear_bit(vid, vdev->active_vlans);
+	return 0;
 }
 
 static const struct net_device_ops vxge_netdev_ops = {
