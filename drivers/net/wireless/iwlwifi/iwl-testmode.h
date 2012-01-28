@@ -111,17 +111,17 @@
  *
  * @IWL_TM_CMD_APP2DEV_INDIRECT_REG_READ32:
  * @IWL_TM_CMD_APP2DEV_INDIRECT_REG_WRITE32:
- *	commands from user applicaiton to indirectly access peripheral register
+ *	commands from user application to indirectly access peripheral register
  *
  * @IWL_TM_CMD_APP2DEV_READ_SRAM:
  * @IWL_TM_CMD_APP2DEV_DUMP_SRAM:
- *	commands from user applicaiton to read data in sram
+ *	commands from user application to read data in sram
  *
- * @IWL_TM_CMD_APP2DEV_LOAD_WOWLAN_FW: load Weak On Wireless LAN uCode image
+ * @IWL_TM_CMD_APP2DEV_LOAD_WOWLAN_FW: load Wake On Wireless LAN uCode image
  * @IWL_TM_CMD_APP2DEV_GET_FW_VERSION: retrieve uCode version
  * @IWL_TM_CMD_APP2DEV_GET_DEVICE_ID: retrieve ID information in device
  * @IWL_TM_CMD_APP2DEV_GET_FW_INFO:
- *	retrieve informration of existing loaded uCode image
+ *	retrieve information of existing loaded uCode image
  *
  */
 enum iwl_tm_cmd_t {
