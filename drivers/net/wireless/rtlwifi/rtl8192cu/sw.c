@@ -1,6 +1,6 @@
 /******************************************************************************
  *
- * Copyright(c) 2009-2010  Realtek Corporation. All rights reserved.
+ * Copyright(c) 2009-2012  Realtek Corporation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of version 2 of the GNU General Public License as
@@ -65,7 +65,7 @@ static int rtl92cu_init_sw_vars(struct ieee80211_hw *hw)
 	rtlpriv->rtlhal.pfirmware = vmalloc(0x4000);
 	if (!rtlpriv->rtlhal.pfirmware) {
 		RT_TRACE(rtlpriv, COMP_ERR, DBG_EMERG,
-			 ("Can't alloc buffer for fw.\n"));
+			 "Can't alloc buffer for fw\n");
 		return 1;
 	}
 	/* request fw */
@@ -73,12 +73,12 @@ static int rtl92cu_init_sw_vars(struct ieee80211_hw *hw)
 			rtlpriv->io.dev);
 	if (err) {
 		RT_TRACE(rtlpriv, COMP_ERR, DBG_EMERG,
-			 ("Failed to request firmware!\n"));
+			 "Failed to request firmware!\n");
 		return 1;
 	}
 	if (firmware->size > 0x4000) {
 		RT_TRACE(rtlpriv, COMP_ERR, DBG_EMERG,
-			 ("Firmware is too big!\n"));
+			 "Firmware is too big!\n");
 		release_firmware(firmware);
 		return 1;
 	}
@@ -384,15 +384,4 @@ static struct usb_driver rtl8192cu_driver = {
 #endif
 };
 
-static int __init rtl8192cu_init(void)
-{
-	return usb_register(&rtl8192cu_driver);
-}
-
-static void __exit rtl8192cu_exit(void)
-{
-	usb_deregister(&rtl8192cu_driver);
-}
-
-module_init(rtl8192cu_init);
-module_exit(rtl8192cu_exit);
+module_usb_driver(rtl8192cu_driver);

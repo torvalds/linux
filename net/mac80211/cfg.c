@@ -616,7 +616,7 @@ static int ieee80211_config_beacon(struct ieee80211_sub_if_data *sdata,
 
 	sdata->vif.bss_conf.dtim_period = new->dtim_period;
 
-	RCU_INIT_POINTER(sdata->u.ap.beacon, new);
+	rcu_assign_pointer(sdata->u.ap.beacon, new);
 
 	synchronize_rcu();
 
@@ -791,7 +791,7 @@ static int sta_apply_parameters(struct ieee80211_local *local,
 		if (set & BIT(NL80211_STA_FLAG_AUTHORIZED))
 			ret = sta_info_move_state_checked(sta,
 					IEEE80211_STA_AUTHORIZED);
-		else
+		else if (test_sta_flag(sta, WLAN_STA_AUTHORIZED))
 			ret = sta_info_move_state_checked(sta,
 					IEEE80211_STA_ASSOC);
 		if (ret)
@@ -1001,6 +1001,7 @@ static int ieee80211_change_station(struct wiphy *wiphy,
 	struct ieee80211_local *local = wiphy_priv(wiphy);
 	struct sta_info *sta;
 	struct ieee80211_sub_if_data *vlansdata;
+	int err;
 
 	mutex_lock(&local->sta_mtx);
 
@@ -1033,14 +1034,18 @@ static int ieee80211_change_station(struct wiphy *wiphy,
 				return -EBUSY;
 			}
 
-			RCU_INIT_POINTER(vlansdata->u.vlan.sta, sta);
+			rcu_assign_pointer(vlansdata->u.vlan.sta, sta);
 		}
 
 		sta->sdata = vlansdata;
 		ieee80211_send_layer2_update(sta);
 	}
 
-	sta_apply_parameters(local, sta, params);
+	err = sta_apply_parameters(local, sta, params);
+	if (err) {
+		mutex_unlock(&local->sta_mtx);
+		return err;
+	}
 
 	if (test_sta_flag(sta, WLAN_STA_TDLS_PEER) && params->supported_rates)
 		rate_control_rate_init(sta);
@@ -1341,6 +1346,8 @@ static int ieee80211_update_mesh_config(struct wiphy *wiphy,
 		conf->dot11MeshHWMPRannInterval =
 			nconf->dot11MeshHWMPRannInterval;
 	}
+	if (_chg_mesh_attr(NL80211_MESHCONF_FORWARDING, mask))
+		conf->dot11MeshForwarding = nconf->dot11MeshForwarding;
 	return 0;
 }
 
@@ -1868,7 +1875,6 @@ static int ieee80211_set_cqm_rssi_config(struct wiphy *wiphy,
 					 s32 rssi_thold, u32 rssi_hyst)
 {
 	struct ieee80211_sub_if_data *sdata = IEEE80211_DEV_TO_SUB_IF(dev);
-	struct ieee80211_local *local = wdev_priv(dev->ieee80211_ptr);
 	struct ieee80211_vif *vif = &sdata->vif;
 	struct ieee80211_bss_conf *bss_conf = &vif->bss_conf;
 
@@ -1879,14 +1885,9 @@ static int ieee80211_set_cqm_rssi_config(struct wiphy *wiphy,
 	bss_conf->cqm_rssi_thold = rssi_thold;
 	bss_conf->cqm_rssi_hyst = rssi_hyst;
 
-	if (!(local->hw.flags & IEEE80211_HW_SUPPORTS_CQM_RSSI)) {
-		if (sdata->vif.type != NL80211_IFTYPE_STATION)
-			return -EOPNOTSUPP;
-		return 0;
-	}
-
 	/* tell the driver upon association, unless already associated */
-	if (sdata->u.mgd.associated)
+	if (sdata->u.mgd.associated &&
+	    sdata->vif.driver_flags & IEEE80211_VIF_SUPPORTS_CQM_RSSI)
 		ieee80211_bss_info_change_notify(sdata, BSS_CHANGED_CQM);
 
 	return 0;

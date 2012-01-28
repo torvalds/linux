@@ -1,0 +1,40 @@
+C6X PLL Clock Controllers
+-------------------------
+
+This is a first-cut support for the SoC clock controllers. This is still
+under development and will probably change as the common device tree
+clock support is added to the kernel.
+
+Required properties:
+
+- compatible: "ti,c64x+pll"
+    May also have SoC-specific value to support SoC-specific initialization
+    in the driver. One of:
+        "ti,c6455-pll"
+        "ti,c6457-pll"
+        "ti,c6472-pll"
+        "ti,c6474-pll"
+
+- reg: base address and size of register area
+- clock-frequency: input clock frequency in hz
+
+
+Optional properties:
+
+- ti,c64x+pll-bypass-delay: CPU cycles to delay when entering bypass mode
+
+- ti,c64x+pll-reset-delay:  CPU cycles to delay after PLL reset
+
+- ti,c64x+pll-lock-delay:   CPU cycles to delay after PLL frequency change
+
+Example:
+
+	clock-controller@29a0000 {
+		compatible = "ti,c6472-pll", "ti,c64x+pll";
+		reg = <0x029a0000 0x200>;
+		clock-frequency = <25000000>;
+
+		ti,c64x+pll-bypass-delay = <200>;
+		ti,c64x+pll-reset-delay = <12000>;
+		ti,c64x+pll-lock-delay = <80000>;
+	};

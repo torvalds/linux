@@ -249,6 +249,7 @@ struct mwifiex_bssdescriptor {
 	u32 channel;
 	u32 freq;
 	u16 beacon_period;
+	u8 dtim_period;
 	u8 erp_flags;
 	u32 bss_mode;
 	u8 supported_rates[MWIFIEX_SUPPORTED_RATES];
@@ -352,7 +353,6 @@ struct mwifiex_private;
 
 struct mwifiex_private {
 	struct mwifiex_adapter *adapter;
-	u8 bss_index;
 	u8 bss_type;
 	u8 bss_role;
 	u8 bss_priority;
@@ -884,8 +884,6 @@ mwifiex_netdev_get_priv(struct net_device *dev)
 	return (struct mwifiex_private *) (*(unsigned long *) netdev_priv(dev));
 }
 
-struct mwifiex_private *mwifiex_bss_index_to_priv(struct mwifiex_adapter
-						*adapter, u8 bss_index);
 int mwifiex_init_shutdown_fw(struct mwifiex_private *priv,
 			     u32 func_init_shutdown);
 int mwifiex_add_card(void *, struct semaphore *, struct mwifiex_if_ops *, u8);

@@ -354,10 +354,10 @@ static inline map_word cfi_build_cmd(u_long cmd, struct map_info *map, struct cf
 		onecmd = cmd;
 		break;
 	case 2:
-		onecmd = cpu_to_cfi16(cmd);
+		onecmd = cpu_to_cfi16(map, cmd);
 		break;
 	case 4:
-		onecmd = cpu_to_cfi32(cmd);
+		onecmd = cpu_to_cfi32(map, cmd);
 		break;
 	}
 
@@ -437,10 +437,10 @@ static inline unsigned long cfi_merge_status(map_word val, struct map_info *map,
 	case 1:
 		break;
 	case 2:
-		res = cfi16_to_cpu(res);
+		res = cfi16_to_cpu(map, res);
 		break;
 	case 4:
-		res = cfi32_to_cpu(res);
+		res = cfi32_to_cpu(map, res);
 		break;
 	default: BUG();
 	}
@@ -480,12 +480,12 @@ static inline uint8_t cfi_read_query(struct map_info *map, uint32_t addr)
 	if (map_bankwidth_is_1(map)) {
 		return val.x[0];
 	} else if (map_bankwidth_is_2(map)) {
-		return cfi16_to_cpu(val.x[0]);
+		return cfi16_to_cpu(map, val.x[0]);
 	} else {
 		/* No point in a 64-bit byteswap since that would just be
 		   swapping the responses from different chips, and we are
 		   only interested in one chip (a representative sample) */
-		return cfi32_to_cpu(val.x[0]);
+		return cfi32_to_cpu(map, val.x[0]);
 	}
 }
 
@@ -496,12 +496,12 @@ static inline uint16_t cfi_read_query16(struct map_info *map, uint32_t addr)
 	if (map_bankwidth_is_1(map)) {
 		return val.x[0] & 0xff;
 	} else if (map_bankwidth_is_2(map)) {
-		return cfi16_to_cpu(val.x[0]);
+		return cfi16_to_cpu(map, val.x[0]);
 	} else {
 		/* No point in a 64-bit byteswap since that would just be
 		   swapping the responses from different chips, and we are
 		   only interested in one chip (a representative sample) */
-		return cfi32_to_cpu(val.x[0]);
+		return cfi32_to_cpu(map, val.x[0]);
 	}
 }
 

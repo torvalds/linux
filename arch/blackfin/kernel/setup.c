@@ -828,10 +828,18 @@ static inline int __init get_mem_size(void)
 	u32 ddrctl = bfin_read_EBIU_DDRCTL1();
 	int ret = 0;
 	switch (ddrctl & 0xc0000) {
-		case DEVSZ_64:  ret = 64 / 8;
-		case DEVSZ_128: ret = 128 / 8;
-		case DEVSZ_256: ret = 256 / 8;
-		case DEVSZ_512: ret = 512 / 8;
+	case DEVSZ_64:
+		ret = 64 / 8;
+		break;
+	case DEVSZ_128:
+		ret = 128 / 8;
+		break;
+	case DEVSZ_256:
+		ret = 256 / 8;
+		break;
+	case DEVSZ_512:
+		ret = 512 / 8;
+		break;
 	}
 	switch (ddrctl & 0x30000) {
 		case DEVWD_4:  ret *= 2;

@@ -244,17 +244,16 @@ struct gfs2_glock {
 
 #define GFS2_MIN_LVB_SIZE 32	/* Min size of LVB that gfs2 supports */
 
-struct gfs2_alloc {
+struct gfs2_qadata { /* quota allocation data */
 	/* Quota stuff */
-	struct gfs2_quota_data *al_qd[2*MAXQUOTAS];
-	struct gfs2_holder al_qd_ghs[2*MAXQUOTAS];
-	unsigned int al_qd_num;
+	struct gfs2_quota_data *qa_qd[2*MAXQUOTAS];
+	struct gfs2_holder qa_qd_ghs[2*MAXQUOTAS];
+	unsigned int qa_qd_num;
+};
 
-	u32 al_requested; /* Filled in by caller of gfs2_inplace_reserve() */
-	u32 al_alloced; /* Filled in by gfs2_alloc_*() */
-
-	/* Filled in by gfs2_inplace_reserve() */
-	struct gfs2_holder al_rgd_gh;
+struct gfs2_blkreserv {
+	u32 rs_requested; /* Filled in by caller of gfs2_inplace_reserve() */
+	struct gfs2_holder rs_rgd_gh; /* Filled in by gfs2_inplace_reserve() */
 };
 
 enum {
@@ -275,7 +274,8 @@ struct gfs2_inode {
 	struct gfs2_glock *i_gl; /* Move into i_gh? */
 	struct gfs2_holder i_iopen_gh;
 	struct gfs2_holder i_gh; /* for prepare/commit_write only */
-	struct gfs2_alloc *i_alloc;
+	struct gfs2_qadata *i_qadata; /* quota allocation data */
+	struct gfs2_blkreserv *i_res; /* resource group block reservation */
 	struct gfs2_rgrpd *i_rgd;
 	u64 i_goal;	/* goal block for allocations */
 	struct rw_semaphore i_rw_mutex;

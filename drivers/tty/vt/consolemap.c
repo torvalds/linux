@@ -584,7 +584,7 @@ int con_set_default_unimap(struct vc_data *vc)
 			return 0;
 		dflt->refcount++;
 		*vc->vc_uni_pagedir_loc = (unsigned long)dflt;
-		if (p && --p->refcount) {
+		if (p && !--p->refcount) {
 			con_release_unimap(p);
 			kfree(p);
 		}

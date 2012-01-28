@@ -559,6 +559,7 @@ int carl9170_set_hwretry_limit(struct ar9170 *ar, const u32 max_retry);
 int carl9170_upload_key(struct ar9170 *ar, const u8 id, const u8 *mac,
 	const u8 ktype, const u8 keyidx, const u8 *keydata, const int keylen);
 int carl9170_disable_key(struct ar9170 *ar, const u8 id);
+int carl9170_set_mac_tpc(struct ar9170 *ar, struct ieee80211_channel *channel);
 
 /* RX */
 void carl9170_rx(struct ar9170 *ar, void *buf, unsigned int len);
@@ -593,7 +594,6 @@ int carl9170_get_noisefloor(struct ar9170 *ar);
 
 /* FW */
 int carl9170_parse_firmware(struct ar9170 *ar);
-int carl9170_fw_fix_eeprom(struct ar9170 *ar);
 
 extern struct ieee80211_rate __carl9170_ratetable[];
 extern int modparam_noht;

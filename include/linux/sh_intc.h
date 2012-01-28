@@ -95,6 +95,7 @@ struct intc_desc {
 	unsigned int num_resources;
 	intc_enum force_enable;
 	intc_enum force_disable;
+	bool skip_syscore_suspend;
 	struct intc_hw_desc hw;
 };
 

@@ -16,6 +16,7 @@
 #define _ASM_TILE_PCI_H
 
 #include <linux/pci.h>
+#include <asm-generic/pci_iomap.h>
 
 /*
  * Structure of a PCI controller (host bridge)
@@ -49,7 +50,6 @@ struct pci_controller {
 int __devinit tile_pci_init(void);
 int __devinit pcibios_init(void);
 
-void __iomem *pci_iomap(struct pci_dev *dev, int bar, unsigned long max);
 static inline void pci_iounmap(struct pci_dev *dev, void __iomem *addr) {}
 
 void __devinit pcibios_fixup_bus(struct pci_bus *bus);
@@ -74,13 +74,6 @@ static inline int pci_proc_domain(struct pci_bus *bus)
 static inline int pcibios_assign_all_busses(void)
 {
 	return 1;
-}
-
-/*
- * No special bus mastering setup handling.
- */
-static inline void pcibios_set_master(struct pci_dev *dev)
-{
 }
 
 #define PCIBIOS_MIN_MEM		0

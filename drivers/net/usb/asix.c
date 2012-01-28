@@ -376,7 +376,7 @@ static int asix_rx_fixup(struct usbnet *dev, struct sk_buff *skb)
 
 		skb_pull(skb, (size + 1) & 0xfffe);
 
-		if (skb->len == 0)
+		if (skb->len < sizeof(header))
 			break;
 
 		head = (u8 *) skb->data;
@@ -978,6 +978,7 @@ static int ax88772_link_reset(struct usbnet *dev)
 
 static int ax88772_reset(struct usbnet *dev)
 {
+	struct asix_data *data = (struct asix_data *)&dev->data;
 	int ret, embd_phy;
 	u16 rx_ctl;
 
@@ -1054,6 +1055,13 @@ static int ax88772_reset(struct usbnet *dev)
 		dbg("Write IPG,IPG1,IPG2 failed: %d", ret);
 		goto out;
 	}
+
+	/* Rewrite MAC address */
+	memcpy(data->mac_addr, dev->net->dev_addr, ETH_ALEN);
+	ret = asix_write_cmd(dev, AX_CMD_WRITE_NODE_ID, 0, 0, ETH_ALEN,
+							data->mac_addr);
+	if (ret < 0)
+		goto out;
 
 	/* Set RX_CTL to default values with 2k buffer, and enable cactus */
 	ret = asix_write_rx_ctl(dev, AX_DEFAULT_RX_CTL);
@@ -1152,7 +1160,7 @@ static int ax88772_bind(struct usbnet *dev, struct usb_interface *intf)
 	return 0;
 }
 
-static struct ethtool_ops ax88178_ethtool_ops = {
+static const struct ethtool_ops ax88178_ethtool_ops = {
 	.get_drvinfo		= asix_get_drvinfo,
 	.get_link		= asix_get_link,
 	.get_msglevel		= usbnet_get_msglevel,
@@ -1317,6 +1325,13 @@ static int ax88178_reset(struct usbnet *dev)
 	mii_nway_restart(&dev->mii);
 
 	ret = asix_write_medium_mode(dev, AX88178_MEDIUM_DEFAULT);
+	if (ret < 0)
+		return ret;
+
+	/* Rewrite MAC address */
+	memcpy(data->mac_addr, dev->net->dev_addr, ETH_ALEN);
+	ret = asix_write_cmd(dev, AX_CMD_WRITE_NODE_ID, 0, 0, ETH_ALEN,
+							data->mac_addr);
 	if (ret < 0)
 		return ret;
 
@@ -1678,17 +1693,7 @@ static struct usb_driver asix_driver = {
 	.supports_autosuspend = 1,
 };
 
-static int __init asix_init(void)
-{
- 	return usb_register(&asix_driver);
-}
-module_init(asix_init);
-
-static void __exit asix_exit(void)
-{
- 	usb_deregister(&asix_driver);
-}
-module_exit(asix_exit);
+module_usb_driver(asix_driver);
 
 MODULE_AUTHOR("David Hollis");
 MODULE_VERSION(DRIVER_VERSION);

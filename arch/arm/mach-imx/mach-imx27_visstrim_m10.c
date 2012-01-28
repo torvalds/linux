@@ -282,4 +282,5 @@ MACHINE_START(IMX27_VISSTRIM_M10, "Vista Silicon Visstrim_M10")
 	.handle_irq = imx27_handle_irq,
 	.timer = &visstrim_m10_timer,
 	.init_machine = visstrim_m10_board_init,
+	.restart	= mxc_restart,
 MACHINE_END

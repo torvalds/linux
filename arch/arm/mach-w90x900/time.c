@@ -33,6 +33,8 @@
 #include <mach/map.h>
 #include <mach/regs-timer.h>
 
+#include "nuc9xx.h"
+
 #define RESETINT	0x1f
 #define PERIOD		(0x01 << 27)
 #define ONESHOT		(0x00 << 27)

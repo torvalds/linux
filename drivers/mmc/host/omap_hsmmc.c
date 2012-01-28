@@ -1991,6 +1991,8 @@ static int __init omap_hsmmc_probe(struct platform_device *pdev)
 	if (mmc_slot(host).nonremovable)
 		mmc->caps |= MMC_CAP_NONREMOVABLE;
 
+	mmc->pm_caps = mmc_slot(host).pm_caps;
+
 	omap_hsmmc_conf_bus_power(host);
 
 	/* Select DMA lines */
@@ -2179,13 +2181,7 @@ static int omap_hsmmc_suspend(struct device *dev)
 		cancel_work_sync(&host->mmc_carddetect_work);
 		ret = mmc_suspend_host(host->mmc);
 
-		if (ret == 0) {
-			omap_hsmmc_disable_irq(host);
-			OMAP_HSMMC_WRITE(host->base, HCTL,
-				OMAP_HSMMC_READ(host->base, HCTL) & ~SDBP);
-			if (host->got_dbclk)
-				clk_disable(host->dbclk);
-		} else {
+		if (ret) {
 			host->suspended = 0;
 			if (host->pdata->resume) {
 				ret = host->pdata->resume(&pdev->dev,
@@ -2194,9 +2190,20 @@ static int omap_hsmmc_suspend(struct device *dev)
 					dev_dbg(mmc_dev(host->mmc),
 						"Unmask interrupt failed\n");
 			}
+			goto err;
 		}
-		pm_runtime_put_sync(host->dev);
+
+		if (!(host->mmc->pm_flags & MMC_PM_KEEP_POWER)) {
+			omap_hsmmc_disable_irq(host);
+			OMAP_HSMMC_WRITE(host->base, HCTL,
+				OMAP_HSMMC_READ(host->base, HCTL) & ~SDBP);
+		}
+		if (host->got_dbclk)
+			clk_disable(host->dbclk);
+
 	}
+err:
+	pm_runtime_put_sync(host->dev);
 	return ret;
 }
 
@@ -2216,7 +2223,8 @@ static int omap_hsmmc_resume(struct device *dev)
 		if (host->got_dbclk)
 			clk_enable(host->dbclk);
 
-		omap_hsmmc_conf_bus_power(host);
+		if (!(host->mmc->pm_flags & MMC_PM_KEEP_POWER))
+			omap_hsmmc_conf_bus_power(host);
 
 		if (host->pdata->resume) {
 			ret = host->pdata->resume(&pdev->dev, host->slot_id);

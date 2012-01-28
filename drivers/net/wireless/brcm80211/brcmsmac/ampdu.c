@@ -915,7 +915,7 @@ brcms_c_ampdu_dotxstatus_complete(struct ampdu_info *ampdu, struct scb *scb,
 	struct ieee80211_tx_info *tx_info = IEEE80211_SKB_CB(p);
 	struct wiphy *wiphy = wlc->wiphy;
 
-#ifdef BCMDBG
+#ifdef DEBUG
 	u8 hole[AMPDU_MAX_MPDU];
 	memset(hole, 0, sizeof(hole));
 #endif

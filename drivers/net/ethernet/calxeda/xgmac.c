@@ -1440,7 +1440,7 @@ static void xgmac_poll_controller(struct net_device *dev)
 }
 #endif
 
-struct rtnl_link_stats64 *
+static struct rtnl_link_stats64 *
 xgmac_get_stats64(struct net_device *dev,
 		       struct rtnl_link_stats64 *storage)
 {
@@ -1675,7 +1675,7 @@ static int xgmac_set_wol(struct net_device *dev,
 	return 0;
 }
 
-static struct ethtool_ops xgmac_ethtool_ops = {
+static const struct ethtool_ops xgmac_ethtool_ops = {
 	.get_settings = xgmac_ethtool_getsettings,
 	.get_link = ethtool_op_get_link,
 	.get_pauseparam = xgmac_get_pauseparam,

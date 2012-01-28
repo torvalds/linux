@@ -880,6 +880,74 @@ static int do_isapnp_entry(const char *filename,
 	return 1;
 }
 
+/*
+ * Append a match expression for a single masked hex digit.
+ * outp points to a pointer to the character at which to append.
+ *	*outp is updated on return to point just after the appended text,
+ *	to facilitate further appending.
+ */
+static void append_nibble_mask(char **outp,
+			       unsigned int nibble, unsigned int mask)
+{
+	char *p = *outp;
+	unsigned int i;
+
+	switch (mask) {
+	case 0:
+		*p++ = '?';
+		break;
+
+	case 0xf:
+		p += sprintf(p, "%X",  nibble);
+		break;
+
+	default:
+		/*
+		 * Dumbly emit a match pattern for all possible matching
+		 * digits.  This could be improved in some cases using ranges,
+		 * but it has the advantage of being trivially correct, and is
+		 * often optimal.
+		 */
+		*p++ = '[';
+		for (i = 0; i < 0x10; i++)
+			if ((i & mask) == nibble)
+				p += sprintf(p, "%X", i);
+		*p++ = ']';
+	}
+
+	/* Ensure that the string remains NUL-terminated: */
+	*p = '\0';
+
+	/* Advance the caller's end-of-string pointer: */
+	*outp = p;
+}
+
+/*
+ * looks like: "amba:dN"
+ *
+ * N is exactly 8 digits, where each is an upper-case hex digit, or
+ *	a ? or [] pattern matching exactly one digit.
+ */
+static int do_amba_entry(const char *filename,
+			 struct amba_id *id, char *alias)
+{
+	unsigned int digit;
+	char *p = alias;
+
+	if ((id->id & id->mask) != id->id)
+		fatal("%s: Masked-off bit(s) of AMBA device ID are non-zero: "
+		      "id=0x%08X, mask=0x%08X.  Please fix this driver.\n",
+		      filename, id->id, id->mask);
+
+	p += sprintf(alias, "amba:d");
+	for (digit = 0; digit < 8; digit++)
+		append_nibble_mask(&p,
+				   (id->id >> (4 * (7 - digit))) & 0xf,
+				   (id->mask >> (4 * (7 - digit))) & 0xf);
+
+	return 1;
+}
+
 /* Ignore any prefix, eg. some architectures prepend _ */
 static inline int sym_is(const char *symbol, const char *name)
 {
@@ -1047,6 +1115,10 @@ void handle_moddevtable(struct module *mod, struct elf_info *info,
 		do_table(symval, sym->st_size,
 			sizeof(struct isapnp_device_id), "isa",
 			do_isapnp_entry, mod);
+	else if (sym_is(symname, "__mod_amba_device_table"))
+		do_table(symval, sym->st_size,
+			sizeof(struct amba_id), "amba",
+			do_amba_entry, mod);
 	free(zeros);
 }
 

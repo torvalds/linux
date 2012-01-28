@@ -623,7 +623,8 @@ static int ax_mii_init(struct net_device *dev)
 
 	ax->mii_bus->name = "ax88796_mii_bus";
 	ax->mii_bus->parent = dev->dev.parent;
-	snprintf(ax->mii_bus->id, MII_BUS_ID_SIZE, "%x", pdev->id);
+	snprintf(ax->mii_bus->id, MII_BUS_ID_SIZE, "%s-%x",
+		pdev->name, pdev->id);
 
 	ax->mii_bus->irq = kmalloc(sizeof(int) * PHY_MAX_ADDR, GFP_KERNEL);
 	if (!ax->mii_bus->irq) {

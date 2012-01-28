@@ -16,7 +16,6 @@
 #include <linux/delay.h>
 #include <linux/pm.h>
 #include <linux/i2c.h>
-#include <linux/platform_device.h>
 #include <linux/regulator/consumer.h>
 #include <linux/spi/spi.h>
 #include <linux/slab.h>
@@ -521,7 +520,7 @@ static int wm8737_set_bias_level(struct snd_soc_codec *codec,
 #define WM8737_FORMATS (SNDRV_PCM_FMTBIT_S16_LE | SNDRV_PCM_FMTBIT_S20_3LE |\
 			SNDRV_PCM_FMTBIT_S24_LE | SNDRV_PCM_FMTBIT_S32_LE)
 
-static struct snd_soc_dai_ops wm8737_dai_ops = {
+static const struct snd_soc_dai_ops wm8737_dai_ops = {
 	.hw_params	= wm8737_hw_params,
 	.set_sysclk	= wm8737_set_dai_sysclk,
 	.set_fmt	= wm8737_set_dai_fmt,
@@ -540,7 +539,7 @@ static struct snd_soc_dai_driver wm8737_dai = {
 };
 
 #ifdef CONFIG_PM
-static int wm8737_suspend(struct snd_soc_codec *codec, pm_message_t state)
+static int wm8737_suspend(struct snd_soc_codec *codec)
 {
 	wm8737_set_bias_level(codec, SND_SOC_BIAS_OFF);
 	return 0;

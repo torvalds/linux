@@ -14,6 +14,8 @@
  * CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
 #include <linux/init.h>
 #include <linux/kernel.h>
 #include <linux/kthread.h>
@@ -590,8 +592,8 @@ static void brcmf_ethtool_get_drvinfo(struct net_device *ndev,
 	sprintf(info->bus_info, "%s", dev_name(drvr->dev));
 }
 
-static struct ethtool_ops brcmf_ethtool_ops = {
-	.get_drvinfo = brcmf_ethtool_get_drvinfo
+static const struct ethtool_ops brcmf_ethtool_ops = {
+	.get_drvinfo = brcmf_ethtool_get_drvinfo,
 };
 
 static int brcmf_ethtool(struct brcmf_pub *drvr, void __user *uaddr)
@@ -1146,7 +1148,7 @@ int brcmf_netdev_wait_pend8021x(struct net_device *ndev)
 	return pend;
 }
 
-#ifdef BCMDBG
+#ifdef DEBUG
 int brcmf_write_to_file(struct brcmf_pub *drvr, const u8 *buf, int size)
 {
 	int ret = 0;
@@ -1180,4 +1182,4 @@ exit:
 
 	return ret;
 }
-#endif				/* BCMDBG */
+#endif				/* DEBUG */

@@ -101,7 +101,7 @@ static struct i2c_board_info evb3_i2c_info[] = {
 		.type		= "88PM860x",
 		.addr		= 0x34,
 		.platform_data	= &evb3_pm8607_info,
-		.irq		= gpio_to_irq(mfp_to_gpio(MFP_PIN_GPIO83)),
+		.irq		= PXA_GPIO_TO_IRQ(mfp_to_gpio(MFP_PIN_GPIO83)),
 	},
 };
 
@@ -132,4 +132,5 @@ MACHINE_START(TAVOREVB3, "PXA950 Evaluation Board (aka TavorEVB3)")
 	.handle_irq       = pxa3xx_handle_irq,
 	.timer          = &pxa_timer,
 	.init_machine   = evb3_init,
+	.restart	= pxa_restart,
 MACHINE_END

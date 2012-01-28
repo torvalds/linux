@@ -746,7 +746,7 @@
 #define MAC_ADDR_ORDER(i)		(ETH_ALEN - 1 - (i))
 
 #define MAX_ETHERNET_BODY_SIZE		1500
-#define ETHERNET_HEADER_SIZE		14
+#define ETHERNET_HEADER_SIZE		(14 + VLAN_HLEN)
 
 #define MAX_ETHERNET_PACKET_SIZE	\
 	(MAX_ETHERNET_BODY_SIZE + ETHERNET_HEADER_SIZE)
@@ -6607,7 +6607,7 @@ static int netdev_set_features(struct net_device *dev,
 	return 0;
 }
 
-static struct ethtool_ops netdev_ethtool_ops = {
+static const struct ethtool_ops netdev_ethtool_ops = {
 	.get_settings		= netdev_get_settings,
 	.set_settings		= netdev_set_settings,
 	.nway_reset		= netdev_nway_reset,

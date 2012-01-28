@@ -345,7 +345,8 @@ static efi_status_t gsmi_get_variable(efi_char16_t *name,
 		memcpy(&param, gsmi_dev.param_buf->start, sizeof(param));
 
 		/* The size reported is the min of all of our buffers */
-		*data_size = min(*data_size, gsmi_dev.data_buf->length);
+		*data_size = min_t(unsigned long, *data_size,
+						gsmi_dev.data_buf->length);
 		*data_size = min_t(unsigned long, *data_size, param.data_len);
 
 		/* Copy data back to return buffer. */

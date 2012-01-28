@@ -116,7 +116,7 @@ static struct mii_bus * __devinit mdio_gpio_bus_init(struct device *dev,
 		if (!new_bus->irq[i])
 			new_bus->irq[i] = PHY_POLL;
 
-	snprintf(new_bus->id, MII_BUS_ID_SIZE, "%x", bus_id);
+	snprintf(new_bus->id, MII_BUS_ID_SIZE, "gpio-%x", bus_id);
 
 	if (gpio_request(bitbang->mdc, "mdc"))
 		goto out_free_bus;

@@ -1086,6 +1086,7 @@ mwifiex_update_bss_desc_with_ie(struct mwifiex_adapter *adapter,
 	struct ieee_types_vendor_specific *vendor_ie;
 	const u8 wpa_oui[4] = { 0x00, 0x50, 0xf2, 0x01 };
 	const u8 wmm_oui[4] = { 0x00, 0x50, 0xf2, 0x02 };
+	struct ieee80211_tim_ie *tim_ie;
 
 	found_data_rate_ie = false;
 	rate_size = 0;
@@ -1257,6 +1258,11 @@ mwifiex_update_bss_desc_with_ie(struct mwifiex_adapter *adapter,
 			bss_entry->ext_cap_offset = (u16) (current_ptr +
 					sizeof(struct ieee_types_header) -
 					bss_entry->beacon_buf);
+			break;
+		case WLAN_EID_TIM:
+			tim_ie = (void *) (current_ptr +
+					 sizeof(struct ieee_types_header));
+			bss_entry->dtim_period = tim_ie->dtim_period;
 			break;
 		default:
 			break;
@@ -2001,7 +2007,7 @@ mwifiex_save_curr_bcn(struct mwifiex_private *priv)
 
 		kfree(priv->curr_bcn_buf);
 		priv->curr_bcn_buf = kmalloc(curr_bss->beacon_buf_size,
-						GFP_KERNEL);
+						GFP_ATOMIC);
 		if (!priv->curr_bcn_buf) {
 			dev_err(priv->adapter->dev,
 					"failed to alloc curr_bcn_buf\n");

@@ -707,6 +707,23 @@ struct netdev_tc_txq {
 	u16 offset;
 };
 
+#if defined(CONFIG_FCOE) || defined(CONFIG_FCOE_MODULE)
+/*
+ * This structure is to hold information about the device
+ * configured to run FCoE protocol stack.
+ */
+struct netdev_fcoe_hbainfo {
+	char	manufacturer[64];
+	char	serial_number[64];
+	char	hardware_version[64];
+	char	driver_version[64];
+	char	optionrom_version[64];
+	char	firmware_version[64];
+	char	model[256];
+	char	model_description[256];
+};
+#endif
+
 /*
  * This structure defines the management hooks for network devices.
  * The following hooks can be defined; unless noted otherwise, they are
@@ -847,6 +864,13 @@ struct netdev_tc_txq {
  *	perform necessary setup and returns 1 to indicate the device is set up
  *	successfully to perform DDP on this I/O, otherwise this returns 0.
  *
+ * int (*ndo_fcoe_get_hbainfo)(struct net_device *dev,
+ *			       struct netdev_fcoe_hbainfo *hbainfo);
+ *	Called when the FCoE Protocol stack wants information on the underlying
+ *	device. This information is utilized by the FCoE protocol stack to
+ *	register attributes with Fiber Channel management service as per the
+ *	FC-GS Fabric Device Management Information(FDMI) specification.
+ *
  * int (*ndo_fcoe_get_wwn)(struct net_device *dev, u64 *wwn, int type);
  *	Called when the underlying device wants to override default World Wide
  *	Name (WWN) generation mechanism in FCoE protocol stack to pass its own
@@ -950,6 +974,8 @@ struct net_device_ops {
 						       u16 xid,
 						       struct scatterlist *sgl,
 						       unsigned int sgc);
+	int			(*ndo_fcoe_get_hbainfo)(struct net_device *dev,
+							struct netdev_fcoe_hbainfo *hbainfo);
 #endif
 
 #if IS_ENABLED(CONFIG_LIBFCOE)
@@ -2129,7 +2155,7 @@ extern void netdev_run_todo(void);
  */
 static inline void dev_put(struct net_device *dev)
 {
-	irqsafe_cpu_dec(*dev->pcpu_refcnt);
+	this_cpu_dec(*dev->pcpu_refcnt);
 }
 
 /**
@@ -2140,7 +2166,7 @@ static inline void dev_put(struct net_device *dev)
  */
 static inline void dev_hold(struct net_device *dev)
 {
-	irqsafe_cpu_inc(*dev->pcpu_refcnt);
+	this_cpu_inc(*dev->pcpu_refcnt);
 }
 
 /* Carrier loss detection, dial on demand. The functions netif_carrier_on
@@ -2422,6 +2448,11 @@ static inline void netif_tx_disable(struct net_device *dev)
 static inline void netif_addr_lock(struct net_device *dev)
 {
 	spin_lock(&dev->addr_list_lock);
+}
+
+static inline void netif_addr_lock_nested(struct net_device *dev)
+{
+	spin_lock_nested(&dev->addr_list_lock, SINGLE_DEPTH_NESTING);
 }
 
 static inline void netif_addr_lock_bh(struct net_device *dev)

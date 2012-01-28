@@ -88,7 +88,7 @@ static int datafab_determine_lun(struct us_data *us,
 { USB_DEVICE_VER(id_vendor, id_product, bcdDeviceMin, bcdDeviceMax), \
   .driver_info = (flags)|(USB_US_TYPE_STOR<<24) }
 
-struct usb_device_id datafab_usb_ids[] = {
+static struct usb_device_id datafab_usb_ids[] = {
 #	include "unusual_datafab.h"
 	{ }		/* Terminating entry */
 };
@@ -753,15 +753,4 @@ static struct usb_driver datafab_driver = {
 	.soft_unbind =	1,
 };
 
-static int __init datafab_init(void)
-{
-	return usb_register(&datafab_driver);
-}
-
-static void __exit datafab_exit(void)
-{
-	usb_deregister(&datafab_driver);
-}
-
-module_init(datafab_init);
-module_exit(datafab_exit);
+module_usb_driver(datafab_driver);

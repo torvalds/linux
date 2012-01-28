@@ -272,18 +272,7 @@ static struct platform_driver platform_wdt_driver = {
 	.resume = stmp3xxx_wdt_resume,
 };
 
-static int __init stmp3xxx_wdt_init(void)
-{
-	return platform_driver_register(&platform_wdt_driver);
-}
-
-static void __exit stmp3xxx_wdt_exit(void)
-{
-	return platform_driver_unregister(&platform_wdt_driver);
-}
-
-module_init(stmp3xxx_wdt_init);
-module_exit(stmp3xxx_wdt_exit);
+module_platform_driver(platform_wdt_driver);
 
 MODULE_DESCRIPTION("STMP3XXX Watchdog Driver");
 MODULE_LICENSE("GPL");

@@ -93,18 +93,22 @@ static unsigned long setup_zero_pages(void)
 void __init paging_init(void)
 {
 	unsigned long max_zone_pfns[MAX_NR_ZONES];
-	unsigned long pgd_type;
+	unsigned long pgd_type, asce_bits;
 
 	init_mm.pgd = swapper_pg_dir;
-	S390_lowcore.kernel_asce = __pa(init_mm.pgd) & PAGE_MASK;
 #ifdef CONFIG_64BIT
-	/* A three level page table (4TB) is enough for the kernel space. */
-	S390_lowcore.kernel_asce |= _ASCE_TYPE_REGION3 | _ASCE_TABLE_LENGTH;
-	pgd_type = _REGION3_ENTRY_EMPTY;
+	if (VMALLOC_END > (1UL << 42)) {
+		asce_bits = _ASCE_TYPE_REGION2 | _ASCE_TABLE_LENGTH;
+		pgd_type = _REGION2_ENTRY_EMPTY;
+	} else {
+		asce_bits = _ASCE_TYPE_REGION3 | _ASCE_TABLE_LENGTH;
+		pgd_type = _REGION3_ENTRY_EMPTY;
+	}
 #else
-	S390_lowcore.kernel_asce |= _ASCE_TABLE_LENGTH;
+	asce_bits = _ASCE_TABLE_LENGTH;
 	pgd_type = _SEGMENT_ENTRY_EMPTY;
 #endif
+	S390_lowcore.kernel_asce = (__pa(init_mm.pgd) & PAGE_MASK) | asce_bits;
 	clear_table((unsigned long *) init_mm.pgd, pgd_type,
 		    sizeof(unsigned long)*2048);
 	vmem_map_init();

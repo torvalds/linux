@@ -913,27 +913,4 @@ static void sasem_disconnect(struct usb_interface *interface)
 	mutex_unlock(&disconnect_lock);
 }
 
-static int __init sasem_init(void)
-{
-	int rc;
-
-	printk(KERN_INFO MOD_DESC ", v" MOD_VERSION "\n");
-	printk(KERN_INFO MOD_AUTHOR "\n");
-
-	rc = usb_register(&sasem_driver);
-	if (rc < 0) {
-		err("%s: usb register failed (%d)", __func__, rc);
-		return -ENODEV;
-	}
-	return 0;
-}
-
-static void __exit sasem_exit(void)
-{
-	usb_deregister(&sasem_driver);
-	printk(KERN_INFO "module removed. Goodbye!\n");
-}
-
-
-module_init(sasem_init);
-module_exit(sasem_exit);
+module_usb_driver(sasem_driver);

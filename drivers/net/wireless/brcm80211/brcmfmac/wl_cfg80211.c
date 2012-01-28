@@ -16,6 +16,8 @@
 
 /* Toplevel file. Relies on dhd_linux.c to send commands to the dongle. */
 
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
 #include <linux/kernel.h>
 #include <linux/if_arp.h>
 #include <linux/sched.h>
@@ -2475,7 +2477,7 @@ static s32 brcmf_init_iscan(struct brcmf_cfg80211_priv *cfg_priv)
 	return err;
 }
 
-static void brcmf_delay(u32 ms)
+static __always_inline void brcmf_delay(u32 ms)
 {
 	if (ms < 1000 / HZ) {
 		cond_resched();
@@ -2783,7 +2785,7 @@ static struct wireless_dev *brcmf_alloc_wdev(s32 sizeof_iface,
 	    wiphy_new(&wl_cfg80211_ops,
 		      sizeof(struct brcmf_cfg80211_priv) + sizeof_iface);
 	if (!wdev->wiphy) {
-		WL_ERR("Couldn not allocate wiphy device\n");
+		WL_ERR("Could not allocate wiphy device\n");
 		err = -ENOMEM;
 		goto wiphy_new_out;
 	}
@@ -2809,7 +2811,7 @@ static struct wireless_dev *brcmf_alloc_wdev(s32 sizeof_iface,
 								 */
 	err = wiphy_register(wdev->wiphy);
 	if (err < 0) {
-		WL_ERR("Couldn not register wiphy device (%d)\n", err);
+		WL_ERR("Could not register wiphy device (%d)\n", err);
 		goto wiphy_register_out;
 	}
 	return wdev;

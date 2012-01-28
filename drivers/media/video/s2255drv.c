@@ -2682,25 +2682,7 @@ static struct usb_driver s2255_driver = {
 	.id_table = s2255_table,
 };
 
-static int __init usb_s2255_init(void)
-{
-	int result;
-	/* register this driver with the USB subsystem */
-	result = usb_register(&s2255_driver);
-	if (result)
-		pr_err(KBUILD_MODNAME
-		       ": usb_register failed. Error number %d\n", result);
-	dprintk(2, "%s\n", __func__);
-	return result;
-}
-
-static void __exit usb_s2255_exit(void)
-{
-	usb_deregister(&s2255_driver);
-}
-
-module_init(usb_s2255_init);
-module_exit(usb_s2255_exit);
+module_usb_driver(s2255_driver);
 
 MODULE_DESCRIPTION("Sensoray 2255 Video for Linux driver");
 MODULE_AUTHOR("Dean Anderson (Sensoray Company Inc.)");

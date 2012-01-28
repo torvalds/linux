@@ -55,6 +55,8 @@
 char ixgbe_driver_name[] = "ixgbe";
 static const char ixgbe_driver_string[] =
 			      "Intel(R) 10 Gigabit PCI Express Network Driver";
+char ixgbe_default_device_descr[] =
+			      "Intel(R) 10 Gigabit Network Connection";
 #define MAJ 3
 #define MIN 6
 #define BUILD 7
@@ -7293,6 +7295,7 @@ static const struct net_device_ops ixgbe_netdev_ops = {
 	.ndo_fcoe_enable = ixgbe_fcoe_enable,
 	.ndo_fcoe_disable = ixgbe_fcoe_disable,
 	.ndo_fcoe_get_wwn = ixgbe_fcoe_get_wwn,
+	.ndo_fcoe_get_hbainfo = ixgbe_fcoe_get_hbainfo,
 #endif /* IXGBE_FCOE */
 	.ndo_set_features = ixgbe_set_features,
 	.ndo_fix_features = ixgbe_fix_features,
@@ -7722,7 +7725,7 @@ static int __devinit ixgbe_probe(struct pci_dev *pdev,
 	/* add san mac addr to netdev */
 	ixgbe_add_sanmac_netdev(netdev);
 
-	e_dev_info("Intel(R) 10 Gigabit Network Connection\n");
+	e_dev_info("%s\n", ixgbe_default_device_descr);
 	cards_found++;
 	return 0;
 

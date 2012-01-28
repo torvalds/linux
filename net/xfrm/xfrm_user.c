@@ -2927,7 +2927,7 @@ static int __net_init xfrm_user_net_init(struct net *net)
 	if (nlsk == NULL)
 		return -ENOMEM;
 	net->xfrm.nlsk_stash = nlsk; /* Don't set to NULL */
-	RCU_INIT_POINTER(net->xfrm.nlsk, nlsk);
+	rcu_assign_pointer(net->xfrm.nlsk, nlsk);
 	return 0;
 }
 

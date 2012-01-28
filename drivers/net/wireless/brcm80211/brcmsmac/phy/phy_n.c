@@ -14,6 +14,8 @@
  * CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
 #include <linux/kernel.h>
 #include <linux/delay.h>
 #include <linux/cordic.h>
@@ -26434,8 +26436,7 @@ cal_try:
 	}
 
 	if (bcmerror != 0) {
-		printk(KERN_DEBUG "%s: Failed, cnt = %d\n", __func__,
-		       cal_retry);
+		pr_debug("%s: Failed, cnt = %d\n", __func__, cal_retry);
 
 		if (cal_retry < CAL_RETRY_CNT) {
 			cal_retry++;

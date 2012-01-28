@@ -226,9 +226,7 @@ static int rt2800usb_init_registers(struct rt2x00_dev *rt2x00dev)
 	rt2x00usb_register_read(rt2x00dev, PBF_SYS_CTRL, &reg);
 	rt2x00usb_register_write(rt2x00dev, PBF_SYS_CTRL, reg & ~0x00002000);
 
-	rt2x00usb_register_write(rt2x00dev, PWR_PIN_CFG, 0x00000003);
-
-	rt2x00usb_register_read(rt2x00dev, MAC_SYS_CTRL, &reg);
+	reg = 0;
 	rt2x00_set_field32(&reg, MAC_SYS_CTRL_RESET_CSR, 1);
 	rt2x00_set_field32(&reg, MAC_SYS_CTRL_RESET_BBP, 1);
 	rt2x00usb_register_write(rt2x00dev, MAC_SYS_CTRL, reg);
@@ -1217,15 +1215,4 @@ static struct usb_driver rt2800usb_driver = {
 	.resume		= rt2x00usb_resume,
 };
 
-static int __init rt2800usb_init(void)
-{
-	return usb_register(&rt2800usb_driver);
-}
-
-static void __exit rt2800usb_exit(void)
-{
-	usb_deregister(&rt2800usb_driver);
-}
-
-module_init(rt2800usb_init);
-module_exit(rt2800usb_exit);
+module_usb_driver(rt2800usb_driver);

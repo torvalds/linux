@@ -41,6 +41,7 @@ struct red_sched_data {
 	unsigned char		flags;
 	struct timer_list	adapt_timer;
 	struct red_parms	parms;
+	struct red_vars		vars;
 	struct red_stats	stats;
 	struct Qdisc		*qdisc;
 };
@@ -61,12 +62,14 @@ static int red_enqueue(struct sk_buff *skb, struct Qdisc *sch)
 	struct Qdisc *child = q->qdisc;
 	int ret;
 
-	q->parms.qavg = red_calc_qavg(&q->parms, child->qstats.backlog);
+	q->vars.qavg = red_calc_qavg(&q->parms,
+				     &q->vars,
+				     child->qstats.backlog);
 
-	if (red_is_idling(&q->parms))
-		red_end_of_idle_period(&q->parms);
+	if (red_is_idling(&q->vars))
+		red_end_of_idle_period(&q->vars);
 
-	switch (red_action(&q->parms, q->parms.qavg)) {
+	switch (red_action(&q->parms, &q->vars, q->vars.qavg)) {
 	case RED_DONT_MARK:
 		break;
 
@@ -117,8 +120,8 @@ static struct sk_buff *red_dequeue(struct Qdisc *sch)
 		qdisc_bstats_update(sch, skb);
 		sch->q.qlen--;
 	} else {
-		if (!red_is_idling(&q->parms))
-			red_start_of_idle_period(&q->parms);
+		if (!red_is_idling(&q->vars))
+			red_start_of_idle_period(&q->vars);
 	}
 	return skb;
 }
@@ -144,8 +147,8 @@ static unsigned int red_drop(struct Qdisc *sch)
 		return len;
 	}
 
-	if (!red_is_idling(&q->parms))
-		red_start_of_idle_period(&q->parms);
+	if (!red_is_idling(&q->vars))
+		red_start_of_idle_period(&q->vars);
 
 	return 0;
 }
@@ -156,7 +159,7 @@ static void red_reset(struct Qdisc *sch)
 
 	qdisc_reset(q->qdisc);
 	sch->q.qlen = 0;
-	red_restart(&q->parms);
+	red_restart(&q->vars);
 }
 
 static void red_destroy(struct Qdisc *sch)
@@ -212,17 +215,19 @@ static int red_change(struct Qdisc *sch, struct nlattr *opt)
 		q->qdisc = child;
 	}
 
-	red_set_parms(&q->parms, ctl->qth_min, ctl->qth_max, ctl->Wlog,
+	red_set_parms(&q->parms,
+		      ctl->qth_min, ctl->qth_max, ctl->Wlog,
 		      ctl->Plog, ctl->Scell_log,
 		      nla_data(tb[TCA_RED_STAB]),
 		      max_P);
+	red_set_vars(&q->vars);
 
 	del_timer(&q->adapt_timer);
 	if (ctl->flags & TC_RED_ADAPTATIVE)
 		mod_timer(&q->adapt_timer, jiffies + HZ/2);
 
 	if (!q->qdisc->q.qlen)
-		red_start_of_idle_period(&q->parms);
+		red_start_of_idle_period(&q->vars);
 
 	sch_tree_unlock(sch);
 	return 0;
@@ -235,7 +240,7 @@ static inline void red_adaptative_timer(unsigned long arg)
 	spinlock_t *root_lock = qdisc_lock(qdisc_root_sleeping(sch));
 
 	spin_lock(root_lock);
-	red_adaptative_algo(&q->parms);
+	red_adaptative_algo(&q->parms, &q->vars);
 	mod_timer(&q->adapt_timer, jiffies + HZ/2);
 	spin_unlock(root_lock);
 }

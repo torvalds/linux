@@ -367,7 +367,6 @@ static u64 atmel_pcm_dmamask = 0xffffffff;
 static int atmel_pcm_new(struct snd_soc_pcm_runtime *rtd)
 {
 	struct snd_card *card = rtd->card->snd_card;
-	struct snd_soc_dai *dai = rtd->cpu_dai;
 	struct snd_pcm *pcm = rtd->pcm;
 	int ret = 0;
 
@@ -376,14 +375,14 @@ static int atmel_pcm_new(struct snd_soc_pcm_runtime *rtd)
 	if (!card->dev->coherent_dma_mask)
 		card->dev->coherent_dma_mask = 0xffffffff;
 
-	if (dai->driver->playback.channels_min) {
+	if (pcm->streams[SNDRV_PCM_STREAM_PLAYBACK].substream) {
 		ret = atmel_pcm_preallocate_dma_buffer(pcm,
 			SNDRV_PCM_STREAM_PLAYBACK);
 		if (ret)
 			goto out;
 	}
 
-	if (dai->driver->capture.channels_min) {
+	if (pcm->streams[SNDRV_PCM_STREAM_CAPTURE].substream) {
 		pr_debug("atmel-pcm:"
 				"Allocating PCM capture DMA buffer\n");
 		ret = atmel_pcm_preallocate_dma_buffer(pcm,
@@ -495,17 +494,7 @@ static struct platform_driver atmel_pcm_driver = {
 	.remove = __devexit_p(atmel_soc_platform_remove),
 };
 
-static int __init snd_atmel_pcm_init(void)
-{
-	return platform_driver_register(&atmel_pcm_driver);
-}
-module_init(snd_atmel_pcm_init);
-
-static void __exit snd_atmel_pcm_exit(void)
-{
-	platform_driver_unregister(&atmel_pcm_driver);
-}
-module_exit(snd_atmel_pcm_exit);
+module_platform_driver(atmel_pcm_driver);
 
 MODULE_AUTHOR("Sedji Gaouaou <sedji.gaouaou@atmel.com>");
 MODULE_DESCRIPTION("Atmel PCM module");

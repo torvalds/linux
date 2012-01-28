@@ -337,19 +337,7 @@ static struct platform_driver sh_keysc_device_driver = {
 		.pm	= &sh_keysc_dev_pm_ops,
 	}
 };
-
-static int __init sh_keysc_init(void)
-{
-	return platform_driver_register(&sh_keysc_device_driver);
-}
-
-static void __exit sh_keysc_exit(void)
-{
-	platform_driver_unregister(&sh_keysc_device_driver);
-}
-
-module_init(sh_keysc_init);
-module_exit(sh_keysc_exit);
+module_platform_driver(sh_keysc_device_driver);
 
 MODULE_AUTHOR("Magnus Damm");
 MODULE_DESCRIPTION("SuperH KEYSC Keypad Driver");

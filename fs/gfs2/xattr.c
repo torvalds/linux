@@ -321,11 +321,11 @@ static int ea_remove_unstuffed(struct gfs2_inode *ip, struct buffer_head *bh,
 			       struct gfs2_ea_header *ea,
 			       struct gfs2_ea_header *prev, int leave)
 {
-	struct gfs2_alloc *al;
+	struct gfs2_qadata *qa;
 	int error;
 
-	al = gfs2_alloc_get(ip);
-	if (!al)
+	qa = gfs2_qadata_get(ip);
+	if (!qa)
 		return -ENOMEM;
 
 	error = gfs2_quota_hold(ip, NO_QUOTA_CHANGE, NO_QUOTA_CHANGE);
@@ -336,7 +336,7 @@ static int ea_remove_unstuffed(struct gfs2_inode *ip, struct buffer_head *bh,
 
 	gfs2_quota_unhold(ip);
 out_alloc:
-	gfs2_alloc_put(ip);
+	gfs2_qadata_put(ip);
 	return error;
 }
 
@@ -549,9 +549,10 @@ int gfs2_xattr_acl_get(struct gfs2_inode *ip, const char *name, char **ppdata)
 		goto out;
 
 	error = gfs2_ea_get_copy(ip, &el, data, len);
-	if (error == 0)
-		error = len;
-	*ppdata = data;
+	if (error < 0)
+		kfree(data);
+	else
+		*ppdata = data;
 out:
 	brelse(el.el_bh);
 	return error;
@@ -609,7 +610,7 @@ static int ea_alloc_blk(struct gfs2_inode *ip, struct buffer_head **bhp)
 	u64 block;
 	int error;
 
-	error = gfs2_alloc_block(ip, &block, &n);
+	error = gfs2_alloc_blocks(ip, &block, &n, 0, NULL);
 	if (error)
 		return error;
 	gfs2_trans_add_unrevoke(sdp, block, 1);
@@ -671,7 +672,7 @@ static int ea_write(struct gfs2_inode *ip, struct gfs2_ea_header *ea,
 			int mh_size = sizeof(struct gfs2_meta_header);
 			unsigned int n = 1;
 
-			error = gfs2_alloc_block(ip, &block, &n);
+			error = gfs2_alloc_blocks(ip, &block, &n, 0, NULL);
 			if (error)
 				return error;
 			gfs2_trans_add_unrevoke(sdp, block, 1);
@@ -708,21 +709,19 @@ static int ea_alloc_skeleton(struct gfs2_inode *ip, struct gfs2_ea_request *er,
 			     unsigned int blks,
 			     ea_skeleton_call_t skeleton_call, void *private)
 {
-	struct gfs2_alloc *al;
+	struct gfs2_qadata *qa;
 	struct buffer_head *dibh;
 	int error;
 
-	al = gfs2_alloc_get(ip);
-	if (!al)
+	qa = gfs2_qadata_get(ip);
+	if (!qa)
 		return -ENOMEM;
 
 	error = gfs2_quota_lock_check(ip);
 	if (error)
 		goto out;
 
-	al->al_requested = blks;
-
-	error = gfs2_inplace_reserve(ip);
+	error = gfs2_inplace_reserve(ip, blks);
 	if (error)
 		goto out_gunlock_q;
 
@@ -751,7 +750,7 @@ out_ipres:
 out_gunlock_q:
 	gfs2_quota_unlock(ip);
 out:
-	gfs2_alloc_put(ip);
+	gfs2_qadata_put(ip);
 	return error;
 }
 
@@ -991,7 +990,7 @@ static int ea_set_block(struct gfs2_inode *ip, struct gfs2_ea_request *er,
 	} else {
 		u64 blk;
 		unsigned int n = 1;
-		error = gfs2_alloc_block(ip, &blk, &n);
+		error = gfs2_alloc_blocks(ip, &blk, &n, 0, NULL);
 		if (error)
 			return error;
 		gfs2_trans_add_unrevoke(sdp, blk, 1);
@@ -1435,9 +1434,9 @@ out:
 static int ea_dealloc_block(struct gfs2_inode *ip)
 {
 	struct gfs2_sbd *sdp = GFS2_SB(&ip->i_inode);
-	struct gfs2_alloc *al = ip->i_alloc;
 	struct gfs2_rgrpd *rgd;
 	struct buffer_head *dibh;
+	struct gfs2_holder gh;
 	int error;
 
 	rgd = gfs2_blk2rgrpd(sdp, ip->i_eattr);
@@ -1446,8 +1445,7 @@ static int ea_dealloc_block(struct gfs2_inode *ip)
 		return -EIO;
 	}
 
-	error = gfs2_glock_nq_init(rgd->rd_gl, LM_ST_EXCLUSIVE, 0,
-				   &al->al_rgd_gh);
+	error = gfs2_glock_nq_init(rgd->rd_gl, LM_ST_EXCLUSIVE, 0, &gh);
 	if (error)
 		return error;
 
@@ -1471,7 +1469,7 @@ static int ea_dealloc_block(struct gfs2_inode *ip)
 	gfs2_trans_end(sdp);
 
 out_gunlock:
-	gfs2_glock_dq_uninit(&al->al_rgd_gh);
+	gfs2_glock_dq_uninit(&gh);
 	return error;
 }
 
@@ -1484,11 +1482,11 @@ out_gunlock:
 
 int gfs2_ea_dealloc(struct gfs2_inode *ip)
 {
-	struct gfs2_alloc *al;
+	struct gfs2_qadata *qa;
 	int error;
 
-	al = gfs2_alloc_get(ip);
-	if (!al)
+	qa = gfs2_qadata_get(ip);
+	if (!qa)
 		return -ENOMEM;
 
 	error = gfs2_quota_hold(ip, NO_QUOTA_CHANGE, NO_QUOTA_CHANGE);
@@ -1510,7 +1508,7 @@ int gfs2_ea_dealloc(struct gfs2_inode *ip)
 out_quota:
 	gfs2_quota_unhold(ip);
 out_alloc:
-	gfs2_alloc_put(ip);
+	gfs2_qadata_put(ip);
 	return error;
 }
 

@@ -53,9 +53,9 @@ MODULE_PARM_DESC(bna_debugfs_enable, "Enables debugfs feature, default=1,"
  * Global variables
  */
 u32 bnad_rxqs_per_cq = 2;
-u32 bna_id;
-struct mutex bnad_list_mutex;
-LIST_HEAD(bnad_list);
+static u32 bna_id;
+static struct mutex bnad_list_mutex;
+static LIST_HEAD(bnad_list);
 static const u8 bnad_bcast_addr[] =  {0xff, 0xff, 0xff, 0xff, 0xff, 0xff};
 
 /*

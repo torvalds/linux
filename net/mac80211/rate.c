@@ -159,7 +159,6 @@ static struct rate_control_ref *rate_control_alloc(const char *name,
 	ref = kmalloc(sizeof(struct rate_control_ref), GFP_KERNEL);
 	if (!ref)
 		goto fail_ref;
-	kref_init(&ref->kref);
 	ref->local = local;
 	ref->ops = ieee80211_rate_control_ops_get(name);
 	if (!ref->ops)
@@ -184,11 +183,8 @@ fail_ref:
 	return NULL;
 }
 
-static void rate_control_release(struct kref *kref)
+static void rate_control_free(struct rate_control_ref *ctrl_ref)
 {
-	struct rate_control_ref *ctrl_ref;
-
-	ctrl_ref = container_of(kref, struct rate_control_ref, kref);
 	ctrl_ref->ops->free(ctrl_ref->priv);
 
 #ifdef CONFIG_MAC80211_DEBUGFS
@@ -383,21 +379,10 @@ void rate_control_get_rate(struct ieee80211_sub_if_data *sdata,
 	BUG_ON(info->control.rates[0].idx < 0);
 }
 
-struct rate_control_ref *rate_control_get(struct rate_control_ref *ref)
-{
-	kref_get(&ref->kref);
-	return ref;
-}
-
-void rate_control_put(struct rate_control_ref *ref)
-{
-	kref_put(&ref->kref, rate_control_release);
-}
-
 int ieee80211_init_rate_ctrl_alg(struct ieee80211_local *local,
 				 const char *name)
 {
-	struct rate_control_ref *ref, *old;
+	struct rate_control_ref *ref;
 
 	ASSERT_RTNL();
 
@@ -417,12 +402,8 @@ int ieee80211_init_rate_ctrl_alg(struct ieee80211_local *local,
 		return -ENOENT;
 	}
 
-	old = local->rate_ctrl;
+	WARN_ON(local->rate_ctrl);
 	local->rate_ctrl = ref;
-	if (old) {
-		rate_control_put(old);
-		sta_info_flush(local, NULL);
-	}
 
 	wiphy_debug(local->hw.wiphy, "Selected rate control algorithm '%s'\n",
 		    ref->ops->name);
@@ -440,6 +421,6 @@ void rate_control_deinitialize(struct ieee80211_local *local)
 		return;
 
 	local->rate_ctrl = NULL;
-	rate_control_put(ref);
+	rate_control_free(ref);
 }
 

@@ -599,11 +599,10 @@ mwifiex_is_ralist_valid(struct mwifiex_private *priv,
  * is queued at the list tail.
  */
 void
-mwifiex_wmm_add_buf_txqueue(struct mwifiex_adapter *adapter,
+mwifiex_wmm_add_buf_txqueue(struct mwifiex_private *priv,
 			    struct sk_buff *skb)
 {
-	struct mwifiex_txinfo *tx_info = MWIFIEX_SKB_TXCB(skb);
-	struct mwifiex_private *priv = adapter->priv[tx_info->bss_index];
+	struct mwifiex_adapter *adapter = priv->adapter;
 	u32 tid;
 	struct mwifiex_ra_list_tbl *ra_list;
 	u8 ra[ETH_ALEN], tid_down;

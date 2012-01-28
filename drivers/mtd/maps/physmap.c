@@ -85,6 +85,7 @@ static int physmap_flash_probe(struct platform_device *dev)
 	struct physmap_flash_data *physmap_data;
 	struct physmap_flash_info *info;
 	const char **probe_type;
+	const char **part_types;
 	int err = 0;
 	int i;
 	int devices_found = 0;
@@ -171,7 +172,9 @@ static int physmap_flash_probe(struct platform_device *dev)
 	if (err)
 		goto err_out;
 
-	mtd_device_parse_register(info->cmtd, part_probe_types, 0,
+	part_types = physmap_data->part_probe_types ? : part_probe_types;
+
+	mtd_device_parse_register(info->cmtd, part_types, 0,
 				  physmap_data->parts, physmap_data->nr_parts);
 	return 0;
 
@@ -187,9 +190,8 @@ static void physmap_flash_shutdown(struct platform_device *dev)
 	int i;
 
 	for (i = 0; i < MAX_RESOURCES && info->mtd[i]; i++)
-		if (info->mtd[i]->suspend && info->mtd[i]->resume)
-			if (info->mtd[i]->suspend(info->mtd[i]) == 0)
-				info->mtd[i]->resume(info->mtd[i]);
+		if (mtd_suspend(info->mtd[i]) == 0)
+			mtd_resume(info->mtd[i]);
 }
 #else
 #define physmap_flash_shutdown NULL

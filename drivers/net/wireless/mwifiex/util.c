@@ -159,7 +159,8 @@ int mwifiex_recv_packet(struct mwifiex_adapter *adapter, struct sk_buff *skb)
 		return -1;
 
 	rx_info = MWIFIEX_SKB_RXCB(skb);
-	priv = mwifiex_bss_index_to_priv(adapter, rx_info->bss_index);
+	priv = mwifiex_get_priv_by_id(adapter, rx_info->bss_num,
+			rx_info->bss_type);
 	if (!priv)
 		return -1;
 

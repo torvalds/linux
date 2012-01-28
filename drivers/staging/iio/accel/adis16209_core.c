@@ -18,7 +18,7 @@
 
 #include "../iio.h"
 #include "../sysfs.h"
-#include "../buffer_generic.h"
+#include "../buffer.h"
 
 #include "adis16209.h"
 
@@ -304,7 +304,7 @@ static int adis16209_write_raw(struct iio_dev *indio_dev,
 	s16 val16;
 	u8 addr;
 	switch (mask) {
-	case (1 << IIO_CHAN_INFO_CALIBBIAS_SEPARATE):
+	case IIO_CHAN_INFO_CALIBBIAS:
 		switch (chan->type) {
 		case IIO_ACCEL:
 		case IIO_INCLI:
@@ -355,8 +355,7 @@ static int adis16209_read_raw(struct iio_dev *indio_dev,
 		*val = val16;
 		mutex_unlock(&indio_dev->mlock);
 		return IIO_VAL_INT;
-	case (1 << IIO_CHAN_INFO_SCALE_SEPARATE):
-	case (1 << IIO_CHAN_INFO_SCALE_SHARED):
+	case IIO_CHAN_INFO_SCALE:
 		switch (chan->type) {
 		case IIO_VOLTAGE:
 			*val = 0;
@@ -381,10 +380,10 @@ static int adis16209_read_raw(struct iio_dev *indio_dev,
 			return -EINVAL;
 		}
 		break;
-	case (1 << IIO_CHAN_INFO_OFFSET_SEPARATE):
+	case IIO_CHAN_INFO_OFFSET:
 		*val = 25;
 		return IIO_VAL_INT;
-	case (1 << IIO_CHAN_INFO_CALIBBIAS_SEPARATE):
+	case IIO_CHAN_INFO_CALIBBIAS:
 		switch (chan->type) {
 		case IIO_ACCEL:
 			bits = 14;
@@ -410,34 +409,34 @@ static int adis16209_read_raw(struct iio_dev *indio_dev,
 
 static struct iio_chan_spec adis16209_channels[] = {
 	IIO_CHAN(IIO_VOLTAGE, 0, 1, 0, NULL, 0, 0,
-		 (1 << IIO_CHAN_INFO_SCALE_SEPARATE),
+		 IIO_CHAN_INFO_SCALE_SEPARATE_BIT,
 		 in_supply, ADIS16209_SCAN_SUPPLY,
 		 IIO_ST('u', 14, 16, 0), 0),
 	IIO_CHAN(IIO_TEMP, 0, 1, 0, NULL, 0, 0,
-		 (1 << IIO_CHAN_INFO_SCALE_SEPARATE) |
-		 (1 << IIO_CHAN_INFO_OFFSET_SEPARATE),
+		 IIO_CHAN_INFO_SCALE_SEPARATE_BIT |
+		 IIO_CHAN_INFO_OFFSET_SEPARATE_BIT,
 		 temp, ADIS16209_SCAN_TEMP,
 		 IIO_ST('u', 12, 16, 0), 0),
 	IIO_CHAN(IIO_ACCEL, 1, 0, 0, NULL, 0, IIO_MOD_X,
-		 (1 << IIO_CHAN_INFO_SCALE_SHARED) |
-		 (1 << IIO_CHAN_INFO_CALIBBIAS_SEPARATE),
+		 IIO_CHAN_INFO_SCALE_SHARED_BIT |
+		 IIO_CHAN_INFO_CALIBBIAS_SEPARATE_BIT,
 		 accel_x, ADIS16209_SCAN_ACC_X,
 		 IIO_ST('s', 14, 16, 0), 0),
 	IIO_CHAN(IIO_ACCEL, 1, 0, 0, NULL, 0, IIO_MOD_Y,
-		 (1 << IIO_CHAN_INFO_SCALE_SHARED) |
-		 (1 << IIO_CHAN_INFO_CALIBBIAS_SEPARATE),
+		 IIO_CHAN_INFO_SCALE_SHARED_BIT |
+		 IIO_CHAN_INFO_CALIBBIAS_SEPARATE_BIT,
 		 accel_y, ADIS16209_SCAN_ACC_Y,
 		 IIO_ST('s', 14, 16, 0), 0),
 	IIO_CHAN(IIO_VOLTAGE, 0, 1, 0, NULL, 1, 0,
-		 (1 << IIO_CHAN_INFO_SCALE_SEPARATE),
+		 IIO_CHAN_INFO_SCALE_SEPARATE_BIT,
 		 in_aux, ADIS16209_SCAN_AUX_ADC,
 		 IIO_ST('u', 12, 16, 0), 0),
 	IIO_CHAN(IIO_INCLI, 1, 0, 0, NULL, 0, IIO_MOD_X,
-		 (1 << IIO_CHAN_INFO_SCALE_SHARED),
+		 IIO_CHAN_INFO_SCALE_SHARED_BIT,
 		 incli_x, ADIS16209_SCAN_INCLI_X,
 		 IIO_ST('s', 14, 16, 0), 0),
 	IIO_CHAN(IIO_INCLI, 1, 0, 0, NULL, 0, IIO_MOD_Y,
-		 (1 << IIO_CHAN_INFO_SCALE_SHARED),
+		 IIO_CHAN_INFO_SCALE_SHARED_BIT,
 		 incli_y, ADIS16209_SCAN_INCLI_Y,
 		 IIO_ST('s', 14, 16, 0), 0),
 	IIO_CHAN(IIO_ROT, 0, 1, 0, NULL, 0, IIO_MOD_X,
@@ -553,19 +552,9 @@ static struct spi_driver adis16209_driver = {
 	.probe = adis16209_probe,
 	.remove = __devexit_p(adis16209_remove),
 };
-
-static __init int adis16209_init(void)
-{
-	return spi_register_driver(&adis16209_driver);
-}
-module_init(adis16209_init);
-
-static __exit void adis16209_exit(void)
-{
-	spi_unregister_driver(&adis16209_driver);
-}
-module_exit(adis16209_exit);
+module_spi_driver(adis16209_driver);
 
 MODULE_AUTHOR("Barry Song <21cnbao@gmail.com>");
 MODULE_DESCRIPTION("Analog Devices ADIS16209 Digital Vibration Sensor driver");
 MODULE_LICENSE("GPL v2");
+MODULE_ALIAS("spi:adis16209");

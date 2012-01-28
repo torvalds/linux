@@ -7848,7 +7848,7 @@ static void ipw_handle_data_packet_monitor(struct ipw_priv *priv,
 	 * more efficiently than we can parse it. ORDER MATTERS HERE */
 	struct ipw_rt_hdr *ipw_rt;
 
-	short len = le16_to_cpu(pkt->u.frame.length);
+	unsigned short len = le16_to_cpu(pkt->u.frame.length);
 
 	/* We received data from the HW, so stop the watchdog */
 	dev->trans_start = jiffies;
@@ -8023,7 +8023,7 @@ static void ipw_handle_promiscuous_rx(struct ipw_priv *priv,
 	s8 signal = frame->rssi_dbm - IPW_RSSI_TO_DBM;
 	s8 noise = (s8) le16_to_cpu(frame->noise);
 	u8 rate = frame->rate;
-	short len = le16_to_cpu(pkt->u.frame.length);
+	unsigned short len = le16_to_cpu(pkt->u.frame.length);
 	struct sk_buff *skb;
 	int hdr_only = 0;
 	u16 filter = priv->prom_priv->filter;

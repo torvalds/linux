@@ -97,19 +97,16 @@ static ssize_t lcd_store_power(struct device *dev,
 		struct device_attribute *attr, const char *buf, size_t count)
 {
 	int rc = -ENXIO;
-	char *endp;
 	struct lcd_device *ld = to_lcd_device(dev);
-	int power = simple_strtoul(buf, &endp, 0);
-	size_t size = endp - buf;
+	unsigned long power;
 
-	if (isspace(*endp))
-		size++;
-	if (size != count)
-		return -EINVAL;
+	rc = kstrtoul(buf, 0, &power);
+	if (rc)
+		return rc;
 
 	mutex_lock(&ld->ops_lock);
 	if (ld->ops && ld->ops->set_power) {
-		pr_debug("lcd: set power to %d\n", power);
+		pr_debug("lcd: set power to %lu\n", power);
 		ld->ops->set_power(ld, power);
 		rc = count;
 	}
@@ -136,19 +133,16 @@ static ssize_t lcd_store_contrast(struct device *dev,
 		struct device_attribute *attr, const char *buf, size_t count)
 {
 	int rc = -ENXIO;
-	char *endp;
 	struct lcd_device *ld = to_lcd_device(dev);
-	int contrast = simple_strtoul(buf, &endp, 0);
-	size_t size = endp - buf;
+	unsigned long contrast;
 
-	if (isspace(*endp))
-		size++;
-	if (size != count)
-		return -EINVAL;
+	rc = kstrtoul(buf, 0, &contrast);
+	if (rc)
+		return rc;
 
 	mutex_lock(&ld->ops_lock);
 	if (ld->ops && ld->ops->set_contrast) {
-		pr_debug("lcd: set contrast to %d\n", contrast);
+		pr_debug("lcd: set contrast to %lu\n", contrast);
 		ld->ops->set_contrast(ld, contrast);
 		rc = count;
 	}

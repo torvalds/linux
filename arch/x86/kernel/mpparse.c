@@ -564,9 +564,7 @@ void __init default_get_smp_config(unsigned int early)
 
 static void __init smp_reserve_memory(struct mpf_intel *mpf)
 {
-	unsigned long size = get_mpc_size(mpf->physptr);
-
-	memblock_x86_reserve_range(mpf->physptr, mpf->physptr+size, "* MP-table mpc");
+	memblock_reserve(mpf->physptr, get_mpc_size(mpf->physptr));
 }
 
 static int __init smp_scan_config(unsigned long base, unsigned long length)
@@ -595,7 +593,7 @@ static int __init smp_scan_config(unsigned long base, unsigned long length)
 			       mpf, (u64)virt_to_phys(mpf));
 
 			mem = virt_to_phys(mpf);
-			memblock_x86_reserve_range(mem, mem + sizeof(*mpf), "* MP-table mpf");
+			memblock_reserve(mem, sizeof(*mpf));
 			if (mpf->physptr)
 				smp_reserve_memory(mpf);
 
@@ -836,10 +834,8 @@ early_param("alloc_mptable", parse_alloc_mptable_opt);
 
 void __init early_reserve_e820_mpc_new(void)
 {
-	if (enable_update_mptable && alloc_mptable) {
-		u64 startt = 0;
-		mpc_new_phys = early_reserve_e820(startt, mpc_new_length, 4);
-	}
+	if (enable_update_mptable && alloc_mptable)
+		mpc_new_phys = early_reserve_e820(mpc_new_length, 4);
 }
 
 static int __init update_mp_table(void)

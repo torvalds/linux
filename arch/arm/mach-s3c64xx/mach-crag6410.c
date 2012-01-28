@@ -37,6 +37,9 @@
 #include <linux/mfd/wm831x/irq.h>
 #include <linux/mfd/wm831x/gpio.h>
 
+#include <sound/wm1250-ev1.h>
+
+#include <asm/hardware/vic.h>
 #include <asm/mach/arch.h>
 #include <asm/mach-types.h>
 
@@ -50,7 +53,6 @@
 
 #include <mach/regs-gpio-memport.h>
 
-#include <plat/s3c6410.h>
 #include <plat/regs-serial.h>
 #include <plat/regs-fb-v4.h>
 #include <plat/fb.h>
@@ -65,6 +67,8 @@
 #include <plat/adc.h>
 #include <plat/iic.h>
 #include <plat/pm.h>
+
+#include "common.h"
 
 /* serial port setup */
 
@@ -282,8 +286,13 @@ static struct platform_device lowland_device = {
 	.id		= -1,
 };
 
-static struct platform_device speyside_wm8962_device = {
-	.name		= "speyside-wm8962",
+static struct platform_device tobermory_device = {
+	.name		= "tobermory",
+	.id		= -1,
+};
+
+static struct platform_device littlemill_device = {
+	.name		= "littlemill",
 	.id		= -1,
 };
 
@@ -338,7 +347,8 @@ static struct platform_device *crag6410_devices[] __initdata = {
 	&crag6410_lcd_powerdev,
 	&crag6410_backlight_device,
 	&speyside_device,
-	&speyside_wm8962_device,
+	&tobermory_device,
+	&littlemill_device,
 	&lowland_device,
 	&wallvdd_device,
 };
@@ -372,6 +382,10 @@ static struct regulator_init_data vddarm __initdata = {
 	.driver_data = &vddarm_pdata,
 };
 
+static struct regulator_consumer_supply vddint_consumers[] __initdata = {
+	REGULATOR_SUPPLY("vddint", NULL),
+};
+
 static struct regulator_init_data vddint __initdata = {
 	.constraints = {
 		.name = "VDDINT",
@@ -380,6 +394,9 @@ static struct regulator_init_data vddint __initdata = {
 		.always_on = 1,
 		.valid_ops_mask = REGULATOR_CHANGE_VOLTAGE,
 	},
+	.num_consumer_supplies = ARRAY_SIZE(vddint_consumers),
+	.consumer_supplies = vddint_consumers,
+	.supply_regulator = "WALLVDD",
 };
 
 static struct regulator_init_data vddmem __initdata = {
@@ -500,7 +517,8 @@ static struct wm831x_touch_pdata touch_pdata __initdata = {
 static struct wm831x_pdata crag_pmic_pdata __initdata = {
 	.wm831x_num = 1,
 	.irq_base = BANFF_PMIC_IRQ_BASE,
-	.gpio_base = GPIO_BOARD_START + 8,
+	.gpio_base = BANFF_PMIC_GPIO_BASE,
+	.soft_shutdown = true,
 
 	.backup = &banff_backup_pdata,
 
@@ -605,6 +623,7 @@ static struct wm831x_pdata glenfarclas_pmic_pdata __initdata = {
 	.wm831x_num = 2,
 	.irq_base = GLENFARCLAS_PMIC_IRQ_BASE,
 	.gpio_base = GLENFARCLAS_PMIC_GPIO_BASE,
+	.soft_shutdown = true,
 
 	.gpio_defaults = {
 		/* GPIO1-3: IRQ inputs, rising edge triggered, CMOS */
@@ -622,6 +641,16 @@ static struct wm831x_pdata glenfarclas_pmic_pdata __initdata = {
 	.disable_touch = true,
 };
 
+static struct wm1250_ev1_pdata wm1250_ev1_pdata = {
+	.gpios = {
+		[WM1250_EV1_GPIO_CLK_ENA] = S3C64XX_GPN(12),
+		[WM1250_EV1_GPIO_CLK_SEL0] = S3C64XX_GPL(12),
+		[WM1250_EV1_GPIO_CLK_SEL1] = S3C64XX_GPL(13),
+		[WM1250_EV1_GPIO_OSR] = S3C64XX_GPL(14),
+		[WM1250_EV1_GPIO_MASTER] = S3C64XX_GPL(8),
+	},
+};
+
 static struct i2c_board_info i2c_devs1[] __initdata = {
 	{ I2C_BOARD_INFO("wm8311", 0x34),
 	  .irq = S3C_EINT(0),
@@ -631,7 +660,13 @@ static struct i2c_board_info i2c_devs1[] __initdata = {
 	{ I2C_BOARD_INFO("wlf-gf-module", 0x25) },
 	{ I2C_BOARD_INFO("wlf-gf-module", 0x26) },
 
-	{ I2C_BOARD_INFO("wm1250-ev1", 0x27) },
+	{ I2C_BOARD_INFO("wm1250-ev1", 0x27),
+	  .platform_data = &wm1250_ev1_pdata },
+};
+
+static struct s3c2410_platform_i2c i2c1_pdata = {
+	.frequency = 400000,
+	.bus_num = 1,
 };
 
 static void __init crag6410_map_io(void)
@@ -692,7 +727,7 @@ static void __init crag6410_machine_init(void)
 	s3c_sdhci2_set_platdata(&crag6410_hsmmc2_pdata);
 
 	s3c_i2c0_set_platdata(&i2c0_pdata);
-	s3c_i2c1_set_platdata(NULL);
+	s3c_i2c1_set_platdata(&i2c1_pdata);
 	s3c_fb_set_platdata(&crag6410_lcd_pdata);
 
 	i2c_register_board_info(0, i2c_devs0, ARRAY_SIZE(i2c_devs0));
@@ -704,14 +739,16 @@ static void __init crag6410_machine_init(void)
 
 	regulator_has_full_constraints();
 
-	s3c_pm_init();
+	s3c64xx_pm_init();
 }
 
 MACHINE_START(WLF_CRAGG_6410, "Wolfson Cragganmore 6410")
 	/* Maintainer: Mark Brown <broonie@opensource.wolfsonmicro.com> */
 	.atag_offset	= 0x100,
 	.init_irq	= s3c6410_init_irq,
+	.handle_irq	= vic_handle_irq,
 	.map_io		= crag6410_map_io,
 	.init_machine	= crag6410_machine_init,
 	.timer		= &s3c24xx_timer,
+	.restart	= s3c64xx_restart,
 MACHINE_END

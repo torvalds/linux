@@ -424,8 +424,8 @@ mwifiex_hard_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	struct sk_buff *new_skb;
 	struct mwifiex_txinfo *tx_info;
 
-	dev_dbg(priv->adapter->dev, "data: %lu BSS(%d): Data <= kernel\n",
-				jiffies, priv->bss_index);
+	dev_dbg(priv->adapter->dev, "data: %lu BSS(%d-%d): Data <= kernel\n",
+				jiffies, priv->bss_type, priv->bss_num);
 
 	if (priv->adapter->surprise_removed) {
 		kfree_skb(skb);
@@ -458,10 +458,11 @@ mwifiex_hard_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	}
 
 	tx_info = MWIFIEX_SKB_TXCB(skb);
-	tx_info->bss_index = priv->bss_index;
+	tx_info->bss_num = priv->bss_num;
+	tx_info->bss_type = priv->bss_type;
 	mwifiex_fill_buffer(skb);
 
-	mwifiex_wmm_add_buf_txqueue(priv->adapter, skb);
+	mwifiex_wmm_add_buf_txqueue(priv, skb);
 	atomic_inc(&priv->adapter->tx_pending);
 
 	if (atomic_read(&priv->adapter->tx_pending) >= MAX_TX_PENDING) {
@@ -531,8 +532,8 @@ mwifiex_tx_timeout(struct net_device *dev)
 {
 	struct mwifiex_private *priv = mwifiex_netdev_get_priv(dev);
 
-	dev_err(priv->adapter->dev, "%lu : Tx timeout, bss_index=%d\n",
-				jiffies, priv->bss_index);
+	dev_err(priv->adapter->dev, "%lu : Tx timeout, bss_type-num = %d-%d\n",
+				jiffies, priv->bss_type, priv->bss_num);
 	mwifiex_set_trans_start(dev);
 	priv->num_tx_timeout++;
 }
@@ -602,18 +603,6 @@ int is_command_pending(struct mwifiex_adapter *adapter)
 	spin_unlock_irqrestore(&adapter->cmd_pending_q_lock, flags);
 
 	return !is_cmd_pend_q_empty;
-}
-
-/*
- * This function returns the correct private structure pointer based
- * upon the BSS number.
- */
-struct mwifiex_private *
-mwifiex_bss_index_to_priv(struct mwifiex_adapter *adapter, u8 bss_index)
-{
-	if (!adapter || (bss_index >= adapter->priv_num))
-		return NULL;
-	return adapter->priv[bss_index];
 }
 
 /*

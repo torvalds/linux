@@ -537,7 +537,7 @@ int cleanup_journal_tail(journal_t *journal)
  * them.
  *
  * Called with j_list_lock held.
- * Returns number of bufers reaped (for debug)
+ * Returns number of buffers reaped (for debug)
  */
 
 static int journal_clean_one_cp_list(struct journal_head *jh, int *released)

@@ -49,6 +49,8 @@
 #include <plat/cpu.h>
 #include <plat/mci.h>
 
+#include "common.h"
+
 static struct map_desc at2440evb_iodesc[] __initdata = {
 	/* Nothing here */
 };
@@ -57,22 +59,6 @@ static struct map_desc at2440evb_iodesc[] __initdata = {
 #define ULCON (S3C2410_LCON_CS8 | S3C2410_LCON_PNONE)
 #define UFCON (S3C2410_UFCON_RXTRIG8 | S3C2410_UFCON_FIFOMODE)
 
-static struct s3c24xx_uart_clksrc at2440evb_serial_clocks[] = {
-	[0] = {
-		.name		= "uclk",
-		.divisor	= 1,
-		.min_baud	= 0,
-		.max_baud	= 0,
-	},
-	[1] = {
-		.name		= "pclk",
-		.divisor	= 1,
-		.min_baud	= 0,
-		.max_baud	= 0,
-	}
-};
-
-
 static struct s3c2410_uartcfg at2440evb_uartcfgs[] __initdata = {
 	[0] = {
 		.hwport	     = 0,
@@ -80,8 +66,7 @@ static struct s3c2410_uartcfg at2440evb_uartcfgs[] __initdata = {
 		.ucon	     = UCON,
 		.ulcon	     = ULCON,
 		.ufcon	     = UFCON,
-		.clocks	     = at2440evb_serial_clocks,
-		.clocks_size = ARRAY_SIZE(at2440evb_serial_clocks),
+		.clk_sel	= S3C2410_UCON_CLKSEL1 | S3C2410_UCON_CLKSEL2,
 	},
 	[1] = {
 		.hwport	     = 1,
@@ -89,8 +74,7 @@ static struct s3c2410_uartcfg at2440evb_uartcfgs[] __initdata = {
 		.ucon	     = UCON,
 		.ulcon	     = ULCON,
 		.ufcon	     = UFCON,
-		.clocks	     = at2440evb_serial_clocks,
-		.clocks_size = ARRAY_SIZE(at2440evb_serial_clocks),
+		.clk_sel	= S3C2410_UCON_CLKSEL1 | S3C2410_UCON_CLKSEL2,
 	},
 };
 
@@ -238,4 +222,5 @@ MACHINE_START(AT2440EVB, "AT2440EVB")
 	.init_machine	= at2440evb_init,
 	.init_irq	= s3c24xx_init_irq,
 	.timer		= &s3c24xx_timer,
+	.restart	= s3c2440_restart,
 MACHINE_END

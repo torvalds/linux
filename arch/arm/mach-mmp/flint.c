@@ -87,8 +87,8 @@ static struct resource smc91x_resources[] = {
 		.flags  = IORESOURCE_MEM,
 	},
 	[1] = {
-		.start  = gpio_to_irq(155),
-		.end    = gpio_to_irq(155),
+		.start  = MMP_GPIO_TO_IRQ(155),
+		.end    = MMP_GPIO_TO_IRQ(155),
 		.flags  = IORESOURCE_IRQ | IORESOURCE_IRQ_HIGHEDGE,
 	}
 };
@@ -110,6 +110,7 @@ static void __init flint_init(void)
 	/* on-chip devices */
 	mmp2_add_uart(1);
 	mmp2_add_uart(2);
+	platform_device_register(&mmp2_device_gpio);
 
 	/* off-chip devices */
 	platform_device_register(&smc91x_device);
@@ -121,4 +122,5 @@ MACHINE_START(FLINT, "Flint Development Platform")
 	.init_irq       = mmp2_init_irq,
 	.timer          = &mmp2_timer,
 	.init_machine   = flint_init,
+	.restart	= mmp_restart,
 MACHINE_END

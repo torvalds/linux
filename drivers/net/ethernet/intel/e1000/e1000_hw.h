@@ -812,8 +812,7 @@ struct e1000_ffvt_entry {
 #define E1000_FLA      0x0001C	/* Flash Access - RW */
 #define E1000_MDIC     0x00020	/* MDI Control - RW */
 
-extern void __iomem *ce4100_gbe_mdio_base_virt;
-#define INTEL_CE_GBE_MDIO_RCOMP_BASE    (ce4100_gbe_mdio_base_virt)
+#define INTEL_CE_GBE_MDIO_RCOMP_BASE    (hw->ce4100_gbe_mdio_base_virt)
 #define E1000_MDIO_STS  (INTEL_CE_GBE_MDIO_RCOMP_BASE + 0)
 #define E1000_MDIO_CMD  (INTEL_CE_GBE_MDIO_RCOMP_BASE + 4)
 #define E1000_MDIO_DRV  (INTEL_CE_GBE_MDIO_RCOMP_BASE + 8)
@@ -1343,6 +1342,7 @@ struct e1000_hw_stats {
 struct e1000_hw {
 	u8 __iomem *hw_addr;
 	u8 __iomem *flash_address;
+	void __iomem *ce4100_gbe_mdio_base_virt;
 	e1000_mac_type mac_type;
 	e1000_phy_type phy_type;
 	u32 phy_init_script;

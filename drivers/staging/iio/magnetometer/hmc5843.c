@@ -463,7 +463,7 @@ static int hmc5843_read_raw(struct iio_dev *indio_dev,
 		return hmc5843_read_measurement(indio_dev,
 						chan->address,
 						val);
-	case (1 << IIO_CHAN_INFO_SCALE_SHARED):
+	case IIO_CHAN_INFO_SCALE:
 		*val = 0;
 		*val2 = hmc5843_regval_to_nanoscale[data->range];
 		return IIO_VAL_INT_PLUS_NANO;
@@ -476,7 +476,7 @@ static int hmc5843_read_raw(struct iio_dev *indio_dev,
 		.type = IIO_MAGN,					\
 		.modified = 1,						\
 		.channel2 = IIO_MOD_##axis,				\
-		.info_mask = (1 << IIO_CHAN_INFO_SCALE_SHARED),		\
+		.info_mask = IIO_CHAN_INFO_SCALE_SHARED_BIT,		\
 		.address = add						\
 	}
 
@@ -605,6 +605,7 @@ static const struct i2c_device_id hmc5843_id[] = {
 	{ "hmc5843", 0 },
 	{ }
 };
+MODULE_DEVICE_TABLE(i2c, hmc5843_id);
 
 static struct i2c_driver hmc5843_driver = {
 	.driver = {
@@ -618,20 +619,8 @@ static struct i2c_driver hmc5843_driver = {
 	.suspend	= hmc5843_suspend,
 	.resume		= hmc5843_resume,
 };
-
-static int __init hmc5843_init(void)
-{
-	return i2c_add_driver(&hmc5843_driver);
-}
-
-static void __exit hmc5843_exit(void)
-{
-	i2c_del_driver(&hmc5843_driver);
-}
+module_i2c_driver(hmc5843_driver);
 
 MODULE_AUTHOR("Shubhrajyoti Datta <shubhrajyoti@ti.com");
 MODULE_DESCRIPTION("HMC5843 driver");
 MODULE_LICENSE("GPL");
-
-module_init(hmc5843_init);
-module_exit(hmc5843_exit);

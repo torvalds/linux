@@ -79,7 +79,7 @@ static int
 mwifiex_cfg80211_del_key(struct wiphy *wiphy, struct net_device *netdev,
 			 u8 key_index, bool pairwise, const u8 *mac_addr)
 {
-	struct mwifiex_private *priv = mwifiex_cfg80211_get_priv(wiphy);
+	struct mwifiex_private *priv = mwifiex_netdev_get_priv(netdev);
 
 	if (mwifiex_set_encode(priv, NULL, 0, key_index, 1)) {
 		wiphy_err(wiphy, "deleting the crypto keys\n");
@@ -122,7 +122,7 @@ mwifiex_cfg80211_set_power_mgmt(struct wiphy *wiphy,
 				struct net_device *dev,
 				bool enabled, int timeout)
 {
-	struct mwifiex_private *priv = mwifiex_cfg80211_get_priv(wiphy);
+	struct mwifiex_private *priv = mwifiex_netdev_get_priv(dev);
 	u32 ps_mode;
 
 	if (timeout)
@@ -143,7 +143,7 @@ mwifiex_cfg80211_set_default_key(struct wiphy *wiphy, struct net_device *netdev,
 				 u8 key_index, bool unicast,
 				 bool multicast)
 {
-	struct mwifiex_private *priv = mwifiex_cfg80211_get_priv(wiphy);
+	struct mwifiex_private *priv = mwifiex_netdev_get_priv(netdev);
 
 	/* Return if WEP key not configured */
 	if (priv->sec_info.wep_status == MWIFIEX_802_11_WEP_DISABLED)
@@ -165,7 +165,7 @@ mwifiex_cfg80211_add_key(struct wiphy *wiphy, struct net_device *netdev,
 			 u8 key_index, bool pairwise, const u8 *mac_addr,
 			 struct key_params *params)
 {
-	struct mwifiex_private *priv = mwifiex_cfg80211_get_priv(wiphy);
+	struct mwifiex_private *priv = mwifiex_netdev_get_priv(netdev);
 
 	if (mwifiex_set_encode(priv, params->key, params->key_len,
 							key_index, 0)) {
@@ -376,7 +376,7 @@ mwifiex_cfg80211_set_channel(struct wiphy *wiphy, struct net_device *dev,
 			     struct ieee80211_channel *chan,
 			     enum nl80211_channel_type channel_type)
 {
-	struct mwifiex_private *priv = mwifiex_cfg80211_get_priv(wiphy);
+	struct mwifiex_private *priv = mwifiex_netdev_get_priv(dev);
 
 	if (priv->media_connected) {
 		wiphy_err(wiphy, "This setting is valid only when station "
@@ -556,6 +556,23 @@ mwifiex_dump_station_info(struct mwifiex_private *priv,
 	sinfo->signal = priv->qual_level;
 	/* bit rate is in 500 kb/s units. Convert it to 100kb/s units */
 	sinfo->txrate.legacy = rate.rate * 5;
+
+	if (priv->bss_mode == NL80211_IFTYPE_STATION) {
+		sinfo->filled |= STATION_INFO_BSS_PARAM;
+		sinfo->bss_param.flags = 0;
+		if (priv->curr_bss_params.bss_descriptor.cap_info_bitmap &
+						WLAN_CAPABILITY_SHORT_PREAMBLE)
+			sinfo->bss_param.flags |=
+					BSS_PARAM_FLAGS_SHORT_PREAMBLE;
+		if (priv->curr_bss_params.bss_descriptor.cap_info_bitmap &
+						WLAN_CAPABILITY_SHORT_SLOT_TIME)
+			sinfo->bss_param.flags |=
+					BSS_PARAM_FLAGS_SHORT_SLOT_TIME;
+		sinfo->bss_param.dtim_period =
+			priv->curr_bss_params.bss_descriptor.dtim_period;
+		sinfo->bss_param.beacon_interval =
+			priv->curr_bss_params.bss_descriptor.beacon_period;
+	}
 
 	return ret;
 }
@@ -1004,7 +1021,7 @@ static int
 mwifiex_cfg80211_join_ibss(struct wiphy *wiphy, struct net_device *dev,
 			   struct cfg80211_ibss_params *params)
 {
-	struct mwifiex_private *priv = mwifiex_cfg80211_get_priv(wiphy);
+	struct mwifiex_private *priv = mwifiex_netdev_get_priv(dev);
 	int ret = 0;
 
 	if (priv->bss_mode != NL80211_IFTYPE_ADHOC) {
@@ -1042,7 +1059,7 @@ done:
 static int
 mwifiex_cfg80211_leave_ibss(struct wiphy *wiphy, struct net_device *dev)
 {
-	struct mwifiex_private *priv = mwifiex_cfg80211_get_priv(wiphy);
+	struct mwifiex_private *priv = mwifiex_netdev_get_priv(dev);
 
 	wiphy_dbg(wiphy, "info: disconnecting from essid %pM\n",
 			priv->cfg_bssid);
@@ -1217,7 +1234,6 @@ struct net_device *mwifiex_add_virtual_intf(struct wiphy *wiphy,
 		priv->frame_type = MWIFIEX_DATA_FRAME_TYPE_ETH_II;
 		priv->bss_priority = 0;
 		priv->bss_role = MWIFIEX_BSS_ROLE_STA;
-		priv->bss_index = 0;
 		priv->bss_num = 0;
 
 		break;
@@ -1281,10 +1297,7 @@ EXPORT_SYMBOL_GPL(mwifiex_add_virtual_intf);
  */
 int mwifiex_del_virtual_intf(struct wiphy *wiphy, struct net_device *dev)
 {
-	struct mwifiex_private *priv = mwifiex_cfg80211_get_priv(wiphy);
-
-	if (!priv || !dev)
-		return 0;
+	struct mwifiex_private *priv = mwifiex_netdev_get_priv(dev);
 
 #ifdef CONFIG_DEBUG_FS
 	mwifiex_dev_debugfs_remove(priv);

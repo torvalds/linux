@@ -95,7 +95,7 @@ BTFIXUPDEF_CALL(void, free_thread_info, struct thread_info *)
  * Observe the order of get_free_pages() in alloc_thread_info_node().
  * The sun4 has 8K stack too, because it's short on memory, and 16K is a waste.
  */
-#define THREAD_SIZE		8192
+#define THREAD_SIZE		(2 * PAGE_SIZE)
 
 /*
  * Offsets in thread_info structure, used in assembly code
@@ -133,7 +133,6 @@ BTFIXUPDEF_CALL(void, free_thread_info, struct thread_info *)
 #define TIF_POLLING_NRFLAG	9	/* true if poll_idle() is polling
 					 * TIF_NEED_RESCHED */
 #define TIF_MEMDIE		10	/* is terminating due to OOM killer */
-#define TIF_FREEZE		11	/* is freezing for suspend */
 
 /* as above, but as bit values */
 #define _TIF_SYSCALL_TRACE	(1<<TIF_SYSCALL_TRACE)
@@ -147,7 +146,6 @@ BTFIXUPDEF_CALL(void, free_thread_info, struct thread_info *)
 #define _TIF_DO_NOTIFY_RESUME_MASK	(_TIF_NOTIFY_RESUME | \
 					 _TIF_SIGPENDING | \
 					 _TIF_RESTORE_SIGMASK)
-#define _TIF_FREEZE		(1<<TIF_FREEZE)
 
 #endif /* __KERNEL__ */
 

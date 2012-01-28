@@ -227,17 +227,7 @@ static struct usb_driver gl620a_driver = {
 	.resume =	usbnet_resume,
 };
 
-static int __init usbnet_init(void)
-{
- 	return usb_register(&gl620a_driver);
-}
-module_init(usbnet_init);
-
-static void __exit usbnet_exit(void)
-{
- 	usb_deregister(&gl620a_driver);
-}
-module_exit(usbnet_exit);
+module_usb_driver(gl620a_driver);
 
 MODULE_AUTHOR("Jiun-Jie Huang");
 MODULE_DESCRIPTION("GL620-USB-A Host-to-Host Link cables");

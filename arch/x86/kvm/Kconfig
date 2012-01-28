@@ -35,6 +35,7 @@ config KVM
 	select KVM_MMIO
 	select TASKSTATS
 	select TASK_DELAY_ACCT
+	select PERF_EVENTS
 	---help---
 	  Support hosting fully virtualized guest machines using hardware
 	  virtualization extensions.  You will need a fairly recent
@@ -52,6 +53,8 @@ config KVM
 config KVM_INTEL
 	tristate "KVM for Intel processors support"
 	depends on KVM
+	# for perf_guest_get_msrs():
+	depends on CPU_SUP_INTEL
 	---help---
 	  Provides support for KVM on Intel processors equipped with the VT
 	  extensions.

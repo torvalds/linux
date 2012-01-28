@@ -297,4 +297,5 @@ MACHINE_START(EUKREA_CPUIMX51, "Eukrea CPUIMX51 Module")
 	.handle_irq = imx51_handle_irq,
 	.timer = &mxc_timer,
 	.init_machine = eukrea_cpuimx51_init,
+	.restart	= mxc_restart,
 MACHINE_END

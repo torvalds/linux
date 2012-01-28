@@ -1377,25 +1377,4 @@ static struct usb_driver stk_camera_driver = {
 #endif
 };
 
-
-static int __init stk_camera_init(void)
-{
-	int result;
-
-	result = usb_register(&stk_camera_driver);
-	if (result)
-		STK_ERROR("usb_register failed ! Error number %d\n", result);
-
-
-	return result;
-}
-
-static void __exit stk_camera_exit(void)
-{
-	usb_deregister(&stk_camera_driver);
-}
-
-module_init(stk_camera_init);
-module_exit(stk_camera_exit);
-
-
+module_usb_driver(stk_camera_driver);

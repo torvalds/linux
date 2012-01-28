@@ -69,6 +69,7 @@ struct regulator_init_data;
 struct mc13xxx_regulator_init_data {
 	int id;
 	struct regulator_init_data *init_data;
+	struct device_node *node;
 };
 
 struct mc13xxx_regulator_platform_data {

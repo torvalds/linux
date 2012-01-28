@@ -67,7 +67,7 @@ extern struct console early_mrst_console;
 extern void mrst_early_console_init(void);
 
 extern struct console early_hsu_console;
-extern void hsu_early_console_init(void);
+extern void hsu_early_console_init(const char *);
 
 extern void intel_scu_devices_create(void);
 extern void intel_scu_devices_destroy(void);

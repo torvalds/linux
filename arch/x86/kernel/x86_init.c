@@ -92,6 +92,7 @@ struct x86_init_ops x86_init __initdata = {
 
 struct x86_cpuinit_ops x86_cpuinit __cpuinitdata = {
 	.setup_percpu_clockev		= setup_secondary_APIC_clock,
+	.fixup_cpu_id			= x86_default_fixup_cpu_id,
 };
 
 static void default_nmi_init(void) { };
@@ -114,4 +115,5 @@ struct x86_msi_ops x86_msi = {
 	.setup_msi_irqs = native_setup_msi_irqs,
 	.teardown_msi_irq = native_teardown_msi_irq,
 	.teardown_msi_irqs = default_teardown_msi_irqs,
+	.restore_msi_irqs = default_restore_msi_irqs,
 };

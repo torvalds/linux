@@ -675,26 +675,7 @@ static struct usb_driver it913x_driver = {
 	.id_table	= it913x_table,
 };
 
-/* module stuff */
-static int __init it913x_module_init(void)
-{
-	int result = usb_register(&it913x_driver);
-	if (result) {
-		err("usb_register failed. Error number %d", result);
-		return result;
-	}
-
-	return 0;
-}
-
-static void __exit it913x_module_exit(void)
-{
-	/* deregister this driver from the USB subsystem */
-	usb_deregister(&it913x_driver);
-}
-
-module_init(it913x_module_init);
-module_exit(it913x_module_exit);
+module_usb_driver(it913x_driver);
 
 MODULE_AUTHOR("Malcolm Priestley <tvboxspy@gmail.com>");
 MODULE_DESCRIPTION("it913x USB 2 Driver");

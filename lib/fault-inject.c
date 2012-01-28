@@ -149,7 +149,7 @@ static int debugfs_ul_get(void *data, u64 *val)
 
 DEFINE_SIMPLE_ATTRIBUTE(fops_ul, debugfs_ul_get, debugfs_ul_set, "%llu\n");
 
-static struct dentry *debugfs_create_ul(const char *name, mode_t mode,
+static struct dentry *debugfs_create_ul(const char *name, umode_t mode,
 				struct dentry *parent, unsigned long *value)
 {
 	return debugfs_create_file(name, mode, parent, value, &fops_ul);
@@ -169,7 +169,7 @@ DEFINE_SIMPLE_ATTRIBUTE(fops_stacktrace_depth, debugfs_ul_get,
 			debugfs_stacktrace_depth_set, "%llu\n");
 
 static struct dentry *debugfs_create_stacktrace_depth(
-	const char *name, mode_t mode,
+	const char *name, umode_t mode,
 	struct dentry *parent, unsigned long *value)
 {
 	return debugfs_create_file(name, mode, parent, value,
@@ -193,7 +193,7 @@ static int debugfs_atomic_t_get(void *data, u64 *val)
 DEFINE_SIMPLE_ATTRIBUTE(fops_atomic_t, debugfs_atomic_t_get,
 			debugfs_atomic_t_set, "%lld\n");
 
-static struct dentry *debugfs_create_atomic_t(const char *name, mode_t mode,
+static struct dentry *debugfs_create_atomic_t(const char *name, umode_t mode,
 				struct dentry *parent, atomic_t *value)
 {
 	return debugfs_create_file(name, mode, parent, value, &fops_atomic_t);
@@ -202,7 +202,7 @@ static struct dentry *debugfs_create_atomic_t(const char *name, mode_t mode,
 struct dentry *fault_create_debugfs_attr(const char *name,
 			struct dentry *parent, struct fault_attr *attr)
 {
-	mode_t mode = S_IFREG | S_IRUSR | S_IWUSR;
+	umode_t mode = S_IFREG | S_IRUSR | S_IWUSR;
 	struct dentry *dir;
 
 	dir = debugfs_create_dir(name, parent);

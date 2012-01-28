@@ -44,7 +44,7 @@ long ext3_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 		if (get_user(flags, (int __user *) arg))
 			return -EFAULT;
 
-		err = mnt_want_write(filp->f_path.mnt);
+		err = mnt_want_write_file(filp);
 		if (err)
 			return err;
 
@@ -110,7 +110,7 @@ flags_err:
 			err = ext3_change_inode_journal_flag(inode, jflag);
 flags_out:
 		mutex_unlock(&inode->i_mutex);
-		mnt_drop_write(filp->f_path.mnt);
+		mnt_drop_write_file(filp);
 		return err;
 	}
 	case EXT3_IOC_GETVERSION:
@@ -126,7 +126,7 @@ flags_out:
 		if (!inode_owner_or_capable(inode))
 			return -EPERM;
 
-		err = mnt_want_write(filp->f_path.mnt);
+		err = mnt_want_write_file(filp);
 		if (err)
 			return err;
 		if (get_user(generation, (int __user *) arg)) {
@@ -134,10 +134,11 @@ flags_out:
 			goto setversion_out;
 		}
 
+		mutex_lock(&inode->i_mutex);
 		handle = ext3_journal_start(inode, 1);
 		if (IS_ERR(handle)) {
 			err = PTR_ERR(handle);
-			goto setversion_out;
+			goto unlock_out;
 		}
 		err = ext3_reserve_inode_write(handle, inode, &iloc);
 		if (err == 0) {
@@ -146,8 +147,11 @@ flags_out:
 			err = ext3_mark_iloc_dirty(handle, inode, &iloc);
 		}
 		ext3_journal_stop(handle);
+
+unlock_out:
+		mutex_unlock(&inode->i_mutex);
 setversion_out:
-		mnt_drop_write(filp->f_path.mnt);
+		mnt_drop_write_file(filp);
 		return err;
 	}
 	case EXT3_IOC_GETRSVSZ:
@@ -164,7 +168,7 @@ setversion_out:
 		if (!test_opt(inode->i_sb, RESERVATION) ||!S_ISREG(inode->i_mode))
 			return -ENOTTY;
 
-		err = mnt_want_write(filp->f_path.mnt);
+		err = mnt_want_write_file(filp);
 		if (err)
 			return err;
 
@@ -195,7 +199,7 @@ setversion_out:
 		}
 		mutex_unlock(&ei->truncate_mutex);
 setrsvsz_out:
-		mnt_drop_write(filp->f_path.mnt);
+		mnt_drop_write_file(filp);
 		return err;
 	}
 	case EXT3_IOC_GROUP_EXTEND: {
@@ -206,7 +210,7 @@ setrsvsz_out:
 		if (!capable(CAP_SYS_RESOURCE))
 			return -EPERM;
 
-		err = mnt_want_write(filp->f_path.mnt);
+		err = mnt_want_write_file(filp);
 		if (err)
 			return err;
 
@@ -221,7 +225,7 @@ setrsvsz_out:
 		if (err == 0)
 			err = err2;
 group_extend_out:
-		mnt_drop_write(filp->f_path.mnt);
+		mnt_drop_write_file(filp);
 		return err;
 	}
 	case EXT3_IOC_GROUP_ADD: {
@@ -232,7 +236,7 @@ group_extend_out:
 		if (!capable(CAP_SYS_RESOURCE))
 			return -EPERM;
 
-		err = mnt_want_write(filp->f_path.mnt);
+		err = mnt_want_write_file(filp);
 		if (err)
 			return err;
 
@@ -249,7 +253,7 @@ group_extend_out:
 		if (err == 0)
 			err = err2;
 group_add_out:
-		mnt_drop_write(filp->f_path.mnt);
+		mnt_drop_write_file(filp);
 		return err;
 	}
 	case FITRIM: {

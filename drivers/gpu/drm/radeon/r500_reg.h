@@ -573,6 +573,7 @@
 
 #define AVIVO_TMDSA_CNTL                    0x7880
 #   define AVIVO_TMDSA_CNTL_ENABLE               (1 << 0)
+#   define AVIVO_TMDSA_CNTL_HDMI_EN              (1 << 2)
 #   define AVIVO_TMDSA_CNTL_HPD_MASK             (1 << 4)
 #   define AVIVO_TMDSA_CNTL_HPD_SELECT           (1 << 8)
 #   define AVIVO_TMDSA_CNTL_SYNC_PHASE           (1 << 12)
@@ -633,6 +634,7 @@
 
 #define AVIVO_LVTMA_CNTL					0x7a80
 #   define AVIVO_LVTMA_CNTL_ENABLE               (1 << 0)
+#   define AVIVO_LVTMA_CNTL_HDMI_EN              (1 << 2)
 #   define AVIVO_LVTMA_CNTL_HPD_MASK             (1 << 4)
 #   define AVIVO_LVTMA_CNTL_HPD_SELECT           (1 << 8)
 #   define AVIVO_LVTMA_CNTL_SYNC_PHASE           (1 << 12)

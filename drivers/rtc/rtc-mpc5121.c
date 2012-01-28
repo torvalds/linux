@@ -418,17 +418,7 @@ static struct platform_driver mpc5121_rtc_driver = {
 	.remove = __devexit_p(mpc5121_rtc_remove),
 };
 
-static int __init mpc5121_rtc_init(void)
-{
-	return platform_driver_register(&mpc5121_rtc_driver);
-}
-module_init(mpc5121_rtc_init);
-
-static void __exit mpc5121_rtc_exit(void)
-{
-	platform_driver_unregister(&mpc5121_rtc_driver);
-}
-module_exit(mpc5121_rtc_exit);
+module_platform_driver(mpc5121_rtc_driver);
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("John Rigby <jcrigby@gmail.com>");

@@ -146,6 +146,7 @@ static struct snd_soc_dai_link palm27x_dai[] = {
 
 static struct snd_soc_card palm27x_asoc = {
 	.name = "Palm/PXA27x",
+	.owner = THIS_MODULE,
 	.dai_link = palm27x_dai,
 	.num_links = ARRAY_SIZE(palm27x_dai),
 };
@@ -201,18 +202,7 @@ static struct platform_driver palm27x_wm9712_driver = {
 	},
 };
 
-static int __init palm27x_asoc_init(void)
-{
-	return platform_driver_register(&palm27x_wm9712_driver);
-}
-
-static void __exit palm27x_asoc_exit(void)
-{
-	platform_driver_unregister(&palm27x_wm9712_driver);
-}
-
-module_init(palm27x_asoc_init);
-module_exit(palm27x_asoc_exit);
+module_platform_driver(palm27x_wm9712_driver);
 
 /* Module information */
 MODULE_AUTHOR("Marek Vasut <marek.vasut@gmail.com>");

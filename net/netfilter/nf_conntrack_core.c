@@ -777,7 +777,7 @@ init_conntrack(struct net *net, struct nf_conn *tmpl,
 		if (exp->helper) {
 			help = nf_ct_helper_ext_add(ct, GFP_ATOMIC);
 			if (help)
-				RCU_INIT_POINTER(help->helper, exp->helper);
+				rcu_assign_pointer(help->helper, exp->helper);
 		}
 
 #ifdef CONFIG_NF_CONNTRACK_MARK

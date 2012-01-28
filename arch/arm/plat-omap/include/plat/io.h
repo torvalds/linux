@@ -73,6 +73,9 @@
 #define OMAP4_L3_IO_OFFSET	0xb4000000
 #define OMAP4_L3_IO_ADDRESS(pa)	IOMEM((pa) + OMAP4_L3_IO_OFFSET) /* L3 */
 
+#define AM33XX_L4_WK_IO_OFFSET	0xb5000000
+#define AM33XX_L4_WK_IO_ADDRESS(pa)	IOMEM((pa) + AM33XX_L4_WK_IO_OFFSET)
+
 #define OMAP4_L3_PER_IO_OFFSET	0xb1100000
 #define OMAP4_L3_PER_IO_ADDRESS(pa)	IOMEM((pa) + OMAP4_L3_PER_IO_OFFSET)
 
@@ -152,6 +155,15 @@
 #define L4_34XX_PHYS		L4_34XX_BASE	/* 0x48000000 --> 0xfa000000 */
 #define L4_34XX_VIRT		(L4_34XX_PHYS + OMAP2_L4_IO_OFFSET)
 #define L4_34XX_SIZE		SZ_4M   /* 1MB of 128MB used, want 1MB sect */
+
+/*
+ * ----------------------------------------------------------------------------
+ * AM33XX specific IO mapping
+ * ----------------------------------------------------------------------------
+ */
+#define L4_WK_AM33XX_PHYS	L4_WK_AM33XX_BASE
+#define L4_WK_AM33XX_VIRT	(L4_WK_AM33XX_PHYS + AM33XX_L4_WK_IO_OFFSET)
+#define L4_WK_AM33XX_SIZE	SZ_4M   /* 1MB of 128MB used, want 1MB sect */
 
 /*
  * Need to look at the Size 4M for L4.
@@ -247,8 +259,6 @@
  * NOTE: Please use ioremap + __raw_read/write where possible instead of these
  */
 
-void omap_ioremap_init(void);
-
 extern u8 omap_readb(u32 pa);
 extern u16 omap_readw(u32 pa);
 extern u32 omap_readl(u32 pa);
@@ -257,82 +267,8 @@ extern void omap_writew(u16 v, u32 pa);
 extern void omap_writel(u32 v, u32 pa);
 
 struct omap_sdrc_params;
-
-#if defined(CONFIG_ARCH_OMAP730) || defined(CONFIG_ARCH_OMAP850)
-void omap7xx_map_io(void);
-#else
-static inline void omap_map_io(void)
-{
-}
-#endif
-
-#ifdef CONFIG_ARCH_OMAP15XX
-void omap15xx_map_io(void);
-#else
-static inline void omap15xx_map_io(void)
-{
-}
-#endif
-
-#ifdef CONFIG_ARCH_OMAP16XX
-void omap16xx_map_io(void);
-#else
-static inline void omap16xx_map_io(void)
-{
-}
-#endif
-
-void omap1_init_early(void);
-
-#ifdef CONFIG_SOC_OMAP2420
-extern void omap242x_map_common_io(void);
-#else
-static inline void omap242x_map_common_io(void)
-{
-}
-#endif
-
-#ifdef CONFIG_SOC_OMAP2430
-extern void omap243x_map_common_io(void);
-#else
-static inline void omap243x_map_common_io(void)
-{
-}
-#endif
-
-#ifdef CONFIG_ARCH_OMAP3
-extern void omap34xx_map_common_io(void);
-#else
-static inline void omap34xx_map_common_io(void)
-{
-}
-#endif
-
-#ifdef CONFIG_SOC_OMAPTI816X
-extern void omapti816x_map_common_io(void);
-#else
-static inline void omapti816x_map_common_io(void)
-{
-}
-#endif
-
-#ifdef CONFIG_ARCH_OMAP4
-extern void omap44xx_map_common_io(void);
-#else
-static inline void omap44xx_map_common_io(void)
-{
-}
-#endif
-
-extern void omap2_init_common_infrastructure(void);
 extern void omap_sdrc_init(struct omap_sdrc_params *sdrc_cs0,
 				      struct omap_sdrc_params *sdrc_cs1);
-
-#define __arch_ioremap	omap_ioremap
-#define __arch_iounmap	omap_iounmap
-
-void __iomem *omap_ioremap(unsigned long phys, size_t size, unsigned int type);
-void omap_iounmap(volatile void __iomem *addr);
 
 extern void __init omap_init_consistent_dma_size(void);
 

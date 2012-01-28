@@ -44,6 +44,10 @@ void nci_data_exchange_complete(struct nci_dev *ndev,
 
 	pr_debug("len %d, err %d\n", skb ? skb->len : 0, err);
 
+	/* data exchange is complete, stop the data timer */
+	del_timer_sync(&ndev->data_timer);
+	clear_bit(NCI_DATA_EXCHANGE_TO, &ndev->flags);
+
 	if (cb) {
 		ndev->data_exchange_cb = NULL;
 		ndev->data_exchange_cb_context = 0;

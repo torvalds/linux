@@ -18,3 +18,10 @@ config DRM_EXYNOS_FIMD
 	help
 	  Choose this option if you want to use Exynos FIMD for DRM.
 	  If M is selected, the module will be called exynos_drm_fimd
+
+config DRM_EXYNOS_HDMI
+	tristate "Exynos DRM HDMI"
+	depends on DRM_EXYNOS
+	help
+	  Choose this option if you want to use Exynos HDMI for DRM.
+	  If M is selected, the module will be called exynos_drm_hdmi

@@ -347,7 +347,7 @@ struct bnad_drvinfo {
 /*
  * EXTERN VARIABLES
  */
-extern struct firmware *bfi_fw;
+extern const struct firmware *bfi_fw;
 extern u32		bnad_rxqs_per_cq;
 
 /*

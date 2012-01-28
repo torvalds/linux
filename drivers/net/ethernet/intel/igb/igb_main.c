@@ -53,6 +53,7 @@
 #include <linux/if_ether.h>
 #include <linux/aer.h>
 #include <linux/prefetch.h>
+#include <linux/pm_runtime.h>
 #ifdef CONFIG_IGB_DCA
 #include <linux/dca.h>
 #endif
@@ -172,8 +173,18 @@ static int igb_check_vf_assignment(struct igb_adapter *adapter);
 #endif
 
 #ifdef CONFIG_PM
-static int igb_suspend(struct pci_dev *, pm_message_t);
-static int igb_resume(struct pci_dev *);
+static int igb_suspend(struct device *);
+static int igb_resume(struct device *);
+#ifdef CONFIG_PM_RUNTIME
+static int igb_runtime_suspend(struct device *dev);
+static int igb_runtime_resume(struct device *dev);
+static int igb_runtime_idle(struct device *dev);
+#endif
+static const struct dev_pm_ops igb_pm_ops = {
+	SET_SYSTEM_SLEEP_PM_OPS(igb_suspend, igb_resume)
+	SET_RUNTIME_PM_OPS(igb_runtime_suspend, igb_runtime_resume,
+			igb_runtime_idle)
+};
 #endif
 static void igb_shutdown(struct pci_dev *);
 #ifdef CONFIG_IGB_DCA
@@ -214,9 +225,7 @@ static struct pci_driver igb_driver = {
 	.probe    = igb_probe,
 	.remove   = __devexit_p(igb_remove),
 #ifdef CONFIG_PM
-	/* Power Management Hooks */
-	.suspend  = igb_suspend,
-	.resume   = igb_resume,
+	.driver.pm = &igb_pm_ops,
 #endif
 	.shutdown = igb_shutdown,
 	.err_handler = &igb_err_handler
@@ -1498,6 +1507,7 @@ void igb_power_up_link(struct igb_adapter *adapter)
 		igb_power_up_phy_copper(&adapter->hw);
 	else
 		igb_power_up_serdes_link_82575(&adapter->hw);
+	igb_reset_phy(&adapter->hw);
 }
 
 /**
@@ -2111,6 +2121,8 @@ static int __devinit igb_probe(struct pci_dev *pdev,
 	default:
 		break;
 	}
+
+	pm_runtime_put_noidle(&pdev->dev);
 	return 0;
 
 err_register:
@@ -2149,6 +2161,8 @@ static void __devexit igb_remove(struct pci_dev *pdev)
 	struct net_device *netdev = pci_get_drvdata(pdev);
 	struct igb_adapter *adapter = netdev_priv(netdev);
 	struct e1000_hw *hw = &adapter->hw;
+
+	pm_runtime_get_noresume(&pdev->dev);
 
 	/*
 	 * The watchdog timer may be rescheduled, so explicitly
@@ -2472,16 +2486,22 @@ static int __devinit igb_sw_init(struct igb_adapter *adapter)
  * handler is registered with the OS, the watchdog timer is started,
  * and the stack is notified that the interface is ready.
  **/
-static int igb_open(struct net_device *netdev)
+static int __igb_open(struct net_device *netdev, bool resuming)
 {
 	struct igb_adapter *adapter = netdev_priv(netdev);
 	struct e1000_hw *hw = &adapter->hw;
+	struct pci_dev *pdev = adapter->pdev;
 	int err;
 	int i;
 
 	/* disallow open during test */
-	if (test_bit(__IGB_TESTING, &adapter->state))
+	if (test_bit(__IGB_TESTING, &adapter->state)) {
+		WARN_ON(resuming);
 		return -EBUSY;
+	}
+
+	if (!resuming)
+		pm_runtime_get_sync(&pdev->dev);
 
 	netif_carrier_off(netdev);
 
@@ -2527,6 +2547,9 @@ static int igb_open(struct net_device *netdev)
 
 	netif_tx_start_all_queues(netdev);
 
+	if (!resuming)
+		pm_runtime_put(&pdev->dev);
+
 	/* start the watchdog. */
 	hw->mac.get_link_status = 1;
 	schedule_work(&adapter->watchdog_task);
@@ -2541,8 +2564,15 @@ err_setup_rx:
 	igb_free_all_tx_resources(adapter);
 err_setup_tx:
 	igb_reset(adapter);
+	if (!resuming)
+		pm_runtime_put(&pdev->dev);
 
 	return err;
+}
+
+static int igb_open(struct net_device *netdev)
+{
+	return __igb_open(netdev, false);
 }
 
 /**
@@ -2556,19 +2586,30 @@ err_setup_tx:
  * needs to be disabled.  A global MAC reset is issued to stop the
  * hardware, and all transmit and receive resources are freed.
  **/
-static int igb_close(struct net_device *netdev)
+static int __igb_close(struct net_device *netdev, bool suspending)
 {
 	struct igb_adapter *adapter = netdev_priv(netdev);
+	struct pci_dev *pdev = adapter->pdev;
 
 	WARN_ON(test_bit(__IGB_RESETTING, &adapter->state));
-	igb_down(adapter);
 
+	if (!suspending)
+		pm_runtime_get_sync(&pdev->dev);
+
+	igb_down(adapter);
 	igb_free_irq(adapter);
 
 	igb_free_all_tx_resources(adapter);
 	igb_free_all_rx_resources(adapter);
 
+	if (!suspending)
+		pm_runtime_put_sync(&pdev->dev);
 	return 0;
+}
+
+static int igb_close(struct net_device *netdev)
+{
+	return __igb_close(netdev, false);
 }
 
 /**
@@ -3201,6 +3242,7 @@ static void igb_clean_tx_ring(struct igb_ring *tx_ring)
 		buffer_info = &tx_ring->tx_buffer_info[i];
 		igb_unmap_and_free_tx_resource(tx_ring, buffer_info);
 	}
+	netdev_tx_reset_queue(txring_txq(tx_ring));
 
 	size = sizeof(struct igb_tx_buffer) * tx_ring->count;
 	memset(tx_ring->tx_buffer_info, 0, size);
@@ -3630,6 +3672,9 @@ static void igb_watchdog_task(struct work_struct *work)
 
 	link = igb_has_link(adapter);
 	if (link) {
+		/* Cancel scheduled suspend requests. */
+		pm_runtime_resume(netdev->dev.parent);
+
 		if (!netif_carrier_ok(netdev)) {
 			u32 ctrl;
 			hw->mac.ops.get_speed_and_duplex(hw,
@@ -3701,6 +3746,9 @@ static void igb_watchdog_task(struct work_struct *work)
 			if (!test_bit(__IGB_DOWN, &adapter->state))
 				mod_timer(&adapter->phy_info_timer,
 					  round_jiffies(jiffies + 2 * HZ));
+
+			pm_schedule_suspend(netdev->dev.parent,
+					    MSEC_PER_SEC * 5);
 		}
 	}
 
@@ -4237,6 +4285,8 @@ static void igb_tx_map(struct igb_ring *tx_ring,
 
 		frag++;
 	}
+
+	netdev_tx_sent_queue(txring_txq(tx_ring), first->bytecount);
 
 	/* write last descriptor with RS and EOP bits */
 	cmd_type |= cpu_to_le32(size) | cpu_to_le32(IGB_TXD_DCMD);
@@ -5777,6 +5827,8 @@ static bool igb_clean_tx_irq(struct igb_q_vector *q_vector)
 		}
 	}
 
+	netdev_tx_completed_queue(txring_txq(tx_ring),
+				  total_packets, total_bytes);
 	i += tx_ring->count;
 	tx_ring->next_to_clean = i;
 	u64_stats_update_begin(&tx_ring->tx_syncp);
@@ -6583,13 +6635,14 @@ err_inval:
 	return -EINVAL;
 }
 
-static int __igb_shutdown(struct pci_dev *pdev, bool *enable_wake)
+static int __igb_shutdown(struct pci_dev *pdev, bool *enable_wake,
+			  bool runtime)
 {
 	struct net_device *netdev = pci_get_drvdata(pdev);
 	struct igb_adapter *adapter = netdev_priv(netdev);
 	struct e1000_hw *hw = &adapter->hw;
 	u32 ctrl, rctl, status;
-	u32 wufc = adapter->wol;
+	u32 wufc = runtime ? E1000_WUFC_LNKC : adapter->wol;
 #ifdef CONFIG_PM
 	int retval = 0;
 #endif
@@ -6597,7 +6650,7 @@ static int __igb_shutdown(struct pci_dev *pdev, bool *enable_wake)
 	netif_device_detach(netdev);
 
 	if (netif_running(netdev))
-		igb_close(netdev);
+		__igb_close(netdev, true);
 
 	igb_clear_interrupt_scheme(adapter);
 
@@ -6656,12 +6709,13 @@ static int __igb_shutdown(struct pci_dev *pdev, bool *enable_wake)
 }
 
 #ifdef CONFIG_PM
-static int igb_suspend(struct pci_dev *pdev, pm_message_t state)
+static int igb_suspend(struct device *dev)
 {
 	int retval;
 	bool wake;
+	struct pci_dev *pdev = to_pci_dev(dev);
 
-	retval = __igb_shutdown(pdev, &wake);
+	retval = __igb_shutdown(pdev, &wake, 0);
 	if (retval)
 		return retval;
 
@@ -6675,8 +6729,9 @@ static int igb_suspend(struct pci_dev *pdev, pm_message_t state)
 	return 0;
 }
 
-static int igb_resume(struct pci_dev *pdev)
+static int igb_resume(struct device *dev)
 {
+	struct pci_dev *pdev = to_pci_dev(dev);
 	struct net_device *netdev = pci_get_drvdata(pdev);
 	struct igb_adapter *adapter = netdev_priv(netdev);
 	struct e1000_hw *hw = &adapter->hw;
@@ -6697,7 +6752,18 @@ static int igb_resume(struct pci_dev *pdev)
 	pci_enable_wake(pdev, PCI_D3hot, 0);
 	pci_enable_wake(pdev, PCI_D3cold, 0);
 
-	if (igb_init_interrupt_scheme(adapter)) {
+	if (!rtnl_is_locked()) {
+		/*
+		 * shut up ASSERT_RTNL() warning in
+		 * netif_set_real_num_tx/rx_queues.
+		 */
+		rtnl_lock();
+		err = igb_init_interrupt_scheme(adapter);
+		rtnl_unlock();
+	} else {
+		err = igb_init_interrupt_scheme(adapter);
+	}
+	if (err) {
 		dev_err(&pdev->dev, "Unable to allocate memory for queues\n");
 		return -ENOMEM;
 	}
@@ -6710,23 +6776,61 @@ static int igb_resume(struct pci_dev *pdev)
 
 	wr32(E1000_WUS, ~0);
 
-	if (netif_running(netdev)) {
-		err = igb_open(netdev);
+	if (netdev->flags & IFF_UP) {
+		err = __igb_open(netdev, true);
 		if (err)
 			return err;
 	}
 
 	netif_device_attach(netdev);
+	return 0;
+}
+
+#ifdef CONFIG_PM_RUNTIME
+static int igb_runtime_idle(struct device *dev)
+{
+	struct pci_dev *pdev = to_pci_dev(dev);
+	struct net_device *netdev = pci_get_drvdata(pdev);
+	struct igb_adapter *adapter = netdev_priv(netdev);
+
+	if (!igb_has_link(adapter))
+		pm_schedule_suspend(dev, MSEC_PER_SEC * 5);
+
+	return -EBUSY;
+}
+
+static int igb_runtime_suspend(struct device *dev)
+{
+	struct pci_dev *pdev = to_pci_dev(dev);
+	int retval;
+	bool wake;
+
+	retval = __igb_shutdown(pdev, &wake, 1);
+	if (retval)
+		return retval;
+
+	if (wake) {
+		pci_prepare_to_sleep(pdev);
+	} else {
+		pci_wake_from_d3(pdev, false);
+		pci_set_power_state(pdev, PCI_D3hot);
+	}
 
 	return 0;
 }
+
+static int igb_runtime_resume(struct device *dev)
+{
+	return igb_resume(dev);
+}
+#endif /* CONFIG_PM_RUNTIME */
 #endif
 
 static void igb_shutdown(struct pci_dev *pdev)
 {
 	bool wake;
 
-	__igb_shutdown(pdev, &wake);
+	__igb_shutdown(pdev, &wake, 0);
 
 	if (system_state == SYSTEM_POWER_OFF) {
 		pci_wake_from_d3(pdev, wake);

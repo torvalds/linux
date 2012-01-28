@@ -33,11 +33,6 @@
 #include <linux/bitops.h>
 #include <linux/if_vlan.h>
 
-/* Intel Media SOC GbE MDIO physical base address */
-static unsigned long ce4100_gbe_mdio_base_phy;
-/* Intel Media SOC GbE MDIO virtual base address */
-void __iomem *ce4100_gbe_mdio_base_virt;
-
 char e1000_driver_name[] = "e1000";
 static char e1000_driver_string[] = "Intel(R) PRO/1000 Network Driver";
 #define DRV_VERSION "7.3.21-k8-NAPI"
@@ -1054,11 +1049,11 @@ static int __devinit e1000_probe(struct pci_dev *pdev,
 
 	err = -EIO;
 	if (hw->mac_type == e1000_ce4100) {
-		ce4100_gbe_mdio_base_phy = pci_resource_start(pdev, BAR_1);
-		ce4100_gbe_mdio_base_virt = ioremap(ce4100_gbe_mdio_base_phy,
+		hw->ce4100_gbe_mdio_base_virt =
+					ioremap(pci_resource_start(pdev, BAR_1),
 		                                pci_resource_len(pdev, BAR_1));
 
-		if (!ce4100_gbe_mdio_base_virt)
+		if (!hw->ce4100_gbe_mdio_base_virt)
 			goto err_mdio_ioremap;
 	}
 
@@ -1249,7 +1244,7 @@ err_eeprom:
 err_dma:
 err_sw_init:
 err_mdio_ioremap:
-	iounmap(ce4100_gbe_mdio_base_virt);
+	iounmap(hw->ce4100_gbe_mdio_base_virt);
 	iounmap(hw->hw_addr);
 err_ioremap:
 	free_netdev(netdev);
@@ -1286,6 +1281,8 @@ static void __devexit e1000_remove(struct pci_dev *pdev)
 	kfree(adapter->tx_ring);
 	kfree(adapter->rx_ring);
 
+	if (hw->mac_type == e1000_ce4100)
+		iounmap(hw->ce4100_gbe_mdio_base_virt);
 	iounmap(hw->hw_addr);
 	if (hw->flash_address)
 		iounmap(hw->flash_address);
@@ -4724,8 +4721,6 @@ static int __e1000_shutdown(struct pci_dev *pdev, bool *enable_wake)
 
 	netif_device_detach(netdev);
 
-	mutex_lock(&adapter->mutex);
-
 	if (netif_running(netdev)) {
 		WARN_ON(test_bit(__E1000_RESETTING, &adapter->flags));
 		e1000_down(adapter);
@@ -4733,10 +4728,8 @@ static int __e1000_shutdown(struct pci_dev *pdev, bool *enable_wake)
 
 #ifdef CONFIG_PM
 	retval = pci_save_state(pdev);
-	if (retval) {
-		mutex_unlock(&adapter->mutex);
+	if (retval)
 		return retval;
-	}
 #endif
 
 	status = er32(STATUS);
@@ -4790,8 +4783,6 @@ static int __e1000_shutdown(struct pci_dev *pdev, bool *enable_wake)
 
 	if (netif_running(netdev))
 		e1000_free_irq(adapter);
-
-	mutex_unlock(&adapter->mutex);
 
 	pci_disable_device(pdev);
 

@@ -464,7 +464,6 @@ static struct inode *squashfs_alloc_inode(struct super_block *sb)
 static void squashfs_i_callback(struct rcu_head *head)
 {
 	struct inode *inode = container_of(head, struct inode, i_rcu);
-	INIT_LIST_HEAD(&inode->i_dentry);
 	kmem_cache_free(squashfs_inode_cachep, squashfs_i(inode));
 }
 

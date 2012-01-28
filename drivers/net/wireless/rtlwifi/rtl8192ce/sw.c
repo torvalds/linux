@@ -1,6 +1,6 @@
 /******************************************************************************
  *
- * Copyright(c) 2009-2010  Realtek Corporation.
+ * Copyright(c) 2009-2012  Realtek Corporation.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of version 2 of the GNU General Public License as
@@ -159,7 +159,7 @@ int rtl92c_init_sw_vars(struct ieee80211_hw *hw)
 	rtlpriv->rtlhal.pfirmware = vzalloc(0x4000);
 	if (!rtlpriv->rtlhal.pfirmware) {
 		RT_TRACE(rtlpriv, COMP_ERR, DBG_EMERG,
-			 ("Can't alloc buffer for fw.\n"));
+			 "Can't alloc buffer for fw\n");
 		return 1;
 	}
 
@@ -174,12 +174,12 @@ int rtl92c_init_sw_vars(struct ieee80211_hw *hw)
 	err = request_firmware(&firmware, fw_name, rtlpriv->io.dev);
 	if (err) {
 		RT_TRACE(rtlpriv, COMP_ERR, DBG_EMERG,
-			 ("Failed to request firmware!\n"));
+			 "Failed to request firmware!\n");
 		return 1;
 	}
 	if (firmware->size > 0x4000) {
 		RT_TRACE(rtlpriv, COMP_ERR, DBG_EMERG,
-			 ("Firmware is too big!\n"));
+			 "Firmware is too big!\n");
 		release_firmware(firmware);
 		return 1;
 	}
@@ -404,7 +404,7 @@ static int __init rtl92ce_module_init(void)
 
 	ret = pci_register_driver(&rtl92ce_driver);
 	if (ret)
-		RT_ASSERT(false, (": No device found\n"));
+		RT_ASSERT(false, "No device found\n");
 
 	return ret;
 }

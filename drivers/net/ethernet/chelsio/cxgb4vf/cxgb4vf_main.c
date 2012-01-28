@@ -1564,7 +1564,7 @@ static void cxgb4vf_get_wol(struct net_device *dev,
  */
 #define TSO_FLAGS (NETIF_F_TSO | NETIF_F_TSO6 | NETIF_F_TSO_ECN)
 
-static struct ethtool_ops cxgb4vf_ethtool_ops = {
+static const struct ethtool_ops cxgb4vf_ethtool_ops = {
 	.get_settings		= cxgb4vf_get_settings,
 	.get_drvinfo		= cxgb4vf_get_drvinfo,
 	.get_msglevel		= cxgb4vf_get_msglevel,
@@ -2003,7 +2003,7 @@ static const struct file_operations interfaces_proc_fops = {
  */
 struct cxgb4vf_debugfs_entry {
 	const char *name;		/* name of debugfs node */
-	mode_t mode;			/* file system mode */
+	umode_t mode;			/* file system mode */
 	const struct file_operations *fops;
 };
 

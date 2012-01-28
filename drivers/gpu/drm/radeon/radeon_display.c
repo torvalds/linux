@@ -406,7 +406,7 @@ static int radeon_crtc_page_flip(struct drm_crtc *crtc,
 	if (!ASIC_IS_AVIVO(rdev)) {
 		/* crtc offset is from display base addr not FB location */
 		base -= radeon_crtc->legacy_display_base_addr;
-		pitch_pixels = fb->pitch / (fb->bits_per_pixel / 8);
+		pitch_pixels = fb->pitches[0] / (fb->bits_per_pixel / 8);
 
 		if (tiling_flags & RADEON_TILING_MACRO) {
 			if (ASIC_IS_R300(rdev)) {
@@ -1081,7 +1081,7 @@ static const struct drm_framebuffer_funcs radeon_fb_funcs = {
 void
 radeon_framebuffer_init(struct drm_device *dev,
 			struct radeon_framebuffer *rfb,
-			struct drm_mode_fb_cmd *mode_cmd,
+			struct drm_mode_fb_cmd2 *mode_cmd,
 			struct drm_gem_object *obj)
 {
 	rfb->obj = obj;
@@ -1092,15 +1092,15 @@ radeon_framebuffer_init(struct drm_device *dev,
 static struct drm_framebuffer *
 radeon_user_framebuffer_create(struct drm_device *dev,
 			       struct drm_file *file_priv,
-			       struct drm_mode_fb_cmd *mode_cmd)
+			       struct drm_mode_fb_cmd2 *mode_cmd)
 {
 	struct drm_gem_object *obj;
 	struct radeon_framebuffer *radeon_fb;
 
-	obj = drm_gem_object_lookup(dev, file_priv, mode_cmd->handle);
+	obj = drm_gem_object_lookup(dev, file_priv, mode_cmd->handles[0]);
 	if (obj ==  NULL) {
 		dev_err(&dev->pdev->dev, "No GEM object associated to handle 0x%08X, "
-			"can't create framebuffer\n", mode_cmd->handle);
+			"can't create framebuffer\n", mode_cmd->handles[0]);
 		return ERR_PTR(-ENOENT);
 	}
 

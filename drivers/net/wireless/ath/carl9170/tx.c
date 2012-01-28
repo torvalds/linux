@@ -719,6 +719,8 @@ static void carl9170_tx_rate_tpc_chains(struct ar9170 *ar,
 		else
 			*chains = AR9170_TX_PHY_TXCHAIN_2;
 	}
+
+	*tpc = min_t(unsigned int, *tpc, ar->hw->conf.power_level * 2);
 }
 
 static __le32 carl9170_tx_physet(struct ar9170 *ar,

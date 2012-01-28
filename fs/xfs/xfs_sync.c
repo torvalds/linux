@@ -395,10 +395,7 @@ xfs_quiesce_data(
 	 */
 	xfs_inode_ag_iterator(mp, xfs_log_dirty_inode, 0);
 
-	xfs_qm_sync(mp, SYNC_TRYLOCK);
-	xfs_qm_sync(mp, SYNC_WAIT);
-
-	/* force out the newly dirtied log buffers */
+	/* force out the log */
 	xfs_log_force(mp, XFS_LOG_SYNC);
 
 	/* write superblock and hoover up shutdown errors */
@@ -506,7 +503,6 @@ xfs_sync_worker(
 			error = xfs_fs_log_dummy(mp);
 		else
 			xfs_log_force(mp, 0);
-		error = xfs_qm_sync(mp, SYNC_TRYLOCK);
 
 		/* start pushing all the metadata that is currently dirty */
 		xfs_ail_push_all(mp->m_ail);

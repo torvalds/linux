@@ -2492,7 +2492,7 @@ int sock_register(const struct net_proto_family *ops)
 				      lockdep_is_held(&net_family_lock)))
 		err = -EEXIST;
 	else {
-		RCU_INIT_POINTER(net_families[ops->family], ops);
+		rcu_assign_pointer(net_families[ops->family], ops);
 		err = 0;
 	}
 	spin_unlock(&net_family_lock);
@@ -2903,7 +2903,7 @@ static int bond_ioctl(struct net *net, unsigned int cmd,
 
 		return dev_ioctl(net, cmd, uifr);
 	default:
-		return -EINVAL;
+		return -ENOIOCTLCMD;
 	}
 }
 
@@ -3228,20 +3228,6 @@ static int compat_sock_ioctl_trans(struct file *file, struct socket *sock,
 	case SIOCDARP:
 	case SIOCATMARK:
 		return sock_do_ioctl(net, sock, cmd, arg);
-	}
-
-	/* Prevent warning from compat_sys_ioctl, these always
-	 * result in -EINVAL in the native case anyway. */
-	switch (cmd) {
-	case SIOCRTMSG:
-	case SIOCGIFCOUNT:
-	case SIOCSRARP:
-	case SIOCGRARP:
-	case SIOCDRARP:
-	case SIOCSIFLINK:
-	case SIOCGIFSLAVE:
-	case SIOCSIFSLAVE:
-		return -EINVAL;
 	}
 
 	return -ENOIOCTLCMD;

@@ -254,17 +254,7 @@ static struct platform_driver da9052_gpio_driver = {
 	},
 };
 
-static int __init da9052_gpio_init(void)
-{
-	return platform_driver_register(&da9052_gpio_driver);
-}
-module_init(da9052_gpio_init);
-
-static void __exit da9052_gpio_exit(void)
-{
-	return platform_driver_unregister(&da9052_gpio_driver);
-}
-module_exit(da9052_gpio_exit);
+module_platform_driver(da9052_gpio_driver);
 
 MODULE_AUTHOR("David Dajun Chen <dchen@diasemi.com>");
 MODULE_DESCRIPTION("DA9052 GPIO Device Driver");

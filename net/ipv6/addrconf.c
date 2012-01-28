@@ -429,7 +429,7 @@ static struct inet6_dev * ipv6_add_dev(struct net_device *dev)
 	ndev->tstamp = jiffies;
 	addrconf_sysctl_register(ndev);
 	/* protected by rtnl_lock */
-	RCU_INIT_POINTER(dev->ip6_ptr, ndev);
+	rcu_assign_pointer(dev->ip6_ptr, ndev);
 
 	/* Join all-node multicast group */
 	ipv6_dev_mc_inc(dev, &in6addr_linklocal_allnodes);

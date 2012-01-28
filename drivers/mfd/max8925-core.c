@@ -210,21 +210,6 @@ static struct max8925_irq_data max8925_irqs[] = {
 		.mask_reg	= MAX8925_CHG_IRQ1_MASK,
 		.offs		= 1 << 2,
 	},
-	[MAX8925_IRQ_VCHG_USB_OVP] = {
-		.reg		= MAX8925_CHG_IRQ1,
-		.mask_reg	= MAX8925_CHG_IRQ1_MASK,
-		.offs		= 1 << 3,
-	},
-	[MAX8925_IRQ_VCHG_USB_F] =  {
-		.reg		= MAX8925_CHG_IRQ1,
-		.mask_reg	= MAX8925_CHG_IRQ1_MASK,
-		.offs		= 1 << 4,
-	},
-	[MAX8925_IRQ_VCHG_USB_R] = {
-		.reg		= MAX8925_CHG_IRQ1,
-		.mask_reg	= MAX8925_CHG_IRQ1_MASK,
-		.offs		= 1 << 5,
-	},
 	[MAX8925_IRQ_VCHG_THM_OK_R] = {
 		.reg		= MAX8925_CHG_IRQ2,
 		.mask_reg	= MAX8925_CHG_IRQ2_MASK,

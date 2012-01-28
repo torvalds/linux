@@ -38,7 +38,7 @@
 	sizeof(struct bnad_drv_stats) / sizeof(u64) +		\
 	offsetof(struct bfi_enet_stats, rxf_stats[0]) / sizeof(u64))
 
-static char *bnad_net_stats_strings[BNAD_ETHTOOL_STATS_NUM] = {
+static const char *bnad_net_stats_strings[BNAD_ETHTOOL_STATS_NUM] = {
 	"rx_packets",
 	"tx_packets",
 	"rx_bytes",
@@ -1072,7 +1072,7 @@ done:
 	return ret;
 }
 
-static struct ethtool_ops bnad_ethtool_ops = {
+static const struct ethtool_ops bnad_ethtool_ops = {
 	.get_settings = bnad_get_settings,
 	.set_settings = bnad_set_settings,
 	.get_drvinfo = bnad_get_drvinfo,
