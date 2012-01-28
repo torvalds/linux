@@ -37,7 +37,7 @@
 
 /* Intel GPIO access functions */
 
-#define I2C_RISEFALL_TIME 20
+#define I2C_RISEFALL_TIME 10
 
 static inline struct intel_gmbus *
 to_intel_gmbus(struct i2c_adapter *i2c)
