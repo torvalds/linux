@@ -1240,7 +1240,7 @@ intel_tv_detect(struct drm_connector *connector, bool force)
 	int type;
 
 	mode = reported_modes[0];
-	drm_mode_set_crtcinfo(&mode, CRTC_INTERLACE_HALVE_V);
+	drm_mode_set_crtcinfo(&mode, 0);
 
 	if (intel_tv->base.base.crtc && intel_tv->base.base.crtc->enabled) {
 		type = intel_tv_detect_type(intel_tv, connector);

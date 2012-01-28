@@ -3437,11 +3437,8 @@ static bool intel_crtc_mode_fixup(struct drm_crtc *crtc,
 			return false;
 	}
 
-	/* XXX some encoders set the crtcinfo, others don't.
-	 * Obviously we need some form of conflict resolution here...
-	 */
-	if (adjusted_mode->crtc_htotal == 0)
-		drm_mode_set_crtcinfo(adjusted_mode, 0);
+	/* All interlaced capable intel hw wants timings in frames. */
+	drm_mode_set_crtcinfo(adjusted_mode, 0);
 
 	return true;
 }
