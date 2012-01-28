@@ -937,10 +937,10 @@ static int check_overlay_dst(struct intel_overlay *overlay,
 {
 	struct drm_display_mode *mode = &overlay->crtc->base.mode;
 
-	if (rec->dst_x < mode->crtc_hdisplay &&
-	    rec->dst_x + rec->dst_width <= mode->crtc_hdisplay &&
-	    rec->dst_y < mode->crtc_vdisplay &&
-	    rec->dst_y + rec->dst_height <= mode->crtc_vdisplay)
+	if (rec->dst_x < mode->hdisplay &&
+	    rec->dst_x + rec->dst_width <= mode->hdisplay &&
+	    rec->dst_y < mode->vdisplay &&
+	    rec->dst_y + rec->dst_height <= mode->vdisplay)
 		return 0;
 	else
 		return -EINVAL;
