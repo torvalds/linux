@@ -244,8 +244,7 @@ static void preunlock_page(struct super_block *sb, struct page *page, int lock)
  * is waiting for s_write_mutex.  We annotate this fact by setting PG_pre_locked
  * in addition to PG_locked.
  */
-static void logfs_get_wblocks(struct super_block *sb, struct page *page,
-		int lock)
+void logfs_get_wblocks(struct super_block *sb, struct page *page, int lock)
 {
 	struct logfs_super *super = logfs_super(sb);
 
@@ -260,8 +259,7 @@ static void logfs_get_wblocks(struct super_block *sb, struct page *page,
 	}
 }
 
-static void logfs_put_wblocks(struct super_block *sb, struct page *page,
-		int lock)
+void logfs_put_wblocks(struct super_block *sb, struct page *page, int lock)
 {
 	struct logfs_super *super = logfs_super(sb);
 

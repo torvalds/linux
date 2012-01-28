@@ -577,6 +577,8 @@ void initialize_block_counters(struct page *page, struct logfs_block *block,
 		__be64 *array, int page_is_empty);
 int logfs_exist_block(struct inode *inode, u64 bix);
 int get_page_reserve(struct inode *inode, struct page *page);
+void logfs_get_wblocks(struct super_block *sb, struct page *page, int lock);
+void logfs_put_wblocks(struct super_block *sb, struct page *page, int lock);
 extern struct logfs_block_ops indirect_block_ops;
 
 /* segment.c */

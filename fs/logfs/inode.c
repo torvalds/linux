@@ -364,7 +364,9 @@ static void logfs_init_once(void *_li)
 
 static int logfs_sync_fs(struct super_block *sb, int wait)
 {
+	logfs_get_wblocks(sb, NULL, WF_LOCK);
 	logfs_write_anchor(sb);
+	logfs_put_wblocks(sb, NULL, WF_LOCK);
 	return 0;
 }
 
