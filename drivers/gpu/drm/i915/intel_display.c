@@ -2973,6 +2973,7 @@ static void ironlake_pch_enable(struct drm_crtc *crtc)
 	I915_WRITE(TRANS_VTOTAL(pipe), I915_READ(VTOTAL(pipe)));
 	I915_WRITE(TRANS_VBLANK(pipe), I915_READ(VBLANK(pipe)));
 	I915_WRITE(TRANS_VSYNC(pipe),  I915_READ(VSYNC(pipe)));
+	I915_WRITE(TRANS_VSYNCSHIFT(pipe),  I915_READ(VSYNCSHIFT(pipe)));
 
 	intel_fdi_normal_train(crtc);
 
@@ -5103,7 +5104,7 @@ static int i9xx_crtc_mode_set(struct drm_crtc *crtc,
 	int plane = intel_crtc->plane;
 	int refclk, num_connectors = 0;
 	intel_clock_t clock, reduced_clock;
-	u32 dpll, dspcntr, pipeconf;
+	u32 dpll, dspcntr, pipeconf, vsyncshift;
 	bool ok, has_reduced_clock = false, is_sdvo = false, is_dvo = false;
 	bool is_crt = false, is_lvds = false, is_tv = false, is_dp = false;
 	struct drm_mode_config *mode_config = &dev->mode_config;
@@ -5391,8 +5392,15 @@ static int i9xx_crtc_mode_set(struct drm_crtc *crtc,
 		/* the chip adds 2 halflines automatically */
 		adjusted_mode->crtc_vtotal -= 1;
 		adjusted_mode->crtc_vblank_end -= 1;
-	} else
+		vsyncshift = adjusted_mode->crtc_hsync_start
+			     - adjusted_mode->crtc_htotal/2;
+	} else {
 		pipeconf |= PIPECONF_PROGRESSIVE;
+		vsyncshift = 0;
+	}
+
+	if (!IS_GEN3(dev))
+		I915_WRITE(VSYNCSHIFT(pipe), vsyncshift);
 
 	I915_WRITE(HTOTAL(pipe),
 		   (adjusted_mode->crtc_hdisplay - 1) |
@@ -5980,8 +5988,13 @@ static int ironlake_crtc_mode_set(struct drm_crtc *crtc,
 		/* the chip adds 2 halflines automatically */
 		adjusted_mode->crtc_vtotal -= 1;
 		adjusted_mode->crtc_vblank_end -= 1;
-	} else
+		I915_WRITE(VSYNCSHIFT(pipe),
+			   adjusted_mode->crtc_hsync_start
+			   - adjusted_mode->crtc_htotal/2);
+	} else {
 		pipeconf |= PIPECONF_PROGRESSIVE;
+		I915_WRITE(VSYNCSHIFT(pipe), 0);
+	}
 
 	I915_WRITE(HTOTAL(pipe),
 		   (adjusted_mode->crtc_hdisplay - 1) |

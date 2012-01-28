@@ -1384,6 +1384,7 @@
 #define _VSYNC_A		0x60014
 #define _PIPEASRC	0x6001c
 #define _BCLRPAT_A	0x60020
+#define _VSYNCSHIFT_A	0x60028
 
 /* Pipe B timing regs */
 #define _HTOTAL_B	0x61000
@@ -1394,6 +1395,8 @@
 #define _VSYNC_B		0x61014
 #define _PIPEBSRC	0x6101c
 #define _BCLRPAT_B	0x61020
+#define _VSYNCSHIFT_B	0x61028
+
 
 #define HTOTAL(pipe) _PIPE(pipe, _HTOTAL_A, _HTOTAL_B)
 #define HBLANK(pipe) _PIPE(pipe, _HBLANK_A, _HBLANK_B)
@@ -1402,6 +1405,7 @@
 #define VBLANK(pipe) _PIPE(pipe, _VBLANK_A, _VBLANK_B)
 #define VSYNC(pipe) _PIPE(pipe, _VSYNC_A, _VSYNC_B)
 #define BCLRPAT(pipe) _PIPE(pipe, _BCLRPAT_A, _BCLRPAT_B)
+#define VSYNCSHIFT(pipe) _PIPE(pipe, _VSYNCSHIFT_A, _VSYNCSHIFT_B)
 
 /* VGA port control */
 #define ADPA			0x61100
@@ -3284,6 +3288,7 @@
 #define _TRANS_VSYNC_A           0xe0014
 #define  TRANS_VSYNC_END_SHIFT  16
 #define  TRANS_VSYNC_START_SHIFT 0
+#define _TRANS_VSYNCSHIFT_A	0xe0028
 
 #define _TRANSA_DATA_M1          0xe0030
 #define _TRANSA_DATA_N1          0xe0034
@@ -3314,6 +3319,7 @@
 #define _TRANS_VTOTAL_B          0xe100c
 #define _TRANS_VBLANK_B          0xe1010
 #define _TRANS_VSYNC_B           0xe1014
+#define _TRANS_VSYNCSHIFT_B	 0xe1028
 
 #define TRANS_HTOTAL(pipe) _PIPE(pipe, _TRANS_HTOTAL_A, _TRANS_HTOTAL_B)
 #define TRANS_HBLANK(pipe) _PIPE(pipe, _TRANS_HBLANK_A, _TRANS_HBLANK_B)
@@ -3321,6 +3327,8 @@
 #define TRANS_VTOTAL(pipe) _PIPE(pipe, _TRANS_VTOTAL_A, _TRANS_VTOTAL_B)
 #define TRANS_VBLANK(pipe) _PIPE(pipe, _TRANS_VBLANK_A, _TRANS_VBLANK_B)
 #define TRANS_VSYNC(pipe) _PIPE(pipe, _TRANS_VSYNC_A, _TRANS_VSYNC_B)
+#define TRANS_VSYNCSHIFT(pipe) _PIPE(pipe, _TRANS_VSYNCSHIFT_A, \
+				     _TRANS_VSYNCSHIFT_B)
 
 #define _TRANSB_DATA_M1          0xe1030
 #define _TRANSB_DATA_N1          0xe1034
