@@ -167,9 +167,9 @@ struct regmap *regmap_init(struct device *dev,
 
 	mutex_init(&map->lock);
 	map->format.buf_size = (config->reg_bits + config->val_bits) / 8;
-	map->format.reg_bytes = config->reg_bits / 8;
+	map->format.reg_bytes = DIV_ROUND_UP(config->reg_bits, 8);
 	map->format.pad_bytes = config->pad_bits / 8;
-	map->format.val_bytes = config->val_bits / 8;
+	map->format.val_bytes = DIV_ROUND_UP(config->val_bits, 8);
 	map->format.buf_size += map->format.pad_bytes;
 	map->dev = dev;
 	map->bus = bus;
