@@ -396,7 +396,10 @@ static int rbd_get_client(struct rbd_device *rbd_dev, const char *mon_addr,
 	}
 	spin_unlock(&node_lock);
 
+	mutex_lock_nested(&ctl_mutex, SINGLE_DEPTH_NESTING);
 	rbdc = rbd_client_create(opt, rbd_opts);
+	mutex_unlock(&ctl_mutex);
+
 	if (IS_ERR(rbdc)) {
 		ret = PTR_ERR(rbdc);
 		goto done_err;
@@ -2276,10 +2279,7 @@ static ssize_t rbd_add(struct bus_type *bus,
 	/* initialize rest of new object */
 	snprintf(rbd_dev->name, DEV_NAME_LEN, DRV_NAME "%d", rbd_dev->id);
 
-	mutex_lock_nested(&ctl_mutex, SINGLE_DEPTH_NESTING);
 	rc = rbd_get_client(rbd_dev, mon_dev_name, options);
-	mutex_unlock(&ctl_mutex);
-
 	if (rc < 0)
 		goto err_out_slot;
 
