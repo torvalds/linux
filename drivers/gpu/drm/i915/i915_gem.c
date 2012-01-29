@@ -1141,7 +1141,6 @@ int
 i915_gem_mmap_ioctl(struct drm_device *dev, void *data,
 		    struct drm_file *file)
 {
-	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct drm_i915_gem_mmap *args = data;
 	struct drm_gem_object *obj;
 	unsigned long addr;
@@ -1152,11 +1151,6 @@ i915_gem_mmap_ioctl(struct drm_device *dev, void *data,
 	obj = drm_gem_object_lookup(dev, file, args->handle);
 	if (obj == NULL)
 		return -ENOENT;
-
-	if (obj->size > dev_priv->mm.gtt_mappable_end) {
-		drm_gem_object_unreference_unlocked(obj);
-		return -E2BIG;
-	}
 
 	down_write(&current->mm->mmap_sem);
 	addr = do_mmap(obj->filp, 0, args->size,
