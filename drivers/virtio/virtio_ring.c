@@ -35,7 +35,7 @@
 #define virtio_rmb(vq) \
 	do { if ((vq)->weak_barriers) smp_rmb(); else rmb(); } while(0)
 #define virtio_wmb(vq) \
-	do { if ((vq)->weak_barriers) smp_rmb(); else rmb(); } while(0)
+	do { if ((vq)->weak_barriers) smp_wmb(); else wmb(); } while(0)
 #else
 /* We must force memory ordering even if guest is UP since host could be
  * running on another CPU, but SMP barriers are defined to barrier() in that
@@ -308,9 +308,9 @@ bool virtqueue_kick_prepare(struct virtqueue *_vq)
 	bool needs_kick;
 
 	START_USE(vq);
-	/* Descriptors and available array need to be set before we expose the
-	 * new available array entries. */
-	virtio_wmb(vq);
+	/* We need to expose available array entries before checking avail
+	 * event. */
+	virtio_mb(vq);
 
 	old = vq->vring.avail->idx - vq->num_added;
 	new = vq->vring.avail->idx;
