@@ -2149,21 +2149,29 @@ static int rbd_init_watch_dev(struct rbd_device *rbd_dev)
 	return ret;
 }
 
-/* caller must hold ctl_mutex */
+static atomic64_t rbd_id_max = ATOMIC64_INIT(0);
+
+/*
+ * Get a unique rbd identifier.  The minimum rbd id is 1.
+ */
 static int rbd_id_get(void)
 {
-	struct list_head *tmp;
-	int new_id = 0;
+	return atomic64_inc_return(&rbd_id_max);
+}
 
-	list_for_each(tmp, &rbd_dev_list) {
-		struct rbd_device *rbd_dev;
+/*
+ * Record that an rbd identifier is no longer in use.
+ */
+static void rbd_id_put(int rbd_id)
+{
+	BUG_ON(rbd_id < 1);
 
-		rbd_dev = list_entry(tmp, struct rbd_device, node);
-		if (rbd_dev->id >= new_id)
-			new_id = rbd_dev->id + 1;
-	}
-
-	return new_id;
+	/*
+	 * New id's are always one more than the current maximum.
+	 * If the id being "put" *is* that maximum, decrement the
+	 * maximum so the next one requested just reuses this one.
+	 */
+	atomic64_cmpxchg(&rbd_id_max, rbd_id, rbd_id - 1);
 }
 
 static ssize_t rbd_add(struct bus_type *bus,
@@ -2200,7 +2208,7 @@ static ssize_t rbd_add(struct bus_type *bus,
 
 	init_rwsem(&rbd_dev->header.snap_rwsem);
 
-	/* generate unique id: find highest unique id, add one */
+	/* generate unique id: one more than highest used so far */
 	mutex_lock_nested(&ctl_mutex, SINGLE_DEPTH_NESTING);
 
 	rbd_dev->id = rbd_id_get();
@@ -2270,6 +2278,7 @@ err_out_bus:
 	mutex_lock_nested(&ctl_mutex, SINGLE_DEPTH_NESTING);
 	list_del_init(&rbd_dev->node);
 	mutex_unlock(&ctl_mutex);
+	rbd_id_put(target_id);
 
 	/* this will also clean up rest of rbd_dev stuff */
 
@@ -2286,6 +2295,7 @@ err_out_client:
 err_out_slot:
 	list_del_init(&rbd_dev->node);
 	mutex_unlock(&ctl_mutex);
+	rbd_id_put(target_id);
 
 	kfree(rbd_dev);
 err_out_opt:
@@ -2363,6 +2373,7 @@ static ssize_t rbd_remove(struct bus_type *bus,
 	}
 
 	list_del_init(&rbd_dev->node);
+	rbd_id_put(target_id);
 
 	__rbd_remove_all_snaps(rbd_dev);
 	rbd_bus_del_dev(rbd_dev);
