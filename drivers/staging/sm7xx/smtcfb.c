@@ -41,7 +41,6 @@
 
 #ifdef CONFIG_PM
 #include <linux/pm.h>
-#include <linux/module.h>
 #endif
 
 #include "smtcfb.h"
