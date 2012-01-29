@@ -47,9 +47,11 @@ static atomic_t trapped;
 #define NETPOLL_RX_ENABLED  1
 #define NETPOLL_RX_DROP     2
 
-#define MAX_SKB_SIZE \
-		(MAX_UDP_CHUNK + sizeof(struct udphdr) + \
-				sizeof(struct iphdr) + sizeof(struct ethhdr))
+#define MAX_SKB_SIZE							\
+	(sizeof(struct ethhdr) +					\
+	 sizeof(struct iphdr) +						\
+	 sizeof(struct udphdr) +					\
+	 MAX_UDP_CHUNK)
 
 static void zap_completion_queue(void);
 static void arp_reply(struct sk_buff *skb);
