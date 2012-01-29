@@ -298,7 +298,7 @@ int netvsc_recv_callback(struct hv_device *device_obj,
 	skb->ip_summed = CHECKSUM_NONE;
 
 	net->stats.rx_packets++;
-	net->stats.rx_bytes += skb->len;
+	net->stats.rx_bytes += packet->total_data_buflen;
 
 	/*
 	 * Pass the skb back up. Network stack will deallocate the skb when it
