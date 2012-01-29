@@ -104,6 +104,7 @@ static void sas_form_port(struct asd_sas_phy *phy)
 
 	/* add the phy to the port */
 	list_add_tail(&phy->port_phy_el, &port->phy_list);
+	sas_phy_set_target(phy, port->port_dev);
 	phy->port = port;
 	port->num_phys++;
 	port->phy_mask |= (1U << phy->id);
@@ -182,6 +183,7 @@ void sas_deform_port(struct asd_sas_phy *phy, int gone)
 	spin_lock(&port->phy_list_lock);
 
 	list_del_init(&phy->port_phy_el);
+	sas_phy_set_target(phy, NULL);
 	phy->port = NULL;
 	port->num_phys--;
 	port->phy_mask &= ~(1U << phy->id);

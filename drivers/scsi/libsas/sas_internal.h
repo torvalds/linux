@@ -30,6 +30,7 @@
 #include <scsi/scsi_host.h>
 #include <scsi/scsi_transport_sas.h>
 #include <scsi/libsas.h>
+#include <scsi/sas_ata.h>
 
 #define sas_printk(fmt, ...) printk(KERN_NOTICE "sas: " fmt, ## __VA_ARGS__)
 
@@ -144,6 +145,22 @@ static inline void sas_fill_in_rphy(struct domain_device *dev,
 	default:
 		rphy->identify.device_type = SAS_PHY_UNUSED;
 		break;
+	}
+}
+
+static inline void sas_phy_set_target(struct asd_sas_phy *p, struct domain_device *dev)
+{
+	struct sas_phy *phy = p->phy;
+
+	if (dev) {
+		if (dev_is_sata(dev))
+			phy->identify.device_type = SAS_END_DEVICE;
+		else
+			phy->identify.device_type = dev->dev_type;
+		phy->identify.target_port_protocols = dev->tproto;
+	} else {
+		phy->identify.device_type = SAS_PHY_UNUSED;
+		phy->identify.target_port_protocols = 0;
 	}
 }
 
