@@ -27,9 +27,40 @@
 #define NEP_IRQ_SA1111	2
 #define NEP_IRQ_NR	3
 
+#define WHOAMI		0x00
+#define LEDS		0x10
+#define SWPK		0x20
+#define IRR		0x24
+#define KP_Y_IN		0x80
+#define KP_X_OUT	0x90
+#define NCR_0		0xa0
+#define MDM_CTL_0	0xb0
+#define MDM_CTL_1	0xb4
+#define AUD_CTL		0xc0
+
+#define IRR_ETHERNET	(1 << 0)
+#define IRR_USAR	(1 << 1)
+#define IRR_SA1111	(1 << 2)
+
+#define MDM_CTL0_RTS1	(1 << 0)
+#define MDM_CTL0_DTR1	(1 << 1)
+#define MDM_CTL0_RTS2	(1 << 2)
+#define MDM_CTL0_DTR2	(1 << 3)
+
+#define MDM_CTL1_CTS1	(1 << 0)
+#define MDM_CTL1_DSR1	(1 << 1)
+#define MDM_CTL1_DCD1	(1 << 2)
+#define MDM_CTL1_CTS2	(1 << 3)
+#define MDM_CTL1_DSR2	(1 << 4)
+#define MDM_CTL1_DCD2	(1 << 5)
+
+#define AUD_SEL_1341	(1 << 0)
+#define AUD_MUTE_1341	(1 << 1)
+
 extern void sa1110_mb_disable(void);
 
 struct neponset_drvdata {
+	void __iomem *base;
 	struct platform_device *sa1111;
 	struct platform_device *smc91x;
 	unsigned irq_base;
@@ -39,19 +70,34 @@ struct neponset_drvdata {
 #endif
 };
 
+static void __iomem *nep_base;
+
 void neponset_ncr_frob(unsigned int mask, unsigned int val)
 {
-	unsigned long flags;
+	void __iomem *base = nep_base;
 
-	local_irq_save(flags);
-	NCR_0 = (NCR_0 & ~mask) | val;
-	local_irq_restore(flags);
+	if (base) {
+		unsigned long flags;
+		unsigned v;
+
+		local_irq_save(flags);
+		v = readb_relaxed(base + NCR_0);
+		writeb_relaxed((v & ~mask) | val, base + NCR_0);
+		local_irq_restore(flags);
+	} else {
+		WARN(1, "nep_base unset\n");
+	}
 }
 
 static void neponset_set_mctrl(struct uart_port *port, u_int mctrl)
 {
-	u_int mdm_ctl0 = MDM_CTL_0;
+	void __iomem *base = nep_base;
+	u_int mdm_ctl0;
 
+	if (!base)
+		return;
+
+	mdm_ctl0 = readb_relaxed(base + MDM_CTL_0);
 	if (port->mapbase == _Ser1UTCR0) {
 		if (mctrl & TIOCM_RTS)
 			mdm_ctl0 &= ~MDM_CTL0_RTS2;
@@ -74,14 +120,19 @@ static void neponset_set_mctrl(struct uart_port *port, u_int mctrl)
 			mdm_ctl0 |= MDM_CTL0_DTR1;
 	}
 
-	MDM_CTL_0 = mdm_ctl0;
+	writeb_relaxed(mdm_ctl0, base + MDM_CTL_0);
 }
 
 static u_int neponset_get_mctrl(struct uart_port *port)
 {
+	void __iomem *base = nep_base;
 	u_int ret = TIOCM_CD | TIOCM_CTS | TIOCM_DSR;
-	u_int mdm_ctl1 = MDM_CTL_1;
+	u_int mdm_ctl1;
 
+	if (!base)
+		return ret;
+
+	mdm_ctl1 = readb_relaxed(base + MDM_CTL_1);
 	if (port->mapbase == _Ser1UTCR0) {
 		if (mdm_ctl1 & MDM_CTL1_DCD2)
 			ret &= ~TIOCM_CD;
@@ -128,7 +179,8 @@ static void neponset_irq_handler(unsigned int irq, struct irq_desc *desc)
 		 * active IRQ bits high.  Note: there is a typo in the
 		 * Neponset user's guide for the SA1111 IRR level.
 		 */
-		irr = IRR ^ (IRR_ETHERNET | IRR_USAR);
+		irr = readb_relaxed(d->base + IRR);
+		irr ^= IRR_ETHERNET | IRR_USAR;
 
 		if ((irr & (IRR_ETHERNET | IRR_USAR | IRR_SA1111)) == 0)
 			break;
@@ -182,7 +234,7 @@ static struct sa1111_platform_data sa1111_info = {
 static int __devinit neponset_probe(struct platform_device *dev)
 {
 	struct neponset_drvdata *d;
-	struct resource *sa1111_res, *smc91x_res;
+	struct resource *nep_res, *sa1111_res, *smc91x_res;
 	struct resource sa1111_resources[] = {
 		DEFINE_RES_MEM(0x40000000, SZ_8K),
 		{ .flags = IORESOURCE_IRQ },
@@ -213,21 +265,18 @@ static int __devinit neponset_probe(struct platform_device *dev)
 	};
 	int ret, irq;
 
+	if (nep_base)
+		return -EBUSY;
+
 	irq = ret = platform_get_irq(dev, 0);
 	if (ret < 0)
 		goto err_alloc;
 
+	nep_res = platform_get_resource(dev, IORESOURCE_MEM, 0);
 	smc91x_res = platform_get_resource(dev, IORESOURCE_MEM, 1);
 	sa1111_res = platform_get_resource(dev, IORESOURCE_MEM, 2);
-	if (!smc91x_res || !sa1111_res) {
+	if (!nep_res || !smc91x_res || !sa1111_res) {
 		ret = -ENXIO;
-		goto err_alloc;
-	}
-
-	if (WHOAMI != 0x11) {
-		dev_warn(&dev->dev, "Neponset board detected, but wrong ID: %02x\n",
-			 WHOAMI);
-		ret = -ENODEV;
 		goto err_alloc;
 	}
 
@@ -235,6 +284,19 @@ static int __devinit neponset_probe(struct platform_device *dev)
 	if (!d) {
 		ret = -ENOMEM;
 		goto err_alloc;
+	}
+
+	d->base = ioremap(nep_res->start, SZ_4K);
+	if (!d->base) {
+		ret = -ENOMEM;
+		goto err_ioremap;
+	}
+
+	if (readb_relaxed(d->base + WHOAMI) != 0x11) {
+		dev_warn(&dev->dev, "Neponset board detected, but wrong ID: %02x\n",
+			 readb_relaxed(d->base + WHOAMI));
+		ret = -ENODEV;
+		goto err_id;
 	}
 
 	ret = irq_alloc_descs(-1, IRQ_BOARD_START, NEP_IRQ_NR, -1);
@@ -270,6 +332,7 @@ static int __devinit neponset_probe(struct platform_device *dev)
 
 	dev_info(&dev->dev, "Neponset daughter board, providing IRQ%u-%u\n",
 		 d->irq_base, d->irq_base + NEP_IRQ_NR - 1);
+	nep_base = d->base;
 
 	sa1100_register_uart_fns(&neponset_port_fns);
 
@@ -277,7 +340,7 @@ static int __devinit neponset_probe(struct platform_device *dev)
 	sa1110_mb_disable();
 
 	/* Disable GPIO 0/1 drivers so the buttons work on the Assabet */
-	NCR_0 = NCR_GP01_OFF;
+	writeb_relaxed(NCR_GP01_OFF, d->base + NCR_0);
 
 	sa1111_resources[0].parent = sa1111_res;
 	sa1111_resources[1].start = d->irq_base + NEP_IRQ_SA1111;
@@ -295,6 +358,9 @@ static int __devinit neponset_probe(struct platform_device *dev)
 	return 0;
 
  err_irq_alloc:
+ err_id:
+	iounmap(d->base);
+ err_ioremap:
 	kfree(d);
  err_alloc:
 	return ret;
@@ -311,6 +377,8 @@ static int __devexit neponset_remove(struct platform_device *dev)
 		platform_device_unregister(d->smc91x);
 	irq_set_chained_handler(irq, NULL);
 	irq_free_descs(d->irq_base, NEP_IRQ_NR);
+	nep_base = NULL;
+	iounmap(d->base);
 	kfree(d);
 
 	return 0;
@@ -321,8 +389,8 @@ static int neponset_suspend(struct device *dev)
 {
 	struct neponset_drvdata *d = dev_get_drvdata(dev);
 
-	d->ncr0 = NCR_0;
-	d->mdm_ctl_0 = MDM_CTL_0;
+	d->ncr0 = readb_relaxed(d->base + NCR_0);
+	d->mdm_ctl_0 = readb_relaxed(d->base + MDM_CTL_0);
 
 	return 0;
 }
@@ -331,8 +399,8 @@ static int neponset_resume(struct device *dev)
 {
 	struct neponset_drvdata *d = dev_get_drvdata(dev);
 
-	NCR_0 = d->ncr0;
-	MDM_CTL_0 = d->mdm_ctl_0;
+	writeb_relaxed(d->ncr0, d->base + NCR_0);
+	writeb_relaxed(d->mdm_ctl_0, d->base + MDM_CTL_0);
 
 	return 0;
 }
