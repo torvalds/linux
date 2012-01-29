@@ -46,28 +46,7 @@ static int afeb9260_hw_params(struct snd_pcm_substream *substream,
 {
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
 	struct snd_soc_dai *codec_dai = rtd->codec_dai;
-	struct snd_soc_dai *cpu_dai = rtd->cpu_dai;
 	int err;
-
-	/* Set codec DAI configuration */
-	err = snd_soc_dai_set_fmt(codec_dai,
-				  SND_SOC_DAIFMT_I2S|
-				  SND_SOC_DAIFMT_NB_IF |
-				  SND_SOC_DAIFMT_CBM_CFM);
-	if (err < 0) {
-		printk(KERN_ERR "can't set codec DAI configuration\n");
-		return err;
-	}
-
-	/* Set cpu DAI configuration */
-	err = snd_soc_dai_set_fmt(cpu_dai,
-				  SND_SOC_DAIFMT_I2S |
-				  SND_SOC_DAIFMT_NB_IF |
-				  SND_SOC_DAIFMT_CBM_CFM);
-	if (err < 0) {
-		printk(KERN_ERR "can't set cpu DAI configuration\n");
-		return err;
-	}
 
 	/* Set the codec system clock for DAC and ADC */
 	err =
@@ -129,6 +108,8 @@ static struct snd_soc_dai_link afeb9260_dai = {
 	.platform_name = "atmel_pcm-audio",
 	.codec_name = "tlv320aic23-codec.0-001a",
 	.init = afeb9260_tlv320aic23_init,
+	.dai_fmt = SND_SOC_DAIFMT_I2S | SND_SOC_DAIFMT_NB_IF |
+		   SND_SOC_DAIFMT_CBM_CFM,
 	.ops = &afeb9260_ops,
 };
 
