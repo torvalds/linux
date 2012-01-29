@@ -409,6 +409,7 @@ config DVB_USB_MXL111SF
 	tristate "MxL111SF DTV USB2.0 support"
 	depends on DVB_USB
 	select DVB_LGDT3305 if !DVB_FE_CUSTOMISE
+	select DVB_LG2160 if !DVB_FE_CUSTOMISE
 	select VIDEO_TVEEPROM
 	help
 	  Say Y here to support the MxL111SF USB2.0 DTV receiver.
