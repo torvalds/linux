@@ -320,7 +320,27 @@ struct dvb_frontend_event {
 
 #define DTV_ENUM_DELSYS		44
 
-#define DTV_MAX_COMMAND				DTV_ENUM_DELSYS
+/* ATSC-MH */
+#define DTV_ATSCMH_FIC_VER		45
+#define DTV_ATSCMH_PARADE_ID		46
+#define DTV_ATSCMH_NOG			47
+#define DTV_ATSCMH_TNOG			48
+#define DTV_ATSCMH_SGN			49
+#define DTV_ATSCMH_PRC			50
+#define DTV_ATSCMH_RS_FRAME_MODE	51
+#define DTV_ATSCMH_RS_FRAME_ENSEMBLE	52
+#define DTV_ATSCMH_RS_CODE_MODE_PRI	53
+#define DTV_ATSCMH_RS_CODE_MODE_SEC	54
+#define DTV_ATSCMH_SCCC_BLOCK_MODE	55
+#define DTV_ATSCMH_SCCC_CODE_MODE_A	56
+#define DTV_ATSCMH_SCCC_CODE_MODE_B	57
+#define DTV_ATSCMH_SCCC_CODE_MODE_C	58
+#define DTV_ATSCMH_SCCC_CODE_MODE_D	59
+#define DTV_ATSCMH_FIC_ERR		60
+#define DTV_ATSCMH_CRC_ERR		61
+#define DTV_ATSCMH_RS_ERR		62
+
+#define DTV_MAX_COMMAND				DTV_ATSCMH_RS_ERR
 
 typedef enum fe_pilot {
 	PILOT_ON,
@@ -359,6 +379,38 @@ typedef enum fe_delivery_system {
 
 
 #define SYS_DVBC_ANNEX_AC	SYS_DVBC_ANNEX_A
+
+/* ATSC-MH */
+
+enum atscmh_sccc_block_mode {
+	ATSCMH_SCCC_BLK_SEP      = 0,
+	ATSCMH_SCCC_BLK_COMB     = 1,
+	ATSCMH_SCCC_BLK_RES      = 2,
+};
+
+enum atscmh_sccc_code_mode {
+	ATSCMH_SCCC_CODE_HLF     = 0,
+	ATSCMH_SCCC_CODE_QTR     = 1,
+	ATSCMH_SCCC_CODE_RES     = 2,
+};
+
+enum atscmh_rs_frame_ensemble {
+	ATSCMH_RSFRAME_ENS_PRI   = 0,
+	ATSCMH_RSFRAME_ENS_SEC   = 1,
+};
+
+enum atscmh_rs_frame_mode {
+	ATSCMH_RSFRAME_PRI_ONLY  = 0,
+	ATSCMH_RSFRAME_PRI_SEC   = 1,
+	ATSCMH_RSFRAME_RES       = 2,
+};
+
+enum atscmh_rs_code_mode {
+	ATSCMH_RSCODE_211_187    = 0,
+	ATSCMH_RSCODE_223_187    = 1,
+	ATSCMH_RSCODE_235_187    = 2,
+	ATSCMH_RSCODE_RES        = 3,
+};
 
 
 struct dtv_cmds_h {
