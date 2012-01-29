@@ -25,7 +25,8 @@ Procedure for submitting patches to the -stable tree:
 
  - Send the patch, after verifying that it follows the above rules, to
    stable@vger.kernel.org.  You must note the upstream commit ID in the
-   changelog of your submission.
+   changelog of your submission, as well as the kernel version you wish
+   it to be applied to.
  - To have the patch automatically included in the stable tree, add the tag
      Cc: stable@vger.kernel.org
    in the sign-off area. Once the patch is merged it will be applied to
