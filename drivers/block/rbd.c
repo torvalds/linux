@@ -179,8 +179,8 @@ static DEFINE_MUTEX(ctl_mutex);	  /* Serialize open/close/setup/teardown */
 static LIST_HEAD(rbd_dev_list);    /* devices */
 static DEFINE_SPINLOCK(rbd_dev_list_lock);
 
-static LIST_HEAD(rbd_client_list);      /* clients */
-static DEFINE_SPINLOCK(node_lock);      /* protects client get/put */
+static LIST_HEAD(rbd_client_list);		/* clients */
+static DEFINE_SPINLOCK(rbd_client_list_lock);
 
 static int __rbd_init_snaps_header(struct rbd_device *rbd_dev);
 static void rbd_dev_release(struct device *dev);
@@ -270,9 +270,9 @@ static struct rbd_client *rbd_client_create(struct ceph_options *opt,
 
 	rbdc->rbd_opts = rbd_opts;
 
-	spin_lock(&node_lock);
+	spin_lock(&rbd_client_list_lock);
 	list_add_tail(&rbdc->node, &rbd_client_list);
-	spin_unlock(&node_lock);
+	spin_unlock(&rbd_client_list_lock);
 
 	mutex_unlock(&ctl_mutex);
 
@@ -385,12 +385,12 @@ static int rbd_get_client(struct rbd_device *rbd_dev, const char *mon_addr,
 		goto done_err;
 	}
 
-	spin_lock(&node_lock);
+	spin_lock(&rbd_client_list_lock);
 	rbdc = __rbd_client_find(opt);
 	if (rbdc) {
 		/* using an existing client */
 		kref_get(&rbdc->kref);
-		spin_unlock(&node_lock);
+		spin_unlock(&rbd_client_list_lock);
 
 		rbd_dev->rbd_client = rbdc;
 
@@ -399,7 +399,7 @@ static int rbd_get_client(struct rbd_device *rbd_dev, const char *mon_addr,
 
 		return 0;
 	}
-	spin_unlock(&node_lock);
+	spin_unlock(&rbd_client_list_lock);
 
 	rbdc = rbd_client_create(opt, rbd_opts);
 
@@ -418,7 +418,7 @@ done_err:
 /*
  * Destroy ceph client
  *
- * Caller must hold node_lock.
+ * Caller must hold rbd_client_list_lock.
  */
 static void rbd_client_release(struct kref *kref)
 {
@@ -438,9 +438,9 @@ static void rbd_client_release(struct kref *kref)
  */
 static void rbd_put_client(struct rbd_device *rbd_dev)
 {
-	spin_lock(&node_lock);
+	spin_lock(&rbd_client_list_lock);
 	kref_put(&rbd_dev->rbd_client->kref, rbd_client_release);
-	spin_unlock(&node_lock);
+	spin_unlock(&rbd_client_list_lock);
 	rbd_dev->rbd_client = NULL;
 }
 
