@@ -65,344 +65,344 @@ struct wm2200_priv {
 };
 
 static struct reg_default wm2200_reg_defaults[] = {
-	{ 0x000B, 0x0000 },   /* R11    - Tone Generator 1 */ 
-	{ 0x0102, 0x0000 },   /* R258   - Clocking 3 */ 
-	{ 0x0103, 0x0011 },   /* R259   - Clocking 4 */ 
-	{ 0x0111, 0x0000 },   /* R273   - FLL Control 1 */ 
-	{ 0x0112, 0x0000 },   /* R274   - FLL Control 2 */ 
-	{ 0x0113, 0x0000 },   /* R275   - FLL Control 3 */ 
-	{ 0x0114, 0x0000 },   /* R276   - FLL Control 4 */ 
-	{ 0x0116, 0x0177 },   /* R278   - FLL Control 6 */ 
-	{ 0x0117, 0x0004 },   /* R279   - FLL Control 7 */ 
-	{ 0x0119, 0x0000 },   /* R281   - FLL EFS 1 */ 
-	{ 0x011A, 0x0002 },   /* R282   - FLL EFS 2 */ 
-	{ 0x0200, 0x0000 },   /* R512   - Mic Charge Pump 1 */ 
-	{ 0x0201, 0x03FF },   /* R513   - Mic Charge Pump 2 */ 
-	{ 0x0202, 0x9BDE },   /* R514   - DM Charge Pump 1 */ 
-	{ 0x020C, 0x0000 },   /* R524   - Mic Bias Ctrl 1 */ 
-	{ 0x020D, 0x0000 },   /* R525   - Mic Bias Ctrl 2 */ 
-	{ 0x020F, 0x0000 },   /* R527   - Ear Piece Ctrl 1 */ 
-	{ 0x0210, 0x0000 },   /* R528   - Ear Piece Ctrl 2 */ 
-	{ 0x0301, 0x0000 },   /* R769   - Input Enables */ 
-	{ 0x0302, 0x2240 },   /* R770   - IN1L Control */ 
-	{ 0x0303, 0x0040 },   /* R771   - IN1R Control */ 
-	{ 0x0304, 0x2240 },   /* R772   - IN2L Control */ 
-	{ 0x0305, 0x0040 },   /* R773   - IN2R Control */ 
-	{ 0x0306, 0x2240 },   /* R774   - IN3L Control */ 
-	{ 0x0307, 0x0040 },   /* R775   - IN3R Control */ 
-	{ 0x030A, 0x0000 },   /* R778   - RXANC_SRC */ 
-	{ 0x030B, 0x0022 },   /* R779   - Input Volume Ramp */ 
-	{ 0x030C, 0x0180 },   /* R780   - ADC Digital Volume 1L */ 
-	{ 0x030D, 0x0180 },   /* R781   - ADC Digital Volume 1R */ 
-	{ 0x030E, 0x0180 },   /* R782   - ADC Digital Volume 2L */ 
-	{ 0x030F, 0x0180 },   /* R783   - ADC Digital Volume 2R */ 
-	{ 0x0310, 0x0180 },   /* R784   - ADC Digital Volume 3L */ 
-	{ 0x0311, 0x0180 },   /* R785   - ADC Digital Volume 3R */ 
-	{ 0x0400, 0x0000 },   /* R1024  - Output Enables */ 
-	{ 0x0401, 0x0000 },   /* R1025  - DAC Volume Limit 1L */ 
-	{ 0x0402, 0x0000 },   /* R1026  - DAC Volume Limit 1R */ 
-	{ 0x0403, 0x0000 },   /* R1027  - DAC Volume Limit 2L */ 
-	{ 0x0404, 0x0000 },   /* R1028  - DAC Volume Limit 2R */ 
-	{ 0x0409, 0x0000 },   /* R1033  - DAC AEC Control 1 */ 
-	{ 0x040A, 0x0022 },   /* R1034  - Output Volume Ramp */ 
-	{ 0x040B, 0x0180 },   /* R1035  - DAC Digital Volume 1L */ 
-	{ 0x040C, 0x0180 },   /* R1036  - DAC Digital Volume 1R */ 
-	{ 0x040D, 0x0180 },   /* R1037  - DAC Digital Volume 2L */ 
-	{ 0x040E, 0x0180 },   /* R1038  - DAC Digital Volume 2R */ 
-	{ 0x0417, 0x0069 },   /* R1047  - PDM 1 */ 
-	{ 0x0418, 0x0000 },   /* R1048  - PDM 2 */ 
-	{ 0x0500, 0x0000 },   /* R1280  - Audio IF 1_1 */ 
-	{ 0x0501, 0x0008 },   /* R1281  - Audio IF 1_2 */ 
-	{ 0x0502, 0x0000 },   /* R1282  - Audio IF 1_3 */ 
-	{ 0x0503, 0x0000 },   /* R1283  - Audio IF 1_4 */ 
-	{ 0x0504, 0x0000 },   /* R1284  - Audio IF 1_5 */ 
-	{ 0x0505, 0x0001 },   /* R1285  - Audio IF 1_6 */ 
-	{ 0x0506, 0x0001 },   /* R1286  - Audio IF 1_7 */ 
-	{ 0x0507, 0x0000 },   /* R1287  - Audio IF 1_8 */ 
-	{ 0x0508, 0x0000 },   /* R1288  - Audio IF 1_9 */ 
-	{ 0x0509, 0x0000 },   /* R1289  - Audio IF 1_10 */ 
-	{ 0x050A, 0x0000 },   /* R1290  - Audio IF 1_11 */ 
-	{ 0x050B, 0x0000 },   /* R1291  - Audio IF 1_12 */ 
-	{ 0x050C, 0x0000 },   /* R1292  - Audio IF 1_13 */ 
-	{ 0x050D, 0x0000 },   /* R1293  - Audio IF 1_14 */ 
-	{ 0x050E, 0x0000 },   /* R1294  - Audio IF 1_15 */ 
-	{ 0x050F, 0x0000 },   /* R1295  - Audio IF 1_16 */ 
-	{ 0x0510, 0x0000 },   /* R1296  - Audio IF 1_17 */ 
-	{ 0x0511, 0x0000 },   /* R1297  - Audio IF 1_18 */ 
-	{ 0x0512, 0x0000 },   /* R1298  - Audio IF 1_19 */ 
-	{ 0x0513, 0x0000 },   /* R1299  - Audio IF 1_20 */ 
-	{ 0x0514, 0x0000 },   /* R1300  - Audio IF 1_21 */ 
-	{ 0x0515, 0x0001 },   /* R1301  - Audio IF 1_22 */ 
-	{ 0x0600, 0x0000 },   /* R1536  - OUT1LMIX Input 1 Source */ 
-	{ 0x0601, 0x0080 },   /* R1537  - OUT1LMIX Input 1 Volume */ 
-	{ 0x0602, 0x0000 },   /* R1538  - OUT1LMIX Input 2 Source */ 
-	{ 0x0603, 0x0080 },   /* R1539  - OUT1LMIX Input 2 Volume */ 
-	{ 0x0604, 0x0000 },   /* R1540  - OUT1LMIX Input 3 Source */ 
-	{ 0x0605, 0x0080 },   /* R1541  - OUT1LMIX Input 3 Volume */ 
-	{ 0x0606, 0x0000 },   /* R1542  - OUT1LMIX Input 4 Source */ 
-	{ 0x0607, 0x0080 },   /* R1543  - OUT1LMIX Input 4 Volume */ 
-	{ 0x0608, 0x0000 },   /* R1544  - OUT1RMIX Input 1 Source */ 
-	{ 0x0609, 0x0080 },   /* R1545  - OUT1RMIX Input 1 Volume */ 
-	{ 0x060A, 0x0000 },   /* R1546  - OUT1RMIX Input 2 Source */ 
-	{ 0x060B, 0x0080 },   /* R1547  - OUT1RMIX Input 2 Volume */ 
-	{ 0x060C, 0x0000 },   /* R1548  - OUT1RMIX Input 3 Source */ 
-	{ 0x060D, 0x0080 },   /* R1549  - OUT1RMIX Input 3 Volume */ 
-	{ 0x060E, 0x0000 },   /* R1550  - OUT1RMIX Input 4 Source */ 
-	{ 0x060F, 0x0080 },   /* R1551  - OUT1RMIX Input 4 Volume */ 
-	{ 0x0610, 0x0000 },   /* R1552  - OUT2LMIX Input 1 Source */ 
-	{ 0x0611, 0x0080 },   /* R1553  - OUT2LMIX Input 1 Volume */ 
-	{ 0x0612, 0x0000 },   /* R1554  - OUT2LMIX Input 2 Source */ 
-	{ 0x0613, 0x0080 },   /* R1555  - OUT2LMIX Input 2 Volume */ 
-	{ 0x0614, 0x0000 },   /* R1556  - OUT2LMIX Input 3 Source */ 
-	{ 0x0615, 0x0080 },   /* R1557  - OUT2LMIX Input 3 Volume */ 
-	{ 0x0616, 0x0000 },   /* R1558  - OUT2LMIX Input 4 Source */ 
-	{ 0x0617, 0x0080 },   /* R1559  - OUT2LMIX Input 4 Volume */ 
-	{ 0x0618, 0x0000 },   /* R1560  - OUT2RMIX Input 1 Source */ 
-	{ 0x0619, 0x0080 },   /* R1561  - OUT2RMIX Input 1 Volume */ 
-	{ 0x061A, 0x0000 },   /* R1562  - OUT2RMIX Input 2 Source */ 
-	{ 0x061B, 0x0080 },   /* R1563  - OUT2RMIX Input 2 Volume */ 
-	{ 0x061C, 0x0000 },   /* R1564  - OUT2RMIX Input 3 Source */ 
-	{ 0x061D, 0x0080 },   /* R1565  - OUT2RMIX Input 3 Volume */ 
-	{ 0x061E, 0x0000 },   /* R1566  - OUT2RMIX Input 4 Source */ 
-	{ 0x061F, 0x0080 },   /* R1567  - OUT2RMIX Input 4 Volume */ 
-	{ 0x0620, 0x0000 },   /* R1568  - AIF1TX1MIX Input 1 Source */ 
-	{ 0x0621, 0x0080 },   /* R1569  - AIF1TX1MIX Input 1 Volume */ 
-	{ 0x0622, 0x0000 },   /* R1570  - AIF1TX1MIX Input 2 Source */ 
-	{ 0x0623, 0x0080 },   /* R1571  - AIF1TX1MIX Input 2 Volume */ 
-	{ 0x0624, 0x0000 },   /* R1572  - AIF1TX1MIX Input 3 Source */ 
-	{ 0x0625, 0x0080 },   /* R1573  - AIF1TX1MIX Input 3 Volume */ 
-	{ 0x0626, 0x0000 },   /* R1574  - AIF1TX1MIX Input 4 Source */ 
-	{ 0x0627, 0x0080 },   /* R1575  - AIF1TX1MIX Input 4 Volume */ 
-	{ 0x0628, 0x0000 },   /* R1576  - AIF1TX2MIX Input 1 Source */ 
-	{ 0x0629, 0x0080 },   /* R1577  - AIF1TX2MIX Input 1 Volume */ 
-	{ 0x062A, 0x0000 },   /* R1578  - AIF1TX2MIX Input 2 Source */ 
-	{ 0x062B, 0x0080 },   /* R1579  - AIF1TX2MIX Input 2 Volume */ 
-	{ 0x062C, 0x0000 },   /* R1580  - AIF1TX2MIX Input 3 Source */ 
-	{ 0x062D, 0x0080 },   /* R1581  - AIF1TX2MIX Input 3 Volume */ 
-	{ 0x062E, 0x0000 },   /* R1582  - AIF1TX2MIX Input 4 Source */ 
-	{ 0x062F, 0x0080 },   /* R1583  - AIF1TX2MIX Input 4 Volume */ 
-	{ 0x0630, 0x0000 },   /* R1584  - AIF1TX3MIX Input 1 Source */ 
-	{ 0x0631, 0x0080 },   /* R1585  - AIF1TX3MIX Input 1 Volume */ 
-	{ 0x0632, 0x0000 },   /* R1586  - AIF1TX3MIX Input 2 Source */ 
-	{ 0x0633, 0x0080 },   /* R1587  - AIF1TX3MIX Input 2 Volume */ 
-	{ 0x0634, 0x0000 },   /* R1588  - AIF1TX3MIX Input 3 Source */ 
-	{ 0x0635, 0x0080 },   /* R1589  - AIF1TX3MIX Input 3 Volume */ 
-	{ 0x0636, 0x0000 },   /* R1590  - AIF1TX3MIX Input 4 Source */ 
-	{ 0x0637, 0x0080 },   /* R1591  - AIF1TX3MIX Input 4 Volume */ 
-	{ 0x0638, 0x0000 },   /* R1592  - AIF1TX4MIX Input 1 Source */ 
-	{ 0x0639, 0x0080 },   /* R1593  - AIF1TX4MIX Input 1 Volume */ 
-	{ 0x063A, 0x0000 },   /* R1594  - AIF1TX4MIX Input 2 Source */ 
-	{ 0x063B, 0x0080 },   /* R1595  - AIF1TX4MIX Input 2 Volume */ 
-	{ 0x063C, 0x0000 },   /* R1596  - AIF1TX4MIX Input 3 Source */ 
-	{ 0x063D, 0x0080 },   /* R1597  - AIF1TX4MIX Input 3 Volume */ 
-	{ 0x063E, 0x0000 },   /* R1598  - AIF1TX4MIX Input 4 Source */ 
-	{ 0x063F, 0x0080 },   /* R1599  - AIF1TX4MIX Input 4 Volume */ 
-	{ 0x0640, 0x0000 },   /* R1600  - AIF1TX5MIX Input 1 Source */ 
-	{ 0x0641, 0x0080 },   /* R1601  - AIF1TX5MIX Input 1 Volume */ 
-	{ 0x0642, 0x0000 },   /* R1602  - AIF1TX5MIX Input 2 Source */ 
-	{ 0x0643, 0x0080 },   /* R1603  - AIF1TX5MIX Input 2 Volume */ 
-	{ 0x0644, 0x0000 },   /* R1604  - AIF1TX5MIX Input 3 Source */ 
-	{ 0x0645, 0x0080 },   /* R1605  - AIF1TX5MIX Input 3 Volume */ 
-	{ 0x0646, 0x0000 },   /* R1606  - AIF1TX5MIX Input 4 Source */ 
-	{ 0x0647, 0x0080 },   /* R1607  - AIF1TX5MIX Input 4 Volume */ 
-	{ 0x0648, 0x0000 },   /* R1608  - AIF1TX6MIX Input 1 Source */ 
-	{ 0x0649, 0x0080 },   /* R1609  - AIF1TX6MIX Input 1 Volume */ 
-	{ 0x064A, 0x0000 },   /* R1610  - AIF1TX6MIX Input 2 Source */ 
-	{ 0x064B, 0x0080 },   /* R1611  - AIF1TX6MIX Input 2 Volume */ 
-	{ 0x064C, 0x0000 },   /* R1612  - AIF1TX6MIX Input 3 Source */ 
-	{ 0x064D, 0x0080 },   /* R1613  - AIF1TX6MIX Input 3 Volume */ 
-	{ 0x064E, 0x0000 },   /* R1614  - AIF1TX6MIX Input 4 Source */ 
-	{ 0x064F, 0x0080 },   /* R1615  - AIF1TX6MIX Input 4 Volume */ 
-	{ 0x0650, 0x0000 },   /* R1616  - EQLMIX Input 1 Source */ 
-	{ 0x0651, 0x0080 },   /* R1617  - EQLMIX Input 1 Volume */ 
-	{ 0x0652, 0x0000 },   /* R1618  - EQLMIX Input 2 Source */ 
-	{ 0x0653, 0x0080 },   /* R1619  - EQLMIX Input 2 Volume */ 
-	{ 0x0654, 0x0000 },   /* R1620  - EQLMIX Input 3 Source */ 
-	{ 0x0655, 0x0080 },   /* R1621  - EQLMIX Input 3 Volume */ 
-	{ 0x0656, 0x0000 },   /* R1622  - EQLMIX Input 4 Source */ 
-	{ 0x0657, 0x0080 },   /* R1623  - EQLMIX Input 4 Volume */ 
-	{ 0x0658, 0x0000 },   /* R1624  - EQRMIX Input 1 Source */ 
-	{ 0x0659, 0x0080 },   /* R1625  - EQRMIX Input 1 Volume */ 
-	{ 0x065A, 0x0000 },   /* R1626  - EQRMIX Input 2 Source */ 
-	{ 0x065B, 0x0080 },   /* R1627  - EQRMIX Input 2 Volume */ 
-	{ 0x065C, 0x0000 },   /* R1628  - EQRMIX Input 3 Source */ 
-	{ 0x065D, 0x0080 },   /* R1629  - EQRMIX Input 3 Volume */ 
-	{ 0x065E, 0x0000 },   /* R1630  - EQRMIX Input 4 Source */ 
-	{ 0x065F, 0x0080 },   /* R1631  - EQRMIX Input 4 Volume */ 
-	{ 0x0660, 0x0000 },   /* R1632  - LHPF1MIX Input 1 Source */ 
-	{ 0x0661, 0x0080 },   /* R1633  - LHPF1MIX Input 1 Volume */ 
-	{ 0x0662, 0x0000 },   /* R1634  - LHPF1MIX Input 2 Source */ 
-	{ 0x0663, 0x0080 },   /* R1635  - LHPF1MIX Input 2 Volume */ 
-	{ 0x0664, 0x0000 },   /* R1636  - LHPF1MIX Input 3 Source */ 
-	{ 0x0665, 0x0080 },   /* R1637  - LHPF1MIX Input 3 Volume */ 
-	{ 0x0666, 0x0000 },   /* R1638  - LHPF1MIX Input 4 Source */ 
-	{ 0x0667, 0x0080 },   /* R1639  - LHPF1MIX Input 4 Volume */ 
-	{ 0x0668, 0x0000 },   /* R1640  - LHPF2MIX Input 1 Source */ 
-	{ 0x0669, 0x0080 },   /* R1641  - LHPF2MIX Input 1 Volume */ 
-	{ 0x066A, 0x0000 },   /* R1642  - LHPF2MIX Input 2 Source */ 
-	{ 0x066B, 0x0080 },   /* R1643  - LHPF2MIX Input 2 Volume */ 
-	{ 0x066C, 0x0000 },   /* R1644  - LHPF2MIX Input 3 Source */ 
-	{ 0x066D, 0x0080 },   /* R1645  - LHPF2MIX Input 3 Volume */ 
-	{ 0x066E, 0x0000 },   /* R1646  - LHPF2MIX Input 4 Source */ 
-	{ 0x066F, 0x0080 },   /* R1647  - LHPF2MIX Input 4 Volume */ 
-	{ 0x0670, 0x0000 },   /* R1648  - DSP1LMIX Input 1 Source */ 
-	{ 0x0671, 0x0080 },   /* R1649  - DSP1LMIX Input 1 Volume */ 
-	{ 0x0672, 0x0000 },   /* R1650  - DSP1LMIX Input 2 Source */ 
-	{ 0x0673, 0x0080 },   /* R1651  - DSP1LMIX Input 2 Volume */ 
-	{ 0x0674, 0x0000 },   /* R1652  - DSP1LMIX Input 3 Source */ 
-	{ 0x0675, 0x0080 },   /* R1653  - DSP1LMIX Input 3 Volume */ 
-	{ 0x0676, 0x0000 },   /* R1654  - DSP1LMIX Input 4 Source */ 
-	{ 0x0677, 0x0080 },   /* R1655  - DSP1LMIX Input 4 Volume */ 
-	{ 0x0678, 0x0000 },   /* R1656  - DSP1RMIX Input 1 Source */ 
-	{ 0x0679, 0x0080 },   /* R1657  - DSP1RMIX Input 1 Volume */ 
-	{ 0x067A, 0x0000 },   /* R1658  - DSP1RMIX Input 2 Source */ 
-	{ 0x067B, 0x0080 },   /* R1659  - DSP1RMIX Input 2 Volume */ 
-	{ 0x067C, 0x0000 },   /* R1660  - DSP1RMIX Input 3 Source */ 
-	{ 0x067D, 0x0080 },   /* R1661  - DSP1RMIX Input 3 Volume */ 
-	{ 0x067E, 0x0000 },   /* R1662  - DSP1RMIX Input 4 Source */ 
-	{ 0x067F, 0x0080 },   /* R1663  - DSP1RMIX Input 4 Volume */ 
-	{ 0x0680, 0x0000 },   /* R1664  - DSP1AUX1MIX Input 1 Source */ 
-	{ 0x0681, 0x0000 },   /* R1665  - DSP1AUX2MIX Input 1 Source */ 
-	{ 0x0682, 0x0000 },   /* R1666  - DSP1AUX3MIX Input 1 Source */ 
-	{ 0x0683, 0x0000 },   /* R1667  - DSP1AUX4MIX Input 1 Source */ 
-	{ 0x0684, 0x0000 },   /* R1668  - DSP1AUX5MIX Input 1 Source */ 
-	{ 0x0685, 0x0000 },   /* R1669  - DSP1AUX6MIX Input 1 Source */ 
-	{ 0x0686, 0x0000 },   /* R1670  - DSP2LMIX Input 1 Source */ 
-	{ 0x0687, 0x0080 },   /* R1671  - DSP2LMIX Input 1 Volume */ 
-	{ 0x0688, 0x0000 },   /* R1672  - DSP2LMIX Input 2 Source */ 
-	{ 0x0689, 0x0080 },   /* R1673  - DSP2LMIX Input 2 Volume */ 
-	{ 0x068A, 0x0000 },   /* R1674  - DSP2LMIX Input 3 Source */ 
-	{ 0x068B, 0x0080 },   /* R1675  - DSP2LMIX Input 3 Volume */ 
-	{ 0x068C, 0x0000 },   /* R1676  - DSP2LMIX Input 4 Source */ 
-	{ 0x068D, 0x0080 },   /* R1677  - DSP2LMIX Input 4 Volume */ 
-	{ 0x068E, 0x0000 },   /* R1678  - DSP2RMIX Input 1 Source */ 
-	{ 0x068F, 0x0080 },   /* R1679  - DSP2RMIX Input 1 Volume */ 
-	{ 0x0690, 0x0000 },   /* R1680  - DSP2RMIX Input 2 Source */ 
-	{ 0x0691, 0x0080 },   /* R1681  - DSP2RMIX Input 2 Volume */ 
-	{ 0x0692, 0x0000 },   /* R1682  - DSP2RMIX Input 3 Source */ 
-	{ 0x0693, 0x0080 },   /* R1683  - DSP2RMIX Input 3 Volume */ 
-	{ 0x0694, 0x0000 },   /* R1684  - DSP2RMIX Input 4 Source */ 
-	{ 0x0695, 0x0080 },   /* R1685  - DSP2RMIX Input 4 Volume */ 
-	{ 0x0696, 0x0000 },   /* R1686  - DSP2AUX1MIX Input 1 Source */ 
-	{ 0x0697, 0x0000 },   /* R1687  - DSP2AUX2MIX Input 1 Source */ 
-	{ 0x0698, 0x0000 },   /* R1688  - DSP2AUX3MIX Input 1 Source */ 
-	{ 0x0699, 0x0000 },   /* R1689  - DSP2AUX4MIX Input 1 Source */ 
-	{ 0x069A, 0x0000 },   /* R1690  - DSP2AUX5MIX Input 1 Source */ 
-	{ 0x069B, 0x0000 },   /* R1691  - DSP2AUX6MIX Input 1 Source */ 
-	{ 0x0700, 0xA101 },   /* R1792  - GPIO CTRL 1 */ 
-	{ 0x0701, 0xA101 },   /* R1793  - GPIO CTRL 2 */ 
-	{ 0x0702, 0xA101 },   /* R1794  - GPIO CTRL 3 */ 
-	{ 0x0703, 0xA101 },   /* R1795  - GPIO CTRL 4 */ 
-	{ 0x0709, 0x0000 },   /* R1801  - Misc Pad Ctrl 1 */ 
-	{ 0x0801, 0x00FF },   /* R2049  - Interrupt Status 1 Mask */ 
-	{ 0x0804, 0xFFFF },   /* R2052  - Interrupt Status 2 Mask */ 
-	{ 0x0808, 0x0000 },   /* R2056  - Interrupt Control */ 
-	{ 0x0900, 0x0000 },   /* R2304  - EQL_1 */ 
-	{ 0x0901, 0x0000 },   /* R2305  - EQL_2 */ 
-	{ 0x0902, 0x0000 },   /* R2306  - EQL_3 */ 
-	{ 0x0903, 0x0000 },   /* R2307  - EQL_4 */ 
-	{ 0x0904, 0x0000 },   /* R2308  - EQL_5 */ 
-	{ 0x0905, 0x0000 },   /* R2309  - EQL_6 */ 
-	{ 0x0906, 0x0000 },   /* R2310  - EQL_7 */ 
-	{ 0x0907, 0x0000 },   /* R2311  - EQL_8 */ 
-	{ 0x0908, 0x0000 },   /* R2312  - EQL_9 */ 
-	{ 0x0909, 0x0000 },   /* R2313  - EQL_10 */ 
-	{ 0x090A, 0x0000 },   /* R2314  - EQL_11 */ 
-	{ 0x090B, 0x0000 },   /* R2315  - EQL_12 */ 
-	{ 0x090C, 0x0000 },   /* R2316  - EQL_13 */ 
-	{ 0x090D, 0x0000 },   /* R2317  - EQL_14 */ 
-	{ 0x090E, 0x0000 },   /* R2318  - EQL_15 */ 
-	{ 0x090F, 0x0000 },   /* R2319  - EQL_16 */ 
-	{ 0x0910, 0x0000 },   /* R2320  - EQL_17 */ 
-	{ 0x0911, 0x0000 },   /* R2321  - EQL_18 */ 
-	{ 0x0912, 0x0000 },   /* R2322  - EQL_19 */ 
-	{ 0x0913, 0x0000 },   /* R2323  - EQL_20 */ 
-	{ 0x0916, 0x0000 },   /* R2326  - EQR_1 */ 
-	{ 0x0917, 0x0000 },   /* R2327  - EQR_2 */ 
-	{ 0x0918, 0x0000 },   /* R2328  - EQR_3 */ 
-	{ 0x0919, 0x0000 },   /* R2329  - EQR_4 */ 
-	{ 0x091A, 0x0000 },   /* R2330  - EQR_5 */ 
-	{ 0x091B, 0x0000 },   /* R2331  - EQR_6 */ 
-	{ 0x091C, 0x0000 },   /* R2332  - EQR_7 */ 
-	{ 0x091D, 0x0000 },   /* R2333  - EQR_8 */ 
-	{ 0x091E, 0x0000 },   /* R2334  - EQR_9 */ 
-	{ 0x091F, 0x0000 },   /* R2335  - EQR_10 */ 
-	{ 0x0920, 0x0000 },   /* R2336  - EQR_11 */ 
-	{ 0x0921, 0x0000 },   /* R2337  - EQR_12 */ 
-	{ 0x0922, 0x0000 },   /* R2338  - EQR_13 */ 
-	{ 0x0923, 0x0000 },   /* R2339  - EQR_14 */ 
-	{ 0x0924, 0x0000 },   /* R2340  - EQR_15 */ 
-	{ 0x0925, 0x0000 },   /* R2341  - EQR_16 */ 
-	{ 0x0926, 0x0000 },   /* R2342  - EQR_17 */ 
-	{ 0x0927, 0x0000 },   /* R2343  - EQR_18 */ 
-	{ 0x0928, 0x0000 },   /* R2344  - EQR_19 */ 
-	{ 0x0929, 0x0000 },   /* R2345  - EQR_20 */ 
-	{ 0x093E, 0x0000 },   /* R2366  - HPLPF1_1 */ 
-	{ 0x093F, 0x0000 },   /* R2367  - HPLPF1_2 */ 
-	{ 0x0942, 0x0000 },   /* R2370  - HPLPF2_1 */ 
-	{ 0x0943, 0x0000 },   /* R2371  - HPLPF2_2 */ 
-	{ 0x0A00, 0x0000 },   /* R2560  - DSP1 Control 1 */ 
-	{ 0x0A02, 0x0000 },   /* R2562  - DSP1 Control 2 */ 
-	{ 0x0A03, 0x0000 },   /* R2563  - DSP1 Control 3 */ 
-	{ 0x0A04, 0x0000 },   /* R2564  - DSP1 Control 4 */ 
-	{ 0x0A06, 0x0000 },   /* R2566  - DSP1 Control 5 */ 
-	{ 0x0A07, 0x0000 },   /* R2567  - DSP1 Control 6 */ 
-	{ 0x0A08, 0x0000 },   /* R2568  - DSP1 Control 7 */ 
-	{ 0x0A09, 0x0000 },   /* R2569  - DSP1 Control 8 */ 
-	{ 0x0A0A, 0x0000 },   /* R2570  - DSP1 Control 9 */ 
-	{ 0x0A0B, 0x0000 },   /* R2571  - DSP1 Control 10 */ 
-	{ 0x0A0C, 0x0000 },   /* R2572  - DSP1 Control 11 */ 
-	{ 0x0A0D, 0x0000 },   /* R2573  - DSP1 Control 12 */ 
-	{ 0x0A0F, 0x0000 },   /* R2575  - DSP1 Control 13 */ 
-	{ 0x0A10, 0x0000 },   /* R2576  - DSP1 Control 14 */ 
-	{ 0x0A11, 0x0000 },   /* R2577  - DSP1 Control 15 */ 
-	{ 0x0A12, 0x0000 },   /* R2578  - DSP1 Control 16 */ 
-	{ 0x0A13, 0x0000 },   /* R2579  - DSP1 Control 17 */ 
-	{ 0x0A14, 0x0000 },   /* R2580  - DSP1 Control 18 */ 
-	{ 0x0A16, 0x0000 },   /* R2582  - DSP1 Control 19 */ 
-	{ 0x0A17, 0x0000 },   /* R2583  - DSP1 Control 20 */ 
-	{ 0x0A18, 0x0000 },   /* R2584  - DSP1 Control 21 */ 
-	{ 0x0A1A, 0x1800 },   /* R2586  - DSP1 Control 22 */ 
-	{ 0x0A1B, 0x1000 },   /* R2587  - DSP1 Control 23 */ 
-	{ 0x0A1C, 0x0400 },   /* R2588  - DSP1 Control 24 */ 
-	{ 0x0A1E, 0x0000 },   /* R2590  - DSP1 Control 25 */ 
-	{ 0x0A20, 0x0000 },   /* R2592  - DSP1 Control 26 */ 
-	{ 0x0A21, 0x0000 },   /* R2593  - DSP1 Control 27 */ 
-	{ 0x0A22, 0x0000 },   /* R2594  - DSP1 Control 28 */ 
-	{ 0x0A23, 0x0000 },   /* R2595  - DSP1 Control 29 */ 
-	{ 0x0A24, 0x0000 },   /* R2596  - DSP1 Control 30 */ 
-	{ 0x0A26, 0x0000 },   /* R2598  - DSP1 Control 31 */ 
-	{ 0x0B00, 0x0000 },   /* R2816  - DSP2 Control 1 */ 
-	{ 0x0B02, 0x0000 },   /* R2818  - DSP2 Control 2 */ 
-	{ 0x0B03, 0x0000 },   /* R2819  - DSP2 Control 3 */ 
-	{ 0x0B04, 0x0000 },   /* R2820  - DSP2 Control 4 */ 
-	{ 0x0B06, 0x0000 },   /* R2822  - DSP2 Control 5 */ 
-	{ 0x0B07, 0x0000 },   /* R2823  - DSP2 Control 6 */ 
-	{ 0x0B08, 0x0000 },   /* R2824  - DSP2 Control 7 */ 
-	{ 0x0B09, 0x0000 },   /* R2825  - DSP2 Control 8 */ 
-	{ 0x0B0A, 0x0000 },   /* R2826  - DSP2 Control 9 */ 
-	{ 0x0B0B, 0x0000 },   /* R2827  - DSP2 Control 10 */ 
-	{ 0x0B0C, 0x0000 },   /* R2828  - DSP2 Control 11 */ 
-	{ 0x0B0D, 0x0000 },   /* R2829  - DSP2 Control 12 */ 
-	{ 0x0B0F, 0x0000 },   /* R2831  - DSP2 Control 13 */ 
-	{ 0x0B10, 0x0000 },   /* R2832  - DSP2 Control 14 */ 
-	{ 0x0B11, 0x0000 },   /* R2833  - DSP2 Control 15 */ 
-	{ 0x0B12, 0x0000 },   /* R2834  - DSP2 Control 16 */ 
-	{ 0x0B13, 0x0000 },   /* R2835  - DSP2 Control 17 */ 
-	{ 0x0B14, 0x0000 },   /* R2836  - DSP2 Control 18 */ 
-	{ 0x0B16, 0x0000 },   /* R2838  - DSP2 Control 19 */ 
-	{ 0x0B17, 0x0000 },   /* R2839  - DSP2 Control 20 */ 
-	{ 0x0B18, 0x0000 },   /* R2840  - DSP2 Control 21 */ 
-	{ 0x0B1A, 0x0800 },   /* R2842  - DSP2 Control 22 */ 
-	{ 0x0B1B, 0x1000 },   /* R2843  - DSP2 Control 23 */ 
-	{ 0x0B1C, 0x0400 },   /* R2844  - DSP2 Control 24 */ 
-	{ 0x0B1E, 0x0000 },   /* R2846  - DSP2 Control 25 */ 
-	{ 0x0B20, 0x0000 },   /* R2848  - DSP2 Control 26 */ 
-	{ 0x0B21, 0x0000 },   /* R2849  - DSP2 Control 27 */ 
-	{ 0x0B22, 0x0000 },   /* R2850  - DSP2 Control 28 */ 
-	{ 0x0B23, 0x0000 },   /* R2851  - DSP2 Control 29 */ 
-	{ 0x0B24, 0x0000 },   /* R2852  - DSP2 Control 30 */ 
-	{ 0x0B26, 0x0000 },   /* R2854  - DSP2 Control 31 */ 
+	{ 0x000B, 0x0000 },   /* R11    - Tone Generator 1 */
+	{ 0x0102, 0x0000 },   /* R258   - Clocking 3 */
+	{ 0x0103, 0x0011 },   /* R259   - Clocking 4 */
+	{ 0x0111, 0x0000 },   /* R273   - FLL Control 1 */
+	{ 0x0112, 0x0000 },   /* R274   - FLL Control 2 */
+	{ 0x0113, 0x0000 },   /* R275   - FLL Control 3 */
+	{ 0x0114, 0x0000 },   /* R276   - FLL Control 4 */
+	{ 0x0116, 0x0177 },   /* R278   - FLL Control 6 */
+	{ 0x0117, 0x0004 },   /* R279   - FLL Control 7 */
+	{ 0x0119, 0x0000 },   /* R281   - FLL EFS 1 */
+	{ 0x011A, 0x0002 },   /* R282   - FLL EFS 2 */
+	{ 0x0200, 0x0000 },   /* R512   - Mic Charge Pump 1 */
+	{ 0x0201, 0x03FF },   /* R513   - Mic Charge Pump 2 */
+	{ 0x0202, 0x9BDE },   /* R514   - DM Charge Pump 1 */
+	{ 0x020C, 0x0000 },   /* R524   - Mic Bias Ctrl 1 */
+	{ 0x020D, 0x0000 },   /* R525   - Mic Bias Ctrl 2 */
+	{ 0x020F, 0x0000 },   /* R527   - Ear Piece Ctrl 1 */
+	{ 0x0210, 0x0000 },   /* R528   - Ear Piece Ctrl 2 */
+	{ 0x0301, 0x0000 },   /* R769   - Input Enables */
+	{ 0x0302, 0x2240 },   /* R770   - IN1L Control */
+	{ 0x0303, 0x0040 },   /* R771   - IN1R Control */
+	{ 0x0304, 0x2240 },   /* R772   - IN2L Control */
+	{ 0x0305, 0x0040 },   /* R773   - IN2R Control */
+	{ 0x0306, 0x2240 },   /* R774   - IN3L Control */
+	{ 0x0307, 0x0040 },   /* R775   - IN3R Control */
+	{ 0x030A, 0x0000 },   /* R778   - RXANC_SRC */
+	{ 0x030B, 0x0022 },   /* R779   - Input Volume Ramp */
+	{ 0x030C, 0x0180 },   /* R780   - ADC Digital Volume 1L */
+	{ 0x030D, 0x0180 },   /* R781   - ADC Digital Volume 1R */
+	{ 0x030E, 0x0180 },   /* R782   - ADC Digital Volume 2L */
+	{ 0x030F, 0x0180 },   /* R783   - ADC Digital Volume 2R */
+	{ 0x0310, 0x0180 },   /* R784   - ADC Digital Volume 3L */
+	{ 0x0311, 0x0180 },   /* R785   - ADC Digital Volume 3R */
+	{ 0x0400, 0x0000 },   /* R1024  - Output Enables */
+	{ 0x0401, 0x0000 },   /* R1025  - DAC Volume Limit 1L */
+	{ 0x0402, 0x0000 },   /* R1026  - DAC Volume Limit 1R */
+	{ 0x0403, 0x0000 },   /* R1027  - DAC Volume Limit 2L */
+	{ 0x0404, 0x0000 },   /* R1028  - DAC Volume Limit 2R */
+	{ 0x0409, 0x0000 },   /* R1033  - DAC AEC Control 1 */
+	{ 0x040A, 0x0022 },   /* R1034  - Output Volume Ramp */
+	{ 0x040B, 0x0180 },   /* R1035  - DAC Digital Volume 1L */
+	{ 0x040C, 0x0180 },   /* R1036  - DAC Digital Volume 1R */
+	{ 0x040D, 0x0180 },   /* R1037  - DAC Digital Volume 2L */
+	{ 0x040E, 0x0180 },   /* R1038  - DAC Digital Volume 2R */
+	{ 0x0417, 0x0069 },   /* R1047  - PDM 1 */
+	{ 0x0418, 0x0000 },   /* R1048  - PDM 2 */
+	{ 0x0500, 0x0000 },   /* R1280  - Audio IF 1_1 */
+	{ 0x0501, 0x0008 },   /* R1281  - Audio IF 1_2 */
+	{ 0x0502, 0x0000 },   /* R1282  - Audio IF 1_3 */
+	{ 0x0503, 0x0000 },   /* R1283  - Audio IF 1_4 */
+	{ 0x0504, 0x0000 },   /* R1284  - Audio IF 1_5 */
+	{ 0x0505, 0x0001 },   /* R1285  - Audio IF 1_6 */
+	{ 0x0506, 0x0001 },   /* R1286  - Audio IF 1_7 */
+	{ 0x0507, 0x0000 },   /* R1287  - Audio IF 1_8 */
+	{ 0x0508, 0x0000 },   /* R1288  - Audio IF 1_9 */
+	{ 0x0509, 0x0000 },   /* R1289  - Audio IF 1_10 */
+	{ 0x050A, 0x0000 },   /* R1290  - Audio IF 1_11 */
+	{ 0x050B, 0x0000 },   /* R1291  - Audio IF 1_12 */
+	{ 0x050C, 0x0000 },   /* R1292  - Audio IF 1_13 */
+	{ 0x050D, 0x0000 },   /* R1293  - Audio IF 1_14 */
+	{ 0x050E, 0x0000 },   /* R1294  - Audio IF 1_15 */
+	{ 0x050F, 0x0000 },   /* R1295  - Audio IF 1_16 */
+	{ 0x0510, 0x0000 },   /* R1296  - Audio IF 1_17 */
+	{ 0x0511, 0x0000 },   /* R1297  - Audio IF 1_18 */
+	{ 0x0512, 0x0000 },   /* R1298  - Audio IF 1_19 */
+	{ 0x0513, 0x0000 },   /* R1299  - Audio IF 1_20 */
+	{ 0x0514, 0x0000 },   /* R1300  - Audio IF 1_21 */
+	{ 0x0515, 0x0001 },   /* R1301  - Audio IF 1_22 */
+	{ 0x0600, 0x0000 },   /* R1536  - OUT1LMIX Input 1 Source */
+	{ 0x0601, 0x0080 },   /* R1537  - OUT1LMIX Input 1 Volume */
+	{ 0x0602, 0x0000 },   /* R1538  - OUT1LMIX Input 2 Source */
+	{ 0x0603, 0x0080 },   /* R1539  - OUT1LMIX Input 2 Volume */
+	{ 0x0604, 0x0000 },   /* R1540  - OUT1LMIX Input 3 Source */
+	{ 0x0605, 0x0080 },   /* R1541  - OUT1LMIX Input 3 Volume */
+	{ 0x0606, 0x0000 },   /* R1542  - OUT1LMIX Input 4 Source */
+	{ 0x0607, 0x0080 },   /* R1543  - OUT1LMIX Input 4 Volume */
+	{ 0x0608, 0x0000 },   /* R1544  - OUT1RMIX Input 1 Source */
+	{ 0x0609, 0x0080 },   /* R1545  - OUT1RMIX Input 1 Volume */
+	{ 0x060A, 0x0000 },   /* R1546  - OUT1RMIX Input 2 Source */
+	{ 0x060B, 0x0080 },   /* R1547  - OUT1RMIX Input 2 Volume */
+	{ 0x060C, 0x0000 },   /* R1548  - OUT1RMIX Input 3 Source */
+	{ 0x060D, 0x0080 },   /* R1549  - OUT1RMIX Input 3 Volume */
+	{ 0x060E, 0x0000 },   /* R1550  - OUT1RMIX Input 4 Source */
+	{ 0x060F, 0x0080 },   /* R1551  - OUT1RMIX Input 4 Volume */
+	{ 0x0610, 0x0000 },   /* R1552  - OUT2LMIX Input 1 Source */
+	{ 0x0611, 0x0080 },   /* R1553  - OUT2LMIX Input 1 Volume */
+	{ 0x0612, 0x0000 },   /* R1554  - OUT2LMIX Input 2 Source */
+	{ 0x0613, 0x0080 },   /* R1555  - OUT2LMIX Input 2 Volume */
+	{ 0x0614, 0x0000 },   /* R1556  - OUT2LMIX Input 3 Source */
+	{ 0x0615, 0x0080 },   /* R1557  - OUT2LMIX Input 3 Volume */
+	{ 0x0616, 0x0000 },   /* R1558  - OUT2LMIX Input 4 Source */
+	{ 0x0617, 0x0080 },   /* R1559  - OUT2LMIX Input 4 Volume */
+	{ 0x0618, 0x0000 },   /* R1560  - OUT2RMIX Input 1 Source */
+	{ 0x0619, 0x0080 },   /* R1561  - OUT2RMIX Input 1 Volume */
+	{ 0x061A, 0x0000 },   /* R1562  - OUT2RMIX Input 2 Source */
+	{ 0x061B, 0x0080 },   /* R1563  - OUT2RMIX Input 2 Volume */
+	{ 0x061C, 0x0000 },   /* R1564  - OUT2RMIX Input 3 Source */
+	{ 0x061D, 0x0080 },   /* R1565  - OUT2RMIX Input 3 Volume */
+	{ 0x061E, 0x0000 },   /* R1566  - OUT2RMIX Input 4 Source */
+	{ 0x061F, 0x0080 },   /* R1567  - OUT2RMIX Input 4 Volume */
+	{ 0x0620, 0x0000 },   /* R1568  - AIF1TX1MIX Input 1 Source */
+	{ 0x0621, 0x0080 },   /* R1569  - AIF1TX1MIX Input 1 Volume */
+	{ 0x0622, 0x0000 },   /* R1570  - AIF1TX1MIX Input 2 Source */
+	{ 0x0623, 0x0080 },   /* R1571  - AIF1TX1MIX Input 2 Volume */
+	{ 0x0624, 0x0000 },   /* R1572  - AIF1TX1MIX Input 3 Source */
+	{ 0x0625, 0x0080 },   /* R1573  - AIF1TX1MIX Input 3 Volume */
+	{ 0x0626, 0x0000 },   /* R1574  - AIF1TX1MIX Input 4 Source */
+	{ 0x0627, 0x0080 },   /* R1575  - AIF1TX1MIX Input 4 Volume */
+	{ 0x0628, 0x0000 },   /* R1576  - AIF1TX2MIX Input 1 Source */
+	{ 0x0629, 0x0080 },   /* R1577  - AIF1TX2MIX Input 1 Volume */
+	{ 0x062A, 0x0000 },   /* R1578  - AIF1TX2MIX Input 2 Source */
+	{ 0x062B, 0x0080 },   /* R1579  - AIF1TX2MIX Input 2 Volume */
+	{ 0x062C, 0x0000 },   /* R1580  - AIF1TX2MIX Input 3 Source */
+	{ 0x062D, 0x0080 },   /* R1581  - AIF1TX2MIX Input 3 Volume */
+	{ 0x062E, 0x0000 },   /* R1582  - AIF1TX2MIX Input 4 Source */
+	{ 0x062F, 0x0080 },   /* R1583  - AIF1TX2MIX Input 4 Volume */
+	{ 0x0630, 0x0000 },   /* R1584  - AIF1TX3MIX Input 1 Source */
+	{ 0x0631, 0x0080 },   /* R1585  - AIF1TX3MIX Input 1 Volume */
+	{ 0x0632, 0x0000 },   /* R1586  - AIF1TX3MIX Input 2 Source */
+	{ 0x0633, 0x0080 },   /* R1587  - AIF1TX3MIX Input 2 Volume */
+	{ 0x0634, 0x0000 },   /* R1588  - AIF1TX3MIX Input 3 Source */
+	{ 0x0635, 0x0080 },   /* R1589  - AIF1TX3MIX Input 3 Volume */
+	{ 0x0636, 0x0000 },   /* R1590  - AIF1TX3MIX Input 4 Source */
+	{ 0x0637, 0x0080 },   /* R1591  - AIF1TX3MIX Input 4 Volume */
+	{ 0x0638, 0x0000 },   /* R1592  - AIF1TX4MIX Input 1 Source */
+	{ 0x0639, 0x0080 },   /* R1593  - AIF1TX4MIX Input 1 Volume */
+	{ 0x063A, 0x0000 },   /* R1594  - AIF1TX4MIX Input 2 Source */
+	{ 0x063B, 0x0080 },   /* R1595  - AIF1TX4MIX Input 2 Volume */
+	{ 0x063C, 0x0000 },   /* R1596  - AIF1TX4MIX Input 3 Source */
+	{ 0x063D, 0x0080 },   /* R1597  - AIF1TX4MIX Input 3 Volume */
+	{ 0x063E, 0x0000 },   /* R1598  - AIF1TX4MIX Input 4 Source */
+	{ 0x063F, 0x0080 },   /* R1599  - AIF1TX4MIX Input 4 Volume */
+	{ 0x0640, 0x0000 },   /* R1600  - AIF1TX5MIX Input 1 Source */
+	{ 0x0641, 0x0080 },   /* R1601  - AIF1TX5MIX Input 1 Volume */
+	{ 0x0642, 0x0000 },   /* R1602  - AIF1TX5MIX Input 2 Source */
+	{ 0x0643, 0x0080 },   /* R1603  - AIF1TX5MIX Input 2 Volume */
+	{ 0x0644, 0x0000 },   /* R1604  - AIF1TX5MIX Input 3 Source */
+	{ 0x0645, 0x0080 },   /* R1605  - AIF1TX5MIX Input 3 Volume */
+	{ 0x0646, 0x0000 },   /* R1606  - AIF1TX5MIX Input 4 Source */
+	{ 0x0647, 0x0080 },   /* R1607  - AIF1TX5MIX Input 4 Volume */
+	{ 0x0648, 0x0000 },   /* R1608  - AIF1TX6MIX Input 1 Source */
+	{ 0x0649, 0x0080 },   /* R1609  - AIF1TX6MIX Input 1 Volume */
+	{ 0x064A, 0x0000 },   /* R1610  - AIF1TX6MIX Input 2 Source */
+	{ 0x064B, 0x0080 },   /* R1611  - AIF1TX6MIX Input 2 Volume */
+	{ 0x064C, 0x0000 },   /* R1612  - AIF1TX6MIX Input 3 Source */
+	{ 0x064D, 0x0080 },   /* R1613  - AIF1TX6MIX Input 3 Volume */
+	{ 0x064E, 0x0000 },   /* R1614  - AIF1TX6MIX Input 4 Source */
+	{ 0x064F, 0x0080 },   /* R1615  - AIF1TX6MIX Input 4 Volume */
+	{ 0x0650, 0x0000 },   /* R1616  - EQLMIX Input 1 Source */
+	{ 0x0651, 0x0080 },   /* R1617  - EQLMIX Input 1 Volume */
+	{ 0x0652, 0x0000 },   /* R1618  - EQLMIX Input 2 Source */
+	{ 0x0653, 0x0080 },   /* R1619  - EQLMIX Input 2 Volume */
+	{ 0x0654, 0x0000 },   /* R1620  - EQLMIX Input 3 Source */
+	{ 0x0655, 0x0080 },   /* R1621  - EQLMIX Input 3 Volume */
+	{ 0x0656, 0x0000 },   /* R1622  - EQLMIX Input 4 Source */
+	{ 0x0657, 0x0080 },   /* R1623  - EQLMIX Input 4 Volume */
+	{ 0x0658, 0x0000 },   /* R1624  - EQRMIX Input 1 Source */
+	{ 0x0659, 0x0080 },   /* R1625  - EQRMIX Input 1 Volume */
+	{ 0x065A, 0x0000 },   /* R1626  - EQRMIX Input 2 Source */
+	{ 0x065B, 0x0080 },   /* R1627  - EQRMIX Input 2 Volume */
+	{ 0x065C, 0x0000 },   /* R1628  - EQRMIX Input 3 Source */
+	{ 0x065D, 0x0080 },   /* R1629  - EQRMIX Input 3 Volume */
+	{ 0x065E, 0x0000 },   /* R1630  - EQRMIX Input 4 Source */
+	{ 0x065F, 0x0080 },   /* R1631  - EQRMIX Input 4 Volume */
+	{ 0x0660, 0x0000 },   /* R1632  - LHPF1MIX Input 1 Source */
+	{ 0x0661, 0x0080 },   /* R1633  - LHPF1MIX Input 1 Volume */
+	{ 0x0662, 0x0000 },   /* R1634  - LHPF1MIX Input 2 Source */
+	{ 0x0663, 0x0080 },   /* R1635  - LHPF1MIX Input 2 Volume */
+	{ 0x0664, 0x0000 },   /* R1636  - LHPF1MIX Input 3 Source */
+	{ 0x0665, 0x0080 },   /* R1637  - LHPF1MIX Input 3 Volume */
+	{ 0x0666, 0x0000 },   /* R1638  - LHPF1MIX Input 4 Source */
+	{ 0x0667, 0x0080 },   /* R1639  - LHPF1MIX Input 4 Volume */
+	{ 0x0668, 0x0000 },   /* R1640  - LHPF2MIX Input 1 Source */
+	{ 0x0669, 0x0080 },   /* R1641  - LHPF2MIX Input 1 Volume */
+	{ 0x066A, 0x0000 },   /* R1642  - LHPF2MIX Input 2 Source */
+	{ 0x066B, 0x0080 },   /* R1643  - LHPF2MIX Input 2 Volume */
+	{ 0x066C, 0x0000 },   /* R1644  - LHPF2MIX Input 3 Source */
+	{ 0x066D, 0x0080 },   /* R1645  - LHPF2MIX Input 3 Volume */
+	{ 0x066E, 0x0000 },   /* R1646  - LHPF2MIX Input 4 Source */
+	{ 0x066F, 0x0080 },   /* R1647  - LHPF2MIX Input 4 Volume */
+	{ 0x0670, 0x0000 },   /* R1648  - DSP1LMIX Input 1 Source */
+	{ 0x0671, 0x0080 },   /* R1649  - DSP1LMIX Input 1 Volume */
+	{ 0x0672, 0x0000 },   /* R1650  - DSP1LMIX Input 2 Source */
+	{ 0x0673, 0x0080 },   /* R1651  - DSP1LMIX Input 2 Volume */
+	{ 0x0674, 0x0000 },   /* R1652  - DSP1LMIX Input 3 Source */
+	{ 0x0675, 0x0080 },   /* R1653  - DSP1LMIX Input 3 Volume */
+	{ 0x0676, 0x0000 },   /* R1654  - DSP1LMIX Input 4 Source */
+	{ 0x0677, 0x0080 },   /* R1655  - DSP1LMIX Input 4 Volume */
+	{ 0x0678, 0x0000 },   /* R1656  - DSP1RMIX Input 1 Source */
+	{ 0x0679, 0x0080 },   /* R1657  - DSP1RMIX Input 1 Volume */
+	{ 0x067A, 0x0000 },   /* R1658  - DSP1RMIX Input 2 Source */
+	{ 0x067B, 0x0080 },   /* R1659  - DSP1RMIX Input 2 Volume */
+	{ 0x067C, 0x0000 },   /* R1660  - DSP1RMIX Input 3 Source */
+	{ 0x067D, 0x0080 },   /* R1661  - DSP1RMIX Input 3 Volume */
+	{ 0x067E, 0x0000 },   /* R1662  - DSP1RMIX Input 4 Source */
+	{ 0x067F, 0x0080 },   /* R1663  - DSP1RMIX Input 4 Volume */
+	{ 0x0680, 0x0000 },   /* R1664  - DSP1AUX1MIX Input 1 Source */
+	{ 0x0681, 0x0000 },   /* R1665  - DSP1AUX2MIX Input 1 Source */
+	{ 0x0682, 0x0000 },   /* R1666  - DSP1AUX3MIX Input 1 Source */
+	{ 0x0683, 0x0000 },   /* R1667  - DSP1AUX4MIX Input 1 Source */
+	{ 0x0684, 0x0000 },   /* R1668  - DSP1AUX5MIX Input 1 Source */
+	{ 0x0685, 0x0000 },   /* R1669  - DSP1AUX6MIX Input 1 Source */
+	{ 0x0686, 0x0000 },   /* R1670  - DSP2LMIX Input 1 Source */
+	{ 0x0687, 0x0080 },   /* R1671  - DSP2LMIX Input 1 Volume */
+	{ 0x0688, 0x0000 },   /* R1672  - DSP2LMIX Input 2 Source */
+	{ 0x0689, 0x0080 },   /* R1673  - DSP2LMIX Input 2 Volume */
+	{ 0x068A, 0x0000 },   /* R1674  - DSP2LMIX Input 3 Source */
+	{ 0x068B, 0x0080 },   /* R1675  - DSP2LMIX Input 3 Volume */
+	{ 0x068C, 0x0000 },   /* R1676  - DSP2LMIX Input 4 Source */
+	{ 0x068D, 0x0080 },   /* R1677  - DSP2LMIX Input 4 Volume */
+	{ 0x068E, 0x0000 },   /* R1678  - DSP2RMIX Input 1 Source */
+	{ 0x068F, 0x0080 },   /* R1679  - DSP2RMIX Input 1 Volume */
+	{ 0x0690, 0x0000 },   /* R1680  - DSP2RMIX Input 2 Source */
+	{ 0x0691, 0x0080 },   /* R1681  - DSP2RMIX Input 2 Volume */
+	{ 0x0692, 0x0000 },   /* R1682  - DSP2RMIX Input 3 Source */
+	{ 0x0693, 0x0080 },   /* R1683  - DSP2RMIX Input 3 Volume */
+	{ 0x0694, 0x0000 },   /* R1684  - DSP2RMIX Input 4 Source */
+	{ 0x0695, 0x0080 },   /* R1685  - DSP2RMIX Input 4 Volume */
+	{ 0x0696, 0x0000 },   /* R1686  - DSP2AUX1MIX Input 1 Source */
+	{ 0x0697, 0x0000 },   /* R1687  - DSP2AUX2MIX Input 1 Source */
+	{ 0x0698, 0x0000 },   /* R1688  - DSP2AUX3MIX Input 1 Source */
+	{ 0x0699, 0x0000 },   /* R1689  - DSP2AUX4MIX Input 1 Source */
+	{ 0x069A, 0x0000 },   /* R1690  - DSP2AUX5MIX Input 1 Source */
+	{ 0x069B, 0x0000 },   /* R1691  - DSP2AUX6MIX Input 1 Source */
+	{ 0x0700, 0xA101 },   /* R1792  - GPIO CTRL 1 */
+	{ 0x0701, 0xA101 },   /* R1793  - GPIO CTRL 2 */
+	{ 0x0702, 0xA101 },   /* R1794  - GPIO CTRL 3 */
+	{ 0x0703, 0xA101 },   /* R1795  - GPIO CTRL 4 */
+	{ 0x0709, 0x0000 },   /* R1801  - Misc Pad Ctrl 1 */
+	{ 0x0801, 0x00FF },   /* R2049  - Interrupt Status 1 Mask */
+	{ 0x0804, 0xFFFF },   /* R2052  - Interrupt Status 2 Mask */
+	{ 0x0808, 0x0000 },   /* R2056  - Interrupt Control */
+	{ 0x0900, 0x0000 },   /* R2304  - EQL_1 */
+	{ 0x0901, 0x0000 },   /* R2305  - EQL_2 */
+	{ 0x0902, 0x0000 },   /* R2306  - EQL_3 */
+	{ 0x0903, 0x0000 },   /* R2307  - EQL_4 */
+	{ 0x0904, 0x0000 },   /* R2308  - EQL_5 */
+	{ 0x0905, 0x0000 },   /* R2309  - EQL_6 */
+	{ 0x0906, 0x0000 },   /* R2310  - EQL_7 */
+	{ 0x0907, 0x0000 },   /* R2311  - EQL_8 */
+	{ 0x0908, 0x0000 },   /* R2312  - EQL_9 */
+	{ 0x0909, 0x0000 },   /* R2313  - EQL_10 */
+	{ 0x090A, 0x0000 },   /* R2314  - EQL_11 */
+	{ 0x090B, 0x0000 },   /* R2315  - EQL_12 */
+	{ 0x090C, 0x0000 },   /* R2316  - EQL_13 */
+	{ 0x090D, 0x0000 },   /* R2317  - EQL_14 */
+	{ 0x090E, 0x0000 },   /* R2318  - EQL_15 */
+	{ 0x090F, 0x0000 },   /* R2319  - EQL_16 */
+	{ 0x0910, 0x0000 },   /* R2320  - EQL_17 */
+	{ 0x0911, 0x0000 },   /* R2321  - EQL_18 */
+	{ 0x0912, 0x0000 },   /* R2322  - EQL_19 */
+	{ 0x0913, 0x0000 },   /* R2323  - EQL_20 */
+	{ 0x0916, 0x0000 },   /* R2326  - EQR_1 */
+	{ 0x0917, 0x0000 },   /* R2327  - EQR_2 */
+	{ 0x0918, 0x0000 },   /* R2328  - EQR_3 */
+	{ 0x0919, 0x0000 },   /* R2329  - EQR_4 */
+	{ 0x091A, 0x0000 },   /* R2330  - EQR_5 */
+	{ 0x091B, 0x0000 },   /* R2331  - EQR_6 */
+	{ 0x091C, 0x0000 },   /* R2332  - EQR_7 */
+	{ 0x091D, 0x0000 },   /* R2333  - EQR_8 */
+	{ 0x091E, 0x0000 },   /* R2334  - EQR_9 */
+	{ 0x091F, 0x0000 },   /* R2335  - EQR_10 */
+	{ 0x0920, 0x0000 },   /* R2336  - EQR_11 */
+	{ 0x0921, 0x0000 },   /* R2337  - EQR_12 */
+	{ 0x0922, 0x0000 },   /* R2338  - EQR_13 */
+	{ 0x0923, 0x0000 },   /* R2339  - EQR_14 */
+	{ 0x0924, 0x0000 },   /* R2340  - EQR_15 */
+	{ 0x0925, 0x0000 },   /* R2341  - EQR_16 */
+	{ 0x0926, 0x0000 },   /* R2342  - EQR_17 */
+	{ 0x0927, 0x0000 },   /* R2343  - EQR_18 */
+	{ 0x0928, 0x0000 },   /* R2344  - EQR_19 */
+	{ 0x0929, 0x0000 },   /* R2345  - EQR_20 */
+	{ 0x093E, 0x0000 },   /* R2366  - HPLPF1_1 */
+	{ 0x093F, 0x0000 },   /* R2367  - HPLPF1_2 */
+	{ 0x0942, 0x0000 },   /* R2370  - HPLPF2_1 */
+	{ 0x0943, 0x0000 },   /* R2371  - HPLPF2_2 */
+	{ 0x0A00, 0x0000 },   /* R2560  - DSP1 Control 1 */
+	{ 0x0A02, 0x0000 },   /* R2562  - DSP1 Control 2 */
+	{ 0x0A03, 0x0000 },   /* R2563  - DSP1 Control 3 */
+	{ 0x0A04, 0x0000 },   /* R2564  - DSP1 Control 4 */
+	{ 0x0A06, 0x0000 },   /* R2566  - DSP1 Control 5 */
+	{ 0x0A07, 0x0000 },   /* R2567  - DSP1 Control 6 */
+	{ 0x0A08, 0x0000 },   /* R2568  - DSP1 Control 7 */
+	{ 0x0A09, 0x0000 },   /* R2569  - DSP1 Control 8 */
+	{ 0x0A0A, 0x0000 },   /* R2570  - DSP1 Control 9 */
+	{ 0x0A0B, 0x0000 },   /* R2571  - DSP1 Control 10 */
+	{ 0x0A0C, 0x0000 },   /* R2572  - DSP1 Control 11 */
+	{ 0x0A0D, 0x0000 },   /* R2573  - DSP1 Control 12 */
+	{ 0x0A0F, 0x0000 },   /* R2575  - DSP1 Control 13 */
+	{ 0x0A10, 0x0000 },   /* R2576  - DSP1 Control 14 */
+	{ 0x0A11, 0x0000 },   /* R2577  - DSP1 Control 15 */
+	{ 0x0A12, 0x0000 },   /* R2578  - DSP1 Control 16 */
+	{ 0x0A13, 0x0000 },   /* R2579  - DSP1 Control 17 */
+	{ 0x0A14, 0x0000 },   /* R2580  - DSP1 Control 18 */
+	{ 0x0A16, 0x0000 },   /* R2582  - DSP1 Control 19 */
+	{ 0x0A17, 0x0000 },   /* R2583  - DSP1 Control 20 */
+	{ 0x0A18, 0x0000 },   /* R2584  - DSP1 Control 21 */
+	{ 0x0A1A, 0x1800 },   /* R2586  - DSP1 Control 22 */
+	{ 0x0A1B, 0x1000 },   /* R2587  - DSP1 Control 23 */
+	{ 0x0A1C, 0x0400 },   /* R2588  - DSP1 Control 24 */
+	{ 0x0A1E, 0x0000 },   /* R2590  - DSP1 Control 25 */
+	{ 0x0A20, 0x0000 },   /* R2592  - DSP1 Control 26 */
+	{ 0x0A21, 0x0000 },   /* R2593  - DSP1 Control 27 */
+	{ 0x0A22, 0x0000 },   /* R2594  - DSP1 Control 28 */
+	{ 0x0A23, 0x0000 },   /* R2595  - DSP1 Control 29 */
+	{ 0x0A24, 0x0000 },   /* R2596  - DSP1 Control 30 */
+	{ 0x0A26, 0x0000 },   /* R2598  - DSP1 Control 31 */
+	{ 0x0B00, 0x0000 },   /* R2816  - DSP2 Control 1 */
+	{ 0x0B02, 0x0000 },   /* R2818  - DSP2 Control 2 */
+	{ 0x0B03, 0x0000 },   /* R2819  - DSP2 Control 3 */
+	{ 0x0B04, 0x0000 },   /* R2820  - DSP2 Control 4 */
+	{ 0x0B06, 0x0000 },   /* R2822  - DSP2 Control 5 */
+	{ 0x0B07, 0x0000 },   /* R2823  - DSP2 Control 6 */
+	{ 0x0B08, 0x0000 },   /* R2824  - DSP2 Control 7 */
+	{ 0x0B09, 0x0000 },   /* R2825  - DSP2 Control 8 */
+	{ 0x0B0A, 0x0000 },   /* R2826  - DSP2 Control 9 */
+	{ 0x0B0B, 0x0000 },   /* R2827  - DSP2 Control 10 */
+	{ 0x0B0C, 0x0000 },   /* R2828  - DSP2 Control 11 */
+	{ 0x0B0D, 0x0000 },   /* R2829  - DSP2 Control 12 */
+	{ 0x0B0F, 0x0000 },   /* R2831  - DSP2 Control 13 */
+	{ 0x0B10, 0x0000 },   /* R2832  - DSP2 Control 14 */
+	{ 0x0B11, 0x0000 },   /* R2833  - DSP2 Control 15 */
+	{ 0x0B12, 0x0000 },   /* R2834  - DSP2 Control 16 */
+	{ 0x0B13, 0x0000 },   /* R2835  - DSP2 Control 17 */
+	{ 0x0B14, 0x0000 },   /* R2836  - DSP2 Control 18 */
+	{ 0x0B16, 0x0000 },   /* R2838  - DSP2 Control 19 */
+	{ 0x0B17, 0x0000 },   /* R2839  - DSP2 Control 20 */
+	{ 0x0B18, 0x0000 },   /* R2840  - DSP2 Control 21 */
+	{ 0x0B1A, 0x0800 },   /* R2842  - DSP2 Control 22 */
+	{ 0x0B1B, 0x1000 },   /* R2843  - DSP2 Control 23 */
+	{ 0x0B1C, 0x0400 },   /* R2844  - DSP2 Control 24 */
+	{ 0x0B1E, 0x0000 },   /* R2846  - DSP2 Control 25 */
+	{ 0x0B20, 0x0000 },   /* R2848  - DSP2 Control 26 */
+	{ 0x0B21, 0x0000 },   /* R2849  - DSP2 Control 27 */
+	{ 0x0B22, 0x0000 },   /* R2850  - DSP2 Control 28 */
+	{ 0x0B23, 0x0000 },   /* R2851  - DSP2 Control 29 */
+	{ 0x0B24, 0x0000 },   /* R2852  - DSP2 Control 30 */
+	{ 0x0B26, 0x0000 },   /* R2854  - DSP2 Control 31 */
 };
 
 static bool wm2200_volatile_register(struct device *dev, unsigned int reg)
@@ -974,7 +974,7 @@ static int wm2200_mixer_values[] = {
 	static WM2200_MUX_CTL_DECL(name##_in1); \
 	static WM2200_MUX_CTL_DECL(name##_in2); \
 	static WM2200_MUX_CTL_DECL(name##_in3); \
-	static WM2200_MUX_CTL_DECL(name##_in4) 
+	static WM2200_MUX_CTL_DECL(name##_in4)
 
 static const struct snd_kcontrol_new wm2200_snd_controls[] = {
 SOC_SINGLE("IN1 High Performance Switch", WM2200_IN1L_CONTROL,
