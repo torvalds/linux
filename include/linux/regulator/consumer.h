@@ -137,7 +137,7 @@ struct regulator *__must_check devm_regulator_get(struct device *dev,
 struct regulator *__must_check regulator_get_exclusive(struct device *dev,
 						       const char *id);
 void regulator_put(struct regulator *regulator);
-void devm_regulator_free(struct regulator *regulator);
+void devm_regulator_put(struct regulator *regulator);
 
 /* regulator output control and status */
 int regulator_enable(struct regulator *regulator);
@@ -213,6 +213,10 @@ devm_regulator_get(struct device *dev, const char *id)
 }
 
 static inline void regulator_put(struct regulator *regulator)
+{
+}
+
+static inline void devm_regulator_put(struct regulator *regulator)
 {
 }
 
