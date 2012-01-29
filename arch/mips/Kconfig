@@ -2356,6 +2356,7 @@ config PCI
 	depends on HW_HAS_PCI
 	select PCI_DOMAINS
 	select GENERIC_PCI_IOMAP
+	select NO_GENERIC_PCI_IOPORT_MAP
 	help
 	  Find out whether you have a PCI motherboard. PCI is the name of a
 	  bus system, i.e. the way the CPU talks to the other stuff inside
