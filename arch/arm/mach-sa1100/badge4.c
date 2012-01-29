@@ -285,11 +285,6 @@ static struct map_desc badge4_io_desc[] __initdata = {
 		.pfn		= __phys_to_pfn(0x10000000),
 		.length		= 0x00100000,
 		.type		= MT_DEVICE
-	}, {	/* SA-1111      */
-		.virtual	= 0xf4000000,
-		.pfn		= __phys_to_pfn(0x48000000),
-		.length		= 0x00100000,
-		.type		= MT_DEVICE
 	}
 };
 

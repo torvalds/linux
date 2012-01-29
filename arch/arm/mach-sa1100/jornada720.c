@@ -285,11 +285,6 @@ static struct map_desc jornada720_io_desc[] __initdata = {
 		.pfn		= __phys_to_pfn(EPSONFBSTART),
 		.length		= EPSONFBLEN,
 		.type		= MT_DEVICE
-	}, {	/* SA-1111 */
-		.virtual	= 0xf4000000,
-		.pfn		= __phys_to_pfn(SA1111REGSTART),
-		.length		= SA1111REGLEN,
-		.type		= MT_DEVICE
 	}
 };
 
