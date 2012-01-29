@@ -9,12 +9,16 @@
 #include <linux/miscdevice.h>
 #include <linux/device.h>
 
-#define PM_QOS_RESERVED 0
-#define PM_QOS_CPU_DMA_LATENCY 1
-#define PM_QOS_NETWORK_LATENCY 2
-#define PM_QOS_NETWORK_THROUGHPUT 3
+enum {
+	PM_QOS_RESERVED = 0,
+	PM_QOS_CPU_DMA_LATENCY,
+	PM_QOS_NETWORK_LATENCY,
+	PM_QOS_NETWORK_THROUGHPUT,
 
-#define PM_QOS_NUM_CLASSES 4
+	/* insert new class ID */
+	PM_QOS_NUM_CLASSES,
+};
+
 #define PM_QOS_DEFAULT_VALUE -1
 
 #define PM_QOS_CPU_DMA_LAT_DEFAULT_VALUE	(2000 * USEC_PER_SEC)
