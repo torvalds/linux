@@ -2149,6 +2149,23 @@ static int rbd_init_watch_dev(struct rbd_device *rbd_dev)
 	return ret;
 }
 
+/* caller must hold ctl_mutex */
+static int rbd_id_get(void)
+{
+	struct list_head *tmp;
+	int new_id = 0;
+
+	list_for_each(tmp, &rbd_dev_list) {
+		struct rbd_device *rbd_dev;
+
+		rbd_dev = list_entry(tmp, struct rbd_device, node);
+		if (rbd_dev->id >= new_id)
+			new_id = rbd_dev->id + 1;
+	}
+
+	return new_id;
+}
+
 static ssize_t rbd_add(struct bus_type *bus,
 		       const char *buf,
 		       size_t count)
@@ -2156,8 +2173,7 @@ static ssize_t rbd_add(struct bus_type *bus,
 	struct ceph_osd_client *osdc;
 	struct rbd_device *rbd_dev;
 	ssize_t rc = -ENOMEM;
-	int irc, new_id = 0;
-	struct list_head *tmp;
+	int irc;
 	char *mon_dev_name;
 	char *options;
 
@@ -2187,15 +2203,7 @@ static ssize_t rbd_add(struct bus_type *bus,
 	/* generate unique id: find highest unique id, add one */
 	mutex_lock_nested(&ctl_mutex, SINGLE_DEPTH_NESTING);
 
-	list_for_each(tmp, &rbd_dev_list) {
-		struct rbd_device *rbd_dev;
-
-		rbd_dev = list_entry(tmp, struct rbd_device, node);
-		if (rbd_dev->id >= new_id)
-			new_id = rbd_dev->id + 1;
-	}
-
-	rbd_dev->id = new_id;
+	rbd_dev->id = rbd_id_get();
 
 	/* add to global list */
 	list_add_tail(&rbd_dev->node, &rbd_dev_list);
