@@ -655,7 +655,7 @@ sa1111_init_one_child(struct sa1111 *sachip, struct resource *parent,
 
 	ret = request_resource(parent, &dev->res);
 	if (ret) {
-		printk("SA1111: failed to allocate resource for %s\n",
+		dev_err(sachip->dev, "failed to allocate resource for %s\n",
 			dev->res.name);
 		goto err_resource;
 	}
