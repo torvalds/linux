@@ -407,15 +407,15 @@ done_err:
 
 /*
  * Destroy ceph client
+ *
+ * Caller must hold node_lock.
  */
 static void rbd_client_release(struct kref *kref)
 {
 	struct rbd_client *rbdc = container_of(kref, struct rbd_client, kref);
 
 	dout("rbd_release_client %p\n", rbdc);
-	spin_lock(&node_lock);
 	list_del(&rbdc->node);
-	spin_unlock(&node_lock);
 
 	ceph_destroy_client(rbdc->client);
 	kfree(rbdc->rbd_opts);
@@ -428,7 +428,9 @@ static void rbd_client_release(struct kref *kref)
  */
 static void rbd_put_client(struct rbd_device *rbd_dev)
 {
+	spin_lock(&node_lock);
 	kref_put(&rbd_dev->rbd_client->kref, rbd_client_release);
+	spin_unlock(&node_lock);
 	rbd_dev->rbd_client = NULL;
 	rbd_dev->client = NULL;
 }
