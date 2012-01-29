@@ -140,7 +140,7 @@ int drm_gem_object_init(struct drm_device *dev,
 	obj->dev = dev;
 	obj->filp = shmem_file_setup("drm mm object", size, VM_NORESERVE);
 	if (IS_ERR(obj->filp))
-		return -ENOMEM;
+		return PTR_ERR(obj->filp);
 
 	kref_init(&obj->refcount);
 	atomic_set(&obj->handle_count, 0);
