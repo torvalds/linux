@@ -37,7 +37,6 @@ struct efx_self_tests {
 	int interrupt;
 	int eventq_dma[EFX_MAX_CHANNELS];
 	int eventq_int[EFX_MAX_CHANNELS];
-	int eventq_poll[EFX_MAX_CHANNELS];
 	/* offline tests */
 	int registers;
 	int phy_ext[EFX_MAX_PHY_TESTS];

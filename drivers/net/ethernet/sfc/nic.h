@@ -144,11 +144,25 @@ static inline struct falcon_board *falcon_board(struct efx_nic *efx)
  * struct siena_nic_data - Siena NIC state
  * @mcdi: Management-Controller-to-Driver Interface
  * @wol_filter_id: Wake-on-LAN packet filter id
+ * @hwmon: Hardware monitor state
  */
 struct siena_nic_data {
 	struct efx_mcdi_iface mcdi;
 	int wol_filter_id;
+#ifdef CONFIG_SFC_MCDI_MON
+	struct efx_mcdi_mon hwmon;
+#endif
 };
+
+#ifdef CONFIG_SFC_MCDI_MON
+static inline struct efx_mcdi_mon *efx_mcdi_mon(struct efx_nic *efx)
+{
+	struct siena_nic_data *nic_data;
+	EFX_BUG_ON_PARANOID(efx_nic_rev(efx) < EFX_REV_SIENA_A0);
+	nic_data = efx->nic_data;
+	return &nic_data->hwmon;
+}
+#endif
 
 extern const struct efx_nic_type falcon_a1_nic_type;
 extern const struct efx_nic_type falcon_b0_nic_type;
@@ -189,6 +203,9 @@ extern bool efx_nic_event_present(struct efx_channel *channel);
 /* MAC/PHY */
 extern void falcon_drain_tx_fifo(struct efx_nic *efx);
 extern void falcon_reconfigure_mac_wrapper(struct efx_nic *efx);
+extern bool falcon_xmac_check_fault(struct efx_nic *efx);
+extern int falcon_reconfigure_xmac(struct efx_nic *efx);
+extern void falcon_update_stats_xmac(struct efx_nic *efx);
 
 /* Interrupts and test events */
 extern int efx_nic_init_interrupt(struct efx_nic *efx);
@@ -201,9 +218,6 @@ extern void efx_nic_fini_interrupt(struct efx_nic *efx);
 extern irqreturn_t efx_nic_fatal_interrupt(struct efx_nic *efx);
 extern irqreturn_t falcon_legacy_interrupt_a1(int irq, void *dev_id);
 extern void falcon_irq_ack_a1(struct efx_nic *efx);
-
-#define EFX_IRQ_MOD_RESOLUTION	5
-#define EFX_IRQ_MOD_MAX		0x1000
 
 /* Global Resources */
 extern int efx_nic_flush_queues(struct efx_nic *efx);

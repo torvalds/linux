@@ -38,15 +38,15 @@
 
 /* Loopback mode names (see LOOPBACK_MODE()) */
 const unsigned int efx_loopback_mode_max = LOOPBACK_MAX;
-const char *efx_loopback_mode_names[] = {
+const char *const efx_loopback_mode_names[] = {
 	[LOOPBACK_NONE]		= "NONE",
 	[LOOPBACK_DATA]		= "DATAPATH",
 	[LOOPBACK_GMAC]		= "GMAC",
 	[LOOPBACK_XGMII]	= "XGMII",
 	[LOOPBACK_XGXS]		= "XGXS",
-	[LOOPBACK_XAUI]  	= "XAUI",
-	[LOOPBACK_GMII] 	= "GMII",
-	[LOOPBACK_SGMII] 	= "SGMII",
+	[LOOPBACK_XAUI]		= "XAUI",
+	[LOOPBACK_GMII]		= "GMII",
+	[LOOPBACK_SGMII]	= "SGMII",
 	[LOOPBACK_XGBR]		= "XGBR",
 	[LOOPBACK_XFI]		= "XFI",
 	[LOOPBACK_XAUI_FAR]	= "XAUI_FAR",
@@ -55,21 +55,21 @@ const char *efx_loopback_mode_names[] = {
 	[LOOPBACK_XFI_FAR]	= "XFI_FAR",
 	[LOOPBACK_GPHY]		= "GPHY",
 	[LOOPBACK_PHYXS]	= "PHYXS",
-	[LOOPBACK_PCS]	 	= "PCS",
-	[LOOPBACK_PMAPMD] 	= "PMA/PMD",
+	[LOOPBACK_PCS]		= "PCS",
+	[LOOPBACK_PMAPMD]	= "PMA/PMD",
 	[LOOPBACK_XPORT]	= "XPORT",
 	[LOOPBACK_XGMII_WS]	= "XGMII_WS",
-	[LOOPBACK_XAUI_WS]  	= "XAUI_WS",
+	[LOOPBACK_XAUI_WS]	= "XAUI_WS",
 	[LOOPBACK_XAUI_WS_FAR]  = "XAUI_WS_FAR",
 	[LOOPBACK_XAUI_WS_NEAR] = "XAUI_WS_NEAR",
-	[LOOPBACK_GMII_WS] 	= "GMII_WS",
+	[LOOPBACK_GMII_WS]	= "GMII_WS",
 	[LOOPBACK_XFI_WS]	= "XFI_WS",
 	[LOOPBACK_XFI_WS_FAR]	= "XFI_WS_FAR",
-	[LOOPBACK_PHYXS_WS]  	= "PHYXS_WS",
+	[LOOPBACK_PHYXS_WS]	= "PHYXS_WS",
 };
 
 const unsigned int efx_reset_type_max = RESET_TYPE_MAX;
-const char *efx_reset_type_names[] = {
+const char *const efx_reset_type_names[] = {
 	[RESET_TYPE_INVISIBLE]     = "INVISIBLE",
 	[RESET_TYPE_ALL]           = "ALL",
 	[RESET_TYPE_WORLD]         = "WORLD",
@@ -122,15 +122,6 @@ static int napi_weight = 64;
  */
 static unsigned int efx_monitor_interval = 1 * HZ;
 
-/* This controls whether or not the driver will initialise devices
- * with invalid MAC addresses stored in the EEPROM or flash.  If true,
- * such devices will be initialised with a random locally-generated
- * MAC address.  This allows for loading the sfc_mtd driver to
- * reprogram the flash, even if the flash contents (including the MAC
- * address) have previously been erased.
- */
-static unsigned int allow_bad_hwaddr;
-
 /* Initial interrupt moderation settings.  They can be modified after
  * module load with ethtool.
  *
@@ -162,7 +153,7 @@ static unsigned int interrupt_mode;
  * interrupt handling.
  *
  * Cards without MSI-X will only target one CPU via legacy or MSI interrupt.
- * The default (0) means to assign an interrupt to each package (level II cache)
+ * The default (0) means to assign an interrupt to each core.
  */
 static unsigned int rss_cpus;
 module_param(rss_cpus, uint, 0444);
@@ -238,8 +229,7 @@ static int efx_process_channel(struct efx_channel *channel, int budget)
 
 	/* Deliver last RX packet. */
 	if (channel->rx_pkt) {
-		__efx_rx_packet(channel, channel->rx_pkt,
-				channel->rx_pkt_csummed);
+		__efx_rx_packet(channel, channel->rx_pkt);
 		channel->rx_pkt = NULL;
 	}
 
@@ -373,7 +363,7 @@ static int efx_probe_eventq(struct efx_channel *channel)
 	struct efx_nic *efx = channel->efx;
 	unsigned long entries;
 
-	netif_dbg(channel->efx, probe, channel->efx->net_dev,
+	netif_dbg(efx, probe, efx->net_dev,
 		  "chan %d create event queue\n", channel->channel);
 
 	/* Build an event queue with room for one event per tx and rx buffer,
@@ -807,16 +797,14 @@ void efx_link_status_changed(struct efx_nic *efx)
 	}
 
 	/* Status message for kernel log */
-	if (link_state->up) {
+	if (link_state->up)
 		netif_info(efx, link, efx->net_dev,
 			   "link up at %uMbps %s-duplex (MTU %d)%s\n",
 			   link_state->speed, link_state->fd ? "full" : "half",
 			   efx->net_dev->mtu,
 			   (efx->promiscuous ? " [PROMISC]" : ""));
-	} else {
+	else
 		netif_info(efx, link, efx->net_dev, "link down\n");
-	}
-
 }
 
 void efx_link_set_advertising(struct efx_nic *efx, u32 advertising)
@@ -863,11 +851,9 @@ int __efx_reconfigure_port(struct efx_nic *efx)
 
 	WARN_ON(!mutex_is_locked(&efx->mac_lock));
 
-	/* Serialise the promiscuous flag with efx_set_multicast_list. */
-	if (efx_dev_registered(efx)) {
-		netif_addr_lock_bh(efx->net_dev);
-		netif_addr_unlock_bh(efx->net_dev);
-	}
+	/* Serialise the promiscuous flag with efx_set_rx_mode. */
+	netif_addr_lock_bh(efx->net_dev);
+	netif_addr_unlock_bh(efx->net_dev);
 
 	/* Disable PHY transmit in mac level loopbacks */
 	phy_mode = efx->phy_mode;
@@ -907,16 +893,13 @@ static void efx_mac_work(struct work_struct *data)
 	struct efx_nic *efx = container_of(data, struct efx_nic, mac_work);
 
 	mutex_lock(&efx->mac_lock);
-	if (efx->port_enabled) {
-		efx->type->push_multicast_hash(efx);
-		efx->mac_op->reconfigure(efx);
-	}
+	if (efx->port_enabled)
+		efx->type->reconfigure_mac(efx);
 	mutex_unlock(&efx->mac_lock);
 }
 
 static int efx_probe_port(struct efx_nic *efx)
 {
-	unsigned char *perm_addr;
 	int rc;
 
 	netif_dbg(efx, probe, efx->net_dev, "create port\n");
@@ -929,28 +912,10 @@ static int efx_probe_port(struct efx_nic *efx)
 	if (rc)
 		return rc;
 
-	/* Sanity check MAC address */
-	perm_addr = efx->net_dev->perm_addr;
-	if (is_valid_ether_addr(perm_addr)) {
-		memcpy(efx->net_dev->dev_addr, perm_addr, ETH_ALEN);
-	} else {
-		netif_err(efx, probe, efx->net_dev, "invalid MAC address %pM\n",
-			  perm_addr);
-		if (!allow_bad_hwaddr) {
-			rc = -EINVAL;
-			goto err;
-		}
-		random_ether_addr(efx->net_dev->dev_addr);
-		netif_info(efx, probe, efx->net_dev,
-			   "using locally-generated MAC %pM\n",
-			   efx->net_dev->dev_addr);
-	}
+	/* Initialise MAC address to permanent address */
+	memcpy(efx->net_dev->dev_addr, efx->net_dev->perm_addr, ETH_ALEN);
 
 	return 0;
-
- err:
-	efx->type->remove_port(efx);
-	return rc;
 }
 
 static int efx_init_port(struct efx_nic *efx)
@@ -969,7 +934,7 @@ static int efx_init_port(struct efx_nic *efx)
 
 	/* Reconfigure the MAC before creating dma queues (required for
 	 * Falcon/A1 where RX_INGR_EN/TX_DRAIN_EN isn't supported) */
-	efx->mac_op->reconfigure(efx);
+	efx->type->reconfigure_mac(efx);
 
 	/* Ensure the PHY advertises the correct flow control settings */
 	rc = efx->phy_op->reconfigure(efx);
@@ -996,8 +961,7 @@ static void efx_start_port(struct efx_nic *efx)
 
 	/* efx_mac_work() might have been scheduled after efx_stop_port(),
 	 * and then cancelled by efx_flush_all() */
-	efx->type->push_multicast_hash(efx);
-	efx->mac_op->reconfigure(efx);
+	efx->type->reconfigure_mac(efx);
 
 	mutex_unlock(&efx->mac_lock);
 }
@@ -1012,10 +976,8 @@ static void efx_stop_port(struct efx_nic *efx)
 	mutex_unlock(&efx->mac_lock);
 
 	/* Serialise against efx_set_multicast_list() */
-	if (efx_dev_registered(efx)) {
-		netif_addr_lock_bh(efx->net_dev);
-		netif_addr_unlock_bh(efx->net_dev);
-	}
+	netif_addr_lock_bh(efx->net_dev);
+	netif_addr_unlock_bh(efx->net_dev);
 }
 
 static void efx_fini_port(struct efx_nic *efx)
@@ -1069,9 +1031,11 @@ static int efx_init_io(struct efx_nic *efx)
 	 * masks event though they reject 46 bit masks.
 	 */
 	while (dma_mask > 0x7fffffffUL) {
-		if (pci_dma_supported(pci_dev, dma_mask) &&
-		    ((rc = pci_set_dma_mask(pci_dev, dma_mask)) == 0))
-			break;
+		if (pci_dma_supported(pci_dev, dma_mask)) {
+			rc = pci_set_dma_mask(pci_dev, dma_mask);
+			if (rc == 0)
+				break;
+		}
 		dma_mask >>= 1;
 	}
 	if (rc) {
@@ -1144,18 +1108,16 @@ static void efx_fini_io(struct efx_nic *efx)
 	pci_disable_device(efx->pci_dev);
 }
 
-/* Get number of channels wanted.  Each channel will have its own IRQ,
- * 1 RX queue and/or 2 TX queues. */
-static int efx_wanted_channels(void)
+static int efx_wanted_parallelism(void)
 {
-	cpumask_var_t core_mask;
+	cpumask_var_t thread_mask;
 	int count;
 	int cpu;
 
 	if (rss_cpus)
 		return rss_cpus;
 
-	if (unlikely(!zalloc_cpumask_var(&core_mask, GFP_KERNEL))) {
+	if (unlikely(!zalloc_cpumask_var(&thread_mask, GFP_KERNEL))) {
 		printk(KERN_WARNING
 		       "sfc: RSS disabled due to allocation failure\n");
 		return 1;
@@ -1163,14 +1125,14 @@ static int efx_wanted_channels(void)
 
 	count = 0;
 	for_each_online_cpu(cpu) {
-		if (!cpumask_test_cpu(cpu, core_mask)) {
+		if (!cpumask_test_cpu(cpu, thread_mask)) {
 			++count;
-			cpumask_or(core_mask, core_mask,
-				   topology_core_cpumask(cpu));
+			cpumask_or(thread_mask, thread_mask,
+				   topology_thread_cpumask(cpu));
 		}
 	}
 
-	free_cpumask_var(core_mask);
+	free_cpumask_var(thread_mask);
 	return count;
 }
 
@@ -1209,7 +1171,7 @@ static int efx_probe_interrupts(struct efx_nic *efx)
 		struct msix_entry xentries[EFX_MAX_CHANNELS];
 		int n_channels;
 
-		n_channels = efx_wanted_channels();
+		n_channels = efx_wanted_parallelism();
 		if (separate_tx_channels)
 			n_channels *= 2;
 		n_channels = min(n_channels, max_channels);
@@ -1425,14 +1387,14 @@ static void efx_start_all(struct efx_nic *efx)
 		return;
 	if ((efx->state != STATE_RUNNING) && (efx->state != STATE_INIT))
 		return;
-	if (efx_dev_registered(efx) && !netif_running(efx->net_dev))
+	if (!netif_running(efx->net_dev))
 		return;
 
 	/* Mark the port as enabled so port reconfigurations can start, then
 	 * restart the transmit interface early so the watchdog timer stops */
 	efx_start_port(efx);
 
-	if (efx_dev_registered(efx) && netif_device_present(efx->net_dev))
+	if (netif_device_present(efx->net_dev))
 		netif_tx_wake_all_queues(efx->net_dev);
 
 	efx_for_each_channel(channel, efx)
@@ -1523,11 +1485,9 @@ static void efx_stop_all(struct efx_nic *efx)
 
 	/* Stop the kernel transmit interface late, so the watchdog
 	 * timer isn't ticking over the flush */
-	if (efx_dev_registered(efx)) {
-		netif_tx_stop_all_queues(efx->net_dev);
-		netif_tx_lock_bh(efx->net_dev);
-		netif_tx_unlock_bh(efx->net_dev);
-	}
+	netif_tx_stop_all_queues(efx->net_dev);
+	netif_tx_lock_bh(efx->net_dev);
+	netif_tx_unlock_bh(efx->net_dev);
 }
 
 static void efx_remove_all(struct efx_nic *efx)
@@ -1544,13 +1504,13 @@ static void efx_remove_all(struct efx_nic *efx)
  *
  **************************************************************************/
 
-static unsigned int irq_mod_ticks(unsigned int usecs, unsigned int resolution)
+static unsigned int irq_mod_ticks(unsigned int usecs, unsigned int quantum_ns)
 {
 	if (usecs == 0)
 		return 0;
-	if (usecs < resolution)
+	if (usecs * 1000 < quantum_ns)
 		return 1; /* never round down to 0 */
-	return usecs / resolution;
+	return usecs * 1000 / quantum_ns;
 }
 
 /* Set interrupt moderation parameters */
@@ -1559,13 +1519,19 @@ int efx_init_irq_moderation(struct efx_nic *efx, unsigned int tx_usecs,
 			    bool rx_may_override_tx)
 {
 	struct efx_channel *channel;
-	unsigned tx_ticks = irq_mod_ticks(tx_usecs, EFX_IRQ_MOD_RESOLUTION);
-	unsigned rx_ticks = irq_mod_ticks(rx_usecs, EFX_IRQ_MOD_RESOLUTION);
+	unsigned int irq_mod_max = DIV_ROUND_UP(efx->type->timer_period_max *
+						efx->timer_quantum_ns,
+						1000);
+	unsigned int tx_ticks;
+	unsigned int rx_ticks;
 
 	EFX_ASSERT_RESET_SERIALISED(efx);
 
-	if (tx_ticks > EFX_IRQ_MOD_MAX || rx_ticks > EFX_IRQ_MOD_MAX)
+	if (tx_usecs > irq_mod_max || rx_usecs > irq_mod_max)
 		return -EINVAL;
+
+	tx_ticks = irq_mod_ticks(tx_usecs, efx->timer_quantum_ns);
+	rx_ticks = irq_mod_ticks(rx_usecs, efx->timer_quantum_ns);
 
 	if (tx_ticks != rx_ticks && efx->tx_channel_offset == 0 &&
 	    !rx_may_override_tx) {
@@ -1589,8 +1555,14 @@ int efx_init_irq_moderation(struct efx_nic *efx, unsigned int tx_usecs,
 void efx_get_irq_moderation(struct efx_nic *efx, unsigned int *tx_usecs,
 			    unsigned int *rx_usecs, bool *rx_adaptive)
 {
+	/* We must round up when converting ticks to microseconds
+	 * because we round down when converting the other way.
+	 */
+
 	*rx_adaptive = efx->irq_rx_adaptive;
-	*rx_usecs = efx->irq_rx_moderation * EFX_IRQ_MOD_RESOLUTION;
+	*rx_usecs = DIV_ROUND_UP(efx->irq_rx_moderation *
+				 efx->timer_quantum_ns,
+				 1000);
 
 	/* If channels are shared between RX and TX, so is IRQ
 	 * moderation.  Otherwise, IRQ moderation is the same for all
@@ -1599,9 +1571,10 @@ void efx_get_irq_moderation(struct efx_nic *efx, unsigned int *tx_usecs,
 	if (efx->tx_channel_offset == 0)
 		*tx_usecs = *rx_usecs;
 	else
-		*tx_usecs =
+		*tx_usecs = DIV_ROUND_UP(
 			efx->channel[efx->tx_channel_offset]->irq_moderation *
-			EFX_IRQ_MOD_RESOLUTION;
+			efx->timer_quantum_ns,
+			1000);
 }
 
 /**************************************************************************
@@ -1765,14 +1738,15 @@ static int efx_net_stop(struct net_device *net_dev)
 }
 
 /* Context: process, dev_base_lock or RTNL held, non-blocking. */
-static struct rtnl_link_stats64 *efx_net_stats(struct net_device *net_dev, struct rtnl_link_stats64 *stats)
+static struct rtnl_link_stats64 *efx_net_stats(struct net_device *net_dev,
+					       struct rtnl_link_stats64 *stats)
 {
 	struct efx_nic *efx = netdev_priv(net_dev);
 	struct efx_mac_stats *mac_stats = &efx->mac_stats;
 
 	spin_lock_bh(&efx->stats_lock);
+
 	efx->type->update_stats(efx);
-	spin_unlock_bh(&efx->stats_lock);
 
 	stats->rx_packets = mac_stats->rx_packets;
 	stats->tx_packets = mac_stats->tx_packets;
@@ -1796,6 +1770,8 @@ static struct rtnl_link_stats64 *efx_net_stats(struct net_device *net_dev, struc
 	stats->tx_errors = (stats->tx_window_errors +
 			    mac_stats->tx_bad);
 
+	spin_unlock_bh(&efx->stats_lock);
+
 	return stats;
 }
 
@@ -1816,7 +1792,6 @@ static void efx_watchdog(struct net_device *net_dev)
 static int efx_change_mtu(struct net_device *net_dev, int new_mtu)
 {
 	struct efx_nic *efx = netdev_priv(net_dev);
-	int rc = 0;
 
 	EFX_ASSERT_RESET_SERIALISED(efx);
 
@@ -1833,13 +1808,13 @@ static int efx_change_mtu(struct net_device *net_dev, int new_mtu)
 	/* Reconfigure the MAC before enabling the dma queues so that
 	 * the RX buffers don't overflow */
 	net_dev->mtu = new_mtu;
-	efx->mac_op->reconfigure(efx);
+	efx->type->reconfigure_mac(efx);
 	mutex_unlock(&efx->mac_lock);
 
 	efx_init_channels(efx);
 
 	efx_start_all(efx);
-	return rc;
+	return 0;
 }
 
 static int efx_set_mac_address(struct net_device *net_dev, void *data)
@@ -1861,14 +1836,14 @@ static int efx_set_mac_address(struct net_device *net_dev, void *data)
 
 	/* Reconfigure the MAC */
 	mutex_lock(&efx->mac_lock);
-	efx->mac_op->reconfigure(efx);
+	efx->type->reconfigure_mac(efx);
 	mutex_unlock(&efx->mac_lock);
 
 	return 0;
 }
 
 /* Context: netif_addr_lock held, BHs disabled. */
-static void efx_set_multicast_list(struct net_device *net_dev)
+static void efx_set_rx_mode(struct net_device *net_dev)
 {
 	struct efx_nic *efx = netdev_priv(net_dev);
 	struct netdev_hw_addr *ha;
@@ -1922,7 +1897,7 @@ static const struct net_device_ops efx_netdev_ops = {
 	.ndo_do_ioctl		= efx_ioctl,
 	.ndo_change_mtu		= efx_change_mtu,
 	.ndo_set_mac_address	= efx_set_mac_address,
-	.ndo_set_rx_mode	= efx_set_multicast_list,
+	.ndo_set_rx_mode	= efx_set_rx_mode,
 	.ndo_set_features	= efx_set_features,
 #ifdef CONFIG_NET_POLL_CONTROLLER
 	.ndo_poll_controller = efx_netpoll,
@@ -1975,10 +1950,6 @@ static int efx_register_netdev(struct efx_nic *efx)
 	net_dev->netdev_ops = &efx_netdev_ops;
 	SET_ETHTOOL_OPS(net_dev, &efx_ethtool_ops);
 
-	/* Clear MAC statistics */
-	efx->mac_op->update_stats(efx);
-	memset(&efx->mac_stats, 0, sizeof(efx->mac_stats));
-
 	rtnl_lock();
 
 	rc = dev_alloc_name(net_dev, net_dev->name);
@@ -1997,7 +1968,7 @@ static int efx_register_netdev(struct efx_nic *efx)
 	}
 
 	/* Always start with carrier off; PHY events will detect the link */
-	netif_carrier_off(efx->net_dev);
+	netif_carrier_off(net_dev);
 
 	rtnl_unlock();
 
@@ -2038,11 +2009,9 @@ static void efx_unregister_netdev(struct efx_nic *efx)
 			efx_release_tx_buffers(tx_queue);
 	}
 
-	if (efx_dev_registered(efx)) {
-		strlcpy(efx->name, pci_name(efx->pci_dev), sizeof(efx->name));
-		device_remove_file(&efx->pci_dev->dev, &dev_attr_phy_type);
-		unregister_netdev(efx->net_dev);
-	}
+	strlcpy(efx->name, pci_name(efx->pci_dev), sizeof(efx->name));
+	device_remove_file(&efx->pci_dev->dev, &dev_attr_phy_type);
+	unregister_netdev(efx->net_dev);
 }
 
 /**************************************************************************
@@ -2095,7 +2064,7 @@ int efx_reset_up(struct efx_nic *efx, enum reset_type method, bool ok)
 				  "could not restore PHY settings\n");
 	}
 
-	efx->mac_op->reconfigure(efx);
+	efx->type->reconfigure_mac(efx);
 
 	efx_init_channels(efx);
 	efx_restore_filters(efx);
@@ -2300,7 +2269,6 @@ static int efx_init_struct(struct efx_nic *efx, const struct efx_nic_type *type,
 	efx->net_dev = net_dev;
 	spin_lock_init(&efx->stats_lock);
 	mutex_init(&efx->mac_lock);
-	efx->mac_op = type->default_mac_ops;
 	efx->phy_op = &efx_dummy_phy_operations;
 	efx->mdio.dev = net_dev;
 	INIT_WORK(&efx->mac_work, efx_mac_work);
@@ -2459,7 +2427,7 @@ static int efx_pci_probe_main(struct efx_nic *efx)
 /* NIC initialisation
  *
  * This is called at module load (or hotplug insertion,
- * theoretically).  It sets up PCI mappings, tests and resets the NIC,
+ * theoretically).  It sets up PCI mappings, resets the NIC,
  * sets up and registers the network devices with the kernel and hooks
  * the interrupt service routine.  It does not prepare the device for
  * transmission; this is left to the first time one of the network
@@ -2658,7 +2626,7 @@ static int efx_pm_suspend(struct device *dev)
 	return rc;
 }
 
-static struct dev_pm_ops efx_pm_ops = {
+static const struct dev_pm_ops efx_pm_ops = {
 	.suspend	= efx_pm_suspend,
 	.resume		= efx_pm_resume,
 	.freeze		= efx_pm_freeze,

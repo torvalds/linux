@@ -726,11 +726,9 @@ efx_handle_tx_event(struct efx_channel *channel, efx_qword_t *event)
 		tx_queue = efx_channel_get_tx_queue(
 			channel, tx_ev_q_label % EFX_TXQ_TYPES);
 
-		if (efx_dev_registered(efx))
-			netif_tx_lock(efx->net_dev);
+		netif_tx_lock(efx->net_dev);
 		efx_notify_tx_desc(tx_queue);
-		if (efx_dev_registered(efx))
-			netif_tx_unlock(efx->net_dev);
+		netif_tx_unlock(efx->net_dev);
 	} else if (EFX_QWORD_FIELD(*event, FSF_AZ_TX_EV_PKT_ERR) &&
 		   EFX_WORKAROUND_10727(efx)) {
 		efx_schedule_reset(efx, RESET_TYPE_TX_DESC_FETCH);
@@ -745,10 +743,8 @@ efx_handle_tx_event(struct efx_channel *channel, efx_qword_t *event)
 }
 
 /* Detect errors included in the rx_evt_pkt_ok bit. */
-static void efx_handle_rx_not_ok(struct efx_rx_queue *rx_queue,
-				 const efx_qword_t *event,
-				 bool *rx_ev_pkt_ok,
-				 bool *discard)
+static u16 efx_handle_rx_not_ok(struct efx_rx_queue *rx_queue,
+				const efx_qword_t *event)
 {
 	struct efx_channel *channel = efx_rx_queue_channel(rx_queue);
 	struct efx_nic *efx = rx_queue->efx;
@@ -793,15 +789,11 @@ static void efx_handle_rx_not_ok(struct efx_rx_queue *rx_queue,
 			++channel->n_rx_tcp_udp_chksum_err;
 	}
 
-	/* The frame must be discarded if any of these are true. */
-	*discard = (rx_ev_eth_crc_err | rx_ev_frm_trunc | rx_ev_drib_nib |
-		    rx_ev_tobe_disc | rx_ev_pause_frm);
-
 	/* TOBE_DISC is expected on unicast mismatches; don't print out an
 	 * error message.  FRM_TRUNC indicates RXDP dropped the packet due
 	 * to a FIFO overflow.
 	 */
-#ifdef EFX_ENABLE_DEBUG
+#ifdef DEBUG
 	if (rx_ev_other_err && net_ratelimit()) {
 		netif_dbg(efx, rx_err, efx->net_dev,
 			  " RX queue %d unexpected RX event "
@@ -819,6 +811,11 @@ static void efx_handle_rx_not_ok(struct efx_rx_queue *rx_queue,
 			  rx_ev_pause_frm ? " [PAUSE]" : "");
 	}
 #endif
+
+	/* The frame must be discarded if any of these are true. */
+	return (rx_ev_eth_crc_err | rx_ev_frm_trunc | rx_ev_drib_nib |
+		rx_ev_tobe_disc | rx_ev_pause_frm) ?
+		EFX_RX_PKT_DISCARD : 0;
 }
 
 /* Handle receive events that are not in-order. */
@@ -851,7 +848,8 @@ efx_handle_rx_event(struct efx_channel *channel, const efx_qword_t *event)
 	unsigned int rx_ev_desc_ptr, rx_ev_byte_cnt;
 	unsigned int rx_ev_hdr_type, rx_ev_mcast_pkt;
 	unsigned expected_ptr;
-	bool rx_ev_pkt_ok, discard = false, checksummed;
+	bool rx_ev_pkt_ok;
+	u16 flags;
 	struct efx_rx_queue *rx_queue;
 
 	/* Basic packet information */
@@ -874,12 +872,11 @@ efx_handle_rx_event(struct efx_channel *channel, const efx_qword_t *event)
 		/* If packet is marked as OK and packet type is TCP/IP or
 		 * UDP/IP, then we can rely on the hardware checksum.
 		 */
-		checksummed =
-			rx_ev_hdr_type == FSE_CZ_RX_EV_HDR_TYPE_IPV4V6_TCP ||
-			rx_ev_hdr_type == FSE_CZ_RX_EV_HDR_TYPE_IPV4V6_UDP;
+		flags = (rx_ev_hdr_type == FSE_CZ_RX_EV_HDR_TYPE_IPV4V6_TCP ||
+			 rx_ev_hdr_type == FSE_CZ_RX_EV_HDR_TYPE_IPV4V6_UDP) ?
+			EFX_RX_PKT_CSUMMED : 0;
 	} else {
-		efx_handle_rx_not_ok(rx_queue, event, &rx_ev_pkt_ok, &discard);
-		checksummed = false;
+		flags = efx_handle_rx_not_ok(rx_queue, event);
 	}
 
 	/* Detect multicast packets that didn't match the filter */
@@ -890,15 +887,14 @@ efx_handle_rx_event(struct efx_channel *channel, const efx_qword_t *event)
 
 		if (unlikely(!rx_ev_mcast_hash_match)) {
 			++channel->n_rx_mcast_mismatch;
-			discard = true;
+			flags |= EFX_RX_PKT_DISCARD;
 		}
 	}
 
 	channel->irq_mod_score += 2;
 
 	/* Handle received packet */
-	efx_rx_packet(rx_queue, rx_ev_desc_ptr, rx_ev_byte_cnt,
-		      checksummed, discard);
+	efx_rx_packet(rx_queue, rx_ev_desc_ptr, rx_ev_byte_cnt, flags);
 }
 
 static void
@@ -1311,7 +1307,7 @@ static inline void efx_nic_interrupts(struct efx_nic *efx,
 	efx_oword_t int_en_reg_ker;
 
 	EFX_POPULATE_OWORD_3(int_en_reg_ker,
-			     FRF_AZ_KER_INT_LEVE_SEL, efx->fatal_irq_level,
+			     FRF_AZ_KER_INT_LEVE_SEL, efx->irq_level,
 			     FRF_AZ_KER_INT_KER, force,
 			     FRF_AZ_DRV_INT_EN_KER, enabled);
 	efx_writeo(efx, &int_en_reg_ker, FR_AZ_INT_EN_KER);
@@ -1427,11 +1423,12 @@ static irqreturn_t efx_legacy_interrupt(int irq, void *dev_id)
 	efx_readd(efx, &reg, FR_BZ_INT_ISR0);
 	queues = EFX_EXTRACT_DWORD(reg, 0, 31);
 
-	/* Check to see if we have a serious error condition */
-	if (queues & (1U << efx->fatal_irq_level)) {
+	/* Handle non-event-queue sources */
+	if (queues & (1U << efx->irq_level)) {
 		syserr = EFX_OWORD_FIELD(*int_ker, FSF_AZ_NET_IVEC_FATAL_INT);
 		if (unlikely(syserr))
 			return efx_nic_fatal_interrupt(efx);
+		efx->last_irq_cpu = raw_smp_processor_id();
 	}
 
 	if (queues != 0) {
@@ -1441,7 +1438,7 @@ static irqreturn_t efx_legacy_interrupt(int irq, void *dev_id)
 		/* Schedule processing of any interrupting queues */
 		efx_for_each_channel(channel, efx) {
 			if (queues & 1)
-				efx_schedule_channel(channel);
+				efx_schedule_channel_irq(channel);
 			queues >>= 1;
 		}
 		result = IRQ_HANDLED;
@@ -1458,18 +1455,16 @@ static irqreturn_t efx_legacy_interrupt(int irq, void *dev_id)
 		efx_for_each_channel(channel, efx) {
 			event = efx_event(channel, channel->eventq_read_ptr);
 			if (efx_event_present(event))
-				efx_schedule_channel(channel);
+				efx_schedule_channel_irq(channel);
 			else
 				efx_nic_eventq_read_ack(channel);
 		}
 	}
 
-	if (result == IRQ_HANDLED) {
-		efx->last_irq_cpu = raw_smp_processor_id();
+	if (result == IRQ_HANDLED)
 		netif_vdbg(efx, intr, efx->net_dev,
 			   "IRQ %d on CPU %d status " EFX_DWORD_FMT "\n",
 			   irq, raw_smp_processor_id(), EFX_DWORD_VAL(reg));
-	}
 
 	return result;
 }
@@ -1488,20 +1483,20 @@ static irqreturn_t efx_msi_interrupt(int irq, void *dev_id)
 	efx_oword_t *int_ker = efx->irq_status.addr;
 	int syserr;
 
-	efx->last_irq_cpu = raw_smp_processor_id();
 	netif_vdbg(efx, intr, efx->net_dev,
 		   "IRQ %d on CPU %d status " EFX_OWORD_FMT "\n",
 		   irq, raw_smp_processor_id(), EFX_OWORD_VAL(*int_ker));
 
-	/* Check to see if we have a serious error condition */
-	if (channel->channel == efx->fatal_irq_level) {
+	/* Handle non-event-queue sources */
+	if (channel->channel == efx->irq_level) {
 		syserr = EFX_OWORD_FIELD(*int_ker, FSF_AZ_NET_IVEC_FATAL_INT);
 		if (unlikely(syserr))
 			return efx_nic_fatal_interrupt(efx);
+		efx->last_irq_cpu = raw_smp_processor_id();
 	}
 
 	/* Schedule processing of the channel */
-	efx_schedule_channel(channel);
+	efx_schedule_channel_irq(channel);
 
 	return IRQ_HANDLED;
 }
@@ -1640,10 +1635,10 @@ void efx_nic_init_common(struct efx_nic *efx)
 
 	if (EFX_WORKAROUND_17213(efx) && !EFX_INT_MODE_USE_MSI(efx))
 		/* Use an interrupt level unused by event queues */
-		efx->fatal_irq_level = 0x1f;
+		efx->irq_level = 0x1f;
 	else
 		/* Use a valid MSI-X vector */
-		efx->fatal_irq_level = 0;
+		efx->irq_level = 0;
 
 	/* Enable all the genuinely fatal interrupts.  (They are still
 	 * masked by the overall interrupt mask, controlled by
@@ -1837,7 +1832,7 @@ struct efx_nic_reg_table {
 	REGISTER_REVISION_ ## min_rev, REGISTER_REVISION_ ## max_rev,	\
 	step, rows							\
 }
-#define REGISTER_TABLE(name, min_rev, max_rev) 				\
+#define REGISTER_TABLE(name, min_rev, max_rev)				\
 	REGISTER_TABLE_DIMENSIONS(					\
 		name, FR_ ## min_rev ## max_rev ## _ ## name,		\
 		min_rev, max_rev,					\

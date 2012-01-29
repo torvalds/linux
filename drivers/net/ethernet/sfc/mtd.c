@@ -10,6 +10,7 @@
 
 #include <linux/bitops.h>
 #include <linux/module.h>
+#undef DEBUG /* <linux/mtd/mtd.h> has its own use for DEBUG */
 #include <linux/mtd/mtd.h>
 #include <linux/delay.h>
 #include <linux/slab.h>
@@ -382,7 +383,7 @@ static int falcon_mtd_sync(struct mtd_info *mtd)
 	return rc;
 }
 
-static struct efx_mtd_ops falcon_mtd_ops = {
+static const struct efx_mtd_ops falcon_mtd_ops = {
 	.read	= falcon_mtd_read,
 	.erase	= falcon_mtd_erase,
 	.write	= falcon_mtd_write,
@@ -560,7 +561,7 @@ static int siena_mtd_sync(struct mtd_info *mtd)
 	return rc;
 }
 
-static struct efx_mtd_ops siena_mtd_ops = {
+static const struct efx_mtd_ops siena_mtd_ops = {
 	.read	= siena_mtd_read,
 	.erase	= siena_mtd_erase,
 	.write	= siena_mtd_write,
@@ -572,7 +573,7 @@ struct siena_nvram_type_info {
 	const char *name;
 };
 
-static struct siena_nvram_type_info siena_nvram_types[] = {
+static const struct siena_nvram_type_info siena_nvram_types[] = {
 	[MC_CMD_NVRAM_TYPE_DISABLED_CALLISTO]	= { 0, "sfc_dummy_phy" },
 	[MC_CMD_NVRAM_TYPE_MC_FW]		= { 0, "sfc_mcfw" },
 	[MC_CMD_NVRAM_TYPE_MC_FW_BACKUP]	= { 0, "sfc_mcfw_backup" },
@@ -593,7 +594,7 @@ static int siena_mtd_probe_partition(struct efx_nic *efx,
 				     unsigned int type)
 {
 	struct efx_mtd_partition *part = &efx_mtd->part[part_id];
-	struct siena_nvram_type_info *info;
+	const struct siena_nvram_type_info *info;
 	size_t size, erase_size;
 	bool protected;
 	int rc;
@@ -627,11 +628,10 @@ static int siena_mtd_get_fw_subtypes(struct efx_nic *efx,
 				     struct efx_mtd *efx_mtd)
 {
 	struct efx_mtd_partition *part;
-	uint16_t fw_subtype_list[MC_CMD_GET_BOARD_CFG_OUT_FW_SUBTYPE_LIST_LEN /
-				 sizeof(uint16_t)];
+	uint16_t fw_subtype_list[MC_CMD_GET_BOARD_CFG_OUT_FW_SUBTYPE_LIST_MINNUM];
 	int rc;
 
-	rc = efx_mcdi_get_board_cfg(efx, NULL, fw_subtype_list);
+	rc = efx_mcdi_get_board_cfg(efx, NULL, fw_subtype_list, NULL);
 	if (rc)
 		return rc;
 

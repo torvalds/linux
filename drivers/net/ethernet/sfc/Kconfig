@@ -16,6 +16,13 @@ config SFC_MTD
 	depends on SFC && MTD && !(SFC=y && MTD=m)
 	default y
 	---help---
-	  This exposes the on-board flash memory as MTD devices (e.g.
-	  /dev/mtd1).  This makes it possible to upload new firmware
-	  to the NIC.
+	  This exposes the on-board flash and/or EEPROM as MTD devices
+	  (e.g. /dev/mtd1).  This is required to update the firmware or
+	  the boot configuration under Linux.
+config SFC_MCDI_MON
+	bool "Solarflare SFC9000-family hwmon support"
+	depends on SFC && HWMON && !(SFC=y && HWMON=m)
+	default y
+	----help---
+	  This exposes the on-board firmware-managed sensors as a
+	  hardware monitor device.

@@ -19,7 +19,6 @@
 #include <linux/udp.h>
 #include <linux/rtnetlink.h>
 #include <linux/slab.h>
-#include <asm/io.h>
 #include "net_driver.h"
 #include "efx.h"
 #include "nic.h"
@@ -50,7 +49,7 @@ static const char payload_msg[] =
 
 /* Interrupt mode names */
 static const unsigned int efx_interrupt_mode_max = EFX_INT_MODE_MAX;
-static const char *efx_interrupt_mode_names[] = {
+static const char *const efx_interrupt_mode_names[] = {
 	[EFX_INT_MODE_MSIX]   = "MSI-X",
 	[EFX_INT_MODE_MSI]    = "MSI",
 	[EFX_INT_MODE_LEGACY] = "legacy",
@@ -131,6 +130,8 @@ static int efx_test_chip(struct efx_nic *efx, struct efx_self_tests *tests)
 static int efx_test_interrupts(struct efx_nic *efx,
 			       struct efx_self_tests *tests)
 {
+	int cpu;
+
 	netif_dbg(efx, drv, efx->net_dev, "testing interrupts\n");
 	tests->interrupt = -1;
 
@@ -143,7 +144,8 @@ static int efx_test_interrupts(struct efx_nic *efx,
 	/* Wait for arrival of test interrupt. */
 	netif_dbg(efx, drv, efx->net_dev, "waiting for test interrupt\n");
 	schedule_timeout_uninterruptible(HZ / 10);
-	if (efx->last_irq_cpu >= 0)
+	cpu = ACCESS_ONCE(efx->last_irq_cpu);
+	if (cpu >= 0)
 		goto success;
 
 	netif_err(efx, drv, efx->net_dev, "timed out waiting for interrupt\n");
@@ -151,8 +153,7 @@ static int efx_test_interrupts(struct efx_nic *efx,
 
  success:
 	netif_dbg(efx, drv, efx->net_dev, "%s test interrupt seen on CPU%d\n",
-		  INT_MODE(efx),
-		efx->last_irq_cpu);
+		  INT_MODE(efx), cpu);
 	tests->interrupt = 1;
 	return 0;
 }
@@ -162,56 +163,57 @@ static int efx_test_eventq_irq(struct efx_channel *channel,
 			       struct efx_self_tests *tests)
 {
 	struct efx_nic *efx = channel->efx;
-	unsigned int read_ptr, count;
-
-	tests->eventq_dma[channel->channel] = -1;
-	tests->eventq_int[channel->channel] = -1;
-	tests->eventq_poll[channel->channel] = -1;
+	unsigned int read_ptr;
+	bool napi_ran, dma_seen, int_seen;
 
 	read_ptr = channel->eventq_read_ptr;
-	channel->efx->last_irq_cpu = -1;
+	channel->last_irq_cpu = -1;
 	smp_wmb();
 
 	efx_nic_generate_test_event(channel);
 
-	/* Wait for arrival of interrupt */
-	count = 0;
-	do {
-		schedule_timeout_uninterruptible(HZ / 100);
-
-		if (ACCESS_ONCE(channel->eventq_read_ptr) != read_ptr)
-			goto eventq_ok;
-	} while (++count < 2);
-
-	netif_err(efx, drv, efx->net_dev,
-		  "channel %d timed out waiting for event queue\n",
-		  channel->channel);
-
-	/* See if interrupt arrived */
-	if (channel->efx->last_irq_cpu >= 0) {
-		netif_err(efx, drv, efx->net_dev,
-			  "channel %d saw interrupt on CPU%d "
-			  "during event queue test\n", channel->channel,
-			  raw_smp_processor_id());
-		tests->eventq_int[channel->channel] = 1;
+	/* Wait for arrival of interrupt.  NAPI processing may or may
+	 * not complete in time, but we can cope in any case.
+	 */
+	msleep(10);
+	napi_disable(&channel->napi_str);
+	if (channel->eventq_read_ptr != read_ptr) {
+		napi_ran = true;
+		dma_seen = true;
+		int_seen = true;
+	} else {
+		napi_ran = false;
+		dma_seen = efx_nic_event_present(channel);
+		int_seen = ACCESS_ONCE(channel->last_irq_cpu) >= 0;
 	}
+	napi_enable(&channel->napi_str);
+	efx_nic_eventq_read_ack(channel);
 
-	/* Check to see if event was received even if interrupt wasn't */
-	if (efx_nic_event_present(channel)) {
+	tests->eventq_dma[channel->channel] = dma_seen ? 1 : -1;
+	tests->eventq_int[channel->channel] = int_seen ? 1 : -1;
+
+	if (dma_seen && int_seen) {
+		netif_dbg(efx, drv, efx->net_dev,
+			  "channel %d event queue passed (with%s NAPI)\n",
+			  channel->channel, napi_ran ? "" : "out");
+		return 0;
+	} else {
+		/* Report failure and whether either interrupt or DMA worked */
 		netif_err(efx, drv, efx->net_dev,
-			  "channel %d event was generated, but "
-			  "failed to trigger an interrupt\n", channel->channel);
-		tests->eventq_dma[channel->channel] = 1;
+			  "channel %d timed out waiting for event queue\n",
+			  channel->channel);
+		if (int_seen)
+			netif_err(efx, drv, efx->net_dev,
+				  "channel %d saw interrupt "
+				  "during event queue test\n",
+				  channel->channel);
+		if (dma_seen)
+			netif_err(efx, drv, efx->net_dev,
+				  "channel %d event was generated, but "
+				  "failed to trigger an interrupt\n",
+				  channel->channel);
+		return -ETIMEDOUT;
 	}
-
-	return -ETIMEDOUT;
- eventq_ok:
-	netif_dbg(efx, drv, efx->net_dev, "channel %d event queue passed\n",
-		  channel->channel);
-	tests->eventq_dma[channel->channel] = 1;
-	tests->eventq_int[channel->channel] = 1;
-	tests->eventq_poll[channel->channel] = 1;
-	return 0;
 }
 
 static int efx_test_phy(struct efx_nic *efx, struct efx_self_tests *tests,
@@ -316,7 +318,7 @@ void efx_loopback_rx_packet(struct efx_nic *efx,
 	return;
 
  err:
-#ifdef EFX_ENABLE_DEBUG
+#ifdef DEBUG
 	if (atomic_read(&state->rx_bad) == 0) {
 		netif_err(efx, drv, efx->net_dev, "received packet:\n");
 		print_hex_dump(KERN_ERR, "", DUMP_PREFIX_OFFSET, 0x10, 1,
@@ -395,11 +397,9 @@ static int efx_begin_loopback(struct efx_tx_queue *tx_queue)
 		 * interrupt handler. */
 		smp_wmb();
 
-		if (efx_dev_registered(efx))
-			netif_tx_lock_bh(efx->net_dev);
+		netif_tx_lock_bh(efx->net_dev);
 		rc = efx_enqueue_skb(tx_queue, skb);
-		if (efx_dev_registered(efx))
-			netif_tx_unlock_bh(efx->net_dev);
+		netif_tx_unlock_bh(efx->net_dev);
 
 		if (rc != NETDEV_TX_OK) {
 			netif_err(efx, drv, efx->net_dev,
@@ -440,20 +440,18 @@ static int efx_end_loopback(struct efx_tx_queue *tx_queue,
 	int tx_done = 0, rx_good, rx_bad;
 	int i, rc = 0;
 
-	if (efx_dev_registered(efx))
-		netif_tx_lock_bh(efx->net_dev);
+	netif_tx_lock_bh(efx->net_dev);
 
 	/* Count the number of tx completions, and decrement the refcnt. Any
 	 * skbs not already completed will be free'd when the queue is flushed */
-	for (i=0; i < state->packet_count; i++) {
+	for (i = 0; i < state->packet_count; i++) {
 		skb = state->skbs[i];
 		if (skb && !skb_shared(skb))
 			++tx_done;
 		dev_kfree_skb_any(skb);
 	}
 
-	if (efx_dev_registered(efx))
-		netif_tx_unlock_bh(efx->net_dev);
+	netif_tx_unlock_bh(efx->net_dev);
 
 	/* Check TX completion and received packet counts */
 	rx_good = atomic_read(&state->rx_good);
@@ -570,7 +568,7 @@ static int efx_wait_for_link(struct efx_nic *efx)
 		mutex_lock(&efx->mac_lock);
 		link_up = link_state->up;
 		if (link_up)
-			link_up = !efx->mac_op->check_fault(efx);
+			link_up = !efx->type->check_mac_fault(efx);
 		mutex_unlock(&efx->mac_lock);
 
 		if (link_up) {

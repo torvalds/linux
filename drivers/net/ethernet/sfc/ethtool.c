@@ -52,11 +52,6 @@ static u64 efx_get_uint_stat(void *field)
 	return *(unsigned int *)field;
 }
 
-static u64 efx_get_ulong_stat(void *field)
-{
-	return *(unsigned long *)field;
-}
-
 static u64 efx_get_u64_stat(void *field)
 {
 	return *(u64 *) field;
@@ -67,12 +62,8 @@ static u64 efx_get_atomic_stat(void *field)
 	return atomic_read((atomic_t *) field);
 }
 
-#define EFX_ETHTOOL_ULONG_MAC_STAT(field)			\
-	EFX_ETHTOOL_STAT(field, mac_stats, field, 		\
-			  unsigned long, efx_get_ulong_stat)
-
 #define EFX_ETHTOOL_U64_MAC_STAT(field)				\
-	EFX_ETHTOOL_STAT(field, mac_stats, field, 		\
+	EFX_ETHTOOL_STAT(field, mac_stats, field,		\
 			  u64, efx_get_u64_stat)
 
 #define EFX_ETHTOOL_UINT_NIC_STAT(name)				\
@@ -91,36 +82,36 @@ static u64 efx_get_atomic_stat(void *field)
 	EFX_ETHTOOL_STAT(tx_##field, tx_queue, field,		\
 			 unsigned int, efx_get_uint_stat)
 
-static struct efx_ethtool_stat efx_ethtool_stats[] = {
+static const struct efx_ethtool_stat efx_ethtool_stats[] = {
 	EFX_ETHTOOL_U64_MAC_STAT(tx_bytes),
 	EFX_ETHTOOL_U64_MAC_STAT(tx_good_bytes),
 	EFX_ETHTOOL_U64_MAC_STAT(tx_bad_bytes),
-	EFX_ETHTOOL_ULONG_MAC_STAT(tx_packets),
-	EFX_ETHTOOL_ULONG_MAC_STAT(tx_bad),
-	EFX_ETHTOOL_ULONG_MAC_STAT(tx_pause),
-	EFX_ETHTOOL_ULONG_MAC_STAT(tx_control),
-	EFX_ETHTOOL_ULONG_MAC_STAT(tx_unicast),
-	EFX_ETHTOOL_ULONG_MAC_STAT(tx_multicast),
-	EFX_ETHTOOL_ULONG_MAC_STAT(tx_broadcast),
-	EFX_ETHTOOL_ULONG_MAC_STAT(tx_lt64),
-	EFX_ETHTOOL_ULONG_MAC_STAT(tx_64),
-	EFX_ETHTOOL_ULONG_MAC_STAT(tx_65_to_127),
-	EFX_ETHTOOL_ULONG_MAC_STAT(tx_128_to_255),
-	EFX_ETHTOOL_ULONG_MAC_STAT(tx_256_to_511),
-	EFX_ETHTOOL_ULONG_MAC_STAT(tx_512_to_1023),
-	EFX_ETHTOOL_ULONG_MAC_STAT(tx_1024_to_15xx),
-	EFX_ETHTOOL_ULONG_MAC_STAT(tx_15xx_to_jumbo),
-	EFX_ETHTOOL_ULONG_MAC_STAT(tx_gtjumbo),
-	EFX_ETHTOOL_ULONG_MAC_STAT(tx_collision),
-	EFX_ETHTOOL_ULONG_MAC_STAT(tx_single_collision),
-	EFX_ETHTOOL_ULONG_MAC_STAT(tx_multiple_collision),
-	EFX_ETHTOOL_ULONG_MAC_STAT(tx_excessive_collision),
-	EFX_ETHTOOL_ULONG_MAC_STAT(tx_deferred),
-	EFX_ETHTOOL_ULONG_MAC_STAT(tx_late_collision),
-	EFX_ETHTOOL_ULONG_MAC_STAT(tx_excessive_deferred),
-	EFX_ETHTOOL_ULONG_MAC_STAT(tx_non_tcpudp),
-	EFX_ETHTOOL_ULONG_MAC_STAT(tx_mac_src_error),
-	EFX_ETHTOOL_ULONG_MAC_STAT(tx_ip_src_error),
+	EFX_ETHTOOL_U64_MAC_STAT(tx_packets),
+	EFX_ETHTOOL_U64_MAC_STAT(tx_bad),
+	EFX_ETHTOOL_U64_MAC_STAT(tx_pause),
+	EFX_ETHTOOL_U64_MAC_STAT(tx_control),
+	EFX_ETHTOOL_U64_MAC_STAT(tx_unicast),
+	EFX_ETHTOOL_U64_MAC_STAT(tx_multicast),
+	EFX_ETHTOOL_U64_MAC_STAT(tx_broadcast),
+	EFX_ETHTOOL_U64_MAC_STAT(tx_lt64),
+	EFX_ETHTOOL_U64_MAC_STAT(tx_64),
+	EFX_ETHTOOL_U64_MAC_STAT(tx_65_to_127),
+	EFX_ETHTOOL_U64_MAC_STAT(tx_128_to_255),
+	EFX_ETHTOOL_U64_MAC_STAT(tx_256_to_511),
+	EFX_ETHTOOL_U64_MAC_STAT(tx_512_to_1023),
+	EFX_ETHTOOL_U64_MAC_STAT(tx_1024_to_15xx),
+	EFX_ETHTOOL_U64_MAC_STAT(tx_15xx_to_jumbo),
+	EFX_ETHTOOL_U64_MAC_STAT(tx_gtjumbo),
+	EFX_ETHTOOL_U64_MAC_STAT(tx_collision),
+	EFX_ETHTOOL_U64_MAC_STAT(tx_single_collision),
+	EFX_ETHTOOL_U64_MAC_STAT(tx_multiple_collision),
+	EFX_ETHTOOL_U64_MAC_STAT(tx_excessive_collision),
+	EFX_ETHTOOL_U64_MAC_STAT(tx_deferred),
+	EFX_ETHTOOL_U64_MAC_STAT(tx_late_collision),
+	EFX_ETHTOOL_U64_MAC_STAT(tx_excessive_deferred),
+	EFX_ETHTOOL_U64_MAC_STAT(tx_non_tcpudp),
+	EFX_ETHTOOL_U64_MAC_STAT(tx_mac_src_error),
+	EFX_ETHTOOL_U64_MAC_STAT(tx_ip_src_error),
 	EFX_ETHTOOL_UINT_TXQ_STAT(tso_bursts),
 	EFX_ETHTOOL_UINT_TXQ_STAT(tso_long_headers),
 	EFX_ETHTOOL_UINT_TXQ_STAT(tso_packets),
@@ -128,34 +119,34 @@ static struct efx_ethtool_stat efx_ethtool_stats[] = {
 	EFX_ETHTOOL_U64_MAC_STAT(rx_bytes),
 	EFX_ETHTOOL_U64_MAC_STAT(rx_good_bytes),
 	EFX_ETHTOOL_U64_MAC_STAT(rx_bad_bytes),
-	EFX_ETHTOOL_ULONG_MAC_STAT(rx_packets),
-	EFX_ETHTOOL_ULONG_MAC_STAT(rx_good),
-	EFX_ETHTOOL_ULONG_MAC_STAT(rx_bad),
-	EFX_ETHTOOL_ULONG_MAC_STAT(rx_pause),
-	EFX_ETHTOOL_ULONG_MAC_STAT(rx_control),
-	EFX_ETHTOOL_ULONG_MAC_STAT(rx_unicast),
-	EFX_ETHTOOL_ULONG_MAC_STAT(rx_multicast),
-	EFX_ETHTOOL_ULONG_MAC_STAT(rx_broadcast),
-	EFX_ETHTOOL_ULONG_MAC_STAT(rx_lt64),
-	EFX_ETHTOOL_ULONG_MAC_STAT(rx_64),
-	EFX_ETHTOOL_ULONG_MAC_STAT(rx_65_to_127),
-	EFX_ETHTOOL_ULONG_MAC_STAT(rx_128_to_255),
-	EFX_ETHTOOL_ULONG_MAC_STAT(rx_256_to_511),
-	EFX_ETHTOOL_ULONG_MAC_STAT(rx_512_to_1023),
-	EFX_ETHTOOL_ULONG_MAC_STAT(rx_1024_to_15xx),
-	EFX_ETHTOOL_ULONG_MAC_STAT(rx_15xx_to_jumbo),
-	EFX_ETHTOOL_ULONG_MAC_STAT(rx_gtjumbo),
-	EFX_ETHTOOL_ULONG_MAC_STAT(rx_bad_lt64),
-	EFX_ETHTOOL_ULONG_MAC_STAT(rx_bad_64_to_15xx),
-	EFX_ETHTOOL_ULONG_MAC_STAT(rx_bad_15xx_to_jumbo),
-	EFX_ETHTOOL_ULONG_MAC_STAT(rx_bad_gtjumbo),
-	EFX_ETHTOOL_ULONG_MAC_STAT(rx_overflow),
-	EFX_ETHTOOL_ULONG_MAC_STAT(rx_missed),
-	EFX_ETHTOOL_ULONG_MAC_STAT(rx_false_carrier),
-	EFX_ETHTOOL_ULONG_MAC_STAT(rx_symbol_error),
-	EFX_ETHTOOL_ULONG_MAC_STAT(rx_align_error),
-	EFX_ETHTOOL_ULONG_MAC_STAT(rx_length_error),
-	EFX_ETHTOOL_ULONG_MAC_STAT(rx_internal_error),
+	EFX_ETHTOOL_U64_MAC_STAT(rx_packets),
+	EFX_ETHTOOL_U64_MAC_STAT(rx_good),
+	EFX_ETHTOOL_U64_MAC_STAT(rx_bad),
+	EFX_ETHTOOL_U64_MAC_STAT(rx_pause),
+	EFX_ETHTOOL_U64_MAC_STAT(rx_control),
+	EFX_ETHTOOL_U64_MAC_STAT(rx_unicast),
+	EFX_ETHTOOL_U64_MAC_STAT(rx_multicast),
+	EFX_ETHTOOL_U64_MAC_STAT(rx_broadcast),
+	EFX_ETHTOOL_U64_MAC_STAT(rx_lt64),
+	EFX_ETHTOOL_U64_MAC_STAT(rx_64),
+	EFX_ETHTOOL_U64_MAC_STAT(rx_65_to_127),
+	EFX_ETHTOOL_U64_MAC_STAT(rx_128_to_255),
+	EFX_ETHTOOL_U64_MAC_STAT(rx_256_to_511),
+	EFX_ETHTOOL_U64_MAC_STAT(rx_512_to_1023),
+	EFX_ETHTOOL_U64_MAC_STAT(rx_1024_to_15xx),
+	EFX_ETHTOOL_U64_MAC_STAT(rx_15xx_to_jumbo),
+	EFX_ETHTOOL_U64_MAC_STAT(rx_gtjumbo),
+	EFX_ETHTOOL_U64_MAC_STAT(rx_bad_lt64),
+	EFX_ETHTOOL_U64_MAC_STAT(rx_bad_64_to_15xx),
+	EFX_ETHTOOL_U64_MAC_STAT(rx_bad_15xx_to_jumbo),
+	EFX_ETHTOOL_U64_MAC_STAT(rx_bad_gtjumbo),
+	EFX_ETHTOOL_U64_MAC_STAT(rx_overflow),
+	EFX_ETHTOOL_U64_MAC_STAT(rx_missed),
+	EFX_ETHTOOL_U64_MAC_STAT(rx_false_carrier),
+	EFX_ETHTOOL_U64_MAC_STAT(rx_symbol_error),
+	EFX_ETHTOOL_U64_MAC_STAT(rx_align_error),
+	EFX_ETHTOOL_U64_MAC_STAT(rx_length_error),
+	EFX_ETHTOOL_U64_MAC_STAT(rx_internal_error),
 	EFX_ETHTOOL_UINT_NIC_STAT(rx_nodesc_drop_cnt),
 	EFX_ETHTOOL_ATOMIC_NIC_ERROR_STAT(rx_reset),
 	EFX_ETHTOOL_UINT_CHANNEL_STAT(rx_tobe_disc),
@@ -404,10 +395,6 @@ static int efx_ethtool_fill_self_tests(struct efx_nic *efx,
 			      &tests->eventq_int[channel->channel],
 			      EFX_CHANNEL_NAME(channel),
 			      "eventq.int", NULL);
-		efx_fill_test(n++, strings, data,
-			      &tests->eventq_poll[channel->channel],
-			      EFX_CHANNEL_NAME(channel),
-			      "eventq.poll", NULL);
 	}
 
 	efx_fill_test(n++, strings, data, &tests->registers,
@@ -486,16 +473,17 @@ static void efx_ethtool_get_stats(struct net_device *net_dev,
 {
 	struct efx_nic *efx = netdev_priv(net_dev);
 	struct efx_mac_stats *mac_stats = &efx->mac_stats;
-	struct efx_ethtool_stat *stat;
+	const struct efx_ethtool_stat *stat;
 	struct efx_channel *channel;
 	struct efx_tx_queue *tx_queue;
-	struct rtnl_link_stats64 temp;
 	int i;
 
 	EFX_BUG_ON_PARANOID(stats->n_stats != EFX_ETHTOOL_NUM_STATS);
 
+	spin_lock_bh(&efx->stats_lock);
+
 	/* Update MAC and NIC statistics */
-	dev_get_stats(net_dev, &temp);
+	efx->type->update_stats(efx);
 
 	/* Fill detailed statistics buffer */
 	for (i = 0; i < EFX_ETHTOOL_NUM_STATS; i++) {
@@ -525,6 +513,8 @@ static void efx_ethtool_get_stats(struct net_device *net_dev,
 			break;
 		}
 	}
+
+	spin_unlock_bh(&efx->stats_lock);
 }
 
 static void efx_ethtool_self_test(struct net_device *net_dev,
@@ -747,7 +737,7 @@ static int efx_ethtool_set_pauseparam(struct net_device *net_dev,
 			/* Recover by resetting the EM block */
 			falcon_stop_nic_stats(efx);
 			falcon_drain_tx_fifo(efx);
-			efx->mac_op->reconfigure(efx);
+			falcon_reconfigure_xmac(efx);
 			falcon_start_nic_stats(efx);
 		} else {
 			/* Schedule a reset to recover */
@@ -772,7 +762,7 @@ static int efx_ethtool_set_pauseparam(struct net_device *net_dev,
 	/* Reconfigure the MAC. The PHY *may* generate a link state change event
 	 * if the user just changed the advertised capabilities, but there's no
 	 * harm doing this twice */
-	efx->mac_op->reconfigure(efx);
+	efx->type->reconfigure_mac(efx);
 
 out:
 	mutex_unlock(&efx->mac_lock);
