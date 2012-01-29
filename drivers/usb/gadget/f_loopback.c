@@ -373,7 +373,7 @@ int __init loopback_add(struct usb_composite_dev *cdev, bool autoresume)
 
 	/* support autoresume for remote wakeup testing */
 	if (autoresume)
-		sourcesink_driver.bmAttributes |= USB_CONFIG_ATT_WAKEUP;
+		loopback_driver.bmAttributes |= USB_CONFIG_ATT_WAKEUP;
 
 	/* support OTG systems */
 	if (gadget_is_otg(cdev->gadget)) {
