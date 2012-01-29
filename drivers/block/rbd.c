@@ -174,11 +174,13 @@ static struct bus_type rbd_bus_type = {
 	.name		= "rbd",
 };
 
-static DEFINE_SPINLOCK(node_lock);      /* protects client get/put */
-
 static DEFINE_MUTEX(ctl_mutex);	  /* Serialize open/close/setup/teardown */
+
 static LIST_HEAD(rbd_dev_list);    /* devices */
+static DEFINE_SPINLOCK(rbd_dev_list_lock);
+
 static LIST_HEAD(rbd_client_list);      /* clients */
+static DEFINE_SPINLOCK(node_lock);      /* protects client get/put */
 
 static int __rbd_init_snaps_header(struct rbd_device *rbd_dev);
 static void rbd_dev_release(struct device *dev);
@@ -2209,12 +2211,12 @@ static ssize_t rbd_add(struct bus_type *bus,
 	init_rwsem(&rbd_dev->header.snap_rwsem);
 
 	/* generate unique id: one more than highest used so far */
-	mutex_lock_nested(&ctl_mutex, SINGLE_DEPTH_NESTING);
-
 	rbd_dev->id = rbd_id_get();
 
 	/* add to global list */
+	spin_lock(&rbd_dev_list_lock);
 	list_add_tail(&rbd_dev->node, &rbd_dev_list);
+	spin_unlock(&rbd_dev_list_lock);
 
 	/* parse add command */
 	if (sscanf(buf, "%" __stringify(RBD_MAX_OPT_LEN) "s "
@@ -2238,11 +2240,13 @@ static ssize_t rbd_add(struct bus_type *bus,
 
 	/* initialize rest of new object */
 	snprintf(rbd_dev->name, DEV_NAME_LEN, DRV_NAME "%d", rbd_dev->id);
+
+	mutex_lock_nested(&ctl_mutex, SINGLE_DEPTH_NESTING);
 	rc = rbd_get_client(rbd_dev, mon_dev_name, options);
+	mutex_unlock(&ctl_mutex);
+
 	if (rc < 0)
 		goto err_out_slot;
-
-	mutex_unlock(&ctl_mutex);
 
 	/* pick the pool */
 	osdc = &rbd_dev->rbd_client->client->osdc;
@@ -2275,9 +2279,9 @@ static ssize_t rbd_add(struct bus_type *bus,
 	return count;
 
 err_out_bus:
-	mutex_lock_nested(&ctl_mutex, SINGLE_DEPTH_NESTING);
+	spin_lock(&rbd_dev_list_lock);
 	list_del_init(&rbd_dev->node);
-	mutex_unlock(&ctl_mutex);
+	spin_unlock(&rbd_dev_list_lock);
 	rbd_id_put(target_id);
 
 	/* this will also clean up rest of rbd_dev stuff */
@@ -2291,10 +2295,10 @@ err_out_blkdev:
 	unregister_blkdev(rbd_dev->major, rbd_dev->name);
 err_out_client:
 	rbd_put_client(rbd_dev);
-	mutex_lock_nested(&ctl_mutex, SINGLE_DEPTH_NESTING);
 err_out_slot:
+	spin_lock(&rbd_dev_list_lock);
 	list_del_init(&rbd_dev->node);
-	mutex_unlock(&ctl_mutex);
+	spin_unlock(&rbd_dev_list_lock);
 	rbd_id_put(target_id);
 
 	kfree(rbd_dev);
@@ -2313,11 +2317,15 @@ static struct rbd_device *__rbd_get_dev(unsigned long id)
 	struct list_head *tmp;
 	struct rbd_device *rbd_dev;
 
+	spin_lock(&rbd_dev_list_lock);
 	list_for_each(tmp, &rbd_dev_list) {
 		rbd_dev = list_entry(tmp, struct rbd_device, node);
-		if (rbd_dev->id == id)
+		if (rbd_dev->id == id) {
+			spin_unlock(&rbd_dev_list_lock);
 			return rbd_dev;
+		}
 	}
+	spin_unlock(&rbd_dev_list_lock);
 	return NULL;
 }
 
@@ -2372,7 +2380,10 @@ static ssize_t rbd_remove(struct bus_type *bus,
 		goto done;
 	}
 
+	spin_lock(&rbd_dev_list_lock);
 	list_del_init(&rbd_dev->node);
+	spin_unlock(&rbd_dev_list_lock);
+
 	rbd_id_put(target_id);
 
 	__rbd_remove_all_snaps(rbd_dev);
