@@ -3,9 +3,9 @@
 #include <newt.h>
 #include <inttypes.h>
 #include <sys/ttydefaults.h>
-#include <ctype.h>
 #include <string.h>
 #include <linux/bitops.h>
+#include "../../util.h"
 #include "../../debug.h"
 #include "../../symbol.h"
 #include "../browser.h"

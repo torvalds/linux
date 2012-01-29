@@ -5,7 +5,6 @@
  *
  * Trivial clone of mem-memcpy.c.
  */
-#include <ctype.h>
 
 #include "../perf.h"
 #include "../util/util.h"
