@@ -121,6 +121,7 @@ static struct sa1111 *g_sa1111;
 struct sa1111_dev_info {
 	unsigned long	offset;
 	unsigned long	skpcr_mask;
+	bool		dma;
 	unsigned int	devid;
 	unsigned int	irq[6];
 };
@@ -129,6 +130,7 @@ static struct sa1111_dev_info sa1111_devices[] = {
 	{
 		.offset		= SA1111_USB,
 		.skpcr_mask	= SKPCR_UCLKEN,
+		.dma		= true,
 		.devid		= SA1111_DEVID_USB,
 		.irq = {
 			IRQ_USBPWR,
@@ -142,6 +144,7 @@ static struct sa1111_dev_info sa1111_devices[] = {
 	{
 		.offset		= 0x0600,
 		.skpcr_mask	= SKPCR_I2SCLKEN | SKPCR_L3CLKEN,
+		.dma		= true,
 		.devid		= SA1111_DEVID_SAC,
 		.irq = {
 			AUDXMTDMADONEA,
@@ -641,10 +644,10 @@ sa1111_init_one_child(struct sa1111 *sachip, struct resource *parent,
 		dev->irq[i] = sachip->irq_base + info->irq[i];
 
 	/*
-	 * If the parent device has a DMA mask associated with it,
-	 * propagate it down to the children.
+	 * If the parent device has a DMA mask associated with it, and
+	 * this child supports DMA, propagate it down to the children.
 	 */
-	if (sachip->dev->dma_mask) {
+	if (info->dma && sachip->dev->dma_mask) {
 		dev->dma_mask = *sachip->dev->dma_mask;
 		dev->dev.dma_mask = &dev->dma_mask;
 		dev->dev.coherent_dma_mask = sachip->dev->coherent_dma_mask;
