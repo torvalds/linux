@@ -42,7 +42,7 @@
 #include <mach/mux.h>
 #include <mach/usb.h>
 
-#define SFFSDR_PHY_ID		"0:01"
+#define SFFSDR_PHY_ID		"davinci_mdio-0:01"
 static struct mtd_partition davinci_sffsdr_nandflash_partition[] = {
 	/* U-Boot Environment: Block 0
 	 * UBL:                Block 1

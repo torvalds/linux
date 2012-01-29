@@ -39,7 +39,7 @@
 #include <mach/mmc.h>
 #include <mach/usb.h>
 
-#define NEUROS_OSD2_PHY_ID		"0:01"
+#define NEUROS_OSD2_PHY_ID		"davinci_mdio-0:01"
 #define LXT971_PHY_ID			0x001378e2
 #define LXT971_PHY_MASK			0xfffffff0
 
