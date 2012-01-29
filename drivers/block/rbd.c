@@ -2172,18 +2172,46 @@ static void rbd_id_get(struct rbd_device *rbd_dev)
  */
 static void rbd_id_put(struct rbd_device *rbd_dev)
 {
-	BUG_ON(rbd_dev->id < 1);
+	struct list_head *tmp;
+	int rbd_id = rbd_dev->id;
+	int max_id;
+
+	BUG_ON(rbd_id < 1);
 
 	spin_lock(&rbd_dev_list_lock);
 	list_del_init(&rbd_dev->node);
+
+	/*
+	 * If the id being "put" is not the current maximum, there
+	 * is nothing special we need to do.
+	 */
+	if (rbd_id != atomic64_read(&rbd_id_max)) {
+		spin_unlock(&rbd_dev_list_lock);
+		return;
+	}
+
+	/*
+	 * We need to update the current maximum id.  Search the
+	 * list to find out what it is.  We're more likely to find
+	 * the maximum at the end, so search the list backward.
+	 */
+	max_id = 0;
+	list_for_each_prev(tmp, &rbd_dev_list) {
+		struct rbd_device *rbd_dev;
+
+		rbd_dev = list_entry(tmp, struct rbd_device, node);
+		if (rbd_id > max_id)
+			max_id = rbd_id;
+	}
 	spin_unlock(&rbd_dev_list_lock);
 
 	/*
-	 * New id's are always one more than the current maximum.
-	 * If the id being "put" *is* that maximum, decrement the
-	 * maximum so the next one requested just reuses this one.
+	 * The max id could have been updated by rbd_id_get(), in
+	 * which case it now accurately reflects the new maximum.
+	 * Be careful not to overwrite the maximum value in that
+	 * case.
 	 */
-	atomic64_cmpxchg(&rbd_id_max, rbd_dev->id, rbd_dev->id - 1);
+	atomic64_cmpxchg(&rbd_id_max, rbd_id, max_id);
 }
 
 static ssize_t rbd_add(struct bus_type *bus,
@@ -2220,7 +2248,7 @@ static ssize_t rbd_add(struct bus_type *bus,
 
 	init_rwsem(&rbd_dev->header.snap_rwsem);
 
-	/* generate unique id: one more than highest used so far */
+	/* generate unique id: find highest unique id, add one */
 	rbd_id_get(rbd_dev);
 
 	/* parse add command */
