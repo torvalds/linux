@@ -188,3 +188,22 @@ void thaw_processes(void)
 	printk("done.\n");
 }
 
+void thaw_kernel_threads(void)
+{
+	struct task_struct *g, *p;
+
+	pm_nosig_freezing = false;
+	printk("Restarting kernel threads ... ");
+
+	thaw_workqueues();
+
+	read_lock(&tasklist_lock);
+	do_each_thread(g, p) {
+		if (p->flags & (PF_KTHREAD | PF_WQ_WORKER))
+			__thaw_task(p);
+	} while_each_thread(g, p);
+	read_unlock(&tasklist_lock);
+
+	schedule();
+	printk("done.\n");
+}

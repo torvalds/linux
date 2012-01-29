@@ -274,6 +274,15 @@ static long snapshot_ioctl(struct file *filp, unsigned int cmd,
 		swsusp_free();
 		memset(&data->handle, 0, sizeof(struct snapshot_handle));
 		data->ready = 0;
+		/*
+		 * It is necessary to thaw kernel threads here, because
+		 * SNAPSHOT_CREATE_IMAGE may be invoked directly after
+		 * SNAPSHOT_FREE.  In that case, if kernel threads were not
+		 * thawed, the preallocation of memory carried out by
+		 * hibernation_snapshot() might run into problems (i.e. it
+		 * might fail or even deadlock).
+		 */
+		thaw_kernel_threads();
 		break;
 
 	case SNAPSHOT_PREF_IMAGE_SIZE:
