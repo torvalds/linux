@@ -86,10 +86,8 @@ static int mwifiex_pcie_probe(struct pci_dev *pdev,
 				pdev->vendor, pdev->device, pdev->revision);
 
 	card = kzalloc(sizeof(struct pcie_service_card), GFP_KERNEL);
-	if (!card) {
-		pr_err("%s: failed to alloc memory\n", __func__);
+	if (!card)
 		return -ENOMEM;
-	}
 
 	card->dev = pdev;
 

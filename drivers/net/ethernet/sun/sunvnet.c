@@ -949,10 +949,9 @@ static int __devinit vnet_port_alloc_tx_bufs(struct vnet_port *port)
 		int map_len = (ETH_FRAME_LEN + 7) & ~7;
 
 		err = -ENOMEM;
-		if (!buf) {
-			pr_err("TX buffer allocation failure\n");
+		if (!buf)
 			goto err_out;
-		}
+
 		err = -EFAULT;
 		if ((unsigned long)buf & (8UL - 1)) {
 			pr_err("TX buffer misaligned\n");
@@ -1165,10 +1164,8 @@ static int __devinit vnet_port_probe(struct vio_dev *vdev,
 
 	port = kzalloc(sizeof(*port), GFP_KERNEL);
 	err = -ENOMEM;
-	if (!port) {
-		pr_err("Cannot allocate vnet_port\n");
+	if (!port)
 		goto err_out_put_mdesc;
-	}
 
 	for (i = 0; i < ETH_ALEN; i++)
 		port->raddr[i] = (*rmac >> (5 - i) * 8) & 0xff;

@@ -10894,10 +10894,8 @@ static inline void be16_to_cpu_n(const u8 *_source, u8 *_target, u32 n)
 do {									\
 	u32 len = be32_to_cpu(fw_hdr->arr.len);				\
 	bp->arr = kmalloc(len, GFP_KERNEL);				\
-	if (!bp->arr) {							\
-		pr_err("Failed to allocate %d bytes for "#arr"\n", len); \
+	if (!bp->arr)							\
 		goto lbl;						\
-	}								\
 	func(bp->firmware->data + be32_to_cpu(fw_hdr->arr.offset),	\
 	     (u8 *)bp->arr, len);					\
 } while (0)

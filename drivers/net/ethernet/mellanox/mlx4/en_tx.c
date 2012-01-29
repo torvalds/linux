@@ -71,16 +71,14 @@ int mlx4_en_create_tx_ring(struct mlx4_en_priv *priv,
 
 	tmp = size * sizeof(struct mlx4_en_tx_info);
 	ring->tx_info = vmalloc(tmp);
-	if (!ring->tx_info) {
-		en_err(priv, "Failed allocating tx_info ring\n");
+	if (!ring->tx_info)
 		return -ENOMEM;
-	}
+
 	en_dbg(DRV, priv, "Allocated tx_info ring at addr:%p size:%d\n",
 		 ring->tx_info, tmp);
 
 	ring->bounce_buf = kmalloc(MAX_DESC_SIZE, GFP_KERNEL);
 	if (!ring->bounce_buf) {
-		en_err(priv, "Failed allocating bounce buffer\n");
 		err = -ENOMEM;
 		goto err_tx;
 	}

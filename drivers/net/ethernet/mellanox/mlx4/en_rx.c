@@ -281,10 +281,9 @@ int mlx4_en_create_rx_ring(struct mlx4_en_priv *priv,
 	tmp = size * roundup_pow_of_two(MLX4_EN_MAX_RX_FRAGS *
 					sizeof(struct skb_frag_struct));
 	ring->rx_info = vmalloc(tmp);
-	if (!ring->rx_info) {
-		en_err(priv, "Failed allocating rx_info ring\n");
+	if (!ring->rx_info)
 		return -ENOMEM;
-	}
+
 	en_dbg(DRV, priv, "Allocated rx_info ring at addr:%p size:%d\n",
 		 ring->rx_info, tmp);
 

@@ -1296,10 +1296,8 @@ static int __init slip_init(void)
 
 	slip_devs = kzalloc(sizeof(struct net_device *)*slip_maxdev,
 								GFP_KERNEL);
-	if (!slip_devs) {
-		printk(KERN_ERR "SLIP: Can't allocate slip devices array.\n");
+	if (!slip_devs)
 		return -ENOMEM;
-	}
 
 	/* Fill in our line protocol discipline, and register it */
 	status = tty_register_ldisc(N_SLIP, &sl_ldisc);

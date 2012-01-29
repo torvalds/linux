@@ -2517,12 +2517,8 @@ int ixgbevf_setup_rx_resources(struct ixgbevf_adapter *adapter,
 
 	size = sizeof(struct ixgbevf_rx_buffer) * rx_ring->count;
 	rx_ring->rx_buffer_info = vzalloc(size);
-	if (!rx_ring->rx_buffer_info) {
-		hw_dbg(&adapter->hw,
-		       "Unable to vmalloc buffer memory for "
-		       "the receive descriptor ring\n");
+	if (!rx_ring->rx_buffer_info)
 		goto alloc_failed;
-	}
 
 	/* Round up to nearest 4K */
 	rx_ring->size = rx_ring->count * sizeof(union ixgbe_adv_rx_desc);

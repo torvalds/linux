@@ -171,7 +171,6 @@ static int __devinit madgemc_probe(struct device *device)
 
 	card = kmalloc(sizeof(struct card_info), GFP_KERNEL);
 	if (card==NULL) {
-		printk("madgemc: unable to allocate card struct\n");
 		ret = -ENOMEM;
 		goto getout1;
 	}

@@ -280,13 +280,10 @@ int netxen_alloc_sw_resources(struct netxen_adapter *adapter)
 
 		}
 		rds_ring->rx_buf_arr = vzalloc(RCV_BUFF_RINGSIZE(rds_ring));
-		if (rds_ring->rx_buf_arr == NULL) {
-			printk(KERN_ERR "%s: Failed to allocate "
-				"rx buffer ring %d\n",
-				netdev->name, ring);
+		if (rds_ring->rx_buf_arr == NULL)
 			/* free whatever was already allocated */
 			goto err_out;
-		}
+
 		INIT_LIST_HEAD(&rds_ring->free_list);
 		/*
 		 * Now go through all of them, set reference handles
@@ -480,11 +477,8 @@ int netxen_pinit_from_rom(struct netxen_adapter *adapter)
 	}
 
 	buf = kcalloc(n, sizeof(struct crb_addr_pair), GFP_KERNEL);
-	if (buf == NULL) {
-		printk("%s: netxen_pinit_from_rom: Unable to calloc memory.\n",
-				netxen_nic_driver_name);
+	if (buf == NULL)
 		return -ENOMEM;
-	}
 
 	for (i = 0; i < n; i++) {
 		if (netxen_rom_fast_read(adapter, 8*i + 4*offset, &val) != 0 ||

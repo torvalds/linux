@@ -240,11 +240,8 @@ static int __devinit zmii_probe(struct platform_device *ofdev)
 
 	rc = -ENOMEM;
 	dev = kzalloc(sizeof(struct zmii_instance), GFP_KERNEL);
-	if (dev == NULL) {
-		printk(KERN_ERR "%s: could not allocate ZMII device!\n",
-		       np->full_name);
+	if (dev == NULL)
 		goto err_gone;
-	}
 
 	mutex_init(&dev->lock);
 	dev->ofdev = ofdev;

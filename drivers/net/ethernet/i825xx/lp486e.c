@@ -454,8 +454,6 @@ init_rx_bufs(struct net_device *dev, int num) {
 			}
 
 			rfd->rbd = rbd;
-		} else {
-			printk("Could not kmalloc rbd\n");
 		}
 	}
 	lp->rbd_tail->next = rfd->rbd;

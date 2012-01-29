@@ -1660,10 +1660,8 @@ static int __init bmac_init(void)
 {
 	if (bmac_emergency_rxbuf == NULL) {
 		bmac_emergency_rxbuf = kmalloc(RX_BUFLEN, GFP_KERNEL);
-		if (bmac_emergency_rxbuf == NULL) {
-			printk(KERN_ERR "BMAC: can't allocate emergency RX buffer\n");
+		if (bmac_emergency_rxbuf == NULL)
 			return -ENOMEM;
-		}
 	}
 
 	return macio_register_driver(&bmac_driver);

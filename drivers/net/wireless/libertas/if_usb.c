@@ -261,10 +261,8 @@ static int if_usb_probe(struct usb_interface *intf,
 	udev = interface_to_usbdev(intf);
 
 	cardp = kzalloc(sizeof(struct if_usb_card), GFP_KERNEL);
-	if (!cardp) {
-		pr_err("Out of memory allocating private data\n");
+	if (!cardp)
 		goto error;
-	}
 
 	setup_timer(&cardp->fw_timeout, if_usb_fw_timeo, (unsigned long)cardp);
 	init_waitqueue_head(&cardp->fw_wq);

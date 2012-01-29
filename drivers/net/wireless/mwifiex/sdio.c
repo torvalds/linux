@@ -70,10 +70,8 @@ mwifiex_sdio_probe(struct sdio_func *func, const struct sdio_device_id *id)
 	       func->vendor, func->device, func->class, func->num);
 
 	card = kzalloc(sizeof(struct sdio_mmc_card), GFP_KERNEL);
-	if (!card) {
-		pr_err("%s: failed to alloc memory\n", __func__);
+	if (!card)
 		return -ENOMEM;
-	}
 
 	card->func = func;
 

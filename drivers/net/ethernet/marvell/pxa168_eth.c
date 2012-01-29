@@ -1017,10 +1017,9 @@ static int rxq_init(struct net_device *dev)
 	/* Allocate RX skb rings */
 	pep->rx_skb = kmalloc(sizeof(*pep->rx_skb) * pep->rx_ring_size,
 			     GFP_KERNEL);
-	if (!pep->rx_skb) {
-		printk(KERN_ERR "%s: Cannot alloc RX skb ring\n", dev->name);
+	if (!pep->rx_skb)
 		return -ENOMEM;
-	}
+
 	/* Allocate RX ring */
 	pep->rx_desc_count = 0;
 	size = pep->rx_ring_size * sizeof(struct rx_desc);
@@ -1081,10 +1080,9 @@ static int txq_init(struct net_device *dev)
 
 	pep->tx_skb = kmalloc(sizeof(*pep->tx_skb) * pep->tx_ring_size,
 			     GFP_KERNEL);
-	if (!pep->tx_skb) {
-		printk(KERN_ERR "%s: Cannot alloc TX skb ring\n", dev->name);
+	if (!pep->tx_skb)
 		return -ENOMEM;
-	}
+
 	/* Allocate TX ring */
 	pep->tx_desc_count = 0;
 	size = pep->tx_ring_size * sizeof(struct tx_desc);

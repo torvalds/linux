@@ -2625,10 +2625,8 @@ bnx2_alloc_bad_rbuf(struct bnx2 *bp)
 	u32 val;
 
 	good_mbuf = kmalloc(512 * sizeof(u16), GFP_KERNEL);
-	if (good_mbuf == NULL) {
-		pr_err("Failed to allocate memory in %s\n", __func__);
+	if (good_mbuf == NULL)
 		return -ENOMEM;
-	}
 
 	REG_WR(bp, BNX2_MISC_ENABLE_SET_BITS,
 		BNX2_MISC_ENABLE_SET_BITS_RX_MBUF_ENABLE);
