@@ -592,8 +592,8 @@ struct be_port_rxf_stats_v0 {
 	u32 rx_in_range_errors;	/* dword 10*/
 	u32 rx_out_range_errors;	/* dword 11*/
 	u32 rx_frame_too_long;	/* dword 12*/
-	u32 rx_address_match_errors;	/* dword 13*/
-	u32 rx_vlan_mismatch;	/* dword 14*/
+	u32 rx_address_mismatch_drops;	/* dword 13*/
+	u32 rx_vlan_mismatch_drops;	/* dword 14*/
 	u32 rx_dropped_too_small;	/* dword 15*/
 	u32 rx_dropped_too_short;	/* dword 16*/
 	u32 rx_dropped_header_too_small;	/* dword 17*/
@@ -799,8 +799,8 @@ struct lancer_pport_stats {
 	u32 rx_control_frames_unknown_opcode_hi;
 	u32 rx_in_range_errors;
 	u32 rx_out_of_range_errors;
-	u32 rx_address_match_errors;
-	u32 rx_vlan_mismatch_errors;
+	u32 rx_address_mismatch_drops;
+	u32 rx_vlan_mismatch_drops;
 	u32 rx_dropped_too_small;
 	u32 rx_dropped_too_short;
 	u32 rx_dropped_header_too_small;
@@ -1384,7 +1384,7 @@ struct be_port_rxf_stats_v1 {
 	u32 rx_in_range_errors;
 	u32 rx_out_range_errors;
 	u32 rx_frame_too_long;
-	u32 rx_address_match_errors;
+	u32 rx_address_mismatch_drops;
 	u32 rx_dropped_too_small;
 	u32 rx_dropped_too_short;
 	u32 rx_dropped_header_too_small;

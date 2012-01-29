@@ -265,7 +265,6 @@ struct be_drv_stats {
 	u32 rx_drops_no_erx_descr;
 	u32 rx_drops_no_tpre_descr;
 	u32 rx_drops_too_many_frags;
-	u32 rx_drops_invalid_ring;
 	u32 forwarded_packets;
 	u32 rx_drops_mtu;
 	u32 rx_crc_errors;
@@ -276,7 +275,7 @@ struct be_drv_stats {
 	u32 rx_in_range_errors;
 	u32 rx_out_range_errors;
 	u32 rx_frame_too_long;
-	u32 rx_address_match_errors;
+	u32 rx_address_mismatch_drops;
 	u32 rx_dropped_too_small;
 	u32 rx_dropped_too_short;
 	u32 rx_dropped_header_too_small;
