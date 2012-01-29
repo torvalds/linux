@@ -383,13 +383,15 @@ static int rbd_get_client(struct rbd_device *rbd_dev, const char *mon_addr,
 	spin_lock(&node_lock);
 	rbdc = __rbd_client_find(opt);
 	if (rbdc) {
+		/* using an existing client */
+		kref_get(&rbdc->kref);
+		spin_unlock(&node_lock);
+
+		rbd_dev->rbd_client = rbdc;
+
 		ceph_destroy_options(opt);
 		kfree(rbd_opts);
 
-		/* using an existing client */
-		kref_get(&rbdc->kref);
-		rbd_dev->rbd_client = rbdc;
-		spin_unlock(&node_lock);
 		return 0;
 	}
 	spin_unlock(&node_lock);
