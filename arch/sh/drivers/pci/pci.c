@@ -356,8 +356,8 @@ int pci_mmap_page_range(struct pci_dev *dev, struct vm_area_struct *vma,
 
 #ifndef CONFIG_GENERIC_IOMAP
 
-static void __iomem *ioport_map_pci(struct pci_dev *dev,
-				    unsigned long port, unsigned int nr)
+void __iomem *__pci_ioport_map(struct pci_dev *dev,
+			       unsigned long port, unsigned int nr)
 {
 	struct pci_channel *chan = dev->sysdata;
 
