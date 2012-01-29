@@ -257,9 +257,11 @@ static struct rbd_client *rbd_client_create(struct ceph_options *opt,
 	kref_init(&rbdc->kref);
 	INIT_LIST_HEAD(&rbdc->node);
 
+	mutex_lock_nested(&ctl_mutex, SINGLE_DEPTH_NESTING);
+
 	rbdc->client = ceph_create_client(opt, rbdc, 0, 0);
 	if (IS_ERR(rbdc->client))
-		goto out_rbdc;
+		goto out_mutex;
 	opt = NULL; /* Now rbdc->client is responsible for opt */
 
 	ret = ceph_open_session(rbdc->client);
@@ -272,12 +274,15 @@ static struct rbd_client *rbd_client_create(struct ceph_options *opt,
 	list_add_tail(&rbdc->node, &rbd_client_list);
 	spin_unlock(&node_lock);
 
+	mutex_unlock(&ctl_mutex);
+
 	dout("rbd_client_create created %p\n", rbdc);
 	return rbdc;
 
 out_err:
 	ceph_destroy_client(rbdc->client);
-out_rbdc:
+out_mutex:
+	mutex_unlock(&ctl_mutex);
 	kfree(rbdc);
 out_opt:
 	if (opt)
@@ -396,9 +401,7 @@ static int rbd_get_client(struct rbd_device *rbd_dev, const char *mon_addr,
 	}
 	spin_unlock(&node_lock);
 
-	mutex_lock_nested(&ctl_mutex, SINGLE_DEPTH_NESTING);
 	rbdc = rbd_client_create(opt, rbd_opts);
-	mutex_unlock(&ctl_mutex);
 
 	if (IS_ERR(rbdc)) {
 		ret = PTR_ERR(rbdc);
