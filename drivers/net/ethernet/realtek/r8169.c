@@ -4008,8 +4008,6 @@ rtl8169_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 	dev = alloc_etherdev(sizeof (*tp));
 	if (!dev) {
-		if (netif_msg_drv(&debug))
-			dev_err(&pdev->dev, "unable to alloc new ethernet\n");
 		rc = -ENOMEM;
 		goto out;
 	}

@@ -1467,10 +1467,8 @@ static int __devinit bfin_mac_probe(struct platform_device *pdev)
 	int rc;
 
 	ndev = alloc_etherdev(sizeof(struct bfin_mac_local));
-	if (!ndev) {
-		dev_err(&pdev->dev, "Cannot allocate net device!\n");
+	if (!ndev)
 		return -ENOMEM;
-	}
 
 	SET_NETDEV_DEV(ndev, &pdev->dev);
 	platform_set_drvdata(pdev, ndev);

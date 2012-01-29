@@ -397,10 +397,9 @@ static int __devinit yellowfin_init_one(struct pci_dev *pdev,
 	if (i) return i;
 
 	dev = alloc_etherdev(sizeof(*np));
-	if (!dev) {
-		pr_err("cannot allocate ethernet device\n");
+	if (!dev)
 		return -ENOMEM;
-	}
+
 	SET_NETDEV_DEV(dev, &pdev->dev);
 
 	np = netdev_priv(dev);

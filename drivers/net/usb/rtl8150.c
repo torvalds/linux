@@ -894,10 +894,8 @@ static int rtl8150_probe(struct usb_interface *intf,
 	struct net_device *netdev;
 
 	netdev = alloc_etherdev(sizeof(rtl8150_t));
-	if (!netdev) {
-		err("Out of memory");
+	if (!netdev)
 		return -ENOMEM;
-	}
 
 	dev = netdev_priv(netdev);
 

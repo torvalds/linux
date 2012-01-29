@@ -1308,10 +1308,8 @@ static int __init macb_probe(struct platform_device *pdev)
 
 	err = -ENOMEM;
 	dev = alloc_etherdev(sizeof(*bp));
-	if (!dev) {
-		dev_err(&pdev->dev, "etherdev alloc failed, aborting.\n");
+	if (!dev)
 		goto err_out;
-	}
 
 	SET_NETDEV_DEV(dev, &pdev->dev);
 

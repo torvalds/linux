@@ -1462,8 +1462,6 @@ static struct net_device * __devinit sis190_init_board(struct pci_dev *pdev)
 
 	dev = alloc_etherdev(sizeof(*tp));
 	if (!dev) {
-		if (netif_msg_drv(&debug))
-			pr_err("unable to alloc new ethernet\n");
 		rc = -ENOMEM;
 		goto err_out_0;
 	}

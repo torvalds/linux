@@ -1801,10 +1801,8 @@ struct stmmac_priv *stmmac_dvr_probe(struct device *device,
 	struct stmmac_priv *priv;
 
 	ndev = alloc_etherdev(sizeof(struct stmmac_priv));
-	if (!ndev) {
-		pr_err("%s: ERROR: allocating the device\n", __func__);
+	if (!ndev)
 		return NULL;
-	}
 
 	SET_NETDEV_DEV(ndev, device);
 

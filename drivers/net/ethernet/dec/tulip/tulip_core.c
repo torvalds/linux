@@ -1424,10 +1424,8 @@ static int __devinit tulip_init_one (struct pci_dev *pdev,
 
 	/* alloc_etherdev ensures aligned and zeroed private structures */
 	dev = alloc_etherdev (sizeof (*tp));
-	if (!dev) {
-		pr_err("ether device alloc failed, aborting\n");
+	if (!dev)
 		return -ENOMEM;
-	}
 
 	SET_NETDEV_DEV(dev, &pdev->dev);
 	if (pci_resource_len (pdev, 0) < tulip_tbl[chip_idx].io_size) {

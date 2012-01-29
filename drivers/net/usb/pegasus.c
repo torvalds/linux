@@ -1332,10 +1332,8 @@ static int pegasus_probe(struct usb_interface *intf,
 	usb_get_dev(dev);
 
 	net = alloc_etherdev(sizeof(struct pegasus));
-	if (!net) {
-		dev_err(&intf->dev, "can't allocate %s\n", "device");
+	if (!net)
 		goto out;
-	}
 
 	pegasus = netdev_priv(net);
 	pegasus->dev_index = dev_index;

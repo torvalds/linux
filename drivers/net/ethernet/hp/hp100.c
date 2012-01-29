@@ -2992,7 +2992,6 @@ static int __init hp100_isa_init(void)
 	for (i = 0; i < HP100_DEVICES && hp100_port[i] != -1; ++i) {
 		dev = alloc_etherdev(sizeof(struct hp100_private));
 		if (!dev) {
-			printk(KERN_WARNING "hp100: no memory for network device\n");
 			while (cards > 0)
 				cleanup_dev(hp100_devlist[--cards]);
 

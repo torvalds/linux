@@ -854,10 +854,8 @@ static int __devinit dnet_probe(struct platform_device *pdev)
 
 	err = -ENOMEM;
 	dev = alloc_etherdev(sizeof(*bp));
-	if (!dev) {
-		dev_err(&pdev->dev, "etherdev alloc failed, aborting.\n");
+	if (!dev)
 		goto err_out_release_mem;
-	}
 
 	/* TODO: Actually, we have some interesting features... */
 	dev->features |= 0;

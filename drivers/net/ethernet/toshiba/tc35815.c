@@ -808,10 +808,9 @@ static int __devinit tc35815_init_one(struct pci_dev *pdev,
 
 	/* dev zeroed in alloc_etherdev */
 	dev = alloc_etherdev(sizeof(*lp));
-	if (dev == NULL) {
-		dev_err(&pdev->dev, "unable to alloc new ethernet\n");
+	if (dev == NULL)
 		return -ENOMEM;
-	}
+
 	SET_NETDEV_DEV(dev, &pdev->dev);
 	lp = netdev_priv(dev);
 	lp->dev = dev;

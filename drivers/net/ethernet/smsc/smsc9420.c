@@ -1598,10 +1598,8 @@ smsc9420_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	pci_set_master(pdev);
 
 	dev = alloc_etherdev(sizeof(*pd));
-	if (!dev) {
-		printk(KERN_ERR "ether device alloc failed\n");
+	if (!dev)
 		goto out_disable_pci_device_1;
-	}
 
 	SET_NETDEV_DEV(dev, &pdev->dev);
 

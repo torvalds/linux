@@ -1077,7 +1077,6 @@ static int __devinit au1000_probe(struct platform_device *pdev)
 
 	dev = alloc_etherdev(sizeof(struct au1000_private));
 	if (!dev) {
-		dev_err(&pdev->dev, "alloc_etherdev failed\n");
 		err = -ENOMEM;
 		goto err_alloc;
 	}

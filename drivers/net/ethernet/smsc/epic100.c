@@ -363,10 +363,9 @@ static int __devinit epic_init_one (struct pci_dev *pdev,
 	ret = -ENOMEM;
 
 	dev = alloc_etherdev(sizeof (*ep));
-	if (!dev) {
-		dev_err(&pdev->dev, "no memory for eth device\n");
+	if (!dev)
 		goto err_out_free_res;
-	}
+
 	SET_NETDEV_DEV(dev, &pdev->dev);
 
 #ifdef USE_IO_OPS

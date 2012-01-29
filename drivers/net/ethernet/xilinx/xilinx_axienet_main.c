@@ -1486,10 +1486,8 @@ static int __devinit axienet_of_probe(struct platform_device *op)
 	const void *addr;
 
 	ndev = alloc_etherdev(sizeof(*lp));
-	if (!ndev) {
-		dev_err(&op->dev, "could not allocate device.\n");
+	if (!ndev)
 		return -ENOMEM;
-	}
 
 	ether_setup(ndev);
 	dev_set_drvdata(&op->dev, ndev);

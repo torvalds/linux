@@ -1047,10 +1047,8 @@ int mlx4_en_init_netdev(struct mlx4_en_dev *mdev, int port,
 
 	dev = alloc_etherdev_mqs(sizeof(struct mlx4_en_priv),
 	    prof->tx_ring_num, prof->rx_ring_num);
-	if (dev == NULL) {
-		mlx4_err(mdev, "Net device allocation failed\n");
+	if (dev == NULL)
 		return -ENOMEM;
-	}
 
 	SET_NETDEV_DEV(dev, &mdev->dev->pdev->dev);
 	dev->dev_id =  port - 1;

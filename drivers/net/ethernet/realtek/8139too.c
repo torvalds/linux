@@ -754,10 +754,9 @@ static __devinit struct net_device * rtl8139_init_board (struct pci_dev *pdev)
 
 	/* dev and priv zeroed in alloc_etherdev */
 	dev = alloc_etherdev (sizeof (*tp));
-	if (dev == NULL) {
-		dev_err(&pdev->dev, "Unable to alloc new net device\n");
+	if (dev == NULL)
 		return ERR_PTR(-ENOMEM);
-	}
+
 	SET_NETDEV_DEV(dev, &pdev->dev);
 
 	tp = netdev_priv(dev);

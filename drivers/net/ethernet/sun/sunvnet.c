@@ -1026,10 +1026,8 @@ static struct vnet * __devinit vnet_new(const u64 *local_mac)
 	int err, i;
 
 	dev = alloc_etherdev(sizeof(*vp));
-	if (!dev) {
-		pr_err("Etherdev alloc failed, aborting\n");
+	if (!dev)
 		return ERR_PTR(-ENOMEM);
-	}
 
 	for (i = 0; i < ETH_ALEN; i++)
 		dev->dev_addr[i] = (*local_mac >> (5 - i) * 8) & 0xff;

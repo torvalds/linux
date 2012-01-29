@@ -3284,7 +3284,6 @@ bnad_pci_probe(struct pci_dev *pdev,
 	 */
 	netdev = alloc_etherdev(sizeof(struct bnad));
 	if (!netdev) {
-		dev_err(&pdev->dev, "netdev allocation failed\n");
 		err = -ENOMEM;
 		return err;
 	}

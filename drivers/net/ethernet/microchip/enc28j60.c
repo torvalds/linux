@@ -1553,9 +1553,6 @@ static int __devinit enc28j60_probe(struct spi_device *spi)
 
 	dev = alloc_etherdev(sizeof(struct enc28j60_net));
 	if (!dev) {
-		if (netif_msg_drv(&debug))
-			dev_err(&spi->dev, DRV_NAME
-				": unable to alloc new ethernet\n");
 		ret = -ENOMEM;
 		goto error_alloc;
 	}

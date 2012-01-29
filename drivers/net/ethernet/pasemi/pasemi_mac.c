@@ -1740,8 +1740,6 @@ pasemi_mac_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 	dev = alloc_etherdev(sizeof(struct pasemi_mac));
 	if (dev == NULL) {
-		dev_err(&pdev->dev,
-			"pasemi_mac: Could not allocate ethernet device.\n");
 		err = -ENOMEM;
 		goto out_disable_device;
 	}

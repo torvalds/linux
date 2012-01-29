@@ -1121,10 +1121,9 @@ static int __devinit vortex_probe1(struct device *gendev,
 
 	dev = alloc_etherdev(sizeof(*vp));
 	retval = -ENOMEM;
-	if (!dev) {
-		pr_err(PFX "unable to allocate etherdev, aborting\n");
+	if (!dev)
 		goto out;
-	}
+
 	SET_NETDEV_DEV(dev, gendev);
 	vp = netdev_priv(dev);
 

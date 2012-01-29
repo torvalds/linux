@@ -927,7 +927,6 @@ static int __devinit rhine_init_one(struct pci_dev *pdev,
 	dev = alloc_etherdev(sizeof(struct rhine_private));
 	if (!dev) {
 		rc = -ENOMEM;
-		dev_err(&pdev->dev, "alloc_etherdev failed\n");
 		goto err_out;
 	}
 	SET_NETDEV_DEV(dev, &pdev->dev);

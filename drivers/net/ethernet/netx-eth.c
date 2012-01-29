@@ -383,7 +383,6 @@ static int netx_eth_drv_probe(struct platform_device *pdev)
 
 	ndev = alloc_etherdev(sizeof (struct netx_eth_priv));
 	if (!ndev) {
-		printk("%s: could not allocate device.\n", CARDNAME);
 		ret = -ENOMEM;
 		goto exit;
 	}

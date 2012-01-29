@@ -1649,8 +1649,6 @@ pcnet32_probe1(unsigned long ioaddr, int shared, struct pci_dev *pdev)
 
 	dev = alloc_etherdev(sizeof(*lp));
 	if (!dev) {
-		if (pcnet32_debug & NETIF_MSG_PROBE)
-			pr_err("Memory allocation failed\n");
 		ret = -ENOMEM;
 		goto err_release_region;
 	}

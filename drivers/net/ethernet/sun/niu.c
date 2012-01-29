@@ -9685,10 +9685,8 @@ static struct net_device * __devinit niu_alloc_and_init(
 	struct niu *np;
 
 	dev = alloc_etherdev_mq(sizeof(struct niu), NIU_NUM_TXCHAN);
-	if (!dev) {
-		dev_err(gen_dev, "Etherdev alloc failed, aborting\n");
+	if (!dev)
 		return NULL;
-	}
 
 	SET_NETDEV_DEV(dev, gen_dev);
 

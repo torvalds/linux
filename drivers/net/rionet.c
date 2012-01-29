@@ -497,8 +497,6 @@ static int rionet_probe(struct rio_dev *rdev, const struct rio_device_id *id)
 	/* Allocate our net_device structure */
 	ndev = alloc_etherdev(sizeof(struct rionet_private));
 	if (ndev == NULL) {
-		printk(KERN_INFO "%s: could not allocate ethernet device.\n",
-		       DRV_NAME);
 		rc = -ENOMEM;
 		goto out;
 	}

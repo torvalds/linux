@@ -2918,11 +2918,8 @@ vmxnet3_probe_device(struct pci_dev *pdev,
 	printk(KERN_INFO "# of Tx queues : %d, # of Rx queues : %d\n",
 	       num_tx_queues, num_rx_queues);
 
-	if (!netdev) {
-		printk(KERN_ERR "Failed to alloc ethernet device for adapter "
-			"%s\n",	pci_name(pdev));
+	if (!netdev)
 		return -ENOMEM;
-	}
 
 	pci_set_drvdata(pdev, netdev);
 	adapter = netdev_priv(netdev);

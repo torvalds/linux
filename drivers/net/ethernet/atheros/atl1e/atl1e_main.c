@@ -2300,7 +2300,6 @@ static int __devinit atl1e_probe(struct pci_dev *pdev,
 	netdev = alloc_etherdev(sizeof(struct atl1e_adapter));
 	if (netdev == NULL) {
 		err = -ENOMEM;
-		dev_err(&pdev->dev, "etherdev alloc failed\n");
 		goto err_alloc_etherdev;
 	}
 

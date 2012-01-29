@@ -1978,7 +1978,6 @@ bdx_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 		ndev = alloc_etherdev(sizeof(struct bdx_priv));
 		if (!ndev) {
 			err = -ENOMEM;
-			pr_err("alloc_etherdev failed\n");
 			goto err_out_iomap;
 		}
 

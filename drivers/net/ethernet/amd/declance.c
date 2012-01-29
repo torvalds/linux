@@ -1052,8 +1052,6 @@ static int __devinit dec_lance_probe(struct device *bdev, const int type)
 
 	dev = alloc_etherdev(sizeof(struct lance_private));
 	if (!dev) {
-		printk(KERN_ERR "%s: Unable to allocate etherdev, aborting.\n",
-			name);
 		ret = -ENOMEM;
 		goto err_out;
 	}

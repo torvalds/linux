@@ -2419,8 +2419,6 @@ static int pch_gbe_probe(struct pci_dev *pdev,
 	netdev = alloc_etherdev((int)sizeof(struct pch_gbe_adapter));
 	if (!netdev) {
 		ret = -ENOMEM;
-		dev_err(&pdev->dev,
-			"ERR: Can't allocate and set up an Ethernet device\n");
 		goto err_release_pci;
 	}
 	SET_NETDEV_DEV(netdev, &pdev->dev);

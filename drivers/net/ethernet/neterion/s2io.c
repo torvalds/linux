@@ -7760,7 +7760,6 @@ s2io_init_nic(struct pci_dev *pdev, const struct pci_device_id *pre)
 	else
 		dev = alloc_etherdev(sizeof(struct s2io_nic));
 	if (dev == NULL) {
-		DBG_PRINT(ERR_DBG, "Device allocation failed\n");
 		pci_disable_device(pdev);
 		pci_release_regions(pdev);
 		return -ENODEV;

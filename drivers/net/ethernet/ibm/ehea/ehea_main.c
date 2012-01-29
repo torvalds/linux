@@ -2980,7 +2980,6 @@ static struct ehea_port *ehea_setup_single_port(struct ehea_adapter *adapter,
 	dev = alloc_etherdev_mq(sizeof(struct ehea_port), EHEA_MAX_PORT_RES);
 
 	if (!dev) {
-		pr_err("no mem for net_device\n");
 		ret = -ENOMEM;
 		goto out_err;
 	}

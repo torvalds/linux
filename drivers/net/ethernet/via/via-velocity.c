@@ -2733,10 +2733,8 @@ static int __devinit velocity_found1(struct pci_dev *pdev, const struct pci_devi
 	}
 
 	dev = alloc_etherdev(sizeof(struct velocity_info));
-	if (!dev) {
-		dev_err(&pdev->dev, "allocate net device failed.\n");
+	if (!dev)
 		goto out;
-	}
 
 	/* Chain it all together */
 

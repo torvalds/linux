@@ -1136,10 +1136,8 @@ static int __devinit xemaclite_of_probe(struct platform_device *ofdev)
 
 	/* Create an ethernet device instance */
 	ndev = alloc_etherdev(sizeof(struct net_local));
-	if (!ndev) {
-		dev_err(dev, "Could not allocate network device\n");
+	if (!ndev)
 		return -ENOMEM;
-	}
 
 	dev_set_drvdata(dev, ndev);
 	SET_NETDEV_DEV(ndev, &ofdev->dev);

@@ -222,10 +222,9 @@ static int __devinit xircom_probe(struct pci_dev *pdev, const struct pci_device_
 	   is available.
 	 */
 	dev = alloc_etherdev(sizeof(struct xircom_private));
-	if (!dev) {
-		pr_err("%s: failed to allocate etherdev\n", __func__);
+	if (!dev)
 		goto device_fail;
-	}
+
 	private = netdev_priv(dev);
 
 	/* Allocate the send/receive buffers */

@@ -2706,11 +2706,9 @@ static int __devinit emac_probe(struct platform_device *ofdev)
 	/* Allocate our net_device structure */
 	err = -ENOMEM;
 	ndev = alloc_etherdev(sizeof(struct emac_instance));
-	if (!ndev) {
-		printk(KERN_ERR "%s: could not allocate ethernet device!\n",
-		       np->full_name);
+	if (!ndev)
 		goto err_gone;
-	}
+
 	dev = netdev_priv(ndev);
 	dev->ndev = ndev;
 	dev->ofdev = ofdev;

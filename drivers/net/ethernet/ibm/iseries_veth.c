@@ -1032,10 +1032,8 @@ static struct net_device *veth_probe_one(int vlan,
 	}
 
 	dev = alloc_etherdev(sizeof (struct veth_port));
-	if (! dev) {
-		veth_error("Unable to allocate net_device structure!\n");
+	if (!dev)
 		return NULL;
-	}
 
 	port = netdev_priv(dev);
 

@@ -11133,10 +11133,8 @@ static int __devinit bnx2x_init_one(struct pci_dev *pdev,
 
 	/* dev zeroed in init_etherdev */
 	dev = alloc_etherdev_mqs(sizeof(*bp), tx_count, rx_count);
-	if (!dev) {
-		dev_err(&pdev->dev, "Cannot allocate net device\n");
+	if (!dev)
 		return -ENOMEM;
-	}
 
 	bp = netdev_priv(dev);
 

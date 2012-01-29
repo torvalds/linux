@@ -686,10 +686,9 @@ static int __devinit starfire_init_one(struct pci_dev *pdev,
 	}
 
 	dev = alloc_etherdev(sizeof(*np));
-	if (!dev) {
-		printk(KERN_ERR DRV_NAME " %d: cannot alloc etherdev, aborting\n", card_idx);
+	if (!dev)
 		return -ENOMEM;
-	}
+
 	SET_NETDEV_DEV(dev, &pdev->dev);
 
 	irq = pdev->irq;
