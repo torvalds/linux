@@ -157,7 +157,7 @@ struct dvb_usb_adapter_fe_properties {
 	int size_of_priv;
 };
 
-#define MAX_NO_OF_FE_PER_ADAP 2
+#define MAX_NO_OF_FE_PER_ADAP 3
 struct dvb_usb_adapter_properties {
 	int size_of_priv;
 
