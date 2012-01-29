@@ -434,12 +434,7 @@ static int __init neponset_init(void)
 subsys_initcall(neponset_init);
 
 static struct map_desc neponset_io_desc[] __initdata = {
-	{	/* System Registers */
-		.virtual	=  0xf3000000,
-		.pfn		= __phys_to_pfn(0x10000000),
-		.length		= SZ_1M,
-		.type		= MT_DEVICE
-	}, {	/* SA-1111 */
+	{	/* SA-1111 */
 		.virtual	=  0xf4000000,
 		.pfn		= __phys_to_pfn(0x40000000),
 		.length		= SZ_1M,
