@@ -100,8 +100,8 @@ struct batman_ogm_packet {
 	struct batman_header header;
 	uint8_t  flags;    /* 0x40: DIRECTLINK flag, 0x20 VIS_SERVER flag... */
 	uint32_t seqno;
-	uint8_t  orig[6];
-	uint8_t  prev_sender[6];
+	uint8_t  orig[ETH_ALEN];
+	uint8_t  prev_sender[ETH_ALEN];
 	uint8_t  gw_flags;  /* flags related to gateway class */
 	uint8_t  tq;
 	uint8_t  tt_num_changes;
@@ -114,8 +114,8 @@ struct batman_ogm_packet {
 struct icmp_packet {
 	struct batman_header header;
 	uint8_t  msg_type; /* see ICMP message types above */
-	uint8_t  dst[6];
-	uint8_t  orig[6];
+	uint8_t  dst[ETH_ALEN];
+	uint8_t  orig[ETH_ALEN];
 	uint16_t seqno;
 	uint8_t  uid;
 	uint8_t  reserved;
@@ -128,8 +128,8 @@ struct icmp_packet {
 struct icmp_packet_rr {
 	struct batman_header header;
 	uint8_t  msg_type; /* see ICMP message types above */
-	uint8_t  dst[6];
-	uint8_t  orig[6];
+	uint8_t  dst[ETH_ALEN];
+	uint8_t  orig[ETH_ALEN];
 	uint16_t seqno;
 	uint8_t  uid;
 	uint8_t  rr_cur;
@@ -139,16 +139,16 @@ struct icmp_packet_rr {
 struct unicast_packet {
 	struct batman_header header;
 	uint8_t  ttvn; /* destination translation table version number */
-	uint8_t  dest[6];
+	uint8_t  dest[ETH_ALEN];
 } __packed;
 
 struct unicast_frag_packet {
 	struct batman_header header;
 	uint8_t  ttvn; /* destination translation table version number */
-	uint8_t  dest[6];
+	uint8_t  dest[ETH_ALEN];
 	uint8_t  flags;
 	uint8_t  align;
-	uint8_t  orig[6];
+	uint8_t  orig[ETH_ALEN];
 	uint16_t seqno;
 } __packed;
 
@@ -156,7 +156,7 @@ struct bcast_packet {
 	struct batman_header header;
 	uint8_t  reserved;
 	uint32_t seqno;
-	uint8_t  orig[6];
+	uint8_t  orig[ETH_ALEN];
 } __packed;
 
 struct vis_packet {
@@ -165,9 +165,9 @@ struct vis_packet {
 	uint32_t seqno;		 /* sequence number */
 	uint8_t  entries;	 /* number of entries behind this struct */
 	uint8_t  reserved;
-	uint8_t  vis_orig[6];	 /* originator that announces its neighbors */
-	uint8_t  target_orig[6]; /* who should receive this packet */
-	uint8_t  sender_orig[6]; /* who sent or rebroadcasted this packet */
+	uint8_t  vis_orig[ETH_ALEN];	/* originator reporting its neighbors */
+	uint8_t  target_orig[ETH_ALEN]; /* who should receive this packet */
+	uint8_t  sender_orig[ETH_ALEN]; /* who sent or forwarded this packet */
 } __packed;
 
 struct tt_query_packet {
