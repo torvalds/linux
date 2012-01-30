@@ -40,6 +40,7 @@ enum perf_output_field {
 	PERF_OUTPUT_SYM             = 1U << 8,
 	PERF_OUTPUT_DSO             = 1U << 9,
 	PERF_OUTPUT_ADDR            = 1U << 10,
+	PERF_OUTPUT_SYMOFFSET       = 1U << 11,
 };
 
 struct output_option {
@@ -57,6 +58,7 @@ struct output_option {
 	{.str = "sym",   .field = PERF_OUTPUT_SYM},
 	{.str = "dso",   .field = PERF_OUTPUT_DSO},
 	{.str = "addr",  .field = PERF_OUTPUT_ADDR},
+	{.str = "symoff", .field = PERF_OUTPUT_SYMOFFSET},
 };
 
 /* default set to maintain compatibility with current format */
@@ -191,6 +193,11 @@ static int perf_evsel__check_attr(struct perf_evsel *evsel,
 		pr_err("Display of symbols requested but neither sample IP nor "
 			   "sample address\nis selected. Hence, no addresses to convert "
 		       "to symbols.\n");
+		return -EINVAL;
+	}
+	if (PRINT_FIELD(SYMOFFSET) && !PRINT_FIELD(SYM)) {
+		pr_err("Display of offsets requested but symbol is not"
+		       "selected.\n");
 		return -EINVAL;
 	}
 	if (PRINT_FIELD(DSO) && !PRINT_FIELD(IP) && !PRINT_FIELD(ADDR)) {
@@ -353,7 +360,10 @@ static void print_sample_addr(union perf_event *event,
 
 	if (PRINT_FIELD(SYM)) {
 		printf(" ");
-		symbol__fprintf_symname(al.sym, stdout);
+		if (PRINT_FIELD(SYMOFFSET))
+			symbol__fprintf_symname_offs(al.sym, &al, stdout);
+		else
+			symbol__fprintf_symname(al.sym, stdout);
 	}
 
 	if (PRINT_FIELD(DSO)) {
@@ -378,7 +388,8 @@ static void print_sample_bts(union perf_event *event,
 		else
 			printf("\n");
 		perf_event__print_ip(event, sample, machine, evsel,
-				     PRINT_FIELD(SYM), PRINT_FIELD(DSO));
+				     PRINT_FIELD(SYM), PRINT_FIELD(DSO),
+				     PRINT_FIELD(SYMOFFSET));
 	}
 
 	printf(" => ");
@@ -421,7 +432,8 @@ static void process_event(union perf_event *event __unused,
 		else
 			printf("\n");
 		perf_event__print_ip(event, sample, machine, evsel,
-				     PRINT_FIELD(SYM), PRINT_FIELD(DSO));
+				     PRINT_FIELD(SYM), PRINT_FIELD(DSO),
+				     PRINT_FIELD(SYMOFFSET));
 	}
 
 	printf("\n");
@@ -1131,7 +1143,10 @@ static const struct option options[] = {
 	OPT_STRING(0, "symfs", &symbol_conf.symfs, "directory",
 		    "Look for files with symbols relative to this directory"),
 	OPT_CALLBACK('f', "fields", NULL, "str",
-		     "comma separated output fields prepend with 'type:'. Valid types: hw,sw,trace,raw. Fields: comm,tid,pid,time,cpu,event,trace,ip,sym,dso,addr",
+		     "comma separated output fields prepend with 'type:'. "
+		     "Valid types: hw,sw,trace,raw. "
+		     "Fields: comm,tid,pid,time,cpu,event,trace,ip,sym,dso,"
+		     "addr,symoff",
 		     parse_output_fields),
 	OPT_BOOLEAN('a', "all-cpus", &system_wide,
 		     "system-wide collection from all CPUs"),

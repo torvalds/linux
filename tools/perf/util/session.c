@@ -1293,7 +1293,7 @@ struct perf_evsel *perf_session__find_first_evtype(struct perf_session *session,
 
 void perf_event__print_ip(union perf_event *event, struct perf_sample *sample,
 			  struct machine *machine, struct perf_evsel *evsel,
-			  int print_sym, int print_dso)
+			  int print_sym, int print_dso, int print_symoffset)
 {
 	struct addr_location al;
 	struct callchain_cursor *cursor = &evsel->hists.callchain_cursor;
@@ -1340,7 +1340,11 @@ void perf_event__print_ip(union perf_event *event, struct perf_sample *sample,
 		printf("%16" PRIx64, sample->ip);
 		if (print_sym) {
 			printf(" ");
-			symbol__fprintf_symname(al.sym, stdout);
+			if (print_symoffset)
+				symbol__fprintf_symname_offs(al.sym, &al,
+							     stdout);
+			else
+				symbol__fprintf_symname(al.sym, stdout);
 		}
 
 		if (print_dso) {

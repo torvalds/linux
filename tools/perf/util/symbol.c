@@ -263,16 +263,26 @@ static size_t symbol__fprintf(struct symbol *sym, FILE *fp)
 		       sym->name);
 }
 
+size_t symbol__fprintf_symname_offs(const struct symbol *sym,
+				    const struct addr_location *al, FILE *fp)
+{
+	unsigned long offset;
+	size_t length;
+
+	if (sym && sym->name) {
+		length = fprintf(fp, "%s", sym->name);
+		if (al) {
+			offset = al->addr - sym->start;
+			length += fprintf(fp, "+0x%lx", offset);
+		}
+		return length;
+	} else
+		return fprintf(fp, "[unknown]");
+}
+
 size_t symbol__fprintf_symname(const struct symbol *sym, FILE *fp)
 {
-	const char *symname;
-
-	if (sym && sym->name)
-		symname = sym->name;
-	else
-		symname = "[unknown]";
-
-	return fprintf(fp, "%s", symname);
+	return symbol__fprintf_symname_offs(sym, NULL, fp);
 }
 
 void dso__set_long_name(struct dso *dso, char *name)
