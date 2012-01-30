@@ -72,28 +72,27 @@ static void omap2_init_processor_devices(void)
  * This sets pwrdm state (other than mpu & core. Currently only ON &
  * RET are supported.
  */
-int omap_set_pwrdm_state(struct powerdomain *pwrdm, u32 state)
+int omap_set_pwrdm_state(struct powerdomain *pwrdm, u32 pwrst)
 {
-	u32 cur_state;
-	int sleep_switch = -1;
-	int ret = 0;
-	int hwsup = 0;
+	u8 curr_pwrst, next_pwrst;
+	int sleep_switch = -1, ret = 0, hwsup = 0;
 
-	if (pwrdm == NULL || IS_ERR(pwrdm))
+	if (!pwrdm || IS_ERR(pwrdm))
 		return -EINVAL;
 
-	while (!(pwrdm->pwrsts & (1 << state))) {
-		if (state == PWRDM_POWER_OFF)
+	while (!(pwrdm->pwrsts & (1 << pwrst))) {
+		if (pwrst == PWRDM_POWER_OFF)
 			return ret;
-		state--;
+		pwrst--;
 	}
 
-	cur_state = pwrdm_read_next_pwrst(pwrdm);
-	if (cur_state == state)
+	next_pwrst = pwrdm_read_next_pwrst(pwrdm);
+	if (next_pwrst == pwrst)
 		return ret;
 
-	if (pwrdm_read_pwrst(pwrdm) < PWRDM_POWER_ON) {
-		if ((pwrdm_read_pwrst(pwrdm) > state) &&
+	curr_pwrst = pwrdm_read_pwrst(pwrdm);
+	if (curr_pwrst < PWRDM_POWER_ON) {
+		if ((curr_pwrst > pwrst) &&
 			(pwrdm->flags & PWRDM_HAS_LOWPOWERSTATECHANGE)) {
 			sleep_switch = LOWPOWERSTATE_SWITCH;
 		} else {
@@ -103,12 +102,10 @@ int omap_set_pwrdm_state(struct powerdomain *pwrdm, u32 state)
 		}
 	}
 
-	ret = pwrdm_set_next_pwrst(pwrdm, state);
-	if (ret) {
-		pr_err("%s: unable to set state of powerdomain: %s\n",
+	ret = pwrdm_set_next_pwrst(pwrdm, pwrst);
+	if (ret)
+		pr_err("%s: unable to set power state of powerdomain: %s\n",
 		       __func__, pwrdm->name);
-		goto err;
-	}
 
 	switch (sleep_switch) {
 	case FORCEWAKEUP_SWITCH:
@@ -119,13 +116,11 @@ int omap_set_pwrdm_state(struct powerdomain *pwrdm, u32 state)
 		break;
 	case LOWPOWERSTATE_SWITCH:
 		pwrdm_set_lowpwrstchange(pwrdm);
+		pwrdm_wait_transition(pwrdm);
+		pwrdm_state_switch(pwrdm);
 		break;
-	default:
-		return ret;
 	}
 
-	pwrdm_state_switch(pwrdm);
-err:
 	return ret;
 }
 
