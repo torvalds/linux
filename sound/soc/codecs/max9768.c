@@ -115,7 +115,7 @@ static const struct snd_kcontrol_new max9768_volume[] = {
 };
 
 static const struct snd_kcontrol_new max9768_mute[] = {
-	SOC_SINGLE_BOOL_EXT("Mute Switch", 0, max9768_get_gpio, max9768_set_gpio),
+	SOC_SINGLE_BOOL_EXT("Playback Switch", 0, max9768_get_gpio, max9768_set_gpio),
 };
 
 static int max9768_probe(struct snd_soc_codec *codec)
@@ -150,18 +150,12 @@ static struct snd_soc_codec_driver max9768_codec_driver = {
 	.num_controls = ARRAY_SIZE(max9768_volume),
 };
 
-static bool max9768_always_false(struct device *dev, unsigned int reg)
-{
-	return false;
-}
-
 static const struct regmap_config max9768_i2c_regmap_config = {
 	.reg_bits = 2,
 	.val_bits = 6,
 	.max_register = 3,
 	.reg_defaults = max9768_default_regs,
 	.num_reg_defaults = ARRAY_SIZE(max9768_default_regs),
-	.volatile_reg = max9768_always_false,
 	.cache_type = REGCACHE_RBTREE,
 };
 
