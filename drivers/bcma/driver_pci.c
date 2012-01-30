@@ -17,7 +17,7 @@
  * R/W ops.
  **************************************************/
 
-static u32 bcma_pcie_read(struct bcma_drv_pci *pc, u32 address)
+u32 bcma_pcie_read(struct bcma_drv_pci *pc, u32 address)
 {
 	pcicore_write32(pc, BCMA_CORE_PCI_PCIEIND_ADDR, address);
 	pcicore_read32(pc, BCMA_CORE_PCI_PCIEIND_ADDR);
