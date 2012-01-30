@@ -127,6 +127,14 @@ struct regmap *regmap_init_i2c(struct i2c_client *i2c,
 struct regmap *regmap_init_spi(struct spi_device *dev,
 			       const struct regmap_config *config);
 
+struct regmap *devm_regmap_init(struct device *dev,
+				const struct regmap_bus *bus,
+				const struct regmap_config *config);
+struct regmap *devm_regmap_init_i2c(struct i2c_client *i2c,
+				    const struct regmap_config *config);
+struct regmap *devm_regmap_init_spi(struct spi_device *dev,
+				    const struct regmap_config *config);
+
 void regmap_exit(struct regmap *map);
 int regmap_reinit_cache(struct regmap *map,
 			const struct regmap_config *config);
