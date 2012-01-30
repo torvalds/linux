@@ -1694,6 +1694,7 @@ static unsigned long calc_fclk(enum omap_channel channel, u16 width,
 		u16 height, u16 out_width, u16 out_height)
 {
 	unsigned int hf, vf;
+	unsigned long pclk = dispc_mgr_pclk_rate(channel);
 
 	/*
 	 * FIXME how to determine the 'A' factor
@@ -1716,13 +1717,16 @@ static unsigned long calc_fclk(enum omap_channel channel, u16 width,
 
 	if (cpu_is_omap24xx()) {
 		if (vf > 1 && hf > 1)
-			return dispc_mgr_pclk_rate(channel) * 4;
+			return pclk * 4;
 		else
-			return dispc_mgr_pclk_rate(channel) * 2;
+			return pclk * 2;
 	} else if (cpu_is_omap34xx()) {
-		return dispc_mgr_pclk_rate(channel) * vf * hf;
+		return pclk * vf * hf;
 	} else {
-		return dispc_mgr_pclk_rate(channel) * hf;
+		if (hf > 1)
+			return DIV_ROUND_UP(pclk, out_width) * width;
+		else
+			return pclk;
 	}
 }
 
