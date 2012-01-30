@@ -200,6 +200,9 @@ OPTIONS
 	It currently includes: cpu and numa topology of the host system.
 	It can only be used with the perf script report mode.
 
+--show-kernel-path::
+	Try to resolve the path of [kernel.kallsyms]
+
 SEE ALSO
 --------
 linkperf:perf-record[1], linkperf:perf-script-perl[1],
