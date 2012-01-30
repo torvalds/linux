@@ -2676,3 +2676,12 @@ int o2hb_global_heartbeat_active(void)
 	return (o2hb_heartbeat_mode == O2HB_HEARTBEAT_GLOBAL);
 }
 EXPORT_SYMBOL(o2hb_global_heartbeat_active);
+
+#ifdef CONFIG_RAMSTER
+void o2hb_manual_set_node_heartbeating(int node_num)
+{
+	if (node_num < O2NM_MAX_NODES)
+		set_bit(node_num, o2hb_live_node_bitmap);
+}
+EXPORT_SYMBOL(o2hb_manual_set_node_heartbeating);
+#endif

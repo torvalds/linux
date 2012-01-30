@@ -108,6 +108,12 @@ void o2net_unregister_handler_list(struct list_head *list);
 
 void o2net_fill_node_map(unsigned long *map, unsigned bytes);
 
+#ifdef CONFIG_RAMSTER
+void o2net_force_data_magic(struct o2net_msg *, u16, u32);
+void o2net_hb_node_up_manual(int);
+struct o2net_node *o2net_nn_from_num(u8);
+#endif
+
 struct o2nm_node;
 int o2net_register_hb_callbacks(void);
 void o2net_unregister_hb_callbacks(void);

@@ -85,5 +85,8 @@ int o2hb_check_local_node_heartbeating(void);
 void o2hb_stop_all_regions(void);
 int o2hb_get_all_regions(char *region_uuids, u8 numregions);
 int o2hb_global_heartbeat_active(void);
+#ifdef CONFIG_RAMSTER
+void o2hb_manual_set_node_heartbeating(int);
+#endif
 
 #endif /* O2CLUSTER_HEARTBEAT_H */

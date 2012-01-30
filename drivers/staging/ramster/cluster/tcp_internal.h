@@ -26,6 +26,13 @@
 #define O2NET_MSG_STATUS_MAGIC    ((u16)0xfa56)
 #define O2NET_MSG_KEEP_REQ_MAGIC  ((u16)0xfa57)
 #define O2NET_MSG_KEEP_RESP_MAGIC ((u16)0xfa58)
+#ifdef CONFIG_RAMSTER
+/*
+ * "data magic" is a long version of "status magic" where the message
+ * payload actually contains data to be passed in reply to certain messages
+ */
+#define O2NET_MSG_DATA_MAGIC      ((u16)0xfa59)
+#endif
 
 /* we're delaying our quorum decision so that heartbeat will have timed
  * out truly dead nodes by the time we come around to making decisions
