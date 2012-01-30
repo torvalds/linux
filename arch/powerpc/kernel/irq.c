@@ -93,10 +93,6 @@ extern int tau_interrupts(int);
 
 #ifdef CONFIG_PPC64
 
-#ifndef CONFIG_SPARSE_IRQ
-EXPORT_SYMBOL(irq_desc);
-#endif
-
 int distribute_irqs = 1;
 
 static inline notrace unsigned long get_hard_enabled(void)
