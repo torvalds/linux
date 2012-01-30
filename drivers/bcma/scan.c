@@ -212,6 +212,17 @@ static struct bcma_device *bcma_find_core_by_index(struct bcma_bus *bus,
 	return NULL;
 }
 
+static struct bcma_device *bcma_find_core_reverse(struct bcma_bus *bus, u16 coreid)
+{
+	struct bcma_device *core;
+
+	list_for_each_entry_reverse(core, &bus->cores, list) {
+		if (core->id.id == coreid)
+			return core;
+	}
+	return NULL;
+}
+
 static int bcma_get_next_core(struct bcma_bus *bus, u32 __iomem **eromptr,
 			      struct bcma_device_id *match, int core_num,
 			      struct bcma_device *core)
@@ -392,6 +403,7 @@ int bcma_bus_scan(struct bcma_bus *bus)
 	bcma_scan_switch_core(bus, erombase);
 
 	while (eromptr < eromend) {
+		struct bcma_device *other_core;
 		struct bcma_device *core = kzalloc(sizeof(*core), GFP_KERNEL);
 		if (!core)
 			return -ENOMEM;
@@ -411,6 +423,8 @@ int bcma_bus_scan(struct bcma_bus *bus)
 
 		core->core_index = core_num++;
 		bus->nr_cores++;
+		other_core = bcma_find_core_reverse(bus, core->id.id);
+		core->core_unit = (other_core == NULL) ? 0 : other_core->core_unit + 1;
 
 		pr_info("Core %d found: %s "
 			"(manuf 0x%03X, id 0x%03X, rev 0x%02X, class 0x%X)\n",

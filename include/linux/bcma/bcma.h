@@ -136,6 +136,7 @@ struct bcma_device {
 	bool dev_registered;
 
 	u8 core_index;
+	u8 core_unit;
 
 	u32 addr;
 	u32 wrap;
