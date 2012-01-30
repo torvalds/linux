@@ -373,7 +373,7 @@ struct hci_conn *hci_conn_add(struct hci_dev *hdev, int type, bdaddr_t *dst)
 
 	BT_DBG("%s dst %s", hdev->name, batostr(dst));
 
-	conn = kzalloc(sizeof(struct hci_conn), GFP_ATOMIC);
+	conn = kzalloc(sizeof(struct hci_conn), GFP_KERNEL);
 	if (!conn)
 		return NULL;
 
