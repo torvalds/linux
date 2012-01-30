@@ -10,7 +10,6 @@
 
 #include <linux/bitops.h>
 #include <linux/module.h>
-#undef DEBUG /* <linux/mtd/mtd.h> has its own use for DEBUG */
 #include <linux/mtd/mtd.h>
 #include <linux/delay.h>
 #include <linux/slab.h>
