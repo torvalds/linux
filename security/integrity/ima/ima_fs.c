@@ -367,6 +367,7 @@ int __init ima_fs_init(void)
 
 	return 0;
 out:
+	securityfs_remove(violations);
 	securityfs_remove(runtime_measurements_count);
 	securityfs_remove(ascii_runtime_measurements);
 	securityfs_remove(binary_runtime_measurements);
