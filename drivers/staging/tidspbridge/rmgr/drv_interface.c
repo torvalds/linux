@@ -428,7 +428,7 @@ func_cont:
 }
 
 #ifdef CONFIG_PM
-static int BRIDGE_SUSPEND(struct platform_device *pdev, pm_message_t state)
+static int bridge_suspend(struct platform_device *pdev, pm_message_t state)
 {
 	u32 status;
 	u32 command = PWR_EMERGENCYDEEPSLEEP;
@@ -441,7 +441,7 @@ static int BRIDGE_SUSPEND(struct platform_device *pdev, pm_message_t state)
 	return 0;
 }
 
-static int BRIDGE_RESUME(struct platform_device *pdev)
+static int bridge_resume(struct platform_device *pdev)
 {
 	u32 status;
 
@@ -453,9 +453,6 @@ static int BRIDGE_RESUME(struct platform_device *pdev)
 	wake_up(&bridge_suspend_data.suspend_wq);
 	return 0;
 }
-#else
-#define BRIDGE_SUSPEND NULL
-#define BRIDGE_RESUME NULL
 #endif
 
 static struct platform_driver bridge_driver = {
@@ -464,8 +461,10 @@ static struct platform_driver bridge_driver = {
 		   },
 	.probe = omap34_xx_bridge_probe,
 	.remove = __devexit_p(omap34_xx_bridge_remove),
-	.suspend = BRIDGE_SUSPEND,
-	.resume = BRIDGE_RESUME,
+#ifdef CONFIG_PM
+	.suspend = bridge_suspend,
+	.resume = bridge_resume,
+#endif
 };
 
 static int __init bridge_init(void)
