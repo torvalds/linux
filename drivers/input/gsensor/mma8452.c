@@ -390,9 +390,8 @@ static int mma8452_get_data(struct i2c_client *client)
 
 	if(pdata->swap_xy)
 	{
-                axis.x = -x;
-                axis.y = z;
-                axis.z = -y;
+             axis.x = -axis.x;
+             swap(axis.x,axis.y); 
 	}
 	
     mmaprintkd( "%s: ------------------mma8452_GetData axis = %d  %d  %d--------------\n",
