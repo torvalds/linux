@@ -1645,7 +1645,7 @@ static void rt2800_config_channel_rf3xxx(struct rt2x00_dev *rt2x00dev,
 					 struct rf_channel *rf,
 					 struct channel_info *info)
 {
-	u8 rfcsr;
+	u8 rfcsr, calib_tx, calib_rx;
 
 	rt2800_rfcsr_write(rt2x00dev, 2, rf->rf1);
 
@@ -1710,8 +1710,21 @@ static void rt2800_config_channel_rf3xxx(struct rt2x00_dev *rt2x00dev,
 	rt2x00_set_field8(&rfcsr, RFCSR23_FREQ_OFFSET, rt2x00dev->freq_offset);
 	rt2800_rfcsr_write(rt2x00dev, 23, rfcsr);
 
-	rt2800_rfcsr_write(rt2x00dev, 24,
-			      rt2x00dev->calibration[conf_is_ht40(conf)]);
+	if (rt2x00_rt(rt2x00dev, RT3390)) {
+		calib_tx = conf_is_ht40(conf) ? 0x68 : 0x4f;
+		calib_rx = conf_is_ht40(conf) ? 0x6f : 0x4f;
+	} else {
+		calib_tx = rt2x00dev->calibration[conf_is_ht40(conf)];
+		calib_rx = rt2x00dev->calibration[conf_is_ht40(conf)];
+	}
+
+	rt2800_rfcsr_read(rt2x00dev, 24, &rfcsr);
+	rt2x00_set_field8(&rfcsr, RFCSR24_TX_CALIB, calib_tx);
+	rt2800_rfcsr_write(rt2x00dev, 24, rfcsr);
+
+	rt2800_rfcsr_read(rt2x00dev, 31, &rfcsr);
+	rt2x00_set_field8(&rfcsr, RFCSR31_RX_CALIB, calib_rx);
+	rt2800_rfcsr_write(rt2x00dev, 31, rfcsr);
 
 	rt2800_rfcsr_read(rt2x00dev, 7, &rfcsr);
 	rt2x00_set_field8(&rfcsr, RFCSR7_RF_TUNING, 1);

@@ -1872,6 +1872,13 @@ struct mac_iveiv_entry {
 #define RFCSR23_FREQ_OFFSET		FIELD8(0x7f)
 
 /*
+ * RFCSR 24:
+ */
+#define RFCSR24_TX_AGC_FC		FIELD8(0x1f)
+#define RFCSR24_TX_H20M			FIELD8(0x20)
+#define RFCSR24_TX_CALIB		FIELD8(0x7f)
+
+/*
  * RFCSR 27:
  */
 #define RFCSR27_R1			FIELD8(0x03)
@@ -1892,6 +1899,7 @@ struct mac_iveiv_entry {
  */
 #define RFCSR31_RX_AGC_FC		FIELD8(0x1f)
 #define RFCSR31_RX_H20M			FIELD8(0x20)
+#define RFCSR31_RX_CALIB		FIELD8(0x7f)
 
 /*
  * RFCSR 38:
