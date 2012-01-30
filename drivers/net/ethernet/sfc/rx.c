@@ -98,7 +98,7 @@ static inline unsigned int efx_rx_buf_offset(struct efx_nic *efx,
 	/* Offset is always within one page, so we don't need to consider
 	 * the page order.
 	 */
-	return ((__force unsigned long) buf->dma_addr & (PAGE_SIZE - 1)) +
+	return ((unsigned int) buf->dma_addr & (PAGE_SIZE - 1)) +
 		efx->type->rx_buffer_hash_size;
 }
 static inline unsigned int efx_rx_buf_size(struct efx_nic *efx)
