@@ -13,7 +13,7 @@
 struct bcma_bus;
 
 /* main.c */
-int bcma_bus_register(struct bcma_bus *bus);
+int __devinit bcma_bus_register(struct bcma_bus *bus);
 void bcma_bus_unregister(struct bcma_bus *bus);
 int __init bcma_bus_early_register(struct bcma_bus *bus,
 				   struct bcma_device *core_cc,
@@ -52,7 +52,7 @@ extern void __exit bcma_host_pci_exit(void);
 u32 bcma_pcie_read(struct bcma_drv_pci *pc, u32 address);
 
 #ifdef CONFIG_BCMA_DRIVER_PCI_HOSTMODE
-void bcma_core_pci_hostmode_init(struct bcma_drv_pci *pc);
+void __devinit bcma_core_pci_hostmode_init(struct bcma_drv_pci *pc);
 #endif /* CONFIG_BCMA_DRIVER_PCI_HOSTMODE */
 
 #endif

@@ -132,7 +132,7 @@ static void bcma_unregister_cores(struct bcma_bus *bus)
 	}
 }
 
-int bcma_bus_register(struct bcma_bus *bus)
+int __devinit bcma_bus_register(struct bcma_bus *bus)
 {
 	int err;
 	struct bcma_device *core;

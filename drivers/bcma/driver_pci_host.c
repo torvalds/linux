@@ -8,7 +8,7 @@
 #include "bcma_private.h"
 #include <linux/bcma/bcma.h>
 
-void bcma_core_pci_hostmode_init(struct bcma_drv_pci *pc)
+void __devinit bcma_core_pci_hostmode_init(struct bcma_drv_pci *pc)
 {
 	pr_err("No support for PCI core in hostmode yet\n");
 }

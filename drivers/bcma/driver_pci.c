@@ -174,12 +174,12 @@ static void bcma_pcicore_serdes_workaround(struct bcma_drv_pci *pc)
  * Init.
  **************************************************/
 
-static void bcma_core_pci_clientmode_init(struct bcma_drv_pci *pc)
+static void __devinit bcma_core_pci_clientmode_init(struct bcma_drv_pci *pc)
 {
 	bcma_pcicore_serdes_workaround(pc);
 }
 
-static bool bcma_core_pci_is_in_hostmode(struct bcma_drv_pci *pc)
+static bool __devinit bcma_core_pci_is_in_hostmode(struct bcma_drv_pci *pc)
 {
 	struct bcma_bus *bus = pc->core->bus;
 	u16 chipid_top;
@@ -204,7 +204,7 @@ static bool bcma_core_pci_is_in_hostmode(struct bcma_drv_pci *pc)
 	return true;
 }
 
-void bcma_core_pci_init(struct bcma_drv_pci *pc)
+void __devinit bcma_core_pci_init(struct bcma_drv_pci *pc)
 {
 	if (pc->setup_done)
 		return;
