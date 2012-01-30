@@ -223,6 +223,13 @@ int clk_set_rate(struct clk *clk, unsigned long rate)
 }
 EXPORT_SYMBOL(clk_set_rate);
 
+int clk_set_parent(struct clk *clk, struct clk *parent)
+{
+	/*TODO*/
+	return -ENOSYS;
+}
+EXPORT_SYMBOL(clk_set_parent);
+
 static void clk_prcmu_enable(struct clk *clk)
 {
 	void __iomem *cg_set_reg = __io_address(U8500_PRCMU_BASE)
