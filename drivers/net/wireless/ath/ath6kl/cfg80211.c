@@ -1916,7 +1916,7 @@ static int ath6kl_wow_suspend(struct ath6kl *ar, struct cfg80211_wowlan *wow)
 		return -EIO;
 
 	if (!test_bit(CONNECTED, &vif->flags))
-		return -EINVAL;
+		return -ENOTCONN;
 
 	if (wow && (wow->n_patterns > WOW_MAX_FILTERS_PER_LIST))
 		return -EINVAL;
