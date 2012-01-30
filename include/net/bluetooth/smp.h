@@ -127,7 +127,7 @@ struct smp_chan {
 	u8              rrnd[16]; /* SMP Pairing Random (remote) */
 	u8		pcnf[16]; /* SMP Pairing Confirm */
 	u8		tk[16]; /* SMP Temporary Key */
-	u8		smp_key_size;
+	u8		enc_key_size;
 	unsigned long	smp_flags;
 	struct crypto_blkcipher	*tfm;
 	struct work_struct confirm;

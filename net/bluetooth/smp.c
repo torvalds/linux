@@ -250,7 +250,7 @@ static u8 check_enc_key_size(struct l2cap_conn *conn, __u8 max_key_size)
 			(max_key_size < SMP_MIN_ENC_KEY_SIZE))
 		return SMP_ENC_KEY_SIZE;
 
-	smp->smp_key_size = max_key_size;
+	smp->enc_key_size = max_key_size;
 
 	return 0;
 }
@@ -446,8 +446,8 @@ static void random_work(struct work_struct *work)
 		smp_s1(tfm, smp->tk, smp->rrnd, smp->prnd, key);
 		swap128(key, stk);
 
-		memset(stk + smp->smp_key_size, 0,
-				SMP_MAX_ENC_KEY_SIZE - smp->smp_key_size);
+		memset(stk + smp->enc_key_size, 0,
+				SMP_MAX_ENC_KEY_SIZE - smp->enc_key_size);
 
 		if (test_and_set_bit(HCI_CONN_ENCRYPT_PEND, &hcon->flags)) {
 			reason = SMP_UNSPECIFIED;
@@ -455,7 +455,7 @@ static void random_work(struct work_struct *work)
 		}
 
 		hci_le_start_enc(hcon, ediv, rand, stk);
-		hcon->enc_key_size = smp->smp_key_size;
+		hcon->enc_key_size = smp->enc_key_size;
 	} else {
 		u8 stk[16], r[16], rand[8];
 		__le16 ediv;
@@ -469,10 +469,10 @@ static void random_work(struct work_struct *work)
 		smp_s1(tfm, smp->tk, smp->prnd, smp->rrnd, key);
 		swap128(key, stk);
 
-		memset(stk + smp->smp_key_size, 0,
-				SMP_MAX_ENC_KEY_SIZE - smp->smp_key_size);
+		memset(stk + smp->enc_key_size, 0,
+				SMP_MAX_ENC_KEY_SIZE - smp->enc_key_size);
 
-		hci_add_ltk(hcon->hdev, 0, conn->dst, smp->smp_key_size,
+		hci_add_ltk(hcon->hdev, 0, conn->dst, smp->enc_key_size,
 							ediv, rand, stk);
 	}
 
@@ -819,7 +819,7 @@ static int smp_cmd_master_ident(struct l2cap_conn *conn, struct sk_buff *skb)
 
 	skb_pull(skb, sizeof(*rp));
 
-	hci_add_ltk(conn->hcon->hdev, 1, conn->dst, smp->smp_key_size,
+	hci_add_ltk(conn->hcon->hdev, 1, conn->dst, smp->enc_key_size,
 						rp->ediv, rp->rand, smp->tk);
 
 	smp_distribute_keys(conn, 1);
@@ -940,7 +940,7 @@ int smp_distribute_keys(struct l2cap_conn *conn, __u8 force)
 
 		smp_send_cmd(conn, SMP_CMD_ENCRYPT_INFO, sizeof(enc), &enc);
 
-		hci_add_ltk(conn->hcon->hdev, 1, conn->dst, smp->smp_key_size,
+		hci_add_ltk(conn->hcon->hdev, 1, conn->dst, smp->enc_key_size,
 						ediv, ident.rand, enc.ltk);
 
 		ident.ediv = cpu_to_le16(ediv);
