@@ -945,7 +945,7 @@ struct hci_chan *hci_chan_create(struct hci_conn *conn)
 
 	BT_DBG("%s conn %p", hdev->name, conn);
 
-	chan = kzalloc(sizeof(struct hci_chan), GFP_ATOMIC);
+	chan = kzalloc(sizeof(struct hci_chan), GFP_KERNEL);
 	if (!chan)
 		return NULL;
 
