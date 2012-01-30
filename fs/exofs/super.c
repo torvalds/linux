@@ -529,7 +529,8 @@ static int exofs_devs_2_odi(struct exofs_dt_device_info *dt_dev,
 			     struct osd_dev_info *odi)
 {
 	odi->systemid_len = le32_to_cpu(dt_dev->systemid_len);
-	memcpy(odi->systemid, dt_dev->systemid, odi->systemid_len);
+	if (likely(odi->systemid_len))
+		memcpy(odi->systemid, dt_dev->systemid, OSD_SYSTEMID_LEN);
 
 	odi->osdname_len = le32_to_cpu(dt_dev->osdname_len);
 	odi->osdname = dt_dev->osdname;
