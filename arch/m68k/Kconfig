@@ -7,6 +7,7 @@ config M68K
 	select GENERIC_IRQ_SHOW
 	select ARCH_HAVE_NMI_SAFE_CMPXCHG if RMW_INSNS
 	select GENERIC_CPU_DEVICES
+	select FPU if MMU
 
 config RWSEM_GENERIC_SPINLOCK
 	bool
@@ -62,6 +63,9 @@ config CPU_HAS_NO_MULDIV64
 	bool
 
 config CPU_HAS_ADDRESS_SPACES
+	bool
+
+config FPU
 	bool
 
 config HZ
