@@ -1796,6 +1796,11 @@ struct mac_iveiv_entry {
 #define RFCSR2_RESCAL_EN		FIELD8(0x80)
 
 /*
+ * RFCSR 3:
+ */
+#define RFCSR3_K			FIELD8(0x0f)
+
+/*
  * FRCSR 5:
  */
 #define RFCSR5_R1			FIELD8(0x0c)
