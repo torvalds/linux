@@ -445,11 +445,11 @@ void *ion_map_kernel(struct ion_client *client, struct ion_handle *handle)
 	return vaddr;
 }
 
-struct scatterlist *ion_map_dma(struct ion_client *client,
+struct sg_table *ion_map_dma(struct ion_client *client,
 				struct ion_handle *handle)
 {
 	struct ion_buffer *buffer;
-	struct scatterlist *sglist;
+	struct sg_table *table;
 
 	mutex_lock(&client->lock);
 	if (!ion_handle_validate(client, handle)) {
@@ -469,16 +469,16 @@ struct scatterlist *ion_map_dma(struct ion_client *client,
 		return ERR_PTR(-ENODEV);
 	}
 	if (_ion_map(&buffer->dmap_cnt, &handle->dmap_cnt)) {
-		sglist = buffer->heap->ops->map_dma(buffer->heap, buffer);
-		if (IS_ERR_OR_NULL(sglist))
+		table = buffer->heap->ops->map_dma(buffer->heap, buffer);
+		if (IS_ERR_OR_NULL(table))
 			_ion_unmap(&buffer->dmap_cnt, &handle->dmap_cnt);
-		buffer->sglist = sglist;
+		buffer->sg_table = table;
 	} else {
-		sglist = buffer->sglist;
+		table = buffer->sg_table;
 	}
 	mutex_unlock(&buffer->lock);
 	mutex_unlock(&client->lock);
-	return sglist;
+	return table;
 }
 
 void ion_unmap_kernel(struct ion_client *client, struct ion_handle *handle)
@@ -505,7 +505,7 @@ void ion_unmap_dma(struct ion_client *client, struct ion_handle *handle)
 	mutex_lock(&buffer->lock);
 	if (_ion_unmap(&buffer->dmap_cnt, &handle->dmap_cnt)) {
 		buffer->heap->ops->unmap_dma(buffer->heap, buffer);
-		buffer->sglist = NULL;
+		buffer->sg_table = NULL;
 	}
 	mutex_unlock(&buffer->lock);
 	mutex_unlock(&client->lock);
