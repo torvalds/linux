@@ -1116,7 +1116,8 @@ config VIDEO_ATMEL_ISI
 
 config VIDEO_S5P_MIPI_CSIS
 	tristate "Samsung S5P and EXYNOS4 MIPI CSI receiver driver"
-	depends on VIDEO_V4L2 && PM_RUNTIME && PLAT_S5P && VIDEO_V4L2_SUBDEV_API
+	depends on VIDEO_V4L2 && PM_RUNTIME && PLAT_S5P
+	depends on VIDEO_V4L2_SUBDEV_API && REGULATOR
 	---help---
 	  This is a v4l2 driver for Samsung S5P/EXYNOS4 MIPI-CSI receiver.
 
