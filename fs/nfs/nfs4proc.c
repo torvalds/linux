@@ -2512,7 +2512,7 @@ static int _nfs4_proc_access(struct inode *inode, struct nfs_access_entry *entry
 	struct nfs_server *server = NFS_SERVER(inode);
 	struct nfs4_accessargs args = {
 		.fh = NFS_FH(inode),
-		.bitmask = server->attr_bitmask,
+		.bitmask = server->cache_consistency_bitmask,
 	};
 	struct nfs4_accessres res = {
 		.server = server,
